@@ -133,9 +133,6 @@ export interface MeasuredWorldOptions extends SettingOptions {
   particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[]
   /** Bounced light. On by default; `false` turns it off for the whole session. */
   bounce?: boolean
-  /** Probes the bounce traces a frame, those never traced first: a whole count from 1 to the queue's
-   *  (`BOUNCE_PROBE_QUEUE`), `BOUNCE_SETTINGS.probesPerFrame` by default; a slow device lowers it. */
-  bounceProbesPerFrame?: number
   /** Time every step of the frame and publish `explorer.stageProfile()`. Off by default. */
   stageProfile?: boolean
   /** Opt-in same-session GPU feedback-target A/B diagnostic; never enabled by production. */

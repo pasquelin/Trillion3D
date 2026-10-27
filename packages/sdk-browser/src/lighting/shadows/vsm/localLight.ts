@@ -3,6 +3,7 @@ import {
   VSM_MIPS,
   VSM_MAP_COARSE,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
+  VSM_MAP_DISTANT,
   VSM_MAP_UNCACHED,
   VSM_MAP_COVERAGE,
   VSM_LEVEL0_TEXELS,
@@ -11,7 +12,8 @@ import {
 import { vsmShadowMatrices } from './projection/projectionData.ts'
 import {
   VSM_DEFAULT_MAPS,
-  vsmLightMobility,
+  vsmLightPose,
+  vsmMobilityAt,
   vsmLocalBias,
   type VsmMapSettings,
 } from './mapSettings.ts'
@@ -24,8 +26,13 @@ import {
 } from './localFaces.ts'
 import { vsmDistantOf } from './distantLights.ts'
 import type { VsmCacheManager } from './cacheManager.ts'
-import type { VsmLightCache } from './lightCache.ts'
-import type { VsmCameraInput, VsmViewport } from './clipmap.ts'
+import {
+  LOCAL_SHAPE_AT,
+  LOCAL_SHAPE_WORDS,
+  type VsmLightCache,
+  type VsmLocalShape,
+} from './lightCache.ts'
+import { VSM_LIGHT_SHADOW, type VsmCameraInput, type VsmViewport } from './clipmap.ts'
 import { transformPointRow } from '../../../../../math/src/vector/vector.ts'
 
 /** What every local light's setup reads (metres, world). */
@@ -38,11 +45,13 @@ interface VsmLocalLightCommon {
   range: number
   /** The radius, metres, of a point or spot's source (`emitterRadius`); default 0, a rectangle's too. */
   sourceRadius?: number
-  /** Whether the light is `movable`: only a movable light takes the moving bias (`vsmLightMobility`);
+  /** The soft radius and the length of the source (`emitterSoftRadius`, `emitterLength`): default 0.
+   *  The maps are cut by neither, and a change of either remakes the light's entry all the same. */
+  softSourceRadius?: number
+  sourceLength?: number
+  /** Whether the light is `movable`: only a movable light takes the moving bias (`vsmMobilityAt`);
    *  a static or stationary light never moves, so its maps rest at the still bias from its first frame. */
   movable?: boolean
-  levelBias?: number
-  ditherTexels?: number
 }
 
 /** A point light, a spot or a rectangle as the setup reads it: each kind holds what its maps are
@@ -56,6 +65,8 @@ export type VsmLocalLightInput =
       direction: ArrayLike<number>
       /** The outer cone half-angle, radians. */
       outerCone: number
+      /** The inner cone half-angle, radians, as declared; default 0. The map is not cut by it. */
+      innerCone?: number
     })
   | (VsmLocalLightCommon & {
       kind: 'rect'
@@ -138,15 +149,18 @@ function finestMipNeeded(
   return finestMip
 }
 
-// The frame's scratch: what a light computes before its cache entry is known (the entry copies
-// its key when it changes), and its maps' rendering matrices, copied into each map's own record.
+// The frame's scratch: what a light computes before its cache entry is known (the light's record
+// copies its pose when it changes), and its maps' rendering matrices, copied into each map's own record.
 const direction: [number, number, number] = [0, 0, 0],
-  preShadow: [number, number, number] = [0, 0, 0],
-  shape: [number, number, number, number] = [0, 0, 0, 0],
-  worldToLight = new Float64Array(16),
-  localKey = { worldToLight, lightOriginShift: preShadow, shape },
   spotView = new Float64Array(16),
   viewToClip = new Float64Array(16)
+
+/** The pose a light's record compares (`vsmLightPose`): the rotation, the position and the shape, one
+ *  array the scratch below are slices of. */
+const pose = new Float64Array(16 + 3 + LOCAL_SHAPE_WORDS)
+const worldToLight = pose.subarray(0, 16),
+  preShadow = pose.subarray(16, 19),
+  shape: VsmLocalShape = pose.subarray(19)
 
 /** The light's rotation and its maps' projection into the scratch, and the outer cone of a spot's
  *  map (0 for the cube of a point light or a rectangle). */
@@ -167,6 +181,7 @@ function localFlags(entry: VsmLightCache, marks: number, distant: boolean) {
   let flags = entry.isUncached ? VSM_MAP_UNCACHED : 0
   flags |= entry.useCover ? VSM_MAP_COVERAGE : 0
   flags |= marks === 0 && !distant ? 0 : VSM_MAP_COARSE
+  flags |= distant ? VSM_MAP_DISTANT : 0
   return flags | (marks === 2 ? VSM_MAP_COARSE_KEEPS_DYNAMIC : 0)
 }
 
@@ -204,7 +219,7 @@ function writeMapRecords(entry: VsmLightCache, light: VsmLocalLightInput, fields
     data.lightKind = LIGHT_KIND[light.kind]
     data.emitterSize = light.sourceRadius ?? 0
     data.lightRange = fields.radius
-    data.ditherTexels = light.ditherTexels ?? 1
+    data.ditherTexels = VSM_LIGHT_SHADOW.ditherTexels
     data.levelBias = fields.levelBias
     data.flags = fields.flags
     data.finestMip = fields.finestMip
@@ -232,20 +247,24 @@ export function addVsmLocalLightShadow(
   const numMaps = vsmMapsOf(light.kind)
   const cacheEntry = cache.lightEntryFor(light.id, numMaps)
 
-  shape[0] = light.kind === 'spot' ? 1 : 0
-  shape[1] = radius
-  shape[2] = outerCone
-  // The light's bias: the view's, coarser while the light moves (`vsmLightMobility`), its own added.
+  shape[LOCAL_SHAPE_AT.type] = light.kind === 'spot' ? 1 : 0
+  shape[LOCAL_SHAPE_AT.range] = radius
+  shape[LOCAL_SHAPE_AT.outerCone] = outerCone
+  shape[LOCAL_SHAPE_AT.innerCone] = light.kind === 'spot' ? (light.innerCone ?? 0) : 0
+  shape[LOCAL_SHAPE_AT.sourceRadius] = light.sourceRadius ?? 0
+  shape[LOCAL_SHAPE_AT.softSourceRadius] = light.softSourceRadius ?? 0
+  shape[LOCAL_SHAPE_AT.sourceLength] = light.sourceLength ?? 0
+  // The light's bias: the view's, coarser while the light moves (`vsmMobilityAt`), its own added.
   const { shadows } = maps
-  const frame = maps.frame ?? cache.frameStamp
-  // Moved: the light's pose changed (a new entry counts), not its shape; read before `updateLocal`
-  // copies the key. Whether it is distant is left as the entry holds it.
-  shape[3] = cacheEntry.distant ? 1 : 0
-  const moved = cacheEntry.localPoseChanged(localKey)
+  const frame = maps.frame
+  // Moving: the light's pose or shape changed since it was last asked, as an updated light is
+  // marked moving, whether or not its cache entry stood in between. The same ask says whether the
+  // entry's pages are stale.
+  const move = vsmLightPose(cache.lightMoves, light.id, pose, frame)
   const mobility = light.movable
-    ? vsmLightMobility(cacheEntry, moved, frame, shadows.shadowLightActiveFrameCount)
+    ? vsmMobilityAt(move, frame, shadows.shadowLightActiveFrameCount)
     : 0
-  const localLevelBias = vsmLocalBias(shadows, mobility, light.levelBias ?? 0)
+  const localLevelBias = vsmLocalBias(shadows, mobility, VSM_LIGHT_SHADOW.levelBias)
   const needed = finestMipNeeded(
     views,
     origin,
@@ -257,14 +276,18 @@ export function addVsmLocalLightShadow(
   )
   const distant = vsmDistantOf(shadows.shadowDistantLightMode, needed)
   const finestMip = distant ? VSM_MIPS - 1 : needed
-  shape[3] = distant ? 1 : 0
   // Drawn uncached each frame: with the cache off, or as `shadowForceInvalidateLocal` names the light
   // (1 the lights that are not distant, 2 all of them).
   const forced = shadows.shadowForceInvalidateLocal
   const uncached = !cache.cacheEnabled || forced === 2 || (forced === 1 && !distant)
-  cacheEntry.updateLocal(localKey, uncached, shadows.shadowUseReceiverMaskLocal)
+  cacheEntry.updateLocal(
+    move.movedAt === frame,
+    distant,
+    uncached,
+    shadows.shadowUseReceiverMaskLocal,
+  )
   // Its turn in the schedule: drawn again, its pages not carried (`VsmMapCache.update`).
-  if (distant && cacheEntry.scheduledFrame === cache.frameStamp) cacheEntry.invalidate()
+  if (distant && cacheEntry.scheduledFrame === frame) cacheEntry.invalidate()
 
   const flags = localFlags(cacheEntry, shadows.shadowMarkCoarsePagesLocal, distant)
   mapFields.radius = radius

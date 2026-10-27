@@ -43,6 +43,9 @@ const KEYS: ContractKey[] = [false, true].flatMap((rectless) =>
     localless,
     lobeless: false,
     contactless: true,
+    channelless: false,
+    profileless: true,
+    cubeless: true,
   })),
 )
 /** The key the tests name: a rectless scene with shadow code. */

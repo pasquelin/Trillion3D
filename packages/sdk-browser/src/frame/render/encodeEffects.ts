@@ -13,8 +13,6 @@ import { readResolveFrame, resolveFrame, webgpuEffects } from './effectsFrame.ts
 import { markFused, settle } from '../../blend/translucency.ts'
 import { composeLateImage } from '../../blend/translucencyCompose.ts'
 import { applyPendingHoldout } from '../../blend/draw.ts'
-import { splitsTranslucency } from '../../blend/translucencyPhase.ts'
-import { measureBeforeTranslucency } from '../../post/taa/frame.ts'
 
 /** The passes of a stage that draw, rewritten by each image: an image allocates none. */
 const drawing: EffectPass[] = []
@@ -93,9 +91,6 @@ export function encodeLitEffects(
 ) {
   const { gpu } = rt
   if (!gpu.hdrView || !gpu.depthView || !effectsShown(rt)) return undefined
-  // The depth of field composes the layers drawn after it: the temporal pass measures the lit image
-  // before they lie on it (`measureBeforeTranslucency`).
-  if (splitsTranslucency(rt)) measureBeforeTranslucency(rt, encoder, gpu.hdrView)
   resolveFrame.layersComposed = false
   const color = drawStage(rt, device, encoder, cam, 'before-resolve', gpu.hdrView, false)
   if (resolveFrame.layersComposed && gpu.translucency) markFused(gpu.translucency)

@@ -1,0 +1,74 @@
+// The raster's cut of a segment to the view, on its CPU twin (`rasterClip.fixture.ts`): the spine is cut
+// once, before any width, so the two triangles of a ribbon take their corners from the same four (the edge
+// they share is then the same numbers in both), and the near plane cuts both long edges where it cuts the
+// spine.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { hairSpineClip, mixClip } from './rasterClip.fixture.ts'
+import { HAIR_RIBBON_CORNERS } from './ribbonWgsl.ts'
+import { rasterWgsl } from './rasterWgsl.ts'
+
+/** A point at a distance of 1 in front of a camera whose near plane is at 0.1 (the depth reversed: `z`
+ *  the near distance, `w` the distance), and one at 0.05, nearer than the near plane. */
+const FRONT = [0.2, -0.1, 0.1, 1]
+const NEARER = [0.01, -0.02, 0.1, 0.05]
+
+test('a segment that crosses the near plane is cut where it crosses it', () => {
+  const [lo, hi] = hairSpineClip(FRONT, NEARER)
+  assert.equal(lo, 0, 'the end in front is kept')
+  // The plane w − z = 0, from 0.9 in front to −0.05 past it.
+  assert.ok(Math.abs(hi - 0.9 / 0.95) < 1e-6, `${hi}`)
+  const cut = mixClip(FRONT, NEARER, hi)
+  assert.ok(Math.abs(cut[3]! - cut[2]!) <= 2 ** -23, `the cut lies on the near plane: ${cut}`)
+})
+
+test('a segment inside is whole, one outside or around a corner of the view holds nothing', () => {
+  assert.deepEqual(hairSpineClip(FRONT, [-0.2, 0.1, 0.1, 2]), [0, 1])
+  // Behind the camera, both ends.
+  const [behindLo, behindHi] = hairSpineClip([0, 0, 0.1, -1], [0.5, 0, 0.1, -2])
+  assert.ok(!(behindLo < behindHi))
+  // Out past the left plane, then past the top one, never inside both.
+  const [aroundLo, aroundHi] = hairSpineClip([-3, 0.5, 0.1, 1], [-0.5, 3, 0.1, 1])
+  assert.ok(!(aroundLo < aroundHi), `${aroundLo} ${aroundHi}`)
+})
+
+test('the cut lands both corners of the near end on the plane, and the triangles share one edge of the four', () => {
+  // The ribbon faces the camera: a control point's two corners share its clip w and z.
+  const left0 = [0.1, -0.2, 0.1, 1],
+    left1 = [0, 0.01, 0.1, 0.05],
+    right0 = [0.15, -0.2, 0.1, 1],
+    right1 = [0.02, 0.01, 0.1, 0.05]
+  const [lo, hi] = hairSpineClip(FRONT, NEARER)
+  // The four corners at the cut, by rank: the tip adds 1, the right side 2 (`cornerRank`).
+  const corners = [
+    mixClip(left0, left1, lo),
+    mixClip(left0, left1, hi),
+    mixClip(right0, right1, lo),
+    mixClip(right0, right1, hi),
+  ]
+  for (const r of [1, 3])
+    assert.ok(Math.abs(corners[r]![3]! - corners[r]![2]!) <= 2 ** -23, `corner ${r} on the plane`)
+  for (const { tips, rights } of Object.values(HAIR_RIBBON_CORNERS)) {
+    const rank = (k: number) => ((tips >> k) & 1) + 2 * ((rights >> k) & 1)
+    const first = [0, 1, 2].map(rank),
+      second = [3, 4, 5].map(rank)
+    const shared = first.filter((r) => second.includes(r))
+    assert.equal(shared.length, 2, 'the triangles share an edge')
+    assert.equal(new Set([...first, ...second]).size, 4, 'and cover the four corners')
+  }
+})
+
+test('the raster cuts each segment once, before the corners, and builds its triangles from them', () => {
+  const code = rasterWgsl(8, true)
+  const kernel = code.slice(code.indexOf('fn hairRaster'))
+  assert.equal(kernel.split('hairSpineClip(').length, 2, 'one cut a segment')
+  assert.ok(
+    kernel.indexOf('hairSpineClip(') < kernel.indexOf('cornerClip('),
+    'the cut before the width',
+  )
+  assert.match(
+    kernel,
+    /fillTriangle\(corners\[cornerRank\(k\)\],corners\[cornerRank\(k\+1u\)\],corners\[cornerRank\(k\+2u\)\],code\)/,
+  )
+  assert.ok(!code.includes('rasterTriangle'), 'no polygon cut of a triangle')
+})

@@ -88,6 +88,21 @@ export const DEFERRED_BINDINGS = {
   /** The shadowed lights of each cell of the light grid (`lightGridWgsl.ts`), the projection's: where the
    *  local lights' mask holds a light's lane (`vsmMaskLaneOf`) — the opaque lit passes'. */
   vsmLightGrid: 67,
+  /** The mask of the shadowed local light a per-light draw lights (`shadowOnePassProjection` false,
+   *  `perLightPassWgsl.ts`), a texel a pixel, and the light's record (`perLightRecord.ts`), a uniform
+   *  read at a dynamic offset. */
+  perLightMask: 68,
+  perLightRecord: 69,
+  /** The light profiles' atlas, a filterable 2D array of half floats, and its sampler
+   *  (`DEFERRED_LIGHT_PROFILE_BINDINGS`): the contract programs' of a scene with a profiled light alone
+   *  (`ContractKey.profileless`). */
+  lightProfileAtlas: 70,
+  lightProfileSampler: 71,
+  /** The ambient cubemap's cube, its sampler and its colour and intensity (`ambientCubemapWgsl.ts`): the indirect pass's when the
+   *  image sets one. */
+  ambientCube: 72,
+  ambientCubeSampler: 73,
+  ambientCubeColour: 74,
 } as const
 
 /** Where the contract programs bind the sky light's resources, in group 0 (`skyLightReadWgsl`). */
@@ -114,6 +129,13 @@ export const DEFERRED_LIGHT_FUNCTION_BINDINGS = {
   group: 0,
   atlas: DEFERRED_BINDINGS.lightFunctionAtlas,
   eye: 'view.display.yzw',
+} as const
+
+/** Where the contract programs bind the light profiles' atlas and its sampler, in group 0 (`lightProfileMultiplierWgsl`). */
+export const DEFERRED_LIGHT_PROFILE_BINDINGS = {
+  group: 0,
+  atlas: DEFERRED_BINDINGS.lightProfileAtlas,
+  sampler: DEFERRED_BINDINGS.lightProfileSampler,
 } as const
 
 /** Where the contract programs bind the fog's resources, in group 0 (`fogResourcesWgsl`). */

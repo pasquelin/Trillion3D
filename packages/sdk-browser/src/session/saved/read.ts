@@ -127,9 +127,8 @@ function wear(o: Object3D, saved: SavedNode) {
   o.scale.fromArray(saved.scale)
   o.visible = saved.visible
   o.castShadow = saved.castShadow
-  o.castFarShadow = saved.castFarShadow ?? false
+  o.castsShadowMaps = saved.castsShadowMaps ?? true
   o.farField = saved.farField ?? false
-  o.farShadowTest = saved.farShadowTest ?? null
   wearOffsets(o, saved)
   o.renderOrder = saved.renderOrder
   o.userData = saved.userData

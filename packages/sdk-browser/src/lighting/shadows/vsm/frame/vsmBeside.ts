@@ -25,6 +25,7 @@ import { ensureMasks, masksGrowth, sharedMaskSize } from './vsmMask.ts'
 import { vsmRenderContextBytes } from '../render/renderPass.ts'
 import { vsmRenderFloorBytes } from '../render/renderLists.ts'
 import { vsmRenderParamSlots } from '../render/renderParams.ts'
+import { vsmViewsLaid } from '../render/renderParamsWgsl.ts'
 import { INITIAL_VISIBLE } from '../../../../geometry/dag/visible/layout.ts'
 import { vsmViewsPerPass } from '../render/renderViewPasses.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
@@ -57,15 +58,18 @@ export function bytesBeside(
   const raster = vsmRenderFloorBytes(
     vsmRenderParamSlots(device.limits),
     views.passes,
-    views.viewWords,
+    views.mostMaps,
     lightCount,
     rt.layout.clusters.candidateCount,
     INITIAL_VISIBLE,
+    vsmViewsLaid(device),
   )
   // The passes' own state a new set makes: its page management, its projection's views and blue
   // noise, the invalidation's first parameters.
   const passes =
-    vsmPmContextBytes(device.limits) + vsmProjectionBytesToMake(undefined) + VSM_CAST_PARAMS_BYTES
+    vsmPmContextBytes(device.limits, readShadowSetting(rt, 'shadowPrefilteredDistant')) +
+    vsmProjectionBytesToMake(undefined) +
+    VSM_CAST_PARAMS_BYTES
   return (
     engineVsmSideBytes(device.limits) +
     passes +

@@ -1,16 +1,16 @@
 import { FLAG_DIAGNOSTIC_VIEW } from '../../visibility/types.ts'
 import { declaredLightingSplitWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
-import { type ContractKey, variantLabel } from '../../lighting/deferred/contractCuts.ts'
-import { TRANSLUCENT_RECT_LIGHTS_DEFAULT, translucentLitKey } from '../shader.ts'
-import { blendSurfaceWgsl } from '../shaderSurface.ts'
-import { blendGraphs, depthOf, layerOf } from '../graphWgsl.ts'
-import type { SurfaceProgram } from '../../materials/graph/surfaceProgram.ts'
+import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
+import { DEFAULT_TRANSLUCENT_SCENE, translucentLitKey, type TranslucentScene } from '../shader.ts'
 import {
-  NO_VERTEX_READS,
-  cloudVertexText,
-  type CloudVertexText,
-  type VertexReads,
-} from '../cloudVertexText.ts'
+  stageLabel,
+  stageLobes,
+  stageOptions,
+  stageSurface,
+  type StageOptions,
+} from '../stageOptions.ts'
+import type { SurfaceProgram } from '../../materials/graph/surfaceProgram.ts'
+import { NO_VERTEX_READS, type VertexReads } from '../cloudVertexText.ts'
 import {
   DISPLAY_MASK_GROUP,
   DISPLAY_ROUTE_WGSL,
@@ -19,34 +19,26 @@ import {
 import { DISTORTION_WGSL } from './distortionWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { transmitStagesWgsl } from './transmitStagesWgsl.ts'
-import { variantKey } from './transmitThinWgsl.ts'
 
 /** The dual blend, one pass for the thin layer's two effects on the destination: what is added,
  *  then the destination's per-channel multiply; the alpha takes the layer's grey coverage over the
  *  target's (`greyCoverage`, the fallback's rule). The modulation pass draws the same layers again for the multiply
  *  alone (`fsTransmitModulate`), a plain blend by its own colour, with the request beside it: no light is read for a
  *  colour its blend drops. */
-const transmitDualWgsl = (
-  graphs: boolean,
-  lobes: boolean,
-  shade: CloudVertexText,
-  marks: boolean,
-  depth: boolean,
-  layer: boolean,
-) =>
+const transmitDualWgsl = (o: StageOptions) =>
   wgslBlock(
-    `TRANSMIT_DUAL_WGSL(${variantKey({ graphs, lobes, shade, marks, depth, layer })})`,
-    [transmitStagesWgsl(graphs, lobes, shade, marks, depth, layer)],
+    `TRANSMIT_DUAL_WGSL(${stageLabel(o)})`,
+    [transmitStagesWgsl(o)],
     `struct TransmitDual{@location(0) @blend_src(0) add:vec4f,@location(0) @blend_src(1) mul:vec4f,}
 // The two sources of \`add\` and \`mul\`: the light laid with the layer's grey coverage, the multiply.
-@fragment fn fsTransmitDual(in:VSOut,@builtin(front_facing) front:bool)->TransmitDual{${shade.entry}
+@fragment fn fsTransmitDual(in:VSOut,@builtin(front_facing) front:bool)->TransmitDual{${o.shade.entry}
  let t=transmitFragment(in,front);
  return TransmitDual(vec4f(t.add,greyCoverage(t.mul)),vec4f(t.mul,1.0));
 }
 // The modulation pass's draw of the same layers: the multiply, which its blend takes the destination by
 // (\`src\`: no second source), adding nothing, and the request.
 struct Modulated{@location(0) mul:vec4f,@location(1) request:u32,}
-@fragment fn fsTransmitModulate(in:VSOut,@builtin(front_facing) front:bool)->Modulated{${shade.entry}
+@fragment fn fsTransmitModulate(in:VSOut,@builtin(front_facing) front:bool)->Modulated{${o.shade.entry}
  let deltas=fwidth(in.bary);
  let t=transmitSurface(in,front,blendGrads(in));
  if(!t.kept){discard;return Modulated(vec4f(1.0),0u);}
@@ -71,7 +63,8 @@ struct Modulated{@location(0) mul:vec4f,@location(1) request:u32,}
  * the text it was, word for word, without; they lay the cloud layer over the fog of the thin layer.
  * With `marks`, the stages of a program whose surfaces ask for shadow reads of their own: each layer
  * sets its surface's marks from its flags before it lights (`translucentMarksFrom`). The lights are
- * those of the blend module of the same project switch `translucentRectLights` (`translucentLitKey`).
+ * those of the blend module of the same `scene` (`TranslucentScene`: the project switch `translucentRectLights`, and whether the
+ * scene holds a surface whose material asks for contact shadows): the stages then set that ask before they light.
  */
 export const transmitWgsl = (
   key: Partial<ContractKey>,
@@ -79,26 +72,19 @@ export const transmitWgsl = (
   graphs?: readonly SurfaceProgram[],
   reads: VertexReads = NO_VERTEX_READS,
   marks = false,
-  translucentRectLights = TRANSLUCENT_RECT_LIGHTS_DEFAULT,
+  scene: TranslucentScene = DEFAULT_TRANSLUCENT_SCENE,
 ) => {
-  const shade = cloudVertexText(reads)
-  const depth = !!graphs?.length && depthOf(graphs)
-  const layer = !!graphs?.length && layerOf(graphs)
-  const lit = translucentLitKey(key, translucentRectLights)
+  const lit = translucentLitKey(key, scene)
+  const o = stageOptions(lit, graphs, reads, marks)
   return wgslBlock(
-    `transmitWgsl(${variantLabel(lit)},${dual}${graphs?.length ? ', graphs' : ''}${shade.key}${marks ? ', surface shadow marks' : ''}${depth ? ', pushed depth' : ''}${layer ? ', layer' : ''})`,
+    `transmitWgsl(${dual}, ${stageLabel(o)})`,
     [
-      blendSurfaceWgsl(
-        !key.lobeless,
-        graphs?.length ? blendGraphs(graphs, !key.lobeless) : undefined,
-      ),
+      stageSurface(stageLobes(o), graphs),
       declaredLightingSplitWgsl(lit),
       DISPLAY_ROUTE_WGSL,
       displayMaskWgsl(DISPLAY_MASK_GROUP),
       DISTORTION_WGSL,
-      dual
-        ? transmitDualWgsl(!!graphs?.length, !key.lobeless, shade, marks, depth, layer)
-        : transmitStagesWgsl(!!graphs?.length, !key.lobeless, shade, marks, depth, layer),
+      dual ? transmitDualWgsl(o) : transmitStagesWgsl(o),
     ],
     '',
   )

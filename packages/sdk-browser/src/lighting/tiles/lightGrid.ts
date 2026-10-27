@@ -17,7 +17,7 @@ import { LIGHT_TILES_PASS } from '../../diagnostic/stage/passLabels.ts'
 const UNIFORM_FLOATS = 44
 /** The uniform's word of the records' start (`TileView.start`). */
 export const START_WORD = 32
-/** The uniform's word of the cull (`cullView.ts`): its eight numbers, `cull` then `sliceMap`. */
+/** The uniform's word of the cull (`cullView.ts`): its seven numbers, `cull` then `sliceMap`. */
 export const CULL_WORD = 36
 
 /** The grid of the buffer: its pass, its uniform and its pool, its columns and the words it takes. */

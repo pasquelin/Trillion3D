@@ -1,7 +1,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { probeExplorerCapabilities } from './capabilityProbe.ts'
-import { grantedGpuFeatures, requestExplorerDevice } from './gpuDevice.ts'
+import { grantedGpuFeatures } from '../gpu/core/gpuCaps.ts'
+import { requestExplorerDevice } from './gpuDevice.ts'
 import type { ExplorerSession } from './session.ts'
 import { WEBGPU_REQUIRED_LIMITS } from './engine/common.ts'
 

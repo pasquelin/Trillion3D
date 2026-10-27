@@ -2,7 +2,7 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { LEVEL_QUEUES } from './levelWgsl.ts'
-import { CAMERA_DESCENT, postWords, type DescentShape } from './descentShape.ts'
+import { beginLine, CAMERA_DESCENT, postWords, type DescentShape } from './descentShape.ts'
 
 /** The camera cut's post pass splits its visible clusters in two (`splitVisible`), the main pass's
  *  and its own. */
@@ -82,7 +82,7 @@ fn postItem(index:u32,w:u32){
   return;
  }
  let node=nodeAt(index);deformReach=reachOf(w);
- if(boxSight(node.minimum,node.maximum,w)==BOX_SEEN){acceptNode(0u,index,node,w);return;}
+${beginLine(shape)} if(boxSight(node.minimum,node.maximum,w)==BOX_SEEN){acceptNode(0u,index,node,w);return;}
  atomicAdd(&out.postHidden,1u);
 }
 ${shape.views ? '' : POST_CLUSTERS}`,

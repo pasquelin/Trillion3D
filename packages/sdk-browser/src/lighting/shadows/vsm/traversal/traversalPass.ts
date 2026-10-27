@@ -33,7 +33,7 @@ import {
   dagArmPipe,
 } from '../../../../geometry/dag/shader/armWgsl.ts'
 import { BLOCK_MASK_WORDS, FRAME_COUNTERS } from '../../../../geometry/dag/shader/floorWgsl.ts'
-import { DAG_UNIFORM_BYTES } from '../../../../geometry/dag/shader/viewsWgsl.ts'
+import { CULL_MIN_LOD_OFF, DAG_UNIFORM_BYTES } from '../../../../geometry/dag/shader/viewsWgsl.ts'
 import { OCCLUSION_TWO_PASS } from '../../../../geometry/dag/shader/occlusionWgsl.ts'
 import { viewWord } from '../../../../geometry/dag/viewLayout.ts'
 import { entryWords } from '../../../../geometry/dag/shader/descentShape.ts'
@@ -290,7 +290,7 @@ export function prepareVsmDescent(
 
 /** The uniform block: the main view's, with the descent's caps — its queue, its listed pages, the
  *  nodes it opens, its readout's ranks —, the two-pass occlusion where the previous frame's pyramid
- *  is kept (`twoPass`), no culls turned off, no filter. */
+ *  is kept (`twoPass`), no cull turned off but the too-coarse leaves' (`CULL_MIN_LOD_OFF`), no filter. */
 function writeBlock(
   d: VsmDescent,
   info: VsmDescentScene['info'],
@@ -304,7 +304,9 @@ function writeBlock(
   d.block[W('nodeBudget')] = sizes.nodeBudget
   d.block[W('listCap')] = d.listCap
   d.block[W('occlusion')] = twoPass ? OCCLUSION_TWO_PASS : 0
-  d.block[W('cullOff')] = 0
+  // The camera's switch of the too-coarse leaves' cull (`cutMinLodCulling`) is the shadow views' too, as the
+  // reference has one flag for its cluster cull; the other culls the host turned off are the camera's alone.
+  d.block[W('cullOff')] &= CULL_MIN_LOD_OFF
   d.block[W('filterBase')] = 0
   d.device.queue.writeBuffer(d.uniform, 0, d.block)
 }

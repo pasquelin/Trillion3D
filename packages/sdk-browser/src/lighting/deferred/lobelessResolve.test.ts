@@ -56,19 +56,17 @@ test("every contract program lights a pixel by its own specular, read from its f
     assert.match(text, /surfaceModel=flag;\s*surfaceSpecular=specularOfFlags\(surfaceFlag\);/)
     assert.match(
       text,
-      /fn lobeSurface\(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f\)->LobeSurface\{\s*return lobeSurfaceOf\(surfaceF0\(rgb,metal\),/,
+      /fn lobeSurface\(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f\)->LobeSurface\{\s*let s=lobeSurfaceOf\(surfaceF0\(rgb,metal\),/,
     )
     assert.match(text, /fn coatedLight\(/)
     assert.doesNotMatch(text, /f0Of\(/)
   }
-  assert.match(
-    contractLightingShader(true, {}),
-    /reflectionWeight\(indirectF0\(rgb,metal\),rough,N,V\)/,
-  )
-  // The reflection's last pass weighs the surface's trace by its own reflectance too.
+  // The reflection is weighed by the surface's own reflectance too, by the resolve: the reflection's last pass writes the lights unweighed.
+  const bouncing = contractLightingShader(true, {})
+  assert.match(bouncing, /let lit=resolvedLobes\(ray,base,coat\);/)
+  assert.match(bouncing, /return reflectionShare\(looked,indirectF0\(rgb,metal\),rough,N,V\)/)
   const bilateral = wgslSource(REFLECTION_BILATERAL_WGSL)
-  assert.match(bilateral, /surfaceSpecular=specularOfFlags\(flags\);\s*let own=reflectingPixelAt/)
-  assert.match(bilateral, /reflectionBaseShare\(seen,indirectF0\(base\.rgb,base\.a\),/)
+  assert.doesNotMatch(bilateral, /indirectF0|reflectionShare|reflectionBaseShare/)
 })
 
 test('a pixel is classed by the code its surface needs: none for the background, unlit and as-is pixels, then simple, single, complex', () => {

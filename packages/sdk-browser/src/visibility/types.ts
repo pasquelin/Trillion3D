@@ -124,7 +124,9 @@ export const FLAG_FOG_FREE = 1 << 20,
  *  base map's top texture-set bit, bits 17 to 19 the surface model's (`MODEL_SHIFT`), 20 to 24 the
  *  flags above, 29 the base map's middle texture-set bit. */
 export const RESPONSIVE_SHIFT = 25,
-  RESPONSIVE_MASK = 3
+  RESPONSIVE_BITS = 2
+/** The mask of a responsiveness code (`RESPONSIVE_BITS` bits). */
+export const RESPONSIVE_MASK = (1 << RESPONSIVE_BITS) - 1
 /** The bits of a responsiveness code: the pixel is read as a pixel animation (its motion vector is
  *  no guide to its detail), and its history restarts. */
 export const RESPONSIVE_ANIMATED = 1,

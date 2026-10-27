@@ -7,6 +7,7 @@ import {
 } from '../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { SceneLightStore } from '../../../../../sdk-core/src/scene/light/store.ts'
 import { environmentBrdfTable } from '../../../../../sdk-core/src/lighting/environmentBrdf.ts'
+import { sheenLtcHalves } from '../../../../../sdk-core/src/lighting/sheenLtc.ts'
 import { ltcTable } from '../../../../../sdk-core/src/lighting/ltcTable.ts'
 import { HEAD_BYTES, LIGHT_BUFFER_AT } from './lightBufferLayout.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
@@ -28,6 +29,7 @@ export function createSceneLightContractBuffer(device: GPUDevice, store: SceneLi
   })
   device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.ltc, ltcTable())
   device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.envBrdf, environmentBrdfTable())
+  device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.sheen, sheenLtcHalves())
   return buffer
 }
 
@@ -77,10 +79,11 @@ function writeBlock(
 }
 
 /**
- * Pushes the store to the GPU if and only if its revision has changed since the last image. A
- * store grown past the buffer's slots gets a new buffer first, the old one released: its holders
- * — the tile pass, the resolve, the blend pass, bounce — compare the buffer they
- * bound with `lights.buffer` and bind the new one.
+ * Pushes the store to the GPU if and only if its revision has changed since the last image. A store grown past the buffer's slots
+ * gets a new buffer first, the old one released: its holders — the tile pass, the resolve, the blend pass, bounce — compare the
+ * buffer they bound with `lights.buffer` and bind the new one. The strengths go up as the store holds them: the exposure is no
+ * part of the buffer, which every view reads (a light that follows it carries its blend, and each pass applies it with its own
+ * view's exposure, `lightStrength`).
  */
 export function uploadSceneLights(device: GPUDevice, lights: WebgpuLightState) {
   const { store } = lights

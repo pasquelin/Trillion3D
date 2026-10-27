@@ -68,15 +68,20 @@ test('targets follow resolution, history included: 4K is admitted and costed', (
   assert.throws(() => frameTargetAllocation(rt, native(8193, 16)), /SURFACE_DEVICE_LIMIT/)
 })
 
-test("a surface capture does not touch the view's history targets", () => {
+test("a surface capture holds no pass: no history targets, and the main view's stands", () => {
   const { rt, resized } = runtime()
   rt.capture.capturing = true
-  assert.equal(
-    ensureTaaTargets(rt, native(64, 64)),
-    0,
-    'the capture reserve already carries the history',
-  )
+  rt.gpu.temporal = undefined
+  assert.equal(ensureTaaTargets(rt, native(64, 64)), 0)
   assert.deepEqual(resized, [])
+})
+
+test('a capture whose view holds the pass has its history costed and made like any view', () => {
+  const { rt, temporal } = runtime()
+  rt.capture.capturing = true
+  rt.gpu.temporalLevel = 'max'
+  const shape = wantedShapeOf(rt, temporal, 'max', 64, 64)
+  assert.equal(ensureTaaTargets(rt, native(64, 64)), taaTargetBytes(native(64, 64), shape))
 })
 
 // A blended scene pays for the responsive target only when the temporal pass reads the

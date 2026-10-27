@@ -4,5 +4,6 @@
  * π and its multiples are the maths library's declarations (`packages/math/src/wgsl/constants.ts`).
  */
 
-/** The smoothest roughness a lit surface is shaded at: every shading path clamps to it. */
-export const ROUGHNESS_FLOOR = 0.0525
+/** The smoothest roughness a lit surface is shaded at: every shading path clamps to it, so that the specular lobe's
+ *  distribution stays finite on a mirror. */
+export const ROUGHNESS_FLOOR = 0.02

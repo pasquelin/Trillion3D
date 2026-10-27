@@ -95,6 +95,8 @@ function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
   // Closed probe series hold; a pending unrefused series still needs a frame.
   if (bounce.probes ? bounce.probes.working : bounce.pending && !bounce.reason)
     mask |= BIT.bounceProbes
+  // The translucency volume's own cache closes its series the same way.
+  if (bounce.translucency?.probes?.working) mask |= BIT.bounceProbes
   // Deformation advances its own temporal history; its answers serve `frame`'s update alone.
   if (vis.deformation?.frame.pending(frame)) mask |= BIT.deforming
   // The fog's volume blends its history in over images: a still view draws till it is whole.

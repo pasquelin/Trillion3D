@@ -17,12 +17,12 @@ import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { SUN, PROJECTION, VIEW } from './clipmap.fixture.ts'
 
-test("a sun's own shadow settings are part of its cache key: another one draws every page again, the same ones with another edge none", () => {
+test("a sun's own shadow settings are part of its cache key: another one draws every page again, the same ones none", () => {
   const cache = new VsmCacheManager()
-  const sun = (shadow: LightShadowOptions | undefined, farShadowEdge = 427) =>
+  const sun = (shadow: LightShadowOptions | undefined) =>
     createVsmClipmap(
       cache,
-      { ...SUN, shadow: shadow && resolveLightShadow(shadow), farShadowEdge },
+      { ...SUN, shadow: shadow && resolveLightShadow(shadow) },
       { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] },
       { width: 1024, height: 1024 },
     )
@@ -31,15 +31,11 @@ test("a sun's own shadow settings are part of its cache key: another one draws e
     sun({ shadowDistance: 400 }).cacheEntry.markRendered(n)
   }
   cache.frameStamp = 2
-  const cached = (shadow: LightShadowOptions | undefined, edge?: number) =>
-    sun(shadow, edge).cacheEntry.mapCaches.every(
+  const cached = (shadow: LightShadowOptions | undefined) =>
+    sun(shadow).cacheEntry.mapCaches.every(
       ({ projectionData: d }) => (d.flags & VSM_MAP_UNCACHED) === 0,
     )
-  assert.equal(
-    cached({ shadowDistance: 400 }, 240),
-    true,
-    'the view’s scale moved the edge: cached',
-  )
+  assert.equal(cached({ shadowDistance: 400 }), true, 'the same settings: cached')
   assert.equal(cached(undefined), true, 'the default is 400 metres')
   assert.equal(cached({ shadowDistance: 250 }), false, '400 to 250: the light is re-created')
   cache.frameStamp = 3

@@ -28,7 +28,9 @@ import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 
 const LIGHTING = wgslModule(directLightingWgsl({ lobeless: true }))
-const MARKING = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }))
+const MARKING = vsmPixelPageMarkingWgsl(
+  vsmLayout({ coverMode: 'suns', fullMapCapacity: 63, sunMapCapacity: 18 }),
+)
 const CACHE = DIRECT_WGSL
 
 test('the predicate has one home: the marking and the projection hold its one text, the lighting and the cache’s direct light one lamp', () => {

@@ -1,14 +1,20 @@
 // The page marking is one compute pass (`vsmEncode.ts` opens it): the physical page address update
 // first, then the marking's clears, page rects, coarse pages and pixels (`markingPass.ts`), each
 // dispatch seeing the writes of those before it — the order the separate passes kept. The tables
-// every map's pages clear are cleared in one walk of them (`vsmResetPageTableWgsl`): each table at
-// the texels, mips and stride its own kernel cleared, so the tables hold what the four clears left.
+// a clear clears in the pages of the maps it walks are cleared in one walk of them
+// (`vsmResetPageTableWgsl`): each table at the texels, mips and stride its own kernel cleared, so the
+// tables hold what the four clears left.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { replayWrites } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
-import { createVsmMarking, VSM_PER_PAGE_BIN_COUNT, vsmMarkingBytes } from './markingPass.ts'
+import {
+  createVsmMarking,
+  perPageSlot,
+  VSM_PER_PAGE_BIN_COUNT,
+  vsmMarkingBytes,
+} from './markingPass.ts'
 import {
   VSM_FRONT_DEPTH_BINDING,
   VSM_WATER_DEPTH_BINDING,
@@ -25,6 +31,7 @@ import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { createVsmResources } from './resources.ts'
 import { vsmLayout } from './layout.ts'
 import { pipelinesSettled } from '../../deferred/compileLedger.ts'
+import { AS_IS_FLAG, UNLIT_FLAG } from '../../../materials/surface/surfaceModelWord.ts'
 
 const TARGETS: VsmClearTarget[] = ['pageRequests', 'pageTable', 'pageMarks', 'receiverCover']
 
@@ -46,7 +53,7 @@ function tableOf(code: string, n: number) {
 }
 
 test('one walk clears each table as its own kernel did', () => {
-  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
+  const layout = vsmLayout({ coverMode: 'suns', fullMapCapacity: 63, sunMapCapacity: 18 })
   const fused = vsmResetPageTableWgsl(TARGETS, layout)
   for (const [n, target] of TARGETS.entries()) {
     const own = tableOf(vsmResetPageTableWgsl([target], layout), 0),
@@ -60,19 +67,24 @@ test('one walk clears each table as its own kernel did', () => {
   assert.equal(walk(fused), walk(vsmResetPageTableWgsl(['pageTable'], layout)))
 })
 
-test('the clears by the maps they walk: every map’s tables, a receiver cover by its own maps', () => {
-  const at = (receiver: 'directional' | 'none') =>
-    vsmMarkingClears({ ...vsmLayout({ fullMapCapacity: 7 }), coverMode: receiver })
-  assert.deepEqual(at('directional'), {
-    all: TARGETS.slice(0, 3),
-    directionalOnly: ['receiverCover'],
+test('the clears in their order, by the maps they walk: every map’s requests, tables and flags, a receiver cover by the maps it holds', () => {
+  const at = (coverMode: 'none' | 'suns' | 'all') =>
+    vsmMarkingClears(vsmLayout({ coverMode, fullMapCapacity: 7 }))
+  const requests = { walk: 'all', targets: ['pageRequests'] },
+    tables = { walk: 'all', targets: ['pageTable', 'pageMarks'] }
+  const receiver = (walk: string, targets: string[]) => ({ walk, targets })
+  assert.deepEqual(at('suns'), {
+    requests,
+    receiver: receiver('directionalOnly', ['receiverCover']),
+    tables,
   })
-  assert.deepEqual(at('none'), { all: TARGETS.slice(0, 3), directionalOnly: [] })
+  assert.deepEqual(at('all'), { requests, receiver: receiver('all', ['receiverCover']), tables })
+  assert.deepEqual(at('none'), { requests, receiver: receiver('all', []), tables })
 })
 
-test('the marking records into the pass it is given: its clears, rects and coarse pages in order', async () => {
+test('the marking records into the pass it is given: its clears, rects and coarse pages in order, the raster marks and rects between the clears', async () => {
   const { device } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
-  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+  const res = createVsmResources(device, { coverMode: 'suns', fullMapCapacity: 63, poolPages: 256 })
   const marking = createVsmMarking(device, res)
   const steps: string[] = []
   const pass = {
@@ -99,8 +111,9 @@ test('the marking records into the pass it is given: its clears, rects and coars
   const clears = vsmMarkingClears(res.layout)
   assert.deepEqual(steps, [
     ...['vsmClearPageTables', 'dispatch'],
-    ...(clears.directionalOnly.length ? ['vsmClearPageTables', 'dispatch'] : []),
-    ...['vsmInitPageRects', 'dispatch', 'vsmMarkCoarse', 'dispatch'],
+    ...(clears.receiver.targets.length ? ['vsmClearPageTables', 'dispatch'] : []),
+    ...['vsmClearRasterMarks', 'dispatch', 'vsmInitPageRects', 'dispatch'],
+    ...['vsmClearPageTables', 'dispatch', 'vsmMarkCoarse', 'dispatch'],
   ])
 })
 
@@ -109,7 +122,7 @@ test('a device aligning at 512 lays the per-page slots 512 bytes apart', async (
     limits: { maxStorageBufferBindingSize: 1 << 27, minUniformBufferOffsetAlignment: 512 },
   })
   const { device } = fake
-  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+  const res = createVsmResources(device, { coverMode: 'suns', fullMapCapacity: 63, poolPages: 256 })
   const marking = createVsmMarking(device, res)
   const offsets: number[] = []
   const pass = {
@@ -143,20 +156,25 @@ test('a device aligning at 512 lays the per-page slots 512 bytes apart', async (
     const bin = bins[slot % VSM_PER_PAGE_BIN_COUNT]
     assert.deepEqual([words[slot * 128], words[slot * 128 + 1]], [bin.offset, bin.count])
   }
-  // The clears bind each bin's slot at its 512-byte step.
+  // The clears bind each bin's slot at its 512-byte step, each in the set of the maps it walks.
   const clears = vsmMarkingClears(res.layout)
-  const sets = clears.directionalOnly.length ? 2 : 1
-  assert.deepEqual(
-    offsets,
-    Array.from({ length: sets * VSM_PER_PAGE_BIN_COUNT }, (_, slot) => slot * 512),
-  )
+  const slotsOf = (step: keyof typeof clears) =>
+    Array.from(
+      { length: VSM_PER_PAGE_BIN_COUNT },
+      (_, b) => perPageSlot(clears[step].walk === 'directionalOnly', b) * 512,
+    )
+  assert.deepEqual(offsets, [
+    ...slotsOf('requests'),
+    ...(clears.receiver.targets.length ? slotsOf('receiver') : []),
+    ...slotsOf('tables'),
+  ])
 })
 
-test('the frame opens the marking pass: the dirty flags cleared before it, the address update first', () => {
+test('the frame opens the marking pass: the stats cleared before it, the address update first', () => {
   const encode = readFileSync(new URL('./frame/vsmEncode.ts', import.meta.url), 'utf8')
   const at = (text: string) => encode.indexOf(text)
   const order = [
-    'encoder.clearBuffer(res.rasterMarks)',
+    'encoder.clearBuffer(res.stats)',
     'const marking = steps.pass(MARKING_PASS)',
     'encodeVsmPageCarry(marking, res, pmFrame)',
     'vsm.marking.encode(marking, markingFrame)',
@@ -168,18 +186,18 @@ test('the frame opens the marking pass: the dirty flags cleared before it, the a
   )
 })
 
-test("a local map asks its last mip's page where its record says coarse, a one-page light always", () => {
-  const code = vsmCoarseMarkingWgsl(vsmLayout({ fullMapCapacity: 7 }))
+test("a local map asks its last mip's page where its record says coarse, a distant light always", () => {
+  const code = vsmCoarseMarkingWgsl(vsmLayout({ coverMode: 'suns', fullMapCapacity: 7 }))
   // The sun's level and the local map are read by the one flag of their records.
-  const branch = '}else if(pd.coarseLevel||pd.finestMip>=VSM_MIPS-1u){'
+  const branch = '}else if(pd.coarseLevel||pd.distant){'
   const local = code.slice(code.indexOf(branch))
   assert.ok(code.includes('if(pd.lightKind==LIGHT_KIND_DIRECTIONAL){'), 'the sun branch')
-  assert.ok(local.startsWith(branch), 'the local branch: flagged, or a one-page light')
+  assert.ok(local.startsWith(branch), 'the local branch: flagged, or a distant light')
   assert.ok(local.includes('vsmTableEntryOf(handle,VSM_MIPS-1u,vec2u(0u,0u))'), 'its last mip')
 })
 
 test('the pixel pass marks the translucent front layer in a program of its own, before an unlit pixel leaves', () => {
-  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
+  const layout = vsmLayout({ coverMode: 'suns', fullMapCapacity: 63, sunMapCapacity: 18 })
   const plain = vsmPixelPageMarkingWgsl(layout),
     front = vsmPixelPageMarkingWgsl(layout, true)
   for (const name of ['frontDepth', 'vsmMarkTranslucent', 'clipToFramebuffer'])
@@ -192,7 +210,7 @@ test('the pixel pass marks the translucent front layer in a program of its own, 
   const kernel = front.slice(front.indexOf('fn vsmMarkPagesFromPixels'))
   const marks = kernel.indexOf('vsmMarkTranslucent(svPosition,shiftedPosition,marginSide);')
   assert.ok(marks > 0 && kernel.indexOf('if(!lit){return;}') > marks, 'the surface first')
-  assert.ok(kernel.indexOf('textureLoad(normalRough') > kernel.indexOf('if(!lit){return;}'))
+  assert.ok(kernel.indexOf('textureLoad(normalRough') < kernel.indexOf('if(!lit){return;}'))
   // Every sun's clipmap, the pixel's page dilation, no bias, a point behind the old camera or out of its layer skipped.
   const suns = front.slice(
     front.indexOf('fn vsmMarkSunsAt'),
@@ -209,8 +227,25 @@ test('the pixel pass marks the translucent front layer in a program of its own, 
   assert.ok(mark.includes('if(!(frontZ>0.0)){return;}'))
 })
 
+test('an unlit or as-is pixel marks no page, as the deferred format leaves unlit pixels out', () => {
+  // The reference's deferred format: `bIsValid = ShadingModelID != SHADINGMODELID_UNLIT`, the sky dome among them.
+  const layout = vsmLayout({ coverMode: 'suns', fullMapCapacity: 63, sunMapCapacity: 18 })
+  const plain = vsmPixelPageMarkingWgsl(layout)
+  const kernel = plain.slice(plain.indexOf('fn vsmMarkPagesFromPixels'))
+  const skip = `if(surfaceModel<=1u||surfaceModel==${AS_IS_FLAG}u){return;}`
+  assert.ok(UNLIT_FLAG <= 1, 'the unlit model is under the skip')
+  assert.ok(kernel.includes(skip))
+  assert.ok(
+    kernel.indexOf('textureLoad(normalRough') < kernel.indexOf(skip),
+    'after the depth and the normal are read',
+  )
+  // The programs with a front layer or water mark those surfaces first, then leave the same pixels.
+  const both = vsmPixelPageMarkingWgsl(layout, true, true)
+  assert.ok(both.includes(`let lit=surfaceModel>1u&&surfaceModel!=${AS_IS_FLAG}u;`))
+})
+
 test("the front layer is read at the pixel's texel where it is the image's own, reprojected where it is the image before's", () => {
-  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
+  const layout = vsmLayout({ coverMode: 'suns', fullMapCapacity: 63, sunMapCapacity: 18 })
   const front = vsmPixelPageMarkingWgsl(layout, true)
   const mark = front.slice(front.indexOf('fn vsmMarkTranslucent'), front.indexOf('@compute'))
   // The pixel's texel first; the reprojection and its bounds only while the flag is 0.
@@ -225,7 +260,7 @@ test("the front layer is read at the pixel's texel where it is the image's own, 
 })
 
 test("the pixel pass marks the water's surface in a program of its own, the suns alone, before an unlit pixel leaves", () => {
-  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
+  const layout = vsmLayout({ coverMode: 'suns', fullMapCapacity: 63, sunMapCapacity: 18 })
   const plain = vsmPixelPageMarkingWgsl(layout),
     water = vsmPixelPageMarkingWgsl(layout, false, true),
     both = vsmPixelPageMarkingWgsl(layout, true, true)
@@ -253,7 +288,7 @@ test("the pixel pass marks the water's surface in a program of its own, the suns
   assert.ok(marks > kernel.indexOf('let deviceZ='), 'the pixel depth is read first')
   assert.ok(kernel.indexOf('vsmMarkTranslucent(') < marks, 'the front layer first')
   assert.ok(kernel.indexOf('if(!lit){return;}') > marks, 'the surfaces first')
-  assert.ok(kernel.indexOf('textureLoad(normalRough') > kernel.indexOf('if(!lit){return;}'))
+  assert.ok(kernel.indexOf('textureLoad(normalRough') < kernel.indexOf('if(!lit){return;}'))
 })
 
 test('the marking reads the front layer of the image drawn just before it, and only that', () => {

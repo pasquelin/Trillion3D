@@ -6,20 +6,28 @@ import {
 } from './contracts.ts'
 import type { SceneEnvironment } from '../core/environment.ts'
 import type { ContactShadowView } from './contactShadowView.ts'
+import type { LightShadowView } from './shadowedBits.ts'
+import type { LightRangeView } from './drawRange.ts'
 import { LIGHT_FIELD, baseOf } from './fields.ts'
 import { createSunBlocks } from './sunBlocks.ts'
 import { joined } from '../../runtime/joined.ts'
 import {
   addLight,
+  assignDrawn,
   assignLightFunction,
+  assignLightProfile,
   assignSlice,
   createLightTable,
   lightFunctionOf,
+  lightProfileSliceOf,
   removeLight,
   setLight,
   setTableAir,
   setTableContactView,
+  setTableShadowView,
   setTableEnvironment,
+  setTableProfileBrightness,
+  setTableRangeView,
   sliceOf,
   type LightTable,
 } from './storeTable.ts'
@@ -46,6 +54,10 @@ function layoutReaders(table: LightTable) {
       return table.packed
     },
     environmentPacked: table.environment.packed,
+    /** Each light's draw range, `DRAW_LANES` floats a slot (`DRAW_SHARE`, `DRAW_FARTHEST`): the CPU's alone, a new array when the table grows. */
+    get draw() {
+      return table.draw
+    },
     /** Bumped on every change, per slot. */
     get revision() {
       return table.revision
@@ -56,12 +68,18 @@ function layoutReaders(table: LightTable) {
     },
     sliceOf: (slot: number) => sliceOf(table, slot),
     lightFunctionOf: (slot: number) => lightFunctionOf(table, slot),
+    /** The atlas slice of a light's profile, held in its kind word; −1 for none. */
+    lightProfileSliceOf: (slot: number) => lightProfileSliceOf(table, slot),
+    /** Bumped when a light that names a profile is added or removed, or a light's profile changes: the profile atlas follows it. */
+    get profileEpoch() {
+      return table.profileEpoch
+    },
     /** Lights that wear a light function material. */
     get lightFunctionCount() {
       return table.wearing
     },
     /** A light's kind (`LIGHT_KIND`), read from the buffer as its slice is. */
-    kindOf: (slot: number) => table.packed[baseOf(slot) + LIGHT_FIELD.kind] % LIGHT_KIND_SPAN,
+    kindOf: (slot: number) => table.words[baseOf(slot) + LIGHT_FIELD.kind] % LIGHT_KIND_SPAN,
     /** Each slot's light name. */
     ids: table.ids,
     /** How many lights. */
@@ -145,7 +163,21 @@ function writers(table: LightTable) {
     /** Folds the lights' contact shadows with the view's settings: the lanes of every light are
      *  written again when they differ from the last fold (`setTableContactView`). */
     setContactShadowView: (view: ContactShadowView) => setTableContactView(table, view),
+    /** Hands the lights the view's shadow settings: the kind words are written again when the dynamic shadows
+     *  flipped (`setTableShadowView`). */
+    setShadowView: (view: LightShadowView) => setTableShadowView(table, view),
+    /** Folds the lights' draw ranges with the view's settings: the draw lanes of every light are written again
+     *  when they differ from the last fold (`setTableRangeView`). */
+    setRangeView: (view: LightRangeView) => setTableRangeView(table, view),
+    /** Records whether the view draws the light of `slot` (`lightDrawn`) in its kind word, without a change of the lights: whether it
+     *  changed (`assignDrawn`). */
+    assignDrawn: (slot: number, drawn: boolean) => assignDrawn(table, slot, drawn),
     assignLightFunction: (slot: number, index: number) => assignLightFunction(table, slot, index),
+    assignLightProfile: (slot: number, slice: number) => assignLightProfile(table, slot, slice),
+    /** Records the brightness of a loaded light profile, which the intensity of the lights that take it is written from
+     *  (`SceneLight.useIesBrightness`). */
+    setProfileBrightness: (profile: string, brightness: number) =>
+      setTableProfileBrightness(table, profile, brightness),
     assignSlice: (slot: number, slice: number) => assignSlice(table, slot, slice),
   }
 }

@@ -6,7 +6,6 @@ import {
   FINITE_SENTINEL as FINITE,
   FLOAT32_MAX as F32_MAX,
   FLOAT32_MIN_NORMAL as F32_MIN_NORMAL,
-  GOLDEN_U32 as GOLDEN_WORD,
   HALF_MAX as HALF,
   PLASTIC_STEP_X,
   PLASTIC_STEP_Y,
@@ -55,14 +54,6 @@ export const INFINITE_THRESHOLD = f32Const('INFINITE_THRESHOLD', 3.0e38)
 /** 1e30, a distance or a bound past any scene's: an empty range's start, a ray's exit along an axis
  *  it does not move on. Its square still overflows, so it is never squared. */
 export const FAR_VALUE = f32Const('FAR_VALUE', FAR)
-
-/** The golden ratio's fraction in 32 bits, `⌊(√5 − 1) / 2 · 2³²⌋` = 0x9e3779b9: an odd salt
- *  with well-spread bits, which decorrelates two hashes of one seed. */
-export const GOLDEN_U32 = wgslConst(
-  'GOLDEN_U32',
-  [],
-  `const GOLDEN_U32:u32=0x${GOLDEN_WORD.toString(16)}u;`,
-)
 
 /** An index naming nothing (`NO_INDEX`, `../constants.ts`): no slot, rank or entry of a table,
  *  all bits set. */

@@ -4,6 +4,7 @@ import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { LANE_SCAN_WGSL, laneRunSum } from '../../gpu/core/laneScanWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { bitMask, bitWord, highHalf, lowBits, lowHalf } from '../../../../math/src/wgsl/integer.ts'
+import { lightUndrawn } from '../direct/lightReachWgsl.ts'
 
 /** Runs a column keeps between its two walks: a column of more kept lights tests the rest again. */
 const GRID_CACHE = 512
@@ -46,12 +47,14 @@ var<workgroup> walked:vec4u;`
 
 /** The batch's entries, marked in the masks and counted slice by slice. */
 const COMPACT_MARK_TEXT = `/** The entry of light \`index\`: its run in this column, cut at the column's last visible slice
- *  (\`Column.reach\`), \`EMPTY_RUN\` when it meets no cell. A directional light reaches every
+ *  (\`Column.reach\`), \`EMPTY_RUN\` when it meets no cell or the view leaves it out (\`lightUndrawn\`: the bit
+ *  of its kind word the CPU set, too small on the screen or past its draw distance, \`lightDrawn\`). A directional light reaches every
  *  cell, \`FULL_RUN\` where none is cut. */
 fn entryOf(column:Column,index:u32)->vec2u{
  let light=directLights.items[index];
  let slot=select(0u,TILE_SHADOWED,light.params.y>-1.0);
  if(isSun(light)){return vec2u(index|slot,column.reach<<16u);}
+ if(lightUndrawn(light)){return vec2u(index,EMPTY_RUN);}
  let centre=light.positionRange.xyz-view.origin.xyz;
  if(!sphereInColumn(column,centre,light.positionRange.w)){return vec2u(index,EMPTY_RUN);}
  let run=lightRun(column,centre,light.positionRange.w);
@@ -204,7 +207,16 @@ fn dealRoom(span:vec2u,before:u32,start:u32){
 export const gridCompactWgsl = (slices: number) =>
   wgslBlock(
     `gridCompactWgsl(${slices})`,
-    [LANE_SCAN_WGSL, WORKGROUP_THREADS_WGSL, lowHalf, highHalf, bitMask, bitWord, lowBits],
+    [
+      LANE_SCAN_WGSL,
+      WORKGROUP_THREADS_WGSL,
+      lowHalf,
+      highHalf,
+      bitMask,
+      bitWord,
+      lowBits,
+      lightUndrawn,
+    ],
     `${compactDeclsText(slices)}
 ${COMPACT_MARK_TEXT}
 ${COMPACT_WRITE_TEXT}

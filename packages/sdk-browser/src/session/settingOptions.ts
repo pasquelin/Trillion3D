@@ -24,6 +24,7 @@ import type { GaussianBlurSettings } from '../../../sdk-core/src/contracts/gauss
 import type { FilmSettings } from '../../../sdk-core/src/contracts/filmOptions.ts'
 import type { ColorGradingSettings } from '../../../sdk-core/src/contracts/colorGradingOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import type { AmbientCubemapOptions } from '../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
 import type { SkyQualityOptions } from '../../../sdk-core/src/modules/sky/quality.ts'
 import type { ScreenProbeOptions } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ReflectionOptions } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
@@ -32,6 +33,7 @@ import type { SingleLayerWaterOptions } from '../../../sdk-core/src/contracts/si
 import type { SubsurfaceScatteringOptions } from '../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
 import type { TranslucencyVolumeOptions } from '../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
 import type { TranslucencyGiOptions } from '../../../sdk-core/src/contracts/translucencyGiOptions.ts'
+import type { HairStrandsOptions } from '../../../sdk-core/src/contracts/hairStrandsOptions.ts'
 import type { TessellationOptions } from '../../../sdk-core/src/contracts/tessellationOptions.ts'
 import type { RasterOptions } from '../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../sdk-core/src/contracts/streamingOptions.ts'
@@ -72,10 +74,12 @@ export interface SettingOptions
     TranslucencyGiOptions,
     SubsurfaceScatteringOptions,
     SingleLayerWaterOptions,
+    HairStrandsOptions,
     TessellationOptions,
     ScreenProbeOptions,
     ReflectionOptions,
     AmbientOcclusionOptions,
+    AmbientCubemapOptions,
     SkyQualityOptions,
     RasterOptions,
     StreamingOptions {}

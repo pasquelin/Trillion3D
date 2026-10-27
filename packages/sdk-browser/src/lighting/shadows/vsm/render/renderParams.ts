@@ -13,6 +13,7 @@ import {
 } from '../../../../gpu/core/computeBindings.ts'
 import { writeChanged, writeChangedSlots } from '../../../../gpu/core/writeChanged.ts'
 import { uniformSlots, type UniformSlots } from '../../../../session/memory/pools.ts'
+import { DEFAULT_LIGHTING_CHANNELS_MASK } from '../../../../../../sdk-core/src/contracts/lightingChannelsAbi.ts'
 import type { VsmBoundLight } from '../mapViews.ts'
 import { VSM_RENDER_PARAMS } from './renderParamsWgsl.ts'
 import type { VsmRenderScene } from './renderPass.ts'
@@ -93,15 +94,13 @@ export interface VsmRenderLayout {
   passes: readonly Pick<VsmViewPass, 'first' | 'maps'>[]
 }
 
-/** What the parameters take of a raster's scene: its camera, its cut's world switch, which
- *  casters its suns' far-shadow test reaches, the draw distances its casters take and the size
+/** What the parameters take of a raster's scene: its camera, its cut's world switch, the draw
+ *  distances its casters take and the size
  *  under which an uncached map leaves a caster out. */
 type VsmParamsScene = Pick<
   VsmRenderScene,
   | 'camera'
   | 'world'
-  | 'farMeshes'
-  | 'farDrop'
   | 'drawDistance'
   | 'tessellation'
   | 'pageCount'
@@ -117,16 +116,13 @@ interface VsmRenderParamsImage {
 const eye = new Float32Array(8)
 
 /** The parameter slots of `frame`'s view passes (`VsmRenderParams`), `slots` apart: the frame's
- *  values in every slot — the scene's camera, where its cut's world links start, which casters its
- *  suns' far-shadow test reaches and the distance past which every view leaves a caster out —, and
+ *  values in every slot — the scene's camera and where its cut's world links start —, and
  *  the maps of the slot's view pass — into `image` (its words past the struct's left as they are:
  *  zero, as nothing else writes them). */
 function vsmRenderParams(
   {
     camera,
     world,
-    farMeshes,
-    farDrop,
     drawDistance,
     tessellation,
     pageCount,
@@ -147,12 +143,6 @@ function vsmRenderParams(
       f[o + at.eyeHigh + a] = eye[a]
       f[o + at.eyeLow + a] = eye[4 + a]
     }
-    // The world-to-view rotation's third row (column-major m[c*4+r]): the depth along the view.
-    const row = o + at.viewRow2
-    f[row] = camera.view[2]
-    f[row + 1] = camera.view[6]
-    f[row + 2] = camera.view[10]
-    f[row + 3] = 0
     f[o + at.threshold] = camera.threshold
     u[o + at.casterCap] = frame.casterCap
     u[o + at.listedBase] = frame.listedBase
@@ -164,8 +154,6 @@ function vsmRenderParams(
     u[o + at.lightCount] = frame.lights
     u[o + at.recordCapacity] = frame.recordCapacity
     u[o + at.worldLinks] = world.links ?? 0
-    u[o + at.farMeshes] = farMeshes ? 1 : 0
-    f[o + at.farDrop] = farDrop ?? 0
     u[o + at.filterBase] = world.filter?.base ?? 0
     u[o + at.drawDistances] = drawDistance ? (drawDistance.instances ? 3 : 1) : 0
     f[o + at.viewDistanceScale] = drawDistance?.scale ?? 1
@@ -208,20 +196,22 @@ let lightImage = new Uint32Array(0)
 
 /**
  * The frame's `lights` laid in `buffer` for the views' kernel (`renderViewsWgsl.ts`): a `vec4u` a
- * light — its first map's id, its map count, two pad words —, only the words that changed going up
+ * light — its first map's id, its map count, its lighting channels as a mask (the default's for a
+ * light that names none), a pad word —, only the words that changed going up
  * (`writeChanged`): a still frame sends none.
  */
 export function vsmWriteLights(
   device: GPUDevice,
   buffer: GPUBuffer,
-  lights: readonly Pick<VsmBoundLight, 'firstId' | 'count'>[],
+  lights: readonly Pick<VsmBoundLight, 'firstId' | 'count' | 'channels'>[],
 ) {
   const words = lights.length * 4
   if (lightImage.length < words)
     lightImage = new Uint32Array(new ArrayBuffer(grownLength(lightImage.length, words) * 4))
-  lights.forEach(({ firstId, count }, k) => {
+  lights.forEach(({ firstId, count, channels }, k) => {
     lightImage[4 * k] = firstId
     lightImage[4 * k + 1] = count
+    lightImage[4 * k + 2] = channels ?? DEFAULT_LIGHTING_CHANNELS_MASK
   })
   writeChanged(device, buffer, lightImage, 0, words)
 }

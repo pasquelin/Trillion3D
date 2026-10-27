@@ -11,7 +11,11 @@ import {
   VSM_PAGE_LOOKUP_WGSL,
   VSM_TABLE_ORIGIN_WGSL,
 } from '../pageTableWgsl.ts'
-import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import {
+  VSM_COARSER_LEVEL_CELL_WGSL,
+  VSM_PROJECTION_DATA_READ_WGSL,
+  VSM_PROJECTION_DATA_WGSL,
+} from './projectionDataWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { pow2FromExponent } from '../../../../../../math/src/wgsl/integer.ts'
 
@@ -76,11 +80,8 @@ fn vsmLevelToLevelOf(h:VsmHandle,levelOffset:i32)->VsmLevelToLevel{
 }
 /** The integer page transform to a coarser level (levelOffset > 0). */
 fn vsmCoarserLevelPage(levelZeroPage:vec2u,h:VsmHandle,levelOffset:u32)->vec2u{
- let quarterPages=i32(VSM_LEVEL0_PAGES>>2u);
- let firstShiftPages=quarterPages*vsmProjectionData[h.id].cornerSteps;
- let levelShiftPages=quarterPages*vsmProjectionData[vsmHandleOffset(h,i32(levelOffset)).id].cornerSteps;
- // An unsigned page less a signed offset wraps (unsigned arithmetic), and >> is a logical shift.
- return (levelZeroPage-bitcast<vec2u>(firstShiftPages)+bitcast<vec2u>(levelShiftPages<<vec2u(levelOffset)))>>vec2u(levelOffset);
+ let levelSteps=vsmProjectionData[vsmHandleOffset(h,i32(levelOffset)).id].cornerSteps;
+ return vec2u(vsmCoarserLevelCell(vec2i(levelZeroPage),vsmProjectionData[h.id].cornerSteps,levelSteps,levelOffset,levelOffset));
 }
 /** The level-0 page of a UV of the level. */
 fn vsmClipmapBasePage(mapUvAt:vec2f)->vec2u{return vec2u(mapUvAt*f32(VSM_LEVEL0_PAGES));}
@@ -110,7 +111,9 @@ const sampleClipmapTexelText = /* wgsl */ `
 /** The texel \`vsmReadClipmapPage\` reads at a UV of the page \`page\` of level h (\`vsmClipmapPage\`):
  *  where its coarser-level count falls back to a coarser level, that level's texel, clamped to its page, and
  *  the bias and inverse scale its raw depth takes to h's (\`vsmClipmapTexelDepth\`). \`valid\`: the
- *  texel is mapped. Where no level maps the page, the addresses are 0, as \`vsmEmptyRead\`'s. */
+ *  texel is mapped. Where no level maps the page, the addresses are 0, as \`vsmEmptyRead\`'s. A ray's
+ *  texel of a local map (\`vsmRayTexel\`) is read as a texel of one level, the bias 0 and the
+ *  inverse scale 1 (a coarser mip is the same projection). */
 struct VsmClipmapTexel{
  valid:bool,
  levelHandle:VsmHandle,
@@ -184,6 +187,7 @@ export const vsmProjectionSampleWgsl = (pool: WgslDecl) =>
       VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_COARSER_LEVEL_CELL_WGSL,
       pow2FromExponent,
     ],
     `

@@ -32,9 +32,8 @@ export const INDIRECTION_SIDE_BITS = 10
 export const ASSET_MIPS_SHIFT = 30
 
 /** The flags of an object's bounds record. `castShadow` is the object's own (`castShadow`);
- *  `farTested`, `farTestable` and `castsFar` say how a sun's far-shadow test treats it
- *  (`castingFlags`): the test reaches it whatever the view says, reaches it if the view says it
- *  reaches every mesh, and the object casts far shadows, which the shadow maps draw at any distance. */
+ *  `virtualized` says it is made of clusters, which a sun's shadow maps draw (a sun's distance-field
+ *  cascade leaves it out: `dfshCasts`). */
 export const OBJECT_FLAGS = {
   oftenMoving: 1,
   castShadow: 2,
@@ -42,9 +41,6 @@ export const OBJECT_FLAGS = {
   emissive: 8,
   visible: 16,
   affectsIndirectLightingHidden: 32,
-  farTested: 64,
-  farTestable: 128,
-  castsFar: 256,
 } as const
 
 /** The bytes of a brick's voxels, and the voxels a brick adds to the texture along an axis. */

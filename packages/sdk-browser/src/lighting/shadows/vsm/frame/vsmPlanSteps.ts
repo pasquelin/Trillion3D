@@ -3,12 +3,11 @@
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import type { planVirtualShadowFrame, VsmFrameLight } from '../frameSetup.ts'
 import { askedOfLayout, fullMapsFor, sunMapsFor, vsmAsked } from './vsmLightMaps.ts'
-import { dynamicHzbOf } from '../layout.ts'
+import { dynamicHzbOf, vsmCoverHolds } from '../layout.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { growEngineVsm, regrowEngineVsm } from './vsmRegrow.ts'
 import { reserveProjection } from './vsmBeside.ts'
 import { shadowSliceOf } from '../../../direct/shadowSlice.ts'
-import { VSM_MIPS } from '../constants.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../projection/projectionView.ts'
 
 type Lights = WebgpuPagesRuntime['lights']
@@ -30,15 +29,19 @@ export function heldVsm(rt: WebgpuPagesRuntime, device: GPUDevice, list: VsmFram
   const poolMoved = !!vsm && vsm.poolAsked !== asked.poolPages
   // The occlusion culling turned on or off, or its second layer, the pages kept from one frame to
   // the next (`shadowCache`) turned on or off, or the cover of the local lights' receivers
-  // (`shadowUseReceiverMaskLocal`) asked where the set's cover holds the suns' alone: the set made
-  // again, with its pyramid or without, its pages and cache drawn again. A cover that holds every
-  // map still works with the option off.
+  // (`shadowUseReceiverMaskLocal`) asked where the set's cover holds the suns' alone, or the cover
+  // masks asked (`shadowUseReceiverMaskDirectional`) where the set made none: the set made again,
+  // with its pyramid or without, its pages and cache drawn again. A cover that holds more than is
+  // asked still works. The prefiltered distant shadow (`shadowPrefilteredDistant`)
+  // turned on or off: the set made again, with its pools or without, as the reference makes its pool
+  // again.
   const moved =
     !!kept &&
     (kept.occlusion !== asked.occlusion ||
       kept.dynamicHzb !== dynamicHzbOf(asked.occlusion, asked.cacheEnabled, asked.dynamicHzb) ||
       kept.cacheEnabled !== asked.cacheEnabled ||
-      (asked.localCover && !kept.localCover))
+      kept.prefilteredDistant !== asked.prefilteredDistant ||
+      !vsmCoverHolds(kept.coverMode, asked.coverMode))
   if (!vsm || moved || poolMoved || (short && !growEngineVsm(device, list, vsm, wanted)))
     vsm = grantEngineVsm(rt, device, list, wanted)
   else if (!short) vsm = regrowEngineVsm(rt, device, list, vsm)
@@ -67,14 +70,7 @@ export function assignChannels(
       continue
     }
     const light = plan.projected[k]
-    store.assignSlice(
-      slot,
-      shadowSliceOf(
-        k,
-        light.kind === 'directional',
-        light.entry.mapCaches[0].projectionData.finestMip >= VSM_MIPS - 1,
-      ),
-    )
+    store.assignSlice(slot, shadowSliceOf(k, light.kind === 'directional', light.entry.distant))
     vsm.lightIdsData[slot] = light.firstId
   }
 }

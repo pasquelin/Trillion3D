@@ -1,4 +1,5 @@
 import type { BlendedSurface } from '../../blend/pipelines.ts'
+import type { VisMaterial } from '../../visibility/materialType.ts'
 import type { Blending } from '../../../../sdk-core/src/world/constants/index.ts'
 import { GRAPH_SHADING_MODELS } from '../../../../sdk-core/src/world/material/graph/outputs.ts'
 import { SURFACE_MODEL } from './surfaceModelWord.ts'
@@ -14,12 +15,10 @@ import {
  *  at its point; `none`, nothing; `own`, a stage of its own (the single-layer water, a transmissive layer). */
 type BlendLightSource = 'forward' | 'volume' | 'none' | 'own'
 
-/** What a blended surface is besides its mode, blending and shading model: lit, the water, transmissive. */
-type BlendLightFlags = { lit: boolean; water?: boolean; transmissive?: boolean }
-
 /**
  * THE ONE TRUTH TABLE OF A BLENDED LAYER'S LIGHT: where the layer of lighting mode `mode` (`TRANSLUCENCY_LIGHTING_CODE`'s names),
- * blending `blending`, shading model `shadingModel` and surface model `model` is lit from. The translucency lighting volume's scene
+ * blending `blending`, shading model `shadingModel` and surface model `model` is lit from; `lit` whether its material is lit, `own` whether
+ * it is the water or a transmissive layer. The translucency lighting volume's scene
  * test (`translucencyVolumeOf`), the record's model lane (`laneModelOf`) and the blend fragment (`blendLightsOf`) all follow it.
  * - the water and a transmissive layer have a stage of their own;
  * - an unlit surface, or the unlit shading model, is lit by nothing;
@@ -32,9 +31,10 @@ export function blendLightSource(
   blending: Blending | undefined,
   shadingModel: number | undefined,
   model: number | undefined,
-  { lit, water = false, transmissive = false }: BlendLightFlags,
+  lit: boolean,
+  own: boolean,
 ): BlendLightSource {
-  if (water || transmissive) return 'own'
+  if (own) return 'own'
   if (!lit || shadingModel === GRAPH_SHADING_MODELS.unlit) return 'none'
   if (
     model === SURFACE_MODEL.shadow ||
@@ -46,15 +46,40 @@ export function blendLightSource(
     : 'none'
 }
 
-/** Whether a blended surface is lit from the translucency lighting volume (`blendLightSource`: `volume`). */
-export const readsVolume = ({ surface, transmissive }: BlendedSurface) =>
+/** What `blendLightSource` reads of a layer: the fields of a blended surface that name its lighting (`water` false when absent). */
+type SourceFacts = Pick<
+  BlendedSurface['surface'],
+  'translucencyLighting' | 'blending' | 'shadingModel' | 'model' | 'lit' | 'water'
+>
+
+/** Where a layer of `surface` is lit from (`blendLightSource`), the one reading of its facts; `transmissive` for a layer of the
+ *  transmissive stage. */
+const sourceOf = (surface: SourceFacts, transmissive = false) =>
   blendLightSource(
     surface.translucencyLighting,
     surface.blending,
     surface.shadingModel,
     surface.model,
-    { lit: surface.lit, water: surface.water === true, transmissive },
-  ) === 'volume'
+    surface.lit,
+    surface.water === true || transmissive,
+  )
+
+/** Whether a blended surface is lit from the translucency lighting volume (`blendLightSource`: `volume`). */
+export const readsVolume = ({ surface, transmissive }: BlendedSurface) =>
+  sourceOf(surface, transmissive) === 'volume'
+
+/** Whether a material asks for contact shadows (`VisMaterial.contactShadows`): it says so and it is no single-layer water. */
+export const asksContact = (surface: Pick<VisMaterial, 'contactShadows' | 'water'>) =>
+  surface.contactShadows === true && surface.water !== true
+
+/** Whether a blended surface casts contact shadow rays: its material asks (`asksContact`), and each pixel walks the declared
+ *  lights, the transmissive layers' stage or the forward lighting's (`blendLightSource`), where the rays are cast. A volume-lit
+ *  layer has no light to cast a ray toward. */
+const asksContactShadows = ({ surface, transmissive }: BlendedSurface) =>
+  asksContact(surface) && (transmissive || sourceOf(surface) === 'forward')
+
+/** Whether a surface of `items` casts contact shadow rays (`asksContactShadows`): the programs then hold their code. */
+export const contactShadowsOf = (items: readonly BlendedSurface[]) => items.some(asksContactShadows)
 
 /** Whether a surface of `items` is lit from the translucency lighting volume: the programs then read it, and the frame builds it
  *  for as long as some item does. */
@@ -89,13 +114,7 @@ export const BLEND_LIGHTING_CODES_WGSL = wgslBlock(
  *  — but `volume` for a normal or additive layer whose graph wires its shading model, which may bring the volume's light back
  *  per pixel (`blendGraphFlags`). */
 export function blendLightingOf({ surface, transmissive }: BlendedSurface): LightingProgram {
-  const source = blendLightSource(
-    surface.translucencyLighting,
-    surface.blending,
-    surface.shadingModel,
-    surface.model,
-    { lit: surface.lit, water: surface.water === true, transmissive },
-  )
+  const source = sourceOf(surface, transmissive)
   if (source === 'volume') return 'volume'
   if (source !== 'none') return 'forward'
   if (!surface.lit || surface.shadingModel === GRAPH_SHADING_MODELS.unlit) return 'unlit'

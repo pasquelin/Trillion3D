@@ -9,10 +9,10 @@ import { VSM_MAX_VIEW_PASSES } from '../../lighting/shadows/vsm/render/renderVie
  * post-render and the projection (`lighting/shadows/vsm/frame/vsmEncode.ts`).
  */
 const VSM_FIXED_PASSES = 2 + 1 + 7 + 1 + 1 + 1 + 1
-/** Passes of one view pass of the raster: its cull and its raster
+/** Passes of one view pass of the raster: its cull, its raster and its software raster
  *  (`lighting/shadows/vsm/render/renderPass.ts`), the candidates in the first cull's, and with the
- *  occlusion culling the pyramid's build, the second cull and the second raster. */
-const VSM_VIEW_PASS_PASSES = 5
+ *  occlusion culling the pyramid's build, the second cull, the second raster and its software raster. */
+const VSM_VIEW_PASS_PASSES = 7
 /** Passes the virtual shadow maps time at most in a frame: those of each of the most view passes a
  *  frame takes (`lighting/shadows/vsm/render/renderViewPasses.ts`). */
 export const VSM_TIMED_PASSES = VSM_FIXED_PASSES + VSM_VIEW_PASS_PASSES * VSM_MAX_VIEW_PASSES

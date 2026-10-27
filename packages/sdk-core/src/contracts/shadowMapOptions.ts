@@ -25,18 +25,25 @@ const CLIPMAP_AND_MARKING_RULES = /* @__PURE__ */ (() =>
     integer('shadowClipmapFirstCoarseLevel', 15, [0, 30]),
     integer('shadowClipmapLastCoarseLevel', 18, [0, 30]),
     integer('shadowClipmapMinCameraViewportWidth', 0, [0, 16384]),
+    flag('shadowOrthoEstimateClipmapLevels', true),
+    integer('shadowOrthoClipmapLodBias', 0, [-30, 30]),
+    flag('shadowOrthoProjectViewOrigin', true),
+    flag('shadowOrthoRayCastViewOrigin', true),
     positive('shadowClipmapZRangeScale', 1000),
     flag('shadowClipmapWpoDisableDistance', true),
     integer('shadowClipmapWpoDisableDistanceLodBias', 3, [0, 30]),
     flag('shadowClipmapWpoDisableDistanceInvalidateOnScaleChange', false),
     flag('shadowClipmapCullDynamicTightly', true),
     flag('shadowForceInvalidateDirectional', false),
+    flag('shadowPrefilteredDistant', false),
+    number('shadowPrefilteredDistantHistoryBlendFactor', 0.87, [0, 1]),
     flag('shadowUseReceiverMaskDirectional', true),
     flag('shadowUseReceiverMaskLocal', false),
     integer('shadowMarkCoarsePagesDirectional', 2, [0, 2]),
     integer('shadowMarkCoarsePagesLocal', 1, [0, 2]),
     nonNegative('shadowCoarsePagePixelThresholdStatic', 1),
-    nonNegative('shadowCoarsePagePixelThresholdDynamic', 4),
+    nonNegative('shadowCoarsePagePixelThresholdDynamicClusters', 4),
+    flag('shadowCoarsePagesIncludeNonClusterCasters', true),
     integer('shadowMarkPixelPagesMipModeLocal', 0, [0, 2]),
     nonNegative('shadowPageDilationBorderSizeDirectional', 0.05),
     nonNegative('shadowPageDilationBorderSizeLocal', 0.05),
@@ -55,11 +62,13 @@ const BIAS_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     nonNegative('shadowMaxDofResolutionBias', 1),
     nonNegative('shadowScreenRayLength', 0.015),
     nonNegative('shadowSubsurfaceMinSourceAngle', 5),
+    flag('shadowOnePassProjection', true),
+    flag('shadowForcePerLightMaskClear', false),
     integer('shadowOnePassProjectionMaxLightsPerPixel', 16, [1, 32]),
     flag('shadowAllowScreenOverflowMessages', true),
     flag('shadowCache', true),
     flag('shadowCacheAllocateViaLru', true),
-    flag('shadowCacheDeformableMeshesInvalidate', true),
+    flag('shadowCacheWpoPrimitives', false),
     integer('shadowForceInvalidateLocal', 0, [0, 2]),
     flag('shadowForceFullPageClears', false),
     flag('shadowCacheDebugSkipDynamicPageInvalidation', false),
@@ -74,7 +83,7 @@ const BIAS_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     nonNegative('shadowDynamicResolutionMaxPagePoolLoadFactor', 0.85),
     nonNegative('shadowDynamicResolutionTimeBudgetMs', 0),
     nonNegative('shadowDynamicResolutionLoadBudget', 0),
-    number('shadowDynamicResolutionPerVsmBiasHistoryWeight', 0.9, [0, 1]),
+    number('shadowDynamicResolutionPerVsmBiasHistoryWeight', 0.9, ANY_NUMBER),
     nonNegative('shadowDynamicResolutionMaxComputeResolutionLodBiasDirectional', 99999),
     nonNegative('shadowDynamicResolutionMaxComputeResolutionLodBiasLocal', 99999),
   ] as const)()
@@ -122,6 +131,9 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
     integer('shadowTranslucentQuality', 0, [0, 1]),
     flag('shadowTranslucentLocalLights', false),
     flag('translucentRectLights', false),
+    nonNegative('lightMinScreenRadius', 0.03),
+    nonNegative('lightMaxDrawDistanceScale', 1),
+    flag('lightDrawRangeFollowsFieldOfView', true),
   ] as const)()
 
 /**
@@ -138,12 +150,18 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowClipmapFirstCoarseLevel` | 15 | |
  * | `shadowClipmapLastCoarseLevel` | 18 | |
  * | `shadowClipmapMinCameraViewportWidth` | 0 | |
+ * | `shadowOrthoEstimateClipmapLevels` | true | |
+ * | `shadowOrthoClipmapLodBias` | 0 | |
+ * | `shadowOrthoProjectViewOrigin` | true | |
+ * | `shadowOrthoRayCastViewOrigin` | true | |
  * | `shadowClipmapZRangeScale` | 1000 | |
  * | `shadowClipmapWpoDisableDistance` | true | |
  * | `shadowClipmapWpoDisableDistanceLodBias` | 3 | |
  * | `shadowClipmapWpoDisableDistanceInvalidateOnScaleChange` | false | |
  * | `shadowClipmapCullDynamicTightly` | true | |
  * | `shadowForceInvalidateDirectional` | false | |
+ * | `shadowPrefilteredDistant` | false | |
+ * | `shadowPrefilteredDistantHistoryBlendFactor` | 0.87 | |
  * | `shadowUseReceiverMaskDirectional` | true | |
  * | `shadowUseReceiverMaskLocal` | false | |
  * | `shadowFirstPersonClipmap` | true | |
@@ -154,7 +172,8 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowMarkCoarsePagesDirectional` | 2 | |
  * | `shadowMarkCoarsePagesLocal` | 1 | 2 2 2 1 |
  * | `shadowCoarsePagePixelThresholdStatic` | 1 | |
- * | `shadowCoarsePagePixelThresholdDynamic` | 4 | |
+ * | `shadowCoarsePagePixelThresholdDynamicClusters` | 4 | |
+ * | `shadowCoarsePagesIncludeNonClusterCasters` | true | |
  * | `shadowMarkPixelPagesMipModeLocal` | 0 | |
  * | `shadowPageDilationBorderSizeDirectional` | 0.05 | |
  * | `shadowPageDilationBorderSizeLocal` | 0.05 | |
@@ -168,11 +187,13 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowMaxDofResolutionBias` | 1 | |
  * | `shadowScreenRayLength` | 0.015 | |
  * | `shadowSubsurfaceMinSourceAngle` | 5 | |
+ * | `shadowOnePassProjection` | true | |
+ * | `shadowForcePerLightMaskClear` | false | |
  * | `shadowOnePassProjectionMaxLightsPerPixel` | 16 | |
  * | `shadowAllowScreenOverflowMessages` | true | |
  * | `shadowCache` | true | |
  * | `shadowCacheAllocateViaLru` | true | |
- * | `shadowCacheDeformableMeshesInvalidate` | true | |
+ * | `shadowCacheWpoPrimitives` | false | |
  * | `shadowForceInvalidateLocal` | 0 | |
  * | `shadowForceFullPageClears` | false | |
  * | `shadowCacheDebugSkipDynamicPageInvalidation` | false | |
@@ -225,15 +246,30 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowTranslucentQuality` | 0 | |
  * | `shadowTranslucentLocalLights` | false | |
  * | `translucentRectLights` | false | |
+ * | `lightMinScreenRadius` | 0.03 | |
+ * | `lightMaxDrawDistanceScale` | 1 | |
+ * | `lightDrawRangeFollowsFieldOfView` | true | |
  *
- * `shadowCoarsePagePixelThresholdStatic` and `shadowCoarsePagePixelThresholdDynamic` are the pixel
+ * `shadowCoarsePagePixelThresholdStatic` and `shadowCoarsePagePixelThresholdDynamicClusters` are the pixel
  * footprints, in the map's finest level, under which an object is drawn into the fine pages alone
  * and not into the coarse ones, the object judged whole (its placement's bounds), by the layer it
- * is cached in: static (1) or dynamic (4, the reference's value for cluster geometry).
+ * is cached in: static (1) or dynamic (4, the reference's value for cluster geometry:
+ * every caster here is cluster geometry — it reaches the maps through the candidates of the cut's clusters, the tessellated, voxel,
+ * sprite, line, skinned, instanced and first-person rows too (`vsm/render/renderCandidatesWgsl.ts`) —, so the reference's
+ * threshold for other geometry, 16, has no use). `shadowCoarsePagesIncludeNonClusterCasters` is the reference's switch
+ * that says whether the casters that are not clusters, of which there is none here, are judged by those thresholds (true) or kept out
+ * of the coarse pages (false); false puts every cluster caster, all of them, in the coarse pages whatever its footprint, the thresholds
+ * then read by none.
  *
  * `shadowClipmapMinCameraViewportWidth` is the narrowest view width, in pixels, the sun's clipmap resolution is
  * judged at: 0, the default, reads the width the view is drawn at alone; raise it so that a lowered render
  * resolution does not coarsen the sun's shadows.
+ *
+ * `shadowOrthoEstimateClipmapLevels` sizes the first clipmap level of an orthographic view on the width of its box, so
+ * a wide box does not spend its finest levels on texels smaller than the box can show; `shadowOrthoClipmapLodBias` adds
+ * that many levels to the first one it finds (whole levels, never below level 0). `shadowOrthoProjectViewOrigin` centres
+ * the clipmaps of an orthographic view on the camera's view target (`Camera.viewTarget`) rather than on the camera, and,
+ * where the camera names none, `shadowOrthoRayCastViewOrigin` on the first body its line of sight meets in the physics.
  *
  * `shadowMarkPixelPagesMipModeLocal` limits the mips a local light's pixels mark: 0 all eight, 1 the even ones, 2 the
  * odd ones (fewer duplicated instances, a harsher fall-off between mips).
@@ -259,12 +295,21 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * is not shadowed by it, every other pixel is, by the shadow of the world-space body. The pixels of first-person
  * objects ask the regular clipmap for a resolution `shadowFirstPersonPixelRequestBias` levels coarser, and never finer
  * than level `shadowFirstPersonRequestMinLevelClamp` (a negative bias asks no page for them at all).
+ * `shadowOnePassProjection` projects the shadow of every shadowed local light in one pass, into the packed mask the
+ * clustered light loop reads (true, the default). False takes each shadowed local light out of that loop: it is lit by a
+ * draw of its own, after the batched lights, from a screen mask of its own, in this order for each light: the mask is
+ * cleared to white, the light's shadow is projected over the pixels it reaches, the projection is composited into the
+ * mask (the square root of the share in the blue and alpha channels, the minimum with what the mask holds), then the
+ * light is drawn reading that mask as its shadow, with no cap on the lights a pixel keeps and none of the dither the
+ * packed shares take. The suns are projected apart in both. `shadowForcePerLightMaskClear` clears the projection's
+ * target before each light's projection (false, the default, relies on the projection writing every pixel it reaches);
+ * it changes no image and only applies when `shadowOnePassProjection` is false.
  * `shadowOnePassProjectionMaxLightsPerPixel` is the most local lights a pixel keeps the shadow of in its mask, 4 bits a
  * light, from 1 to 32 (a mask of 32 bits a pixel up to 8 lights, 64 up to 16, 128 up to 32); a light of the pixel's cell
  * past them is read from one sample of its own map by the lighting.
  * `shadowAllowScreenOverflowMessages` lets the shadow stats (`shadowVsmOverflowFlags`) report the overflows seen in the
  * last 10 seconds, for a host to show: the one-pass projection's lights past the mask, the page pool, the casters'
- * list and the marking's job queue; false reports none. Each kind is logged once either way, and an overflow can show
+ * list, the raster's records list and the map slots; false reports none. Each kind is logged once either way, and an overflow can show
  * as missing shadow.
  * `shadowSubsurfaceMinSourceAngle` is the smallest angle, in degrees, a sun's disk takes on a subsurface surface, which
  * grows toward it as the surface's opacity falls (emulating the light's diffusion in the material); the light a
@@ -281,6 +326,11 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * that enters or leaves residency, or a colour tile that arrives, invalidates no page, and the pages show what they were
  * drawn with until a placement, a surface or a cell changes them (a node moved, a surface whose alpha moved, a cell that
  * switched between its placements and its HLOD actor).
+ * `shadowCacheWpoPrimitives` keeps the shadows of an object whose surfaces wear a world position offset or a
+ * displacement in the static layer when it arrives, as any still object; off (the default) it arrives in the dynamic
+ * layer, as an often-moving object (`mobility`) does, whatever its `shadowCacheInvalidation` but `'static'`, which
+ * keeps it out of the dynamic layer. Turning it makes every object arrive anew; the offset still invalidates its
+ * pages while it is evaluated either way.
  * `shadowCacheFramesStaticThreshold` is the frames a placement that moved waits, without a move, to be cached as
  * static again; `shadowCacheMaxPageAgeSinceLastRequest` and `shadowCacheMaxLightAgeSinceLastRequest` the frames a
  * page, a light, unrequested is kept; `shadowDynamicResolutionMaxResolutionLodBias` the most the global resolution
@@ -293,19 +343,16 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * load past which the bias rises), or by the dynamic resolution's fit of the shadow raster's GPU time to the
  * milliseconds named (`shadowDynamicResolutionTimeBudgetMs`, which needs the render scale on `auto` and a GPU
  * timer; it wins when both are named); with both at 0 nothing is counted, made or run.
- * `shadowDynamicResolutionPerVsmBiasHistoryWeight` (0 to 1) is the share of a map's bias the frame before keeps
- * when it is eased; `shadowDynamicResolutionMaxComputeResolutionLodBiasDirectional` and `...Local` cap, for the
+ * `shadowDynamicResolutionPerVsmBiasHistoryWeight` (any number, 0.9) is the share of a map's bias the frame before keeps
+ * when it is eased, meant from 0 to 1 and taken as given beyond; `shadowDynamicResolutionMaxComputeResolutionLodBiasDirectional` and `...Local` cap, for the
  * suns' maps and the local lights', the levels this throttle adds, beyond the pool's bias, within
  * `shadowDynamicResolutionMaxResolutionLodBias`.
  *
  * `shadowCache` keeps the pages of one frame for the next: off, every light is drawn uncached each frame, no distant
  * light is kept, and the pool holds no separate static layer (a change makes the shadows' set again, its pages
- * dropped). `shadowCacheAllocateViaLru` takes a free page by the age of its last request, the finer level first
- * within an age step; off, a page not wanted this frame is taken in the order of the pool alone, after the empty
- * ones. `shadowCacheDeformableMeshesInvalidate` has the pages drawn by an object that a skin or a morph deforms
- * invalidated as it draws them; off, such an object is cached as dynamic while it moves and settles to static
- * after `shadowCacheFramesStaticThreshold` frames without a move, its animation no longer redrawing its pages.
- * `shadowForceInvalidateLocal` draws the local lights uncached each frame: 0 none, 1 those that are not distant,
+ * dropped). `shadowCacheAllocateViaLru` takes a free page by the age of its last request, frame by frame,
+ * whatever its level; off, a page not wanted this frame is taken in the order of the pool alone, after the empty
+ * ones. `shadowForceInvalidateLocal` draws the local lights uncached each frame: 0 none, 1 those that are not distant,
  * 2 all of them. `shadowForceFullPageClears` clears a page whose layers are stale whole, though what it holds was
  * cleared already. `shadowCacheDebugSkipDynamicPageInvalidation` applies none of the invalidations a cached page
  * carries (the moved casters' static and dynamic ones, the deferred ones, the receiver cover's): the shadows keep
@@ -319,6 +366,13 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * `shadowUseReceiverMaskDirectional` and `shadowUseReceiverMaskLocal` draw a light's pages into the receivers' cover
  * alone (the pixels that ask the page): a sun's clipmap by default, a local light's when set (the cover then holds
  * every map, not the suns' alone; a change makes the shadows' set again). A light that changes it is drawn again.
+ *
+ * `shadowPrefilteredDistant` (off by default) gives each sun's regular clipmap a prefiltered shadow of its far levels: the
+ * casters in a level's depth range from the level's own radius outward are drawn into the pages the level's receivers ask
+ * and into the pages of every coarser level, the pages of the coarser levels are filtered into an 8-bit occlusion, and
+ * the sun's projection reads that occlusion where the sampled pages hold it; a change makes the shadows' set again.
+ * `shadowPrefilteredDistantHistoryBlendFactor` (0 to 1) is the share of the frame before that the filtered occlusion keeps
+ * of itself: higher updates slower and aliases more over time, 0 turns the reprojection off.
  *
  * The `shadowSmrt...` settings shape the shadow trace of a ray: `shadowSmrtAdaptiveRayCount` is the ray after which
  * a group whose lanes all hit stops (and after whose first ray a group that all missed stops; 0 turns both off),
@@ -369,6 +423,15 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * `translucentRectLights` says whether a rectangle light lights a translucent surface as a
  * rectangle: off, it lights it as a point light at its centre and the translucent programs hold none
  * of the rectangle shading.
+ *
+ * `lightMinScreenRadius`, `lightMaxDrawDistanceScale` and `lightDrawRangeFollowsFieldOfView` decide which point, spot and
+ * rectangle lights a perspective view draws, their lighting and their shadow both: a light of bounding radius `W`
+ * metres (0 for a light of no range) at the distance `d` is drawn while `min(0.02, lightMinScreenRadius / W) * factor * d < 1`
+ * (a light of 1.5 m or less, a light of no range among them, is dropped past 50 m, a larger one past `W / 0.03`) and, if it
+ * names a `maxDrawDistance` above 0, while `d < maxDrawDistance * lightMaxDrawDistanceScale`; an orthographic view and a
+ * directional light always draw. The `factor` is the view's horizontal field of view, in degrees, over 90 where
+ * `lightDrawRangeFollowsFieldOfView` is on (a narrower view keeps the lights nearer its eye longer than far ones),
+ * else 1. 0 for `lightMinScreenRadius` drops no light by its size.
  */
 export const SHADOW_MAP_RULES = /* @__PURE__ */ (() =>
   [

@@ -7,7 +7,7 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 
 /** The pass's bindings and what its workgroup shares. */
 const TILE_PASS_HEAD_TEXT = `
-struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthRows:array<vec4f,2>,start:vec4u,cull:vec4f,sliceMap:vec4f,}
+struct TileView{inverseViewProjection:mat4x4f,viewport:vec4f,origin:vec4f,depthRows:array<vec4f,2>,start:vec4u,cull:vec4f,sliceMap:vec3f,}
 @group(0) @binding(0) var<uniform> view:TileView;
 @group(0) @binding(1) var<storage,read> directLights:DirectLights;
 @group(0) @binding(2) var<storage,read_write> tiles:array<u32>;

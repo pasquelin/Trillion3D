@@ -132,7 +132,7 @@ fn vsmStaleBoxPages(pd:VsmProjectionData,inst:VsmInvalidationInstance){
  // A map of one page (a distant light's: its last mip alone) has that page's static layer staled and
  // is done. Over a receiver cover only a box cached as static reaches here (a dynamic one returned
  // above); without a cover a box of either layer does.
- if(vsmSinglePageMap(pd)){
+ if(pd.distant){
   let lastMip=VSM_MIPS-1u;
   vsmMarkStale(vsmTableEntryAt(vsmTableLevelOrigin(pd.handle,lastMip),lastMip,vec2u(0u,0u)),VSM_META_STATIC_STALE);
   return;

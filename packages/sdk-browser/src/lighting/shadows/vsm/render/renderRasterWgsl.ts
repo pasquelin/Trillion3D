@@ -4,8 +4,8 @@
  * cluster over its raster window: a viewport of `VSM_RENDER_WINDOW_PAGES` pages a side, the record's
  * first page at its corner, into a dummy attachment of that size
  * (`renderTarget`): WebGPU has no 16384-wide viewport without a 16384² attachment. Each fragment finds
- * its page of the window and translates its pixel through the page table, drawn only on a page the
- * record draws and a page to draw, then joins the pool by a 32-bit
+ * its page of the window and translates its pixel through the page table, drawn only on a page of the
+ * record's rect that is a page to draw at this level, then joins the pool by a 32-bit
  * `atomicMax` — a static caster's into slice 0 as well.
  *
  * One non-indexed `drawIndirect` per corner tier (vertex pulling, `vsmRenderArgsBin`): a tier's
@@ -55,7 +55,7 @@ import {
   materialDeclarations,
 } from '../../../../materials/virtual/wgsl.ts'
 import { VSM_CONSTANTS_WGSL, VSM_PAGE_TEXELS } from '../constants.ts'
-import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from '../pageTableWgsl.ts'
+import { VSM_PAGE_ADDRESS_WGSL } from '../pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from '../projection/projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
@@ -81,8 +81,8 @@ export const VSM_RENDER_TARGET_FORMAT: GPUTextureFormat = 'depth16unorm'
 export const VSM_RENDER_TARGET_TEXELS = VSM_RENDER_WINDOW_PAGES * VSM_PAGE_TEXELS
 
 /** A clip position on the map placed on a record's window (`vsmRenderWindowAt`): the hardware
- *  raster's, `VSM_RENDER_WINDOW_PAGES` pages a side, and the software raster's, one page
- *  (`renderSoftwareWgsl.ts`). */
+ *  raster's, `VSM_RENDER_WINDOW_PAGES` pages a side, and the software raster's,
+ *  `VSM_RENDER_WINDOW_PAGES_SOFTWARE` (`renderSoftwareWgsl.ts`). */
 export const VSM_RENDER_WINDOW_WGSL = wgslBlock(
   'VSM_RENDER_WINDOW_WGSL',
   [VSM_CONSTANTS_WGSL, VSM_RENDER_RECORD_WGSL],
@@ -101,13 +101,13 @@ fn vsmRenderRasterPosition(clip:vec4f,r:vec4u)->vec4f{
  let p=vsmRenderWindowPosition(clip,r);
  return select(p,vec4f(p.xy,0.5*p.w,p.w),vsmRecordNoNearClip(r));
 }
-/** The map's own pixel at mip \`mip\` of a clip position on the map (before \`vsmRenderRasterPosition\`
+/** The map's own pixel at mip \`mip\` of a position on the map (before \`vsmRenderRasterPosition\`
  *  places it on a window): the position a masked caster's dither is anchored on, whatever page holds
- *  the texel. */
+ *  the texel. \`clip\` is the map's UV times w (\`vsmRenderClip\`), so its divide is the map's UV, y
+ *  already down, the same pixel the software raster anchors on for a perspective map too. */
 fn vsmRenderMapPixel(clip:vec4f,mip:u32)->vec2f{
- let ndc=clip.xy/clip.w;
  let size=f32(VSM_LEVEL0_TEXELS>>mip);
- return vec2f(ndc.x*0.5+0.5,0.5-ndc.y*0.5)*(size-1.0)+0.5;
+ return clip.xy/clip.w*(size-1.0)+0.5;
 }`,
 )
 
@@ -116,20 +116,13 @@ fn vsmRenderMapPixel(clip:vec4f,mip:u32)->vec2f{
  *  placing of a clip position on a record's window and the window as the fragment reads it. */
 export const VSM_RENDER_OUT_WGSL = wgslBlock(
   'VSM_RENDER_OUT_WGSL',
-  [
-    VSM_CONSTANTS_WGSL,
-    VSM_HANDLE_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_TABLE_ORIGIN_WGSL,
-    VSM_RENDER_RECORD_WGSL,
-    VSM_RENDER_WINDOW_WGSL,
-  ],
+  [VSM_CONSTANTS_WGSL, VSM_RENDER_RECORD_WGSL, VSM_RENDER_WINDOW_WGSL],
   `struct VsmRenderOut{
  @builtin(position) position:vec4f,
  @location(0) @interpolate(flat) row:u32,
  @location(1) uv:vec2f,
  /** The window (\`vsmRenderWindowOf\`). */
- @location(2) @interpolate(flat) window:vec4u,
+ @location(2) @interpolate(flat) window:vec3u,
  /** The map's clip position, before it is placed on the window: its z / w is the depth, its x and y
   *  the map's pixel (\`vsmRenderMapPixel\`). */
  @location(3) clip:vec4f,
@@ -139,16 +132,14 @@ export const VSM_RENDER_OUT_WGSL = wgslBlock(
 /** A dropped corner: every corner of a dropped triangle lands on this one point outside the
  *  viewport, a zero-area triangle no rasterizer covers (a NaN constant does not compile in Tint). */
 fn vsmRenderNan()->vec4f{return vec4f(-4.0,-4.0,0.5,1.0);}
-/** The window record \`r\` draws, as its fragment reads it: the page table's index of its first page,
- *  its pages and the pages it draws (the record's z and w), whether it draws the static layer (bit 0)
- *  and its mip (the bits above). */
-fn vsmRenderWindowOf(r:vec4u)->vec4u{
- let mip=vsmRecordMip(r);
- let cell=vsmTableEntryAt(vsmTableLevelOrigin(vsmHandleFromId(vsmRecordMap(r)),mip),mip,vsmRecordFirstPage(r));
- return vec4u(vsmTableIndex(cell.tableXY),r.z,r.w,vsmRecordStatic(r)|(mip<<1u));
+/** The window record \`r\` draws, as its fragment reads it: the page table's index of its first page
+ *  (the bin put it in the record's \`w\`), whether it draws the static layer (bit 0) and its mip (the
+ *  bits above), and the pages its rect spans past the first (\`vsmRecordExtent\`). */
+fn vsmRenderWindowOf(r:vec4u)->vec3u{
+ return vec3u(r.w,vsmRecordStatic(r)|(vsmRecordMip(r)<<1u),vsmRecordExtent(r));
 }
 /** The mip of a window (\`vsmRenderWindowOf\`). */
-fn vsmRenderWindowMip(window:vec4u)->u32{return window.w>>1u;}
+fn vsmRenderWindowMip(window:vec3u)->u32{return window.y>>1u;}
 `,
 )
 
@@ -165,27 +156,49 @@ fn vsmRenderBeats(texel:vec2u,slice:u32,depth:u32)->bool{return depth>vsmPoolLoa
 `,
 )
 
+/** Where a page of a record's window lies in the pool: the hardware fragment's and the software raster's
+ *  (`renderSoftwareWgsl.ts`) one lookup. */
+export const VSM_RENDER_PAGE_ORIGIN_WGSL = wgslBlock(
+  'VSM_RENDER_PAGE_ORIGIN_WGSL',
+  [VSM_CONSTANTS_WGSL, VSM_PAGE_ADDRESS_WGSL],
+  `const VSM_RENDER_NO_PAGE:u32=0xFFFFFFFFu;
+/** The pool address of page \`local\` of the window whose first page is the page table's index \`first\`
+ *  (the bin put it in the record's \`w\`), a row of the table apart: its physical address, x | y << 16,
+ *  read from its page table word; \`VSM_RENDER_NO_PAGE\` where it is not one to draw at its level. */
+fn vsmRenderPageOrigin(first:u32,local:vec2u)->u32{
+ let entry=vsmUnpackTableEntry(vsmPageTableLoad(first+local.y*vsm.pageTableSize.x+local.x));
+ return select(VSM_RENDER_NO_PAGE,entry.physicalAddress.x|(entry.physicalAddress.y<<16u),entry.thisLevelDrawable);
+}
+`,
+)
+
 /** The fragment's half of the window: a pixel's pool texel and the join of its depth. */
 export const VSM_RENDER_JOIN_WGSL = wgslBlock(
   'VSM_RENDER_JOIN_WGSL',
-  [VSM_CONSTANTS_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_RENDER_RECORD_WGSL, VSM_RENDER_DEPTH_WGSL],
+  [
+    VSM_CONSTANTS_WGSL,
+    VSM_PAGE_ADDRESS_WGSL,
+    VSM_RENDER_RECORD_WGSL,
+    VSM_RENDER_DEPTH_WGSL,
+    VSM_RENDER_PAGE_ORIGIN_WGSL,
+  ],
   `/** The pool texel of pixel \`pixel\` of \`window\` (\`vsmRenderWindowOf\`), through the page table: none
- *  (false) where the record does not draw the pixel's page or the page is not one to draw. */
-fn vsmRenderPoolTexel(window:vec4u,pixel:vec2f,texel:ptr<function,vec2u>)->bool{
+ *  (false) where the pixel's page is out of the record's rect or is not one to draw at this level. */
+fn vsmRenderPoolTexel(window:vec3u,pixel:vec2f,texel:ptr<function,vec2u>)->bool{
  let p=vec2u(pixel);
  let local=p>>vec2u(VSM_LOG2_PAGE);
- if(!vsmRecordDrawsPage(vec4u(0u,0u,window.y,window.z),local)){return false;}
- let entry=vsmUnpackTableEntry(vsmPageTableLoad(window.x+local.y*vsm.pageTableSize.x+local.x));
- if(!entry.thisLevelDrawable){return false;}
- *texel=entry.physicalAddress*VSM_PAGE_TEXELS+(p&vec2u(VSM_PAGE_TEXEL_MASK));
+ if(any(local>vsmExtentPages(window.z))){return false;}
+ let origin=vsmRenderPageOrigin(window.x,local);
+ if(origin==VSM_RENDER_NO_PAGE){return false;}
+ *texel=vec2u(origin&0xFFFFu,origin>>16u)*VSM_PAGE_TEXELS+(p&vec2u(VSM_PAGE_TEXEL_MASK));
  return true;
 }
 /** The slice of the pool the window's layer joins its depths to (\`staticSlice\` for the static layer):
  *  a static caster writes the static slice alone; the pages that drew it merge it into slice 0, what
  *  every reader samples, after the raster (\`vsmMergePages\`). */
-fn vsmRenderSlice(window:vec4u)->u32{return select(0u,vsm.staticSlice,(window.w&1u)!=0u);}
+fn vsmRenderSlice(window:vec3u)->u32{return select(0u,vsm.staticSlice,(window.y&1u)!=0u);}
 /** The word \`depth\` (\`vsmRenderDepth\`) joined to the pool at \`texel\`, in the window's layer's slice. */
-fn vsmRenderJoin(window:vec4u,texel:vec2u,depth:u32){
+fn vsmRenderJoin(window:vec3u,texel:vec2u,depth:u32){
  vsmPoolAtomicMax(texel,vsmRenderSlice(window),depth);
 }
 `,

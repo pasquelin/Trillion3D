@@ -12,11 +12,14 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../materials/texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../lighting/shaderRunF32.fixture.ts'
-import { blendShader } from './shader.ts'
+import { DEFAULT_TRANSLUCENT_SCENE, blendShader } from './shader.ts'
 import { randomLampScope, type Sum } from './shadedLightScope.fixture.ts'
 import type { ContractKey } from '../lighting/deferred/contractCuts.ts'
 import { lcgRandom } from '../../../math/src/sequence/random.ts'
 import { TRANSLUCENT_SHADOW_DEFAULT } from '../lighting/direct/shadowWgsl.ts'
+
+/** The scene whose translucent programs light a rectangle light as a rectangle (`translucentRectLights`). */
+const RECT_LIGHTS = { ...DEFAULT_TRANSLUCENT_SCENE, rectLights: true }
 
 /** What the shadow read does for a light with no slot: a factor of one. */
 const NO_SLOT = /fn shadowFactor\([^)]*\)->f32\{\n if\(slice<0\)\{return 1\.0;\}/
@@ -27,7 +30,7 @@ const PASSES = {
     // The programs of a scene without lobes; the lobed ones sum as they do (`lobedSums.test.ts`).
     // With the rectangle code a key keeps (`translucentRectLights`, off by default).
     text: (key: Partial<ContractKey>) =>
-      blendShader({ ...key, lobeless: true }, { translucentRectLights: true }),
+      blendShader({ ...key, lobeless: true }, { scene: RECT_LIGHTS }),
     loop: ['sliceLighting', 'declaredLight'],
   },
 }
@@ -100,11 +103,11 @@ test('a rectangle light is lit as a rectangle only where the project switch says
     blendShader({ ...lobeless, rectless: true }),
     'off by default: as a scene with none',
   )
-  assert.equal(off, blendShader(lobeless, { translucentRectLights: false }))
-  const on = blendShader(lobeless, { translucentRectLights: true })
+  assert.equal(off, blendShader(lobeless, { scene: DEFAULT_TRANSLUCENT_SCENE }))
+  const on = blendShader(lobeless, { scene: RECT_LIGHTS })
   assert.notEqual(on, off)
   assert.equal(
-    blendShader({ ...lobeless, rectless: true }, { translucentRectLights: true }),
+    blendShader({ ...lobeless, rectless: true }, { scene: RECT_LIGHTS }),
     off,
     'a scene with none holds none either way',
   )

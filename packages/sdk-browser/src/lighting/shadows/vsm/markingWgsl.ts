@@ -27,6 +27,8 @@ import {
   VSM_PROJECTION_DATA_READ_WGSL,
   VSM_PROJECTION_DATA_WGSL,
 } from './projection/projectionDataWgsl.ts'
+import { prefilteredDeps } from './prefilteredWgsl.ts'
+import { vsmLocalMipAt } from './trace/traceMapWgsl.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
 import { vsmBindingsWgsl, type VsmBindingSpec } from './resources.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from '../../deferred/worldAtWgsl.ts'
@@ -38,9 +40,12 @@ import { vsmSubsurfaceModel } from './subsurfaceModelWgsl.ts'
 import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../../../materials/surface/surfaceModelWord.ts'
 import { isFirstPerson } from '../../../materials/surface/surfaceModel.ts'
 import type { VsmLayout } from './layout.ts'
+import type { VsmInputType } from './inputType.ts'
+import { hairTilePixel } from '../../../hair/tilesWgsl.ts'
+import { HAIR_TILE_ALL, HAIR_TILE_LISTS } from '../../../hair/visibilityMath.ts'
 import { FLAT_INDEX_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslVariants } from '../../../../../math/src/wgsl/decl.ts'
 import { ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 import { clipToFramebuffer, perspectiveDivide } from '../../../../../math/src/wgsl/projection.ts'
 import { HIZ_FRONT_LAYER } from '../../../visibility/hiz/gpu/pyramidTexture.ts'
@@ -98,14 +103,30 @@ struct VsmMarkingParams{
 /** What a page table clear variant clears: one of the 2D tables, its mip count and sample stride. */
 export type VsmClearTarget = 'pageRequests' | 'pageTable' | 'pageMarks' | 'receiverCover'
 
-/** The tables one walk of the maps' pages clears, by the maps it walks: every map (`all`) — the
- *  request flags, the page table and flags —, and a receiver cover that holds the suns', which walks
- *  the suns' maps (`directionalOnly`). */
-export function vsmMarkingClears(layout: VsmLayout) {
-  const all: VsmClearTarget[] = ['pageRequests', 'pageTable', 'pageMarks']
-  const directionalOnly: VsmClearTarget[] =
-    layout.coverMode === 'directional' ? ['receiverCover'] : []
-  return { all, directionalOnly }
+/** The maps a clear walks: every map, or the suns' alone. */
+export type VsmClearWalk = 'all' | 'directionalOnly'
+/** The marking's clears, in the order they run: the page requests, the receiver cover, the page table
+ *  and its flags. */
+export type VsmClearStep = 'requests' | 'receiver' | 'tables'
+
+/** One clear of the marking: the maps it walks and the tables it clears there. */
+interface VsmClearPlan {
+  walk: VsmClearWalk
+  targets: VsmClearTarget[]
+}
+
+/** The tables each clear of the marking clears, and the maps it walks: the request flags of every map; a
+ *  receiver cover, by the maps it holds (`coverMode`: every map's, or the suns' alone, none for no
+ *  cover); the page table and its flags of every map, in one walk. */
+export function vsmMarkingClears(layout: VsmLayout): Record<VsmClearStep, VsmClearPlan> {
+  return {
+    requests: { walk: 'all', targets: ['pageRequests'] },
+    receiver: {
+      walk: layout.coverMode === 'suns' ? 'directionalOnly' : 'all',
+      targets: layout.coverMode === 'none' ? [] : ['receiverCover'],
+    },
+    tables: { walk: 'all', targets: ['pageTable', 'pageMarks'] },
+  }
 }
 
 /** The mips and sample stride of each table as the marking pass allocates it. */
@@ -250,6 +271,24 @@ ${tables.map((t) => t.body).join('\n')}
   )
 }
 
+// ---- Raster marks clear ----------------------------------------------------------------------
+
+export const VSM_CLEAR_RASTER_MARKS_SPECS: readonly VsmBindingSpec[] = [
+  { resource: 'rasterMarks', binding: 0, access: 'read_write' },
+]
+
+/** The raster marks (the pages' dirty flags and the deferred invalidations' count) cleared, entry
+ *  `vsmClearRasterMarks`, a thread a word of the buffer, 256 a group. */
+export const vsmClearRasterMarksWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    `@compute @workgroup_size(${256}) fn vsmClearRasterMarks(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
+ let index=flatIndex(id,n,256u);
+ if(index<arrayLength(&vsmRasterMarks)){vsmRasterMarks[index]=0u;}
+}
+`,
+    [vsmBindingsWgsl(0, VSM_CLEAR_RASTER_MARKS_SPECS, layout), FLAT_INDEX_WGSL],
+  )
+
 // ---- Page rect init --------------------------------------------------------------------------
 
 export const VSM_INIT_RECT_SPECS: readonly VsmBindingSpec[] = [
@@ -320,6 +359,11 @@ export const VSM_COARSE_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'receiverCover', binding: 3, access: 'read_write' },
 ]
 
+/** The flags a page marked from the view carries: wanted, fine unless `fine` is false (a coarse page),
+ *  and with the prefiltered distant shadow the primary request (`VSM_PAGE_PRIMARY`). */
+export const markedPageFlagsText = (prefiltered: boolean, fine = true) =>
+  `VSM_PAGE_WANTED${fine ? '|VSM_PAGE_FINE' : ''}${prefiltered ? '|VSM_PAGE_PRIMARY' : ''}`
+
 /** The coarse page marking, entry `vsmMarkCoarse`, 256 threads. Binding 4: params. */
 export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
   wgslProgram(
@@ -331,7 +375,7 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
  let handle=vsmHandleFromId(mapId);
  let pd=vsmProjectionOf(handle);
  // A coarse page is asked for without the fine bit.
- let flags=VSM_PAGE_WANTED;
+ let flags=${markedPageFlagsText(layout.prefilteredDistant, false)};
  if(pd.lightUnseen){
   // An unseen light's map asks for no page.
  }else if(pd.lightKind==LIGHT_KIND_DIRECTIONAL){
@@ -357,10 +401,10 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
     vsmFillCover(o3);
    }
   }
- }else if(pd.coarseLevel||pd.finestMip>=VSM_MIPS-1u){
+ }else if(pd.coarseLevel||pd.distant){
   // A local map (a far receiver always finds one) asks for its last mip's page, unless the view
   // turns local coarse pages off (\`shadowMarkCoarsePagesLocal\` 0, no coarse flag in its record):
-  // a light whose finest mip is the last (a distant light, one page) always does.
+  // a distant light (one page, its last mip) always does.
   let entryCell=vsmTableEntryOf(handle,VSM_MIPS-1u,vec2u(0u,0u));
   vsmRequestPage(entryCell,flags);
   if(pd.useCover){vsmFillCover(entryCell);}
@@ -368,6 +412,7 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
 }
 `,
     [
+      ...prefilteredDeps(layout.prefilteredDistant),
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
@@ -408,18 +453,11 @@ fn vsmMarkedLevel(base:VsmProjectionData,shiftedPosition:vec3f,extraBias:f32)->i
 }
 
 /** The marking's functions past `vsmMarkedLevel`, the one text of the plain and the throttled block. */
-const MARKING_HELPERS_TEXT = `
+const markingHelpersText = (prefiltered: boolean) => `
 /** The mip level a local light's page is marked at. */
 fn vsmMarkLocalMipLevel(pd:VsmProjectionData,shiftedPosition:vec3f,sceneDepth:f32,extraBias:f32)->u32{
  let toMapShift=vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,vsmMarking.originShiftHigh,vsmMarking.originShiftLow);
- let pointInMap=shiftedPosition+toMapShift;
- let footprint=vsmLocalPixelFootprint(pd,pointInMap,sceneDepth,vsmMarking.viewToClip,vec2f(vsmMarking.viewSize));
- // A map's table holds its mips from its finest on (\`vsmTableLevelOrigin\`).
- var mip=vsmLocalMipLevel(footprint,pd.levelBias,vsm.pressureBias,extraBias);
- // The mips a pixel marks: all, the even ones (1), the odd ones (2).
- if(vsm.mipModeLocal==1u){mip=mip&~1u;}
- else if(vsm.mipModeLocal==2u){mip=mip|1u;}
- return max(mip,pd.finestMip);
+ return vsmLocalMipAt(pd,shiftedPosition+toMapShift,sceneDepth,vsmMarking.viewToClip,vec2f(vsmMarking.viewSize),extraBias);
 }
 /** Marks the receiver cover: one bit of the page's 8x8 cells, atomic OR. */
 fn vsmMarkCover(entryCell:VsmTableCell,mapTexelAt:vec2u){
@@ -443,7 +481,7 @@ fn vsmMarkPage(handle:VsmHandle,mipLevel:u32,shiftedPosition:vec3f,hasMargin:boo
  let inClip=mapUvz.w>0.0&&all(mapUvz.xyz<=vec3f(mapUvz.w))&&all(mapUvz.xyz>=vec3f(-mapUvz.w,-mapUvz.w,0.0));
  if(!inClip){return;}
  // A page marked from a pixel is fine: the fine casters draw into it.
- let flags=VSM_PAGE_WANTED|VSM_PAGE_FINE;
+ let flags=${markedPageFlagsText(prefiltered)};
  let lastTexel=vsmTexelsAtLevel(mipLevel)-1u;
  let texelPos=mapUvz.xy*f32(vsmTexelsAtLevel(mipLevel));
  let mapTexelAt=clamp(vec2u(texelPos),vec2u(0u),vec2u(lastTexel));
@@ -491,32 +529,37 @@ fn vsmMarkPageLocal(lightShiftedPosition:vec3f,radialNotSpot:bool,handleIn:VsmHa
  * The page marking and the projection helpers it calls, against the primary
  * view in `vsmMarking`, through the module's `vsmPageRequestsStore` and `vsmReceiverCoverOr`.
  */
-const pageMarkingBlock = (name: string, throttled: boolean) =>
-  wgslBlock(
-    name,
-    [
-      VSM_CONSTANTS_WGSL,
-      perspectiveDivide,
-      VSM_HANDLE_WGSL,
-      VSM_PAGE_ADDRESS_WGSL,
-      VSM_TABLE_ORIGIN_WGSL,
-      VSM_STRUCTS_WGSL,
-      VSM_PROJECTION_DATA_WGSL,
-      VSM_PROJECTION_DATA_READ_WGSL,
-      VSM_MARK_PAGE_ADDRESS_WGSL,
-    ],
-    `
-${markedLevelText(throttled)}${MARKING_HELPERS_TEXT}`,
+const pageMarkingBlock = (throttled: boolean) =>
+  wgslVariants((prefiltered) =>
+    wgslBlock(
+      `VSM_PAGE_MARKING${throttled ? '_THROTTLED' : ''}${prefiltered ? '_PREFILTERED' : ''}_WGSL`,
+      [
+        ...prefilteredDeps(prefiltered),
+        VSM_CONSTANTS_WGSL,
+        perspectiveDivide,
+        VSM_HANDLE_WGSL,
+        VSM_PAGE_ADDRESS_WGSL,
+        VSM_TABLE_ORIGIN_WGSL,
+        VSM_STRUCTS_WGSL,
+        VSM_PROJECTION_DATA_WGSL,
+        VSM_PROJECTION_DATA_READ_WGSL,
+        vsmLocalMipAt,
+        VSM_MARK_PAGE_ADDRESS_WGSL,
+      ],
+      `
+${markedLevelText(throttled)}${markingHelpersText(prefiltered)}`,
+    ),
   )
 
-const VSM_PAGE_MARKING_WGSL = pageMarkingBlock('VSM_PAGE_MARKING_WGSL', false)
+const VSM_PAGE_MARKING_WGSL = pageMarkingBlock(false)
 
 /** The page marking when the compute throttle is on (`markedLevelText`). */
-const VSM_PAGE_MARKING_THROTTLED_WGSL = pageMarkingBlock('VSM_PAGE_MARKING_THROTTLED_WGSL', true)
+const VSM_PAGE_MARKING_THROTTLED_WGSL = pageMarkingBlock(true)
 
-/** The page marking block of a program, throttled or not. */
-export const vsmPageMarkingBlock = (throttled: boolean) =>
-  throttled ? VSM_PAGE_MARKING_THROTTLED_WGSL : VSM_PAGE_MARKING_WGSL
+/** The page marking block of a program, throttled or not, with the prefiltered distant shadow or
+ *  without. */
+export const vsmPageMarkingBlock = (throttled: boolean, prefiltered = false) =>
+  (throttled ? VSM_PAGE_MARKING_THROTTLED_WGSL : VSM_PAGE_MARKING_WGSL)(prefiltered)
 
 /** The binding of the translucent front layer's depth in group 1 of the pass that marks from it. */
 export const VSM_FRONT_DEPTH_BINDING = 9
@@ -581,11 +624,66 @@ const marksBeforeLit = (front: boolean, water: boolean) =>
   } if(!lit){return;}
 `
 
+/** The surfaces' bindings of the pixel pass's group 1, past the depth: the normals and the flags. */
+const SURFACE_BINDINGS_WGSL = `@group(1) @binding(1) var normalRough:texture_2d<f32>;
+@group(1) @binding(2) var flags:texture_2d<u32>;`
+
+/** The bindings of the strands' pixel pass in group 1 beside the lights', the depth of the nearest
+ *  strand at 0 (`vsmPixelPageMarkingWgsl`), the tiles' counts and list after the parameters. */
+export const VSM_STRANDS_MARKING_BINDING = { hairDepth: 0, counts: 9, tiles: 10 } as const
+const STRANDS_BINDINGS_WGSL = `@group(1) @binding(${VSM_STRANDS_MARKING_BINDING.counts}) var<uniform> hairTileCounts:vec4u;
+@group(1) @binding(${VSM_STRANDS_MARKING_BINDING.tiles}) var<storage,read> hairTiles:array<u32>;`
+if (HAIR_TILE_LISTS > 4 || HAIR_TILE_ALL !== 0)
+  throw new Error(
+    'the strands’ marking reads the tiles’ counts as one vec4u, the list of all of them from 0',
+  )
+
+/** The surfaces' pixel of a lane: a group a tile of the strided view, the deferred buffers read. */
+const surfacePixelWgsl = (front: boolean, water: boolean) => `
+ // A group a tile of the strided view, row after row of \`tilesX\`: its rank read back as the tile.
+ let side=${VSM_MARK_PIXELS_GROUP_XY}u;
+ let tilesX=ceilDiv(ceilDiv(vsmMarking.viewSize.x,vsmMarking.markStride.x),side);
+ let tile=flatIndex(group,n,1u);
+ let stridedPixel=(vec2u(tile%tilesX,tile/tilesX)*side+lane.xy)*vsmMarking.markStride;
+ let pixelPos=vsmMarking.viewRectMin+stridedPixel;
+ if(any(pixelPos>=vsmMarking.viewRectMin+vsmMarking.viewSize)){return;}
+ let coord=vec2i(pixelPos);
+ // The input is the deferred buffers: the depth, the normal and the flags are read, then the pixel is
+ // valid when lit: no surface (0/1) and unlit / as-is surfaces are left out, as the reference's deferred
+ // format leaves its unlit pixels out (the sky dome among them); backface culling is off for
+ // subsurface surfaces.
+ let surfaceFlags=textureLoad(flags,coord,0).r;
+ let surfaceModel=surfaceFlags&${SURFACE_MODEL_MASK}u;
+ let deviceZ=textureLoad(depth,coord,0);
+ let worldNormal=normalize(textureLoad(normalRough,coord,0).xyz);
+ ${
+   front || water
+     ? `let lit=surfaceModel>1u&&surfaceModel!=${AS_IS_FLAG}u;`
+     : `if(surfaceModel<=1u||surfaceModel==${AS_IS_FLAG}u){return;}`
+ }`
+
+/** The strands' pixel of a lane: a group a tile of the list of all the tiles with strands, a lane a
+ *  pixel of it, the pixels the stride picks (the view's pixels at whole multiples of it, wherever their
+ *  tile lies) at the depth of the nearest strand; a pixel no strand holds (0) is not valid. */
+const STRANDS_PIXEL_WGSL = `
+ // A group a tile of the list of all the tiles with strands; its lanes the tile's pixels on the stride.
+ let rank=flatIndex(group,n,1u);
+ if(rank>=hairTileCounts[${HAIR_TILE_ALL}]){return;}
+ let tile=hairTiles[rank];
+ let local=hairTilePixel(tile,lane.xy);
+ if(any(local>=vsmMarking.viewSize)){return;}
+ if(any(local%vsmMarking.markStride!=vec2u(0u))){return;}
+ let pixelPos=vsmMarking.viewRectMin+local;
+ let coord=vec2i(pixelPos);
+ // The input is the depth of the nearest strand of the pixel's samples: one where a strand is.
+ let deviceZ=textureLoad(hairDepth,coord,0).x;
+ if(!(deviceZ>0.0)){return;}`
+
 const pixelMarkingHead = (
   front: boolean,
   water: boolean,
-) => /* wgsl */ `@group(1) @binding(1) var normalRough:texture_2d<f32>;
-@group(1) @binding(2) var flags:texture_2d<u32>;
+  strands: boolean,
+) => /* wgsl */ `${strands ? STRANDS_BINDINGS_WGSL : SURFACE_BINDINGS_WGSL}
 @group(1) @binding(3) var<uniform> view:View;
 @group(1) @binding(4) var<storage,read> directLights:DirectLights;
 @group(1) @binding(5) var<storage,read> tileLights:array<u32>;
@@ -605,25 +703,8 @@ ${water ? WATER_MARKING_WGSL : ''}
  @builtin(local_invocation_index) groupIndex:u32,
  @builtin(local_invocation_id) lane:vec3u,
  @builtin(workgroup_id) group:vec3u,
- @builtin(num_workgroups) n:vec3u){
- // A group a tile of the strided view, row after row of \`tilesX\`: its rank read back as the tile.
- let side=${VSM_MARK_PIXELS_GROUP_XY}u;
- let tilesX=ceilDiv(ceilDiv(vsmMarking.viewSize.x,vsmMarking.markStride.x),side);
- let tile=flatIndex(group,n,1u);
- let stridedPixel=(vec2u(tile%tilesX,tile/tilesX)*side+lane.xy)*vsmMarking.markStride;
- let pixelPos=vsmMarking.viewRectMin+stridedPixel;
- if(any(pixelPos>=vsmMarking.viewRectMin+vsmMarking.viewSize)){return;}
- let coord=vec2i(pixelPos);
- // The input is the deferred buffers. Valid = lit: no surface (0/1) and unlit / as-is surfaces are
- // skipped before their depth and normal are read; backface culling is off for subsurface surfaces.
- let surfaceFlags=textureLoad(flags,coord,0).r;
- let surfaceModel=surfaceFlags&${SURFACE_MODEL_MASK}u;
- ${
-   front || water
-     ? `let lit=surfaceModel>1u&&surfaceModel!=${AS_IS_FLAG}u;`
-     : `if(surfaceModel<=1u||surfaceModel==${AS_IS_FLAG}u){return;}`
- }
- let deviceZ=textureLoad(depth,coord,0);
+ @builtin(num_workgroups) n:vec3u){${strands ? STRANDS_PIXEL_WGSL : surfacePixelWgsl(front, water)}
+ let sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmMarking.depthFromDeviceZ);
  // Position: the fragment position = pixel + 0.5, shifted from the view's own reconstruction.
  let svPosition=vec2f(pixelPos)+0.5;
  let world=worldAt(svPosition,deviceZ);
@@ -631,16 +712,13 @@ ${water ? WATER_MARKING_WGSL : ''}
  // Dither pattern for page dilation: one diagonal, by the group index.
  let marginSide=vec2f(select(-1.0,1.0,(groupIndex&1u)!=0u),select(-1.0,1.0,(groupIndex&2u)!=0u));`
 
-const pixelMarkingDirectional = (front: boolean, water: boolean) => /* wgsl */ `
-${front || water ? marksBeforeLit(front, water) : ''} let worldNormal=normalize(textureLoad(normalRough,coord,0).xyz);
- let backfaceCull=!vsmSubsurfaceModel(surfaceFlags)&&vsmMarking.cullBackfacing!=0u;
- let sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmMarking.depthFromDeviceZ);
- // Where the depth of field blurs the image the maps are asked at a lower resolution.
+const pixelMarkingDirectional = (front: boolean, water: boolean, strands: boolean) => /* wgsl */ `
+${front || water ? marksBeforeLit(front, water) : ''}${strands ? '' : ' let backfaceCull=!vsmSubsurfaceModel(surfaceFlags)&&vsmMarking.cullBackfacing!=0u;\n'} // Where the depth of field blurs the image the maps are asked at a lower resolution.
  let localExtraBias=vsmDofResolutionBias(sceneDepth);
  // The pixels of first-person objects are not self-shadowing and very near the camera: their request is
  // coarser, and never finer than a level (\`shadowFirstPersonPixelRequestBias\`,
  // \`shadowFirstPersonRequestMinLevelClamp\`). They still receive the environment's shadow.
- let firstPersonPixel=isFirstPerson(surfaceFlags);
+ let firstPersonPixel=${strands ? 'false' : 'isFirstPerson(surfaceFlags)'};
  let marksFirstPerson=vsmMarking.firstPersonBias>=0.0;
  let primaryExtraBias=localExtraBias+select(0.0,vsmMarking.firstPersonBias,firstPersonPixel);
  let primaryMinLevel=select(${NO_MIN_LEVEL},vsmMarking.firstPersonLevelClamp,firstPersonPixel);
@@ -652,14 +730,13 @@ ${front || water ? marksBeforeLit(front, water) : ''} let worldNormal=normalize(
    let handle=vsmHandleFromId(vsmDirectionalLightIds[index]);
    let pd=vsmProjectionOf(handle);
    var facesSun=true;
-   if(backfaceCull&&vsmFacesAwayFromSun(worldNormal,pd.lightDirection,pd.emitterSize)){facesSun=false;}
-   // A first-person pixel is not shadowed by a first-person clipmap, and asks none when its bias is negative.
+${strands ? '' : '   if(backfaceCull&&vsmFacesAwayFromSun(worldNormal,pd.lightDirection,pd.emitterSize)){facesSun=false;}\n'}   // A first-person pixel is not shadowed by a first-person clipmap, and asks none when its bias is negative.
    if(firstPersonPixel&&(pd.firstPerson||!marksFirstPerson)){facesSun=false;}
    if(facesSun){vsmMarkPageDirectional(handle,shiftedPosition,hasMargin,marginOffset,primaryExtraBias,primaryMinLevel);}
   }
  }`
 
-const pixelMarkingLocal = () => /* wgsl */ `
+const pixelMarkingLocal = (strands: boolean) => /* wgsl */ `
  // Local lights, over the shadowed lights of the engine's light grid cell (the pruned grid): the pixels
  // of first-person objects where their bias is negative walk none.
  if(!firstPersonPixel||marksFirstPerson){
@@ -680,10 +757,14 @@ const pixelMarkingLocal = () => /* wgsl */ `
    let d=lightShiftedPosition-shiftedPosition;
    let rect=isRect(light);
    if(!localLightReaches(d,light.positionRange.w,light.directionCone.w,light.directionCone.xyz,rect)){continue;}
-   // The source radius: a point/spot's emitter radius, a rect's half width.
+${
+  strands
+    ? ''
+    : `   // The source radius: a point/spot's emitter radius, a rect's half width.
    let sourceRadius=select(light.shape.x,length(light.shape.xyz),rect);
    if(backfaceCull&&vsmFacesAwayFromLocal(d,worldNormal,sourceRadius)){continue;}
-   vsmMarkPageLocal(lightShiftedPosition,!isSpot(light),handle,shiftedPosition,sceneDepth,hasMargin,marginOffset,localExtraBias);
+`
+}   vsmMarkPageLocal(lightShiftedPosition,!isSpot(light),handle,shiftedPosition,sceneDepth,hasMargin,marginOffset,localExtraBias);
   }
  }
 }`
@@ -706,35 +787,46 @@ const pixelMarkingLocal = () => /* wgsl */ `
  * every sun's clipmap, the suns alone. A pixel that is not lit marks those surfaces alone. Without
  * them the program has neither the binding nor the code. `throttled`, the compute throttle is on this
  * frame: a sun's clipmap level takes the bias of its own map (`markedLevelText`).
+ *
+ * `input` `strands` (`inputType.ts`, the reference's hair input): the same marks over the strands' pixels
+ * — a group a tile of the list of all the tiles with strands (an indirect dispatch over it), a lane a
+ * pixel of it on the stride, valid where the depth of the nearest strand is (binding 0,
+ * `VSM_STRANDS_MARKING_BINDING`, the tiles' counts at 9, a uniform, and their list at 10) —, a strand
+ * spared the back-face cull and the first-person rules, and reading no surface. Neither the front layer
+ * nor the water is marked from them. The reference takes the pixel at its thread's rank in the whole
+ * dispatch, the tile it reads left unused: here the pixels are the tile's own.
  */
 export const vsmPixelPageMarkingWgsl = (
   layout: VsmLayout,
   front = false,
   water = false,
   throttled = false,
-) =>
-  wgslProgram(
-    `@group(1) @binding(0) var depth:texture_depth_2d;
-${pixelMarkingHead(front, water)}${pixelMarkingDirectional(front, water)}${pixelMarkingLocal()}
+  input: VsmInputType = 'gbuffer',
+) => {
+  const strands = input === 'strands'
+  return wgslProgram(
+    `${strands ? '@group(1) @binding(0) var hairDepth:texture_2d<f32>;' : '@group(1) @binding(0) var depth:texture_depth_2d;'}
+${pixelMarkingHead(front, water, strands)}${pixelMarkingDirectional(front, water, strands)}${pixelMarkingLocal(strands)}
 `,
     [
       VSM_HANDLE_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       VSM_MARKING_PARAMS_WGSL,
       VIEW_WGSL,
-      isFirstPerson,
+      ...(strands ? [hairTilePixel] : [isFirstPerson]),
       vsmBindingsWgsl(0, VSM_PIXELS_SPECS, layout),
       DIRECT_LIGHT_WGSL,
       localLightReaches,
-      vsmSubsurfaceModel,
+      ...(strands ? [] : [vsmSubsurfaceModel]),
       TILE_SLICE_WGSL,
       pixelCellWgsl(),
       SHADOW_SLICE_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
-      vsmPageMarkingBlock(throttled),
+      vsmPageMarkingBlock(throttled, layout.prefilteredDistant),
       WORLD_AT_WGSL,
       FLAT_INDEX_WGSL,
       ceilDivWgsl,
       ...(front ? [clipToFramebuffer] : []),
     ],
   )
+}

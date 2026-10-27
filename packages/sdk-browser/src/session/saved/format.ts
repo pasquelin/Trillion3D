@@ -1,4 +1,4 @@
-import type { SavedOffsets } from './offsets.ts'
+import type { OffsetSwitchValues } from '../../../../sdk-core/src/world/object/offsetSwitches.ts'
 import type { SceneFog } from '../../../../sdk-core/src/scene/core/fog.ts'
 import type { ResolvedAtmosphere } from '../../../../sdk-core/src/scene/core/atmosphere.ts'
 import type { ModuleOption } from '../../../../sdk-core/src/modules/descriptor.ts'
@@ -51,7 +51,7 @@ export interface SavedMaterial {
 }
 
 /** A node: its pose and what it is — a group, a mesh, a light or a loaded model — and below it. */
-export interface SavedNode extends SavedOffsets {
+export interface SavedNode extends OffsetSwitchValues {
   /** What the node is. */
   kind: 'object' | 'group' | 'mesh' | 'light' | 'model'
   /** Its name. */
@@ -66,13 +66,10 @@ export interface SavedNode extends SavedOffsets {
   visible: boolean
   /** Whether it casts shadows. */
   castShadow: boolean
-  /** Whether it casts shadows past a directional light's shadow distance; absent, it does not. */
-  castFarShadow?: true
+  /** Whether its surface stays out of the lights' shadow maps; absent, it is drawn into them. */
+  castsShadowMaps?: false
   /** Whether it is a far-field object, which the primed depth pyramid draws; absent, it is not. */
   farField?: true
-  /** Whether a directional light's far-shadow test reaches it or never does; absent, the view's
-   *  rule decides. */
-  farShadowTest?: boolean
   /** Its drawing order among see-through things. */
   renderOrder: number
   /** The page's own data, as JSON. */

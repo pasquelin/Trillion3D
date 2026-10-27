@@ -36,12 +36,12 @@ const WGSL_OWN = new Set([
     'atomicMax atomicMin atomicOr atomicStore atomicStoreMax atomicStoreMin atomicSub atomicXor ceil clamp cos countLeadingZeros countOneBits cross ' +
     'degrees determinant distance dot dpdx dpdxFine dpdy dpdyFine exp exp2 extractBits faceForward firstLeadingBit firstTrailingBit ' +
     'floor fma fract fwidth insertBits inverseSqrt ldexp length log log2 max min mix normalize ' +
-    'pack2x16float pack2x16snorm pack2x16unorm pack4x8unorm pow quantizeToF16 reflect refract reverseBits round saturate select ' +
+    'pack2x16float pack2x16snorm pack2x16unorm pack4x8snorm pack4x8unorm pow quantizeToF16 reflect refract reverseBits round saturate select ' +
     'sign sin smoothstep sqrt step storageBarrier subgroupAdd subgroupAll subgroupAny subgroupBallot subgroupBroadcastFirst ' +
     'subgroupElect subgroupExclusiveAdd subgroupMax subgroupMin subgroupShuffle subgroupShuffleXor tan tanh textureDimensions textureGather textureGatherCompare ' +
     'textureLoad textureNumLayers textureNumLevels textureSample textureSampleBias textureSampleCompare ' +
     'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureStore transpose ' +
-    'trunc unpack2x16float unpack2x16snorm unpack2x16unorm unpack4x8unorm workgroupBarrier workgroupUniformLoad'
+    'trunc unpack2x16float unpack2x16snorm unpack2x16unorm unpack4x8snorm unpack4x8unorm workgroupBarrier workgroupUniformLoad'
   ).split(/\s+/),
 ])
 

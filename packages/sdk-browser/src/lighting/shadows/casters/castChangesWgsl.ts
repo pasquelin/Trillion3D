@@ -11,7 +11,8 @@ import { CAST_HEADER_WORDS, CAST_RECORD_WORDS } from './castChanges.ts'
  *  `centre` and half axes `axisX`, `axisY`, `axisZ` appended, its sign negative when its casters were
  *  cached as dynamic before and after the change, `views` the bits of the views whose maps it stales
  *  (`ALL_VIEWS` for a change every view sees), `offset` the bits of its placement's word that say its
- *  offset invalidates its shadows or always evaluates, and `disableSq` the square of the distance past
+ *  offset invalidates its shadows or always evaluates, or that it casts no shadow (the stale skips
+ *  such a box), and `disableSq` the square of the distance past
  *  which its object stops evaluating it. */
 export const CAST_EMIT_WGSL = wgslBlock(
   'CAST_EMIT_WGSL',

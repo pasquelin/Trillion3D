@@ -20,9 +20,9 @@ export const vsmSampleLightWgsl = (pool: WgslDecl, kinds = VSM_TRACE_KINDS_BOTH)
 /** Light \`light\`'s share at the receiver \`shifted\` (the view's shifted frame): 0 where its map's
  *  stored depth lies nearer the light than the receiver, 1 elsewhere — where no level or mip maps
  *  it too: a page no level holds casts nothing. A sun's reads the page its map already read, at the
- *  level the receiver's distance asks (\`vsmLightMapAt\`): one page-table read a sample. */
+ *  level the receiver's distance asks (\`vsmLightMapAt\`), with no depth of field bias: one page-table read a sample. */
 fn vsmSampleLight(light:VsmProjectionLight,shifted:vec3f)->f32{
- let m=vsmLightMapAt(light,shifted);
+ let m=vsmLightMapAt(light,shifted,-1.0);
  if(!m.valid){return 1.0;}
  let uvz=perspectiveDivide(m.mapPoint);
  if(any(uvz.xy!=saturate(uvz.xy))){return 1.0;}

@@ -5,7 +5,7 @@ import {
   DISPLACEMENT_WORDS,
 } from '../../materials/table/displacementRecord.ts'
 import { TESS_UNIFORM } from './uniform.ts'
-import { ARG_QUEUE, ARG_VISIBLE, PATCH_WORDS } from './contract.ts'
+import { ARG_QUEUE, ARG_VISIBLE, ARG_VISIBLE_TWO_SIDED, PATCH_WORDS } from './contract.ts'
 import {
   PATTERN_WGSL,
   unpackCorner,
@@ -72,6 +72,11 @@ fn queuePatch(p:vec4u){
 fn listVisible(p:vec4u){
  let slot=atomicAdd(&tess[tu.args+${ARG_VISIBLE}u],1u);
  if(slot<tu.maxVisible){storePatch(tu.visible+slot*${PATCH_WORDS}u,p);}
+}
+/** The same for the second visible list, the shadow maps' two-sided rows'. */
+fn listVisibleTwoSided(p:vec4u){
+ let slot=atomicAdd(&tess[tu.args+${ARG_VISIBLE_TWO_SIDED}u],1u);
+ if(slot<tu.maxVisible){storePatch(tu.visibleTwoSided+slot*${PATCH_WORDS}u,p);}
 }`,
 )
 

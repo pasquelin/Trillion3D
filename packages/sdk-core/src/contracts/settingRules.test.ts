@@ -46,6 +46,17 @@ test('a non-negative setting takes any finite number of at least zero', () => {
   assert.throws(() => resolveSetting(scale, Infinity), /a finite number of at least 0/)
 })
 
+test('a non-negative setting refuses in the words its rule is given, the number’s range kept', () => {
+  const bias = nonNegativeSetting('bias', 0.1, 'a finite number of centimetres of at least 0')
+  assert.equal(resolveSetting(bias, 0), 0)
+  assert.equal(resolveSetting(bias, undefined), 0.1)
+  assert.throws(
+    () => resolveSetting(bias, -1),
+    /a finite number of centimetres of at least 0, got -1/,
+  )
+  assert.throws(() => resolveSetting(bias, NaN), /a finite number of centimetres of at least 0/)
+})
+
 test('a distance takes metres, true for its default and false for none, and refuses the rest in words', () => {
   const reach = distanceSetting('reach', 400)
   assert.deepEqual(

@@ -4,6 +4,7 @@ import { createViewHold, type ViewHold } from '../view/viewRevision.ts'
 import { createHostSceneWatch } from '../../scene/host/scan/watch.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { readCameraWorld, type ViewCamera } from '../../camera/world.ts'
+import type { CutOptions } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import { DEFAULT_PIXEL_ERROR } from '../../../../sdk-core/src/lod/policy.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { readScene, type FrameGateSources, type HostWrite } from './gateScene.ts'
@@ -88,20 +89,21 @@ export const held = ({ own, revisions }: GateState) => own.hold.stable && own.ho
  * decision.
  *
  * It reads the quality threshold (`pixelError`, `DEFAULT_PIXEL_ERROR` when the host names none),
- * the host camera, the viewport, the source graph and what to reread of it, and the aspect ratio
- * the image is drawn at when a second view renders aside at its own.
+ * the host camera — an orthographic one with the planes the context's settings and the viewport
+ * name (`readCameraWorld`) —, the source graph and what to reread of it, and the aspect ratio the
+ * image is drawn at when a second view renders aside at its own.
  */
 export function enterFrame(
   core: GateState,
   cam: EngineCamera,
-  context: { pixelError?: number },
+  context: { pixelError?: number } & CutOptions,
   camera: ViewCamera,
   viewport: readonly [number, number] | undefined,
   source: Object3D,
   drawn: FrameGateSources,
   aspect?: number,
 ) {
-  readCameraWorld(cam, camera, aspect)
+  readCameraWorld(cam, camera, aspect, context, viewport)
   if (trackViewCamera(core.own, camera, cam, viewport?.[0] ?? -1, viewport?.[1] ?? -1))
     bumpView(core.revisions)
   core.pixelError = context.pixelError ?? DEFAULT_PIXEL_ERROR

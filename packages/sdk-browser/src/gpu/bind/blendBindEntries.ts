@@ -19,6 +19,7 @@ import { BLUE_NOISE_FORMAT } from '../noise/blueNoiseTextures.ts'
 import { atlasEntries, type AtlasResources } from './bindEntries.ts'
 import { ATLAS_TEXTURE_FORMAT } from '../../lighting/lightFunction/layout.ts'
 import { FRONT_TRACED_LAYOUT } from '../../lighting/reflections/frontLayer.ts'
+import { SURFACE_WORDS_FORMAT } from '../../materials/surface/surfaceOutputs.ts'
 
 /** Lighting shared with the opaque resolve; deferred stand-ins cover resources not ready yet. */
 export type BlendLighting = {
@@ -33,6 +34,9 @@ export type BlendLighting = {
    *  view uniform and blue noise. */
   shadowView: GPUBuffer
   shadowNoise: GPUTextureView
+  /** The opaque surfaces' flags, or a stand-in: what a translucent surface's contact shadow ray reads of the surface it hits
+   *  (`BLEND_BINDINGS.surfaceFlags`). */
+  surfaceFlags: GPUTextureView
   /** Per-tile lamp lists: the blend pass reads the slice that concerns it. */
   tileLights: GPUBuffer
   /** The transparents' front radiance the reflection trace wrote (`../../lighting/reflections/frontLayer.ts`),
@@ -51,8 +55,10 @@ export type BlendLighting = {
    *  the one-cell stand-in where none is made (`BlendView.volumeRead` then says so). */
   translucencyVolume: GPUTextureView
   /** The translucency global illumination volume the surfaces read their indirect light from (`../../lighting/translucencyGi/readWgsl.ts`):
-   *  this image's, or the one-cell stand-in where none is made (`BlendView.giGrid` then says so), and its trilinear sampler. */
-  translucencyGi: GPUTextureView
+   *  this image's ambient and directional light, two textures of the one grid, or their one-cell stand-ins where none is made
+   *  (`BlendView.giGrid` then says so), and their trilinear sampler. */
+  translucencyGiAmbient: GPUTextureView
+  translucencyGiDirectional: GPUTextureView
   translucencyGiSampler: GPUSampler
   /** The clouds' shade of the forward directional light, the block and the one map its vertices
    *  read (`BLEND_CLOUD_SHADE_BINDINGS`), or its stand-in, which shades nothing: read by the
@@ -134,6 +140,8 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   // The front's traced radiance, read by load: nothing the fragment stage could write, which would
   // cost the pass its early depth reject (4232 hidden fragment draws).
   frontTraced: ['fragment', FRONT_TRACED_LAYOUT],
+  // The opaque surfaces' flags (`BLEND_BINDINGS.surfaceFlags`).
+  surfaceFlags: ['fragment', storageTextureLayout(SURFACE_WORDS_FORMAT)],
   // The fog's cubemap and volume, and the sampler they are read through: the entries
   // `fogReadLayoutEntries` makes for a program that binds them.
   // The cubemap and its sampler are read by the vertex stage too, for the same fog.
@@ -147,8 +155,10 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   lightFunctionAtlas: ['fragment', storageTextureLayout(ATLAS_TEXTURE_FORMAT)],
   // The translucency lighting volume: one filterable 3D texture, the ambient and directional light of its two cascades stacked, sampled trilinear.
   translucencyVolume: ['fragment', textureLayout('float', '3d')],
-  // The translucency global illumination volume and its sampler: the surfaces' indirect light, one filtered fetch.
-  translucencyGi: ['fragment', textureLayout('float', '3d')],
+  // The translucency global illumination volume, its ambient and its directional light, and their sampler: the surfaces' indirect light,
+  // two filtered fetches.
+  translucencyGiAmbient: ['fragment', textureLayout('float', '3d')],
+  translucencyGiDirectional: ['fragment', textureLayout('float', '3d')],
   translucencyGiSampler: ['fragment', { sampler: { type: 'filtering' } }],
   // The surfaces' records (`../../materials/table/materialTable.ts`), which the vertex stage reads an item's
   // factors and maps from and a lobed fragment its lobes: a texture, the fragment stage holding

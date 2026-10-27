@@ -13,6 +13,7 @@ import {
 } from '../deferred/bindings.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { reflectionLobeWgsl } from '../lobeAxisWgsl.ts'
+import { lightStrengthWgsl } from './lightStrengthWgsl.ts'
 import { lightingBase, pixelCellWgsl, type LightingBindings } from './lightingWgsl.ts'
 import { CONTRACT_SHADOW_BINDINGS } from './shadowBindings.ts'
 
@@ -48,6 +49,8 @@ export const directLightingWgsl = (asked: Partial<ContractKey> = LOBELESS_KEY, w
         : lightingBase(LIGHT_BINDINGS, key, { narrow: !!key.narrow, environment: false }),
       reflectionLobeWgsl(!key.lobeless),
       pixelCellWgsl(),
+      // The harness lights at an exposure of 1.
+      lightStrengthWgsl('1.0'),
     ],
     `
 /** Contribution of the contract lights to the pixel, light by light of its cell's list (every light

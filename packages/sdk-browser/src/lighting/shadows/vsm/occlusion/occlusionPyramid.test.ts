@@ -11,21 +11,21 @@ import { vsmRenderCullWgsl } from '../render/renderCullWgsl.ts'
 
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
 
-import { vsmLayout } from '../layout.ts'
-
 import { f32Bits } from '../../../../../../math/src/float/bits.ts'
 import {
   vsmBuildPyramidTopWgsl,
   vsmBuildPyramidWgsl,
   vsmSelectPyramidWgsl,
 } from '../occlusion/occlusionWgsl.ts'
+import { SUNS_LAYOUT } from '../layout.fixture.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+const LAYOUT = SUNS_LAYOUT
 const CULL = vsmRenderCullWgsl(LAYOUT)
 
 // The occlusion pyramid of a page, built as shipped (`occlusion/occlusionWgsl.ts`): its 16 tile groups, each thread's 2x2 pool
 // texels, then the halvings in workgroup memory — run thread by thread between the barriers —, then
-// the top group from level 3. Every texel of every level is the least depth (reversed Z: the
+// the top group from level 3 (from level 4 where the tile kernel writes five levels, on a device with five
+// storage textures a stage). Every texel of every level is the least depth (reversed Z: the
 // farthest) of the pool texels under it, read in the static slice, or in slice 0 for a page whose
 // map is redrawn whole.
 test('the occlusion pyramid of a page holds the farthest depth under each texel, every level', () => {
@@ -46,7 +46,10 @@ test('the occlusion pyramid of a page holds the farthest depth under each texel,
       levels.set(`${level}:${at[0]},${at[1]}`, value[0])
     },
   })
-  for (const viewUncached of [false, true]) {
+  for (const [tileLevels, viewUncached] of [4, 5].flatMap((n) => [
+    [n, false] as const,
+    [n, true] as const,
+  ])) {
     levels.clear()
     const shared = new Array(256).fill(0)
     const scope = {
@@ -57,7 +60,9 @@ test('the occlusion pyramid of a page holds the farthest depth under each texel,
       pyramidPages: [page],
       pyramidShared: shared,
       vsmPoolLoad: (t: number[], slice: number) => f32Bits(poolDepth(t[0], t[1], slice)),
-      ...Object.fromEntries([0, 1, 2, 3].map((l) => [`pyramidLevel${l}`, store(l)])),
+      ...Object.fromEntries(
+        Array.from({ length: tileLevels }, (_, l) => [`pyramidLevel${l}`, store(l)]),
+      ),
     }
     const tile = shaderRun<{
       vsmPyramidTileOf(group: number, lane: number): object
@@ -65,7 +70,7 @@ test('the occlusion pyramid of a page holds the farthest depth under each texel,
       vsmPyramidFirst(t: object, lane: number, layer: number, z: number[]): void
       vsmPyramidHalve(level: number, t: object, lane: number, layer: number): void
     }>(
-      vsmBuildPyramidWgsl(LAYOUT),
+      vsmBuildPyramidWgsl(LAYOUT, tileLevels),
       ['vsmPyramidTileOf', 'vsmPyramidGather', 'vsmPyramidFirst', 'vsmPyramidHalve'],
       scope,
     )
@@ -75,28 +80,35 @@ test('the occlusion pyramid of a page holds the farthest depth under each texel,
         const { texel, slice } = t as { texel: number[]; slice: number }
         tile.vsmPyramidFirst(t, lane, 0, tile.vsmPyramidGather(texel, slice))
       })
-      for (let level = 1; level < 4; level++)
+      for (let level = 1; level < tileLevels; level++)
         tiles.forEach((t, lane) => tile.vsmPyramidHalve(level, t, lane, 0))
     }
     const top4 = new Array(16).fill(0),
       top5 = new Array(4).fill(0)
+    const steps = [
+      ...(tileLevels === 4 ? (['vsmPyramidTopFirst'] as const) : []),
+      ...(['vsmPyramidTopSecond', 'vsmPyramidTopLast'] as const),
+    ]
     const top = shaderRun<{
       vsmPyramidTopFirst(page: number[], local: number[], layer: number): void
       vsmPyramidTopSecond(page: number[], local: number[], layer: number): void
       vsmPyramidTopLast(page: number[], local: number[], layer: number): void
-    }>(
-      vsmBuildPyramidTopWgsl(LAYOUT),
-      ['vsmPyramidTopFirst', 'vsmPyramidTopSecond', 'vsmPyramidTopLast'],
-      {
-        pyramidTop4: top4,
-        pyramidTop5: top5,
-        pyramidLevel3: { load: (at: number[]) => [levels.get(`3:${at[0]},${at[1]}`)!] },
-        ...Object.fromEntries([4, 5, 6].map((l) => [`pyramidLevel${l}`, store(l)])),
+    }>(vsmBuildPyramidTopWgsl(LAYOUT, tileLevels), steps, {
+      pyramidTop4: top4,
+      pyramidTop5: top5,
+      [`pyramidLevel${tileLevels - 1}`]: {
+        load: (at: number[]) => [levels.get(`${tileLevels - 1}:${at[0]},${at[1]}`)!],
       },
-    )
+      ...Object.fromEntries(
+        Array.from({ length: 7 - tileLevels }, (_, k) => [
+          `pyramidLevel${tileLevels + k}`,
+          store(tileLevels + k),
+        ]),
+      ),
+    })
     const locals = Array.from({ length: 16 }, (_, k) => [k & 3, k >> 2])
-    for (const step of ['vsmPyramidTopFirst', 'vsmPyramidTopSecond', 'vsmPyramidTopLast'] as const)
-      for (const local of locals) top[step](pageXY, local, 0)
+    for (const step of steps)
+      for (const local of locals) top[step as 'vsmPyramidTopLast'](pageXY, local, 0)
     const slice = viewUncached ? 0 : 1
     for (let level = 0; level < 7; level++) {
       const side = 64 >> level,

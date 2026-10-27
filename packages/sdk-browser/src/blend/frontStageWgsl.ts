@@ -21,8 +21,9 @@ import { NO_VERTEX_WORDS } from './cloudVertexText.ts'
 import { blendVertexWgsl, cutBlendByPixel } from './vertexWgsl.ts'
 import { clipDirective, type Clipping } from '../gpu/core/clipDistances.ts'
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
-import { blendLit, blendSurfaceWgsl } from './shaderSurface.ts'
-import { GRAPH_FLAG, blendGraphs, waterOf } from './graphWgsl.ts'
+import { blendLit } from './shaderSurface.ts'
+import { GRAPH_FLAG, waterOf } from './graphWgsl.ts'
+import { stageSurface } from './stageOptions.ts'
 import { NO_WPO, type WpoSet } from '../materials/graph/wpoProgram.ts'
 import type { SurfaceProgram } from '../materials/graph/surfaceProgram.ts'
 import { materialTableWgsl } from '../materials/table/materialWgsl.ts'
@@ -67,7 +68,7 @@ const frontStageWgsl = (outputs: FrontOutputs, graphs: readonly SurfaceProgram[]
   return wgslBlock(
     `frontStageWgsl(${outputs}${graphs.length ? ', graphs' : ''})`,
     [
-      blendSurfaceWgsl(lobes, graphs.length ? blendGraphs(graphs, lobes) : undefined),
+      stageSurface(lobes, graphs),
       materialTableWgsl(BLEND_BINDINGS.material),
       blendLit,
       modelFlag,
@@ -100,8 +101,8 @@ ${lobes && graphs.length ? ' blendGraphLobes(g.graph);\n' : ''} let s=blendSurfa
 ${
   lobes
     ? ` let lobed=blendLobedTexel(s);
- return FrontOut(depth,select(${MODEL_FLAG.physical}u,${MODEL_FLAG.physical | PHYSICAL_SURFACE_FLAG}u,lobed.on),vec4f(s.N,s.rough),lobed.texel);`
-    : ` return FrontOut(depth,${MODEL_FLAG.physical}u,vec4f(s.N,s.rough));`
+ return FrontOut(depth,select(${MODEL_FLAG.physical}u,${MODEL_FLAG.physical | PHYSICAL_SURFACE_FLAG}u,lobed.on),vec4f(s.N,${waterOf(graphs) ? `select(s.rough,0.0,(g.graph.flags&${GRAPH_FLAG.water}u)!=0u)` : 's.rough'}),lobed.texel);`
+    : ` return FrontOut(depth,${MODEL_FLAG.physical}u,vec4f(s.N,${waterOf(graphs) ? `select(s.rough,0.0,(g.graph.flags&${GRAPH_FLAG.water}u)!=0u)` : 's.rough'}));`
 }`
     : ' return FrontOut(depth,0u);'
 }

@@ -10,24 +10,13 @@ import {
   VSM_MAP_UNCACHED,
   VSM_MAP_COVERAGE,
 } from './constants.ts'
-import { createVsmClipmap, type VsmClipmap } from './clipmap.ts'
-import { casterDrawDistance, farDropOf } from './frame/vsmFarShadow.ts'
-import type { VsmBoundLight } from './mapViews.ts'
+import type { VsmClipmap } from './clipmap.ts'
+import { casterDrawDistance } from './frame/vsmFarShadow.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { transformAffinePoint } from '../../../../../math/src/vector/vector.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { VsmMapCache, VsmLightCache } from './lightCache.ts'
-import {
-  SUN,
-  PROJECTION,
-  VIEW,
-  LEVELS,
-  frame,
-  lightSpace,
-  lightAxis,
-  along,
-  cachedClipmap,
-} from './clipmap.fixture.ts'
+import { LEVELS, frame, lightSpace, lightAxis, along, cachedClipmap } from './clipmap.fixture.ts'
 
 test('a frame builds every level, its LOD bias from the screen, its data packed level by level', () => {
   const cache = new VsmCacheManager()
@@ -76,13 +65,13 @@ test("each level's centre snaps to its own radius across the light; a coarser on
   const x = lightAxis(clipmap, 0)
   const start = frame(new VsmCacheManager(), [0, 0, 0])
   const moved = frame(new VsmCacheManager(), along([0, 0, 0], x, 1))
-  assert.deepEqual(
-    [
-      moved.levels[0].cornerQuarters[0] - start.levels[0].cornerQuarters[0],
-      moved.levels[1].cornerQuarters,
-    ],
-    [-1, start.levels[1].cornerQuarters],
+  const across = (map: VsmClipmap, level: number) =>
+    lightSpace(map, map.levels[level].worldCentre)[0]
+  assert.ok(
+    Math.abs(across(moved, 0) - across(start, 0) - 2 ** 7) < 1e-6,
+    'level 6 moved a snap of its own radius',
   )
+  assert.equal(across(moved, 1), across(start, 1), 'level 7 stood')
 })
 
 test("a cached level's pages pan with the camera: page offset in whole radii of 32 pages", () => {
@@ -154,47 +143,6 @@ test('the cache rule alone: a radius change or a light never rendered keeps noth
   level.updateLevel(light, [96, 64], 128, 1000, 256000, 0, false)
   assert.equal(level.nextMaps.flags, 0, 'another depth range')
   assert.equal(level.clipmap.depthRadius, 256000)
-})
-
-test("a sun's far-shadow distance is in its maps' records, and another distance restages no page", () => {
-  const cache = new VsmCacheManager()
-  const sun = (farShadowEdge?: number) =>
-    createVsmClipmap(
-      cache,
-      { ...SUN, farShadowEdge },
-      { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] },
-      { width: 1024, height: 1024 },
-    )
-  for (let n = 0; n < 2; n++) {
-    cache.frameStamp = n
-    sun(400).cacheEntry.markRendered(n)
-  }
-  cache.frameStamp = 2
-  const held = sun(400).cacheEntry.mapCaches.map(({ projectionData: d }) => [
-    d.farShadowEdge,
-    d.lightRange,
-    d.flags,
-  ])
-  for (const [distance, range, flags] of held)
-    assert.deepEqual([distance, range, flags & VSM_MAP_UNCACHED], [400, 0, 0], 'cached, distance')
-  const moved = sun(250).cacheEntry.mapCaches.map(({ projectionData: d }) => [
-    d.farShadowEdge,
-    d.flags,
-  ])
-  for (const [distance, flags] of moved)
-    assert.deepEqual([distance, flags & VSM_MAP_UNCACHED], [250, 0], 'still cached: no restage')
-  const none = frame(new VsmCacheManager(), [0, 0, 0]).cacheEntry.mapCaches
-  assert.equal(none[0].projectionData.farShadowEdge, 0, 'a light that names none has no limit')
-})
-
-test('a frame drops the casters past its greatest far-shadow distance only when every light is a sun that has one', () => {
-  const light = (kind: 'directional' | 'point', distance?: number) =>
-    ({ kind, clipmap: { light: { farShadowEdge: distance } } }) as unknown as VsmBoundLight
-  assert.equal(farDropOf([light('directional', 300), light('directional', 427)]), 427)
-  assert.equal(farDropOf([light('directional', 300), light('point')]), 0, 'a lamp takes them all')
-  assert.equal(farDropOf([light('directional', 300), light('directional', 0)]), 0, 'a sun of none')
-  assert.equal(farDropOf([light('directional')]), 0, 'a sun that names none')
-  assert.equal(farDropOf([]), 0, 'no light')
 })
 
 test('the casters take the draw distances when the cut holds one, at the view’s scale, the instances’ only while the host did not turn their cull off', () => {

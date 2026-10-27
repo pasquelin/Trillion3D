@@ -10,7 +10,7 @@
  * controllers publish the same base plus what their own motion needs.
  */
 import type { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
-import type { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import type { Vec3Input, Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 
 /**
  * The camera a controller poses: its LOCAL position and orientation, and the vertical field and
@@ -23,6 +23,10 @@ export interface ControlCamera {
   /** Its orientation. */
   quaternion: Quaternion
   fov: number
+  /** Makes `target`, a point in the frame its `position` is written in, the point it frames
+   *  (`Camera.viewTarget`), or, given `null`, none: the controls that keep a pivot give it, the
+   *  others none. */
+  setViewTarget(target: Vec3Input | null): unknown
   /** Magnification, 1 when the host has none: a pan at zoom 2 moves half as far per pixel. */
   zoom?: number
   /** `'orthographic'` for a camera that draws a box: a pan then moves by the box, whatever the

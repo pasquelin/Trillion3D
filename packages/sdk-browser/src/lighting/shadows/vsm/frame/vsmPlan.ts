@@ -5,7 +5,13 @@ import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contr
 import { sourceRadiusOf, spotConesOf } from '../../../../../../sdk-core/src/scene/light/fields.ts'
 import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
-import { planVirtualShadowFrame } from '../frameSetup.ts'
+import {
+  commitVirtualShadowFrame,
+  planVirtualShadowFrame,
+  type VsmFrameLight,
+} from '../frameSetup.ts'
+import type { VsmCameraInput } from '../clipmap.ts'
+import { viewOriginTarget } from './vsmViewOrigin.ts'
 import { vsmLightSeen, vsmSeenPlanes } from '../seenLights.ts'
 import { vsmLocalShadowGate, type VsmGateView } from '../localGate.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustum/frustum.ts'
@@ -36,16 +42,24 @@ import {
 import { vsmDescentPipes } from '../traversal/traversalPass.ts'
 import { vsmThrottled, vsmThrottleStages } from '../throttle.ts'
 import type { VsmLayout } from '../layout.ts'
-import { vsmRenderTiersDrawn, type CompiledTiers } from '../render/renderParamsWgsl.ts'
+import {
+  vsmRenderTiersDrawn,
+  vsmViewsLaid,
+  type CompiledTiers,
+} from '../render/renderParamsWgsl.ts'
 import { chainReady, type PreparedPipeline } from '../../../deferred/fullscreen.ts'
 import { marksWater, viewMarkingOf } from './vsmFrontLayer.ts'
 import { vsmProjectionPipeline } from '../projection/projectionPipelines.ts'
 import { onePassMaskFormat } from '../projection/maskFormat.ts'
-import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
+import {
+  readShadowSetting,
+  type ShadowValues,
+} from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { followDepthOfField } from './vsmDof.ts'
 import { growEngineVsm } from './vsmRegrow.ts'
 import { vsmFirstSetLayout } from './vsmBeside.ts'
+import { lightDrawViewOf, type LightDrawView } from '../../../lightDrawRange.ts'
 import { castDiffStages, followRoots, prepareCastDiff } from '../../casters/castDiff.ts'
 import { prepareCasterDecode } from '../../casters/casterFeed.ts'
 
@@ -53,15 +67,70 @@ const seenPlanes = new Float64Array(FRUSTUM_PLANE_VALUES)
 /** The view the local lights' shadow gate reads (`vsmLocalShadowGate`), rewritten by each call. */
 const gateView: VsmGateView = { projection: [], eye: [], width: 0, height: 0 }
 
-/** What a frame's lights were last read from, by list: the store's revision, the shadow settings'
- *  revision, the view and the scene's distance fields; the same asks the same lights again. */
+/** What a frame's lights are read from besides the view: the store's revision, the shadow settings' revision and whether the scene
+ *  has distance fields. */
+type ReadKey = { epoch: number; settings: number; fields: boolean }
+/** What a frame's lights were last read from, by list: the key and the view; the same asks the same lights again. */
 type LightsRead = {
-  epoch: number
-  settings: number
-  fields: boolean
+  key: ReadKey
   seen: ReturnType<typeof createViewFingerprint> | undefined
 }
 const lightsRead = new WeakMap<object, LightsRead>()
+/** The key the current call asks, rewritten by each. */
+const asked: ReadKey = { epoch: 0, settings: 0, fields: false }
+
+/** Whether the lights last read (`read`) are those the key `asked` and the view ask for now. */
+function readStands(
+  read: LightsRead | undefined,
+  cam: EngineCamera | undefined,
+  size: readonly number[],
+) {
+  if (
+    !read ||
+    read.key.epoch !== asked.epoch ||
+    read.key.settings !== asked.settings ||
+    read.key.fields !== asked.fields
+  )
+    return false
+  return cam ? !!read.seen?.same(cam, size[0], size[1]) : !read.seen
+}
+
+/** Holds what `lights` were read from (`readStands`), in `read` or in a record made for them. */
+function keepRead(
+  lights: VsmFrameLight[],
+  read: LightsRead | undefined,
+  cam: EngineCamera | undefined,
+  size: readonly number[],
+) {
+  const kept = read ?? { key: { ...asked }, seen: undefined }
+  Object.assign(kept.key, asked)
+  if (cam) (kept.seen ??= createViewFingerprint()).keep(cam, size[0], size[1])
+  else kept.seen = undefined
+  if (!read) lightsRead.set(lights, kept)
+}
+
+/** Points the local lights' gate at the view `cam` of a picture of `size` pixels. */
+function aimGate(cam: EngineCamera, size: readonly number[]) {
+  gateView.projection = cam.projection
+  gateView.eye = cam.eye
+  gateView.width = size[0]
+  gateView.height = size[1]
+}
+
+/** Whether `light` takes a map this frame: it casts, and, seen from a
+ *  view (`planes`), is in reach of it and passes the local lights' gates (`gateView`); before any
+ *  view, a sun alone is. */
+const takesMap = (
+  light: SceneLight,
+  slot: number,
+  planes: Float64Array | undefined,
+  draw: LightDrawView | undefined,
+  shadows: ShadowValues,
+) =>
+  light.castsShadow &&
+  (planes
+    ? vsmLightSeen(light, slot, planes, draw) && vsmLocalShadowGate(light, gateView, shadows)
+    : light.kind === 'directional')
 
 /** The light store as the frame plan reads it, into `lights`: every declared light, at its slot.
  *  Seen from `cam` — the plan's, else the last image's —, a local light no lit point of the frame
@@ -81,24 +150,15 @@ export function frameLights(
   const { shadows } = vsmMapSettings(rt)
   // The reading is of the store, the settings, the view and the scene's fields alone: none moved,
   // the entries stand as they were.
-  const settings = settingsRevision(rt.context),
-    fields = !!rt.context.distanceFields?.length
+  asked.epoch = store.epoch
+  asked.settings = settingsRevision(rt.context)
+  asked.fields = !!rt.context.distanceFields?.length
   const read = lightsRead.get(lights)
-  if (
-    read &&
-    read.epoch === store.epoch &&
-    read.settings === settings &&
-    read.fields === fields &&
-    (cam ? read.seen?.same(cam, size[0], size[1]) : !read.seen)
-  )
-    return lights
+  if (readStands(read, cam, size)) return lights
   const planes = cam && vsmSeenPlanes(seenPlanes, cam.view, cam.projection, size[0], size[1])
-  if (cam) {
-    gateView.projection = cam.projection
-    gateView.eye = cam.eye
-    gateView.width = size[0]
-    gateView.height = size[1]
-  }
+  // A perspective view leaves out the lights too small on its screen or past their draw distance.
+  const draw = cam ? lightDrawViewOf(cam, store, shadows) : undefined
+  if (cam) aimGate(cam, size)
   let count = 0
   for (let slot = 0; slot < store.count; slot++) {
     const light = store.light(store.ids[slot])
@@ -106,26 +166,15 @@ export function frameLights(
     const entry = (lights[count++] ??= { light, visible: true })
     entry.light = light
     const casts = light.castsShadow
-    entry.visible =
-      casts &&
-      (planes
-        ? vsmLightSeen(light, planes) && vsmLocalShadowGate(light, gateView, shadows)
-        : light.kind === 'directional')
+    entry.visible = takesMap(light, slot, planes, draw, shadows)
     // The reserve sizes the set only: it takes no cascades.
     if (which === 'plan' && casts) {
       entry.cascades = sunCascadesOf(rt, light, cam?.near ?? 0, shadows)
-      entry.farShadowEdge = entry.cascades.edge
     }
     entry.sunLevels = vsmSunLevels(shadows)
   }
   lights.length = count
-  const kept = read ?? { epoch: 0, settings: 0, fields: false, seen: undefined }
-  kept.epoch = store.epoch
-  kept.settings = settings
-  kept.fields = fields
-  if (cam) (kept.seen ??= createViewFingerprint()).keep(cam, size[0], size[1])
-  else kept.seen = undefined
-  if (!read) lightsRead.set(lights, kept)
+  keepRead(lights, read, cam, size)
   return lights
 }
 
@@ -251,10 +300,12 @@ function framePipelines(
   const pipes = [
     casts.args,
     casts.stale,
-    marking.clear('all'),
-    marking.clear('directionalOnly'),
-    marking.prune(),
+    marking.clear('requests'),
+    marking.clear('receiver'),
+    marking.rasterMarks(),
     marking.rect(),
+    marking.clear('tables'),
+    marking.prune(),
     marking.coarse(),
     // The programs of the pixel pass the image can run: the one that also marks the translucent front
     // layer, where the project traces their shadow, and the ones that mark the water's surface, drawn
@@ -265,6 +316,8 @@ function framePipelines(
     ),
     // The one-sided tiers alone: the others compile the first time a table holds a row of theirs.
     ...[render.candidates, render.candidatesDone, render.views, render.cull, render.bin],
+    // The views the software raster reads where it binds no projection data (`vsmViewsLaid`).
+    ...(vsmViewsLaid(device) ? [render.layViews] : []),
     // The software half of the raster, on the session's graphs as the raster's tiers.
     ...Object.values(vsmSoftwarePipes(device, layout, rt.vis.rasters)),
     // The shadow views' descent.
@@ -404,8 +457,9 @@ function planNoShadows(rt: WebgpuPagesRuntime) {
 }
 
 /** The maps of `list` planned from `cam` over `vsm`'s state. The sun's clipmap is sized for the
- *  width this frame draws at, floored by `shadowClipmapMinCameraViewportWidth`; local lights keep
- *  the drawn size. More maps than the page table holds: twice the room, in the same frame when the
+ *  width this frame draws at, floored by `shadowClipmapMinCameraViewportWidth`, and an orthographic
+ *  view's is centred on its target or what its line of sight meets (`viewOrigin.ts`); local lights
+ *  keep the drawn size. More maps than the page table holds: twice the room, in the same frame when the
  *  tables grow in place. */
 function planMaps(
   rt: WebgpuPagesRuntime,
@@ -415,17 +469,20 @@ function planMaps(
   vsm: NonNullable<ReturnType<typeof heldVsm>>,
 ) {
   const { gpu } = rt
+  const camera: VsmCameraInput = {
+    view: cam.view,
+    projection: cam.projection,
+    eye: cam.eye,
+    perspective: cam.perspective === 1,
+    // An orthographic view's clipmaps are centred on its target, or what its line of sight meets.
+    viewTarget: viewOriginTarget(rt, cam, list, vsm.state.maps.shadows),
+    // Each view keeps its suns' clipmaps, centred on its own origin.
+    viewId: rt.views.active.id,
+  }
   return planVirtualShadowFrame(
     vsm.state,
     list,
-    {
-      view: cam.view,
-      projection: cam.projection,
-      eye: cam.eye,
-      perspective: cam.perspective === 1,
-      // Each view keeps its suns' clipmaps, centred on its own eye.
-      viewId: rt.views.active.id,
-    },
+    camera,
     {
       width: gpu.targetSize[0],
       height: gpu.targetSize[1],
@@ -485,17 +542,33 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   if (vsm.res.layout !== planned) {
     tiers = framePipelinesCompiled(rt, device, vsm.res.layout)
     if (!tiers) {
+      // The frame is dropped, its plan not committed: the entries keep the ids the GPU holds.
+      state.cache.dropFrame()
       unshadowLights(store)
       return false
     }
   }
-  const slotsShort = plan.mapsAsked > vsm.res.layout.mapSlots
+  const slotsShort = plan.projectionCount > vsm.res.layout.mapSlots
   if (slotsShort) vsm.overflow.note(VSM_OVERFLOW_MAP_SLOTS, performance.now())
   if (plan.overflow) {
+    state.cache.dropFrame()
+    // More maps than an id can name (`VSM_RECORD_MAP_COUNT`): no set holds them, so no set is made
+    // for them again each frame; the overflow is said once (the log keeps each kind once) and the
+    // frame casts none.
+    if (plan.exhausted) {
+      unshadowLights(store)
+      return false
+    }
     // Maps past the slots: the slots grow in place, the pages and their cache kept.
     if (
       slotsShort &&
-      growEngineVsm(device, list, vsm, vsm.res.layout.fullMapCapacity, nextPow2(plan.mapsAsked))
+      growEngineVsm(
+        device,
+        list,
+        vsm,
+        vsm.res.layout.fullMapCapacity,
+        nextPow2(plan.projectionCount),
+      )
     ) {
       unshadowLights(store)
       return false
@@ -511,11 +584,12 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
       blocksShort ? wholeTableRows(2 * fullMapCapacity + 1) : fullMapCapacity,
       poolPages,
       0,
-      nextPow2(plan.mapsAsked),
+      nextPow2(plan.projectionCount),
     )
     unshadowLights(store)
     return false
   }
+  commitVirtualShadowFrame(state, plan)
   vsm.plan = { ...plan, tiers, throttleReady: throttleOn(rt, device, vsm.res.layout, state.maps) }
   vsm.pendingBoxes = boxes
   vsm.pendingDiff = diff

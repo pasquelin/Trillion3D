@@ -11,6 +11,7 @@ import { sameDrawDistanceAt } from '../geometry/dag/drawDistance.ts'
 import { settleRoot } from './hidden.ts'
 import { markCasting } from '../visibility/shader/castingMark.ts'
 import type { NodeIndex } from '../frame/render/movedNode.ts'
+import type { ViewHidden } from '../frame/render/viewHidden.ts'
 
 /** What a pose did to a placement: nothing, a move of one already moving, a first move. */
 export const MOVE_NONE = 0,
@@ -82,10 +83,13 @@ export const forgetRowRoots = (roots: readonly object[]) => {
  * cut when the engine has one. `posed` hears the rank of every root the
  * rows pose, with the pose it now has — never forced: a row taken or parked where it stands is
  * shown or hidden, not moved —, and says whether it moved (`MOVE_*`). A root that began or stopped
- * casting is not made a moving caster for it. `follow` names each root that reads a written row:
- * its world goes up with the next send (`moveRootRows`). A row of the range left where it stands — a
+ * casting is not made a moving caster for it. `follow` names each root that reads a written row,
+ * and whether the distances it is drawn at changed: its world goes up with the next send
+ * (`moveRootRows`), the shadow pages it casts into are drawn again where they did, and whether its row was seated on another mesh since
+ * (`reseated`: another primitive, which arrives anew). A row of the range left where it stands — a
  * pose written again unchanged, a row between two written ones — moves nothing. A row re-seated on another mesh raises the
- * revision of `owner`'s index of the roots by node (`../frame/render/movedNode.ts`). Returns whether a drawn root moved, was shown or
+ * revision of `owner`'s index of the roots by node (`../frame/render/movedNode.ts`); `owner`'s sparse sets of the roots the views may not
+ * draw hear each root settled (`../frame/render/viewHidden.ts`). Returns whether a drawn root moved, was shown or
  * hidden, turned to cast or not, or changed the distances it is drawn at: a still scene pays
  * nothing downstream.
  */
@@ -96,8 +100,8 @@ export function followPlacementRows<T>(
   to: number,
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   posed?: (rank: number, world: ArrayLike<number>) => number,
-  follow?: (rank: number) => void,
-  owner?: { rootIndex: NodeIndex },
+  follow?: (rank: number, distant: boolean, reseated: boolean) => void,
+  owner?: { rootIndex: NodeIndex; viewHidden: ViewHidden },
 ) {
   const list = rowRoots(roots, rows)
   let any = false
@@ -109,6 +113,7 @@ export function followPlacementRows<T>(
     // A row re-seated on another mesh renames its root (`rootSource`): the roots' index by node,
     // their owner's, is built again at its next read.
     const seated = rows.sources?.[index] ?? null
+    const reseated = entry.owner !== undefined && entry.owner !== seated
     if (entry.owner !== seated) {
       entry.owner = seated
       if (owner) owner.rootIndex.revision++
@@ -122,13 +127,14 @@ export function followPlacementRows<T>(
     // without caching it as dynamic (only a transform update does).
     const move = posed ? posed(rank, root.world.elements) : MOVE_PROMOTED,
       wasParked = !!root.parked,
-      flipped = settleRoot(root, rank, flip, cast || distant || parented),
+      flipped = settleRoot(root, rank, flip, cast || distant || parented, owner?.viewHidden),
       parked = !!root.parked
-    follow?.(rank)
+    // Its world moved before the followers read it: the box they stale is where it stands now.
     worldMoved(root)
+    follow?.(rank, distant, reseated)
     // Its rows and box follow the row all the same; a root without a box, or parked before and
     // after, draws nothing that moved.
-    if (move === MOVE_NONE && !cast && !distant && !parented && !flipped) continue
+    if (move === MOVE_NONE && !cast && !distant && !parented && !flipped && !reseated) continue
     if (root.worldBox && !(wasParked && parked)) any = true
   }
   return any

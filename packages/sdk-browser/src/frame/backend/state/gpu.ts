@@ -32,6 +32,7 @@ import type { TranslucencyGiState } from '../../../lighting/translucencyGi/gpu.t
 import { localFogBytes, type LocalFogGpu } from '../../render/localFogGpu.ts'
 import type { LightShaftsGpu } from '../../../modules/sky/lightShafts/frame.ts'
 import type { CloudViewGpu } from '../../../modules/sky/clouds/viewTargets.ts'
+import type { HairViewGpu } from '../../../hair/viewGpu.ts'
 
 /** GPU resources of the image: page cache, frame targets and presentation. */
 /** What an image composed onto the canvas alone was composed from (`composePass`'s arguments). */
@@ -169,6 +170,9 @@ export interface WebgpuGpuState {
   /** The view's clouds: the images they are traced and rebuilt into, with the state the rebuilding
    *  keeps, made at the first image that draws them (`../../render/encodeClouds.ts`). */
   clouds?: CloudViewGpu
+  /** The view's hair strands: their visibility, macro groups and bounds, made at the first image that
+   *  draws them (`../../../hair/frame.ts`). */
+  hair?: HairViewGpu
 }
 
 /** The copy of the opaque scene the distortion rereads and the offsets it accumulates, with their
@@ -250,31 +254,33 @@ export function swapSurfaces(
   gpu.targetBytes += next.allocationBytes - old.allocationBytes
 }
 
-/** Bytes of a view's frame targets: those it made, its effect chain's, its finishing's, its
- *  velocity stage's, its screen probes', its ambient occlusion's, its fog's, its light shafts', its
- *  clouds' and, where `deferred` is given, its tone table's. The table is the session's, not the
- *  view's (`VIEW_GPU_KEYS` holds no `deferred`): the state of the view drawn has it, the share a
- *  view keeps aside while another is drawn has none. */
-export const viewTargetBytes = (
-  gpu: Partial<Pick<WebgpuGpuState, 'deferred'>> &
-    Pick<
-      WebgpuGpuState,
-      | 'targetBytes'
-      | 'effects'
-      | 'finish'
-      | 'velocity'
-      | 'screenProbes'
-      | 'ambientOcclusion'
-      | 'subsurface'
-      | 'fogVolume'
-      | 'translucencyVolume'
-      | 'translucencyGi'
-      | 'localFog'
-      | 'lightShafts'
-      | 'clouds'
-    >,
-) =>
-  gpu.targetBytes +
+/** The passes a view holds in targets beside the frame's own, the one list the funding and the
+ *  view's metrics both count by (`viewPassBytes`). */
+type ViewPassHolders = Partial<Pick<WebgpuGpuState, 'deferred'>> &
+  Pick<
+    WebgpuGpuState,
+    | 'effects'
+    | 'finish'
+    | 'velocity'
+    | 'screenProbes'
+    | 'ambientOcclusion'
+    | 'subsurface'
+    | 'fogVolume'
+    | 'translucencyVolume'
+    | 'translucencyGi'
+    | 'localFog'
+    | 'lightShafts'
+    | 'clouds'
+    | 'hair'
+  >
+
+/** Bytes of the passes a view holds in targets: its effect chain's, its finishing's, its velocity
+ *  stage's, its screen probes', its ambient occlusion's, its subsurface's, its fog's, its
+ *  translucency volumes', its local fog's, its light shafts', its clouds', its hair strands' and,
+ *  where `deferred` is given, its tone table's. The table is the session's, not the view's
+ *  (`VIEW_GPU_KEYS` holds no `deferred`): the state of the view drawn has it, the share a view
+ *  keeps aside while another is drawn has none. */
+export const viewPassBytes = (gpu: ViewPassHolders) =>
   (gpu.effects?.bytes ?? 0) +
   (gpu.finish?.bytes ?? 0) +
   (gpu.velocity?.bytes ?? 0) +
@@ -287,4 +293,9 @@ export const viewTargetBytes = (
   localFogBytes(gpu) +
   (gpu.lightShafts?.bytes ?? 0) +
   (gpu.clouds?.bytes ?? 0) +
+  (gpu.hair?.bytes ?? 0) +
   (gpu.deferred?.toneLut.bytes ?? 0)
+
+/** Bytes of a view's frame targets: those it made and its passes' (`viewPassBytes`). */
+export const viewTargetBytes = (gpu: ViewPassHolders & Pick<WebgpuGpuState, 'targetBytes'>) =>
+  gpu.targetBytes + viewPassBytes(gpu)

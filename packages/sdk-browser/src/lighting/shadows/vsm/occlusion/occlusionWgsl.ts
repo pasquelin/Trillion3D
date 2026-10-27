@@ -19,9 +19,10 @@
  *   levels 4 to 6 from level 3 (8x8 texels a page): 4x4 threads read 2x2 texels each, then 2x2
  *   threads, then one; once for each layer.
  *
- * The reference's tile kernel writes levels 0 to 4 and its top kernel levels 5 and 6 from level 4.
- * Here the tile kernel stops at level 3: a WebGPU stage binds four storage textures by default and
- * a level is one storage view; the top kernel takes level 4 from level 3, the same least of the same
+ * The reference's tile kernel writes levels 0 to 4 and its top kernel levels 5 and 6 from level 4. A
+ * device that grants five storage textures a stage (`pyramidTileLevels`) builds them so. Otherwise
+ * the tile kernel stops at level 3: a WebGPU stage binds four storage textures by default and a
+ * level is one storage view; the top kernel takes level 4 from level 3, the same least of the same
  * 2x2 texels.
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
@@ -32,10 +33,23 @@ import { TILE_WGSL, VSM_FOLD_RASTER_MARKS_WGSL } from '../physicalPagesWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
 
-/** Levels the tile kernel writes: 0 to 3, one storage view each. */
-export const PYRAMID_TILE_LEVELS = 4
-/** Levels the top kernel writes from the last of those: 4 to 6. */
-export const PYRAMID_TOP_LEVELS = 3
+/** Levels the pyramid holds: 0 to 6. */
+const PYRAMID_LEVELS = 7
+/** Levels the tile kernel writes on a device that grants four storage textures a stage: 0 to 3, one
+ *  storage view each. */
+const PYRAMID_TILE_LEVELS = 4
+/** And on a device that grants five: 0 to 4. */
+const PYRAMID_TILE_LEVELS_FIVE = 5
+
+/** The levels the tile kernel writes on `device`: 0 to 4 where it grants five storage textures a
+ *  stage, else 0 to 3. */
+export const pyramidTileLevels = (device: Pick<GPUDevice, 'limits'>) =>
+  device.limits.maxStorageTexturesPerShaderStage >= PYRAMID_TILE_LEVELS_FIVE
+    ? PYRAMID_TILE_LEVELS_FIVE
+    : PYRAMID_TILE_LEVELS
+
+/** The levels the top kernel writes from the last of the tile kernel's `tileLevels`: the rest. */
+export const pyramidTopLevels = (tileLevels: number) => PYRAMID_LEVELS - tileLevels
 
 /** Group 0 of each kernel (the VSM resources). */
 export const PYRAMID_SELECT_SPECS: readonly VsmBindingSpec[] = [
@@ -121,9 +135,10 @@ const levelStores = (first: number, count: number, binding: number) =>
       `@group(1) @binding(${binding + k}) var pyramidLevel${first + k}:texture_storage_2d_array<r32float,write>;`,
   ).join('\n')
 
-const pyramidTileHelpersText =
-  () => /* wgsl */ `@group(1) @binding(0) var<storage,read> pyramidPages:array<u32>;
-${levelStores(0, PYRAMID_TILE_LEVELS, 1)}
+const pyramidTileHelpersText = (
+  tileLevels: number,
+) => /* wgsl */ `@group(1) @binding(0) var<storage,read> pyramidPages:array<u32>;
+${levelStores(0, tileLevels, 1)}
 var<workgroup> pyramidShared:array<f32,256>;
 /** A thread's 2x2 pool texels: their first texel and the slice they are read in, and whether its
  *  page's map is redrawn whole (one build, from slice 0). */
@@ -149,7 +164,7 @@ fn vsmPyramidFirst(t:VsmPyramidTile,lane:u32,layer:u32,z:vec4f){
  pyramidShared[lane]=least;
  textureStore(pyramidLevel0,t.texel>>vec2u(1u),layer,vec4f(least));
 }
-/** Level \`level\` (1 to 3) of layer \`layer\`: the threads of its bank, each the least of its four. */
+/** Level \`level\` (1 to the tile kernel's last) of layer \`layer\`: the threads of its bank, each the least of its four. */
 fn vsmPyramidHalve(level:u32,t:VsmPyramidTile,lane:u32,layer:u32){
  let side=16u>>level;
  let bank=side*side;
@@ -157,14 +172,16 @@ fn vsmPyramidHalve(level:u32,t:VsmPyramidTile,lane:u32,layer:u32){
  let least=min(min(pyramidShared[lane],pyramidShared[lane+bank]),min(pyramidShared[lane+2u*bank],pyramidShared[lane+3u*bank]));
  let at=t.texel>>vec2u(level+1u);
  switch(level){
-  case 1u:{textureStore(pyramidLevel1,at,layer,vec4f(least));}
-  case 2u:{textureStore(pyramidLevel2,at,layer,vec4f(least));}
-  default:{textureStore(pyramidLevel3,at,layer,vec4f(least));}
+${Array.from(
+  { length: tileLevels - 2 },
+  (_, k) => `  case ${k + 1}u:{textureStore(pyramidLevel${k + 1},at,layer,vec4f(least));}`,
+).join('\n')}
+  default:{textureStore(pyramidLevel${tileLevels - 1},at,layer,vec4f(least));}
  }
  pyramidShared[lane]=least;
 }`
 
-const pyramidTileKernelText = () => /* wgsl */ `
+const pyramidTileKernelText = (tileLevels: number) => /* wgsl */ `
 @compute @workgroup_size(16,16)
 fn vsmBuildPyramid(@builtin(local_invocation_index) lane:u32,@builtin(workgroup_id) wid:vec3u){
  let t=vsmPyramidTileOf(pmGroupIndex(wid),lane);
@@ -172,7 +189,7 @@ fn vsmBuildPyramid(@builtin(local_invocation_index) lane:u32,@builtin(workgroup_
  let layer=select(vsm.hzbStaticLayer,0u,t.uncached);
  let staticZ=max(vec4f(0.0),vsmPyramidGather(t.texel,t.slice));
  vsmPyramidFirst(t,lane,layer,staticZ);
- for(var level=1u;level<${PYRAMID_TILE_LEVELS}u;level++){
+ for(var level=1u;level<${tileLevels}u;level++){
   workgroupBarrier();
   vsmPyramidHalve(level,t,lane,layer);
  }
@@ -182,7 +199,7 @@ fn vsmBuildPyramid(@builtin(local_invocation_index) lane:u32,@builtin(workgroup_
  if(vsm.hzbStaticLayer!=0u){
   workgroupBarrier();
   vsmPyramidFirst(t,lane,0u,max(staticZ,max(vec4f(0.0),vsmPyramidGather(t.texel,0u))));
-  for(var level=1u;level<${PYRAMID_TILE_LEVELS}u;level++){
+  for(var level=1u;level<${tileLevels}u;level++){
    workgroupBarrier();
    vsmPyramidHalve(level,t,lane,0u);
   }
@@ -190,13 +207,13 @@ fn vsmBuildPyramid(@builtin(local_invocation_index) lane:u32,@builtin(workgroup_
 }`
 
 /**
- * The tile kernel: group 1 = 0 the listed pages, 1-4 levels 0 to 3 (storage, one level each).
- * Dispatch (16, pages, 1), indirect.
+ * The tile kernel: group 1 = 0 the listed pages, 1 on the levels 0 to `tileLevels` - 1 (storage, one
+ * level each; `pyramidTileLevels`). Dispatch (16, pages, 1), indirect.
  */
-export const vsmBuildPyramidWgsl = (layout: VsmLayout) =>
+export const vsmBuildPyramidWgsl = (layout: VsmLayout, tileLevels = PYRAMID_TILE_LEVELS) =>
   wgslProgram(
     /* wgsl */ `
-${pyramidTileHelpersText()}${pyramidTileKernelText()}
+${pyramidTileHelpersText(tileLevels)}${pyramidTileKernelText(tileLevels)}
 `,
     [
       VSM_CONSTANTS_WGSL,
@@ -206,16 +223,9 @@ ${pyramidTileHelpersText()}${pyramidTileKernelText()}
     ],
   )
 
-/**
- * The top kernel: group 1 = 0 the listed pages, 1 level 3 (sampled, by load), 2-4 levels 4 to 6
- * (storage). Dispatch (pages, 1, 1), indirect.
- */
-export const vsmBuildPyramidTopWgsl = (layout: VsmLayout) =>
-  wgslProgram(
-    /* wgsl */ `
-@group(1) @binding(0) var<storage,read> pyramidPages:array<u32>;
-@group(1) @binding(1) var pyramidLevel3:texture_2d_array<f32>;
-${levelStores(PYRAMID_TILE_LEVELS, PYRAMID_TOP_LEVELS, 2)}
+/** The top kernel's levels from the tile kernel's last of four storage views (level 3): level 4 from
+ *  level 3 by 4x4 threads, level 5 by 2x2 of them, level 6 by one. */
+const TOP_FROM_LEVEL_3_TEXT = /* wgsl */ `
 var<workgroup> pyramidTop4:array<f32,16>;
 var<workgroup> pyramidTop5:array<f32,4>;
 /** Level 4: thread \`local\` of page \`page\` (4x4 threads), the least of its 2x2 texels of level 3. */
@@ -234,7 +244,35 @@ fn vsmPyramidTopSecond(page:vec2u,local:vec2u,layer:u32){
  let least=min(min(pyramidTop4[k],pyramidTop4[k+1u]),min(pyramidTop4[k+4u],pyramidTop4[k+5u]));
  pyramidTop5[local.y*2u+local.x]=least;
  textureStore(pyramidLevel5,page*2u+local,layer,vec4f(least));
-}
+}`
+
+/** And from level 4 (the tile kernel wrote it): level 5 by 2x2 threads, each the least of its 2x2 texels
+ *  of level 4, level 6 by one. */
+const TOP_FROM_LEVEL_4_TEXT = /* wgsl */ `
+var<workgroup> pyramidTop5:array<f32,4>;
+/** Level 5: the 2x2 threads of page \`page\`, each the least of its 2x2 texels of level 4. */
+fn vsmPyramidTopSecond(page:vec2u,local:vec2u,layer:u32){
+ if(any(local>=vec2u(2u))){return;}
+ let at=page*4u+(local<<vec2u(1u));
+ let least=min(
+  min(textureLoad(pyramidLevel4,vec2u(at.x,at.y+1u),layer,0u).x,textureLoad(pyramidLevel4,at+vec2u(1u),layer,0u).x),
+  min(textureLoad(pyramidLevel4,vec2u(at.x+1u,at.y),layer,0u).x,textureLoad(pyramidLevel4,at,layer,0u).x));
+ pyramidTop5[local.y*2u+local.x]=least;
+ textureStore(pyramidLevel5,page*2u+local,layer,vec4f(least));
+}`
+
+/**
+ * The top kernel: group 1 = 0 the listed pages, 1 the tile kernel's last level (sampled, by load), the
+ * levels past it (storage), 4 to 6 after the four levels of the tile kernel and 5 and 6 after its five
+ * (`tileLevels`, `pyramidTileLevels`). Dispatch (pages, 1, 1), indirect.
+ */
+export const vsmBuildPyramidTopWgsl = (layout: VsmLayout, tileLevels = PYRAMID_TILE_LEVELS) => {
+  const fromLevel4 = tileLevels > PYRAMID_TILE_LEVELS
+  return wgslProgram(
+    /* wgsl */ `
+@group(1) @binding(0) var<storage,read> pyramidPages:array<u32>;
+@group(1) @binding(1) var pyramidLevel${tileLevels - 1}:texture_2d_array<f32>;
+${levelStores(tileLevels, pyramidTopLevels(tileLevels), 2)}${fromLevel4 ? TOP_FROM_LEVEL_4_TEXT : TOP_FROM_LEVEL_3_TEXT}
 /** Level 6: the first thread, the least of level 5's four. */
 fn vsmPyramidTopLast(page:vec2u,local:vec2u,layer:u32){
  if(any(local!=vec2u(0u))){return;}
@@ -245,9 +283,13 @@ fn vsmPyramidTopLast(page:vec2u,local:vec2u,layer:u32){
 fn vsmBuildPyramidTop(@builtin(local_invocation_id) local:vec3u,@builtin(workgroup_id) wid:vec3u){
  let page=vsmPoolPageOf(pyramidPages[wid.x]);
  // Each layer the pyramid holds (the static casters' is the last).
- for(var layer=0u;layer<=vsm.hzbStaticLayer;layer++){
+ for(var layer=0u;layer<=vsm.hzbStaticLayer;layer++){${
+   fromLevel4
+     ? ''
+     : `
   vsmPyramidTopFirst(page,local.xy,layer);
-  workgroupBarrier();
+  workgroupBarrier();`
+ }
   vsmPyramidTopSecond(page,local.xy,layer);
   workgroupBarrier();
   vsmPyramidTopLast(page,local.xy,layer);
@@ -257,3 +299,4 @@ fn vsmBuildPyramidTop(@builtin(local_invocation_id) local:vec3u,@builtin(workgro
 `,
     [VSM_CONSTANTS_WGSL, vsmBindingsWgsl(0, PYRAMID_TOP_SPECS, layout), VSM_PAGE_ADDRESS_WGSL],
   )
+}

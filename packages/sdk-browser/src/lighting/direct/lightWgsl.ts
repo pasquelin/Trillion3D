@@ -16,6 +16,7 @@ import {
 } from '../../../../sdk-core/src/lighting/subsurfaceProfile/litRows.ts'
 import { ENV_BRDF_TEXELS } from '../../../../sdk-core/src/lighting/environmentBrdf.ts'
 import { SKIN_TABLE_TEXELS } from '../../../../sdk-core/src/lighting/skinTable.ts'
+import { SHEEN_LTC_SIZE } from '../../../../sdk-core/src/lighting/sheenLtc.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { safeRcp } from '../../../../math/src/wgsl/reals.ts'
@@ -67,8 +68,8 @@ fn gridSlice(z:f32,map:vec3f)->u32{
 
 /** The constants of the kinds and flags, the light's record and the buffer that holds the lights; `slots` sizes the array. */
 const directDeclsText = (slots?: number) => `const POINT_FACES:u32=${POINT_FACES}u;
-const KIND_SPOT:f32=${LIGHT_KIND.spot}.0;
-const KIND_SUN:f32=${LIGHT_KIND.directional}.0;
+const KIND_SPOT:u32=${LIGHT_KIND.spot}u;
+const KIND_SUN:u32=${LIGHT_KIND.directional}u;
 const FLAG_CASTS:u32=${LIGHT_FLAG.castsShadow}u;
 const FLAG_SHADOWS_FOG:u32=${LIGHT_FLAG.shadowsFog}u;
 const FLAG_TRANSMITS:u32=${LIGHT_FLAG.transmission}u;
@@ -81,8 +82,14 @@ const LAMP_BIAS:f32=${wgslF32(LIGHT_SETTINGS.lampDistanceBias)};
  *  (the last two lanes of its shape) and, for a lamp, its tube (its axis times half its length) and
  *  soft radius; a rectangle's shares are the last two lanes of its capsule — and, in \`contactGi\`, the
  *  length of its contact shadows' ray, the intensity of the shadow at a surface that casts contact shadows
- *  (\`y\`) and at one that does not (\`z\`), as \`writeContactShadow\` packs them, and the factor on its indirect lighting (\`w\`). */
-struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,capsule:vec4f,contactGi:vec4f,}
+ *  (\`y\`) and at one that does not (\`z\`), as \`writeContactShadow\` packs them, and the factor on its indirect lighting (\`w\`);
+ *  then \`traits\`: the blend of its strength with the inverse of the exposure in its first lane, which \`lightStrength\` applies
+ *  (\`lightStrengthWgsl.ts\`: every reader of the intensity takes it so), the share of its draw range, its source's term and its
+ *  greatest draw distance (\`lightTraits\`, \`lightReachWgsl.ts\`: the lanes a shader reads each have their accessor; the draw range's are the CPU's).
+ *  A light's kind word (\`params.x\`) holds whole numbers in the float's bits, read through \`kindWord\` alone: its kind and flags, its lighting
+ *  channels, its shadowed value, its profile, whether the view leaves it out and the index of its light function
+ *  (\`isKind\`, \`lightFlagged\`, \`lightUndrawn\`, \`lightChannelsOf\`, \`shadowBitsOf\`). */
+struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,capsule:vec4f,contactGi:vec4f,traits:vec4f,}
 /** The count, the rank plus one of the directional light the forward readers take (\`forwardRank\`,
  *  0 for none; \`SceneLightStore.forwardDirectionalSlot\`) and two reserved words; the environment's irradiance: nine spherical-harmonic coefficients
  *  (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where the host declared none; its fog,
@@ -92,34 +99,33 @@ struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,
  *  image (\`../atmosphere/layout.ts\`), all zero without an atmosphere; the fitted specular lobe a
  *  rectangle is integrated with, written once (\`ltcTable.ts\`); the preintegrated skin table, a word a
  *  texel (\`skinTable.ts\`), written once it is loaded; the preintegrated environment BRDF, a word a
- *  texel (\`environmentBrdf.ts\`), written once; the subsurface profiles' dual specular the lights read, a
+ *  texel (\`environmentBrdf.ts\`), written once; the sheen lobe's table, two words of four half floats a texel
+ *  (\`sheenLtc.ts\`), written once; the subsurface profiles' dual specular the lights read, a
  *  \`vec4\` a profile (\`litRows.ts\`), written as the profiles change, and their transmission, the texel and the
  *  samples of the profile, \`LIT_TRANSMISSION_VEC4S\` \`vec4\` a profile; then every light, as many as the
  *  scene holds. */
-struct DirectLights{count:u32,forwardRank:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,${LIGHT_AIR_MEMBERS}ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,skin:array<u32,${SKIN_TABLE_TEXELS}>,envBrdf:array<u32,${ENV_BRDF_TEXELS}>,profiles:array<vec4f,${LIT_PROFILE_ROWS}>,transmissions:array<vec4f,${LIT_PROFILE_ROWS * LIT_TRANSMISSION_VEC4S}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}`
+struct DirectLights{count:u32,forwardRank:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,${LIGHT_AIR_MEMBERS}ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,skin:array<u32,${SKIN_TABLE_TEXELS}>,envBrdf:array<u32,${ENV_BRDF_TEXELS}>,sheen:array<vec2u,${SHEEN_LTC_SIZE * SHEEN_LTC_SIZE}>,profiles:array<vec4f,${LIT_PROFILE_ROWS}>,transmissions:array<vec4f,${LIT_PROFILE_ROWS * LIT_TRANSMISSION_VEC4S}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}`
 
 /** The tests of a light's kind and flags, what reaches a point, and the shares it gives. */
 const DIRECT_QUERIES_TEXT = `/** Each kind's test reads the rank through \`isKind\` (\`isRect\` too, \`rectLightWgsl.ts\`). */
-fn isSunKind(kind:f32)->bool{return isKind(kind,KIND_SUN);}
-fn isSun(light:DirectLight)->bool{return isSunKind(light.params.x);}
-fn isSpot(light:DirectLight)->bool{return isKind(light.params.x,KIND_SPOT);}
+fn isSun(light:DirectLight)->bool{return isKind(light,KIND_SUN);}
+fn isSpot(light:DirectLight)->bool{return isKind(light,KIND_SPOT);}
 /** Whether the light casts shadows, whether its shadow also shadows the volumetric fog and whether it transmits. */
-fn castsShadow(light:DirectLight)->bool{return lightFlagged(light.params.x,FLAG_CASTS);}
-fn shadowsFog(light:DirectLight)->bool{return lightFlagged(light.params.x,FLAG_SHADOWS_FOG);}
+fn castsShadow(light:DirectLight)->bool{return lightFlagged(light,FLAG_CASTS);}
+fn shadowsFog(light:DirectLight)->bool{return lightFlagged(light,FLAG_SHADOWS_FOG);}
 /** Whether the light shines through the subsurface-profile surfaces it shadows. */
-fn transmitsLight(light:DirectLight)->bool{return lightFlagged(light.params.x,FLAG_TRANSMITS);}
+fn transmitsLight(light:DirectLight)->bool{return lightFlagged(light,FLAG_TRANSMITS);}
 /** Whether light \`rank\` may give \`P\` energy: the first statement of the one light term, which
  *  reads the light's kind and sphere alone, and its direction and cone only for a spot or a
  *  rectangle, before the rest of its record. A sun always; a local light by \`localLightReaches\`,
  *  the shadows' test too — its sphere, a spot's real cone, a rectangle's face. */
 fn lightReaches(rank:u32,P:vec3f)->bool{
- let kind=directLights.items[rank].params.x;
- if(isSunKind(kind)){return true;}
- let sphere=directLights.items[rank].positionRange;
- let spot=isKind(kind,KIND_SPOT);let rect=isKind(kind,KIND_RECT);
+ let light=directLights.items[rank];
+ if(isSun(light)){return true;}
+ let spot=isSpot(light);let rect=isRect(light);
  var cone=vec4f(0.0,0.0,0.0,-2.0);
- if(spot||rect){cone=directLights.items[rank].directionCone;cone.w=select(-2.0,cone.w,spot);}
- return localLightReaches(sphere.xyz-P,sphere.w,cone.w,cone.xyz,rect);
+ if(spot||rect){cone=light.directionCone;cone.w=select(-2.0,cone.w,spot);}
+ return localLightReaches(light.positionRange.xyz-P,light.positionRange.w,cone.w,cone.xyz,rect);
 }
 /** What of a lamp's light reaches \`P\` before its distance weighs it: the unit direction toward it and
  *  the mask, its window times a spot's fade. The window is one at the lamp's centre and zero at its

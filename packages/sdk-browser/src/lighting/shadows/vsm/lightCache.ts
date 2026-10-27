@@ -10,7 +10,7 @@
  * metres (see `clipmap.ts`).
  */
 import { VSM_SUN_DEPTH_KEEP, VSM_NEXT_KEEPS_PAGES } from './constants.ts'
-import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
+import { copyInto, sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import {
   vsmDefaultProjectionData,
   type VsmProjectionDataValues,
@@ -110,20 +110,21 @@ interface VsmSunCacheKey {
   shadow: number[]
 }
 
-/** A local light's cache key: a change invalidates. `shape` is what recreating the light's
- *  proxy, hence its cache entry, keys by: light type (0 point, 1 spot), range, outer cone angle
- *  and whether the light is distant (1) — a change of any of them reprojects every map. */
-interface VsmLocalLightCacheKey {
-  worldToLight: ArrayLike<number>
-  lightOriginShift: [number, number, number]
-  shape: [number, number, number, number]
-}
-
-/** `from`'s values into `to`, its length made theirs. */
-function copyInto(to: number[], from: ArrayLike<number>) {
-  to.length = from.length
-  for (let k = 0; k < from.length; k++) to[k] = from[k]
-}
+/** What recreating a local light's proxy, hence its cache entry, keys by (`VsmLocalShape`): the word
+ *  each is at — the light type (0 point, 1 spot), the range, the outer cone angle, the inner cone
+ *  angle, the source radius, the soft source radius and the source length. */
+export const LOCAL_SHAPE_AT = {
+  type: 0,
+  range: 1,
+  outerCone: 2,
+  innerCone: 3,
+  sourceRadius: 4,
+  softSourceRadius: 5,
+  sourceLength: 6,
+} as const
+export type VsmLocalShape = Float64Array
+/** The words of a local light's shape. */
+export const LOCAL_SHAPE_WORDS = Object.keys(LOCAL_SHAPE_AT).length
 
 /** The kind of shadow an entry holds: 0 the regular one, 1 a sun's first-person clipmap. */
 export type VsmShadowType = 0 | 1
@@ -143,12 +144,10 @@ export class VsmLightCache {
   seenThisFrame = false
   lastSeenFrame = 0
   readonly mapCaches: VsmMapCache[]
-  /** The keys of the last frame, rewritten in place when they change. */
-  private localCacheKey: VsmLocalLightCacheKey & { worldToLight: number[] } = {
-    worldToLight: [],
-    lightOriginShift: [0, 0, 0],
-    shape: [Number.NaN, Number.NaN, Number.NaN, Number.NaN],
-  }
+  /** Whether the light was distant when it was last set up, none before: the part of a local light's
+   *  key that is its entry's alone (its pose is the light's, `vsmLightPose`). */
+  private wasDistant: boolean | undefined
+  /** A sun's clipmap key of the last frame, rewritten in place when it changes. */
   private clipmapCacheKey: VsmSunCacheKey = {
     ...{ lightDirection: [NaN, NaN, NaN], firstLevel: 0, shadow: [NaN] },
   }
@@ -188,7 +187,7 @@ export class VsmLightCache {
   }
   /** Whether the light is distant (`vsmDistantOf`), as its key last said. */
   get distant() {
-    return this.localCacheKey.shape[3] === 1
+    return this.wasDistant === true
   }
   /** A distant light that was drawn: all its pages are mapped and drawn, and nothing but its turn
    *  in the schedule (`scheduleDistantUpdates`) or a change of its key draws them again. */
@@ -221,7 +220,7 @@ export class VsmLightCache {
     }
   }
 
-  /** Updates a clipmap's cache entry; whether its key changed — the light was made or moved. */
+  /** Updates a clipmap's cache entry: a changed key invalidates it. */
   updateClipmap(key: VsmSunCacheKey, forceInvalidate: boolean, useCover: boolean) {
     const k = this.clipmapCacheKey
     const changed =
@@ -234,33 +233,13 @@ export class VsmLightCache {
       k.firstLevel = key.firstLevel
       copyInto(k.shadow, key.shadow)
     }
-    return changed
   }
 
-  /** Whether a local light's `key` puts it elsewhere than the entry last held: its pose, not its shape. */
-  localPoseChanged(key: VsmLocalLightCacheKey) {
-    const k = this.localCacheKey
-    return (
-      !sameValues(key.worldToLight, k.worldToLight) ||
-      !sameValues(key.lightOriginShift, k.lightOriginShift)
-    )
-  }
-
-  /** Whether a local light's `key` is not the one the entry last held: its pose or its shape. */
-  localKeyChanged(key: VsmLocalLightCacheKey) {
-    return this.localPoseChanged(key) || !sameValues(key.shape, this.localCacheKey.shape)
-  }
-
-  /** Updates a local light's cache entry; whether its key changed, as a clipmap's. */
-  updateLocal(key: VsmLocalLightCacheKey, forceInvalidate: boolean, useCover: boolean) {
-    const k = this.localCacheKey
-    const changed = this.localKeyChanged(key)
-    this.updateCommon(changed, forceInvalidate, useCover)
-    if (changed) {
-      copyInto(k.worldToLight, key.worldToLight)
-      copyInto(k.lightOriginShift, key.lightOriginShift)
-      copyInto(k.shape, key.shape)
-    }
-    return changed
+  /** Updates a local light's cache entry, as a clipmap's: a moved light (`poseChanged`: its pose or its
+   *  shape differs from the one it was last asked at, `vsmLightPose`) or a changed `distant` (whether
+   *  the light is, `vsmDistantOf`) invalidates it. */
+  updateLocal(poseChanged: boolean, distant: boolean, forceInvalidate: boolean, useCover: boolean) {
+    this.updateCommon(poseChanged || distant !== this.wasDistant, forceInvalidate, useCover)
+    this.wasDistant = distant
   }
 }

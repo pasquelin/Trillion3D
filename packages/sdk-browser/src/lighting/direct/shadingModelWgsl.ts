@@ -1,7 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { INVERSE_PI, PI } from '../../../../math/src/wgsl/constants.ts'
 import { luminance, srgbToLinear } from '../../../../math/src/wgsl/color.ts'
-import { pow5 } from '../../../../math/src/wgsl/lighting.ts'
+import { clampNoV, pow5 } from '../../../../math/src/wgsl/lighting.ts'
 import { octDecode, octEncode } from '../../../../math/src/wgsl/octahedral.ts'
 import { SKIN_TABLE_SIZE } from '../../../../sdk-core/src/lighting/skinTable.ts'
 import { PIXEL_MODEL, quantise8, quantise8x2 } from '../../materials/surface/pixelModel.ts'
@@ -162,7 +162,7 @@ fn hairEnvironment(base:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
  *  colour's Lambert diffuse. A rectangle light has the view's cosine for the half vector's. */
 const EYE_WGSL = wgslBlock(
   'EYE_WGSL',
-  [SHADING_MODEL_STATE_WGSL, SURFACE_F0_WGSL, INVERSE_PI, LAMP_LOBE_WGSL, pow5],
+  [SHADING_MODEL_STATE_WGSL, SURFACE_F0_WGSL, INVERSE_PI, LAMP_LOBE_WGSL, pow5, clampNoV],
   `
 fn eyeTransmission(rgb:vec3f,N:vec3f,V:vec3f,L:vec3f,cosine:f32,sine:f32,rect:bool)->vec3f{
  let irisNoL=saturate(dot(irisNormal,L));
@@ -173,7 +173,7 @@ fn eyeTransmission(rgb:vec3f,N:vec3f,V:vec3f,L:vec3f,cosine:f32,sine:f32,rect:bo
  let invLenH=inverseSqrt(2.0+2.0*VoL);
  var VoH=saturate(invLenH+invLenH*VoL);
  if(sine>0.0){VoH=sphereHalfCosines(NoL,NoV,VoL,sine).y;}
- if(rect){VoH=saturate(abs(NoV)+1e-5);}
+ if(rect){VoH=clampNoV(NoV);}
  let fc=pow5(1.0-VoH);
  let F=fc+(1.0-fc)*(surfaceSpecular*0.08);
  return rgb*INVERSE_PI*(mix(cosine,iris,irisMask)*(1.0-F));
@@ -264,16 +264,16 @@ fn modelTransmission(rgb:vec3f,rough:f32,N:vec3f,V:vec3f,L:vec3f,specular:vec3f,
  if(pixelModel==${subsurface}u){return subsurfaceTransmission(N,V,L,ao,terms.thickness);}
  if(pixelModel==${skin}u){return skinTransmission(N,L);}
  if(pixelModel==${profile}u){return select(vec3f(0.0),profileTransmission(N,V,L,terms.thickness),transmits);}
- if(pixelModel==${hair}u){return hairShading(rgb,rough,N,V,L,terms.transmission,terms.surface,1.0,0.0);}
+ // A mesh's hair lights with an opaque visibility of 1 (the reference's default transmittance data): the surface shadow
+ // weighs no part of it; the tint and the soft diffuse keep the transmission shadow.
+ if(pixelModel==${hair}u){return hairShading(rgb,rough,N,V,L,terms.transmission,1.0,1.0,0.0);}
  if(pixelModel==${eye}u){return eyeTransmission(rgb,N,V,specular,cosine,sine,rect);}
  return vec3f(0.0);
 }
 fn modelLobeSurface(s:LobeSurface)->LobeSurface{
- var t=s;
- if(pixelModel==${eye}u){
-  t.diffuse=vec3f(0.0);
-  t.f90=1.0;
- }
+ if(pixelModel!=${eye}u){return s;}
+ var t=withoutDiffuse(s);
+ t.f90=1.0;
  return t;
 }`,
 )

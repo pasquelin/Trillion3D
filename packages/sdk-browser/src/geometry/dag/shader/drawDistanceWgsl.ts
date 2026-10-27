@@ -63,18 +63,23 @@ export const OUTSIDE_DRAW_DISTANCES_WGSL = wgslFn(
 }`,
 )
 
-export const DAG_DRAW_DISTANCE_WGSL = wgslBlock(
-  'DAG_DRAW_DISTANCE_WGSL',
-  [OUTSIDE_DRAW_DISTANCES_WGSL],
-  `/** The radius of the sphere of a box of half extents \`half\`, in a placement's space, in the world \`pose\`
+/** The radius of the sphere of a box of half extents `half`, in a placement's space, in the world `pose`
  *  puts it in: the half diagonal at the greatest of the lengths of the pose's rows, held to the half
  *  diagonal of the box the pose makes of it. */
-fn drawSphereRadius(pose:mat4x4f,half:vec3f)->f32{
+export const DRAW_SPHERE_RADIUS_WGSL = wgslFn(
+  'drawSphereRadius',
+  [],
+  `fn drawSphereRadius(pose:mat4x4f,half:vec3f)->f32{
  let rows=pose[0].xyz*pose[0].xyz+pose[1].xyz*pose[1].xyz+pose[2].xyz*pose[2].xyz;
  let extent=abs(pose[0].xyz)*half.x+abs(pose[1].xyz)*half.y+abs(pose[2].xyz)*half.z;
  return min(length(half)*sqrt(max(rows.x,max(rows.y,rows.z))),length(extent));
-}
-/** Whether placement \`w\`, its mark word \`mark\` and its root's bounds \`node\`'s, is out of its draw
+}`,
+)
+
+export const DAG_DRAW_DISTANCE_WGSL = wgslBlock(
+  'DAG_DRAW_DISTANCE_WGSL',
+  [OUTSIDE_DRAW_DISTANCES_WGSL, DRAW_SPHERE_RADIUS_WGSL],
+  `/** Whether placement \`w\`, its mark word \`mark\` and its root's bounds \`node\`'s, is out of its draw
  *  distance: the sphere of its bounds, at its pose at the eye — its centre alone for an instance, or
  *  where the host turned the sphere's edge off. None for a placement whose mark says it names none,
  *  or an instance when the host turned the instances' cull off. */

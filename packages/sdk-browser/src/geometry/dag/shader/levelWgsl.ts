@@ -2,7 +2,7 @@ import { wgslBlock, wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { HELD_BY_WORD, MARK_WORD, PAGE_BASE_WORD, ROOT_WORD } from '../frameTable.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
-import { CAMERA_DESCENT, type DescentShape } from './descentShape.ts'
+import { beginLine, CAMERA_DESCENT, floorTest, type DescentShape } from './descentShape.ts'
 
 /**
  * Level-by-level descent of the cut hierarchy, and the subtree pruning it allows.
@@ -119,7 +119,7 @@ fn testRoot(dst:u32,w:u32){
  if(outsideDrawDistance(w,mark,node)){return;}
  if(outsideRootParent(w,mark)){return;}
  if(outsideClipPlane(w,node.minimum,node.maximum)){return;}
- if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
+${beginLine(shape)} if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return;}
  let sight=sightOf(node,w);
  if(sight==BOX_SEEN){acceptNode(dst,root,node,w);}
  if(sight==BOX_OCCLUDED){postNode(root,w,1u);}
@@ -149,10 +149,9 @@ fn testNode(dst:u32,c:u32,w:u32)->bool{
  if(worldNodeHides(c,w)){return false;}
  let node=nodeAt(c);
  if(outsideClipPlane(w,node.minimum,node.maximum)){return false;}
- if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return false;}
- let e=viewWorld(w);
- if(!${shape.subtreeNeeded}){atomicAdd(&out.frustumRejected,1u);return false;}
- if(floorPrunes(openOf(w,c,node.open),node,e)){return false;}
+${beginLine(shape)} if(outsideFrustum(w,node.minimum,node.maximum)){atomicAdd(&out.frustumRejected,1u);return false;}
+${shape.views ? '' : ' let e=viewWorld(w);\n'} if(!${shape.subtreeNeeded}){atomicAdd(&out.frustumRejected,1u);return false;}
+ if(${floorTest(shape)}){return false;}
  let sight=sightOf(node,w);
  if(sight==BOX_SEEN){acceptNode(dst,c,node,w);}
  return sight==BOX_OCCLUDED&&heldBack(node,w);

@@ -1,7 +1,6 @@
 // A cooked open-world cell's node casts as its host mesh says. Its rows carry the value
-// (`PlacementRows.casting`), which leaves the row out of every light cut or keeps it in a sun's far
-// shadows (`placement/update.test.ts`); a `castShadow` or `castFarShadow` changed after the cell
-// was placed rewrites them.
+// (`PlacementRows.casting`), which leaves the row out of every light cut (`placement/update.test.ts`);
+// a `castShadow` changed after the cell was placed rewrites them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
@@ -10,11 +9,11 @@ import { between, io, noBudget, opened, world } from './cells.fixture.ts'
 import { createPlacementWrites, type CellFrame, type Placement } from './follow.ts'
 import { createTouchedRows, placedMesh } from './rows.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { FAR_SHADOW_ROOT, MARK_BITS, SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
+import { SHADOW_MAPLESS_ROOT, SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
 
 for (const { flag, on, bit } of [
   { flag: 'castShadow', on: false, bit: SHADOWLESS_ROOT },
-  { flag: 'castFarShadow', on: true, bit: FAR_SHADOW_ROOT },
+  { flag: 'castsShadowMaps', on: false, bit: SHADOW_MAPLESS_ROOT },
 ] as const)
   test(`a cell's rows cast as their host mesh says, and follow its ${flag} once changed`, async () => {
     const [plain, set] = [0, 1].map(() => object.mesh(geometry.box(1, 1, 1)))
@@ -44,25 +43,6 @@ for (const { flag, on, bit } of [
       'both primitives rewrite their rows, sent before the frame',
     )
   })
-
-test('a cell’s rows carry whether a sun’s far-shadow test reaches their host mesh, and follow it once changed', async () => {
-  const meshes = [0, 1].map(() => object.mesh(geometry.box(1, 1, 1)))
-  ;[meshes[0].farShadowTest, meshes[1].farShadowTest] = [true, false]
-  const { cells, links, bytes } = world(0, null, meshes)
-  await opened(cells, bytes, false, between)
-  const casting = () => links.map((link) => link.placements!.casting[0])
-  assert.deepEqual(casting(), [MARK_BITS.farTest, MARK_BITS.farSkip], 'reached, never reached')
-  const { port, updates } = io(bytes)
-  cells.frame(between, port, noBudget)
-  assert.equal(updates.length, 0, 'a still flag writes no row')
-  ;[meshes[0].farShadowTest, meshes[1].farShadowTest] = [null, true]
-  cells.frame(between, port, noBudget)
-  assert.deepEqual(
-    casting(),
-    [0, MARK_BITS.farTest],
-    'each follows its mesh: as the view says, reached',
-  )
-})
 
 test('the rows under a core parent follow its world on the GPU: the first rows are written and linked whole, each frame sends each parent its world alone, never a row', async () => {
   const { cells, bytes, core } = world(0, null)

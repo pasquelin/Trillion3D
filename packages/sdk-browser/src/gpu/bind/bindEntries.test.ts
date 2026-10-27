@@ -106,7 +106,7 @@ test('each bind-group constructor binds exactly the entries of its layout', asyn
       device,
       reflection: reflectionFront(),
       cache: { buffer: {} },
-      surfaces: { subsurfaceView: {}, lobesView: {}, lobes: { width: 1 } },
+      surfaces: { views: () => [], subsurfaceView: {}, lobesView: {}, lobes: { width: 1 } },
       zeroUv: {},
       targetSize: [4, 4],
       colorView: {},

@@ -3,6 +3,7 @@
  * kernel's pipe and its groups, the parameters' uniform slots, the cleared indirect arguments and
  * the per-page dispatcher, made once a device and stats permutation, released with the set.
  */
+import { vsmFilterableKernels } from './filterableWgsl.ts'
 import { vsmPageManagementKernels } from './pageManagementWgsl.ts'
 import { vsmComputePipe, type VsmComputePipe } from './passKit.ts'
 import {
@@ -20,6 +21,7 @@ import {
   VSM_PM_GROUP_PARAMS,
   VSM_PM_GROUP_PER_PAGE,
   VSM_PM_GROUP_RESOURCES,
+  VSM_CLEAR_ARGS_EMPTY,
   VSM_PM_PARAMS_BYTES,
   type VsmPmKernel,
   vsmPhysicalPageKernels,
@@ -46,8 +48,10 @@ export interface VsmPageManagementFrame {
   device: GPUDevice
   /** The frame's maps. Nothing runs at 0. */
   mapCount: number
-  /** This frame's per-page dispatcher bins (`VsmMarkingFrame.perPage.all`, ids already in `res.perPageIds`). */
+  /** This frame's per-page dispatcher bins (`VsmMarkingFrame.perPage.all`, ids already in `res.perPageIds`),
+   *  and the suns' alone (`directionalOnly`) for a set with the prefiltered distant shadow. */
   perPageBins?: readonly VsmPerPageBin[]
+  directionalBins?: readonly VsmPerPageBin[]
   /** Entries uploaded to `res.nextMaps`, for the page address remap. */
   nextMapCount?: number
   options: VsmPageManagementOptions
@@ -56,12 +60,16 @@ export interface VsmPageManagementFrame {
 export const SLOT_MAIN = 0
 export const SLOT_ADDRESSES = 1
 const SLOT_COUNT = 2
-/** Cleared indirect arguments: one 4-word set (16, 0, 1, 0). */
+/** Cleared indirect arguments: one 4-word set (`VSM_CLEAR_ARGS_EMPTY`). */
 const ARGS_INIT_BYTES = 16
 
-type Kernels = ReturnType<typeof vsmPhysicalPageKernels> &
-  ReturnType<typeof vsmPageManagementKernels>
-export type KernelName = keyof Kernels
+/** Every kernel of `layout`, the prefiltered distant shadow's only where the set holds it. */
+const kernelsOf = (layout: VsmLayout, stats: boolean) => ({
+  ...vsmPhysicalPageKernels(layout, { stats }),
+  ...vsmPageManagementKernels(layout),
+  ...(layout.prefilteredDistant ? vsmFilterableKernels(layout) : {}),
+})
+export type KernelName = keyof ReturnType<typeof kernelsOf>
 
 /** A kernel's pipe (`vsmPageManagementPipes`) and its group 0 over each frame set. */
 export interface Pipe {
@@ -90,8 +98,13 @@ export interface VsmPageManagementContext {
 /** Bytes a set's page management context holds on a device of `limits`: its parameter slots, its
  *  per-page dispatch slots — both the device's `uniformStride` apart, as `context` lays them — and
  *  its cleared indirect arguments. */
-export const vsmPmContextBytes = (limits: { minUniformBufferOffsetAlignment?: number }) =>
-  uniformSlotBytes(limits, SLOT_COUNT) + vsmPerPageDispatcherBytes(limits) + ARGS_INIT_BYTES
+export const vsmPmContextBytes = (
+  limits: { minUniformBufferOffsetAlignment?: number },
+  directional = false,
+) =>
+  uniformSlotBytes(limits, SLOT_COUNT) +
+  vsmPerPageDispatcherBytes(limits, directional) +
+  ARGS_INIT_BYTES
 
 /** Frees the page management context of `res`, with the set (`destroyEngineVsm`). */
 export function releaseVsmPageManagement(res: VsmResources) {
@@ -118,13 +131,9 @@ const paramsEntries = () => [
 /** Every page management kernel of `layout` and its pipe, made once a device and source
  *  (`vsmComputePipe`): its tables' group, the parameters' and, per page, the dispatch setup's. */
 export function vsmPageManagementPipes(device: GPUDevice, layout: VsmLayout, stats: boolean) {
-  const kernels: Kernels = {
-    ...vsmPhysicalPageKernels(layout, { stats }),
-    ...vsmPageManagementKernels(layout),
-  }
+  const kernels = kernelsOf(layout, stats)
   const pipes = {} as Record<KernelName, { kernel: VsmPmKernel; pipe: VsmComputePipe }>
-  for (const name of Object.keys(kernels) as KernelName[]) {
-    const kernel = kernels[name]
+  for (const [name, kernel] of Object.entries(kernels) as [KernelName, VsmPmKernel][]) {
     const groups: GPUBindGroupLayoutEntry[][] = []
     groups[VSM_PM_GROUP_RESOURCES] = vsmBindGroupLayoutEntries(kernel.specs, COMPUTE)
     groups[VSM_PM_GROUP_PARAMS] = paramsEntries()
@@ -164,13 +173,13 @@ export function vsmPageManagementContext(
     layout: paramsLayout,
     entries: sequentialEntries([{ buffer: params, offset: 0, size: VSM_PM_PARAMS_BYTES }]),
   })
-  // Cleared indirect args: the clears' (16, 0, 1, 0).
+  // Cleared indirect args: the clears' (`VSM_CLEAR_ARGS_EMPTY`).
   const argsInit = device.createBuffer({
     label: 'vsm.pm.argsInit',
     size: ARGS_INIT_BYTES,
     usage: GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
   })
-  device.queue.writeBuffer(argsInit, 0, new Uint32Array([16, 0, 1, 0]))
+  device.queue.writeBuffer(argsInit, 0, new Uint32Array(VSM_CLEAR_ARGS_EMPTY))
 
   const pipes = {} as Record<KernelName, Pipe>
   for (const [name, made] of Object.entries(vsmPageManagementPipes(device, res.layout, stats)))

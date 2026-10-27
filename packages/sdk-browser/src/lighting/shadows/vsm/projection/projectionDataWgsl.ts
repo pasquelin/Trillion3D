@@ -7,6 +7,8 @@
  * transforms a column vector and `M[i][j]` is column i, row j.
  *
  * Declarations:
+ * - `VSM_PROJECTION_RECORD_WGSL`: the raw struct alone, which a stage that reads the record by a
+ *   binding of its own (the software raster's, `renderSoftwareWgsl.ts`) lists without the handle.
  * - `VSM_PROJECTION_DATA_WGSL`: the raw and decoded structs and the decode (no bindings), and the
  *   helpers every pass shares, each the one text of its maths: the clipmap level and distance, the
  *   cube face, a view's depth from device depth, a pixel's world size and a local map's pixel
@@ -18,7 +20,7 @@
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import { vsmFacesAwayFromLocal } from '../facesAwayWgsl.ts'
 import { VSM_HANDLE_WGSL } from '../pageTableWgsl.ts'
-import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../../../math/src/wgsl/decl.ts'
 
 /** The fields of a map's record (`VsmProjectionRecord`), in memory order, as `name:type`: the one
  *  list the record's struct, the decoded struct's first members and the decode's copy are made from
@@ -27,7 +29,7 @@ const RECORD_FIELDS = (
   'lightKind:u32 emitterSize:f32 finestMip:u32 mapLevel:i32 lightViewToClip:mat4x4f ' +
   'lightDirection:vec3f levelsLeft:i32 planesToMapUv:mat4x4f shiftedToMapUv:mat4x4f ' +
   'originShiftHigh:vec3f flags:u32 originShiftLow:vec3f levelBias:f32 clipmapOrigin:vec3f ' +
-  'ditherTexels:f32 cornerSteps:vec2i lightRange:f32 tableOrigin:u32 farShadowEdge:f32 wpoThreshold:f32 ' +
+  'ditherTexels:f32 cornerSteps:vec2i lightRange:f32 tableOrigin:u32 wpoThreshold:f32 ' +
   'prevMapId:u32 prevTableOrigin:u32 prevShiftedToClip:mat4x4f prevClipDepth:vec4f prevFinestMip:u32 viewSlot:u32 dynamicDepthCullRange:vec2f'
 ).split(' ')
 const recordMembers = RECORD_FIELDS.map((field) => ` ${field},`).join('\n')
@@ -36,13 +38,20 @@ const recordCopy = RECORD_FIELDS.map((field) => {
   return ` r.${name}=raw.${name};`
 }).join('\n')
 
-export const VSM_PROJECTION_DATA_WGSL = wgslBlock(
-  'VSM_PROJECTION_DATA_WGSL',
-  [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, vsmFacesAwayFromLocal],
+export const VSM_PROJECTION_RECORD_WGSL = wgslBlock(
+  'VSM_PROJECTION_RECORD_WGSL',
+  [],
   `
 struct VsmProjectionRecord{
 ${recordMembers}
 }
+`,
+)
+
+export const VSM_PROJECTION_DATA_WGSL = wgslBlock(
+  'VSM_PROJECTION_DATA_WGSL',
+  [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PROJECTION_RECORD_WGSL, vsmFacesAwayFromLocal],
+  `
 struct VsmProjectionData{
 ${recordMembers}
  handle:VsmHandle,
@@ -52,6 +61,7 @@ ${recordMembers}
  useCover:bool,
  coarseDynamicCached:bool,
  firstPerson:bool,
+ distant:bool,
 }
 /** Decodes the raw record into the projection data struct. */
 fn vsmUnpackProjection(raw:VsmProjectionRecord,h:VsmHandle)->VsmProjectionData{
@@ -64,6 +74,7 @@ ${recordCopy}
  r.useCover=(r.flags&VSM_MAP_COVERAGE)!=0u;
  r.coarseDynamicCached=(r.flags&VSM_MAP_COARSE_KEEPS_DYNAMIC)!=0u;
  r.firstPerson=(r.flags&VSM_MAP_FIRST_PERSON)!=0u;
+ r.distant=(r.flags&VSM_MAP_DISTANT)!=0u;
  return r;
 }
 /** The shifted-to-clip matrix of a map, from its record's shiftedToMapUv
@@ -82,10 +93,18 @@ fn vsmSubtractHighLow(aHigh:vec3f,aLow:vec3f,bHigh:vec3f,bLow:vec3f)->vec3f{
  let l=aLow-bLow;
  return h+l;
 }
+/** A point given as a high and a low part (\`high\`, \`low\`), in the shifted space of map \`pd\`: the high parts add,
+ *  the low parts are added. */
+fn vsmShiftedCentre(high:vec3f,low:vec3f,pd:VsmProjectionData)->vec3f{
+ return (high+pd.originShiftHigh)+(low+pd.originShiftLow);
+}
 /** The clipmap level of a distance (squared, in world units², converted to cm²). */
 fn vsmLevelOfDistanceSq(distSqToOrigin:f32)->f32{
  return log2(distSqToOrigin*(VSM_CM_PER_UNIT*VSM_CM_PER_UNIT))*0.5;
 }
+/** The index, from the first map of a clipmap whose first level is \`mapLevel\`, of the map the biased level
+ *  \`level\` falls in: the first for a level before it. */
+fn vsmClipmapIndexOfLevel(mapLevel:i32,level:f32)->i32{return i32(max(0.0,level-f32(mapLevel)));}
 /** viewOriginShift* is the view's origin shift (high/low). */
 fn vsmDistanceSqToOrigin(base:VsmProjectionData,shiftedPosition:vec3f,viewOriginShiftHigh:vec3f,viewOriginShiftLow:vec3f)->f32{
  let toMapShift=vsmSubtractHighLow(base.originShiftHigh,base.originShiftLow,viewOriginShiftHigh,viewOriginShiftLow);
@@ -140,11 +159,23 @@ fn vsmProjectionOf(h:VsmHandle)->VsmProjectionData{return vsmUnpackProjection(vs
 /** The resolution bias of the map of \`base\`'s clipmap that the biased level \`level\` falls in, read from
  *  that map's record alone; \`base\`'s own past the levels the clipmap holds. */
 fn vsmClipmapLevelBias(base:VsmProjectionData,level:f32)->f32{
- let clipmapIndex=i32(max(0.0,level-f32(base.mapLevel)));
+ let clipmapIndex=vsmClipmapIndexOfLevel(base.mapLevel,level);
  if(clipmapIndex<base.levelsLeft){return vsmProjectionData[u32(i32(base.handle.id)+clipmapIndex)].levelBias;}
  return base.levelBias;
 }
-/** Whether the map is one page (a distant light's: its last mip alone). */
-fn vsmSinglePageMap(pd:VsmProjectionData)->bool{return pd.lightKind!=LIGHT_KIND_DIRECTIONAL&&pd.finestMip>=VSM_MIPS-1u;}
 `,
+)
+
+/** The cell of the level `hop` coarser than a clipmap level that covers its level-0 page `page`: the
+ *  page less the first level's corner (`firstSteps`, the `cornerSteps` of its record, a quarter of the
+ *  level-0 pages each), plus the coarser level's, scaled by `hop` levels, then shifted down by `shift`
+ *  (the cell in pages when it is `hop`, in halves of a page when it is `hop` less one). Negative
+ *  where the page lies off the coarser level, whose shift keeps the sign. */
+export const VSM_COARSER_LEVEL_CELL_WGSL = wgslFn(
+  'vsmCoarserLevelCell',
+  [VSM_CONSTANTS_WGSL],
+  `fn vsmCoarserLevelCell(page:vec2i,firstSteps:vec2i,levelSteps:vec2i,hop:u32,shift:u32)->vec2i{
+ let quarterPages=i32(VSM_LEVEL0_PAGES>>2u);
+ return (page-quarterPages*firstSteps+((quarterPages*levelSteps)<<vec2u(hop)))>>vec2u(shift);
+}`,
 )

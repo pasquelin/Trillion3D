@@ -155,6 +155,7 @@ function worldDeclaration(
     alwaysEvaluateWorldPositionOffset: material.alwaysEvaluateWorldPositionOffset === true,
     cloudFog: material.cloudFog === true,
     computeFogPerPixel: material.computeFogPerPixel === true,
+    contactShadows: material.contactShadows === true,
     translucentLocalLightShadow: material.translucentLocalLightShadow === true,
     translucentLocalLightShadowQuality: material.translucentLocalLightShadowQuality,
     translucentDirectionalLightShadowQuality: material.translucentDirectionalLightShadowQuality,

@@ -994,56 +994,93 @@ card writes neither the file nor the section. Constants: `MESH_CARDS_VERSION`, `
 
 ## `rayTracing.bin`
 
-The trees a ray tracer walks, one for each compiled primitive that has a triangle in its coarse cut
+The trees a ray tracer walks: one for each compiled primitive that has a triangle in its coarse cut and, for a
+world with HLOD actors, one for each actor and the directory of them
 (`rust/ray_tracing/encode.rs`, read by `sdk-core/src/lighting/rayTracingFile.ts`; the cut is in
-[COMPILER.md](COMPILER.md#ray-tracing)). Words are little-endian, lengths are metres in the primitive's object
-space. The head, 32 bytes: the magic `T3RT`, the version (1), the number of records, the number of nodes, the
-number of triangles (`u32` each) and three zero words. Then a record of 64 bytes for each primitive, in the order
-of the manifest's primitives: its compiled mesh and its number in the mesh (the two numbers a placed root names
-its primitive by), its flags, the error of its cut (`f32`), the rank of its first
-node and how many nodes it has, the rank of its first triangle and how many triangles it has (ranks in the
-file's tables, `u32` each), the low and high corners of the box of its triangles (six `f32`) and two zero
-words. The records are followed by the nodes of every primitive, 80 bytes each, one primitive after the other,
-then by their triangles, 48 bytes each.
+[COMPILER.md](COMPILER.md#ray-tracing)). Words are little-endian; lengths are metres, in the primitive's object
+space, or, for the world's records, in the world's space. The head, 32 bytes: the magic `T3RT`, the version (3),
+the number of records, the number of nodes, the number of triangles (`u32` each) and three zero words. Then a
+record of 64 bytes, one for each primitive in the order of the manifest's primitives, then the actors' records,
+then the directory's. A record holds, in this order:
 
-A node has up to eight children, in eight slots (the slot of the octant of a ray's direction that meets the
-child first: bit `a` of the slot set when the ray goes towards the negative side of axis `a`), and holds, in
-this order:
+| Word  | Content                                                                                                                                                                          |
+| ----- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 0-1   | the primitive's compiled mesh and its number in the mesh (the two numbers a placed root names its primitive by); `RAY_TRACING_NO_PRIMITIVE` (`0xffffffff`) twice in the world's    |
+| 2     | the flags (below)                                                                                                                                                                |
+| 3     | the error of its cut, in metres (`f32`)                                                                                                                                          |
+| 4-5   | the rank of its first node and how many nodes it has (ranks in the file's node table)                                                                                            |
+| 6-7   | the rank of its first triangle and how many triangles it has (ranks in the file's triangle table)                                                                                |
+| 8-13  | the low and the high corner of the box of its triangles (six `f32`)                                                                                                              |
+| 14    | the HLOD cell whose switch shows the actor, in an actor's record; zero in every other                                                                                            |
+| 15    | zero                                                                                                                                                                             |
+
+The records are followed by the nodes of every record, 80 bytes each, one record after the other, then by their
+triangles, 48 bytes each. A record's nodes are consecutive, its root the first, and the links of a node count from
+its record's first node and first triangle.
+
+A node has up to eight children, in eight slots. The slots are in the order the compiler opened the children
+in, which no ray's direction chooses: a walk measures the span of every child it meets and goes to the nearest.
+A node holds, in this order:
 
 | Bytes | Content                                                                                                                                                                                                                                                                   |
 | ----- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 0-11  | `p`, the low corner of the node's box (three `f32`)                                                                                                                                                                                                                       |
-| 12-14 | `e`, the exponent of each axis (three `i8`): the least with `2^e · 255` at least the node's side; a flat side has -127                                                                                                                                                    |
+| 12-14 | `e`, the exponent of each axis (three `i8`): the least with `2^e · 255` at least the node's side, and no less than `RAY_TRACING_MIN_EXPONENT` (-126), which a flat side has                                                                                               |
 | 15    | the mask of the internal children: bit `s` set when slot `s` holds a node                                                                                                                                                                                                 |
-| 16-19 | the rank of the first internal child among the primitive's nodes, counted from the record's first node; the internal children lie one after the other, in slot order                                                                                                      |
+| 16-19 | the rank of the first internal child among the record's nodes, counted from the record's first node; the internal children lie one after the other, in slot order                                                                                                         |
 | 20-23 | the rank of the first triangle of the leaf children, counted from the record's first triangle; the leaves' triangles lie one after the other, in slot order                                                                                                               |
 | 24-31 | the meta of each slot: 0 when empty and for an internal child (the mask says it); for a leaf child, `(count << 5) \| offset`: the count is 1, 2 or 3, the offset (below 32) the rank of its first triangle from the node's first |
 | 32-79 | the boxes of the children, a byte a coordinate: the low x of the eight slots, the low y, the low z, then the high x, y and z                                                                                                                                              |
 
 A child's box is `p + 2^e · q` on each axis, `q` being the byte: the low corner is rounded down and the high
-corner up, so the box holds the child's. The internal child in slot `s` is the `popcount(mask & ((1 << s) - 1))`-th of the node's internal children. A triangle holds its three corners (nine `f32`), the rank of its
-cluster among the primitive's DAG clusters, its own rank in the cluster (`u32` each) and a zero word.
+corner up, so the box holds the child's. The internal child in slot `s` is the `popcount(mask & ((1 << s) - 1))`-th
+of the node's internal children. No tree needs a walk to keep more than `RAY_TRACING_STACK` (64) nodes on its stack
+(a walk keeps, at a node, every internal child it meets but the nearest): the compiler splits a tree whose cheapest
+cuts need more in halves, and stops with `RAY_TRACING_TREE_TOO_DEEP` if even those need more.
+
+A triangle, 48 bytes, holds its three corners (nine `f32`), the rank of its cluster among the DAG clusters, its
+own rank in the cluster and its tag (`u32` each). The tag is zero but in the directory.
 
 The record's third word holds flags:
 
-| Bit     | Name                           | Meaning                                                                               |
-| ------- | ------------------------------ | ------------------------------------------------------------------------------------- |
-| 0 (`1`) | `RAY_TRACING_FLAG_TWO_SIDED`   | the primitive's material is double-sided                                              |
-| 1 (`2`) | `RAY_TRACING_FLAG_MASKED`      | its material is alpha-masked: a hit must be tested against the material's coverage    |
-| 2 (`4`) | `RAY_TRACING_FLAG_TRANSLUCENT` | its material is translucent (blended or transmissive): it is no occluder as opaque is |
+| Bit      | Name                           | Meaning                                                                                               |
+| -------- | ------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| 0 (`1`)  | `RAY_TRACING_FLAG_TWO_SIDED`   | the primitive's material is double-sided                                                              |
+| 1 (`2`)  | `RAY_TRACING_FLAG_MASKED`      | its material is alpha-masked: a hit must be tested against the material's coverage                    |
+| 2 (`4`)  | `RAY_TRACING_FLAG_TRANSLUCENT` | its material is translucent (blended or transmissive): it is no occluder as opaque is                 |
+| 3 (`8`)  | `RAY_TRACING_FLAG_WORLD`       | the record is the world's directory of the HLOD actors; no other flag is set                          |
+| 4 (`16`) | `RAY_TRACING_FLAG_ACTOR`       | the record is an HLOD actor's, over its material's flags (bits 0 to 2); word 14 is the cell showing it |
 
 A primitive whose cut holds no triangle has no record; a skinned or morphed primitive has one, at its rest pose,
-and the reader decides what to do with it. The primitives of the world's HLOD cells have none. The manifest's
-`rayTracing` section names the file and its size:
+and the reader decides what to do with it. The world's HLOD actors are meshes of their own, all spliced into the
+world's one DAG, in the world's space: each is cut as a primitive's DAG is, at the error of its own finest
+clusters, into an actor's record that names no primitive and wears the flags of the material the actor wears
+(a flattened material as it is published, blended or masked as its base image's alpha says; a material of the scene
+as any primitive wearing it). The actors' records are the ones just before the directory's, in the actors' order: the
+directory's entries lie in its tree's leaf order and each names its actor by rank. The directory (`RAY_TRACING_FLAG_WORLD`, the file's last record, present only when an actor has a
+triangle) is a tree over the actors' boxes whose entries stand where triangles do: the low and the high corner of
+an actor's box and the low corner again (nine `f32`), the actor's rank among the actors' records (the cluster
+word), zero (the triangle word) and the actor's HLOD cell (the tag). The reader refuses a file whose entry names
+an actor the file lacks, or a cell other than its actor's, a directory whose flags are not the world's alone, and a cell word in
+a record that is no actor's. A voxel actor has no record: its clusters hold a box's
+corners, no surface.
+
+A ray enters an HLOD actor only where the cut draws its cell this frame. The runtime keeps for it, beside the
+records and the placements' table, one word for each HLOD cell of each instance of the world DAG: its top bit says
+the cut draws the cell's actor, and under it stands the rank, plus one, of the object a hit on the actor is told
+by (zero for an actor with none, which a hit names `NO_INDEX`, as a miss does).
+
+The manifest's `rayTracing` section names the file and its size:
 
 ```json
-{ "rayTracing": { "version": 1, "file": "rayTracing.bin", "bytes": 2672 } }
+{ "rayTracing": { "version": 3, "file": "rayTracing.bin", "bytes": 2672 } }
 ```
 
-A scene none of whose primitives has a triangle in its cut writes neither the file nor the section. Constants:
-`RAY_TRACING_VERSION`, `RAY_TRACING_MAGIC`, `RAY_TRACING_HEAD_BYTES`, `RAY_TRACING_RECORD_BYTES`,
+A scene none of whose primitives nor actors has a triangle in its cut writes neither the file nor the section.
+Constants: `RAY_TRACING_VERSION`, `RAY_TRACING_MAGIC`, `RAY_TRACING_HEAD_BYTES`, `RAY_TRACING_RECORD_BYTES`,
 `RAY_TRACING_NODE_BYTES`, `RAY_TRACING_TRIANGLE_BYTES`, `RAY_TRACING_WIDTH`, `RAY_TRACING_LEAF_TRIANGLES`,
-`RAY_TRACING_LEAF_COUNT_SHIFT`, `RAY_TRACING_LEAF_OFFSET_MASK`, `RAY_TRACING_FLAG_*` (`packages/sdk-core/src/contracts/rayTracingAbi.ts`).
+`RAY_TRACING_LEAF_COUNT_SHIFT`, `RAY_TRACING_LEAF_OFFSET_MASK`, `RAY_TRACING_FLAG_*`, `RAY_TRACING_NO_PRIMITIVE`,
+`RAY_TRACING_STACK`, `RAY_TRACING_MIN_EXPONENT` (`packages/sdk-core/src/contracts/rayTracingAbi.ts`).
 
 ## `lights.json`
 

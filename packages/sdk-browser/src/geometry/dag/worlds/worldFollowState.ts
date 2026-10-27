@@ -31,8 +31,9 @@ type FollowWords = { link: RangeSource; state: RangeSource; file: RangeSource }
  *  - `blockOn`, per instance, the cell files a load blocking on slow streaming waits for
  *    (`blockingLoad`);
  *  - `marks`, the cell slots waiting to be switched again: every one at first, its word written;
- *  - `revision`, how many times a cell's or a file's visibility moved, and `refile`, whether every
- *    file's word is to be switched again at the next sync;
+ *  - `revision`, how many times a cell's or a file's visibility moved, `drawRevision`, how many
+ *    times whether a cell's actor draws (`CELL_DRAW.hlod`) moved, and `refile`, whether every file's word is to be switched
+ *    again at the next sync;
  *  - `moves`, the cells whose visibility moved per instance (`worldMoves.ts`), and `movedStates`,
  *    the words moved;
  *  - `warmth`, the warm-ups the switches that draw an actor wait on (`worldWarm.ts`);
@@ -49,6 +50,7 @@ export type Follow = {
   blockOn: (ReadonlySet<number> | undefined)[]
   marks: ReturnType<typeof createMarkStack>
   revision: number
+  drawRevision: number
   refile: boolean
   moves: ReturnType<typeof createVisibilityMoves>
   movedStates: ReturnType<typeof createChangedRuns>
@@ -106,6 +108,7 @@ export function createFollowState(packed: PackedDag, world: PackedWorld): Follow
     blockOn: [],
     marks,
     revision: 0,
+    drawRevision: 0,
     refile: false,
     moves: createVisibilityMoves(instances, cells),
     movedStates: createChangedRuns(),
@@ -167,8 +170,10 @@ function writeState(s: Follow, at: number) {
   const stands = on && !shown && within ? CELL_DRAW.hlod : 0
   const own = on && layer[cell] === 0 && shown ? CELL_DRAW.placements : 0
   if (states[at] === (stands | own)) return
-  s.switchedPages.cellMoved(at, states[at] ^ (stands | own))
+  const moved = states[at] ^ (stands | own)
+  s.switchedPages.cellMoved(at, moved)
   states[at] = stands | own
+  if (moved & CELL_DRAW.hlod) s.drawRevision++
   s.movedStates.mark(at)
 }
 

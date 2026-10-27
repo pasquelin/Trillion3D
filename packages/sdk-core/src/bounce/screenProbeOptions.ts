@@ -132,6 +132,10 @@ const TRACE_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     integer('screenProbeRadianceCacheTemporaryAtlasDownsampleFactor', 6, [1, 1024]),
     integer('screenProbeMarkDownsampleFactor', 2, [1, 8]),
     integer('screenProbeInterpolateDownsampleFactor', 2, [1, 2]),
+    flag('screenProbeTranslucencyReflectionsRadianceCache', true),
+    integer('screenProbeTranslucencyReflectionsMarkDownsampleFactor', 4, [1, 64]),
+    flag('screenProbeTranslucencyReflectionsHizOcclusionTest', true),
+    number('screenProbeTranslucencyReflectionsClipmapFadeSize', 4, [0.001, 16]),
     flag('screenProbeRadianceCacheSpatialFilter', true),
     positive('screenProbeRadianceCacheFilterHitAngle', 0.2, 'a finite number of radians above 0'),
     choice('screenProbeRadianceCacheTraceTiles', 'full', RADIANCE_TRACE_TILES),
@@ -225,6 +229,16 @@ export type ScreenProbeSettings = LevelKnobs & {
 export const searchesOcclusion = (switchedOn: boolean, intensity: number) =>
   switchedOn && intensity > 0
 
+/** How the translucent surfaces mark the cells of the radiance cache they read (`translucentMarkOf`): their meshes drawn at the view's size
+ *  divided by `downsample`, a fragment hidden by the farthest depth of the opaque surfaces' pyramid (read at its level `hizMip`) marking nothing
+ *  where `hizTest`, the others marking their point with a level's share of the answer fading over `1 / invFade` probes at its edge. */
+export interface TranslucentMarkSettings {
+  downsample: number
+  hizMip: number
+  hizTest: boolean
+  invFade: number
+}
+
 /** The radiance cache's settings, resolved (`resolveScreenProbes`; the translucency volume's cache has its own, `translucencyCacheSettings`). */
 interface RadianceCacheSettings {
   /** Texels along a side of a probe's map. */
@@ -243,6 +257,8 @@ interface RadianceCacheSettings {
    *  (the factor the pixels would be interpolated at) and then by `markDownsample`. */
   markDownsample: number
   interpolateDownsample: number
+  /** The translucent surfaces' own mark of the cells they read, none where `screenProbeTranslucencyReflectionsRadianceCache` is off. */
+  translucentMark: TranslucentMarkSettings | undefined
   /** Whether a probe's map is averaged with its neighbours', and the angle that weighs them, in radians. */
   filter: boolean
   filterAngle: number
@@ -262,6 +278,19 @@ interface RadianceCacheSettings {
 const BUDGET_SPEED_RANGE = [0.5, 4] as const
 /** The smallest tile the probes are cut at, and the largest. */
 const DOWNSAMPLE_RANGE = [4, 64] as const
+/** The translucent surfaces' mark, from the settings: the pyramid level its depth test reads is one under the log2 of the downsample (none under the
+ *  first), the fade over the inverse of the fade size. */
+function translucentMarkOf(values: ScreenProbeValues): TranslucentMarkSettings | undefined {
+  if (!values.screenProbeTranslucencyReflectionsRadianceCache) return undefined
+  const downsample = values.screenProbeTranslucencyReflectionsMarkDownsampleFactor
+  return {
+    downsample,
+    hizMip: Math.max(Math.floor(Math.log2(downsample)) - 1, 0),
+    hizTest: values.screenProbeTranslucencyReflectionsHizOcclusionTest,
+    invFade: 1 / values.screenProbeTranslucencyReflectionsClipmapFadeSize,
+  }
+}
+
 /** The radiance cache's settings of a view's screen probes, from the settings and the level's row. */
 function resolveRadianceCache(values: ScreenProbeValues, rows: LevelKnobs): RadianceCacheSettings {
   return {
@@ -274,6 +303,7 @@ function resolveRadianceCache(values: ScreenProbeValues, rows: LevelKnobs): Radi
     temporaryAtlasDownsample: values.screenProbeRadianceCacheTemporaryAtlasDownsampleFactor,
     markDownsample: values.screenProbeMarkDownsampleFactor,
     interpolateDownsample: values.screenProbeInterpolateDownsampleFactor,
+    translucentMark: translucentMarkOf(values),
     filter: values.screenProbeRadianceCacheSpatialFilter,
     filterAngle: values.screenProbeRadianceCacheFilterHitAngle,
     downsampleSq: values.screenProbeRadianceCacheDownsampleDistance ** 2,

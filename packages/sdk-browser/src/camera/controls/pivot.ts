@@ -83,6 +83,8 @@ function dollyPivot(core: PivotCore, steps: number) {
 export function createPivotControls(camera: ControlCamera, surface: HTMLElement): PivotCore {
   const pose = controlPose(camera),
     base = createControlBase()
+  // The point it keeps the camera on goes with it: a controller that keeps none frames none.
+  base.undo(() => camera.setViewTarget(null))
   const position = new Float64Array(3),
     center = new Float64Array(3),
     offset = new Float64Array(3),
@@ -101,7 +103,7 @@ export function createPivotControls(camera: ControlCamera, surface: HTMLElement)
   }
   const apply = () => {
     seatEye(api, eye)
-    pose.write(position, orientation)
+    pose.write(position, orientation, center)
     writeVector(api.target, center)
     moved.set(position)
     moved.set(center, 3)

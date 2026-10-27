@@ -41,6 +41,41 @@ test('the cut applies no view’s clip plane unless asked, culls by it and filte
   }
 })
 
+test('an orthographic view’s planes are worked out by default, its origin moved onto the near plane by its height where it frames no target, its range then starting at 0', () => {
+  const { cutViewOrthoNearPlaneCorrection: moves, cutViewOrthoNearPlane: near } = CUT_RULES
+  assert.equal(resolveSetting(CUT_RULES.cutViewCaptureDelay), 4, 'a capture draws four images')
+  assert.equal(resolveSetting(CUT_RULES.cutViewCaptureDelay, 0), 0, 'read as 1 where it is used')
+  assert.throws(() => resolveSetting(CUT_RULES.cutViewCaptureDelay, 1.5), /whole number/)
+  assert.deepEqual(
+    [
+      CUT_RULES.cutViewOrthoAutoPlanes,
+      CUT_RULES.cutViewOrthoAutoPlanesHalfFloat,
+      CUT_RULES.cutViewOrthoAutoPlanesScaleUnits,
+      CUT_RULES.cutViewOrthoAutoPlanesDepthScale,
+      CUT_RULES.cutViewOrthoAutoPlanesShift,
+      moves,
+      CUT_RULES.cutViewOrthoCameraHeightAsViewTarget,
+      near,
+    ].map((rule) => resolveSetting(rule)),
+    [true, true, true, -1, 0, true, true, 0],
+  )
+  assert.equal(resolveSetting(near, -2.5), -2.5)
+  assert.equal(resolveSetting(CUT_RULES.cutViewOrthoAutoPlanesShift, -3), -3)
+  for (const field of [
+    'cutViewOrthoAutoPlanes',
+    'cutViewOrthoAutoPlanesHalfFloat',
+    'cutViewOrthoAutoPlanesScaleUnits',
+    'cutViewOrthoNearPlaneCorrection',
+    'cutViewOrthoCameraHeightAsViewTarget',
+  ] as const)
+    assert.throws(() => resolveSetting<SettingRule>(CUT_RULES[field], 1), /true or false/)
+  assert.throws(() => resolveSetting(near, Infinity), /a (finite )?number/)
+  assert.throws(
+    () => resolveSetting(CUT_RULES.cutViewOrthoAutoPlanesDepthScale, NaN),
+    /a (finite )?number/,
+  )
+})
+
 test('the cut’s GPU time budget is off, its lowest scale 30 % from 1 to 100, the streaming’s bandwidth unlimited', () => {
   const { cutEdgeScaleBudgetMs: budget, cutEdgeScaleMinPercent: lowest } = CUT_RULES
   const { streamingBandwidthLimit: bandwidth } = STREAMING_RULES

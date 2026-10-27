@@ -9,6 +9,7 @@ import { measureOutput } from '../../../bench/core/paths.ts'
 import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 import { PI, TAU } from '../../../packages/math/src/constants.ts'
+import type { HlodOptions } from '../../../packages/sdk-core/src/contracts/hlodOptions.ts'
 
 /** The glTF of one mesh, `positions` and `normals` of `count` vertices and its `indices`, painted
  *  `color`, under `nodes` (the mesh node first), its binary beside it as `shape.bin`; `skin`, extra
@@ -123,11 +124,12 @@ export function sphereModel(name: string, color: number[]) {
   return compileModel(out, source, 'qem-endpoints')
 }
 
-/** Compiles `source` into `<out>/cache` and gives the address of its manifest. */
+/** Compiles `source` into `<out>/cache`, with the HLOD `hlod` when it names one, and gives the address of its manifest. */
 export function compileModel(
   out: string,
   source: string,
   simplification?: 'none' | 'qem-endpoints',
+  hlod?: HlodOptions,
 ) {
   compileFullCache({
     cwd: REPOSITORY_ROOT,
@@ -135,6 +137,7 @@ export function compileModel(
     cache: resolve(out, 'cache'),
     resourceBase: `${pathToFileURL(source).href}/`,
     simplification,
+    hlod,
     stdio: ['ignore', 'ignore', 'inherit'],
   })
   return pathToFileURL(resolve(out, 'cache/native/full/manifest.json')).href

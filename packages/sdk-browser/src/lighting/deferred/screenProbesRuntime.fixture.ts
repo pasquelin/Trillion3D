@@ -4,6 +4,7 @@ import { VIEW_LAYOUT } from './worldAtWgsl.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createWebgpuViews } from '../../frame/backend/state/view.ts'
 import { createWebgpuTimingState } from '../../frame/backend/state/timing.ts'
+import { createWebgpuBlendState } from '../../blend/state.ts'
 import { createScaleControl } from '../../frame/scale/scaleControl.ts'
 import { createGpuHiz } from '../../visibility/hiz/gpu/factory.ts'
 import { createScreenReflection } from '../reflections/gpu.ts'
@@ -35,6 +36,7 @@ export async function probesRuntime(options: Record<string, unknown> = {}) {
     },
     vis: { gpuHiz: await createGpuHiz(h.device, 64, 64), reflectionPipelines: {} },
     lights: { buffer: {} as GPUBuffer, store: { unlit: false } },
+    blendState: createWebgpuBlendState(),
     run: { depthDrawn: true, diagnostic: 'beauty', frame: 0, gate: { temporalRevision: 0 } },
     bounce: { wanted: true, probes: undefined },
     setup: { viewport: [64, 64] },

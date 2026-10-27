@@ -1,8 +1,9 @@
 /**
  * THE SHADOW VIEWS' REQUESTS, TO THE ENGINE'S ONE REQUEST PATH: the descent asks for each leaf a view
  * keeps (`traversalWgsl.ts`, `requestPage`) in its readout, laid as the camera cut's
- * (`../../../../geometry/dag/readoutWords.ts`). A frame copies the requests into a buffer of a
- * readback ring after its raster (`../../../../gpu/core/readbackRing.ts`); they land a few frames
+ * (`../../../../geometry/dag/readoutWords.ts`). The next frame copies the requests into a buffer of a
+ * readback ring at its start, before its descent clears them (`../../../../gpu/core/readbackRing.ts`);
+ * they land a few frames
  * later, never waited on, read by the cut's own reader (`parseDagOutput`), and the streaming takes
  * them beside the views' readbacks (`vsmShadowRequestCuts`, `../../../../geometry/residency/queue.ts`,
  * `queueCuts`): every streaming page a shadow view needs is asked, at the priority its category

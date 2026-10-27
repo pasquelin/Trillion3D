@@ -1,4 +1,5 @@
 import { createGraphFrame } from '../frame/render/graphFrame.ts'
+import { createRootOffsets } from '../frame/render/rootOffsets.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../scene/host/graph/graph.fixture.ts'
@@ -74,6 +75,7 @@ function joue(items: ReturnType<typeof item>[]) {
       mapsSampler: {},
       materialTable: { view: {}, viewFor: () => ({}) },
       graphFrame: createGraphFrame(),
+      rootOffsets: createRootOffsets(),
     },
     gpu: {
       device: gpu.device,

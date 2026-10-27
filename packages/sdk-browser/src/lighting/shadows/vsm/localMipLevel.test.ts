@@ -1,7 +1,7 @@
 // The local light's mip level is written twice, in TypeScript (`vsmLocalMipLevel`, doubles: the
 // CPU's setup) and in WGSL (`pageTableWgsl.ts`, f32: the marking and the traces). The two are the
 // one rule: on footprints and biases whose level sits clear of a boundary (where f32 and doubles
-// may round either way, `resolutionLodBiasZero.test.ts`), they give the same level.
+// may round either way, `resolutionLodBiasStall.test.ts`), they give the same level.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'

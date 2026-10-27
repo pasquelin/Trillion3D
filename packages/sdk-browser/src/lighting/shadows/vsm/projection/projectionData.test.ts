@@ -15,7 +15,7 @@ import {
   vsmDefaultProjectionData,
   writeVsmProjectionData,
 } from './projectionData.ts'
-import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { VSM_PROJECTION_DATA_WGSL, VSM_PROJECTION_RECORD_WGSL } from './projectionDataWgsl.ts'
 import { wgslStructLayout } from '../wgslStructLayout.fixture.ts'
 
 /** Three flags apart from each other (bits 0, 2 and 4), so a word written shifted or merged shows. */
@@ -52,12 +52,11 @@ const PINNED_OFFSETS: readonly (readonly [string, number])[] = [
   ['cornerSteps', 272],
   ['lightRange', 280],
   ['tableOrigin', 284],
-  ['farShadowEdge', 288],
-  ['wpoThreshold', 292],
+  ['wpoThreshold', 288],
   // The occlusion's previous view, which the shadow raster's first cull reads: the lighting reads
   // none of it, the offsets before it are unmoved.
-  ['prevMapId', 296],
-  ['prevTableOrigin', 300],
+  ['prevMapId', 292],
+  ['prevTableOrigin', 296],
   ['prevShiftedToClip', 304],
   ['prevClipDepth', 368],
   ['prevFinestMip', 384],
@@ -83,12 +82,12 @@ function assertPinnedOffsets(text: string) {
 test('the offsets the lighting shader reads are pinned, as numbers, not derived from the record size', () => {
   // A field moved in the struct, with the size constant and the writer moving with it, must still
   // fail here: the lighting shader reads the record by these offsets.
-  assertPinnedOffsets(VSM_PROJECTION_DATA_WGSL.text)
+  assertPinnedOffsets(VSM_PROJECTION_RECORD_WGSL.text)
   assert.equal(VSM_PROJECTION_RECORD_BYTES, 400)
 })
 
 test('the pin fails when a field is added, removed or moved', () => {
-  const text = VSM_PROJECTION_DATA_WGSL.text
+  const text = VSM_PROJECTION_RECORD_WGSL.text
   assert.throws(() =>
     assertPinnedOffsets(text.replace(' lightKind:u32,', ' lightKind:u32,\n extra:u32,')),
   )
@@ -131,7 +130,6 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
     ditherTexels: 2,
     finestMip: 3,
     tableOrigin: 7 | (9 << 16),
-    farShadowEdge: 427,
     wpoThreshold: 625,
     prevMapId: -1,
     prevTableOrigin: 5 | (6 << 16),
@@ -169,9 +167,8 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
   assert.deepEqual([i(o.mapLevel), u(o.flags)], [-2, FLAGS])
   assert.deepEqual([f(o.ditherTexels), u(o.finestMip)], [2, 3])
   assert.equal(i(o.levelsLeft), -1)
-  // The page table's origin, two halves, a sun's far-shadow distance and the offset distance squared, which close the record.
+  // The page table's origin, two halves, and the offset distance squared, which close the record.
   assert.equal(u(o.tableOrigin), 7 | (9 << 16))
-  assert.equal(f(o.farShadowEdge), 427)
   assert.equal(f(o.wpoThreshold), 625)
   // The occlusion's previous view: no previous map is the all-ones id.
   assert.deepEqual(

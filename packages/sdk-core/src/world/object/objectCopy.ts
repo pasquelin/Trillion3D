@@ -19,9 +19,8 @@ export function copyObject<T extends Object3D>(into: T, source: Object3D, recurs
   into.matrixWorldNeedsUpdate = source.matrixWorldNeedsUpdate
   into.visible = source.visible
   into.castShadow = source.castShadow
-  into.castFarShadow = source.castFarShadow
+  into.castsShadowMaps = source.castsShadowMaps
   into.farField = source.farField
-  into.farShadowTest = source.farShadowTest
   copyOffsetSwitches(into, source)
   into.renderOrder = source.renderOrder
   into.userData = jsonCopy(source.userData)

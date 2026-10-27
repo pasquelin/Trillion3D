@@ -50,21 +50,31 @@ function shadowLayouts(device: GPUDevice, layout: VsmLayout, raster: TessProgram
   }
 }
 
-/** The render pipeline that draws the patches: `modules`' vertex stage dices them, its fragment is the
- *  casters' depth fragment, over the groups `layouts` (the page group, the raster's, the
- *  tessellation's). */
+/** The render pipeline that draws the patches of the one-sided rows, or of the two-sided rows
+ *  (`twoSided`): `modules`' vertex stage dices them, its fragment is the casters' depth fragment,
+ *  over the groups `layouts` (the page group, the raster's, the tessellation's). */
 function rasterPipeline(
   device: GPUDevice,
   layouts: GPUBindGroupLayout[],
   modules: { vertex: GPUShaderModule; fragment: GPUShaderModule },
+  twoSided: boolean,
 ) {
   return preparedPipeline(device, {
-    label: 'Trillion3D shadow tessellation raster',
+    label: `Trillion3D shadow tessellation raster${twoSided ? ' two-sided' : ''}`,
     layout: device.createPipelineLayout({ bindGroupLayouts: layouts }),
-    vertex: { module: modules.vertex, entryPoint: 'vsmTessellatedVs' },
+    vertex: {
+      module: modules.vertex,
+      entryPoint: 'vsmTessellatedVs',
+      constants: { VSM_TESS_TWO_SIDED: twoSided ? 1 : 0 },
+    },
     fragment: { module: modules.fragment, entryPoint: 'vsmRenderFs', targets: [] },
-    // A patch's triangles face the light as the casters' do (`vsmRenderSwapped`).
-    primitive: { topology: 'triangle-list', frontFace: 'ccw', cullMode: 'back' },
+    // A one-sided row's triangles face the light as the casters' do (`vsmRenderSwapped`); a
+    // two-sided row's cull none, as the casters' two-sided tiers.
+    primitive: {
+      topology: 'triangle-list',
+      frontFace: 'ccw',
+      cullMode: twoSided ? 'none' : 'back',
+    },
     depthStencil: {
       format: VSM_RENDER_TARGET_FORMAT,
       depthWriteEnabled: false,
@@ -96,7 +106,8 @@ const shadowStage = (
  * a raster context — its device, its set's layout, its page group —: the seeding over a view pass's
  * records, the splitting, the arguments' kernels, the levels' plan (the image's, in a module of its
  * own here), and the render pipeline that dices the visible patches in its vertex stage, the casters'
- * depth fragment after it. Each compute program binds the tessellation's own group 0
+ * depth fragment after it (a draw for the one-sided rows, the back faces culled, and one for the
+ * two-sided rows, none, compiled where a two-sided surface exists). Each compute program binds the tessellation's own group 0
  * (`TESS_PROGRAMS`), the view pass's lists in group 1 — one layout for all: parameters at a dynamic
  * offset, counters and records — and, for the splitting, the maps' projections in group 2. Every pipeline is
  * compiled off the frame (`ask`): until all are ready the casters draw the flat triangles they are
@@ -132,25 +143,32 @@ export function createShadowPrograms(
     ),
     drawArgs: stage([layouts.plan, lists], args, 'vsmTessDrawArgs', rows),
   }
-  const raster = rasterPipeline(device, [pageLayout, raster1, layouts[rasterProgram]], {
+  const modules = {
     vertex: module(
       'vertex',
       vsmTessellatedVertexWgsl(layout, vertexCut, masks, patchVertexWpo(held, vertexCut)),
     ),
     fragment: module('fragment', vsmRenderRasterWgsl(layout, masks)),
-  })
-  const all = [...Object.values(stages), raster]
+  }
+  const rasterLayouts = [pageLayout, raster1, layouts[rasterProgram]]
+  const raster = rasterPipeline(device, rasterLayouts, modules, false)
+  const rasterTwoSided = rasterPipeline(device, rasterLayouts, modules, true)
+  const core = [...Object.values(stages), raster]
   return {
     layouts,
     ...stages,
+    /** The draws of the patches, the one-sided rows' and the two-sided rows'. */
     raster,
+    rasterTwoSided,
     /** The tessellation's group the vertex stage reads, and whether it also cuts a masked row out. */
     rasterProgram,
     vertexCut,
-    /** Asks every pipeline off the thread; whether they are all compiled. */
-    ask() {
-      for (const pipeline of all) pipeline.ask()
-      return all.every((pipeline) => pipeline.ready)
+    /** Asks the pipelines the frame needs off the thread — the two-sided rows' draw only where the
+     *  table holds a two-sided surface (`twoSided`) —; whether they are all compiled. */
+    ask(twoSided: boolean) {
+      const needed = twoSided ? [...core, rasterTwoSided] : core
+      for (const pipeline of needed) pipeline.ask()
+      return needed.every((pipeline) => pipeline.ready)
     },
   }
 }

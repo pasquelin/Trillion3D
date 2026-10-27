@@ -23,6 +23,7 @@ import type { PreparedSceneTables } from '../../../../../sdk-core/src/scene/core
 import { camera, pose, uniqueNames, weigh } from './nodes.ts'
 import { buildMeshes, type MeshInputs } from './meshes.ts'
 import { isDrawnNode } from '../graph/kinds.ts'
+import { holdPrimitiveGroup, isPrimitiveGroup } from '../../../visibility/shader/castingMark.ts'
 import { Group, Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import type { Camera } from '../../../../../sdk-core/src/world/camera/camera.ts'
 import { placedMeshes } from './placed.ts'
@@ -89,6 +90,7 @@ function referencer(tables: PreparedSceneTables, unique: Unique, ranks: Map<Obje
       if (from !== made && from.name) to.name = unique(from.name)
       const held = ranks.get(from)
       if (held) ranks.set(to, held)
+      if (isPrimitiveGroup(from)) holdPrimitiveGroup(to)
       from.children.forEach((child, i) => walk(child, to.children[i]))
     }
     walk(made, copy)
@@ -149,14 +151,6 @@ function markDrawn(mesh: Object3D, declared: PreparedSceneTables['nodes'][number
   if (rootParents) mesh.traverse((part) => isDrawnNode(part) && holdRootParents(part, rootParents))
   // Drawn by a view's primed depth, as its drawn parts say (`Object3D.farField`).
   if (declared.farField) mesh.traverse((part) => isDrawnNode(part) && (part.farField = true))
-  // Casts far shadows, which a sun's far-shadow test keeps in its maps (`Object3D.castFarShadow`).
-  if (declared.castFarShadow)
-    mesh.traverse((part) => isDrawnNode(part) && (part.castFarShadow = true))
-  // Reached by a sun's far-shadow test, or never, as the job says (`Object3D.farShadowTest`).
-  if (declared.farShadowTest !== undefined) {
-    const test = declared.farShadowTest
-    mesh.traverse((part) => isDrawnNode(part) && (part.farShadowTest = test))
-  }
 }
 
 /** Builds a node and its subtree as the host loader did; `nodes` holds the host node of each

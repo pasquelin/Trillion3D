@@ -9,6 +9,7 @@ import {
 } from '../../../../../math/src/geometry/frustum/frustum.ts'
 import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { clampLowWins } from '../../../../../math/src/scalar/reals.ts'
+import { lightDrawn, type LightDrawView } from '../../lightDrawRange.ts'
 import type { VsmFrameLight } from './frameSetup.ts'
 
 /** Relative room above what the lighting's f32 range test (`lampReach`, `distance>=range`)
@@ -37,11 +38,19 @@ export function vsmSeenPlanes(
   return out
 }
 
-/** Whether a point within `planes` (`vsmSeenPlanes`) can be in reach of `light`: always for a
- *  sun; for a local light, unless its sphere lies wholly behind one plane. The lighting gives a
- *  point out of range exactly zero before any shadow read (`lampSeen`). */
-export function vsmLightSeen(light: SceneLight, planes: Float64Array) {
-  if (light.kind === 'directional' || !light.position || !light.range) return true
+/** Whether a point within `planes` (`vsmSeenPlanes`) can be in reach of `light`, the one of slot `slot`
+ *  in the store `draw` names: always for a sun; for a local light, unless a perspective view `draw` leaves it
+ *  out (`lightDrawn`: too small on the screen or past its draw distance) or its sphere lies wholly behind one
+ *  plane. The lighting gives a point out of range exactly zero before any shadow read (`lampSeen`). */
+export function vsmLightSeen(
+  light: SceneLight,
+  slot: number,
+  planes: Float64Array,
+  draw?: LightDrawView,
+) {
+  if (light.kind === 'directional') return true
+  if (!lightDrawn(slot, draw)) return false
+  if (!light.position || !light.range) return true
   const [x, y, z] = light.position
   const reach =
     light.range + F32_ROOM * (light.range + Math.max(Math.abs(x), Math.abs(y), Math.abs(z)))

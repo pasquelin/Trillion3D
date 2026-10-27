@@ -46,7 +46,7 @@ export const diagnosticReads = (mode: DiagnosticMode) => viewOf(mode)?.reads
  * applies, 3 the history validity it holds after its update, 4 to 9 the analysis views — the
  * flicker measure, the shading rejection, the reprojection, the motion, the thin geometry, three
  * factors each in red, green and blue, and the responsiveness each pixel carries, as grey
- * (`FIRST_ANALYSIS_VIEW`, `../../post/taa/rejectionWgsl.ts`); 0 the accumulated colour itself.
+ * (`FIRST_ANALYSIS_VIEW`, `../../post/taa/rejectionShared.ts`); 0 the accumulated colour itself.
  */
 const LIT_VIEWS = {
   'frame-difference': { light: 0, chain: true },

@@ -5,7 +5,7 @@ import { validateForwardShadingPriority } from './forwardLight.ts'
 import { validateLightCloudShadow } from './lightCloudShadow.ts'
 import { validateLightContactShadow } from './lightContactShadow.ts'
 import { validateLightShafts } from './lightShafts.ts'
-import { validateShares } from './validateLamp.ts'
+import { validateLocalNumbers, validateShares } from './validateLamp.ts'
 
 /** The factor on the resolution a local light's shadow is given, into `validated` where named: a
  *  number of at least 0, refused on a directional light, whose clipmaps have none. */
@@ -26,12 +26,13 @@ function validateShadowResolutionScale(light: SceneLight, validated: SceneLight)
 }
 
 /** The settings a light holds beside its own numbers, validated into `validated`: its shadow's
- *  resolution scale, the shares of its diffuse and specular light, its priority for the forward
+ *  resolution scale, the shares of its diffuse and specular light, its blend with the inverse exposure, its draw distance, its priority for the forward
  *  light, its light shafts, its cloud shadows and its contact shadows, each by the module that owns
  *  the rules of its fields. */
 export function validateLightSettings(light: SceneLight, validated: SceneLight) {
   validateShadowResolutionScale(light, validated)
   validateShares(light, validated)
+  validateLocalNumbers(light, validated)
   validateForwardShadingPriority(light, validated)
   validateLightShafts(light, validated)
   validateLightCloudShadow(light, validated)

@@ -192,6 +192,11 @@ function length3OfSquared(s: number, x: number, y: number, z: number) {
   return s < NORMAL_SQUARES || s === Infinity ? hypot3(x, y, z) : Math.sqrt(s)
 }
 
+/** Whether the vector at `at` of `v` is the zero vector: its three components all 0 (a −0 is 0, a NaN
+ *  is not). */
+export const isZeroVector3 = (v: ArrayLike<number>, at = 0) =>
+  v[at] === 0 && v[at + 1] === 0 && v[at + 2] === 0
+
 /** The plain root `Math.sqrt(x·x + y·y + z·z)`, the squares summed left to right, without
  *  `length3`'s band: past about 1e154 it overflows to Infinity, below about 1e-146 the squares
  *  underflow. The length of the Rust vectors (`length` of `packages/math/rust/src/vector/vec3.rs`), for

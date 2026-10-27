@@ -22,7 +22,7 @@
  */
 import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
-import { SHADOW_SLICE_WGSL } from '../../../direct/shadowSlice.ts'
+import { LOCAL_SHADOWED_WGSL, SHADOW_SLICE_WGSL } from '../../../direct/shadowSlice.ts'
 import {
   DIRECT_LIGHT_WGSL,
   LIGHT_GRID_WGSL as ENGINE_LIGHT_GRID_WGSL,
@@ -38,13 +38,12 @@ export const VSM_PRUNE_LIGHT_GRID_ENTRY = 'vsmPruneLightGrid'
 /** The reads of the grid, the projection's and the lighting's. */
 export const VSM_LIGHT_GRID_WGSL = wgslBlock(
   'VSM_LIGHT_GRID_WGSL',
-  [SHADOW_SLICE_WGSL],
+  [LOCAL_SHADOWED_WGSL, SHADOW_SLICE_WGSL],
   `
 /** Whether the light of rank \`rank\` is a local light the maps shadow, of the pass \`phase\` of the
  *  order: 0, a map of many pages; 1, a map of a single page. */
 fn vsmShadowedOf(rank:u32,phase:u32)->bool{
- let slice=i32(directLights.items[rank].params.y);
- return slice>=0&&!shadowSliceIsSun(slice)&&u32(shadowSliceDistant(slice))==phase;
+ return lightHasLocalShadow(rank)&&u32(shadowSliceDistant(i32(directLights.items[rank].params.y)))==phase;
 }
 /** The lane past every shadowed light: a walk that counts them all. */
 const VSM_WALK_ALL:u32=0xffffffffu;

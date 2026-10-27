@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionsOf } from '../../../../materials/texture/shaderRule.fixture.ts'
+import { wgslSource } from '../../../../../../math/src/wgsl/source.fixture.ts'
 import { commandArgs } from '../../../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { vsmLocalsProjectionWgsl, vsmSunsProjectionWgsl } from './projectionWgsl.ts'
 import { VSM_PROJECTION_MAX_PASS_LIGHTS, VSM_PROJECTION_VIEW_BYTES } from './projectionView.ts'
@@ -15,7 +16,7 @@ import { VSM_PROJECTION_HEADER_WORDS, VSM_PROJECTION_VIEW_WORD } from './project
 import { projectionKit } from './projectionKit.fixture.ts'
 import { onePassMaskFormat } from './maskFormat.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
+const LAYOUT = vsmLayout({ coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 35 })
 const SUNS = vsmSunsProjectionWgsl(LAYOUT)
 const LOCALS = vsmLocalsProjectionWgsl(LAYOUT, 'rg32uint')
 
@@ -32,10 +33,12 @@ test('the suns’ pass stores a layer a sun under the uniform sun count, the vot
 
 test('the local lights’ pass walks its pixel’s shadowed lights and packs four bits a light', () => {
   const entry = functionsOf(LOCALS, ['vsmProjectLocals', 'vsmMaskPack'])
-  assert.equal(entry.match(/textureStore\(/g)?.length, 1)
-  assert.match(entry, /textureStore\(vsmLocalMask,pixel\.pos,mask\);/)
-  assert.match(entry, /let list=vsmShadowedList\(base\);/)
-  assert.match(entry, /lane<min\(list\.y,vsm\.onePassMaxLights\+1u\)/)
+  // The mask is stored once on each path out: a group with no light to walk leaves at once, else after the walk.
+  assert.equal(entry.match(/textureStore\(/g)?.length, 2)
+  assert.equal(entry.match(/textureStore\(vsmLocalMask,pixel\.pos,mask\);/g)?.length, 2)
+  assert.match(entry, /list=vsmShadowedList\(pixelCell\(/)
+  assert.match(entry, /if\(list\.y>vsm\.onePassMaxLights\)\{vsmStatsOr\(VSM_OVERFLOW_FLAGS,/)
+  assert.match(entry, /let own=min\(list\.y,vsm\.onePassMaxLights\);/)
   assert.doesNotMatch(LOCALS, /fn vsmPruneLightGrid\(/, 'the marking prunes the grid')
   assert.match(entry, /\(\*mask\)\[lane\/ONE_PASS_MASK_LANES\]\|=/)
   assert.match(LOCALS, /const ONE_PASS_MASK_BITS:u32=4u;/)
@@ -49,6 +52,36 @@ test('the local lights’ pass walks its pixel’s shadowed lights and packs fou
     'rgba32uint',
     'rgba32uint',
   ])
+})
+
+test('the local lights’ pass is in uniform flow, its halves of 32 pixels voting as the suns’ do', () => {
+  const entry = functionsOf(LOCALS, ['vsmProjectLocals'])
+  // Z-order tiles of 8×8: a lane's half is its group index over 32.
+  assert.match(entry, /vsmLaneInit\(groupIndex\);/)
+  assert.match(LOCALS, /vsmLaneHalf=groupIndex>>5u;vsmLaneInHalf=groupIndex&31u;/)
+  assert.match(LOCALS, /var<workgroup> vsmHalfVoted:vec2u;/)
+  // No lane leaves alone: no return before the group's bound is read, and the one after it is the
+  // group's (a bound of 0); the light loop is bound by the longest list of the group.
+  assert.equal(entry.match(/return;/g)?.length, 1)
+  assert.ok(entry.indexOf('return;') > entry.indexOf('workgroupUniformLoad(&vsmListBound)'))
+  assert.match(entry, /let bound=workgroupUniformLoad\(&vsmListBound\);/)
+  assert.match(entry, /for\(var lane=0u;lane<bound;lane\+\+\)\{/)
+  // A pixel past its list traces as a no-op.
+  assert.match(entry, /let inLight=listed&&vsmLightParticipates\(k,pixel\.info,pixel\.shifted\);/)
+  assert.match(entry, /vsmTraceLight\(vsmView\.lights\[k\],pixel,receiver,inLight\)/)
+  // The stop of the adaptive ray count: both conditions, voted over the halves, the group leaving
+  // together; no vote by the lane alone.
+  const trace = functionsOf(LOCALS, ['vsmTraceLight'])
+  assert.match(trace, /halfStops=vsmVoteAllTrue\(!running\|\|!hit\);/)
+  assert.match(trace, /halfStops=vsmVoteAllTrue\(!running\|\|missed==0u\);/)
+  assert.match(trace, /vsmGroupVoted\(halfStops\)/)
+  assert.doesNotMatch(trace, /subgroupAllTrue\(!running/)
+  // The workgroup counters by default, the half's subgroup where the device's subgroups hold a half.
+  assert.match(LOCALS, /var<workgroup> vsmVoteFalse:array<atomic<u32>,6>;/)
+  assert.doesNotMatch(LOCALS, /subgroupAll/)
+  const native = vsmLocalsProjectionWgsl(LAYOUT, 'rg32uint', true)
+  assert.match(native, /fn vsmVoteAllTrue\(c:bool\)->bool\{return subgroupAllTrue\(c\);\}/)
+  assert.doesNotMatch(native, /vsmVoteFalse/)
 })
 
 test('nine lights: one vsm.projection pass, each light at its offset of the view', async () => {
@@ -130,6 +163,48 @@ test('the view’s sun count is the suns at the head of its records', () => {
   assert.equal(u[VSM_PROJECTION_VIEW_WORD.sunCount], 2)
 })
 
+test('no function that votes leaves before its first vote: a lane that returns early makes the barrier non-uniform', () => {
+  const vote = /\b(?:vsmVoteAllTrue|vsmGroupVoted|workgroupBarrier|subgroupAllTrue)\(/
+  for (const module of [SUNS, LOCALS]) {
+    const source = wgslSource(module)
+    const voting = [...source.matchAll(/\bfn (\w+)\(/g)]
+      .map((match) => functionsOf(source, [match[1]!]))
+      .filter((text) => vote.test(text))
+    // The trace and the votes themselves, and no other function of the module.
+    assert.ok(voting.some((text) => text.startsWith('fn vsmTraceLight(')))
+    for (const text of voting) {
+      const before = text.slice(0, text.search(vote))
+      assert.doesNotMatch(before, /\breturn\b/, text.slice(0, text.indexOf(')')))
+    }
+  }
+})
+
+// A group whose lists are all empty stores its zero masks and leaves, every lane at once (the bound is
+// the group's, read uniformly); the longest list is taken by one atomic a subgroup where the device has
+// subgroups, one a pixel without.
+test('the local lights’ pass leaves a group with no light uniformly, taking the longest list by subgroups where it can', () => {
+  const entry = functionsOf(LOCALS, ['vsmProjectLocals'])
+  assert.match(entry, /atomicMax\(&vsmListMost,own\);/)
+  assert.match(
+    entry,
+    /if\(bound==0u\)\{\n\s*if\(pixel\.inRect\)\{textureStore\(vsmLocalMask,pixel\.pos,mask\);\}\n\s*return;/,
+  )
+  assert.ok(entry.indexOf('workgroupUniformLoad(&vsmListBound)') < entry.indexOf('if(bound==0u)'))
+  const native = functionsOf(vsmLocalsProjectionWgsl(LAYOUT, 'rg32uint', true), [
+    'vsmProjectLocals',
+  ])
+  assert.match(
+    native,
+    /let longest=subgroupMax\(own\);\n if\(subgroupElect\(\)\)\{atomicMax\(&vsmListMost,longest\);\}/,
+  )
+  assert.doesNotMatch(native, /atomicMax\(&vsmListMost,own\)/)
+})
+
+test('a local light with no ray holds its tap and leaves the march, never the function', () => {
+  const setup = functionsOf(LOCALS, ['vsmTraceLight'])
+  assert.match(setup, /if\(tap\)\{\n\s*result=vsmLocalTap\([^\n]*\n\s*traced=false;\n\s*\}else\{/)
+})
+
 test('the view’s rays and steps are written into its uniform: a sun’s and a local light’s, the defaults without any', () => {
   const { project, upload } = projectionKit()
   const traced = () => {
@@ -154,7 +229,8 @@ test('a trace takes the view’s rays and steps for its kind of light, one tap a
     'var stepCount=i32(select(vsmView.traceRays.w,vsmView.traceRays.z,directional));',
     'let rayCap=max(rays,1u);',
     'if(single){s=0.0;}',
-    'ditherWorld=select(vsm.traceDitherLocal*pd.ditherTexels*texel,0.0,single);',
+    'ditherWorld=vsm.traceDitherLocal*pd.ditherTexels*texel;',
+    'result=vsmLocalTap(lightMap,startOffset,n,true,pixel.sceneDepth);',
     'ditherUv=select(vsmSunDitherUv(pd,length(viewPosition)),0.0,single);',
   ])
     assert.ok(trace.includes(text), text)

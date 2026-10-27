@@ -26,8 +26,8 @@ import {
   type VsmResources,
 } from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
-import { VSM_RENDER_CULL_SPECS, vsmRenderCullWgsl } from './renderCullWgsl.ts'
-import { VSM_RENDER_BIN_SPECS, vsmRenderBinWgsl } from './renderBinWgsl.ts'
+import { vsmRenderCullSpecs, vsmRenderCullWgsl } from './renderCullWgsl.ts'
+import { vsmRenderBinSpecs, vsmRenderBinWgsl } from './renderBinWgsl.ts'
 import { VSM_RENDER_VIEWS_SPECS, vsmRenderViewsWgsl } from './renderViewsWgsl.ts'
 import {
   VSM_RENDER_CASTERS_DONE_ENTRY,
@@ -50,6 +50,9 @@ import {
   VSM_RENDER_SOFTWARE_BIN,
   vsmRenderTierCorners,
   vsmRenderTierFamily,
+  vsmCullMarks,
+  vsmSoftwareMerged,
+  vsmViewsLaid,
 } from './renderParamsWgsl.ts'
 import {
   vsmCandidatesEntries,
@@ -61,9 +64,9 @@ import {
 import { vsmRenderVoxelWgsl } from './renderVoxelWgsl.ts'
 import {
   VSM_RENDER_SOFTWARE_ENTRY,
-  VSM_RENDER_SOFTWARE_SPECS,
   VSM_RENDER_SOFTWARE_STATIC_ENTRY,
   vsmRenderSoftwareWgsl,
+  vsmSoftwareSpecs,
 } from './renderSoftwareWgsl.ts'
 import { shadowPageComputeEntries } from '../../casters/pageGroup.ts'
 import { hasSubgroups } from '../../../../gpu/core/subgroups.ts'
@@ -81,14 +84,15 @@ const storage = (binding: number) => computeBufferEntry(binding, 'storage', COMP
 const read = (binding: number) => computeBufferEntry(binding, 'read-only-storage', COMPUTE)
 
 /** The cull's four kernels of `layout` (`vsmComputePipe`): with no test, the occlusion's first, second
- *  and post culls. `throttled`, the family that also counts the clusters it draws in each map for the
+ *  and post culls, which mark the pages they emit drawn where the device allows it (`vsmCullMarks`). `throttled`, the family that also counts the clusters it draws in each map for the
  *  compute throttle (`../throttle.ts`), made when a throttled frame asks it: the bindings are the same,
  *  so the groups of one family bind to the other's pipes. */
 export function vsmRenderCullPipes(device: GPUDevice, layout: VsmLayout, throttled = false) {
-  const code = vsmRenderCullWgsl(layout, throttled),
+  const marks = vsmCullMarks(device)
+  const code = vsmRenderCullWgsl(layout, throttled, marks),
     suffix = throttled ? 'Throttled' : ''
   const groups = [
-    vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, COMPUTE),
+    vsmBindGroupLayoutEntries(vsmRenderCullSpecs(marks), COMPUTE),
     [vsmRenderParamsEntry(0), read(1), read(2), storage(3), storage(4)],
   ]
   // The cull with no test reaches the occlusion's group through the cull of a view, as the two
@@ -123,6 +127,12 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
   const doneCode = vsmRenderCastersDoneWgsl()
   const doneGroups = [vsmCastersDoneEntries()]
   const argsGroups = [[P(0), storage(1), storage(2), storage(3)]]
+  const binMarks = vsmCullMarks(device)
+  const binCode = vsmRenderBinWgsl(layout, hasSubgroups(device), binMarks)
+  const binGroups = [
+    vsmBindGroupLayoutEntries(vsmRenderBinSpecs(binMarks), COMPUTE),
+    [P(0), storage(1), read(2), storage(3)],
+  ]
   return {
     candidates: pipe('candidates', castersCode, VSM_RENDER_CASTERS_ENTRY, castersGroups),
     candidatesDone: pipe('candidatesDone', doneCode, VSM_RENDER_CASTERS_DONE_ENTRY, doneGroups),
@@ -137,10 +147,8 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
       [P(0), storage(1), storage(2), read(3)],
     ]),
     ...vsmRenderCullPipes(device, layout),
-    bin: pipe('bin', vsmRenderBinWgsl(layout), 'vsmRenderBin', [
-      vsmBindGroupLayoutEntries(VSM_RENDER_BIN_SPECS, COMPUTE),
-      [P(0), storage(1), read(2), storage(3)],
-    ]),
+    bin: pipe('bin', binCode, 'vsmRenderBin', binGroups),
+    layViews: pipe('layViews', binCode, 'vsmRenderLayViews', binGroups),
     args: {
       cull: pipe('args', VSM_RENDER_ARGS_WGSL, 'vsmRenderArgsCull', argsGroups),
       bin: pipe('args', VSM_RENDER_ARGS_WGSL, 'vsmRenderArgsBin', argsGroups),
@@ -268,25 +276,32 @@ export const vsmRasterPipe = (
   })
 
 /** The software half's pipes (`renderSoftwareWgsl.ts`) for `layout` and the session's graphs
- *  (`held`): every record into slice 0, the static layer's into the static slice; group 0 the page
- *  rows' compute twin (`shadowPageComputeLayout`), group 1 the sorted records, the VSM resources of
- *  `VSM_RENDER_SOFTWARE_SPECS` and the parameters. */
+ *  (`held`): `all`, the dynamic layer's records into slice 0 and, where the device grants nine storage
+ *  buffers a stage (`vsmSoftwareMerged`), the static layer's into the static slice too; else `static`,
+ *  the static layer's records into the static slice; group 0 the page rows' compute twin
+ *  (`shadowPageComputeLayout`), group 1 the sorted records, the VSM resources of `vsmSoftwareSpecs` —
+ *  the projection data among them on a device with the buffer past those (`vsmViewsLaid`) — and the
+ *  parameters. */
 export function vsmSoftwarePipes(
   device: GPUDevice,
   layout: VsmLayout,
   held: GraphRasters = NO_RASTERS,
 ) {
+  const native = !vsmViewsLaid(device),
+    merged = vsmSoftwareMerged(device)
   const code = vsmRenderSoftwareWgsl(
     layout,
     shadowMasks(held),
     shadowWpo(held),
     hasSubgroups(device),
+    native,
+    merged,
   )
   const groups = [
     shadowPageComputeEntries(device),
     [
       computeBufferEntry(0, 'read-only-storage', COMPUTE),
-      ...vsmBindGroupLayoutEntries(VSM_RENDER_SOFTWARE_SPECS, COMPUTE),
+      ...vsmBindGroupLayoutEntries(vsmSoftwareSpecs(native, merged), COMPUTE),
       vsmRenderParamsEntry(4),
     ],
   ]
@@ -294,7 +309,7 @@ export function vsmSoftwarePipes(
     vsmComputePipe(device, `${RENDER_LABEL}.${entry}`, code, entry, groups)
   return {
     all: pipe(VSM_RENDER_SOFTWARE_ENTRY),
-    static: pipe(VSM_RENDER_SOFTWARE_STATIC_ENTRY),
+    ...(merged ? {} : { static: pipe(VSM_RENDER_SOFTWARE_STATIC_ENTRY) }),
   }
 }
 
@@ -329,14 +344,16 @@ export interface VsmRenderContext extends VsmRenderKernels {
   buffers: Partial<Record<VsmListName, GPUBuffer>>
   /** The view passes' parameter slots (`vsmRenderParamSlots`). */
   slots: UniformSlots
-  /** Each view pass's labels — its compute and raster passes, and the occlusion's second ones — and
+  /** Each view pass's labels — its compute, raster and software passes, and the occlusion's second ones — and
    *  parameter offset, made once a context. */
   passes: {
     pass: (p: number) => {
       cull: GPUComputePassDescriptor
       raster: string
+      software: GPUComputePassDescriptor
       second: GPUComputePassDescriptor
       rasterSecond: string
+      softwareSecond: GPUComputePassDescriptor
       offset: number[]
     }
   }
@@ -359,8 +376,10 @@ function renderPasses(slots: UniformSlots): VsmRenderContext['passes'] {
       (held[p] ??= {
         cull: { label: `${RENDER_LABEL}.cull ${p}` },
         raster: `${RENDER_LABEL}.raster ${p}`,
+        software: { label: `${RENDER_LABEL}.software ${p}` },
         second: { label: `${RENDER_LABEL}.cullSecond ${p}` },
         rasterSecond: `${RENDER_LABEL}.rasterSecond ${p}`,
+        softwareSecond: { label: `${RENDER_LABEL}.softwareSecond ${p}` },
         offset: slots.offset(p),
       }),
   }

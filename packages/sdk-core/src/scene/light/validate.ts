@@ -6,12 +6,17 @@ import {
   type SceneLight,
 } from './contracts.ts'
 import { isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
+import {
+  internLightingChannels,
+  lightingChannelsRefusal,
+} from '../../contracts/lightingChannelsAbi.ts'
 import { normalized, requiredDirection, unused, vector, direction } from './validateBasics.ts'
 import { LAMP_ONLY, validateLampFields } from './validateLamp.ts'
 import { validateFogFields, validateMobility } from './validateFog.ts'
 import { validateLightFunction } from './lightFunction.ts'
 import { validateLightSettings } from './validateSettings.ts'
 import { validateLightShadow } from './lightShadow.ts'
+import { refuseLightProfile, validateLightProfile } from './lightProfile.ts'
 import { LIGHT_UNITS } from './lightUnits.ts'
 import { readsUnits, sourceAreaOf } from './fields.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
@@ -96,6 +101,15 @@ function validateSwitch(
     })
   validated[field] = value
 }
+/** `lightingChannels`, copied onto `validated` when given: a set of the three channels. */
+function validateLightingChannels(light: SceneLight, validated: SceneLight) {
+  const { id, lightingChannels } = light
+  if (lightingChannels === undefined) return
+  const problem = lightingChannelsRefusal('lightingChannels', lightingChannels)
+  if (problem)
+    throw new EngineError('INVALID_SCENE_LIGHT', `${id}: ${problem}`, { lightingChannels })
+  validated.lightingChannels = internLightingChannels(lightingChannels)
+}
 /** The temperature of a light: whether its colour follows it, and the kelvin (a finite number,
  *  read between 1000 and 15000 where the colour is made). */
 function validateTemperature(light: SceneLight, validated: SceneLight) {
@@ -149,11 +163,19 @@ function validateDirectional(light: SceneLight, validated: SceneLight): SceneLig
       })
     validated.angularRadius = light.angularRadius
   }
+  if (light.softAngle !== undefined) {
+    if (!isFiniteNumber(light.softAngle) || light.softAngle < 0 || light.softAngle >= 180)
+      throw new EngineError('INVALID_SCENE_LIGHT', `${id}: softAngle expected in [0, 180)`, {
+        softAngle: light.softAngle,
+      })
+    validated.softAngle = light.softAngle
+  }
   unused(light, 'position', 'does not exist for a directional light')
   unused(light, 'range', 'does not exist for a directional light: it carries everywhere')
   for (const field of SPOT_ONLY) unused(light, field, 'exists only for a spot')
   for (const field of LAMP_ONLY)
     unused(light, field, 'does not exist for a directional light: it has no position')
+  refuseLightProfile(light)
   validated.direction = requiredDirection(
     light.direction,
     id,
@@ -163,6 +185,7 @@ function validateDirectional(light: SceneLight, validated: SceneLight): SceneLig
 }
 /** The fields only a directional light has (besides its angular radius and its shadows, `lightShadow.ts`). */
 const DIRECTIONAL_ONLY = [
+  'softAngle',
   'atmosphereSun',
   'atmosphereSunIndex',
   'sunDiskTint',
@@ -189,6 +212,7 @@ export function validateSceneLight(light: SceneLight): SceneLight {
   validateIntensity(light, validated)
   validateTemperature(light, validated)
   validateSwitch(light, validated, 'transmission')
+  validateLightingChannels(light, validated)
   validateFogFields(light, validated)
   validateMobility(light, validated)
   validateLightFunction(light, validated)
@@ -210,10 +234,12 @@ export function validateSceneLight(light: SceneLight): SceneLight {
     validated.outerConeAngle = outerConeAngle(light.outerConeAngle, id)
     if (light.innerConeAngle !== undefined)
       validated.innerConeAngle = innerConeAngle(light.innerConeAngle, id)
+    validateLightProfile(light, validated)
     return validated
   }
   for (const field of SPOT_ONLY) unused(light, field, 'exists only for a spot')
   if (light.direction !== undefined) validated.direction = direction(light.direction, id)
+  validateLightProfile(light, validated)
   return validated
 }
 /**
@@ -226,6 +252,7 @@ function validateRect(light: SceneLight, validated: SceneLight): SceneLight {
   const { id } = light
   for (const field of SPOT_ONLY) unused(light, field, 'exists only for a spot')
   for (const field of LAMP_ONLY) unused(light, field, 'exists only for a point or a spot')
+  refuseLightProfile(light)
   const normal = requiredDirection(light.direction, id, 'a rect requires the normal of its face')
   const right = vector(light.right, 'right', id)
   addScaledVector3(right, normal, -dotVector3(right, normal))

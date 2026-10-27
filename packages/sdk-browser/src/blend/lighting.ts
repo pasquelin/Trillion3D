@@ -4,8 +4,9 @@ import { vsmOrStandIns } from '../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { lightFunctionResources } from '../lighting/lightFunction/frame.ts'
 import { translucentCloudVertex } from './cloudVertex.ts'
+import { FLAGS_VIEW } from '../materials/surface/surfaceOutputs.ts'
 import { translucencyVolumeView } from '../lighting/translucency/frame.ts'
-import { translucencyGiSampler, translucencyGiView } from '../lighting/translucencyGi/frame.ts'
+import { translucencyGiSampler, translucencyGiViews } from '../lighting/translucencyGi/frame.ts'
 
 /** Each runtime's one lighting record, rewritten by each image: the live entries read it. */
 const records = new WeakMap<object, BlendLighting>()
@@ -38,6 +39,8 @@ export function blendLightResources(
   into.shadowView = vsm.view
   into.shadowNoise = vsm.noise
   into.tileLights = contract.tiles ?? placeholders.tiles
+  // The opaque surfaces' flags, which a translucent surface's contact shadow ray reads at the surface it hits.
+  into.surfaceFlags = rt.gpu.surfaces?.views()[FLAGS_VIEW] ?? placeholders.surfaceFlags
   // The front's radiance the trace wrote (`frontLayer.ts`), a texel until a transparent reflects.
   into.frontTraced = rt.gpu.reflection!.front.views.traced
   // The fog's cubemap and volume this image built, or their stand-ins.
@@ -48,8 +51,10 @@ export function blendLightResources(
   into.lightFunctionAtlas = lightFunction
   // The translucency lighting volume this image built, or the stand-in the surfaces lit from it read black from.
   into.translucencyVolume = translucencyVolumeView(rt, rt.gpu.device!)
-  // The translucency global illumination volume this image built, or the stand-in the surfaces read the sky light from.
-  into.translucencyGi = translucencyGiView(rt, rt.gpu.device!)
+  // The translucency global illumination volume this image built, its two textures, or the stand-ins the surfaces read the sky light from.
+  const gi = translucencyGiViews(rt, rt.gpu.device!)
+  into.translucencyGiAmbient = gi.ambient
+  into.translucencyGiDirectional = gi.directional
   into.translucencyGiSampler = translucencyGiSampler(rt.gpu.device!)
   // The clouds' shade and the cloud image the programs that read the clouds read per vertex, or
   // their stand-ins (`cloudVertex.ts`).

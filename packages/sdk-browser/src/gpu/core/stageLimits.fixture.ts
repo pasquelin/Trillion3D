@@ -11,3 +11,9 @@ export function withinDefaults(layouts: GPUPipelineLayoutDescriptor[], where: st
       assert.ok(count <= max, `${where}: ${count} ${kind}, past ${max}`)
     }
 }
+
+/** The storage buffers a compute stage of the pipeline layout `layout` binds. */
+export const storageBufferCount = (layout: GPUPipelineLayoutDescriptor) =>
+  stageBindingCounts(layout).find(
+    ({ limit, kind }) => limit === 'maxStorageBuffersPerShaderStage' && kind.endsWith('Compute'),
+  )?.count

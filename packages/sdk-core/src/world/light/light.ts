@@ -30,6 +30,7 @@ import {
 import { copyLamp, defineLampSettings, takeLamp } from './lightLampSettings.ts'
 import { defaultOnFlag } from './lightFlags.ts'
 import { lightMobility } from './lightMobility.ts'
+import { defineLightingChannels } from './lightChannels.ts'
 
 export type { LightParameters }
 
@@ -100,12 +101,20 @@ export class Light extends Object3D {
   declare diffuseShare: number
   /** The share of its specular light the light gives, from 0 to 1; 1. */
   declare specularShare: number
+  /** Point, spot and rect only: how much the light's strength is divided by the image's exposure, from 0 to 1; 0, the
+   *  light keeps its strength whatever the exposure (`SceneLight.inverseExposureBlend`). */
+  declare inverseExposureBlend: number
+  /** Point, spot and rect only: the distance from a perspective view, in metres, past which the light is left out of the image, its lighting and
+   *  its shadow (`SceneLight.maxDrawDistance`); 0, no limit. */
+  declare maxDrawDistance: number
   /** Whether a point or spot light falls off as the inverse square of the distance, windowed by its
    *  `distance`; `true` by default. A write reaches the world at once. */
   declare inverseSquared: boolean
   /** Angular radius of a directional light's disk, in radians: its soft shadow's size; 0 gives hard
    *  shadows. A sun defaults to the solar disk (`LIGHT_SETTINGS.sunAngularRadius`). */
   declare angularRadius: number
+  /** Directional only: the soft angle of the source's disk, in degrees from 0 up to 180 (`SceneLight.softAngle`); 0 by default. */
+  declare softAngle: number
   /** How much of the light the volumetric fog and the clouds scatter: 0 leaves it out of both; 1. */
   declare fogScattering: number
   /** The factor on the resolution a point, spot or rectangle light's shadow is given
@@ -159,6 +168,7 @@ export class Light extends Object3D {
     if (p.shadowsFog !== undefined) this.setFogShadow(p.shadowsFog)
     atmosphereSun.take(this, p.atmosphereSun)
     lightMobility.take(this, p.mobility)
+    if (p.lightingChannels) this.lightingChannels = p.lightingChannels
     if (p.atmosphereSunIndex !== undefined) this.setSunIndex(p.atmosphereSunIndex)
     if (p.position) this.position.set(...readVec3(p.position))
     else if (AIMED.has(kind)) this.position.set(0, 1, 0)
@@ -269,6 +279,7 @@ defineSwitches(Light.prototype)
 defineLampSettings(Light.prototype)
 atmosphereSun.define(Light.prototype)
 lightMobility.define(Light.prototype)
+defineLightingChannels(Light.prototype)
 lightFunction.define(Light.prototype)
 lightShaft.define(Light.prototype)
 lightCloudShadow.define(Light.prototype)

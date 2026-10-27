@@ -9,7 +9,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** The horizontal field of view of `cam` in degrees, from the optics it declares; 0 for an
  *  orthographic view. */
-function horizontalFieldOfView(cam: Pick<EngineCamera, 'fov' | 'aspect' | 'perspective'>) {
+export function horizontalFieldOfView(cam: Pick<EngineCamera, 'fov' | 'aspect' | 'perspective'>) {
   if (cam.perspective === 0) return 0
   return 2 * RAD2DEG * Math.atan(Math.tan(0.5 * cam.fov * DEG2RAD) * cam.aspect)
 }

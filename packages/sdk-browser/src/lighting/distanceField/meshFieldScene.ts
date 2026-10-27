@@ -130,11 +130,6 @@ export function createMeshFieldScene(
     get roots() {
       return scene.roots
     },
-    /** The placements a sun's distance-field cascade shadows whatever the view says
-     *  (the tracker's `farShadowObjects`). */
-    get farShadowObjects() {
-      return tracker.farShadowObjects
-    },
     /** How many times the resources the bindings name were made anew; 0 before the first image of the field. */
     get generation() {
       return scene.group.generation

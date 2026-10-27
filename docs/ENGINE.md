@@ -993,14 +993,14 @@ world.shading = { shadeBinningMode: null } // back to the preset's, here the def
 world.shading = { clearCoatNormal: true } // a clear coat keeps a bottom normal
 ```
 
-| Field                     | Meaning                                                                                                                            | Default  |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- |
-| `shadeBinningMode`        | `'auto'` as each class asks, `'pixel'` every pixel alone, `'quad'` by 2 × 2 quad                                                   | `'auto'` |
-| `irisNormal`              | `false`: the eye's iris by the direction of its `tangent`; `true`: by an iris normal of its own                                    | `false`  |
-| `clearCoatNormal`         | `false`: a clear coat shares its base's normal; `true`: it keeps a bottom normal                                                   | `false`  |
-| `normalCurvatureScale`    | scale of the roughness a `normalCurvatureToRoughness` material takes from its vertex normal, any number, held to [0, 2] where read | `1`      |
-| `normalCurvatureBias`     | bias added to that roughness, any number, held to [-1, 1] where read                                                               | `0`      |
-| `normalCurvatureExponent` | exponent on the normal's change across a pixel, any number, held to [0.05, 20] where read                                          | `0.333`  |
+| Field              | Meaning                                                                                         | Default  |
+| ------------------ | ----------------------------------------------------------------------------------------------- | -------- |
+| `shadeBinningMode` | `'auto'` as each class asks, `'pixel'` every pixel alone, `'quad'` by 2 × 2 quad                | `'auto'` |
+| `irisNormal`       | `false`: the eye's iris by the direction of its `tangent`; `true`: by an iris normal of its own | `false`  |
+| `clearCoatNormal`  | `false`: a clear coat shares its base's normal; `true`: it keeps a bottom normal                | `false`  |
+| `normalCurvatureScale` | scale of the roughness a `normalCurvatureToRoughness` material takes from its vertex normal, any number, held to [0, 2] where read | `1`      |
+| `normalCurvatureBias`  | bias added to that roughness, any number, held to [-1, 1] where read                                                     | `0`      |
+| `normalCurvatureExponent` | exponent on the normal's change across a pixel, any number, held to [0.05, 20] where read                              | `0.333`  |
 
 **The normal curvature** (`normalCurvatureRoughness`, `normalCurvatureApply`, `lighting/ormWgsl.ts`). A material with `normalCurvatureToRoughness` has its roughness raised to `saturate(max(dNdx·dNdx, dNdy·dNdy)^exponent · scale + bias)`, `dNdx` and `dNdy` the change of the interpolated vertex normal across one pixel, taken before the normal map, a graph's normal or a hair's tangent bends the normal. The option is bit 11 of the record's model word (`NORMAL_CURVATURE_MODEL_BIT`); the blend vertex stage carries it to bit 31 of the item's flags (`normalCurvatureFlag`, `NORMAL_CURVATURE_FLAG_MASK`). The opaque resolve builds the neighbouring weights only for a pixel whose material asks for it; a blended fragment reads the derivatives of its interpolated normal. The curve is three words of the resolve's and the blend view's uniforms (`normalCurvature`). A voxel pixel has no curvature (its shading normal is drawn, not interpolated); the clear coat takes the same curvature for its own roughness. The earlier widening of the roughness by the neighbours' bent normals is gone.
 
@@ -1050,7 +1050,7 @@ A material of any domain may wear a graph (`world/material/graph/`, authored in 
 
 **The surface** (`materials/graph/surfaceProgram.ts`, `surfaceClasses.ts`, `kept.ts`, `table/graphRecord.ts`, `visibility/shader/shadeGraphWgsl.ts`). A surface that wears a graph (`PageSurface.graph`, carried by the families that draw the material's colour: `GRAPH_FAMILIES`) has its program compiled once for each shape of the graph (`compileKept`, `graph.shape`; a value written to a parameter compiles nothing) and one compile gives everything: the text with no suffix is the program's identity (`CompiledGraph.key`, whole, so that no hash collision makes two programs of one), its hash of sixty-four bits names it, and the transparent pass's declarations are named by it (`named`). A program is known by that text and by what the surface says besides — whether it is lit (an unlit surface compiles its emission, opacity, mask and offset alone: `outputActive`) and whether its emission may be negative (`allowNegativeEmissive`) —: two surfaces whose graphs compile alike share a program, each with its own values. A program is a resolve class of its own: its key is one of the `GRAPH_CLASS_KEYS` (256) past the features' (`MATERIAL_CLASS_KEYS`), over the features its rows are worn on (`graphClassKey`; `CLASS_KEY` holds the features, `CLASS_BIN` the bin), so every class of a program shares one module (`shadePipelines.ts`, `graphModule`). The census of the worn surfaces (`shadeCensus.ts`) gives the classes in use at each retake (`releaseGraphClasses`): a class no surface needs frees its key after two censuses, and a pipeline is made for the class a key stands for now (`classIdentity`, `ShadeClasses.prune`), so a session that edits a graph over and over never runs out of keys; one that wears more at once than there are keys draws the surfaces past them from their parameters and names it. The row of such a surface reads none of its maps or vertex colours (`wearGraph`): the graph computes them. The values — a header texel with the program's id and its bits (`GRAPH_HEADER`: `mask` when the graph wires an `opacityMask`, `blend` for a transparent pass's program, whose ids count from one as the resolve's do), then the parameters' vectors and the colour-atlas slot of each texture (`Slots.fill`) — are written in the material table beside the surface's record, in a block of record places the surface owns (`graphRecord.ts`; the record's `graph` word names its first texel plus one; the header is read by `materialGraphHead`); the record itself holds neutral factors and no map slot for such a surface (`writeMaterialRecord`: no factor of the material reaches a pass), and its lobe extension holds zeros (`writeLobeRecord`). The resolve reads the values with the table's own binding (`graphLoadWgsl`): no binding, no pass and no program for a surface without a graph. The resolve evaluates the graph at the pixel in `shadeSurface` (the splices of `ShadeGraph`): the context (`MgContext`: the page's eight UV sets, the world position at the pixel's weights, the camera in `ShadeUni.eye`, the object's origin, the vertex and pixel normals, the clocks of the graph frame), the footprint of each texture read from the same context a pixel to the right and a pixel below (`mgNeighbour`: the coordinate sets plus their derivatives, the world position at the next pixels' weights, `bx`/`by` declared once), the normal and the outputs after the vertex normal is known (`heldOutputs`: one rule for the resolve and the transparent pass), the diagnostic views' colours, the thin transmission and the specular (`specularFlag`, the second byte of the surface flags: `surfaceSpecular`, `surfaceF0`). The lobes the graph wires are set in the pixel's lobe record (`graphLobes`: the strength, the axis law, the tangent, the coat) before the record's own call stores them: one construction of the lobes, for the material's and the graph's. The lighting gives every anisotropy, a material's or a graph's, the widths α(1 + a) along and α(1 − a) across (`lobeAxis`, `lobeAcross`). The tile requests of the textures replace the maps' (`mgAsk` re-evaluates the coordinate of the read the pixel's pick names). A graph's textures join the colour atlas with the materials' (`collectWebgpuMaterialTextures`); a graph that reads the time keeps the frame drawing (`vis.graphsAnimated`, `blendGraphsAnimated`).
 
-**The graph frame** (`visibility/shader/graphFrameWgsl.ts`, `frame/render/graphFrame.ts`). What a raster reads of the image to evaluate a graph's cutout and offset is one small uniform (48 bytes) for every pass that places a vertex or cuts a pixel — the visibility rasters and the binning, the dicing and the tessellation's seeding and splitting, the shadow depth passes, the resolves, the temporal pass, the transparent pass —: the clocks of the image and of the image before (the world's time and the wall clock), the camera and the camera before, and in the fourth float of the camera whether the blue noise a dithered cutout is cut by is bound. It is written once an image (`resetFrameCounters`) and bound at the number each layout gives it (`VIS_BINDINGS.frame`, `SHADE_BINDINGS.frame`, `BLEND_BINDINGS.frame`, `TESS_BINDINGS.frame`, the velocity stage's); the clocks a graph reads are one value in all of them, and no value in the material table is rewritten to follow an image.
+**The graph frame** (`visibility/shader/graphFrameWgsl.ts`, `frame/render/graphFrame.ts`). What a raster reads of the image to evaluate a graph's cutout and offset is one small uniform (48 bytes) for every pass that places a vertex or cuts a pixel — the visibility rasters and the binning, the dicing and the tessellation's seeding and splitting, the shadow depth passes, the resolves, the temporal pass, the transparent pass —: the clocks of the image and of the image before (the world's time and the wall clock), the camera and the camera before, and in the fourth float of the camera whether the blue noise a dithered cutout is cut by is bound, then the view's image number that noise is walked by (`GraphFrame.frame`, the view's `stochasticPhase`). It is written once an image (`resetFrameCounters`) and bound at the number each layout gives it (`VIS_BINDINGS.frame`, `SHADE_BINDINGS.frame`, `BLEND_BINDINGS.frame`, `TESS_BINDINGS.frame`, the velocity stage's); the clocks a graph reads are one value in all of them, and no value in the material table is rewritten to follow an image.
 
 **The graph outputs the rasters evaluate** (`materials/graph/outputProgram.ts`, `maskProgram.ts`, `wpoProgram.ts`, `graphRasters.ts`). One registry (`rasterRegistry`) builds, for each program of a surface graph, the program restricted to one output — the cutout (`opacityMask`, `maskOf`) or the offset (`worldPositionOffset`, `wpoOf`) — with the same values and layout as the resolve's, the rules each output keeps (the texture sets it names, whether it reads a texture and the device lets its stage) deciding what the rasters refuse, through `refuseGraph`. `GraphRasters` is the sorted list of those programs the session's surfaces wear (`graphRastersOf`), held in `WebgpuVisState.rasters` from its open (`holdGraphRasters`, before the first module is made) and read by every module that evaluates them: the sets `cameraMasks`, `shadowMasks`, `diceMasks` for the cutouts; `visibilityWpo`, `voxelWpo`, `tessellationWpo`, `diceWpo`, `shadowWpo`, `shadowSplitWpo`, `patchVertexWpo`, `shadeWpo`, `blendWpo` and `velocityWpo` for the offsets, each naming the bindings its module reads them at. A module made with none is word for word the one without. `GraphRasters.textures` is the device's answer to whether a vertex stage may read the colour atlas (`grantsVertexTextures`: ten storage buffers, because the fullest vertex stage binds that many with it). A graph that joins the session afterwards is taken at the frame entry that retakes the census (`followGraphRasters`, `frame/prepare/lateGraphs.ts`): the set is extended, the visibility module and its pipelines are made again, the software raster follows the set (`ensureGpuRaster`), the shadow maps' rasters and tessellation follow the set they are handed (`vsmRenderContext` compares it), and, where an offset joined, the temporal pass (`rigTemporalAgain`, history started again) is made again — compiled off the thread under a held frame (`track`, `deviceAnswering`), the previous image shown, the session not opened again. The transparent pass takes the set when it builds its programs for the copies a session gains (`growth.ts`).
 
@@ -1058,7 +1058,7 @@ A material of any domain may wear a graph (`world/material/graph/`, authored in 
 
 **The volume** (`lighting/fog/voxelGraph.ts`). The objects' graphs of an image are the programs of one voxelisation program, made when the set changes (`FogGraphResources.graphVoxelize`; the programs of the set in place and of the one before it are kept, so a camera that walks across the edge of a fog object with a graph compiles neither again): an object's record names its program by its place in the set and its values by their texel in one buffer (`voxelGraphValues`); the colour atlas is bound where a graph reads a texture; the plain voxelisation serves until the program is compiled. A cell the object's mask or the fade leaves nothing of never evaluates the graph. The textures are taken into the atlas and asked at full detail (`fogGraphMaps`).
 
-**The opacity mask** (`materials/graph/maskProgram.ts`, `visibility/shader/maskGraphWgsl.ts`, `maskSets.ts`, `materials/table/graphRecord.ts`). A surface whose resolve-kind graph wires `opacityMask` is a masked surface (`blendOf` gives `'mask'`; its rows carry the cutout bit, `FLAG_MASK`, its record the clip value as `cut`, a number kept as it is, 0 included). Its mask is the opaque resolve program restricted to that one output: the values the surface writes beside its record keep the layout of that program, so the mask reads them as the resolve does, and is chosen by the program's id in the header, which also says the program holds a mask (`GRAPH_HEADER.mask`). Every raster that cuts holds the mask functions of the programs the session's set holds (`MaskSet`: `cameraMasks` for the visibility rasters and the dicing, with the footprint of the render pixel, `shadowMasks` for the shadow depth passes, at the pool's own level), `maskKeepWgsl` selecting by the id; a program the module does not hold keeps every pixel. `maskKeepAt` is the same test with the pixel a dithered cut needs (the hardware and the compute raster, and the shadow raster); `maskKeep` is the one without a pixel. A module made without graph masks and without a dither is word for word what it was. The clocks a mask reads are the graph frame's. The dither is a bit of the record's model word (`DITHER_MODEL_BIT`, set from `ditherOpacityMask` for any masked surface, a graph's or an `alphaTest`'s): the cut value plus `0.83 · noise − 0.5`, the noise the engine's blue noise (`blueNoiseScalar`) read at the pixel and at the image's frame (the real time at sixty a second), applied where the graph frame says the noise is bound (`eye.w`); the dicing, which cuts at a vertex, keeps the hard test. The mask of a diced vertex below the clip value drops the micro-triangles that use it, as a vertex behind the camera does. A mask the rasters cannot evaluate (a world position, a camera, a normal, two texture sets) is refused through `refuseGraph`; its surface is drawn whole.
+**The opacity mask** (`materials/graph/maskProgram.ts`, `visibility/shader/maskGraphWgsl.ts`, `maskSets.ts`, `materials/table/graphRecord.ts`). A surface whose resolve-kind graph wires `opacityMask` is a masked surface (`blendOf` gives `'mask'`; its rows carry the cutout bit, `FLAG_MASK`, its record the clip value as `cut`, a number kept as it is, 0 included). Its mask is the opaque resolve program restricted to that one output: the values the surface writes beside its record keep the layout of that program, so the mask reads them as the resolve does, and is chosen by the program's id in the header, which also says the program holds a mask (`GRAPH_HEADER.mask`). Every raster that cuts holds the mask functions of the programs the session's set holds (`MaskSet`: `cameraMasks` for the visibility rasters and the dicing, with the footprint of the render pixel, `shadowMasks` for the shadow depth passes, at the pool's own level), `maskKeepWgsl` selecting by the id; a program the module does not hold keeps every pixel. `maskKeepAt` is the same test with the pixel a dithered cut needs (the hardware and the compute raster, and the shadow raster); `maskKeep` is the one without a pixel. A module made without graph masks and without a dither is word for word what it was. The clocks a mask reads are the graph frame's. The dither is a bit of the record's model word (`DITHER_MODEL_BIT`, set from `ditherOpacityMask` for any masked surface, a graph's or an `alphaTest`'s): the cut value plus `0.83 · noise − 0.5`, the noise the engine's blue noise (`blueNoiseScalar`) read at the pixel and at the image's frame (the view's own count of images drawn, `stochasticPhase`, which its lighting noise turns with: not the wall clock, and not another view's), applied where the graph frame says the noise is bound (`eye.w`); the dicing, which cuts at a vertex, keeps the hard test. The mask of a diced vertex below the clip value drops the micro-triangles that use it, as a vertex behind the camera does. A mask the rasters cannot evaluate (a world position, a camera, a normal, two texture sets) is refused through `refuseGraph`; its surface is drawn whole.
 
 **The pixel programs** (`materials/graph/pixelProgram.ts`, `pdoProgram.ts`, `displacementProgram.ts`). Beside the cutout, two more outputs are evaluated by the rasters in the cutout's context (its first texture set, its footprint, the clocks; a graph that reads a world position, the camera, a normal, a vertex colour or two sets there is refused): `pixelDepthOffset` and `displacement`. `pixelOf` joins the three restricted programs of one surface program into one `PixelProgram` (`cuts`, `offsets`, `displaces`; `GraphRasters.masks` holds them), whose header bits (`GRAPH_HEADER.mask`, `depthOffset`, `displacement`) name which outputs the values carry. _Depth offset_: a row that wires it carries `FLAG_DEPTH_OFFSET` and, to read its coordinate, `FLAG_MASK`; the software raster (`writePixel`, `raster/pixelWgsl.ts`) and the hardware raster's fragment (`shader/visWgsl.ts`) evaluate `depthOffsetValue` after the cutout and write `offsetDepth` in the depth key's place — the output times the cosine of the pixel's ray with the view axis (`Uniforms.focal`, the projection's scale on each axis) added to the clip w, never nearer than the plane's, and the offset over `Uniforms.depthSpan` taken off an orthographic view's affine depth —, taking the early-out once it is read; the shadow maps and the dicing write their triangles' depth, as the reference's depth-only and tessellated paths do. _Displacement_: a surface whose record has `displacement` numbers (the material's `displacementMagnitude`, `displacementCenter`, `displacementFadeStart`/`End`, `session/world/materials/surface.ts`) and no height map, the output being wired, has a displacement record (`materials/table/displacementRecord.ts`) with the mark `1` in `map.z`, its rank in `map.w` and the output's texture set in `map.y`; `diceHeight` (`visibility/tessellation/heightWgsl.ts`, the weak default being the map's read in `diceSetupWgsl.ts`) then reads `displacementValue` for that rank, in the dicing of the image and of the shadow maps alike (`maskKeepWgsl` lists it where a program displaces); the rows carry `FLAG_DISPLACED` and the culling boxes grow by the displacement's reach (`pagesDisplacementReach`). The reference's `TessellationMultiplier` is deprecated and read by no shader: it is no output.
 
@@ -1066,9 +1066,9 @@ A material of any domain may wear a graph (`world/material/graph/`, authored in 
 
 **The shading model of a material without a graph** (`visibility/shader/materialModelWgsl.ts`, `MaterialParameters.shadingModel`). The record's model word holds a code (bits 29-31: skin, profile, eye, hair, unlit, thin subsurface), the profile (bits 20-27) and the subsurface opacity byte (an eye's is one minus its iris mask); the record carries an eye's distance of the iris (`irisDistance`, one more word, the record is eleven texels). The resolve sets the pixel model and the thin target as the graph's per-pixel model does; a hair takes the page's tangent in the normal's place (the tangent is decoded for it), an unlit pixel its emission alone.
 
-**The preintegrated environment BRDF** (`sdk-core/src/lighting/environmentBrdf.ts`, `lighting/direct/environmentBrdfWgsl.ts`). What a surface keeps of the light of every direction — the probes', the screen's, the trace's, the coat's own share (`reflectionWeight`, `coatLayerKeep`) — is `f0 · A + f90 · B` read at (N·V, perceptual roughness) from a 128 × 32 table of two 16-bit values (`A` under a Fresnel of one, `B` under its fifth power), each texel the integral of the GGX lobe with the Smith visibility over 128 stratified samples at the texel's centre; it is built once, held in the light buffer after the skin table (`LIGHT_BUFFER_AT.envBrdf`) and read bilinear, clamped to the edge, as a texture would be. `f90` is `clamp(50 · f0.g)`. The rectangles' fitted lobe (`ltcTable.ts`) keeps its own split-sum (`rectLtc`).
+**The preintegrated environment BRDF** (`sdk-core/src/lighting/environmentBrdf.ts`, `lighting/direct/environmentBrdfWgsl.ts`). What a surface keeps of the light of every direction — the probes', the screen's, the trace's, the coat's own share (`reflectionWeight`, `coatLayerKeep`) — is `f0 · A + f90 · B` read at (N·V, perceptual roughness) from a 128 × 32 table of two 16-bit values (`A` under a Fresnel of one, `B` under its fifth power), each texel the integral of the GGX lobe with the Smith visibility over 128 stratified samples at the texel's centre; it is built once, held in the light buffer after the skin table (`LIGHT_BUFFER_AT.envBrdf`) and read bilinear, clamped to the edge, as a texture would be. `f90` is `clamp(50 · f0.g)` (`envBrdfF90`, the green channel's alone); the direct lights' Fresnel takes the largest of the three channels (`slabF90`). The rectangles' fitted lobe (`ltcTable.ts`) keeps its own split-sum (`rectLtc`).
 
-**The preintegrated skin, the subsurface profile, the hair and the eye** (`materials/surface/pixelModel.ts`, `lighting/direct/shadingModelWgsl.ts`, `surfaceModelTerms.ts`). A pixel whose `mgModel` is 3, 5, 7 or 9 keeps the physical model in the low three bits of its surface flags — it is classed, shadowed and reflected as one — and carries its number in bits 25 to 28 (`PIXEL_MODEL_SHIFT`); a pixel with a model is of the `single` tile class (`pixelTileClass`), so the programs of the `simple` class hold none of it. What a model reads beyond the surface's values is left in the thin transmission's target, whose texel is written without the sheet's flag (`SUBSURFACE_FLAG` marks a back-lit sheet, which a skin is not): a skin's `subsurfaceColor` and `opacity`; a subsurface profile's number (the material's `subsurfaceProfile`, held in its record's model word, `subsurfaceProfileOfModel`) and `opacity` (a pixel at or under `SUBSURFACE_OPACITY_THRESHOLD`, 0.1, keeps the plain model); an eye's profile number in `x`, one minus its iris mask in the opacity, its distance in the metalness and the octahedral iris direction in `y` and `z` — or, with `irisNormal` (`uni.irisNormal`, the `MODEL_SWITCH` bits of `view.views.w`), its iris normal and its caustic normal as octahedral differences from the surface's, the caustic's first in the metalness and its second in the specular byte (the lobe is then held at 0.25); the target is made when a surface's graph wires `shadingModel` (`writesSubsurfaceTarget`). `litPixelStatements` reads the number and the texel once (`setPixelModel`; it gives a hair's scatter amount and an eye's iris distance back out of the metalness, which neither is). In the light term (`declaredLightWgsl`) a model's term joins `transmitted` (`modelTransmission`): the skin reads the preintegrated table — the imported image, `skinTable.bin`, held in the light buffer after the rectangles' lobe (`LIGHT_BUFFER_AT.skin`), written when a scene holds a graph with a shading model (`followSkinTable`) —, the hair gives its own BSDF alone (no diffuse, no specular), the eye a diffuse of its own over a specular lobe whose grazing reflectance is one (`modelLobeSurface`; its highlight's half vector is moved by a sphere light without the Newton step, `sphereHalfCosines`). The indirect light's diffuse colour passes through `modelDiffuse` beside the cloth's hook (`clothDiffuse`): the skin adds its subsurface colour, the hair is its response to the environment. A hair reflects nothing (`surfaceReflects`). The eye's iris values and the clear coat's bottom normal are held as the reference's surface buffer holds them: `unorm8` steps of 1/255, the octahedral differences of the iris and caustic normals halved (`*0.5 + 128/255`), the coat's bottom-normal difference quartered (`*0.25 + 128/255`, `clearCoatNormal`, `uni.clearCoatNormal`: the pixel's normal then the coat's, `coatBase`, and its base the decoded bottom normal; `MODEL_SWITCH.clearCoatNormal` moves the coat's half vector without the Newton step, `sphereNoNewton`). The shadow of a skin, as of the thin transmission, is the shadow maps' own with the light a subsurface receiver lets through (`vsmSubsurfaceShadow`, `docs/SHADOWS.md`); a subsurface profile's, a hair's and an eye's are read from any side of the surface and not back-face culled (`vsmSubsurfaceModel`). A subsurface-profile pixel takes the light term of `profileModelWgsl.ts` in place of the plain lobes: the Burley diffuse (`profileBurley`) and a specular of two GGX lobes (`profileSpecular`, from the profile's dual specular, which the light buffer holds a `vec4` a profile, `LIGHT_BUFFER_AT.profiles`, `followSubsurfaceProfiles`) with the visibility of their average roughness, a rectangle's the fitted lobe at each roughness, mixed (`profileRectLight`); from a light that transmits (`SceneLight.transmission`, on a movable light that casts a shadow: bit 16 of its kind word, `transmitsLight`) it takes a transmission term (`profileTransmission`, `PROFILE_TRANSMISSION_WGSL`): the profile's transmission samples (`PROFILE_COLUMNS.transmissionProfile`, 32 of them over 5 cm, blended by the two nearest) at the optical depth the light's shadow reads as, `(1 - shade) * 5` cm (the shadow maps give a profile no distance of their own; its encoded optical thickness is the shadow itself), times the Henyey-Greenstein phase of the profile's scattering distribution at the cosine of the light's opposite with the view refracted into the surface by the profile's inverse index of refraction; the term is weighed by the light's shadow and its diffuse share like the diffuse light, and joins the light the scattering spreads (`scatterAdd`). The texel and the samples are in the light buffer after the dual specular, `LIT_TRANSMISSION_VEC4S` `vec4` a profile (`LIGHT_BUFFER_AT.transmissions`, `litTransmissionRows`). Where the scattering runs (`MODEL_SWITCH.subsurfaceScattering`), the pixels of the profile and eye models are lit with a base colour of one, the surface's colour being multiplied back after the scattering, or with the checkerboard (`sssLitBase`, `sssLitSpecular`), and every light adds the luminance of its diffuse light to the lit image's alpha (`scatterAdd`, `lightOut`; the additive blend sums the alpha, `ADDITIVE_LIGHT`; the first pass writes alpha 0 for such a pixel); the indirect pass adds its diffuse light's. The materials' profiles are collected as they are declared (`subsurfaceProfileRow`, `registry.ts`) and handed to each view (`setSubsurfaceProfiles`).
+**The preintegrated skin, the subsurface profile, the hair and the eye** (`materials/surface/pixelModel.ts`, `lighting/direct/shadingModelWgsl.ts`, `surfaceModelTerms.ts`). A pixel whose `mgModel` is 3, 5, 7 or 9 keeps the physical model in the low three bits of its surface flags — it is classed, shadowed and reflected as one — and carries its number in bits 25 to 28 (`PIXEL_MODEL_SHIFT`); a pixel with a model is of the `single` tile class (`pixelTileClass`), so the programs of the `simple` class hold none of it. What a model reads beyond the surface's values is left in the thin transmission's target, whose texel is written without the sheet's flag (`SUBSURFACE_FLAG` marks a back-lit sheet, which a skin is not): a skin's `subsurfaceColor` and `opacity`; a subsurface profile's number (the material's `subsurfaceProfile`, held in its record's model word, `subsurfaceProfileOfModel`) and `opacity` (a pixel at or under `SUBSURFACE_OPACITY_THRESHOLD`, 0.1, keeps the plain model); an eye's profile number in `x`, one minus its iris mask in the opacity, its distance in the metalness and the octahedral iris direction in `y` and `z` — or, with `irisNormal` (`uni.irisNormal`, the `MODEL_SWITCH` bits of `view.views.w`), its iris normal and its caustic normal as octahedral differences from the surface's, the caustic's first in the metalness and its second in the specular byte (the lobe is then held at 0.25); the target is made when a surface's graph wires `shadingModel` (`writesSubsurfaceTarget`). `litPixelStatements` reads the number and the texel once (`setPixelModel`; it gives a hair's scatter amount and an eye's iris distance back out of the metalness, which neither is). In the light term (`declaredLightWgsl`) a model's term joins `transmitted` (`modelTransmission`): the skin reads the preintegrated table — the imported image, `skinTable.bin`, held in the light buffer after the rectangles' lobe (`LIGHT_BUFFER_AT.skin`), written when a scene holds a graph with a shading model (`followSkinTable`) —, the hair gives its own BSDF alone (no diffuse, no specular), weighed by the light's specular share, the eye a diffuse of its own over a specular lobe whose grazing reflectance is one (`modelLobeSurface`; its highlight's half vector is moved by a sphere light without the Newton step, `sphereHalfCosines`). The indirect light's diffuse colour passes through `modelDiffuse` beside the cloth's hook (`clothDiffuse`): the skin adds its subsurface colour, the hair is its response to the environment. A hair reflects nothing (`surfaceReflects`). The eye's iris values and the clear coat's bottom normal are held as the reference's surface buffer holds them: `unorm8` steps of 1/255, the octahedral differences of the iris and caustic normals halved (`*0.5 + 128/255`), the coat's bottom-normal difference quartered (`*0.25 + 128/255`, `clearCoatNormal`, `uni.clearCoatNormal`: the pixel's normal then the coat's, `coatBase`, and its base the decoded bottom normal; `MODEL_SWITCH.clearCoatNormal` moves the coat's half vector without the Newton step, `sphereNoNewton`). The shadow of a skin, as of the thin transmission, is the shadow maps' own with the light a subsurface receiver lets through (`vsmSubsurfaceShadow`, `docs/SHADOWS.md`); a subsurface profile's, a hair's and an eye's are read from any side of the surface and not back-face culled (`vsmSubsurfaceModel`). A subsurface-profile pixel takes the light term of `profileModelWgsl.ts` in place of the plain lobes: the Burley diffuse (`profileBurley`) and a specular of two GGX lobes (`profileSpecular`, from the profile's dual specular, which the light buffer holds a `vec4` a profile, `LIGHT_BUFFER_AT.profiles`, `followSubsurfaceProfiles`) with the visibility of their average roughness, a rectangle's the fitted lobe at each roughness, mixed (`profileRectLight`); from a light that transmits (`SceneLight.transmission`, on a movable light that casts a shadow: bit 16 of its kind word, `transmitsLight`) it takes a transmission term (`profileTransmission`, `PROFILE_TRANSMISSION_WGSL`): the profile's transmission samples (`PROFILE_COLUMNS.transmissionProfile`, 32 of them over 5 cm, blended by the two nearest) at the optical depth the light's shadow reads as, `(1 - shade) * 5` cm (the shadow maps give a profile no distance of their own; its encoded optical thickness is the shadow itself), times the Henyey-Greenstein phase of the profile's scattering distribution at the cosine of the light's opposite with the view refracted into the surface by the profile's inverse index of refraction; the term is weighed by the light's shadow and its diffuse share like the diffuse light, and joins the light the scattering spreads (`scatterAdd`). The texel and the samples are in the light buffer after the dual specular, `LIT_TRANSMISSION_VEC4S` `vec4` a profile (`LIGHT_BUFFER_AT.transmissions`, `litTransmissionRows`). Where the scattering runs (`MODEL_SWITCH.subsurfaceScattering`), the pixels of the profile and eye models are lit with a base colour of one, the surface's colour being multiplied back after the scattering, or with the checkerboard (`sssLitBase`, `sssLitSpecular`), and every light adds the luminance of its diffuse light to the lit image's alpha (`scatterAdd`, `lightOut`; the additive blend sums the alpha, `ADDITIVE_LIGHT`; the first pass writes alpha 0 for such a pixel); the indirect pass adds its diffuse light's. The materials' profiles are collected as they are declared (`subsurfaceProfileRow`, `registry.ts`) and handed to each view (`setSubsurfaceProfiles`).
 
 **Single-layer water** (`blend/water/`, `isWaterGraph`, `VisMaterial.water`). A lit surface whose graph wires a water output is a blend item of the rank class `WATER_BASE` (three culls past the refracting ones, `waterRank`): every blend pass but two skips it (`drawBlendRuns`, `water: 'only' | 'with'`), the front pass draws it with the others — its fragment covers its pixel whatever its coverage (`GRAPH_FLAG.water`) — and `encodeWater` draws it, at the head of `encodeBlend`, in the order of the reference's pass (`waterPass.ts`): the scene's depth copied and the water drawn into the copy (`fsWaterDepth`, `singleLayerWaterDepthPrepass`); the scene's linear depth, at `singleLayerWaterRefractionDownsample` (`waterPassWgsl.ts`); the tiles of 8 by 8 pixels that hold water, marked then listed in Z-order, by subgroups where granted (`waterTileWgsl.ts`); the scene's colour, for the listed tiles alone where the refraction mask limits what is read; the refraction mask (`fsWaterMask`: distance, Fresnel and depth cullings, packed with a water flag); the shading (`fsWater`, no blend: forward lights split into the diffuse share under the base material's coverage and the specular share, ambient, `waterVolume` — the reference's `EvaluateWaterVolumeLighting` on the bilateral read of the copy's depth, the refraction offset of the distortion's constants, the sun that the light buffer names as the forward directional light —, the fog), writing the water's normal, roughness, reflectance and flag beside; the water's velocity (`waterVelocity` in the velocity stage, `csWaterIds`: the camera's vector at the water's depth, its identifier cleared); the sun kept apart where `singleLayerWaterShadersSupportDistanceFieldShadow` or `…VsmFiltering` holds (`waterSunSplit`: the forward directional light lit alone and taken off the walk's sum, written to a fifth target, its in-scattering too), whose distance-field shadow is traced a second time at the water's depth (`encodeWaterSunFieldShadow`: the Hi-Z with its front word forced up by a copy of the levels uniform, `foldedDepth`) into a mask of its own; the composite (`fsWaterComposite`, `One, SrcAlpha`: the separated sun times that mask, and the reflection of that surface, `surfaceReflection` for the technique, faded in over 50 cm above the scene, dimmed by the fog); and the water's depth copied over the scene's. The reflections' indirect light is gated here: `waterFrontOf` asks the settings for the front layer (`resolveReflections`, `water`), which is then traced at every level that traces, in blocks of the water's own side, with the reconstruction and the denoising the water's settings leave on (`ReflectionSettings.frontBlock`, `frontReconstruction`, `frontTemporal`, `frontBilateral`, `frontSceneTraces`: the second layer's flags ride in `reflectionView.scene.w` and its block in `grid.w`, read by `reflectionBlock` and `reflectionDone` through the pipeline's `REFLECTION_LAYER`); the front stage is compiled for the reflecting surface wherever the items hold water. The module holds the water's code only in a scene that holds water (`BlendProgramSetup.water`); `BlendGraph` holds its four outputs only then. A graph wires the coefficients per centimetre as the reference does: depths are metres in the world, centimetres in the law (`WATER_CM`).
 
@@ -1107,7 +1107,7 @@ a compute pass, so its targets are storage textures, and WebGPU lets a compute p
 render-resolution shading history in `rgb10a2unorm` (ten bits a channel, its reprojection edge in two)
 and the anti-aliaser's target in `rg8uint`; without it in half floats, `rgba8unorm`, `rgba8unorm` and
 `rgba8uint`, the core's storage formats (`historyFormatsOf`, requested with the device,
-`session/gpuDevice.ts`). The mask of the texels the shading rejection asks the spatial anti-aliaser on is an `r8uint` storage texture, one byte a texel, whatever the history's formats, where the device has `texture-formats-tier1` (and its driver accepts it) and grants four storage textures a stage (the rejection then binds four), else a buffer of a 32-bit word a texel (`rejectionStorageForms`); a level without the anti-aliaser binds a one-texel stand-in. The update dithers the colour to the format's precision. A history
+`session/gpuDevice.ts`). The mask of the texels the shading rejection asks the spatial anti-aliaser on is an `r8uint` storage texture, one byte a texel, whatever the history's formats, where the device has `texture-formats-tier1` (and its driver accepts it) and grants a fifth storage texture a stage beside the four the rejection always binds, else a buffer of a 32-bit word a texel (`rejectionStorageForms`); a level without the anti-aliaser binds a one-texel stand-in. The update dithers the colour to the format's precision. A history
 that would pass the device's widest texture is made at the display's size
 (`historyFactor`). The frames follow a sequence (`frameSequenceOf`): without
 resurrection, one frame in two textures taking turns, one read as the last image's while the other is
@@ -1134,16 +1134,15 @@ history's: the composition draws them over its output (below, [The display finis
 
 **The passes are compute dispatches** (`analysis.ts`, `historyUpdate.ts`), each in a compute pass of
 its own, timed under its label (`TAA_*_PASS`, `diagnostic/stage/passLabels.ts`). Before the
-translucency is composed onto the image (`measureBeforeTranslucency`, `post/taa/frame.ts`, called
-by `composeLayers`, the one place the layers are composed) — where the composed image would already
-hold the transparent layers —, the measures, on the scene the temporal pass reads, where the flicker
+sky, the fog, the clouds and the translucency lie on the image (`measureBeforeTranslucency`, `post/taa/frame.ts`, called
+at the head of `encodeSkyAndClouds`, as the reference measures the flicker luma before its sky, fog and clouds), the measures, on the scene the temporal pass reads, where the flicker
 measure or the thin geometry detection runs: the flicker luma, the colour's measurement luma taken
 to the gamma space in eight bits, and where the detection runs the material's coverage of the
 visibility buffer, each a layer of one texture of a byte a texel a layer (`flickerLumaWgsl.ts`,
 64 lanes of 2×2 texels, 16×16 a workgroup), which also holds the thin geometry's mask and coverage
 history. Then the dilated velocity, the history reprojection (the resurrected frame's shading
 history in it), the thin geometry detection and its weight relaxation (the translucency's trim),
-the flicker measure, the shading rejection, the spatial anti-aliaser, a texel a lane, then the history update, one
+the shading rejection, whose entry begins with the flicker measure, the spatial anti-aliaser, a texel a lane, then the history update, one
 dispatch over the history in tiles of 8 across — 64 lanes, 8 down, a lane's place in the tile the
 bits of its index in the order that puts the four pixels of a half-size texel in four consecutive lanes
 (`lanePixel`). The update's lanes beyond the history compute with clamped reads and store nothing. The
@@ -1181,27 +1180,25 @@ core's (`createTaaResolves`). WebGPU has one queue per device
 descriptor names the one `defaultQueue`, § 4.3.1): the reference's asynchronous compute has no
 counterpart.
 
-**The flicker measure** (`flickerMeasureWgsl.ts`) is a dispatch of its own, run just before the
-shading rejection where the level rejects by it (or an analysis view is shown), on the same tiles and
-network: so that neither kernel keeps the other's arrays in its registers. It writes the flicker
-history of the texels the workgroup writes and, for every texel of its tile — the three each side that
-it only reads included, whose values are those of this tile's wrapped network alone — the flicker error
-and, in an analysis view, the count, in 32 bits whatever the precision, into a storage buffer of a tile
-of cells to each workgroup (`flickerErrorCells.ts`), which the shading rejection reads back as it was
-computed; the 16-bit and wave programs follow the shading rejection's.
+**The flicker measure** (`flickerMeasureWgsl.ts`) is the first stage of the shading rejection's entry, run
+where the level rejects by it (or an analysis view is shown), over the same tile and network. It
+writes the flicker history of the texels the workgroup writes and, for every texel of its tile — the
+three each side that it only reads included, whose values are those of this tile's wrapped network
+alone — returns the flicker error and the count to the stages after it in registers, with no buffer
+between them; the 16-bit and wave programs are the shading rejection's.
 
 **The shading rejection** (`rejectionWgsl.ts`) is one dispatch, a workgroup of 256 lanes over a
 square of 32 × 32 render texels, four a lane down a column, of which it writes the inner 26 × 26: its
 3×3 operators exchange their values in workgroup memory, the tile's neighbourhood wrapping around
 past its edge, so a value several operators deep is wrong near the edge and the three texels each side
-are only read. In it, in this order: the flicker measure's error read back, where the level rejects by
-it; the rejection of the last image's history; where the history resurrects, that of the frame a pixel may be
+are only read. In it, in this order: the flicker measure, where the level rejects by it, its error
+and count passed in registers; the rejection of the last image's history; where the history resurrects, that of the frame a pixel may be
 resurrected from, measured only where some written texel of the workgroup is closer to it and rejected
 below a half; the shading history of this image's frame, the rejection the
 update reads (an analysis view's words in its place), the reprojection of the resurrected pixels, the
 scene colour the update reads and the LDR luma the anti-aliaser reads; and each written texel empties
-its occluder word. Three storage textures, what every device binds: the shading history, the
-rejection, and the reprojection field's vector and jacobian as two layers of one texture; the scene colour and the luma are storage buffers — the scene colour in the history's colour
+its occluder word. Four storage textures, what every device binds: the shading history, the flicker
+history, the rejection, and the reprojection field's vector and jacobian as two layers of one texture — five or six where the anti-aliaser's mask and the luma are textures too, else buffers; the scene colour is a storage buffer, in the history's colour
 format, 11-11-10 floats in a word (or four half floats in two), each channel rounded toward zero as the
 format's texture would after the stochastic rounding, the luma a byte a texel, four to a word, each
 texel's byte cleared and set by two atomics, the texels of a word belonging to up to two workgroups.
@@ -1470,9 +1467,8 @@ the finishing's), so the picture is the same with the option off. What it gains 
 float holds the light of the image at any exposure. The writers apply it at the end of what they
 sum, over `preExposed(rgb)` (`post/exposure/preWgsl.ts`: the light multiplied) or, for a surface's
 final write, `preExposedClipped(rgb)`: the term multiplied by the pre-exposure first,
-the whole colour then held to 32256, as a base pass clips its output: the lit image's passes (the
-colour pass, `lighting/deferred/colourPassWgsl.ts`: the emission, an unlit surface, the background; the sun's, the local
-lights' and the indirect light's passes, each its own term, `lightPassWgsl.ts`, `indirectPassWgsl.ts`), the translucent layers (`blend/shader.ts`, the transmissive stage in
+the whole colour then held to 32256, as a base pass clips its output: the lit image's base pass (the
+colour pass, `lighting/deferred/colourPassWgsl.ts`: the emission, an unlit surface, the background), the translucent layers (`blend/shader.ts`, the transmissive stage in
 `blend/transmission/transmitWgsl.ts`), the particles (`particles/gpu/particlesWgsl.ts`), the
 clouds' traced luminance and the fog laid on them (`modules/sky/clouds/traceWgsl.ts`,
 `composeWgsl.ts`), the fog volume (above). The fog pass (`lighting/fog/fogPass.ts`) writes the fog's inscattering over
@@ -1835,10 +1831,11 @@ of its sum, each over the pixels that need it, in this order (`DeferredLighting.
 Passes 3 to 5 draw tile quads, one indirect draw for each class (`tilePass.ts`), each class with a program that holds
 only the code its pixels need (`CLASS_CUTS`): the `simple` one no diffuse or toon model, no thin transmission and no
 lobe, the `single` one no lobe. A scene with no directional light draws no sun's pass, one with only directional lights no local
-lights' pass (`DirectLightResources.suns`, `locals`, the store's counts). They add with a blend of one and one over the image; every pass pre-exposes its term and
-holds it to 32256, as a base pass holds its output (`preExposedClipped`), so the image is the sum of the passes' terms. The
-sum is not held, for a blend cannot read what it adds to: a pixel whose emission, sun, local and indirect terms are three or
-more at the clip passes the 65504 a half float holds; the temporal resolve bounds the colour it reads for that
+lights' pass (`DirectLightResources.suns`, `locals`, the store's counts). They add with a blend of one and one over the image; every pass pre-exposes its term
+(`preExposed`) and holds it not: the base pass holds the emission alone (`preExposedClipped`), as the reference's does, and
+the light passes multiply by the pre-exposure with no clip, so the image is the sum of the passes' terms. The
+sum is not held, for a blend cannot read what it adds to: a pixel whose terms add to more than the 65504 a half float
+holds passes it; the temporal resolve bounds the colour it reads for that
 (`LARGEST_SCENE_COLOR`, `post/taa/colorSpaceWgsl.ts`).
 One light term serves the two light passes and the translucent surfaces (`declaredLight`): the walk around it is the
 only difference. The sky, the height fog (`lighting/fog/fogPass.ts`), the haze on the surfaces and the clouds follow
@@ -1915,17 +1912,28 @@ cosine of one half. The light's shadow is read once, for the front's term and th
 **One shadow-terms step per light** (`lighting/direct/shadowTermsWgsl.ts:shadowTermsOf`). After its shadow read and
 its contact shadow, a light's term has two scalars and the shadow itself, handed to the lobes and the models alike.
 The surface shadow weighs the lobes (the diffuse and specular of every model, the diffuse and toon models included, a
-rectangle's, the profile's, the eye's specular) and a hair's multiple scattering: it is the pixel's occlusion `ao`
-where the light has no shadow bits, and its shadow where it has some. The transmission shadow weighs the transmitted
-terms (the thin back, the skin's, the subsurface's, the profile's, the hair's tint, the eye's diffuse): the shadow,
+rectangle's, the profile's, the eye's specular): it is the pixel's occlusion `ao` where the light has no shadow bits, and
+its shadow where it has some. A mesh's hair is lit with an opaque visibility of 1, as the reference's default
+transmittance data has it: the surface shadow weighs no part of it. The transmission shadow weighs the transmitted
+terms (the thin back, the skin's, the subsurface's, the profile's, the hair's tint and soft diffuse, the eye's diffuse): the shadow,
 1 where the light has none. The shadow alone is the thickness a profile's optical depth and a subsurface's colour
-read. The contact shadow multiplies the first two. A light has shadow bits when it casts a shadow, whether or not it holds a slot
-and whether or not the program holds the shadow code (then its shadow is 1): a light that casts a shadow but took no
-slice, or is drawn with the shadows off, gets no occlusion; the reference's bits read the light's flag and the
-dynamic-shadows show flag, which the engine has no equivalent of apart from the shadow quality, and they do not read it. The reference sets a bit also for a static shadow, which the engine has none of, and for a
-light function that holds no slot of the atlas; the engine's record has no bit for the second, so a light wearing a
-function the atlas left out is not given its bit. A pixel with no occlusion (`ao` 1) and no contact shadow is unchanged
-to the last operation of the lobes.
+read. The contact shadow multiplies the first two. The forward light loop of the translucent stages (the blend, the
+transmissive layers, the water) takes an occlusion of 1: the material's occlusion weighs the indirect light and the
+environment there, not the lights.
+
+A light's **shadow bits** are the reference's (`GetShadowedBits`), built on the CPU, per light, and kept in its bits lane
+(two bits of the light's kind word, `LIGHT_FIELD.kind`, above its lighting channels, `LIGHT_SHADOWED_SHIFT`,
+`scene/light/fields.ts:kindWordOf`):
+3 where it casts and the view's dynamic shadows are on (the shadow quality is above 0, which the reference's show flag
+reads), else 1 where it casts — its static shadow — or wears a light function that holds no slot of the atlas, else 0.
+A light that casts has bits of at least 1 at every shadow quality. The shader reads them from the record
+(`lighting/direct/lightReachWgsl.ts:shadowBitsOf`); the view's dynamic shadows ride the view of the contact shadows
+(`ContactShadowView.dynamicShadows`, read once an image in `lighting/contactShadow/frame.ts:followContactShadows`), which
+re-packs the lights' words and publishes the epoch when it changes. At quality 0 a light that casts has its shadow, not
+the occlusion, for its surface shadow, casts no ray of its own, and a hair under it casts its short ray. A light with no
+slot for its function has its shadow, 1, in place of the occlusion, its contact length none, and a hair under it a ray
+that passes what shares its depth. A pixel with no occlusion (`ao` 1) and no contact shadow is unchanged to the last
+operation of the lobes.
 
 **Contact shadows** (`lighting/contactShadow/`). The lit passes cast a short ray from each pixel toward each light
 through the scene's depth: eight steps, the first jittered by the pixel's interleaved gradient noise at the temporal
@@ -1940,15 +1948,30 @@ model, under a light with no shadow bits, a fifth of the half height of the scre
 hits what shares its depth); neither follows the view's switch. A pixel of the thin subsurface, subsurface or skin
 model lets through the light that travels the hit distance through its material, `e^(−density · distance)` of the
 density its opacity gives (`subsurfaceDensity`, which the shadow maps' receiver reads too); the profile, the hair and
-the eye take the first hit as a blocker. Every hit counts as casting contact shadows but an eye's: the reference's
-per-object bit is not read (its default is on).
+the eye take the first hit as a blocker. A hit casts contact shadows unless it is of the eye model or its object sets
+`castContactShadow = false`: the object's bit travels from the node's switches (`offsetSwitches.ts`) in its placement's
+record (`PLACEMENT_NO_CONTACT_SHADOW`), copied as it is into the page (`PageInfo.marks`, beside `PLACEMENT_FIRST_PERSON`)
+and, in the resolve (`withPageMarks`), onto the flags of every surface it draws (`NO_CONTACT_SHADOW_SURFACE_FLAG`, bit 16; a
+held-out object's included); the flat diagnostic stages bypass the resolve and carry no mark, those views lighting nothing. It is stored inverted — set where the object lets the rays through — so that
+every flags word that carries it not (the sky's, a pass's other than the resolve's, a default object's) casts, as the
+reference's bit does by default (`hitCastsContactShadow`).
 
 The numbers are folded per light on the CPU, as the reference builds a light's data (`scene/light/contactShadowView.ts:
 writeContactShadow`): the light's own, each replaced by the view's override that is 0 or more — the length with its own
 unit —, the length negative in metres and doubled in screen units, no ray and the intensities 1 and 0 with the switch
 off; a ray that cannot darken — a length of 0, or both folded intensities 0 — is a length of 0 (the lights that cast one are counted
 under the same rule). They sit in the seventh `vec4` of the light's record (`contactGi`: the length, the two intensities and the
-indirect lighting factor, `LIGHT_FIELD.contactGi`), so a light is 28 floats. The frame reads the view's five
+indirect lighting factor, `LIGHT_FIELD.contactGi`); the eighth `vec4` holds the exposure blend (`LIGHT_FIELD.exposureBlend`,
+its `x`, applied where the light is read, `lightStrength`), half the length of the light's tube (`LIGHT_FIELD.tubeHalfLength`, its `y`;
+its unit axis, the tube's line and the one a light profile's angle runs round, is the `xyz` of the fifth `vec4`, `LIGHT_FIELD.emitterAxis`),
+the weight of the light's source in its lobes (`LIGHT_FIELD.sourceTerm`, its `z`: a sun's disk sine, a point's or a spot's rough diffuse
+weight), its `w` left free, so a light is 32 floats. The draw range of a light (the share of the screen under which it is left out, its
+greatest draw distance) is the CPU's alone and sits in the store's own lanes (`SceneLightStore.draw`). The kind word is a `u32` whose bits
+sit in the `x` of the light's `params`: the rank (bits 0-1), the flags (casts a shadow, shadows the fog, transmits; bits 2-4), the lighting
+channels stored (`LIGHT_CHANNELS_SHIFT`), the shadow bits (`LIGHT_SHADOWED_SHIFT`), the light profile's lane (`LIGHT_PROFILE_SHIFT`), the bit
+the view sets where it leaves the light out (`LIGHT_UNDRAWN_SHIFT`: set on the CPU once a view, `lightDrawn`; read by the light grid and the
+walks of every light) and the light function's index (`LIGHT_FUNCTION_SHIFT`), under a constant marker bit (`LIGHT_KIND_MARKER`, bit 23)
+that keeps the lane a normal float; the shaders read it with `bitcast<u32>`, through the one accessor `kindWord`, which masks the marker. The frame reads the view's five
 settings at the image's entry (`lighting/contactShadow/frame.ts:followContactShadows`, with the other settings, before
 the lit program's key is read) and hands them to the store (`SceneLightStore.setContactShadowView`), which writes the
 contact lanes of every light again, and publishes the epoch as a change of the air does, when one moved. A light's own
@@ -1957,9 +1980,20 @@ staled. The rays go toward the light's centre, a tube lamp's included. The setti
 the store's one buffer (`runtime/settingFamilies.ts`, the `shadows` family, `world: 'image'`; `ViewOverrides` holds
 no shadow setting). The view uniform carries the matrix the surfaces were drawn with and the camera's forward axis and
 field (`VIEW_LAYOUT`). A program holds the code (`ContractKey.contactless`) when a light casts a ray of its own under
-the view's folded settings, or a surface may be of the eye or hair model; the translucent programs never hold it.
-Translucent surfaces cast none: a material option that asks for a ray of a fifth of the half height of the screen
-would need the opaque depth in the blend programs and a mark in the item's flags. The view's settings are shadow
+the view's folded settings, or a surface may be of the eye or hair model. The translucent programs hold it only for a
+scene that holds a surface with `contactShadows` that is lit by the forward light loop or is transmissive
+(`materials/surface/blendLightSource.ts:contactShadowsOf`; their cut is the scene's, `TranslucentScene`), as the reference
+compiles `MATERIAL_CONTACT_SHADOWS` for the materials of a translucent blend mode that ask, and no water: a ray of a fifth
+of the half height of the screen at the pixel's depth toward every light, whatever the light says, from a fragment whose
+material asks (the record's `MATERIAL_FLAG.contactShadows`, read from the surface's record by `contactShadowsAsked`); a fragment that does not ask casts none, the lights' own rays and
+the models' being the lit passes'. A pass gives the ray its reads: the lit passes the depth and the flags they bind
+(`contactSceneDepth`, `contactSceneFlags`, `lighting/deferred/litSurfaceWgsl.ts`), the blend pass the opaque depth in level 0
+of the depth pyramid, bound already in the forward programs' reflection group, and the opaque surfaces' flags through a
+read-only storage texture (`BLEND_BINDINGS.surfaceFlags`, the fourth and last of the fragment stage's storage textures;
+the sampled textures stay at 15 of 16 and the storage buffers at 8 of 8; `blend/contactSceneWgsl.ts`). The lit view
+(`View`, group 1) gives the matrices. The transmissive stages set the ask before they light (`thinAdd`); the single-layer
+water never does, it is no translucent blend mode in the reference (a single-layer water must be opaque or masked,
+`MaterialShared.cpp`). The view's settings are shadow
 settings ([SDK.md](SDK.md#contact-shadows)).
 
 <!-- wave-1: W1-1/W1-3/W1-9 docs pending -->
@@ -1976,8 +2010,8 @@ once a material. The map is a slot of the materials' colour atlas (`lighting/lig
 they are resident). Its record fields are `lightFunction`, `lightFunctionScale` (10.24 m on each
 axis), `lightFunctionFadeDistance` (1000 m), `lightFunctionDisabledBrightness` (0.5) and, for a
 rectangle, `lightFunctionConeAngle` (0, at most 89 degrees) (`scene/light/lightFunction.ts`); the
-light's 28 floats do not grow for it: the light function table's entry the light reads rides in its kind word,
-above the rank and the flags (`LIGHT_FUNCTION_STEP`; 0, none), set by the frame, not by the host
+light's 32 floats do not grow for it: the light function table's entry the light reads rides in its kind word,
+in the bits above the shadow bits (`LIGHT_FUNCTION_SHIFT`; 0, none), set by the frame, not by the host
 (`SceneLightStore.assignLightFunction`).
 
 Each image (`lighting/lightFunction/frame.ts`) plans which lights read which entry
@@ -2021,8 +2055,8 @@ pool's kernels no sampled texture (5 of 8 storage buffers, 2 of 4 storage textur
 
 Dynamic, on by default (`bounce: false` turns it off): the world's probes hold a radiance cache, a map of the light by direction
 in each, traced through the global distance field with the light the surface cache holds where a ray meets a surface
-(`bounce/cache/`, `bounce/probeRayWgsl.ts`, `lighting/surfaceCache/hitWgsl.ts`), a count of probes a frame
-(`bounceProbesPerFrame`, `bounce/`). The screen probes read it for the rays the screen and the near scene did not answer, and
+(`bounce/cache/`, `bounce/probeRayWgsl.ts`, `lighting/surfaceCache/hitWgsl.ts`), a budget of probes a frame
+(the level's `radianceProbeBudget` times `screenProbeUpdateSpeed`, `bounce/`). The screen probes read it for the rays the screen and the near scene did not answer, and
 light the pixels (below); no other grid of rays is traced for the world. The light of a hit is the cache's final lighting, which holds the direct light of
 the declared lights, their shadows traced through the field, the sky and the cache's own radiosity: no probe lights a surface
 itself, and no ray of the bounce walks a list of lights or casts a shadow ray of its own.
@@ -2039,21 +2073,30 @@ the sky light answers (below).
 only for a cell the image reads, from a pool of 16 384 (`probePool`), all of it on the GPU, none of it read back to be
 decided (`bounce/pool/`). An image that casts screen probes marks from their points once it placed them — the uniform
 ones, one a tile, and the adaptive ones placed (`bounce/pool/poolMarkWgsl.ts`, `markProbes`) —: the pool's pass waits for
-the placement (`frame/render/preLight.ts`: `placeScreenProbes`, `encodeQueuedBounce`, then `traceScreenProbes`), so the radiance cache's
+the placement, which also asks the probes of their pixels (`screenData`) (`frame/render/preLight.ts`: `placeScreenProbes`, `encodeQueuedBounce`, then `traceScreenProbes`), so the radiance cache's
 update that follows fills every cell the probes read before they read it, however far the view moved. Each image that marks
-finds for each the finest level that holds it — the rule the lit passes read the field by, the
-normal bias a third of a cell included — and sets a bit for each of the eight probes around it; sky marks nothing.
-An image that casts none marks from the points the last image cast; where that one cast none either, a tile of 16 pixels, one thread, takes the pixel its jitter picks and reads the
-surface there (`markImage`). In the same pass (`bounce/pool/poolWgsl.ts`, the kernels in the order they run:
-`releaseProbes`, `allocateProbes`, then the choice of the probes to trace) a probe whose cell left its level when the
-level slid is given back, so is one nothing read for 8 marks (`probeKeptMarks`), and a cell marked with no probe takes
+finds for each point the finest level that holds it — the rule the lit passes read the field by, the point itself, never pushed
+off its surface; where two levels share the answer, a noise picked per pixel and per frame marks both in turn — and sets a bit for each of the eight probes
+around it; sky marks nothing.
+An image that casts none marks from the points the last image cast; where that one cast none either, a thread takes a pixel of the
+image downsampled by `screenProbeInterpolateDownsampleFactor` (2) and then by `screenProbeMarkDownsampleFactor` (2), one of a
+four-rooks pattern that turns with the frame, and reads the surface there (`markImage`). In the same pass
+(`bounce/pool/poolWgsl.ts`, the kernels in the order they run: `clearIndirection`, the marks, `updateProbes`, `clearWork`, `allocateProbes`, then the choice of the
+probes to trace and the arguments of the dispatches over them) a probe whose cell left its level when the level slid is given back, so is one nothing read for
+`screenProbeRadianceCacheFramesToKeepProbes` frames (8 by default), and a cell marked with no probe takes
 one from the stack of free slots, a cell marked again keeps its own; the probes given back come first, so a full pool
-gives before it takes. A change of view owes `markJitter` marks, each another point of every tile, so a cell one point
-missed is found by the next; a still, marked view costs nothing. A pool with none left refuses a mark: that cell goes
+gives before it takes. A pool with none left refuses a mark: that cell goes
 unanswered, and the next level or the sky light answers for it (`refusedMarks` in the diagnostic). Only a few counters
 come back to the CPU, a few images late, through the readback ring (`bounce/pool/pool.ts`, no frame waits): the
-probes alive, those holding nothing yet or short of their updates, the marks refused, the probes queued and the cells
+probes alive, those holding nothing yet or not traced since the lights last changed, the marks refused, the probes queued and the cells
 marked; the series stays open while any are, which is all the CPU needs of the pool.
+
+A full update (`bounce/pool/pool.ts`, `discard`) gives every probe back, takes new ones for the cells the image marks and traces all of
+them in that image, at no budget, the queue holding the whole pool: it is the pool's first pass, the pass after the maps of the radiance
+cache were made again, and the pass that sees the colour of the sun (the first directional light that gives indirect light) or of the sky
+light grow or shrink by more than four times from one image to the next (`frame/prepare/globalLighting.ts`; the setting
+`surfaceCachePropagateGlobalLightingChange`, on by default, turns the last off). Any other change of the lights or of the placements only
+opens the series again: the probes are traced anew at the budget.
 
 **What the lit passes read.** A table of one layer (`bounce/atlas.ts`) names the slot of the pool that holds each cell of each
 level, by its remainder modulo the side, so that sliding by a cell changes only the entries that come in (written by `publishTable` of
@@ -2061,17 +2104,23 @@ level, by its remainder modulo the side, so that sliding by a cell changes only 
 radiance cache's tags say which cell and level a map was made for, and a mismatch is as good as none. The screen probes find the
 eight probes round a point in it and read their maps (`bounce/screen/cacheReadWgsl.ts`).
 
-**What is traced, in what order.** A probe that holds nothing yet comes before every refresh: the finest
-level first, the cells nearest the eye first, up to the frame's queue of 2752 probes (176 128 rays of 64)
-rather than the count: a sixth of the pool laid in rows of 64, so that a view moving fast fills every cell it
-reaches in the image that first reads it. The probes already traced take what the count leaves, by the priority a light
-cache gives them — the longer since a probe was traced, over its level plus one, in log₂ buckets, the most
-important filled first (`bounce/pool/poolWgsl.ts`: the histograms of costs and the cuts the budget stops in) — each until it took `settledTraces`
-updates since the lights last changed: then the series closes and the frame holds. The count is a
-number of probes, `bounceProbesPerFrame`, 100 by default and at most the queue — not a duration: the
+**What is traced, in what order.** A probe that holds nothing yet comes before every refresh (it is alone in the first of the 16 buckets of
+the one priority histogram): the finest level first, the cells nearest the eye first, up to the frame's queue rather than the
+budget. The queue is the greater of a sixth of the pool and four times the budget, laid in rows of a power of two
+(`probeQueueFor`, `sdk-core/src/bounce/contracts.ts`: 2752 probes at the default budget, 5504 at the greatest the settings ask), so that a view
+moving fast fills every cell it reaches in the image that first reads it. The probes already traced take what the budget leaves, by the
+priority a light cache gives them — the frames from a probe's trace to its last use, over its level plus one, their log₂ cut to a bucket, the
+sooner a probe is wanted the lower its bucket, the lowest filled first (`bounce/pool/poolWgsl.ts`: the one histogram of costs and the cut the
+budget stops in) — until every probe has been traced since the lights last changed: then the series closes and the frame holds. A probe costs a
+whole map's cost, a quarter of it past `screenProbeRadianceCacheDownsampleDistance` and four times it within
+`screenProbeRadianceCacheSupersampleDistance`. The budget is the level's `radianceProbeBudget` (100, 150 or 350 probes) times
+`screenProbeUpdateSpeed` (held between 0.5 and 4) — a count of probes, not a duration: the
 probes of a frame run side by side and the pass lasts about as long as its longest ray, so the time of a
 batch does not follow its size, and a servo on it starved the field (`passMs` in `metrics.bounce`
-publishes the last duration of the pass, and steers nothing). The reference mode traces the whole queue.
+publishes the last duration of the pass, and steers nothing). A probe's map is traced in uniform tiles of 8 by 8 rays at the `full` level
+by default (`screenProbeRadianceCacheTraceTiles`: the whole side for every probe, half of it past the downsample distance, twice it within
+the supersample distance), and a new trace replaces the radiance the probe's map held: it is written whole into the raw atlas, then
+filtered with the six neighbours' into the final one.
 
 A probe's ray that leaves the scene reaches the sky (`lighting/atmosphere/skyReadWgsl.ts`): the share
 of the ray the scene lets through times the radiance of the sky light's cube in its direction, the
@@ -2094,7 +2143,7 @@ bounce counts publish how many probes are alive and how many hold nothing yet (`
 `unfilledProbes`, zero once the light the image reads is filled), and the probe series stays open until
 none is, until every probe has its updates and the marks owed are in.
 
-A probe's ray is cut at `rayReachMetres` (200 m by default), past which the sky answers. It leaves the probe's centre, from the
+A probe's ray is cut at `screenProbeMaxTraceDistance` (200 m by default, the one distance the probes, the reflections and the surface cache's lighting trace to), past which the sky answers. It leaves the probe's centre, from the
 nearest a probe's ray starts at, the diagonal of the probe's cell, so that no ray finds what the probe stands in, and is marched
 through the global distance field (`gdfTrace`, [Distance fields](#distance-fields)) as far as that reach: at most 256 steps a
 clipmap, a surface expanded by the largest distance the march read, a ray stopped on a sample no mesh covers by noise
@@ -2107,7 +2156,7 @@ reflections' do). The marks follow what the image draws: a view that stands stil
 marks the cells of its new surfaces again (`lighting/bounce/pool/pool.ts`, `frame/render/encodeLights.ts`). The
 frame metrics publish the state of the pool as `metrics.bounce` (`BounceFrameMetrics`): whether the probes
 exist, the probes alive, those still unfilled, the cells marked and refused, the probes queued, and the placements that hold a box
-(`geometry/dag/placement/placementBoxes.ts`, whose extent the rays' reach is laid on: no triangle of the scene is loaded or posed for the bounce).
+(`geometry/dag/placement/placementBoxes.ts`, whose extent the levels are first centred on: no triangle of the scene is loaded or posed for the bounce).
 
 **What the pixels read of the screen probes** (`bounce/screen/`, settings `screenProbe…` in `bounce/screenProbeOptions.ts`).
 A ray of a screen probe the screen did not answer is answered by one scene stage (`traceSceneWgsl.ts`, one pass, one
@@ -2125,7 +2174,7 @@ four samples of the pixel's GGX lobe (visible normals, Hammersley points turned 
 probes the pixel reads, each weighed by the share of its direction the pixel's open sky leaves (the occlusion's bent normal and
 amount against the hemisphere), tone-mapped, bilinear in the probe's octahedron, mixed toward the diffuse light over pi by the roughness
 (`integrateWgsl.ts`, `SP_ROUGH_SPECULAR`) for a pixel at or under `screenProbeMaxRoughnessToEvaluateRoughSpecular` (0.8;
-`…ForFoliage` for the sheets that transmit, 0.8): the world's probes no longer light the specular of the opaque pixels whose
+`…ForFoliage` for the sheets that transmit, the reflections' level's row: 0.4 at `high`, 0.8 above and where they are off): the world's probes no longer light the specular of the opaque pixels whose
 reflection ray is not traced, the reflections' resolve reads it (`screenRoughAt`, under `screenSpecularOcclusion`). A pixel
 that carries physical lobes (a clear coat, which the surface flag does not tell from an anisotropy) never takes the shortcut of a
 reflection traced whole: the base lobe under a coat casts no ray, so its rough specular is evaluated on the base normal and roughness. The back of a
@@ -2135,7 +2184,7 @@ is on and the level allows it (`high` does not, `ultra` and `cinematic` do), the
 turned onto the pixel's frame, 11 + 11 + 10 bits with its amount in the fourth word — where `screenProbeBentNormal` is on and
 the level allows it (`ultra` and `cinematic`): the temporal pass blends it by its direction and its amount, and
 the specular occlusion is the share of the reflection's cone the cone of open sky covers. On the pixels of a thin double-sided
-sheet the amount is mixed toward 1 by `screenProbeOcclusionFoliageStrength` (0.7 by default), the light scattering through the sheet,
+sheet the amount is mixed toward 1 by `screenProbeOcclusionFoliageStrength` (the level's row by default: 1 at `low`, 0.7 above), the light scattering through the sheet,
 before it is blended with its history (the neighbourhood it is held to is mixed the same way). A pixel the probes did not read has a
 zero alpha and the lighting reads the world's probes, as before.
 
@@ -2347,7 +2396,8 @@ section by `fieldsLoad.ts`; each image of the main view calls `encodeDistanceFie
   each HLOD cell's field (`MeshDistanceField.hlodCell`, one per cell the layer's `allowDistanceField` gave
   one, in the world's space, [FORMAT.md](FORMAT.md#distance-fields)) is placed by a stand-in for the root
   (`lighting/distanceField/hlodObjects.ts`): at the root's world matrix, with its mark (the world DAG's: the
-  shell casts, and a sun's far-shadow test reaches it), one for each instance of the world DAG and each cell.
+  shell casts; a sun's far-shadow test reaches the subjects that are no cluster geometry, so it never leaves
+  the shell out of the shadow maps), one for each instance of the world DAG and each cell.
   A stand-in is read by the tracker only while the cut draws the cell's actor (`WorldCells.draws`, the cell's
   word `CELL_DRAW.hlod`): a cell shown instead of its actor, or an actor not loaded, holds no placement and
   no room in the brick atlas and casts nothing; an actor drawn again is placed again, its coarsest mip taken
@@ -2496,7 +2546,7 @@ profile).
   reading the atlas bilinearly over the texels that hold a surface; **resample lighting** (`surfaceCacheResampleLighting`)
   carries into the capture atlas the light each page's card held — a card that had pages before the image —, read
   bilinearly from the card's finest page: the direct light, and with the radiosity the indirect light and the tile's
-  accumulation, the mean over its texels. **Copy** writes the pages into the atlas — the depth as `1 - z` in sixteen bits,
+  accumulation, the mean over its texels. **Copy** writes the pages into the atlas, a dispatch for each layer in the order depth, albedo, normal, emission — the depth as `1 - z` in sixteen bits,
   65535 for no surface — and, with `surfaceCacheDilationMode` 2, gives a texel with no surface the mean of the texels around
   it; **lights** writes the light they start with: the carried direct and indirect light and accumulation, and as final
   light the captured albedo over π times their sum plus the captured emission — no light at all without
@@ -3422,7 +3472,7 @@ const world = createWorld('viewer', { cloudShadowOnTranslucent: true }) // the p
 world.scene.sky = { clouds: true, sun: { castCloudShadows: true, cloudShadowOnSurfaceStrength: 1 } }
 ```
 
-**The fog of a blended surface.** Per vertex by default (`blend/cloudVertexText.ts`), laid from the farthest layer to the nearest: the vertex stage works out the height or distance fog with the haze behind it (`fogLaidFar`, `lighting/fogCompose.ts`), the local fog volumes of the tile the vertex lies in over them (`fogLocalVertex`: the vertex reads the lists of the volumes, `fogTiles`, visible to its stage), the clouds over both where `cloudFog`, into the one extra `fogLayer`; the fragment lays the fog's volume over it (`fogVolumeOver`) in `blendFog`, the one fog the colour layers, the alpha holdout and the thin layers all take, worked out once. The material record's `fogPerPixel` (`computeFogPerPixel`, and always for single-layer water) selects the per-pixel path, carried to the fragment in the triangle word (`TRI_FOG_PIXEL_SHIFT`; the record's model word has no bit left). `fogVertexOf` (`blend/pipelines.ts`) says whether the scene holds a surface that takes its fog per vertex: without one the programs compile with `fogVertexed` the constant false and no fog lane. The vertex stage reads the light buffer, the fog's cubemap and the lists of the volumes, so those bindings are visible to it; the cluster identity words the diagnostic views colour by sit behind the spans in one buffer (`clusterIdentity`), the vertex stage holding the eight storage buffers WebGPU guarantees.
+**The fog of a blended surface.** Per vertex by default (`blend/cloudVertexText.ts`), laid from the farthest layer to the nearest: the vertex stage works out the height or distance fog with the haze behind it (`fogLaidFar`, `lighting/fogCompose.ts`), the local fog volumes of the tile the vertex lies in over them (`fogLocalVertex`: the vertex reads the lists of the volumes, `fogTiles`, visible to its stage), the clouds over both where `cloudFog`, into the one extra `fogLayer`; the fragment lays the fog's volume over it (`fogVolumeOver`) in `blendFog`, the one fog the colour layers, the alpha holdout and the thin layers all take, worked out once. The material record's `fogPerPixel` flag (`MATERIAL_FLAG`; `computeFogPerPixel`, and always for single-layer water) selects the per-pixel path, read by the fragment from the surface's record (`materialFlagOf`; the record's model word has no bit left). `fogVertexOf` (`blend/pipelines.ts`) says whether the scene holds a surface that takes its fog per vertex: without one the programs compile with `fogVertexed` the constant false and no fog lane. The vertex stage reads the light buffer, the fog's cubemap and the lists of the volumes, so those bindings are visible to it; the cluster identity words the diagnostic views colour by sit behind the spans in one buffer (`clusterIdentity`), the vertex stage holding the eight storage buffers WebGPU guarantees.
 
 **The translucency lighting volume.** A blended surface whose material says `translucencyLighting` other
 than `'forward'` (the default of a material made in code is `'volumetricNonDirectional'`; a blended scene-file material is imported as `'volume'`, a transmissive one as `'forward'`, `scene/host/prepared/materials.ts`) (`'volume'`, `'volumetric'`, `'volumetricNonDirectional'`, [SDK.md](SDK.md#a-see-through-surface-lit-from-the-translucency-lighting-volume))
@@ -3435,7 +3485,7 @@ false (the volume lights those two blending modes alone, and only default lit an
 bind group is made (`encodeTranslucencyVolume`, `lighting/translucency/frame.ts`). A surface that asks for the volume after
 the session opened is drawn by programs built again (`grantGraphs`), and its field is a layout one (`session/world/repaint.ts`).
 
-The image builds it in one compute pass (`lighting/translucency/gpu.ts`), after the shadow maps it reads and before the
+The image builds it in one compute pass (`lighting/translucency/gpu.ts`), after the shadow maps it reads and the opaque surfaces are lit (`frame/render/surfaceLighting.ts`), and before the
 blends, in four steps. (1) The cascades are placed (`bounds.ts`): the sphere that holds the stretch of the view's
 frustum the cascade covers (the inner one from the camera to its distance, the outer one from there to its own), its far corners weighed ten times the near ones, a field of 45 degrees and a
 square view unless `translucencyVolumeAdaptToPerspective` takes the camera's own (rounded up to a multiple of
@@ -3491,7 +3541,6 @@ const glass = material.meshStandard({
   translucencyLighting: 'volume',
 })
 ```
-
 **The translucency global illumination volume.** The indirect light of every see-through surface (the blends, the water, the
 transmissive stages) is one filtered fetch of a grid fitted to the view (`lighting/translucencyGi/`), in place of the gather of the
 world's probes each of its fragments made. The grid is a cell of `translucencyGiGridPixelSize` pixels (32) across the image and
@@ -3519,6 +3568,7 @@ medium takes the constant band alone. The volume takes the sampled texture the w
 (16 of 16 sampled textures, 4 of 16 samplers, 9 of 12 uniform buffers: `gpu/core/stageLimits.test.ts`). What a fragment behind the
 front surface of its pixel reflects is the environment through its lobes (`reflectionEnvironmentOf`); the front's is the trace's.
 The radiance cache is the world's probes' (the shared path of the reference); a cache of its own for the volume is not made.
+
 
 ## Presentation
 

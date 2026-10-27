@@ -6,7 +6,7 @@ import { vsmLocalsProjectionWgsl } from './projectionWgsl.ts'
 import { vsmLayout } from '../layout.ts'
 
 export const PROJECTION_CODE = vsmLocalsProjectionWgsl(
-  vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }),
+  vsmLayout({ coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 35 }),
   'rg32uint',
 )
 

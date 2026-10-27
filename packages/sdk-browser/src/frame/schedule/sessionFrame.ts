@@ -104,7 +104,6 @@ export function createSessionFrame(session: ExplorerSession, inputs: Inputs) {
     guides: options.guides,
     state,
     engine,
-    camera,
     lookAtTarget,
     setPose,
     streaming,

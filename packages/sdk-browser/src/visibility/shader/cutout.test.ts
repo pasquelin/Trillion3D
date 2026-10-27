@@ -71,11 +71,12 @@ function rampMask() {
 /** What the run of a module is given of the surface and the image. */
 interface MaskWorld {
   /** The header's program id (the module's by default) and bits, the record's dither bit, the wall
-   *  clock, whether the noise is bound. */
+   *  clock, the view's image number (`GraphFrame.frame`), whether the noise is bound. */
   program?: number
   flags?: number
   dither?: boolean
   realTime?: number
+  frame?: number
   noise?: boolean
 }
 
@@ -91,6 +92,7 @@ function runMask(mask: PixelProgram, cut: number, world: MaskWorld = {}) {
     flags = GRAPH_HEADER.mask,
     dither = false,
     realTime = 0,
+    frame = 0,
     noise = true,
   } = world
   const keep = maskKeepWgsl(
@@ -111,7 +113,12 @@ function runMask(mask: PixelProgram, cut: number, world: MaskWorld = {}) {
     }),
     materialTableRecord: () => [program, flags, 0, 0],
     maskAlpha: () => 1,
-    graphFrame: { clock: [0, realTime, 0, 0], eye: [0, 0, 0, noise ? 1 : 0], before: [0, 0, 0, 0] },
+    graphFrame: {
+      clock: [0, realTime, 0, 0],
+      eye: [0, 0, 0, noise ? 1 : 0],
+      before: [0, 0, 0],
+      frame,
+    },
     blueNoiseScalar: noiseAt,
   })
   const page = { flags: 128, material: 0 }
@@ -156,12 +163,9 @@ test('a dithered mask keeps a pixel by the blue noise at it and the image’s fr
   const expected = (frame: number) =>
     pixels.map(([x, y]) => noiseAt([Math.trunc(x), Math.trunc(y)], frame) >= 0.5 / 0.83)
   assert.ok(expected(60).some(Boolean) && !expected(60).every(Boolean), 'the pixels split in both')
-  // The frame is the wall clock at sixty a second.
-  for (const [realTime, frame] of [
-    [1, 60],
-    [1.25, 75],
-  ] as const) {
-    const dithered = runMask(mask, 0.5, { dither: true, realTime })
+  // The noise is walked by the view's image number, not by the wall clock.
+  for (const frame of [60, 75]) {
+    const dithered = runMask(mask, 0.5, { dither: true, realTime: 1, frame })
     assert.deepEqual(
       pixels.map(([x, y]) => dithered.at(0.5, [x, y])),
       expected(frame),
@@ -197,7 +201,8 @@ test('a masked surface with no graph dithers its cutout as well, the switch bein
         model: dither ? DITHER_MODEL_BIT : 0,
       }),
       maskAlpha: () => 0.5,
-      graphFrame: { clock: [0, 1, 0, 0], eye: [0, 0, 0, 1], before: [0, 0, 0, 0] },
+      // The wall clock stands at one second: the noise is walked by the view's image number, not by it.
+      graphFrame: { clock: [0, 1, 0, 0], eye: [0, 0, 0, 1], before: [0, 0, 0], frame: 7 },
       blueNoiseScalar: noiseAt,
     })
   const page = { flags: 128 | 8, material: 0 }
@@ -210,7 +215,7 @@ test('a masked surface with no graph dithers its cutout as well, the switch bein
   )
   assert.deepEqual(
     pixels.map(([x, y]) => kept(true, x, y)),
-    pixels.map(([x, y]) => noiseAt([x, y], 60) >= 0.5 / 0.83),
+    pixels.map(([x, y]) => noiseAt([x, y], 7) >= 0.5 / 0.83),
   )
 })
 

@@ -8,16 +8,35 @@
  */
 import { vsmProjectionSampleWgsl } from '../projection/projectionSampleWgsl.ts'
 import { VSM_UNIT_PER_CM } from '../constants.ts'
-import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL } from '../pageTableWgsl.ts'
+import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_STRUCTS_WGSL } from '../pageTableWgsl.ts'
 import {
   VSM_PROJECTION_DATA_READ_WGSL,
   VSM_PROJECTION_DATA_WGSL,
 } from '../projection/projectionDataWgsl.ts'
-import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
+import { type WgslDecl, wgslBlock, wgslFn } from '../../../../../../math/src/wgsl/decl.ts'
 import { sinFromCosUnclamped } from '../../../../../../math/src/wgsl/geometry.ts'
-import { transformPoint } from '../../../../../../math/src/wgsl/projection.ts'
 
 const CM = `${VSM_UNIT_PER_CM}`
+
+/**
+ * The mip level of a local light's map that a pixel at `sceneDepth` is read at, the one rule of the
+ * marking (which pages it asks) and of the trace of a map that keeps a receiver cover (which mip its
+ * rays start from, never coarser than what was marked): the pixel's footprint at the point
+ * `pointInMap` (the map's shifted frame) in a view of `viewToClip` drawn at `viewSize` pixels, the
+ * map's resolution bias, the pool's pressure bias and `extraBias`, held to the mips the mode asks
+ * (all, the even ones, the odd ones) and to the map's finest. Reads the `vsm` uniforms.
+ */
+export const vsmLocalMipAt = wgslFn(
+  'vsmLocalMipAt',
+  [VSM_PROJECTION_DATA_WGSL, VSM_STRUCTS_WGSL],
+  /* wgsl */ `fn vsmLocalMipAt(pd:VsmProjectionData,pointInMap:vec3f,sceneDepth:f32,viewToClip:mat4x4f,viewSize:vec2f,extraBias:f32)->u32{
+ let footprint=vsmLocalPixelFootprint(pd,pointInMap,sceneDepth,viewToClip,viewSize);
+ var mip=vsmLocalMipLevel(footprint,pd.levelBias,vsm.pressureBias,extraBias);
+ if(vsm.mipModeLocal==1u){mip=mip&~1u;}
+ else if(vsm.mipModeLocal==2u){mip=mip|1u;}
+ return max(mip,pd.finestMip);
+}`,
+)
 
 const mapOfLightText = /* wgsl */ `/** A light's map at a receiver \`shifted\` (the view's shifted frame), read once for its rays: a
  *  sun's clipmap level mapped at the receiver's texel, none past the last (the level its texel is
@@ -36,14 +55,15 @@ fn vsmLightMapOn(m:ptr<function,VsmLightMap>,h:VsmHandle,shifted:vec3f){
  (*m).pInMap=shifted+vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,vsmView.originShiftHigh,vsmView.originShiftLow);
  (*m).mapPoint=pd.shiftedToMapUv*vec4f((*m).pInMap,1.0);
 }
-fn vsmLightMapAt(light:VsmProjectionLight,shifted:vec3f)->VsmLightMap{
+/** Light \`light\`'s map at the receiver \`shifted\`, the pixel at view depth \`sceneDepth\` (negative for a
+ *  read of no pixel: no depth of field bias on the level a sun's clipmap is read at). */
+fn vsmLightMapAt(light:VsmProjectionLight,shifted:vec3f,sceneDepth:f32)->VsmLightMap{
  var r:VsmLightMap;
  let h=vsmHandleFromId(u32(light.mapId));
  if(vsmLightIsDirectional(light)){
   r.clipmap=true;
   let base=vsmProjectionOf(h);
   let d2=vsmDistanceSqToOrigin(base,shifted,vsmView.originShiftHigh,vsmView.originShiftLow);
-  let sceneDepth=transformPoint(vsmView.shiftedToView,shifted).z;
   let levelIndex=max(0,i32(floor(vsmSampledLevel(base,d2,sceneDepth)))-base.mapLevel);
   if(levelIndex>=base.levelsLeft){return r;}
   let levelMap=vsmHandleOffset(h,levelIndex);
@@ -66,14 +86,6 @@ fn vsmLightMapAt(light:VsmProjectionLight,shifted:vec3f)->VsmLightMap{
 }`
 
 const mapTexelText = /* wgsl */ `
-/** The texel a sample of map \`h\` reads: its pool texel and the bias and inverse scale its raw
- *  depth takes to \`h\`'s depth (\`vsmMapTexelDepth\`: a coarser clipmap level's; 0 and 1 for a
- *  local map's coarser mip, the same projection). Invalid outside the map's square and where no
- *  level or mip maps it. */
-struct VsmMapTexel{valid:bool,poolTexel:vec2u,depthBias:f32,depthInverse:f32,}
-/** A raw pool depth of \`t\` as its map reads it: (raw − bias)·inverse, which no greater raw depth
- *  makes smaller (rounding is monotonic, the inverse positive). */
-fn vsmMapTexelDepth(t:VsmMapTexel,raw:f32)->f32{return (raw-t.depthBias)*t.depthInverse;}
 /** The depth slope in UV of the receiver's plane, normal \`n\` through \`pointInMap\`: a plane stays
  *  a plane under the map's projection, orthographic or perspective. */
 fn vsmDepthGradientUv(pd:VsmProjectionData,pointInMap:vec3f,n:vec3f)->vec2f{
@@ -122,7 +134,6 @@ export const vsmTraceMapWgsl = (pool: WgslDecl) =>
       VSM_PROJECTION_DATA_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
       sinFromCosUnclamped,
-      transformPoint,
     ],
     `
 ${mapOfLightText}${mapTexelText}

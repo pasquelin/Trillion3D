@@ -22,10 +22,10 @@ import { CLUSTER_INFO } from '../../geometry/dag/info/clusterInfoLayout.ts'
 import {
   NO_OUTPUTS,
   PLACEMENT_EVALUATE,
-  PLACEMENT_FIRST_PERSON,
   PLACEMENT_HLOD_SHIFT,
   PLACEMENT_HOLDOUT,
   PLACEMENT_INFO,
+  PLACEMENT_PAGE_MARKS,
   PLACEMENT_VELOCITY,
 } from '../../geometry/dag/info/placementInfoLayout.ts'
 import { PAGE_INFO } from '../pageInfo.ts'
@@ -149,7 +149,7 @@ export function replayDecode(bytes: DecodeBytes, pass: number) {
       switches = placements.u[p + place.switches]
     pages.u[out + page.flags] =
       (flags | ((switches & PLACEMENT_HOLDOUT) !== 0 ? FLAG_HOLDOUT : 0)) >>> 0
-    pages.u[out + page.firstPerson] = (switches & PLACEMENT_FIRST_PERSON) !== 0 ? 1 : 0
+    pages.u[out + page.marks] = switches & PLACEMENT_PAGE_MARKS
     pages.u[out + page.pageOffset] = info[c + cluster.pageOffset]
     pages.u[out + page.indexCount] = info[c + cluster.indexCount]
     pages.u[out + page.vertexBase] = info[c + cluster.vertexBase]

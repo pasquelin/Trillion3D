@@ -19,11 +19,6 @@
  *   first grid when it names none or one the job does not hold, the reference's rule; an object
  *   attached under another streams on its topmost object's grid.
  * - `farField`: the object is drawn by a view's primed depth (`hizPrime`), `false` by default.
- * - `castFarShadow`: the object casts far shadows, which a sun's far-shadow test never leaves out
- *   of its shadow maps (`shadowOptions.ts`), `false` by default.
- * - `farShadowTest`: a sun's far-shadow test reaches the object (`true`: it is left out of the sun's
- *   shadow maps past the edge of the shadow distance unless it casts far shadows) or never does
- *   (`false`); left out, the view's rule decides (`shadowOptions.ts`).
  * Its `objects` are rules `{ match, …settings }`, `match` naming objects as `meshBuild` does: each
  * sets its settings for the objects it matches. For each setting of an object, the first that
  * names it wins: the first rule matching it, the scene's setting, its node's own glTF `extras`
@@ -43,8 +38,6 @@ import {
   PARTITION_GRID_NAME_FORBIDDEN,
   RUNTIME_GRID_SETTING,
   FAR_FIELD_SETTING,
-  CAST_FAR_SHADOW_SETTING,
-  FAR_SHADOW_TEST_SETTING,
   SKINNED_INSTANCE_SETTING,
   SKINNED_INSTANCE_SETTINGS,
   SPATIALLY_LOADED_SETTING,
@@ -119,13 +112,6 @@ export type ObjectSettings = {
   runtimeGrid?: string
   /** Whether a view's primed depth draws the object. @defaultValue false */
   farField?: boolean
-  /** Whether the object casts far shadows, which a sun's far-shadow test never leaves out of its
-   *  shadow maps. @defaultValue false */
-  castFarShadow?: boolean
-  /** Whether a sun's far-shadow test reaches the object (`true`) or never does (`false`); left
-   *  out, the view's rule decides: the world's merged shells alone, or every caster with
-   *  `farShadowCullsAllMeshes`. */
-  farShadowTest?: boolean
 }
 
 /** A rule of `objects`: the objects it names — a node's name (exact), a regular expression on it,
@@ -244,10 +230,6 @@ function settingsOf(named: Record<string, unknown>, what: string, refuse: Refuse
     wire.drawDistance = drawDistanceOf(drawn, `${what}${DRAW_DISTANCE_SETTING}`, refuse)
   const far = switchOf(named, FAR_FIELD_SETTING, what, refuse)
   if (far !== undefined) wire.farField = far
-  const castFar = switchOf(named, CAST_FAR_SHADOW_SETTING, what, refuse)
-  if (castFar !== undefined) wire.castFarShadow = castFar
-  const farTest = switchOf(named, FAR_SHADOW_TEST_SETTING, what, refuse)
-  if (farTest !== undefined) wire.farShadowTest = farTest
   const grid = named[RUNTIME_GRID_SETTING]
   if (grid !== undefined && grid !== null) {
     if (!isGridName(grid))

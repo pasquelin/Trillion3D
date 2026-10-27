@@ -58,7 +58,7 @@ export function camera(i: number, active = true) {
 }
 
 const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } }),
-  res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+  res = createVsmResources(device, { coverMode: 'suns', fullMapCapacity: 63, poolPages: 256 })
 
 /** The f32 view header the projection pass uploads for `projection` (`VsmProjectionView`):
  *  shiftedToClip at word 0, shiftedToView 16, viewToClip 32, clipToShifted 48, the screen's

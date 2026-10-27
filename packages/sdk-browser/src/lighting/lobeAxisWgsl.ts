@@ -1,13 +1,21 @@
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { vectorRejection } from '../../../math/src/wgsl/geometry.ts'
 import { LOBE_PACK_WGSL } from '../materials/surface/physicalLobes.ts'
 import { ROUGHNESS_FLOOR_WGSL } from './shaderConstantsWgsl.ts'
 
+/** A surface's roughness held to `ROUGHNESS_FLOOR`: the roughness a lobe is evaluated at, the one rule of every shading path (a
+ *  graph material's included). */
+export const lobeRoughness = wgslFn(
+  'lobeRoughness',
+  [ROUGHNESS_FLOOR_WGSL],
+  'fn lobeRoughness(rough:f32)->f32{return clamp(rough,ROUGHNESS_FLOOR,1.0);}',
+)
+
 /**
  * The width of a lobe of roughness `rough`, the one rule of every program that reads it: the
  * roughness held to `ROUGHNESS_FLOOR` (`lobeRoughness`; the weight of the lobe reads it too) and
- * α = its square (`lobeAlpha`). Every surface writer holds its roughness there already, so the
- * clamp changes none of their lobes.
+ * α = its square (`lobeAlpha`). The floor is the evaluation's alone: a surface writer holds the roughness
+ * as the material wrote it (`ormRoughness`).
  *
  * The anisotropic lobe's axis at a surface of normal `N` and α = `alpha`, the one construction of
  * every program that reads it (`../materials/surface/physicalLobes.ts`): the stored direction `d` kept
@@ -21,9 +29,8 @@ import { ROUGHNESS_FLOOR_WGSL } from './shaderConstantsWgsl.ts'
  */
 export const LOBE_AXIS_WGSL = wgslBlock(
   'LOBE_AXIS_WGSL',
-  [LOBE_PACK_WGSL, vectorRejection, ROUGHNESS_FLOOR_WGSL],
-  `fn lobeRoughness(rough:f32)->f32{return clamp(rough,ROUGHNESS_FLOOR,1.0);}
-fn lobeAlpha(rough:f32)->f32{let r=lobeRoughness(rough);return r*r;}
+  [LOBE_PACK_WGSL, vectorRejection, lobeRoughness],
+  `fn lobeAlpha(rough:f32)->f32{let r=lobeRoughness(rough);return r*r;}
 fn lobeAxis(d:vec3f,strength:f32,N:vec3f,alpha:f32)->vec4f{
  let t=vectorRejection(d,N);let l=dot(t,t);
  if(!(l>1e-12)||!(strength>0.0)){return vec4f(0.0,0.0,0.0,alpha);}

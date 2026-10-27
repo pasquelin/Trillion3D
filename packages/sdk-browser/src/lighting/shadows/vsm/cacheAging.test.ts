@@ -12,7 +12,8 @@ import {
   VSM_MAP_UNSEEN,
 } from './constants.ts'
 import { VsmCacheManager } from './cacheManager.ts'
-import { vsmCacheKey } from './lightCache.ts'
+import { vsmCacheKey, type VsmLightCache } from './lightCache.ts'
+import { VsmMapIds } from './mapIds.ts'
 import { VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
 import { PROJECTION, VIEW, mapsOf } from './clipmap.fixture.ts'
 import { scheduleDistantUpdates } from './distantLights.ts'
@@ -64,25 +65,28 @@ test('the global LOD bias: down fast past 85 % of the pool, up slowly after 10 c
   assert.ok(bias >= 0 && bias < 1e-6)
 })
 
+/** One frame's ids over `cache`: the entries `seen` claim as the lights that referenced them, the others
+ *  as the unreferenced ones that have not aged out, then the claims committed. */
+function claimFrame(cache: VsmCacheManager, ids: VsmMapIds, seen: VsmLightCache[] = []) {
+  ids.reset()
+  for (const entry of seen) ids.claim(entry, entry.view === undefined ? 'light' : 'sun')
+  cache.claimUnseenLights(ids)
+  ids.seal()
+  cache.commitIds(ids)
+}
+
 test('a light no longer seen keeps its maps, unreferenced, 10 frames, then goes', () => {
   const cache = new VsmCacheManager()
   const entry = cache.lightEntryFor('lamp', 6)
   entry.moveToMapId(8192)
-  cache.keepFrameForNext(null)
-  let next = 9000
-  const ids = {
-    mapCount: 9000,
-    allocateUnreferenced: (count: number) => ((next += count), next - count),
-    writeNextMap: () => {},
-    fits: () => true,
-  }
-  cache.frameStamp = VSM_LIGHT_KEEP_FRAMES
-  cache.carryUnseenLights(ids)
+  const ids = new VsmMapIds()
+  cache.beginFrame(VSM_LIGHT_KEEP_FRAMES)
+  claimFrame(cache, ids)
   assert.equal(cache.entries.size, 1)
   assert.ok(entry.mapCaches.every((m) => m.projectionData.flags & VSM_MAP_UNSEEN))
-  assert.equal(entry.mapId, 9000, 'its maps moved to unreferenced ids')
-  cache.frameStamp = VSM_LIGHT_KEEP_FRAMES + 1
-  cache.carryUnseenLights(ids)
+  assert.equal(entry.mapId, 0, 'its maps moved to unreferenced ids')
+  cache.beginFrame(VSM_LIGHT_KEEP_FRAMES + 1)
+  claimFrame(cache, ids)
   assert.equal(cache.entries.size, 0)
   // Keyed by light; another map count is another entry.
   const a = cache.lightEntryFor('sun', 17)
@@ -155,14 +159,9 @@ test('a placement parked while moving goes back to static: a placement that reus
   assert.ok(!mobility.moves(1), 'static again after the threshold')
 })
 
-test('each view keeps its own sun clipmap, aged by its own frames, and the local maps are shared', () => {
+test('each view keeps its own sun clipmap and the local maps are shared; all age by the scene frame', () => {
   const cache = new VsmCacheManager()
-  const ids = {
-    mapCount: 9000,
-    allocateUnreferenced: () => 0,
-    writeNextMap: () => {},
-    fits: () => true,
-  }
+  const ids = new VsmMapIds()
   cache.beginFrame(1)
   const main = cache.lightEntryFor('sun', 17, '')
   const lamp = cache.lightEntryFor('lamp', 6)
@@ -173,19 +172,18 @@ test('each view keeps its own sun clipmap, aged by its own frames, and the local
   assert.notEqual(side.key, main.key)
   assert.equal(cache.lightEntryFor('lamp', 6), lamp, 'a local light’s maps every view shares')
   cache.keepFrameForNext(null)
-  // The side view drawn far more often than the main one: the main view's clipmap is still its own
-  // one frame old.
+  // The side view drawn on, the main one not: the main view's clipmap is kept while it is recent
+  // enough, then goes with the scene frames, as an unrequested light does.
+  const mainKey = vsmCacheKey('sun', '')
   for (let n = 3; n < 3 + 4 * VSM_LIGHT_KEEP_FRAMES; n++) {
     cache.beginFrame(n, 'side')
-    cache.lightEntryFor('sun', 17, 'side')
-    cache.carryUnseenLights(ids)
+    claimFrame(cache, ids, [cache.lightEntryFor('sun', 17, 'side')])
     cache.keepFrameForNext(null)
+    const kept = cache.entries.get(mainKey) === main
+    assert.equal(kept, n - 1 <= VSM_LIGHT_KEEP_FRAMES, `scene frame ${n}: the main view's clipmap`)
   }
-  const mainKey = vsmCacheKey('sun', '')
-  assert.equal(cache.entries.get(mainKey), main, 'kept: the main view has not drawn since')
   cache.dropView('side')
   assert.equal(cache.entries.has(side.key), false, 'a released view’s clipmap goes')
-  assert.equal(cache.entries.get(mainKey), main)
 })
 
 const EYE_VIEW = vsmLocalViewData(
@@ -207,12 +205,12 @@ function distantFrames(
   count: number,
 ) {
   const cache = new VsmCacheManager()
-  const maps = mapsOf(changes)
   const drawn: string[][] = []
   const setups: ReturnType<typeof addVsmLocalLightShadow>[][] = []
   for (let n = 1; n <= count; n++) {
+    const maps = mapsOf(changes, n)
     cache.beginFrame(n)
-    scheduleDistantUpdates(cache, maps.shadows.shadowMaxDistantUpdatePerFrame)
+    scheduleDistantUpdates(cache, maps.shadows.shadowMaxDistantUpdatePerFrame, n)
     const now = lights(n).map((light) => addVsmLocalLightShadow(cache, light, [EYE_VIEW], maps))
     drawn.push(now.filter((s) => s.cacheEntry.isInvalidated()).map((s) => s.cacheEntry.lightId))
     for (const [k, { cacheEntry }] of now.entries()) {
@@ -300,4 +298,45 @@ test('the distant updates a frame: all of them for -1, none for 0 — then only 
   )
   // Drawn as it moves, and once more as its uncached maps turn cached (`WARM_UP`).
   assert.deepEqual(later(moved.drawn), [[], [], ['b'], ['b']])
+})
+
+test('the distant schedule turns once a scene frame, whatever the views and the plans set up in it', () => {
+  const { cache } = distantFrames(FAR, { shadowMaxDistantUpdatePerFrame: 1 }, WARM_UP)
+  let stamp = WARM_UP
+  // The lights the schedule picked while `views` were set up in the scene frame `scene`.
+  const picked = (scene: number, views: string[]) => {
+    const before = new Map([...cache.entries].map(([key, entry]) => [key, entry.scheduledFrame]))
+    for (const view of views) {
+      cache.beginFrame(++stamp, view)
+      scheduleDistantUpdates(cache, 1, scene)
+    }
+    return [...cache.entries].filter(([key, entry]) => entry.scheduledFrame !== before.get(key))
+  }
+  assert.deepEqual(
+    [3, 4, 5].map((scene) => picked(scene, ['', 'side']).length),
+    [1, 1, 1],
+  )
+  // A view planned twice in one scene frame turns it once; the next scene frame turns it anew.
+  assert.equal(picked(6, ['', '']).length, 1)
+  assert.equal(picked(6, ['']).length, 0)
+  assert.equal(picked(7, ['']).length, 1)
+})
+
+test('the unseen entries are given ids a run at a time: the maps of one page first, then the full maps’', () => {
+  const cache = new VsmCacheManager()
+  const full = cache.lightEntryFor('full', 6)
+  const far = cache.lightEntryFor('far', 6)
+  far.updateLocal(true, true, false, false)
+  const ids = new VsmMapIds()
+  cache.beginFrame(1)
+  claimFrame(cache, ids)
+  assert.deepEqual(
+    [full.mapId, far.mapId],
+    [6, 0],
+    'the maps of one page first, then the full maps',
+  )
+  // An entry that aged out goes at the commit, whatever its run.
+  cache.beginFrame(VSM_LIGHT_KEEP_FRAMES + 2)
+  claimFrame(cache, ids)
+  assert.deepEqual([...cache.entries.keys()], [])
 })

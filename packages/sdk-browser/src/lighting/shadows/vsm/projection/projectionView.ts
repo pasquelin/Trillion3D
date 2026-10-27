@@ -18,6 +18,14 @@ export type VsmTraceCounts = Pick<
  *  under the 64 KiB a device binds (`assignChannels`). */
 export const VSM_PROJECTION_MAX_PASS_LIGHTS = 1024
 
+/** The suns at the head of a frame's lights (`VsmProjectionFrame.lights`: the suns first), at most `limit` of them: the one count the
+ *  view's header, the projection and the per-light path read. */
+export function sunCount(lights: ArrayLike<{ readonly type: string }>, limit = lights.length) {
+  let suns = 0
+  while (suns < limit && lights[suns].type === 'directional') suns++
+  return suns
+}
+
 /** A light of the pass (`firstPersonMapId`: the first map of its sun's first-person clipmap, −1 for none): `radius` and `cosCone` are the lighting's range and cone
  *  (`localLightReaches`, −2 for any light but a spot), `direction` points towards the light. */
 const LIGHT = fieldLayout('VsmProjectionLight', [
@@ -50,7 +58,7 @@ const VIEW = fieldLayout('VsmProjectionView', [
   ['sunCount', 'u32'],
   ['depthFromDeviceZ', 'vec4f'],
   ['screenRayScale', 'vec4f'],
-  ['halfFovTangents', 'vec4f'],
+  ['inverseHalfFovTangent', 'f32'],
   ['viewPixels', 'vec4f'],
   ['projectionRect', 'vec4i'],
   ['traceRays', 'vec4u'],

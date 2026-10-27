@@ -1,4 +1,5 @@
 import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import type { AmbientCubemapSettings } from '../../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
 import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
 import type { ColorGradingSettings } from '../../../../sdk-core/src/contracts/colorGradingOptions.ts'
 import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
@@ -19,6 +20,7 @@ import type { SkyQualityOptions } from '../../../../sdk-core/src/modules/sky/qua
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
 import type { SingleLayerWaterOptions } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
+import type { HairStrandsOptions } from '../../../../sdk-core/src/contracts/hairStrandsOptions.ts'
 import type { SubsurfaceScatteringOptions } from '../../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
 import type { TranslucencyVolumeOptions } from '../../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
 import type { TranslucencyGiOptions } from '../../../../sdk-core/src/contracts/translucencyGiOptions.ts'
@@ -122,10 +124,8 @@ export interface WorldImageSettings {
   set distanceFieldOcclusion(options: DistanceFieldOcclusionOptions)
   /** The sun's shadows' settings, each by its field (`WorldOptions`), resolved over the page and
    *  the quality preset: `shadowDistanceScale`, the factor on every directional light's
-   *  `shadowDistance`; `farShadowCulling`, whether a sun's shadow maps leave out the casters
-   *  past the edge of that distance unless their object sets `castFarShadow`;
-   *  `farShadowCullsAllMeshes`, whether that test reaches every caster or the world's merged
-   *  shells alone; the three that shape the edge, `shadowNearLevels`, `shadowOverlapScale`
+   *  `shadowDistance`; `farShadowCulling`, whether a sun has a near edge and the
+   *  distance-field cascade that follows it; the three that shape the edge, `shadowNearLevels`, `shadowOverlapScale`
    *  and `shadowFarField`; the far levels' and the distance-field cascade's own
    *  (`sunShadowOptions.ts`); and the shadow maps' own (`shadowMapOptions.ts`). Written, the
    *  settings named apply from the next frame over the preset — one `null` gives it back to it,
@@ -199,6 +199,13 @@ export interface WorldImageSettings {
    *  does not take is refused. */
   get ambientOcclusion(): FamilyValues<'ambientOcclusion'>
   set ambientOcclusion(options: AmbientOcclusionOptions)
+  /** The ambient cubemap's settings, each by its field (`WorldOptions`), resolved over the page: `ambientCubemapTintRed`,
+   *  `ambientCubemapTintGreen` and `ambientCubemapTintBlue` (1 each), the tint of the cube's light, and `ambientCubemapIntensity` (1),
+   *  the scale that multiplies it. The cube itself is a world option (`WorldOptions.ambientCubemap`: the six faces' linear colours and
+   *  the side, a power of two from 16 to 1024), given at the opening; with none, nothing is drawn. Written, the settings named apply
+   *  from the next frame — one `null` gives it back to its default, one left out stays —; one a setting does not take is refused. */
+  get ambientCubemap(): FamilyValues<'ambientCubemap'>
+  set ambientCubemap(options: AmbientCubemapSettings)
   /** The screen-space subsurface scattering's settings, each by its field (`WorldOptions`), resolved over the page and the quality
    *  preset: `subsurfaceScattering`, the master switch, `subsurfaceScale` (the scale of every profile's radius, 0 off),
    *  `subsurfaceHalfResolution` and `subsurfaceHalfResolutionSeparable`, `subsurfaceRecombineQuality`, `subsurfaceFilter`,
@@ -253,7 +260,10 @@ export interface WorldImageSettings {
    *  `translucencyGiTracingResolution` (3), `translucencyGiMaxRayIntensity` (20), the spatial filter
    *  (`translucencyGiSpatialFilter`, true, with `...SampleCount` 3 and `...StandardDeviation` 5), the temporal one
    *  (`translucencyGiTemporalReprojection` true, `...Jitter` true, `...HistoryWeight` 0.9, `...MaxRayDirections` 8) and the radiance
-   *  cache read (`translucencyGiTraceFromVolume`, `translucencyGiRadianceCache`, `translucencyGiRadianceCacheClipmapBias` 3).
+   *  cache read (`translucencyGiTraceFromVolume`, `translucencyGiRadianceCache`: a cache of the volume's own, shaped by
+   *  `translucencyGiRadianceCacheClipmapWorldExtent` 25 m, `...ClipmapDistributionBase` 2, `...GridResolution` 24, `...ProbeResolution` 8,
+   *  `...NumMipmaps` 3, `...NumProbesToTraceBudget` 100, `...ProbeAtlasResolutionInProbes` 128 and `...ReprojectionRadiusScale` 10; or,
+   *  with `translucencyGiShareRadianceCacheWithOpaque` (false), the world's probes' cache at `translucencyGiRadianceCacheClipmapBias` 3).
    *  Written, the settings named apply from the next frame — one `null` gives it back to its default, one left out stays; one a
    *  setting does not take is refused. */
   get translucencyGi(): FamilyValues<'translucencyGi'>
@@ -266,6 +276,16 @@ export interface WorldImageSettings {
    *  next frame — one `null` gives it back its default, one left out stays —; one a setting does not take is refused. */
   get singleLayerWater(): FamilyValues<'singleLayerWater'>
   set singleLayerWater(options: SingleLayerWaterOptions)
+  /** The hair strands' settings, each by its field (`WorldOptions`), resolved over the page: `hairStrands` (false) — whether
+   *  the curves a scene file carries are drawn and shadowed —, the visibility buffer's samples (`hairVisibilitySamplesPerPixel`, 8:
+   *  2, 4 or 8), the grooms outside the view that still cast (`hairCastShadowWhenOutOfView` true,
+   *  `hairOutOfViewShadowDistance` 20 m), the voxel volume (`hairVoxelization` true, `hairVoxelWorldSize` 0.3 cm, `hairVoxelPageResolution` 32,
+   *  `hairVoxelPageCountPerDim` 14, `hairVoxelAdaptive` true, `hairVoxelInjectOpaqueDepth` true), the shadow terms of its march
+   *  (`hairVoxelDensityScale` 2, `hairVoxelDepthBiasScaleShadow` 2, `hairVoxelSteppingScale` 1.15) and the rays a strand's pixel casts
+   *  toward a light (`shadowSmrtSamplesPerRayHair`, 1). Written, the settings named apply from the next frame — one `null` gives it
+   *  back its default, one left out stays —; one a setting does not take is refused. */
+  get hairStrands(): FamilyValues<'hairStrands'>
+  set hairStrands(options: HairStrandsOptions)
   /** The sky's quality settings, each by its field (`WorldOptions`), resolved over the page and the
    *  quality preset: the atmosphere's — `atmosphereOn`, the samples and caps of its marches
    *  (`atmosphereSamplesMin`, `atmosphereSamplesMax`, `skyTableSamplesMax`, `aerialSamplesPerSlice`),

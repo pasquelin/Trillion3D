@@ -1,7 +1,12 @@
 import { Object3D } from '../object/object3d.ts'
-import { readVec3, type Vec3Input } from '../math/vector3.ts'
+import { readVec3, Vector3, type Vec3Input } from '../math/vector3.ts'
+import { listen } from '../observed.ts'
 import { Ray } from '../math/volumes.ts'
 import { Matrix4 } from '../math/matrix4.ts'
+import {
+  conjugateQuaternion,
+  rotateByQuaternion,
+} from '../../../../math/src/quaternion/quaternion.ts'
 import { referenceProjection } from './referenceProjection.ts'
 import {
   DEFAULT_NEAR,
@@ -12,11 +17,17 @@ import {
   hasClipPlane,
   resolveClipPlane,
   resolveViewList,
+  resolveViewOwner,
   type ClipPlane,
 } from '../../contracts/viewOptions.ts'
 import { NO_VIEW_SET, type ViewSet } from './viewSet.ts'
 
 const view = new Float64Array(4)
+/** `setViewTarget`'s offset, and the inverse of the rotation it turns it by. */
+const offset = new Float64Array(3),
+  inverse = new Float64Array(4)
+/** The world point `set` aims at, in the parent's frame. */
+const aimed = new Vector3()
 
 /** A named view: where the eye is, what it looks at, and optionally its field. */
 export interface CameraPose {
@@ -89,6 +100,13 @@ export class Camera extends Object3D {
   private _fitAspect: boolean
   /** The view's plane and lists, replaced whole at each write (`ViewSet`). */
   private _set: ViewSet = NO_VIEW_SET
+  /**
+   * The point the camera frames, as its offset from the eye in the camera's own frame (a point
+   * straight ahead is at `z` = −distance), so it follows the camera when a rig moves it; zero, the
+   * default, frames none. An orthographic view's sun shadows centre on it (`shadowOrthoProjectViewOrigin`).
+   * `set`, `setViewTarget` and the orbit, trackball and pan-zoom controls write it. A write redraws.
+   */
+  readonly viewTarget = new Vector3()
 
   /** `'perspective'` makes far things small; `'orthographic'` keeps every size. */
   readonly projection: 'perspective' | 'orthographic'
@@ -111,6 +129,7 @@ export class Camera extends Object3D {
       bottom: p.bottom ?? -1,
     }
     this._fitAspect = p.fitAspect ?? true
+    listen(this.viewTarget, () => this._link?.pose(this))
   }
   /** An orthographic box as high as declared and as wide as the picture's shape makes it. */
   get fitAspect() {
@@ -150,6 +169,15 @@ export class Camera extends Object3D {
   set showOnly(objects: Iterable<Object3D> | null) {
     this.write({ showOnly: objects === null ? null : resolveViewList(objects, 'showOnly') })
   }
+  /** The node this camera's view belongs to, `null` (the default) for none: the objects that are the
+   *  owner or under it are owned by the view, and hide from it when they set `ownerNoSee`, while an
+   *  object that sets `onlyOwnerSee` is drawn for the views that own it alone. A write redraws. */
+  get owner(): Object3D | null {
+    return this._set.owner
+  }
+  set owner(object: Object3D | null) {
+    this.write({ owner: resolveViewOwner(object) })
+  }
   /** What the engine reads of the view beside the eye (`ViewSet`); the engine's own camera takes
    *  a page camera's by this setter (`copyWorldCamera`), a write no one hears. */
   get _viewSet(): ViewSet {
@@ -175,6 +203,7 @@ export class Camera extends Object3D {
     ;(this as { _optics: Camera['_optics'] })._optics = { ...source._optics }
     this._fitAspect = source.fitAspect
     this._set = source._set
+    this.viewTarget.copy(source.viewTarget)
     this.updateProjectionMatrix()
     return this
   }
@@ -215,11 +244,32 @@ export class Camera extends Object3D {
     out.direction.transformDirection(m)
     return out
   }
-  /** Puts the eye at `pose.position`, looking at `pose.target`, at the field it names. */
+  /** Puts the eye at `pose.position`, looking at `pose.target`, at the field it names; the target is
+   *  the camera's `viewTarget`. */
   set(pose: CameraPose) {
     if (pose.fov !== undefined) this.fov = pose.fov
     this.position.set(...readVec3(pose.position))
-    this.lookAt(...readVec3(pose.target))
+    const aim = readVec3(pose.target)
+    this.lookAt(...aim)
+    // The target is a world point, as `lookAt`'s: in the parent's frame for `setViewTarget`.
+    this.setViewTarget(this.parent ? this.parent.worldToLocal(aimed.set(...aim)) : aim)
+  }
+  /** Makes `target` the camera's `viewTarget`: the point, in the frame its `position` is written
+   *  in (its parent's, the world's for a camera under none), as an offset from the eye in the
+   *  camera's own frame, as the camera stands now; `null` frames none (a zero offset). */
+  setViewTarget(target: Vec3Input | null) {
+    if (!target) {
+      this.viewTarget.set(0, 0, 0)
+      return this
+    }
+    const [x, y, z] = readVec3(target),
+      { position, quaternion, scale } = this
+    // The pose's inverse, which is rigid but for the scale: take the position off, turn by the
+    // inverse rotation, divide by the scale.
+    conjugateQuaternion(inverse, quaternion.elements)
+    rotateByQuaternion(offset, inverse, x - position.x, y - position.y, z - position.z)
+    this.viewTarget.set(offset[0] / scale.x, offset[1] / scale.y, offset[2] / scale.z)
+    return this
   }
 }
 

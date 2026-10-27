@@ -9,7 +9,6 @@ import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { functionsOf, wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
-import { MOBILITY_FAR_SHADOW } from '../mobilityBits.ts'
 import { VSM_RENDER_CANDIDATE_BYTES } from './constants.ts'
 import { wgslStructLayout } from './wgslStructLayout.fixture.ts'
 import { vsmRenderCandidatesWgsl } from './render/renderCandidatesWgsl.ts'
@@ -20,14 +19,14 @@ import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { FLAG_MASK } from '../../../visibility/types.ts'
 import { vsmBindingsWgsl } from './resources.ts'
 import { VSM_RENDER_RASTER_FRAGMENT_SPECS, vsmRenderRasterWgsl } from './render/renderRasterWgsl.ts'
-import { vsmLayout } from './layout.ts'
 import { vsmRenderSoftwareWgsl } from './render/renderSoftwareWgsl.ts'
 import { maskGraphSets } from '../../../gpu/core/engineShaders.mask.fixture.ts'
 
 import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
 import { Mat } from '../../../materials/texture/shaderRunMatrix.fixture.ts'
+import { SUNS_LAYOUT } from './layout.fixture.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+const LAYOUT = SUNS_LAYOUT
 const CODE = vsmRenderRasterWgsl(LAYOUT)
 
 test('an unmasked row reads no page in the fragment: maskKeep keeps it whole', () => {
@@ -65,18 +64,23 @@ test('a masked caster’s dither is read at the map’s virtual pixel, whatever 
   // The software raster gives the page's first texel plus the pixel’s offset, at its centre.
   assert.ok(
     functionsOf(vsmRenderSoftwareWgsl(LAYOUT, masks), ['writePixel']).includes(
-      'maskKeepAt(page,cut.at.xy,1.0,cut.ddx,cut.ddy,vec2f(vsmRecordFirstPage(swRecord)*128u+vec2u(pixel))+vec2f(0.5))',
+      'maskKeepAt(page,cut.at.xy,1.0,cut.ddx,cut.ddy,vec2f(vsmRecordFirstPage(swGroup)*128u+vec2u(pixel))+vec2f(0.5))',
     ),
   )
   const { vsmRenderMapPixel } = shaderRun<{
     vsmRenderMapPixel(clip: number[], mip: number): number[]
   }>(CODE, ['vsmRenderMapPixel'], wgslConstants(CODE))
   const at = (clip: number[], mip: number) => Array.from(vsmRenderMapPixel(clip, mip))
-  assert.deepEqual(at([0, 0, 0.5, 1], 0), [(16384 - 1) / 2 + 0.5, (16384 - 1) / 2 + 0.5])
-  assert.deepEqual(at([0, 0, 0.5, 1], 1), [(8192 - 1) / 2 + 0.5, (8192 - 1) / 2 + 0.5])
-  assert.deepEqual(at([-1, 1, 0.5, 1], 0), [0.5, 0.5], 'the map’s top left corner')
-  assert.deepEqual(at([1, -1, 0.5, 1], 0), [16384 - 0.5, 16384 - 0.5], 'its bottom right')
-  assert.deepEqual(at([0, 0, 1, 4], 0), at([0, 0, 0.5, 1], 0), 'a perspective map divides by w')
+  // \`clip\` is the map's UV times w (\`vsmRenderClip\`): its centre is UV 0.5, its corners 0 and 1.
+  assert.deepEqual(at([0.5, 0.5, 0.5, 1], 0), [(16384 - 1) / 2 + 0.5, (16384 - 1) / 2 + 0.5])
+  assert.deepEqual(at([0.5, 0.5, 0.5, 1], 1), [(8192 - 1) / 2 + 0.5, (8192 - 1) / 2 + 0.5])
+  assert.deepEqual(at([0, 0, 0.5, 1], 0), [0.5, 0.5], 'the map’s top left corner')
+  assert.deepEqual(at([1, 1, 0.5, 1], 0), [16384 - 0.5, 16384 - 0.5], 'its bottom right')
+  assert.deepEqual(
+    at([2, 1, 0.5, 4], 0),
+    at([0.5, 0.25, 0.5, 1], 0),
+    'a perspective map’s w divides',
+  )
 })
 
 test('the pool max writes only a greater depth, and every word ends the max of its depths', () => {
@@ -122,95 +126,49 @@ test('the pool max writes only a greater depth, and every word ends the max of i
 })
 
 const CULL = vsmRenderCullWgsl(LAYOUT)
-const FAR = wgslConstants(CULL)
-const TESTED = FAR.VSM_RENDER_CAND_FAR_TESTED,
-  CASTS_FAR = FAR.VSM_RENDER_CAND_FAR_CAST
 
-test('a sun leaves out a tested caster past its far-shadow distance that does not cast far shadows', () => {
-  const { vsmFarShadowSkipped } = shaderRun<{
-    vsmFarShadowSkipped: (flags: number, farDepth: number, distance: number) => boolean
-  }>(CULL, ['vsmFarShadowSkipped'], FAR)
-  assert.equal(vsmFarShadowSkipped(TESTED, 500, 400), true, 'past: left out')
-  assert.equal(vsmFarShadowSkipped(TESTED, 400, 400), false, 'on the distance: kept')
-  assert.equal(vsmFarShadowSkipped(TESTED, -60, 400), false, 'behind the eye: kept')
-  assert.equal(vsmFarShadowSkipped(0, 5000, 400), false, 'a row the test does not reach')
-  assert.equal(vsmFarShadowSkipped(TESTED | CASTS_FAR, 5000, 400), false, 'it casts far shadows')
-  assert.equal(vsmFarShadowSkipped(TESTED, 5000, 0), false, 'no distance, no limit')
-  // The cull applies it to a sun's views alone, before the distance cull of a local light's: in the
-  // candidate's walk of its light's maps, which the cull with no test and the occlusion's first share.
-  const cull = functionsOf(CULL, ['vsmRenderCullCandidate'])
-  const skip = cull.indexOf(
-    'if(directional&&vsmFarShadowSkipped(cand.flags,cand.farDepth,pd.farShadowEdge)){return;}',
-  )
-  assert.ok(skip > 0 && skip < cull.indexOf('if(!directional&&dot(center,center)>'))
-})
-
-test('a candidate is tested where the world’s merged shells are, or every mesh when asked, and casts far by its placement', () => {
+// The far-shadow test is the reference's CPU subject gathering's alone, which reaches the subjects that are
+// no cluster geometry: every caster here is a cluster (`casters/casterFeed.ts`), so a sun's maps take it at
+// any distance, and the candidates and the cull carry no such test.
+test('a sun takes every cluster caster whatever its distance, whether it casts far shadows or not', () => {
   const candidates = vsmRenderCandidatesWgsl()
-  // Placement 7 is the world's; the others are drawn as themselves.
-  const worldPlaced = (placement: number) => placement === 7
-  const { vsmRenderFarFlags, vsmRenderFarDepth } = shaderRun<{
-    vsmRenderFarFlags: (word: number, placement: number) => number
-    vsmRenderFarDepth: (object: number[]) => number
-  }>(candidates, ['vsmRenderFarFlags', 'vsmRenderFarDepth'], {
-    ...wgslConstants(candidates),
-    worldPlaced,
-    params: {
-      farMeshes: 0,
-      // The view looks along +x: its z row is −x, so a depth is a distance along +x.
-      viewRow2: [-1, 0, 0, 0],
-    },
-  })
-  assert.equal(vsmRenderFarFlags(0, 3), 0, 'an object drawn as itself keeps casting far')
-  assert.equal(vsmRenderFarFlags(0, 7), TESTED, 'a placement of the world DAG is tested')
-  assert.equal(vsmRenderFarFlags(MOBILITY_FAR_SHADOW, 7), TESTED | CASTS_FAR)
-  assert.equal(vsmRenderFarFlags(MOBILITY_FAR_SHADOW, 3), CASTS_FAR)
-  // The depth of the nearest point of the object, from the eye: its centre's distance along the
-  // view, its radius off.
-  assert.equal(vsmRenderFarDepth([500, 0, 0, 50]), 450)
-  assert.equal(vsmRenderFarDepth([-70.5, 7, 3, 10]), -80.5, 'behind the eye')
-  assert.equal(vsmRenderFarDepth([600, 40, 90, 80]), 520, 'across the view, only the depth counts')
-  const every = shaderRun<{ vsmRenderFarFlags: (word: number, placement: number) => number }>(
-    candidates,
-    ['vsmRenderFarFlags'],
-    { ...wgslConstants(candidates), worldPlaced, params: { farMeshes: 1 } },
-  )
-  assert.equal(every.vsmRenderFarFlags(0, 3), TESTED, 'every mesh, when the settings say so')
+  const test = /vsmFarShadowSkipped|vsmRenderFarFlags|vsmRenderFarDepth|farDepth|farDrop|farMeshes/
+  assert.doesNotMatch(CULL, test, 'the cull leaves none out by its distance')
+  assert.doesNotMatch(candidates, test, 'the candidates leave none out by its distance')
+  // The cull's walk of a candidate's light still drops what no map takes: the lighting channels, the
+  // first-person split and a local light's range.
+  const cull = functionsOf(CULL, ['vsmRenderCullCandidate'])
+  assert.ok(cull.includes('vsmCandSharesChannel('))
+  assert.ok(cull.includes('if(!directional&&vsmCasterPastRange('))
 })
 
 // The candidate carries its sphere and the three half axes of its box (the frustum cull's volume), its
 // group's and its parent's bounds and errors, each map judging its own level of detail
-// (`vsmRenderLodAt`): each of the first three vec3s followed by a scalar, the far depth at byte 76,
-// and last the fit of the half axes (`axisFit`), a vec3 at byte 160 that the 16-byte alignment pads
-// to 176.
-test('the candidate kernel gives every candidate its far-shadow flags and depth, and drops what no view takes', () => {
+// (`vsmRenderLodAt`): the first two vec3s followed by a scalar, the third by a pad,
+// and last the fit of the half axes and the previous pose's (twelve floats, three vec4s from byte 160:
+// the pads of the vec3s they would take, `vsmCandFit`, `vsmCandPrevAxes`).
+test('the candidate kernel reads its placement’s words once, and lays the candidate out for the cull', () => {
   {
     const code = vsmRenderCandidatesWgsl()
-    assert.ok(code.includes('vsmRenderFarFlags(roots.word,w)'), 'one rule for every caster')
-    assert.ok(code.includes('vsmRenderFarDepth(object)'))
     assert.equal(
       functionsOf(code, ['vsmRenderCaster']).match(/vsmRootWords\(w\)/g)?.length,
       1,
       'its placement’s words, read once',
     )
-    const drop = code.indexOf('if(vsmFarShadowSkipped(flags,farDepth,params.farDrop)){return;}')
-    assert.ok(drop > 0 && drop < code.indexOf('atomicAdd(&counts[0]'), 'dropped before the append')
     assert.ok(
       (code.match(/var<storage/g)?.length ?? 0) <= 8,
       'within the eight storage buffers a stage holds',
     )
   }
   const candidate = wgslStructLayout(CULL, 'VsmRenderCandidate')
-  assert.deepEqual([candidate.size, candidate.offsets.farDepth], [VSM_RENDER_CANDIDATE_BYTES, 76])
-  const { a0, a1, a2, corners, flags, axisFit } = candidate.offsets
+  assert.equal(candidate.size, VSM_RENDER_CANDIDATE_BYTES)
+  const { a0, a1, a2, corners, flags, tail0, tail1, tail2 } = candidate.offsets
   assert.deepEqual([a0, a1, a2], [32, 48, 64], 'the half axes, each with a scalar behind it')
   assert.deepEqual([corners, flags], [44, 60], 'the scalars fill the vec3s’ fourth words')
-  assert.equal(axisFit, 160, 'the fit of the half axes behind the rest')
-  const { at } = VSM_RENDER_PARAMS
-  assert.equal(
-    [at.farMeshes, at.farDrop].every((word) => word !== undefined),
-    true,
-    'the scope',
+  assert.deepEqual(
+    [tail0, tail1, tail2],
+    [160, 176, 192],
+    'the fit and the previous axes behind the rest',
   )
 })
 
@@ -291,9 +249,10 @@ test('a displaced surface’s records are marked from its candidate to the raste
 // texels: 81.92 texels a metre at mip 0, a threshold of one texel.
 test('a map’s view draws the clusters its own texels ask: the cut rule in its pixels', () => {
   const run = shaderRun<{
-    vsmRenderViewPixels(...a: unknown[]): number
+    vsmRenderEdgeScale(...a: unknown[]): number
+    vsmRenderErrorShows(...a: unknown[]): boolean
     vsmRenderLodAt(...a: unknown[]): number
-  }>(CULL, ['vsmRenderViewPixels', 'vsmRenderLodAt'], {
+  }>(CULL, ['vsmRenderEdgeScale', 'vsmRenderErrorShows', 'vsmRenderLodAt'], {
     ...wgslConstants(CULL),
     params: { threshold: 1 },
   })
@@ -301,22 +260,41 @@ test('a map’s view draws the clusters its own texels ask: the cut rule in its 
   const ortho = new Mat([0.01, 0, 0, 0, 0, 0.01, 0, 0, 0, 0, 0.001, 0, 0, 0, 0, 1])
   const focal = 0.5 * 0.01 * 16384
   const lens = { focal, near: 0, perspective: false }
-  assert.equal(run.vsmRenderViewPixels(0.01, [0, 0, 0], 1, identity, ortho, lens), 0.01 * focal)
+  assert.equal(run.vsmRenderEdgeScale([0, 0, 0], 1, identity, ortho, lens), 1, 'ortho: one')
+  // A perspective view: the ball's smallest projected edge scale (the reference's
+  // `GetProjectedEdgeScales`, `.x`). A ball of radius 10 on the axis 12 away: the depth of its
+  // nearest point, 2, times the cosine of the angle its tangent makes, sqrt(44) / 12.
+  const perspective = new Mat([1.2, 0, 0, 0, 0, 1.2, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0])
+  const seen = { focal, near: 0.1, perspective: true }
+  const edge = (2 * Math.sqrt(44)) / 12
+  const near = run.vsmRenderEdgeScale([0, 0, -12], 10, perspective, perspective, seen)
+  assert.ok(Math.abs(near - edge) <= 1e-4 * edge, `${near}`)
+  // A point 30 away: its depth.
+  const point = run.vsmRenderEdgeScale([0, 0, -30], 0, perspective, perspective, seen)
+  assert.ok(Math.abs(point - 30) <= 1e-4 * 30, `${point}`)
+  // A ball wholly behind the near plane has no scale.
+  assert.equal(run.vsmRenderEdgeScale([0, 0, 12], 1, perspective, perspective, seen), 0)
+  // An error shows where scale · t <= focal · error, multiplied out: none for an error of zero, none
+  // lost to a division by a scale of zero.
+  assert.equal(run.vsmRenderErrorShows(point, 0.5, focal), 30 <= focal * 0.5)
+  assert.equal(run.vsmRenderErrorShows(0, 0.5, focal), true, 'a ball behind the near plane')
+  assert.equal(run.vsmRenderErrorShows(0, 0, focal), false, 'a zero error never shows')
+  assert.equal(run.vsmRenderErrorShows(1, 2 / focal, focal), true, 'within the threshold it shows')
   const CHILD = wgslConstants(CULL).VSM_RENDER_CAND_CHILD_RESIDENT
   const cand = (own: number, parent: number, child = true) => ({
     ...{ c: [0, 0, 0, 1], l: [0, 0, 0], row: 0, corners: 3, flags: child ? CHILD : 0 },
-    ...{ farDepth: 0, own: [0, 0, 0, 0.5], parent: [0, 0, 0, 1] },
+    ...{ own: [0, 0, 0, 0.5], parent: [0, 0, 0, 1] },
     errors: [own, parent],
   })
   const draws = (own: number, parent: number, child?: boolean) =>
-    run.vsmRenderLodAt(cand(own, parent, child), [0, 0, 0], identity, ortho, lens) !== 0
+    run.vsmRenderLodAt(cand(own, parent, child), 1, 1, focal) !== 0
   assert.equal(draws(0.01, 0.02), true, 'its error within a texel, its parent past it')
   assert.equal(draws(0.02, 0.04), false, 'too coarse, its finer group resident')
   assert.equal(draws(0.02, 0.04, false), true, 'too coarse, its finer group not resident')
   assert.equal(draws(0.005, 0.01), false, 'its parent fine enough')
   assert.equal(draws(0.005, -1), true, 'a root')
   assert.equal(
-    run.vsmRenderLodAt(cand(0.02, 0.04, false), [0, 0, 0], identity, ortho, lens),
+    run.vsmRenderLodAt(cand(0.02, 0.04, false), 1, 1, focal),
     wgslConstants(CULL).VSM_RENDER_LOD_BEHIND,
     'drawn behind: over a texel, its finer group not resident',
   )

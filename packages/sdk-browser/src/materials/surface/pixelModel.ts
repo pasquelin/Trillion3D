@@ -117,20 +117,24 @@ export const quantise8x2 = wgslFn(
 )
 
 /** The shading models' switches as the bits the passes read them by: an eye's iris with a normal of its own (`irisNormal`), a clear
- *  coat with a bottom normal (`clearCoatNormal`), and the two the subsurface scattering sets (`subsurfaceSwitches`): whether it runs
+ *  coat with a bottom normal (`clearCoatNormal`), the rough diffuse (`shadingRoughDiffuse`), the exact visibility of the specular lobes (`shadingAccurate`), and the two the subsurface scattering sets (`subsurfaceSwitches`): whether it runs
  *  this image, and whether the lit image holds its checkerboard. */
 export const MODEL_SWITCH = {
   irisNormal: 1,
   clearCoatNormal: 2,
   subsurfaceScattering: 4,
   subsurfaceCheckerboard: 8,
+  roughDiffuse: 16,
+  accurate: 32,
 } as const
 export type ModelSwitch = keyof typeof MODEL_SWITCH
 
-/** The settings' switches of the shading models (`irisNormal`, `clearCoatNormal`), as one word of `MODEL_SWITCH` bits. */
+/** The settings' switches of the shading models (`irisNormal`, `clearCoatNormal`, `shadingRoughDiffuse`, `shadingAccurate`), as one word of `MODEL_SWITCH` bits. */
 const modelSwitches = (rt: Parameters<typeof readShadingSetting>[0]) =>
   (readShadingSetting(rt, 'irisNormal') ? MODEL_SWITCH.irisNormal : 0) |
-  (readShadingSetting(rt, 'clearCoatNormal') ? MODEL_SWITCH.clearCoatNormal : 0)
+  (readShadingSetting(rt, 'clearCoatNormal') ? MODEL_SWITCH.clearCoatNormal : 0) |
+  (readShadingSetting(rt, 'shadingRoughDiffuse') ? MODEL_SWITCH.roughDiffuse : 0) |
+  (readShadingSetting(rt, 'shadingAccurate') ? MODEL_SWITCH.accurate : 0)
 
 /** Whether the switch `name` is set in the word `switches`, as 1 or 0 (a uniform's value). */
 export const switchOn = (switches: number, name: ModelSwitch) =>

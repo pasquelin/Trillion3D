@@ -1,7 +1,8 @@
 // The receiver-plane biases of the rays, run from the shipped WGSL: the plane's lift is twice the
-// depth it climbs toward the light over a step, never below 0; a sun ray, a sun's one tap and a
-// local ray take the lift from their receiver to the centre of the texel their start falls in, held
-// to a cap (a sun ray's start dithered, the slope held, less what its start offset gained).
+// depth it climbs toward the light over a step, never below 0; a sun ray's bias is that lift over
+// its start dither, the slope held, less what its start offset gained (it reads no page); a sun's
+// one tap and a local ray take the lift from their receiver to the centre of the texel their start
+// falls in, held to a cap.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
@@ -11,7 +12,13 @@ import { vsmSunsProjectionWgsl } from '../projection/projectionWgsl.ts'
 import { VSM_UNIT_PER_CM } from '../constants.ts'
 import { vsmLayout } from '../layout.ts'
 
-const CODE = vsmSunsProjectionWgsl(vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 }))
+const CODE = vsmSunsProjectionWgsl(
+  vsmLayout({
+    coverMode: 'suns',
+    fullMapCapacity: 127,
+    sunMapCapacity: 35,
+  }),
+)
 const K = wgslConstants(CODE)
 const TEXELS = K.VSM_LEVEL0_TEXELS
 /** A mapped, drawable entry at the pool's first page: the word the table reads give. */
@@ -29,7 +36,6 @@ const biasOver = (rec: object, word: number) =>
     vsmPlaneLift: (slope: number[], offset: number[]) => number
     vsmSunDitherBias: (
       m: object,
-      rayStart: number[],
       offsetUv: number[],
       startOffset: number,
       slope: number[],
@@ -54,65 +60,33 @@ test('the lift is twice the plane’s climb over the step, and never below 0', (
   assert.equal(bias.vsmPlaneLift([0.01, 0], [-0.5, 0]), 0)
 })
 
-/** A sun ray's receiver at `UV` of the map, as `vsmLightMapAt` keeps it. */
-const RECEIVER = { handle: { id: 0 }, mapPoint: [...UV, 0.5, 1] }
-/** The step, in texels, from the receiver to a texel centre. */
-const toCentre = (centre: number[]) => [centre[0] - 10.25, centre[1] - 20.75]
-/** Twice the plane's climb over a step of `d` texels, never below 0. */
-const lift = (slope: number[], d: number[]) =>
-  (2 * Math.max(0, slope[0] * d[0] + slope[1] * d[1])) / TEXELS
-const near = (got: number, want: number) =>
-  assert.ok(Math.abs(got - want) <= 1e-5 * Math.abs(want) + 1e-12, `${got} vs ${want}`)
-/** A ray start at texel coordinates (x, y) of the map. */
-const start = (x: number, y: number) => [x / TEXELS, y / TEXELS, 0.5]
-const SLOPE = [0.04, 0.03]
-const FROM_RECEIVER = start(10.25, 20.75)
-
-test('a sun ray’s bias is the lift to the centre of the texel its dithered start falls in', () => {
-  const at = (rayStart: number[], offset = [0, 0], startOffset = 0, slope = SLOPE) =>
-    bias.vsmSunDitherBias(RECEIVER, rayStart, offset, startOffset, slope)
-  near(at(FROM_RECEIVER), lift(SLOPE, toCentre([10.5, 20.5])))
-  assert.ok(at(FROM_RECEIVER) > 0, 'a start off its texel’s centre is lifted with no dither')
-  near(at(FROM_RECEIVER, [1 / TEXELS, 0]), lift(SLOPE, toCentre([11.5, 20.5])))
-  near(at(start(12.25, 20.75)), lift(SLOPE, toCentre([12.5, 20.5])))
-  near(at(FROM_RECEIVER, [0, 0], 0, [1, 0]), lift([0.05, 0], toCentre([10.5, 20.5])))
-  const centred = { ...RECEIVER, mapPoint: [10.5 / TEXELS, 20.5 / TEXELS, 0.5, 1] }
+test('a sun ray’s dither bias follows the slope held to 0.05, less the depth its start offset gained', () => {
+  const dither = { offset: [2, 0], slope: [0.2, 0] }
+  const lift = 2 * 0.05 * 2
+  assert.ok(Math.abs(bias.vsmSunDitherBias(map, dither.offset, 0, dither.slope) - lift) < 1e-7)
+  const gained = 5 * Math.abs(DEPTH_PER_UNIT)
+  const reduced = bias.vsmSunDitherBias(map, dither.offset, 5, dither.slope)
+  assert.ok(
+    Math.abs(reduced - (lift - gained)) < 1e-7,
+    'what the start offset gained is not added twice',
+  )
+  assert.equal(bias.vsmSunDitherBias(map, dither.offset, 40, dither.slope), 0, 'never below 0')
+  assert.equal(bias.vsmSunDitherBias(map, [0, 0], 0, dither.slope), 0, 'no dither, no bias')
   assert.equal(
-    bias.vsmSunDitherBias(centred, start(10.5, 20.5), [0, 0], 0, SLOPE),
+    bias.vsmSunDitherBias(map, [-2, 0], 0, dither.slope),
     0,
-    'a start on a texel’s centre, undithered, is lifted by nothing',
+    'a dither down the plane lifts nothing',
   )
 })
 
-test('a sun ray’s bias is held to the cap and less the depth its start offset gained', () => {
-  const full = lift(SLOPE, toCentre([10.5, 20.5]))
-  const gained = full / 4
-  const reduced = bias.vsmSunDitherBias(
-    RECEIVER,
-    FROM_RECEIVER,
-    [0, 0],
-    gained / Math.abs(DEPTH_PER_UNIT),
-    SLOPE,
-  )
-  near(reduced, full - gained)
+test('a sun ray’s dither bias reads no page: unmapped texels change nothing', () => {
+  const unmapped = biasOver(record, 0)
+  const args: [number[], number, number[]] = [[2, 0.5], 3, [0.2, 0.1]]
   assert.equal(
-    bias.vsmSunDitherBias(RECEIVER, FROM_RECEIVER, [0, 0], 40, SLOPE),
-    0,
-    'never below 0',
+    unmapped.vsmSunDitherBias(map, ...args),
+    bias.vsmSunDitherBias(map, ...args),
+    'the bias is the step’s and the start offset’s alone',
   )
-  const shallow = {
-    ...record,
-    lightViewToClip: new Mat(IDENTITY.map((v, i) => (i === 10 ? -1e-12 : v))),
-  }
-  const cap = 100 * VSM_UNIT_PER_CM * 1e-12
-  near(biasOver(shallow, MAPPED).vsmSunDitherBias(RECEIVER, FROM_RECEIVER, [0, 0], 0, SLOPE), cap)
-})
-
-test('a sun ray whose start no texel holds is lifted by the plane over its dither alone', () => {
-  const step = [1 / TEXELS, 0]
-  const dither = lift(SLOPE, [1, 0])
-  near(biasOver(record, 0).vsmSunDitherBias(RECEIVER, FROM_RECEIVER, step, 0, SLOPE), dither)
-  near(bias.vsmSunDitherBias(RECEIVER, [1, 0.5, 0.5], step, 0, SLOPE), dither)
 })
 
 test('a local ray’s bias is the lift to the centre of its texel, held to the cap', () => {

@@ -256,6 +256,10 @@ export function createGlobalField(device: GPUDevice, pipelines: GlobalPipelines)
     get resources() {
       return state.res
     },
+    /** The camera's offset by its velocity, centimetres, as the last update moved it: none outside the fast camera mode. */
+    get cameraOffset() {
+      return state.region.cameraOffset
+    },
     /**
      * Updates the field for the frame `frame` on `encoder`: planned, encoded and its view block
      * written. `mesh` is the meshes' scene as the frame left it. Nothing is encoded while the field

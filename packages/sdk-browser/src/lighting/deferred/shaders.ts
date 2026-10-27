@@ -2,7 +2,7 @@ import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 import { DISPLAY_VALUE_WGSL } from '../toneMappingWgsl.ts'
 import { toneReadWgsl } from '../toneLutRead.ts'
 import { TONE_MAPPING_RANK } from '../../../../sdk-core/src/scene/core/environment.ts'
-import { AS_IS_FLAG } from '../../materials/surface/surfaceModelWord.ts'
+import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../../materials/surface/surfaceModelWord.ts'
 import { FINISH_WGSL } from '../../post/finish/finishWgsl.ts'
 import { CATMULL_ROM_TAPS_WGSL } from '../../post/taa/historyWgsl.ts'
 import {
@@ -24,7 +24,8 @@ import { VIEW_WGSL } from './worldAtWgsl.ts'
 export type ComposeInput = 'asIs' | 'flagless'
 
 /**
- * A debug view's as-is pixel (a normal or depth surface, `AS_IS_FLAG`), composed after the temporal
+ * A debug view's as-is pixel (a normal or depth surface, `AS_IS_FLAG` in the shading model's bits,
+ * the page marks above them ignored), composed after the temporal
  * pass and the chain as a buffer is visualised: the surface's flag and its base colour — what the
  * opaque resolve wrote for it (`colourPassWgsl.ts`) — read at the render texel under the display
  * pixel (`view.surface`, the surfaces' render pixels per display pixel), unfiltered, and shown with
@@ -34,7 +35,7 @@ export type ComposeInput = 'asIs' | 'flagless'
  */
 const AS_IS_PIXEL = ` if(view.viewport.z==0.0){
   let texel=min(vec2i(pixel.xy*view.surface.xy),vec2i(view.surface.zw));
-  if(textureLoad(asIsFlags,texel,0).r==${AS_IS_FLAG}u){return vec4f(linearToSrgb(textureLoad(asIsBase,texel,0).rgb),1.0);}
+  if((textureLoad(asIsFlags,texel,0).r&${SURFACE_MODEL_MASK}u)==${AS_IS_FLAG}u){return vec4f(linearToSrgb(textureLoad(asIsBase,texel,0).rgb),1.0);}
  }
 `
 

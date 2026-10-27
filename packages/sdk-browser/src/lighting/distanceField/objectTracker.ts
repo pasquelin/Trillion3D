@@ -110,11 +110,6 @@ export function createObjectTracker(
   let lastEpoch = NaN
   return {
     objects,
-    /** How many placements a sun's distance-field cascade shadows whatever the view says: those whose
-     *  mark makes the far-shadow test reach them (`castingFlags`). */
-    get farShadowObjects() {
-      return table.farShadowObjects
-    },
     /** Brings the placements level with `roots`; `epoch` changes when the scene changed shape. */
     sync(
       roots: readonly TrackedRoot[],

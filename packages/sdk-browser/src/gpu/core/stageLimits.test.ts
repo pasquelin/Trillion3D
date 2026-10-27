@@ -31,9 +31,11 @@ test('the engine asks no more sampled textures a stage than WebGPU guarantees', 
   )
 })
 
-/** Every key a frame can ask the lighting's passes for: both list widths, each set of cuts. */
+/** Every key a frame can ask the lighting's passes for: both list widths, each set of the six cuts of the lights and each state of the
+ *  profile cut (the seventh bit) and of the cube cut (the eighth), the channel test sampled by the parity of the set (flipping any one
+ *  cut flips it: each cut is tried with and without the test, the sweep not doubled). */
 const KEYS: ContractKey[] = [false, true].flatMap((narrow) =>
-  Array.from({ length: 64 }, (_, set) => ({
+  Array.from({ length: 256 }, (_, set) => ({
     narrow,
     unshadowed: !!(set & 1),
     rectless: !!(set & 2),
@@ -41,6 +43,9 @@ const KEYS: ContractKey[] = [false, true].flatMap((narrow) =>
     localless: !!(set & 8),
     lobeless: !!(set & 16),
     contactless: !!(set & 32),
+    channelless: !!((set & 63).toString(2).replace(/0/g, '').length & 1),
+    profileless: !!(set & 64),
+    cubeless: !!(set & 128),
   })),
 )
 
@@ -94,7 +99,8 @@ test("the blends and the transmissive stages fit WebGPU's default limits", async
   // blend set, the routed ones and the transmissive stages are built.
   const items = [...BLEND_MODES, 'normal' as const].map((blending, index, all) => {
     const surface = G.basicSurface()
-    Object.assign(surface, { blending })
+    // Every surface asks for contact shadows: the transmissive one's programs hold their code.
+    Object.assign(surface, { blending, contactShadows: true })
     return { surface: surfaceOf(surface), transmissive: index === all.length - 1 }
   }) as unknown as BlendGpuItem[]
   const lit = { precompile: true, key: FULL_CONTRACT, onFailure: (e: unknown) => failures.push(e) }
@@ -146,13 +152,15 @@ test("the blends and the transmissive stages fit WebGPU's default limits", async
   // (`reflectionForwardLayout`) binds of the reflection group only what a forward fragment reads: level 0 of the depth and its levels
   // uniform (the screen segment of a translucent surface's traced shadow), not the depth pyramid nor the lit image, which only the trace
   // reads, so the stage holds 15 of 16 sampled textures, 3 of 4 storage textures and 9 of 12 uniform buffers.
-  // The translucency global illumination volume (the see-through surfaces' indirect light, one filtered fetch) is read through a sampled 3D
-  // texture and a trilinear sampler, which take the sampled texture and the uniform buffer the world's probes' atlas and levels held: a surface
-  // no longer gathers the probes. 16 of 16 sampled textures, 4 of 16 samplers, 9 of 12 uniform buffers.
+  // The opaque surfaces' flags (`BLEND_BINDINGS.surfaceFlags`) make it 4 of 4.
+  // The translucency global illumination volume (the see-through surfaces' indirect light, two filtered fetches) is read through two sampled 3D
+  // textures, the ambient light and the directional light, and a trilinear sampler, which take the sampled texture and the uniform buffer the
+  // world's probes' atlas and levels held and one more: a surface no longer gathers the probes. 16 of 16 sampled textures, 4 of 16 samplers,
+  // 9 of 12 uniform buffers.
   assert.deepEqual(fragmentCounts(layouts), {
-    maxSampledTexturesPerShaderStage: 15,
+    maxSampledTexturesPerShaderStage: 16,
     maxStorageBuffersPerShaderStage: 8,
-    maxStorageTexturesPerShaderStage: 3,
+    maxStorageTexturesPerShaderStage: 4,
     maxUniformBuffersPerShaderStage: 9,
     maxSamplersPerShaderStage: 4,
   })

@@ -37,12 +37,14 @@ import { FILM_RULES, tonemapperSharpness } from '../../../../sdk-core/src/contra
 import { COLOR_GRADING_RULES } from '../../../../sdk-core/src/contracts/colorGradingOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
+import { HAIR_STRANDS_RULES } from '../../../../sdk-core/src/contracts/hairStrandsOptions.ts'
 import { SUBSURFACE_SCATTERING_RULES } from '../../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_GI_RULES } from '../../../../sdk-core/src/contracts/translucencyGiOptions.ts'
 import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
+import { AMBIENT_CUBEMAP_RULES } from '../../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
@@ -116,12 +118,16 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(SUBSURFACE_SCATTERING_RULES, {}),
   // The single-layer water: the reference's defaults.
   ...resolveSettings(SINGLE_LAYER_WATER_RULES, {}),
+  // The hair strands: off, a new project's defaults.
+  ...resolveSettings(HAIR_STRANDS_RULES, {}),
   // The screen probes: the level `ultra`, its other settings the contract's defaults.
   ...resolveSettings(SCREEN_PROBE_RULES, {}),
   // The reflections' trace: the reference's 50 screen iterations and 256 steps a ring.
   ...resolveSettings(REFLECTION_RULES, {}),
   // The screen-space ambient occlusion: the reference's post-process defaults, in metres.
   ...resolveSettings(AMBIENT_OCCLUSION_RULES, {}),
+  // The ambient cubemap: a white tint at an intensity of 1, the cube none.
+  ...resolveSettings(AMBIENT_CUBEMAP_RULES, {}),
   // The light functions: the reference's atlas defaults, the translucent layers off.
   ...resolveSettings(LIGHT_FUNCTION_RULES, {}),
   // The global distance field: the reference's clipmaps, update rhythm and atlas budgets.

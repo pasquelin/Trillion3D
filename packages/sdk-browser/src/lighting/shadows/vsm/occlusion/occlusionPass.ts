@@ -34,17 +34,17 @@ import { encodeKeptTables, type VsmOcclusionResources } from './occlusionResourc
 import {
   PYRAMID_BUILD_SPECS,
   PYRAMID_SELECT_SPECS,
-  PYRAMID_TILE_LEVELS,
-  PYRAMID_TOP_LEVELS,
   PYRAMID_TOP_SPECS,
+  pyramidTileLevels,
+  pyramidTopLevels,
   vsmBuildPyramidTopWgsl,
   vsmBuildPyramidWgsl,
   vsmSelectPyramidWgsl,
 } from './occlusionWgsl.ts'
 
 const LABEL = `${VSM_PASS_PREFIX}occlusion`
-/** The build's compute pass. */
-const BUILD_PASS: GPUComputePassDescriptor = { label: `${VSM_PASS_PREFIX}occlusion.build` }
+/** The build's compute pass (its label is the shadow raster's budget's: `vsmRenderMs`). */
+export const BUILD_PASS: GPUComputePassDescriptor = { label: `${VSM_PASS_PREFIX}occlusion.build` }
 
 /** The occlusion's group (`VSM_OCCLUSION_GROUP`) of the culls and of the shadow views' descent
  *  (`../traversal/traversalPass.ts`): the pyramid and the kept tables, by load. */
@@ -55,8 +55,11 @@ export const vsmOcclusionEntries = () => [
   computeTextureEntry(3, 'uint'),
 ]
 
-/** The build's pipes of `layout`: the selection, the tile kernel and the top kernel. */
+/** The build's pipes of `layout`: the selection, the tile kernel — which writes the levels 0 to 4 where
+ *  the device grants five storage textures a stage, else 0 to 3 (`pyramidTileLevels`) — and the top
+ *  kernel, which writes the levels past them. */
 export function vsmOcclusionPipes(device: GPUDevice, layout: VsmLayout) {
+  const tileLevels = pyramidTileLevels(device)
   const levels = (count: number, binding: number) =>
     Array.from({ length: count }, (_, k) =>
       computeStorageTextureEntry(binding + k, 'r32float', 'write-only', '2d-array'),
@@ -79,24 +82,24 @@ export function vsmOcclusionPipes(device: GPUDevice, layout: VsmLayout) {
     build: vsmComputePipe(
       device,
       `${LABEL}.build`,
-      vsmBuildPyramidWgsl(layout),
+      vsmBuildPyramidWgsl(layout, tileLevels),
       'vsmBuildPyramid',
       [
         vsmBindGroupLayoutEntries(PYRAMID_BUILD_SPECS, COMPUTE),
-        [computeBufferEntry(0, 'read-only-storage'), ...levels(PYRAMID_TILE_LEVELS, 1)],
+        [computeBufferEntry(0, 'read-only-storage'), ...levels(tileLevels, 1)],
       ],
     ),
     top: vsmComputePipe(
       device,
       `${LABEL}.top`,
-      vsmBuildPyramidTopWgsl(layout),
+      vsmBuildPyramidTopWgsl(layout, tileLevels),
       'vsmBuildPyramidTop',
       [
         vsmBindGroupLayoutEntries(PYRAMID_TOP_SPECS, COMPUTE),
         [
           computeBufferEntry(0, 'read-only-storage'),
           computeTextureEntry(1, 'unfilterable-float', '2d-array'),
-          ...levels(PYRAMID_TOP_LEVELS, 2),
+          ...levels(pyramidTopLevels(tileLevels), 2),
         ],
       ],
     ),
@@ -133,9 +136,10 @@ function ownGroups(
   const { pyramid, pages, args, params } = occlusion
   const entries = (views: GPUTextureView[], first: number) =>
     views.map((resource, k) => ({ binding: first + k, resource }))
-  const tile = Array.from({ length: PYRAMID_TILE_LEVELS }, (_, k) => levelView(pyramid, k))
-  const top = Array.from({ length: PYRAMID_TOP_LEVELS }, (_, k) =>
-    levelView(pyramid, PYRAMID_TILE_LEVELS + k),
+  const tileLevels = pyramidTileLevels(device)
+  const tile = Array.from({ length: tileLevels }, (_, k) => levelView(pyramid, k))
+  const top = Array.from({ length: pyramidTopLevels(tileLevels) }, (_, k) =>
+    levelView(pyramid, tileLevels + k),
   )
   return {
     select: vsmBufferGroup(device, pipes.select.groups[1], [params, pages, args]),
@@ -149,7 +153,7 @@ function ownGroups(
       layout: pipes.top.groups[1],
       entries: [
         { binding: 0, resource: { buffer: pages } },
-        { binding: 1, resource: levelView(pyramid, PYRAMID_TILE_LEVELS - 1) },
+        { binding: 1, resource: levelView(pyramid, tileLevels - 1) },
         ...entries(top, 2),
       ],
     }),

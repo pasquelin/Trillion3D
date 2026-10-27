@@ -43,8 +43,6 @@ const GRID = fieldLayout('VsmFroxelGrid', [
   ['markLocalLights', 'u32'],
 ] as const)
 export const VSM_FROXEL_GRID_BYTES = 4 * GRID.words
-/** The word of the grid that says whether its froxels mark the local lights' pages. */
-export const FROXEL_MARK_LOCAL_LIGHTS_WORD = GRID.at.markLocalLights
 
 /** What the grid is made from: the view's +z-forward view-to-clip (column-major, `vsmForwardZViewToClip`),
  *  its size and rect, the matrix that takes its space to the shifted one, the room the list has and

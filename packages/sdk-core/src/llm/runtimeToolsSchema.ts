@@ -1,5 +1,6 @@
 import type { JsonSchemaProperty, Trillion3dTool } from './types.ts'
 import { lightShaftProperties } from './lightShaftSchema.ts'
+import { lightingChannelsProperty } from './lightingChannelsMeanings.ts'
 import { DEFAULT_LIGHT_MOBILITY, LIGHT_MOBILITY } from '../scene/light/contracts.ts'
 import { DEFAULT_TEMPERATURE_KELVIN } from '../scene/light/fields.ts'
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
@@ -31,6 +32,7 @@ import { FILM_RULES } from '../contracts/filmOptions.ts'
 import { COLOR_GRADING_RULES } from '../contracts/colorGradingOptions.ts'
 import { SUBSURFACE_SCATTERING_RULES } from '../contracts/subsurfaceScatteringOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
+import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
@@ -38,6 +40,7 @@ import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
+import { AMBIENT_CUBEMAP_RULES } from '../contracts/ambientCubemapOptions.ts'
 import { SKY_QUALITY_RULES } from '../modules/sky/quality.ts'
 
 /** A tool that writes the run-time settings of the rules by field `rules`, each as the explorer's
@@ -148,6 +151,7 @@ const lightFogAndShadowProperties = (): Record<string, JsonSchemaProperty> => ({
     description:
       "How this light is meant to move and be lit: 'static' (baked into the lightmaps; it neither moves nor changes and casts no dynamic shadow), 'stationary' (it does not move, its colour and intensity may change; the default, every light kind's) or 'movable' (fully dynamic).",
   },
+  lightingChannels: lightingChannelsProperty(),
   transmission: {
     type: 'boolean',
     default: false,
@@ -206,6 +210,15 @@ const lightDirectionalProperties = (): Record<string, JsonSchemaProperty> => ({
     maximum: 1.57,
     description:
       "Directional only: the angular radius of the light's disk, in radians, which sizes its soft shadow; absent, an ideal point source with hard shadows.",
+  },
+  softAngle: {
+    type: 'number',
+    minimum: 0,
+    // The engine refuses an angle of 180 degrees or more (`scene/light/validate.ts`).
+    maximum: 179.99,
+    default: 0,
+    description:
+      "Directional only: the soft angle of the light's disk, in degrees, which widens the highlight it leaves on a glossy surface without lighting more of the surface; 0, none.",
   },
 })
 
@@ -462,6 +475,11 @@ const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
     SINGLE_LAYER_WATER_RULES,
   ),
   /* @__PURE__ */ settingTool(
+    'trillion3d_set_hair_strands',
+    "Changes from the next frame how the hair strands — the curves a scene file carries — are drawn and shadowed: whether they are (off by default), the samples and merging of their visibility buffer, the voxel volume that counts the strands a light's ray crosses (its size, pages, allocation, jitter and the opaque depth written into it), the density, bias and step of the shadow's march, and the rays a strand's pixel casts toward a light through its shadow map.",
+    HAIR_STRANDS_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
     'trillion3d_set_sky_quality',
     "Changes from the next frame how the sky is drawn: the atmosphere's switches, its samples and their caps, the sizes of its tables and of the haze volume it hazes the distance with, whether a light's shadow shades the air, the clouds' tracing and shadows, the light shafts and the sky light's capture. Each setting's default is the reference's fourth level; the quality presets write the lower ones, and 'cinematic' the fifth.",
     SKY_QUALITY_RULES,
@@ -485,6 +503,11 @@ const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_ambient_occlusion',
     "Changes from the next frame the screen-space ambient occlusion: the contact shadow a crease or a corner casts on the light that comes from all round, found in the depth the image drew. Its intensity (0 is off), radius, fade distance, power and bias, its quality — the resolutions it searches at and the samples a pixel takes —, the method that finds it (the disc search, or the horizon search with its own radius, directions and filters), the compute pass, and whether it also occludes the screen probes' light. It applies where the bounce (the global illumination) is off.",
     AMBIENT_OCCLUSION_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_ambient_cubemap',
+    'Changes from the next frame the ambient cubemap: a light the image adds to every lit surface from a cube the page gave, its diffuse colour times the cube read along the normal and its specular reflectance times the cube read along the reflection, at the mip its roughness picks. Its colour (the tint, a linear colour of three channels, and the intensity that multiplies it; a black colour draws nothing). It is off without a cube.',
+    AMBIENT_CUBEMAP_RULES,
   ),
 ]
 

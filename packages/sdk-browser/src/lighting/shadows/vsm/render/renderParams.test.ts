@@ -6,7 +6,9 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { commandArgs } from '../../../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
+import { replayWrites } from '../../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import type { VsmRenderScene } from './renderPass.ts'
+import { vsmWriteLights } from './renderParams.ts'
 import {
   encodeLights,
   encodeRows,
@@ -18,6 +20,7 @@ import {
 import {
   VSM_RENDER_ARGS_BIN,
   VSM_RENDER_ARGS_SOFTWARE,
+  VSM_RENDER_ARGS_SOFTWARE_ALL,
   VSM_RENDER_ARGS_SOFTWARE_STATIC,
   VSM_RENDER_PARAMS,
 } from './renderParamsWgsl.ts'
@@ -27,11 +30,6 @@ import { vsmRenderComputePipes } from './renderPipes.ts'
 import { vsmDescentPipes } from '../traversal/traversalPass.ts'
 import { bindingsOutsideLayouts } from '../recordingRaster.fixture.ts'
 
-import {
-  MOBILITY_FAR_SHADOW,
-  MOBILITY_FAR_SKIPPED,
-  MOBILITY_FAR_TESTED,
-} from '../../mobilityBits.ts'
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
 import {
   DRAW_DISTANCE_MARK,
@@ -79,14 +77,6 @@ test('a device aligning at 512 lays the view passes’ parameter slots 512 bytes
   )
 })
 
-test('every view pass’s parameters say which casters a sun’s far-shadow test reaches', () => {
-  for (const farMeshes of [undefined, false, true]) {
-    const { stats, words, stride } = encoded({ farMeshes })
-    for (let c = 0; c < stats.passes; c++)
-      assert.equal(words[c * stride + VSM_RENDER_PARAMS.at.farMeshes], farMeshes ? 1 : 0, `${c}`)
-  }
-})
-
 test('every view pass’s parameters say which draw distances the casters take, and their scale', () => {
   const cases = [
     [undefined, 0],
@@ -130,58 +120,39 @@ test('the main view’s filter reaches the candidates: its buffer in their group
   }
 })
 
-test('the software half runs after each bin over its records, off without its page rows', async () => {
+test('the software half runs after each bin over its records, off without its page rows, both layers in one dispatch on a device with nine storage buffers', async () => {
   const page = { layout: {} as GPUBindGroupLayout, group: {} as GPUBindGroup }
-  for (const pageCompute of [undefined, page]) {
-    const fake = fakeDevice({ limits: LIMITS })
-    const stats = (await compiled(fake, () =>
-      encodeRows(fake.device, fake.device.createCommandEncoder(), {
-        pageCompute,
-        hardwareEdge: 32,
-      }),
-    ))!
-    const { words, stride } = paramWords(fake)
-    const floats = new Float32Array(words.buffer)
-    for (let c = 0; c < stats.passes; c++)
-      assert.equal(floats[c * stride + VSM_RENDER_PARAMS.at.hardwareEdge], pageCompute ? 32 : 0)
-    const order = fake.dispatches.map(({ entryPoint, offset }) => `${entryPoint}@${offset ?? ''}`)
-    const bin = order.indexOf(`vsmRenderBin@${VSM_RENDER_ARGS_BIN * 4}`)
-    // Each layer's dispatch reads the group count of its own bin.
-    const software = `@${VSM_RENDER_ARGS_SOFTWARE * 4}`
-    const staticLayer = `@${VSM_RENDER_ARGS_SOFTWARE_STATIC * 4}`
-    assert.ok(bin > 0)
-    assert.deepEqual(
-      order.slice(bin + 1),
-      pageCompute ? [`vsmRenderSoftware${software}`, `vsmRenderSoftwareStatic${staticLayer}`] : [],
-    )
-  }
-})
-
-test('an object says whether a sun’s far-shadow test reaches it, over the view’s rule: reached, never reached, or as the view says', () => {
-  const candidates = vsmRenderCandidatesWgsl()
-  const consts = wgslConstants(candidates)
-  const worldPlaced = (placement: number) => placement === 7
-  const flags = (farMeshes: number) =>
-    shaderRun<{ vsmRenderFarFlags: (word: number, placement: number) => number }>(
-      candidates,
-      ['vsmRenderFarFlags'],
-      { ...consts, worldPlaced, params: { farMeshes } },
-    ).vsmRenderFarFlags
-  const [TESTED, CASTS_FAR] = [consts.VSM_RENDER_CAND_FAR_TESTED, consts.VSM_RENDER_CAND_FAR_CAST]
-  const [REACHED, NEVER] = [MOBILITY_FAR_TESTED, MOBILITY_FAR_SKIPPED]
-  for (const farMeshes of [0, 1]) {
-    const read = flags(farMeshes)
-    assert.equal(read(REACHED, 3), TESTED, `view ${farMeshes}: an object drawn as itself, reached`)
-    assert.equal(read(REACHED, 7), TESTED, `view ${farMeshes}: a world placement, reached`)
-    assert.equal(read(NEVER, 3), 0, `view ${farMeshes}: an object drawn as itself, never reached`)
-    assert.equal(read(NEVER, 7), 0, `view ${farMeshes}: a world placement, never reached`)
-    assert.equal(read(NEVER | MOBILITY_FAR_SHADOW, 7), CASTS_FAR, 'casting far, as it says')
-  }
-  assert.deepEqual(
-    [flags(0)(0, 3), flags(0)(0, 7), flags(1)(0, 3)],
-    [0, TESTED, TESTED],
-    'as before',
-  )
+  for (const limit of [undefined, 9])
+    for (const pageCompute of [undefined, page]) {
+      const fake = fakeDevice({
+        limits: { ...LIMITS, ...(limit ? { maxStorageBuffersPerShaderStage: limit } : {}) },
+      })
+      const stats = (await compiled(fake, () =>
+        encodeRows(fake.device, fake.device.createCommandEncoder(), {
+          pageCompute,
+          hardwareEdge: 32,
+        }),
+      ))!
+      const { words, stride } = paramWords(fake)
+      const floats = new Float32Array(words.buffer)
+      for (let c = 0; c < stats.passes; c++)
+        assert.equal(floats[c * stride + VSM_RENDER_PARAMS.at.hardwareEdge], pageCompute ? 32 : 0)
+      const order = fake.dispatches.map(({ entryPoint, offset }) => `${entryPoint}@${offset ?? ''}`)
+      const bin = order.indexOf(`vsmRenderBin@${VSM_RENDER_ARGS_BIN * 4}`)
+      // Each layer's dispatch reads the group count of its own bin; the one dispatch both layers'.
+      const software = `@${VSM_RENDER_ARGS_SOFTWARE * 4}`
+      const staticLayer = `@${VSM_RENDER_ARGS_SOFTWARE_STATIC * 4}`
+      const both = `@${VSM_RENDER_ARGS_SOFTWARE_ALL * 4}`
+      assert.ok(bin > 0)
+      assert.deepEqual(
+        order.slice(bin + 1),
+        !pageCompute
+          ? []
+          : limit
+            ? [`vsmRenderSoftware${both}`]
+            : [`vsmRenderSoftware${software}`, `vsmRenderSoftwareStatic${staticLayer}`],
+      )
+    }
 })
 
 test('a caster whose object is out of the draw distances it names casts no shadow, from the main view’s eye', () => {
@@ -242,11 +213,17 @@ test('a caster whose object is out of the draw distances it names casts no shado
 // occlusion's group through the cull of a view, and binds a blank one.
 test('every raster pipeline’s layout holds the bindings its entry reaches', () => {
   const fake = fakeDevice({ limits: LIMITS })
-  const pipes = vsmRenderComputePipes(fake.device, vsmLayout({ fullMapCapacity: 7 }))
+  const pipes = vsmRenderComputePipes(
+    fake.device,
+    vsmLayout({
+      coverMode: 'suns',
+      fullMapCapacity: 7,
+    }),
+  )
   for (const pipe of [pipes.cull, pipes.cullFirst, pipes.cullSecond, pipes.cullPost, pipes.bin])
     void pipe.pipeline
   void pipes.views.pipeline
-  const descent = vsmDescentPipes(fake.device, vsmLayout({ fullMapCapacity: 7 }))
+  const descent = vsmDescentPipes(fake.device, vsmLayout({ coverMode: 'suns', fullMapCapacity: 7 }))
   for (const pipe of [
     descent.views,
     descent.prepare,
@@ -258,4 +235,22 @@ test('every raster pipeline’s layout holds the bindings its entry reaches', ()
   ])
     void pipe.pipeline
   assert.deepEqual(bindingsOutsideLayouts(fake), [])
+})
+
+// The table of the frame's lights holds each light's first map, its map count and its lighting
+// channels as a mask, the default's for a light that names none: the cull leaves out a caster that
+// shares none with the light.
+test('the table of lights carries each light’s channels, the default for one that names none', () => {
+  const { device, writes } = fakeDevice()
+  const buffer = device.createBuffer({
+    size: 64,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+  })
+  vsmWriteLights(device, buffer, [
+    { firstId: 2, count: 6, channels: 0b010 },
+    { firstId: 8, count: 1 },
+  ])
+  const bytes = new ArrayBuffer(64)
+  replayWrites(bytes, writes)
+  assert.deepEqual([...new Uint32Array(bytes)].slice(0, 8), [2, 6, 0b010, 0, 8, 1, 0b001, 0])
 })

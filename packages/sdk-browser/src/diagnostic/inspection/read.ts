@@ -2,9 +2,12 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { captureRead } from '../../gpu/core/heldReadback.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { inspectedCamera, type InspectedView } from './camera.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { inspectedClusters, snapshotClusters } from './clusters.ts'
 import { inspectedLights } from './lights.ts'
+import { vsmMapSettings } from '../../lighting/shadows/vsm/frame/vsmFarShadow.ts'
 import {
+  type Block,
   decodeReflections,
   encodeReflectionSamples,
   sampleBytes,
@@ -50,7 +53,9 @@ export function inspectFrame(rt: WebgpuPagesRuntime): Promise<FrameInspection | 
 }
 
 /** `cam`'s numbers, copied: the next image rewrites the engine camera in place. */
-const viewOf = (cam: InspectedView & { projection: Float64Array }) => ({
+const viewOf = (
+  cam: InspectedView & { projection: Float64Array } & Pick<EngineCamera, 'fov' | 'aspect'>,
+) => ({
   view: cam.view.slice(),
   viewProjection: cam.viewProjection.slice(),
   projection: cam.projection.slice(),
@@ -58,6 +63,8 @@ const viewOf = (cam: InspectedView & { projection: Float64Array }) => ({
   near: cam.near,
   far: cam.far,
   perspective: cam.perspective,
+  fov: cam.fov,
+  aspect: cam.aspect,
 })
 
 /** The device words of an inspection, copied behind the image at once: the page table's rows,
@@ -74,7 +81,7 @@ async function readWords(
   words: DeviceWords,
   reflection: NonNullable<WebgpuPagesRuntime['gpu']['reflection']> | undefined,
   grid: ReturnType<typeof sampleGrid> | undefined,
-  block: number,
+  block: Block,
   signal: AbortSignal,
 ) {
   const { tableBytes } = words,
@@ -120,10 +127,11 @@ async function readInspection(rt: WebgpuPagesRuntime): Promise<FrameInspection |
       : []
   const [tableWidth, tableHeight] = vsm?.res.layout.pageTableSize ?? [0, 0]
   // The reflections of a perspective view of the lit image alone: an orthographic one has no eye
-  // ray to place them on, and a view of no lit image traces none (`encodeReflections`).
+  // ray to place them on, and a view of no lit image traces none (`stageReflections`).
   const reflection = cam.perspective === 1 && drawsLit(run.diagnostic) ? gpu.reflection : undefined
-  const block = reflection?.frame.settings?.block ?? 1
-  const grid = reflection && sampleGrid(ceilDiv(size[0], block), ceilDiv(size[1], block))
+  const settings = reflection?.frame.settings
+  const block: Block = [settings?.block ?? 1, settings?.blockY ?? 1]
+  const grid = reflection && sampleGrid(ceilDiv(size[0], block[0]), ceilDiv(size[1], block[1]))
   const tableBytes = Math.min(shadowTableRows(maps), tableHeight) * tableWidth * 4
   const table = vsm?.res.current.pageTable
   const words = await readWords(device, { table, tableBytes }, reflection, grid, block, rt.signal)
@@ -146,6 +154,6 @@ async function readInspection(rt: WebgpuPagesRuntime): Promise<FrameInspection |
           block,
         )
       : null,
-    lights: inspectedLights(lights.store, cam, size),
+    lights: inspectedLights(lights.store, cam, size, vsmMapSettings(rt).shadows),
   }
 }

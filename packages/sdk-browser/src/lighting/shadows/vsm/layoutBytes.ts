@@ -5,6 +5,7 @@
  */
 import { storageBufferCap } from '../../../session/memory/pools.ts'
 import {
+  FEEDBACK_MESSAGE_BYTES,
   VSM_STATS_WORDS,
   VSM_DIRTY_SLICES,
   VSM_KEPT_RECTS_WIDTH,
@@ -19,6 +20,12 @@ import { POOL_SORT_WORDS, poolScratchWords } from '../../../gpu/sort/sortWords.t
 import { alignUp, ceilDiv, floorPow2, mipSize } from '../../../../../math/src/scalar/integers.ts'
 import type { VsmFrameBuffers } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
+import {
+  VSM_FILTER_ARGS_WORDS,
+  VSM_FILTER_LISTS,
+  vsmFilterablePoolBytes,
+  vsmHistoryLayout,
+} from './prefilteredConstants.ts'
 
 /**
  * The frame members no pass binds as the previous frame's: one buffer serves both frames. Each
@@ -62,7 +69,7 @@ export function setBufferSizes(layout: VsmLayout): Record<VsmSetBuffer, number> 
     poolPageInfo: maxPages * 24,
     rasterMarks: (maxPages * VSM_DIRTY_SLICES + 1) * 4,
     stats: VSM_STATS_WORDS * 4,
-    feedback: 16,
+    feedback: FEEDBACK_MESSAGE_BYTES,
     pagesToClear: (2 * maxPages + 1) * 4,
     clearArgs: 16,
     // The pool sort's words, the free pages' count, their shortfall and the pages, then the sort's
@@ -76,6 +83,25 @@ export const tableBufferSizes = (layout: VsmLayout) => ({
   nextMaps: layout.mapSlots * 16,
   perPageIds: layout.mapSlots * 4,
 })
+
+/** The prefiltered distant shadow's buffers and the bytes asked for each (`VsmFilterable`): the byte
+ *  pool `separate` (made twice, the passes' history and the frame's), the merged one, which the
+ *  separable passes also use as their temporary pool, the indirect arguments and their empty form,
+ *  the lists of the pages selected. The previous frame's history is sized by the tables
+ *  (`filterableHistoryBytes`). */
+export function filterableBufferSizes(layout: VsmLayout) {
+  const pool = vsmFilterablePoolBytes(layout)
+  return {
+    separate: pool,
+    merged: pool,
+    args: VSM_FILTER_ARGS_WORDS * 4,
+    argsInit: VSM_FILTER_ARGS_WORDS * 4,
+    pages: VSM_FILTER_LISTS * layout.poolPages * 4,
+  }
+}
+
+/** The bytes asked for the history of the prefiltered distant shadow of `layout`. */
+export const filterableHistoryBytes = (layout: VsmLayout) => vsmHistoryLayout(layout).words * 4
 
 /** The bytes of a pool page: 128 × 128 words. */
 const VSM_PAGE_BYTES = VSM_PAGE_TEXELS * VSM_PAGE_TEXELS * 4
@@ -131,7 +157,7 @@ export const occlusionBufferSizes = (layout: VsmLayout) => ({
 /**
  * The GPU bytes `createVsmResources` makes for `layout`, without a device: every buffer once, the
  * double-buffered frame members twice, the shared ones once, and with the occlusion its pyramid and
- * its buffers (`res.bytes` of the same layout).
+ * its buffers, with the prefiltered distant shadow its pools (`res.bytes` of the same layout).
  */
 export function vsmResourceBytes(layout: VsmLayout) {
   let bytes = vsmTableBytes(layout)
@@ -140,6 +166,11 @@ export function vsmResourceBytes(layout: VsmLayout) {
   if (layout.occlusion) {
     bytes += occlusionPyramidBytes(layout)
     for (const size of Object.values(occlusionBufferSizes(layout))) bytes += bufferBytes(size)
+  }
+  if (layout.prefilteredDistant) {
+    const { separate, ...once } = filterableBufferSizes(layout)
+    bytes += 2 * bufferBytes(separate)
+    for (const size of Object.values(once)) bytes += bufferBytes(size)
   }
   return bytes
 }
@@ -152,5 +183,6 @@ export function vsmTableBytes(layout: VsmLayout) {
     bytes += bufferBytes(size) * (SHARED_FRAME_MEMBERS.has(member) ? 1 : 2)
   for (const size of Object.values(tableBufferSizes(layout))) bytes += bufferBytes(size)
   if (layout.occlusion) bytes += 2 * keptTableBytes(layout)
+  if (layout.prefilteredDistant) bytes += bufferBytes(filterableHistoryBytes(layout))
   return bytes
 }

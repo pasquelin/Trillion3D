@@ -15,16 +15,21 @@ import {
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { encodeCastDiff, followRoots, prepareCastDiff } from './castDiff.ts'
 import { CAST_DIFF_WGSL } from './castDiffWgsl.ts'
-import { CAST_HEADER_WORDS, CAST_RECORD_WORDS, CAST_STATE_WORDS } from './castChanges.ts'
+import {
+  CAST_HEADER_WORDS,
+  CAST_RECORD_WORDS,
+  CAST_STATE_WORDS,
+  CAST_VIEWS_WORD,
+} from './castChanges.ts'
 import { ROOT_BOX_DOUBLES } from '../../../placement/roots/rootWorldSends.ts'
 import { createShadowMobility } from './mobility.ts'
-import { ROOT_SECTIONS } from './rootWordsWgsl.ts'
+import { ROOT_SECTION, ROOT_SECTIONS } from './rootWordsWgsl.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
 import {
   MOBILITY_CACHE_STATIC,
   MOBILITY_DEFORMS,
-  MOBILITY_FAR_SHADOW,
+  MOBILITY_HIDDEN_SHADOW,
   MOBILITY_MOVING,
   MOBILITY_OFFSET_ALWAYS,
   MOBILITY_OFFSET_INVALIDATES,
@@ -129,9 +134,14 @@ function diffKernel(roots: number, records = 16) {
   const rootWords = new Array<number>(ROOT_SECTIONS * roots).fill(0)
   const castState = new Array<number>(roots * CAST_STATE_WORDS).fill(0)
   const castChanges = new Array<number>(CAST_HEADER_WORDS + records * CAST_RECORD_WORDS).fill(0)
-  const diff = { roots, quiet: 0 }
+  // The arrivals: a bit a placement, `diff.arrivals` saying whether any is set.
+  const arrived = new Array<number>(Math.max(1, Math.ceil(roots / 32))).fill(0)
+  const diff = { roots, quiet: 0, views: 1, arrivals: 0 }
   const text = CAST_DIFF_WGSL.replace(/const BOX_SLACK:f32=[^;]+;/, 'const BOX_SLACK:f32=0.0;')
-  const run = shaderRun<{ castDiff: (id: number[], n: number[]) => void }>(text, ['castDiff'], {
+  const run = shaderRun<{
+    castDiff: (id: number[], n: number[]) => void
+    castInstanceState: (id: number[], n: number[]) => void
+  }>(text, ['castDiff', 'castInstanceState'], {
     ...wgslConstants(text),
     diff,
     rootBoxes,
@@ -139,6 +149,7 @@ function diffKernel(roots: number, records = 16) {
     rootWords,
     castState,
     castChanges,
+    arrived,
     arrayLength: (pointer: { get: () => unknown[] }) => pointer.get().length,
     atomicAdd: (p: { get: () => number; set: (v: number) => void }, v: number) => {
       const was = p.get()
@@ -148,6 +159,8 @@ function diffKernel(roots: number, records = 16) {
     atomicStore: (p: { set: (v: number) => void }, v: number) => p.set(v),
   })
   return {
+    /** The diff's memory, `CAST_STATE_WORDS` words a placement. */
+    castState,
     /** Placement `r` at the box `[lo, hi]` (none for `null`) with `word`, its offset stopping at
      *  `disableSq`. */
     place(r: number, box: number[] | null, word = 0, disableSq = 0) {
@@ -165,12 +178,30 @@ function diffKernel(roots: number, records = 16) {
       rootWords[r] = word
       rootWords[2 * roots + r] = bitsOf(disableSq)
     },
+    /** The instances' state per view over every placement, `arrivals` the ranks that arrived since
+     *  it last ran; returns the state words (`ROOT_SECTION.state`) it wrote for the rootWords. */
+    state(arrivals: number[] = []) {
+      arrived.fill(0)
+      for (const rank of arrivals) arrived[rank >> 5]! |= 1 << (rank & 31)
+      diff.arrivals = arrivals.length ? 1 : 0
+      for (let r = 0; r < roots; r++) run.castInstanceState([r, 0, 0], [roots, 1, 1])
+      return rootWords.slice(ROOT_SECTION.state * roots, (ROOT_SECTION.state + 1) * roots)
+    },
+    /** The offset facts word of each record in the list so far, those the instances' state appended
+     *  among them. */
+    listedFacts() {
+      const at = (k: number) => CAST_HEADER_WORDS + k * CAST_RECORD_WORDS
+      return Array.from({ length: castChanges[0]! }, (_, k) => castChanges[at(k) + 11])
+    },
     /** One diff, over every placement: the records it appended, each its box and moving flag, and
      *  beside them the offset facts each carries (the word bits, the distance's square); the
      *  header's overflow flag. */
-    step(quiet = false) {
+    step(quiet = false, arrivals: number[] = []) {
       castChanges.fill(0)
       diff.quiet = quiet ? 1 : 0
+      arrived.fill(0)
+      for (const rank of arrivals) arrived[rank >> 5]! |= 1 << (rank & 31)
+      diff.arrivals = arrivals.length ? 1 : 0
       for (let r = 0; r < roots; r++) run.castDiff([r, 0, 0], [roots, 1, 1])
       const out = [],
         facts = []
@@ -212,6 +243,38 @@ test('a placement that arrives names its box, in the layer it is cached in', () 
   assert.deepEqual(kernel.step().records, [], 'once')
   kernel.place(1, null)
   assert.deepEqual(kernel.step().records, [{ box: B, moving: true }], 'and when it leaves')
+})
+
+test('a placement that arrives where it was seen casting — a row seated on another mesh, the same box — names the box it leaves and the one it enters', () => {
+  const kernel = diffKernel(2)
+  kernel.place(0, A)
+  kernel.place(1, B, MOBILITY_MOVING)
+  kernel.step(true)
+  assert.deepEqual(kernel.step().records, [], 'still: none')
+  // Placement 0 is another primitive now, the same box: both of its ends are named, in the static layer.
+  assert.deepEqual(kernel.step(false, [0]).records, [
+    { box: A, moving: false },
+    { box: A, moving: false },
+  ])
+  // Placement 1 left cached as dynamic and enters as a static one (a new primitive starts still): each end in its own layer.
+  kernel.place(1, B, 0)
+  assert.deepEqual(kernel.step(false, [1]).records, [
+    { box: B, moving: true },
+    { box: B, moving: false },
+  ])
+  assert.deepEqual(kernel.step().records, [], 'once')
+})
+
+test('a pinned placement that arrives where it was seen names its two boxes too, though its moves name none', () => {
+  const kernel = diffKernel(1)
+  kernel.place(0, A, MOBILITY_CACHE_STATIC)
+  kernel.step(true)
+  kernel.place(0, B, MOBILITY_CACHE_STATIC)
+  assert.deepEqual(kernel.step().records, [], 'a pinned placement’s move names none')
+  assert.deepEqual(kernel.step(false, [0]).records, [
+    { box: B, moving: false },
+    { box: B, moving: false },
+  ])
 })
 
 test('a static placement’s first move stales the box it leaves in the static layer and the one it enters in the dynamic', () => {
@@ -258,12 +321,23 @@ test('a placement that deforms is cached as dynamic: its arrival and its moves s
   assert.deepEqual(kernel.step().records, [{ box: B, moving: true }], 'it settles')
 })
 
+test('a placement that casts no shadow lists the box of its transition to dynamic, flagged for the stale to skip', () => {
+  const kernel = diffKernel(1)
+  kernel.place(0, A, MOBILITY_SHADOWLESS)
+  kernel.step(true)
+  kernel.state()
+  kernel.place(0, A, MOBILITY_SHADOWLESS | MOBILITY_DEFORMS)
+  kernel.step()
+  kernel.state()
+  assert.deepEqual(kernel.listedFacts(), [MOBILITY_SHADOWLESS])
+})
+
 test('a box carries the offset facts of its placement and the square of its distance, at both ends of a move', () => {
   const kernel = diffKernel(2)
   const wears = MOBILITY_OFFSET_INVALIDATES | MOBILITY_OFFSET_ALWAYS
   kernel.place(0, A)
   kernel.step(true)
-  kernel.place(1, B, wears | MOBILITY_FAR_SHADOW, 100)
+  kernel.place(1, B, wears | MOBILITY_HIDDEN_SHADOW, 100)
   assert.deepEqual(kernel.step().facts, [{ offset: wears, disableSq: 100 }], 'it arrives')
   kernel.place(1, A, wears, 100)
   assert.deepEqual(
@@ -300,8 +374,8 @@ test('a placement that stops or starts casting names its box, once', () => {
   assert.deepEqual(kernel.step().records, [], 'moved while it casts nothing: none')
   kernel.place(0, B, 0)
   assert.deepEqual(kernel.step().records, [{ box: B, moving: false }], 'it started')
-  kernel.place(0, B, MOBILITY_FAR_SHADOW)
-  assert.deepEqual(kernel.step().records, [{ box: B, moving: false }], 'it casts far shadows now')
+  kernel.place(0, B, MOBILITY_HIDDEN_SHADOW)
+  assert.deepEqual(kernel.step().records, [{ box: B, moving: false }], 'it casts while hidden now')
 })
 
 test('a placement that pins its shadows is followed without a record for its moves', () => {
@@ -335,4 +409,40 @@ test('a list too small flags its overflow, never loses the fact that boxes were 
   const { records, overflow } = kernel.step()
   assert.equal(records.length, 2, 'the room it had')
   assert.equal(overflow, true)
+})
+
+// The cache state of a rank that arrives is zeroed by the CPU's signal (`arriveRank`, `mobilityState.ts`),
+// told to the state per view as one array of the ranks, not inferred by the diff from a word that
+// stopped saying it casts nothing.
+test('the diff leaves the cache state of a rank in any view alone, whatever its word did', () => {
+  const kernel = diffKernel(1)
+  kernel.place(0, A, MOBILITY_SHADOWLESS)
+  kernel.step(true)
+  // What the placement that left the rank held: tracked and dynamic in two views (`CAST_VIEWS_WORD`).
+  kernel.castState[CAST_VIEWS_WORD] = 0x00030003
+  kernel.place(0, A)
+  kernel.step()
+  assert.equal(kernel.castState[CAST_VIEWS_WORD], 0x00030003, 'cast again after casting nothing')
+})
+
+test('a rank that arrived starts with no cache state in any view, the others keep theirs', () => {
+  const kernel = diffKernel(2)
+  kernel.place(0, A)
+  kernel.place(1, B)
+  kernel.step(true)
+  // Both ranks held a placement cached as dynamic in the view, tracked; neither deforms now.
+  for (const r of [0, 1]) kernel.castState[r * CAST_STATE_WORDS + CAST_VIEWS_WORD] = 0x00010001
+  // A placement that stayed: its state turns to static (a transition). One that arrived: it held none,
+  // so nothing turns.
+  assert.deepEqual(
+    kernel.state([1]).map((word) => word >>> 16),
+    [1, 0],
+    'rank 1 arrived',
+  )
+  // Told once: the next run, with no arrival, reads what the last run wrote.
+  assert.deepEqual(
+    kernel.state().map((word) => word >>> 16),
+    [0, 0],
+  )
+  assert.equal(kernel.castState[CAST_VIEWS_WORD + CAST_STATE_WORDS], 1 << 16, 'tracked from now on')
 })

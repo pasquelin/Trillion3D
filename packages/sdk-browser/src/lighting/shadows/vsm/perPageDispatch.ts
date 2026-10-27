@@ -4,14 +4,15 @@
  * The binning, the id upload into `res.perPageIds` and the WGSL of the dispatch setup belong to the
  * page marking (`markingPass.ts` / `markingWgsl.ts`) and are
  * reused here: this module only declares the setup's bindings in its own group and replays the
- * `all` bins of that frame (`VsmPerPageBins.all`), one uniform slot per bin, the device's
- * `uniformStride` apart.
+ * `all` bins of that frame (`VsmPerPageBins.all`) and, for a set that asks it, the directional-only ones
+ * (`VsmPerPageBins.directionalOnly`), one uniform slot per bin, the device's `uniformStride` apart.
  */
 import {
   VSM_PER_PAGE_BIN_COUNT,
   VSM_PER_PAGE_BIN_WORDS,
   vsmDispatchPerPageBin,
-  vsmWritePerPageBinArgs,
+  perPageSlot,
+  vsmWritePerPageSlots,
   type VsmPerPageBin,
 } from './markingPass.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL } from './markingWgsl.ts'
@@ -44,16 +45,23 @@ export const vsmPerPageDispatchEntries = (): GPUBindGroupLayoutEntry[] => [
   computeBufferEntry(1, 'read-only-storage'),
 ]
 
-/** Bytes a dispatcher holds on a device of `limits`: its slots, the device's `uniformStride` apart. */
-export const vsmPerPageDispatcherBytes = (limits: Parameters<typeof uniformSlotBytes>[0]) =>
-  uniformSlotBytes(limits, VSM_PER_PAGE_BIN_COUNT)
+/** The bin sets a dispatcher replays: the `all` bins, and with `directional` the directional-only ones. */
+const binSets = (directional: boolean) => (directional ? 2 : 1)
 
-/** One per `VsmResources`: per-bin uniform slots, the device's `uniformStride` apart, and the bind
- *  group over them and `res.perPageIds`. */
+/** Bytes a dispatcher holds on a device of `limits`: its slots, the device's `uniformStride` apart. */
+export const vsmPerPageDispatcherBytes = (
+  limits: Parameters<typeof uniformSlotBytes>[0],
+  directional = false,
+) => uniformSlotBytes(limits, binSets(directional) * VSM_PER_PAGE_BIN_COUNT)
+
+/** One per `VsmResources`: per-bin uniform slots, the device's `uniformStride` apart (a second set of
+ *  bins where the set holds the prefiltered distant shadow), and the bind group over them and
+ *  `res.perPageIds`. */
 export class VsmPerPageDispatcher {
   readonly bindGroupLayout: GPUBindGroupLayout
   bindGroup!: GPUBindGroup
   bins: readonly VsmPerPageBin[] = []
+  directionalBins: readonly VsmPerPageBin[] = []
   private readonly params: GPUBuffer
   private readonly device: GPUDevice
   /** The bins' slots: their stride, offsets and words. */
@@ -63,7 +71,11 @@ export class VsmPerPageDispatcher {
 
   constructor(device: GPUDevice, res: VsmResources) {
     this.device = device
-    this.slots = uniformSlots(device.limits, VSM_PER_PAGE_BIN_COUNT, VSM_PER_PAGE_BIN_WORDS)
+    this.slots = uniformSlots(
+      device.limits,
+      binSets(res.layout.prefilteredDistant) * VSM_PER_PAGE_BIN_COUNT,
+      VSM_PER_PAGE_BIN_WORDS,
+    )
     this.args = new Uint32Array(this.slots.bytes / 4)
     this.params = device.createBuffer({
       label: 'vsm.pm.perPage',
@@ -89,26 +101,26 @@ export class VsmPerPageDispatcher {
     })
   }
 
-  /** This frame's `all` bins (ids already in `res.perPageIds`); the slots that changed go up by
-   *  queue write, before this frame's submit (`writeChangedSlots`). */
-  setBins(bins: readonly VsmPerPageBin[]) {
+  /** This frame's `all` bins and, where the dispatcher holds a second set, its directional-only ones
+   *  (ids already in `res.perPageIds`); the slots that changed go up by queue write, before this
+   *  frame's submit (`writeChangedSlots`). */
+  setBins(bins: readonly VsmPerPageBin[], directionalBins: readonly VsmPerPageBin[] = []) {
     const { args, slots } = this
-    for (let b = 0; b < slots.count; b++) {
-      const at = b * slots.strideWords
-      // A bin this frame does not have holds zeros; the padding is never compared.
-      if (b < bins.length) vsmWritePerPageBinArgs(args, at, bins[b], b)
-      else args.fill(0, at, at + slots.words)
-    }
+    // A bin this frame does not have holds zeros; the padding is never compared.
+    vsmWritePerPageSlots(args, slots, [bins, directionalBins])
     writeChangedSlots(this.device, this.params, args, slots)
     this.bins = bins
+    this.directionalBins = directionalBins
   }
 
-  /** One dispatch per non-empty bin; pipeline and the other groups already set. */
-  encode(pass: GPUComputePassEncoder, group: number) {
-    for (let b = 0; b < this.bins.length; b++) {
-      const bin = this.bins[b]
+  /** One dispatch per non-empty bin of the `all` set, or of the directional-only one when `directional`;
+   *  pipeline and the other groups already set. */
+  encode(pass: GPUComputePassEncoder, group: number, directional = false) {
+    const bins = directional ? this.directionalBins : this.bins
+    for (let b = 0; b < bins.length; b++) {
+      const bin = bins[b]
       if (bin.count === 0) continue
-      pass.setBindGroup(group, this.bindGroup, this.slots.offset(b))
+      pass.setBindGroup(group, this.bindGroup, this.slots.offset(perPageSlot(directional, b)))
       vsmDispatchPerPageBin(pass, bin, b)
     }
   }

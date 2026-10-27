@@ -107,6 +107,10 @@ test("the radiance cache: its maps' side and its probes' budget are a level's ro
     { screenProbeMarkDownsampleFactor: 0 },
     { screenProbeMarkDownsampleFactor: 9 },
     { screenProbeInterpolateDownsampleFactor: 3 },
+    { screenProbeTranslucencyReflectionsMarkDownsampleFactor: 0 },
+    { screenProbeTranslucencyReflectionsMarkDownsampleFactor: 2.5 },
+    { screenProbeTranslucencyReflectionsClipmapFadeSize: 0 },
+    { screenProbeTranslucencyReflectionsClipmapFadeSize: 17 },
   ])
     assert.throws(() => screenProbeSettings(refused as never), TypeError, JSON.stringify(refused))
 })
@@ -225,4 +229,28 @@ test('the integration runs at the reduction asked, 1 by default and 2 at most, h
     }),
     2,
   )
+})
+
+test('the translucent surfaces mark the radiance cache by default, at a quarter of the image, behind the depth pyramid’s test, fading over four probes; the pyramid level follows the downsample, and the switch takes the mark away', () => {
+  assert.deepEqual(screenProbeSettings().cache.translucentMark, {
+    downsample: 4,
+    hizMip: 1,
+    hizTest: true,
+    invFade: 0.25,
+  })
+  const mip = (factor: number) =>
+    screenProbeSettings({ screenProbeTranslucencyReflectionsMarkDownsampleFactor: factor }).cache
+      .translucentMark?.hizMip
+  assert.deepEqual([1, 2, 4, 8, 16, 64].map(mip), [0, 0, 1, 2, 3, 5])
+  const off = screenProbeSettings({
+    screenProbeTranslucencyReflectionsRadianceCache: false,
+    screenProbeTranslucencyReflectionsHizOcclusionTest: false,
+    screenProbeTranslucencyReflectionsClipmapFadeSize: 16,
+  })
+  assert.equal(off.cache.translucentMark, undefined)
+  const bare = screenProbeSettings({
+    screenProbeTranslucencyReflectionsHizOcclusionTest: false,
+    screenProbeTranslucencyReflectionsClipmapFadeSize: 16,
+  }).cache.translucentMark
+  assert.deepEqual([bare?.hizTest, bare?.invFade], [false, 1 / 16])
 })

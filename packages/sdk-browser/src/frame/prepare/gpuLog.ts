@@ -6,10 +6,11 @@
  * the last line (` cpu 2.31 ms raf 9.10/16.70 ms`, right after the GPU field; the CPU is the
  * corner's `cpuFrameMs`, the interval its `rafIntervalMs`); the timed passes by the state their
  * timestamp pair read in (valid, unwritten, invalid) and, when the image has no GPU time, why
- * (`frameMsReason`); and once, first, the device's `subgroups` feature and its sizes.
+ * (`frameMsReason`); and once, first, the device's subgroup sizes and the
+ * native or polyfill branch of each mechanism.
  * Nothing is timed for it: without the flag it reads nothing and writes nothing.
  */
-import { adapterSubgroupSizes } from '../../gpu/core/subgroups.ts'
+import { branchTags, gpuCapsOf } from '../../gpu/core/gpuCaps.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { addressFlag } from '../../session/host/addressFlag.ts'
 import type { GpuTimingSample } from '../../gpu/timing/types.ts'
@@ -24,15 +25,13 @@ const ms = (value: number | null | undefined) => (value == null ? '-' : value.to
 /** Each pass its own group: its name. */
 const byName = (name: string) => name
 
-/** The device's line, written once: its subgroups (the projection's halves vote over theirs where
- *  every subgroup holds 32 lanes, by workgroup counters elsewhere). */
+/** The device's line, written once: the sizes of its subgroups (the projection's halves vote over theirs where
+ *  every subgroup holds 32 lanes, by workgroup counters elsewhere), then the branch each mechanism
+ *  takes (`nativeOrPolyfill`), the subgroups' among them. */
 function deviceLine(device: GPUDevice) {
-  const info = adapterSubgroupSizes(device)
-  const subgroups = device.features.has('subgroups')
-  return (
-    `[T3D-GPU] subgroups ${subgroups ? 'yes' : 'no'}` +
-    ` (sizes ${info?.subgroupMinSize ?? '?'}-${info?.subgroupMaxSize ?? '?'})`
-  )
+  const caps = gpuCapsOf(device),
+    { minLanes, maxLanes } = caps.subgroups
+  return `[T3D-GPU] subgroup sizes ${minLanes || '?'}-${maxLanes || '?'} | ${branchTags(caps)}`
 }
 
 /** What the timing sample of `device` hands the log (`prepareGpuTiming`). */

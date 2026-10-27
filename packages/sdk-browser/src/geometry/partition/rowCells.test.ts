@@ -7,7 +7,6 @@ import { createCellPlacements } from './placements.ts'
 import { rowCasting, rowDrawDistance } from '../../placement/rows/rows.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
-import { FAR_SHADOW_ROOT, MARK_BITS } from '../../visibility/shader/castingMark.ts'
 import { placedMesh, sizeRows, type RowLink } from './rows.ts'
 import { rowCell } from './rowCells.ts'
 
@@ -51,69 +50,6 @@ test('a row names its cell and node while it holds them, grown or not', () => {
   assert.equal(rowCell(links[0].placements!, held[1].row)?.node, 1)
   placements.leave(9)
   for (const { row } of held) assert.equal(rowCell(links[1].placements!, row), undefined)
-})
-
-test('a node that casts far shadows has its rows cast them, whatever its host mesh says, and keeps them when the rows are written again', () => {
-  const { links, meshes } = twoPrimitiveMesh(4)
-  const frame: { hidden?: boolean } = {}
-  const placements = createCellPlacements(G.mesh(), [], meshes, frame, () => 0)
-  const cell = twoNodeCell({ castFarShadows: Uint8Array.of(0, 1) })
-  assert.ok(placements.place(9, cell, 'scene-cell-9.json', 3))
-  const held = placements.held.get(9)!
-  const casting = (node: number, link: number) =>
-    rowCasting({ rows: links[link].placements!, index: held[node].row })
-  for (const link of [0, 1]) {
-    assert.equal(casting(0, link) & FAR_SHADOW_ROOT, 0, 'the first node casts none')
-    assert.equal(casting(1, link) & FAR_SHADOW_ROOT, FAR_SHADOW_ROOT, 'the second casts them')
-  }
-  // The frame hides the rows, which writes them again: the flag is kept.
-  frame.hidden = true
-  placements.follow()
-  assert.equal(links[0].placements!.live[held[1].row], 0, 'the rows were written again')
-  assert.equal(casting(1, 0) & FAR_SHADOW_ROOT, FAR_SHADOW_ROOT)
-  assert.equal(casting(0, 0) & FAR_SHADOW_ROOT, 0)
-})
-
-test('a node that names a far-shadow test has its rows reached by it or never, unless its host mesh says, and keeps it when the rows are written again', () => {
-  const host = object.mesh(new Geometry())
-  host.farShadowTest = false
-  const links: RowLink[] = [{ meshes: 4, primitives: 0 }]
-  const meshes = new Map([[4, placedMesh(links, [host])]])
-  sizeRows(meshes, new Map([[4, 4]]))
-  const frame: { hidden?: boolean } = {}
-  const placements = createCellPlacements(G.mesh(), [], meshes, frame, () => 0)
-  const cell = {
-    nodes: 3,
-    ranks: Int32Array.of(-1, 4, -1, 4, -1, 4),
-    locals: new Float64Array(48),
-    tracks: Int32Array.of(-1, -1, -1),
-    sources: new Uint8Array(3),
-    sourceNodes: Uint32Array.of(10, 11, 12),
-    drawDistances: new Float32Array(9),
-    farShadowTests: Uint8Array.of(0, 1, 2),
-  }
-  assert.ok(placements.place(9, cell, 'scene-cell-9.json', 3))
-  const held = placements.held.get(9)!
-  const casting = (node: number) =>
-    rowCasting({ rows: links[0].placements!, index: held[node].row }) &
-    (MARK_BITS.farTest | MARK_BITS.farSkip)
-  // The host mesh says never: that wins over the compiled `true`.
-  assert.deepEqual([0, 1, 2].map(casting), [
-    MARK_BITS.farSkip,
-    MARK_BITS.farSkip,
-    MARK_BITS.farSkip,
-  ])
-  // Without the host mesh's word the compiled one stands: none, reached, never.
-  host.farShadowTest = null
-  placements.follow()
-  assert.deepEqual([0, 1, 2].map(casting), [0, MARK_BITS.farTest, MARK_BITS.farSkip])
-  frame.hidden = true
-  placements.follow()
-  assert.deepEqual(
-    [0, 1, 2].map(casting),
-    [0, MARK_BITS.farTest, MARK_BITS.farSkip],
-    'kept when written',
-  )
 })
 
 test('the distances a node names are seated on its rows, grown with them and cleared when left', () => {

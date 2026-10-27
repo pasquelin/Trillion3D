@@ -32,7 +32,13 @@ import { bitsDigest, inputs } from '../bitsDigest.fixture.ts'
 import { vsmLayout } from '../layout.ts'
 import { LIGHT_KIND } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 
-const INVALIDATION = castInvalidationWgsl(vsmLayout({ fullMapCapacity: 63, occlusion: false }))
+const INVALIDATION = castInvalidationWgsl(
+  vsmLayout({
+    coverMode: 'suns',
+    fullMapCapacity: 63,
+    occlusion: false,
+  }),
+)
 const LOCAL_KINDS = [LIGHT_KIND.point, LIGHT_KIND.spot, LIGHT_KIND.rect]
 const CASES = 12000
 /** The digest of every case's writes (`bitsDigest`). */
@@ -40,7 +46,6 @@ const GOLDEN = 'f2099b9fc8b11818a59a31544424c196e362b4793e2bf137462ec4cd38602e92
 const HELPERS = [
   ...['vsmStaleBoxPages', 'vsmTouchesMappedPage', 'vsmMarksMatch'],
   ...['vsmLevelHoldingRect', 'vsmClipRadius', 'vsmCachesAsStatic', 'vsmOffsetAllowed'],
-  'vsmSinglePageMap',
   'perspectiveDivide',
   'floorLog2',
 ]
@@ -106,7 +111,10 @@ function invalidationCase(k: number) {
     offsetBits: 0,
     offsetDisableSq: 0,
   }
-  return { pd, inst }
+  // A distant light's map (its record's flag, a local light's alone) is one page, its last mip; another light's finest mip may be the last too.
+  // Drawn from a stream of its own, so that every other value of the case keeps the draw it had.
+  const distant = pd.lightKind !== LIGHT_KIND_DIRECTIONAL && inputs(7 * 10 ** 5 + k).int(0, 7) === 0
+  return { pd: { ...pd, finestMip: distant ? 7 : pd.finestMip, distant }, inst }
 }
 
 const STALE_NAMES = [

@@ -3,7 +3,7 @@ import { CPU_STEP } from '../../diagnostic/stage/cpuStepTable.ts'
 import { gpuFrameCostSnapshot } from '../costAudit.ts'
 import type { HostCpuStep } from '../../session/host/cpuProfile.ts'
 import { debugMode } from '../../session/host/debugMode.ts'
-import { probesPerFrameOf } from '../../lighting/bounce/screen/settingsOf.ts'
+import { screenProbeSettingsOf } from '../../lighting/bounce/screen/settingsOf.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** Attaches the image's counters to the public per-stage profile, when it is mounted. */
@@ -27,8 +27,8 @@ function recordStages(rt: WebgpuPagesRuntime) {
       gpu: 'transfers go through the GPU queue, with no timestamped pass',
     })
   stages.setCounts('lightLists', { activeLights: lights.lightsActive })
-  // What bounce actually did: probes, never a duration. A still, converged scene encodes
-  // no pass, so the stage stays "unmeasured" and not zero.
+  // What bounce actually did: probes, never a duration. Every drawn image runs the pass; a held
+  // frame draws nothing, so the stage stays "unmeasured" and not zero.
   stages.setCounts('bounce', {
     probesUpdated: bounce.probesUpdated,
     cascadeProbes: bounce.probes?.cascades.probes ?? 0,
@@ -37,7 +37,7 @@ function recordStages(rt: WebgpuPagesRuntime) {
     liveProbes: bounce.probes?.stats.live ?? 0,
     unfilledProbes: bounce.probes?.stats.unfilled ?? 0,
     // The count a frame traces, the probes never traced first.
-    probesPerFrame: probesPerFrameOf(rt),
+    probesPerFrame: screenProbeSettingsOf(rt).cache.budget,
   })
   if (!bounce.probes)
     stages.setReason('bounce', {

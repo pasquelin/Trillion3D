@@ -12,10 +12,15 @@ import { spotConesOf } from '../../../../../sdk-core/src/scene/light/fields.ts'
 import { VSM_MAP_UNSEEN } from './constants.ts'
 import { createVsmFrameState } from './frameState.ts'
 import { vsmCacheKey } from './lightCache.ts'
-import { finishVirtualShadowFrame, planVirtualShadowFrame } from './frameSetup.ts'
+import {
+  commitVirtualShadowFrame,
+  finishVirtualShadowFrame,
+  markVirtualShadowRendered,
+  planVirtualShadowFrame,
+} from './frameSetup.ts'
 import { vsmLightSeen, vsmSeenPlanes } from './seenLights.ts'
 import { vsmLocalShadowGate, type VsmGateView } from './localGate.ts'
-import { VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
+import { VSM_DEFAULT_MAPS, VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
 
 const WIDTH = 1000,
   HEIGHT = 1000
@@ -35,10 +40,10 @@ const lamp = (position: [number, number, number], range: number): SceneLight => 
 })
 
 test('a lamp behind the eye is not seen; a sun always is', () => {
-  assert.equal(vsmLightSeen(lamp([0, 0, 20], 5), planes), false)
-  assert.equal(vsmLightSeen(lamp([0, 0, 2], 5), planes), true, 'its sphere holds the eye')
+  assert.equal(vsmLightSeen(lamp([0, 0, 20], 5), 0, planes), false)
+  assert.equal(vsmLightSeen(lamp([0, 0, 2], 5), 0, planes), true, 'its sphere holds the eye')
   const sun: SceneLight = { ...lamp([0, 0, 20], 1), kind: 'directional', direction: [0, -1, 0] }
-  assert.equal(vsmLightSeen(sun, planes), true)
+  assert.equal(vsmLightSeen(sun, 0, planes), true)
 })
 
 test('a sphere that touches the view one pixel wider is seen, one past it is not', () => {
@@ -46,14 +51,14 @@ test('a sphere that touches the view one pixel wider is seen, one past it is not
   // moves it by 10·(2/1000)/√2.
   const gap = 10 / Math.SQRT2,
     pixel = (10 * 0.002) / Math.SQRT2
-  assert.equal(vsmLightSeen(lamp([-20, 0, -10], gap + pixel / 2), planes), true, 'in the pixel')
-  assert.equal(vsmLightSeen(lamp([-20, 0, -10], gap + 2 * pixel), planes), true)
-  assert.equal(vsmLightSeen(lamp([-20, 0, -10], gap - 2 * pixel), planes), false)
+  assert.equal(vsmLightSeen(lamp([-20, 0, -10], gap + pixel / 2), 0, planes), true, 'in the pixel')
+  assert.equal(vsmLightSeen(lamp([-20, 0, -10], gap + 2 * pixel), 0, planes), true)
+  assert.equal(vsmLightSeen(lamp([-20, 0, -10], gap - 2 * pixel), 0, planes), false)
 })
 
 test('a lamp not visible takes no map and marks no page: its entry waits unreferenced', () => {
   const { device } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
-  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+  const res = createVsmResources(device, { coverMode: 'suns', fullMapCapacity: 63, poolPages: 256 })
   const state = createVsmFrameState(device, res)
   const camera = { view, projection, eye: [0, 0, 0], perspective: true }
   const viewport = { width: WIDTH, height: HEIGHT }
@@ -66,6 +71,8 @@ test('a lamp not visible takes no map and marks no page: its entry waits unrefer
       camera,
       viewport,
     )
+    commitVirtualShadowFrame(state, frame)
+    markVirtualShadowRendered(frame, frame.lights)
     finishVirtualShadowFrame(state, frame)
     return frame
   }
@@ -79,7 +86,7 @@ test('a lamp not visible takes no map and marks no page: its entry waits unrefer
     again = plan(true).lights
   assert.equal(again[1], held, 'the same record')
   assert.deepEqual([held.id, !!held.local, held.clipmap], ['behind', true, undefined])
-  const culled = plan(vsmLightSeen(behind, planes))
+  const culled = plan(vsmLightSeen(behind, 1, planes))
   assert.deepEqual(
     culled.lights.map((l) => l.id),
     ['lamp'],
@@ -95,7 +102,7 @@ test('a lamp not visible takes no map and marks no page: its entry waits unrefer
 
 test('a rectangle that casts takes the six faces of a point light’s cube, its rotation keying its cache', () => {
   const { device } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
-  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+  const res = createVsmResources(device, { coverMode: 'suns', fullMapCapacity: 63, poolPages: 256 })
   const state = createVsmFrameState(device, res)
   const camera = { view, projection, eye: [0, 0, 0], perspective: true }
   const viewport = { width: WIDTH, height: HEIGHT }
@@ -104,8 +111,13 @@ test('a rectangle that casts takes the six faces of a point light’s cube, its 
     ...{ id: 'panel', kind: 'rect', direction: [0, 0, 1], right: [1, 0, 0], size: [2, 1] },
   }
   const point = { ...lamp([0, 0, -10], 5), id: 'point' }
+  // Each plan is the next scene frame: a light is moving at the frame its pose changed at.
+  let scene = 0
   const plan = (light: SceneLight) => {
+    state.maps = { ...VSM_DEFAULT_MAPS, frame: scene++ }
     const frame = planVirtualShadowFrame(state, [{ light }, { light: point }], camera, viewport)
+    commitVirtualShadowFrame(state, frame)
+    markVirtualShadowRendered(frame, frame.lights)
     finishVirtualShadowFrame(state, frame)
     return frame.lights.find((l) => l.id === light.id)!
   }
@@ -237,7 +249,7 @@ test('a cap under the border of a spot’s map holds its shadow to nothing, it d
 
 test('a spot’s map is as wide as the outer cone the lighting lights it by, whatever its inner cone', () => {
   const { device } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
-  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+  const res = createVsmResources(device, { coverMode: 'suns', fullMapCapacity: 63, poolPages: 256 })
   const state = createVsmFrameState(device, res)
   const camera = { view, projection, eye: [0, 0, 0], perspective: true }
   const viewport = { width: WIDTH, height: HEIGHT }
@@ -250,6 +262,8 @@ test('a spot’s map is as wide as the outer cone the lighting lights it by, wha
         innerConeAngle,
       } as SceneLight
       const frame = planVirtualShadowFrame(state, [{ light: spot }], camera, viewport)
+      commitVirtualShadowFrame(state, frame)
+      markVirtualShadowRendered(frame, frame.lights)
       finishVirtualShadowFrame(state, frame)
       const scale = frame.lights[0].entry.mapCaches[0].projectionData.lightViewToClip[0]
       assert.equal(

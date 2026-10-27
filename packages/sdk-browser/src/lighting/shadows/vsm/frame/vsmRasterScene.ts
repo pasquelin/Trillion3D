@@ -9,7 +9,7 @@ import type { VsmRenderScene } from '../render/renderPass.ts'
 import type { EngineVsm } from './engineVsm.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { readRasterSetting } from '../../../../../../sdk-core/src/contracts/rasterOptions.ts'
-import { casterDrawDistance, farDropOf } from './vsmFarShadow.ts'
+import { casterDrawDistance } from './vsmFarShadow.ts'
 import { encodeCasterDecode, type CasterFeed } from '../../casters/casterFeed.ts'
 
 /** What the casters are drawn from (`WebgpuPagesRuntime.lights`, the camera's cut), every one
@@ -80,7 +80,7 @@ export function vsmRasterScene(
     world: castersWorld(rt, cut, tables),
     // The draw distances the objects name: an object out of its own casts nothing.
     drawDistance: casterDrawDistance(rt, cut),
-    ...rasterSettings(rt, plan),
+    ...rasterSettings(rt),
   }
 }
 
@@ -105,9 +105,9 @@ function castersWorld(
   }
 }
 
-/** What the raster reads of the settings: the software raster's edge, the suns' far-shadow test, the
- *  lights' view passes and the pyramid's build. */
-function rasterSettings(rt: WebgpuPagesRuntime, plan: NonNullable<EngineVsm['plan']>) {
+/** What the raster reads of the settings: the software raster's edge, the lights' view passes and the
+ *  pyramid's build. */
+function rasterSettings(rt: WebgpuPagesRuntime) {
   return {
     // The camera's rule picks each cluster's raster in each map's view: past this edge in the map's
     // pixels the hardware raster's, every
@@ -115,10 +115,6 @@ function rasterSettings(rt: WebgpuPagesRuntime, plan: NonNullable<EngineVsm['pla
     hardwareEdge: readRasterSetting(rt, 'softwareRaster')
       ? readRasterSetting(rt, 'hardwareRasterEdgePixels')
       : 0,
-    // The suns' far-shadow test: the world's merged shells, or every caster, and the distance past
-    // which no view of the frame takes a caster (`vsmFarShadowSkipped`).
-    farMeshes: readShadowSetting(rt, 'farShadowCullsAllMeshes'),
-    farDrop: farDropOf(plan.lights),
     // The lights whose views pass a pass's limit are drawn in several passes (`vsmViewPasses`).
     multipassViews: readShadowSetting(rt, 'shadowMultipassViews'),
     // The occlusion pyramid built over every held page, or over the pages drawn.

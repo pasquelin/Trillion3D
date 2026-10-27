@@ -129,6 +129,12 @@
 // packed, as the reference sets it): each record of a previous id that has a next one carries bit 1 more in its
 // flags word, which only the compute throttle's process kernel reads; the frames' first
 // digests, with no previous id, and every other buffer kept.
+// To retake when the sun's far-shadow test left the shadow raster (it reaches the subjects that are no
+// cluster geometry, none of which is a caster here): the render parameters lost the main view's depth row
+// (`viewRow2`), `farMeshes` and `farDrop`, three words no kernel reads any more, the candidate lost its
+// far depth, a pad, and the projection record its `farShadowEdge` word (the offsets from `wpoThreshold` on
+// moved up four bytes, the record's 400 bytes kept by the pad before `prevShiftedToClip`); the projection
+// buffers and `vsm.render.params` move, so the six digests are to be taken again from a run.
 import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'

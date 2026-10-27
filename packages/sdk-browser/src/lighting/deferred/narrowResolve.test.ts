@@ -92,8 +92,8 @@ test('the opaque resolve binds the ambient occlusion and applies it by the viewâ
     assert.match(
       code,
       bounce
-        ? /resolvedIndirect\(coord,albedo,base\.a,normal\.a,N,V,P,occlusion\.sky,occlusion\.both\)/
-        : /resolvedReflection\(coord,occlusion\.both,N,V,normal\.a\)/,
+        ? /resolvedIndirect\(coord,albedo,base\.a,normal\.a,N,V,P,occlusion\.sky,occlusion\.both,foliage\)/
+        : /resolvedReflection\(coord,base\.rgb,base\.a,occlusion\.both,N,V,normal\.a\)/,
       'the reflection the field answered goes under the occlusion, in either program',
     )
     assert.match(code, /emissive\.rgb\*occlusion\.emission/)

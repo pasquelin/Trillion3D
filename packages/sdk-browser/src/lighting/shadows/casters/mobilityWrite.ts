@@ -1,4 +1,4 @@
-import { arriveRank, rankBits, type MobilityState } from './mobilityState.ts'
+import { arriveRank, rankBits, returns, type MobilityState } from './mobilityState.ts'
 import { MOBILITY_SHADOWLESS, MOBILITY_WORLD_SPACE } from '../mobilityBits.ts'
 
 /** What the words are written from, by placement rank: how it casts (`castFlagsOf`), the square of
@@ -12,16 +12,16 @@ export interface RootWordSources {
 
 /**
  * Writes the words of the placements that need it — every placement once on a new layout, else the
- * ones `touch`ed since (they started or stopped moving, casting or casting far, were parked or
+ * ones `touch`ed since (they started or stopped moving or casting, were parked or
  * taken, turned static) — and hands each run of words that changed to `push`, as one span. A word
  * `touch`ed with nothing changed is not pushed. `castFlags` says how a placement casts:
  * `MOBILITY_SHADOWLESS` where it casts no shadow — `castShadow = false`, hidden or parked —, which
- * every caster pass skips, `MOBILITY_FAR_SHADOW` where it casts far shadows (`castFarShadow`), which
- * a sun's far-shadow test never leaves out, and the others of `castFlagsOf`. `disableSq` is written
+ * every caster pass skips, and the others of `castFlagsOf`. `disableSq` is written
  * beside the word, and `deformReach` the reach of the deformation; both are held as the
  * single-precision numbers the arrays store, so that a repeat compares equal and is not pushed again,
  * and a placement whose distance or reach changed is pushed too. A placement that arrives — new in
- * the layout, or casting after it cast nothing — and is often moving starts moving (`arriveRank`).
+ * the layout, or casting after it cast nothing or left the scene — and is often moving starts moving
+ * (`arriveRank`).
  */
 export function writeRootWords(
   s: MobilityState,
@@ -35,7 +35,8 @@ export function writeRootWords(
     s.worldSpace = 0
     for (let rank = 0; rank < placements; rank++) {
       const cast = castFlags(rank)
-      if (rank >= s.arrived) arriveRank(s, rank, cast)
+      if (rank >= s.arrived || returns(s, rank, s.words[rank], cast)) arriveRank(s, rank, cast)
+      if (!(cast & MOBILITY_SHADOWLESS)) s.left[rank] = 0
       s.words[rank] = rankBits(s, rank, cast)
       s.disable[rank] = disableSq(rank)
       s.reach[rank] = deformReach(rank)
@@ -53,7 +54,8 @@ export function writeRootWords(
     for (let rank = pairs[2 * run]; rank <= pairs[2 * run + 1]; rank++) {
       const cast = castFlags(rank),
         was = s.words[rank]
-      if (was & MOBILITY_SHADOWLESS && !(cast & MOBILITY_SHADOWLESS)) arriveRank(s, rank, cast)
+      if (returns(s, rank, was, cast)) arriveRank(s, rank, cast)
+      if (!(cast & MOBILITY_SHADOWLESS)) s.left[rank] = 0
       const word = rankBits(s, rank, cast),
         disable = Math.fround(disableSq(rank)),
         reach = Math.fround(deformReach(rank))

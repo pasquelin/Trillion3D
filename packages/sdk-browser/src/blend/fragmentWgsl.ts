@@ -12,6 +12,13 @@ import { DIAGNOSTIC_VIEWS } from '../visibility/shader/shadeMode.ts'
 import { DISPLAY_MASK_GROUP, DISPLAY_ROUTE_WGSL, displayMaskWgsl } from './display/displayFilter.ts'
 import type { CloudVertexText } from './cloudVertexText.ts'
 import { TRI_CHANNELS_SHIFT, WORDS } from './vertexReadsWgsl.ts'
+import {
+  stageImports,
+  stageLabel,
+  stageLobes,
+  stagePrologue,
+  type StageOptions,
+} from './stageOptions.ts'
 import { BLEND_LOBELESS_WGSL } from './physicalWgsl.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wireframeEdge } from '../../../math/src/wgsl/barycentric.ts'
@@ -27,7 +34,7 @@ import { modeIs } from '../materials/surface/materialBlending.ts'
 import { BLEND_PUSHED_DEPTH_WGSL } from './pushedDepthWgsl.ts'
 
 /** A blend layer's prologue and the lights it reads (`blendLayer`, `blendLightsSet`, `blendLights`). */
-const blendLayerText = (lobes: boolean, graphs: boolean, marks: boolean) => `${BLEND_DIAGNOSTIC}
+const blendLayerText = (o: StageOptions) => `${BLEND_DIAGNOSTIC}
 // A blend layer's surface, its stages' one prologue after their derivatives \`g\`: \`kept\` false for
 // a fragment the material rejects (\`blendKeeps\`), or a dashed line's gap (\`lineDash\`: its distance
 // along the line rides the first coordinate), which the stage discards before anything else is
@@ -38,21 +45,22 @@ fn blendLayer(in:VSOut,front:bool,g:BlendGrads)->BlendLayer{
  let base=blendBase(in,g);
  if(!blendKeeps(in,base,front)||!lineDash(in.uv.x,in.alphaAo.zw)){return l;}
  blendPhysicalBegin(in,g);
-${lobes && graphs ? ' blendGraphLobes(g.graph);\n' : ''} l.kept=true;
+${stageLobes(o) && o.graphs ? ' blendGraphLobes(g.graph);\n' : ''} l.kept=true;
  l.s=blendSurface(in,front,g,base);
  return l;
 }
 // The layer's surface model, thin back, merged coat, declared specular and lobes, set before any light, bounce or
 // reflection of it is read.
 fn blendLightsSet(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f){
- surfaceModel=modelFlag(in.ids.y);${marks ? `\n ${translucentMarksFrom('in.ids.y')}` : ''}
+ surfaceModel=modelFlag(in.ids.y);
+ ${stagePrologue(o, ' ')}${o.marks ? `\n ${translucentMarksFrom('in.ids.y')}` : ''}
  thinSubsurface=s.subsurface;
-${graphs ? ' surfaceSpecular=s.specular;\n' : ''}${lobes ? ' if(physicalOn&&blendLobeValues.specular>=0.0){surfaceSpecular=blendLobeValues.specular;}\n' : ''} blendLobes(in,front,g,s,V,s.rough);
+${o.graphs ? ' surfaceSpecular=s.specular;\n' : ''}${stageLobes(o) ? ' if(physicalOn&&blendLobeValues.specular>=0.0){surfaceSpecular=blendLobeValues.specular;}\n' : ''} blendLobes(in,front,g,s,V,s.rough);
 }
 // The layer's declared lights, each read for the pixel, its surface set first.
 fn blendLights(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f)->vec3f{
  blendLightsSet(in,front,g,s,V);
- return declaredLighting(s.rgb,s.metal,s.rough,s.N,V,in.view,s.ao,in.position.xy,in.position.z);
+ return declaredLighting(s.rgb,s.metal,s.rough,s.N,V,in.view,in.position.xy,in.position.z);
 }
 `
 
@@ -160,22 +168,18 @@ const blendEntriesText = (shade: CloudVertexText) => `${holdoutStageText(shade)}
 @fragment fn fsFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{${shade.entry}return blendFragment(in,front,maskAt(in.position));}
 `
 
-/** The fragment stage of the runs, its surface and lobes those of `lobes`, and its entry points; with
- *  `graphs`, the lobes and the specular of the items' graphs are set before it lights a fragment;
- *  `shade`, the words of the clouds per vertex (`cloudVertexText.ts`); with `volume`, the light of a
+/** The fragment stage of the runs, its surface, lobes, channel test and contact shadows those of its options
+ *  (`StageOptions`) and its entry points; with `graphs`, the lobes and the specular of the items' graphs are set before it
+ *  lights a fragment; `shade`, the words of the clouds per vertex (`cloudVertexText.ts`); with `volume`, the light of a
  *  surface whose material is lit from the translucency lighting volume is the volume's
  *  (`blendLightsOf`), and a medium has no reflection. */
-export const blendFragmentWgsl = (
-  lobes: boolean,
-  graphs: boolean,
-  shade: CloudVertexText,
-  marks: boolean,
-  volume: boolean,
-  depth: boolean,
-) =>
-  wgslBlock(
-    `blendFragmentWgsl(${lobes}${graphs ? ', graphs' : ''}${shade.key}${marks ? ', surface shadow marks' : ''}${volume ? ', translucency volume' : ''}${depth ? ', pushed depth' : ''})`,
+export const blendFragmentWgsl = (o: StageOptions & { readonly volume: boolean }) => {
+  const { graphs, shade, depth, volume } = o,
+    lobes = stageLobes(o)
+  return wgslBlock(
+    `blendFragmentWgsl(${stageLabel(o)}${volume ? ', translucency volume' : ''})`,
     [
+      ...stageImports(o),
       COVERED,
       marked(depth),
       ...(depth ? [BLEND_PUSHED_DEPTH_WGSL] : []),
@@ -197,8 +201,9 @@ export const blendFragmentWgsl = (
       wireframeEdge,
       DIAGNOSTIC_PALETTE_WGSL,
     ],
-    `${blendLayerText(lobes, graphs, marks)}${blendLightsOfText(volume)}${blendFragmentBodyText(volume, graphs, shade)}${blendEntriesText(shade)}${coverageStageText('Blend', 'blendLayer', shade)}${responsiveStageText('Blend', 'blendLayer', 'layer.s.alpha', false, shade, depth)}`,
+    `${blendLayerText(o)}${blendLightsOfText(volume)}${blendFragmentBodyText(volume, graphs, shade)}${blendEntriesText(shade)}${coverageStageText('Blend', 'blendLayer', shade)}${responsiveStageText('Blend', 'blendLayer', 'layer.s.alpha', false, shade, depth)}`,
   )
+}
 
 /** A diagnostic view's colour (`FLAG_DIAGNOSTIC_VIEW`), the view's code beside it
  *  (`blendDiagnosticCode`), in place of the lit surface: the wireframe's edges, every other view's

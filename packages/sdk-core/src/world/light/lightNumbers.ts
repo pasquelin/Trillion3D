@@ -6,6 +6,7 @@ import {
   DEFAULT_TEMPERATURE_KELVIN,
   defaultIntensityOf,
 } from '../../scene/light/fields.ts'
+import { LOCAL_NUMBERS } from '../../scene/light/validateLamp.ts'
 import { resolveSetting, resolveSettings, type SettingRules } from '../../contracts/settingRules.ts'
 import { listen, type Observed } from '../observed.ts'
 import type { Light } from './light.ts'
@@ -24,6 +25,7 @@ export const NUMBERS = [
   'tubeLength',
   'softRadius',
   'angularRadius',
+  'softAngle',
   'fogScattering',
   'shadowResolutionScale',
   'temperatureKelvin',
@@ -31,6 +33,7 @@ export const NUMBERS = [
   'radialExponent',
   'diffuseShare',
   'specularShare',
+  ...LOCAL_NUMBERS,
 ] as const
 export type LightNumber = (typeof NUMBERS)[number]
 
@@ -65,29 +68,41 @@ function initialIntensity(kind: string, p: LightParameters) {
   })
 }
 
+/** The default of each number a light starts with but its intensity, whatever the parameters name: how far it reaches and the cone of a
+ *  spot, the shape of its source (a sun's angular radius the setting's, the other kinds' 0), and how it is lit, shadowed and
+ *  weighed. The one table of them; a number of `LightNumber` left out of it is refused by the type. */
+const NUMBER_DEFAULTS: Record<Exclude<LightNumber, 'intensity'>, (kind: string) => number> = {
+  distance: () => 0,
+  decay: () => 2,
+  innerConeAngle: () => DEFAULT_INNER_CONE_ANGLE,
+  outerConeAngle: () => DEFAULT_OUTER_CONE_ANGLE,
+  width: () => RECT_SIDE,
+  height: () => RECT_SIDE,
+  radius: () => 0,
+  tubeLength: () => 0,
+  softRadius: () => 0,
+  angularRadius: (kind) => (kind === 'directional' ? LIGHT_SETTINGS.sunAngularRadius : 0),
+  softAngle: () => 0,
+  fogScattering: () => 1,
+  shadowResolutionScale: () => 1,
+  temperatureKelvin: () => DEFAULT_TEMPERATURE_KELVIN,
+  forwardShadingPriority: () => 0,
+  radialExponent: () => LIGHT_SETTINGS.radialExponent,
+  diffuseShare: () => 1,
+  specularShare: () => 1,
+  inverseExposureBlend: () => 0,
+  maxDrawDistance: () => 0,
+}
+
 /** The numbers a light of `kind` starts with: the parameters' or the defaults. */
 export function initialNumbers(kind: string, p: LightParameters): Record<LightNumber, number> {
-  return {
-    intensity: p.intensity ?? initialIntensity(kind, p),
-    distance: p.distance ?? 0,
-    decay: p.decay ?? 2,
-    innerConeAngle: p.innerConeAngle ?? DEFAULT_INNER_CONE_ANGLE,
-    outerConeAngle: p.outerConeAngle ?? DEFAULT_OUTER_CONE_ANGLE,
-    width: p.width ?? RECT_SIDE,
-    height: p.height ?? RECT_SIDE,
-    radius: p.radius ?? 0,
-    tubeLength: p.tubeLength ?? 0,
-    softRadius: p.softRadius ?? 0,
-    angularRadius:
-      p.angularRadius ?? (kind === 'directional' ? LIGHT_SETTINGS.sunAngularRadius : 0),
-    fogScattering: p.fogScattering ?? 1,
-    shadowResolutionScale: p.shadowResolutionScale ?? 1,
-    temperatureKelvin: p.temperatureKelvin ?? DEFAULT_TEMPERATURE_KELVIN,
-    forwardShadingPriority: p.forwardShadingPriority ?? 0,
-    radialExponent: p.radialExponent ?? LIGHT_SETTINGS.radialExponent,
-    diffuseShare: p.diffuseShare ?? 1,
-    specularShare: p.specularShare ?? 1,
-  }
+  const numbers = { intensity: p.intensity ?? initialIntensity(kind, p) } as Record<
+    LightNumber,
+    number
+  >
+  for (const name of Object.keys(NUMBER_DEFAULTS) as (keyof typeof NUMBER_DEFAULTS)[])
+    numbers[name] = p[name] ?? NUMBER_DEFAULTS[name](kind)
+  return numbers
 }
 
 /** A write to one of `light`'s settings: noted on the light, and told to the world. */

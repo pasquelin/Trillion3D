@@ -3,7 +3,6 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Ajv } from 'ajv'
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
-import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 import { explorerSwitch, type ExplorerSwitch } from '../runtime/explorerSwitches.ts'
 import { EXPLORER_SWITCH_NAMES } from '../runtime/explorerSwitches.fixture.ts'
 import {
@@ -38,10 +37,12 @@ import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
+import { AMBIENT_CUBEMAP_RULES } from '../contracts/ambientCubemapOptions.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
 import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
 import { SKY_QUALITY_RULES } from '../modules/sky/quality.ts'
+import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
 
 const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
 const explorer = { manifestUrl: '/assets/model/manifest.json' }
@@ -58,7 +59,6 @@ test('explorer arguments accept a complete host request and keep host extensions
       temporalAntialiasing: false,
       pixelError: 1.5,
       bounce: true,
-      bounceProbesPerFrame: 50,
       importedLights: false,
       preload: 'all',
       stageProfile: true,
@@ -93,9 +93,6 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
     { maxTextureUploadMsPerFrame: 17 },
     { pixelError: -1 },
     { pixelError: 'pixels' },
-    { bounceProbesPerFrame: 0 },
-    { bounceProbesPerFrame: 1.5 },
-    { bounceProbesPerFrame: BOUNCE_PROBE_QUEUE + 1 },
     { replicaCount: 2 },
     { replicaCount: '4' },
     { clearColor: 0.5 },
@@ -109,7 +106,6 @@ test('an explorer request naming only its manifest is completed with the engine 
   assert.equal(request.geometryPoolBytes, DEFAULT_GEOMETRY_POOL_BUDGET)
   assert.equal(request.texturePoolBytes, DEFAULT_TEXTURE_POOL_BUDGET)
   assert.equal(request.maxTextureUploadMsPerFrame, DEFAULT_TEXTURE_UPLOAD_MS)
-  assert.equal(request.bounceProbesPerFrame, BOUNCE_SETTINGS.probesPerFrame)
   for (const [key, property] of Object.entries(EXPLORER_OPTIONS_SCHEMA.properties)) {
     if (property.default === undefined) continue
     assert.notEqual(request[key], undefined, key)
@@ -144,10 +140,12 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...TRANSLUCENCY_GI_RULES,
     ...SUBSURFACE_SCATTERING_RULES,
     ...SINGLE_LAYER_WATER_RULES,
+    ...HAIR_STRANDS_RULES,
     ...SCREEN_PROBE_RULES,
     ...REFLECTION_RULES,
     ...SURFACE_CACHE_RULES,
     ...AMBIENT_OCCLUSION_RULES,
+    ...AMBIENT_CUBEMAP_RULES,
     ...TESSELLATION_RULES,
     ...DEPTH_OF_FIELD_RULES,
     ...EXPOSURE_RULES,

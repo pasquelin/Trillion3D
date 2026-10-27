@@ -111,6 +111,8 @@ export type SurfaceDeclaration = {
   readonly cloudFog?: boolean
   /** True works the fog of a blended surface out for each pixel, not each vertex (`VisMaterial.computeFogPerPixel`). */
   readonly computeFogPerPixel?: boolean
+  /** True lets the lights cast contact shadows on a blended surface (`VisMaterial.contactShadows`). */
+  readonly contactShadows?: boolean
   /** How a blended surface reads the shadow of the lights that reach it, beyond the project's
    *  switches (`VisMaterial.translucentLocalLightShadow` and the two after it). */
   readonly translucentLocalLightShadow?: boolean

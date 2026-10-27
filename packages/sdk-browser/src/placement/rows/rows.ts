@@ -38,8 +38,9 @@ export type PlacementRows = {
   /** 1 where the row places the resource, 0 where it is parked. */
   readonly live: Uint8Array
   /** Per row, how its mesh casts (`nodeCasting`): `SHADOWLESS_ROOT` where it casts no shadow (its
-   *  `castShadow` is `false`), `FAR_SHADOW_ROOT` where it casts far ones, and its other casting
-   *  bits (up to `MARK_BITS.immovable`), 0 where it casts alone. */
+   *  `castShadow` is `false`), `SHADOW_MAPLESS_ROOT` where only the shadow maps leave it out
+   *  (`castsShadowMaps` is `false`), and its other
+   *  casting bits (up to `MARK_BITS.shadowMapless`), 0 where it casts alone. */
   readonly casting: Uint16Array
   /** Rows that fit before it grows. */
   readonly capacity: number

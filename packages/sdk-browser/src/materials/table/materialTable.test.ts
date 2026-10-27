@@ -4,7 +4,7 @@ import { setFlagsFromString } from 'node:v8'
 import { runInNewContext } from 'node:vm'
 import { createMaterialTable, materialWord } from './materialTable.ts'
 import { F, layers, lit, sentWords } from './materialTable.fixture.ts'
-import { MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
+import { MATERIAL_FLAG, MATERIAL_RECORD_TEXELS, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 import { LOBE_RECORD_TEXELS } from './lobeRecord.ts'
 import { ROUGHNESS_FLOOR } from '../../lighting/shaderConstants.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
@@ -107,6 +107,28 @@ test('a record holds how its surface reads the shadows of the lights, a mark eac
       translucentDirectionalLightShadowQuality: 1,
     }),
     local | localTrace | directionalTrace,
+  )
+})
+
+test("a record holds, in its flags, whether the lights cast contact shadows on its surface, never a water's", () => {
+  const { device, textureWrites } = fakeDevice()
+  const table = createMaterialTable()
+  const l = layers()
+  const asked = (declared: object) => {
+    const { rank } = table.surface({ ...lit(), ...declared }, l)
+    table.viewFor(device)
+    return (
+      sentWords(textureWrites)[rank * MATERIAL_RECORD_WORDS + F.flags] &
+      MATERIAL_FLAG.contactShadows
+    )
+  }
+  assert.equal(asked({}), 0, 'a surface that asks nothing')
+  assert.equal(asked({ contactShadows: false }), 0)
+  assert.equal(asked({ contactShadows: true }), MATERIAL_FLAG.contactShadows)
+  assert.equal(
+    asked({ contactShadows: true, water: true }),
+    0,
+    'the reference’s water is no translucent blend mode',
   )
 })
 

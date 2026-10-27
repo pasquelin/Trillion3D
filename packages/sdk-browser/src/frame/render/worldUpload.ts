@@ -98,6 +98,7 @@ function followFlips(
     },
     flipWorld(rt),
     flipped && !reshaped ? underFlipped(rt, flipped) : undefined,
+    rt.layout.viewHidden,
   )
 }
 

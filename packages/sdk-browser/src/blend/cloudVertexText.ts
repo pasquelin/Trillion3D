@@ -9,7 +9,8 @@ import {
 import { cloudFogReadWgsl } from '../modules/sky/clouds/translucentRead.ts'
 import { blendLit } from './shaderSurface.ts'
 import { allocateExtras, extraRead, extraWrite } from './vertexExtras.ts'
-import { TRI_FOG_PIXEL_SHIFT, WORDS } from './vertexReadsWgsl.ts'
+import { MATERIAL_FLAG } from '../materials/table/materialLayout.ts'
+import { materialFlagOf } from './vertexReadsWgsl.ts'
 
 /**
  * WHAT THE BLEND STAGES WRITE AND READ PER VERTEX: the fog of the blended surfaces, and, for a program that
@@ -29,7 +30,7 @@ import { TRI_FOG_PIXEL_SHIFT, WORDS } from './vertexReadsWgsl.ts'
  *   vertex (`cloudShadeAt`, `../lighting/atmosphere/cloudShadowRead.ts`), worked out for a lit surface alone, which the
  *   fragment stage gives to that light alone (`cloudShadeVertex`); the cloud layer is `cloudFogOver`,
  *   `../modules/sky/clouds/translucentRead.ts`.
- * Which of the two fogs a surface takes travels in the triangle word (`TRI_FOG_PIXEL_SHIFT`). A feature that is off
+ * Which of the two fogs a surface takes is read in the fragment from its material record (`materialFlagOf`). A feature that is off
  * gives its neutral value (the shade 1, the layer `(0, 0, 0, 1)`: the stand-in bound in its place,
  * `cloudVertex.ts`), so one program serves both. The vertex stage's output holds thirteen locations in a
  * program that reads neither, fourteen with the fog per vertex alone (one extra), fifteen with the clouds (two extras), and the front-face flag
@@ -91,13 +92,13 @@ fn cloudFogged(rgb:vec3f,v:VSOut)->vec3f{
 
 /** The fog a blended fragment is seen through, whole (`blendFog`): the one place a fragment, the alpha holdout and
  *  the thin layers take it from, so that all see the same fog, worked out once. From what its vertices gave it where
- *  the material's fog is per vertex (`fogVertexed`, from the triangle word), with the fog's volume over it, read for the
+ *  the material's fog is per vertex (`fogVertexed`, from the material record), with the fog's volume over it, read for the
  *  pixel; the whole fog worked out for the pixel otherwise. */
 const FOG_VERTEX_FRAGMENT = (layer: string) =>
   wgslBlock(
     'FOG_VERTEX_FRAGMENT',
     [],
-    `fn fogVertexed(in:VSOut)->bool{return ((in.${WORDS.tri}>>${TRI_FOG_PIXEL_SHIFT}u)&1u)==0u;}
+    `fn fogVertexed(in:VSOut)->bool{return !(${materialFlagOf('fogPerPixel')});}
 fn blendFog(in:VSOut)->vec4f{
  if(!fogVertexed(in)){return fogOver(in.view,uni.eye.xyz,in.position.xy);}
  return fogVolumeOver(${layer},in.view,uni.eye.xyz);
@@ -117,10 +118,10 @@ fn blendFog(in:VSOut)->vec4f{return fogOver(in.view,uni.eye.xyz,in.position.xy);
  *  and the program reads them. */
 const layerLanes = (fog: boolean, clouds: boolean) => {
   const lay = `if(!(${fogFreeModel('m.model')})){
-  ${fog ? `if(m.fogPerPixel==0u){fogLayer=fogStack(fogLocalVertex(out.view,uni.eye.xyz),fogLaidFar(out.view,uni.eye.xyz,true));}\n  ` : ''}${clouds ? `if(${cloudFogModel('m.model')}){fogLayer=fogStack(cloudFogOver(out.position,out.view,uni.eye.xyz),fogLayer);}\n  ` : ''}}`
+  ${fog ? `if((m.flags&${MATERIAL_FLAG.fogPerPixel}u)==0u){fogLayer=fogStack(fogLocalVertex(out.view,uni.eye.xyz),fogLaidFar(out.view,uni.eye.xyz,true));}\n  ` : ''}${clouds ? `if(${cloudFogModel('m.model')}){fogLayer=fogStack(cloudFogOver(out.position,out.view,uni.eye.xyz),fogLayer);}\n  ` : ''}}`
   return `var fogLayer=vec4f(0.0,0.0,0.0,1.0);
  ${lay}
- ${fog ? `out.${WORDS.tri}|=m.fogPerPixel<<${TRI_FOG_PIXEL_SHIFT}u;\n ` : ''}`
+ `
 }
 
 /** Whether the material of `flags` takes the cloud layer over a fog the fragment lays itself. */

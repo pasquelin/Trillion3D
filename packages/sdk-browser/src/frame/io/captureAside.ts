@@ -4,12 +4,20 @@ import { frameTargetsAwaited, grantFrameTargets } from '../prepare/targetGrant.t
 import { poolFundingPending } from '../prepare/targetFunding.ts'
 import { deviceAnswer } from '../loop/deviceAnswer.ts'
 import { grantPending } from '../../gpu/core/errorScope.ts'
-import { createWebgpuView, viewGpu, type WebgpuView } from '../backend/state/view.ts'
-import { heldTargetGrant } from '../backend/state/gpu.ts'
+import { releaseViewNow } from './metrics.ts'
+import {
+  breakHeldFrame,
+  createWebgpuView,
+  viewGpu,
+  type WebgpuView,
+} from '../backend/state/view.ts'
+import { heldTargetGrant, taaWanted } from '../backend/state/gpu.ts'
 import { NO_OVERRIDES, type ViewOverrides } from '../backend/state/viewOverrides.ts'
-import { releaseWebgpuView, useWebgpuView } from '../backend/state/viewSwitch.ts'
+import { useWebgpuView } from '../backend/state/viewSwitch.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { fetchHostPages } from './hostPages.ts'
+import { rigViewTemporal, setWebgpuTemporalAntialiasing } from '../../post/taa/prepare.ts'
+import { readCutSetting } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 
 /** Targets asked of the device, or pools funded again beside them, while a capture draws:
  *  it waits for them and draws again, never reading pages a funding moved. */
@@ -27,6 +35,15 @@ export function assertCaptureReady(rt: WebgpuPagesRuntime, unavailable = 'CAPTUR
   if (run.lost || !device || !main) throw new Error(unavailable)
   return { device, main }
 }
+
+/** The fewest images a capture draws with its temporal pass on for every one of them, the last
+ *  included. */
+const ACCUMULATING_IMAGES = 4
+
+/** The images a capture draws of its view, the last of which it reads (`cutViewCaptureDelay`): at
+ *  least one. */
+export const captureImages = (rt: WebgpuPagesRuntime) =>
+  Math.max(readCutSetting(rt, 'cutViewCaptureDelay'), 1)
 
 /**
  * Runs `work` in a view of its own at `width × height`, once the device has answered for what the
@@ -46,7 +63,8 @@ export async function captureAside<T>(
   // draw (`../../lighting/shadows/vsm/frame/vsmEncode.ts`), and the capture waits for them to settle
   // (`shadowsUnsettled`).
   capture.capturing = true
-  const view = createWebgpuView(size.width, size.height, undefined, false, overrides)
+  // A view of its own identity: its suns' clipmaps and per-view shadow entries are the capture's, never the main view's.
+  const view = createWebgpuView(size.width, size.height, undefined, true, overrides)
   let drawn = false
   try {
     await deviceAnswer(rt)
@@ -68,6 +86,42 @@ export async function captureAside<T>(
       capture.capturing = false
     }
   }
+}
+
+/**
+ * Gives the capture's view, the drawn one, a temporal pass of its own at the main view's level,
+ * where the main view has one running, for a capture of `images` images, and its next image is drawn
+ * again with it: the image that finds the cut whole (`drawResidentCut`'s `settled`) is the first of
+ * the capture's, the ones before it, which only settle the cut, are drawn without the pass. A
+ * capture of one image draws that image without it. The history is the capture's images and nothing
+ * else's; the view's release takes the pass and the history away (`releaseWebgpuView`).
+ */
+export async function startCaptureAccumulation(rt: WebgpuPagesRuntime, images: number) {
+  const main = viewGpu(rt, rt.views.main),
+    view = rt.views.active
+  if (images < 2 || !main.temporal || !taaWanted(main)) return
+  rt.gpu.temporalLevel = main.temporalLevel
+  if (await rigViewTemporal(rt, view, rt.gpu.device, true)) breakHeldFrame(rt, view)
+}
+
+/**
+ * Draws the images of a capture after its first, the one `drawResidentCut` drew of the whole cut,
+ * `draw` each: `images − 1` of them, the last the capture's. The camera, the scene and the cut
+ * stand, so the images differ by their jitter alone, which the history accumulates. `draw` is told
+ * whether its image keeps the pass: every one does from four images; under four the last is drawn
+ * without it, as the temporal antialiasing is off for the image that is read.
+ */
+export async function drawCaptureImages(
+  images: number,
+  draw: (accumulates: boolean) => Promise<void>,
+) {
+  for (let image = 1; image < images; image++)
+    await draw(images >= ACCUMULATING_IMAGES || image < images - 1)
+}
+
+/** Turns the capture view's temporal pass off for its next image (`drawCaptureImages`' `draw`). */
+export function stopCaptureAccumulation(rt: WebgpuPagesRuntime) {
+  setWebgpuTemporalAntialiasing(rt, 'off', rt.views.active)
 }
 
 /** Renders through the backend while a capture holds it, which `render` otherwise refuses, into
@@ -122,13 +176,18 @@ function captureSettled(rt: WebgpuPagesRuntime) {
  * view drew (`../../geometry/dag/aside.ts`), adopts it — its requests join the queue, ranked first
  * under the one budget (#268) —, waits for the queue and for the host's bytes of the pages it
  * stopped on (`fetchHostPages`), and draws again: the GPU cut then draws the pages that landed. The hooks let a capture refuse a cut the budget or the host has dropped,
- * before any draw.
+ * before any draw, and prepare for the image that draws the whole cut (`settled`).
  */
 export async function drawResidentCut(
   rt: WebgpuPagesRuntime,
   camera: ViewCamera,
   aspect: number,
-  hooks: { admitted?: () => void; beforeEncode?: () => void } = {},
+  hooks: {
+    admitted?: () => void
+    beforeEncode?: () => void
+    /** Awaited once the cut is whole, before the image that draws it. */
+    settled?: () => Promise<void>
+  } = {},
 ) {
   const { run, services } = rt
   for (let round = 0; ; round++) {
@@ -145,6 +204,7 @@ export async function drawResidentCut(
     const settled = captureSettled(rt)
     if (!settled && round + 1 >= CAPTURE_ROUNDS) throw new Error('SURFACE_GPU_COVERAGE_INCOMPLETE')
     hooks.beforeEncode?.()
+    if (settled) await hooks.settled?.()
     await renderForCapture(rt, camera, aspect)
     if (settled) return
   }
@@ -157,6 +217,6 @@ export async function releaseSettledCapture(rt: WebgpuPagesRuntime, view: Webgpu
     await grantPending(heldTargetGrant(viewGpu(rt, view)))
     await poolFundingPending(rt)
   } finally {
-    releaseWebgpuView(rt, view)
+    releaseViewNow(rt, view)
   }
 }

@@ -172,6 +172,18 @@ test('a material receives the clouds in its fog only where it asks', () => {
   assert.equal(heard, 1, 'a write is a change its wearers hear')
 })
 
+test('a material has the lights cast contact shadows on it only where it asks', () => {
+  const plain = new Material('meshStandard', { transparent: true })
+  assert.equal(plain.contactShadows, false, 'off by default')
+  const asking = new Material('meshStandard', { transparent: true, contactShadows: true })
+  assert.equal(asking.contactShadows, true)
+  assert.equal(asking.clone().contactShadows, true, 'a clone keeps it')
+  let heard = 0
+  plain._listeners.subscribe(() => heard++)
+  plain.contactShadows = true
+  assert.equal(heard, 1, 'a write is a change its wearers hear')
+})
+
 test('a material reads the shadows of the lights as the project does, until it asks for more', () => {
   const plain = new Material('meshStandard')
   assert.deepEqual(

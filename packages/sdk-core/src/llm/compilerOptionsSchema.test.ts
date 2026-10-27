@@ -1,11 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { Ajv } from 'ajv'
-import {
-  MESH_BUILD_RULES,
-  OBJECT_SETTINGS,
-  PARTITION_GRID_NAME_KEY,
-} from '../contracts/compilerAbi.ts'
+import { MESH_BUILD_RULES, PARTITION_GRID_NAME_KEY } from '../contracts/compilerAbi.ts'
 import { lightmapBakeJob } from '../contracts/lightmapBakeOptions.ts'
 import { resolveMeshBuild } from '../contracts/meshBuildOptions.ts'
 import { resolveObjectSettings } from '../contracts/objectOptions.ts'
@@ -174,24 +170,6 @@ test('objectSettings names the distances an object is drawn at, for the scene an
   for (const drawDistance of refused)
     assert.equal(validate({ ...job, objectSettings: { drawDistance } }), false)
   assert.equal(resolveObjectSettings(objectSettings)?.drawDistance !== undefined, true)
-})
-
-test('objectSettings names whether an object casts far shadows, for the scene and by object, written as the compiler reads it', () => {
-  const objectSettings = {
-    castFarShadow: false,
-    objects: [{ match: 'Tower', castFarShadow: true }, { match: 'Lamp' }],
-  }
-  assert.equal(validate({ ...job, objectSettings }), true)
-  assert.equal(validate({ ...job, objectSettings: { castFarShadow: 'yes' } }), false)
-  assert.deepEqual(resolveObjectSettings(objectSettings), {
-    castFarShadow: false,
-    objects: [{ match: { node: 'Tower' }, castFarShadow: true }, { match: { node: 'Lamp' } }],
-  })
-  assert.throws(
-    () => resolveObjectSettings({ castFarShadow: 1 } as never),
-    /castFarShadow must be true or false, got 1/,
-  )
-  assert.ok((OBJECT_SETTINGS as readonly string[]).includes('castFarShadow'))
 })
 
 test('the streaming grids a job names are advertised entry by entry, with the settings of partitionGrid', () => {

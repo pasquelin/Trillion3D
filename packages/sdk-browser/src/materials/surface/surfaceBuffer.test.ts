@@ -11,7 +11,19 @@ import {
 } from './surfaceBuffer.ts'
 import { createSurfaceBuffer } from './surfaceAllocation.ts'
 import { MODEL_SHIFT, SURFACE_MODEL, modelFlag } from './surfaceModelWord.ts'
-import { EMISSIVE_AO_SURFACE_FLAG, HOLDOUT_SURFACE_FLAG } from './surfaceModel.ts'
+import {
+  EMISSIVE_AO_SURFACE_FLAG,
+  FIRST_PERSON_SURFACE_FLAG,
+  HOLDOUT_SURFACE_FLAG,
+  NO_CONTACT_SHADOW_SURFACE_FLAG,
+} from './surfaceModel.ts'
+import {
+  PLACEMENT_CHANNELS_SHIFT,
+  PLACEMENT_EVALUATE,
+  PLACEMENT_FIRST_PERSON,
+  PLACEMENT_HOLDOUT,
+  PLACEMENT_NO_CONTACT_SHADOW,
+} from '../../geometry/dag/info/placementInfoLayout.ts'
 import { shaderRun } from '../texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { SHADE_SHADER } from '../../visibility/shader/shadeWgsl.ts'
@@ -134,4 +146,30 @@ test('every flag the resolve writes fits the flags word unchanged, in eight bits
     const low = value & ~HOLDOUT_SURFACE_FLAG
     assert.equal(Uint8Array.of(low)[0], low, `${value} in eight bits, the holdout mark apart`)
   }
+})
+
+test('a surface wears the marks of its object in its flags: first person, lets the contact shadow rays through, its lighting channels', () => {
+  const { withPageMarks } = shaderRun<{
+    withPageMarks: (out: { flags: number }, marks: number) => { flags: number }
+  }>(SHADE_SHADER, ['withPageMarks'], {})
+  const lit = 2
+  const flagsOf = (marks: number) => withPageMarks({ flags: lit }, marks).flags
+  assert.equal(flagsOf(0), lit, 'no mark, no bit')
+  assert.equal(flagsOf(PLACEMENT_FIRST_PERSON), lit | FIRST_PERSON_SURFACE_FLAG)
+  assert.equal(flagsOf(PLACEMENT_NO_CONTACT_SHADOW), lit | NO_CONTACT_SHADOW_SURFACE_FLAG)
+  assert.equal(
+    flagsOf(1 << PLACEMENT_CHANNELS_SHIFT),
+    lit | (NO_CONTACT_SHADOW_SURFACE_FLAG << 1),
+    'the channels move to their place in the flags, above the contact shadow’s bit',
+  )
+  assert.equal(
+    flagsOf(PLACEMENT_HOLDOUT | PLACEMENT_EVALUATE),
+    lit,
+    'the switches that are no page marks add nothing',
+  )
+  assert.equal(
+    withPageMarks({ flags: 0 }, PLACEMENT_FIRST_PERSON | PLACEMENT_NO_CONTACT_SHADOW).flags,
+    0,
+    'an empty surface, nothing drawn, wears none',
+  )
 })

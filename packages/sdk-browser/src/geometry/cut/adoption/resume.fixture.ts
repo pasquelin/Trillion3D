@@ -12,6 +12,7 @@ import { createWebgpuBudgetState } from '../../residency/budgetState.ts'
 import type { GpuCut, GpuSelection, PageResidency } from '../../../gpu/core/selection.ts'
 import type { PageRec } from '../../selection/types.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
+import { createViewHidden } from '../../../frame/render/viewHidden.ts'
 
 const VIEWPORT: [number, number] = [512, 512]
 
@@ -135,7 +136,12 @@ export function banc(panne?: 'envoi') {
     lights: {},
     // No texture streams: the residency stream pumps no tile; no displaced surface.
     vis: { materialTable: { displaced: { count: 0 } }, presentClasses: createPresentClasses() },
-    layout: { clusters, selectionRoots: [] },
+    layout: {
+      clusters,
+      selectionRoots: [],
+      rootIndex: { revision: 0 },
+      viewHidden: createViewHidden(),
+    },
     setup: { viewport: VIEWPORT, slots: 10 },
     timing: { marks: {} },
     services: {

@@ -13,6 +13,7 @@ import { blendShader } from './shader.ts'
 import { blendFrontShader } from './frontStageWgsl.ts'
 import { FLAG_UNLIT_VIEW } from '../visibility/types.ts'
 import { FACING_SHIFT } from './facing.ts'
+import { NO_SHADING_MODEL } from '../lighting/direct/shadingModelScope.fixture.ts'
 
 const DERIVATIVE = /\b(?:dpdx|dpdy|fwidth)(?:Fine|Coarse)?\(|\btextureSample(?:Bias|Compare)?\(/
 // The first test a stage returns at: the material's coverage (\`blendKeeps\`, through the layer's
@@ -109,9 +110,7 @@ function runBlendFragment(alpha: number, flags: number, facing = 0, dash = [0, 0
     diagnosticHlod: () => [0, 0, 0],
     uni: { camPos: [0, 0, 5, 1], viewport: [64, 64], eye: [0, 0, 5], preExposure: 1 },
     surfaceModel: 0,
-    pixelModel: 0,
-    sphereNoNewton: false,
-    clearCoatBottom: false,
+    ...NO_SHADING_MODEL,
     thinSubsurface: [0, 0, 0],
   }
   // `discard` demotes and goes on: counted, it runs as a helper would. The program of a scene

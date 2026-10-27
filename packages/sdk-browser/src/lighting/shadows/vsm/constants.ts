@@ -63,6 +63,10 @@ export const VSM_MAP_COARSE_KEEPS_DYNAMIC = 1 << 4
 /** A map of a sun's first-person clipmap: only the objects that stand for a first-person one are drawn
  *  into it, and the regular maps leave them out. */
 export const VSM_MAP_FIRST_PERSON = 1 << 5
+/** A local light's map of one page, its last mip alone: the light is distant (`vsmDistantOf`: the
+ *  distant mode asks it, or asks it of the lights whose finest mip is the last). Bit 6 is the
+ *  prefiltered distant shadow's (`VSM_MAP_PREFILTERED_DISTANT`). */
+export const VSM_MAP_DISTANT = 1 << 7
 
 // The page counters the engine reads back (`engineVsm.ts` readVsmStats), one word each, in a row.
 export const VSM_COUNT_WANTED = 0
@@ -70,26 +74,35 @@ export const VSM_COUNT_STATIC_KEPT = 1
 export const VSM_COUNT_DYNAMIC_KEPT = 2
 export const VSM_COUNT_CLEARED = 3
 export const VSM_COUNT_GRANTED = 4
-export const VSM_COUNTERS = 5
-/** The word after the counters that holds the frame's overflow flags (`VSM_OVERFLOW_*`): written
- *  whatever the counters say, and read back every frame. */
-export const VSM_OVERFLOW_FLAGS = 5
+/** Pool pages left with no word, free for the next grant. */
+export const VSM_COUNT_EMPTY_PAGES = 5
+/** Held pages that an offset is allowed on, cached whole: not drawn, but their dynamic layer is
+ *  considered by the raster's cull. */
+export const VSM_COUNT_WPO_CONSIDERED = 6
+/** The counters of the stats buffer, which the word after them follows: the frame's overflow flags
+ *  (`VSM_OVERFLOW_*`), written whatever the counters say and read back every frame. A shader names
+ *  that word `VSM_OVERFLOW_FLAGS` (`overflowWgsl.ts`). */
+export const VSM_COUNTERS = 7
 /** Words of the stats buffer: the counters and the overflow flags. */
-export const VSM_STATS_WORDS = VSM_OVERFLOW_FLAGS + 1
-/** The overflow flags, one bit each: the non-cluster marking's job queue, the one-pass projection's
- *  lights past its mask, the page pool, the casters' list past its room and the raster's records list past its room. */
-export const VSM_OVERFLOW_MARKING_JOB_QUEUE = 1 << 0
-export const VSM_OVERFLOW_ONE_PASS_MAX_LIGHTS = 1 << 1
-export const VSM_OVERFLOW_PAGE_POOL = 1 << 2
-export const VSM_OVERFLOW_VISIBLE_INSTANCES = 1 << 3
-export const VSM_OVERFLOW_RECORDS = 1 << 4
+export const VSM_STATS_WORDS = VSM_COUNTERS + 1
+/** The overflow flags, one bit each: the one-pass projection's lights past its mask, the page pool,
+ *  the casters' list past its room and the raster's records list past its room. */
+export const VSM_OVERFLOW_ONE_PASS_MAX_LIGHTS = 1 << 0
+export const VSM_OVERFLOW_PAGE_POOL = 1 << 1
+export const VSM_OVERFLOW_VISIBLE_INSTANCES = 1 << 2
+export const VSM_OVERFLOW_RECORDS = 1 << 3
 /** Set by the host's plan, not a pass: lights refused for want of map slots. */
-export const VSM_OVERFLOW_MAP_SLOTS = 1 << 5
+export const VSM_OVERFLOW_MAP_SLOTS = 1 << 4
 /** The overflow kinds in the order of their bits. */
-export const VSM_OVERFLOW_KINDS = 6
+export const VSM_OVERFLOW_KINDS = 5
 /** Bits of a map's id in the records the cull emits, so the map slots a set holds: at most `1 << VSM_RECORD_MAP_ID_BITS`. */
-export const VSM_RECORD_MAP_ID_BITS = 16
+const VSM_RECORD_MAP_ID_BITS = 16
+/** The map ids a record names: the most maps a frame holds. */
+export const VSM_RECORD_MAP_COUNT = 1 << VSM_RECORD_MAP_ID_BITS
 export const VSM_FEEDBACK_POOL = 0
+/** Bytes of the status feedback message (`res.feedback`): the message id (`VSM_FEEDBACK_POOL`), the free
+ *  pages (i32) and the pressure bias (f32 bits), a word each. */
+export const FEEDBACK_MESSAGE_BYTES = 12
 
 /**
  * Bytes of a map's projection record (`projection/projectionData.ts`, `VsmProjectionRecord`): its four 4×4
@@ -105,10 +118,10 @@ export const VSM_UNIFORMS_BYTES = 224
 
 /** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `render/renderParamsWgsl.ts`)
  *  and of one record it emits (vec4u, `render/renderCullWgsl.ts`). */
-export const VSM_RENDER_CANDIDATE_BYTES = 176
+export const VSM_RENDER_CANDIDATE_BYTES = 208
 export const VSM_RENDER_RECORD_BYTES = 16
-/** Bytes of a light of the frame in the raster's table (`vsmWriteLights`): its first map's id and its map count, padded to
- *  a `vec4u`. */
+/** Bytes of a light of the frame in the raster's table (`vsmWriteLights`): its first map's id, its map count and
+ *  its lighting channels, padded to a `vec4u`. */
 export const VSM_RENDER_LIGHT_BYTES = 16
 /** Words of a light in that table, and in the shadow views' descent's `work`, which it is copied into
  *  (`traversal/traversalPass.ts`). */
@@ -128,7 +141,7 @@ export const VSM_NEXT_ID_VALID = 1 << 1
 const VSM_PAGE_WANTED = 1 << 0
 const VSM_PAGE_DYNAMIC_STALE = 1 << 1
 const VSM_PAGE_STATIC_STALE = 1 << 2
-const VSM_PAGE_FINE = 1 << 3
+export const VSM_PAGE_FINE = 1 << 3
 /** The page marks' bits: the four above. */
 const VSM_PAGE_MARK_BITS = 4
 const VSM_PAGE_MARK_MASK = (1 << VSM_PAGE_MARK_BITS) - 1
@@ -212,13 +225,6 @@ export function vsmWriteDepthFromDeviceZ(
     out[at + 3] = 1
   }
 }
-/**
- * The greatest f32 below 1: 1 − 2^-24, an f32 significand having 24 bits, written as the decimal a
- * shader reads back to it exactly. The square-to-disk map centres the unit square on it
- * (`trace/traceCommonWgsl.ts`).
- */
-export const VSM_F32_BELOW_ONE = 0.99999994
-
 /** The mip level of a local light's footprint. `extraBias` must be >= 0. `mipMode` limits the
  *  mips: 0 all eight, 1 the even ones, 2 the odd ones (`shadowMarkPixelPagesMipModeLocal`), applied
  *  after the clamp to the last mip, as the marking's WGSL does. */
@@ -272,10 +278,14 @@ export const VSM_LOCAL_NEAR_PLANE = 1 * VSM_UNIT_PER_CM
 // (`shadowMapOptions.ts`); the global resolution bias, past the pool's load, rises (coarser) by half
 // the gap to its target a frame and falls by a tenth of it after 10 calm frames.
 /** The views whose instance cache state a map reads: a word holds a bit each, the cached-as-dynamic
- *  ones then the transitioned ones (`casters/instanceStateWgsl.ts`). */
+ *  ones then the transitioned ones (`casters/castDiffWgsl.ts`). */
 export const VSM_VIEW_SLOTS = 16
 export const VSM_PRESSURE_RISE = 0.5
-export const VSM_PRESSURE_FALL = 0.1
+/** A float constant: the f32 nearest a tenth. */
+export const VSM_PRESSURE_FALL = Math.fround(0.1)
+/** The global resolution bias under which it is none: its fall stalls on a subnormal above 0
+ *  (`resolutionLodBiasStall.test.ts`), and under this bound a bias leaves every level where it was. */
+export const VSM_PRESSURE_BIAS_NONE = 2 ** -54
 export const VSM_PRESSURE_CALM_FRAMES = 10
 
 /** WGSL mirror of the constants every VSM shader needs. */
@@ -301,6 +311,7 @@ ${wgslConsts({
   VSM_MAP_COVERAGE,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
   VSM_MAP_FIRST_PERSON,
+  VSM_MAP_DISTANT,
   VSM_NEXT_KEEPS_PAGES,
   VSM_NEXT_ID_VALID,
   VSM_PAGE_WANTED,

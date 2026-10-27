@@ -12,6 +12,8 @@ import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts'
 import { projectionKit } from './projection/projectionKit.fixture.ts'
 import { orthographicProjection } from '../../../../../math/src/projection/camera.ts'
 import { vsmLayout } from './layout.ts'
+import { mapsOf } from './clipmap.fixture.ts'
+import { VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
 
 const PROJECTION = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, -1, -1, 0, 0, -0.1, 0]
 const VIEW = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
@@ -45,7 +47,7 @@ test("every clipmap level's UV matrix has the w row (0, 0, 0, 1), exactly in f32
 })
 
 test('only the sun marks without the divide: a lamp keeps it', () => {
-  const code = vsmPixelPageMarkingWgsl(vsmLayout({ fullMapCapacity: 63 }))
+  const code = vsmPixelPageMarkingWgsl(vsmLayout({ coverMode: 'suns', fullMapCapacity: 63 }))
   assert.match(
     functionsOf(code, ['vsmMarkPage']),
     /if\(!ortho\)\{mapUvz=vec4f\(perspectiveDivide\(mapUvz\),mapUvz\.w\);\}/,
@@ -83,4 +85,67 @@ test('the camera kind decides the projection path: an orthographic matrix scaled
       { width: 64, height: 64 },
     ).cacheEntry.mapCaches[0].projectionData.shiftedToMapUv
   assert.notDeepEqual(level(false), level(true), 'the clipmap sizes its levels by the kind')
+})
+
+/** An orthographic view 10 m to each side, 50 m up the z axis looking down it, as the clipmap reads it. */
+const orthoView = (more: object = {}) => ({
+  view: VIEW,
+  projection: orthographicProjection(new Float64Array(16), -10, 10, -10, 10, 0.1, 100),
+  perspective: false,
+  eye: [0, 0, 50],
+  ...more,
+})
+const orthoClipmap = (camera: object, changes: Parameters<typeof mapsOf>[0] = {}) =>
+  createVsmClipmap(
+    new VsmCacheManager(),
+    { id: 'sun', direction: [0.3, -0.9, 0.2] },
+    camera as Parameters<typeof createVsmClipmap>[2],
+    { width: 64, height: 64 },
+    mapsOf(changes),
+  )
+
+test("an orthographic view's first level follows its box, then the bias: never below level 0", () => {
+  // 10 m is 1000 cm: floor(log2(1000)) = 9 over the default first level 6.
+  const first = (changes: Parameters<typeof mapsOf>[0]) =>
+    orthoClipmap(orthoView(), changes).firstLevel
+  assert.equal(first({}), 9)
+  assert.equal(first({ shadowOrthoClipmapLodBias: 2 }), 11)
+  assert.equal(first({ shadowOrthoClipmapLodBias: -30 }), 0)
+  assert.equal(
+    first({ shadowOrthoEstimateClipmapLevels: false }),
+    6,
+    'the estimate off: the setting',
+  )
+  assert.equal(
+    first({ shadowOrthoEstimateClipmapLevels: false, shadowOrthoClipmapLodBias: 2 }),
+    6,
+    'the bias belongs to the estimate',
+  )
+})
+
+test("an orthographic view's resolution bias takes a projection scale of 1, whatever its width", () => {
+  // Width: its 10 m box doubled in centimetres, 2000 px; 0.5 level-0 texels over 16384 / 2000 of them.
+  const expected = Math.log2((0.5 * 16384) / 2000)
+  // The setting's bias for a sun at rest is added to it (`InterpolateResolutionBias`) and the sum held
+  // to 0 or more: with the setting at 0 the bias is the screen's alone, with the default's -1.5 it is
+  // lower by that.
+  const none = {
+    shadowResolutionLodBiasDirectional: 0,
+    shadowResolutionLodBiasDirectionalMoving: 0,
+  }
+  assert.ok(Math.abs(orthoClipmap(orthoView(), none).levelBias - expected) < 1e-5)
+  const rested = VSM_DEFAULT_SHADOWS.shadowResolutionLodBiasDirectional
+  assert.ok(Math.abs(orthoClipmap(orthoView()).levelBias - Math.max(0, expected + rested)) < 1e-5)
+})
+
+test("a view's clipmaps are centred on the eye moved by its target, which a cast of its line of sight gives too", () => {
+  const origin = (camera: object) => [...orthoClipmap(camera).originWorld]
+  const target = orthoView({ viewTarget: [0, 0, -50] })
+  assert.deepEqual(origin(target), [0, 0, 0], 'the view target')
+  assert.deepEqual(
+    origin(orthoView({ viewTarget: [0, 0, -30] })),
+    [0, 0, 20],
+    'the offset the cast resolved: 30 m along the view',
+  )
+  assert.deepEqual(origin(orthoView()), [0, 0, 50], 'none: the eye')
 })

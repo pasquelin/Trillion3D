@@ -27,10 +27,11 @@ struct VsmUniforms{
  poolRowShift:u32,
  poolRowMask:u32,
  staticSlice:u32,
+ includeInCoarsePages:u32,
  pageTableSize:vec2u,
  coverSize:vec2u,
  detailPixelsStatic:f32,
- detailPixelsDynamic:f32,
+ detailPixelsDynamicClusters:f32,
  normalBias:f32,
  screenRayLength:f32,
  markMipOffset:array<vec4u,2>,
@@ -84,7 +85,10 @@ export interface VsmFrameUniforms {
   pressureBias: number
   /** The pixel footprints under which an object stays out of the coarse pages, by its layer. */
   detailPixelsStatic: number
-  detailPixelsDynamic: number
+  detailPixelsDynamicClusters: number
+  /** Whether the casters may be drawn into the coarse pages (`shadowCoarsePagesIncludeNonClusterCasters`): false
+   *  puts every caster in them, whatever its footprint, the thresholds read by none. */
+  includeInCoarsePages: boolean
   /** The receiver's normal offset per distance to the eye, and the screen ray's share of the view's height. */
   normalBias: number
   screenRayLength: number
@@ -134,14 +138,14 @@ export function writeVsmUniforms(
   u[4] = layout.poolRowShift
   u[5] = layout.poolRowMask
   u[6] = layout.cacheEnabled ? 1 : 0
-  // Word 7: the padding WGSL puts before pageTableSize, a vec2u at an 8-byte boundary.
-  u[7] = 0
+  // Word 7 sits before pageTableSize, a vec2u at an 8-byte boundary.
+  u[7] = frame.includeInCoarsePages ? 1 : 0
   u[8] = layout.pageTableSize[0]
   u[9] = layout.pageTableSize[1]
   u[10] = layout.coverSize[0]
   u[11] = layout.coverSize[1]
   f[12] = frame.detailPixelsStatic
-  f[13] = frame.detailPixelsDynamic
+  f[13] = frame.detailPixelsDynamicClusters
   f[14] = frame.normalBias
   f[15] = frame.screenRayLength
   // markMipOffset is an array at a 16-byte boundary, which word 16 is.

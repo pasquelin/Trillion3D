@@ -30,6 +30,10 @@ import {
  *  (`TAA_LEVEL_KNOBS`, `post/taa/levels.ts`), `'on'` and `'off'` say it whatever the level. */
 const FOLLOWS_LEVEL = ['level', 'on', 'off'] as const
 
+/** The shading rejection's modes: `'responsive'`, more responsiveness and less ghosting but more blocky
+ *  artifacts, and `'stability'`, better stability and shading rejection control but more ghosting. */
+const SHADING_REJECTION_MODES = ['responsive', 'stability'] as const
+
 /** The shading ranges the thin geometry detection counts as thin geometry, by the number the measure reads. */
 export const THIN_GEOMETRY_SHADING_RANGES = ['foliage', 'foliageAndHair', 'all', 'varying'] as const
 
@@ -60,6 +64,12 @@ export const THIN_GEOMETRY_SHADING_RANGES = ['foliage', 'foliageAndHair', 'all',
  *  not, in 32 bits. `temporalHistoryPacked`, true — whether the history keeps its colour in the
  *  11-11-10 format where the device stores to it, four bytes a pixel; `false`, half floats, eight
  *  bytes: the cinematic preset's value. Read when the pass is made, and made again when it changes.
+ *
+ *  `temporalShadingRejectionMode`, `'stability'` — whether the clamp of the flicker measure (the
+ *  rejection that finds the texels that oscillate, `temporalShadingRejectionFlickering`) widens by the
+ *  blur of the lesser total variation of the input's change and of the input (`'responsive'`, which
+ *  rejects less and ghosts less, with blockier artifacts) or not (`'stability'`, steadier and with
+ *  more control of the rejection, with more ghosting) —; it applies where the flicker measure runs.
  *
  *  THE HISTORY'S SAMPLES, each in samples of a display pixel but the velocity's, which are a history
  *  pixel's: `temporalHistorySampleCount`, 16 — the most a display pixel's history holds, 8 to 32,
@@ -95,7 +105,10 @@ export const THIN_GEOMETRY_SHADING_RANGES = ['foliage', 'foliageAndHair', 'all',
  *  the hair, `'all'` every lit surface, `'varying'` every lit surface, the foliage relaxed with the
  *  dilation and the others by their edge alone — which needs the flicker measure running
  *  (`temporalShadingRejectionFlickering` on, `temporalFlickeringPeriod` above 0) or
- *  `temporalThinGeometryMinKeepLineContrast` above 0, else it counts the foliage alone.
+ *  `temporalThinGeometryMinKeepLineContrast` above 0, else it counts the foliage alone;
+ *  `temporalThinGeometryAntiFlickering`, true — whether the flicker measure considers the relaxation
+ *  the detection gives the history, since the detection can fail (false, it measures the flicker as
+ *  if the history were not relaxed).
  *
  *  THE HALF-SIZE IMAGE the exposure and the bloom read: `temporalDownsampleQuality`, `'low'` — `'low'`
  *  has the passes that write the image beside their own, the temporal pass and the motion blur, write
@@ -107,6 +120,7 @@ export const TEMPORAL_RULES = /* @__PURE__ */ (() =>
     choice('temporalResurrection', 'level', FOLLOWS_LEVEL),
     choice('temporalReprojectionField', 'level', FOLLOWS_LEVEL),
     choice('temporalShadingRejectionFlickering', 'level', FOLLOWS_LEVEL),
+    choice('temporalShadingRejectionMode', 'stability', SHADING_REJECTION_MODES),
     flag('temporalThinGeometry', false),
     count('temporalResurrectionFrames', 2, 1),
     count('temporalResurrectionInterval', 31, 1),
@@ -140,6 +154,7 @@ export const TEMPORAL_RULES = /* @__PURE__ */ (() =>
     number('temporalThinGeometryMaxRelaxationWeight', 0.037, [0, 1]),
     number('temporalThinGeometryRejectTranslucency', 0.6, [0, 1]),
     choice('temporalThinGeometryShadingRange', 'varying', THIN_GEOMETRY_SHADING_RANGES),
+    flag('temporalThinGeometryAntiFlickering', true),
     choice('temporalDownsampleQuality', 'low', ['low', 'high']),
   ] as const))()
 /** The temporal pass setting `field` of a runtime's context (`contextReader`): its default where the

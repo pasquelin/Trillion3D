@@ -10,7 +10,10 @@ import {
   createShadowChanges,
 } from '../../../../../sdk-core/src/scene/light/shadow/changes.ts'
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts'
+import { createDrawnLights, type DrawnLights } from '../../../lighting/lightDrawRange.ts'
 import type { LightFunctionFrame } from '../../../lighting/lightFunction/frame.ts'
+import type { LightProfileFrame } from '../../../lighting/lightProfile/frame.ts'
+import type { AmbientCubemapFrame } from '../../../lighting/deferred/ambientCubemapFrame.ts'
 import {
   createShadowMobility,
   type ShadowMobility,
@@ -40,6 +43,12 @@ export interface WebgpuLightState {
   /** The light functions' atlas, plan and table, made when a light wears one
    *  (`../../../lighting/lightFunction/frame.ts`). */
   lightFunction?: LightFunctionFrame
+  /** The light profiles' atlas and the profiles read, made when a light names one
+   *  (`../../../lighting/lightProfile/frame.ts`). */
+  lightProfile?: LightProfileFrame
+  /** The ambient cubemap's cube and colour, made when the image sets a cube
+   *  (`../../../lighting/deferred/ambientCubemapFrame.ts`). */
+  ambientCubemap?: AmbientCubemapFrame
   /** Group 0's layout of the shadow raster: the page rows, as the visibility pass binds them, less
    *  what the raster never reads (`../../../lighting/shadows/casters/pageGroup.ts`); absent while shadows are off. */
   pageLayout: GPUBindGroupLayout | undefined
@@ -55,6 +64,8 @@ export interface WebgpuLightState {
    *  (`../../../lighting/shadows/casters/casterFeed.ts`). */
   casters: CasterFeed | undefined
   uploadedEpoch: number // store revision already pushed: an image with no change writes nothing
+  /** What the view's draw range was last decided for, and the lights whose word changed (`drawLights`, `../../../lighting/lightDrawRange.ts`). */
+  drawn: DrawnLights
   /** Contract lights kept by the last image. */
   lightsActive: number
   shadowReason: string | null // why shadows are off, when they are
@@ -87,6 +98,7 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     casts: undefined,
     casters: undefined,
     uploadedEpoch: 0,
+    drawn: createDrawnLights(),
     lightsActive: 0,
     shadowReason: null,
     memory: createShadowMemory(),

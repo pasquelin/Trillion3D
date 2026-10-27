@@ -1,5 +1,5 @@
 import { INVERSE_PI, PI } from '../../../../math/src/wgsl/constants.ts'
-import { DIELECTRIC_F0, fresnelSchlick } from '../../../../math/src/wgsl/lighting.ts'
+import { DIELECTRIC_F0, clampNoV, fresnelSchlick } from '../../../../math/src/wgsl/lighting.ts'
 import { SURFACE_F0_WGSL } from '../../materials/surface/surfaceSpecular.ts'
 import { GGX_DISTRIBUTION_WGSL } from '../standardLighting.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -10,7 +10,7 @@ import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
  * THE CLEAR COAT, as one light sees it (`coatedLight`): a dielectric layer over the base, lit as the
  * reference's clear coat shading model lights it, step for step.
  *
- * The coat's weight `c` (`lobes.coat`), its roughness (held at 0.02 at least) and its normal `Nspec`
+ * The coat's weight `c` (`lobes.coat`), its roughness (held at the roughness floor, `lobeRoughness`) and its normal `Nspec`
  * (`lobes.coatN`, the base's own unless the clear coat keeps a bottom normal, `clearCoatNormal`) make the top
  * layer: the half vector and the view's cosine of a context on `Nspec` and the light's highlight direction `L`,
  * moved by the light's sphere — its sine narrowed to the coat's roughness, the half vector found without the
@@ -30,7 +30,8 @@ import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
  * a point or a lamp brings the analytic terms, and the half vector's view cosine in place of the sphere's.
  * Energy conservation is the legacy one: none. `coatRemap` is what the indirect light sees of the base under
  * the coat: its diffuse and specular colours attenuated by the coat's absorption and the refraction.
- * `lobes` is the pixel's (`lobesWgsl.ts`).
+ * `lobes` is the pixel's (`lobesWgsl.ts`). The visibility of both layers' lobes is the surface's (`visibility`, exact where
+ * `LobeSurface.accurate`).
  */
 export const CLEAR_COAT_WGSL = wgslBlock(
   'CLEAR_COAT_WGSL',
@@ -39,6 +40,7 @@ export const CLEAR_COAT_WGSL = wgslBlock(
     INVERSE_PI,
     fresnelSchlick,
     DIELECTRIC_F0,
+    clampNoV,
     GGX_DISTRIBUTION_WGSL,
     SURFACE_F0_WGSL,
     LAMP_LOBE_WGSL,
@@ -94,15 +96,11 @@ fn coatVisSkewed(ax:f32,ay:f32,c:CoatContext)->f32{
  let vis_l=c.NoV*length(vec3f(ax*c.XoL,ay*c.YoL,c.NoL));
  return 0.5/(vis_v+vis_l);
 }
-fn coatVisApprox(a2:f32,NoV:f32,NoL:f32)->f32{
- let a=sqrt(a2);
- return 0.5/(NoL*(NoV*(1.0-a)+a)+NoV*(NoL*(1.0-a)+a));
-}
 /** One light on the base \`s\` under the coat: its diffuse (column 0) and specular (column 1), \`direct\` the light's
  *  energy times its cosine \`cosine\` with the base's normal \`N\`, \`L\` the direction of its highlight, \`sine\` its sphere's
  *  sine as the base's roughness narrows it, \`soft\` its soft sphere's and \`lineCos\` the cosine a tube subtends;
- *  \`rect\` a rectangle, whose fitted lobes \`topLtc\` and \`bottomLtc\` the caller integrated. */
-fn coatedLight(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,cosine:f32,direct:f32,sine:f32,soft:f32,lineCos:f32,rect:bool,topLtc:vec3f,bottomLtc:vec3f)->mat2x3f{
+ *  \`rect\` a rectangle, whose fitted lobes \`topLtc\` and \`bottomLtc\` the caller integrated, \`micro\` the weight of the source's rough diffuse (\`lobeDiffuse\`). */
+fn coatedLight(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,cosine:f32,direct:f32,sine:f32,soft:f32,lineCos:f32,rect:bool,topLtc:vec3f,bottomLtc:vec3f,micro:f32)->mat2x3f{
  let c=lobes.coat;
  let alphaCoat=lobes.coatAlpha;
  let Nspec=lobes.coatN;
@@ -118,14 +116,14 @@ fn coatedLight(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,cosine:f32,direct:f32,sine:
   let m=sphereMoved(ctx.NoL,ctx.NoV,ctx.VoL,topSine);
   ctx.NoL=m.x;ctx.VoL=m.y;ctx.NoH=m.z;ctx.VoH=m.w;
  }
- ctx.NoV=saturate(abs(ctx.NoV)+1e-5);
+ ctx.NoV=clampNoV(ctx.NoV);
  if(rect){ctx.VoH=ctx.NoV;}
  let F=fresnelSchlick(DIELECTRIC_F0,1.0,ctx.VoH).x;
  var specular=vec3f(0.0);
  if(rect){specular=c*topLtc;}
  else{
   let wide=lobeEnergy(alphaCoat*alphaCoat,ctx.VoH,topSine,soft,lineCos);
-  let vis=coatVisApprox(wide.x,ctx.NoV,cosine);
+  let vis=visibility(wide.x,ctx.NoV,cosine,s.accurate);
   let D=ggxDistribution(wide.x,ctx.NoH,max(1.0-ctx.NoH*ctx.NoH,0.0))*wide.y;
   specular=vec3f(c*direct*D*vis*F);
  }
@@ -140,14 +138,14 @@ fn coatedLight(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,cosine:f32,direct:f32,sine:
    let m=sphereMoved(ctx.NoL,ctx.NoV,ctx.VoL,sine);
    ctx.NoL=m.x;ctx.VoL=m.y;ctx.NoH=m.z;ctx.VoH=m.w;
   }
-  ctx.NoV=saturate(abs(ctx.NoV)+1e-5);
+  ctx.NoV=clampNoV(ctx.NoV);
  }
  sphereNoNewton=keepNewton;
  if(skewed){ctx=coatContextSkewed(Nspec,lobes.T,lobes.B,V,L);}
  var bottom=refractedCoat(ctx);
  if(rect){bottom.VoH=bottom.NoV;}
  let transmission=coatTransmittance(bottom.NoL,bottom.NoV);
- let plainDiffuse=direct*s.diffuse;
+ let plainDiffuse=direct*lobeDiffuse(s,cosine,dot(V,L),micro);
  let diffuse=mix(plainDiffuse,fresnel*transmission*plainDiffuse,c);
  if(!skewed&&rect){
   specular+=mix(bottomLtc,fresnel*transmission*bottomLtc,c);
@@ -161,7 +159,7 @@ fn coatedLight(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,cosine:f32,direct:f32,sine:
   }else{
    let wide=lobeEnergy(s.alpha2,ctx.VoH,sine,soft,lineCos);
    energy=wide.y;
-   vis2=coatVisApprox(wide.x,bottom.NoV,cosine);
+   vis2=visibility(wide.x,bottom.NoV,cosine,s.accurate);
    D2=ggxDistribution(wide.x,bottom.NoH,max(1.0-bottom.NoH*bottom.NoH,0.0));
   }
   let fBottom=fresnelSchlick(s.f0,s.f90,bottom.VoH);
@@ -173,11 +171,11 @@ fn coatedLight(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,cosine:f32,direct:f32,sine:
 /** The coat's light of a light of no size: the direction \`L\` unit, \`energy\` its intensity through its falloff. */
 fn coatedPoint(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,energy:f32)->mat2x3f{
  let cosine=max(dot(N,L),0.0);
- return coatedLight(s,N,V,L,cosine,energy*cosine,0.0,0.0,1.0,false,vec3f(0.0),vec3f(0.0));
+ return coatedLight(s,N,V,L,cosine,energy*cosine,0.0,0.0,1.0,false,vec3f(0.0),vec3f(0.0),1.0);
 }
 /** The coat's light of a lamp of size, its \`look\` (the highlight's direction, its sphere) and \`lamp\`. */
 fn coatedLamp(s:LobeSurface,N:vec3f,V:vec3f,look:Look,lamp:Lamp,energy:f32)->mat2x3f{
- return coatedLight(s,N,V,look.toward,lamp.cosine,energy*lamp.cosine,saturate(look.reach*(1.0-s.alpha)),saturate(look.soft),lamp.lineCos,false,vec3f(0.0),vec3f(0.0));
+ return coatedLight(s,N,V,look.toward,lamp.cosine,energy*lamp.cosine,saturate(look.reach*(1.0-s.alpha)),saturate(look.soft),lamp.lineCos,false,vec3f(0.0),vec3f(0.0),look.micro);
 }
 /** What the indirect light sees of the base under the coat: its colour attenuated by the coat's Fresnel along the view
  *  (\`lobes.coatNoV\`) and, for a metal, replaced by its absorbed colour under the refraction; the diffuse colour from it,

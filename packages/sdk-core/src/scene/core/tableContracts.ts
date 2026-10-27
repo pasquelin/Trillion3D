@@ -88,12 +88,6 @@ export interface TableNode {
   /** Its mesh is drawn by a view's primed depth (`farField` of the job's object settings); left
    *  out otherwise. */
   farField?: true
-  /** Its mesh casts far shadows (`castFarShadow` of the job's object settings); left out
-   *  otherwise. */
-  castFarShadow?: true
-  /** Whether a sun's far-shadow test reaches its mesh (`true`) or never does (`false`), by
-   *  `farShadowTest` of the job's object settings; left out when none names it. */
-  farShadowTest?: boolean
   /** An instance of an assembly: per primitive of its mesh, the group that replaces its root,
    *  `null` for a primitive none replaces (`CellNode.rootParents`); left out otherwise. */
   rootParents?: readonly (TableRootParent | null)[]

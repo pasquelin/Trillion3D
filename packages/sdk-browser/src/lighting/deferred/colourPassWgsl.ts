@@ -38,8 +38,7 @@ export const UNLIT_SURFACE_ENTRY = 'unlitSurfaceMain'
  * A pixel no surface drew, where no sky is drawn (an atmosphere draws it over this one,
  * `../atmosphere/skyWgsl.ts`): the background colour, as the scene radiance it is — its sRGB channels
  * decoded to linear light —, in the lit image like every other pixel's colour, so that it goes through
- * the exposure and the tone table as they do (a mirror that sees it adds the same radiance,
- * `../reflections/surroundings.ts`). A height fog lies over it as over any pixel (the fog pass,
+ * the exposure and the tone table as they do. A height fog lies over it as over any pixel (the fog pass,
  * `../fog/fogPass.ts`). The raw output of a diagnostic view takes the colour as it is, not as radiance. The image's alpha is the share of the background left visible: 1 here, 0 on every
  * surface (the diffuse light a subsurface pixel accumulates in it until the recombine writes 0 again).
  */

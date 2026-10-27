@@ -4,6 +4,22 @@ import { DEFERRED_BINDINGS } from './bindings.ts'
 import { VIEW_WGSL } from './worldAtWgsl.ts'
 
 /**
+ * THE SCREEN-SPACE OCCLUSION the image drew (`../ao/frame.ts`), as every pass that reads it reads it: a texture of one byte a pixel, read
+ * by load, and the view's word that says whether the image drew any (`views.y`, the mode: 0 none). `screenOcclusionAt` answers the texel of
+ * `coord`, 1 where the image drew none. The lights of a pixel go under it (an unshadowed light's surface shadow is the screen occlusion
+ * alone, the surface's own occlusion left to its indirect light), as the sun's pass and the local lights' read it.
+ */
+export const SCREEN_OCCLUSION_WGSL = wgslBlock(
+  'SCREEN_OCCLUSION_WGSL',
+  [VIEW_WGSL],
+  `@group(0) @binding(${DEFERRED_BINDINGS.ambientOcclusion}) var ambientOcclusion:texture_2d<f32>;
+fn screenOcclusionAt(coord:vec2i)->f32{
+ if(u32(view.views.y)==0u){return 1.0;}
+ return textureLoad(ambientOcclusion,coord,0).r;
+}`,
+)
+
+/**
  * WHAT THE OPAQUE RESOLVE DOES WITH THE AMBIENT OCCLUSION the image drew (`../ao/frame.ts`): a texture of one byte a
  * pixel, read by load, and the view's two words that say how it applies (`views.y`, the mode; `views.z`, the share).
  * `ambientOcclusionApplied` answers the four factors the lighting multiplies by, from the pixel's material occlusion:
@@ -21,13 +37,12 @@ import { VIEW_WGSL } from './worldAtWgsl.ts'
  */
 export const AMBIENT_OCCLUSION_READ_WGSL = wgslBlock(
   'AMBIENT_OCCLUSION_READ_WGSL',
-  [VIEW_WGSL],
-  `@group(0) @binding(${DEFERRED_BINDINGS.ambientOcclusion}) var ambientOcclusion:texture_2d<f32>;
-struct OccludedTerms{emission:f32,sky:f32,bounce:f32,both:f32,}
+  [SCREEN_OCCLUSION_WGSL],
+  `struct OccludedTerms{emission:f32,sky:f32,bounce:f32,both:f32,}
 fn ambientOcclusionApplied(coord:vec2i,materialAo:f32)->OccludedTerms{
  let mode=u32(view.views.y);
  if(mode==0u){return OccludedTerms(1.0,materialAo,1.0,materialAo);}
- let seen=textureLoad(ambientOcclusion,coord,0).r;
+ let seen=screenOcclusionAt(coord);
  let both=materialAo*seen;
  if(mode==1u){return OccludedTerms(mix(1.0,both,view.views.z),min(materialAo,seen),1.0,both);}
  return OccludedTerms(1.0,materialAo,mix(1.0,seen,view.views.z),both);

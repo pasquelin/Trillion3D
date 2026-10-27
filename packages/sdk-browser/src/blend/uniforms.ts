@@ -143,6 +143,10 @@ function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directT
   packed[VIEW.realTime] = run.graphClocks.realTime
   // Whether a clear coat keeps a bottom normal, the opaque resolve's (`../visibility/passes/uniforms.ts`).
   ints[VIEW.clearCoatNormal] = switchOn(run.shading[SHADING.switches], 'clearCoatNormal')
+  // Whether the surfaces' diffuse light is the rough diffuse (`shadingRoughDiffuse`).
+  ints[VIEW.roughDiffuse] = switchOn(run.shading[SHADING.switches], 'roughDiffuse')
+  // Whether the specular lobes' visibility is the exact one (`shadingAccurate`).
+  ints[VIEW.shadingAccurate] = switchOn(run.shading[SHADING.switches], 'accurate')
   // The view's clip plane: every vertex stage cuts its primitives by it (`../gpu/core/clipDistances.ts`).
   writeViewClipPlane(rt, run.gate.cam, packed, VIEW.clipPlane)
   // The translucency lighting volume this image built, where the surfaces lit from it read it.

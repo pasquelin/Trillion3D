@@ -48,6 +48,86 @@ test('the sine from the cosine is the sine of its angle, and none past ±1', () 
   assert.ok(Number.isNaN(run.sinFromCosUnclamped(1 + 2 ** -20)))
 })
 
+test('the fast arccosine is within 0.009 radian of the arccosine, exact at the ends and the middle, and turns at zero', () => {
+  for (let x = -1; x <= 1; x += 1 / 64)
+    assert.ok(
+      Math.abs((run.fastAcos(x) as number) - Math.acos(x)) <= 0.0091,
+      `${x}: ${run.fastAcos(x)} against ${Math.acos(x)}`,
+    )
+  assert.equal(run.fastAcos(1), 0)
+  assert.ok(Math.abs((run.fastAcos(0) as number) - Math.PI / 2) < 1e-6)
+  assert.ok(Math.abs((run.fastAcos(-1) as number) - Math.PI) < 1e-6)
+  // A cosine rounded a hair past one either way is read as one: a right number, never the root of a negative one. The value
+  // is the f32 dot of the unit vector of (1.6771588, −1.4836919, −0.2127332) with itself, normalised in f32.
+  assert.equal(run.fastAcos(1.0000003576278687), 0)
+  assert.ok(Math.abs((run.fastAcos(-1.0000003576278687) as number) - Math.PI) < 1e-6)
+})
+
+test('the fast arctangent follows the arctangent of a tangent from zero up, either side of one', () => {
+  for (const x of [0, 0.05, 0.25, 0.5, 0.9, 1, 1.1, 2, 4, 10, 100, 1e6])
+    assert.ok(
+      Math.abs((run.fastAtan(x) as number) - Math.atan(x)) <= 0.005,
+      `${x}: ${run.fastAtan(x)} against ${Math.atan(x)}`,
+    )
+})
+
+/** The arithmetic of the reference's `atan2Fast` in single precision, step for step, with no guard at the origin. */
+function referenceAtan2Fast(y: number, x: number) {
+  const f = Math.fround
+  const t0 = f(Math.max(Math.abs(x), Math.abs(y)))
+  const t1 = f(Math.min(Math.abs(x), Math.abs(y)))
+  let t3 = f(t1 / t0)
+  const t4 = f(t3 * t3)
+  let poly = f(0.0872929)
+  poly = f(f(poly * t4) - f(0.301895))
+  poly = f(f(poly * t4) + 1)
+  t3 = f(poly * t3)
+  t3 = Math.abs(y) > Math.abs(x) ? f(f(0.5 * Math.PI) - t3) : t3
+  t3 = x < 0 ? f(f(Math.PI) - t3) : t3
+  return y < 0 ? -t3 : t3
+}
+
+test('the fast two-argument arctangent follows the angle of the vector in every quadrant, within 0.0014 radian of the arctangent and a millionth of the reference arithmetic', () => {
+  const g = lcgRandom(5)
+  for (let i = 0; i < 400; i++) {
+    const [x, y] = take(g, 2)
+    const fast = run.fastAtan2(y, x) as number
+    assert.ok(Math.abs(fast - Math.atan2(y, x)) <= 0.0014, `${y}, ${x}: ${fast}`)
+    assert.ok(Math.abs(fast - referenceAtan2Fast(y, x)) <= 1e-6, `${y}, ${x}: ${fast}`)
+  }
+  // The four axes, where the ratio is 0 or 1 over a larger: exact, the cut at x < 0 taking π and y < 0 the sign.
+  assert.equal(run.fastAtan2(0, 1), 0)
+  assert.ok(Math.abs((run.fastAtan2(1, 0) as number) - Math.PI / 2) < 1e-6)
+  assert.ok(Math.abs((run.fastAtan2(0, -1) as number) - Math.PI) < 1e-6)
+  assert.ok(Math.abs((run.fastAtan2(-1, 0) as number) + Math.PI / 2) < 1e-6)
+})
+
+test('the reference’s two-argument arctangent is not a number at the origin, where ours is 0, the angle of two zeros by convention', () => {
+  // 0 / 0 is NaN in IEEE single precision, for a zero of either sign, and the NaN runs through every step after it.
+  for (const [y, x] of [
+    [0, 0],
+    [-0, -0],
+    [0, -0],
+    [-0, 0],
+  ]) {
+    assert.ok(Number.isNaN(referenceAtan2Fast(y, x)), `${y}, ${x}: the reference`)
+    const fast = run.fastAtan2(y, x) as number
+    assert.ok(Number.isFinite(fast), `${y}, ${x}: ours`)
+    assert.equal(fast, 0)
+  }
+  // A single zero is a right ratio, 0 or 1 over the other, for both: the reference is defined there and ours is its value.
+  for (const [y, x] of [
+    [0, -2],
+    [-0, 3],
+    [4, 0],
+    [-5, -0],
+  ])
+    assert.ok(
+      Math.abs((run.fastAtan2(y, x) as number) - referenceAtan2Fast(y, x)) <= 1e-6,
+      `${y}, ${x}`,
+    )
+})
+
 test('a box behind a plane is what the frustum test culls; a sphere, by its centre and radius', () => {
   const g = lcgRandom(3)
   // Five planes that keep everything: the verdict is the first plane's.

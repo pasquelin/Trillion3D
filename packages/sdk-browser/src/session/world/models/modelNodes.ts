@@ -27,9 +27,8 @@ export function modelNode(graph: Object3D): Object3D {
   } else graph.matrix.decompose(node.position, node.quaternion, node.scale)
   node.visible = graph.visible
   node.castShadow = graph.castShadow
-  node.castFarShadow = graph.castFarShadow
+  node.castsShadowMaps = graph.castsShadowMaps
   node.farField = graph.farField
-  node.farShadowTest = graph.farShadowTest
   copyOffsetSwitches(node, graph)
   // A morphed mesh's weights are one list for both: a clip writing them moves the drawn mesh.
   const weights = (graph as Weighted).morphTargetInfluences
@@ -52,9 +51,8 @@ export function writeModelNode(node: Object3D) {
   graph.scale.set(node.scale.x, node.scale.y, node.scale.z)
   graph.visible = node.visible
   graph.castShadow = node.castShadow
-  graph.castFarShadow = node.castFarShadow
+  graph.castsShadowMaps = node.castsShadowMaps
   graph.farField = node.farField
-  graph.farShadowTest = node.farShadowTest
   copyOffsetSwitches(graph, node)
   if (!graph.matrixAutoUpdate) graph.matrix.fromArray(node._matrixElements)
 }

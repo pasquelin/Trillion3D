@@ -31,6 +31,9 @@ export interface EngineCamera extends CameraFrame, RenderOriginFrame {
   /** Eye position in the world: the translation of `world`. It is not named `position`,
    *  which everywhere else means the LOCAL pose the contract forbids reading. */
   eye: Float64Array
+  /** The point the camera frames, as its offset from the eye in the world's frame (`Camera.viewTarget`
+   *  turned by the camera's world matrix): all zeros frames none. */
+  viewTarget: Float64Array
   /** Nearest distance drawn. */
   near: number
   /** Farthest distance an orthographic camera draws; a perspective one has no far plane. */
@@ -102,6 +105,7 @@ export function createEngineCamera(): EngineCamera {
     world: new Float64Array(16),
     projection: new Float64Array(16),
     eye: new Float64Array(3),
+    viewTarget: new Float64Array(3),
     near: 0,
     far: 0,
     fov: 0,
@@ -192,6 +196,7 @@ export function holdCameraWorld(into: EngineCamera, from: EngineCamera): EngineC
   into.planes.set(from.planes)
   holdRenderOriginFrame(into, from)
   into.eye.set(from.eye)
+  into.viewTarget.set(from.viewTarget)
   into.near = from.near
   into.far = from.far
   into.fov = from.fov

@@ -38,6 +38,13 @@ export const STATS_COUNTERS = [
   },
   { field: 'shadowVsmPagesCached', key: 'shadows.pagesCached', tab: 'shadows', unit: 'count' },
   { field: 'shadowVsmPagesRendered', key: 'shadows.pagesRendered', tab: 'shadows', unit: 'count' },
+  { field: 'shadowVsmPagesEmpty', key: 'shadows.pagesEmpty', tab: 'shadows', unit: 'count' },
+  {
+    field: 'shadowVsmPagesWpoConsidered',
+    key: 'shadows.pagesWpoConsidered',
+    tab: 'shadows',
+    unit: 'count',
+  },
   { field: 'shadowVsmFreePages', key: 'shadows.freePages', tab: 'shadows', unit: 'count' },
   { field: 'shadowVsmLodBias', key: 'shadows.lodBias', tab: 'shadows', unit: 'count' },
   { field: 'shadowVsmRootsNoted', key: 'shadows.rootsNoted', tab: 'shadows', unit: 'count' },

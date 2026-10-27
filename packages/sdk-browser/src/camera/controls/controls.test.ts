@@ -2,6 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTrackballCameraControls } from './trackballControls.ts'
 import { createPanZoomCameraControls } from './panZoomControls.ts'
+import { createFlyCameraControls } from './flyControls.ts'
 import {
   at,
   fixtureCamera,
@@ -138,6 +139,23 @@ test('orbit removes every listener on dispose, and moves no more', () => {
   fixtureDrag(surface, 100, 0)
   assert.deepEqual(at(camera), before)
   controls.dispose()
+})
+
+test('a pivot controller frames its pivot, a free-flying one frames none', () => {
+  const camera = fixtureCamera(0, 0, 10),
+    surface = fixtureSurface(400)
+  const orbit = createTrackballCameraControls(camera, surface.element)
+  orbit.update()
+  assert.deepEqual(camera.target, [0, 0, 0], 'the pivot, once the controller poses the camera')
+  orbit.target.set(0, 3, 0)
+  orbit.update()
+  assert.deepEqual(camera.target, [0, 3, 0])
+  orbit.dispose()
+  assert.equal(camera.target, null, 'a controller that goes takes its pivot with it')
+  // The same camera handed to flight, which keeps no pivot: it frames none.
+  const fly = createFlyCameraControls(camera, surface.element)
+  fly.update(0)
+  assert.equal(camera.target, null)
 })
 
 test('the trackball spins about the screen axes and keeps the pivot distance', () => {

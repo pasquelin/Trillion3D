@@ -1,4 +1,4 @@
-import { savedOffsets } from './offsets.ts'
+import { offsetSwitchesSet } from '../../../../sdk-core/src/world/object/offsetSwitches.ts'
 import { jsonCopy } from '../../../../sdk-core/src/runtime/jsonCopy.ts'
 import { DEFAULT_LIGHT_UNITS } from '../../../../sdk-core/src/scene/light/lightUnits.ts'
 import type { ModuleOption } from '../../../../sdk-core/src/modules/descriptor.ts'
@@ -138,10 +138,9 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
     scale: o.scale.toArray(),
     visible: o.visible,
     castShadow: o.castShadow,
-    ...(o.castFarShadow ? { castFarShadow: true as const } : {}),
+    ...(o.castsShadowMaps ? {} : { castsShadowMaps: false as const }),
     ...(o.farField ? { farField: true as const } : {}),
-    ...(o.farShadowTest === null ? {} : { farShadowTest: o.farShadowTest }),
-    ...savedOffsets(o),
+    ...offsetSwitchesSet(o),
     renderOrder: o.renderOrder,
     userData: plain(o.userData),
     // What a model's file carried comes back with the model; what the page placed under it

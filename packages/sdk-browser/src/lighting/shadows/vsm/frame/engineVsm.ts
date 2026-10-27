@@ -17,7 +17,7 @@
  * `vsmMask.ts`'s.
  */
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
-import { createVsmResources, type VsmResources } from '../resources.ts'
+import { createVsmResources, type VsmResources, vsmNinthStorage } from '../resources.ts'
 import { constructGpuResources } from '../../../../gpu/core/deviceLedger.ts'
 import { releaseVsmInvalidation } from '../invalidation/castStale.ts'
 import type { VsmCastBoxes } from '../invalidation/castBoxes.ts'
@@ -45,9 +45,11 @@ import {
   VSM_COUNT_CLEARED,
   VSM_COUNTERS,
   VSM_COUNT_DYNAMIC_KEPT,
+  VSM_COUNT_EMPTY_PAGES,
   VSM_COUNT_GRANTED,
   VSM_COUNT_WANTED,
   VSM_COUNT_STATIC_KEPT,
+  VSM_COUNT_WPO_CONSIDERED,
 } from '../constants.ts'
 import type { VsmResourceOptions } from '../layout.ts'
 import type { VsmFrameScratch } from './vsmEncode.ts'
@@ -126,6 +128,8 @@ function readVsmStats(stats: EngineVsm['stats'], mapped: ArrayBuffer) {
   stats.requestedPages = words[VSM_COUNT_WANTED]
   stats.allocatedPages = words[VSM_COUNT_GRANTED]
   stats.cachedPages = words[VSM_COUNT_STATIC_KEPT] + words[VSM_COUNT_DYNAMIC_KEPT]
+  stats.emptyPages = words[VSM_COUNT_EMPTY_PAGES]
+  stats.wpoConsideredPages = words[VSM_COUNT_WPO_CONSIDERED]
   return (stats.renderedPages = words[VSM_COUNT_CLEARED])
 }
 
@@ -138,8 +142,7 @@ export const lightIdsBuffer = (device: GPUDevice, size: number) =>
   })
 
 /** Whether `device` takes the page management's counters, a ninth storage buffer a stage. */
-export const vsmCountersOn = (device: GPUDevice) =>
-  device.limits.maxStorageBuffersPerShaderStage >= 9
+export const vsmCountersOn = vsmNinthStorage
 
 /** The engine's maps of `options` (`engineVsmOptions`, at the pages `vsmPoolWithin` drew): made
  *  whole, or nothing left made (`constructGpuResources`). */
@@ -220,7 +223,7 @@ export function releaseEngineVsm(lights: WebgpuPagesRuntime['lights']) {
  *  idle frame does it, and a repeat leaves the same state. */
 export function dropEngineVsmCache(vsm: EngineVsm, frame: number) {
   vsm.state.cache.invalidate()
-  keepVsmFrame(vsm.res, { mapsGranted: false })
+  keepVsmFrame(vsm.res, 'drop')
   vsm.projectionHold.drop()
   vsm.plan = undefined
   vsm.renderedPlan = undefined

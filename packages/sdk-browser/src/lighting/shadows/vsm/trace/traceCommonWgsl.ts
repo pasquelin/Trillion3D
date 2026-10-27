@@ -3,17 +3,18 @@
  * square-to-disk maps (a sun's exact, a local light's approximate) and the cone a ray is drawn in,
  * each ray's step jitter and blue-noise values, and a trace's result. No binding but the noise pair the host gives (`vsmRayNoiseWgsl`).
  */
-import { SUBGROUP_ALL_WGSL } from '../../../../gpu/core/subgroups.ts'
 import { BLUE_NOISE_TILE } from '../../../../gpu/noise/blueNoiseWgsl.ts'
-import { VSM_F32_BELOW_ONE } from '../constants.ts'
 import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
-import { FLOAT32_MIN_NORMAL, QUARTER_PI } from '../../../../../../math/src/wgsl/constants.ts'
-import { additive2d, approxDiskMap } from '../../../../../../math/src/wgsl/sampling.ts'
+import {
+  additive2d,
+  approxDiskMap,
+  uniformDiskConcentric,
+} from '../../../../../../math/src/wgsl/sampling.ts'
 import { Frame3, outOfFrame } from '../../../../../../math/src/wgsl/basis.ts'
 
 export const VSM_TRACE_COMMON_WGSL = wgslBlock(
   'VSM_TRACE_COMMON_WGSL',
-  [QUARTER_PI, FLOAT32_MIN_NORMAL, Frame3, outOfFrame, approxDiskMap],
+  [Frame3, outOfFrame, approxDiskMap, uniformDiskConcentric],
   `
 /** The march's sample times: t² with t = a·i + b (the two words returned, a = −1/stepCount), from
  *  the far end (i = 0) to the ray's start (i = stepCount, time 0), each step jittered by \`stepJitter\`. */
@@ -26,37 +27,22 @@ fn vsmMarchTime(i:i32,stepCount:i32,time:vec2f)->f32{
  let t=time.x*f32(i)+time.y;
  return t*t;
 }
-/** Maps the unit square onto the unit disk, each square ring onto a circle: the unit direction
- *  and the radius (the ring). The ring is the larger coordinate; the angle runs over the eighth of
- *  the circle the smaller one's share sets, turned a quarter where y is the larger, and the
- *  direction takes the quadrant of the point's signs. Area-preserving: a uniform square point is a
- *  uniform disk point. */
-fn vsmSquareToDiskPolar(E:vec2f)->vec3f{
- // 1 − 2^-24, the greatest f32 below 1, as its decimal.
- let p=2.0*E-${VSM_F32_BELOW_ONE};
- let a=abs(p);
- let lo=min(a.x,a.y);
- let hi=max(a.x,a.y);
- // The smallest normal f32 added to a nonzero |p| (2^-25 at least, for E in [0, 1)) rounds back
- // to it, so it changes no quotient, and the square's centre gives 0 rather than 0/0.
- let phi=QUARTER_PI*(lo/(hi+FLOAT32_MIN_NORMAL)+select(0.0,2.0,a.y>=a.x));
- let quadrant=select(vec2f(-1.0),vec2f(1.0),p>=vec2f(0.0));
- return vec3f(abs(vec2f(cos(phi),sin(phi)))*quadrant,hi);
-}
-/** A uniform point on the unit disk: the square's point taken ring to circle. */
-fn vsmSquareToDisk(E:vec2f)->vec2f{let r=vsmSquareToDiskPolar(E);return r.xy*r.z;}
-/** The unit-disk point of a ray's noise \`E\`: a sun's exact map (\`vsmSquareToDisk\`), a local light's
+/** The unit-disk point of a ray's noise \`E\`: a sun's exact map (\`uniformDiskConcentric\`), a local light's
  *  approximate one (\`approxDiskMap\`); only the one map runs. */
 fn vsmLightDisk(directional:bool,E:vec2f)->vec2f{
- if(directional){return vsmSquareToDisk(E);}
+ if(directional){return uniformDiskConcentric(E);}
  return approxDiskMap(E);
 }
-/** A ray direction toward a point of the light's disk as the receiver sees it: inside the cone of
- *  sine \`s\` around the frame's axis \`basis.z\`, the unit-disk point \`disk\` (\`vsmLightDisk\`) its sine
- *  across the axis — a sun's angular radius and a local light's emitter alike. Unit length. */
-fn vsmConeDirection(basis:Frame3,s:f32,disk:vec2f)->vec3f{
+/** A ray toward a point of the light's disk as the receiver sees it: inside the cone of sine \`s\`
+ *  around the frame's axis \`basis.z\`, the unit-disk point \`disk\` (\`vsmLightDisk\`) its sine across the
+ *  axis — a sun's angular radius and a local light's emitter alike. The unit direction and the
+ *  cone's own cosine \`cosTheta\` (the ray's angle off the axis): a dot product of the normalised
+ *  direction could round past 1. */
+struct VsmConeRay{dir:vec3f,cosTheta:f32,}
+fn vsmConeDirection(basis:Frame3,s:f32,disk:vec2f)->VsmConeRay{
  let across=disk*s;
- return outOfFrame(vec3f(across,sqrt(max(0.0,1.0-dot(across,across)))),basis);
+ let cosTheta=sqrt(max(0.0,1.0-dot(across,across)));
+ return VsmConeRay(outOfFrame(vec3f(across,cosTheta),basis),cosTheta);
 }
 `,
 )
@@ -77,16 +63,6 @@ fn vsmRayNoise4(pixelPos:vec2u,timeIndex:u32,rayIndex:u32,rayTotal:u32)->vec4f{
  return vec4f(blueNoiseVec2(pixelPos+bitcast<vec2u>(offset1),timeIndex),blueNoiseVec2(pixelPos+bitcast<vec2u>(offset2),timeIndex));
 }
 `,
-  )
-
-/** A fragment's vote (`rayCountStatement`): over the subgroup's active lanes with \`subgroups\`
- *  (\`SUBGROUP_ALL_WGSL\`: the lights a fragment loops over are its own), else the lane's own
- *  value. */
-export const vsmLoneVoteWgsl = (subgroups: boolean) =>
-  wgslBlock(
-    `vsmLoneVoteWgsl(${subgroups})`,
-    subgroups ? [SUBGROUP_ALL_WGSL] : [],
-    `fn vsmLoneAllTrue(c:bool)->bool{return ${subgroups ? 'subgroupAllTrue(c)' : 'c'};}`,
   )
 
 /** What a trace returns: the share of its rays that missed, and how many it traced — none, its
@@ -112,16 +88,19 @@ fn vsmEmptyTrace()->VsmTraceResult{return VsmTraceResult(1.0,0u,-1.0);}
  * asks there, unless the loop ends anyway (`../projection/projectionGroupExit.test.ts`).
  *
  * A fragment's trace (`lone`): a sun's traces every ray, its vote kept to the compute projection's
- * groups; a local light's votes in every shader, over its subgroup's active lanes where the device
- * grants subgroups (`subgroupAll`), else on the lane's own value (`vsmLoneAllTrue`). Every lane voting gets one
- * answer, so the lanes a stop holds leave the loop together.
+ * groups; a local light's votes over its subgroup's active lanes where the device grants subgroups
+ * (`subgroupAllTrue`, `SUBGROUP_ALL_WGSL`, which the module lists), and without subgroups traces
+ * every ray: a lane voting on its own value would stop alone. Every lane voting gets one answer, so
+ * the lanes a stop holds leave the loop together.
  */
-export const rayCountStatement = (lone: boolean) =>
+export const rayCountStatement = (lone: boolean, subgroups: boolean) =>
   lone
-    ? /* wgsl */ `  if(!directional&&vsm.adaptiveRayCount>0u&&(i==0u||i==vsm.adaptiveRayCount)){
-   if(vsmLoneAllTrue(!running||select(missed==0u,!hit,i==0u))){if(running){stopped=true;stopIndex=i;}break;}
+    ? subgroups
+      ? /* wgsl */ `  if(!directional&&vsm.adaptiveRayCount>0u&&(i==0u||i==vsm.adaptiveRayCount)){
+   if(subgroupAllTrue(!running||select(missed==0u,!hit,i==0u))){if(running){stopped=true;stopIndex=i;}break;}
   }
 `
+      : ''
     : /* wgsl */ `  var halfStops=false;
   let votes=vsm.adaptiveRayCount>0u&&(i==0u||i==vsm.adaptiveRayCount);
   if(votes){

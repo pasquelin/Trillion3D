@@ -22,6 +22,9 @@ export interface VsmFrameState {
   nextMapsImage: ArrayBuffer
   nextMapsHeld: number[]
   nextMapsHeldCount: number
+  /** The words of the prefiltered distant shadow's history the plan writes, its blend then the previous
+   *  id + 1 of each map id of the suns (`uploadFilterableHistory`), made at its first frame. */
+  filterableHistory?: Uint32Array<ArrayBuffer>
   uniformsImage: ArrayBuffer
   /** The id allocator, emptied each frame (`VsmMapIds.reset`). */
   ids: VsmMapIds

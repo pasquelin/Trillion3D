@@ -3,30 +3,30 @@ import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
-import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { cloudShadowBindEntries } from '../atmosphere/cloudShadowRead.ts'
 import { cloudShadowStandIn } from '../atmosphere/cloudShadowStandIn.ts'
 import { skyLightReadBindEntries } from '../../modules/sky/skyLight/read.ts'
 import { skyLightStandIn } from '../../modules/sky/skyLight/standIn.ts'
+import { lightProfileBindEntries } from '../lightProfile/profileBindings.ts'
+import { postSamplers } from '../../gpu/core/postSamplers.ts'
 import {
   DEFERRED_BINDINGS,
   DEFERRED_CLOUD_SHADOW_BINDINGS,
+  DEFERRED_LIGHT_PROFILE_BINDINGS,
   DEFERRED_SKY_LIGHT_BINDINGS,
 } from './bindings.ts'
 import type { ContractKey } from './contractCuts.ts'
 import { indirectPassWgsl } from './indirectPassWgsl.ts'
 import { indirectLayoutEntries, localLayoutEntries, sunLayoutEntries } from './layoutEntries.ts'
 import { localPassWgsl, sunPassWgsl } from './lightPassWgsl.ts'
-import { preparedPipeline, type PreparedPipeline } from './fullscreen.ts'
+import { buildRenderPipeline, preparedPipeline, type PreparedPipeline } from './fullscreen.ts'
 import { createPassGroup } from './passGroup.ts'
+import { PER_LIGHT_RECORD_BINDING_BYTES } from '../shadows/vsm/projection/perLightRecord.ts'
 import type { DeferredBindings, DirectLightResources } from './program.ts'
-import {
-  ADDITIVE_LIGHT,
-  drawTileClasses,
-  tilePipeline,
-  tilePipelineDescriptor,
-} from './tilePass.ts'
-import { TILE_CLASS, TILE_CLASSES, type TileClass } from './tileClass.ts'
+import { drawTileClasses, lightPipelineDescriptor, moduleOfClass } from './tilePass.ts'
+import { TILE_CLASS, TILE_CLASS_NAMES, TILE_CLASSES, type TileClass } from './tileClass.ts'
+import { createPerLightProgram, type PerLightProgram } from './perLightProgram.ts'
+import type { PerLightLights } from '../shadows/vsm/projection/perLightPass.ts'
 
 /** What a program is made from: whether it reads the probes (`bounce`), the key of the lights it
  *  lights (`ContractKey`: its list width, its cuts of shadow, rectangle and lobe code), whether it
@@ -37,9 +37,6 @@ export interface LitSources {
   skyShadowing: boolean
   label: string
 }
-
-/** The name of a class in a label. */
-const CLASS_NAMES = ['SIMPLE', 'SINGLE', 'COMPLEX'] as const
 
 /** The classes a program holds code for: those of the plain surfaces, and, where the key does not
  *  say the image wears no lobe, the lobed ones. A frame whose key is wrong lights its lobed tiles with
@@ -62,21 +59,15 @@ async function passPipelines(
       createCheckedShaderModule(
         device,
         wgslModule(wgsl(tileClass)),
-        `${label}_${CLASS_NAMES[tileClass]}`,
+        `${label}_${TILE_CLASS_NAMES[tileClass]}`,
       ),
     ),
   )
-  const targets: GPUColorTargetState[] = [{ format: HDR_FORMAT, blend: ADDITIVE_LIGHT }]
   const pipelines = await Promise.all(
     TILE_CLASSES.map((tileClass) =>
-      tilePipeline(
+      buildRenderPipeline(
         device,
-        modules[Math.min(tileClass, modules.length - 1)],
-        layout,
-        entry,
-        targets,
-        `${label}_${CLASS_NAMES[tileClass]}`,
-        tileClass,
+        lightPipelineDescriptor(device, modules, layout, entry, label, tileClass),
       ),
     ),
   )
@@ -100,15 +91,25 @@ export async function createLitProgram(
   bindings: DeferredBindings,
 ) {
   const { bounce, key, skyShadowing, label } = sources
-  const lobes = !key.lobeless
+  const lobes = !key.lobeless,
+    profiled = !key.profileless,
+    cubed = !key.cubeless
   const layouts = {
     sun: device.createBindGroupLayout({ entries: sunLayoutEntries(lobes) }),
-    local: device.createBindGroupLayout({ entries: localLayoutEntries(lobes) }),
+    local: device.createBindGroupLayout({ entries: localLayoutEntries(lobes, profiled) }),
     indirect: device.createBindGroupLayout({
-      entries: indirectLayoutEntries({ bounce, skyShadowing, lobes }),
+      entries: indirectLayoutEntries({ bounce, skyShadowing, lobes, cubed }),
     }),
   }
   const passes = await litPasses(device, sources, layouts)
+  const perLight = createPerLightProgram(device, {
+    key,
+    classes: classesOf(key),
+    lobes,
+    profiled,
+    label,
+    localLayout: layouts.local,
+  })
   const p: LitState = {
     device,
     uniform: bindings.uniform,
@@ -116,17 +117,21 @@ export async function createLitProgram(
     bounce,
     skyShadowing,
     lobes,
+    profiled,
+    cubed,
     label,
     layouts,
     ...passes,
+    perLight,
     groups: {
       sun: createPassGroup(device, layouts.sun),
       local: createPassGroup(device, layouts.local),
       indirect: createPassGroup(device, layouts.indirect),
+      perLight: createPassGroup(device, perLight.layout),
     },
     // What the groups name, in a fixed order, so that a frame whose resources did not move allocates
     // nothing (`createPassGroup`).
-    named: { sun: [], local: [], indirect: [] },
+    named: { sun: [], local: [], indirect: [], perLight: [] },
   }
 
   return {
@@ -154,19 +159,23 @@ function litCalls(p: LitState) {
       p.held = bindLitGroups(p, surface, depth, direct, tileList)
     },
     /**
-     * Records into `pass`, the lit image's one render pass with its viewport set and the surfaces'
-     * colour already drawn (`createSurfaceColourPass`), the light added over the tiles `draws` lists
-     * (`createTileClassification`'s `draws`) — the sun's draws, the local lights', the indirect
-     * light's. One pass for the colour and the lights: a tiled GPU loads the image into its tile
-     * memory and stores it once instead of once a pass, and the additive blends are the same sums in
-     * the same order. `lightView` (`LIT_VIEWS`, and 4 for the irradiance the probes bounced, alone)
-     * says what the view shows: the whole lighting, or the one term — 1 the reflection, 4 the
-     * bounce — of the indirect draw, or — 2 — the share of the light the shadows let through.
-     * Returns the light's draws made.
+     * Records one step of the lit image (`LightStep`, in the order `litSteps` lists them) into `pass`, the lit image's render pass
+     * with its viewport set and the surfaces' colour already drawn (`createSurfaceColourPass`), over the tiles `draws` lists
+     * (`createTileClassification`'s `draws`). One pass holds as many steps as the order allows: a tiled GPU loads the image into
+     * its tile memory and stores it once, and the additive blends are the same sums in the same order. With `perLight`, the
+     * path of `shadowOnePassProjection` false is taken: the local lights' step leaves out the shadowed lights, and the steps
+     * `litSteps` lists for them, a light each, draw them (`PerLightProgram.drawLight`). Returns the draws made.
      */
-    draws(pass: GPURenderPassEncoder, draws: GPUBuffer, lightView: number) {
-      return drawLit(p, pass, draws, lightView)
+    drawStep(
+      pass: GPURenderPassEncoder,
+      draws: GPUBuffer,
+      step: LightStep,
+      perLight?: PerLightLights,
+    ) {
+      return drawLit(p, pass, draws, step, perLight)
     },
+    /** Whether the pipelines of the per-light path are compiled (`createPerLightProgram`); the frames wait for them otherwise. */
+    perLightReady: () => p.perLight.ready(),
     release() {
       for (const group of Object.values(p.groups)) group.release()
       p.held = undefined
@@ -200,7 +209,7 @@ async function litPasses(device: GPUDevice, sources: LitSources, layouts: LitLay
     passPipelines(
       device,
       classes,
-      (c) => indirectPassWgsl({ bounce, skyShadowing, tileClass: c }),
+      (c) => indirectPassWgsl({ bounce, skyShadowing, cubed: !key.cubeless, tileClass: c }),
       'indirectMain',
       layouts.indirect,
       `${label}_INDIRECT`,
@@ -214,6 +223,8 @@ interface HeldGroups {
   sun: GPUBindGroup
   local: GPUBindGroup
   indirect: GPUBindGroup
+  /** The per-light draw's group, where the frame lights the shadowed local lights one by one (`DirectLightResources.perLight`). */
+  perLight?: GPUBindGroup
   /** Whether the scene has a light of the kind each of the first two passes walks. */
   suns: boolean
   locals: boolean
@@ -227,13 +238,22 @@ interface LitState {
   readonly bounce: boolean
   readonly skyShadowing: boolean
   readonly lobes: boolean
+  /** Whether the program reads the light profiles: it binds their atlas (`ContractKey.profileless`). */
+  readonly profiled: boolean
+  /** Whether the program reads the ambient cubemap: it binds the cube (`ContractKey.cubeless`). */
+  readonly cubed: boolean
   readonly label: string
   readonly layouts: LitLayouts
   readonly sun: Awaited<ReturnType<typeof passPipelines>>
   readonly local: Awaited<ReturnType<typeof passPipelines>>
   readonly indirect: Awaited<ReturnType<typeof passPipelines>>
-  readonly groups: Record<'sun' | 'local' | 'indirect', ReturnType<typeof createPassGroup>>
-  readonly named: Record<'sun' | 'local' | 'indirect', unknown[]>
+  readonly groups: Record<
+    'sun' | 'local' | 'indirect' | 'perLight',
+    ReturnType<typeof createPassGroup>
+  >
+  readonly named: Record<'sun' | 'local' | 'indirect' | 'perLight', unknown[]>
+  /** The per-light passes, whose pipelines are made at the first frame that takes the path. */
+  readonly perLight: PerLightProgram
   held?: HeldGroups
   /** The pipelines of the shadows' view, made at the first image that shows it, from the module of
    *  the class that holds its code (`localPassWgsl`). */
@@ -244,12 +264,11 @@ function visibilityPipelines(p: LitState) {
   return (p.visibility ??= TILE_CLASSES.map((tileClass) =>
     preparedPipeline(
       p.device,
-      tilePipelineDescriptor(
+      lightPipelineDescriptor(
         p.device,
-        p.local.modules[Math.min(TILE_CLASS.single, p.local.modules.length - 1)],
+        [moduleOfClass(p.local.modules, TILE_CLASS.single)],
         p.layouts.local,
         'visibilityMain',
-        [{ format: HDR_FORMAT, blend: ADDITIVE_LIGHT }],
         `${p.label}_LOCAL_VISIBILITY`,
         tileClass,
       ),
@@ -271,6 +290,8 @@ function resolveDirect(
     sunMask: direct.vsmSunMask ?? placeholders.vsmSunMask,
     farMask: direct.farShadowMask ?? placeholders.farShadowMask,
     lightFunction: direct.lightFunction ?? placeholders.lightFunction,
+    lightProfile: direct.lightProfile ?? placeholders.lightProfile,
+    cube: direct.ambientCubemap ?? placeholders.ambientCubemap,
     cloudShadow: direct.cloudShadow ?? cloudShadowStandIn(device),
     sky: direct.sky ?? skyLightStandIn(device),
     reflection: direct.reflection ?? placeholders.reflection,
@@ -318,10 +339,12 @@ function nameResources(
   sunNamed.length = 0
   sunNamed.push(surface, depth, lights, tileList, r.sunRanks, r.sunMask, r.farMask)
   sunNamed.push(r.lightFunction, cloudShadow.block, cloudShadow.maps[0], cloudShadow.maps[1])
-  sunNamed.push(cloudShadow.sampler)
+  sunNamed.push(cloudShadow.sampler, r.occlusion)
   localNamed.length = 0
   localNamed.push(surface, depth, lights, tileList, r.tiles, r.mask, r.sunMask)
-  localNamed.push(r.lightFunction, r.farMask, r.lightGrid)
+  localNamed.push(r.lightFunction, r.farMask, r.lightGrid, r.occlusion)
+  // The atlas's view changes only when its texture is made: the group follows it.
+  if (p.profiled) localNamed.push(r.lightProfile.atlas)
   localNamed.push(
     fallback.vsmUniforms.buffer,
     fallback.vsmPageTable.buffer,
@@ -335,6 +358,7 @@ function nameResources(
   indirectNamed.push(sky.sampler, sky.harmonics, sky.params)
   if (p.bounce) indirectNamed.push(r.screen)
   if (p.skyShadowing) indirectNamed.push(shadowing.bent, shadowing.params)
+  if (p.cubed) indirectNamed.push(r.cube.view, r.cube.colour)
 }
 
 /** The three groups of a frame, made again only when a resource of one was replaced. */
@@ -347,7 +371,7 @@ function bindLitGroups(
 ): HeldGroups {
   const lights = direct.lights
   if (!lights) throw new Error('the contract program binds no declared-light buffer')
-  const { bounce, skyShadowing, groups, named } = p
+  const { bounce, groups, named } = p
   const r = resolveDirect(p.device, p.placeholders, direct)
   if (bounce && !direct.bounceGrid) throw new Error('the bounce program binds no probe grid')
   const [colours, words] = surface.stores()
@@ -369,13 +393,40 @@ function bindLitGroups(
   nameResources(p, surface, depth, direct, lights, tileList, r, fallback)
   return {
     sun: groups.sun.get(named.sun, () => sunEntries(shared, r)),
-    local: groups.local.get(named.local, () => localEntries(shared, r, fallback)),
-    indirect: groups.indirect.get(named.indirect, () =>
-      indirectEntries(shared, r, direct, bounce, skyShadowing),
-    ),
+    local: groups.local.get(named.local, () => localEntries(p, shared, r, fallback)),
+    indirect: groups.indirect.get(named.indirect, () => indirectEntries(p, shared, r)),
+    perLight: direct.perLight && perLightGroup(p, shared, r, lights, tileList, direct.perLight),
     suns: direct.suns !== 0,
     locals: direct.locals !== 0,
   }
+}
+
+/** The per-light draw's group: the pixel's layers, the light buffer, the light functions, the mask the
+ *  lights are lit through in turn and their records. */
+function perLightGroup(
+  p: LitState,
+  { pixel }: SharedBindings,
+  r: Resolved,
+  lights: GPUBuffer,
+  tileList: GPUBuffer,
+  perLight: PerLightLights,
+) {
+  const named = p.named.perLight
+  named.length = 0
+  named.push(pixel.colours, pixel.emissiveAo, pixel.words, pixel.depth, pixel.subsurface)
+  named.push(pixel.lobes, lights, tileList, r.lightFunction, perLight.mask, perLight.records)
+  named.push(r.occlusion)
+  if (p.profiled) named.push(r.lightProfile.atlas)
+  return p.groups.perLight.get(named, () => [
+    ...namedEntries(DEFERRED_BINDINGS, {
+      ...pixel,
+      lightFunctionAtlas: r.lightFunction,
+      ambientOcclusion: r.occlusion,
+      perLightMask: perLight.mask,
+      perLightRecord: { buffer: perLight.records, size: PER_LIGHT_RECORD_BINDING_BYTES },
+    }),
+    ...profileEntries(p, r),
+  ])
 }
 
 function sunEntries({ pixel, shadows }: SharedBindings, r: Resolved) {
@@ -385,30 +436,44 @@ function sunEntries({ pixel, shadows }: SharedBindings, r: Resolved) {
       ...shadows,
       sunRanks: { buffer: r.sunRanks },
       farShadowMask: { buffer: r.farMask },
+      ambientOcclusion: r.occlusion,
     }),
     ...cloudShadowBindEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, r.cloudShadow),
   ]
 }
 
-function localEntries({ pixel, shadows }: SharedBindings, r: Resolved, fallback: Fallback) {
-  return namedEntries(DEFERRED_BINDINGS, {
-    ...pixel,
-    ...shadows,
-    ...fallback,
-    vsmMask: r.mask,
-    vsmLightGrid: { buffer: r.lightGrid },
-    tiles: { buffer: r.tiles },
-    farShadowMask: { buffer: r.farMask },
-  })
+/** The light profiles' atlas and sampler of a program that reads them. */
+const profileEntries = (p: LitState, r: Resolved) =>
+  p.profiled
+    ? lightProfileBindEntries(DEFERRED_LIGHT_PROFILE_BINDINGS, {
+        view: r.lightProfile.atlas,
+        sampler: r.lightProfile.sampler,
+      })
+    : []
+
+function localEntries(
+  p: LitState,
+  { pixel, shadows }: SharedBindings,
+  r: Resolved,
+  fallback: Fallback,
+) {
+  return [
+    ...namedEntries(DEFERRED_BINDINGS, {
+      ...pixel,
+      ...shadows,
+      ...fallback,
+      vsmMask: r.mask,
+      vsmLightGrid: { buffer: r.lightGrid },
+      tiles: { buffer: r.tiles },
+      farShadowMask: { buffer: r.farMask },
+      ambientOcclusion: r.occlusion,
+    }),
+    ...profileEntries(p, r),
+  ]
 }
 
-function indirectEntries(
-  { pixel }: SharedBindings,
-  r: Resolved,
-  direct: DirectLightResources,
-  bounce: boolean,
-  skyShadowing: boolean,
-) {
+function indirectEntries(p: LitState, { pixel }: SharedBindings, r: Resolved) {
+  const { bounce, skyShadowing, cubed } = p
   const { shadowing } = r
   return [
     ...namedEntries(DEFERRED_BINDINGS, {
@@ -421,32 +486,77 @@ function indirectEntries(
         dfaoBent: { buffer: shadowing.bent },
         dfaoRead: { buffer: shadowing.params },
       }),
+      ...(cubed && {
+        ambientCube: r.cube.view,
+        ambientCubeSampler: postSamplers(p.device).mipped,
+        ambientCubeColour: { buffer: r.cube.colour },
+      }),
     }),
     ...skyLightReadBindEntries(DEFERRED_SKY_LIGHT_BINDINGS, r.sky),
   ]
 }
 
-function drawLit(p: LitState, pass: GPURenderPassEncoder, draws: GPUBuffer, lightView: number) {
+/** One step of the lit image's light, drawn over the tiles of the surfaces: the sun's pass, the local lights', the shadows' view
+ *  (the share of the light they let through), the indirect light's, or, a number, the draw of that shadowed local light alone
+ *  (`PerLightLights`, `shadowOnePassProjection` false). */
+export type LightStep = 'suns' | 'locals' | 'visibility' | 'indirect' | number
+
+/** The steps of a lit image in the order they are drawn, by what the view shows (`lightView`, `LIT_VIEWS`, and 4 for the
+ *  irradiance the probes bounced, alone): the whole lighting (0, 3) is the indirect light's pass, laid on the image before every
+ *  light, then the sun's pass, the local lights', each of the `perLight` lights' own draws; 2 the share of the light the shadows
+ *  let through; any other the indirect light alone. The one order the batched path (no per-light light: three steps) and the
+ *  per-light path both follow. */
+export function litSteps(lightView: number, perLight = 0): readonly LightStep[] {
+  const key = lightView === 2 ? -1 : lightView === 0 || lightView === 3 ? perLight : -2
+  let steps = STEPS.get(key)
+  if (!steps)
+    STEPS.set(
+      key,
+      (steps =
+        key === -1
+          ? ['visibility']
+          : key === -2
+            ? ['indirect']
+            : ['indirect', 'suns', 'locals', ...Array.from({ length: key }, (_, i) => i)]),
+    )
+  return steps
+}
+const STEPS = new Map<number, LightStep[]>()
+
+function drawLit(
+  p: LitState,
+  pass: GPURenderPassEncoder,
+  draws: GPUBuffer,
+  step: LightStep,
+  perLight?: PerLightLights,
+) {
   const { held } = p
   if (!held) throw new Error('SURFACE_NOT_BOUND')
-  let made = 0
   const draw = (group: GPUBindGroup, pipelines: readonly (GPURenderPipeline | undefined)[]) => {
     pass.setBindGroup(0, group)
-    made += drawTileClasses(pass, pipelines, draws)
+    return drawTileClasses(pass, pipelines, draws)
   }
-  if (lightView === 2) {
+  if (typeof step === 'number') {
+    if (!held.perLight || !perLight) throw new Error('SURFACE_NOT_BOUND')
+    return p.perLight.drawLight(pass, held.perLight, draws, perLight, step)
+  }
+  switch (step) {
+    // A draw of a kind of light the scene has none of would read every pixel to add nothing.
+    case 'suns':
+      return held.suns ? draw(held.sun, p.sun.pipelines) : 0
+    // The shadowed lights the per-light draws light are left out of the batch, whether those draws are ready or not: a frame
+    // that cannot light them yet is drawn again once it can, and reads no mask that was not projected.
+    case 'locals':
+      return held.locals
+        ? draw(held.local, perLight ? p.perLight.unbatchedLocal() : p.local.pipelines)
+        : 0
     // The share of the light the shadows let through: the cell's lists, with the mask.
-    draw(
-      held.local,
-      visibilityPipelines(p).map((pipeline) => pipeline.get()),
-    )
-  } else {
-    if (lightView === 0 || lightView === 3) {
-      // A draw of a kind of light the scene has none of would read every pixel to add nothing.
-      if (held.suns) draw(held.sun, p.sun.pipelines)
-      if (held.locals) draw(held.local, p.local.pipelines)
-    }
-    draw(held.indirect, p.indirect.pipelines)
+    case 'visibility':
+      return draw(
+        held.local,
+        visibilityPipelines(p).map((pipeline) => pipeline.get()),
+      )
+    case 'indirect':
+      return draw(held.indirect, p.indirect.pipelines)
   }
-  return made
 }

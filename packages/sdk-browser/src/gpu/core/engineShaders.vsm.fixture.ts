@@ -8,8 +8,10 @@ import {
   vsmResetPageTableWgsl,
   vsmPixelPageMarkingWgsl,
   vsmPageRectInitWgsl,
+  vsmClearRasterMarksWgsl,
   vsmCoarseMarkingWgsl,
 } from '../../lighting/shadows/vsm/markingWgsl.ts'
+import { vsmFilterableKernels } from '../../lighting/shadows/vsm/filterableWgsl.ts'
 import { vsmPageManagementKernels } from '../../lighting/shadows/vsm/pageManagementWgsl.ts'
 import { vsmPhysicalPageKernels } from '../../lighting/shadows/vsm/physicalPagesWgsl.ts'
 import {
@@ -34,6 +36,7 @@ import {
   vsmTessSplitSource,
 } from '../../lighting/shadows/vsm/tessellation/shadowKernelsWgsl.ts'
 import { vsmTessellatedVertexWgsl } from '../../lighting/shadows/vsm/tessellation/shadowRasterWgsl.ts'
+import { vsmPerLightProjectionWgsl } from '../../lighting/shadows/vsm/projection/perLightProjectionWgsl.ts'
 import { vsmPruneLightGridWgsl } from '../../lighting/shadows/vsm/projection/lightGridWgsl.ts'
 import { vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
 import {
@@ -57,7 +60,8 @@ import {
  *  (one module, its kinds specialised by `VSM_TRACE_KINDS`), the page management with and without
  *  its counters. */
 export function vsmVariants() {
-  const layout = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
+  const layoutOptions = { coverMode: 'suns' as const, fullMapCapacity: 127, sunMapCapacity: 35 }
+  const layout = vsmLayout(layoutOptions)
   const upper = (name: string) => name.replace(/[A-Z]/g, '_$&').toUpperCase()
   const variants: Record<string, string> = {
     // The shadowed lights' grid, pruned from the view's light grid before the marking.
@@ -85,21 +89,57 @@ export function vsmVariants() {
     VSM_RENDER_VIEWS: vsmRenderViewsWgsl(layout),
     VSM_RENDER_CULL: vsmRenderCullWgsl(layout),
     VSM_RENDER_CULL_THROTTLED: vsmRenderCullWgsl(layout, true),
+    // The cull marking the pages it emits drawn, on a device with ten storage buffers a stage, and
+    // the bin that marks none then.
+    VSM_RENDER_CULL_MARKS: vsmRenderCullWgsl(layout, false, true),
+    VSM_RENDER_BIN_UNMARKING: vsmRenderBinWgsl(layout, false, true),
+    // The bin placing a bin's records a workgroup at a time, and a subgroup at a time.
     VSM_RENDER_BIN: vsmRenderBinWgsl(layout),
+    VSM_RENDER_BIN_SUBGROUPS: vsmRenderBinWgsl(layout, true),
     VSM_RENDER_ARGS_WGSL,
     VSM_RENDER_RASTER: vsmRenderRasterWgsl(layout),
     VSM_RENDER_RASTER_MASKED: vsmRenderRasterWgsl(layout, maskGraphSets().shadow),
     VSM_RENDER_VOXEL: vsmRenderVoxelWgsl(layout),
-    // The software half of the raster: plain, masked, and with the lanes' subgroup vote.
+    // The software half of the raster: plain, masked, and with the lanes' subgroup vote, reading the
+    // maps' views the bin laid and, on a device with a ninth storage buffer, their records.
     VSM_RENDER_SOFTWARE: vsmRenderSoftwareWgsl(layout),
     VSM_RENDER_SOFTWARE_MASKED: vsmRenderSoftwareWgsl(layout, maskGraphSets().shadow),
     VSM_RENDER_SOFTWARE_SUBGROUPS: vsmRenderSoftwareWgsl(layout, undefined, undefined, true),
+    VSM_RENDER_SOFTWARE_BOUND: vsmRenderSoftwareWgsl(layout, undefined, undefined, false, true),
+    // Both layers' records in one kernel, binding both pool slices, without and with the projection data.
+    VSM_RENDER_SOFTWARE_MERGED: vsmRenderSoftwareWgsl(
+      layout,
+      undefined,
+      undefined,
+      false,
+      false,
+      true,
+    ),
+    VSM_RENDER_SOFTWARE_MERGED_BOUND: vsmRenderSoftwareWgsl(
+      layout,
+      maskGraphSets().shadow,
+      undefined,
+      false,
+      true,
+      true,
+    ),
+    VSM_RENDER_SOFTWARE_BOUND_MASKED: vsmRenderSoftwareWgsl(
+      layout,
+      maskGraphSets().shadow,
+      undefined,
+      false,
+      true,
+    ),
     // The shadow views' descent: the camera's descent kernels over the frame's lights.
     VSM_DESCENT: vsmDescentWgsl(layout),
     // The occlusion pyramid's build: the page selection, the tile levels, the top levels.
     VSM_OCCLUSION_SELECT: vsmSelectPyramidWgsl(layout),
     VSM_OCCLUSION_BUILD: vsmBuildPyramidWgsl(layout),
     VSM_OCCLUSION_TOP: vsmBuildPyramidTopWgsl(layout),
+    // And the tile kernel writing levels 0 to 4, on a device with five storage textures a stage, with the
+    // top kernel from level 4.
+    VSM_OCCLUSION_BUILD_FIVE: vsmBuildPyramidWgsl(layout, 5),
+    VSM_OCCLUSION_TOP_FIVE: vsmBuildPyramidTopWgsl(layout, 5),
     // The displaced surfaces' patches in the shadow maps: the chain over a view pass's records, then
     // the vertex stage that dices them.
     VSM_TESSELLATION_SEED: vsmTessSeedSource(),
@@ -121,18 +161,41 @@ export function vsmVariants() {
       layout,
       format,
     )
-  // The marking's clears (`vsmMarkingClears`): every map's tables, and a receiver mask of the
-  // suns'.
-  const suns = vsmMarkingClears({ ...layout, coverMode: 'directional' })
-  variants.VSM_MARKING_CLEAR = vsmResetPageTableWgsl(suns.all, layout)
-  variants.VSM_MARKING_CLEAR_RECEIVER = vsmResetPageTableWgsl(suns.directionalOnly, layout)
-  for (const stats of [false, true]) {
-    const kernels = {
-      ...vsmPhysicalPageKernels(layout, { stats }),
-      ...vsmPageManagementKernels(layout),
+  // The local lights' pass taking the longest list by the subgroups' maxima.
+  variants.VSM_PROJECTION_LOCALS_SUBGROUPS = vsmLocalsProjectionWgsl(layout, 'rg32uint', true)
+  // The per-light path's projection (`shadowOnePassProjection` false), with and without the subgroup vote.
+  variants.VSM_PROJECTION_PER_LIGHT = vsmPerLightProjectionWgsl(layout)
+  variants.VSM_PROJECTION_PER_LIGHT_SUBGROUPS = vsmPerLightProjectionWgsl(layout, true)
+  // The marking's clears (`vsmMarkingClears`): every map's requests, a receiver mask of the suns', every
+  // map's tables and flags; and the raster marks'.
+  const suns = vsmMarkingClears({ ...layout, coverMode: 'suns' })
+  variants.VSM_MARKING_CLEAR_REQUESTS = vsmResetPageTableWgsl(suns.requests.targets, layout)
+  variants.VSM_MARKING_CLEAR_RECEIVER = vsmResetPageTableWgsl(suns.receiver.targets, layout)
+  variants.VSM_MARKING_CLEAR_TABLES = vsmResetPageTableWgsl(suns.tables.targets, layout)
+  variants.VSM_MARKING_CLEAR_RASTER_MARKS = vsmClearRasterMarksWgsl(layout)
+  // The prefiltered distant shadow: its filters, and the suns' projection that reads their merged pool.
+  const prefiltered = vsmLayout({ ...layoutOptions, prefilteredDistant: true })
+  for (const [name, kernel] of Object.entries(vsmFilterableKernels(prefiltered)))
+    variants[`VSM_PM_${upper(name)}`] = kernel.code
+  variants.VSM_PROJECTION_SUNS_PREFILTERED = vsmSunsProjectionWgsl(prefiltered)
+  // The programs the layout changes: the cull and the descent asking the request bits, the three
+  // page markings, the page management.
+  variants.VSM_RENDER_CULL_PREFILTERED = vsmRenderCullWgsl(prefiltered)
+  variants.VSM_DESCENT_PREFILTERED = vsmDescentWgsl(prefiltered)
+  variants.VSM_MARKING_COARSE_PREFILTERED = vsmCoarseMarkingWgsl(prefiltered)
+  variants.VSM_MARKING_PIXELS_PREFILTERED = vsmPixelPageMarkingWgsl(prefiltered)
+  variants.VSM_MARKING_FROXELS_PREFILTERED = vsmFroxelPageMarkingWgsl(prefiltered)
+  for (const [pageLayout, suffix] of [
+    [layout, ''],
+    [prefiltered, '_PREFILTERED'],
+  ] as const)
+    for (const stats of [false, true]) {
+      const kernels = {
+        ...vsmPhysicalPageKernels(pageLayout, { stats }),
+        ...vsmPageManagementKernels(pageLayout),
+      }
+      for (const [name, kernel] of Object.entries(kernels))
+        variants[`VSM_PM_${upper(name)}${suffix}${stats ? '_STATS' : ''}`] = kernel.code
     }
-    for (const [name, kernel] of Object.entries(kernels))
-      variants[`VSM_PM_${upper(name)}${stats ? '_STATS' : ''}`] = kernel.code
-  }
   return variants
 }

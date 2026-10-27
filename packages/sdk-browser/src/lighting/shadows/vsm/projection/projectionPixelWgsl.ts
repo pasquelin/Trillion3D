@@ -79,7 +79,7 @@ fn vsmSurfaceOf(coord:vec2u,inRect:bool,normal:vec3f)->VsmSurfaceInfo{
  r.coated=vsmCoatedAt(coord,flag);
  r.hair=pixelModelOf(flag)==${PIXEL_MODEL.hair}u;
  // A receiver that lets light through its shadow: its opacity, at most 0.99 — it never stops the light
- // whole —, the thin transmission's or the skin's, both in the target's alpha.
+ // whole —, the thin transmission's, in the target's alpha.
  r.opacity=select(-1.0,min(textureLoad(subsurfaceColor,vec2i(coord)).a,0.99),vsmTransmitsShadow(flag));
  r.firstPerson=isFirstPerson(flag);
  if(r.valid){r.worldNormal=normalize(normal);}

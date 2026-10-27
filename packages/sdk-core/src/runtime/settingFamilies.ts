@@ -1,5 +1,6 @@
 import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
+import { AMBIENT_CUBEMAP_RULES } from '../contracts/ambientCubemapOptions.ts'
 import { BLOOM_RULES } from '../contracts/bloomRules.ts'
 import { COLOR_GRADING_RULES } from '../contracts/colorGradingOptions.ts'
 import { CUT_RULES } from '../contracts/cutOptions.ts'
@@ -10,6 +11,7 @@ import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
 import { FILM_RULES } from '../contracts/filmOptions.ts'
 import { GAUSSIAN_BLUR_RULES } from '../contracts/gaussianBlurRules.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
+import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
@@ -109,6 +111,7 @@ export const SETTING_FAMILIES = {
   translucencyVolume: { rules: TRANSLUCENCY_VOLUME_RULES, group: 'effects', world: 'image' },
   translucencyGi: { rules: TRANSLUCENCY_GI_RULES, group: 'indirectLight', world: 'image' },
   singleLayerWater: { rules: SINGLE_LAYER_WATER_RULES, group: 'effects', world: 'image' },
+  hairStrands: { rules: HAIR_STRANDS_RULES, group: 'effects', world: 'image' },
   tessellation: { rules: TESSELLATION_RULES, group: 'viewDistance', world: 'image' },
   motionBlur: { rules: MOTION_BLUR_RULES, group: 'imageEffects', world: 'image' },
   depthOfField: { rules: DEPTH_OF_FIELD_RULES, group: 'imageEffects', world: 'image' },
@@ -117,6 +120,7 @@ export const SETTING_FAMILIES = {
   film: { rules: FILM_RULES, group: 'imageEffects', world: 'image' },
   colorGrading: { rules: COLOR_GRADING_RULES, group: 'imageEffects', world: 'image' },
   ambientOcclusion: { rules: AMBIENT_OCCLUSION_RULES, group: 'imageEffects', world: 'image' },
+  ambientCubemap: { rules: AMBIENT_CUBEMAP_RULES, group: 'indirectLight', world: 'image' },
   skyQuality: {
     rules: SKY_QUALITY_RULES,
     group: null,

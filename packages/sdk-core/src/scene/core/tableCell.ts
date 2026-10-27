@@ -55,11 +55,6 @@ export interface CellNode {
   drawDistance?: TableDrawDistance
   /** The row is drawn by a view's primed depth (`farField` of the job's object settings). */
   farField?: true
-  /** The row casts far shadows (`castFarShadow` of the job's object settings). */
-  castFarShadow?: true
-  /** Whether a sun's far-shadow test reaches the row (`true`) or never does (`false`), by
-   *  `farShadowTest` of the job's object settings; left out when none names it. */
-  farShadowTest?: boolean
   /** An instance of an assembly (`rootParents` of the node table): per primitive of its mesh, the
    *  group that replaces its root, `null` for a primitive none replaces; left out for any other
    *  node, so a cell with none is the bytes it was. */

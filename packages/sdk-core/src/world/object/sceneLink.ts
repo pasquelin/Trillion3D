@@ -11,7 +11,7 @@ export interface SceneLink {
    *  out of the world included. A node the world never knew is read with its parent. */
   entered?(node: Object3D): void
   /** A node's shape or material changed. */ content(node: Object3D): void
-  /** A node's `castShadow`, `castFarShadow` or `farShadowTest` changed: nothing moved. */
+  /** A node's `castShadow` or `castsShadowMaps` changed: nothing moved. */
   shadow?(node: Object3D): void
   /**
    * The row `node` is drawn from, or `null` when it holds none: sixteen column-major floats at

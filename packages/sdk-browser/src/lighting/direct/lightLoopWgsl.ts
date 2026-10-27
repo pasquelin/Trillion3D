@@ -2,6 +2,8 @@ import { MODEL_FLAG } from '../../materials/surface/surfaceModelWord.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LOBELESS_KEY, type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { LAMP_SEEN, REACH, irradianceTerm } from './lightTermsWgsl.ts'
+import { lightChannelsOf, shadowBitsOf } from './lightReachWgsl.ts'
+import { SURFACE_CHANNELS_WGSL } from '../../materials/surface/surfaceChannels.ts'
 import { LAMP_WGSL } from './lampSeenWgsl.ts'
 import { THIN_TRANSMISSION_WGSL } from './thinTransmissionWgsl.ts'
 import { SHADING_MODEL_LIGHT_WGSL } from './shadingModelWgsl.ts'
@@ -18,8 +20,13 @@ import {
 } from './surfaceModelTerms.ts'
 import { vsmFacesAwayFromLocal } from '../shadows/vsm/facesAwayWgsl.ts'
 import { AIR_TINT_WGSL } from '../atmosphere/airTintWgsl.ts'
-import { contactShadowWgsl } from '../contactShadow/contactShadowWgsl.ts'
+import {
+  contactShadowWgsl,
+  raysLabel,
+  type ContactRays,
+} from '../contactShadow/contactShadowWgsl.ts'
 import { SHADOW_TERMS_WGSL } from './shadowTermsWgsl.ts'
+import { NO_LIGHT_PROFILE_WGSL } from '../lightProfile/lightProfileWgsl.ts'
 
 /**
  * What a program's light term holds of the surface models: `models`, the diffuse and toon models, the
@@ -42,16 +49,55 @@ const catcherOf = (cut: LightCut, text: string) => (cut.models ? text : '')
 const WHOLE: Out = (v) => v
 const SPECULAR: Out = (v) => `LightSplit(vec3f(0.0),${v})`
 
+/** The statement after the reach test that leaves out a light the surface shares no lighting channel with
+ *  (`surfaceChannels`, set once a pixel; `lightChannelsOf`): the term's exact zero. */
+const CHANNELS = (zeroTerm: string) => `
+ if((lightChannelsOf(light)&surfaceChannels)==0u){return ${zeroTerm};}`
+
 /** The part of a program's label that names the air's tint left out (`airTint` false). */
 export const airTintLabel = (airTint: boolean) => (airTint ? '' : ', no air tint')
 
 /**
  * The light's shadow terms (`shadowTermsOf`): its shadow `shade` (1 in a program with no shadow code), the
- * pixel's occlusion `ao`, whether the light has shadow bits (`casts`: it casts a shadow, whether it holds
- * a slot or not and whether the program holds the shadow code or not), and its contact shadow.
+ * pixel's occlusion `ao` (the split term takes 1: the forward light loop does), whether the light has shadow bits
+ * (`bits`, `shadowBitsOf`: it casts a shadow, whether it holds a slot or not and whether the program holds the shadow
+ * code or not, or wears a light function with no slot), and its contact shadow.
  */
-const termsOf = (reads: boolean, contact: boolean) =>
-  `shadowTermsOf(${reads ? 'shade' : '1.0'},ao,casts,${contact ? 'contact' : '1.0'})`
+const termsOf = (reads: boolean, contact: boolean, split: boolean) =>
+  `shadowTermsOf(${reads ? 'shade' : '1.0'},${split ? '1.0' : 'ao'},bits!=SHADOWED_NONE,${contact ? 'contact' : '1.0'})`
+
+/** The program of a light's irradiance at a point, with (`irradiance`) or without (`bareIrradiance`) its
+ *  light function and clouds' shade (`LightTerm`). */
+const irradianceLightWgsl = (key: Partial<ContractKey>, term: 'irradiance' | 'bareIrradiance') =>
+  wgslBlock(
+    `declaredLightWgsl(${variantLabel(key)}, ${term})`,
+    // The cache's irradiance reads no profile atlas (its profile is the mask's, `shadowMaskWgsl.ts`): unless its key says
+    // `profileless`, it holds the stand-in.
+    [
+      LAMP_WGSL,
+      AIR_TINT_WGSL,
+      ...(term === 'irradiance' && !key.profileless ? [NO_LIGHT_PROFILE_WGSL] : []),
+    ],
+    `fn ${term === 'irradiance' ? 'declaredIrradiance' : 'declaredBareIrradiance'}(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless, term === 'irradiance', !key.profileless)}
+}`,
+  )
+
+/** The fragments the surface term of a light lists, by what its program holds (`declaredLightWgsl`). */
+const lightDeps = (
+  key: Partial<ContractKey>,
+  held: { models: boolean; airTint: boolean; rays: ContactRays | undefined },
+) => [
+  LAMP_WGSL,
+  THIN_TRANSMISSION_WGSL,
+  ...(held.airTint ? [AIR_TINT_WGSL] : []),
+  vsmFacesAwayFromLocal,
+  SHADOW_TERMS_WGSL,
+  shadowBitsOf,
+  ...(key.channelless ? [] : [lightChannelsOf, SURFACE_CHANNELS_WGSL]),
+  ...(held.models ? [SHADING_MODEL_LIGHT_WGSL, PROFILE_LIGHT_WGSL] : []),
+  ...(held.models && !key.rectless ? [PROFILE_RECT_WGSL] : []),
+  ...(held.rays ? [contactShadowWgsl(held.rays)] : []),
+]
 
 /**
  * The contribution of one declared light at the point, its shadow included — the engine's only
@@ -69,7 +115,9 @@ const termsOf = (reads: boolean, contact: boolean) =>
  *   clouds' shade, which the program that holds it keeps, with the shadow, in a mask of its own.
  * The lamp's falloff, the range, the rectangle's irradiance and the light's colour and intensity are
  * the same text in both. A light's colour is multiplied by its light function at the point
- * (`lightFunctionOf`, `../lightFunction/readWgsl.ts`) in the surface, split and irradiance terms.
+ * (`lightFunctionOf`, `../lightFunction/readWgsl.ts`) and by its light profile's share toward the point
+ * (`lightProfileOf`, `../lightProfile/lightProfileWgsl.ts`: 1 for a light with none), in that order, in the surface, split and
+ * irradiance terms.
  * It is also multiplied by the air's transmittance toward it at the point where it asks for that
  * (`airTintOf`, `../atmosphere/airTintWgsl.ts`). `airTint` false leaves that factor out: it is for a
  * program whose lights are never the air's, the air's lights being directional ones and the local
@@ -91,15 +139,21 @@ const termsOf = (reads: boolean, contact: boolean) =>
  * rectangle's shading — its clipped polygon and fitted lobe (\`rectLightWgsl.ts\`) — is the largest
  * code of the loop: left out, every punctual light of the loop runs without the registers it holds.
  *
+ * With `channelless`, the program of a scene whose lights and objects are all in the default lighting channel
+ * (channel 0 alone): every light shares it with every surface, so the test of the channels
+ * (`CHANNELS`: the light's mask against the surface's, after the reach test) answers yes for each and is not
+ * compiled.
+ *
  * Without `lobeless`, the program of an image that holds an anisotropic or clear-coat surface
  * (`lobesWgsl.ts`): the same `surfaceLight` and `rectLightSplit`, whose lobe hooks run the very same
  * terms on a pixel without lobes.
  *
  * One step (`shadowTermsOf`, `shadowTermsWgsl.ts`) gives the light's surface and transmission shadows
  * after its shadow read: the lobes take the occlusion `ao` where the light has no shadow bits, else its
- * shadow, the transmitted terms its shadow alone. Without `contactless`, the program of the opaque lit passes
- * that cast contact shadows (`contactShadow`, `../contactShadow/contactShadowWgsl.ts`), the share the
- * contact shadow lets through multiplies both.
+ * shadow, the transmitted terms its shadow alone. Without the key's `contactless` (a translucent pass's is the scene's,
+ * whose surfaces ask: `translucentLitKey`), the program casts contact shadows (`contactShadow`,
+ * `../contactShadow/contactShadowWgsl.ts`), and the share they let through multiplies both; with `asked`, the
+ * translucent passes', only the ray of a surface whose material asks.
  *
  * `shading` is what the pixel's lights share of its surface (`lobeSurface`), taken once before the
  * loop (`sliceLighting`).
@@ -110,41 +164,30 @@ export const declaredLightWgsl = (
     term = 'surface',
     cut = FULL_CUT,
     airTint = true,
-  }: { term?: LightTerm; cut?: LightCut; airTint?: boolean } = {},
+    rays,
+  }: { term?: LightTerm; cut?: LightCut; airTint?: boolean; rays?: ContactRays } = {},
 ) => {
-  const shadowed = !key.unshadowed
-  const contact = !key.contactless
-  if (term === 'irradiance' || term === 'bareIrradiance')
-    return wgslBlock(
-      `declaredLightWgsl(${variantLabel(key)}, ${term})`,
-      [LAMP_WGSL, AIR_TINT_WGSL],
-      `fn ${term === 'irradiance' ? 'declaredIrradiance' : 'declaredBareIrradiance'}(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless, term === 'irradiance')}
-}`,
-    )
+  const shadowed = !key.unshadowed,
+    contact = !key.contactless
+  if (term === 'irradiance' || term === 'bareIrradiance') return irradianceLightWgsl(key, term)
   const split = term === 'split'
   const out = split ? SPECULAR : WHOLE
   const zero = out(ZERO)
   // The split term is the translucent layers': none of its pixels wears a model.
   const models = cut.models && !split
+  // The rays the program casts, none where its scene holds no contact shadows: those of the lights alone, the shading models' too
+  // where it holds them, or the one of the surface whose material asks (`rays`).
+  const cast = contact ? (rays ?? (models ? 'models' : 'lights')) : undefined
   return wgslBlock(
-    `declaredLightWgsl(${variantLabel(key)}, ${term}${cutLabel(cut)}${airTintLabel(airTint)})`,
-    [
-      LAMP_WGSL,
-      THIN_TRANSMISSION_WGSL,
-      ...(airTint ? [AIR_TINT_WGSL] : []),
-      vsmFacesAwayFromLocal,
-      SHADOW_TERMS_WGSL,
-      ...(models ? [SHADING_MODEL_LIGHT_WGSL, PROFILE_LIGHT_WGSL] : []),
-      ...(models && !key.rectless ? [PROFILE_RECT_WGSL] : []),
-      ...(contact ? [contactShadowWgsl(models)] : []),
-    ],
-    `${split ? SPLIT_HEAD : WHOLE_HEAD}${REACH(zero)}${key.rectless ? '' : rectBranch(out, split, shadowed, cut, models, contact)}${LAMP_SEEN(zero, 'LAMP_BIAS')}${shadowed ? shadeStatement(out, cut) : catcherOf(cut, CATCHER_NONE(out))}
- let casts=castsShadow(light);${contact ? `\n let contact=contactShadow(light,P,lamp.centre,casts);` : ''}
- let terms=${termsOf(shadowed, contact)};
- let strength=light.colorIntensity.w*lamp.falloff;
+    `declaredLightWgsl(${variantLabel(key)}, ${term}${cutLabel(cut)}${airTintLabel(airTint)}${cast ? raysLabel(cast) : ''})`,
+    lightDeps(key, { models, airTint, rays: cast }),
+    `${split ? SPLIT_HEAD : WHOLE_HEAD}${REACH(zero)}${key.channelless ? '' : CHANNELS(zero)}${key.rectless ? '' : rectBranch(out, split, shadowed, cut, models, contact)}${LAMP_SEEN(zero, 'LAMP_BIAS')}${shadowed ? shadeStatement(out, cut) : catcherOf(cut, CATCHER_NONE(out))}
+ let bits=shadowBitsOf(light);${contact ? `\n let contact=contactShadow(light,P,lamp.centre,bits);` : ''}
+ let terms=${termsOf(shadowed, contact, split)};
+ let strength=lightStrength(light)*lamp.falloff;
  let transmissionEnergy=strength*terms.transmission;
  let surfaceEnergy=strength*terms.surface;
- let color=light.colorIntensity.rgb*lightFunctionOf(light.params.x,P)*${airTint ? 'airTintOf(rank,light,P)*' : ''}cloudShadowOnSurface(rank,P);
+ let color=light.colorIntensity.rgb*lightFunctionOf(light,P)*${key.profileless ? '' : 'lightProfileOf(light,P)*'}${airTint ? 'airTintOf(rank,light,P)*' : ''}cloudShadowOnSurface(rank,P);
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
  // the light's sum as it is (\`exactZeros.test.ts\`). A thin one lets the light through from either
  // side, its direction the lamp's centre (\`thinTransmission\`).
@@ -165,7 +208,7 @@ const wholeTail = (cut: LightCut) => ` let share=sharesOf(light);${
   cut.models
     ? `
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return (modelLight(rgb,metal,N,lamp.toward,surfaceEnergy)+transmitted)*(color*share.x);}
- ${hairOnly('transmitted*(color*share.x)')}
+ ${hairOnly('transmitted*(color*share.y)')}
  ${scattered('color', 'color', 'profileLampLight(shading,N,V,light,P,lamp,surfaceEnergy,rough)')}`
     : ''
 }
@@ -175,7 +218,7 @@ const wholeTail = (cut: LightCut) => ` let share=sharesOf(light);${
  *  term's two shares, from one shadow read — its diffuse layer, and the rest: the lobe's specular
  *  (\`lampLightSplit\`), the thin back's transmission, a catcher's term. */
 const SPLIT_HEAD = `struct LightSplit{diffuse:vec3f,specular:vec3f,}
-fn declaredLightSplit(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface)->LightSplit{`
+fn declaredLightSplit(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,shading:LobeSurface)->LightSplit{`
 const SPLIT_TAIL = ` let share=sharesOf(light);
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return LightSplit(modelLight(rgb,metal,N,lamp.toward,surfaceEnergy)*(color*share.x),transmitted*(color*share.x));}
  let split=lampLightSplit(shading,N,V,light,P,lamp,surfaceEnergy);
@@ -208,18 +251,18 @@ const rectBranch = (
  if(isRect(light)){
   let r=rectView(light,P);${shadowed ? nested(rectShadeRead(out, cut)) : catcherOf(cut, CATCHER_NONE(out))}
   let centre=normalize(light.positionRange.xyz-P);
-  let casts=castsShadow(light);${contact ? `\n  let contact=contactShadow(light,P,centre,casts);` : ''}
-  let terms=${termsOf(shadowed, contact)};
-  let given=lightFunctionOf(light.params.x,P);
+  let bits=shadowBitsOf(light);${contact ? `\n  let contact=contactShadow(light,P,centre,bits);` : ''}
+  let terms=${termsOf(shadowed, contact, split)};
+  let given=lightFunctionOf(light,P);
   let surfaceGiven=given*terms.surface;
   let transmissionGiven=given*terms.transmission;
   let share=sharesOf(light);
   var transmitted=vec3f(0.0);${
     cut.thin
       ? `
-  if(thinSurface()){transmitted=thinSubsurface*(thinTransmission(N,V,centre)*rectWindowed(r)*light.colorIntensity.w)*light.colorIntensity.rgb;}`
+  if(thinSurface()){transmitted=thinSubsurface*(thinTransmission(N,V,centre)*rectWindowed(r)*lightStrength(light))*light.colorIntensity.rgb;}`
       : ''
-  }${rectModelTerm(models)}${models ? `\n  ${hairOnly('transmitted*share.x*transmissionGiven')}\n  ${nested(scattered('surfaceGiven', 'transmissionGiven', 'profileRectLight(light,r,shading,N,V,rough)'))}` : ''}
+  }${rectModelTerm(models)}${models ? `\n  ${hairOnly('transmitted*share.y*transmissionGiven')}\n  ${nested(scattered('surfaceGiven', 'transmissionGiven', 'profileRectLight(light,r,shading,N,V,rough)'))}` : ''}
   let t=rectLightSplit(light,r,shading,rgb,metal,rough,N,V);${
     split
       ? `
@@ -263,7 +306,7 @@ const shadeStatement = (out: Out, cut: LightCut) => `
 /**
  * The one loop that walks a point's lights: a pixel's in full (\`sliceLighting\`; split into its
  * diffuse and specular shares, \`sliceLightingSplit\`), the lights of a
- * cell's list (\`cellSlice\`, \`listedLight\`) in increasing rank. Every walk hands the light's RANK to its term, whose first statement is the
+ * cell's list (\`cellSlice\`, \`listedLight\`; the walk of every light leaves out the ones the view does not draw, \`listedDrawn\`) in increasing rank. Every walk hands the light's RANK to its term, whose first statement is the
  * one reach test (\`REACH\`, \`lightReaches\`) on the light's kind and sphere: a light out of reach
  * costs those words and a compare, in every program, before the rest of its record is read.
  */
@@ -273,11 +316,13 @@ export const sliceLightingWgsl = (term: 'surface' | 'split' = 'surface', models 
     models ? [SHADING_MODEL_LIGHT_WGSL] : [],
     term === 'split'
       ? `
-fn sliceLightingSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->LightSplit{
+fn sliceLightingSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,slice:vec2u)->LightSplit{
  var result=LightSplit(vec3f(0.0),vec3f(0.0));
- let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);
+ let shading=clothSurface(lobeSurface(rgb,metal,rough,N,V));lobeView(shading);
  for(var index=0u;index<slice.y;index++){
-  let l=declaredLightSplit(listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading);
+  let rank=listedLight(slice,index);
+  if(!listedDrawn(slice,rank)){continue;}
+  let l=declaredLightSplit(rank,rgb,metal,rough,N,V,P,shading);
   result.diffuse+=l.diffuse;
   result.specular+=l.specular;
  }
@@ -286,9 +331,11 @@ fn sliceLightingSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f
       : `
 fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
  var result=vec3f(0.0);
- let shading=${models ? 'modelLobeSurface(lobeSurface(rgb,metal,rough,N,V))' : 'lobeSurface(rgb,metal,rough,N,V)'};lobeView(shading);
+ let shading=${models ? 'modelLobeSurface(clothSurface(lobeSurface(rgb,metal,rough,N,V)))' : 'clothSurface(lobeSurface(rgb,metal,rough,N,V))'};lobeView(shading);
  for(var index=0u;index<slice.y;index++){
-  result+=declaredLight(listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading);
+  let rank=listedLight(slice,index);
+  if(!listedDrawn(slice,rank)){continue;}
+  result+=declaredLight(rank,rgb,metal,rough,N,V,P,ao,shading);
  }
  return result;
 }`,

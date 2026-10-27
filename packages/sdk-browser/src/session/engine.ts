@@ -3,12 +3,14 @@ import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.t
 import { trackSettings } from '../../../sdk-core/src/contracts/settingRules.ts'
 import { exposureCurveTable } from '../../../sdk-core/src/contracts/exposureCurveTable.ts'
 import { resolveExposureMeterMask } from '../../../sdk-core/src/contracts/exposureMeterMask.ts'
+import { resolveAmbientCubemap } from '../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
 import type { WorldRootsHold } from '../geometry/hlod/worldRoots.ts'
 import { isCancelled, pixelRatioOf } from './engine/common.ts'
 import { resolvedFamilies } from './engine/familySettings.ts'
 import { readDistanceFields } from '../lighting/distanceField/fieldsLoad.ts'
 import { readMeshCards } from '../lighting/surfaceCache/cardsLoad.ts'
 import { readRayTracing } from '../lighting/rays/sceneTrace/rayTracingLoad.ts'
+import { hairStrandsReader } from '../hair/strandsLoad.ts'
 import {
   readVolumetricLightmap,
   type ReadLightmap,
@@ -24,6 +26,7 @@ import { dagWarningsDiagnostic } from '../../../sdk-core/src/contracts/dagWarnin
 import { createTextureCaches, type TextureCache } from '../materials/texture/textureCaches.ts'
 import { resolveDiagnosticGpuVariant } from '../diagnostic/gpuVariant.ts'
 import { declareImportedLights, loadImportedLights } from '../lighting/importedLights.ts'
+import { lightProfileReader } from '../lighting/lightProfile/profileFile.ts'
 import type { EngineContext, Engine } from './engine/types.ts'
 import type { EngineFactory } from './engine/factory.ts'
 import type { ExplorerPageSources } from './pageSources.ts'
@@ -103,6 +106,7 @@ function optionContext(session: ExplorerSession) {
     ...resolvedFamilies(options),
     exposureCurve: options.exposureCurve,
     exposureMeterMask: resolveExposureMeterMask(options.exposureMeterMask), // refused when not a picture
+    ambientCubemap: resolveAmbientCubemap(options).ambientCubemap, // refused when not a cube
     admitGpuMemory: options.admitGpuMemory,
     texturePoolBytes: options.texturePoolBytes,
     textureCompression: options.textureCompression,
@@ -118,7 +122,6 @@ function optionContext(session: ExplorerSession) {
     particles: options.particles,
     // Bounced light stays off unless asked: its step holds 1.1 to 1.3 ms on Emerald, above 1 ms.
     bounce: options.bounce,
-    bounceProbesPerFrame: options.bounceProbesPerFrame,
   }
 }
 
@@ -170,6 +173,8 @@ function engineContext(
     distanceFields,
     meshCards,
     rayTracing,
+    hairStrandsFile: hairStrandsReader(metadata, inputs.base, signal, unmetered),
+    lightProfileFile: lightProfileReader(inputs.base, signal),
     volumetricLightmapData: volumetricLightmap?.data,
     readVolumetricLightmapCell: volumetricLightmap?.readCell,
     frameBudget: inputs.frameBudget,

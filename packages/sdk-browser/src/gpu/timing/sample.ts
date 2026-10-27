@@ -2,12 +2,13 @@ import {
   nanosecondsToMs,
   type FrameMsReason,
   type GpuTimingSample,
+  type PlacedPassTiming,
   type TimingPairs,
 } from './types.ts'
 import type { TimingPart } from './encoder.ts'
 import type { ImageSpan } from './timeline.ts'
 import type { Stale } from './slotMemory.ts'
-import { envelope, setOwnShares } from './spans.ts'
+import { envelope, placePasses, setOwnShares, type TimedPass } from './spans.ts'
 import { coveredLength } from '../../../../math/src/sequence/span.ts'
 
 export function createSampleEmitter(onSample: (sample: GpuTimingSample) => void) {
@@ -105,7 +106,7 @@ export function summarizeTimestamps(
   // timestamps: the earliest beginning to the latest end. Passes the device overlaps are covered
   // once, which a sum of durations cannot claim.
   const submissionSpans: SubmissionSpans = new Map()
-  const timed: Parameters<typeof setOwnShares>[0] = []
+  const timed: TimedPass[] = []
   const passes = readPasses(entries, values, stale, { pairs, submissionSpans, timed })
   setOwnShares(timed)
   const total =
@@ -118,6 +119,7 @@ export function summarizeTimestamps(
     whole = truncated ? null : image,
     frameMsReason: FrameMsReason | null = truncated ? 'truncated' : image ? null : 'no-valid-pair',
     frameMs = whole && nanosecondsToMs(Number(whole.endNs - whole.beginNs))
+  if (image) placePasses(timed, image.beginNs)
   const submissions = submissionsOf(submissionSpans)
   // A submission is one contiguous GPU execution, so the image's GPU time is what the submission
   // spans cover — not `frameMs`, which also holds the host time between two submissions. Two
@@ -157,9 +159,9 @@ function readPasses(
   into: {
     pairs: TimingPairs
     submissionSpans: SubmissionSpans
-    timed: Parameters<typeof setOwnShares>[0]
+    timed: TimedPass[]
   },
-) {
+): PlacedPassTiming[] {
   const { pairs, submissionSpans, timed } = into
   /** Whether the timestamp at `slot` is this image's: new to its slot, and a device clock never
    *  reads zero. It records the timestamp in the slot memory: ask once per slot, `stale` first. */
@@ -194,7 +196,14 @@ function readPasses(
       if (end > span.endNs) span.endNs = end
       span.passes++
     }
-    const pass = { name: entry.name, gpuMs: nanosecondsToMs(Number(end - begin)), ownMs: 0 }
+    // `ownMs` is set by `setOwnShares`, the place on the image's timeline by `placePasses`.
+    const pass = {
+      name: entry.name,
+      gpuMs: nanosecondsToMs(Number(end - begin)),
+      ownMs: 0,
+      beginMs: 0,
+      endMs: 0,
+    }
     timed.push({ pass, begin, end })
     return pass
   })

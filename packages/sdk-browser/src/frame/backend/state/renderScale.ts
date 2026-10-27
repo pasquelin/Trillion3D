@@ -4,11 +4,6 @@ import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { drawsLit } from '../../../visibility/shader/shadeMode.ts'
 import { taaWanted } from './gpu.ts'
 
-/** Whether this image is lit as the beauty one: the diagnostic view off or a view of the lit image
- *  (`drawsLit`), and no second-camera capture. */
-const litImage = (rt: Pick<WebgpuPagesRuntime, 'run' | 'capture'>) =>
-  drawsLit(rt.run.diagnostic) && !rt.capture.capturing
-
 /**
  * The drawn view's render-scale bounds where its frame may be drawn below the display: the page
  * asked a scale below 1, which the temporal resolve rebuilds or, where none runs, the composition
@@ -27,9 +22,13 @@ function scaledBounds(rt: WebgpuPagesRuntime): RenderScaleBounds | undefined {
 /** Whether the view's temporal pass runs this image: rigged, switched on, a lit image other than
  *  the view that bypasses it (`no-temporal-aa`, which draws as the pass switched off). It then
  *  runs on every image until its history is whole, then the still view is held on its converged
- *  image (`taaConverging`, `holdWebgpuFrame`). */
+ *  image (`taaConverging`, `holdWebgpuFrame`). A capture holds a pass only for the images that
+ *  accumulate (`startCaptureAccumulation`): the others hold none, or have it off, and run none. */
 export const taaRuns = (rt: WebgpuPagesRuntime) =>
-  !!rt.gpu.temporal && taaWanted(rt.gpu) && litImage(rt) && rt.run.diagnostic !== 'no-temporal-aa'
+  !!rt.gpu.temporal &&
+  taaWanted(rt.gpu) &&
+  drawsLit(rt.run.diagnostic) &&
+  rt.run.diagnostic !== 'no-temporal-aa'
 
 /** Render pixels per CSS pixel: the host's ratio times the render-to-display one, so a line drawn
  *  below the display keeps its display width. The host's own at native size. */

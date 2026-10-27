@@ -1,7 +1,7 @@
 import { createOrbitCameraControls } from './orbitControls.ts'
 import type { ControlCamera } from './types.ts'
 import { Quaternion } from '../../../../sdk-core/src/world/math/quaternion.ts'
-import { Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
+import { readVec3, Vector3 } from '../../../../sdk-core/src/world/math/vector3.ts'
 
 /**
  * A camera and a surface with no DOM behind them, so the five controllers are proved on a
@@ -14,6 +14,8 @@ type Point = { x: number; y: number }
 export interface FixtureCamera extends ControlCamera {
   /** How many times the controller made the matrices current. */
   updates: number
+  /** The point the controller last made the camera frame: `null` for none, or before any. */
+  target: number[] | null
 }
 
 export function fixtureCamera(x = 0, y = 0, z = 10): FixtureCamera {
@@ -22,8 +24,12 @@ export function fixtureCamera(x = 0, y = 0, z = 10): FixtureCamera {
     quaternion: new Quaternion(),
     fov: 50,
     updates: 0,
+    target: null,
     updateMatrixWorld(this: FixtureCamera) {
       this.updates++
+    },
+    setViewTarget(this: FixtureCamera, target) {
+      this.target = target && readVec3(target)
     },
   }
 }

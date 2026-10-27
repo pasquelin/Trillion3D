@@ -93,3 +93,9 @@ export function poseHoldsBox(
  *  binding entries alike. */
 export const sameValues = <T>(a: ArrayLike<T>, b: ArrayLike<T>) =>
   a.length === b.length && sameRange(a, b, a.length)
+
+/** `from`'s values into `to`, its length made theirs: the copy that follows `sameValues`. */
+export function copyInto<T>(to: T[], from: ArrayLike<T>) {
+  to.length = from.length
+  for (let k = 0; k < from.length; k++) to[k] = from[k]
+}

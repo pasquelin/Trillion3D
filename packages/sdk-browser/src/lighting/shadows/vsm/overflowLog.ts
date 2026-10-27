@@ -5,7 +5,6 @@
 import {
   VSM_OVERFLOW_KINDS,
   VSM_OVERFLOW_MAP_SLOTS,
-  VSM_OVERFLOW_MARKING_JOB_QUEUE,
   VSM_OVERFLOW_ONE_PASS_MAX_LIGHTS,
   VSM_OVERFLOW_PAGE_POOL,
   VSM_OVERFLOW_RECORDS,
@@ -18,8 +17,6 @@ const REPORT_MS = 10_000
 /** The log line of the overflow `flag`; `pagesShort` the page requests the pool did not serve. */
 function overflowMessage(flag: number, pagesShort: number) {
   switch (flag) {
-    case VSM_OVERFLOW_MARKING_JOB_QUEUE:
-      return "[VSM] The non-cluster marking's job queue overflowed, which may slow the frame. It happens when many non-cluster meshes cover a large area of a shadow map."
     case VSM_OVERFLOW_ONE_PASS_MAX_LIGHTS:
       return '[VSM] More shadowed local lights than the one-pass projection keeps in a pixel. If shadow artifacts show, put fewer local lights on a pixel or raise shadowOnePassProjectionMaxLightsPerPixel.'
     case VSM_OVERFLOW_PAGE_POOL:

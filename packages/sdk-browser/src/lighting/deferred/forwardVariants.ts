@@ -41,8 +41,7 @@ export async function createForwardVariants<P>(
       }),
     { twins: false },
   )
-  // A translucent program holds no contact shadow, which needs the scene's depth and the surfaces' flags: every
-  // key says so (`withoutContactSet`), here and in what a frame asks.
+  // The contact shadow cut is the scene's (`TranslucentScene`): every key here says contactless (`withoutContactSet`).
   const first = {
     ...(lit?.precompile ? lit.key : FULL_CONTRACT),
     narrow: false,

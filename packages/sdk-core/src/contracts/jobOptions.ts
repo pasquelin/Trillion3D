@@ -1,15 +1,16 @@
 /**
  * The compile options besides the HLOD that a job names — the scene's temporal anti-aliasing, the
  * responsive objects, the settings by material name, the voxelized objects, the partition's scheme
- * and main grid or grids, the mesh build settings, the object settings and the volumetric lightmap's bake —, each read
+ * and main grid or grids, the mesh build settings, the object settings, the volumetric lightmap's bake and the hair strands' ending point —, each read
  * by its own contract (`./materialOptions.ts`, `./voxelizeOptions.ts`, `./partitionOptions.ts`,
- * `./meshBuildOptions.ts`, `./objectOptions.ts`, `./lightmapBakeOptions.ts`) and written in the compiler's form: as job fields
+ * `./meshBuildOptions.ts`, `./objectOptions.ts`, `./lightmapBakeOptions.ts`, `./hairEndingPointOptions.ts`) and written in the compiler's form: as job fields
  * (`jobOptionFields`) or as command-line flags (`jobOptionFlags`), each left out when the job names
  * none. What does not read is refused with a `TypeError`.
  */
 import { materialJob, type MaterialJobOptions } from './materialOptions.ts'
 import { voxelizeJob, type VoxelizeOption } from './voxelizeOptions.ts'
 import { partitionFlags, partitionJobFields, type PartitionJobOptions } from './partitionOptions.ts'
+import { hairEndingPointJob, type HairEndingPointOption } from './hairEndingPointOptions.ts'
 import { lightmapBakeJob } from './lightmapBakeOptions.ts'
 import type { LightmapBakeOption } from './lightmapBakeAbi.ts'
 import { meshBuildJob, type MeshBuildOption } from './meshBuildOptions.ts'
@@ -22,6 +23,7 @@ export type JobOptions = MaterialJobOptions &
     meshBuild?: MeshBuildOption | null
     objectSettings?: ObjectSettingsOption | null
     lightmapBake?: LightmapBakeOption | null
+    hairEndingPoint?: HairEndingPointOption | null
   }
 
 /** The job fields of `job`'s options as the compiler reads them.
@@ -33,6 +35,7 @@ export const jobOptionFields = (job: JobOptions) => ({
   ...meshBuildJob.fields(job),
   ...objectSettingsJob.fields(job),
   ...lightmapBakeJob.fields(job),
+  ...hairEndingPointJob.fields(job),
 })
 
 /** The command-line flags of `options`, none for an option left out.
@@ -44,4 +47,5 @@ export const jobOptionFlags = (options: JobOptions): string[] => [
   ...meshBuildJob.flags(options),
   ...objectSettingsJob.flags(options),
   ...lightmapBakeJob.flags(options),
+  ...hairEndingPointJob.flags(options),
 ]

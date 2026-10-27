@@ -3,7 +3,7 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { DEFAULT_HEIGHT, DEFAULT_WIDTH, pixelRatioOf } from '../../session/engine/common.ts'
 import { referenceTilePlan, type ReferenceTilePlan } from './referenceTiles.ts'
 import type { MeasuredWorldOptions } from '../../session/options.ts'
-import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_PROBES } from './referenceApproximations.ts'
+import { REFERENCE_APPROXIMATIONS } from './referenceApproximations.ts'
 
 /**
  * THE ENGINE'S REFERENCE MODE (#1281): the image a rendering technique is held to (CONTRIBUTING.md,
@@ -11,8 +11,6 @@ import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_PROBES } from './referenceAp
  * switched off:
  * - `renderScale`: the frame drawn at the display, 1, never reconstructed from fewer pixels;
  * - `temporalReuse`: no temporal antialiasing, no jitter, no history — one frame is the image;
- * - `probeBudget`: bounced light traces every probe at its per-frame ceiling, and the held frame a
- *   capture waits for is one whose probes converged (`unsettledMask`, `bounceProbes`);
  * - `shadowResolution`: shadows at the level they ask, from the full page pool; a pool the GPU
  *   budget shrank, or a full one whose fill raised the maps' resolution bias
  *   (`shadowResolutionBias` above 0), refuses the capture by name, never passes for the reference;
@@ -57,7 +55,8 @@ export function referenceOptions(options: MeasuredWorldOptions): {
       ...options,
       renderScale: 1,
       temporalAntialiasing: false,
-      bounceProbesPerFrame: REFERENCE_BOUNCE_PROBES,
+      // One image per tile: with no temporal pass a capture's run-up would redraw the same image.
+      cutViewCaptureDelay: 1,
     },
     reference: { factor: tiles.factor, approximations: REFERENCE_APPROXIMATIONS, tiles },
   }

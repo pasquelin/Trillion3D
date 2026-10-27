@@ -15,9 +15,6 @@ import {
   RUNTIME_GRID_SETTING,
   FAR_FIELD_SETTING,
   DEFAULT_FAR_FIELD,
-  CAST_FAR_SHADOW_SETTING,
-  DEFAULT_CAST_FAR_SHADOW,
-  FAR_SHADOW_TEST_SETTING,
   SKINNED_INSTANCE_SETTING,
   SPATIALLY_LOADED_SETTING,
   type DrawDistanceWire,
@@ -109,12 +106,6 @@ const objectSettingsOf: Record<keyof ObjectSettingsWire, JsonSchemaProperty> =
     },
     [FAR_FIELD_SETTING]: flag(
       `Whether a view's primed depth draws the object: the small, coarse draw its Hi-Z pyramid is built from before its cut (hizPrime). With hizPrimeFarFieldOnly, only objects that set it are drawn (default ${DEFAULT_FAR_FIELD}).`,
-    ),
-    [CAST_FAR_SHADOW_SETTING]: flag(
-      `Whether the object casts far shadows: a directional light's shadow maps leave out the casters past the edge of its shadow distance (farShadowCulling), and the objects it casts far shadows for are kept at any distance (default ${DEFAULT_CAST_FAR_SHADOW}).`,
-    ),
-    [FAR_SHADOW_TEST_SETTING]: flag(
-      "Whether a directional light's far-shadow test reaches the object: true, the object is left out of the light's shadow maps past the edge of its shadow distance unless it casts far shadows (castFarShadow); false, the test never leaves it out. Left out, the view's rule decides: only the merged far-field shells of the world's coarser levels, or every caster when farShadowCullsAllMeshes is true.",
     ),
     [RUNTIME_GRID_SETTING]: {
       type: 'string',

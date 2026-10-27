@@ -26,7 +26,11 @@ import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
  * rectangle light (`declaredLightWgsl`, #1249, #1369), picked on the same key
  * (`createLitVariants`). Without `lobeless`, the forward pass's program of a scene that holds an
  * anisotropic or clear-coat surface: its lights go through the lobes (`lobesWgsl.ts`), which the
- * fragment sets itself. A translucent program holds no contact shadow: its key says so (`translucentLitKey`).
+ * fragment sets itself. A translucent program holds the contact shadows' code where its scene says so (`key.contactless`,
+ * `translucentLitKey`), and casts the asked ray alone (`asked`, `contactShadowsOf`).
+ *
+ * The forward light loop takes an occlusion of 1: the material's occlusion weighs the indirect light and the environment,
+ * not the lights.
  */
 export const declaredLightingWgsl = (
   bindings: LightingBindings,
@@ -35,11 +39,11 @@ export const declaredLightingWgsl = (
 ) =>
   wgslBlock(
     `declaredLightingWgsl(${bindingsLabel(bindings)}, ${variantLabel(key)}${translucentShadowLabel(translucentShadow)})`,
-    [lightingBase(bindings, key, { translucentShadow })],
+    [lightingBase(bindings, key, { translucentShadow, rays: 'asked' })],
     `
-fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->vec3f{
+fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,pixel:vec2f,z:f32)->vec3f{
  vsmTraceAt(pixel);
- return sliceLighting(rgb,metal,rough,N,V,P,ao,cellSlice(gridCell(pixel,z,vec2u(uni.lightTiles))));
+ return sliceLighting(rgb,metal,rough,N,V,P,1.0,cellSlice(gridCell(pixel,z,vec2u(uni.lightTiles))));
 }`,
   )
 
@@ -52,10 +56,10 @@ fn declaredLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
 export const declaredLightingSplitWgsl = (key: Partial<ContractKey> = LOBELESS_KEY) =>
   wgslBlock(
     `declaredLightingSplitWgsl(${variantLabel(key)})`,
-    [declaredLightWgsl(key, { term: 'split' }), sliceLightingWgsl('split')],
+    [declaredLightWgsl(key, { term: 'split', rays: 'asked' }), sliceLightingWgsl('split')],
     `
-fn declaredLightingSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,pixel:vec2f,z:f32)->LightSplit{
+fn declaredLightingSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,pixel:vec2f,z:f32)->LightSplit{
  vsmTraceAt(pixel);
- return sliceLightingSplit(rgb,metal,rough,N,V,P,ao,cellSlice(gridCell(pixel,z,vec2u(uni.lightTiles))));
+ return sliceLightingSplit(rgb,metal,rough,N,V,P,cellSlice(gridCell(pixel,z,vec2u(uni.lightTiles))));
 }`,
   )

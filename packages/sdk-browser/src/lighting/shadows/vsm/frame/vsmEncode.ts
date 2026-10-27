@@ -1,4 +1,5 @@
 import { vsmViewToShifted } from '../froxel/froxelView.ts'
+import { VSM_PRESSURE_BIAS_NONE } from '../constants.ts'
 import { vsmLightGridFor, vsmProjectionReserve } from '../projection/projectionStore.ts'
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 // The frame's shadow-map work on the GPU, from the change boxes to the mask the lighting reads.
@@ -21,6 +22,7 @@ import {
   encodeVsmAfterRaster,
   encodeVsmPageCarry,
   resetVsmClearArgs,
+  resetVsmFilterable,
 } from '../pageManagementEncode.ts'
 import type { VsmPageManagementFrame } from '../pageManagementPass.ts'
 import type {
@@ -29,7 +31,7 @@ import type {
   VsmProjectionSource,
   VsmProjectionTarget,
 } from '../projection/projectionPass.ts'
-import type { VsmLightAllocation } from '../frameSetup.ts'
+import { markVirtualShadowRendered, type VsmLightAllocation } from '../frameSetup.ts'
 import { encodeCastInvalidation, endCastInvalidation } from '../invalidation/castInvalidation.ts'
 import { createCastChanges } from '../../casters/castChanges.ts'
 import { encodeCastDiff } from '../../casters/castDiff.ts'
@@ -159,7 +161,9 @@ function encodeVsmChanges(
   stats.lights = plan.lights.length
   stats.maps = plan.projectionCount
   stats.tableBlocks = plan.tableBlocks
-  stats.pressureBiasStat = vsm.state.cache.pressureBias
+  // Published as the bias the maps see: one under `VSM_PRESSURE_BIAS_NONE`, where its fall stalls, is none.
+  const { pressureBias } = vsm.state.cache
+  stats.pressureBiasStat = pressureBias < VSM_PRESSURE_BIAS_NONE ? 0 : pressureBias
   stats.render = undefined
   stats.projectionPasses = 0
   if (vsm.pendingDiff) encodeCastDiff(rt, device, steps, vsm.pendingDiff)
@@ -202,15 +206,10 @@ export function encodeVsmFrame(
   // Per-page dispatcher ids: every map with projection data this frame .
   const scratch = frameScratch(vsm)
   const perPage = vsmCachePerPageBins(state.cache, scratch.perPage)
-  const pmFrame = pageManagementFrameOf(device, vsm, plan, perPage.all)
-  // What the passes of the run read cleared or copied before it, none between them: the overflow
-  // flags, cleared whatever the counters say (they are read back every frame), the raster's marks,
-  // which start at 0, and the clears' arguments.
-  if (drawing) {
-    encoder.clearBuffer(res.stats)
-    encoder.clearBuffer(res.rasterMarks)
-    resetVsmClearArgs(encoder, res, pmFrame)
-  }
+  const pmFrame = pageManagementFrameOf(device, vsm, plan, perPage)
+  // What the passes of the run read cleared before it: the overflow flags, cleared whatever the counters
+  // say (they are read back every frame).
+  if (drawing) encoder.clearBuffer(res.stats)
   // The compute throttle where the settings ask it: its buffers cleared before the kernels and the cull.
   const throttle = drawing && plan.throttleReady ? vsmThrottleState(device, res) : undefined
   if (throttle) clearVsmThrottle(encoder, res, throttle)
@@ -250,6 +249,7 @@ export function encodeVsmFrame(
   else {
     // The frame's tables kept for the occlusion's second cull and the next frame's first.
     keepOcclusionTables(encoder, res, { mapCount: plan.projectionCount, blocks: plan.tableBlocks })
+    markVirtualShadowRendered(plan, drawn)
     encodeVsmRaster(frame, drawn)
     // The pyramid's last build of the frame, over what the view passes drew since their own build
     // between the two culls.
@@ -259,6 +259,7 @@ export function encodeVsmFrame(
   }
   // The build and the post-render follow one another: one compute pass, but on a frame timed per pass.
   resetVsmClearArgs(encoder, res, pmFrame)
+  resetVsmFilterable(encoder, res, pmFrame)
   const tail = tailRun.begin(encoder)
   if (pyramid) encodeVsmPyramid(tail, res, pyramid)
   encodeVsmAfterRaster(tail, res, pmFrame)
@@ -274,19 +275,20 @@ function rasterLights(plan: NonNullable<EngineVsm['plan']>, out: VsmLightAllocat
   return out
 }
 
-/** The page management's frame: the maps of `plan` over the per-page bins `perPageBins`, and the
+/** The page management's frame: the maps of `plan` over the frame's per-page bins `perPage`, and the
  *  settings it reads. */
 function pageManagementFrameOf(
   device: GPUDevice,
   vsm: EngineVsm,
   plan: NonNullable<EngineVsm['plan']>,
-  perPageBins: VsmPageManagementFrame['perPageBins'],
+  perPage: ReturnType<typeof vsmCachePerPageBins>,
 ): VsmPageManagementFrame {
   const { shadows } = vsm.state.maps
   return {
     device,
     mapCount: plan.projectionCount,
-    perPageBins,
+    perPageBins: perPage.all,
+    directionalBins: perPage.directionalOnly,
     nextMapCount: plan.nextMapCount,
     options: {
       stats: vsm.countersOn,

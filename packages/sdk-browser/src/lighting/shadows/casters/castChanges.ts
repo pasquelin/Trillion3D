@@ -20,6 +20,7 @@
  * Beside the list, the diff's own memory (`CAST_STATE_WORDS` words a placement): the box and the
  * word each placement was last seen with, what the next diff compares it to.
  */
+import { SHADOW_CHANGE_BOXES } from '../../../../../sdk-core/src/scene/light/shadow/changes.ts'
 import { grownLength } from '../../../../../math/src/sequence/resized.ts'
 import { clampLowWins } from '../../../../../math/src/scalar/reals.ts'
 import { grownByCopy } from '../../../gpu/core/tableGrowth.ts'
@@ -32,12 +33,15 @@ export const CAST_HEADER_WORDS = 4,
  *  whether it was seen (`CAST_SEEN`) and had a box (`CAST_BOXED`), a digest of its world as it was, and
  *  its cache state in each view. */
 export const CAST_STATE_WORDS = 17
+/** The word of a placement's state that holds its cache state in each view: bits 0..15 the views it
+ *  was cached as dynamic in, bits 16..31 the views that tracked it (`castDiffWgsl.ts`). */
+export const CAST_VIEWS_WORD = 10
 export const CAST_SEEN = 1,
   CAST_BOXED = 2
-/** Records a list holds at least, and at most: past the ceiling a frame's changes overflow into a
- *  stale of every page. */
-const CAST_FLOOR = 4096,
-  CAST_CEILING = 1 << 21
+/** Records a list holds at most: past the ceiling a frame's changes overflow into a stale of every
+ *  page. It holds at least what the CPU's list of boxes holds apart (`SHADOW_CHANGE_BOXES`), which the
+ *  invalidation reads beside it. */
+const CAST_CEILING = 1 << 21
 
 const castBytes = (records: number) => (CAST_HEADER_WORDS + records * CAST_RECORD_WORDS) * 4
 
@@ -50,7 +54,7 @@ function castBuffer(device: GPUDevice, records: number) {
 }
 
 /** A list of `records` records, empty: its header zero, as a buffer is made. */
-export function createCastChanges(device: GPUDevice, records = CAST_FLOOR) {
+export function createCastChanges(device: GPUDevice, records = SHADOW_CHANGE_BOXES) {
   return {
     buffer: castBuffer(device, records),
     records,
@@ -88,7 +92,7 @@ export type CastChanges = ReturnType<typeof createCastChanges>
 export function reserveCasts(casts: CastChanges, device: GPUDevice, more: number, roots: number) {
   casts.pending += more
   casts.appended = true
-  const ceiling = clampLowWins(2 * roots, CAST_FLOOR, CAST_CEILING)
+  const ceiling = clampLowWins(2 * roots, SHADOW_CHANGE_BOXES, CAST_CEILING)
   if (casts.pending <= casts.records || casts.records >= ceiling) return
   const records = Math.min(ceiling, grownLength(casts.records, casts.pending)),
     old = casts.buffer

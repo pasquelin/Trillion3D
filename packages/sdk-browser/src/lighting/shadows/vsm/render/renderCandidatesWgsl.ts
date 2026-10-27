@@ -2,9 +2,6 @@ import { FLOAT32_MAX, NO_INDEX } from '../../../../../../math/src/wgsl/constants
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
 import {
   MOBILITY_DEFORMS,
-  MOBILITY_FAR_SHADOW,
-  MOBILITY_FAR_SKIPPED,
-  MOBILITY_FAR_TESTED,
   MOBILITY_MOVING,
   MOBILITY_OFFSET_ALWAYS,
   MOBILITY_OFFSET_INVALIDATES,
@@ -16,7 +13,6 @@ import {
 } from '../../mobilityBits.ts'
 import { WPO_ROW_ALWAYS } from '../../../../visibility/types.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../../visibility/shader/pageWgsl.ts'
-import { FAR_TESTED_WGSL } from '../../../../visibility/shader/castingMark.ts'
 import {
   FLAG_BACK,
   FLAG_DOUBLE,
@@ -66,6 +62,7 @@ import { ROOT_WORDS_WGSL } from '../../casters/rootWordsWgsl.ts'
 import { ROOT_BOX_DOUBLES } from '../../../../placement/roots/rootWorldSends.ts'
 import { TESSELLATED_FLAGS_WGSL } from '../../../../visibility/tessellation/rowWgsl.ts'
 import { VSM_RENDER_PARAMS_WGSL } from './renderParamsWgsl.ts'
+import { LIGHTING_CHANNELS_WGSL } from '../../../lightingChannelsWgsl.ts'
 import { VSM_OVERFLOW_WGSL } from '../overflowWgsl.ts'
 
 /** THE SHADOW RASTER'S CASTER CANDIDATES (`renderCullWgsl.ts`): one thread a page the shadow
@@ -181,11 +178,13 @@ fn casterSphere(w:u32,lo:vec3f,hi:vec3f,reach:f32,high:ptr<function,vec4f>,low:p
 )
 
 /** How far the centre of a box moved since the previous image drew the placement (`vsmRenderPrevShift`),
- *  over the placements' previous poses its program binds as `previous`: the casters' (`vsmRenderCaster`)
- *  and the shadow views' descent's (`../traversal/traversalWgsl.ts`). */
+ *  whether the placement's linear part stood still (`vsmRenderPrevStill`) and the half axes of the
+ *  box under that pose (`vsmRenderPrevAxes`), over the placements' previous
+ *  poses its program binds as `previous`: the casters' (`vsmRenderCaster`) and the shadow views'
+ *  descent's (`../traversal/traversalWgsl.ts`). */
 export const VSM_PREV_SHIFT_WGSL = wgslBlock(
   'VSM_PREV_SHIFT_WGSL',
-  [dAdd, dSub, fromF32, toF32],
+  [dAdd, dSub, fromF32, toF32, VSM_CASTER_SPHERE_WGSL],
   `/** How far the centre of a cluster of box centre \`centre\` moved since the previous image drew
  *  placement \`w\` (its previous local-to-world): the previous pose's
  *  linear part on the centre beside its exact translation, less the sphere's centre (\`high\`,
@@ -201,6 +200,17 @@ fn vsmRenderPrevShift(w:u32,centre:vec3f,high:vec3f,low:vec3f)->vec3f{
   shift[a]=bitcast<f32>(toF32(dSub(before,now)));
  }
  return shift;
+}
+/** Whether the linear part of placement \`w\` is the one the previous image drew it with: the box it
+ *  drew then has the half axes the box has now. */
+fn vsmRenderPrevStill(w:u32)->bool{
+ let now=worldsLinear(w);let before=previousLinear(w);
+ return all(now[0]==before[0])&&all(now[1]==before[1])&&all(now[2]==before[2]);
+}
+/** The half axes of the box \`lo\`..\`hi\` under the previous pose of placement \`w\`, grown by \`reach\`
+ *  as the box of the pose it has now is (\`casterSphere\`): the box the previous image drew. */
+fn vsmRenderPrevAxes(w:u32,lo:vec3f,hi:vec3f,reach:f32,axes:ptr<function,array<vec3f,3>>){
+ casterAxes(previousLinear(w),(lo+hi)*0.5,(hi-lo)*0.5,reach,axes);
 }
 `,
 )
@@ -273,7 +283,6 @@ const VSM_RENDER_CASTERS_WGSL = wgslBlock(
     VSM_RENDER_WORLD_WGSL,
     OUTSIDE_DRAW_DISTANCES_WGSL,
     TESSELLATED_FLAGS_WGSL,
-    FAR_TESTED_WGSL,
     DAG_MARK_OF_WGSL,
     markReachWgsl,
     casterReachWgsl,
@@ -290,6 +299,7 @@ const VSM_RENDER_CASTERS_WGSL = wgslBlock(
     VSM_PREV_SHIFT_WGSL,
     DAG_AXIS_SCALES_WGSL,
     ROOT_WORDS_WGSL,
+    LIGHTING_CHANNELS_WGSL,
   ],
   `
 ${CLUSTER_INFO.wgsl}
@@ -332,21 +342,11 @@ fn vsmRenderCandidateFlags(word:u32)->u32{
  let dynamic=(word&${MOBILITY_MOVING}u)!=0u||deforms;
  return select(0u,VSM_RENDER_CAND_DYNAMIC,dynamic)|select(0u,VSM_RENDER_CAND_DEFORMING,deforms);
 }
-/** A caster's far-shadow flags, for the suns' test (\`vsmFarShadowSkipped\`): tested as its object
- *  says (\`MOBILITY_FAR_TESTED\`, \`MOBILITY_FAR_SKIPPED\` of its placement's \`word\`:
- *  \`farShadowTest\`), else when the parameters say every mesh is (\`farMeshes\`) or the placement
- *  belongs to the world's merged shells (\`worldPlaced\`), and casting far when its object does
- *  (\`MOBILITY_FAR_SHADOW\`). The objects drawn as themselves, saying nothing, keep casting at any
- *  distance unless the parameters ask for every mesh. */
-fn vsmRenderFarFlags(word:u32,placement:u32)->u32{
- let tested=farTestedOf((word&${MOBILITY_FAR_TESTED}u)!=0u||worldPlaced(placement),(word&${MOBILITY_FAR_SKIPPED}u)!=0u,params.farMeshes!=0u);
- return select(0u,VSM_RENDER_CAND_FAR_TESTED,tested)|select(0u,VSM_RENDER_CAND_FAR_CAST,(word&${MOBILITY_FAR_SHADOW}u)!=0u);
-}
 /** The ball of the whole object a cluster of placement \`w\` belongs to, from the main view's eye
  *  (centre, then radius): the placement's world box, the instance's bounds, grown by its reach; the
  *  cluster's own ball (\`own\`) for a placement of the world DAG — its merged shells have no bounds
- *  of their own on the GPU — or one with no box. The object is what a sun's far-shadow test judges
- *  whole, all or nothing for every cluster of it. */
+ *  of their own on the GPU — or one with no box. The object is what the draw distances judge whole,
+ *  all or nothing for every cluster of it. */
 fn vsmRenderObject(w:u32,own:vec4f,reach:f32)->vec4f{
  if(worldPlaced(w)){return own;}
  let o=w*ROOT_BOX_DOUBLES;
@@ -374,9 +374,6 @@ fn vsmRenderInstance(w:u32,other:vec4f)->vec4f{
  let ex=vec2u(params.eye0.x,params.eye0.y);let ey=vec2u(params.eye0.z,params.eye0.w);let ez=vec2u(params.eye1.x,params.eye1.y);
  return vec4f(bitcast<f32>(toF32(dSub(rootBoxes[o+7u],ex))),bitcast<f32>(toF32(dSub(rootBoxes[o+8u],ey))),bitcast<f32>(toF32(dSub(rootBoxes[o+9u],ez))),bitcast<f32>(toF32(radius)));
 }
-/** The depth of the object along the main view, its radius taken off: what a sun's far-shadow test
- *  compares to its distance, all or nothing for every cluster of the object. */
-fn vsmRenderFarDepth(object:vec4f)->f32{return -dot(params.viewRow2.xyz,object.xyz)-object.w;}
 /** Whether the object of placement \`w\`, \`delta\` from the main view's eye, is out of the draw
  *  distances it names — its mark's bit, then its two frame words — and casts nothing: a shadow is
  *  of what the view draws, from the main view's eye in every pass of the light, tested at the
@@ -449,10 +446,9 @@ fn vsmRenderCaster(i:u32,w:u32){
   |select(0u,VSM_RENDER_CAND_PLACEMENT_ALWAYS,(roots.word&${MOBILITY_OFFSET_ALWAYS}u)!=0u)
   |select(0u,VSM_RENDER_CAND_OFFSET_KEEPS,(roots.word&${MOBILITY_OFFSET_KEEPS_CACHE}u)!=0u)
   |select(0u,VSM_RENDER_CAND_WORLD_SPACE,(roots.word&${MOBILITY_WORLD_SPACE}u)!=0u);
- let flags=vsmRenderCandidateFlags(roots.word)|select(0u,VSM_RENDER_CAND_FLIPPED,flipped)|vsmRenderFarFlags(roots.word,w)|extra|offsetFlags;
- // Out of every map view's far-shadow distance: no view takes it, no cull need read it.
- let farDepth=vsmRenderFarDepth(object);
- if(vsmFarShadowSkipped(flags,farDepth,params.farDrop)){return;}
+ let still=vsmRenderPrevStill(w);
+ let flags=vsmRenderCandidateFlags(roots.word)|select(0u,VSM_RENDER_CAND_FLIPPED,flipped)|extra|offsetFlags|select(0u,VSM_RENDER_CAND_STILL,still)
+  |(vsmRootChannels(roots.word)<<VSM_RENDER_CAND_CHANNELS_SHIFT);
  // A two-sided row is drawn once with no face culled (its bit), a voxel row one-sided (its own).
  let corners=min(record.indexCount,0x3FFFu)|select(select(0u,VSM_RENDER_DOUBLE_BIT,(record.flags&${FLAG_DOUBLE}u)!=0u),VSM_RENDER_VOXEL_BIT,(record.flags&${FLAG_VOXEL}u)!=0u);
  let slot=atomicAdd(&counts[0],1u);
@@ -472,13 +468,17 @@ fn vsmRenderCaster(i:u32,w:u32){
    axisFit[j]=select(1.0,min(length(bareAxes[j])/full,1.0),full>0.0);
   }
  }
+ // The box where the previous image drew it: the half axes under the previous pose, none to keep for
+ // a placement whose linear part stood still (they are the current ones).
+ var prevAxes:array<vec3f,3>;
+ if(!still){vsmRenderPrevAxes(w,lo,hi,reach,&prevAxes);}
  // The instance's ball from the cluster's centre: what each map judges the instance by whole, the same for every cluster of it.
  let ball=vsmRenderInstance(w,object);
  let inst=vec4f(ball.xyz-(pose*vec4f(centre,1.0)).xyz,ball.w);
  let lod=vec4f(l*(own.xyz-centre),own.w*stretch);
  let parent=vec4f(l*(cluster.parentSphere.xyz-centre),cluster.parentSphere.w*stretch);
  let errors=vsmRenderErrors(cluster.lodError,cluster.parentError,minAxisScale(l));
- candidates[slot]=VsmRenderCandidate(high,low,slot,axes[0],corners,axes[1],flags,axes[2],farDepth,vsmRenderPrevShift(w,centre,high.xyz,low),vsmRenderEdge(n,record.flags,stretch),lod,parent,inst,errors,select(0.0,roots.disableSq,offsetEvaluated||placementOffset),roots.viewBits,axisFit);
+ candidates[slot]=VsmRenderCandidate(high,low,slot,axes[0],corners,axes[1],flags,axes[2],vsmRenderPrevShift(w,centre,high.xyz,low),vsmRenderEdge(n,record.flags,stretch),lod,parent,inst,errors,select(0.0,roots.disableSq,offsetEvaluated||placementOffset),roots.viewBits,vec4f(axisFit,prevAxes[0].x),vec4f(prevAxes[0].yz,prevAxes[1].xy),vec4f(prevAxes[1].z,prevAxes[2]));
  let at=VISIBLE_HEADER_WORDS+VISIBLE_RECORD_WORDS*slot;
  casters[at]=i;
  casters[at+1u]=w;

@@ -1,6 +1,11 @@
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { FLAGS_VIEW } from '../../materials/surface/surfaceOutputs.ts'
 import { encodeSunFieldShadows } from '../../lighting/distanceField/shadow/frame.ts'
-import type { DfshImage, DfshSettings } from '../../lighting/distanceField/shadow/params.ts'
+import {
+  snapTexelsOf,
+  type DfshImage,
+  type DfshSettings,
+} from '../../lighting/distanceField/shadow/params.ts'
 import {
   createSunShadowState,
   releaseSunShadow,
@@ -10,7 +15,6 @@ import { readSingleLayerWaterSetting } from '../../../../sdk-core/src/contracts/
 import type { HizDepth } from '../../visibility/hiz/gpu/types.ts'
 import { foldedDepth } from '../../blend/water/waterFold.ts'
 import { waterWanted } from '../../blend/water/waterTargets.ts'
-import { readShadowSetting } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { vsmMapSettings } from '../../lighting/shadows/vsm/frame/vsmFarShadow.ts'
 import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
@@ -36,33 +40,42 @@ const settings: DfshSettings = {
   tileSize: 2,
   twoSidedBias: 1,
   perTile: 128,
-  farMeshes: false,
+  scatterTiles: true,
+  compactTiles: true,
+  subsampleDepth: false,
+  snapTexels: 2040,
 }
 
-/** What the image draws the cascade with: the scene's distance fields, its depth and its surfaces'
- *  flags, the lit view's gate. None where the image is no lit view of the main camera, a diagnostic view, or no
- *  mesh has a field. */
+/** What the image draws the cascade with: the scene's distance fields, its depth, its surfaces'
+ *  flags and thin transmission, the lit view's gate. None where the image is no lit view of the main
+ *  camera, a diagnostic view, or no mesh has a field. */
 function gate(rt: WebgpuPagesRuntime) {
   const scene = rt.distanceFields?.scene
   const { gpu, run, views } = rt
+  const { surfaces } = gpu
   const depth = rt.vis.gpuHiz?.depth(),
-    flags = gpu.surfaces?.views()[3]
+    flags = surfaces?.views()[FLAGS_VIEW]
   if (!scene || views.active !== views.main || !views.active.overrides.lighting) return undefined
-  if (!gpu.device || !depth || !flags || !run.depthDrawn || !shadowsOn(rt)) return undefined
+  if (!gpu.device || !surfaces || !depth || !flags || !run.depthDrawn || !shadowsOn(rt))
+    return undefined
   if (scene.meshes.generation === 0 || scene.meshes.count === 0) return undefined
   if (!wantsContractLighting(rt) || !drawsLit(run.diagnostic)) return undefined
-  return { scene, depth, flags, device: gpu.device }
+  return { scene, depth, flags, subsurface: surfaces.subsurfaceView, device: gpu.device }
 }
 
-/** The view's settings of the cascade, into `settings` (`SUN_SHADOW_RULES`). */
-function settingsOf(rt: WebgpuPagesRuntime) {
+/** The view's settings of the cascade, into `settings` (`SUN_SHADOW_RULES`), on a device whose
+ *  textures go to `limit` texels across. */
+function settingsOf(rt: WebgpuPagesRuntime, limit: number) {
   const { shadows } = vsmMapSettings(rt)
   settings.quality = shadows.distanceFieldShadowQuality
   settings.fullResolution = shadows.distanceFieldShadowFullResolution
   settings.tileSize = shadows.distanceFieldShadowTileSize
   settings.twoSidedBias = shadows.distanceFieldShadowTwoSidedBias
   settings.perTile = shadows.distanceFieldShadowObjectsPerTile
-  settings.farMeshes = shadows.farShadowCullsAllMeshes
+  settings.scatterTiles = shadows.distanceFieldShadowScatterTiles
+  settings.compactTiles = shadows.distanceFieldShadowCompactTiles
+  settings.subsampleDepth = shadows.distanceFieldShadowSubsampleDepth
+  settings.snapTexels = snapTexelsOf(shadows.distanceFieldShadowSnapResolution, limit)
 }
 
 /** The image described to the cascade, from the camera and the frame's targets. */
@@ -80,12 +93,12 @@ function describe(rt: WebgpuPagesRuntime, cam: EngineCamera) {
 
 /**
  * THE SUN'S DISTANCE-FIELD SHADOW OF THE IMAGE, drawn for the suns that have a cascade of the distance
- * fields (`sunCascades`, the shadow distance past which the maps do not reach): the meshes the
- * far-shadow test leaves out of the maps, traced against their fields (`encodeSunFieldShadows`). It
- * leaves the mask on the state (`DistanceFieldFrameState.sunShadow`), which the lighting multiplies a sun's
- * shadow by (`vsmSunFactor`); none, and the resources given back, where nothing is drawn. Costs
- * nothing while no mesh is one the test leaves out: the view's `farShadowCullsAllMeshes` off and no
- * object that says the test reaches it.
+ * fields (`sunCascades`, the shadow distance past which the maps do not reach): the meshes that are
+ * no cluster geometry, traced against their fields (`encodeSunFieldShadows`) — the shadow maps draw
+ * the clusters, and every mesh the engine draws is made of them, so the lists are empty; the passes
+ * run all the same, as long as the scene has a mesh with a distance field. It leaves the mask on the
+ * state (`DistanceFieldFrameState.sunShadow`), which the lighting multiplies a sun's shadow by
+ * (`vsmSunFactor`); none, and the resources given back, where nothing is drawn.
  */
 export function encodeSunFieldShadow(
   rt: WebgpuPagesRuntime,
@@ -106,15 +119,11 @@ function traceSunFieldShadow(
 ) {
   state.mask = undefined
   const drawn = gate(rt)
-  // Nothing to draw while no mesh is one the far-shadow test leaves out of the shadow maps.
-  const wanted =
-    !!drawn &&
-    (readShadowSetting(rt, 'farShadowCullsAllMeshes') || drawn.scene.meshes.farShadowObjects > 0)
-  if (wanted) {
-    settingsOf(rt)
+  if (drawn) {
+    settingsOf(rt, drawn.device.limits.maxTextureDimension2D)
     sunsOf(rt)
   }
-  if (!wanted || !lights.length) return releaseSunShadow(state)
+  if (!drawn || !lights.length) return releaseSunShadow(state)
   describe(rt, cam)
   state.mask = encodeSunFieldShadows(state.dfsh, drawn.device, encoder, {
     image,
@@ -123,6 +132,7 @@ function traceSunFieldShadow(
     sources: {
       depth: at ? at(drawn.depth) : drawn.depth,
       flags: drawn.flags,
+      subsurface: drawn.subsurface,
       objects: drawn.scene.meshes,
     },
   })

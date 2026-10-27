@@ -39,7 +39,7 @@ import {
   coversTranslucentShadow,
   translucentShadowOf,
 } from './pipelines.ts'
-import { translucencyVolumeOf } from '../materials/surface/blendLightSource.ts'
+import { contactShadowsOf, translucencyVolumeOf } from '../materials/surface/blendLightSource.ts'
 import { readSingleLayerWaterSetting } from '../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import { composeItems } from '../placement/compose/gpuCompose.ts'
 import { mountBlendResources, prepareBlendKernels } from './resources.ts'
@@ -103,7 +103,8 @@ async function grantTransmission(
  * a graph's functions are in are compiled for the graphs of the items the session was opened with.
  * So are those of a session whose programs do not read the clouds per vertex, when a copy wears a
  * material that receives the clouds in its fog (`cloudFogOf`); those that do not lay the fog per vertex, when a
- * copy wears a surface whose fog is (`fogVertexOf`); those that do not read the
+ * copy wears a surface whose fog is (`fogVertexOf`); those that do not hold the contact shadows' code, when a copy wears a
+ * material that has the lights cast them on it (`contactShadowsOf`); those that do not read the
  * translucency lighting volume, when a copy wears a material lit from it (`translucencyVolumeOf`); those
  * without the single-layer water's stage, when a copy wears a water material; and those
  * whose code of the shadows a surface reads lacks what a copy asks (`coversTranslucentShadow`).
@@ -122,6 +123,7 @@ async function grantGraphs(
     graphProgramsOf(items).every((program) => held.has(program.id)) &&
     (!!reads?.clouds || !cloudFogOf(items)) &&
     (!!reads?.fog || !fogVertexOf(items)) &&
+    (!!vis.blendPipelines?.scene?.contact || !contactShadowsOf(items)) &&
     (!!vis.blendPipelines?.translucencyVolume || !translucencyVolumeOf(items)) &&
     (!!vis.blendPipelines?.water || !items.some((item) => item.surface.water)) &&
     coversTranslucentShadow(

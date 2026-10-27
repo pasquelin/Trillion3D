@@ -5,7 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
 import { createAtlasState } from './atlasState.ts'
-import { createHlodObjects, movingOf, type HlodDraws } from './hlodObjects.ts'
+import { createHlodObjects, isWorldRoot, movingOf, type HlodDraws } from './hlodObjects.ts'
 import { OBJECT_FLAGS as F } from './layout.ts'
 import { createObjectTracker, type TrackedRoot } from './objectTracker.ts'
 
@@ -61,9 +61,8 @@ test('a world DAG’s root places the fields of the HLOD cells whose actors draw
     tracker.objects.map((entry) => entry.world[12]),
     [0, 50, 50],
   )
-  // The shells cast, and the sun’s far-shadow test reaches them as it reaches the world’s shells.
-  assert.equal(tracker.farShadowObjects, 2, 'the sun’s far-shadow test reaches the shells')
-  assert.equal(tracker.sourceOf(1).flags & F.farTested, F.farTested)
+  // The shells cast, and are made of clusters like the world’s own.
+  assert.equal(tracker.sourceOf(1).flags & F.virtualized, F.virtualized)
   assert.equal(tracker.sourceOf(1).flags & F.castShadow, F.castShadow)
   assert.equal(tracker.sourceOf(1).flags & F.visible, F.visible)
   assert.equal(tracker.sourceOf(1).instance, 1, 'the rank of the root it stands for')
@@ -98,7 +97,6 @@ test('an actor the cut does not draw holds no placement nor room in the atlas, a
   drawn.clear()
   sync()
   assert.equal(tracker.objects.length, 0)
-  assert.equal(tracker.farShadowObjects, 0)
 })
 
 test('a stand-in follows its root’s world, and each instance of the world DAG places its own', () => {
@@ -176,4 +174,10 @@ test('a stand-in moves as the root it stands for', () => {
     [false, true, true, true],
     'the mesh, the world root, then its two cells',
   )
+})
+
+test('a root is a placement of the world DAG when it carries the table of its cells', () => {
+  assert.equal(isWorldRoot({ hlod: {} }), true)
+  assert.equal(isWorldRoot({}), false)
+  assert.equal(isWorldRoot({ hlod: undefined }), false)
 })

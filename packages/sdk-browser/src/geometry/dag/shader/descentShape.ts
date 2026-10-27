@@ -16,19 +16,28 @@
  * held for its post pass with their view (`postNode`), which the program says to judge in the
  * running pass (`heldHere`, `postPassWgsl.ts`) and tests by the view's own sight (`boxSight`).
  *
- * The hooks are the texts a views descent replaces: the test of a node's subtree at the threshold,
- * the test of a cell of the placement tree, a leaf's request priority, and the resets of the lists
- * the camera's cut alone holds. The camera's texts are the program's as it was written: its module
+ * The hooks are the texts a views descent replaces: what is built once for a node before its tests,
+ * the test of a node's subtree at the threshold, the test of a leaf too coarse, the test of a cell of
+ * the placement tree, a leaf's request priority, and the resets of the lists the camera's cut alone
+ * holds. The camera's texts are the program's as it was written: its module
  * does not change by a word.
  */
 export interface DescentShape {
   /** Whether an entry carries the index of its view (`descentView`). */
   readonly views: boolean
+  /** The statement run once for each node a level tests (a root, a child, a held item of the post
+   *  pass), from `node` (`CullNode`) and its placement `w`, before the hooks below read it: where a
+   *  views descent builds what they share, the entry's view of the node's box. Empty for the camera's. */
+  readonly begin: string
   /** The expression a node's subtree is needed by at the threshold, from `node` (`CullNode`), its
-   *  placement `w` and `e` (`viewWorld(w)`). */
+   *  placement `w` and, in the camera's, `e` (`viewWorld(w)`). */
   readonly subtreeNeeded: string
   /** Whether the program holds the camera's subtree test (`subtreeNeeded`, `error.ts`). */
   readonly cameraSubtree: boolean
+  /** How a leaf is judged too coarse and dropped, the floor of its error seen past the threshold at
+   *  its ball's largest edge scale (`floorWgsl.ts`): by the camera's rule (`camera`, `floorPrunes`), by
+   *  the program's own `viewFloor(node,w)` (`views`), or never (`none`). */
+  readonly floor: 'camera' | 'views' | 'none'
   /** The test a cell of the placement tree is out of the view by, from its render-frame box. */
   readonly cellOutside: string
   /** The expression of a kept leaf's request priority word, from `node` and its placement `w`. */
@@ -40,12 +49,24 @@ export interface DescentShape {
 /** The camera's cut: one view, its block of the uniform buffer (`viewsWgsl.ts`). */
 export const CAMERA_DESCENT: DescentShape = {
   views: false,
+  begin: '',
   subtreeNeeded: 'subtreeNeeded(node,sphereEdges(node.sphere,e).x)',
   cameraSubtree: true,
+  floor: 'camera',
   cellOutside: 'outsideView',
   priority: 'leafPriority(node,viewWorld(w))',
   resets: '\n resetVisible();',
 }
+
+/** The test of a leaf too coarse, by the shape's `floor`: a condition of `node`, `w`, `c` and `e`. */
+export const floorTest = (shape: DescentShape) =>
+  ({
+    camera: 'floorPrunes(openOf(w,c,node.open),node,e)',
+    views: 'viewFloor(node,w)',
+    none: 'false',
+  })[shape.floor]
+/** The shape's `begin` as a statement line of a level's text: none for a shape with none. */
+export const beginLine = (shape: DescentShape) => (shape.begin ? ` ${shape.begin}\n` : '')
 
 /** Words of a descent entry in the descent array: the entry, its placement, and its view where the
  *  descent carries one. */

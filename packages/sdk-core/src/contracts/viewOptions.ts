@@ -24,6 +24,13 @@ import { readVec3, type Vec3Like } from '../../../math/src/vector/vec3Input.ts'
  * draws, an empty list drawing nothing at all. An entry stands for the object and everything under
  * it, as one object of the reference's stands for all its components; `hidden` wins over `showOnly`
  * for an object named by both. They apply while the run-time setting `cutViewFiltering` is on.
+ *
+ * THE OWNER is `null` by default: the view belongs to no one. A camera that names an owner — a node
+ * of the scene, the player's — makes its view the owner's: an object that is the owner or under it
+ * is owned by the view, and hides from it when it sets `ownerNoSee`, while an object that sets
+ * `onlyOwnerSee` is drawn for the views that own it alone (`Object3D.ownerNoSee`, `onlyOwnerSee`).
+ * It adds to the lists, `hidden` and `showOnly`, and the shadows the lights cast follow the main
+ * view's.
  */
 
 /** A point or a direction, as a page writes it: `[x, y, z]` or anything with those three fields. */
@@ -94,4 +101,15 @@ export function resolveViewList<T extends object>(option: Iterable<T>, name: str
   if (list.some((entry) => typeof entry !== 'object' || entry === null))
     return refuse('must hold objects only')
   return Object.freeze(list) as readonly T[]
+}
+
+/**
+ * The owner a page names, the node its view belongs to, or `null` for none.
+ * @throws TypeError naming what it takes when the option is neither.
+ */
+export function resolveViewOwner<T extends object>(option: T | null): T | null {
+  if (option === null) return null
+  if (typeof option !== 'object' || (option as { isObject3D?: boolean }).isObject3D !== true)
+    return refusal('owner')('must be a node of the scene or null')
+  return option
 }

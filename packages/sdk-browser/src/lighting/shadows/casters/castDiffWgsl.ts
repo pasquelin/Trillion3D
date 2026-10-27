@@ -6,7 +6,9 @@
  * placement that moved appends the box of its previous pose, in the layer it was cached in, and the
  * box of its new one, in the layer it is cached in now; one that began to cast, or arrived, its new
  * box; one that stopped casting, or left, its previous; one whose cache state or far-shadow flags
- * changed where it stands, its box once. A placement cached as dynamic is a box of casters already
+ * changed where it stands, its box once; one that arrived where it was seen cast (a row seated on another mesh is another primitive,
+ * removed and added: its previous box in the layer it was cached in, its new one in the layer it is cached in now) both, whatever
+ * its box. A placement cached as dynamic is a box of casters already
  * moving (sign `-1`): the static layer never held it; so is one that deforms. Beside the sign, a box
  * carries the placement's offset facts (it wears an offset that invalidates its shadows, one that
  * always evaluates, and the square of the distance past which its object stops evaluating it), from
@@ -14,7 +16,8 @@
  * placement whose transform never invalidates its cache (`MOBILITY_CACHE_STATIC`) is followed without a record for its moves. The first diff of
  * a memory made anew (`quiet`) remembers every placement and appends none. Beside the bounds, the
  * instance's cache-as-dynamic state: a tracked placement that began to deform appends its box in
- * the dynamic layer alone, the static one kept; its stop appends nothing.
+ * the dynamic layer alone, the static one kept; its stop appends nothing; a rank that arrives starts
+ * with none.
  *
  *   diff        uniform         the placements, and whether this diff only remembers
  *   rootBoxes   array<vec2u>    `ROOT_BOX_DOUBLES` a placement: its world box, its stretch, its ball, its half axes
@@ -22,6 +25,9 @@
  *   rootWords   array<u32>      a placement's mobility word (`../mobilityBits.ts`)
  *   rootWorlds  array<vec2u>    sixteen doubles a placement: its world, written by the host's send or
  *                               by the composition
+ *   arrived     array<u32>      a bit a placement, set for the ones that arrived since the state per view
+ *                               last ran (\`diff.arrivals\` says any): they start with no cache state in
+ *                               any view
  *   castState   array<u32>      `CAST_STATE_WORDS` a placement: its oriented box as it was, its word, its flags,
  *                               a digest of its world
  *   castChanges array<atomic>   the list (`castChanges.ts`)
@@ -37,6 +43,7 @@ import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { toF32 } from '../../../../../math/src/wgsl/f32.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { MATRIX_VALUES } from '../../../../../math/src/batch/strides.ts'
+import { bitIsSet, bitWord } from '../../../../../math/src/wgsl/integer.ts'
 import { ROOT_BOX_AXES, ROOT_BOX_DOUBLES } from '../../../placement/roots/rootWorldSends.ts'
 import { UNBOUNDED_EXTENT_WGSL } from '../../../deformation/halfFloat.ts'
 import {
@@ -48,7 +55,7 @@ import {
   MOBILITY_OFFSET_INVALIDATES,
   MOBILITY_SHADOWLESS,
 } from '../mobilityBits.ts'
-import { CAST_BOXED, CAST_SEEN, CAST_STATE_WORDS } from './castChanges.ts'
+import { CAST_BOXED, CAST_SEEN, CAST_STATE_WORDS, CAST_VIEWS_WORD } from './castChanges.ts'
 import { CAST_EMIT_WGSL } from './castChangesWgsl.ts'
 import { ROOT_SECTION, ROOT_WORDS_WGSL } from './rootWordsWgsl.ts'
 
@@ -65,13 +72,14 @@ export const CAST_INSTANCE_STATE_ENTRY = 'castInstanceState'
 
 export const CAST_DIFF_WGSL = wgslProgram(
   /* wgsl */ `
-struct CastDiffParams{roots:u32,quiet:u32,views:u32,_pad:u32,}
+struct CastDiffParams{roots:u32,quiet:u32,views:u32,arrivals:u32,}
 @group(0) @binding(0) var<uniform> diff:CastDiffParams;
 @group(0) @binding(1) var<storage,read> rootBoxes:array<vec2u>;
 @group(0) @binding(2) var<storage,read_write> rootWords:array<u32>;
 @group(0) @binding(3) var<storage,read_write> castState:array<u32>;
 @group(0) @binding(4) var<storage,read_write> castChanges:array<atomic<u32>>;
 @group(0) @binding(5) var<storage,read> rootWorlds:array<vec2u>;
+@group(0) @binding(6) var<storage,read> arrived:array<u32>;
 ${wgslConsts({
   MOBILITY_MOVING,
   MOBILITY_SHADOWLESS,
@@ -83,6 +91,7 @@ ${wgslConsts({
   CAST_SEEN,
   CAST_BOXED,
   CAST_STATE_WORDS,
+  CAST_VIEWS_WORD,
   ROOT_BOX_DOUBLES,
   ROOT_BOX_AXES,
   MATRIX_VALUES,
@@ -136,8 +145,11 @@ fn instanceBox(r:u32)->InstanceBox{
  b.ax=widened(ax,pad);b.ay=widened(ay,pad);b.az=widened(az,pad);
  return b;
 }
-/** The bits of a word the stale reads the layer of a box by: its offset invalidates, always evaluated. */
-fn offsetFacts(word:u32)->u32{return word&(MOBILITY_OFFSET_INVALIDATES|MOBILITY_OFFSET_ALWAYS);}
+/** Whether placement \`r\` arrived since the state per view last ran. */
+fn arrivedSince(r:u32)->bool{return diff.arrivals!=0u&&bitWord(r)<arrayLength(&arrived)&&bitIsSet(arrived[bitWord(r)],r);}
+/** The bits of a word the stale reads of a box: its offset invalidates, always evaluated (the layer it was
+ *  cached in), and the placement casts no shadow (the stale skips the box). */
+fn offsetFacts(word:u32)->u32{return word&(MOBILITY_OFFSET_INVALIDATES|MOBILITY_OFFSET_ALWAYS|MOBILITY_SHADOWLESS);}
 /** Whether a word's placement is cached as dynamic: it moves or it deforms. */
 fn cachedDynamic(word:u32)->bool{return (word&(MOBILITY_MOVING|MOBILITY_DEFORMS))!=0u;}
 /** Appends the oriented box \`b\` of a placement whose word is \`word\`, \`disableSq\` its offset's distance. */
@@ -207,7 +219,8 @@ fn worldDigest(r:u32)->vec2u{
  if(!castsNow){return;}
  if(!castsWas){emitBox(cur,dynamicNow,ALL_VIEWS,roots.word,roots.disableSq);return;}
  let pinned=(roots.word&MOBILITY_CACHE_STATIC)!=0u;
- let moved=!pinned&&(worldMoved||!sameBox(cur,wasBox));
+ // An arrival that was seen casting left and entered: both of its boxes are stale, a pinned placement's included.
+ let moved=arrivedSince(r)||(!pinned&&(worldMoved||!sameBox(cur,wasBox)));
  if(moved){
   emitBox(wasBox,dynamicWas,ALL_VIEWS,wasWord,roots.disableSq);
   emitBox(cur,dynamicNow,ALL_VIEWS,roots.word,roots.disableSq);
@@ -233,7 +246,8 @@ fn worldDigest(r:u32)->vec2u{
  if(r>=min(diff.roots,base)||worlds==0xffffffffu||at+CAST_STATE_WORDS>arrayLength(&castState)){return;}
  let roots=vsmRootWordsIn(r,base);
  let deforming=(roots.word&MOBILITY_DEFORMS)!=0u;
- let previous=castState[at+10u];
+ // A placement that arrived starts with no cache state in any view, as an instance added to the scene does.
+ let previous=select(castState[at+CAST_VIEWS_WORD],0u,arrivedSince(r));
  var dynamic=0u;
  var changed=0u;
  var invalidate=0u;
@@ -250,9 +264,9 @@ fn worldDigest(r:u32)->vec2u{
   }
  }
  let allViews=select(0xffffu,(1u<<diff.views)-1u,diff.views<16u);
- castState[at+10u]=dynamic|(allViews<<16u);
+ castState[at+CAST_VIEWS_WORD]=dynamic|(allViews<<16u);
  rootWords[${ROOT_SECTION.state}u*base+r]=dynamic|(changed<<16u);
- if(diff.quiet!=0u||invalidate==0u||(roots.word&MOBILITY_SHADOWLESS)!=0u){return;}
+ if(diff.quiet!=0u||invalidate==0u){return;}
  let cur=instanceBox(r);
  if(cur.has){emitBox(cur,true,invalidate,roots.word,roots.disableSq);}
 }
@@ -264,5 +278,7 @@ fn worldDigest(r:u32)->vec2u{
     WORKGROUP_THREADS_WGSL,
     UNBOUNDED_EXTENT_WGSL,
     ROOT_WORDS_WGSL,
+    bitWord,
+    bitIsSet,
   ],
 )

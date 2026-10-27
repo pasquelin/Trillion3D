@@ -30,7 +30,7 @@ test('the cache and budget values', () => {
       VSM_PRESSURE_FALL,
       VSM_PRESSURE_CALM_FRAMES,
     ],
-    [0.85, 2, 0.5, 0.1, 10],
+    [0.85, 2, 0.5, Math.fround(0.1), 10],
   )
 })
 
@@ -39,6 +39,7 @@ test('the cache has data once a frame is extracted, until it is invalidated', ()
   assert.equal(cache.hasPreviousFrame(), false)
   cache.keepFrameForNext({
     mapCount: 1,
+    sunBase: 0,
   })
   assert.equal(cache.hasPreviousFrame(), true)
   cache.invalidate()

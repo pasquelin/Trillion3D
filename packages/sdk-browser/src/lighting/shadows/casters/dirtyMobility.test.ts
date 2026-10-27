@@ -60,20 +60,3 @@ test('a set of roots grown writes every word again, and keeps the state', () => 
   assert.equal(sent(), ROOTS + 1, 'the set is written whole')
   assert.equal(held()[7], MOBILITY_MOVING)
 })
-
-test('turning shadowCacheDeformableMeshesInvalidate puts the deformers through a forced move, the others stay', () => {
-  const { rt, roots, context, upload } = twin(),
-    { mobility } = rt.lights
-  ;(roots[7] as { deformation?: object }).deformation = {}
-  upload()
-  for (let frame = 0; frame < 101; frame++) mobility.settle(100)
-  upload()
-  assert.deepEqual([mobility.moves(7), mobility.moves(8)], [false, false], 'settled')
-  context.shadowCacheDeformableMeshesInvalidate = false
-  upload()
-  assert.deepEqual([mobility.moves(7), mobility.moves(8)], [true, false], 'off: the deformer moves')
-  for (let frame = 0; frame < 101; frame++) mobility.settle(100)
-  context.shadowCacheDeformableMeshesInvalidate = true
-  upload()
-  assert.deepEqual([mobility.moves(7), mobility.moves(8)], [true, false], 'on: it moves again')
-})

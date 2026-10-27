@@ -5,9 +5,12 @@ import {
   atmosphereSunIndexOf,
   DEFAULT_TEMPERATURE_KELVIN,
   diffuseShareOf,
+  inverseExposureBlendOf,
+  maxDrawDistanceOf,
   fogScatteringOf,
   forwardShadingPriorityOf,
   intensityOf,
+  lightingChannelMaskOf,
   inverseSquaredOf,
   innerConeAngleOf,
   lightUnitsOf,
@@ -30,6 +33,7 @@ import { sameLightShafts } from './lightShafts.ts'
 import { sameLightCloudShadow } from './lightCloudShadow.ts'
 import { sameLightShadow } from './lightShadow.ts'
 import { sameLightContactShadow } from './lightContactShadow.ts'
+import { sameLightProfile } from './lightProfile.ts'
 
 /** Two optional contract vectors: both absent, or identical component by component. */
 const sameVector = (a: readonly number[] | undefined, b: readonly number[] | undefined) =>
@@ -60,7 +64,7 @@ function sameColourAndAir(a: SceneLight, b: SceneLight) {
  * not either: they move no shadow page (`sameLightContactShadow`, `setContactShadow`).
  */
 export function sameSceneLight(a: SceneLight, b: SceneLight) {
-  return sameStrength(a, b) && sameAirAndFunction(a, b) && sameShape(a, b)
+  return sameStrength(a, b) && sameAirAndFunction(a, b) && sameShape(a, b) && sameLightProfile(a, b)
 }
 
 /** Two lights that are the same in everything a record holds, their contact shadows included: what a writer
@@ -78,11 +82,15 @@ function sameStrength(a: SceneLight, b: SceneLight) {
     fogScatteringOf(a) === fogScatteringOf(b) &&
     shadowsFogOf(a) === shadowsFogOf(b) &&
     transmitsOf(a) === transmitsOf(b) &&
+    lightingChannelMaskOf(a) === lightingChannelMaskOf(b) &&
     mobilityOf(a) === mobilityOf(b) &&
     shadowResolutionScaleOf(a) === shadowResolutionScaleOf(b) &&
     sameLightShadow(a, b) &&
     diffuseShareOf(a) === diffuseShareOf(b) &&
     specularShareOf(a) === specularShareOf(b) &&
+    inverseExposureBlendOf(a) === inverseExposureBlendOf(b) &&
+    maxDrawDistanceOf(a) === maxDrawDistanceOf(b) &&
+    (a.softAngle ?? 0) === (b.softAngle ?? 0) &&
     sameVector(a.color, b.color)
   )
 }

@@ -3,7 +3,6 @@ import {
   DEFAULT_GEOMETRY_POOL_BUDGET,
   DEFAULT_TEXTURE_POOL_BUDGET,
 } from '../contracts/poolBudgets.ts'
-import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 import { MIB } from '../../../math/src/constants.ts'
 
 /**
@@ -28,7 +27,7 @@ Fundamental principles and architecture of Trillion3D:
 3. Dynamic Lighting and Shadows:
    - Every lit surface requires an explicitly declared light source (point, spot, directional sunlight). No arbitrary ambient term.
    - Virtual shadow maps are cached page by page (128x128 texels): a page is redrawn only when a light or a caster over it moves, and every page a frame marks is drawn in that frame.
-   - Dynamic global illumination via radiance probes: a frame traces a fixed budget of probes, those never traced first (\`bounceProbesPerFrame\`, default ${BOUNCE_SETTINGS.probesPerFrame}, the default level's own, at most ${BOUNCE_PROBE_QUEUE}); lower it on a slow device.
+   - Dynamic global illumination via radiance probes: a frame traces a fixed budget of probes, those never traced first (the level's own, scaled by \`screenProbeUpdateSpeed\`); lower \`screenProbeUpdateSpeed\` on a slow device.
 
 4. Performance Trade-offs:
    - To increase frame rate on constrained devices: increase \`pixelError\` (e.g., 2.0 or 3.0), or reduce memory pool allocations via \`trillion3d_set_memory_budgets\`.

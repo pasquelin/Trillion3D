@@ -37,7 +37,7 @@ const finite = (value: number) => (Number.isFinite(value) ? value : 0)
 export interface NodeState {
   node: Object3D
   visible: boolean
-  /** How the node casts (`nodeCasting`): its `castShadow`, `castFarShadow` and `farShadowTest`. */
+  /** How the node casts (`nodeCasting`): its `castShadow` and the other shadow switches. */
   casting: number
   /** How many times its offset switches were written (`OffsetSwitches.revision`): the engine reads
    *  them from the node itself (`../../../frame/render/offsetReach.ts`), the watch tells it moved. */

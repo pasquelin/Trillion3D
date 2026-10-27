@@ -21,7 +21,7 @@ export interface VsmTraceBindings {
   view: number
   noise: number
   /** The device grants subgroups: a local light's rays vote over the fragment's subgroup
-   *  (`vsmLoneVoteWgsl`). */
+   *  (`rayCountStatement`); without them a fragment traces every ray. */
   subgroups?: boolean
   /** The blue noise is a read-only storage texture, read by load, not a sampled texture
    *  (`blueNoiseWgsl`). */

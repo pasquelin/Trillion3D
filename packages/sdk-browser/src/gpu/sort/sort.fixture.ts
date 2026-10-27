@@ -32,7 +32,7 @@ export function shippedSort(ranks: readonly number[], burst: number, seed: numbe
     POOL_SORT_WGSL,
     [],
     {
-      poolSlotRank: (j: number) => (j < ranks.length ? ranks[j] : POOL_RANKS),
+      poolSlotRank: (j: number) => ranks[j],
       poolSlotCount: () => ranks.length,
       poolBurst: () => burst,
       poolCountAdd: (i: number, v: number) => ((words[i] += v), words[i] - v),

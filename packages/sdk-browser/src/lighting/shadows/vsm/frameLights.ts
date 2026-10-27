@@ -1,10 +1,16 @@
 /**
  * THE FRAME'S CASTING LIGHTS SET UP AND GIVEN THEIR IDS (`frameSetup.ts`): a clipmap a sun, a setup
- * a local light, then the ids — directional first, then local, then the cache entries no light
- * referenced.
+ * a local light, then the ids by run of maps (`mapIds.ts`), the cache entries no light referenced
+ * after the lights of their run. The ids are claimed here and taken by the entries once the plan is
+ * kept (`commitVirtualShadowFrame`).
  */
 import type { SceneLight } from '../../../../../sdk-core/src/scene/light/contracts.ts'
-import { mobilityOf, spotConesOf } from '../../../../../sdk-core/src/scene/light/fields.ts'
+import {
+  innerConeAngleOf,
+  lightingChannelMaskOf,
+  mobilityOf,
+  spotConesOf,
+} from '../../../../../sdk-core/src/scene/light/fields.ts'
 import { shadowOfLight } from '../../../../../sdk-core/src/scene/light/lightShadow.ts'
 import {
   createVsmClipmap,
@@ -39,13 +45,12 @@ const localViews: ReturnType<typeof vsmLocalViewData>[] = []
 const common = { id: '', position: [] as ArrayLike<number>, range: 0, movable: false }
 const pointInput = { ...common, kind: 'point' as const }
 const axis = [] as ArrayLike<number>
-const spotInput = { ...common, kind: 'spot' as const, direction: axis, outerCone: 0 }
+const spotInput = { ...common, kind: 'spot' as const, direction: axis, outerCone: 0, innerCone: 0 }
 const rectInput = { ...common, kind: 'rect' as const, direction: axis, right: axis }
-/** The frame's shadowed local lights, nearest the eye first. */
-const nearFirst: SceneLight[] = []
 
 /** The frame's next allocation record, rewritten whole. */
 function allocation(
+  ids: VsmMapIds,
   light: SceneLight,
   entry: VsmLightCache,
   clipmap: VsmClipmap | undefined,
@@ -54,7 +59,8 @@ function allocation(
   const record = (allocationRecords[allocationScratch.length] ??= {} as VsmLightAllocation)
   record.id = light.id
   record.kind = light.kind
-  record.firstId = entry.mapId
+  record.channels = lightingChannelMaskOf(light)
+  record.firstId = ids.firstIdOf(entry)
   record.count = entry.mapCaches.length
   record.entry = entry
   record.clipmap = clipmap
@@ -70,7 +76,7 @@ function setupDirectionalLights(
   camera: VsmCameraInput,
   viewport: VsmViewport,
 ) {
-  for (const { light, farShadowEdge, cascades } of casting) {
+  for (const { light, cascades } of casting) {
     if (light.kind !== 'directional' || !light.direction) continue
     const clipmap = createVsmClipmap(
       state.cache,
@@ -78,7 +84,6 @@ function setupDirectionalLights(
         ...{
           id: light.id,
           direction: light.direction,
-          farShadowEdge,
           cascades,
           movable: mobilityOf(light) === 'movable',
         },
@@ -92,7 +97,7 @@ function setupDirectionalLights(
     clipmaps.push(clipmap)
     // The sun's second clipmap, for the objects that stand for a first-person one (`firstPerson`).
     if (state.maps.firstPerson?.active) {
-      const own = { id: light.id, direction: light.direction, farShadowEdge }
+      const own = { id: light.id, direction: light.direction }
       suns.push(light)
       clipmaps.push(
         createVsmClipmap(
@@ -117,9 +122,12 @@ function localInputOf(light: SceneLight): VsmLocalLightInput {
   input.range = light.range!
   input.movable = mobilityOf(light) === 'movable'
   input.sourceRadius = light.emitterRadius
+  input.softSourceRadius = light.emitterSoftRadius
+  input.sourceLength = light.emitterLength
   if (input.kind === 'spot') {
     input.direction = light.direction!
     input.outerCone = spotConesOf(light)[1]
+    input.innerCone = innerConeAngleOf(light)
   } else if (input.kind === 'rect') {
     input.direction = light.direction!
     input.right = light.right!
@@ -136,16 +144,7 @@ function setupLocalLights(
   viewport: VsmViewport,
 ) {
   localViews.length = 0
-  // Nearest the eye first: past the map slots, the farthest lights go (`allocateLightIds`).
-  nearFirst.length = 0
-  for (const { light } of casting) nearFirst.push(light)
-  const eye = camera.eye
-  const distanceSq = (l: SceneLight) => {
-    const p = l.position ?? eye
-    return (p[0] - eye[0]) ** 2 + (p[1] - eye[1]) ** 2 + (p[2] - eye[2]) ** 2
-  }
-  nearFirst.sort((a, b) => distanceSq(a) - distanceSq(b))
-  for (const light of nearFirst) {
+  for (const { light } of casting) {
     if (light.kind === 'directional' || !light.position || !light.range) continue
     if (!localViews.length) localViews.push(vsmLocalViewData(camera, viewport))
     const setup = addVsmLocalLightShadow(state.cache, localInputOf(light), localViews, state.maps)
@@ -154,39 +153,25 @@ function setupLocalLights(
   }
 }
 
-/** The id allocation: directional, local, then unreferenced entries, within the set's map slots: a
- *  light past them — the farthest, the local lights coming nearest first — casts no shadow this
- *  frame, its entry dropped and its maps counted (`refusedMaps`) for the slots to grow; the others keep theirs. */
+/** The id claims, by run of maps (`mapIds.ts`): the suns' clipmaps, the local lights' maps, the entries
+ *  no light referenced; and the plan's records, which keep the lights' order, with where each light's
+ *  maps landed. */
 function allocateLightIds(state: VsmFrameState) {
-  const ids = state.ids.reset(state.resources.layout.mapSlots)
+  const ids = state.ids.reset()
+  for (const { cacheEntry } of clipmaps) ids.claim(cacheEntry, 'sun')
+  for (const { cacheEntry } of setups) ids.claim(cacheEntry, 'light')
+  state.cache.claimUnseenLights(ids)
+  ids.seal()
   allocationScratch.length = 0
-  for (let i = 0; i < suns.length; i++) {
-    const entry = clipmaps[i].cacheEntry
-    if (!ids.fits(entry.mapCaches.length)) {
-      ids.refuse(entry.mapCaches.length)
-      state.cache.entries.delete(entry.key)
-      continue
-    }
-    entry.moveToMapId(ids.allocateDirectional(entry.mapCaches.length))
-    allocation(suns[i], entry, clipmaps[i], undefined)
-  }
-  for (let i = 0; i < locals.length; i++) {
-    const setup = setups[i],
-      entry = setup.cacheEntry
-    if (!ids.fits(entry.mapCaches.length)) {
-      ids.refuse(entry.mapCaches.length)
-      state.cache.entries.delete(entry.key)
-      continue
-    }
-    entry.moveToMapId(ids.allocateLocal(entry.mapCaches.length))
-    allocation(locals[i], entry, undefined, setup)
-  }
-  state.cache.carryUnseenLights(ids)
+  for (let i = 0; i < suns.length; i++)
+    allocation(ids, suns[i], clipmaps[i].cacheEntry, clipmaps[i], undefined)
+  for (let i = 0; i < locals.length; i++)
+    allocation(ids, locals[i], setups[i].cacheEntry, undefined, setups[i])
   lightIds.ids = ids
   return lightIds
 }
 
-/** The casting lights' maps set up and given their ids: the allocator, and where each landed. */
+/** The casting lights' maps set up and their ids claimed: the allocator, and where each landed. */
 export function allocateFrameLights(
   state: VsmFrameState,
   casting: readonly VsmFrameLight[],

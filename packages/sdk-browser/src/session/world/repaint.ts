@@ -25,7 +25,8 @@ import type {
  *  `kind` its family, `transparent`, `blending` and `transmission` its pass, `side`, `depthTest`
  *  and `depthWrite` its pipeline, `vertexColors` which surface its wearers take,
  *  `allowNegativeEmissive` the program of its graph (`compileGraph`), `cloudFog`
- *  the programs of the blended pass (`blend/cloudFogText.ts`), `translucencyLighting` those of the
+ *  the programs of the blended pass (`blend/cloudFogText.ts`), `contactShadows` those of the blended pass too
+ *  (`materials/surface/blendLightSource.ts`: `contactShadowsOf`), `translucencyLighting` those of the
  *  blended pass too (`blend/pipelines.ts`: `translucencyVolumeOf`), `translucencyPass` the pass its
  *  items' records name (`blend/items.ts`), and the three `translucent…Shadow` ones
  *  the shadow code of those programs (`blend/pipelines.ts`: `translucentShadowOf`), `sizeAttenuation` a sprite's root
@@ -47,6 +48,7 @@ const LAYOUT = new Set([
   'vertexColors',
   'allowNegativeEmissive',
   'cloudFog',
+  'contactShadows',
   'translucencyLighting',
   'translucencyPass',
   'translucentLocalLightShadow',

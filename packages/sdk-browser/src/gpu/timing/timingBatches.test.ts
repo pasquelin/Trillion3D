@@ -60,7 +60,11 @@ test('the raster at the most view passes is timed whole, as the passes are sized
   const samples: GpuTimingSample[] = []
   const timer = createGpuTiming(f.device, { onSample: (sample) => void samples.push(sample) })
   const encoder = timer.createEncoder(1)
-  const res = createVsmResources(f.device, { fullMapCapacity: 63, poolPages: 256 })
+  const res = createVsmResources(f.device, {
+    coverMode: 'suns',
+    fullMapCapacity: 63,
+    poolPages: 256,
+  })
   const { scene } = recordingRaster(f.device, 65_536)
   // Every map id a frame holds: the id is 16 bits wide in the words the cull packs.
   const lights = [
@@ -83,11 +87,15 @@ test('the raster at the most view passes is timed whole, as the passes are sized
 // With the occlusion culling and the previous frame's pyramid and tables kept, a view pass draws what
 // its first cull keeps, builds the pyramid over it, judges again the nodes its descent held back,
 // culls again what the first held back and what they hold, and draws that; the frame's last build follows every view pass
-// (`vsmEncode.ts`). Each view pass is then five passes on a frame timed per pass, which the
+// (`vsmEncode.ts`). Each view pass is then five passes (seven with the software raster's, one after each raster) on a frame timed per pass, which the
 // timer is sized for, and four otherwise (the build and the second cull follow one another: one pass); without a previous frame, the cull with no test and its raster alone.
 test('the occlusion’s two culls a view pass: cull, raster, pyramid, second cull, second raster', async () => {
   const f = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 20, maxBufferSize: 1 << 20 } })
-  const res = createVsmResources(f.device, { fullMapCapacity: 63, poolPages: 256 })
+  const res = createVsmResources(f.device, {
+    coverMode: 'suns',
+    fullMapCapacity: 63,
+    poolPages: 256,
+  })
   const raster = recordingRaster(f.device, 1000)
   const lights = [{ kind: 'directional' as const, firstId: 0, count: 17 }]
   const frame = (kept: boolean) => {
@@ -110,29 +118,28 @@ test('the occlusion’s two culls a view pass: cull, raster, pyramid, second cul
     await settled
   }
   const first = frame(false)
-  // The kept tables' three copies and the frame's lights copied into the descent's work open the
-  // frame; the shadow views' requests read back close it (the requests' copy came with the shadow
-  // views' descent, `traversal/`): the casters' list has a fixed room, its count read back by none.
+  // The kept tables' three copies, the frame's lights copied into the descent's work and the shadow views'
+  // requests of the frame before read back (the requests' copy came with the shadow views' descent,
+  // `traversal/`) open the frame: the casters' list has a fixed room, its count read back by none.
   assert.deepEqual(first.commands, [
     'copy',
     'copy',
     'copy',
     'copy',
+    'copy',
     `compute ${VSM_PASS_PREFIX}render.cull 0`,
     `render ${VSM_PASS_PREFIX}render.raster 0`,
-    'copy',
   ])
   assert.ok(
     first.entries.includes('vsmRenderCull') && !first.entries.includes('vsmRenderCullFirst'),
   )
   const { commands, entries } = frame(true)
-  assert.deepEqual(commands.slice(4), [
+  assert.deepEqual(commands.slice(5), [
     `compute ${VSM_PASS_PREFIX}render.cull 0`,
     `render ${VSM_PASS_PREFIX}render.raster 0`,
     'copy',
     `compute ${VSM_PASS_PREFIX}occlusion.build`,
     `render ${VSM_PASS_PREFIX}render.rasterSecond 0`,
-    'copy',
   ])
   const after = (name: string) => entries.slice(entries.indexOf(name))
   assert.deepEqual(after('vsmRenderCullFirst').slice(0, 3), [
@@ -149,5 +156,5 @@ test('the occlusion’s two culls a view pass: cull, raster, pyramid, second cul
     ...['vsmRenderArgsBin', 'vsmRenderBin'],
   ])
   // The view passes' passes and the last build fit what the timer reads.
-  assert.ok(5 * VSM_MAX_VIEW_PASSES + 1 <= VSM_TIMED_PASSES)
+  assert.ok(7 * VSM_MAX_VIEW_PASSES + 1 <= VSM_TIMED_PASSES)
 })

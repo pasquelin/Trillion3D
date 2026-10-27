@@ -68,3 +68,11 @@ export const wgslStruct = (name: string, deps: readonly WgslDecl[], text: string
  *  the declarations and fragments it uses (`deps`). A program holds one text a fragment name. */
 export const wgslBlock = (name: string, deps: readonly WgslDecl[], text: string) =>
   declare('block', name, deps, text)
+
+/** A value built for each state of a flag, `build(false)` and `build(true)` once — a declaration, or the
+ *  splices of a text —: the function returned gives the one a flag picks. */
+export const wgslVariants = <T>(build: (on: boolean) => T) => {
+  const off = build(false),
+    on = build(true)
+  return (flag: boolean) => (flag ? on : off)
+}

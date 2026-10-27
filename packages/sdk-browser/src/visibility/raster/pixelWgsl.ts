@@ -1,6 +1,6 @@
 import { DEPTH_NEAR } from '../../camera/depthConvention.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
-import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { maskKeepWgsl } from '../shader/pageWgsl.ts'
 import {
   NO_MASKS,
@@ -69,13 +69,22 @@ fn offsetDepth(depth:f32,w:f32,offset:f32,pixel:vec2f)->f32{
 }`,
 )
 
+/** The buffer a host writes the visibility into, as the write names it, and for the split write the
+ *  function (`fn name()->u32`) that gives the first word of the identifier plane: the default is the
+ *  raster's own, `work` and `pixelCount`. */
+export interface VisBuffer {
+  readonly buffer?: string
+  readonly plane?: WgslDecl
+}
+
 /**
  * THE VISIBILITY WRITE, the one rule the software raster's threads (`RASTER_PIXEL_WGSL`), the
  * tessellation's micro-triangles and the hardware raster's fragments (`../shader/visWgsl.ts`)
  * write a pixel by into the one `work` buffer, zero the background: the identifier
  * `(row+1)<<8 | triangle` of the nearest depth key (`VIS_KEY_WGSL`), and between fragments at
  * exactly that depth the greatest identifier — a sixty-four-bit maximum of `(depth, identifier)`,
- * the depth in the high word.
+ * the depth in the high word. The hair strands' raster (`../../hair/rasterPass.ts`) writes its
+ * samples by the same rule into a buffer of its own (`VisBuffer`).
  *
  * **With the 64-bit atomic maximum** (`wide`, the device feature `atomic-vec2u-min-max`,
  * `../../gpu/core/wideAtomics.ts`) the pixel is one `atomic<vec2<u32>>`, the identifier its first
@@ -97,40 +106,57 @@ fn offsetDepth(depth:f32,w:f32,offset:f32,pixel:vec2f)->f32{
  * early-out, the maximum unchanged. The hardware raster does not write these planes there: it
  * draws once, with the hardware depth test, and the export merges both (`exportWgsl.ts`).
  */
-const VIS_WRITE_WIDE = wgslBlock(
-  'VIS_WRITE_WGSL(wide)',
-  [VIS_KEY_WGSL, WIDE_ATOMIC_WGSL],
-  `
+const visWriteWide = (buffer: string, name = 'VIS_WRITE_WGSL(wide)') =>
+  wgslBlock(
+    name,
+    [VIS_KEY_WGSL, WIDE_ATOMIC_WGSL],
+    `
 /** A word is written whole and cannot be read: no fragment can leave before its cutout. */
 fn visPasses(offset:u32,key:u32,ids:bool)->bool{return true;}
 /** The fragment's pair, taken into the pixel's word by the 64-bit maximum. */
-fn visWrite(offset:u32,key:u32,id:u32,ids:bool){atomicStoreMax(&work[offset],vec2u(id,key));}`,
-)
-const VIS_WRITE_SPLIT = wgslBlock(
-  'VIS_WRITE_WGSL(split)',
-  [VIS_KEY_WGSL, pixelCount],
-  `
+fn visWrite(offset:u32,key:u32,id:u32,ids:bool){atomicStoreMax(&${buffer}[offset],vec2u(id,key));}`,
+  )
+const visWriteSplit = (buffer: string, plane: WgslDecl, name = 'VIS_WRITE_WGSL(split)') =>
+  wgslBlock(
+    name,
+    [VIS_KEY_WGSL, plane],
+    `
 /** Whether a fragment of key \`key\` at pixel \`offset\` can still change it: nearer than the key
  *  held in the depth phase, the final key itself in the identifier phase (\`ids\`). */
 fn visPasses(offset:u32,key:u32,ids:bool)->bool{
- let held=atomicLoad(&work[offset]);
+ let held=atomicLoad(&${buffer}[offset]);
  if(ids){return held==key;}
  return held<key;
 }
 /** The fragment's word of the phase: its key, or its identifier \`id\` (\`ids\`). */
 fn visWrite(offset:u32,key:u32,id:u32,ids:bool){
- if(ids){atomicMax(&work[pixelCount()+offset],id);}
- else{atomicMax(&work[offset],key);}
+ if(ids){atomicMax(&${buffer}[${plane.name}()+offset],id);}
+ else{atomicMax(&${buffer}[offset],key);}
 }`,
-)
+  )
+const VIS_WRITE_WIDE = visWriteWide('work')
+const VIS_WRITE_SPLIT = visWriteSplit('work', pixelCount)
+/** The writes of the other buffers hosts name, made once each. */
+const VIS_WRITES = new Map<string, WgslDecl>()
 /** The visibility write of a device with the 64-bit word (`wide`) or without it (above). Its
- *  host declares `work` as `array<atomic<vec2<u32>>>` or `array<atomic<u32>>` accordingly. */
-export const visWriteWgsl = (wide: boolean) => (wide ? VIS_WRITE_WIDE : VIS_WRITE_SPLIT)
+ *  host declares its buffer (`work`, or `target.buffer`) as `array<atomic<vec2<u32>>>` or
+ *  `array<atomic<u32>>` accordingly (`visWorkDeclaration`). */
+export function visWriteWgsl(wide: boolean, target: VisBuffer = {}) {
+  const { buffer = 'work', plane = pixelCount } = target
+  if (buffer === 'work' && plane === pixelCount) return wide ? VIS_WRITE_WIDE : VIS_WRITE_SPLIT
+  const name = `VIS_WRITE_WGSL(${wide ? 'wide' : 'split'}, ${buffer}, ${plane.name})`
+  let block = VIS_WRITES.get(name)
+  if (!block) {
+    block = wide ? visWriteWide(buffer, name) : visWriteSplit(buffer, plane, name)
+    VIS_WRITES.set(name, block)
+  }
+  return block
+}
 
-/** The declaration of the visibility buffer `work` a host of `visWriteWgsl(wide)` writes, bound at
- *  `binding` of group `group`. */
-export const visWorkDeclaration = (wide: boolean, binding: number, group = 0) =>
-  `@group(${group}) @binding(${binding}) var<storage,read_write> work:array<atomic<${
+/** The declaration of the visibility buffer a host of `visWriteWgsl(wide)` writes (`work`, or
+ *  `buffer`), bound at `binding` of group `group`. */
+export const visWorkDeclaration = (wide: boolean, binding: number, group = 0, buffer = 'work') =>
+  `@group(${group}) @binding(${binding}) var<storage,read_write> ${buffer}:array<atomic<${
     wide ? 'vec2<u32>' : 'u32'
   }>>;`
 

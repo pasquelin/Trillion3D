@@ -1,10 +1,14 @@
 // The shadow maps' counters, stage times and memory, as the stats panel lists them, and the
 // diagnostics a set keeps of its last frame.
 import type { GpuPassTimings } from '../../../../../../sdk-core/src/contracts/metrics.ts'
+import type { GpuTimingSample } from '../../../../gpu/timing/types.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { VSM_STAGES } from '../../../../diagnostic/metricKeys.ts'
 import { VSM_PASS_PREFIX } from '../../../../diagnostic/stage/passLabels.ts'
 import { gpuTotalsBy } from '../../../../diagnostic/stage/mapping.ts'
+import { passWindowMs } from '../../../../gpu/timing/spans.ts'
+import { RENDER_LABEL } from '../render/renderPipes.ts'
+import { BUILD_PASS } from '../occlusion/occlusionPass.ts'
 import type { EngineVsm } from './engineVsm.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { heldMaskBytes } from './vsmMask.ts'
@@ -28,6 +32,9 @@ export interface VsmEngineStats {
   allocatedPages: number
   cachedPages: number
   renderedPages: number
+  /** Pool pages left with no word, and cached pages kept for the cull of the offsets allowed on them. */
+  emptyPages: number
+  wpoConsideredPages: number
 }
 
 /** The diagnostics of a set that counted nothing: before its first frame, or after a frame that
@@ -45,6 +52,8 @@ const NO_STATS: Readonly<VsmEngineStats> = Object.freeze({
   allocatedPages: 0,
   cachedPages: 0,
   renderedPages: 0,
+  emptyPages: 0,
+  wpoConsideredPages: 0,
 })
 
 /** A set's diagnostics before its first frame. */
@@ -96,15 +105,26 @@ function stageTimes(sample: GpuPassTimings | null | undefined) {
   return (timedStages = times)
 }
 
-/** The GPU time of the shadow raster's passes in `sample` (the render stage: the candidates, the cull,
- *  the bin and the raster): 0 for an image that ran none (a raster that cost nothing), null where the
- *  sample is missing or truncated or a pass of the stage has no usable duration. What the shadow
- *  raster's time budget is fitted to (`shadowDynamicResolutionTimeBudgetMs`). */
-export function vsmRenderMs(sample: GpuPassTimings | null | undefined) {
-  if (!sample || sample.truncated) return null
-  const ms = gpuTotalsBy(sample, vsmStage).get('shadowVsmRenderMs')
-  return ms === undefined ? 0 : ms
-}
+/** Whether a timed pass is of the shadow raster's budget: the raster's passes (`vsm.render…`: the
+ *  descent runs in their culls) and the occlusion pyramid's build. */
+const budgetedPass = (name: string) => name.startsWith(RENDER_LABEL) || name === BUILD_PASS.label
+
+/** The GPU time of the shadow raster in `sample`: the window of its passes, their gaps included
+ *  (`passWindowMs`: 0 where none ran, null where no usable time). What the shadow raster's time
+ *  budget is fitted to (`shadowDynamicResolutionTimeBudgetMs`). */
+export const vsmRenderMs = (sample: GpuTimingSample | null | undefined) =>
+  passWindowMs(sample, budgetedPass)
+
+/** The page counters of the last frame (`counted`, the set's stats where its counters are on), null
+ *  where they are off. */
+const pageCounters = (counted: VsmEngineStats | undefined) => ({
+  shadowVsmPagesRequested: counted?.requestedPages ?? null,
+  shadowVsmPagesAllocated: counted?.allocatedPages ?? null,
+  shadowVsmPagesCached: counted?.cachedPages ?? null,
+  shadowVsmPagesRendered: counted?.renderedPages ?? null,
+  shadowVsmPagesEmpty: counted?.emptyPages ?? null,
+  shadowVsmPagesWpoConsidered: counted?.wpoConsideredPages ?? null,
+})
 
 /** The frame's VSM counters and stage times, as the stats panel lists them (`shadow…`): each
  *  stage the own shares of its passes (`gpuTotalsBy`), as every stage of the profile, so no stage
@@ -119,15 +139,13 @@ export function vsmFrameMetrics(rt: WebgpuPagesRuntime, sample: GpuPassTimings |
     // How far the shadows draw coarser than they ask because of their page pool, what the
     // reference mode's `assertFullShadowPool` refuses above 0: the halvings the GPU budget took
     // off the full pool (`ShadowMemory.bias`, `vsmGrant.ts`), plus the levels the pool's fill
-    // raised every map's resolution bias by (`VsmCacheManager.readPoolFeedback`, back to exactly 0
-    // once the fill falls). 0 when the full pool draws every page at the level asked.
+    // raised every map's resolution bias by (`VsmCacheManager.readPoolFeedback`; published as 0
+    // once under `VSM_PRESSURE_BIAS_NONE`, where its fall stalls). 0 when the full pool draws
+    // every page at the level asked.
     shadowResolutionBias: s ? rt.lights.memory.bias + s.pressureBiasStat : null,
     shadowVsmLights: s?.lights ?? null,
     shadowVsmMaps: s ? s.maps : null,
-    shadowVsmPagesRequested: counted?.requestedPages ?? null,
-    shadowVsmPagesAllocated: counted?.allocatedPages ?? null,
-    shadowVsmPagesCached: counted?.cachedPages ?? null,
-    shadowVsmPagesRendered: counted?.renderedPages ?? null,
+    ...pageCounters(counted),
     shadowVsmFreePages: s?.freePages ?? null,
     shadowVsmLodBias: s?.pressureBiasStat ?? null,
     shadowVsmProjectionPasses: s?.projectionPasses ?? null,

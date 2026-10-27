@@ -1,92 +1,61 @@
 /**
  * THE SHADOW POOL'S FREE PAGES (#1527): the order a page request takes a physical page in is the
- * pool rank every GPU pool evicts by (`../../../gpu/sort/rank.ts`), made by the pool sort
+ * recency order of the pool's pages (`poolSlotRank`), made by the pool sort
  * (`../../../gpu/sort/sortWgsl.ts`) over the pool's pages, once a frame after the keep rule
  * (`vsmKeepPages`) and before the grant (`vsmGrantPages`).
  *
  * - A page no map holds — never drawn, its map gone, or not wanted for `shadowCacheMaxPageAgeSinceLastRequest` — is
  *   the oldest: taken first.
- * - A page holding a cached map is ranked by the frames since it was last wanted, a step a frame
- *   (`SHADOW_AGE_STEP_WGSL`): the least recently wanted first, strictly. Its level, the finer first,
- *   only orders pages wanted on the same frame.
+ * - A page holding a cached map is ranked by the frames since it was last wanted, a rank a frame:
+ *   the least recently wanted first, pages of one frame in pool order, no level. Ages from
+ *   `POOL_RANKS - 1` frames on share the last rank (`shadowCacheMaxPageAgeSinceLastRequest`, 1000, keeps a page younger).
  * - A page wanted this frame is in use: never listed, never taken.
  *
  * `vsmFreePages` holds the sort's words (`POOL_SORT_WORDS`, zero at creation), then the count of
  * free pages, the requests they fell short of, then the pages: the queue's head at the top, where `pmPop` takes it; then the sort's
  * scratch over the pool's pages (`poolScratchWords`).
  */
-import { POOL_AGES } from '../../../gpu/sort/rank.ts'
 import { POOL_SORT_WORDS } from '../../../gpu/sort/sortWords.ts'
 import { POOL_SORT_WGSL, poolSortWordsWgsl } from '../../../gpu/sort/sortWgsl.ts'
-import { wgslBlock, wgslFn } from '../../../../../math/src/wgsl/decl.ts'
-
-/**
- * THE ONE FREE STACK of the shadow pools, over the atomic words of \`buffer\`: its count at \`count\`,
- * its entries from \`first\`. \`<prefix>Take(n)\` takes the top n entries with one atomic subtraction
- * and returns the first one's rank: wait-free while the stack holds them. Where it held fewer (the
- * old count, read signed, under n) the take adds them back, tells its host (\`<prefix>Short(n)\`) and
- * returns −1: two atomics only when the pool is short, and a take racing it there may find it short
- * too. \`<prefix>At(i)\` reads entry i; \`<prefix>Push(v)\` gives one back. The physical pages'
- * (\`pmPop\`).
- */
-const freeStackWgsl = (prefix: string, buffer: string, count: string, first: string) =>
-  wgslBlock(
-    `freeStackWgsl(${prefix})`,
-    [],
-    `fn ${prefix}At(i:u32)->u32{return atomicLoad(&${buffer}[${first}+i]);}
-fn ${prefix}Push(v:u32){atomicStore(&${buffer}[${first}+atomicAdd(&${buffer}[${count}],1u)],v);}
-fn ${prefix}Take(n:u32)->i32{
- let held=bitcast<i32>(atomicSub(&${buffer}[${count}],n));
- if(held>=i32(n)){return held-i32(n);}
- atomicAdd(&${buffer}[${count}],n);
- ${prefix}Short(n);
- return -1i;
-}`,
-  )
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /** The free pages' count, the requests they fell short of this frame, and the pages, behind the
- *  sort's words; \`pmPop\` takes the top one. */
+ *  sort's words; \`pmPop\` takes the top one. The one free stack of the shadow pools, over the atomic
+ *  words of \`vsmFreePages\`: \`pmPop\` takes the top entry with one atomic subtraction: wait-free
+ *  while the stack holds one. Where it held none (the old count, read signed, not above zero) the pop
+ *  adds it back, tells the request it fell short of and returns −1: two atomics only when the pool
+ *  is short, and a pop racing it there may find it short too. */
 export const VSM_FREE_PAGES_WGSL = wgslBlock(
   'VSM_FREE_PAGES_WGSL',
-  [freeStackWgsl('pmFree', 'vsmFreePages', 'PM_FREE_COUNT', 'PM_FREE_FIRST')],
+  [],
   `const PM_FREE_COUNT:u32=${POOL_SORT_WORDS}u;
 const PM_FREE_SHORT:u32=PM_FREE_COUNT+1u;
 /** The free pages' first word: the stack's bottom entry. */
 const PM_FREE_FIRST:u32=PM_FREE_COUNT+2u;
-fn pmFreeShort(n:u32){atomicAdd(&vsmFreePages[PM_FREE_SHORT],n);}
 /** The free pages left less the requests none was left for: below zero when the pool fell short. */
 fn pmFreeCount()->i32{return bitcast<i32>(atomicLoad(&vsmFreePages[PM_FREE_COUNT]))-bitcast<i32>(atomicLoad(&vsmFreePages[PM_FREE_SHORT]));}
 /** Takes the next free page: < 0 when none is left. */
 fn pmPop()->i32{
- let at=pmFreeTake(1u);
- if(at<0i){return -1i;}
- return i32(pmFreeAt(u32(at)));
+ let held=bitcast<i32>(atomicSub(&vsmFreePages[PM_FREE_COUNT],1u));
+ if(held<=0i){
+  atomicAdd(&vsmFreePages[PM_FREE_COUNT],1u);
+  atomicAdd(&vsmFreePages[PM_FREE_SHORT],1u);
+  return -1i;
+ }
+ return i32(atomicLoad(&vsmFreePages[PM_FREE_FIRST+u32(held-1i)]));
 }
 `,
 )
 
 /**
- * The age step of a kept page unwanted `age` frames, one or more (`poolInUse` keeps the page wanted
- * now out of the rank): a step a frame, the least recently wanted leaving first. Pages wanted fewer
- * than `PM_AGE_KEPT_MAX` frames ago are told apart exactly; older ones share the last step, where
- * the tier orders them.
- */
-const SHADOW_AGE_STEP_WGSL = wgslFn(
-  'poolAgeStep',
-  [],
-  'fn poolAgeStep(age:u32)->u32{return age-1u;}',
-)
-
-/**
  * What the pool sort reads and writes for the shadow pool (`POOL_SORT_WGSL`'s host functions):
- * every pool page, its age and tier off its `vsmPoolPageInfo`, the whole pool a burst, and the
- * queue written top down into `vsmFreePages`.
+ * every pool page, its rank off its `vsmPoolPageInfo`, the whole pool a burst, and the queue
+ * written top down into `vsmFreePages`.
  */
 export const VSM_POOL_SORT_WGSL = wgslBlock(
   'VSM_POOL_SORT_WGSL',
   [
     POOL_SORT_WGSL,
-    SHADOW_AGE_STEP_WGSL,
     VSM_FREE_PAGES_WGSL,
     poolSortWordsWgsl(
       'vsmFreePages',
@@ -94,32 +63,21 @@ export const VSM_POOL_SORT_WGSL = wgslBlock(
       (i) => `PM_FREE_FIRST+vsm.poolPages+${i}`,
     ),
   ],
-  `/** The age of a page no map holds: the last age step, the first taken. */
-const PM_AGE_EMPTY:u32=0xffffffffu;
-/** A kept page's age stops a step under the empty pages' (\`poolRank\`): taken after every one. */
-const PM_AGE_KEPT_MAX:u32=${POOL_AGES - 1}u;
-fn poolSlotCount()->u32{return vsm.poolPages;}
+  `fn poolSlotCount()->u32{return vsm.poolPages;}
 /** The pool page slot \`j\` stands for: itself, or without \`lruAllocation\` the pool taken from its
  *  end, so that the sort's lower slot first lists the highest page first — the order a list popped
  *  from its tail hands the pages of the pool out in. */
 fn poolPage(j:u32)->u32{return select(vsm.poolPages-1u-j,j,vsmPm.lruAllocation!=0u);}
-/** Frames since the page was last wanted: 0 when wanted this frame (\`vsmKeepPages\`), in use. Without
- *  \`lruAllocation\` a page not wanted now is a step old, whatever its age. */
-fn poolSlotAge(j:u32)->u32{
+/** Slot \`j\`'s rank: \`POOL_RANKS - 1\` for a page no map holds, \`POOL_RANKS\` for one wanted now, else
+ *  its age less one, held to \`POOL_RANKS - 2\`; without \`lruAllocation\` a page not wanted now ranks 0
+ *  (the pool is taken from its end, \`poolPage\`). */
+fn poolSlotRank(j:u32)->u32{
  let info=vsmPoolPageInfo[poolPage(j)];
- if(info.flags==0u){return PM_AGE_EMPTY;}
- let age=min(vsm.frameStamp-info.lastWantedStamp,PM_AGE_KEPT_MAX);
- return select(min(age,1u),age,vsmPm.lruAllocation!=0u);
+ if(info.flags==0u){return POOL_RANKS-1u;}
+ let age=vsm.frameStamp-info.lastWantedStamp;
+ if(age==0u){return POOL_RANKS;}
+ return select(0u,min(age-1u,POOL_RANKS-2u),vsmPm.lruAllocation!=0u);
 }
-/** The page's level: its map's clipmap level (a local light's is 0), then its mip; 0 without
- *  \`lruAllocation\`. */
-fn poolSlotTier(j:u32)->u32{
- let info=vsmPoolPageInfo[poolPage(j)];
- if(info.flags==0u||vsmPm.lruAllocation==0u){return 0u;}
- return u32(max(vsmProjectionData[info.mapId].mapLevel,0i))+info.mipLevel;
-}
-/** Only a page wanted this frame is in use: one wanted last frame and not now may be taken. */
-fn poolInUse()->u32{return 1u;}
 fn poolBurst()->u32{return vsm.poolPages;}
 fn poolPlaced(total:u32){atomicStore(&vsmFreePages[PM_FREE_COUNT],total);atomicStore(&vsmFreePages[PM_FREE_SHORT],0u);}
 /** The queue's entry \`at\` (0 its head) as the stack's \`total − 1 − at\`: the head is popped first. */

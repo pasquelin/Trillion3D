@@ -87,7 +87,7 @@ export function wpoShaders(): Record<string, string> {
   const blend = programOf({ graph: g, transparent: true })
   if (!isProgram(resolve) || !isProgram(blend))
     throw new Error('the offset graph fixture does not compile')
-  const layout = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
+  const layout = vsmLayout({ coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 35 })
   // The session's surfaces wear both programs: the modules hold the offsets of both.
   const rasters = graphRastersOf([{ graph: g }, { graph: g, transparent: true }])
   const offsets = blendWpo(rasters, [blend])
@@ -117,7 +117,7 @@ function colouredWpoShaders(): Record<string, string> {
   const g = colouredGraph()
   const resolve = programOf({ graph: g })
   if (!isProgram(resolve)) throw new Error('the coloured offset graph fixture does not compile')
-  const layout = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
+  const layout = vsmLayout({ coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 35 })
   const rasters = graphRastersOf([{ graph: g }])
   return {
     VIS_WPO_COLOURED: visShader({ wpo: visibilityWpo(rasters) }),
@@ -138,7 +138,7 @@ function texturedWpoShaders(): Record<string, string> {
   const blend = programOf({ graph: g, transparent: true })
   if (!isProgram(resolve) || !isProgram(blend))
     throw new Error('the textured offset graph fixture does not compile')
-  const layout = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 35 })
+  const layout = vsmLayout({ coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 35 })
   const rasters = graphRastersOf([{ graph: g }, { graph: g, transparent: true }])
   return {
     VIS_WPO_TEXTURED: visShader({ wpo: visibilityWpo(rasters) }),

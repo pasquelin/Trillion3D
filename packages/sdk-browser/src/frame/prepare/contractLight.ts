@@ -2,6 +2,11 @@ import {
   askLightFunctionPrograms,
   lightFunctionResources,
 } from '../../lighting/lightFunction/frame.ts'
+import { lightProfileResources } from '../../lighting/lightProfile/frame.ts'
+import {
+  ambientCubemapOn,
+  ambientCubemapResources,
+} from '../../lighting/deferred/ambientCubemapFrame.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import type { DirectLightResources } from '../../lighting/deferred/program.ts'
 import type { LitPrograms } from '../../lighting/deferred/contractVariants.ts'
@@ -15,6 +20,7 @@ import { skyLightReadOf } from '../render/skyLightState.ts'
 import { cloudShadowOf } from '../render/encodeCloudShadow.ts'
 import {
   vsmConsumerResources,
+  vsmPerLight,
   vsmShadowMask,
   vsmShadowedLightGrid,
   vsmSunShadowMask,
@@ -55,16 +61,30 @@ function lobedFor(pass: LitPass, rt: WebgpuPagesRuntime) {
   return lobesHeld(rt) && rowsWearLobes(rt)
 }
 
-/** Whether the surfaces `pass` lights cast contact shadows: the opaque lit passes' alone, a blend pass
- *  holding neither the scene's depth nor its flags (`castsContactShadows`). */
+/** Whether the surfaces `pass` lights cast contact shadows: the opaque lit passes' alone (`castsContactShadows`); a blend
+ *  pass's cut is the scene's (`TranslucentScene`), the frame's key leaves it out. */
 const contactFor = (pass: LitPass, rt: WebgpuPagesRuntime) =>
   pass === 'opaque' && castsContactShadows(rt)
+
+/** Whether a light, or an object the surfaces `pass` lights belong to — the roots' for the opaque passes, the blend
+ *  items' for the translucent layers —, is in a lighting channel set other than the default's (channel 0 alone):
+ *  the lit programs hold the test of the channels then, else none (`ContractKey.channelless`). */
+const channelledFor = (pass: LitPass, rt: WebgpuPagesRuntime) =>
+  rt.lights.store.channelled > 0 ||
+  (pass === 'opaque' ? rt.vis.rootOffsets.channelled() > 0 : rt.blendState.channelled)
 
 /** The key a first frame of `pass` asks for, fresh: the declared lights' and the pass's lobes, the
  *  shadow code only where a light takes a shadow (`shadowsOn`), the contact shadows' where the pass
  *  casts them. */
 export const keyFor = (pass: LitPass, rt: WebgpuPagesRuntime) =>
-  contractKey(rt.lights.store, shadowsOn(rt), lobedFor(pass, rt), contactFor(pass, rt))
+  contractKey(
+    rt.lights.store,
+    shadowsOn(rt),
+    lobedFor(pass, rt),
+    contactFor(pass, rt),
+    channelledFor(pass, rt),
+    pass === 'opaque' && ambientCubemapOn(rt),
+  )
 
 /** The lit programs prepare compiles beside the others when the image wants the contract (#1362),
  *  with bounce too when the session wants it; a failed one is said, then or later. The one it
@@ -116,7 +136,9 @@ export const blendContext = (rt: WebgpuPagesRuntime) => {
  * read of a kind of light (a sun's, a local light's) while a light of that kind declares one
  * (`ShadowKinds`); rectangle code while a light is a rectangle (#1369); lobe code while a surface
  * the pass lights carries a lobe (`lobed`, `../../materials/surface/physicalLobes.ts`); contact shadow code
- * while the pass casts them (`contact`, `castsContactShadows`). Never on a slot held
+ * while the pass casts them (`contact`, `castsContactShadows`); the test of the lighting channels while a light or
+ * an object is in a set other than the default's (`channelled`, `channelledFor`: the pass's objects); the cube code
+ * while the image sets an ambient cubemap (`cubed`; the opaque lit passes' alone: a translucent surface takes none). Never on a slot held
  * this frame: a lamp that moves, a page that comes and goes, asks no other program. Written into
  * `key`, fresh unless a frame hands in the one it reuses from one image to the next.
  */
@@ -125,6 +147,8 @@ function contractKey(
   shadowed: boolean,
   lobed: boolean,
   contact: boolean,
+  channelled: boolean,
+  cubed: boolean,
   key: Partial<ContractKey> = {},
 ) {
   const sun = store.shadowedSuns > 0,
@@ -137,6 +161,9 @@ function contractKey(
   key.localless = !key.unshadowed && !local
   key.lobeless = !lobed
   key.contactless = !contact
+  key.channelless = !channelled
+  key.profileless = store.profiled === 0
+  key.cubeless = !cubed
   return key as ContractKey
 }
 
@@ -213,6 +240,10 @@ function litPassResources(rt: WebgpuPagesRuntime, lit: boolean) {
   contractResources.lightFunction = lit
     ? lightFunctionResources(rt, 'lightFunctionDeferred')
     : undefined
+  // The light profiles' atlas, where the scene names any (`../../lighting/lightProfile/frame.ts`).
+  contractResources.lightProfile = lit ? lightProfileResources(rt) : undefined
+  // The ambient cubemap's cube, whole with its mips, and its colour (`../../lighting/deferred/ambientCubemapFrame.ts`).
+  contractResources.ambientCubemap = ambientCubemapResources(rt, lit)
   // What the screen probes left of the pixels' indirect light this image (`../../lighting/bounce/screen/frame.ts`).
   contractResources.screenIndirect = lit ? rt.gpu.screenProbes?.indirect : undefined
   // The ambient occlusion this image drew (`../../lighting/ao/frame.ts`).
@@ -223,6 +254,8 @@ function litPassResources(rt: WebgpuPagesRuntime, lit: boolean) {
     lit && rt.gpu.device ? volumetricLightmapOf(rt, rt.gpu.device) : undefined
   // The sky light's distance-field occlusion this image drew (`../render/encodeSkyOcclusion.ts`): the program that applies it.
   contractResources.skyShadowing = lit ? skyOcclusionRead(rt) : undefined
+  // The shadowed local lights lit one by one (`shadowOnePassProjection` false).
+  contractResources.perLight = lit ? vsmPerLight(rt) : undefined
 }
 
 /** The resources the last `directLightResources` of the frame resolved: the one object, as it stands. */
@@ -256,6 +289,8 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
       shadowed,
       lobedFor('opaque', rt),
       contactFor('opaque', rt),
+      channelledFor('opaque', rt),
+      ambientCubemapOn(rt),
       contractResources,
     )
     contractResources.narrow &&= !!lights.tiles

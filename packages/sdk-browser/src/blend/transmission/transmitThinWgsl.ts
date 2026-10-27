@@ -4,37 +4,23 @@ import { FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { fogFreeFlag, MASKED_MODEL_BIT } from '../../materials/surface/surfaceModelWord.ts'
 import { BLEND_TO_EYE_WGSL } from '../shaderSurface.ts'
 import { GRAPH_FLAG } from '../graphWgsl.ts'
-import type { CloudVertexText } from '../cloudVertexText.ts'
 import { FACING_MATERIAL_MASK } from '../facing.ts'
 import { WORDS } from '../vertexReadsWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { fresnelSchlick, specularF90 } from '../../../../math/src/wgsl/lighting.ts'
-
-/** The label of a stage's variant: which of the optional pieces its text holds. */
-export const variantKey = (o: {
-  graphs: boolean
-  lobes: boolean
-  shade: CloudVertexText
-  marks?: boolean
-  depth?: boolean
-  layer: boolean
-}) =>
-  `${o.graphs}${o.lobes ? ', lobes' : ''}${o.shade.key}${o.marks ? ', surface shadow marks' : ''}${o.depth ? ', pushed depth' : ''}${o.layer ? ', layer' : ''}`
+import { stageLabel, stageLobes, type StageOptions } from '../stageOptions.ts'
+import { fresnelSchlick, ndotvClamped, slabF90 } from '../../../../math/src/wgsl/lighting.ts'
 
 /**
  * A transmissive layer as a thin translucent surface leaves it — an infinitely thin absorbing
  * sheet under a lit coat —, its lights aside: what the blend multiplies the destination by. It reads the fragment's surface (`blendSurface`) and its record's volume (`materialAt`, the
  * rank the vertex stage passes in `VSOut.words.z`), the blend module's view and lights' fog.
  */
-export const thinLayerWgsl = (
-  graphs: boolean,
-  lobes: boolean,
-  shade: CloudVertexText,
-  layer: boolean,
-) =>
-  wgslBlock(
-    `THIN_LAYER_WGSL(${variantKey({ graphs, lobes, shade, layer })})`,
-    [SURFACE_F0_WGSL, fresnelSchlick, specularF90, LOBE_AXIS_WGSL, BLEND_TO_EYE_WGSL],
+export const thinLayerWgsl = (o: StageOptions) => {
+  const { graphs, layer, shade } = o,
+    lobes = stageLobes(o)
+  return wgslBlock(
+    `THIN_LAYER_WGSL(${stageLabel(o)})`,
+    [SURFACE_F0_WGSL, fresnelSchlick, slabF90, ndotvClamped, LOBE_AXIS_WGSL, BLEND_TO_EYE_WGSL],
     `struct Thin{N:vec3f,V:vec3f,rough:f32,metal:f32,top:f32,specularColor:vec3f,transmittance:vec3f,fog:vec4f,coverage:f32,unlit:bool,}
 fn thinLayer(in:VSOut,k:TransmitIn)->Thin{
  let s=k.s;
@@ -62,10 +48,10 @@ ${layer ? ` if((k.g.graph.flags&${GRAPH_FLAG.layer}u)!=0u){top=clamp(s.alpha,0.0
  // sheet's thickness seen at a slant; Fresnel at entry and again at exit (Schlick 1994, its
  // grazing value occluded under 2% specular) on the surface's specular colour (\`surfaceF0\`),
  // which follows its base colour and metal.
- let NoV=clamp(abs(dot(N,V))+1e-5,0.0,1.0);
+ let NoV=ndotvClamped(N,V);
  ${graphs ? 'surfaceSpecular=s.specular;\n ' : ''}${lobes ? 'if(physicalOn&&blendLobeValues.specular>=0.0){surfaceSpecular=blendLobeValues.specular;}\n ' : ''}if(masked){surfaceSpecular=1.0-cut;}
  let specularColor=surfaceF0(s.rgb,metal);
- let F=fresnelSchlick(specularColor,specularF90(specularColor),NoV);
+ let F=fresnelSchlick(specularColor,slabF90(specularColor),NoV);
  let absorbed=pow(max(tint,vec3f(1e-6)),vec3f(1.0/NoV));
  // The fog between the eye and the surface; a fog-free material, or the unlit view, takes none.
  let fogFree=unlit||${fogFreeFlag('flags')};
@@ -80,3 +66,4 @@ fn thinMul(l:Thin)->vec3f{return mix(vec3f(1.0),l.fog.a*l.transmittance,l.covera
 fn greyCoverage(mul:vec3f)->f32{return saturate(1.0-dot(mul,vec3f(1.0/3.0)));}
 `,
   )
+}

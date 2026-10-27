@@ -36,6 +36,8 @@ test("the shadow counters of a frame are the virtual shadow maps', under their p
       allocatedPages: 64,
       cachedPages: 147,
       renderedPages: 6,
+      emptyPages: 12,
+      wpoConsideredPages: 3,
       freePages: 4032,
       pressureBiasStat: 0,
       projectionPasses: 2,
@@ -58,11 +60,13 @@ test("the shadow counters of a frame are the virtual shadow maps', under their p
       metrics.shadowVsmPagesAllocated,
       metrics.shadowVsmPagesCached,
       metrics.shadowVsmPagesRendered,
+      metrics.shadowVsmPagesEmpty,
+      metrics.shadowVsmPagesWpoConsidered,
       metrics.shadowVsmFreePages,
       metrics.shadowVsmLodBias,
       metrics.shadowVsmProjectionPasses,
     ],
-    [2, 17, 211, 64, 147, 6, 4032, 0, 2],
+    [2, 17, 211, 64, 147, 6, 12, 3, 4032, 0, 2],
   )
   assert.deepEqual(
     [metrics.shadowVsmMarkingMs, metrics.shadowVsmRenderMs, metrics.shadowVsmProjectionMs],

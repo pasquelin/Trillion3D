@@ -1,4 +1,4 @@
-import { POOL_RANKS_WGSL, POOL_RANK_WGSL } from './rankWgsl.ts'
+import { POOL_RANKS_WGSL } from './rankWgsl.ts'
 import { POOL_LANES_WGSL, POOL_SORT_HEAD_WGSL } from './sort.ts'
 import { POOL_SORT_STABLE_WGSL } from './sortStableWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -6,8 +6,8 @@ import { FLAT_INDEX_WGSL } from '../dispatch/grid.ts'
 import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
 
 /**
- * THE VICTIM QUEUE of a GPU pool (#1527): a stable counting sort of the pool's slots by `poolRank`
- * (`rankWgsl.ts`), the highest ranks first and, within a rank, the lower slot first — whatever
+ * THE VICTIM QUEUE of a GPU pool (#1527): a stable counting sort of the pool's slots by `poolSlotRank`
+ * (`rank.ts`), the highest ranks first and, within a rank, the lower slot first — whatever
  * order the threads run in, two runs over the same slots give the same queue —, at most a burst,
  * in six dispatches (`sort.ts`; `sort.fixture.ts` its contract):
  *
@@ -31,15 +31,14 @@ import { LANE_SCAN_WGSL, laneRunOffsets } from '../core/laneScanWgsl.ts'
  * more than its slot, its run of ranks or of groups, or a burst.
  *
  * The program that holds it declares, over its own bindings: `poolSlotCount()`, the slots swept;
- * `poolSlotAge(j)`, `poolSlotTier(j)` and `poolInUse()`, what `poolRank` reads, and `poolAgeStep(age)`
- * where the doubling of the age is not the pool's step (`POOL_AGE_STEP_WGSL`); `poolBurst()`;
- * the sort's words and its scratch (`poolSortWordsWgsl`); `poolPlaced(total)`; `poolEmit(at, j)`.
+ * `poolSlotRank(j)`, the rank of slot `j` under `poolSlotCount()`, `POOL_RANKS` for a slot in use
+ * (the sort asks no other); `poolBurst()`; the sort's words and its scratch (`poolSortWordsWgsl`);
+ * `poolPlaced(total)`; `poolEmit(at, j)`.
  */
 export const POOL_SORT_WGSL = wgslBlock(
   'POOL_SORT_WGSL',
   [
     POOL_RANKS_WGSL,
-    POOL_RANK_WGSL,
     FLAT_INDEX_WGSL,
     POOL_LANES_WGSL,
     LANE_SCAN_WGSL,
@@ -47,11 +46,6 @@ export const POOL_SORT_WGSL = wgslBlock(
     POOL_SORT_STABLE_WGSL,
   ],
   `var<workgroup> poolLocal:array<atomic<u32>,POOL_RANKS>;
-/** Slot \`j\`'s rank, \`POOL_RANKS\` past the slots or in use. */
-fn poolSlotRank(j:u32)->u32{
- if(j>=poolSlotCount()){return POOL_RANKS;}
- return poolRank(poolSlotAge(j),poolSlotTier(j),poolInUse());
-}
 /** Scratch word of the ranks of slots \`j\` and its pair, behind the staged slots and the groups'
  *  counts: two 16-bit ranks a word (\`POOL_RANKS\` fits). */
 fn poolRankWord(j:u32)->u32{return 2u*poolBurst()+2u*ceilDiv(poolSlotCount(),POOL_LANES)+j/2u;}
@@ -60,7 +54,8 @@ fn poolRankOf(j:u32)->u32{return (poolScratchLoad(poolRankWord(j))>>(16u*(j&1u))
 @compute @workgroup_size(POOL_LANES)
 fn poolCount(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
  let j=flatIndex(id,n,POOL_LANES);
- let rank=poolSlotRank(j);
+ var rank=POOL_RANKS;
+ if(j<poolSlotCount()){rank=poolSlotRank(j);}
  if(rank<POOL_RANKS){atomicAdd(&poolLocal[rank],1u);}
  poolChunk[lane]=rank;
  workgroupBarrier();

@@ -1,7 +1,7 @@
 import { drawFullscreenTriangle } from '../../gpu/shader/fullscreenTriangle.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
-import { SURFACE_COLOURS_FORMAT } from '../../materials/surface/surfaceOutputs.ts'
+import { FLAGS_VIEW, SURFACE_COLOURS_FORMAT } from '../../materials/surface/surfaceOutputs.ts'
 import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import type { ViewOverrides } from '../../frame/backend/state/viewOverrides.ts'
 import { fullscreenDescriptor, preparedPipeline } from './fullscreen.ts'
@@ -124,7 +124,7 @@ function heldOf(device: GPUDevice, made: Rewriter, surfaces: SurfaceBuffer) {
       layout: made.layout,
       entries: [
         { binding: 0, resource: copy.createView({ dimension: '2d-array' }) },
-        { binding: 1, resource: surfaces.views()[3] },
+        { binding: 1, resource: surfaces.views()[FLAGS_VIEW] },
         { binding: 2, resource: { buffer: made.block } },
       ],
     }),

@@ -46,6 +46,7 @@ export const vsmLightMips = (light: VsmViewLight) =>
   vsmLightMaps(light) * vsmMapViewMips(light.kind)
 
 /** A light as the raster binds it (`render/renderPass.ts`): its kind, its first map's id and its map
- *  count, and its clipmap or cache entry where it has one. */
+ *  count, its lighting channels (the default's where absent) and its clipmap or cache entry where it
+ *  has one. */
 export type VsmBoundLight = Pick<VsmLightAllocation, 'kind' | 'firstId' | 'count'> &
-  Partial<Pick<VsmLightAllocation, 'clipmap' | 'entry'>>
+  Partial<Pick<VsmLightAllocation, 'clipmap' | 'entry' | 'channels'>>

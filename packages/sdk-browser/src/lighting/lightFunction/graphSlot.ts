@@ -8,18 +8,14 @@ import type { GraphClocks } from '../../materials/graph/clocks.ts'
 import { fallbackOf } from '../../materials/graph/program.ts'
 import { compileKept, isRefusal, type GraphRefusal } from '../../materials/graph/kept.ts'
 import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
-import {
-  SHADOW_TILE_POOL_WGSL,
-  colorSampleWgsl,
-  tileDeclarations,
-} from '../../materials/virtual/wgsl.ts'
+import { tileDeclarations } from '../../materials/virtual/wgsl.ts'
 import { MAP_BINDINGS, MAP_SAMPLER_BINDING } from './mapBindings.ts'
-import { packSlotColour, type AtlasFormat } from './renderWgsl.ts'
+import { COLOR_SAMPLE, packSlotColour, type AtlasFormat } from './renderWgsl.ts'
+import type { Derivatives } from '../../materials/graph/state.ts'
 
 /** The bytes before a graph's values in a slot's parameters: the world's time in seconds and the
  *  wall clock's (`GraphClocks`), and padding. */
 const HEAD_BYTES = 16
-const SAMPLE = colorSampleWgsl(SHADOW_TILE_POOL_WGSL)
 
 /** A material's graph compiled for the atlas: what its program is made of and how its parameters
  *  are written. */
@@ -33,18 +29,22 @@ export interface GraphSlot {
   readonly textured: boolean
 }
 
-/** The graph of `material`, compiled for the atlas once for each shape of the graph (a light
- *  function has no world position, so the compile refuses a node that reads one); none for a
- *  material with no graph; a refusal, naming the node, for a graph that does not compile — named by
- *  the frame that asks it (`nameRefusal`, `frame.ts`), not with the surfaces'. */
-export function graphSlotOf(material: Material): GraphSlot | GraphRefusal | undefined {
+/** The graph of `material` compiled under the name `key` with the footprints `derivatives` give, once for each shape of the
+ *  graph (a light function has no world position, so the compile refuses a node that reads one); none for a material with no
+ *  graph; a refusal, naming the node, for a graph that does not compile — named by the frame that asks it (`nameRefusal`,
+ *  `frame.ts`), not with the surfaces'. */
+function compiledSlotOf(
+  material: Material,
+  key: string,
+  derivatives: Derivatives,
+): GraphSlot | GraphRefusal | undefined {
   const graph = material.graph as MaterialGraph | undefined
   if (!graph) return undefined
   return compileKept(
     graph,
-    'atlas',
+    key,
     () => {
-      const compiled = compileGraph(graph, { sample: SAMPLE, derivatives: 'screen' })
+      const compiled = compileGraph(graph, { sample: COLOR_SAMPLE, derivatives })
       return {
         compiled,
         bytes: HEAD_BYTES + compiled.slots.bytes,
@@ -56,11 +56,23 @@ export function graphSlotOf(material: Material): GraphSlot | GraphRefusal | unde
   )
 }
 
+/** The graph of `material`, compiled for the atlas: a fragment program, whose texture reads take the screen's derivatives. */
+export const graphSlotOf = (material: Material) => compiledSlotOf(material, 'atlas', 'screen')
+
+/** The graph of `material`, compiled for the pass that evaluates it at a point apart from the atlas (`lightFunctionPassWgsl.ts`):
+ *  a compute program, whose texture reads find their footprint at the points beside (`mgNeighbour`). */
+const graphStandaloneOf = (material: Material) =>
+  compiledSlotOf(material, 'standalone', 'neighbours')
+
+/** A compiled slot, none where there is no graph or it is refused. */
+const usable = (slot: GraphSlot | GraphRefusal | undefined) =>
+  slot && !isRefusal(slot) ? slot : undefined
+
 /** The compiled slot of `material`, none where it has no graph or its graph is refused. */
-export const usableGraphSlot = (material: Material) => {
-  const slot = graphSlotOf(material)
-  return slot && !isRefusal(slot) ? slot : undefined
-}
+export const usableGraphSlot = (material: Material) => usable(graphSlotOf(material))
+
+/** The compiled slot of `material` for the pass apart from the atlas, none where it has no graph or its graph is refused. */
+export const usableGraphStandalone = (material: Material) => usable(graphStandaloneOf(material))
 
 /** The textures a material's slot reads: those of its graph, else its emissive map. */
 export function lightFunctionTextures(material: Material): Texture[] {

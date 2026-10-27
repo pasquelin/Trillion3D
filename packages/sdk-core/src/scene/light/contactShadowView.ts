@@ -1,10 +1,10 @@
 import type { LightContactShadow } from '../../contracts/lightContactShadowOptions.ts'
 import type { SceneLight } from './contracts.ts'
 import { contactShadowOfLight } from './lightContactShadow.ts'
+import type { LightShadowView } from './shadowedBits.ts'
 
-/** The view's contact shadow settings (`../../contracts/contactShadowOptions.ts`, by their fields): the
- *  switch, and each override of the lights' own — a length with its unit, the two intensities —, below 0
- *  for none. */
+/** The view's contact shadow settings (`../../contracts/contactShadowOptions.ts`, by their fields): each override of the
+ *  lights' own is below 0 for none. */
 export interface ContactShadowView {
   contactShadows: boolean
   contactShadowOverrideLength: number
@@ -22,14 +22,14 @@ export const NO_CONTACT_SHADOW_VIEW: Readonly<ContactShadowView> = /* @__PURE__ 
   contactShadowOverrideNonCastingIntensity: -1,
 })
 
+/** The intensity a light's shadow has at a surface: the view's override when it is 0 or more, else the light's own, held to
+ *  1. The reference takes an override of any size and lights with `1 − intensity` (`ContactShadow = 1.0 -
+ *  ContactShadowOcclusion`, `DeferredLightingCommon.ush:196-217`): above 1 that is negative light, a defect not carried over. */
+const held = (override: number, own: number) => (override >= 0 ? Math.min(1, override) : own)
 const casting = (own: LightContactShadow, view: ContactShadowView) =>
-  view.contactShadowOverrideCastingIntensity >= 0
-    ? view.contactShadowOverrideCastingIntensity
-    : own.contactShadowCastingIntensity
+  held(view.contactShadowOverrideCastingIntensity, own.contactShadowCastingIntensity)
 const nonCasting = (own: LightContactShadow, view: ContactShadowView) =>
-  view.contactShadowOverrideNonCastingIntensity >= 0
-    ? view.contactShadowOverrideNonCastingIntensity
-    : own.contactShadowNonCastingIntensity
+  held(view.contactShadowOverrideNonCastingIntensity, own.contactShadowNonCastingIntensity)
 
 /** Whether a light's ray, folded with the view, can darken anything: the switch is on, its length is above
  *  0 and one of its two intensities is. */
@@ -48,7 +48,7 @@ function rays(own: LightContactShadow, view: ContactShadowView) {
  * light's data: the length, negative when it is in metres and doubled when it is in screen units — the
  * shader multiplies it by the tangent of half the field times the depth, which spans half the screen's
  * height, so a screen length is a share of the whole height —, then the intensity at a surface that
- * casts contact shadows and at one that does not. The length that of the view's override when it is 0
+ * casts contact shadows and at one that does not (`held`). The length that of the view's override when it is 0
  * or more, with the override's unit. With the switch off, or no intensity above 0, no ray: a length of 0
  * (the intensities 1 and 0 with the switch off).
  */
@@ -70,7 +70,10 @@ export function writeContactShadow(
   packed[at + 2] = off ? 0 : nonCasting(own, view)
 }
 
-/** Whether a light casts a ray of its own under `view`: it casts a shadow and its folded ray can darken
- *  (`writeContactShadow`). */
-export const castsContactShadow = (light: SceneLight, view: ContactShadowView) =>
-  light.castsShadow && rays(contactShadowOfLight(light), view)
+/** Whether a light casts a ray of its own under `view` and the shadows `shadows`: it casts a shadow and the dynamic shadows are on
+ *  (the dynamic shadow bit, `shadowedBitsOf`), and its folded ray can darken (`writeContactShadow`). */
+export const castsContactShadow = (
+  light: SceneLight,
+  view: ContactShadowView,
+  shadows: LightShadowView,
+) => light.castsShadow && shadows.dynamicShadows && rays(contactShadowOfLight(light), view)

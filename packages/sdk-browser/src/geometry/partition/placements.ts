@@ -4,12 +4,10 @@
  * knowing its cell and node while it holds them (`rowCells.ts`), the track of the scene's
  * animation banks it plays (`PlacementRows.tracks`), the distances it is drawn at
  * (`PlacementRows.drawDistance`), whether a view's primed depth draws it
- * (`PlacementRows.farField`), whether it casts far shadows (`Placement.farShadow`) and whether a
- * sun's far-shadow test reaches it (`Placement.farShadowTest`), both written into the row's casting
- * by `follow.ts`, and — a row drawn from an animated core
+ * (`PlacementRows.farField`), and — a row drawn from an animated core
  * node's own mesh (`CellNode.source`) — that node's host mesh of its primitive as its animation
  * source (`PlacedMesh.sources`), shown while that mesh is. A cell that leaves parks its rows and
- * clears all three; a parent moved, a host mesh's `castShadow` changed, or a source mesh shown or
+ * clears them; a parent moved, a host mesh's `castShadow` changed, or a source mesh shown or
  * hidden, rewrites the rows under it (`follow.ts`). An HLOD cell's instanced actor places its rows
  * on the same meshes' rows while it is loaded, under the scene root (`placeActor`,
  * `../hlod/hlodRows.ts`). A cell placed or left, or whose rows draw as its HLOD 0 actor, moves the
@@ -20,7 +18,7 @@ import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { farTestOf, rootParentsByNode, type CellRows } from './cellDecode.ts'
+import { rootParentsByNode, type CellRows } from './cellDecode.ts'
 import {
   rowColumn,
   seatDrawDistance,
@@ -134,21 +132,17 @@ function seatNode(
   instances: ReturnType<typeof rootParentsByNode>,
   at: (node: number) => RowCell,
 ) {
-  const { ranks, locals, drawDistances, farFields, castFarShadows, farShadowTests } = decoded
+  const { ranks, locals, drawDistances, farFields } = decoded
   const parent = ranks[2 * node] < 0 ? p.root : p.parents[ranks[2 * node]]
   const mesh = p.meshes.get(ranks[2 * node + 1])!
   const local = locals.subarray(MATRIX_VALUES * node, MATRIX_VALUES * (node + 1))
   const { track, drawn } = rowSource(decoded, node, mesh, url, p.streamed)
-  const farShadow = castFarShadows?.[node] === 1
-  const farShadowTest = farTestOf(farShadowTests?.[node])
   const row = takeRow(mesh)
   const placement: Placement = {
     mesh,
     row,
     parent,
     local,
-    ...(farShadow && { farShadow }),
-    ...(farShadowTest !== undefined && { farShadowTest }),
   }
   // Before its flags are written: a row drawn from a source mesh is shown as that mesh is.
   const distance = drawDistanceAt(drawDistances, node)

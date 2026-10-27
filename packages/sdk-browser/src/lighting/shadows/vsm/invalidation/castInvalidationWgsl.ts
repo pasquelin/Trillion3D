@@ -13,7 +13,8 @@
  * A box is four vectors of four words, the same in the list and in the CPU's buffer: its centre and
  * a sign (floats), negative for casters already moving, then its three half axes (floats, one a
  * vector; the first's fourth word the bits of the views whose maps it stales, the second's the bits of
- * its placement's word that say its offset invalidates its shadows or always evaluates, the third's
+ * its placement's word that say its offset invalidates its shadows or always evaluates, or that it
+ * casts no shadow (such a box stales nothing), the third's
  * the square of the distance past which its object stops evaluating it: the CPU's boxes hold none).
  * A list that overflowed reads as one box holding the world: every page goes stale, never fewer.
  *
@@ -23,12 +24,14 @@
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslFn, wgslStruct } from '../../../../../../math/src/wgsl/decl.ts'
+import { wgslConsts } from '../../../../../../math/src/wgsl/consts.ts'
 import { ceilDivWgsl } from '../../../../../../math/src/wgsl/integer.ts'
 import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
 import { VSM_NO_HZB_WGSL, vsmInvalidationProgram } from '../invalidationWgsl.ts'
 import { UNBOUNDED_EXTENT_WGSL } from '../../../../deformation/halfFloat.ts'
 import { VSM_OCCLUSION_PAGES_WGSL } from '../occlusion/occlusionTestWgsl.ts'
 import type { VsmLayout } from '../layout.ts'
+import { MOBILITY_SHADOWLESS } from '../../mobilityBits.ts'
 
 /** Whether a list of `records` records whose header is `header` overflowed, and the boxes the stale
  *  reads: the list's then the CPU's `boxes`; one, the world's, once the list overflowed. The two
@@ -92,6 +95,7 @@ export const castInvalidationWgsl = (layout: VsmLayout) =>
   vsmInvalidationProgram(
     layout,
     /* wgsl */ `
+${wgslConsts({ MOBILITY_SHADOWLESS })}
 @group(1) @binding(0) var<uniform> vsmCast:VsmCastParams;
 @group(1) @binding(1) var<storage,read> vsmCastMaps:array<u32>;
 @group(1) @binding(2) var<storage,read> vsmCasts:array<vec4u>;
@@ -118,6 +122,8 @@ fn ${CAST_INVALIDATION_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_work
    record=vsmCastBoxes[at];
    axes=array<vec4u,3>(vsmCastBoxes[at+1u],vsmCastBoxes[at+2u],vsmCastBoxes[at+3u]);
   }
+  // A placement that casts no shadow stales no page.
+  if((axes[1].w&MOBILITY_SHADOWLESS)!=0u){return;}
   inst.centre=bitcast<vec3f>(record.xyz);
   inst.axisX=bitcast<vec3f>(axes[0].xyz);
   inst.axisY=bitcast<vec3f>(axes[1].xyz);

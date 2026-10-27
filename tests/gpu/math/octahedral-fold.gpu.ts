@@ -14,7 +14,7 @@ import assert from 'node:assert/strict'
 import { computeOnDawn } from '../../kit/device/computeRun.ts'
 import { LOBE_PACK_WGSL } from '../../../packages/sdk-browser/src/materials/surface/physicalLobes.ts'
 import { wgslProgram } from '../../../packages/math/src/wgsl/assemble.ts'
-import { hashUnit } from '../../../packages/math/src/wgsl/sampling.ts'
+import { hashUnit } from '../../../packages/math/src/scalar/hashUnit.fixture.ts'
 
 /** The codec as `develop` wrote it, its own fold; the decode folded per axis, as the compiler's
  *  `oct_decode` writes it. */

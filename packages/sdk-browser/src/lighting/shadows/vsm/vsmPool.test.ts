@@ -10,7 +10,7 @@ import { vsmPoolPagesBound, vsmResourceBytes } from './layoutBytes.ts'
 import { vsmPoolWithin } from './poolDraw.ts'
 
 /** The engine's one-sun set (`engineVsmOptions`): two page-table rows, the mask for two suns. */
-const SUN: VsmResourceOptions = { fullMapCapacity: 127, sunMapCapacity: 35 }
+const SUN: VsmResourceOptions = { coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 35 }
 const bytesAt = (poolPages: number) => vsmResourceBytes(vsmLayout({ ...SUN, poolPages }))
 const pagesWithin = (budget: number, options = SUN) =>
   vsmPoolWithin(budget, options)?.layout.poolPages

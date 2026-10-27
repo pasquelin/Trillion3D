@@ -5,6 +5,7 @@ import {
   frameSizeOf,
   renderMipBias,
   renderPixelRatio,
+  taaRuns,
   type FrameSize,
 } from './renderScale.ts'
 import { displayResolutionFraction } from '../../scale/displayResolutionFraction.ts'
@@ -101,6 +102,19 @@ test('a capture and a GPU variant draw at the display size, a diagnostic view in
   rt.run.diagnostic = 'normals' as never
   assert.deepEqual(sizeOf(rt), beauty, 'a diagnostic view: the targets of the beauty view')
   assert.deepEqual([beauty.renderWidth, beauty.apart], [1728, true])
+})
+
+// A capture draws no temporal pass of the main view's: the view it draws in holds its own, or none.
+test('a capture runs the temporal pass it holds, and none it does not', () => {
+  const { rt } = runtime(1)
+  rt.capture.capturing = true
+  assert.equal(taaRuns(rt), true, 'a capture that accumulates')
+  rt.gpu.temporal = undefined
+  assert.equal(taaRuns(rt), false, 'a capture that does not')
+  const lit = runtime(1).rt
+  lit.capture.capturing = true
+  lit.run.diagnostic = 'no-temporal-aa' as never
+  assert.equal(taaRuns(lit), false, 'a view that bypasses the pass')
 })
 
 // A scale the page asked was ignored without temporal antialiasing: a feed at 0.5 with the pass off

@@ -62,6 +62,8 @@ import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
 import { VOLUMETRIC_FOG_MEANINGS } from './volumetricFogMeanings.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
 import { SINGLE_LAYER_WATER_MEANINGS } from './singleLayerWaterMeanings.ts'
+import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
+import { HAIR_STRANDS_MEANINGS } from './hairStrandsMeanings.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_VOLUME_MEANINGS } from './translucencyVolumeMeanings.ts'
 import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
@@ -74,6 +76,8 @@ import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { SURFACE_CACHE_MEANINGS } from './surfaceCacheMeanings.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_OCCLUSION_MEANINGS } from './ambientOcclusionMeanings.ts'
+import { AMBIENT_CUBEMAP_RULES } from '../contracts/ambientCubemapOptions.ts'
+import { AMBIENT_CUBEMAP_MEANINGS } from './ambientCubemapMeanings.ts'
 import { choiceSchema } from './schemaParts.ts'
 import { STREAMING_RULES } from '../contracts/streamingOptions.ts'
 import { streamingMeanings } from './streamingMeanings.ts'
@@ -191,6 +195,10 @@ const SHADING_MEANINGS: Readonly<Record<ShadingField, string>> = /* @__PURE__ */
     'Bias added to the roughness a material with normalCurvatureToRoughness takes from the change of its vertex normal across a pixel; any number, held to [-1, 1] where it is read; 0 by default.',
   normalCurvatureExponent:
     'Exponent on the change of the vertex normal across a pixel (the larger of the squared changes right and down) a material with normalCurvatureToRoughness takes its roughness from; any number, held to [0.05, 20] where it is read; 0.333 by default.',
+  shadingRoughDiffuse:
+    "Whether the diffuse light of a lit surface is the energy-preserving rough diffuse (Oren-Nayar-like, its roughness weighed by 0.4): true (the default), a rough surface is brighter against the light and darker at grazing views than Lambert's, as a new project's; false, Lambert's diffuse whatever the roughness. A rectangle light and a light of a size past 20 cm are Lambert's whatever this says, as the indirect light and the surface cache are.",
+  shadingAccurate:
+    "Whether the specular lobes of a lit surface use the exact joint Smith visibility of the GGX lobe: true (the default), a desktop project's, the visibility is the exact one on every isotropic lobe (a light's, a coat's, the water's); false, the cheaper approximation of it, a mobile project's. The anisotropic lobe keeps its exact lengths either way.",
   irisNormal:
     "Whether the eye shading model lights its iris by an iris normal of its own: true, the graph's clearCoatBottomNormal output (the surface's normal where it is not wired) is the iris normal, the caustic normal is the tangent output bent toward the opposite of the normal by the iris mask times its distance, and the eye's specular is held at 0.25; false (the default), the tangent output is the iris direction, in the world's axes, and the clearCoat and clearCoatRoughness outputs are the iris mask and distance.",
 }))()
@@ -203,6 +211,8 @@ const TEMPORAL_MEANINGS: Readonly<Record<TemporalField, string>> = {
     "Whether the temporal anti-aliasing reprojects its history by a field — a vector, its jacobian and a boundary — rather than by the dilated vector alone, so a fast geometric edge is not extruded: 'level' (the default) as the level of temporalAntialiasing says (high and above), 'on' or 'off' whatever the level.",
   temporalShadingRejectionFlickering:
     "Whether the temporal anti-aliasing widens its shading rejection by the flicker measure, so a texel that oscillates is let ghost to steady the image: 'level' (the default) as the level of temporalAntialiasing says (high and above), 'on' or 'off' whatever the level. 'on' runs the measure temporalFlickeringPeriod sets, unless that is 0.",
+  temporalShadingRejectionMode:
+    "How the temporal anti-aliasing's flicker measure sets its clamp: 'stability' (the default) is steadier and controls the rejection better but ghosts more; 'responsive' widens the clamp by the blur of the lesser total variation of the input's change and of the input, so it rejects less and ghosts less, with blockier artifacts. It applies where the flicker measure runs (temporalShadingRejectionFlickering).",
   temporalThinGeometry:
     "Whether the temporal anti-aliasing looks for geometry thinner than a pixel — a wire, a rail — and relaxes its history there, so it flickers less; off by default, the finding costing every image some work. Applies at any level of temporalAntialiasing but 'off'.",
   temporalResurrectionFrames:
@@ -253,6 +263,8 @@ const TEMPORAL_MEANINGS: Readonly<Record<TemporalField, string>> = {
     'The share of the luma of a texel that the translucent layers make, 0 to 1 (0.6 by default), past which the thin geometry detection rejects its thin geometry in the next image; 0 never. Applies where temporalThinGeometry is true.',
   temporalThinGeometryShadingRange:
     "The shading models the thin geometry detection counts as thin geometry: 'foliage' the two-sided foliage alone, 'foliageAndHair' it and the hair, 'all' every lit surface, 'varying' (the default) every lit surface, the foliage relaxed with the dilation and the other surfaces by their edge alone. 'varying' needs the flicker measure running (temporalShadingRejectionFlickering on and temporalFlickeringPeriod above 0) or temporalThinGeometryMinKeepLineContrast above 0, else it counts the foliage alone. Applies where temporalThinGeometry is true.",
+  temporalThinGeometryAntiFlickering:
+    'Whether the flicker measure considers the relaxation the thin geometry detection gives the history (true by default), since the detection can fail to find some thin geometry; false measures the flicker as if the history were not relaxed. Applies where temporalThinGeometry is true and the flicker measure runs (temporalShadingRejectionFlickering on and temporalFlickeringPeriod above 0).',
   temporalDownsampleQuality:
     "How the half-size image the exposure and the bloom read is made: 'low' (the default) has the temporal anti-aliasing and the motion blur write it beside their own image, one filtered sample of the four pixels a texel covers, and the chain's own pass only where neither draws; 'high' has the chain's own pass draw it from the image, four filtered samples of the 4 × 4 pixels around a texel, which keeps a bright pixel steadier as it moves, at the cost of that pass.",
 }
@@ -641,9 +653,11 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(TRANSLUCENCY_GI_RULES, TRANSLUCENCY_GI_MEANINGS),
   ...ruleProperties(SUBSURFACE_SCATTERING_RULES, SUBSURFACE_SCATTERING_MEANINGS),
   ...ruleProperties(SINGLE_LAYER_WATER_RULES, SINGLE_LAYER_WATER_MEANINGS),
+  ...ruleProperties(HAIR_STRANDS_RULES, HAIR_STRANDS_MEANINGS),
   ...ruleProperties(SCREEN_PROBE_RULES, SCREEN_PROBE_MEANINGS),
   ...ruleProperties(REFLECTION_RULES, REFLECTION_MEANINGS),
   ...ruleProperties(SURFACE_CACHE_RULES, SURFACE_CACHE_MEANINGS),
   ...ruleProperties(AMBIENT_OCCLUSION_RULES, AMBIENT_OCCLUSION_MEANINGS),
+  ...ruleProperties(AMBIENT_CUBEMAP_RULES, AMBIENT_CUBEMAP_MEANINGS),
   ...skyQualityProperties(),
 })

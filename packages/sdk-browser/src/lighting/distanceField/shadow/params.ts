@@ -15,10 +15,13 @@ import {
   DFSH_LIGHT,
   DFSH_MAX_CONE_RADIUS,
   DFSH_MAX_LIGHTS,
+  DFSH_MIN_DEPTH_RANGE,
+  DFSH_MIN_SNAP_RESOLUTION,
   DFSH_PARAMS,
   DFSH_PARAMS_STRIDE,
+  DFSH_SNAP_BORDER,
+  DFSH_SNAP_STEP_TEXELS,
   DFSH_STEPS,
-  DFSH_SUBSURFACE_DENSITY,
   shadowTileSide,
 } from './layout.ts'
 
@@ -50,16 +53,27 @@ export interface DfshLight {
 
 /** The view's settings of the cascade (`SUN_SHADOW_RULES`): the steps of a ray (the quality, 1 to 3),
  *  whether it is traced at the display's resolution, the side of a tile (metres), the factor on a
- *  two-sided mesh's bias, the meshes a tile has room for, and whether the far-shadow test reaches
- *  every mesh (`farShadowCullsAllMeshes`). */
+ *  two-sided mesh's bias, the meshes a tile has room for, whether the meshes reach the pixels by the
+ *  grid of tiles (else each group of texels culls its own), whether the tiles' lists lie one after
+ *  the other, whether a texel is reached by the depth at its top left alone, and the texels across
+ *  the shadow space whose grid its origin snaps to (`snapTexelsOf`). */
 export interface DfshSettings {
   quality: number
   fullResolution: boolean
   tileSize: number
   twoSidedBias: number
   perTile: number
-  farMeshes: boolean
+  scatterTiles: boolean
+  compactTiles: boolean
+  subsampleDepth: boolean
+  snapTexels: number
 }
+
+/** The texels across the shadow space the origin snaps to, for a map of `resolution` texels on a
+ *  device whose textures go to `limit`: the resolution held between the least and the limit, less the
+ *  border of each side. */
+export const snapTexelsOf = (resolution: number, limit: number) =>
+  clamp(resolution, DFSH_MIN_SNAP_RESOLUTION, limit) - 2 * DFSH_SNAP_BORDER
 
 /** What the scene gives a light's pass: the meshes in it. */
 interface DfshScene {
@@ -104,18 +118,62 @@ function putUnproject(out: Float32Array, at: number, image: DfshImage) {
     for (let r = 0; r < 4; r++) out[at + c * 4 + r] = inverse[c * 4 + r] * (r < 3 ? CM : 1)
 }
 
-/** Writes the matrix that takes a position from the eye to the cascade's shadow space: the light's
- *  right and up over the sphere's radius, then the distance toward the light from the sphere's far
- *  side over the same radius. */
-function putToShadow(out: Float32Array, at: number, b: CascadeBounds, toLight: readonly number[]) {
+/**
+ * Writes the matrix that takes a position from the eye to the cascade's shadow space: the light's
+ * right and up over the sphere's rounded radius, then the distance toward the light, from `range`
+ * short of the origin on the far side over twice `range`. The origin is the sphere's centre moved
+ * along the light's right and up to a grid fixed in the world — a step of `DFSH_SNAP_STEP_TEXELS`
+ * texels of a map of `snapTexels` across the space, a space of width 2 —, so that the tile grid does
+ * not slide with the camera; `range` is the radius, at least `DFSH_MIN_DEPTH_RANGE`, so that the
+ * space reaches the meshes that a thin surface's light passes through.
+ */
+function putToShadow(
+  out: Float32Array,
+  at: number,
+  input: { bounds: CascadeBounds; toLight: readonly number[]; eye: ArrayLike<number> },
+  snapTexels: number,
+) {
+  const { bounds: b, toLight, eye } = input
+  const scale = b.roundedRadius
+  const range = Math.max(scale, DFSH_MIN_DEPTH_RANGE)
+  const step = (2 * DFSH_SNAP_STEP_TEXELS) / snapTexels
+  const origin = [b.centre[0], b.centre[1], b.centre[2]]
+  for (const axis of [b.right, b.up]) {
+    // The centre's place along the axis in the world (the eye is metres), in the space's width.
+    let along = 0
+    for (let k = 0; k < 3; k++) along += axis[k] * (eye[k] * CM + b.centre[k])
+    const snap = (along / scale) % step
+    for (let k = 0; k < 3; k++) origin[k] -= snap * scale * axis[k]
+  }
   const axes = [b.right, b.up, toLight]
   for (let r = 0; r < 3; r++) {
     const axis = axes[r]
-    for (let c = 0; c < 3; c++) out[at + c * 4 + r] = axis[c] / b.radius
-    const shift = axis[0] * b.centre[0] + axis[1] * b.centre[1] + axis[2] * b.centre[2]
-    out[at + 12 + r] = (r === 2 ? b.radius : 0) / b.radius - shift / b.radius
+    const width = r === 2 ? 2 * range : scale
+    for (let c = 0; c < 3; c++) out[at + c * 4 + r] = axis[c] / width
+    const shift = axis[0] * origin[0] + axis[1] * origin[1] + axis[2] * origin[2]
+    out[at + 12 + r] = ((r === 2 ? range : 0) - shift) / width
   }
   out[at + 15] = 1
+}
+
+/** The greatest length the matrix at `at` gives the world's three axes (the scale of its largest
+ *  axis), per centimetre. */
+function maxAxisScale(matrix: Float32Array, at: number) {
+  let most = 0
+  for (let c = 0; c < 3; c++) {
+    const column = at + c * 4
+    most = Math.max(most, Math.hypot(matrix[column], matrix[column + 1], matrix[column + 2]))
+  }
+  return most
+}
+
+/** Writes the rows that take a position from the eye to the view's right, up and forward axes: the
+ *  camera's world matrix (column-major, looking down its `-z`). */
+function putAxes(out: Float32Array, at: number, world: ArrayLike<number>) {
+  putVec4(out, at, world[0], world[1], world[2])
+  putVec4(out, at + 4, world[4], world[5], world[6])
+  // `0 - x`, not `-x`: a zero component stays +0.
+  putVec4(out, at + 8, 0 - world[8], 0 - world[9], 0 - world[10])
 }
 
 /** How a device depth turns into a distance (the occlusion's own, `ao/params.ts`). */
@@ -145,7 +203,9 @@ export function writeDfshParams(
   const base = (index * DFSH_PARAMS_STRIDE) / 4
   const at = DFSH_PARAMS.at
   putUnproject(floats, base + at.unproject, image)
-  putToShadow(floats, base + at.toShadow, bounds, light.toLight)
+  const placed = { bounds, toLight: light.toLight, eye: image.eye }
+  putToShadow(floats, base + at.toShadow, placed, settings.snapTexels)
+  putAxes(floats, base + at.axes, image.world)
   floats.set(bounds.planes, base + at.planes)
   for (let k = 0; k < 3; k++) {
     writeSplitDouble(floats, base + at.eyeHigh + k, base + at.eyeLow + k, image.eye[k] * CM)
@@ -158,7 +218,7 @@ export function writeDfshParams(
     light.traceDistance * CM,
     light.rayStartOffset,
     DFSH_STEPS[quality],
-    quality >= 2 ? DFSH_SUBSURFACE_DENSITY : 0,
+    quality >= 3 ? 1 : 0,
   )
   const { cascade } = light
   putVec4(
@@ -173,12 +233,15 @@ export function writeDfshParams(
     floats,
     base + at.expand,
     (1.414 * bounds.radius) / side,
-    DFSH_MAX_CONE_RADIUS / bounds.radius,
+    DFSH_MAX_CONE_RADIUS * maxAxisScale(floats, base + at.toShadow),
   )
   const down = downsampleOf(settings)
   words.set([image.view[0], image.view[1], down, layer], base + at.view)
-  words.set([side, settings.perTile * side * side, scene.objects, 0], base + at.tiles)
-  const flags = settings.farMeshes ? DFSH_FLAG.farMeshes : 0
+  const room = settings.perTile * side * side
+  words.set([side, room, scene.objects, settings.perTile], base + at.tiles)
+  const flags =
+    (settings.subsampleDepth ? DFSH_FLAG.subsampleDepth : 0) |
+    (settings.compactTiles ? DFSH_FLAG.compactTiles : 0)
   words.set([bounds.planeCount, DFSH_CUBE_VERTICES, 0, flags], base + at.counts)
   putDepth(floats, base + at.depth, image)
 }

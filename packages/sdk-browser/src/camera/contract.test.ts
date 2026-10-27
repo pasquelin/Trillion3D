@@ -8,9 +8,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
+import { Vector3 } from '../../../sdk-core/src/world/math/vector3.ts'
 import type { Camera } from '../../../sdk-core/src/world/camera/camera.ts'
 import { IDENTITY_MATRIX4 } from '../../../math/src/matrix/matrix4.ts'
-import { enginePose, resolveCameraWorld } from './world.ts'
+import { enginePose, readCameraWorld, resolveCameraWorld } from './world.ts'
+import { createEngineCamera } from './engineCamera.ts'
 import { cameraSelectionUniforms } from '../gpu/core/selection.ts'
 import { createFrameGateCore } from '../frame/gate/gateCore.ts'
 import {
@@ -160,6 +162,45 @@ test('boundary: the engine camera reads the host camera’s plane and lists, or 
   const bare = cameras.perspective()
   Object.defineProperty(bare, '_viewSet', { value: undefined })
   assert.equal(engineCamera(bare).viewSet, NO_VIEW_SET)
+})
+
+test('boundary: the engine camera reads the page camera’s view target as the offset the page places, zero from one that names none or while the planes are not worked out', () => {
+  const page = cameras.orthographic(),
+    session = cameras.orthographic()
+  page.position.set(1, 2, 3)
+  page.quaternion.setFromAxisAngle({ x: 0, y: 1, z: 0 }, 0.6)
+  // The page's scale is dropped by the copy: the offset carries it all the same.
+  page.scale.set(2, 2, 2)
+  page.viewTarget.set(0, 0, -5)
+  copyWorldCamera(page, session, 1)
+  const placed = page
+    .localToWorld(new Vector3(0, 0, -5))
+    .sub(page.position)
+    .toArray()
+  // Read as frame entry reads it, with the settings of a context: the planes worked out carry it,
+  // the origin left where it is (the correction would move it, and the offset with it).
+  const read = (settings = {}) =>
+    readCameraWorld(
+      createEngineCamera(),
+      session,
+      1,
+      { cutViewOrthoNearPlaneCorrection: false, ...settings },
+      VIEWPORT,
+    ).viewTarget
+  const offset = read()
+  for (let axis = 0; axis < 3; axis++)
+    assert.ok(Math.abs(offset[axis] - placed[axis]) < 1e-12, `axis ${axis}`)
+  assert.ok(Math.abs(Math.hypot(...offset) - 10) < 1e-12, 'five metres of the page, scaled by 2')
+  assert.ok(
+    read({ cutViewOrthoAutoPlanes: false }).every((value) => value === 0),
+    'the planes not worked out, the point is not carried',
+  )
+  page.viewTarget.set(0, 0, 0)
+  copyWorldCamera(page, session, 1)
+  assert.ok(
+    read().every((value) => value === 0),
+    'no target stays none',
+  )
 })
 
 test('boundary: NaN in the world matrix is a view change, then the identity view held still', () => {

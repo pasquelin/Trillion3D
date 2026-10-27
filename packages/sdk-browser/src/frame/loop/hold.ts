@@ -16,6 +16,8 @@ import { deviceAnswering } from './deviceAnswer.ts'
 import { unsettledMask } from './unsettled.ts'
 import { traceDrawnFrame } from './holdTrace.ts'
 import { lightFunctionsWaiting } from '../../lighting/lightFunction/frame.ts'
+import { lightProfilesWaiting } from '../../lighting/lightProfile/frame.ts'
+import { ambientCubemapPending } from '../../lighting/deferred/ambientCubemapFrame.ts'
 import { surfaceCacheBusy } from '../../lighting/surfaceCache/frame.ts'
 import { cloudsMoved } from '../render/encodeClouds.ts'
 import { skyCubemapsPending } from '../render/encodeCloudsSky.ts'
@@ -62,8 +64,9 @@ function recordHeldFrameWork(rt: WebgpuPagesRuntime, presented: boolean, submitM
  * frame-difference view compares each image with the one before, so it draws every one; so does a
  * surface cache that has captures left (`surfaceCacheBusy`), a
  * surface — opaque or translucent — or a fog object whose graph reads the time, a sky light whose
- * cubemap is still being written (`skyCubemapsPending`), and a view whose film grain is drawn: its
- * pattern follows the image's number (`finishAnimated`).
+ * cubemap is still being written (`skyCubemapsPending`), an ambient cubemap whose mips are
+ * (`ambientCubemapPending`), and a view whose film grain is drawn: its pattern follows the image's
+ * number (`finishAnimated`).
  */
 const drawsEveryImage = (rt: WebgpuPagesRuntime) =>
   taaConverging(rt) ||
@@ -73,6 +76,8 @@ const drawsEveryImage = (rt: WebgpuPagesRuntime) =>
   effectsMoved(rt) ||
   particlesMoved(rt) ||
   lightFunctionsWaiting(rt) ||
+  lightProfilesWaiting(rt) ||
+  ambientCubemapPending(rt) ||
   rt.vis.graphsAnimated ||
   blendGraphsAnimated(rt.vis.blendPipelines?.graphs) ||
   rt.gpu.fogVolume?.gpu?.animated ||

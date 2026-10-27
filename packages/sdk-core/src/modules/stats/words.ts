@@ -333,6 +333,14 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
     'Shadow pages rendered',
     'Shadow pages cleared and drawn this frame; rises when casters or lights move.',
   ),
+  'shadows.pagesEmpty': word(
+    'Shadow pages empty',
+    'Pool pages holding nothing, free for the next grant; rises when the shadows ask for less.',
+  ),
+  'shadows.pagesWpoConsidered': word(
+    'Shadow pages with offsets',
+    'Cached shadow pages kept under the cull of the offsets allowed on them; rises with the offset materials in view.',
+  ),
   'shadows.freePages': word(
     'Shadow pages free',
     'Physical shadow pages left in the pool; falls when more are requested.',
@@ -630,13 +638,9 @@ const STATS_WORDS: Record<string, { label: string; hint: string }> = {
     'temporal detect thin geometry',
     'Finds the thin geometry the history must keep; rises with the render size.',
   ),
-  'pass.temporal flicker measure': word(
-    'temporal flicker measure',
-    'Measures which pixels flicker from one image to the next, so their history is dropped; rises with the render size.',
-  ),
   'pass.temporal reject shading': word(
     'temporal reject shading',
-    'Measures where the history no longer matches the image and must be dropped; rises with the render size.',
+    'After measuring which pixels flicker from one image to the next, measures where the history no longer matches the image and must be dropped; rises with the render size.',
   ),
   'pass.temporal spatial anti aliasing': word(
     'temporal spatial anti-aliasing',

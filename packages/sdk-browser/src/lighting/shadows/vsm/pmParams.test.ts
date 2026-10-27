@@ -10,6 +10,7 @@ import {
   encodeVsmPageCarry,
   encodeVsmAfterRaster,
   encodeVsmPageMapping,
+  keepVsmFrame,
 } from './pageManagementEncode.ts'
 import { vsmPmContextBytes } from './pageManagementPass.ts'
 import {
@@ -24,7 +25,7 @@ import { createVsmResources } from './resources.ts'
 import { wgslStructLayout } from './wgslStructLayout.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const vsmOptions = { fullMapCapacity: 127, sunMapCapacity: 35 }
+const vsmOptions = { coverMode: 'suns' as const, fullMapCapacity: 127, sunMapCapacity: 35 }
 
 /** Every kernel of the physical pages declares the struct: the one text they share. */
 const kernelTexts = () =>
@@ -192,4 +193,24 @@ test('the slots carry the page allocation, the clears and the invalidations the 
   assert.deepEqual(slotOf(on).slice(2), [1, 0, 0])
   assert.deepEqual(slotOf({ ...on, lruAllocation: false, fullClears: true }).slice(2), [0, 1, 0])
   assert.deepEqual(slotOf({ ...on, skipDynamicInvalidation: true }).slice(2), [1, 0, 1])
+})
+
+// The frame data extraction: a frame with maps becomes the previous one; a frame with none leaves it in
+// place, the prefiltered history with it, for the first light that returns; the cache dropped drops
+// both.
+test('a frame with no map keeps the previous frame, unless the cache is dropped', () => {
+  let swaps = 0
+  const res = {
+    prevFrameKept: true,
+    filterable: { historyValid: true },
+    layout: { cacheEnabled: true },
+    swapFrames: () => swaps++,
+  } as unknown as Parameters<typeof keepVsmFrame>[0]
+  const state = () => [res.prevFrameKept, res.filterable!.historyValid, swaps]
+  keepVsmFrame(res, 'keep')
+  assert.deepEqual(state(), [true, true, 0], 'no map: the previous frame and its history stay')
+  keepVsmFrame(res, 'swap')
+  assert.deepEqual(state(), [true, true, 1], 'maps: the frame becomes the previous')
+  keepVsmFrame(res, 'drop')
+  assert.deepEqual(state(), [false, false, 1], 'dropped: no previous frame, no history')
 })

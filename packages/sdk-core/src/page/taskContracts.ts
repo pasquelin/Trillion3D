@@ -94,7 +94,7 @@ export type PageTaskBlocks = {
    *  (`-1`: none), whether it is drawn from its parent's own host mesh in `sources`, one byte, the
    *  source node it draws in `sourceNodes`, one unsigned 32-bit integer, and
    *  the nearest and the farthest distance it is drawn at, and 1 for one instance of an instanced
-   *  mesh, in `drawDistances`, three 32-bit floats (all 0: none), whether a view's primed depth draws it in `farFields`, one byte, whether it casts far shadows in `castFarShadows`, one byte, whether a sun's far-shadow test reaches it in `farShadowTests`, one byte (0: the view's rule decides, 1: it does, 2: it never does), and, for an
+   *  mesh, in `drawDistances`, three 32-bit floats (all 0: none), whether a view's primed depth draws it in `farFields`, one byte, and, for an
    *  instance of an assembly, the group that replaces the root of each primitive of its mesh in
    *  `rootParents`: seven 32-bit floats an entry — the node, the primitive, the error, the ball's
    *  centre and radius —, none for a cell that holds none; all transferred. Absent otherwise. */
@@ -107,8 +107,6 @@ export type PageTaskBlocks = {
     sourceNodes: ArrayBuffer
     drawDistances: ArrayBuffer
     farFields: ArrayBuffer
-    castFarShadows: ArrayBuffer
-    farShadowTests: ArrayBuffer
     rootParents: ArrayBuffer
   }
   /** `cellPage`: the page's slots, or its cells (`readCellPage`). Absent otherwise. */

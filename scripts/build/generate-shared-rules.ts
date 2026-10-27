@@ -19,6 +19,7 @@ import { compilerAbiRust, familyLoadFailedId } from './shared-rules/abi.ts'
 import { displacementBakeAbiRust } from './shared-rules/displacementBake.ts'
 import { distanceFieldAbiRust } from './shared-rules/distanceField.ts'
 import { writtenFormatsTs } from './shared-rules/formats.ts'
+import { hairStrandsAbiRust } from './shared-rules/hairStrands.ts'
 import { hypotHeader } from './shared-rules/hypot.ts'
 import { lightmapBakeAbiRust } from './shared-rules/lightmapBake.ts'
 import { meshAbiRust } from './shared-rules/meshAbi.ts'
@@ -62,6 +63,7 @@ const outputs: Record<string, () => string> = {
   'packages/asset-compiler-rust/src/physics_cook/rules.rs': physicsCookRulesRust,
   'packages/asset-compiler-rust/src/card_representation/abi.rs': meshCardsAbiRust,
   'packages/asset-compiler-rust/src/ray_tracing/abi.rs': rayTracingAbiRust,
+  'packages/asset-compiler-rust/src/hair_strands/abi.rs': hairStrandsAbiRust,
   'packages/asset-compiler-rust/src/displace/abi.rs': displacementBakeAbiRust,
   'packages/asset-compiler-rust/src/volumetric_lightmap/bake/abi.rs': lightmapBakeAbiRust,
   'packages/sdk-browser/src/session/host/familyLoadFailedId.ts': familyLoadFailedId,

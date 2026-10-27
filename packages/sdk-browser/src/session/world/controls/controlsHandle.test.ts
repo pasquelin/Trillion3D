@@ -30,6 +30,27 @@ test('`world.controls` hands its limits to the orbit it drives, and keeps them f
   controls.dispose()
 })
 
+test('`world.controls` leaves the camera framing none when the pivot controller goes: to a vehicle, to none, to flight', () => {
+  const camera = new Camera('perspective')
+  camera.position.set(0, 0, 10)
+  const surface = fixtureSurface(400)
+  const controls = worldControlsHandle(
+    'orbit',
+    () => camera,
+    surface.element,
+    () => {},
+  )
+  const framed = () => camera.viewTarget.toArray().some((value) => value !== 0)
+  assert.ok(framed(), 'the orbit frames its pivot')
+  controls.kind = 'none'
+  assert.ok(!framed(), 'none: nothing steers, nothing is framed')
+  controls.kind = 'orbit'
+  assert.ok(framed())
+  controls.kind = 'fly'
+  assert.ok(!framed())
+  controls.dispose()
+})
+
 test('`world.controls` keeps its speeds across `kind`: first person walks at `movementSpeed`, flight turns at `lookSpeed`', () => {
   const camera = new Camera('perspective')
   const surface = fixtureSurface(400)

@@ -102,10 +102,11 @@ test('a surface’s offset grows its root’s bounds by the greatest it may move
 test('the roots’ offsets are read once for a change, never each image: the surfaces are not walked again', () => {
   const root = offsetRoot(sway)
   followOffsets(root.rt)
+  assert.ok(root.rt.vis.rootOffsets.rowOf(0), 'the root that wears an offset holds a row')
   assert.deepEqual(
-    root.rt.vis.rootOffsets.ranks(),
-    [0],
-    'the root that wears an offset is the one an image walks',
+    root.rt.vis.rootOffsets.always(),
+    [],
+    'an image walks the roots that ask `always` alone',
   )
   const walked = root.reads()
   assert.equal(walked, 0, 'a surface’s version is no part of the walk (the epoch says it moved)')

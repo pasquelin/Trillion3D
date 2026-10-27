@@ -12,6 +12,7 @@ import {
 import { textureLevelFormat } from '../../../../sdk-core/src/texture/levelUrl.ts'
 import type { TexturePreview } from '../../../../sdk-core/src/texture/previewContracts.ts'
 import { formatTexelCost } from '../../gpu/core/textureBytes.ts'
+import { BLOCK_FEATURES, gpuCapsOfFeatures } from '../../gpu/core/gpuCaps.ts'
 import type { TexelKind } from './floatTexels.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { poolTail, WHITE_BC4 } from './poolTail.ts'
@@ -34,12 +35,8 @@ import { poolTail, WHITE_BC4 } from './poolTail.ts'
  */
 export type TextureCompression = 'auto' | TextureBlockFormat | 'none'
 
-/** The WebGPU feature that unlocks each family. */
-export const BLOCK_FEATURES: Record<TextureBlockFormat, GPUFeatureName> = {
-  bc7: 'texture-compression-bc',
-  astc: 'texture-compression-astc',
-  etc2: 'texture-compression-etc2',
-}
+/** The WebGPU feature that unlocks each family (`../../gpu/core/gpuCaps.ts`). */
+export { BLOCK_FEATURES }
 
 /** What a session decided, and why — what the diagnostic publishes. */
 export type BlockChoice = { block: TextureBlockFormat | undefined; reason: string }
@@ -53,13 +50,14 @@ export type BlockChoice = { block: TextureBlockFormat | undefined; reason: strin
  * RGBA8 — the "before" of a measurement. The reason names what settled it.
  */
 export function chooseBlockFormat(
-  features: { has(name: GPUFeatureName): boolean },
+  features: { has(name: string): boolean },
   previews: readonly Pick<TexturePreview, 'layouts'>[],
   wanted: TextureCompression = 'auto',
 ): BlockChoice {
   if (wanted === 'none') return { block: undefined, reason: 'host asked for rgba8' }
   const candidates = wanted === 'auto' ? PREVIEW_BLOCK_FORMATS : [wanted]
-  const sampled = candidates.filter((block) => features.has(BLOCK_FEATURES[block]))
+  const { blockFormats } = gpuCapsOfFeatures(features)
+  const sampled = candidates.filter((block) => blockFormats[block])
   if (!sampled.length)
     return {
       block: undefined,

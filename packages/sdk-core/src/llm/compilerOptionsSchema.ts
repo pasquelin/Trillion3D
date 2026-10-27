@@ -16,8 +16,10 @@ import {
   VOXELIZE_FIELD,
   type JobField,
 } from '../contracts/compilerAbi.ts'
+import { HAIR_STRANDS_ENDING_POINT_FIELD } from '../contracts/hairStrandsAbi.ts'
 import { LIGHTMAP_BAKE_FIELD } from '../contracts/lightmapBakeAbi.ts'
 import { PARTITION_SCHEME_FIELD } from '../contracts/partitionOptions.ts'
+import { hairEndingPoint } from './hairEndingPointSchema.ts'
 import { hlod } from './hlodSchema.ts'
 import { lightmapBake } from './lightmapBakeSchema.ts'
 import { materials, responsive, temporalAntialiasing, voxelize } from './materialSchema.ts'
@@ -82,7 +84,8 @@ const properties: Record<JobField, JsonSchemaProperty> = {
  * material options (`responsive`, `materials`) and the voxelized objects (`voxelize`), all in
  * `materialSchema.ts`, the partition's scheme and main grid (`partitionSchema.ts`), the mesh build
  * settings (`meshBuildSchema.ts`), the object settings (`objectSchema.ts`) and the volumetric
- * lightmap's bake (`lightmapBakeSchema.ts`). Built by a call
+ * lightmap's bake (`lightmapBakeSchema.ts`) and the hair strands' ending point
+ * (`hairEndingPointSchema.ts`). Built by a call
  * marked pure, as the pieces it reads are: a bundle that never reads the schema drops all of them.
  */
 export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => ({
@@ -102,6 +105,7 @@ export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => 
     [MESH_BUILD_FIELD]: meshBuild,
     [OBJECT_SETTINGS_FIELD]: objectSettings,
     [LIGHTMAP_BAKE_FIELD]: lightmapBake,
+    [HAIR_STRANDS_ENDING_POINT_FIELD]: hairEndingPoint,
   },
   required: ['source', 'cache', 'resourceBaseUrl'] satisfies JobField[],
   additionalProperties: false,

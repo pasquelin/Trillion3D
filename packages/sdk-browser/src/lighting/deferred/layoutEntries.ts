@@ -6,6 +6,7 @@ import {
 import { cloudShadowLayoutEntries } from '../atmosphere/cloudShadowRead.ts'
 import { skyLightReadLayoutEntries } from '../../modules/sky/skyLight/read.ts'
 import { lightFunctionLayoutEntry } from '../lightFunction/bindings.ts'
+import { lightProfileLayoutEntries } from '../lightProfile/profileBindings.ts'
 import { SUBSURFACE_TARGET } from '../../materials/surface/subsurface.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../materials/surface/physicalLobes.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
@@ -13,9 +14,12 @@ import { VSM_SUN_MASK_FORMAT } from '../shadows/vsm/projection/maskFormat.ts'
 import { REFLECTION_TARGET } from '../reflections/weight.ts'
 import {
   computeBufferEntry,
+  computeSamplerEntry,
   computeStorageTextureEntry,
   computeTextureEntry,
+  computeUniformEntry,
 } from '../../gpu/core/computeBindings.ts'
+import { PER_LIGHT_RECORD_BINDING_BYTES } from '../shadows/vsm/projection/perLightRecord.ts'
 import { fogReadLayoutEntries } from '../fog/read.ts'
 import { FOG_PASS_BINDINGS } from '../fog/fogPassWgsl.ts'
 
@@ -46,7 +50,8 @@ const tileEntries = (): GPUBindGroupLayoutEntry[] => [
 ]
 
 /** The target classes whose pixels may be thin or carry lobes read (`CLASS_CUTS`): the thin
- *  transmission's, the lobes'; read-only storage textures, none of the sixteen sampled ones spent. */
+ *  transmission's, the lobes'; read-only storage textures, none of the sixteen sampled ones spent. A cloth's sheen table is
+ *  in the light buffer (`../sheenLtcWgsl.ts`). */
 const surfaceTargets = (lobes: boolean): GPUBindGroupLayoutEntry[] => [
   SUBSURFACE_TARGET.layoutEntry(),
   ...(lobes ? [PHYSICAL_LOBES_TARGET.layoutEntry()] : []),
@@ -79,6 +84,11 @@ const localMaskEntries = (): GPUBindGroupLayoutEntry[] => [
   computeBufferEntry(DEFERRED_BINDINGS.vsmView, 'uniform', fragment),
 ]
 
+/** The screen-space ambient occlusion the image drew (`ambientOcclusion`): what a pass of lights and the passes of the surface's indirect
+ *  light read it by (`SCREEN_OCCLUSION_WGSL`). */
+const occlusionEntry = () =>
+  computeTextureEntry(DEFERRED_BINDINGS.ambientOcclusion, 'unfilterable-float', '2d', fragment)
+
 /** The light buffer. */
 const lightsEntry = () =>
   computeBufferEntry(DEFERRED_BINDINGS.lights, 'read-only-storage', fragment)
@@ -88,7 +98,7 @@ const lightsEntry = () =>
 export const colourLayoutEntries = (): GPUBindGroupLayoutEntry[] => [
   ...pixelEntries().filter((entry) => entry.binding !== DEFERRED_BINDINGS.depth),
   computeBufferEntry(DEFERRED_BINDINGS.view, 'uniform', fragment),
-  computeTextureEntry(DEFERRED_BINDINGS.ambientOcclusion, 'unfilterable-float', '2d', fragment),
+  occlusionEntry(),
 ]
 
 /** The unlit view's pass: the surface's layers and the view. */
@@ -107,12 +117,26 @@ export const sunLayoutEntries = (lobes: boolean): GPUBindGroupLayoutEntry[] => [
   ...shadowEntries(),
   computeBufferEntry(DEFERRED_BINDINGS.farShadowMask, 'read-only-storage', fragment),
   ...cloudShadowLayoutEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, fragment),
+  occlusionEntry(),
   ...surfaceTargets(lobes),
 ]
 
-/** The local lights' pass: the light buffer and the grid's lists, the shadows, and the sun's
- *  distance-field shadow, which only the view of the shadows reads. */
-export const localLayoutEntries = (lobes: boolean): GPUBindGroupLayoutEntry[] => [
+/** The light profiles' atlas and sampler, which a pass of local lights reads where the scene has a profiled light
+ *  (`ContractKey.profileless`); none otherwise, so a scene with none spends no sampled texture nor sampler on them. */
+const profileEntries = (profiled: boolean): GPUBindGroupLayoutEntry[] =>
+  profiled
+    ? lightProfileLayoutEntries(
+        {
+          atlas: DEFERRED_BINDINGS.lightProfileAtlas,
+          sampler: DEFERRED_BINDINGS.lightProfileSampler,
+        },
+        fragment,
+      )
+    : []
+
+/** The local lights' pass: the light buffer and the grid's lists, the shadows, the light profiles where the scene has
+ *  any, and the sun's distance-field shadow, which only the view of the shadows reads. */
+export const localLayoutEntries = (lobes: boolean, profiled = false): GPUBindGroupLayoutEntry[] => [
   ...pixelEntries(),
   ...tileEntries(),
   lightsEntry(),
@@ -120,29 +144,66 @@ export const localLayoutEntries = (lobes: boolean): GPUBindGroupLayoutEntry[] =>
   ...shadowEntries(),
   ...localMaskEntries(),
   computeBufferEntry(DEFERRED_BINDINGS.farShadowMask, 'read-only-storage', fragment),
+  occlusionEntry(),
+  ...profileEntries(profiled),
   ...surfaceTargets(lobes),
 ]
+
+/** The per-light draw (`perLightPassWgsl.ts`): the light buffer, the light functions' atlas, the mask of the
+ *  light it lights (an array a layer a light), the screen's occlusion and the light's record, a uniform read at
+ *  a dynamic offset. */
+export const perLightLayoutEntries = (
+  lobes: boolean,
+  profiled = false,
+): GPUBindGroupLayoutEntry[] => [
+  ...pixelEntries(),
+  ...tileEntries(),
+  lightsEntry(),
+  lightFunctionLayoutEntry(DEFERRED_BINDINGS.lightFunctionAtlas, fragment),
+  computeTextureEntry(DEFERRED_BINDINGS.perLightMask, 'unfilterable-float', '2d-array', fragment),
+  occlusionEntry(),
+  computeUniformEntry(
+    DEFERRED_BINDINGS.perLightRecord,
+    { hasDynamicOffset: true, minBindingSize: PER_LIGHT_RECORD_BINDING_BYTES },
+    fragment,
+  ),
+  ...profileEntries(profiled),
+  ...surfaceTargets(lobes),
+]
+
+/** The ambient cubemap's cube, its sampler and its colour, which the indirect pass reads where the image sets a cube
+ *  (`ContractKey.cubeless`); none otherwise, so an image with none spends no sampled texture nor sampler on them. */
+const cubemapEntries = (cubed: boolean): GPUBindGroupLayoutEntry[] =>
+  cubed
+    ? [
+        computeTextureEntry(DEFERRED_BINDINGS.ambientCube, 'float', 'cube', fragment),
+        computeSamplerEntry(DEFERRED_BINDINGS.ambientCubeSampler, 'filtering', fragment),
+        computeUniformEntry(DEFERRED_BINDINGS.ambientCubeColour, {}, fragment),
+      ]
+    : []
 
 /**
  * The indirect pass: the light buffer (the environment's light), the ambient occlusion, the light the
  * volumetric lightmap gives the pixels, the reflection the trace wrote, the sky light's cubes and harmonics. The bounce program adds the probe grid, its atlas
  * and what the screen probes left of the pixels' indirect light — a sampled texture of words read by
  * load —; the program that applies the sky light's distance-field occlusion adds the bent normals,
- * packed in a buffer, and the uniform that describes them.
+ * packed in a buffer, and the uniform that describes them; the program of an image with an ambient cubemap adds the cube.
  */
 export const indirectLayoutEntries = ({
   bounce,
   skyShadowing,
   lobes,
+  cubed = false,
 }: {
   bounce: boolean
   skyShadowing: boolean
   lobes: boolean
+  cubed?: boolean
 }): GPUBindGroupLayoutEntry[] => [
   ...pixelEntries(),
   ...tileEntries(),
   lightsEntry(),
-  computeTextureEntry(DEFERRED_BINDINGS.ambientOcclusion, 'unfilterable-float', '2d', fragment),
+  occlusionEntry(),
   computeTextureEntry(DEFERRED_BINDINGS.volumetricLight, 'unfilterable-float', '2d', fragment),
   REFLECTION_TARGET.layoutEntry(),
   ...skyLightReadLayoutEntries(DEFERRED_SKY_LIGHT_BINDINGS, fragment),
@@ -155,6 +216,7 @@ export const indirectLayoutEntries = ({
         computeBufferEntry(DEFERRED_BINDINGS.dfaoRead, 'uniform', fragment),
       ]
     : []),
+  ...cubemapEntries(cubed),
   ...surfaceTargets(lobes),
 ]
 

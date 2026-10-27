@@ -178,7 +178,14 @@ test('the light source of a blended layer, every combination of mode, blending, 
               [false, true],
             ]) {
               const flags = { lit, water, transmissive }
-              const got = blendLightSource(mode, blending, shading, model, flags)
+              const got = blendLightSource(
+                mode,
+                blending,
+                shading,
+                model,
+                lit,
+                water || transmissive,
+              )
               // The lighting program that draws it follows the table: forward and the own stages the forward one, the volume's its own,
               // and a layer nothing lights is unlit where its lit path is closed (`wgslLit`), else lightless.
               const program = blendLightingOf({

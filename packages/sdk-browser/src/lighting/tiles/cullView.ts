@@ -17,9 +17,9 @@ import { GRID_HEAD_WORDS } from '../direct/lightWgsl.ts'
 const FOG_MARGIN_CELLS = 1
 
 /** What the view grid's pass cuts by this image: the pyramid it reads (none: it cuts nothing), the
- *  eight numbers of `TileView.cull` and `TileView.sliceMap` — whether it cuts, the margin in
- *  pixels, the margin in fog cells, the near plane, then the fog's slice map `B, O, S` —, and the
- *  grid's own slice map, the head of its buffer (`writeGridMap`). */
+ *  seven numbers of `TileView.cull` and `TileView.sliceMap` — whether it cuts, the margin in
+ *  pixels, the margin in fog cells, the near plane, then the fog's slice map `B, O, S` —, and the grid's own slice map, the head of its buffer
+ *  (`writeGridMap`). */
 export type LightGridCull = {
   depth: HizDepth | undefined
   words: Float32Array<ArrayBuffer>
@@ -28,7 +28,7 @@ export type LightGridCull = {
 
 const cull: LightGridCull = {
   depth: undefined,
-  words: new Float32Array(8),
+  words: new Float32Array(7),
   map: new Float32Array(GRID_HEAD_WORDS),
 }
 const forward = new Float64Array(3)

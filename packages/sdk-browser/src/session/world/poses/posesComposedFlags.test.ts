@@ -13,7 +13,7 @@ import type { Mesh } from '../../../../../sdk-core/src/world/object/mesh.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import { createPlacementRows, placementWorld } from '../../../placement/rows/rows.ts'
 import { followPlacementRows } from '../../../placement/update.ts'
-import { FAR_SHADOW_ROOT, SHADOWLESS_ROOT } from '../../../visibility/shader/castingMark.ts'
+import { SHADOW_MAPLESS_ROOT, SHADOWLESS_ROOT } from '../../../visibility/shader/castingMark.ts'
 import { composeWebgpuPlacements } from '../../../placement/compose/gpuCompose.ts'
 import type { ComposeState } from '../../../placement/compose/gpuComposeState.ts'
 import { composeRuntime } from '../../../placement/compose/composeRuntime.fixture.ts'
@@ -141,7 +141,7 @@ test('hiding 11 500 linked children while the parent turns parks them; shown aga
 
 for (const { flag, on, bit } of [
   { flag: 'castShadow', on: false, bit: SHADOWLESS_ROOT },
-  { flag: 'castFarShadow', on: true, bit: FAR_SHADOW_ROOT },
+  { flag: 'castsShadowMaps', on: false, bit: SHADOW_MAPLESS_ROOT },
 ] as const)
   test(`${flag} flipped on linked children while the parent turns reaches their rows and roots`, () => {
     const g = linked()

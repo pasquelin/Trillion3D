@@ -26,3 +26,16 @@ fn shadowSliceRecord(slice:i32)->u32{return u32(slice)>>${SHADOW_SLICE_RECORD_SH
 fn shadowSliceIsSun(slice:i32)->bool{return (u32(slice)&${SHADOW_SLICE_SUN}u)!=0u;}
 fn shadowSliceDistant(slice:i32)->bool{return (u32(slice)&${SHADOW_SLICE_DISTANT}u)!=0u;}`,
 )
+
+/** Whether the light of rank \`rank\` is a local light the maps shadow: it has a shadow slot and is no sun. The one test of the
+ *  lights the per-light path lights alone (\`../deferred/lightPassWgsl.ts\`) and of the shadowed lights' grid
+ *  (\`../shadows/vsm/projection/lightGridWgsl.ts\`); the program has the light buffer (\`directLights\`). */
+export const LOCAL_SHADOWED_WGSL = wgslBlock(
+  'LOCAL_SHADOWED_WGSL',
+  [SHADOW_SLICE_WGSL],
+  `
+fn lightHasLocalShadow(rank:u32)->bool{
+ let slice=i32(directLights.items[rank].params.y);
+ return slice>=0&&!shadowSliceIsSun(slice);
+}`,
+)

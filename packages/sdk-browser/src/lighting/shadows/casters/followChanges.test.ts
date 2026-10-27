@@ -7,7 +7,11 @@ import assert from 'node:assert/strict'
 import { refreshWebgpuMaterials } from '../../../frame/io/refreshMaterials.ts'
 import type { PageSurface } from '../../../geometry/pages/surface.ts'
 import type { PageRec } from '../../../geometry/selection/types.ts'
-import { shadowsFollowCells, shadowsFollowSurfaces } from './followChanges.ts'
+import {
+  shadowsFollowCells,
+  shadowsFollowDrawDistance,
+  shadowsFollowSurfaces,
+} from './followChanges.ts'
 import type { FollowRuntime } from './followChanges.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 
@@ -40,7 +44,10 @@ function forest(casting = true, resident = [0, 1, 2, 3]) {
   const rt = {
     lights: {
       store: { count: casting ? 1 : 0 },
-      mobility: { cachedDynamic: (rank: number) => moving.has(rank) },
+      mobility: {
+        cachedDynamic: (rank: number) => moving.has(rank),
+        invalidate: (rank: number) => void moving.add(rank),
+      },
       changes: {
         worldChanged: (min: ArrayLike<number>, max: ArrayLike<number>, movingOnly: boolean) =>
           void boxes.push({ box: [...Array.from(min), ...Array.from(max)], moving: movingOnly }),
@@ -130,4 +137,39 @@ test('a cell that switched boxes the cluster it now draws, in its own root', () 
     boxes[0].box[0] <= 100 && boxes[0].box[3] >= 101,
     'the knots cluster of the second root',
   )
+})
+
+test('a root drawn at other distances boxes its world box grown by its reach, and is cached as dynamic', () => {
+  const { rt, boxes, moving } = forest()
+  const [first, second] = rt.layout.selectionRoots as unknown as Array<{
+    worldBox?: Float64Array
+    localBox?: Float64Array
+    parked?: boolean
+    reach?: number
+  }>
+  first.localBox = second.localBox = Float64Array.of(0, 0, 0, 2, 3, 4)
+  first.worldBox = second.worldBox = new Float64Array(6)
+  shadowsFollowDrawDistance(rt, 0)
+  assert.deepEqual(boxes, [{ box: [0, 0, 0, 2, 3, 4], moving: false }])
+  assert.ok(moving.has(0), 'its first update stales both layers, then it is cached as dynamic')
+  // Its reach, in its own units, grown by the world's stretch.
+  boxes.length = 0
+  Object.assign(second, { reach: 0.5 })
+  shadowsFollowDrawDistance(rt, 1)
+  assert.deepEqual(boxes, [{ box: [-0.5, -0.5, -0.5, 2.5, 3.5, 4.5], moving: false }])
+  Object.assign(second, { reach: 0 })
+  // A root already moving (this one is, since the update above) stales its moving casters' layer alone.
+  boxes.length = 0
+  shadowsFollowDrawDistance(rt, 1)
+  assert.deepEqual(boxes, [{ box: [0, 0, 0, 2, 3, 4], moving: true }])
+  // A root parked is drawn nowhere; a scene with no light casts nowhere.
+  boxes.length = 0
+  first.parked = true
+  shadowsFollowDrawDistance(rt, 0)
+  assert.equal(boxes.length, 0, 'parked: nothing to draw again')
+  const dark = forest(false)
+  const [lone] = dark.rt.layout.selectionRoots as unknown as Array<{ worldBox?: Float64Array }>
+  lone.worldBox = Float64Array.of(0, 0, 0, 1, 1, 1)
+  shadowsFollowDrawDistance(dark.rt, 0)
+  assert.equal(dark.boxes.length, 0, 'no light, no stale')
 })

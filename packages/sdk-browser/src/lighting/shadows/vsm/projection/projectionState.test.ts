@@ -14,7 +14,7 @@ import {
   vsmProjectionReserve,
 } from './projectionStore.ts'
 
-const OPTIONS = { fullMapCapacity: 63, poolPages: 256 }
+const OPTIONS = { coverMode: 'suns' as const, fullMapCapacity: 63, poolPages: 256 }
 
 test('two sets on one device hold their own projection, each freed with its set, and read the one blue noise', async () => {
   const { device } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })

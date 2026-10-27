@@ -181,6 +181,10 @@ export function createLinkFollower(resources: { packed: PackedDag; cold: RangeTa
     get revision() {
       return s.revision
     },
+    /** Advanced whenever a cell's draw word moved. */
+    get drawRevision() {
+      return s.drawRevision
+    },
     /** Before every cut: the cells and files waiting switched — those whose switch waits on an
      *  actor warming asked again —, the links and words that moved go up; whether any did. */
     sync() {

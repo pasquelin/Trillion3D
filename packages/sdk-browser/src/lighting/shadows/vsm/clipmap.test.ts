@@ -16,9 +16,19 @@ import {
 import { createVsmClipmap, type VsmClipmap, type VsmViewport } from './clipmap.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { vsmCacheKey } from './lightCache.ts'
-import { addVsmLocalLightShadow, vsmLocalViewData } from './localLight.ts'
+import { addVsmLocalLightShadow, vsmLocalViewData, type VsmLocalLightInput } from './localLight.ts'
 import { VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
-import { SUN, PROJECTION, VIEW, frame, mapsOf } from './clipmap.fixture.ts'
+import {
+  SUN,
+  PROJECTION,
+  VIEW,
+  clipDepth,
+  cullingEnd,
+  firstPersonFrames,
+  frame,
+  mapsOf,
+  renderedFrames,
+} from './clipmap.fixture.ts'
 import { FLOAT32_MAX } from '../../../../../math/src/constants.ts'
 
 test('the levels: 6 to 22, a radius of 2^(L+1) cm, a depth range of 1000 radii', () => {
@@ -101,6 +111,29 @@ test('a moving sun reads the moving bias, back to its own over the active frames
   const turned = { ...moves, direction: [0.1, -0.9, 0.2] }
   assert.equal(bias(21, turned), 5, 'turned: moving again')
   assert.equal(bias(26, turned), 4, 'half way back')
+})
+
+test("a sun's move is its own: a clipmap sized anew is none, a turn while its entry was dropped is one", () => {
+  const cache = new VsmCacheManager()
+  const moves = { ...SUN, movable: true }
+  const bias = (frameNumber: number, light = moves, changes = {}) => {
+    const maps = mapsOf(
+      {
+        ...{ shadowResolutionLodBiasDirectional: 0, shadowResolutionLodBiasDirectionalMoving: 2 },
+        ...changes,
+      },
+      frameNumber,
+    )
+    const camera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
+    return createVsmClipmap(cache, light, camera, { width: 1024, height: 1024 }, maps).levelBias
+  }
+  assert.equal(bias(0), 5, 'made: moving')
+  assert.equal(bias(20), 3, 'at rest')
+  // A first level asked anew re-creates the clipmap's levels, not the light's pose.
+  assert.equal(bias(21, moves, { shadowClipmapFirstLevel: 9 }), 3, 'a first level asked anew')
+  // Its entry dropped (the view left), the sun turns, the view returns: the turn counts.
+  cache.dropView('')
+  assert.equal(bias(22, { ...moves, direction: [0.1, -0.9, 0.2] }), 5, 'turned while dropped')
 })
 
 test("the clipmap's bias is max(0, -1.5 + the screen term)", () => {
@@ -234,23 +267,63 @@ test("a local light reads the moving bias as the sun does, and marks its last mi
   )
 })
 
-test('a movable local light is moving when its pose changes, not its shape', () => {
+/** A movable spot of the view of `PROJECTION`, a cache of lights, and the settings that bias its maps by 3
+ *  levels while it moves. */
+function movableSpot() {
   const camera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
-  const views = [vsmLocalViewData(camera, { width: 1024, height: 768 })]
   const spot = {
     ...{ id: 'spot', kind: 'spot' as const, position: [0, 3, -20], direction: [0, -1, 0] },
     ...{ range: 6, outerCone: 0.601, movable: true },
   }
-  const cache = new VsmCacheManager()
-  const moving = { shadowResolutionLodBiasLocal: 0, shadowResolutionLodBiasLocalMoving: 3 }
-  const biasAt = (frameNumber: number, light: typeof spot) =>
+  return {
+    views: [vsmLocalViewData(camera, { width: 1024, height: 768 })],
+    spot,
+    cache: new VsmCacheManager(),
+    moving: { shadowResolutionLodBiasLocal: 0, shadowResolutionLodBiasLocalMoving: 3 },
+  }
+}
+
+test('a movable local light is moving when its pose or its shape changes: cones, range, source', () => {
+  const { views, spot, cache, moving } = movableSpot()
+  const biasAt = (frameNumber: number, light: VsmLocalLightInput) =>
     addVsmLocalLightShadow(cache, light, views, mapsOf(moving, frameNumber)).cacheEntry.mapCaches[0]
       .projectionData.levelBias
   assert.equal(biasAt(0, spot), 3, 'made: moving')
   assert.equal(biasAt(20, spot), 0, 'at rest')
-  assert.equal(biasAt(21, { ...spot, range: 8 }), 0, 'a new range keeps it at rest')
-  assert.equal(biasAt(22, { ...spot, range: 8, outerCone: 0.9 }), 0, 'a new cone too')
-  assert.equal(biasAt(23, { ...spot, range: 8, outerCone: 0.9, position: [1, 3, -20] }), 3)
+  assert.equal(biasAt(21, { ...spot, range: 8 }), 3, 'a new range moves it')
+  assert.equal(biasAt(41, { ...spot, range: 8 }), 0, 'at rest again')
+  assert.equal(biasAt(42, { ...spot, range: 8, outerCone: 0.9 }), 3, 'a new cone too')
+  assert.equal(biasAt(62, { ...spot, range: 8, outerCone: 0.9 }), 0, 'at rest again')
+  let shaped: VsmLocalLightInput = { ...spot, range: 8, outerCone: 0.9, position: [1, 3, -20] }
+  assert.equal(biasAt(63, shaped), 3)
+  // The inner cone, the source's radius, soft radius and length: the reference remakes the light on each.
+  let frameNumber = 63
+  for (const change of [
+    { innerCone: 0.3 },
+    { sourceRadius: 0.2 },
+    { softSourceRadius: 0.1 },
+    { sourceLength: 0.5 },
+  ]) {
+    assert.equal(biasAt(frameNumber + 20, shaped), 0, 'at rest')
+    frameNumber += 21
+    shaped = { ...shaped, ...change }
+    assert.equal(biasAt(frameNumber, shaped), 3, `${Object.keys(change)} moves it`)
+  }
+})
+
+test('a movable light keeps its mobility when its cache entry is made again, and loses it with the light', () => {
+  const { views, spot, cache, moving } = movableSpot()
+  const biasAt = (frameNumber: number) =>
+    addVsmLocalLightShadow(cache, spot, views, mapsOf(moving, frameNumber)).cacheEntry.mapCaches[0]
+      .projectionData.levelBias
+  assert.equal(biasAt(0), 3, 'made: moving')
+  assert.equal(biasAt(20), 0, 'at rest')
+  // Out of view long enough for its entry to go, then back: the light has not moved.
+  cache.entries.clear()
+  assert.equal(biasAt(21), 0, 'at rest still')
+  // Gone from the scene, then added: a new light.
+  cache.dropRemovedLights((id) => id === 'spot')
+  assert.equal(biasAt(22), 3, 'moving again')
 })
 
 test('a local light’s finest mip takes the mip mode: all, the even ones, the odd ones', () => {
@@ -318,20 +391,15 @@ test('a shift of the offset threshold redraws a cached level only where the sett
   assert.equal(kept(true, 1024), VSM_NEXT_KEEPS_PAGES, 'on, the threshold the same: kept')
 })
 
-// A level's view-to-clip in centimetres: the clip depth of the light-space depth `z` (relative to
-// the eye's level), 1 at the near side and 0 at the far one.
-const clipDepth = (level: VsmClipmap['levels'][number], z: number) =>
-  level.viewToClip[10] * z * 0.01 + level.viewToClip[14]
-
 test('a level’s dynamic cull range ends where its radius, less the resolution bias, ends', () => {
   const clipmap = frame(new VsmCacheManager(), [0, 0, 0])
   // Level 6 at width 1024: the bias is 1.5, so the level shows 2^(6 + 1 - 1.5) cm along the light,
   // a single-precision radius.
-  const cullingEnd = Math.fround(2 ** (6 + 1 - 1.5)),
+  const end = cullingEnd(6),
     depthRadius = 128e3
   const near = clipmap.cacheEntry.mapCaches[0].projectionData.dynamicDepthCullRange
-  assert.ok(Math.abs(near[0] - clipDepth(clipmap.levels[0], cullingEnd)) < 1e-12)
-  assert.ok(Math.abs(near[0] - (1 - (cullingEnd + depthRadius) * (0.5 / depthRadius))) < 1e-12)
+  assert.ok(Math.abs(near[0] - clipDepth(clipmap.levels[0], end)) < 1e-12)
+  assert.ok(Math.abs(near[0] - (1 - (end + depthRadius) * (0.5 / depthRadius))) < 1e-12)
   assert.equal(near[1], FLOAT32_MAX)
   assert.equal(clipmap.levels[0].viewToClip[14], 0.5, 'the matrix is the cached one')
   const off = frame(
@@ -347,28 +415,16 @@ test('a level’s dynamic cull range ends where its radius, less the resolution 
   assert.deepEqual(off.levels[0].viewToClip, clipmap.levels[0].viewToClip, 'the same matrix')
 })
 
-/** `frames` frames of a sun under `maps`, each marked rendered, the last clipmap returned. */
-function renderedFrames(cache: VsmCacheManager, frames: number, maps?: ReturnType<typeof mapsOf>) {
-  let clipmap!: VsmClipmap
-  for (let n = 0; n < frames; n++) {
-    cache.frameStamp = n
-    clipmap = frame(cache, [0, 0, 0], 1024, maps)
-    clipmap.cacheEntry.markRendered(n)
-  }
-  return clipmap
-}
-
 test('a clipmap that keeps no page cuts its depth range from the near side of the level to the end of what it shows', () => {
   const clipmap = renderedFrames(
     new VsmCacheManager(),
     3,
     mapsOf({ shadowForceInvalidateDirectional: true }),
   )
-  const cullingEnd = 2 ** (6 + 1 - 1.5),
-    depthRadius = 128e3
+  const depthRadius = 128e3
   const level = clipmap.levels[0]
   assert.ok(Math.abs(clipDepth(level, -depthRadius) - 1) < 1e-9, 'the near side: depthRadius')
-  assert.ok(Math.abs(clipDepth(level, cullingEnd)) < 1e-9, 'the far side: cullingEnd')
+  assert.ok(Math.abs(clipDepth(level, cullingEnd(6))) < 1e-9, 'the far side: cullingEnd')
   const record = clipmap.cacheEntry.mapCaches[0].projectionData
   assert.deepEqual(record.dynamicDepthCullRange, [0, FLOAT32_MAX], 'the range is the matrix’s own')
   assert.ok(clipmap.cacheEntry.isUncached && record.flags & VSM_MAP_UNCACHED, 'uncached')
@@ -385,14 +441,7 @@ test('a clipmap that keeps no page cuts its depth range from the near side of th
 test('a first-person clipmap keeps no page and cuts its depth range tightly, beside the sun’s own entry', () => {
   const cache = new VsmCacheManager()
   const regular = renderedFrames(cache, 3)
-  let own!: VsmClipmap
-  for (let n = 0; n < 3; n++) {
-    cache.frameStamp = n
-    const camera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
-    const viewport = { width: 1024, height: 1024 }
-    own = createVsmClipmap(cache, { ...SUN, firstPerson: true }, camera, viewport)
-    own.cacheEntry.markRendered(n)
-  }
+  const own = firstPersonFrames(cache, 3)
   assert.notEqual(own.cacheEntry, regular.cacheEntry)
   assert.equal(cache.entries.get(vsmCacheKey('sun', '', 1)), own.cacheEntry)
   assert.equal(cache.entries.get(vsmCacheKey('sun', '')), regular.cacheEntry)
@@ -426,8 +475,10 @@ test('a sun’s clipmap draws for the receivers’ cover unless the setting turn
     3,
     mapsOf({ shadowUseReceiverMaskDirectional: false, shadowForceInvalidateDirectional: true }),
   )
-  const cullingEnd = 2 ** (6 + 1 - 1.5)
-  assert.ok(Math.abs(clipDepth(tight.levels[0], cullingEnd)) < 1e-9, 'nothing cached: still tight')
+  assert.ok(
+    Math.abs(clipDepth(tight.levels[0], cullingEnd(6))) < 1e-9,
+    'nothing cached: still tight',
+  )
 })
 
 const localCamera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
@@ -459,9 +510,11 @@ test('a local light draws for the receivers’ cover only where the setting asks
 test('shadowForceInvalidateLocal draws the lights uncached each frame: none, those that are not distant, all of them', () => {
   const uncached = (mode: number, distantMode: number) => {
     const cache = new VsmCacheManager()
-    const maps = mapsOf({ shadowForceInvalidateLocal: mode, shadowDistantLightMode: distantMode })
+    const changes = { shadowForceInvalidateLocal: mode, shadowDistantLightMode: distantMode }
     let entry!: ReturnType<typeof addVsmLocalLightShadow>['cacheEntry']
+    // The light stands still: each frame is asked at its own scene frame, none of them its move.
     for (cache.frameStamp = 0; cache.frameStamp < 4; cache.frameStamp++) {
+      const maps = mapsOf(changes, cache.frameStamp)
       entry = addVsmLocalLightShadow(cache, localSpot, localViews, maps).cacheEntry
       entry.markRendered(cache.frameStamp)
     }

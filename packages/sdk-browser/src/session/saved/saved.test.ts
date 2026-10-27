@@ -15,6 +15,8 @@ import { helper } from '../../api/helperFamily.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
 import { sceneWithLoads } from './savedScene.fixture.ts'
 import { SCENE_FORMAT_VERSION } from './format.ts'
+import { offsetSwitchesSet } from '../../../../sdk-core/src/world/object/offsetSwitches.ts'
+import { wearOffsets } from './offsets.ts'
 
 test('what a page placed under a loaded model is saved, what its file carried is not', async () => {
   const scene = sceneWithLoads([])
@@ -231,6 +233,79 @@ test('a light’s temperature, fall-off and shares, and a sun’s disk tint and 
   assert.deepEqual([own.inverseSquared, own.radialExponent, own.diffuseShare], [false, 3, 0.5])
   assert.equal('inverseSquared' in saved.children[1].light, false, 'the default is not written')
   assert.deepEqual(again.toJSON(), saved)
+})
+
+test('an object that lets the contact shadow rays through is saved with the world, one that stops them saves nothing of it', async () => {
+  const scene = sceneWithLoads([])
+  const ghost = object.mesh(geometry.box(1, 1, 1))
+  ghost.name = 'ghost'
+  ghost.castContactShadow = false
+  const floor = object.mesh(geometry.box(1, 1, 1))
+  floor.name = 'floor'
+  scene.add(ghost, floor)
+  const saved = JSON.parse(JSON.stringify(scene.toJSON()))
+  const [savedGhost, savedFloor] = saved.children
+  assert.equal(savedGhost.castContactShadow, false)
+  assert.equal('castContactShadow' in savedFloor, false, 'the default is not written')
+  const again = sceneWithLoads([])
+  await again.fromJSON(saved)
+  assert.deepEqual(
+    again.children.map((child: { castContactShadow: boolean }) => child.castContactShadow),
+    [false, true],
+  )
+})
+
+test('an object’s lighting channels and owner switches, and a light’s channels, are saved with the world, the defaults not written', async () => {
+  const scene = sceneWithLoads([])
+  const hands = object.mesh(geometry.box(1, 1, 1))
+  hands.name = 'hands'
+  hands.lightingChannels = { channel0: false, channel1: true, channel2: true }
+  hands.onlyOwnerSee = true
+  const body = object.mesh(geometry.box(1, 1, 1))
+  body.name = 'body'
+  body.ownerNoSee = true
+  const floor = object.mesh(geometry.box(1, 1, 1))
+  floor.name = 'floor'
+  const lamp = light.point()
+  lamp.lightingChannels = { channel0: true, channel1: true, channel2: false }
+  scene.add(hands, body, floor, lamp)
+  const saved = JSON.parse(JSON.stringify(scene.toJSON()))
+  const [savedHands, savedBody, savedFloor, savedLamp] = saved.children
+  assert.deepEqual(savedHands.lightingChannels, { channel0: false, channel1: true, channel2: true })
+  assert.equal(savedHands.onlyOwnerSee, true)
+  assert.equal(savedBody.ownerNoSee, true)
+  for (const key of ['lightingChannels', 'ownerNoSee', 'onlyOwnerSee'])
+    assert.equal(key in savedFloor, false, `${key}: the default is not written`)
+  assert.deepEqual(savedLamp.lightingChannels, { channel0: true, channel1: true, channel2: false })
+  const again = sceneWithLoads([])
+  await again.fromJSON(saved)
+  const [h, b, f, l] = again.children as (typeof hands)[]
+  assert.deepEqual(h.lightingChannels, hands.lightingChannels)
+  assert.deepEqual(
+    [h.onlyOwnerSee, h.ownerNoSee, b.ownerNoSee, f.ownerNoSee],
+    [true, false, true, false],
+  )
+  assert.deepEqual(l.lightingChannels, lamp.lightingChannels)
+  assert.deepEqual(again.toJSON(), saved)
+})
+
+test('a node given a saved switch it refuses keeps every switch it had, the first and the last alike', () => {
+  const node = object.mesh(geometry.box(1, 1, 1))
+  node.holdout = true
+  node.lightingChannels = { channel0: false, channel1: true, channel2: false }
+  const before = { ...offsetSwitchesSet(node) }
+  for (const bad of [
+    { worldPositionOffsetDisableDistance: -1 },
+    { shadowCacheInvalidation: 'sometimes' },
+    { lightingChannels: { channel0: true } },
+    { firstPerson: true, firstPersonWorldSpaceRepresentation: true },
+    { ownerNoSee: 1 },
+  ])
+    assert.throws(
+      () => wearOffsets(node, { evaluateWorldPositionOffset: false, ...bad } as never),
+      RangeError,
+    )
+  assert.deepEqual(offsetSwitchesSet(node), before, 'a refused set writes none of its switches')
 })
 
 test('an object held out of the image’s alpha is saved with the world, one that is not saves nothing of it', async () => {

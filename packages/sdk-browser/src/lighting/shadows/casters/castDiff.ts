@@ -22,6 +22,7 @@ import { dispatchRows, WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { VSM_PASS_PREFIX } from '../../../diagnostic/stage/passLabels.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { VSM_DEFAULT_SHADOWS } from '../vsm/mapSettings.ts'
+import type { ShadowMobility } from './mobility.ts'
 import type { ShadowValues } from '../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import {
   castStateMadeAnew,
@@ -37,6 +38,7 @@ import {
   CAST_INSTANCE_STATE_ENTRY,
 } from './castDiffWgsl.ts'
 import { uploadRootWords } from './rootWords.ts'
+import { sizedBuffer } from '../../../gpu/core/sizedBuffer.ts'
 
 const LABEL = `${VSM_PASS_PREFIX}castDiff`
 const DIFF_PASS: GPUComputePassDescriptor = { label: LABEL }
@@ -79,7 +81,7 @@ function createCastDiffGpu(device: GPUDevice) {
     size: CAST_DIFF_PARAMS_BYTES,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  const named: GPUBufferBinding[] = Array.from({ length: 6 }, () => ({ buffer: params })),
+  const named: GPUBufferBinding[] = Array.from({ length: 7 }, () => ({ buffer: params })),
     held = heldGroup(),
     heldState = heldGroup()
   held.identity.entries[0] = sequentialEntries(named)
@@ -91,6 +93,8 @@ function createCastDiffGpu(device: GPUDevice) {
     held,
     heldState,
     words: new Uint32Array(CAST_DIFF_PARAMS_BYTES / 4),
+    /** The arrivals the state per view reads (a bit a placement), grown with the bits set. */
+    arrivals: undefined as GPUBuffer | undefined,
   }
 }
 type CastDiffGpu = ReturnType<typeof createCastDiffGpu>
@@ -101,6 +105,7 @@ export function releaseCastDiff(casts: CastChanges | undefined) {
   const gpu = casts && gpus.get(casts)
   if (!casts || !gpu) return
   gpu.params.destroy()
+  gpu.arrivals?.destroy()
   gpus.delete(casts)
 }
 
@@ -145,6 +150,27 @@ export function followRoots(
   return { roots, quiet: fresh, diff, state: casts.stateOwed > 0, views }
 }
 
+/** The buffer of the arrivals the state per view reads (a bit a placement), made or grown to hold
+ *  the words of the bits set, and written with the words that changed alone (`sendArrivals`): never a
+ *  write a placement, never the array whole. A frame with none sends none: the kernel reads the
+ *  buffer only when the parameters say there are some (`CastDiffParams.arrivals`). */
+function arrivalsBuffer(gpu: CastDiffGpu, mobility: ShadowMobility, some: boolean) {
+  const held = gpu.arrivals
+  const buffer = (gpu.arrivals = sizedBuffer(
+    gpu.device,
+    held,
+    Math.max(16, mobility.arrivals.byteLength),
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    `${LABEL}.arrivals`,
+  ))
+  // A buffer made anew holds none of them.
+  if (some)
+    mobility.sendArrivals(buffer !== held, (first, words) =>
+      gpu.device.queue.writeBuffer(buffer, first * 4, words),
+    )
+  return buffer
+}
+
 /** The diff over `ask.roots` placements, into `encoder`: its parameters written, its group over the
  *  boxes the roots pass derived, the words, its memory and the list. Nothing while its kernel
  *  compiles: the memory is then left as it is, and the next diff names what changed meanwhile. */
@@ -175,13 +201,20 @@ export function encodeCastDiff(
   let gpu = gpus.get(casts)
   if (gpu?.device !== device) {
     gpu?.params.destroy()
+    gpu?.arrivals?.destroy()
     gpus.set(casts, (gpu = createCastDiffGpu(device)))
   }
+  // The placements that arrived, one array the state per view reads; the buffer is bound whatever.
+  const { mobility } = lights
+  const arrived = mobility.hasArrivals()
+  const arrivals = arrivalsBuffer(gpu, mobility, arrived)
   gpu.words[0] = ask.roots
   gpu.words[1] = ask.quiet ? 1 : 0
   gpu.words[2] = ask.views
+  gpu.words[3] = arrived ? 1 : 0
   device.queue.writeBuffer(gpu.params, 0, gpu.words)
   const { named } = gpu
+  named[6].buffer = arrivals
   named[1].buffer = boxes
   named[2].buffer = words
   named[3].buffer = state
@@ -202,7 +235,10 @@ export function encodeCastDiff(
     pass.setBindGroup(0, gpu.heldState.group!)
     dispatchRows(pass, threads)
   }
-  if (ask.state) casts.stateOwed--
+  if (ask.state) {
+    casts.stateOwed--
+    if (arrived) mobility.clearArrivals()
+  }
   if (ask.diff) {
     casts.followedRoots = ask.roots
     casts.followedWrites = rt.rootBoxes?.written ?? 0

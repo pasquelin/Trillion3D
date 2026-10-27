@@ -29,7 +29,7 @@ override VSM_RENDER_CORNERS:u32=768u;
 struct VsmVoxelOut{
  @builtin(position) position:vec4f,
  /** The window (\`vsmRenderWindowOf\`). */
- @location(0) @interpolate(flat) window:vec4u,
+ @location(0) @interpolate(flat) window:vec3u,
  /** The light's ray through the box point (\`voxelRay\`). */
  @location(1) start:vec3f,
  @location(2) dir:vec3f,

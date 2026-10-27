@@ -14,10 +14,10 @@ import { CLUSTER_INFO } from '../../geometry/dag/info/clusterInfoLayout.ts'
 import {
   NO_OUTPUTS,
   PLACEMENT_EVALUATE,
-  PLACEMENT_FIRST_PERSON,
   PLACEMENT_HLOD_SHIFT,
   PLACEMENT_HOLDOUT,
   PLACEMENT_INFO,
+  PLACEMENT_PAGE_MARKS,
   PLACEMENT_VELOCITY,
 } from '../../geometry/dag/info/placementInfoLayout.ts'
 import { DIAGNOSTIC_DRAWN_AS_WGSL } from '../../diagnostic/colors.ts'
@@ -48,7 +48,7 @@ const PLAN_BINDING = { visible: 0, work: 1, args: 2 } as const
 const DECODE_STRUCTS = wgslBlock(
   'DECODE_STRUCTS',
   [],
-  `${CLUSTER_INFO.wgsl}\n${PLACEMENT_INFO.wgsl}\n${wgslConsts({ NO_OUTPUTS, FLAG_HOLDOUT, PLACEMENT_EVALUATE, PLACEMENT_FIRST_PERSON, PLACEMENT_HOLDOUT, PLACEMENT_VELOCITY, PLACEMENT_HLOD_SHIFT, WPO_ROW_ALWAYS, WPO_ROW_VELOCITY, ROOT_WORLD_VALUES: MATRIX_VALUES })}`,
+  `${CLUSTER_INFO.wgsl}\n${PLACEMENT_INFO.wgsl}\n${wgslConsts({ NO_OUTPUTS, FLAG_HOLDOUT, PLACEMENT_EVALUATE, PLACEMENT_HOLDOUT, PLACEMENT_PAGE_MARKS, PLACEMENT_VELOCITY, PLACEMENT_HLOD_SHIFT, WPO_ROW_ALWAYS, WPO_ROW_VELOCITY, ROOT_WORLD_VALUES: MATRIX_VALUES })}`,
 )
 
 /**
@@ -147,7 +147,7 @@ const DECODE_KERNEL_TEXT = `@compute @workgroup_size(WORKGROUP_THREADS) fn decod
  var page:PageInfo;
  page.world=worldOf(w);
  page.flags=c.flags|select(0u,FLAG_HOLDOUT,(p.switches&PLACEMENT_HOLDOUT)!=0u);
- page.firstPerson=select(0u,1u,(p.switches&PLACEMENT_FIRST_PERSON)!=0u);
+ page.marks=p.switches&PLACEMENT_PAGE_MARKS;
  page.pageOffset=c.pageOffset;
  page.indexCount=c.indexCount;
  page.vertexBase=c.vertexBase;

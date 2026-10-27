@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { ATLAS_NUMBERS_AT, ENTRY_VEC4S, KINDS, LIGHT_FUNCTION_SHIFT } from './layout.ts'
+import { kindWord } from '../direct/lightReachWgsl.ts'
 
 /** Where a program binds what the light functions are read from, and the eye their fade is measured
  *  from: the atlas (a texture of words, read by load) in group `group`, and `eye`, the WGSL
@@ -17,21 +18,21 @@ export interface LightFunctionBindings {
 export const lightFunctionBindingsLabel = (b?: LightFunctionBindings) =>
   b ? `${b.group}, ${b.atlas}, ${b.eye}${b.storage ? ', storage' : ''}` : 'none'
 
-/** Whether a light wears a light function: the index in the high bits of its kind word (`word`, the light's
- *  `params.x`) is not 0. The one place the shift is declared, for the programs that read the function and those
- *  that only ask whether there is one. */
+/** Whether a light wears a light function: the index in the high bits of its kind word (`kindWord`) is not 0. The one place the shift is
+ *  declared, for the programs that read the function and those that only ask whether there is one. */
 export const hasLightFunctionWgsl = wgslBlock(
   'LIGHT_FUNCTION_INDEX_WGSL',
-  [],
+  [kindWord],
   `const LF_SHIFT:u32=${LIGHT_FUNCTION_SHIFT}u;
-fn hasLightFunction(word:f32)->bool{return (u32(word)>>LF_SHIFT)!=0u;}`,
+fn lightFunctionIndex(light:DirectLight)->u32{return kindWord(light)>>LF_SHIFT;}
+fn hasLightFunction(light:DirectLight)->bool{return lightFunctionIndex(light)!=0u;}`,
 )
 
 /** What a program that reads no light function answers: white, a light unchanged. */
 export const NO_LIGHT_FUNCTION_WGSL = wgslBlock(
   'NO_LIGHT_FUNCTION_WGSL',
   [],
-  'fn lightFunctionOf(word:f32,P:vec3f)->vec3f{return vec3f(1.0);}\nfn lightFunctionFogLocalOf(word:f32,P:vec3f)->vec3f{return vec3f(1.0);}',
+  'fn lightFunctionOf(light:DirectLight,P:vec3f)->vec3f{return vec3f(1.0);}\nfn lightFunctionFogLocalOf(light:DirectLight,P:vec3f)->vec3f{return vec3f(1.0);}',
 )
 
 /** The atlas and the reads of its texels, bilinear, and of the table. */
@@ -69,9 +70,9 @@ fn lightFunctionWord(t:u32)->vec4f{
 fn lightFunctionEye()->vec3f{return ${b.eye};}`
 
 /** The function of a light at a point, and the fog's local lights' share of it. */
-const LIGHT_FUNCTION_OF_TEXT = `fn lightFunctionOf(word:f32,P:vec3f)->vec3f{
- if(!hasLightFunction(word)){return vec3f(1.0);}
- let index=u32(word)>>LF_SHIFT;
+const LIGHT_FUNCTION_OF_TEXT = `fn lightFunctionOf(light:DirectLight,P:vec3f)->vec3f{
+ let index=lightFunctionIndex(light);
+ if(index==0u){return vec3f(1.0);}
  let dims=textureDimensions(lightFunctionAtlas);
  let first=index*LF_ENTRY;
  if(dims.x+(first+LF_ENTRY-1u)/dims.x>=dims.y){return vec3f(1.0);}
@@ -97,15 +98,15 @@ const LIGHT_FUNCTION_OF_TEXT = `fn lightFunctionOf(word:f32,P:vec3f)->vec3f{
 }
 /** The same for a local light of the volumetric fog: white where the fog's local lights are set not
  *  to read the light functions (\`lightFunctionFog\`); the fog's sun always reads them. */
-fn lightFunctionFogLocalOf(word:f32,P:vec3f)->vec3f{
+fn lightFunctionFogLocalOf(light:DirectLight,P:vec3f)->vec3f{
  let dims=textureDimensions(lightFunctionAtlas);
- if(!hasLightFunction(word)||dims.y<=dims.x||lightFunctionWord(${ATLAS_NUMBERS_AT}u).w<0.5){return vec3f(1.0);}
- return lightFunctionOf(word,P);
+ if(!hasLightFunction(light)||dims.y<=dims.x||lightFunctionWord(${ATLAS_NUMBERS_AT}u).w<0.5){return vec3f(1.0);}
+ return lightFunctionOf(light,P);
 }`
 
 /**
  * THE LIGHT FUNCTION READ: the colour a light gives at the world point `P` is its colour times
- * `lightFunctionOf(word, P)`, `word` the light's kind word. The light's entry is read from the table
+ * `lightFunctionOf(light, P)`. The light's entry is read from the table
  * under the slots of the atlas (`layout.ts`); the point is taken to the light's axes and, by the
  * light's kind, to a coordinate in the slot of its material: a spot's and a rectangle's cone as
  * the tangent of its cone says, a point's by its direction as longitude and latitude, any other (a

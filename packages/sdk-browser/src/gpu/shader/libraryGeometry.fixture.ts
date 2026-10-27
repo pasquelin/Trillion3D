@@ -4,6 +4,9 @@
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
+  fastAcos,
+  fastAtan,
+  fastAtan2,
   boxBehindPlane,
   faceNormal,
   rayBoxEntry,
@@ -24,6 +27,9 @@ export const run = shaderRun<Record<string, (...args: never[]) => never>>(
     faceNormal,
     vectorRejection,
     sinFromCosUnclamped,
+    fastAcos,
+    fastAtan,
+    fastAtan2,
     boxBehindPlane,
     sphereBehindPlane,
     rayInverseDirection,
@@ -35,6 +41,9 @@ export const run = shaderRun<Record<string, (...args: never[]) => never>>(
     'faceNormal',
     'vectorRejection',
     'sinFromCosUnclamped',
+    'fastAcos',
+    'fastAtan',
+    'fastAtan2',
     'planeDistance',
     'boxPositiveVertex',
     'boxPlaneDistance',

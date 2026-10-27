@@ -9,12 +9,15 @@ import { FACING_MATERIAL_MASK, FACING_SHIFT } from '../facing.ts'
 import { WORDS } from '../vertexReadsWgsl.ts'
 import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { thinLayerWgsl, variantKey } from './transmitThinWgsl.ts'
+import { stageImports, stageLabel, stagePrologue, type StageOptions } from '../stageOptions.ts'
+import { thinLayerWgsl } from './transmitThinWgsl.ts'
 import { COVERED, coverageStageText, marked, responsiveStageText } from '../layerStagesWgsl.ts'
 
 /** The lit colour pass's functions and its prologue, up to where a program's shadow marks are set:
  *  the thin layer's addition, the stage prologue and the transmit fragment. */
-const COLOUR_HEAD_TEXT = `// What the blend adds: the base colour and the emission a layer over the absorbing
+const colourHeadText = (
+  o: StageOptions,
+) => `// What the blend adds: the base colour and the emission a layer over the absorbing
 // medium, under the specular: (diffuse + emissive)·top + specular,
 // at the coverage, dimmed by the fog that adds its own.
 fn thinAdd(in:VSOut,s:BlendSurface,l:Thin)->vec3f{
@@ -22,8 +25,9 @@ fn thinAdd(in:VSOut,s:BlendSurface,l:Thin)->vec3f{
  var specular=vec3f(0.0);
  if(!l.unlit){
   let P=in.view;
+  ${stagePrologue(o, '  ')}
   // One walk of the lights, their diffuse and specular shares apart (\`declaredLightingSplit\`).
-  let lit=declaredLightingSplit(s.rgb,l.metal,l.rough,l.N,l.V,P,s.ao,in.position.xy,in.position.z);
+  let lit=declaredLightingSplit(s.rgb,l.metal,l.rough,l.N,l.V,P,in.position.xy,in.position.z);
   specular=lit.specular+surfaceReflection(l.specularColor,l.rough,l.N,l.V,P,in.position);
   // The diffuse layer only where it covers.
   if(l.top>0.0){diffuse=litSurface(lit.diffuse,lambertDiffuse(s.rgb,l.metal,translucentGiIrradiance(P,l.N,translucentGiSingle),s.ao),environmentLighting(s.rgb,l.metal,l.N,s.ao),vec3f(0.0),s.emissive,l.N,P,s.ao);}
@@ -151,24 +155,20 @@ const DISTORTION_APPLY_TEXT = `// The distortion application, a full-screen pass
  * that transmits is shaded as a thin translucent surface, its transmission taking precedence over
  * a clear coat, and that thin model holds no clear coat nor anisotropy.
  */
-export const transmitStagesWgsl = (
-  graphs: boolean,
-  lobes: boolean,
-  shade: CloudVertexText,
-  marks: boolean,
-  depth: boolean,
-  layer: boolean,
-) =>
-  wgslBlock(
-    `TRANSMIT_WGSL(${variantKey({ graphs, lobes, shade, marks, depth, layer })})`,
+export const transmitStagesWgsl = (o: StageOptions) => {
+  const { graphs, shade, marks, depth } = o
+  return wgslBlock(
+    `TRANSMIT_WGSL(${stageLabel(o)})`,
     [
+      ...stageImports(o),
       COVERED,
       marked(depth),
-      thinLayerWgsl(graphs, lobes, shade, layer),
+      thinLayerWgsl(o),
       modelFlag,
       FULLSCREEN_VERTEX,
       BLEND_PRE_EXPOSED_WGSL,
       ...(depth ? [BLEND_PUSHED_DEPTH_WGSL] : []),
     ],
-    `${COLOUR_HEAD_TEXT}${marks ? `\n  ${translucentMarksFrom('flags')}` : ''}${colourStagesText(shade)}${coverageStageText('Transmit', 'transmitSurface', shade)}${responsiveStageText('Transmit', 'transmitSurface', '1.0', true, shade, depth)}${holdoutStageText(shade)}${distortionStagesText(shade, graphs)}${DISTORTION_APPLY_TEXT}`,
+    `${colourHeadText(o)}${marks ? `\n  ${translucentMarksFrom('flags')}` : ''}${colourStagesText(shade)}${coverageStageText('Transmit', 'transmitSurface', shade)}${responsiveStageText('Transmit', 'transmitSurface', '1.0', true, shade, depth)}${holdoutStageText(shade)}${distortionStagesText(shade, graphs)}${DISTORTION_APPLY_TEXT}`,
   )
+}

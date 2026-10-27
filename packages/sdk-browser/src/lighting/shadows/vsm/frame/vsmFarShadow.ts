@@ -17,9 +17,9 @@ import {
 import { shadowOfLight } from '../../../../../../sdk-core/src/scene/light/lightShadow.ts'
 import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
+import { breakHeldFrame } from '../../../../frame/backend/state/view.ts'
 import { noDofBias } from '../dofBias.ts'
 import type { VsmMapSettings } from '../mapSettings.ts'
-import type { VsmBoundLight } from '../mapViews.ts'
 
 /**
  * The draw distances the casters take (`VsmRenderScene.drawDistance`): the view's factor, the
@@ -49,7 +49,7 @@ export function followShadowSettings(rt: WebgpuPagesRuntime) {
   let watch = watches.get(rt)
   if (!watch) watches.set(rt, (watch = settingsWatch(SHADOW_RULES)))
   watch.read(rt.context)
-  if (watch.moved) rt.run.gate.viewReplaced()
+  if (watch.moved) breakHeldFrame(rt, rt.views.active)
 }
 
 /** The shadow settings the session holds, resolved into the one object each call rewrites. */
@@ -79,10 +79,10 @@ const sceneHasDistanceFields = (rt: Pick<WebgpuPagesRuntime, 'context'>) =>
 
 /**
  * The cascades of the sun `light` seen from a view whose near plane is `near`, under the view's
- * settings `shadows` (`sunCascades`): the edge its shadow maps take every caster up to — 0, none,
- * when the culling is off, the light has no near level or it is not a sun — and the planes of its
- * distance-field cascade, where it has one. A sun's clipmap carries the edge in its maps' records
- * (`VsmDirectionalLightInput.farShadowEdge`); the raster reads it there (`vsmFarShadowSkipped`).
+ * settings `shadows` (`sunCascades`): the edge of its near cascade — 0, none, when the culling is
+ * off, the light has no near level or it is not a sun — and the planes of its distance-field
+ * cascade, where it has one. The shadow maps take every cluster caster, whatever its distance: the
+ * far-shadow test reaches the subjects gathered on the CPU alone, none of which is a cluster.
  */
 export const sunCascadesOf = (
   rt: Pick<WebgpuPagesRuntime, 'context'>,
@@ -93,18 +93,3 @@ export const sunCascadesOf = (
   light.kind === 'directional'
     ? sunCascades(shadowOfLight(light), near, shadows, sceneHasDistanceFields(rt))
     : NO_CASCADES
-
-/**
- * The distance past which no map view of the frame takes a caster that does not cast far shadows:
- * the greatest far-shadow distance of `lights` when every one is a sun that has one, else 0 — a
- * local light, or a sun with none, takes every caster (`VsmRenderScene.farDrop`).
- */
-export function farDropOf(lights: readonly VsmBoundLight[]) {
-  let drop = 0
-  for (const { kind, clipmap } of lights) {
-    const distance = kind === 'directional' ? (clipmap?.light.farShadowEdge ?? 0) : 0
-    if (!(distance > 0)) return 0
-    drop = Math.max(drop, distance)
-  }
-  return drop
-}

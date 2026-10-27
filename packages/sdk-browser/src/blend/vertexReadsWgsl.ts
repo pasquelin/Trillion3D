@@ -5,10 +5,14 @@ import { PAGE_INFO_STRUCT_WGSL, normalAtlasWgsl } from '../visibility/shader/pag
 import { PAGE_NORMAL_WGSL } from '../visibility/shader/pageGeometryWgsl.ts'
 import { LINE_CLIP_WGSL } from '../visibility/shader/lineWgsl.ts'
 import { SPRITE_WGSL } from '../visibility/shader/spriteWgsl.ts'
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { LIGHTING_CHANNEL_COUNT } from '../../../sdk-core/src/contracts/lightingChannelsAbi.ts'
+import { LIGHTING_CHANNELS_WGSL } from '../lighting/lightingChannelsWgsl.ts'
 import { materialTableWgsl } from '../materials/table/materialWgsl.ts'
-import { RESPONSIVE_MARK_WGSL } from '../visibility/types.ts'
+import { RESPONSIVE_BITS, RESPONSIVE_MARK_WGSL } from '../visibility/types.ts'
 import { clippedStructText, type Clipping } from '../gpu/core/clipDistances.ts'
+import { SURFACE_MAP_FIELDS } from '../visibility/materialType.ts'
+import { MATERIAL_FLAG } from '../materials/table/materialLayout.ts'
 
 /** What every vertex stage of the runs binds and reads before its layout's own reads: the item
  *  records, and the material table their surfaces' records lie in. */
@@ -54,16 +58,37 @@ export const WORDS = { tri: 'words.x', diagId: 'words.y', material: 'words.z' } 
  *  it already, and handed to the fragments (`blendGrads`, `shaderSurface.ts`), which read no record
  *  for it. */
 export const TRI_CHANNELS_SHIFT = 16
-/** Where `tri` carries, above the channels (`SURFACE_MAP_FIELDS`, seven bits), the item's
+/** The bits of the channels word `tri` carries, a bit a map (`SURFACE_MAP_FIELDS`). */
+export const TRI_CHANNELS_BITS = SURFACE_MAP_FIELDS.length
+/** Where `tri` carries, above the channels, the item's lighting channels
+ *  (`ITEM_CHANNELS_SHIFT`), stored: read off the item by the vertex stage, which reads it already, for the
+ *  fragment to light the surface only with the lights that share a channel with it (`blendChannelsOf`). */
+export const TRI_LIGHTING_CHANNELS_SHIFT = TRI_CHANNELS_SHIFT + TRI_CHANNELS_BITS
+/** Where `tri` carries, above the lighting channels, the item's
  *  responsiveness code (`ITEM_RESPONSIVE_SHIFT`): read off the item by the vertex stage, which reads
  *  it already. */
-export const TRI_RESPONSIVE_SHIFT = 28
-/** Where `tri` carries, above the responsiveness code, whether the item's object is held out (`ITEM_HOLDOUT`). */
-export const TRI_HOLDOUT_SHIFT = 30
-/** Where `tri` carries, last, whether the fog of the item's surface is worked out for each pixel
- *  (`computeFogPerPixel`, and the single-layer water's): read off the surface's record by the vertex stage, for the
- *  fragment to take its fog from the vertices or from the pixel (`cloudVertexText.ts`). */
-export const TRI_FOG_PIXEL_SHIFT = 31
+export const TRI_RESPONSIVE_SHIFT = TRI_LIGHTING_CHANNELS_SHIFT + LIGHTING_CHANNEL_COUNT
+/** Where `tri` carries, above the responsiveness code, whether the item's object is held out (`ITEM_HOLDOUT`). The next fact
+ *  of a see-through item is read in the fragment from the material table bound there (`materialAt`, a flag of
+ *  `MATERIAL_FLAG` for a fact of its material, `materialFlagOf`), not from another interpolant. */
+export const TRI_HOLDOUT_SHIFT = TRI_RESPONSIVE_SHIFT + RESPONSIVE_BITS
+/** Where `tri` carries, above the holdout, the facts of the item's material the fragment reads (`MATERIAL_FLAG`), in the order of their
+ *  bits: the vertex stage writes them from the record it reads already (`TRI_MATERIAL_FLAGS`), so that the fragment reads no
+ *  material texel for them. */
+export const TRI_MATERIAL_SHIFT = TRI_HOLDOUT_SHIFT + 1
+/** The bits of `MATERIAL_FLAG`, all of them. */
+export const TRI_MATERIAL_FLAGS = Object.values(MATERIAL_FLAG).reduce((all, bit) => all | bit, 0)
+/** Whether the material flag `flag` of `MATERIAL_FLAG` is set for the surface the fragment `in` belongs to, as a WGSL expression:
+ *  read from its triangle word, where the vertex stage put it (`TRI_MATERIAL_SHIFT`). */
+export const materialFlagOf = (flag: keyof typeof MATERIAL_FLAG) =>
+  `(((in.${WORDS.tri}>>${TRI_MATERIAL_SHIFT}u)&${MATERIAL_FLAG[flag]}u)!=0u)`
+
+/** The mask of the lighting channels of the item the fragment `in` belongs to, from its triangle word. */
+export const BLEND_CHANNELS_WGSL = wgslFn(
+  'blendChannelsOf',
+  [LIGHTING_CHANNELS_WGSL],
+  `fn blendChannelsOf(in:VSOut)->u32{return storedToChannels(in.${WORDS.tri}>>${TRI_LIGHTING_CHANNELS_SHIFT}u);}`,
+)
 
 /** What a transparent fragment's layer writes of its surface's responsiveness, from its code in
  *  `tri` (`TRI_RESPONSIVE_SHIFT`): its mark (`RESPONSIVE_MARK_WGSL`) where its `opacity` is above 0

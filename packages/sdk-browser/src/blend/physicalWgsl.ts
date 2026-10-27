@@ -92,7 +92,7 @@ fn blendLobes(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,rough:f32)
  let alpha=lobeAlpha(rough);
  setLobes(lobeAxis(v.direction,v.strength,s.N,alpha),v.coat,v.coatRough,v.coatN,s.N,V,lobeAcross(v.strength,alpha));
  setLobeBase(s.rgb,s.metal,rough);
- if(v.cloth>0.0){setCloth(v.fuzz,v.cloth);}
+ if(v.cloth>0.0){setCloth(v.fuzz,v.cloth,s.N,V,rough);}
 }`,
 )
 

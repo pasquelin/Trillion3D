@@ -11,6 +11,9 @@ import { pipelinesCompiling, pipelinesSettled } from './compileLedger.ts'
 import { encodeProbeImage, probesRuntime, screenProbeWords } from './screenProbesRuntime.fixture.ts'
 import { placeScreenProbes, traceScreenProbes } from '../bounce/screen/frame.ts'
 
+/** The words the lighting is told are 32-bit floats: the setting's default foliage strength, as one holds it. */
+const FOLIAGE_STRENGTH = Math.fround(0.7)
+
 test('one image of screen probes encodes its passes in order, hands the lighting its result and counts what it cast', async () => {
   const { h, rt, encode } = await probesRuntime()
   await encode()
@@ -29,6 +32,11 @@ test('one image of screen probes encodes its passes in order, hands the lighting
     'spatialFilter',
     'convert',
     'occlusion',
+    'tileInit',
+    'tileClassify',
+    'tileFinish',
+    'integrate',
+    'integrateSimple',
     'temporal',
   ])
   assert.equal(
@@ -44,7 +52,7 @@ test('one image of screen probes encodes its passes in order, hands the lighting
   assert.equal(metrics.unavailable, null)
 })
 
-test('the placement is a pass of its own that hands the pool the probes it placed, and the trace follows in another; a level that casts none places nothing and shades in the trace', async () => {
+test('the placement is a pass of its own that asks the probes of their pixels and hands the pool the probes it placed, and the trace follows in another; a level that casts none places nothing and shades in the trace', async () => {
   const { h, rt, encode } = await probesRuntime()
   await encode()
   const before = h.dispatches.length
@@ -55,6 +63,7 @@ test('the placement is a pass of its own that hands the pool the probes it place
     'adaptiveMark',
     'adaptiveSpawn',
     'probeArgs',
+    'screenData',
   ])
   assert.equal(h.passDescriptors.length, passes + 1, 'the placement alone, a pass of its own')
   const view = rt.gpu.screenProbes!
@@ -65,7 +74,13 @@ test('the placement is a pass of its own that hands the pool the probes it place
   )
   traceScreenProbes(rt, h.encoder, placed)
   assert.equal(h.passDescriptors.length, passes + 2, 'the trace in another')
-  assert.equal(dispatchedEntries(h.dispatches.slice(before)).at(-1), 'temporal')
+  const traced = dispatchedEntries(h.dispatches.slice(before))
+  assert.equal(traced.at(-1), 'temporal')
+  assert.equal(
+    traced.filter((entry) => entry === 'screenData').length,
+    1,
+    'asked once, in the placement',
+  )
   const low = await probesRuntime({ screenProbes: 'low' })
   await low.encode()
   const lowBefore = low.h.dispatches.length
@@ -92,12 +107,22 @@ test('the screen probes leave out the passes their settings leave out, and cast 
     'composite',
     'spatialFilter',
     'convert',
+    'tileInit',
+    'tileClassify',
+    'tileFinish',
+    'integrate',
+    'integrateSimple',
     'temporal',
   ])
   const off = await probesRuntime({ screenProbes: 'off' })
   encodeProbeImage(off.rt, off.h.encoder)
   assert.deepEqual(off.h.dispatches, [])
   assert.equal(off.rt.bounce.screen!.metrics, undefined)
+  assert.deepEqual(
+    screenProbeWords(off.h),
+    [FOLIAGE_STRENGTH, 0.5, 1, 1],
+    'the level off leaves the lighting the sky light under their occlusion alone, never the black of a pixel the probes gather and did not read',
+  )
   // The level off gives the view's probes back: the budget holds none, the lighting is left none to read.
   const held = await probesRuntime()
   await held.encode()
@@ -116,11 +141,23 @@ test('the level low runs the occlusion and the temporal pass alone over one prob
   assert.deepEqual(
     screenProbeWords(low.h),
     [1, 0.5, 1, 1],
-    'the material’s occlusion, the albedo cap, the strength, mode 1',
+    'the foliage strength of the level low (1), the albedo cap, the intensity, mode 1',
   )
   const ultra = await probesRuntime()
   await ultra.encode()
-  assert.deepEqual(screenProbeWords(ultra.h), [1, 0.5, 1, 0], 'mode 0: the probes’ light')
+  assert.deepEqual(
+    screenProbeWords(ultra.h),
+    [FOLIAGE_STRENGTH, 0.5, 1, 0],
+    'mode 0: the probes’ light',
+  )
+  // The integration that applies the short-range occlusion says so in bit 2: the lighting then applies none.
+  const applied = await probesRuntime({ screenProbeShortRangeAOApplyDuringIntegration: true })
+  await applied.encode()
+  assert.deepEqual(
+    screenProbeWords(applied.h),
+    [FOLIAGE_STRENGTH, 0.5, 1, 4],
+    'mode 0 and bit 2: the probes’ light, the occlusion already in it',
+  )
   const bare = await probesRuntime({
     screenProbes: 'low',
     screenProbeShortRangeOcclusion: false,
@@ -128,6 +165,11 @@ test('the level low runs the occlusion and the temporal pass alone over one prob
   encodeProbeImage(bare.rt, bare.h.encoder)
   assert.deepEqual(bare.h.dispatches, [], 'a level with no probe and no occlusion runs nothing')
   assert.equal(bare.rt.gpu.screenProbes, undefined)
+  assert.deepEqual(
+    screenProbeWords(bare.h),
+    [1, 0.5, 1, 1],
+    'mode 1: no probe ran; the foliage strength of the level low (1), as above',
+  )
 })
 
 test('a render scale moves the size an image is drawn at, and the probes made for the targets stay: nothing is remade, the history alone is dropped', async () => {
@@ -164,15 +206,17 @@ test('a budget with no room for the probes leaves the lighting none to read, say
   assert.equal(h.dispatches.length, 0, 'no pass encoded')
 })
 
-test('the frame runs the screen probes after the reflections, the radiance cache the screen probes did not update after them, the occlusion after that, and the lighting binds their results after all', () => {
+test('the frame stages the reflections, runs the screen probes, the radiance cache the screen probes did not update after them, the translucency lighting, the reflections’ trace, the occlusion after that, and the lighting binds their results after all', () => {
   const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
   const preLight = read('../../frame/render/preLight.ts')
   const order = [
-    'encodeReflections(rt, encoder, reflects(overrides))',
+    'stageReflections(rt, reflects(overrides))',
     'placeScreenProbes(rt, encoder)',
     'encodeQueuedBounce(rt, encoder, placed?.marks)',
     'traceScreenProbes(rt, encoder, placed)',
     'flushRadianceCache(rt, encoder)',
+    'encodeTranslucencyGi(rt, device, encoder, cam)',
+    'traceReflections(rt, encoder, reflections)',
     'encodeAmbientOcclusion(rt, encoder, cam)',
   ]
   const at = order.map((call) => preLight.indexOf(call))
@@ -190,6 +234,28 @@ test('the frame runs the screen probes after the reflections, the radiance cache
     surfaces.indexOf('encodePreLight(rt, device, encoder, cam, direct)') <
       surfaces.indexOf('lightSurfaces(rt, encoder, clear, raw, direct)'),
     'the lighting binds after the passes it reads',
+  )
+})
+
+test('the frame builds the translucency lighting volume once the surfaces are lit, before the subsurface scattering and the blends that read it, and not in the pre-light step', () => {
+  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
+  assert.ok(!read('../../frame/render/preLight.ts').includes('encodeTranslucencyVolume'))
+  const frame = read('../../frame/render/surfaceLighting.ts')
+  const order = [
+    'encodePreLight(rt, device, encoder, cam, direct, overrides)',
+    'lightSurfaces(rt, encoder, clear, raw, direct)',
+    'encodeTranslucencyVolume(rt, device, volumeRun.begin(encoder), cam)',
+    'encodeSubsurfaceScattering(rt, encoder, cam)',
+    'drawOverLit(',
+  ].map((call) => frame.indexOf(call, frame.indexOf('export function encodeSurfaceLighting')))
+  assert.ok(
+    order.every((at) => at >= 0),
+    `each is called: ${order}`,
+  )
+  assert.deepEqual(
+    order,
+    [...order].sort((a, b) => a - b),
+    'in this order',
   )
 })
 

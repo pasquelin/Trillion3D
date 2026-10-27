@@ -4,8 +4,9 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * The resolve's compute entry (`shadeWgsl.ts`), a lane a pixel of its class's bin
  * (`binnedPixel`, `shadeBinsWgsl.ts`) — a lane with no pixel of its class to write, past the bin's
  * end or a quad's pixel of another class, does nothing (`shadesPixel`) —: the pixel's surfaces
- * shaded at its centre (`shadeSurface`), then its storage writes, each texel written once with its
- * final value — its thin transmission, its surfaces (`storeSurface`, `shadeOutputsWgsl.ts`). The private variables are zero at each lane's start: a
+ * shaded at its centre (`shadeSurface`, each marked with its object's page marks, `withPageMarks`), then its storage
+ * writes, each texel written once with its final value — its thin transmission, its surfaces (`storeSurface`,
+ * `shadeOutputsWgsl.ts`). The private variables are zero at each lane's start: a
  * path that finds none leaves zero, as a cleared texel holds.
  *
  * `SHADE_STAGE`, a diagnostic override (0, the whole kernel, folded to the code above), stops the kernel after a stage to time

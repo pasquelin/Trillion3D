@@ -99,6 +99,9 @@ export const VIEW_GPU_KEYS = [
   'localFog',
   // The light shafts' histories, which follow the camera of the view that drew them.
   'lightShafts',
+  // The hair strands' visibility and macro groups, which follow the camera of the view that built
+  // them.
+  'hair',
   // The canvas the view presents into: the main view's, or one of its own (`./persistentView.ts`).
   'presenter',
 ] as const satisfies readonly (keyof WebgpuGpuState)[]
@@ -261,6 +264,14 @@ export const viewGpu = (rt: Pick<WebgpuPagesRuntime, 'gpu' | 'views'>, view: Web
  *  rigged for the main view, never for a capture drawn aside. */
 export const mainViewGpu = (rt: Pick<WebgpuPagesRuntime, 'gpu' | 'views'>) =>
   viewGpu(rt, rt.views.main)
+
+/** Breaks the held frame of `view`, the drawn view or one drawn aside: its next draw is not held. The
+ *  drawn view's goes through the gate's view revision; a view aside holds its own (`useViewHold`),
+ *  which a move breaks. The scene's boxes and culls and the view's image history stand. */
+export function breakHeldFrame(rt: Pick<WebgpuPagesRuntime, 'run' | 'views'>, view: WebgpuView) {
+  if (view === rt.views.active) rt.run.gate.viewReplaced()
+  else if (view.hold) view.hold.view++
+}
 
 /** The drawn view's image is out of date: the main view's by the shared resource revision, as
  *  before any other view existed; another view's by its own hold alone, the main one kept. */

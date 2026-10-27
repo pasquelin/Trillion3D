@@ -158,6 +158,14 @@ const RADIANCE_CACHE_AND_FOLIAGE_MEANINGS = /* @__PURE__ */ (() =>
       'Where the image casts no screen probe (the level low), the cells of the radiance cache it reads are marked from one pixel in this many along each side of the image already downsampled by screenProbeInterpolateDownsampleFactor (2 by default, from 1 to 8; the pixel turns with the frame): larger marks fewer pixels, but small geometry may flicker black.',
     screenProbeInterpolateDownsampleFactor:
       'The downsampling, from 1 to 2 (2 by default), of the image that the cells of the radiance cache are marked from where the image casts no screen probe, before screenProbeMarkDownsampleFactor: one pixel in this many along each side, turning with the frame.',
+    screenProbeTranslucencyReflectionsRadianceCache:
+      'Whether the translucent surfaces mark the cells of the radiance cache they read: their meshes are drawn once more, at the image downsampled by screenProbeTranslucencyReflectionsMarkDownsampleFactor, and each fragment marks the cells round its point, so that a pane in front of a cell no opaque pixel reads still finds its probes; false, only the opaque surfaces mark and a translucent surface may read probes that were never traced.',
+    screenProbeTranslucencyReflectionsMarkDownsampleFactor:
+      'The factor, from 1 to 64 (4 by default; a power of two), the image is downsampled by for the translucent surfaces to mark the radiance cache from: larger marks fewer fragments but leaves cells of small panes unmarked; smaller costs more fragments. The depth pyramid level of the occlusion test follows it.',
+    screenProbeTranslucencyReflectionsHizOcclusionTest:
+      'Whether a translucent fragment hidden behind the opaque surfaces, by the depth pyramid, marks nothing in the radiance cache; false, it marks the cells even behind a wall.',
+    screenProbeTranslucencyReflectionsClipmapFadeSize:
+      'Probes, from 0.001 to 16 (4 by default): the width of the dithered transition at the edge of a level of the radiance cache over which a translucent surface moves its mark from the level to the next coarser one.',
     screenProbeRadianceCacheSpatialFilter:
       "Whether a world probe's radiance is averaged, texel by texel, with its six neighbours' — each weighed by the angle its ray makes and by whether a surface stands between the two probes — when it is traced; false, as traced.",
     screenProbeRadianceCacheFilterHitAngle:

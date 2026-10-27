@@ -1,10 +1,14 @@
-// The placements the distance fields track carry how their root casts: whether the sun's far-shadow test
-// reaches them, which the sun's distance-field cascade shadows what the shadow maps leave out by.
+// The placements the distance fields track carry how their root casts: a shadow unless its mark says
+// none, and that they are made of clusters, which a sun's shadow maps draw (the cascade leaves them out).
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
-import { FAR_SHADOW_ROOT, MARK_BITS, SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
+import {
+  MARK_BITS,
+  SHADOWLESS_ROOT,
+  WORLD_SPACE_ROOT,
+} from '../../visibility/shader/castingMark.ts'
 import type { AtlasState } from './atlasState.ts'
 import { OBJECT_FLAGS as F } from './layout.ts'
 import { createObjectTracker, type TrackedRoot } from './objectTracker.ts'
@@ -31,51 +35,23 @@ function tracked(mark?: number) {
 
 const CASTS = F.castShadow | F.visible | F.virtualized
 
-test('a placement casts unless its mark says it casts none, and the far-shadow test reaches it as its mark says', () => {
+test('a placement casts unless its mark says it casts none, and is made of clusters whatever the mark', () => {
+  assert.equal(tracked().flags(), CASTS, 'a mark of nothing')
+  for (const mark of [MARK_BITS.worldRoot, MARK_BITS.movable])
+    assert.equal(tracked(mark).flags(), CASTS, `the other bits are the maps’: ${mark}`)
+  assert.equal(tracked(SHADOWLESS_ROOT).flags(), F.visible | F.virtualized, 'casts none')
   assert.equal(
-    tracked().flags(),
-    CASTS | F.farTestable,
-    'a mark of nothing: the view’s rule decides',
-  )
-  assert.equal(tracked(MARK_BITS.farTest).flags(), CASTS | F.farTestable | F.farTested)
-  assert.equal(
-    tracked(MARK_BITS.worldRoot).flags(),
-    CASTS | F.farTestable | F.farTested,
-    'the world’s shells',
-  )
-  assert.equal(tracked(MARK_BITS.farSkip).flags(), CASTS, 'never reached')
-  assert.equal(
-    tracked(MARK_BITS.farTest | MARK_BITS.farSkip).flags(),
-    CASTS,
-    'never, whatever else it says',
-  )
-  assert.equal(tracked(FAR_SHADOW_ROOT).flags(), CASTS | F.farTestable | F.castsFar)
-  assert.equal(
-    tracked(SHADOWLESS_ROOT).flags(),
-    F.visible | F.virtualized | F.farTestable,
-    'casts none',
+    tracked(WORLD_SPACE_ROOT).flags(),
+    F.visible | F.virtualized,
+    'casts into the first-person clipmaps alone',
   )
 })
 
-test('the placements the cascade shadows whatever the view says are counted as they come, change and go', () => {
-  const seen = tracked(MARK_BITS.farTest)
-  assert.equal(seen.tracker.farShadowObjects, 1)
-  for (const mark of [
-    undefined,
-    FAR_SHADOW_ROOT | MARK_BITS.farTest,
-    SHADOWLESS_ROOT | MARK_BITS.farTest,
-  ])
-    assert.equal(tracked(mark).tracker.farShadowObjects, 0, `${mark}`)
-  // The root's mark changes: the placement is polled again and written with its new flags.
-  seen.root.mark = FAR_SHADOW_ROOT | MARK_BITS.farTest
+test('a root whose mark changes has its placement polled again and written with its new flags', () => {
+  const seen = tracked(MARK_BITS.movable)
+  seen.tracker.takeUpload()
+  seen.root.mark = SHADOWLESS_ROOT
   seen.tracker.sync(seen.roots, () => false, 0, 1e9)
-  assert.equal(seen.tracker.farShadowObjects, 0)
-  assert.equal(seen.flags() & F.castsFar, F.castsFar)
-  seen.root.mark = MARK_BITS.worldRoot
-  seen.tracker.sync(seen.roots, () => false, 0, 1e9)
-  assert.equal(seen.tracker.farShadowObjects, 1)
+  assert.equal(seen.flags(), F.visible | F.virtualized)
   assert.deepEqual(seen.tracker.takeUpload(), [0], 'its record is written again')
-  // Gone with its root.
-  seen.tracker.sync([], () => false, 1, 1e9)
-  assert.equal(seen.tracker.farShadowObjects, 0)
 })

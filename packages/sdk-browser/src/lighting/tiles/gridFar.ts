@@ -1,8 +1,4 @@
-import {
-  LIGHT_KIND,
-  LIGHT_KIND_SPAN,
-  LIGHT_SETTINGS,
-} from '../../../../sdk-core/src/scene/light/contracts.ts'
+import { LIGHT_KIND, LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { LIGHT_FIELD, baseOf } from '../../../../sdk-core/src/scene/light/fields.ts'
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 
@@ -19,7 +15,7 @@ export function lightGridFar(
   let far = Math.max(LIGHT_SETTINGS.gridFarFloor, 2 * near)
   for (let slot = 0; slot < count; slot++) {
     const base = baseOf(slot)
-    if (packed[base + LIGHT_FIELD.kind] % LIGHT_KIND_SPAN === LIGHT_KIND.directional) continue
+    if (store.kindOf(slot) === LIGHT_KIND.directional) continue
     const at = base + LIGHT_FIELD.position
     const depth =
       forward[0] * (packed[at] - eye[0]) +

@@ -29,18 +29,15 @@ import {
   VSM_RENDER_RASTER_VERTEX_SPECS,
 } from './render/renderRasterWgsl.ts'
 import { SHADOW_POOL_BYTES } from '../../../session/memory/shadowBudgetBytes.ts'
-import { dynamicHzbOf, vsmLayout, type VsmLayout, type VsmResourceOptions } from './layout.ts'
-import { noDofBias } from './dofBias.ts'
-import { writeVsmUniforms, type VsmFrameUniforms } from './uniforms.ts'
+import { vsmLayout, type VsmResourceOptions } from './layout.ts'
 import { vsmResourceBytes } from './layoutBytes.ts'
-import { askedOfLayout, engineVsmOptions } from './frame/vsmLightMaps.ts'
 import { MIB } from '../../../../../math/src/constants.ts'
 import { madeTextureBytes } from '../../../gpu/core/textureBytes.ts'
 import { keepOcclusionTables } from './occlusion/occlusionPass.ts'
-import { VSM_KEPT_RECTS_WIDTH, VSM_POOL_PAGES, VSM_UNIFORMS_BYTES } from './constants.ts'
+import { VSM_KEPT_RECTS_WIDTH } from './constants.ts'
 
 /** The shadows' GPU share in MiB (`SHADOW_POOL_BYTES`), the occlusion culling's resources in it. */
-const SHADOW_MIB = 880
+const SHADOW_MIB = 902
 /** Directional maps a sun takes: its clipmap levels (`encodeVsm.ts`). */
 const LEVELS = 17
 const SHARED = ['pageTable', 'receiverCover', 'staleRects'] as const
@@ -60,17 +57,20 @@ const madeBytes = (fake: ReturnType<typeof fakeDevice>) =>
 
 const CASES: [string, VsmResourceOptions, number?][] = [
   // As the engine makes them (`createEngineVsm`): two page-table rows, the mask for two suns.
-  ['one sun', { fullMapCapacity: 127, sunMapCapacity: 2 * LEVELS + 1 }],
-  ['one sun, the mask its own levels', { fullMapCapacity: 127, sunMapCapacity: 18 }],
-  ['three suns', { fullMapCapacity: 127, sunMapCapacity: 3 * LEVELS + 1 }],
-  ['127 maps, every one directional', { fullMapCapacity: 127 }],
-  ['255 maps, the pool in parts', { fullMapCapacity: 255 }, 8 * MIB],
-  ['a 4096-page pool', { fullMapCapacity: 127, poolPages: 4096 }],
-  ['no masks, no cache slice', { fullMapCapacity: 63, coverMode: 'none', cacheEnabled: false }],
-  ['no occlusion culling', { fullMapCapacity: 127, occlusion: false }],
+  ['one sun', { coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 2 * LEVELS + 1 }],
+  [
+    'one sun, the mask its own levels',
+    { coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 18 },
+  ],
+  ['three suns', { coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 3 * LEVELS + 1 }],
+  ['127 maps, every one directional', { coverMode: 'suns', fullMapCapacity: 127 }],
+  ['255 maps, the pool in parts', { coverMode: 'suns', fullMapCapacity: 255 }, 8 * MIB],
+  ['a 4096-page pool', { coverMode: 'suns', fullMapCapacity: 127, poolPages: 4096 }],
+  ['no masks, no cache slice', { coverMode: 'none', fullMapCapacity: 63, cacheEnabled: false }],
+  ['no occlusion culling', { coverMode: 'suns', fullMapCapacity: 127, occlusion: false }],
   [
     'the receiver cover of every map',
-    { fullMapCapacity: 127, sunMapCapacity: 18, localCover: true },
+    { coverMode: 'all', fullMapCapacity: 127, sunMapCapacity: 18 },
   ],
 ]
 
@@ -86,7 +86,7 @@ for (const [name, options, binding] of CASES)
 
 test('the page table, receiver covers and uncached rects are one buffer for both frames', () => {
   const fake = deviceFor()
-  const res = createVsmResources(fake.device, { fullMapCapacity: 127 })
+  const res = createVsmResources(fake.device, { coverMode: 'suns', fullMapCapacity: 127 })
   const [a, b] = res.frames
   for (const member of SHARED) {
     assert.equal(a[member], b[member], member)
@@ -105,6 +105,7 @@ test('the page table, receiver covers and uncached rects are one buffer for both
   // One copy fewer of each: 33.5 MiB at the engine's one-sun set (page table 12 MiB, masks
   // 17.5 MiB — its suns' maps, no single-page entry —, stale rects 4 MiB, a layer's each).
   const sun = createVsmResources(deviceFor().device, {
+    coverMode: 'suns',
     fullMapCapacity: 127,
     sunMapCapacity: 2 * LEVELS + 1,
   })
@@ -116,7 +117,7 @@ test('the page table, receiver covers and uncached rects are one buffer for both
 
 test('destroy frees every buffer once, the shared ones included, and the occlusion textures', () => {
   const fake = deviceFor()
-  const res = createVsmResources(fake.device, { fullMapCapacity: 127 })
+  const res = createVsmResources(fake.device, { coverMode: 'suns', fullMapCapacity: 127 })
   res.destroy()
   const made = [...fake.buffers, ...fake.textures] as { label?: string }[]
   // The pyramid and both frame sets' kept tables: a page table, marks and rects each.
@@ -127,7 +128,7 @@ test('destroy frees every buffer once, the shared ones included, and the occlusi
 })
 
 test("a swap exchanges the doubled members and keeps the shared ones; prev binds last frame's", () => {
-  const res = createVsmResources(deviceFor().device, { fullMapCapacity: 127 })
+  const res = createVsmResources(deviceFor().device, { coverMode: 'suns', fullMapCapacity: 127 })
   const [a, b] = res.frames
   res.swapFrames()
   assert.equal(res.current, b)
@@ -146,7 +147,7 @@ test("a swap exchanges the doubled members and keeps the shared ones; prev binds
 })
 
 test("no pass binds a shared member as last frame's: such a spec is refused at its shader", () => {
-  const layout = vsmLayout({ fullMapCapacity: 127 })
+  const layout = vsmLayout({ coverMode: 'suns', fullMapCapacity: 127 })
   for (const resource of SHARED)
     assert.throws(
       () => vsmBindingsWgsl(0, [{ resource, binding: 0, prev: true }], layout),
@@ -185,6 +186,7 @@ test('the projection buffer is a 400-byte record a slot, and the shadows hold th
   // record size that moved would move both and pass `world/budget.test.ts`: the numbers are here.
   const fake = deviceFor()
   const res = createVsmResources(fake.device, {
+    coverMode: 'suns',
     fullMapCapacity: 63,
     sunMapCapacity: 18,
   })
@@ -201,7 +203,8 @@ test('the projection buffer is a 400-byte record a slot, and the shadows hold th
   // now (`vsmRecordCapacity`, the reference's rule: 128 MiB more than at 2²¹). Then
   // the occlusion culling: its pyramid (85⅓ MiB at 4096 pages: 8192 × 2048 texels at level 0, seven
   // levels), both frame sets' kept tables (32 MiB: a page table, its marks and the stale rects each),
-  // its page list and arguments, and the records' 96 more bytes (6.3 MiB over both frames).
+  // its page list and arguments, and the records' 96 more bytes (6.3 MiB over both frames); then
+  // the receiver cover of every map, the largest the settings make (22.5 MiB over the suns' alone).
   assert.equal(SHADOW_POOL_BYTES / MIB, SHADOW_MIB)
 })
 
@@ -211,7 +214,7 @@ test('the projection buffer is a 400-byte record a slot, and the shadows hold th
 // frame where the whole tables were 12 MiB and 4 MiB of rects.
 test('the kept tables copy the blocks and rects of the frame’s maps alone', () => {
   const fake = deviceFor()
-  const res = createVsmResources(fake.device, { fullMapCapacity: 127 })
+  const res = createVsmResources(fake.device, { coverMode: 'suns', fullMapCapacity: 127 })
   const copied = (mapCount: number, blocks: number) => {
     fake.textureBufferCopies.length = 0
     const encoder = fake.device.createCommandEncoder()
@@ -248,55 +251,4 @@ test('the kept tables copy the blocks and rects of the frame’s maps alone', ()
     many.bytes,
     2 * 70 * 128 * 192 * 4 + many.regions.at(-1)![1]! * VSM_KEPT_RECTS_WIDTH * 16,
   )
-})
-
-test('the receiver cover holds the suns’ maps, or every map’s with localCover', () => {
-  const suns = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 18 })
-  const every = vsmLayout({ fullMapCapacity: 127, sunMapCapacity: 18, localCover: true })
-  assert.deepEqual([suns.coverLocal, every.coverLocal], [false, true])
-  assert.ok(every.coverWords > suns.coverWords)
-  assert.deepEqual(every.coverSize, vsmLayout({ fullMapCapacity: 127 }).coverSize, 'a block a map')
-})
-
-test('the engine’s set options carry the kept pages and the local cover into its layout', () => {
-  const layout = (cacheEnabled: boolean, localCover: boolean) =>
-    vsmLayout(
-      engineVsmOptions(63, 17, {
-        poolPages: VSM_POOL_PAGES,
-        occlusion: true,
-        dynamicHzb: true,
-        cacheEnabled,
-        localCover,
-      }),
-    )
-  const [kept, uncached, covered] = [layout(true, false), layout(false, false), layout(true, true)]
-  // The static slice word of the uniform block (word 6): 1 with the cache, else 0.
-  const sliceWord = (layout: VsmLayout) => {
-    const image = new ArrayBuffer(VSM_UNIFORMS_BYTES)
-    writeVsmUniforms(image, layout, { dof: noDofBias() } as VsmFrameUniforms)
-    return new Uint32Array(image)[6]
-  }
-  assert.deepEqual(
-    [kept.cacheEnabled, sliceWord(kept), kept.hzbLayers, kept.coverLocal],
-    [true, 1, 2, false],
-  )
-  assert.deepEqual(
-    [uncached.cacheEnabled, sliceWord(uncached), uncached.hzbLayers],
-    [false, 0, 1],
-    'no static slice, one layer',
-  )
-  assert.deepEqual([covered.cacheEnabled, sliceWord(covered), covered.coverLocal], [true, 1, true])
-  // What a set holds of the options reads back from its layout, the second layer as asked where on.
-  assert.deepEqual(askedOfLayout(covered), {
-    poolPages: covered.poolPages,
-    occlusion: true,
-    dynamicHzb: true,
-    cacheEnabled: true,
-    localCover: true,
-  })
-  assert.equal(askedOfLayout(uncached).dynamicHzb, false, 'no second layer without the cache')
-  // The second layer asked without the pyramid is no layer: the one rule the held set is weighed by.
-  const blind = vsmLayout({ fullMapCapacity: 63, occlusion: false, dynamicHzb: true })
-  assert.equal(blind.hzbLayers, 1)
-  assert.equal(dynamicHzbOf(false, true, true), false)
 })

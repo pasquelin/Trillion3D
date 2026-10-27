@@ -5,15 +5,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
+import { functionsOf, wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
-import { vsmLayout } from '../layout.ts'
 import {
+  VSM_RENDER_ARGS_BIN,
   VSM_RENDER_ARGS_DRAW,
   VSM_RENDER_ARGS_SOFTWARE,
   VSM_RENDER_ARGS_SOFTWARE_STATIC,
   VSM_RENDER_ARGS_WGSL,
-  VSM_RENDER_CORNER_TIERS,
   VSM_RENDER_FAMILY,
   vsmRenderTierCorners,
   vsmRenderTierFamily,
@@ -21,10 +20,16 @@ import {
 } from './renderParamsWgsl.ts'
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
 import { vsmRasterPipe } from './renderPipes.ts'
+import { vsmRenderBinWgsl } from './renderBinWgsl.ts'
+import { Mat } from '../../../../materials/texture/shaderRunMatrix.fixture.ts'
+import { SUNS_LAYOUT } from '../layout.fixture.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+const LAYOUT = SUNS_LAYOUT
 const CULL = vsmRenderCullWgsl(LAYOUT)
 const C = wgslConstants(CULL)
+const BIN = vsmRenderBinWgsl(LAYOUT)
+/** The tiers of a family: the tiers of the raster over its families. */
+const VSM_RENDER_CORNER_TIERS = C.VSM_RENDER_TIERS / Object.keys(VSM_RENDER_FAMILY).length
 
 // A row takes the least tier of its family that holds its corners; the WGSL and the host agree on
 // each tier's corners.
@@ -114,7 +119,7 @@ test('the two-sided tiers’ pipelines cull no face', async () => {
 // dynamic's in the sorted list, the hardware tiers after both.
 test('the bin’s arguments size one software grid a layer and place the cursors', () => {
   const K = wgslConstants(VSM_RENDER_ARGS_WGSL)
-  const run = (dynamicCount: number, staticCount: number, tier0: number) => {
+  const run = (dynamicCount: number, staticCount: number, tier0: number, viewCount = 0) => {
     const counts = new Array(64).fill(0),
       args = new Array(128).fill(-1)
     counts[K.VSM_RENDER_COUNT_RECORDS] = dynamicCount + staticCount + tier0
@@ -126,7 +131,7 @@ test('the bin’s arguments size one software grid a layer and place the cursors
       counts,
       args,
       vsmStats: [],
-      params: { recordCapacity: 100 },
+      params: { recordCapacity: 100, viewCount },
     }).vsmRenderArgsBin()
     const cursor = (bin: number) => counts[K.VSM_RENDER_TIER_CURSOR + bin]
     return { args, cursor }
@@ -142,4 +147,79 @@ test('the bin’s arguments size one software grid a layer and place the cursors
   assert.equal(cursor(0), 8, 'the first tier after both')
   assert.equal(args[VSM_RENDER_ARGS_DRAW], 7 * vsmRenderTierCorners(0), 'its corners')
   assert.equal(args[VSM_RENDER_ARGS_DRAW + 2], 8 * vsmRenderTierCorners(0), 'from its first record')
+  // A thread a record, whatever the maps of the pass (the views are laid by their own kernel).
+  assert.equal(args[VSM_RENDER_ARGS_BIN], 1, 'fifteen records: one group')
+  assert.equal(run(5, 3, 7, 200).args[VSM_RENDER_ARGS_BIN], 1, 'two hundred maps: still one group')
+})
+
+// The bin marks the pages the cull matched and no other (the reference's cull marks the pages it
+// keeps by the flag mask): the mask is the layer's stale mark, or the wanted mark of a cache state that
+// turned, as the cull put it in the record.
+test('the bin matches the pages by the marks the cull put in the record', () => {
+  const K = wgslConstants(BIN)
+  const run = shaderRun<{
+    vsmRecordMarkMask(r: number[]): number
+    vsmRecordMarksMatch(marks: number, mask: number): boolean
+  }>(BIN, ['vsmRecordMarkMask', 'vsmRecordMarksMatch'], K)
+  const record = (y: number) => [0, y >>> 0, 0, 0]
+  assert.equal(run.vsmRecordMarkMask(record(0)), K.VSM_PAGE_DYNAMIC_STALE, 'the dynamic layer')
+  assert.equal(run.vsmRecordMarkMask(record(1 << 21)), K.VSM_PAGE_STATIC_STALE, 'the static layer')
+  assert.equal(run.vsmRecordMarkMask(record((1 << 21) | (1 << 19))), K.VSM_PAGE_WANTED, 'turned')
+  // A page of the other layer, stale there alone, is not marked drawn by a record of this one.
+  assert.equal(run.vsmRecordMarksMatch(K.VSM_PAGE_DYNAMIC_STALE!, K.VSM_PAGE_DYNAMIC_STALE!), true)
+  assert.equal(run.vsmRecordMarksMatch(K.VSM_PAGE_STATIC_STALE!, K.VSM_PAGE_DYNAMIC_STALE!), false)
+  assert.equal(run.vsmRecordMarksMatch(K.VSM_PAGE_STATIC_STALE!, K.VSM_PAGE_STATIC_STALE!), true)
+})
+
+// The view of each map of a pass is laid after the sorted list's records and their counts, a pass's
+// first map first, for the software raster to place its corners by: the columns of the shifted-to-map
+// matrix, then the origin shift's high part with the offsets' threshold, then its low part.
+test('the views of the maps are laid after the records and their counts, a map a thread', () => {
+  const K = wgslConstants(BIN)
+  const capacity = 10,
+    first = 2
+  const matrix = Array.from({ length: 16 }, (_, i) => i + 1)
+  const maps = Array.from({ length: 5 }, () => ({
+    ...{ shiftedToMapUv: new Mat(matrix), wpoThreshold: 0.25 },
+    ...{ originShiftHigh: [0.5, 1.5, 2.5], originShiftLow: [-1, -2, -3] },
+  }))
+  const sorted = Array.from(
+    { length: capacity + 1 + 3 * K.VSM_RENDER_SOFTWARE_VIEW_RECORDS! },
+    () => [0, 0, 0, 0],
+  )
+  shaderRun<{ vsmLayView(map: number): void }>(BIN, ['vsmLayView'], {
+    ...K,
+    sorted,
+    vsmProjectionData: maps,
+    params: { recordCapacity: capacity, viewFirst: first },
+  }).vsmLayView(4)
+  const bits = (values: number[]) => [...new Uint32Array(new Float32Array(values).buffer)]
+  const at = capacity + 1 + 2 * K.VSM_RENDER_SOFTWARE_VIEW_RECORDS!
+  assert.deepEqual(
+    sorted.slice(at, at + K.VSM_RENDER_SOFTWARE_VIEW_RECORDS!),
+    [
+      ...[0, 1, 2, 3].map((column) => bits(matrix.slice(4 * column, 4 * column + 4))),
+      bits([0.5, 1.5, 2.5, 0.25]),
+      bits([-1, -2, -3, 0]),
+    ],
+    'the third map of the pass: its columns, its origin shift and threshold',
+  )
+  assert.deepEqual(sorted[capacity], [0, 0, 0, 0], 'the counts’ word is not touched')
+})
+
+// A record is placed among its bin's by a counter add a subgroup (or a workgroup) and bin, not one a
+// record: the kernel itself takes no place of the counters, in either text.
+test('the bin takes its places a subgroup at a time, or a workgroup at a time without subgroups', () => {
+  for (const [code, uses, avoids] of [
+    [vsmRenderBinWgsl(LAYOUT, true), /subgroupExclusiveAdd\(/, /workgroupBarrier\(/],
+    [vsmRenderBinWgsl(LAYOUT, false), /workgroupBarrier\(/, /subgroup[A-Z]\w*\(/],
+  ] as const) {
+    assert.doesNotMatch(functionsOf(code, ['vsmRenderBin']), /atomicAdd\(/)
+    const place = functionsOf(code, ['vsmBinPlace'])
+    assert.match(place, uses)
+    assert.doesNotMatch(place, avoids)
+    // Every lane of the group calls it, before any lane leaves.
+    const kernel = functionsOf(code, ['vsmRenderBin'])
+    assert.ok(kernel.indexOf('vsmBinPlace(') < kernel.indexOf('return;'))
+  }
 })

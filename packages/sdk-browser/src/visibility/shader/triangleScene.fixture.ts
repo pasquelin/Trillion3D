@@ -20,9 +20,6 @@ export const STRUCTS = {
   determinant: (m: Mat3) => F32_SCOPE.dot(m[0], F32_SCOPE.cross(m[1], m[2])),
   // A scene's row holds its surface's record itself in its material word.
   materialAt: (record: unknown) => record,
-  bitcast_vec2f: builtins.bitcast_f32,
-  bitcast_vec3f: builtins.bitcast_f32,
-  bitcast_vec4f: builtins.bitcast_f32,
   bitcast_vec4u: builtins.bitcast_vec3u,
   i32: (x: number) => x | 0,
 }

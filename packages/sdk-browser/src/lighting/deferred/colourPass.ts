@@ -17,7 +17,7 @@ import { colourLayoutEntries, unlitLayoutEntries } from './layoutEntries.ts'
 import { createPassGroup } from './passGroup.ts'
 
 /** The lit image's target, cleared before the first draw writes every pixel of it. */
-export function colourTarget(label: string) {
+function colourTarget(label: string) {
   const target: GPURenderPassColorAttachment = {
     view: undefined as unknown as GPUTextureView,
     loadOp: 'clear',
@@ -47,7 +47,19 @@ export async function createSurfaceColourPass(device: GPUDevice, view: GPUBuffer
   ])
   const group = createPassGroup(device, layout)
   const { target, descriptor } = colourTarget(SURFACE_COLOUR_PASS)
+  // The same image's pass begun again, the image kept as it is: after a draw the pass could not hold.
+  const resumed = colourTarget(SURFACE_COLOUR_PASS)
+  resumed.target.loadOp = 'load'
   return {
+    /** Begins the lit image's render pass on `hdr` again, loaded and stored, its viewport the `width` × `height`
+     *  pixels drawn: the lights' draws that follow work the pass could not hold between them (the per-light
+     *  draws of `shadowOnePassProjection` false, which a projection separates). */
+    resume(encoder: GPUCommandEncoder, hdr: GPUTextureView, width: number, height: number) {
+      resumed.target.view = hdr
+      const pass = encoder.beginRenderPass(resumed.descriptor)
+      pass.setViewport(0, 0, width, height, 0, 1)
+      return pass
+    },
     /** Begins the lit image's render pass on `hdr`, cleared, its viewport the `width` × `height`
      *  pixels drawn; the caller records the draws into it and ends it. */
     begin(encoder: GPUCommandEncoder, hdr: GPUTextureView, width: number, height: number) {

@@ -12,13 +12,12 @@ import {
 } from './settingRules.ts'
 
 /**
- * THE VIEW'S SHADOW SETTINGS: how a directional light's shadows are cut by distance and how its far
- * casters are left out (`packages/sdk-browser/src/lighting/shadows/vsm/render/renderCandidatesWgsl.ts`),
- * and the shadow maps' own. A sun's shadow maps are cut from the eye's view, and a caster far past
- * the distance the sun's shadows are asked to reach is left out of them unless its object says it
- * still casts there (`castFarShadow`). The distance is the sun's own (`shadowDistance`, metres, per
- * light, `lightShadowOptions.ts`), scaled by the view's `shadowDistanceScale`; the edge the test
- * reaches lies a little past it, by the sun's near levels, their overlap and the cascades after
+ * THE VIEW'S SHADOW SETTINGS: how a directional light's shadows are cut by distance and the shadow
+ * maps' own. A sun's shadow maps are cut from the eye's view and take every cluster caster at any
+ * distance: the reference's far-shadow test reaches the subjects it gathers on the CPU, which are no
+ * cluster geometry, and every caster the engine draws is made of clusters. The distance is the sun's
+ * own (`shadowDistance`, metres, per light, `lightShadowOptions.ts`), scaled by the view's
+ * `shadowDistanceScale`; the edge of the sun's near levels lies a little past it, by the sun's near levels, their overlap and the cascades after
  * them (`sunCascades.ts`), which the quality levels write the rows of with the scale. The cascade
  * of the distance fields that follows the near levels, and the far levels, are shaped by the view's
  * settings listed in `sunShadowOptions.ts`. The raster draws every light's maps together, in as many
@@ -29,12 +28,9 @@ import {
 
 /** The settings of the shadows by field, each with the reference's default:
  *  `shadowDistanceScale`, 1, from 0 to 2 — the factor on every sun's shadow distance; 0 gives the
- *  culling nothing to test against, so it culls nothing —, `farShadowCulling`, on — whether a sun's
- *  shadow maps leave out the casters that lie past the edge of its shadow distance —,
- *  `farShadowCullsAllMeshes`, off — whether that test reaches every caster, or the merged far-field
- *  shells of the world's coarser levels and every caster that is none of them is kept: the objects
- *  drawn as themselves, at the finest level and as the instanced actors of the first, keep casting
- *  at any distance —, and the three that shape the edge of the test (`sunCascades`):
+ *  culling nothing to test against, so it culls nothing —, `farShadowCulling`, on — whether a sun has
+ *  a near edge and the distance-field cascade that follows it —, and the three that shape the edge
+ *  (`sunCascades`):
  *  `shadowNearLevels`, 10, from 0 to 10 — how many near levels the sun's shadows have, no more than
  *  the light's own `shadowCascades` —, `shadowOverlapScale`, 1, from 0 to 2 — the factor on the
  *  share of its span a level overlaps into the next — and `shadowFarField`, on — whether the
@@ -61,7 +57,6 @@ export const SHADOW_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     number('shadowDistanceScale', 1, [0, 2]),
     flag('farShadowCulling', true),
-    flag('farShadowCullsAllMeshes', false),
     integer('shadowNearLevels', 10, [0, 10]),
     number('shadowOverlapScale', 1, [0, 2]),
     flag('shadowFarField', true),

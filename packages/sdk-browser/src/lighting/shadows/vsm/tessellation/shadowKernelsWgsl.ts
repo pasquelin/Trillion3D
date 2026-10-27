@@ -11,10 +11,13 @@ import {
 import {
   ARG_END,
   ARG_MAX_TRIANGLES,
+  ARG_MAX_TRIANGLES_TWO_SIDED,
   ARG_START,
   ARG_VISIBLE,
+  ARG_VISIBLE_TWO_SIDED,
   BARYCENTRIC_ONE,
   DISPATCH_DRAW,
+  DISPATCH_DRAW_TWO_SIDED,
   DISPATCH_SEED,
 } from '../../../../visibility/tessellation/contract.ts'
 import { PATTERN_WGSL } from '../../../../visibility/tessellation/patchWgsl.ts'
@@ -46,8 +49,9 @@ import { wpoGraphWgsl } from '../../../../visibility/shader/wpoGraphWgsl.ts'
  * judges and cuts them level after level as the image's splitting does (`tessSplit`, over
  * `shapeWgsl.ts`), by the map's view (`vsmTessView`), a patch off the window its record draws being
  * gone (`vsmTessOnWindow`); the arguments' kernels size the seeding's dispatch by the records the
- * pass listed (`vsmTessSeedArgs`) and the draw by the patches the splitting listed and the most
- * triangles any of their patterns holds (`vsmTessDrawArgs`).
+ * pass listed (`vsmTessSeedArgs`) and the two draws, the one-sided rows' and the two-sided rows',
+ * by the patches the splitting listed for the rows of each kind, in a list of its own (`listVisible`,
+ * `listVisibleTwoSided`), and the most triangles any of their patterns holds (`vsmTessDrawArgs`).
  *
  * Group 1 of each: 0 the pass's parameters (at its dynamic offset), 1 its counters, 2 its records
  * sorted by tier (`vsmRenderBin`, read here); group 2 of the splitting: 0 the maps' projections.
@@ -113,10 +117,14 @@ ${RECORD_TOTAL}
  dispatch[at]=grid.x;dispatch[at+1u]=grid.y;dispatch[at+2u]=1u;
 }
 @compute @workgroup_size(1) fn vsmTessDrawArgs(){
- let at=tu.dispatch+${DISPATCH_DRAW}u;
- dispatch[at]=3u*tw(tu.args+${ARG_MAX_TRIANGLES}u);
- dispatch[at+1u]=min(tw(tu.args+${ARG_VISIBLE}u),tu.maxVisible);
- dispatch[at+2u]=0u;dispatch[at+3u]=0u;
+ let oneSided=tu.dispatch+${DISPATCH_DRAW}u;
+ dispatch[oneSided]=3u*tw(tu.args+${ARG_MAX_TRIANGLES}u);
+ dispatch[oneSided+1u]=min(tw(tu.args+${ARG_VISIBLE}u),tu.maxVisible);
+ dispatch[oneSided+2u]=0u;dispatch[oneSided+3u]=0u;
+ let twoSided=tu.dispatch+${DISPATCH_DRAW_TWO_SIDED}u;
+ dispatch[twoSided]=3u*tw(tu.args+${ARG_MAX_TRIANGLES_TWO_SIDED}u);
+ dispatch[twoSided+1u]=min(tw(tu.args+${ARG_VISIBLE_TWO_SIDED}u),tu.maxVisible);
+ dispatch[twoSided+2u]=0u;dispatch[twoSided+3u]=0u;
 }`
 
 /** Group 2 of the splitting: the maps' projections, at binding 0. */

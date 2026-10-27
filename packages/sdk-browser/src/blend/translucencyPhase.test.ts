@@ -10,6 +10,7 @@ import { layerDraws, splitsTranslucency } from './translucencyPhase.ts'
 import { poolPasses, translucencyPassBit, translucencyPassCode } from './translucencyPasses.ts'
 import { VIEW_COUNT, itemFilterWord, planFrameViews, slotMayDraw } from './expand/expansionViews.ts'
 import { createWebgpuBlendState } from './state.ts'
+import { TRI_RESPONSIVE_SHIFT } from './vertexReadsWgsl.ts'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { BLEND_SHADER } from '../gpu/core/shaderTexts.fixture.ts'
 
@@ -147,7 +148,10 @@ test('a layer marks its pixels responsive where its opacity is above 0 and under
   }>(BLEND_SHADER, ['blendResponsive'], {})
   const clip = Math.fround(0.3333)
   const view = (code: number) => ({
-    words: { x: code << 28, y: new Uint32Array(new Float32Array([clip]).buffer)[0] },
+    words: {
+      x: code << TRI_RESPONSIVE_SHIFT,
+      y: new Uint32Array(new Float32Array([clip]).buffer)[0],
+    },
   })
   // The code in thirds: none, a pixel animation, one whose history restarts.
   assert.deepEqual(

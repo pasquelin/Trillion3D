@@ -1,6 +1,6 @@
 // The shading models a graph picks per pixel (`shadingModelWgsl.ts`): the skin reads the imported table at
-// the cosine and the opacity, the hair is a finite non-negative term whose multiple scattering
-// is shadowed by the light's visibility, and sets no diffuse of the plain pixel; the eye's iris is lit by its own
+// the cosine and the opacity, the hair is a finite non-negative term that the surface shadow weighs no part of
+// (its transmission shadow tints it), and sets no diffuse of the plain pixel; the eye's iris is lit by its own
 // normal; a pixel of no model is left as it was.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -75,7 +75,7 @@ test('a skin reads the table at its cosine and opacity, times its subsurface col
   )
 })
 
-test('a hair term is finite, never negative, and its multiple scattering follows the light’s visibility', () => {
+test('a hair term is finite, never negative, and the surface shadow weighs none of it', () => {
   const at = run({ pixelModel: PIXEL_MODEL.hair, modelScatter: 1 })
   let lit = 0
   for (let i = 0; i < 200; i++) {
@@ -108,38 +108,26 @@ test('a hair term is finite, never negative, and its multiple scattering follows
   const N = [0, 0, 1],
     V = [1, 0, 0],
     L = [0, 1, 0]
-  const lit1 = at.modelTransmission(
-    [0.4, 0.3, 0.2],
-    0.4,
-    N,
-    V,
-    L,
-    L,
-    0.5,
-    0,
-    terms(1),
-    false,
-    false,
-    1,
-  ) as number[]
-  const dark = at.modelTransmission(
-    [0.4, 0.3, 0.2],
-    0.4,
-    N,
-    V,
-    L,
-    L,
-    0.5,
-    0,
-    terms(0),
-    false,
-    false,
-    1,
-  ) as number[]
-  assert.ok(lit1.every((x, c) => x >= dark[c]))
+  // The surface shadow weighs none of a mesh's hair: an opaque visibility of 1.
+  const under = (surface: number) =>
+    at.modelTransmission(
+      [0.4, 0.3, 0.2],
+      0.4,
+      N,
+      V,
+      L,
+      L,
+      0.5,
+      0,
+      { surface, transmission: 1, thickness: 1 },
+      false,
+      false,
+      1,
+    ) as number[]
+  assert.deepEqual(under(0), under(1))
 })
 
-test('a hair’s tint follows the transmission shadow, its multiple scattering the surface shadow', () => {
+test('a hair’s tint follows the transmission shadow, and its multiple scattering is not shadowed by the surface shadow', () => {
   const at = run({ pixelModel: PIXEL_MODEL.hair, modelScatter: 1 })
   // The fibre along N, the eye and the light square to it: sin of both angles is 0, where the lobes carry light.
   const N = [0, 0, 1],
@@ -160,15 +148,12 @@ test('a hair’s tint follows the transmission shadow, its multiple scattering t
       false,
       1,
     ) as number[]
-  const open = hair(1, 1)
-  // The occlusion of a light with no shadow bits is the surface shadow's alone: the scattering lowers.
-  const occluded = hair(0.5, 1)
-  assert.ok(
-    occluded.every((x, c) => x <= open[c]) && occluded.some((x, c) => x < open[c]),
-    `${occluded} against ${open}`,
-  )
-  // Its tint is the transmission shadow's: the same surface shadow under another transmission tints it.
-  assert.notDeepEqual(occluded, hair(0.5, 0.5))
+  // A mesh's hair lights with an opaque visibility of 1: the occlusion of a light with no shadow bits, which is the
+  // surface shadow, lowers nothing of it.
+  assert.deepEqual(hair(0.5, 1), hair(1, 1))
+  assert.deepEqual(hair(0, 1), hair(1, 1))
+  // Its tint is the transmission shadow's: another transmission tints it, whatever the surface shadow.
+  assert.notDeepEqual(hair(0.5, 1), hair(0.5, 0.5))
   assert.notDeepEqual(hair(1, 0.5), hair(1, 1))
 })
 

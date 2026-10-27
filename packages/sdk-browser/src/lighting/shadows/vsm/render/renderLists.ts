@@ -11,7 +11,11 @@ import {
   VSM_RENDER_LIGHT_BYTES,
   VSM_RENDER_RECORD_BYTES,
 } from '../constants.ts'
-import { VSM_RENDER_ARGS_WORDS, vsmCountWords } from './renderParamsWgsl.ts'
+import {
+  VSM_RENDER_ARGS_WORDS,
+  VSM_RENDER_SOFTWARE_VIEW_RECORDS,
+  vsmCountWords,
+} from './renderParamsWgsl.ts'
 import { renderTarget, type VsmRenderContext } from './renderPipes.ts'
 
 /** The lists the raster holds, by name: the view passes' parameters, the views the GPU lists, the
@@ -26,28 +30,36 @@ export type VsmListSizes = Record<VsmListName, number>
 /** Bytes a list holds at least: a binding is never empty. */
 const LIST_FLOOR = 256
 
-/** The sizes of the lists of a frame of `passes` view passes, under `viewWords` words of views and
- *  `lights` lights, for `casters` candidates and `records` records a pass, the parameters'
- *  slots `slots` apart, the counters followed by `feedbackWords` words of the compute throttle's counts
- *  (`vsmFeedbackWords`, none by default): rewritten in place in `into`. */
+/** The records the sorted list holds past the record list's capacity: the software counts' word and,
+ *  where the views of the maps are laid in it (`laid`: `vsmViewsLaid`), the views of `maps` maps a
+ *  view pass holds at most (`VSM_RENDER_SOFTWARE_VIEWS_WGSL`). */
+export const vsmSortedExtraRecords = (maps: number, laid: boolean) =>
+  1 + (laid ? VSM_RENDER_SOFTWARE_VIEW_RECORDS * maps : 0)
+
+/** The sizes of the lists of a frame of `passes` view passes, of at most `mostMaps` maps each, for
+ *  `lights` lights, `casters` candidates and `records` records a pass, the parameters' slots
+ *  `slots` apart, the counters followed by `feedbackWords` words of the compute throttle's counts
+ *  (`vsmFeedbackWords`, none by default): rewritten in place in `into`. `laid`: the sorted list holds
+ *  the views of the maps too. */
 export function vsmListSizes(
   into: VsmListSizes,
   slots: UniformSlots,
   passes: number,
-  viewWords: number,
+  mostMaps: number,
   lights: number,
   casters: number,
   records: number,
   feedbackWords = 0,
+  laid = false,
 ) {
   into.params = passes * slots.stride
-  into.views = viewWords * 4
+  // A group a light and a view a map, four words a view.
+  into.views = 4 * (lights + mostMaps) * 4
   into.lights = lights * VSM_RENDER_LIGHT_BYTES
   into.candidates = casters * VSM_RENDER_CANDIDATE_BYTES
   into.counts = vsmCountWords(feedbackWords) * 4
   into.records = records * VSM_RENDER_RECORD_BYTES
-  // The software records' counts at the capacity's place (`vsmRenderBin`).
-  into.sorted = into.records + VSM_RENDER_RECORD_BYTES
+  into.sorted = (records + vsmSortedExtraRecords(mostMaps, laid)) * VSM_RENDER_RECORD_BYTES
   into.args = VSM_RENDER_ARGS_WORDS * 4
   return into
 }
@@ -110,12 +122,23 @@ export function vsmContextBytes(ctx: VsmRenderContext | undefined) {
 export function vsmRenderFloorBytes(
   slots: UniformSlots,
   passes: number,
-  viewWords: number,
+  mostMaps: number,
   lights: number,
   casters: number,
   records: number,
+  laid: boolean,
 ) {
-  if (casters <= 0 || viewWords <= 0) return 0
-  const sizes = vsmListSizes({} as VsmListSizes, slots, passes, viewWords, lights, casters, records)
+  if (casters <= 0 || lights + mostMaps <= 0) return 0
+  const sizes = vsmListSizes(
+    {} as VsmListSizes,
+    slots,
+    passes,
+    mostMaps,
+    lights,
+    casters,
+    records,
+    0,
+    laid,
+  )
   return textureBytesOf(renderTarget())! + vsmListGrowth({}, sizes)
 }

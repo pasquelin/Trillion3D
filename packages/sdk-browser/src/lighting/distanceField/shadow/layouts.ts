@@ -19,7 +19,7 @@ import {
 const VERTEX = 1
 const FRAGMENT = 2
 
-type Name = Exclude<keyof typeof B, 'objects' | 'depth' | 'flags'>
+type Name = Exclude<keyof typeof B, 'objects' | 'depth' | 'flags' | 'subsurface'>
 
 /** A light's uniform, read at the offset of its block: one binding, a dynamic offset a light. */
 const params = (stage = COMPUTE) =>
@@ -33,7 +33,8 @@ const { read, write } = storageEntries<Name>(B)
 /**
  * THE LAYOUTS OF THE SUN'S SHADOW PROGRAMS' GROUP 0, one per program (`DFSH_PROGRAMS`), each the
  * bindings the program names. The scatter's draw sees the list of meshes from the vertex stage, the
- * meshes' data from both its stages and the tiles' lists from the fragment stage.
+ * meshes' data from both its stages and the tiles' lists from the fragment stage; the gather trace
+ * reads the list of the culled meshes and their count in place of the tiles' lists.
  */
 export const DFSH_LAYOUTS = {
   cull: [
@@ -55,9 +56,20 @@ export const DFSH_LAYOUTS = {
     params(),
     ...hizDepthEntries(B.depth, COMPUTE),
     computeTextureEntry(B.flags, 'uint'),
+    computeTextureEntry(B.subsurface, 'unfilterable-float'),
     read('tileOffsets'),
     read('tileCounts'),
     read('tileData'),
+    computeStorageTextureEntry(B.half, DFSH_HALF_FORMAT),
+    ...sceneObjectEntries(B.objects, true),
+  ],
+  traceGather: [
+    params(),
+    ...hizDepthEntries(B.depth, COMPUTE),
+    computeTextureEntry(B.flags, 'uint'),
+    computeTextureEntry(B.subsurface, 'unfilterable-float'),
+    read('culledObjects'),
+    read('objectArgs'),
     computeStorageTextureEntry(B.half, DFSH_HALF_FORMAT),
     ...sceneObjectEntries(B.objects, true),
   ],

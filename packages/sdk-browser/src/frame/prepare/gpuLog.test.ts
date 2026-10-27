@@ -55,7 +55,12 @@ test('silent without the flag', () => {
 test('the device once, then a line every 60 images: passes, sizes, the dispatch', () => {
   const lines = logged('?trillion3dGpuLog=1', [12, 24, 72, 84, 133])
   assert.equal(lines.length, 4)
-  assert.match(lines[0], /^\[T3D-GPU\] subgroups yes \(sizes 4-64\)$/)
+  assert.equal(
+    lines[0],
+    '[T3D-GPU] subgroup sizes 4-64 | subgroups native, f16 polyfill, float32Filterable polyfill,' +
+      ' float32Blendable polyfill, wideAtomics polyfill, textureTier1 polyfill, textureTier2 polyfill,' +
+      ' clipDistances polyfill, dualSource polyfill',
+  )
   assert.equal(
     lines[1],
     '[T3D-GPU] frame 12 gpu 15.25 ms pairs valid 3 unwritten 0 invalid 0 drawn 1440x900 display 2880x1800 projection 180x113 groups' +

@@ -13,6 +13,7 @@ import type { Box3 } from '../math/box3.ts'
 import type { SceneLink } from './sceneLink.ts'
 import { defineOffsetSwitches, type ShadowCacheInvalidation } from './offsetSwitches.ts'
 import type { ObjectMobility } from '../../contracts/objectAbi.ts'
+import type { LightingChannels } from '../../contracts/lightingChannelsAbi.ts'
 
 /** Scratch values of the pose methods below — the world reads too: none of them allocates. */
 const aim = new Vector3(),
@@ -72,20 +73,23 @@ export class Object3D extends TransformNode {
     this._castShadow = value
     this._link?.shadow?.(this)
   }
-  private _castFarShadow = false
-  /** Whether the node still casts into a directional light's shadows past that light's far-shadow
-   *  edge (`shadowDistance`, a little farther): a caster the test reaches is left out of them there
-   *  unless it is set `true`; `false` by default, on every node. By default the test reaches the
-   *  world's merged far-field shells alone, and every caster with the view's
-   *  `farShadowCullsAllMeshes`. Read with `castShadow`: a node that casts none casts none far. A
-   *  compiled object takes the job's `castFarShadow` of its object settings. */
-  get castFarShadow() {
-    return this._castFarShadow
+  private _castsShadowMaps = true
+  /** Whether the node's surface is drawn into the lights' shadow maps: `true` by default, on every
+   *  node. A mesh is one primitive of its model, one material: set `false`, that primitive leaves
+   *  the shadow maps and, while another primitive of its model casts into them, nothing else — the
+   *  distance fields, the global illumination, the contact shadows and the views still hold it. A
+   *  model none of whose primitives casts into the maps (a model of one primitive set `false` is one)
+   *  casts nothing at all, the distance fields' shadows included, as one mesh does. A node that casts
+   *  none at all says `castShadow = false`, which gates first: `castsShadowMaps = true` never makes a
+   *  node with `castShadow = false` cast. A thin opaque trim that costs shadow pages for a shadow
+   *  nobody reads wants it off. */
+  get castsShadowMaps() {
+    return this._castsShadowMaps
   }
-  set castFarShadow(value: boolean) {
-    if (value === this._castFarShadow) return
+  set castsShadowMaps(value: boolean) {
+    if (value === this._castsShadowMaps) return
     noteNodeWrite(this)
-    this._castFarShadow = value
+    this._castsShadowMaps = value
     this._link?.shadow?.(this)
   }
   private _farField = false
@@ -132,22 +136,21 @@ export class Object3D extends TransformNode {
    *  (`primitiveAlphaHoldout`, `propagateAlpha`) its pixels draw black, lit by nothing, and punch a hole
    *  in it; `false` by default. */
   declare holdout: boolean
-  private _farShadowTest: boolean | null = null
-  /** Whether a directional light's far-shadow test reaches the node: `true`, a caster the test
-   *  leaves out past the light's far-shadow edge unless it sets `castFarShadow`, however the view
-   *  is set; `false`, the test never leaves it out; `null`, the default, the view's rule decides —
-   *  the world's merged far-field shells alone, or every caster with `farShadowCullsAllMeshes`.
-   *  A compiled object takes the job's `farShadowTest` of its object settings, which a value set
-   *  here overrides. */
-  get farShadowTest() {
-    return this._farShadowTest
-  }
-  set farShadowTest(value: boolean | null) {
-    if (value === this._farShadowTest) return
-    noteNodeWrite(this)
-    this._farShadowTest = value
-    this._link?.shadow?.(this)
-  }
+  /** Whether the object stops the contact shadow rays the lights cast from the pixels around it
+   *  (`contactShadows`, a light's `contactShadowLength`): `true` by default; `false` lets the rays
+   *  through the object's pixels, which then cast no contact shadow, whatever its material. */
+  declare castContactShadow: boolean
+  /** The lighting channels the object is in (`{ channel0, channel1, channel2 }`, each true or false):
+   *  a light lights its surfaces, and its shadow holds it, only where the object and the light share a
+   *  channel (`SceneLight.lightingChannels`). Channel 0 alone by default; no channel at all is legal
+   *  and lights the object by no light. The value read is frozen: write a whole set to change it. */
+  declare lightingChannels: Readonly<LightingChannels>
+  /** Whether the object is hidden from the views that belong to its owner (a camera whose `owner` is
+   *  this object or a node above it), still drawn for every other view; `false` by default. */
+  declare ownerNoSee: boolean
+  /** Whether the object is drawn for the views that belong to its owner alone, hidden from every
+   *  other view, those of cameras that name no owner included; `false` by default. */
+  declare onlyOwnerSee: boolean
   override get parent(): Object3D | null {
     return super.parent as Object3D | null
   }

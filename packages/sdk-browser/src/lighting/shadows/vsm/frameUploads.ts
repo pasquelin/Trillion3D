@@ -3,9 +3,16 @@
  * next-map data the page address update reads, by previous id — each where it changed alone.
  */
 import { VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
+import {
+  VSM_HISTORY_BLEND_WORD,
+  VSM_HISTORY_SUN_WORD,
+  VSM_MAP_PREFILTERED_DISTANT,
+  vsmHistoryLayout,
+} from './prefilteredConstants.ts'
 import { writeVsmProjectionData } from './projection/projectionData.ts'
 import { writeChanged, writeChangedRecords } from '../../../gpu/core/writeChanged.ts'
 import { wordViews } from '../../../gpu/core/wordViews.ts'
+import { f32Bits } from '../../../../../math/src/float/bits.ts'
 import { uniqueSortedInPlace } from '../../../../../math/src/scalar/integers.ts'
 import { VSM_NEXT_MAP_BYTES, type VsmMapIds } from './mapIds.ts'
 import type { VsmFrameState } from './frameState.ts'
@@ -71,4 +78,46 @@ export function uploadNextMaps(state: VsmFrameState, ids: VsmMapIds) {
     distinct,
     VSM_NEXT_MAP_BYTES / 4,
   )
+}
+
+/**
+ * The prefiltered distant shadow's history, the words the frame's plan owns, where they changed alone:
+ * whether the frame has a map that holds the feature (`filterable.active`), the share of the previous
+ * frame the filter keeps (the setting's, 0 while the history holds no frame or the frame no such map)
+ * and each of the suns' current map ids' previous id + 1, from the next-map data the ids hold — 0 for a
+ * map with no previous one, as the reference's inverse of its next-map data. The suns' maps are
+ * addressed from the first of them (`VsmMapIds.sunBase`), this frame's in the ids and the previous
+ * frame's (`VsmCacheManager.prevFrame`) in the records, whose first the GPU is told. The regions the
+ * frame end copies (the records, the page table, the receiver cover) are the GPU's.
+ */
+export function uploadFilterableHistory(state: VsmFrameState, ids: VsmMapIds) {
+  const { device, resources, cache } = state,
+    { filterable, layout } = resources
+  if (!filterable) return
+  filterable.active = false
+  for (const entry of cache.entries.values())
+    if (entry.mapId >= 0)
+      for (const map of entry.mapCaches)
+        filterable.active ||= (map.projectionData.flags & VSM_MAP_PREFILTERED_DISTANT) !== 0
+  const { idsWord, idWords } = vsmHistoryLayout(layout)
+  const image = (state.filterableHistory =
+    state.filterableHistory?.length === idsWord + idWords
+      ? state.filterableHistory
+      : new Uint32Array(idsWord + idWords))
+  const valid = filterable.active && filterable.historyValid
+  image.fill(0, VSM_HISTORY_BLEND_WORD)
+  if (valid) {
+    image[VSM_HISTORY_BLEND_WORD] = f32Bits(
+      state.maps.shadows.shadowPrefilteredDistantHistoryBlendFactor,
+    )
+    image[VSM_HISTORY_SUN_WORD] = ids.sunBase
+    const prevBase = cache.prevFrame?.sunBase ?? 0
+    for (let j = 0; j < ids.nextMapIdCount; j++) {
+      const prev = ids.nextMapIds[j] - prevBase,
+        next = ids.nextMaps[ids.nextMapIds[j]].nextMapId - ids.sunBase
+      if (prev >= 0 && prev < idWords && next >= 0 && next < idWords)
+        image[idsWord + next] = prev + 1
+    }
+  }
+  writeChanged(device, filterable.history, image, VSM_HISTORY_BLEND_WORD, idsWord + idWords)
 }

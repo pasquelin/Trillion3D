@@ -9,7 +9,7 @@ import {
   VSM_POOL_PAGES,
   VSM_PAGE_TEXELS,
   VSM_LEVEL0_PAGES,
-  VSM_RECORD_MAP_ID_BITS,
+  VSM_RECORD_MAP_COUNT,
   VSM_PAGE_TABLE_BLOCK_HEIGHT,
   VSM_TABLE_ROW_WIDTH,
 } from './constants.ts'
@@ -21,7 +21,18 @@ import {
   nextPow2,
 } from '../../../../../math/src/scalar/integers.ts'
 
-type VsmCoverMode = 'directional' | 'none'
+/** The receiver cover masks a set makes, in the order of what they hold: none (a 1x1 stand-in for
+ *  the absent mask), the suns' maps', every map's (the local lights' too). */
+const VSM_COVER_MODES = ['none', 'suns', 'all'] as const
+export type VsmCoverMode = (typeof VSM_COVER_MODES)[number]
+/** Whether a cover made for `held` holds what one made for `asked` does. */
+/** The receiver cover the receiver-mask settings ask (`shadowUseReceiverMaskLocal`, `shadowUseReceiverMaskDirectional`): every map's where
+ *  the local one is on, the suns' where only the directional one is, none otherwise. */
+export const vsmCoverModeOf = (local: boolean, directional: boolean): VsmCoverMode =>
+  local ? 'all' : directional ? 'suns' : 'none'
+
+export const vsmCoverHolds = (held: VsmCoverMode, asked: VsmCoverMode) =>
+  VSM_COVER_MODES.indexOf(held) >= VSM_COVER_MODES.indexOf(asked)
 
 export interface VsmResourceOptions {
   /** Physical pages of the pool, default 2048; rounded up to whole pool rows. */
@@ -31,22 +42,23 @@ export interface VsmResourceOptions {
   fullMapCapacity: number
   /** Directional maps (clipmap levels), sizes the directional-only receiver cover. */
   sunMapCapacity?: number
-  /** Receiver cover kind; default the suns' (the local maps carry none). */
-  coverMode?: VsmCoverMode
+  /** The receiver cover: none, the suns' maps' (`shadowUseReceiverMaskDirectional`) or every map's
+   *  (`shadowUseReceiverMaskLocal`). */
+  coverMode: VsmCoverMode
   /** Map slots past one a block: at least the default; more as the lights ask them, up to the ids
    *  a map takes (`VSM_RECORD_MAP_ID_BITS`). */
   mapSlotsPast?: number
   /** Separate static cache slice; default true (cache on). */
   cacheEnabled?: boolean
-  /** The receiver cover holds every map's, the local lights' too (`shadowUseReceiverMaskLocal`), not
-   *  the suns' alone; default false. */
-  localCover?: boolean
   /** The occlusion culling of the casters against the maps' depth pyramid (`shadowOcclusionCulling`):
    *  the pyramid and the tables it is read through are made with the set; default true. */
   occlusion?: boolean
   /** A second layer of that pyramid for the dynamic casters (`shadowDynamicHzb`), where the cache and
    *  the occlusion are on; default false. */
   dynamicHzb?: boolean
+  /** The suns' clipmaps hold a prefiltered shadow of their far levels (`shadowPrefilteredDistant`):
+   *  the filter's pools, lists and history are made with the set; default false. */
+  prefilteredDistant?: boolean
 }
 
 /** Everything derived from the options; also what `writeVsmUniforms` needs. */
@@ -70,8 +82,6 @@ export interface VsmLayout {
   markMipOffsets: number[]
   markWordCount: number
   coverMode: VsmCoverMode
-  /** Whether the cover holds every map (`localCover`). */
-  coverLocal: boolean
   coverSize: [number, number]
   coverMips: number
   coverMipOffsets: number[]
@@ -88,6 +98,11 @@ export interface VsmLayout {
   /** The depth pyramid's level 0, in texels: half the pool's power-of-two extent, one texel a 2x2
    *  of pool texels (`vsmPyramidSize`). */
   pyramidSize: [number, number]
+  /** Whether the set holds the prefiltered distant shadow's buffers (`prefilteredDistant`). */
+  prefilteredDistant: boolean
+  /** The page-table blocks the suns' clipmap maps take at most, the first of the table
+   *  (`tableBlocks.ts`): what the prefiltered shadow keeps of the previous frame. */
+  sunMapSlots: number
 }
 
 function mipChain(width: number, height: number, mips: number) {
@@ -114,24 +129,21 @@ const VSM_MAPS_PAST_BLOCKS = 1024 * 8
 export const POOL_PAGES_X = Math.floor(VSM_TABLE_ROW_WIDTH / VSM_PAGE_TEXELS)
 if (!isPow2(POOL_PAGES_X)) throw new Error('VSM: pool row must be a power of two pages')
 
-/** The cover masks' mode and size: directional maps take the first blocks (`tableBlocks.ts`), a full
- *  row only past one row, all the blocks with `localCover`; any other mode a 1x1 stand-in for the
- *  absent mask. */
-function coverLayout(options: VsmResourceOptions, maxFull: number) {
-  const coverMode: VsmCoverMode = options.coverMode ?? 'directional'
-  const coverLocal = options.localCover ?? false
-  let coverSize: [number, number], coverMips: number
-  if (coverMode === 'directional') {
-    const required = coverLocal ? maxFull : Math.max(1, options.sunMapCapacity ?? maxFull)
-    const rows = ceilDiv(required, VSM_TABLES_PER_ROW)
-    const rowEntries = rows === 1 ? required : VSM_TABLES_PER_ROW
-    coverSize = [2 * rowEntries * VSM_LEVEL0_PAGES, 2 * rows * VSM_PAGE_TABLE_BLOCK_HEIGHT]
-    coverMips = VSM_LOG2_PAGE + 1
-  } else {
-    coverSize = [1, 1]
-    coverMips = 1
+/** The cover masks' size: directional maps take the first blocks (`tableBlocks.ts`), a full row only
+ *  past one row, all the blocks with every map's (`'all'`); no cover a 1x1 stand-in for the absent
+ *  mask. */
+function coverLayout(coverMode: VsmCoverMode, maxFull: number, sunMaps: number) {
+  if (coverMode === 'none') return { coverSize: [1, 1] as [number, number], coverMips: 1 }
+  const required = coverMode === 'all' ? maxFull : sunMaps
+  const rows = ceilDiv(required, VSM_TABLES_PER_ROW)
+  const rowEntries = rows === 1 ? required : VSM_TABLES_PER_ROW
+  return {
+    coverSize: [2 * rowEntries * VSM_LEVEL0_PAGES, 2 * rows * VSM_PAGE_TABLE_BLOCK_HEIGHT] as [
+      number,
+      number,
+    ],
+    coverMips: VSM_LOG2_PAGE + 1,
   }
-  return { coverMode, coverLocal, coverSize, coverMips }
 }
 
 /** Whether the set holds the dynamic casters' own pyramid layer: the pyramid and a static slice to
@@ -163,11 +175,13 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
   const markMips = VSM_LOG2_PAGE
   const flags = mipChain(pageTableSize[0], pageTableSize[1], markMips)
 
-  const { coverMode, coverLocal, coverSize, coverMips } = coverLayout(options, maxFull)
+  const sunMaps = Math.max(1, options.sunMapCapacity ?? maxFull)
+  const { coverMode } = options
+  const { coverSize, coverMips } = coverLayout(coverMode, maxFull, sunMaps)
   const masks = mipChain(coverSize[0], coverSize[1], coverMips)
 
   const mapSlots = Math.min(
-    1 << VSM_RECORD_MAP_ID_BITS,
+    VSM_RECORD_MAP_COUNT,
     Math.max(VSM_MAPS_PAST_BLOCKS, options.mapSlotsPast ?? 0) + maxFull,
   )
   const hzbLayers = dynamicHzbOf(occlusion, cacheEnabled, options.dynamicHzb) ? 2 : 1
@@ -188,7 +202,6 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
     markMipOffsets: flags.offsets,
     markWordCount: flags.words,
     coverMode,
-    coverLocal,
     coverSize,
     coverMips,
     coverMipOffsets: masks.offsets,
@@ -198,6 +211,8 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
     hzbLayers,
     hzbStaticLayer: hzbLayers - 1,
     pyramidSize: vsmPyramidSize(poolTexelsXY),
+    prefilteredDistant: options.prefilteredDistant ?? false,
+    sunMapSlots: Math.min(maxFull, sunMaps),
   }
 }
 

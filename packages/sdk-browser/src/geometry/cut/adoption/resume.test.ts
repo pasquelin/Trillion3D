@@ -28,7 +28,7 @@ const viewSetOf = (
   clipPlane: ClipPlaneValues,
   hidden: readonly Object3D[] = [],
   showOnly: readonly Object3D[] | null = null,
-): ViewSet => Object.freeze({ clipPlane, hidden, showOnly })
+): ViewSet => Object.freeze({ clipPlane, hidden, showOnly, owner: null })
 
 test('a pending image requests, syncs and dispatches: resume has what it needs to happen', () => {
   const b = banc()

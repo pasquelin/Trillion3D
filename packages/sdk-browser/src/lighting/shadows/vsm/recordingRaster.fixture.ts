@@ -99,7 +99,11 @@ export function encodeRows(
   if (!res)
     rowResources.set(
       device,
-      (res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })),
+      (res = createVsmResources(device, {
+        coverMode: 'suns',
+        fullMapCapacity: 63,
+        poolPages: 256,
+      })),
     )
   const raster = recordingRaster(device, 200_000)
   const lights = [{ kind: 'directional' as const, firstId: 0, count: 17 }]
@@ -135,7 +139,7 @@ export async function encodeLights(
     limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27, ...limits },
   })
   const { device } = fake
-  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+  const res = createVsmResources(device, { coverMode: 'suns', fullMapCapacity: 63, poolPages: 256 })
   const raster = recordingRaster(device, 20_000)
   const frame = { device, lights },
     drawn = { ...raster.scene, ...scene }

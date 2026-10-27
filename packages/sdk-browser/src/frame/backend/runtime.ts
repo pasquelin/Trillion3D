@@ -5,7 +5,9 @@ import type { RootBoxesGpu } from '../../placement/roots/rootBoxes.ts'
 import type { TreeLeavesGpu } from '../../placement/tree/treeLeaves.ts'
 import type { GrowthInFlight } from '../../placement/growth/webgpuGrowth.ts'
 import type { RayQueue } from '../../lighting/rays/rayQueue.ts'
+import type { ViewOriginCast } from '../../physics/viewOriginCast.ts'
 import type { DistanceFieldFrameState } from '../../lighting/distanceField/frame.ts'
+import type { HairFrameState } from '../../hair/frame.ts'
 import type { SurfaceCacheFrameState } from '../../lighting/surfaceCache/frame.ts'
 import type { VolumetricLightmapFrameState } from '../../lighting/volumetricLightmap/frame.ts'
 import { explorerSwitch } from '../../../../sdk-core/src/runtime/explorerSwitches.ts'
@@ -94,11 +96,17 @@ export interface WebgpuPagesRuntime {
   /** The rows grown in place and the roots waiting to join the cut, until a cut holds them
    *  (`../../placement/growth/webgpuGrowth.ts`). */
   growth?: GrowthInFlight
+  /** The world's cast of the view origin into its physics (`../../lighting/shadows/vsm/viewOrigin.ts`),
+   *  set while its physics runs (`Engine.setViewOriginCast`). */
+  viewOriginCast?: ViewOriginCast
   /** The rays cast at the engine, made at the first (`../../lighting/rays/rayQueue.ts`). */
   rays?: RayQueue
   /** The meshes' distance fields and the global field composited from them, made at the first image
    *  of a session whose cache carries any (`../../lighting/distanceField/frame.ts`). */
   distanceFields?: DistanceFieldFrameState
+  /** The hair strands of the cache on the GPU, made at the first image that draws them, while they
+   *  are on: the scene's, never a view's (`../../hair/frame.ts`; the view's are `gpu.hair`). */
+  hair?: HairFrameState
   /** The surface cache of the meshes' cards — its atlas, its tables, its capture —, made at the first image that
    *  asks for it, of a session whose cache carries cards (`../../lighting/surfaceCache/frame.ts`). */
   surfaceCache?: SurfaceCacheFrameState
@@ -155,10 +163,7 @@ export function createWebgpuPagesRuntime(context: EngineContext): WebgpuPagesRun
     gpu,
     vis,
     lights,
-    bounce: createWebgpuBounceState(
-      explorerSwitch(context, 'bounce'),
-      context.bounceProbesPerFrame,
-    ),
+    bounce: createWebgpuBounceState(explorerSwitch(context, 'bounce')),
     run,
     capture: createWebgpuCaptureState(),
     views: createWebgpuViews({ run, gpu, vis, setup, timing }, scale),

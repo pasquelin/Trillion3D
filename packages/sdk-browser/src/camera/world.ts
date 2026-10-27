@@ -1,5 +1,19 @@
 import { decomposeMatrix4 } from '../../../math/src/matrix/matrix4Trs.ts'
 import { copyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
+import { length3, transformDirectionRow } from '../../../math/src/vector/vector.ts'
+import {
+  autoOrthoPlanes,
+  correctOrthoPlanes,
+  drawnView,
+  type AutoOrthoSettings,
+  type AutoOrthoView,
+  type DepthRange,
+  type OrthoPlaneCorrection,
+} from '../../../math/src/projection/camera.ts'
+import { CUT_RULES, type CutOptions } from '../../../sdk-core/src/contracts/cutOptions.ts'
+import { readSetting } from '../../../sdk-core/src/contracts/settingRules.ts'
+import { CENTIMETRES_PER_METRE } from '../../../sdk-core/src/page/format.ts'
+import { cameraForward } from './forward.ts'
 import {
   writeEngineCamera,
   type CameraOptics,
@@ -67,6 +81,9 @@ export type ViewCamera = Camera & {
   orthographic?: OrthographicBox | null
   /** The tile of the image the view draws, when it draws one. */
   viewTile?: ViewTile | null
+  /** The page's camera this one copies (`copyWorldCamera`), none for a posed one: the body it has is
+   *  the one the view origin's cast passes through (`lighting/shadows/vsm/viewOrigin.ts`). */
+  drawnFrom?: Object3D
 }
 
 /** Makes the world pose of `node` current, ancestors included: a camera, a rig, a node. */
@@ -77,6 +94,81 @@ export function resolveCameraWorld<T extends Object3D>(node: T): T {
 
 /** Optics of the camera being read, rewritten in place: a frame allocates nothing here. */
 const optics: CameraOptics = { fov: 0, aspect: 1, near: 0, far: 0, zoom: 1 }
+const forward = new Float64Array(3),
+  box = new Float64Array(4),
+  /** The range an orthographic view works out, in centimetres (`autoOrthoPlanes`). */
+  centimetres: DepthRange = { near: 0, far: 0 },
+  automatic: AutoOrthoView = {
+    forwardUp: 0,
+    width: 0,
+    aspect: 1,
+    targetDistance: 0,
+    viewportWidth: 0,
+    viewportHeight: 0,
+  },
+  automaticSettings: AutoOrthoSettings = {
+    halfFloatDepth: true,
+    scaleUnits: true,
+    depthScale: -1,
+    shift: 0,
+  },
+  correction: OrthoPlaneCorrection = { nearPlane: 0, heightAsViewTarget: false }
+
+/**
+ * An orthographic view's planes, in the order of its settings (`cutViewOrtho…`): the camera's
+ * `viewTarget` turned into the world's axes as the framed point, kept only while the view works its
+ * planes out (`autoOrthoPlanes`, in centimetres, from the camera's box, angle, the point's distance
+ * and the picture's size); then the correction (`correctOrthoPlanes`) moving the origin onto the
+ * near plane. `into.world`, `into.viewTarget` and `optics` are rewritten; the camera's own
+ * declaration of its planes stands where the view works none out.
+ */
+function orthoPlanes(
+  into: EngineCamera,
+  camera: ViewCamera,
+  aspect: number,
+  context: CutOptions,
+  viewport: readonly [number, number] | undefined,
+) {
+  const halfWidth = drawnView(camera.orthographic!, aspect, camera.zoom, box)[2]
+  cameraForward(forward, into.world)
+  if (readSetting(CUT_RULES, context, 'cutViewOrthoAutoPlanes')) {
+    const { x, y, z } = camera.viewTarget
+    for (let axis = 0; axis < 3; axis++)
+      into.viewTarget[axis] = transformDirectionRow(into.world, axis, x, y, z)
+    automatic.forwardUp = forward[1]
+    automatic.width = 2 * halfWidth * CENTIMETRES_PER_METRE
+    automatic.aspect = aspect
+    automatic.targetDistance =
+      length3(into.viewTarget[0], into.viewTarget[1], into.viewTarget[2]) * CENTIMETRES_PER_METRE
+    automatic.viewportWidth = viewport?.[0] ?? 0
+    automatic.viewportHeight = viewport?.[1] ?? 0
+    automaticSettings.halfFloatDepth = readSetting(
+      CUT_RULES,
+      context,
+      'cutViewOrthoAutoPlanesHalfFloat',
+    )
+    automaticSettings.scaleUnits = readSetting(
+      CUT_RULES,
+      context,
+      'cutViewOrthoAutoPlanesScaleUnits',
+    )
+    automaticSettings.depthScale =
+      readSetting(CUT_RULES, context, 'cutViewOrthoAutoPlanesDepthScale') * CENTIMETRES_PER_METRE
+    automaticSettings.shift =
+      readSetting(CUT_RULES, context, 'cutViewOrthoAutoPlanesShift') * CENTIMETRES_PER_METRE
+    autoOrthoPlanes(centimetres, automatic, automaticSettings)
+    optics.near = centimetres.near / CENTIMETRES_PER_METRE
+    optics.far = centimetres.far / CENTIMETRES_PER_METRE
+  }
+  if (!readSetting(CUT_RULES, context, 'cutViewOrthoNearPlaneCorrection')) return
+  correction.nearPlane = readSetting(CUT_RULES, context, 'cutViewOrthoNearPlane')
+  correction.heightAsViewTarget = readSetting(
+    CUT_RULES,
+    context,
+    'cutViewOrthoCameraHeightAsViewTarget',
+  )
+  correctOrthoPlanes(into.world, forward, into.viewTarget, optics, halfWidth, correction)
+}
 
 /**
  * Copies the view camera into the engine camera, ancestors resolved. The POSE comes from
@@ -84,8 +176,13 @@ const optics: CameraOptics = { fov: 0, aspect: 1, near: 0, far: 0, zoom: 1 }
  * (field, aspect, near plane, zoom) in its own depth convention — reversed, infinite far
  * plane — because the host matrix carries its library's and a finite far plane. `camera.far`
  * is still read as-is for what still depends on it (shadow range); it enters no depth and no
- * frustum plane. `writeEngineCamera` then rebuilds the view by inverting the world matrix, the
- * view-projection and the six frustum planes, once for the whole frame.
+ * frustum plane. An orthographic camera read with the `context` of its settings has its planes
+ * worked out and its origin moved onto its near plane (`orthoPlanes`) before the engine camera is
+ * written, so every pass sees the moved origin, the range and the framed point, the pose a trace
+ * publishes among them; read with none, it keeps the planes it declares. `viewport` is the
+ * picture's size in pixels, which the planes scale to. `writeEngineCamera` then rebuilds the view
+ * by inverting the world matrix, the view-projection and the six frustum planes, once for the
+ * whole frame.
  */
 export function readCameraWorld(
   into: EngineCamera,
@@ -93,6 +190,8 @@ export function readCameraWorld(
   /** Aspect ratio the view is drawn at, when it is not the one the camera declares: a capture
    *  renders the SAME camera aside, at the shape of the surface it writes into. */
   aspect = camera.aspect,
+  context?: CutOptions,
+  viewport?: readonly [number, number],
 ): EngineCamera {
   resolveCameraWorld(camera)
   copyMatrix4(into.world, camera.matrixWorld.elements)
@@ -104,6 +203,8 @@ export function readCameraWorld(
   optics.orthographic = camera.orthographic
   optics.viewTile = camera.viewTile ?? null
   into.viewSet = camera._viewSet ?? NO_VIEW_SET
+  into.viewTarget.fill(0)
+  if (context && camera.orthographic) orthoPlanes(into, camera, aspect, context, viewport)
   return writeEngineCamera(into, optics)
 }
 

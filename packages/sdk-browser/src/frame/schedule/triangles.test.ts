@@ -37,7 +37,6 @@ function harness(options: {
     guides: { follow: () => options.order?.push('follow') },
     state: { diagnostic: 'beauty', frame: 0 } as never,
     engine,
-    camera: {} as never,
     lookAtTarget: { x: 0, y: 0, z: 0 },
     setPose: () => {},
     streaming: {

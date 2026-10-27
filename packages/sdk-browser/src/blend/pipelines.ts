@@ -2,10 +2,10 @@ import { grantsVertexTextures } from '../gpu/core/vertexTextures.ts'
 import { NO_RASTERS, type GraphRasters } from '../materials/graph/graphRasters.ts'
 import type { WpoSet } from '../materials/graph/wpoProgram.ts'
 import { blendWpo } from '../visibility/shader/wpoSets.ts'
-import { TRANSLUCENT_RECT_LIGHTS_DEFAULT, blendShader } from './shader.ts'
+import { TRANSLUCENT_RECT_LIGHTS_DEFAULT, blendShader, type TranslucentScene } from './shader.ts'
 import type { VertexReads } from './cloudVertexText.ts'
 import type { BlendGpuItem } from './state.ts'
-import { translucencyVolumeOf } from '../materials/surface/blendLightSource.ts'
+import { contactShadowsOf, translucencyVolumeOf } from '../materials/surface/blendLightSource.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import { blendLayoutEntries } from '../gpu/bind/blendBindEntries.ts'
 import {
@@ -104,9 +104,10 @@ type BlendProgramSetup = {
    *  `shadowTranslucentQuality` and `shadowTranslucentLocalLights` (`TranslucentShadow`), and what
    *  some surface of the scene asks of its own (`translucentShadowOf`), the water's included. */
   translucentShadow: TranslucentShadow
-  /** Whether the programs light a rectangle light as a rectangle, the project switch
-   *  `translucentRectLights` (`translucentLitKey`). */
-  translucentRectLights: boolean
+  /** What the scene decides of the programs' lights (`TranslucentScene`): whether they light a rectangle light as a rectangle, the
+   *  project switch `translucentRectLights`, and whether they hold the contact shadows' code, for the surfaces whose material asks
+   *  (`contactShadowsOf`). */
+  scene: TranslucentScene
   /** Whether the scene holds a single-layer water: the programs hold its stage (`waterWgsl`). */
   water: boolean
   /** Whether the water pipelines write the separated sun (`BlendPipelineOptions.waterSeparate`). */
@@ -315,7 +316,7 @@ function blendProgramSetup(
     reads: { clouds: cloudShade || cloudFogOf(items), fog: fogVertexOf(items) },
     translucencyVolume: translucencyVolumeOf(items),
     translucentShadow: { ...projectShadow, materials: translucentShadowOf(items, waterSunTrace) },
-    translucentRectLights,
+    scene: { rectLights: translucentRectLights, contact: contactShadowsOf(items) },
   }
 }
 
@@ -324,13 +325,14 @@ function blendProgramSetup(
 function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
   const { transmissionCode, variant, device } = setup
   const dual = !!transmissionCode && dualSource(device)
+  const { scene } = setup
   const stage = transmissionCode?.transmitWgsl(
     key,
     dual,
     setup.graphs,
     setup.reads,
     asksOfItsOwn(setup.translucentShadow.materials!),
-    setup.translucentRectLights,
+    scene,
   )
   return blendShader(key, {
     stage,
@@ -343,8 +345,8 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
     reads: setup.reads,
     localFog: setup.localFog,
     translucentShadow: setup.translucentShadow,
-    translucentRectLights: setup.translucentRectLights,
     translucencyVolume: setup.translucencyVolume,
+    scene,
     water: setup.water
       ? waterWgsl(
           key,
@@ -352,7 +354,7 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
           setup.reads,
           asksOfItsOwn(setup.translucentShadow.materials!),
           setup.translucentShadow.materials!.directionalTrace,
-          setup.translucentRectLights,
+          scene,
         )
       : undefined,
   })
@@ -508,6 +510,7 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
     mask: set.routed.mask,
     graphs: setup.graphs.map((program) => program.id),
     reads: setup.reads,
+    scene: setup.scene,
     translucencyVolume: setup.translucencyVolume,
     translucentShadow: setup.translucentShadow.materials,
     transmission,

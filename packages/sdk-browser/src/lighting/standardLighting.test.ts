@@ -66,19 +66,24 @@ test('a sharp highlight is the GGX distribution, to f32, through its core', () =
     worst = Math.max(worst, Math.abs(got / metalLobe(rough, N, V, L) - 1))
     values.add(got)
   }
-  // What is left is the half-vector's own rounding: d ln D / dθ reaches 2/α, so H's f32 angle
-  // (~1e-7 rad) alone moves D by ~3e-5 at the floor.
-  assert.ok(worst < 1e-4, `worst relative error ${worst}`)
+  // What is left is the half-vector's own rounding: d ln D / dθ reaches 2/α, so H's f32 angle (~1e-7 rad) alone moves D by
+  // up to (2/α)·1e-7 at the floor: 5e-4 at a roughness of 0.02.
+  assert.ok(worst < (2 / alpha) * 1e-7, `worst relative error ${worst}`)
   assert.ok(values.size > 4990, `${values.size} values over the core`)
 })
 
-test('a specular under 2% dims its grazing reflection with it, one over keeps the whole', () => {
+test('a specular under 2% in every channel dims its grazing reflection with it, one over keeps the whole', () => {
   const side = (sign: number) => unit([sign * Math.sin(1.4), 0, Math.cos(1.4)]).map(Math.fround)
   const [V, L, Fc] = [side(1), side(-1), (1 - Math.cos(1.4)) ** 5]
   const lobe = (f0: number) => standardLighting([f0, f0, f0], 1, 0.5, [0, 0, 1], V, [...L, 1])[0]
   const fresnel = (f0: number) => Math.min(50 * f0, 1) * Fc + (1 - Fc) * f0
   for (const f0 of [0.01, 0.3])
     assert.ok(Math.abs(lobe(f0) / lobe(0.5) / (fresnel(f0) / fresnel(0.5)) - 1) < 1e-4, `${f0}`)
+  // The bar is the greatest channel: a red specular over 2% keeps its whole grazing reflection in every channel, its green
+  // under 2% included.
+  const red = standardLighting([0.5, 0.01, 0.01], 1, 0.5, [0, 0, 1], V, [...L, 1])
+  const fresnelOf = (f0: number) => Fc + (1 - Fc) * f0
+  assert.ok(Math.abs(red[1] / lobe(0.5) / (fresnelOf(0.01) / fresnel(0.5)) - 1) < 1e-4, `${red[1]}`)
 })
 
 /** The displayed byte of a linear value: clamped, sRGB-encoded, quantised to 8 bits. */

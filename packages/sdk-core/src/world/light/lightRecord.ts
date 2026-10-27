@@ -1,4 +1,5 @@
 import { DEFAULT_LIGHT_MOBILITY, type SceneLight } from '../../scene/light/contracts.ts'
+import { DEFAULT_LIGHTING_CHANNELS } from '../../contracts/lightingChannelsAbi.ts'
 import {
   addHemisphereIrradiance,
   addIrradianceCoefficients,
@@ -14,7 +15,13 @@ import * as lightCloudShadow from './lightCloudShadowSettings.ts'
 import * as lightShadow from './lightShadowSettings.ts'
 import * as lightContactShadow from './lightContactShadowSettings.ts'
 import { recordColourAndAir } from './lightAirSettings.ts'
-import { recordFalloff, recordShares, recordUnits } from './lightLampSettings.ts'
+import {
+  localNumbersOf,
+  recordLocalNumbers,
+  recordFalloff,
+  recordShares,
+  recordUnits,
+} from './lightLampSettings.ts'
 import { storeKindOf } from './lightNumbers.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
@@ -74,10 +81,13 @@ export function lampRecord(
   if (kind !== 'directional' && light.shadowResolutionScale !== 1)
     record.shadowResolutionScale = light.shadowResolutionScale
   recordShares(light, record)
+  recordLocalNumbers(light, record)
   recordUnits(light, record)
   recordColourAndAir(light, record)
   if (light.shadowsFog !== (kind === 'directional')) record.shadowsFog = light.shadowsFog
   if (light.mobility !== DEFAULT_LIGHT_MOBILITY) record.mobility = light.mobility
+  if (light.lightingChannels !== DEFAULT_LIGHTING_CHANNELS)
+    record.lightingChannels = light.lightingChannels
   lightFunction.record(light, record)
   Object.assign(
     record,
@@ -121,6 +131,7 @@ function recordFacing(
 /** What only a directional light records: its angular radius, its atmosphere sun and its priority. */
 function recordSun(light: Light, record: SceneLight) {
   if (light.angularRadius > 0) record.angularRadius = light.angularRadius
+  if (light.softAngle > 0) record.softAngle = light.softAngle
   if (!light.atmosphereSun) record.atmosphereSun = false
   if (light.atmosphereSunIndex !== 0) record.atmosphereSunIndex = light.atmosphereSunIndex
   if (light.forwardShadingPriority !== 0)
@@ -196,6 +207,7 @@ export function lightFromRecord(record: SceneLight): Light {
     outerConeAngle: record.outerConeAngle,
     radius: record.emitterRadius,
     angularRadius: record.angularRadius,
+    softAngle: record.softAngle,
     atmosphereSun: record.atmosphereSun,
     atmosphereSunIndex: record.atmosphereSunIndex,
     forwardShadingPriority: record.forwardShadingPriority,
@@ -209,12 +221,14 @@ export function lightFromRecord(record: SceneLight): Light {
     shadowResolutionScale: record.shadowResolutionScale,
     shadowsFog: record.shadowsFog,
     mobility: record.mobility,
+    lightingChannels: record.lightingChannels,
     softRadius: record.emitterSoftRadius,
     tubeLength: record.emitterLength,
     inverseSquared: record.inverseSquared,
     radialExponent: record.radialExponent,
     diffuseShare: record.diffuseShare,
     specularShare: record.specularShare,
+    ...localNumbersOf(record),
     ...lightShaft.fromRecord(record),
     ...lightCloudShadow.fromRecord(record),
     ...lightShadow.fromRecord(record),

@@ -116,6 +116,23 @@ test('the allocated rect, the radius and the detail geometry keep their golden b
   assert.equal(digest.hex(), GOLDEN.pages)
 })
 
+test('with the casters left out of the coarse pages, no caster is fine, whatever its footprint, in both modules', () => {
+  const isFine = (source: string, includeInCoarsePages: number) =>
+    run(source, ['vsmIsFineCaster'], {
+      vsm: { detailPixelsStatic: 1, detailPixelsDynamicClusters: 4, includeInCoarsePages },
+    }).vsmIsFineCaster
+  for (const source of [INVALIDATION, RENDER]) {
+    const [on, off] = [isFine(source, 1), isFine(source, 0)]
+    // A tiny caster is fine in either layer with the casters left to the thresholds, in none without.
+    for (const cached of [true, false]) {
+      assert.equal(on(cached, 0.25), true)
+      assert.equal(off(cached, 0.25), false)
+      assert.equal(on(cached, 100), false)
+      assert.equal(off(cached, 100), false)
+    }
+  }
+})
+
 test('the level offset of a span is its exact base-2 logarithm, as the device log2 rounded it', () => {
   // `vsmLevelHoldingRect` once truncated `log2(f32(spanTexels))`, now takes `floorLog2`: the same
   // integer for every span an f32 holds exactly, the shipped 2 among them, in the log2 the runs

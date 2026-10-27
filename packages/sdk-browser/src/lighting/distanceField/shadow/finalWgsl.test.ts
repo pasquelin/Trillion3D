@@ -7,31 +7,24 @@ import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { OBJECT_FLAGS as F } from '../layout.ts'
 import { DFSH_CULL_WGSL } from './cullWgsl.ts'
 import { DFSH_FINAL_WGSL } from './finalWgsl.ts'
-import { DFSH_FLAG } from './layout.ts'
 
-/** Whether a sun's cascade takes a mesh of `flags`, the view's `farShadowCullsAllMeshes` being `all`. */
-function takes(flags: number, all: boolean) {
+/** Whether a sun's cascade takes a mesh of `flags`. */
+function takes(flags: number) {
   const { dfshCasts } = shaderRun<{ dfshCasts: (flags: number) => boolean }>(
     DFSH_CULL_WGSL,
     ['dfshCasts'],
-    { dfsh: { counts: [0, 0, 0, all ? DFSH_FLAG.farMeshes : 0] } },
+    {},
   )
   return dfshCasts(flags)
 }
 
-test('a mesh is shadowed by the cascade where the shadow maps leave it out far away, not where they draw it at any distance', () => {
-  const base = F.castShadow | F.visible | F.virtualized
-  // Drawn into the maps at any distance (nothing says the far-shadow test reaches it): not here.
-  assert.equal(takes(base | F.farTestable, false), false)
-  // The test reaches it, by what its object says, or by the view's rule for every mesh.
-  assert.equal(takes(base | F.farTestable | F.farTested, false), true)
-  assert.equal(takes(base | F.farTestable, true), true)
-  // It never does (`farTestable` is left out of its flags): the maps keep it, whatever the view says.
-  assert.equal(takes(base, true), false)
-  // A mesh that casts far shadows is in the maps at any distance; one that casts none, or is hidden, casts none here.
-  assert.equal(takes(base | F.farTestable | F.farTested | F.castsFar, true), false)
-  assert.equal(takes(F.visible | F.farTestable | F.farTested, true), false)
-  assert.equal(takes(F.castShadow | F.farTestable | F.farTested, true), false)
+test('a mesh is shadowed by the cascade where it casts, is shown and is no cluster geometry: none the engine draws is', () => {
+  const casts = F.castShadow | F.visible
+  assert.equal(takes(casts), true, 'a mesh that is no cluster geometry')
+  assert.equal(takes(casts | F.virtualized), false, 'the shadow maps draw clusters at any distance')
+  assert.equal(takes(F.visible), false, 'casts none')
+  assert.equal(takes(F.castShadow), false, 'hidden')
+  assert.equal(takes(F.oftenMoving | F.emissive), false)
 })
 
 test('the cascade’s hull keeps a mesh whose sphere is not wholly outside a plane', () => {

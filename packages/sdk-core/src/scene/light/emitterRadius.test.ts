@@ -109,27 +109,24 @@ test('a lamp’s tube and soft radius pass validation, and reach their lanes: ze
       () => validateSceneLight({ ...sun, ...field } as SceneLight),
       /does not exist for a directional/,
     )
-  // The lanes: the axis times half the length, then the soft radius; a light without either, or
+  // The lanes: the unit axis, half the length apart, then the soft radius; a light without either, or
   // another in the slot, leaves them zero.
   const store = createSceneLightStore()
   store.add(validateSceneLight({ ...lanterne(), emitterLength: 4, emitterSoftRadius: 0.5 }))
   const at = baseOf(0)
-  assert.deepEqual(
-    [...store.packed.slice(at + LIGHT_FIELD.halfAxis, at + LIGHT_FIELD.halfAxis + 3)],
-    [0, 2, 0],
-    'up, by default',
-  )
+  const axis = () => [
+    ...store.packed.slice(at + LIGHT_FIELD.emitterAxis, at + LIGHT_FIELD.emitterAxis + 3),
+  ]
+  assert.deepEqual(axis(), [0, 1, 0], 'up, by default')
+  assert.equal(store.packed[at + LIGHT_FIELD.tubeHalfLength], 2)
   assert.equal(store.packed[at + LIGHT_FIELD.softRadius], 0.5)
   store.set('lanterne', { emitterLength: undefined, emitterSoftRadius: undefined })
-  assert.deepEqual(
-    [...store.packed.slice(at + LIGHT_FIELD.halfAxis, at + LIGHT_FIELD.softRadius + 1)],
-    [0, 0, 0, 0],
-  )
+  assert.deepEqual(axis(), [0, 0, 0])
+  assert.equal(store.packed[at + LIGHT_FIELD.tubeHalfLength], 0)
+  assert.equal(store.packed[at + LIGHT_FIELD.softRadius], 0)
   store.set('lanterne', { emitterLength: 1, emitterAxis: [1, 0, 0] })
-  assert.deepEqual(
-    [...store.packed.slice(at + LIGHT_FIELD.halfAxis, at + LIGHT_FIELD.halfAxis + 3)],
-    [0.5, 0, 0],
-  )
+  assert.deepEqual(axis(), [1, 0, 0])
+  assert.equal(store.packed[at + LIGHT_FIELD.tubeHalfLength], 0.5)
 })
 
 test('a lamp’s fall-off and shares and a spot’s cones pass validation and reach their lanes', () => {

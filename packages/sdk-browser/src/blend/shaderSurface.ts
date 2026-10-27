@@ -13,7 +13,7 @@ import { shadingNumberOfModel } from '../materials/surface/shadingModelCode.ts'
 import { shadingFlagsOfNumber } from '../materials/surface/pixelModel.ts'
 import { COTANGENT_FRAME_WGSL } from '../geometry/cluster/cotangentFrameWgsl.ts'
 import { FACING_SHIFT, FACING_WGSL } from './facing.ts'
-import { TRI_CHANNELS_SHIFT, TRI_RESPONSIVE_SHIFT, WORDS } from './vertexReadsWgsl.ts'
+import { TRI_CHANNELS_BITS, TRI_CHANNELS_SHIFT, WORDS } from './vertexReadsWgsl.ts'
 import { blendRequestWgsl } from './requestWgsl.ts'
 import { BLEND_TANGENT_FRAME_WGSL } from './tangentFrameWgsl.ts'
 import { COLOR_SAMPLE_WGSL, DATA_SAMPLE_WGSL } from '../materials/virtual/wgsl.ts'
@@ -103,7 +103,7 @@ const blendGradsText = (
   lobes: boolean,
   graphs?: BlendGraphs,
 ) => `struct BlendGrads{gradX:vec2f,gradY:vec2f,q0:vec3f,q1:vec3f,nX:vec3f,nY:vec3f,${lobes ? 'uv1X:vec2f,uv1Y:vec2f,channels:u32,' : ''}${graphs ? 'graph:BlendGraph,' : ''}}
-fn blendGrads(in:VSOut)->BlendGrads{let unitNormal=unitOrZero(in.normal.xyz);return BlendGrads(dpdx(${FIRST_UV}),dpdy(${FIRST_UV}),dpdx(in.view),dpdy(in.view),dpdx(unitNormal),dpdy(unitNormal)${lobes ? `,dpdx(in.uv.zw),dpdy(in.uv.zw),extractBits(in.${WORDS.tri},${TRI_CHANNELS_SHIFT}u,${TRI_RESPONSIVE_SHIFT - TRI_CHANNELS_SHIFT}u)` : ''}${graphs ? ',blendGraphEval(in)' : ''});}
+fn blendGrads(in:VSOut)->BlendGrads{let unitNormal=unitOrZero(in.normal.xyz);return BlendGrads(dpdx(${FIRST_UV}),dpdy(${FIRST_UV}),dpdx(in.view),dpdy(in.view),dpdx(unitNormal),dpdy(unitNormal)${lobes ? `,dpdx(in.uv.zw),dpdy(in.uv.zw),extractBits(in.${WORDS.tri},${TRI_CHANNELS_SHIFT}u,${TRI_CHANNELS_BITS}u)` : ''}${graphs ? ',blendGraphEval(in)' : ''});}
 fn blendSampled(in:VSOut)->bool{return (in.ids.y&${FLAG_SAMPLED}u)!=0u;}
 `
 

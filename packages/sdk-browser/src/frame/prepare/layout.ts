@@ -6,6 +6,7 @@ import { postPackedBases } from '../../geometry/selection/placements.ts'
 import { createPackedPages, createPageCatalogue } from '../../geometry/selection/catalogue.ts'
 import { createPackedInstances } from '../../geometry/rows/instances.ts'
 import type { NodeIndex } from '../render/movedNode.ts'
+import { createViewHidden } from '../render/viewHidden.ts'
 
 export type WebgpuPagesLayout = ReturnType<typeof createWebgpuPagesLayout>
 
@@ -83,6 +84,8 @@ export function createWebgpuPagesLayout(
     selectionRoots,
     /** The roots' index by node, its slots made at its first read (`../render/movedNode.ts`). */
     rootIndex: { revision: 0 } as NodeIndex,
+    /** The roots the views may not draw, kept where a root is shown, hidden or marked (`hiddenFromViews`). */
+    viewHidden: createViewHidden(),
     packedPages,
     /** The packed rank of a page to its record: the engine's one catalogue accessor. */
     recordOf: catalogue.recordOf,

@@ -69,6 +69,10 @@ export type VisMaterial = {
   cloudFog?: boolean
   /** True works the fog of a blended surface out for each pixel; else for each vertex, interpolated (`../blend/cloudVertexText.ts`). */
   computeFogPerPixel?: boolean
+  /** True lets the lights cast contact shadows on a blended surface: a short ray from each pixel toward each light through the
+   *  opaque scene's depth (`../lighting/contactShadow/contactShadowWgsl.ts`); the programs read that depth only for a scene
+   *  that holds such a surface (`../materials/surface/blendLightSource.ts`, `contactShadowsOf`). */
+  contactShadows?: boolean
   /** How a blended surface reads the shadow of the lights that reach it, beyond the project's switches
    *  (`../materials/surface/surfaceModel.ts`, `TRANSLUCENT_SHADOW_MODEL_SHIFT`): whether a local
    *  light's shadow reaches it, and, from 0 to 1, whether the local lights' and the sun's are traced

@@ -7,7 +7,14 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { builtins } from '../../../materials/texture/shaderRunBuiltins.fixture.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
-import { vsmDispatchPerPageBin, vsmWritePerPageBinArgs } from './markingPass.ts'
+import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { uniformSlots } from '../../../session/memory/pools.ts'
+import {
+  VSM_PER_PAGE_BIN_COUNT,
+  VSM_PER_PAGE_BIN_WORDS,
+  vsmDispatchPerPageBin,
+  vsmWritePerPageSlots,
+} from './markingPass.ts'
 
 type Walk = { valid: boolean; handle: { id: number }; walkStart: number[] }
 
@@ -21,10 +28,19 @@ function grid(b: number, count: number) {
 
 /** The walk of every thread of bin `b`'s dispatch of `count` maps, its first `xs` along x. */
 function walks(b: number, count: number, xs: number) {
-  const params = new Uint32Array(4),
-    idStart = 5
-  vsmWritePerPageBinArgs(params, 0, { offset: idStart, count }, b)
-  const [idStartWord, idCount, gridWidth, threadPerId] = params
+  const idStart = 5
+  const slots = uniformSlots(
+    fakeDevice().device.limits,
+    VSM_PER_PAGE_BIN_COUNT,
+    VSM_PER_PAGE_BIN_WORDS,
+  )
+  const bins = Array.from({ length: VSM_PER_PAGE_BIN_COUNT }, () => ({ offset: 0, count: 0 }))
+  bins[b] = { offset: idStart, count }
+  const params = new Uint32Array(slots.bytes / 4)
+  vsmWritePerPageSlots(params, slots, [bins])
+  const at = b * slots.strideWords
+  const slot = params.subarray(at, at + VSM_PER_PAGE_BIN_WORDS)
+  const [idStartWord, idCount, gridWidth, threadPerId] = slot
   const { vsmMapWalkOf } = shaderRun<{ vsmMapWalkOf: (id: number[], n: number[]) => Walk }>(
     VSM_PER_PAGE_DISPATCH_WGSL,
     ['vsmMapWalkOf', 'flatIndex'],

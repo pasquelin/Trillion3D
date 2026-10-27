@@ -42,7 +42,7 @@ test('a sun’s shadow distance the compiler wrote reaches its light, one the co
     ...extra,
   })
   const file = {
-    version: 2,
+    version: 4,
     lights: [
       sun('near', { shadowDistance: 250 }),
       sun('none', { shadowDistance: 0 }),

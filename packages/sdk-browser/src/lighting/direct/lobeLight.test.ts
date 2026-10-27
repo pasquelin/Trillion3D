@@ -10,6 +10,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
+import { NO_SHADING_MODEL } from './shadingModelScope.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { ROUGHNESS_FLOOR } from '../shaderConstants.ts'
 import { LOBES_LIGHTING_WGSL } from './lobesWgsl.ts'
@@ -21,7 +22,7 @@ import { linearToSrgb8 } from '../../../../math/src/color/color.ts'
 
 type Light = (...args: unknown[]) => number[]
 // The scope of the runs: f32, no shading model set.
-const SCOPE = { ...F32_SCOPE, pixelModel: 0, sphereNoNewton: false, clearCoatBottom: false }
+const SCOPE = { ...F32_SCOPE, ...NO_SHADING_MODEL }
 const NAMES = ['lobeSurface', 'surfaceLight'],
   shipped = wgslModule(STANDARD_LIGHTING_WGSL, LOBES_LIGHTING_WGSL)
 /** The order it replaced: the half-vector first, whatever faces. */

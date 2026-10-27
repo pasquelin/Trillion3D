@@ -14,7 +14,7 @@ import {
   renderWebgpuView,
   resizeWebgpuView,
 } from './state/persistentView.ts'
-import { captureImage, rasterView, syncResident } from '../io/hostApi.ts'
+import { captureImage, drawnCamera, rasterView, syncResident } from '../io/hostApi.ts'
 import { freezeWebgpuCut } from '../render/cutFreeze.ts'
 import { pendingUrls, retainedRanks } from '../io/hostLists.ts'
 import { acceptPage, dropPage } from '../io/pageApi.ts'
@@ -38,6 +38,7 @@ import { sweepSession } from '../io/sessionSweep.ts'
 import { namesNoSession } from '../../gpu/core/sessionHandle.ts'
 import { families } from '../../session/host/families.ts'
 import { claimWebgpuDevice, markWebgpuLost } from '../io/lost.ts'
+import { setViewOriginCast } from '../../lighting/shadows/vsm/frame/vsmViewOrigin.ts'
 import type { GpuDeviceClaim } from '../../gpu/core/deviceOwners.ts'
 import type { WorldCells } from '../../geometry/dag/worlds/worldCells.ts'
 import {
@@ -83,6 +84,9 @@ function wakingWorld(world: WorldCells, wake: () => void) {
       get revision() {
         return world.revision
       },
+      get drawRevision() {
+        return world.drawRevision
+      },
     }
     wakingCells.set(world, waking)
   }
@@ -119,6 +123,7 @@ export function backendSetters(rt: WebgpuPagesRuntime) {
     addWorldRoots: (roots) => addWebgpuWorldRoots(rt, roots as WorldRootsHold),
     ...runtimeMaterialApi(rt),
     setClearColor: (hex) => setWebgpuClearColor(rt, hex),
+    setViewOriginCast: (cast) => setViewOriginCast(rt, cast),
   } satisfies Partial<Engine>
 }
 
@@ -204,6 +209,7 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     castRay: (ray, filter, bounds) => castWebgpuRay(rt, ray, filter, bounds),
     selectedPageIds: () => run.shown.map((rec) => rec.url),
     selectedClusterIds: () => run.shown.map((rec) => rec.clusterId),
+    drawnCamera: () => drawnCamera(rt),
     rasterView: () => rasterView(rt),
     pendingUrls: () => pendingUrls(rt),
     retainedRanks() {

@@ -107,7 +107,8 @@
     "perf:all": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/perf/aggregate.ts",
     "perf:baseline": "node --experimental-strip-types --test --test-concurrency=1 bench/perf/*/*.perf.ts && node bench/perf/baseline-save.ts",
     "check:local": "node scripts/check/check-local-files.ts",
-    "fixtures:garden": "node scripts/dev/fixtures/garden.ts"
+    "fixtures:garden": "node scripts/dev/fixtures/garden.ts",
+    "fixtures:hair-strands": "node scripts/dev/fixtures/hair-strands.ts"
   },
   "jscpd": {
     "ignore": [

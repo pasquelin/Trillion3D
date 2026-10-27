@@ -100,11 +100,12 @@ function drawnOpaquePages(rt: WebgpuPagesRuntime) {
   return { pages, packed }
 }
 
+/** The engine camera the last image was drawn from, `null` while no image has been rendered. */
+export const drawnCamera = (rt: WebgpuPagesRuntime) => (rt.run.lastCamera ? rt.run.gate.cam : null)
+
 /** Camera the oracles read: the last image's, or a fresh host camera's while no image has been
  *  rendered. */
-function engineCameraOf(rt: WebgpuPagesRuntime) {
-  return rt.run.lastCamera ? rt.run.gate.cam : defaultEngineCamera()
-}
+const engineCameraOf = (rt: WebgpuPagesRuntime) => drawnCamera(rt) ?? defaultEngineCamera()
 
 /** What the CPU raster oracles read of the last image: its drawn pages, their locations, camera,
  *  size, pixel ratio and clear colour. The oracles themselves live in `bench/oracles`. */

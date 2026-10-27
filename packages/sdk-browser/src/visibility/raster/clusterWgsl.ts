@@ -50,6 +50,8 @@ import { FLAG_CLUSTER_PAGE, FLAG_MASK } from '../types.ts'
  * - `clip(v)`: the clip position of vertex `v` on the raster's frame (`rasterViewport`).
  * - `setupPage`: the page record the setup reads its sides from.
  * - `triangle`: what a set-up triangle takes of its corners \`k\` before it is rastered.
+ * - `masked`, optional: the condition under which the row is a cutout (\`masked\`, which its corners read their coordinate for and which takes
+ *   scanlines); the row's \`FLAG_MASK\` where it is not given.
  * - `entries`: the program's entry points, each calling \`clusterGroup(group,lane,n,mode)\`.
  * The program declares `writePixel(t,pixel,c,mode)`, the page rows and `flatIndex`.
  */
@@ -60,6 +62,7 @@ export interface ClusterRasterTarget {
   clip: (v: string) => string
   setupPage: string
   triangle: string
+  masked?: string
   entries: string
 }
 
@@ -160,7 +163,7 @@ const clusterGroupText = (
  if(row==NONE){return;}
  ${target.itemOwn}
  let page=pages[row];
- let masked=(page.flags&${FLAG_MASK}u)!=0u;
+ let masked=${target.masked ?? `(page.flags&${FLAG_MASK}u)!=0u`};
  let h=pageHeaderFor(page,masked);
  ${target.frame}
  let triangles=page.indexCount/3u;

@@ -4,6 +4,7 @@ import {
   contextReader,
   flagSetting as flag,
   INT32_MAX,
+  INT32_RANGE,
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
@@ -43,8 +44,14 @@ const FIELD_OF_VIEW_ANGLES: readonly [number, number] = [0, 360]
  *  view, from 45 to 90 degrees, at a scale of 1 at both ends), an upscaled image
  *  cut as its display with no shift, four times finer at most, no GPU time budget for the cut and
  *  its raster (`cutEdgeScaleBudgetMs`), which coarsens the screen error no further than to 30 % of
- *  its scale (`cutEdgeScaleMinPercent`), and lists of 2 Mi nodes, 16 Mi candidate clusters and
- *  4 Mi visible clusters. */
+ *  its scale (`cutEdgeScaleMinPercent`), lists of 2 Mi nodes, 16 Mi candidate clusters and
+ *  4 Mi visible clusters, and an orthographic view whose near and far plane are worked out from its
+ *  box and angle (`cutViewOrthoAutoPlanes`, scaled by the size of a pixel for half-float depth
+ *  and by its logarithm, from the half float's largest value, shifted by nothing), its origin then
+ *  moving onto its near plane (`cutViewOrthoNearPlaneCorrection`), by its height above the ground
+ *  where it frames no target (`cutViewOrthoCameraHeightAsViewTarget`), its range then starting at 0
+ *  (`cutViewOrthoNearPlane`), and an image captured aside drawn four times over
+ *  (`cutViewCaptureDelay`), its temporal pass accumulating them. */
 export const CUT_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('cutTwoPassOcclusion', true),
@@ -65,6 +72,15 @@ export const CUT_RULES = /* @__PURE__ */ (() =>
     flag('cutClipPlane', false),
     flag('cutClipPlaneCulling', true),
     flag('cutViewFiltering', true),
+    flag('cutViewOrthoAutoPlanes', true),
+    flag('cutViewOrthoAutoPlanesHalfFloat', true),
+    flag('cutViewOrthoAutoPlanesScaleUnits', true),
+    number('cutViewOrthoAutoPlanesDepthScale', -1, ANY),
+    number('cutViewOrthoAutoPlanesShift', 0, ANY),
+    flag('cutViewOrthoNearPlaneCorrection', true),
+    flag('cutViewOrthoCameraHeightAsViewTarget', true),
+    number('cutViewOrthoNearPlane', 0, ANY),
+    integer('cutViewCaptureDelay', 4, INT32_RANGE),
     flag('cutLodBiasFollowsUpscale', true),
     number('cutLodBiasOffset', 0, ANY),
     number('cutLodBiasMin', -2, ANY),

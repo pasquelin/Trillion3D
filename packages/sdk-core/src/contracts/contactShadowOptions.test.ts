@@ -35,7 +35,8 @@ test('each takes what its rule says, and nothing else', () => {
     assert.equal(resolveSetting(SHADOW_RULES[field], undefined), SHADOW_RULES[field].default)
     assert.throws(() => resolveSetting(SHADOW_RULES[field], 1 as never), /true or false/, field)
   }
-  // A length is any finite number, a negative one none; an intensity is held from −1 (none) to 1.
+  // A length is any finite number, a negative one none; so is an intensity (the folded one is held to 1,
+  // `writeContactShadow`).
   assert.equal(resolveSetting(SHADOW_RULES.contactShadowOverrideLength, 0.02), 0.02)
   assert.equal(resolveSetting(SHADOW_RULES.contactShadowOverrideLength, -3), -3)
   assert.throws(() => resolveSetting(SHADOW_RULES.contactShadowOverrideLength, Infinity), /number/)
@@ -45,8 +46,9 @@ test('each takes what its rule says, and nothing else', () => {
   ] as const) {
     assert.equal(resolveSetting(SHADOW_RULES[field], 0.5), 0.5)
     assert.equal(resolveSetting(SHADOW_RULES[field], -1), -1)
-    assert.throws(() => resolveSetting(SHADOW_RULES[field], 1.5), /from -1 to 1/, field)
-    assert.throws(() => resolveSetting(SHADOW_RULES[field], -2), /from -1 to 1/, field)
+    assert.equal(resolveSetting(SHADOW_RULES[field], 3), 3, 'any number, as the reference’s cvar')
+    assert.equal(resolveSetting(SHADOW_RULES[field], -2), -2, 'below 0, none')
+    assert.throws(() => resolveSetting(SHADOW_RULES[field], Infinity), /number/, field)
   }
 })
 

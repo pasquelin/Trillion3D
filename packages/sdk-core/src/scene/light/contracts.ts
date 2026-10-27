@@ -3,7 +3,12 @@ import { SHADOW_PAGE } from './shadow/sunEntries.ts'
 import type { SceneLightCloudShadow } from './lightCloudShadowFields.ts'
 import type { SceneLightContactShadow } from './lightContactShadowFields.ts'
 import type { SceneLightLamp } from './lightLampFields.ts'
+import type { SceneLightProfile } from './lightProfileFields.ts'
 import type { LightUnits } from './lightUnits.ts'
+import {
+  LIGHTING_CHANNEL_COUNT,
+  type LightingChannels,
+} from '../../contracts/lightingChannelsAbi.ts'
 import type { SceneLightShadow } from './lightShadowFields.ts'
 /** The indices of the air's lights: two are held, a sun and a moon, or two suns. */
 export const ATMOSPHERE_SUN_INDICES = [0, 1] as const
@@ -37,7 +42,12 @@ export const DEFAULT_LIGHT_MOBILITY: LightMobility = 'stationary'
  * a position would be a promise the engine would not keep.
  */
 export interface SceneLight
-  extends SceneLightCloudShadow, SceneLightContactShadow, SceneLightLamp, SceneLightShadow {
+  extends
+    SceneLightCloudShadow,
+    SceneLightContactShadow,
+    SceneLightLamp,
+    SceneLightProfile,
+    SceneLightShadow {
   /** The light's name. */ id: string
   /** Point, spot, sun or rectangle. */ kind: 'point' | 'spot' | 'directional' | 'rect'
   /** Point and spot only: the point the light comes from, in metres. */
@@ -66,6 +76,9 @@ export interface SceneLight
   outerConeAngle?: number
   /** Directional only: source disk angular radius in radians; absent is an ideal point source. */
   angularRadius?: number
+  /** Directional only: the soft angle, in degrees, of the source's disk (from 0 up to, not including, 180): it widens the highlight
+   *  the sun leaves on a glossy surface without lighting more of the surface, as a point or a spot's `emitterSoftRadius` does; absent, 0. */
+  softAngle?: number
   /** Directional only: whether the light is a candidate to light the atmosphere (`SceneAtmosphere`);
    *  absent, it is. Of the candidates the brightest is the atmosphere's sun: its light reaches
    *  surfaces through the air, and the sky is drawn from it; the fog scatters it as well, with an
@@ -86,6 +99,10 @@ export interface SceneLight
   right?: [number, number, number]
   /** Rect only: its width and height, in metres; a side under 1 cm lights and casts as 1 cm. */
   size?: [number, number]
+  /** The lighting channels the light is in (`{ channel0, channel1, channel2 }`): it lights a surface, and its
+   *  shadow holds a caster, only where the object is in one of them too (`Object3D.lightingChannels`,
+   *  `../../contracts/lightingChannelsAbi.ts`); absent, channel 0 alone. */
+  lightingChannels?: LightingChannels
   /** Whether it casts shadows. */ castsShadow: boolean
   /** How much of its light the volumetric fog (`SceneFog.volumetric`) and the clouds scatter:
    *  a factor on its colour there, `0` leaving it out of both; absent, `1`. It does not change
@@ -262,8 +279,9 @@ export const MAX_SHADOW_SLICES = 64
 
 /** Faces of a point light's slice: six. */
 export const POINT_FACES = 6
-/** Floats of a light in the GPU buffer: seven `vec4f`. */
-export const SCENE_LIGHT_FLOATS = 28
+/** Floats of a light in the GPU buffer: eight `vec4f`, the eighth (`traits`) holding the blend of its strength with the exposure
+ *  (`LIGHT_FIELD.exposureBlend`, its first lane), the share of its draw range, its source's size and its greatest draw distance. */
+export const SCENE_LIGHT_FLOATS = 32
 /** Light-buffer header: the count, the rank plus one of the forward directional light
  *  (`LIGHT_HEADER_FORWARD`), then two reserved words. */
 export const SCENE_LIGHT_HEADER_FLOATS = 4
@@ -287,8 +305,48 @@ export const LIGHT_FLAG = /* @__PURE__ */ (() =>
     shadowsFog: 2 * LIGHT_KIND_SPAN,
     transmission: 4 * LIGHT_KIND_SPAN,
   }) as const)()
-/** The step of a light function table's index in a light's kind word: the word is the rank, plus the
- *  flags (`LIGHT_FLAG`), plus this times the index; 0, no light function. */
-export const LIGHT_FUNCTION_STEP = /* @__PURE__ */ (() => 8 * LIGHT_KIND_SPAN)()
-/** The bits the flags and the rank take below the index: `LIGHT_FUNCTION_STEP` is `1 << this`. */
-export const LIGHT_FUNCTION_SHIFT = 5
+/** The values of a light's shadowed value (`shadowedBitsOf`): the reference's shadowed bits (`GetShadowedBits`).
+ *  @property none - No shadow, no light function. @property static - It casts, or wears a light function without a slot.
+ *  @property dynamic - It casts a dynamic shadow and the view's dynamic shadows are on. */
+export const LIGHT_SHADOWED = { none: 0, static: 1, dynamic: 3 } as const
+/**
+ * Where each part of a light's kind word, a whole number held in the buffer's word (`LIGHT_FIELD.kind`; the store writes it through a
+ * `Uint32Array` view and the shaders read it with `bitcast<u32>`, `kindWord`), starts: the rank and the flags under `LIGHT_CHANNELS_SHIFT`; the lighting
+ * channels stored (`storedLightingChannels`, `../../contracts/lightingChannelsAbi.ts`, so that a word that holds none says the default);
+ * the shadowed value (`LIGHT_SHADOWED`, `LIGHT_SHADOWED_BITS` bits, set by the store with the view's shadow settings); the light's profile, its atlas slice plus one,
+ * 0 for none (`LIGHT_PROFILE_BITS` bits, `LIGHT_PROFILE_SLICES` profiles at most); one bit that is set where the view leaves the light
+ * out (`LIGHT_UNDRAWN_SHIFT`, the decision of `lightDrawn`); and, above them all, the index of the light's light function, 0 for none
+ * (`LIGHT_FUNCTION_BITS` bits, `LIGHT_FUNCTION_ENTRIES` entries of the table at most). The channels, the shadowed value, the profile and
+ * the function index are the store's to write, not the host's; the undrawn bit is the view's.
+ *
+ * THE BIT BUDGET. Every value below 2^23 in the lane is a subnormal float, which a backend that flushes subnormals reads as zero wherever
+ * the word travels as a float (a struct copy, a parameter). The parts therefore fill the bits 0 to 22 (`LIGHT_PAYLOAD_BITS`) and no more,
+ * and the one writer sets bit 23 (`LIGHT_KIND_MARKER`), the lowest bit of the exponent, a constant: the lane is always a normal, finite,
+ * positive float (exponent 1). The readers mask the marker off (`LIGHT_PAYLOAD_MASK`):
+ *
+ *   bits 0-1 rank | 2-4 flags | 5-7 channels | 8-9 shadowed | 10-15 profile | 16 undrawn | 17-22 function index | 23 marker
+ */
+export const LIGHT_CHANNELS_SHIFT = 5
+/** The bits of the kind word that hold a light's shadowed value. */
+export const LIGHT_SHADOWED_BITS = 2
+/** The mask of a light's shadowed value in the kind word, once shifted down (`LIGHT_SHADOWED`). */
+export const LIGHT_SHADOWED_MASK = 2 ** LIGHT_SHADOWED_BITS - 1
+export const LIGHT_SHADOWED_SHIFT = LIGHT_CHANNELS_SHIFT + LIGHTING_CHANNEL_COUNT
+export const LIGHT_PROFILE_SHIFT = LIGHT_SHADOWED_SHIFT + LIGHT_SHADOWED_BITS
+/** The bits of the kind word that hold a light's profile. */
+export const LIGHT_PROFILE_BITS = 6
+/** The profiles the lights can name at once: the slice plus one fits `LIGHT_PROFILE_BITS` bits. */
+export const LIGHT_PROFILE_SLICES = 2 ** (LIGHT_PROFILE_BITS - 1)
+/** The bit of the kind word that is set where the view leaves the light out (`lightDrawn`); a word written anew says drawn. */
+export const LIGHT_UNDRAWN_SHIFT = LIGHT_PROFILE_SHIFT + LIGHT_PROFILE_BITS
+export const LIGHT_FUNCTION_SHIFT = LIGHT_UNDRAWN_SHIFT + 1
+/** The bits of the kind word the parts fill: under the marker. */
+export const LIGHT_PAYLOAD_BITS = 23
+/** The constant bit above the parts (`LIGHT_PAYLOAD_BITS`) that keeps the lane a normal float. */
+export const LIGHT_KIND_MARKER = 2 ** LIGHT_PAYLOAD_BITS
+/** What the readers keep of the kind word: everything but the marker. */
+export const LIGHT_PAYLOAD_MASK = LIGHT_KIND_MARKER - 1
+/** The bits of the kind word that hold the index of a light's light function. */
+export const LIGHT_FUNCTION_BITS = LIGHT_PAYLOAD_BITS - LIGHT_FUNCTION_SHIFT
+/** The entries of the light function table a light can name, entry 0 (none) included. */
+export const LIGHT_FUNCTION_ENTRIES = 2 ** LIGHT_FUNCTION_BITS

@@ -24,7 +24,7 @@ test("a pass the driver skipped keeps an older image's pair: no time, and the im
   assert.equal(sample.submittedMs, 4)
   assert.equal(sample.totalMs, null, 'a sum of passes holds none for a pass without a time')
   assert.deepEqual(sample.passes, [
-    { name: 'pass', gpuMs: 4, ownMs: 4 },
+    { name: 'pass', gpuMs: 4, ownMs: 4, beginMs: 0, endMs: 4 },
     { name: 'pass', gpuMs: null, reason: 'unwritten-timestamps' },
   ])
   assert.equal(timing.stats().invalidSamples, 0, 'a skipped pass is not an invalid reading')

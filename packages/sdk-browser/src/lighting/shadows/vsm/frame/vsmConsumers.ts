@@ -58,5 +58,9 @@ export const vsmShadowMask = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.mask?
  *  (`vsmMaskLaneOf`), or none this frame. */
 export const vsmShadowedLightGrid = (rt: WebgpuPagesRuntime) =>
   projectedVsm(rt)?.res.projection?.lightGrid
+/** The shadowed local lights the lighting lights one by one this frame (`shadowOnePassProjection`
+ *  false, `perLightPass.ts`), or none. */
+export const vsmPerLight = (rt: WebgpuPagesRuntime) =>
+  projectedVsm(rt)?.res.projection?.perLight?.frame
 /** The suns' mask the lighting pass reads with it (a layer a sun), or none this frame. */
 export const vsmSunShadowMask = (rt: WebgpuPagesRuntime) => projectedVsm(rt)?.mask?.sunsView

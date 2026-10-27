@@ -72,4 +72,6 @@ export type WorldCells = {
   blockingLoad(instance: number, waits: ReadonlySet<number>): void
   /** Advanced whenever a cell's or a file's visibility moved. */
   readonly revision: number
+  /** Advanced whenever whether a cell's actor draws moved (`CELL_DRAW.hlod`): what `draws` answers is the same while it stands. */
+  readonly drawRevision: number
 }

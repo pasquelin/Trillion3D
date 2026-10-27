@@ -20,8 +20,9 @@ export interface SceneLightLamp {
    *  without lighting more of the surface; strictly positive and strictly less than the range;
    *  absent, none. */
   emitterSoftRadius?: number
-  /** Point and spot only, with an `emitterLength`: the unit direction the tube lies along (a
-   *  light's own up, `[0, 1, 0]` unless given); refused without a length. */
+  /** Point and spot only, with an `emitterLength` or an `iesProfile`: the unit direction the tube lies along and the
+   *  profile's horizontal angle runs round (a light's own up, `[0, 1, 0]` unless given, and required beside a
+   *  profile); refused with neither. */
   emitterAxis?: [number, number, number]
   /** Point and spot only: whether the light falls off as the inverse square of the distance,
    *  windowed by its range; absent, it does. Off, it falls off by its range alone, as the
@@ -35,4 +36,16 @@ export interface SceneLightLamp {
   diffuseShare?: number
   /** The share of its specular light the light gives, from 0 to 1; absent, 1. */
   specularShare?: number
+  /**
+   * Point, spot and rect only: how much the light's strength is divided by the image's exposure, from 0 to 1. At 0 (absent) the light
+   * keeps its strength whatever the exposure; at 1 it is divided by the exposure, so that it looks the same in a dark scene as in a
+   * bright one; between, it is the geometric blend, the exposure to the power of minus this number. A directional light has none.
+   */
+  inverseExposureBlend?: number
+  /**
+   * Point, spot and rect only: the distance from the view, in metres, past which the light is left out of the image, its lighting and its
+   * shadow both, in a perspective view (scaled by the view's `lightMaxDrawDistanceScale`); 0 (absent), no limit. A directional light
+   * has none.
+   */
+  maxDrawDistance?: number
 }

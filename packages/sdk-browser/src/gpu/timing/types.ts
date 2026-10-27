@@ -1,4 +1,17 @@
-import type { GpuFrameMs, GpuPassTimings } from '../../../../sdk-core/src/contracts/metrics.ts'
+import type {
+  GpuFrameMs,
+  GpuPassTiming,
+  GpuPassTimings,
+} from '../../../../sdk-core/src/contracts/metrics.ts'
+
+/** A timed pass and, with a valid pair, its place on the image's timeline: ms from the image's
+ *  earliest beginning (`passWindowMs`); a pair that cannot be read carries its two raw timestamps, ns. */
+export type PlacedPassTiming = GpuPassTiming & {
+  beginMs?: number
+  endMs?: number
+  beginNs?: string
+  endNs?: string
+}
 
 /** Why an image has no `frameMs` (`GpuTimingSample`). */
 export type FrameMsReason = 'truncated' | 'no-valid-pair' | 'failed'
@@ -33,6 +46,7 @@ export type TimingPairs = { valid: number; unwritten: number; invalid: number }
  * images — uploads and copies outside a timed pass — counts in it.
  */
 export type GpuTimingSample = GpuPassTimings & {
+  passes: PlacedPassTiming[]
   frameMs: GpuFrameMs
   submittedMs: GpuFrameMs
   /** Why `frameMs` is null, and null when it is not. */

@@ -104,9 +104,12 @@ function scatter(
 }
 
 /**
- * One light's cascade: the meshes culled to it, their tiles counted, given their runs and written,
- * then the pixels' rays traced through the tile's meshes into the light's layer of the half-resolution
- * result.
+ * One light's cascade: the meshes culled to it, then — scattered to the grid of tiles
+ * (`distanceFieldShadowScatterTiles`) — their tiles counted, given their runs and written (the
+ * count and the runs only where the lists are compacted, `distanceFieldShadowCompactTiles`), and the
+ * pixels' rays traced through the tile's meshes; or, gathered, the pixels' rays traced through the
+ * meshes each group of texels culled to itself. The trace writes the light's layer of the
+ * half-resolution result.
  */
 function encodeCascade(
   programs: DfshPrograms,
@@ -121,32 +124,39 @@ function encodeCascade(
   },
 ) {
   const { side, index, objects, settings, image } = cascade
+  const { scatterTiles, compactTiles } = settings
   const offset = index * DFSH_PARAMS_STRIDE
   const tiles = side * side * 4
   const apart = steps.apart()
   apart.clearBuffer(view.objectArgs)
-  apart.clearBuffer(view.nextOffset)
-  apart.clearBuffer(view.tileCounts, 0, tiles)
+  if (scatterTiles) {
+    if (compactTiles) apart.clearBuffer(view.nextOffset)
+    apart.clearBuffer(view.tileCounts, 0, tiles)
+  }
   const culling = steps.pass(CULL_PASS)
   dispatchAt(culling, programs.compute.cull, groups.cull, offset, ceilDiv(objects, DFSH_CULL_GROUP))
-  scatter(steps.apart(), programs, view, groups, { side, offset, which: 'count' })
-  const offsets = steps.pass(OFFSETS_PASS)
-  dispatchAt(
-    offsets,
-    programs.compute.offsets,
-    groups.offsets,
-    offset,
-    ceilDiv(side, DFSH_OFFSET_GROUP),
-    ceilDiv(side, DFSH_OFFSET_GROUP),
-  )
-  steps.apart().clearBuffer(view.tileCounts, 0, tiles)
-  scatter(steps.apart(), programs, view, groups, { side, offset, which: 'write' })
+  if (scatterTiles && compactTiles) {
+    scatter(steps.apart(), programs, view, groups, { side, offset, which: 'count' })
+    const offsets = steps.pass(OFFSETS_PASS)
+    dispatchAt(
+      offsets,
+      programs.compute.offsets,
+      groups.offsets,
+      offset,
+      ceilDiv(side, DFSH_OFFSET_GROUP),
+      ceilDiv(side, DFSH_OFFSET_GROUP),
+    )
+    steps.apart().clearBuffer(view.tileCounts, 0, tiles)
+  }
+  if (scatterTiles) {
+    scatter(steps.apart(), programs, view, groups, { side, offset, which: 'write' })
+  }
   const [width, height] = traceSize(image.view, downsampleOf(settings))
   const tracing = steps.pass(TRACE_PASS)
   dispatchAt(
     tracing,
-    programs.compute.trace,
-    groups.trace,
+    scatterTiles ? programs.compute.trace : programs.compute.traceGather,
+    scatterTiles ? groups.trace : groups.traceGather,
     offset,
     ceilDiv(width, DFSH_TILE),
     ceilDiv(height, DFSH_TILE),
@@ -155,8 +165,8 @@ function encodeCascade(
 
 /**
  * THE SUN'S DISTANCE-FIELD SHADOW OF AN IMAGE (`encodeSunFieldShadows`), before the lighting that reads
- * it: for each light, its cascade's meshes culled, listed by tile of the cascade's shadow space and
- * traced from the depth (`encodeCascade`); then the four lanes of the mask written, each pixel's
+ * it: for each light, its cascade's meshes culled, listed by tile of the cascade's shadow space (or
+ * left to each group of texels) and traced from the depth (`encodeCascade`); then the four lanes of the mask written, each pixel's
  * visibility upsampled and faded. It returns the mask (a buffer, a word a pixel, a byte a lane, the
  * square root of the visibility) or nothing — and states why — where it cannot be drawn: no light, the programs
  * still compiling, or the memory budget.
@@ -171,7 +181,7 @@ export function encodeSunFieldShadows(
   if (!lights.length || sources.objects.count === 0) return undefined
   const programs = dfshPrograms(device)
   // Every pipeline of the chain asked here, before the view or the params move.
-  if (!dfshProgramsReady(programs)) return undefined
+  if (!dfshProgramsReady(programs, settings)) return undefined
   const bounds = lights.map((light) => boundsOf(image, light))
   const sides = bounds.map((b) => tilesOf(b, settings))
   const held = state.view?.shape
@@ -179,8 +189,9 @@ export function encodeSunFieldShadows(
     extent: image.extent,
     view: image.view,
     objects: Math.max(held?.objects ?? 0, objectCapacity(sources.objects.count)),
-    tiles: Math.max(held?.tiles ?? 0, ...sides),
-    perTile: settings.perTile,
+    // The grid of tiles and its lists only where the meshes are scattered to it: one tile otherwise.
+    tiles: settings.scatterTiles ? Math.max(held?.tiles ?? 0, ...sides) : 1,
+    perTile: settings.scatterTiles ? settings.perTile : 1,
     layers: Math.max(held?.layers ?? 0, lights.length),
     fullResolution: settings.fullResolution,
   })

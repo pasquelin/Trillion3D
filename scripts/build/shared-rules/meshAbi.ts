@@ -100,9 +100,6 @@ pub const SKINNED_INSTANCE_SETTING: &str = ${JSON.stringify(compiler.SKINNED_INS
 pub const RUNTIME_GRID_SETTING: &str = ${JSON.stringify(compiler.RUNTIME_GRID_SETTING)};
 pub const FAR_FIELD_SETTING: &str = ${JSON.stringify(compiler.FAR_FIELD_SETTING)};
 pub const DEFAULT_FAR_FIELD: bool = ${compiler.DEFAULT_FAR_FIELD};
-pub const CAST_FAR_SHADOW_SETTING: &str = ${JSON.stringify(compiler.CAST_FAR_SHADOW_SETTING)};
-pub const DEFAULT_CAST_FAR_SHADOW: bool = ${compiler.DEFAULT_CAST_FAR_SHADOW};
-pub const FAR_SHADOW_TEST_SETTING: &str = ${JSON.stringify(compiler.FAR_SHADOW_TEST_SETTING)};
 pub const DRAW_DISTANCE_SETTING: &str = ${JSON.stringify(compiler.DRAW_DISTANCE_SETTING)};
 pub const DRAW_DISTANCE_SETTINGS: ${rustStrings(compiler.DRAW_DISTANCE_SETTINGS)};
 pub const DEFAULT_DRAW_DISTANCE_MIN: f64 = ${compiler.DEFAULT_DRAW_DISTANCE_MIN.toFixed(1)};

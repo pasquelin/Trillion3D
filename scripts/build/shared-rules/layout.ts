@@ -28,6 +28,15 @@ const SOURCES = [
   'packages/sdk-core/src/physics/vehicle/vehicleLayout.ts',
 ]
 
+/** The entries of `group` named for the module: `prefix` and the entry's name in capitals, with its value. */
+const prefixed = (prefix: string, group: Record<string, number>) =>
+  Object.entries(group).map(([name, value]) => [`${prefix}${upper(name)}`, value] as const)
+
+/** The word each field of a query or a hit is at (`CAST_AT`, `HIT_AT`, `OVERLAP_AT`), by the name
+ *  the module reads it under. */
+const atTable = (prefix: string, table: Record<string, number>) =>
+  Object.fromEntries(prefixed(prefix, table))
+
 /** Every word count and table size of the layouts, by the name the module reads it under. */
 const COUNTS = {
   ADD_WORDS: layout.ADD_WORDS,
@@ -35,8 +44,11 @@ const COUNTS = {
   FILTER_WORDS: layout.FILTER_WORDS,
   MAX_FILTERS: layout.MAX_FILTERS,
   CAST_WORDS: layout.CAST_WORDS,
+  ...atTable('CAST_AT_', layout.CAST_AT),
   HIT_WORDS: layout.HIT_WORDS,
+  ...atTable('HIT_AT_', layout.HIT_AT),
   OVERLAP_WORDS: layout.OVERLAP_WORDS,
+  ...atTable('OVERLAP_AT_', layout.OVERLAP_AT),
   OVERLAP_HIT_WORDS: layout.OVERLAP_HIT_WORDS,
   RESTORE_WORDS: layout.RESTORE_WORDS,
   RELEASE_WORDS: layout.RELEASE_WORDS,
@@ -72,7 +84,7 @@ export function physicsLayoutHeader() {
     ([name, value]) => `constexpr uint32_t ${name} = ${value};`,
   )
   const named = (group: Record<string, number>, prefix = '') =>
-    Object.entries(group).map(([name, value]) => `${prefix}${upper(name)} = ${value}`)
+    prefixed(prefix, group).map(([name, value]) => `${name} = ${value}`)
   const ops = named(layout.OP)
   const errors = layout.MODULE_ERROR.map((name, code) => `${name} = ${code}`)
   return `${header(SOURCES, '//')}
@@ -99,6 +111,9 @@ enum FilterBit : uint32_t { ${named(layout.FILTER_BIT, 'FILTER_').join(', ')} };
 enum OverlapMode : uint32_t { ${named(layout.OVERLAP, 'OVERLAP_').join(', ')} };
 enum OverlapHit : uint32_t { ${named(layout.OVERLAP_HIT, 'OVERLAP_HIT_').join(', ')} };
 
+/// What stops a scene query (layout.ts CAST_STOP).
+enum CastStop : uint32_t { ${named(layout.CAST_STOP, 'CAST_STOP_').join(', ')} };
+
 /// Joint kinds of the JOINT command (layout.ts JOINT).
 enum JointKind : uint32_t { ${named(layout.JOINT).join(', ')} };
 
@@ -106,9 +121,7 @@ enum JointKind : uint32_t { ${named(layout.JOINT).join(', ')} };
 enum MotorMode : uint32_t { ${named(layout.MOTOR, 'MOTOR_').join(', ')} };
 
 /// Event types: a pair of bodies started touching, or stopped (layout.ts EVENT).
-enum EventType : uint32_t { ${Object.entries(layout.EVENT)
-    .map(([name, value]) => `EVENT_${upper(name)} = ${value}`)
-    .join(', ')} };
+enum EventType : uint32_t { ${named(layout.EVENT, 'EVENT_').join(', ')} };
 
 /// Set on a pose record's index word when the body fell asleep during the step (layout.ts).
 constexpr uint32_t ASLEEP_BIT = ${layout.ASLEEP_BIT}u;

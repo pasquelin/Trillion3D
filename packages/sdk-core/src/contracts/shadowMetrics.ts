@@ -92,8 +92,6 @@ export interface BounceFrameMetrics {
   passMs: number | null
   /** Whether the series is closed: nothing left to trace or to mark. */
   converged: boolean | null
-  /** The furthest a probe's ray looks for a surface, in metres. */
-  rayReach: number | null
   /** The placements that held a box at the last sync of the probes with them (a parked placement holds none). */
   placements: number | null
   /** The screen probes of the last image: the pixels' indirect light (`screenProbeOptions.ts`); none while
@@ -119,6 +117,11 @@ export interface ShadowFrameMetrics {
   shadowVsmPagesCached?: number | null
   /** Pages cleared then rendered this frame; read back a few frames late. */
   shadowVsmPagesRendered?: number | null
+  /** Pool pages left with no word this frame, free for the next grant; read back a few frames late. */
+  shadowVsmPagesEmpty?: number | null
+  /** Cached pages kept for the cull of the offsets allowed on them (cleared by nothing, drawn by
+   *  nothing); read back a few frames late. */
+  shadowVsmPagesWpoConsidered?: number | null
   /** Free physical pages in the pool's last status message. */
   shadowVsmFreePages?: number | null
   /** The global resolution LOD bias the pool's load sets. */
@@ -131,9 +134,9 @@ export interface ShadowFrameMetrics {
   shadowVsmRootsBoxed?: number | null
   /** Projection passes this frame: the suns' and the local lights'. */
   shadowVsmProjectionPasses?: number | null
-  /** The overflows the shadows saw in the last 10 seconds, one bit a kind: 1 the non-cluster marking's job queue,
-   *  2 the one-pass projection's lights past its mask, 4 the page pool, 8 the casters' list past its room. 0 when
-   *  none, or when `shadowAllowScreenOverflowMessages` is false. */
+  /** The overflows the shadows saw in the last 10 seconds, one bit a kind: 1 the one-pass projection's lights past its mask,
+   *  2 the page pool, 4 the casters' list past its room, 8 the raster's records list past its room, 16 the lights
+   *  refused for want of map slots. 0 when none, or when `shadowAllowScreenOverflowMessages` is false. */
   shadowVsmOverflowFlags?: number | null
   /** GPU time of the page invalidation, ms, from the pass timings. */
   shadowVsmInvalidationMs?: number | null

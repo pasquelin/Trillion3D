@@ -24,6 +24,7 @@ test('a sun’s cascades are on the clipmap its plan holds, with the edge of its
     limits: { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 },
   })
   const res = createVsmResources(device, {
+    coverMode: 'suns',
     fullMapCapacity: 127,
     sunMapCapacity: 35,
     poolPages: 256,
@@ -39,15 +40,12 @@ test('a sun’s cascades are on the clipmap its plan holds, with the edge of its
     ...{ view: new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, -2, 0, 1]), eye },
     perspective: true,
   }
-  const plan = planVirtualShadowFrame(
-    state,
-    [{ light: sun, farShadowEdge: CASCADES.edge, cascades: CASCADES }],
-    camera,
-    { width: 800, height: 600 },
-  )
+  const plan = planVirtualShadowFrame(state, [{ light: sun, cascades: CASCADES }], camera, {
+    width: 800,
+    height: 600,
+  })
   const { light } = plan.lights[0].clipmap!
   assert.equal(light.cascades, CASCADES)
-  assert.equal(light.farShadowEdge, 427)
   // A light the frame laid none for has none on its clipmap.
   const next = planVirtualShadowFrame(state, [{ light: sun }], camera, { width: 800, height: 600 })
   assert.equal(next.lights[0].clipmap!.light.cascades, undefined)

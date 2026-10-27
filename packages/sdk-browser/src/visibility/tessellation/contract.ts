@@ -22,8 +22,10 @@ export const PATCH_WORDS = 4
  *  queue was asked for (a count past its capacity is the loss), the patches the visible list was
  *  asked for, the level being split, and the slots of the queue that level holds, `start` to
  *  `end`, the patches the pass's occlusion test hid, kept for the post pass (`ARG_OCCLUDED`), and the
- *  most triangles any visible patch's pattern holds, which the shadow maps' draw is sized by
- *  (`ARG_MAX_TRIANGLES`). */
+ *  most triangles any visible patch's pattern holds, of a one-sided row and of a two-sided one
+ *  (`ARG_MAX_TRIANGLES`, `ARG_MAX_TRIANGLES_TWO_SIDED`), which the shadow maps' two draws are sized
+ *  by, and the patches listed in the shadow maps' second list, the two-sided rows' (`ARG_VISIBLE_TWO_SIDED`,
+ *  `TessUni.visibleTwoSided`): each draw launches the patches of its rows alone. */
 export const ARG_QUEUE = 0,
   ARG_VISIBLE = 1,
   ARG_LEVEL = 2,
@@ -31,18 +33,22 @@ export const ARG_QUEUE = 0,
   ARG_END = 4,
   ARG_OCCLUDED = 5,
   ARG_MAX_TRIANGLES = 6,
-  PASS_ARG_WORDS = 8
+  ARG_MAX_TRIANGLES_TWO_SIDED = 7,
+  ARG_VISIBLE_TWO_SIDED = 8,
+  PASS_ARG_WORDS = 9
 /** The dispatches the levels and the dicing are launched with, in a buffer of their own — a buffer
  *  a dispatch reads its size from is bound to no kernel that writes it —: for each chain the
  *  splitting's workgroups (x, y, z), then the dicing's, then those that take the occluded patches up
- *  again in the post pass, then the shadow maps' seeding's and last the arguments of their draw
- *  (vertex count, instance count, first vertex, first instance). */
+ *  again in the post pass, then the shadow maps' seeding's and last the arguments of their two draws,
+ *  the one-sided rows' and the two-sided rows' (vertex count, instance count, first vertex, first
+ *  instance). */
 export const DISPATCH_SPLIT = 0,
   DISPATCH_DICE = 3,
   DISPATCH_RESUME = 6,
   DISPATCH_SEED = 9,
   DISPATCH_DRAW = 12,
-  PASS_DISPATCH_WORDS = 16
+  DISPATCH_DRAW_TWO_SIDED = 16,
+  PASS_DISPATCH_WORDS = 20
 /** Which pyramid a pass's occlusion test of the patches reads: none, the previous image's — the main
  *  pass's, which keeps what it hides for the post pass — or the image's own, built from what the main
  *  pass drew — the post pass's, which drops what it hides. */

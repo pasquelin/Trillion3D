@@ -11,7 +11,7 @@ import { createVsmResources } from '../resources.ts'
 import { cam, camera, now, sweptHeaders } from './vsmProject.fixture.ts'
 
 const { device, writes } = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
-const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+const res = createVsmResources(device, { coverMode: 'suns', fullMapCapacity: 63, poolPages: 256 })
 const handle = {} as GPUTextureView
 const buffer = device.createBuffer({
   size: 256,

@@ -7,7 +7,9 @@ import {
   encodeVirtualShadowProjection,
   writeVsmProjectionFrame,
 } from '../projection/projectionPass.ts'
-import { VSM_PROJECTION_MAX_PASS_LIGHTS } from '../projection/projectionView.ts'
+import { PER_LIGHT_MASK_LAYERS } from '../projection/maskFormat.ts'
+import { sunCount, VSM_PROJECTION_MAX_PASS_LIGHTS } from '../projection/projectionView.ts'
+import { beginPerLightFrame } from '../projection/perLightPass.ts'
 import { noteVsmRequestSet } from '../traversal/requests.ts'
 import {
   shadowPageComputeGroup,
@@ -18,12 +20,13 @@ import { stochasticPhase } from '../../../../post/taa/frameState.ts'
 import { shadowEpoch } from '../../../../frame/backend/state/shadowEpoch.ts'
 import { shadowsUnsettled } from '../../../../frame/backend/state/lights.ts'
 import { lightGridCulled } from '../../../tiles/cullView.ts'
-import { ensureMask } from './vsmMask.ts'
+import { ensureMask, type VsmPerLightMask } from './vsmMask.ts'
 import { vsmProjectionReserve } from '../projection/projectionStore.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { VsmBoundLight } from '../mapViews.ts'
 import type { EngineVsm } from './engineVsm.ts'
+import type { VsmProjectionSource } from '../projection/projectionPass.ts'
 import type { VsmFrameScratch } from './vsmEncode.ts'
 import type { VsmThrottleState } from '../throttle.ts'
 import { projectionLight } from './vsmPlan.ts'
@@ -31,6 +34,8 @@ import { vsmRasterScene } from './vsmRasterScene.ts'
 import { vsmMapSettings } from './vsmFarShadow.ts'
 import { vsmTraceKey } from './vsmProjectionHold.ts'
 import { encodeVsmRender } from '../render/renderPass.ts'
+import { vsmSortedExtraRecords } from '../render/renderLists.ts'
+import { vsmViewsLaid } from '../render/renderParamsWgsl.ts'
 import { outOfMemoryContext } from '../../../../session/memory/outOfMemory.ts'
 import { vsmShadowTessellation } from '../tessellation/shadowChain.ts'
 import { bindCasterInputs, casterDecode, ensureCasterFeed } from '../../casters/casterFeed.ts'
@@ -72,10 +77,12 @@ function sayRoomLimited(rt: WebgpuPagesRuntime, vsm: EngineVsm, skipped: boolean
 
 /** The records a view pass of the raster holds room for, fixed: the cut's cap of visible clusters
  *  (`cutMaxVisibleClusters`, held to the device: `limitedCaps`) times the raster's indirection
- *  multiplier (`vsmRecordCapacity`), within one binding of records. */
-const recordLimit = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
+ *  multiplier (`vsmRecordCapacity`), within one binding of records, the sorted list's extra records
+ *  for `maps` maps (`vsmSortedExtraRecords`) among them. */
+const recordLimit = (rt: WebgpuPagesRuntime, device: GPUDevice, maps: number) =>
   clamp(
-    Math.floor(storageBufferCap(device.limits) / VSM_RENDER_RECORD_BYTES),
+    Math.floor(storageBufferCap(device.limits) / VSM_RENDER_RECORD_BYTES) -
+      vsmSortedExtraRecords(maps, vsmViewsLaid(device)),
     1,
     vsmRecordCapacity(
       limitedCaps(cutListCaps(rt.context), device.limits).visible,
@@ -111,7 +118,7 @@ export function encodeVsmRaster(
   if (!pageGroup || !casterDecode(device).ready || !bindCasterInputs(rt, feed)) return
   vsm.renderedPlan = plan
   const tessellation = vsmShadowTessellation(rt, device, vsm, pageLayout)
-  const records = recordLimit(rt, device)
+  const records = recordLimit(rt, device, vsm.res.layout.mapSlots)
   const casters = { cut, tables, feed, rootWords, rootBoxes, rows, candidates, room, records }
   // The software half's page rows: the same entries, seen by the compute stage.
   const computeGroup = shadowPageComputeGroup(rt, device)
@@ -173,6 +180,31 @@ function projectionContext(
   return context
 }
 
+/** The ranks, in the light buffer, of the context's lights, indexed as they are (`takePerLightPath`). */
+const perLightRanks: number[] = []
+
+/** The per-light path of the frame (`shadowOnePassProjection` false): the shadowed local lights of the
+ *  context, past its suns, each to be lit alone by the lighting (`perLightPass.ts`), into `mask`. */
+function takePerLightPath(
+  { rt, device, vsm, plan }: VsmFrame,
+  context: NonNullable<ReturnType<typeof projectionContext>>,
+  source: VsmProjectionSource,
+  mask: VsmPerLightMask,
+) {
+  perLightRanks.length = context.lights.length
+  for (let k = sunCount(context.lights); k < context.lights.length; k++)
+    perLightRanks[k] = rt.lights.store.slotOf(plan.projected[k].id)
+  return beginPerLightFrame({
+    device,
+    res: vsm.res,
+    frame: context,
+    source,
+    mask,
+    ranks: perLightRanks,
+    forceClear: readShadowSetting(rt, 'shadowForcePerLightMaskClear'),
+  })
+}
+
 /** Projection of the opaque surfaces: one pass, every light of the frame's context, four a layer
  *  of the engine's mask. A frame whose inputs are the last projection's, the shadow pages
  *  settled, runs none: its mask is that projection's (`vsmProjectionHold.ts`). The passes it ran:
@@ -190,10 +222,16 @@ function encodeVsmProjection(
   // At the targets' size, as the scene textures are at theirs: the view rect is its
   // top-left, and a dynamic-resolution step does not remake it.
   const [width, height] = gpu.allocatedSize
-  let suns = 0
-  while (suns < context.lights.length && context.lights[suns].type === 'directional') suns++
+  const suns = sunCount(context.lights)
   const maxLights = readShadowSetting(rt, 'shadowOnePassProjectionMaxLightsPerPixel')
-  const mask = ensureMask(device, vsm, width, height, { suns, localLights: maxLights })
+  // The one-pass projection, or each shadowed local light alone, lit after the others.
+  const onePass = readShadowSetting(rt, 'shadowOnePassProjection')
+  const mask = ensureMask(device, vsm, width, height, {
+    suns,
+    onePass,
+    localLights: maxLights,
+    perLightLayers: Math.min(context.lights.length - suns, PER_LIGHT_MASK_LAYERS),
+  })
   const source = scratch.opaque
   source.depth = gpu.depthView!
   source.normalRough = views[1]
@@ -210,6 +248,8 @@ function encodeVsmProjection(
   // is asked: a grid made again runs the pass.
   const gridWords = lights.tiles?.worldStart ?? 0
   const grid = gridWords ? vsmProjectionReserve(device, vsm.res).lightGrid : undefined
+  const perLight =
+    onePass || !mask.perLight ? undefined : takePerLightPath(frame, context, source, mask.perLight)
   const hold = vsm.projectionHold.inputs
   hold.view = cam.view
   hold.projection = projection
@@ -219,20 +259,30 @@ function encodeVsmProjection(
   hold.phase = context.frameIndex
   hold.trace = vsmTraceKey(context.trace!)
   hold.size = gpu.allocatedSize
-  hold.maxLights = maxLights
+  // Zero: the one-pass projection is off, no pixel keeps a light in its mask.
+  hold.maxLights = onePass ? maxLights : 0
   hold.lights = context.lights
   hold.gridCells = source.gridCells ?? 0
   hold.gridWords = gridWords
   hold.gridCulled = lightGridCulled()
   hold.cullBackfacing = readShadowSetting(rt, 'shadowCullBackfacingPixels')
   // What the pass writes and the light grid of a new buffer run it again.
-  const held = vsm.projectionHold.held(mask.suns, mask.locals, source.tileLights, grid)
-  if (held && !shadowsUnsettled(lights)) return 0
+  const held = vsm.projectionHold.held(
+    mask.suns,
+    mask.locals ?? mask.perLight?.texture,
+    source.tileLights,
+    grid,
+  )
+  const standing = held && !shadowsUnsettled(lights)
+  // The per-light path is held with the projection: its lights are traced again where it is not.
+  if (!standing) perLight?.markStale()
+  if (standing) return 0
   const target = scratch.target
   target.suns = mask.sunsView
   target.locals = mask.localsView
   target.localFormat = mask.localFormat
   target.lightGrid = grid
+  target.onePass = onePass
   if (!encodeVirtualShadowProjection(steps, vsm.res, context, source, target)) return 0
   vsm.projectionHold.keep()
   return 1
@@ -246,6 +296,8 @@ export function encodeHeldVsmProjection(rt: WebgpuPagesRuntime, steps: ComputeRu
     held = scratch?.held
   if (!vsm || !scratch) return
   scratch.projecting = false
+  // The per-light lights are those of the frame that takes the path (`takePerLightPath`).
+  if (vsm.res.projection?.perLight) vsm.res.projection.perLight.frame = undefined
   if (!held) return
   scratch.held = undefined
   vsm.stats.projectionPasses = encodeVsmProjection(held.frame, steps, scratch, held.views)

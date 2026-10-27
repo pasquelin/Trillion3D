@@ -4,14 +4,15 @@ import assert from 'node:assert/strict'
 import { wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
-import { vsmLayout, type VsmLayout } from './layout.ts'
+import { type VsmLayout } from './layout.ts'
 import { vsmPixelPageMarkingWgsl } from './markingWgsl.ts'
 import { vsmProjectionSampleWgsl } from './projection/projectionSampleWgsl.ts'
 import { vsmRenderCullWgsl } from './render/renderCullWgsl.ts'
 import { VSM_RENDER_COUNT_WORDS, vsmFeedbackWords } from './render/renderParamsWgsl.ts'
 import { close } from './throttle.fixture.ts'
+import { SUNS_LAYOUT } from './layout.fixture.ts'
 
-const PLAIN: VsmLayout = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+const PLAIN: VsmLayout = SUNS_LAYOUT
 
 /** The marking's level of a clipmap position as the program computes it; the level of the distance,
  *  the pool's bias and each map's own stand in. */

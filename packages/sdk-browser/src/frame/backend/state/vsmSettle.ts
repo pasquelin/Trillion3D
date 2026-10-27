@@ -39,7 +39,8 @@ export const createVsmSettle = (): VsmSettle => ({
 
 /**
  * Frame `frame`'s plan is done: notes a cause when it invalidated pages (`invalidations` threads),
- * starts or restarts a light uncached, changes the resolution bias, or skipped its raster.
+ * starts or restarts a light uncached (`plan.uncachedDrawn`, read before the raster marked the
+ * lights rendered), changes the resolution bias, or skipped its raster.
  */
 export function noteVsmFrame(
   settle: VsmSettle,
@@ -50,10 +51,8 @@ export function noteVsmFrame(
   rendered: boolean,
 ) {
   settle.frame = frame
-  let cause = invalidations > 0 || !rendered || lodBias !== settle.lodBias
+  const cause = invalidations > 0 || !rendered || lodBias !== settle.lodBias || plan.uncachedDrawn
   settle.lodBias = lodBias
-  for (const light of plan.lights)
-    if (light.entry.isUncached || light.entry.isInvalidated()) cause = true
   if (cause) settle.causeFrame = frame
   if (plan.overflow || plan.projectionCount === 0) noteNoMapFrame(settle, frame)
 }

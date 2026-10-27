@@ -321,7 +321,11 @@ capture needs. A write applies next frame, no session reopened; a read says what
 `world.temporal` holds the pass's settings beside its level, each an option of `createWorld` too:
 `temporalThinGeometry` (`false`) looks for geometry thinner than a pixel — a wire, a rail, which the
 pixels it crosses see on some images and not on others — and relaxes the history there, at any level
-but `'off'`, for the cost of the finding in every image. Three settings ride on the level (table below):
+but `'off'`, for the cost of the finding in every image. `temporalShadingRejectionMode` (`'stability'` or
+`'responsive'`, `'stability'` by default) sets how the shading rejection widens its clamp: `'stability'` is
+steadier and controls the rejection better but ghosts more; `'responsive'` widens the clamp by the blur
+of the lesser total variation of the input's change and of the input, so it rejects less and ghosts
+less, with blockier artifacts. Three settings ride on the level (table below):
 `temporalResurrection` keeps older frames to bring a disoccluded pixel's detail back,
 `temporalReprojectionField` reprojects the history by a field rather than by the dilated vector alone,
 and `temporalShadingRejectionFlickering` widens the shading rejection by the flicker measure; each is
@@ -364,7 +368,11 @@ it, ten at the default, is the depth step in pixel depth errors past which a tex
 region), `temporalThinGeometryLineWeight` (`0.6`; the relaxation weight near a high contrast line),
 `temporalThinGeometryMaxRelaxationWeight` (`0.037`, 0 to 1; the greatest weight by which a cluster hole region
 relaxes the history, before a 3×3 average spreads it) and `temporalThinGeometryRejectTranslucency` (`0.6`; the share of a texel's luma that the translucent layers
-make, past which its thin geometry is rejected, `0` never) and `temporalThinGeometryShadingRange` (`'foliage'`, `'foliageAndHair'`, `'all'` or `'varying'`, `'varying'` by default; the shading models counted as thin geometry: `'varying'` counts every lit surface and relaxes the two-sided foliage with the dilation, the others by their edge alone, and needs the flicker measure running (`temporalFlickeringPeriod` above `0` and `temporalShadingRejectionFlickering` on) or `temporalThinGeometryMinKeepLineContrast` above `0`, else only the foliage counts). `temporalDownsampleQuality` (`'low'` or `'high'`, `'low'` by default)
+make, past which its thin geometry is rejected, `0` never) and `temporalThinGeometryShadingRange` (`'foliage'`, `'foliageAndHair'`, `'all'` or `'varying'`, `'varying'` by default; the shading models counted as thin geometry: `'varying'` counts every lit surface and relaxes the two-sided foliage with the dilation, the others by their edge alone, and needs the flicker measure running (`temporalFlickeringPeriod` above `0` and `temporalShadingRejectionFlickering` on) or `temporalThinGeometryMinKeepLineContrast` above `0`, else only the foliage counts). `temporalThinGeometryAntiFlickering` (`true`) has the flicker measure
+consider the relaxation the detection gives the history, since the detection can fail to find some thin
+geometry; `false` measures the flicker as if the history were not relaxed (the shading rejection itself
+is relaxed either way). It applies where `temporalThinGeometry` runs and the flicker measure runs.
+`temporalDownsampleQuality` (`'low'` or `'high'`, `'low'` by default)
 says how the half-size image the exposure and the bloom read is made: `'low'` has the temporal pass
 and the motion blur write it beside their own image, one filtered sample of four pixels, and the
 chain's own pass only where neither draws; `'high'` has the chain draw it alone, four filtered
@@ -401,6 +409,8 @@ world.temporal = { temporalHistoryPacked: false } // half-float history, as the 
 world.temporal = { temporalHistorySampleCount: 24 } // steadier highlights, more ghosting on fireflies
 world.temporal = { temporalFlickeringPeriod: 3, temporalFlickeringFrameRateCap: 30 } // a longer period, followed below 30 Hz
 world.temporal = { temporalThinGeometry: true, temporalThinGeometryMinKeepLineContrast: 0.2 } // finer lines of light
+world.temporal = { temporalShadingRejectionMode: 'responsive' } // less ghosting, blockier artifacts
+world.temporal = { temporalThinGeometry: true, temporalThinGeometryAntiFlickering: false } // the flicker measure ignores the thin geometry's relaxation
 world.temporal = { temporalDownsampleQuality: 'high' } // the chain draws the half-size image, the wide filter
 ```
 
@@ -834,14 +844,36 @@ world.ambientOcclusion = { ambientOcclusion: false } // off: no pass, no texture
 
 The explorer takes the same by field (`explorer.setAmbientOcclusion('ambientOcclusionPower', 3)`).
 
+`ambientCubemap` is a light from a cube of the page's, off until the world is given one: a world option, `{ size, texels }`, the
+side of a face in texels (a power of two from 16 to 1024) and the six faces' linear colours (`6 · size² · 3` numbers, none negative;
+a cube of another form is refused by name at the opening). It is a second source of the indirect light, beside the environment's and
+the sky light's: a surface's diffuse colour is lit by the cube read along its normal at the mip where the cube is convolved by the
+whole hemisphere, and its specular reflectance by the cube read along its reflection at the mip its roughness picks, weighed by the
+same environment BRDF as the other sources, so the coat, the cloth's fuzz and a thin surface's back take it as they take the
+others'. Its settings are `ambientCubemapTintRed`, `ambientCubemapTintGreen` and `ambientCubemapTintBlue` (`1` each, from 0), the
+tint, and `ambientCubemapIntensity` (`1`, from 0), the scale that multiplies it; a colour that is black draws nothing, and an image
+that sets no cube, or a black one, compiles no code for it and binds no texture. The cube's mip chain is filtered by angle a few
+rows an image and uploaded once; the images drawn meanwhile are drawn again and light nothing from the cube. The translucent surfaces
+take no light from it. An agent sets the settings through `trillion3d_set_ambient_cubemap`.
+
+```js
+const world = createWorld({
+  canvas,
+  ambientCubemap: { size: 16, texels: new Float32Array(6 * 16 * 16 * 3).fill(0.4) }, // a grey cube
+  ambientCubemapIntensity: 2, // twice its light
+})
+world.ambientCubemap = { ambientCubemapTintBlue: 1.5 } // bluer, from the next frame
+world.ambientCubemap = { ambientCubemapIntensity: 0 } // off: no code, no texture
+```
+
 `world.shading` holds the material pass's settings, each an option of `createWorld` too:
 `gpuTimingDetail` (`false`, the default: the material pass is one timed pass; `true`: a frame sampled for the GPU timing times its shading bins and each material class's shading as passes of their own, `Trillion3D material bins` and `Trillion3D material shading <class key>` in `gpuPassMs.passes`, the image the same),
 `gpuShadeStage` (`0`, the default: the whole shading kernel; `1` to `5`: a diagnostic that stops each class's shading after its binned pixel, its triangle's header and indices, its vertex fetch and transform, its interpolation and derivatives, its material and surface, writing no surface — the image is not the scene's —, each class compiled again; with `gpuTimingDetail`, the difference of two stages' `Trillion3D material shading <class key>` times is the stage's cost),
 `shadeBinningMode` (`'auto'`: each material's pixels binned as its shading asks — one by one for
 every material of the engine —, `'pixel'` one by one, `'quad'` by 2 × 2 quad), the image the same in
-each mode, `irisNormal` (`false`, the default: an eye's iris is lit by the direction its `tangent` output gives; `true`: by an iris normal of its own, `clearCoatBottomNormal`) and `clearCoatNormal` (`false`, the default: a clear coat and its base share one normal; `true`: the base keeps the normal of a graph's `clearCoatBottomNormal` output or of a material's normal map, and the coat the `normal` output's or its own normal map's, their difference kept as the reference keeps it, in 8 bits, and the coat's highlight found without the Newton step). A write
+each mode, `shadingRoughDiffuse` (`true`, the default: a lit surface's diffuse light is the energy-preserving rough diffuse of a new project, brighter against the light and darker at grazing views as the roughness grows, a rectangle light's and the indirect light's staying Lambert's; `false`: Lambert's diffuse whatever the roughness), `shadingAccurate` (`true`, the default: the visibility of the lit surfaces' specular lobes is the exact joint Smith term of the GGX lobe; `false`: its approximation), `irisNormal` (`false`, the default: an eye's iris is lit by the direction its `tangent` output gives; `true`: by an iris normal of its own, `clearCoatBottomNormal`) and `clearCoatNormal` (`false`, the default: a clear coat and its base share one normal; `true`: the base keeps the normal of a graph's `clearCoatBottomNormal` output or of a material's normal map, and the coat the `normal` output's or its own normal map's, their difference kept as the reference keeps it, in 8 bits, and the coat's highlight found without the Newton step). A write
 names the settings it changes, `null` one's default; a value of another kind is refused by name
-([ENGINE.md](ENGINE.md#material-surfaces)); changing `irisNormal` or `clearCoatNormal` redraws a still view
+([ENGINE.md](ENGINE.md#material-surfaces)); changing `irisNormal`, `clearCoatNormal`, `shadingRoughDiffuse` or `shadingAccurate` redraws a still view
 from the next frame.
 
 ```js
@@ -852,6 +884,8 @@ world.shading = { irisNormal: true } // an eye's iris has the normal of the clea
 world.shading = { gpuTimingDetail: true } // the material pass's bins and each class timed apart, next sampled frame
 world.shading = { gpuShadeStage: 3 } // each class's shading stops after its vertex fetch and transform, next frames
 world.shading = { clearCoatNormal: true } // a clear coat keeps the clearCoatBottomNormal output as its base's normal
+world.shading = { shadingRoughDiffuse: false } // Lambert's diffuse everywhere, whatever the roughness
+world.shading = { shadingAccurate: false } // the approximate specular visibility, a mobile project's
 ```
 
 `world.exposureSettings` holds the automatic exposure's settings, each an option of `createWorld`
@@ -1762,7 +1796,7 @@ The object decides whether and how far its surfaces' offsets are evaluated (prop
 - **`worldPositionOffsetDisableDistance`** (metres, `0`): past this distance from the camera to the centre of the object's bounds the offset stops (0 never stops it). In the shadow maps of a directional light the distance is the clipmap level's: an object that names one is moved in the levels whose threshold distance — the distance past which the level no longer shows the motion, which doubles for each level coarser — is not past its own, and left at rest in the coarser ones; a local light's maps move it whatever the distance. A level's threshold counts the clipmap's whole resolution bias, the view's width and field of view included. Three settings of the shadow maps name the rule: `shadowClipmapWpoDisableDistance` (`true`; `false` moves the object in every level), `shadowClipmapWpoDisableDistanceLodBias` (3, from 0 to 30: the levels the rule is held back by) and `shadowClipmapWpoDisableDistanceInvalidateOnScaleChange` (`false`; `true` draws a level again when its threshold shifts with the view's resolution or field of view: steadier shadows of moving vegetation, at the price of redraw spikes).
 - **`worldPositionOffsetWritesVelocity`** (boolean, `true`): whether the temporal anti-aliasing reprojects a pixel of the object by where its vertex was. `false` costs less where the offset does not change; with an offset that moves, it leaves a trail. The previous place is the offset of the image before — its clocks and camera — on the object where its previous world matrix put it.
 - **`shadowCacheInvalidation`** (`'auto'`, `'always'`, `'rigid'` or `'static'`, `'auto'` by default): how the object's shadow pages are kept. `auto` draws them again while its offset is evaluated (not past its distance) or while it moves; `always` every image, for an animation the engine cannot know; `rigid` not for its offset, only when it moves; `static` not for its offset nor for its moves: a pose it takes later is not seen by its cached shadows, and the pages are drawn again when it joins or leaves the scene.
-- **`mobility`** (`'static'`, `'stationary'` or `'movable'`, unset by default): whether the object is often moving. A `movable` object has its shadow pages kept in the dynamic layer of the shadow maps from the frame it joins the scene, so that its arrival draws no page of the static layer; the others are kept in the static layer until they first move. Either returns to the static layer after `shadowCacheFramesStaticThreshold` frames without a move. Unset, the object is `movable` when a skin or a morph deforms it and `static` otherwise; an object whose surfaces wear an offset that invalidates its shadows (`shadowCacheInvalidation` neither `'rigid'` nor `'static'`) arrives in the dynamic layer whatever it says, and `shadowCacheInvalidation = 'static'` keeps it out of it. `undefined` gives back the default. It is saved with the world; a light keeps its own `mobility`, which is another setting.
+- **`mobility`** (`'static'`, `'stationary'` or `'movable'`, unset by default): whether the object is often moving. A `movable` object has its shadow pages kept in the dynamic layer of the shadow maps from the frame it joins the scene, so that its arrival draws no page of the static layer; the others are kept in the static layer until they first move. Either returns to the static layer after `shadowCacheFramesStaticThreshold` frames without a move. Unset, the object is `movable` when a skin or a morph deforms it and `static` otherwise; an object whose surfaces wear an offset or a displacement arrives in the dynamic layer whatever it says — unless the shadow option `shadowCacheWpoPrimitives` (false) is on —, and `shadowCacheInvalidation = 'static'` keeps it out of it. `undefined` gives back the default. It is saved with the world; a light keeps its own `mobility`, which is another setting.
 
 Four more switches of the object say what it is to a view: **`firstPerson`** (boolean, `false`) marks an object drawn as a
 first-person one — the hands and the weapon of a player, close to the camera: its pixels wear the first-person mark the shadows treat
@@ -1784,6 +1818,26 @@ ghost.castHiddenShadow = true
 ghost.visible = false // casts, drawn by no view
 const cutout = mesh(geometry, material)
 cutout.holdout = true // a hole in the picture (film: propagateAlpha + primitiveAlphaHoldout)
+```
+
+**Who sees an object.** Two more switches, both `false` by default and saved with the world, hide an object by who looks. A camera
+can name an **owner**, `camera.owner = node` (`null` by default): the node its view belongs to, the player's. An object that is the owner
+or under it is *owned* by that view. **`ownerNoSee`** hides the object from the views that own it and draws it for every other view;
+**`onlyOwnerSee`** draws it for the views that own it alone and hides it from every other, those of cameras that name no owner
+included. A camera with no owner owns nothing. The two switches add to a camera's `hidden` and `showOnly` lists, which still apply
+(`hidden` wins). Until a camera names an owner, the stand-in of a first-person object (`firstPersonWorldSpaceRepresentation`) keeps
+its own rule, hidden from the main camera; once one does, it is hidden from the views that own it, as an `ownerNoSee` object is.
+
+```js
+// The player's hands are seen by the player's camera alone, its body by every other camera.
+const player = object.group()
+player.add(hands, body)
+hands.onlyOwnerSee = true
+body.ownerNoSee = true
+const eye = camera.perspective({ fov: 70 })
+eye.owner = player // the player's own camera: it sees the hands, not the body
+const minimap = camera.perspective()
+minimap.owner = null // a camera that names no owner sees the body, not the hands
 ```
 
 Two options of the material bound the offset: **`maxWorldPositionOffset`** (metres, `0`), the greatest distance the offset may move a vertex along an axis — the offset is held to it, and the bounds of the surface's clusters grow by it where the view and the shadows decide what is seen; `0` holds nothing and grows nothing, so an offset that moves a surface out of its bounds can be cut away at the edge of the view or of a shadow map before the surface reaches it: name the greatest offset when it is large —, and **`alwaysEvaluateWorldPositionOffset`** (boolean, `false`), which evaluates the offset whatever `evaluateWorldPositionOffset` and `worldPositionOffsetDisableDistance` say. The rays that light the scene's reflections and indirect light, and the distance fields, see the surface at rest.
@@ -2814,6 +2868,40 @@ shadowsFog: true })`; a negative `fogScattering` or a `shadowsFog` that is not a
 `emitterLength`, `emitterSoftRadius` and `emitterAxis` (`INVALID_SCENE_LIGHT`): they describe the source
 of a point or a spot, a rectangle's source is its `size`.
 
+A directional light takes `softAngle` (degrees, from 0 up to, not including, 180; default 0), the soft angle of its disk: it widens the
+highlight the sun leaves on a glossy surface without lighting more of the surface, as `emitterSoftRadius` does for a point or a
+spot. A point, a spot or a rect refuses it (`INVALID_SCENE_LIGHT`).
+
+```js
+const sun = light.directional({ intensity: 6, softAngle: 2 }) // a broader highlight on polished surfaces
+```
+
+A point or a spot takes a light profile, the shape of the light a lamp gives as a photometric file measured it (an IES file the
+compiler turned into a profile, a lamp of an imported scene that names one has it already): `iesProfile` is the profile's id,
+`useIesBrightness` (default `false`) makes the light's intensity the profile's brightness (its greatest candela) times
+`iesBrightnessScale` (default `1`, from 0) in place of `intensity`, written in the light's unit. The colour of the light is
+multiplied, for each direction it leaves in, by the profile's share of its greatest candela there, so a profiled light lights nothing
+a profile says it does not. The profile is read in the light's own frame: its vertical axis is the `direction` of the light, its 0
+degree vertical angle (the nadir) straight ahead along the way the light shines, and its horizontal angles run round that axis, laid out from
+`emitterAxis`, the light's own up, which is also the axis of its tube where it has an `emitterLength`. A light that names a profile
+therefore needs both a `direction` and an `emitterAxis`, and the axis may not be parallel to the direction
+(`INVALID_SCENE_LIGHT`); a sun or a rect refuses the profile's fields. At most 32 profiles are held at once; a light whose profile is
+not among them, or not loaded yet, lights as a lamp with none. A scene with no profiled light compiles no profile code and binds no
+atlas. The translucent surfaces do not read the profile: they are lit as by a lamp with none.
+
+```js
+world.addLight({
+  id: 'downlight',
+  kind: 'spot',
+  position: [0, 3, 0],
+  direction: [0, -1, 0],
+  emitterAxis: [1, 0, 0], // the light's own up: the profile's horizontal angles are laid round the direction from it
+  iesProfile: 'downlight.ies', // a profile the compiler wrote from the file
+  useIesBrightness: true, // the intensity is the profile's greatest candela...
+  iesBrightnessScale: 0.5, // ...times 0.5
+})
+```
+
 `transmission` (default `false`) makes a light shine through the subsurface-profile surfaces it shadows (their
 transmission: the light that crosses the thickness behind the lit side, ears, fingers, wax). It acts on a light
 that is `movable` and casts a shadow, and on no other: a stationary or static light has its shadow baked or held
@@ -3007,27 +3095,46 @@ casts (a mesh's `castShadow` defaults to `true`). `mesh.castShadow = false`, wri
 leaves every shadow map; the mesh still receives shadows. An outline drawn as a larger copy of its
 part wants it off, or it shades the part.
 
+### One primitive out of the shadow maps: `castsShadowMaps = false`
+
+A model's mesh of several primitives (one material each) is a group of one mesh per primitive, and
+each of those meshes has its own `castsShadowMaps`, `true` by default. Set `false`, that primitive
+leaves the lights' shadow maps and, while another primitive of its model casts into them, nothing
+else: the distance fields, the global illumination, the contact shadows and the views still hold
+it, and it still receives shadows. A model none of whose primitives casts into the maps casts
+nothing at all, the distance fields' shadows included, as one mesh does: a model of one primitive
+set `false` is such a model. `castShadow` gates first, whole: a mesh with `castShadow = false` casts
+none whatever `castsShadowMaps` says. A translucent surface is never in the shadow maps, so the
+switch is for opaque and masked primitives.
+
+```ts
+// `model` is a loaded model; the thin trim along a cornice costs pages of shadow for a shadow
+// nobody reads: out of the shadow maps, still drawn and still lit, the rest of the model casting.
+const trim = model.getObjectByName('Cornice_Trim')!
+trim.castsShadowMaps = false
+
+const rail = object.mesh(geometry.box(2, 0.02, 0.02)) // a mesh of your own: alone, it casts nothing
+rail.castsShadowMaps = false
+```
+
+A write is told to the world like `castShadow`: the shadow cache stales the pages the primitive
+was drawn in, and a row of a streamed cell takes the value of its source mesh. A clone, a model
+node and a saved scene keep it (a saved scene writes it only when it is `false`).
+
 ### A sun's shadow distance and its far casters
 
-A directional light's shadows follow the eye, and a caster far past the distance they are asked to
-reach costs a raster pass for a shadow nobody reads. A sun therefore has a **shadow distance**:
-`shadowDistance`, in metres, `400` by default, `true` the same, `false` or `0` none (no caster is
-left out for being far). The distance is the sun's own and the view scales it (`shadowDistanceScale`).
-A caster whose object lies past the **edge** of the test — its depth along the view, less the radius
-of its object's bounding sphere — is left out of the sun's shadow maps, all of the object or nothing
-of it, unless the object says `castFarShadow = true`; the sun's distance-field cascade shadows it
-there instead. The object is the whole placement the caster belongs to (its root's box), or, for the
-merged far-field shells of the coarser levels of detail, the actor (the HLOD cell's merged mesh) it
-belongs to.
+A directional light's shadows follow the eye. A sun has a **shadow distance**: `shadowDistance`, in
+metres, `400` by default, `true` the same, `false` or `0` none. The distance is the sun's own and the
+view scales it (`shadowDistanceScale`). It lays the sun's shadow levels and the **edge** where its
+distance-field cascade begins; it does not leave a caster out of the shadow maps. The reference's
+far-shadow test reaches the subjects it gathers on the CPU, which are no cluster geometry, and every
+caster the engine draws is made of clusters: the shadow maps take each of them at any distance,
+whether its object casts far shadows or not, and the sun's distance-field cascade does not take it in
+their place (it takes the meshes that are no cluster geometry, and the engine draws none).
 
-By default the test reaches the merged far-field shells of the world's coarser levels alone: the
-objects drawn as themselves keep casting at any distance. With `farShadowCullsAllMeshes` it reaches
-every caster, and then `castFarShadow` is what keeps an object in. An object says whether the test
-reaches it with `farShadowTest`: `true`, it does (left out past the edge unless it casts far shadows,
-whatever the view says); `false`, it never does; `null`, the default, the view's rule decides. A
-compiled object takes both from the job's object settings
-([COMPILER.md](COMPILER.md#object-settings)); a value set on the node at run time wins over the
-compiled one. The merged shells of a compiled world are no object's: they follow the view's rule.
+`farShadowCulling` decides whether the sun has a near edge and the distance-field cascade that follows it. The
+reference's far-shadow test would act on a caster that is no cluster geometry, of which the engine has none: it has
+no switch for the test, nor a per-object one.
 
 The edge lies a little past the distance: the far end of the last of the sun's near shadow levels,
 with the overlap that level has into the next when another level follows. The levels are the sun's
@@ -3053,8 +3160,6 @@ overlaps 27 m into the cascade that follows; the distance itself from 512 m on.
 const sun = light.directional({ castShadow: true, shadowDistance: 600, shadowCascades: 3 })
 sun.shadowDistance = 250 // metres, from the next frame; the light is made again, its cached pages drawn again
 sun.distanceFieldShadowDistance = false // no distance-field cascade after the near levels
-tower.castFarShadow = true // this object still casts past the edge (false by default, on every node)
-tower.farShadowTest = true // and the test reaches it even where the view says it reaches only the shells
 ```
 
 The view's settings sit beside them, each an option of `createWorld` too, resolved over the quality
@@ -3063,8 +3168,7 @@ preset like the raster's:
 | View option                       | Default               | Meaning                                                                                                       |
 | --------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
 | `shadowDistanceScale`             | `1` (0 to 2)          | the factor on every sun's distance, so `0.5` halves it; `0` leaves the test nothing to cull                   |
-| `farShadowCulling`                | `true`                | the switch of the whole test                                                                                  |
-| `farShadowCullsAllMeshes`         | `false`               | which casters the test reaches                                                                                |
+| `farShadowCulling`                | `true`                | whether a sun has a near edge and the distance-field cascade that follows it                                  |
 | `shadowNearLevels`                | `10` (0 to 10)        | the most near levels; `0` leaves no edge: nothing is culled                                                   |
 | `shadowOverlapScale`              | `1` (0 to 2)          | the factor on the overlap                                                                                     |
 | `shadowFarField`                  | `true`                | whether the distance-field cascade follows the near levels, where the scene has distance fields               |
@@ -3079,8 +3183,8 @@ edge is the distance itself (400 m).
 
 ```js
 const world = createWorld('viewer', { shadowDistanceScale: 0.85, distanceFieldDistanceScale: 2 })
-world.shadows = { farShadowCullsAllMeshes: true } // every caster is tested, from the next frame
-world.shadows = { farShadowCullsAllMeshes: null } // back to the default
+world.shadows = { farShadowCulling: false } // no near edge, no distance-field cascade, from the next frame
+world.shadows = { farShadowCulling: null } // back to the default
 ```
 
 One more setting of the view is the gate every light's shadow passes: `shadowQuality` (`5`, a whole
@@ -3116,45 +3220,47 @@ maps' rows and the shadow quality, as the rules' own rows (`SHADOW_PRESET_LEVELS
 shadow at all, and a page that sets `shadowQuality: 5` brings them back over it. A value of another
 kind, or out of its range, is refused by name. A change of a light's own setting (its distance, its
 cascades) makes the light again and its cached pages are drawn again; a change of the view's settings
-moves the edge the next frame's test reads, and the cached pages are kept. An object's `castFarShadow`
-or `farShadowTest` flip rewrites its rows: the pages they were drawn into are drawn again.
+moves the edge the next frame's test reads, and the cached pages are kept.
 
 #### The sun's distance-field shadow
 
-Past the near levels, a sun's shadow is traced against the distance fields of the meshes the far-shadow
-test leaves out of the shadow maps, from the near levels' end to `distanceFieldShadowDistance`, fading in
-over the last near level's overlap and out before the cascade's end. A sun with `angularRadius: 0`
-casts hard shadows there as in the maps (the angle is held between 0.001 and 5 degrees in the cascade).
-Its settings:
+Past the near levels, a sun's shadow is traced against the distance fields of the meshes that are no
+cluster geometry, from the near levels' end to `distanceFieldShadowDistance`, fading in over the last near
+level's overlap and out before the cascade's end. A sun's shadow maps draw clusters at any distance, so the
+cascade leaves them out (the shadow would be doubled); every mesh the engine draws is made of clusters, so the
+cascade traces nothing today: its passes run on empty lists, and the settings below act on nothing visible
+until a mesh that is none of them is drawn. A sun with `angularRadius: 0` casts hard shadows there as in the
+maps (the angle is held between 0.001 and 5 degrees in the cascade). Its settings:
 
-| View option                         | Default      | Meaning                                                                                                                                                                |
-| ----------------------------------- | ------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `distanceFieldShadowQuality`        | `3` (0 to 3) | the steps of a ray: 0 none, 1 twenty, 2 thirty-two, 3 sixty-four (from 2, a thin transmitting surface keeps the light that survives the thickness it has gone through) |
-| `distanceFieldShadowFullResolution` | `false`      | traced at the display's resolution, else at half of it and upsampled keeping the depth edges                                                                           |
-| `distanceFieldShadowTileSize`       | `2` m        | the side of the tiles across the light the meshes are listed in                                                                                                        |
-| `distanceFieldShadowTwoSidedBias`   | `1`          | the factor on the distance a two-sided mesh's surface is expanded by                                                                                                   |
-| `distanceFieldShadowObjectsPerTile` | `128`        | the meshes a tile has room for on average; a tile past it loses meshes (its shadow flickers)                                                                           |
+| View option                          | Default                  | Meaning                                                                                                                                                                       |
+| ------------------------------------ | ------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `distanceFieldShadowQuality`         | `3` (0 to 3)             | the steps of a ray: 0 none, 1 twenty, 2 thirty-two, 3 sixty-four (at 3 alone, a thin transmitting surface keeps the light that survives the thickness it has gone through, by its own opacity) |
+| `distanceFieldShadowFullResolution`  | `false`                  | traced at the display's resolution, else at half of it and upsampled keeping the depth edges                                                                                  |
+| `distanceFieldShadowTileSize`        | `2` m                    | the side of the tiles across the light the meshes are listed in                                                                                                               |
+| `distanceFieldShadowTwoSidedBias`    | `1`                      | the factor on the distance a two-sided mesh's surface is expanded by                                                                                                          |
+| `distanceFieldShadowObjectsPerTile`  | `128`                    | the meshes a tile has room for on average; a tile past it loses meshes (its shadow flickers)                                                                                  |
+| `distanceFieldShadowScatterTiles`    | `true`                   | the meshes' boxes are drawn onto a grid of tiles across the light and each pixel reads its tile's list; `false`: each group of 8 by 8 texels culls the meshes to its own bounds  |
+| `distanceFieldShadowCompactTiles`    | `true`                   | the tiles' lists lie one after the other; `false`: each tile has a place of its own and a tile past it loses meshes (acts with the scatter on)                                |
+| `distanceFieldShadowSubsampleDepth`  | `false`                  | a texel is reached by the depth at its top left alone (less bandwidth; artifacts on edges and holes of a pixel) rather than the farthest depth of its block                    |
+| `distanceFieldShadowSnapResolution`  | `2048` (at least 32)     | the texels across the cascade's shadow space the origin's snap grid is cut from (4 texels a step, 4 texels off each side): the tile grid moves in steps with the camera       |
 
-It costs nothing while no mesh is one the test leaves out: with the defaults the test reaches the merged
-shells alone, and those carry a distance field only where their HLOD layer asks for one
-([COMPILER.md](COMPILER.md#hlod): `allowDistanceField`, on by default for an `approximate` layer, off for
-a `merge` or `simplify` one). Set `farShadowCullsAllMeshes: true` (or `farShadowTest: true` on the objects
-that should be traced) and the cascade shadows every such mesh. A merged shell's field is traced exactly
-where the shell is drawn: a cell shown instead of its actor, or an actor not loaded, casts nothing
-through it. The cascade is drawn for the first four shadowed lights of a frame (one byte each of the mask
-the lighting reads), for the main view's lit image, and the translucent surfaces do not read it.
+Its passes run in the pre-light step of an image, before the projection of the sun's shadow maps, as long as
+the scene has a mesh with a distance field and the sun has a cascade; the sun's distance-field and shadow-map
+visibilities are combined by their least in the lighting. A merged shell's field, once the
+cascade traces it, is traced exactly where the shell is drawn: a cell shown instead of its actor, or an actor not
+loaded, casts nothing through it. The cascade is drawn for the first four shadowed lights of a frame (one byte
+each of the mask the lighting reads), for the main view's lit image, and the translucent surfaces do not read it.
 
 ```js
 const world = createWorld('viewer', {
-  farShadowCullsAllMeshes: true,
-  distanceFieldShadowQuality: 2,
+  distanceFieldShadowQuality: 2, // 32 steps a ray, and no light through a thin surface
+  distanceFieldShadowSubsampleDepth: true, // a texel is reached by the depth at its top left alone
 })
 world.shadows = { distanceFieldShadowTileSize: 4 } // fewer, larger tiles: cheaper lists, more meshes a tile
+world.shadows = { distanceFieldShadowScatterTiles: false } // each group of texels culls the meshes to itself
 ```
 
-A saved scene keeps each node's `castFarShadow` when it is `true` and its `farShadowTest` when it names
-one (a file saved before the fields loads, every node casting none far and leaving the test to the
-view). An agent sets the same through `trillion3d_set_shadows`, and a light's distance and cascades
+An agent sets the same through `trillion3d_set_shadows`, and a light's distance and cascades
 through the fields of `trillion3d_add_light` (`shadowDistance`, `shadowCascades`, `shadowCascadeExponent`,
 `shadowCascadeTransition`, `farShadowCascades`, `farShadowDistance`, `distanceFieldShadows`,
 `distanceFieldShadowDistance`, `distanceFieldTraceDistance`, `distanceFieldRayStartOffset`, `shadowAmount`, with `true` for
@@ -3234,25 +3340,25 @@ from each pixel toward each light through the depth of the scene, eight steps lo
 something touches it in the light's way. Each light names its own, as properties (also parameters of the light tool and
 fields of a saved scene), every kind of light's:
 
-| Light property                     | Default | Meaning                                                                                                                                                                                   |
-| ---------------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `contactShadowLength`              | `0`     | the length of the ray; `0` casts none. In screen units — a share of the screen's height at the pixel's depth — unless the next. Only a light that casts a shadow (`castShadow`) casts one |
-| `contactShadowLengthInWorldSpace`  | `false` | the length is in metres                                                                                                                                                                   |
-| `contactShadowCastingIntensity`    | `1`     | how dark the shadow is, from 0 to 1, where the ray meets a surface that casts contact shadows (every surface but an eye's)                                                                |
-| `contactShadowNonCastingIntensity` | `0`     | how dark it is, from 0 to 1, where it meets one that does not                                                                                                                             |
+| Light property                     | Default | Meaning                                                                                                                                                                                                                                                                                                                  |
+| ---------------------------------- | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `contactShadowLength`              | `0`     | the length of the ray; `0` casts none. In screen units — a share of the screen's height at the pixel's depth — unless the next. Only a light that casts a shadow (`castShadow`) casts one, and only while the shadow quality is above 0 (below it no light has the dynamic shadow bit; the hair model's short ray stays) |
+| `contactShadowLengthInWorldSpace`  | `false` | the length is in metres                                                                                                                                                                                                                                                                                                  |
+| `contactShadowCastingIntensity`    | `1`     | how dark the shadow is, from 0 to 1, where the ray meets a surface that casts contact shadows (every surface but an eye's and one of an object that sets `castContactShadow = false`)                                                                                                                                    |
+| `contactShadowNonCastingIntensity` | `0`     | how dark it is, from 0 to 1, where it meets one that does not                                                                                                                                                                                                                                                            |
 
 The eye and hair shading models cast a ray whatever the light says, and whatever the view's switch says: a pixel of the
 eye model half a centimetre toward every light, one of the hair model a fifth of the half height of the screen at its
 depth under a light that casts no shadow. The view's settings are shadow settings, options of `createWorld` too, and
 no quality level writes them:
 
-| View option                                | Default        | Meaning                                                                                                   |
-| ------------------------------------------ | -------------- | --------------------------------------------------------------------------------------------------------- |
-| `contactShadows`                           | `true`         | whether the lights cast their rays; off, the lights cast none (the eye and hair models still cast theirs) |
-| `contactShadowOverrideLength`              | `-1`           | a length that replaces every light's own when it is 0 or more (`0` turns the lights' off); below 0, none  |
-| `contactShadowOverrideLengthInWorldSpace`  | `false`        | whether that length is in metres                                                                          |
-| `contactShadowOverrideCastingIntensity`    | `-1` (-1 to 1) | the intensity every light's shadow has at a surface that casts, when it is 0 or more                      |
-| `contactShadowOverrideNonCastingIntensity` | `-1` (-1 to 1) | the same at a surface that does not                                                                       |
+| View option                                | Default | Meaning                                                                                                                                                                              |
+| ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `contactShadows`                           | `true`  | whether the lights cast their rays; off, the lights cast none (the eye and hair models still cast theirs, and so do the surfaces of a material with `contactShadows`)                |
+| `contactShadowOverrideLength`              | `-1`    | a length that replaces every light's own when it is 0 or more (`0` turns the lights' off); below 0, none                                                                             |
+| `contactShadowOverrideLengthInWorldSpace`  | `false` | whether that length is in metres                                                                                                                                                     |
+| `contactShadowOverrideCastingIntensity`    | `-1`    | the intensity every light's shadow has at a surface that casts, when it is 0 or more (any number; the effective intensity is held to 1, above which the reference lights negatively) |
+| `contactShadowOverrideNonCastingIntensity` | `-1`    | the same at a surface that does not                                                                                                                                                  |
 
 ```js
 // A lamp whose shadow holds the books down on the shelf: a ray of a fiftieth of the screen's height, on a light that casts.
@@ -3271,10 +3377,82 @@ world.shadows = { contactShadowOverrideLength: null }
 world.shadows = { contactShadows: false }
 ```
 
+Two more options say what the rays meet and what they shade, one of an object and one of a material:
+
+- **`castContactShadow`** (boolean, `true`), a property of every object, saved with the world: whether the object stops the
+  rays the lights cast from the pixels around it. `false` lets them through its pixels, which then count, where a ray
+  meets them, as surfaces that do not cast (`contactShadowNonCastingIntensity`); the eye model never casts, whatever
+  the object says. It changes nothing of the object's own pixels.
+- **`contactShadows`** (boolean, `false`), an option of a material: the lights cast contact shadows on a see-through
+  surface of it that is lit with `translucencyLighting: 'forward'` (an opaque one is shadowed by the lights' own rays),
+  or a transmissive one. From each of its pixels a ray of a fifth of the half height of the screen at its depth goes
+  toward every light through the depth of the opaque scene, whatever the light's own length, its `castShadow` or the
+  view's `contactShadows` say, with the light's casting and non-casting intensities. The translucent programs hold that
+  code only for a scene that has such a material. A single-layer water casts none, a surface lit from the translucency
+  lighting volume has no light to cast one toward.
+
+```js
+// A figure that does not shade its neighbours' pixels with a contact shadow, and a pane that receives them.
+statue.castContactShadow = false
+const glass = material.meshStandard({ transparent: true, opacity: 0.3, translucencyLighting: 'forward', contactShadows: true })
+```
+
 A light also holds `indirectLightingIntensity` (`1`, from 0): the factor on the light it gives the scene's indirect
 lighting, kept in the same record. A light that casts no shadow gives the material's occlusion to its lobes: a pixel in
 a crease of an ambient-occlusion map is darker under it, as the shadow of a light that casts one already is. How the
 ray is made, and how the view's settings reach the lights: [ENGINE.md](ENGINE.md#direct-lighting).
+
+### A light that follows the exposure
+
+A point, a spot or a rectangle light holds `inverseExposureBlend` (`0`, from 0 to 1): how much its strength is divided by the image's
+exposure. At `0` the light keeps its strength whatever the exposure; at `1` it is divided by it, so it looks the same in a dark scene
+as in a bright one, as a lit sign does under the automatic exposure; between, the geometric blend, the exposure to the power of minus
+the number. A directional light has none (setting one is refused, `INVALID_SCENE_LIGHT`). The value is saved with the world. The
+buffer keeps the light's own strength; every pass that reads it — the lights, the fog, the translucent surfaces, the surface cache —
+applies the blend there, with the exposure of the view it draws, so two views at two exposures each see their own.
+
+```js
+const sign = light.point({ intensity: 800, inverseExposureBlend: 1 }) // looks as bright in the dark as in the day
+sign.inverseExposureBlend = 0.5 // half-way, the next frame
+```
+
+### A light that is left out at a distance
+
+In a perspective view a point, a spot or a rectangle light is left out of the image, its lighting and its shadow both, when it spans too
+little of the screen, or lies past its own distance. Its bounding sphere has a radius `W` (metres) and lies at the distance `d` from the
+view: the light is drawn while `min(0.02, lightMinScreenRadius / W) * factor * d < 1` (so a light of 1.5 m or less, or of no
+size, is dropped past 50 m, a larger one past `W / 0.03`), and, when its `maxDrawDistance` (`0`, no limit, in metres) is above 0,
+while `d < maxDrawDistance * lightMaxDrawDistanceScale` (a scale of 0 drops every light that names a distance). `factor` is the
+view's horizontal field of view in degrees over 90 (a zoomed view keeps its lights farther away), or 1 where
+`lightDrawRangeFollowsFieldOfView` is `false`. The three view settings are `lightMinScreenRadius` (`0.03`),
+`lightMaxDrawDistanceScale` (`1`) and `lightDrawRangeFollowsFieldOfView` (`true`), written with the view's shadow settings (`world.shadows`, each frame). A directional light and an
+orthographic view always draw. A directional light refuses `maxDrawDistance` (`INVALID_SCENE_LIGHT`). The value is saved with the world.
+
+```js
+const lamp = light.point({ intensity: 20, distance: 8, maxDrawDistance: 120 }) // gone past 120 m
+lamp.maxDrawDistance = 0 // no limit again, the next frame
+world.shadows = { lightMinScreenRadius: 0.06 } // small lights are dropped twice as near
+```
+
+### Lighting channels
+
+A light lights an object only if they share a **lighting channel**. There are three, `channel0`, `channel1` and `channel2`, and
+every object and every light is in channel 0 alone by default, so by default every light lights every object. Both hold
+`lightingChannels`, a set of three booleans (saved with the world): a whole set is written, the set read is frozen, and a set missing a
+channel, or holding anything but booleans, is refused (`RangeError` for an object, `INVALID_SCENE_LIGHT` for a light). A set with no
+channel is legal: an object in none is lit by no light, a light in none lights nothing.
+
+```js
+// A lamp that lights the scenery in channel 1 alone, and a prop in channels 0 and 1 that every light reaches.
+const lamp = light.point({ lightingChannels: { channel0: false, channel1: true, channel2: false } })
+scenery.lightingChannels = { channel0: false, channel1: true, channel2: false }
+prop.lightingChannels = { channel0: true, channel1: true, channel2: false }
+lamp.lightingChannels = { channel0: true, channel1: true, channel2: false } // a write reaches the lights at once
+```
+
+The channels act on the direct light of the opaque surfaces and of the see-through surfaces lit in the forward pass
+(`translucencyLighting: 'forward'`, the water, the transmissive layers); the translucency lighting volume, the fog and the indirect
+light do not read them. A scene whose lights and objects are all in channel 0 compiles its lighting without the test.
 
 ### A see-through surface lit from the translucency lighting volume
 
@@ -3776,6 +3954,19 @@ pixels taken aside from the view. A deterministic image: `world.camera.set(pose)
 `await world.awaitPages()`, `world.render()`, then `await capture.buffer(...)`. `awaitPages()`
 rejects a requested URL that failed to load (a background load is retried three times at most); it
 waits for pages, not an image.
+
+A capture draws its view `cutViewCaptureDelay` images (4 by default; less than 1 reads as 1), the first
+being the one that finds its cut whole, and reads the last. The temporal antialiasing the world has on
+runs in the capture from that first image, accumulating them from a history of its own that the
+capture's view releases with it; under 4 images the last, the one that is read, is drawn without it.
+One image is drawn without it. The capture shows no motion blur. The main view's history is untouched.
+
+```ts
+world.cut = { cutViewCaptureDelay: 8 } // eight images, the antialiasing accumulating all of them
+const { data } = await capture.buffer(world, { width: 3840, height: 2160 })
+world.cut = { cutViewCaptureDelay: 2 } // two images, the last drawn without temporal antialiasing
+world.cut = { cutViewCaptureDelay: 1 } // one image, no temporal antialiasing in the capture
+```
 
 ## Migration from Three.js
 

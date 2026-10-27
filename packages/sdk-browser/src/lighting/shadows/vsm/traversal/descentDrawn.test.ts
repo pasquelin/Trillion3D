@@ -2,22 +2,22 @@
 // `vsmDescentNotDrawn`) is what the cull asks of each cluster under it (`../render/renderCullWgsl.ts`):
 // in the dynamic layer, the clip depths within the map's dynamic depth range; on a page to draw of the
 // layer, over a receiver of the map's cover where the layer is not the static one. The node's box
-// holds its clusters' boxes (so its clip depths reach as far as theirs, and the cube about its sphere
-// doubled covers their pages and their cover cells), so no cluster the cull keeps is lost.
+// holds its clusters' boxes (so its clip depths reach as far as theirs, and its pixels cover their
+// pages and their cover cells), so no cluster the cull keeps is lost.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FLOAT32_MAX } from '../../../../../../math/src/constants.ts'
-import { stageBindingCounts } from '../../../../../../../tests/kit/fakeDevice/limitRules.ts'
+import { storageBufferCount } from '../../../../gpu/core/stageLimits.fixture.ts'
 import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
-import { vsmLayout } from '../layout.ts'
 import { MOBILITY_MOVING, MOBILITY_OFFSET_INVALIDATES } from '../../mobilityBits.ts'
 import { vsmDescentPipes } from './traversalPass.ts'
 import { vsmDescentWgsl } from './traversalWgsl.ts'
+import { SUNS_LAYOUT } from '../layout.fixture.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+const LAYOUT = SUNS_LAYOUT
 const DESCENT = vsmDescentWgsl(LAYOUT)
 const C = wgslConstants(DESCENT)
 
@@ -29,7 +29,6 @@ function notDrawn(
   touches: (markMask: number, useCover: boolean) => boolean,
   { range = [0, FLOAT32_MAX], useCover = false } = {},
 ) {
-  const cube = { cube: true }
   const { vsmDescentNotDrawn } = shaderRun<{ vsmDescentNotDrawn(...a: unknown[]): boolean }>(
     DESCENT,
     ['vsmDescentNotDrawn'],
@@ -38,7 +37,6 @@ function notDrawn(
       descentMip: () => 2,
       vsmRootCount: () => 8,
       vsmRootWords: () => ({ word, viewBits: 0, disableSq: 0, deformReach: 0 }),
-      vsmDescentCube: () => cube,
       vsmStalePixels: () => [0, 0, 1, 1],
       vsmTouchesMappedPixels: (...a: unknown[]) => touches(a[3] as number, a[5] as boolean),
     },
@@ -104,10 +102,7 @@ test('each kernel of the descent binds eight storage buffers at most, the receiv
   const entries = (groups: GPUBindGroupLayout[]) =>
     groups.flatMap((g) => [...((g as unknown as GPUBindGroupLayoutDescriptor).entries ?? [])])
   for (const pipe of [pipes.views, pipes.prepare, ...pipes.levels, pipes.postNodes, pipes.close]) {
-    const storage = stageBindingCounts({ bindGroupLayouts: pipe.groups }).find(
-      (c) => c.limit === 'maxStorageBuffersPerShaderStage' && c.kind.endsWith('Compute'),
-    )
-    assert.equal(storage?.count, 8)
+    assert.equal(storageBufferCount({ bindGroupLayouts: pipe.groups }), 8)
   }
   const cover = entries(pipes.prepare.groups).find((e) => e.binding === 3 && e.buffer)
   assert.equal(cover?.buffer?.type, 'read-only-storage', 'binding 3 is the receiver cover')

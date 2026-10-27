@@ -38,9 +38,11 @@ fn dfshCorner(i:u32)->vec3f{
  * bounds grown by the widest cone radius across the light, must meet the tile's column, which runs
  * from the sphere's far side to far toward the light (z from 0 to 1000: a mesh between the light and
  * the cascade casts onto it), on the three axes of the tile's column; then the column's corners
- * must not all lie to one side of the box on any of the box's three axes. The count pass adds one to the
- * tile; the write pass takes the next place in the tile's run of the lists (`tileOffsets`) and writes the mesh
- * in it, held to the room the lists have. The target is a stand-in: the passes write no colour.
+ * must not all lie to one side of the box on any of the box's three axes. The count pass (run when the
+ * lists are compacted) adds one to the tile; the write pass takes the next place in the tile's run of
+ * the lists — from the start offsets, or the tile's own place when they are not compacted
+ * (`dfshTileStart`) — and writes the mesh in it, if the room after the start has it (`dfshTileRoom`).
+ * The target is a stand-in: the passes write no colour.
  */
 export const DFSH_SCATTER_WGSL = wgslProgram(
   `@group(0) @binding(${B.culledObjects}) var<storage,read> culledObjects:array<u32>;
@@ -109,8 +111,9 @@ fn dfshScatterWrite(v:DfshScatter)->@location(0) vec4f{
  let tile=vec2u(v.position.xy);
  if(dfshTileHit(tile,v.object)){
   let at=tile.y*dfsh.tiles.x+tile.x;
-  let slot=tileOffsets[at]+atomicAdd(&tileCounts[at],1u);
-  if(slot<dfsh.tiles.y){tileData[slot]=v.object;}
+  let start=dfshTileStart(at,tileOffsets[at]);
+  let place=atomicAdd(&tileCounts[at],1u);
+  if(place<dfshTileRoom(start)){tileData[start+place]=v.object;}
  }
  return vec4f(0.0);
 }`,

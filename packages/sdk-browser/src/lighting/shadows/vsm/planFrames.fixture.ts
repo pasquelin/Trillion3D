@@ -11,7 +11,13 @@ import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts
 import { replayWrites } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { createVsmResources } from './resources.ts'
 import { createVsmFrameState } from './frameState.ts'
-import { finishVirtualShadowFrame, planVirtualShadowFrame } from './frameSetup.ts'
+import { VSM_DEFAULT_MAPS } from './mapSettings.ts'
+import {
+  commitVirtualShadowFrame,
+  finishVirtualShadowFrame,
+  markVirtualShadowRendered,
+  planVirtualShadowFrame,
+} from './frameSetup.ts'
 import { createVsmMarking, vsmCachePerPageBins, vsmPerPageFrame } from './markingPass.ts'
 import {
   encodeCastInvalidation,
@@ -71,6 +77,7 @@ export function planFrames() {
   const { device } = fake
   const encoder = device.createCommandEncoder()
   const res = createVsmResources(device, {
+    coverMode: 'suns',
     fullMapCapacity: 127,
     sunMapCapacity: 35,
     poolPages: 256,
@@ -92,6 +99,8 @@ export function planFrames() {
   const projection = perspectiveProjection(new Float64Array(16), 60, 4 / 3, 0.1, 1)
   /** Each buffer's bytes as the writes so far left them. */
   const contents = new Map<GPUBuffer, Uint8Array<ArrayBuffer>>()
+  /** The scene frame the next plan counts lights' moves in. */
+  let scene = 0
 
   /** Plans and encodes one frame of `world`; returns the plan, the writes and the groups it
    *  made. */
@@ -122,8 +131,10 @@ export function planFrames() {
     const prevSlots = state.cache.prevFrame?.mapCount ?? 0
     const camera = { view, projection, eye, perspective: true }
     const lights = world.lights.map((light) => ({ light }))
+    state.maps = { ...VSM_DEFAULT_MAPS, frame: scene++ }
     const plan = planVirtualShadowFrame(state, lights, camera, { width: 800, height: 600 })
     if (plan.overflow) throw new Error('planFrames: the tables overflowed')
+    commitVirtualShadowFrame(state, plan)
     const steps = new ComputeRun().begin(encoder)
     encodeCastInvalidation(steps, res, device, prevSlots, maps, changed, casts, false)
     steps.end()
@@ -152,6 +163,7 @@ export function planFrames() {
         camera: { eye, view, threshold: 1 },
       },
     )
+    markVirtualShadowRendered(plan, plan.lights)
     finishVirtualShadowFrame(state, plan)
     res.swapFrames()
     const writes = fake.writes.splice(0)

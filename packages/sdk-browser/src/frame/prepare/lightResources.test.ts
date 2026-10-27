@@ -13,6 +13,7 @@ import { resolveSkyLight } from '../../../../sdk-core/src/modules/sky/skyLight.t
 import { DEFAULT_SKY_QUALITY } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { NO_OVERRIDES } from '../backend/state/viewOverrides.ts'
+import { createRootOffsets } from '../render/rootOffsets.ts'
 
 const LAMP: SceneLight = {
   id: 'l0',
@@ -33,6 +34,9 @@ function harness() {
     store,
     rt: {
       lights: { store },
+      // No root and no transparent item in a channel but the default's (`channelledFor`).
+      vis: { rootOffsets: createRootOffsets() },
+      blendState: { channelled: false },
       run: {},
       views,
       context: {},
@@ -89,7 +93,12 @@ test('the image reads its as-is flags once a row shows one, or under a diagnosti
 test('the resolve with no shadow code is asked by the declared lights, never a slot', () => {
   const b = harness()
   // No visibility buffer yet: no receiver offset to recompute.
-  const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime
+  const rt = {
+    ...b.rt,
+    bounce: {},
+    vis: { rootOffsets: createRootOffsets() },
+    gpu: {},
+  } as unknown as WebgpuPagesRuntime
   b.store.add({ ...LAMP })
   b.store.add({ ...LAMP, id: 'l1' })
   assert.equal(directLightResources(rt).unshadowed, true, 'no light declares a shadow')
@@ -106,7 +115,13 @@ test('the resolve with no shadow code is asked by the declared lights, never a s
 
 test('shadowQuality 0 takes every light its shadow: no light casts, and the programs drop their shadow code', () => {
   const b = harness()
-  const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {}, lights: { store: b.store, pageLayout: {} } }
+  const rt = {
+    ...b.rt,
+    bounce: {},
+    vis: { rootOffsets: createRootOffsets() },
+    gpu: {},
+    lights: { store: b.store, pageLayout: {} },
+  }
   const run = rt as unknown as WebgpuPagesRuntime
   const sun: SceneLight = {
     id: 'sun',
@@ -136,7 +151,12 @@ test('shadowQuality 0 takes every light its shadow: no light casts, and the prog
 
 test('a frame with no rectangle light asks for the resolve with no rectangle code', () => {
   const b = harness()
-  const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {} } as unknown as WebgpuPagesRuntime
+  const rt = {
+    ...b.rt,
+    bounce: {},
+    vis: { rootOffsets: createRootOffsets() },
+    gpu: {},
+  } as unknown as WebgpuPagesRuntime
   b.store.add({ ...LAMP })
   assert.equal(directLightResources(rt).rectless, true, 'a point lamp alone')
   const panel: SceneLight = {
@@ -155,7 +175,13 @@ test('a frame with no rectangle light asks for the resolve with no rectangle cod
 
 test('a frame asks for the shadow read of the kinds its shadowed lights are, never a slot (`ShadowKinds`)', () => {
   const b = harness()
-  const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {}, lights: { store: b.store, pageLayout: {} } }
+  const rt = {
+    ...b.rt,
+    bounce: {},
+    vis: { rootOffsets: createRootOffsets() },
+    gpu: {},
+    lights: { store: b.store, pageLayout: {} },
+  }
   const key = () => {
     const { unshadowed, sunless, localless } = directLightResources(
       rt as unknown as WebgpuPagesRuntime,
@@ -214,7 +240,13 @@ test('the probes wait for the sky only while a real-time sky light has no cube r
 test('the sky light’s occlusion this image drew is handed to the resolve, and none is where the image drew none', () => {
   const b = harness()
   const occlusion = { read: undefined as { bent: GPUBuffer; params: GPUBuffer } | undefined }
-  const rt = { ...b.rt, bounce: {}, vis: {}, gpu: {}, distanceFields: { occlusion, sunShadow: {} } }
+  const rt = {
+    ...b.rt,
+    bounce: {},
+    vis: { rootOffsets: createRootOffsets() },
+    gpu: {},
+    distanceFields: { occlusion, sunShadow: {} },
+  }
   const run = rt as unknown as WebgpuPagesRuntime
   b.store.add({ ...LAMP })
   assert.equal(directLightResources(run).skyShadowing, undefined, 'drawn none')

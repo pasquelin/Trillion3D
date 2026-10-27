@@ -12,7 +12,8 @@ import type { TessellationValues } from '../../../../sdk-core/src/contracts/tess
  * `edgesPerPixel`, the reciprocal of the threshold, `patchesPerGroup` the patches a group of the
  * dicing pass takes, and the capacities of the splitting queue and of the visible list. Each pass
  * has a uniform of its own, which says where its regions lie: `args`, `queue` and `visible` are
- * word offsets in the `tess` buffer (`tessLayout`), `dispatch` one in the `dispatch` buffer, and
+ * word offsets in the `tess` buffer (`tessLayout`) — `visibleTwoSided` the second list of the shadow
+ * maps' chain, its two-sided rows' —, `dispatch` one in the `dispatch` buffer, and
  * `dispBase` where the displaced surfaces' records start in it (`displacementOf`). The
  * occlusion test of the patches (`splitWgsl.ts`): `occlusion` says which pyramid it reads
  * (`OCCLUSION_*`), `depthMap` the projection's clip depth, `prevViewProj`, `prevDepthMap` and
@@ -30,6 +31,7 @@ export const TESS_UNIFORM = fieldLayout('TessUni', [
   ['args', 'u32'],
   ['queue', 'u32'],
   ['visible', 'u32'],
+  ['visibleTwoSided', 'u32'],
   ['dispatch', 'u32'],
   ['occlusion', 'u32'],
   ['maxOccluded', 'u32'],
@@ -60,6 +62,7 @@ type TessellationRegions = {
   args: number
   queue: number
   visible: number
+  visibleTwoSided: number
   dispatch: number
   disp: number
   list: number
@@ -108,6 +111,7 @@ export function writeTessellationUniform(
   ints[at.args] = regions.args
   ints[at.queue] = regions.queue
   ints[at.visible] = regions.visible
+  ints[at.visibleTwoSided] = regions.visibleTwoSided
   ints[at.dispatch] = regions.dispatch
   ints[at.dispBase] = regions.disp
   ints[at.list] = regions.list
@@ -135,8 +139,10 @@ export const recordRoom = (words: number) =>
  * triangles), the displaced surfaces' records (`recordWords` of them), each chain's state, the
  * splitting queue every chain shares, then each pass's visible list. `tableWords` is the table's,
  * `maxCandidate` and `maxVisible` the capacities of the queue and of a visible list, in patches.
- * The shadow maps' chain keeps its patches in the first pass's list: the cut's passes have dealt
- * with theirs by the time the shadows are drawn, and a chain never reads what another wrote.
+ * The shadow maps' chain keeps the patches of its one-sided rows in the first pass's list and those of
+ * its two-sided rows in the second's: the cut's passes have dealt with theirs by the time the shadows
+ * are drawn, and a chain never reads what another wrote. A pass of the cut lists a second time into
+ * its own list, which its patches never reach.
  */
 export function tessLayout(
   tableWords: number,
@@ -151,11 +157,15 @@ export function tessLayout(
   const first = queue + maxCandidate * PATCH_WORDS
   const visible = RASTER_PASSES.map((pass) => first + pass * maxVisible * PATCH_WORDS)
   visible[TESS_CHAIN_SHADOW] = visible[0]!
+  const visibleTwoSided = visible.map((own, chain) =>
+    chain === TESS_CHAIN_SHADOW ? visible[1]! : own,
+  )
   return {
     disp,
     args,
     queue,
     visible,
+    visibleTwoSided,
     words: first + RASTER_PASSES.length * maxVisible * PATCH_WORDS,
   }
 }

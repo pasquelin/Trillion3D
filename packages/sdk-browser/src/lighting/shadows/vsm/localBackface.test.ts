@@ -15,7 +15,7 @@ import { vsmLocalsProjectionWgsl } from './projection/projectionWgsl.ts'
 import { vsmLayout } from './layout.ts'
 import { saturate } from '../../../../../math/src/scalar/reals.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 })
+const LAYOUT = vsmLayout({ coverMode: 'suns', fullMapCapacity: 63, sunMapCapacity: 18 })
 const MARKING = vsmPixelPageMarkingWgsl(LAYOUT),
   PROJECTION = vsmLocalsProjectionWgsl(LAYOUT, 'rg32uint')
 type V3 = [number, number, number]

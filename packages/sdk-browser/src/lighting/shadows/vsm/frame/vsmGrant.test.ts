@@ -223,7 +223,7 @@ test('a set kept while no light shadows drops its cache, forgets its plan and co
   const cache = new VsmCacheManager()
   const entry = cache.lightEntryFor('sun', 1)
   entry.markRendered(5)
-  cache.keepFrameForNext({ mapCount: 1 })
+  cache.keepFrameForNext({ mapCount: 1, sunBase: 0 })
   const stats = Object.assign(createVsmEngineStats(), {
     ...{ lights: 2, maps: 5, tableBlocks: 1, projectionPasses: 2, freePages: 7 },
     ...{ invalidationThreads: 40, pressureBiasStat: 1, render: {} },

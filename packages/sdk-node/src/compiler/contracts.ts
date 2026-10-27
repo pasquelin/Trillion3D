@@ -13,6 +13,7 @@ import type {
   PartitionSchemeOption,
 } from '../../../sdk-core/src/contracts/partitionOptions.ts'
 import type { MeshBuildOption } from '../../../sdk-core/src/contracts/meshBuildOptions.ts'
+import type { HairEndingPointOption } from '../../../sdk-core/src/contracts/hairEndingPointOptions.ts'
 import type { LightmapBakeOption } from '../../../sdk-core/src/contracts/lightmapBakeAbi.ts'
 import type { ObjectSettingsOption } from '../../../sdk-core/src/contracts/objectOptions.ts'
 import type { DagWarning } from '../../../sdk-core/src/contracts/dag.ts'
@@ -168,7 +169,7 @@ export interface CompilerEvent {
    *  the cache key unchanged */
   meshBuild?: MeshBuildOption
   /** Each object's settings: `{ spatiallyLoaded, skinnedInstance, drawDistance, runtimeGrid, farField,
-   *  castFarShadow, farShadowTest, objects }` —
+   *  objects }` —
    *  whether it streams on the partition's main grid, drawn while the view lies within the grid's
    *  loading range of its cell (default `true`: an animated object streams too, no HLOD standing
    *  for it past its cell's range), or is loaded with the scene and always drawn (`false`);
@@ -184,12 +185,7 @@ export interface CompilerEvent {
    *  and `false` when left out, `perInstance` an instance of an instanced mesh, tested at its
    *  bounds' centre and drawn at every distance without a `max` —; `runtimeGrid`, the name of the streaming grid it streams on
    *  (`partitionGrids`; the first when it names none or one the job does not hold); `farField`,
-   *  whether a view's primed depth draws it (`false` by default); `castFarShadow`, whether it
-   *  casts far shadows, which a sun's far-shadow test keeps in its shadow maps (`false` by
-   *  default); `farShadowTest`, whether that test reaches it (`true`: it is left out of the sun's
-   *  shadow maps past the edge of the shadow distance unless it casts far shadows) or never does
-   *  (`false`), left out the view's rule decides (the world's merged shells alone, or every caster
-   *  with `farShadowCullsAllMeshes`); `objects` the
+   *  whether a view's primed depth draws it (`false` by default); `objects` the
    *  rules `{ match, …settings }` setting them for the objects a match names; for each setting,
    *  the first rule matching, the scene's, the node's own `extras`, the default
    *  (`resolveObjectSettings`). @defaultValue none: every default, the cache key unchanged */
@@ -211,6 +207,11 @@ export interface CompilerEvent {
    *  compile job; it lights the bounces and, casting shadows, fills the layer of the sky's bent
    *  normal) (`resolveLightmapBake`). @defaultValue none: no bake, the cache key unchanged */
   lightmapBake?: LightmapBakeOption
+  /** Whether each curve of a hair groom (an Alembic curves object, a USD `BasisCurves`) is given one
+   *  control point more at its end, a tenth of its last segment past its last point, so that the
+   *  strip of triangles drawn from the points keeps the last segment (`resolveHairEndingPoint`).
+   *  @defaultValue true; a job that gives the point keeps its cache key */
+  hairEndingPoint?: HairEndingPointOption
   /** Stops the job when aborted. */ signal?: AbortSignal
   /** Called on each event. */
   onProgress?: (event: CompilerEvent & Partial<PreparationProgress>) => void
@@ -289,6 +290,7 @@ export interface BatchJob extends Pick<
   | 'meshBuild'
   | 'objectSettings'
   | 'lightmapBake'
+  | 'hairEndingPoint'
 > {
   /** Its name. */ id?: string
   /** The source file. */ source: string

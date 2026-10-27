@@ -7,6 +7,7 @@ import { linkWorldCell, waitWorldRow } from '../frame/prepare/worldRoot.ts'
 import { rootMark } from '../deformation/halfFloat.ts'
 import type { DrawDistance, RootParent } from '../geometry/selection/types.ts'
 import { askNodeRoom } from './growth/growthOf.ts'
+import { shadowsFollowDrawDistance } from '../lighting/shadows/casters/followChanges.ts'
 
 /** Hands a root that was parked or taken, or began or stopped casting, or is drawn at other
  *  distances, or has another group above its root, to the GPU cut. */
@@ -73,7 +74,12 @@ export function updateWebgpuPlacements(
           : mobility.move(rank, world, true)
       return move
     },
-    (rank) => moveRootRows(rt, layout.selectionRoots[rank], rank),
+    (rank, distant, reseated) => {
+      // A row seated on another mesh is another primitive: it arrives anew (`mobility.reseat`).
+      if (reseated) mobility.reseat(rank)
+      moveRootRows(rt, layout.selectionRoots[rank], rank)
+      if (distant) shadowsFollowDrawDistance(rt, rank)
+    },
     layout,
   )
   // A row its cell placed or left lies in that cell's HLOD 0 cell now, or none (`worldRoot.ts`). A

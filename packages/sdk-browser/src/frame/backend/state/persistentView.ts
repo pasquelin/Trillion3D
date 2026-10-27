@@ -145,6 +145,5 @@ export async function removeWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView)
   const at = rt.views.persistent.indexOf(view)
   if (at < 0) return
   rt.views.persistent.splice(at, 1)
-  rt.lights.vsm?.state.cache.dropView(view.id)
   await releaseSettledCapture(rt, view)
 }

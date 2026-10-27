@@ -13,7 +13,8 @@ import {
   computeUniformEntry,
 } from '../../../../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../../../../gpu/core/oncePerDevice.ts'
-import { hasSubgroups, hasSubgroupsOf } from '../../../../gpu/core/subgroups.ts'
+import { gpuCapsOf, nativeOrPolyfill } from '../../../../gpu/core/gpuCaps.ts'
+import { hasSubgroupsOf } from '../../../../gpu/core/subgroups.ts'
 import { hizDepthEntries } from '../../../../visibility/hiz/gpu/pyramidTexture.ts'
 import { preparedComputePipeline, type PreparedPipeline } from '../../../deferred/fullscreen.ts'
 import { preparedPipelines } from '../../../../gpu/core/preparedPipelines.ts'
@@ -29,6 +30,8 @@ import { SUBSURFACE_FORMAT } from '../../../../materials/surface/subsurface.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../../../materials/surface/physicalLobes.ts'
 import { vsmBindGroupEntries, vsmBindGroupLayoutEntries, type VsmResources } from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
+import type { VsmInputType } from '../inputType.ts'
+import type { PerLightPipelines } from './perLightPipelines.ts'
 import { VSM_PASS_PREFIX } from '../../../../diagnostic/stage/passLabels.ts'
 
 /** The projection's pass, and its pipelines. */
@@ -39,14 +42,21 @@ type MaskFormat = ReturnType<typeof onePassMaskFormat>
 /** One of the projection's passes for one pool layout: its group layout, pipeline layout and
  *  module(s) and pipelines, each made the first time it is asked (`sunsPipeline`, `localsPipeline`): the
  *  prepare step asks them, compiled off the frame; the groups are each set's (`VsmProjectionState`). */
-export interface Pipelines {
+export interface Pipelines extends InputPipelines {
   device: GPUDevice
   vsmLayout: GPUBindGroupLayout
+  layout: VsmLayout
+  /** The passes over the hair strands (input `strands`, `../inputType.ts`), made at their first ask. */
+  strands?: InputPipelines
+  /** The per-light path's pipelines (`perLightPipelines.ts`), made at the first light that asks. */
+  perLight?: PerLightPipelines
+}
+/** The passes of one input type: the suns' group layout, pipeline layout and pipeline, and the local
+ *  lights' pass for each format of the mask, with the group layout its mask is bound by. */
+interface InputPipelines {
   sunsLayout: GPUBindGroupLayout
   sunsPipelineLayout: GPUPipelineLayout
-  layout: VsmLayout
   suns?: PreparedPipeline<GPUComputePipeline>
-  /** The local lights' pass for each format of the mask, with the group layout its mask is bound by. */
   locals: Map<MaskFormat, LocalsPass>
 }
 interface LocalsPass {
@@ -56,7 +66,7 @@ interface LocalsPass {
 
 /** The bindings the two passes' groups share: the view uniform, the scene's depth, normals and
  *  surface flags, the blue noise, the depth pyramid and the thin transmission. */
-const sharedEntries = (): GPUBindGroupLayoutEntry[] => [
+export const sharedEntries = (): GPUBindGroupLayoutEntry[] => [
   computeUniformEntry(VSM_PROJECTION_BINDING.view),
   computeTextureEntry(VSM_PROJECTION_BINDING.sceneDepth, 'depth'),
   computeTextureEntry(VSM_PROJECTION_BINDING.normalRough, 'unfilterable-float'),
@@ -67,36 +77,77 @@ const sharedEntries = (): GPUBindGroupLayoutEntry[] => [
   computeStorageTextureEntry(VSM_PROJECTION_BINDING.lobes, PHYSICAL_LOBES_FORMAT, 'read-only'),
 ]
 
-/** The suns' pass group: the shared bindings and the suns' mask the pass writes. */
-const sunsLayoutOf = (device: GPUDevice) =>
+/** The bindings the two passes' groups share over the hair strands: the view uniform, the depth of the
+ *  nearest strand, the blue noise, the depth pyramid, the tiles' counts (a uniform) and their list. */
+const strandsSharedEntries = (): GPUBindGroupLayoutEntry[] => [
+  computeUniformEntry(VSM_PROJECTION_BINDING.view),
+  computeTextureEntry(VSM_PROJECTION_BINDING.sceneDepth, 'unfilterable-float'),
+  computeTextureEntry(VSM_PROJECTION_BINDING.blueNoise, 'unfilterable-float'),
+  ...hizDepthEntries(VSM_PROJECTION_BINDING.hizDepth, COMPUTE),
+  computeUniformEntry(VSM_PROJECTION_BINDING.strandsCounts),
+  computeBufferEntry(VSM_PROJECTION_BINDING.strandsTiles, 'read-only-storage'),
+]
+
+/** The bindings the two passes of `input` share. */
+const sharedEntriesOf = (input: VsmInputType) =>
+  input === 'strands' ? strandsSharedEntries() : sharedEntries()
+
+/** The label of a pass's layout, group and pipeline of `input`: the surfaces' plain, the strands' marked. */
+const inputLabel = (label: string, input: VsmInputType) =>
+  input === 'strands' ? `${label}.strands` : label
+
+/** The suns' pass group of `input`: the shared bindings, the suns' mask the pass writes and, where the
+ *  set holds the prefiltered distant shadow (`prefiltered`), its merged pool. */
+const sunsLayoutOf = (device: GPUDevice, prefiltered: boolean, input: VsmInputType) =>
   device.createBindGroupLayout({
-    label: 'vsm.projection.suns',
+    label: inputLabel('vsm.projection.suns', input),
     entries: [
-      ...sharedEntries(),
+      ...sharedEntriesOf(input),
       computeStorageTextureEntry(
         VSM_PROJECTION_BINDING.mask,
         VSM_SUN_MASK_FORMAT,
         'write-only',
         '2d-array',
       ),
+      ...(prefiltered
+        ? [computeBufferEntry(VSM_PROJECTION_BINDING.filterableMerged, 'read-only-storage')]
+        : []),
     ],
   })
 
-/** The local lights' pass group: the shared bindings, the engine's deferred view, the lights and the
- *  light grid's lists the pass walks, the shadowed lights' grid the marking pruned, and the mask it
- *  writes. */
-const localsLayoutOf = (device: GPUDevice, format: MaskFormat) =>
+/** The local lights' pass group of `input`: the shared bindings, the engine's deferred view, the lights
+ *  and the light grid's lists the pass walks (the strands' reads its cells in the shadowed lights' grid
+ *  alone), the shadowed lights' grid the marking pruned, and the mask it writes. */
+const localsLayoutOf = (device: GPUDevice, format: MaskFormat, input: VsmInputType) =>
   device.createBindGroupLayout({
-    label: `vsm.projection.locals.${format}`,
+    label: inputLabel(`vsm.projection.locals.${format}`, input),
     entries: [
-      ...sharedEntries(),
+      ...sharedEntriesOf(input),
       computeUniformEntry(VSM_PROJECTION_BINDING.deferredView),
       computeBufferEntry(VSM_PROJECTION_BINDING.directLights, 'read-only-storage'),
-      computeBufferEntry(VSM_PROJECTION_BINDING.tileLights, 'read-only-storage'),
+      ...(input === 'strands'
+        ? []
+        : [computeBufferEntry(VSM_PROJECTION_BINDING.tileLights, 'read-only-storage')]),
       computeBufferEntry(VSM_PROJECTION_BINDING.lightGrid, 'read-only-storage'),
       computeStorageTextureEntry(VSM_PROJECTION_BINDING.mask, format, 'write-only'),
     ],
   })
+
+/** The passes of `input` over the tables' group `vsmLayout`, for the pool `layout`: the suns' layouts
+ *  made, the pipelines when asked. */
+function inputPipelines(
+  device: GPUDevice,
+  vsmLayout: GPUBindGroupLayout,
+  layout: VsmLayout,
+  input: VsmInputType,
+): InputPipelines {
+  const sunsLayout = sunsLayoutOf(device, layout.prefilteredDistant, input)
+  return {
+    sunsLayout,
+    sunsPipelineLayout: device.createPipelineLayout({ bindGroupLayouts: [vsmLayout, sunsLayout] }),
+    locals: new Map(),
+  }
+}
 
 /** The projection's layouts and pipelines for the pool `layout`; its pipelines made when asked. */
 function makePipelines(device: GPUDevice, layout: VsmLayout): Pipelines {
@@ -104,41 +155,51 @@ function makePipelines(device: GPUDevice, layout: VsmLayout): Pipelines {
     label: 'vsm.projection.vsm',
     entries: vsmBindGroupLayoutEntries(VSM_PROJECTION_VSM_SPECS, COMPUTE),
   })
-  const sunsLayout = sunsLayoutOf(device)
-  return {
-    device,
-    layout,
-    vsmLayout,
-    sunsLayout,
-    sunsPipelineLayout: device.createPipelineLayout({ bindGroupLayouts: [vsmLayout, sunsLayout] }),
-    locals: new Map(),
-  }
+  return { device, layout, vsmLayout, ...inputPipelines(device, vsmLayout, layout, 'gbuffer') }
 }
 
-/** The suns' pipeline of `p`, made at its first ask. */
-export function sunsPipeline(p: Pipelines) {
-  return (p.suns ??= preparedComputePipeline(p.device, {
+/** The passes of `p` for `input`, the strands' made at their first ask. */
+export const passesOf = (p: Pipelines, input: VsmInputType): InputPipelines =>
+  input === 'strands' ? (p.strands ??= inputPipelines(p.device, p.vsmLayout, p.layout, input)) : p
+
+/** The suns' pipeline of `p` over the pixels of `input`, made at its first ask. */
+export function sunsPipeline(p: Pipelines, input: VsmInputType = 'gbuffer') {
+  const passes = passesOf(p, input)
+  const label = `${inputLabel('vsm.projection.suns', input)} (${nativeOrPolyfill(gpuCapsOf(p.device), 'subgroups').tag})`
+  return (passes.suns ??= preparedComputePipeline(p.device, {
     label: VSM_PROJECTION_PASS,
-    layout: p.sunsPipelineLayout,
+    layout: passes.sunsPipelineLayout,
     compute: {
       module: p.device.createShaderModule({
-        label: 'vsm.projection.suns',
-        code: vsmSunsProjectionWgsl(p.layout, hasSubgroupsOf(p.device, VSM_PROJECTION_HALF_LANES)),
+        label,
+        code: vsmSunsProjectionWgsl(
+          p.layout,
+          hasSubgroupsOf(p.device, VSM_PROJECTION_HALF_LANES),
+          input,
+        ),
       }),
       entryPoint: 'vsmProjectSuns',
     },
   }))
 }
 
-/** The local lights' pipeline of `p` writing a mask of `format`, made at its first ask. */
-export function localsPipeline(p: Pipelines, format: MaskFormat) {
-  let pass = p.locals.get(format)
+/** The local lights' pipeline of `p` over the pixels of `input` writing a mask of `format`, made at its
+ *  first ask. */
+export function localsPipeline(p: Pipelines, format: MaskFormat, input: VsmInputType = 'gbuffer') {
+  const { locals } = passesOf(p, input)
+  let pass = locals.get(format)
   if (!pass) {
-    const groupLayout = localsLayoutOf(p.device, format)
+    const groupLayout = localsLayoutOf(p.device, format, input)
     const layout = p.device.createPipelineLayout({ bindGroupLayouts: [p.vsmLayout, groupLayout] })
+    const label = `${inputLabel(`vsm.projection.locals.${format}`, input)} (${nativeOrPolyfill(gpuCapsOf(p.device), 'subgroups').tag})`
     const module = p.device.createShaderModule({
-      label: `vsm.projection.locals.${format}`,
-      code: vsmLocalsProjectionWgsl(p.layout, format, hasSubgroups(p.device)),
+      label,
+      code: vsmLocalsProjectionWgsl(
+        p.layout,
+        format,
+        hasSubgroupsOf(p.device, VSM_PROJECTION_HALF_LANES),
+        input,
+      ),
     })
     pass = {
       groupLayout,
@@ -148,16 +209,17 @@ export function localsPipeline(p: Pipelines, format: MaskFormat) {
         compute: { module, entryPoint: 'vsmProjectLocals' },
       }),
     }
-    p.locals.set(format, pass)
+    locals.set(format, pass)
   }
   return pass
 }
 
-/** The device's projections, by the pool layout they were compiled for, made once a device. */
+/** The device's projections, by the pool layout they were compiled for (its row shift, and whether it holds
+ *  the prefiltered distant shadow), made once a device. */
 const projections = oncePerDevice((device: GPUDevice) =>
   preparedPipelines(
     (layout: VsmLayout) => makePipelines(device, layout),
-    (layout) => `${layout.poolRowShift}`,
+    (layout) => `${layout.poolRowShift}${layout.prefilteredDistant ? ':prefiltered' : ''}`,
   ),
 )
 

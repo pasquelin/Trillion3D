@@ -43,10 +43,9 @@ const RECORD_OFFSET = {
   cornerSteps: 272,
   lightRange: 280,
   tableOrigin: 284,
-  farShadowEdge: 288,
-  wpoThreshold: 292,
-  prevMapId: 296,
-  prevTableOrigin: 300,
+  wpoThreshold: 288,
+  prevMapId: 292,
+  prevTableOrigin: 296,
   prevShiftedToClip: 304,
   prevClipDepth: 368,
   prevFinestMip: 384,
@@ -54,10 +53,16 @@ const RECORD_OFFSET = {
   dynamicDepthCullRange: 392,
 } as const
 
+/** The word of each field of a record, for a kernel that reads a record out of a word array (the
+ *  prefiltered distant shadow's history, `../filterableWgsl.ts`). */
+export const VSM_PROJECTION_RECORD_WORD = Object.fromEntries(
+  Object.entries(RECORD_OFFSET).map(([field, offset]) => [field, offset / 4]),
+) as { readonly [Field in keyof typeof RECORD_OFFSET]: number }
+
 /** The words of a record that hold the light's kind and the map's resolution bias, which the compute
  *  throttle's update reads and raises on the GPU (`../throttleWgsl.ts`). */
-export const VSM_PROJECTION_KIND_WORD = RECORD_OFFSET.lightKind / 4
-export const VSM_PROJECTION_LEVEL_BIAS_WORD = RECORD_OFFSET.levelBias / 4
+export const VSM_PROJECTION_KIND_WORD = VSM_PROJECTION_RECORD_WORD.lightKind
+export const VSM_PROJECTION_LEVEL_BIAS_WORD = VSM_PROJECTION_RECORD_WORD.levelBias
 
 /** A map's record, its matrices and vectors its own: a writer fills them in place frame after
  *  frame (`vsmDefaultProjectionData` makes them). */
@@ -89,9 +94,6 @@ export interface VsmProjectionDataValues {
   /** Where the map's page table lies in the global one (x | y << 16, `../tableBlocks.ts`), the
    *  frame's. */
   tableOrigin: number
-  /** A sun's far-shadow distance from the eye, in metres, 0 for none: its raster leaves out the
-   *  casters past it (`vsmFarShadowSkipped`). A local light's is 0. */
-  farShadowEdge: number
   /** The square of the distance, in metres, past which an object's offset is left out of this map: a
    *  clipmap level shows an object's motion only while the distance its offset stops at (the object's
    *  `worldPositionOffsetDisableDistance`) is not below it (`wpoAllowed`, `../../../../visibility/shader/wpoGraphWgsl.ts`).
@@ -107,7 +109,7 @@ export interface VsmProjectionDataValues {
   prevShiftedToClip: Float64Array
   prevClipDepth: number[]
   /** The place of the map's view among the views drawn (`VsmCacheManager.viewSlotOf`): the bit of
-   *  the instances' per-view cache state (`../../casters/instanceStateWgsl.ts`) it reads. */
+   *  the instances' per-view cache state (`../../casters/castDiffWgsl.ts`) it reads. */
   viewSlot: number
   /** The clip depths a non-static caster must reach to be drawn into the map (`vsmRenderCullView`):
    *  its far end past x, its near end short of y. A clipmap level cut tightly takes x just short of
@@ -137,7 +139,6 @@ export function vsmDefaultProjectionData(): VsmProjectionDataValues {
     ditherTexels: 0,
     finestMip: 0,
     tableOrigin: 0,
-    farShadowEdge: 0,
     wpoThreshold: 0,
     prevMapId: -1,
     prevTableOrigin: 0,
@@ -186,7 +187,6 @@ export function writeVsmProjectionData(
   f[base + O.ditherTexels / 4] = d.ditherTexels
   u[base + O.finestMip / 4] = d.finestMip
   u[base + O.tableOrigin / 4] = d.tableOrigin >>> 0
-  f[base + O.farShadowEdge / 4] = d.farShadowEdge
   f[base + O.wpoThreshold / 4] = d.wpoThreshold
   u[base + O.prevMapId / 4] = d.prevMapId >>> 0
   u[base + O.prevTableOrigin / 4] = d.prevTableOrigin >>> 0

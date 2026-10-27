@@ -15,10 +15,15 @@ export type {
   SceneLightingView,
 } from '../../sdk-core/src/scene/light/contracts.ts'
 export {
-  BOUNCE_PROBE_QUEUE,
+  BOUNCE_MAX_LEVELS,
   BOUNCE_SETTINGS,
-  resolveProbesPerFrame,
+  probePoolOf,
+  probeQueueFor,
+  probeQueueShapeFor,
+  probeQueueShapeOf,
+  probeRowOf,
 } from '../../sdk-core/src/bounce/contracts.ts'
+export type { BounceShape } from '../../sdk-core/src/bounce/contracts.ts'
 export { cellSpacing, createBounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export { cloneSceneLight } from '../../sdk-core/src/scene/light/clone.ts'
@@ -29,6 +34,7 @@ export { DEFAULT_LIGHT_UNITS, LIGHT_UNITS } from '../../sdk-core/src/scene/light
 export type { LightUnits } from '../../sdk-core/src/scene/light/lightUnits.ts'
 export { LIGHT_FIELD } from '../../sdk-core/src/scene/light/fields.ts'
 export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabilities.ts'
+export type { LightShadowView } from '../../sdk-core/src/scene/light/shadowedBits.ts'
 export { SHADOW_PAGE } from '../../sdk-core/src/scene/light/shadow/sunEntries.ts'
 export type {
   SubsurfaceImplementation,

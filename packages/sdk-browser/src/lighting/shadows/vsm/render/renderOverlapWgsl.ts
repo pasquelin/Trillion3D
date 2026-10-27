@@ -1,23 +1,11 @@
 import { VSM_COVER_GATHER_WGSL } from '../pageGatherWgsl.ts'
-import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslVariants } from '../../../../../../math/src/wgsl/decl.ts'
 import { lowBits } from '../../../../../../math/src/wgsl/integer.ts'
-import { VSM_BOX_CULL_WGSL } from '../invalidation/boxCullWgsl.ts'
+import { vsmBoxCullBlock } from '../invalidation/boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from '../pageTableWgsl.ts'
 
-/** The page-overlap pieces the cull reads (`renderCullWgsl.ts`). */
-export const VSM_RENDER_OVERLAP_WGSL = wgslBlock(
-  'VSM_RENDER_OVERLAP_WGSL',
-  [
-    VSM_CONSTANTS_WGSL,
-    VSM_HANDLE_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_TABLE_ORIGIN_WGSL,
-    VSM_COVER_GATHER_WGSL,
-    VSM_BOX_CULL_WGSL,
-    lowBits,
-  ],
-  `
+const renderOverlapText = `
 /** A mask of \`runWidth\` bits at \`runStart\`. */
 fn vsmBitRun(runWidth:u32,runStart:u32)->u32{
  return lowBits(runWidth&31u)<<(runStart&31u);
@@ -55,5 +43,22 @@ fn vsmTouchesMappedPixels(h:VsmHandle,mipLevel:u32,pixels:vec4i,askedMarks:u32,f
  let cover8x8=vsmGatherCover(coverCell,coverLevel);
  return vsmMaskRectHits(cover8x8,subRectAtLevel.xy,subRectAtLevel.zw);
 }
-`,
+`
+
+/** The page-overlap pieces the cull reads (`renderCullWgsl.ts`), over the box cull of a set whose layout
+ *  says whether it holds the prefiltered distant shadow (`vsmBoxCullBlock`). */
+export const vsmRenderOverlapBlock = wgslVariants((prefiltered) =>
+  wgslBlock(
+    prefiltered ? 'VSM_RENDER_OVERLAP_PREFILTERED_WGSL' : 'VSM_RENDER_OVERLAP_WGSL',
+    [
+      VSM_CONSTANTS_WGSL,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
+      VSM_COVER_GATHER_WGSL,
+      vsmBoxCullBlock(prefiltered),
+      lowBits,
+    ],
+    renderOverlapText,
+  ),
 )

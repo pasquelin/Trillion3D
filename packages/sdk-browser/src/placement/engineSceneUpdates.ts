@@ -8,6 +8,7 @@ import type { WorldCells } from '../geometry/dag/worlds/worldCells.ts'
 import type { TextureCache } from '../materials/texture/textureCaches.ts'
 import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import type { PageMaterials } from '../geometry/pages/pageMesh.ts'
+import type { ViewOriginCast } from '../physics/viewOriginCast.ts'
 
 /** A range of one vertex list a dynamic geometry rewrote (#573): vertices `from` to
  *  `from + count - 1` of the host geometry's list `name`. */
@@ -141,4 +142,7 @@ export interface EngineSceneUpdates extends PlacementGrowth {
   admitMaterial(surface: PageMaterials): Promise<void>
   /** Release an admitted material after its last assignment leaves. */
   releaseMaterial(surface: PageMaterials): void
+  /** The cast of the view origin into the world's physics (`lighting/shadows/vsm/viewOrigin.ts`),
+   *  handed while a physics session runs and `null` otherwise. */
+  setViewOriginCast(cast: ViewOriginCast | null): void
 }

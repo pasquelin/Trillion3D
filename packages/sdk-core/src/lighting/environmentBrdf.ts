@@ -10,6 +10,7 @@
  */
 import { TAU } from '../../../math/src/constants.ts'
 import { clamp } from '../../../math/src/scalar/reals.ts'
+import { halton } from '../../../math/src/sequence/halton.ts'
 
 /** Texels across (N·V) and down (roughness). */
 export const ENV_BRDF_WIDTH = 128
@@ -18,17 +19,6 @@ export const ENV_BRDF_HEIGHT = 32
 export const ENV_BRDF_TEXELS = ENV_BRDF_WIDTH * ENV_BRDF_HEIGHT
 
 const SAMPLES = 128
-
-/** The bits of `i` in reverse order, over 2³², as a fraction. */
-function radicalInverse(i: number) {
-  let bits = i >>> 0
-  bits = ((bits << 16) | (bits >>> 16)) >>> 0
-  bits = (((bits & 0x55555555) << 1) | ((bits & 0xaaaaaaaa) >>> 1)) >>> 0
-  bits = (((bits & 0x33333333) << 2) | ((bits & 0xcccccccc) >>> 2)) >>> 0
-  bits = (((bits & 0x0f0f0f0f) << 4) | ((bits & 0xf0f0f0f0) >>> 4)) >>> 0
-  bits = (((bits & 0x00ff00ff) << 8) | ((bits & 0xff00ff00) >>> 8)) >>> 0
-  return bits / 4294967296
-}
 
 /** The two shares of one texel: the view at cosine `noV` (sine toward x), the lobe of perceptual roughness `roughness`. */
 function integrate(noV: number, roughness: number): [number, number] {
@@ -39,7 +29,7 @@ function integrate(noV: number, roughness: number): [number, number] {
   let b = 0
   for (let i = 0; i < SAMPLES; i++) {
     const e1 = i / SAMPLES
-    const e2 = radicalInverse(i)
+    const e2 = halton(i, 2)
     const phi = TAU * e1
     const cosTheta = Math.sqrt((1 - e2) / (1 + (m2 - 1) * e2))
     const sinTheta = Math.sqrt(1 - cosTheta * cosTheta)

@@ -50,6 +50,7 @@ const SHADOW_SIZES = [
   'sdk-browser/src/lighting/shadows/vsm/constants.js',
   'sdk-browser/src/lighting/shadows/vsm/layout.js',
   'sdk-browser/src/lighting/shadows/vsm/layoutBytes.js',
+  'sdk-browser/src/lighting/shadows/vsm/prefilteredConstants.js',
 ]
 
 /** The folder a source is listed under: its package's own `src/` and the folder below it. */

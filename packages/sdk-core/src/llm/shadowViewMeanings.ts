@@ -36,6 +36,14 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     'The last clipmap level whose coarse page is marked (18, the default: a radius of 5.2 km): higher gives dense coarse shadow over a longer radius for more pages.',
   shadowClipmapMinCameraViewportWidth:
     "The narrowest view width, in pixels, a directional light's clipmap resolution is judged at (0, the default: the width the view is drawn at, alone). Raise it so that a lowered render resolution does not coarsen the sun's shadows; a wider drawn view is not narrowed.",
+  shadowOrthoEstimateClipmapLevels:
+    "Whether an orthographic view sizes the first level of a directional light's clipmap on the width of its box (true, the default): a wide box then starts its levels coarser, so its finest levels are not spent on texels smaller than the box can show. false starts at shadowClipmapFirstLevel. A perspective view never reads it.",
+  shadowOrthoClipmapLodBias:
+    'Whole levels added to the first clipmap level an orthographic view found from its box (0, the default; from -30 to 30): positive starts coarser for fewer pages, negative finer for sharper shadows near the eye; the first level is never below 0. Read where shadowOrthoEstimateClipmapLevels is on.',
+  shadowOrthoProjectViewOrigin:
+    "Whether an orthographic view centres a directional light's clipmap on the point it frames (true, the default) instead of on the camera, which an orthographic camera can stand far from: the camera's viewTarget if it names one, else (with shadowOrthoRayCastViewOrigin) the first body its line of sight meets. false centres it on the camera.",
+  shadowOrthoRayCastViewOrigin:
+    "Whether, where an orthographic camera names no viewTarget, the clipmap is centred on the first body its line of sight meets in the physics (true, the default); the physics must be on, the answer is the previous frame's, and a line that meets nothing leaves the clipmap on the camera. Read where shadowOrthoProjectViewOrigin is on.",
   shadowClipmapZRangeScale:
     "Scale of each clipmap level's depth range on its radius (1000, the default): casters that far above a level still cast. Larger, the depth precision of a texel falls in proportion; a change redraws the light's pages.",
   shadowClipmapWpoDisableDistance:
@@ -48,6 +56,10 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "Whether the casters that move are culled against the depth a clipmap level shows (true, the default): a level's depth range ends at its own radius, less the resolution bias, so a moving caster farther along the light than the level can show is not drawn into it. With shadowForceInvalidateDirectional on, the level's depth range itself is cut to that end. false draws the moving casters over the whole depth range.",
   shadowForceInvalidateDirectional:
     "Whether a directional light's clipmap keeps no page from one frame to the next (false, the default): true draws every page of every level again each frame, at the cost of drawing the whole clipmap every frame; the first-person clipmap always does. Read with shadowClipmapCullDynamicTightly, which then also cuts each level's depth range at its end.",
+  shadowPrefilteredDistant:
+    "Whether a directional light's far shadow is prefiltered (false, the default): the casters farther than a clipmap level's inner range are drawn into the pages of the coarser levels too, and the pages of those levels are filtered, over the frames, into a soft 8-bit occlusion that the projection reads in place of a trace where it holds one. It costs a pool of occlusion bytes and the filter passes; turned on or off, the shadow pool is made again and its pages drawn again.",
+  shadowPrefilteredDistantHistoryBlendFactor:
+    'The share of the frame before that the prefiltered distant shadow keeps (0.87, the default; from 0 to 1): higher updates the far shadow more slowly and aliases more over time; 0 turns the reprojection off. Read where shadowPrefilteredDistant is on.',
   shadowUseReceiverMaskDirectional:
     "Whether a directional light's clipmap draws its pages for the pixels that ask them alone (true, the default): each page keeps a mask of the receivers inside it and a caster that touches no receiver is not drawn, which culls far more at lower resolutions. false draws every caster that touches a page. Changing it draws the sun's pages again.",
   shadowUseReceiverMaskLocal:
@@ -58,8 +70,10 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "Coarse pages of a point, spot or rectangle light's maps, the page of the last mip, which every far receiver then finds: 0 none, 1 (the default) marks it, 2 marks it and keeps its dynamic layer cached while casters move. The quality levels write 2 below the top one and 1 at 'cinematic'.",
   shadowCoarsePagePixelThresholdStatic:
     "Pixels (1, the default) under which an object cached in the static layer is drawn into the fine pages of a shadow map alone, not into its coarse pages: the object's whole bounds are measured in the map's finest level; higher leaves more small objects out of the coarse pages.",
-  shadowCoarsePagePixelThresholdDynamic:
+  shadowCoarsePagePixelThresholdDynamicClusters:
     "Pixels (4, the default) under which an object cached in the dynamic layer is drawn into the fine pages of a shadow map alone, not into its coarse pages: the object's whole bounds are measured in the map's finest level; higher leaves more small objects out of the coarse pages.",
+  shadowCoarsePagesIncludeNonClusterCasters:
+    'Whether the casters that are not cluster geometry may be drawn into the coarse pages (true, the default: the footprint thresholds above decide which casters stay out of them). Every caster here is cluster geometry, so false puts every caster in the coarse pages, whatever its footprint and the thresholds above; it spares the fine pages the small objects, and costs the coarse pages every object.',
   shadowMarkPixelPagesMipModeLocal:
     "Which mips of a point, spot or rectangle light's maps the pixels of the view mark: 0 (the default) all eight, 1 the four even ones (16k, 4k, 1k, 256), 2 the four odd ones (8k, 2k, 512, 128); fewer mips duplicate fewer instances in the maps and make a harsher fall-off between mips.",
   shadowPageDilationBorderSizeDirectional:
@@ -92,10 +106,14 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     'Levels (2, the default, from -16 to 16) coarser than usual at which the pixels of first-person objects ask the regular clipmap for pages, as they are not self-shadowing and very near the camera; a negative value asks no page at all for them.',
   shadowFirstPersonRequestMinLevelClamp:
     'Finest clipmap level (8, the default, from 0 to 30) the pixels of first-person objects ask for, so that geometry close to the camera requests no very high resolution while a distant one still can.',
+  shadowOnePassProjection:
+    'Whether the shadow of every shadowed local light is projected in one pass into the packed mask the clustered light loop reads (true, the default). false takes each shadowed local light out of that loop and lights it by a draw of its own after the batched lights, from a screen mask it clears, projects into and composites for that light alone: no cap on the lights a pixel keeps and no dither of the packed shares, at the cost of a projection, a mask and a draw per light. The suns are projected apart either way.',
+  shadowForcePerLightMaskClear:
+    "Whether the per-light projection's target is cleared before each light's projection (false, the default; it applies only with shadowOnePassProjection false). The projection writes every pixel it reaches, so the clear changes no image; it is a debugging switch.",
   shadowOnePassProjectionMaxLightsPerPixel:
     "Most local lights per pixel (16, the default, from 1 to 32) whose shadow the projection keeps in its mask, 4 bits a light (a mask of 32 bits a pixel up to 8 lights, 64 up to 16, 128 up to 32); a light of the pixel's cell past them is read from one sample of its own map by the lighting. Lower costs less memory.",
   shadowAllowScreenOverflowMessages:
-    "Whether the shadow stats report the overflows seen in the last 10 seconds (true, the default): the one-pass projection's lights past the mask, the page pool, the casters' list and the marking's job queue. Each kind is logged once either way; an overflow can show as missing shadow.",
+    "Whether the shadow stats report the overflows seen in the last 10 seconds (true, the default): the one-pass projection's lights past the mask, the page pool, the casters' list, the raster's records list and the map slots. Each kind is logged once either way; an overflow can show as missing shadow.",
   shadowSubsurfaceMinSourceAngle:
     "Smallest angle in degrees (5, the default) a sun's disk takes on a subsurface surface: the disk grows toward it as the surface's opacity falls, which softens the shadow the way the light diffuses in the material.",
   shadowMaxDofResolutionBias:
@@ -103,9 +121,7 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
   shadowCache:
     "Whether the shadow pages are kept from one frame to the next (true, the default). false draws every light uncached each frame, keeps no distant light, and makes the pool without a separate layer for the static casters, so it costs the full shadow raster every frame; changing it makes the shadows' set again, its pages dropped.",
   shadowCacheAllocateViaLru:
-    'Whether a page that no map wants this frame is taken for a new request by the age of its last request (true, the default): an empty page first, then the one wanted longest ago, the finer level first within an age step. false takes them in the order of the pool, after the empty ones, whatever their age.',
-  shadowCacheDeformableMeshesInvalidate:
-    'Whether the pages an object that a skin or a morph deforms is drawn into are invalidated as it draws them, whether or not its transform moved (true, the default), so its shadow follows its animation. false caches it as dynamic while it moves and as static after shadowCacheFramesStaticThreshold frames without a move, so a still object that animates keeps the shadow of the pose it had.',
+    'Whether a page that no map wants this frame is taken for a new request by the age of its last request (true, the default): an empty page first, then the one wanted longest ago, frame by frame, whatever its level. false takes them in the order of the pool, after the empty ones, whatever their age.',
   shadowForceInvalidateLocal:
     'Which local lights draw their pages again each frame, uncached (0, the default): 0 none, 1 those that are not distant, 2 all of them, the distant ones too. Costs the full raster of the lights it names every frame; for finding whether a stale page is the cause of an artefact.',
   shadowForceFullPageClears:
@@ -120,6 +136,8 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     'Most shadow pages a frame whose deferred invalidation (see shadowInvalidateOnLodDelta) is carried out: -1 (the default) all of them, 0 none; the pages over the budget keep their mark and are invalidated in the frames after.',
   shadowInvalidateOnLodDelta:
     'Whether the shadow pages a cluster is drawn into are invalidated when it is drawn at a coarser level than the shadow view asks because the finer level is not resident yet (false, the default), so that they are drawn again when it is; pairs with shadowDeferredInvalidationBudget, which spreads the invalidations over frames. It is the only streaming channel: off, a cluster entering or leaving residency, or a colour tile arriving, invalidates no page.',
+  shadowCacheWpoPrimitives:
+    "Whether an object whose surfaces wear a world position offset or a displacement arrives with its shadows cached in the static layer, as a still object (false, the default: it arrives in the dynamic layer, as an often-moving object does, unless its shadowCacheInvalidation is 'static'). Turning it makes every object arrive anew; its offset still invalidates its shadow pages while it is evaluated, either way.",
   shadowCacheFramesStaticThreshold:
     'Frames (100, the default) a placement that moved must go without moving or being invalidated before its shadows are cached as static again, in the layer a still object is drawn into.',
   shadowCacheMaxPageAgeSinceLastRequest:
@@ -135,7 +153,7 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
   shadowDynamicResolutionLoadBudget:
     "Estimated load of the shadow raster (0, the default: off), counted in the clusters it draws, past which every shadow map's resolution bias rises, the busier maps more; lower is more aggressive. Ignored while shadowDynamicResolutionTimeBudgetMs is above 0. Off, nothing is counted or run.",
   shadowDynamicResolutionPerVsmBiasHistoryWeight:
-    "Share (0.9, the default; 0 to 1) of a shadow map's compute bias that the frame before keeps when it is eased, to smooth it over time; used while a time or load budget is on.",
+    "Share (0.9, the default; any number, meant from 0 to 1, taken as given beyond) of a shadow map's compute bias that the frame before keeps when it is eased, to smooth it over time; used while a time or load budget is on.",
   shadowDynamicResolutionMaxComputeResolutionLodBiasDirectional:
     "Most levels (99999, the default: no cap of its own) the compute throttle adds to the resolution bias of a directional light's maps, within shadowDynamicResolutionMaxResolutionLodBias less the pool's bias; 0 never lowers them.",
   shadowDynamicResolutionMaxComputeResolutionLodBiasLocal:
@@ -209,4 +227,10 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "Whether the shadow of a point, spot or rectangle light reaches a translucent surface (false, the default; read once when the session opens, no quality level writes it): off, a shadowed local light lights a translucent surface unshadowed and the translucent programs hold none of the local lights' shadow code; on, it reads the shadow as shadowTranslucentQuality says. The sun's shadow always reaches a translucent surface.",
   translucentRectLights:
     'Whether a rectangle light lights a translucent surface as a rectangle (false, the default; read once when the session opens, no quality level writes it): off, the surface takes it as a point light at its centre and the translucent programs hold none of the rectangle shading; opaque surfaces always take the rectangle.',
+  lightMinScreenRadius:
+    'The share of the screen a point, spot or rectangle light must span, by its bounding sphere, to be drawn in a perspective view (0.03, the default): a light of 1.5 m or less is dropped, its lighting and its shadow, beyond 50 m, a larger one beyond about 33 times its radius. 0 drops no light by its size.',
+  lightMaxDrawDistanceScale:
+    "The factor on every light's own maxDrawDistance (1, the default): a light past its distance times this is dropped, in a perspective view. A light whose maxDrawDistance is 0 has no limit.",
+  lightDrawRangeFollowsFieldOfView:
+    "Whether the distance lights are judged at for lightMinScreenRadius scales with the view's horizontal field of view over 90 degrees (true, the default; a narrower view, a zoom, keeps small lights nearer the eye longer) or is not scaled (false).",
 }

@@ -1,5 +1,3 @@
-import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
-
 /**
  * THE MARK'S BITS, each named once: a root's mark (`ClusterRoot.mark`) holds the bits below, and,
  * above the 16th bit, the half-float reach (`../../deformation/halfFloat.ts`). Every home of a bit
@@ -14,9 +12,6 @@ export const MARK_BITS = {
   shadowless: 4,
   drawDistance: 8,
   worldRoot: 16,
-  farShadow: 32,
-  farTest: 64,
-  farSkip: 128,
   rootParent: 256,
   drawInstance: 512,
   cacheStatic: 1024,
@@ -24,6 +19,7 @@ export const MARK_BITS = {
   hiddenShadow: 4096,
   movable: 8192,
   immovable: 16384,
+  shadowMapless: 32768,
 } as const
 
 /**
@@ -37,14 +33,11 @@ export const MARK_BITS = {
 /** The bit of a root whose node, or the row placing it, casts no shadow (`castShadow = false`): the
  *  shadow raster leaves its rows out. */
 export const SHADOWLESS_ROOT = MARK_BITS.shadowless
-/** The bit of a root whose node, or the row placing it, casts far shadows (`castFarShadow`): a sun's
- *  far-shadow test never leaves its rows out. */
-export const FAR_SHADOW_ROOT = MARK_BITS.farShadow
-/** The bit of a root whose node says a sun's far-shadow test reaches it (`farShadowTest` `true`),
- *  and that of a root whose node says it never does (`false`); neither, the view's rule decides
- *  (`farShadowCullsAllMeshes`, the world's merged shells). */
-const FAR_TEST_ROOT = MARK_BITS.farTest
-const FAR_SKIP_ROOT = MARK_BITS.farSkip
+/** The bit of a root whose node, or the row placing it, leaves its surface out of the shadow maps
+ *  (`castsShadowMaps = false`) while another primitive of its mesh casts into them: the shadow raster
+ *  leaves its rows out, the distance fields, the cards and the views keep it. A mesh no primitive of
+ *  which casts into the maps casts none at all: every primitive is `SHADOWLESS_ROOT` (`nodeCasting`). */
+export const SHADOW_MAPLESS_ROOT = MARK_BITS.shadowMapless
 /** The bit of a root whose node says its shadow cache is not invalidated by a change of its transform
  *  (`shadowCacheInvalidation` `'static'`): a pose it takes is not drawn again in the shadow maps. */
 export const CACHE_STATIC_ROOT = MARK_BITS.cacheStatic
@@ -63,30 +56,42 @@ export const HIDDEN_SHADOW_ROOT = MARK_BITS.hiddenShadow
 /** The bits a node's shadow flags set. */
 const CASTING_BITS =
   SHADOWLESS_ROOT |
-  FAR_SHADOW_ROOT |
-  FAR_TEST_ROOT |
-  FAR_SKIP_ROOT |
+  SHADOW_MAPLESS_ROOT |
   CACHE_STATIC_ROOT |
   WORLD_SPACE_ROOT |
   HIDDEN_SHADOW_ROOT |
   MOVABLE_ROOT |
   IMMOVABLE_ROOT
 
-/** The bit a far-shadow test setting sets: `FAR_TEST_ROOT` for `true`, `FAR_SKIP_ROOT` for `false`,
- *  none for a setting that is left out (`null`, `undefined`). */
-const farTestBits = (test: boolean | null | undefined) =>
-  test === true ? FAR_TEST_ROOT : test === false ? FAR_SKIP_ROOT : 0
+/** The groups that stand for a mesh of several primitives, one host mesh each (`holdPrimitiveGroup`). */
+const primitiveGroups = new WeakSet<object>()
+/** Records `group` as the parent of a mesh's primitives: they cast into the shadow maps as one mesh does. */
+export const holdPrimitiveGroup = (group: object) => void primitiveGroups.add(group)
+/** Whether `group` was recorded by `holdPrimitiveGroup`. */
+export const isPrimitiveGroup = (group: object) => primitiveGroups.has(group)
+
+/** Whether the mesh of `node` casts into the shadow maps: its primitives are those of its group, and one of them says
+ *  it does (`castsShadowMaps` is not `false`), else the node alone is its mesh. */
+const meshCastsIntoMaps = (node: {
+  castsShadowMaps?: boolean
+  parent?: { readonly children: readonly { readonly castsShadowMaps?: boolean }[] } | null
+}) =>
+  node.castsShadowMaps !== false ||
+  (!!node.parent &&
+    primitiveGroups.has(node.parent) &&
+    node.parent.children.some((part) => part.castsShadowMaps !== false))
 
 /** What a node says of its shadows, as the mark's bits: `SHADOWLESS_ROOT` when it casts none (or is a
- *  first-person object), `WORLD_SPACE_ROOT` when it stands for one, `HIDDEN_SHADOW_ROOT` when it casts while hidden,
- *  `FAR_SHADOW_ROOT` when it casts far ones, `FAR_TEST_ROOT` or `FAR_SKIP_ROOT` when it says the
- *  far-shadow test reaches it or never does, `CACHE_STATIC_ROOT` when it says its transform never
+ *  first-person object, or its mesh casts into no shadow map, the distance fields' too: no primitive of it does),
+ *  `SHADOW_MAPLESS_ROOT` when its surface is left out of the shadow maps alone
+ *  (`castsShadowMaps` `false`, another primitive of its mesh casting into them), `WORLD_SPACE_ROOT` when it stands for one, `HIDDEN_SHADOW_ROOT` when
+ *  it casts while hidden, `CACHE_STATIC_ROOT` when it says its transform never
  *  invalidates its cached shadows, `MOVABLE_ROOT` or `IMMOVABLE_ROOT` when it says it is often moving
  *  or not. */
 export const nodeCasting = (node: {
   castShadow: boolean
-  castFarShadow?: boolean
-  farShadowTest?: boolean | null
+  castsShadowMaps?: boolean
+  parent?: { readonly children: readonly { readonly castsShadowMaps?: boolean }[] } | null
   shadowCacheInvalidation?: string
   mobility?: string
   firstPerson?: boolean
@@ -94,41 +99,13 @@ export const nodeCasting = (node: {
   castHiddenShadow?: boolean
 }) =>
   // A first-person object casts no dynamic shadow of its own.
-  (node.castShadow && !node.firstPerson ? 0 : SHADOWLESS_ROOT) |
+  (node.castShadow && !node.firstPerson && meshCastsIntoMaps(node) ? 0 : SHADOWLESS_ROOT) |
+  (node.castsShadowMaps === false && meshCastsIntoMaps(node) ? SHADOW_MAPLESS_ROOT : 0) |
   (node.firstPersonWorldSpaceRepresentation ? WORLD_SPACE_ROOT : 0) |
   // The reference reads the hidden shadow of an object that is no world-space representation alone.
   (node.castHiddenShadow && !node.firstPersonWorldSpaceRepresentation ? HIDDEN_SHADOW_ROOT : 0) |
-  (node.castFarShadow ? FAR_SHADOW_ROOT : 0) |
   (node.shadowCacheInvalidation === 'static' ? CACHE_STATIC_ROOT : 0) |
-  (node.mobility === 'movable' ? MOVABLE_ROOT : node.mobility ? IMMOVABLE_ROOT : 0) |
-  farTestBits(node.farShadowTest)
-
-/**
- * Whether a sun's far-shadow test reaches a root of mark `mark` (its casting bits, and the world
- * DAG's own bit `MARK_BITS.worldRoot` for a placement of the world DAG: its merged shells are
- * reached by default): the root says it is reached (`FAR_TEST_ROOT`), or it is one of the shells, or
- * the view says every mesh is (`allMeshes`), unless the root says it never is (`FAR_SKIP_ROOT`,
- * which wins). The one truth of the test: the shadow raster's caster flags (`casters/castFlags.ts`
- * and the WGSL that reads them) and the distance-field cascade's object flags
- * (`lighting/distanceField/objectCasting.ts`) are built from it, so the maps and the cascade
- * shadow a mesh alike — one of them, never both nor neither.
- */
-export const farTestedOf = (mark: number, allMeshes: boolean) =>
-  !(mark & FAR_SKIP_ROOT) && (allMeshes || (mark & (FAR_TEST_ROOT | MARK_BITS.worldRoot)) !== 0)
-
-/** The same rule in WGSL, over the three facts it reads: the root is reached on its own account
- *  (its own say or the world's shells'), it is skipped, the view says every mesh is reached. */
-export const FAR_TESTED_WGSL = wgslFn(
-  'farTestedOf',
-  [],
-  'fn farTestedOf(reached:bool,skipped:bool,allMeshes:bool)->bool{return !skipped&&(reached||allMeshes);}',
-)
-
-/** `casting` with the far-shadow test the compiled scene names for the placement (`test`, the job's
- *  `farShadowTest` of the object) when `casting` says none of its own: a node's own setting at run
- *  time wins over the compiled one. */
-export const withCompiledFarTest = (casting: number, test: boolean | undefined) =>
-  casting & (FAR_TEST_ROOT | FAR_SKIP_ROOT) ? casting : casting | farTestBits(test)
+  (node.mobility === 'movable' ? MOVABLE_ROOT : node.mobility ? IMMOVABLE_ROOT : 0)
 
 /** `mark` with its casting bits set to `casting` (`nodeCasting`), its other bits kept. */
 export const withCasting = (mark: number, casting: number) => (mark & ~CASTING_BITS) | casting

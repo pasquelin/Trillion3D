@@ -15,15 +15,18 @@ import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection
  *  a normal of its own, bit 1 a clear coat with a bottom normal, `writeModelSwitches`); `preExposure` the number every light is written multiplied
  *  by (`x`, `../../post/exposure/pre.ts`) and the scale the composition multiplies the image by
  *  (`y`): the exposure over that number, the scene's, or the one an automatic exposure measured
- *  and copied there on the GPU (`../../post/exposure/frame.ts`; `z` whether the image carries an alpha channel, 1 or 0 (`propagateAlpha`); `w` the distance at which a subsurface-model surface's colour is the light's transmittance, `writeSubsurfaceDistance`); `screenProbes` how the resolve reads the screen probes' history: `x` whether the
- *  material's occlusion multiplies their light (through the multi-bounce of the albedo), `y` the albedo that is capped at,
- *  `z` the strength of their short-range occlusion and `w` their mode (bit 0 their occlusion alone over the
- *  world's probes' light, bit 1 no back light gathered; `writeScreenProbes`); `surface` the surfaces' render pixels per display
+ *  and copied there on the GPU (`../../post/exposure/frame.ts`; `z` whether the image carries an alpha channel, 1 or 0 (`propagateAlpha`); `w` the distance at which a subsurface-model surface's colour is the light's transmittance, `writeSubsurfaceDistance`); `screenProbes` how the resolve reads the screen probes' history: `x` the strength of their short-range occlusion
+ *  on a foliage pixel (a thin two-sided or subsurface-model surface), applied after the
+ *  multi-bounce and the intensity to the diffuse alone, `y` the albedo the multi-bounce caps,
+ *  `z` the intensity of their short-range occlusion and `w` their mode (bit 0 their occlusion alone over the
+ *  world's probes' light, bit 1 no back light gathered, bit 2 the integration applied the short-range occlusion already, which the
+ *  lighting then leaves as it is; `writeScreenProbes`); `surface` the surfaces' render pixels per display
  *  pixel on each axis (`xy`) and their last pixel (`zw`), where the composition reads a debug view's
  *  as-is pixel (`view.ts`, `writeSource`); `viewProjection` the matrix the surfaces were drawn with, the
  *  inverse of `inverseViewProjection`'s, which the contact shadows' rays project by; `contact` the camera's
  *  forward axis (`xyz`, unit) and the tangent of half its vertical field (`w`, 1 under an orthographic
- *  camera) (`writeContactShadows`). The environment's irradiance and fog travel with the lights. */
+ *  camera) (`writeContactShadows`); `reflection` the look of the light a surface reflects, the contrast it is raised to about the mid grey (`x`) and the
+ *  scale it is multiplied by (`y`), before the environment BRDF weighs it (`writeReflectionLook`; `zw` unused). The environment's irradiance and fog travel with the lights. */
 export const VIEW_LAYOUT = fieldLayout('View', [
   ['inverseViewProjection', 'mat4x4f'],
   ['camera', 'vec4f'],
@@ -39,6 +42,7 @@ export const VIEW_LAYOUT = fieldLayout('View', [
   ['surface', 'vec4f'],
   ['viewProjection', 'mat4x4f'],
   ['contact', 'vec4f'],
+  ['reflection', 'vec4f'],
 ] as const)
 export const VIEW_WGSL = wgslBlock('VIEW_WGSL', [], VIEW_LAYOUT.wgsl)
 /** World position of a pixel at a depth, reconstructed through that view: the one reading of

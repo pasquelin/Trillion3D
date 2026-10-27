@@ -49,6 +49,11 @@ export const SURFACE_OUTPUTS = [
     layer: SURFACE_WORDS.flags,
   },
 ] as const
+/** The place of a surface in the surfaces' views (`SurfaceBuffer.views`), found by its name in `SURFACE_OUTPUTS`. */
+export const viewOf = (name: (typeof SURFACE_OUTPUTS)[number]['name']) =>
+  SURFACE_OUTPUTS.findIndex((output) => output.name === name)
+/** The place of the flags in the surfaces' views. */
+export const FLAGS_VIEW = viewOf('flags')
 /** The tile rank a surface pixel asks of the virtual textures, after the surfaces: the feedback
  *  target, which the pipelines write or not (`FEEDBACK`, `../virtual/requestWgsl.ts`). */
 export const REQUEST_OUTPUT = { name: 'request', wgsl: 'u32', format: FEEDBACK_FORMAT } as const

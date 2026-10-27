@@ -18,7 +18,7 @@ import {
 } from '../gpu/bind/bindLayout.ts'
 import { blendSurfaceWgsl } from './shaderSurface.ts'
 import { blendVertexWgsl, cutBlendByPixel } from './vertexWgsl.ts'
-import { NO_VERTEX_READS, cloudVertexText, type VertexReads } from './cloudVertexText.ts'
+import { NO_VERTEX_READS, type VertexReads } from './cloudVertexText.ts'
 import { BLEND_PHYSICAL_WGSL } from './physicalWgsl.ts'
 import { type ContractKey, variantLabel } from '../lighting/deferred/contractCuts.ts'
 import { SHADOW_RULES } from '../../../sdk-core/src/contracts/shadowOptions.ts'
@@ -30,25 +30,40 @@ import { translucencyVolumeReadWgsl } from '../lighting/translucency/readWgsl.ts
 import { BLEND_MAPS_WGSL } from './mapsWgsl.ts'
 import { clipDirective, type Clipping } from '../gpu/core/clipDistances.ts'
 import type { SurfaceProgram } from '../materials/graph/surfaceProgram.ts'
-import { blendGraphs, depthOf } from './graphWgsl.ts'
+import { blendGraphs } from './graphWgsl.ts'
 import { NO_WPO, type WpoSet } from '../materials/graph/wpoProgram.ts'
 import { blendFragmentWgsl } from './fragmentWgsl.ts'
+import { stageLobes, stageOptions } from './stageOptions.ts'
+import { BLEND_LIGHT_STRENGTH_WGSL } from './viewLayout.ts'
 
 /** Whether the translucent programs light a rectangle light as a rectangle, the project switch
  *  `translucentRectLights` at its default: off. */
 export const TRANSLUCENT_RECT_LIGHTS_DEFAULT: boolean = SHADOW_RULES.translucentRectLights.default
 
-/** The key a translucent program is lit with (`blendProgram`, `transmitWgsl`, the water's stage): `key`,
- *  with no contact shadow, which needs the scene's depth and the surfaces' flags a blend pass does not
- *  bind, and no rectangle code unless `translucentRectLights` holds, where a rectangle light is lit as a
- *  point light at its centre. */
+/** What a scene decides of its translucent programs' lights, one value for the module and its stages (`blendProgram`,
+ *  `transmitWgsl`, the water's stage). @property rectLights - A rectangle light is lit as a rectangle, the project switch
+ *  `translucentRectLights`; else as a point light at its centre. @property contact - The programs hold the contact shadows'
+ *  code, a surface of the scene asking (`contactShadowsOf`); the frame's key never says it. */
+export interface TranslucentScene {
+  readonly rectLights: boolean
+  readonly contact: boolean
+}
+
+/** The scene of no contact shadows and the project switch at its default. */
+export const DEFAULT_TRANSLUCENT_SCENE: TranslucentScene = {
+  rectLights: TRANSLUCENT_RECT_LIGHTS_DEFAULT,
+  contact: false,
+}
+
+/** The key a translucent program is lit with: `key`, with no rectangle code unless the scene lights them (`rectLights`), and
+ *  the contact shadows' only where the scene's surfaces ask (`contact`; the frame's key never says it). */
 export const translucentLitKey = (
   key: Partial<ContractKey>,
-  translucentRectLights: boolean,
+  { rectLights, contact }: TranslucentScene,
 ): Partial<ContractKey> => ({
   ...key,
-  contactless: true,
-  ...(!translucentRectLights && { rectless: true }),
+  ...(rectLights ? {} : { rectless: true }),
+  contactless: !contact,
 })
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
@@ -71,10 +86,18 @@ const blendProgram = (
   translucentShadow: TranslucentShadow = TRANSLUCENT_SHADOW_DEFAULT,
   volume = false,
 ) => {
-  const lobes = !key.lobeless
-  const gi = translucentGiWgsl(BLEND_BINDINGS.translucencyGi, BLEND_BINDINGS.translucencyGiSampler)
-  const clouds = cloudVertexText(reads)
-  const graphs = programs.length ? blendGraphs(programs, lobes) : undefined
+  const options = stageOptions(
+    key,
+    programs,
+    reads,
+    asksOfItsOwn(translucentShadow.materials ?? NO_TRANSLUCENT_MATERIAL_SHADOW),
+  )
+  const gi = translucentGiWgsl(
+    BLEND_BINDINGS.translucencyGiAmbient,
+    BLEND_BINDINGS.translucencyGiDirectional,
+    BLEND_BINDINGS.translucencyGiSampler,
+  )
+  const graphs = programs.length ? blendGraphs(programs, stageLobes(options)) : undefined
   const bindings = {
     vsm: BLEND_VSM_BINDINGS,
     trace: { ...BLEND_TRACE_BINDINGS, subgroups },
@@ -84,27 +107,21 @@ const blendProgram = (
     ...(reads.clouds && { cloudShadow: BLEND_CLOUD_SHADE_BINDINGS }),
   }
   return wgslBlock(
-    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''}${graphs ? `, ${graphs.key}` : ''}${clouds.key}${localFog ? '' : ', no local fog volumes'}${translucentShadowLabel(translucentShadow)}${volume ? ', translucency volume' : ''})`,
+    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''}${graphs ? `, ${graphs.key}` : ''}${options.shade.key}${localFog ? '' : ', no local fog volumes'}${translucentShadowLabel(translucentShadow)}${volume ? ', translucency volume' : ''})`,
     [
-      blendVertexWgsl(lobes, clipping, clouds, offsets),
+      blendVertexWgsl(stageLobes(options), clipping, options.shade, offsets),
       STANDARD_LIGHTING_WGSL,
+      BLEND_LIGHT_STRENGTH_WGSL,
       declaredLightingWgsl(bindings, key, translucentShadow),
       gi,
-      blendSurfaceWgsl(lobes, graphs),
-      forwardIndirectWgsl(REFLECTION_GROUP, lobes, BLEND_BINDINGS.frontTraced, gi),
+      blendSurfaceWgsl(stageLobes(options), graphs),
+      forwardIndirectWgsl(REFLECTION_GROUP, stageLobes(options), BLEND_BINDINGS.frontTraced, gi),
       reflectionLightViewWgsl(REFLECTION_GROUP),
-      ...(lobes ? [BLEND_PHYSICAL_WGSL] : []),
+      ...(stageLobes(options) ? [BLEND_PHYSICAL_WGSL] : []),
       ...(volume
         ? [translucencyVolumeReadWgsl(BLEND_BINDINGS.translucencyVolume, 'translucencyGiSampler')]
         : []),
-      blendFragmentWgsl(
-        lobes,
-        !!graphs,
-        clouds,
-        asksOfItsOwn(translucentShadow.materials ?? NO_TRANSLUCENT_MATERIAL_SHADOW),
-        volume,
-        depthOf(programs),
-      ),
+      blendFragmentWgsl({ ...options, volume }),
       BLEND_MAPS_WGSL,
     ],
     `@group(0) @binding(${BLEND_BINDINGS.directLights}) var<storage,read> directLights:DirectLights;
@@ -132,9 +149,10 @@ const DUAL_SOURCE_WGSL = wgslBlock('DUAL_SOURCE_WGSL', [], 'enable dual_source_b
  *  switch `localFogVolumeSupport` is off, holding none of the local fog volumes' code; with
  *  `translucentShadow`, the module of a session whose project switches `shadowTranslucentQuality`
  *  and `shadowTranslucentLocalLights` are set (`TranslucentShadow`), its fragments reading each
- *  light's shadow as they say, the defaults otherwise; with `translucentRectLights` false, the
- *  module of a session whose project switch of that name is off (the default): a rectangle light is
- *  lit as a point light, the module holding none of the rectangle shading; with
+ *  light's shadow as they say, the defaults otherwise; with `scene` (`TranslucentScene`), the lights of the scene: with
+ *  `rectLights` false, the module of a session whose project switch `translucentRectLights` is off (the default): a rectangle light is
+ *  lit as a point light, the module holding none of the rectangle shading; with `contact`, the module
+ *  of a scene that holds a surface whose material asks for contact shadows (`contactShadowsOf`); with
  *  `translucencyVolume`, the module of a scene that holds a surface lit from the translucency
  *  lighting volume (`translucencyVolumeOf`), reading it for the surfaces whose material says so; with
  *  `water`, the single-layer water's fragment stages of a scene that holds some. */
@@ -151,7 +169,7 @@ export const blendShader = (
     localFog = true,
     offsets = NO_WPO,
     translucentShadow = TRANSLUCENT_SHADOW_DEFAULT,
-    translucentRectLights = TRANSLUCENT_RECT_LIGHTS_DEFAULT,
+    scene = DEFAULT_TRANSLUCENT_SCENE,
     translucencyVolume = false,
     water,
   }: {
@@ -168,8 +186,8 @@ export const blendShader = (
     offsets?: WpoSet
     /** How its fragments read a light's shadow (`TranslucentShadow`). */
     translucentShadow?: TranslucentShadow
-    /** Whether it lights a rectangle light as a rectangle (`translucentLitKey`). */
-    translucentRectLights?: boolean
+    /** What its scene decides of its lights (`TranslucentScene`, `translucentLitKey`). */
+    scene?: TranslucentScene
     /** Whether it reads the translucency lighting volume (`translucencyVolumeOf`). */
     translucencyVolume?: boolean
     /** The single-layer water's stage (`./water/waterStageWgsl.ts`), of a scene that holds some. */
@@ -178,7 +196,7 @@ export const blendShader = (
 ) => {
   const code = wgslModule(
     blendProgram(
-      translucentLitKey(key, translucentRectLights),
+      translucentLitKey(key, scene),
       subgroups,
       clipping,
       graphs,

@@ -1,7 +1,6 @@
 import type { JsonSchemaObject } from './types.ts'
 import { choiceOrFlag } from './schemaParts.ts'
 import { ASSET_SCOPES, DEFAULT_SCOPE } from '../contracts/base.ts'
-import { BOUNCE_PROBE_QUEUE, BOUNCE_SETTINGS } from '../bounce/contracts.ts'
 import { explorerSwitchDefault } from '../runtime/explorerSwitches.ts'
 import { DEFAULT_PIXEL_ERROR } from '../lod/policy.ts'
 import { DEFAULT_TEMPORAL_AA_LEVEL, TEMPORAL_AA_LEVELS } from '../contracts/compilerAbi.ts'
@@ -88,13 +87,6 @@ const QUALITY_OPTIONS = /* @__PURE__ */ (() =>
       default: explorerSwitchDefault('bounce'),
       description:
         'Dynamic global illumination (GI) via radiance probe bounce, which also carries the sky light the scene lets through. On by default; false turns it off. Incompatible with very tight GPU time budgets.',
-    },
-    bounceProbesPerFrame: {
-      type: 'integer',
-      default: BOUNCE_SETTINGS.probesPerFrame,
-      minimum: 1,
-      maximum: BOUNCE_PROBE_QUEUE,
-      description: `Probes the bounce traces a frame, in the cost of a whole map each (a probe far from the eye costs a quarter of one), those never traced first (such a probe is never held back, up to the queue). A count, not a duration: lower it on a slow device, raise it for a field that converges sooner. Default ${BOUNCE_SETTINGS.probesPerFrame}, the budget of the default level of the screen probes: each level holds its own (100 high, 150 ultra, 350 cinematic), scaled by screenProbeUpdateSpeed, where this is not set. At most ${BOUNCE_PROBE_QUEUE}.`,
     },
   }) satisfies JsonSchemaObject['properties'])()
 

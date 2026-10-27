@@ -16,6 +16,7 @@ import { followFeedback } from '../prepare/feedbackVariant.ts'
 import { followModelSwitches } from '../prepare/lobesTarget.ts'
 import { followContactShadows } from '../../lighting/contactShadow/frame.ts'
 import { beginTaaFrame } from '../../post/taa/frame.ts'
+import { stochasticPhase } from '../../post/taa/frameState.ts'
 import { frameStart } from '../scheduling.ts'
 import { askFramePipelines } from '../loop/framePipelines.ts'
 import { adoptGrownCut } from '../../placement/webgpuGrownCut.ts'
@@ -172,6 +173,7 @@ function resetFrameCounters({ run, context, vis, gpu }: WebgpuPagesRuntime) {
     run.graphClocks,
     run.gate.cam.eye,
     !!device && !!blueNoiseMade(device),
+    stochasticPhase(gpu.temporal?.frame),
   )
   run.feedbackWritten = false
   run.hizPyramidFresh = false

@@ -12,7 +12,8 @@ import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_PAGE_LOOKUP_WGSL } from '..
 import { VSM_PROJECTION_DATA_READ_WGSL } from '../projection/projectionDataWgsl.ts'
 import { VSM_TRACE_COMMON_WGSL } from './traceCommonWgsl.ts'
 import { vsmTraceMapWgsl } from './traceMapWgsl.ts'
-import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
+import { vsmLocalTapWgsl } from './traceTapWgsl.ts'
+import { type WgslDecl, wgslBlock, wgslFn } from '../../../../../../math/src/wgsl/decl.ts'
 import { perspectiveDivide } from '../../../../../../math/src/wgsl/projection.ts'
 import { NO_INDEX } from '../../../../../../math/src/wgsl/constants.ts'
 
@@ -75,41 +76,20 @@ fn vsmSunDitherUv(pd:VsmProjectionData,distance:f32)->f32{
  if(!(scale>0.0)){return 0.0;}
  return (0.5/f32(VSM_LEVEL0_TEXELS))*scale*distance*VSM_CM_PER_UNIT/exp2(f32(pd.mapLevel)-pd.levelBias);
 }
-/** The plane's lift from a receiver to the centre of its texel \`texelXY\` (the receiver at
- *  \`texelPos\` of a map \`texels\` wide), held to \`cap\`. */
-fn vsmCentreLift(texelXY:vec2u,texelPos:vec2f,texels:u32,uvDepthSlope:vec2f,cap:f32)->f32{
- let toCentre=(vec2f(texelXY)+0.5-texelPos)/f32(texels);
- return min(cap,vsmPlaneLift(uvDepthSlope,toCentre));
-}
+/** The depth the map of \`m\` spans per unit of its light view's distance. */
+fn vsmMapDepthScale(m:VsmLightMap)->f32{return abs(vsmProjectionData[m.handle.id].lightViewToClip[2][2]);}
 /** The most a sun's receiver-plane lift reaches: \`VSM_TRACE_ONE_TAP_BIAS_CAP\` centimetres of the
  *  depth the map of \`m\` spans. */
 fn vsmSunBiasCap(m:VsmLightMap)->f32{
- return VSM_TRACE_ONE_TAP_BIAS_CAP*${CM}*abs(vsmProjectionData[m.handle.id].lightViewToClip[2][2]);
+ return VSM_TRACE_ONE_TAP_BIAS_CAP*${CM}*vsmMapDepthScale(m);
 }
-/** The bias of a sun ray started at \`rayStart\` (its receiver moved along the ray by the screen
- *  segment) and moved \`offsetUv\` (a step in the map's UV) by its dither: the plane's lift from the
- *  receiver to the centre of the texel the dithered start falls in, on the page that texel lies in,
- *  held to \`vsmSunBiasCap\`, less the depth the start offset \`startOffset\` gained already (never
- *  below 0). A receiver's own surface stored in that texel is never in front of the ray's first
- *  sample: the rule of a local ray (\`vsmLocalPlaneBias\`) and of a sun's one tap
- *  (\`vsmSunTapBias\`). Where no texel of the map holds the start, or a coarser level does, the lift is
- *  the plane's over the dither step alone; the slope is held to \`VSM_TRACE_PLANE_SLOPE_SUN\`. */
-fn vsmSunDitherBias(m:VsmLightMap,rayStart:vec3f,offsetUv:vec2f,startOffset:f32,uvDepthSlope:vec2f)->f32{
+/** The bias of a sun ray whose start is moved \`offsetUv\` (a step in the map's UV) off its receiver, the start moved
+ *  \`startOffset\` along the ray: the plane's lift over that step, its slope held to
+ *  \`VSM_TRACE_PLANE_SLOPE_SUN\`, less the depth the start offset gained already (never below 0). */
+fn vsmSunDitherBias(m:VsmLightMap,offsetUv:vec2f,startOffset:f32,uvDepthSlope:vec2f)->f32{
  let slope=clamp(uvDepthSlope,vec2f(-VSM_TRACE_PLANE_SLOPE_SUN),vec2f(VSM_TRACE_PLANE_SLOPE_SUN));
- let gained=abs(startOffset*vsmProjectionData[m.handle.id].lightViewToClip[2][2]);
- var lift=vsmPlaneLift(slope,offsetUv);
- // The start as \`vsmRayLine\` places it: its projection held in the map's square, then dithered.
- let startUv=saturate(perspectiveDivide(vsmProjectionData[m.handle.id].shiftedToMapUv*vec4f(rayStart,1.0)).xy)+offsetUv;
- if(all(startUv==saturate(startUv))){
-  let page=vsmClipmapPage(m.handle,vsmPageKey(true,0u,startUv));
-  let t=vsmClipmapTexel(m.handle,page,startUv);
-  if(t.valid&&t.levelHandle.id==m.handle.id){
-   // The receiver's own place in the texels of that page (an affine map, valid off its page too).
-   let receiver=vsmClipmapTexel(m.handle,page,m.mapPoint.xy);
-   lift=vsmCentreLift(t.mapTexelXY,receiver.mapTexelPos,vsmTexelsAtLevel(0u),slope,vsmSunBiasCap(m));
-  }
- }
- return max(0.0,lift-gained);
+ let gained=abs(startOffset)*vsmMapDepthScale(m);
+ return max(0.0,vsmPlaneLift(slope,offsetUv)-gained);
 }
 /** The bias of a sun's one tap, which takes no ray: the plane's lift from the receiver to the
  *  centre of the texel its level maps it on (\`vsmCentreLift\`), held to \`vsmSunBiasCap\`. */
@@ -122,11 +102,9 @@ fn vsmSunTapBias(m:VsmLightMap,uvDepthSlope:vec2f)->f32{
 const rayBeginText = /* wgsl */ `
 /** The largest plane bias of a local ray (\`vsmLocalPlaneBias\`) on a receiver of texel \`texel\` (a
  *  world width) at a squared distance \`distSq\` from the light: \`tracePlaneBiasCap\` of its texels,
- *  in the depth they span there; a light with no ray (\`single\`), \`VSM_TRACE_ONE_TAP_BIAS_CAP\`
- *  times the map's depth scale. */
-fn vsmLocalBiasCap(m:VsmLightMap,texel:f32,distSq:f32,single:bool)->f32{
- let pd=vsmProjectionOf(m.handle);
- return select(vsm.tracePlaneBiasCap*texel*vsmDepthPerDistance(pd,distSq),VSM_TRACE_ONE_TAP_BIAS_CAP*abs(pd.lightViewToClip[2][2]),single);
+ *  in the depth they span there. */
+fn vsmLocalBiasCap(m:VsmLightMap,texel:f32,distSq:f32)->f32{
+ return vsm.tracePlaneBiasCap*texel*vsmDepthPerDistance(vsmProjectionOf(m.handle),distSq);
 }
 /** The bias of a local ray starting at \`rayStart\`: the plane's lift from there to the centre of the
  *  texel it falls in on the receiver's map, at the page's resolution, held to \`cap\`. */
@@ -165,27 +143,23 @@ fn vsmRayBegin(light:VsmProjectionLight,m:VsmLightMap,start:vec3f,end:vec3f,bias
 }`
 
 const rayTexelText = /* wgsl */ `
-/** The texel a sample at \`uv\` of the ray's map \`h\` reads (\`VsmMapTexel\`). The page table is
- *  read where the sample's page is not the last one the ray read (\`vsmPageKept\`). */
-fn vsmRayTexel(ray:ptr<function,VsmRay>,h:VsmHandle,uv:vec2f)->VsmMapTexel{
- var r:VsmMapTexel;
+/** The texel a sample at \`uv\` of the ray's map \`h\` reads (\`VsmClipmapTexel\`, a local map's with
+ *  its depth taken as it is). The page table is read where the sample's page is not the last one
+ *  the ray read (\`vsmPageKept\`). */
+fn vsmRayTexel(ray:ptr<function,VsmRay>,h:VsmHandle,uv:vec2f)->VsmClipmapTexel{
+ var r:VsmClipmapTexel;
  if(any(uv!=saturate(uv))){return r;}
  let clipmap=(*ray).clipmap;
  let mip=(*ray).mip;
  let key=vsmPageKey(clipmap,mip,uv);
  if(!vsmPageKept((*ray).pages,h,key)){(*ray).pages=vsmPageRead(h,clipmap,mip,key);}
  if(clipmap){
-  let t=vsmClipmapTexel(h,(*ray).pages.page,uv);
-  r.valid=t.valid;
-  r.poolTexel=t.poolTexel;
-  r.depthBias=t.depthLevelBias;
-  r.depthInverse=t.depthLevelInverse;
-  return r;
+  return vsmClipmapTexel(h,(*ray).pages.page,uv);
  }
  let page=vsmLocalPageFrom((*ray).pages.page.entry,uv,mip);
  r.valid=page.valid;
  r.poolTexel=page.poolTexel;
- r.depthInverse=1.0;
+ r.depthLevelInverse=1.0;
  return r;
 }
 /** One sample of the march: whether a texel holds it, the depth stored there and the ray's own. */
@@ -194,7 +168,7 @@ fn vsmRaySampleOn(ray:ptr<function,VsmRay>,h:VsmHandle,line:VsmRayLine,rayTime:f
  let uvz=line.uvz+line.step*rayTime;
  var s=VsmMarchStep(false,0.0,uvz.z,line.slopeCap,false);
  let t=vsmRayTexel(ray,h,uvz.xy);
- if(t.valid){s.valid=true;s.storedDepth=vsmMapTexelDepth(t,vsmPoolDepth(t.poolTexel));}
+ if(t.valid){s.valid=true;s.storedDepth=vsmClipmapTexelDepth(t,vsmPoolDepth(t.poolTexel));}
  return s;
 }
 /** The ray's sample at \`rayTime\`: on the far map, then on the near face once the far face holds
@@ -259,25 +233,30 @@ fn vsmMarch(ray:ptr<function,VsmRay>,stepCount:i32,stepJitter:f32,hitDepth:ptr<f
  return false;
 }`
 
+/** How far the receiver at clip depth \`receiverDepth\` lies from an occluder at \`hitDepth\` on an
+ *  orthographic map of clip matrix \`m\`: the difference of the two view depths, never under a
+ *  millionth of a centimetre. */
+export const VSM_ORTHO_OCCLUDER_WGSL = wgslFn(
+  'vsmOrthoOccluderDistance',
+  [],
+  `fn vsmOrthoOccluderDistance(m:mat4x4f,hitDepth:f32,receiverDepth:f32)->f32{
+ let occluderViewZ=(hitDepth-m[3][2])/m[2][2];
+ let receiverViewZ=(receiverDepth-m[3][2])/m[2][2];
+ return max(1e-6*${VSM_UNIT_PER_CM},receiverViewZ-occluderViewZ);
+}`,
+)
+
 const rayOccluderText = /* wgsl */ `
 /** How far the receiver lies from what stopped a ray that hit at \`hitDepth\`, on the map the ray's
- *  last sample was on: a sun's ortho map by the difference of the two view depths, a local light's by
- *  similar triangles from the receiver's distance \`receiverDistance\` to the light; never under a
- *  millionth of a centimetre. */
+ *  last sample was on: a sun's ortho map by \`vsmOrthoOccluderDistance\`, a local light's by
+ *  \`vsmLocalOccluderDistance\`, from the receiver's distance \`receiverDistance\` to the light. */
 fn vsmRayOccluderDistance(ray:ptr<function,VsmRay>,hitDepth:f32,receiverDistance:f32)->f32{
  var h=(*ray).near;
  var line=(*ray).nearLine;
  if((*ray).inFar){h=(*ray).far;line=(*ray).farLine;}
  let m=vsmProjectionData[h.id].lightViewToClip;
- let floorDistance=1e-6*${VSM_UNIT_PER_CM};
- if((*ray).clipmap){
-  let occluderViewZ=(hitDepth-m[3][2])/m[2][2];
-  let receiverViewZ=(line.uvz.z-m[3][2])/m[2][2];
-  return max(floorDistance,receiverViewZ-occluderViewZ);
- }
- let occluderViewZ=m[3][2]/(hitDepth-m[2][2]);
- let receiverViewZ=m[3][2]/(saturate(line.uvz.z)-m[2][2]);
- return max(floorDistance,receiverDistance-(receiverDistance/receiverViewZ)*occluderViewZ);
+ if((*ray).clipmap){return vsmOrthoOccluderDistance(m,hitDepth,line.uvz.z);}
+ return vsmLocalOccluderDistance(m,hitDepth,line.uvz.z,receiverDistance);
 }`
 
 /** The ray and its march, sampling the pages of `pool`. */
@@ -287,6 +266,7 @@ export const vsmTraceRayWgsl = (pool: WgslDecl) =>
     [
       VSM_TRACE_COMMON_WGSL,
       vsmTraceMapWgsl(pool),
+      vsmLocalTapWgsl(pool),
       vsmPageCacheWgsl(pool),
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
@@ -294,6 +274,7 @@ export const vsmTraceRayWgsl = (pool: WgslDecl) =>
       VSM_PROJECTION_DATA_READ_WGSL,
       perspectiveDivide,
       NO_INDEX,
+      VSM_ORTHO_OCCLUDER_WGSL,
     ],
     `
 ${rayLineAndBiasText}${rayBeginText}${rayTexelText}${rayMarchText}${rayOccluderText}

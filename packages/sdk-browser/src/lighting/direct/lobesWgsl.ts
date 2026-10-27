@@ -4,12 +4,18 @@ import { LOBE_AXIS_WGSL } from '../lobeAxisWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { SURFACE_LIGHT_WGSL } from '../standardLighting.ts'
 import { LAMP_SURFACE_LIGHT_WGSL } from './lampLobeWgsl.ts'
-import { CLOTH_LOBE_WGSL } from './clothWgsl.ts'
+import { CLOTH_SHEEN_WGSL, SHEEN_LOBE_WGSL, SHEEN_RECT_WGSL } from './sheenLobeWgsl.ts'
 import { SHADING_MODEL_PIXEL_WGSL } from './shadingModelWgsl.ts'
 import { CLEAR_COAT_WGSL } from './clearCoatWgsl.ts'
 import { ENVIRONMENT_BRDF_WGSL } from './environmentBrdfWgsl.ts'
 import { RECT_SURFACE_LIGHT_WGSL } from './rectLightWgsl.ts'
-import { DIELECTRIC_F0, ndotvClamped } from '../../../../math/src/wgsl/lighting.ts'
+import {
+  DIELECTRIC_F0,
+  clampNoV,
+  envBrdfF90,
+  ndotvClamped,
+  slabF90,
+} from '../../../../math/src/wgsl/lighting.ts'
 
 /**
  * The lighting of the physical material's anisotropic, clear-coat and cloth lobes
@@ -26,10 +32,13 @@ import { DIELECTRIC_F0, ndotvClamped } from '../../../../math/src/wgsl/lighting.
  * by `coatedPoint`, `coatedLamp` and the rectangle's `coatedRect`, which replace the base's lobes whole; the indirect
  * light sees its base through the coat's absorption (`coatRemap`, by `clothDiffuse` for the diffuse colour and
  * `indirectF0` for the specular's) and its reflections as the two layers' mix (`coatLayerKeep`).
- * A cloth (`setCloth`, the cloth model has no coat and no anisotropy) mixes the standard specular
- * lobe of each light with the fuzz lobe (`clothMix`, `clothWgsl.ts`) by its cloth amount, and
- * adds its fuzz colour times that amount to the diffuse colour of the indirect light
- * (`clothDiffuse`). What a pixel's lights share is
+ * A cloth (`setCloth`, the cloth model has no coat and no anisotropy) is a fuzz of fibres over its base
+ * (`sheenLobeWgsl.ts`): each light adds the fuzz lobe's light (`sheenFuzz`, its colour times the cloth
+ * amount, the light's energy and the lobe's albedo) and leaves the base's diffuse and specular one minus the cloth amount
+ * times that albedo of theirs (`clothMix`, `sheenKeep`); the base's reflectance is masked by the cloth amount
+ * (`clothSurface`, the legacy cloth's conversion). The indirect light does the same: the fuzz colour times the cloth amount
+ * and the albedo is added to the diffuse colour of the indirect light, which keeps the same share of its own
+ * (`clothDiffuse`), as does the specular's weight (`indirectKeep`). What a pixel's lights share is
  * taken once: αt, αb, their reciprocals and the distribution's scale 1/(π αt αb) (a light's T·H/αt
  * is a product, its D a quotient by q², the same 8-bit image, `lobeLight.test.ts`), the view's
  * length in the stretched frame, the base's surface before its light loop (`sliceLighting`), a light's
@@ -42,17 +51,21 @@ export const LOBES_LIGHTING_WGSL = wgslBlock(
     PI,
     INVERSE_PI,
     DIELECTRIC_F0,
+    envBrdfF90,
     ndotvClamped,
+    clampNoV,
     ENVIRONMENT_BRDF_WGSL,
     LOBE_AXIS_WGSL,
     SURFACE_LIGHT_WGSL,
     LAMP_SURFACE_LIGHT_WGSL,
-    CLOTH_LOBE_WGSL,
+    SHEEN_LOBE_WGSL,
+    CLOTH_SHEEN_WGSL,
+    slabF90,
     SHADING_MODEL_PIXEL_WGSL,
     CLEAR_COAT_WGSL,
   ],
   `
-struct Lobes{cloth:f32,fuzz:vec3f,on:bool,skewed:bool,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,coatAlpha:f32,coatNoV:f32,baseColour:vec3f,extinction:vec3f,metal:f32,baseRough:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,view:vec2f,viewLength:f32,}
+struct Lobes{cloth:f32,fuzz:vec3f,sheen:SheenView,on:bool,skewed:bool,T:vec3f,B:vec3f,coat:f32,coatRough:f32,coatN:vec3f,coatAlpha:f32,coatNoV:f32,baseColour:vec3f,extinction:vec3f,metal:f32,baseRough:f32,at:f32,ab:f32,invAt:f32,invAb:f32,dScale:f32,view:vec2f,viewLength:f32,}
 var<private> lobes:Lobes;
 fn hasCloth()->bool{return lobes.on&&lobes.cloth>0.0;}
 fn hasSkew()->bool{return lobes.on&&lobes.skewed;}
@@ -67,7 +80,7 @@ fn setLobes(axis:vec4f,coat:f32,coatRough:f32,coatN:vec3f,N:vec3f,V:vec3f,alpha:
  lobes.T=axis.xyz;
  lobes.B=cross(N,lobes.T);
  lobes.coat=coat;lobes.coatRough=coatRough;lobes.coatN=coatN;
- let coatFloor=max(coatRough,0.02);lobes.coatAlpha=coatFloor*coatFloor;
+ let coatFloor=lobeRoughness(coatRough);lobes.coatAlpha=coatFloor*coatFloor;
  lobes.at=axis.w;lobes.ab=alpha;
  lobes.invAt=1.0/lobes.at;lobes.invAb=1.0/lobes.ab;lobes.dScale=1.0/(PI*lobes.at*lobes.ab);
  lobes.view=vec2f(lobes.at*dot(lobes.T,V),lobes.ab*dot(lobes.B,V));
@@ -80,29 +93,45 @@ fn setLobeBase(rgb:vec3f,metal:f32,rough:f32){
  // A metal's absorption along the coat's path (\`coatTransmittance\`), taken here once, not once a light.
  if(metal>0.0){lobes.extinction=-log(max(rgb*INVERSE_PI,vec3f(0.0001)))/2.0;}
 }
-/** The pixel is a cloth of fuzz colour \`fuzz\` and cloth amount \`cloth\`, after its lobes (\`setLobes\`,
- *  which leave it round and uncoated). */
-fn setCloth(fuzz:vec3f,cloth:f32){lobes.fuzz=fuzz;lobes.cloth=cloth;}
+/** The pixel is a cloth of fuzz colour \`fuzz\` and cloth amount \`cloth\`, seen along \`V\` on the normal \`N\` at the
+ *  surface's roughness \`rough\`, after its lobes (\`setLobes\`, which leave it round and uncoated): the fuzz's view of the
+ *  sheen table is taken here once (\`clothSheen\`). */
+fn setCloth(fuzz:vec3f,cloth:f32,N:vec3f,V:vec3f,rough:f32){
+ lobes.fuzz=fuzz;lobes.cloth=cloth;roughDiffuse=false;
+ lobes.sheen=clothSheen(N,V,rough);
+}
 /** A stored cloth texel's lobes: round (width \`alpha\`) and uncoated, with the fields only a skewed or coated
  *  lobe reads (the frame's cross product, the reciprocals, the view in it, the coat's surface) left as
  *  they were; \`setLobes\` then \`setCloth\` would set the same fields the cloth reads. */
-fn setClothLobes(fuzz:vec3f,cloth:f32,alpha:f32){
+fn setClothLobes(fuzz:vec3f,cloth:f32,alpha:f32,N:vec3f,V:vec3f,rough:f32){
  lobes.on=true;
- lobes.cloth=cloth;lobes.fuzz=fuzz;
+ lobes.cloth=cloth;lobes.fuzz=fuzz;roughDiffuse=false;
+ lobes.sheen=clothSheen(N,V,rough);
  lobes.skewed=false;lobes.T=vec3f(0.0);lobes.at=alpha;
  lobes.coat=0.0;
 }
-/** A light's term \`lit\` of a pixel's standard lobe, its diffuse \`s.diffuse\` times \`direct\` (the light's
- *  energy times N·L) and its specular, with the cloth's fuzz specular \`fuzz\` in the specular's place by the
- *  cloth amount: the diffuse as it was. */
-fn clothMix(lit:vec3f,s:LobeSurface,direct:f32,fuzz:vec3f)->vec3f{
- let diffuse=s.diffuse*direct;
- return diffuse+mix(lit-diffuse,fuzz,lobes.cloth);
+/** A light's term \`lit\` of a pixel's standard lobe, diffuse and specular, under the cloth's fuzz: what the diffuse and the specular
+ *  keep of their light (\`sheenKeep\`) plus the fuzz lobe's light \`fuzz\` (\`sheenFuzz\`). */
+fn clothMix(lit:vec3f,fuzz:vec3f)->vec3f{return lit*sheenKeep(lobes.sheen,lobes.cloth)+fuzz;}
+/** The cloth's surface for the lights: its reflectance masked by the cloth amount, as the cloth's legacy conversion does (the
+ *  fuzz gradually replaces the specular lobe), and the reflectance at grazing angles that goes with it (\`slabF90\`). Any other
+ *  pixel's surface as it is. */
+fn clothSurface(s:LobeSurface)->LobeSurface{
+ if(!hasCloth()){return s;}
+ var c=s;
+ c.f0=s.f0*(1.0-lobes.cloth);
+ c.f90=slabF90(c.f0);
+ return c;
 }
-/** The diffuse colour of a pixel's indirect light: its albedo, and for a cloth the fuzz colour times the
- *  cloth amount added to it, the metal then spent (\`.w\` the metalness the diffuse is taken with). */
+/** What a cloth's base keeps of the light its fuzz lets through to its diffuse and its specular: \`sheenKeep\`, one for any other pixel. */
+fn indirectKeep()->f32{
+ if(!hasCloth()){return 1.0;}
+ return sheenKeep(lobes.sheen,lobes.cloth);
+}
+/** The diffuse colour of a pixel's indirect light: its albedo, and for a cloth what the fuzz lets through of it plus the fuzz
+ *  colour times the cloth amount and the fuzz's albedo, the metal then spent (\`.w\` the metalness the diffuse is taken with). */
 fn clothDiffuse(rgb:vec3f,metal:f32)->vec4f{
- if(hasCloth()){return vec4f(rgb*(1.0-metal)+lobes.fuzz*lobes.cloth,0.0);}
+ if(hasCloth()){return vec4f(rgb*(1.0-metal)*indirectKeep()+lobes.fuzz*(lobes.cloth*lobes.sheen.albedo),0.0);}
  if(hasCoat()){return vec4f(coatRemap(rgb,metal).diffuse,0.0);}
  return modelDiffuse(vec4f(rgb,metal));
 }
@@ -116,7 +145,7 @@ fn indirectF0(rgb:vec3f,metal:f32)->vec3f{
  *  dielectric lobe at its roughness and N·V (the environment BRDF every reflection weighs the coat by), one without a coat. */
 fn coatLayerKeep()->f32{
  if(!hasCoat()){return 1.0;}
- return 1.0-lobes.coat*environmentBrdf(DIELECTRIC_F0,lobeRoughness(lobes.coatRough),max(lobes.coatNoV,1e-4)).x;
+ return 1.0-lobes.coat*environmentBrdf(DIELECTRIC_F0,envBrdfF90(DIELECTRIC_F0),lobeRoughness(lobes.coatRough),clampNoV(lobes.coatNoV)).x;
 }
 /** The view's length in the stretched frame, finished once a pixel on its surface's N·V
  *  (\`lobeSurface\`), which the light loop hands it (\`sliceLighting\`): one N·V a pixel. */
@@ -131,7 +160,8 @@ fn anisotropicLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energ
  let D=lobes.dScale/(q*q);
  let gV=NdotL*lobes.viewLength;
  let gL=s.NdotV*length(vec3f(at*dot(T,L),ab*dot(B,L),NdotL));
- return lobeSum(s,D,gV,gL,max(dot(V,H),0.0),direct);
+ let VdotH=max(dot(V,H),0.0);
+ return lobeSum(s,lobeDiffuseH(s,NdotL,VdotH,1.0),D,gV,gL,VdotH,direct);
 }
 /** The hooks of the one \`surfaceLight\` and \`rectLightSplit\` (\`../standardLighting.ts\`,
  *  \`rectLightWgsl.ts\`) on a pixel whose lobes are set: the base's lobe, anisotropic where it is
@@ -140,10 +170,7 @@ fn anisotropicLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energ
 fn baseLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{
  if(hasSkew()){return anisotropicLobe(s,N,V,L,H,NdotL,energy);}
  let lit=standardLobe(s,N,V,H,NdotL,energy);
- if(hasCloth()){
-  let direct=energy*NdotL;
-  return clothMix(lit,s,direct,clothSpecular(lobes.fuzz,s.alpha2,s.NdotV,NdotL,max(dot(N,H),0.0),max(dot(V,H),0.0),direct));
- }
+ if(hasCloth()){return clothMix(lit,sheenFuzz(lobes.sheen,N,L,lobes.fuzz,lobes.cloth,energy));}
  return lit;
 }
 /** The same hook for a lamp of size (\`lampLight\`, \`lampLobeWgsl.ts\`): the base lobe — a skewed one
@@ -153,11 +180,8 @@ fn baseLampLobe(s:LobeSurface,N:vec3f,V:vec3f,look:Look,lamp:Lamp,energy:f32)->v
  if(lamp.cosine<=0.0){return vec3f(0.0);}
  if(hasSkew()){return anisotropicLobe(s,N,V,look.toward,normalize(look.toward+V),lamp.cosine,energy);}
  let h=lampHalf(s,N,V,look);
- let lit=lampLobeWith(h,s,look,lamp.cosine,lamp.lineCos,energy);
- if(hasCloth()){
-  let direct=energy*lamp.cosine;
-  return clothMix(lit,s,direct,clothSpecular(lobes.fuzz,s.alpha2,s.NdotV,lamp.cosine,h.x,h.y,direct));
- }
+ let lit=lampLobeWith(h,s,V,look,lamp.cosine,lamp.lineCos,energy);
+ if(hasCloth()){return clothMix(lit,sheenFuzz(lobes.sheen,N,lamp.toward,lobes.fuzz,lobes.cloth,energy));}
  return lit;
 }`,
 )
@@ -169,7 +193,7 @@ fn baseLampLobe(s:LobeSurface,N:vec3f,V:vec3f,look:Look,lamp:Lamp,energy:f32)->v
  *  a pixel too (\`coatRectFrame\`). */
 export const LOBES_RECT_WGSL = wgslBlock(
   'LOBES_RECT_WGSL',
-  [LOBES_LIGHTING_WGSL, RECT_SURFACE_LIGHT_WGSL],
+  [LOBES_LIGHTING_WGSL, RECT_SURFACE_LIGHT_WGSL, SHEEN_RECT_WGSL],
   `
 fn rectBase(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
  if(!hasSkew()){return rectLtc(r,pixelRectFrame(N,V,rough),f0);}
@@ -183,31 +207,25 @@ fn coatRectFrame(V:vec3f)->RectFrame{
  if(!coatFrameHeld){coatFrameKept=rectFrameOf(lobes.coatN,V,lobes.coatRough);coatFrameHeld=true;}
  return coatFrameKept;
 }
-/** The specular \`specular\` of a rectangle's fitted lobe, its fuzz lobe in its place by the cloth amount
- *  where the pixel is a cloth: the fuzz lobe of the rectangle's mean direction \`incident.xyz\` at the
- *  cosine it takes light by (\`incident.w\` over the irradiance of a face turned to it), of the light's
- *  \`intensity\`. */
-fn rectCloth(specular:vec3f,r:RectView,incident:vec4f,N:vec3f,V:vec3f,s:LobeSurface,intensity:f32)->vec3f{
- if(!hasCloth()){return specular;}
- let L=incident.xyz;
- let VoL=dot(V,L);
- let invLenH=inverseSqrt(2.0+2.0*VoL);
- let NoH=saturate((dot(N,L)+dot(N,V))*invLenH);
- let VoH=saturate(invLenH+invLenH*VoL);
- let cosine=incident.w/(rectFormOf(r)*r.window);
- let direct=intensity*incident.w;
- return mix(specular,clothSpecular(lobes.fuzz,s.alpha2,s.NdotV,cosine,NoH,VoH,direct),lobes.cloth);
+/** A rectangle's diffuse (column 0) and specular (column 1) light \`parts\`, before its colour, under a cloth's fuzz: what they keep of
+ *  it (\`sheenKeep\`) and, in the specular's, the fuzz lobe's light of the rectangle (\`sheenRect\`) of the light's \`intensity\`, its
+ *  range window and the cloth amount. A pixel that is no cloth keeps them. */
+fn rectCloth(parts:mat2x3f,r:RectView,N:vec3f,intensity:f32)->mat2x3f{
+ if(!hasCloth()){return parts;}
+ let keep=sheenKeep(lobes.sheen,lobes.cloth);
+ let fuzz=lobes.fuzz*(lobes.cloth*intensity*r.window*sheenRect(lobes.sheen,N,r));
+ return mat2x3f(parts[0]*keep,parts[1]*keep+fuzz);
 }
 /** A rectangle's light on the base under the coat (\`coatedLight\`): its diffuse (column 0) and specular (column 1) of the
  *  rectangle's view \`r\`, its mean direction and irradiance \`incident\`, before its colour; the fitted lobe of the
  *  coat's normal and roughness on the top layer, the base's (\`rectBase\`) on the base. */
 fn coatedRect(light:DirectLight,r:RectView,incident:vec4f,s:LobeSurface,N:vec3f,V:vec3f,rough:f32)->mat2x3f{
- let intensity=light.colorIntensity.w;
+ let intensity=lightStrength(light);
  let form=rectFormOf(r)*r.window;
  let cosine=select(0.0,incident.w/form,form>0.0);
  let topLtc=rectLtc(r,coatRectFrame(V),DIELECTRIC_F0)*(intensity*r.window);
  let bottomLtc=rectBase(r,N,V,s.f0,rough)*(intensity*r.window);
- return coatedLight(s,N,V,incident.xyz,cosine,intensity*incident.w,0.0,0.0,1.0,true,topLtc,bottomLtc);
+ return coatedLight(s,N,V,incident.xyz,cosine,intensity*incident.w,0.0,0.0,1.0,true,topLtc,bottomLtc,0.0);
 }`,
 )
 
@@ -223,6 +241,8 @@ fn coatedLamp(s:LobeSurface,N:vec3f,V:vec3f,look:Look,lamp:Lamp,energy:f32)->mat
 fn coatLayerKeep()->f32{return 1.0;}
 fn indirectF0(rgb:vec3f,metal:f32)->vec3f{return surfaceF0(rgb,metal);}
 fn lobeView(s:LobeSurface){}
+fn clothSurface(s:LobeSurface)->LobeSurface{return s;}
+fn indirectKeep()->f32{return 1.0;}
 fn baseLobe(s:LobeSurface,N:vec3f,V:vec3f,L:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{return standardLobe(s,N,V,H,NdotL,energy);}
 fn baseLampLobe(s:LobeSurface,N:vec3f,V:vec3f,look:Look,lamp:Lamp,energy:f32)->vec3f{
  if(lamp.cosine<=0.0){return vec3f(0.0);}
@@ -249,7 +269,7 @@ export const LOBELESS_RECT_WGSL = wgslBlock(
   'LOBELESS_RECT_WGSL',
   [RECT_SURFACE_LIGHT_WGSL],
   `fn rectBase(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{return rectLtc(r,pixelRectFrame(N,V,rough),f0);}
-fn rectCloth(specular:vec3f,r:RectView,incident:vec4f,N:vec3f,V:vec3f,s:LobeSurface,intensity:f32)->vec3f{return specular;}
+fn rectCloth(parts:mat2x3f,r:RectView,N:vec3f,intensity:f32)->mat2x3f{return parts;}
 fn coatedRect(light:DirectLight,r:RectView,incident:vec4f,s:LobeSurface,N:vec3f,V:vec3f,rough:f32)->mat2x3f{return mat2x3f();}`,
 )
 
@@ -265,7 +285,7 @@ export const LOBES_DECODE_WGSL = wgslBlock(
 fn lobesAt(w:vec4u,side:f32,N:vec3f,V:vec3f,rough:f32){
  let alpha=lobeAlpha(rough);
  if(lobeIsCloth(w)){
-  setClothLobes(packedFuzz(w),packedCloth(w),alpha);
+  setClothLobes(packedFuzz(w),packedCloth(w),alpha,N,V,rough);
   return;
  }
  let coat=packedCoat(w);

@@ -177,7 +177,7 @@ export const maskDitherWgsl = (masks: MaskSet): WgslDecl =>
     [graphFrameWgsl(masks.frame), blueNoiseWgsl(0, masks.noise!, true)],
     `fn maskDithered(m:Material,value:f32,pixel:vec2f)->f32{
  if(pixel.x<0.0||(m.model&${DITHER_MODEL_BIT}u)==0u||graphFrame.eye.w==0.0){return value;}
- let frame=u32(floor(graphFrame.clock.y*60.0));
+ let frame=graphFrame.frame;
  return value+0.83*blueNoiseScalar(vec2u(pixel),frame)-0.5;
 }`,
   )

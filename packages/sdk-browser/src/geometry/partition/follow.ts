@@ -20,11 +20,7 @@
  */
 import type { PlacementLink } from '../../placement/compose/gpuCompose.ts'
 import { writePlacementRow } from '../../placement/rows/rows.ts'
-import {
-  FAR_SHADOW_ROOT,
-  nodeCasting,
-  withCompiledFarTest,
-} from '../../visibility/shader/castingMark.ts'
+import { nodeCasting } from '../../visibility/shader/castingMark.ts'
 import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
 import { appendTo } from '../../../../math/src/sequence/counts.ts'
 import { multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
@@ -39,11 +35,6 @@ export type Placement = {
   row: number
   parent: Object3D
   local: Float64Array
-  /** The row casts far shadows whatever its host mesh says (`CellNode.castFarShadow`). */
-  farShadow?: boolean
-  /** A sun's far-shadow test reaches the row (`true`) or never does (`false`) unless its host mesh
-   *  says (`CellNode.farShadowTest`); left out, the view's rule decides. */
-  farShadowTest?: boolean
 }
 
 /**
@@ -63,8 +54,7 @@ export type CellFrame = {
   ) => void
 }
 
-/** Whether a host mesh of `mesh` changed how it casts (`castShadow`, `castFarShadow`, `farShadowTest`) since its
- *  rows were written. */
+/** Whether a host mesh of `mesh` changed how it casts (`castShadow`) since its rows were written. */
 function castsMoved(mesh: PlacedMesh) {
   let moved = false
   mesh.nodes.forEach((node, at) => {
@@ -162,18 +152,11 @@ const openSlots = (w: Writes, opened: Set<Object3D>, held: Iterable<readonly Pla
 
 /** Row `placement` on each link of its mesh, by the one row writer (`writePlacementRow`): shown
  *  — while its source mesh is, for a row drawn from one, and the frame does not hide the rows —,
- *  casting as its host mesh says, as far shadows if its node says it casts them and reached by
- *  the far-shadow test as its node says where its host mesh says nothing, at `pose` when one is
- *  given. */
-const writeRow = (
-  w: Writes,
-  { mesh, row, farShadow, farShadowTest }: Placement,
-  pose: Float64Array | null,
-) =>
+ *  casting as its host mesh says, at `pose` when one is given. */
+const writeRow = (w: Writes, { mesh, row }: Placement, pose: Float64Array | null) =>
   mesh.links.forEach((link, at) => {
     const node = mesh.nodes[at]
-    const hosted = (node ? nodeCasting(node) : 0) | (farShadow ? FAR_SHADOW_ROOT : 0)
-    const casting = withCompiledFarTest(hosted, farShadowTest)
+    const casting = node ? nodeCasting(node) : 0
     const shown = !w.frame.hidden && sourceShown(mesh, at, row)
     writePlacementRow(link.placements!, row, pose, shown, casting)
     w.touched.touch(link, row)

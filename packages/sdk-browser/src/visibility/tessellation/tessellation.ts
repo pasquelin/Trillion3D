@@ -145,6 +145,7 @@ function uniformWriter(device: GPUDevice, resources: TessellationResources) {
       args: layout.args[chain]!,
       queue: layout.queue,
       visible: layout.visible[chain]!,
+      visibleTwoSided: layout.visibleTwoSided[chain]!,
       dispatch: chain * PASS_DISPATCH_WORDS,
       disp: layout.disp,
       list: chain < RASTER_PASSES.length ? headerWord(chain as RasterPass) : 0,

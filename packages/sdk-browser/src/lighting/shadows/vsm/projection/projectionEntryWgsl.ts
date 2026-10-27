@@ -3,19 +3,37 @@
  * the suns in which every lane traces every sun in uniform flow, the adaptive ray count voted by the
  * group; and the local lights', one pass in which every pixel traces the lights of its own cell of the
  * light grid and packs their shares in its mask, the votes over the lanes that are active. Each is a
- * function: it reads the projection's shapes, which its module declares.
+ * function of the input type (`../inputType.ts`), as the reference's one shader is: the pixel of a group
+ * of the view's tiles (the surfaces'), or of a tile of the list of all the tiles with strands (the
+ * strands', `VSM_STRANDS_PIXEL_OF_WGSL`); it reads the projection's shapes, which its module declares.
  */
 import { VSM_PROJECTION_GROUP_SIZE } from '../constants.ts'
 import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
+import { zOrderDecode } from '../../../../../../math/src/wgsl/integer.ts'
+import { hairTilePixel } from '../../../../hair/tilesWgsl.ts'
+import { HAIR_TILE_ALL } from '../../../../hair/visibilityMath.ts'
+import type { VsmInputType } from '../inputType.ts'
+
+/** The tail of every kernel's pixel, valid at the depth `deviceZ`: its view depth, its point, its screen
+ *  ray's length and its noise. */
+const PIXEL_TAIL_WGSL = /* wgsl */ ` p.sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmView.depthFromDeviceZ);
+ let svPosition=vec4f(vec2f(p.pos)+0.5,deviceZ,1.0);
+ p.shifted=vsmPixelToShifted(svPosition);
+ p.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayLength*p.sceneDepth)+vsmView.screenRayScale.zw).y;
+ p.noise=blueNoiseScalar(vec2u(svPosition.xy),vsmView.frameIndex);
+ return p;
+}`
 
 /** The pixel `groupIndex` (Z-order) of the group over `tile` and what its lights read of it
- *  (`VsmPixel`): both kernels' first step. */
-export const VSM_PROJECTION_PIXEL_OF_WGSL = wgslBlock(
-  'VSM_PROJECTION_PIXEL_OF_WGSL',
-  [],
-  /* wgsl */ `
+ *  (`VsmPixel`) inside `rect`, an expression of the module (its x, y the first pixel, its z, w one past
+ *  the last): every kernel's first step, named `name`. */
+export const vsmPixelOfWgsl = (name: string, rect: string) =>
+  wgslBlock(
+    name,
+    [],
+    /* wgsl */ `
 fn vsmPixelOf(tile:vec2u,groupIndex:u32)->VsmPixel{
- let rect=vsmView.projectionRect;
+ let rect=${rect};
  var p:VsmPixel;
  p.pos=${VSM_PROJECTION_GROUP_SIZE}u*tile+zOrderDecode(groupIndex)+vec2u(rect.xy);
  p.inRect=all(p.pos<vec2u(rect.zw));
@@ -27,14 +45,72 @@ fn vsmPixelOf(tile:vec2u,groupIndex:u32)->VsmPixel{
  p.deviceZ=deviceZ;
  p.info=vsmSurfaceOf(coord,p.inRect,textureLoad(vsmNormalRough,coord,0).xyz);
  if(!p.info.valid){return p;}
- p.sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmView.depthFromDeviceZ);
- let svPosition=vec4f(vec2f(p.pos)+0.5,deviceZ,1.0);
- p.shifted=vsmPixelToShifted(svPosition);
- p.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayLength*p.sceneDepth)+vsmView.screenRayScale.zw).y;
- p.noise=blueNoiseScalar(vec2u(svPosition.xy),vsmView.frameIndex);
- return p;
+${PIXEL_TAIL_WGSL}`,
+  )
+
+/** The pixel of a group of the whole view's rect: the suns' and the one-pass local lights' kernels'. */
+export const VSM_PROJECTION_PIXEL_OF_WGSL = vsmPixelOfWgsl(
+  'VSM_PROJECTION_PIXEL_OF_WGSL',
+  'vsmView.projectionRect',
+)
+
+/** The pixel `groupIndex` (Z-order) of the tile of rank `rank` of the list of all the tiles with strands,
+ *  inside the view's rect: the kernels' first step for the input `strands`. The pixel is a strand's at
+ *  the depth of the nearest strand, valid where one is (the reference's hair input, whose pixel with no
+ *  strand shades nothing); it reads no surface: no thin transmission (`opacity` −1, the reference's gate
+ *  of its hair input), no subsurface, no coat, not a first-person one, its receiver plane facing the
+ *  light (`hair`, which the slope of the trace reads, as the reference turns a hair's normal to the
+ *  light). Its tail is the surfaces' pixel's (`PIXEL_TAIL_WGSL`). */
+export const VSM_STRANDS_PIXEL_OF_WGSL = wgslBlock(
+  'VSM_STRANDS_PIXEL_OF_WGSL',
+  [zOrderDecode, hairTilePixel],
+  /* wgsl */ `
+fn vsmPixelOf(rank:u32,groupIndex:u32)->VsmPixel{
+ let rect=vsmView.projectionRect;
+ var p:VsmPixel;
+ let listed=rank<vsmHairCounts[${HAIR_TILE_ALL}];
+ p.pos=hairTilePixel(vsmHairTiles[select(0u,rank,listed)],zOrderDecode(groupIndex))+vec2u(rect.xy);
+ p.inRect=listed&&all(p.pos<vec2u(rect.zw));
+ let coord=min(p.pos,vec2u(rect.zw)-1u);
+ let deviceZ=textureLoad(vsmHairDepth,coord,0).x;
+ p.deviceZ=deviceZ;
+ p.info.valid=p.inRect&&deviceZ>0.0;
+ p.info.hair=true;
+ p.info.opacity=-1.0;
+ if(!p.info.valid){return p;}
+${PIXEL_TAIL_WGSL}
+/** A strand's receiver for the light \`light\`: the pixel's point moved toward the light by the normal
+ *  bias, the light's direction standing for the normal a strand has none of (the reference's light vector
+ *  for its hair input), light by light; no screen segment. */
+fn vsmStrandReceiverOf(pixel:VsmPixel,light:VsmProjectionLight,participating:bool)->VsmReceiver{
+ var r:VsmReceiver;
+ r.P=pixel.shifted;
+ if(participating){
+  let toLight=light.shiftedPosition-pixel.shifted;
+  let axis=select(normalize(toLight),light.direction,light.kind==LIGHT_KIND_DIRECTIONAL);
+  r.P+=axis*vsmNormalOffset(r.P-vsmView.shiftedEye);
+ }
+ return r;
 }`,
 )
+
+/** What the kernels' text takes of their input (`../inputType.ts`): the builtin a strands' kernel reads
+ *  its rank by, its pixel, and its receiver, once a pixel for a surface (its normal), light by light for a
+ *  strand (the light's direction). */
+const KERNEL_INPUT = {
+  gbuffer: {
+    groups: '',
+    pixel: 'vsmPixelOf(groupId.xy,groupIndex)',
+    once: '\n let receiver=vsmReceiverOf(pixel,pixel.info.valid);',
+    each: '',
+  },
+  strands: {
+    groups: '@builtin(num_workgroups) groups:vec3u,',
+    pixel: 'vsmPixelOf(flatIndex(groupId,groups,1u),groupIndex)',
+    once: '',
+    each: '\n  let receiver=vsmStrandReceiverOf(pixel,vsmView.lights[k],inLight);',
+  },
+} as const satisfies Record<VsmInputType, Record<'groups' | 'pixel' | 'once' | 'each', string>>
 
 /** A sun's trace with the shadow its first-person clipmap casts (`VsmProjectionLight.firstPersonMapId`)
  *  merged in: the clipmap holds the objects that stand for a first-person one alone, so it shades the
@@ -57,57 +133,85 @@ fn vsmFirstPersonTrace(r:VsmTraceResult,k:u32,pixel:VsmPixel,receiver:VsmReceive
 }
 `
 
+/** A sun's trace under its prefiltered distant shadow (`projectionPrefilteredWgsl.ts`), where its
+ *  clipmap holds one: the sample first, at the receiver's biased point; a receiver it shadows whole
+ *  is not traced (the lane is not `participating`), any other is traced and the two shares multiply. */
+const PREFILTERED_TRACE = /* wgsl */ `  let prefiltered=vsmPrefilteredSample(vsmView.lights[k],receiver.P,inLight);
+  let own=vsmPrefilteredCombine(prefiltered,vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight&&!vsmPrefilteredWhole(prefiltered)));`
+
 /** The suns' kernel: every sun of the frame (the first `sunCount` records), a layer of the suns' mask a
  *  sun, each pixel of the rect written (a pixel no sun shades, 1). A thread never leaves alone: the
  *  loops that vote are bounded by uniform values, a thread out of the rect or out of a sun's region
- *  keeps iterating as a no-op. */
-export const vsmSunsEntryWgsl = () => /* wgsl */ `${FIRST_PERSON_TRACE}
+ *  keeps iterating as a no-op. With `prefiltered`, each sun is first sampled in its prefiltered distant
+ *  shadow (`PREFILTERED_TRACE`). */
+export const vsmSunsEntryWgsl = (prefiltered = false, input: VsmInputType = 'gbuffer') => {
+  const t = KERNEL_INPUT[input]
+  return /* wgsl */ `${FIRST_PERSON_TRACE}
 @compute @workgroup_size(${VSM_PROJECTION_GROUP_SIZE * VSM_PROJECTION_GROUP_SIZE})
-fn vsmProjectSuns(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_index) groupIndex:u32){
+fn vsmProjectSuns(@builtin(workgroup_id) groupId:vec3u,${t.groups}@builtin(local_invocation_index) groupIndex:u32){
  vsmLaneInit(groupIndex);
- let pixel=vsmPixelOf(groupId.xy,groupIndex);
- let receiver=vsmReceiverOf(pixel,pixel.info.valid);
+ let pixel=${t.pixel};${t.once}
  for(var k=0u;k<vsmView.sunCount;k++){
-  let inLight=vsmLightParticipates(k,pixel.info,pixel.shifted);
-  let own=vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight);
+  let inLight=vsmLightParticipates(k,pixel.info,pixel.shifted);${t.each}
+${prefiltered ? PREFILTERED_TRACE : '  let own=vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight);'}
   let r=vsmSubsurfaceShadow(vsmFirstPersonTrace(own,k,pixel,receiver,inLight),pixel.info);
   if(pixel.inRect){textureStore(vsmSunMask,pixel.pos,k,vec4f(select(1.0,r.shadowFactor,r.rayCount>0u)));}
  }
 }
 `
+}
 
 /** The local lights' kernel: each pixel traces the shadowed lights of its cell of the light grid (the
  *  one the lighting walks, `pixelCell`), in the order of the pruned grid (`lightGridWgsl.ts`) — the
  *  single-page lights last —, up to `vsm.onePassMaxLights` of them, and packs each share, dithered
  *  (`vsmFilterShadow`), in sixteenths, in four bits of its mask; the others are the lighting's to read from their own map. A light that
- *  does not shade the pixel packs a lit share. */
-export const vsmLocalsEntryWgsl = () => /* wgsl */ `
+ *  does not shade the pixel packs a lit share. The group is in uniform flow, as the suns' pass is, so
+ *  that the adaptive ray count votes over its 32-pixel halves (`vsmProjectionVoteWgsl`): the loop runs
+ *  to the longest list of the group's pixels (`vsmListBound`), a pixel past its own list (or out of
+ *  the rect) traces as a no-op and votes neutrally. */
+export const vsmLocalsEntryWgsl = (subgroups: boolean, input: VsmInputType = 'gbuffer') => {
+  const t = KERNEL_INPUT[input]
+  return /* wgsl */ `
 /** \`share\` in lane \`lane\` of \`mask\`: its sixteenths in four bits (\`ONE_PASS_MASK_BITS\`). */
 fn vsmMaskPack(mask:ptr<function,vec4u>,lane:u32,share:f32){
  (*mask)[lane/ONE_PASS_MASK_LANES]|=(u32(round(share*f32(ONE_PASS_MASK_MAX)))&ONE_PASS_MASK_MAX)<<((lane%ONE_PASS_MASK_LANES)*ONE_PASS_MASK_BITS);
 }
+/** The longest list of the group's pixels, and the bound of the loop that walks them. */
+var<workgroup> vsmListMost:atomic<u32>;
+var<workgroup> vsmListBound:u32;
 @compute @workgroup_size(${VSM_PROJECTION_GROUP_SIZE * VSM_PROJECTION_GROUP_SIZE})
-fn vsmProjectLocals(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_index) groupIndex:u32){
- let pixel=vsmPixelOf(groupId.xy,groupIndex);
- if(!pixel.inRect){return;}
+fn vsmProjectLocals(@builtin(workgroup_id) groupId:vec3u,${t.groups}@builtin(local_invocation_index) groupIndex:u32){
+ vsmLaneInit(groupIndex);
+ let pixel=${t.pixel};
  var mask=vec4u(0u);
+ var list=vec2u(0u);
  if(pixel.info.valid){
-  let receiver=vsmReceiverOf(pixel,true);
-  let base=pixelCell(vec2f(pixel.pos)-vec2f(vsmView.projectionRect.xy)+0.5,pixel.deviceZ);
-  let list=vsmShadowedList(base);
-  // One lane more than the mask holds: a light found there is the overflow, recorded and not traced.
-  for(var lane=0u;lane<min(list.y,vsm.onePassMaxLights+1u);lane++){
-   if(lane==vsm.onePassMaxLights){
-    vsmStatsOr(VSM_OVERFLOW_FLAGS,VSM_OVERFLOW_ONE_PASS_MAX_LIGHTS);
-    break;
-   }
-   let slice=i32(directLights.items[vsmShadowedRank(list,lane)].params.y);
-   let k=shadowSliceRecord(slice);
-   let inLight=vsmLightParticipates(k,pixel.info,pixel.shifted);
-   let r=vsmSubsurfaceShadow(vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight),pixel.info);
-   vsmMaskPack(&mask,lane,select(1.0,vsmFilterShadow(r.shadowFactor,pixel.noise),r.rayCount>0u));
-  }
+  list=vsmShadowedList(pixelCell(vec2f(pixel.pos)-vec2f(vsmView.projectionRect.xy)+0.5,pixel.deviceZ));
+  // A light past the mask is the overflow, recorded and not traced.
+  if(list.y>vsm.onePassMaxLights){vsmStatsOr(VSM_OVERFLOW_FLAGS,VSM_OVERFLOW_ONE_PASS_MAX_LIGHTS);}
  }
- textureStore(vsmLocalMask,pixel.pos,mask);
+ let own=min(list.y,vsm.onePassMaxLights);
+${
+  subgroups
+    ? ' let longest=subgroupMax(own);\n if(subgroupElect()){atomicMax(&vsmListMost,longest);}'
+    : ' atomicMax(&vsmListMost,own);'
+}
+ workgroupBarrier();
+ if(groupIndex==0u){vsmListBound=atomicLoad(&vsmListMost);}
+ let bound=workgroupUniformLoad(&vsmListBound);
+ if(bound==0u){
+  if(pixel.inRect){textureStore(vsmLocalMask,pixel.pos,mask);}
+  return;
+ }${t.once}
+ for(var lane=0u;lane<bound;lane++){
+  let listed=lane<own;
+  var k=0u;
+  if(listed){k=shadowSliceRecord(i32(directLights.items[vsmShadowedRank(list,lane)].params.y));}
+  let inLight=listed&&vsmLightParticipates(k,pixel.info,pixel.shifted);${t.each}
+  let r=vsmSubsurfaceShadow(vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight),pixel.info);
+  if(listed){vsmMaskPack(&mask,lane,select(1.0,vsmFilterShadow(r.shadowFactor,pixel.noise),r.rayCount>0u));}
+ }
+ if(pixel.inRect){textureStore(vsmLocalMask,pixel.pos,mask);}
 }
 `
+}

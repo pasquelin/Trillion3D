@@ -14,8 +14,6 @@ import { decomposeMatrix4 } from '../../../../math/src/matrix/matrix4Trs.ts'
 import { Vector3 } from '../math/vector3.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
 import { near } from '../../../../math/src/float/near.fixture.ts'
-import { nodeWrites } from '../../scene/core/nodeEdits.ts'
-import type { SceneLink } from './sceneLink.ts'
 
 const nearVector = (actual: Vector3, expected: number[]) =>
   near(actual.toArray(), expected, 'the vector', 1e-12)
@@ -68,45 +66,6 @@ test('a clone keeps its class: a group with its name and fields, a light, a came
   assert.ok(spot instanceof Light && spot.kind === 'spot' && spot.type === 'spotLight')
   const eye = new Camera('orthographic').clone()
   assert.ok(eye instanceof Camera && eye.projection === 'orthographic')
-})
-
-test('a node casts no far shadow unless set: the write is counted and told once, and a clone keeps it', () => {
-  const node = new Mesh()
-  assert.equal(node.castFarShadow, false, 'false by default, a mesh that casts included')
-  assert.equal(node.castShadow, true)
-  const told: object[] = []
-  const world = new Group()
-  world._link = { shadow: (n: object) => told.push(n), structure() {} } as unknown as SceneLink
-  world.add(node)
-  const writes = nodeWrites()
-  node.castFarShadow = true
-  assert.deepEqual([node.castFarShadow, told, nodeWrites() - writes], [true, [node], 1])
-  node.castFarShadow = true
-  assert.deepEqual([told.length, nodeWrites() - writes], [1, 1], 'the same value moves nothing')
-  assert.equal(node.clone().castFarShadow, true)
-  assert.equal(new Object3D().copy(node).castFarShadow, true)
-  node.castFarShadow = false
-  assert.equal(told.length, 2, 'turned off again, told again')
-})
-
-test('a node leaves the far-shadow test to the view unless set: the write is counted and told once, and a clone keeps it', () => {
-  const node = new Mesh()
-  assert.equal(node.farShadowTest, null, 'null by default: the view decides')
-  const told: object[] = []
-  const world = new Group()
-  world._link = { shadow: (n: object) => told.push(n), structure() {} } as unknown as SceneLink
-  world.add(node)
-  const writes = nodeWrites()
-  node.farShadowTest = true
-  assert.deepEqual([node.farShadowTest, told, nodeWrites() - writes], [true, [node], 1])
-  node.farShadowTest = true
-  assert.deepEqual([told.length, nodeWrites() - writes], [1, 1], 'the same value moves nothing')
-  node.farShadowTest = false
-  assert.deepEqual([node.farShadowTest, told.length], [false, 2], 'false is a value of its own')
-  assert.equal(node.clone().farShadowTest, false)
-  assert.equal(new Object3D().copy(node).farShadowTest, false)
-  node.farShadowTest = null
-  assert.deepEqual([node.farShadowTest, told.length], [null, 3], 'back to the view’s rule, told')
 })
 
 test("a clone keeps a light's values, a camera's optics, and shares a mesh's content", () => {

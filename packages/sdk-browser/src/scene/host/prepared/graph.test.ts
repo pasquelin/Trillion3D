@@ -78,41 +78,6 @@ test('the distances a node names are those every primitive of its mesh is drawn 
   }
 })
 
-test('a node that casts far shadows makes every primitive of its mesh cast them', async () => {
-  const geometryOf = () => {
-    const geometry = new Geometry()
-    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
-    return geometry
-  }
-  const materialOf = () => Promise.resolve(standardSurface())
-  for (const castFarShadow of [undefined, true] as const) {
-    const { tables, meshes } = oneNode('far shadows', null)
-    tables.nodes[0].castFarShadow = castFarShadow
-    const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
-    const read: boolean[] = []
-    scene.traverse((part) => part instanceof Mesh && read.push(part.castFarShadow))
-    assert.deepEqual(read, [!!castFarShadow, !!castFarShadow])
-  }
-})
-
-test('a node that names a far-shadow test makes every primitive of its mesh reached by it, or never', async () => {
-  const geometryOf = () => {
-    const geometry = new Geometry()
-    geometry.setAttribute('position', new BufferAttribute(new Float32Array(9), 3))
-    return geometry
-  }
-  const materialOf = () => Promise.resolve(standardSurface())
-  for (const farShadowTest of [undefined, true, false] as const) {
-    const { tables, meshes } = oneNode('far test', null)
-    tables.nodes[0].farShadowTest = farShadowTest
-    const { scene } = await preparedGraph({ tables, meshes, geometryOf, materialOf })
-    const read: (boolean | null)[] = []
-    scene.traverse((part) => part instanceof Mesh && read.push(part.farShadowTest))
-    const expected = farShadowTest ?? null
-    assert.deepEqual(read, [expected, expected])
-  }
-})
-
 test('the host nodes are listed by the source rank they name, those a cell draws among them', async () => {
   const geometryOf = () => {
     const geometry = new Geometry()

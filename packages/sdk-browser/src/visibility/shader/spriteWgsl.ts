@@ -1,5 +1,5 @@
 import type { VisMaterial } from '../materialType.ts'
-import { MARK_BITS, SHADOWLESS_ROOT } from './castingMark.ts'
+import { MARK_BITS, SHADOWLESS_ROOT, SHADOW_MAPLESS_ROOT } from './castingMark.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 
 /**
@@ -63,6 +63,9 @@ export const SPRITE_UNCULLED = MARK_BITS.spriteNeverCulled
 /** The bits of a root that casts no shadow: a sprite, or a node that says so (`castingMark.ts`); what
  *  the shadow casters' flags test (`../../lighting/shadows/casters/castFlags.ts`). */
 export const CASTS_NO_SHADOW = SPRITE_ROOT | SHADOWLESS_ROOT
+/** The bits of a root that casts none into the shadow maps: those that cast no shadow, and a primitive the maps alone leave out
+ *  (`SHADOW_MAPLESS_ROOT`; the distance fields keep it). What the shadow casters' flags test. */
+export const CASTS_NO_SHADOW_MAP = CASTS_NO_SHADOW | SHADOW_MAPLESS_ROOT
 
 /**
  * THE SPRITE BITS of a root's mark: what a root carries of its surface, set at collection and

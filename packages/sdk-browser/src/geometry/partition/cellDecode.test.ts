@@ -5,7 +5,7 @@ import { pose } from '../../scene/host/prepared/nodes.ts'
 import { configurePageWorkers, patientTask, releasePageWorkers } from '../work/host.ts'
 import { NodeWorker } from '../../../../../bench/kit/worker.ts'
 import { withNodeWorkerShim } from '../../../../../bench/oracles/browser/pageWorkNodeWorker.ts'
-import { cellRows, decodeCellFile, farTestOf, rootParentsByNode } from './cellDecode.ts'
+import { cellRows, decodeCellFile, rootParentsByNode } from './cellDecode.ts'
 
 const nodes = [
   {
@@ -54,34 +54,12 @@ test('a node that names the distances it is drawn at carries them, 0 for none', 
   assert.deepEqual([...rows.drawDistances], [5, 300, 0, 0, 0, 0, 0, 40, 1, 8, 0, 0])
 })
 
-test('a node that casts far shadows carries a byte of it, 0 for none', () => {
-  const named = [
-    { ...nodes[0], castFarShadow: true },
-    nodes[1],
-    { ...nodes[1], castFarShadow: true },
-  ]
+test('a far-field node carries a byte of it, 0 for none', () => {
+  const named = [{ ...nodes[0], farField: true }, nodes[1], { ...nodes[1], farField: true }]
   const rows = cellRows(
     decodeCellFile(new TextEncoder().encode(JSON.stringify({ version: 4, nodes: named })).buffer),
   )
-  assert.deepEqual([...rows.castFarShadows!], [1, 0, 1])
-  assert.deepEqual([...rows.farFields!], [0, 0, 0], 'a far-field flag of its own')
-})
-
-test('a node that names a far-shadow test carries a byte of it: 1 reached, 2 never, 0 none', () => {
-  const named = [
-    { ...nodes[0], farShadowTest: true },
-    nodes[1],
-    { ...nodes[1], farShadowTest: false },
-  ]
-  const rows = cellRows(
-    decodeCellFile(new TextEncoder().encode(JSON.stringify({ version: 4, nodes: named })).buffer),
-  )
-  assert.deepEqual([...rows.farShadowTests!], [1, 0, 2])
-  assert.deepEqual([...rows.castFarShadows!], [0, 0, 0], 'a flag of its own')
-  assert.deepEqual(
-    [farTestOf(1), farTestOf(2), farTestOf(0), farTestOf(undefined)],
-    [true, false, undefined, undefined],
-  )
+  assert.deepEqual([...rows.farFields!], [1, 0, 1])
 })
 
 test('a node that is an instance of an assembly carries the group above the root of each primitive', () => {
@@ -132,8 +110,7 @@ test('a cell file is parsed in a worker of the page worker pool, never on the ma
     const here = decodeCellFile(new TextEncoder().encode(text).buffer)
     assert.deepEqual(new Float64Array(answer.cells.locals), new Float64Array(here.locals))
     assert.equal(answer.cells.sourceNodes.byteLength, 8, 'a word a node, transferred')
-    assert.equal(answer.cells.castFarShadows.byteLength, 2, 'a byte a node, transferred')
-    assert.equal(answer.cells.farShadowTests.byteLength, 2, 'a byte a node, transferred')
+    assert.equal(answer.cells.farFields.byteLength, 2, 'a byte a node, transferred')
   }))
 
 test('a cell file the worker refuses answers with its code and names its file', () =>

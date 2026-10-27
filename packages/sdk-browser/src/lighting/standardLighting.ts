@@ -1,12 +1,14 @@
-import { PI } from '../../../math/src/wgsl/constants.ts'
+import { INVERSE_PI, PI } from '../../../math/src/wgsl/constants.ts'
+import { wgslF32 } from '../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { inverseTranspose3, unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import {
   fresnelSchlick,
   lambertAlbedoMul,
   ndotvClamped,
-  specularF90,
+  slabF90,
 } from '../../../math/src/wgsl/lighting.ts'
+import { lobeRoughness } from './lobeAxisWgsl.ts'
 import { SURFACE_F0_WGSL } from '../materials/surface/surfaceSpecular.ts'
 import { worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 
@@ -30,6 +32,14 @@ fn ggxDistribution(alpha2:f32,cosine:f32,sine2:f32)->f32{
 }`,
 )
 
+/** The constants of the rough diffuse (`diffuseEon`): the Oren-Nayar family's energy-preserving fit, in its three numbers, and the
+ *  share of the surface's roughness it takes (0.4, where a GGX surface of lambertian microfacets is matched). */
+const EON_ALBEDO_INVERSION = 0.189468
+const EON_FIRST_ORDER = 0.262048
+const EON_ROUGHNESS_SHARE = 0.4
+/** `0.5 - 2 / (3 pi)`, the mean of the first-order term, and the slope of its straight-line approximation `1 - 1 / (1 + it)`. */
+const EON_FON = 0.5 - 2 / (3 * Math.PI)
+const EON_AF_SLOPE = 1 - 1 / (1 + EON_FON)
 /** Shared opaque/forward lighting of one punctual light: the standard material's GGX lobe and its
  *  Lambert diffuse. The environment's irradiance is added apart (\`environmentLighting\`). Carries
  *  \`ggxDistribution\` for every program that shades with it. \`surfaceF0\` is a surface's
@@ -50,29 +60,120 @@ export const STANDARD_LIGHTING_WGSL = wgslBlock(
   'STANDARD_LIGHTING_WGSL',
   [
     fresnelSchlick,
-    specularF90,
+    slabF90,
     SURFACE_F0_WGSL,
     lambertAlbedoMul,
     ndotvClamped,
     GGX_DISTRIBUTION_WGSL,
+    INVERSE_PI,
+    lobeRoughness,
   ],
-  `struct LobeSurface{f0:vec3f,f90:f32,diffuse:vec3f,alpha:f32,alpha2:f32,NdotV:f32,viewG:f32,}
-/** A direction's half of the joint visibility, its cosine \`c\` blended toward 1 by α: c (1 − α) + α. */
-fn jointHalf(c:f32,alpha:f32)->f32{return c*(1.0-alpha)+alpha;}
+  `/** The pixel's lobe surface: its reflectance, diffuse colour, roughness, N·V and the view's half of the visibility, and whether its lobes take the
+ *  exact visibility (\`accurate\`, taken once from \`shadingAccurate\`); the N·V the rough diffuse
+ *  takes (\`diffuseNdotV\`: the cosine as it is, 0 behind the normal, where the lobes take its magnitude); and, where the pixel takes
+ *  the rough diffuse, its terms that no light changes (\`withRoughDiffuse\`): the surface's roughness weighed by 0.4, and the two colours the
+ *  light only scales. A surface without diffuse light holds none (\`withoutDiffuse\`). */
+struct LobeSurface{f0:vec3f,f90:f32,diffuse:vec3f,alpha:f32,alpha2:f32,NdotV:f32,viewG:f32,diffuseNdotV:f32,eonRough:f32,eonFirst:vec3f,eonMulti:vec3f,accurate:bool,}
+/** Whether the pixel's specular lobes take the exact joint visibility (\`jointHalf\`) in place of its approximation: set once a pixel from the
+ *  view's switch (\`shadingAccurate\`) by the passes that light a surface, as \`roughDiffuse\` is, and carried by its surface
+ *  (\`LobeSurface.accurate\`). */
+var<private> shadingAccurate:bool=false;
+/** A direction's half of the joint Smith visibility of the GGX lobe of width α (α² the distribution's) for its cosine \`c\`: exactly
+ *  √(c (c − c α²) + α²) where the lobe takes the exact visibility (\`accurate\`), else its approximation, \`c\` blended toward 1 by α:
+ *  c (1 − α) + α. */
+fn jointHalf(c:f32,alpha:f32,accurate:bool)->f32{
+ if(accurate){let a2=alpha*alpha;return sqrt(c*(c-c*a2)+a2);}
+ return c*(1.0-alpha)+alpha;
+}
+/** The joint Smith visibility of the GGX lobe whose distribution is \`a2\` (α²), for a view at \`NoV\` and a light at \`NoL\`: the two
+ *  halves (\`jointHalf\`) crossed, as the round lobes take them (\`lobeSum\` keeps the view's half apart, once a pixel). */
+fn visibility(a2:f32,NoV:f32,NoL:f32,accurate:bool)->f32{
+ let a=sqrt(a2);
+ return 0.5/(NoL*jointHalf(NoV,a,accurate)+NoV*jointHalf(NoL,a,accurate));
+}
 fn lobeSurfaceOf(f0:vec3f,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->LobeSurface{
  var s:LobeSurface;
- s.alpha=rough*rough;
+ let held=lobeRoughness(rough);
+ s.alpha=held*held;
  s.alpha2=s.alpha*s.alpha;
  s.NdotV=ndotvClamped(N,V);
- s.viewG=jointHalf(s.NdotV,s.alpha);
+ s.diffuseNdotV=saturate(dot(N,V));
+ s.accurate=shadingAccurate;
+ s.viewG=jointHalf(s.NdotV,s.alpha,s.accurate);
  s.f0=f0;
- s.f90=specularF90(f0);
+ s.f90=slabF90(f0);
  s.diffuse=lambertAlbedoMul(rgb,metal);
  return s;
 }
+/** The pixel's surface: the one every light of the pixel is lit on. Where the pixel takes the rough diffuse, its terms that no light
+ *  changes are taken here, once (\`withRoughDiffuse\`). */
 fn lobeSurface(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->LobeSurface{
- return lobeSurfaceOf(surfaceF0(rgb,metal),rgb,metal,rough,N,V);
+ let s=lobeSurfaceOf(surfaceF0(rgb,metal),rgb,metal,rough,N,V);
+ if(roughDiffuse){return withRoughDiffuse(s);}
+ return s;
 }
+/** Whether the pixel's lights take the rough diffuse (\`diffuseEon\`) in place of Lambert's: set once a pixel from the view's switch
+ *  (\`shadingRoughDiffuse\`) by the passes that light a surface; a program that sets none, the surface cache's irradiance among them,
+ *  keeps Lambert. A cloth keeps Lambert too (\`setCloth\`). */
+var<private> roughDiffuse:bool=false;
+/** The first-order term of the rough diffuse, \`S / T\` in the paper's: \`S\` the view's direction against the light's past the normal's,
+ *  over the greater cosine, whichever is the greater. */
+fn eonSlope(NoV:f32,NoL:f32,VoL:f32)->f32{
+ let S=VoL-NoV*NoL;
+ return max(S*(1.0/max(1e-6,max(NoV,NoL))),S);
+}
+/** The two colours the energy-preserving rough diffuse of a surface of diffuse colour \`c\` (not divided by pi) and roughness \`rough\`,
+ *  seen at \`NoV\`, is made of: the first scaled by one plus the roughness times the light's term (\`eonSlope\`), the second added —
+ *  what no light changes. */
+fn eonColours(c:vec3f,rough:f32,NoV:f32)->mat2x3f{
+ let rho=c*(1.0+(${wgslF32(EON_ALBEDO_INVERSION)}-${wgslF32(EON_ALBEDO_INVERSION)}*c)*rough);
+ let AF=1.0-rough*${wgslF32(EON_AF_SLOPE)};
+ let fms=1.0-AF*(1.0+rough*(${wgslF32(EON_FIRST_ORDER)}-${wgslF32(EON_FIRST_ORDER)}*NoV));
+ return mat2x3f(rho*(AF*INVERSE_PI),rho*(rho*(fms*INVERSE_PI)));
+}
+/** The rough diffuse from its two colours (\`eonColours\`) and its roughness \`rough\`, seen at \`NoV\` from a light at \`NoL\` and \`VoL\`. */
+fn eonApply(first:vec3f,multi:vec3f,rough:f32,NoV:f32,NoL:f32,VoL:f32)->vec3f{
+ return first*(1.0+rough*eonSlope(NoV,NoL,VoL))+multi;
+}
+/** The energy-preserving rough diffuse of a surface of diffuse colour \`c\` (not divided by pi) and roughness \`rough\`, seen at \`NoV\`
+ *  from a light at \`NoL\` and \`VoL\`: Lambert at a roughness of 0, brighter against the light and darker at grazing views as it grows. */
+fn diffuseEon(c:vec3f,rough:f32,NoV:f32,NoL:f32,VoL:f32)->vec3f{
+ let e=eonColours(c,rough,NoV);
+ return eonApply(e[0],e[1],rough,NoV,NoL,VoL);
+}
+/** The surface \`s\` with the terms of its rough diffuse for a source of no size, as far as no light changes them (\`eonColours\`):
+ *  the roughness weighed by 0.4, and the two colours the light only scales: \`eonFirst\` times one plus \`eonRough\` times the light's
+ *  term (\`eonSlope\`), then \`eonMulti\` added. */
+fn withRoughDiffuse(s:LobeSurface)->LobeSurface{
+ var t=s;
+ let rough=sqrt(s.alpha)*${wgslF32(EON_ROUGHNESS_SHARE)};
+ let e=eonColours(s.diffuse*PI,rough,s.diffuseNdotV);
+ t.eonRough=rough;
+ t.eonFirst=e[0];
+ t.eonMulti=e[1];
+ return t;
+}
+/** The surface \`s\` with no diffuse light: its specular alone, the rough diffuse's terms cleared with its colour, so that no light's diffuse
+ *  is anything but zero from it. The one copy of a surface that changes its diffuse. */
+fn withoutDiffuse(s:LobeSurface)->LobeSurface{
+ var t=s;
+ t.diffuse=vec3f(0.0);
+ t.eonFirst=vec3f(0.0);
+ t.eonMulti=vec3f(0.0);
+ return t;
+}
+/** The diffuse colour of a light at cosine \`NoL\` (the one it takes light by) and \`VoL\` with the view, for a source whose weight is \`micro\`
+ *  (1 for a point, fading to 0 as the source reaches 20 cm, 0 for a rectangle): Lambert's \`s.diffuse\` where the pixel takes none, else the
+ *  rough diffuse at the surface's roughness times \`micro\` and 0.4 and its N·V (\`diffuseNdotV\`). A source of no size takes only what
+ *  depends on the light from the terms the surface carries (\`withRoughDiffuse\`); a surface without diffuse light (\`withoutDiffuse\`)
+ *  gives none either way. */
+fn lobeDiffuse(s:LobeSurface,NoL:f32,VoL:f32,micro:f32)->vec3f{
+ if(!roughDiffuse||micro<=0.0){return s.diffuse;}
+ if(micro==1.0){return eonApply(s.eonFirst,s.eonMulti,s.eonRough,s.diffuseNdotV,saturate(NoL),VoL);}
+ return diffuseEon(s.diffuse*PI,micro*s.eonRough,s.diffuseNdotV,saturate(NoL),VoL);
+}
+/** \`lobeDiffuse\` of a source of weight \`micro\`, its \`VoL\` taken from the half-vector's \`VoH\` (\`VoL = 2 VoH² - 1\`). */
+fn lobeDiffuseH(s:LobeSurface,NoL:f32,VoH:f32,micro:f32)->vec3f{return lobeDiffuse(s,NoL,2.0*VoH*VoH-1.0,micro);}
 fn standardLobe(s:LobeSurface,N:vec3f,V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec3f{
  let direct=energy*NdotL;
  let NdotH=max(dot(N,H),0.0);
@@ -81,17 +182,17 @@ fn standardLobe(s:LobeSurface,N:vec3f,V:vec3f,H:vec3f,NdotL:f32,energy:f32)->vec
  let NxH=cross(N,H);
  let D=ggxDistribution(s.alpha2,NdotH,select(dot(NxH,NxH),1.0,NdotH==0.0));
  let gV=NdotL*s.viewG;
- let gL=s.NdotV*jointHalf(NdotL,s.alpha);
- return lobeSum(s,D,gV,gL,VdotH,direct);
+ let gL=s.NdotV*jointHalf(NdotL,s.alpha,s.accurate);
+ return lobeSum(s,lobeDiffuseH(s,NdotL,VdotH,1.0),D,gV,gL,VdotH,direct);
 }
-/** A lobe's term from its distribution \`D\` and its two visibility halves \`gV\`, \`gL\`: the
+/** A lobe's term from its diffuse colour \`diffuse\` (\`lobeDiffuse\`) and its distribution \`D\` and its two visibility halves \`gV\`, \`gL\`: the
  *  diffuse share and the specular one, the height-correlated visibility and Fresnel at \`VdotH\`,
- *  times \`direct\`. The halves of the round lobes are the joint visibility's blend (\`jointHalf\`),
+ *  times \`direct\`. The halves of the round lobes are the joint visibility's blend (\`jointHalf\`, \`visibility\`),
  *  the anisotropic lobe's its exact lengths (\`direct/lobesWgsl.ts\`). */
-fn lobeSum(s:LobeSurface,D:f32,gV:f32,gL:f32,VdotH:f32,direct:f32)->vec3f{
+fn lobeSum(s:LobeSurface,diffuse:vec3f,D:f32,gV:f32,gL:f32,VdotH:f32,direct:f32)->vec3f{
  let Vis=0.5/(gV+gL+1e-7);
  let F=fresnelSchlick(s.f0,s.f90,VdotH);
- return s.diffuse*direct+D*Vis*F*direct;
+ return diffuse*direct+D*Vis*F*direct;
 }`,
 )
 

@@ -4,7 +4,7 @@ import { createGpuRaster, type BinningSteps } from './raster.ts'
 import type { GpuRasterInput } from './types.ts'
 import { RASTER_PASS_MAIN, RASTER_PASS_POST } from './contract.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { WIDE_ATOMIC_FEATURE } from '../../gpu/core/wideAtomics.ts'
+import { FEATURE } from '../../gpu/core/gpuCaps.ts'
 
 /** The binning's steps, none encoded: what a test of the raster alone leaves to the decode and the
  *  bins (`../passes/binning.ts`). */
@@ -14,7 +14,7 @@ const NO_STEPS: BinningSteps = { ready: () => true, clear() {}, decode() {}, bin
  *  passes hold the plane's code or not (`clipping`), and an image that asks the tessellation or not. */
 export function rasterOf(tessellating: boolean, clipping = false, wide = false) {
   const f = fakeDevice({
-    ...(wide && { features: [WIDE_ATOMIC_FEATURE] }),
+    ...(wide && { features: [FEATURE.wideAtomics] }),
     limits: {
       maxStorageBufferBindingSize: 134217728,
       maxBufferSize: 268435456,

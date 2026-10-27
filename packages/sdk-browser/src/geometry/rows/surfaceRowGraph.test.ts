@@ -18,6 +18,10 @@ import {
 } from '../../visibility/types.ts'
 import { objectOffsetRow, writeOffsetWords, type RootOffsetRow } from './page/offsetRow.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
+import {
+  PLACEMENT_FIRST_PERSON,
+  PLACEMENT_NO_CONTACT_SHADOW,
+} from '../dag/info/placementInfoLayout.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import { emptySurfaceRow, rowFlags, surfaceRow } from './surfaceRow.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
@@ -239,15 +243,11 @@ test('a first-person row whose base map reads an odd texture set keeps both: the
     {},
   )
   // The mark is a field of the page, so no row flag shares its bit with the texture set's low bit.
-  assert.ok(PAGE_INFO.at.firstPerson > PAGE_INFO.at.wpoMost)
+  assert.ok(PAGE_INFO.at.marks > PAGE_INFO.at.wpoMost)
   assert.equal(PAGE_INFO.words, 40, 'the mark fills the record padding: the record does not grow')
   for (const set of [0, 1, 2, 3, 5]) {
     const flags = masked(set)
-    for (const firstPerson of [0, 1])
-      assert.equal(
-        pageMaskSet({ flags, firstPerson }),
-        set,
-        `set ${set}, first person ${firstPerson}`,
-      )
+    for (const marks of [0, PLACEMENT_FIRST_PERSON, PLACEMENT_NO_CONTACT_SHADOW])
+      assert.equal(pageMaskSet({ flags, marks }), set, `set ${set}, page marks ${marks}`)
   }
 })

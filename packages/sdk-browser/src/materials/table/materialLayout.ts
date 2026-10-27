@@ -13,10 +13,8 @@ import type { RecordLayout } from '../../gpu/core/recordLayout.ts'
  * - `opacity` as declared: a reader of the coverage saturates it, as `surfaceOpacity` does.
  * - Both second normal factors: a pass picks the vertex tangents' one where it reads them
  *   (`frameNormalScaleY`).
- * - `fogPerPixel`, 1 where a blended surface's fog is worked out for each pixel (`VisMaterial.computeFogPerPixel`, and
- *   always for single-layer water), else laid in the vertex stage (the height or distance fog, the haze, the local fog
- *   volumes) and interpolated, the fog's volume read for each pixel (`../../blend/cloudVertexText.ts`). A field of its own:
- *   the model word's thirty-two bits are all taken.
+ * - `flags`, the bits of `MATERIAL_FLAG`, which the blend's fragments read from the record (`materialFlagOf`). A field of
+ *   its own: the model word's thirty-two bits are all taken.
  * - `model`: the surface model, the fog opt-out above it (`FOG_FREE_MODEL_BIT`) and, above that, the
  *   clouds laid over the fog (`CLOUD_FOG_MODEL_BIT`).
  * - The maps' atlas slots, zero for none; `channels`, `MAP_CHANNEL_BITS` bits a map: the texture set map `i` of
@@ -61,8 +59,11 @@ export const MATERIAL_RECORD = fieldLayout('Material', [
   ['attenuation', 'vec3f'],
   ['channels', 'u32'],
   ['irisDistance', 'f32'],
-  ['fogPerPixel', 'u32'],
+  ['flags', 'u32'],
 ] as const)
+/** The bits of a record's `flags`, a bit each: `fogPerPixel`, the fog is worked out for each pixel
+ *  (`VisMaterial.computeFogPerPixel`; always for water); `contactShadows`, the material asks (`asksContact`). */
+export const MATERIAL_FLAG = { fogPerPixel: 1, contactShadows: 2 } as const
 /** Words and `rgba32uint` texels of one record. */
 export const MATERIAL_RECORD_WORDS = MATERIAL_RECORD.words,
   MATERIAL_RECORD_TEXELS = MATERIAL_RECORD_WORDS / 4

@@ -3,10 +3,12 @@
  * - `encodeVsmPageCarry`: the physical page address update, the first dispatch of
  *   the page marking's pass, which the frame opens (`vsmEncode.ts`).
  * - `encodeVsmPageMapping`: the page allocation build, after marking.
- * - `encodeVsmAfterRaster`: the post-render pass, after the shadow depth raster.
- * - `keepVsmFrame`: the page-management part of the frame data extraction: the frame just
- *   rendered becomes `prev` (`res.swapFrames()`), and the cache is available next frame; its kept
- *   tables are the occlusion's previous ones (`keepOcclusionFrame`).
+ * - `encodeVsmAfterRaster`: the post-render pass, after the shadow depth raster, with the prefiltered
+ *   distant shadow's filters.
+ * - `keepFilterableHistory`, `keepVsmFrame`: the page-management part of the frame data extraction:
+ *   the prefiltered distant shadow's history is copied, the frame just rendered becomes `prev`
+ *   (`res.swapFrames()`), and the cache is available next frame; its kept tables are the occlusion's
+ *   previous ones (`keepOcclusionFrame`).
  *
  * Loose shader parameters go through one uniform buffer of slots the device's `uniformStride` apart
  * (dynamic offsets) written with `queue.writeBuffer` at encode time: encode at most one frame per
@@ -17,13 +19,25 @@
  * page rect bounds, raster marks, stats), the next-map data
  * upload, the CPU side of the feedback, the depth pyramid itself.
  */
-import { VSM_GROUP_WIDTH } from './constants.ts'
+import {
+  VSM_GROUP_WIDTH,
+  VSM_LEVEL0_PAGES,
+  VSM_PAGE_TABLE_BLOCK_HEIGHT,
+  VSM_PROJECTION_RECORD_BYTES,
+} from './constants.ts'
+import {
+  VSM_FILTER_ARGS_BORDER,
+  VSM_FILTER_ARGS_MERGE,
+  VSM_FILTER_ARGS_SEPARABLE,
+  VSM_FILTER_ARGS_SET_WORDS,
+  vsmHistoryLayout,
+} from './prefilteredConstants.ts'
 import {
   VSM_PM_GROUP_PARAMS,
   VSM_PM_GROUP_PER_PAGE,
   VSM_PM_GROUP_RESOURCES,
 } from './physicalPagesWgsl.ts'
-import { type VsmResources, vsmBindGroupEntries } from './resources.ts'
+import { type VsmResources, vsmBindGroupEntries, vsmFrameParity } from './resources.ts'
 import type { ComputeRun } from '../../../gpu/core/lazyComputePass.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { writeChangedSlots } from '../../../gpu/core/writeChanged.ts'
@@ -44,10 +58,11 @@ import {
 
 const MAPPING_PASS: GPUComputePassDescriptor = { label: `${VSM_PASS_PREFIX}pageMapping` }
 const AFTER_RASTER_PASS: GPUComputePassDescriptor = { label: `${VSM_PASS_PREFIX}afterRaster` }
+const FILTERABLE_PASS: GPUComputePassDescriptor = { label: `${VSM_PASS_PREFIX}filterable` }
 
 /** Group 0 of `pipe` for the current frame parity (rebuilt lazily after `swapFrames`). */
 function group0(ctx: VsmPageManagementContext, res: VsmResources, pipe: Pipe) {
-  const parity = res.current === res.frames[0] ? 0 : 1
+  const parity = vsmFrameParity(res)
   let g = pipe.groups[parity]
   if (!g) {
     g = ctx.device.createBindGroup({
@@ -114,13 +129,16 @@ function run(
   if (bind(ctx, res, pass, name, slot)) pass.dispatchWorkgroups(groups)
 }
 
+/** Runs the per-page kernel `name` over the dispatcher's bins, the suns' alone with `directional`. */
 function runPerPage(
   ctx: VsmPageManagementContext,
   res: VsmResources,
   pass: GPUComputePassEncoder,
   name: KernelName,
+  directional = false,
 ) {
-  if (bind(ctx, res, pass, name, SLOT_MAIN)) ctx.dispatcher.encode(pass, VSM_PM_GROUP_PER_PAGE)
+  if (bind(ctx, res, pass, name, SLOT_MAIN))
+    ctx.dispatcher.encode(pass, VSM_PM_GROUP_PER_PAGE, directional)
 }
 
 /**
@@ -142,9 +160,9 @@ export function encodeVsmPageCarry(
 
 /**
  * Builds the page allocations of the frame. A page marked and not held takes the free page the pool
- * rank puts first (`freePagesWgsl.ts`): an empty page, then the one wanted longest ago, the finer
- * level first within an age step; a page this frame's marking asked for keeps its physical page and
- * is never taken.
+ * rank puts first (`freePagesWgsl.ts`): an empty page, then the one wanted longest ago, pages of one
+ * age in pool order; a page this frame's marking asked for keeps its physical page and is never
+ * taken.
  */
 export function encodeVsmPageMapping(
   steps: ComputeRun,
@@ -154,8 +172,10 @@ export function encodeVsmPageMapping(
   if (frame.mapCount === 0) return
   const ctx = vsmPageManagementContext(res, frame)
   writeParams(ctx, res, frame, SLOT_MAIN, SLOT_ADDRESSES)
-  ctx.dispatcher.setBins(frame.perPageBins ?? [])
+  ctx.dispatcher.setBins(frame.perPageBins ?? [], frame.directionalBins)
   const pass = steps.pass(MAPPING_PASS)
+  // The requests of the sun's levels passed on to the coarser levels, for the prefiltered distant shadow.
+  if (res.filterable?.active) runPerPage(ctx, res, pass, 'propagateFilterable', true)
   // Update cached or newly invalidated pages against the new requests.
   run(ctx, res, pass, 'keepPages', SLOT_MAIN)
   // The free pages in the pool rank's order: the stages share `poolCount`'s group 0.
@@ -164,6 +184,8 @@ export function encodeVsmPageMapping(
   runPerPage(ctx, res, pass, 'grantPages')
   run(ctx, res, pass, 'pageFlagPyramid', SLOT_MAIN)
   runPerPage(ctx, res, pass, 'fillCoarserFallbacks')
+  // The clears' arguments set to their empty form, then the pages to clear added to them.
+  run(ctx, res, pass, 'resetClearArgs', SLOT_MAIN, 1)
   run(ctx, res, pass, 'listClears', SLOT_MAIN)
   if (bind(ctx, res, pass, 'clearPages', SLOT_MAIN))
     pass.dispatchWorkgroupsIndirect(res.clearArgs, 0)
@@ -171,8 +193,9 @@ export function encodeVsmPageMapping(
   run(ctx, res, pass, 'poolFeedback', SLOT_MAIN, 1)
 }
 
-/** The clears' indirect dispatch arguments set to their empty form, 1D, (16, pages, 1): before the
- *  pass that lists the pages to clear, and the one that lists the pages to merge. */
+/** The clears' indirect dispatch arguments set to their empty form, 1D, (16, pages, 1), before the
+ *  pass that lists the pages to merge (the one that lists the pages to clear resets them in its
+ *  pass: `resetClearArgs`). */
 export function resetVsmClearArgs(
   encoder: GPUCommandEncoder,
   res: VsmResources,
@@ -180,6 +203,24 @@ export function resetVsmClearArgs(
 ) {
   if (frame.mapCount === 0) return
   encoder.copyBufferToBuffer(vsmPageManagementContext(res, frame).argsInit, 0, res.clearArgs, 0, 16)
+}
+
+/** The prefiltered distant shadow's buffers made ready for the frame's filters, before the pass that
+ *  lists the pages they process, in a frame with a map that holds it: the indirect arguments set to
+ *  their empty form, and the pools the frame writes — the separate pool of its parity and the merged
+ *  one — cleared. Every page of a pool is cleared: the merge down reads the pages of the coarser levels
+ *  the table maps and the dynamic layer was written, listed or not, and the history is read where the
+ *  previous table says secondary, a page the selection may have left out. */
+export function resetVsmFilterable(
+  encoder: GPUCommandEncoder,
+  res: VsmResources,
+  frame: VsmPageManagementFrame,
+) {
+  const { filterable } = res
+  if (!filterable?.active || frame.mapCount === 0) return
+  encoder.copyBufferToBuffer(filterable.argsInit, 0, filterable.args, 0, filterable.args.size)
+  encoder.clearBuffer(filterable.separate[vsmFrameParity(res)])
+  encoder.clearBuffer(filterable.merged)
 }
 
 /** After the render, after `resetVsmClearArgs` (the clears' list and arguments, empty again, list the
@@ -198,16 +239,116 @@ export function encodeVsmAfterRaster(
   run(ctx, res, pass, 'selectMerges', SLOT_MAIN)
   if (bind(ctx, res, pass, 'mergePages', SLOT_MAIN))
     pass.dispatchWorkgroupsIndirect(res.clearArgs, 0)
+  // The prefiltered distant shadow's filters, in a frame with a map that holds it.
+  if (res.filterable?.active) encodeVsmFilterable(steps, res, res.filterable, ctx)
+}
+
+/** The filters' kernels, each with the set of the arguments it is dispatched by: the separable passes
+ *  and the border of their pool, then — over the merged pool, the temporary one's buffer — the merge
+ *  down and its border. */
+const SEPARABLE_CHAIN = [
+  ['filterableX', VSM_FILTER_ARGS_SEPARABLE],
+  ['filterableY', VSM_FILTER_ARGS_SEPARABLE],
+  ['filterableBorder', VSM_FILTER_ARGS_BORDER],
+] as const satisfies readonly (readonly [KernelName, number])[]
+const MERGE_CHAIN = [
+  ['filterableMergeDown', VSM_FILTER_ARGS_MERGE],
+  ['filterableBorderMerged', VSM_FILTER_ARGS_BORDER],
+] as const satisfies readonly (readonly [KernelName, number])[]
+
+/** Filters the pages the selection listed, in a step of the run of their own, labelled apart on a
+ *  frame timed per pass. The merged pool is cleared between the separable passes, which use it as
+ *  their temporary pool, and the merge down. */
+function encodeVsmFilterable(
+  steps: ComputeRun,
+  res: VsmResources,
+  filterable: NonNullable<VsmResources['filterable']>,
+  ctx: VsmPageManagementContext,
+) {
+  const dispatch = (chain: typeof SEPARABLE_CHAIN | typeof MERGE_CHAIN) => {
+    const pass = steps.pass(FILTERABLE_PASS)
+    for (const [name, set] of chain)
+      if (bind(ctx, res, pass, name, SLOT_MAIN))
+        pass.dispatchWorkgroupsIndirect(filterable.args, set * VSM_FILTER_ARGS_SET_WORDS * 4)
+  }
+  dispatch(SEPARABLE_CHAIN)
+  steps.apart().clearBuffer(filterable.merged)
+  dispatch(MERGE_CHAIN)
 }
 
 /**
- * The frame data extraction, page-management part (and the compute throttle's buffers). `mapsGranted` = this frame allocated maps; without it the previous buffers are dropped.
+ * The prefiltered distant shadow's history for the next frame of a frame with data, where `kept` (its
+ * blend asks the history): the frame's projection records of the suns' maps, from the first sun map's
+ * id `sunBase` (`VsmMapIds.sunBase`), the level-0 rows of its page
+ * table that hold their blocks and its receiver cover's first level, copied into the history. Before
+ * `keepVsmFrame`, whose swap makes the pool the filters wrote the next frame's history.
  */
-export function keepVsmFrame(res: VsmResources, { mapsGranted }: { mapsGranted: boolean }) {
-  keepOcclusionFrame(res, mapsGranted)
-  keepVsmThrottle(res, mapsGranted)
-  if (!mapsGranted) {
+export function keepFilterableHistory(
+  res: VsmResources,
+  kept: boolean,
+  sunBase: number,
+  encoder: GPUCommandEncoder,
+) {
+  const { filterable } = res
+  if (!filterable) return
+  filterable.historyValid = kept && filterable.active
+  if (!filterable.historyValid) return
+  const history = vsmHistoryLayout(res.layout)
+  const { projectionData, pageTable, receiverCover } = res.current
+  // The suns' records from the first sun map's, as many as the map slots leave.
+  const records = Math.min(res.layout.sunMapSlots, res.layout.mapSlots - sunBase)
+  encoder.copyBufferToBuffer(
+    projectionData,
+    sunBase * VSM_PROJECTION_RECORD_BYTES,
+    filterable.history,
+    history.recordsWord * 4,
+    records * VSM_PROJECTION_RECORD_BYTES,
+  )
+  // Only the rows of level 0 are read: a block row holds them first, the other levels' below.
+  const rowBytes = res.layout.pageTableSize[0] * 4
+  const rows = history.tableWords / (VSM_PAGE_TABLE_BLOCK_HEIGHT * res.layout.pageTableSize[0])
+  for (let row = 0; row < rows; row++) {
+    const at = row * VSM_PAGE_TABLE_BLOCK_HEIGHT * rowBytes
+    encoder.copyBufferToBuffer(
+      pageTable,
+      at,
+      filterable.history,
+      history.tableWord * 4 + at,
+      VSM_LEVEL0_PAGES * rowBytes,
+    )
+  }
+  encoder.copyBufferToBuffer(
+    receiverCover,
+    0,
+    filterable.history,
+    history.coverWord * 4,
+    history.coverWords * 4,
+  )
+}
+
+/** What the frame data extraction does with the frame: `'swap'`, the frame allocated maps and becomes
+ *  the previous frame; `'keep'`, it brought no data and the previous frame stays; `'drop'`, the cache
+ *  is dropped and the previous frame with it. */
+type VsmFrameKeep = 'keep' | 'swap' | 'drop'
+
+/**
+ * The frame data extraction, page-management part (and the compute throttle's buffers), as the
+ * reference's `ExtractFrameData` does it. A frame with no new data (`'keep'`) leaves every previous
+ * buffer as it is, for the first light that returns (the CPU cache keeps its previous frame alike,
+ * `keepFrameForNext`): the previous frame set (`prevFrameKept`), the occlusion's kept tables
+ * (`keepOcclusionFrame`), the throttle's buffers (`keepVsmThrottle`) and, in the caller, the
+ * prefiltered distant shadow's history (`keepFilterableHistory` runs on the frames with data alone).
+ * `'drop'` forgets the previous frame, the prefiltered history with it; `'swap'` makes the frame
+ * the previous one.
+ */
+export function keepVsmFrame(res: VsmResources, keep: VsmFrameKeep) {
+  if (keep === 'keep') return
+  const swap = keep === 'swap'
+  keepOcclusionFrame(res, swap)
+  keepVsmThrottle(res, swap)
+  if (!swap) {
     res.prevFrameKept = false
+    if (res.filterable) res.filterable.historyValid = false
     return
   }
   res.swapFrames()

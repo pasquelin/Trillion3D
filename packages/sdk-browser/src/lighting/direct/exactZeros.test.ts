@@ -7,6 +7,7 @@
 // not) and the three surface models, on random lamp sets around a random normal (half of them
 // behind it), with no thin transmission, a signed-zero one and a real one lit from behind: the sums
 // are the same numbers, bit for bit, each skip alone and both.
+import { kindLane } from '../../../../sdk-core/src/scene/light/lanes.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -51,9 +52,10 @@ test('the skipped thin transmission and back-facing lobes keep every sum, bit fo
           positionRange: [P[0] + u(-4, 4), P[1] + u(-4, 4), P[2] + u(-4, 4), u(0.1, 8)],
           colorIntensity: [u(0, 1), u(0, 1), u(0, 1), u(0, 20)],
           directionCone: [0, -1, 0, rank % 3 ? -1 : 0.7],
-          params: [rank % 3 ? 0 : K.KIND_SPOT, -1, 0, rank % 3 ? 0 : 0.9],
+          params: [kindLane(rank % 3 ? 0 : K.KIND_SPOT), -1, 0, rank % 3 ? 0 : 0.9],
           shape: [0, 0, 1, 1],
           capsule: [0, 0, 0, 0],
+          traits: [0, 0, 0, 0],
         }))
         const n = [u(-1, 1), u(-1, 1), u(-1, 1)],
           N = n.map((v) => v / (Math.hypot(...n) || 1))

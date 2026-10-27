@@ -22,7 +22,7 @@ export type Out = (v: string) => string
 
 export const CATCHER_SHADOWED = (out: Out, energy: string) => `
  if(surfaceModel==${MODEL_FLAG.shadow}u){
-  let weight=select(0.0,light.colorIntensity.w*${energy},i32(light.params.y)>=0);
+  let weight=select(0.0,lightStrength(light)*${energy},i32(light.params.y)>=0);
   return ${out('vec3f(weight*shade,weight,0.0)')};
  }`
 export const CATCHER_NONE = (out: Out) => `
@@ -41,7 +41,7 @@ export const lampModelTerm = (models: boolean) =>
   var highlight=lamp.toward;
   var sine=0.0;
   if(lamp.capsule){
-   let look=capsuleLook(light.positionRange.xyz-P,light.capsule.xyz,light.shape.x,light.capsule.w,N,V);
+   let look=lampLook(light,P,N,V,lamp);
    highlight=look.toward;
    sine=saturate(look.reach*(1.0-rough*rough));
   }
@@ -55,7 +55,7 @@ export const rectModelTerm = (models: boolean) =>
   models
     ? `
   if(pixelModel!=0u){
-   transmitted+=modelTransmission(rgb,rough,N,V,centre,centre,saturate(dot(N,centre)),0.0,terms,true,transmitsLight(light),ao)*(rectWindowed(r)*light.colorIntensity.w)*light.colorIntensity.rgb;
+   transmitted+=modelTransmission(rgb,rough,N,V,centre,centre,saturate(dot(N,centre)),0.0,terms,true,transmitsLight(light),ao)*(rectWindowed(r)*lightStrength(light))*light.colorIntensity.rgb;
   }`
     : ''
 

@@ -1,8 +1,8 @@
 /**
  * THE CHANGES NO PLACEMENT SAYS, declared by the CPU as the boxes of the clusters they touch: a
  * surface's alpha mode or cutoff moved, a world cell switched between its placements and its HLOD
- * actor — what the reference treats as a primitive or material update. The diff of the instances'
- * boxes (`castDiff.ts`) sees a placement move, appear or leave; it cannot see a cluster's shadow
+ * actor, a root drawn at other distances — what the reference treats as a primitive or material
+ * update. The diff of the instances' boxes (`castDiff.ts`) sees a placement move, appear or leave; it cannot see a cluster's shadow
  * change where it stands, so the cluster's sphere is boxed here (`growClusterBox`) and entered into
  * the world's changes (`WebgpuLightState.changes`), which the invalidation reads beside the diff's
  * list. Streaming — a cluster entering or leaving residency, a colour tile arriving — declares
@@ -13,12 +13,19 @@ import type { PageSurface } from '../../../geometry/pages/surface.ts'
 import type { PageRec } from '../../../geometry/selection/types.ts'
 import { rootOfPacked } from '../../../geometry/selection/placements.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
+import { rootWorldBox, worldStretch } from '../../../geometry/selection/rootWorld.ts'
 import { growClusterBox } from './spheres.ts'
 
 /** What the followers read of the runtime: the lights' changes and mobility, and the layout's
  *  clusters. */
 export type FollowRuntime = Pick<WebgpuPagesRuntime, 'lights' | 'layout'> & {
   run?: Pick<WebgpuPagesRuntime['run'], 'gpuSelection'>
+}
+
+/** Enters the flat box `box` into the world's changes (`WebgpuLightState.changes`), for the moving
+ *  casters' layer alone where `movingOnly`. */
+function changeBox(lights: FollowRuntime['lights'], box: Float64Array, movingOnly: boolean) {
+  lights.changes.worldChanged(box.subarray(0, 3), box.subarray(3, 6), movingOnly)
 }
 
 /** The box of the resident clusters of each root that `wants` names, one a root: scratch, rewritten
@@ -49,12 +56,7 @@ function declareResident(rt: FollowRuntime, wants: (rec: PageRec) => boolean) {
     }
     growClusterBox(rec, layout.selectionRoots, box, rank)
   }
-  for (const [rank, box] of perRoot)
-    lights.changes.worldChanged(
-      box.subarray(0, 3),
-      box.subarray(3, 6),
-      lights.mobility.cachedDynamic(rank),
-    )
+  for (const [rank, box] of perRoot) changeBox(lights, box, lights.mobility.cachedDynamic(rank))
   perRoot.clear()
 }
 
@@ -87,7 +89,7 @@ export function shadowsFollowCells(rt: FollowRuntime) {
   let open = false,
     movingRun = false
   const flush = () => {
-    if (open) lights.changes.worldChanged(run.subarray(0, 3), run.subarray(3, 6), movingRun)
+    if (open) changeBox(lights, run, movingRun)
     open = false
   }
   selection.switchedPages((world, rank) => {
@@ -107,4 +109,33 @@ export function shadowsFollowCells(rt: FollowRuntime) {
     }
   })
   flush()
+}
+
+/** The box of a root drawn at other distances, grown by its reach: scratch. */
+const reached = new Float64Array(6)
+
+/**
+ * Root `rank` is drawn at other distances than before (`ClusterRoot.drawDistance`): the instances
+ * the casters cull change where the root stands, so its world box, grown by its reach as the diff of
+ * the instances' boxes grows it, is entered into the world's changes and the pages it lies in are
+ * drawn again, the moving casters' layer alone for a root already moving; the root is cached as
+ * dynamic from now on, as the reference's updated primitive is (`mobility.invalidate`). A root
+ * parked casts nothing: none.
+ */
+export function shadowsFollowDrawDistance(rt: FollowRuntime, rank: number) {
+  const { lights, layout } = rt,
+    root = layout.selectionRoots[rank]
+  if (root.parked) return
+  const box = rootWorldBox(root)
+  // Asked before the root is made dynamic: its first update stales both layers.
+  const movingOnly = lights.mobility.cachedDynamic(rank)
+  lights.mobility.invalidate(rank)
+  if (!box || !lights.store.count) return
+  // Its reach is in its own units: the world stretches it.
+  const reach = root.reach ? root.reach * worldStretch(root) : 0
+  for (let k = 0; k < 3; k++) {
+    reached[k] = box[k] - reach
+    reached[3 + k] = box[3 + k] + reach
+  }
+  changeBox(lights, reached, movingOnly)
 }

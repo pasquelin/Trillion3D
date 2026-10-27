@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { gpuCapsOf } from './gpuCaps.ts'
 import { CUT_RULES } from '../../../../sdk-core/src/contracts/cutOptions.ts'
 import {
   readSetting,
@@ -37,7 +38,7 @@ import {
 export type Clipping = 'distance' | 'pixel'
 
 /** Whether `device` was granted the `clip-distances` feature (`../../session/gpuDevice.ts`). */
-const hasClipDistances = (device: GPUDevice) => device.features?.has('clip-distances') === true
+const hasClipDistances = (device: GPUDevice) => gpuCapsOf(device).clipDistances
 
 /** The way `device` cuts at a plane (`Clipping`). */
 const clippingOf = (device: GPUDevice): Clipping =>

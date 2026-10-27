@@ -4,7 +4,7 @@
  * contract's light parameters, the TAA jitter, the composition's source (`writeSource`), the
  * lighting term a view shows (`writeLightView`), how the ambient occlusion is applied
  * (`writeAmbientOcclusion`), how the screen probes' history is read (`writeScreenProbes`) and what the
- * contact shadows' rays project by (`writeContactShadows`). One
+ * contact shadows' rays project by (`writeContactShadows`) and the look of the light a surface reflects (`writeReflectionLook`). One
  * buffer, one packed array, written once per image; its words are those of `VIEW_LAYOUT`, which
  * makes the shader's struct.
  */
@@ -181,17 +181,16 @@ function termWrites({ device, buffer, packed }: ViewBuffer) {
       PAIR[1] = amount
       writeWords(device, buffer, packed, AT.views + 1, PAIR)
     },
-    /** How the resolve reads the screen probes' history this image (`../bounce/screen/indirectWgsl.ts`): whether the material's
-     *  occlusion multiplies their light (1 or 0), the albedo the occlusion's multi-bounce is capped at, the strength of their
-     *  short-range occlusion and their mode — bit 0 set their occlusion alone over the sky light's irradiance, else their light; bit 1 set a level that gathers no back light of a thin surface. Its four
-     *  words alone are written, when they change. */
-    writeScreenProbes(
-      materialOcclusion: number,
-      maxAlbedo: number,
-      intensity: number,
-      mode: number,
-    ) {
-      QUAD[0] = materialOcclusion
+    /** How the resolve reads the screen probes' history this image (`../bounce/screen/indirectWgsl.ts`): the strength their short-range
+     *  occlusion applies at on a pixel with backface diffuse light, the albedo the occlusion's
+     *  multi-bounce is capped at, the intensity of their short-range occlusion and their mode — bit 0 set their occlusion alone over
+     *  the sky light's irradiance, else their light; bit 1 set a level that gathers no back light of a thin surface; bit 2 set the
+     *  integration applied the short-range occlusion to their light already (`screenProbeShortRangeAOApplyDuringIntegration`), which
+     *  the lighting then applies no more. The material's
+     *  occlusion is in their light already (it multiplies it where the probes integrate). Its four words
+     *  alone are written, when they change. */
+    writeScreenProbes(foliageStrength: number, maxAlbedo: number, intensity: number, mode: number) {
+      QUAD[0] = foliageStrength
       QUAD[1] = maxAlbedo
       QUAD[2] = intensity
       QUAD[3] = mode
@@ -203,6 +202,13 @@ function termWrites({ device, buffer, packed }: ViewBuffer) {
     writeContactShadows(viewProjection: ArrayLike<number>, contact: ArrayLike<number>) {
       writeWords(device, buffer, packed, AT.viewProjection, viewProjection)
       writeWords(device, buffer, packed, AT.contact, contact)
+    },
+    /** The look of the light a surface reflects (`VIEW_LAYOUT`): the contrast it is raised to about the mid grey and the scale it is
+     *  multiplied by, before the environment BRDF weighs it. Its two words alone are written, when they change. */
+    writeReflectionLook(contrast: number, scale: number) {
+      PAIR[0] = contrast
+      PAIR[1] = scale
+      writeWords(device, buffer, packed, AT.reflection, PAIR)
     },
   }
 }
@@ -220,6 +226,9 @@ export function createDeferredView(device: GPUDevice) {
   setJitter(null)
   setSource(packed, [1, 1], [1, 1])
   setSource(packed, [1, 1], [1, 1], AT.surface)
+  // No look until the reflections say so: the light a surface reflects is raised to a contrast of 1 and scaled by 1.
+  packed[AT.reflection] = 1
+  packed[AT.reflection + 1] = 1
   const parts = { device, buffer, packed }
   return {
     buffer,

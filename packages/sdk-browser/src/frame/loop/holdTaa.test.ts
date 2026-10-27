@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
-import { createTaaFrameState } from '../../post/taa/frameState.ts'
+import { createTaaFrameState, stochasticPhase } from '../../post/taa/frameState.ts'
 import { taaConverged } from '../../post/taa/landing.ts'
 import { historySampleLaws } from '../../post/taa/historyWgsl.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -97,4 +97,27 @@ test('a session opened to measure draws its converged temporal view every frame'
   Object.assign(rt.context, { drawConverged: true })
   for (let i = 0; i < 3; i++) assert.equal(holdWebgpuFrame(rt, device), false)
   assert.equal(rt.run.frameHeld, false, 'each frame costs a draw')
+})
+
+test('a view without accumulation turns the lighting noise on each image drawn, never on a held one', () => {
+  const { rt, frame } = heldRuntime()
+  const { device } = fakeDevice()
+  rt.gpu.temporalLevel = 'off'
+  const settle = () => {
+    for (let i = 0; i < 2; i++) {
+      rt.run.frame++
+      keepWebgpuFrame(rt)
+    }
+  }
+  settle()
+  assert.equal(holdWebgpuFrame(rt, device), true)
+  assert.equal(stochasticPhase(frame), 0, 'held: no image drawn, the noise as it was')
+  for (let image = 1; image <= 3; image++) {
+    rt.run.gate.resourcesChanged()
+    assert.equal(holdWebgpuFrame(rt, device), false)
+    assert.equal(stochasticPhase(frame), image, 'drawn: the next phase')
+    settle()
+    assert.equal(holdWebgpuFrame(rt, device), true)
+    assert.equal(stochasticPhase(frame), image, 'held again: the phase of the image shown')
+  }
 })

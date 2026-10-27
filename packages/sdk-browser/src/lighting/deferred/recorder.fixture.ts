@@ -3,6 +3,7 @@ import { createDeferredLighting } from './deferred.ts'
 import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { pipelinesSettled } from './compileLedger.ts'
+import type { PerLightLights } from '../shadows/vsm/projection/perLightPass.ts'
 
 /** The frames of `lighting`, made on `gpu`, each lit with `direct`, and the label of the program each
  *  frame was lit with: the name its sun pass's draw of plain surfaces carries, less the pass's. */
@@ -31,6 +32,7 @@ export function recorder(
     lobeless?: boolean
     skyShadowing?: { bent: GPUBuffer; params: GPUBuffer }
     bounceGrid?: GPUBuffer
+    perLight?: PerLightLights
   }) => {
     lighting.bind(surface, view, view, true, { lights: {} as GPUBuffer, ...direct })
     if (lighting.usesContract) lighting.light(encoder, view)

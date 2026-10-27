@@ -19,10 +19,10 @@ import type { PreparedPipeline } from '../../../deferred/fullscreen.ts'
 import { vsmBufferGroup, type VsmComputePipe } from '../passKit.ts'
 import { vsmBindGroupEntries, vsmPerFrameSet, type VsmResources } from '../resources.ts'
 import type { VsmShadowTessellation } from '../tessellation/shadowChain.ts'
-import { VSM_RENDER_CULL_SPECS } from './renderCullWgsl.ts'
-import { VSM_RENDER_BIN_SPECS } from './renderBinWgsl.ts'
+import { vsmRenderCullSpecs } from './renderCullWgsl.ts'
+import { vsmRenderBinSpecs } from './renderBinWgsl.ts'
 import { VSM_RENDER_VIEWS_SPECS } from './renderViewsWgsl.ts'
-import { VSM_RENDER_SOFTWARE_SPECS } from './renderSoftwareWgsl.ts'
+import { vsmSoftwareSpecs } from './renderSoftwareWgsl.ts'
 import { VSM_RENDER_WORLD_GROUP } from './renderCandidatesWgsl.ts'
 import {
   VSM_RENDER_RASTER_FRAGMENT_SPECS,
@@ -35,11 +35,15 @@ import {
   VSM_RENDER_ARGS_DRAW,
   VSM_RENDER_ARGS_POST,
   VSM_RENDER_ARGS_SOFTWARE,
+  VSM_RENDER_ARGS_SOFTWARE_ALL,
   VSM_RENDER_ARGS_SOFTWARE_STATIC,
   VSM_RENDER_COUNT_PASS,
   VSM_RENDER_COUNT_WORDS,
   vsmCountWords,
   vsmRenderTiersDrawn,
+  vsmCullMarks,
+  vsmSoftwareMerged,
+  vsmViewsLaid,
 } from './renderParamsWgsl.ts'
 import { VSM_RENDER_FIRST_SLOT, VSM_RENDER_PARAMS_BYTES } from './renderParams.ts'
 import { RASTER_PASS_MAIN, RASTER_PASS_POST } from '../../../../visibility/raster/contract.ts'
@@ -250,23 +254,27 @@ function occlusionGroups(res: VsmResources, ctx: VsmRenderContext): RasterTables
   return [group(1 - parity), group(parity)]
 }
 
-/** The software half's group 1 on `layout` (`VSM_RENDER_SOFTWARE_SPECS`): the sorted records, the
- *  projection data, the pool's slice `slice` — the one its entry writes —, the uniforms and the
- *  parameters' window `params`. */
+/** The software half's group 1 on `layout` (`vsmSoftwareSpecs`): the sorted records, the page table,
+ *  the pool's slice `slice` — the one its entry writes — or, with none (`vsmSoftwareMerged`), both
+ *  slices, the uniforms, the parameters' window `params` and, on a device with a storage buffer past
+ *  those (`vsmViewsLaid`), the projection data. */
 function softwareGroup(
   res: VsmResources,
   ctx: VsmRenderContext,
   layout: GPUBindGroupLayout,
   params: GPUBufferBinding,
-  slice: number,
+  slice?: number,
 ) {
-  const [projection, , uniforms] = VSM_RENDER_SOFTWARE_SPECS
+  const specs = vsmSoftwareSpecs(!vsmViewsLaid(ctx.device), slice === undefined)
   return ctx.device.createBindGroup({
     layout,
     entries: [
       ...sequentialEntries([{ buffer: ctx.buffers.sorted! }]),
-      ...vsmBindGroupEntries(res, [projection!, uniforms!]),
-      { binding: 2, resource: { buffer: res.pagePool[slice]! } },
+      ...vsmBindGroupEntries(
+        res,
+        slice === undefined ? specs : specs.filter((spec) => spec.resource !== 'pagePool'),
+      ),
+      ...(slice === undefined ? [] : [{ binding: 2, resource: { buffer: res.pagePool[slice]! } }]),
       { binding: 4, resource: params },
     ],
   })
@@ -278,18 +286,21 @@ function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
   const { device } = ctx,
     sorted = ctx.buffers.sorted!,
     params = ctx.groups!.params,
-    cached = res.layout.cacheEnabled
+    cached = res.layout.cacheEnabled,
+    merged = vsmSoftwareMerged(device)
   const group = (layout: GPUBindGroupLayout, specs: Parameters<typeof vsmBindGroupEntries>[1]) =>
     device.createBindGroup({ layout, entries: vsmBindGroupEntries(res, specs) })
   return {
     software: [
-      softwareGroup(res, ctx, ctx.software.all.groups[1]!, params, 0),
-      cached ? softwareGroup(res, ctx, ctx.software.static.groups[1]!, params, 1) : undefined,
+      softwareGroup(res, ctx, ctx.software.all.groups[1]!, params, merged ? undefined : 0),
+      cached && ctx.software.static
+        ? softwareGroup(res, ctx, ctx.software.static.groups[1]!, params, 1)
+        : undefined,
     ],
     occlusion: occlusionGroups(res, ctx),
     views0: group(ctx.views.groups[0], VSM_RENDER_VIEWS_SPECS),
-    cull0: group(ctx.cull.groups[0], VSM_RENDER_CULL_SPECS),
-    bin0: group(ctx.bin.groups[0], VSM_RENDER_BIN_SPECS),
+    cull0: group(ctx.cull.groups[0], vsmRenderCullSpecs(vsmCullMarks(device))),
+    bin0: group(ctx.bin.groups[0], vsmRenderBinSpecs(vsmCullMarks(device))),
     raster1: device.createBindGroup({
       layout: ctx.raster.layout1,
       entries: [
@@ -378,7 +389,7 @@ function encodeViewPass(
   lights: number,
   first: boolean,
   culls: VsmRenderCullPipes,
-  pageCompute: GPUBindGroup | undefined,
+  lay: number,
 ) {
   const views = ctx.views.pipeline
   const cullArgs = ctx.args.cull.pipeline
@@ -396,7 +407,27 @@ function encodeViewPass(
   pass.setBindGroup(1, lists.cull1, offset)
   pass.setBindGroup(2, mainSight(ctx, tables, first))
   pass.dispatchWorkgroupsIndirect(args, VSM_RENDER_ARGS_CULL * 4)
-  encodeBin(pass, ctx, lists, tables, args, offset, pageCompute)
+  if (lay > 0) encodeLayViews(pass, ctx, lists, tables, offset, lay)
+  encodeBin(pass, ctx, lists, tables, args, offset)
+}
+
+/** The views of the pass's maps laid in the sorted list for the software raster, which binds no
+ *  projection data (`vsmRenderLayViews`): a thread a map, `maps` at most; once a view pass, the
+ *  second bin finding them laid. */
+function encodeLayViews(
+  pass: GPUComputePassEncoder,
+  ctx: VsmRenderContext,
+  lists: RenderListGroups,
+  tables: RasterTables,
+  offset: readonly number[],
+  maps: number,
+) {
+  const lay = ctx.layViews.pipeline
+  if (!lay) return
+  pass.setPipeline(lay)
+  pass.setBindGroup(0, tables.bin0)
+  pass.setBindGroup(1, lists.bin1, offset)
+  dispatchRows(pass, ceilDiv(maps, WORKGROUP_THREADS))
 }
 
 /** The group the first cull and the descent's levels judge by (group 2): the previous frame's pyramid
@@ -405,8 +436,8 @@ function mainSight(ctx: VsmRenderContext, tables: RasterTables, twoPass: boolean
   return twoPass ? tables.occlusion![0] : noOcclusionGroup(ctx.device, ctx.cull.groups[2]!)
 }
 
-/** The bin's arguments — the bins' reserve, the draws — and the bin, over the records the last cull
- *  stored; then the software half over its records (`encodeSoftware`), where it runs (`pageCompute`). */
+/** The bin's arguments — the bins' reserve, the draws, the software half's groups — and the bin, over the
+ *  records the last cull stored. */
 function encodeBin(
   pass: GPUComputePassEncoder,
   ctx: VsmRenderContext,
@@ -414,7 +445,6 @@ function encodeBin(
   tables: RasterTables,
   args: GPUBuffer,
   offset: readonly number[],
-  pageCompute: GPUBindGroup | undefined,
 ) {
   const binArgs = ctx.args.bin.pipeline
   const bin = ctx.bin.pipeline
@@ -426,14 +456,30 @@ function encodeBin(
   pass.setBindGroup(0, tables.bin0)
   pass.setBindGroup(1, lists.bin1, offset)
   pass.dispatchWorkgroupsIndirect(args, VSM_RENDER_ARGS_BIN * 4)
-  if (pageCompute) encodeSoftware(pass, ctx, tables, args, offset, pageCompute)
 }
 
-/** The software half (`renderSoftwareWgsl.ts`): a group a record the bin sorted first, the dynamic
- *  layer's into the pool's slice 0, then, where the set has a static slice, a group a record of the
- *  static layer's into it. It writes the pool as the raster pass after it does, by an atomic max:
- *  the order of the two is free, and both are done before the occlusion's pyramid reads what they
- *  drew. */
+/** The software half (`renderSoftwareWgsl.ts`) in a compute pass of its own, after the hardware raster
+ *  pass that drew the records beside it: a group a record the bin sorted first (`encodeSoftware`). It
+ *  writes the pool as the raster pass before it does, by an atomic max: the order of the two is free,
+ *  and both are done before the occlusion's pyramid reads what they drew. */
+function encodeSoftwarePass(
+  encoder: GPUCommandEncoder,
+  label: GPUComputePassDescriptor,
+  ctx: VsmRenderContext,
+  tables: RasterTables,
+  args: GPUBuffer,
+  offset: readonly number[],
+  pageCompute: GPUBindGroup,
+) {
+  const pass = encoder.beginComputePass(label)
+  encodeSoftware(pass, ctx, tables, args, offset, pageCompute)
+  pass.end()
+}
+
+/** The software half's dispatches: one group a record of either layer, the dynamic layer's into the
+ *  pool's slice 0 and the static layer's into the static slice, where the device grants it
+ *  (`vsmSoftwareMerged`); else a group a record of the dynamic layer's into slice 0, then, where the
+ *  set has a static slice, a group a record of the static layer's into it. */
 function encodeSoftware(
   pass: GPUComputePassEncoder,
   ctx: VsmRenderContext,
@@ -444,14 +490,18 @@ function encodeSoftware(
 ) {
   const [all, staticLayer] = tables.software
   const software = ctx.software.all.pipeline
-  const staticSoftware = ctx.software.static.pipeline
-  if (!software || !staticSoftware) return
+  const staticSoftware = ctx.software.static?.pipeline
+  if (!software || (ctx.software.static && !staticSoftware)) return
   pass.setPipeline(software)
   pass.setBindGroup(0, pageCompute)
   pass.setBindGroup(1, all, offset)
+  if (!ctx.software.static) {
+    pass.dispatchWorkgroupsIndirect(args, VSM_RENDER_ARGS_SOFTWARE_ALL * 4)
+    return
+  }
   pass.dispatchWorkgroupsIndirect(args, VSM_RENDER_ARGS_SOFTWARE * 4)
   if (!staticLayer) return
-  pass.setPipeline(staticSoftware)
+  pass.setPipeline(staticSoftware!)
   pass.setBindGroup(1, staticLayer, offset)
   pass.dispatchWorkgroupsIndirect(args, VSM_RENDER_ARGS_SOFTWARE_STATIC * 4)
 }
@@ -467,7 +517,6 @@ function encodeSecondCull(
   args: GPUBuffer,
   offset: readonly number[],
   culls: VsmRenderCullPipes,
-  pageCompute: GPUBindGroup | undefined,
 ) {
   const secondArgs = ctx.args.second.pipeline
   const post = culls.cullPost.pipeline
@@ -483,7 +532,7 @@ function encodeSecondCull(
   pass.dispatchWorkgroupsIndirect(args, VSM_RENDER_ARGS_POST * 4)
   pass.setPipeline(second)
   pass.dispatchWorkgroupsIndirect(args, VSM_RENDER_ARGS_CULL * 4)
-  encodeBin(pass, ctx, lists, tables, args, offset, pageCompute)
+  encodeBin(pass, ctx, lists, tables, args, offset)
 }
 
 const rasterDepth: GPURenderPassDepthStencilAttachment = {
@@ -577,9 +626,17 @@ export function vsmEncodeRaster(
   ctx: VsmRenderContext,
   groups: ReturnType<typeof renderGroups>,
   world: GPUBindGroup,
-  scene: Pick<VsmRenderScene, 'pageGroup' | 'decode' | 'tiers' | 'tessellation' | 'pageCompute'>,
+  scene: Pick<
+    VsmRenderScene,
+    'pageGroup' | 'decode' | 'tiers' | 'tessellation' | 'pageCompute' | 'hardwareEdge'
+  >,
   args: GPUBuffer,
-  { passes, lights, throttle }: { passes: number; lights: number; throttle?: VsmThrottleState },
+  {
+    passes,
+    mostMaps,
+    lights,
+    throttle,
+  }: { passes: number; mostMaps: number; lights: number; throttle?: VsmThrottleState },
   empty: boolean,
   descent: VsmRasterDescent & { viewBase: number },
   occlusion?: VsmRasterOcclusion,
@@ -597,6 +654,9 @@ export function vsmEncodeRaster(
   const tiers = [ctx.raster.tiers, vsmRenderTiersDrawn(scene.tiers)] as const
   const tessellation = scene.tessellation
   const pageCompute = scene.pageCompute?.group
+  // The views the software raster reads, laid where it draws a record and binds no projection data.
+  const lay =
+    pageCompute && (scene.hardwareEdge ?? 0) > 0 && vsmViewsLaid(ctx.device) ? mostMaps : 0
   const raster = (label: string) =>
     encodeRaster(
       encoder,
@@ -618,11 +678,14 @@ export function vsmEncodeRaster(
       encodeCandidates(pass, ctx, groups.lists, world, descent, sight)
       scene.decode(pass, RASTER_PASS_MAIN)
     }
-    encodeViewPass(pass, ctx, groups, args, each.offset, lights, twoPass, culls, pageCompute)
+    encodeViewPass(pass, ctx, groups, args, each.offset, lights, twoPass, culls, lay)
     // The records the pass listed are cut into patches, to be drawn by its raster pass.
     tessellation?.compute(pass, groups.lists, each.offset)
     pass.end()
     raster(each.raster)
+    // The software half after the hardware raster, over the same sorted records.
+    if (pageCompute)
+      encodeSoftwarePass(encoder, each.software, ctx, groups.tables, args, each.offset, pageCompute)
     if (twoPass)
       encodeSecondHalf(encoder, ctx, groups, args, each, occlusion!, {
         ...{ pageCompute, tessellation, raster, culls },
@@ -667,10 +730,22 @@ function encodeSecondHalf(
   encodeVsmPyramid(steps, occlusion.res, occlusion.ctx)
   const second = steps.pass(each.second)
   encodePostCasters(second, ctx, groups, work, each.offset)
-  encodeSecondCull(second, ctx, groups, args, each.offset, work.culls, work.pageCompute)
+  encodeSecondCull(second, ctx, groups, args, each.offset, work.culls)
   work.tessellation?.compute(second, groups.lists, each.offset)
   steps.end()
   work.raster(each.rasterSecond)
+  if (work.pageCompute) {
+    const { tables } = groups
+    encodeSoftwarePass(
+      encoder,
+      each.softwareSecond,
+      ctx,
+      tables,
+      args,
+      each.offset,
+      work.pageCompute,
+    )
+  }
 }
 
 /** The casters the pyramid just built shows the main pass was wrong to hold back, in `pass`: the

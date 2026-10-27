@@ -31,18 +31,23 @@ import { FOG_SHADERS, NO_LOCAL_FOG_SHADERS } from './engineShaders.fog.fixture.t
 import { wpoShaders } from './engineShaders.wpo.fixture.ts'
 import { SKY_SHADERS } from './engineShaders.sky.fixture.ts'
 import { LIGHTING_SHADERS, LIT_PASS_SHADERS } from './engineShaders.lighting.fixture.ts'
+import { TAA_SHADERS } from './engineShaders.taa.fixture.ts'
+import { vsmVariants } from './engineShaders.vsm.fixture.ts'
+import { BLEND_SHADERS } from './engineShaders.blend.fixture.ts'
+import { HAIR_SHADERS } from './engineShaders.hair.fixture.ts'
 import { BLEND_SHADER } from './shaderTexts.fixture.ts'
 import { waterCopyShader, waterMaskShader } from '../../blend/water/waterPassWgsl.ts'
 import { waterTileKernels } from '../../blend/water/waterTileWgsl.ts'
-import { TAA_SHADERS } from './engineShaders.taa.fixture.ts'
 import { CACHE_FILTER_PROGRAM } from '../../lighting/bounce/cache/cacheFilterWgsl.ts'
-import { CACHE_MIPS_PROGRAM } from '../../lighting/bounce/cache/cacheMipsWgsl.ts'
+import { CACHE_FIXUP_PROGRAM } from '../../lighting/bounce/cache/cacheFixupWgsl.ts'
 import { CACHE_TILES_PROGRAM } from '../../lighting/bounce/cache/cacheTilesWgsl.ts'
-import { CACHE_TRACE_PROGRAM } from '../../lighting/bounce/cache/cacheTraceWgsl.ts'
+import {
+  CACHE_SPLAT_PROGRAM,
+  CACHE_TRACE_PROGRAM,
+} from '../../lighting/bounce/cache/cacheTraceWgsl.ts'
 import { POOL_FINISH_SHADER, POOL_SHADER } from '../../lighting/bounce/pool/poolWgsl.ts'
 import { MARK_IMAGE_SHADER, MARK_PROBES_SHADER } from '../../lighting/bounce/pool/poolMarkWgsl.ts'
 import { DIAGNOSTIC_SHADE_WGSL, diagnosticVisWgsl } from '../../diagnostic/gpuGeometry.ts'
-import { DIAGNOSTIC_BLEND_WGSL } from '../../diagnostic/gpuVariant.ts'
 import { OUTLINE_WGSL } from '../../post/effects/outline/outlineWgsl.ts'
 import { FRAME_DIFFERENCE_WGSL } from '../../frame/render/frameDifferenceWgsl.ts'
 import { GUIDE_WGSL } from '../../guides/guideShaders.ts'
@@ -61,22 +66,15 @@ import { GATHER_WGSL, REDUCE_WGSL } from '../../materials/virtual/reduceWgsl.ts'
 import { PAGE_LINK_WGSL, PAGE_TRANSCODE_WGSL } from '../../geometry/pages/install/transcodeWgsl.ts'
 import { TILE_SORT_WGSL } from '../../materials/virtual/evictSortWgsl.ts'
 import { TRANSPARENT_COMPACT_SHADER } from '../../blend/transparent/shader.ts'
-import { transmitWgsl } from '../../blend/transmission/transmitWgsl.ts'
 import {
   particleDrawShader,
   particlesWgsl,
   PARTICLE_DRAW_WGSL,
 } from '../../particles/gpu/particlesWgsl.ts'
-import { blendShader } from '../../blend/shader.ts'
-import { vsmVariants } from './engineShaders.vsm.fixture.ts'
 import { isProgram, programOf } from '../../materials/graph/surfaceProgram.ts'
 import { maskGraphSets } from './engineShaders.mask.fixture.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
-
-const CLOUDS = { clouds: true, fog: false }
-const FOG = { clouds: false, fog: true }
-const CLOUDS_AND_FOG = { clouds: true, fog: true }
 
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
@@ -111,29 +109,6 @@ function surfaceGraphProgram(lit = true) {
   if (!isProgram(program)) throw new Error('the surface graph fixture does not compile')
   return program.compiled
 }
-/** The program of a translucent surface's graph for the transparent pass: a tinted, panned texture
- *  at a set past the first, its opacity from the time, a normal, a thin transmission, the lobes, the
- *  specular and a refraction wired. */
-function blendGraphPrograms() {
-  const g = material.graph('surface')
-  const uv = g.panner({ speed: [0.05, 0], coordinate: g.texCoord(2, 2, 2) })
-  const read = g.textureSample(new Texture(), { uv })
-  g.output('baseColor', g.channel(read, 'rgb'))
-  g.output('opacity', g.multiply(g.channel(read, 'a'), g.sine(g.time(), 2)))
-  g.output('normal', g.constant(0, 0, 1))
-  g.output('subsurfaceColor', g.constant(0.5, 0.5, 0.5))
-  g.output('anisotropy', g.constant(0.4))
-  g.output('clearCoat', g.constant(0.5))
-  g.output('specular', g.constant(0.7))
-  g.output(
-    'refraction',
-    g.multiply(g.constant(1.33), g.add(g.constant(1), g.componentMask(g.cameraVector(), 'b'))),
-  )
-  const program = programOf({ graph: g, transparent: true })
-  if (!isProgram(program)) throw new Error('the blend graph fixture does not compile')
-  return [program]
-}
-
 export const ENGINE_SHADERS: Record<string, string> = {
   DEFORMATION_COMPUTE_WGSL,
   ANIMATION_BANK_WGSL,
@@ -183,8 +158,9 @@ export const ENGINE_SHADERS: Record<string, string> = {
   MARK_PROBES_SHADER,
   CACHE_TILES_PROGRAM,
   CACHE_TRACE_PROGRAM,
+  CACHE_SPLAT_PROGRAM,
   CACHE_FILTER_PROGRAM,
-  CACHE_MIPS_PROGRAM,
+  CACHE_FIXUP_PROGRAM,
   ...POST_SHADERS,
   ...BLUR_SHADERS,
   ...FOG_SHADERS,
@@ -220,30 +196,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   WATER_TILES: waterTileKernels(false),
   WATER_TILES_WAVED: waterTileKernels(true),
   DISPLAY_FILTER_SHADER,
-  // The transmissive stages (`../../blend/transmission/transmitWgsl.ts`), the dual blend where
-  // the device grants it.
-  BLEND_GRAPH: blendShader({}, { graphs: blendGraphPrograms() }),
-  BLEND_GRAPH_LOBELESS: blendShader({ lobeless: true }, { graphs: blendGraphPrograms() }),
-  BLEND_GRAPH_TRANSMIT: blendShader(
-    {},
-    { stage: transmitWgsl({}, false, blendGraphPrograms()), graphs: blendGraphPrograms() },
-  ),
-  FRONT_STAGE_GRAPH: blendFrontShader(2, undefined, blendGraphPrograms()),
-  FRONT_STAGE_GRAPH_DEPTH: blendFrontShader(0, undefined, blendGraphPrograms()),
-  BLEND_TRANSMIT: blendShader({}, { stage: transmitWgsl({}, false) }),
-  BLEND_TRANSMIT_DUAL: blendShader({}, { stage: transmitWgsl({}, true), dual: true }),
-  BLEND_TRANSMIT_LOBELESS: blendShader(
-    { lobeless: true },
-    { stage: transmitWgsl({ lobeless: true }, false) },
-  ),
-  BLEND_DIAGNOSTIC: blendShader({}, { diagnostic: DIAGNOSTIC_BLEND_WGSL }),
-  // The forward passes' light loops without shadow or rectangle code (`createForwardVariants`).
-  BLEND_UNSHADOWED_RECTLESS: blendShader({ unshadowed: true, rectless: true }),
-  BLEND_RECTLESS: blendShader({ rectless: true }),
-  BLEND_SUNLESS: blendShader({ sunless: true }),
-  BLEND_LOCALLESS: blendShader({ localless: true }),
-  // A scene whose blends carry no anisotropic or clear-coat lobe (`../../blend/physicalWgsl.ts`).
-  BLEND_LOBELESS: blendShader({ lobeless: true }),
+  ...BLEND_SHADERS,
+  ...HAIR_SHADERS,
   BLEND_EXPAND_SHADER,
   BLEND_ORDER_SHADER,
   BLEND_VERDICT_SHADER,
@@ -269,31 +223,6 @@ export const ENGINE_SHADERS: Record<string, string> = {
   VIS_XRAY_CLIP_PIXEL: visXrayShader('pixel'),
   VIS_VOXEL_CLIP: visVoxelShader('distance'),
   DAG_SELECTION_CLIP: dagSelectionShader(true),
-  BLEND_CLIP: blendShader({}, { clipping: 'distance' }),
-  BLEND_CLIP_PIXEL: blendShader({}, { clipping: 'pixel' }),
-  BLEND_TRANSMIT_CLIP: blendShader({}, { stage: transmitWgsl({}, false), clipping: 'distance' }),
-  BLEND_TRANSMIT_CLIP_PIXEL: blendShader({}, { stage: transmitWgsl({}, false), clipping: 'pixel' }),
-  // The programs that read the clouds per vertex (the project switch `cloudShadowOnTranslucent`, or
-  // a scene with a surface whose material has `cloudFog`): the clouds' shade and the cloud image.
-  BLEND_CLOUD_VERTEX: blendShader({}, { reads: CLOUDS }),
-  BLEND_TRANSMIT_CLOUD_VERTEX: blendShader(
-    {},
-    { stage: transmitWgsl({}, true, undefined, CLOUDS), dual: true, reads: CLOUDS },
-  ),
-  // The programs that lay the fog per vertex (a scene with a surface whose fog is not per pixel), with and
-  // without the clouds, and the transmissive stages over them.
-  BLEND_FOG_VERTEX: blendShader({}, { reads: FOG }),
-  BLEND_CLOUD_FOG_VERTEX: blendShader({}, { reads: CLOUDS_AND_FOG }),
-  BLEND_TRANSMIT_FOG_VERTEX: blendShader(
-    {},
-    {
-      stage: transmitWgsl({}, true, undefined, CLOUDS_AND_FOG),
-      dual: true,
-      reads: CLOUDS_AND_FOG,
-    },
-  ),
-  FRONT_STAGE_CLIP: blendFrontShader(2, 'distance'),
-  FRONT_STAGE_CLIP_PIXEL: blendFrontShader(2, 'pixel'),
   PARTICLE_DRAW_CLIP: particleDrawShader('distance'),
   PARTICLE_DRAW_CLIP_PIXEL: particleDrawShader('pixel'),
 }

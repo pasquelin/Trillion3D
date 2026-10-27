@@ -7,8 +7,9 @@ import { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { createPlacementRows } from '../../placement/rows/rows.ts'
 import { followPlacementRows } from '../../placement/update.ts'
 import type { ClusterRoot, PageRec } from '../../geometry/selection/types.ts'
+import { createViewHidden } from './viewHidden.ts'
 
-import { appendRootsUnder, type RootsOwner } from './movedNode.ts'
+import { appendRootsUnder } from './movedNode.ts'
 
 test('a row re-seated on another mesh is named by the new one, never the old', () => {
   const [first, second] = [new Object3D(), new Object3D()]
@@ -20,7 +21,11 @@ test('a row re-seated on another mesh is named by the new one, never the old', (
     { pages: [], placement: { rows, index: 0 }, world: { elements: new Float64Array(16) } },
   ] as unknown as ClusterRoot<PageRec>[]
   // The layout that holds the roots, and their index by node.
-  const layout: RootsOwner = { selectionRoots: roots, rootIndex: { revision: 0 } }
+  const layout = {
+    selectionRoots: roots,
+    rootIndex: { revision: 0 },
+    viewHidden: createViewHidden(),
+  }
   const under = (node: Object3D) => appendRootsUnder(layout, node, [], 0)
   const follow = () =>
     followPlacementRows(roots, rows, 0, 0, undefined, undefined, undefined, layout)

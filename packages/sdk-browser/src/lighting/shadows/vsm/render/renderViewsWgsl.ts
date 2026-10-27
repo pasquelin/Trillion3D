@@ -10,7 +10,9 @@
  * (id, mips, flags, layers), laid one after the other from `params.lightCount` in `views`, the
  * counters' `VSM_RENDER_COUNT_RUNS` word reserving them: the run's start and length, its first
  * map's id and its flags are the group's own entry, at the light's rank in the groups listed
- * (`views[0 .. lightCount)`). A light whose maps are all cached is no group: a still far light
+
+ * (`views[0 .. lightCount)`), its flags carrying the light's lighting channels from `VSM_RENDER_VIEW_CHANNELS_SHIFT`
+ * (the light's table holds them, `vsmWriteLights`). A light whose maps are all cached is no group: a still far light
  * costs the raster nothing, however many lights the frame holds. A map's mips are those the raster
  * draws of it (`vsmMapViewMips`, `../mapViews.ts`): one for a clipmap level, every mip from its
  * finest for a local map.
@@ -108,7 +110,7 @@ export const vsmRenderViewsWgsl = (layout: VsmLayout) =>
   }
  }
  let slot=atomicAdd(&counts[VSM_RENDER_COUNT_VIEWS],1u);
- views[slot]=vec4u(at,listed,first.x,first.z);
+ views[slot]=vec4u(at,listed,first.x,first.z|(light.z<<VSM_RENDER_VIEW_CHANNELS_SHIFT));
 }
 `,
     [

@@ -9,10 +9,10 @@ export type LightShadowParameters = LightShadowOptions
 declare module './light.ts' {
   interface Light {
     /** Directional only: how far from the eye, in metres, its shadow maps are asked to reach, scaled
-     *  by the view's `shadowDistanceScale`; 400. The far-shadow test's edge lies a little farther
-     *  (427.0 at the defaults): a caster whose depth along the view, less its radius, is past it,
-     *  and whose object does not set `castFarShadow`, is left out of the light's shadows. A write
-     *  reaches the world at once, and makes the light's shadows again. */
+     *  by the view's `shadowDistanceScale`; 400. The edge of its near levels lies a little farther
+     *  (427.0 at the defaults), where the distance-field cascade begins; the shadow maps take every
+     *  cluster caster at any distance. A write reaches the world at once, and makes the light's
+     *  shadows again. */
     shadowDistance: number
     /** Directional only: the near levels its shadows are cut into, at most the view's
      *  `shadowNearLevels`; 4. */

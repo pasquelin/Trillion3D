@@ -26,7 +26,11 @@ import {
 } from '../../visibility/tessellation/uniform.ts'
 import { warmDisplacements } from '../../visibility/tessellation/warm.ts'
 import { rasterOf } from '../../visibility/raster/rasterFrame.fixture.ts'
-import { OCCLUSION_NONE, PASS_DISPATCH_WORDS } from '../../visibility/tessellation/contract.ts'
+import {
+  OCCLUSION_NONE,
+  PASS_ARG_WORDS,
+  PASS_DISPATCH_WORDS,
+} from '../../visibility/tessellation/contract.ts'
 import { DISPLACEMENT_WORDS } from '../../materials/table/displacementRecord.ts'
 
 test('webgpu pages raster consumes the GPU cache', async () => {
@@ -139,7 +143,15 @@ test('the uniform carries the view’s pixels per unit over the threshold, the p
     at = TESS_UNIFORM.at
   const settings = { tessellationDicingRate: 2, tessellationMaxPatchesPerGroup: 5 }
   const capacity = { candidate: 700, visible: 300, records: 192 }
-  const regions = { args: 11, queue: 22, visible: 33, dispatch: 8, disp: 44, list: 55 }
+  const regions = {
+    args: 11,
+    queue: 22,
+    visible: 33,
+    visibleTwoSided: 66,
+    dispatch: 8,
+    disp: 44,
+    list: 55,
+  }
   const sight = {
     mode: 1,
     prevViewProj: Array.from({ length: 16 }, (_, i) => i + 1),
@@ -168,8 +180,15 @@ test('the uniform carries the view’s pixels per unit over the threshold, the p
     [5, 700, 300],
   )
   assert.deepEqual(
-    [ints[at.args], ints[at.queue], ints[at.visible], ints[at.dispatch], ints[at.dispBase]],
-    [11, 22, 33, 8, 44],
+    [
+      ints[at.args],
+      ints[at.queue],
+      ints[at.visible],
+      ints[at.visibleTwoSided],
+      ints[at.dispatch],
+      ints[at.dispBase],
+    ],
+    [11, 22, 33, 66, 8, 44],
   )
   // The occlusion test's: the pyramid's mode, the capacity of what it keeps, where the main pass's
   // state lies, the views' depth maps and sizes, the previous matrix whole.
@@ -214,11 +233,17 @@ test('the buffer lays the table, the records, the chains’ state, the queue and
   const layout = tessLayout(1000, 256, 64, 32)
   assert.equal(layout.disp, 1000)
   // The cut's two passes and the shadow maps' chain each have their state; the shadow maps' patches
-  // lie in the first pass's list.
-  assert.deepEqual(layout.args, [1256, 1264, 1272])
-  assert.equal(layout.queue, 1280)
-  assert.deepEqual(layout.visible, [1280 + 64 * 4, 1280 + 64 * 4 + 32 * 4, 1280 + 64 * 4])
-  assert.equal(layout.words, 1280 + 64 * 4 + 2 * 32 * 4)
+  // lie in the first pass's list, those of their two-sided rows in the second's.
+  const queue = 1256 + 3 * PASS_ARG_WORDS
+  assert.deepEqual(layout.args, [1256, 1256 + PASS_ARG_WORDS, 1256 + 2 * PASS_ARG_WORDS])
+  assert.equal(layout.queue, queue)
+  assert.deepEqual(layout.visible, [queue + 64 * 4, queue + 64 * 4 + 32 * 4, queue + 64 * 4])
+  assert.deepEqual(layout.visibleTwoSided, [
+    layout.visible[0],
+    layout.visible[1],
+    layout.visible[1],
+  ])
+  assert.equal(layout.words, queue + 64 * 4 + 2 * 32 * 4)
   // The records have room for their words, a power of two, sixteen at least.
   assert.equal(recordRoom(0), 16 * DISPLACEMENT_WORDS)
   // Past them the next power of two.
@@ -250,7 +275,7 @@ test('the height maps’ tiles are asked for at the level the view and the dicin
   ])
 })
 
-test('the shadow maps’ chain has a state, a uniform and dispatches of its own, its patches in the first pass’s list', () => {
+test('the shadow maps’ chain has a state, a uniform and dispatches of its own, its one-sided patches in the first pass’s list and its two-sided ones in the second’s', () => {
   const { f, device, raster } = rasterOf(true)
   raster.followTessellation(device, { candidate: 1000, visible: 1000, records: 192 })
   const { shadow } = raster.tessellation!
@@ -264,15 +289,29 @@ test('the shadow maps’ chain has a state, a uniform and dispatches of its own,
   assert.equal(sentRecords(), 1, 'the records go up with the table’s version, once')
   shadow.prepare(records(2), settings, 2)
   assert.equal(sentRecords(), 2)
-  // Its uniform: the third chain’s state, the queue the passes share, the first pass’s list, its
-  // own dispatches; the threshold and the dicing rate of the image, no pyramid to test against.
+  // Its uniform: the third chain’s state, the queue the passes share, the first pass’s list and the
+  // second’s, its own dispatches; the threshold and the dicing rate of the image, no pyramid to test against.
   const sent = f.writes.filter((w) => w.buffer === (uniforms[2] as unknown)).at(-1)!
   const ints = new Uint32Array(sent.data.buffer, sent.data.byteOffset, TESS_UNIFORM.words)
   const floats = new Float32Array(ints.buffer, ints.byteOffset, TESS_UNIFORM.words)
   const at = TESS_UNIFORM.at
   assert.deepEqual(
-    [ints[at.args], ints[at.queue], ints[at.visible], ints[at.dispatch], ints[at.dispBase]],
-    [layout.args[2], layout.queue, layout.visible[0], 2 * PASS_DISPATCH_WORDS, layout.disp],
+    [
+      ints[at.args],
+      ints[at.queue],
+      ints[at.visible],
+      ints[at.visibleTwoSided],
+      ints[at.dispatch],
+      ints[at.dispBase],
+    ],
+    [
+      layout.args[2],
+      layout.queue,
+      layout.visible[0],
+      layout.visible[1],
+      2 * PASS_DISPATCH_WORDS,
+      layout.disp,
+    ],
   )
   assert.deepEqual(
     [
@@ -284,11 +323,11 @@ test('the shadow maps’ chain has a state, a uniform and dispatches of its own,
     [0, 1, 0.5, OCCLUSION_NONE],
   )
   assert.equal(layout.visible[2], layout.visible[0])
-  // Its state alone is cleared before a chunk: eight words at its own place.
+  // Its state alone is cleared before a chunk: its words at its own place.
   const encoder = device.createCommandEncoder()
   shadow.clear(encoder)
   assert.deepEqual(
     f.clears.filter((c) => c.buffer === (tess as unknown)).map((c) => [c.offset, c.size]),
-    [[layout.args[2] * 4, 32]],
+    [[layout.args[2] * 4, PASS_ARG_WORDS * 4]],
   )
 })

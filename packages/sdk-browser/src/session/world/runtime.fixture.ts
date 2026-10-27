@@ -66,6 +66,7 @@ export function sessionStandIn() {
     camera: {
       position: { set() {} },
       quaternion: { set() {} },
+      viewTarget: { set() {} },
       updateProjectionMatrix() {},
       updateMatrixWorld() {},
     },

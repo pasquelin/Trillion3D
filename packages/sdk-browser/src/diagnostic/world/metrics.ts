@@ -59,6 +59,8 @@ export const UNMEASURED: FrameMetrics = {
   shadowVsmPagesAllocated: null,
   shadowVsmPagesCached: null,
   shadowVsmPagesRendered: null,
+  shadowVsmPagesEmpty: null,
+  shadowVsmPagesWpoConsidered: null,
   shadowVsmFreePages: null,
   shadowVsmLodBias: null,
   shadowVsmRootsNoted: null,

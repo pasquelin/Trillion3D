@@ -1,6 +1,7 @@
 // The maps the frame's casting lights take (`engineVsm.ts`): a clipmap's levels a sun, six faces a
 // point light, one a spot; the full maps a set is first made for, the mask's lights, the raster's
 // views, and the set's options for them.
+import { PER_LIGHT_MASK_LAYERS } from '../projection/maskFormat.ts'
 import { alignUp } from '../../../../../../math/src/scalar/integers.ts'
 import { vsmPoolPagesBound } from '../layoutBytes.ts'
 import type { VsmFrameLight } from '../frameSetup.ts'
@@ -8,6 +9,8 @@ import { vsmShadowed } from '../seenLights.ts'
 import {
   POOL_PAGES_X,
   VSM_TABLES_PER_ROW,
+  type VsmCoverMode,
+  vsmCoverModeOf,
   type VsmLayout,
   type VsmResourceOptions,
 } from '../layout.ts'
@@ -39,15 +42,26 @@ export function castingCount(lights: readonly VsmFrameLight[]) {
   return count
 }
 
-/** What the frame's masks are made for (`VsmMaskNeeds`): a layer for each sun it shadows and the most local
- *  lights a pixel keeps (`shadowOnePassProjectionMaxLightsPerPixel`). */
+/** What the frame's masks are made for (`VsmMaskNeeds`): a layer for each sun it shadows; by the path of the local lights
+ *  (`shadowOnePassProjection`), the most local lights a pixel keeps (`shadowOnePassProjectionMaxLightsPerPixel`) or a layer
+ *  for each shadowed local light, up to `PER_LIGHT_MASK_LAYERS`. */
 export function maskNeedsFor(
   rt: WebgpuPagesRuntime,
   lights: readonly VsmFrameLight[],
 ): VsmMaskNeeds {
-  let suns = 0
-  for (const entry of lights) if (vsmShadowed(entry) && entry.light.kind === 'directional') suns++
-  return { suns, localLights: readShadowSetting(rt, 'shadowOnePassProjectionMaxLightsPerPixel') }
+  let suns = 0,
+    locals = 0
+  for (const entry of lights)
+    if (vsmShadowed(entry)) {
+      if (entry.light.kind === 'directional') suns++
+      else locals++
+    }
+  return {
+    suns,
+    onePass: readShadowSetting(rt, 'shadowOnePassProjection'),
+    localLights: readShadowSetting(rt, 'shadowOnePassProjectionMaxLightsPerPixel'),
+    perLightLayers: Math.min(locals, PER_LIGHT_MASK_LAYERS),
+  }
 }
 
 /** The frame's casting lights (`vsmShadowed`) as the raster's views count them, rewritten by each
@@ -65,7 +79,7 @@ export function renderViewBound(lights: readonly VsmFrameLight[], limit: number)
     }
   casting.length = count
   const { list, mostMaps } = vsmViewPasses(casting, limit)
-  return { lights: count, raster: { viewWords: 4 * (count + mostMaps), passes: list.length } }
+  return { lights: count, raster: { mostMaps, passes: list.length } }
 }
 
 /** The clipmap maps the frame's suns take at most, the receiver cover's size: those of `least`
@@ -91,38 +105,48 @@ function vsmPoolAsked(rt: WebgpuPagesRuntime) {
 
 /** What a set is kept for, besides its maps: the physical pages, the occlusion culling's pyramid
  *  (`occlusion`) and its second layer for the dynamic casters (`dynamicHzb`), the pages kept from
- *  one frame to the next (`cacheEnabled`), the receiver cover of every map (`localCover`). */
+ *  one frame to the next (`cacheEnabled`), the receiver cover masks (`coverMode`: none, the suns'
+ *  maps', every map's) and the prefiltered distant shadow of the suns' clipmaps
+ *  (`prefilteredDistant`). */
 export type VsmAsked = {
   poolPages: number
   occlusion: boolean
   dynamicHzb: boolean
   cacheEnabled: boolean
-  localCover: boolean
+  coverMode: VsmCoverMode
+  prefilteredDistant: boolean
 }
 
 /** What the settings ask of the frame's set (`shadowMaxPhysicalPages`, `shadowOcclusionCulling`,
- *  `shadowDynamicHzb`, `shadowCache`, `shadowUseReceiverMaskLocal`). */
+ *  `shadowDynamicHzb`, `shadowCache`, `shadowUseReceiverMaskDirectional`, `shadowUseReceiverMaskLocal`,
+ *  `shadowPrefilteredDistant`): the cover masks are made where either receiver mask is on, every
+ *  map's where the local one is. */
 export const vsmAsked = (rt: WebgpuPagesRuntime): VsmAsked => ({
   poolPages: vsmPoolAsked(rt),
   occlusion: readShadowSetting(rt, 'shadowOcclusionCulling'),
   dynamicHzb: readShadowSetting(rt, 'shadowDynamicHzb'),
   cacheEnabled: readShadowSetting(rt, 'shadowCache'),
-  localCover: readShadowSetting(rt, 'shadowUseReceiverMaskLocal'),
+  coverMode: vsmCoverModeOf(
+    readShadowSetting(rt, 'shadowUseReceiverMaskLocal'),
+    readShadowSetting(rt, 'shadowUseReceiverMaskDirectional'),
+  ),
+  prefilteredDistant: readShadowSetting(rt, 'shadowPrefilteredDistant'),
 })
 
 /** What a set of `layout` holds of it: its pool, and whether it has the pyramid, its second layer,
- *  the kept pages and the cover of every map. */
+ *  the kept pages, the cover and the prefiltered distant shadow. */
 export const askedOfLayout = (layout: VsmLayout): VsmAsked => ({
   poolPages: layout.poolPages,
   occlusion: layout.occlusion,
   dynamicHzb: layout.hzbLayers > 1,
   cacheEnabled: layout.cacheEnabled,
-  localCover: layout.coverLocal,
+  coverMode: layout.coverMode,
+  prefilteredDistant: layout.prefilteredDistant,
 })
 
 /** The set's options for `fullMapCapacity` maps and `sunMaps` clipmap maps (`sunMapsFor`), for what
- *  is `asked` of it (`vsmAsked`): the receiver cover holds the suns' clipmap levels, every map's
- *  with `localCover`. `mapSlotsPast` the map slots past the blocks the lights asked, none for the
+ *  is `asked` of it (`vsmAsked`): the receiver cover holds the suns' clipmap levels or every map's
+ *  (`coverMode`). `mapSlotsPast` the map slots past the blocks the lights asked, none for the
  *  default. */
 export const engineVsmOptions = (
   fullMapCapacity: number,

@@ -37,8 +37,9 @@ import { UNLIT_LIGHTING_SHADER, litPassShaders } from './shaderTexts.fixture.ts'
 import { CLASSIFY_WGSL } from '../../lighting/deferred/classifyWgsl.ts'
 import { indirectPassWgsl } from '../../lighting/deferred/indirectPassWgsl.ts'
 import { localPassWgsl, sunPassWgsl } from '../../lighting/deferred/lightPassWgsl.ts'
+import { perLightPassWgsl } from '../../lighting/deferred/perLightPassWgsl.ts'
 import { FULL_CONTRACT } from '../../lighting/deferred/contractCuts.ts'
-import { TILE_CLASSES } from '../../lighting/deferred/tileClass.ts'
+import { TILE_CLASS_NAMES, TILE_CLASSES } from '../../lighting/deferred/tileClass.ts'
 
 /** A light function slot drawn from a graph: a panned, tinted texture (the atlas bound, the time
  *  read), or the sine of the time on a colour (nothing bound). */
@@ -88,12 +89,20 @@ function lightPassShaders() {
   named('DIRECT_SKY_SHADOWING_LOBES', false, {}, true)
   // Each class of tile: the code its pixels need and no more.
   for (const tileClass of TILE_CLASSES) {
-    const name = ['SIMPLE', 'SINGLE', 'COMPLEX'][tileClass]
+    const name = TILE_CLASS_NAMES[tileClass]
     Object.assign(out, {
       [`SUN_CLASS_${name}`]: wgslModule(sunPassWgsl(FULL_CONTRACT, tileClass)),
       [`LOCAL_CLASS_${name}`]: wgslModule(localPassWgsl(FULL_CONTRACT, tileClass)),
+      // The per-light path (`shadowOnePassProjection` false): the local lights' pass without the shadowed lights, and the draw of one.
+      [`LOCAL_UNBATCHED_CLASS_${name}`]: wgslModule(
+        localPassWgsl(FULL_CONTRACT, tileClass, { skipHeld: true }),
+      ),
+      [`PER_LIGHT_CLASS_${name}`]: wgslModule(perLightPassWgsl(FULL_CONTRACT, tileClass)),
       [`INDIRECT_CLASS_${name}`]: wgslModule(
         indirectPassWgsl({ bounce: true, skyShadowing: false, tileClass }),
+      ),
+      [`INDIRECT_SKY_SHADOWING_CLASS_${name}`]: wgslModule(
+        indirectPassWgsl({ bounce: false, skyShadowing: true, tileClass }),
       ),
     })
   }

@@ -3,7 +3,7 @@
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { SCENE_LIGHT_FLOATS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { writeLightFields } from '../../../../sdk-core/src/scene/light/fields.ts'
-import { NO_CONTACT_SHADOW_VIEW } from '../../../../sdk-core/src/scene/light/contactShadowView.ts'
+import { lanesOf } from '../../../../sdk-core/src/scene/light/lanes.fixture.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { cross, unit } from '../../../../math/src/vector/vectorTuple.ts'
 
@@ -59,10 +59,10 @@ for (let k = 0; k < 16; k++) {
   if (k < 8) LIGHTS.push({ ...base('directional', k), direction: sphere(), castsShadow: true })
 }
 
-/** A light's record as the light buffer holds it: its seven `vec4f` in field order. */
+/** A light's record as the light buffer holds it: its eight `vec4f` in field order. */
 export function recordOf(light: SceneLight) {
   const f = new Float32Array(SCENE_LIGHT_FLOATS)
-  writeLightFields(f, 0, light, NO_CONTACT_SHADOW_VIEW)
+  writeLightFields(lanesOf(f), 0, light)
   const row = (at: number) => [...f.subarray(at, at + 4)]
   return {
     positionRange: row(0),
@@ -72,6 +72,7 @@ export function recordOf(light: SceneLight) {
     shape: row(16),
     capsule: row(20),
     contactGi: row(24),
+    traits: row(28),
   }
 }
 

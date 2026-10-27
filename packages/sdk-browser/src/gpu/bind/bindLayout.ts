@@ -138,7 +138,7 @@ export const BLEND_BINDINGS = {
   fogSampler: 33,
   /** What the light functions are read from (`BLEND_LIGHT_FUNCTION_BINDINGS`): the atlas and its
    *  table, one texture of words read by load — a read-only storage texture, as the other load-only
-   *  targets: the stage's third storage texture (the translucency volume's is the fourth and last). */
+   *  targets: the stage's third storage texture. */
   lightFunctionAtlas: 34,
   /** The lists of the local fog volumes over each tile of the view (`BLEND_FOG_BINDINGS`,
    *  `fogTilesWgsl`, `../../lighting/fog/localWgsl.ts`): a read-only storage buffer of words, the fragment stage's
@@ -153,11 +153,16 @@ export const BLEND_BINDINGS = {
    *  forward programs' reflection group no longer binds (`reflectionForwardLayout`: the depth pyramid's two and the lit image). */
   translucencyVolume: 47,
   /** The translucency global illumination volume the see-through surfaces read their indirect light from
-   *  (`../../lighting/translucencyGi/readWgsl.ts`): a sampled 3D texture, its ambient light in the first half of its depth and its
-   *  directional light in the second, and the trilinear sampler it is read through. It takes the sampled texture the world's
-   *  probes' atlas held, which a surface no longer gathers. */
-  translucencyGi: 21,
+   *  (`../../lighting/translucencyGi/readWgsl.ts`): two sampled 3D textures of the same grid — the ambient light (`rg11b10ufloat` where the
+   *  device grants the format as storage, else `rgba16float`) and the directional light, signed (`rgba16float`) —, and the trilinear sampler
+   *  they are read through. They take the sampled texture the world's probes' atlas held, which a surface no longer gathers, and one more. */
+  translucencyGiAmbient: 21,
   translucencyGiSampler: 22,
+  translucencyGiDirectional: 26,
+  /** The opaque surfaces' flags, read by load at the surface a contact shadow ray hits (`blend/contactSceneWgsl.ts`): the
+   *  fourth and last storage texture of the fragment stage. They lie in the surfaces' word target (`SURFACE_OUTPUTS`), which
+   *  no other texture the stage binds holds: the slot stays. */
+  surfaceFlags: 48,
 }
 
 /**

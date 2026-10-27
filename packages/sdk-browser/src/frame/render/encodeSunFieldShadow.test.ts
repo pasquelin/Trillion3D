@@ -1,4 +1,4 @@
-// The sun's distance-field shadow of an image: whom it is drawn for, and when it costs nothing.
+// The sun's distance-field shadow of an image: whom it is drawn for, and what it is run on.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -33,26 +33,27 @@ const sun = (cascade: DistanceFieldCascade | undefined, id = 'sun') => ({
 function runtime(
   plan: unknown[],
   {
-    meshes = { generation: 1, count: 3, farShadowObjects: 1 },
-    farMeshes = false,
+    meshes = { generation: 1, count: 3 },
+    context = {} as object,
     main = true,
     angularRadius = 0.004 as number | null,
   } = {},
 ) {
   const state = createSunShadowState()
   const device = {
+    limits: { maxTextureDimension2D: 8192 },
     createBindGroupLayout() {
       throw new Error('reached')
     },
   }
   const view = { overrides: { lighting: true } }
   const rt = {
-    context: { farShadowCullsAllMeshes: farMeshes },
+    context,
     distanceFields: { scene: { meshes }, sunShadow: state },
     views: { active: main ? view : { overrides: view.overrides }, main: view },
     gpu: {
       ...{ device, targetSize: [64, 32], allocatedSize: [64, 32] },
-      surfaces: { views: () => [{}, {}, {}, {}] },
+      surfaces: { views: () => [{}, {}, {}, {}], subsurfaceView: {} },
     },
     vis: { gpuHiz: { depth: () => ({}) } },
     run: { depthDrawn: true, diagnostic: 'beauty', frame: 1 },
@@ -99,17 +100,10 @@ test('a sun asking for hard shadows (angularRadius 0) is traced as hard, one the
   assert.equal(radius(null), LIGHT_SETTINGS.sunAngularRadius)
 })
 
-test('the pass costs nothing where no mesh is one the far-shadow test leaves out of the shadow maps', () => {
-  const none = { generation: 1, count: 3, farShadowObjects: 0 }
-  const closed = runtime([sun(CASCADE)], { meshes: none })
-  encodeSunFieldShadow(closed.rt, {} as GPUCommandEncoder, cam)
-  assert.equal(closed.state.mask, undefined)
-  // One object that says the test reaches it opens the gate: the pass goes on to ask for its pipelines.
+test('the pass runs, on the cascade of a sun, every mesh being made of clusters the shadow maps take', () => {
+  // The lists are empty — every mesh is made of clusters — but the passes are run, as they are in the reference.
   const open = runtime([sun(CASCADE)])
   assert.throws(() => encodeSunFieldShadow(open.rt, {} as GPUCommandEncoder, cam), /reached/)
-  // So does the view's rule that it reaches every mesh.
-  const all = runtime([sun(CASCADE)], { meshes: none, farMeshes: true })
-  assert.throws(() => encodeSunFieldShadow(all.rt, {} as GPUCommandEncoder, cam), /reached/)
 })
 
 test('the pass is drawn for the main view’s lit image of a scene with fields and a cascade alone', () => {
@@ -124,16 +118,8 @@ test('the pass is drawn for the main view’s lit image of a scene with fields a
   }
   assert.equal(drawn({}), true)
   assert.equal(drawn({ main: false }), false, 'a view drawn aside')
-  assert.equal(
-    drawn({ meshes: { generation: 0, count: 3, farShadowObjects: 1 } }),
-    false,
-    'no field made yet',
-  )
-  assert.equal(
-    drawn({ meshes: { generation: 1, count: 0, farShadowObjects: 1 } }),
-    false,
-    'no mesh',
-  )
+  assert.equal(drawn({ meshes: { generation: 0, count: 3 } }), false, 'no field made yet')
+  assert.equal(drawn({ meshes: { generation: 1, count: 0 } }), false, 'no mesh')
   assert.equal(drawn({}, [sun(undefined)]), false, 'no cascade')
   assert.equal(drawn({}, []), false, 'no shadowed light')
 })

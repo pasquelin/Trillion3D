@@ -9,6 +9,7 @@ import { LIGHT_FIELD, baseOf } from './fields.ts'
 import { createSceneLightStore } from './store.ts'
 import { LIGHT_KIND, type SceneLight } from './contracts.ts'
 import { NO_CONTACT_SHADOW_VIEW, type ContactShadowView } from './contactShadowView.ts'
+import { NO_LIGHT_SHADOW_VIEW } from './shadowedBits.ts'
 import { contactShadowOfLight } from './lightContactShadow.ts'
 import { cloneSceneLight } from './clone.ts'
 
@@ -97,6 +98,24 @@ test('the view folds the lights’ lanes: the switch, each override, a length wi
   assert.equal(lanes(store, 'later')[0], Math.fround(0.2))
 })
 
+test('an intensity override above 1 is held to 1: the reference’s `1 − intensity` would light negatively', () => {
+  const store = createSceneLightStore()
+  store.add({ ...LAMP, contactShadowLength: 0.05 })
+  store.setContactShadowView(
+    view({
+      contactShadowOverrideCastingIntensity: 4,
+      contactShadowOverrideNonCastingIntensity: 1.5,
+    }),
+  )
+  assert.deepEqual(lanes(store, 'lamp').slice(0, 3), [Math.fround(0.1), 1, 1])
+  store.setContactShadowView(view({ contactShadowOverrideCastingIntensity: 0.5 }))
+  assert.deepEqual(
+    lanes(store, 'lamp').slice(0, 3),
+    [Math.fround(0.1), 0.5, 0],
+    'below 1 it is kept',
+  )
+})
+
 test('the store counts the lights that cast a shadow and a ray of their own, under the view', () => {
   const store = createSceneLightStore()
   store.add({ ...LAMP, contactShadowLength: 0.02 })
@@ -109,6 +128,22 @@ test('the store counts the lights that cast a shadow and a ray of their own, und
   assert.equal(store.contacts, 1)
   store.setContactShadowView(view({ contactShadows: false }))
   assert.equal(store.contacts, 0)
+})
+
+test('at shadow quality 0 no light has the dynamic shadow bit: none casts a ray of its own, the lanes stay', () => {
+  const store = createSceneLightStore()
+  store.add({ ...LAMP, contactShadowLength: 0.02 })
+  assert.equal(store.contacts, 1)
+  const lane = lanes(store, 'lamp').slice(0, 3)
+  const epoch = store.epoch
+  store.setShadowView({ dynamicShadows: false })
+  assert.equal(store.contacts, 0)
+  assert.equal(store.epoch, epoch + 1, 'the change is published')
+  assert.deepEqual(lanes(store, 'lamp').slice(0, 3), lane, 'the lights’ own numbers are the same')
+  store.setShadowView({ dynamicShadows: false })
+  assert.equal(store.epoch, epoch + 1, 'the same view publishes nothing')
+  store.setShadowView(NO_LIGHT_SHADOW_VIEW)
+  assert.equal(store.contacts, 1)
 })
 
 test('a ray that cannot darken is none: both intensities 0 give a length of 0 and no count', () => {

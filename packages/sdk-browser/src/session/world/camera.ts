@@ -35,6 +35,10 @@ export function copyWorldCamera(camera: Camera, into: ViewCamera, aspect: number
   camera.matrixWorld.decompose(position, rotation, scale)
   into.position.set(position.x, position.y, position.z)
   into.quaternion.set(rotation.x, rotation.y, rotation.z, rotation.w)
+  // The target's offset from the eye, in the page camera's frame, which its world scale shapes:
+  // in the copy's, which carries a rotation alone, it is that offset scaled.
+  const { x, y, z } = camera.viewTarget
+  into.viewTarget.set(x * scale.x, y * scale.y, z * scale.z)
   into.fov = camera.fov
   into.near = camera.near
   into.far = camera.far
@@ -46,6 +50,7 @@ export function copyWorldCamera(camera: Camera, into: ViewCamera, aspect: number
   // is drawn at: the engine composes its own projection from it (`engineCamera.ts`).
   into.orthographic = box
   into._viewSet = camera._viewSet
+  into.drawnFrom = camera
   into.updateProjectionMatrix()
   into.updateMatrixWorld()
 }

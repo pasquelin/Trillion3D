@@ -160,3 +160,21 @@ test('each GPU time pairs with the edge fraction in force when it is recorded', 
   recordFrame(h, f, 5, 0.9, 4)
   assert.deepEqual([h.fractions[0], h.fractions[16], h.gpuMs[16], h.cpuMs[0]], [0.9, 0.7, 4, 3])
 })
+
+test('a budget not asked for records 0 whatever time it is handed, so its history exists when it is turned on', () => {
+  const record = (edgeBudgetMs: number, vsmBudgetMs: number) => {
+    const h = createDynamicResolution(),
+      f = {
+        ...{ s: 1, bounds: { min: 0.5, max: 1 }, edge: 1, edgeBudgetMs, edgeMin: 0.3 },
+        ...{ vsm: 1, vsmBudgetMs },
+        rules: resolveSettings(DYNAMIC_RESOLUTION_RULES, {}),
+        cpuMs: 0,
+      }
+    h.ignore = 0
+    recordFrame(h, f, 5, 1, 4, 6)
+    return [h.gpuMs[0], h.gpuMs[16], h.gpuMs[32]]
+  }
+  assert.deepEqual(record(0, 0), [5, 0, 0], 'neither asked for')
+  assert.deepEqual(record(10, 0), [5, 4, 0], 'the edge scale’s alone')
+  assert.deepEqual(record(0, 8), [5, 0, 6], 'the shadow raster’s alone')
+})

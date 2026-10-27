@@ -1,3 +1,4 @@
+import { gpuCapsOf } from '../gpu/core/gpuCaps.ts'
 import { reflectionForwardLayout } from '../lighting/reflections/reflectionPipelines.ts'
 import { REFLECTION_LIGHT_VIEW_BINDING } from '../lighting/reflections/viewLayout.ts'
 import type { FrontOutputs } from '../lighting/reflections/frontLayer.ts'
@@ -25,6 +26,7 @@ import {
 } from './plan/planCull.ts'
 import type { DualPasses } from './pipelines.ts'
 import type { VertexReads } from './cloudVertexText.ts'
+import type { TranslucentScene } from './shader.ts'
 import type { WaterPipelines } from './water/waterPipelines.ts'
 
 /** Pipelines a transparent pass picks by plan rank (`draw.ts`): the blend pass's modes and
@@ -105,8 +107,7 @@ export const DISTORTION_BINDINGS = {
 
 /** Whether `device` was granted dual-source blending (`requestExplorerDevice`): a transmissive
  *  layer then blends dual, add and multiply in one pass (`fsTransmitDual`). */
-export const dualSource = (device: GPUDevice) =>
-  device.features?.has('dual-source-blending') === true
+export const dualSource = (device: GPUDevice) => gpuCapsOf(device).dualSource
 
 /** The front stage's pipelines of what a front pass writes (`frontStage.ts`): its three culls, picked by
  *  a plan rank's cull, whether they are compiled, and their compile asked. */
@@ -229,6 +230,10 @@ export interface BlendModePipelines extends RankedPipelines {
    *  material has `cloudFog`, the cloud image, and the fog per vertex (`fogVertexOf`): a surface of
    *  that kind drawn by a program that does not read it is drawn by one built again (`grantGraphs`). */
   readonly reads?: VertexReads
+  /** What its modules' lights were made for (`TranslucentScene`): whether they hold the contact shadows' code, for the
+   *  surfaces whose material asks, a surface of that kind drawn by a program that does not being drawn by one built again
+   *  (`grantGraphs`). */
+  readonly scene?: TranslucentScene
   /** Whether its modules read the translucency lighting volume, for the surfaces whose material is
    *  lit from it: a surface of that kind drawn by a program that does not is drawn by one built
    *  again (`grantGraphs`). */

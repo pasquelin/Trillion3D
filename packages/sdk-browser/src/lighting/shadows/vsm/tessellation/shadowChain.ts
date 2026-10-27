@@ -7,6 +7,7 @@ import {
 } from '../../../../visibility/tessellation/groups.ts'
 import {
   DISPATCH_DRAW,
+  DISPATCH_DRAW_TWO_SIDED,
   DISPATCH_SEED,
   DISPATCH_SPLIT,
   MAX_SPLIT_LEVELS,
@@ -35,7 +36,8 @@ import { VSM_TESS_PROJECTION_SPECS } from './shadowKernelsWgsl.ts'
  * - `begin`, before a view pass's compute pass: the chain's state cleared;
  * - `compute`, in it, once the pass's records are binned: the seeding, the six levels of splitting
  *   and the draw's arguments, over the pass's lists;
- * - `draw`, in the pass's raster pass, groups 0 and 1 set: the patches, one indirect draw.
+ * - `draw`, in the pass's raster pass, groups 0 and 1 set: the patches, an indirect draw for the
+ *   one-sided rows and, where the table holds a two-sided surface, one for the two-sided rows.
  */
 export interface VsmShadowTessellation {
   readonly kinds: number
@@ -140,6 +142,8 @@ type ChainFrame = {
   input: TessInput
   projections: GPUBindGroup
   kinds: number
+  /** Whether the table holds a two-sided surface: the draw of its rows' patches is made. */
+  twoSided: boolean
 }
 
 /** The seeding over the pass's records, the six levels of splitting and the draw's arguments, in
@@ -203,13 +207,19 @@ function createShadowChain(ctx: VsmRenderContext) {
   let frame: ChainFrame
   const chain: VsmShadowTessellation & {
     programs: ShadowPrograms
-    bind(shadow: Tessellation['shadow'], input: TessInput, res: VsmResources, kinds: number): void
+    bind(
+      shadow: Tessellation['shadow'],
+      input: TessInput,
+      res: VsmResources,
+      kinds: number,
+      twoSided: boolean,
+    ): void
   } = {
     get kinds() {
       return frame.kinds
     },
     programs,
-    bind(shadow, input, res, kinds) {
+    bind(shadow, input, res, kinds, twoSided) {
       let groups = groupsOf.get(shadow.resources)
       if (!groups)
         groupsOf.set(
@@ -218,18 +228,21 @@ function createShadowChain(ctx: VsmRenderContext) {
             resources: shadow.resources,
           })),
         )
-      frame = { shadow, groups, input, projections: projectionGroup(res), kinds }
+      frame = { shadow, groups, input, projections: projectionGroup(res), kinds, twoSided }
     },
     begin: (encoder) => frame.shadow.clear(encoder),
     compute: (pass, lists, offset) => encodeChain(pass, programs, frame, listsGroup(lists), offset),
     draw(pass) {
-      const raster = programs.raster.get()
-      if (!raster) return
-      const { shadow, groups, input } = frame
-      const at = (TESS_CHAIN_SHADOW * PASS_DISPATCH_WORDS + DISPATCH_DRAW) * 4
-      pass.setPipeline(raster)
+      const { shadow, groups, input, twoSided } = frame
+      const [oneSidedPipe, twoSidedPipe] = [programs.raster.get(), programs.rasterTwoSided.get()]
+      if (!oneSidedPipe || (twoSided && !twoSidedPipe)) return
+      const at = (word: number) => (TESS_CHAIN_SHADOW * PASS_DISPATCH_WORDS + word) * 4
+      pass.setPipeline(oneSidedPipe)
       pass.setBindGroup(2, groups.of(programs.rasterProgram, TESS_CHAIN_SHADOW, input))
-      pass.drawIndirect(shadow.resources.dispatch, at)
+      pass.drawIndirect(shadow.resources.dispatch, at(DISPATCH_DRAW))
+      if (!twoSided) return
+      pass.setPipeline(twoSidedPipe!)
+      pass.drawIndirect(shadow.resources.dispatch, at(DISPATCH_DRAW_TWO_SIDED))
     },
   }
   return chain
@@ -257,7 +270,8 @@ export function vsmShadowTessellation(
   const ctx = vsmRenderContext(vsm.res, device, pageLayout, rt.vis.rasters)
   let chain = chains.get(ctx)
   if (!chain) chains.set(ctx, (chain = createShadowChain(ctx)))
-  if (!chain.programs.ask()) {
+  const twoSided = rt.vis.materialTable.twoSided
+  if (!chain.programs.ask(twoSided)) {
     vsm.renderedPlan = undefined
     return undefined
   }
@@ -270,6 +284,6 @@ export function vsmShadowTessellation(
     },
     rt.run.selectionUniforms.pixelError,
   )
-  chain.bind(shadow, input, vsm.res, kinds)
+  chain.bind(shadow, input, vsm.res, kinds, twoSided)
   return chain
 }

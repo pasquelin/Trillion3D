@@ -5,12 +5,11 @@ import { deformCountWord, deformOutputWord } from '../../deformation/outputs.ts'
 import {
   NO_OUTPUTS,
   PLACEMENT_EVALUATE,
-  PLACEMENT_FIRST_PERSON,
-  PLACEMENT_HOLDOUT,
   PLACEMENT_HLOD_SHIFT,
   PLACEMENT_INFO,
   PLACEMENT_INFO_BYTES,
   PLACEMENT_INFO_WORDS,
+  PLACEMENT_OBJECT_BITS,
   PLACEMENT_VELOCITY,
 } from '../dag/info/placementInfoLayout.ts'
 import { grownLength } from '../../../../math/src/sequence/resized.ts'
@@ -76,8 +75,7 @@ const make = (s: InfoTables, rank: number) => {
   words[base + at.switches] =
     (evaluate ? PLACEMENT_EVALUATE : 0) |
     (velocity ? PLACEMENT_VELOCITY : 0) |
-    (object?.firstPerson ? PLACEMENT_FIRST_PERSON : 0) |
-    (object?.holdout ? PLACEMENT_HOLDOUT : 0) |
+    ((object?.bits ?? 0) & PLACEMENT_OBJECT_BITS) |
     (source.hlod(rank) << PLACEMENT_HLOD_SHIFT)
   floats[base + at.wpoDisableSq] = (object?.disable ?? 0) ** 2
   floats[base + at.wpoMost] = object?.most ?? 0

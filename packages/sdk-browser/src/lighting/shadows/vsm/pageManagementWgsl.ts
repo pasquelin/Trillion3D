@@ -13,14 +13,16 @@ import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl
 import { VSM_CONSTANTS_WGSL, VSM_STALE_RECT_INDEX_WGSL } from './constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 import {
+  VSM_COARSER_LEVEL_CELL_WGSL,
   VSM_PROJECTION_DATA_READ_WGSL,
   VSM_PROJECTION_DATA_WGSL,
 } from './projection/projectionDataWgsl.ts'
+import { prefilteredDeps } from './prefilteredWgsl.ts'
 import type { VsmLayout } from './layout.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 
 /** Mask mips: 8x4 bits → 4x4, 8x8 (gathered 2x2) → 4x4, 4x4 → placed 2x2. */
-const VSM_MIP_MASK_WGSL = wgslBlock(
+export const VSM_MIP_MASK_WGSL = wgslBlock(
   'VSM_MIP_MASK_WGSL',
   [],
   `
@@ -49,7 +51,9 @@ fn vsmFoldMask4x4(mask4x4:u32,oddCell:vec2u)->u32{
 `,
 )
 
-const flagPyramidHeadText = /* wgsl */ `/** True when this hierarchical texel already held Flag (someone else continues). */
+const flagPyramidHeadText = (
+  prefiltered: boolean,
+) => /* wgsl */ `/** True when this hierarchical texel already held Flag (someone else continues). */
 fn pmOrMarkAtLevel(flag:u32,entryCell:VsmTableCell,pyramidLevel:u32)->bool{
  let pyramidTexel=entryCell.tableXY>>vec2u(pyramidLevel);
  let heldBefore=vsmPageMarksOr(vsmPageMarkIndex(pyramidTexel,pyramidLevel),flag);
@@ -62,7 +66,9 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
  if(pageInfo.flags==0u){return;}
  let handle=vsmHandleFromId(pageInfo.mapId);
  let tableAt=vsmTableEntryOf(handle,pageInfo.mipLevel,pageInfo.pageAddress);
- let flag=vsmPageMarksLoad(vsmPageMarkIndex(tableAt.tableXY,0u))&VSM_PAGE_MARK_MASK;
+ let flag=vsmPageMarksLoad(vsmPageMarkIndex(tableAt.tableXY,0u))&${
+   prefiltered ? '(VSM_PAGE_MARK_MASK|VSM_PAGE_PRIMARY|VSM_PAGE_SECONDARY)' : 'VSM_PAGE_MARK_MASK'
+ };
  if(flag==0u){return;}
  let projectionData=vsmProjectionOf(handle);
  let mipLevel=pageInfo.mipLevel;
@@ -83,7 +89,7 @@ fn vsmPageFlagPyramid(@builtin(global_invocation_id) id:vec3u){
   atomicMax(&vsmStaleRects[s+3u],pageAddress.y);
  }
  // A map of one page (a distant light's) has no hierarchy to build: the cull reads its one page.
- if(vsmSinglePageMap(projectionData)){return;}`
+ if(projectionData.distant){return;}`
 
 const flagPyramidCoverText = /* wgsl */ `
  // H levels over each page-table mip; level 0 of this hierarchy is the page-table mip itself.
@@ -133,9 +139,10 @@ function pageFlagPyramid(layout: VsmLayout): VsmPmKernel {
       VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
       VSM_COVER_GATHER_WGSL,
+      ...prefilteredDeps(layout.prefilteredDistant),
     ],
     `
-${flagPyramidHeadText}${flagPyramidCoverText}
+${flagPyramidHeadText(layout.prefilteredDistant)}${flagPyramidCoverText}
 `,
   )
   return vsmPmKernel(layout, 'PageFlagPyramid', specs, body)
@@ -150,15 +157,11 @@ const fallbacksDirectionalText = /* wgsl */ `fn pmFallbacksDirectional(setup:Vsm
    let firstEntryIndex=vsmTableIndex(vsmTableEntryOf(setup.handle,0u,firstLevelPage).tableXY);
    let firstEntry=vsmUnpackTableEntry(vsmPageTableLoad(firstEntryIndex));
    if(!firstEntry.thisLevelMapped){
-    let quarterPages=i32(VSM_LEVEL0_PAGES>>2u);
-    let firstShift=quarterPages*projectionData.cornerSteps;
-    let levelZeroPage=vec2i(firstLevelPage)-firstShift;
     let levelsAfter=u32(projectionData.levelsLeft);
     for(var levelHop=1u;levelHop<levelsAfter;levelHop++){
      let levelHandle=vsmHandleOffset(setup.handle,i32(levelHop));
      let levelInfo=vsmProjectionOf(levelHandle);
-     let levelOffset=quarterPages*levelInfo.cornerSteps;
-     let levelPage=(levelZeroPage+(levelOffset<<vec2u(levelHop)))>>vec2u(levelHop);
+     let levelPage=vsmCoarserLevelCell(vec2i(firstLevelPage),projectionData.cornerSteps,levelInfo.cornerSteps,levelHop,levelHop);
      if(vsmPageInRange(levelPage,0u)){
       let levelEntry=vsmUnpackTableEntry(vsmPageTableLoad(vsmTableIndex(vsmTableEntryOf(levelHandle,0u,vec2u(levelPage)).tableXY)));
       if(levelEntry.thisLevelMapped){
@@ -230,6 +233,7 @@ function fillCoarserFallbacks(layout: VsmLayout): VsmPmKernel {
       VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_COARSER_LEVEL_CELL_WGSL,
       VSM_PER_PAGE_DISPATCH_WGSL,
     ],
     `

@@ -147,8 +147,8 @@ export const VELOCITY_PASS = 'Trillion3D velocity'
 /** The temporal resolve's passes, in their order (`../../post/taa/`), each its own compute pass so
  *  each is timed: the velocity dilated to each texel's closest surface; the render-resolution
  *  histories reprojected (the last image's frame and the frame a pixel may be resurrected from);
- *  the thin geometry detection; the flicker measure; the shading rejection and the merge of the
- *  frames; the spatial anti-aliaser; the history update; the history brought down to the display;
+ *  the thin geometry detection; the shading rejection (the flicker measure first) and the merge of
+ *  the frames; the spatial anti-aliaser; the history update; the history brought down to the display;
  *  the display layers brought down beside it. */
 export const TAA_DILATE_VELOCITY_PASS = 'Trillion3D temporal dilate velocity'
 export const TAA_DECIMATE_HISTORY_PASS = 'Trillion3D temporal decimate history'
@@ -156,7 +156,6 @@ export const TAA_MEASURE_FLICKERING_LUMA_PASS = 'Trillion3D temporal measure fli
 export const TAA_MEASURE_THIN_COVERAGE_PASS = 'Trillion3D temporal measure thin geometry coverage'
 export const TAA_DETECT_THIN_GEOMETRY_PASS = 'Trillion3D temporal detect thin geometry'
 export const TAA_RELAX_THIN_GEOMETRY_PASS = 'Trillion3D temporal thin geometry weight relaxation'
-export const TAA_FLICKER_MEASURE_PASS = 'Trillion3D temporal flicker measure'
 export const TAA_REJECT_SHADING_PASS = 'Trillion3D temporal reject shading'
 export const TAA_SPATIAL_ANTI_ALIASING_PASS = 'Trillion3D temporal spatial anti-aliasing'
 export const TAA_UPDATE_HISTORY_PASS = 'Trillion3D temporal update history'
@@ -206,6 +205,18 @@ export const SEE_THROUGH_BACKGROUND_PASS = 'Trillion3D see-through background'
 /** The capture of the emission and occlusion layer (`../../frame/io/surfaceCapture.ts`). */
 export const CAPTURE_PASS = 'Trillion3D capture emission and occlusion'
 
+/** The hair strands' passes (`../../hair/`): the tangents of the groups, the bounds of the instances
+ *  and of the macro groups, the transmittance of the ribbons, the tiles they touch, the clear and the
+ *  raster of the visibility samples and their compaction; their labels open with this. They form
+ *  one family, as one scope holds them in a frame, and are filed with the geometry. */
+export const HAIR_STRANDS_PASS_PREFIX = 'Trillion3D hair strands '
+/** The family of the hair strands' passes. */
+export const HAIR_STRANDS_PASSES = definePassFamily({
+  prefix: HAIR_STRANDS_PASS_PREFIX,
+  stage: 'geometry',
+  block: 'other',
+})
+
 /** The surface cache's update (`../../lighting/surfaceCache/frame.ts`): the captures of the pages the image asks for — their
  *  surfaces shaded, resolved to the cards' encodings, copied into the atlas — in one compute pass. */
 export const SURFACE_CACHE_PASS = 'Trillion3D surface cache'
@@ -231,6 +242,7 @@ export const OTHER_PASS_FAMILIES = [
   // Geometry pages installed on the device, and the picking ray queries (`../../gpu/core/selection.ts`).
   ...family('residency', 'Trillion3D page install'),
   ...family('selection', 'Trillion3D ray query'),
+  HAIR_STRANDS_PASSES,
   // The distance fields and what traces them: the shadow of the sun is a shadow, the rest light.
   ...family('shadows', 'Trillion3D sun distance-field shadow'),
   ...family(
@@ -339,7 +351,6 @@ export const ENGINE_PASSES = [
   definePass({ label: TAA_MEASURE_THIN_COVERAGE_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_DETECT_THIN_GEOMETRY_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_RELAX_THIN_GEOMETRY_PASS, stage: 'antialiasing', block: 'other' }),
-  definePass({ label: TAA_FLICKER_MEASURE_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_REJECT_SHADING_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_SPATIAL_ANTI_ALIASING_PASS, stage: 'antialiasing', block: 'other' }),
   definePass({ label: TAA_UPDATE_HISTORY_PASS, stage: 'antialiasing', block: 'other' }),

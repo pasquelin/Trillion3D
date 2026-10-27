@@ -29,7 +29,6 @@ const WRITES: Array<{
 }> = [
   { name: 'visible', node: 'mesh', write: ({ mesh }) => void (mesh.visible = false) },
   { name: 'castShadow', node: 'mesh', write: ({ mesh }) => void (mesh.castShadow = false) },
-  { name: 'castFarShadow', node: 'mesh', write: ({ mesh }) => void (mesh.castFarShadow = true) },
   {
     name: 'matrixAutoUpdate',
     node: 'mesh',

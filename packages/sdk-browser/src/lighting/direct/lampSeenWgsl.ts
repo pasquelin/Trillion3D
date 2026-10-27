@@ -1,11 +1,12 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { horizonWrap } from '../../../../math/src/wgsl/lighting.ts'
 import { safeRcp } from '../../../../math/src/wgsl/reals.ts'
+import { lightTraits } from './lightReachWgsl.ts'
 
 /**
  * A LAMP AS A SURFACE SEES IT: a point, or a source with a size — a sphere of `shape.x` metres, a
- * tube twice as long as `capsule.xyz` is, along it (its two ends are the light's place less and
- * plus it), a capsule with both — and what the term of a light reads of it (`lampSeen`): the inverse
+ * tube twice as long as `tubeHalfLengthOf`, along its axis `emitterAxisOf` (its two ends are the light's place less and
+ * plus `tubeHalfAxisOf`), a capsule with both — and what the term of a light reads of it (`lampSeen`): the inverse
  * square, the cosine, the direction toward it. A lamp with no size is the point: its inverse square
  * is `1 / (d² + bias)` and its cosine the plain one. The one place the sum is formed is here: the
  * range and cone mask comes from `lampReach` (`lightWgsl.ts`), the distance's weight from this block.
@@ -16,7 +17,12 @@ import { safeRcp } from '../../../../math/src/wgsl/reals.ts'
  *   surface's cosine is the normal's dot with that vector, whose length is the line's form factor.
  * - A sphere, or a capsule, wraps the horizon: where the sphere's angular radius `α` (sin² α =
  *   radius² times the falloff) reaches the surface's horizon, the cosine falls off by the Hermite
- *   curve `(sin α + cos)² / (4 sin α)`, down to nothing at `−sin α`, not at the horizon.
+ *   curve `(sin α + cos)² / (4 sin α)`, down to nothing at `−sin α`, not at the horizon. A sun's disk
+ *   wraps it by its own sine (`sourceTermOf`), the curve of the half-angle the disk really has, and not by a narrower one whose
+ *   squared sine is half the sine's. Against the exact irradiance of a uniform disk, by quadrature, over cosines from −1.2 to 1.2
+ *   sines, the root-mean-square error of the full sine equals the narrower curve's at a half-angle of 0.5 degrees, is 0.00191
+ *   against 0.00195 at 5 degrees and 0.00511 against 0.00635 at 15 degrees: the full sine is the closer, so it is kept. The sun's
+ *   specular lobe takes the full sine too (`lampLook`).
  * - A lamp that does not fall off as the inverse square (`shape.y` an exponent) has a falloff of 1:
  *   its light is the mask alone, while the horizon's wrap still takes the inverse square's.
  *
@@ -27,11 +33,11 @@ import { safeRcp } from '../../../../math/src/wgsl/reals.ts'
  */
 export const LAMP_WGSL = wgslBlock(
   'LAMP_WGSL',
-  [safeRcp, horizonWrap],
+  [safeRcp, horizonWrap, lightTraits],
   `
-/** Whether a lamp has a size: a source radius or a tube. A sun's lane of \`shape\` is its disk, and a
+/** Whether a lamp has a size: a source radius or a tube. A sun's lane of \`shape\` is its disk (\`lampLook\`), and a
  *  rectangle's its axis: neither a lamp's source. */
-fn isCapsule(light:DirectLight)->bool{return !isSun(light)&&!isRect(light)&&(light.shape.x>0.0||any(light.capsule!=vec4f(0.0)));}
+fn isCapsule(light:DirectLight)->bool{return !isSun(light)&&!isRect(light)&&(light.shape.x>0.0||tubeHalfLengthOf(light)>0.0||light.capsule.w>0.0);}
 /** A lamp seen from a point of normal N: the unit direction \`toward\` it (the mean of its ends, for a
  *  tube) and \`centre\` its centre's (the same for a lamp with no tube), its \`falloff\` times the
  *  mask, the signed cosine \`side\` of the plain direction and the \`cosine\` the surface takes light by
@@ -63,17 +69,19 @@ fn capsuleLamp(offset:vec3f,halfAxis:vec3f,radius:f32,N:vec3f,mask:f32,bias:f32,
  let toward=mean*safeRcp(length(mean));
  var cosine=dot(N,mean);
  let wrap=saturate(radius*radius*falloff);
- if(radius>0.0){cosine=horizonWrap(cosine,wrap);}
+ if(radius>0.0){cosine=horizonWrap(cosine,sqrt(wrap));}
  return Lamp(toward,toward,mask*select(1.0,falloff,squared),dot(N,toward),saturate(cosine),wrap,lineCos,true);
 }
 /** The lamp of \`light\` seen from \`P\` at normal N, its inverse square taken at a squared distance
  *  \`bias\` longer (\`capsuleLamp\`). A sun gives the same light at every point, never weighed by
- *  distance; a lamp of no size is its mask over the distance, the plain cosine apart. */
+ *  distance, and has a size where its disk has (\`capsule\`: its highlight is the disk's, \`lampLook\`); a lamp of no size is its
+ *  mask over the distance, the plain cosine apart. */
 fn lampSeen(light:DirectLight,P:vec3f,N:vec3f,bias:f32)->Lamp{
  if(isSun(light)){
   let L=-light.directionCone.xyz;
   let side=dot(N,L);
-  return Lamp(L,L,1.0,side,max(side,0.0),0.0,1.0,false);
+  let sine=sourceTermOf(light);
+  return Lamp(L,L,1.0,side,saturate(horizonWrap(side,sine)),sine*sine,1.0,light.shape.x>0.0);
  }
  let reach=lampReach(light,P);
  let offset=light.positionRange.xyz-P;
@@ -82,7 +90,7 @@ fn lampSeen(light:DirectLight,P:vec3f,N:vec3f,bias:f32)->Lamp{
   let side=dot(N,reach.xyz);
   return Lamp(reach.xyz,reach.xyz,reach.w*select(1.0,pointFalloff(offset,bias),squared),side,max(side,0.0),0.0,1.0,false);
  }
- var lamp=capsuleLamp(offset,light.capsule.xyz,light.shape.x,N,reach.w,bias,squared);
+ var lamp=capsuleLamp(offset,tubeHalfAxisOf(light),light.shape.x,N,reach.w,bias,squared);
  lamp.centre=reach.xyz;
  return lamp;
 }`,

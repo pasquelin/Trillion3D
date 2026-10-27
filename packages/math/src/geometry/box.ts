@@ -363,13 +363,10 @@ export const boundsDiagonal = (
   maxZ: number,
 ) => length3(maxX - minX, maxY - minY, maxZ - minZ)
 
-/** `boundsDiagonal` of the box at `box[o]`. */
-export const boxDiagonal = (box: ArrayLike<number>, o = 0) =>
-  boundsDiagonal(box[o], box[o + 1], box[o + 2], box[o + 3], box[o + 4], box[o + 5])
-
 /** The radius of the sphere about the box at `box[o]`, centred at the box's centre: half its
- *  diagonal, `boxDiagonal · 0.5`, the radius `sphereFromBounds` writes. No empty test. */
-export const boxRadius = (box: ArrayLike<number>, o = 0) => boxDiagonal(box, o) * 0.5
+ *  diagonal, `boundsDiagonal · 0.5`, the radius `sphereFromBounds` writes. No empty test. */
+export const boxRadius = (box: ArrayLike<number>, o = 0) =>
+  boundsDiagonal(box[o], box[o + 1], box[o + 2], box[o + 3], box[o + 4], box[o + 5]) * 0.5
 
 /** The larger magnitude of the box's two bounds on `axis`: how far that axis reaches from 0. */
 export const boxAxisMagnitude = (box: ArrayLike<number>, axis: number) =>

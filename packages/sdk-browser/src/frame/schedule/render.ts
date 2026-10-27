@@ -10,7 +10,6 @@ import type { createExplorerStreaming } from '../../scene/drive/streaming.ts'
 import type { FrameClock } from '../../geometry/integration/frameBudget.ts'
 import type { PageStreaming } from '../../geometry/streaming/pageStreamer.ts'
 import type { EngineProfiler } from '../../diagnostic/telemetry.ts'
-import type { ViewCamera } from '../../camera/world.ts'
 
 type Inputs = {
   check: () => void
@@ -20,7 +19,6 @@ type Inputs = {
   guides?: { follow(): void }
   state: SessionState
   engine: Engine
-  camera: ViewCamera
   lookAtTarget: { x: number; y: number; z: number }
   setPose: (pose: CameraPose) => void
   streaming: ReturnType<typeof createExplorerStreaming>
@@ -41,7 +39,7 @@ type ExplorerRenderSession = Pick<ExplorerSession, 'scope' | 'diagnosticChannel'
 
 export function createExplorerRender(session: ExplorerRenderSession, inputs: Inputs) {
   const { scope, diagnosticChannel, diagnose } = session
-  const { check, followCells, guides, state, engine, camera, lookAtTarget, setPose } = inputs
+  const { check, followCells, guides, state, engine, lookAtTarget, setPose } = inputs
   const { streaming, frameBudget, drawFrame, fillMetrics, metricsScratch, profiler } = inputs
   const render = (pose?: CameraPose): FrameMetrics => {
     check()
@@ -72,7 +70,6 @@ export function createExplorerRender(session: ExplorerRenderSession, inputs: Inp
     emitExplorerFrameDiagnostic({
       diagnosticChannel,
       engine,
-      camera,
       lookAtTarget,
       metricsScratch,
       pageIdByUrl,

@@ -20,16 +20,22 @@ import {
   encodeVsmThrottle,
   keepVsmThrottle,
   vsmThrottled,
+  vsmThrottleState,
   type VsmThrottleState,
 } from './throttle.ts'
-import { VSM_THROTTLE_PARAMS } from './throttleWgsl.ts'
+import { VSM_THROTTLE_PARAMS, vsmThrottleWords } from './throttleWgsl.ts'
+import { vsmFeedbackWords } from './render/renderParamsWgsl.ts'
 import { settings } from './throttle.fixture.ts'
 
 /** The most levels the throttle's kernels are told they may add to a sun's maps and to a local light's,
  *  for `shadows` and a pool bias of `pool`: read from the parameters `encodeVsmThrottle` writes. */
 function writtenBiases(shadows: ReturnType<typeof settings>, pool: number) {
   const fake = fakeDevice()
-  const res = createVsmResources(fake.device, { fullMapCapacity: 7, poolPages: 256 })
+  const res = createVsmResources(fake.device, {
+    coverMode: 'suns',
+    fullMapCapacity: 7,
+    poolPages: 256,
+  })
   const bytes = 4 * VSM_THROTTLE_PARAMS.words
   const params = fake.device.createBuffer({
     size: bytes,
@@ -86,12 +92,16 @@ test('a budget above 0 asks the throttle; the most it adds is the lower limit le
  *  projection data buffers the frames take turns in. */
 function uploads() {
   const fake = fakeDevice()
-  const res = createVsmResources(fake.device, { fullMapCapacity: 7, poolPages: 256 })
+  const res = createVsmResources(fake.device, {
+    coverMode: 'suns',
+    fullMapCapacity: 7,
+    poolPages: 256,
+  })
   const state = createVsmFrameState(fake.device, res)
   const entry = state.cache.lightEntryFor('sun', 2)
   entry.moveToMapId(0)
   for (const map of entry.mapCaches) map.projectionData.levelBias = 1.25
-  const ids = new VsmMapIds().reset(res.layout.mapSlots)
+  const ids = new VsmMapIds().reset()
   const gpu = new Map<GPUBuffer, ArrayBuffer>()
   const bias = (id: number) =>
     (id * VSM_PROJECTION_RECORD_BYTES) / 4 + VSM_PROJECTION_LEVEL_BIAS_WORD
@@ -150,12 +160,13 @@ test('off, the projection data goes up by what changed alone: a still view sends
 test('a previous id that has a next one carries the valid bit, with the pages’ bit when they are kept', () => {
   const cache = new VsmCacheManager()
   const entry = cache.lightEntryFor('spot', 1)
-  entry.moveToMapId(3)
-  entry.moveToMapId(5)
   const flagsOfPrevious = () => {
-    const ids = new VsmMapIds().reset(16)
-    ids.allocateDirectional(8)
-    cache.carryUnseenLights(ids)
+    // The light held id 3 and is given another: its next-map data lies under 3.
+    entry.moveToMapId(3)
+    const ids = new VsmMapIds().reset()
+    ids.claim(entry, 'light')
+    ids.seal()
+    cache.commitIds(ids)
     return ids.nextMaps[3].flags
   }
   entry.mapCaches[0].update(entry)
@@ -174,4 +185,66 @@ test('the frame that ran the throttle and kept its maps is the next frame’s pr
   res.throttle.active = true
   keepVsmThrottle(res, false)
   assert.equal(res.throttle.prevKept, false, 'a frame that kept no maps')
+})
+
+const throttleMade = (fake: ReturnType<typeof fakeDevice>, mapSlots: number) => {
+  const buffer = (words: number) =>
+    fake.device.createBuffer({
+      size: 4 * words,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
+    })
+  const [feedbackWords, throttleWords] = [vsmFeedbackWords(mapSlots), vsmThrottleWords(mapSlots)]
+  return {
+    device: fake.device,
+    mapSlots,
+    feedback: [buffer(feedbackWords), buffer(feedbackWords)],
+    throttle: [buffer(throttleWords), buffer(throttleWords)],
+    params: buffer(VSM_THROTTLE_PARAMS.words),
+    prevKept: false,
+  } as unknown as VsmThrottleState
+}
+
+test('the slots of the throttle growing, the previous frame’s feedback and throttle buffer are copied whole into the new ones', () => {
+  const fake = fakeDevice()
+  const res = createVsmResources(fake.device, {
+    coverMode: 'suns',
+    fullMapCapacity: 7,
+    poolPages: 256,
+  })
+  const previous = 1 - vsmFrameParity(res)
+  // The set holds the throttle of fewer slots than its layout asks.
+  const old = throttleMade(fake, 8)
+  old.prevKept = true
+  res.throttle = old
+  fake.copies.length = 0
+  const grown = vsmThrottleState(fake.device, res)
+  assert.notEqual(grown, old, 'made again')
+  // Only the previous frame's pair goes, a map slot's words at the same place in the new ones.
+  const wanted = (key: 'feedback' | 'throttle') => ({
+    from: old[key][previous],
+    to: grown[key][previous],
+    fromOffset: 0,
+    toOffset: 0,
+    size: old[key][previous].size,
+  })
+  assert.deepEqual(fake.copies, [wanted('feedback'), wanted('throttle')])
+  assert.equal(grown.prevKept, true, 'the previous frame is still the next one’s previous')
+})
+
+test('a smaller set of slots carries nothing and the history restarts: a partial copy would be read past its end', () => {
+  const fake = fakeDevice()
+  const res = createVsmResources(fake.device, {
+    coverMode: 'suns',
+    fullMapCapacity: 7,
+    poolPages: 256,
+  })
+  // The set holds the throttle of more slots than its layout asks.
+  const old = throttleMade(fake, 2 * res.layout.mapSlots)
+  old.prevKept = true
+  res.throttle = old
+  fake.copies.length = 0
+  const smaller = vsmThrottleState(fake.device, res)
+  assert.notEqual(smaller, old, 'made again')
+  assert.deepEqual(fake.copies, [], 'no copy, not even in part')
+  assert.equal(smaller.prevKept, false, 'the history restarts')
 })

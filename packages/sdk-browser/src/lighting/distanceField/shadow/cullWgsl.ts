@@ -1,19 +1,18 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
-import { FAR_TESTED_WGSL } from '../../../visibility/shader/castingMark.ts'
 import { meshFieldWgsl } from '../meshFieldWgsl.ts'
 import { DFSH_COMMON_WGSL } from './commonWgsl.ts'
 import { DFSH_BINDING as B, DFSH_CULL_GROUP, DFSH_OFFSET_GROUP } from './layout.ts'
 
 /**
  * THE MESHES CULLED TO THE CASCADE (`dfshCull`), a thread a mesh of the scene: those that cast a
- * shadow, are shown, are the kind the sun's shadow maps leave out far away (`dfshCasts`: the far-shadow
- * test reaches them — as their object says, or as the view's `farShadowCullsAllMeshes` does — and
- * they do not cast far shadows, which the maps draw at any distance), whose bounding sphere meets
- * the hull of the cascade (`dfshHullTouches`: no plane puts it wholly outside), and that are drawn at
- * their distance from the eye (the squared distance over `drawDistance2.x` if it is above 0.0001,
- * under `.y` likewise), are listed, a place each by an atomic add. The draw's arguments (the vertex
- * count of the cube, the meshes listed, zeros) are cleared to zero by the host before the pass; the
- * first thread sets the vertex count.
+ * shadow, are shown, are no cluster geometry (`dfshCasts`: a sun's shadow maps draw the clusters at any
+ * distance, so the cascade, which only ever serves a sun that has maps, would shadow them twice —
+ * every mesh the engine draws is made of clusters, so the list is empty and the passes after it run on
+ * nothing), whose bounding sphere meets the hull of the cascade (`dfshHullTouches`: no plane puts it
+ * wholly outside), and that are drawn at their distance from the eye (the squared distance over
+ * `drawDistance2.x` if it is above 0.0001, under `.y` likewise), are listed, a place each by an
+ * atomic add. The draw's arguments (the vertex count of the cube, the meshes listed, zeros) are
+ * cleared to zero by the host before the pass; the first thread sets the vertex count.
  */
 export const DFSH_CULL_WGSL = wgslProgram(
   `@group(0) @binding(${B.culledObjects}) var<storage,read_write> culledObjects:array<u32>;
@@ -26,8 +25,7 @@ fn dfshHullTouches(centre:vec3f,radius:f32)->bool{
  return true;
 }
 fn dfshCasts(flags:u32)->bool{
- if((flags&FLAG_CAST_SHADOW)==0u||(flags&FLAG_VISIBLE)==0u||(flags&FLAG_CASTS_FAR)!=0u){return false;}
- return farTestedOf((flags&FLAG_FAR_TESTED)!=0u,(flags&FLAG_FAR_TESTABLE)==0u,(dfsh.counts.w&DFSH_FAR_MESHES)!=0u);
+ return (flags&FLAG_CAST_SHADOW)!=0u&&(flags&FLAG_VISIBLE)!=0u&&(flags&FLAG_VIRTUALIZED)==0u;
 }
 @compute @workgroup_size(${DFSH_CULL_GROUP})
 fn dfshCull(@builtin(global_invocation_id) id:vec3u){
@@ -43,7 +41,7 @@ fn dfshCull(@builtin(global_invocation_id) id:vec3u){
   culledObjects[atomicAdd(&objectArgs[1],1u)]=id.x;
  }
 }`,
-  [DFSH_COMMON_WGSL, meshFieldWgsl(0, B.objects), FAR_TESTED_WGSL],
+  [DFSH_COMMON_WGSL, meshFieldWgsl(0, B.objects)],
 )
 
 /**

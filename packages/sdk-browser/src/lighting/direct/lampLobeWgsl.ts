@@ -2,6 +2,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { safeRcp } from '../../../../math/src/wgsl/reals.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { LAMP_WGSL } from './lampSeenWgsl.ts'
+import { lightTraits } from './lightReachWgsl.ts'
 import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
 
 /**
@@ -11,7 +12,9 @@ import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
  * - Where the highlight comes from: the point of the lamp the reflection ray comes closest to — for
  *   a tube, `lineClosest` on its line, the ray from the surface's reflection of the view; for a
  *   sphere or a point, its centre —, seen as `Look.toward`; `reach` is the source's radius over that
- *   distance and `soft` the soft radius over it.
+ *   distance, `soft` the soft radius over it and `micro` the weight of its rough diffuse
+ *   (`lobeDiffuse`): 1 for a source of no size, fading to 0 as its radius or its length reaches
+ *   `ROUGH_DIFFUSE_FADE_METRES` (`scene/light/fields.ts`), worked out once with the light (`sourceTermOf`).
  * - The sphere widens the lobe and keeps its energy: the half vector is moved to the nearest the
  *   sphere lets it get to the normal (`sphereHalfCosines`, with one Newton step toward the exact
  *   nearest), the distribution's α² grows by `α² + ¼ s (3 √α² + s) / (V·H + 0.001)` for `s` the
@@ -30,13 +33,13 @@ import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
  */
 export const LAMP_LOBE_WGSL = wgslBlock(
   'LAMP_LOBE_WGSL',
-  [STANDARD_LIGHTING_WGSL, LAMP_WGSL, safeRcp, SHADING_MODEL_STATE_WGSL],
+  [STANDARD_LIGHTING_WGSL, LAMP_WGSL, safeRcp, SHADING_MODEL_STATE_WGSL, lightTraits],
   `
 /** One over the root of \`x\`, nothing where it is nothing or below. */
 fn safeInverseSqrt(x:f32)->f32{return safeRcp(sqrt(max(x,0.0)));}
 /** Where a lamp's highlight comes from: the unit direction \`toward\` the nearest point of it to the
  *  reflection, the source's radius and soft radius over the distance to it. */
-struct Look{toward:vec3f,reach:f32,soft:f32,}
+struct Look{toward:vec3f,reach:f32,soft:f32,micro:f32,}
 /** The point of the line from \`p0\` along \`line\` nearest the ray along \`R\` from the origin; the line's
  *  start where the two are parallel. */
 fn lineClosest(p0:vec3f,line:vec3f,R:vec3f)->vec3f{
@@ -45,12 +48,19 @@ fn lineClosest(p0:vec3f,line:vec3f,R:vec3f)->vec3f{
  return p0+line*select(0.0,saturate(dot(p0,b*R-line)/den),den>0.0);
 }
 /** The look of a lamp \`offset\` away from the point, of tube \`halfAxis\` each side (zero: none), of
- *  source \`radius\` and \`soft\` radius, for the surface of normal N seen along V. */
-fn capsuleLook(offset:vec3f,halfAxis:vec3f,radius:f32,soft:f32,N:vec3f,V:vec3f)->Look{
+ *  source \`radius\` and \`soft\` radius, and \`micro\` the weight of its rough diffuse, for the surface of normal N seen along V. */
+fn capsuleLook(offset:vec3f,halfAxis:vec3f,radius:f32,soft:f32,micro:f32,N:vec3f,V:vec3f)->Look{
  var to=offset;
  if(any(halfAxis!=vec3f(0.0))){to=lineClosest(offset-halfAxis,2.0*halfAxis,2.0*dot(N,V)*N-V);}
  let inv=safeRcp(length(to));
- return Look(to*inv,radius*inv,soft*inv);
+ return Look(to*inv,radius*inv,soft*inv,micro);
+}
+/** The look of the lamp \`lamp\` of \`light\` seen from \`P\` at normal N along V: a sun's disk — the sun's direction, the sine of its angular
+ *  radius (\`sourceTermOf\`, written with the light), the sine of half its soft angle and a full weight of the rough diffuse —
+ *  or a capsule's (\`capsuleLook\`), its weight of the rough diffuse written with the light too (\`sourceTermOf\`). */
+fn lampLook(light:DirectLight,P:vec3f,N:vec3f,V:vec3f,lamp:Lamp)->Look{
+ if(isSun(light)){return Look(lamp.toward,sourceTermOf(light),light.capsule.w,1.0);}
+ return capsuleLook(light.positionRange.xyz-P,tubeHalfAxisOf(light),light.shape.x,light.capsule.w,sourceTermOf(light),N,V);
 }
 /** The lobe's α² widened by a source of sine \`s\` at half-vector cosine \`VoH\`. */
 fn widerAlpha2(a2:f32,s:f32,VoH:f32)->f32{return a2+0.25*s*(3.0*sqrt(a2)+s)/(VoH+0.001);}
@@ -125,18 +135,18 @@ fn lampHalf(s:LobeSurface,N:vec3f,V:vec3f,look:Look)->vec3f{
  *  \`look\`, the \`cosine\` it takes light by and the tube's \`lineCos\`, \`energy\` the light's intensity
  *  through its falloff and shadow. Diffuse and specular, before the colour. */
 fn lampLobe(s:LobeSurface,N:vec3f,V:vec3f,look:Look,cosine:f32,lineCos:f32,energy:f32)->vec3f{
- return lampLobeWith(lampHalf(s,N,V,look),s,look,cosine,lineCos,energy);
+ return lampLobeWith(lampHalf(s,N,V,look),s,V,look,cosine,lineCos,energy);
 }
-/** \`lampLobe\` of the lamp's half-vector \`h\` (\`lampHalf\`), which a caller that needs it too takes once. */
-fn lampLobeWith(h:vec3f,s:LobeSurface,look:Look,cosine:f32,lineCos:f32,energy:f32)->vec3f{
+/** \`lampLobe\` of the lamp's half-vector \`h\` (\`lampHalf\`), which a caller that needs it too takes once. The rough diffuse is taken at the
+ *  lamp's own cosine and its direction to the view, before the sphere moves the half-vector. */
+fn lampLobeWith(h:vec3f,s:LobeSurface,V:vec3f,look:Look,cosine:f32,lineCos:f32,energy:f32)->vec3f{
  let NoH=h.x;let VoH=h.y;let sine=h.z;
  let wide=lobeEnergy(s.alpha2,VoH,sine,saturate(look.soft),lineCos);
- var t=s;
- t.alpha2=wide.x;t.alpha=sqrt(wide.x);t.viewG=jointHalf(s.NdotV,t.alpha);
- let D=ggxDistribution(t.alpha2,NoH,max(1.0-NoH*NoH,0.0))*wide.y;
- let gV=cosine*t.viewG;
- let gL=s.NdotV*jointHalf(cosine,t.alpha);
- return lobeSum(t,D,gV,gL,VoH,energy*cosine);
+ let alpha=sqrt(wide.x);
+ let D=ggxDistribution(wide.x,NoH,max(1.0-NoH*NoH,0.0))*wide.y;
+ let gV=cosine*jointHalf(s.NdotV,alpha,s.accurate);
+ let gL=s.NdotV*jointHalf(cosine,alpha,s.accurate);
+ return lobeSum(s,lobeDiffuse(s,cosine,dot(V,look.toward),look.micro),D,gV,gL,VoH,energy*cosine);
 }`,
 )
 
@@ -152,7 +162,10 @@ export const LAMP_SURFACE_LIGHT_WGSL = wgslBlock(
   `
 fn lampLight(s:LobeSurface,N:vec3f,V:vec3f,light:DirectLight,P:vec3f,lamp:Lamp,energy:f32)->vec3f{
  if(!lamp.capsule){return surfaceLight(s,N,V,vec4f(lamp.toward,energy));}
- let look=capsuleLook(light.positionRange.xyz-P,light.capsule.xyz,light.shape.x,light.capsule.w,N,V);
+ return lampLightLooked(s,N,V,lampLook(light,P,N,V,lamp),lamp,energy);
+}
+/** The light of a lamp of size whose \`look\` the caller has taken (\`lampLook\`, once a light): the base lobe, or under a coat the coat model's. */
+fn lampLightLooked(s:LobeSurface,N:vec3f,V:vec3f,look:Look,lamp:Lamp,energy:f32)->vec3f{
  if(hasCoat()){
   let coated=coatedLamp(s,N,V,look,lamp,energy);
   return coated[0]+coated[1];
@@ -164,15 +177,19 @@ fn lampLightShares(s:LobeSurface,N:vec3f,V:vec3f,light:DirectLight,P:vec3f,lamp:
  let split=lampLightSplit(s,N,V,light,P,lamp,energy);
  return split[0]*share.x+split[1]*share.y;
 }
-/** A light's diffuse (column 0) and specular (column 1) on the surface: the albedo times the lamp's cosine, and
- *  what the surface with no diffuse albedo gives (\`lampLight\`); under a coat the coat model's two terms. */
+/** A light's diffuse (column 0) and specular (column 1) on the surface: the diffuse of the lamp's cosine and direction to the view
+ *  (\`lobeDiffuse\`, Lambert's or the rough diffuse, as the whole term takes it), and what the surface with no diffuse light gives
+ *  (\`lampLight\` of \`withoutDiffuse\`); under a coat the coat model's two terms. */
 fn lampLightSplit(s:LobeSurface,N:vec3f,V:vec3f,light:DirectLight,P:vec3f,lamp:Lamp,energy:f32)->mat2x3f{
  if(hasCoat()){
   if(!lamp.capsule){return coatedPoint(s,N,V,lamp.toward,energy);}
-  return coatedLamp(s,N,V,capsuleLook(light.positionRange.xyz-P,light.capsule.xyz,light.shape.x,light.capsule.w,N,V),lamp,energy);
+  return coatedLamp(s,N,V,lampLook(light,P,N,V,lamp),lamp,energy);
  }
- var specularOnly=s;
- specularOnly.diffuse=vec3f(0.0);
- return mat2x3f(s.diffuse*(energy*lamp.cosine),lampLight(specularOnly,N,V,light,P,lamp,energy));
+ let bare=withoutDiffuse(s);
+ if(!lamp.capsule){
+  return mat2x3f(lobeDiffuse(s,lamp.cosine,dot(V,lamp.toward),1.0)*(energy*lamp.cosine),surfaceLight(bare,N,V,vec4f(lamp.toward,energy)));
+ }
+ let look=lampLook(light,P,N,V,lamp);
+ return mat2x3f(lobeDiffuse(s,lamp.cosine,dot(V,look.toward),look.micro)*(energy*lamp.cosine),lampLightLooked(bare,N,V,look,lamp,energy));
 }`,
 )

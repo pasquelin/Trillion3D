@@ -1,5 +1,6 @@
 import type { GpuTimingSample } from './types.ts'
 import type { TimingImage, TimingPart, TimingResources } from './encoder.ts'
+import { gpuCapsOf } from '../core/gpuCaps.ts'
 import { createSampleEmitter } from './sample.ts'
 import { createSlotMemory } from './slotMemory.ts'
 import { createTimeline } from './timeline.ts'
@@ -49,7 +50,7 @@ export function createTimingState(
     device,
     every: () => Math.max(1, Math.floor((typeof asked === 'function' ? asked() : asked) ?? 60)),
     emit: createSampleEmitter(onSample),
-    enabled: !!device.features?.has('timestamp-query'),
+    enabled: gpuCapsOf(device).timestamp,
     disposed: false,
     lastFrame: -Infinity,
     resources: undefined,

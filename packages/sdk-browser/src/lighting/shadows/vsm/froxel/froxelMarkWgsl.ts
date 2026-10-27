@@ -37,7 +37,12 @@ import {
   VSM_PROJECTION_DATA_WGSL,
 } from '../projection/projectionDataWgsl.ts'
 import { vsmBindingsWgsl } from '../resources.ts'
-import { VSM_PIXELS_SPECS, VSM_MARKING_PARAMS_WGSL, vsmPageMarkingBlock } from '../markingWgsl.ts'
+import {
+  markedPageFlagsText,
+  VSM_PIXELS_SPECS,
+  VSM_MARKING_PARAMS_WGSL,
+  vsmPageMarkingBlock,
+} from '../markingWgsl.ts'
 import { NO_MIN_LEVEL } from '../markingWgsl.ts'
 import { SHADOW_SLICE_WGSL } from '../../../direct/shadowSlice.ts'
 import { VSM_BOX_VIEW_WGSL } from '../invalidation/boxCullWgsl.ts'
@@ -80,7 +85,7 @@ fn vsmMarkCoverRect(handle:VsmHandle,mip:u32,pixels:vec4u){
  }
 }`
 
-const froxelMarkBoxText = () => /* wgsl */ `
+const froxelMarkBoxText = (prefiltered: boolean) => /* wgsl */ `
 /** Marks every page of map \`handle\`'s mip that the froxel box (\`box\`, in the view's space) overlaps. */
 fn vsmMarkFroxel(handle:VsmHandle,mip:u32,box:VsmFroxelBox,directional:bool){
  let pd=vsmProjectionOf(handle);
@@ -100,7 +105,7 @@ fn vsmMarkFroxel(handle:VsmHandle,mip:u32,box:VsmFroxelBox,directional:bool){
  let pixels=vec4u(vsmRectPixels(vec4i(0,0,dim,dim),cull));
  let pages=pixels>>vec4u(VSM_LOG2_PAGE);
  // A page marked from the depth is fine, as one marked from a pixel.
- let flags=VSM_PAGE_WANTED|VSM_PAGE_FINE;
+ let flags=${markedPageFlagsText(prefiltered)};
  for(var y=pages.y;y<=pages.w;y++){
   for(var x=pages.x;x<=pages.z;x++){
    vsmRequestPage(vsmTableEntryOf(handle,mip,vec2u(x,y)),flags);
@@ -157,7 +162,7 @@ fn ${FROXEL_MARK_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups
 export const vsmFroxelPageMarkingWgsl = (layout: VsmLayout, throttled = false) =>
   wgslProgram(
     /* wgsl */ `
-${froxelMarkDeclarationsText}${froxelMarkBoxText()}${froxelMarkKernelText()}
+${froxelMarkDeclarationsText}${froxelMarkBoxText(layout.prefilteredDistant)}${froxelMarkKernelText()}
 `,
     [
       VSM_CONSTANTS_WGSL,
@@ -173,7 +178,7 @@ ${froxelMarkDeclarationsText}${froxelMarkBoxText()}${froxelMarkKernelText()}
       pixelCellWgsl(),
       SHADOW_SLICE_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
-      vsmPageMarkingBlock(throttled),
+      vsmPageMarkingBlock(throttled, layout.prefilteredDistant),
       VSM_BOX_VIEW_WGSL,
       FLAT_INDEX_WGSL,
       ceilDivWgsl,

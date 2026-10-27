@@ -65,7 +65,7 @@ import {
 } from './renderPipes.ts'
 import { vsmViewPasses, vsmViewsPerPass, type VsmViewPass } from './renderViewPasses.ts'
 import { renderGroups, vsmEncodeRaster, vsmWorldGroup } from './renderEncode.ts'
-import { VSM_RENDER_COUNT_WORDS, type CompiledTiers } from './renderParamsWgsl.ts'
+import { VSM_RENDER_COUNT_WORDS, vsmViewsLaid, type CompiledTiers } from './renderParamsWgsl.ts'
 import { vsmOcclusionContext, vsmTwoPass } from '../occlusion/occlusionPass.ts'
 import {
   prepareVsmDescent,
@@ -141,12 +141,6 @@ export interface VsmRenderScene {
   /** The families the frame's pipelines were compiled for (the plan's `tiers`): the raster draws
    *  no tier past them (`vsmEncodeRaster`). */
   tiers: CompiledTiers
-  /** Whether a sun's far-shadow test reaches every caster rather than the world's merged shells
-   *  alone (`farShadowCullsAllMeshes`); false when absent. */
-  farMeshes?: boolean
-  /** The greatest far-shadow distance of the frame's lights when each is a sun that has one, else 0
-   *  or absent (`farDropOf`): a caster past it is in no map view. */
-  farDrop?: number
   /** The tessellation of the displaced surfaces' records, while the frame has one
    *  (`vsmShadowTessellation`): its `kinds` say which maps take it, and each view pass runs it. */
   tessellation?: VsmShadowTessellation
@@ -242,6 +236,9 @@ export function encodeVsmRender(
   const { lists, groups, descent, world } = bound
   const lights = frame.lights.length,
     { views } = descentSizes
+  // The leaves the shadow views asked for in the last frame, to the streaming, read back at the start of
+  // this one, before its descent clears them.
+  encodeVsmDescentRequests(device, encoder, res, descent.out!, descent.listCap)
   vsmEncodeRaster(
     encoder,
     ctx,
@@ -249,7 +246,7 @@ export function encodeVsmRender(
     world,
     scene,
     lists.args,
-    { passes: passes.length, lights, throttle },
+    { passes: passes.length, mostMaps, lights, throttle },
     empty,
     { descent, info: scene.descent.info, lights, views, viewBase: bound.viewBase },
     occlusionOf(res, device, scene),
@@ -263,8 +260,6 @@ export function encodeVsmRender(
       0,
       throttle.feedbackWords * 4,
     )
-  // The leaves the shadow views asked for, to the streaming.
-  encodeVsmDescentRequests(device, encoder, res, descent.out!, descent.listCap)
   return { passes: empty ? 0 : passes.length, records, roomLimited, empty }
 }
 
@@ -293,11 +288,12 @@ function sizeLists(
       sizes,
       ctx.slots,
       passes.length,
-      4 * (lights + mostMaps),
+      mostMaps,
       lights,
       Math.max(1, scene.rowCount),
       records,
       frame.throttle?.feedbackWords,
+      vsmViewsLaid(ctx.device),
     )
   const descentSizes = descentSizesOf(res, scene, lights, passes)
   const within = recordsWithinRoom(

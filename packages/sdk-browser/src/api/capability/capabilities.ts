@@ -1,5 +1,6 @@
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { WEBGPU_REQUIRED_WGSL_FEATURES } from '../../session/engine/common.ts'
+import { gpuCapsOfFeatures } from '../../gpu/core/gpuCaps.ts'
 
 /** What this machine's WebGPU grants, read before any session opens. */
 export type GpuCapabilities = {
@@ -44,7 +45,7 @@ export const gpuOf = (environment: { gpu?: GPU }) =>
 
 /** The tier a set of granted features reaches. */
 const tierOf = (features: { has(name: string): boolean }) =>
-  features.has('timestamp-query') ? ('full' as const) : ('degraded' as const)
+  gpuCapsOfFeatures(features).timestamp ? ('full' as const) : ('degraded' as const)
 
 /** Checks what this machine's WebGPU grants, and says why when it grants nothing. `gpu` stands
  *  for `navigator.gpu`. */

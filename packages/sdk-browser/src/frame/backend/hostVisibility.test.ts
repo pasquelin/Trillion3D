@@ -9,7 +9,7 @@ import { writeKeyRecords } from '../../blend/keyRecords.ts'
 import { KEY_DRAWN, KEY_RECORD_WORDS, KEY_WORD } from '../../blend/keyLayout.ts'
 import type { ClusterRoot, PageRec } from '../../geometry/selection/types.ts'
 import type { WebgpuPagesRuntime } from './runtime.ts'
-import { FAR_SHADOW_ROOT, SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
+import { SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
 import { createChangedRuns } from '../../geometry/residency/ranges.ts'
 
 // A node of a compiled model hidden once, then shown again, by the host (#407). Every frame
@@ -133,8 +133,4 @@ test('a host hide parks the root and hides its blend items', () => {
   uploadWorlds(rt)
   assert.deepEqual(marks.slice(-1), [SHADOWLESS_ROOT])
   assert.deepEqual(changed, [])
-  // A node that casts far shadows marks its root so, beside the shadowless bit.
-  node.castFarShadow = true
-  uploadWorlds(rt)
-  assert.deepEqual(marks.slice(-1), [SHADOWLESS_ROOT | FAR_SHADOW_ROOT])
 })

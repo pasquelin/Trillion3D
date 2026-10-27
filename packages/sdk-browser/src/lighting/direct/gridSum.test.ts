@@ -10,6 +10,7 @@
 // resolve: the contract refuses it. The lamp's own laws, as the shipped term gives them, are
 // run here too: a spot's fade, a fall-off that is not the inverse square, the shares of diffuse and
 // specular light.
+import { kindLane } from '../../../../sdk-core/src/scene/light/lanes.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -51,9 +52,10 @@ const record = ({ centre, radius, spot }: Lamp, rank: number) => ({
   positionRange: [...centre, radius],
   colorIntensity: [1, 0.8 + (rank % 5) / 10, 0.6, 3 + (rank % 7)],
   directionCone: [0, -1, 0, spot ? 0.7 : -1],
-  params: [spot ? K.KIND_SPOT : 0, -1, 0, spot ? 0.9 : 0],
+  params: [kindLane(spot ? K.KIND_SPOT : 0), -1, 0, spot ? 0.9 : 0],
   shape: [0, 0, 1, 1],
   capsule: [0, 0, 0, 0],
+  traits: [0, 0, 0, 0],
 })
 
 /** What a program's light term reads besides the lights: no thin transmission, a lamp with no shadow
@@ -125,6 +127,41 @@ test('random lamp sets of 1 to 256: the cell list sums every lamp, bit for bit',
   assert.ok(reached > 200, `${reached} of 256 sets light their pixel`)
 })
 
+test('the walk of every light leaves out a lamp the view does not draw, as the list that does not hold it does', () => {
+  const r = lcgRandom(2701)
+  const lamps = [...Array(12).keys()].map((rank): Lamp => ({
+    centre: [(r() - 0.5) * 4, 1 + r(), (r() - 0.5) * 4] as Vec3,
+    radius: 20,
+    spot: rank % 3 === 0,
+  }))
+  const N = [0, 1, 0],
+    V = [0.6, 0.8, 0],
+    P = [0, 0.5, 0]
+  const undrawn = 5
+  for (const program of PROGRAMS) {
+    const items = lamps.map(record)
+    const directLights = { count: lamps.length, items }
+    const listed = [...lamps.keys()].filter((rank) => rank !== undrawn)
+    const scope = scopeOf(program, directLights, [7, 7, ...listed])
+    const { sliceLighting } = shaderRun<{ sliceLighting: Sum }>(program, NAMES, scope)
+    const at = (slice: number[]) => sliceLighting([0.8, 0.7, 0.6], 0.2, 0.5, N, V, P, 1, slice)
+    const whole = at([K.TILE_NO_SLICE, lamps.length])
+    // The view's bit in the kind word of that lamp alone.
+    const kind = (items[undrawn] as { params: number[] }).params
+    kind[0] = kindLane(K.KIND_UNDRAWN + (lamps[undrawn].spot ? K.KIND_SPOT : 0))
+    const every = at([K.TILE_NO_SLICE, lamps.length]),
+      cell = at([2, listed.length])
+    assert.ok(
+      every.every((v, i) => Object.is(v, cell[i])),
+      `${every} against the list without it, ${cell}`,
+    )
+    assert.ok(
+      every.some((v, i) => v !== whole[i]),
+      'the lamp lit the point before the view left it out',
+    )
+  }
+})
+
 test('edge cases: one pixel touched, a cell every lamp reaches, near and far, an infinite range, an empty column', () => {
   const [px, py] = [319, 199]
   for (const z of [1, 0.5, 2 ** -12, NEAR / 1e5]) {
@@ -163,7 +200,12 @@ test('edge cases: one pixel touched, a cell every lamp reaches, near and far, an
 const LAMPS = shaderRun<{
   lampReach: (light: object, P: Vec3) => number[]
   isCapsule: (light: object) => boolean
-  lampSeen: (light: object, P: Vec3, N: Vec3, bias: number) => { falloff: number; wrap: number }
+  lampSeen: (
+    light: object,
+    P: Vec3,
+    N: Vec3,
+    bias: number,
+  ) => { toward: Vec3; falloff: number; wrap: number }
 }>(PROGRAMS[0], ['lampReach', 'isCapsule', 'lampSeen'], {
   ...F32_SCOPE,
   ...K,
@@ -212,6 +254,43 @@ test('a lamp off the inverse square is its mask alone, one less its squared rang
   near([wide.falloff, wide.wrap], [0.99 ** 8, 0.25 / (1 + 1e-4)], 'a sphere', 3e-5)
   // A rectangle is no lamp of size, whatever its axis lane holds.
   assert.equal(LAMPS.isCapsule(lampOf('rect', { right: [1, 0, 0], size: [2, 1] })), false)
+})
+
+test('a point light with a profile and no tube is no capsule and is lit as the same light without the profile; a tube still is a capsule', () => {
+  const seen = (record: object) => LAMPS.lampSeen(record, [3, 0, 0.5], [0, 0, 1], 1e-4)
+  const bare = lampOf('point', { position: [0, 0, 0], range: 10 })
+  const profiled = lampOf('point', {
+    position: [0, 0, 0],
+    range: 10,
+    direction: [0, 0, -1],
+    iesProfile: 'p',
+    emitterAxis: [1, 0, 0],
+  })
+  assert.equal(LAMPS.isCapsule(bare), false)
+  assert.equal(LAMPS.isCapsule(profiled), false, 'the profile’s axis makes no tube')
+  assert.deepEqual(seen(profiled), seen(bare), 'lit exactly as the same light without a profile')
+  const tube = lampOf('point', {
+    position: [0, 0, 0],
+    range: 10,
+    emitterLength: 2,
+    emitterAxis: [1, 0, 0],
+  })
+  assert.equal(LAMPS.isCapsule(tube), true)
+  assert.notDeepEqual(
+    seen(tube).toward,
+    seen(bare).toward,
+    'the tube path: its mean direction is not the centre’s',
+  )
+  const both = lampOf('point', {
+    position: [0, 0, 0],
+    range: 10,
+    direction: [0, 0, -1],
+    iesProfile: 'p',
+    emitterLength: 2,
+    emitterAxis: [1, 0, 0],
+  })
+  assert.equal(LAMPS.isCapsule(both), true)
+  assert.deepEqual(seen(both), seen(tube), 'a profiled tube is lit as the tube')
 })
 
 test('a light’s shares weigh its diffuse and its specular light: the term is their sum, weighed', () => {

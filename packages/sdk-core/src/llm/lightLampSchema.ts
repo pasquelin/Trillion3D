@@ -54,6 +54,21 @@ function lampProperties(): Record<string, JsonSchemaProperty> {
       description:
         "The share of this light's specular light the surfaces take; 0 leaves the highlight out.",
     },
+    inverseExposureBlend: {
+      type: 'number',
+      minimum: 0,
+      maximum: 1,
+      default: 0,
+      description:
+        "Point, spot and rect only: how much the light's strength is divided by the image's exposure. 0 keeps the strength whatever the exposure; 1 divides it by the exposure, so the light looks the same in a dark scene and a bright one; between, the geometric blend.",
+    },
+    maxDrawDistance: {
+      type: 'number',
+      minimum: 0,
+      default: 0,
+      description:
+        'Point, spot and rect only: the distance from the view, in metres, past which the light is left out of the image, its lighting and its shadow, in a perspective view. 0 sets no limit; a light is also left out where it spans less than a small share of the screen (lightMinScreenRadius).',
+    },
   }
 }
 

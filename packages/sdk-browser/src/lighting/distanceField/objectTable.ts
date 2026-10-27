@@ -1,7 +1,6 @@
 import { length3 } from '../../../../math/src/vector/vector.ts'
 import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
 import type { AtlasState } from './atlasState.ts'
-import { farShadowed } from './objectCasting.ts'
 import { sameElements, sameRange } from '../../../../math/src/matrix/matrixElements.ts'
 import { halfExtent, holding } from './objectBoxes.ts'
 import { minimumAxisScale, objectWorldBox } from './objectRecords.ts'
@@ -9,8 +8,7 @@ import { minimumAxisScale, objectWorldBox } from './objectRecords.ts'
 /**
  * THE TABLE OF THE PLACEMENTS THAT HAVE A DISTANCE FIELD (`objectTracker.ts` keeps it level with the
  * cut's roots): the objects in the order of the GPU's records, the records to write, the regions
- * each change names for the global field to composite again, and how many the sun's distance-field
- * cascade shadows whatever the view says. A placement is added to the atlas's meshes
+ * each change names for the global field to composite again. A placement is added to the atlas's meshes
  * (`AtlasState.reference`), a mesh freed when its last placement is gone.
  */
 
@@ -68,15 +66,13 @@ export const keyOf = (placed: Pick<MeshDistanceField, 'mesh' | 'hlodCell'>, root
 /** Whether a root is shown: neither parked nor hidden. */
 export const rootVisible = (root: TrackedRoot) => !(root.parked || root.hidden)
 
-/** The table: its objects, the records to write, the regions changed, the shadowed count. */
+/** The table: its objects, the records to write, the regions changed. */
 export interface ObjectTable {
   /** The objects in the order of the GPU's records; a removed one is replaced by the last. */
   readonly objects: TrackedObject[]
   readonly atlas: AtlasState
   readonly upload: Set<number>
   readonly modified: ModifiedBoxes
-  /** The objects a sun's distance-field cascade shadows whatever the view says (`farShadowed`). */
-  farShadowObjects: number
 }
 
 export const createObjectTable = (atlas: AtlasState): ObjectTable => ({
@@ -84,7 +80,6 @@ export const createObjectTable = (atlas: AtlasState): ObjectTable => ({
   atlas,
   upload: new Set(),
   modified: [[], []],
-  farShadowObjects: 0,
 })
 
 const note = (table: ObjectTable, caches: readonly number[], box: ArrayLike<number>) =>
@@ -104,7 +99,6 @@ export function measure(root: TrackedRoot, field: MeshDistanceField, maxRadius: 
 export function removeObject(table: ObjectTable, at: number) {
   const { objects, upload } = table
   const gone = objects[at]
-  table.farShadowObjects -= farShadowed(gone.mark)
   note(table, [cacheOf(gone.moving)], gone.box)
   table.atlas.release(gone.asset)
   const last = objects.pop()!
@@ -139,7 +133,6 @@ export function addObject(
   }
   table.upload.add(table.objects.length)
   table.objects.push(entry)
-  table.farShadowObjects += farShadowed(entry.mark)
   note(table, [cacheOf(moving)], box)
 }
 
@@ -179,7 +172,6 @@ export function updateObject(
   noteChange(table, entry, { box, visible, moving })
   entry.world.set(Array.from({ length: 16 }, (_, k) => entry.root.world.elements[k]))
   const mark = entry.root.mark ?? 0
-  table.farShadowObjects += farShadowed(mark) - farShadowed(entry.mark)
   Object.assign(entry, { rank, version: entry.root.worldAt ?? 0, visible, moving, box, mark })
   entry.key = keyOf(entry.field, entry.root)
   table.upload.add(at)

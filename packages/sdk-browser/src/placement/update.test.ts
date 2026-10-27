@@ -14,8 +14,11 @@ import {
   seatRootParent,
 } from './rows/rows.ts'
 import { followPlacementRows } from './update.ts'
+import { worldVersion } from '../geometry/selection/rootWorld.ts'
 import type { ClusterRoot } from '../geometry/selection/types.ts'
-import { FAR_SHADOW_ROOT, SHADOWLESS_ROOT } from '../visibility/shader/castingMark.ts'
+import { SHADOW_MAPLESS_ROOT, SHADOWLESS_ROOT } from '../visibility/shader/castingMark.ts'
+import { castFlagsOf } from '../lighting/shadows/casters/castFlags.ts'
+import { MOBILITY_SHADOWLESS } from '../lighting/shadows/mobilityBits.ts'
 
 /** What a flip reads of the root it is handed: its mark, its distances and its parent. */
 type Flipped = Pick<ClusterRoot<unknown>, 'mark' | 'drawDistance' | 'rootParent'>
@@ -38,20 +41,38 @@ function placed() {
       worldBox = new Float64Array(6),
       localBox = Float64Array.from(local)
     boxTransform(worldBox, 0, localBox, 0, world.elements)
-    return { pages: [], world, localBox, worldBox, placement: { rows, index } }
+    // `mark` and `parked` are what the flips write (`markCasting`, `settleRoot`).
+    return {
+      pages: [],
+      world,
+      worldAt: 0,
+      localBox,
+      worldBox,
+      placement: { rows, index },
+      mark: undefined as number | undefined,
+      parked: false,
+    }
   })
   const mobility = createShadowMobility()
   mobility.ensure(roots.length, (rank) => roots[rank].world.elements)
-  const followed: number[] = []
+  const followed: number[] = [],
+    distanced: number[] = [],
+    versions: number[] = []
   const write = (moves: number[][], flip?: (rank: number, root: Flipped) => void) => {
     for (const [index, x] of moves) rows.matrices[index * 16 + 12] = x
     followed.length = 0
+    distanced.length = 0
+    versions.length = 0
     const last = BOXES.length - 1
-    return followPlacementRows(roots as never, rows, 0, last, flip, mobility.move, (rank) =>
-      followed.push(rank),
-    )
+    const follow = (rank: number, distant: boolean) => {
+      followed.push(rank)
+      // The world version the follower reads the root at.
+      versions.push(worldVersion(roots[rank]))
+      if (distant) distanced.push(rank)
+    }
+    return followPlacementRows(roots as never, rows, 0, last, flip, mobility.move, follow)
   }
-  return { rows, write, mobility, followed }
+  return { rows, roots, write, mobility, followed, distanced, versions }
 }
 
 test('a written range moves each root that moved, and none left where it stands', () => {
@@ -68,6 +89,42 @@ test('a written range moves each root that moved, and none left where it stands'
   assert.equal(write([[0, 0.1]]), false, 'written again where it stands: no move')
 })
 
+test('a row seated on another mesh is another primitive: the follower hears it, and its placement arrives anew', () => {
+  const { rows, roots, mobility } = placed()
+  const [first, second, other] = [{}, {}, {}] as never[]
+  const heard: number[] = []
+  const follow = (rank: number, _distant: boolean, reseated: boolean) => {
+    if (!reseated) return
+    heard.push(rank)
+    mobility.reseat(rank)
+  }
+  const follows = () =>
+    followPlacementRows(roots as never, rows, 0, BOXES.length - 1, undefined, undefined, follow)
+  const settle = () => {
+    mobility.writeRoots(() => {}, { castFlags: () => 0 })
+    mobility.clearArrivals()
+  }
+  rows.sources = [first, second, first]
+  follows()
+  assert.deepEqual(heard, [], 'the first follow seats the rows: no arrival')
+  settle()
+  assert.equal(mobility.hasArrivals(), false)
+  rows.sources = [first, other, first]
+  follows()
+  assert.deepEqual(heard, [1], 'the row that is another mesh now')
+  mobility.writeRoots(() => {}, { castFlags: () => 0 })
+  assert.equal(mobility.hasArrivals(), true, 'its placement arrives')
+  assert.deepEqual([...mobility.arrivals.subarray(0, 1)], [0b10], 'it alone')
+})
+
+test('a follower reads a root at the world it moved to: its box is taken after the move', () => {
+  const { write, versions } = placed()
+  write([[0, 0.1]])
+  assert.deepEqual(versions, [1, 1, 1], 'the world is versioned before the follow')
+  write([[0, 0.2]])
+  assert.deepEqual(versions, [2, 2, 2])
+})
+
 test('a row parked or taken back where it stands is drawn again, and is no move', () => {
   // A hidden or shown primitive is removed or added and its pages invalidated once; only a
   // transform update caches it as dynamic: the static layer keeps it.
@@ -80,17 +137,17 @@ test('a row parked or taken back where it stands is drawn again, and is no move'
 })
 
 test('a row that changes how it casts flips its mark, whatever its pose', () => {
-  // `castShadow` and `castFarShadow` written on a world mesh reach its row (`poses/poseSeat.ts`);
-  // its root leaves or enters every light cut, or keeps or loses the far bit the shadow raster's
-  // rows read, and the pages it covered are drawn again without it, or with it.
+  // `castShadow` and `castsShadowMaps` written on a world mesh reach its row (`poses/poseSeat.ts`);
+  // its root leaves or enters every light cut, or only the shadow maps, and the pages it covered are
+  // drawn again without it, or with it.
   const { rows, write, mobility } = placed(),
     marks: [number, number | undefined][] = []
   const flip = (rank: number, root: { mark?: number }) => marks.push([rank, root.mark])
   for (const casting of [
     SHADOWLESS_ROOT,
     0,
-    FAR_SHADOW_ROOT,
-    SHADOWLESS_ROOT | FAR_SHADOW_ROOT,
+    SHADOW_MAPLESS_ROOT,
+    SHADOWLESS_ROOT | SHADOW_MAPLESS_ROOT,
     0,
   ]) {
     rows.casting[1] = casting
@@ -100,6 +157,37 @@ test('a row that changes how it casts flips its mark, whatever its pose', () => 
     marks.length = 0
     assert.equal(write([], flip), false, 'written again unchanged: nothing')
   }
+})
+
+test("a row that leaves the shadow maps flips its root's mobility word, which the next write sends", () => {
+  // The flip hears the mark change (`settleRoot`) and touches the placement, as `flipWorld` does: the word is written again
+  // with the bit that makes the caster passes, and the box diff, skip it.
+  const { rows, roots, write, mobility } = placed()
+  const pushed: number[][] = []
+  const send = () => {
+    pushed.length = 0
+    mobility.writeRoots((first, count) => pushed.push([first, count]), {
+      castFlags: (rank) => castFlagsOf(roots[rank]),
+    })
+  }
+  send()
+  assert.deepEqual(
+    [...mobility.words].map((word) => word & MOBILITY_SHADOWLESS),
+    [0, 0, 0],
+  )
+  const flip = (rank: number) => mobility.touch(rank)
+  rows.casting[1] = SHADOW_MAPLESS_ROOT
+  assert.equal(write([], flip), true, 'the mark changed whatever the pose')
+  send()
+  assert.deepEqual(pushed, [[1, 1]], 'only the word that flipped is sent')
+  assert.deepEqual(
+    [...mobility.words].map((word) => word & MOBILITY_SHADOWLESS),
+    [0, MOBILITY_SHADOWLESS, 0],
+  )
+  rows.casting[1] = 0
+  write([], flip)
+  send()
+  assert.deepEqual([pushed, mobility.words[1] & MOBILITY_SHADOWLESS], [[[1, 1]], 0], 'and back')
 })
 
 test('a moving row that stops casting as it moves stays moving', () => {
@@ -114,15 +202,17 @@ test('a moving row that stops casting as it moves stays moving', () => {
 test('a row that names other draw distances hands its root the distances it names now', () => {
   // Rows are seated before their cells stream in: the distances come with the cell, or change at
   // run time, and reach the cut through the flip (`GpuSelection.drawDistanceWorld`).
-  const { rows, write, mobility } = placed(),
+  const { rows, write, mobility, distanced } = placed(),
     seen: [number, unknown][] = []
   const flip = (rank: number, root: { drawDistance?: unknown }) =>
     seen.push([rank, root.drawDistance])
   seatDrawDistance(rows, 1, { min: 2, max: 50, perInstance: false })
   assert.equal(write([], flip), true, 'a distance named: the root is flipped')
   assert.deepEqual(seen, [[1, { min: 2, max: 50, perInstance: false }]])
+  assert.deepEqual(distanced, [1], 'its follow hears the distances changed')
   seen.length = 0
   assert.equal(write([], flip), false, 'written again unchanged: nothing')
+  assert.deepEqual(distanced, [], 'unchanged distances: none heard')
   // A nearest alone is a distance of an object of its own: the root is flipped for it too.
   seatDrawDistance(rows, 1, { min: 4, max: 0, perInstance: false })
   assert.equal(write([], flip), true, 'a nearest alone')

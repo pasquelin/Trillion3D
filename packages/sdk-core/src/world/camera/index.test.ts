@@ -160,3 +160,55 @@ test('each write is a new set, so a view that was drawn can tell it was written;
   assert.deepEqual(copy.clipPlane, eye.clipPlane)
   assert.deepEqual(copy.hidden, [node])
 })
+
+test('the owner is null by default, a node of the page, and each write is a new set', () => {
+  const eye = camera.perspective(),
+    player = new Object3D()
+  assert.equal(eye.owner, null)
+  assert.equal(eye._viewSet.owner, null)
+  const before = eye._viewSet
+  eye.owner = player
+  assert.equal(eye.owner, player)
+  assert.notEqual(eye._viewSet, before, 'the view that was drawn can tell it was written')
+  assert.equal(eye.clone().owner, player, 'a clone keeps it')
+  eye.owner = null
+  assert.equal(eye.owner, null)
+  for (const bad of [5, 'player', undefined])
+    assert.throws(() => (eye.owner = bad as never), /owner: /)
+})
+
+test('the view target is an offset from the eye in the camera’s own frame: a point of the parent’s frame, a world point from `set`', () => {
+  const eye = camera.perspective()
+  eye.position.set(1, 2, 3)
+  eye.setViewTarget([1, 2, -7])
+  near(eye.viewTarget.toArray(), [0, 0, -10], 'ten metres ahead of an unturned camera')
+  eye.setViewTarget(new Vector3(1, 2, 3))
+  near(eye.viewTarget.toArray(), [0, 0, 0], 'at the eye')
+  eye.setViewTarget([1, 2, -7] as const)
+  near(eye.viewTarget.toArray(), [0, 0, -10], 'a read-only list')
+  eye.setViewTarget(null)
+  assert.deepEqual(eye.viewTarget.toArray(), [0, 0, 0], 'none')
+  // Under a rig that moves it, the point is read in the rig's frame, as `position` is.
+  const rig = new Object3D()
+  rig.position.set(100, 0, 0)
+  rig.add(eye)
+  eye.setViewTarget([1, 2, -7])
+  near(eye.viewTarget.toArray(), [0, 0, -10], 'the rig’s frame')
+  // `set` takes the world point, as `lookAt` does.
+  eye.set({ position: [1, 2, 3], target: [101, 2, -7] })
+  near(eye.viewTarget.toArray(), [0, 0, -10], 'a world point under the rig')
+})
+
+test('the view target undoes the camera’s whole pose: its position, its turn and its scale', () => {
+  const eye = camera.perspective()
+  eye.position.set(1, 2, 3)
+  // A quarter turn about +y: the camera looks along −x, and its +x axis along −z.
+  eye.quaternion.set(0, Math.SQRT1_2, 0, Math.SQRT1_2)
+  eye.setViewTarget([-9, 2, 3])
+  near(eye.viewTarget.toArray(), [0, 0, -10], 'ten metres ahead of the turned camera')
+  eye.setViewTarget([1, 2, 1])
+  near(eye.viewTarget.toArray(), [2, 0, 0], 'two metres to its right')
+  eye.scale.set(2, 4, 5)
+  eye.setViewTarget([1, 2, 1])
+  near(eye.viewTarget.toArray(), [1, 0, 0], 'a stretched camera measures in its own units')
+})

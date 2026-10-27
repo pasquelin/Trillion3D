@@ -1,5 +1,6 @@
 import type { DagRoot } from '../types.ts'
 import { parentErrorOf } from '../../selection/helpers.ts'
+import { pagesDisplacementReach } from '../../../visibility/tessellation/numbers.ts'
 import {
   CLUSTER_WORDS,
   COLD_HAS_BOX,
@@ -31,7 +32,10 @@ function writeSphere(
 }
 
 /** A placement's hot and cold records, written from rank 0 of `hot` and `cold`. `owner` holds the
- *  absolute owner node; the record keeps it relative to `nodeBase`, the placement's first node. */
+ *  absolute owner node; the record keeps it relative to `nodeBase`, the placement's first node. A
+ *  cluster's box grows on every side by the distance a displaced surface of the primitive can move a
+ *  point (`pagesDisplacementReach`), as its nodes' do (`packCullingNodes`): the cull that tests the
+ *  box holds the displaced points. */
 function writeRecords(
   pages: DagRoot['pages'],
   owner: Uint32Array,
@@ -41,6 +45,7 @@ function writeRecords(
 ) {
   const hotInts = new Uint32Array(hot.buffer),
     coldInts = new Uint32Array(cold.buffer)
+  const grow = pagesDisplacementReach(pages)
   for (let i = 0; i < pages.length; i++) {
     const rec = pages[i],
       dst = i * CLUSTER_WORDS
@@ -59,8 +64,8 @@ function writeRecords(
       hasBox = rec.min && rec.max ? 1 : 0
     cold[base + COLD_HAS_BOX] = hasBox
     for (let a = 0; a < 3; a++) {
-      cold[base + COLD_MIN + a] = hasBox ? rec.min![a] : 0
-      cold[base + COLD_MAX + a] = hasBox ? rec.max![a] : 0
+      cold[base + COLD_MIN + a] = hasBox ? rec.min![a] - grow : 0
+      cold[base + COLD_MAX + a] = hasBox ? rec.max![a] + grow : 0
     }
     // The owner node is only read by the oracle, which replays descent: it stays cold.
     coldInts[base + COLD_OWNER] = owner[i] === NO_INDEX ? NO_INDEX : owner[i] - nodeBase

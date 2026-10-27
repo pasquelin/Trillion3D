@@ -2,6 +2,7 @@
 // transmits, prepared and planned as `prepareBlendResources` does, and the frame targets of a
 // replay.
 import { createGraphFrame } from '../frame/render/graphFrame.ts'
+import { createRootOffsets } from '../frame/render/rootOffsets.ts'
 import * as G from '../scene/host/graph/graph.fixture.ts'
 import { Color } from '../../../sdk-core/src/world/math/color.ts'
 import { surfaceOf, type PageSurface } from '../geometry/pages/surface.ts'
@@ -169,6 +170,7 @@ export function replay(blendState: ReturnType<typeof prepared>['blendState'], gp
       writesFeedback: true,
       materialTable: {},
       graphFrame: createGraphFrame(),
+      rootOffsets: createRootOffsets(),
     },
     gpu,
     capture: { capturing: false },

@@ -13,6 +13,7 @@ import type { PageSurface } from '../../../geometry/pages/surface.ts'
 import type { PageMesh } from '../../../geometry/pages/pageMesh.ts'
 import { variantOf, type SurfaceVariant } from '../../../geometry/pages/surfaceVariant.ts'
 import type { RowLink } from '../../../geometry/partition/rows.ts'
+import { holdPrimitiveGroup } from '../../../visibility/shader/castingMark.ts'
 import { weigh, type uniqueNames } from './nodes.ts'
 
 /** What the meshes are built from: the table's meshes, each primitive's geometry, the surface of
@@ -48,6 +49,7 @@ function nodesOfRanks(
       const group = new Group()
       ranks.set(group, { meshes: rank })
       for (const part of parts) group.add(part)
+      holdPrimitiveGroup(group)
       built.set(rank, group)
     }
   }

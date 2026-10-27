@@ -10,6 +10,8 @@ import { awayCamera, drawnQuad } from './drawnQuad.fixture.ts'
 import { renderWebgpuPages } from '../render/render.ts'
 import { flushWebgpuPages } from '../render/flush.ts'
 import { captureColorView } from '../io/colorCapture.ts'
+import { captureAside } from '../io/captureAside.ts'
+import { VsmCacheManager } from '../../lighting/shadows/vsm/cacheManager.ts'
 import { VIEW_GPU_KEYS, VIEW_RUN_KEYS, VIEW_VIS_KEYS, createWebgpuView } from './state/view.ts'
 import { releaseWebgpuView, useWebgpuView } from './state/viewSwitch.ts'
 import { LIGHT_BUFFER_AT } from './state/lightBufferLayout.ts'
@@ -161,6 +163,24 @@ test('a capture leaves the main view’s targets, TAA and Hi-Z history intact', 
     made.length && made.every((texture) => gpu.destroyed.includes(texture)),
     'the capture view is freed',
   )
+})
+
+test('a capture draws under an identity of its own: its shadow cache entries are not the main view’s, and leave with it', async () => {
+  const { rt } = await drawnQuad()
+  const cache = new VsmCacheManager()
+  rt.lights.vsm = { state: { cache } } as never
+  // The main view's clipmap entry of a sun, under the identity '' it is drawn with.
+  const mainEntry = cache.lightEntryFor('sun', 4, rt.views.main.id)
+  let during: string | undefined
+  await captureAside(rt, { width: 16, height: 16 }, async () => {
+    during = rt.views.active.id
+    // What the capture's frames do with the cache while it is drawn.
+    cache.beginFrame(1, during)
+    cache.lightEntryFor('sun', 4, during)
+  })
+  assert.ok(during && during !== rt.views.main.id, 'the capture has an identity of its own')
+  assert.equal(cache.entries.size, 1, 'the capture’s entry left with its view')
+  assert.equal(cache.lightEntryFor('sun', 4, rt.views.main.id), mainEntry, 'the main view’s stands')
 })
 
 /** A lit quad under a height fog alone — no volume, no cubemap: nothing else writes the fog's view

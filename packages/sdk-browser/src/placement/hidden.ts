@@ -7,6 +7,7 @@ import {
   SHADOWLESS_ROOT,
 } from '../visibility/shader/castingMark.ts'
 import { rootedUnder } from '../scene/host/world/rooted.ts'
+import type { ViewHidden } from '../frame/render/viewHidden.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 
 /** A see-through draw — a blend item — as visibility reads it: hidden with its source node, or
@@ -37,13 +38,16 @@ export const castsWhileHidden = (root: { mark?: number }) =>
 
 /** Root `root` (rank `rank`) parked as the one rule says — its source hidden and not casting while
  *  hidden, or its row parked —, `flip` hearing it when that flipped or when its shadow bit did
- *  (`cast`). Whether it flipped. */
+ *  (`cast`). The views hear it too (`views`): whether it is hidden and casts, and whether it stands for
+ *  a first-person object. Whether it flipped. */
 export function settleRoot<T>(
   root: ClusterRoot<T>,
   rank: number,
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   cast = false,
+  views?: ViewHidden,
 ) {
+  views?.note(rank, root)
   const parked = (!!root.hidden && !castsWhileHidden(root)) || rowParked(root.placement),
     flipped = parked !== !!root.parked
   if (!flipped && !cast) return false
@@ -110,12 +114,13 @@ export function followHostVisibility<
   },
   flip?: (rank: number, root: ClusterRoot<T>) => void,
   under?: { roots: Subset; seeThrough: Subset },
+  views?: ViewHidden,
 ) {
   followHidden(
     roots,
     // A row root is hidden as its row is: its owner writes the row's flag (`followPlacementRows`).
     (root) => (root.placement ? undefined : rootSource(root)),
-    (root, rank) => settleRoot(root, rank, flip),
+    (root, rank) => settleRoot(root, rank, flip, false, views),
     under?.roots,
   )
   const ranks = under?.roots.ranks,
@@ -126,7 +131,7 @@ export function followHostVisibility<
       node = rootSource(root)
     if (root.placement || !node || !markCasting(root, nodeCasting(node))) continue
     // Its mark changed: it may now park or not while hidden.
-    settleRoot(root, rank, flip, true)
+    settleRoot(root, rank, flip, true, views)
   }
   followHidden(
     seeThrough.entries,

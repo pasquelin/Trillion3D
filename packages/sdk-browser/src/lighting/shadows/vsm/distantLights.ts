@@ -23,18 +23,25 @@ const ages: number[] = []
 /**
  * The frame's distant updates, before the lights are set up: of the fully cached distant lights
  * (`VsmLightCache.isFullyCached`), the `maxPerFrame` left longest unscheduled are marked scheduled
- * at this frame (`VsmLightCache.markScheduled`), and `addVsmLocalLightShadow` draws them again.
- * A negative `maxPerFrame` picks them all, 0 none — then no distant light is drawn again until its
- * key changes —; nothing is picked while the cache is off.
+ * at the scene frame `sceneFrame` (`VsmLightCache.markScheduled`), and `addVsmLocalLightShadow` draws
+ * them again. A negative `maxPerFrame` picks them all, 0 none — then no distant light is drawn again
+ * until its key changes —; nothing is picked while the cache is off. The schedule turns once a scene
+ * frame, as the reference's does for the scene render: the views set up in it, or a view set up
+ * twice, pick none after the first (the distant lights' maps are shared by every view, and the first
+ * view drew the ones picked).
  */
-export function scheduleDistantUpdates(cache: VsmCacheManager, maxPerFrame: number) {
+export function scheduleDistantUpdates(
+  cache: VsmCacheManager,
+  maxPerFrame: number,
+  sceneFrame: number,
+) {
   const most = maxPerFrame < 0 ? Infinity : maxPerFrame
-  if (most === 0 || !cache.cacheEnabled) return
-  const frame = cache.frameStamp
+  if (most === 0 || !cache.cacheEnabled || cache.distantRotatedAt === sceneFrame) return
+  cache.distantRotatedAt = sceneFrame
   picked.length = ages.length = 0
   for (const entry of cache.entries.values()) {
     if (!entry.isFullyCached()) continue
-    const age = frame - entry.scheduledFrame
+    const age = sceneFrame - entry.scheduledFrame
     if (picked.length < most) {
       picked.push(entry)
       ages.push(age)
@@ -47,5 +54,5 @@ export function scheduleDistantUpdates(cache: VsmCacheManager, maxPerFrame: numb
       ages[least] = age
     }
   }
-  for (const entry of picked) entry.markScheduled(frame)
+  for (const entry of picked) entry.markScheduled(sceneFrame)
 }

@@ -1,21 +1,52 @@
 /**
- * THE ID HALF OF THE SHADOW MAP ARRAY, a frame's (`frameSetup.ts`): the maps — directional first,
- * then local, then the unreferenced cache entries —, and the next-map data each map leaves under its
- * previous id. Where each map's table lies is the table packing's (`tableBlocks.ts`).
+ * THE ID HALF OF THE SHADOW MAP ARRAY, a frame's (`frameSetup.ts`): the ids of the maps in two ranges,
+ * as the reference lays them (`AllocateShadowMapSlots`) — the maps of one page (a distant light's) from
+ * id 0, in a range of their own sized to this frame's, then the full maps past it, the suns' clipmaps
+ * first, then the local lights'. In each range a light comes before the entries no light referenced.
+ * A map is given its id by the order of its run (`VSM_ID_RUN`) whatever the order it was claimed in:
+ * a claim is the entry and its map count, and the ids are laid once every claim is made (`seal`).
+ * Nothing is moved by a claim: the entries take their ids when the frame's plan is kept
+ * (`VsmCacheManager.commitIds`). A light is given its maps whatever the count: the map slots grow to
+ * hold them (`planVirtualShadowFrame`). The next-map data each map leaves under its previous id is kept
+ * here too. Where each map's table lies is the table packing's (`tableBlocks.ts`).
  */
-import type { VsmIdAllocator } from './cacheManager.ts'
-import { VSM_NEXT_ID_VALID } from './constants.ts'
-import type { VsmNextMap } from './lightCache.ts'
+import { VSM_RECORD_MAP_COUNT, VSM_NEXT_ID_VALID } from './constants.ts'
+import type { VsmLightCache, VsmNextMap } from './lightCache.ts'
 
 /** Next-map data stride on the GPU (`VsmNextMap`). */
 export const VSM_NEXT_MAP_BYTES = 16
 
+/** The runs of ids, in the order they lie: the maps of one page of the lights, then of the entries no
+ *  light referenced; the suns' clipmaps; the full maps of the lights, then of the entries no light
+ *  referenced. */
+const SINGLE_PAGE = 0,
+  SUN = 2,
+  FULL = 3,
+  RUNS = 5
+
+/** What claims a run: a sun's clipmap, a local light, an entry no light referenced. */
+type VsmClaimKind = 'sun' | 'light' | 'unreferenced'
+
+/** One entry's claim on `count` ids of a run, its first id once the claims are sealed. */
+interface VsmIdClaim {
+  entry: VsmLightCache
+  run: number
+  /** The ids before it in its run. */
+  offset: number
+  count: number
+  unreferenced: boolean
+  id: number
+}
+
 /** The id half of the shadow map array. */
-export class VsmMapIds implements VsmIdAllocator {
-  /** The maps given ids this frame: ids [0, mapCount). */
+export class VsmMapIds {
+  /** The maps claimed this frame: ids [0, mapCount). */
   mapCount = 0
-  localMaps = 0
-  unseenMaps = 0
+  /** The id of the first sun's first map: the suns' clipmaps lie from it, the prefiltered distant
+   *  shadow's history addresses them from it (`vsmHistoryLayout`). */
+  sunBase = 0
+  /** More maps claimed than an id can name (`VSM_RECORD_MAP_COUNT`): no set holds them. */
+  exhausted = false
   /** The next-map data count: one past the largest previous id given next data
    *  this frame; the ids below it given none read zero (flags 0 = no caching). */
   nextMapCount = 0
@@ -24,53 +55,69 @@ export class VsmMapIds implements VsmIdAllocator {
   nextMapIdCount = 0
   /** Each previous id's record, kept across frames (`reset`), this frame's those listed. */
   readonly nextMaps: VsmNextMap[] = []
+  /** The frame's claims: the first `claimCount`, in the order they were made. */
+  readonly claims: VsmIdClaim[] = []
+  claimCount = 0
+  private readonly held = new Map<VsmLightCache, VsmIdClaim>()
+  private readonly runSizes = new Int32Array(RUNS)
+  private readonly runStarts = new Int32Array(RUNS)
 
-  /** The maps refused this frame for want of slots (`refuse`). */
-  refusedMaps = 0
-
-  /** The maps a frame may hold: the set's map slots (`VsmLayout.mapSlots`). */
-  capacity = 0
-
-  /** Empties the allocator for a new frame of `capacity` map slots, keeping its storage. */
-  reset(capacity: number) {
-    this.capacity = capacity
-    this.refusedMaps = 0
-    this.mapCount = 0
-    this.localMaps = 0
-    this.unseenMaps = 0
+  /** Empties the allocator for a new frame, keeping its storage. */
+  reset() {
+    this.mapCount = this.sunBase = this.claimCount = 0
+    this.exhausted = false
     this.nextMapCount = 0
     this.nextMapIdCount = 0
+    this.held.clear()
+    this.runSizes.fill(0)
     return this
   }
 
-  /** Whether `count` more maps fit the frame's slots. */
-  fits(count: number) {
-    return this.mapCount + count <= this.capacity
-  }
-  /** Counts `count` maps a light wanted that the frame's slots did not hold. */
-  refuse(count: number) {
-    this.refusedMaps += count
-  }
-  /** Allocates `count` slots of the shadow map array. */
-  private allocateMapSlots(count: number) {
-    const id = this.mapCount
+  /** Claims ids for the maps of `entry`, in the run of `kind` its distance puts it in. A map that had
+   *  an id has next-map data under it: its count is known now. */
+  claim(entry: VsmLightCache, kind: VsmClaimKind) {
+    const unreferenced = kind === 'unreferenced',
+      run = kind === 'sun' ? SUN : (entry.distant ? SINGLE_PAGE : FULL) + (unreferenced ? 1 : 0),
+      count = entry.mapCaches.length
+    const claim = (this.claims[this.claimCount++] ??= {} as VsmIdClaim)
+    claim.entry = entry
+    claim.run = run
+    claim.offset = this.runSizes[run]
+    claim.count = count
+    claim.unreferenced = unreferenced
+    claim.id = -1
+    this.runSizes[run] += count
     this.mapCount += count
-    return id
+    this.exhausted ||= this.mapCount > VSM_RECORD_MAP_COUNT
+    if (entry.mapId >= 0) this.nextMapCount = Math.max(this.nextMapCount, entry.mapId + count)
+    this.held.set(entry, claim)
   }
-  allocateDirectional(count: number) {
-    if (this.unseenMaps !== 0 || this.localMaps !== 0)
-      throw new Error('VSM: directional maps are allocated first')
-    return this.allocateMapSlots(count)
+
+  /** Lays the runs one after the other and gives every claim its id. */
+  seal() {
+    let base = 0
+    const starts = this.runStarts
+    for (let run = 0; run < RUNS; run++) {
+      starts[run] = base
+      base += this.runSizes[run]
+    }
+    this.sunBase = starts[SUN]
+    for (let i = 0; i < this.claimCount; i++) {
+      const claim = this.claims[i]
+      claim.id = starts[claim.run] + claim.offset
+    }
   }
-  allocateLocal(count: number) {
-    if (this.unseenMaps !== 0) throw new Error('VSM: local maps before unreferenced ones')
-    this.localMaps += count
-    return this.allocateMapSlots(count)
+
+  /** Whether `entry` claimed ids this frame. */
+  holds(entry: VsmLightCache) {
+    return this.held.has(entry)
   }
-  allocateUnreferenced(count: number) {
-    this.unseenMaps += count
-    return this.allocateMapSlots(count)
+
+  /** The id of the first map of `entry`, which claimed (sealed). */
+  firstIdOf(entry: VsmLightCache) {
+    return this.held.get(entry)!.id
   }
+
   /** Records a map's next-frame data under its previous id, which has a next one. */
   writeNextMap(prevId: number, data: VsmNextMap) {
     const slot = (this.nextMaps[prevId] ??= {

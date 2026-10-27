@@ -9,8 +9,8 @@ import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { losslessAtlas } from './losslessAtlas.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { words } from '../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
-import { TILE_PROTECTED } from './evictSortWgsl.ts'
-import { POOL_RANKS, POOL_TIERS } from '../../gpu/sort/rank.ts'
+import { TILE_PROTECTED, TILE_TIERS } from './evictSortWgsl.ts'
+import { POOL_RANKS } from '../../gpu/sort/rank.ts'
 import { poolRank } from '../../../../../tests/kit/fakeDevice/fakeTileEvict.ts'
 
 test('a queue that still holds victims and saw nothing move is not cut again', async () => {
@@ -45,10 +45,10 @@ test('a queue that still holds victims and saw nothing move is not cut again', a
 // A tile place read in the last 16 clocks is in use; past them the least recently read leaves
 // first, one age step a clock, then the finer level inside a step.
 test('a tile place is ranked by the exact clock of its last read once unprotected', () => {
-  const rank = (age: number, tier = 0) => poolRank(age, tier, TILE_PROTECTED)
+  const rank = (age: number, tier = 0) => poolRank(age, tier)
   for (let age = 0; age < TILE_PROTECTED; age++) assert.equal(rank(age), POOL_RANKS, `age ${age}`)
   const steps = Array.from({ length: 40 }, (_, i) =>
-    Math.floor(rank(TILE_PROTECTED + i) / POOL_TIERS),
+    Math.floor(rank(TILE_PROTECTED + i) / TILE_TIERS),
   )
   assert.deepEqual(
     steps.slice(0, 31),

@@ -30,14 +30,6 @@ function rowLocal(node: CellNode, out: Float64Array) {
   return composeMatrix4(out, position.elements, quaternion.elements, scale.elements)
 }
 
-/** A node's far-shadow test as its byte in `CellRows.farShadowTests`: 0 for none named, 1 for
- *  `true`, 2 for `false`. */
-const farTestByte = (test: boolean | undefined) => (test === undefined ? 0 : test ? 1 : 2)
-
-/** The far-shadow test a byte of `CellRows.farShadowTests` names; none for 0 or no byte. */
-export const farTestOf = (byte: number | undefined) =>
-  byte === 1 ? true : byte === 2 ? false : undefined
-
 /** A cell file as the pool answers it (`PageTaskDone.cells`). */
 type CellPayload = NonNullable<PageTaskDone['cells']>
 
@@ -53,8 +45,6 @@ export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellP
     sourceNodes = new Uint32Array(nodes.length),
     drawDistances = new Float32Array(DRAW_DISTANCE_STRIDE * nodes.length),
     farFields = new Uint8Array(nodes.length),
-    castFarShadows = new Uint8Array(nodes.length),
-    farShadowTests = new Uint8Array(nodes.length),
     rootParents: number[] = []
   nodes.forEach((node, at) => {
     ranks[2 * at] = node.parent ?? -1
@@ -66,8 +56,6 @@ export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellP
     sourceNodes[at] = parseSourceRank(node.sourceNode)!
     writeDrawDistanceAt(drawDistances, at, node.drawDistance)
     farFields[at] = node.farField ? 1 : 0
-    castFarShadows[at] = node.castFarShadow ? 1 : 0
-    farShadowTests[at] = farTestByte(node.farShadowTest)
     node.rootParents?.forEach((parent, primitive) => {
       if (parent) rootParents.push(at, primitive, ...parent)
     })
@@ -81,8 +69,6 @@ export function decodeCellFile(source: ArrayBuffer, url = 'a scene cell'): CellP
     sourceNodes: sourceNodes.buffer,
     drawDistances: drawDistances.buffer,
     farFields: farFields.buffer,
-    castFarShadows: castFarShadows.buffer,
-    farShadowTests: farShadowTests.buffer,
     rootParents: Float32Array.from(rootParents).buffer,
   }
 }
@@ -107,11 +93,6 @@ export type CellRows = {
   drawDistances: Float32Array
   /** Per node, 1 when a view's primed depth draws it (`CellNode.farField`); absent for none. */
   farFields?: Uint8Array
-  /** Per node, 1 when it casts far shadows (`CellNode.castFarShadow`); absent for none. */
-  castFarShadows?: Uint8Array
-  /** Per node, 1 when a sun's far-shadow test reaches it, 2 when it never does
-   *  (`CellNode.farShadowTest`), 0 for none named; absent for none. */
-  farShadowTests?: Uint8Array
   /** The groups that replace the roots of the instances of assemblies the cell holds
    *  (`CellNode.rootParents`): seven floats an entry — the node, the primitive of its mesh, the
    *  error, the ball's centre and radius —; absent for none. */
@@ -147,8 +128,6 @@ export const CELL_COLUMNS = [
   'sourceNodes',
   'drawDistances',
   'farFields',
-  'castFarShadows',
-  'farShadowTests',
   'rootParents',
 ] as const
 
@@ -162,7 +141,5 @@ export const cellRows = (payload: CellPayload): CellRows => ({
   sourceNodes: new Uint32Array(payload.sourceNodes),
   drawDistances: new Float32Array(payload.drawDistances),
   farFields: new Uint8Array(payload.farFields),
-  castFarShadows: new Uint8Array(payload.castFarShadows),
-  farShadowTests: new Uint8Array(payload.farShadowTests),
   rootParents: new Float32Array(payload.rootParents),
 })

@@ -38,7 +38,7 @@ test('the reflection rays placed in the world: back toward the eye, out of the v
     ...sample(15.5, 15.5, 10, [0, 1, 0], HALF_MAX),
     ...[0, 0, 0, 0, 0, 0, 0, 0],
   ])
-  const rays = decodeReflections(samples, 4, 2, cam, [64, 64], 2)
+  const rays = decodeReflections(samples, 4, 2, cam, [64, 64], [2, 2])
   assert.equal(rays.count, 3)
   assert.equal(rays.stride, 2)
   // Each leaves the surface 10 m ahead on the axis.
@@ -52,6 +52,16 @@ test('the reflection rays placed in the world: back toward the eye, out of the v
   // 1000 m sideways leaves a 90° view; the ray back toward the eye stays in it.
   assert.equal(rays.offView, 1)
   assert.equal(rays.missed, 1)
+})
+
+test('the reflection rays of a checkerboard grid leave the centre of a block one pixel high', () => {
+  const cam = cameraAt([0, 0, 0])
+  // A 64 × 32 target in blocks of 2 × 1: grid texel (15.5, 15.5) is again its centre, the eye's axis.
+  const samples = Float32Array.from(sample(15.5, 15.5, 10, [0, 0, 1], 3))
+  const rays = decodeReflections(samples, 1, 1, cam, [64, 32], [2, 1])
+  assert.equal(rays.count, 1)
+  assert.ok(Math.abs(rays.origins[0]) < 1e-5 && Math.abs(rays.origins[1]) < 1e-5)
+  assert.ok(Math.abs(rays.origins[2] + 10) < 1e-4)
 })
 
 /** A runtime as an inspection request and the freeze read it. */

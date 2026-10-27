@@ -2,8 +2,8 @@ import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { castFlagsOf } from './castFlags.ts'
 import { readShadowSetting } from '../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { CAST_STATE_WORDS } from './castChanges.ts'
-import { movesOften } from './mobilityState.ts'
 import { ROOT_SECTION, ROOT_SECTIONS } from './rootWordsWgsl.ts'
+import { pagesDisplacementReach } from '../../../visibility/tessellation/numbers.ts'
 
 /**
  * What `mobility.writeRoots` reads of the roots, built once per runtime and kept on its lights
@@ -14,9 +14,9 @@ import { ROOT_SECTION, ROOT_SECTIONS } from './rootWordsWgsl.ts'
 export type RootWordsSource = {
   device: GPUDevice
   push: (first: number, count: number) => void
-  /** Whether a deformation has the pages its casters draw invalidated as they are drawn
-   *  (`shadowCacheDeformableMeshesInvalidate`), the setting the words were last written with. */
-  deformInvalidates: boolean
+  /** Whether the primitives that wear an offset or a displacement are cached as still ones
+   *  (`shadowCacheWpoPrimitives`), as the last upload read it. */
+  cachesWpo: boolean
   castFlags: (rank: number) => number
   /** Whether a banked root reads its rest pose: no deformation moves its vertices. */
   rests: (rank: number) => boolean
@@ -43,7 +43,7 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
     { selectionRoots } = layout
   const source: RootWordsSource = {
     device,
-    deformInvalidates: readShadowSetting(rt, 'shadowCacheDeformableMeshesInvalidate'),
+    cachesWpo: false,
     push: (first, count) => {
       const { rootWords, mobility } = lights,
         placements = rootWords!.size / (ROOT_SECTIONS * 4)
@@ -57,13 +57,15 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
         )
     },
     rests: (rank) => rt.vis.deformation?.tracks.named(rank) === -1,
-    castFlags: (rank) =>
-      castFlagsOf(
-        selectionRoots[rank],
-        rt.vis.rootOffsets.rowOf(rank),
-        source.rests(rank),
-        source.deformInvalidates,
-      ),
+    castFlags: (rank) => {
+      const root = selectionRoots[rank],
+        offsets = rt.vis.rootOffsets.rowOf(rank)
+      // A placement arrives moving when a surface of it wears an offset or a displacement and the
+      // primitives that wear one are not cached: the reference's mesh shape that is often moving.
+      const wpoMoves =
+        !source.cachesWpo && (!!offsets?.worn || pagesDisplacementReach(root?.pages ?? []) > 0)
+      return castFlagsOf(root, offsets, source.rests(rank), wpoMoves)
+    },
     disableSq: (rank) => {
       const row = rt.vis.rootOffsets.rowOf(rank)
       return row ? row.disable * row.disable : 0
@@ -105,17 +107,12 @@ export function uploadRootWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!pose) poseReaders.set(rt, (pose = (rank) => rt.layout.selectionRoots[rank].world.elements))
   mobility.ensure(selectionRoots.length, pose)
   const source = sourceOf(rt, device)
-  // The setting turned: every word is written again with it, and each root a deformation moves now
-  // takes a forced move, so that its pages are staled by the move and the settle that follow — it
-  // leaves or joins the static layer as any root that moved does (`mobility.move`).
-  const invalidates = readShadowSetting(rt, 'shadowCacheDeformableMeshesInvalidate')
-  if (invalidates !== source.deformInvalidates) {
-    source.deformInvalidates = invalidates
-    mobility.rewrite()
-    for (let rank = 0; rank < selectionRoots.length; rank++) {
-      const deforms = selectionRoots[rank].deformation && !source.rests(rank)
-      if (deforms && movesOften(source.castFlags(rank))) mobility.move(rank, pose(rank), true)
-    }
+  // The option turned: the primitives that wear an offset are made anew, as the reference recreates
+  // the render state of every primitive when it changes, and each arrives as a new one.
+  const cachesWpo = readShadowSetting(rt, 'shadowCacheWpoPrimitives')
+  if (cachesWpo !== source.cachesWpo) {
+    source.cachesWpo = cachesWpo
+    mobility.rearrive()
   }
   const owed = Math.max(1, mobility.words.length)
   // A buffer made anew: every word goes up, and every page may cast anew.

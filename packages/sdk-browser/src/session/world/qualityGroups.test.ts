@@ -26,14 +26,12 @@ test("the shadows' levels write the sun's shadow distance scale and the edge's t
       preset,
     )
   }
-  // The culling's switches are no level's: a page's value holds through a group given back.
+  // The culling's switch is no level's: a page's value holds through a group given back.
   settings.set('farShadowCulling', false, 'page')
-  settings.set('farShadowCullsAllMeshes', true, 'page')
   q.set('shadows', 'fine')
   assert.equal(settings.get('shadowDistanceScale'), 0.85)
   q.set('shadows', 'preset')
   assert.equal(settings.get('farShadowCulling'), false)
-  assert.equal(settings.get('farShadowCullsAllMeshes'), true)
   settings.set('shadowDistanceScale', 1.5, 'page')
   q.preset = 'smooth'
   assert.equal(settings.get('shadowDistanceScale'), 1.5, 'the page, over the preset')

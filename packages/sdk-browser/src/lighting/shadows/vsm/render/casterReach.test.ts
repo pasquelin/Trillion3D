@@ -10,13 +10,13 @@ import { functionsOf, wgslConstants } from '../../../../materials/texture/shader
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
 import { Mat3 } from '../../../../materials/texture/shaderRunMatrix.fixture.ts'
 import { DAG_AXIS_SCALES_WGSL } from '../../../../geometry/dag/shader/primitiveWgsl.ts'
-import { vsmLayout } from '../layout.ts'
 import { vsmRenderCandidatesWgsl } from './renderCandidatesWgsl.ts'
 import { VSM_OFFSET_GROWS_WGSL } from '../invalidation/boxCullWgsl.ts'
 import { vsmRenderRasterWgsl } from './renderRasterWgsl.ts'
 import { vsmRenderSoftwareWgsl } from './renderSoftwareWgsl.ts'
+import { SUNS_LAYOUT } from '../layout.fixture.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+const LAYOUT = SUNS_LAYOUT
 const CASTERS = vsmRenderCandidatesWgsl()
 
 test('a placement’s axis scales are the lengths of its matrix’s columns, the error taking the smallest', () => {
@@ -108,8 +108,18 @@ test('a depth wins the pool only where it is greater than the word held, in the 
   // The static layer reads the slice it writes.
   assert.equal(vsmRenderBeats([0, 0], 1, bits(0.3)), true)
   assert.equal(vsmRenderBeats([0, 0], 1, bits(0.2)), false)
-  assert.deepEqual([vsmRenderSlice([0, 0, 0, 0]), vsmRenderSlice([0, 0, 0, 1])], [0, 1])
-  vsmRenderJoin([0, 0, 0, 1], [3, 4], bits(0.9))
+  // A window is its first page, the static layer's bit with the mip above it, and its extent.
+  assert.deepEqual(
+    [
+      [0, 0, 0],
+      [0, 1, 0],
+      [0, 2, 0],
+      [0, 3, 0],
+    ].map(vsmRenderSlice),
+    [0, 1, 0, 1],
+    'the layer, whatever the mip',
+  )
+  vsmRenderJoin([0, 1, 0], [3, 4], bits(0.9))
   assert.deepEqual(joined, [[[3, 4], 1, bits(0.9)]], 'the word joins the layer’s slice')
 })
 

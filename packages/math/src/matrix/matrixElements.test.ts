@@ -2,7 +2,13 @@
 // translations apart, a NaN left in place is no change — or by value.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { sameElements, sameMatrixBits, sameMatrixFloat32 } from './matrixElements.ts'
+import {
+  copyInto,
+  sameElements,
+  sameMatrixBits,
+  sameMatrixFloat32,
+  sameValues,
+} from './matrixElements.ts'
 
 test('sameMatrixBits tells the sign of a zero and keeps a NaN equal to itself; sameElements merges both', () => {
   const held = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, NaN, 0, 0, 1]
@@ -31,4 +37,13 @@ test('sameMatrixFloat32: a double that rounds to the held float32 matches, one s
   assert.equal(sameMatrixFloat32(held, now, 4), true, 'by value, -0 is 0')
   now[1] = held[5] = NaN
   assert.equal(sameMatrixFloat32(held, now, 4), false, 'a NaN never matches')
+})
+
+test('copyInto makes a list another’s values, its length too: what sameValues then holds', () => {
+  const held = [1, 2, 3, 4, 5]
+  copyInto(held, [7, 8])
+  assert.deepEqual(held, [7, 8])
+  assert.equal(sameValues(held, new Float64Array([7, 8])), true)
+  copyInto(held, [1, 2, 3])
+  assert.deepEqual(held, [1, 2, 3], 'longer')
 })

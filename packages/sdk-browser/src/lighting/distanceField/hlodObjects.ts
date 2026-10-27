@@ -22,6 +22,10 @@ export interface HlodDraws {
   draws(instance: number, cell: number): boolean
 }
 
+/** Whether `root` is a placement of the world DAG (the cut's root that carries the table of its cells, `hlod`): the
+ *  one rule every reader of the cut's roots tells them by. */
+export const isWorldRoot = (root: { readonly hlod?: unknown }) => Boolean(root.hlod)
+
 /** A root of the world DAG among the cut's roots. */
 interface WorldRoot {
   readonly root: TrackedRoot
@@ -104,7 +108,7 @@ export function createHlodObjects(fields: readonly MeshDistanceField[]) {
         cut = world
         worlds = []
         roots.forEach((root, rank) => {
-          if (root.hlod) worlds.push({ root, rank })
+          if (isWorldRoot(root)) worlds.push({ root, rank })
         })
         standIns = worlds.flatMap((at, instance) =>
           cells.map((field) => standIn(at, instance, field)),

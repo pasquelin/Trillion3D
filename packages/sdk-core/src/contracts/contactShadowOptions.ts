@@ -19,10 +19,10 @@ import {
  * - `contactShadowOverrideLength` (−1): a length that replaces every light's `contactShadowLength`
  *   when it is 0 or more, in the unit `contactShadowOverrideLengthInWorldSpace` says (off: screen
  *   units, on: metres); below 0, the lights' own;
- * - `contactShadowOverrideCastingIntensity` (−1, from −1 to 1): the intensity every light's shadow has
+ * - `contactShadowOverrideCastingIntensity` (−1, any number): the intensity every light's shadow has
  *   where the ray meets a surface that casts contact shadows, when it is 0 or more; below 0, the
- *   lights' own;
- * - `contactShadowOverrideNonCastingIntensity` (−1, from −1 to 1): the same where the ray meets one
+ *   lights' own. The effective intensity is held to 1 (`writeContactShadow`);
+ * - `contactShadowOverrideNonCastingIntensity` (−1, any number): the same where the ray meets one
  *   that does not.
  */
 export const CONTACT_SHADOW_RULES = /* @__PURE__ */ (() =>
@@ -30,8 +30,8 @@ export const CONTACT_SHADOW_RULES = /* @__PURE__ */ (() =>
     flag('contactShadows', true),
     number('contactShadowOverrideLength', -1, ANY_NUMBER),
     flag('contactShadowOverrideLengthInWorldSpace', false),
-    number('contactShadowOverrideCastingIntensity', -1, [-1, 1]),
-    number('contactShadowOverrideNonCastingIntensity', -1, [-1, 1]),
+    number('contactShadowOverrideCastingIntensity', -1, ANY_NUMBER),
+    number('contactShadowOverrideNonCastingIntensity', -1, ANY_NUMBER),
   ] as const)()
 
 /** The same rules by their field: what the frame reads the view's settings with (`ContactShadowView`). */

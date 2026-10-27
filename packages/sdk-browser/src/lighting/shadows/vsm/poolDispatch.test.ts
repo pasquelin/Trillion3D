@@ -21,7 +21,11 @@ test('the largest pool an entry addresses fits one row of every pool-wide dispat
   const rows = 2 ** (VSM_ENTRY_COARSER_SHIFT - rowShift),
     perRow = VSM_TABLE_ROW_WIDTH / VSM_PAGE_TEXELS
   assert.ok(perRow <= 2 ** rowShift, 'a row of pages within its column bits')
-  const { poolPages } = vsmLayout({ fullMapCapacity: 63, poolPages: rows * perRow })
+  const { poolPages } = vsmLayout({
+    coverMode: 'suns',
+    fullMapCapacity: 63,
+    poolPages: rows * perRow,
+  })
   assert.equal(poolPages, 2 ** 17)
   assert.ok(ceilDiv(poolPages, VSM_GROUP_WIDTH) <= groupWidth(), `${VSM_GROUP_WIDTH} pages a group`)
 })

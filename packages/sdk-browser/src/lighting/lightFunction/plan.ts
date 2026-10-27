@@ -1,4 +1,7 @@
-import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
+import {
+  LIGHT_FUNCTION_ENTRIES,
+  type SceneLight,
+} from '../../../../sdk-core/src/scene/light/contracts.ts'
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import type { Material } from '../../../../sdk-core/src/world/material/material.ts'
 import { writeDefaultEntry, writeEntry } from './entries.ts'
@@ -33,27 +36,45 @@ export interface LightFunctionPlan {
   readonly skipped: number
 }
 
-type Wearer = { slot: number; light: SceneLight; material: Material; far: number }
+/** A light that wears a light function, with the material it wears and its slot in the store, which is its rank in the light buffer. */
+export interface WearingLight {
+  readonly slot: number
+  readonly light: SceneLight
+  readonly material: Material
+}
 
-/** The lights of `store` that wear a light function material that exists, in the store's order,
- *  each with its squared distance from `eye` (a sun's is 0: it is everywhere). */
+/** The lights of `store` that wear a light function material that exists (`materialOf`), in slot order: it stops with the last of them
+ *  (`SceneLightStore.lightFunctionCount` says how many there are). */
+export function* lightsWearing(
+  store: SceneLightStore,
+  materialOf: (id: string) => Material | undefined,
+): Generator<WearingLight> {
+  let left = store.lightFunctionCount
+  for (let slot = 0; slot < store.count && left > 0; slot++) {
+    const light = store.light(store.ids[slot])
+    if (light?.lightFunction === undefined) continue
+    left--
+    const material = materialOf(light.lightFunction)
+    if (material) yield { slot, light, material }
+  }
+}
+
+type Wearer = WearingLight & { far: number }
+
+/** The lights that wear a light function material that exists, each with its squared distance from `eye` (a sun's is 0: it is everywhere). */
 function wearers(
   store: SceneLightStore,
   eye: ArrayLike<number>,
   materialOf: (id: string) => Material | undefined,
 ) {
   const found: Wearer[] = []
-  for (let slot = 0; slot < store.count; slot++) {
-    const light = store.light(store.ids[slot])
-    const material =
-      light?.lightFunction === undefined ? undefined : materialOf(light.lightFunction)
-    if (!light || !material) continue
+  for (const wearing of lightsWearing(store, materialOf)) {
     let far = 0
-    if (light.position) {
-      const [x, y, z] = light.position
+    if (wearing.light.position) {
+      const [x, y, z] = wearing.light.position
       far = (x - eye[0]) ** 2 + (y - eye[1]) ** 2 + (z - eye[2]) ** 2
     }
-    found.push({ slot, light, material, far })
+    found.push({ ...wearing, far })
   }
   return found
 }
@@ -64,7 +85,8 @@ function wearers(
  * `maxLights` is below their number —, nearest the eye first, a sun first of all. A light gets the
  * next entry of the table, counted from 1 (entry 0 is none, and counts as one against `maxLights`,
  * as in the reference); its material takes the next slot of the atlas, once however many lights wear
- * it, or, with no slot left, the light has none. A negative `maxLights` is no limit. `fogLocals`
+ * it, or, with no slot left, the light has none. A negative `maxLights` is no limit but the entries a kind word holds
+ * (`LIGHT_FUNCTION_ENTRIES`), which bound it too. `fogLocals`
  * says whether the volumetric fog's local lights read the functions (it is written in the table).
  */
 export function planLightFunctions(
@@ -76,8 +98,10 @@ export function planLightFunctions(
   materialOf: (id: string) => Material | undefined,
 ): LightFunctionPlan {
   const found = wearers(store, eye, materialOf)
+  const entriesAllowed =
+    maxLights < 0 ? LIGHT_FUNCTION_ENTRIES : Math.min(maxLights, LIGHT_FUNCTION_ENTRIES)
   const limited =
-    (maxLights >= 0 && found.length + 1 > maxLights) ||
+    found.length + 1 > entriesAllowed ||
     new Set(found.map((w) => w.material)).size > shape.edge * shape.edge
   if (limited) found.sort((a, b) => a.far - b.far)
   const slots: AtlasSlot[] = []
@@ -86,7 +110,7 @@ export function planLightFunctions(
   const granted: { wearer: Wearer; slot: AtlasSlot }[] = []
   let skipped = 0
   for (const wearer of found) {
-    if (maxLights >= 0 && granted.length + 1 >= maxLights) {
+    if (granted.length + 1 >= entriesAllowed) {
       skipped++
       continue
     }

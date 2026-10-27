@@ -13,7 +13,6 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { moduleCode } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { stageBindingCounts } from '../../../../../tests/kit/fakeDevice/limitRules.ts'
 import { shadowPageLayout } from '../../lighting/shadows/casters/pageGroup.ts'
-import { vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
 import { vsmRasterPipe } from '../../lighting/shadows/vsm/render/renderPipes.ts'
 import { createShadowPrograms } from '../../lighting/shadows/vsm/tessellation/shadowPrograms.ts'
 import { vsmMaskedPatches } from '../../lighting/shadows/vsm/tessellation/maskedPatches.ts'
@@ -24,6 +23,7 @@ import {
   vsmTessSeedSource,
   vsmTessSplitSource,
 } from '../../lighting/shadows/vsm/tessellation/shadowKernelsWgsl.ts'
+import { SUNS_LAYOUT } from '../../lighting/shadows/vsm/layout.fixture.ts'
 
 /** What the tessellation's programs are made of: each one's text, plain and over the offsets of a
  *  session (`offsetting`), and the group its kernels read. */
@@ -77,7 +77,7 @@ test('the splitting of the patches follows the project switch: the plane’s tes
 })
 
 test('the shadow maps’ programs declare the tessellation’s group as their layout lists it, and their pipelines stay within the eight storage buffers', async () => {
-  const layout = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+  const layout = SUNS_LAYOUT
   for (const [program, code] of [
     ['shadowSeed', vsmTessSeedSource()],
     ['shadowSplit', vsmTessSplitSource(layout, shadowSplitWpo(offsetting(false)))],
@@ -99,9 +99,9 @@ test('the shadow maps’ programs declare the tessellation’s group as their la
     pageLayout,
     vsmRasterPipe(device, layout, pageLayout).layout1,
   )
-  assert.equal(programs.ask(), false, 'compiled off the frame, not ready at once')
+  assert.equal(programs.ask(true), false, 'compiled off the frame, not ready at once')
   await new Promise((done) => setTimeout(done, 0))
-  assert.equal(programs.ask(), true)
+  assert.equal(programs.ask(true), true)
   assert.deepEqual(
     f.computePipelines
       .flatMap((p) => p.compute.entryPoint ?? [])
@@ -113,6 +113,17 @@ test('the shadow maps’ programs declare the tessellation’s group as their la
   assert.deepEqual(
     [draw.vertex.entryPoint, draw.fragment?.entryPoint],
     ['vsmTessellatedVs', 'vsmRenderFs'],
+  )
+  // The two-sided rows' patches have a draw of their own, the pattern once and no face culled.
+  const twoSided = f.renderPipelines.find(
+    (p) => p.label === 'Trillion3D shadow tessellation raster two-sided',
+  )!
+  assert.deepEqual(
+    [draw, twoSided].map((p) => [p.primitive?.cullMode, p.vertex.constants]),
+    [
+      ['back', { VSM_TESS_TWO_SIDED: 0 }],
+      ['none', { VSM_TESS_TWO_SIDED: 1 }],
+    ],
   )
   // The vertex stage binds the page group’s four, the pairs’ and the projections’, `tess` and the
   // data atlas’s page table: eight, no more.
@@ -126,16 +137,19 @@ test('the shadow maps’ programs declare the tessellation’s group as their la
 })
 
 test('the shadow maps’ tessellation waits for its pipelines, then takes the kinds of light the settings ask', async () => {
-  const { device, raster } = rasterOf(true)
+  const { f, device, raster } = rasterOf(true)
   raster.followTessellation(device, { candidate: 1000, visible: 1000, records: 192 })
-  const res = createVsmResources(device, { fullMapCapacity: 7, poolPages: 64 })
+  const res = createVsmResources(device, { coverMode: 'suns', fullMapCapacity: 7, poolPages: 64 })
   const pageLayout = shadowPageLayout(device)
-  const rtOf = (context: object) =>
+  const rtOf = (context: object, twoSided = false) =>
     ({
       context,
       vis: {
         gpuRaster: raster,
-        materialTable: { displaced: { count: 1, ints: new Uint32Array(16), version: 1 }, view: {} },
+        materialTable: {
+          ...{ displaced: { count: 1, ints: new Uint32Array(16), version: 1 }, view: {} },
+          twoSided,
+        },
         graphFrame: { bufferOn: () => ({}) },
         ...{
           concatPos: {},
@@ -152,7 +166,10 @@ test('the shadow maps’ tessellation waits for its pipelines, then takes the ki
       run: { selectionUniforms: { pixelError: 1 } },
     }) as unknown as WebgpuPagesRuntime
   const vsm = { res, renderedPlan: 'plan' as unknown }
-  const ask = (context: object) => vsmShadowTessellation(rtOf(context), device, vsm, pageLayout)
+  const ask = (context: object, twoSided = false) =>
+    vsmShadowTessellation(rtOf(context, twoSided), device, vsm, pageLayout)
+  const compiledTwoSided = () =>
+    f.renderPipelines.some((p) => p.label?.endsWith('raster two-sided'))
   // Its pipelines asked, the maps are drawn flat and the frame is not drawn as far as the cache goes,
   // to draw them again.
   assert.equal(ask({}), undefined)
@@ -164,6 +181,15 @@ test('the shadow maps’ tessellation waits for its pipelines, then takes the ki
   assert.equal(ask({ tessellationShadowsLocal: false })?.kinds, 1)
   assert.equal(ask({ tessellationShadowsDirectional: false })?.kinds, 2)
   assert.equal(vsm.renderedPlan, 'plan', 'drawn whole')
+  // A scene with no two-sided surface waits for no two-sided draw, and compiles none; one that holds a
+  // two-sided surface waits for it, drawn flat meanwhile.
+  assert.equal(compiledTwoSided(), false)
+  assert.equal(ask({}, true), undefined)
+  assert.equal(vsm.renderedPlan, undefined)
+  await new Promise((done) => setTimeout(done, 0))
+  vsm.renderedPlan = 'plan'
+  assert.equal(ask({}, true)?.kinds, 3)
+  assert.equal(compiledTwoSided(), true)
   // Both off, or the tessellation off: nothing is asked and nothing waits.
   for (const context of [
     { tessellationShadowsDirectional: false, tessellationShadowsLocal: false },
@@ -174,7 +200,7 @@ test('the shadow maps’ tessellation waits for its pipelines, then takes the ki
 })
 
 test('a device that grants nine storage buffers a stage cuts a masked row out at the shadow patches’ vertices, one at eight leaves it to the fragment', async () => {
-  const layout = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+  const layout = SUNS_LAYOUT
   const made = async (storage: number, vertexStage?: number) => {
     const fake = fakeDevice({
       limits: {
@@ -190,7 +216,7 @@ test('a device that grants nine storage buffers a stage cuts a masked row out at
       pageLayout,
       vsmRasterPipe(device, layout, pageLayout).layout1,
     )
-    programs.ask()
+    programs.ask(false)
     await new Promise((done) => setTimeout(done, 0))
     const draw = fake.renderPipelines.find(
       (p) => p.label === 'Trillion3D shadow tessellation raster',

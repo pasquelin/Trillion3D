@@ -5,15 +5,18 @@ import type { PreparedExplorer } from '../../session/prepare.ts'
 import type { ViewCamera } from '../../camera/world.ts'
 
 /** Puts `camera` on `pose`: its position, optics and aim (`target`, written with the pose's
- *  point), its matrices composed. The one way a session's camera, or a view of its own, takes a
- *  pose. */
+ *  point, which is also the camera's `viewTarget`), its matrices composed; it then draws from no
+ *  page camera (`ViewCamera.drawnFrom`). The one way a session's camera, or a view of its own,
+ *  takes a pose. */
 export function poseCamera(camera: ViewCamera, pose: CameraPose, target: Vector3) {
+  camera.drawnFrom = undefined
   camera.position.fromArray(pose.position)
   camera.fov = pose.fov
   camera.near = pose.near
   camera.far = pose.far
   camera.lookAt(target.fromArray(pose.target))
   camera.updateProjectionMatrix()
+  camera.setViewTarget(target)
   camera.updateMatrixWorld()
 }
 

@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { gpuCapsOf, gpuCapsOfFeatures } from './gpuCaps.ts'
 
 /**
  * THE STORAGE TEXTURES OF THE FORMATS THE CORE OF WEBGPU DOES NOT GIVE, which two device features
@@ -21,19 +22,16 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
  * The temporal history keeps its colour in `rg11b10ufloat` where the first is granted
  * (`../../post/taa/historyShape.ts`). The session requests both when the adapter has them
  * (`../../session/gpuDevice.ts`); the host test switch `trillion3dGpuFeaturesOff` names them off.
+ * The two features are `FEATURE.textureTier1` and `FEATURE.textureTier2` (`gpuCaps.ts`).
  */
-export const TEXTURE_FORMATS_TIER1_FEATURE: GPUFeatureName = 'texture-formats-tier1'
-
-/** The feature of the read-write storage texture of 8-bit formats; it carries the first. */
-export const TEXTURE_FORMATS_TIER2_FEATURE: GPUFeatureName = 'texture-formats-tier2'
 
 /** Whether `device` was granted the read-write storage texture of 8-bit formats. */
 export const hasTextureFormatsTier2 = (device: Pick<GPUDevice, 'features'>) =>
-  device.features.has(TEXTURE_FORMATS_TIER2_FEATURE)
+  gpuCapsOf(device).textureTier >= 2
 
 /** Whether `features`, a device's, hold the storage textures of the packed 8-bit and 11-11-10 formats. */
 export const hasTextureFormatsTier1 = (features: { has(name: string): boolean }) =>
-  features.has(TEXTURE_FORMATS_TIER1_FEATURE)
+  gpuCapsOfFeatures(features).textureTier >= 1
 
 /** The module directive a program that binds a storage texture of those formats opens with: the
  *  `requires` of the language extension, never an `enable` (a language extension is no enable-

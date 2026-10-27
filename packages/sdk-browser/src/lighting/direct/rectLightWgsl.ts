@@ -45,8 +45,8 @@ export const RECT_LIGHT_WGSL = wgslBlock(
   'RECT_LIGHT_WGSL',
   [INVERSE_PI, INVERSE_TWO_PI, faceNormal, horizonWrap, rangeWindow, isKind],
   `
-const KIND_RECT:f32=${LIGHT_KIND.rect}.0;
-fn isRect(light:DirectLight)->bool{return isKind(light.params.x,KIND_RECT);}
+const KIND_RECT:u32=${LIGHT_KIND.rect}u;
+fn isRect(light:DirectLight)->bool{return isKind(light,KIND_RECT);}
 /** One edge's term of the vector form factor, seen from the point: the edge from p along e, of
  *  which the share \`part\` (whole: 1) lies above the horizon, \`along\` the dot of its ends there. */
 fn rectEdge(p:vec3f,e:vec3f,part:f32,along:f32)->vec3f{
@@ -110,7 +110,7 @@ fn rectIrradianceOf(r:RectView,N:vec3f)->vec4f{
  // The polygon's form factor faces it wound one way and away from it wound the other.
  let toward=form*(select(1.0,-1.0,dot(form,r.a+r.c)<0.0)/size);
  let irradiance=0.5*size;
- return vec4f(toward,irradiance*max(horizonWrap(dot(N,toward),irradiance*INVERSE_PI),0.0)*r.window);
+ return vec4f(toward,irradiance*max(horizonWrap(dot(N,toward),sqrt(irradiance*INVERSE_PI)),0.0)*r.window);
 }
 /** The vector form factor of the rectangle's view \`r\` at P, whole: each edge's term by the angle it
  *  subtends (\`rectEdge\`). */
@@ -186,8 +186,8 @@ fn rectLtc(r:RectView,f:RectFrame,f0:vec3f)->vec3f{
 /** The shading of a rectangle at a surface point \`s\` (\`lobeSurface\`), colour and intensity
  *  included, its view \`r\` from the point (\`rectView\`): on a diffuse or toon model, the model's
  *  light of its exact irradiance, no lobe read; else the diffuse of that irradiance and the specular of
- *  its fitted lobe (\`rectBase\`, stretched where the pixel's lobes skew it, mixed with a cloth's fuzz
- *  lobe, \`rectCloth\`); under a coat, the coat model's (\`coatedRect\`). The hooks are declared by the hook block that
+ *  its fitted lobe (\`rectBase\`, stretched where the pixel's lobes skew it; both under a cloth's
+ *  fuzz, \`rectCloth\`); under a coat, the coat model's (\`coatedRect\`). The hooks are declared by the hook block that
  *  lists this one (\`lobesWgsl.ts\`: the lobed one, or the lobeless one's plain lobe, one and zero). */
 export const RECT_SURFACE_LIGHT_WGSL = wgslBlock(
   'RECT_SURFACE_LIGHT_WGSL',
@@ -199,14 +199,15 @@ export const RECT_SURFACE_LIGHT_WGSL = wgslBlock(
 fn rectLightSplit(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->mat2x3f{
  let tint=light.colorIntensity.rgb;
  let incident=rectIrradianceOf(r,N);
- let E=light.colorIntensity.w*incident.w;
+ let intensity=lightStrength(light);
+ let E=intensity*incident.w;
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){
   if(incident.w<=0.0){return mat2x3f(vec3f(0.0),vec3f(0.0));}
   // E already carries the cosine: the diffuse model takes it whole, at a unit N·L.
   if(surfaceModel==${MODEL_FLAG.diffuse}u){return mat2x3f(modelLight(rgb,metal,N,N,E)*tint,vec3f(0.0));}
   // Toon bands the cosine toward the form factor, on the irradiance of a face turned to it:
   // bounded by π, as a lamp's energy is by its falloff.
-  let facing=light.colorIntensity.w*PI*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
+  let facing=intensity*PI*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
   return mat2x3f(modelLight(rgb,metal,N,incident.xyz,facing)*tint,vec3f(0.0));
  }
  // A pixel under a clear coat is lit by the coat model whole (\`coatedRect\`): the coat lights from its own normal,
@@ -216,8 +217,8 @@ fn rectLightSplit(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32
   return mat2x3f(coated[0]*tint,coated[1]*tint);
  }
  if(incident.w<=0.0){return mat2x3f(vec3f(0.0),vec3f(0.0));}
- let specular=rectCloth(rectBase(r,N,V,s.f0,rough)*light.colorIntensity.w*r.window,r,incident,N,V,s,light.colorIntensity.w);
- return mat2x3f(s.diffuse*E*tint,specular*tint);
+ let parts=rectCloth(mat2x3f(s.diffuse*E,rectBase(r,N,V,s.f0,rough)*intensity*r.window),r,N,intensity);
+ return mat2x3f(parts[0]*tint,parts[1]*tint);
 }
 `,
 )

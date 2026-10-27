@@ -1,10 +1,11 @@
 import { VSM_PAGE_MARKS_GATHER_WGSL } from '../pageGatherWgsl.ts'
-import { wgslBlock, wgslFn } from '../../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn, wgslVariants } from '../../../../../../math/src/wgsl/decl.ts'
 import { FLOAT32_MAX } from '../../../../../../math/src/wgsl/constants.ts'
 import { perspectiveDivide } from '../../../../../../math/src/wgsl/projection.ts'
 import { floorLog2 } from '../../../../../../math/src/wgsl/integer.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import { VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from '../pageTableWgsl.ts'
+import { prefilteredDeps } from '../prefilteredWgsl.ts'
 /** Whether a map allows an offset that `applies` (the offset's own conditions: a placement's may
  *  invalidate its shadows; a surface wears one its placement evaluates): it is evaluated `always`,
  *  whatever the distance says, or the map's level (`wpoThreshold`) is not past the square of the
@@ -22,7 +23,7 @@ export const VSM_OFFSET_GROWS_WGSL = wgslFn(
 
 /** A map's lens at mip `mip`: the pixels a unit spans at depth one (an orthographic view's a
  *  unit), its near plane (none for an orthographic view) and whether it is a perspective view — the
- *  `lens` of `vsmRenderViewPixels`. The cull's, the shadow views'
+ *  `lens` of `vsmRenderEdgeScales`. The cull's, the shadow views'
  *  descent's and the patches' (`../tessellation/shadowViewWgsl.ts`). */
 export const VSM_VIEW_LENS_WGSL = wgslBlock(
   'VSM_VIEW_LENS_WGSL',
@@ -155,6 +156,13 @@ export const VSM_CASTER_BOX_CULL_WGSL = wgslBlock(
  let point=vsmBoxCullPoint(center,a0+a1+a2,isOrtho,nearClip);
  return vsmBoxInView(shiftedToClip*vec4f(point,1.0),shiftedToClip*vec4f(a0,0.0),shiftedToClip*vec4f(a1,0.0),shiftedToClip*vec4f(a2,0.0),vec3f(1.0),viewToClip,isOrtho,nearClip);
 }
+/** Whether the box (centre \`center\` and half axes \`a0\` to \`a2\`, in a local light's shifted space, the
+ *  light at its origin) lies wholly past the light's range: the gap between the origin and the box's
+ *  axis-aligned bound (the oriented box lies in it) over \`range\`. */
+fn vsmCasterPastRange(center:vec3f,a0:vec3f,a1:vec3f,a2:vec3f,range:f32)->bool{
+ let gap=max(abs(center)-(abs(a0)+abs(a1)+abs(a2)),vec3f(0.0));
+ return dot(gap,gap)>range*range;
+}
 `,
 )
 
@@ -170,22 +178,19 @@ export const VSM_CASTER_BOX_CULL_WGSL = wgslBlock(
  * matrix — and hands `vsmBoxInView` the clip image of the box's `vsmBoxCullPoint` and of its
  * axes: the floating-point operations of each are its own, in its own order.
  */
-export const VSM_BOX_CULL_WGSL = wgslBlock(
-  'VSM_BOX_CULL_WGSL',
-  [
-    VSM_BOX_VIEW_WGSL,
-    VSM_CONSTANTS_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_TABLE_ORIGIN_WGSL,
-    VSM_PAGE_MARKS_GATHER_WGSL,
-  ],
-  `
+const boxCullText = (prefiltered: boolean) => `
 /** Tests a page's flags against a mask: any of the any-bits and all of the all-bits. */
 fn vsmMarksMatch(pageMarks:u32,markMask:u32)->bool{
  let anyBits=markMask&VSM_PAGE_TEST_ANY;
  if((pageMarks&anyBits)==0u){return false;}
- let allBits=markMask&VSM_PAGE_FINE;
+ let allBits=markMask&${prefiltered ? 'VSM_PAGE_AUX_MASK' : 'VSM_PAGE_FINE'};
  return (pageMarks&allBits)==allBits;
+}
+/** Whether a page's flags satisfy the mask a render record's pages are matched by (the stale layer's
+ *  mark, the wanted mark, the primary request mark): the render cull's emit and the bin that marks
+ *  the pages drawn (\`renderBinWgsl.ts\`) ask the one test. */
+fn vsmRecordMarksMatch(pageMarks:u32,markMask:u32)->bool{
+ ${prefiltered ? 'return vsmMarksMatch(pageMarks,markMask);' : 'return (pageMarks&markMask)!=0u;'}
 }
 /** The flags of the pages of a page rect (not empty) whose first page is at a texel of the page
  *  table: the 2x2 gather of the hierarchical level that covers it, less the texels past the rect. */
@@ -215,10 +220,33 @@ fn vsmClipRadius(isOrtho:bool,radius:f32,shiftedCenter:vec3f,viewToClip:mat4x4f)
  let radiusClip4=viewToClip*vec4f(radius,0.0,length(shiftedCenter),1.0);
  return abs(radiusClip4.x/radiusClip4.w);
 }
-/** Whether a caster is fine (drawn into fine pages alone), by its pixel radius against the thresholds. */
+/** Whether a caster is fine (drawn into fine pages alone), by its pixel radius against the thresholds;
+ *  none when the setting leaves the casters out of the coarse pages (\`includeInCoarsePages\` 0: every caster is cluster
+ *  geometry, which that setting never counts as detail). */
 fn vsmIsFineCaster(staticLayer:bool,casterPixelRadius:f32)->bool{
+ if(vsm.includeInCoarsePages==0u){return false;}
  if(staticLayer){return casterPixelRadius<vsm.detailPixelsStatic;}
- return casterPixelRadius<vsm.detailPixelsDynamic;
+ return casterPixelRadius<vsm.detailPixelsDynamicClusters;
 }
-`,
+`
+
+/** The box cull block of a set whose layout says whether it holds the prefiltered distant shadow: a
+ *  page's marks then hold the requests' auxiliary bits (`VSM_PAGE_AUX_MASK`), and a mask asks them all
+ *  of the pages it reads. The render cull's and the shadow views' descent's; the invalidation's mask
+ *  asks none, its text is the plain one. */
+export const vsmBoxCullBlock = wgslVariants((prefiltered) =>
+  wgslBlock(
+    prefiltered ? 'VSM_BOX_CULL_PREFILTERED_WGSL' : 'VSM_BOX_CULL_WGSL',
+    [
+      VSM_BOX_VIEW_WGSL,
+      VSM_CONSTANTS_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
+      VSM_PAGE_MARKS_GATHER_WGSL,
+      ...prefilteredDeps(prefiltered),
+    ],
+    boxCullText(prefiltered),
+  ),
 )
+
+export const VSM_BOX_CULL_WGSL = vsmBoxCullBlock(false)

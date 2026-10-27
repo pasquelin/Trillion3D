@@ -25,7 +25,8 @@ import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../memory/budget.fixtur
  *  sorted records (32 B each), 8 MiB less. Retaken when the shadow maps took their occlusion culling:
  *  662 902 724 plus its depth pyramid (89 473 024 B: 8192 × 2048 r32float texels at level 0, seven
  *  levels), both frame sets' kept tables (33 554 432 B: a page table, its marks and the stale rects
- *  each), its page list and arguments, and the projection records' 96 more bytes over both frames. */
+ *  each), its page list and arguments, and the projection records' 96 more bytes over both frames.
+ *  The receiver cover is the default settings' (`coverMode` `'suns'`, `vsmCoverModeOf`); that of every map (`'all'`) is 23 592 600 B more. */
 const ONE_SUN_SHADOW_MAP_BYTES = 921_749_336
 
 const budget = (
@@ -77,7 +78,7 @@ test("the default totals split into each pool's own default", () => {
 })
 
 test('the shadow share holds the virtual shadow maps of one sun, within a MiB', () => {
-  const layout = vsmLayout({ fullMapCapacity: 63, sunMapCapacity: 18 }),
+  const layout = vsmLayout({ coverMode: 'suns', fullMapCapacity: 63, sunMapCapacity: 18 }),
     bytes = ONE_SUN_SHADOW_MAP_BYTES
   // One page-table row; 4096 physical pages a slice, each slice one 256 MiB buffer.
   assert.equal(layout.pageTableRows, 1)

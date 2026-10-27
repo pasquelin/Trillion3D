@@ -2,6 +2,9 @@ import {
   BLEND_RESPONSIVE_WGSL,
   TRI_CHANNELS_SHIFT,
   TRI_HOLDOUT_SHIFT,
+  TRI_LIGHTING_CHANNELS_SHIFT,
+  TRI_MATERIAL_FLAGS,
+  TRI_MATERIAL_SHIFT,
   TRI_RESPONSIVE_SHIFT,
   VERTEX_LISTS_WGSL,
   VERTEX_READS_WGSL,
@@ -26,10 +29,17 @@ import { CHANNEL_SLOTS, MAP_CHANNEL_WGSL } from '../visibility/shader/physicalWg
 import { SURFACE_MAP_FIELDS } from '../visibility/materialType.ts'
 import { INSTANCE_CULL_SHIFT, INSTANCE_ITEM_MASK } from './runs.ts'
 import { FACING_DROP, FACING_MATERIAL_MASK, FACING_SHIFT, FACING_WGSL } from './facing.ts'
-import { ITEM_FLAG_BITS, ITEM_HLOD, ITEM_HOLDOUT, ITEM_RESPONSIVE_SHIFT } from './items.ts'
+import {
+  ITEM_CHANNELS_SHIFT,
+  ITEM_FLAG_BITS,
+  ITEM_HLOD,
+  ITEM_HOLDOUT,
+  ITEM_RESPONSIVE_SHIFT,
+} from './items.ts'
 import { clipReturn, clipReturnType, cutByPixel, type Clipping } from '../gpu/core/clipDistances.ts'
 import { planeDistance } from '../../../math/src/wgsl/geometry.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { ALL_LIGHTING_CHANNELS_MASK } from '../../../sdk-core/src/contracts/lightingChannelsAbi.ts'
 import { unitOrZero } from '../../../math/src/wgsl/inverseTranspose.ts'
 import { windingKept, worldMatrix3 } from '../../../math/src/wgsl/matrix.ts'
 import { lowBits } from '../../../math/src/wgsl/integer.ts'
@@ -202,8 +212,9 @@ const vertexCorner = (clouds: CloudVertexText) => ` let v=corners[local%3u];
  if(m.lineWidth>0.0){out.position=lineClip(out.position,uni.viewProj*(it.world*vec4f(pageNormal(page,h,v),0.0)),m.lineWidth,uni.viewport,uni.pixelRatio);}
  // A sprite's quad turns to face the camera (\`spriteAt\`), about its origin.
  if(m.sprite.y!=0.0){let s=spriteAt(uni.viewProj,it.world,p.xy,m.sprite);out.position=uni.viewProj*s;out.view=s.xyz;}
- // The triangle's rank, and above it the item's responsiveness code (\`TRI_RESPONSIVE_SHIFT\`).
- out.${WORDS.tri}=(local/3u)|(((it.flags>>${ITEM_RESPONSIVE_SHIFT}u)&${itemFlags.RESPONSIVE_MASK}u)<<${TRI_RESPONSIVE_SHIFT}u)|(select(0u,1u,(it.flags&${ITEM_HOLDOUT}u)!=0u)<<${TRI_HOLDOUT_SHIFT}u);
+ // The triangle's rank, and above it the item's lighting channels (\`TRI_LIGHTING_CHANNELS_SHIFT\`), its responsiveness code (\`TRI_RESPONSIVE_SHIFT\`),
+ // whether its object is held out and the flags of its material (\`TRI_MATERIAL_SHIFT\`).
+ out.${WORDS.tri}=(local/3u)|(((it.flags>>${ITEM_CHANNELS_SHIFT}u)&${ALL_LIGHTING_CHANNELS_MASK}u)<<${TRI_LIGHTING_CHANNELS_SHIFT}u)|(((it.flags>>${ITEM_RESPONSIVE_SHIFT}u)&${itemFlags.RESPONSIVE_MASK}u)<<${TRI_RESPONSIVE_SHIFT}u)|(select(0u,1u,(it.flags&${ITEM_HOLDOUT}u)!=0u)<<${TRI_HOLDOUT_SHIFT}u)|((m.flags&${TRI_MATERIAL_FLAGS}u)<<${TRI_MATERIAL_SHIFT}u);
  // The item's opacity clip (\`blendResponsive\`), in the word the diagnostic views' cluster word takes.
  out.${WORDS.diagId}=bitcast<u32>(it.opacityClip);
  // The diagnostic views' cluster word and triangle (\`diagnosticColor\`), the opaque resolve's:

@@ -26,7 +26,7 @@ export interface CookedScene extends Pick<
 export const cacheOf = ({ cache = 'cache' }: CookedScene) => cache
 
 /** The scenes the engine's tests read, beside them under `tests/`: a terrain of one large mesh,
- *  and a garden of parametric rings under a light. */
+ *  a garden of parametric rings under a light, and a sphere under thousands of hair strands. */
 export const TEST_SCENES: Record<string, CookedScene> = {
   'mountain-terrain': {
     directory: 'tests/fixtures/scenes/mountain-terrain',
@@ -36,6 +36,10 @@ export const TEST_SCENES: Record<string, CookedScene> = {
   'kinetic-garden': {
     directory: 'tests/fixtures/scenes/kinetic-garden',
     source: 'source/garden.gltf',
+  },
+  'hair-strands': {
+    directory: 'tests/fixtures/scenes/hair-strands',
+    source: 'source/hair.usda',
   },
 }
 

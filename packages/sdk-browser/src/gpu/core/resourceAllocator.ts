@@ -28,7 +28,24 @@ export interface ResourceAllocator {
     format: GPUTextureFormat,
     options?: TextureOptions,
   ): GPUTextureView
-  buffer(label: string, words: number, kind: BufferKind): GPUBuffer
+  /** A texture of `levels` mip levels: a view of all of them, and a view of each alone (to be written, or read by the next level). */
+  mipped(
+    label: string,
+    size: readonly number[],
+    format: GPUTextureFormat,
+    levels: number,
+  ): { all: GPUTextureView; levels: GPUTextureView[] }
+  /** A buffer of `words` 32-bit words for `kind`, with the usage `also` adds to the kind's (a proof reads it back with
+   *  `COPY_SRC`). */
+  buffer(label: string, words: number, kind: BufferKind, also?: GPUBufferUsageFlags): GPUBuffer
+  /** A texture of its own, as `texture` makes it, for a user that needs the texture itself (a copy, a view of a
+   *  layer), not only a view of it. */
+  image(
+    label: string,
+    size: readonly number[],
+    format: GPUTextureFormat,
+    options?: TextureOptions,
+  ): GPUTexture
 }
 
 /** The usage of a buffer of `kind`. */
@@ -41,12 +58,13 @@ const usageOf = (kind: BufferKind) => {
   return STORAGE | COPY_DST
 }
 
-/** The descriptor of a texture asked of an allocator: its dimension, a size of three counts a volume. */
+/** The descriptor of a texture asked of an allocator: its dimension, a size of three counts a volume, its mip levels. */
 const descriptorOf = (
   size: readonly number[],
   format: GPUTextureFormat,
   { dimension = '2d' }: TextureOptions,
-) => ({ size: [...size], format, dimension })
+  mipLevelCount = 1,
+) => ({ size: [...size], format, dimension, mipLevelCount })
 
 /** The bytes of a buffer of `words` 32-bit words: never under a vector's. */
 const bufferBytes = (words: number) => Math.max(16, words * 4)
@@ -57,6 +75,23 @@ export function gpuAllocator(device: GPUDevice, label: string) {
   const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING
   const made: { destroy(): void }[] = []
   let bytes = 0
+  const make = (
+    name: string,
+    size: readonly number[],
+    format: GPUTextureFormat,
+    options: TextureOptions,
+    levels = 1,
+  ) => {
+    const descriptor = descriptorOf(size, format, options, levels)
+    const created = device.createTexture({
+      label: `${label} ${name}`,
+      ...descriptor,
+      usage: options.usage ?? usage,
+    })
+    made.push(created)
+    bytes += textureBytesOf(descriptor) ?? 0
+    return created
+  }
   return {
     texture(
       name: string,
@@ -64,19 +99,32 @@ export function gpuAllocator(device: GPUDevice, label: string) {
       format: GPUTextureFormat,
       options: TextureOptions = {},
     ) {
-      const descriptor = descriptorOf(size, format, options)
-      const created = device.createTexture({
-        label: `${label} ${name}`,
-        ...descriptor,
-        usage: options.usage ?? usage,
-      })
-      made.push(created)
-      bytes += textureBytesOf(descriptor) ?? 0
-      return created.createView()
+      return make(name, size, format, options).createView()
     },
-    buffer(name: string, words: number, kind: BufferKind) {
+    mipped(name: string, size: readonly number[], format: GPUTextureFormat, levels: number) {
+      const created = make(name, size, format, {}, levels)
+      return {
+        all: created.createView(),
+        levels: Array.from({ length: levels }, (_, level) =>
+          created.createView({ baseMipLevel: level, mipLevelCount: 1 }),
+        ),
+      }
+    },
+    image(
+      name: string,
+      size: readonly number[],
+      format: GPUTextureFormat,
+      options: TextureOptions = {},
+    ) {
+      return make(name, size, format, options)
+    },
+    buffer(name: string, words: number, kind: BufferKind, also = 0) {
       const size = bufferBytes(words)
-      const created = device.createBuffer({ label: `${label} ${name}`, size, usage: usageOf(kind) })
+      const created = device.createBuffer({
+        label: `${label} ${name}`,
+        size,
+        usage: usageOf(kind) | also,
+      })
       made.push(created)
       bytes += size
       return created
@@ -101,6 +149,20 @@ export function countingAllocator() {
     ) {
       bytes += textureBytesOf(descriptorOf(size, format, options)) ?? 0
       return undefined as unknown as GPUTextureView
+    },
+    mipped(_name: string, size: readonly number[], format: GPUTextureFormat, levels: number) {
+      bytes += textureBytesOf(descriptorOf(size, format, {}, levels)) ?? 0
+      const none = undefined as unknown as GPUTextureView
+      return { all: none, levels: Array.from({ length: levels }, () => none) }
+    },
+    image(
+      _name: string,
+      size: readonly number[],
+      format: GPUTextureFormat,
+      options: TextureOptions = {},
+    ) {
+      bytes += textureBytesOf(descriptorOf(size, format, options)) ?? 0
+      return undefined as unknown as GPUTexture
     },
     buffer(_name: string, words: number) {
       bytes += bufferBytes(words)

@@ -20,6 +20,7 @@ import { MOTION_BLUR_PRESET_LEVELS } from '../contracts/motionBlurOptions.ts'
 import { REFLECTION_PRESET_LEVELS } from '../contracts/reflectionLevels.ts'
 import { SHADOW_PRESET_LEVELS } from '../contracts/shadowOptions.ts'
 import { SUBSURFACE_SCATTERING_PRESET_LEVELS } from '../contracts/subsurfaceScatteringOptions.ts'
+import { TRANSLUCENCY_GI_PRESET_LEVELS } from '../contracts/translucencyGiOptions.ts'
 import { TRANSLUCENCY_VOLUME_PRESET_LEVELS } from '../contracts/translucencyVolumeOptions.ts'
 import { VOLUMETRIC_FOG_PRESET_LEVELS } from '../contracts/volumetricFogOptions.ts'
 import { QUALITY_GROUPS, type QualityGroup, type RenderSettingValue } from './renderSettings.ts'
@@ -169,28 +170,33 @@ export const QUALITY_LEVELS: QualityLevels = {
   // presets read the world's probes alone (`off`), the one below the top the `high` level, the top the
   // default one; and the reflections' level (`REFLECTION_LEVELS`): the two coarser presets trace none (`off`),
   // the one below the top the `high` level, the top the default one; the cinematic preset writes the level of
-  // its own name for both; the other settings of both stay at their defaults at every level.
+  // its own name for both; the other settings of both stay at their defaults at every level. They write the translucency global
+  // illumination volume's cells a side, march and filter too (`TRANSLUCENCY_GI_PRESET_LEVELS`).
   indirectLight: {
     smooth: {
       ...SCREEN_PROBE_PRESET_LEVELS.smooth,
       ...SKY_PRESET_LEVELS.indirectLight.smooth,
       ...REFLECTION_PRESET_LEVELS.smooth,
+      ...TRANSLUCENCY_GI_PRESET_LEVELS.smooth,
     },
     balanced: {
       ...SCREEN_PROBE_PRESET_LEVELS.balanced,
       ...SKY_PRESET_LEVELS.indirectLight.balanced,
       ...REFLECTION_PRESET_LEVELS.balanced,
+      ...TRANSLUCENCY_GI_PRESET_LEVELS.balanced,
     },
     fine: {
       ...SCREEN_PROBE_PRESET_LEVELS.fine,
       ...SKY_PRESET_LEVELS.indirectLight.fine,
       ...REFLECTION_PRESET_LEVELS.fine,
+      ...TRANSLUCENCY_GI_PRESET_LEVELS.fine,
     },
     max: {},
     cinematic: {
       ...SCREEN_PROBE_PRESET_LEVELS.cinematic,
       ...SKY_PRESET_LEVELS.indirectLight.cinematic,
       ...REFLECTION_PRESET_LEVELS.cinematic,
+      ...TRANSLUCENCY_GI_PRESET_LEVELS.cinematic,
     },
   },
 }

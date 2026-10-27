@@ -7,6 +7,34 @@ import { PAGE_POINTS_WGSL } from '../shader/pageGeometryWgsl.ts'
 const S = SUBPIXEL_SAMPLES
 
 /**
+ * The two steps of the setup a triangle's corners and its samples share: a corner snapped to the
+ * subpixel grid (`subpixelOf`) and the fill rule's share of an edge (`fillNudge`). The frame is
+ * the raster's (`rasterViewport`): the camera's viewport by default. A raster that sets triangles up
+ * its own way — the hair strands', whose samples lie off the pixel's centre
+ * (`../../hair/rasterPass.ts`) — takes these two alone.
+ */
+export const RASTER_SUBPIXEL_WGSL = wgslBlock(
+  'RASTER_SUBPIXEL_WGSL',
+  [
+    wgslFn('rasterViewport', [], 'fn rasterViewport()->vec2f{return uni.viewport;}', {
+      weak: true,
+    }),
+  ],
+  `
+/** A clip point on the subpixel grid: its framebuffer position in samples, rounded to the nearest,
+ *  its device depth, and its \`1/w\`. */
+fn subpixelOf(clip:vec4f)->vec4f{
+ let s=vec4f(clip.xyz,1.0)/clip.w;
+ let scale=vec2f(0.5,-0.5)*rasterViewport()*${S}.0;
+ let bias=0.5*rasterViewport()*${S}.0+0.5;
+ return vec4f(floor(s.xy*scale+bias),s.z,s.w);
+}
+/** The fill rule's share of edge \`e\`: one subpixel unit unless it is a top or a left edge. */
+fn fillNudge(e:vec2f)->f32{return saturate(e.y+saturate(1.0-e.x));}
+`,
+)
+
+/**
  * The software raster's triangle setup, and the only writing of it: the cluster raster sets each
  * of its triangles up from the corners it holds (`clusterWgsl.ts`), the tessellation each of its
  * micro-triangles (`../tessellation/diceWgsl.ts`).
@@ -36,9 +64,7 @@ export const RASTER_TRI_WGSL = wgslBlock(
   'RASTER_TRI_WGSL',
   [
     PAGE_POINTS_WGSL,
-    wgslFn('rasterViewport', [], 'fn rasterViewport()->vec2f{return uni.viewport;}', {
-      weak: true,
-    }),
+    RASTER_SUBPIXEL_WGSL,
     wgslFn('rasterSpan', [], `fn rasterSpan()->i32{return ${MAX_SPAN};}`, { weak: true }),
   ],
   `
@@ -48,16 +74,6 @@ export const RASTER_TRI_WGSL = wgslBlock(
 struct Tri{minPixel:vec2i,maxPixel:vec2i,e01:vec2f,e12:vec2f,e20:vec2f,
  c:vec3f,depth:vec3f,invW:vec3f,dx:vec3f,dy:vec3f,ua:vec3f,ub:vec3f,uc:vec3f,
  corners:vec3u,row:u32,triangle:u32,ok:u32,}
-/** A clip point on the subpixel grid: its framebuffer position in samples, rounded to the nearest,
- *  its device depth, and its \`1/w\`. */
-fn subpixelOf(clip:vec4f)->vec4f{
- let s=vec4f(clip.xyz,1.0)/clip.w;
- let scale=vec2f(0.5,-0.5)*rasterViewport()*${S}.0;
- let bias=0.5*rasterViewport()*${S}.0+0.5;
- return vec4f(floor(s.xy*scale+bias),s.z,s.w);
-}
-/** The fill rule's share of edge \`e\`: one subpixel unit unless it is a top or a left edge. */
-fn fillNudge(e:vec2f)->f32{return saturate(e.y+saturate(1.0-e.x));}
 /** Triangle \`start\` — its row and triangle named, its corners where it has them — of \`page\`,
  *  set up from its three corners already on the subpixel grid (\`subpixelOf\`), \`det\` the
  *  determinant of its world's linear part: the rest of the setup, which the tessellation's

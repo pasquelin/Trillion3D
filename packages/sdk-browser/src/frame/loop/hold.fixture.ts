@@ -12,6 +12,7 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { NO_OVERRIDES } from '../backend/state/viewOverrides.ts'
 import { createPresentClasses } from '../../gpu/core/presentClasses.ts'
+import { createRootOffsets } from '../render/rootOffsets.ts'
 
 /**
  * An `rt` reduced to the strict necessary read by `frameSettled`/`holdWebgpuFrame`/`keepWebgpuFrame`:
@@ -73,6 +74,8 @@ export function settledRt() {
       // No graph output the rasters hold, none joined late.
       rasters: NO_RASTERS,
       rasterRebuild: undefined,
+      // No root is in a lighting channel but the default's (`channelledFor`).
+      rootOffsets: createRootOffsets(),
     },
     lights: {
       // A manual exposure: the lit image asks no exposure meter (`../../post/exposure/frame.ts`).
@@ -119,7 +122,7 @@ export function settledRt() {
     // No effect chain and no guides unless a test gives them (`world.effects`, `world.guides`).
     context: {} as { effects?: EffectChain; guides?: GuideSet },
     // No transparent: the frame entry asks no share seed (`askFramePipelines`).
-    blendState: { blendGpu: [] as unknown[], blendIndex: { revision: 0 } },
+    blendState: { blendGpu: [] as unknown[], blendIndex: { revision: 0 }, channelled: false },
     // A session without traces: a drawn frame says nothing (`traceDrawnFrame`).
     diag: { traceEnabled: false },
   }

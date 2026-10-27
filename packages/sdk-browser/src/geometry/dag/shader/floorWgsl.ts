@@ -96,17 +96,28 @@ export function dagWorkLayout(blockCount: number, worldCount = 0) {
   }
 }
 
+/** The floor's guard, the camera's and the shadow views' alike: whether a node can be dropped on its floor
+ *  at all — a leaf with a floor of some error, while the host has not turned this cull off
+ *  (\`CULL_MIN_LOD_OFF\`). Whether the leaf is open is the view's own. */
+export const DAG_FLOOR_GUARD_WGSL = wgslBlock(
+  'DAG_FLOOR_GUARD_WGSL',
+  [],
+  `fn floorApplies(node:CullNode)->bool{
+ return !cullOff(CULL_MIN_LOD_OFF)&&node.childCount==0u&&node.minError>0.0;
+}
+`,
+)
+
 export const DAG_FLOOR_WGSL = wgslBlock(
   'DAG_FLOOR_WGSL',
-  [],
+  [DAG_FLOOR_GUARD_WGSL],
   `/** A node's verdict: is it a leaf too coarse for the threshold — is its floor seen past the
  *  threshold even at its LOD ball's largest edge scale, \`edge · t < F · scale · floor\`
  *  (\`error.ts\`)? An inner node, an open leaf — one holding a cluster whose finer group is not
  *  resident — and a floor of no error never are, nor any while the host turned this cull off
- *  (\`CULL_MIN_LOD_OFF\`). */
+ *  (\`floorApplies\`). */
 fn floorPrunes(open:u32,node:CullNode,e:mat4x4f)->bool{
- if(cullOff(CULL_MIN_LOD_OFF)){return false;}
- if(node.childCount>0u||open!=0u||!(node.minError>0.0)){return false;}
+ if(!floorApplies(node)||open!=0u){return false;}
  return sphereEdges(node.sphere,e).y*cutView.pixelError<viewPixels()*placedScale.x*node.minError;
 }
 `,

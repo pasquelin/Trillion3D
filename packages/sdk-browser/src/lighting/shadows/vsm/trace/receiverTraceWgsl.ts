@@ -10,8 +10,8 @@
  * - the translucent surfaces at quality 1 (`shadowTranslucentQuality` 1; its default 0
  *   reads one sample, `../sampleLightWgsl.ts`), a fragment each (`../../../direct/shadowWgsl.ts`),
  *   `lone`: no lane of another voting beside it (`rayCountStatement`). A sun's trace takes every ray:
- *   a fragment's lanes share no workgroup to vote in; a local light's votes over its subgroup, or on
- *   the lane's own value without subgroups.
+ *   a fragment's lanes share no workgroup to vote in; a local light's votes over its subgroup, and
+ *   without subgroups traces every ray too.
  *
  * The host declares `vsmView` and `vsm` (`VsmUniforms`) and gives what the trace reads
  * (`VsmTraceHost`).
@@ -25,7 +25,7 @@ import { VSM_TRACE_RESULT_WGSL } from './traceCommonWgsl.ts'
 /**
  * THE NORMAL BIAS OF A RECEIVER, the one reading of its length: the projection's trace and a blend
  * fragment's push a receiver along its shading normal by the same length. Its inverse tangent is the
- * projection's own (`halfFovTangents.z`, 1 under an orthographic view), its distance along the view
+ * projection's own (`inverseHalfFovTangent`, 1 under an orthographic view), its distance along the view
  * axis under an orthographic view. The host declares `vsmView` and `vsm`.
  */
 export const VSM_NORMAL_OFFSET_WGSL = wgslBlock(
@@ -41,7 +41,7 @@ fn vsmCameraDistance(v:vec3f)->f32{
 /** The normal bias length of a receiver \`fromEye\` from the eye (0.02 cm floor =
  *  VSM_NORMAL_OFFSET_FLOOR). */
 fn vsmNormalOffset(fromEye:vec3f)->f32{
- return vsmNormalOffsetLength(vsm.normalBias,vsmCameraDistance(fromEye),vsmView.halfFovTangents.z);
+ return vsmNormalOffsetLength(vsm.normalBias,vsmCameraDistance(fromEye),vsmView.inverseHalfFovTangent);
 }
 `,
 )
@@ -50,7 +50,7 @@ fn vsmNormalOffset(fromEye:vec3f)->f32{
  *  pixels a group, a translucent surface's fragment alone. */
 export const vsmReceiverTraceWgsl = (host: VsmTraceHost) =>
   wgslBlock(
-    `vsmReceiverTraceWgsl(${host.hiz.join(', ')}, ${host.lone}, ${!!host.subgroups}, ${host.kinds})`,
+    `vsmReceiverTraceWgsl(${host.hiz.join(', ')}, ${host.lone}, ${!!host.subgroups}, ${host.kinds}${host.input === 'strands' ? ', strands' : ''})`,
     [
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,

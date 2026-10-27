@@ -2,13 +2,14 @@
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { VSM_COUNTERS } from '../constants.ts'
 import { finishVirtualShadowFrame } from '../frameSetup.ts'
-import { keepVsmFrame } from '../pageManagementEncode.ts'
+import { keepFilterableHistory, keepVsmFrame } from '../pageManagementEncode.ts'
 import { noteVsmFrame, stampVsmStats } from '../../../../frame/backend/state/vsmSettle.ts'
 import type { EngineVsm } from './engineVsm.ts'
 import { vsmDescentRequestsSubmitted } from '../traversal/requests.ts'
 
-/** Frame end: the feedback copy, the rendered marks and the frame data extraction (the frame's buffers become
- *  the previous frame's). */
+/** Frame end: the feedback copy, the uncached mark of a skipped raster and the frame data extraction
+ *  (the frame's buffers become the previous frame's; a frame with no map leaves the previous one in
+ *  place). */
 export function finishVsmFrame(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const vsm = rt.lights.vsm,
     plan = vsm?.plan
@@ -36,7 +37,16 @@ export function finishVsmFrame(rt: WebgpuPagesRuntime, encoder: GPUCommandEncode
   )
   finishVirtualShadowFrame(vsm.state, plan, rendered)
   vsm.renderedPlan = undefined
-  keepVsmFrame(vsm.res, { mapsGranted: hasData })
+  // The prefiltered distant shadow's history is kept from every frame with data whose blend asks it;
+  // a frame with none leaves it, as it leaves the rest of the previous frame.
+  if (hasData)
+    keepFilterableHistory(
+      vsm.res,
+      vsm.state.maps.shadows.shadowPrefilteredDistantHistoryBlendFactor > 0,
+      plan.sunBase,
+      encoder,
+    )
+  keepVsmFrame(vsm.res, hasData ? 'swap' : 'keep')
   vsm.stats.freePages = vsm.state.cache.lastFreePages ?? 0
   vsm.overflow.drain((line) => rt.diag.engineDiagnostic('shadow-overflow', line, {}))
 }

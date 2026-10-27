@@ -7,6 +7,7 @@ import { blueNoiseNow } from '../../../../gpu/noise/blueNoiseTextures.ts'
 import { VSM_PROJECTION_VIEW_BYTES } from './projectionView.ts'
 import { vsmFrameSetHeld, type VsmPerFrameSet, type VsmResources } from '../resources.ts'
 import type { ViewWords } from './projectionViewWrite.ts'
+import type { PerLightLights } from './perLightPass.ts'
 import { sizedBuffer } from '../../../../gpu/core/sizedBuffer.ts'
 
 /** What a set's projection holds (`vsmProjectionReserve`), freed with the set
@@ -29,12 +30,32 @@ export interface VsmProjectionState {
   /** The shadowed lights' grid (`lightGridWgsl.ts`) the local lights' pass writes and the lighting
    *  reads, as long as the light grid's view part at least. */
   lightGrid?: GPUBuffer
+  /** What the per-light path holds (`perLightPass.ts`), made at the first frame that takes it. */
+  perLight?: VsmPerLightState
+}
+
+/** What the per-light path holds (`vsmPerLightState`): its records, their group and the frame's lights while the
+ *  frame takes the path. Its mask is the set's (`VsmMask.perLight`, `../frame/vsmMask.ts`). */
+interface VsmPerLightState {
+  /** The lights' records (`perLightRecord.ts`), the words they are uploaded from and the same words as the integers the
+   *  rectangles are written in. */
+  records?: GPUBuffer
+  words: Uint32Array<ArrayBuffer>
+  ints: Int32Array<ArrayBuffer>
+  /** The byte offset of each record, which the dispatch and the draw bind at. */
+  offsets: Uint32Array<ArrayBuffer>
+  /** The projection's group. */
+  projection: HeldGroup
+  /** This frame's lights (`beginPerLightFrame`); none while the frame takes the one-pass path. */
+  frame?: PerLightLights
 }
 
 /** Bytes the projection of `res` holds — its view uniform and its shadowed lights' grid —, which
  *  freeing the set gives back (`releaseVsmProjection`; the pass draws into the engine's mask). */
 export const vsmProjectionHeldBytes = (res: VsmResources) =>
-  (res.projection?.uniform ? VSM_PROJECTION_VIEW_BYTES : 0) + (res.projection?.lightGrid?.size ?? 0)
+  (res.projection?.uniform ? VSM_PROJECTION_VIEW_BYTES : 0) +
+  (res.projection?.lightGrid?.size ?? 0) +
+  perLightHeldBytes(res.projection?.perLight)
 
 /** Bytes the projection of `res` still asks — its view uniform, where it holds none —; of a set not
  *  made yet, all of it. */
@@ -86,6 +107,7 @@ export function releaseVsmProjection(res: VsmResources) {
   res.projection = undefined
   state.uniform?.destroy()
   state.lightGrid?.destroy()
+  releasePerLight(state.perLight)
 }
 
 function projectionState(res: VsmResources) {
@@ -102,4 +124,21 @@ function projectionState(res: VsmResources) {
       i: new Int32Array(staging),
     },
   })
+}
+
+/** Bytes the per-light path of a projection holds: its records. */
+const perLightHeldBytes = (held: VsmPerLightState | undefined) => held?.records?.size ?? 0
+
+/** The per-light state of `state`, made at its first ask. */
+export const vsmPerLightState = (state: VsmProjectionState) =>
+  (state.perLight ??= {
+    words: new Uint32Array(0),
+    ints: new Int32Array(0),
+    offsets: new Uint32Array(0),
+    projection: heldGroup(),
+  })
+
+/** Frees what the per-light path holds. */
+function releasePerLight(held: VsmPerLightState | undefined) {
+  held?.records?.destroy()
 }

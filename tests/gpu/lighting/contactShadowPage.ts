@@ -23,8 +23,13 @@ import {
   ZERO_DIRECT,
   createDeferredView,
 } from '../../../packages/sdk-browser/src/lighting/deferred/view.ts'
-import { VIEW_WGSL } from '../../../packages/sdk-browser/src/lighting/deferred/worldAtWgsl.ts'
+import { DEFERRED_BINDINGS } from '../../../packages/sdk-browser/src/lighting/deferred/bindings.ts'
+import {
+  DEFERRED_CONTACT_SCENE_WGSL,
+  VIEW_BINDING_WGSL,
+} from '../../../packages/sdk-browser/src/lighting/deferred/litSurfaceWgsl.ts'
 import { directLightWgsl } from '../../../packages/sdk-browser/src/lighting/direct/lightWgsl.ts'
+import { shadowBitsOf } from '../../../packages/sdk-browser/src/lighting/direct/lightReachWgsl.ts'
 import { THIN_SURFACE_WGSL } from '../../../packages/sdk-browser/src/lighting/direct/lightingWgsl.ts'
 import { contactShadowWgsl } from '../../../packages/sdk-browser/src/lighting/contactShadow/contactShadowWgsl.ts'
 import {
@@ -79,16 +84,19 @@ export type ContactCase = {
   switchedOff?: boolean
 }
 
+/** The probes and the results, on numbers the deferred table leaves free. */
+const PROBES = 10,
+  RESULTS = 11
+const B = DEFERRED_BINDINGS
+
+// The scene's reads are the production block's (`DEFERRED_CONTACT_SCENE_WGSL`: the words and the depth), on the deferred pass's own numbers.
 const PROGRAM = wgslProgram(
   `
-@group(0) @binding(0) var<uniform> view:View;
-@group(0) @binding(1) var depth:texture_depth_2d;
-@group(0) @binding(2) var words:texture_2d_array<u32>;
-@group(0) @binding(3) var<storage,read> directLights:DirectLights;
+@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
 ${SUBSURFACE_TARGET.wgsl}
 struct Probe{place:vec4f,state:vec4f,}
-@group(0) @binding(4) var<storage,read> probes:array<Probe>;
-@group(0) @binding(5) var<storage,read_write> results:array<f32>;
+@group(0) @binding(${PROBES}) var<storage,read> probes:array<Probe>;
+@group(0) @binding(${RESULTS}) var<storage,read_write> results:array<f32>;
 @compute @workgroup_size(64)
 fn main(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=arrayLength(&probes)){return;}
@@ -98,9 +106,16 @@ fn main(@builtin(global_invocation_id) id:vec3u){
  modelOpacity=probe.state.y;
  thinSubsurface=vec3f(probe.state.z);
  let P=probe.place.xyz;
- results[id.x]=contactShadow(light,P,normalize(light.positionRange.xyz-P),castsShadow(light));
+ results[id.x]=contactShadow(light,P,normalize(light.positionRange.xyz-P),shadowBitsOf(light));
 }`,
-  [VIEW_WGSL, directLightWgsl(), THIN_SURFACE_WGSL, contactShadowWgsl(true)],
+  [
+    VIEW_BINDING_WGSL,
+    DEFERRED_CONTACT_SCENE_WGSL,
+    directLightWgsl(),
+    shadowBitsOf,
+    THIN_SURFACE_WGSL,
+    contactShadowWgsl('models'),
+  ],
 )
 
 /** Draws the depth image from a buffer of depths, one a pixel. */
@@ -134,13 +149,13 @@ export async function run(cases: ContactCase[]) {
   const compute = GPUShaderStage.COMPUTE
   const layout = device.createBindGroupLayout({
     entries: [
-      { binding: 0, visibility: compute, buffer: { type: 'uniform' } },
-      { binding: 1, visibility: compute, ...textureLayout('depth') },
-      { binding: 2, visibility: compute, ...textureLayout('uint', '2d-array') },
-      computeBufferEntry(3, 'read-only-storage'),
-      computeBufferEntry(4, 'read-only-storage'),
-      computeBufferEntry(5, 'storage'),
-      { binding: 22, visibility: compute, ...storageTextureLayout(SUBSURFACE_FORMAT) },
+      { binding: B.view, visibility: compute, buffer: { type: 'uniform' } },
+      { binding: B.depth, visibility: compute, ...textureLayout('depth') },
+      { binding: B.words, visibility: compute, ...textureLayout('uint', '2d-array') },
+      computeBufferEntry(B.lights, 'read-only-storage'),
+      computeBufferEntry(PROBES, 'read-only-storage'),
+      computeBufferEntry(RESULTS, 'storage'),
+      { binding: B.subsurface, visibility: compute, ...storageTextureLayout(SUBSURFACE_FORMAT) },
     ],
   })
   const pipeline = device.createComputePipeline({
@@ -276,13 +291,13 @@ export async function run(cases: ContactCase[]) {
     const group = device.createBindGroup({
       layout,
       entries: [
-        { binding: 0, resource: { buffer: view.buffer } },
-        { binding: 1, resource: depthTexture.createView() },
-        { binding: 2, resource: wordsTexture.createView({ dimension: '2d-array' }) },
-        { binding: 3, resource: { buffer: lights.buffer } },
-        { binding: 4, resource: { buffer: probes } },
-        { binding: 5, resource: { buffer: output } },
-        { binding: 22, resource: subsurface.createView() },
+        { binding: B.view, resource: { buffer: view.buffer } },
+        { binding: B.depth, resource: depthTexture.createView() },
+        { binding: B.words, resource: wordsTexture.createView({ dimension: '2d-array' }) },
+        { binding: B.lights, resource: { buffer: lights.buffer } },
+        { binding: PROBES, resource: { buffer: probes } },
+        { binding: RESULTS, resource: { buffer: output } },
+        { binding: B.subsurface, resource: subsurface.createView() },
       ],
     })
     const run = device.createCommandEncoder()

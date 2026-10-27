@@ -82,6 +82,34 @@ export function writeEntry(
   writeMatrix(out, base + 4, light)
 }
 
+/** The bytes of a light's block for the pass that evaluates its function apart from the atlas (`writeStandaloneLight`). */
+export const STANDALONE_LIGHT_BYTES = 96
+
+/**
+ * Writes the block of `light`, whose rank in the light buffer is `rank`, for the pass that evaluates its function apart from the
+ * atlas (`lightFunctionPassWgsl.ts`), at `base` bytes of `out`: the four rows of the matrix that takes a world point to the
+ * light's axes (as the table's entries hold it), then the tangent of a spot's outer cone (1 for any other light, which uses none),
+ * the fade distance and the disabled brightness, then the rank and the light's kind rank (`LIGHT_KIND`), as 16 bytes of words.
+ */
+export function writeStandaloneLight(
+  out: ArrayBuffer,
+  base: number,
+  light: SceneLight,
+  rank: number,
+) {
+  const floats = new Float32Array(out, base, STANDALONE_LIGHT_BYTES / 4)
+  const words = new Uint32Array(out, base, STANDALONE_LIGHT_BYTES / 4)
+  writeMatrix(floats, 0, light)
+  floats[16] = light.kind === 'spot' ? Math.tan(light.outerConeAngle!) : 1
+  floats[17] = lightFunctionFadeOf(light)
+  floats[18] = lightFunctionDisabledOf(light)
+  floats[19] = 0
+  words[20] = rank
+  words[21] = LIGHT_KIND[light.kind]
+  words[22] = 0
+  words[23] = 0
+}
+
 /** Writes entry 0, which no light reads as its own: white's head, and the atlas's numbers every
  *  entry shares (`ATLAS_NUMBERS_AT`): the slot's size in atlas coordinates, the sides, and whether
  *  the fog's local lights read the light functions. */

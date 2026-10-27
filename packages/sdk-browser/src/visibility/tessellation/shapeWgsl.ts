@@ -2,7 +2,12 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { visTriangle } from '../visWords.ts'
-import { ARG_MAX_TRIANGLES, SEED_SPLIT_LIMIT, TABLE_SIZE } from './contract.ts'
+import {
+  ARG_MAX_TRIANGLES,
+  ARG_MAX_TRIANGLES_TWO_SIDED,
+  SEED_SPLIT_LIMIT,
+  TABLE_SIZE,
+} from './contract.ts'
 import { FLAG_DOUBLE } from '../types.ts'
 import { CHILDREN_WGSL, QUEUE_WGSL } from './queueWgsl.ts'
 import {
@@ -63,8 +68,10 @@ fn patchShape(page:PageInfo,h:ClusterHeader,rec:DisplacementRecord,piece:vec4u)-
  return PatchShape(mat3x3f(c0,c1,c2),parent,boxGrownByDisplacement(axis,cone,rec.bounds.x,rec.bounds.y,span));
 }
 /** A patch the view lets through, queued again cut finer or listed visible; \`track\` notes the
- *  triangles a listed patch's pattern holds — twice for a two-sided row — in the most the pass's
- *  state keeps (\`ARG_MAX_TRIANGLES\`), which sizes the draw of the shadow maps. */
+ *  triangles a listed patch's pattern holds in the most the pass's state keeps for its row's kind
+ *  (\`ARG_MAX_TRIANGLES\`, \`ARG_MAX_TRIANGLES_TWO_SIDED\`), which size the draws of the shadow maps; a
+ *  two-sided row's patch is listed in the second list (\`listVisibleTwoSided\`), so that each draw launches
+ *  its rows' patches alone. */
 fn settlePatch(piece:vec4u,page:PageInfo,rec:DisplacementRecord,shape:PatchShape,view:TessView,track:bool){
  let c=shape.corner;
  let w0=(page.world*vec4f(c[0],1.0)).xyz;let w1=(page.world*vec4f(c[1],1.0)).xyz;let w2=(page.world*vec4f(c[2],1.0)).xyz;
@@ -77,11 +84,12 @@ fn settlePatch(piece:vec4u,page:PageInfo,rec:DisplacementRecord,shape:PatchShape
   queueChildren(piece.x,shape.parent,min(coarseFactors(f),vec3f(${SEED_SPLIT_LIMIT}.0)),true);
   return;
  }
- listVisible(piece);
+ let twoSided=track&&(page.flags&${FLAG_DOUBLE}u)!=0u;
+ if(twoSided){listVisibleTwoSided(piece);}else{listVisible(piece);}
  if(track){
   let s=sortedFactors(f);
   let triangles=patternTriangles(patternAt(patternOf(s.factors,s.flip)));
-  atomicMax(&tess[tu.args+${ARG_MAX_TRIANGLES}u],triangles*select(1u,2u,(page.flags&${FLAG_DOUBLE}u)!=0u));
+  atomicMax(&tess[tu.args+select(${ARG_MAX_TRIANGLES}u,${ARG_MAX_TRIANGLES_TWO_SIDED}u,twoSided)],triangles);
  }
 }`,
 )

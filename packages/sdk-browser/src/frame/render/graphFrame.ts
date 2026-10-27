@@ -9,6 +9,8 @@ import { GRAPH_FRAME_AT, GRAPH_FRAME_BYTES } from '../../visibility/shader/graph
  */
 export function createGraphFrame() {
   const words = new Float32Array(GRAPH_FRAME_BYTES / 4)
+  // The same words as whole numbers: the image's number is one, not a float.
+  const ints = new Uint32Array(words.buffer)
   let buffer: GPUBuffer | undefined,
     seen = false
   return {
@@ -23,13 +25,14 @@ export function createGraphFrame() {
       device.queue.writeBuffer(buffer, 0, words)
       return buffer
     },
-    /** The image's clocks and camera taken, and whether the blue noise is bound (`noise`), sent where the
-     *  buffer is made. */
+    /** The image's clocks and camera taken, whether the blue noise is bound (`noise`) and the view's image number (`frame`, which
+     *  the dither of a cutout walks the noise by), sent where the buffer is made. */
     write(
       device: GPUDevice | undefined,
       clocks: GraphClocks,
       eye: ArrayLike<number>,
       noise: boolean,
+      frame: number,
     ) {
       const { clock, eye: now, before } = GRAPH_FRAME_AT
       for (let a = 0; a < 3; a++) words[before + a] = seen ? words[now + a]! : eye[a]!
@@ -39,6 +42,7 @@ export function createGraphFrame() {
       words[clock + 1] = clocks.realTime
       for (let a = 0; a < 3; a++) words[now + a] = eye[a]!
       words[now + 3] = noise ? 1 : 0
+      ints[before + 3] = frame >>> 0
       seen = true
       if (buffer && device) device.queue.writeBuffer(buffer, 0, words)
     },

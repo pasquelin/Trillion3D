@@ -16,6 +16,7 @@ import { sequentialEntries } from '../../../gpu/core/computeBindings.ts'
 import { autoKernel } from '../../../gpu/core/computeStages.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { markWrittenOnGpu, writeChanged } from '../../../gpu/core/writeChanged.ts'
+import { grownByCopy } from '../../../gpu/core/tableGrowth.ts'
 import { VSM_PASS_PREFIX } from '../../../diagnostic/stage/passLabels.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
@@ -84,19 +85,27 @@ export interface VsmThrottleState {
 /** Every buffer the state holds. */
 const buffersOf = (held: VsmThrottleState) => [...held.feedback, ...held.throttle, held.params]
 
-/** The throttle's buffers of `res`: the ones it holds, or made now, sized by the set's map slots and
- *  made again when they change. For a frame the plan found the throttle's programs compiled for
- *  (the plan's `throttleReady`). */
+/** The throttle's buffers of `res`: the ones it holds, or made now, sized by the set's map slots. A
+ *  change of the slots makes them again, the previous frame's pair carried over
+ *  (`carryVsmThrottle`). For a frame the plan found the throttle's programs compiled for (the plan's
+ *  `throttleReady`). */
 export function vsmThrottleState(device: GPUDevice, res: VsmResources): VsmThrottleState {
   const mapSlots = res.layout.mapSlots
-  if (res.throttle?.mapSlots === mapSlots) return res.throttle
-  releaseVsmThrottle(res)
+  const held = res.throttle
+  if (held?.mapSlots === mapSlots) return held
+  const made = makeVsmThrottle(device, mapSlots)
+  if (held) carryVsmThrottle(held, made, 1 - vsmFrameParity(res))
+  return (res.throttle = made)
+}
+
+/** The throttle's buffers for `mapSlots` map slots, holding no frame. */
+function makeVsmThrottle(device: GPUDevice, mapSlots: number): VsmThrottleState {
   const feedbackWords = vsmFeedbackWords(mapSlots),
     throttleWords = vsmThrottleWords(mapSlots)
   const buffer = (name: string, words: number, usage = STORAGE()) =>
     device.createBuffer({ label: `${LABEL}.${name}`, size: 4 * words, usage })
   const paramData = new ArrayBuffer(4 * VSM_THROTTLE_PARAMS.words)
-  return (res.throttle = {
+  return {
     device,
     mapSlots,
     feedbackWords,
@@ -117,7 +126,31 @@ export function vsmThrottleState(device: GPUDevice, res: VsmResources): VsmThrot
     prevKept: false,
     active: false,
     groups: { process: vsmFrameSetHeld(), update: vsmFrameSetHeld() },
-  })
+  }
+}
+
+/** The slots of the throttle changed, the buffers of `from` replaced by those of `to`: the pair of
+ *  the previous frame (`previous`, a parity) copied whole into the new one, whose words of each map
+ *  stand where they stood (`vsmFeedbackWords`, `vsmThrottleWords`), and the previous frame still the
+ *  next one's previous (`prevKept`). The buffers of `from` are retired after the copy. A pair that
+ *  does not fit the new buffers is not copied in part, the process kernel would read past its end:
+ *  nothing is carried and the history restarts. */
+function carryVsmThrottle(from: VsmThrottleState, to: VsmThrottleState, previous: number) {
+  const pairs = (['feedback', 'throttle'] as const).map(
+    (key) => [from[key][previous], to[key][previous]] as const,
+  )
+  const fits = pairs.every(([old, grown]) => grown.size >= old.size)
+  grownByCopy(
+    from.device,
+    buffersOf(from),
+    fits
+      ? (encoder) => {
+          for (const [old, grown] of pairs) encoder.copyBufferToBuffer(old, 0, grown, 0, old.size)
+        }
+      : undefined,
+    `${LABEL}.carry`,
+  )
+  to.prevKept = fits && from.prevKept
 }
 
 /** Frees the throttle's buffers of `res`, with the set. */

@@ -5,7 +5,6 @@ import {
   GPU_METHODS,
   GPU_WARMUP_ROUNDS,
   GPU_WARMUP_WORK_SCALE,
-  adapterKey,
   checkBenchmarkOptions,
   steppedWorkScale,
   timerStep,
@@ -15,6 +14,7 @@ import {
   type HardwareBenchmarkResult,
 } from '../../../../sdk-core/src/runtime/hardwareBenchmark.ts'
 import { probeWorldDevice } from '../../api/capability/worldReady.ts'
+import { gpuCapsOf } from '../../gpu/core/gpuCaps.ts'
 import { createGpuBenchmark } from '../../gpu/benchmark/gpuBenchmark.ts'
 import { besideModule, startModuleWorker } from '../host/besideModule.ts'
 import type { HardwareBenchmarkOptions } from './benchmarkSource.ts'
@@ -79,7 +79,7 @@ async function measureProcessor(workScale: number, start: () => Worker, signal?:
  * a device with no GPU timestamps, which times nothing.
  */
 async function measureGraphics(workScale: number, device: GPUDevice, signal?: AbortSignal) {
-  if (!device.features.has('timestamp-query')) return null
+  if (!gpuCapsOf(device).timestamp) return null
   const benchmark = await createGpuBenchmark(device)
   try {
     const warmup = (scale: number) => f(scale * f(GPU_WARMUP_WORK_SCALE))
@@ -109,7 +109,7 @@ export async function runHardwareBenchmark(
   options: HardwareBenchmarkOptions = {},
   signal?: AbortSignal,
   needs: BenchmarkNeeds = PAGE_NEEDS,
-): Promise<{ result: HardwareBenchmarkResult; adapter: string }> {
+): Promise<{ result: HardwareBenchmarkResult; adapter: string | undefined }> {
   const { workScale = BENCHMARK_WORK_SCALE, cpuMultiplier = 1, gpuMultiplier = 1 } = options
   checkBenchmarkOptions(workScale, cpuMultiplier, gpuMultiplier)
   const processor = await measureProcessor(workScale, needs.worker, signal)
@@ -128,7 +128,7 @@ export async function runHardwareBenchmark(
       gpuWorkScale: graphics?.scale ?? workScale,
       gpuMultiplier,
     }
-    return { result, adapter: adapterKey(device.adapterInfo) }
+    return { result, adapter: gpuCapsOf(device).adapter }
   } finally {
     device.destroy()
   }

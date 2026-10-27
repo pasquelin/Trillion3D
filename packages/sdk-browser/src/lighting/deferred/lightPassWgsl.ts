@@ -11,18 +11,23 @@
  * (`CLASS_CUTS`): a tile of plain physical surfaces runs no diffuse or toon model, no thin
  * transmission, no lobe.
  */
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslVariants } from '../../../../math/src/wgsl/decl.ts'
 import { MODEL_FLAG } from '../../materials/surface/surfaceModelWord.ts'
 import {
   DEFERRED_BINDINGS,
   DEFERRED_CLOUD_SHADOW_BINDINGS,
   DEFERRED_LIGHT_FUNCTION_BINDINGS,
+  DEFERRED_LIGHT_PROFILE_BINDINGS,
 } from './bindings.ts'
 import { variantLabel, type ContractKey } from './contractCuts.ts'
+import { SCREEN_OCCLUSION_WGSL } from './ambientOcclusionWgsl.ts'
 import {
   CLASS_CUTS,
+  DEFERRED_CONTACT_SCENE_WGSL,
+  LIT_CHANNELS_WGSL,
   LIT_PIXEL_WGSL,
   SUBSURFACE_BINDING_WGSL,
+  litCutOf,
   litPixelStatements,
 } from './litSurfaceWgsl.ts'
 import { TILE_VERTEX_WGSL } from './tilePass.ts'
@@ -30,9 +35,10 @@ import type { TileClass } from './tileClass.ts'
 import { LOBES_TARGET_WGSL } from '../direct/lobesWgsl.ts'
 import { lightingBase, pixelCellWgsl, type LightingBindings } from '../direct/lightingWgsl.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
+import { LOCAL_SHADOWED_WGSL } from '../direct/shadowSlice.ts'
 
 /** The light buffer. */
-const LIGHTS_BINDING_WGSL = wgslBlock(
+export const LIGHTS_BINDING_WGSL = wgslBlock(
   'LIGHTS_BINDING_WGSL',
   [],
   `@group(0) @binding(${DEFERRED_BINDINGS.lights}) var<storage,read> directLights:DirectLights;`,
@@ -66,6 +72,7 @@ const LOCAL_BINDINGS: LightingBindings = {
   vsmMask: CONTRACT_SHADOW_BINDINGS.vsmMask,
   maskFallback: CONTRACT_SHADOW_BINDINGS.fallback,
   lightFunction: DEFERRED_LIGHT_FUNCTION_BINDINGS,
+  lightProfile: DEFERRED_LIGHT_PROFILE_BINDINGS,
 }
 /** The view of the shadows sums the suns of the cell too, so its program reads the sun's distance-field
  *  shadow as the sun's pass does. */
@@ -81,7 +88,7 @@ const SUN_LOOP_WGSL = wgslBlock(
   `
 fn sunLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
  var result=vec3f(0.0);
- let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);
+ let shading=clothSurface(lobeSurface(rgb,metal,rough,N,V));lobeView(shading);
  for(var index=1u;index<=sunRanks[0];index++){
   result+=declaredLight(sunRanks[index],rgb,metal,rough,N,V,P,ao,shading);
  }
@@ -90,21 +97,30 @@ fn sunLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->ve
 )
 
 /** The sum of the lights of a cell's list on a pixel but the directional ones, in the order of
- *  their ranks. */
-const LOCAL_LOOP_WGSL = wgslBlock(
-  'LOCAL_LOOP_WGSL',
-  [],
-  `
+ *  their ranks; with `skipHeld`, but the shadowed local lights as well, which the per-light draw lights
+ *  (`perLightPassWgsl.ts`) — a light is lit by this loop or by its own draw, never both. */
+export const localLoopWgsl = wgslVariants((skipHeld) =>
+  wgslBlock(
+    skipHeld ? 'LOCAL_LOOP_UNBATCHED_WGSL' : 'LOCAL_LOOP_WGSL',
+    skipHeld ? [LOCAL_SHADOWED_WGSL] : [],
+    `
 fn localLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
  var result=vec3f(0.0);
- let shading=lobeSurface(rgb,metal,rough,N,V);lobeView(shading);
+ let shading=clothSurface(lobeSurface(rgb,metal,rough,N,V));lobeView(shading);
  for(var index=0u;index<slice.y;index++){
   let rank=listedLight(slice,index);
-  if(isSunKind(directLights.items[rank].params.x)){continue;}
+  if(!listedDrawn(slice,rank)){continue;}
+  if(isSun(directLights.items[rank])){continue;}${
+    skipHeld
+      ? `
+  if(lightHasLocalShadow(rank)){continue;}`
+      : ''
+  }
   result+=declaredLight(rank,rgb,metal,rough,N,V,P,ao,shading);
  }
  return result;
 }`,
+  ),
 )
 
 /** The record of the pixel's cell of the light grid (`pixelCellWgsl`), the list the pass reads of it, and
@@ -119,11 +135,34 @@ const PIXEL_CELL = `
  * (`CLASS_CUTS`), whatever the frame's key says of the lobes — the key says whether the program holds
  * the class —, and the sun's pass holds no rectangle code.
  */
-const keyOfClass = (key: ContractKey, tileClass: TileClass, rect: boolean): ContractKey => ({
+export const keyOfClass = (key: ContractKey, tileClass: TileClass, rect: boolean): ContractKey => ({
   ...key,
   rectless: key.rectless || !rect,
   lobeless: !CLASS_CUTS[tileClass].lobes,
 })
+
+/**
+ * What the passes that light a pixel by a light's term list beside their light loop (the sun's, the local lights' and the per-light draw), for
+ * the class `tileClass` under the key `lights`: the `cut` of the class, the `head` before the loop's own bindings (the pixel, its occlusion,
+ * its lighting channels and the contact scene where the program holds them) and the `tail` after the loop (the thin transmission's and
+ * the lobes' targets where the class holds them).
+ */
+export function litPassImports(lights: ContractKey, tileClass: TileClass) {
+  const cut = litCutOf(tileClass, lights)
+  return {
+    cut,
+    head: [
+      LIT_PIXEL_WGSL,
+      SCREEN_OCCLUSION_WGSL,
+      ...(cut.channels ? [LIT_CHANNELS_WGSL] : []),
+      ...(lights.contactless ? [] : [DEFERRED_CONTACT_SCENE_WGSL]),
+    ],
+    tail: [
+      ...(cut.thin ? [SUBSURFACE_BINDING_WGSL] : []),
+      ...(cut.lobes ? [LOBES_TARGET_WGSL] : []),
+    ],
+  }
+}
 
 /**
  * The sun's pass for the tiles of `tileClass`, under the key `key`'s cuts of shadow code
@@ -131,8 +170,8 @@ const keyOfClass = (key: ContractKey, tileClass: TileClass, rect: boolean): Cont
  * the scene's directional lights to the pixel, nothing where it is lit by none.
  */
 export function sunPassWgsl(key: ContractKey, tileClass: TileClass) {
-  const cut = CLASS_CUTS[tileClass]
   const lights = keyOfClass(key, tileClass, false)
+  const { cut, head, tail } = litPassImports(lights, tileClass)
   return wgslBlock(
     `sunPassWgsl(${variantLabel(lights)}, ${tileClass})`,
     [
@@ -142,37 +181,41 @@ export function sunPassWgsl(key: ContractKey, tileClass: TileClass) {
         slices: false,
         cut,
       }),
-      LIT_PIXEL_WGSL,
+      ...head,
       LIGHTS_BINDING_WGSL,
       SUN_RANKS_BINDING_WGSL,
       TILE_VERTEX_WGSL,
       SUN_LOOP_WGSL,
-      ...(cut.thin ? [SUBSURFACE_BINDING_WGSL] : []),
-      ...(cut.lobes ? [LOBES_TARGET_WGSL] : []),
+      ...tail,
     ],
     `
 @fragment fn sunMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}
  vsmMaskAt(coord);
- return lightOut(sunLighting(albedo,base.a,normal.a,N,V,P,emissive.a),lightView);
+ return lightOut(sunLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord)));
 }`,
   )
 }
 
 /**
  * The local lights' pass for the tiles of `tileClass`, under the key's cuts: the entry `localMain`,
- * which adds the pre-exposed light of the lights of the pixel's cell to the pixel. The program of the
+ * which adds the pre-exposed light of the lights of the pixel's cell to the pixel, those the maps shadow left out under
+ * `skipHeld` (the per-light path). The program of the
  * `single` class (the models, no lobe) holds `visibilityMain` besides, which the view of the shadows
  * (`LIT_VIEWS`) draws the tiles of every class with: it sums every light of the cell, the directional
  * ones too, as a shadow catcher reads them (`MODEL_FLAG.shadow`, `CATCHER_SHADOWED`) and shows the
  * share of their light the shadows let through, the sun's distance-field shadow among them, white
  * where no shadowed light reaches.
  */
-export function localPassWgsl(key: ContractKey, tileClass: TileClass) {
-  const cut = CLASS_CUTS[tileClass]
+export function localPassWgsl(
+  key: ContractKey,
+  tileClass: TileClass,
+  { skipHeld = false }: { skipHeld?: boolean } = {},
+) {
   const lights = keyOfClass(key, tileClass, true)
-  const visibility = cut.models && !cut.lobes
+  const { cut, head, tail } = litPassImports(lights, tileClass)
+  const visibility = cut.models && !cut.lobes && !skipHeld
   return wgslBlock(
-    `localPassWgsl(${variantLabel(lights)}, ${tileClass})`,
+    `localPassWgsl(${variantLabel(lights)}, ${tileClass}${skipHeld ? ', unbatched' : ''})`,
     [
       lightingBase(visibility ? VISIBILITY_BINDINGS : LOCAL_BINDINGS, lights, {
         narrow: key.narrow,
@@ -182,23 +225,22 @@ export function localPassWgsl(key: ContractKey, tileClass: TileClass) {
         airTint: visibility,
       }),
       pixelCellWgsl(),
-      LIT_PIXEL_WGSL,
+      ...head,
       LIGHTS_BINDING_WGSL,
       TILES_BINDING_WGSL,
       TILE_VERTEX_WGSL,
-      LOCAL_LOOP_WGSL,
-      ...(cut.thin ? [SUBSURFACE_BINDING_WGSL] : []),
-      ...(cut.lobes ? [LOBES_TARGET_WGSL] : []),
+      localLoopWgsl(skipHeld),
+      ...tail,
     ],
     `
 @fragment fn localMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}${PIXEL_CELL}
- return lightOut(localLighting(albedo,base.a,normal.a,N,V,P,emissive.a,cell),lightView);
+ return lightOut(localLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),cell));
 }${
       visibility
         ? `
 @fragment fn visibilityMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}
  surfaceModel=${MODEL_FLAG.shadow}u;${PIXEL_CELL}
- let seen=sliceLighting(albedo,base.a,normal.a,N,V,P,emissive.a,cell);
+ let seen=sliceLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),cell);
  return vec4f(vec3f(select(1.0,seen.x/seen.y,seen.y>0.0)),0.0);
 }`
         : ''

@@ -257,6 +257,22 @@
       "action": "Export the model again without that extension, or with it listed in `extensionsUsed` alone."
     },
     {
+      "id": "T3D-E105",
+      "code": "RAY_TRACING_TREE_TOO_DEEP",
+      "level": "error",
+      "message": "A ray tracing tree needs more stack than the shader's walk holds.",
+      "cause": "A primitive's or a cut's tree of boxes is deeper than the walk's stack can follow, so a ray could miss part of it",
+      "action": "Report it as a compiler bug, with the model and the primitive the error names."
+    },
+    {
+      "id": "T3D-E106",
+      "code": "RAY_TRACING_TOO_LARGE",
+      "level": "error",
+      "message": "A count or an offset of the ray tracing file does not fit in a 32-bit word.",
+      "cause": "A mesh, a cut or a world holds more nodes, triangles or records than the file's 32-bit words can number",
+      "action": "Split the model into smaller meshes or a smaller world, or report it with the model if it is not that large."
+    },
+    {
       "id": "T3D-E033",
       "code": "INVALID_TRIANGLES",
       "level": "error",
@@ -1396,9 +1412,17 @@
       "id": "T3D-W110",
       "code": "curves-unsupported",
       "level": "warn",
-      "message": "Curves were left out; only surfaces are drawn.",
-      "cause": "Curves (USD `BasisCurves`, `NurbsCurves`, `HermiteCurves`, an Alembic curves object): not a surface",
-      "action": "Convert the curves to meshes (for example tubes) before exporting."
+      "message": "Curves of a kind the strands are not read from were left out.",
+      "cause": "Curves (USD `NurbsCurves`, `HermiteCurves`): the strands of a groom are read from `BasisCurves` and from an Alembic curves object, and these are neither, nor a surface",
+      "action": "Export the curves as `BasisCurves`, or convert them to meshes (for example tubes) before exporting."
+    },
+    {
+      "id": "T3D-W228",
+      "code": "curves-truncated",
+      "level": "warn",
+      "message": "Some curves were left out of the strands: their point counts pass the points the object carries.",
+      "cause": "A curves object (USD `BasisCurves`, an Alembic curves object) whose per-curve point counts add up to more points than its position array holds; the curves from there on are dropped",
+      "action": "Export the curves again with a point count for each curve that matches the positions."
     },
     {
       "id": "T3D-W111",
@@ -2431,6 +2455,54 @@
       "message": "A material's sheen was dropped because its coat or its transmission takes the surface first.",
       "cause": "A glTF material declares `KHR_materials_sheen` beside `KHR_materials_clearcoat` or `KHR_materials_transmission`: the surface has one shading model, and the transmission, then the coat, win over the cloth.",
       "action": "Keep either the sheen or the coat and the transmission on one material."
+    },
+    {
+      "id": "T3D-W229",
+      "code": "light-profile-uri-refused",
+      "level": "warn",
+      "message": "A light's IES profile was left out: its path is not allowed.",
+      "cause": "A light's `extras.iesProfile` is an absolute path, a URL, or a path that leaves the scene's folder; the light keeps its plain shape",
+      "action": "Give the path of the IES file relative to the scene, inside its folder."
+    },
+    {
+      "id": "T3D-W230",
+      "code": "light-profile-unreadable",
+      "level": "warn",
+      "message": "A light's IES profile was left out: its file cannot be read.",
+      "cause": "A light's `extras.iesProfile` names a file that is missing or cannot be opened; the light keeps its plain shape",
+      "action": "Put the IES file at the path the light names, beside the scene's images."
+    },
+    {
+      "id": "T3D-W231",
+      "code": "light-profile-invalid",
+      "level": "warn",
+      "message": "A light's IES profile was left out: its file is not a photometric file the reader accepts.",
+      "cause": "The file a light's `extras.iesProfile` names is not an IES photometric file the reader accepts (for example a tilt other than `TILT=NONE`, angles out of order, or text after the candela values); the light keeps its plain shape",
+      "action": "Export the profile again as an IES LM-63 file with `TILT=NONE` and its angles in ascending order."
+    },
+    {
+      "id": "T3D-W232",
+      "code": "light-profile-degenerate-frame",
+      "level": "warn",
+      "message": "A light's IES profile was left out: its node has no usable frame.",
+      "cause": "The node of a light that names an IES profile has a matrix that flattens its forward axis or its up axis, so the angles of the profile cannot be placed; the light keeps its plain shape",
+      "action": "Give the node of the light a matrix without a flattened axis."
+    },
+    {
+      "id": "T3D-W233",
+      "code": "light-profile-brightness-scale-invalid",
+      "level": "warn",
+      "message": "A light's IES brightness scale was left out: it is not a number of at least 0.",
+      "cause": "A light's `extras.iesBrightnessScale` is not a finite number of at least 0; the scale is omitted and the light keeps 1",
+      "action": "Give `iesBrightnessScale` a number of at least 0, or leave it out."
+    },
+    {
+      "id": "T3D-W234",
+      "code": "light-profile-brightness-switch-invalid",
+      "level": "warn",
+      "message": "A light's IES brightness switch was left out: it is not true or false.",
+      "cause": "A light's `extras.useIesBrightness` is not a boolean; the switch is omitted and the light keeps its own intensity",
+      "action": "Give `useIesBrightness` true or false, or leave it out."
     }
   ]
 }

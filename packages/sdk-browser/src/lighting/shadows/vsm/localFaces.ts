@@ -14,6 +14,10 @@ import {
 import { cross } from '../../../../../math/src/vector/vectorTuple.ts'
 import { VSM_FACE_MATRIX, VSM_MIN_DIRECTION_SQ, vsmWorldToLightRotation } from './clipmap.ts'
 import { VSM_LOCAL_NEAR_PLANE, VSM_UNIT_PER_CM } from './constants.ts'
+import {
+  coneSphereAlong,
+  coneSphereRadius,
+} from '../../../../../sdk-core/src/scene/light/drawRange.ts'
 
 /** The nearest depth a local light's casters take: 0.1 cm. */
 const VSM_LOCAL_MIN_LIGHT_W = 0.1 * VSM_UNIT_PER_CM
@@ -140,19 +144,12 @@ export function spotMapProjection(
   outerCone: number,
 ) {
   const cosOuter = Math.fround(Math.cos(outerCone)),
-    sinOuter = Math.fround(Math.sin(outerCone)),
     invTanOuter = Math.fround(focalScale(outerCone))
   // The bounding sphere of the cone, relative to the light: past a half angle of 45° (cos² = 1/2)
   // the sphere through the cap's rim, its centre on the axis at the rim's foot; below, the
   // sphere through the light and the rim.
-  let sphereOffset: number, sphereRadius: number
-  if (cosOuter < Math.fround(Math.SQRT1_2)) {
-    sphereOffset = range * cosOuter
-    sphereRadius = range * sinOuter
-  } else {
-    sphereRadius = range / (2 * cosOuter)
-    sphereOffset = sphereRadius
-  }
+  const sphereOffset = coneSphereAlong(range, cosOuter),
+    sphereRadius = coneSphereRadius(range, cosOuter)
   multiplyMatrix4(spotView, VSM_FACE_MATRIX, worldToLight)
   const c = transformAffinePoint(
     spotCentre,

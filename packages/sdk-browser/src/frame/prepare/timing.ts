@@ -43,27 +43,21 @@ function besideMs(rt: WebgpuPagesRuntime) {
 
 /** The GPU time of the passes that build the visibility buffer in the main view's image `sample`
  *  describes, which the cut's edge scale is fitted to (`edge.budgetMs`): the main view's alone, the
- *  one whose cut the fraction scales. `NO_TIMING` where the sample holds none, or the scale has no
- *  budget to fit. */
-function edgeMsOf(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
-  if (!(rt.views.main.scale.edge.budgetMs > 0)) return NO_TIMING
-  return passBlockMs(sample, 'visibility') ?? NO_TIMING
-}
+ *  one whose cut the fraction scales. `NO_TIMING` where the sample holds none. */
+const edgeMsOf = (sample: GpuTimingSample) => passBlockMs(sample, 'visibility') ?? NO_TIMING
 
-/** The GPU time of the shadow raster's passes in the sample, which the shadows' compute budget is fitted
- *  to (`vsm.budgetMs`, `shadowDynamicResolutionTimeBudgetMs`). `NO_TIMING` where the sample holds none, or
- *  no budget is named. */
-function vsmMsOf(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
-  if (!(rt.views.main.scale.vsm.budgetMs > 0)) return NO_TIMING
-  return vsmRenderMs(sample) ?? NO_TIMING
-}
+/** The GPU time of the shadow raster in the sample, from the beginning of its first pass to the end of
+ *  its last (`vsmRenderMs`), which the shadows' compute budget is fitted to (`vsm.budgetMs`,
+ *  `shadowDynamicResolutionTimeBudgetMs`). `NO_TIMING` where the sample holds no usable time. */
+const vsmMsOf = (sample: GpuTimingSample) => vsmRenderMs(sample) ?? NO_TIMING
 
 /** What a sample hands the dynamic resolution: the settings now, the frame's GPU busy time — never
  *  the CPU's: the time the submissions cover, the host gaps between them left out (a gap is the
  *  host's, no lower resolution shortens it), and the views drawn beside the main image with it,
  *  since the frame's GPU time holds all of its GPU work; an image a pass's pair could not be read
  *  in holds no whole time: none, as a frame with no GPU timing yet is skipped — and the time of
- *  the cut and its raster, and the time of the shadow raster's passes. */
+ *  the cut and its raster, and the time of the shadow raster's passes, measured whether or not a
+ *  budget asks for them (`recordFrame` keeps 0 for one that does not). */
 function feedScale(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
   const { scale } = rt.views.main,
     busy = sample.pairs.invalid === 0 ? sample.submittedMs : null
@@ -72,8 +66,8 @@ function feedScale(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
     busy === null ? null : busy + besideMs(rt),
     sample.renderScale as number,
     sample.scaleSteered !== false,
-    edgeMsOf(rt, sample),
-    vsmMsOf(rt, sample),
+    edgeMsOf(sample),
+    vsmMsOf(sample),
   )
 }
 

@@ -6,6 +6,7 @@ import type { CloudShadowSet } from '../atmosphere/cloudShadowRead.ts'
 import type { ToneLut } from '../toneLut.ts'
 import type { VolumetricLightmapGpu } from '../volumetricLightmap/gpu.ts'
 import type { DeferredPlaceholders } from './setup.ts'
+import type { PerLightLights } from '../shadows/vsm/projection/perLightPass.ts'
 
 /** Direct-lighting contract resources the pass rereads; when absent, they are replaced. With them,
  *  the frame's key: what its program leaves out (`contractCuts.ts`). */
@@ -48,6 +49,12 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** What the light functions are read from this image (`../lightFunction/frame.ts`): the atlas and
    *  its table; absent, the stand-in, which answers no light function. */
   lightFunction?: GPUTextureView
+  /** The light profiles' atlas and its sampler this image (`../lightProfile/profileAtlas.ts`); absent, the stand-in that
+   *  answers no profile. Bound only by a program that reads them (`ContractKey.profileless`). */
+  lightProfile?: { atlas: GPUTextureView; sampler: GPUSampler }
+  /** The ambient cubemap's cube, whole with its mips, and its colour (`ambientCubemapFrame.ts`); absent, the stand-in of a black cube.
+   *  Bound only by a program that reads it (`ContractKey.cubeless`). */
+  ambientCubemap?: { view: GPUTextureView; colour: GPUBuffer }
   /** The reflection target the opaque trace wrote (`../reflections/trace/trace.ts`); absent, a zero
    *  substitute. */
   reflection?: GPUTextureView
@@ -82,6 +89,10 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** The light that pass left on the pixels this image (`volumetricLightPass.ts`), which the indirect pass
    *  reads by load; written by the lighting itself (`lightPass`), absent, the stand-in. */
   volumetricLight?: GPUTextureView
+  /** The shadowed local lights this image lights one by one, each from a mask of its own
+   *  (`shadowOnePassProjection` false, `../shadows/vsm/projection/perLightPass.ts`); absent, the
+   *  batched loop lights them from the packed mask. */
+  perLight?: PerLightLights
 }
 /** What composition reads: a colour; the glow the effect chain's last bloom left to it, with the
  *  dirt mask and the share of the image's light it keeps (`FusedBlend`), and the group that

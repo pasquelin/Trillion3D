@@ -13,7 +13,7 @@ test('the view table yields the shipped struct and its WGSL offsets', () => {
   // structure it names.
   assert.ok(
     wgslSource(BLEND_VIEW_WGSL).endsWith(
-      'struct BlendView{viewProj:mat4x4f,camPos:vec4f,viewRight:vec4f,viewUp:vec4f,clipW:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,viewport:vec2f,eye:vec3f,pixelRatio:f32,mipBias:f32,exposure:f32,preExposure:f32,toneCurve:u32,pixelError:f32,time:f32,realTime:f32,clearCoatNormal:u32,clipPlane:vec4f,bake:Bake,volumeCorner:array<vec4f,2>,volumeScale:array<vec4f,2>,volumeRead:vec4f,giGrid:vec4f,giZ:vec4f,holdout:u32,normalCurvature:vec3f,}',
+      'struct BlendView{viewProj:mat4x4f,camPos:vec4f,viewRight:vec4f,viewUp:vec4f,clipW:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,roughDiffuse:u32,viewport:vec2f,eye:vec3f,pixelRatio:f32,mipBias:f32,exposure:f32,preExposure:f32,toneCurve:u32,pixelError:f32,time:f32,realTime:f32,clearCoatNormal:u32,clipPlane:vec4f,bake:Bake,volumeCorner:array<vec4f,2>,volumeScale:array<vec4f,2>,volumeRead:vec4f,giGrid:vec4f,giZ:vec4f,holdout:u32,normalCurvature:vec3f,}',
     ),
   )
   assert.equal(BLEND_VIEW_SIZE, 224 + BAKE_BYTES + 9 * 16)
@@ -37,6 +37,8 @@ test('the view table yields the shipped struct and its WGSL offsets', () => {
     [VIEW.lightTiles, VIEW.viewFlags, VIEW.vertexShift, VIEW.feedback],
     [32, 34, 35, 36],
   )
+  // The rough diffuse's switch takes the word the feedback leaves before the viewport's vec2 boundary: nothing moves.
+  assert.equal(VIEW.roughDiffuse, 37)
   assert.deepEqual([VIEW.viewport, VIEW.eye, VIEW.pixelRatio, VIEW.mipBias], [38, 40, 43, 44])
   assert.deepEqual([VIEW.exposure, VIEW.preExposure, VIEW.toneCurve], [45, 46, 47])
   // The clocks a material graph reads — the world's time, then the wall clock's — and the clear

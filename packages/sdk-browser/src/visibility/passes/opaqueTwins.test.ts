@@ -20,11 +20,11 @@ import { replayBundles } from '../../../../../tests/kit/fakeDevice/fakeBundles.t
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { graphRastersOf } from '../../materials/graph/graphRasters.ts'
 import { voxelWpo } from '../shader/wpoSets.ts'
-import { WIDE_ATOMIC_FEATURE } from '../../gpu/core/wideAtomics.ts'
+import { FEATURE } from '../../gpu/core/gpuCaps.ts'
 
 type Made = GPURenderPipelineDescriptor & GPURenderPipeline
 const build = async (variant?: 'geometry-flat', wide = false) => {
-  const { device } = fakeDevice({ features: wide ? [WIDE_ATOMIC_FEATURE] : [] })
+  const { device } = fakeDevice({ features: wide ? [FEATURE.wideAtomics] : [] })
   const [module, layout] = [{} as GPUShaderModule, {} as GPUBindGroupLayout]
   const raster = await createWebgpuVisibilityRasterPipelines(device, module, layout, variant)
   return { device, raster, all: Object.values(raster) as Made[] }

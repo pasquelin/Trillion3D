@@ -1,4 +1,4 @@
-import { DEG2RAD } from '../constants.ts'
+import { DEG2RAD, HALF_MAX } from '../constants.ts'
 import { FRUSTUM_PLANE_VALUES, frustumPlanesFromMatrix } from '../geometry/frustum/frustum.ts'
 import {
   determinantMatrix4,
@@ -7,7 +7,8 @@ import {
   type NumberSink,
 } from '../matrix/matrix4.ts'
 import { invertMatrix4 } from '../matrix/matrix4Inverse.ts'
-import { length2 } from '../vector/vector.ts'
+import { clampCompare } from '../scalar/reals.ts'
+import { isZeroVector3, length2 } from '../vector/vector.ts'
 
 /**
  * Engine perspective camera, in REVERSED DEPTH and infinite far plane: near plane
@@ -198,6 +199,145 @@ export function orthographicProjection<T extends NumberSink>(
   out[14] = far / dz
   out[15] = 1
   return out
+}
+
+/** The nearest and farthest distance an orthographic view draws, along its view. */
+export interface DepthRange {
+  near: number
+  far: number
+}
+
+/** What the automatic range of an orthographic view reads of the view (`autoOrthoPlanes`), in
+ *  centimetres. */
+export interface AutoOrthoView {
+  /** The vertical part of the unit direction the view looks along: ±1 straight down or up, 0 level. */
+  forwardUp: number
+  /** The width the box draws, and the picture's width over its height. */
+  width: number
+  aspect: number
+  /** The distance from the view's origin to the point it frames; 0 where it frames none. */
+  targetDistance: number
+  /** The picture's size in pixels. */
+  viewportWidth: number
+  viewportHeight: number
+}
+
+/** What the automatic range reads of the settings (`autoOrthoPlanes`), in centimetres. */
+export interface AutoOrthoSettings {
+  /** Whether the far plane is scaled by the size of a pixel in the world, for depth kept in half
+   *  floats, instead of by the view's angle alone. */
+  halfFloatDepth: boolean
+  /** Whether that scale follows the logarithm of the pixel's size, which lets the far plane reach
+   *  the largest world; read where `halfFloatDepth` is. */
+  scaleUnits: boolean
+  /** The depth the half-float scale starts from where above 0, no more than the half float's own. */
+  depthScale: number
+  /** Both planes shifted along the view by this: positive away, negative toward. */
+  shift: number
+}
+
+/** The reach of a world, in centimetres (2^21): the deepest an automatic range goes. */
+const WORLD_MAX = 2097152
+/** The reach of the largest world, in centimetres (2^43). */
+const LARGE_WORLD_MAX = 8796093022208
+/** The least a divisor of an automatic range is: a zero aspect ratio or a level view reads as this. */
+const SMALL_DIVISOR = 1e-5
+/** The cosine and the sine of an eighth of a turn, to seven digits: the bound the near plane's
+ *  reach is taken at. */
+const EIGHTH_TURN = 0.707107
+
+/**
+ * The near and far plane an orthographic view draws between when it works them out itself, written
+ * into `range`, all in centimetres. In this order:
+ *  1. `depth`, the depth the far plane scales from: the half float's largest value with
+ *     `halfFloatDepth`, else the world's; `depthScale` above 0 replaces it, between 1 and that.
+ *     `maxDepth` is the largest world's with `halfFloatDepth` and `scaleUnits`, else the world's.
+ *  2. `height = width / aspect`, a zero aspect read as `SMALL_DIVISOR`; `cosine`, the unsigned
+ *     `forwardUp`.
+ *  3. The far plane. With `halfFloatDepth` and a picture to draw: the pixel, `height` over the
+ *     picture's rows rounded down (its logarithm with `scaleUnits`), times `depth`, held between
+ *     `depth` and `maxDepth`. Else `height / cosine`, a level view reading `SMALL_DIVISOR`.
+ *  4. The arm, the distance to the framed point times `cosine`.
+ *  5. The near plane: the larger of `width` and `height` times the greater of −0.5 and the clamp of
+ *     `cosine` to [0.707107, 1] less the reciprocal of the clamp of `1 − cosine` to [0.707107, 1];
+ *     less the arm.
+ *  6. The far plane held between `height` and `maxDepth` past the near plane.
+ *  7. Both shifted by `shift`.
+ */
+export function autoOrthoPlanes(
+  range: DepthRange,
+  view: AutoOrthoView,
+  { halfFloatDepth, scaleUnits, depthScale, shift }: AutoOrthoSettings,
+) {
+  const scaled = scaleUnits && halfFloatDepth,
+    maxDepth = scaled ? LARGE_WORLD_MAX : WORLD_MAX
+  let depth = halfFloatDepth ? HALF_MAX : WORLD_MAX
+  if (depthScale > 0) depth = clampCompare(depthScale, 1, depth)
+  const height = view.width / (view.aspect === 0 ? SMALL_DIVISOR : view.aspect),
+    cosine = Math.abs(view.forwardUp)
+  let far: number
+  if (halfFloatDepth && height > 0 && view.viewportWidth * view.viewportHeight > 0) {
+    let pixel = Math.floor(height / view.viewportHeight)
+    if (scaled) pixel = Math.log2(pixel)
+    far = clampCompare(depth * pixel, depth, maxDepth)
+  } else far = height / (cosine === 0 ? SMALL_DIVISOR : cosine)
+  const arm = view.targetDistance * cosine,
+    sine = clampCompare(1 - cosine, EIGHTH_TURN, 1),
+    near =
+      Math.max(view.width, height) *
+        Math.max(clampCompare(cosine, EIGHTH_TURN, 1) - 1 / sine, -0.5) -
+      arm
+  range.near = near + shift
+  range.far = clampCompare(far, height, maxDepth + near) + shift
+}
+
+/** What the correction of an orthographic view's planes reads (`correctOrthoPlanes`). */
+export interface OrthoPlaneCorrection {
+  /** The near plane the corrected view starts at, in metres. */
+  nearPlane: number
+  /** Whether a view that frames no target takes its height above the ground for one. */
+  heightAsViewTarget: boolean
+}
+
+/**
+ * An orthographic camera can stand far behind what it shows, with its near plane behind it. This
+ * moves its origin onto the near plane and starts the range there, so the origin is no farther from
+ * what is drawn than the range needs, and what resolves light at the origin's side of the picture
+ * (the shadows' clipmaps among it) resolves it where the picture begins. In this order:
+ *  1. `forward`, the unit direction the view looks along; the range's length is kept.
+ *  2. A view that frames a target (`target`, the offset from the origin to it, in the world's
+ *     axes, not zero) puts its origin onto the target, then along the view by `range.near`, and
+ *     `target` is made the offset from that origin to the same point.
+ *  3. A view that frames none (`target` zero) moves its origin along the view by `range.near`
+ *     and, with `heightAsViewTarget`, by one more length: the origin's height (`world[13]`) or
+ *     `halfWidth`, the box's half width as drawn, the lesser, taken without its sign, times the
+ *     view's slope against the vertical.
+ *  4. The range starts at `nearPlane` and ends as far on as it was long.
+ * `world` (column-major) has its translation moved; `target` and `range` are rewritten.
+ */
+export function correctOrthoPlanes(
+  world: Float64Array,
+  forward: ArrayLike<number>,
+  target: Float64Array,
+  range: DepthRange,
+  halfWidth: number,
+  { nearPlane, heightAsViewTarget }: OrthoPlaneCorrection,
+) {
+  const length = range.far - range.near
+  if (!isZeroVector3(target)) {
+    for (let axis = 0; axis < 3; axis++) {
+      const place = world[12 + axis] + target[axis]
+      world[12 + axis] += target[axis] + forward[axis] * range.near
+      target[axis] = place - world[12 + axis]
+    }
+  } else {
+    const height = heightAsViewTarget
+      ? Math.abs(Math.min(world[13], halfWidth)) * Math.abs(forward[1])
+      : 0
+    for (let axis = 0; axis < 3; axis++) world[12 + axis] += forward[axis] * (height + range.near)
+  }
+  range.near = nearPlane
+  range.far = nearPlane + length
 }
 
 /** Matrices of a camera frame, allocated once and rewritten each frame. */

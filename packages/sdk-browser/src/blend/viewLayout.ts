@@ -2,6 +2,7 @@ import { fieldLayout, vec4Array } from '../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { preExposedWgsl } from '../post/exposure/preWgsl.ts'
 import { BAKE_LAYOUT, BAKE_STRUCT_WGSL } from '../lighting/toneBakeWgsl.ts'
+import { lightStrengthWgsl } from '../lighting/direct/lightStrengthWgsl.ts'
 
 /**
  * The transparent pass's view uniform (`uniforms.ts`): its fields in one table, in order. The WGSL struct
@@ -10,7 +11,8 @@ import { BAKE_LAYOUT, BAKE_STRUCT_WGSL } from '../lighting/toneBakeWgsl.ts'
  * and `viewUp` the camera's axes, which take a world vector to the view,
  * their `w` the distortion parameters folded, which scale a view-normal bend to the screen: the projection's `M[0][0]` times the unscaled (display) width, and times the view's aspect
  * and the display height; `clipW` the render matrix's last row, a point's
- * clip `w` its dot with the point; `eye` the
+ * clip `w` its dot with the point; `roughDiffuse` whether the surfaces' diffuse light is the rough diffuse (1 or 0), in the word the
+ * feedback leaves; `eye` the
  * point the fog is measured from, `pixelError` the cut's threshold the screen-error view measures
  * against (`diagnosticScreenError`), `time` the world's seconds and `realTime` the wall clock's, which
  * a material graph reads (`../materials/graph/clocks.ts`); `clearCoatNormal` whether a clear
@@ -37,6 +39,8 @@ const BLEND_VIEW_FIELDS = [
   ['viewFlags', 'u32'],
   ['vertexShift', 'u32'],
   ['feedback', 'u32'],
+  ['roughDiffuse', 'u32'],
+  ['shadingAccurate', 'u32'],
   ['viewport', 'vec2f'],
   ['eye', 'vec3f'],
   ['pixelRatio', 'f32'],
@@ -67,5 +71,8 @@ export const BLEND_VIEW_SIZE = LAYOUT.words * 4
 /** The pre-exposure the view holds (`uni.preExposure`): what every light a layer writes is
  *  multiplied by (`preExposed`, `preExposedClipped`). */
 export const BLEND_PRE_EXPOSED_WGSL = preExposedWgsl('uni.preExposure')
+/** A light's strength under the view's exposure (`lightStrength`): the pre-exposure times the scale the composition applies, the image's
+ *  exposure (`uni.preExposure`, `uni.exposure`). */
+export const BLEND_LIGHT_STRENGTH_WGSL = lightStrengthWgsl('uni.preExposure*uni.exposure')
 /** WGSL declaration of the view, made of its table. */
 export const BLEND_VIEW_WGSL = wgslBlock('BLEND_VIEW_WGSL', [BAKE_STRUCT_WGSL], LAYOUT.wgsl)

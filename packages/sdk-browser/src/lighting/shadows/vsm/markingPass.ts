@@ -2,13 +2,14 @@
  * Page marking (step 3): its dispatches recorded into the compute pass the caller opened, after the
  * physical page address update (`encodeVsmPageCarry`), in this order, each seeing
  * the writes of those before it:
- *   clear the page requests, the page table, the page marks and the receiver covers, in one
- *   walk of each map's pages (`vsmResetPageTableWgsl`) → init the page rect bounds → mark the
- *   coarse pages → generate the page marks from the pixels (GBuffer).
- * The caller clears the raster marks before the pass.
- * The light grid is pruned first (`vsmPruneLightGrid`, `projection/lightGridWgsl.ts`) into the shadowed
- * lights' grid: the pixel and froxel passes walk only the lights that have a map, and stop at the first
- * single-page light, which the coarse marking marks; the projection reads the same grid.
+ *   clear the page requests → clear the receiver cover → clear the raster marks (the pages' dirty
+ *   flags) → init the page rect bounds → clear the page table and its flags (each clear a walk of the
+ *   maps' pages, `vsmResetPageTableWgsl`) → prune the light grid → mark the coarse pages → generate
+ *   the page marks from the pixels (GBuffer).
+ * The caller clears the stats before the pass.
+ * The light grid is pruned (`vsmPruneLightGrid`, `projection/lightGridWgsl.ts`) into the shadowed
+ * lights' grid after the clears: the pixel and froxel passes walk only the lights that have a map, and stop at
+ * the first single-page light, which the coarse marking marks; the projection reads the same grid.
  * Where the project traces the translucent surfaces' shadow (`shadowTranslucentQuality`) and a
  * translucent front layer is in hand (`VsmMarkingFront`), and where the single-layer water drew a depth
  * before the marking (`VsmMarkingView.water`), that pass is the program that also marks the suns'
@@ -54,11 +55,13 @@ import {
 } from './projection/lightGridWgsl.ts'
 import { writeChanged, writeChangedSlots } from '../../../gpu/core/writeChanged.ts'
 import {
+  VSM_CLEAR_RASTER_MARKS_SPECS,
   VSM_CLEAR_SPECS,
   VSM_COARSE_SPECS,
   VSM_INIT_RECT_SPECS,
   VSM_MARK_PIXELS_GROUP_XY,
   VSM_FRONT_DEPTH_BINDING,
+  VSM_STRANDS_MARKING_BINDING,
   VSM_WATER_DEPTH_BINDING,
   VSM_MARKING_PARAMS_BYTES,
   VSM_PER_PAGE_GROUP_XY,
@@ -66,13 +69,18 @@ import {
   vsmResetPageTableWgsl,
   vsmPixelPageMarkingWgsl,
   vsmPageRectInitWgsl,
+  vsmClearRasterMarksWgsl,
   vsmCoarseMarkingWgsl,
   vsmMarkingClears,
+  type VsmClearStep,
 } from './markingWgsl.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
-import { uniformSlotBytes, uniformSlots } from '../../../session/memory/pools.ts'
+import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../../../session/memory/pools.ts'
 import { dispatchGrid, dispatchRows } from '../../../gpu/dispatch/grid.ts'
 import type { VsmLayout } from './layout.ts'
+import type { VsmInputType } from './inputType.ts'
+import type { HairShadowSource } from '../../../hair/viewGpu.ts'
+import { HAIR_ALL_TILES_DISPATCH } from '../../../hair/visibilityMath.ts'
 import { clamp } from '../../../../../math/src/scalar/reals.ts'
 import type { ShadowValues } from '../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
@@ -205,17 +213,34 @@ export const VSM_PER_PAGE_BIN_WORDS = 4
 
 /** Bin `b`'s `VsmMapWalkParams` words — offset, count, page-walk step (0 for the thread-per-id bin), thread per id —
  *  at `out[at]`. */
-export function vsmWritePerPageBinArgs(
-  out: Uint32Array,
-  at: number,
-  bin: VsmPerPageBin,
-  b: number,
-) {
+function vsmWritePerPageBinArgs(out: Uint32Array, at: number, bin: VsmPerPageBin, b: number) {
   const dim = VSM_PER_PAGE_BIN_GRID[b]
   out[at] = bin.offset
   out[at + 1] = bin.count
   out[at + 2] = dim * VSM_PER_PAGE_GROUP_XY
   out[at + 3] = dim === 0 ? 1 : 0
+}
+
+/** The slot of bin `b` of the `all` set, or of the directional-only one: the sets follow one another, `VSM_PER_PAGE_BIN_COUNT` slots each. */
+export const perPageSlot = (directionalOnly: boolean, b: number) =>
+  (directionalOnly ? VSM_PER_PAGE_BIN_COUNT : 0) + b
+
+/** The per-page slots of `args` (laid as the buffer, `slots` apart) written for the bin sets `sets`, the `all`
+ *  bins first and the directional-only ones after them: a bin a frame does not have holds zeros, the padding
+ *  past a slot's words is never touched. The marking and the page management each write their own. */
+export function vsmWritePerPageSlots(
+  args: Uint32Array,
+  slots: UniformSlots,
+  sets: readonly (readonly VsmPerPageBin[])[],
+) {
+  for (let s = 0; s * VSM_PER_PAGE_BIN_COUNT < slots.count; s++) {
+    const set = sets[s] ?? []
+    for (let b = 0; b < VSM_PER_PAGE_BIN_COUNT; b++) {
+      const at = perPageSlot(s === 1, b) * slots.strideWords
+      if (b < set.length) vsmWritePerPageBinArgs(args, at, set[b], b)
+      else args.fill(0, at, at + slots.words)
+    }
+  }
 }
 
 /** Bin `b`'s dispatch: `dim`² groups per id, or one thread per id for the last bin. The ids of
@@ -276,6 +301,9 @@ export interface VsmMarkingView {
   /** The scene's depth with the single-layer water drawn into it, where the pass marks the water's
    *  surface (`vsmPixelPageMarkingWgsl` `water`); none: the program without it runs. */
   water?: GPUTextureView
+  /** The hair strands of the view, where it holds valid ones: their pages are marked after the
+   *  surfaces', from either the pixels or the froxels (`vsmPixelPageMarkingWgsl` input `strands`). */
+  hair?: HairShadowSource
 }
 
 /** The translucent front layer, as the marking reads it: the image before's, or the image's own. */
@@ -313,26 +341,41 @@ export interface VsmMarkingFrame {
 
 /** The labels of the marking's kernels, their pipes' and groups' alike. */
 const RECT_LABEL = 'vsm.initPageRects',
+  RASTER_MARKS_LABEL = 'vsm.clearRasterMarks',
   COARSE_LABEL = 'vsm.markCoarse',
   PRUNE_LABEL = 'vsm.pruneLightGrid',
   PIXELS_LABEL = 'vsm.markPagesFromPixels'
 /** The pixel pass's programs, by the layers they mark (the translucent front layer's marks bit 0, the
- *  water's bit 1), or none. */
+ *  water's bit 1), or none, over the surfaces; and the one over the hair strands (input `strands`). */
 const PIXELS_VARIANTS = ['pixels', 'pixelsFront', 'pixelsWater', 'pixelsFrontWater'] as const
-type PixelsVariant = (typeof PIXELS_VARIANTS)[number]
+type PixelsVariant = (typeof PIXELS_VARIANTS)[number] | 'pixelsStrands'
 /** The index of the variant that marks the `front` layer and the `water`. */
 const pixelsIndex = (front: boolean, water: boolean) => (front ? 1 : 0) | (water ? 2 : 0)
-/** The variant of the pixel pass that marks the `front` layer and the `water`. */
-const pixelsVariant = (front: boolean, water: boolean): PixelsVariant =>
-  PIXELS_VARIANTS[pixelsIndex(front, water)]
+/** The variant of the pixel pass of `input` that marks the `front` layer and the `water` (the
+ *  strands' marks neither). */
+const pixelsVariant = (
+  front: boolean,
+  water: boolean,
+  input: VsmInputType = 'gbuffer',
+): PixelsVariant =>
+  input === 'strands' ? 'pixelsStrands' : PIXELS_VARIANTS[pixelsIndex(front, water)]
 /** The label of that variant's pipe and groups: the pass's, the variant's name past `pixels` (a
- *  suffix for each layer it marks); made where a pipe or group is, not each frame. */
-const pixelsLabel = (front: boolean, water: boolean, throttled = false) =>
-  PIXELS_LABEL + pixelsVariant(front, water).slice('pixels'.length) + (throttled ? 'Throttled' : '')
+ *  suffix for each layer it marks, or the strands'); made where a pipe or group is, not each frame. */
+const pixelsLabel = (
+  front: boolean,
+  water: boolean,
+  throttled = false,
+  input: VsmInputType = 'gbuffer',
+) =>
+  PIXELS_LABEL +
+  pixelsVariant(front, water, input).slice('pixels'.length) +
+  (throttled ? 'Throttled' : '')
 /** The key of a variant's pipe in `held`: the compute throttle's programs (`throttled`) are pipes of their
  *  own, the frame picks the pair it runs; their bind groups are the plain ones' (same bindings). */
-const pixelsPipeKey = (front: boolean, water: boolean, throttled: boolean) =>
-  throttled ? (`${pixelsVariant(front, water)}Throttled` as const) : pixelsVariant(front, water)
+const pixelsPipeKey = (front: boolean, water: boolean, throttled: boolean, input: VsmInputType) =>
+  throttled
+    ? (`${pixelsVariant(front, water, input)}Throttled` as const)
+    : pixelsVariant(front, water, input)
 
 /** The bind group layouts of the marking's kernels, the entries of the group past the tables'. */
 const clearGroups = (tables: GPUBindGroupLayoutEntry[], written: readonly unknown[]) => [
@@ -366,12 +409,27 @@ const froxelMarkGroups = (tables: GPUBindGroupLayoutEntry[]) => [
     computeUniformEntry(8),
   ],
 ]
-const pixelsGroups = (tables: GPUBindGroupLayoutEntry[], front: boolean, water: boolean) => [
+const pixelsGroups = (
+  tables: GPUBindGroupLayoutEntry[],
+  front: boolean,
+  water: boolean,
+  input: VsmInputType,
+) => [
   tables,
   [
-    computeTextureEntry(0, 'depth'),
-    computeTextureEntry(1, 'unfilterable-float'),
-    computeTextureEntry(2, 'uint'),
+    ...(input === 'strands'
+      ? [
+          computeTextureEntry(VSM_STRANDS_MARKING_BINDING.hairDepth, 'unfilterable-float'),
+          // A uniform: with the tables and the lights, the pass holds the eight storage buffers a stage
+          // is given at least.
+          computeUniformEntry(VSM_STRANDS_MARKING_BINDING.counts),
+          computeBufferEntry(VSM_STRANDS_MARKING_BINDING.tiles, 'read-only-storage'),
+        ]
+      : [
+          computeTextureEntry(0, 'depth'),
+          computeTextureEntry(1, 'unfilterable-float'),
+          computeTextureEntry(2, 'uint'),
+        ]),
     computeUniformEntry(3),
     computeBufferEntry(4, 'read-only-storage'),
     computeBufferEntry(5, 'read-only-storage'),
@@ -388,8 +446,9 @@ const pixelsGroups = (tables: GPUBindGroupLayoutEntry[], front: boolean, water: 
 /** The pipes the marking has made so far, by name. */
 type HeldPipes = Partial<
   Record<
-    | ClearSet
+    | VsmClearStep
     | 'prune'
+    | 'rasterMarks'
     | 'rect'
     | 'coarse'
     | PixelsVariant
@@ -446,19 +505,28 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
   const entries = (specs: readonly VsmBindingSpec[]) => vsmBindGroupLayoutEntries(specs, COMPUTE)
   const clears = vsmMarkingClears(layout)
   const held: HeldPipes = {}
-  const clear = (set: ClearSet) =>
-    (held[set] ??= vsmComputePipe(
+  const clear = (step: VsmClearStep) =>
+    (held[step] ??= vsmComputePipe(
       device,
-      `vsm.resetPageTable(${set})`,
-      vsmResetPageTableWgsl(clears[set], layout),
+      `vsm.resetPageTable(${step})`,
+      vsmResetPageTableWgsl(clears[step].targets, layout),
       'vsmClearPageTables',
-      clearGroups(entries(VSM_CLEAR_SPECS), clears[set]),
+      clearGroups(entries(VSM_CLEAR_SPECS), clears[step].targets),
     ))
   return {
-    /** The tables each clear walks the maps of (`vsmMarkingClears`). */
+    /** The tables each clear clears and the maps it walks (`vsmMarkingClears`). */
     clears,
-    /** The clear of the tables `set` walks the maps of; none when it clears none. */
-    clear: (set: ClearSet) => (clears[set].length ? clear(set) : undefined),
+    /** The clear `step`; none when it clears no table. */
+    clear: (step: VsmClearStep) => (clears[step].targets.length ? clear(step) : undefined),
+    /** The raster marks' clear. */
+    rasterMarks: () =>
+      (held.rasterMarks ??= vsmComputePipe(
+        device,
+        RASTER_MARKS_LABEL,
+        vsmClearRasterMarksWgsl(layout),
+        'vsmClearRasterMarks',
+        [entries(VSM_CLEAR_RASTER_MARKS_SPECS)],
+      )),
     /** The pruning of the light grid into the shadowed lights' grid. */
     prune: () =>
       (held.prune ??= vsmComputePipe(
@@ -492,14 +560,14 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
         [[...entries(VSM_COARSE_SPECS), computeUniformEntry(4)]],
       )),
     ...froxelMarkingPipes(device, layout, held),
-    /** The pixel pass; `front`, `water` and `throttled` pick its program. */
-    pixels: (front = false, water = false, throttled = false) =>
-      (held[pixelsPipeKey(front, water, throttled)] ??= vsmComputePipe(
+    /** The pixel pass; `front`, `water`, `throttled` and the `input` (`inputType.ts`) pick its program. */
+    pixels: (front = false, water = false, throttled = false, input: VsmInputType = 'gbuffer') =>
+      (held[pixelsPipeKey(front, water, throttled, input)] ??= vsmComputePipe(
         device,
-        pixelsLabel(front, water, throttled),
-        vsmPixelPageMarkingWgsl(layout, front, water, throttled),
+        pixelsLabel(front, water, throttled, input),
+        vsmPixelPageMarkingWgsl(layout, front, water, throttled, input),
         'vsmMarkPagesFromPixels',
-        pixelsGroups(entries(VSM_PIXELS_SPECS), front, water),
+        pixelsGroups(entries(VSM_PIXELS_SPECS), front, water, input),
       )),
   }
 }
@@ -517,15 +585,14 @@ const DISPATCHERS = 2
 const markStride = (stride: number) => clamp(stride, 1, 128)
 /** The marking's groups over the tables of a frame set (`vsmPerFrameSet`), made as asked. */
 interface TableGroups {
-  clear: Partial<Record<ClearSet, GPUBindGroup>>
+  clear: Partial<Record<VsmClearStep, GPUBindGroup>>
+  rasterMarks?: GPUBindGroup
   rect?: GPUBindGroup
   coarse?: GPUBindGroup
   pixels: Partial<Record<PixelsVariant, GPUBindGroup>>
   froxelMark?: GPUBindGroup
 }
 const newTableGroups = (): TableGroups => ({ clear: {}, pixels: {} })
-/** The maps a clear walks (`vsmMarkingClears`). */
-type ClearSet = 'all' | 'directionalOnly'
 /** The per-page dispatch slots: all then directional-only bins (`resetPageTables`). */
 const PER_PAGE_SLOTS = DISPATCHERS * VSM_PER_PAGE_BIN_COUNT
 /** Bytes a marking holds on a device of `limits`: its parameters and its per-page dispatch slots,
@@ -583,15 +650,13 @@ function dispatch(
   dispatchRows(pass, groups)
 }
 
-/** The pixel pass's view group (group 1): its entries read the frame's `view`, the group made
- *  again when a resource they name moved (`entriesMoved`). */
+/** The pixel pass's view group (group 1): its entries read the frame's `view` (its strands for the
+ *  input `strands`), the group made again when a resource they name moved (`entriesMoved`). A view
+ *  marking both inputs holds one of these for each. */
 function createPixelsView(device: GPUDevice, params: GPUBuffer) {
   let view: VsmMarkingView | undefined, viewGroup: GPUBindGroup | undefined
   const viewBound = createWebgpuBindIdentity()
-  const viewEntries = [
-    resourceEntry(0, () => view?.depth),
-    resourceEntry(1, () => view?.normalRough),
-    resourceEntry(2, () => view?.flags),
+  const lightEntries = [
     bufferEntry(3, () => view?.view),
     bufferEntry(4, () => view?.directLights),
     // The light grid pruned (`vsmPruneLightGrid`): the walk reads it as the engine's, `tileLights`.
@@ -600,6 +665,12 @@ function createPixelsView(device: GPUDevice, params: GPUBuffer) {
     bufferEntry(7, () => view?.sunMapIds),
     bufferEntry(8, () => params),
   ]
+  const viewEntries = [
+    resourceEntry(0, () => view?.depth),
+    resourceEntry(1, () => view?.normalRough),
+    resourceEntry(2, () => view?.flags),
+    ...lightEntries,
+  ]
   const frontEntry = resourceEntry(VSM_FRONT_DEPTH_BINDING, () => view?.front?.depth),
     waterEntry = resourceEntry(VSM_WATER_DEPTH_BINDING, () => view?.water)
   const entriesOf = {
@@ -607,15 +678,23 @@ function createPixelsView(device: GPUDevice, params: GPUBuffer) {
     pixelsFront: [...viewEntries, frontEntry],
     pixelsWater: [...viewEntries, waterEntry],
     pixelsFrontWater: [...viewEntries, frontEntry, waterEntry],
+    pixelsStrands: [
+      resourceEntry(VSM_STRANDS_MARKING_BINDING.hairDepth, () => view?.hair?.hairDepth),
+      ...lightEntries,
+      bufferEntry(VSM_STRANDS_MARKING_BINDING.counts, () => view?.hair?.counts),
+      bufferEntry(VSM_STRANDS_MARKING_BINDING.tiles, () => view?.hair?.tiles),
+    ],
   } satisfies Record<PixelsVariant, GPUBindGroupEntry[]>
   return {
-    /** The pixel pass's group 1 over `v`: with the front layer's depth and the water's where `v` holds them. */
-    group(p: VsmComputePipe, v: VsmMarkingView) {
+    /** The pixel pass's group 1 over `v` for `input`: with the front layer's depth and the water's
+     *  where `v` holds them, or over its strands. */
+    group(p: VsmComputePipe, v: VsmMarkingView, input: VsmInputType = 'gbuffer') {
       view = v
-      const entries = (viewBound.entries[0] = entriesOf[pixelsVariant(!!v.front, !!v.water)])
+      const variant = pixelsVariant(!!v.front, !!v.water, input)
+      const entries = (viewBound.entries[0] = entriesOf[variant])
       if (viewBound.entriesMoved(p.groups[1])) viewGroup = undefined
       return (viewGroup ??= device.createBindGroup({
-        label: pixelsLabel(!!v.front, !!v.water),
+        label: pixelsLabel(!!v.front, !!v.water, false, input),
         layout: p.groups[1],
         entries,
       }))
@@ -686,32 +765,23 @@ function writePerPage(
   // The ids only when they changed: a new set's buffer starts zeroed (`writeChanged`).
   writeChanged(device, res.perPageIds, bins.ids, 0, bins.ids.length)
   // Every slot's words are written again: nothing is cleared first.
-  const words = slots.strideWords
-  for (let b = 0; b < VSM_PER_PAGE_BIN_COUNT; b++) {
-    vsmWritePerPageBinArgs(perPageData, b * words, bins.all[b], b)
-    vsmWritePerPageBinArgs(
-      perPageData,
-      (VSM_PER_PAGE_BIN_COUNT + b) * words,
-      bins.directionalOnly[b],
-      b,
-    )
-  }
+  vsmWritePerPageSlots(perPageData, slots, [bins.all, bins.directionalOnly])
   writeChangedSlots(device, perPage, perPageData, slots)
 }
 
-/** The clears of the tables `set` walks the maps of: one dispatch per non-empty bin. */
+/** The clear `step` over the maps it walks (`vsmMarkingClears`): one dispatch per non-empty bin. */
 function resetPageTables(
   { device, res, pipes, perPage, slots, tableGroups }: PageClears,
   pass: GPUComputePassEncoder,
-  set: ClearSet,
+  step: VsmClearStep,
   bins: VsmPerPageBins,
 ) {
-  const p = pipes.clear(set)
+  const p = pipes.clear(step)
   if (!p) return
-  const targets = pipes.clears[set]
+  const { walk, targets } = pipes.clears[step]
   const groups = tableGroups()
-  const group = (groups.clear[set] ??= device.createBindGroup({
-    label: `vsm.resetPageTable(${set})`,
+  const group = (groups.clear[step] ??= device.createBindGroup({
+    label: `vsm.resetPageTable(${step})`,
     layout: p.groups[0],
     entries: [
       ...vsmBindGroupEntries(res, VSM_CLEAR_SPECS),
@@ -724,17 +794,13 @@ function resetPageTables(
       ),
     ],
   }))
-  const list = bins[set]
+  const list = bins[walk]
   if (!p.pipeline) return
   pass.setPipeline(p.pipeline)
   for (let b = 0; b < list.length; b++) {
     const bin = list[b]
     if (bin.count <= 0) continue
-    pass.setBindGroup(
-      0,
-      group,
-      slots.offset((set === 'directionalOnly' ? 1 : 0) * VSM_PER_PAGE_BIN_COUNT + b),
-    )
+    pass.setBindGroup(0, group, slots.offset(perPageSlot(walk === 'directionalOnly', b)))
     vsmDispatchPerPageBin(pass, bin, b)
   }
 }
@@ -752,6 +818,8 @@ interface MarkingState {
   pipes: ReturnType<typeof vsmMarkingPipes>
   clears: PageClears
   pixelsView: ReturnType<typeof createPixelsView>
+  /** The strands' pass's view group, its own: a view marks both inputs. */
+  strandsView: ReturnType<typeof createPixelsView>
   prune: ReturnType<typeof createPrune>
   froxels: FroxelMarking
   /** What the froxel passes take of the frame beside its view, rewritten by each frame. */
@@ -807,6 +875,29 @@ function markFromPixels(
   )
 }
 
+/** The marks from the hair strands `hair` of the view `v`, after the surfaces': one group a tile of the
+ *  list of all the tiles with strands, an indirect dispatch over it. */
+function markFromStrands(
+  state: MarkingState,
+  pass: GPUComputePassEncoder,
+  v: VsmMarkingView,
+  hair: HairShadowSource,
+  groups: TableGroups,
+  throttled: boolean,
+) {
+  const strands = state.pipes.pixels(false, false, throttled, 'strands')
+  if (!strands.pipeline) return
+  groups.pixels.pixelsStrands ??= state.group(
+    pixelsLabel(false, false, false, 'strands'),
+    strands,
+    VSM_PIXELS_SPECS,
+  )
+  pass.setPipeline(strands.pipeline)
+  pass.setBindGroup(0, groups.pixels.pixelsStrands)
+  pass.setBindGroup(1, state.strandsView.group(strands, v, 'strands'))
+  pass.dispatchWorkgroupsIndirect(hair.dispatchArgs, HAIR_ALL_TILES_DISPATCH)
+}
+
 /** The marking's dispatches of `frame` into `pass`. */
 function encodeMarking(state: MarkingState, pass: GPUComputePassEncoder, frame: VsmMarkingFrame) {
   const { device, params, pipes, clears } = state
@@ -818,29 +909,45 @@ function encodeMarking(state: MarkingState, pass: GPUComputePassEncoder, frame: 
   if (marking !== 'froxels') state.froxels.destroy()
   // No shadow map: nothing to mark.
   if (mapCount === 0) return
-  // The shadowed lights' grid first: the marking and the projection both read it, whatever the projection holds.
-  if (frame.view?.gridCells) state.prune.encode(pass, pipes.prune(), frame.view)
   fillMarkingParams(state.paramF32, state.paramU32, frame)
   writeChanged(device, params, state.paramU32, 0, state.paramU32.length)
   writePerPage(clears, frame.perPage)
-  resetPageTables(clears, pass, 'all', frame.perPage)
-  resetPageTables(clears, pass, 'directionalOnly', frame.perPage)
+  // The page requests, the receiver cover and the raster marks cleared, the page rects set to empty,
+  // then the page table and its flags cleared.
+  resetPageTables(clears, pass, 'requests', frame.perPage)
+  resetPageTables(clears, pass, 'receiver', frame.perPage)
   const groups = clears.tableGroups()
+  const rasterMarks = pipes.rasterMarks()
+  groups.rasterMarks ??= state.group(RASTER_MARKS_LABEL, rasterMarks, VSM_CLEAR_RASTER_MARKS_SPECS)
+  dispatch(
+    pass,
+    rasterMarks,
+    groups.rasterMarks,
+    undefined,
+    ceilDiv(state.res.rasterMarks.size / 4, VSM_GROUP_WIDTH),
+  )
   const rect = pipes.rect()
   groups.rect ??= state.group(RECT_LABEL, rect, VSM_INIT_RECT_SPECS, 4)
   dispatch(pass, rect, groups.rect, undefined, ceilDiv(mapCount * VSM_MIPS, VSM_GROUP_WIDTH))
+  resetPageTables(clears, pass, 'tables', frame.perPage)
+  // The shadowed lights' grid: the marking and the projection both read it, whatever the projection holds.
+  if (frame.view?.gridCells) state.prune.encode(pass, pipes.prune(), frame.view)
   // The coarse pages after the clears: pixel marks must be able to overwrite its plain stores.
   const coarse = pipes.coarse()
   groups.coarse ??= state.group(COARSE_LABEL, coarse, VSM_COARSE_SPECS, 4)
   dispatch(pass, coarse, groups.coarse, undefined, ceilDiv(mapCount, VSM_GROUP_WIDTH))
   const v = frame.view
   if (!v || marking === 'none') return
-  if (marking === 'pixels') return markFromPixels(state, pass, v, s, groups, !!frame.throttled)
-  const froxels = state.froxelContext
-  froxels.perspective = frame.perspective
-  froxels.throttled = !!frame.throttled
-  froxels.groups = groups
-  state.froxels.mark(pass, v, froxels)
+  if (marking === 'pixels') markFromPixels(state, pass, v, s, groups, !!frame.throttled)
+  else {
+    const froxels = state.froxelContext
+    froxels.perspective = frame.perspective
+    froxels.throttled = !!frame.throttled
+    froxels.groups = groups
+    state.froxels.mark(pass, v, froxels)
+  }
+  // The strands' pages after the surfaces', whichever marked them, as the reference marks them.
+  if (v.hair) markFromStrands(state, pass, v, v.hair, groups, !!frame.throttled)
 }
 
 const uniformBuffer = (device: GPUDevice, label: string, size: number) =>
@@ -874,6 +981,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       tableGroups: () => vsmPerFrameSet(tables, res, newTableGroups, undefined),
     },
     pixelsView: createPixelsView(device, params),
+    strandsView: createPixelsView(device, params),
     prune: createPrune(device),
     froxels: createFroxelMarking(device, pipes, params),
     froxelContext: {
@@ -892,6 +1000,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
       state.froxels.destroy()
       // Nothing of the last frame's view held past the marking.
       state.pixelsView.release()
+      state.strandsView.release()
       state.prune.release()
     },
   }

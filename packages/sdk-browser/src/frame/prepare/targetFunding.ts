@@ -13,7 +13,7 @@ import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { frameSizeOf, type FrameSize } from '../backend/state/renderScale.ts'
 import { viewGpu, type WebgpuView } from '../backend/state/view.ts'
-import { viewTargetBytes } from '../backend/state/gpu.ts'
+import { viewPassBytes, viewTargetBytes } from '../backend/state/gpu.ts'
 import { cutLedgerBytes } from '../../geometry/dag/cut/cutBuffers.ts'
 import { keepsBeautyChain } from '../../visibility/shader/shadeMode.ts'
 import { taaWanted } from '../backend/state/gpu.ts'
@@ -48,7 +48,7 @@ function frameMadeBytes(rt: WebgpuPagesRuntime, size: FrameSize) {
       keepsBeautyChain(rt.run.diagnostic) &&
       !rt.context.diagnosticGpuVariant
   const temporal = gpu.temporal
-  const history = !!temporal && taaWanted(gpu) && !rt.capture.capturing
+  const history = !!temporal && taaWanted(gpu)
   const shape = history
     ? wantedShapeOf(rt, temporal, gpu.temporalLevel, size.width, size.height)
     : undefined
@@ -84,19 +84,8 @@ function frameShareBytes(rt: WebgpuPagesRuntime) {
   return bytes
 }
 
-/** The bytes a pass holds in targets, none for a pass the image has not made. */
-const heldBytes = (pass: { readonly bytes: number } | undefined) => pass?.bytes ?? 0
-
-/** The bytes the image's effect passes hold in targets. */
-const heldEffectBytes = (gpu: WebgpuPagesRuntime['gpu']) =>
-  heldBytes(gpu.effects) +
-  heldBytes(gpu.finish) +
-  heldBytes(gpu.velocity) +
-  heldBytes(gpu.screenProbes) +
-  heldBytes(gpu.ambientOcclusion) +
-  heldBytes(gpu.deferred?.toneLut) +
-  heldBytes(gpu.lightShafts) +
-  heldBytes(gpu.clouds)
+/** The bytes the image's passes hold in targets (`viewPassBytes`). */
+const heldEffectBytes = (gpu: WebgpuPagesRuntime['gpu']) => viewPassBytes(gpu)
 
 /** The pools moved to the budgets admitted, if they differ from those in place. */
 function applyPools(
@@ -135,7 +124,8 @@ export function fundFrameTargets(
   // asks of them before the pools (`vsmAskedBytes`).
   const shadowHeld = shadowHeldBytes(rt)
   const shadowPool = shadowHeld + vsmAskedBytes(rt, size.renderWidth, size.renderHeight)
-  const bounceProbes = bounce.probes ? bounce.probes.tableBytes : 0
+  const bounceProbes =
+    (bounce.probes?.tableBytes ?? 0) + (bounce.translucency?.probes?.tableBytes ?? 0)
   const effectTargets = heldEffectBytes(gpu)
   const ledger = gpuDeviceLedgerOf(gpu.device)?.snapshot()
   if (ledger?.unknownFormats) throw new Error('GPU_BUDGET_UNKNOWN_FORMAT')

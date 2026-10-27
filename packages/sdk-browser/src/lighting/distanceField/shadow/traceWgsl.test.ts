@@ -12,8 +12,9 @@ const len = (v: number[]) => Math.hypot(...v)
 
 /** A mesh whose volume is the cube of half-size 1, a centimetre in the world each hundredth (the box
  *  is 200 centimetres wide), holding a sphere of radius 0.5 volume units (50 centimetres) at its
- *  centre: the field read at a position is its distance to the sphere. */
-function traced(steps: number, two = false, bias = 0, density = 0) {
+ *  centre: the field read at a position is its distance to the sphere. `density` is the light a thin
+ *  surface lets through by (negative: the surface transmits nothing). */
+function traced(steps: number, two = false, bias = 0, density = -1) {
   const object = {
     extent: [1, 1, 1],
     toWorldScale: [100, 100, 100],
@@ -87,6 +88,12 @@ test('a thin transmitting surface keeps the light that survives the thickness it
   assert.ok(thin < 1, `but it is stopped in part: ${thin}`)
   assert.ok(traced(64, false, 0, 0.001)(0, 0.0047) > thin, 'a lower density lets more through')
   assert.equal(traced(64, false, 0, density)(400, 0.0047), 1, 'a ray that misses the box is lit')
+})
+
+test('a thin surface of a density of 0 lets all the light through but the steps it used, as the reference does', () => {
+  const none = traced(64, false, 0, 0)(0, 0.0047)
+  assert.ok(none > 0.5, `the sphere stops nothing: ${none}`)
+  assert.ok(none >= traced(64, false, 0, 0.001)(0, 0.0047), 'more light than a density above 0')
 })
 
 /** The tiles of a grid of side `side` a mesh with the box of half-size `half` centimetres at `at`

@@ -34,6 +34,7 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
     // and no responsiveness.
     blendState.lobed = false
     blendState.responsive = false
+    blendState.channelled = false
     blendState.translucencyPasses = 0
     blendState.frontOutputs = 0
     return
@@ -60,6 +61,7 @@ function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUB
     packed = blendState.itemPacked
   let lobed = false,
     responsive = false,
+    channelled = false,
     passes = 0
   for (let i = 0; i < items.length; i++) {
     const item = items[i]
@@ -67,6 +69,7 @@ function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUB
     item.lobed = (needs & ITEM_NEEDS.lobed) !== 0
     lobed ||= item.lobed
     responsive ||= (needs & ITEM_NEEDS.responsive) !== 0
+    channelled ||= (needs & ITEM_NEEDS.channelled) !== 0
     const pass = needs >> ITEM_NEEDS.passShift
     passes |= 1 << pass
     // The words the expansion's views filter the item by: its pass and its responsiveness (`expansionViews.ts`).
@@ -76,6 +79,7 @@ function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUB
   forgetViews(blendState)
   blendState.lobed = lobed
   blendState.responsive = responsive
+  blendState.channelled = channelled
   blendState.translucencyPasses = passes
   blendState.frontOutputs = frontStageOf(items)
   queue.writeBuffer(buffer, 0, packed.buffer, 0, packed.byteLength)

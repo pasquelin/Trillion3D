@@ -151,6 +151,9 @@ function translucentState() {
     /** An item's surface carries a responsiveness (`ITEM_NEEDS.responsive`): under a temporal
      *  pass, the blends write it (`blendResponsiveTargets`). Set with the records. */
     responsive: false,
+    /** An item's object is in a lighting channel set other than the default's (`ITEM_NEEDS.channelled`): the
+     *  translucent lights hold the test of the channels (`ContractKey.channelless`). Set with the records. */
+    channelled: false,
     /** The passes of the image the items' surfaces are drawn in, as a set of `translucencyPassBit`s:
      *  what the frame splits its layers by (`splitsTranslucency`). Set with the records. */
     translucencyPasses: 0,

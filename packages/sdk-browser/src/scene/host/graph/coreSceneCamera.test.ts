@@ -43,14 +43,23 @@ test('a core scene and camera hold no field the engine needs beyond a page one',
   // The fog, the air and the sky light are the sky module's one part (`scene.sky`).
   assert.deepEqual(own(new Scene()), ['_background', 'recoloured', 'environment', '_sky'])
   const camera = new Camera('perspective')
-  // The view's set — its clip plane, its hidden and shown objects — is the camera's own (`_set`).
-  assert.deepEqual(own(camera), ['isCamera', '_optics', '_fitAspect', '_set', 'projection'])
+  // The view's set — its clip plane, its hidden and shown objects — is the camera's own (`_set`), the point
+  // it frames its `viewTarget`.
+  assert.deepEqual(own(camera), [
+    'isCamera',
+    '_optics',
+    '_fitAspect',
+    '_set',
+    'viewTarget',
+    'projection',
+  ])
   void camera.projectionMatrix
   assert.deepEqual(own(camera), [
     'isCamera',
     '_optics',
     '_fitAspect',
     '_set',
+    'viewTarget',
     'projection',
     '_projectionMatrix',
   ])

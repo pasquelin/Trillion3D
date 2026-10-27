@@ -42,15 +42,6 @@ export const RUNTIME_GRID_SETTING = 'runtimeGrid'
 /** Whether an object is a far-field object — drawn by a view's primed depth, the small coarse draw
  *  its pyramid is built from before its cut (`hizPrime`): `true`, or `false` (the default). */
 export const FAR_FIELD_SETTING = 'farField'
-/** Whether an object casts far shadows — a sun's far-shadow test (`farShadowCulling`,
- *  `shadowOptions.ts`) never leaves it out of the sun's shadow maps, as the node's `castFarShadow`
- *  says at run time —: `true`, or `false` (the default). */
-export const CAST_FAR_SHADOW_SETTING = 'castFarShadow'
-/** Whether a sun's far-shadow test reaches an object — leaves it out of the sun's shadow maps past
- *  the edge of the sun's shadow distance unless it casts far shadows —, as the node's
- *  `farShadowTest` says at run time: `true` it does, `false` it never does; left out, the view's
- *  rule decides (the world's merged shells alone, or every caster with `farShadowCullsAllMeshes`). */
-export const FAR_SHADOW_TEST_SETTING = 'farShadowTest'
 /** The settings an object may name, `objectSettings` and each of its rules. */
 export const OBJECT_SETTINGS = [
   SPATIALLY_LOADED_SETTING,
@@ -58,8 +49,6 @@ export const OBJECT_SETTINGS = [
   DRAW_DISTANCE_SETTING,
   RUNTIME_GRID_SETTING,
   FAR_FIELD_SETTING,
-  CAST_FAR_SHADOW_SETTING,
-  FAR_SHADOW_TEST_SETTING,
 ] as const
 /** The keys of a draw distance: `min`, the distance under which the object is not drawn, and
  *  `max`, the distance past which it is not drawn — 0, the default, no farthest distance —, and
@@ -93,8 +82,6 @@ export const SKINNED_INSTANCE_SETTINGS = [
 ] as const
 /** An object is not a far-field object unless a setting says so. */
 export const DEFAULT_FAR_FIELD = false
-/** An object casts no far shadows unless a setting says so: the reference's default. */
-export const DEFAULT_CAST_FAR_SHADOW = false
 /** An object streams on the main grid unless a setting says otherwise: the reference's default. */
 export const DEFAULT_SPATIALLY_LOADED = true
 /** An instanced skinned object's track loops unless a setting says otherwise: the reference's
@@ -144,8 +131,6 @@ export type ObjectSettingsWire = {
   drawDistance?: false | DrawDistanceWire
   runtimeGrid?: string
   farField?: boolean
-  castFarShadow?: boolean
-  farShadowTest?: boolean
 }
 /** The object settings as the compiler reads them (`resolveObjectSettings` writes them). */
 export type ObjectSettingsJobWire = ObjectSettingsWire & {

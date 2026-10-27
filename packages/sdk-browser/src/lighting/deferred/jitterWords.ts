@@ -1,6 +1,6 @@
 /** The view's `jitter` words (`VIEW_WGSL`): the raster jitter in pixels, rows down, the word the
  * temporal pass reads as its image-moves flag (0 in the deferred view, which never moves it) and
- * the temporal sampling phase. The phase advances only on accumulated images, including quiet ones. */
+ * the lighting's sampling phase. The phase advances on every image drawn, accumulated or not. */
 export function viewJitterWords<T extends { [word: number]: number } = number[]>(
   jitter: ArrayLike<number> | null,
   into: T = [0, 0, 0, 0] as unknown as T,

@@ -3,7 +3,7 @@ import { NO_CLIP_PLANE, type ClipPlaneValues } from '../../contracts/viewOptions
 
 /**
  * WHAT A CAMERA'S VIEW CARRIES BESIDE ITS EYE, as the engine reads it (`Camera._viewSet`): the clip
- * plane and the two lists of objects (`../../contracts/viewOptions.ts` says what each means).
+ * plane, the two lists of objects and its owner (`../../contracts/viewOptions.ts` says what each means).
  * Replaced whole at every write, never changed in place, so its identity is its revision: a view
  * whose set is the one it was drawn with has drawn the same filter and plane.
  */
@@ -14,6 +14,8 @@ export interface ViewSet {
   readonly hidden: readonly Object3D[]
   /** The only objects the view draws; `null` for every object. */
   readonly showOnly: readonly Object3D[] | null
+  /** The node the view belongs to (`Camera.owner`); `null` for none. */
+  readonly owner: Object3D | null
 }
 
 /** The set of a camera that clips and filters nothing, shared by every one that has none. */
@@ -21,4 +23,5 @@ export const NO_VIEW_SET: ViewSet = Object.freeze({
   clipPlane: NO_CLIP_PLANE,
   hidden: Object.freeze([]) as readonly Object3D[],
   showOnly: null,
+  owner: null,
 })

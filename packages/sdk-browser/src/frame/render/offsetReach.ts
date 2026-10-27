@@ -2,12 +2,21 @@ import { followBlendScene } from '../../blend/resources.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 import { holdOffsetReach } from '../../deformation/halfFloat.ts'
 import type { ClusterRoot, PageRec } from '../../geometry/selection/types.ts'
-import { objectOffsetRow, switchesOfObject } from '../../geometry/rows/page/offsetRow.ts'
+import {
+  OBJECT_VIEW_BITS,
+  objectBits,
+  objectOffsetRow,
+  switchesOfObject,
+} from '../../geometry/rows/page/offsetRow.ts'
+import { rowCell } from '../../geometry/partition/rowCells.ts'
 import type { GraphRasters } from '../../materials/graph/graphRasters.ts'
 import { wpoProgramOf } from '../../materials/graph/wpoProgram.ts'
 import { rootSource } from '../../placement/hidden.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { offsetSwitchEdits } from '../../../../sdk-core/src/world/object/offsetSwitches.ts'
+import {
+  holdsOffsetSwitches,
+  offsetSwitchEdits,
+} from '../../../../sdk-core/src/world/object/offsetSwitches.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { MOBILITY_SHADOWLESS } from '../../lighting/shadows/mobilityBits.ts'
 import { markRootEntries } from './movedRoot.ts'
@@ -132,38 +141,47 @@ function stale(rt: WebgpuPagesRuntime, epoch: number) {
  * are marked as the raster draws them.
  */
 export function followOffsets(rt: WebgpuPagesRuntime) {
-  const { rootOffsets: held } = rt.vis
   if (stale(rt, rt.vis.materialTable.offsetEpoch)) readRoots(rt)
-  for (const rank of held.ranks()) {
-    const row = held.rowOf(rank)!
-    if (row.cache === 'always' && !(rt.lights.mobility.words[rank] & MOBILITY_SHADOWLESS))
-      noteDeformed(rt, rank, 0)
-  }
+  for (const rank of rt.vis.rootOffsets.always())
+    if (!(rt.lights.mobility.words[rank] & MOBILITY_SHADOWLESS)) noteDeformed(rt, rank, 0)
 }
 
-/** Reads the roots again: which wear an offset the session holds, their reach, and the words of their
- *  rows — those of a root whose words changed written again. */
+/** The switches that say what the views of its owner see of the object of `root`: its node's, the defaults for a row of a cell's
+ *  instanced HLOD actor, which stands as its object's mesh but not as what its owner's views see of it. */
+function switchesOfRoot(root: ClusterRoot<PageRec>, node: Object3D | undefined) {
+  const switches = switchesOfObject(node)
+  const at = root.placement && rowCell(root.placement.rows, root.placement.index)
+  return at?.actor === undefined
+    ? switches
+    : { ...switches, ownerNoSee: false, onlyOwnerSee: false }
+}
+
+/** Reads the roots again: which wear an offset the session holds, their reach, the bits of their objects
+ *  and the words of their rows — those of a root whose words changed written again. */
 function readRoots(rt: WebgpuPagesRuntime) {
   const { rootOffsets: held, rasters, materialTable } = rt.vis,
+    { viewHidden } = rt.layout,
     roots = rt.layout.selectionRoots,
     epoch = materialTable.offsetEpoch
   for (let rank = 0; rank < roots.length; rank++) {
     const root = roots[rank]!,
       facts = factsOf(root.pages, epoch, rasters)
     const node = rootSource(root),
-      switches = switchesOfObject(node),
-      { shadowCache: cache, firstPerson, holdout } = switches
-    // A root that wears no offset is held only to be declared every image (`always`), or to carry
-    // the mark of a first-person object (`firstPerson`) or of a held-out one (`holdout`) that its rows' words take.
+      switches = node && holdsOffsetSwitches(node) ? switchesOfRoot(root, node) : undefined
+    // A root that wears no offset is held only to be declared every image (`always`), or to carry the bits of its
+    // object (`objectBits`: first person, holdout, lets the contact shadow rays through, its lighting channels, what its
+    // views see of it). A node that holds no switch has none of them.
     const row =
-      facts || cache === 'always' || firstPerson || holdout
-        ? rowOf(root, node, switches, facts)
+      facts || switches?.shadowCache === 'always' || (switches && objectBits(switches) !== 0)
+        ? objectOffsetRow(node, boundsCentre(root, [0, 0, 0]), facts, switches)
         : undefined
     // Its bounds grow while its offset may be evaluated, wherever the camera is: the object’s own
     // switch off, no surface always evaluating, they do not.
     const reaches = !!facts && (row!.evaluate || row!.always)
     const grew = holdOffsetReach(rt, rank, reaches ? facts.most / smallestScale(root) : 0)
     const changed = held.hold(rank, row)
+    // What its views see of it: the roots they may not draw follow it (`hiddenFromViews`); a bit already so changes nothing.
+    viewHidden.setViewed(rank, ((row?.bits ?? 0) & OBJECT_VIEW_BITS) !== 0)
     // The words of its clusters changed — the switches of its object are its placement's record —,
     // or its reach: no pose moved.
     if (changed) {
@@ -173,17 +191,10 @@ function readRoots(rt: WebgpuPagesRuntime) {
     }
     if (grew || changed) markRootEntries(rt, root, 0, root.pages.length - 1)
   }
+  // The roots the session no longer holds keep no row.
+  held.shrink(roots.length)
+  viewHidden.trim(roots.length)
   // The transparent items carry the same words in their records.
   const { blendState, gpu } = rt
   if (gpu.device && blendState.blendGpu.length) followBlendScene(rt, gpu.device)
-}
-
-/** The row of root `root` for its object `node`, the `switches` read of it and its surfaces' `facts`. */
-function rowOf(
-  root: ClusterRoot<PageRec>,
-  node: Object3D | undefined,
-  switches: ReturnType<typeof switchesOfObject>,
-  facts?: RootFacts,
-) {
-  return objectOffsetRow(node, boundsCentre(root, [0, 0, 0]), facts, switches)
 }

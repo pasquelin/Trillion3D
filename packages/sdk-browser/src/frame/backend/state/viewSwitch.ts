@@ -6,6 +6,7 @@ import { disposeTranslucencyGi } from '../../../lighting/translucencyGi/frame.ts
 import { disposeLocalFog } from '../../render/localFogGpu.ts'
 import { disposeLightShafts } from '../../../modules/sky/lightShafts/frame.ts'
 import { disposeCloudView } from '../../../modules/sky/clouds/viewTargets.ts'
+import { disposeHairView } from '../../../hair/frame.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import {
   VIEW_GPU_KEYS,
@@ -91,6 +92,7 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   disposeLocalFog(view.gpu)
   disposeLightShafts(view.gpu)
   disposeCloudView(view.gpu)
+  disposeHairView(view.gpu)
   view.gpu.temporal = view.gpu.velocity = view.gpu.exposure = undefined
   view.gpu.finish = view.gpu.effects = undefined
   // A canvas of its own is withdrawn; the main view's, which a view placed on it presents into,
@@ -102,5 +104,7 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   // Its cut's readback slots go with it (`../../../geometry/dag/aside.ts`).
   view.run.asideCut?.dispose()
   view.run.asideCut = undefined
+  // The shadow cache entries it kept under its identity (`WebgpuView.id`; the main view's, '', stay).
+  if (view.id) rt.lights.vsm?.state.cache.dropView(view.id)
   rt.services.releaseView(view)
 }

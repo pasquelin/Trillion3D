@@ -17,6 +17,9 @@ export interface DfshSources {
   depth: HizDepth
   /** The surfaces' flags (`texture_2d<u32>`), per pixel. */
   flags: GPUTextureView
+  /** The thin transmission's target, whose alpha is a thin pixel's opacity (`SurfaceBuffer.subsurfaceView`;
+   *  a placeholder where no surface is thin). */
+  subsurface: GPUTextureView
   objects: DfshObjects
 }
 
@@ -49,6 +52,7 @@ function makeGroups(
   }
   const culled = { culledObjects: wholeBuffer(view.culledObjects) }
   const half = { half: view.half.view }
+  const surfaces = { flags: sources.flags, subsurface: sources.subsurface }
   const finals = { mask: wholeBuffer(view.mask), final: wholeBuffer(view.final) }
   const args = { objectArgs: wholeBuffer(view.objectArgs) }
   const counted = { tileCounts: tiles.tileCounts, tileOffsets: tiles.tileOffsets }
@@ -60,11 +64,12 @@ function makeGroups(
       named({ ...counted, nextOffset: wholeBuffer(view.nextOffset) }),
     ),
     scatter: group('scatter', light, objects.slice(2, 3), named({ ...culled, ...tiles })),
-    trace: group(
-      'trace',
+    trace: group('trace', light, depth, named({ ...tiles, ...half, ...surfaces }), objects),
+    traceGather: group(
+      'traceGather',
       light,
       depth,
-      named({ ...tiles, ...half, flags: sources.flags }),
+      named({ ...culled, ...args, ...half, ...surfaces }),
       objects,
     ),
     final: group('final', depth, named({ ...half, ...finals })),
@@ -88,7 +93,7 @@ export function dfshGroups(
   view: DfshView,
   sources: DfshSources,
 ) {
-  const over = [sources.depth, sources.flags, sources.objects.generation, view]
+  const over = [sources.depth, sources.flags, sources.subsurface, sources.objects.generation, view]
   const held = view.groups as GroupsKept | undefined
   if (held && sameValues(held.over, over)) return held.made
   const made = makeGroups(device, programs, view, sources)

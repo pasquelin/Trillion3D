@@ -1,6 +1,5 @@
 import { alignUp, ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { arrayOf, fieldLayout, vec4Array } from '../../../gpu/core/fieldLayout.ts'
-import { subsurfaceDensityOf } from '../../subsurfaceDensity.ts'
 
 /**
  * THE SUN'S DISTANCE-FIELD SHADOW, laid out once for the host that fills it and the programs that
@@ -17,13 +16,17 @@ import { subsurfaceDensityOf } from '../../subsurfaceDensity.ts'
  *    the same radius —, `planes` the cascade's culling hull, `count` of them in `counts.x`;
  *  - `eyeHigh` and `eyeLow` the eye as a pair of floats (xyz); `light` the unit direction toward
  *    the light and the tangent of its angle, `trace` the farthest a ray goes, the share of the depth
- *    its start is offset by, the steps of a ray and the density of the light a thin transmitting
- *    surface lets through (0 where the quality has none);
+ *    its start is offset by, the steps of a ray and whether the quality lets a thin transmitting
+ *    surface keep the light that survives its thickness (1, from the quality 3; else 0: the density
+ *    of that light is the pixel's own, read from its opacity);
+ *  - `axes` the view's right, up and forward (the rows that take a position from the eye to the
+ *    view's axes), which the gather path's bounds of a group of texels are made in;
  *  - `range` the depths the cascade is traced between and the factor on a two-sided mesh's bias,
  *    `expand` the world radius each mesh's box is grown by where it is listed (one tile's half
  *    diagonal) and the shadow-space length of the widest cone radius;
  *  - `view` the view's size in pixels, the downsample of the trace and the layer it writes;
- *    `tiles` the tile grid's side, the entries its lists hold and the meshes of the scene;
+ *    `tiles` the tile grid's side, the entries its lists hold, the meshes of the scene and the entries
+ *    each tile has a place for when the lists are not compacted;
  *    `counts` the planes, the vertex count of the cube a mesh is drawn as, the flags (`DFSH_FLAG`);
  *  - `depth` how a device depth turns into a distance (as `ao/layout.ts`'s).
  */
@@ -35,6 +38,7 @@ export const DFSH_PARAMS = fieldLayout('DfshParams', [
   ['eyeLow', 'vec4f'],
   ['light', 'vec4f'],
   ['trace', 'vec4f'],
+  ['axes', vec4Array(3)],
   ['range', 'vec4f'],
   ['expand', 'vec4f'],
   ['view', 'vec4u'],
@@ -50,9 +54,12 @@ export const DFSH_PARAMS_STRIDE = alignUp(DFSH_PARAMS_BYTES, 256)
 
 /** The bits of `counts.w`. */
 export const DFSH_FLAG = {
-  /** The sun's far-shadow test reaches every mesh (`farShadowCullsAllMeshes`), not those alone that
-   *  say it does. */
-  farMeshes: 1,
+  /** A texel is reached by the depth at its top left alone, not the farthest of its block
+   *  (`distanceFieldShadowSubsampleDepth`). */
+  subsampleDepth: 1,
+  /** The tiles' lists lie one after the other, from the start offsets (`distanceFieldShadowCompactTiles`),
+   *  else each tile has a place of its own. */
+  compactTiles: 2,
 } as const
 
 /**
@@ -100,13 +107,30 @@ export const DFSH_CUBE_VERTICES = 36
 /** The nearest and farthest the radius of a ray's cone is held to, in centimetres. */
 export const DFSH_MIN_CONE_RADIUS = 0.4
 export const DFSH_MAX_CONE_RADIUS = 100
-/** The density of the light a thin transmitting surface lets through the meshes between it and the
- *  light, per unit of thickness: that of an opacity of 1 (`subsurfaceDensityOf`). */
-export const DFSH_SUBSURFACE_DENSITY = subsurfaceDensityOf(1)
 /** The steps of a ray at the qualities 1, 2 and 3 of the cascade. */
 export const DFSH_STEPS = [0, 20, 32, 64] as const
-/** The formats: the half-resolution result (the visibility and the depth it was traced at, a band of
- *  rows a light), and the stand-in target the scatter draws into. */
+/** The meshes a half of a group's list holds in the gather path (a group of texels keeps two lists, by
+ *  the depth of its pixels); a mesh past it is not kept. */
+export const DFSH_GATHER_OBJECTS = 1024
+/** The least half-range of the shadow space's depth, in centimetres: a small cascade still sees the
+ *  meshes this far toward the light and past it, which a thin transmitting surface needs. */
+export const DFSH_MIN_DEPTH_RANGE = 5000
+/** The cascade's shadow space snaps its origin to a grid of this many texels a step, on a map of
+ *  `distanceFieldShadowSnapResolution` texels less this border on each side. */
+export const DFSH_SNAP_STEP_TEXELS = 4
+export const DFSH_SNAP_BORDER = 4
+/** The least resolution the snap's map is taken to have, before the border is taken off. */
+export const DFSH_MIN_SNAP_RESOLUTION = 32
+/**
+ * The formats: the half-resolution result (the visibility and the depth it was traced at, a band of
+ * rows a light), and the stand-in target the scatter draws into.
+ *
+ * The half-resolution result is two 32-bit floats a texel. The reference holds the same two values in
+ * 16-bit floats; the 32-bit format is kept on purpose, above the reference's and with no loss to
+ * declare in the image: the depth the upsample weighs by is not rounded to 16 bits (whose step is
+ * 32 centimetres between 32 768 and 65 536, the cascade's range). A declared deviation, of precision
+ * alone.
+ */
 export const DFSH_HALF_FORMAT: GPUTextureFormat = 'rg32float'
 export const DFSH_STAND_IN_FORMAT: GPUTextureFormat = 'rgba8unorm'
 /**
@@ -135,7 +159,8 @@ export const DFSH_CUBE = [
 /**
  * The bindings, one table for every pass, so a resource has one number: a pass binds the ones it
  * names (`layouts.ts`). The depth pyramid takes three, from `depth`; the meshes' fields seven, from
- * `objects` (`meshFieldWgsl`); `flags` is the surfaces' flags, whose thin-subsurface bit the trace reads.
+ * `objects` (`meshFieldWgsl`); `flags` is the surfaces' flags, whose thin-subsurface bit the trace reads,
+ * and `subsurface` the thin transmission's target, whose alpha is that pixel's opacity.
  */
 export const DFSH_BINDING = {
   params: 0,
@@ -150,6 +175,7 @@ export const DFSH_BINDING = {
   mask: 11,
   final: 12,
   flags: 13,
+  subsurface: 14,
   objects: 16,
 } as const
 

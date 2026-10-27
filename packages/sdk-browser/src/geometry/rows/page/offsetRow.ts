@@ -1,4 +1,11 @@
 import { WPO_ROW_ALWAYS, WPO_ROW_VELOCITY } from '../../../visibility/types.ts'
+import {
+  PLACEMENT_CHANNELS_SHIFT,
+  PLACEMENT_FIRST_PERSON,
+  PLACEMENT_HOLDOUT,
+  PLACEMENT_NO_CONTACT_SHADOW,
+} from '../../dag/info/placementInfoLayout.ts'
+import { storedChannelsOf } from '../../../../../sdk-core/src/contracts/lightingChannelsAbi.ts'
 import type { SurfaceRow } from '../surfaceRow.ts'
 import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d.ts'
 import {
@@ -30,13 +37,29 @@ export interface RootOffsetRow {
   always: boolean
   /** How the object keeps its shadows (`Object3D.shadowCacheInvalidation`). */
   cache: ShadowCacheInvalidation
-  /** Whether the object is a first-person one: its pages carry `PageInfo.firstPerson`
-   *  (`PLACEMENT_FIRST_PERSON`); unset, it is not. */
-  firstPerson?: boolean
-  /** Whether the object is held out of the image's alpha (`Object3D.holdout`): its rows carry
-   *  `FLAG_HOLDOUT` (`PLACEMENT_HOLDOUT`); unset, it is not. */
-  holdout?: boolean
+  /** The object's bits (`objectBits`): first person, holdout, no contact shadow, its lighting channels stored, what its views see of
+   *  it; 0 for none of them. */
+  bits: number
 }
+
+/** What the views read of an object, in the bits of its row above every placement bit (`PLACEMENT_OBJECT_BITS` leaves them out of a
+ *  placement's words): it hides from the views that own it (`Object3D.ownerNoSee`), or from every view but those (`onlyOwnerSee`):
+ *  `hiddenFromViews` reads them. */
+export const OBJECT_OWNER_NO_SEE = 1 << 29,
+  OBJECT_ONLY_OWNER_SEE = 1 << 30
+/** The bits of an object that say what its views see of it. */
+export const OBJECT_VIEW_BITS = OBJECT_OWNER_NO_SEE | OBJECT_ONLY_OWNER_SEE
+
+/** The bits of an object whose node has switches `s` (`RootOffsetRow.bits`): the placement's own bits for the
+ *  object (`PLACEMENT_OBJECT_BITS`: first person, holdout, no contact shadow, its lighting channels stored from
+ *  `PLACEMENT_CHANNELS_SHIFT` where they are not the default), then what its views see of it (`OBJECT_VIEW_BITS`). */
+export const objectBits = (s: ReturnType<typeof switchesOfObject>) =>
+  (s.firstPerson ? PLACEMENT_FIRST_PERSON : 0) |
+  (s.holdout ? PLACEMENT_HOLDOUT : 0) |
+  (s.castContactShadow ? 0 : PLACEMENT_NO_CONTACT_SHADOW) |
+  (storedChannelsOf(s.lightingChannels) << PLACEMENT_CHANNELS_SHIFT) |
+  (s.ownerNoSee ? OBJECT_OWNER_NO_SEE : 0) |
+  (s.onlyOwnerSee ? OBJECT_ONLY_OWNER_SEE : 0)
 
 /** The switches' defaults: evaluated, a motion, never stopped by the distance. */
 const DEFAULT_OFFSET_ROW: RootOffsetRow = {
@@ -48,6 +71,7 @@ const DEFAULT_OFFSET_ROW: RootOffsetRow = {
   worn: false,
   always: false,
   cache: 'auto',
+  bits: 0,
 }
 
 const NO_NODE = {}
@@ -55,8 +79,8 @@ const NO_NODE = {}
 /** The switches of an object, the defaults for none. */
 export const switchesOfObject = (node: Object3D | undefined) => offsetSwitchesOf(node ?? NO_NODE)
 
-/** The row of an object: `node`'s switches (the defaults for none; `s` when the caller has read them), the centre of its bounds and what
- *  its surfaces ask (`facts`: the greatest offset, whether one always evaluates; none, it wears none). */
+/** The row of an object: `node`'s switches (the defaults for none; `s` when the caller has read them), the centre of its
+ *  bounds and what its surfaces ask (`facts`: the greatest offset, whether one always evaluates; none, it wears none). */
 export function objectOffsetRow(
   node: Object3D | undefined,
   centre: readonly [number, number, number],
@@ -72,8 +96,7 @@ export function objectOffsetRow(
     worn: !!facts,
     always: facts?.always === true,
     cache: s.shadowCache,
-    ...(s.firstPerson ? { firstPerson: true } : {}),
-    ...(s.holdout ? { holdout: true } : {}),
+    bits: objectBits(s),
   }
 }
 

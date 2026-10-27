@@ -24,6 +24,20 @@ test('a copy takes the switches, the one turned off first', () => {
   assert.deepEqual([other.firstPerson, other.firstPersonWorldSpaceRepresentation], [false, true])
 })
 
+// The switch that lets the contact shadow rays through an object (`Object3D.castContactShadow`).
+test('the contact shadow switch is on by default, a boolean, and copied with the node', () => {
+  const wall = object.mesh(geometry.box(1, 1, 1))
+  assert.equal(wall.castContactShadow, true)
+  assert.throws(() => (wall.castContactShadow = 0 as never), RangeError)
+  assert.equal(wall.castContactShadow, true, 'a refused write changes nothing')
+  wall.castContactShadow = false
+  const other = object.mesh(geometry.box(1, 1, 1))
+  other.copy(wall)
+  assert.equal(other.castContactShadow, false)
+  other.copy(object.mesh(geometry.box(1, 1, 1)))
+  assert.equal(other.castContactShadow, true, 'a copy of a default node is on again')
+})
+
 // The switch beside them that holds an object out of the image's alpha (`Object3D.holdout`).
 test('the holdout switch is off by default, a boolean, and copied with the node', () => {
   const wall = object.mesh(geometry.box(1, 1, 1))

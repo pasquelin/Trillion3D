@@ -46,15 +46,30 @@ export interface HeldSet {
  * the image being encoded may still name them) — where the device's budget leaves room (`ledgerAdmitted`); none where it
  * does not, with the reason. The bytes the budget is asked for are the allocations themselves, counted. `extend` adds to
  * what is made what is not an allocation (an upload, the writers over its buffers): it runs only on a making.
+ * `fits`, given, keeps `held` too when it says the held set already holds what is asked (a set that only grows).
  */
 export function ensureSet<S extends object, X extends object = Record<never, never>>(
   held: (S & X & HeldSet) | undefined,
   device: GPUDevice,
-  { key, what, label }: { key: readonly unknown[]; what: string; label: string },
+  {
+    key,
+    what,
+    label,
+    fits,
+  }: {
+    key: readonly unknown[]
+    what: string
+    label: string
+    fits?: (held: S & X & HeldSet) => boolean
+  },
   allocate: (allocator: ResourceAllocator) => S,
   extend?: (resources: S) => X,
 ): { resources?: S & X & HeldSet; why?: string } {
-  if (held && held.key.length === key.length && held.key.every((part, at) => part === key[at]))
+  if (
+    held &&
+    ((held.key.length === key.length && held.key.every((part, at) => part === key[at])) ||
+      fits?.(held))
+  )
     return { resources: held }
   const bytes = listedBytes(allocate)
   const { value, why } = ledgerAdmitted(device, {

@@ -12,15 +12,17 @@ import { VSM_DEFAULT_SHADOWS } from '../mapSettings.ts'
 import { createVsmMarking, type VsmMarkingFrame } from '../markingPass.ts'
 import { createVsmResources } from '../resources.ts'
 import { FROXEL_ARGS_ENTRY, FROXEL_BUILD_ENTRY, FROXEL_SCENE_BINDING } from './froxelBuildWgsl.ts'
-import { FROXEL_MARK_LOCAL_LIGHTS_WORD } from './froxelGrid.ts'
 import { FROXEL_MARK_ENTRY } from './froxelMarkWgsl.ts'
 
 const FROXEL_STEPS = [FROXEL_BUILD_ENTRY, FROXEL_ARGS_ENTRY, FROXEL_MARK_ENTRY]
+/** The word of the grid that says whether its froxels mark the local lights' pages: after the matrix, the
+ *  tile scale and bias, the depth words, the room and the rect (36 words in). */
+const MARK_LOCAL_LIGHTS_WORD = 36
 
 async function marking(settings: Partial<typeof VSM_DEFAULT_SHADOWS>) {
   const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
   const { device } = fake
-  const res = createVsmResources(device, { fullMapCapacity: 63, poolPages: 256 })
+  const res = createVsmResources(device, { coverMode: 'suns', fullMapCapacity: 63, poolPages: 256 })
   const marked = createVsmMarking(device, res)
   const depth = () =>
     device
@@ -97,7 +99,7 @@ async function marking(settings: Partial<typeof VSM_DEFAULT_SHADOWS>) {
     const last = fake.writes.filter((w) => w.buffer === grid).at(-1)!
     const bytes = writtenBytes(last)
     return new Uint32Array(bytes.buffer, bytes.byteOffset, bytes.byteLength / 4)[
-      FROXEL_MARK_LOCAL_LIGHTS_WORD
+      MARK_LOCAL_LIGHTS_WORD
     ]
   }
   return { fake, marked, encode, grids, localLights, scene }

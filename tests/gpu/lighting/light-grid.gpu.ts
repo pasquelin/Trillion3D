@@ -3,7 +3,9 @@
 // cell by cell, lists that hold every lamp reaching a point of the cell, in increasing order, with
 // the count's shadow bit where a listed lamp holds a slot; and those lists are its oracle's
 // (`gpuLightGridOracle.ts`), but for a run's end moved by a rounding. 48 lamps, and 800 whose
-// columns keep more than the 512 runs the cache holds.
+// columns keep more than the 512 runs the cache holds, and those 800 again with the far and small ones the view
+// leaves out (`lightDrawn`, the bit of their kind word): absent from every list, and from the walk of every light
+// that a pixel with no list makes.
 //
 //   node bench/dawn/proofs.ts tests/gpu/lighting/light-grid.gpu.ts
 import test from 'node:test'
@@ -18,6 +20,8 @@ import {
 } from '../../../packages/sdk-browser/src/lighting/tiles/tileCamera.fixture.ts'
 import { gridSlice } from '../../../bench/oracles/browser/gpuLightGridOracle.ts'
 import { gridLists, reaches } from '../../../bench/runner/lighting/lightGridWalk.ts'
+import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
+import { lightDrawn } from '../../../packages/sdk-browser/src/lighting/lightDrawRange.ts'
 import { runOnDawn, loadPage } from '../../kit/device/onDawn.ts'
 import type { GridLamp } from './lightGridPage.ts'
 
@@ -42,7 +46,31 @@ const lamps = (count: number): GridLamp[] => {
     return { position, range: Math.fround(range), slot: k % 10 === 3 }
   })
 }
-const sets = [lamps(48), lamps(800)]
+const sets = [lamps(48), lamps(800), lamps(800)]
+/** The last set seen as the defaults leave far and small lamps out. */
+const dropping = [false, false, true]
+/** The lamps as the page declares them. */
+const storeOf = (set: GridLamp[]) => {
+  const store = createSceneLightStore()
+  set.forEach(({ position, range }, k) =>
+    store.add({
+      id: `l${k}`,
+      kind: 'point',
+      position,
+      color: [1, 1, 1],
+      intensity: 1,
+      range,
+      castsShadow: false,
+    }),
+  )
+  return store
+}
+/** Per set and lamp, whether the view draws it: the CPU rule (`lightDrawn`) at a factor of 1 where the set is seen as the defaults say, else every lamp. */
+const drawn = sets.map((set, s) => {
+  const lights = storeOf(set)
+  const draw = dropping[s] ? { eye: view.eye, factor: 1, lights } : undefined
+  return set.map((_, k) => lightDrawn(k, draw))
+})
 
 test('the grid pass lists every lamp reaching its cells, as its oracle does, on the GPU', async () => {
   const page = (await loadPage(
@@ -50,14 +78,15 @@ test('the grid pass lists every lamp reaching its cells, as its oracle does, on 
     'lightGridPage',
   )) as typeof import('./lightGridPage.ts')
   const pageErrors: string[] = []
-  const result = await runOnDawn(page.run, { view, sets }, pageErrors)
+  const result = await runOnDawn(page.run, { view, sets, drawn }, pageErrors)
   assert.ok(!('unavailable' in result), 'WebGPU must be available')
   const { errors, runs } = result
   assert.deepEqual([...errors, ...pageErrors], [])
   sets.forEach((set, s) => {
-    const { columnsX, cells } = runs[s]
+    const { columnsX, cells, walked } = runs[s]
+    // The lamps' records, as the page fills them.
     const lights = set.map(({ position, range }) => ({ centre: position, radius: range }))
-    const oracle = gridLists(view, lights)
+    const oracle = gridLists(view, lights, undefined, drawn[s])
     const cellOf = (column: number, slice: number) =>
       cells[column * LIGHT_SETTINGS.gridSlices + slice]
     /** A cell's list; with no room in the pool, every lamp of the scene. */
@@ -69,6 +98,10 @@ test('the grid pass lists every lamp reaching its cells, as its oracle does, on 
       lists.forEach((expected, slice) => {
         const { list, shadowed } = cellOf(column, slice)
         assert.ok(list, `${set.length} lamps: every column had room in the pool`)
+        assert.ok(
+          list.every((k) => drawn[s][k]),
+          'a lamp the view leaves out is in no list',
+        )
         assert.deepEqual(
           [...list].sort((a, b) => a - b),
           list,
@@ -85,14 +118,22 @@ test('the grid pass lists every lamp reaching its cells, as its oracle does, on 
       }),
     )
     assert.ok(moved <= entries / 1000, `${moved} of ${entries} entries moved by a rounding`)
-    // Conservative on the GPU's own lists: a lamp reaching a point is in its cell's list.
+    // The walk of every light takes the lamps the view draws and no other, in order.
+    assert.deepEqual(
+      walked,
+      set.flatMap((_, k) => (drawn[s][k] ? [k] : [])),
+      'the walk of every light leaves out the lamps the view does not draw',
+    )
+    if (dropping[s]) assert.ok(drawn[s].includes(false), 'the set has lamps the view leaves out')
+    // Conservative on the GPU's own lists: a lamp reaching a point is in its cell's list, but for one the view leaves out.
     for (let k = 0; k < 4000; k++) {
       const { x, y, z, p } = pointAt()
       const column =
         Math.floor(y / LIGHT_SETTINGS.tileSize) * columnsX + Math.floor(x / LIGHT_SETTINGS.tileSize)
       const list = listOf(column, gridSlice(z))
       lights.forEach((light, rank) => {
-        if (reaches(p, light)) assert.ok(list.includes(rank), `lamp ${rank} reaches ${x},${y}`)
+        if (reaches(p, light) && drawn[s][rank])
+          assert.ok(list.includes(rank), `lamp ${rank} reaches ${x},${y}`)
       })
     }
   })

@@ -9,18 +9,20 @@ import { uploadRootWords } from './rootWords.ts'
 import { ROOT_SECTION, ROOT_SECTIONS } from './rootWordsWgsl.ts'
 
 export function rootWordsTwin(count: number, pages = 1) {
-  const roots: Array<{ world: { elements: Float64Array }; pages: object[]; deformReach?: number }> =
-    Array.from({ length: count }, () => ({
-      world: { elements: new Float64Array(16) },
-      pages: new Array(pages).fill({}),
-    }))
+  const roots: Array<{
+    world: { elements: Float64Array }
+    pages: { material: { displacement?: object; displacementMap?: object } }[]
+    deformReach?: number
+  }> = Array.from({ length: count }, () => ({
+    world: { elements: new Float64Array(16) },
+    pages: new Array(pages).fill({ material: {} }),
+  }))
   const { device, writes } = fakeDevice()
-  const context: { shadowCacheDeformableMeshesInvalidate?: boolean } = {}
   const rt = {
     layout: { selectionRoots: roots, placement: { packedCount: count * pages } },
     lights: { mobility: createShadowMobility() },
     vis: { rootOffsets: { rowOf: () => undefined } },
-    context,
+    context: {},
     gpu: { device },
   } as unknown as WebgpuPagesRuntime
   const bytes = new ArrayBuffer(ROOT_SECTIONS * count * 4 + 32)
@@ -44,5 +46,5 @@ export function rootWordsTwin(count: number, pages = 1) {
     return [...new Float32Array(bytes)].slice(at, at + count)
   }
   const upload = () => uploadRootWords(rt, device)
-  return { rt, roots, context, held, sent, reach, upload, writes, inWords }
+  return { rt, roots, held, sent, reach, upload, writes, inWords }
 }

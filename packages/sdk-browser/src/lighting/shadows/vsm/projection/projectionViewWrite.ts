@@ -21,6 +21,7 @@ import {
   VSM_PROJECTION_LIGHT_WORDS,
   VSM_PROJECTION_MAX_PASS_LIGHTS,
   VSM_PROJECTION_VIEW_WORD,
+  sunCount,
 } from './projectionView.ts'
 import type { VsmProjectionFrame, VsmProjectionLight } from './projectionPass.ts'
 
@@ -130,18 +131,15 @@ function writeScreenWords(
   v2c: Float64Array,
   perspective: boolean,
 ) {
-  // The screen ray length multiplier (zero but where set) and the tangent and inverse tangent of
-  // the half field of view (clip-to-view [0][0], [1][1], view-to-clip [0][0], [1][1]); an
-  // orthographic view's are 1.
+  // The screen ray length multiplier (zero but where set) and the inverse tangent of the half field
+  // of view along x (view-to-clip [0][0]); an orthographic view's are 1.
   const ray = VSM_PROJECTION_VIEW_WORD.screenRayScale,
-    tangents = VSM_PROJECTION_VIEW_WORD.halfFovTangents
+    inverse = VSM_PROJECTION_VIEW_WORD.inverseHalfFovTangent
   if (perspective) {
-    f[ray] = f[tangents] = 1 / v2c[0]
-    f[ray + 1] = f[tangents + 1] = 1 / v2c[5]
-    f[tangents + 2] = v2c[0]
-    f[tangents + 3] = v2c[5]
-  } else
-    f[ray + 2] = f[ray + 3] = f[tangents] = f[tangents + 1] = f[tangents + 2] = f[tangents + 3] = 1
+    f[ray] = 1 / v2c[0]
+    f[ray + 1] = 1 / v2c[5]
+    f[inverse] = v2c[0]
+  } else f[ray + 2] = f[ray + 3] = f[inverse] = 1
   const pixels = VSM_PROJECTION_VIEW_WORD.viewPixels
   f[pixels] = width
   f[pixels + 1] = height
@@ -188,8 +186,7 @@ export function writeVsmProjectionView(
     words = VSM_PROJECTION_HEADER_WORDS + VSM_PROJECTION_LIGHT_WORDS * count
   view.f.fill(0, 0, words)
   viewMatrices(inputs.camera)
-  let suns = 0
-  while (suns < count && lights[suns].type === 'directional') suns++
+  const suns = sunCount(lights, count)
   writeViewHeader(view, inputs, count, suns)
   for (let k = 0; k < count; k++)
     writeLightRecord(

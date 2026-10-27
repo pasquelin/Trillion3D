@@ -14,12 +14,11 @@ import { primitiveFrameWords, primitiveWordAt } from './worlds/worlds.ts'
 import { rootMark } from '../../deformation/halfFloat.ts'
 import {
   CACHE_STATIC_ROOT,
-  FAR_SHADOW_ROOT,
   HIDDEN_SHADOW_ROOT,
   IMMOVABLE_ROOT,
   MARK_BITS,
   MOVABLE_ROOT,
-  nodeCasting,
+  SHADOW_MAPLESS_ROOT,
   SHADOWLESS_ROOT,
   WORLD_SPACE_ROOT,
 } from '../../visibility/shader/castingMark.ts'
@@ -81,9 +80,6 @@ test('no two bits of the mark are alike, whoever reads them', () => {
     shadowless: SHADOWLESS_ROOT,
     drawDistance: DRAW_DISTANCE_MARK,
     worldRoot: WORLD_ROOT_MARK,
-    farShadow: FAR_SHADOW_ROOT,
-    farTest: nodeCasting({ castShadow: true, farShadowTest: true }),
-    farSkip: nodeCasting({ castShadow: true, farShadowTest: false }),
     rootParent: ROOT_PARENT_MARK,
     drawInstance: DRAW_INSTANCE_MARK,
     cacheStatic: CACHE_STATIC_ROOT,
@@ -91,6 +87,7 @@ test('no two bits of the mark are alike, whoever reads them', () => {
     hiddenShadow: HIDDEN_SHADOW_ROOT,
     movable: MOVABLE_ROOT,
     immovable: IMMOVABLE_ROOT,
+    shadowMapless: SHADOW_MAPLESS_ROOT,
   }
   assert.deepEqual(homes, MARK_BITS, 'a home for every bit of the table, its value')
   assert.equal(CASTS_NO_SHADOW, MARK_BITS.sprite | MARK_BITS.shadowless)

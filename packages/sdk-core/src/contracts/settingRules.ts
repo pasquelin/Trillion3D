@@ -149,9 +149,12 @@ export const distanceSetting = <F extends string>(field: F, value: number) => ({
   ),
   distance: true as const,
 })
-/** A finite number of at least zero of field `field` and default `value`. */
-export const nonNegativeSetting = <F extends string>(field: F, value: number) =>
-  bounded('float', field, value, FROM_ZERO, 'a finite number of at least 0')
+/** A finite number of at least zero of field `field` and default `value`, `takes` its words. */
+export const nonNegativeSetting = <F extends string>(
+  field: F,
+  value: number,
+  takes = 'a finite number of at least 0',
+) => bounded('float', field, value, FROM_ZERO, takes)
 /** A whole number of at least `least` of field `field` and default `value`: a count. */
 export const countSetting = <F extends string>(field: F, value: number, least: 0 | 1) =>
   bounded(

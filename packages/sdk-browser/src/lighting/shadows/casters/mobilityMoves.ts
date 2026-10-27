@@ -1,5 +1,6 @@
 import { resized } from '../../../../../math/src/sequence/resized.ts'
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../../placement/update.ts'
+import { MOBILITY_CACHE_STATIC } from '../mobilityBits.ts'
 import { holdsPose, promoteRank, touchRank, type MobilityState } from './mobilityState.ts'
 
 /**
@@ -23,6 +24,21 @@ export function moveRank(
   if (s.moving[rank]) return MOVE_MOVING
   promoteRank(s, rank)
   return MOVE_PROMOTED
+}
+
+/**
+ * Placement `rank` was updated where it stands — the distances it is drawn at changed —: cached as
+ * dynamic from now on and last invalidated at this frame, as the reference's invalidated primitive
+ * is, unless its object pins its shadows to the cache (`MOBILITY_CACHE_STATIC`, the reference's
+ * static invalidation behaviour, which suppresses the invalidations of a moved primitive). Returns
+ * whether it left the static slice.
+ */
+export function invalidateRank(s: MobilityState, rank: number) {
+  if (rank < 0 || rank >= s.moving.length || s.words[rank] & MOBILITY_CACHE_STATIC) return false
+  s.lastMoved[rank] = s.frame
+  if (s.moving[rank]) return false
+  promoteRank(s, rank)
+  return true
 }
 
 /** Placement `rank` follows parent slot `lead` from now on, or none when -1. A still follower

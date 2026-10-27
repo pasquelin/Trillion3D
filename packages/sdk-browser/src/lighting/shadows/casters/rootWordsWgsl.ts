@@ -1,6 +1,8 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { FLOAT32_MAX } from '../../../../../math/src/wgsl/constants.ts'
 import { casterReachWgsl } from '../../../deformation/halfFloat.ts'
+import { LIGHTING_CHANNELS_WGSL } from '../../lightingChannelsWgsl.ts'
+import { MOBILITY_CHANNELS_SHIFT } from '../mobilityBits.ts'
 
 /** The sections of the placements' buffer (`rootWords.ts`), a word a placement each, in the order
  *  they lie: the mobility words, the instances' state per view (`castDiffWgsl.ts`,
@@ -15,11 +17,11 @@ export const ROOT_SECTIONS = Object.keys(ROOT_SECTION).length
  * the defaults for a placement the buffer does not hold are no word, no view bits, no distance and a
  * deformation that reaches as far as anything, so that it caps nothing (`vsmBareReach`).
  * `vsmBareReach` is the reach that grows the bounds of a placement where the offsets do not: the
- * mark's whole reach, held to its deformation's.
+ * mark's whole reach, held to its deformation's. `vsmRootChannels` reads the word's lighting channels.
  */
 export const ROOT_WORDS_WGSL = wgslBlock(
   'ROOT_WORDS_WGSL',
-  [FLOAT32_MAX, casterReachWgsl],
+  [FLOAT32_MAX, casterReachWgsl, LIGHTING_CHANNELS_WGSL],
   `struct VsmRootWords{word:u32,viewBits:u32,disableSq:f32,deformReach:f32,}
 fn vsmRootCount()->u32{return arrayLength(&rootWords)/${ROOT_SECTIONS}u;}
 /** Placement \`w\`'s words in a buffer of \`count\` placements (\`vsmRootCount\`). */
@@ -28,6 +30,8 @@ fn vsmRootWordsIn(w:u32,count:u32)->VsmRootWords{
  return VsmRootWords(rootWords[w],rootWords[${ROOT_SECTION.state}u*count+w],bitcast<f32>(rootWords[${ROOT_SECTION.distance}u*count+w]),bitcast<f32>(rootWords[${ROOT_SECTION.reach}u*count+w]));
 }
 fn vsmRootWords(w:u32)->VsmRootWords{return vsmRootWordsIn(w,vsmRootCount());}
+/** The lighting channels of a placement's mobility word \`word\`, as a mask: stored there (\`MOBILITY_CHANNELS_SHIFT\`). */
+fn vsmRootChannels(word:u32)->u32{return storedToChannels(word>>${MOBILITY_CHANNELS_SHIFT}u);}
 fn vsmBareReach(roots:VsmRootWords,whole:f32)->f32{return min(whole,casterReach(roots.deformReach));}
 `,
 )

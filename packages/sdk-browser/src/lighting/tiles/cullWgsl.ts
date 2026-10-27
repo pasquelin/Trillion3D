@@ -26,9 +26,9 @@ export const GRID_CULL_WGSL = wgslBlock(
 @group(1) @binding(1) var<uniform> hizLevels:HizLevels;
 /** The farthest depth the fog volume's cells read the lists at, behind a surface at \`farthest\`. */
 fn fogReachDepth(farthest:f32)->f32{
- let slice=floor(logSliceOfDepth(view.cull.w/farthest,view.sliceMap.xyz));
+ let slice=floor(logSliceOfDepth(view.cull.w/farthest,view.sliceMap));
  if(!(slice>=0.0)){return farthest;}
- let limit=depthOfLogSlice(slice+view.cull.z+1.0,view.sliceMap.xyz);
+ let limit=depthOfLogSlice(slice+view.cull.z+1.0,view.sliceMap);
  return min(farthest,view.cull.w/limit);
 }
 /** The last slice of the column of cell \`cell\` a pixel can read the lists at. */

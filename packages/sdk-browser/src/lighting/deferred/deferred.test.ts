@@ -7,6 +7,9 @@ import { gpuHarness } from './contractLighting.fixture.ts'
 import { BLEND_SHADER, contractLightingShader } from '../../gpu/core/shaderTexts.fixture.ts'
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import { FULL_CONTRACT } from './contractCuts.ts'
+import { MAX_10_BIT_FLOAT } from '../../../../math/src/constants.ts'
+import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
+import { LIT_PIXEL_WGSL } from './litSurfaceWgsl.ts'
 
 const CLEAR = clearValueOf(0x204060)
 
@@ -188,4 +191,14 @@ test('the indirect pass names the screen probes result: a group is made for each
   frame(undefined)
   assert.equal(h.bindGroups.length, first + 2, 'none cast: the stand-in, a group of its own')
   lighting.dispose()
+})
+
+test('a light term in the lit image is multiplied by the pre-exposure and not held: only the base pass holds the emission', () => {
+  const { lightOut } = shaderRun<{ lightOut: (rgb: number[]) => number[] }>(
+    LIT_PIXEL_WGSL,
+    ['lightOut'],
+    { view: { views: [0, 0, 0, 0], preExposure: [2, 0, 0, 0] }, scatterLuma: 0 },
+  )
+  // Above what the emission may be (`MAX_EMISSIVE`, half the 10-bit float's greatest) once multiplied.
+  assert.deepEqual(lightOut([MAX_10_BIT_FLOAT, 1, 0]), [2 * MAX_10_BIT_FLOAT, 2, 0, 0])
 })

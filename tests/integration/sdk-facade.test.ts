@@ -75,8 +75,8 @@ test('generated inventory and explicit facade files are current', async () => {
   // two (boxTransformBatch, multiplyMatrix4Batch, boxTransformUnionBatch) stands beside them; nor a
   // second page source beside the streaming (httpPageSource): `page.httpSource` reads through a
   // streamer. The bounce publishes its
-  // frame metrics (BounceFrameMetrics) and its count of probes traced an image (resolveProbesPerFrame,
-  // BOUNCE_PROBE_QUEUE); the reflections publish theirs (ReflectionFrameMetrics, ReflectionSceneEnded); no time servo (createProxyBudget) nor world-sized cascades
+  // frame metrics (BounceFrameMetrics), its most probes queued an image (BOUNCE_PROBE_QUEUE) and the queue a budget
+  // asks with the update speed's range it is scaled within (probeQueueFor, BOUNCE_BUDGET_SPEED_RANGE); the reflections publish theirs (ReflectionFrameMetrics, ReflectionSceneEnded); no time servo (createProxyBudget) nor world-sized cascades
   // (createBounceCascades) stand beside it. A mesh wears the one surface record its material declared
   // (PageSurface, its SurfaceFamily, its three parts VisMaterial, SurfaceFacts and Releasable, and declareSurface with its SurfaceDeclaration to make one), which holds the core's texture record: the host surface and
   // texture copies (GraphSurface, GraphTexture, HostMaterial, HostTexture), the host's side word
@@ -160,7 +160,7 @@ test('generated inventory and explicit facade files are current', async () => {
   // (ViewCamera, for HostCamera), and the meshes a page draws and the colour a surface declares are
   // named in the engine's words (PageMesh, PageMaterials, SurfaceColour). The shadows' viewpoint
   // (ShadowViewpoint) left with the CPU streaming invalidations.
-  assert.equal(inventory.exports.length, 878)
+  assert.equal(inventory.exports.length, 879)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

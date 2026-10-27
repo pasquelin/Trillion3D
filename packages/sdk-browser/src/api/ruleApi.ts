@@ -87,8 +87,8 @@ export interface ExplorerRuleApi {
    *  image. */
   setDistanceFieldOcclusion: FamilyWriter<'distanceFieldOcclusion'>
   /** Writes the sun's shadow setting `field` (`shadowOptions.ts`): the scale of every sun's
-   *  shadow distance, whether its shadow maps leave out the casters past it, and which casters
-   *  that test reaches; read by the next frame's shadow planning. */
+   *  shadow distance, whether it has a near edge and the far-shadow test (which reaches no cluster
+   *  geometry), and which subjects that test reaches; read by the next frame's shadow planning. */
   setShadows: FamilyWriter<'shadows'>
   /** Writes the motion blur's drawing setting `field` (`motionBlurOptions.ts`): the quality, the
    *  half-resolution gather and input, the second pass and the drawn spread; read by the next
@@ -128,6 +128,10 @@ export interface ExplorerRuleApi {
    *  follows, and whether it occludes the screen probes' light; read by the next image's
    *  occlusion passes. */
   setAmbientOcclusion: FamilyWriter<'ambientOcclusion'>
+  /** Writes the ambient cubemap's setting `field` (`ambientCubemapOptions.ts`): the tint of the cube's light, a linear colour of three
+   *  channels, and the intensity that multiplies it; read by the next image's indirect light. The cube itself is a world option
+   *  (`ambientCubemap`), given at the opening. */
+  setAmbientCubemap: FamilyWriter<'ambientCubemap'>
   /** Writes the volumetric fog's setting `field` (`volumetricFogOptions.ts`): its quality level
    *  (`'off'`, `'low'`, `'high'`, `'ultra'`) and the filtering, temporal reprojection,
    *  jitter, history weight, depth distribution, emissive, conservative depth, distance bias,
@@ -148,6 +152,10 @@ export interface ExplorerRuleApi {
   setSubsurfaceScattering: FamilyWriter<'subsurfaceScattering'>
   /** Writes the single-layer water's setting `field` (`singleLayerWaterOptions.ts`): whether it is drawn, its reflection technique and refraction, the cullings and the passes; read by the next frame's water pass. */
   setSingleLayerWater: FamilyWriter<'singleLayerWater'>
+  /** Writes the hair strands' setting `field` (`hairStrandsOptions.ts`): whether the strands are drawn and shadowed, their
+   *  visibility buffer's samples and merging, the voxel volume's size, pages, allocation, march and shadow terms, and the rays a strand's
+   *  pixel casts toward a light; read by the next frame. */
+  setHairStrands: FamilyWriter<'hairStrands'>
   /** Writes the sky's quality setting `field` (`sky/quality.ts`): the atmosphere's switches,
    *  samples, caps and tables, the clouds', the light shafts' and the sky light's; read by the next
    *  image's passes. */

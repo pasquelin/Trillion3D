@@ -131,7 +131,7 @@ const VERTEX = 'cb30846adb070ab9fa93689bbbd0a1ea2957858ef121ecf62c42fb7d70560fda
 // fragment that reflects nothing (a hair, a medium) takes no reflection (`forwardIndirect`'s `reflects`), and `blendLightsOf` takes the flags.
 // The fragment took the lighting program a pipeline constant (`BLEND_LIGHTING`, `blendLightsOf`), the unlit one closing the lit path, and the vertex stage lost `otherPass`.
 // The reflection lobe lost its probe bands and long axis (`reflectionLobeOf`), the environment alone standing for the probes' field.
-// The standard material's Fresnel took the specular grazing value (`specularF90`, `fresnelSchlick(f0,f90,cosine)`) and the split sum its F90 (`math/src/wgsl/lighting.ts`); retaken for the sixth cut (`contactless`, always set in a blend program) and the occlusion that left the diffuse and toon models of a shadowed light.
+// The standard material's Fresnel took the specular grazing value (`slabF90`, `fresnelSchlick(f0,f90,cosine)`) and the split sum its F90 (`math/src/wgsl/lighting.ts`); retaken for the sixth cut (`contactless`, always set in a blend program) and the occlusion that left the diffuse and toon models of a shadowed light.
 const BLEND = '925a6372855b433bdd623804a34f8de55327f1fe3d1cf5a8275ede7f9403f56e'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const

@@ -14,7 +14,6 @@ import {
 import { drawParticles, encodeParticles } from '../../particles/gpu/webgpuParticleFrame.ts'
 import { forget } from '../../blend/translucency.ts'
 import { composeLateOnto, composeTranslucency } from '../../blend/translucencyCompose.ts'
-import { measureBeforeTranslucency } from '../../post/taa/frame.ts'
 import { layerDraws } from '../../blend/translucencyPhase.ts'
 import { effectsShown } from '../../post/effects/stagePlan.ts'
 import { keepsLitImage } from '../../lighting/reflections/frame.ts'
@@ -131,9 +130,7 @@ export function encodeMarkedLayers(
 }
 
 /**
- * The one place the image's layers are composed onto the lit image: the temporal pass measures the
- * scene on `onto`'s last view before any layer is laid on it (once an image, `measureBeforeTranslucency`;
- * before the depth of field where it composes them itself), then the translucency target drawn lies
+ * The one place the image's layers are composed onto the lit image: the translucency target drawn lies
  * over every view of `onto` (`composeTranslucency`) — but over the one the depth of field's recombine
  * composed them into, the last, and over the lit image the reflections keep only where they keep it
  * (`keepsLitImage`). Called for the layers of the pass before the depth of field (`encodeBlend`), and
@@ -148,7 +145,6 @@ function composeLayers(
   onto: readonly GPUTextureView[],
 ) {
   const fused = rt.gpu.translucency?.phase === 'fused'
-  if (!fused) measureBeforeTranslucency(rt, encoder, onto[onto.length - 1]!)
   composeTranslucency(rt, device, encoder, onto, fused ? Number(keepsLitImage(rt)) : onto.length)
   if (!effectsShown(rt)) composeLateOnto(rt, device, encoder, onto)
 }

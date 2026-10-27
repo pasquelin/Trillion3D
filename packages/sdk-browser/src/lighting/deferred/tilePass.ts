@@ -1,7 +1,14 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DEFERRED_BINDINGS } from './bindings.ts'
 import { buildRenderPipeline } from './fullscreen.ts'
-import { TILE_CLASSES, TILE_PIXELS, tileArgsAt, type TileClass } from './tileClass.ts'
+import {
+  TILE_CLASS_NAMES,
+  TILE_CLASSES,
+  TILE_PIXELS,
+  tileArgsAt,
+  type TileClass,
+} from './tileClass.ts'
+import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { VIEW_WGSL } from './worldAtWgsl.ts'
 
 /**
@@ -53,6 +60,34 @@ export const tilePipelineDescriptor = (
   fragment: { module, entryPoint, targets },
   primitive: { topology: 'triangle-strip' },
 })
+
+/** The module a class draws with: its own, or the highest the program holds (`modules`, one for each class the program holds code
+ *  for, the cheapest first). */
+export const moduleOfClass = <M>(modules: readonly M[], tileClass: TileClass) =>
+  modules[Math.min(tileClass, modules.length - 1)]
+
+/**
+ * The descriptor of the pipeline of a class of a lit pass named `label`, that adds its light to the lit image: the fragment stage `entry`
+ * of the module `modules` give the class, over the tiles of the class, on `layout`. The one description of a lit program's
+ * pipelines, built at once (`litProgram.ts`) or prepared (`perLightProgram.ts`).
+ */
+export const lightPipelineDescriptor = (
+  device: GPUDevice,
+  modules: readonly GPUShaderModule[],
+  layout: GPUBindGroupLayout,
+  entry: string,
+  label: string,
+  tileClass: TileClass,
+) =>
+  tilePipelineDescriptor(
+    device,
+    moduleOfClass(modules, tileClass),
+    layout,
+    entry,
+    [{ format: HDR_FORMAT, blend: ADDITIVE_LIGHT }],
+    `${label}_${TILE_CLASS_NAMES[tileClass]}`,
+    tileClass,
+  )
 
 /** That pipeline, built off the thread. */
 export const tilePipeline = (...description: Parameters<typeof tilePipelineDescriptor>) =>

@@ -1,9 +1,9 @@
 import {
-  adapterKey,
   keptRecord,
   keptResult,
   type HardwareBenchmarkResult,
 } from '../../../../sdk-core/src/runtime/hardwareBenchmark.ts'
+import { gpuCapsOf } from '../../gpu/core/gpuCaps.ts'
 import { families } from '../host/families.ts'
 
 /** What a run of the hardware benchmark asks: its work, a whole number from 1 to 1000 (10 by
@@ -59,6 +59,8 @@ function pageBenchmark(
   const run = async (options?: HardwareBenchmarkOptions) => {
     await (await device())?.queue.onSubmittedWorkDone()
     const { result, adapter } = await (await load())(options, signal)
+    // An adapter the device does not state is kept for none: it could be any other one (`GpuCaps.adapter`).
+    if (adapter === undefined) return result
     try {
       store()?.setItem(STORE, JSON.stringify(keptRecord(result, adapter)))
     } catch {
@@ -70,11 +72,11 @@ function pageBenchmark(
     async saved() {
       const drawing = await device()
       if (!drawing || signal.aborted) return null
+      // No result is read for an adapter the device does not state: it would be every unknown adapter's.
+      const { adapter } = gpuCapsOf(drawing)
+      if (adapter === undefined) return null
       try {
-        return keptResult(
-          JSON.parse(store()?.getItem(STORE) ?? 'null'),
-          adapterKey(drawing.adapterInfo),
-        )
+        return keptResult(JSON.parse(store()?.getItem(STORE) ?? 'null'), adapter)
       } catch {
         return null
       }

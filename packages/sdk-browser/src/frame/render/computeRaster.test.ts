@@ -14,9 +14,13 @@ import { rasterOf } from '../../visibility/raster/rasterFrame.fixture.ts'
 import { TESS_BINDINGS } from '../../visibility/tessellation/bindings.ts'
 import { TESS_UNIFORM } from '../../visibility/tessellation/uniform.ts'
 import {
+  DISPATCH_DICE,
+  DISPATCH_RESUME,
   OCCLUSION_MAIN,
   OCCLUSION_NONE,
   OCCLUSION_POST,
+  PASS_ARG_WORDS,
+  PASS_DISPATCH_WORDS,
 } from '../../visibility/tessellation/contract.ts'
 
 // Every image bins its clusters for the two rasters and writes one visibility buffer: the main
@@ -90,20 +94,22 @@ test('a frame that tessellates seeds, splits six levels and dices in both modes 
   const launched = f.dispatches.filter(
     (d) => d.buffer?.label === 'Trillion3D tessellation dispatch',
   )
+  const dice = DISPATCH_DICE * 4,
+    post = PASS_DISPATCH_WORDS * 4
   assert.deepEqual(
     launched.map((d) => [d.entryPoint, d.offset]),
     [
       ...Array(6).fill(['tessSplit', 0]),
-      ['tessDice0', 12],
-      ...Array(6).fill(['tessSplit', 64]),
-      ['tessDice1', 12],
-      ['tessDice1', 76],
+      ['tessDice0', dice],
+      ...Array(6).fill(['tessSplit', post]),
+      ['tessDice1', dice],
+      ['tessDice1', post + dice],
     ],
   )
   // The pass's state is cleared before its seeding, and nothing else of the buffer.
   const states = f.clears.filter((c) => c.buffer.label === 'Trillion3D tessellation')
   assert.equal(states.length, 2)
-  assert.ok(states.every((c) => c.size === 32))
+  assert.ok(states.every((c) => c.size === PASS_ARG_WORDS * 4))
 })
 
 test('the held tessellation is kept while its capacity stands, made again when it moves, given back with none', () => {
@@ -145,7 +151,7 @@ test('a cut in two passes tests the patches against the pyramids: the main pass 
   ])
   assert.equal(kernels.filter((name) => name === 'tessResume').length, 1, 'the post pass alone')
   const resumed = f.dispatches.find((d) => d.entryPoint === 'tessResume')!
-  assert.equal(resumed.offset, (16 + 6) * 4)
+  assert.equal(resumed.offset, (PASS_DISPATCH_WORDS + DISPATCH_RESUME) * 4)
   // What the main pass hides has a buffer as large as the queue, made once.
   const kept = f.buffers.filter((b) => b.label === 'Trillion3D tessellation occluded patches')
   assert.deepEqual(

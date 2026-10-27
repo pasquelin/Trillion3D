@@ -1,27 +1,26 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { gpuCapsOf } from './gpuCaps.ts'
 
 /** The subgroup sizes `device`'s adapter states, where it states them. */
-export const adapterSubgroupSizes = (device: GPUDevice) =>
-  (device as { adapterInfo?: { subgroupMinSize?: number; subgroupMaxSize?: number } }).adapterInfo
+export const adapterSubgroupSizes = (device: GPUDevice) => {
+  const { minLanes, maxLanes } = gpuCapsOf(device).subgroups
+  return { subgroupMinSize: minLanes, subgroupMaxSize: maxLanes }
+}
 
 /** Whether `device` runs subgroup operations (the `subgroups` feature) on subgroups of at least
  *  `minLanes` lanes, as far as its adapter says: a kernel whose subgroup variant only pays from a
  *  width on asks it; one exact at any width asks none. */
 export function hasSubgroups(device: GPUDevice, minLanes = 1) {
-  const max = adapterSubgroupSizes(device)?.subgroupMaxSize
-  return device.features.has('subgroups') && !(max !== undefined && max > 0 && max < minLanes)
+  const { present, maxLanes } = gpuCapsOf(device).subgroups
+  return present && !(maxLanes > 0 && maxLanes < minLanes)
 }
 
 /** Whether every subgroup of `device` holds exactly `lanes` lanes (the `subgroups` feature, its
  *  adapter's least and greatest sizes both `lanes`): a kernel whose subgroups must be its fixed
  *  slices of lanes — the projection's 32-pixel halves — asks it. */
 export function hasSubgroupsOf(device: GPUDevice, lanes: number) {
-  const info = adapterSubgroupSizes(device)
-  return (
-    device.features.has('subgroups') &&
-    info?.subgroupMinSize === lanes &&
-    info?.subgroupMaxSize === lanes
-  )
+  const { present, minLanes, maxLanes } = gpuCapsOf(device).subgroups
+  return present && minLanes === lanes && maxLanes === lanes
 }
 
 /** The shadow traces' one subgroup vote, all true over the subgroup's lanes (`subgroupAll`): its

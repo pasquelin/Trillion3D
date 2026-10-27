@@ -22,9 +22,12 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowClipmapFirstCoarseLevel: 15, shadowClipmapLastCoarseLevel: 18 },
   ...{ shadowClipmapZRangeScale: 1000, shadowMarkCoarsePagesDirectional: 2 },
   shadowClipmapMinCameraViewportWidth: 0,
+  ...{ shadowOrthoEstimateClipmapLevels: true, shadowOrthoClipmapLodBias: 0 },
+  ...{ shadowOrthoProjectViewOrigin: true, shadowOrthoRayCastViewOrigin: true },
   ...{ shadowClipmapWpoDisableDistance: true, shadowClipmapWpoDisableDistanceLodBias: 3 },
   ...{ shadowClipmapWpoDisableDistanceInvalidateOnScaleChange: false },
   ...{ shadowClipmapCullDynamicTightly: true, shadowForceInvalidateDirectional: false },
+  ...{ shadowPrefilteredDistant: false, shadowPrefilteredDistantHistoryBlendFactor: 0.87 },
   ...{ shadowMarkCoarsePagesLocal: 1, shadowResolutionLodBiasDirectional: -1.5 },
   ...{ shadowResolutionLodBiasDirectionalMoving: -1.5, shadowResolutionLodBiasLocal: 0 },
   ...{ shadowResolutionLodBiasLocalMoving: 1, shadowLightActiveFrameCount: 10 },
@@ -37,7 +40,8 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowFadeUsesResolutionScale: true, shadowTexelsPerPixelPoint: 1.27324 },
   ...{ shadowTexelsPerPixelSpot: 2.54648, shadowTexelsPerPixelRect: 1.27324 },
   ...{ shadowQuality: 5, shadowTranslucentQuality: 0, shadowTranslucentLocalLights: false },
-  ...{ shadowCoarsePagePixelThresholdStatic: 1, shadowCoarsePagePixelThresholdDynamic: 4 },
+  ...{ shadowCoarsePagePixelThresholdStatic: 1, shadowCoarsePagePixelThresholdDynamicClusters: 4 },
+  shadowCoarsePagesIncludeNonClusterCasters: true,
   ...{ shadowPageDilationBorderSizeDirectional: 0.05, shadowPageDilationBorderSizeLocal: 0.05 },
   ...{
     shadowCullBackfacingPixels: true,
@@ -49,8 +53,8 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowPageMarkingPixelStrideY: 2, shadowNormalBias: 0.5, shadowScreenRayLength: 0.015 },
   shadowRasterIndirectionMultiplier: 1.5,
   ...{ shadowCacheInvalidateUseHzb: true, shadowDeferredInvalidationBudget: -1 },
-  ...{ shadowCache: true, shadowCacheAllocateViaLru: true },
-  ...{ shadowCacheDeformableMeshesInvalidate: true, shadowForceInvalidateLocal: 0 },
+  ...{ shadowCache: true, shadowCacheAllocateViaLru: true, shadowCacheWpoPrimitives: false },
+  shadowForceInvalidateLocal: 0,
   ...{ shadowForceFullPageClears: false, shadowUseReceiverMaskDirectional: true },
   ...{ shadowCacheDebugSkipDynamicPageInvalidation: false, shadowDynamicDeallocationMode: 0 },
   shadowUseReceiverMaskLocal: false,
@@ -60,6 +64,8 @@ const SHADOW_MAP_DEFAULTS = {
   shadowFirstPersonPixelRequestBias: 2,
   shadowFirstPersonRequestMinLevelClamp: 8,
   shadowSubsurfaceMinSourceAngle: 5,
+  shadowOnePassProjection: true,
+  shadowForcePerLightMaskClear: false,
   shadowOnePassProjectionMaxLightsPerPixel: 16,
   shadowAllowScreenOverflowMessages: true,
   shadowMaxDofResolutionBias: 1,
@@ -76,6 +82,8 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowSmrtTexelDitherScaleDirectional: 2, shadowSmrtMaxSlopeBiasLocal: 50 },
   shadowSmrtRayLengthScaleDirectional: 1.5,
   translucentRectLights: false,
+  ...{ lightMinScreenRadius: 0.03, lightMaxDrawDistanceScale: 1 },
+  lightDrawRangeFollowsFieldOfView: true,
 }
 
 /** The view's far-shadow settings at their defaults. */
@@ -84,6 +92,8 @@ const SUN_SHADOW_DEFAULTS = {
   ...{ distanceFieldFarTransitionScale: 1, distanceFieldShadowQuality: 3 },
   ...{ distanceFieldShadowFullResolution: false, distanceFieldShadowTileSize: 2 },
   ...{ distanceFieldShadowTwoSidedBias: 1, distanceFieldShadowObjectsPerTile: 128 },
+  ...{ distanceFieldShadowScatterTiles: true, distanceFieldShadowCompactTiles: true },
+  ...{ distanceFieldShadowSubsampleDepth: false, distanceFieldShadowSnapResolution: 2048 },
 }
 
 /** The view's contact shadow settings at their defaults: on, no override of the lights' own. */
@@ -95,7 +105,7 @@ const CONTACT_SHADOW_DEFAULTS = {
 
 test('the shadow settings read by their rules, a light’s own beside them', () => {
   assert.deepEqual(resolveSettings(SHADOW_RULES, {}), {
-    ...{ shadowDistanceScale: 1, farShadowCulling: true, farShadowCullsAllMeshes: false },
+    ...{ shadowDistanceScale: 1, farShadowCulling: true },
     ...{ shadowNearLevels: 10, shadowOverlapScale: 1, shadowFarField: true },
     ...{ shadowMultipassViews: true, ...SUN_SHADOW_DEFAULTS, ...SHADOW_MAP_DEFAULTS },
     ...CONTACT_SHADOW_DEFAULTS,
@@ -131,6 +141,11 @@ test('the shadow settings read by their rules, a light’s own beside them', () 
   refuses('shadowMaxFarCascades', -1, /at least 0/)
   refuses('distanceFieldShadowObjectsPerTile', 0, /at least 1/)
   refuses('distanceFieldShadowFullResolution', 1, /true or false/)
+  refuses('distanceFieldShadowScatterTiles', 0, /true or false/)
+  refuses('distanceFieldShadowCompactTiles', 'yes', /true or false/)
+  refuses('distanceFieldShadowSubsampleDepth', 1, /true or false/)
+  refuses('distanceFieldShadowSnapResolution', 31, /from 32 to/)
+  refuses('distanceFieldShadowSnapResolution', 64.5, /whole/)
   // A light's own: a distance takes true, false and metres; the rest what its rule says.
   const light = (options: LightShadowOptions) => resolveLightShadow(options)
   assert.deepEqual(
@@ -196,14 +211,21 @@ test('the shadow maps’ settings refuse what they cannot take, in words', () =>
   refuses('shadowClipmapZRangeScale', 0, /above 0/)
   refuses('shadowClipmapMinCameraViewportWidth', 16385, /from 0 to 16384/)
   refuses('shadowClipmapMinCameraViewportWidth', 0.5, /whole/)
+  refuses('shadowOrthoEstimateClipmapLevels', 1, /true or false/)
+  refuses('shadowOrthoClipmapLodBias', 31, /from -30 to 30/)
+  refuses('shadowOrthoClipmapLodBias', 0.5, /whole/)
+  refuses('shadowOrthoProjectViewOrigin', 1, /true or false/)
+  refuses('shadowOrthoRayCastViewOrigin', 1, /true or false/)
   refuses('shadowClipmapWpoDisableDistance', 1, /true or false/)
   refuses('shadowClipmapWpoDisableDistanceLodBias', 31, /from 0 to 30/)
   refuses('shadowClipmapWpoDisableDistanceInvalidateOnScaleChange', 1, /true or false/)
   refuses('shadowClipmapCullDynamicTightly', 1, /true or false/)
   refuses('shadowForceInvalidateDirectional', 1, /true or false/)
+  refuses('shadowPrefilteredDistant', 1, /true or false/)
+  refuses('shadowPrefilteredDistantHistoryBlendFactor', 1.5, /from 0 to 1/)
   refuses('shadowCache', 0, /true or false/)
   refuses('shadowCacheAllocateViaLru', 1, /true or false/)
-  refuses('shadowCacheDeformableMeshesInvalidate', 'yes', /true or false/)
+  refuses('shadowCacheWpoPrimitives', 1, /true or false/)
   refuses('shadowForceInvalidateLocal', 3, /from 0 to 2/)
   refuses('shadowForceInvalidateLocal', 0.5, /whole/)
   refuses('shadowForceFullPageClears', 1, /true or false/)
@@ -227,7 +249,12 @@ test('the shadow maps’ settings refuse what they cannot take, in words', () =>
     'shadowDynamicResolutionMaxComputeResolutionLodBiasLocal',
   ] as const)
     refuses(field, -1, /at least 0/)
-  refuses('shadowDynamicResolutionPerVsmBiasHistoryWeight', 1.5, /from 0 to 1/)
+  // The map bias's history weight is the reference's free number: beyond 0 to 1 is taken as given.
+  for (const weight of [-0.5, 1.5])
+    assert.equal(
+      resolveSetting(SHADOW_RULES.shadowDynamicResolutionPerVsmBiasHistoryWeight, weight),
+      weight,
+    )
   refuses('shadowPointLightCubemaps', 1, /true or false/)
   refuses('shadowResolutionLodBiasLocal', 17, /from -16 to 16/)
   for (const quality of [6, -1]) refuses('shadowQuality', quality, /from 0 to 5/)

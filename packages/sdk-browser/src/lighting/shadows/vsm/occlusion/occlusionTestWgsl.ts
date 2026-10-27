@@ -12,10 +12,11 @@
  *   rect clamped to the page —: visible when the rect's depth is not farther than the least of its
  *   4x4 texels. A page the table does not map at this mip hides the
  *   caster: unmapped pages count as occluded.
- * - `vsmHiddenBefore`, the first cull: the box under the map's
- *   previous view (its sides untested), tested where it lies within its depth and short of its near
- *   plane against the previous frame's pyramid, through the map's previous id and table, every
- *   marked page tested; a map with no previous view hides nothing.
+ * - `vsmPrevViewHolds`, `vsmPrevBoxInView`, `vsmHiddenBefore`, the first cull: the box, under the
+ *   placement's previous pose, projected once under the map's previous view (its sides untested), then
+ *   tested in each mip and layer where it lies within its depth and short of its near plane against
+ *   the previous frame's pyramid, through the map's previous id and table, every marked page tested;
+ *   a map with no previous view for a mip hides nothing there.
  * - `vsmHiddenNow`, the second: the box's rect this frame, its
  *   pages clipped as the cull clipped them, short of the near plane, against this frame's pyramid
  *   and tables, the pages of the caster's stale layer tested.
@@ -25,7 +26,7 @@
  * load: the cull's eight storage buffers are spent.
  */
 import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
-import { VSM_BOX_VIEW_WGSL } from '../invalidation/boxCullWgsl.ts'
+import { VSM_BOX_VIEW_WGSL, VSM_CASTER_BOX_CULL_WGSL } from '../invalidation/boxCullWgsl.ts'
 import {
   VSM_CONSTANTS_WGSL,
   VSM_KEPT_RECTS_WIDTH,
@@ -111,7 +112,7 @@ fn vsmPageVisibleHzb(h:VsmHandle,mipLevel:u32,r:VsmScreenRect,x:u32,y:u32,unmapp
 
 export const VSM_OCCLUSION_TEST_WGSL = wgslBlock(
   'VSM_OCCLUSION_TEST_WGSL',
-  [VSM_OCCLUSION_PAGES_WGSL, VSM_PROJECTION_DATA_WGSL],
+  [VSM_OCCLUSION_PAGES_WGSL, VSM_PROJECTION_DATA_WGSL, VSM_CASTER_BOX_CULL_WGSL],
   /* wgsl */ `
 /** Clips a pixel rect to the uncached page rect bounds of a map's mip, its static or dynamic
  *  layer's (\`vsmStaleRects\`, which the module's host declares); \`both\`: to the union of the two. */
@@ -155,24 +156,28 @@ fn vsmPagesVisible(h:VsmHandle,mipLevel:u32,rect:VsmScreenRect,testMask:u32,stat
  }
  return false;
 }
-/** Whether the first cull holds a caster back: its box (\`center\`, \`extent\`, in this frame's
- *  shifted space, the centre where the previous image drew it) hidden in mip \`mipLevel\` (\`levelTexels\` a side) of map \`pd\` as the previous
- *  frame's pyramid holds it. */
-fn vsmHiddenBefore(pd:VsmProjectionData,center:vec3f,extent:vec3f,nearClip:bool,mipLevel:u32,levelTexels:i32,staticLayer:bool)->bool{
- let prevMap=VsmHandle(pd.prevMapId,pd.prevTableOrigin,pd.prevFinestMip);
- // A mip finer than the previous map's finest has no level in its table: nothing to test against.
- if(!vsmHandleIsValid(prevMap)||mipLevel<pd.prevFinestMip){return false;}
- let toClip=pd.prevShiftedToClip;
- let isOrtho=pd.prevClipDepth.z>=1.0;
+/** Whether a map has a previous view to test mip \`mipLevel\` against: its previous table (a mip finer
+ *  than the previous map's finest has no level in it) and its previous view. */
+fn vsmPrevViewHolds(pd:VsmProjectionData,mipLevel:u32)->bool{
+ return vsmHandleIsValid(VsmHandle(pd.prevMapId,pd.prevTableOrigin,pd.prevFinestMip))&&mipLevel>=pd.prevFinestMip;
+}
+/** The box (\`center\`, \`a0\` to \`a2\`, in this frame's shifted space, the centre and the half axes
+ *  where the previous image drew it) under the map's previous view, its sides untested: projected
+ *  once, whatever the mip and the layer it is tested in (\`vsmHiddenBefore\`). */
+fn vsmPrevBoxInView(pd:VsmProjectionData,center:vec3f,a0:vec3f,a1:vec3f,a2:vec3f,nearClip:bool)->VsmBoxInView{
  var viewToClip=mat4x4f();
  viewToClip[2][2]=pd.prevClipDepth.x;
  viewToClip[3][2]=pd.prevClipDepth.y;
  viewToClip[3][3]=pd.prevClipDepth.z;
- let point=vsmBoxCullPoint(center,extent,isOrtho,nearClip);
- let cull=vsmBoxInView(toClip*vec4f(point,1.0),toClip[0],toClip[1],toClip[2],extent,viewToClip,isOrtho,nearClip);
+ return vsmCasterBoxInView(center,a0,a1,a2,pd.prevShiftedToClip,viewToClip,pd.prevClipDepth.z>=1.0,nearClip);
+}
+/** Whether the first cull holds a caster back: its box under the previous view (\`cull\`, \`vsmPrevBoxInView\`),
+ *  of a map that has one for the mip (\`vsmPrevViewHolds\`), hidden in mip \`mipLevel\` (\`levelTexels\` a
+ *  side) as the previous frame's pyramid holds it. */
+fn vsmHiddenBefore(pd:VsmProjectionData,cull:VsmBoxInView,mipLevel:u32,levelTexels:i32,staticLayer:bool)->bool{
  if(!cull.inDepth||cull.pastNear){return false;}
  let rect=vsmScreenRect(vec4i(0,0,levelTexels,levelTexels),cull);
- return !vsmPagesVisible(prevMap,mipLevel,rect,VSM_ANY_PAGE_MARKS,staticLayer);
+ return !vsmPagesVisible(VsmHandle(pd.prevMapId,pd.prevTableOrigin,pd.prevFinestMip),mipLevel,rect,VSM_ANY_PAGE_MARKS,staticLayer);
 }
 /** Whether the second cull leaves a caster out: its box's \`cull\` in mip \`mipLevel\` of map \`h\`,
  *  its pixels clipped to its stale rect (\`clipped\`), hidden in this frame's pyramid on every page of

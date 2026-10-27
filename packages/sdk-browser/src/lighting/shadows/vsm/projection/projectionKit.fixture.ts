@@ -23,7 +23,11 @@ const PROOF_CAMERA: Frame['camera'] = camera
  *  view uniform the last projection uploaded (`upload`). */
 export function projectionKit() {
   const fake = fakeDevice({ limits: { maxStorageBufferBindingSize: 1 << 27 } })
-  const res = createVsmResources(fake.device, { fullMapCapacity: 63, poolPages: 256 })
+  const res = createVsmResources(fake.device, {
+    coverMode: 'suns',
+    fullMapCapacity: 63,
+    poolPages: 256,
+  })
   const view = {} as GPUTextureView
   const buffer = () =>
     fake.device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM })

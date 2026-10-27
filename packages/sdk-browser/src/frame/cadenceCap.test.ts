@@ -35,6 +35,15 @@ test('a page capped at 12 frames a second draws every tenth refresh at 120 Hz', 
   assert.deepEqual(new Set(intervals(free.shown)), new Set([1]))
 })
 
+// The anti-flicker period counts rendered images (`post/taa/flickerRates.ts`): the display frames
+// the cap leaves out never tick the control, so its frame interval spans the images drawn.
+test('under a cap the frame interval is the one between two drawn images, not two display frames', () => {
+  const control = createScaleControl(undefined, 12)
+  const first = run(control, 0.1, () => 3)
+  run(control, 1, () => 3, first.at)
+  assert.ok(Math.abs(control.frameIntervalMs! - 10 * HZ120) < 1e-6, `${control.frameIntervalMs}`)
+})
+
 test('under a cap the auto scale fits its images to the cap, not the refresh', () => {
   const control = createScaleControl('auto', 12)
   let now = 0

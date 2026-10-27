@@ -1,9 +1,11 @@
 // A lamp of size's highlight (`lampLight`, `lampLobeWgsl.ts`) runs the same lobes: with a source too small to see
 // it is the point's, a sphere widens it and keeps its energy, a tube lights from the nearest point of it.
 import test from 'node:test'
+import { kindLane } from '../../../../sdk-core/src/scene/light/lanes.fixture.ts'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
+import { NO_SHADING_MODEL } from './shadingModelScope.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { LOBES_LIGHTING_WGSL } from './lobesWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts'
@@ -14,7 +16,7 @@ import { lcgRandom } from '../../../../math/src/sequence/random.ts'
 import { unitF32 } from '../../../../math/src/vector/unitF32.fixture.ts'
 
 // The scope of the runs: f32, no shading model set.
-const SCOPE = { ...F32_SCOPE, pixelModel: 0, sphereNoNewton: false, clearCoatBottom: false }
+const SCOPE = { ...F32_SCOPE, ...NO_SHADING_MODEL }
 const fdot = F32_SCOPE.dot as (a: number[], b: number[]) => number
 const fcross = F32_SCOPE.cross as (a: number[], b: number[]) => number[]
 const flength = F32_SCOPE.length as (v: number[]) => number
@@ -29,6 +31,7 @@ const AREA_NAMES = [
   'sphereHalfCosines',
   'lineClosest',
   'capsuleLook',
+  'lampLook',
   'surfaceLight',
 ]
 const areaRun = (lobes: object) =>
@@ -88,6 +91,7 @@ test('a lamp too small to see lights as the point does: the same lobe, the skew 
     ])
     const light = {
       positionRange: L.map((x) => x * 3),
+      params: [0, 0, 0, 0],
       shape: [1e-6, 0, 1, 1],
       capsule: [0, 0, 0, 0],
     }
@@ -149,3 +153,47 @@ test('a tube lights from the nearest point of it to the reflection', () => {
 function near(got: number[], want: number[], tolerance: number) {
   want.forEach((w, i) => assert.ok(Math.abs(got[i] - w) <= tolerance, `${got} against ${want}`))
 }
+
+test('a sun lights with its disk: the half vector moves toward the normal, the peak of a polished surface drops by the sphere’s energy, a rough one barely changes', () => {
+  // A sun of the default disk (0.5357°, half of it as a radius), kind 2, along the mirror direction of a polished metal.
+  const radius = (0.5357 * Math.PI) / 360
+  const sun = {
+    positionRange: [0, 0, 0, 0],
+    params: [kindLane(2), 0, 0, 0],
+    shape: [radius, 0, 1, 1],
+    capsule: [0, 0, 0, 0],
+    traits: [0, 0, Math.sin(radius), 0],
+  }
+  const lamp = (toward: number[], capsule: boolean) => ({
+    toward,
+    centre: toward,
+    falloff: 1,
+    side: toward[2],
+    cosine: toward[2],
+    wrap: 0,
+    lineCos: 1,
+    capsule,
+  })
+  const peak = (rough: number) => {
+    const s = metal(rough)
+    const disk = area.lampLight(s, Z, VIEW, sun, [0, 0, 0], lamp(MIRROR, true), 1)
+    const point = area.lampLight(s, Z, VIEW, sun, [0, 0, 0], lamp(MIRROR, false), 1)
+    return disk[0] / point[0]
+  }
+  // At the mirror direction the half vector is the normal's, the view's cosine on it is 0.8: the lobe keeps its width and loses the
+  // energy `a2 / widerAlpha2(a2, sine, VoH)` (`lobeEnergy`), the sine of the disk narrowed by `1 - alpha`.
+  const energy = (rough: number) => {
+    const a2 = rough ** 4,
+      sine = Math.sin(radius) * (1 - rough ** 2)
+    return a2 / (a2 + (0.25 * sine * (3 * Math.sqrt(a2) + sine)) / (0.8 + 0.001))
+  }
+  assert.ok(
+    Math.abs(peak(0.05) - energy(0.05)) < 2e-3,
+    `a polished surface: the disk lowers the peak (${peak(0.05)} against ${energy(0.05)})`,
+  )
+  assert.ok(peak(0.6) > 0.95, `a rough one keeps most of it (${peak(0.6)})`)
+  assert.ok(Math.abs(peak(0.6) - energy(0.6)) < 2e-3)
+  const look = area.lampLook(sun, [0, 0, 0], Z, VIEW, lamp(MIRROR, true))
+  near(look.toward, MIRROR, 1e-6)
+  near([look.reach, look.soft, look.micro], [Math.sin(radius), 0, 1], 1e-7)
+})

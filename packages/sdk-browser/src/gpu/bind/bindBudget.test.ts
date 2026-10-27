@@ -54,6 +54,14 @@ async function passLayouts() {
     'indirect light with bounce': device.createBindGroupLayout({
       entries: indirectLayoutEntries({ bounce: true, skyShadowing: false, lobes: true }),
     }),
+    'indirect light with bounce and the ambient cubemap': device.createBindGroupLayout({
+      entries: indirectLayoutEntries({
+        bounce: true,
+        skyShadowing: false,
+        lobes: true,
+        cubed: true,
+      }),
+    }),
   } as Record<string, unknown>
 }
 

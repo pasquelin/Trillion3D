@@ -12,11 +12,10 @@ import { vsmRenderCullWgsl } from '../render/renderCullWgsl.ts'
 
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
 
-import { vsmLayout } from '../layout.ts'
-
 import { Mat, Mat3 } from '../../../../materials/texture/shaderRunMatrix.fixture.ts'
+import { SUNS_LAYOUT } from '../layout.fixture.ts'
 
-const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
+const LAYOUT = SUNS_LAYOUT
 const CULL = vsmRenderCullWgsl(LAYOUT)
 
 /** The clip box of a rect of mip pixels [x0, x1] × [y0, y1] of a 16 384-pixel map, its nearest depth
@@ -146,16 +145,23 @@ test('the occlusion test reads the pyramid at each page’s physical place: visi
 // nothing.
 test('the first cull holds back what the previous view’s pyramid hides, and nothing without one', () => {
   const run = shaderRun<{
+    vsmPrevViewHolds(pd: object, mip: number): boolean
+    vsmPrevBoxInView(
+      pd: object,
+      centre: number[],
+      a0: number[],
+      a1: number[],
+      a2: number[],
+      near: boolean,
+    ): object
     vsmHiddenBefore(
       pd: object,
-      c: number[],
-      e: number[],
-      near: boolean,
+      cull: object,
       mip: number,
-      t: number,
-      s: boolean,
+      texels: number,
+      staticLayer: boolean,
     ): boolean
-  }>(CULL, ['vsmHiddenBefore'], occlusionScene())
+  }>(CULL, ['vsmPrevViewHolds', 'vsmPrevBoxInView', 'vsmHiddenBefore'], occlusionScene())
   // An orthographic previous view taking the box of half extent 1 at the origin to pixels 400..420 ×
   // 650..660 of mip 0, its nearest depth `depth`.
   const pdAt = (depth: number, prevMapId = 0, prevFinestMip = 0) => {
@@ -187,14 +193,59 @@ test('the first cull holds back what the previous view’s pyramid hides, and no
       prevClipDepth: [0, 0, 1, 0],
     }
   }
+  // The box projected once under the previous view, then tested (the cull's, the descent's two layers').
   const hidden = (pd: object) =>
-    run.vsmHiddenBefore(pd, [0, 0, 0], [1, 1, 1], false, 0, 16384, false)
+    run.vsmPrevViewHolds(pd, 0) &&
+    run.vsmHiddenBefore(
+      pd,
+      run.vsmPrevBoxInView(pd, [0, 0, 0], [1, 0, 0], [0, 1, 0], [0, 0, 1], false),
+      0,
+      16384,
+      false,
+    )
   assert.equal(hidden(pdAt(0.4)), true, 'behind the previous pyramid')
   assert.equal(hidden(pdAt(0.6)), false, 'in front of it')
   assert.equal(hidden(pdAt(0.4, 0xffffffff)), false, 'no previous view')
   assert.equal(hidden(pdAt(1.2)), false, 'past the near plane: drawn')
   // The map got finer since: its mip 0 had no level in the previous table, nothing hides there.
   assert.equal(hidden(pdAt(0.4, 0, 1)), false, 'a mip finer than the previous finest')
+})
+
+// The box the first cull tests is the one under the previous pose: its half axes are those of the
+// box the placement's previous linear part makes (`vsmRenderPrevAxes`), as the current ones are made
+// by the current (`casterSphere`).
+test('a candidate carries the half axes of its box under the previous pose', () => {
+  const axesOf = (scale: number) => {
+    const out = [
+      [0, 0, 0],
+      [0, 0, 0],
+      [0, 0, 0],
+    ]
+    shaderRun<{
+      vsmRenderPrevAxes(
+        w: number,
+        lo: number[],
+        hi: number[],
+        reach: number,
+        axes: { get(): number[][]; set(value: number[][]): void },
+      ): void
+    }>(vsmRenderCandidatesWgsl(), ['vsmRenderPrevAxes'], {
+      previousLinear: () =>
+        new Mat3([
+          [scale, 0, 0],
+          [0, scale, 0],
+          [0, 0, scale],
+        ]),
+    }).vsmRenderPrevAxes(0, [-1, -1, -1], [1, 1, 1], 0, {
+      get: () => out,
+      set: (value) => value.forEach((axis, k) => (out[k] = axis)),
+    })
+    return out
+  }
+  const near = (a: number[], b: number[]) => a.every((x, k) => Math.abs(x - b[k]!) < 1e-4)
+  const [x, y, z] = axesOf(2)
+  assert.ok(near(x!, [2, 0, 0]) && near(y!, [0, 2, 0]) && near(z!, [0, 0, 2]), 'twice as large')
+  assert.ok(near(axesOf(0.5)[0]!, [0.5, 0, 0]), 'half as large')
 })
 
 // The first cull tests a caster where the previous image drew it (its

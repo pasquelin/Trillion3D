@@ -1,4 +1,6 @@
 import { DEFORMATION_PASS } from '../../deformation/pass.ts'
+import { releaseLightProfiles } from '../../lighting/lightProfile/frame.ts'
+import { releaseAmbientCubemap } from '../../lighting/deferred/ambientCubemapFrame.ts'
 import { disposeRootWorlds } from '../../placement/roots/rootWorlds.ts'
 import { disposeRootBoxes } from '../../placement/roots/rootBoxes.ts'
 import { disposeTreeLeaves } from '../../placement/tree/treeLeaves.ts'
@@ -15,15 +17,18 @@ import { vsmFrameMetrics } from '../../lighting/shadows/vsm/frame/vsmStats.ts'
 import { releaseEngineVsm } from '../../lighting/shadows/vsm/frame/engineVsm.ts'
 import { releaseShadowCasters } from '../../lighting/shadows/casters/release.ts'
 import { releaseWebgpuView, useWebgpuView } from '../backend/state/viewSwitch.ts'
+import type { WebgpuView } from '../backend/state/view.ts'
 import { transparentCounts } from '../backend/state/transparentCounts.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { bounceState } from '../backend/state/bounce.ts'
 import { viewTargetBytes } from '../backend/state/gpu.ts'
 import { disposeFogVolume } from '../render/encodeFogVolume.ts'
 import { disposeTranslucencyVolume } from '../../lighting/translucency/frame.ts'
+import { releaseTranslucencyCache } from '../../lighting/translucencyGi/cache.ts'
 import { disposeTranslucencyGi } from '../../lighting/translucencyGi/frame.ts'
 import { disposeLocalFog } from '../render/localFogGpu.ts'
 import { disposeDistanceFields } from '../../lighting/distanceField/frame.ts'
+import { disposeHairStrands, disposeHairView } from '../../hair/frame.ts'
 import { disposeSurfaceCache, surfaceCacheMetrics } from '../../lighting/surfaceCache/frame.ts'
 import { disposeVolumetricLightmap } from '../../lighting/volumetricLightmap/frame.ts'
 import { disposeLightShafts } from '../../modules/sky/lightShafts/frame.ts'
@@ -173,6 +178,7 @@ function disposeImagePasses(gpu: WebgpuPagesRuntime['gpu']) {
   disposeLocalFog(gpu)
   disposeLightShafts(gpu)
   disposeCloudView(gpu)
+  disposeHairView(gpu)
 }
 
 /** The cut's resources: rays, fields, deformation, the GPU selection, the visibility and the targets. */
@@ -181,6 +187,7 @@ function disposeCut(rt: WebgpuPagesRuntime) {
   rt.rays?.dispose()
   rt.rays = undefined
   disposeDistanceFields(rt)
+  disposeHairStrands(rt)
   disposeSurfaceCache(rt)
   disposeVolumetricLightmap(rt)
   timing.gpuTiming?.dispose()
@@ -223,6 +230,7 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   releaseShadowCasters(rt.lights)
   rt.bounce.probes?.dispose()
   rt.bounce.probes = undefined
+  releaseTranslucencyCache(rt.bounce)
   rt.bounce.screen?.dispose()
   rt.bounce.screen = undefined
   rt.compose?.gpu?.dispose()
@@ -230,7 +238,17 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   disposeRootBoxes(rt)
   disposeTreeLeaves(rt)
   releaseUnlitLights(rt)
+  releaseLightProfiles(rt)
+  releaseAmbientCubemap(rt)
   rt.lights.buffer?.destroy()
+}
+
+/** Releases the resources of `view` and frees at once what its passes retired (its temporal history, its screen probes): the view's
+ *  last image was submitted or read, and no image being encoded names them, so they wait for no later frame's submit — which a page
+ *  that draws no more never makes. */
+export function releaseViewNow(rt: WebgpuPagesRuntime, view: WebgpuView) {
+  releaseWebgpuView(rt, view)
+  if (rt.gpu.device) destroyRetired(rt.gpu.device)
 }
 
 /** Releases every GPU resource; the trace queue is drained before the promise settles. */
@@ -240,7 +258,7 @@ export function disposeWebgpuPages(rt: WebgpuPagesRuntime) {
   // Disposed, it presents nothing any more: the same withdrawal as a loss, surface included.
   markWebgpuLost(rt)
   // The main view's resources are released below; a capture under way releases its own view.
-  for (const view of rt.views.persistent.splice(0)) releaseWebgpuView(rt, view)
+  for (const view of rt.views.persistent.splice(0)) releaseViewNow(rt, view)
   useWebgpuView(rt, rt.views.main)
   rt.run.gate.release()
   services.residency.quietPending()

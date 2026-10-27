@@ -13,20 +13,23 @@ const bodyOf = (name: string) => {
 
 test('shade_cs writes the storage texel exactly once, after the resolve, which writes none', () => {
   const entry = bodyOf('shade_cs'),
-    resolve = bodyOf('shadeSurface')
+    resolve = bodyOf('shadeSurface'),
+    surface = bodyOf('shadePageSurface')
   assert.equal(entry.match(/storeSubsurface\(/g)?.length, 1)
   assert.ok(entry.indexOf('shadeSurface(') < entry.indexOf('storeSubsurface('))
   // A lane with no pixel of its class leaves before any read or write.
   assert.ok(entry.indexOf('if(!shadesPixel(at)){return;}') < entry.indexOf('shadeSurface('))
   assert.doesNotMatch(resolve, /storeSubsurface\(/)
+  assert.doesNotMatch(surface, /storeSubsurface\(/)
   // Its value is the invocation's private variable, zero at its start; two paths set it, once each: the shading model the material
   // names (`materialModelWgsl.ts`) and the thin sheet.
   assert.ok(SHADE_SHADER.includes('var<private> thinOut:vec3f;'))
-  assert.equal(resolve.split('thinOut=').length, 3)
+  assert.equal(surface.split('thinOut=').length, 3)
 })
 
 test('the thin transmission keeps its zero or its colour, written once', () => {
-  const resolve = bodyOf('shadeSurface')
+  // The surface of a page (`shadePageSurface`) sets it, `shadeSurface` marks the surface it returns.
+  const resolve = bodyOf('shadePageSurface')
   // Set only on its last path, as its write was: `any(thin>0)` or the zero.
   assert.match(resolve, /if\(any\(thin>vec3f\(0\.0\)\)\)\{thinOut=thin;/)
   assert.ok(resolve.indexOf('thinOut=') > resolve.lastIndexOf('return SurfaceOut(vec4f(rgb,0.0)'))

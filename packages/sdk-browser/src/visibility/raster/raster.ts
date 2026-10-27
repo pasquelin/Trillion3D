@@ -27,7 +27,7 @@ import { followTessellation } from '../tessellation/follow.ts'
 import type { Tessellation } from '../tessellation/tessellation.ts'
 import type { TessellationCapacity } from '../tessellation/uniform.ts'
 import { hasWideAtomics } from '../../gpu/core/wideAtomics.ts'
-import { hasSubgroups } from '../../gpu/core/subgroups.ts'
+import { gpuCapsOf, nativeOrPolyfill } from '../../gpu/core/gpuCaps.ts'
 import {
   RASTER_BINNING_PASS,
   RASTER_IDENTIFIERS_PASS,
@@ -310,8 +310,11 @@ function rasterPipelines(device: GPUDevice, rasters: GraphRasters, wide: boolean
   const wpo = visibilityWpo(rasters)
   const rasterLayout = device.createBindGroupLayout({ entries: rasterLayoutEntries() })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [rasterLayout] })
+  const { native, tag } = nativeOrPolyfill(gpuCapsOf(device), 'subgroups')
+  const label = `Trillion3D software raster (${tag})`
   const module = device.createShaderModule({
-    code: rasterSource(cameraMasks(rasters), wpo, wide, hasSubgroups(device)),
+    label,
+    code: rasterSource(cameraMasks(rasters), wpo, wide, native),
   })
   /** One pipeline per pass and mode: neither the pass's list nor the mode travel by a uniform, they
    *  ARE the pipeline (`LIST`, the word the pass's header starts at), so no dispatch rereads a word

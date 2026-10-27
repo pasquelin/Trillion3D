@@ -23,8 +23,14 @@ export interface ControlPose {
   worldLength(depth: number, share: number): number
   readPosition(out: Float64Array): Float64Array
   readOrientation(out: Float64Array): Float64Array
-  /** Writes position and orientation back, then makes the camera's matrices current. */
-  write(position: ArrayLike<number>, orientation: ArrayLike<number>): void
+  /** Writes position and orientation back, then makes the camera's matrices current. `target`, the
+   *  point the controller keeps the camera on, becomes the camera's `viewTarget`; a controller that
+   *  keeps none gives no `target`, and the camera frames none. */
+  write(
+    position: ArrayLike<number>,
+    orientation: ArrayLike<number>,
+    target?: ArrayLike<number>,
+  ): void
 }
 
 export function controlPose(camera: ControlCamera): ControlPose {
@@ -34,10 +40,11 @@ export function controlPose(camera: ControlCamera): ControlPose {
     worldLength: (depth, share) => screenWorldLength(camera, depth, share),
     readPosition: (out) => loadXyz(out, camera.position),
     readOrientation: (out) => loadXyzw(out, camera.quaternion),
-    write(position, orientation) {
+    write(position, orientation, target) {
       camera.position.set(position[0], position[1], position[2])
       camera.quaternion.set(orientation[0], orientation[1], orientation[2], orientation[3])
       camera.updateMatrixWorld()
+      camera.setViewTarget(target ? [target[0], target[1], target[2]] : null)
     },
   }
 }

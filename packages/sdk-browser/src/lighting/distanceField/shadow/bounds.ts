@@ -32,12 +32,16 @@ export interface CascadeCamera {
 
 /** The bounds of a cascade: the hull's planes (`(n, w)`, `dot(n, p) - w` positive outside, `p` from
  *  the eye, in centimetres), the sphere that holds the slice — its centre from the eye and its radius,
- *  centimetres, the radius rounded up to a whole one — and the light's right and up across it. */
+ *  centimetres — and the light's right and up across it. Two radii: `radius`, the sphere's own, which
+ *  the grid of tiles and the boxes' growth read; `roundedRadius`, that radius rounded up to a whole
+ *  centimetre, which the shadow space's scale reads (a cascade whose radius moves by less than a
+ *  centimetre keeps its space). */
 export interface CascadeBounds {
   readonly planes: Float32Array
   readonly planeCount: number
   readonly centre: [number, number, number]
   readonly radius: number
+  readonly roundedRadius: number
   readonly right: [number, number, number]
   readonly up: [number, number, number]
 }
@@ -179,7 +183,7 @@ export function cascadeBounds(
     hull[4 * k + 2] = PLANES[4 * k + 2]
     hull[4 * k + 3] = PLANES[4 * k + 3] * CM
   }
-  const radius = sliceSphere(cam, near, far)
+  const radius = sliceSphere(cam, near, far) * CM
   // The light's right and up: any pair across it, stable while the light is.
   normalise(crossVector3(RIGHT, Math.abs(toLight[1]) < 0.999 ? AXIS_Y : AXIS_X, toLight))
   const right: [number, number, number] = [RIGHT[0], RIGHT[1], RIGHT[2]]
@@ -187,7 +191,8 @@ export function cascadeBounds(
     planes: hull,
     planeCount: count,
     centre: copyScaledVector3<[number, number, number]>([0, 0, 0], SPHERE, CM),
-    radius: Math.ceil(radius * CM),
+    radius,
+    roundedRadius: Math.ceil(radius),
     right,
     up: cross(toLight, right),
   }

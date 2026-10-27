@@ -54,10 +54,10 @@ export const PAGE_INFO = fieldLayout('PageInfo', [
   ['wpoCentre', 'vec3f'],
   ['wpoDisableSq', 'f32'],
   ['wpoMost', 'f32'],
-  // Whether the cluster's object is a first-person one (`PLACEMENT_FIRST_PERSON`), 1, or not, 0: the
-  // placement's mark, which the decode copies, since every bit of the row flags is taken. It fills the
-  // padding of the record's last four words, so the record does not grow.
-  ['firstPerson', 'u32'],
+  // The marks of the cluster's object that its placement gives (`PLACEMENT_PAGE_MARKS`), which the decode
+  // copies, since every bit of the row flags is taken. It fills the padding of the record's last four
+  // words, so the record does not grow.
+  ['marks', 'u32'],
 ] as const)
 
 /** The level a row's diagnostic word holds (`pageDiagnosticWord`), a transparent instance's as an

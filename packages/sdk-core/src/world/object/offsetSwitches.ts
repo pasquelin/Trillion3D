@@ -1,5 +1,13 @@
 import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
+import { isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
 import { OBJECT_MOBILITIES, type ObjectMobility } from '../../contracts/objectAbi.ts'
+import {
+  DEFAULT_LIGHTING_CHANNELS,
+  internLightingChannels,
+  isLightingChannels,
+  LIGHTING_CHANNELS_EXPECTED,
+  type LightingChannels,
+} from '../../contracts/lightingChannelsAbi.ts'
 
 /**
  * HOW A SCENE NODE HOLDS ITS WORLD POSITION OFFSET: the four switches of the object whose surfaces'
@@ -27,9 +35,18 @@ import { OBJECT_MOBILITIES, type ObjectMobility } from '../../contracts/objectAb
  * apart from the regular maps (`shadowFirstPersonClipmap`). A node is one or the other, never both.
  * Another, `castHiddenShadow` (false), lets an object that is hidden (`visible = false`, or under a
  * hidden node) go on casting its shadow; no view draws it. The world-space representation is hidden
- * from the view that owns it and casts, whatever this says. The last of them, `holdout` (false), holds
+ * from the view that owns it and casts, whatever this says. Another, `holdout` (false), holds
  * the object out of the image's alpha, where the alpha holdout is in effect (`primitiveAlphaHoldout`,
  * `../../contracts/filmOptions.ts`): its pixels draw black, lit by nothing, and punch a hole in the alpha.
+ * One more, `castContactShadow` (true), says whether the object stops the contact shadow rays the lights
+ * cast from the pixels around it (`../../contracts/contactShadowOptions.ts`); `false` lets them through.
+ * `lightingChannels` (channel 0 alone) says which of the three lighting channels the object is in: a light
+ * lights it, and a light's shadow holds it, only where they share a channel (`../../contracts/lightingChannelsAbi.ts`).
+ * And two that hide it by who looks: `ownerNoSee` (false) hides the object from the views that belong to
+ * its owner, `onlyOwnerSee` (false) from every view but those (`Camera.owner`; a view with no owner
+ * belongs to no one). The view that owns the object is the one whose camera's `owner` is the object
+ * itself or a node above it; the casting of a world-space representation, until a camera names an owner,
+ * keeps its own rule (`firstPersonWorldSpaceRepresentation`).
  *
  * Held in a table of their own, so that a node that sets none costs nothing: a switch is written
  * through the node's property (`defineOffsetSwitches`), and noted as any node field no pose hook
@@ -57,6 +74,10 @@ export interface OffsetSwitches {
   worldSpaceRepresentation: boolean
   castHiddenShadow: boolean
   holdout: boolean
+  castContactShadow: boolean
+  lightingChannels: Readonly<LightingChannels>
+  ownerNoSee: boolean
+  onlyOwnerSee: boolean
   revision: number
 }
 
@@ -70,6 +91,10 @@ const DEFAULTS: Readonly<OffsetSwitches> = {
   worldSpaceRepresentation: false,
   castHiddenShadow: false,
   holdout: false,
+  castContactShadow: true,
+  lightingChannels: DEFAULT_LIGHTING_CHANNELS,
+  ownerNoSee: false,
+  onlyOwnerSee: false,
   revision: 0,
 }
 
@@ -84,86 +109,211 @@ export const offsetSwitchEdits = () => edits
 export const offsetSwitchesOf = (node: object): Readonly<OffsetSwitches> =>
   held.get(node) ?? DEFAULTS
 
-/** The node property each switch is read and written by. */
-const PROPERTIES = {
-  evaluateWorldPositionOffset: 'evaluate',
-  worldPositionOffsetDisableDistance: 'disableDistance',
-  worldPositionOffsetWritesVelocity: 'writesVelocity',
-  shadowCacheInvalidation: 'shadowCache',
-  mobility: 'mobility',
-  firstPerson: 'firstPerson',
-  firstPersonWorldSpaceRepresentation: 'worldSpaceRepresentation',
-  castHiddenShadow: 'castHiddenShadow',
-  holdout: 'holdout',
-} as const
+/** A scene node, whose write the edits count hears (`noteNodeWrite`). */
+type SwitchNode = { readonly index: number }
 
-/** What a value of switch `key` must be, or why it is refused. */
-function refusal(property: string, value: unknown): string | undefined {
-  if (property === 'worldPositionOffsetDisableDistance')
-    return typeof value === 'number' && Number.isFinite(value) && value >= 0
-      ? undefined
-      : 'worldPositionOffsetDisableDistance is a distance in metres, 0 or more'
-  if (property === 'shadowCacheInvalidation')
-    return SHADOW_CACHE_INVALIDATIONS.includes(value as ShadowCacheInvalidation)
-      ? undefined
-      : `shadowCacheInvalidation is one of ${SHADOW_CACHE_INVALIDATIONS.join(', ')}`
-  if (property === 'mobility')
-    return value === undefined || OBJECT_MOBILITIES.includes(value as ObjectMobility)
-      ? undefined
-      : `mobility is one of ${OBJECT_MOBILITIES.join(', ')}, or undefined for the object's own`
-  return typeof value === 'boolean' ? undefined : `${property} is true or false`
+/** The switches that hold a value of their own, not counting the revision. */
+type SwitchKey = Exclude<keyof OffsetSwitches, 'revision'>
+
+/**
+ * The rule of one switch, `key` of the node's table: what a value must be (`accepts`, said by `expects` when it is not), how it
+ * is held (`normalize`: the value stored for one that was accepted) and how it is read and written, whatever its type. A value is
+ * checked once, by `refusal`; `held` and `write` take one that passed.
+ */
+function switchRule<K extends SwitchKey>(
+  key: K,
+  accepts: (value: unknown) => value is OffsetSwitches[K],
+  expects: string,
+  normalize: (value: OffsetSwitches[K]) => OffsetSwitches[K] = (value) => value,
+) {
+  return {
+    /** Why `value` is refused for the node's property `property`, or `undefined`. */
+    refusal: (property: string, value: unknown) =>
+      accepts(value) ? undefined : `${property} is ${expects}`,
+    /** The value held for `value`, one `refusal` passed. */
+    held: (value: unknown) => normalize(value as OffsetSwitches[K]),
+    /** Writes `value`, one `refusal` passed, into `into`. */
+    write(into: OffsetSwitches, value: unknown) {
+      into[key] = normalize(value as OffsetSwitches[K])
+    },
+    /** The value `from` holds, and whether it is the default. */
+    read: (from: Readonly<OffsetSwitches>) => from[key],
+    isDefault: (from: Readonly<OffsetSwitches>) => from[key] === DEFAULTS[key],
+  }
 }
+
+const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean'
+const isDistance = (value: unknown): value is number => isFiniteNumber(value) && value >= 0
+const isShadowCache = (value: unknown): value is ShadowCacheInvalidation =>
+  SHADOW_CACHE_INVALIDATIONS.some((one) => one === value)
+const isMobility = (value: unknown): value is ObjectMobility | undefined =>
+  value === undefined || OBJECT_MOBILITIES.some((one) => one === value)
+
+/** The node property each switch is read and written by, and its rule. */
+const SWITCHES = {
+  evaluateWorldPositionOffset: switchRule('evaluate', isBoolean, 'true or false'),
+  worldPositionOffsetDisableDistance: switchRule(
+    'disableDistance',
+    isDistance,
+    'a distance in metres, 0 or more',
+  ),
+  worldPositionOffsetWritesVelocity: switchRule('writesVelocity', isBoolean, 'true or false'),
+  shadowCacheInvalidation: switchRule(
+    'shadowCache',
+    isShadowCache,
+    `one of ${SHADOW_CACHE_INVALIDATIONS.join(', ')}`,
+  ),
+  mobility: switchRule(
+    'mobility',
+    isMobility,
+    `one of ${OBJECT_MOBILITIES.join(', ')}, or undefined for the object's own`,
+  ),
+  firstPerson: switchRule('firstPerson', isBoolean, 'true or false'),
+  firstPersonWorldSpaceRepresentation: switchRule(
+    'worldSpaceRepresentation',
+    isBoolean,
+    'true or false',
+  ),
+  castHiddenShadow: switchRule('castHiddenShadow', isBoolean, 'true or false'),
+  holdout: switchRule('holdout', isBoolean, 'true or false'),
+  castContactShadow: switchRule('castContactShadow', isBoolean, 'true or false'),
+  // The channels held are the one frozen object of their mask: equal sets are the same value.
+  lightingChannels: switchRule(
+    'lightingChannels',
+    isLightingChannels,
+    LIGHTING_CHANNELS_EXPECTED,
+    internLightingChannels,
+  ),
+  ownerNoSee: switchRule('ownerNoSee', isBoolean, 'true or false'),
+  onlyOwnerSee: switchRule('onlyOwnerSee', isBoolean, 'true or false'),
+}
+
+/** The name of a switch as a node's property. */
+type OffsetSwitchProperty = keyof typeof SWITCHES
+
+/** The values of some switches, by the node's property: what a saved node holds of the ones not at their defaults. */
+export type OffsetSwitchValues = {
+  [property in OffsetSwitchProperty]?: ReturnType<(typeof SWITCHES)[property]['read']>
+}
+
+const RULES = Object.entries(SWITCHES)
+const RULE_OF = new Map(RULES)
 
 const EXCLUSIVE = 'firstPerson and firstPersonWorldSpaceRepresentation exclude each other'
 
+/** Makes `next` the switches of `node`: refused if a first-person object would also be its own world-space representation; its revision and the
+ *  count of edits move once. */
+function commit(node: SwitchNode, next: OffsetSwitches) {
+  if (next.firstPerson && next.worldSpaceRepresentation) throw new RangeError(EXCLUSIVE)
+  noteNodeWrite(node)
+  next.revision++
+  held.set(node, next)
+  edits++
+}
+
+/** The refusal of `value` for the node's property `property`, thrown. */
+function refuse(property: string, rule: (typeof SWITCHES)[OffsetSwitchProperty], value: unknown) {
+  const problem = rule.refusal(property, value)
+  if (problem) throw new RangeError(problem)
+}
+
+/** Gives `node` the one switch `property`, its rule and the value written; nothing if the node holds it so already.
+ *  @throws RangeError naming the value refused. */
+function assignRule(
+  node: SwitchNode,
+  property: string,
+  rule: (typeof SWITCHES)[OffsetSwitchProperty],
+  value: unknown,
+) {
+  refuse(property, rule, value)
+  const current = offsetSwitchesOf(node)
+  if (rule.read(current) === rule.held(value)) return
+  const next = { ...current }
+  rule.write(next, value)
+  commit(node, next)
+}
+
+/**
+ * Gives `node` the switches of `writes`, each a node property, its rule and the value written: all or none. Every value is checked
+ * against its rule before the first is written, and the switches that would result against each other (a first-person object is never
+ * also its own world-space representation); the node's table is then written once, its revision and the count of edits moving once,
+ * for the switches that changed, and not at all where none did.
+ * @throws RangeError naming the first value refused.
+ */
+function assignRules(
+  node: SwitchNode,
+  writes: readonly (readonly [string, (typeof SWITCHES)[OffsetSwitchProperty], unknown])[],
+) {
+  for (const [property, rule, value] of writes) refuse(property, rule, value)
+  const current = offsetSwitchesOf(node)
+  let next: OffsetSwitches | undefined
+  for (const [, rule, value] of writes)
+    if (rule.read(next ?? current) !== rule.held(value))
+      rule.write((next ??= { ...current }), value)
+  if (next) commit(node, next)
+}
+
+/** Gives `node` the switches `values` names, by their node properties, or none of them (`assignRules`).
+ *  @throws RangeError naming the first value refused. */
+export function assignOffsetSwitches(node: SwitchNode, values: OffsetSwitchValues) {
+  assignRules(
+    node,
+    Object.entries(values).flatMap(([property, value]) => {
+      const rule = RULE_OF.get(property)
+      return rule ? [[property, rule, value] as const] : []
+    }),
+  )
+}
+
+/** Whether `node` has had a switch written: one that has not holds every switch at its default. */
+export const holdsOffsetSwitches = (node: object) => held.has(node)
+
+/** The switches of `node` that are not at their defaults, by their node properties: what a saved node holds. */
+export function offsetSwitchesSet(node: object): OffsetSwitchValues {
+  const own = held.get(node)
+  if (!own) return {}
+  return Object.fromEntries(
+    RULES.filter(([, rule]) => !rule.isDefault(own)).map(([property, rule]) => [
+      property,
+      rule.read(own),
+    ]),
+  )
+}
+
+/** Every switch of `node`, by its node property: the value `saved` holds, else the default; none (`undefined`) for a node that holds no
+ *  switch, given none: it is at its defaults already. */
+export function offsetSwitchValues(
+  node: object,
+  saved: OffsetSwitchValues,
+): OffsetSwitchValues | undefined {
+  const named = new Map(Object.entries(saved))
+  if (!held.has(node) && RULES.every(([property]) => !named.has(property))) return undefined
+  return Object.fromEntries(
+    RULES.map(([property, rule]) => [property, named.get(property) ?? rule.read(DEFAULTS)]),
+  )
+}
+
 /** Defines the switches as properties of `proto`, a scene node's prototype. */
 export function defineOffsetSwitches(proto: object) {
-  for (const [property, key] of Object.entries(PROPERTIES))
+  for (const [property, rule] of RULES)
     Object.defineProperty(proto, property, {
       configurable: true,
       enumerable: true,
       get(this: object) {
-        return offsetSwitchesOf(this)[key]
+        return rule.read(offsetSwitchesOf(this))
       },
-      set(this: { readonly index: number }, value: unknown) {
-        const problem = refusal(property, value)
-        if (problem) throw new RangeError(problem)
-        if (offsetSwitchesOf(this)[key] === value) return
-        // A first-person object and its world-space representation exclude each other.
-        if (
-          value === true &&
-          key === 'firstPerson' &&
-          offsetSwitchesOf(this).worldSpaceRepresentation
-        )
-          throw new RangeError(EXCLUSIVE)
-        if (
-          value === true &&
-          key === 'worldSpaceRepresentation' &&
-          offsetSwitchesOf(this).firstPerson
-        )
-          throw new RangeError(EXCLUSIVE)
-        noteNodeWrite(this)
-        let own = held.get(this)
-        if (!own) held.set(this, (own = { ...DEFAULTS }))
-        ;(own[key] as unknown) = value
-        own.revision++
-        edits++
+      set(this: SwitchNode, written: unknown) {
+        assignRule(this, property, rule, written)
       },
     })
 }
 
 /** Gives `into` the switches of `source`, as a copy of a node does. */
-export function copyOffsetSwitches(into: object, source: object) {
-  const from = held.get(source)
-  if (!from && !held.has(into)) return
-  const target = into as Record<string, unknown>
-  // The ones turned off first: a first-person switch turned on is refused while its other is on.
-  const entries = Object.entries(PROPERTIES)
-  for (const turnedOn of [false, true])
-    for (const [property, key] of entries) {
-      const value = (from ?? DEFAULTS)[key]
-      // A light's own `mobility` is not this switch: a value it already holds is not written.
-      if ((value === true) === turnedOn && offsetSwitchesOf(into)[key] !== value)
-        target[property] = value
-    }
+export function copyOffsetSwitches(into: SwitchNode, source: object) {
+  if (!held.has(source) && !held.has(into)) return
+  const from = offsetSwitchesOf(source)
+  assignRules(
+    into,
+    RULES.map(([property, rule]) => [property, rule, rule.read(from)] as const),
+  )
 }

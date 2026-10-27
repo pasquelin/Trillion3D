@@ -14,9 +14,19 @@ export type ContractKey = {
    *  (`../direct/lobesWgsl.ts`) — the opaque lit passes' surfaces, the translucent items. */
   lobeless: boolean
   /** No light of the scene casts a contact shadow of its own and no surface of the pass is of the eye or
-   *  hair model: no contact shadow code (`../contactShadow/contactShadowWgsl.ts`). The translucent
-   *  programs hold none, whatever their key says (`translucentLitKey`, `../../blend/shader.ts`). */
+   *  hair model: no contact shadow code (`../contactShadow/contactShadowWgsl.ts`). The frame's cut: the
+   *  translucent programs' is the scene's (`TranslucentScene`, `../../blend/shader.ts`). */
   contactless: boolean
+  /** Every light and every object the scene lights is in the default lighting channel (channel 0 alone): no
+   *  light is left out of a surface by its channels, so no test of them
+   *  (`../direct/lightLoopWgsl.ts`, `lightChannelsOf`). The cut of a scene that uses none. */
+  channelless: boolean
+  /** No light of the scene names a light profile: no profile read, no atlas and no sampler bound
+   *  (`../lightProfile/lightProfileWgsl.ts`, `NO_LIGHT_PROFILE_WGSL`). The cut of a scene that uses none. */
+  profileless: boolean
+  /** The image sets no ambient cubemap: no cube read in the indirect pass, no cube, sampler or colour bound
+   *  (`ambientCubemapWgsl.ts`). The opaque lit passes' alone: a translucent program's key leaves the cube out. */
+  cubeless: boolean
 }
 
 /** The passes whose programs are keyed on a `ContractKey`: the opaque lit passes', and the forward
@@ -34,6 +44,9 @@ const CUTS: readonly Cut[] = [
   'localless',
   'lobeless',
   'contactless',
+  'channelless',
+  'profileless',
+  'cubeless',
 ]
 export const CUT_COUNT = CUTS.length
 /** The bit of cut `name` in a set, read off `CUTS`'s order. */
@@ -65,6 +78,9 @@ export const FULL_CONTRACT: Readonly<ContractKey> = {
   localless: false,
   lobeless: false,
   contactless: false,
+  channelless: false,
+  profileless: false,
+  cubeless: false,
 }
 
 /** The set of cuts `key` makes; `lobed`, when given, says the lobe cut in its place. Read by every
@@ -84,7 +100,12 @@ export function keyOf(narrow: boolean, set: number) {
 }
 
 /** The set of a program's twin: every code path but the lobes and the contact shadows, which only a
- *  scene whose surfaces carry a lobe, or whose lights cast a ray, compiles (`createLitVariants`). */
+ *  scene whose surfaces carry a lobe, or whose lights cast a ray, compiles (`createLitVariants`). The twin keeps the
+ *  test of the lighting channels, as it keeps the shadow and rectangle code: the wide program a scene with none of
+ *  them compiles beside its own, which lights a light or an object put in a channel at once (a program that holds
+ *  the test serves the frame meanwhile, `SERVING`); and the light profile code, which a scene with no profiled
+ *  light leaves out of its own, bound to the stand-in atlas where the frame has none; and the ambient cubemap's code, bound
+ *  to the stand-in cube and a black colour where the image sets none. */
 export const twinOf = (set: number) => set & (LOBELESS | CONTACTLESS)
 
 /** Whether `key` is a twin's: it leaves out no code but, maybe, the lobes' and the contact shadows'. */

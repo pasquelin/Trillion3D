@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { vsmTraceKindsOf } from '../shadows/vsm/trace/traceWgsl.ts'
 import { directLightWgsl, LIGHT_GRID_WGSL } from './lightWgsl.ts'
+import { lightUndrawn } from './lightReachWgsl.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { irradianceShader } from '../../../../sdk-core/src/scene/core/irradianceBasis.ts'
 import { SURFACE_MODEL_LIGHT_WGSL } from '../../materials/surface/surfaceModel.ts'
@@ -17,6 +18,7 @@ import {
   vsmBindingsLabel,
   vsmTraceBindingsLabel,
 } from './shadowBindings.ts'
+import { raysLabel, type ContactRays } from '../contactShadow/contactShadowWgsl.ts'
 import { directShadowWgsl, translucentShadowLabel, type TranslucentShadow } from './shadowWgsl.ts'
 import { type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
@@ -30,6 +32,12 @@ import {
 } from '../lightFunction/readWgsl.ts'
 import { fogBindingsLabel, type FogResourceBindings } from '../fog/readWgsl.ts'
 import {
+  lightProfileBindingsLabel,
+  lightProfileOfWgsl,
+  NO_LIGHT_PROFILE_WGSL,
+  type LightProfileBindings,
+} from '../lightProfile/lightProfileWgsl.ts'
+import {
   cloudShadowReadWgsl,
   NO_CLOUD_SHADOW_WGSL,
   type CloudShadowBindings,
@@ -42,12 +50,15 @@ import {
   LOBES_RECT_WGSL,
 } from './lobesWgsl.ts'
 
-/** A cell's list of lights — what the resolves walk, and the virtual shadow maps' marking
- *  pass (`../shadows/vsm/markingWgsl.ts`). */
-export const TILE_SLICE_WGSL = wgslBlock(
-  'TILE_SLICE_WGSL',
-  [LIGHT_GRID_WGSL],
-  `
+/** A cell's list of lights over the grid the buffer `grid` holds — the view's light grid, `tileLights`,
+ *  by default: what the resolves walk, and the virtual shadow maps' marking pass
+ *  (`../shadows/vsm/markingWgsl.ts`). A pass that reads the shadowed lights' grid alone, which holds the
+ *  view's grid head and records (`../shadows/vsm/projection/lightGridWgsl.ts`), reads its cells there. */
+export const tileSliceWgsl = (grid = 'tileLights') =>
+  wgslBlock(
+    grid === 'tileLights' ? 'TILE_SLICE_WGSL' : `TILE_SLICE_WGSL_${grid}`,
+    [LIGHT_GRID_WGSL, lightUndrawn],
+    `
 /** Where the lights of the cell whose record starts at \`base\` start in the view's pool, and how
  *  many (#1369). The one rule of a missing list, for every reader: \`TILE_NO_SLICE\` — no grid this
  *  image, or a cell the pool had no room for — walks every declared light
@@ -55,14 +66,19 @@ export const TILE_SLICE_WGSL = wgslBlock(
  *  The view's grid never lacks a list: a column past its pool keeps the lights it got. */
 fn cellSlice(base:u32)->vec2u{
  if(base==TILE_NO_SLICE){return vec2u(TILE_NO_SLICE,directLights.count);}
- let first=tileLights[base+1u];
- return vec2u(first,select(tileLights[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
+ let first=${grid}[base+1u];
+ return vec2u(first,select(${grid}[base]&~TILE_SHADOWED,directLights.count,first==TILE_NO_SLICE));
 }
 /** The rank of a slice's \`index\`th light: the list's word, or, from \`TILE_NO_SLICE\`, every light in
  *  turn. */
 fn listedLight(slice:vec2u,index:u32)->u32{
  if(slice.x==TILE_NO_SLICE){return index;}
- return tileLights[slice.x+index];
+ return ${grid}[slice.x+index];
+}
+/** Whether the walk of \`slice\` takes light \`rank\`: a list holds the lights the view draws alone, the walk of every light
+ *  (\`TILE_NO_SLICE\`) leaves out the ones its kind word says it does not (\`lightUndrawn\`), so that both give a point the same lights. */
+fn listedDrawn(slice:vec2u,rank:u32)->bool{
+ return slice.x!=TILE_NO_SLICE||!lightUndrawn(directLights.items[rank]);
 }
 /** The first word of the record of the cell holding a pixel at depth \`z\`, \`cells\` the grid's
  *  columns across and down; \`TILE_NO_SLICE\` with no grid, a pixel past the grid reading its last
@@ -70,10 +86,11 @@ fn listedLight(slice:vec2u,index:u32)->u32{
 fn gridCell(pixel:vec2f,z:f32,cells:vec2u)->u32{
  if(cells.x==0u||cells.y==0u){return TILE_NO_SLICE;}
  let column=min(vec2u(pixel)/TILE_SIZE,cells-vec2u(1u));
- let map=bitcast<vec3f>(vec3u(tileLights[0],tileLights[1],tileLights[2]));
+ let map=bitcast<vec3f>(vec3u(${grid}[0],${grid}[1],${grid}[2]));
  return GRID_HEAD+((column.y*cells.x+column.x)*GRID_SLICES+gridSlice(z,map))*TILE_STRIDE;
 }`,
-)
+  )
+export const TILE_SLICE_WGSL = tileSliceWgsl()
 /**
  * A pixel's cell of the light grid, read by the local lights' pass (`../deferred/lightPassWgsl.ts`) and the
  * virtual shadow maps' marking pass (`../shadows/vsm/markingWgsl.ts`), both on the deferred view (#1369).
@@ -106,6 +123,9 @@ export type LightingBindings = {
    *  program reads none. */
   farShadowMask?: number
   trace?: VsmTraceBindings
+  /** The binding of the per-light draw's mask, an array a layer a light (`directShadowWgsl`, `pass: 'perLight'`): the
+   *  shadow of the one light the draw lights is its layer, no other shadow read. */
+  perLightMask?: number
   /** Where the fog's cubemap, volume and frame are bound (`fogBlockOf`); left out, a program holds
    *  no fog: the passes that light a surface and lay no fog over it. */
   fog?: FogResourceBindings
@@ -115,6 +135,10 @@ export type LightingBindings = {
   /** Where the clouds' shade of the air's lights is bound (`cloudShadowReadWgsl`); left out, a program
    *  reads none: every light is unshaded (`NO_CLOUD_SHADOW_WGSL`). */
   cloudShadow?: CloudShadowBindings
+  /** Where the light profiles' atlas and sampler are bound (`lightProfileOfWgsl`); left out, a program reads none:
+   *  every light is unchanged (`NO_LIGHT_PROFILE_WGSL`). With the key's `profileless` the light term holds no profile
+   *  read at all. */
+  lightProfile?: LightProfileBindings
 }
 
 /** The bindings as a block name reads them, in their declared order, the defaults resolved. */
@@ -128,8 +152,10 @@ export const bindingsLabel = ({
   fog,
   lightFunction,
   cloudShadow,
+  lightProfile,
+  perLightMask,
 }: LightingBindings) =>
-  `${vsmSunMask ?? null} ${vsmMask ?? null}${maskFallback ? ` + ${maskFallback.lightGrid} ${vsmBindingsLabel(maskFallback.vsm)} ${maskFallback.view}` : ''}, ${vsm ? vsmBindingsLabel(vsm) : null}, ${farShadowMask ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fog ? fogBindingsLabel(fog) : null}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow ? `cloud ${cloudShadow.group}:${cloudShadow.block}` : null}`
+  `${vsmSunMask ?? null} ${vsmMask ?? null}${maskFallback ? ` + ${maskFallback.lightGrid} ${vsmBindingsLabel(maskFallback.vsm)} ${maskFallback.view}` : ''}, ${vsm ? vsmBindingsLabel(vsm) : null}, ${farShadowMask ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fog ? fogBindingsLabel(fog) : null}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow ? `cloud ${cloudShadow.group}:${cloudShadow.block}` : null}${lightProfile ? `, profile ${lightProfileBindingsLabel(lightProfile)}` : ''}${perLightMask === undefined ? '' : `, per-light mask ${perLightMask}`}`
 
 /**
  * The state a surface is lit through, and what a program does with the thin two-sided surface:
@@ -163,13 +189,17 @@ fn environmentIrradiance(N:vec3f)->vec3f{
  let e=directLights.environment;
  return max(${irradianceShader((k) => `e[${k}].rgb`, 'N')},vec3f(0.0));
 }
-/** The environment's diffuse light on a surface (\`lambertDiffuse\`): its irradiance and, in a
- *  program that reads no probes, the sky light's (\`environmentSky\`) — in one that does, the probes
- *  carry the sky (\`indirectIrradiance\`) — on the pixel's diffuse colour (\`clothDiffuse\`: a cloth's
- *  fuzz added to it). */
-fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
+/** The diffuse light of a surface lit by \`irradiance\` (\`lambertDiffuse\`), on the pixel's diffuse colour (\`clothDiffuse\`: a
+ *  cloth's fuzz added to it): the one sum of every source of the surface's diffuse light, the environment's and the
+ *  ambient cubemap's. */
+fn environmentLightingFrom(rgb:vec3f,metal:f32,irradiance:vec3f,ao:f32)->vec3f{
  let d=clothDiffuse(rgb,metal);
- return lambertDiffuse(d.rgb,d.w,environmentIrradiance(N)+environmentSky(N),ao);
+ return lambertDiffuse(d.rgb,d.w,irradiance,ao);
+}
+/** The environment's diffuse light on a surface: its irradiance and, in a program that reads no probes, the sky
+ *  light's (\`environmentSky\`) — in one that does, the probes carry the sky (\`indirectIrradiance\`). */
+fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
+ return environmentLightingFrom(rgb,metal,environmentIrradiance(N)+environmentSky(N),ao);
 }
 /** A thin two-sided surface's back, the one sum of it: the light the probes give and the environment's,
  *  lit from \`-N\` on its subsurface colour (\`lambertDiffuse\`); the probes' light is the screen probes'
@@ -206,7 +236,9 @@ fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emiss
  * environment's light and the surface's sum (`ENVIRONMENT_LIGHTING_WGSL`), which a pass of direct
  * light alone does not need; `slices`, whether it holds the walk of a cell's list of lights
  * (`TILE_SLICE_WGSL`, `sliceLighting`), which the pass of the sun does not; `cut`, what the light term
- * holds of the surface models (`LightCut`), the whole term unless given.
+ * holds of the surface models (`LightCut`), the whole term unless given; `rays`, the contact shadows' rays the pass casts
+ * (`ContactRays`; `asked` for a translucent pass, whose contact shadows are the ray of the surface whose material asks alone;
+ * `declaredLightWgsl`).
  */
 export const lightingBase = (
   bindings: LightingBindings,
@@ -218,6 +250,7 @@ export const lightingBase = (
     slices = true,
     cut,
     airTint = true,
+    rays,
   }: {
     narrow?: boolean
     translucentShadow?: TranslucentShadow
@@ -225,10 +258,11 @@ export const lightingBase = (
     slices?: boolean
     cut?: LightCut
     airTint?: boolean
+    rays?: ContactRays
   } = {},
 ) =>
   wgslBlock(
-    `lightingBase(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${narrow}${translucentShadowLabel(translucentShadow)}${environment ? '' : ', direct light only'}${slices ? '' : ', no lists'}${cut ? `, ${cut.models}, ${cut.thin}` : ''}${airTintLabel(airTint)})`,
+    `lightingBase(${bindingsLabel(bindings)}, ${variantLabel(key)}, ${narrow}${translucentShadowLabel(translucentShadow)}${environment ? '' : ', direct light only'}${slices ? '' : ', no lists'}${cut ? `, ${cut.models}, ${cut.thin}` : ''}${airTintLabel(airTint)}${rays ? raysLabel(rays) : ''})`,
     [
       SURFACE_MODEL_LIGHT_WGSL,
       ...(key.lobeless
@@ -239,27 +273,36 @@ export const lightingBase = (
       lambertDiffuse,
       directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined),
       directShadowWgsl(
-        bindings.vsmSunMask === undefined
-          ? {
-              vsm: bindings.vsm,
-              trace: bindings.trace,
-              kinds: vsmTraceKindsOf(key),
-              ...translucentShadow,
-            }
-          : {
-              pass: 'mask',
-              sun: bindings.vsmSunMask,
-              local: bindings.vsmMask,
-              farMask: bindings.farShadowMask,
-              fallback: bindings.maskFallback,
-            },
+        bindings.perLightMask !== undefined
+          ? { pass: 'perLight', mask: bindings.perLightMask }
+          : bindings.vsmSunMask === undefined
+            ? {
+                vsm: bindings.vsm,
+                trace: bindings.trace,
+                kinds: vsmTraceKindsOf(key),
+                ...translucentShadow,
+              }
+            : {
+                pass: 'mask',
+                sun: bindings.vsmSunMask,
+                local: bindings.vsmMask,
+                farMask: bindings.farShadowMask,
+                fallback: bindings.maskFallback,
+              },
       ),
       ...(bindings.fog ? [fogBlockOf(bindings.fog)] : []),
       bindings.lightFunction
         ? lightFunctionReadWgsl(bindings.lightFunction)
         : NO_LIGHT_FUNCTION_WGSL,
       bindings.cloudShadow ? cloudShadowReadWgsl(bindings.cloudShadow) : NO_CLOUD_SHADOW_WGSL,
-      declaredLightWgsl(key, { cut, airTint }),
+      ...(key.profileless
+        ? []
+        : [
+            bindings.lightProfile
+              ? lightProfileOfWgsl(bindings.lightProfile)
+              : NO_LIGHT_PROFILE_WGSL,
+          ]),
+      declaredLightWgsl(key, { cut, airTint, rays }),
       ...(slices ? [TILE_SLICE_WGSL, sliceLightingWgsl('surface', cut?.models ?? true)] : []),
       THIN_SURFACE_WGSL,
       ...(environment ? [ENVIRONMENT_LIGHTING_WGSL] : []),

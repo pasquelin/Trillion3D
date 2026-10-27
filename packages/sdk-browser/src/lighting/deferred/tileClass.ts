@@ -31,6 +31,8 @@ export const TILE_PIXELS = 8
 /** The classes, in the order of their lists and of their indirect draws. */
 export const TILE_CLASS = { simple: 0, single: 1, complex: 2 } as const
 export type TileClass = (typeof TILE_CLASS)[keyof typeof TILE_CLASS]
+/** The name of each class, in a label. */
+export const TILE_CLASS_NAMES = ['SIMPLE', 'SINGLE', 'COMPLEX'] as const
 /** Every class, the cheapest first. */
 export const TILE_CLASSES: readonly TileClass[] = [
   TILE_CLASS.simple,

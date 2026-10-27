@@ -18,7 +18,16 @@ const { vsmRenderCandidateFlags } = shaderRun<{
 }>(candidates, ['vsmRenderCandidateFlags'], { VSM_RENDER_CAND_DYNAMIC, VSM_RENDER_CAND_DEFORMING })
 const { vsmRasterMarkBits } = shaderRun<{
   vsmRasterMarkBits: (...a: boolean[]) => number
-}>(vsmRenderBinWgsl(vsmLayout({ fullMapCapacity: 1 })), ['vsmRasterMarkBits'], {})
+}>(
+  vsmRenderBinWgsl(
+    vsmLayout({
+      coverMode: 'suns',
+      fullMapCapacity: 1,
+    }),
+  ),
+  ['vsmRasterMarkBits'],
+  {},
+)
 
 /** The slices `vsmFoldRasterMarks` reads: dirty dynamic, dirty static, then the two
  *  invalidations. */

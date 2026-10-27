@@ -1,13 +1,11 @@
-// The global resolution bias falls back to exactly 0 once the pool's fill does: its f32 decay
-// takes its target where a step no longer moves it (`approach`), where it would otherwise stop on
-// a subnormal for good. Under 2^-54 a bias leaves every level the CPU's local mip (f64) and the
-// GPU's marking (f32) compute where it was, and the bound is tight.
+// The global resolution bias, a plain f32 lerp (`approach`), falls until a step no longer moves it,
+// on a subnormal. Under 2^-54 a bias leaves every level the CPU's local mip (f64) and the GPU's
+// marking (f32) compute where it was, and the bound is tight.
 import { f32Bits, fromF32Bits } from '../../../../../math/src/float/bits.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { vsmLocalMipLevel } from './constants.ts'
+import { VSM_PRESSURE_BIAS_NONE, VSM_PRESSURE_CALM_FRAMES, vsmLocalMipLevel } from './constants.ts'
 import { VsmCacheManager } from './cacheManager.ts'
-import { lerp } from '../../../../../math/src/scalar/reals.ts'
 const F64 = new Float64Array(1),
   B64 = new BigInt64Array(F64.buffer)
 /** The double right below `x` (x > 0). */
@@ -15,7 +13,7 @@ const below = (x: number) => ((F64[0] = x), (B64[0] -= 1n), F64[0])
 /** The largest f32 under 2^-54: the largest bias the bound lets through. */
 const G = fromF32Bits(f32Bits(2 ** -54) - 1)
 
-test('after an overload the bias falls back to exactly 0, from where its f32 step stalls', () => {
+test('after an overload the bias falls to where its f32 step stalls, under 2^-54, and stays there', () => {
   const cache = new VsmCacheManager()
   let bias = 0
   // No page free for 20 frames: up to the limit.
@@ -24,21 +22,23 @@ test('after an overload the bias falls back to exactly 0, from where its f32 ste
     bias = cache.readPoolFeedback(0, bias)
   }
   assert.equal(bias, 2)
-  // Half the pool free: down a tenth of the gap a frame after the wait, the bias echoed back.
-  let frame = 20,
-    last = bias
-  while (bias > 0 && frame < 2000) {
+  // A quarter of the pool free, below the load: the calm frames hold the bias, then it falls, the
+  // bias echoed back, until a step no longer moves it.
+  let frame = 20
+  const step = () => {
     cache.frameStamp = ++frame
-    last = bias
-    bias = cache.readPoolFeedback(1024, bias)
+    return (bias = cache.readPoolFeedback(1024, bias))
   }
-  assert.equal(bias, 0, `0 at frame ${frame}`)
-  assert.ok(frame < 2000, `within ${frame} frames`)
-  // The last bias held is where nine tenths round back to it.
-  assert.equal(Math.fround(lerp(last, 0, 0.1)), last, 'the step stalls there')
+  for (let n = 0; n < VSM_PRESSURE_CALM_FRAMES; n++) assert.equal(step(), 2, 'the wait holds it')
+  for (let last = -1; bias !== last && frame < 2000;) {
+    last = bias
+    step()
+  }
+  assert.ok(frame < 2000, `stalled within ${frame} frames`)
+  assert.ok(bias > 0 && bias < VSM_PRESSURE_BIAS_NONE, `${bias} is under 2^-54`)
   for (let n = 0; n < 100; n++) {
     cache.frameStamp = ++frame
-    assert.equal(cache.readPoolFeedback(1024, 0), 0, 'and it stays there')
+    assert.equal(cache.readPoolFeedback(1024, 0), bias, 'and it stays there')
   }
 })
 

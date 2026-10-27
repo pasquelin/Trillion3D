@@ -12,7 +12,8 @@ const filters = new WeakMap<SelectionUniforms, ReturnType<typeof createViewFilte
 
 /**
  * What a view carries beside its eye, written into its cut's uniforms (`Camera.clipPlane`,
- * `Camera.hidden`, `Camera.showOnly`, `../../../../sdk-core/src/contracts/viewOptions.ts`): its
+ * `Camera.hidden`, `Camera.showOnly`, `Camera.owner`,
+ * `../../../../sdk-core/src/contracts/viewOptions.ts`): its
  * clip plane in the render frame — the world plane's offset taken to the eye, in double, then
  * single (`writeViewClipPlaneAtEye`) —, all zero unless the project switch is on and the view has
  * one; its filter's bits (`../../geometry/selection/viewFilter.ts`), when the host allows filters
@@ -24,12 +25,13 @@ export function writeCutViewSet(
   uniforms: SelectionUniforms,
   filtering: boolean,
 ) {
-  const { hidden, showOnly } = cam.viewSet
+  const { hidden, showOnly, owner } = cam.viewSet
   writeViewClipPlaneAtEye(rt, cam, uniforms.clipPlane, 0)
   const before = uniforms.filter
   let filter = filters.get(uniforms)
-  // The roots the view does not draw whatever its lists say, the host's switch on lists apart.
-  const forced = hiddenFromViews(rt, rt.views.active === rt.views.main)
+  // The roots the view does not draw whatever its lists say, the host's switch on lists apart: those its
+  // owner does not see among them.
+  const forced = hiddenFromViews(rt, rt.views.active === rt.views.main, owner)
   const listed = filtering && (hidden.length > 0 || showOnly !== null)
   if (!listed && !forced.length && (!filtering || !filter)) {
     uniforms.filter = undefined

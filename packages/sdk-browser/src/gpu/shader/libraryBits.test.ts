@@ -13,6 +13,8 @@ import {
   bitWord,
   byteOf,
   isFiniteWord,
+  makeFinite,
+  makeFinite3,
 } from '../../../../math/src/wgsl/integer.ts'
 import { unorm8 } from '../../../../math/src/wgsl/color.ts'
 
@@ -26,9 +28,31 @@ const run = shaderRun<{
   byteOf: U
   unorm8: U
   isFiniteWord: B
+  makeFinite: U
+  makeFinite3: (v: number[]) => number[]
 }>(
-  wgslModule(bitWord, bitMask, bitAt, bitIsSet, byteOf, unorm8, isFiniteWord),
-  ['bitWord', 'bitMask', 'bitAt', 'bitIsSet', 'byteOf', 'unorm8', 'isFiniteWord'],
+  wgslModule(
+    bitWord,
+    bitMask,
+    bitAt,
+    bitIsSet,
+    byteOf,
+    unorm8,
+    isFiniteWord,
+    makeFinite,
+    makeFinite3,
+  ),
+  [
+    'bitWord',
+    'bitMask',
+    'bitAt',
+    'bitIsSet',
+    'byteOf',
+    'unorm8',
+    'isFiniteWord',
+    'makeFinite',
+    'makeFinite3',
+  ],
   {},
 )
 
@@ -81,4 +105,12 @@ test('a float classed by its bits: NaN past the infinity, finite under the full 
     const x = fromF32Bits(word)
     assert.equal(run.isFiniteWord(word), Number.isFinite(x), word.toString(16))
   }
+})
+
+test('a float made finite keeps what is finite and takes an infinity or a NaN to zero, component by component', () => {
+  for (const x of [0, 1, -2.5, 3.4e38, 2 ** -149, -(2 ** -126)])
+    assert.equal(run.makeFinite(x), x, `${x}`)
+  for (const x of [Infinity, -Infinity, NaN]) assert.equal(run.makeFinite(x), 0, `${x}`)
+  assert.deepEqual([...run.makeFinite3([1, NaN, -Infinity])], [1, 0, 0])
+  assert.deepEqual([...run.makeFinite3([-4, 0.5, 8])], [-4, 0.5, 8])
 })

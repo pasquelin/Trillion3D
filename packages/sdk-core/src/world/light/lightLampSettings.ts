@@ -3,8 +3,10 @@ import { LIGHT_SETTINGS } from '../../scene/light/contracts.ts'
 import { DEFAULT_LIGHT_UNITS, LIGHT_UNITS, type LightUnits } from '../../scene/light/lightUnits.ts'
 import { EngineError } from '../../contracts/cache.ts'
 import { defaultOnFlag } from './lightFlags.ts'
+import { LOCAL_NUMBERS } from '../../scene/light/validateLamp.ts'
 import { lightChanged } from './lightNumbers.ts'
 import type { Light } from './light.ts'
+import type { LightParameters } from './lightParameters.ts'
 
 /** The settings of a lamp that say how its light falls off and how much of it it gives, held beside
  *  the light's own numbers (`lightNumbers.ts`): the yes/no one that is on by default, whether it
@@ -74,6 +76,20 @@ export function recordFalloff(light: Light, record: SceneLight) {
   if (light.radialExponent !== LIGHT_SETTINGS.radialExponent)
     record.radialExponent = light.radialExponent
 }
+
+/** Writes into `record` the blend of a point, spot or rect `light` with the inverse of the exposure and the distance past which
+ *  it is left out, each only where it is not 0. */
+export function recordLocalNumbers(light: Light, record: SceneLight) {
+  if (record.kind === 'directional') return
+  for (const field of LOCAL_NUMBERS) if (light[field] !== 0) record[field] = light[field]
+}
+
+/** The numbers of a point, spot or rect `record` holds (`LOCAL_NUMBERS`), as the parameters of a light. */
+export const localNumbersOf = (record: SceneLight) =>
+  Object.fromEntries(LOCAL_NUMBERS.map((field) => [field, record[field]])) as Pick<
+    LightParameters,
+    (typeof LOCAL_NUMBERS)[number]
+  >
 
 /** Writes into `record` the shares of its diffuse and specular light `light` gives, each only where
  *  it is not 1. */

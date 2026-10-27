@@ -103,6 +103,7 @@ test('the stale reads the CPU boxes after the list, from their own buffer: the l
   })
   const { device } = fake
   const res = createVsmResources(device, {
+    coverMode: 'suns',
     fullMapCapacity: 127,
     sunMapCapacity: 35,
     poolPages: 256,

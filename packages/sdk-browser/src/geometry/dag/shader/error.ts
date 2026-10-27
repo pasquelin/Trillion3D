@@ -32,19 +32,19 @@ import { REQUEST_CATEGORY, REQUEST_PRIORITY_MAX, REQUEST_PRIORITY_MIN } from '..
 export const requestPriorityOf = (category: number, p: string) =>
   `clamp((${category}u<<30u)|(bitcast<u32>(${p})>>2u),${REQUEST_PRIORITY_MIN}u,${REQUEST_PRIORITY_MAX}u)`
 
-export const DAG_ERROR_WGSL = wgslBlock(
-  'DAG_ERROR_WGSL',
-  [DAG_INF, CUT_RULE_WGSL, transformPoint],
+/** The projected edge scales of a view (`edgeScalesAt`), the camera's cut and the shadow views' alike. */
+export const DAG_EDGE_SCALES_WGSL = wgslBlock(
+  'DAG_EDGE_SCALES_WGSL',
+  [],
   `
-/** The view's pixels per unit at unit depth on its vertical axis. */
-fn viewPixels()->f32{return cutView.pixelScale.y;}
 /** The projected edge scales of a sphere of view-space centre \`c\` and radius \`r\`, the eye at zero
  *  looking down \`-z\`: the smallest and the largest, over the sphere, of a point's depth times the
  *  cosine of its angle to the axis, the near plane taking the points past it; none (zero) for a
- *  sphere wholly behind the near plane; one for an orthographic view. */
-fn edgeScales(c:vec3f,r:f32)->vec2f{
- if(cutView.perspective<=0.0){return vec2f(1.0);}
- let near=cutView.near;
+ *  sphere wholly behind the near plane; one for an orthographic view. \`near\` is the view's near plane,
+ *  \`perspective\` whether it is a perspective view. The camera's (\`edgeScales\`) and the shadow views'
+ *  (\`vsmRenderEdgeScales\`) alike. */
+fn edgeScalesAt(c:vec3f,r:f32,near:f32,perspective:bool)->vec2f{
+ if(!perspective){return vec2f(1.0);}
  let distSq=dot(c,c);let z=-c.z;
  let axisSq=distSq-z*z;let axis=sqrt(max(0.0,axisSq));
  let tangentSq=distSq-r*r;let tangent=sqrt(max(0.0,tangentSq));
@@ -58,6 +58,20 @@ fn edgeScales(c:vec3f,r:f32)->vec2f{
  let minZ=max(z-r,near);let maxZ=max(z+r,near);
  if(z+r>near){return vec2f(minZ*top,maxZ*select(bottom,1.0,reachesAxis));}
  return vec2f(0.0);
+}
+`,
+)
+
+export const DAG_ERROR_WGSL = wgslBlock(
+  'DAG_ERROR_WGSL',
+  [DAG_INF, CUT_RULE_WGSL, DAG_EDGE_SCALES_WGSL, transformPoint],
+  `
+/** The view's pixels per unit at unit depth on its vertical axis. */
+fn viewPixels()->f32{return cutView.pixelScale.y;}
+/** The projected edge scales of the camera's view for a sphere of view-space centre \`c\` and radius
+ *  \`r\` (\`edgeScalesAt\`). */
+fn edgeScales(c:vec3f,r:f32)->vec2f{
+ return edgeScalesAt(c,r,cutView.near,cutView.perspective>0.0);
 }
 /** The edge scales of sphere \`sphere\` of the placement read last (\`viewWorld\` made \`e\`), its
  *  radius scaled by the placement's largest axis scale. */

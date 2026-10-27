@@ -54,7 +54,11 @@ import {
  * given). The block lists what it calls, the maths library's declarations included.
  */
 export const directShadowWgsl = (options: DirectShadowOptions = {}) =>
-  options.pass === 'mask' ? maskShadowWgsl(options) : blendShadowWgsl(options)
+  options.pass === 'mask'
+    ? maskShadowWgsl(options)
+    : options.pass === 'perLight'
+      ? perLightShadowWgsl(options)
+      : blendShadowWgsl(options)
 
 /** The body of a blend pass's `shadowFactor` where some kind is read: the kinds differ in how they are
  *  read, or in whether a surface may be shadowed by them, and a light of a kind no surface reads the
@@ -126,6 +130,26 @@ const blendShadowWgsl = (options: BlendShadowOptions) => {
     shadowFactorWgsl(blendReadWgsl(sun, local, localAny, localShadows), asked),
   )
 }
+
+/**
+ * The shadow read of the per-light draw (\`../deferred/perLightPassWgsl.ts\`): the program lights one shadowed local light at a time, and
+ * the light's shadow is its layer of the screen mask (\`../shadows/vsm/projection/perLightPass.ts\`), the layer the light's record names
+ * (\`perLight.layer\`): the pixel's blue channel, the square root of the share, squared back. A light that casts none is lit whole, a
+ * surface that faces away from the light unlit whatever the mask holds. The mask is at \`mask\` of group 0, read at the pixel
+ * \`vsmMaskAt\` names.
+ */
+const perLightShadowWgsl = ({ mask }: PerLightShadowOptions) =>
+  wgslBlock(
+    `directShadowWgsl(perLight ${mask})`,
+    [],
+    `@group(0) @binding(${mask}) var vsmPerLightMask:texture_2d_array<f32>;
+/** The resolve's pixel: the mask is read there. */
+var<private> vsmMaskPixel:vec2i=vec2i(-1);
+fn vsmMaskAt(coord:vec2i){vsmMaskPixel=coord;}
+${shadowFactorWgsl(`
+ let encoded=textureLoad(vsmPerLightMask,vsmMaskPixel,perLight.layer,0).z;
+ return encoded*encoded;`)}`,
+  )
 
 /** The shadow read of an opaque lit pass: the trace the projection stored in the frame's masks. */
 const maskShadowWgsl = ({ sun, local, farMask, fallback }: MaskShadowOptions) =>
@@ -231,7 +255,13 @@ export const translucentShadowLabel = (read?: TranslucentShadow) =>
 /** What a shadow read takes (`directShadowWgsl`): the pass kind — a mask read at the binding of the
  *  mask array, or a blend pass's trace with the virtual shadow maps' bindings, its trace bindings
  *  and the kinds it traces. */
-type DirectShadowOptions = BlendShadowOptions | MaskShadowOptions
+type DirectShadowOptions = BlendShadowOptions | MaskShadowOptions | PerLightShadowOptions
+
+type PerLightShadowOptions = {
+  pass: 'perLight'
+  /** The binding of the per-light mask, an array a layer a light. */
+  mask: number
+}
 
 type BlendShadowOptions = {
   pass?: 'blend'

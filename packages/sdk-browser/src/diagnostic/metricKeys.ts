@@ -82,6 +82,8 @@ export const ENGINE_METRIC_KEYS = [
   'shadowVsmPagesAllocated',
   'shadowVsmPagesCached',
   'shadowVsmPagesRendered',
+  'shadowVsmPagesEmpty',
+  'shadowVsmPagesWpoConsidered',
   'shadowVsmFreePages',
   'shadowVsmLodBias',
   'shadowVsmRootsNoted',

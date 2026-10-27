@@ -9,7 +9,12 @@ import { litPassShaders } from '../../gpu/core/shaderTexts.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { written } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
-import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
+import {
+  SCENE_LIGHT_FLOATS,
+  type SceneLight,
+} from '../../../../sdk-core/src/scene/light/contracts.ts'
+import { LIGHT_FIELD } from '../../../../sdk-core/src/scene/light/fields.ts'
+import { LIGHT_BUFFER_AT } from '../../frame/backend/state/lightBufferLayout.ts'
 import {
   createSceneLightContractBuffer,
   createSunRanksBuffer,
@@ -59,7 +64,7 @@ test('the sun’s pass walks the directional lights by their ranks, the local li
   assert.match(functionsOf(sun, ['sunLighting']), /declaredLight\(sunRanks\[index\]/)
   assert.match(
     functionsOf(local, ['localLighting']),
-    /if\(isSunKind\(directLights\.items\[rank\]\.params\.x\)\)\{continue;\}/,
+    /if\(isSun\(directLights\.items\[rank\]\)\)\{continue;\}/,
   )
 })
 
@@ -94,4 +99,48 @@ test('the sun pass walks the directional lights by their ranks: the buffer holds
   uploadSceneLights(gpu.device, lights)
   const after = gpu.writes.filter(({ buffer }) => buffer === lights.sunRanks).at(-1)!
   assert.equal(written(after)[0], 1, 'one sun left')
+})
+
+test('the buffer holds a light’s own strength and its blend with the exposure, whatever the exposure: an exposure moving writes nothing', () => {
+  const gpu = fakeDevice()
+  const store = createSceneLightStore()
+  const lamp = (id: string, inverseExposureBlend?: number): SceneLight => ({
+    id,
+    kind: 'point',
+    position: [0, 1, 0],
+    color: [1, 1, 1],
+    intensity: 8,
+    range: 5,
+    castsShadow: false,
+    ...(inverseExposureBlend === undefined ? {} : { inverseExposureBlend }),
+  })
+  store.add(lamp('plain'))
+  store.add(lamp('half', 0.5))
+  store.add(lamp('whole', 1))
+  const lights = createWebgpuLightState(store)
+  lights.buffer = createSceneLightContractBuffer(gpu.device, store)
+  uploadSceneLights(gpu.device, lights)
+  const items = gpu.writes.find(
+    ({ buffer, offset }) => buffer === lights.buffer && offset === LIGHT_BUFFER_AT.items,
+  )!
+  const floats = new Float32Array(
+    written(items).buffer,
+    written(items).byteOffset,
+    written(items).byteLength / 4,
+  )
+  const field = (slot: number, at: number) => floats[slot * SCENE_LIGHT_FLOATS + at]
+  assert.deepEqual(
+    [0, 1, 2].map((slot) => field(slot, LIGHT_FIELD.exposureBlend)),
+    [0, 0.5, 1],
+    'the blend rides in the eighth vec4',
+  )
+  const strength = field(0, LIGHT_FIELD.intensity)
+  assert.deepEqual(
+    [1, 2].map((slot) => field(slot, LIGHT_FIELD.intensity)),
+    [strength, strength],
+    'the strength is the light’s own whatever its blend',
+  )
+  const writes = gpu.writes.length
+  uploadSceneLights(gpu.device, lights)
+  assert.equal(gpu.writes.length, writes, 'nothing moved: nothing is written')
 })

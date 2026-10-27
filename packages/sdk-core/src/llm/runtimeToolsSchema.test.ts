@@ -193,6 +193,37 @@ test('a light the tool accepts, the engine accepts; a field bound it refuses, th
     assert.equal(validate({ ...complete.point, ...patch }), false, JSON.stringify(patch))
 })
 
+test('a light’s lighting channels are three booleans, in the tool as in the engine', () => {
+  const validate = validatorOf('trillion3d_add_light')
+  const light = {
+    id: 'lamp',
+    kind: 'point',
+    color: [1, 1, 1],
+    intensity: 2,
+    position: [0, 2, 0],
+    range: 8,
+    castsShadow: false,
+  }
+  const engineAccepts = (input: object) => {
+    try {
+      validateSceneLight(input as SceneLight)
+      return true
+    } catch {
+      return false
+    }
+  }
+  const channels = { channel0: false, channel1: true, channel2: true }
+  for (const [lightingChannels, accepted] of [
+    [channels, true],
+    [{ channel0: true }, false],
+    [{ channel0: 1, channel1: 0, channel2: 0 }, false],
+  ] as const) {
+    const input = { ...light, lightingChannels }
+    assert.equal(validate(input), accepted, JSON.stringify(lightingChannels))
+    assert.equal(engineAccepts(input), accepted, JSON.stringify(lightingChannels))
+  }
+})
+
 test('a light that says nothing of shadows gets what the engine makes of that silence', () => {
   const validate = validatorOf('trillion3d_add_light', { useDefaults: true })
   const light: Record<string, unknown> = {

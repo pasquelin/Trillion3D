@@ -1,5 +1,6 @@
 import type { AtmosphereSunIndex, LightMobility } from '../../scene/light/contracts.ts'
 import type { LightUnits } from '../../scene/light/lightUnits.ts'
+import type { LightingChannels } from '../../contracts/lightingChannelsAbi.ts'
 import type { ColorInput } from '../math/color.ts'
 import type { Vec3Input } from '../math/vector3.ts'
 import type { LightFunctionParameters } from './lightFunctionSettings.ts'
@@ -67,8 +68,16 @@ export interface LightParameters
   diffuseShare?: number
   /** The share of its specular light the light gives, from 0 to 1; 1 by default. */
   specularShare?: number
+  /** Point, spot and rect only: how much the light's strength is divided by the image's exposure, from 0 to 1: at 1 the
+   *  light looks the same in a dark scene and a bright one; 0, its strength is kept whatever the exposure, by default. */
+  inverseExposureBlend?: number
+  /** Point, spot and rect only: the distance from a perspective view, in metres, past which the light is left out; 0, the default, no limit. */
+  maxDrawDistance?: number
   /** Directional source angular radius, in radians. */
   angularRadius?: number
+  /** Directional only: the soft angle of the source's disk, in degrees from 0 up to 180: it widens the highlight the sun leaves on a
+   *  glossy surface without lighting more of the surface; 0 by default. */
+  softAngle?: number
   /** Whether a directional light may be the sun of the sky module's atmosphere (`scene.sky`):
    *  of the lights that may, the brightest is; `true` by default. */
   atmosphereSun?: boolean
@@ -103,6 +112,10 @@ export interface LightParameters
   /** Whether the light shines through the subsurface-profile surfaces it shadows; off by default,
    *  and acting on a movable light that casts a shadow alone. */
   transmission?: boolean
+  /** The lighting channels the light is in (`{ channel0, channel1, channel2 }`, each true or false): it
+   *  lights an object's surfaces, and its shadow holds the object, only where they share a channel;
+   *  channel 0 alone by default. */
+  lightingChannels?: LightingChannels
   /** Directional only: the colour the sun's disk in the sky is multiplied by, linear; white by
    *  default. */
   sunDiskTint?: ColorInput

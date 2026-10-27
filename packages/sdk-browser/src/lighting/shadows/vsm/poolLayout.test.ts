@@ -19,7 +19,7 @@ import { vsmLayout, type VsmLayout } from './layout.ts'
 import { poolSliceBytes } from './layoutBytes.ts'
 import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { limitOf, stageBindingCounts } from '../../../../../../tests/kit/fakeDevice/limitRules.ts'
+import { withinDefaults } from '../../../gpu/core/stageLimits.fixture.ts'
 
 /** The TS mirror of `vsmPoolTexelIndexWgsl`. */
 function vsmPoolTexelIndex(layout: VsmLayout, x: number, y: number) {
@@ -32,7 +32,7 @@ function vsmPoolTexelIndex(layout: VsmLayout, x: number, y: number) {
 const PAGE_WORDS = VSM_PAGE_TEXELS * VSM_PAGE_TEXELS
 /** Layouts of 128 pages a row, 4, 8, 16, 32 and 64 rows — the engine's levels. */
 const LAYOUTS = [512, 1024, 2048, 4096, 8192].map((poolPages) =>
-  vsmLayout({ fullMapCapacity: 7, poolPages }),
+  vsmLayout({ coverMode: 'suns', fullMapCapacity: 7, poolPages }),
 )
 
 test('every texel of a slice has a word of its own, page k filling [k·16384, (k+1)·16384)', () => {
@@ -108,7 +108,11 @@ test('the pool binds one storage buffer a slice at every level, within the defau
   const forward = [{ resource: 'pagePool', binding: 0, slices: 1 }] as const
   const passes = [{ resource: 'pagePool', binding: 0, access: 'read_write' }] as const
   for (const poolPages of [512, 2048, 4096, 8192]) {
-    const res = createVsmResources(fakeDevice().device, { fullMapCapacity: 7, poolPages })
+    const res = createVsmResources(fakeDevice().device, {
+      coverMode: 'suns',
+      fullMapCapacity: 7,
+      poolPages,
+    })
     for (const [specs, bound] of [
       [forward, 1],
       [passes, 2],
@@ -116,10 +120,7 @@ test('the pool binds one storage buffer a slice at every level, within the defau
       assert.equal(vsmBindGroupEntries(res, specs).length, bound, `${poolPages} pages`)
       const entries = vsmBindGroupLayoutEntries(specs, GPUShaderStage.COMPUTE)
       assert.equal(entries.length, bound)
-      for (const { limit, count } of stageBindingCounts({
-        bindGroupLayouts: [{ entries }] as never,
-      }))
-        assert.ok(count <= limitOf(limit), `${poolPages} pages: ${count} ${limit}`)
+      withinDefaults([{ bindGroupLayouts: [{ entries }] as never }], `${poolPages} pages`)
     }
     res.destroy()
   }

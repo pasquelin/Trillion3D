@@ -43,6 +43,6 @@ test('one text of each shared helper, in every pass that declares it', () => {
     projection = texts.VSM_PROJECTION_SUNS
   assert.ok(marking.includes('vsmViewDepthOfDeviceZ(deviceZ,vsmMarking.depthFromDeviceZ)'))
   assert.ok(projection.includes('vsmViewDepthOfDeviceZ(deviceZ,vsmView.depthFromDeviceZ)'))
-  assert.ok(marking.includes(',vsmMarking.viewToClip,vec2f(vsmMarking.viewSize))'))
+  assert.ok(marking.includes(',vsmMarking.viewToClip,vec2f(vsmMarking.viewSize),'))
   assert.ok(projection.includes(',vsmView.viewToClip,vsmView.viewPixels.xy)'))
 })

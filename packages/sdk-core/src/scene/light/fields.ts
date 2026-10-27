@@ -1,12 +1,23 @@
 import { SRGB_LUMINANCE } from '../../../../math/src/color/color.ts'
 import { DEG2RAD, TAU } from '../../../../math/src/constants.ts'
+import { saturate } from '../../../../math/src/scalar/reals.ts'
 import { dotVector3 } from '../../../../math/src/vector/vector.ts'
 import { temperatureColour } from '../../modules/sky/sunColour.ts'
 import {
+  DEFAULT_LIGHTING_CHANNELS_MASK,
+  lightingChannelMask,
+  storedLightingChannels,
+} from '../../contracts/lightingChannelsAbi.ts'
+import {
   DEFAULT_LIGHT_MOBILITY,
+  LIGHT_CHANNELS_SHIFT,
   LIGHT_FLAG,
+  LIGHT_FUNCTION_SHIFT,
   LIGHT_KIND,
+  LIGHT_KIND_MARKER,
+  LIGHT_PROFILE_SHIFT,
   LIGHT_SETTINGS,
+  LIGHT_SHADOWED_SHIFT,
   SCENE_LIGHT_FLOATS,
   SCENE_LIGHT_HEADER_FLOATS,
   type AtmosphereSunIndex,
@@ -16,12 +27,20 @@ import {
 import { DEFAULT_LIGHT_UNITS, lampCandelas, lightUnitsFactor } from './lightUnits.ts'
 import { contactShadowOfLight } from './lightContactShadow.ts'
 import { writeContactShadow, type ContactShadowView } from './contactShadowView.ts'
+import { shadowedBitsOf, type LightShadowView } from './shadowedBits.ts'
 import { spotAnglesOf } from './spotAngles.ts'
+import { profileBrightnessOf, profiledIntensityOf, type LightProfileView } from './lightProfile.ts'
+import {
+  coneSphereRadius,
+  drawShareOf,
+  maxDrawDistanceFor,
+  type LightRangeView,
+} from './drawRange.ts'
 
 /** First float of light `slot` in the packed store. */
 export const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS
 
-/** Field of a light in the buffer, in floats from its base. Seven `vec4f` per light. */
+/** Field of a light in the buffer, in floats from its base. Eight `vec4f` per light. */
 export const LIGHT_FIELD = {
   /** Where it stands. */
   position: 0,
@@ -35,7 +54,10 @@ export const LIGHT_FIELD = {
   direction: 8,
   /** Cosine of its cone. */
   cosCone: 11,
-  /** Its kind's rank plus its flags (`LIGHT_KIND`, `LIGHT_FLAG`). */
+  /** Its kind word, a whole number held in the float's bits: its kind's rank plus its flags, its lighting channels stored, its shadowed value,
+   *  its profile's atlas slice plus one, whether the view leaves it out and its light function's index, under a constant marker bit
+   *  (`LIGHT_KIND`, `LIGHT_FLAG`, `LIGHT_CHANNELS_SHIFT`, `LIGHT_SHADOWED_SHIFT`, `LIGHT_PROFILE_SHIFT`, `LIGHT_UNDRAWN_SHIFT`,
+   *  `LIGHT_FUNCTION_SHIFT`, `LIGHT_KIND_MARKER`). */
   kind: 12,
   /** Its shadow slot. */
   shadowSlice: 13,
@@ -58,14 +80,23 @@ export const LIGHT_FIELD = {
   rectShares: 22,
   /** Directional angular radius in radians, sharing the local source-radius lane. */
   angularRadius: 16,
-  /** A point or spot's tube: its axis times half its length, centred on the light — the two ends
-   *  are the light's place less and plus it —, zero for a sphere or a point. */
-  halfAxis: 20,
-  /** A point or spot's soft source radius. */
+  /** A point or spot's emitter axis, unit: the line its tube lies along, and the one its profile's horizontal angle is read round.
+   *  Zero for a light that has neither a tube nor a profile. The tube's length is apart (`tubeHalfLength`). */
+  emitterAxis: 20,
+  /** A point or spot's soft source radius, in metres; a directional light's, the sine of half its soft angle (`SceneLight.softAngle`). */
   softRadius: 23,
   /** The seventh `vec4f` (`contactGi`): its contact shadow as `writeContactShadow` packs it, then its
    *  indirect lighting factor. */
   contactGi: 24,
+  /** The eighth `vec4f` (`traits`) starts here, in `x`: the blend of its strength with the inverse of the exposure (`SceneLight.inverseExposureBlend`),
+   *  which the shader applies with the view's exposure where it reads the strength (`lightStrength`). */
+  exposureBlend: 28,
+  /** In `y`: half the length of a point or spot's tube, centred on the light along its `emitterAxis` — the two ends are the light's place
+   *  less and plus the axis times it —, in metres; 0 for a sphere or a point, a profiled one included. */
+  tubeHalfLength: 29,
+  /** In `z`: for a directional light the sine of its angular radius, which its disk is lit by; for a point or a spot the weight of its
+   *  rough diffuse, 1 for a source of no size fading to 0 as its radius or its length reaches `ROUGH_DIFFUSE_FADE_METRES`; 0 for a rect. */
+  sourceTerm: 30,
 } as const
 /** A point tests no cone, and a spot of no inner cone no inner bound: this cosine never bounds. */
 export const NO_CONE = -2
@@ -98,6 +129,12 @@ export const lightColour = (light: SceneLight) =>
 
 /** The share of its diffuse light a light gives: 1 when it names none. */
 export const diffuseShareOf = (light: SceneLight) => light.diffuseShare ?? 1
+
+/** The blend of a light's strength with the inverse of the exposure: 0 when it names none. */
+export const inverseExposureBlendOf = (light: SceneLight) => light.inverseExposureBlend ?? 0
+
+/** The distance, in metres, past which a light is left out: 0 (no limit) when it names none. */
+export const maxDrawDistanceOf = (light: SceneLight) => light.maxDrawDistance ?? 0
 
 /** The share of its specular light a light gives: 1 when it names none. */
 export const specularShareOf = (light: SceneLight) => light.specularShare ?? 1
@@ -201,10 +238,11 @@ export const intensityOf = (light: SceneLight) => light.intensity ?? defaultInte
  * light's lux; a point or spot's candelas where it falls off as the inverse square, its intensity
  * as it is where it does not; a rect's radiance, its candelas over half its face's area. A nit is
  * worth the source's area (`sourceAreaOf`); a lumen the sphere's 4π, the spot's cone
- * `2π (1 − cos)`, the rect's π.
+ * `2π (1 − cos)`, the rect's π. A light whose `useIesBrightness` is on takes its profile's brightness
+ * for its intensity once it is known (`profileBrightness`, `profiledIntensityOf`).
  */
-export function brightnessOf(light: SceneLight) {
-  const intensity = intensityOf(light)
+export function brightnessOf(light: SceneLight, profileBrightness?: number) {
+  const intensity = profiledIntensityOf(light, intensityOf(light), profileBrightness)
   if (!readsUnits(light)) return intensity
   const candelas = lampCandelas(
     intensity,
@@ -248,12 +286,33 @@ export const mobilityOf = (light: SceneLight): LightMobility =>
 /** The factor on the resolution a light's shadow is given: 1 when it names none. */
 export const shadowResolutionScaleOf = (light: SceneLight) => light.shadowResolutionScale ?? 1
 
-/** The kind word of a light: its rank, plus the flag of each thing it does (`LIGHT_FLAG`). */
-const kindWordOf = (light: SceneLight) =>
-  LIGHT_KIND[light.kind] +
-  (light.castsShadow ? LIGHT_FLAG.castsShadow : 0) +
-  (shadowsFogOf(light) ? LIGHT_FLAG.shadowsFog : 0) +
-  (transmitsOf(light) ? LIGHT_FLAG.transmission : 0)
+/** The mask of the lighting channels a light is in: channel 0 alone when it names none. */
+export const lightingChannelMaskOf = (light: SceneLight) =>
+  light.lightingChannels
+    ? lightingChannelMask(light.lightingChannels)
+    : DEFAULT_LIGHTING_CHANNELS_MASK
+
+/** The kind word of a light: its rank, plus the flag of each thing it does (`LIGHT_FLAG`), its lighting channels stored, its shadowed value under
+ *  `shadows` (`shadowedBitsOf`, which a light function of `index` without a slot, 0, moves), its `profile` lane (the atlas slice plus one, 0 for
+ *  none), the bit that says the view leaves it out (left clear: drawn) and the `index` of its light function (0 for none, a slot of the atlas
+ *  otherwise, under `LIGHT_FUNCTION_ENTRIES`), each above the one before (`LIGHT_CHANNELS_SHIFT`), and the marker (`LIGHT_KIND_MARKER`) that
+ *  keeps the lane a normal float. The one writer of the word. */
+export const kindWordOf = (
+  light: SceneLight,
+  shadows: LightShadowView,
+  index: number,
+  profile = 0,
+) =>
+  (LIGHT_KIND[light.kind] +
+    (light.castsShadow ? LIGHT_FLAG.castsShadow : 0) +
+    (shadowsFogOf(light) ? LIGHT_FLAG.shadowsFog : 0) +
+    (transmitsOf(light) ? LIGHT_FLAG.transmission : 0) +
+    (storedLightingChannels(lightingChannelMaskOf(light)) << LIGHT_CHANNELS_SHIFT) +
+    (shadowedBitsOf(light, index > 0, shadows.dynamicShadows) << LIGHT_SHADOWED_SHIFT) +
+    (profile << LIGHT_PROFILE_SHIFT) +
+    index * 2 ** LIGHT_FUNCTION_SHIFT +
+    LIGHT_KIND_MARKER) >>>
+  0
 
 /** The air's light a directional light is a candidate for: its `atmosphereSunIndex`, 0 absent. */
 export const atmosphereSunIndexOf = (light: SceneLight): AtmosphereSunIndex =>
@@ -268,26 +327,92 @@ function writeVector(packed: Float32Array, at: number, value: readonly number[])
   packed[at + 2] = value[2]
 }
 
+/** What a light's record is written into and folded with (`writeLightFields`): the packed table as floats and as the words its integer
+ *  lanes are written through (the same buffer), and the views' settings the record is folded with. */
+export interface LightLanes {
+  readonly packed: Float32Array
+  readonly words: Uint32Array
+  readonly contactView: ContactShadowView
+  readonly shadowView: LightShadowView
+  /** The brightness of the light profiles that are loaded, which a light's intensity may be (`SceneLight.useIesBrightness`). */
+  readonly profiles: LightProfileView
+}
+
+/** The size, in metres, past which a light's source takes no rough diffuse: its weight fades from 1 at a point to 0 here. */
+const ROUGH_DIFFUSE_FADE_METRES = 0.2
+
+/** The weight of the rough diffuse of a point or a spot (`LIGHT_FIELD.sourceTerm`): 1 for a source of no size, fading to 0 as its radius
+ *  or its length reaches `ROUGH_DIFFUSE_FADE_METRES`. */
+const roughDiffuseWeightOf = (light: SceneLight) => {
+  const size = Math.max(light.emitterRadius ?? 0, light.emitterLength ?? 0)
+  return saturate(1 - size * (1 / ROUGH_DIFFUSE_FADE_METRES))
+}
+
+/** The term of the light's source in its record (`LIGHT_FIELD.sourceTerm`): a sun's disk's sine, a point or spot's weight of the rough
+ *  diffuse, 0 for a rect. */
+const sourceTermOf = (light: SceneLight) =>
+  light.kind === 'directional'
+    ? Math.sin(Math.fround(light.angularRadius ?? LIGHT_SETTINGS.sunAngularRadius))
+    : light.kind === 'rect'
+      ? 0
+      : roughDiffuseWeightOf(light)
+
+/** The radius of the sphere the draw range measures a light by, in metres (`drawShareOf`): its range for a point or a rect; for a spot
+ *  the sphere that holds its cone (`coneSphereRadius`). */
+function drawRadiusOf(light: SceneLight) {
+  const range = light.range ?? 0
+  if (light.kind !== 'spot') return range
+  return coneSphereRadius(range, Math.cos(spotConesOf(light)[1]))
+}
+
+/** Where the draw range of light slot `slot` sits in the table's draw lanes (`writeDrawRange`): the share of the screen per metre of distance
+ *  under which a view leaves it out, then the distance past which it does. */
+export const DRAW_LANES = 2
+export const DRAW_SHARE = 0
+export const DRAW_FARTHEST = 1
+
+/** A light's draw range under the view, into the lanes `draw` holds for light slot `slot` (`DRAW_LANES` a slot, the CPU's alone: the shaders read
+ *  the decision, in the kind word, `lightDrawn`): the share of the screen per metre of distance under which a view leaves it out
+ *  (`drawShareOf`, folded with the view's settings) and the distance past which it does (`maxDrawDistanceFor`; 0 for no limit); both 0 for a
+ *  sun, which every view draws. */
+export function writeDrawRange(
+  draw: Float32Array,
+  slot: number,
+  light: SceneLight,
+  view: LightRangeView,
+) {
+  const sun = light.kind === 'directional',
+    at = slot * DRAW_LANES
+  draw[at + DRAW_SHARE] = sun ? 0 : drawShareOf(drawRadiusOf(light), view)
+  draw[at + DRAW_FARTHEST] = sun ? 0 : maxDrawDistanceFor(maxDrawDistanceOf(light), view)
+}
+
 /**
- * Writes the fields a host declares for one light at `base`. The shadow slice is not one: the
+ * Writes the fields a host declares for one light at `base`, its kind word with the `functionIndex` of its light
+ * function and the `profile` lane of its profile (`kindWordOf`; the atlases give them, not the host). The shadow slice is not one: the
  * scheduler sets it. A directional has neither position nor range: its two fields stay zero,
  * and the shader never reads them — it branches on the kind first.
  */
 export function writeLightFields(
-  packed: Float32Array,
+  into: LightLanes,
   base: number,
   light: SceneLight,
-  view: ContactShadowView,
+  functionIndex = 0,
+  profile = 0,
 ) {
+  const { packed } = into
   writeVector(packed, base + LIGHT_FIELD.position, light.position ?? [0, 0, 0])
   packed[base + LIGHT_FIELD.range] = light.range ?? 0
   writeVector(packed, base + LIGHT_FIELD.color, lightColour(light))
-  packed[base + LIGHT_FIELD.intensity] = brightnessOf(light)
+  packed[base + LIGHT_FIELD.intensity] = brightnessOf(
+    light,
+    profileBrightnessOf(light, into.profiles),
+  )
   writeVector(packed, base + LIGHT_FIELD.direction, light.direction ?? [0, -1, 0])
   const spot = light.kind === 'spot'
   const [inner, outer] = spot ? spotConesOf(light) : [0, 0]
   packed[base + LIGHT_FIELD.cosCone] = spot ? Math.cos(outer) : NO_CONE
-  packed[base + LIGHT_FIELD.kind] = kindWordOf(light)
+  into.words[base + LIGHT_FIELD.kind] = kindWordOf(light, into.shadowView, functionIndex, profile)
   packed[base + LIGHT_FIELD.fogScattering] = fogScatteringOf(light)
   packed[base + LIGHT_FIELD.cosInner] = spot ? Math.cos(inner) : NO_CONE
   const [width, height] = light.size ? rectSidesOf(light) : [0, 0]
@@ -300,6 +425,7 @@ export function writeLightFields(
   if (light.kind === 'directional')
     packed[base + LIGHT_FIELD.angularRadius] =
       light.angularRadius ?? LIGHT_SETTINGS.sunAngularRadius
+  packed[base + LIGHT_FIELD.sourceTerm] = sourceTermOf(light)
   if (light.kind === 'point' || spot) {
     packed[base + LIGHT_FIELD.emitterRadius] = light.emitterRadius ?? 0
     packed[base + LIGHT_FIELD.radialExponent] = inverseSquaredOf(light)
@@ -307,10 +433,13 @@ export function writeLightFields(
       : radialExponentOf(light)
     writeSource(packed, base, light)
   } else writeSource(packed, base, {})
+  if (light.kind === 'directional')
+    packed[base + LIGHT_FIELD.softRadius] = Math.sin(0.5 * (light.softAngle ?? 0) * DEG2RAD)
   const at = base + (light.kind === 'rect' ? LIGHT_FIELD.rectShares : LIGHT_FIELD.shares)
   packed[at] = diffuseShareOf(light)
   packed[at + 1] = specularShareOf(light)
-  writeContactGi(packed, base, light, view)
+  packed[base + LIGHT_FIELD.exposureBlend] = inverseExposureBlendOf(light)
+  writeContactGi(packed, base, light, into.contactView)
 }
 
 /** A light's contact shadow under the view, and its indirect lighting factor (`LIGHT_FIELD.contactGi`). */
@@ -326,14 +455,16 @@ export function writeContactGi(
   packed[at + 3] = own.indirectLightingIntensity
 }
 
-/** A lamp's tube and soft radius (`LIGHT_FIELD.halfAxis`, `softRadius`): zero for a light with
- *  neither, whatever its slot held before. */
+/** A lamp's emitter axis, the half length of its tube and its soft radius (`LIGHT_FIELD.emitterAxis`, `tubeHalfLength`, `softRadius`): the axis
+ *  for a light that has a tube or a profile, a unit vector, the half length for a tube alone; zeros for a light with none of them, whatever
+ *  its slot held before (a sun's soft radius is written after, `writeLightFields`). */
 function writeSource(packed: Float32Array, base: number, light: Partial<SceneLight>) {
-  const half = (light.emitterLength ?? 0) / 2
+  const axis = light.emitterLength !== undefined || light.iesProfile !== undefined
   writeVector(
     packed,
-    base + LIGHT_FIELD.halfAxis,
-    (light.emitterAxis ?? [0, 1, 0]).map((c) => c * half),
+    base + LIGHT_FIELD.emitterAxis,
+    axis ? (light.emitterAxis ?? [0, 1, 0]) : [0, 0, 0],
   )
+  packed[base + LIGHT_FIELD.tubeHalfLength] = (light.emitterLength ?? 0) / 2
   packed[base + LIGHT_FIELD.softRadius] = light.emitterSoftRadius ?? 0
 }

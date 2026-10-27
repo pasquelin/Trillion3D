@@ -30,7 +30,7 @@ const NOT_MESSAGES = new Set([
   'TEXCOORD_3',
   'TRILLION3D_CACHE_LOCK_WAIT_MS',
   'WEIGHTS_0',
-  'alembic-ogawa-1-gltf-3',
+  'alembic-ogawa-1-gltf-4',
   // The file name of a two-channel ETC2-family level (`texture/blocks.rs`).
   'eac-rg',
   'hdr-radiance-rgbe-1',

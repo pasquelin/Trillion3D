@@ -127,8 +127,13 @@ test('a world only loaded stays placed and switched as ever: its cells and files
   assert.deepEqual(standing(), [false, true, true])
   assert.equal(follower.draws(0, 3), false, 'no such cell')
   assert.equal(follower.draws(1, 0), false, 'no such instance')
+  // What `draws` answers is named by its revision: the same while no cell's actor starts or stops drawing.
+  const revision = follower.drawRevision
+  follower.sync()
+  assert.equal(follower.drawRevision, revision, 'nothing moved')
   follower.activated(false)
   assert.equal(follower.sync(), true, 'the words moved')
+  assert.ok(follower.drawRevision > revision, 'cells 0 and 2 changed whether their actor draws')
   // Cell 0 is wished and shown, and its actor, always loaded, still draws: no cell is shown while
   // the cells are only loaded, so nothing covers it. Cell 2's actor lies in cell 0, not shown.
   assert.deepEqual(

@@ -8,6 +8,7 @@ import { Matrix4 } from '../../../../../sdk-core/src/world/math/matrix4.ts'
 import { packDagSelection } from './pack.ts'
 import { scenePages, sceneRoots } from '../cut/cutFrontierScene.fixture.ts'
 import { createDagReadiness } from '../readiness.ts'
+import { boxInto, dagRecords } from '../records.fixture.ts'
 import { DAG_NODE_FLOATS } from '../types.ts'
 import { NODE_MAX, NODE_MIN, NODE_SPHERE } from '../nodeLayout.ts'
 import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
@@ -89,7 +90,7 @@ test('the blank residency of a placement is the pages its shared state reads rea
   })
 })
 
-test('a displaced surface grows the culling boxes of its primitive by its reach, the balls never', () => {
+test('a displaced surface grows the culling boxes of its primitive and of its clusters by its reach, the balls never', () => {
   const height = { channel: 0 } as Texture
   const surface = {
     displacement: { magnitude: 4, center: 0.25, fade: null },
@@ -116,6 +117,24 @@ test('a displaced surface grows the culling boxes of its primitive by its reach,
       const at = n * DAG_NODE_FLOATS + NODE_SPHERE + a
       assert.equal(displaced.nodes[at], plain.nodes[at])
     }
+  // The clusters' boxes, which the cull of a shadow caster tests, grow as the nodes' do.
+  const before = dagRecords(plain),
+    after = dagRecords(displaced)
+  const box = (records: typeof before, i: number) => {
+    const min = [0, 0, 0],
+      max = [0, 0, 0]
+    boxInto(records, i, min, max)
+    return { min, max }
+  }
+  assert.equal(plain.pageCount, displaced.pageCount)
+  for (let i = 0; i < plain.pageCount; i++) {
+    const was = box(before, i),
+      now = box(after, i)
+    for (let a = 0; a < 3; a++) {
+      assert.equal(now.min[a], was.min[a] - 3, `cluster ${i} min ${a}`)
+      assert.equal(now.max[a], was.max[a] + 3, `cluster ${i} max ${a}`)
+    }
+  }
 })
 
 /** The box a displacement grows, as the tessellation's splitting reads it (`boxGrownByDisplacement`). */

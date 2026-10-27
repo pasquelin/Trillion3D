@@ -2,10 +2,20 @@ import {
   createMobilityState,
   ensureLayout,
   holdsPose,
+  clearArrivals,
+  hasArrivals,
   parkRank,
+  rearriveAll,
+  sendArrivals,
   touchRank,
 } from './mobilityState.ts'
-import { followLead, moveLeadSlot, moveRank, settleMoving } from './mobilityMoves.ts'
+import {
+  followLead,
+  invalidateRank,
+  moveLeadSlot,
+  moveRank,
+  settleMoving,
+} from './mobilityMoves.ts'
 import { writeRootWords } from './mobilityWrite.ts'
 import { MOBILITY_DEFORMS } from '../mobilityBits.ts'
 
@@ -26,9 +36,10 @@ import { MOBILITY_DEFORMS } from '../mobilityBits.ts'
  * Its members: `moves(rank)`, whether placement `rank` has moved: the static layer does not hold
  * it; `cachedDynamic(rank)`, whether it is cached as dynamic: it has moved, or a deformation moves
  * its vertices (the sign of the boxes the CPU declares); `poseOf(rank)`, the pose it was last seen at, a view of the state, none past the placements it
- * is sized for; `words`, one word a placement; `holds`, `ensure`, `move`, `follow`, `moveLead`,
- * `settle`, `touch`, `park` and `writeRoots`, those of `mobilityState.ts`, `mobilityMoves.ts` and
- * `mobilityWrite.ts`.
+ * is sized for; `words`, one word a placement; `arrivals`, the placements that arrived since the diff last ran
+ * over them, a bit each, with `hasArrivals`, `sendArrivals` and `clearArrivals`; `holds`, `ensure`, `move`, `invalidate`, `follow`,
+ * `moveLead`, `settle`, `touch`, `park`, `rearrive` and `writeRoots`, those of
+ * `mobilityState.ts`, `mobilityMoves.ts` and `mobilityWrite.ts`.
  */
 export function createShadowMobility() {
   const s = createMobilityState()
@@ -62,12 +73,37 @@ export function createShadowMobility() {
       ensureLayout(s, placements, worldOf),
     move: (rank: number, world: ArrayLike<number>, forced = false) =>
       moveRank(s, rank, world, forced),
+    /** The placement was updated where it stands (`invalidateRank`). */
+    invalidate: (rank: number) => invalidateRank(s, rank),
     follow: (rank: number, lead: number) => followLead(s, rank, lead),
     moveLead: (lead: number, ranks: readonly number[]) => moveLeadSlot(s, lead, ranks),
     settle: (threshold: number) => settleMoving(s, threshold),
     touch: (rank: number) => touchRank(s, rank),
     /** The placement is parked or taken away: its state goes back to static (`parkRank`). */
     park: (rank: number) => parkRank(s, rank),
+    /** The placement's row is seated on another mesh: the primitive is removed and a new one added, its state per view and its cache
+     *  entries starting clear — it leaves the scene (`parkRank`) and its word is written again, which is its arrival (`arriveRank`).
+     *  The diff then names the box it left, in the layer it was cached in, and the box it enters (`castDiffWgsl.ts`), whatever the
+     *  boxes are: a mesh of the same world box leaves no old shadow in the cached pages. */
+    reseat(rank: number) {
+      parkRank(s, rank)
+      touchRank(s, rank)
+    },
+    /** The placements that arrived and whose cache state per view the diff has not cleared yet, a bit
+     *  each (`arriveRank`). */
+    get arrivals() {
+      return s.arrivals
+    },
+    hasArrivals: () => hasArrivals(s),
+    /** The words of the arrivals the buffer the diff reads does not hold, to `write` (`sendArrivals`). */
+    sendArrivals: (
+      whole: boolean,
+      write: (first: number, words: Uint32Array<ArrayBuffer>) => void,
+    ) => sendArrivals(s, whole, write),
+    /** The diff ran its state per view over the arrivals: they are told (`clearArrivals`). */
+    clearArrivals: () => clearArrivals(s),
+    /** Every placement arrives again at the next `writeRoots` (`rearriveAll`). */
+    rearrive: () => rearriveAll(s),
     /** Every word is written again at the next `writeRoots`: the buffer they go to was made anew. */
     rewrite: () => void (s.wholeWords = true),
     writeRoots: writeRootWords.bind(null, s),

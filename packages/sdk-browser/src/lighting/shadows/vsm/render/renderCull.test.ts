@@ -13,7 +13,13 @@ import { vsmLayout } from '../layout.ts'
 import { VSM_RENDER_ARGS_POST, VSM_RENDER_ARGS_WGSL } from './renderParamsWgsl.ts'
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
 
-const CULL = vsmRenderCullWgsl(vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 }))
+const CULL = vsmRenderCullWgsl(
+  vsmLayout({
+    coverMode: 'suns',
+    fullMapCapacity: 7,
+    sunMapCapacity: 3,
+  }),
+)
 
 // The records to draw and those held back share one list and one count of its places
 // (`vsmRenderTake`): from its head and from its end, never one place for two, every place asked
@@ -56,6 +62,32 @@ test('the records to draw and those held back share the list’s places, every p
   }
 })
 
+// A window of the hardware raster is one record, its rect clipped to the pages whose flags hold the
+// caster's layer, the pages between kept (the raster draws every page of the rect that is a page to
+// draw): pages 1 and 3 of a row of four. The software raster's window, one page, gives a record each.
+test('a window is one record clipped to the pages that match, whatever lies between', () => {
+  const C = wgslConstants(CULL)
+  const emit = (side: number) => {
+    const records: number[][] = Array.from({ length: 8 }, () => [-1, -1, -1, -1])
+    const run = shaderRun<{ vsmRenderEmit(...a: unknown[]): void }>(CULL, ['vsmRenderEmit'], {
+      ...C,
+      counts: new Array(64).fill(0),
+      records,
+      params: { recordCapacity: 8 },
+      vsmTableLevelOrigin: () => ({}),
+      vsmTableEntryAt: (_origin: unknown, _mip: number, page: number[]) => page,
+      vsmPageMarkWord: (page: number[]) => (page[0] === 1 || page[0] === 3 ? 1 : 0),
+    })
+    run.vsmRenderEmit(9, 0, 0, { id: 3 }, 0, [0, 0, 3, 0], 1, side)
+    return records.filter((r) => r[0] === 9)
+  }
+  assert.deepEqual(emit(C.VSM_RENDER_WINDOW_PAGES!), [[9, 0, 1 | (3 << 16), 0]])
+  assert.deepEqual(emit(1), [
+    [9, 0, 1 | (1 << 16), 0],
+    [9, 0, 3 | (3 << 16), 0],
+  ])
+})
+
 /** The shipped `vsmRenderCullView` on a view and a candidate; the map's tables, the box cull and the
  *  occlusion's test stand in — `hiddenBefore` and `hiddenNow` the pyramids' verdicts —, and the
  *  records it holds back and draws are told. */
@@ -63,6 +95,7 @@ function viewCull(
   hiddenBefore: (centre: number[]) => boolean,
   hiddenNow: () => boolean = () => false,
   software = false,
+  mips = 1,
 ) {
   const C = wgslConstants(CULL)
   const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
@@ -78,12 +111,13 @@ function viewCull(
   }
   const held: unknown[][] = [],
     drawn: unknown[][] = [],
-    boxes: unknown[][] = []
+    boxes: unknown[][] = [],
+    projections: unknown[][] = []
   const run = shaderRun<{ vsmRenderCullView(...a: unknown[]): void }>(CULL, ['vsmRenderCullView'], {
     ...C,
     params: {},
     vsm: { lodDeltaInvalidates: 0 },
-    views: [[7, 1, 0, 3]],
+    views: [[7, mips, 0, 3]],
     vsmHandleFromId: (id: number) => ({ id }),
     vsmProjectionOf: () => map,
     vsmShiftedToClip: (m: Mat) => m,
@@ -92,6 +126,7 @@ function viewCull(
     vsmCasterBoxInView: (...args: unknown[]) => (boxes.push(args), inView),
     vsmClipRadius: () => 1,
     vsmIsFineCaster: () => false,
+    vsmRenderEdgeScale: () => 1,
     vsmRenderLodAt: () => C.VSM_RENDER_LOD_OWN,
     vsmRectPixels: () => [0, 0, 16, 16],
     vsmClipToStaleRect: (pixels: number[]) => pixels,
@@ -99,7 +134,9 @@ function viewCull(
     vsmRenderSwapped: () => false,
     vsmRenderTierOf: () => 0,
     vsmRenderSoftware: () => software,
-    vsmHiddenBefore: (_map: object, centre: number[]) => hiddenBefore(centre),
+    vsmPrevViewHolds: () => true,
+    vsmPrevBoxInView: (...args: unknown[]) => (projections.push(args), { centre: args[1] }),
+    vsmHiddenBefore: (_map: object, cull: { centre: number[] }) => hiddenBefore(cull.centre),
     vsmHiddenNow: hiddenNow,
     vsmRenderHold: (...args: unknown[]) => held.push(args),
     vsmRenderEmit: (...args: unknown[]) => drawn.push(args),
@@ -108,15 +145,17 @@ function viewCull(
     ...{ c: [10, 0, 0, 1], l: [0, 0, 0], row: 3, corners: 3, flags: 0, farDepth: 0 },
     ...{ own: [0, 0, 0, 1], parent: [0, 0, 0, 1], errors: [0, 0], edge: 0 },
     ...{ inst: [0, 0, 0, 1], viewBits: 0, offsetDisableSq: 0 },
-    ...{ a0: [1, 0, 0], a1: [0, 1, 0], a2: [0, 0, 1], axisFit: [1, 1, 1] },
+    ...{ a0: [1, 0, 0], a1: [0, 1, 0], a2: [0, 0, 1] },
+    // The axis fit (1, 1, 1) and the previous half axes (the same), in the pads of the vec3 members.
+    ...{ tail0: [1, 1, 1, 1], tail1: [0, 0, 0, 1], tail2: [0, 0, 0, 1] },
     prevShift,
   })
   const kind = (name: 'FIRST' | 'SECOND' | 'POST') => C[`VSM_RENDER_CULL_${name}`]
-  return { run, held, drawn, boxes, caster, kind, map }
+  return { run, held, drawn, boxes, projections, caster, kind, map }
 }
 
 // The first cull holds a caster back where the previous image drew it (the candidate's `prevShift`
-// added to the centre it tests), not where it is now: the one that moved from behind an occluder
+// added to the centre it tests, its box under the previous pose), not where it is now: the one that moved from behind an occluder
 // into the open is held, the one that stood in the open is drawn.
 test('the first cull holds a moved caster where the previous image drew it, not where it is now', () => {
   // Hidden behind the previous image's pyramid for a centre left of 5: where the caster stood.
@@ -297,7 +336,7 @@ test('a software cluster is binned by its layer, a hardware one by its tier', ()
 
 // The box the cull tests is the candidate's half axes where the map grows the bounds of its
 // placement by the reach of its offset (`vsmOffsetGrows`), and each axis scaled by the candidate's
-// fit (`axisFit`, the deformation's reach alone) where it does not.
+// fit (`vsmCandFit`, the deformation's reach alone) where it does not.
 test('a map that does not allow a placement’s offset culls the box its deformation alone makes', () => {
   const C = wgslConstants(CULL)
   const { run, boxes, caster, kind, map } = viewCull(() => false)
@@ -308,7 +347,7 @@ test('a map that does not allow a placement’s offset culls the box its deforma
     boxes.length = 0
     const cand = {
       ...caster([0, 0, 0]),
-      ...{ a0: [2, 0, 0], a1: [0, 4, 0], a2: [0, 0, 8], axisFit: [0.5, 0.25, 1] },
+      ...{ a0: [2, 0, 0], a1: [0, 4, 0], a2: [0, 0, 8], tail0: [0.5, 0.25, 1, 1] },
       ...{ flags, offsetDisableSq: 4 },
     }
     run.vsmRenderCullView(cand, 5, 0, false, kind('FIRST'), 0)
@@ -328,4 +367,45 @@ test('a map that does not allow a placement’s offset culls the box its deforma
   assert.deepEqual(axes(OFFSET, 9), bare, 'a level past it: the deformation’s box')
   assert.deepEqual(axes(OFFSET | ALWAYS, 9), whole, 'evaluated whatever the distance says')
   assert.deepEqual(axes(0, 1), bare, 'an offset that may not invalidate: no map grows it')
+})
+
+// The previous image's box is projected under the map's previous view once for the view, whatever its
+// mips (`vsmPrevBoxInView`), and tested in each; a placement that stood still carries no previous half
+// axes: the box it drew has the current ones.
+test('the first cull projects the previous box once for all the mips, a still placement’s from its current axes', () => {
+  const C = wgslConstants(CULL)
+  const { run, held, projections, caster, kind } = viewCull(
+    () => true,
+    () => false,
+    false,
+    3,
+  )
+  const moved = {
+    ...caster([-1, 0, 0]),
+    ...{ a0: [2, 0, 0], a1: [0, 3, 0], a2: [0, 0, 4], tail1: [0, 0, 0, 7] },
+  }
+  run.vsmRenderCullView(moved, 5, 0, false, kind('FIRST'), 0)
+  assert.equal(held.length, 3, 'held in each of the three mips')
+  assert.equal(projections.length, 1, 'projected once')
+  assert.deepEqual(
+    projections[0]!.slice(2, 5).map((axis) => Array.from(axis as number[])),
+    [
+      [1, 0, 0],
+      [0, 7, 0],
+      [0, 0, 1],
+    ],
+    'the half axes the record holds in its pads',
+  )
+  projections.length = 0
+  const still = { ...moved, flags: C.VSM_RENDER_CAND_STILL, tail1: [0, 0, 0, 0] }
+  run.vsmRenderCullView(still, 5, 0, false, kind('FIRST'), 0)
+  assert.deepEqual(
+    projections[0]!.slice(2, 5).map((axis) => Array.from(axis as number[])),
+    [
+      [2, 0, 0],
+      [0, 3, 0],
+      [0, 0, 4],
+    ],
+    'a placement that stood still: its current half axes',
+  )
 })

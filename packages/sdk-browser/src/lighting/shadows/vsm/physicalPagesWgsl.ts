@@ -21,12 +21,15 @@ import {
   VSM_CONSTANTS_WGSL,
   VSM_COUNT_CLEARED,
   VSM_COUNT_DYNAMIC_KEPT,
+  VSM_COUNT_EMPTY_PAGES,
   VSM_COUNT_GRANTED,
   VSM_COUNT_WANTED,
   VSM_COUNT_STATIC_KEPT,
+  VSM_COUNT_WPO_CONSIDERED,
 } from './constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL } from './projection/projectionDataWgsl.ts'
+import { VSM_PREFILTERED_WGSL, prefilteredDeps } from './prefilteredWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import { vsmPerPageDispatchWgsl } from './perPageDispatch.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
@@ -141,6 +144,8 @@ ${wgslConsts({
   VSM_COUNT_DYNAMIC_KEPT,
   VSM_COUNT_CLEARED,
   VSM_COUNT_GRANTED,
+  VSM_COUNT_EMPTY_PAGES,
+  VSM_COUNT_WPO_CONSIDERED,
 })}
 `,
 )
@@ -205,7 +210,14 @@ fn vsmCarryPages(@builtin(global_invocation_id) index:vec3u){
   return vsmPmKernel(layout, 'CarryPages', specs, body)
 }
 
-const keepPagesFirstText = /* wgsl */ `@compute @workgroup_size(VSM_GROUP_WIDTH)
+/** The bits of a page's request that a held page is compared in and keeps: the fine bit, and with the
+ *  prefiltered distant shadow the auxiliary ones too (`VSM_PAGE_AUX_MASK`). */
+const requestMaskOf = (prefiltered: boolean) =>
+  prefiltered ? 'VSM_PAGE_AUX_MASK' : 'VSM_PAGE_FINE'
+
+const keepPagesFirstText = (
+  requestMask: string,
+) => /* wgsl */ `@compute @workgroup_size(VSM_GROUP_WIDTH)
 fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
  if(index.x>=vsm.poolPages){return;}
  let poolIndex=index.x;
@@ -231,14 +243,15 @@ fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
     if(!wantedNow||projection.lightUnseen){
      // Not drawn this frame: the page keeps its words, stale bits included, marked unseen.
      nextMeta=prevMeta|VSM_META_UNSEEN;
-     // Wanted, fine as it was drawn: the invalidation finds it — a fine caster's box too —, the
-     // raster does not draw it.
+     // Wanted, fine as it was drawn: the invalidation finds it — a fine caster's box too —, so a
+     // caster that moves while nobody asks the page is not missed when it is asked again at the
+     // same detail and served from the cache; the raster does not draw it.
      vsmPageMarksStore(flagsIndex,VSM_PAGE_WANTED|(prevMeta&VSM_PAGE_FINE));
     }else{
      var nextMarks=VSM_PAGE_WANTED;
-     let requestFine=requestWord&VSM_PAGE_FINE;
+     let requestFine=requestWord&${requestMask};
      // A map of one page (a distant light's) takes no invalidation: its pages are refreshed in turn.
-     let singlePage=vsmSinglePageMap(projection);
+     let singlePage=projection.distant;
      let staticStale=(prevMeta&VSM_META_STATIC_STALE)!=0u&&!singlePage;
      // A coarse page of a map whose coarse pages keep their dynamic layer is drawn again for its
      // static layer alone, both layers then.
@@ -257,12 +270,7 @@ fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
        nextMarks|=VSM_PAGE_DYNAMIC_STALE;
       }`
 
-const keepPagesSecondText = /* wgsl */ `
-      // A page drawn for the covered receivers alone may miss a caster: its dynamic layer is
-      // drawn again each frame.
-      if(projection.useCover){
-       nextMarks|=VSM_PAGE_DYNAMIC_STALE;
-      }
+const keepPagesSecondText = (requestMask: string) => /* wgsl */ `
      }
      // An invalidation that waits (a cluster drawn coarser for want of its finer level) is carried
      // out within the frame's budget, both layers; over it, the page keeps the mark and tries again.
@@ -277,11 +285,16 @@ const keepPagesSecondText = /* wgsl */ `
        keepDeferred=true;
       }
      }
-     // Requested: stamped wanted now, the page is in use (\`poolInUse\`).
+     // A page drawn for the covered receivers alone may miss a caster: its dynamic layer is
+     // drawn again each frame, but for a page whose dynamic invalidations are held.
+     if(!dynamicHeld&&projection.useCover){
+      nextMarks|=VSM_PAGE_DYNAMIC_STALE;
+     }
+     // Requested: stamped wanted now, so the pool's sort never lists it (\`poolSlotRank\`).
      vsmCount(VSM_COUNT_WANTED);
      vsmPoolPageInfo[poolIndex].lastWantedStamp=vsm.frameStamp;
      // A page asked fine where it was held coarse, or the reverse, is drawn again whole.
-     if(requestFine!=(prevMeta&VSM_PAGE_FINE)){
+     if(requestFine!=(prevMeta&${requestMask})){
       nextMarks|=VSM_PAGE_STATIC_STALE|VSM_PAGE_DYNAMIC_STALE;
      }
      if((nextMarks&VSM_PAGE_STATIC_STALE)==0u){vsmCount(VSM_COUNT_STATIC_KEPT);}
@@ -297,7 +310,10 @@ const keepPagesSecondText = /* wgsl */ `
      // raster's cull considers it (an offset that starts to move invalidates it), but it is neither
      // cleared nor drawn: its entry is not drawable and its words say nothing is stale.
      // (The debug switch does not skip it: it is no invalidation, and the reference keeps it, by the same single-page and coarse rule.)
-     if(!skipDynamic&&(prevMeta&VSM_META_FORCE_CACHED)!=0u){nextMarks|=VSM_PAGE_DYNAMIC_STALE;}
+     if(!skipDynamic&&(prevMeta&VSM_META_FORCE_CACHED)!=0u){
+      nextMarks|=VSM_PAGE_DYNAMIC_STALE;
+      vsmCount(VSM_COUNT_WPO_CONSIDERED);
+     }
      // The page's entry (cleared again where a new map takes the page).
      vsmPageTableStore(entryIndex,vsmPackTableEntry(vsmPoolPageOf(poolIndex),drawsNow));
      vsmPageMarksStore(flagsIndex,nextMarks);
@@ -306,6 +322,7 @@ const keepPagesSecondText = /* wgsl */ `
   }
  }
  // A page left with no word is empty: the pool sort lists it first.
+ if(nextMeta==0u){vsmCount(VSM_COUNT_EMPTY_PAGES);}
  vsmPoolPageInfo[poolIndex].flags=nextMeta;
 }`
 
@@ -327,10 +344,12 @@ function keepPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
     o.stats,
     7,
   )
+  const requestMask = requestMaskOf(layout.prefilteredDistant)
   const body = wgslBlock(
     'keepPages',
     [
       STAT_WGSL,
+      ...prefilteredDeps(layout.prefilteredDistant),
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
       VSM_PAGE_ADDRESS_WGSL,
@@ -338,7 +357,7 @@ function keepPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
       VSM_PROJECTION_DATA_READ_WGSL,
     ],
     `
-${keepPagesFirstText}${keepPagesSecondText}
+${keepPagesFirstText(requestMask)}${keepPagesSecondText(requestMask)}
 `,
   )
   return vsmPmKernel(layout, 'KeepPages', specs, body, { stats: !!o.stats })
@@ -361,7 +380,10 @@ function poolSort(layout: VsmLayout) {
   ) as Record<(typeof POOL_SORT_STAGES)[number], VsmPmKernel>
 }
 
-const grantPageText = /* wgsl */ `fn pmGrantPage(handle:VsmHandle,entryAt:VsmTableCell,mipLevel:u32,pageAddress:vec2u){
+const grantPageText = (
+  requestMask: string,
+  packEntry: string,
+) => /* wgsl */ `fn pmGrantPage(handle:VsmHandle,entryAt:VsmTableCell,mipLevel:u32,pageAddress:vec2u){
  let entryIndex=vsmTableIndex(entryAt.tableXY);
  let flagsIndex=vsmPageMarkIndex(entryAt.tableXY,0u);
  let requestWord=vsmPageRequestsLoad(entryIndex);
@@ -386,10 +408,10 @@ const grantPageText = /* wgsl */ `fn pmGrantPage(handle:VsmHandle,entryAt:VsmTab
   vsmPageTableStore(vsmTableIndex(prevOffset.tableXY),0u);
   vsmPageMarksStore(vsmPageMarkIndex(prevOffset.tableXY,0u),0u);
  }
- let requestFine=requestWord&VSM_PAGE_FINE;
+ let requestFine=requestWord&${requestMask};
  let flags=VSM_PAGE_WANTED|VSM_PAGE_DYNAMIC_STALE|VSM_PAGE_STATIC_STALE|requestFine;
  // A new page is drawn whole.
- vsmPageTableStore(entryIndex,vsmPackTableEntry(poolPageXY,true));
+ vsmPageTableStore(entryIndex,${packEntry});
  vsmPageMarksStore(flagsIndex,flags);
  let projection=vsmProjectionOf(handle);
  let viewBits=select(0u,VSM_META_VIEW_UNCACHED,projection.uncached);
@@ -432,10 +454,16 @@ function grantPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
     o.stats,
     7,
   )
+  const requestMask = requestMaskOf(layout.prefilteredDistant)
+  // The page asked by a finer level's page is the secondary request's.
+  const packEntry = layout.prefilteredDistant
+    ? 'vsmPackSecondaryTableEntry(poolPageXY,(requestFine&VSM_PAGE_SECONDARY)!=0u)'
+    : 'vsmPackTableEntry(poolPageXY,true)'
   const body = wgslBlock(
     'grantPages',
     [
       STAT_WGSL,
+      ...prefilteredDeps(layout.prefilteredDistant),
       VSM_FREE_PAGES_WGSL,
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
@@ -445,10 +473,30 @@ function grantPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
       VSM_PER_PAGE_DISPATCH_WGSL,
     ],
     `
-${grantPageText}${grantKernelText()}
+${grantPageText(requestMask, packEntry)}${grantKernelText()}
 `,
   )
   return vsmPmKernel(layout, 'GrantPages', specs, body, { perPage: true, stats: !!o.stats })
+}
+
+/** The clears' indirect arguments in their empty form: 16 tile groups a page, no page, 1, and a word of padding. */
+export const VSM_CLEAR_ARGS_EMPTY = [16, 0, 1, 0] as const
+
+/** Sets the clears' indirect arguments to their empty form (`VSM_CLEAR_ARGS_EMPTY`), before the kernel
+ *  that lists the pages to clear adds to them. */
+function resetClearArgs(layout: VsmLayout): VsmPmKernel {
+  const specs: VsmBindingSpec[] = [{ resource: 'clearArgs', binding: 0, access: 'atomic' }]
+  const body = wgslBlock(
+    'resetClearArgs',
+    [],
+    `
+@compute @workgroup_size(1)
+fn vsmResetClearArgs(){
+${VSM_CLEAR_ARGS_EMPTY.map((word, k) => ` atomicStore(&vsmClearArgs[${k}],${word}u);`).join('\n')}
+}
+`,
+  )
+  return vsmPmKernel(layout, 'ResetClearArgs', specs, body)
 }
 
 /** Lists the pages to clear. Args (16, pages, 1): see header. */
@@ -577,27 +625,49 @@ fn vsmClearPages(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(workg
   return vsmPmKernel(layout, 'ClearPages', specs, body)
 }
 
+/** The pages the prefiltered distant shadow filters, listed as the pages to merge are: a page held and
+ *  seen, asked by a finer level's page (`VSM_PAGE_SECONDARY`), of a map that holds the prefiltered
+ *  shadow. Each goes in the separable passes' list (a thread group a row of it, `VSM_FILTER_ARGS_SEPARABLE`),
+ *  in the merge down's (`VSM_FILTER_ARGS_MERGE`) and in the border's count (`VSM_FILTER_ARGS_BORDER`). */
+const SELECT_FILTERABLE = {
+  specs: [
+    { resource: 'filterableArgs', binding: 4, access: 'atomic' },
+    { resource: 'filterablePages', binding: 5, access: 'read_write' },
+    { resource: 'projectionData', binding: 6 },
+  ] as VsmBindingSpec[],
+  deps: [VSM_PREFILTERED_WGSL, VSM_HANDLE_WGSL, VSM_PROJECTION_DATA_READ_WGSL],
+  text: /* wgsl */ `
+ if((flags&VSM_PAGE_WANTED)!=0u&&(flags&VSM_META_UNSEEN)==0u&&(flags&VSM_PAGE_SECONDARY)!=0u){
+  if(vsmMapPrefiltered(vsmProjectionOf(vsmHandleFromId(vsmPoolPageInfo[poolIndex].mapId)))){
+   let separableAt=atomicAdd(&vsmFilterableArgs[VSM_FILTER_ARGS_SEPARABLE*VSM_FILTER_ARGS_SET_WORDS+1u],1u);
+   vsmFilterablePagesStore(VSM_FILTER_LIST_SEPARABLE*vsm.poolPages+separableAt,poolIndex);
+   let mergeAt=atomicAdd(&vsmFilterableArgs[VSM_FILTER_ARGS_MERGE*VSM_FILTER_ARGS_SET_WORDS+1u],1u);
+   vsmFilterablePagesStore(VSM_FILTER_LIST_FILTERABLE*vsm.poolPages+mergeAt,poolIndex);
+   atomicAdd(&vsmFilterableArgs[VSM_FILTER_ARGS_BORDER*VSM_FILTER_ARGS_SET_WORDS],1u);
+  }
+ }`,
+}
+
 /**
  * Lists the pages whose static layer was drawn this frame, to merge it into the dynamic layer
  * (`clearArgs` and `pagesToClear` again, empty after the frame's clears): a page held by a map that
  * is seen, whose view is cached, with its static layer drawn or cleared (`VSM_META_STATIC_DRAWN`).
+ * With the prefiltered distant shadow it also lists the pages the filters process
+ * (`SELECT_FILTERABLE`).
  */
 function selectMerges(layout: VsmLayout): VsmPmKernel {
-  const specs: VsmBindingSpec[] = [
-    { resource: 'uniforms', binding: 0 },
-    { resource: 'poolPageInfo', binding: 1 },
-    { resource: 'clearArgs', binding: 2, access: 'atomic' },
-    { resource: 'pagesToClear', binding: 3, access: 'read_write' },
-  ]
+  const { specs, deps, text } = layout.prefilteredDistant
+    ? SELECT_FILTERABLE
+    : { specs: [], deps: [], text: '' }
   const body = wgslBlock(
     'selectMerges',
-    [VSM_CONSTANTS_WGSL],
+    [VSM_CONSTANTS_WGSL, ...deps],
     `
 @compute @workgroup_size(VSM_GROUP_WIDTH)
 fn vsmSelectMerges(@builtin(global_invocation_id) id:vec3u){
  let poolIndex=id.x;
  if(poolIndex>=vsm.poolPages){return;}
- let flags=vsmPoolPageInfo[poolIndex].flags;
+ let flags=vsmPoolPageInfo[poolIndex].flags;${text}
  if((flags&VSM_PAGE_WANTED)!=0u&&(flags&VSM_META_UNSEEN)==0u&&(flags&VSM_META_VIEW_UNCACHED)==0u&&(flags&VSM_META_STATIC_DRAWN)!=0u){
   let slot=atomicAdd(&vsmClearArgs[1],1u);
   vsmPagesToClearStore(slot,poolIndex);
@@ -605,7 +675,13 @@ fn vsmSelectMerges(@builtin(global_invocation_id) id:vec3u){
 }
 `,
   )
-  return vsmPmKernel(layout, 'SelectMerges', specs, body)
+  const plain: VsmBindingSpec[] = [
+    { resource: 'uniforms', binding: 0 },
+    { resource: 'poolPageInfo', binding: 1 },
+    { resource: 'clearArgs', binding: 2, access: 'atomic' },
+    { resource: 'pagesToClear', binding: 3, access: 'read_write' },
+  ]
+  return vsmPmKernel(layout, 'SelectMerges', [...plain, ...specs], body)
 }
 
 /** Merges the static layer of the listed pages into the dynamic one, one tile per group: the deeper
@@ -637,7 +713,7 @@ fn vsmMergePages(@builtin(local_invocation_id) tileThreadId:vec3u,@builtin(workg
   return vsmPmKernel(layout, 'MergePages', specs, body)
 }
 
-/** The status feedback → `res.feedback` = [VSM_FEEDBACK_POOL, free pages (i32), pressure bias (f32 bits), scene frame]. */
+/** The status feedback → `res.feedback` = [VSM_FEEDBACK_POOL, free pages (i32), pressure bias (f32 bits)]. */
 function poolFeedback(layout: VsmLayout): VsmPmKernel {
   const specs: VsmBindingSpec[] = [
     { resource: 'uniforms', binding: 0 },
@@ -655,8 +731,6 @@ fn vsmPoolFeedback(){
  vsmFeedbackStore(1u,bitcast<u32>(pmFreeCount()));
  // This frame's pressure bias.
  vsmFeedbackStore(2u,bitcast<u32>(vsm.pressureBias));
- // Frame tag of the message.
- vsmFeedbackStore(3u,vsm.frameStamp);
 }
 `,
   )
@@ -741,6 +815,7 @@ export function vsmPhysicalPageKernels(layout: VsmLayout, options: VsmPmKernelOp
     keepPages: keepPages(layout, options),
     ...poolSort(layout),
     grantPages: grantPages(layout, options),
+    resetClearArgs: resetClearArgs(layout),
     listClears: listClears(layout, options),
     clearPages: clearPages(layout),
     poolFeedback: poolFeedback(layout),

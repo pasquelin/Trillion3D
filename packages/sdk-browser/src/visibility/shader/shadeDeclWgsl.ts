@@ -19,6 +19,7 @@ import { SHADE_BINDINGS } from '../../gpu/bind/bindLayout.ts'
 import { MATERIAL_CLASS_WGSL } from './materialClass.ts'
 import { SHADE_OUTPUTS_WGSL } from './shadeOutputsWgsl.ts'
 import { SURFACE_MODEL_SHADE_WGSL } from '../../materials/surface/surfaceModel.ts'
+import { surfaceFlagsOfMarks } from '../../materials/surface/surfaceMarks.ts'
 import { PHYSICAL_RESOLVE_WGSL } from './physicalWgsl.ts'
 
 /**
@@ -52,6 +53,7 @@ export const shadeDeclWgsl = (request: WgslDecl = SHADE_REQUEST_WGSL) =>
       request,
       COTANGENT_FRAME_WGSL,
       SURFACE_MODEL_SHADE_WGSL,
+      surfaceFlagsOfMarks,
     ],
     `@group(0) @binding(${SHADE_BINDINGS.visView}) var vis:texture_2d<u32>;
 @group(0) @binding(${SHADE_BINDINGS.cache}) var<storage, read> indices:array<u32>;
@@ -69,6 +71,14 @@ fn emptySurface()->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0)
 fn diagnosticSurface(color:vec3f,request:u32)->SurfaceOut{return SurfaceOut(vec4f(color,0.0),vec4f(0.0),vec4f(0.0),3u,request);}
 /** A diagnostic pixel that draws nothing — the view's background shows —, its request kept. */
 fn diagnosticEmpty(request:u32)->SurfaceOut{return SurfaceOut(vec4f(0.0),vec4f(0.0),vec4f(0.0),0u,request);}
+/** A surface of a page whose object's marks are \`marks\` (\`PageInfo.marks\`): it carries that the object is a first-person
+ *  one, that it lets the contact shadow rays through, and its lighting channels, in its flags (\`surfaceFlagsOfMarks\`). An
+ *  empty surface (the flags zero: nothing to light, nothing drawn) carries none. */
+fn withPageMarks(out:SurfaceOut,marks:u32)->SurfaceOut{
+ var marked=out;
+ if(out.flags!=0u){marked.flags|=surfaceFlagsOfMarks(marks);}
+ return marked;
+}
 `,
   )
 

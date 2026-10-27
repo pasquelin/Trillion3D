@@ -62,7 +62,8 @@ export function acquireHeavyLock(path: string, step: string, pollMs = 500): () =
 export function heavyStep<T>(step: string, work: () => T, env = process.env): T {
   const path = !env.CI && !env[HELD] ? heavyLockPath() : undefined
   if (!path) return work()
-  setPriority(Math.max(LOW_PRIORITY, getPriority()))
+  // Only ever lowered: a process already niced further (macOS goes to 20, past what `setPriority` accepts) keeps its own.
+  if (getPriority() < LOW_PRIORITY) setPriority(LOW_PRIORITY)
   const release = acquireHeavyLock(path, step)
   env[HELD] = String(process.pid)
   const done = (): void => {

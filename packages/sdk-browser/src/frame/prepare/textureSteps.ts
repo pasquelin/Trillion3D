@@ -10,6 +10,7 @@ import {
   channelPoolOf,
   poolEncoding,
 } from '../../materials/texture/blockFormats.ts'
+import { gpuCapsOf } from '../../gpu/core/gpuCaps.ts'
 import type { TexturePool } from '../../geometry/residency/memoryBudgets.ts'
 import { catalogueReport, pageTablesReport } from './textureCensus.ts'
 import {
@@ -52,7 +53,7 @@ export function textureCatalogues(
   const { textureCompression } = rt.context
   const choice = chooseBlockFormat(gpuDevice.features, caches.previews, textureCompression)
   // 32-bit float textures are held as such where the device filters them, else in 16 bits, said once.
-  const filterable = gpuDevice.features.has('float32-filterable')
+  const filterable = gpuCapsOf(gpuDevice).float32Filterable
   const encoding = poolEncoding(
     choice.block,
     hdrBlocksOf(choice.block, caches.previews),

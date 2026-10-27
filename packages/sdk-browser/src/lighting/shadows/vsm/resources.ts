@@ -43,12 +43,15 @@ import type { VsmThrottleState } from './throttle.ts'
 import { madeBytesOf } from '../../../gpu/core/textureBytes.ts'
 import {
   bufferBytes,
+  filterableBufferSizes,
+  filterableHistoryBytes,
   frameBufferSizes,
   poolSliceBytes,
   setBufferSizes,
   SHARED_FRAME_MEMBERS,
   tableBufferSizes,
 } from './layoutBytes.ts'
+import { VSM_FILTER_ARGS_INIT, vsmHistoryHeader, vsmHistoryLayout } from './prefilteredConstants.ts'
 import { wgslBlock, type WgslDecl, wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 
 /** One frame's buffers; `pageTable`, `receiverCover` and `staleRects` are the same
@@ -62,6 +65,31 @@ export interface VsmFrameBuffers {
   staleRects: GPUBuffer
   mappedRects: GPUBuffer
   projectionData: GPUBuffer
+}
+
+/**
+ * The prefiltered distant shadow's buffers (`prefilteredConstants.ts` lays them), made with a set
+ * whose layout asks it (`VsmLayout.prefilteredDistant`): the byte pools a filtered page of
+ * `VSM_FILTERABLE_PAGE_BYTES` a pool page — `separate`, one the frame writes and the other its
+ * history, by the frame's parity (`vsmFrameParity`), `merged` the projection reads, which the
+ * separable passes use as their temporary pool —, the indirect `args` and their empty form
+ * `argsInit`, the `pages` lists, and the `history` of the previous frame.
+ */
+interface VsmFilterable {
+  separate: [GPUBuffer, GPUBuffer]
+  merged: GPUBuffer
+  args: GPUBuffer
+  argsInit: GPUBuffer
+  pages: GPUBuffer
+  /** The map ids, the previous frame's projection records, page table and receiver cover of the
+   *  suns' maps, laid by `vsmHistoryLayout`; the plan writes the ids (`uploadFilterableHistory`), the
+   *  frame end the rest (`keepFilterableHistory`). */
+  history: GPUBuffer
+  /** Whether the history holds the previous frame (`keepFilterableHistory`). */
+  historyValid: boolean
+  /** Whether the frame has a map that holds the prefiltered distant shadow, set by the plan: the
+   *  frame resets, filters and keeps the history only then. */
+  active: boolean
 }
 
 export interface VsmResources {
@@ -82,9 +110,9 @@ export interface VsmResources {
   occlusion?: VsmOcclusionResources
   /** Each frame set's kept tables, `kept[k]` with `frames[k]`, where the layout asks the occlusion. */
   kept?: [VsmKeptTables, VsmKeptTables]
-  /** The `VSM_COUNTERS` counters, then the overflow flags word (`VSM_OVERFLOW_FLAGS`). */
+  /** The `VSM_COUNTERS` counters, then the overflow flags word. */
   stats: GPUBuffer
-  /** The feedback status: [message id, free pages, pressure bias bits, scene frame]. */
+  /** The feedback status: [message id, free pages, pressure bias bits]. */
   feedback: GPUBuffer
   /** The per-page dispatcher ids, sorted by bin. */
   perPageIds: GPUBuffer
@@ -98,6 +126,8 @@ export interface VsmResources {
   /** Whether the cache data is available: prev buffers hold a frame extracted with caching on
    *  (`keepVsmFrame`). */
   prevFrameKept: boolean
+  /** The prefiltered distant shadow's buffers, where the layout asks them. */
+  filterable?: VsmFilterable
   /** Extraction point: the frame just rendered becomes `prev`. */
   swapFrames(): void
   /** The set's buffers and textures, to free: those its tables take (`growVsmTables`), and the
@@ -190,6 +220,46 @@ function createVsmTables(device: GPUDevice, layout: VsmLayout, made: VsmMade[]) 
     nextMaps: buffer('nextMaps', sizes.nextMaps),
     perPageIds: buffer('perPageIds', sizes.perPageIds),
     kept,
+    history: layout.prefilteredDistant ? filterableHistory(device, layout, buffer) : undefined,
+  }
+}
+
+/** The history of the prefiltered distant shadow of `layout`, its header written: the regions' words
+ *  and no blend, the history not valid yet. */
+function filterableHistory(
+  device: GPUDevice,
+  layout: VsmLayout,
+  buffer: (label: string, size: number) => GPUBuffer,
+) {
+  const history = buffer('filterableHistory', filterableHistoryBytes(layout))
+  device.queue.writeBuffer(history, 0, vsmHistoryHeader(vsmHistoryLayout(layout), 0))
+  return history
+}
+
+/** The prefiltered distant shadow's buffers of `layout`, around the `history` the tables made. */
+function createFilterable(
+  device: GPUDevice,
+  layout: VsmLayout,
+  history: GPUBuffer,
+  buffer: (label: string, size: number, usage?: GPUBufferUsageFlags) => GPUBuffer,
+): VsmFilterable {
+  const sizes = filterableBufferSizes(layout)
+  // The empty form of the arguments, copied over them each frame.
+  const copy = GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST
+  const argsInit = buffer('filterableArgsInit', sizes.argsInit, copy)
+  device.queue.writeBuffer(argsInit, 0, new Uint32Array(VSM_FILTER_ARGS_INIT))
+  return {
+    separate: [
+      buffer('filterableSeparate0', sizes.separate),
+      buffer('filterableSeparate1', sizes.separate),
+    ],
+    merged: buffer('filterableMerged', sizes.merged),
+    args: buffer('filterableArgs', sizes.args, GPUBufferUsage.INDIRECT | S()),
+    argsInit,
+    pages: buffer('filterablePages', sizes.pages),
+    history,
+    historyValid: false,
+    active: false,
   }
 }
 
@@ -199,7 +269,11 @@ export function createVsmResources(device: GPUDevice, options: VsmResourceOption
     rest: VsmMade[] = []
   const buffer = (label: string, size: number, usage?: GPUBufferUsageFlags) =>
     makeBuffer(device, rest, label, size, usage)
-  const { frames, nextMaps, perPageIds, kept } = createVsmTables(device, layout, tableBuffers)
+  const { frames, nextMaps, perPageIds, kept, history } = createVsmTables(
+    device,
+    layout,
+    tableBuffers,
+  )
 
   const pagePool = Array.from({ length: VSM_POOL_SLICES }, (_, s) =>
     buffer(`physicalPool${s}`, poolSliceBytes(layout)),
@@ -225,6 +299,7 @@ export function createVsmResources(device: GPUDevice, options: VsmResourceOption
     clearArgs: buffer('clearArgs', once.clearArgs, indirect),
     freePages: buffer('freePages', once.freePages),
     prevFrameKept: false,
+    filterable: history && createFilterable(device, layout, history, buffer),
     swapFrames() {
       const c = res.current
       res.current = res.prev
@@ -302,6 +377,11 @@ export function growVsmTables(
     res.nextMaps = tables.nextMaps
     res.perPageIds = tables.perPageIds
     res.kept = tables.kept
+    // The history is laid by the new tables: it holds no frame yet.
+    if (res.filterable && tables.history) {
+      res.filterable.history = tables.history
+      res.filterable.historyValid = false
+    }
     res.bytes = madeBytesOf(tableBuffers) + madeBytesOf(made.rest)
     return held
   }).commit()
@@ -332,6 +412,7 @@ type VsmBindingResource =
   | 'perPageIds'
   | 'pagesToClear'
   | 'clearArgs'
+  | FilterableResource
 
 export interface VsmBindingSpec {
   resource: VsmBindingResource
@@ -340,11 +421,26 @@ export interface VsmBindingSpec {
   /** The pool: the slices bound, from the first (`VSM_POOL_SLICES` unless given). */
   slices?: number
   access?: VsmAccess
-  /** Previous-frame buffer of a double-buffered resource. */
+  /** Previous-frame buffer of a double-buffered resource (`filterableSeparate`: the other of the two). */
   prev?: boolean
   /** WGSL variable name; default `vsm<Resource>` (`vsmPrev<Resource>` for prev), uniforms `vsm`/`vsmPrev`. */
   name?: string
 }
+
+/** The prefiltered distant shadow's buffer each binding resource names (`VsmFilterable`): the
+ *  separable pool the frame's parity writes, or with `prev` the other. */
+type FilterableBuffer = (res: VsmResources, f: VsmFilterable, prev?: boolean) => GPUBuffer
+const FILTERABLE_BUFFERS = {
+  filterableSeparate: (res, f, prev) => f.separate[vsmFrameParity(res) ^ (prev ? 1 : 0)],
+  filterableMerged: (_, f) => f.merged,
+  filterableArgs: (_, f) => f.args,
+  filterablePages: (_, f) => f.pages,
+  filterableHistory: (_, f) => f.history,
+} satisfies Record<string, FilterableBuffer>
+type FilterableResource = keyof typeof FILTERABLE_BUFFERS
+const FILTERABLE_RESOURCES = new Set<VsmBindingResource>(
+  Object.keys(FILTERABLE_BUFFERS) as FilterableResource[],
+)
 
 const FRAME_RESOURCES = new Set<VsmBindingResource>([
   'uniforms',
@@ -369,6 +465,7 @@ const U32_TABLES = new Set<VsmBindingResource>([
   'perPageIds',
   'pagesToClear',
   'clearArgs',
+  ...FILTERABLE_RESOURCES,
 ])
 
 const cap = (s: string) => s[0].toUpperCase() + s.slice(1)
@@ -460,6 +557,11 @@ export function vsmBindingsWgsl(
   )
 }
 
+/** Whether `device` takes a ninth storage buffer a shader stage: the page management's counters
+ *  (`vsmCountersOn`) and the software raster's projection data (`vsmViewsLaid`) are bound where it does. */
+export const vsmNinthStorage = (device: Pick<GPUDevice, 'limits'>) =>
+  device.limits.maxStorageBuffersPerShaderStage >= 9
+
 /** The layout's number a module's text reads: the pool's row shift. */
 const layoutKey = (layout: VsmLayout) => `${layout.poolRowShift}`
 
@@ -469,7 +571,7 @@ const layoutKey = (layout: VsmLayout) => `${layout.poolRowShift}`
  * granted pool's too. Such a reader binds the slice it reads in one binding, as its layout
  * declares it.
  */
-export const VSM_FORWARD_LAYOUT = vsmLayout({ fullMapCapacity: 0 })
+export const VSM_FORWARD_LAYOUT = vsmLayout({ fullMapCapacity: 0, coverMode: 'none' })
 
 /** The slices a pool spec binds. */
 const slicesOf = (spec: VsmBindingSpec) => spec.slices ?? VSM_POOL_SLICES
@@ -595,10 +697,23 @@ export function vsmBindGroupEntries(
     }
     const buffer = FRAME_RESOURCES.has(spec.resource)
       ? (spec.prev ? res.prev : res.current)[spec.resource as keyof VsmFrameBuffers]
-      : (res[spec.resource as keyof VsmResources] as GPUBuffer)
+      : FILTERABLE_RESOURCES.has(spec.resource)
+        ? filterableBuffer(res, spec as VsmBindingSpec & { resource: FilterableResource })
+        : (res[spec.resource as keyof VsmResources] as GPUBuffer)
     out.push({ binding: spec.binding, resource: { buffer } })
   }
   return out
+}
+
+/** The prefiltered distant shadow's buffer a spec names. */
+function filterableBuffer(
+  res: VsmResources,
+  spec: VsmBindingSpec & { resource: FilterableResource },
+) {
+  if (!res.filterable)
+    throw new Error(`VSM: ${spec.resource} bound by a set without the prefiltered distant shadow`)
+  const bufferOf: FilterableBuffer = FILTERABLE_BUFFERS[spec.resource]
+  return bufferOf(res, res.filterable, spec.prev)
 }
 
 /** What a family builds over the tables of a frame set (`vsmPerFrameSet`): the identity of what

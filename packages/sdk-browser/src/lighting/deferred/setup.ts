@@ -18,7 +18,9 @@ import { DFSH_NO_MASK_WORDS } from '../distanceField/shadow/layout.ts'
 import { DFAO_READ_WORDS } from '../distanceField/ao/readWgsl.ts'
 import { createNoFieldRead } from '../distanceField/view.ts'
 import { createLightFunctionStandIns } from '../lightFunction/standIns.ts'
+import { postSamplers } from '../../gpu/core/postSamplers.ts'
 import { BLUE_NOISE_FORMAT } from '../../gpu/noise/blueNoiseTextures.ts'
+import { SURFACE_WORDS_FORMAT } from '../../materials/surface/surfaceOutputs.ts'
 
 /**
  * Contract substitute resources: an empty tile list, the sun's empty list, a probe
@@ -122,8 +124,36 @@ function createImageStandIns(device: GPUDevice) {
   const hazeVolume = standInTexture(device, 'Trillion3D empty haze volume', 'rgba16float', {
     dimension: '3d',
   })
+  // One texel of zero: the flags a translucent surface's contact shadow ray reads where the image drew no surfaces
+  // (`BLEND_BINDINGS.surfaceFlags`), those of a surface that casts.
+  const surfaceFlags = standInTexture(
+    device,
+    'Trillion3D empty surface flags',
+    SURFACE_WORDS_FORMAT,
+    { storage: true },
+  )
+  // One texel of zero: the light profiles' atlas where the scene names none, bound by the twin programs that hold the profile code
+  // (`twinOf`): a lane of 0 never reads it.
+  const lightProfile = standInTexture(device, 'Trillion3D empty light profile', 'r16float')
+  // One texel of zero on each of the six faces, and a colour of zero: the ambient cubemap where the image sets none, bound by
+  // the twin programs that hold the cube code (`twinOf`): it lights nothing.
+  const ambientCube = standInTexture(device, 'Trillion3D empty ambient cubemap', 'rgba16float', {
+    layers: 6,
+  })
+  const ambientCubeColour = standInBuffer(
+    device,
+    'Trillion3D empty ambient cubemap colour',
+    16,
+    GPUBufferUsage.UNIFORM,
+  )
   return {
     views: {
+      ambientCubemap: {
+        view: ambientCube.createView({ dimension: 'cube' }),
+        colour: ambientCubeColour,
+      },
+      lightProfile: { atlas: arrayView(lightProfile), sampler: postSamplers(device).clamped },
+      surfaceFlags: surfaceFlags.createView(),
       reflection: reflection.createView(),
       screenIndirect: screenIndirect.createView(),
       ambientOcclusion: ambientOcclusion.createView(),
@@ -132,6 +162,10 @@ function createImageStandIns(device: GPUDevice) {
       hazeVolume: hazeVolume.createView(),
     },
     destroy() {
+      ambientCube.destroy()
+      ambientCubeColour.destroy()
+      lightProfile.destroy()
+      surfaceFlags.destroy()
       reflection.destroy()
       screenIndirect.destroy()
       ambientOcclusion.destroy()

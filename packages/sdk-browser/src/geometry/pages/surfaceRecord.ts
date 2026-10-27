@@ -96,6 +96,7 @@ const renderSettings = (d: SurfaceDeclaration) => ({
   fog: d.fog !== false,
   cloudFog: d.fog !== false && d.cloudFog === true,
   computeFogPerPixel: d.computeFogPerPixel === true,
+  contactShadows: d.contactShadows === true,
   translucentLocalLightShadow: d.translucentLocalLightShadow === true,
   translucentLocalLightShadowQuality: d.translucentLocalLightShadowQuality ?? 0,
   translucentDirectionalLightShadowQuality: d.translucentDirectionalLightShadowQuality ?? 0,

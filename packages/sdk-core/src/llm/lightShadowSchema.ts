@@ -4,7 +4,7 @@ import { ruleProperties } from './settingProperties.ts'
 /** What each shadow setting of a directional light means (`../contracts/lightShadowOptions.ts`). */
 const LIGHT_SHADOW_MEANINGS: Readonly<Record<LightShadowField, string>> = {
   shadowDistance:
-    "Directional only: how far from the eye, in meters, its shadows are asked to reach (the far-shadow test's edge lies a little farther). Past the edge a caster that does not set castFarShadow is left out: by default only the merged far-field shells of the world's coarser levels, every caster when the view's farShadowCullsAllMeshes is true. 0 leaves none out.",
+    "Directional only: how far from the eye, in meters, its shadows are asked to reach (the far-shadow test's edge lies a little farther). It lays the light's shadow levels and the edge where its distance-field cascade begins; the shadow maps take every cluster caster at any distance, the far-shadow test reaching only subjects that are no cluster geometry.",
   shadowCascades:
     "Directional only: how many near levels its shadows are cut into, at most the shadowNearLevels of the view (the quality levels write fewer below the top and the most at 'cinematic'). They shape the edge of the far-shadow test.",
   shadowCascadeExponent:

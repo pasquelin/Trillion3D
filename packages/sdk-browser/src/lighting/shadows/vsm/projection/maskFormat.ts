@@ -25,3 +25,11 @@ export const onePassMaskFormat = (lights: number): 'r32uint' | 'rg32uint' | 'rgb
 
 /** The suns' mask: a layer a sun, the share of its shadow at each pixel. */
 export const VSM_SUN_MASK_FORMAT: GPUTextureFormat = 'r32float'
+
+/** The per-light path's screen mask (`perLightPass.ts`), a layer a light, each the shadow of its light at every pixel
+ *  the light reaches: the share's square root, in every channel (the lighting reads the blue one), eight bits a channel,
+ *  written by the light's projection itself. */
+export const PER_LIGHT_MASK_FORMAT: GPUTextureFormat = 'rgba8unorm'
+/** The layers of that mask: the lights whose mask a frame keeps, so that a still frame traces none again. A frame with more
+ *  lights traces each in turn into layer `light % PER_LIGHT_MASK_LAYERS`, drawn at once. */
+export const PER_LIGHT_MASK_LAYERS = 4

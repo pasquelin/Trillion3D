@@ -2,6 +2,7 @@ import { preparedComputeStage } from '../../../gpu/core/computeStages.ts'
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { preparedPipeline } from '../../deferred/fullscreen.ts'
 import { DFSH_STAND_IN_FORMAT } from './layout.ts'
+import type { DfshSettings } from './params.ts'
 import { DFSH_LAYOUTS, type DfshProgram } from './layouts.ts'
 import { DFSH_SHADERS } from './shaders.ts'
 
@@ -12,6 +13,7 @@ const COMPUTE = {
   cull: ['cull', 'dfshCull'],
   offsets: ['offsets', 'dfshOffsets'],
   trace: ['trace', 'dfshTrace'],
+  traceGather: ['gather', 'dfshTraceGather'],
   final: ['final', 'dfshFinalPass'],
 } as const satisfies Partial<Record<DfshProgram, readonly [keyof typeof DFSH_SHADERS, string]>>
 
@@ -74,13 +76,21 @@ export const dfshPrograms = oncePerDevice((device: GPUDevice) => {
 /** The sun's shadow pipelines of a device (`dfshPrograms`). */
 export type DfshPrograms = ReturnType<typeof dfshPrograms>
 
-/** Asks every pipeline off the frame, and whether all are compiled: the frames wait for them
- *  (`PreparedPipeline.ask`), so that none is compiled on the frame that binds it. */
-export function dfshProgramsReady(programs: DfshPrograms) {
+/** Asks every pipeline the image's settings use off the frame, and whether all are compiled: the
+ *  frames wait for them (`PreparedPipeline.ask`), so that none is compiled on the frame that binds
+ *  it. The scatter's draws and the start offsets are asked only where the meshes are scattered (the
+ *  count and the offsets, where the lists are compacted), the gather trace only where they are not. */
+export function dfshProgramsReady(
+  programs: DfshPrograms,
+  settings: Pick<DfshSettings, 'scatterTiles' | 'compactTiles'>,
+) {
+  const { cull, offsets, trace, traceGather, final } = programs.compute
+  const scattered = [trace, programs.writeTiles]
+  if (settings.compactTiles) scattered.push(offsets, programs.countTiles)
   const wanted: { ask(): { readonly ready: boolean } }[] = [
-    ...Object.values(programs.compute),
-    programs.countTiles,
-    programs.writeTiles,
+    cull,
+    final,
+    ...(settings.scatterTiles ? scattered : [traceGather]),
   ]
   return wanted.map((pipeline) => pipeline.ask()).every((pipeline) => pipeline.ready)
 }

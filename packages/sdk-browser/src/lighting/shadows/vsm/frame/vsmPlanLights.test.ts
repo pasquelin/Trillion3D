@@ -9,7 +9,7 @@ import { frameLights } from './vsmPlan.ts'
 
 const view = new Float64Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
 const projection = perspectiveProjection(new Float64Array(16), 90, 1, 0.1, 1)
-const cam = { view, projection, eye: [0, 0, 0], near: 0.1 }
+const cam = { view, projection, eye: [0, 0, 0], near: 0.1, viewTarget: new Float64Array(3) }
 
 /** The properties read of each light of a store, by its id (its id itself aside, the store's key). */
 const reads = new Map<string, string[]>()

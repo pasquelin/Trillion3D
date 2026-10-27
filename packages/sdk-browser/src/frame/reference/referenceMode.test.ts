@@ -2,9 +2,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { referenceOptions } from './referenceMode.ts'
 import { referenceTilePlan, referenceTilesCapture } from './referenceTiles.ts'
-import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { resolveSupersampled } from './referenceTilePlacement.ts'
-import { REFERENCE_APPROXIMATIONS, REFERENCE_BOUNCE_PROBES } from './referenceApproximations.ts'
+import { REFERENCE_APPROXIMATIONS } from './referenceApproximations.ts'
 
 const BOSS = { manifestUrl: 'm.json', width: 1728, height: 1117, pixelRatio: 2 }
 /** A session's captureView: a blank image of the size asked. */
@@ -19,13 +18,15 @@ test('reference mode switches off every approximation it names, whatever the pag
   const asked = { ...BOSS, reference: true, renderScale: 0.5, temporalAntialiasing: true }
   const { options, reference } = referenceOptions(asked)
   assert.deepEqual(reference?.approximations, REFERENCE_APPROXIMATIONS)
+  // Nothing sets a probe budget to switch off: the list names the four approximations that remain.
+  assert.deepEqual(
+    [...REFERENCE_APPROXIMATIONS],
+    ['renderScale', 'temporalReuse', 'shadowResolution', 'supersampling'],
+  )
   // renderScale: the display itself.
   assert.equal(options.renderScale, 1)
   // temporalReuse: no jitter, no history.
   assert.equal(options.temporalAntialiasing, false)
-  // probeBudget: past the default count, so the probes run at their ceiling, the queue.
-  assert.equal(options.bounceProbesPerFrame, REFERENCE_BOUNCE_PROBES)
-  assert.ok(REFERENCE_BOUNCE_PROBES > BOUNCE_SETTINGS.probesPerFrame)
   // supersampling: tiles, not a canvas the portable side caps at 2 per axis.
   assert.ok(reference?.factor && reference.factor > 2)
   // The canvas keeps the display's pixels: the tiles are drawn aside.

@@ -29,7 +29,6 @@ import {
   shadingUnlitOfModel,
 } from '../../materials/surface/shadingModelCode.ts'
 import {
-  FIRST_PERSON_SURFACE_FLAG,
   FOG_FREE_SURFACE_FLAG,
   HOLDOUT_SURFACE_FLAG,
   NORMAL_VIEW_COLOR_WGSL,
@@ -73,13 +72,17 @@ type ShadeOptions = { voxel: boolean; displaced: boolean; graph?: ShadeGraph }
 /** The surface resolve's head: the triangle, the pixel's weights and its first texture coordinate. */
 const SURFACE_HEAD = (
   o: ShadeOptions,
-) => `/** The surfaces of a pixel of the class's bin (\`binnedPixel\`), its storage values in the variables of
- *  its entry (\`shadeEntryWgsl.ts\`); its surface's factors and maps its record's (\`materialAt\`). */
+) => `/** The surface of a pixel of the class's bin (\`binnedPixel\`), its storage values in the variables of
+ *  its entry (\`shadeEntryWgsl.ts\`), marked with its page's marks (\`withPageMarks\`); the surface itself
+ *  (\`shadePageSurface\`) has its factors and maps from its record (\`materialAt\`). */
 fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
  let pageIndex=visPageIndex(id);
  shadeSelectRow(pageIndex);
- let tri=visTriangle(id);
  let page=pages[pageIndex];
+ return withPageMarks(shadePageSurface(page,pos,id),page.marks);
+}
+fn shadePageSurface(page:PageInfo,pos:vec4f,id:u32)->SurfaceOut{
+ let tri=visTriangle(id);
  if(tri*3u+2u>=page.indexCount){return emptySurface();}
  if(SHADE_STAGE==2u){let k=pageTriangle(page,pageHeader(page),tri);shadeProbe=k.x^k.y^k.z;return emptySurface();}
  let m=materialAt(page.material);
@@ -233,7 +236,7 @@ const SURFACE_TAIL = (
  var flag=select(${UNLIT_FLAG}u,modelFlag(page.flags),(page.flags&${FLAG_LIT}u)!=0u);
  if((page.flags&${FLAG_FOG_FREE}u)!=0u){flag|=${FOG_FREE_SURFACE_FLAG}u;}
  if((page.flags&${FLAG_DISTANCE_FIELD}u)!=0u){flag|=${DISTANCE_FIELD_REPRESENTATION_FLAG}u;}
-${o.graph?.model ?? ''}${materialModelStatements(!!o.graph?.model)} if(page.firstPerson!=0u){flag|=${FIRST_PERSON_SURFACE_FLAG}u;}
+${o.graph?.model ?? ''}${materialModelStatements(!!o.graph?.model)}
 ${o.graph?.specular ?? ''} if(DOUBLE_SIDED&&mmModel==0u&&(page.flags&${FLAG_LIT}u)!=0u){
   var thin=clamp(m.subsurface,vec3f(0.0),vec3f(1.0));
   if(HAS_UV&&m.subsurfaceMap!=0u){let c=mapCoord(m,${SUBSURFACE_MAP_BIT}u);thin*=colorSample(m.subsurfaceMap,c.uv,c.ddx,c.ddy,HAS_SAMPLING).rgb;}

@@ -7,14 +7,17 @@ import { channelsOf } from '../materials/table/materialRecord.ts'
 import { altSetOf } from '../materials/graph/state.ts'
 import { isProgram, programOf } from '../materials/graph/surfaceProgram.ts'
 import { SURFACE_MAP_FIELDS } from '../visibility/materialType.ts'
-import { RESPONSIVE_MASK, RESPONSIVE_SHIFT } from '../visibility/types.ts'
+import { RESPONSIVE_BITS, RESPONSIVE_MASK, RESPONSIVE_SHIFT } from '../visibility/types.ts'
 import type { SessionDeformation } from '../deformation/session.ts'
 import { fieldLayout } from '../gpu/core/fieldLayout.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { rowCell, rowDrawnAs } from '../geometry/partition/rowCells.ts'
 import { drawnAsHlod, HLOD_INDEX } from '../diagnostic/colors.ts'
 import { objectOffsetRow, writeOffsetWords } from '../geometry/rows/page/offsetRow.ts'
-import { offsetSwitchesOf } from '../../../sdk-core/src/world/object/offsetSwitches.ts'
+import {
+  PLACEMENT_HOLDOUT,
+  placementStoredChannelsOf,
+} from '../geometry/dag/info/placementInfoLayout.ts'
 import { readItemBox } from './worlds.ts'
 import { translucencyPassCode } from './translucencyPasses.ts'
 import { marksResponsive } from './responsive.ts'
@@ -73,13 +76,17 @@ type BlendAtlasTables = MaterialLayers & {
  *  (`rowFlags`), the bits above them — model, fog, sprite, line — being its record's to read; the
  *  vertex stage keeps the same below the view's (`vertexWgsl.ts`). */
 export const ITEM_FLAG_BITS = 0xffff
-/** Above them, read by the vertex stage alone, the two bits of its surface's responsiveness code
- *  (`RESPONSIVE_SHIFT` of the row's flags), here from bit 16: the stage hands them to the
- *  fragments (`TRI_RESPONSIVE_SHIFT`), never into the flags it ORs the view's with. */
-export const ITEM_RESPONSIVE_SHIFT = 16
-/** Above them, read by the vertex stage alone, bit 18: the item's object is held out of the image's alpha
+/** Above them, read by the vertex stage alone, the bits of its surface's responsiveness code
+ *  (`RESPONSIVE_SHIFT` of the row's flags): the stage hands them to the fragments
+ *  (`TRI_RESPONSIVE_SHIFT`), never into the flags it ORs the view's with. */
+export const ITEM_RESPONSIVE_SHIFT = Math.log2(ITEM_FLAG_BITS + 1)
+/** Above them, read by the vertex stage alone, one bit: the item's object is held out of the image's alpha
  *  (`Object3D.holdout`), which its layers' holdout reads (`TRI_HOLDOUT_SHIFT`). */
-export const ITEM_HOLDOUT = 1 << 18
+export const ITEM_HOLDOUT = 1 << (ITEM_RESPONSIVE_SHIFT + RESPONSIVE_BITS)
+/** Above it, read by the vertex stage alone, the item's object's lighting channels, three bits, stored
+ *  (`storedChannelsOf`, `Object3D.lightingChannels`), which its layers' lights are chosen by
+ *  (`TRI_LIGHTING_CHANNELS_SHIFT`). */
+export const ITEM_CHANNELS_SHIFT = ITEM_RESPONSIVE_SHIFT + RESPONSIVE_BITS + 1
 /** Above them, read by the vertex stage alone, from bit 28: the HLOD index its placement draws as
  *  (`drawnAsHlod`, `none` itself) — its cell's HLOD 0 actor (`RowCell.proxy`), an instanced actor
  *  for a row of it (`RowCell.actor`) —, which the HLOD view colours (`diagnosticDrawnAs`), as a
@@ -103,9 +110,10 @@ const floatSecondUv = (
 
 /** What an item's record says of the programs and targets it needs (`writeBlendItemRecord`): the
  *  lobed programs — its surface carries a lobe, or a map reading a UV set past the first —, and the
- *  responsive target — its surface's responsiveness code is not 0 (`blendResponsiveTargets`) —, and from
+ *  responsive target — its surface's responsiveness code is not 0 (`blendResponsiveTargets`) —, the lit
+ *  programs' test of the lighting channels — its object's are not the default's —, and from
  *  `passShift` its pass of the image (`translucencyPassCode`). */
-export const ITEM_NEEDS = { lobed: 1, responsive: 2, passShift: 2 } as const
+export const ITEM_NEEDS = { lobed: 1, responsive: 2, channelled: 4, passShift: 3 } as const
 
 /** Whether the graph a surface wears reads a texture set past the first. */
 const readsExtraUv = (mat: BlendGpuItem['surface']) => {
@@ -117,17 +125,15 @@ const readsExtraUv = (mat: BlendGpuItem['surface']) => {
 const itemNode = (item: BlendGpuItem) =>
   item.drawSource?.node ?? item.placement?.rows.sources?.[item.placement.index] ?? undefined
 
-/** Whether the item's object is held out of the image's alpha (`Object3D.holdout`). */
-const itemHeldOut = (item: BlendGpuItem) => offsetSwitchesOf(itemNode(item) ?? {}).holdout
-
 const itemBox = new Float64Array(6)
 /** The centre and the surface's facts of the item being written, refilled by each: a scene's records
  *  allocate neither. */
 const itemCentre: [number, number, number] = [0, 0, 0]
 const itemFacts = { most: 0, always: false }
 
-/** The offset words of an item's object: its node's switches, the centre of its local box and what its
- *  surface asks of the offset; the row's centre and facts are scratch, good until the next item's. */
+/** The row of an item's object: its node's switches (read once, `objectBits` of them with the offset words'), the centre
+ *  of its local box and what its surface asks of the offset; the row's centre and facts are scratch, good until the next
+ *  item's. */
 function itemOffsetRow(item: BlendGpuItem) {
   const mat = item.surface,
     node = itemNode(item)
@@ -163,17 +169,19 @@ export function writeBlendItemRecord(
   const { flags } = rowFlags(seen.row, item.geometry, tables.textures)
   // The code its layers write into the responsive target (`marksResponsive`).
   const responsiveCode = marksResponsive(mat) ? (flags >>> RESPONSIVE_SHIFT) & RESPONSIVE_MASK : 0
+  const offset = itemOffsetRow(item)
+  const channels = placementStoredChannelsOf(offset.bits)
   ints[base + ITEM.flags] =
     item.flags |
     (flags & ITEM_FLAG_BITS) |
     (responsiveCode << ITEM_RESPONSIVE_SHIFT) |
-    (itemHeldOut(item) ? ITEM_HOLDOUT : 0) |
+    (offset.bits & PLACEMENT_HOLDOUT ? ITEM_HOLDOUT : 0) |
+    (channels << ITEM_CHANNELS_SHIFT) |
     itemHlodBits(item)
   // The deformation record of its placement (`PageInfo.deform`), in the float pool that holds it.
   ints[base + ITEM.deform] = tables.deformation?.wordOfWorld(item.matrix) ?? 0
   // Its surface's record (`../materials/table/materialTable.ts`), the opaque rows' table.
   ints[base + ITEM.material] = materialWord(seen.rank, floatSecondUv(item, tables.geometryBlocks))
-  const offset = itemOffsetRow(item)
   writeOffsetWords(ints, floats, ITEM, base, seen.row, offset)
   for (let a = 0; a < 3; a++) floats[base + ITEM.wpoCentre + a] = offset.centre[a]!
   const pass = translucencyPassCode(mat.translucencyPass)
@@ -181,6 +189,7 @@ export function writeBlendItemRecord(
   return (
     (lobed ? ITEM_NEEDS.lobed : 0) |
     (responsiveCode ? ITEM_NEEDS.responsive : 0) |
+    (channels ? ITEM_NEEDS.channelled : 0) |
     (pass << ITEM_NEEDS.passShift)
   )
 }

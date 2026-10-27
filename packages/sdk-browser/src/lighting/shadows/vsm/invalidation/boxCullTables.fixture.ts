@@ -16,11 +16,11 @@ import { TAU } from '../../../../../../math/src/constants.ts'
 import { crossVector3 } from '../../../../../../math/src/vector/vector.ts'
 
 export type Draw = ReturnType<typeof inputs>
-const LAYOUT = vsmLayout({ fullMapCapacity: 63 })
+const LAYOUT = vsmLayout({ coverMode: 'suns', fullMapCapacity: 63 })
 /** The two shipped modules the shared box cull is compiled into: the invalidation's without the pyramid
  *  it tests pages against, whose golden holds the pages the boxes touch. */
 export const INVALIDATION = castInvalidationWgsl(
-    vsmLayout({ fullMapCapacity: 63, occlusion: false }),
+    vsmLayout({ coverMode: 'suns', fullMapCapacity: 63, occlusion: false }),
   ),
   RENDER = vsmRenderCullWgsl(LAYOUT)
 type Fn = (...args: unknown[]) => unknown
@@ -42,10 +42,15 @@ export function tables(seed: number, d: Draw) {
     return d.bool() ? [0, 0, last, last] : [x, y, x + d.int(-1, 6), y + d.int(-1, 6)]
   }
   const radius = () => (d.int(0, 7) ? Math.fround(2 ** (d.random() * 16 - 2)) : d.f())
-  const thresholds = ['Static', 'Dynamic', 'DynamicCluster'].map((k) => [k, radius()])
+  // The fine-caster thresholds `vsmIsFineCaster` reads (`vsm.detailPixels*`), the casters asked in the
+  // coarse pages (`vsm.includeInCoarsePages`).
+  const thresholds = ['Static', 'DynamicClusters'].map((k) => [k, radius()])
   return {
     writes,
-    vsm: Object.fromEntries(thresholds.map(([k, v]) => [`coarsePagePixelThreshold${k}`, v])),
+    vsm: {
+      ...Object.fromEntries(thresholds.map(([k, v]) => [`detailPixels${k}`, v])),
+      includeInCoarsePages: 1,
+    },
     bounds: Array.from({ length: d.int(0, 3) * 8 }, bound),
     vsmTableEntryOf: (h: { id: number }, level: number, page: number[]) =>
       offset(h.id, level, page),

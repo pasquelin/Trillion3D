@@ -49,9 +49,18 @@ export const FOG_FREE_SURFACE_FLAG = 128
  *  (`surfaceEmission.ts`); 32 is the thin subsurface's (`subsurface.ts`). */
 export const EMISSIVE_AO_SURFACE_FLAG = 16
 /** The surface flags' twenty-fifth bit marks a first-person primitive: the pixels of an object the camera's
- *  owner holds (`PLACEMENT_FIRST_PERSON`, `PageInfo.firstPerson`), which the lighting treats apart — the
+ *  owner holds (`PLACEMENT_FIRST_PERSON`, `PageInfo.marks`), which the lighting treats apart — the
  *  shadows read it. Written by the opaque resolve beside the model, read through `isFirstPerson`. */
 export const FIRST_PERSON_SURFACE_FLAG = 1 << 24
+/** The surface flags' seventeenth bit: the pixel's object lets the contact shadow rays through (`Object3D.castContactShadow`
+ *  false). Set by the resolve (`withPageMarks`), above the specular's byte; a flags word no pass wrote it in casts. */
+export const NO_CONTACT_SHADOW_SURFACE_FLAG = 1 << 16
+/** Whether a surface of flags `flags` lets the contact shadow rays through (`NO_CONTACT_SHADOW_SURFACE_FLAG`). */
+export const noContactShadow = wgslFn(
+  'noContactShadow',
+  [],
+  `fn noContactShadow(flags:u32)->bool{return (flags&${NO_CONTACT_SHADOW_SURFACE_FLAG}u)!=0u;}`,
+)
 /** The surface flags' thirtieth bit marks a pixel of a held-out primitive (`PLACEMENT_HOLDOUT`,
  *  `FLAG_HOLDOUT`) the resolve drew black, lit by nothing, where the alpha holdout is in effect: the colour pass gives
  *  it an alpha of 1, a hole in the image's. Beside the unlit model, above the pixel model's four bits. */

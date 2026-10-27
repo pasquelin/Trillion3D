@@ -1,6 +1,6 @@
 // The particle step's pipelines (`webgpuParticles.ts`): the layouts of its groups and its three
 // entries compiled.
-import { hasSubgroups } from '../../gpu/core/subgroups.ts'
+import { gpuCapsOf, nativeOrPolyfill } from '../../gpu/core/gpuCaps.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
 import { buildComputeStage } from '../../gpu/core/computeStages.ts'
 import { computeBufferEntries } from '../../gpu/core/computeBindings.ts'
@@ -30,10 +30,11 @@ export async function compileStep(
   layout: GPUBindGroupLayout,
   boundLayout: GPUBindGroupLayout,
 ): Promise<StepPipelines> {
+  const { native, tag } = nativeOrPolyfill(gpuCapsOf(device), 'subgroups')
   const module = await createCheckedShaderModule(
     device,
-    particlesWgsl(hasSubgroups(device)),
-    'PARTICLES',
+    particlesWgsl(native),
+    `PARTICLES (${tag})`,
   )
   const build = (entryPoint: string, bindGroupLayout: GPUBindGroupLayout) =>
     buildComputeStage(
@@ -42,7 +43,7 @@ export async function compileStep(
       module,
       entryPoint,
       undefined,
-      `${PARTICLES_PASS} ${entryPoint}`,
+      `${PARTICLES_PASS} ${entryPoint} (${tag})`,
     )
   const [main, emit, bound] = await Promise.all([
     build('main', layout),

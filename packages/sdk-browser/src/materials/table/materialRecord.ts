@@ -23,12 +23,12 @@ import {
 } from '../surface/surfaceModelWord.ts'
 import { translucencyLightingCode, LIGHTLESS_MODEL } from '../surface/translucencyLighting.ts'
 import { shadingModelCode } from '../surface/shadingModelCode.ts'
-import { blendLightSource } from '../surface/blendLightSource.ts'
+import { asksContact, blendLightSource } from '../surface/blendLightSource.ts'
 import { frameNormalScaleY } from '../../visibility/frameNormal.ts'
 import { writeSpriteWords } from '../../visibility/shader/spriteWgsl.ts'
 import { volumeAttenuation } from '../../blend/transparent/volumeLaw.ts'
 import { layerSlot, type MaterialLayers } from '../../geometry/rows/page/pageRowMaterial.ts'
-import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
+import { MATERIAL_FLAG, MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from './materialLayout.ts'
 
 /** The surface a record is written from: its shaded fields, its opacity, whether it is blended,
  *  and its version where it has one — none of its release, which a record never reads. */
@@ -77,7 +77,9 @@ function factors(mat: MaterialSurface, worn: boolean, clip: number | undefined) 
   scratch.set(worn ? ONE : mat.emissive, F.emissive)
   scratch[F.lineWidth] = mat.lineWidth ?? 0
   scratch[F.irisDistance] = mat.irisDistance ?? 0
-  scratchInts[F.fogPerPixel] = mat.computeFogPerPixel === true || mat.water === true ? 1 : 0
+  scratchInts[F.flags] =
+    (mat.computeFogPerPixel === true || mat.water === true ? MATERIAL_FLAG.fogPerPixel : 0) |
+    (asksContact(mat) ? MATERIAL_FLAG.contactShadows : 0)
   for (let i = 0; i < 3; i++) scratch[F.subsurface + i] = worn ? 0 : (mat.subsurfaceColor?.[i] ?? 0)
   scratchInts[F.model] = modelWord(mat)
 }
@@ -102,7 +104,7 @@ const modelWord = (mat: MaterialSurface) =>
 const laneModelOf = (mat: MaterialSurface) => {
   const model = mat.model ?? 0
   return model === 0 &&
-    blendLightSource(mat.translucencyLighting, 'normal', mat.shadingModel, model, { lit: true }) ===
+    blendLightSource(mat.translucencyLighting, 'normal', mat.shadingModel, model, true, false) ===
       'none'
     ? LIGHTLESS_MODEL
     : model

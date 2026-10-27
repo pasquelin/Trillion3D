@@ -24,7 +24,7 @@ export const packSlotColour = (
  }`
 
 /** The colour atlas read at the pass's own footprint: no level offset, as the shadow passes read it. */
-const COLOR_SAMPLE = colorSampleWgsl(SHADOW_TILE_POOL_WGSL)
+export const COLOR_SAMPLE = colorSampleWgsl(SHADOW_TILE_POOL_WGSL)
 
 /**
  * The program that draws one slot of the atlas: the colour the material gives (`given.colour`, its

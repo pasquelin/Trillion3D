@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import {
   crossVector3,
   dotVector3,
+  isZeroVector3,
   normalizeVector3,
   transformAffinePoint,
   transformHomogeneousPoint,
@@ -13,6 +14,14 @@ const close = (a: number, b: number, tol = 1e-9) => Math.abs(a - b) <= tol
 test('dotVector3: dot product of the first three components only', () => {
   assert.equal(dotVector3([1, 2, 3], [4, 5, 6]), 32)
   assert.equal(dotVector3([1, 0, 0], [0, 1, 0]), 0)
+})
+
+test('isZeroVector3: three zeros at the offset asked, a −0 is zero, a NaN or any other number is not', () => {
+  assert.ok(isZeroVector3([0, 0, 0]))
+  assert.ok(isZeroVector3([1, -0, 0, 0, 2], 1))
+  assert.ok(!isZeroVector3([0, 0, 1e-300]))
+  assert.ok(!isZeroVector3([0, NaN, 0]))
+  assert.ok(!isZeroVector3([0, 0, 0, 5], 1))
 })
 
 test('crossVector3: x × y = z, right-hand rule', () => {

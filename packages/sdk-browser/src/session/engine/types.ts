@@ -2,6 +2,7 @@ import type { SettingOptions } from '../settingOptions.ts'
 import type { AdmitGpuMemory } from '../memory/activeMemory.ts'
 import type { TemporalAntialiasingLevel } from '../../../../sdk-core/src/contracts/compilerAbi.ts'
 import type { ViewCamera } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type {
   EngineCapabilities,
   ViewFrameMetrics,
@@ -10,6 +11,8 @@ import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometr
 import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
 import type { MeshCards } from '../../../../sdk-core/src/lighting/meshCardsFile.ts'
+import type { HairStrandsReader } from '../../hair/strandsLoad.ts'
+import type { LightProfileReader } from '../../lighting/lightProfile/profileFile.ts'
 import type { RayTracing } from '../../../../sdk-core/src/lighting/rayTracingFile.ts'
 import type { VolumetricLightmapData } from '../../../../sdk-core/src/lighting/volumetricLightmapFile.ts'
 import type { ReadLightmap } from '../../lighting/volumetricLightmap/fileLoad.ts'
@@ -85,6 +88,10 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   /** The host sized the canvas the engine presents into, which blanks it: the next frame presents
    *  its image even when held. */
   canvasResized(): void
+  /** The camera the last image was drawn from — an orthographic view's origin and range as its
+   *  planes put them (`../../camera/world.ts`) —, rewritten in place by the next image; `null`
+   *  before the first. */
+  drawnCamera(): EngineCamera | null
   metrics(): EngineMetrics & EngineDrawCounters
   /** Per-step profile of the sliding window: CPU and GPU durations kept separate; `enabled:
    *  false` when the host did not ask. */
@@ -207,6 +214,9 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  `setReflections`, read at each image by the trace (`../../lighting/reflections/frame.ts`);
  *  the screen-space ambient occlusion's (`../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`), written by
  *  `setAmbientOcclusion`, read at each image by its passes (`../../lighting/ao/frame.ts`);
+ *  the ambient cubemap's (`../../../../sdk-core/src/contracts/ambientCubemapOptions.ts`), written by
+ *  `setAmbientCubemap`, its cube given at the opening (`ambientCubemap`), read at each image by the indirect light
+ *  (`../../lighting/deferred/ambientCubemapFrame.ts`);
  *  the sky's quality (`../../../../sdk-core/src/modules/sky/quality.ts`), written by `setSkyQuality`,
  *  read at each image by the atmosphere (`../../frame/render/encodeAtmosphere.ts`);
  *  the depth pyramid's (`../../../../sdk-core/src/contracts/hizOptions.ts`), written by `setHiz`,
@@ -288,6 +298,12 @@ export interface EngineContext extends SettingOptions {
   distanceFields?: readonly MeshDistanceField[]
   /** The cards the meshes keep (`meshCards.bin`), none for a cache whose meshes kept none. */
   meshCards?: readonly MeshCards[]
+  /** The reader of the strands of the cache's curves (`hairStrands.bin`), none for a cache whose scene
+   *  carries none; called only while the strands are on (`hairStrands`). */
+  hairStrandsFile?: HairStrandsReader
+  /** The reader of the cache's light profiles (`light-profile-*.bin`), called for each profile a light names that is not yet held
+   *  (`../../lighting/lightProfile/frame.ts`); none where the session has no cache to read them from. */
+  lightProfileFile?: LightProfileReader
   /** The primitives' acceleration structures (`rayTracing.bin`), none for a cache whose primitives built none. */
   rayTracing?: RayTracing
   /** The scene's volumetric lightmap (`volumetric-lightmap.bin`), none for a cache whose job baked none. */
@@ -297,10 +313,8 @@ export interface EngineContext extends SettingOptions {
   sceneVolumes?: SceneFogVolumeStore // the objects voxelised into the fog's volume, shared likewise
   sceneLocalFog?: SceneLocalFogStore // the local fog volumes, shared likewise
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
-  /** Bounced light, on by default (`false` turns it off); `bounceProbesPerFrame`, the probes a frame traces,
-   *  those never traced first, a whole map each (the screen probes' level's budget where none is named, at most `BOUNCE_PROBE_QUEUE`). */
+  /** Bounced light, on by default (`false` turns it off). */
   bounce?: boolean
-  bounceProbesPerFrame?: number
   stageProfile?: boolean // Off by default; the bench and harness time the frame steps.
   feedbackTargetAB?: boolean
   /** A still view's temporal pass drawn every frame once its history is whole, never held on the

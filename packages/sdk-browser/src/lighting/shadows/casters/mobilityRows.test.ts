@@ -1,4 +1,4 @@
-// The word of a placement carries the facts its clusters are cast by: how it casts far, whether its
+// The word of a placement carries the facts its clusters are cast by: whether it casts, whether its
 // transform pins its shadows, whether a deformation moves it; and a grown set of roots keeps the
 // placements' moving state (`mobility.test.ts`).
 import test from 'node:test'
@@ -6,9 +6,6 @@ import assert from 'node:assert/strict'
 import {
   MOBILITY_CACHE_STATIC,
   MOBILITY_DEFORMS,
-  MOBILITY_FAR_SHADOW,
-  MOBILITY_FAR_SKIPPED,
-  MOBILITY_FAR_TESTED,
   MOBILITY_MOVING,
   MOBILITY_OFFSET_ALWAYS,
   MOBILITY_OFFSET_INVALIDATES,
@@ -18,35 +15,20 @@ import {
 import { createShadowMobility } from './mobility.ts'
 import { castFlagsOf } from './castFlags.ts'
 import { CACHE_STATIC_ROOT, nodeCasting } from '../../../visibility/shader/castingMark.ts'
+import { rootWordsTwin } from './rootWords.fixture.ts'
 
-// A placement that says the far-shadow test reaches it, or never does, gives its word one bit or
-// the other, and a rewrite clears the one it no longer says.
-test('a placement’s far-shadow test bits reach its word and are cleared when it stops saying them', () => {
-  const mobility = createShadowMobility()
-  mobility.ensure(1, () => new Float64Array(16))
-  let said = MOBILITY_FAR_TESTED
-  const write = () => mobility.writeRoots(() => {}, { castFlags: () => said })
-  write()
-  assert.deepEqual([...mobility.words], [MOBILITY_FAR_TESTED])
-  for (said of [MOBILITY_FAR_SKIPPED, 0]) {
-    mobility.touch(0)
-    write()
-    assert.deepEqual([...mobility.words], [said], `${said}`)
-  }
-})
-
-test('a placement that casts far shadows has the far bit, written again when touched', () => {
+test('a placement that casts no shadow has the shadowless bit, written again when touched', () => {
   const mobility = createShadowMobility()
   mobility.ensure(4, () => new Float64Array(16))
-  let far = new Set([1, 3])
+  let shadowless = new Set([1, 3])
   const pushed: number[][] = []
   const write = () =>
     mobility.writeRoots((first, count) => pushed.push([first, count]), {
-      castFlags: (rank) => (far.has(rank) ? MOBILITY_FAR_SHADOW : 0),
+      castFlags: (rank) => (shadowless.has(rank) ? MOBILITY_SHADOWLESS : 0),
     })
   write()
-  assert.deepEqual([...mobility.words], [0, MOBILITY_FAR_SHADOW, 0, MOBILITY_FAR_SHADOW])
-  far = new Set()
+  assert.deepEqual([...mobility.words], [0, MOBILITY_SHADOWLESS, 0, MOBILITY_SHADOWLESS])
+  shadowless = new Set()
   mobility.touch(1)
   mobility.touch(3)
   pushed.length = 0
@@ -60,7 +42,7 @@ test('a placement that casts far shadows has the far bit, written again when tou
     ],
     'its two placements, one run each',
   )
-  far = new Set([1, 2])
+  shadowless = new Set([1, 2])
   mobility.touch(1)
   mobility.touch(2)
   pushed.length = 0
@@ -128,27 +110,10 @@ test('a banked root at rest has no deforming bit, one that animates has it', () 
   assert.equal(castFlagsOf({}, undefined, false) & MOBILITY_DEFORMS, 0)
 })
 
-// `shadowCacheDeformableMeshesInvalidate` off: the deforming bit, which has the pages its casters draw
-// invalidated as they are drawn, is left out of a deformed placement's word; the placement is still
-// often moving, so it arrives cached as dynamic and settles to static.
-test('a deformed placement without the deforming bit is still often moving, and arrives moving', () => {
-  const root = { deformation: {} }
-  const kept = castFlagsOf(root, undefined, false, true),
-    left = castFlagsOf(root, undefined, false, false)
-  assert.ok((kept & MOBILITY_DEFORMS) !== 0)
-  assert.equal(left & MOBILITY_DEFORMS, 0)
-  assert.equal(left, kept & ~MOBILITY_DEFORMS, 'the one bit')
-  assert.ok((left & MOBILITY_OFTEN_MOVING) !== 0)
-  const mobility = createShadowMobility()
-  mobility.ensure(1, () => new Float64Array(16))
-  mobility.writeRoots(() => {}, { castFlags: () => left })
-  assert.deepEqual([...mobility.words], [left | MOBILITY_MOVING])
-})
-
 // A surface that always evaluates its offset says so in the word, beside the bit that its offset may
 // invalidate the placement's shadows (the layer of all its clusters).
 test('a placement that wears an offset has the offset bits, the always bit only for a surface that always evaluates', () => {
-  const evaluated = { evaluate: true, cache: 'auto', worn: true, always: false } as const
+  const evaluated = { evaluate: true, cache: 'auto', worn: true, always: false, bits: 0 } as const
   const wearing = castFlagsOf({}, evaluated)
   assert.ok((wearing & MOBILITY_OFFSET_INVALIDATES) !== 0)
   assert.equal(wearing & MOBILITY_OFFSET_ALWAYS, 0)
@@ -193,7 +158,7 @@ test('a new placement that is often moving starts moving, a new still one does n
   const moving = (...ranks: number[]) => ranks.map((rank) => mobility.moves(rank))
   mobility.ensure(5, () => new Float64Array(16))
   write()
-  assert.deepEqual(moving(0, 1, 2, 3, 4), [true, false, false, true, false])
+  assert.deepEqual(moving(0, 1, 2, 3, 4), [true, false, false, false, false])
   assert.ok((mobility.words[0] & MOBILITY_MOVING) !== 0, 'its word says it moves')
   assert.equal(mobility.words[2] & MOBILITY_MOVING, 0)
   // One that casts after casting nothing arrives as well.
@@ -209,4 +174,101 @@ test('a new placement that is often moving starts moving, a new still one does n
   assert.equal(mobility.moves(0), false, 'it settled to static after the frames without a move')
   write()
   assert.deepEqual(moving(0, 5, 6), [false, true, false], 'a kept one is not weighed again')
+})
+
+// The reference's `r.Shadow.CacheWPOPrimitives`: a primitive whose material wears an offset or a
+// displacement is a mesh shape that is often moving, so it is cached as dynamic when added, unless
+// the option caches such primitives; one pinned to its cached shadows never is.
+test('a placement that wears an offset or a displacement is often moving, unless the primitives that wear one are cached', () => {
+  const worn = { evaluate: true, cache: 'auto', worn: true, always: false }
+  const flags = (offsets: object | undefined, wpoMoves: boolean) =>
+    castFlagsOf({}, offsets as never, false, wpoMoves)
+  assert.equal(flags(worn, false) & MOBILITY_OFTEN_MOVING, 0, 'by itself it says nothing')
+  assert.ok((flags(worn, true) & MOBILITY_OFTEN_MOVING) !== 0)
+  assert.ok((flags(worn, true) & MOBILITY_OFFSET_INVALIDATES) !== 0, 'its offset still invalidates')
+  // Whatever its object says of its cache, the offset's decision is the placement's alone: an
+  // object that pins its shadows never arrives moving.
+  const pinned = castFlagsOf({ mark: CACHE_STATIC_ROOT }, worn as never, false, true)
+  const arrives = (word: number) => {
+    const mobility = createShadowMobility()
+    mobility.ensure(1, () => new Float64Array(16))
+    mobility.writeRoots(() => {}, { castFlags: () => word })
+    return mobility.moves(0)
+  }
+  assert.deepEqual(
+    [arrives(flags(worn, true)), arrives(flags(worn, false)), arrives(pinned)],
+    [true, false, false],
+  )
+})
+
+test('the words written by the upload make a placement that wears an offset or a displacement arrive moving, and the option turned makes every placement arrive anew', () => {
+  const { rt, roots, upload, held } = rootWordsTwin(3)
+  const rows = rt.vis.rootOffsets as { rowOf: (rank: number) => object | undefined }
+  rows.rowOf = (rank) => (rank === 0 ? { evaluate: true, cache: 'auto', worn: true } : undefined)
+  // A displacement that moves points: a magnitude over a height map (`pagesDisplacementReach`).
+  const displacement = { magnitude: 2, center: 0.25, fade: null }
+  roots[1].pages = [{ material: { displacement, displacementMap: {} } }]
+  upload()
+  const moving = () => [0, 1, 2].map((rank) => rt.lights.mobility.moves(rank))
+  assert.deepEqual(moving(), [true, true, false], 'an offset and a displacement arrive moving')
+  assert.ok((held()[0] & MOBILITY_MOVING) !== 0)
+  // The option on: the primitives that wear one are cached, they arrive still.
+  ;(rt.context as { shadowCacheWpoPrimitives?: boolean }).shadowCacheWpoPrimitives = true
+  upload()
+  assert.deepEqual(moving(), [false, false, false], 'every placement arrived anew')
+  assert.equal(held()[0] & MOBILITY_MOVING, 0)
+  ;(rt.context as { shadowCacheWpoPrimitives?: boolean }).shadowCacheWpoPrimitives = false
+  upload()
+  assert.deepEqual(moving(), [true, true, false])
+})
+
+// An arrival is told to the diff's memory, which holds no cache state of it in any view; so is the
+// return of a placement parked between two writes.
+test('every arrival is told once: a new placement, one that casts again, one that left and returned between two writes', () => {
+  const mobility = createShadowMobility()
+  mobility.ensure(2, () => new Float64Array(16))
+  let cast = [0, MOBILITY_SHADOWLESS]
+  const write = () => mobility.writeRoots(() => {}, { castFlags: (rank) => cast[rank]! })
+  /** The ranks that arrived since the last call, which forgets them. */
+  const arrived = () => {
+    const ranks: number[] = []
+    mobility.arrivals.forEach((word, at) => {
+      for (let bit = 0; bit < 32; bit++) if (word & (1 << bit)) ranks.push(at * 32 + bit)
+    })
+    mobility.clearArrivals()
+    return ranks
+  }
+  write()
+  assert.deepEqual(arrived(), [0, 1], 'new in the layout')
+  assert.deepEqual(arrived(), [], 'told once')
+  // Rank 1 casts after casting nothing.
+  cast = [0, 0]
+  mobility.touch(1)
+  write()
+  assert.deepEqual(arrived(), [1])
+  // Rank 0 is parked and taken back before the next write: its words say nothing of it.
+  mobility.park(0)
+  mobility.touch(0)
+  write()
+  assert.deepEqual(arrived(), [0], 'left and returned: an arrival all the same')
+  // Parked and still parked: no arrival until it casts.
+  cast = [MOBILITY_SHADOWLESS, 0]
+  mobility.park(0)
+  mobility.touch(0)
+  write()
+  assert.deepEqual(arrived(), [])
+  cast = [0, 0]
+  mobility.touch(0)
+  write()
+  assert.deepEqual(arrived(), [0])
+})
+
+test('an updated placement is cached as dynamic from now on, unless its object pins its shadows', () => {
+  const mobility = createShadowMobility()
+  mobility.ensure(2, () => new Float64Array(16))
+  mobility.writeRoots(() => {}, { castFlags: (rank) => (rank ? MOBILITY_CACHE_STATIC : 0) })
+  assert.deepEqual([mobility.invalidate(0), mobility.moves(0)], [true, true])
+  assert.deepEqual([mobility.invalidate(0), mobility.moves(0)], [false, true], 'already dynamic')
+  assert.deepEqual([mobility.invalidate(1), mobility.moves(1)], [false, false], 'pinned')
+  assert.equal(mobility.invalidate(9), false, 'no such placement')
 })

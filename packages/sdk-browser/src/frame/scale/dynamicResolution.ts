@@ -161,7 +161,8 @@ function resizeHistory(h: DynamicResolution, capacity: number) {
 /** A frame's GPU busy time, `gpuMs`, drawn at `fraction`, the time of the edge scale's passes,
  *  `edgeMs`, and of the shadow raster's, `vsmMs` — `NO_TIMING` where they were not timed —, at the edge
  *  and shadow fractions now, with the CPU time of the engine's last image, into the history; the
- *  frames after a reset ignored. */
+ *  frames after a reset ignored. A budget not asked for (`edgeBudgetMs`, `vsmBudgetMs` not above 0)
+ *  records 0 whatever it is handed: every budget's history exists before it is turned on. */
 export function recordFrame(
   h: DynamicResolution,
   f: Fraction,
@@ -179,9 +180,9 @@ export function recordFrame(
   const at = (h.newest = (h.newest + 1) % capacity)
   h.gpuMs[RENDER_SCALE * capacity + at] = gpuMs
   h.fractions[RENDER_SCALE * capacity + at] = fraction
-  h.gpuMs[EDGE_SCALE * capacity + at] = edgeMs
+  h.gpuMs[EDGE_SCALE * capacity + at] = f.edgeBudgetMs > 0 ? edgeMs : 0
   h.fractions[EDGE_SCALE * capacity + at] = f.edge
-  h.gpuMs[VSM_SCALE * capacity + at] = vsmMs
+  h.gpuMs[VSM_SCALE * capacity + at] = f.vsmBudgetMs > 0 ? vsmMs : 0
   h.fractions[VSM_SCALE * capacity + at] = f.vsm
   h.cpuMs[at] = f.cpuMs
   h.size = Math.min(h.size + 1, capacity)

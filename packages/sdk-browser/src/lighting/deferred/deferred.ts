@@ -5,10 +5,11 @@ import { createContractVariants, type LitPrograms } from './contractVariants.ts'
 import { cutsIn } from './contractCuts.ts'
 import { createDeferredPlaceholders } from './setup.ts'
 import type { ComposedImage, DirectLightResources } from './program.ts'
+import type { PerLightLights } from '../shadows/vsm/projection/perLightPass.ts'
 import { createTileClassification } from './classify.ts'
 import { createSurfaceColourPass, createUnlitPass } from './colourPass.ts'
 import { createComposer, type Composer } from './composer.ts'
-import type { LitProgram } from './litProgram.ts'
+import { litSteps, type LitProgram } from './litProgram.ts'
 import { type ClearColor, ZERO_DIRECT, createDeferredView } from './view.ts'
 import { createToneLut } from '../toneLut.ts'
 import { createHeightFogPass, type FogPassResources } from '../fog/fogPass.ts'
@@ -194,6 +195,8 @@ function viewSetters(state: LightingState, view: DeferredView) {
     setScreenProbes: view.writeScreenProbes,
     /** What the lit passes' contact shadows' rays read of the view (`writeContactShadows`). */
     setContactShadows: view.writeContactShadows,
+    /** The look of the light a surface reflects (`writeReflectionLook`). */
+    setReflectionLook: view.writeReflectionLook,
   }
 }
 
@@ -355,10 +358,61 @@ function lightPass(
     const occlusion = direct.ambientOcclusion ?? placeholders.ambientOcclusion
     const pass = statics.colour.begin(encoder, hdr, width, height)
     statics.colour.record(pass, surface, occlusion)
-    const made = active.draws(pass, classification.draws, state.lightView)
-    pass.end()
-    return 1 + made
+    return (
+      1 +
+      drawLights(
+        statics.colour,
+        active,
+        encoder,
+        hdr,
+        pass,
+        classification.draws,
+        state.lightView,
+        perLightOf(state.lightView, direct),
+        drawn,
+      )
+    )
   }
+}
+
+/** The shadowed local lights the frame lights one by one (`DirectLightResources.perLight`), where the view shows the whole lighting;
+ *  else none, and the batched loop lights them. */
+const perLightOf = (lightView: number, direct: DirectLightResources) =>
+  lightView === 0 || lightView === 3 ? direct.perLight : undefined
+
+/**
+ * The lights of the lit image, one driver for both paths: the steps of `litSteps` in their order, into the pass `pass` the colour
+ * began. On the batched path they are the indirect light's, the sun's and the local lights', one pass. With per-light lights
+ * (`shadowOnePassProjection` false) the pass is ended before each light's draw and begun again over the image as it stands
+ * (`resume`), the light's mask encoded between them (`PerLightLights.encodeMask`): the lights are drawn in the order of their
+ * records, after the indirect light's draw, which the first pass holds with the sun's and the local lights'. While the path's pipelines compile
+ * (`ready`) the local lights' step still leaves the shadowed lights out and no per-light step is drawn: no light reads a mask that
+ * was not projected, and the frame is drawn again once they are compiled (`chainReady`). Returns the draws made.
+ */
+function drawLights(
+  colour: Statics['colour'],
+  active: LitProgram,
+  encoder: GPUCommandEncoder,
+  hdr: GPUTextureView,
+  first: GPURenderPassEncoder,
+  draws: GPUBuffer,
+  lightView: number,
+  lights: PerLightLights | undefined,
+  [width, height]: readonly number[],
+) {
+  const ready = !!lights && lights.ready() && active.perLightReady()
+  let pass = first,
+    made = 0
+  for (const step of litSteps(lightView, ready ? lights.count : 0)) {
+    if (typeof step === 'number') {
+      pass.end()
+      lights!.encodeMask(encoder, step)
+      pass = colour.resume(encoder, hdr, width, height)
+    }
+    made += active.drawStep(pass, draws, step, lights)
+  }
+  pass.end()
+  return made
 }
 
 /** The lighting's `fog`: the fog laid over the lit image, once the lights and the sky are in it —

@@ -10,7 +10,8 @@ import { computeUniformEntry } from '../../gpu/core/computeBindings.ts'
  * transparent pass), written once an image (`../../frame/render/graphFrame.ts`): the clocks that a
  * graph reads are one value in all of them. Group 0, the binding the pass gives it. The fourth float
  * of `eye` says whether the blue noise a dithered cutout is cut by is bound (one) or its stand-in is
- * (zero: the cut is then plain).
+ * (zero: the cut is then plain); `frame`, the word after the camera before, is the view's image number, which that noise is
+ * walked by.
  */
 export const GRAPH_FRAME_BYTES = 48
 
@@ -19,7 +20,7 @@ export const graphFrameWgsl = (binding: number) =>
   wgslBlock(
     `graphFrameWgsl(${binding})`,
     [],
-    `struct GraphFrame{clock:vec4f,eye:vec4f,before:vec4f,}
+    `struct GraphFrame{clock:vec4f,eye:vec4f,before:vec3f,frame:u32,}
 @group(0) @binding(${binding}) var<uniform> graphFrame:GraphFrame;`,
   )
 

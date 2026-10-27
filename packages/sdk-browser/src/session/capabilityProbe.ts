@@ -6,7 +6,7 @@ import {
   wgslRefusal,
   type GpuCapabilities,
 } from '../api/capability/capabilities.ts'
-import { grantedGpuFeatures } from './gpuDevice.ts'
+import { grantedGpuFeatures } from '../gpu/core/gpuCaps.ts'
 import { grantedDevice } from '../api/capability/worldReady.ts'
 import { sayFatal, type ExplorerSession } from './session.ts'
 
