@@ -14,6 +14,8 @@ import { animationFrame } from '../../kit/device/frame.ts'
 import { settle } from '../world/proofWorld.ts'
 import { canvasImage } from '../../kit/device/patternImage.ts'
 import { openBenchWorld, shadingGap } from './shadowScene.ts'
+// The subject is not the meter: a fixed exposure, as `facingWorld.ts` says why.
+import { FIXED_EXPOSURE } from '../frame/facingWorld.ts'
 
 const WIDTH = 1248,
   HEIGHT = 702
@@ -25,7 +27,10 @@ const START = 6,
   STEPS = 24
 
 async function stopOnTheStreet() {
-  const world = await openBenchWorld('facade-7', [WIDTH, HEIGHT], { pixelError: PIXEL_ERROR })
+  const world = await openBenchWorld('facade-7', [WIDTH, HEIGHT], {
+    pixelError: PIXEL_ERROR,
+    ...FIXED_EXPOSURE,
+  })
   world.setClearColor(0x2a303c)
   try {
     world.addLight({ ...SUN, castsShadow: true })

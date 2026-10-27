@@ -15,6 +15,8 @@ import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
 import { benchManifest, SDK_URL, settle } from '../world/proofWorld.ts'
 import { pixelLuminance, openBenchWorld } from './shadowScene.ts'
+// The subject is not the meter: a fixed exposure, as `facingWorld.ts` says why.
+import { FIXED_EXPOSURE } from '../frame/facingWorld.ts'
 
 const SIZE: [number, number] = [1280, 720]
 /** The measurement SDK the bench's street probe imports by its address, as the proofs load it. */
@@ -27,7 +29,7 @@ const cutOf = (m: FrameMetrics | null) =>
   }
 
 async function sunBehindTheEye() {
-  const world = await openBenchWorld(DEFAULT_SCENE, SIZE)
+  const world = await openBenchWorld(DEFAULT_SCENE, SIZE, FIXED_EXPOSURE)
   try {
     // The street the bench's eye-level views walk (`street.ts`), as the bench reads it.
     const bounds = await streetBounds({
