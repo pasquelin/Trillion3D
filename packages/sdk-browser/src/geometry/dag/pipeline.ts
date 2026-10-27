@@ -23,14 +23,17 @@ export function createDagPipeline(
   clipPlane = false,
 ) {
   return validatedOrWhy(device, async () => {
+    // Everything the scope must judge is made before the first `await`.
     const layout = device.createBindGroupLayout({ entries: dagBindEntries() })
+    const armLayout = dagArmLayout(device)
+    const bindGroup = frames.bindGroup(layout, buffers)
+    const armGroup = dagArmGroup(device, armLayout, arm.work, arm.args)
     steps?.begin('shader module')
     const module = await checkShaderModule(
       device.createShaderModule({ code: dagSelectionShader(clipPlane) }),
       'camera cut selection',
     )
     steps?.begin('pipelines')
-    const armLayout = dagArmLayout(device)
     const stages = await createDagStages(
       device,
       layout,
@@ -39,7 +42,6 @@ export function createDagPipeline(
       { layout: armLayout, words: arm.words },
       steps,
     )
-    const bindGroup = frames.bindGroup(layout, buffers)
     return {
       /** Bind layout, returned with the stages: the dispatch bench mounts the previous cut on
        *  EXACTLY this one, instead of retyping a fourth copy. */
@@ -47,7 +49,7 @@ export function createDagPipeline(
       module,
       ...stages,
       bindGroup,
-      armGroup: dagArmGroup(device, armLayout, arm.work, arm.args),
+      armGroup,
     }
   })
 }

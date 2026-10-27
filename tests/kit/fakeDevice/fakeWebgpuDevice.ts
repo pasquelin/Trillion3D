@@ -1,6 +1,6 @@
 import { validating } from './validation.ts'
 import { installGpuGlobals } from './globals.ts'
-import type { LostInfo } from './fakeRecords.ts'
+import type { FakeDeviceOptions, LostInfo } from './fakeRecords.ts'
 
 /** A device's error scopes, innermost last, each with the first error raised under it: `push` opens
  *  one, `pop` closes the innermost and gives its error, and refuses with none open as WebGPU does. */
@@ -23,6 +23,7 @@ const errorScopes = (scopes: Array<object | null> = []) => ({
 export function asWebgpuDevice(
   members: Record<string, unknown>,
   scopes: Array<object | null> = [],
+  { strictScopes = false }: Pick<FakeDeviceOptions, 'strictScopes'> = {},
 ) {
   // WebGPU's globals, its error classes among them: what the engine tests a raised error against.
   installGpuGlobals()
@@ -42,6 +43,8 @@ export function asWebgpuDevice(
     if (!key.startsWith('create') || typeof make !== 'function') continue
     device[key] = function (this: unknown, descriptor?: { label?: string }) {
       if (this !== device) throw new TypeError('Illegal invocation')
+      if (strictScopes && !key.endsWith('Async') && !scopes.length)
+        throw new Error(`created outside any error scope: ${key} ${descriptor?.label ?? ''}`.trim())
       given.push(descriptor)
       labels.push(descriptor?.label)
       return make(descriptor)

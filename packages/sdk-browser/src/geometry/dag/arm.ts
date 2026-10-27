@@ -22,8 +22,8 @@ export const dagArmLayout = (device: GPUDevice) =>
 
 /**
  * The arming kernel of the cut's `module` (`shader/armWgsl.ts`) on `layout`, its list words `words`
- * its overrides: compiled off the thread, asked with the cut's stages (`stages.ts`). The caller's
- * validation scope catches what the device refuses.
+ * its overrides: compiled off the thread, asked with the cut's stages (`stages.ts`). What the device
+ * refuses, of its pipeline layout or of the pipeline, rejects the promise (`buildComputeStage`).
  */
 export const buildDagArm = (
   device: GPUDevice,

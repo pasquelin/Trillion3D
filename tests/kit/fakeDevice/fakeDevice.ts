@@ -164,7 +164,7 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
       onSubmittedWorkDone: async () => void fences++,
     },
   }
-  const made = asWebgpuDevice(members, scopes)
+  const made = asWebgpuDevice(members, scopes, options)
   const device = made.device
   return {
     ...made,

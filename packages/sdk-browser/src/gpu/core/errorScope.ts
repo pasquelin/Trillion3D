@@ -11,29 +11,74 @@ export function destroyAll(resources: Iterable<{ destroy(): void } | undefined>)
     }
 }
 
+const none = () => null
+
 /**
- * A device's error scope — validation by default —, opened around a resource creation. The device's scopes are one
- * stack every session shares: a scope left open takes the errors of the next session, a scope
- * closed twice takes another's. So `build` runs inside the scope, and the scope is closed once in
- * every case, a throw included — the `AbortError` of a session released mid-build among them.
+ * `make` under a scope of `filter` that is popped before this returns, a throw included: the scope
+ * code every caller shares. `popped` is the device's verdict, to read when it is wanted; one
+ * never read, a throw's among them, is not an unhandled rejection.
+ */
+function scopedNow<T>(device: GPUDevice, filter: GPUErrorFilter, make: () => T) {
+  let made: T
+  let popped: Promise<GPUError | null>
+  device.pushErrorScope(filter)
+  try {
+    made = make()
+  } finally {
+    popped = device.popErrorScope()
+    popped.catch(none)
+  }
+  return { made, popped }
+}
+
+/** The refusal the scope `popped` holds, if any: its message wins over whatever its work settled to. */
+async function scopeRefusal(popped: Promise<GPUError | null>) {
+  const error = await popped
+  return error ? pipelineRefusedBy(error.message) : undefined
+}
+
+/**
+ * A device's error scope — validation by default —, opened around a resource creation. The device's
+ * scopes are one stack every session shares, so a scope covers synchronous creation only: it is
+ * popped as soon as the synchronous part of `build` returns, and a creation after an `await` of
+ * `build` is outside it. The promise `build` returns is awaited here and its rejection thrown, as
+ * the refusal of the scope's error when the scope holds one.
  */
 export async function validationScope<T>(
   device: GPUDevice,
   build: () => T | Promise<T>,
   filter: GPUErrorFilter = 'validation',
 ): Promise<{ value: T; error: GPUError | null }> {
-  device.pushErrorScope(filter)
+  const { made: built, popped } = scopedNow(device, filter, () =>
+    constructGpuResources(device, build),
+  )
   let value: T
   try {
-    // A build that returns at once is popped at once: no other scope opens between its push and
-    // its pop, so a grant stays nested inside any scope still open around it.
-    const built = constructGpuResources(device, build)
     value = built instanceof Promise ? await built : built
   } catch (error) {
-    await device.popErrorScope().catch(() => null)
-    throw error
+    // A released session's abort stays an abort; a pop the device refuses leaves the build's own reason.
+    if (error instanceof DOMException && error.name === 'AbortError') throw error
+    throw (await scopeRefusal(popped).catch(() => undefined)) ?? error
   }
-  return { value, error: await device.popErrorScope() }
+  return { value, error: await popped }
+}
+
+/**
+ * `make`, a synchronous creation made after an `await`, under a scope of its own closed before
+ * `use(made)` starts. Resolves with `use`'s result; the scope's error, when it holds one, refuses
+ * it as a pipeline (`GPUPipelineError`, answered `refused` by `validatedOrWhy`), over any rejection.
+ */
+export async function madeChecked<T, R>(
+  device: GPUDevice,
+  make: () => T,
+  use: (made: T) => Promise<R>,
+): Promise<R> {
+  const { made, popped } = scopedNow(device, 'validation', make)
+  const used = use(made)
+  used.catch(none)
+  const refusal = await scopeRefusal(popped)
+  if (refusal) throw refusal
+  return used
 }
 
 /** What `build` made, or `undefined` when it made nothing or the device refused part of it — a
@@ -65,6 +110,10 @@ export async function validatedOrWhy<T>(
 /** A pipeline the device refused to compile off the thread (`GPUPipelineError`). */
 const pipelineRefused = (error: unknown) => error instanceof GPUPipelineError
 
+/** The refusal of a pipeline the device's scope reported, as the device refuses one off the thread. */
+const pipelineRefusedBy = (message: string) =>
+  new GPUPipelineError(message, { reason: 'validation' })
+
 /**
  * What `make` allocates when the device grants it, now: made under an out-of-memory scope, and
  * destroyed when refused, so a pool is only ever replaced by one the device holds (`poolGrants.ts`).
@@ -86,19 +135,11 @@ export async function deviceMade<R extends { destroy(): void }>(
  * refuses it. The scope opens and closes before this returns, nested in any scope still open.
  */
 export function deviceMadeNow<R>(device: GPUDevice, make: () => R, refused: (made: R) => void): R {
-  const out: { made?: { value: R }; thrown?: unknown } = {}
-  void deviceMade(device, () => {
-    try {
-      out.made = { value: make() }
-    } catch (error) {
-      out.thrown = error
-      throw error
-    }
-    const { value } = out.made
-    return { destroy: () => refused(value) }
-  }).catch(() => {})
-  if (!out.made) throw out.thrown
-  return out.made.value
+  const { made, popped } = scopedNow(device, 'out-of-memory', () =>
+    constructGpuResources(device, make),
+  )
+  void popped.then((error) => error && refused(made)).catch(none)
+  return made
 }
 
 /** What the device is asked under `deviceMade` — a pool, the frame targets —, `settled` once done. */

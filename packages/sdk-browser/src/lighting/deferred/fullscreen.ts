@@ -9,26 +9,37 @@
 // too; compute stages by entry point are built on it in `../../gpu/core/computeStages.ts`. The
 // compiles in flight are held in `compileLedger.ts`.
 
+import { madeChecked } from '../../gpu/core/errorScope.ts'
 import { framesOf, refuse, track } from './compileLedger.ts'
 
 /** The frames a refused compile waits before a use asks it again (a device or a settings change
  *  makes new pipelines, which are asked at once). */
 const RETRY_FRAMES = 240
 
-/** Builds a render pipeline, asynchronously when the device offers it. */
+/** Builds a render pipeline, asynchronously when the device offers it; else at the call, on a
+ *  scope of its own (`madeChecked`), a refusal of the device rejecting the promise. */
 export const buildRenderPipeline = (device: GPUDevice, descriptor: GPURenderPipelineDescriptor) =>
   device.createRenderPipelineAsync
     ? device.createRenderPipelineAsync(descriptor)
-    : Promise.resolve(device.createRenderPipeline(descriptor))
+    : madeChecked(
+        device,
+        () => device.createRenderPipeline(descriptor),
+        (pipeline) => Promise.resolve(pipeline),
+      )
 
-/** Builds a compute pipeline, asynchronously when the device offers it. */
+/** Builds a compute pipeline, asynchronously when the device offers it; else at the call, on a
+ *  scope of its own (`madeChecked`), a refusal of the device rejecting the promise. */
 export const buildComputePipeline = (
   device: GPUDevice,
   descriptor: GPUComputePipelineDescriptor,
 ) =>
   device.createComputePipelineAsync
     ? device.createComputePipelineAsync(descriptor)
-    : Promise.resolve(device.createComputePipeline(descriptor))
+    : madeChecked(
+        device,
+        () => device.createComputePipeline(descriptor),
+        (pipeline) => Promise.resolve(pipeline),
+      )
 
 /** A pipeline compiled off the frame, once. */
 export type PreparedPipeline<P> = {

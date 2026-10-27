@@ -153,6 +153,10 @@ export type FakeDeviceOptions = {
   failBins?: boolean
   /** Every shader module reports a compilation error. */
   failCompile?: boolean
+  /** Checks `device.create…` alone: a synchronous one made while no error scope is open throws
+   *  `created outside any error scope: <method> <label>`. For the tests of validated builds
+   *  (`validationScope`), not the frame's, where encoders and bind groups are rightly unscoped. */
+  strictScopes?: boolean
   /** An encoder's copies, clears and kernels run when its command buffer is submitted, as on a GPU;
    *  one never submitted runs nothing. Otherwise they run as they are encoded. */
   deferred?: boolean

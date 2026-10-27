@@ -53,14 +53,15 @@ export async function compileBlendExpand(device: GPUDevice) {
 /** The kernels' modules, layouts and pipelines, compiled together off the thread; a module that
  *  does not compile throws under its label, with the device's messages. */
 async function expandKernels(device: GPUDevice) {
+  // The layouts are made before the first `await`, inside the caller's scope (`validationScope`).
+  const expandLayout = device.createBindGroupLayout({ entries: blendExpandBindEntries() })
+  const orderLayout = device.createBindGroupLayout({ entries: blendOrderBindEntries() })
+  const verdictLayout = device.createBindGroupLayout({ entries: blendVerdictBindEntries() })
   const [expandModule, orderModule, verdictModule] = await Promise.all([
     createCheckedShaderModule(device, BLEND_EXPAND_SHADER, 'BLEND_EXPAND'),
     createCheckedShaderModule(device, BLEND_ORDER_SHADER, 'BLEND_ORDER'),
     createCheckedShaderModule(device, BLEND_VERDICT_SHADER, 'BLEND_VERDICT'),
   ])
-  const expandLayout = device.createBindGroupLayout({ entries: blendExpandBindEntries() })
-  const orderLayout = device.createBindGroupLayout({ entries: blendOrderBindEntries() })
-  const verdictLayout = device.createBindGroupLayout({ entries: blendVerdictBindEntries() })
   const [expandStages, orderStages, verdictStages] = await Promise.all([
     buildComputeStages(device, [expandLayout], expandModule, BLEND_EXPAND_ENTRIES),
     buildComputeStages(device, [orderLayout], orderModule, BLEND_ORDER_ENTRIES),

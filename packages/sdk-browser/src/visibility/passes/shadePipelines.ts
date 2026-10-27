@@ -219,14 +219,13 @@ export function createWebgpuShadePipelines(
   emissiveAo = true,
   rasters: () => GraphRasters = () => NO_RASTERS,
 ) {
-  const shadeBindGroupLayout = sharedLayout ?? shadeLayout(device)
-  const layout = device.createPipelineLayout({
-    bindGroupLayouts: [shadeBindGroupLayout, shadeOutputLayout(device)],
-  })
-  const modules = classModules(device, shadeModule, variant, rasters)
-  const classSet = classSetsOf(device, layout, variant, feedback, modules)
   return scoped(device, async () => {
-    const shadeClasses = classSet(emissiveAo)
+    const shadeBindGroupLayout = sharedLayout ?? shadeLayout(device)
+    const layout = device.createPipelineLayout({
+      bindGroupLayouts: [shadeBindGroupLayout, shadeOutputLayout(device)],
+    })
+    const modules = classModules(device, shadeModule, variant, rasters)
+    const shadeClasses = classSetsOf(device, layout, variant, feedback, modules)(emissiveAo)
     await Promise.all(classes.map((key) => shadeClasses.of(key).prepare()))
     return { shadeBindGroupLayout, shadeClasses }
   })

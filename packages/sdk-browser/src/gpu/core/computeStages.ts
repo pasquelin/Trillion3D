@@ -10,6 +10,7 @@ import {
   preparedComputePipeline,
   started,
 } from '../../lighting/deferred/fullscreen.ts'
+import { madeChecked } from './errorScope.ts'
 import { oncePerDevice } from './oncePerDevice.ts'
 
 /** The descriptor of the stage `entryPoint` of `module` on `layout`, its overrides `constants`. */
@@ -76,8 +77,13 @@ export function dispatchOn(
   pass.dispatchWorkgroups(x, y)
 }
 
+/** The creation of the pipeline layout of the bind-group layouts `layouts`, group by group. */
+const layoutMaker = (device: GPUDevice, layouts: readonly GPUBindGroupLayout[]) => () =>
+  device.createPipelineLayout({ bindGroupLayouts: layouts })
+
 /** The stage `entryPoint` of `module` on the bind-group layouts `layouts`, group by group, its
- *  overrides `constants`, labelled `label`, built now: every built compute stage of the engine. */
+ *  overrides `constants`, labelled `label`, built now: every built compute stage of the engine; its
+ *  pipeline layout is checked on its own scope (`madeChecked`). */
 export const buildComputeStage = (
   device: GPUDevice,
   layouts: readonly GPUBindGroupLayout[],
@@ -86,20 +92,13 @@ export const buildComputeStage = (
   constants?: Record<string, number>,
   label?: string,
 ) =>
-  buildComputePipeline(
-    device,
-    computeStage(
-      device.createPipelineLayout({ bindGroupLayouts: layouts }),
-      module,
-      entryPoint,
-      constants,
-      label,
-    ),
+  madeChecked(device, layoutMaker(device, layouts), (layout) =>
+    buildComputePipeline(device, computeStage(layout, module, entryPoint, constants, label)),
   )
 
 /** The compute stages of one module on one layout, by entry point, compiled together off the
- *  thread: prepare never builds its pipelines one after another. The pipeline layout is made of
- *  the bind-group layouts `layouts`, group by group. */
+ *  thread: prepare never builds its pipelines one after another. The pipeline layout is made once,
+ *  of the bind-group layouts `layouts`, group by group, on a scope of its own (`madeChecked`). */
 export async function buildComputeStages<E extends string>(
   device: GPUDevice,
   layouts: readonly GPUBindGroupLayout[],
@@ -110,10 +109,12 @@ export async function buildComputeStages<E extends string>(
   handed?: (entryPoint: E, ms: number) => void,
 ) {
   const asked = cpuNow()
-  const built = await Promise.all(
-    entryPoints.map((entryPoint) =>
-      buildComputeStage(device, layouts, module, entryPoint, constants).then(
-        (pipeline) => (handed?.(entryPoint, msSince(asked)), pipeline),
+  const built = await madeChecked(device, layoutMaker(device, layouts), (layout) =>
+    Promise.all(
+      entryPoints.map((entryPoint) =>
+        buildComputePipeline(device, computeStage(layout, module, entryPoint, constants)).then(
+          (pipeline) => (handed?.(entryPoint, msSince(asked)), pipeline),
+        ),
       ),
     ),
   )

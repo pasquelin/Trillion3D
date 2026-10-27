@@ -22,7 +22,7 @@ const LAYER_CULLS: Array<[GPUCullMode, GPUFrontFace]> = [
 /** `run` under a validation scope; its pipelines compile off the thread, together. */
 export async function scoped<T>(device: GPUDevice, run: () => Promise<T>): Promise<T> {
   const { value, error } = await validationScope(device, run)
-  if (error) throw error
+  if (error) throw new Error(error.message)
   return value
 }
 /** The visibility raster's depth attachment on a device with the 64-bit atomic maximum, held
@@ -179,8 +179,8 @@ export function createWebgpuVisibilityRasterPipelines(
   clipping?: Clipping,
   wpo: WpoSet = NO_WPO,
 ) {
-  const build = visBuild(device, visModule, bindGroupLayout, variant, clipping, wpo)
   return scoped(device, async () => {
+    const build = visBuild(device, visModule, bindGroupLayout, variant, clipping, wpo)
     const [back, none, front] = await Promise.all(
       LAYER_CULLS.map((cull) => visPipeline(build, cull)),
     )
