@@ -35,13 +35,13 @@ function lighting(
     ),
     STANDARD_LIGHTING_WGSL,
   )
-  const term = 'listedLight(slice,index),rgb,metal,rough,N,V,P,ao,shading);'
+  const term = 'declaredLight(rank,rgb,metal,rough,N,V,P,ao,shading);'
   if (!per) return shipped
-  if (lobes || shipped.split(term).length !== 2) throw new Error('PER_LIGHT_TERM_UNMATCHED')
-  return shipped.replace(
-    term,
-    'listedLight(slice,index),rgb,metal,rough,N,V,P,ao,lobeSurface(rgb,metal,rough,N,V));',
-  )
+  // The surface the loop takes once (`let shading=…;lobeView(shading);`), as the expression each light takes again.
+  const taken = [...shipped.matchAll(/let shading=(.*?);lobeView\(shading\);/g)]
+  if (lobes || taken.length !== 1 || shipped.split(term).length !== 2)
+    throw new Error('PER_LIGHT_TERM_UNMATCHED')
+  return shipped.replace(term, `declaredLight(rank,rgb,metal,rough,N,V,P,ao,${taken[0][1]});`)
 }
 
 /** With `lobes`, the program with the anisotropic and clear-coat lobes (`lobesWgsl.ts`) and its two
@@ -78,27 +78,25 @@ fn main(@builtin(global_invocation_id) id:vec3u){
 /** A sample's light through the lobes program, its lobes set by hand (\`setLobes\`): \`zeroLobes\`, lobes on with
  *  no strength and no coat — what a pixel whose maps zeroed both would read, were it marked —;
  *  \`isoAniso\`, the anisotropic lobe at a strength whose αt rounds to α, along a tangent of the
- *  normal: the isotropic lobe written in the anisotropic form. */
+ *  normal: the isotropic lobe written in the anisotropic form. The anisotropic lobe's visibility is the exact one, the round
+ *  lobe's the approximation unless the view's switch is on (\`shadingAccurate\`): \`exactZero\` and \`exactAniso\` are
+ *  \`zeroLobes\` and \`isoAniso\` with that switch on, the pair that is one lobe. */
+const lobeEntry = (name: string, accurate: boolean, set: string) => `
+@compute @workgroup_size(64)
+fn ${name}(@builtin(global_invocation_id) id:vec3u){
+ if(id.x>=arrayLength(&samples)){return;}
+ let s=samples[id.x];
+ surfaceModel=u32(s.eyeFlag.w);
+ shadingAccurate=${accurate};
+ let N=normalize(s.normalRough.xyz);
+ ${set}
+ sums[id.x]=vec4u(bitcast<vec3u>(lobeSample(s)),0u);
+}`
+const ZERO_SET =
+  'setLobes(lobeAxis(vec3f(0.0,0.0,1.0),0.0,N,lobeAlpha(s.normalRough.a)),0.0,0.5,N,N,normalize(s.eyeFlag.xyz),lobeAlpha(s.normalRough.a));'
+const ANISO_SET = `let T=normalize(cross(select(vec3f(0.0,1.0,0.0),vec3f(1.0,0.0,0.0),abs(N.y)>0.9),N));
+ setLobes(lobeAxis(T,1e-6,N,lobeAlpha(s.normalRough.a)),0.0,0.5,N,N,normalize(s.eyeFlag.xyz),lobeAlpha(s.normalRough.a));`
 const LOBE_ENTRIES_WGSL = `
 fn lobeSample(s:Sample)->vec3f{
  return contractLighting(s.albedoMetal.rgb,s.albedoMetal.a,s.normalRough.a,normalize(s.normalRough.xyz),normalize(s.eyeFlag.xyz),s.pointAo.xyz,s.pointAo.w,0u);
-}
-@compute @workgroup_size(64)
-fn zeroLobes(@builtin(global_invocation_id) id:vec3u){
- if(id.x>=arrayLength(&samples)){return;}
- let s=samples[id.x];
- surfaceModel=u32(s.eyeFlag.w);
- let N=normalize(s.normalRough.xyz);
- setLobes(lobeAxis(vec3f(0.0,0.0,1.0),0.0,N,lobeAlpha(s.normalRough.a)),0.0,0.5,N,N,normalize(s.eyeFlag.xyz),lobeAlpha(s.normalRough.a));
- sums[id.x]=vec4u(bitcast<vec3u>(lobeSample(s)),0u);
-}
-@compute @workgroup_size(64)
-fn isoAniso(@builtin(global_invocation_id) id:vec3u){
- if(id.x>=arrayLength(&samples)){return;}
- let s=samples[id.x];
- surfaceModel=u32(s.eyeFlag.w);
- let N=normalize(s.normalRough.xyz);
- let T=normalize(cross(select(vec3f(0.0,1.0,0.0),vec3f(1.0,0.0,0.0),abs(N.y)>0.9),N));
- setLobes(lobeAxis(T,1e-6,N,lobeAlpha(s.normalRough.a)),0.0,0.5,N,N,normalize(s.eyeFlag.xyz),lobeAlpha(s.normalRough.a));
- sums[id.x]=vec4u(bitcast<vec3u>(lobeSample(s)),0u);
-}`
+}${lobeEntry('zeroLobes', false, ZERO_SET)}${lobeEntry('isoAniso', false, ANISO_SET)}${lobeEntry('exactZero', true, ZERO_SET)}${lobeEntry('exactAniso', true, ANISO_SET)}`

@@ -46,7 +46,7 @@ type ResolveRecord = {
   /** Through the program with no rectangle code (#1369). */
   rectless?: boolean
   /** Through the program with the lobes (`resolveHarness`), at this entry. */
-  lobes?: 'main' | 'zeroLobes' | 'isoAniso'
+  lobes?: 'main' | 'zeroLobes' | 'isoAniso' | 'exactZero' | 'exactAniso'
 }
 /** A scene; `slots` the shadow slot of some lights by their index. */
 export type ResolveScene = {
@@ -93,7 +93,10 @@ export async function run(scenes: ResolveScene[]) {
                 layout: pipelineLayout,
                 compute: { module, entryPoint },
               })
-            const names = ['main', ...(r.lobes ? ['zeroLobes', 'isoAniso'] : [])]
+            const names = [
+              'main',
+              ...(r.lobes ? ['zeroLobes', 'isoAniso', 'exactZero', 'exactAniso'] : []),
+            ]
             return Object.fromEntries(names.map((name) => [name, pipeline(name)]))
           }),
       )
@@ -112,6 +115,7 @@ export async function run(scenes: ResolveScene[]) {
     [DEFERRED_BINDINGS.vsmLightGrid, { buffer: placeholders.vsmLightGrid }],
     [DEFERRED_BINDINGS.farShadowMask, { buffer: placeholders.farShadowMask }],
     [DEFERRED_BINDINGS.lightFunctionAtlas, placeholders.lightFunction],
+    [DEFERRED_BINDINGS.ambientOcclusion, placeholders.ambientOcclusion],
   ])
   const runs: Record<string, number[]>[] = []
   for (const scene of scenes) {
