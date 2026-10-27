@@ -2590,7 +2590,11 @@ profile).
   texels over the factor, 530 000 texels of direct light an image at 4096), and a thread a page lists its tiles up to it; the
   pages' state (the image each was last lit, the count of its updates) lives in their records (`pageRecords.ts`, words 16 to
   19). _The direct light_: a workgroup a tile finds the tile's depth range and the `…MaxLightsPerTile` (8) lights of most
-  luminance times what reaches its centre (`cullWgsl.ts`), a thread a texel adds the irradiance each gives (`directWgsl.ts`):
+  luminance times what reaches its centre (`cullWgsl.ts`), each kept light a light tile appended to a list that is counted by the slot of the light
+  (the point lights', the spots' and the rectangles' by their type, a sun's and a light apart from the atlas's by their rank:
+  `…DirectLightingBatchShadows` 2), placed by a prefix sum of the slots and compacted so that a slot's tiles lie in one run
+  (`lightTilesWgsl.ts`); the light functions apart from the atlas and the shadow masks run over the runs by the slots'
+  indirect arguments, and a thread a texel adds the irradiance each light of its tile gives (`directWgsl.ts`):
   the engine's one light term for a point that is not a pixel — falloff, range, a spot's fade, a rectangle's form factor,
   the cosine, the light function, the clouds' shade, the air's tint — and, for a light that casts a shadow, one ray marched
   through the global distance field (`gdfTrace`) from the texel to the light, started `…GlobalSdfShadowRayBias` (1) voxels off the

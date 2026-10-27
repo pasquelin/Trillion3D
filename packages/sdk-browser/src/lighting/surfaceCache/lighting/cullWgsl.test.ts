@@ -7,7 +7,8 @@ import { SRGB_LUMINANCE } from '../../../../../math/src/color/color.ts'
 import type { SceneLight } from '../../../../../sdk-core/src/scene/light/contracts.ts'
 import { assertProgramAssembles } from '../../../gpu/core/wgslNames.fixture.ts'
 import { LIGHTS, recordOf, type LightRecord } from '../../direct/lightReach.fixture.ts'
-import { CULL_ENTRY, cullWgsl } from './cullWgsl.ts'
+import { wgslBufferBindings } from '../../../gpu/core/wgslBindings.fixture.ts'
+import { CULL_BINDINGS, CULL_ENTRY, cullWgsl } from './cullWgsl.ts'
 import { add, scale } from '../../../../../math/src/vector/vectorTuple.fixture.ts'
 import { atmosphere, cull, tileBox, type V } from './cullWgsl.fixture.ts'
 
@@ -25,6 +26,32 @@ test('the cull computes no depth range of its own: it reads the word of the pass
   assert.doesNotMatch(text, /atomicM(in|ax)/)
   assert.doesNotMatch(text, /texDepth/)
   assert.match(text, /@binding\(7\) var<storage,read> depthRanges:array<u32>;/)
+})
+
+test('the cull gives the tile a light tile for each light it keeps, in the slot of the light’s kind, and records where its lights begin and how many', () => {
+  const text = wgslSource(cullWgsl(4))
+  assert.match(text, /lightsAt=atomicAdd\(&lightTileCounts\[LT_ALLOCATOR\],kept\);/)
+  assert.match(text, /tilesAt=atomicAdd\(&lightTileCounts\[LT_CARD_TILE_ALLOCATOR\],kept\);/)
+  assert.match(text, /atomicAdd\(&lightTileCounts\[givenAt\(lightTileSlot\(kind,rank\)\)\],1u\);/)
+  assert.match(text, /cardTileOffsets\[tile\*CARD_TILE_OFFSET_WORDS\]=tilesAt;/)
+  assert.match(text, /cardTileOffsets\[tile\*CARD_TILE_OFFSET_WORDS\+1u\]=kept;/)
+  // The allocators are taken by the leading thread alone, and only where the tile keeps a light.
+  assert.match(text, /if\(lane==0u\)\{\s*var lightsAt=0u;\s*var tilesAt=0u;\s*if\(kept>0u\)\{/)
+})
+
+test('the cull binds eight storage buffers, the guaranteed limit: the tables, the context, the counters, the tiles’ offsets, the light tiles, the lights, the depth ranges and the bits of the standalone lights', () => {
+  const B = CULL_BINDINGS
+  assert.deepEqual(wgslBufferBindings(cullWgsl(4)), [
+    { binding: 0, type: 'uniform' },
+    { binding: B.tables, type: 'read-only-storage' },
+    { binding: B.context, type: 'read-only-storage' },
+    { binding: B.counts, type: 'storage' },
+    { binding: B.cardTileOffsets, type: 'storage' },
+    { binding: B.culled, type: 'storage' },
+    { binding: B.lights, type: 'read-only-storage' },
+    { binding: B.depthRanges, type: 'read-only-storage' },
+    { binding: B.standalone, type: 'read-only-storage' },
+  ])
 })
 
 const sub = (a: V, b: V) => a.map((x, i) => x - b[i])
@@ -225,7 +252,7 @@ test('the key packs the weight, whether the light needs a shadow mask, its type 
   )
 })
 
-test('a light that wears a light function the atlas holds no slot of needs a shadow mask, as one that casts a shadow does, and is marked in the list of its tile', () => {
+test('a light that wears a light function the atlas holds no slot of needs a shadow mask, as one that casts a shadow does, and is marked in the light tile it gets', () => {
   const { lightKey } = cull(atmosphere(-1, false))
   const quiet = recordOf({ ...LIGHTS[0], castsShadow: false })
   const casting = recordOf({ ...LIGHTS[0], castsShadow: true })
@@ -239,7 +266,7 @@ test('a light that wears a light function the atlas holds no slot of needs a sha
   const text = wgslSource(cullWgsl(4))
   assert.match(
     text,
-    /tileLights\[at0\+1u\+kept\]=rank\|select\(0u,TILE_LIGHT_STANDALONE,standaloneLight\(rank\)\);/,
+    /culledTiles\[at\+1u\]=culledTileWord\(rank\|select\(0u,TILE_LIGHT_STANDALONE,standaloneLight\(rank\)\),k,kind\);/,
   )
   assert.match(text, /@binding\(8\) var<storage,read> standaloneLights:array<u32>;/)
 })

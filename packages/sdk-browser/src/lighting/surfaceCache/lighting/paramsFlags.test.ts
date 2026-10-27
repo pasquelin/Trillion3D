@@ -61,7 +61,6 @@ test("an image's parameters carry the settings: the flags, the pre-exposed ray l
   assert.equal(words[at.scratchAt], 4096)
   assert.equal(floats[at.exposure], 0.75)
   assert.equal(words[at.pages], 12)
-  assert.equal(words[at.maxLights], 8)
   assert.equal(words[at.spacingShift], 2)
   assert.equal(words[at.maxFrames], 4)
   assert.equal(new Int32Array(words.buffer)[at.fixedJitter], -1)
@@ -80,7 +79,8 @@ test("an image's parameters carry the settings: the flags, the pre-exposed ray l
     LIGHTING_FLAG.historyValid |
     LIGHTING_FLAG.adaptiveShadowTracing |
     LIGHTING_FLAG.feedback |
-    LIGHTING_FLAG.cullToTileDepthRange
+    LIGHTING_FLAG.cullToTileDepthRange |
+    LIGHTING_FLAG.lightTilesPerType
   assert.equal(words[at.flags], all)
   // The traced shadow's biases, in centimetres: the reference's defaults.
   near(floats[at.traceRayBias], 1)
@@ -131,6 +131,23 @@ test('the lights are culled to the depth range of the tile unless the setting is
   assert.equal(settings.surfaceCacheDirectLightingCullToTileDepthRange, true)
   assert.equal(flagOf(true), LIGHTING_FLAG.cullToTileDepthRange)
   assert.equal(flagOf(false), 0)
+})
+
+test('the light tiles of the point lights, the spots and the rectangles are gathered by their type at the reference default of the batching, 2, and each light by itself at 0 and 1', () => {
+  const flagOf = (batch: number) => {
+    const words = new Uint32Array(LIGHTING_PARAMS.words)
+    writeLightingParams(
+      words,
+      shapeOf(settings, 1024, false),
+      { ...settings, surfaceCacheDirectLightingBatchShadows: batch },
+      atOrigin(),
+    )
+    return words[LIGHTING_PARAMS.at.flags] & LIGHTING_FLAG.lightTilesPerType
+  }
+  assert.equal(settings.surfaceCacheDirectLightingBatchShadows, 2)
+  assert.equal(flagOf(2), LIGHTING_FLAG.lightTilesPerType)
+  assert.equal(flagOf(1), 0)
+  assert.equal(flagOf(0), 0)
 })
 
 test('a frozen cache lights no tile and holds the update frame, its lists keeping their size', () => {

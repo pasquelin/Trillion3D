@@ -1,3 +1,4 @@
+import { nextPow2 } from '../../../../../math/src/scalar/integers.ts'
 import { fieldLayout, vec4Array } from '../../../gpu/core/fieldLayout.ts'
 import { CARD_TILE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
 import { CARD_PAGE_WORDS } from '../../../../../sdk-core/src/lighting/surfaceCache/pageRecords.ts'
@@ -75,15 +76,47 @@ export const PAGE_LIGHTING = {
 } as const
 
 /**
+ * THE LIGHT TILES of the direct update: a light tile is a tile of the update's list and one of the lights it keeps. The cull of
+ * the lights (`cullWgsl.ts`) appends them to a list as it picks them, and a tile's own are found again by its offset and count
+ * in `cardTileOffsets` (two words a tile of the list). Each lies in a slot by its light: a point light, a spot and a rectangle
+ * each its own slot — the batchable types, `BATCHABLE_LIGHT_TYPES`, where `LIGHTING_FLAG.lightTilesPerType` is on — and any
+ * other (a sun, a light whose function the atlas holds no slot of, every light with the flag off) the slot of its rank after
+ * them. The counters (`lightTileCountsWords`) hold the light tiles given out and the entries given out in the lists of the tiles
+ * (`LIGHT_TILE_COUNTS`), then, for each slot, the light tiles the cull gave it, the ones the compaction has placed so far and the
+ * place its tiles begin at in the compacted list — the slots of the lights first, then the types'. The compacted list
+ * (`compactedLightTiles`) holds the tiles of a slot one after the other: its entry is the tile's page and tile word as the update's
+ * list holds it, then the light's word (`TILE_LIGHT_RANK_BITS` of rank, `TILE_LIGHT_STANDALONE` over it); the list of each
+ * tile (`cardTileLights`) holds, in the order the cull picked them, the light's word and the place of the light tile in the
+ * compacted list, which is the index of its shadow mask. The arguments of the dispatches (`lightTileArgsWords`, three words an
+ * entry) are those of the compaction, of the slots of the lights together and of each slot.
+ */
+export const BATCHABLE_LIGHT_TYPES = 3
+/** The words of a light tile in the lists the cull and the compaction make. */
+export const LIGHT_TILE_WORDS = 2
+/** The words of a tile in `cardTileOffsets`: where its lights begin in the list of the tiles' lights, and how many it keeps. */
+export const CARD_TILE_OFFSET_WORDS = 2
+/** The counters before the slots' in the counters' buffer. */
+export const LIGHT_TILE_COUNTS = { allocator: 0, cardTileAllocator: 1, head: 2 } as const
+/** The slots a scene of `lights` lights needs, raised to a power of two: the batchable types' and a slot a light. */
+export const lightSlotsOf = (lights: number) => nextPow2(BATCHABLE_LIGHT_TYPES + lights)
+/** The words of the counters' buffer for `slots` slots: the three arrays of counters follow the head. */
+export const lightTileCountsWords = (slots: number) => LIGHT_TILE_COUNTS.head + 3 * slots
+/** The entries of the dispatch arguments before the slots': the compaction's, and the slots of the lights together. */
+export const LIGHT_TILE_ARGS = { compaction: 0, lights: 1, slots: 2 } as const
+export const LIGHT_TILE_ARGS_WORDS = 3
+/** The words of the buffer of the dispatch arguments for `slots` slots. */
+export const lightTileArgsWords = (slots: number) =>
+  LIGHT_TILE_ARGS_WORDS * (LIGHT_TILE_ARGS.slots + slots)
+
+/**
  * THE SHADOW MASKS of the direct light. A tile of 8 × 8 texels keeps, for each light it is lit by, a mask of
  * `shadowMaskOf(format).tileWords` words: a texel is a byte (`'grey'`) — the light's factor on 7 bits (the light function and
  * the clouds' shade, then the ray's answer) — or, with the light functions' coloured atlas (`'colour'`), two bytes — the factor of
  * each of its three colour channels on 5 bits —; the top bit of the byte or the two bytes says whether the texel is settled. The texels whose mask is not
  * settled are listed as shadow traces: one word each after the count that opens the buffer, the light tile in the low
  * `SHADOW_TRACE.lightTileBits`, then the texel along x and along y in 3 bits each and the downsample
- * level in the bits above. The light tiles, a tile of the direct list and a light of it, keep where they are
- * (`SHADOW_LIGHT_TILE_WORDS` words each: the tile's page and tile word as the list holds it, the light's rank), so that a
- * trace finds its texel from its light tile alone. The tiles of the physical atlas keep, a
+ * level in the bits above. The light tiles are the compacted ones (`LIGHT_TILE_WORDS` words each: the tile's page and tile
+ * word as the update's list holds it, the light's rank), so that a trace finds its texel from its light tile alone. The tiles of the physical atlas keep, a
  * word of 256 lights a light's bit, whether every texel of the tile saw the light, or none did, at its last
  * update (`SHADOW_FACTOR_TILE_WORDS` words a tile).
  */
@@ -117,7 +150,6 @@ export const SHADOW_TRACE = {
   quadMask: CARD_TILE_SIZE - 2,
   downsampleMask: 2 ** TRACE_DOWNSAMPLE_BITS - 1,
 } as const
-export const SHADOW_LIGHT_TILE_WORDS = 2
 export const SHADOW_FACTOR_TILE_WORDS = 8
 
 /**
@@ -142,12 +174,11 @@ export const standaloneScratchWords = (lightTiles: number) => lightTiles * STAND
  *  light of its), their masks in `format`: what they are made at and what the device must hold. The masks are
  *  `shadowMaskOf(format).tileWords` a light tile, the scratch of the light functions after them where an image
  *  has any (`scratch`); the traces are one word for each texel of each, at least `SHADOW_TRACE.least`, after the
- *  count; the light tiles are `SHADOW_LIGHT_TILE_WORDS` each. */
+ *  count. */
 export const tracedShadowWords = (lightTiles: number, format: AtlasFormat, scratch: boolean) => ({
   masks:
     standaloneScratchAt(lightTiles, format) + (scratch ? standaloneScratchWords(lightTiles) : 0),
   traces: 1 + Math.max(SHADOW_TEXELS * lightTiles, SHADOW_TRACE.least),
-  lightTiles: lightTiles * SHADOW_LIGHT_TILE_WORDS,
 })
 /** The words of the factor atlas of a physical atlas of `side` texels. */
 export const shadowFactorWords = (side: number) =>
@@ -168,6 +199,7 @@ export const LIGHTING_FLAG = {
   feedback: 1024,
   cullToTileDepthRange: 2048,
   probeOcclusion: 4096,
+  lightTilesPerType: 8192,
 } as const
 
 /** How a radiosity ray through the scene's triangles avoids the geometry it starts on, the setting
@@ -196,7 +228,6 @@ export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
   ['radiosityTiles', 'u32'],
   ['firstClipmapRcp', 'f32'],
   ['frustumDistance', 'f32'],
-  ['maxLights', 'u32'],
   ['preExposure', 'f32'],
   ['shadowBias', 'f32'],
   ['maxTrace', 'f32'],

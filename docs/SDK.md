@@ -700,7 +700,9 @@ image, the pages left longest unlit first), `surfaceCacheLightingUpdateSpeed` (`
 spacing), `surfaceCacheLightingForceFullUpdate` (`false`), `surfaceCacheFreezeUpdateFrame` (`0`; any other number stops the update clock
 and the pages' record of being lit, so that every image lights the same subset, for debugging), `surfaceCacheLightingMaxDistanceFromFrustumToPrioritize` (`500`, `-1`
 never: the pages near the frustum are lit twice as soon), `surfaceCacheLightingFeedback` (`true`: a page the rays read at its finest level in the last two images is lit at the greatest update speed, 4, where the scene has acceleration structures and `surfaceCacheDirectLightingHardwareRayTracing` is on), `surfaceCacheDirectLighting` (`true`),
-`surfaceCacheDirectLightingMaxLightsPerTile` (`8`, up to 32, a power of two), `surfaceCacheDirectLightingGlobalSdfShadowRayBias` (`1`:
+`surfaceCacheDirectLightingMaxLightsPerTile` (`8`, up to 32, a power of two), `surfaceCacheDirectLightingBatchShadows` (`2`, from 0 to 2: the
+tiles of each light are gathered into a run before the masks and the light functions are made over them; at `2` the point lights', the
+spots' and the rectangles' tiles are each gathered by their type, at `0` and `1` each light has a run of its own; the image is the same), `surfaceCacheDirectLightingGlobalSdfShadowRayBias` (`1`:
 voxels the shadow ray starts off the surface, three where it grazes the light) and `surfaceCacheDirectLightingCloudTransmittance`
 (`true`). Where the scene has acceleration structures the direct light's shadow is traced through the scene's triangles instead:
 `surfaceCacheDirectLightingHardwareRayTracing` (`true`; `false` keeps the distance field's ray) keeps, for each light of a tile, a

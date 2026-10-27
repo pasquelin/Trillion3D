@@ -34,7 +34,9 @@ test('a light that wears a light function the atlas holds no slot of gets its sh
     /if\(standalone\)\{\s*seen\.irradiance\*=share;\s*if\(!isVisibleScalar\(share\)\)\{seen\.shadowed=true;return seen;\}\s*\}/,
   )
   const entry = functionsOf(DIRECT_WGSL, [DIRECT_ENTRY])
-  assert.ok(entry.includes('share=scratchFactorIn(masks[scratchWordOf(tile*lp.maxLights+k,i)],i);'))
+  assert.ok(
+    entry.includes('share=scratchFactorIn(masks[scratchWordOf(tileLightMask(head,k),i)],i);'),
+  )
   assert.ok(entry.includes('tileLightRank(listed)'))
 })
 

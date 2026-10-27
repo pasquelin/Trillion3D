@@ -24,12 +24,15 @@ import {
   SPLICE_ENTRIES,
   SPLICE_WGSL,
 } from './contextWgsl.ts'
+import { CULL_BINDINGS, CULL_ENTRY, cullWgsl } from './cullWgsl.ts'
 import {
-  CULL_DEPTH_RANGES_BINDING,
-  CULL_ENTRY,
-  CULL_STANDALONE_BINDING,
-  cullWgsl,
-} from './cullWgsl.ts'
+  LIGHT_TILE_COMPACT_BINDINGS,
+  LIGHT_TILE_COMPACT_ENTRY,
+  LIGHT_TILE_COMPACT_WGSL,
+  LIGHT_TILE_COUNTS_BINDINGS,
+  LIGHT_TILE_COUNTS_ENTRIES,
+  LIGHT_TILE_COUNTS_WGSL,
+} from './lightTilesWgsl.ts'
 import {
   DIRECT_BINDINGS,
   DIRECT_CLOUD_SHADOW,
@@ -62,7 +65,7 @@ import {
 import {
   SHADOW_MASK_BINDINGS,
   SHADOW_MASK_CLOUD_SHADOW,
-  SHADOW_MASK_ENTRY,
+  SHADOW_MASK_ENTRIES,
   SHADOW_MASK_COLOURED_PROGRAM_WGSL,
   SHADOW_MASK_PROGRAM_WGSL,
 } from './shadowMaskWgsl.ts'
@@ -89,7 +92,7 @@ import {
 
 /**
  * THE LIGHTING'S KERNELS ON THE GPU: the pipeline and the bind group layout of each program (`contextWgsl.ts`,
- * `tileDepthRangeWgsl.ts`, `cullWgsl.ts`, `directWgsl.ts`, `combineWgsl.ts`, `radiosityBuildWgsl.ts`, `radiosityTraceWgsl.ts`,
+ * `tileDepthRangeWgsl.ts`, `cullWgsl.ts`, `lightTilesWgsl.ts`, `directWgsl.ts`, `combineWgsl.ts`, `radiosityBuildWgsl.ts`, `radiosityTraceWgsl.ts`,
  * `radiosityFilterWgsl.ts`, `radiosityIntegrateWgsl.ts`, and the traced shadows' `shadowMaskWgsl.ts` and
  * `shadowTraceWgsl.ts`), compiled off the frame, and the bind group of an image, made again
  * only when a resource it names moved. The programs that do not depend on the shape are made once for a device
@@ -136,6 +139,32 @@ function contextKernels(device: GPUDevice, constants: ReturnType<typeof groupWid
       computeBufferEntry(1, ro),
       computeBufferEntry(SPLICE_CONTEXT_BINDING, 'storage'),
     ]),
+    lightTileCounts: createKernel(
+      device,
+      'light tile counts',
+      LIGHT_TILE_COUNTS_WGSL,
+      LIGHT_TILE_COUNTS_ENTRIES,
+      [
+        computeBufferEntry(LIGHT_TILE_COUNTS_BINDINGS.counts, 'storage'),
+        computeBufferEntry(LIGHT_TILE_COUNTS_BINDINGS.args, 'storage'),
+      ],
+      { constants },
+    ),
+    lightTileCompact: createKernel(
+      device,
+      'light tile compaction',
+      LIGHT_TILE_COMPACT_WGSL,
+      [LIGHT_TILE_COMPACT_ENTRY],
+      [
+        computeBufferEntry(LIGHT_TILE_COMPACT_BINDINGS.counts, 'storage'),
+        computeBufferEntry(LIGHT_TILE_COMPACT_BINDINGS.context, ro),
+        computeBufferEntry(LIGHT_TILE_COMPACT_BINDINGS.tables, ro),
+        computeBufferEntry(LIGHT_TILE_COMPACT_BINDINGS.culled, ro),
+        computeBufferEntry(LIGHT_TILE_COMPACT_BINDINGS.compacted, 'storage'),
+        computeBufferEntry(LIGHT_TILE_COMPACT_BINDINGS.cardTileOffsets, ro),
+        computeBufferEntry(LIGHT_TILE_COMPACT_BINDINGS.cardTileLights, 'storage'),
+      ],
+    ),
     tileDepthRanges: createKernel(
       device,
       'tile depth ranges',
@@ -258,7 +287,7 @@ function directKernel(device: GPUDevice, code: string) {
     computeBufferEntry(D.tables, ro),
     computeBufferEntry(D.context, ro),
     ...depthAndNormal(D.depth, D.normal),
-    computeBufferEntry(D.tileLights, ro),
+    computeBufferEntry(D.cardTileLights, ro),
     writes(D.out, 'r32uint'),
     computeBufferEntry(D.lights, ro),
     lightFunctionLayoutEntry(D.lightFunction),
@@ -266,6 +295,7 @@ function directKernel(device: GPUDevice, code: string) {
     ...globalReadLayoutEntries(D.field),
     computeBufferEntry(D.masks, ro),
     computeBufferEntry(D.factors, 'storage'),
+    computeBufferEntry(D.cardTileOffsets, ro),
   ])
 }
 
@@ -303,25 +333,18 @@ function shadowKernels(device: GPUDevice, format: AtlasFormat) {
   const T = SHADOW_TRACE_BINDINGS
   const programs = MASK_PROGRAMS[format]
   return {
-    shadowMask: createKernel(
-      device,
-      'shadow masks',
-      programs.mask,
-      [SHADOW_MASK_ENTRY],
-      [
-        computeBufferEntry(M.tables, ro),
-        computeBufferEntry(M.context, ro),
-        ...depthAndNormal(M.depth, M.normal),
-        computeBufferEntry(M.tileLights, ro),
-        computeBufferEntry(M.masks, 'storage'),
-        computeBufferEntry(M.lights, ro),
-        lightFunctionLayoutEntry(M.lightFunction),
-        ...cloudShadowLayoutEntries(SHADOW_MASK_CLOUD_SHADOW, COMPUTE),
-        computeBufferEntry(M.factors, ro),
-        computeBufferEntry(M.traces, 'storage'),
-        computeBufferEntry(M.lightTiles, 'storage'),
-      ],
-    ),
+    shadowMask: createKernel(device, 'shadow masks', programs.mask, SHADOW_MASK_ENTRIES, [
+      computeBufferEntry(M.tables, ro),
+      computeBufferEntry(M.counts, ro),
+      ...depthAndNormal(M.depth, M.normal),
+      computeBufferEntry(M.lightTiles, ro),
+      computeBufferEntry(M.masks, 'storage'),
+      computeBufferEntry(M.lights, ro),
+      lightFunctionLayoutEntry(M.lightFunction),
+      ...cloudShadowLayoutEntries(SHADOW_MASK_CLOUD_SHADOW, COMPUTE),
+      computeBufferEntry(M.factors, ro),
+      computeBufferEntry(M.traces, 'storage'),
+    ]),
     shadowArgs: shadowArgsKernel(device),
     shadowTrace: createKernel(
       device,
@@ -396,6 +419,7 @@ export function shapedKernels(
   compressed: boolean,
 ): ShapedKernels {
   const C = COMBINE_BINDINGS
+  const K = CULL_BINDINGS
   return {
     maxLights,
     compressed,
@@ -405,12 +429,14 @@ export function shapedKernels(
       cullWgsl(maxLights),
       [CULL_ENTRY],
       [
-        computeBufferEntry(1, ro),
-        computeBufferEntry(2, ro),
-        computeBufferEntry(5, 'storage'),
-        computeBufferEntry(6, ro),
-        computeBufferEntry(CULL_DEPTH_RANGES_BINDING, ro),
-        computeBufferEntry(CULL_STANDALONE_BINDING, ro),
+        computeBufferEntry(K.tables, ro),
+        computeBufferEntry(K.context, ro),
+        computeBufferEntry(K.counts, 'storage'),
+        computeBufferEntry(K.cardTileOffsets, 'storage'),
+        computeBufferEntry(K.culled, 'storage'),
+        computeBufferEntry(K.lights, ro),
+        computeBufferEntry(K.depthRanges, ro),
+        computeBufferEntry(K.standalone, ro),
       ],
     ),
     combine: createKernel(

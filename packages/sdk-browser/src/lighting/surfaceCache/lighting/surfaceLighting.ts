@@ -40,7 +40,7 @@ import {
   lightFunctionSlotSize,
   markStandalonePending,
 } from '../../lightFunction/frame.ts'
-import { LIGHTING_PARAMS, standaloneScratchAt } from './layout.ts'
+import { LIGHTING_PARAMS, lightSlotsOf, standaloneScratchAt } from './layout.ts'
 import {
   createStandaloneState,
   disposeStandaloneState,
@@ -68,9 +68,11 @@ import {
 } from './params.ts'
 import {
   ensureLighting,
+  ensureLightSlots,
   ensureStandaloneScratch,
   ensureTracedShadows,
   type LightingResources,
+  type LightSlots,
   type StandaloneScratch,
   type TracedShadowBuffers,
 } from './resources.ts'
@@ -79,8 +81,9 @@ import {
  * THE SURFACE CACHE'S LIGHTING FOR AN IMAGE, in the order the reference runs it, in one compute pass:
  *
  * 1. the update context (`contextWgsl.ts`): which tiles of which pages are lit this image;
- * 2. the direct light: the depth range of each tile (`tileDepthRangeWgsl.ts`, where the lights are culled to it), the lights of each tile (`cullWgsl.ts`), the light functions
- *    the atlas holds no slot of, evaluated at the texels of the tiles that keep their lights (`lightFunctionPassWgsl.ts`), their light on its texels (`directWgsl.ts`), the final light
+ * 2. the direct light: the depth range of each tile (`tileDepthRangeWgsl.ts`, where the lights are culled to it), the lights of each tile
+ *    (`cullWgsl.ts`) gathered into light tiles, placed by slot and compacted (`lightTilesWgsl.ts`), the light functions
+ *    the atlas holds no slot of, evaluated at the texels of the light tiles of their lights (`lightFunctionPassWgsl.ts`), their light on its texels (`directWgsl.ts`), the final light
  *    of the tiles combined (`combineWgsl.ts`). Where the scene has acceleration structures
  *    (`surfaceCacheDirectLightingHardwareRayTracing`) the light's shadows come between the lights of the tiles and their
  *    light: the masks of each light on each tile (`shadowMaskWgsl.ts`), the traces they list counted and traced through the
@@ -158,9 +161,11 @@ export interface SurfaceLightingState {
   historyLost: boolean
   /** Whether the direct-light layer of the atlas may hold light: true until an image has found the direct light off. */
   directHeld: boolean
-  /** The traced shadows' memory: their masks, traces and light tiles, and the scene trace made for the acceleration structures
+  /** The traced shadows' memory: their masks and traces, and the scene trace made for the acceleration structures
    *  (the radiosity's traced rays use it too). */
   tracedBuffers?: TracedShadowBuffers
+  /** The counters of the light tiles of the scene's lights and the arguments of the dispatches over them, for as many light slots as its lights need. */
+  lightSlots?: LightSlots
   sceneTrace?: SceneTrace
   /** The scene trace the last image made for the world probes' rays, none where it made none (`sceneRaysOf`). */
   rays?: SceneRays
@@ -447,6 +452,13 @@ export function encodeLighting(
   const ready = prepared(state, device, shape, format)
   if (!ready) return state.resources ? 'waiting' : 'none'
   if (!tables.buffer || !cache.pages.length) return 'none'
+  const slots = lightSlotsOf(rt.lights.store.capacity)
+  const slotted = ensureLightSlots(state.lightSlots, device, slots)
+  state.lightSlots = slotted.resources
+  if (!slotted.resources) {
+    state.why = slotted.why ?? state.why
+    return 'none'
+  }
   // The light functions the atlas holds no slot of: those ready are evaluated into a scratch, in the masks' buffer where the shadows
   // are traced, else in a buffer of its own; where that cannot be made they are lit as if they wore none.
   const standalone = (state.standalone ??= createStandaloneState(device))
@@ -487,6 +499,8 @@ export function encodeLighting(
   if (directLayerStale(state, settings)) clearLayer(encoder, 'direct', atlases.physical.direct)
   const encoding: Encoding = {
     ...ready,
+    lightSlots: slotted.resources,
+    slots,
     pass: state.pass.begin(encoder).pass,
     atlases,
     tables: tables.buffer,
@@ -518,6 +532,7 @@ export function disposeSurfaceLighting(owner: { lighting?: SurfaceLightingState 
   const lighting = owner.lighting
   if (!lighting) return
   lighting.resources?.dispose()
+  lighting.lightSlots?.dispose()
   releaseTraced(lighting)
   releaseScratch(lighting)
   if (lighting.standalone) disposeStandaloneState(lighting.standalone)

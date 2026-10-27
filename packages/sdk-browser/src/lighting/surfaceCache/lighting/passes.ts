@@ -14,7 +14,7 @@ import {
   CONTEXT_TRACES_BINDING,
   SPLICE_CONTEXT_BINDING,
 } from './contextWgsl.ts'
-import { CULL_DEPTH_RANGES_BINDING, CULL_ENTRY, CULL_STANDALONE_BINDING } from './cullWgsl.ts'
+import { CULL_BINDINGS, CULL_ENTRY } from './cullWgsl.ts'
 import {
   DIRECT_BINDINGS,
   DIRECT_CLOUD_SHADOW,
@@ -31,7 +31,19 @@ import type { Kernel } from '../kernel.ts'
 import type { StandalonePrepared } from './lightFunctionPass.ts'
 import { LIGHT_FUNCTION_PASS_BINDINGS, LIGHT_FUNCTION_PASS_ENTRY } from './lightFunctionPassWgsl.ts'
 import { LIGHTING_CONTEXTS } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
-import { CONTEXT_ARGS, CONTEXT_AT, PAGE_ARGS_SLOT_WORDS } from './layout.ts'
+import {
+  BATCHABLE_LIGHT_TYPES,
+  CONTEXT_ARGS,
+  CONTEXT_AT,
+  LIGHT_TILE_ARGS,
+  LIGHT_TILE_ARGS_WORDS,
+  PAGE_ARGS_SLOT_WORDS,
+} from './layout.ts'
+import {
+  LIGHT_TILE_COMPACT_BINDINGS,
+  LIGHT_TILE_COMPACT_ENTRY,
+  LIGHT_TILE_COUNTS_BINDINGS,
+} from './lightTilesWgsl.ts'
 import type { LightingInputs } from './surfaceLighting.ts'
 import { RADIOSITY_BUILD_BINDINGS } from './radiosityBuildWgsl.ts'
 import { RADIOSITY_FILTER_BINDINGS } from './radiosityFilterWgsl.ts'
@@ -48,7 +60,7 @@ import {
 import {
   SHADOW_MASK_BINDINGS,
   SHADOW_MASK_CLOUD_SHADOW,
-  SHADOW_MASK_ENTRY,
+  SHADOW_MASK_TYPE_SLOTS,
 } from './shadowMaskWgsl.ts'
 import {
   SHADOW_ARGS_BINDINGS,
@@ -57,16 +69,16 @@ import {
   SHADOW_TRACE_ENTRY,
   SHADOW_TRACE_SCENE,
 } from './shadowTraceWgsl.ts'
-import type { LightingResources, TracedShadowBuffers } from './resources.ts'
+import type { LightingResources, LightSlots, TracedShadowBuffers } from './resources.ts'
 import { TILE_DEPTH_RANGE_BINDINGS, TILE_DEPTH_RANGE_ENTRY } from './tileDepthRangeWgsl.ts'
 
 /**
  * THE DISPATCHES OF AN IMAGE'S LIGHTING, each with the bind group of its program over what the image holds (`Encoding`): the
- * update context, the direct light (its shadows traced, where the image has the scene trace: the masks, the arguments and the
- * trace come between its lights and its light) and the radiosity, in the order `surfaceLighting.ts`
- * says. A program's group is made again
+ * update context, the direct light (the light tiles of its tiles, made and compacted by slot; its shadows traced, where the image
+ * has the scene trace: the masks, the arguments and the trace come between its lights and its light) and the radiosity, in the
+ * order `surfaceLighting.ts` says. A program's group is made again
  * only where a resource it names moved (`Kernel.group`); the dispatches that follow a list the GPU made read their sizes
- * from its header (`CONTEXT_ARGS`).
+ * from its header (`CONTEXT_ARGS`) or, those over the light tiles, from the arguments of the light slots (`LIGHT_TILE_ARGS`).
  */
 
 /** What rays are cast through the scene's triangles with in an image: the programs, the scene trace (its resources, which the
@@ -87,6 +99,9 @@ export interface TracedShadows extends TracedScene<ReturnType<typeof tracedShado
 export interface Encoding {
   readonly pass: GPUComputePassEncoder
   readonly resources: LightingResources
+  /** The counters of the light tiles each slot holds, the arguments of the dispatches over them, and the slots they are made for. */
+  readonly lightSlots: LightSlots
+  readonly slots: number
   readonly atlases: SurfaceAtlases
   readonly tables: GPUBuffer
   readonly inputs: LightingInputs
@@ -148,6 +163,19 @@ function fromContext(
   e.pass.dispatchWorkgroupsIndirect(e.resources.context, (CONTEXT_AT.args + 4 * slot) * 4)
 }
 
+/** A dispatch whose groups the light tiles' arguments name at `entry` (`LIGHT_TILE_ARGS`); `offsets` are the dynamic offsets of the bind group. */
+function fromLightTiles(
+  e: Encoding,
+  pipeline: GPUComputePipeline,
+  group: GPUBindGroup,
+  entry: number,
+  offsets?: readonly number[],
+) {
+  e.pass.setPipeline(pipeline)
+  e.pass.setBindGroup(0, group, offsets)
+  e.pass.dispatchWorkgroupsIndirect(e.lightSlots.args, entry * LIGHT_TILE_ARGS_WORDS * 4)
+}
+
 /** The bind group of the scene trace's resources, in the group `where` of `kernel`. */
 function sceneGroup(
   kernel: Pick<Kernel<string>, 'group'>,
@@ -201,21 +229,22 @@ export function contextPasses(e: Encoding) {
  *  else the stand-in. The scratch is in it at the word the parameters name (`scratchAt`). */
 const masksOf = (e: Encoding) => e.traced?.buffers.masks ?? e.scratch ?? e.resources.standIn
 
-/** The light functions the atlas holds no slot of, evaluated at the texels of the tiles that keep their lights, into the scratch. */
+/** The light functions the atlas holds no slot of, evaluated at the texels of the light tiles of their lights, into the scratch. */
 function lightFunctionPasses(e: Encoding) {
-  const { params, context, tileLights } = e.resources
+  const { params, compactedLightTiles } = e.resources
+  const { counts } = e.lightSlots
   const { depth, normal } = e.atlases.physical
   const masks = masksOf(e)
   const B = LIGHT_FUNCTION_PASS_BINDINGS
-  for (const { kernel, offset, bytes, maps } of e.standalone.passes) {
+  for (const { kernel, slot, offset, bytes, maps } of e.standalone.passes) {
     const group = kernel.group(
       [
         params,
         e.tables,
-        context,
+        counts,
         depth,
         normal,
-        tileLights,
+        compactedLightTiles,
         masks,
         e.standalone.given,
         ...maps.map(({ resource }) => ('buffer' in resource ? resource.buffer : resource)),
@@ -223,41 +252,42 @@ function lightFunctionPasses(e: Encoding) {
       () => [
         buffer(0, params),
         buffer(B.tables, e.tables),
-        buffer(B.context, context),
+        buffer(B.counts, counts),
         view(B.depth, depth),
         view(B.normal, normal),
-        buffer(B.tileLights, tileLights),
+        buffer(B.lightTiles, compactedLightTiles),
         buffer(B.masks, masks),
         { binding: B.given, resource: { buffer: e.standalone.given!, size: bytes } },
         ...maps,
       ],
     )
-    fromContext(
+    fromLightTiles(
       e,
       kernel.pipeline(LIGHT_FUNCTION_PASS_ENTRY),
       group,
-      CONTEXT_ARGS.directTiles,
-      [],
+      LIGHT_TILE_ARGS.slots + BATCHABLE_LIGHT_TYPES + slot,
       [offset],
     )
   }
 }
 
-/** The shadow masks of the lights of the tiles, which list the traces they need. */
+/** The shadow masks of the light tiles, which list the traces they need: those of the slots of the lights together, then of the point lights', the spots'
+ *  and the rectangles' slots, each by the arguments of its own. */
 function shadowMaskPass(e: Encoding, { kernels, buffers }: TracedShadows) {
-  const { params, context, tileLights } = e.resources
+  const { params, compactedLightTiles } = e.resources
+  const { counts } = e.lightSlots
   const { physical, factors } = e.atlases
-  const { masks: shadowMasks, traces: shadowTraces, lightTiles: shadowLightTiles } = buffers
+  const { masks: shadowMasks, traces: shadowTraces } = buffers
   const { cloudShadow, lights, lightFunction } = e.inputs
   const M = SHADOW_MASK_BINDINGS
   const masking = kernels.shadowMask.group(
     [
       params,
       e.tables,
-      context,
+      counts,
       physical.depth,
       physical.normal,
-      tileLights,
+      compactedLightTiles,
       shadowMasks,
       lights,
       lightFunction,
@@ -267,25 +297,31 @@ function shadowMaskPass(e: Encoding, { kernels, buffers }: TracedShadows) {
       cloudShadow.sampler,
       factors,
       shadowTraces,
-      shadowLightTiles,
     ],
     () => [
       buffer(0, params),
       buffer(M.tables, e.tables),
-      buffer(M.context, context),
+      buffer(M.counts, counts),
       view(M.depth, physical.depth),
       view(M.normal, physical.normal),
-      buffer(M.tileLights, tileLights),
+      buffer(M.lightTiles, compactedLightTiles),
       buffer(M.masks, shadowMasks),
       buffer(M.lights, lights),
       view(M.lightFunction, lightFunction),
       ...cloudShadowBindEntries(SHADOW_MASK_CLOUD_SHADOW, cloudShadow),
       buffer(M.factors, factors),
       buffer(M.traces, shadowTraces),
-      buffer(M.lightTiles, shadowLightTiles),
     ],
   )
-  fromContext(e, kernels.shadowMask.pipeline(SHADOW_MASK_ENTRY), masking, CONTEXT_ARGS.directTiles)
+  const slots = LIGHT_TILE_ARGS.slots
+  const masked = [
+    ['shadowMaskLights', LIGHT_TILE_ARGS.lights],
+    ['shadowMaskPoint', slots + SHADOW_MASK_TYPE_SLOTS.shadowMaskPoint],
+    ['shadowMaskSpot', slots + SHADOW_MASK_TYPE_SLOTS.shadowMaskSpot],
+    ['shadowMaskRect', slots + SHADOW_MASK_TYPE_SLOTS.shadowMaskRect],
+  ] as const
+  for (const [entry, args] of masked)
+    fromLightTiles(e, kernels.shadowMask.pipeline(entry), masking, args)
 }
 
 /** The arguments of the traces the masks listed. */
@@ -303,9 +339,9 @@ function shadowArgsPass(e: Encoding, { kernels, buffers }: TracedShadows) {
 
 /** The traces the masks listed, cast through the scene and the cut's tables. */
 function shadowTracePass(e: Encoding, { kernels, buffers, sceneTrace, views }: TracedShadows) {
-  const { params } = e.resources
+  const { params, compactedLightTiles } = e.resources
   const { physical } = e.atlases
-  const { masks: shadowMasks, traces: shadowTraces, lightTiles: shadowLightTiles } = buffers
+  const { masks: shadowMasks, traces: shadowTraces } = buffers
   const { lights } = e.inputs
   const T = SHADOW_TRACE_BINDINGS
   const tracing = kernels.shadowTrace.group(
@@ -317,7 +353,7 @@ function shadowTracePass(e: Encoding, { kernels, buffers, sceneTrace, views }: T
       physical.normal,
       shadowMasks,
       lights,
-      shadowLightTiles,
+      compactedLightTiles,
       views.nodes,
       views.frames,
       views.worlds,
@@ -331,7 +367,7 @@ function shadowTracePass(e: Encoding, { kernels, buffers, sceneTrace, views }: T
       view(T.normal, physical.normal),
       buffer(T.masks, shadowMasks),
       buffer(T.lights, lights),
-      buffer(T.lightTiles, shadowLightTiles),
+      buffer(T.lightTiles, compactedLightTiles),
       ...dagReadGroupEntries(views),
     ],
   )
@@ -370,25 +406,93 @@ function tileDepthRangePass(e: Encoding) {
   fromContext(e, kernel.pipeline(TILE_DEPTH_RANGE_ENTRY), ranges, CONTEXT_ARGS.directTiles)
 }
 
-/** The lights of each tile, their light on its texels, and the final light of the tiles. */
+/**
+ * The light tiles of the direct list, as the reference makes them: the lights of each tile, picked and appended to a list of light tiles (the
+ * counters emptied before, the culled list written, the offsets of the slots and the arguments of the dispatches over them
+ * then made), and the list compacted by slot (the count of what each slot has placed emptied before).
+ */
+function lightTilePasses(e: Encoding) {
+  const { params, context, culledLightTiles, compactedLightTiles, cardTileLights } = e.resources
+  const { cardTileOffsets, depthRanges } = e.resources
+  const { counts, args } = e.lightSlots
+  const tallies = e.fixed.lightTileCounts
+  const C = LIGHT_TILE_COUNTS_BINDINGS
+  const tallying = tallies.group([params, counts, args], () => [
+    buffer(0, params),
+    buffer(C.counts, counts),
+    buffer(C.args, args),
+  ])
+  single(e, tallies.pipeline('lightTilesClear'), tallying)
+  const cull = e.shaped.cull
+  const K = CULL_BINDINGS
+  const culling = cull.group(
+    [
+      params,
+      e.tables,
+      context,
+      counts,
+      cardTileOffsets,
+      culledLightTiles,
+      e.inputs.lights,
+      depthRanges,
+      e.standalone.flags,
+    ],
+    () => [
+      buffer(0, params),
+      buffer(K.tables, e.tables),
+      buffer(K.context, context),
+      buffer(K.counts, counts),
+      buffer(K.cardTileOffsets, cardTileOffsets),
+      buffer(K.culled, culledLightTiles),
+      buffer(K.lights, e.inputs.lights),
+      buffer(K.depthRanges, depthRanges),
+      buffer(K.standalone, e.standalone.flags),
+    ],
+  )
+  fromContext(e, cull.pipeline(CULL_ENTRY), culling, CONTEXT_ARGS.directTiles)
+  single(e, tallies.pipeline('lightTilesOffsets'), tallying)
+  dispatch(e, tallies.pipeline('lightTilesArgs'), tallying, e.slots)
+  single(e, tallies.pipeline('lightTilesClearCompacted'), tallying)
+  const compact = e.fixed.lightTileCompact
+  const P = LIGHT_TILE_COMPACT_BINDINGS
+  const compacting = compact.group(
+    [
+      params,
+      counts,
+      context,
+      e.tables,
+      culledLightTiles,
+      compactedLightTiles,
+      cardTileOffsets,
+      cardTileLights,
+    ],
+    () => [
+      buffer(0, params),
+      buffer(P.counts, counts),
+      buffer(P.context, context),
+      buffer(P.tables, e.tables),
+      buffer(P.culled, culledLightTiles),
+      buffer(P.compacted, compactedLightTiles),
+      buffer(P.cardTileOffsets, cardTileOffsets),
+      buffer(P.cardTileLights, cardTileLights),
+    ],
+  )
+  fromLightTiles(
+    e,
+    compact.pipeline(LIGHT_TILE_COMPACT_ENTRY),
+    compacting,
+    LIGHT_TILE_ARGS.compaction,
+  )
+}
+
+/** The depth range of each tile of the direct list, the lights of each tile, their light on its texels, and the final light of the tiles. */
 export function directPasses(e: Encoding) {
-  const { params, context, tileLights, depthRanges } = e.resources
+  const { params, context, cardTileLights, cardTileOffsets } = e.resources
   const shadowMasks = masksOf(e)
   const { physical, factors } = e.atlases
   const common = [buffer(0, params), buffer(1, e.tables), buffer(2, context)]
   if (e.cullToTileDepthRange) tileDepthRangePass(e)
-  const cull = e.shaped.cull
-  const culling = cull.group(
-    [params, e.tables, context, tileLights, e.inputs.lights, depthRanges, e.standalone.flags],
-    () => [
-      ...common,
-      buffer(5, tileLights),
-      buffer(6, e.inputs.lights),
-      buffer(CULL_DEPTH_RANGES_BINDING, depthRanges),
-      buffer(CULL_STANDALONE_BINDING, e.standalone.flags),
-    ],
-  )
-  fromContext(e, cull.pipeline(CULL_ENTRY), culling, CONTEXT_ARGS.directTiles)
+  lightTilePasses(e)
   lightFunctionPasses(e)
   if (e.traced) shadowPasses(e, e.traced)
   const D = DIRECT_BINDINGS
@@ -400,7 +504,7 @@ export function directPasses(e: Encoding) {
       context,
       physical.depth,
       physical.normal,
-      tileLights,
+      cardTileLights,
       physical.direct,
       e.inputs.lights,
       e.inputs.lightFunction,
@@ -411,12 +515,13 @@ export function directPasses(e: Encoding) {
       field.readGeneration,
       shadowMasks,
       factors,
+      cardTileOffsets,
     ],
     () => [
       ...common,
       view(D.depth, physical.depth),
       view(D.normal, physical.normal),
-      buffer(D.tileLights, tileLights),
+      buffer(D.cardTileLights, cardTileLights),
       view(D.out, physical.direct),
       buffer(D.lights, e.inputs.lights),
       view(D.lightFunction, e.inputs.lightFunction),
@@ -424,6 +529,7 @@ export function directPasses(e: Encoding) {
       ...field.readEntries(D.field),
       buffer(D.masks, shadowMasks),
       buffer(D.factors, factors),
+      buffer(D.cardTileOffsets, cardTileOffsets),
     ],
   )
   const entry = e.traced ? DIRECT_TRACED_ENTRY : DIRECT_ENTRY

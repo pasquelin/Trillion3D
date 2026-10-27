@@ -29,8 +29,8 @@ test('it binds five storage buffers at most with the map’s page table, the lig
   assert.deepEqual(wgslBufferBindings(plain), [
     { binding: 0, type: 'uniform' },
     { binding: B.tables, type: 'read-only-storage' },
-    { binding: B.context, type: 'read-only-storage' },
-    { binding: B.tileLights, type: 'read-only-storage' },
+    { binding: B.counts, type: 'read-only-storage' },
+    { binding: B.lightTiles, type: 'read-only-storage' },
     { binding: B.masks, type: 'storage' },
     { binding: B.given, type: 'uniform' },
   ])
@@ -86,7 +86,7 @@ test('the share is the grey of the colour by 0.3333, faded to the disabled brigh
 test('the shares go to the scratch two to a word, a light tile’s 32 words after the masks; the masks, the direct light and the pass agree on where', () => {
   assert.match(
     plain,
-    /masks\[scratchWordOf\(tile\*lp\.maxLights\+k,2u\*lane\)\]=pack2x16float\(vec2f\(shares\[2u\*lane\],shares\[2u\*lane\+1u\]\)\);/,
+    /masks\[scratchWordOf\(lightTile,2u\*lane\)\]=pack2x16float\(vec2f\(shares\[2u\*lane\],shares\[2u\*lane\+1u\]\)\);/,
   )
   assert.match(plain, /if\(lane<SCRATCH_TILE_WORDS\)/)
   const common = shaderRun<{

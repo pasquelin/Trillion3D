@@ -103,12 +103,19 @@ export async function readChain(rt: WebgpuPagesRuntime, device: GPUDevice) {
     width = groupWidth(device.limits)
   out.expectedDispatch = [Math.min(groups, width), ceilDiv(Math.max(groups, 1), width), 1]
 
-  // The lights each listed tile keeps, and so the light tiles whose masks the mask pass wrote.
-  const tileLights = await read(lighting.resources!.tileLights, 0, out.listed * (maxLights + 1))
+  // The lights each listed tile keeps (its first entry and count in the card tiles' light list, an entry the light's word and the
+  // place of its light tile in the compacted list), and so the light tiles whose masks the mask pass wrote, at those places.
+  const resources = lighting.resources!
+  const offsets = await read(resources.cardTileOffsets, 0, out.listed * 2)
+  let entries = 0
+  for (let tile = 0; tile < out.listed; tile++)
+    entries = Math.max(entries, offsets[tile * 2] + offsets[tile * 2 + 1])
+  const tileLights = await read(resources.cardTileLights, 0, Math.max(entries, 1) * 2)
   const masks = await read(traced.masks, 0, out.listed * maxLights * SHADOW_MASK.tileWords)
   const written = new Set<number>()
   for (let tile = 0; tile < out.listed; tile++)
-    for (let k = 0; k < tileLights[tile * (maxLights + 1)]; k++) written.add(tile * maxLights + k)
+    for (let k = 0; k < offsets[tile * 2 + 1]; k++)
+      written.add(tileLights[(offsets[tile * 2] + k) * 2 + 1])
   out.lightTiles = written.size
   for (const lightTile of written)
     for (let y = 0; y < TILE; y++)

@@ -7,6 +7,7 @@ import { STANDALONE_LIGHT_BYTES } from '../../lightFunction/entries.ts'
 import type { GraphSlot } from '../../lightFunction/graphSlot.ts'
 import { COLOR_SAMPLE } from '../../lightFunction/renderWgsl.ts'
 import { SHADOW_TEXELS } from './layout.ts'
+import { lightTileCountsWgsl } from './lightTilesWgsl.ts'
 import {
   CM_PER_M_WGSL,
   lightingCommonWgsl,
@@ -17,9 +18,9 @@ import {
 /**
  * THE LIGHT FUNCTIONS THE ATLAS HOLDS NO SLOT OF, evaluated apart: a light that wears a light function material but holds no slot
  * of the atlas (the atlas is off, the cache is not among its readers, or a limit left the light out: the lights the cull marks,
- * `TILE_LIGHT_STANDALONE`) has its material evaluated at each texel of the tiles that keep it, by a dispatch of its own over the
- * tiles of the direct list, before the shadow masks. A workgroup is a tile, a thread a texel; a tile that does not keep the light
- * is left at once. The texel's world point is taken to the light's axes by the light's matrix and so to the material's
+ * `TILE_LIGHT_STANDALONE`) has its material evaluated at each texel of its light tiles, by a dispatch of its own over the tiles
+ * of its slot of the compacted list (`lightTilesWgsl.ts`, the arguments of the slot), before the shadow masks. A workgroup is a
+ * light tile, a thread a texel. The texel's world point is taken to the light's axes by the light's matrix and so to the material's
  * coordinate, which every texture coordinate set of the material is given: a spot's through the tangent of its outer cone to 0 to
  * 1 across it, a point's by its direction as longitude and latitude, any other light's (a sun's, a rectangle's) by the two axes
  * across the direction as they are — the coordinate is not wrapped. The material's colour there (its emission: the graph's
@@ -33,17 +34,17 @@ import {
  * pass having no derivatives; a texel beside that holds no surface leaves a footprint of nothing there.
  *
  * Bindings, in group 0: 0 the parameters, 1 to 5 the colour atlas of the maps (`MAP_BINDINGS`: three pools, the page table, the
- * sampler) where the material reads a texture, 6 the tables, 7 the context, 8 and 9 the depth and normal layers, 10 the lights
- * of the tiles, 11 the masks' buffer, 12 the light's block and the material's, read at a dynamic offset a light. Five storage
- * buffers with the page table: the tables, the context, the lights of the tiles, the masks' buffer and the page table.
+ * sampler) where the material reads a texture, 6 the tables, 7 the counters of the light tiles, 8 and 9 the depth and normal layers,
+ * 10 the compacted light tiles, 11 the masks' buffer, 12 the light's block and the material's, read at a dynamic offset a light. Five
+ * storage buffers with the page table: the tables, the counters, the compacted light tiles, the masks' buffer and the page table.
  */
 
 export const LIGHT_FUNCTION_PASS_BINDINGS = {
   tables: 6,
-  context: 7,
+  counts: 7,
   depth: 8,
   normal: 9,
-  tileLights: 10,
+  lightTiles: 10,
   masks: 11,
   given: 12,
 } as const
@@ -114,7 +115,7 @@ export function lightFunctionPassWgsl(p: LightFunctionPassProgram) {
     `const LF_PI:f32=3.14159265358979;
 const LF_POINT:u32=${KINDS.point}u;
 const LF_SPOT:u32=${KINDS.spot}u;
-@group(0) @binding(${B.tileLights}) var<storage,read> tileLights:array<u32>;
+@group(0) @binding(${B.lightTiles}) var<storage,read> lightTiles:array<u32>;
 @group(0) @binding(${B.masks}) var<storage,read_write> masks:array<u32>;
 ${maps}/** A light's block: the rows of the matrix that takes a world point to its axes, then the tangent of a spot's outer cone, the fade
  *  distance and the disabled brightness, then the light's rank and its kind's. */
@@ -144,18 +145,11 @@ fn lightFunctionShare(colour:vec3f,P:vec3f)->f32{
 }
 @compute @workgroup_size(8,8,1)
 fn ${LIGHT_FUNCTION_PASS_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_id) at:vec3u,@builtin(local_invocation_index) lane:u32){
- let tile=flatGroup(group,n);
- if(tile>=ctxListed(LG_LIST_DIRECT)){return;}
- let first=tile*(lp.maxLights+1u);
- let lights=tileLights[first];
- // The place of the light in the tile's list; the same for the whole workgroup, which leaves at once where the tile keeps none.
- var k=lights;
- for(var i=0u;i<lights;i++){
-  let listed=tileLights[first+1u+i];
-  if(tileLightStandalone(listed)&&tileLightRank(listed)==given.light.ids.x){k=i;break;}
- }
- if(k==lights){return;}
- let packed=ctxTile(LG_LIST_DIRECT,tile);
+ let tiles=slotTiles(LT_BATCHABLE+given.light.ids.x);
+ let lightTile=tiles.x+flatGroup(group,n);
+ // The dispatch's rows may hold groups past the light's tiles: they leave together.
+ if(lightTile>=tiles.y){return;}
+ let packed=lightTiles[lightTile*LIGHT_TILE_WORDS];
  let page=tilePage(packed);
  let origin=tileCoordOf(packed)*LG_TILE+at.xy;
  let texel=surfaceTexel(page,origin);
@@ -179,12 +173,13 @@ ${
  shares[lane]=share;
  workgroupBarrier();
  if(lane<SCRATCH_TILE_WORDS){
-  masks[scratchWordOf(tile*lp.maxLights+k,2u*lane)]=pack2x16float(vec2f(shares[2u*lane],shares[2u*lane+1u]));
+  masks[scratchWordOf(lightTile,2u*lane)]=pack2x16float(vec2f(shares[2u*lane],shares[2u*lane+1u]));
  }
 }`,
     [
       ...(p.graph ? [p.graph.compiled.wgsl] : mapped ? [COLOR_SAMPLE] : []),
-      lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
+      lightingCommonWgsl({ tables: B.tables }),
+      lightTileCountsWgsl(B.counts, 'read'),
       surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
       CM_PER_M_WGSL,
     ],

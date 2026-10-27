@@ -17,7 +17,7 @@ import { shadowMaskBlockOf } from './shadowMaskWgsl.ts'
  *
  * `shadowTraceArgs` writes the groups of 64 traces the mask pass listed (`shadowMaskWgsl.ts`) into the context's header
  * (`CONTEXT_ARGS.shadowTraces`). `shadowTrace` is a thread a trace: it reads its light tile's page, tile and
- * light (`lightTiles`, which the mask pass wrote), the texel's entry (a byte, two in the coloured format) in the light tile's mask and, if it is not settled, casts a ray from the texel to the light through the scene's triangles (`sceneTraceWgsl.ts`, in the
+ * light (`lightTiles`, the compacted list of `lightTilesWgsl.ts`), the texel's entry (a byte, two in the coloured format) in the light tile's mask and, if it is not settled, casts a ray from the texel to the light through the scene's triangles (`sceneTraceWgsl.ts`, in the
  * group after the first) — any hit ends it; the front faces of a primitive that is not two-sided are culled unless
  * `surfaceCacheDirectLightingHardwareRayTracingForceTwoSided` makes all so; a translucent primitive and a placement that
  * casts no shadow are passed; no hit is ignored for being near the texel. A sun's ray goes as far as the cache's trace
@@ -112,8 +112,8 @@ fn ${SHADOW_TRACE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgro
  if(i>=traces[0]){return;}
  let word=traces[1u+i];
  let lightTile=shadowTraceLightTile(word);
- let pageTile=lightTiles[lightTile*SHADOW_LIGHT_TILE_WORDS];
- let rank=lightTiles[lightTile*SHADOW_LIGHT_TILE_WORDS+1u];
+ let pageTile=lightTiles[lightTile*LIGHT_TILE_WORDS];
+ let rank=tileLightRank(lightTiles[lightTile*LIGHT_TILE_WORDS+1u]);
  let coord=shadowTraceCoord(word);
  let byte=maskByteAt(lightTile,coord);
  var blocked=false;

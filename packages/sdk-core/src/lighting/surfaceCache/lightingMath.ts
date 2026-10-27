@@ -69,6 +69,10 @@ export const MAX_LIGHTS_PER_TILE = 32
 /** The lights a tile keeps: at most `n` raised to a power of two, held from 1 to `MAX_LIGHTS_PER_TILE`. */
 export const lightsPerTile = (n: number) => nextPow2(clamp(Math.round(n), 1, MAX_LIGHTS_PER_TILE))
 
+/** Whether the light tiles of the point lights, the spots and the rectangles are batched by their type (`surfaceCacheDirectLightingBatchShadows`
+ *  at 2) and not each light by itself (0 and 1). */
+export const lightTilesPerType = (batchShadows: number) => batchShadows === 2
+
 /** The probes' spacing in texels: the setting raised to a power of two and held from 1 to 8, halved from quality 6. */
 export const probeSpacing = (setting: number, quality: number) =>
   nextPow2(clamp(quality >= 6 ? Math.trunc(setting / 2) : setting, 1, CARD_TILE_SIZE))

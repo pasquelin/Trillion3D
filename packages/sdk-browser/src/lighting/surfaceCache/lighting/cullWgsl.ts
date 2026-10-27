@@ -11,6 +11,7 @@ import { VOLUME_LAMP_WGSL } from '../../direct/lampSeenWgsl.ts'
 import { hasLightFunctionWgsl } from '../../lightFunction/readWgsl.ts'
 import { CM_PER_M_WGSL, lightingCommonWgsl, VIEW_EXPOSURE } from './commonWgsl.ts'
 import { LIGHT_CENTRE_FACING_WGSL } from './shadowMaskWgsl.ts'
+import { CULLED_LIGHT_TILE_WGSL, lightTileCountsWgsl } from './lightTilesWgsl.ts'
 import { CONE_SPHERE_WGSL } from '../../direct/lightDrawWgsl.ts'
 
 /**
@@ -24,25 +25,38 @@ import { CONE_SPHERE_WGSL } from '../../direct/lightDrawWgsl.ts'
  * the sphere that bounds its cone (`influenceSphere`) —, and a spot's cone (`sphereIntersectCone`, between its tip and its
  * range) or a rectangle's front half space holds the box's bounding sphere; a sun always. Each
  * thread keeps its own best lights, ordered by key (the weight over the light's type and whether it needs a shadow mask), and the workgroup takes the greatest of their heads `maxLights` times
- * (`groupMax`): the list of a tile is its count and its lights' ranks, the heaviest first, at `(maxLights + 1)` words
- * a tile of the list's buffer.
+ * (`groupMax`): the lights a tile keeps are its heaviest first. The thread of the workgroup that leads gives the tile a light
+ * tile for each (`lightTilesWgsl.ts`): the counters of the light tiles given out and of the entries in the tiles' lists give the
+ * places of its own, it appends its light tiles to the list of them — the tile, the light's word, its place among the tile's
+ * and its kind — counts each in its slot's counter, and records where its lights begin in the tiles' lists and how many it keeps
+ * (`cardTileOffsets`), nothing where it keeps none.
  *
  * A light that wears a light function the atlas holds no slot of (`standalone`, a bit a light) needs a shadow mask like one that
- * casts a shadow, and is marked as such in the word that names it in the list of the tile (`TILE_LIGHT_STANDALONE`), so that the
+ * casts a shadow, and is marked as such in the word that names it (`TILE_LIGHT_STANDALONE`), so that the
  * passes after read its function from the scratch (`lightFunctionPassWgsl.ts`).
  *
  * The tile list and the pages' records are the update context's (`contextWgsl.ts`); bindings: 0 the parameters, 1 the tables,
- * 2 the context, 5 the lights of the tiles written, 6 the light buffer, 7 the depth ranges of the tiles, 8 the bits of the
- * lights that hold no slot of the light functions' atlas.
+ * 2 the context, 3 the counters, 4 the offsets and counts of the tiles' lights, 5 the light tiles, 6 the light buffer, 7 the
+ * depth ranges of the tiles, 8 the bits of the lights that hold no slot of the light functions' atlas.
  */
 
 export const CULL_ENTRY = 'cullLights'
 
-/** The binding of the depth ranges of the tiles (`tileDepthRangeWgsl.ts`), read. */
-export const CULL_DEPTH_RANGES_BINDING = 7
+/** The bindings of the cull beside the tables (1) and the context (2): the counters, the offsets and counts of the tiles' lights and
+ *  the light tiles written, the light buffer, the depth ranges of the tiles (`tileDepthRangeWgsl.ts`) and the bits of the lights whose
+ *  light function the atlas holds no slot of, read. */
+export const CULL_BINDINGS = {
+  tables: 1,
+  context: 2,
+  counts: 3,
+  cardTileOffsets: 4,
+  culled: 5,
+  lights: 6,
+  depthRanges: 7,
+  standalone: 8,
+} as const
 
-/** The binding of the bits of the lights whose light function the atlas holds no slot of, read. */
-export const CULL_STANDALONE_BINDING = 8
+const B = CULL_BINDINGS
 
 /** The floor under which a rectangle's edge cosine plus one is not taken, so that an edge a half turn about the point does not
  *  blow its weight up. */
@@ -51,10 +65,11 @@ const RECT_LIGHT_SAFE_THRESHOLD = 1e-4
 /** The cull program's bindings and the helpers of the workgroup's reduction and of a light's key and cone. */
 const cullHelpersWgsl = (maxLights: number) => `${wgslConsts({ MAX_LIGHTS: maxLights })}
 const RECT_LIGHT_SAFE_THRESHOLD:f32=${wgslF32(RECT_LIGHT_SAFE_THRESHOLD)};
-@group(0) @binding(5) var<storage,read_write> tileLights:array<u32>;
-@group(0) @binding(6) var<storage,read> directLights:DirectLights;
-@group(0) @binding(${CULL_DEPTH_RANGES_BINDING}) var<storage,read> depthRanges:array<u32>;
-@group(0) @binding(${CULL_STANDALONE_BINDING}) var<storage,read> standaloneLights:array<u32>;
+@group(0) @binding(${B.culled}) var<storage,read_write> culledTiles:array<u32>;
+@group(0) @binding(${B.cardTileOffsets}) var<storage,read_write> cardTileOffsets:array<u32>;
+@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
+@group(0) @binding(${B.depthRanges}) var<storage,read> depthRanges:array<u32>;
+@group(0) @binding(${B.standalone}) var<storage,read> standaloneLights:array<u32>;
 /** Whether light \`rank\` wears a light function the atlas holds no slot of. */
 fn standaloneLight(rank:u32)->bool{return ((standaloneLights[rank/32u]>>(rank%32u))&1u)!=0u;}
 var<workgroup> reduction:array<u32,${WORKGROUP_THREADS}>;
@@ -208,27 +223,43 @@ fn ${CULL_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:v
   if(weight>=0.0){keepKey(&best,lightKey(weight,rank,directLights.items[rank],standaloneLight(rank)));}
  }
  var kept=0u;var cursor=0u;
- let at0=tile*(MAX_LIGHTS+1u);
+ var picks:array<u32,MAX_LIGHTS>;
  for(var k=0u;k<MAX_LIGHTS;k++){
   var mine=0u;
   if(cursor<MAX_LIGHTS){mine=best[cursor];}
   let picked=groupMax(lane,mine);
   if(picked!=0u){
    if(picked==mine){cursor++;}
-   if(lane==0u){
-    let rank=picked&0x3fffu;
-    tileLights[at0+1u+kept]=rank|select(0u,TILE_LIGHT_STANDALONE,standaloneLight(rank));
-   }
+   picks[kept]=picked;
    kept++;
   }
  }
- if(lane==0u){tileLights[at0]=kept;}
+ if(lane==0u){
+  var lightsAt=0u;
+  var tilesAt=0u;
+  if(kept>0u){
+   lightsAt=atomicAdd(&lightTileCounts[LT_ALLOCATOR],kept);
+   tilesAt=atomicAdd(&lightTileCounts[LT_CARD_TILE_ALLOCATOR],kept);
+  }
+  for(var k=0u;k<kept;k++){
+   let rank=picks[k]&0x3fffu;
+   let kind=(picks[k]>>14u)&3u;
+   let at=(lightsAt+k)*LIGHT_TILE_WORDS;
+   culledTiles[at]=tile;
+   culledTiles[at+1u]=culledTileWord(rank|select(0u,TILE_LIGHT_STANDALONE,standaloneLight(rank)),k,kind);
+   atomicAdd(&lightTileCounts[givenAt(lightTileSlot(kind,rank))],1u);
+  }
+  cardTileOffsets[tile*CARD_TILE_OFFSET_WORDS]=tilesAt;
+  cardTileOffsets[tile*CARD_TILE_OFFSET_WORDS+1u]=kept;
+ }
 }`
 
 /** The cull program for tiles that keep `maxLights` lights. */
 export const cullWgsl = (maxLights: number) =>
   wgslProgram(cullHelpersWgsl(maxLights) + CULL_TILE_TEXT + cullKernelWgsl(), [
-    lightingCommonWgsl({ tables: 1, context: { binding: 2, access: 'read' } }),
+    lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
+    lightTileCountsWgsl(B.counts, 'atomic'),
+    CULLED_LIGHT_TILE_WGSL,
     DIRECT_LIGHT_WGSL,
     lightStrengthWgsl(VIEW_EXPOSURE),
     VOLUME_LAMP_WGSL,

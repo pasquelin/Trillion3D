@@ -6,7 +6,7 @@ import { standaloneScratchAt, standaloneScratchWords, tracedShadowWords } from '
 import { shapeKey, shapeOf, tracedRaysFit } from './params.ts'
 import { lightingSettings as settings } from './params.fixture.ts'
 
-test('the traced rays fit only where every buffer — the shadows’ masks, traces and light tiles, the scene trace’s nodes, triangles and table — fits a binding and a buffer of the device', () => {
+test('the traced rays fit only where every buffer — the shadows’ masks and traces, the scene trace’s nodes, triangles and table — fits a binding and a buffer of the device', () => {
   const shape = shapeOf(settings, 4096, false)
   const lightTiles = shape.directTiles * shape.maxLights
   const roomy = { maxStorageBufferBindingSize: 2 ** 30, maxBufferSize: 2 ** 30 }
@@ -15,7 +15,7 @@ test('the traced rays fit only where every buffer — the shadows’ masks, trac
   // The traces are the largest buffer: one word for each texel of each light tile.
   const words = tracedShadowWords(lightTiles, 'grey', false)
   const bytes = words.traces * 4
-  assert.ok(bytes > words.masks * 4 && bytes > words.lightTiles * 4)
+  assert.ok(bytes > words.masks * 4)
   const binding = { ...roomy, maxStorageBufferBindingSize: bytes }
   assert.equal(tracedRaysFit(binding, lightTiles, scene, 'grey', false), true)
   assert.equal(
@@ -53,11 +53,10 @@ test('the traced rays fit only where every buffer — the shadows’ masks, trac
 })
 
 test('the traced shadows’ sizes are one list: the buffers are made at it and the fit is checked against it', () => {
-  // 16 words of masks a light tile, a trace for each of the 64 texels of each, two words a light tile.
+  // 16 words of masks a light tile, a trace for each of the 64 texels of each.
   assert.deepEqual(tracedShadowWords(100, 'grey', false), {
     masks: 1600,
     traces: 1 + 64 * 100,
-    lightTiles: 200,
   })
   const sceneSmall = { nodes: 1, triangles: 1, table: 1 }
   const most = Math.max(...Object.values(tracedShadowWords(100, 'grey', false))) * 4
@@ -92,7 +91,6 @@ test('the coloured atlas doubles the masks, two bytes a texel, and the scratch o
   assert.deepEqual(tracedShadowWords(100, 'colour', false), {
     masks: 3200,
     traces: 1 + 64 * 100,
-    lightTiles: 200,
   })
   assert.equal(standaloneScratchAt(100, 'colour'), 3200)
   assert.equal(standaloneScratchWords(100), 3200)

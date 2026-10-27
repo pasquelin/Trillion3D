@@ -4,6 +4,8 @@ import { SURFACE_CACHE_ATLAS_LABEL } from '../../../diagnostic/stage/passLabels.
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
 import {
   LIGHTING_PARAMS,
+  lightTileArgsWords,
+  lightTileCountsWords,
   PAGE_ARGS_WORDS,
   standaloneScratchWords,
   tracedShadowWords,
@@ -12,15 +14,19 @@ import { type LightingShape, shapeKey, sizesOf } from './params.ts'
 
 /**
  * THE LIGHTING'S OWN MEMORY, made for a shape (`shapeOf`) and again when it changes: the parameters' uniform, the update
- * context (the header and the lists of pages and tiles: it is the dispatches' arguments too), the depth range and the lights of each tile, a small
- * buffer that stands in for the traced shadows' where they are not made, the radiosity's rays filtered, and the two atlases
+ * context (the header and the lists of pages and tiles: it is the dispatches' arguments too), the depth range of each tile, the light tiles the
+ * cull picks and the compaction places (`lightTilesWgsl.ts`: the culled, the compacted and each tile's own list, with where each tile's lights begin
+ * in it), a small buffer that stands in for the traced shadows' where they are not made, the radiosity's rays filtered, and the two atlases
  * the radiosity keeps from one image to the next — the rays' radiance for each probe
  * (`trace`, the words of light, a square of rays a probe) and the probes' harmonics (`harmonics`, a layer a channel), and,
  * with the probes' occlusion, the distance each ray met a surface at (`hits`, laid as the trace is; 1 × 1 without). They are
  * asked of the device's budget as the atlases are (`ensureLighting`): where it refuses, the lighting is off and says why.
  *
- * THE TRACED SHADOWS' BUFFERS are a set of their own (`ensureTracedShadows`): the masks of the lights of the tiles, the shadow
- * traces they list and the light tiles the traces are found by. They are made when the shadows are traced, keyed by the
+ * THE LIGHT SLOTS' COUNTERS are a set of their own (`ensureLightSlots`), made for the lights the scene holds and again when their slots
+ * outgrow it: the counters of the light tiles each slot holds and the arguments of the dispatches over them.
+ *
+ * THE TRACED SHADOWS' BUFFERS are a set of their own (`ensureTracedShadows`): the masks of the lights of the tiles and the shadow
+ * traces they list. They are made when the shadows are traced, keyed by the
  * light tiles, the format of the masks and whether the light functions the atlas holds no slot of have their scratch after the
  * masks (`tracedShadowWords`), and given back when they are not traced: turning the traced path on or off remakes
  * none of the lighting's memory, and the radiosity keeps its history. Where the shadows are not traced and such light functions
@@ -39,7 +45,22 @@ function allocate(allocator: ResourceAllocator, shape: LightingShape) {
     context: allocator.buffer('lighting context', sizes.context.words, 'list'),
     /** The dispatches that cut the context's pages into tiles, read by the dispatch that is not bound to the context's writer. */
     pageArgs: allocator.buffer('lighting page args', PAGE_ARGS_WORDS, 'args'),
-    tileLights: allocator.buffer('lights of the tiles', sizes.tileLightsWords, 'storage'),
+    /** The light tiles the cull appends, as it picks the lights of each tile. */
+    culledLightTiles: allocator.buffer('culled light tiles', sizes.lightTileWords, 'storage'),
+    /** The light tiles by slot, the tiles of a slot one after the other: what the shadow masks and the light functions run over. */
+    compactedLightTiles: allocator.buffer('compacted light tiles', sizes.lightTileWords, 'storage'),
+    /** The lights of each tile, in the order the cull picked them, with the place of each light tile in the compacted list. */
+    cardTileLights: allocator.buffer(
+      'light tiles of the card tiles',
+      sizes.lightTileWords,
+      'storage',
+    ),
+    /** Where each tile's lights begin in that list and how many it keeps. */
+    cardTileOffsets: allocator.buffer(
+      'light tile offsets of the card tiles',
+      sizes.cardTileOffsetWords,
+      'storage',
+    ),
     /** The depth range of each tile of the direct list, a word of two half floats, which the cull of the lights reads. */
     depthRanges: allocator.buffer('depth ranges of the tiles', sizes.depthRangeWords, 'storage'),
     /** What the passes bind in place of the traced shadows' masks and traces where those are not made. */
@@ -100,8 +121,6 @@ function allocateTraced(
   return {
     masks: allocator.buffer('shadow masks', words.masks, 'storage'),
     traces: allocator.buffer('shadow traces', words.traces, 'storage'),
-    /** The page and tile word and the light of each light tile of the masks, which the traces find their texels by. */
-    lightTiles: allocator.buffer('shadow light tiles', words.lightTiles, 'storage'),
   }
 }
 
@@ -160,5 +179,28 @@ export function ensureStandaloneScratch(
       label: `${SURFACE_CACHE_ATLAS_LABEL} light function scratch`,
     },
     (allocator) => allocateScratch(allocator, lightTiles),
+  )
+}
+
+/** The counters of the light tiles of `slots` slots and the arguments of the dispatches over them, asked of `allocator`. */
+const allocateLightSlots = (allocator: ResourceAllocator, slots: number) => ({
+  counts: allocator.buffer('light tile counts', lightTileCountsWords(slots), 'storage'),
+  args: allocator.buffer('light tile args', lightTileArgsWords(slots), 'args'),
+})
+
+/** The light slots' counters and arguments. */
+export type LightSlots = ReturnType<typeof allocateLightSlots> & HeldSet
+
+/** The counters of `slots` slots (`lightSlotsOf`): `held` where it is for that many, else made, `held` given back. */
+export function ensureLightSlots(held: LightSlots | undefined, device: GPUDevice, slots: number) {
+  return ensureSet(
+    held,
+    device,
+    {
+      key: [slots],
+      what: 'the light tiles of the lights',
+      label: `${SURFACE_CACHE_ATLAS_LABEL} light slots`,
+    },
+    (allocator) => allocateLightSlots(allocator, slots),
   )
 }

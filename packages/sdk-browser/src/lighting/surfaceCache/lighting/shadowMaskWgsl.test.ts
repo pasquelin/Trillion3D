@@ -8,14 +8,16 @@ import { tracedShadowWords } from './layout.ts'
 import {
   SHADOW_MASK_BINDINGS,
   SHADOW_MASK_COLOURED_PROGRAM_WGSL,
-  SHADOW_MASK_ENTRY,
+  SHADOW_MASK_ENTRIES,
   SHADOW_MASK_PROGRAM_WGSL,
 } from './shadowMaskWgsl.ts'
 import { DIRECT_COLOURED_WGSL, DIRECT_WGSL } from './directWgsl.ts'
 
 test('the program assembles in both formats: every name declared once, none reserved, the braces paired', () => {
-  assertProgramAssembles(SHADOW_MASK_PROGRAM_WGSL, SHADOW_MASK_ENTRY)
-  assertProgramAssembles(SHADOW_MASK_COLOURED_PROGRAM_WGSL, SHADOW_MASK_ENTRY)
+  for (const entry of SHADOW_MASK_ENTRIES) {
+    assertProgramAssembles(SHADOW_MASK_PROGRAM_WGSL, entry)
+    assertProgramAssembles(SHADOW_MASK_COLOURED_PROGRAM_WGSL, entry)
+  }
 })
 
 test('a texel that does not face the centre of a light that needs a mask is settled at no light before any factor or ray, in the mask and in the cache’s own light; a light that needs none is not gated', () => {
@@ -56,25 +58,24 @@ test('a texel that does not face the centre of a light that needs a mask is sett
   )
 })
 
-test('its buffers are bound where the kernel lays them: the parameters, then the tables, the context, the tiles’ lights, the masks, the lights, the clouds’ block, the factors, the traces and the light tiles', () => {
+test('its buffers are bound where the kernel lays them: the parameters, then the tables, the light tiles’ counters, the compacted light tiles, the masks, the lights, the clouds’ block, the factors and the traces', () => {
   const B = SHADOW_MASK_BINDINGS
   assert.deepEqual(wgslBufferBindings(SHADOW_MASK_PROGRAM_WGSL), [
     { binding: 0, type: 'uniform' },
     { binding: B.tables, type: 'read-only-storage' },
-    { binding: B.context, type: 'read-only-storage' },
-    { binding: B.tileLights, type: 'read-only-storage' },
+    { binding: B.counts, type: 'read-only-storage' },
+    { binding: B.lightTiles, type: 'read-only-storage' },
     { binding: B.masks, type: 'storage' },
     { binding: B.lights, type: 'read-only-storage' },
     // The clouds' shade is read through a uniform block.
     { binding: B.cloudBlock, type: 'uniform' },
     { binding: B.factors, type: 'read-only-storage' },
     { binding: B.traces, type: 'storage' },
-    { binding: B.lightTiles, type: 'storage' },
   ])
-  // Eight storage buffers: the guaranteed limit. The coloured format binds the same.
+  // Seven storage buffers, under the guaranteed limit of eight. The coloured format binds the same.
   assert.equal(
     wgslBufferBindings(SHADOW_MASK_PROGRAM_WGSL).filter(({ type }) => type !== 'uniform').length,
-    8,
+    7,
   )
   assert.deepEqual(
     wgslBufferBindings(SHADOW_MASK_COLOURED_PROGRAM_WGSL),
@@ -82,12 +83,11 @@ test('its buffers are bound where the kernel lays them: the parameters, then the
   )
 })
 
-test('the masks and the traces are sized by the light tiles: 16 words a tile (32 in the coloured format), one word a trace for each texel of each, at least a thousand; two words a light tile', () => {
+test('the masks and the traces are sized by the light tiles: 16 words a tile (32 in the coloured format), one word a trace for each texel of each, at least a thousand', () => {
   assert.equal(tracedShadowWords(100, 'grey', false).masks, 1600)
   assert.equal(tracedShadowWords(100, 'colour', false).masks, 3200)
   assert.equal(tracedShadowWords(100, 'grey', false).traces, 1 + 64 * 100)
   assert.equal(tracedShadowWords(1, 'grey', false).traces, 1 + 1024)
-  assert.equal(tracedShadowWords(100, 'grey', false).lightTiles, 200)
 })
 
 test('the direct light reads a texel’s factor as the format keeps it and multiplies the light’s irradiance by all of it: a colour tints the texel', () => {

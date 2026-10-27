@@ -28,7 +28,9 @@ test('the memory follows the shape: the probes at the spacing, a square of rays 
   assert.equal(sizes.probeAtlas, 1024)
   assert.equal(sizes.traceAtlas, 4096)
   assert.equal(sizes.depthRangeWords, 91 ** 2)
-  assert.equal(sizes.tileLightsWords, 91 ** 2 * 9)
+  // The light tiles the cull appends, the compaction places and each tile lists: at most eight a tile of the list, two words each; and where each tile's begin.
+  assert.equal(sizes.lightTileWords, 91 ** 2 * 8 * 2)
+  assert.equal(sizes.cardTileOffsetWords, 91 ** 2 * 2)
   assert.equal(sizes.filteredWords, 4 * 64 ** 2 * 16)
   // The lists follow the header, one after the other, the pages' lists after the tiles'.
   const layout = contextLayout(10, 20, 30)

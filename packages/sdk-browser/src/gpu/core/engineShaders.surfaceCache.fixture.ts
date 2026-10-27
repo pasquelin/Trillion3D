@@ -28,6 +28,10 @@ import { FEEDBACK_COMPACTION_SHADER } from '../../lighting/surfaceCache/feedback
 import { combineWgsl } from '../../lighting/surfaceCache/lighting/combineWgsl.ts'
 import { CONTEXT_WGSL, SPLICE_WGSL } from '../../lighting/surfaceCache/lighting/contextWgsl.ts'
 import { cullWgsl } from '../../lighting/surfaceCache/lighting/cullWgsl.ts'
+import {
+  LIGHT_TILE_COMPACT_WGSL,
+  LIGHT_TILE_COUNTS_WGSL,
+} from '../../lighting/surfaceCache/lighting/lightTilesWgsl.ts'
 import { TILE_DEPTH_RANGE_WGSL } from '../../lighting/surfaceCache/lighting/tileDepthRangeWgsl.ts'
 import {
   DIRECT_COLOURED_WGSL,
@@ -90,6 +94,8 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   SURFACE_CACHE_RADIOSITY_INTEGRATE_WGSL: RADIOSITY_INTEGRATE_WGSL,
   SURFACE_CACHE_TILE_DEPTH_RANGE: TILE_DEPTH_RANGE_WGSL,
   SURFACE_CACHE_CULL: cullWgsl(CULL_LIGHTS),
+  SURFACE_CACHE_LIGHT_TILE_COUNTS: LIGHT_TILE_COUNTS_WGSL,
+  SURFACE_CACHE_LIGHT_TILE_COMPACT: LIGHT_TILE_COMPACT_WGSL,
   SURFACE_CACHE_COMBINE: combineWgsl(false),
   SURFACE_CACHE_COMBINE_COMPRESSED: combineWgsl(true),
   // The programs that read the translucency lighting volume (a scene with a surface whose material

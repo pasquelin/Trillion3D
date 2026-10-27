@@ -100,10 +100,10 @@ function kernelOf(device: GPUDevice, program: LightFunctionPassProgram) {
             ]
           : []),
         computeBufferEntry(B.tables, ro),
-        computeBufferEntry(B.context, ro),
+        computeBufferEntry(B.counts, ro),
         computeTextureEntry(B.depth, 'uint'),
         computeTextureEntry(B.normal, 'float'),
-        computeBufferEntry(B.tileLights, ro),
+        computeBufferEntry(B.lightTiles, ro),
         computeBufferEntry(B.masks, 'storage'),
         computeUniformEntry(B.given, {
           hasDynamicOffset: true,
@@ -125,8 +125,10 @@ export interface ReadyLight {
   readonly material: ArrayBuffer
 }
 
-/** One dispatch of an image: the kernel over a light's block, at `offset` of the buffer, `bytes` long. */
+/** One dispatch of an image: the kernel over a light's block, at `offset` of the buffer, `bytes` long, over the tiles of the light's
+ *  `slot` (its rank) in the compacted list. */
 interface StandalonePass {
+  readonly slot: number
   readonly kernel: Kernel<typeof LIGHT_FUNCTION_PASS_ENTRY>
   readonly offset: number
   readonly bytes: number
@@ -230,6 +232,7 @@ export function uploadStandalone(
   device.queue.writeBuffer(state.given, 0, data)
   return {
     passes: ready.map((r, at) => ({
+      slot: r.light.slot,
       kernel: r.kernel,
       offset: at * stride,
       bytes: r.bytes,

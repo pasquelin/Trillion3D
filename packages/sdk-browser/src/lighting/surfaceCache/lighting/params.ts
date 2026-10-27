@@ -5,6 +5,7 @@ import type { SurfaceCacheSettings } from '../../../../../sdk-core/src/contracts
 import {
   hemisphereResolution,
   lightsPerTile,
+  lightTilesPerType,
   litTiles,
   probeSpacing,
   updateFrameFrozen,
@@ -13,7 +14,14 @@ import {
 import { CARD_TILE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
 import type { SceneTrace, SceneTraceWords } from '../../rays/sceneTrace/sceneTraceResources.ts'
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
-import { contextLayout, LIGHTING_FLAG, LIGHTING_PARAMS, tracedShadowWords } from './layout.ts'
+import {
+  CARD_TILE_OFFSET_WORDS,
+  contextLayout,
+  LIGHT_TILE_WORDS,
+  LIGHTING_FLAG,
+  LIGHTING_PARAMS,
+  tracedShadowWords,
+} from './layout.ts'
 
 /**
  * WHAT AN IMAGE'S LIGHTING IS SIZED BY, and the parameters written from it (`LIGHTING_PARAMS`): the settings' numbers made
@@ -114,7 +122,8 @@ const probeOcclusionOf = (settings: SurfaceCacheSettings) =>
 /** The shape as a key: two images with the same key use the same resources and programs. */
 export const shapeKey = (shape: LightingShape) => JSON.stringify(shape)
 
-/** The words of the context's buffer, the lights' lists and the filtered rays of a shape, and its probes' atlas sizes. */
+/** The words of the context's buffer, the light tiles' lists and the filtered rays of a shape, and its probes' atlas sizes. The light
+ *  tiles of the direct list are at most `maxLights` a tile: the culled, the compacted and the tiles' own lists hold as many. */
 export function sizesOf(shape: LightingShape) {
   const context = contextLayout(
     shape.directTiles,
@@ -125,7 +134,8 @@ export function sizesOf(shape: LightingShape) {
   return {
     context,
     depthRangeWords: shape.directTiles,
-    tileLightsWords: shape.directTiles * (shape.maxLights + 1),
+    lightTileWords: shape.directTiles * shape.maxLights * LIGHT_TILE_WORDS,
+    cardTileOffsetWords: shape.directTiles * CARD_TILE_OFFSET_WORDS,
     filteredWords: shape.radiosity
       ? shape.radiosityTiles * shape.probesPerTile * shape.raysPerProbe
       : 1,
@@ -256,7 +266,10 @@ function lightingFlagsOf(
     (settings.surfaceCacheDirectLightingCullToTileDepthRange
       ? LIGHTING_FLAG.cullToTileDepthRange
       : 0) |
-    (shape.probeOcclusion && image.tracedRadiosity ? LIGHTING_FLAG.probeOcclusion : 0)
+    (shape.probeOcclusion && image.tracedRadiosity ? LIGHTING_FLAG.probeOcclusion : 0) |
+    (lightTilesPerType(settings.surfaceCacheDirectLightingBatchShadows)
+      ? LIGHTING_FLAG.lightTilesPerType
+      : 0)
   )
 }
 
@@ -287,7 +300,6 @@ export function writeLightingParams(
   words[at.radiosityTiles] = shape.radiosity ? shape.radiosityTiles : 0
   floats[at.firstClipmapRcp] = 1 / image.firstClipmapExtent
   floats[at.frustumDistance] = settings.surfaceCacheLightingMaxDistanceFromFrustumToPrioritize
-  words[at.maxLights] = shape.maxLights
   floats[at.preExposure] = image.preExposure
   floats[at.shadowBias] = settings.surfaceCacheDirectLightingGlobalSdfShadowRayBias
   floats[at.maxTrace] = image.maxTraceDistance * CM

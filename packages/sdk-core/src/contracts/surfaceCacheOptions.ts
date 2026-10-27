@@ -84,6 +84,7 @@ const DIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
     flag('surfaceCacheDirectLighting', true),
     integer('surfaceCacheDirectLightingMaxLightsPerTile', 8, [1, MAX_LIGHTS_PER_TILE]),
     flag('surfaceCacheDirectLightingCullToTileDepthRange', true),
+    integer('surfaceCacheDirectLightingBatchShadows', 2, [0, 2]),
     nonNegative('surfaceCacheDirectLightingGlobalSdfShadowRayBias', 1),
     flag('surfaceCacheDirectLightingCloudTransmittance', true),
     flag('surfaceCacheDirectLightingHardwareRayTracing', true),
@@ -208,7 +209,10 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  * (`surfaceCacheLightingFeedback`, on, where the scene has acceleration structures).
  * The direct light (`surfaceCacheDirectLighting`, on) goes to each tile of 8 × 8 texels from at most
  * `surfaceCacheDirectLightingMaxLightsPerTile` (8, raised to a power of two) lights, those of the most
- * luminance at the tile's depth range. Where the scene has acceleration structures
+ * luminance at the tile's depth range. The tiles of each light are gathered into a run of their own before the shadow masks and the
+ * light functions are made over them; `surfaceCacheDirectLightingBatchShadows` (2, from 0 to 2) at 2 runs the point lights', the spots'
+ * and the rectangles' tiles each of their type, a sun's and those of a light whose function the atlas holds no slot of still each of
+ * their light; at 0 and 1 every light has a run. Where the scene has acceleration structures
  * (`surfaceCacheDirectLightingHardwareRayTracing`, on) the shadow of a texel is a mask a light keeps for the
  * tile (a factor of 7 bits and whether it is settled), its light function and clouds' shade first, then one ray
  * through the scene's triangles for each texel whose mask is not settled: started off the texel by

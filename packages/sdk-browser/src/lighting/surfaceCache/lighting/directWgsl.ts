@@ -24,7 +24,8 @@ import { LIGHT_CENTRE_FACING_WGSL, shadowMaskBlockOf } from './shadowMaskWgsl.ts
 
 /**
  * THE DIRECT LIGHT OF THE CARDS' TEXELS: a workgroup a tile of the direct update's list (`contextWgsl.ts`), a thread a
- * texel, which holds the irradiance the tile's lights (`cullWgsl.ts`) give its surface, written to the direct layer
+ * texel, which holds the irradiance the tile's lights (`cullWgsl.ts`, the tile's own list of the light tiles that
+ * `lightTilesWgsl.ts` places, each with the place of its shadow mask) give its surface, written to the direct layer
  * multiplied by the pre-exposure and dithered in the last place of its word (`ditherLight`, by a hash of the texel and
  * the page's image, so that a light kept over many images does not drift).
  *
@@ -56,7 +57,7 @@ export const DIRECT_BINDINGS = {
   context: 2,
   depth: 3,
   normal: 4,
-  tileLights: 5,
+  cardTileLights: 5,
   out: 6,
   lights: 7,
   lightFunction: 8,
@@ -67,6 +68,7 @@ export const DIRECT_BINDINGS = {
   field: 13,
   masks: 19,
   factors: 20,
+  cardTileOffsets: 21,
 } as const
 
 /** Where the direct light's program reads the light functions, and the eye their fade is measured from. */
@@ -144,7 +146,8 @@ export const DIRECT_ENTRIES = [DIRECT_ENTRY, DIRECT_TRACED_ENTRY] as const
 const directProgram = (format: AtlasFormat) =>
   wgslProgram(
     `${wgslConsts({ MAX_LIGHTS: MAX_LIGHTS_PER_TILE, TILE_TEXELS: SHADOW_TEXELS })}
-@group(0) @binding(${DIRECT_BINDINGS.tileLights}) var<storage,read> tileLights:array<u32>;
+@group(0) @binding(${DIRECT_BINDINGS.cardTileLights}) var<storage,read> cardTileLights:array<u32>;
+@group(0) @binding(${DIRECT_BINDINGS.cardTileOffsets}) var<storage,read> cardTileOffsets:array<u32>;
 @group(0) @binding(${DIRECT_BINDINGS.out}) var outDirect:texture_storage_2d<r32uint,write>;
 @group(0) @binding(${DIRECT_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${DIRECT_BINDINGS.masks}) var<storage,read> masks:array<u32>;
@@ -158,15 +161,19 @@ fn storeDirect(page:u32,texel:SurfaceTexel,irradiance:vec3f){
  textureStore(outDirect,vec2i(texel.atlas),vec4u(packLight(ditherLight(irradiance*lp.preExposure,noise)),0u,0u,0u));
 }
 /** What a thread of the direct light starts from: the tile of the list \`tile\` (its page and its place in it), its texel, and the
- *  lights the tile keeps — none where the direct light is off — at \`first\` in the tiles' lights. */
+ *  lights the tile keeps — none where the direct light is off — from \`first\` in the tiles' lights. */
 struct DirectTexel{page:u32,coord:vec2u,texel:SurfaceTexel,first:u32,lights:u32}
 fn directTexel(tile:u32,at:vec2u)->DirectTexel{
  let packed=ctxTile(LG_LIST_DIRECT,tile);
  let page=tilePage(packed);
  let coord=tileCoordOf(packed);
- let first=tile*(lp.maxLights+1u);
- return DirectTexel(page,coord,surfaceTexel(page,coord*LG_TILE+at),first,select(0u,tileLights[first],lgFlag(FLAG_DIRECT)));
+ let first=cardTileOffsets[tile*CARD_TILE_OFFSET_WORDS];
+ return DirectTexel(page,coord,surfaceTexel(page,coord*LG_TILE+at),first,select(0u,cardTileOffsets[tile*CARD_TILE_OFFSET_WORDS+1u],lgFlag(FLAG_DIRECT)));
 }
+/** The word of light \`k\` of the tile (its rank and whether the atlas holds no slot of its function), and the place of its light tile
+ *  in the compacted list, the index of its mask. */
+fn tileLightWord(head:DirectTexel,k:u32)->u32{return cardTileLights[(head.first+k)*LIGHT_TILE_WORDS];}
+fn tileLightMask(head:DirectTexel,k:u32)->u32{return cardTileLights[(head.first+k)*LIGHT_TILE_WORDS+1u];}
 /** Counts the texel as seeing the tile's light \`k\` and as shadowed from it, as \`visible\` and \`shadowed\` say. */
 fn countLight(k:u32,visible:bool,shadowed:bool){
  if(visible){atomicAdd(&visibleTexels[k],1u);}
@@ -180,7 +187,7 @@ fn recordUniformLights(head:DirectTexel,lane:u32){
   var seen=array<u32,FACTOR_TILE_WORDS>();
   for(var k=0u;k<head.lights;k++){
    if(atomicLoad(&visibleTexels[k])==TILE_TEXELS||atomicLoad(&shadowedTexels[k])==TILE_TEXELS){
-    let rank=tileLightRank(tileLights[head.first+1u+k]);
+    let rank=tileLightRank(tileLightWord(head,k));
     seen[factorWordOf(rank)]|=factorBitOf(rank);
    }
   }
@@ -198,12 +205,12 @@ fn ${DIRECT_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n
   // A texel that holds no surface counts as seeing the light and as shadowed from it.
   var seen=CacheLight(vec3f(0.0),true,true);
   if(head.texel.valid){
-   let listed=tileLights[head.first+1u+k];
+   let listed=tileLightWord(head,k);
    let standalone=tileLightStandalone(listed);
    var share=1.0;
    if(standalone){
     let i=at.x+at.y*LG_TILE;
-    share=scratchFactorIn(masks[scratchWordOf(tile*lp.maxLights+k,i)],i);
+    share=scratchFactorIn(masks[scratchWordOf(tileLightMask(head,k),i)],i);
    }
    seen=cacheLight(tileLightRank(listed),standalone,share,head.texel.position,head.texel.normal);
    irradiance+=seen.irradiance;
@@ -225,11 +232,11 @@ fn ${DIRECT_TRACED_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgr
   var visible=true;
   var shadowed=true;
   if(head.texel.valid){
-   let ray=shadowRayOf(shadowByteIn(masks[(tile*lp.maxLights+k)*SHADOW_MASK_TILE_WORDS+bit/32u],bit));
+   let ray=shadowRayOf(shadowByteIn(masks[tileLightMask(head,k)*SHADOW_MASK_TILE_WORDS+bit/32u],bit));
    visible=isVisibleToLight(ray.factor);
    shadowed=!visible;
    if(shadowReaches(ray.factor)){
-    let rank=tileLightRank(tileLights[head.first+1u+k]);
+    let rank=tileLightRank(tileLightWord(head,k));
     irradiance+=gathered(rank,declaredBareIrradiance(rank,head.texel.position/CM_PER_M,head.texel.normal,0.0))*ray.factor;
    }
   }

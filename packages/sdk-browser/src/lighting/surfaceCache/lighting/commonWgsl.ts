@@ -5,8 +5,10 @@ import { LIGHTING_CONTEXTS } from '../../../../../sdk-core/src/lighting/surfaceC
 import { INVALID_DEPTH_WORD, TILE } from '../layout.ts'
 import { surfaceCacheRecordsWgsl } from '../sampleWgsl.ts'
 import {
+  CARD_TILE_OFFSET_WORDS,
   CONTEXT_ARGS,
   CONTEXT_AT,
+  LIGHT_TILE_WORDS,
   LIGHTING_FLAG,
   LIGHTING_PARAMS,
   STANDALONE_SCRATCH_WORDS,
@@ -70,6 +72,9 @@ const CONSTANTS = wgslConsts({
   FLAG_FEEDBACK: LIGHTING_FLAG.feedback,
   FLAG_CULL_TO_TILE_DEPTH_RANGE: LIGHTING_FLAG.cullToTileDepthRange,
   FLAG_PROBE_OCCLUSION: LIGHTING_FLAG.probeOcclusion,
+  FLAG_LIGHT_TILES_PER_TYPE: LIGHTING_FLAG.lightTilesPerType,
+  LIGHT_TILE_WORDS,
+  CARD_TILE_OFFSET_WORDS,
   TILE_LIGHT_RANK_MASK: 2 ** TILE_LIGHT_RANK_BITS - 1,
   TILE_LIGHT_STANDALONE,
   SCRATCH_TILE_WORDS: STANDALONE_SCRATCH_WORDS,
@@ -92,11 +97,11 @@ fn pageMin(page:u32)->vec2u{
  let side=f32(lp.atlasSide);
  return vec2u(u32(round(scPageF(page,8u)*side)),u32(round(scPageF(page,9u)*side)));
 }
-/** The rank of the light a word of a tile's list names, and whether it is one the atlas of the light functions holds no slot of. */
+/** The rank of the light a word of a light tile names, and whether it is one the atlas of the light functions holds no slot of. */
 fn tileLightRank(word:u32)->u32{return word&TILE_LIGHT_RANK_MASK;}
 fn tileLightStandalone(word:u32)->bool{return (word&TILE_LIGHT_STANDALONE)!=0u;}
-/** The word of the scratch of the light functions (\`scratchAt\` words into the masks' buffer) that holds the texel \`i\` of the light tile
- *  \`lightTile\`, and the factor that texel holds of it. */
+/** The word of the scratch of the light functions (\`scratchAt\` words into the masks' buffer) that holds the texel \`i\` of the compacted light
+ *  tile \`lightTile\`, and the factor that texel holds of it. */
 fn scratchWordOf(lightTile:u32,i:u32)->u32{return lp.scratchAt+lightTile*SCRATCH_TILE_WORDS+i/2u;}
 fn scratchFactorIn(word:u32,i:u32)->f32{return unpack2x16float(word)[i&1u];}
 /** The card's coordinates of the centre of the texel \`coord\` of a page. */
