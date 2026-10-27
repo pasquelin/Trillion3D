@@ -19,7 +19,6 @@ import type { Object3D } from '../../../../../sdk-core/src/world/object/object3d
 import { composeMatrix4 } from '../../../../../math/src/matrix/matrix4Compose.ts'
 import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { sceneCacheFiles } from '../../../../../../tests/kit/scenes/caches.ts'
-import { readJson } from '../../../../../../scripts/git/repository-files.ts'
 import { buildPreparedScene } from './build.ts'
 import { decodingImages } from './decodedImages.fixture.ts'
 import { SCENE_FILE } from '../../tables.ts'
@@ -30,11 +29,8 @@ const repository = new URL('../../../../../../', import.meta.url)
 /** Every compiled scene cache: the key folder its pointer names. */
 async function caches() {
   const found: URL[] = []
-  for (const file of await sceneCacheFiles('manifest.json')) {
-    const pointer = new URL(file, repository)
-    const { url } = readJson(pointer) as { url: string }
-    found.push(new URL('./', new URL(url, pointer)))
-  }
+  for (const file of await sceneCacheFiles('clusters.json'))
+    found.push(new URL('./', new URL(file, repository)))
   return found
 }
 

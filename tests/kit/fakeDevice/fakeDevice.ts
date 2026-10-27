@@ -8,6 +8,7 @@ import {
   type FakeWrite,
 } from './fakeRecords.ts'
 import { bundleMaker } from './fakeBundles.ts'
+import { WEBGPU_DEFAULT_LIMITS } from './limitRules.ts'
 import { asWebgpuDevice } from './fakeWebgpuDevice.ts'
 import { readDescriptors, refusing, texture, withGroups, writeTexels } from './fakeResources.ts'
 import { fakeBuffers } from './fakeBuffers.ts'
@@ -77,7 +78,8 @@ export function fakeDevice(options: FakeDeviceOptions = {}) {
   const members: Record<string, unknown> = {
     label: '',
     features: new Set<string>(features),
-    ...(limits && { limits }),
+    // A device lists every limit: those its test granted, WebGPU's defaults for the rest.
+    limits: { ...WEBGPU_DEFAULT_LIMITS, ...limits },
     destroy: () => void destroyed.push(device),
     createBuffer: (descriptor: GPUBufferDescriptor) => (
       allocate(descriptor),

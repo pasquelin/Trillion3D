@@ -4,8 +4,12 @@ import { createRootOffsets } from './rootOffsets.ts'
 import {
   PLACEMENT_CHANNELS_SHIFT,
   PLACEMENT_HOLDOUT,
+  PLACEMENT_OBJECT_BITS,
 } from '../../geometry/dag/info/placementInfoLayout.ts'
 import {
+  OBJECT_ONLY_OWNER_SEE,
+  OBJECT_OWNER_NO_SEE,
+  OBJECT_VIEW_BITS,
   objectBits,
   objectOffsetRow,
   switchesOfObject,
@@ -25,15 +29,14 @@ test('a row’s bits are the object’s switches in the placement’s own bits, 
   node.holdout = true
   node.ownerNoSee = true
   node.lightingChannels = { channel0: false, channel1: true, channel2: false }
-  assert.equal(
-    objectBits(switchesOfObject(node)),
-    PLACEMENT_HOLDOUT | (3 << PLACEMENT_CHANNELS_SHIFT),
-  )
+  const placement = PLACEMENT_HOLDOUT | (3 << PLACEMENT_CHANNELS_SHIFT)
+  const bits = objectBits(switchesOfObject(node))
+  assert.equal(bits & PLACEMENT_OBJECT_BITS, placement)
+  assert.equal(bits & OBJECT_VIEW_BITS, OBJECT_OWNER_NO_SEE)
   node.onlyOwnerSee = true
-  assert.equal(
-    objectBits(switchesOfObject(node)),
-    PLACEMENT_HOLDOUT | (3 << PLACEMENT_CHANNELS_SHIFT),
-  )
+  const both = objectBits(switchesOfObject(node))
+  assert.equal(both & PLACEMENT_OBJECT_BITS, placement)
+  assert.equal(both & OBJECT_VIEW_BITS, OBJECT_OWNER_NO_SEE | OBJECT_ONLY_OWNER_SEE)
 })
 
 test('a held row says what changed: nothing, or any word of the row', () => {

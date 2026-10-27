@@ -7,7 +7,7 @@
 type Entry = GPUBindGroupLayoutEntry
 
 /** The counts WebGPU grants a device that asks for none. */
-const WEBGPU_DEFAULT_LIMITS = {
+export const WEBGPU_DEFAULT_LIMITS = {
   maxBindGroups: 4,
   maxSampledTexturesPerShaderStage: 16,
   maxSamplersPerShaderStage: 16,
