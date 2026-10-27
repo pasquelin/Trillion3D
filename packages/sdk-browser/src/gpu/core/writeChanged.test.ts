@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { replayWrites } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import {
+  markWrittenOnGpu,
   writeChanged,
   writeChangedCopy,
   writeChangedRecords,
@@ -49,13 +50,20 @@ test('only the changed words go up, the buffer holding the image; the hole is ne
   )
 })
 
-test('a buffer copied from another holds its words: the next write sends what differs from them', () => {
+/** A buffer of 64 words written with threes, and the 128-word buffer it is copied into whole: the
+ *  device, its writes, both buffers and the image of the source. */
+function grownFrom() {
   const { device, writes } = fakeDevice()
   const source = device.createBuffer({ label: 'old', size: 64 * 4, usage: copies() })
   const target = device.createBuffer({ label: 'grown', size: 128 * 4, usage: copies() })
   const image = new Uint32Array(128)
   image.fill(3, 0, 64)
   writeChanged(device, source, image, 0, 64)
+  return { device, writes, source, target, image }
+}
+
+test('a buffer copied from another holds its words: the next write sends what differs from them', () => {
+  const { device, writes, source, target } = grownFrom()
   // The GPU copy: the target holds the source's words, then zeros.
   const gpu = new Uint32Array(128)
   gpu.fill(3, 0, 64)
@@ -68,6 +76,62 @@ test('a buffer copied from another holds its words: the next write sends what di
   writeChanged(device, target, next, 0, 128)
   replayWrites(gpu.buffer, writes)
   assert.deepEqual(gpu, next)
+})
+
+test('a buffer a kernel wrote into is sent whole once, from its first word, then by diff again', () => {
+  const { device, writes } = fakeDevice()
+  const buffer = device.createBuffer({ label: 'edited', size: 64 * 4, usage: copies() })
+  const image = new Uint32Array(64)
+  image.fill(3, 0, 32)
+  writeChanged(device, buffer, image, 0, 32)
+  const gpu = new Uint32Array(64)
+  replayWrites(gpu.buffer, writes)
+  // The kernel adds to words the image still holds as they were: none differs from the words held,
+  // yet each must go up. It wrote the first 16; the image's call reaches 8.
+  for (let k = 0; k < 16; k++) gpu[k] += 100
+  markWrittenOnGpu(buffer, 16)
+  writeChanged(device, buffer, image, 0, 8)
+  assert.deepEqual(
+    writes.map((w) => [w.offset, w.size]),
+    [[0, 16]],
+    'the words the kernel may have written, whole',
+  )
+  replayWrites(gpu.buffer, writes)
+  assert.deepEqual(gpu.slice(0, 32), image.slice(0, 32))
+  // The mark is spent: a still image sends nothing, a changed word one word.
+  writeChanged(device, buffer, image, 0, 32)
+  assert.equal(writes.length, 0)
+  image[20] = 9
+  writeChanged(device, buffer, image, 0, 32)
+  assert.deepEqual(
+    writes.map((w) => [w.offset, w.size]),
+    [[80, 1]],
+  )
+})
+
+test('the writers by slots and by records refuse a buffer a kernel wrote into', () => {
+  const { device } = fakeDevice()
+  const buffer = device.createBuffer({ label: 'edited', size: 64 * 4, usage: copies() })
+  const image = new Uint32Array(64)
+  markWrittenOnGpu(buffer, 8)
+  assert.throws(() => writeChangedRecords(device, buffer, image, [0], 1, 4), /written on the GPU/)
+  const slots = { count: 2, words: 4, strideWords: 4 }
+  assert.throws(() => writeChangedSlots(device, buffer, image, slots), /written on the GPU/)
+})
+
+test('a copy of a buffer a kernel wrote into carries the mark: its next write sends the words whole', () => {
+  const { device, writes, source, target, image } = grownFrom()
+  markWrittenOnGpu(source, 24)
+  writeChangedCopy(source, target)
+  writes.length = 0
+  writeChanged(device, target, image, 0, 64)
+  assert.deepEqual(
+    writes.map((w) => [w.offset, w.size]),
+    [[0, 64]],
+  )
+  writes.length = 0
+  writeChanged(device, target, image, 0, 64)
+  assert.equal(writes.length, 0)
 })
 
 test('a sparse table compared on the records it may have changed sends what a whole compare sends', () => {

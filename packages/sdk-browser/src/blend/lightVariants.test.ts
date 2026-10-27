@@ -27,7 +27,8 @@ import {
 } from '../lighting/shadows/vsm/trace/traceWgsl.ts'
 
 /** Every key a scene can ask (`contractKey`): `unshadowed` leaves out both kinds' reads, so no
- *  kind is cut beside it, and a shadowed scene casts from at least one kind. */
+ *  kind is cut beside it, and a shadowed scene casts from at least one kind. A forward program holds no
+ *  contact shadow: its keys always say so. */
 const KEYS: ContractKey[] = [false, true].flatMap((rectless) =>
   [
     [true, false, false],
@@ -41,6 +42,7 @@ const KEYS: ContractKey[] = [false, true].flatMap((rectless) =>
     sunless,
     localless,
     lobeless: false,
+    contactless: true,
   })),
 )
 /** The key the tests name: a rectless scene with shadow code. */
@@ -95,7 +97,7 @@ test('a refused first program is said and the twin serves; a twin nothing needed
   const { programOf, said } = await keyed(RECTLESS, (key) => key.rectless)
   assert.equal(said.length, 1)
   // The twin was prepared in the first program's place.
-  assert.deepEqual(programOf(RECTLESS), FULL_CONTRACT)
+  assert.deepEqual(programOf(RECTLESS), { ...FULL_CONTRACT, contactless: true })
   await assert.doesNotReject(keyed(RECTLESS, (key) => !key.rectless))
   const { programOf: lent } = await keyed(RECTLESS, (key) => !key.rectless)
   assert.equal(

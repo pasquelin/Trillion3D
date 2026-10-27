@@ -23,6 +23,7 @@ import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { sunShadowMask } from '../../lighting/distanceField/shadow/state.ts'
 import { skyOcclusionRead } from '../../lighting/distanceField/ao/state.ts'
 import { lobesHeld, rowsWearLobes } from './lobesTarget.ts'
+import { castsContactShadows } from '../../lighting/contactShadow/frame.ts'
 import { wantsContractLighting } from './lit.ts'
 import { tracesFrontLayer } from '../../lighting/reflections/settings.ts'
 import { readSingleLayerWaterSetting } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
@@ -54,10 +55,16 @@ function lobedFor(pass: LitPass, rt: WebgpuPagesRuntime) {
   return lobesHeld(rt) && rowsWearLobes(rt)
 }
 
+/** Whether the surfaces `pass` lights cast contact shadows: the opaque lit passes' alone, a blend pass
+ *  holding neither the scene's depth nor its flags (`castsContactShadows`). */
+const contactFor = (pass: LitPass, rt: WebgpuPagesRuntime) =>
+  pass === 'opaque' && castsContactShadows(rt)
+
 /** The key a first frame of `pass` asks for, fresh: the declared lights' and the pass's lobes, the
- *  shadow code only where a light takes a shadow (`shadowsOn`). */
+ *  shadow code only where a light takes a shadow (`shadowsOn`), the contact shadows' where the pass
+ *  casts them. */
 export const keyFor = (pass: LitPass, rt: WebgpuPagesRuntime) =>
-  contractKey(rt.lights.store, shadowsOn(rt), lobedFor(pass, rt))
+  contractKey(rt.lights.store, shadowsOn(rt), lobedFor(pass, rt), contactFor(pass, rt))
 
 /** The lit programs prepare compiles beside the others when the image wants the contract (#1362),
  *  with bounce too when the session wants it; a failed one is said, then or later. The one it
@@ -108,7 +115,8 @@ export const blendContext = (rt: WebgpuPagesRuntime) => {
  * code while a light declares a shadow and `shadowed`, the shadow raster is fitted (#1249), the
  * read of a kind of light (a sun's, a local light's) while a light of that kind declares one
  * (`ShadowKinds`); rectangle code while a light is a rectangle (#1369); lobe code while a surface
- * the pass lights carries a lobe (`lobed`, `../../materials/surface/physicalLobes.ts`). Never on a slot held
+ * the pass lights carries a lobe (`lobed`, `../../materials/surface/physicalLobes.ts`); contact shadow code
+ * while the pass casts them (`contact`, `castsContactShadows`). Never on a slot held
  * this frame: a lamp that moves, a page that comes and goes, asks no other program. Written into
  * `key`, fresh unless a frame hands in the one it reuses from one image to the next.
  */
@@ -116,6 +124,7 @@ function contractKey(
   store: LightStore,
   shadowed: boolean,
   lobed: boolean,
+  contact: boolean,
   key: Partial<ContractKey> = {},
 ) {
   const sun = store.shadowedSuns > 0,
@@ -127,6 +136,7 @@ function contractKey(
   key.sunless = !key.unshadowed && !sun
   key.localless = !key.unshadowed && !local
   key.lobeless = !lobed
+  key.contactless = !contact
   return key as ContractKey
 }
 
@@ -241,7 +251,13 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   if (active) {
     // Lobe code while the targets hold the lobes of a surface that carries one (`physicalLobes.ts`).
     const shadowed = shadowsOn(rt) && (!!lights.pageLayout || !!lights.vsm)
-    contractKey(lights.store, shadowed, lobedFor('opaque', rt), contractResources)
+    contractKey(
+      lights.store,
+      shadowed,
+      lobedFor('opaque', rt),
+      contactFor('opaque', rt),
+      contractResources,
+    )
     contractResources.narrow &&= !!lights.tiles
   } else Object.assign(contractResources, FULL_CONTRACT)
   shadowResources(rt, active)

@@ -121,6 +121,8 @@ export const vsmRecordCapacity = (visibleCap: number, indirectionMultiplier: num
 
 // Flags of the next-frame data of a map.
 export const VSM_NEXT_KEEPS_PAGES = 1 << 0
+/** The previous id has a next id: the record names where its map went. */
+export const VSM_NEXT_ID_VALID = 1 << 1
 
 // ---- Page marks (hierarchical, OR-combined): what a page request or a mapped page says -------
 const VSM_PAGE_WANTED = 1 << 0
@@ -300,6 +302,7 @@ ${wgslConsts({
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
   VSM_MAP_FIRST_PERSON,
   VSM_NEXT_KEEPS_PAGES,
+  VSM_NEXT_ID_VALID,
   VSM_PAGE_WANTED,
   VSM_PAGE_DYNAMIC_STALE,
   VSM_PAGE_STATIC_STALE,

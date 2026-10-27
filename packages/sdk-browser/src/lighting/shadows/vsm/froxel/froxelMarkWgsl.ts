@@ -37,7 +37,7 @@ import {
   VSM_PROJECTION_DATA_WGSL,
 } from '../projection/projectionDataWgsl.ts'
 import { vsmBindingsWgsl } from '../resources.ts'
-import { VSM_PIXELS_SPECS, VSM_MARKING_PARAMS_WGSL, VSM_PAGE_MARKING_WGSL } from '../markingWgsl.ts'
+import { VSM_PIXELS_SPECS, VSM_MARKING_PARAMS_WGSL, vsmPageMarkingBlock } from '../markingWgsl.ts'
 import { NO_MIN_LEVEL } from '../markingWgsl.ts'
 import { SHADOW_SLICE_WGSL } from '../../../direct/shadowSlice.ts'
 import { VSM_BOX_VIEW_WGSL } from '../invalidation/boxCullWgsl.ts'
@@ -154,7 +154,7 @@ fn ${FROXEL_MARK_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups
  }
 }`
 
-export const vsmFroxelPageMarkingWgsl = (layout: VsmLayout) =>
+export const vsmFroxelPageMarkingWgsl = (layout: VsmLayout, throttled = false) =>
   wgslProgram(
     /* wgsl */ `
 ${froxelMarkDeclarationsText}${froxelMarkBoxText()}${froxelMarkKernelText()}
@@ -173,7 +173,7 @@ ${froxelMarkDeclarationsText}${froxelMarkBoxText()}${froxelMarkKernelText()}
       pixelCellWgsl(),
       SHADOW_SLICE_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
-      VSM_PAGE_MARKING_WGSL,
+      vsmPageMarkingBlock(throttled),
       VSM_BOX_VIEW_WGSL,
       FLAT_INDEX_WGSL,
       ceilDivWgsl,

@@ -50,7 +50,8 @@ interface FroxelMarkView {
 export interface FroxelPipes {
   froxelBuild(water?: boolean): VsmComputePipe
   froxelArgs(): VsmComputePipe
-  froxelMark(): VsmComputePipe
+  /** The marking over the froxels; `throttled`, the program of a frame the compute throttle is on. */
+  froxelMark(throttled?: boolean): VsmComputePipe
 }
 
 /** Group 0 of `p` over the tables `specs` name and the parameters at `paramsBinding`
@@ -80,6 +81,8 @@ interface FroxelState {
  *  it. */
 export interface FroxelMarkContext {
   perspective: boolean
+  /** Whether the compute throttle is on this frame: the marking program that reads each map's own bias. */
+  throttled: boolean
   groups: { froxelMark?: GPUBindGroup }
   tablesGroup: TablesGroup
   specs: readonly VsmBindingSpec[]
@@ -230,7 +233,7 @@ export function createFroxelMarking(
     device.queue.writeBuffer(st.list, 0, countZero)
     const build = pipes.froxelBuild(water),
       sizing = pipes.froxelArgs(),
-      mark = pipes.froxelMark()
+      mark = pipes.froxelMark(ctx.throttled)
     const buildBound = water
       ? buildGroup(device, st, build, v.water!, v.depth)
       : buildGroup(device, st, build, v.depth)

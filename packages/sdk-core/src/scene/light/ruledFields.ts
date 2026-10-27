@@ -7,9 +7,27 @@ import {
 } from '../../contracts/settingRules.ts'
 import type { SceneLight } from './contracts.ts'
 
+const shared = /* @__PURE__ */ new WeakMap<object, object>()
+/** What a group's `resolve` gives for `given`; for none of its fields, the defaults, made once and frozen with the
+ *  vectors they hold: the one object every light that names none shares. */
+function resolveShared<V extends object>(
+  resolve: (given: Record<string, unknown>) => V,
+  given: Record<string, unknown>,
+) {
+  if (Object.keys(given).length) return resolve(given)
+  let defaults = shared.get(resolve) as Readonly<V> | undefined
+  if (!defaults) {
+    const made = resolve({})
+    for (const value of Object.values(made)) if (Array.isArray(value)) Object.freeze(value)
+    shared.set(resolve, (defaults = Object.freeze(made)))
+  }
+  return defaults as V
+}
+
 /**
- * A GROUP OF LIGHT FIELDS NAMED, TYPED AND DEFAULTED BY SETTING RULES (cloud shadows, light shafts):
- * the one way such a group is validated into a record, read from a held record and compared.
+ * A GROUP OF LIGHT FIELDS NAMED, TYPED AND DEFAULTED BY SETTING RULES (cloud shadows, light shafts,
+ * contact shadows): the one way such a group is validated into a record, read from a held record and
+ * compared.
  * `rules` is the group's rules by field, `resolve` their resolver (a `TypeError` for a field or a
  * value a rule does not take), `directionalOnly` the fields only a directional light may hold, all
  * of the group's by default.
@@ -63,7 +81,7 @@ export function ruledLightFields<V extends object>(
    *  record is the store's own, replaced at every change: the answer is made once for it. */
   function of(light: SceneLight): V {
     let settings = held.get(light)
-    if (!settings) held.set(light, (settings = resolve(givenOf(light))))
+    if (!settings) held.set(light, (settings = resolveShared(resolve, givenOf(light))))
     return settings
   }
 

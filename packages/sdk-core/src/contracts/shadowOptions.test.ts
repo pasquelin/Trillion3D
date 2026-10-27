@@ -67,6 +67,10 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowCacheFramesStaticThreshold: 100, shadowCacheMaxPageAgeSinceLastRequest: 1000 },
   ...{ shadowCacheMaxLightAgeSinceLastRequest: 10, shadowDynamicResolutionMaxResolutionLodBias: 2 },
   ...{ shadowDynamicResolutionMaxPagePoolLoadFactor: 0.85, shadowSmrtAdaptiveRayCount: 1 },
+  ...{ shadowDynamicResolutionTimeBudgetMs: 0, shadowDynamicResolutionLoadBudget: 0 },
+  shadowDynamicResolutionPerVsmBiasHistoryWeight: 0.9,
+  ...{ shadowDynamicResolutionMaxComputeResolutionLodBiasDirectional: 99999 },
+  ...{ shadowDynamicResolutionMaxComputeResolutionLodBiasLocal: 99999 },
   ...{ shadowSmrtMaxRayAngleFromLight: 0.03, shadowSmrtExtrapolateMaxSlopeLocal: 0.05 },
   ...{ shadowSmrtExtrapolateMaxSlopeDirectional: 5, shadowSmrtTexelDitherScaleLocal: 2 },
   ...{ shadowSmrtTexelDitherScaleDirectional: 2, shadowSmrtMaxSlopeBiasLocal: 50 },
@@ -82,11 +86,19 @@ const SUN_SHADOW_DEFAULTS = {
   ...{ distanceFieldShadowTwoSidedBias: 1, distanceFieldShadowObjectsPerTile: 128 },
 }
 
+/** The view's contact shadow settings at their defaults: on, no override of the lights' own. */
+const CONTACT_SHADOW_DEFAULTS = {
+  ...{ contactShadows: true, contactShadowOverrideLength: -1 },
+  ...{ contactShadowOverrideLengthInWorldSpace: false, contactShadowOverrideCastingIntensity: -1 },
+  contactShadowOverrideNonCastingIntensity: -1,
+}
+
 test('the shadow settings read by their rules, a light’s own beside them', () => {
   assert.deepEqual(resolveSettings(SHADOW_RULES, {}), {
     ...{ shadowDistanceScale: 1, farShadowCulling: true, farShadowCullsAllMeshes: false },
     ...{ shadowNearLevels: 10, shadowOverlapScale: 1, shadowFarField: true },
     ...{ shadowMultipassViews: true, ...SUN_SHADOW_DEFAULTS, ...SHADOW_MAP_DEFAULTS },
+    ...CONTACT_SHADOW_DEFAULTS,
     ...{
       shadowGeometryLodBias: 1,
       shadowOcclusionCulling: true,
@@ -208,6 +220,14 @@ test('the shadow maps’ settings refuse what they cannot take, in words', () =>
   refuses('shadowMaxResolution', 0, /from 1 to 8192/)
   for (const field of ['shadowMinResolution', 'shadowTexelsPerPixelRect'] as const)
     refuses(field, -1, /at least 0/)
+  for (const field of [
+    'shadowDynamicResolutionTimeBudgetMs',
+    'shadowDynamicResolutionLoadBudget',
+    'shadowDynamicResolutionMaxComputeResolutionLodBiasDirectional',
+    'shadowDynamicResolutionMaxComputeResolutionLodBiasLocal',
+  ] as const)
+    refuses(field, -1, /at least 0/)
+  refuses('shadowDynamicResolutionPerVsmBiasHistoryWeight', 1.5, /from 0 to 1/)
   refuses('shadowPointLightCubemaps', 1, /true or false/)
   refuses('shadowResolutionLodBiasLocal', 17, /from -16 to 16/)
   for (const quality of [6, -1]) refuses('shadowQuality', quality, /from 0 to 5/)

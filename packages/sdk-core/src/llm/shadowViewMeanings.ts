@@ -130,6 +130,16 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "Levels (2, the default) the global shadow resolution may drop, by biasing every map's level of detail up, as the page pool fills past shadowDynamicResolutionMaxPagePoolLoadFactor; 0 never lowers it.",
   shadowDynamicResolutionMaxPagePoolLoadFactor:
     'Share of the page pool (0.85, the default) that may be allocated before the shadow resolution is biased downwards; 0 turns the dynamic resolution off.',
+  shadowDynamicResolutionTimeBudgetMs:
+    "Milliseconds (0, the default: off) the shadow raster's GPU time may take: above 0, the dynamic resolution fits it to this budget and raises every shadow map's resolution bias by the share of that fit its cost takes; needs the render scale on 'auto' and a GPU timer, and wins over shadowDynamicResolutionLoadBudget. Off, nothing is counted or run.",
+  shadowDynamicResolutionLoadBudget:
+    "Estimated load of the shadow raster (0, the default: off), counted in the clusters it draws, past which every shadow map's resolution bias rises, the busier maps more; lower is more aggressive. Ignored while shadowDynamicResolutionTimeBudgetMs is above 0. Off, nothing is counted or run.",
+  shadowDynamicResolutionPerVsmBiasHistoryWeight:
+    "Share (0.9, the default; 0 to 1) of a shadow map's compute bias that the frame before keeps when it is eased, to smooth it over time; used while a time or load budget is on.",
+  shadowDynamicResolutionMaxComputeResolutionLodBiasDirectional:
+    "Most levels (99999, the default: no cap of its own) the compute throttle adds to the resolution bias of a directional light's maps, within shadowDynamicResolutionMaxResolutionLodBias less the pool's bias; 0 never lowers them.",
+  shadowDynamicResolutionMaxComputeResolutionLodBiasLocal:
+    "Most levels (99999, the default: no cap of its own) the compute throttle adds to the resolution bias of a point, spot or rectangle light's maps, within shadowDynamicResolutionMaxResolutionLodBias less the pool's bias; 0 never lowers them.",
   shadowSmrtAdaptiveRayCount:
     'The ray (1, the default) after which a group of pixels whose rays all hit stops tracing, an umbra; a group whose first ray missed everywhere stops after it; 0 turns the adaptive ray count off and every pixel traces them all.',
   shadowSmrtMaxRayAngleFromLight:

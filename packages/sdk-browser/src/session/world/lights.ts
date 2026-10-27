@@ -6,7 +6,7 @@ import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts
 import { isLightNode } from '../../scene/host/graph/kinds.ts'
 import { emptyIrradiance } from '../../../../sdk-core/src/scene/core/environment.ts'
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
-import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts'
+import { sameLightRecord } from '../../../../sdk-core/src/scene/light/equal.ts'
 import { boxPointReach } from '../../../../math/src/geometry/boxDistance.ts'
 import { NO_SKY, type WorldSky } from './worldModules.ts'
 
@@ -195,7 +195,7 @@ function sync(
       if (last) drop(state, api, light, id)
       continue
     }
-    if (last && sameSceneLight(last.record, record)) continue
+    if (last && sameLightRecord(last.record, record)) continue
     // A lamp keeping its members is written in its slot; one gaining or losing one is
     // written anew, so no member of its former record survives.
     if (last && sameKeys(last.record, record)) api.setLight(id, record)

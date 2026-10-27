@@ -10,6 +10,7 @@ import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shad
 import { heldMaskBytes } from './vsmMask.ts'
 import { vsmProjectionHeldBytes } from '../projection/projectionStore.ts'
 import { vsmRenderContextBytes, type VsmRenderStats } from '../render/renderPass.ts'
+import { vsmThrottleBytes } from '../throttle.ts'
 
 /** The diagnostics of a set's last frame (`EngineVsm.stats`). */
 export interface VsmEngineStats {
@@ -58,7 +59,8 @@ export const engineVsmBytes = (vsm: EngineVsm) =>
   vsm.res.bytes +
   vsmProjectionHeldBytes(vsm.res) +
   heldMaskBytes(vsm) +
-  vsmRenderContextBytes(vsm.res)
+  vsmRenderContextBytes(vsm.res) +
+  vsmThrottleBytes(vsm.res)
 
 /** GPU bytes the shadows hold: the virtual shadow maps — their set, mask and raster lists
  *  (`engineVsmBytes`, what freeing them gives back). The shadows' term of the
@@ -92,6 +94,16 @@ function stageTimes(sample: GpuPassTimings | null | undefined) {
   for (const stage of VSM_STAGES) times[stage] = totals.get(stage) ?? null
   timedSample = sample
   return (timedStages = times)
+}
+
+/** The GPU time of the shadow raster's passes in `sample` (the render stage: the candidates, the cull,
+ *  the bin and the raster): 0 for an image that ran none (a raster that cost nothing), null where the
+ *  sample is missing or truncated or a pass of the stage has no usable duration. What the shadow
+ *  raster's time budget is fitted to (`shadowDynamicResolutionTimeBudgetMs`). */
+export function vsmRenderMs(sample: GpuPassTimings | null | undefined) {
+  if (!sample || sample.truncated) return null
+  const ms = gpuTotalsBy(sample, vsmStage).get('shadowVsmRenderMs')
+  return ms === undefined ? 0 : ms
 }
 
 /** The frame's VSM counters and stage times, as the stats panel lists them (`shadow…`): each

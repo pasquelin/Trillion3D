@@ -1,9 +1,11 @@
+import type { ContactShadowField } from '../contracts/contactShadowOptions.ts'
 import type { ShadowField } from '../contracts/shadowOptions.ts'
 import type { ShadowViewField } from './shadowViewMeanings.ts'
 
 /** The settings of the view that shape a sun's shadows by distance (`../contracts/shadowOptions.ts`,
- *  `../contracts/sunShadowOptions.ts`): the rest are the maps' (`shadowViewMeanings.ts`). */
-type ShadowSunField = Exclude<ShadowField, ShadowViewField>
+ *  `../contracts/sunShadowOptions.ts`): the rest are the maps' (`shadowViewMeanings.ts`) and the
+ *  contact shadows' (`contactShadowMeanings.ts`). */
+type ShadowSunField = Exclude<ShadowField, ShadowViewField | ContactShadowField>
 
 /** What each of them means. */
 export const SHADOW_SUN_MEANINGS: Readonly<Record<ShadowSunField, string>> = {

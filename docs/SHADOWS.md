@@ -394,6 +394,23 @@ at 4096, 512 MiB at 8192. The device's binding is WebGPU's limit on that size (�
 that fits (`vsm/layoutBytes.ts:vsmPoolPagesBound`). A page not drawn hands its point to the next coarser level mapped; where none
 holds it, it is lit.
 
+## Contact shadows
+
+Beside the receiver's screen ray, the lit passes cast a **contact shadow** of their own, per light, in the light's
+term (`lighting/contactShadow/contactShadowWgsl.ts`): eight steps through the scene's depth from the pixel toward the
+light, its length the light's `contactShadowLength` (a share of the screen's height, or metres with
+`contactShadowLengthInWorldSpace`; 0 casts none) and only for a light that casts a shadow. It multiplies the light's
+surface and transmission terms by `1 − intensity`, the light's casting intensity where the ray meets a surface that
+casts contact shadows and its non-casting intensity where it meets an eye. The eye model casts half a centimetre
+toward any light, the hair model a fifth of the half height of the screen under a light with no shadow, whatever the
+switch says. The view's `contactShadows` takes the lights' rays away, and the four `contactShadowOverride…` settings
+replace the lights' own ([SDK.md](SDK.md#contact-shadows)):
+
+```js
+const lamp = light.spot({ position: [0, 3, 0], castShadow: true, contactShadowLength: 0.03 })
+const world = createWorld('viewer', { contactShadowOverrideCastingIntensity: 0.5 })
+```
+
 ## Metrics
 
 The `shadow*` fields are documented on the contract
@@ -423,6 +440,30 @@ revision): the reference's `UpdatedTransform` with the old then the new instance
 `shadowDynamicResolutionMaxResolutionLodBias` (2) and `shadowDynamicResolutionMaxPagePoolLoadFactor` (0.85). Each has
 the reference's default, its meaning in `sdk-core/src/llm/shadowViewMeanings.ts` and its row in
 `sdk-core/src/contracts/shadowMapOptions.ts`.
+
+**The compute throttle (off by default).** Beside the pool's bias, the dynamic resolution can lower the maps'
+resolution when the shadow raster costs too much, wholly on the GPU as the reference does: the raster counts the
+clusters it draws in each map, and the next frame's two kernels, run before its marking, carry the counts to its maps
+and add to each map's bias in its projection record the share of the cost it takes. Nothing is read back. It is off
+while `shadowDynamicResolutionTimeBudgetMs` and `shadowDynamicResolutionLoadBudget` are both 0, the default: nothing is
+made, counted, written or run, and the marking and the raster are the programs without it; the sampling always reads
+the bias of the clipmap map its level falls in, as the reference's does, which is the base map's while unthrottled. A
+budget turned on or off makes no set again: the pool and the cache stay. `shadowDynamicResolutionLoadBudget` is the estimated load past which
+the bias rises (lower is more aggressive); `shadowDynamicResolutionTimeBudgetMs` fits the shadow raster's GPU time to
+a budget through the render scale's heuristic (it needs the render scale on `'auto'` and a GPU timer) and wins when
+both are named; `shadowDynamicResolutionPerVsmBiasHistoryWeight` eases each map over the frames; the two
+`...MaxComputeResolutionLodBias...` options cap what a sun's maps and a local light's may take, within
+`shadowDynamicResolutionMaxResolutionLodBias` less the pool's bias. Their meanings are in
+`sdk-core/src/llm/shadowViewMeanings.ts`; the marking and the sampling of a sun's clipmap read the bias of the map
+their level falls in.
+
+```js
+world.shadows = { shadowDynamicResolutionLoadBudget: 1 } // throttle the maps when the raster's load passes 1
+world.shadows = { shadowDynamicResolutionTimeBudgetMs: 3 } // fit the raster to 3 ms (render scale 'auto')
+world.shadows = { shadowDynamicResolutionMaxComputeResolutionLodBiasLocal: 1 } // local lights lose one level at most
+world.shadows = { shadowDynamicResolutionPerVsmBiasHistoryWeight: 0.5 } // ease faster
+world.shadows = { shadowDynamicResolutionLoadBudget: null } // back to the default: off
+```
 
 The trace's settings are options too, the reference's defaults: `shadowSmrtAdaptiveRayCount` (1; 0 turns the vote
 off), `shadowSmrtMaxRayAngleFromLight` (0.03), `shadowSmrtExtrapolateMaxSlopeLocal` (0.05) and `...Directional` (5),
@@ -511,7 +552,6 @@ their order in the list is not (the reference reduces the depth pyramid's first 
 
 **The sun's `shadowAmount`** (a light option, 1) fades the shadow of the distance-field cascade toward 1; it is no part of the
 clipmap's cache key.
-
 
 **The projection is two passes, as the reference's is.** The suns' pass traces every sun of the frame (`vsmProjectSuns`,
 the adaptive ray count voted by the group, a sun's first-person clipmap and a subsurface receiver's transmission merged in) into a

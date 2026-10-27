@@ -98,6 +98,7 @@ export type { GpuMemoryFrameMetrics } from '../../sdk-core/src/contracts/gpuMemo
 export type { HardwareBenchmarkResult } from '../../sdk-core/src/runtime/hardwareBenchmark.ts'
 export type { HostImage } from '../../sdk-core/src/contracts/hostImage.ts'
 export type { LightCloudShadowParameters } from '../../sdk-core/src/world/light/lightCloudShadowSettings.ts'
+export type { LightContactShadowParameters } from '../../sdk-core/src/world/light/lightContactShadowSettings.ts'
 export type { LightShaftParameters } from '../../sdk-core/src/world/light/lightShaftSettings.ts'
 export { LOD_QUALITY, lodQuality } from '../../sdk-core/src/lod/policy.ts'
 export type { LodQualityId } from '../../sdk-core/src/lod/policy.ts'

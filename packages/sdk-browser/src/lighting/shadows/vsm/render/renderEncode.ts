@@ -38,12 +38,14 @@ import {
   VSM_RENDER_ARGS_SOFTWARE_STATIC,
   VSM_RENDER_COUNT_PASS,
   VSM_RENDER_COUNT_WORDS,
+  vsmCountWords,
   vsmRenderTiersDrawn,
 } from './renderParamsWgsl.ts'
 import { VSM_RENDER_FIRST_SLOT, VSM_RENDER_PARAMS_BYTES } from './renderParams.ts'
 import { RASTER_PASS_MAIN, RASTER_PASS_POST } from '../../../../visibility/raster/contract.ts'
 import type { VsmListName } from './renderLists.ts'
-import type { VsmRenderContext } from './renderPipes.ts'
+import { renderCulls, type VsmRenderContext, type VsmRenderCullPipes } from './renderPipes.ts'
+import type { VsmThrottleState } from '../throttle.ts'
 import type { VsmRenderScene } from './renderPass.ts'
 import {
   clearVsmDescent,
@@ -375,11 +377,12 @@ function encodeViewPass(
   offset: readonly number[],
   lights: number,
   first: boolean,
+  culls: VsmRenderCullPipes,
   pageCompute: GPUBindGroup | undefined,
 ) {
   const views = ctx.views.pipeline
   const cullArgs = ctx.args.cull.pipeline
-  const cull = (first ? ctx.cullFirst : ctx.cull).pipeline
+  const cull = (first ? culls.cullFirst : culls.cull).pipeline
   if (!views || !cullArgs || !cull) return
   pass.setPipeline(views)
   pass.setBindGroup(0, tables.views0)
@@ -463,11 +466,12 @@ function encodeSecondCull(
   { lists, tables }: ReturnType<typeof renderGroups>,
   args: GPUBuffer,
   offset: readonly number[],
+  culls: VsmRenderCullPipes,
   pageCompute: GPUBindGroup | undefined,
 ) {
   const secondArgs = ctx.args.second.pipeline
-  const post = ctx.cullPost.pipeline
-  const second = ctx.cullSecond.pipeline
+  const post = culls.cullPost.pipeline
+  const second = culls.cullSecond.pipeline
   if (!secondArgs || !post || !second) return
   pass.setPipeline(secondArgs)
   pass.setBindGroup(0, lists.args, offset)
@@ -565,7 +569,8 @@ interface VsmRasterOcclusion {
  * the counters of a pass cleared before it (`VSM_RENDER_COUNT_PASS` on); with the occlusion's two
  * culls (`occlusion`), the pyramid built after its first raster, then the descent's post pass, the
  * casters it finds, its second cull and bin and raster. With no caster (`empty`), the descent and
- * the candidates in a pass of their own, which count them, and nothing else.
+ * the candidates in a pass of their own, which count them, and nothing else. `throttle`: the cull
+ * also counts the clusters per map.
  */
 export function vsmEncodeRaster(
   encoder: GPUCommandEncoder,
@@ -574,19 +579,21 @@ export function vsmEncodeRaster(
   world: GPUBindGroup,
   scene: Pick<VsmRenderScene, 'pageGroup' | 'decode' | 'tiers' | 'tessellation' | 'pageCompute'>,
   args: GPUBuffer,
-  { passes, lights }: { passes: number; lights: number },
+  { passes, lights, throttle }: { passes: number; lights: number; throttle?: VsmThrottleState },
   empty: boolean,
   descent: VsmRasterDescent & { viewBase: number },
   occlusion?: VsmRasterOcclusion,
 ) {
   const { counts } = groups.lists
   const twoPass = !!occlusion?.twoPass && !!groups.tables.occlusion
-  encoder.clearBuffer(counts, 0, VSM_RENDER_COUNT_WORDS * 4)
+  // The throttle's counts are the frame's: cleared here, kept by every pass.
+  encoder.clearBuffer(counts, 0, vsmCountWords(throttle?.feedbackWords) * 4)
   clearVsmDescent(encoder, descent.descent, descent.viewBase)
   if (empty) {
     encodeCountOnly(encoder, ctx, groups, world, descent)
     return
   }
+  const culls = renderCulls(ctx, !!throttle)
   const tiers = [ctx.raster.tiers, vsmRenderTiersDrawn(scene.tiers)] as const
   const tessellation = scene.tessellation
   const pageCompute = scene.pageCompute?.group
@@ -611,14 +618,14 @@ export function vsmEncodeRaster(
       encodeCandidates(pass, ctx, groups.lists, world, descent, sight)
       scene.decode(pass, RASTER_PASS_MAIN)
     }
-    encodeViewPass(pass, ctx, groups, args, each.offset, lights, twoPass, pageCompute)
+    encodeViewPass(pass, ctx, groups, args, each.offset, lights, twoPass, culls, pageCompute)
     // The records the pass listed are cut into patches, to be drawn by its raster pass.
     tessellation?.compute(pass, groups.lists, each.offset)
     pass.end()
     raster(each.raster)
     if (twoPass)
       encodeSecondHalf(encoder, ctx, groups, args, each, occlusion!, {
-        ...{ pageCompute, tessellation, raster },
+        ...{ pageCompute, tessellation, raster, culls },
         ...{ world, decode: scene.decode, descent },
       })
   }
@@ -631,6 +638,7 @@ type ViewPassLabels = ReturnType<VsmRenderContext['passes']['pass']>
 
 /** What a view pass's second half works with beside the frame's groups. */
 interface SecondHalfWork {
+  culls: VsmRenderCullPipes
   pageCompute: GPUBindGroup | undefined
   tessellation: VsmShadowTessellation | undefined
   raster: (label: string) => void
@@ -659,7 +667,7 @@ function encodeSecondHalf(
   encodeVsmPyramid(steps, occlusion.res, occlusion.ctx)
   const second = steps.pass(each.second)
   encodePostCasters(second, ctx, groups, work, each.offset)
-  encodeSecondCull(second, ctx, groups, args, each.offset, work.pageCompute)
+  encodeSecondCull(second, ctx, groups, args, each.offset, work.culls, work.pageCompute)
   work.tessellation?.compute(second, groups.lists, each.offset)
   steps.end()
   work.raster(each.rasterSecond)

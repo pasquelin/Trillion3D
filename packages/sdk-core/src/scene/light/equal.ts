@@ -29,6 +29,7 @@ import {
 import { sameLightShafts } from './lightShafts.ts'
 import { sameLightCloudShadow } from './lightCloudShadow.ts'
 import { sameLightShadow } from './lightShadow.ts'
+import { sameLightContactShadow } from './lightContactShadow.ts'
 
 /** Two optional contract vectors: both absent, or identical component by component. */
 const sameVector = (a: readonly number[] | undefined, b: readonly number[] | undefined) =>
@@ -55,11 +56,17 @@ function sameColourAndAir(a: SceneLight, b: SceneLight) {
  * frame, for a pixel-identical result. A host that returns its fixed lights every
  * frame — the common case — would thus pay an invalidation per frame and per light.
  *
- * The identifier is not compared: the two lights are those of the same slot.
+ * The identifier is not compared: the two lights are those of the same slot. Their contact shadows are
+ * not either: they move no shadow page (`sameLightContactShadow`, `setContactShadow`).
  */
 export function sameSceneLight(a: SceneLight, b: SceneLight) {
   return sameStrength(a, b) && sameAirAndFunction(a, b) && sameShape(a, b)
 }
+
+/** Two lights that are the same in everything a record holds, their contact shadows included: what a writer
+ *  of lights compares to know that it has nothing to hand the store (`sameSceneLight` leaves them out). */
+export const sameLightRecord = (a: SceneLight, b: SceneLight) =>
+  sameSceneLight(a, b) && sameLightContactShadow(a, b)
 
 /** Two lights of the same kind, as strong, in the same unit, scattering and casting alike. */
 function sameStrength(a: SceneLight, b: SceneLight) {

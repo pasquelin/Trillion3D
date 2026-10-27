@@ -47,6 +47,10 @@ import {
   froxelBuildWgsl,
 } from '../../lighting/shadows/vsm/froxel/froxelBuildWgsl.ts'
 import { vsmFroxelPageMarkingWgsl } from '../../lighting/shadows/vsm/froxel/froxelMarkWgsl.ts'
+import {
+  VSM_THROTTLE_PROCESS_WGSL,
+  VSM_THROTTLE_UPDATE_WGSL,
+} from '../../lighting/shadows/vsm/throttleWgsl.ts'
 
 /** Every virtual shadow map module, for the layout the engine makes for one sun
  *  (`../../lighting/shadows/vsm/frame/vsmEncode.ts`) at WebGPU's default binding size: the projection
@@ -68,12 +72,19 @@ export function vsmVariants() {
     FROXEL_WATER_BUILD_WGSL: froxelBuildWgsl(true),
     FROXEL_ARGS_WGSL,
     VSM_MARKING_FROXELS: vsmFroxelPageMarkingWgsl(layout),
+    // The compute throttle's programs: the marking reading each map's own bias, the cull counting the
+    // clusters in each map, and the two kernels.
+    VSM_MARKING_PIXELS_THROTTLED: vsmPixelPageMarkingWgsl(layout, false, false, true),
+    VSM_MARKING_FROXELS_THROTTLED: vsmFroxelPageMarkingWgsl(layout, true),
+    VSM_THROTTLE_PROCESS: VSM_THROTTLE_PROCESS_WGSL,
+    VSM_THROTTLE_UPDATE: VSM_THROTTLE_UPDATE_WGSL,
     VSM_INVALIDATION: castInvalidationWgsl(layout),
     CAST_ARGS_WGSL,
     VSM_RENDER_CANDIDATES: vsmRenderCandidatesWgsl(),
     VSM_RENDER_CASTERS_DONE: vsmRenderCastersDoneWgsl(),
     VSM_RENDER_VIEWS: vsmRenderViewsWgsl(layout),
     VSM_RENDER_CULL: vsmRenderCullWgsl(layout),
+    VSM_RENDER_CULL_THROTTLED: vsmRenderCullWgsl(layout, true),
     VSM_RENDER_BIN: vsmRenderBinWgsl(layout),
     VSM_RENDER_ARGS_WGSL,
     VSM_RENDER_RASTER: vsmRenderRasterWgsl(layout),

@@ -30,6 +30,7 @@ import { SUBSURFACE_FORMAT } from '../../../../materials/surface/subsurface.ts'
 import { vsmSubsurfaceModel, vsmTransmitsShadow } from '../subsurfaceModelWgsl.ts'
 import { PHYSICAL_LOBES_FORMAT } from '../../../../materials/surface/physicalLobes.ts'
 import { LOBE_AXIS_WGSL } from '../../../lobeAxisWgsl.ts'
+import { subsurfaceDensity } from '../../../subsurfaceDensity.ts'
 import { isFirstPerson } from '../../../../materials/surface/surfaceModel.ts'
 import { SUBGROUP_ALL_WGSL } from '../../../../gpu/core/subgroups.ts'
 import {
@@ -157,6 +158,7 @@ const common = (layout: VsmLayout) => [
   uvToNdc,
   unprojectPoint,
   zOrderDecode,
+  subsurfaceDensity,
 ]
 
 /** The suns' pass for the pool `layout`; its halves vote over their subgroups with `subgroups`

@@ -30,6 +30,7 @@ import { writeChangedSlots } from '../../../gpu/core/writeChanged.ts'
 import { VSM_PASS_PREFIX } from '../../../diagnostic/stage/passLabels.ts'
 import { encodePoolSort } from '../../../gpu/sort/sort.ts'
 import { keepOcclusionFrame } from './occlusion/occlusionPass.ts'
+import { keepVsmThrottle } from './throttle.ts'
 import { groupWidth } from '../../../gpu/dispatch/grid.ts'
 import {
   SLOT_ADDRESSES,
@@ -200,10 +201,11 @@ export function encodeVsmAfterRaster(
 }
 
 /**
- * The frame data extraction, page-management part. `mapsGranted` = this frame allocated maps; without it the previous buffers are dropped.
+ * The frame data extraction, page-management part (and the compute throttle's buffers). `mapsGranted` = this frame allocated maps; without it the previous buffers are dropped.
  */
 export function keepVsmFrame(res: VsmResources, { mapsGranted }: { mapsGranted: boolean }) {
   keepOcclusionFrame(res, mapsGranted)
+  keepVsmThrottle(res, mapsGranted)
   if (!mapsGranted) {
     res.prevFrameKept = false
     return

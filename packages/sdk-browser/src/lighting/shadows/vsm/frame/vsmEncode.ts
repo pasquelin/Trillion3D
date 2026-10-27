@@ -37,6 +37,12 @@ import { lightIdsBuffer, type EngineVsm } from './engineVsm.ts'
 import { VSM_PASS_PREFIX } from '../../../../diagnostic/stage/passLabels.ts'
 import { encodeVsmRaster, type VsmFrame } from './vsmProject.ts'
 import {
+  askVsmThrottleStrength,
+  clearVsmThrottle,
+  encodeVsmThrottle,
+  vsmThrottleState,
+} from '../throttle.ts'
+import {
   encodeVsmPyramid,
   prepareVsmPyramid,
   keepOcclusionTables,
@@ -196,18 +202,7 @@ export function encodeVsmFrame(
   // Per-page dispatcher ids: every map with projection data this frame .
   const scratch = frameScratch(vsm)
   const perPage = vsmCachePerPageBins(state.cache, scratch.perPage)
-  const pmFrame: VsmPageManagementFrame = {
-    device,
-    mapCount: plan.projectionCount,
-    perPageBins: perPage.all,
-    nextMapCount: plan.nextMapCount,
-    options: {
-      stats: vsm.countersOn,
-      lruAllocation: state.maps.shadows.shadowCacheAllocateViaLru,
-      fullClears: state.maps.shadows.shadowForceFullPageClears,
-      skipDynamicInvalidation: state.maps.shadows.shadowCacheDebugSkipDynamicPageInvalidation,
-    },
-  }
+  const pmFrame = pageManagementFrameOf(device, vsm, plan, perPage.all)
   // What the passes of the run read cleared or copied before it, none between them: the overflow
   // flags, cleared whatever the counters say (they are read back every frame), the raster's marks,
   // which start at 0, and the clears' arguments.
@@ -216,6 +211,14 @@ export function encodeVsmFrame(
     encoder.clearBuffer(res.rasterMarks)
     resetVsmClearArgs(encoder, res, pmFrame)
   }
+  // The compute throttle where the settings ask it: its buffers cleared before the kernels and the cull.
+  const throttle = drawing && plan.throttleReady ? vsmThrottleState(device, res) : undefined
+  if (throttle) clearVsmThrottle(encoder, res, throttle)
+  // The render-scale controller is given the time budget each frame, named or not.
+  const strength = askVsmThrottleStrength(
+    rt,
+    state.maps.shadows.shadowDynamicResolutionTimeBudgetMs,
+  )
   const frame: VsmFrame | undefined = drawing
     ? {
         rt,
@@ -225,6 +228,8 @@ export function encodeVsmFrame(
         projection: taaRenderProjection(rt, cam, renderProjection),
         vsm,
         plan,
+        throttle,
+        strength,
       }
     : undefined
   const steps = frontRun.begin(encoder)
@@ -269,20 +274,31 @@ function rasterLights(plan: NonNullable<EngineVsm['plan']>, out: VsmLightAllocat
   return out
 }
 
-/** The page marking, a compute pass of the run `steps`: the physical page addresses remapped to this frame's ids,
- *  then the marking's clears, coarse pages and every pixel of the visibility buffer. The suns' ids
- *  and the light ids go up only where they changed. */
-function encodeVsmMarking(
-  steps: ComputeRun,
-  { rt, device, cam, projection, vsm, plan }: VsmFrame,
-  scratch: VsmFrameScratch,
-  perPage: ReturnType<typeof vsmCachePerPageBins>,
-  pmFrame: VsmPageManagementFrame,
-) {
-  const { lights, gpu } = rt,
-    { res } = vsm
-  const [width, height] = gpu.targetSize
-  const suns = scratch.suns
+/** The page management's frame: the maps of `plan` over the per-page bins `perPageBins`, and the
+ *  settings it reads. */
+function pageManagementFrameOf(
+  device: GPUDevice,
+  vsm: EngineVsm,
+  plan: NonNullable<EngineVsm['plan']>,
+  perPageBins: VsmPageManagementFrame['perPageBins'],
+): VsmPageManagementFrame {
+  const { shadows } = vsm.state.maps
+  return {
+    device,
+    mapCount: plan.projectionCount,
+    perPageBins,
+    nextMapCount: plan.nextMapCount,
+    options: {
+      stats: vsm.countersOn,
+      lruAllocation: shadows.shadowCacheAllocateViaLru,
+      fullClears: shadows.shadowForceFullPageClears,
+      skipDynamicInvalidation: shadows.shadowCacheDebugSkipDynamicPageInvalidation,
+    },
+  }
+}
+
+/** The suns' ids and the light ids, up where they changed; the suns `suns` holds this frame. */
+function uploadLightIds({ device, vsm, plan }: VsmFrame, suns: Uint32Array<ArrayBuffer>) {
   let directional = 0
   for (const light of plan.lights)
     if (light.kind === 'directional') suns[directional++] = light.firstId
@@ -293,6 +309,24 @@ function encodeVsmMarking(
     vsm.lightIds = lightIdsBuffer(device, vsm.lightIdsData.byteLength)
   }
   writeChanged(device, vsm.lightIds, vsm.lightIdsData, 0, vsm.lightIdsData.length)
+  return directional
+}
+
+/** The page marking, a compute pass of the run `steps`: the physical page addresses remapped to this frame's ids,
+ *  then the marking's clears, coarse pages and every pixel of the visibility buffer. The suns' ids
+ *  and the light ids go up only where they changed. */
+function encodeVsmMarking(
+  steps: ComputeRun,
+  frame: VsmFrame,
+  scratch: VsmFrameScratch,
+  perPage: ReturnType<typeof vsmCachePerPageBins>,
+  pmFrame: VsmPageManagementFrame,
+) {
+  const { rt, device, cam, projection, vsm, plan, throttle } = frame
+  const { lights, gpu } = rt,
+    { res } = vsm
+  const [width, height] = gpu.targetSize
+  const directional = uploadLightIds(frame, scratch.suns)
   const views = gpu.surfaces!.views()
   const tiles = lights.tiles?.buffer
   const markingFrame = scratch.marking
@@ -301,6 +335,7 @@ function encodeVsmMarking(
   markingFrame.perPage = perPage
   markingFrame.perspective = cam.perspective === 1
   markingFrame.settings = vsm.state.maps.shadows
+  markingFrame.throttled = !!throttle
   if (lights.buffer && tiles) {
     const view = scratch.markingView
     view.depth = gpu.depthView!
@@ -333,6 +368,8 @@ function encodeVsmMarking(
     markingFrame.view = view
   } else markingFrame.view = undefined
   const marking = steps.pass(MARKING_PASS)
+  // The compute throttle first, so that the marking reads the bias it adds to the maps' records.
+  encodeVsmThrottle(marking, frame)
   encodeVsmPageCarry(marking, res, pmFrame)
   vsm.marking.encode(marking, markingFrame)
   encodeVsmPageMapping(steps, res, pmFrame)

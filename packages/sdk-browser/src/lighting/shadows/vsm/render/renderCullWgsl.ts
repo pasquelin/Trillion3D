@@ -20,7 +20,7 @@ import { type VsmBindingSpec, vsmBindingsWgsl } from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslConst } from '../../../../../../math/src/wgsl/decl.ts'
-import { VSM_RENDER_PARAMS_WGSL } from './renderParamsWgsl.ts'
+import { VSM_FEEDBACK_WGSL, VSM_RENDER_PARAMS_WGSL } from './renderParamsWgsl.ts'
 import { VSM_RENDER_OVERLAP_WGSL } from './renderOverlapWgsl.ts'
 import { VSM_OCCLUSION_TEST_WGSL } from '../occlusion/occlusionTestWgsl.ts'
 
@@ -164,7 +164,17 @@ fn vsmRenderHold(k:u32,viewIndex:u32,mipLevel:u32,directional:bool){
  records[params.recordCapacity-1u-held]=vec4u(k,viewIndex,mipLevel|select(0u,1u<<8u,directional),0u);
 }`
 
-const cullSoftwareEmitText = /* wgsl */ `
+/** In the throttled program, a record counts once, for the map and the raster it is drawn by: the
+ *  clusters of the performance feedback, in the totals and in the map's entry. */
+const cullCountedText = /* wgsl */ `
+   if(!counted){
+    counted=true;
+    let raster=select(VSM_FEEDBACK_HW,VSM_FEEDBACK_SW,bin>=VSM_RENDER_SOFTWARE_BIN);
+    atomicAdd(&counts[VSM_RENDER_FEEDBACK+raster],1u);
+    atomicAdd(&counts[VSM_RENDER_FEEDBACK+VSM_FEEDBACK_HEADER_WORDS+VSM_FEEDBACK_ENTRY_WORDS*h.id+raster],1u);
+   }`
+
+const cullSoftwareEmitText = (throttled: boolean) => /* wgsl */ `
 /** Whether a caster is the software raster's in a map's mip view: its longest edge spans no more than \`params.hardwareEdge\` pixels at the nearest point of
  *  its level of detail's sphere — of its whole sphere where its vertices move — (\`vsmRenderViewPixels\`,
  *  the view's projection of the mip), its box crosses neither the near nor the far plane (\`cull\`),
@@ -183,7 +193,7 @@ fn vsmRenderSoftware(cand:VsmRenderCandidate,centre:vec3f,toClip:mat4x4f,viewToC
  *  that holds one, in the bin \`bin\` and counted with it — none past the list's capacity, counted all
  *  the same. */
 fn vsmRenderEmit(row:u32,word:u32,bin:u32,h:VsmHandle,mipLevel:u32,pagesRect:vec4u,markMask:u32,side:u32){
- let levelOffset=vsmTableLevelOrigin(h,mipLevel);
+ let levelOffset=vsmTableLevelOrigin(h,mipLevel);${throttled ? '\n var counted=false;' : ''}
  for(var wy=pagesRect.y;wy<=pagesRect.w;wy+=side){
   for(var wx=pagesRect.x;wx<=pagesRect.z;wx+=side){
    let window=vec2u(wx,wy);
@@ -206,7 +216,7 @@ fn vsmRenderEmit(row:u32,word:u32,bin:u32,h:VsmHandle,mipLevel:u32,pagesRect:vec
    if(!vsmRenderTake()){continue;}
    let slot=atomicAdd(&counts[VSM_RENDER_COUNT_RECORDS],1u);
    if(slot>=params.recordCapacity){continue;}
-   atomicAdd(&counts[VSM_RENDER_TIER_RECORDS+bin],1u);
+   atomicAdd(&counts[VSM_RENDER_TIER_RECORDS+bin],1u);${throttled ? cullCountedText : ''}
    // The mask from the clipped window's first page: every page it holds lies right of and below it.
    let shift=(first.y-wy)*side+(first.x-wx);
    records[slot]=vec4u(row,word|(bin<<24u),first.x|(first.y<<8u)|(last.x<<16u)|(last.y<<24u),mask>>shift);
@@ -387,13 +397,18 @@ fn vsmRenderCullCandidate(wid:vec3u,nwg:vec3u,lane:u32,kind:u32){
  * inclusive); w the window's pages to draw, bit (y · `VSM_RENDER_WINDOW_PAGES` + x) from its first.
  * A record held back, from the list's end: x the candidate, y its view's place in `views`, z the
  * mip | directional << 8.
+ *
+ * `throttled` (the compute throttle is on this frame, `../throttle.ts`): the program also counts, in
+ * the counters past the frame's own, the clusters it draws in each map (`cullCountedText`); the
+ * program without it is the one every frame ran before the throttle.
  */
-export const vsmRenderCullWgsl = (layout: VsmLayout) =>
+export const vsmRenderCullWgsl = (layout: VsmLayout, throttled = false) =>
   wgslProgram(
     /* wgsl */ `
-${cullBindingsText}${cullSoftwareEmitText}${cullViewHeadText}${cullViewFrustumText}${cullViewMipsText}${cullCandidateText}
+${cullBindingsText}${cullSoftwareEmitText(throttled)}${cullViewHeadText}${cullViewFrustumText}${cullViewMipsText}${cullCandidateText}
 `,
     [
+      ...(throttled ? [VSM_FEEDBACK_WGSL] : []),
       VSM_RENDER_OVERLAP_WGSL,
       VSM_OCCLUSION_TEST_WGSL,
       VSM_CASTER_LAYER_WGSL,

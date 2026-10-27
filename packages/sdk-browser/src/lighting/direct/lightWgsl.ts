@@ -79,8 +79,10 @@ const LAMP_BIAS:f32=${wgslF32(LIGHT_SETTINGS.lampDistanceBias)};
  *  a rectangle's half axes, a lamp's source radius and, in \`y\`, the exponent of a fall-off that is
  *  not the inverse square (0 for it), a sun's disk —, the shares of its diffuse and specular light
  *  (the last two lanes of its shape) and, for a lamp, its tube (its axis times half its length) and
- *  soft radius; a rectangle's shares are the last two lanes of its capsule. */
-struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,capsule:vec4f,}
+ *  soft radius; a rectangle's shares are the last two lanes of its capsule — and, in \`contactGi\`, the
+ *  length of its contact shadows' ray, the intensity of the shadow at a surface that casts contact shadows
+ *  (\`y\`) and at one that does not (\`z\`), as \`writeContactShadow\` packs them, and the factor on its indirect lighting (\`w\`). */
+struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,capsule:vec4f,contactGi:vec4f,}
 /** The count, the rank plus one of the directional light the forward readers take (\`forwardRank\`,
  *  0 for none; \`SceneLightStore.forwardDirectionalSlot\`) and two reserved words; the environment's irradiance: nine spherical-harmonic coefficients
  *  (\`packages/sdk-core/src/scene/core/environment.ts\`), zero where the host declared none; its fog,

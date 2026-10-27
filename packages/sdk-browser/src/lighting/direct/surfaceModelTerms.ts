@@ -32,8 +32,9 @@ export const CATCHER_NONE = (out: Out) => `
 export const FACING_MODELS = '||pixelModel!=0u'
 
 /** A lamp's model term (`modelTransmission`), toward the lamp's mean direction and by its cosine, times its
- *  `energy` (its intensity through its falloff and its shadow); `shade` the shadow's share. */
-export const lampModelTerm = (models: boolean, shade: string) =>
+ *  `transmissionEnergy` (its intensity through its falloff and its transmission shadow); `terms` the
+ *  light's shadow terms (`shadowTermsOf`). */
+export const lampModelTerm = (models: boolean) =>
   models
     ? `
  if(pixelModel!=0u){
@@ -44,33 +45,37 @@ export const lampModelTerm = (models: boolean, shade: string) =>
    highlight=look.toward;
    sine=saturate(look.reach*(1.0-rough*rough));
   }
-  transmitted+=modelTransmission(rgb,rough,N,V,lamp.toward,highlight,lamp.cosine,sine,${shade},false,transmitsLight(light),ao)*energy;
+  transmitted+=modelTransmission(rgb,rough,N,V,lamp.toward,highlight,lamp.cosine,sine,terms,false,transmitsLight(light),ao)*transmissionEnergy;
  }`
     : ''
 
 /** A rectangle's model term, toward its centre and by the cosine of the normal with it, by its form factor and
- *  the light's colour. */
-export const rectModelTerm = (models: boolean, shade: string) =>
+ *  the light's colour; `terms` as the lamp's. */
+export const rectModelTerm = (models: boolean) =>
   models
     ? `
   if(pixelModel!=0u){
-   let centre=normalize(light.positionRange.xyz-P);
-   transmitted+=modelTransmission(rgb,rough,N,V,centre,centre,saturate(dot(N,centre)),0.0,${shade},true,transmitsLight(light),ao)*(rectWindowed(r)*light.colorIntensity.w)*light.colorIntensity.rgb;
+   transmitted+=modelTransmission(rgb,rough,N,V,centre,centre,saturate(dot(N,centre)),0.0,terms,true,transmitsLight(light),ao)*(rectWindowed(r)*light.colorIntensity.w)*light.colorIntensity.rgb;
   }`
     : ''
 
-/** A subsurface-profile pixel's whole term from a light — its Burley diffuse and its transmission (`transmitted`, from a light that
- *  transmits) on the diffuse share and its two lobes on the specular one (`profileLampLight`, `profileRectLight`), weighed by the
- *  light's shares, times its colour `given` — and the luminance of its diffuse light, which the scattering spreads
- *  (`scatterAdd`); the eye's diffuse light (its model's term, `transmitted`) too. `lamp` and `rect` are the
- *  call of each kind, before the term of the shares. */
-export const scattered = (given: string, call: string) => `if(pixelModel==${PIXEL_MODEL.profile}u){
+/** A subsurface-profile pixel's whole term from a light — its Burley diffuse, weighed by `surface`, and its
+ *  transmission (`transmitted`, from a light that transmits), weighed by `transmission`, on the diffuse share and
+ *  its two lobes on the specular one (`profileLampLight`, `profileRectLight`), weighed by the light's
+ *  shares and `surface` — and the luminance of its diffuse light, which the scattering spreads
+ *  (`scatterAdd`); the eye's diffuse light (its model's term, `transmitted`) too. `call` is the lamp's or
+ *  the rectangle's, before the term of the shares. */
+export const scattered = (
+  surface: string,
+  transmission: string,
+  call: string,
+) => `if(pixelModel==${PIXEL_MODEL.profile}u){
   let p=${call};
-  let diffuse=(p[0]+transmitted)*share.x;
-  scatterAdd(diffuse*${given});
-  return (diffuse+p[1]*share.y)*${given};
+  let diffuse=(p[0]*${surface}+transmitted*${transmission})*share.x;
+  scatterAdd(diffuse);
+  return diffuse+p[1]*share.y*${surface};
  }
- if(pixelModel==${PIXEL_MODEL.eye}u){scatterAdd(transmitted*share.x*${given});}`
+ if(pixelModel==${PIXEL_MODEL.eye}u){scatterAdd(transmitted*share.x*${transmission});}`
 
 /** The return of a hair's term alone, `give` the light's weight on it: a hair has neither diffuse nor
  *  specular lobe. */

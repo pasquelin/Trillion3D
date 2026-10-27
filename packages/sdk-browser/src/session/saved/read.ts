@@ -114,6 +114,7 @@ function readLight(saved: NonNullable<SavedNode['light']>, version: number) {
     sunDiskTint,
     ...saved.shafts,
     ...saved.cloudShadows,
+    ...saved.contactShadows,
   })
 }
 

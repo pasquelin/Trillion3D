@@ -390,7 +390,7 @@ const SHADING_SETTING_TOOLS: Trillion3dTool[] = [
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_shadows',
-    "Changes from the next frame how a directional light's shadow maps take their casters by distance: the factor on every light's shadow distance, whether the casters past that distance are left out, and whether that test reaches every caster or the world's merged far-field shells alone, and whether the lights whose maps would pass what one pass of the shadow raster lists are drawn in several passes. It also sets the shadow maps' own: the sun clipmap's levels and depth range, the coarse pages, the resolution biases at rest and while a light moves, the size under which a caster is left out of a map redrawn whole, the rays and steps of a shadow trace, and the page pool.",
+    "Changes from the next frame how a directional light's shadow maps take their casters by distance: the factor on every light's shadow distance, whether the casters past that distance are left out, and whether that test reaches every caster or the world's merged far-field shells alone, and whether the lights whose maps would pass what one pass of the shadow raster lists are drawn in several passes. It also sets the shadow maps' own: the sun clipmap's levels and depth range, the coarse pages, the resolution biases at rest and while a light moves, the size under which a caster is left out of a map redrawn whole, the rays and steps of a shadow trace, and the page pool. And the contact shadows: whether the lit passes cast them, and the overrides of the lights' own length and intensities.",
     SHADOW_RULES,
   ),
 ]

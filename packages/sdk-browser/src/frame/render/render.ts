@@ -14,6 +14,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { followLiveTextures } from '../io/memory.ts'
 import { followFeedback } from '../prepare/feedbackVariant.ts'
 import { followModelSwitches } from '../prepare/lobesTarget.ts'
+import { followContactShadows } from '../../lighting/contactShadow/frame.ts'
 import { beginTaaFrame } from '../../post/taa/frame.ts'
 import { frameStart } from '../scheduling.ts'
 import { askFramePipelines } from '../loop/framePipelines.ts'
@@ -106,6 +107,8 @@ function followSceneInputs(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   followLiveTextures(rt)
   // The shadow settings are the view's quality: a change moves the view's revision before the hold.
   followShadowSettings(rt)
+  // The lights' contact shadows folded with them, before the hold asks the lit program their key.
+  followContactShadows(rt)
   // The surfaces' format turned since the last image: the scene moved in place.
   followModelSwitches(rt)
   // Textures that came or went switch the pipelines' feedback output, the target following.

@@ -77,6 +77,36 @@ export const RENDER_LABEL = `${VSM_PASS_PREFIX}render`
 /** The tiers, lowest first, each one's raster pipeline: those before the software bin. */
 const TIERS = Array.from({ length: VSM_RENDER_SOFTWARE_BIN }, (_, t) => t)
 
+const storage = (binding: number) => computeBufferEntry(binding, 'storage', COMPUTE)
+const read = (binding: number) => computeBufferEntry(binding, 'read-only-storage', COMPUTE)
+
+/** The cull's four kernels of `layout` (`vsmComputePipe`): with no test, the occlusion's first, second
+ *  and post culls. `throttled`, the family that also counts the clusters it draws in each map for the
+ *  compute throttle (`../throttle.ts`), made when a throttled frame asks it: the bindings are the same,
+ *  so the groups of one family bind to the other's pipes. */
+export function vsmRenderCullPipes(device: GPUDevice, layout: VsmLayout, throttled = false) {
+  const code = vsmRenderCullWgsl(layout, throttled),
+    suffix = throttled ? 'Throttled' : ''
+  const groups = [
+    vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, COMPUTE),
+    [vsmRenderParamsEntry(0), read(1), read(2), storage(3), storage(4)],
+  ]
+  // The cull with no test reaches the occlusion's group through the cull of a view, as the two
+  // others do: it binds the blank one (`noOcclusionGroup`).
+  const pipe = (name: string, entryPoint: string) =>
+    vsmComputePipe(device, `${RENDER_LABEL}.${name}${suffix}`, code, entryPoint, [
+      ...groups,
+      vsmOcclusionEntries(),
+    ])
+  return {
+    cull: pipe('cull', 'vsmRenderCull'),
+    cullFirst: pipe('cullFirst', 'vsmRenderCullFirst'),
+    cullSecond: pipe('cullSecond', 'vsmRenderCullSecond'),
+    cullPost: pipe('cullPost', 'vsmRenderCullPost'),
+  }
+}
+export type VsmRenderCullPipes = ReturnType<typeof vsmRenderCullPipes>
+
 /** The raster's compute pipes of `layout` (`vsmComputePipe`): its candidates and their closing
  *  kernel, the views, the cull, the bin and the argument kernels; their groups' layouts. Pipes are
  *  made once a device and source, read where they are bound. */
@@ -92,15 +122,7 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
   const castersGroups = [vsmCandidatesEntries(), vsmCandidatesWorldEntries()]
   const doneCode = vsmRenderCastersDoneWgsl()
   const doneGroups = [vsmCastersDoneEntries()]
-  const storage = (binding: number) => computeBufferEntry(binding, 'storage', COMPUTE)
-  const read = (binding: number) => computeBufferEntry(binding, 'read-only-storage', COMPUTE)
   const argsGroups = [[P(0), storage(1), storage(2), storage(3)]]
-  const cullCode = vsmRenderCullWgsl(layout)
-  const cullGroups = [
-    vsmBindGroupLayoutEntries(VSM_RENDER_CULL_SPECS, COMPUTE),
-    [P(0), read(1), read(2), storage(3), storage(4)],
-  ]
-  const occlusionGroup = vsmOcclusionEntries()
   return {
     candidates: pipe('candidates', castersCode, VSM_RENDER_CASTERS_ENTRY, castersGroups),
     candidatesDone: pipe('candidatesDone', doneCode, VSM_RENDER_CASTERS_DONE_ENTRY, doneGroups),
@@ -114,15 +136,7 @@ export function vsmRenderComputePipes(device: GPUDevice, layout: VsmLayout) {
       vsmBindGroupLayoutEntries(VSM_RENDER_VIEWS_SPECS, COMPUTE),
       [P(0), storage(1), storage(2), read(3)],
     ]),
-    // The cull with no test reaches the occlusion's group through the cull of a view, as the two
-    // others do: it binds the blank one (`noOcclusionGroup`).
-    cull: pipe('cull', cullCode, 'vsmRenderCull', [...cullGroups, occlusionGroup]),
-    cullFirst: pipe('cullFirst', cullCode, 'vsmRenderCullFirst', [...cullGroups, occlusionGroup]),
-    cullSecond: pipe('cullSecond', cullCode, 'vsmRenderCullSecond', [
-      ...cullGroups,
-      occlusionGroup,
-    ]),
-    cullPost: pipe('cullPost', cullCode, 'vsmRenderCullPost', [...cullGroups, occlusionGroup]),
+    ...vsmRenderCullPipes(device, layout),
     bin: pipe('bin', vsmRenderBinWgsl(layout), 'vsmRenderBin', [
       vsmBindGroupLayoutEntries(VSM_RENDER_BIN_SPECS, COMPUTE),
       [P(0), storage(1), read(2), storage(3)],
@@ -297,6 +311,8 @@ export interface VsmRenderContext extends VsmRenderKernels {
   device: GPUDevice
   layout: VsmLayout
   pageLayout: GPUBindGroupLayout
+  /** The throttled cull family, made the first frame that asks it (`renderCulls`). */
+  throttledCulls?: VsmRenderCullPipes
   /** The session's graph outputs the raster's module is made with (`VsmRenderScene.rasters`). */
   held: GraphRasters
   /** The software half's pipes (`vsmSoftwarePipes`). */
@@ -355,6 +371,11 @@ export function vsmReleaseContext(ctx: VsmRenderContext) {
   for (const buffer of Object.values(ctx.buffers)) buffer?.destroy()
   ctx.targetTexture.destroy()
 }
+
+/** The cull family a frame runs: the throttled one where the compute throttle counts, else the
+ *  plain one the context holds. */
+export const renderCulls = (ctx: VsmRenderContext, throttled: boolean): VsmRenderCullPipes =>
+  throttled ? (ctx.throttledCulls ??= vsmRenderCullPipes(ctx.device, ctx.layout, true)) : ctx
 
 /** The raster's context of `res` on `device` over the shadow page group `pageLayout`: the one it
  *  holds, or made again — for another device, set layout or page group, or other graph outputs

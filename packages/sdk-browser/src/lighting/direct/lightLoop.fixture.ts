@@ -37,8 +37,10 @@ const LIGHT_BINDINGS: LightingBindings = {
 
 /** The light loop at the key `key` (`ContractKey`, `LOBELESS_KEY` unless given): with the environment's
  *  light and the fog, or, with `whole` false, the light terms alone. */
-export const directLightingWgsl = (key: Partial<ContractKey> = LOBELESS_KEY, whole = true) =>
-  wgslBlock(
+export const directLightingWgsl = (asked: Partial<ContractKey> = LOBELESS_KEY, whole = true) => {
+  // The harness binds neither the scene's depth nor its flags: no contact shadow.
+  const key = { contactless: true, ...asked }
+  return wgslBlock(
     `directLightingWgsl(${variantLabel(key)}, ${whole})`,
     [
       whole
@@ -54,3 +56,4 @@ fn contractLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32
  return sliceLighting(rgb,metal,rough,N,V,P,ao,cellSlice(cell));
 }`,
   )
+}

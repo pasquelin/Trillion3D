@@ -52,6 +52,7 @@ import {
 import type { VsmResourceOptions } from '../layout.ts'
 import type { VsmFrameScratch } from './vsmEncode.ts'
 import { destroyMask, type VsmMask } from './vsmMask.ts'
+import { releaseVsmThrottle } from '../throttle.ts'
 import { sunMapsOf } from './vsmLightMaps.ts'
 import { createVsmEngineStats, resetVsmEngineStats, type VsmEngineStats } from './vsmStats.ts'
 
@@ -74,8 +75,8 @@ export interface EngineVsm {
   /** What the mask was last projected from (`vsmProjectionHold.ts`). */
   projectionHold: ReturnType<typeof createVsmProjectionHold>
   /** This frame's plan, until `finishVsmFrame`, with the raster's families the frame's pipelines
-   *  were compiled for (`planVsmFrame`). */
-  plan: (VsmFramePlan & { tiers: CompiledTiers }) | undefined
+   *  were compiled for and whether the compute throttle's are too (`planVsmFrame`). */
+  plan: (VsmFramePlan & { tiers: CompiledTiers; throttleReady: boolean }) | undefined
   /** The plan whose pages the raster drew (or that had none to draw): another one's pages are not
    *  kept as cached (`finishVirtualShadowFrame`). */
   renderedPlan: VsmFramePlan | undefined
@@ -196,6 +197,7 @@ export function destroyEngineVsm(vsm: EngineVsm) {
   releaseVsmOcclusion(vsm.res)
   releaseVsmInvalidation(vsm.res)
   releaseVsmProjection(vsm.res)
+  releaseVsmThrottle(vsm.res)
   vsm.res.destroy()
   vsm.lightIds.destroy()
   vsm.directionalIds.destroy()

@@ -38,11 +38,18 @@ import { blendFragmentWgsl } from './fragmentWgsl.ts'
  *  `translucentRectLights` at its default: off. */
 export const TRANSLUCENT_RECT_LIGHTS_DEFAULT: boolean = SHADOW_RULES.translucentRectLights.default
 
-/** The key a translucent program is lit with (`blendProgram`, `transmitWgsl`): `key`, with no
- *  rectangle code unless `translucentRectLights` holds, where a rectangle light is lit as a point
- *  light at its centre. */
-export const translucentLitKey = (key: Partial<ContractKey>, translucentRectLights: boolean) =>
-  translucentRectLights || key.rectless ? key : { ...key, rectless: true }
+/** The key a translucent program is lit with (`blendProgram`, `transmitWgsl`, the water's stage): `key`,
+ *  with no contact shadow, which needs the scene's depth and the surfaces' flags a blend pass does not
+ *  bind, and no rectangle code unless `translucentRectLights` holds, where a rectangle light is lit as a
+ *  point light at its centre. */
+export const translucentLitKey = (
+  key: Partial<ContractKey>,
+  translucentRectLights: boolean,
+): Partial<ContractKey> => ({
+  ...key,
+  contactless: true,
+  ...(!translucentRectLights && { rectless: true }),
+})
 
 /** The blend module; its light loop without the shadow or the rectangle code `key` leaves out
  *  (`declaredLightingWgsl`), the program of a scene that holds none (`pipelines.ts`). Without

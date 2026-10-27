@@ -125,6 +125,10 @@
 // the first-person bias), a cast box took 16 words (its half-axes as a matrix and a view mask), the
 // render parameters a slot for each view pass, and the dynamic coarse pages' pixel threshold took the
 // reference's clustered-geometry default, 4 for 16 (word 13).
+// Retaken when a next-map record took the id-valid bit again (`VSM_NEXT_ID_VALID`, set where the record is
+// packed, as the reference sets it): each record of a previous id that has a next one carries bit 1 more in its
+// flags word, which only the compute throttle's process kernel reads; the frames' first
+// digests, with no previous id, and every other buffer kept.
 import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -133,13 +137,13 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 const DIGESTS: Record<number, string[]> = {
   1: [
     'd8aa7472f8052b536299d0212809e627a6baddf0b162fbcba28c69f9bf92cc93',
-    'ae1948fc1c97a4a60360feecaf5e49cff72c60d124b886ea2dec7d869d48c060',
-    '11450b8e4cec4051cf640d7874c1c3aa9c6b8ec8b9f5abeb11490965feb65d05',
+    '322cf6a8568ab8e638994de70cad94f9b35d56171dd2fcba1d871f8d1ddb14d6',
+    '3e9f18eea0a258e4b7982b27878a063e932f2c69f8e2a1ff6965045645aef97a',
   ],
   2: [
     '71d2b6cafdcfb5b7febe6d0ca56cf026e74a51741ddd5a0b1f9c8f60a92c4a44',
-    'fd4f3d78412bbab0fb8d90343aa2d9852c4ced53dac66a01259201d954c23964',
-    'ec693da0eb4a2b18b7f7b84a25ee33cc28c148c433d44f6fa9e2d609ca16809e',
+    'c896575008382c0514d5e116aa1bd93f4c9c32d6245c4422a479be6013710374',
+    'de3756905fec9db5679f87860e4c5fdc3b46215bf909f4735fd7f6708e7cd656',
   ],
 }
 

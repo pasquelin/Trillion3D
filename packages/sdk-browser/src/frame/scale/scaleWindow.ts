@@ -9,7 +9,8 @@ import { createDynamicResolution, resetDynamicResolution } from './dynamicResolu
  * place: a closure's number is boxed at each write. `s` the dynamic resolution's fraction, `max`
  * the render targets' upper bound under the memory cap; `dynamic` the dynamic resolution history
  * the scale follows (`dynamicResolution.ts`), which fits the cut's edge scale beside it: `edge`
- * its fraction, 1 while `edgeBudgetMs` is not above 0, `edgeMin` the lowest; `rules` the settings
+ * its fraction, 1 while `edgeBudgetMs` is not above 0, `edgeMin` the lowest, and the shadow raster's:
+ * `vsm` its fraction, 1 while `vsmBudgetMs` is not above 0; `rules` the settings
  * the heuristic reads, written in place by the frame (`../prepare/timing.ts`), `cpuMs` the CPU
  * time of the engine's last image; `at` the refresh the history was learnt on; the images drawn
  * and the one the last GPU time came at; the display frames the loop held to measure the refresh
@@ -24,6 +25,8 @@ export function createScaleWindow(bounds: RenderScaleBounds) {
     edge: 1,
     edgeBudgetMs: 0,
     edgeMin: DEFAULT_CUT_EDGE_SCALE_MIN_PERCENT / 100,
+    vsm: 1,
+    vsmBudgetMs: 0,
     rules: resolveSettings(DYNAMIC_RESOLUTION_RULES, {}),
     cpuMs: 0,
     at: Number.NaN,
@@ -38,24 +41,35 @@ export function createScaleWindow(bounds: RenderScaleBounds) {
 export type ScaleWindow = ReturnType<typeof createScaleWindow>
 
 /**
- * The cut's edge scale as the frame reads it (`ScaleControl.edge`): `now` its fraction; `budgetMs`
- * the budget the cut was last given; `ask(budgetMs, percent)` the budget given, with the lowest
- * fraction it takes the screen error to, in percent: the fraction the cut divides its threshold
- * by — 1 for a budget of 0 or less, what was learnt kept.
+ * A linear budget as its asker reads it: `now` its fraction; `budgetMs` the budget last given;
+ * `ask(budgetMs, percent)` the budget given and the fraction to work to: 1 for a budget of 0 or less,
+ * what was learnt kept. A budget with a lowest fraction takes it in percent (`noted`).
  */
-export const edgeOf = (w: ScaleWindow) => ({
-  get now() {
-    return w.edge
-  },
-  get budgetMs() {
-    return w.edgeBudgetMs
-  },
-  ask(budgetMs: number, percent: number) {
-    w.edgeBudgetMs = budgetMs
-    w.edgeMin = percent / 100
-    return budgetMs > 0 ? w.edge : 1
-  },
-})
+const budgetOf = (w: ScaleWindow, name: 'edge' | 'vsm', noted?: (percent: number) => void) => {
+  const budget = `${name}BudgetMs` as const
+  return {
+    get now() {
+      return w[name]
+    },
+    get budgetMs() {
+      return w[budget]
+    },
+    ask(budgetMs: number, percent?: number) {
+      w[budget] = budgetMs
+      if (percent !== undefined) noted?.(percent)
+      return budgetMs > 0 ? w[name] : 1
+    },
+  }
+}
+
+/** The cut's edge scale as the frame reads it (`ScaleControl.edge`); `ask(budgetMs, percent)` also gives
+ *  the lowest fraction it takes the screen error to, in percent. */
+export const edgeOf = (w: ScaleWindow) =>
+  budgetOf(w, 'edge', (percent) => void (w.edgeMin = percent / 100))
+
+/** The shadow raster's budget as the shadows read it (`ScaleControl.vsm`): the fraction of its maps'
+ *  compute they keep, fitted to `shadowDynamicResolutionTimeBudgetMs`. */
+export const vsmOf = (w: ScaleWindow) => budgetOf(w, 'vsm')
 
 /** The interactive loop held the display frame that began: it draws nothing. */
 export function holdFrame(w: ScaleWindow) {

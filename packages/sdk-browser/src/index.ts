@@ -175,6 +175,11 @@ export {
   type LightShadowOptions,
   type ShadowDistanceOption,
 } from '../../sdk-core/src/contracts/lightShadowOptions.ts'
+// A light's own contact shadows (`LightParameters`): the rules and the options of the fields.
+export {
+  LIGHT_CONTACT_SHADOW_RULES,
+  type LightContactShadowOptions,
+} from '../../sdk-core/src/contracts/lightContactShadowOptions.ts'
 export { createPageStreamer } from './geometry/streaming/pageStreamer.ts'
 // The page cache a streamer reads through, its owner's (`PageStreamerOptions.cache`).
 export {

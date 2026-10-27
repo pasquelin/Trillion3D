@@ -33,13 +33,14 @@ test('the engine asks no more sampled textures a stage than WebGPU guarantees', 
 
 /** Every key a frame can ask the lighting's passes for: both list widths, each set of cuts. */
 const KEYS: ContractKey[] = [false, true].flatMap((narrow) =>
-  Array.from({ length: 32 }, (_, set) => ({
+  Array.from({ length: 64 }, (_, set) => ({
     narrow,
     unshadowed: !!(set & 1),
     rectless: !!(set & 2),
     sunless: !!(set & 4),
     localless: !!(set & 8),
     lobeless: !!(set & 16),
+    contactless: !!(set & 32),
   })),
 )
 

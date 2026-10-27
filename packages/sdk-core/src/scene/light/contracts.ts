@@ -1,6 +1,7 @@
 import { DEG2RAD } from '../../../../math/src/constants.ts'
 import { SHADOW_PAGE } from './shadow/sunEntries.ts'
 import type { SceneLightCloudShadow } from './lightCloudShadowFields.ts'
+import type { SceneLightContactShadow } from './lightContactShadowFields.ts'
 import type { SceneLightLamp } from './lightLampFields.ts'
 import type { LightUnits } from './lightUnits.ts'
 import type { SceneLightShadow } from './lightShadowFields.ts'
@@ -35,7 +36,8 @@ export const DEFAULT_LIGHT_MOBILITY: LightMobility = 'stationary'
  * Fields a kind does not use are rejected at validation: a directional light with
  * a position would be a promise the engine would not keep.
  */
-export interface SceneLight extends SceneLightCloudShadow, SceneLightLamp, SceneLightShadow {
+export interface SceneLight
+  extends SceneLightCloudShadow, SceneLightContactShadow, SceneLightLamp, SceneLightShadow {
   /** The light's name. */ id: string
   /** Point, spot, sun or rectangle. */ kind: 'point' | 'spot' | 'directional' | 'rect'
   /** Point and spot only: the point the light comes from, in metres. */
@@ -260,8 +262,8 @@ export const MAX_SHADOW_SLICES = 64
 
 /** Faces of a point light's slice: six. */
 export const POINT_FACES = 6
-/** Floats of a light in the GPU buffer: six `vec4f`. */
-export const SCENE_LIGHT_FLOATS = 24
+/** Floats of a light in the GPU buffer: seven `vec4f`. */
+export const SCENE_LIGHT_FLOATS = 28
 /** Light-buffer header: the count, the rank plus one of the forward directional light
  *  (`LIGHT_HEADER_FORWARD`), then two reserved words. */
 export const SCENE_LIGHT_HEADER_FLOATS = 4

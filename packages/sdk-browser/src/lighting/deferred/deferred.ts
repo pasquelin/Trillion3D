@@ -192,6 +192,8 @@ function viewSetters(state: LightingState, view: DeferredView) {
     setAmbientOcclusion: view.writeAmbientOcclusion,
     /** How the indirect pass reads the screen probes' history of this image (`writeScreenProbes`). */
     setScreenProbes: view.writeScreenProbes,
+    /** What the lit passes' contact shadows' rays read of the view (`writeContactShadows`). */
+    setContactShadows: view.writeContactShadows,
   }
 }
 

@@ -14,12 +14,14 @@ import {
   type SceneLight,
 } from './contracts.ts'
 import { DEFAULT_LIGHT_UNITS, lampCandelas, lightUnitsFactor } from './lightUnits.ts'
+import { contactShadowOfLight } from './lightContactShadow.ts'
+import { writeContactShadow, type ContactShadowView } from './contactShadowView.ts'
 import { spotAnglesOf } from './spotAngles.ts'
 
 /** First float of light `slot` in the packed store. */
 export const baseOf = (slot: number) => SCENE_LIGHT_HEADER_FLOATS + slot * SCENE_LIGHT_FLOATS
 
-/** Field of a light in the buffer, in floats from its base. Six `vec4f` per light. */
+/** Field of a light in the buffer, in floats from its base. Seven `vec4f` per light. */
 export const LIGHT_FIELD = {
   /** Where it stands. */
   position: 0,
@@ -61,6 +63,9 @@ export const LIGHT_FIELD = {
   halfAxis: 20,
   /** A point or spot's soft source radius. */
   softRadius: 23,
+  /** The seventh `vec4f` (`contactGi`): its contact shadow as `writeContactShadow` packs it, then its
+   *  indirect lighting factor. */
+  contactGi: 24,
 } as const
 /** A point tests no cone, and a spot of no inner cone no inner bound: this cosine never bounds. */
 export const NO_CONE = -2
@@ -268,7 +273,12 @@ function writeVector(packed: Float32Array, at: number, value: readonly number[])
  * scheduler sets it. A directional has neither position nor range: its two fields stay zero,
  * and the shader never reads them — it branches on the kind first.
  */
-export function writeLightFields(packed: Float32Array, base: number, light: SceneLight) {
+export function writeLightFields(
+  packed: Float32Array,
+  base: number,
+  light: SceneLight,
+  view: ContactShadowView,
+) {
   writeVector(packed, base + LIGHT_FIELD.position, light.position ?? [0, 0, 0])
   packed[base + LIGHT_FIELD.range] = light.range ?? 0
   writeVector(packed, base + LIGHT_FIELD.color, lightColour(light))
@@ -300,6 +310,20 @@ export function writeLightFields(packed: Float32Array, base: number, light: Scen
   const at = base + (light.kind === 'rect' ? LIGHT_FIELD.rectShares : LIGHT_FIELD.shares)
   packed[at] = diffuseShareOf(light)
   packed[at + 1] = specularShareOf(light)
+  writeContactGi(packed, base, light, view)
+}
+
+/** A light's contact shadow under the view, and its indirect lighting factor (`LIGHT_FIELD.contactGi`). */
+export function writeContactGi(
+  packed: Float32Array,
+  base: number,
+  light: SceneLight,
+  view: ContactShadowView,
+) {
+  const at = base + LIGHT_FIELD.contactGi
+  const own = contactShadowOfLight(light)
+  writeContactShadow(packed, at, own, view)
+  packed[at + 3] = own.indirectLightingIntensity
 }
 
 /** A lamp's tube and soft radius (`LIGHT_FIELD.halfAxis`, `softRadius`): zero for a light with

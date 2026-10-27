@@ -8,6 +8,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { createGpuLog } from './gpuLog.ts'
 import type { GpuTimingSample } from '../../gpu/timing/types.ts'
 import { viewGroup, type WebgpuView } from '../backend/state/view.ts'
+import { vsmRenderMs } from '../../lighting/shadows/vsm/frame/vsmStats.ts'
 
 /** Trace samples every image; the per-stage profile needs enough samples for an honest p95;
  *  without either, the original cadence is kept as-is. The render-scale controller reads every
@@ -49,12 +50,20 @@ function edgeMsOf(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
   return passBlockMs(sample, 'visibility') ?? NO_TIMING
 }
 
+/** The GPU time of the shadow raster's passes in the sample, which the shadows' compute budget is fitted
+ *  to (`vsm.budgetMs`, `shadowDynamicResolutionTimeBudgetMs`). `NO_TIMING` where the sample holds none, or
+ *  no budget is named. */
+function vsmMsOf(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
+  if (!(rt.views.main.scale.vsm.budgetMs > 0)) return NO_TIMING
+  return vsmRenderMs(sample) ?? NO_TIMING
+}
+
 /** What a sample hands the dynamic resolution: the settings now, the frame's GPU busy time — never
  *  the CPU's: the time the submissions cover, the host gaps between them left out (a gap is the
  *  host's, no lower resolution shortens it), and the views drawn beside the main image with it,
  *  since the frame's GPU time holds all of its GPU work; an image a pass's pair could not be read
  *  in holds no whole time: none, as a frame with no GPU timing yet is skipped — and the time of
- *  the cut and its raster. */
+ *  the cut and its raster, and the time of the shadow raster's passes. */
 function feedScale(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
   const { scale } = rt.views.main,
     busy = sample.pairs.invalid === 0 ? sample.submittedMs : null
@@ -64,6 +73,7 @@ function feedScale(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
     sample.renderScale as number,
     sample.scaleSteered !== false,
     edgeMsOf(rt, sample),
+    vsmMsOf(rt, sample),
   )
 }
 

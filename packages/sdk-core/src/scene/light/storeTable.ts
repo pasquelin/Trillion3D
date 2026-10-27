@@ -8,10 +8,12 @@ import {
 } from './contracts.ts'
 import { type SceneEnvironment, validateSceneEnvironment } from '../core/environment.ts'
 import { sameSceneLight } from './equal.ts'
-import { LIGHT_FIELD, baseOf, writeLightFields } from './fields.ts'
+import { LIGHT_FIELD, baseOf, writeContactGi, writeLightFields } from './fields.ts'
 import { createSunBlocks } from './sunBlocks.ts'
 import { validateSceneLight } from './validate.ts'
 import { createLightKinds } from './kinds.ts'
+import { NO_CONTACT_SHADOW_VIEW, type ContactShadowView } from './contactShadowView.ts'
+import { contactShadowOfLight, sameLightContactShadow } from './lightContactShadow.ts'
 import { createLightRanks } from './lightRanks.ts'
 import { createEnvironmentBlock } from './environmentBlock.ts'
 
@@ -37,6 +39,8 @@ export interface LightTable {
   notTransport: number
   /** How many lights wear a light function: the atlas plans nothing at 0. */
   wearing: number
+  /** The view's contact shadow settings the lights' lanes are folded with (`writeContactShadow`). */
+  readonly contactView: ContactShadowView
 }
 
 /** Twice the room, content kept: N lights cost log N copies. */
@@ -68,13 +72,14 @@ function writeLightFunction(table: LightTable, slot: number, index: number) {
  *  scheduler and the light function atlas set them, and a write keeps them. */
 function writeSlot(table: LightTable, slot: number, light: SceneLight) {
   const held = lightFunctionOf(table, slot)
-  writeLightFields(table.packed, baseOf(slot), light)
+  writeLightFields(table.packed, baseOf(slot), light, table.contactView)
   if (held) writeLightFunction(table, slot, held)
 }
 
 const wears = (light: SceneLight | undefined) => (light?.lightFunction === undefined ? 0 : 1)
 
 export function createLightTable(): LightTable {
+  const contactView = { ...NO_CONTACT_SHADOW_VIEW }
   const table: LightTable = {
     capacity: 0,
     packed: new Float32Array(0),
@@ -84,7 +89,7 @@ export function createLightTable(): LightTable {
     indexOf: new Map<string, number>(),
     records: new Map<string, SceneLight>(),
     environment: createEnvironmentBlock(),
-    kinds: createLightKinds(),
+    kinds: createLightKinds(contactView),
     ranks: createLightRanks(),
     suns: undefined as unknown as ReturnType<typeof createSunBlocks>,
     view: 'auto',
@@ -92,6 +97,7 @@ export function createLightTable(): LightTable {
     airOn: true,
     notTransport: 0,
     wearing: 0,
+    contactView,
   }
   growTable(table)
   table.suns = createSunBlocks({
@@ -134,6 +140,30 @@ export function addLight(table: LightTable, light: SceneLight) {
   return slot
 }
 
+/**
+ * A light whose contact shadow alone changed: its lanes are written again and the epoch published, as a
+ * change of the view is (`setTableContactView`) — its revision stays, so no shadow page of its is staled.
+ * The light transport moved only if its indirect lighting factor did.
+ */
+function setContactShadow(
+  table: LightTable,
+  slot: number,
+  current: SceneLight,
+  merged: SceneLight,
+) {
+  table.kinds.tally(current, -1)
+  table.kinds.tally(merged, 1)
+  table.records.set(merged.id, merged)
+  writeContactGi(table.packed, baseOf(slot), merged, table.contactView)
+  table.suns.changed(current, merged)
+  table.epoch++
+  if (
+    contactShadowOfLight(current).indirectLightingIntensity ===
+    contactShadowOfLight(merged).indirectLightingIntensity
+  )
+    table.notTransport++
+}
+
 /** Changes a light. */
 export function setLight(table: LightTable, id: string, patch: Partial<Omit<SceneLight, 'id'>>) {
   const slot = table.indexOf.get(id)
@@ -143,7 +173,10 @@ export function setLight(table: LightTable, id: string, patch: Partial<Omit<Scen
   const merged = validateSceneLight({ ...current, ...patch, id })
   // A light reset identically is not a change: neither its revision nor the epoch
   // move, so the scheduler stales no shadow page and the held frame stays.
-  if (sameSceneLight(current, merged)) return
+  if (sameSceneLight(current, merged)) {
+    if (!sameLightContactShadow(current, merged)) setContactShadow(table, slot, current, merged)
+    return
+  }
   table.kinds.tally(current, -1)
   table.kinds.tally(merged, 1)
   table.records.set(id, merged)
@@ -200,6 +233,30 @@ export function setTableAir(table: LightTable, on: boolean) {
   table.airOn = on
   table.suns.environmentChanged()
   table.epoch++
+}
+
+/**
+ * Folds the lights' contact shadows with the view's settings (`writeContactShadow`): when any differs
+ * from what the lanes were folded with, the contact lanes of every light are written again and the
+ * epoch published, as a change of the air is (`setTableAir`); no light moved, no shadow page is staled,
+ * and no light transport changed.
+ */
+export function setTableContactView(table: LightTable, view: ContactShadowView) {
+  const held = table.contactView
+  if (
+    held.contactShadows === view.contactShadows &&
+    held.contactShadowOverrideLength === view.contactShadowOverrideLength &&
+    held.contactShadowOverrideLengthInWorldSpace === view.contactShadowOverrideLengthInWorldSpace &&
+    held.contactShadowOverrideCastingIntensity === view.contactShadowOverrideCastingIntensity &&
+    held.contactShadowOverrideNonCastingIntensity === view.contactShadowOverrideNonCastingIntensity
+  )
+    return
+  Object.assign(held, view)
+  for (const [slot, id] of table.ids.entries())
+    writeContactGi(table.packed, baseOf(slot), table.records.get(id)!, held)
+  table.kinds.recountContacts(table.records.values())
+  table.epoch++
+  table.notTransport++
 }
 
 /** Records the index of the light function table entry a light reads, 0 for none, in its kind

@@ -6,6 +6,7 @@ import {
   DEFAULT_TEMPERATURE_KELVIN,
   defaultIntensityOf,
 } from '../../scene/light/fields.ts'
+import { resolveSetting, resolveSettings, type SettingRules } from '../../contracts/settingRules.ts'
 import { listen, type Observed } from '../observed.ts'
 import type { Light } from './light.ts'
 import type { LightParameters } from './lightParameters.ts'
@@ -176,6 +177,54 @@ export function lightStates<State>(
         for (const value of observed(state)) listen(value, () => lightChanged(light))
       }
       return state
+    },
+  }
+}
+
+/**
+ * The light settings that are numbers and flags a group of rules names (`LIGHT_SHADOW_RULES`,
+ * `LIGHT_CONTACT_SHADOW_RULES`), each checked by its rule: `take` what a page names (for the lights `only`
+ * accepts), `copy` a light's, `settingsSet` those that differ from their default, `fromRecord` those a
+ * record holds, `define` the properties of `proto`, whose writes the rules check and the world hears at
+ * once. `Parameters` is what a page may pass.
+ */
+export function ruledLightSettings<Parameters extends object>(
+  rules: SettingRules,
+  only: (light: Light) => boolean = () => true,
+) {
+  const names = Object.keys(rules)
+  const defaults = Object.freeze(resolveSettings(rules, {})) as Record<string, Scalar>
+  const group = scalarGroup(names, defaults)
+  const states = lightStates<Record<string, Scalar>>(group.fresh, () => [])
+  return {
+    take(light: Light, p: Parameters) {
+      if (!only(light)) return
+      const named = p as Record<string, Scalar | null | undefined>
+      for (const name of names)
+        if (named[name] !== undefined)
+          states.of(light)[name] = resolveSetting(rules[name], named[name] as never) as Scalar
+    },
+    copy(light: Light, source: Light) {
+      const from = states.peek(source)
+      const to = from ? states.of(light) : states.peek(light)
+      if (to) Object.assign(to, from ?? group.fresh())
+    },
+    settingsSet(light: Light): Parameters {
+      const values = states.peek(light)
+      return (values && only(light) ? group.differing(values) : {}) as Parameters
+    },
+    fromRecord: (record: SceneLight) => group.fromRecord(record) as Parameters,
+    define(proto: Light) {
+      for (const [name, rule] of Object.entries(rules))
+        Object.defineProperty(proto, name, {
+          get(this: Light) {
+            return states.of(this)[name]
+          },
+          set(this: Light, value: Scalar) {
+            states.of(this)[name] = resolveSetting(rule, value as never) as Scalar
+            lightChanged(this)
+          },
+        })
     },
   }
 }

@@ -2,22 +2,31 @@ import { clamp, lerp } from '../../../../math/src/scalar/reals.ts'
 import { DYNAMIC_RESOLUTION_RULES } from '../../../../sdk-core/src/contracts/dynamicResolutionOptions.ts'
 import type { SettingValues } from '../../../../sdk-core/src/contracts/settingRules.ts'
 
-/** The budgets the heuristic fits, by their place in its history: the render scale, and the cut's
- *  edge scale (`cutEdgeScaleBudgetMs`, `../../../../sdk-core/src/contracts/cutOptions.ts`). */
+/** The budgets the heuristic fits, by their place in its history: the render scale, the cut's
+ *  edge scale (`cutEdgeScaleBudgetMs`, `../../../../sdk-core/src/contracts/cutOptions.ts`), and the
+ *  shadow raster's (`shadowDynamicResolutionTimeBudgetMs`,
+ *  `../../../../sdk-core/src/contracts/shadowMapOptions.ts`). */
 const RENDER_SCALE = 0
 const EDGE_SCALE = 1
-const BUDGETS = 2
+const VSM_SCALE = 2
+const BUDGETS = 3
 
 /** A GPU time that is negative is no timing yet: its frame is skipped for that budget. A time of
  *  0 is one, and asks for the most a fraction may be. */
 export const NO_TIMING = -1
 
-/** The edge scale's own record, which no setting of the heuristic reaches: its GPU time scales
- *  with the fraction itself, not its square; 5 % of its budget is left free; a change under 1 % is
- *  none; a rise goes 0.9 of the way; its panic waits for the change period. */
-const EDGE_HEADROOM = 0.05,
-  EDGE_THRESHOLD = 0.01,
-  EDGE_AMORTIZATION = 0.9
+/** The record of the linear budgets, the cut's edge scale and the shadow raster's, which no setting of
+ *  the heuristic reaches: their GPU time scales with the fraction itself, not its square; 5 % of the
+ *  budget is left free; a change under 1 % is none; a rise goes 0.9 of the way; the panic of the edge
+ *  scale waits for the change period. */
+const LINEAR_HEADROOM = 0.05,
+  LINEAR_THRESHOLD = 0.01,
+  LINEAR_AMORTIZATION = 0.9
+
+/** The least and the most any budget's fraction may be, whatever its own bounds: the temporal upscaler's
+ *  range the reference clamps each fraction to (`ISceneViewFamilyScreenPercentage`, 0.01 and 4). */
+const MIN_FRACTION = 0.01,
+  MAX_FRACTION = 4
 
 /** What one budget is fitted by, written in place at each refresh (`modelOf`): whether its time
  *  scales with the area (the render scale's does), its budget, headroom, change threshold and rise
@@ -45,8 +54,8 @@ const MIN_OVER_BUDGET = 2
 /**
  * The dynamic resolution heuristic: one history and one change period for a list of budgets, each
  * fitted to its own GPU time. The render scale is the first, its settings the host's
- * (`DynamicResolutionValues`); the cut's edge scale the second (`EDGE_HEADROOM`, `EDGE_THRESHOLD`,
- * `EDGE_AMORTIZATION`).
+ * (`DynamicResolutionValues`); the cut's edge scale the second and the shadow raster's the third
+ * (`LINEAR_HEADROOM`, `LINEAR_THRESHOLD`, `LINEAR_AMORTIZATION`).
  *
  * Each GPU time arrives with the fraction its image was drawn at, for the render scale — a time
  * read back a few images late, paired with the fraction in force when it is read, is a time of
@@ -92,7 +101,7 @@ export function createDynamicResolution(
      *  (`modelOf`); whether it found the render scale all over its budget; the weights of the
      *  browse in hand (sum, total, frames over, frames counted). */
     next: new Float64Array(BUDGETS),
-    models: [createModel(), createModel()],
+    models: Array.from({ length: BUDGETS }, createModel),
     panicked: false,
     weighed: new Float64Array(4),
   }
@@ -100,15 +109,18 @@ export function createDynamicResolution(
 
 export type DynamicResolution = ReturnType<typeof createDynamicResolution>
 
-/** What the heuristic reads and moves: the render scale's fraction `s`, within the bounds, and the
- *  edge scale's `edge`, within `edgeMin` and 1, fitted while its budget `edgeBudgetMs` is above 0;
- *  the settings, and the CPU time of the engine's last image. */
+/** What the heuristic reads and moves: the render scale's fraction `s`, within the bounds; the edge
+ *  scale's `edge`, within `edgeMin` and 1, fitted while `edgeBudgetMs` is above 0; the shadow raster's
+ *  `vsm`, within 0 and 1, fitted while `vsmBudgetMs` is above 0; the settings, and the CPU time of the
+ *  engine's last image. */
 interface Fraction {
   s: number
   bounds: { min: number; max: number }
   edge: number
   edgeBudgetMs: number
   edgeMin: number
+  vsm: number
+  vsmBudgetMs: number
   rules: DynamicResolutionValues
   cpuMs: number
 }
@@ -123,6 +135,7 @@ export function resetDynamicResolution(h: DynamicResolution, f: Fraction) {
   h.ignore = 1
   f.s = 1
   f.edge = 1
+  f.vsm = 1
 }
 
 /** The rings hold `capacity` frames: the newest kept, in their order. */
@@ -145,15 +158,17 @@ function resizeHistory(h: DynamicResolution, capacity: number) {
   for (let b = 0; b < BUDGETS; b++) h.sizes[b] = Math.min(h.sizes[b], kept)
 }
 
-/** A frame's GPU busy time, `gpuMs`, drawn at `fraction`, and the time of the edge scale's passes,
- *  `edgeMs` — `NO_TIMING` where they were not timed —, at the edge fraction now, with the CPU time
- *  of the engine's last image, into the history; the frames after a reset ignored. */
+/** A frame's GPU busy time, `gpuMs`, drawn at `fraction`, the time of the edge scale's passes,
+ *  `edgeMs`, and of the shadow raster's, `vsmMs` — `NO_TIMING` where they were not timed —, at the edge
+ *  and shadow fractions now, with the CPU time of the engine's last image, into the history; the
+ *  frames after a reset ignored. */
 export function recordFrame(
   h: DynamicResolution,
   f: Fraction,
   gpuMs: number,
   fraction: number,
   edgeMs = NO_TIMING,
+  vsmMs = NO_TIMING,
 ) {
   if (h.ignore > 0) {
     h.ignore--
@@ -166,13 +181,15 @@ export function recordFrame(
   h.fractions[RENDER_SCALE * capacity + at] = fraction
   h.gpuMs[EDGE_SCALE * capacity + at] = edgeMs
   h.fractions[EDGE_SCALE * capacity + at] = f.edge
+  h.gpuMs[VSM_SCALE * capacity + at] = vsmMs
+  h.fractions[VSM_SCALE * capacity + at] = f.vsm
   h.cpuMs[at] = f.cpuMs
   h.size = Math.min(h.size + 1, capacity)
   for (let b = 0; b < BUDGETS; b++) h.sizes[b] = Math.min(h.sizes[b] + 1, capacity)
 }
 
 /** Budget `b`'s record for this refresh, written in place: the render scale's from the host's
- *  settings and its bounds, the edge scale's from its own constants. */
+ *  settings and its bounds, the linear budgets' from theirs (`linearModel`). */
 function modelOf(h: DynamicResolution, f: Fraction, b: number) {
   const m = h.models[b],
     { rules } = f
@@ -187,17 +204,22 @@ function modelOf(h: DynamicResolution, f: Fraction, b: number) {
     m.min = f.bounds.min
     m.max = f.bounds.max
     m.top = throttle > 0 ? clamp(throttle, m.min, m.max) : m.max
-  } else {
-    m.quadratic = false
-    m.budgetMs = f.edgeBudgetMs
-    m.headroom = EDGE_HEADROOM
-    m.threshold = EDGE_THRESHOLD
-    m.amortization = EDGE_AMORTIZATION
-    m.current = f.edge
-    m.min = f.edgeMin
-    m.max = m.top = 1
-  }
+  } else if (b === EDGE_SCALE) linearModel(m, f.edgeBudgetMs, f.edge, f.edgeMin)
+  else linearModel(m, f.vsmBudgetMs, f.vsm, 0)
   return m
+}
+
+/** The record `m` of a linear budget: its time scales with its fraction, `current`, which runs from
+ *  `min` to 1. */
+function linearModel(m: Model, budgetMs: number, current: number, min: number) {
+  m.quadratic = false
+  m.budgetMs = budgetMs
+  m.headroom = LINEAR_HEADROOM
+  m.threshold = LINEAR_THRESHOLD
+  m.amortization = LINEAR_AMORTIZATION
+  m.current = current
+  m.min = min
+  m.max = m.top = 1
 }
 
 /** The newest `size` entries of budget `b`, browsed from the newest, weighed into `h.weighed`:
@@ -273,11 +295,12 @@ function fitBudget(h: DynamicResolution, f: Fraction, b: number, canChange: bool
       if (next > current) next = lerp(current, next, m.amortization)
     }
   }
-  h.next[b] = clamp(next, min, m.top)
+  // Within the budget's bounds, then within the range any budget's fraction keeps.
+  h.next[b] = clamp(clamp(next, min, m.top), MIN_FRACTION, MAX_FRACTION)
 }
 
-/** The fractions of the next frame written into `f.s` and `f.edge`, on the frame time budget
- *  `h.budgetMs` and `f.edgeBudgetMs`; whether one changed. The render scale last: its panic
+/** The fractions of the next frame written into `f.s`, `f.edge` and `f.vsm`, on the frame time budget
+ *  `h.budgetMs`, `f.edgeBudgetMs` and `f.vsmBudgetMs`; whether one changed. The render scale last: its panic
  *  forgets the history (`h.size`) at the next refresh, and the other budgets browse their own
  *  entries, at least the newest, before and after it. Numbers read from fields and written to
  *  fields: a frame boxes none. */
@@ -285,12 +308,15 @@ export function refreshFraction(h: DynamicResolution, f: Fraction) {
   const canChange = h.framesSinceChange >= f.rules.dynamicResolutionChangePeriod
   h.panicked = false
   fitBudget(h, f, EDGE_SCALE, canChange)
+  fitBudget(h, f, VSM_SCALE, canChange)
   fitBudget(h, f, RENDER_SCALE, canChange)
-  const worth = h.next[EDGE_SCALE] !== f.edge || h.next[RENDER_SCALE] !== f.s
+  const worth =
+    h.next[EDGE_SCALE] !== f.edge || h.next[VSM_SCALE] !== f.vsm || h.next[RENDER_SCALE] !== f.s
   if ((worth && canChange) || h.panicked) {
     h.framesSinceChange = 0
     f.s = h.next[RENDER_SCALE]
     f.edge = h.next[EDGE_SCALE]
+    f.vsm = h.next[VSM_SCALE]
     return worth
   }
   h.framesSinceChange++

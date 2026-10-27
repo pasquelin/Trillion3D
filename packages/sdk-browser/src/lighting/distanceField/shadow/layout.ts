@@ -1,5 +1,6 @@
 import { alignUp, ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { arrayOf, fieldLayout, vec4Array } from '../../../gpu/core/fieldLayout.ts'
+import { subsurfaceDensityOf } from '../../subsurfaceDensity.ts'
 
 /**
  * THE SUN'S DISTANCE-FIELD SHADOW, laid out once for the host that fills it and the programs that
@@ -100,9 +101,8 @@ export const DFSH_CUBE_VERTICES = 36
 export const DFSH_MIN_CONE_RADIUS = 0.4
 export const DFSH_MAX_CONE_RADIUS = 100
 /** The density of the light a thin transmitting surface lets through the meshes between it and the
- *  light, per unit of thickness: its opacity, 1 held to 0.99, as 0.05 times the log of the share it
- *  does not stop. */
-export const DFSH_SUBSURFACE_DENSITY = -0.05 * Math.log(1 - 0.99)
+ *  light, per unit of thickness: that of an opacity of 1 (`subsurfaceDensityOf`). */
+export const DFSH_SUBSURFACE_DENSITY = subsurfaceDensityOf(1)
 /** The steps of a ray at the qualities 1, 2 and 3 of the cascade. */
 export const DFSH_STEPS = [0, 20, 32, 64] as const
 /** The formats: the half-resolution result (the visibility and the depth it was traced at, a band of

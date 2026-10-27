@@ -140,7 +140,8 @@ test('generated inventory and explicit facade files are current', async () => {
   // reviewCutouts, CUTOUT_SHEET_FILE, CUTOUT_SHEET_VERSION), the HLOD groups (HlodGroup, HlodMatch) and
   // the report of the tables' growth (TableGrowthReport) left with their mechanisms; the translucent
   // lighting names (translucencyLighting, TranslucencyLighting), the lights' shadow options
-  // (LIGHT_SHADOW_RULES, LightShadowOptions), the metrics of the ambient occlusion, the tone table and
+  // (LIGHT_SHADOW_RULES, LightShadowOptions) and the lights' contact shadow rules, options and parameters
+  // (LIGHT_CONTACT_SHADOW_RULES, LightContactShadowOptions, LightContactShadowParameters; ContactShadowView, the view's settings the store folds them with), the metrics of the ambient occlusion, the tone table and
   // the surface cache (AmbientOcclusionFrameMetrics, ToneTableFrameMetrics, SurfaceCacheFrameMetrics)
   // are public. The names a public signature hands a caller are public too: the fog's cube map,
   // second layer, sky light scattering and volume (SceneFogCubemap, SceneSecondLayer,
@@ -159,7 +160,7 @@ test('generated inventory and explicit facade files are current', async () => {
   // (ViewCamera, for HostCamera), and the meshes a page draws and the colour a surface declares are
   // named in the engine's words (PageMesh, PageMaterials, SurfaceColour). The shadows' viewpoint
   // (ShadowViewpoint) left with the CPU streaming invalidations.
-  assert.equal(inventory.exports.length, 874)
+  assert.equal(inventory.exports.length, 878)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

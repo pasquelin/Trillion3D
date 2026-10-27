@@ -391,30 +391,24 @@ export const VSM_PIXELS_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'receiverCover', binding: 3, access: 'atomic' },
 ]
 
-/**
- * The page marking and the projection helpers it calls, against the primary
- * view in `vsmMarking`, through the module's `vsmPageRequestsStore` and `vsmReceiverCoverOr`.
- */
-export const VSM_PAGE_MARKING_WGSL = wgslBlock(
-  'VSM_PAGE_MARKING_WGSL',
-  [
-    VSM_CONSTANTS_WGSL,
-    perspectiveDivide,
-    VSM_HANDLE_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_TABLE_ORIGIN_WGSL,
-    VSM_STRUCTS_WGSL,
-    VSM_PROJECTION_DATA_WGSL,
-    VSM_PROJECTION_DATA_READ_WGSL,
-    VSM_MARK_PAGE_ADDRESS_WGSL,
-  ],
-  `
-/** The biased clipmap level of a position, against the marking view's origin shift. */
+/** `vsmMarkedLevel`: the first map's bias for every level of a clipmap or, `throttled`, the bias of
+ *  the map the level falls in (`vsmClipmapLevelBias`). */
+const markedLevelText = (throttled: boolean) => {
+  const firstBias = throttled ? '' : 'base.levelBias+'
+  const mapBias = throttled
+    ? `
+ biasedLevel+=vsmClipmapLevelBias(base,biasedLevel);`
+    : ''
+  return `/** The biased clipmap level of a position, against the marking view's origin shift. */
 fn vsmMarkedLevel(base:VsmProjectionData,shiftedPosition:vec3f,extraBias:f32)->i32{
- let biasedLevel=vsmLevelOfDistanceSq(vsmDistanceSqToOrigin(base,shiftedPosition,vsmMarking.originShiftHigh,vsmMarking.originShiftLow))
-  +base.levelBias+vsm.pressureBias+extraBias;
+ ${throttled ? 'var' : 'let'} biasedLevel=vsmLevelOfDistanceSq(vsmDistanceSqToOrigin(base,shiftedPosition,vsmMarking.originShiftHigh,vsmMarking.originShiftLow))
+  +${firstBias}vsm.pressureBias+extraBias;${mapBias}
  return i32(floor(biasedLevel));
+}`
 }
+
+/** The marking's functions past `vsmMarkedLevel`, the one text of the plain and the throttled block. */
+const MARKING_HELPERS_TEXT = `
 /** The mip level a local light's page is marked at. */
 fn vsmMarkLocalMipLevel(pd:VsmProjectionData,shiftedPosition:vec3f,sceneDepth:f32,extraBias:f32)->u32{
  let toMapShift=vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,vsmMarking.originShiftHigh,vsmMarking.originShiftLow);
@@ -491,8 +485,38 @@ fn vsmMarkPageLocal(lightShiftedPosition:vec3f,radialNotSpot:bool,handleIn:VsmHa
  let mipLevel=vsmMarkLocalMipLevel(vsmProjectionOf(handle),shiftedPosition,sceneDepth,extraBias);
  vsmMarkPage(handle,mipLevel,shiftedPosition,hasMargin,marginOffset,false);
 }
-`,
-)
+`
+
+/**
+ * The page marking and the projection helpers it calls, against the primary
+ * view in `vsmMarking`, through the module's `vsmPageRequestsStore` and `vsmReceiverCoverOr`.
+ */
+const pageMarkingBlock = (name: string, throttled: boolean) =>
+  wgslBlock(
+    name,
+    [
+      VSM_CONSTANTS_WGSL,
+      perspectiveDivide,
+      VSM_HANDLE_WGSL,
+      VSM_PAGE_ADDRESS_WGSL,
+      VSM_TABLE_ORIGIN_WGSL,
+      VSM_STRUCTS_WGSL,
+      VSM_PROJECTION_DATA_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
+      VSM_MARK_PAGE_ADDRESS_WGSL,
+    ],
+    `
+${markedLevelText(throttled)}${MARKING_HELPERS_TEXT}`,
+  )
+
+const VSM_PAGE_MARKING_WGSL = pageMarkingBlock('VSM_PAGE_MARKING_WGSL', false)
+
+/** The page marking when the compute throttle is on (`markedLevelText`). */
+const VSM_PAGE_MARKING_THROTTLED_WGSL = pageMarkingBlock('VSM_PAGE_MARKING_THROTTLED_WGSL', true)
+
+/** The page marking block of a program, throttled or not. */
+export const vsmPageMarkingBlock = (throttled: boolean) =>
+  throttled ? VSM_PAGE_MARKING_THROTTLED_WGSL : VSM_PAGE_MARKING_WGSL
 
 /** The binding of the translucent front layer's depth in group 1 of the pass that marks from it. */
 export const VSM_FRONT_DEPTH_BINDING = 9
@@ -680,9 +704,15 @@ const pixelMarkingLocal = () => /* wgsl */ `
  * before the marking: binding 10 is the scene's depth with the water drawn into it
  * (`VSM_WATER_DEPTH_BINDING`), and where it differs from the pixel's, the water's surface is marked in
  * every sun's clipmap, the suns alone. A pixel that is not lit marks those surfaces alone. Without
- * them the program has neither the binding nor the code.
+ * them the program has neither the binding nor the code. `throttled`, the compute throttle is on this
+ * frame: a sun's clipmap level takes the bias of its own map (`markedLevelText`).
  */
-export const vsmPixelPageMarkingWgsl = (layout: VsmLayout, front = false, water = false) =>
+export const vsmPixelPageMarkingWgsl = (
+  layout: VsmLayout,
+  front = false,
+  water = false,
+  throttled = false,
+) =>
   wgslProgram(
     `@group(1) @binding(0) var depth:texture_depth_2d;
 ${pixelMarkingHead(front, water)}${pixelMarkingDirectional(front, water)}${pixelMarkingLocal()}
@@ -701,7 +731,7 @@ ${pixelMarkingHead(front, water)}${pixelMarkingDirectional(front, water)}${pixel
       pixelCellWgsl(),
       SHADOW_SLICE_WGSL,
       VSM_PROJECTION_DATA_READ_WGSL,
-      VSM_PAGE_MARKING_WGSL,
+      vsmPageMarkingBlock(throttled),
       WORLD_AT_WGSL,
       FLAT_INDEX_WGSL,
       ceilDivWgsl,

@@ -79,5 +79,6 @@ test('lobed blend items hold the frame until a lobed program lands, then are lit
   open()
   await pipelinesSettled(device, true)
   assert.equal(pipelinesCompiling(device), false)
-  assert.equal(programs.pick(FULL_CONTRACT, true), 'LIT')
+  // The label is the blend program's: a translucent program holds no contact code, so its key says contactless.
+  assert.equal(programs.pick(FULL_CONTRACT, true), 'LIT_CONTACTLESS')
 })

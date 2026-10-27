@@ -28,7 +28,7 @@ export const VSM_PROJECTION_SUBSURFACE_WGSL = /* wgsl */ `/** The share of a lig
  *  reference is for consistency with its square-rooted mask. */
 fn vsmSubsurfaceShadow(r:VsmTraceResult,info:VsmSurfaceInfo)->VsmTraceResult{
  if(info.opacity<0.0||r.rayCount==0u||r.shadowFactor>=1.0){return r;}
- let density=-0.05*log(1.0-info.opacity);
+ let density=subsurfaceDensity(info.opacity);
  let transmission=saturate(exp(-r.occluderDistance*VSM_CM_PER_UNIT*density));
  let through=mix(transmission,1.0,r.shadowFactor);
  var q=r;

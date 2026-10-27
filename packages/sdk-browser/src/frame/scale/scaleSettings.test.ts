@@ -14,6 +14,9 @@ import {
 
 // The heuristic's settings, each the reference's (`dynamicResolutionOptions.ts`): the numbers are
 // those the formulas give by hand, the render scale's budget 10 ms and a fraction of 1.
+/** The shadow raster's budget, none named, at a fraction of 1: the heuristic moves it, so each fraction has its own. */
+const noVsm = () => ({ vsm: 1, vsmBudgetMs: 0 })
+
 /** The heuristic after the GPU times `times` (ms, oldest first, at a fraction of 1 and the CPU time
  *  `cpu`), the settings `options` over the reference's defaults, `since` refreshes after its last
  *  change — 8, one allowed now —: its state and the parts the render scale settled on. */
@@ -25,6 +28,7 @@ function fitted(
   const h = createDynamicResolution(),
     f = {
       ...{ s: 1, bounds: { min: 0.5, max: 1 }, edge: 1, edgeBudgetMs: 0, edgeMin: 0.3 },
+      ...noVsm(),
       rules: resolveSettings(DYNAMIC_RESOLUTION_RULES, options),
       cpuMs: cpu,
     }
@@ -85,6 +89,7 @@ test('the change period, the threshold and the amortization decide how a rise go
     const h = createDynamicResolution(),
       f = {
         ...{ s: 0.6, bounds: { min: 0.5, max: 1 }, edge: 1, edgeBudgetMs: 0, edgeMin: 0.3 },
+        ...noVsm(),
         rules: resolveSettings(DYNAMIC_RESOLUTION_RULES, options),
         cpuMs: 0,
       }
@@ -147,6 +152,7 @@ test('each GPU time pairs with the edge fraction in force when it is recorded', 
   const h = createDynamicResolution(),
     f = {
       ...{ s: 1, bounds: { min: 0.5, max: 1 }, edge: 0.7, edgeBudgetMs: 10, edgeMin: 0.3 },
+      ...noVsm(),
       rules: resolveSettings(DYNAMIC_RESOLUTION_RULES, {}),
       cpuMs: 3,
     }

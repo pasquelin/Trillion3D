@@ -41,7 +41,7 @@ type LitVariantsOptions<P> = {
  * with both, then a wide one —, else by none.
  *
  * A narrow, unshadowed or rectless program's twin — wide, with shadow and rectangle code, and the
- * lobe code only where the program has it (`twinOf`) — compiles beside it, from the same frame: a
+ * lobe and contact shadow code only where the program has them (`twinOf`) — compiles beside it, from the same frame: a
  * scene that passes `TILE_LIGHTS` lights, or whose light takes a shadow or is a rectangle, finds
  * its program ready as soon as a single program would have been, and never falls back to the
  * unlit view where one program would not. A scene whose surfaces carry no lobe never compiles the

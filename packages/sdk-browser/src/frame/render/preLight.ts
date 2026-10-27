@@ -16,6 +16,7 @@ import { encodeLightShaftOcclusion } from '../../modules/sky/lightShafts/frame.t
 import { reflects, type ViewOverrides } from '../backend/state/viewOverrides.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { castsContactShadows, setContactShadowView } from '../../lighting/contactShadow/frame.ts'
 
 /** The compute passes of the pre-light step that follow one another. */
 const compute = new ComputeRun()
@@ -33,6 +34,9 @@ export function encodePreLight(
   direct: ArrayLike<number>,
   overrides: ViewOverrides,
 ) {
+  // What the lit passes' contact shadows' rays read of the view, if their program holds them.
+  const { deferred } = rt.gpu
+  if (deferred && castsContactShadows(rt)) setContactShadowView(deferred, cam)
   // The depth's pyramid, complete with this image's transparents: the contact rays of the lights —
   // the shadows' projection, held until now — and the reflections march it.
   encodeDepthPyramid(rt, encoder)
@@ -64,10 +68,23 @@ export function encodePreLight(
   encodeSunFieldShadow(rt, encoder, cam)
   // The same sun's shadow at the water's depth, for the water that keeps its sun apart.
   encodeWaterSunFieldShadow(rt, encoder, cam)
-  // What every surface reflects, traced here: the opaque ones, the resolve's input, and the
-  // transparents' front one, which the translucent layers read; behind it, they read the same
-  // view inline. A lit view stages the reflection view even when it traces none: the probes and the translucency's light read it.
-  if (!overrides.lighting) return
+  // What every surface reflects, and the light the pixels receive from the probes, where the view is lit.
+  if (overrides.lighting) encodeIndirectLight(rt, device, encoder, cam, overrides)
+}
+
+/**
+ * What every surface reflects, traced here: the opaque ones, the resolve's input, and the transparents' front
+ * one, which the translucent layers read; behind it, they read the same view inline. A lit view stages the
+ * reflection view even when it traces none: the probes and the translucency's light read it. Then the pixels'
+ * indirect light, in its order.
+ */
+function encodeIndirectLight(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  overrides: ViewOverrides,
+) {
   encodeReflections(rt, encoder, reflects(overrides))
   // The pixels' indirect light, from the probes placed on the image: after the reflections, which made
   // the lit image of the last image readable, and before the lighting, which reads them.

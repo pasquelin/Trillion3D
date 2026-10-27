@@ -26,7 +26,7 @@ import { declaredLightWgsl, sliceLightingWgsl } from './lightLoopWgsl.ts'
  * rectangle light (`declaredLightWgsl`, #1249, #1369), picked on the same key
  * (`createLitVariants`). Without `lobeless`, the forward pass's program of a scene that holds an
  * anisotropic or clear-coat surface: its lights go through the lobes (`lobesWgsl.ts`), which the
- * fragment sets itself.
+ * fragment sets itself. A translucent program holds no contact shadow: its key says so (`translucentLitKey`).
  */
 export const declaredLightingWgsl = (
   bindings: LightingBindings,

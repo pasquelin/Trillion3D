@@ -993,14 +993,14 @@ world.shading = { shadeBinningMode: null } // back to the preset's, here the def
 world.shading = { clearCoatNormal: true } // a clear coat keeps a bottom normal
 ```
 
-| Field              | Meaning                                                                                         | Default  |
-| ------------------ | ----------------------------------------------------------------------------------------------- | -------- |
-| `shadeBinningMode` | `'auto'` as each class asks, `'pixel'` every pixel alone, `'quad'` by 2 × 2 quad                | `'auto'` |
-| `irisNormal`       | `false`: the eye's iris by the direction of its `tangent`; `true`: by an iris normal of its own | `false`  |
-| `clearCoatNormal`  | `false`: a clear coat shares its base's normal; `true`: it keeps a bottom normal                | `false`  |
-| `normalCurvatureScale` | scale of the roughness a `normalCurvatureToRoughness` material takes from its vertex normal, any number, held to [0, 2] where read | `1`      |
-| `normalCurvatureBias`  | bias added to that roughness, any number, held to [-1, 1] where read                                                     | `0`      |
-| `normalCurvatureExponent` | exponent on the normal's change across a pixel, any number, held to [0.05, 20] where read                              | `0.333`  |
+| Field                     | Meaning                                                                                                                            | Default  |
+| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------- | -------- |
+| `shadeBinningMode`        | `'auto'` as each class asks, `'pixel'` every pixel alone, `'quad'` by 2 × 2 quad                                                   | `'auto'` |
+| `irisNormal`              | `false`: the eye's iris by the direction of its `tangent`; `true`: by an iris normal of its own                                    | `false`  |
+| `clearCoatNormal`         | `false`: a clear coat shares its base's normal; `true`: it keeps a bottom normal                                                   | `false`  |
+| `normalCurvatureScale`    | scale of the roughness a `normalCurvatureToRoughness` material takes from its vertex normal, any number, held to [0, 2] where read | `1`      |
+| `normalCurvatureBias`     | bias added to that roughness, any number, held to [-1, 1] where read                                                               | `0`      |
+| `normalCurvatureExponent` | exponent on the normal's change across a pixel, any number, held to [0.05, 20] where read                                          | `0.333`  |
 
 **The normal curvature** (`normalCurvatureRoughness`, `normalCurvatureApply`, `lighting/ormWgsl.ts`). A material with `normalCurvatureToRoughness` has its roughness raised to `saturate(max(dNdx·dNdx, dNdy·dNdy)^exponent · scale + bias)`, `dNdx` and `dNdy` the change of the interpolated vertex normal across one pixel, taken before the normal map, a graph's normal or a hair's tangent bends the normal. The option is bit 11 of the record's model word (`NORMAL_CURVATURE_MODEL_BIT`); the blend vertex stage carries it to bit 31 of the item's flags (`normalCurvatureFlag`, `NORMAL_CURVATURE_FLAG_MASK`). The opaque resolve builds the neighbouring weights only for a pixel whose material asks for it; a blended fragment reads the derivatives of its interpolated normal. The curve is three words of the resolve's and the blend view's uniforms (`normalCurvature`). A voxel pixel has no curvature (its shading normal is drawn, not interpolated); the clear coat takes the same curvature for its own roughness. The earlier widening of the roughness by the neighbours' bent normals is gone.
 
@@ -1912,6 +1912,56 @@ light, `L` the direction toward the lamp's centre (the rectangle's centre, its e
 normal). It has no 1/π and no cosine of the front's: its peak is 0.589, and it reaches the lit front up to a
 cosine of one half. The light's shadow is read once, for the front's term and this one.
 
+**One shadow-terms step per light** (`lighting/direct/shadowTermsWgsl.ts:shadowTermsOf`). After its shadow read and
+its contact shadow, a light's term has two scalars and the shadow itself, handed to the lobes and the models alike.
+The surface shadow weighs the lobes (the diffuse and specular of every model, the diffuse and toon models included, a
+rectangle's, the profile's, the eye's specular) and a hair's multiple scattering: it is the pixel's occlusion `ao`
+where the light has no shadow bits, and its shadow where it has some. The transmission shadow weighs the transmitted
+terms (the thin back, the skin's, the subsurface's, the profile's, the hair's tint, the eye's diffuse): the shadow,
+1 where the light has none. The shadow alone is the thickness a profile's optical depth and a subsurface's colour
+read. The contact shadow multiplies the first two. A light has shadow bits when it casts a shadow, whether or not it holds a slot
+and whether or not the program holds the shadow code (then its shadow is 1): a light that casts a shadow but took no
+slice, or is drawn with the shadows off, gets no occlusion; the reference's bits read the light's flag and the
+dynamic-shadows show flag, which the engine has no equivalent of apart from the shadow quality, and they do not read it. The reference sets a bit also for a static shadow, which the engine has none of, and for a
+light function that holds no slot of the atlas; the engine's record has no bit for the second, so a light wearing a
+function the atlas left out is not given its bit. A pixel with no occlusion (`ao` 1) and no contact shadow is unchanged
+to the last operation of the lobes.
+
+**Contact shadows** (`lighting/contactShadow/`). The lit passes cast a short ray from each pixel toward each light
+through the scene's depth: eight steps, the first jittered by the pixel's interleaved gradient noise at the temporal
+phase, each compared to the depth with a margin of twice a step's depth; a step on the depth of the pixel's own texel
+is skipped, a hit off the screen is a miss, and the first hit decides. The share of the light that gets past is
+`1 − intensity`, the light's `contactShadowCastingIntensity` (1) where the surface hit casts contact shadows — every
+surface but an eye's — and its `contactShadowNonCastingIntensity` (0) where it does not. The ray's length is the
+light's `contactShadowLength` (0: none), in screen units — a share of the screen's height at the pixel's depth — or,
+with `contactShadowLengthInWorldSpace`, in metres, and only a light that casts a shadow has one. Beside the lights'
+own, the models fix two: a pixel of the eye model casts half a centimetre toward every light, and one of the hair
+model, under a light with no shadow bits, a fifth of the half height of the screen at its depth (the ray then also
+hits what shares its depth); neither follows the view's switch. A pixel of the thin subsurface, subsurface or skin
+model lets through the light that travels the hit distance through its material, `e^(−density · distance)` of the
+density its opacity gives (`subsurfaceDensity`, which the shadow maps' receiver reads too); the profile, the hair and
+the eye take the first hit as a blocker. Every hit counts as casting contact shadows but an eye's: the reference's
+per-object bit is not read (its default is on).
+
+The numbers are folded per light on the CPU, as the reference builds a light's data (`scene/light/contactShadowView.ts:
+writeContactShadow`): the light's own, each replaced by the view's override that is 0 or more — the length with its own
+unit —, the length negative in metres and doubled in screen units, no ray and the intensities 1 and 0 with the switch
+off; a ray that cannot darken — a length of 0, or both folded intensities 0 — is a length of 0 (the lights that cast one are counted
+under the same rule). They sit in the seventh `vec4` of the light's record (`contactGi`: the length, the two intensities and the
+indirect lighting factor, `LIGHT_FIELD.contactGi`), so a light is 28 floats. The frame reads the view's five
+settings at the image's entry (`lighting/contactShadow/frame.ts:followContactShadows`, with the other settings, before
+the lit program's key is read) and hands them to the store (`SceneLightStore.setContactShadowView`), which writes the
+contact lanes of every light again, and publishes the epoch as a change of the air does, when one moved. A light's own
+contact edit is the same: its lanes are written and the epoch published, its revision stays, so no shadow page of it is
+staled. The rays go toward the light's centre, a tube lamp's included. The settings are the world's, one set for every view that draws
+the store's one buffer (`runtime/settingFamilies.ts`, the `shadows` family, `world: 'image'`; `ViewOverrides` holds
+no shadow setting). The view uniform carries the matrix the surfaces were drawn with and the camera's forward axis and
+field (`VIEW_LAYOUT`). A program holds the code (`ContractKey.contactless`) when a light casts a ray of its own under
+the view's folded settings, or a surface may be of the eye or hair model; the translucent programs never hold it.
+Translucent surfaces cast none: a material option that asks for a ray of a fifth of the half height of the screen
+would need the opaque depth in the blend programs and a mark in the item's flags. The view's settings are shadow
+settings ([SDK.md](SDK.md#contact-shadows)).
+
 <!-- wave-1: W1-1/W1-3/W1-9 docs pending -->
 
 ## Light functions
@@ -1926,7 +1976,7 @@ once a material. The map is a slot of the materials' colour atlas (`lighting/lig
 they are resident). Its record fields are `lightFunction`, `lightFunctionScale` (10.24 m on each
 axis), `lightFunctionFadeDistance` (1000 m), `lightFunctionDisabledBrightness` (0.5) and, for a
 rectangle, `lightFunctionConeAngle` (0, at most 89 degrees) (`scene/light/lightFunction.ts`); the
-light's 24 floats do not grow: the light function table's entry the light reads rides in its kind word,
+light's 28 floats do not grow for it: the light function table's entry the light reads rides in its kind word,
 above the rank and the flags (`LIGHT_FUNCTION_STEP`; 0, none), set by the frame, not by the host
 (`SceneLightStore.assignLightFunction`).
 
@@ -3441,6 +3491,7 @@ const glass = material.meshStandard({
   translucencyLighting: 'volume',
 })
 ```
+
 **The translucency global illumination volume.** The indirect light of every see-through surface (the blends, the water, the
 transmissive stages) is one filtered fetch of a grid fitted to the view (`lighting/translucencyGi/`), in place of the gather of the
 world's probes each of its fragments made. The grid is a cell of `translucencyGiGridPixelSize` pixels (32) across the image and
@@ -3468,7 +3519,6 @@ medium takes the constant band alone. The volume takes the sampled texture the w
 (16 of 16 sampled textures, 4 of 16 samplers, 9 of 12 uniform buffers: `gpu/core/stageLimits.test.ts`). What a fragment behind the
 front surface of its pixel reflects is the environment through its lobes (`reflectionEnvironmentOf`); the front's is the trace's.
 The radiance cache is the world's probes' (the shared path of the reference); a cache of its own for the volume is not made.
-
 
 ## Presentation
 

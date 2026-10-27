@@ -11,17 +11,17 @@ import {
   VSM_PAGE_LOOKUP_WGSL,
   VSM_TABLE_ORIGIN_WGSL,
 } from '../pageTableWgsl.ts'
-import { VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
+import { VSM_PROJECTION_DATA_READ_WGSL, VSM_PROJECTION_DATA_WGSL } from './projectionDataWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { pow2FromExponent } from '../../../../../../math/src/wgsl/integer.ts'
 
 const sampleLevelText = /* wgsl */ `/** The biased level of a distance at a view depth, with the depth of field's bias (none for a negative
- *  depth). A clipmap's levels all carry its one resolution bias (\`vsmClipmapProjectionData\`,
- *  \`clipmapBias.test.ts\`), the base level's among them, which the base record already holds. */
+ *  depth) and the bias of the clipmap map that level falls in (\`vsmClipmapLevelBias\`). Without the compute
+ *  throttle every map of a clipmap carries the one resolution bias (\`vsmClipmapProjectionData\`). */
 fn vsmSampledLevel(base:VsmProjectionData,distSqToOrigin:f32,sceneDepth:f32)->f32{
  var level=vsmLevelOfDistanceSq(distSqToOrigin);
  if(sceneDepth>=0.0){level+=vsmDofResolutionBias(sceneDepth);}
- return level+base.levelBias;
+ return level+vsmClipmapLevelBias(base,level);
 }
 struct VsmMapRead{
  depth:f32,
@@ -183,6 +183,7 @@ export const vsmProjectionSampleWgsl = (pool: WgslDecl) =>
       VSM_PAGE_LOOKUP_WGSL,
       VSM_TABLE_ORIGIN_WGSL,
       VSM_PROJECTION_DATA_WGSL,
+      VSM_PROJECTION_DATA_READ_WGSL,
       pow2FromExponent,
     ],
     `

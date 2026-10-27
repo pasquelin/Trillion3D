@@ -17,7 +17,7 @@ import { createViewFingerprint } from '../../../../frame/view/viewFingerprint.ts
 import { assignChannels, heldVsm } from './vsmPlanSteps.ts'
 import { sunCascadesOf, vsmFirstPersonActive, vsmMapSettings } from './vsmFarShadow.ts'
 import { shadowsOn, tracesTranslucent } from './vsmGates.ts'
-import { vsmSunLevels } from '../mapSettings.ts'
+import { vsmSunLevels, type VsmMapSettings } from '../mapSettings.ts'
 import { dropEngineVsmCache, releaseEngineVsm, unshadowLights, vsmCountersOn } from './engineVsm.ts'
 import { wholeTableRows } from './vsmLightMaps.ts'
 import { VSM_OVERFLOW_MAP_SLOTS } from '../constants.ts'
@@ -27,8 +27,14 @@ import { vsmCastPipes } from '../invalidation/castStale.ts'
 import { vsmMarkingPipes } from '../markingPass.ts'
 import { vsmPageManagementPipes } from '../pageManagementPass.ts'
 import { vsmOcclusionPipes } from '../occlusion/occlusionPass.ts'
-import { vsmRasterPipe, vsmRenderComputePipes, vsmSoftwarePipes } from '../render/renderPipes.ts'
+import {
+  vsmRasterPipe,
+  vsmRenderComputePipes,
+  vsmRenderCullPipes,
+  vsmSoftwarePipes,
+} from '../render/renderPipes.ts'
 import { vsmDescentPipes } from '../traversal/traversalPass.ts'
+import { vsmThrottled, vsmThrottleStages } from '../throttle.ts'
 import type { VsmLayout } from '../layout.ts'
 import { vsmRenderTiersDrawn, type CompiledTiers } from '../render/renderParamsWgsl.ts'
 import { chainReady, type PreparedPipeline } from '../../../deferred/fullscreen.ts'
@@ -149,6 +155,9 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const layout = vsmFirstSetLayout(rt, frameLights(rt, 'reserve'))
   return [
     ...framePipelines(rt, device, layout, pageLayout, false).map((stage) => stage.prepare()),
+    ...(vsmThrottled(vsmMapSettings(rt).shadows)
+      ? throttledPipelines(rt, device, layout).map((stage) => stage.prepare())
+      : []),
     vsmProjectionPipeline(
       device,
       layout,
@@ -159,6 +168,68 @@ export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
     prepareCastDiff(device),
     prepareCasterDecode(device),
   ].filter((compile): compile is Promise<void> => compile !== undefined)
+}
+
+/** The programs of the marking the image can run: with the translucent front layer's marks or not,
+ *  with the water's or not (`waters`, the pixels' marking alone), and whether it is from the froxels. */
+function markingVariants(rt: WebgpuPagesRuntime) {
+  const froxels = viewMarkingOf(rt) === 'froxels'
+  return {
+    fronts: tracesTranslucent(rt) ? [false, true] : [false],
+    waters: marksWater(rt) && !froxels ? [false, true] : [false],
+    froxels,
+  }
+}
+
+/** The programs of a frame the compute throttle runs beside the plain ones: the marking that reads
+ *  each map's own bias, the cull that counts the clusters per map, and the two kernels. */
+function throttledPipelines(rt: WebgpuPagesRuntime, device: GPUDevice, layout: VsmLayout) {
+  const marking = vsmMarkingPipes(device, layout),
+    culls = vsmRenderCullPipes(device, layout, true)
+  const { fronts, froxels, waters } = markingVariants(rt)
+  return [
+    ...fronts.flatMap((front) => waters.map((water) => marking.pixels(front, water, true))),
+    ...(froxels ? [marking.froxelMark(true)] : []),
+    culls.cull,
+    ...(layout.occlusion ? [culls.cullFirst, culls.cullSecond, culls.cullPost] : []),
+  ]
+    .map((pipe) => pipe.prepared)
+    .concat(vsmThrottleStages(device))
+}
+
+/** What the throttle's programs were last found compiled for (`throttleOn`). */
+interface ThrottleReady {
+  translucent: boolean
+  froxels: boolean
+  water: boolean
+}
+const throttleReadyFor = new WeakMap<VsmLayout, ThrottleReady>()
+
+/** Whether the settings `maps` ask the compute throttle and every program it implies is compiled,
+ *  each not yet asked now: the frame goes unthrottled until then, the shadows planned all the same. */
+function throttleOn(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  layout: VsmLayout,
+  maps: VsmMapSettings,
+) {
+  if (!vsmThrottled(maps.shadows)) return false
+  const now = {
+    translucent: tracesTranslucent(rt),
+    froxels: viewMarkingOf(rt) === 'froxels',
+    water: marksWater(rt),
+  }
+  const known = throttleReadyFor.get(layout)
+  if (
+    known &&
+    known.translucent === now.translucent &&
+    known.froxels === now.froxels &&
+    known.water === now.water
+  )
+    return true
+  if (!chainReady(...throttledPipelines(rt, device, layout))) return false
+  throttleReadyFor.set(layout, now)
+  return true
 }
 
 /** The pipelines of the frame's passes over `layout`: every compute pipe of the marking, the page
@@ -175,9 +246,7 @@ function framePipelines(
   const marking = vsmMarkingPipes(device, layout),
     render = vsmRenderComputePipes(device, layout)
   const casts = vsmCastPipes(device, layout)
-  const fronts = tracesTranslucent(rt) ? [false, true] : [false],
-    froxels = viewMarkingOf(rt) === 'froxels',
-    waters = marksWater(rt) && !froxels ? [false, true] : [false]
+  const { fronts, froxels, waters } = markingVariants(rt)
   const raster = vsmRasterPipe(device, layout, pageLayout, rt.vis.rasters)
   const pipes = [
     casts.args,
@@ -447,7 +516,7 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
     unshadowLights(store)
     return false
   }
-  vsm.plan = { ...plan, tiers }
+  vsm.plan = { ...plan, tiers, throttleReady: throttleOn(rt, device, vsm.res.layout, state.maps) }
   vsm.pendingBoxes = boxes
   vsm.pendingDiff = diff
   vsm.pendingCastMaps = castMaps

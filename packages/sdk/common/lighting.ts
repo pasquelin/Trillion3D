@@ -22,6 +22,7 @@ export {
 export { cellSpacing, createBounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export type { BounceCascadeLevel, BounceCascades } from '../../sdk-core/src/bounce/cascades.ts'
 export { cloneSceneLight } from '../../sdk-core/src/scene/light/clone.ts'
+export type { ContactShadowView } from '../../sdk-core/src/scene/light/contactShadowView.ts'
 export { createSceneLightStore } from '../../sdk-core/src/scene/light/store.ts'
 export type { SceneLightStore } from '../../sdk-core/src/scene/light/store.ts'
 export { DEFAULT_LIGHT_UNITS, LIGHT_UNITS } from '../../sdk-core/src/scene/light/lightUnits.ts'

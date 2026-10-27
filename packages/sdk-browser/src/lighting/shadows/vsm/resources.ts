@@ -39,6 +39,7 @@ import {
   type VsmOcclusionResources,
 } from './occlusion/occlusionResources.ts'
 import type { VsmOcclusionContext } from './occlusion/occlusionPass.ts'
+import type { VsmThrottleState } from './throttle.ts'
 import { madeBytesOf } from '../../../gpu/core/textureBytes.ts'
 import {
   bufferBytes,
@@ -106,12 +107,15 @@ export interface VsmResources {
    *  with the set (`destroyEngineVsm`): the projection's view uniform and blue noise
    *  (`releaseVsmProjection`), the raster's context (`releaseVsmRender`), the page management's
    *  (`releaseVsmPageManagement`), the shadow changes' stale (`releaseVsmInvalidation`), the
-   *  occlusion pyramid's build (`releaseVsmOcclusion`). */
+   *  occlusion pyramid's build (`releaseVsmOcclusion`), the compute throttle's buffers. */
   projection?: VsmProjectionState
   render?: VsmRenderContext
   pageManagement?: VsmPageManagementContext
   occlusionPass?: VsmOcclusionContext
   invalidation?: VsmCastState
+  /** The compute throttle's buffers, made on the first throttled frame (`throttle.ts`,
+   *  `releaseVsmThrottle`). */
+  throttle?: VsmThrottleState
   destroy(): void
   bytes: number
 }
@@ -235,6 +239,11 @@ export function createVsmResources(device: GPUDevice, options: VsmResourceOption
   return res
 }
 
+/** The index, 0 or 1, of the frame set `res` is in: `current` is `frames[parity]`. What a frame writes
+ *  beside the set (`throttle.ts`) takes its turns by it. */
+export const vsmFrameParity = (res: Pick<VsmResources, 'current' | 'frames'>): 0 | 1 =>
+  res.current === res.frames[0] ? 0 : 1
+
 /** The members a frame reads as the previous one's, none shared: what a table growth carries. */
 const CARRIED_MEMBERS = [
   'uniforms',
@@ -272,7 +281,7 @@ export function growVsmTables(
   const tableBuffers: VsmMade[] = []
   const tables = createVsmTables(device, layout, tableBuffers)
   pendingMade(device, tableBuffers, madeBytesOf(tableBuffers), () => {
-    const parity = res.current === res.frames[0] ? 0 : 1
+    const parity = vsmFrameParity(res)
     const prev = tables.frames[1 - parity]
     const encoder = device.createCommandEncoder({ label: 'vsm.growTables' })
     for (const member of CARRIED_MEMBERS) {

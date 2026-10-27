@@ -196,18 +196,18 @@ export const RECT_SURFACE_LIGHT_WGSL = wgslBlock(
 /** Its diffuse share (column 0) and the rest (column 1: the specular lobe, the coat), one
  *  evaluation for the whole term, which weighs them by the light's shares, and the split one
  *  (\`declaredLightSplit\`, a translucent layer's diffuse under its coverage, its specular over it). */
-fn rectLightSplit(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,ao:f32)->mat2x3f{
+fn rectLightSplit(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f)->mat2x3f{
  let tint=light.colorIntensity.rgb;
  let incident=rectIrradianceOf(r,N);
  let E=light.colorIntensity.w*incident.w;
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){
   if(incident.w<=0.0){return mat2x3f(vec3f(0.0),vec3f(0.0));}
   // E already carries the cosine: the diffuse model takes it whole, at a unit N·L.
-  if(surfaceModel==${MODEL_FLAG.diffuse}u){return mat2x3f(modelLight(rgb,metal,N,N,E,ao)*tint,vec3f(0.0));}
+  if(surfaceModel==${MODEL_FLAG.diffuse}u){return mat2x3f(modelLight(rgb,metal,N,N,E)*tint,vec3f(0.0));}
   // Toon bands the cosine toward the form factor, on the irradiance of a face turned to it:
   // bounded by π, as a lamp's energy is by its falloff.
   let facing=light.colorIntensity.w*PI*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
-  return mat2x3f(modelLight(rgb,metal,N,incident.xyz,facing,ao)*tint,vec3f(0.0));
+  return mat2x3f(modelLight(rgb,metal,N,incident.xyz,facing)*tint,vec3f(0.0));
  }
  // A pixel under a clear coat is lit by the coat model whole (\`coatedRect\`): the coat lights from its own normal,
  // whatever the base's face.

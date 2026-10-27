@@ -12,6 +12,7 @@ import * as lightFunction from './lightFunctionSettings.ts'
 import * as lightShaft from './lightShaftSettings.ts'
 import * as lightCloudShadow from './lightCloudShadowSettings.ts'
 import * as lightShadow from './lightShadowSettings.ts'
+import * as lightContactShadow from './lightContactShadowSettings.ts'
 import { recordColourAndAir } from './lightAirSettings.ts'
 import { recordFalloff, recordShares, recordUnits } from './lightLampSettings.ts'
 import { storeKindOf } from './lightNumbers.ts'
@@ -83,6 +84,7 @@ export function lampRecord(
     lightShaft.settingsSet(light),
     lightCloudShadow.settingsSet(light),
     lightShadow.settingsSet(light),
+    lightContactShadow.settingsSet(light),
   )
   recordFacing(light, record, kind, rectangle)
   if (kind === 'directional') {
@@ -216,6 +218,7 @@ export function lightFromRecord(record: SceneLight): Light {
     ...lightShaft.fromRecord(record),
     ...lightCloudShadow.fromRecord(record),
     ...lightShadow.fromRecord(record),
+    ...lightContactShadow.fromRecord(record),
   })
   node.name = record.id
   // A tube lies along the node's own up: turned there from the scene's.

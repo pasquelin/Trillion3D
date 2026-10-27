@@ -4,9 +4,16 @@ import { renderScaleBounds, type RenderScale } from './renderScaleOption.ts'
 import { createTargetCap, currentDisplay, FALLBACK_REFRESH_MS, PERIOD } from './scaleTargets.ts'
 import { createScaleMemory } from './scaleMemory.ts'
 import { createScaleFollow } from './scaleFollow.ts'
-import { observeFrame, tickScale } from './scaleTick.ts'
-import { createScaleWindow, edgeOf, holdFrame } from './scaleWindow.ts'
+import { observeFrame, tickScale, type ScaleParts } from './scaleTick.ts'
+import { createScaleWindow, edgeOf, holdFrame, vsmOf } from './scaleWindow.ts'
 import { NO_TIMING } from './dynamicResolution.ts'
+
+/** `observe` over the controller's `parts`: the GPU time of an image, and the times of its visibility
+ *  passes and its shadow raster's where there are some to fit. */
+const observerOf =
+  (parts: ScaleParts) =>
+  (gpuMs: number | null, scale: number, steered = true, edgeMs = NO_TIMING, vsmMs = NO_TIMING) =>
+    observeFrame(parts, gpuMs, scale, steered, edgeMs, vsmMs)
 
 /**
  * THE FRAME LOOP'S RENDER SCALE: the dynamic resolution (`dynamicResolution.ts`), one controller
@@ -28,6 +35,11 @@ import { NO_TIMING } from './dynamicResolution.ts'
  *   (`observe`) while the host gives it a budget. It is forgotten, and back at 1, where the render
  *   scale's history is.
  *
+ * - The shadow raster's compute budget, a third of the same heuristic: a fraction (`vsm`), fitted to the
+ *   GPU time of the shadow raster's passes (`observe`) while the shadows give it a budget
+ *   (`shadowDynamicResolutionTimeBudgetMs`); the shadows throttle their maps by what it gives up. It is
+ *   forgotten, and back at 1, where the render scale's history is.
+ *
  * Its members: `drawn`, the scale of the last image drawn (1 before any); `steered`, whether that
  * image was drawn at the controller's scale, which its cost then measures; `refreshMs`, the
  * refresh interval the clock measured (null until it found one); `measuring`, whether the
@@ -41,9 +53,10 @@ import { NO_TIMING } from './dynamicResolution.ts'
  * targets' scale, their memory cap and the clock its refusals are asked again by
  * (`scaleMemory.ts`); `drew(scale, steered)`, an image was drawn; `tick(now, timed)`, a frame of
  * the display began at `now`, ms, its rAF timestamp, `timed`: the device has a GPU timer
- * (`tickScale`); `observe(gpuMs, scale, steered, edgeMs)`, the GPU busy time of an image drawn at
- * `scale`, a few frames late, null where the timer read none, and the time of its visibility
- * passes (`NO_TIMING` where there is none to fit); `edge`, the cut's edge scale (`edgeOf`);
+ * (`tickScale`); `observe(gpuMs, scale, steered, edgeMs, vsmMs)`, the GPU busy time of an image drawn at
+ * `scale`, a few frames late, null where the timer read none, the time of its visibility
+ * passes and the time of its shadow raster's (`NO_TIMING` where there is none to fit); `edge`, the cut's
+ * edge scale (`edgeOf`); `vsm`, the shadow raster's (`vsmOf`);
  * `rules`, the heuristic's settings, written in place by the frame; `noteCpu(ms)`, the CPU time
  * of the engine's image just drawn.
  */
@@ -85,6 +98,7 @@ export function createScaleControl(option: RenderScale | undefined, maxFrameRate
     },
     wanted: () => (w.bounds.auto ? Math.min(w.s, w.max) : w.bounds.max),
     edge: edgeOf(w),
+    vsm: vsmOf(w),
     rules: w.rules,
     noteCpu: (ms: number) => void (w.cpuMs = ms),
     allocated: memory.allocated,
@@ -102,8 +116,7 @@ export function createScaleControl(option: RenderScale | undefined, maxFrameRate
     },
     tick: (now: number, timed = false) => tickScale(parts, now, timed),
     skips: (now: number) => skipsDisplayFrame(cap, refresh, now),
-    observe: (gpuMs: number | null, scale: number, steered = true, edgeMs = NO_TIMING) =>
-      observeFrame(parts, gpuMs, scale, steered, edgeMs),
+    observe: observerOf(parts),
   }
   return control
 }

@@ -3,7 +3,8 @@
  * the camera, the viewport — size, raw-output flag, sharpening strength —, the background, the
  * contract's light parameters, the TAA jitter, the composition's source (`writeSource`), the
  * lighting term a view shows (`writeLightView`), how the ambient occlusion is applied
- * (`writeAmbientOcclusion`) and how the screen probes' history is read (`writeScreenProbes`). One
+ * (`writeAmbientOcclusion`), how the screen probes' history is read (`writeScreenProbes`) and what the
+ * contact shadows' rays project by (`writeContactShadows`). One
  * buffer, one packed array, written once per image; its words are those of `VIEW_LAYOUT`, which
  * makes the shader's struct.
  */
@@ -85,7 +86,7 @@ function writeWords(
   buffer: GPUBuffer,
   packed: Float32Array<ArrayBuffer>,
   at: number,
-  values: readonly number[],
+  values: ArrayLike<number>,
 ) {
   let same = true
   for (let i = 0; same && i < values.length; i++) same = packed[at + i] === Math.fround(values[i])
@@ -195,6 +196,13 @@ function termWrites({ device, buffer, packed }: ViewBuffer) {
       QUAD[2] = intensity
       QUAD[3] = mode
       writeWords(device, buffer, packed, AT.screenProbes, QUAD)
+    },
+    /** What the lit passes' contact shadows' rays read of the view (`VIEW_LAYOUT`): the matrix the surfaces
+     *  were drawn with, and the camera's forward axis with the tangent of half its vertical field (1
+     *  under an orthographic camera). Their words alone are written, when they change. */
+    writeContactShadows(viewProjection: ArrayLike<number>, contact: ArrayLike<number>) {
+      writeWords(device, buffer, packed, AT.viewProjection, viewProjection)
+      writeWords(device, buffer, packed, AT.contact, contact)
     },
   }
 }

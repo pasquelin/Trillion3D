@@ -41,6 +41,8 @@ const run = (state: object) =>
     irisNormal: [0, 0, 1],
     ...state,
   })
+/** The shadow terms of a light whose shadow is `shade` and whose contact shadow lets everything through. */
+const terms = (shade: number) => ({ surface: shade, transmission: shade, thickness: shade })
 const srgb = (c: number) => (c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4)
 
 test('a skin reads the table at its cosine and opacity, times its subsurface colour', () => {
@@ -57,7 +59,7 @@ test('a skin reads the table at its cosine and opacity, times its subsurface col
     [Math.sqrt(1 - cosine * cosine), 0, cosine],
     cosine,
     0,
-    1,
+    terms(1),
     false,
     false,
     1,
@@ -91,7 +93,7 @@ test('a hair term is finite, never negative, and its multiple scattering follows
       L,
       0.5,
       0,
-      1,
+      terms(1),
       false,
       false,
       1,
@@ -115,7 +117,7 @@ test('a hair term is finite, never negative, and its multiple scattering follows
     L,
     0.5,
     0,
-    1,
+    terms(1),
     false,
     false,
     1,
@@ -129,12 +131,45 @@ test('a hair term is finite, never negative, and its multiple scattering follows
     L,
     0.5,
     0,
-    0,
+    terms(0),
     false,
     false,
     1,
   ) as number[]
   assert.ok(lit1.every((x, c) => x >= dark[c]))
+})
+
+test('a hair’s tint follows the transmission shadow, its multiple scattering the surface shadow', () => {
+  const at = run({ pixelModel: PIXEL_MODEL.hair, modelScatter: 1 })
+  // The fibre along N, the eye and the light square to it: sin of both angles is 0, where the lobes carry light.
+  const N = [0, 0, 1],
+    V = [1, 0, 0],
+    L = [0, 1, 0]
+  const hair = (surface: number, transmission: number) =>
+    at.modelTransmission(
+      [0.8, 0.3, 0.1],
+      0.4,
+      N,
+      V,
+      L,
+      L,
+      0.6,
+      0,
+      { surface, transmission, thickness: transmission },
+      false,
+      false,
+      1,
+    ) as number[]
+  const open = hair(1, 1)
+  // The occlusion of a light with no shadow bits is the surface shadow's alone: the scattering lowers.
+  const occluded = hair(0.5, 1)
+  assert.ok(
+    occluded.every((x, c) => x <= open[c]) && occluded.some((x, c) => x < open[c]),
+    `${occluded} against ${open}`,
+  )
+  // Its tint is the transmission shadow's: the same surface shadow under another transmission tints it.
+  assert.notDeepEqual(occluded, hair(0.5, 0.5))
+  assert.notDeepEqual(hair(1, 0.5), hair(1, 1))
 })
 
 test('an eye’s sclera and iris, and a pixel of no model gives nothing', () => {
@@ -155,7 +190,7 @@ test('an eye’s sclera and iris, and a pixel of no model gives nothing', () => 
     [0, 0, 1],
     1,
     0,
-    1,
+    terms(1),
     false,
     false,
     1,
@@ -169,7 +204,7 @@ test('an eye’s sclera and iris, and a pixel of no model gives nothing', () => 
     [1, 0, 0],
     0,
     0,
-    1,
+    terms(1),
     false,
     false,
     1,
@@ -184,7 +219,7 @@ test('an eye’s sclera and iris, and a pixel of no model gives nothing', () => 
     [0, 0, 1],
     1,
     0,
-    1,
+    terms(1),
     false,
     false,
     1,
@@ -199,7 +234,20 @@ test('a profile pixel takes the profile at the depth its shadow reads as, and on
     V = [0, 0, 1],
     L = [0, 0, -1]
   const term = (shade: number, transmits: boolean) =>
-    at.modelTransmission([1, 1, 1], 0.5, N, V, L, L, 0, 0, shade, false, transmits, 1) as number[]
+    at.modelTransmission(
+      [1, 1, 1],
+      0.5,
+      N,
+      V,
+      L,
+      L,
+      0,
+      0,
+      terms(shade),
+      false,
+      transmits,
+      1,
+    ) as number[]
   // Half shadowed is 2.5 cm of 5: the samples' middle, 15.5 / 31 = 0.5; the phase of an isotropic profile, straight through, is 0.5.
   assert.ok(Math.abs(term(0.5, true)[0] - 0.25) < 1e-5, `${term(0.5, true)}`)
   // Not shadowed there is no depth: the first sample, nothing; wholly shadowed, the last, held at its edge.
@@ -215,7 +263,20 @@ test('a thin subsurface pixel gives the lerp of its transmitted colour and its c
     L = [0, 0, 1]
   at.setPixelModel(PIXEL_MODEL.subsurface, [0.8, 0.4, 0.2, 0], [1, 1, 1, 0], N, V, 0.5, false)
   const term = (shade: number, ao: number) =>
-    at.modelTransmission([1, 1, 1], 0.5, N, V, L, L, 1, 0, shade, false, false, ao) as number[]
+    at.modelTransmission(
+      [1, 1, 1],
+      0.5,
+      N,
+      V,
+      L,
+      L,
+      1,
+      0,
+      terms(shade),
+      false,
+      false,
+      ao,
+    ) as number[]
   // Opacity 0, the light behind the eye's line (L·-V = -1): no in-scattering, the back scattering is ao / 2π, whatever the normal.
   assert.ok(Math.abs(term(1, 1)[0] - 0.8 / (2 * Math.PI)) < 1e-5, `${term(1, 1)}`)
   assert.ok(Math.abs(term(1, 0.5)[1] - 0.5 * (0.4 / (2 * Math.PI))) < 1e-5)

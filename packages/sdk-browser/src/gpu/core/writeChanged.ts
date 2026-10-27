@@ -19,15 +19,34 @@ import type { UniformSlots } from '../../session/memory/pools.ts'
 
 const HELD = new WeakMap<GPUBuffer, Uint32Array>(),
   NONE = new Uint32Array(0)
+/** The buffers a GPU kernel wrote into behind the upload's back, each with the count of its first words
+ *  the kernel may have written: what the words held beside them say is no longer what they hold. */
+const WRITTEN_ON_GPU = new WeakMap<GPUBuffer, number>()
+
+/** A kernel wrote into the first `words` words of `buffer`: the next `writeChanged` of it sends them
+ *  whole, whatever the words held say, and the mark is gone. Only `writeChanged` takes such a buffer. */
+export function markWrittenOnGpu(buffer: GPUBuffer, words: number) {
+  WRITTEN_ON_GPU.set(buffer, Math.max(words, WRITTEN_ON_GPU.get(buffer) ?? 0))
+}
+
+/** The writers by slots and by records compare against the words held: a buffer a kernel wrote into
+ *  is theirs no longer. */
+function refuseMarked(buffer: GPUBuffer) {
+  if (WRITTEN_ON_GPU.has(buffer))
+    throw new Error(`writeChanged: '${buffer.label}' was written on the GPU: write it whole`)
+}
 let changed = new Int32Array(64)
 const rule: RangeRule = { gap: 0, cap: WRITE_CAP, steps: new Int32Array(64) }
 const ranges = new Int32Array(2 * WRITE_CAP)
 
 /** `target`, a copy of `source` whole (`copyBufferToBuffer`), holds the words `source` held: the
- *  next write to it sends what differs from them. */
+ *  next write to it sends what differs from them, or, if a kernel wrote into `source`
+ *  (`markWrittenOnGpu`), the words it wrote whole. */
 export function writeChangedCopy(source: GPUBuffer, target: GPUBuffer) {
   const held = HELD.get(source)
   if (held) HELD.set(target, held.slice(0, target.size / 4))
+  const written = WRITTEN_ON_GPU.get(source)
+  if (written !== undefined) WRITTEN_ON_GPU.set(target, written)
 }
 
 /** The words `buffer` holds, at least its first `to`, grown by `grownLength` up to its size. */
@@ -69,7 +88,9 @@ function send(
 }
 
 /** Writes into `buffer` the words of `image` in [`from`, `to`) (word indices, the same in both)
- *  that differ from those it holds. */
+ *  that differ from those it holds. A buffer a kernel wrote into (`markWrittenOnGpu`) holds none of
+ *  what it says: the image goes up whole once, from its first word to the last the kernel may have
+ *  written or `to`, and the words held become the image's. */
 export function writeChanged(
   device: GPUDevice,
   buffer: GPUBuffer,
@@ -77,6 +98,14 @@ export function writeChanged(
   from: number,
   to: number,
 ) {
+  const written = WRITTEN_ON_GPU.get(buffer)
+  if (written !== undefined) {
+    WRITTEN_ON_GPU.delete(buffer)
+    const end = Math.max(to, written)
+    heldWords(buffer, end).set(image.subarray(0, end))
+    device.queue.writeBuffer(buffer, 0, image, 0, end)
+    return
+  }
   const held = heldWords(buffer, to)
   let count = 0
   for (let k = from; k < to; k++) count = follow(held, image, k, count)
@@ -105,6 +134,7 @@ export function writeChangedSlots(
   writes: SlotWrites = 'ranges',
 ) {
   if (end <= first) return
+  refuseMarked(buffer)
   const { words, strideWords } = slots
   const held = heldWords(buffer, (end - 1) * strideWords + words)
   let changes = 0
@@ -126,6 +156,7 @@ export function writeChangedRecords(
   width: number,
 ) {
   if (!count) return
+  refuseMarked(buffer)
   const held = heldWords(buffer, (records[count - 1] + 1) * width)
   let changes = 0
   for (let j = 0; j < count; j++)

@@ -12,6 +12,7 @@ import type { Light } from '../../../../sdk-core/src/world/light/light.ts'
 import { tintSet } from '../../../../sdk-core/src/world/light/lightAirSettings.ts'
 import { settingsSet } from '../../../../sdk-core/src/world/light/lightShaftSettings.ts'
 import { settingsSet as cloudShadowSettingsSet } from '../../../../sdk-core/src/world/light/lightCloudShadowSettings.ts'
+import { settingsSet as contactShadowSettingsSet } from '../../../../sdk-core/src/world/light/lightContactShadowSettings.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts'
 import type { LoadedModel } from '../world/models/loadedModel.ts'
@@ -160,6 +161,7 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
 function saveLight(lamp: Light): NonNullable<SavedNode['light']> {
   const shafts = settingsSet(lamp)
   const cloudShadows = cloudShadowSettingsSet(lamp)
+  const contactShadows = contactShadowSettingsSet(lamp)
   return {
     kind: lamp.kind,
     color: rgb(lamp.color),
@@ -180,6 +182,7 @@ function saveLight(lamp: Light): NonNullable<SavedNode['light']> {
     ...(tintSet(lamp) ? { sunDiskTint: rgb(tintSet(lamp)!) } : {}),
     ...(Object.keys(shafts).length ? { shafts } : {}),
     ...(Object.keys(cloudShadows).length ? { cloudShadows } : {}),
+    ...(Object.keys(contactShadows).length ? { contactShadows } : {}),
   }
 }
 

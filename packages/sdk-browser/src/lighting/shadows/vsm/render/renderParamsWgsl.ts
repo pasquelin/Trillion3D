@@ -103,6 +103,31 @@ const VSM_RENDER_COUNT_HELD = 8
 const VSM_RENDER_TIER_RECORDS = 9
 const VSM_RENDER_TIER_CURSOR = VSM_RENDER_TIER_RECORDS + VSM_RENDER_BINS
 export const VSM_RENDER_COUNT_WORDS = VSM_RENDER_TIER_CURSOR + VSM_RENDER_BINS
+/** The compute throttle's cluster counts (`../throttle.ts`), laid as a header of the totals then an entry
+ *  for each map slot, each the clusters of the hardware raster (`VSM_FEEDBACK_HW`) and of the software
+ *  raster (`VSM_FEEDBACK_SW`). The throttled cull counts them past the counters, in the same buffer
+ *  (`vsmFeedbackWords`); the frame copies them out whole. */
+const VSM_FEEDBACK_HW = 0
+const VSM_FEEDBACK_SW = 1
+const VSM_FEEDBACK_HEADER_WORDS = 2
+const VSM_FEEDBACK_ENTRY_WORDS = 2
+/** The words of the counts of `mapSlots` map slots. */
+export const vsmFeedbackWords = (mapSlots: number) =>
+  VSM_FEEDBACK_HEADER_WORDS + VSM_FEEDBACK_ENTRY_WORDS * mapSlots
+/** The counters' words with `feedbackWords` words of feedback past them (none: the counters alone). */
+export const vsmCountWords = (feedbackWords = 0) => VSM_RENDER_COUNT_WORDS + feedbackWords
+/** The feedback's layout, for the shaders that count it or read it. */
+export const VSM_FEEDBACK_WGSL = wgslBlock(
+  'VSM_FEEDBACK_WGSL',
+  [],
+  wgslConsts({
+    VSM_FEEDBACK_HW,
+    VSM_FEEDBACK_SW,
+    VSM_FEEDBACK_HEADER_WORDS,
+    VSM_FEEDBACK_ENTRY_WORDS,
+    VSM_RENDER_FEEDBACK: VSM_RENDER_COUNT_WORDS,
+  }),
+)
 /** Map view flag: directional (clipmap level, 1 mip, no near clip). */
 const VSM_RENDER_VIEW_DIRECTIONAL = 1
 /** The cull's four kinds: with no occlusion test, the occlusion's first cull against the previous

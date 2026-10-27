@@ -1,6 +1,7 @@
 import { LIGHT_SETTINGS } from '../scene/light/contracts.ts'
 import { DEFAULT_INNER_CONE_ANGLE } from '../scene/light/fields.ts'
 import { DEFAULT_LIGHT_UNITS, LIGHT_UNITS } from '../scene/light/lightUnits.ts'
+import { lightContactShadowProperties } from './lightContactShadowSchema.ts'
 import { lightShadowProperties } from './lightShadowSchema.ts'
 import type { JsonSchemaProperty } from './types.ts'
 
@@ -56,5 +57,10 @@ function lampProperties(): Record<string, JsonSchemaProperty> {
   }
 }
 
-/** The light tool's parameters that are not its basics, the sun's shadow settings and the lamps'. */
-export const lightProperties = () => ({ ...lampProperties(), ...lightShadowProperties() })
+/** The light tool's parameters that are not its basics, the sun's shadow settings, the contact
+ *  shadows' and the lamps'. */
+export const lightProperties = () => ({
+  ...lampProperties(),
+  ...lightShadowProperties(),
+  ...lightContactShadowProperties(),
+})

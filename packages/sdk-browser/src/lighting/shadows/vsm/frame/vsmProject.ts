@@ -25,6 +25,7 @@ import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contr
 import type { VsmBoundLight } from '../mapViews.ts'
 import type { EngineVsm } from './engineVsm.ts'
 import type { VsmFrameScratch } from './vsmEncode.ts'
+import type { VsmThrottleState } from '../throttle.ts'
 import { projectionLight } from './vsmPlan.ts'
 import { vsmRasterScene } from './vsmRasterScene.ts'
 import { vsmMapSettings } from './vsmFarShadow.ts'
@@ -49,6 +50,10 @@ export interface VsmFrame {
   projection: Float64Array
   vsm: EngineVsm
   plan: NonNullable<EngineVsm['plan']>
+  /** The compute throttle's buffers where it runs this frame (`vsmThrottleState`), and the strength the
+   *  render-scale controller gave it (`askVsmThrottleStrength`). */
+  throttle?: VsmThrottleState
+  strength: number
 }
 
 /** Says once per set that the GPU budget's room held the shadow raster's records short of the room
@@ -82,7 +87,7 @@ const recordLimit = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
  *  cast, listed and decoded as the casters of this frame, each map view selecting its own level of
  *  detail of them. */
 export function encodeVsmRaster(
-  { rt, device, encoder, cam, vsm, plan }: VsmFrame,
+  { rt, device, encoder, cam, vsm, plan, throttle }: VsmFrame,
   lights: readonly VsmBoundLight[],
 ) {
   const { lights: sceneLights, layout, rootWorlds } = rt
@@ -121,7 +126,7 @@ export function encodeVsmRaster(
     { ...casters, pageLayout, pageGroup, pageCompute },
     tessellation,
   )
-  const frame = { device, lights }
+  const frame = { device, lights, throttle }
   // The streaming reads the shadow views' requests of this set (`vsmShadowRequestCuts`).
   noteVsmRequestSet(rt, vsm.res)
   const stats = encodeVsmRender(encoder, vsm.res, frame, scene)

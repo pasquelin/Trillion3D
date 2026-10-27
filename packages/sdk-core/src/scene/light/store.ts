@@ -5,6 +5,7 @@ import {
   type SceneLightingView,
 } from './contracts.ts'
 import type { SceneEnvironment } from '../core/environment.ts'
+import type { ContactShadowView } from './contactShadowView.ts'
 import { LIGHT_FIELD, baseOf } from './fields.ts'
 import { createSunBlocks } from './sunBlocks.ts'
 import { joined } from '../../runtime/joined.ts'
@@ -17,6 +18,7 @@ import {
   removeLight,
   setLight,
   setTableAir,
+  setTableContactView,
   setTableEnvironment,
   sliceOf,
   type LightTable,
@@ -140,6 +142,9 @@ function writers(table: LightTable) {
     setAirlessSuns(on: boolean) {
       if (table.suns.setAirless(on)) table.epoch++
     },
+    /** Folds the lights' contact shadows with the view's settings: the lanes of every light are
+     *  written again when they differ from the last fold (`setTableContactView`). */
+    setContactShadowView: (view: ContactShadowView) => setTableContactView(table, view),
     assignLightFunction: (slot: number, index: number) => assignLightFunction(table, slot, index),
     assignSlice: (slot: number, slice: number) => assignSlice(table, slot, slice),
   }

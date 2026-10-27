@@ -4,6 +4,7 @@
  * previous id. Where each map's table lies is the table packing's (`tableBlocks.ts`).
  */
 import type { VsmIdAllocator } from './cacheManager.ts'
+import { VSM_NEXT_ID_VALID } from './constants.ts'
 import type { VsmNextMap } from './lightCache.ts'
 
 /** Next-map data stride on the GPU (`VsmNextMap`). */
@@ -70,14 +71,14 @@ export class VsmMapIds implements VsmIdAllocator {
     this.unseenMaps += count
     return this.allocateMapSlots(count)
   }
-  /** Records a map's next-frame data under its previous id. */
+  /** Records a map's next-frame data under its previous id, which has a next one. */
   writeNextMap(prevId: number, data: VsmNextMap) {
     const slot = (this.nextMaps[prevId] ??= {
       flags: 0,
       nextMapId: 0,
       pageShift: [0, 0],
     })
-    slot.flags = data.flags
+    slot.flags = data.flags | VSM_NEXT_ID_VALID
     slot.nextMapId = data.nextMapId
     slot.pageShift[0] = data.pageShift[0]
     slot.pageShift[1] = data.pageShift[1]

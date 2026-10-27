@@ -8,7 +8,7 @@ import { Mesh } from '../../../../sdk-core/src/world/object/mesh.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { emptyIrradiance } from '../../../../sdk-core/src/scene/core/environment.ts'
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
-import { sameSceneLight } from '../../../../sdk-core/src/scene/light/equal.ts'
+import { sameLightRecord } from '../../../../sdk-core/src/scene/light/equal.ts'
 import { rootedUnder } from '../../scene/host/world/rooted.ts'
 import { createWorldLights } from './lights.ts'
 import { createWorldLink } from './link.ts'
@@ -133,7 +133,7 @@ export function walkedLights(scene: Object3D) {
         }
         continue
       }
-      if (last && sameSceneLight(last.record, record)) continue
+      if (last && sameLightRecord(last.record, record)) continue
       const keys = Object.keys(record)
       const same = last && keys.length === Object.keys(last.record).length
       if (same && keys.every((key) => key in last.record)) api.setLight(id, record)

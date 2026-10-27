@@ -19,6 +19,7 @@ import * as lightFunction from './lightFunctionSettings.ts'
 import * as lightShaft from './lightShaftSettings.ts'
 import * as lightCloudShadow from './lightCloudShadowSettings.ts'
 import * as lightShadow from './lightShadowSettings.ts'
+import * as lightContactShadow from './lightContactShadowSettings.ts'
 import {
   defineWritable,
   initialNumbers,
@@ -154,6 +155,7 @@ export class Light extends Object3D {
     lightShaft.take(this, p)
     lightCloudShadow.take(this, p)
     lightShadow.take(this, p)
+    lightContactShadow.take(this, p)
     if (p.shadowsFog !== undefined) this.setFogShadow(p.shadowsFog)
     atmosphereSun.take(this, p.atmosphereSun)
     lightMobility.take(this, p.mobility)
@@ -236,6 +238,7 @@ export class Light extends Object3D {
     lightShaft.copy(this, source)
     lightCloudShadow.copy(this, source)
     lightShadow.copy(this, source)
+    lightContactShadow.copy(this, source)
     this.color.copy(source.color)
     this.groundColor.copy(source.groundColor)
     this.sh = source.sh && [...source.sh]
@@ -270,6 +273,7 @@ lightFunction.define(Light.prototype)
 lightShaft.define(Light.prototype)
 lightCloudShadow.define(Light.prototype)
 lightShadow.define(Light.prototype)
+lightContactShadow.define(Light.prototype)
 defineWritable(Light.prototype, NUMBERS, (light) => light._values)
 
 /** A member building one kind of light. */

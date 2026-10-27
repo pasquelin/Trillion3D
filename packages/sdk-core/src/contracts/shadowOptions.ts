@@ -1,5 +1,6 @@
 import { SHADOW_MAP_PRESET_LEVELS, SHADOW_MAP_RULES } from './shadowMapOptions.ts'
 import { SUN_SHADOW_RULES } from './sunShadowOptions.ts'
+import { CONTACT_SHADOW_RULES } from './contactShadowOptions.ts'
 import {
   contextReader,
   flagSetting as flag,
@@ -53,7 +54,8 @@ import {
  *  slice's, where the first holds the static layer's alone (a cached scene with much dynamic
  *  overdraw; it doubles the pyramid's memory) —, and `shadowOcclusionFullUpdate`, off — whether that
  *  pyramid is built again over every page each frame rather than over the pages drawn —, then the
- *  far levels' and the distance-field cascade's (`SUN_SHADOW_RULES`) and the shadow maps' own
+ *  far levels' and the distance-field cascade's (`SUN_SHADOW_RULES`), the contact shadows'
+ *  (`CONTACT_SHADOW_RULES`) and the shadow maps' own
  *  (`SHADOW_MAP_RULES`). */
 export const SHADOW_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -71,6 +73,7 @@ export const SHADOW_RULES = /* @__PURE__ */ (() =>
     flag('shadowDynamicHzb', false),
     flag('shadowOcclusionFullUpdate', false),
     ...SUN_SHADOW_RULES,
+    ...CONTACT_SHADOW_RULES,
     ...SHADOW_MAP_RULES,
   ] as const))()
 /** What the quality levels below the top write of the shadow settings: the sun's four rows — the

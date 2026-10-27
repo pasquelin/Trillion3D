@@ -18,6 +18,8 @@ import {
 } from './surfaceModelTerms.ts'
 import { vsmFacesAwayFromLocal } from '../shadows/vsm/facesAwayWgsl.ts'
 import { AIR_TINT_WGSL } from '../atmosphere/airTintWgsl.ts'
+import { contactShadowWgsl } from '../contactShadow/contactShadowWgsl.ts'
+import { SHADOW_TERMS_WGSL } from './shadowTermsWgsl.ts'
 
 /**
  * What a program's light term holds of the surface models: `models`, the diffuse and toon models, the
@@ -42,6 +44,14 @@ const SPECULAR: Out = (v) => `LightSplit(vec3f(0.0),${v})`
 
 /** The part of a program's label that names the air's tint left out (`airTint` false). */
 export const airTintLabel = (airTint: boolean) => (airTint ? '' : ', no air tint')
+
+/**
+ * The light's shadow terms (`shadowTermsOf`): its shadow `shade` (1 in a program with no shadow code), the
+ * pixel's occlusion `ao`, whether the light has shadow bits (`casts`: it casts a shadow, whether it holds
+ * a slot or not and whether the program holds the shadow code or not), and its contact shadow.
+ */
+const termsOf = (reads: boolean, contact: boolean) =>
+  `shadowTermsOf(${reads ? 'shade' : '1.0'},ao,casts,${contact ? 'contact' : '1.0'})`
 
 /**
  * The contribution of one declared light at the point, its shadow included — the engine's only
@@ -85,6 +95,12 @@ export const airTintLabel = (airTint: boolean) => (airTint ? '' : ', no air tint
  * (`lobesWgsl.ts`): the same `surfaceLight` and `rectLightSplit`, whose lobe hooks run the very same
  * terms on a pixel without lobes.
  *
+ * One step (`shadowTermsOf`, `shadowTermsWgsl.ts`) gives the light's surface and transmission shadows
+ * after its shadow read: the lobes take the occlusion `ao` where the light has no shadow bits, else its
+ * shadow, the transmitted terms its shadow alone. Without `contactless`, the program of the opaque lit passes
+ * that cast contact shadows (`contactShadow`, `../contactShadow/contactShadowWgsl.ts`), the share the
+ * contact shadow lets through multiplies both.
+ *
  * `shading` is what the pixel's lights share of its surface (`lobeSurface`), taken once before the
  * loop (`sliceLighting`).
  */
@@ -97,6 +113,7 @@ export const declaredLightWgsl = (
   }: { term?: LightTerm; cut?: LightCut; airTint?: boolean } = {},
 ) => {
   const shadowed = !key.unshadowed
+  const contact = !key.contactless
   if (term === 'irradiance' || term === 'bareIrradiance')
     return wgslBlock(
       `declaredLightWgsl(${variantLabel(key)}, ${term})`,
@@ -116,11 +133,17 @@ export const declaredLightWgsl = (
       THIN_TRANSMISSION_WGSL,
       ...(airTint ? [AIR_TINT_WGSL] : []),
       vsmFacesAwayFromLocal,
+      SHADOW_TERMS_WGSL,
       ...(models ? [SHADING_MODEL_LIGHT_WGSL, PROFILE_LIGHT_WGSL] : []),
       ...(models && !key.rectless ? [PROFILE_RECT_WGSL] : []),
+      ...(contact ? [contactShadowWgsl(models)] : []),
     ],
-    `${split ? SPLIT_HEAD : WHOLE_HEAD}${REACH(zero)}${key.rectless ? '' : rectBranch(out, split, shadowed, cut, models)}${LAMP_SEEN(zero, 'LAMP_BIAS')}${shadowed ? shadeStatement(out, cut) : catcherOf(cut, CATCHER_NONE(out))}
- let energy=light.colorIntensity.w*lamp.falloff${shadowed ? '*shade' : ''};
+    `${split ? SPLIT_HEAD : WHOLE_HEAD}${REACH(zero)}${key.rectless ? '' : rectBranch(out, split, shadowed, cut, models, contact)}${LAMP_SEEN(zero, 'LAMP_BIAS')}${shadowed ? shadeStatement(out, cut) : catcherOf(cut, CATCHER_NONE(out))}
+ let casts=castsShadow(light);${contact ? `\n let contact=contactShadow(light,P,lamp.centre,casts);` : ''}
+ let terms=${termsOf(shadowed, contact)};
+ let strength=light.colorIntensity.w*lamp.falloff;
+ let transmissionEnergy=strength*terms.transmission;
+ let surfaceEnergy=strength*terms.surface;
  let color=light.colorIntensity.rgb*lightFunctionOf(light.params.x,P)*${airTint ? 'airTintOf(rank,light,P)*' : ''}cloudShadowOnSurface(rank,P);
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
  // the light's sum as it is (\`exactZeros.test.ts\`). A thin one lets the light through from either
@@ -128,9 +151,9 @@ export const declaredLightWgsl = (
  var transmitted=vec3f(0.0);${
    cut.thin
      ? `
- if(thinSurface()){transmitted=thinSubsurface*(thinTransmission(N,V,lamp.centre)*energy);}`
+ if(thinSurface()){transmitted=thinSubsurface*(thinTransmission(N,V,lamp.centre)*transmissionEnergy);}`
      : ''
- }${lampModelTerm(models, shadowed ? 'shade' : '1.0')}
+ }${lampModelTerm(models)}
 ${split ? SPLIT_TAIL : wholeTail(cut)}
 }`,
   )
@@ -141,21 +164,21 @@ const WHOLE_HEAD =
 const wholeTail = (cut: LightCut) => ` let share=sharesOf(light);${
   cut.models
     ? `
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return (modelLight(rgb,metal,N,lamp.toward,energy,ao)+transmitted)*(color*share.x);}
+ if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return (modelLight(rgb,metal,N,lamp.toward,surfaceEnergy)+transmitted)*(color*share.x);}
  ${hairOnly('transmitted*(color*share.x)')}
- ${scattered('color', 'profileLampLight(shading,N,V,light,P,lamp,energy,rough)')}`
+ ${scattered('color', 'color', 'profileLampLight(shading,N,V,light,P,lamp,surfaceEnergy,rough)')}`
     : ''
 }
- if(share.x!=1.0||share.y!=1.0){return (lampLightShares(shading,N,V,light,P,lamp,energy,share)+transmitted*share.x)*color;}
- return (lampLight(shading,N,V,light,P,lamp,energy)+transmitted)*color;`
+ if(share.x!=1.0||share.y!=1.0){return (lampLightShares(shading,N,V,light,P,lamp,surfaceEnergy,share)+transmitted*share.x)*color;}
+ return (lampLight(shading,N,V,light,P,lamp,surfaceEnergy)+transmitted)*color;`
 /** The split term (\`declaredLightSplit\`, a translucent layer's forward lighting): the whole
  *  term's two shares, from one shadow read — its diffuse layer, and the rest: the lobe's specular
  *  (\`lampLightSplit\`), the thin back's transmission, a catcher's term. */
 const SPLIT_HEAD = `struct LightSplit{diffuse:vec3f,specular:vec3f,}
 fn declaredLightSplit(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface)->LightSplit{`
 const SPLIT_TAIL = ` let share=sharesOf(light);
- if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return LightSplit(modelLight(rgb,metal,N,lamp.toward,energy,ao)*(color*share.x),transmitted*(color*share.x));}
- let split=lampLightSplit(shading,N,V,light,P,lamp,energy);
+ if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){return LightSplit(modelLight(rgb,metal,N,lamp.toward,surfaceEnergy)*(color*share.x),transmitted*(color*share.x));}
+ let split=lampLightSplit(shading,N,V,light,P,lamp,surfaceEnergy);
  return LightSplit(split[0]*(color*share.x),(split[1]*share.y+transmitted*share.x)*color);`
 
 /** What a light gives (`declaredLightWgsl`): a pixel's radiance through the maps, the same split
@@ -172,31 +195,37 @@ const ZERO = 'vec3f(0.0)'
  *  (\`vsmFacesAwayFromLocal\`, a rectangle's source radius half its width) is the term's exact zero,
  *  a thin one's back is lit from behind and its normal flipped; else nothing of it for a catcher. Its
  *  diffuse and its specular light, one evaluation (\`rectLightSplit\`), are each weighed by the
- *  light's share of it (\`sharesOf\`), the back's by the diffuse one; the split term returns them
- *  apart. */
+ *  light's share of it (\`sharesOf\`) and its surface shadow, the back's by the diffuse share and its
+ *  transmission shadow (\`shadowTermsOf\`); the split term returns them apart. */
 const rectBranch = (
   out: Out,
   split: boolean,
   shadowed: boolean,
   cut: LightCut,
   models: boolean,
+  contact: boolean,
 ) => `
  if(isRect(light)){
   let r=rectView(light,P);${shadowed ? nested(rectShadeRead(out, cut)) : catcherOf(cut, CATCHER_NONE(out))}
-  let given=lightFunctionOf(light.params.x,P)${shadowed ? '*shade' : ''};
+  let centre=normalize(light.positionRange.xyz-P);
+  let casts=castsShadow(light);${contact ? `\n  let contact=contactShadow(light,P,centre,casts);` : ''}
+  let terms=${termsOf(shadowed, contact)};
+  let given=lightFunctionOf(light.params.x,P);
+  let surfaceGiven=given*terms.surface;
+  let transmissionGiven=given*terms.transmission;
   let share=sharesOf(light);
   var transmitted=vec3f(0.0);${
     cut.thin
       ? `
-  if(thinSurface()){transmitted=thinSubsurface*(thinTransmission(N,V,normalize(light.positionRange.xyz-P))*rectWindowed(r)*light.colorIntensity.w)*light.colorIntensity.rgb;}`
+  if(thinSurface()){transmitted=thinSubsurface*(thinTransmission(N,V,centre)*rectWindowed(r)*light.colorIntensity.w)*light.colorIntensity.rgb;}`
       : ''
-  }${rectModelTerm(models, shadowed ? 'shade' : '1.0')}${models ? `\n  ${hairOnly('transmitted*share.x*given')}\n  ${nested(scattered('given', 'profileRectLight(light,r,shading,N,V,rough)'))}` : ''}
-  let t=rectLightSplit(light,r,shading,rgb,metal,rough,N,V,ao);${
+  }${rectModelTerm(models)}${models ? `\n  ${hairOnly('transmitted*share.x*transmissionGiven')}\n  ${nested(scattered('surfaceGiven', 'transmissionGiven', 'profileRectLight(light,r,shading,N,V,rough)'))}` : ''}
+  let t=rectLightSplit(light,r,shading,rgb,metal,rough,N,V);${
     split
       ? `
-  return LightSplit(t[0]*share.x*given,(t[1]*share.y+transmitted*share.x)*given);`
+  return LightSplit(t[0]*share.x*surfaceGiven,t[1]*share.y*surfaceGiven+transmitted*share.x*transmissionGiven);`
       : `
-  return (t[0]*share.x+t[1]*share.y+transmitted*share.x)*given;`
+  return (t[0]*share.x+t[1]*share.y)*surfaceGiven+transmitted*share.x*transmissionGiven;`
   }
  }`
 
@@ -205,7 +234,7 @@ const rectBranch = (
 const nested = (text: string) => text.replace(/\n/g, '\n ')
 
 /**
- * A light's shadow read, the lamp's and the rectangle's: its share \`shade\` at the point along
+ * A light's shadow read, the lamp's and the rectangle's: its share `shade` at the point along
  * \`normal\` (the surface's, or its back's where a thin one is lit from behind), the read made only
  * where the surface is \`facing\` the light (\`shadowFactor\`: else a share of 0); a catcher's term of
  * \`energy\` (\`CATCHER_SHADOWED\`); and the term's exact zero where the share is 0.

@@ -40,6 +40,7 @@ import { DISTANCE_FIELD_OCCLUSION_MEANINGS } from './distanceFieldOcclusionMeani
 import { HIZ_PRIME_MEANINGS, type HizPrimeField } from './hizPrimeMeanings.ts'
 import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
 import { SHADOW_SUN_MEANINGS } from './shadowSunMeanings.ts'
+import { CONTACT_SHADOW_MEANINGS } from './contactShadowMeanings.ts'
 import { SHADOW_VIEW_MEANINGS } from './shadowViewMeanings.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { MOTION_BLUR_MEANINGS } from './motionBlurMeanings.ts'
@@ -623,7 +624,11 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(VOLUMETRIC_LIGHTMAP_RULES, VOLUMETRIC_LIGHTMAP_MEANINGS),
   ...ruleProperties(GLOBAL_DISTANCE_FIELD_RULES, GLOBAL_DISTANCE_FIELD_MEANINGS),
   ...ruleProperties(DISTANCE_FIELD_OCCLUSION_RULES, DISTANCE_FIELD_OCCLUSION_MEANINGS),
-  ...ruleProperties(SHADOW_RULES, { ...SHADOW_SUN_MEANINGS, ...SHADOW_VIEW_MEANINGS }),
+  ...ruleProperties(SHADOW_RULES, {
+    ...SHADOW_SUN_MEANINGS,
+    ...SHADOW_VIEW_MEANINGS,
+    ...CONTACT_SHADOW_MEANINGS,
+  }),
   ...ruleProperties(MOTION_BLUR_RULES, MOTION_BLUR_MEANINGS),
   ...ruleProperties(DEPTH_OF_FIELD_RULES, DEPTH_OF_FIELD_MEANINGS),
   ...ruleProperties(TESSELLATION_RULES, TESSELLATION_MEANINGS),

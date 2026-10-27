@@ -303,6 +303,8 @@ export interface VsmMarkingFrame {
   /** The view's shadow settings the marking reads (the page dilation, the pixel stride, the
    *  backface cull); absent, every default. */
   settings?: ShadowValues
+  /** Whether the compute throttle runs this frame: the programs that read each map's own bias. */
+  throttled?: boolean
 }
 
 // ---- Pipelines (cached per device) ------------------------------------------------------------
@@ -325,8 +327,12 @@ const pixelsVariant = (front: boolean, water: boolean): PixelsVariant =>
   PIXELS_VARIANTS[pixelsIndex(front, water)]
 /** The label of that variant's pipe and groups: the pass's, the variant's name past `pixels` (a
  *  suffix for each layer it marks); made where a pipe or group is, not each frame. */
-const pixelsLabel = (front: boolean, water: boolean) =>
-  PIXELS_LABEL + pixelsVariant(front, water).slice('pixels'.length)
+const pixelsLabel = (front: boolean, water: boolean, throttled = false) =>
+  PIXELS_LABEL + pixelsVariant(front, water).slice('pixels'.length) + (throttled ? 'Throttled' : '')
+/** The key of a variant's pipe in `held`: the compute throttle's programs (`throttled`) are pipes of their
+ *  own, the frame picks the pair it runs; their bind groups are the plain ones' (same bindings). */
+const pixelsPipeKey = (front: boolean, water: boolean, throttled: boolean) =>
+  throttled ? (`${pixelsVariant(front, water)}Throttled` as const) : pixelsVariant(front, water)
 
 /** The bind group layouts of the marking's kernels, the entries of the group past the tables'. */
 const clearGroups = (tables: GPUBindGroupLayoutEntry[], written: readonly unknown[]) => [
@@ -387,10 +393,12 @@ type HeldPipes = Partial<
     | 'rect'
     | 'coarse'
     | PixelsVariant
+    | `${PixelsVariant}Throttled`
     | 'froxelBuild'
     | 'froxelWaterBuild'
     | 'froxelArgs'
-    | 'froxelMark',
+    | 'froxelMark'
+    | 'froxelMarkThrottled',
     VsmComputePipe
   >
 >
@@ -422,11 +430,11 @@ const froxelMarkingPipes = (
       FROXEL_ARGS_ENTRY,
       froxelArgsGroups(),
     )),
-  froxelMark: () =>
-    (held.froxelMark ??= vsmComputePipe(
+  froxelMark: (throttled = false) =>
+    (held[throttled ? 'froxelMarkThrottled' : 'froxelMark'] ??= vsmComputePipe(
       device,
-      FROXEL_MARK_LABEL,
-      vsmFroxelPageMarkingWgsl(layout),
+      throttled ? `${FROXEL_MARK_LABEL}Throttled` : FROXEL_MARK_LABEL,
+      vsmFroxelPageMarkingWgsl(layout, throttled),
       FROXEL_MARK_ENTRY,
       froxelMarkGroups(vsmBindGroupLayoutEntries(VSM_PIXELS_SPECS, COMPUTE)),
     )),
@@ -484,12 +492,12 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
         [[...entries(VSM_COARSE_SPECS), computeUniformEntry(4)]],
       )),
     ...froxelMarkingPipes(device, layout, held),
-    /** The pixel pass, with the translucent front layer's marks (`front`) and the water's (`water`), or without. */
-    pixels: (front = false, water = false) =>
-      (held[pixelsVariant(front, water)] ??= vsmComputePipe(
+    /** The pixel pass; `front`, `water` and `throttled` pick its program. */
+    pixels: (front = false, water = false, throttled = false) =>
+      (held[pixelsPipeKey(front, water, throttled)] ??= vsmComputePipe(
         device,
-        pixelsLabel(front, water),
-        vsmPixelPageMarkingWgsl(layout, front, water),
+        pixelsLabel(front, water, throttled),
+        vsmPixelPageMarkingWgsl(layout, front, water, throttled),
         'vsmMarkPagesFromPixels',
         pixelsGroups(entries(VSM_PIXELS_SPECS), front, water),
       )),
@@ -780,12 +788,13 @@ function markFromPixels(
   v: VsmMarkingView,
   s: ShadowValues,
   groups: TableGroups,
+  throttled: boolean,
 ) {
   const stridedX = ceilDiv(v.viewSize[0], markStride(s.shadowPageMarkingPixelStrideX)),
     stridedY = ceilDiv(v.viewSize[1], markStride(s.shadowPageMarkingPixelStrideY))
   const front = !!v.front,
     water = !!v.water
-  const pixels = state.pipes.pixels(front, water)
+  const pixels = state.pipes.pixels(front, water, throttled)
   const key = pixelsVariant(front, water)
   groups.pixels[key] ??= state.group(pixelsLabel(front, water), pixels, VSM_PIXELS_SPECS)
   dispatch(
@@ -826,9 +835,10 @@ function encodeMarking(state: MarkingState, pass: GPUComputePassEncoder, frame: 
   dispatch(pass, coarse, groups.coarse, undefined, ceilDiv(mapCount, VSM_GROUP_WIDTH))
   const v = frame.view
   if (!v || marking === 'none') return
-  if (marking === 'pixels') return markFromPixels(state, pass, v, s, groups)
+  if (marking === 'pixels') return markFromPixels(state, pass, v, s, groups, !!frame.throttled)
   const froxels = state.froxelContext
   froxels.perspective = frame.perspective
+  froxels.throttled = !!frame.throttled
   froxels.groups = groups
   state.froxels.mark(pass, v, froxels)
 }
@@ -866,7 +876,13 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     pixelsView: createPixelsView(device, params),
     prune: createPrune(device),
     froxels: createFroxelMarking(device, pipes, params),
-    froxelContext: { perspective: true, groups: {}, tablesGroup: group, specs: VSM_PIXELS_SPECS },
+    froxelContext: {
+      perspective: true,
+      throttled: false,
+      groups: {},
+      tablesGroup: group,
+      specs: VSM_PIXELS_SPECS,
+    },
   }
   return {
     encode: (pass, frame) => encodeMarking(state, pass, frame),

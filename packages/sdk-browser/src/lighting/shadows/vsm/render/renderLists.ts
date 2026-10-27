@@ -11,7 +11,7 @@ import {
   VSM_RENDER_LIGHT_BYTES,
   VSM_RENDER_RECORD_BYTES,
 } from '../constants.ts'
-import { VSM_RENDER_ARGS_WORDS, VSM_RENDER_COUNT_WORDS } from './renderParamsWgsl.ts'
+import { VSM_RENDER_ARGS_WORDS, vsmCountWords } from './renderParamsWgsl.ts'
 import { renderTarget, type VsmRenderContext } from './renderPipes.ts'
 
 /** The lists the raster holds, by name: the view passes' parameters, the views the GPU lists, the
@@ -28,7 +28,8 @@ const LIST_FLOOR = 256
 
 /** The sizes of the lists of a frame of `passes` view passes, under `viewWords` words of views and
  *  `lights` lights, for `casters` candidates and `records` records a pass, the parameters'
- *  slots `slots` apart: rewritten in place in `into`. */
+ *  slots `slots` apart, the counters followed by `feedbackWords` words of the compute throttle's counts
+ *  (`vsmFeedbackWords`, none by default): rewritten in place in `into`. */
 export function vsmListSizes(
   into: VsmListSizes,
   slots: UniformSlots,
@@ -37,12 +38,13 @@ export function vsmListSizes(
   lights: number,
   casters: number,
   records: number,
+  feedbackWords = 0,
 ) {
   into.params = passes * slots.stride
   into.views = viewWords * 4
   into.lights = lights * VSM_RENDER_LIGHT_BYTES
   into.candidates = casters * VSM_RENDER_CANDIDATE_BYTES
-  into.counts = VSM_RENDER_COUNT_WORDS * 4
+  into.counts = vsmCountWords(feedbackWords) * 4
   into.records = records * VSM_RENDER_RECORD_BYTES
   // The software records' counts at the capacity's place (`vsmRenderBin`).
   into.sorted = into.records + VSM_RENDER_RECORD_BYTES
@@ -70,7 +72,8 @@ export const heldRecords = (ctx: Pick<VsmRenderContext, 'buffers'>) =>
   Math.floor((ctx.buffers.records?.size ?? 0) / VSM_RENDER_RECORD_BYTES)
 
 /** Usage of the lists the kernels fill: the counters are copied out. */
-const STORAGE = () => GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
+export const STORAGE = () =>
+  GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC
 const STORAGE_LISTS: readonly VsmListName[] = [
   'views',
   'lights',

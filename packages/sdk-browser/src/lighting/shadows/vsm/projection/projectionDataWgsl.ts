@@ -137,6 +137,13 @@ export const VSM_PROJECTION_DATA_READ_WGSL = wgslBlock(
   [VSM_CONSTANTS_WGSL, VSM_HANDLE_WGSL, VSM_PROJECTION_DATA_WGSL],
   `
 fn vsmProjectionOf(h:VsmHandle)->VsmProjectionData{return vsmUnpackProjection(vsmProjectionData[h.id],h);}
+/** The resolution bias of the map of \`base\`'s clipmap that the biased level \`level\` falls in, read from
+ *  that map's record alone; \`base\`'s own past the levels the clipmap holds. */
+fn vsmClipmapLevelBias(base:VsmProjectionData,level:f32)->f32{
+ let clipmapIndex=i32(max(0.0,level-f32(base.mapLevel)));
+ if(clipmapIndex<base.levelsLeft){return vsmProjectionData[u32(i32(base.handle.id)+clipmapIndex)].levelBias;}
+ return base.levelBias;
+}
 /** Whether the map is one page (a distant light's: its last mip alone). */
 fn vsmSinglePageMap(pd:VsmProjectionData)->bool{return pd.lightKind!=LIGHT_KIND_DIRECTIONAL&&pd.finestMip>=VSM_MIPS-1u;}
 `,

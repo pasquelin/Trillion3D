@@ -1,16 +1,19 @@
 import type { SceneLight } from './contracts.ts'
+import { castsContactShadow, type ContactShadowView } from './contactShadowView.ts'
 
 /**
  * A light store's lights by what the lit programs key on: the suns and the local lights, those that
- * cast a shadow, rectangles. `tally` counts a light in (`by` 1) or out (`by` −1) at every add, change
- * and removal of the store (`./store.ts`): `counts` reads them in O(1), never a walk of the store.
+ * cast a shadow, rectangles, those that ask for a contact shadow. `tally` counts a light in (`by` 1)
+ * or out (`by` −1) at every add, change and removal of the store (`./store.ts`): `counts` reads them
+ * in O(1), never a walk of the store.
  */
-export function createLightKinds() {
+export function createLightKinds(view: ContactShadowView) {
   let suns = 0,
     locals = 0,
     shadowedSuns = 0,
     shadowedLocals = 0,
-    rects = 0
+    rects = 0,
+    contacts = 0
   return {
     /** The counts, as accessors: `joined` keeps them so on the store. */
     counts: {
@@ -31,6 +34,11 @@ export function createLightKinds() {
       get rects() {
         return rects
       },
+      /** The lights that cast a contact shadow of their own under the view: they cast a shadow and
+       *  their length, the view's override included, is above 0 (`castsContactShadow`). */
+      get contacts() {
+        return contacts
+      },
     },
     tally(light: SceneLight, by: 1 | -1) {
       const sun = light.kind === 'directional'
@@ -41,6 +49,12 @@ export function createLightKinds() {
         else shadowedLocals += by
       }
       if (light.kind === 'rect') rects += by
+      if (castsContactShadow(light, view)) contacts += by
+    },
+    /** `contacts` again, over `lights`, after the view's settings moved. */
+    recountContacts(lights: Iterable<SceneLight>) {
+      contacts = 0
+      for (const light of lights) if (castsContactShadow(light, view)) contacts++
     },
   }
 }

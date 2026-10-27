@@ -1,4 +1,11 @@
-import { FULL_CONTRACT, cutsIn, isTwin, twinOf, type ContractKey } from './contractCuts.ts'
+import {
+  FULL_CONTRACT,
+  cutsIn,
+  isTwin,
+  twinOf,
+  withoutContactSet,
+  type ContractKey,
+} from './contractCuts.ts'
 import { createLitVariants, type LitPrograms } from './contractVariants.ts'
 
 /** What a forward pass is told of the lit programs (`LitPrograms`): the key a first frame asks for
@@ -34,9 +41,14 @@ export async function createForwardVariants<P>(
       }),
     { twins: false },
   )
-  const first = lit?.precompile
-    ? { ...lit.key, narrow: false }
-    : { ...FULL_CONTRACT, lobeless: !!lit?.key.lobeless }
+  // A translucent program holds no contact shadow, which needs the scene's depth and the surfaces' flags: every
+  // key says so (`withoutContactSet`), here and in what a frame asks.
+  const first = {
+    ...(lit?.precompile ? lit.key : FULL_CONTRACT),
+    narrow: false,
+    lobeless: !!lit?.key.lobeless,
+    contactless: true,
+  }
   await variants.precompile(false, first)
   // The first program, else its twin when it failed.
   const twinSet = twinOf(cutsIn(first))
@@ -48,13 +60,14 @@ export async function createForwardVariants<P>(
     /** The program that lights a frame of the lights' key `key` whose items carry a lobe or not, asked
      *  now: the best ready one that serves it, none while its own compiles (`awaited`). */
     pick: (key: Partial<ContractKey>, lobed: boolean) =>
-      variants.pick(false, false, cutsIn(key, lobed)),
+      variants.pick(false, false, withoutContactSet(cutsIn(key, lobed))),
     /** The program of `key` once compiled, asked now: none if it and its stand-in failed. */
-    ready: (key: Partial<ContractKey>) => variants.ready(false, false, cutsIn(key)),
+    ready: (key: Partial<ContractKey>) =>
+      variants.ready(false, false, withoutContactSet(cutsIn(key))),
     /** The compile a frame of `key` (`lobed`: its items carry a lobe, else the key's own) waits
      *  for while no ready program serves it, asked now; none once one does. */
     awaited: (key: Partial<ContractKey>, lobed = !key.lobeless) =>
-      variants.awaited(false, false, cutsIn(key, lobed)),
+      variants.awaited(false, false, withoutContactSet(cutsIn(key, lobed))),
     /** The program prepare compiled: what any frame of the pass can be lit by. */
     base,
   }

@@ -117,8 +117,8 @@ export const shininessRoughness = (shininess: number) =>
 
 // The formulas of the models, written once: every pass shades a diffuse, toon or matcap surface
 // from the same text, never a restated copy.
-/** The diffuse lobe of a lamp's `energy`, occlusion `ao` included. */
-const MODEL_DIFFUSE = `lambertAlbedoMul(rgb,metal)*energy*ao`
+/** The diffuse lobe of a lamp's `energy`, its surface shadow's: the occlusion is not a second factor. */
+const MODEL_DIFFUSE = `lambertAlbedoMul(rgb,metal)*energy`
 /** Toon's two bands of the cosine `nl`, 0.7 and 1. */
 const TOON_BANDS = 'mix(0.7,1.0,smoothstep(0.69,0.71,nl*0.5+0.5))'
 /** A diffuse surface's cosine. */
@@ -142,7 +142,7 @@ export const SURFACE_MODEL_LIGHT_WGSL = wgslBlock(
   [lambertAlbedoMul],
   `
 var<private> surfaceModel:u32;
-fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32,ao:f32)->vec3f{
+fn modelLight(rgb:vec3f,metal:f32,N:vec3f,L:vec3f,energy:f32)->vec3f{
  let diffuse=${MODEL_DIFFUSE};
  let nl=dot(N,L);
  if(surfaceModel==${MODEL_FLAG.toon}u){return diffuse*${TOON_BANDS};}

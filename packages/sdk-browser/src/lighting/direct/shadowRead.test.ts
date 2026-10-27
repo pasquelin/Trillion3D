@@ -73,7 +73,8 @@ function rectLit(o: {
     positionRange: [0, 3, 0, 20],
     colorIntensity: [1, 1, 1, 4],
     directionCone: [0, -1, 0, -2],
-    params: [K.KIND_RECT, 7, 0, 0],
+    // A record with a shadow slot carries the casts flag: the shadow bits are the light's own flag.
+    params: [K.KIND_RECT + K.FLAG_CASTS, 7, 0, 0],
     shape: [o.halfWidth ?? 1, 0, 0, 0.5],
     capsule: [0, 0, ...(o.shares ?? [1, 1])],
   }

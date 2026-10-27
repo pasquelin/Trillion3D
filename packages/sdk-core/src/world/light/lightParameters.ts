@@ -6,6 +6,7 @@ import type { LightFunctionParameters } from './lightFunctionSettings.ts'
 import type { LightShaftParameters } from './lightShaftSettings.ts'
 import type { LightCloudShadowParameters } from './lightCloudShadowSettings.ts'
 import type { LightShadowParameters } from './lightShadowSettings.ts'
+import type { LightContactShadowParameters } from './lightContactShadowSettings.ts'
 
 /** What a page may pass to a light member. */
 export interface LightParameters
@@ -13,7 +14,8 @@ export interface LightParameters
     LightFunctionParameters,
     LightShaftParameters,
     LightCloudShadowParameters,
-    LightShadowParameters {
+    LightShadowParameters,
+    LightContactShadowParameters {
   /** The light's colour. */
   color?: ColorInput
   /** How strong the light is: lux for a directional light, a number in `intensityUnits` for a

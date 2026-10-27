@@ -72,6 +72,11 @@ const BIAS_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     count('shadowCacheMaxLightAgeSinceLastRequest', 10, 0),
     nonNegative('shadowDynamicResolutionMaxResolutionLodBias', 2),
     nonNegative('shadowDynamicResolutionMaxPagePoolLoadFactor', 0.85),
+    nonNegative('shadowDynamicResolutionTimeBudgetMs', 0),
+    nonNegative('shadowDynamicResolutionLoadBudget', 0),
+    number('shadowDynamicResolutionPerVsmBiasHistoryWeight', 0.9, [0, 1]),
+    nonNegative('shadowDynamicResolutionMaxComputeResolutionLodBiasDirectional', 99999),
+    nonNegative('shadowDynamicResolutionMaxComputeResolutionLodBiasLocal', 99999),
   ] as const)()
 
 /** The soft shadow rays, and the resolution biases. */
@@ -180,6 +185,11 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowCacheMaxLightAgeSinceLastRequest` | 10 | |
  * | `shadowDynamicResolutionMaxResolutionLodBias` | 2 | |
  * | `shadowDynamicResolutionMaxPagePoolLoadFactor` | 0.85 | |
+ * | `shadowDynamicResolutionTimeBudgetMs` | 0 | |
+ * | `shadowDynamicResolutionLoadBudget` | 0 | |
+ * | `shadowDynamicResolutionPerVsmBiasHistoryWeight` | 0.9 | |
+ * | `shadowDynamicResolutionMaxComputeResolutionLodBiasDirectional` | 99999 | |
+ * | `shadowDynamicResolutionMaxComputeResolutionLodBiasLocal` | 99999 | |
  * | `shadowSmrtAdaptiveRayCount` | 1 | |
  * | `shadowSmrtMaxRayAngleFromLight` | 0.03 | |
  * | `shadowSmrtExtrapolateMaxSlopeLocal` | 0.05 | |
@@ -276,6 +286,17 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * page, a light, unrequested is kept; `shadowDynamicResolutionMaxResolutionLodBias` the most the global resolution
  * bias rises, in levels, as the page pool fills, and `shadowDynamicResolutionMaxPagePoolLoadFactor` the share of the
  * pool it fills to before that bias starts (0 turns the rise off).
+ *
+ * `shadowDynamicResolutionTimeBudgetMs` and `shadowDynamicResolutionLoadBudget` throttle the maps' compute:
+ * with either above 0 each map's resolution bias is raised by the share of the cost it adds, as the clusters
+ * the raster counts in each map say, on the GPU (`shadowDynamicResolutionLoadBudget`: the estimate of the whole raster's
+ * load past which the bias rises), or by the dynamic resolution's fit of the shadow raster's GPU time to the
+ * milliseconds named (`shadowDynamicResolutionTimeBudgetMs`, which needs the render scale on `auto` and a GPU
+ * timer; it wins when both are named); with both at 0 nothing is counted, made or run.
+ * `shadowDynamicResolutionPerVsmBiasHistoryWeight` (0 to 1) is the share of a map's bias the frame before keeps
+ * when it is eased; `shadowDynamicResolutionMaxComputeResolutionLodBiasDirectional` and `...Local` cap, for the
+ * suns' maps and the local lights', the levels this throttle adds, beyond the pool's bias, within
+ * `shadowDynamicResolutionMaxResolutionLodBias`.
  *
  * `shadowCache` keeps the pages of one frame for the next: off, every light is drawn uncached each frame, no distant
  * light is kept, and the pool holds no separate static layer (a change makes the shadows' set again, its pages

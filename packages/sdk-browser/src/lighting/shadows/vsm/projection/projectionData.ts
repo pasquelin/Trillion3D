@@ -54,6 +54,11 @@ const RECORD_OFFSET = {
   dynamicDepthCullRange: 392,
 } as const
 
+/** The words of a record that hold the light's kind and the map's resolution bias, which the compute
+ *  throttle's update reads and raises on the GPU (`../throttleWgsl.ts`). */
+export const VSM_PROJECTION_KIND_WORD = RECORD_OFFSET.lightKind / 4
+export const VSM_PROJECTION_LEVEL_BIAS_WORD = RECORD_OFFSET.levelBias / 4
+
 /** A map's record, its matrices and vectors its own: a writer fills them in place frame after
  *  frame (`vsmDefaultProjectionData` makes them). */
 export interface VsmProjectionDataValues {

@@ -48,8 +48,8 @@ export function tickScale(p: ScaleParts, now: number, timed: boolean) {
 
 /**
  * The GPU busy time of an image drawn at `scale`, `gpuMs`, null where the timer read none, and the
- * time of its visibility passes, `edgeMs` (`NO_TIMING` where none): one frame of the history, then
- * the fractions refreshed (`dynamicResolution.ts`). An image not drawn at the controller's scale
+ * time of its visibility passes, `edgeMs`, and of its shadow raster's, `vsmMs` (`NO_TIMING` where
+ * none): one frame of the history, then the fractions refreshed (`dynamicResolution.ts`). An image not drawn at the controller's scale
  * (`steered`), or of a scale that is fixed or a timer silent, is recorded by none. The budget is the
  * page's (`dynamicResolutionFrameTimeBudgetMs`), the frame cap's interval where it names none, less
  * what a frame must take to be over it.
@@ -60,12 +60,13 @@ export function observeFrame(
   scale: number,
   steered: boolean,
   edgeMs: number,
+  vsmMs: number,
 ) {
   const { w, refresh, cap } = p
   if (gpuMs === null) return
   w.timedAt = w.images
   if (!steered || !w.bounds.auto || !w.timed || !(scale > 0)) return
-  recordFrame(w.dynamic, w, gpuMs, scale, edgeMs)
+  recordFrame(w.dynamic, w, gpuMs, scale, edgeMs, vsmMs)
   const {
     dynamicResolutionFrameTimeBudgetMs: named,
     dynamicResolutionOverBudgetHeadroomPercent: late,

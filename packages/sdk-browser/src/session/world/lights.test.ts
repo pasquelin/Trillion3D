@@ -4,6 +4,8 @@ import { Light, light } from '../../../../sdk-core/src/world/light/light.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
+import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
+import { LIGHT_FIELD, baseOf } from '../../../../sdk-core/src/scene/light/fields.ts'
 import { IRRADIANCE_BAND } from '../../../../sdk-core/src/scene/core/environment.ts'
 import {
   boxReads,
@@ -207,4 +209,54 @@ test('a sky light node gives the environment nothing: the sky module’s sky lig
     environment.slice(3).every((c) => c === 0),
     'no sky in it',
   )
+})
+
+test('a world light’s contact shadow edits reach the store, whether the record gains a key or changes one', () => {
+  const { scene, lights } = wiredLights()
+  const lamp = light.point({ intensity: 5, distance: 8 })
+  scene.add(lamp)
+  const store = createSceneLightStore()
+  const api = {
+    addLight: store.add,
+    setLight: store.set,
+    removeLight: store.remove,
+  }
+  const lanes = () => {
+    const at = baseOf(store.slotOf('world-light-1')) + LIGHT_FIELD.contactGi
+    return [...store.packed.slice(at, at + 4)]
+  }
+  lights.sync(api)
+  assert.deepEqual(lanes(), [0, 1, 0, 1])
+  // Default to non-default: the record gains a key, so it is written anew.
+  lamp.contactShadowLength = 0.03
+  lights.sync(api)
+  assert.deepEqual(lanes(), [Math.fround(0.06), 1, 0, 1])
+  // Non-default to another: the same keys, written in its slot.
+  lamp.contactShadowLength = 0.05
+  lights.sync(api)
+  assert.deepEqual(lanes(), [Math.fround(0.1), 1, 0, 1])
+  const revision = store.revision[store.slotOf('world-light-1')]
+  lamp.contactShadowLength = 0.07
+  lights.sync(api)
+  assert.deepEqual(lanes(), [Math.fround(0.14), 1, 0, 1])
+  assert.equal(store.revision[store.slotOf('world-light-1')], revision, 'no shadow page is staled')
+  // Each of the others.
+  lamp.contactShadowLengthInWorldSpace = true
+  lamp.contactShadowCastingIntensity = 0.5
+  lamp.contactShadowNonCastingIntensity = 0.25
+  lamp.indirectLightingIntensity = 2
+  lights.sync(api)
+  assert.deepEqual(lanes(), [Math.fround(-0.07), 0.5, 0.25, 2])
+  // Nothing changed: nothing is written.
+  const epoch = store.epoch
+  lights.sync(api)
+  assert.equal(store.epoch, epoch)
+  // Back to the defaults: the keys leave the record.
+  lamp.contactShadowLength = 0
+  lamp.contactShadowLengthInWorldSpace = false
+  lamp.contactShadowCastingIntensity = 1
+  lamp.contactShadowNonCastingIntensity = 0
+  lamp.indirectLightingIntensity = 1
+  lights.sync(api)
+  assert.deepEqual(lanes(), [0, 1, 0, 1])
 })

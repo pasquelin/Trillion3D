@@ -6,6 +6,7 @@ import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import type { PhysicsOption } from '../../../../sdk-core/src/physics/options.ts'
 import type { LightShaftParameters } from '../../../../sdk-core/src/world/light/lightShaftSettings.ts'
 import type { LightCloudShadowParameters } from '../../../../sdk-core/src/world/light/lightCloudShadowSettings.ts'
+import type { LightContactShadowParameters } from '../../../../sdk-core/src/world/light/lightContactShadowSettings.ts'
 import type { LightUnits } from '../../../../sdk-core/src/scene/light/lightUnits.ts'
 
 /** The name a saved scene carries, and the version of its layout this runtime writes. Version 1
@@ -124,6 +125,9 @@ export interface SavedNode extends SavedOffsets {
     shafts?: LightShaftParameters
     /** The cloud shadow settings (`Light.cloudShadow*`) that differ from their defaults; absent, none. */
     cloudShadows?: LightCloudShadowParameters
+    /** The contact shadow settings (`Light.contactShadow*`) that differ from their defaults; absent,
+     *  none. */
+    contactShadows?: LightContactShadowParameters
   }
   /** A compiled model, by the manifest address it was loaded from: never inlined. */
   model?: { url: string }

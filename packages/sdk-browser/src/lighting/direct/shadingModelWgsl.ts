@@ -11,6 +11,7 @@ import { LAMP_LOBE_WGSL } from './lampLobeWgsl.ts'
 import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
 import { PROFILE_TRANSMISSION_WGSL } from './profileModelWgsl.ts'
 import { SUBSURFACE_BXDF_WGSL } from './subsurfaceBxdfWgsl.ts'
+import { SHADOW_TERMS_WGSL } from './shadowTermsWgsl.ts'
 
 /**
  * THE SHADING MODELS A GRAPH PICKS PER PIXEL (`../../materials/surface/pixelModel.ts`): the
@@ -108,7 +109,7 @@ fn hairDiffuse(base:vec3f,N:vec3f,V:vec3f,L:vec3f,shade:f32)->vec3f{
  let tint=select(vec3f(1.0),pow(baseOverLuma,vec3f(1.0-shade)),shade<1.0);
  return sqrt(abs(base))*scatter*tint;
 }
-fn hairShading(base:vec3f,rough:f32,N:vec3f,V:vec3f,L:vec3f,shade:f32,backlit:f32,area:f32)->vec3f{
+fn hairShading(base:vec3f,rough:f32,N:vec3f,V:vec3f,L:vec3f,shade:f32,visible:f32,backlit:f32,area:f32)->vec3f{
  let r=clamp(rough,1.0/255.0,1.0);
  let VoL=dot(V,L);
  let sinL=clamp(dot(N,L),-1.0,1.0);
@@ -141,14 +142,14 @@ fn hairShading(base:vec3f,rough:f32,N:vec3f,V:vec3f,L:vec3f,shade:f32,backlit:f3
  let trt=pow(abs(base),vec3f(0.8/cosD));
  S+=mTRT*exp(17.0*cosPhi-16.78)*(1.0-f2)*(1.0-f2)*f2*trt;
  // The multiple scattering: the global scattering is one, the local none.
- S=S*shade+hairDiffuse(base,N,V,L,shade);
+ S=S*visible+hairDiffuse(base,N,V,L,shade);
  return max(S,vec3f(0.0));
 }
 /** What the hair gives its diffuse light: its response to the light from the direction the fibre is seen
  *  along, weighed by the whole sphere's solid angle and held to one — no energy is added. */
 fn hairEnvironment(base:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
  let L=normalize(V-N*dot(V,N));
- return min(vec3f(1.0),2.0*PI*hairShading(base,rough,N,V,L,1.0,0.0,0.2));
+ return min(vec3f(1.0),2.0*PI*hairShading(base,rough,N,V,L,1.0,1.0,0.0,0.2));
 }`,
 )
 
@@ -239,9 +240,11 @@ fn modelDiffuse(d:vec4f)->vec4f{
 /**
  * What the light terms read of a pixel's model.
  * - `modelTransmission`: a light's term of the pixel's model (zero for none) toward `L`, `specular` the
- *   direction of its highlight and `sine` its sphere's, `cosine` the light's cosine with the normal, `shade`
- *   its visibility, `rect` whether it is a rectangle and `transmits` whether the light shines through the subsurface profiles (a
- *   profile's term is that transmission alone) and `ao` the material's occlusion, before the light's energy.
+ *   direction of its highlight and `sine` its sphere's, `cosine` the light's cosine with the normal, `terms` the
+ *   light's shadow terms (`shadowTermsOf`: a subsurface and a profile read the thickness, a hair's tint
+ *   the transmission shadow and its multiple scattering the surface shadow), `rect` whether it is a
+ *   rectangle and `transmits` whether the light shines through the subsurface profiles (a profile's
+ *   term is that transmission alone) and `ao` the material's occlusion, before the light's energy.
  * - `modelLobeSurface`: the eye's surface for the light's specular lobe: no diffuse share (its own term holds it),
  *   and a grazing reflectance of one.
  */
@@ -254,13 +257,14 @@ export const SHADING_MODEL_LIGHT_WGSL = wgslBlock(
     PROFILE_TRANSMISSION_WGSL,
     SUBSURFACE_BXDF_WGSL,
     STANDARD_LIGHTING_WGSL,
+    SHADOW_TERMS_WGSL,
   ],
   `
-fn modelTransmission(rgb:vec3f,rough:f32,N:vec3f,V:vec3f,L:vec3f,specular:vec3f,cosine:f32,sine:f32,shade:f32,rect:bool,transmits:bool,ao:f32)->vec3f{
- if(pixelModel==${subsurface}u){return subsurfaceTransmission(N,V,L,ao,shade);}
+fn modelTransmission(rgb:vec3f,rough:f32,N:vec3f,V:vec3f,L:vec3f,specular:vec3f,cosine:f32,sine:f32,terms:ShadowTerms,rect:bool,transmits:bool,ao:f32)->vec3f{
+ if(pixelModel==${subsurface}u){return subsurfaceTransmission(N,V,L,ao,terms.thickness);}
  if(pixelModel==${skin}u){return skinTransmission(N,L);}
- if(pixelModel==${profile}u){return select(vec3f(0.0),profileTransmission(N,V,L,shade),transmits);}
- if(pixelModel==${hair}u){return hairShading(rgb,rough,N,V,L,shade,1.0,0.0);}
+ if(pixelModel==${profile}u){return select(vec3f(0.0),profileTransmission(N,V,L,terms.thickness),transmits);}
+ if(pixelModel==${hair}u){return hairShading(rgb,rough,N,V,L,terms.transmission,terms.surface,1.0,0.0);}
  if(pixelModel==${eye}u){return eyeTransmission(rgb,N,V,specular,cosine,sine,rect);}
  return vec3f(0.0);
 }

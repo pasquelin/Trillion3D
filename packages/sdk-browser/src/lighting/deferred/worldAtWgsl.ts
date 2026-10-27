@@ -20,8 +20,10 @@ import { pixelToNdc, unprojectPoint } from '../../../../math/src/wgsl/projection
  *  `z` the strength of their short-range occlusion and `w` their mode (bit 0 their occlusion alone over the
  *  world's probes' light, bit 1 no back light gathered; `writeScreenProbes`); `surface` the surfaces' render pixels per display
  *  pixel on each axis (`xy`) and their last pixel (`zw`), where the composition reads a debug view's
- *  as-is pixel (`view.ts`, `writeSource`). The
- *  environment's irradiance and fog travel with the lights. */
+ *  as-is pixel (`view.ts`, `writeSource`); `viewProjection` the matrix the surfaces were drawn with, the
+ *  inverse of `inverseViewProjection`'s, which the contact shadows' rays project by; `contact` the camera's
+ *  forward axis (`xyz`, unit) and the tangent of half its vertical field (`w`, 1 under an orthographic
+ *  camera) (`writeContactShadows`). The environment's irradiance and fog travel with the lights. */
 export const VIEW_LAYOUT = fieldLayout('View', [
   ['inverseViewProjection', 'mat4x4f'],
   ['camera', 'vec4f'],
@@ -35,6 +37,8 @@ export const VIEW_LAYOUT = fieldLayout('View', [
   ['preExposure', 'vec4f'],
   ['screenProbes', 'vec4f'],
   ['surface', 'vec4f'],
+  ['viewProjection', 'mat4x4f'],
+  ['contact', 'vec4f'],
 ] as const)
 export const VIEW_WGSL = wgslBlock('VIEW_WGSL', [], VIEW_LAYOUT.wgsl)
 /** World position of a pixel at a depth, reconstructed through that view: the one reading of

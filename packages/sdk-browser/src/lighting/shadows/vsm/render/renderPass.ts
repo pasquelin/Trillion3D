@@ -40,7 +40,7 @@ import { clampLowWins } from '../../../../../../math/src/scalar/reals.ts'
 import type { GraphRasters } from '../../../../materials/graph/graphRasters.ts'
 import type { RasterPass } from '../../../../visibility/raster/contract.ts'
 import { ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
-import type { VsmResources } from '../resources.ts'
+import { vsmFrameParity, type VsmResources } from '../resources.ts'
 import type { VsmBoundLight } from '../mapViews.ts'
 import type { VsmShadowTessellation } from '../tessellation/shadowChain.ts'
 import {
@@ -65,7 +65,7 @@ import {
 } from './renderPipes.ts'
 import { vsmViewPasses, vsmViewsPerPass, type VsmViewPass } from './renderViewPasses.ts'
 import { renderGroups, vsmEncodeRaster, vsmWorldGroup } from './renderEncode.ts'
-import type { CompiledTiers } from './renderParamsWgsl.ts'
+import { VSM_RENDER_COUNT_WORDS, type CompiledTiers } from './renderParamsWgsl.ts'
 import { vsmOcclusionContext, vsmTwoPass } from '../occlusion/occlusionPass.ts'
 import {
   prepareVsmDescent,
@@ -75,6 +75,7 @@ import {
   type VsmDescentScene,
 } from '../traversal/traversalPass.ts'
 import { encodeVsmDescentRequests, releaseVsmDescentRequests } from '../traversal/requests.ts'
+import type { VsmThrottleState } from '../throttle.ts'
 import { flagSectionStart } from '../../../../geometry/dag/flagSections.ts'
 import { viewWord } from '../../../../geometry/dag/viewLayout.ts'
 
@@ -171,6 +172,8 @@ export interface VsmRenderFrame {
   device: GPUDevice
   /** This frame's lights (`VsmFramePlan.lights`), every one drawn. */
   lights: readonly VsmBoundLight[]
+  /** The compute throttle's buffers where it runs this frame: the cull counts the clusters per map. */
+  throttle?: VsmThrottleState
 }
 
 /** What one call encoded, for diagnostics. */
@@ -231,6 +234,7 @@ export function encodeVsmRender(
   const room = scene.rowCount,
     empty = room <= 0
   const ctx = vsmRenderContext(res, device, scene.pageLayout, scene.rasters)
+  const { throttle } = frame
   const sized = sizeLists(ctx, res, scene, frame, { passes, mostMaps })
   if (!sized) return { passes: 0, records: 0, roomLimited: true, empty: false }
   const { records, roomLimited, descentSizes } = sized
@@ -245,11 +249,20 @@ export function encodeVsmRender(
     world,
     scene,
     lists.args,
-    { passes: passes.length, lights },
+    { passes: passes.length, lights, throttle },
     empty,
     { descent, info: scene.descent.info, lights, views, viewBase: bound.viewBase },
     occlusionOf(res, device, scene),
   )
+  // The counts the cull made are the frame's feedback, which the next frame's throttle reads.
+  if (throttle)
+    encoder.copyBufferToBuffer(
+      lists.counts,
+      VSM_RENDER_COUNT_WORDS * 4,
+      throttle.feedback[vsmFrameParity(res)],
+      0,
+      throttle.feedbackWords * 4,
+    )
   // The leaves the shadow views asked for, to the streaming.
   encodeVsmDescentRequests(device, encoder, res, descent.out!, descent.listCap)
   return { passes: empty ? 0 : passes.length, records, roomLimited, empty }
@@ -284,6 +297,7 @@ function sizeLists(
       lights,
       Math.max(1, scene.rowCount),
       records,
+      frame.throttle?.feedbackWords,
     )
   const descentSizes = descentSizesOf(res, scene, lights, passes)
   const within = recordsWithinRoom(

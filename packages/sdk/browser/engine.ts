@@ -115,6 +115,8 @@ export type {
   JointOptions,
   SixDofAxis,
 } from '../../sdk-core/src/physics/joint/jointOptions.ts'
+export { LIGHT_CONTACT_SHADOW_RULES } from '../../sdk-core/src/contracts/lightContactShadowOptions.ts'
+export type { LightContactShadowOptions } from '../../sdk-core/src/contracts/lightContactShadowOptions.ts'
 export {
   LIGHT_SHADOW_RULES,
   SHADOW_DISTANCE_DEFAULT,
