@@ -194,41 +194,37 @@ export function filterGroups(g: GroupParts, kernels: CastKernels) {
         ...(extraAo && { ao: r.extraAo[final] }),
       }),
     ),
-    fixup:
-      kernels.fixup &&
-      mips &&
+    fixup: groupOf(
+      device,
+      kernels.fixup,
+      namedEntries(FIXUP_BINDINGS.at, {
+        ...common,
+        ...probe,
+        ...buffers({ counts: r.counts }),
+        gather: r.gather[final],
+        level: mips.levels[0],
+      }),
+    ),
+    mips: kernels.mips.map((kernel, at) =>
       groupOf(
         device,
-        kernels.fixup,
-        namedEntries(FIXUP_BINDINGS.at, {
+        kernel,
+        namedEntries(MIP_BINDINGS.at, {
           ...common,
-          ...probe,
-          ...buffers({ counts: r.counts }),
-          gather: r.gather[final],
-          level: mips.levels[0],
+          parent: mips.levels[at],
+          child: mips.levels[at + 1],
         }),
       ),
-    mips: mips
-      ? kernels.mips.map((kernel, at) =>
-          groupOf(
-            device,
-            kernel,
-            namedEntries(MIP_BINDINGS.at, {
-              ...common,
-              parent: mips.levels[at],
-              child: mips.levels[at + 1],
-            }),
-          ),
-        )
-      : [],
+    ),
   }
 }
 
 /** The pixels: the short-range occlusion, the integration of the probes where the level casts them (the classification of the tiles it is dispatched
  *  over, the texel each pixel reads where it is downsampled, the integration) and the temporal pass, which blends what the integration left. */
 export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
-  const { device, r, inputs, features, last, turn, final, common, probe, surface } = g
+  const { device, r, inputs, features, last, turn, common, probe, surface } = g
   const { cast } = kernels
+  const integration = cast?.integrate ?? cast?.integrateEvery
   const integrated = { light: r.light, rough: r.rough, back: r.back }
   return {
     occlusion: groupOf(
@@ -242,7 +238,7 @@ export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
       }),
     ),
     tile:
-      cast &&
+      cast?.tile &&
       groupOf(
         device,
         cast.tile,
@@ -266,10 +262,10 @@ export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
         }),
       ),
     integrate:
-      cast &&
+      integration &&
       groupOf(
         device,
-        cast.integrate,
+        integration,
         namedEntries(INTEGRATE_BINDINGS.at, {
           ...common,
           ...surface,
@@ -277,7 +273,7 @@ export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
           ...integrated,
           occlusion: r.occlusion,
           irradiance: r.irradiance,
-          gather: r.mips?.all ?? r.gather[final],
+          gather: r.mips.all,
           blue: inputs.blue,
           lobes: inputs.lobes,
           base: inputs.base,
@@ -288,9 +284,8 @@ export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
             indices: r.indices,
             moving: r.moving,
             counts: r.counts,
-            tiles: r.tileList,
-            args: r.tileArgs,
           }),
+          ...(cast?.tile && buffers({ tiles: r.tileList, args: r.tileArgs })),
         }),
       ),
     temporal: groupOf(

@@ -15,11 +15,16 @@ import { limitOf, stageBindingCounts } from '../../../../../tests/kit/fakeDevice
 
 const ultra = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
 
-test('the extra ambient occlusion, the temporal filter of the probes and the levels of the gather exist only where asked, and every kernel assembles with all three', () => {
+test('the extra ambient occlusion, the temporal filter of the probes and the coarser levels of the gather exist only where asked, the border of the finest level always, and every kernel assembles with all three', () => {
   const plain = Object.keys(ultra)
-  for (const name of ['probeFilter', 'fixup', 'mip1']) assert.ok(!plain.includes(name), name)
+  for (const name of ['probeFilter', 'mip1']) assert.ok(!plain.includes(name), name)
+  assert.ok(
+    plain.includes('fixup'),
+    'the border of the gather is fixed up at the default of one level',
+  )
   assert.doesNotMatch(ultra.composite!.code, /aoOut/)
-  assert.doesNotMatch(ultra.integrate!.code, /extraAoMap|SP_MIP_LEVELS/)
+  assert.doesNotMatch(ultra.integrate!.code, /extraAoMap/)
+  assert.match(ultra.integrate!.code, /const SP_MIP_LEVELS:u32=1u;/)
   const all = screenProbeSources(
     kernelShapeOf(
       screenProbeSettings({
@@ -98,7 +103,7 @@ test('the extra ambient occlusion of the probes is an occlusion of the diffuse l
   near3(bands(0.75), [0.75, 0.875, 1.3125], 'a cone of cosine a half')
   assert.match(
     code,
-    /let ao=min\(sky\.w,spPickedExtraAo\(picked,s\.N\)\);\n(?: \/\/[^\n]*\n)? let lit=normalize\(mix\(sky\.xyz,s\.N,ao\)\);\n let diffuse=spDiffuse\(picked,pixel,s,ao,lit\);/,
+    /let ao=min\(sky\.w,spPickedExtraAo\(picked,s\.N\)\);\n(?: \/\/[^\n]*\n)? let lit=normalize\(mix\(sky\.xyz,s\.N,ao\)\);\n let diffuse=spDiffuse\(picked,pixel,s,ao,lit,mode\);/,
     'with the bent normal the diffuse light is read at the normal turned toward it by the occlusion',
   )
   const flat = screenProbeSources(
@@ -106,7 +111,7 @@ test('the extra ambient occlusion of the probes is an occlusion of the diffuse l
   )
   assert.match(
     flat.integrate!.code,
-    /let lit=s\.N;\n let diffuse=spDiffuse\(picked,pixel,s,ao,lit\);/,
+    /let lit=s\.N;\n let diffuse=spDiffuse\(picked,pixel,s,ao,lit,mode\);/,
   )
   assert.match(code, /if\(ao>0\.0\)\{light\*=bouncedOcclusion\(albedo,ao\)\/ao;\}/)
   assert.match(code, /if\(true\)\{visibility=directionVisibility\(s\.N,sky\.xyz,sky\.w,L\);\}/)
@@ -129,8 +134,12 @@ test('the material’s occlusion and the albedo come from the surfaces’ base c
   const A = INTEGRATE_BINDINGS.at
   // The stage binds the reflection group beside its own (`reflectionLayout`): the sampled textures of both are the stage's.
   const group = reflectionLayout(fakeDevice().device)
-  for (const bentNormal of [false, true]) {
-    const entries = integrateEntries(bentNormal)
+  for (const [bentNormal, classified] of [
+    [false, true],
+    [true, true],
+    [true, false],
+  ] as const) {
+    const entries = integrateEntries(bentNormal, classified)
     const bound = entries.filter((entry) => entry.texture).map((entry) => entry.binding)
     assert.ok(bound.includes(A.base) && bound.includes(A.emissiveAo))
     const sampled = stageBindingCounts({
@@ -183,4 +192,26 @@ test('the levels of the gather: the finest holds the border wrapped as an octahe
   )
   assert.equal(level(4), 0, 'four texels: under one texel, the finest level')
   assert.equal(level(16), 1, 'sixteen: 3.2 texels, held to the coarsest level the gather holds')
+})
+
+test('at the default of one level the filtered radiance is still the gather with the border of one texel, fixed up every image by the kernel of the border, and the integration reads it there rather than wrapping the border as it reads', () => {
+  assert.ok(!Object.keys(ultra).includes('mip1'), 'no coarser level')
+  assert.deepEqual(ultra.fixup!.points, ['fixup'])
+  assert.match(ultra.fixup!.code, /const SP_MIP_SIDE:u32=10u;/)
+  assert.match(ultra.fixup!.code, /const SP_MIP_BORDER:u32=1u;/)
+  assert.match(ultra.fixup!.code, /octWrapBorder\(id\.xy%SP_MIP_SIDE,SP_MIP_SIDE,SP_MIP_BORDER\)/)
+  const code = ultra.integrate!.code
+  assert.match(code, /const SP_MIP_LEVELS:u32=1u;/)
+  assert.match(code, /const SP_MIP_BORDER:u32=1u;/)
+  // The common library declares `octWrapBorder` for the kernels that wrap, so the text is looked for in the function that reads a probe's radiance alone.
+  const read = code.slice(code.indexOf('fn spProbeRadiance('), code.indexOf('fn spProbeLight('))
+  assert.ok(
+    read.includes('textureLoad(probeGather'),
+    'the radiance is read from the bordered texture',
+  )
+  assert.doesNotMatch(read, /octWrapBorder/, 'the border is read, not wrapped')
+  assert.match(
+    code,
+    /textureLoad\(probeGather,base\+vec2i\(i32\(i&1u\),i32\(i>>1u\)\),i32\(level\)\)/,
+  )
 })

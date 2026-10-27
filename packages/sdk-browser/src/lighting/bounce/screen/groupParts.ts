@@ -80,8 +80,8 @@ export const buffers = (names: Record<string, GPUBuffer>) =>
   Object.fromEntries(Object.entries(names).map(([name, buffer]) => [name, { buffer }]))
 
 /** A bind group of `kernel` over `entries`. */
-export const groupOf = <E extends string>(
+export const groupOf = (
   device: GPUDevice,
-  kernel: { layout: GPUBindGroupLayout; pipelines: Record<E, GPUComputePipeline> },
+  kernel: { layout: GPUBindGroupLayout },
   entries: GPUBindGroupEntry[],
 ) => device.createBindGroup({ layout: kernel.layout, entries })

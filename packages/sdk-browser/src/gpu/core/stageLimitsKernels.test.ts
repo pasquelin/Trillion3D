@@ -170,6 +170,8 @@ test("the surface cache's lighting kernels fit WebGPU's default limits", () => {
     ['the pages cut into tiles', S.SURFACE_CACHE_SPLICE_WGSL],
     ['the depth ranges of the tiles', S.SURFACE_CACHE_TILE_DEPTH_RANGE],
     ['the lights of the tiles', S.SURFACE_CACHE_CULL],
+    ['the counters of the light tiles', S.SURFACE_CACHE_LIGHT_TILE_COUNTS],
+    ['the light tiles compacted', S.SURFACE_CACHE_LIGHT_TILE_COMPACT],
     ['the direct light', S.SURFACE_CACHE_DIRECT_WGSL],
     ['the direct light over coloured masks', S.SURFACE_CACHE_DIRECT_COLOURED_WGSL],
     ['the light functions apart from the atlas', S.SURFACE_CACHE_LIGHT_FUNCTION_PASS_WGSL],
@@ -213,12 +215,16 @@ test("the scene trace's culling pass fits WebGPU's default limits: the cut's tab
   withinDefaults([wgslComputeLayout(SCENE_CULL_WGSL)], 'the scene trace culling')
 })
 
-test("every kernel of the screen probes fits WebGPU's default limits at the levels that cast, with the extra occlusion, the filter of the probes, the levels of the gather and the fog on the rays on, the integration reduced or not: its group with the reflection group", () => {
+test("every kernel of the screen probes fits WebGPU's default limits at the levels that cast, with the extra occlusion, the filter of the probes, the levels of the gather and the fog on the rays on, the integration reduced or not, its tiles classified or the integral numerical: its group with the reflection group", () => {
   const { device } = fakeDevice()
   const group = reflectionLayout(device)
   const sceneGroup = reflectionSceneLayout(device)
   for (const screenProbes of ['ultra', 'cinematic'] as const)
-    for (const screenProbeIntegrateDownsampleFactor of [1, 2]) {
+    for (const [screenProbeIntegrateDownsampleFactor, screenProbeDiffuseIntegralMethod] of [
+      [1, 0],
+      [2, 1],
+      [2, 2],
+    ]) {
       const shape = kernelShapeOf(
         screenProbeSettings({
           screenProbes,
@@ -227,6 +233,7 @@ test("every kernel of the screen probes fits WebGPU's default limits at the leve
           screenProbeGatherNumMips: 2,
           screenProbeHeightFogOnGI: true,
           screenProbeIntegrateDownsampleFactor,
+          screenProbeDiffuseIntegralMethod,
         }),
       )
       for (const [name, source] of Object.entries(screenProbeSources(shape)))
@@ -239,7 +246,7 @@ test("every kernel of the screen probes fits WebGPU's default limits at the leve
               ] as never,
             },
           ],
-          `the screen probes' ${name} at ${screenProbes}, the integration reduced ${screenProbeIntegrateDownsampleFactor}`,
+          `the screen probes' ${name} at ${screenProbes}, the integration reduced ${screenProbeIntegrateDownsampleFactor}, integral method ${screenProbeDiffuseIntegralMethod}`,
         )
     }
 })

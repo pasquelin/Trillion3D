@@ -31,12 +31,14 @@ test('one image of screen probes encodes its passes in order, hands the lighting
     'spatialFilter',
     'spatialFilter',
     'convert',
+    'fixup',
     'occlusion',
     'tileInit',
     'tileClassify',
     'tileFinish',
-    'integrate',
     'integrateSimple',
+    'integrateSampled',
+    'integrateComplete',
     'temporal',
   ])
   assert.equal(
@@ -107,11 +109,13 @@ test('the screen probes leave out the passes their settings leave out, and cast 
     'composite',
     'spatialFilter',
     'convert',
+    'fixup',
     'tileInit',
     'tileClassify',
     'tileFinish',
-    'integrate',
     'integrateSimple',
+    'integrateSampled',
+    'integrateComplete',
     'temporal',
   ])
   const off = await probesRuntime({ screenProbes: 'off' })

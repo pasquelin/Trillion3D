@@ -28,7 +28,7 @@ const X = FIXUP_BINDINGS.at
 const M = MIP_BINDINGS.at
 
 /**
- * THE FINEST LEVEL OF THE FILTERED RADIANCE WITH ITS BORDER (`fixup`, `screenProbeGatherNumMips` above one): each texel of a probe's square of
+ * THE FINEST LEVEL OF THE FILTERED RADIANCE WITH ITS BORDER (`fixup`, every image, whatever `screenProbeGatherNumMips`): each texel of a probe's square of
  * `gatherMipSide(gather, mips, 0)` texels, the border of `2 ** (mips - 1)` texels included, holds the filtered radiance of the texel its wrap names
  * (`octWrapBorder`: a border texel is its mirror inside the octahedron), quantized as the 11-11-10 target of the reference is, dithered by a hash of the texel and
  * the frame; a probe on no lit surface holds zero. A thread a texel.

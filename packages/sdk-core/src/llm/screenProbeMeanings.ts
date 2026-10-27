@@ -165,7 +165,7 @@ const RADIANCE_CACHE_AND_FOLIAGE_MEANINGS = /* @__PURE__ */ (() =>
     screenProbeTranslucencyReflectionsRadianceCache:
       'Whether the translucent surfaces mark the cells of the radiance cache they read: their meshes are drawn once more, at the image downsampled by screenProbeTranslucencyReflectionsMarkDownsampleFactor, and each fragment marks the cells round its point, so that a pane in front of a cell no opaque pixel reads still finds its probes; false, only the opaque surfaces mark and a translucent surface may read probes that were never traced.',
     screenProbeTranslucencyReflectionsMarkDownsampleFactor:
-      'The factor, from 1 to 64 (4 by default; a power of two), the image is downsampled by for the translucent surfaces to mark the radiance cache from: larger marks fewer fragments but leaves cells of small panes unmarked; smaller costs more fragments. The depth pyramid level of the occlusion test follows it.',
+      'The factor, from 1 to 64 (4 by default; a power of two advised), the image is downsampled by for the translucent surfaces to mark the radiance cache from: larger marks fewer fragments but leaves cells of small panes unmarked; smaller costs more fragments. The depth pyramid level of the occlusion test follows it.',
     screenProbeTranslucencyReflectionsHizOcclusionTest:
       'Whether a translucent fragment hidden behind the opaque surfaces, by the depth pyramid, marks nothing in the radiance cache; false, it marks the cells even behind a wall.',
     screenProbeTranslucencyReflectionsClipmapFadeSize:

@@ -345,13 +345,15 @@ export const integrateTiles = (g: Pick<ScreenProbeGeometry, 'width' | 'height'>,
 /** The most workgroups a dispatch holds along an axis on every device (WebGPU's default `maxComputeWorkgroupsPerDimension`): a mode with more tiles is dispatched
  *  in rows of this many. */
 export const INTEGRATE_TILE_ROW = 65535
-/** The modes the tiles of the integration are classified in, in the order of their lists and their arguments: the simple one (the rough specular is the diffuse light over pi),
+/** The modes the tiles of the integration are classified in, by their index in the order of their lists and their arguments: the simple one (the rough specular is the diffuse light over pi),
  *  the sampled one (the rough specular samples the lobe, and the diffuse light samples the pixel's BRDF where the integral method asks it) and the complete one (a tile with a hair
  *  pixel, which samples the whole sphere). */
-export const INTEGRATE_TILE_MODES = ['simple', 'sampled', 'complete'] as const
-/** Words of the integration's tile buffer: the indirect arguments of the integration of each mode (`x, y, z`, in the order of `INTEGRATE_TILE_MODES`), then the count of tiles each mode holds. */
-export const INTEGRATE_TILE_ARGS_WORDS = INTEGRATE_TILE_MODES.length * 4
+export const INTEGRATE_TILE_MODE = { simple: 0, sampled: 1, complete: 2 } as const
+/** The modes there are. */
+export const INTEGRATE_TILE_MODE_COUNT = 3
+/** Words of the integration's tile buffer: the indirect arguments of the integration of each mode (`x, y, z`, in the order of `INTEGRATE_TILE_MODE`), then the count of tiles each mode holds. */
+export const INTEGRATE_TILE_ARGS_WORDS = INTEGRATE_TILE_MODE_COUNT * 4
 /** The word at which the counts of the tiles of each mode start in the integration's tile buffer: after the arguments of every mode. */
-export const INTEGRATE_TILE_COUNTS_AT = INTEGRATE_TILE_MODES.length * 3
-/** Bytes at which the indirect arguments of the integration of the mode `mode` (an index of `INTEGRATE_TILE_MODES`) start. */
+export const INTEGRATE_TILE_COUNTS_AT = INTEGRATE_TILE_MODE_COUNT * 3
+/** Bytes at which the indirect arguments of the integration of the mode `mode` (a value of `INTEGRATE_TILE_MODE`) start. */
 export const integrateArgsAt = (mode: number) => mode * 3 * 4

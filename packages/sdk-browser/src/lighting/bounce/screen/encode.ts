@@ -6,11 +6,13 @@ import { REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
 import type { ScreenProbeGroups } from './groups.ts'
 import type { CastKernels, ScreenProbeKernels } from './kernels.ts'
 import type { ScreenProbeResources } from './resources.ts'
+import { CLASSIFIED_POINTS } from './integratePassWgsl.ts'
 import {
   INTEGRATE_TILE_SIDE,
   SCREEN_PROBE_ARGS,
   adaptiveWorkgroups,
   gatherMipSide,
+  integrateArgsAt,
 } from './screenProbeLayout.ts'
 import type { TracedSceneGroups } from './traceGroups.ts'
 import { TRACE_TRACED_SCENE } from './traceTracedWgsl.ts'
@@ -119,12 +121,11 @@ function traceScene(pass: GPUComputePassEncoder, run: CastRun) {
   pass.setBindGroup(REFLECTION_GROUP, run.reflection)
 }
 
-/** The levels of the gathered radiance with their border, where the gather holds more than one (`screenProbeGatherNumMips`): the finest level's border
- *  fixed up from the filtered radiance, then each coarser level the mean of the one before. */
+/** The levels of the gathered radiance with their border: the finest level's border fixed up from the filtered radiance, then, where the gather holds
+ *  more than one level (`screenProbeGatherNumMips`), each coarser level the mean of the one before. */
 function gatherLevels(pass: GPUComputePassEncoder, run: CastRun) {
   const { groups, kernels, resources: r, settings } = run
   const { fixup } = kernels
-  if (!fixup || !groups.fixup) return
   const { geometry: g } = r
   const side = (level: number) => gatherMipSide(g.gather, settings.gatherMips, level)
   const over = (level: number) =>
@@ -158,30 +159,33 @@ function traceAndFilter(pass: GPUComputePassEncoder, run: CastRun) {
   gatherLevels(pass, run)
 }
 
-/** The integration of the probes the pixels read, where the level casts them: the tiles of cells (pixels, or one in each two by two block where the integration is downsampled) classified by the rough specular they need (a tile
- *  with no lit pixel cleared), then the integration of the tiles of each mode, dispatched over the workgroups the classification counted. */
+/** The integration of the probes the pixels read, where the level casts them: where the tiles are classified, the tiles of cells (pixels, or one in each two by two block where the integration is downsampled) classified
+ *  by the most complete mode their pixels need (a tile with no lit pixel cleared), then the integration of the tiles of each mode, dispatched over the workgroups the classification counted;
+ *  else one integration over every cell. */
 function integratePixels(
   pass: GPUComputePassEncoder,
   run: ScreenProbeRun,
   cast: CastRun | undefined,
 ) {
-  const { geometry: g } = run.resources
+  const { geometry: g, tileArgs } = run.resources
   const { tile, integrate } = run.groups
-  if (!cast || !tile || !integrate) return
-  const { kernels } = cast
-  const { tileArgs } = run.resources
+  if (!cast || !integrate) return
+  const { tile: classify, integrate: modes, integrateEvery } = cast.kernels
   const reduction = run.settings.integrateDownsample
-  dispatch(pass, kernels.tile.pipelines.tileInit, tile, 1, 1)
-  dispatch(
-    pass,
-    kernels.tile.pipelines.tileClassify,
-    tile,
+  const cells = [
     ceilDiv(ceilDiv(g.width, reduction), INTEGRATE_TILE_SIDE),
     ceilDiv(ceilDiv(g.height, reduction), INTEGRATE_TILE_SIDE),
-  )
-  dispatch(pass, kernels.tile.pipelines.tileFinish, tile, 1, 1)
-  dispatchOver(pass, kernels.integrate.pipelines.integrate, integrate, tileArgs, 0)
-  dispatchOver(pass, kernels.integrate.pipelines.integrateSimple, integrate, tileArgs, 12)
+  ] as const
+  if (classify && modes && tile) {
+    dispatch(pass, classify.pipelines.tileInit, tile, 1, 1)
+    dispatch(pass, classify.pipelines.tileClassify, tile, ...cells)
+    dispatch(pass, classify.pipelines.tileFinish, tile, 1, 1)
+    CLASSIFIED_POINTS.forEach((point, mode) =>
+      dispatchOver(pass, modes.pipelines[point], integrate, tileArgs, integrateArgsAt(mode)),
+    )
+  } else if (integrateEvery) {
+    dispatch(pass, integrateEvery.pipelines.integrateEvery, integrate, ...cells)
+  }
 }
 
 /** The pixels: the short-range occlusion is searched, the probes they read integrated — where the level casts them — the texel each reads of that integration picked where it is downsampled, and the temporal pass blends

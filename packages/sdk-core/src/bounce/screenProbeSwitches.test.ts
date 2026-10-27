@@ -231,17 +231,52 @@ test('the integration runs at the reduction asked, 1 by default and 2 at most, h
   )
 })
 
+test('the integration’s tiles are classified by default, and not where the switch is off, the method is the numerical integral, or the level casts no probe; the diffuse method takes 0, 1 or 2, and unclassified tiles integrate at the image’s size', () => {
+  const settings = (options: object) => screenProbeSettings({ screenProbes: 'ultra', ...options })
+  assert.deepEqual(
+    [settings({}).tileClassification, settings({}).integralMethod],
+    [true, 0],
+    'the reference’s defaults',
+  )
+  assert.equal(
+    settings({ screenProbeIntegrationTileClassification: false }).tileClassification,
+    false,
+  )
+  assert.equal(settings({ screenProbeDiffuseIntegralMethod: 1 }).tileClassification, true)
+  assert.equal(
+    settings({ screenProbeDiffuseIntegralMethod: 2 }).tileClassification,
+    false,
+    'the numerical integral is run over every pixel',
+  )
+  assert.equal(settings({ screenProbeDiffuseIntegralMethod: 2 }).integralMethod, 2)
+  assert.equal(screenProbeSettings({ screenProbes: 'low' }).tileClassification, false)
+  for (const refused of [
+    { screenProbeDiffuseIntegralMethod: 3 },
+    { screenProbeDiffuseIntegralMethod: -1 },
+  ])
+    assert.throws(() => settings(refused), TypeError, JSON.stringify(refused))
+  // Without the classification the integration is not downsampled, whatever is asked; the numerical integral, which does not classify, keeps the reduction asked.
+  const twice = { screenProbeIntegrateDownsampleFactor: 2 }
+  assert.equal(settings({ ...twice }).integrateDownsample, 2)
+  assert.equal(
+    settings({ ...twice, screenProbeIntegrationTileClassification: false }).integrateDownsample,
+    1,
+  )
+  assert.equal(settings({ ...twice, screenProbeDiffuseIntegralMethod: 2 }).integrateDownsample, 2)
+})
+
 test('the translucent surfaces mark the radiance cache by default, at a quarter of the image, behind the depth pyramid’s test, fading over four probes; the pyramid level follows the downsample, and the switch takes the mark away', () => {
   assert.deepEqual(screenProbeSettings().cache.translucentMark, {
     downsample: 4,
-    hizMip: 1,
+    hizMip: 2,
     hizTest: true,
     invFade: 0.25,
   })
   const mip = (factor: number) =>
     screenProbeSettings({ screenProbeTranslucencyReflectionsMarkDownsampleFactor: factor }).cache
       .translucentMark?.hizMip
-  assert.deepEqual([1, 2, 4, 8, 16, 64].map(mip), [0, 0, 1, 2, 3, 5])
+  // A texel of the read level covers a downsampled pixel, the reference's levels (0, 0, 1, 2, 3, 5 of a half-size first level) one further in our full-size pyramid.
+  assert.deepEqual([1, 2, 4, 8, 16, 64].map(mip), [1, 1, 2, 3, 4, 6])
   const off = screenProbeSettings({
     screenProbeTranslucencyReflectionsRadianceCache: false,
     screenProbeTranslucencyReflectionsHizOcclusionTest: false,

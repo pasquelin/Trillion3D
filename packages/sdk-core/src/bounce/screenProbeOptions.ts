@@ -207,8 +207,8 @@ export type ScreenProbeSettings = LevelKnobs & {
   occlusion: boolean
   /** The reduction the integration of the probes runs at (`screenProbeIntegrateDownsampleFactor`), 1 or 2: the pixels of the image over a texel of it. */
   integrateDownsample: number
-  /** How a pixel's diffuse light is integrated from the probes (`screenProbeDiffuseIntegralMethod`): 0 the probes' preintegrated irradiance, 1 the pixel's BRDF
-   *  sampled over the probes' radiance, 2 the numerical integral over every texel of the probes (the slow reference). */
+  /** How a pixel's diffuse light is integrated from the probes (`screenProbeDiffuseIntegralMethod`, `DIFFUSE_INTEGRAL_METHOD`): the probes' preintegrated irradiance, the pixel's BRDF
+   *  sampled over the probes' radiance, the numerical integral over every texel of the probes (the slow reference); the first where the level casts no probe. */
   integralMethod: number
   /** Whether the integration is dispatched over the lists of tiles of its three modes (`screenProbeIntegrationTileClassification`), over a level that casts and an integral
    *  method that is not the numerical one: else it is dispatched over every pixel at once. */
@@ -297,7 +297,8 @@ function translucentMarkOf(values: ScreenProbeValues): TranslucentMarkSettings |
   const downsample = values.screenProbeTranslucencyReflectionsMarkDownsampleFactor
   return {
     downsample,
-    hizMip: Math.max(Math.floor(Math.log2(downsample)) - 1, 0),
+    // The pyramid's level 0 is the full image (the reference's first level is half of it): one level further than the reference names.
+    hizMip: Math.max(Math.floor(Math.log2(downsample)), 1),
     hizTest: values.screenProbeTranslucencyReflectionsHizOcclusionTest,
     invFade: 1 / values.screenProbeTranslucencyReflectionsClipmapFadeSize,
   }
@@ -419,7 +420,9 @@ export function resolveScreenProbes(values: ScreenProbeValues): ScreenProbeSetti
     occlusion,
     occlusionDownsample: occlusionDownsampleOf(values, knobs.occlusionDownsample),
     integrateDownsample: integrateDownsampleOf(values, knobs.occlusionDownsample, casts, occlusion),
-    integralMethod: values.screenProbeDiffuseIntegralMethod,
+    integralMethod: casts
+      ? values.screenProbeDiffuseIntegralMethod
+      : DIFFUSE_INTEGRAL_METHOD.preintegrated,
     tileClassification:
       casts &&
       values.screenProbeIntegrationTileClassification &&

@@ -130,12 +130,12 @@ test('the screen probes cut the image into tiles, an atlas row of adaptive probe
   const drawn = geometryOfTile(1280, 720, ultra.tile, screenProbeSettings())
   assert.deepEqual([drawn.tile, drawn.tilesX, drawn.rows], [16, 80, 67])
   assert.ok(drawn.tilesX <= ultra.tilesX && drawn.rows <= ultra.rows)
-  // A device that holds textures to 8192 texels: the cinematic level at 3840 pixels (7680 texels wide) fits, at 5120 pixels
-  // (10240) the tile doubles until the atlas does.
+  // A device that holds textures to 8192 texels: the gathered radiance holds its border (18 texels a probe at the cinematic level), so that at 3840 pixels the tile of 8 (8640 texels wide)
+  // doubles, and at 5120 pixels too, until the atlas fits.
   const cinematic = screenProbeSettings({ screenProbes: 'cinematic' })
-  assert.equal(screenProbeGeometry(3840, 2160, cinematic, 8192).tile, 8)
+  assert.equal(screenProbeGeometry(3840, 2160, cinematic, 8192).tile, 16)
   const wide = screenProbeGeometry(5120, 2880, cinematic, 8192)
-  assert.deepEqual([wide.tile, wide.tilesX * 16 <= 8192, wide.rows * 16 <= 8192], [16, true, true])
+  assert.deepEqual([wide.tile, wide.tilesX * 18 <= 8192, wide.rows * 18 <= 8192], [16, true, true])
   // Levels of detail whose border alone fills a texture: the tile doubles to its largest and the atlas still does not fit, which the view refuses.
   const deep = screenProbeSettings({ screenProbeGatherNumMips: 12 })
   const crowded = screenProbeGeometry(1920, 1080, deep, 8192)
@@ -213,6 +213,8 @@ test('the kernels are keyed by what their code depends on: a switch of the occlu
     [
       'composite',
       'convert',
+      // The border of the filtered radiance reads the probes' records, whose program holds the samples a tile.
+      'fixup',
       // The tiles' classification and the integration read the probes' samples a tile.
       'integrate',
       'occlusion',

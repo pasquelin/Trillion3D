@@ -9,6 +9,8 @@ import { compositeEntries, compositeShader, convertEntries, convertShader } from
 import { FIXUP_BINDINGS, fixupShader, MIP_BINDINGS, mipShader } from './gatherMipsWgsl.ts'
 import { raysEntries, raysShader } from './importanceWgsl.ts'
 import {
+  CLASSIFIED_POINTS,
+  EVERY_POINT,
   integrateEntries,
   integrateShader,
   TILE_BINDINGS,
@@ -48,6 +50,10 @@ export interface KernelShape {
   gatherMips: number
   /** The reduction the integration runs at (`screenProbeIntegrateDownsampleFactor`). */
   integrate: number
+  /** The method the diffuse light of a pixel is integrated by (`screenProbeDiffuseIntegralMethod`). */
+  integral: number
+  /** Whether the integration is dispatched over the lists of tiles of its modes (`screenProbeIntegrationTileClassification`): else over every pixel. */
+  classified: boolean
   /** Whether the height fog is laid over the light of the probes' rays (`screenProbeHeightFogOnGI`): the scene stages that write it lay it. */
   heightFog: boolean
 }
@@ -68,6 +74,8 @@ export const kernelShapeOf = (settings: ScreenProbeSettings): KernelShape => ({
   extraAo: settings.extraAo,
   gatherMips: settings.gatherMips,
   integrate: settings.integrateDownsample,
+  integral: settings.integralMethod,
+  classified: settings.tileClassification,
   heightFog: settings.values.screenProbeHeightFogOnGI,
 })
 
@@ -92,6 +100,8 @@ export const shapeKey = (shape: KernelShape) =>
     shape.extraAo,
     shape.gatherMips,
     shape.integrate,
+    shape.integral,
+    shape.classified,
     shape.heightFog,
   ].join('|')
 
@@ -155,14 +165,39 @@ const mipName = (level: number) => `mip${level}`
 export const mipLevelOf = (name: string) => /^mip(\d+)$/.exec(name)?.[1]
 
 /** The sources of the kernels over the probes: the placement, the screen data, the rays, the trace's two stages, the composite, the temporal filter
- *  of the probes, the spatial filter and the conversion, the border and the coarser levels of the filtered radiance, then the classification of the pixels'
+ *  of the probes, the spatial filter and the conversion, the border of the filtered radiance and its coarser levels, then the classification of the pixels'
  *  tiles, the texel each pixel reads of the integration and the integration of the probes they read, in the order `encode.ts` dispatches them. The temporal filter, the extra ambient occlusion, the
- *  levels and the texel each pixel reads exist where the shape asks them. */
+ *  coarser levels, the classification of the tiles and the texel each pixel reads exist where the shape asks them. */
 const castSources = (shape: KernelShape, width: number) => {
-  const { side, gather, samples, occlusion, filterProbes, extraAo, gatherMips, integrate } = shape
+  const {
+    side,
+    gather,
+    samples,
+    occlusion,
+    filterProbes,
+    extraAo,
+    gatherMips,
+    integrate,
+    integral,
+    classified,
+  } = shape
   const probes = probesKey(shape)
   const leveled = `${gather}|${samples}|${gatherMips}`
   const levels = Array.from({ length: gatherMips - 1 }, (_, at) => at + 1)
+  const integrated = {
+    key: `${samples}|${occlusion.downsample}|${integrate}|${integral}|${classified}|${occlusion.bentNormal}|${extraAo}|${gatherMips}`,
+    code: integrateShader(
+      occlusion.downsample,
+      integrate,
+      integral,
+      samples,
+      occlusion.bentNormal,
+      extraAo,
+      gatherMips,
+      classified,
+    ),
+    entries: integrateEntries(occlusion.bentNormal, classified),
+  }
   return {
     place: sourceOf(
       `${samples}`,
@@ -207,32 +242,22 @@ const castSources = (shape: KernelShape, width: number) => {
       convertEntries(extraAo),
       'convert',
     ),
-    ...(gatherMips > 1 && {
-      fixup: sourceOf(
-        leveled,
-        fixupShader(gather, gatherMips, samples),
-        FIXUP_BINDINGS.entries,
-        'fixup',
-      ),
-      ...Object.fromEntries(
-        levels.map((level) => [
-          mipName(level),
-          sourceOf(
-            leveled,
-            mipShader(gather, gatherMips, level, samples),
-            MIP_BINDINGS.entries,
-            'mip',
-          ),
-        ]),
-      ),
-    }),
-    tile: sourceOf(
-      `${samples}|${integrate}`,
-      tileShader(integrate, samples),
-      TILE_BINDINGS.entries,
-      'tileInit',
-      'tileClassify',
-      'tileFinish',
+    fixup: sourceOf(
+      leveled,
+      fixupShader(gather, gatherMips, samples),
+      FIXUP_BINDINGS.entries,
+      'fixup',
+    ),
+    ...Object.fromEntries(
+      levels.map((level) => [
+        mipName(level),
+        sourceOf(
+          leveled,
+          mipShader(gather, gatherMips, level, samples),
+          MIP_BINDINGS.entries,
+          'mip',
+        ),
+      ]),
     ),
     ...(integrate > 1 && {
       stochastic: sourceOf(
@@ -242,20 +267,25 @@ const castSources = (shape: KernelShape, width: number) => {
         'stochasticOffsets',
       ),
     }),
-    integrate: sourceOf(
-      `${samples}|${occlusion.downsample}|${integrate}|${occlusion.bentNormal}|${extraAo}|${gatherMips}`,
-      integrateShader(
-        occlusion.downsample,
-        integrate,
-        samples,
-        occlusion.bentNormal,
-        extraAo,
-        gatherMips,
+    ...(classified && {
+      tile: sourceOf(
+        `${samples}|${integrate}|${integral}`,
+        tileShader(integrate, integral, samples),
+        TILE_BINDINGS.entries,
+        'tileInit',
+        'tileClassify',
+        'tileFinish',
       ),
-      integrateEntries(occlusion.bentNormal),
-      'integrate',
-      'integrateSimple',
-    ),
+      integrate: sourceOf(
+        integrated.key,
+        integrated.code,
+        integrated.entries,
+        ...CLASSIFIED_POINTS,
+      ),
+    }),
+    ...(!classified && {
+      integrateEvery: sourceOf(integrated.key, integrated.code, integrated.entries, EVERY_POINT),
+    }),
   }
 }
 
@@ -306,16 +336,19 @@ export interface CastKernels {
   composite: Kernel<'composite'>
   spatial: Kernel<'spatialFilter'>
   convert: Kernel<'convert'>
-  /** The temporal filter of the probes (`screenProbeTemporalFilterProbes`), the border of the filtered radiance's finest level and its coarser level
-   *  (`screenProbeGatherNumMips` above one): none where the shape asks none. */
+  /** The temporal filter of the probes (`screenProbeTemporalFilterProbes`): none where the shape asks none. */
   probeFilter?: Kernel<'probeFilter'>
-  fixup?: Kernel<'fixup'>
+  /** The border of the filtered radiance's finest level. */
+  fixup: Kernel<'fixup'>
   /** The coarser levels of the filtered radiance, the first level first: none where the gather holds one level. */
   mips: Kernel<'mip'>[]
-  tile: Kernel<'tileInit' | 'tileClassify' | 'tileFinish'>
+  /** The classification of the integration's tiles and the integration over the lists of each mode (`screenProbeIntegrationTileClassification`): none where the tiles are not classified. */
+  tile?: Kernel<'tileInit' | 'tileClassify' | 'tileFinish'>
+  integrate?: Kernel<(typeof CLASSIFIED_POINTS)[number]>
+  /** The integration over every pixel at once, where the tiles are not classified. */
+  integrateEvery?: Kernel<typeof EVERY_POINT>
   /** The pass that picks the texel each pixel reads of the integration where it is downsampled (`screenProbeIntegrateDownsampleFactor` above one): none else. */
   stochastic?: Kernel<'stochasticOffsets'>
-  integrate: Kernel<'integrate' | 'integrateSimple'>
 }
 
 /** What the shape of the kernels says of the options the groups bind by: whether the probes keep an extra ambient occlusion, the temporal filter of

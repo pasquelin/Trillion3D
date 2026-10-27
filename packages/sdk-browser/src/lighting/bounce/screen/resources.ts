@@ -5,6 +5,7 @@ import { listBytes } from '../../../gpu/dispatch/list.ts'
 import { countingAllocator, type ResourceAllocator } from '../../../gpu/core/resourceAllocator.ts'
 import {
   INTEGRATE_TILE_ARGS_WORDS,
+  INTEGRATE_TILE_MODE_COUNT,
   PDF_LOBE_WORDS,
   SCENE_RAY_WORDS,
   SCREEN_PROBE_ARGS,
@@ -36,10 +37,10 @@ type ProbeSettings = Pick<
 
 /** The textures of the probes: their records (this image's and the last's, whose depths and light the importance
  *  sampling reads), the rays, the trace's radiance and ends (read and written in place, stage after stage), the
- *  gathered radiance — the filter's passes taking turns, the last image's final one kept —, the irradiance (with the extra ambient occlusion by normal in its alpha where
+ *  gathered radiance — the filter's passes taking turns, the last image's final one kept —, the levels of the gathered radiance with their border, the irradiance (with the extra ambient occlusion by normal in its alpha where
  *  the probes keep one), and, where the settings ask them,
- *  the composited radiance this image and the last (the temporal filter of the probes), the extra ambient occlusion by direction (the filter's passes
- *  taking turns), and the levels of the gathered radiance with their border. What a setting leaves off is a texel, or none. */
+ *  the composited radiance this image and the last (the temporal filter of the probes) and the extra ambient occlusion by direction (the filter's passes
+ *  taking turns). What a setting leaves off is a texel. */
 function probeTextures(a: ResourceAllocator, g: ScreenProbeGeometry, settings: ProbeSettings) {
   const probes: [number, number] = [g.tilesX, g.rows]
   const traced: [number, number] = [g.tilesX * g.tracing, g.rows * g.tracing]
@@ -63,20 +64,17 @@ function probeTextures(a: ResourceAllocator, g: ScreenProbeGeometry, settings: P
     extraAo: pair((side) =>
       a.texture(`extra ambient occlusion ${side}`, where(settings.extraAo, gathered), F.extraAo),
     ),
-    // The levels of the gathered radiance with their border, one texture of `gatherMips` levels (`gatherMipSide`, the first the gather's own): a view of
-    // all of them to read and a view of each to write; none where the gather holds one level.
-    mips:
-      settings.gatherMips > 1
-        ? a.mipped(
-            'gather levels',
-            [
-              g.tilesX * gatherMipSide(g.gather, settings.gatherMips, 0),
-              g.rows * gatherMipSide(g.gather, settings.gatherMips, 0),
-            ],
-            F.radianceMip,
-            settings.gatherMips,
-          )
-        : undefined,
+    // The levels of the gathered radiance with their border, one texture of `gatherMips` levels (`gatherMipSide`, the first the gather's own, one where the gather holds one level):
+    // a view of all of them to read and a view of each to write.
+    mips: a.mipped(
+      'gather levels',
+      [
+        g.tilesX * gatherMipSide(g.gather, settings.gatherMips, 0),
+        g.rows * gatherMipSide(g.gather, settings.gatherMips, 0),
+      ],
+      F.radianceMip,
+      settings.gatherMips,
+    ),
     irradiance: a.texture(
       'irradiance',
       irradianceSize(g, settings.irradianceFormat === 'octahedral' || settings.extraAo),
@@ -88,7 +86,7 @@ function probeTextures(a: ResourceAllocator, g: ScreenProbeGeometry, settings: P
 /** The settings that shape the textures of the pixels. */
 type PixelSettings = Pick<
   ScreenProbeSettings,
-  'occlusionDownsample' | 'integrateDownsample' | 'bentNormal'
+  'occlusionDownsample' | 'integrateDownsample' | 'bentNormal' | 'tileClassification'
 >
 
 /** The textures of the pixels: the history's words, the shading and the depth it was found at, what the integration leaves for the temporal pass (the light, the
@@ -156,11 +154,18 @@ export function createScreenProbeResources(
     indices: storage('tile lists', tilesX * tilesY * samplesX * samplesY),
     counts: storage('adaptive count', 1),
     args: a.buffer('arguments', SCREEN_PROBE_ARGS.words, 'args'),
+    // The lists of the integration's tiles, one for each mode, and their arguments: a word each where the tiles are not classified.
     tileList: storage(
       'integrate tiles',
-      2 * integrateTiles(capacity, settings.integrateDownsample),
+      settings.tileClassification
+        ? INTEGRATE_TILE_MODE_COUNT * integrateTiles(capacity, settings.integrateDownsample)
+        : 1,
     ),
-    tileArgs: a.buffer('integrate tile arguments', INTEGRATE_TILE_ARGS_WORDS, 'args'),
+    tileArgs: a.buffer(
+      'integrate tile arguments',
+      settings.tileClassification ? INTEGRATE_TILE_ARGS_WORDS : 1,
+      'args',
+    ),
     sceneRays: a.buffer('scene rays', listBytes(rays, SCENE_RAY_WORDS) / 4, 'list'),
     listHead: a.buffer('scene rays head', 4, 'head'),
   }

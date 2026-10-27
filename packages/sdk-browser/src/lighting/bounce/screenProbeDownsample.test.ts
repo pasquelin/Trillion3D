@@ -24,7 +24,7 @@ test('a cell of the integration lights the pixel of its block that the four-rook
       spIntegratePixel: (cell: number[]) => number[]
       spIntegrateSize: () => number[]
     }>(
-      integrateShader(1, integrate, [4, 2], false, false, 1),
+      integrateShader(1, integrate, 0, [4, 2], false, false, 1, true),
       ['spIntegratePixel', 'spIntegrateSize'],
       {
         SP_INTEGRATE_DOWNSAMPLE: integrate,
@@ -144,7 +144,7 @@ test('the pixel each cell stands for in the weights is the one the integration l
     { sp },
   )
   const { spIntegratePixel } = shaderRun<{ spIntegratePixel: (cell: number[]) => number[] }>(
-    integrateShader(1, 2, [4, 2], false, false, 1),
+    integrateShader(1, 2, 0, [4, 2], false, false, 1, true),
     ['spIntegratePixel'],
     { SP_INTEGRATE_DOWNSAMPLE: 2, sp },
   )
@@ -234,7 +234,7 @@ test('a level whose integration is downsampled has the pass that picks the texel
 })
 
 test('the integration’s tile classification looks at every pixel of the block its cells stand for, and clears the texels of a tile with none lit', () => {
-  const code = tileShader(2, [4, 2])
+  const code = tileShader(2, 0, [4, 2])
   assert.match(
     code,
     /let cell=group\.xy\*8u\+local\.xy;\n let inside=all\(cell<spIntegrateSize\(\)\);/,

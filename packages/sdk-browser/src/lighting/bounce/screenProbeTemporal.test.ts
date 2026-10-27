@@ -98,7 +98,13 @@ test('the integration’s targets hold a light as the 11-11-10 word does, rounde
     spStoredMoving: (moving: number) => number
   }>(
     wgslModule(
-      spIntegrate({ ...INTEGRATE_BINDINGS.at, extraAo: false, bentNormal: false, mips: 1 }),
+      spIntegrate({
+        ...INTEGRATE_BINDINGS.at,
+        extraAo: false,
+        bentNormal: false,
+        mips: 1,
+        numerical: false,
+      }),
     ),
     ['spStored', 'spStoredMoving'],
     {},

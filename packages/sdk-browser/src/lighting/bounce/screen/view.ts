@@ -57,7 +57,7 @@ export interface ScreenProbeView {
 /** What the resources depend on in the settings, once a settings object: exactly what `createScreenProbeResources` and the geometry it is made
  *  at (`geometryOfTile`) read — whether the level casts, the tile, the adaptive probes and their share of the rows, the tracing and gather sides,
  *  the levels of the gather, the irradiance's format, the temporal filter of the probes, the extra ambient occlusion, the occlusion's reduction,
- *  the integration's and the occlusion's bent normal —, so that two views of the same shape agree on it. What only the kernels read (the occlusion's pyramid and power) is
+ *  the integration's, whether its tiles are classified and the occlusion's bent normal —, so that two views of the same shape agree on it. What only the kernels read (the occlusion's pyramid and power) is
  *  in their own key (`shapeKey`) and does not remake the view. */
 const keys = new WeakMap<ScreenProbeSettings, string>()
 function settingsKeyOf(settings: ScreenProbeSettings) {
@@ -78,6 +78,7 @@ function settingsKeyOf(settings: ScreenProbeSettings) {
         settings.extraAo,
         settings.occlusionDownsample,
         settings.integrateDownsample,
+        settings.tileClassification,
         settings.bentNormal,
       ].join('|')),
     )
