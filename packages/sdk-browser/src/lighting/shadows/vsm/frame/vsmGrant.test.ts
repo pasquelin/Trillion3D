@@ -195,3 +195,41 @@ test('shadowQuality 0 makes no shadow set and frees the one held; any level abov
     disposeQuadRun(backend, fixture)
   }
 })
+
+test('shadowCache and shadowUseReceiverMaskLocal change the set the sun is drawn from: another is made, the first freed with its cache', async () => {
+  installGpuGlobals()
+  for (const [setting, value] of [
+    ['shadowCache', false],
+    ['shadowUseReceiverMaskLocal', true],
+  ] as const) {
+    const gpu = fakeDevice({ ...BACKEND, limits: SHADOW_LIMITS })
+    const sceneLights = createSceneLightStore()
+    sceneLights.add(SUN)
+    const fixture = quadScene()
+    const context: Record<string, unknown> = {
+      ...{ textureCaches: createTextureCaches(createPageCache()), ...fixture },
+      ...{ gpuDevice: gpu.device, maxResidentPages: 2, viewport: [32, 32] as [number, number] },
+      ...{ sceneLights, shadowQuality: 3, shadowMaxPhysicalPages: 512 },
+    }
+    const backend = webgpuPagesEngine(context as unknown as Parameters<typeof webgpuPagesEngine>[0])
+    const pools = () => gpu.buffers.filter((buffer) => buffer.label?.startsWith(POOL)).length
+    const freed = () => gpu.destroyed.filter((made) => made.label?.startsWith(POOL)).length
+    const frame = async () => {
+      backend.render(camera())
+      await backend.flush()
+      return backend.metrics().shadowVsmLights
+    }
+    try {
+      await backend.prepare()
+      assert.ok(await frame(), `${setting}: the sun casts`)
+      const made = pools()
+      assert.ok((await frame()) && pools() === made && freed() === 0, 'the set is kept as it is')
+      context[setting] = value
+      assert.ok(await frame(), `${setting} ${value}: the sun casts`)
+      assert.equal(freed(), made, 'the first set is freed whole')
+      assert.equal(pools() - freed(), made, 'and another made')
+    } finally {
+      disposeQuadRun(backend, fixture)
+    }
+  }
+})

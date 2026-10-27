@@ -1,4 +1,10 @@
-import { createMobilityState, ensureLayout, holdsPose, touchRank } from './mobilityState.ts'
+import {
+  createMobilityState,
+  ensureLayout,
+  holdsPose,
+  parkRank,
+  touchRank,
+} from './mobilityState.ts'
 import { followLead, moveLeadSlot, moveRank, settleMoving } from './mobilityMoves.ts'
 import { writeRootWords } from './mobilityWrite.ts'
 import { MOBILITY_DEFORMS } from '../mobilityBits.ts'
@@ -21,7 +27,7 @@ import { MOBILITY_DEFORMS } from '../mobilityBits.ts'
  * it; `cachedDynamic(rank)`, whether it is cached as dynamic: it has moved, or a deformation moves
  * its vertices (the sign of the boxes the CPU declares); `poseOf(rank)`, the pose it was last seen at, a view of the state, none past the placements it
  * is sized for; `words`, one word a placement; `holds`, `ensure`, `move`, `follow`, `moveLead`,
- * `settle`, `touch` and `writeRoots`, those of `mobilityState.ts`, `mobilityMoves.ts` and
+ * `settle`, `touch`, `park` and `writeRoots`, those of `mobilityState.ts`, `mobilityMoves.ts` and
  * `mobilityWrite.ts`.
  */
 export function createShadowMobility() {
@@ -57,6 +63,8 @@ export function createShadowMobility() {
     moveLead: (lead: number, ranks: readonly number[]) => moveLeadSlot(s, lead, ranks),
     settle: (threshold: number) => settleMoving(s, threshold),
     touch: (rank: number) => touchRank(s, rank),
+    /** The placement is parked or taken away: its state goes back to static (`parkRank`). */
+    park: (rank: number) => parkRank(s, rank),
     /** Every word is written again at the next `writeRoots`: the buffer they go to was made anew. */
     rewrite: () => void (s.wholeWords = true),
     writeRoots: writeRootWords.bind(null, s),

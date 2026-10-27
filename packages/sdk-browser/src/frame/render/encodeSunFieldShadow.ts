@@ -9,8 +9,10 @@ import {
 import { readSingleLayerWaterSetting } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import type { HizDepth } from '../../visibility/hiz/gpu/types.ts'
 import { foldedDepth } from '../../blend/water/waterFold.ts'
+import { waterWanted } from '../../blend/water/waterTargets.ts'
 import { readShadowSetting } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
-import { shadowsOn, vsmMapSettings } from '../../lighting/shadows/vsm/frame/vsmFarShadow.ts'
+import { vsmMapSettings } from '../../lighting/shadows/vsm/frame/vsmFarShadow.ts'
+import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { wantsContractLighting } from '../prepare/lit.ts'
@@ -141,8 +143,7 @@ export function encodeWaterSunFieldShadow(
 ) {
   const held = (rt.blendState.waterSun ??= { state: createSunShadowState() })
   if (
-    !rt.blendState.water ||
-    !readSingleLayerWaterSetting(rt, 'singleLayerWater') ||
+    !waterWanted(rt) ||
     !readSingleLayerWaterSetting(rt, 'singleLayerWaterShadersSupportDistanceFieldShadow') ||
     !readSingleLayerWaterSetting(rt, 'singleLayerWaterDistanceFieldShadow')
   )

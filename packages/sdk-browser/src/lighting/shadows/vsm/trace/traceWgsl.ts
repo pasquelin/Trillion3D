@@ -91,11 +91,12 @@ export interface VsmTraceHost {
 
 const traceLightSetupText = /* wgsl */ `fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,participating:bool)->VsmTraceResult{
  let P=receiver.P;
- let n=pixel.info.worldNormal;
  let directional=vsmLightIsDirectional(light);
  let toLight=light.shiftedPosition-P;
  let dist=length(toLight);
  let axis=select(toLight/dist,light.direction,directional);
+ // A hair pixel's receiver plane faces the light.
+ let n=select(pixel.info.worldNormal,axis,pixel.info.hair);
  var result=vsmEmptyTrace();
  var traced=participating;
  var lightMap:VsmLightMap;
@@ -124,13 +125,14 @@ const traceLightSetupText = /* wgsl */ `fn vsmTraceLight(light:VsmProjectionLigh
   // A sun's ray reaches a share of the receiver's distance to the eye, a local one its light.
   lightReach=select(dist,vsm.traceReachSun*length(viewPosition),directional);
   // The light's disk as the receiver sees it: a sun's sine of its angular radius, a local light's
-  // emitter over its distance. A point source's rays all meet the map in one texel: one sample.
+  // emitter over its distance. A local point source's rays all meet the map in one texel:
+  // no steps, as the one tap; a sun's rays march their steps, its disk of no width or not.
   s=select(min(light.sourceRadius/dist,1.0),light.sourceRadius,directional);
   if(single){s=0.0;}
   // A sun's disk grows as its subsurface receiver's opacity falls, to emulate the light's diffusion
   // in the material (\`vsm.subsurfaceMinSourceRadius\`, a sun alone).
   if(directional&&!single&&pixel.info.opacity>=0.0){s=max(s,(1.0-pixel.info.opacity)*vsm.subsurfaceMinSourceRadius);}
-  if(s==0.0){stepCount=0;}
+  if(single||(s==0.0&&!directional)){stepCount=0;}
   basis=frameAround(axis);
   let normalInFrame=intoFrame(basis,n);
   frameDepthSlope=-normalInFrame.xy/normalInFrame.z;

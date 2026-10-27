@@ -17,6 +17,7 @@ const CODE = vsmPhysicalPageKernels(vsmLayout({ fullMapCapacity: 7 })).poolCount
 /** The shadow pool's side of the sort: its ranks, its words and its free pages. */
 const HOST = [
   ...['poolSlotRank', 'poolRank', 'bitLength', 'poolSlotCount', 'poolSlotAge', 'poolSlotTier'],
+  'poolPage',
   ...['poolInUse', 'poolBurst', 'poolPlaced', 'poolEmit', 'poolCountAdd', 'poolCountLoad'],
   ...['poolCountStore', 'poolScratchLoad', 'poolScratchStore', 'pmFreeCount', 'pmFreeAt'],
 ]
@@ -26,12 +27,13 @@ type Free = { pmPop: () => number; pmFreeCount: () => number }
 
 /** The pages `pmPop` hands out after one sort of `pages` at `frame`, in order, and the free count
  *  the feedback reads before them. */
-function popAll(pages: Page[], frame: number, mapLevels: number[], seed = 1) {
+function popAll(pages: Page[], frame: number, mapLevels: number[], seed = 1, lru = true) {
   // The sort's words, the free count and the requests it fell short of, the pages, the scratch.
   const words = POOL_SORT_WORDS + 2 + pages.length + poolScratchWords(pages.length, pages.length)
   const freePages = new Array<number>(words).fill(0)
   const scope = {
     vsm: { poolPages: pages.length, frameStamp: frame },
+    vsmPm: { lruAllocation: lru ? 1 : 0 },
     vsmPoolPageInfo: pages,
     vsmProjectionData: mapLevels.map((mapLevel) => ({ mapLevel })),
     vsmFreePages: freePages,
@@ -114,4 +116,22 @@ test('a page wanted last frame and not now may be taken; one wanted now never', 
     { flags: 0, lastWantedStamp: frame, mapId: 0, mipLevel: 0 },
   ]
   assert.deepEqual(popAll(pages, frame, [0]).popped, [2, 1])
+})
+
+// Without the age order (`shadowCacheAllocateViaLru` off) the pages not wanted now go in the order of
+// a list popped from its tail: the empty ones first, then the others from the end of the pool,
+// whatever their age and level; one wanted now is never taken.
+test('without the age order the empty pages go first, then the others from the last place of the pool', () => {
+  const frame = 100
+  const pages: Page[] = [
+    { flags: 1, lastWantedStamp: frame - 90, mapId: 0, mipLevel: 6 },
+    { flags: 1, lastWantedStamp: frame, mapId: 0, mipLevel: 0 },
+    { flags: 1, lastWantedStamp: frame - 2, mapId: 0, mipLevel: 0 },
+    { flags: 0, lastWantedStamp: frame, mapId: 0, mipLevel: 0 },
+    { flags: 1, lastWantedStamp: frame - 9, mapId: 0, mipLevel: 2 },
+  ]
+  assert.deepEqual(popAll(pages, frame, [0], 1, true).popped, [3, 0, 4, 2])
+  const { popped, free } = popAll(pages, frame, [0], 1, false)
+  assert.equal(free, 4)
+  assert.deepEqual(popped, [3, 4, 2, 0])
 })

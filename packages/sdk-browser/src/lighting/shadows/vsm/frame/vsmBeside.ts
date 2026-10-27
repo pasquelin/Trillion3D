@@ -18,9 +18,7 @@ import {
   engineVsmOptions,
   fullMapsFor,
   renderViewBound,
-  vsmPoolAsked,
-  vsmDynamicHzbAsked,
-  vsmOcclusionAsked,
+  vsmAsked,
 } from './vsmLightMaps.ts'
 import { engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
 import { ensureMasks, masksGrowth, sharedMaskSize } from './vsmMask.ts'
@@ -77,17 +75,9 @@ export function bytesBeside(
 }
 
 /** The layout of the first set of `lights` (`grantEngineVsm`, from `planVsmFrame`): the maps they
- *  want at every physical page the view asks (`vsmPoolAsked`). */
+ *  want at every physical page the view asks (`vsmAsked`). */
 export const vsmFirstSetLayout = (rt: WebgpuPagesRuntime, lights: readonly VsmFrameLight[]) =>
-  vsmLayout(
-    engineVsmOptions(
-      fullMapsFor(lights),
-      sunMapsFor(lights),
-      vsmPoolAsked(rt),
-      vsmOcclusionAsked(rt),
-      vsmDynamicHzbAsked(rt),
-    ),
-  )
+  vsmLayout(engineVsmOptions(fullMapsFor(lights), sunMapsFor(lights), vsmAsked(rt)))
 
 /** Bytes the first set of `lights` takes as the first lit frame asks it (`grantEngineVsm`, from
  *  `planVsmFrame`) — the maps they want at every physical page — with what the frame makes beside

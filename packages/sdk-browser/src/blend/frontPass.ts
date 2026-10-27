@@ -3,6 +3,7 @@ import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { readHizSetting } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import { drawBlendRuns, type BlendRuns } from './draw.ts'
 import { waterFrontOf } from './water/waterReflection.ts'
+import { tracesTranslucent } from '../lighting/shadows/vsm/frame/vsmGates.ts'
 
 /** The front pass's runs: no reflection read, near to far — the depth it writes rejects early
  *  what lies behind (`BlendRuns`). */
@@ -21,6 +22,8 @@ const FRONT_RUNS: BlendRuns = { reflected: false, nearFirst: true, water: 'with'
  * writes: the front layer's reflections (`reflectionFrontLayer`), the depth pyramid's fold of the transparents
  * (`hizFoldTransparents`) or the shadow pages the translucent surfaces mark (`shadowTranslucentQuality` 1,
  * `markingFrontLayer`); a stage still compiling is asked, off the frame, the frames held until it lands.
+ * Drawn once an image: before the lights where the marking has no front layer of the image before to
+ * read (`drawsFrontBeforeMarking`, `encodeMarkedLayers`), the call after them then draws nothing.
  */
 export function encodeFrontPass(
   rt: WebgpuPagesRuntime,
@@ -35,16 +38,12 @@ export function encodeFrontPass(
     !hiz ||
     !gpu.depthTexture ||
     !vis.blendPipelines ||
-    !blendState.runCount
+    !blendState.runCount ||
+    reflection.front.drawn === frontStamp(run.frame)
   )
     return
   const { frontLayer } = reflection.settings(rt.context, waterFrontOf(rt))
-  if (
-    !frontLayer &&
-    !readHizSetting(rt, 'hizFoldTransparents') &&
-    !(rt.setup.translucentShadow.quality > 0)
-  )
-    return
+  if (!frontLayer && !readHizSetting(rt, 'hizFoldTransparents') && !tracesTranslucent(rt)) return
   // The reflecting surface is written only where the trace answers the front layer (`ReflectionSettings.frontLayer`): else the
   // covering depth alone, which the depth pyramid folds in.
   const outputs = frontLayer ? blendState.frontOutputs : 0

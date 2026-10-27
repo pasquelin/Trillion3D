@@ -11,6 +11,7 @@ import { LIGHT_KIND } from '../../../../../sdk-core/src/scene/light/contracts.ts
 import { spotConesOf } from '../../../../../sdk-core/src/scene/light/fields.ts'
 import { VSM_MAP_UNSEEN } from './constants.ts'
 import { createVsmFrameState } from './frameState.ts'
+import { vsmCacheKey } from './lightCache.ts'
 import { finishVirtualShadowFrame, planVirtualShadowFrame } from './frameSetup.ts'
 import { vsmLightSeen, vsmSeenPlanes } from './seenLights.ts'
 import { vsmLocalShadowGate, type VsmGateView } from './localGate.ts'
@@ -110,7 +111,7 @@ test('a rectangle that casts takes the six faces of a point light’s cube, its 
   }
   const first = plan(panel)
   assert.deepEqual([first.kind, first.count, !!first.local], ['rect', 6, true])
-  const twin = state.cache.entries.get('point')!
+  const twin = state.cache.entries.get(vsmCacheKey('point'))!
   first.entry.mapCaches.forEach((map, face) => {
     const data = map.projectionData
     assert.deepEqual(

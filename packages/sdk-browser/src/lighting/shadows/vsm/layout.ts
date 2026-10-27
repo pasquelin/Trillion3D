@@ -38,6 +38,9 @@ export interface VsmResourceOptions {
   mapSlotsPast?: number
   /** Separate static cache slice; default true (cache on). */
   cacheEnabled?: boolean
+  /** The receiver cover holds every map's, the local lights' too (`shadowUseReceiverMaskLocal`), not
+   *  the suns' alone; default false. */
+  localCover?: boolean
   /** The occlusion culling of the casters against the maps' depth pyramid (`shadowOcclusionCulling`):
    *  the pyramid and the tables it is read through are made with the set; default true. */
   occlusion?: boolean
@@ -53,7 +56,9 @@ export interface VsmLayout {
   poolTexelsXY: [number, number]
   poolRowShift: number
   poolRowMask: number
-  staticSlice: number
+  /** Whether the pages are kept from one frame to the next (`cacheEnabled`); the static casters
+   *  are then drawn to the pool slice 1, else all to slice 0. */
+  cacheEnabled: boolean
   fullMapCapacity: number
   mapSlots: number
   pageTableRows: number
@@ -65,6 +70,8 @@ export interface VsmLayout {
   markMipOffsets: number[]
   markWordCount: number
   coverMode: VsmCoverMode
+  /** Whether the cover holds every map (`localCover`). */
+  coverLocal: boolean
   coverSize: [number, number]
   coverMips: number
   coverMipOffsets: number[]
@@ -108,12 +115,14 @@ export const POOL_PAGES_X = Math.floor(VSM_TABLE_ROW_WIDTH / VSM_PAGE_TEXELS)
 if (!isPow2(POOL_PAGES_X)) throw new Error('VSM: pool row must be a power of two pages')
 
 /** The cover masks' mode and size: directional maps take the first blocks (`tableBlocks.ts`), a full
- *  row only past one row; any other mode a 1x1 stand-in for the absent mask. */
+ *  row only past one row, all the blocks with `localCover`; any other mode a 1x1 stand-in for the
+ *  absent mask. */
 function coverLayout(options: VsmResourceOptions, maxFull: number) {
   const coverMode: VsmCoverMode = options.coverMode ?? 'directional'
+  const coverLocal = options.localCover ?? false
   let coverSize: [number, number], coverMips: number
   if (coverMode === 'directional') {
-    const required = Math.max(1, options.sunMapCapacity ?? maxFull)
+    const required = coverLocal ? maxFull : Math.max(1, options.sunMapCapacity ?? maxFull)
     const rows = ceilDiv(required, VSM_TABLES_PER_ROW)
     const rowEntries = rows === 1 ? required : VSM_TABLES_PER_ROW
     coverSize = [2 * rowEntries * VSM_LEVEL0_PAGES, 2 * rows * VSM_PAGE_TABLE_BLOCK_HEIGHT]
@@ -122,13 +131,19 @@ function coverLayout(options: VsmResourceOptions, maxFull: number) {
     coverSize = [1, 1]
     coverMips = 1
   }
-  return { coverMode, coverSize, coverMips }
+  return { coverMode, coverLocal, coverSize, coverMips }
 }
+
+/** Whether the set holds the dynamic casters' own pyramid layer: the pyramid and a static slice to
+ *  keep apart must be on (`occlusion`, `cacheEnabled`), and the layer asked (`dynamicHzb`). */
+export const dynamicHzbOf = (occlusion: boolean, cacheEnabled: boolean, dynamicHzb?: boolean) =>
+  occlusion && cacheEnabled && !!dynamicHzb
 
 /** Pure sizing; no device needed: each pool slice is one buffer, bound whole
  *  (`poolSliceBytes`; the pages a device's binding holds, `vsmPoolPagesBound`). */
 export function vsmLayout(options: VsmResourceOptions): VsmLayout {
-  const cacheEnabled = options.cacheEnabled ?? true
+  const cacheEnabled = options.cacheEnabled ?? true,
+    occlusion = options.occlusion ?? true
   // The physical pool: fixed power-of-two row width, height for the requested page count.
   const physicalPagesY = ceilDiv(Math.max(1, options.poolPages ?? VSM_POOL_PAGES), POOL_PAGES_X)
   const poolPages = POOL_PAGES_X * physicalPagesY
@@ -148,16 +163,14 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
   const markMips = VSM_LOG2_PAGE
   const flags = mipChain(pageTableSize[0], pageTableSize[1], markMips)
 
-  const { coverMode, coverSize, coverMips } = coverLayout(options, maxFull)
+  const { coverMode, coverLocal, coverSize, coverMips } = coverLayout(options, maxFull)
   const masks = mipChain(coverSize[0], coverSize[1], coverMips)
 
   const mapSlots = Math.min(
     1 << VSM_RECORD_MAP_ID_BITS,
     Math.max(VSM_MAPS_PAST_BLOCKS, options.mapSlotsPast ?? 0) + maxFull,
   )
-  const occlusion = options.occlusion ?? true
-  // A separate pyramid of the dynamic casters needs the pyramid and a static slice to keep apart.
-  const hzbLayers = occlusion && cacheEnabled && options.dynamicHzb ? 2 : 1
+  const hzbLayers = dynamicHzbOf(occlusion, cacheEnabled, options.dynamicHzb) ? 2 : 1
 
   return {
     poolPages,
@@ -165,7 +178,7 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
     poolTexelsXY,
     poolRowShift: floorLog2(POOL_PAGES_X),
     poolRowMask: POOL_PAGES_X - 1,
-    staticSlice: cacheEnabled ? 1 : 0,
+    cacheEnabled,
     fullMapCapacity: maxFull,
     mapSlots,
     pageTableRows,
@@ -175,6 +188,7 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
     markMipOffsets: flags.offsets,
     markWordCount: flags.words,
     coverMode,
+    coverLocal,
     coverSize,
     coverMips,
     coverMipOffsets: masks.offsets,

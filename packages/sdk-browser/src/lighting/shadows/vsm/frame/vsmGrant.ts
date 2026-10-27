@@ -20,9 +20,7 @@ import {
   fullMapsFor,
   mapSlotsPastOf,
   sunMapsFor,
-  vsmDynamicHzbAsked,
-  vsmOcclusionAsked,
-  vsmPoolAsked,
+  vsmAsked,
 } from './vsmLightMaps.ts'
 import { vsmLayout, type VsmResourceOptions } from '../layout.ts'
 import { vsmResourceBytes } from '../layoutBytes.ts'
@@ -67,7 +65,8 @@ export function grantEngineVsm(
   mapSlotsAsked = 0,
 ) {
   const { lights } = rt
-  const poolAsked = vsmPoolAsked(rt)
+  const settings = vsmAsked(rt),
+    poolAsked = settings.poolPages
   pagesAsked ??= poolAsked
   const heldLists = heldListBytes(lights.vsm)
   // The map slots the lights asked of the set it replaces stay asked.
@@ -84,9 +83,7 @@ export function grantEngineVsm(
   const options = engineVsmOptions(
     fullMapCapacity,
     sunMaps,
-    poolPages,
-    vsmOcclusionAsked(rt),
-    vsmDynamicHzbAsked(rt),
+    { ...settings, poolPages },
     mapSlotsPast,
   )
   const { frame } = rt.run
@@ -182,7 +179,7 @@ export function madeSet(
   device: GPUDevice,
   list: readonly VsmFrameLight[],
   options: VsmResourceOptions,
-  asked = vsmPoolAsked(rt),
+  asked: number,
 ) {
   const pages = options.poolPages ?? asked
   const made = deviceMadeNow(

@@ -3,6 +3,7 @@
 // once the depth of field has read the image; without it, one draw, composed later.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { readFileSync } from 'node:fs'
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { ParticlePool } from '../../../../sdk-core/src/fluids/particles.ts'
@@ -13,6 +14,9 @@ import { createTranslucency } from '../../blend/translucency.ts'
 import { TRANSLUCENCY_COMPOSE_PASS, TRANSPARENTS_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { drawing } from './encodeEffects.fixture.ts'
 import { encodeBlend } from './encodeBlend.ts'
+import { encodeFrontPass } from '../../blend/frontPass.ts'
+import { frontStamp } from '../../lighting/reflections/frontLayer.ts'
+import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { translucencyPassBit as bit } from '../../blend/translucencyPasses.ts'
 
 /** A runtime drawing a pool of each of `passes`, 20 m ahead of the camera, whose draw records the pass
@@ -110,4 +114,35 @@ test('the layers after the motion blur are drawn apart into their own targets, c
   assert.equal(rt.gpu.translucency, main, 'the targets are back')
   assert.equal(main.phase, 'drawn')
   assert.equal(main.late!.phase, 'drawn', 'composed after the motion blur')
+})
+
+// `surfaceLighting.ts` encodes the whole lit image (every lighting resource, the lights, the sky): no
+// fake in this suite drives it, so its order of calls is read from its text.
+test("the water's depth and the front layer the sun's marking reads are drawn before the lights", () => {
+  const source = readFileSync(new URL('./surfaceLighting.ts', import.meta.url), 'utf8')
+  const prepared = source.indexOf('prepareBlend(rt, encoder)'),
+    marked = source.indexOf('encodeMarkedLayers(rt, device, encoder, blendRuns)'),
+    lights = source.indexOf('encodeDirectLights(rt, device'),
+    frontPass = source.indexOf('encodeFrontPass(rt, device, encoder)')
+  assert.ok(prepared >= 0 && prepared < marked, 'after the transparents are prepared')
+  assert.ok(marked < lights, 'the marking, in the lights, finds them drawn')
+  assert.ok(lights < frontPass, 'the front pass after the lights stands for the others')
+})
+
+test('the front pass drawn for this image is not drawn again', () => {
+  const rt = {
+    run: { frame: 7 },
+    gpu: { reflection: { front: { wanted: true, drawn: frontStamp(7) } }, depthTexture: {} },
+    vis: { gpuHiz: {}, blendPipelines: {} },
+    blendState: { runCount: 1 },
+  } as unknown as WebgpuPagesRuntime
+  const unused = new Proxy(
+    {},
+    {
+      get: () => {
+        throw new Error('the encoder is used')
+      },
+    },
+  ) as GPUCommandEncoder
+  assert.equal(encodeFrontPass(rt, {} as GPUDevice, unused), undefined)
 })

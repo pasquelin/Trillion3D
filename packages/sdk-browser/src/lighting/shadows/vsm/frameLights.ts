@@ -92,7 +92,7 @@ function setupDirectionalLights(
     clipmaps.push(clipmap)
     // The sun's second clipmap, for the objects that stand for a first-person one (`firstPerson`).
     if (state.maps.firstPerson?.active) {
-      const own = { id: `${light.id}#firstPerson`, direction: light.direction, farShadowEdge }
+      const own = { id: light.id, direction: light.direction, farShadowEdge }
       suns.push(light)
       clipmaps.push(
         createVsmClipmap(

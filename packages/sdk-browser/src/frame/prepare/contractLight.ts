@@ -19,7 +19,7 @@ import {
   vsmShadowedLightGrid,
   vsmSunShadowMask,
 } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
-import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmFarShadow.ts'
+import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { sunShadowMask } from '../../lighting/distanceField/shadow/state.ts'
 import { skyOcclusionRead } from '../../lighting/distanceField/ao/state.ts'
 import { lobesHeld, rowsWearLobes } from './lobesTarget.ts'

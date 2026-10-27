@@ -12,11 +12,13 @@ import {
   VSM_MAP_UNSEEN,
 } from './constants.ts'
 import { VsmCacheManager } from './cacheManager.ts'
+import { vsmCacheKey } from './lightCache.ts'
 import { VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
 import { PROJECTION, VIEW, mapsOf } from './clipmap.fixture.ts'
 import { scheduleDistantUpdates } from './distantLights.ts'
 import { addVsmLocalLightShadow, vsmLocalViewData } from './localLight.ts'
 import { createShadowMobility } from '../casters/mobility.ts'
+import { MOVE_NONE } from '../../../placement/update.ts'
 
 const VSM_STILL_FRAMES = VSM_DEFAULT_SHADOWS.shadowCacheFramesStaticThreshold,
   VSM_LIGHT_KEEP_FRAMES = VSM_DEFAULT_SHADOWS.shadowCacheMaxLightAgeSinceLastRequest
@@ -89,6 +91,30 @@ test('a light no longer seen keeps its maps, unreferenced, 10 frames, then goes'
   assert.notEqual(cache.lightEntryFor('sun', 16), a)
 })
 
+test('an entry is keyed by light id, view and shadow type: a name with a # or a view named firstPerson never shares one', () => {
+  const cache = new VsmCacheManager()
+  const plain = cache.lightEntryFor('sun#firstPerson', 2)
+  const viewed = cache.lightEntryFor('sun', 2, 'firstPerson')
+  const regular = cache.lightEntryFor('sun', 2, '')
+  const firstPerson = cache.lightEntryFor('sun', 2, '', 1)
+  const entries = [plain, viewed, regular, firstPerson]
+  assert.equal(new Set(entries).size, 4)
+  assert.equal(new Set(entries.map((e) => e.key)).size, 4)
+  assert.equal(cache.lightEntryFor('sun', 2, '', 1), firstPerson)
+  assert.deepEqual([regular.typeTag, firstPerson.typeTag, firstPerson.lightId], [0, 1, 'sun'])
+})
+
+test('a first-person entry survives the removed-light drop while its light exists, and goes with it', () => {
+  const cache = new VsmCacheManager()
+  const regular = cache.lightEntryFor('sun', 2, '')
+  const firstPerson = cache.lightEntryFor('sun', 2, '', 1)
+  cache.dropRemovedLights((id) => id === 'moon')
+  assert.equal(cache.entries.get(vsmCacheKey('sun', '')), regular)
+  assert.equal(cache.entries.get(vsmCacheKey('sun', '', 1)), firstPerson)
+  cache.dropRemovedLights((id) => id === 'sun')
+  assert.equal(cache.entries.size, 0)
+})
+
 test('a moving placement turns static after resting more than the 100-frame threshold', () => {
   const mobility = createShadowMobility()
   const pose = new Float64Array(16)
@@ -106,6 +132,29 @@ test('a moving placement turns static after resting more than the 100-frame thre
   assert.ok(mobility.moves(1), 'moved 100 frames ago')
 })
 
+test('a placement parked while moving goes back to static: a placement that reuses its row starts so', () => {
+  const mobility = createShadowMobility()
+  const pose = new Float64Array(16)
+  mobility.ensure(2, () => pose)
+  mobility.move(1, pose, true)
+  mobility.settle(VSM_STILL_FRAMES)
+  assert.ok(mobility.moves(1))
+  mobility.park(1)
+  assert.ok(!mobility.moves(1), 'static at once')
+  // Shown again where it stands: no move, still static.
+  assert.ok(mobility.holds(1, pose), 'its pose is kept: shown at the same pose is no move')
+  assert.equal(mobility.move(1, pose), MOVE_NONE)
+  assert.ok(!mobility.moves(1), 'still static')
+  // Reused at another pose: it moves again, rests the threshold, and turns static once, not twice.
+  mobility.move(
+    1,
+    Float64Array.from({ length: 16 }, (_, i) => (i === 12 ? 5 : 0)),
+  )
+  assert.ok(mobility.moves(1))
+  for (let frame = 0; frame <= VSM_STILL_FRAMES + 1; frame++) mobility.settle(VSM_STILL_FRAMES)
+  assert.ok(!mobility.moves(1), 'static again after the threshold')
+})
+
 test('each view keeps its own sun clipmap, aged by its own frames, and the local maps are shared', () => {
   const cache = new VsmCacheManager()
   const ids = {
@@ -121,7 +170,7 @@ test('each view keeps its own sun clipmap, aged by its own frames, and the local
   cache.beginFrame(2, 'side')
   const side = cache.lightEntryFor('sun', 17, 'side')
   assert.notEqual(side, main, 'centred on another eye: an entry of its own')
-  assert.equal(side.key, 'sun#side')
+  assert.notEqual(side.key, main.key)
   assert.equal(cache.lightEntryFor('lamp', 6), lamp, 'a local light’s maps every view shares')
   cache.keepFrameForNext(null)
   // The side view drawn far more often than the main one: the main view's clipmap is still its own
@@ -132,10 +181,11 @@ test('each view keeps its own sun clipmap, aged by its own frames, and the local
     cache.carryUnseenLights(ids)
     cache.keepFrameForNext(null)
   }
-  assert.equal(cache.entries.get('sun'), main, 'kept: the main view has not drawn since')
+  const mainKey = vsmCacheKey('sun', '')
+  assert.equal(cache.entries.get(mainKey), main, 'kept: the main view has not drawn since')
   cache.dropView('side')
-  assert.equal(cache.entries.has('sun#side'), false, 'a released view’s clipmap goes')
-  assert.equal(cache.entries.get('sun'), main)
+  assert.equal(cache.entries.has(side.key), false, 'a released view’s clipmap goes')
+  assert.equal(cache.entries.get(mainKey), main)
 })
 
 const EYE_VIEW = vsmLocalViewData(
@@ -224,7 +274,8 @@ test('a distant light is drawn once and kept, then again one light a frame, the 
     assert.equal(entry.mayHoldCachedPages(), false)
   }
   const near = distantFrames(() => [lamp('n', -3)], { shadowDistantLightMode: 0 }, 3)
-  assert.equal(near.cache.entries.get('n')!.mayHoldCachedPages(), true, 'a near light may')
+  const nearEntry = near.cache.entries.get(vsmCacheKey('n'))!
+  assert.equal(nearEntry.mayHoldCachedPages(), true, 'a near light may')
 })
 
 test('the distant updates a frame: all of them for -1, none for 0 — then only a moved light is drawn', () => {

@@ -18,6 +18,7 @@ import {
   type LightShadow,
 } from '../../../../../sdk-core/src/contracts/lightShadowOptions.ts'
 import type { SunCascades } from '../../../../../sdk-core/src/contracts/sunCascades.ts'
+import { FLOAT32_MAX } from '../../../../../math/src/constants.ts'
 import { multiplyMatrix4, transposeMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { forwardOrthographicProjection } from '../../../../../math/src/projection/forwardZ.ts'
 import {
@@ -163,6 +164,9 @@ interface VsmClipmapLevel {
   /** Square of the distance, metres, past which the level draws no object's offset; 0 where the
    *  rule is off (`vsmWpoThreshold`). */
   wpoThreshold: number
+  /** The clip depth short of which a moving caster is not drawn into the level
+   *  (`VsmProjectionDataValues.dynamicDepthCullRange`); 0 for no limit. */
+  dynamicCullNear: number
 }
 
 export interface VsmClipmap {
@@ -221,6 +225,7 @@ const heldLevel = (levels: VsmClipmapLevel[], k: number) =>
     cornerQuarters: [0, 0],
     cornerFromLast: [0, 0],
     wpoThreshold: 0,
+    dynamicCullNear: 0,
   })
 
 /** The projection's X scale in centimetre units: a perspective scale is unitless, an orthographic
@@ -246,18 +251,20 @@ function firstLevelOf(config: VsmClipmapConfig, isOrthographic: boolean, viewHal
   return Math.max(Math.max(config.firstLevel, orthoFirstLevel), 0)
 }
 
-/** The light's cache entry told this frame's key — its first level and its own shadow settings —;
+/** The light's cache entry told this frame's key — its first level and its own shadow settings —,
+ *  whether it is drawn `uncached` and whether it draws for the receivers' cover (`useCover`);
  *  whether its clipmap moved. */
 function updateEntry(
   cacheEntry: VsmLightCache,
   light: VsmDirectionalLightInput,
   firstLevel: number,
   uncached: boolean,
+  useCover: boolean,
 ) {
   cacheKey.firstLevel = firstLevel
   const own = light.shadow ?? DEFAULT_LIGHT_SHADOW
   for (let k = 0; k < CACHE_FIELDS.length; k++) cacheKey.shadow[k] = Number(own[CACHE_FIELDS[k]!])
-  return cacheEntry.updateClipmap(cacheKey, uncached)
+  return cacheEntry.updateClipmap(cacheKey, uncached, useCover)
 }
 
 /** The eye's place at the last level's snap, into `lastLevelSnap`: the origin the levels' corners
@@ -322,13 +329,25 @@ function buildLevel(
     level.wpoThreshold,
     config.wpoInvalidatesOnScale,
   )
-  const eyeDepthShift = eyeInLight[2] - levelEntry.clipmap.depthCentre
   depthRadius = levelEntry.clipmap.depthRadius
 
   // The level's view-to-clip from metres; its depth offset 1 − zOffset·zScale is unitless,
-  // taken from the centimetre values themselves: the exact value, no unit round trip.
-  const zScale = 0.5 / depthRadius
-  const zOffset = depthRadius + eyeDepthShift
+  // taken from the centimetre values themselves: the exact value, no unit round trip. The
+  // distance its moving casters are drawn to is the level's own radius less the resolution bias.
+  const cullingEnd = vsmClipmapLevelRadiusCm(absoluteLevel - clipmap.levelBias)
+  let zScale: number, zOffset: number
+  level.dynamicCullNear = 0
+  if (config.forceInvalidate && config.cullTightly) {
+    // Nothing is cached: the far plane is the end of the range the level shows, no eye shift.
+    zScale = 1 / (cullingEnd + depthRadius)
+    zOffset = depthRadius
+  } else {
+    zScale = 0.5 / depthRadius
+    zOffset = depthRadius + (eyeInLight[2] - levelEntry.clipmap.depthCentre)
+    // The moving casters are uncached (the receiver cover): culled past the range the level shows.
+    if (config.useCover && config.cullTightly)
+      level.dynamicCullNear = 1 - (cullingEnd + zOffset) * zScale
+  }
   const viewToClip = forwardOrthographicProjection(
     level.viewToClip,
     halfWidthCm * VSM_UNIT_PER_CM,
@@ -395,13 +414,16 @@ export function createVsmClipmap(
   const lastLevel = Math.max(firstLevel, config.lastLevel)
   const levelCount = lastLevel - firstLevel + 1
 
-  const cacheEntry = cache.lightEntryFor(light.id, levelCount, camera.viewId ?? '')
-  // A first-person clipmap keeps nothing from one frame to the next, and is biased as a moving light.
+  const shadowType = light.firstPerson ? 1 : 0
+  const cacheEntry = cache.lightEntryFor(light.id, levelCount, camera.viewId ?? '', shadowType)
+  // A clipmap that keeps nothing from one frame to the next is drawn uncached (the first-person
+  // one always, and biased as a moving light).
   const moved = updateEntry(
     cacheEntry,
     light,
     firstLevel,
-    !cache.cacheEnabled || !!light.firstPerson,
+    !cache.cacheEnabled || config.forceInvalidate,
+    config.useCover,
   )
   const levelBias = lightLevelBias(cache, cacheEntry, light, maps, moved, screenBias)
 
@@ -466,7 +488,7 @@ function vsmClipmapProjectionData(
     if ((mapLevel >= config.coarseFrom && mapLevel <= config.coarseTo) || levelsAfterThis === 1)
       flags |= VSM_MAP_COARSE
   }
-  flags |= VSM_MAP_COVERAGE
+  if (config.useCover) flags |= VSM_MAP_COVERAGE
   if (clipmap.light.firstPerson) flags |= VSM_MAP_FIRST_PERSON
   if (config.keepsDynamic) flags |= VSM_MAP_COARSE_KEEPS_DYNAMIC
   out.lightKind = LIGHT_KIND.directional
@@ -476,6 +498,8 @@ function vsmClipmapProjectionData(
   out.emitterSize = 0 // a directional light has no source radius
   out.mapLevel = mapLevel
   out.wpoThreshold = level.wpoThreshold
+  out.dynamicDepthCullRange[0] = level.dynamicCullNear
+  out.dynamicDepthCullRange[1] = FLOAT32_MAX
   out.levelsLeft = levelsAfterThis
   out.flags = flags
   out.ditherTexels = clipmap.light.ditherTexels ?? 1

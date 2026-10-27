@@ -4,6 +4,7 @@
  */
 import { AS_IS_FLAG, SURFACE_MODEL_MASK } from '../../../../materials/surface/surfaceModelWord.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../../../../materials/surface/physicalLobes.ts'
+import { PIXEL_MODEL } from '../../../../materials/surface/pixelModel.ts'
 
 /** A projection group's half, which votes as one: its lanes (32, Z-order indices 0-31, 32-63) and
  *  their log2. */
@@ -76,6 +77,7 @@ fn vsmSurfaceOf(coord:vec2u,inRect:bool,normal:vec3f)->VsmSurfaceInfo{
  r.valid=inRect&&!(model<=1u||model==${AS_IS_FLAG}u);
  r.subsurface=vsmSubsurfaceModel(flag);
  r.coated=vsmCoatedAt(coord,flag);
+ r.hair=pixelModelOf(flag)==${PIXEL_MODEL.hair}u;
  // A receiver that lets light through its shadow: its opacity, at most 0.99 — it never stops the light
  // whole —, the thin transmission's or the skin's, both in the target's alpha.
  r.opacity=select(-1.0,min(textureLoad(subsurfaceColor,vec2i(coord)).a,0.99),vsmTransmitsShadow(flag));

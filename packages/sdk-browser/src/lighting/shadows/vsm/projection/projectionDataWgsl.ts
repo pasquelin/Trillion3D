@@ -28,7 +28,7 @@ const RECORD_FIELDS = (
   'lightDirection:vec3f levelsLeft:i32 planesToMapUv:mat4x4f shiftedToMapUv:mat4x4f ' +
   'originShiftHigh:vec3f flags:u32 originShiftLow:vec3f levelBias:f32 clipmapOrigin:vec3f ' +
   'ditherTexels:f32 cornerSteps:vec2i lightRange:f32 tableOrigin:u32 farShadowEdge:f32 wpoThreshold:f32 ' +
-  'prevMapId:u32 prevTableOrigin:u32 prevShiftedToClip:mat4x4f prevClipDepth:vec4f prevFinestMip:u32 viewSlot:u32'
+  'prevMapId:u32 prevTableOrigin:u32 prevShiftedToClip:mat4x4f prevClipDepth:vec4f prevFinestMip:u32 viewSlot:u32 dynamicDepthCullRange:vec2f'
 ).split(' ')
 const recordMembers = RECORD_FIELDS.map((field) => ` ${field},`).join('\n')
 const recordCopy = RECORD_FIELDS.map((field) => {

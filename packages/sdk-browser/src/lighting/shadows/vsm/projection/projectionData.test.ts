@@ -1,6 +1,7 @@
 // The projection shader data as the shaders read it: each field the host writes sits at the offset
 // the WGSL struct `VsmProjectionRecord` gives it, and the record is the struct's size.
 import { LIGHT_KIND } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
+import { FLOAT32_MAX } from '../../../../../../math/src/constants.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
@@ -62,6 +63,8 @@ const PINNED_OFFSETS: readonly (readonly [string, number])[] = [
   ['prevFinestMip', 384],
   // The place of the map's view among the views drawn: the bit of its per-view instance state.
   ['viewSlot', 388],
+  // The clip depths a non-static caster must lie within to be drawn into the map.
+  ['dynamicDepthCullRange', 392],
 ]
 
 /** Throws unless the struct of `text` has the offsets the lighting shader reads, as numbers: no
@@ -136,6 +139,7 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
     prevShiftedToClip: counting(800),
     prevClipDepth: [0.5, -0.25, 1],
     viewSlot: 3,
+    dynamicDepthCullRange: [0.25, 4096],
   })
   const at = 2 * R,
     view = new DataView(buffer, at, R),
@@ -177,6 +181,7 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
   for (let k = 0; k < 16; k++) assert.equal(f(o.prevShiftedToClip + 4 * k), 800 + k)
   assert.deepEqual(vec3(o.prevClipDepth), [0.5, -0.25, 1])
   assert.equal(u(o.viewSlot), 3)
+  assert.deepEqual([f(o.dynamicDepthCullRange), f(o.dynamicDepthCullRange + 4)], [0.25, 4096])
   const bytes = new Uint8Array(buffer)
   assert.ok(
     bytes.subarray(0, at).every((b) => b === 0xab),
@@ -191,6 +196,7 @@ test('the writer puts every field of a map at its id, at the struct offset, and 
 test('the defaults of a record', () => {
   const d = vsmDefaultProjectionData()
   assert.deepEqual([d.flags, d.finestMip, d.mapLevel, d.levelsLeft], [0, 0, 0, 0])
+  assert.deepEqual(d.dynamicDepthCullRange, [0, FLOAT32_MAX], 'no limit')
 })
 
 test('the shadow UV matrix maps clip space to UV, y down', () => {

@@ -105,6 +105,24 @@ fn vsmLevelHoldingRect(r:vec4i,spanTexels:i32)->i32{
 )
 
 /**
+ * The frustum cull of a caster's box (`casterSphere`, `VsmRenderCandidate`): its centre in the
+ * map's shifted space and its three world half axes, the clip images of the half axes taken by the
+ * shifted-to-clip matrix (a direction, w = 0) and handed with the extent one (`vsmBoxInView` reads
+ * the edges as extent times axis). The cull's point is the centre, or the corner the centre less the
+ * three half axes when a perspective map clips at the near plane (`vsmBoxCullPoint`). The cull of the
+ * shadow views' descent (`../traversal/traversalWgsl.ts`) is this one, on a node's box.
+ */
+export const VSM_CASTER_BOX_CULL_WGSL = wgslBlock(
+  'VSM_CASTER_BOX_CULL_WGSL',
+  [VSM_BOX_VIEW_WGSL],
+  `fn vsmCasterBoxInView(center:vec3f,a0:vec3f,a1:vec3f,a2:vec3f,shiftedToClip:mat4x4f,viewToClip:mat4x4f,isOrtho:bool,nearClip:bool)->VsmBoxInView{
+ let point=vsmBoxCullPoint(center,a0+a1+a2,isOrtho,nearClip);
+ return vsmBoxInView(shiftedToClip*vec4f(point,1.0),shiftedToClip*vec4f(a0,0.0),shiftedToClip*vec4f(a1,0.0),shiftedToClip*vec4f(a2,0.0),vec3f(1.0),viewToClip,isOrtho,nearClip);
+}
+`,
+)
+
+/**
  * The cull of a box and of its pages that the cache invalidation (`../invalidationWgsl.ts`) and the
  * render cull (`../render/renderCullWgsl.ts`) share: the frustum cull of a box given in clip space, its rect
  * in pixels, the mip level covering a rect, the flags of a page rect and their mask test, the

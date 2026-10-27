@@ -33,12 +33,16 @@ import {
  *  and whether it keeps that offset from invalidating its shadows (`'rigid'`, `'static'`) or wears one
  *  that may invalidate them, one of which evaluates it whatever the distance says, and whether it is
  *  often moving: its object says so (`mobility`), else a skin or a morph deforms it.
- *  A root that is banked and reads its rest pose this frame (`resting`) deforms nothing now.
+ *  A root that is banked and reads its rest pose this frame (`resting`) deforms nothing now. A
+ *  deformation sets the deforming bit, which has the pages its casters draw invalidated as they are
+ *  drawn, only where `invalidates` (`shadowCacheDeformableMeshesInvalidate`); the root is often
+ *  moving either way.
  *  The shadow raster adds the world's shells and the view's rule to them (`vsmRenderFarFlags`). */
 export const castFlagsOf = (
   root?: { mark?: number; parked?: boolean; deformation?: object },
   offsets?: Pick<RootOffsetRow, 'evaluate' | 'cache' | 'worn' | 'always'>,
   resting = false,
+  invalidates = true,
 ) => {
   const mark = root?.mark ?? 0
   const keeps = offsets?.cache === 'rigid' || offsets?.cache === 'static'
@@ -58,7 +62,7 @@ export const castFlagsOf = (
     (mark & WORLD_SPACE_ROOT && !root?.parked ? MOBILITY_WORLD_SPACE : 0) |
     (mark & HIDDEN_SHADOW_ROOT ? MOBILITY_HIDDEN_SHADOW : 0) |
     (mark & CACHE_STATIC_ROOT ? MOBILITY_CACHE_STATIC : 0) |
-    (root?.deformation && !resting ? MOBILITY_DEFORMS : 0) |
+    (root?.deformation && !resting && invalidates ? MOBILITY_DEFORMS : 0) |
     (farTestedOf(mark, false) ? MOBILITY_FAR_TESTED : 0) |
     (farTestedOf(mark, true) ? 0 : MOBILITY_FAR_SKIPPED)
   )

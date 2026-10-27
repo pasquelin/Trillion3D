@@ -47,19 +47,11 @@ test('a shadow view’s descent keeps every node a cluster under it could be dra
   const ortho = new Mat([0.01, 0, 0, 0, 0, 0.01, 0, 0, 0, 0, 0.001, 0, 0, 0, 0.5, 1])
   const random = mulberry32(11)
   for (const viewToClip of [perspective, ortho]) {
-    const pd = {
-      ...{ lightViewToClip: viewToClip, shiftedToMapUv: viewToClip, finestMip: 0 },
-      ...{ originShiftHigh: [0, 0, 0], originShiftLow: [0, 0, 0] },
-    }
+    const pd = { lightViewToClip: viewToClip }
     const run = shaderRun<{ vsmDescentPixels(...a: unknown[]): number }>(
       descent,
       ['vsmDescentPixels'],
-      {
-        ...C,
-        vsmProjectionOf: () => pd,
-        vsmHandleFromId: (id: number) => ({ id }),
-        vsmShiftedToClip: (m: Mat) => m,
-      },
+      C,
     )
     const cull = shaderRun<{ vsmRenderViewPixels(...a: unknown[]): number }>(
       CULL,
@@ -79,7 +71,7 @@ test('a shadow view’s descent keeps every node a cluster under it could be dra
       const offset = (radius - inner) * random()
       const ball = centre.map((c, a) => c + (dir[a]! / len) * offset)
       for (const mip of [0, 3]) {
-        const node = run.vsmDescentPixels(0, mip, centre, radius, error)
+        const node = run.vsmDescentPixels(pd, viewToClip, mip, centre, radius, error)
         const focal = 0.5 * Math.abs(viewToClip[1][1]) * (C.VSM_LEVEL0_TEXELS >> mip)
         const persp = ortho ? 0 : 1
         const cluster = cull.vsmRenderViewPixels(
@@ -230,9 +222,15 @@ test('a node hidden by a view’s pyramid in both layers is held, then gone; sho
       cutView: { occlusion: C.OCCLUSION_TWO_PASS, cameraWorld: [0, 0, 0] },
       cutPass: () => pass,
       deformReach: 0,
-      casterSphere: (_w: number, _lo: number[], _hi: number[], _r: number, high: Ref, low: Ref) => {
+      casterSphere: (...a: unknown[]) => {
+        const [high, low, axes] = a.slice(4) as Ref[]
         high.set([0, 0, 0, 1])
         low.set([0, 0, 0])
+        axes.set([
+          [1, 0, 0],
+          [0, 1, 0],
+          [0, 0, 1],
+        ])
       },
       vsmRenderPrevShift: () => [0, 0, 0],
       descentMap: () => 3,
@@ -286,5 +284,28 @@ test('with the previous frame kept, the post pass of the descent follows the pyr
   assert.ok(
     order.includes('vsmRenderCullFirst'),
     'the first cull tests against the previous pyramid',
+  )
+})
+
+// The descent culls a node by its own oriented box under its placement (`casterSphere`'s half axes,
+// `vsmCasterBoxInView`), as the casters' cull does a cluster; the cube about the doubled sphere
+// stays for the light's range, the pages to draw and the previous image's occlusion test.
+test('the descent’s frustum cull takes the node’s box, the doubled sphere kept for the range and the occlusion cube', () => {
+  const code = vsmDescentWgsl(LAYOUT)
+  assert.ok(code.includes('casterSphere(w,lo,hi,deformReach,&high,&low,&axes)'), 'the node’s axes')
+  assert.ok(code.includes('vsmCasterBoxInView(box.center,'), 'the cull is the casters’')
+})
+
+// The pages to draw under a node are looked for under the cube about its doubled sphere, one
+// projection of its own (`vsmDescentCube`), not under the oriented box the frustum test takes.
+test('the descent’s page test takes the cube about the node’s doubled sphere', () => {
+  const code = vsmDescentWgsl(LAYOUT)
+  assert.ok(
+    code.includes('vsmDescentNoPage(w,h,pd,vsmDescentCube(pd,box))'),
+    'outsideFrustum gives the page test the cube’s cull',
+  )
+  assert.ok(
+    code.includes('vec3f(r,0.0,0.0),vec3f(0.0,r,0.0),vec3f(0.0,0.0,r),box.shiftedToClip'),
+    'the cube’s axes are the extent’s',
   )
 })

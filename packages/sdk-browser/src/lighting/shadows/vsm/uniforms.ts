@@ -133,7 +133,7 @@ export function writeVsmUniforms(
   u[3] = layout.poolPages
   u[4] = layout.poolRowShift
   u[5] = layout.poolRowMask
-  u[6] = layout.staticSlice
+  u[6] = layout.cacheEnabled ? 1 : 0
   // Word 7: the padding WGSL puts before pageTableSize, a vec2u at an 8-byte boundary.
   u[7] = 0
   u[8] = layout.pageTableSize[0]

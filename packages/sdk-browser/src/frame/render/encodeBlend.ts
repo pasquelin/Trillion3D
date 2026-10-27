@@ -5,7 +5,12 @@ import { encodeBlendExpansion } from '../../blend/expand/expansionFrame.ts'
 import { orderBlendPasses } from '../../blend/order/order.ts'
 import { encodeTransparentInstances } from '../../blend/transparent/draw.ts'
 import { encodeDistortion } from '../../blend/distortion.ts'
-import { encodeWater } from '../../blend/water/waterPass.ts'
+import { encodeWater, encodeWaterDepth } from '../../blend/water/waterPass.ts'
+import { encodeFrontPass } from '../../blend/frontPass.ts'
+import {
+  drawsFrontBeforeMarking,
+  drawsWaterBeforeMarking,
+} from '../../lighting/shadows/vsm/frame/vsmFrontLayer.ts'
 import { drawParticles, encodeParticles } from '../../particles/gpu/webgpuParticleFrame.ts'
 import { forget } from '../../blend/translucency.ts'
 import { composeLateOnto, composeTranslucency } from '../../blend/translucencyCompose.ts'
@@ -66,23 +71,63 @@ export function prepareBlend(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder)
 
 /**
  * What the transparents of an image draw with, once `prepareBlend` prepared them, before any pass of
- * theirs — the front pass the reflection trace reads (`encodeFrontPass`) and the blend pass —: the blend
- * view, the material records the item records name, and the groups, a real resource voiding a
- * placeholder's group. Returns the frame's lights' key, which picks the blend programs
- * (`createForwardVariants`). `held`: the lights are those the lit pass just resolved
- * (`heldDirectLightResources`), none made since: they are not resolved again.
+ * theirs but those the page marking reads (`encodeMarkedLayers`) — the front pass the reflection trace
+ * reads (`encodeFrontPass`) and the blend pass —: the blend view, the material records the item
+ * records name, and the groups, a real resource voiding a placeholder's group. Returns the frame's
+ * lights' key, which picks the blend programs (`createForwardVariants`). `held`: the lights are those
+ * the lit pass just resolved (`heldDirectLightResources`), none made since: they are not resolved again.
  */
 export function bindBlend(rt: WebgpuPagesRuntime, device: GPUDevice, held = false) {
   const { timing } = rt
   const cpuStart = cpuNow()
   writeBlendView(rt, device)
   const contract = held ? heldDirectLightResources() : directLightResources(rt)
-  // The material records the item records named go up before a group names their texture.
-  rt.vis.materialTable.viewFor(device)
-  voidStaleBlendGroups(rt, blendLightResources(rt, contract))
+  bindBlendGroups(rt, device, contract)
   const elapsed = msSince(cpuStart)
   timing.transparentPrepareMs += elapsed
   return contract
+}
+
+/** The material records the item records name, and the groups over the lights of `contract`, a real
+ *  resource voiding a placeholder's group: what a draw of the transparents binds, the blend view
+ *  (`writeBlendView`) apart, which the queue writes before the image's commands run. */
+function bindBlendGroups(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  contract: ReturnType<typeof directLightResources>,
+) {
+  // The material records the item records named go up before a group names their texture.
+  rt.vis.materialTable.viewFor(device)
+  voidStaleBlendGroups(rt, blendLightResources(rt, contract))
+}
+
+/**
+ * What the sun's page marking reads of the transparents (`encodeVsmFrame`), drawn before the image's
+ * lights, on the groups `bindBlend` makes again over the lights once they are made:
+ *  - the single-layer water's depth (`encodeWaterDepth`), where the scene has water drawn
+ *    (`drawsWaterBeforeMarking`): the marking marks the sun's pages at the water's surface;
+ *  - the transparents' front pass (`encodeFrontPass`), where the translucent surfaces' shadow is traced
+ *    and the image before left the marking no front layer to read (`drawsFrontBeforeMarking`): the
+ *    marking reads this image's own, and the pass is not drawn again after the lights.
+ * `prepared`: the transparents were prepared (`prepareBlend`). Nothing where no sun's pages are marked.
+ */
+export function encodeMarkedLayers(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  prepared: boolean,
+) {
+  if (!prepared) return
+  const water = drawsWaterBeforeMarking(rt),
+    front = drawsFrontBeforeMarking(rt)
+  if (!water && !front) return
+  const cpuStart = cpuNow()
+  // Resolved here, ahead of the lights: what is held is the image before's.
+  const contract = directLightResources(rt)
+  bindBlendGroups(rt, device, contract)
+  rt.timing.transparentPrepareMs += msSince(cpuStart)
+  if (water) countBlendDraws(rt, encodeWaterDepth(rt, device, encoder, contract))
+  if (front) encodeFrontPass(rt, device, encoder)
 }
 
 /**

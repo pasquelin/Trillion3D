@@ -29,6 +29,10 @@ const CLIPMAP_AND_MARKING_RULES = /* @__PURE__ */ (() =>
     flag('shadowClipmapWpoDisableDistance', true),
     integer('shadowClipmapWpoDisableDistanceLodBias', 3, [0, 30]),
     flag('shadowClipmapWpoDisableDistanceInvalidateOnScaleChange', false),
+    flag('shadowClipmapCullDynamicTightly', true),
+    flag('shadowForceInvalidateDirectional', false),
+    flag('shadowUseReceiverMaskDirectional', true),
+    flag('shadowUseReceiverMaskLocal', false),
     integer('shadowMarkCoarsePagesDirectional', 2, [0, 2]),
     integer('shadowMarkCoarsePagesLocal', 1, [0, 2]),
     nonNegative('shadowCoarsePagePixelThresholdStatic', 1),
@@ -52,6 +56,11 @@ const BIAS_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     nonNegative('shadowSubsurfaceMinSourceAngle', 5),
     integer('shadowOnePassProjectionMaxLightsPerPixel', 16, [1, 32]),
     flag('shadowAllowScreenOverflowMessages', true),
+    flag('shadowCache', true),
+    flag('shadowCacheAllocateViaLru', true),
+    flag('shadowCacheDeformableMeshesInvalidate', true),
+    integer('shadowForceInvalidateLocal', 0, [0, 2]),
+    flag('shadowForceFullPageClears', false),
     flag('shadowCacheInvalidateUseHzb', true),
     integer('shadowDeferredInvalidationBudget', -1, [-1, INT32_RANGE[1]]),
     flag('shadowInvalidateOnLodDelta', false),
@@ -125,6 +134,10 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowClipmapWpoDisableDistance` | true | |
  * | `shadowClipmapWpoDisableDistanceLodBias` | 3 | |
  * | `shadowClipmapWpoDisableDistanceInvalidateOnScaleChange` | false | |
+ * | `shadowClipmapCullDynamicTightly` | true | |
+ * | `shadowForceInvalidateDirectional` | false | |
+ * | `shadowUseReceiverMaskDirectional` | true | |
+ * | `shadowUseReceiverMaskLocal` | false | |
  * | `shadowFirstPersonClipmap` | true | |
  * | `shadowFirstPersonClipmapFirstLevel` | 8 | |
  * | `shadowFirstPersonClipmapLastLevel` | 18 | |
@@ -148,6 +161,11 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowSubsurfaceMinSourceAngle` | 5 | |
  * | `shadowOnePassProjectionMaxLightsPerPixel` | 16 | |
  * | `shadowAllowScreenOverflowMessages` | true | |
+ * | `shadowCache` | true | |
+ * | `shadowCacheAllocateViaLru` | true | |
+ * | `shadowCacheDeformableMeshesInvalidate` | true | |
+ * | `shadowForceInvalidateLocal` | 0 | |
+ * | `shadowForceFullPageClears` | false | |
  * | `shadowCacheInvalidateUseHzb` | true | |
  * | `shadowDeferredInvalidationBudget` | -1 | |
  * | `shadowInvalidateOnLodDelta` | false | |
@@ -245,6 +263,20 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * page, a light, unrequested is kept; `shadowDynamicResolutionMaxResolutionLodBias` the most the global resolution
  * bias rises, in levels, as the page pool fills, and `shadowDynamicResolutionMaxPagePoolLoadFactor` the share of the
  * pool it fills to before that bias starts (0 turns the rise off).
+ *
+ * `shadowCache` keeps the pages of one frame for the next: off, every light is drawn uncached each frame, no distant
+ * light is kept, and the pool holds no separate static layer (a change makes the shadows' set again, its pages
+ * dropped). `shadowCacheAllocateViaLru` takes a free page by the age of its last request, the finer level first
+ * within an age step; off, a page not wanted this frame is taken in the order of the pool alone, after the empty
+ * ones. `shadowCacheDeformableMeshesInvalidate` has the pages drawn by an object that a skin or a morph deforms
+ * invalidated as it draws them; off, such an object is cached as dynamic while it moves and settles to static
+ * after `shadowCacheFramesStaticThreshold` frames without a move, its animation no longer redrawing its pages.
+ * `shadowForceInvalidateLocal` draws the local lights uncached each frame: 0 none, 1 those that are not distant,
+ * 2 all of them. `shadowForceFullPageClears` clears a page whose layers are stale whole, though what it holds was
+ * cleared already.
+ * `shadowUseReceiverMaskDirectional` and `shadowUseReceiverMaskLocal` draw a light's pages into the receivers' cover
+ * alone (the pixels that ask the page): a sun's clipmap by default, a local light's when set (the cover then holds
+ * every map, not the suns' alone; a change makes the shadows' set again). A light that changes it is drawn again.
  *
  * The `shadowSmrt...` settings shape the shadow trace of a ray: `shadowSmrtAdaptiveRayCount` is the ray after which
  * a group whose lanes all hit stops (and after whose first ray a group that all missed stops; 0 turns both off),

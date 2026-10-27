@@ -75,6 +75,8 @@ export interface WaterTargets {
   params: GPUBuffer
   paramWords: Float32Array<ArrayBuffer>
   paramInts: Uint32Array<ArrayBuffer>
+  /** The image (`WebgpuRun.frame`) the water's depth was drawn ahead of the lights for, or 0 (`encodeWaterDepth` notes it). */
+  depthAheadFor: number
   /** Whether the words the settings give the uniform were written, and for which separation. */
   written: boolean
   separate: boolean
@@ -137,6 +139,7 @@ function createTargets(
     params,
     paramWords,
     paramInts: new Uint32Array(paramWords.buffer),
+    depthAheadFor: 0,
     written: false,
     separate: false,
     masked: false,
@@ -205,6 +208,16 @@ export function disposeWaterTargets(blendState: { waterTargets: WaterTargets | u
   blendState.waterTargets = undefined
 }
 
+/** Whether the image draws single-layer water as far as the scene and the settings go: the plan holds a
+ *  water item and `singleLayerWater` is on. */
+export const waterWanted = (rt: WebgpuPagesRuntime) =>
+  rt.blendState.water && readSingleLayerWaterSetting(rt, 'singleLayerWater')
+
+/** Whether the water's depth is drawn ahead of the lights: the water is drawn (`waterWanted`) with its
+ *  depth pass (`singleLayerWaterDepthPrepass`). */
+export const waterDepthPrepassWanted = (rt: WebgpuPagesRuntime) =>
+  waterWanted(rt) && readSingleLayerWaterSetting(rt, 'singleLayerWaterDepthPrepass')
+
 /** Whether the programs keep the sun apart from the rest of the water's light: either project switch that
  *  asks for the separated term (`singleLayerWaterShadersSupportDistanceFieldShadow`,
  *  `singleLayerWaterShadersSupportVsmFiltering`), read when the session opens. */
@@ -239,6 +252,14 @@ export function waterTargetsOf(rt: WebgpuPagesRuntime, device: GPUDevice): Water
     depth,
     waterSeparates(rt),
   ))
+}
+
+/** The scene's depth with the water drawn into it, where the water's depth pass was drawn ahead of this
+ *  image's lights, so that the sun's page marking reads it (`vsmPixelPageMarkingWgsl` `water`). Targets
+ *  remade since hold none. */
+export function waterDepthMarked(rt: WebgpuPagesRuntime) {
+  const targets = rt.blendState.waterTargets
+  return targets?.depthAheadFor === rt.run.frame ? targets.views.waterDepth : undefined
 }
 
 /** The groups of the copy, the mask and the tiles' kernels, made on the views of the scene's colour and

@@ -1,7 +1,7 @@
 /**
  * CPU side of the virtual shadow map cache: the array-level cache manager, which holds one entry
- * per light (`lightCache.ts`) keyed by its scene id, and the pool pressure bias fed back from the
- * GPU free page count.
+ * per light (`lightCache.ts`) keyed by its scene id, view and shadow type, and the pool pressure
+ * bias fed back from the GPU free page count.
  */
 import {
   VSM_PRESSURE_CALM_FRAMES,
@@ -12,7 +12,7 @@ import {
   VSM_PRESSURE_FALL,
 } from './constants.ts'
 import { clamp, clampLowWins, lerp } from '../../../../../math/src/scalar/reals.ts'
-import { VsmLightCache, type VsmNextMap } from './lightCache.ts'
+import { VsmLightCache, vsmCacheKey, type VsmNextMap, type VsmShadowType } from './lightCache.ts'
 import type { ShadowValues } from '../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
 
@@ -93,20 +93,15 @@ export class VsmCacheManager {
     return view === undefined ? this.frameStamp : (this.viewFrames.get(view) ?? 0)
   }
 
-  /** The key of light `lightId`'s entry for `view`: the light's id for the main view's and for the
-   *  maps every view shares (no `view`), then the view's past it. */
-  private keyOf(lightId: string, view: string | undefined) {
-    return view ? `${lightId}#${view}` : lightId
-  }
-
   /** Finds or creates a light's cache entry: `view`'s own (`''` the main one's), or, with none,
-   *  the one every view shares. */
-  lightEntryFor(lightId: string, mapCount: number, view?: string) {
-    const key = this.keyOf(lightId, view)
+   *  the one every view shares; a sun's first-person clipmap (`typeTag` 1) apart from its regular
+   *  one, both under the light's own id. */
+  lightEntryFor(lightId: string, mapCount: number, view?: string, typeTag: VsmShadowType = 0) {
+    const key = vsmCacheKey(lightId, view, typeTag)
     let entry = this.entries.get(key)
-    // Level count or kind changed: dropped and recreated.
-    if (entry && (entry.mapCaches.length !== mapCount || entry.view !== view)) entry = undefined
-    if (!entry) this.entries.set(key, (entry = new VsmLightCache(lightId, mapCount, view, key)))
+    // Level count changed: dropped and recreated.
+    if (entry && entry.mapCaches.length !== mapCount) entry = undefined
+    if (!entry) this.entries.set(key, (entry = new VsmLightCache(lightId, mapCount, view, typeTag)))
     entry.seenThisFrame = true
     entry.lastSeenFrame = this.stampOf(entry)
     return entry

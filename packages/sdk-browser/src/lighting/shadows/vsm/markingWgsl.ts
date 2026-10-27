@@ -63,9 +63,10 @@ export const VSM_MARKING_PARAMS_BYTES = 240
  * 96 originShiftLow, 108 rectsToClear, 112 viewRectMin, 120 viewSize, 128 previousViewProjection,
  * 192 historySize, 200 pageDilation (the sun's, the local lights'), 208 markStride, 216
  * cullBackfacing, 220 firstPersonBias (a negative one marks nothing for the pixels of first-person objects),
- * 224 firstPersonLevelClamp. historySize and the matrix before it are read by the pass that marks from the
- * translucent front layer alone (`vsmPixelPageMarkingWgsl` `front`). The rest the marking never
- * varies is constants of the shader (`constants.ts`).
+ * 224 firstPersonLevelClamp, 228 frontSameImage (1: the front layer is the image's own). historySize,
+ * frontSameImage and the matrix before them are read by the pass that marks from the translucent
+ * front layer alone (`vsmPixelPageMarkingWgsl` `front`). The rest the marking never varies is
+ * constants of the shader (`constants.ts`).
  */
 export const VSM_MARKING_PARAMS_WGSL = wgslBlock(
   'VSM_MARKING_PARAMS_WGSL',
@@ -87,6 +88,7 @@ struct VsmMarkingParams{
  cullBackfacing:u32,
  firstPersonBias:f32,
  firstPersonLevelClamp:i32,
+ frontSameImage:u32,
 }
 `,
 )
@@ -494,27 +496,18 @@ fn vsmMarkPageLocal(lightShiftedPosition:vec3f,radialNotSpot:bool,handleIn:VsmHa
 
 /** The binding of the translucent front layer's depth in group 1 of the pass that marks from it. */
 export const VSM_FRONT_DEPTH_BINDING = 9
+/** The binding of the water's depth in group 1 of the pass that marks the water's surface. */
+export const VSM_WATER_DEPTH_BINDING = 10
 
 /** The front layer's depth, the Hi-Z's level 0 with its two layers (`HIZ_FRONT_LAYER`). */
 const FRONT_DEPTH_WGSL = `@group(1) @binding(${VSM_FRONT_DEPTH_BINDING}) var frontDepth:texture_2d_array<f32>;`
+/** The scene's depth with the water drawn into it (`WaterTargets.waterDepth`). */
+const WATER_DEPTH_WGSL = `@group(1) @binding(${VSM_WATER_DEPTH_BINDING}) var waterDepth:texture_depth_2d;`
 
-/**
- * The marks of the translucent surface the image before drew in front of the place a pixel stood
- * in it: the pixel's position, reprojected by the camera of that image into the layer it drew
- * (`historySize` its drawn size; a point behind that camera or out of the layer has none), the
- * layer's depth there (zero for no translucent surface), and the position that depth has at the
- * pixel's own place now, marked in every sun's clipmap with the page dilation of the pixel's own
- * marks and no bias.
- */
-const FRONT_MARKING_WGSL = `
-fn vsmMarkTranslucent(svPosition:vec2f,shiftedPosition:vec3f,marginSide:vec2f){
- let previous=vsmMarking.previousViewProjection*vec4f(shiftedPosition,1.0);
- if(!(previous.w>0.0)){return;}
- let there=clipToFramebuffer(previous,vsmMarking.historySize).xy;
- if(any(there<vec2f(0.5))||any(there>vsmMarking.historySize-0.5)){return;}
- let frontZ=textureLoad(frontDepth,vec2i(there),${HIZ_FRONT_LAYER},0).r;
- if(!(frontZ>0.0)){return;}
- let position=(worldAt(svPosition,frontZ)+vsmMarking.originShiftHigh)+vsmMarking.originShiftLow;
+/** Marks the page of a position, translated, in every sun's clipmap: the pixel's page dilation, no
+ *  extra bias, no minimum level. */
+const MARK_SUNS_WGSL = `
+fn vsmMarkSunsAt(position:vec3f,marginSide:vec2f){
  let hasMargin=vsmMarking.pageDilation.x>0.0;
  let marginOffset=vsmMarking.pageDilation.x*marginSide;
  for(var index=0u;index<vsmMarking.sunMapCount;index++){
@@ -522,14 +515,51 @@ fn vsmMarkTranslucent(svPosition:vec2f,shiftedPosition:vec3f,marginSide:vec2f){
  }
 }`
 
-/** The pass's call of it, before a pixel that is not lit leaves: it marks the translucent surface
- *  in front of it all the same. */
-const FRONT_MARKS_CALL = ` vsmMarkTranslucent(svPosition,shiftedPosition,marginSide);
- if(!lit){return;}
+/**
+ * The marks of the nearest translucent surface in front of the place a pixel stands in: the layer's
+ * depth there (zero for no translucent surface), and the position that depth has at the pixel's own
+ * place, marked in every sun's clipmap. The layer is the image's own where the front pass was drawn
+ * before the marking (`frontSameImage`: the pixel's own texel); else the image before's
+ * (`historySize` its drawn size): the pixel's position, reprojected by the camera of that image
+ * into the layer it drew; a point behind that camera or out of the layer has none.
+ */
+const FRONT_MARKING_WGSL = `
+fn vsmMarkTranslucent(svPosition:vec2f,shiftedPosition:vec3f,marginSide:vec2f){
+ var texel=vec2i(svPosition);
+ if(vsmMarking.frontSameImage==0u){
+  let previous=vsmMarking.previousViewProjection*vec4f(shiftedPosition,1.0);
+  if(!(previous.w>0.0)){return;}
+  let there=clipToFramebuffer(previous,vsmMarking.historySize).xy;
+  if(any(there<vec2f(0.5))||any(there>vsmMarking.historySize-0.5)){return;}
+  texel=vec2i(there);
+ }
+ let frontZ=textureLoad(frontDepth,texel,${HIZ_FRONT_LAYER},0).r;
+ if(!(frontZ>0.0)){return;}
+ vsmMarkSunsAt((worldAt(svPosition,frontZ)+vsmMarking.originShiftHigh)+vsmMarking.originShiftLow,marginSide);
+}`
+
+/**
+ * The marks of the water's surface: where the water drew over the pixel, its depth there differs
+ * from the scene's, and the position that depth has is marked in every sun's clipmap.
+ */
+const WATER_MARKING_WGSL = `
+fn vsmMarkWater(coord:vec2i,svPosition:vec2f,deviceZ:f32,marginSide:vec2f){
+ let waterZ=textureLoad(waterDepth,coord,0);
+ if(waterZ==deviceZ){return;}
+ vsmMarkSunsAt((worldAt(svPosition,waterZ)+vsmMarking.originShiftHigh)+vsmMarking.originShiftLow,marginSide);
+}`
+
+/** The pass's calls of them, before a pixel that is not lit leaves: it marks the surfaces in front
+ *  of it all the same. */
+const marksBeforeLit = (front: boolean, water: boolean) =>
+  `${front ? ' vsmMarkTranslucent(svPosition,shiftedPosition,marginSide);\n' : ''}${
+    water ? ' vsmMarkWater(coord,svPosition,deviceZ,marginSide);\n' : ''
+  } if(!lit){return;}
 `
 
 const pixelMarkingHead = (
   front: boolean,
+  water: boolean,
 ) => /* wgsl */ `@group(1) @binding(1) var normalRough:texture_2d<f32>;
 @group(1) @binding(2) var flags:texture_2d<u32>;
 @group(1) @binding(3) var<uniform> view:View;
@@ -539,11 +569,14 @@ const pixelMarkingHead = (
 @group(1) @binding(7) var<storage,read> vsmDirectionalLightIds:array<u32>;
 @group(1) @binding(8) var<uniform> vsmMarking:VsmMarkingParams;
 ${front ? FRONT_DEPTH_WGSL : ''}
+${water ? WATER_DEPTH_WGSL : ''}
 /** The engine's light \`light\`'s position, translated, as the loop reads it. */
 fn vsmLightShiftedPosition(light:DirectLight)->vec3f{
  return (light.positionRange.xyz+vsmMarking.originShiftHigh)+vsmMarking.originShiftLow;
 }
+${front || water ? MARK_SUNS_WGSL : ''}
 ${front ? FRONT_MARKING_WGSL : ''}
+${water ? WATER_MARKING_WGSL : ''}
 @compute @workgroup_size(${VSM_MARK_PIXELS_GROUP_XY},${VSM_MARK_PIXELS_GROUP_XY}) fn vsmMarkPagesFromPixels(
  @builtin(local_invocation_index) groupIndex:u32,
  @builtin(local_invocation_id) lane:vec3u,
@@ -562,7 +595,7 @@ ${front ? FRONT_MARKING_WGSL : ''}
  let surfaceFlags=textureLoad(flags,coord,0).r;
  let surfaceModel=surfaceFlags&${SURFACE_MODEL_MASK}u;
  ${
-   front
+   front || water
      ? `let lit=surfaceModel>1u&&surfaceModel!=${AS_IS_FLAG}u;`
      : `if(surfaceModel<=1u||surfaceModel==${AS_IS_FLAG}u){return;}`
  }
@@ -574,8 +607,8 @@ ${front ? FRONT_MARKING_WGSL : ''}
  // Dither pattern for page dilation: one diagonal, by the group index.
  let marginSide=vec2f(select(-1.0,1.0,(groupIndex&1u)!=0u),select(-1.0,1.0,(groupIndex&2u)!=0u));`
 
-const pixelMarkingDirectional = (front: boolean) => /* wgsl */ `
-${front ? FRONT_MARKS_CALL : ''} let worldNormal=normalize(textureLoad(normalRough,coord,0).xyz);
+const pixelMarkingDirectional = (front: boolean, water: boolean) => /* wgsl */ `
+${front || water ? marksBeforeLit(front, water) : ''} let worldNormal=normalize(textureLoad(normalRough,coord,0).xyz);
  let backfaceCull=!vsmSubsurfaceModel(surfaceFlags)&&vsmMarking.cullBackfacing!=0u;
  let sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmMarking.depthFromDeviceZ);
  // Where the depth of field blurs the image the maps are asked at a lower resolution.
@@ -637,19 +670,22 @@ const pixelMarkingLocal = () => /* wgsl */ `
  * 3 the engine's deferred `View`, 4 directLights, 5 tileLights (the light grid pruned to the shadowed lights, `vsmPruneLightGrid`), 6 per-light VSM id (i32, -1 none,
  * indexed like `directLights.items`: the light's VSM id), 7 directional VSM ids, 8 `VsmMarkingParams`.
  *
- * `front`, the project switch `shadowTranslucentQuality` above 0 with the front layer of the image
- * before in hand: the pass also marks, in every sun's clipmap, the page of the nearest translucent
- * surface that image drew over the place this pixel stood in it. Binding 9 is that layer's depth,
- * the Hi-Z's level 0 (`VSM_FRONT_DEPTH_BINDING`, layer `HIZ_FRONT_LAYER`, zero for none); the pixel
- * is reprojected by `previousViewProjection` to the layer's `historySize`, and the layer's depth
- * there is read at the pixel's own place in this image, as the temporal history is. A pixel that
- * is not lit marks that surface alone. Without `front` the program has neither the binding nor the
- * code.
+ * `front`, the project switch `shadowTranslucentQuality` above 0 with a front layer in hand: the pass
+ * also marks, in every sun's clipmap, the page of the nearest translucent surface that layer holds
+ * over the place this pixel stands in. Binding 9 is the layer's depth, the Hi-Z's level 0
+ * (`VSM_FRONT_DEPTH_BINDING`, layer `HIZ_FRONT_LAYER`, zero for none). The image before's layer
+ * is reprojected by `previousViewProjection` to its `historySize` and read at the pixel's own place in
+ * this image, as the temporal history is; the image's own, drawn before the marking
+ * (`frontSameImage`), is read at the pixel. `water`, an image whose single-layer water drew a depth
+ * before the marking: binding 10 is the scene's depth with the water drawn into it
+ * (`VSM_WATER_DEPTH_BINDING`), and where it differs from the pixel's, the water's surface is marked in
+ * every sun's clipmap, the suns alone. A pixel that is not lit marks those surfaces alone. Without
+ * them the program has neither the binding nor the code.
  */
-export const vsmPixelPageMarkingWgsl = (layout: VsmLayout, front = false) =>
+export const vsmPixelPageMarkingWgsl = (layout: VsmLayout, front = false, water = false) =>
   wgslProgram(
     `@group(1) @binding(0) var depth:texture_depth_2d;
-${pixelMarkingHead(front)}${pixelMarkingDirectional(front)}${pixelMarkingLocal()}
+${pixelMarkingHead(front, water)}${pixelMarkingDirectional(front, water)}${pixelMarkingLocal()}
 `,
     [
       VSM_HANDLE_WGSL,

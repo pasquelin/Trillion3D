@@ -48,6 +48,7 @@ function runtime(roots = 6) {
     rootWorlds: { held: roots, boxes, worlds },
     rootBoxes: { written: 0 },
     vis: { rootOffsets: { rowOf: () => undefined } },
+    context: {},
     gpu: { device },
   } as unknown as WebgpuPagesRuntime
   return { rt, device, selectionRoots }

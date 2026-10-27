@@ -2,7 +2,7 @@ import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
 import { DEPTH_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { readSingleLayerWaterSetting } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
-import { waterSeparates } from './waterTargets.ts'
+import { waterSeparates, waterWanted } from './waterTargets.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import {
   WATER_NORMALS_FORMAT,
@@ -20,7 +20,7 @@ import { WATER_DEPTH_FORMAT, WATER_MASK_FORMAT, WATER_SUN_FORMAT } from './water
  * the uniform. Zero without water.
  */
 export function waterBytes(rt: WebgpuPagesRuntime, width: number, height: number) {
-  if (!rt.blendState.water || !readSingleLayerWaterSetting(rt, 'singleLayerWater')) return 0
+  if (!waterWanted(rt)) return 0
   const factor = readSingleLayerWaterSetting(rt, 'singleLayerWaterRefractionDownsample')
   const copy = ceilDiv(width, factor) * ceilDiv(height, factor),
     full = width * height,

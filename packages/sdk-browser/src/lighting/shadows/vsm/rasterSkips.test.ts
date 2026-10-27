@@ -178,8 +178,10 @@ test('a candidate is tested where the world’s merged shells are, or every mesh
   assert.equal(every.vsmRenderFarFlags(0, 3), TESTED, 'every mesh, when the settings say so')
 })
 
-// The candidate grew from 48 to 96 bytes: it carries its group's and its parent's bounds and errors,
-// each map judging its own level of detail (`vsmRenderLodAt`); the far depth stays at byte 40.
+// The candidate carries its sphere and the three half axes of its box (the frustum cull's volume), its
+// group's and its parent's bounds and errors, each map judging its own level of detail
+// (`vsmRenderLodAt`): 160 bytes, each vec3 followed by a scalar and no byte of padding, the far depth
+// at byte 76.
 test('the candidate kernel gives every candidate its far-shadow flags and depth, and drops what no view takes', () => {
   {
     const code = vsmRenderCandidatesWgsl()
@@ -195,7 +197,11 @@ test('the candidate kernel gives every candidate its far-shadow flags and depth,
     )
   }
   const candidate = wgslStructLayout(CULL, 'VsmRenderCandidate')
-  assert.deepEqual([candidate.size, candidate.offsets.farDepth], [VSM_RENDER_CANDIDATE_BYTES, 40])
+  assert.deepEqual([candidate.size, candidate.offsets.farDepth], [VSM_RENDER_CANDIDATE_BYTES, 76])
+  assert.equal(candidate.size, 160)
+  const { a0, a1, a2, corners, flags } = candidate.offsets
+  assert.deepEqual([a0, a1, a2], [32, 48, 64], 'the half axes, each with a scalar behind it')
+  assert.deepEqual([corners, flags], [44, 60], 'the scalars fill the vec3s’ fourth words')
   const { at } = VSM_RENDER_PARAMS
   assert.equal(
     [at.farMeshes, at.farDrop].every((word) => word !== undefined),

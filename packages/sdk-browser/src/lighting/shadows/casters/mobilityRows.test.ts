@@ -142,6 +142,26 @@ test('a banked root at rest has no deforming bit, one that animates has it', () 
   assert.equal(castFlagsOf({}, undefined, false) & MOBILITY_DEFORMS, 0)
 })
 
+// `shadowCacheDeformableMeshesInvalidate` off: the deforming bit, which has the pages its casters draw
+// invalidated as they are drawn, is left out of a deformed placement's word; the placement is still
+// often moving, so it arrives cached as dynamic and settles to static.
+test('a deformed placement without the deforming bit is still often moving, and arrives moving', () => {
+  const root = { deformation: {} }
+  const kept = castFlagsOf(root, undefined, false, true),
+    left = castFlagsOf(root, undefined, false, false)
+  assert.ok((kept & MOBILITY_DEFORMS) !== 0)
+  assert.equal(left & MOBILITY_DEFORMS, 0)
+  assert.equal(left, kept & ~MOBILITY_DEFORMS, 'the one bit')
+  assert.ok((left & MOBILITY_OFTEN_MOVING) !== 0)
+  const mobility = createShadowMobility()
+  mobility.ensure(1, () => new Float64Array(16))
+  mobility.writeRoots(
+    () => {},
+    () => left,
+  )
+  assert.deepEqual([...mobility.words], [left | MOBILITY_MOVING])
+})
+
 // A surface that always evaluates its offset says so in the word, beside the bit that its offset may
 // invalidate the placement's shadows (the layer of all its clusters).
 test('a placement that wears an offset has the offset bits, the always bit only for a surface that always evaluates', () => {

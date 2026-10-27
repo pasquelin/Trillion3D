@@ -1,4 +1,3 @@
-import { readSingleLayerWaterSetting } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { litBlendPipelines } from '../draw.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
@@ -9,6 +8,7 @@ import {
   waterSceneGroups,
   waterSeparated,
   waterTargetsOf,
+  waterWanted,
   writeWaterParams,
   type WaterSettings,
   type WaterTargets,
@@ -17,10 +17,7 @@ import {
 /** Whether the image draws water: the setting is on, the plan holds a water item and the program
  *  has the pipelines for it. */
 const drawsWater = (rt: WebgpuPagesRuntime) =>
-  rt.blendState.water &&
-  readSingleLayerWaterSetting(rt, 'singleLayerWater') &&
-  !!rt.vis.blendPipelines &&
-  !!rt.blendState.runCount
+  waterWanted(rt) && !!rt.vis.blendPipelines && !!rt.blendState.runCount
 
 /** Everything the passes of one image of water share: the runtime, the encoder, the scene's targets, the
  *  water's own targets, programs and groups, the settings read once, and the choices they make. */

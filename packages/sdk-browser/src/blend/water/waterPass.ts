@@ -2,6 +2,7 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { chainReady } from '../../lighting/deferred/fullscreen.ts'
 import { openWaterFrame, waterChain } from './waterFrame.ts'
+import { waterDepthMarked } from './waterTargets.ts'
 import {
   encodeColourCopy,
   encodeComposite,
@@ -17,7 +18,9 @@ import {
  * THE SINGLE-LAYER WATER'S PASSES, after the opaque scene is lit and before any translucent layer is
  * drawn over it (`encodeBlend`), in the order the water has:
  *  1. the water's depth (`WATER_DEPTH_PASS`, with `singleLayerWaterDepthPrepass`): the scene's depth
- *     copied, the water drawn into the copy; without it the shading writes the scene's depth itself;
+ *     copied, the water drawn into the copy — before the lights where the sun's shadow pages are
+ *     marked at the water's surface (`encodeWaterDepth`); without it the shading writes the scene's
+ *     depth itself;
  *  2. the scene without the water: its linear depth, at `singleLayerWaterRefractionDownsample`
  *     (`WATER_COPY_PASS`);
  *  3. the tiles that hold water (`WATER_TILES_PASS`), when the composite or the colour copy is tiled
@@ -44,7 +47,7 @@ export function encodeWater(
   // shaded surface), so none is encoded while a program of the chain compiles.
   if (!frame || !chainReady(...waterChain(frame))) return 0
   const drawn =
-    encodeDepthPrepass(frame) +
+    (waterDepthMarked(rt) ? 0 : encodeDepthPrepass(frame)) +
     encodeSceneDepth(frame) +
     encodeTileList(frame) +
     encodeColourCopy(frame) +
@@ -53,4 +56,22 @@ export function encodeWater(
     encodeComposite(frame)
   handOverDepth(frame)
   return drawn
+}
+
+/**
+ * The water's depth pass (step 1 of `encodeWater`) drawn ahead of the image's lights, for the marking of
+ * the sun's shadow pages (`waterDepthMarked`); `encodeWater` then goes on from it, the pass not drawn again.
+ * Nothing where the image draws no water, draws it without the depth pass, or lacks a program of its
+ * chain. Returns the draws encoded.
+ */
+export function encodeWaterDepth(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  key?: Partial<ContractKey>,
+) {
+  const frame = openWaterFrame(rt, device, encoder, key)
+  if (!frame?.prepass || !chainReady(...waterChain(frame))) return 0
+  frame.targets.depthAheadFor = rt.run.frame
+  return encodeDepthPrepass(frame)
 }

@@ -24,6 +24,7 @@ const SHADOW_MAP_DEFAULTS = {
   shadowClipmapMinCameraViewportWidth: 0,
   ...{ shadowClipmapWpoDisableDistance: true, shadowClipmapWpoDisableDistanceLodBias: 3 },
   ...{ shadowClipmapWpoDisableDistanceInvalidateOnScaleChange: false },
+  ...{ shadowClipmapCullDynamicTightly: true, shadowForceInvalidateDirectional: false },
   ...{ shadowMarkCoarsePagesLocal: 1, shadowResolutionLodBiasDirectional: -1.5 },
   ...{ shadowResolutionLodBiasDirectionalMoving: -1.5, shadowResolutionLodBiasLocal: 0 },
   ...{ shadowResolutionLodBiasLocalMoving: 1, shadowLightActiveFrameCount: 10 },
@@ -47,6 +48,10 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowPageMarkingPixelStrideY: 2, shadowNormalBias: 0.5, shadowScreenRayLength: 0.015 },
   shadowRasterIndirectionMultiplier: 1.5,
   ...{ shadowCacheInvalidateUseHzb: true, shadowDeferredInvalidationBudget: -1 },
+  ...{ shadowCache: true, shadowCacheAllocateViaLru: true },
+  ...{ shadowCacheDeformableMeshesInvalidate: true, shadowForceInvalidateLocal: 0 },
+  ...{ shadowForceFullPageClears: false, shadowUseReceiverMaskDirectional: true },
+  shadowUseReceiverMaskLocal: false,
   shadowFirstPersonClipmap: true,
   shadowFirstPersonClipmapFirstLevel: 8,
   shadowFirstPersonClipmapLastLevel: 18,
@@ -180,6 +185,16 @@ test('the shadow maps’ settings refuse what they cannot take, in words', () =>
   refuses('shadowClipmapWpoDisableDistance', 1, /true or false/)
   refuses('shadowClipmapWpoDisableDistanceLodBias', 31, /from 0 to 30/)
   refuses('shadowClipmapWpoDisableDistanceInvalidateOnScaleChange', 1, /true or false/)
+  refuses('shadowClipmapCullDynamicTightly', 1, /true or false/)
+  refuses('shadowForceInvalidateDirectional', 1, /true or false/)
+  refuses('shadowCache', 0, /true or false/)
+  refuses('shadowCacheAllocateViaLru', 1, /true or false/)
+  refuses('shadowCacheDeformableMeshesInvalidate', 'yes', /true or false/)
+  refuses('shadowForceInvalidateLocal', 3, /from 0 to 2/)
+  refuses('shadowForceInvalidateLocal', 0.5, /whole/)
+  refuses('shadowForceFullPageClears', 1, /true or false/)
+  refuses('shadowUseReceiverMaskDirectional', 1, /true or false/)
+  refuses('shadowUseReceiverMaskLocal', 1, /true or false/)
   refuses('shadowLightActiveFrameCount', 0, /at least 1/)
   refuses('shadowMaxPhysicalPages', 0, /at least 1/)
   refuses('shadowDistantLightMode', 3, /from 0 to 2/)

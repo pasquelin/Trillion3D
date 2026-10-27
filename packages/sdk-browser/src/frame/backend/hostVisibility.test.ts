@@ -67,7 +67,8 @@ test('a host hide parks the root and hides its blend items', () => {
   const parks: [number, boolean][] = [],
     marks: number[] = [],
     changed: number[][] = [],
-    touched: number[] = []
+    touched: number[] = [],
+    parkedMobility: number[] = []
   const rt = {
     run: {
       gate: { updateWorlds: () => ({ reshaped: true, flipped: [] }), revisions: { scene: 1 } },
@@ -90,7 +91,11 @@ test('a host hide parks the root and hides its blend items', () => {
     timing: { worldCounts: {} },
     blendState,
     lights: {
-      mobility: { cachedDynamic: () => false, touch: (rank: number) => touched.push(rank) },
+      mobility: {
+        cachedDynamic: () => false,
+        touch: (rank: number) => touched.push(rank),
+        park: (rank: number) => parkedMobility.push(rank),
+      },
       changes: { worldChanged: (lo: number[], hi: number[]) => changed.push([...lo, ...hi]) },
     },
   } as unknown as WebgpuPagesRuntime
@@ -101,6 +106,7 @@ test('a host hide parks the root and hides its blend items', () => {
   assert.ok(!kept.hidden, 'another node keeps its blend item')
   assert.deepEqual(changed, [], 'no box declared on the CPU')
   assert.deepEqual(touched, [0], 'its mobility is told: the casters skip it')
+  assert.deepEqual(parkedMobility, [0], 'its cache state goes back to static')
   // The flip is noted on the item's key record, whose drawn bit the GPU verdict reads.
   const drawnBit = () => writeKeyRecords(blendState)[KEY_WORD.flags] & KEY_DRAWN
   assert.deepEqual(blendState.keyMoved, { from: 0, to: 0 }, 'its key record goes up')
@@ -119,6 +125,7 @@ test('a host hide parks the root and hides its blend items', () => {
   ])
   assert.equal(item.hidden, false)
   assert.deepEqual(touched, [0, 0])
+  assert.deepEqual(parkedMobility, [0], 'a root taken again keeps the static state')
   assert.deepEqual(blendState.keyMoved, { from: 0, to: 0 })
   assert.equal(drawnBit(), KEY_DRAWN)
   // #456: a node set to cast no shadow leaves every light cut.

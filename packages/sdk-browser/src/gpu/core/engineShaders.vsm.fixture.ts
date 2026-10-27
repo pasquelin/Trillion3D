@@ -62,6 +62,8 @@ export function vsmVariants() {
     VSM_MARKING_COARSE: vsmCoarseMarkingWgsl(layout),
     VSM_MARKING_PIXELS: vsmPixelPageMarkingWgsl(layout),
     VSM_MARKING_PIXELS_FRONT: vsmPixelPageMarkingWgsl(layout, true),
+    VSM_MARKING_PIXELS_WATER: vsmPixelPageMarkingWgsl(layout, false, true),
+    VSM_MARKING_PIXELS_FRONT_WATER: vsmPixelPageMarkingWgsl(layout, true, true),
     FROXEL_BUILD_WGSL,
     FROXEL_ARGS_WGSL,
     VSM_MARKING_FROXELS: vsmFroxelPageMarkingWgsl(layout),

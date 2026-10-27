@@ -79,7 +79,7 @@ export interface EngineVsm {
   said: Set<'raster' | 'mask'>
   /** The frame a pool drawn short of the full one may ask to grow again at (`vsmGrant.ts`). */
   regrowFrame: number
-  /** The pool size the setting asked when the set was made (`vsmPoolAsked`): another size asked makes
+  /** The pool size the setting asked when the set was made (`vsmAsked`): another size asked makes
    *  the set again, its cache dropped, as a pool whose size changed is. */
   poolAsked: number
   /** The box invalidation read before the plan, the maps the shadow changes stale

@@ -41,11 +41,13 @@ export const VSM_PM_GROUP_RESOURCES = 0
 export const VSM_PM_GROUP_PARAMS = 1
 export const VSM_PM_GROUP_PER_PAGE = 2
 /** Byte size of `VsmPmParams`; its slots lie the device's `uniformStride` apart. */
-export const VSM_PM_PARAMS_BYTES = 8
+export const VSM_PM_PARAMS_BYTES = 16
 
 /**
  * Loose parameters of the physical page kernels (update, address remap, ...): the next-map entries
- * this frame holds, and whether last frame's pages are kept (offsets 0 and 4).
+ * this frame holds, whether last frame's pages are kept, whether a free page is taken by the age of
+ * its last request (`shadowCacheAllocateViaLru`) and whether a page is cleared whole whatever it
+ * holds (`shadowForceFullPageClears`) (offsets 0, 4, 8 and 12).
  */
 const VSM_PM_PARAMS_WGSL = wgslBlock(
   'VSM_PM_PARAMS_WGSL',
@@ -54,6 +56,8 @@ const VSM_PM_PARAMS_WGSL = wgslBlock(
 struct VsmPmParams{
  nextMapCount:u32,
  hasPrevFrame:u32,
+ lruAllocation:u32,
+ fullClears:u32,
 }
 @group(${VSM_PM_GROUP_PARAMS}) @binding(0) var<uniform> vsmPm:VsmPmParams;
 `,
@@ -475,16 +479,16 @@ fn vsmListClears(@builtin(global_invocation_id) id:vec3u){
   // left as it is.
  }else{
   var clearedFlags=0u;
-  // Its static layer, unless cleared already.
+  // Its static layer, unless cleared already and full clears are off.
   if((pageInfo.flags&VSM_PAGE_STATIC_STALE)!=0u&&(pageInfo.flags&VSM_META_VIEW_UNCACHED)==0u){
-   if((pageInfo.flags&VSM_META_STATIC_CLEARED)==0u){
+   if(vsmPm.fullClears!=0u||(pageInfo.flags&VSM_META_STATIC_CLEARED)==0u){
     pmListClear(poolIndex+vsm.poolPages);
     vsmCount(VSM_COUNT_CLEARED);
     clearedFlags|=VSM_META_STATIC_CLEARED|VSM_META_STATIC_DRAWN;
    }
   }
   // Its dynamic layer, unless cleared already; always when the static one was (its copy is stale).
-  if((pageInfo.flags&VSM_META_DYNAMIC_CLEARED)==0u||clearedFlags!=0u){
+  if(vsmPm.fullClears!=0u||(pageInfo.flags&VSM_META_DYNAMIC_CLEARED)==0u||clearedFlags!=0u){
    pmListClear(poolIndex);
    vsmCount(VSM_COUNT_CLEARED);
    clearedFlags|=VSM_META_DYNAMIC_CLEARED|VSM_META_DYNAMIC_DRAWN;

@@ -258,7 +258,11 @@ export function addVsmLocalLightShadow(
   const distant = vsmDistantOf(shadows.shadowDistantLightMode, needed)
   const finestMip = distant ? VSM_MIPS - 1 : needed
   shape[3] = distant ? 1 : 0
-  cacheEntry.updateLocal(localKey, !cache.cacheEnabled)
+  // Drawn uncached each frame: with the cache off, or as `shadowForceInvalidateLocal` names the light
+  // (1 the lights that are not distant, 2 all of them).
+  const forced = shadows.shadowForceInvalidateLocal
+  const uncached = !cache.cacheEnabled || forced === 2 || (forced === 1 && !distant)
+  cacheEntry.updateLocal(localKey, uncached, shadows.shadowUseReceiverMaskLocal)
   // Its turn in the schedule: drawn again, its pages not carried (`VsmMapCache.update`).
   if (distant && cacheEntry.scheduledFrame === cache.frameStamp) cacheEntry.invalidate()
 

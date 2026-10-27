@@ -125,6 +125,14 @@ function copyInto(to: number[], from: ArrayLike<number>) {
   for (let k = 0; k < from.length; k++) to[k] = from[k]
 }
 
+/** The kind of shadow an entry holds: 0 the regular one, 1 a sun's first-person clipmap. */
+export type VsmShadowType = 0 | 1
+
+/** The key of an entry: the light's id, the view's (none: shared by every view) and the shadow
+ *  type, as one JSON array, so that no id or view name can read as another's key. */
+export const vsmCacheKey = (lightId: string, view?: string, typeTag: VsmShadowType = 0) =>
+  JSON.stringify([lightId, view ?? null, typeTag])
+
 /** One light's cache entry. */
 export class VsmLightCache {
   renderedFrame = -1
@@ -156,13 +164,16 @@ export class VsmLightCache {
   /** The view it is drawn for: a sun's clipmap's (`''` the main view's); none for a local light's
    *  maps, which every view shares. */
   readonly view: string | undefined
-  /** Its key in the cache's entries: the light's id, then the view's past the main one. */
+  /** The kind of shadow it holds: 0 the regular one, 1 a sun's first-person clipmap. */
+  readonly typeTag: VsmShadowType
+  /** Its key in the cache's entries (`vsmCacheKey`). */
   readonly key: string
 
-  constructor(lightId: string, mapCount: number, view?: string, key = lightId) {
+  constructor(lightId: string, mapCount: number, view?: string, typeTag: VsmShadowType = 0) {
     this.lightId = lightId
     this.view = view
-    this.key = key
+    this.typeTag = typeTag
+    this.key = vsmCacheKey(lightId, view, typeTag)
     this.mapCaches = Array.from({ length: mapCount }, () => new VsmMapCache())
   }
 
@@ -200,11 +211,8 @@ export class VsmLightCache {
   /** Invalidates the entry for a changed key, a forced invalidation or a cover turned on or off;
    *  a cached <-> uncached transition invalidates too. */
   private updateCommon(keyChanged: boolean, forceInvalidate: boolean, useCover: boolean) {
-    if (forceInvalidate || keyChanged) this.renderedFrame = -1
-    if (useCover !== this.useCover) {
-      this.renderedFrame = -1
-      this.useCover = useCover
-    }
+    if (forceInvalidate || keyChanged || useCover !== this.useCover) this.renderedFrame = -1
+    this.useCover = useCover
     // An invalidated light renders the next frame uncached; uncached <-> cached transitions invalidate.
     const newIsUncached = this.renderedFrame < 0
     if (newIsUncached !== this.isUncached) {
@@ -214,13 +222,13 @@ export class VsmLightCache {
   }
 
   /** Updates a clipmap's cache entry; whether its key changed — the light was made or moved. */
-  updateClipmap(key: VsmSunCacheKey, forceInvalidate: boolean) {
+  updateClipmap(key: VsmSunCacheKey, forceInvalidate: boolean, useCover: boolean) {
     const k = this.clipmapCacheKey
     const changed =
       !sameValues(key.lightDirection, k.lightDirection) ||
       key.firstLevel !== k.firstLevel ||
       !sameValues(key.shadow, k.shadow)
-    this.updateCommon(changed, forceInvalidate, true)
+    this.updateCommon(changed, forceInvalidate, useCover)
     if (changed) {
       copyInto(k.lightDirection, key.lightDirection)
       k.firstLevel = key.firstLevel
@@ -244,10 +252,10 @@ export class VsmLightCache {
   }
 
   /** Updates a local light's cache entry; whether its key changed, as a clipmap's. */
-  updateLocal(key: VsmLocalLightCacheKey, forceInvalidate: boolean) {
+  updateLocal(key: VsmLocalLightCacheKey, forceInvalidate: boolean, useCover: boolean) {
     const k = this.localCacheKey
     const changed = this.localKeyChanged(key)
-    this.updateCommon(changed, forceInvalidate, false)
+    this.updateCommon(changed, forceInvalidate, useCover)
     if (changed) {
       copyInto(k.worldToLight, key.worldToLight)
       copyInto(k.lightOriginShift, key.lightOriginShift)

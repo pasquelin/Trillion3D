@@ -4,13 +4,8 @@ import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import type { planVirtualShadowFrame, VsmFrameLight } from '../frameSetup.ts'
 import { noteResidenceChange } from '../../casters/bounds.ts'
 import { shadowsFollowCells } from '../../casters/followChanges.ts'
-import {
-  fullMapsFor,
-  sunMapsFor,
-  vsmDynamicHzbAsked,
-  vsmOcclusionAsked,
-  vsmPoolAsked,
-} from './vsmLightMaps.ts'
+import { askedOfLayout, fullMapsFor, sunMapsFor, vsmAsked } from './vsmLightMaps.ts'
+import { dynamicHzbOf } from '../layout.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
 import { growEngineVsm, regrowEngineVsm } from './vsmRegrow.ts'
 import { reserveProjection } from './vsmBeside.ts'
@@ -30,16 +25,23 @@ export function heldVsm(rt: WebgpuPagesRuntime, device: GPUDevice, list: VsmFram
   let vsm = rt.lights.vsm
   const wanted = fullMapsFor(list)
   const short = !!vsm && (vsm.res.layout.fullMapCapacity < wanted || vsm.sunMaps < sunMapsFor(list))
-  // The occlusion culling turned on or off: the set made again with its pyramid or without, its
-  // pages drawn again.
-  const occlusionMoved =
-    !!vsm &&
-    (vsm.res.layout.occlusion !== vsmOcclusionAsked(rt) ||
-      vsm.res.layout.hzbLayers > 1 !== (vsmDynamicHzbAsked(rt) && vsm.res.layout.staticSlice === 1))
+  const asked = vsmAsked(rt),
+    kept = vsm && askedOfLayout(vsm.res.layout)
   // The pool size the setting asks moved: the pool is made again and its pages dropped, as the
   // reference makes a pool whose size changed again.
-  const poolMoved = !!vsm && vsm.poolAsked !== vsmPoolAsked(rt)
-  if (!vsm || occlusionMoved || poolMoved || (short && !growEngineVsm(device, list, vsm, wanted)))
+  const poolMoved = !!vsm && vsm.poolAsked !== asked.poolPages
+  // The occlusion culling turned on or off, or its second layer, the pages kept from one frame to
+  // the next (`shadowCache`) turned on or off, or the cover of the local lights' receivers
+  // (`shadowUseReceiverMaskLocal`) asked where the set's cover holds the suns' alone: the set made
+  // again, with its pyramid or without, its pages and cache drawn again. A cover that holds every
+  // map still works with the option off.
+  const moved =
+    !!kept &&
+    (kept.occlusion !== asked.occlusion ||
+      kept.dynamicHzb !== dynamicHzbOf(asked.occlusion, asked.cacheEnabled, asked.dynamicHzb) ||
+      kept.cacheEnabled !== asked.cacheEnabled ||
+      (asked.localCover && !kept.localCover))
+  if (!vsm || moved || poolMoved || (short && !growEngineVsm(device, list, vsm, wanted)))
     vsm = grantEngineVsm(rt, device, list, wanted)
   else if (!short) vsm = regrowEngineVsm(rt, device, list, vsm)
   return vsm && reserveProjection(rt, device, vsm, list) ? vsm : undefined

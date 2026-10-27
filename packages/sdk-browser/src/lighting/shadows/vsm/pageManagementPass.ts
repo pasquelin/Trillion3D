@@ -34,6 +34,10 @@ interface VsmPageManagementOptions {
   /** Stats permutation (one more storage buffer: eight at most in a kernel). Fixed at first use per
    *  `res`. */
   stats?: boolean
+  /** A free page is taken by the age of its last request (`shadowCacheAllocateViaLru`). */
+  lruAllocation: boolean
+  /** A page is cleared whole whatever it holds (`shadowForceFullPageClears`). */
+  fullClears: boolean
 }
 
 export interface VsmPageManagementFrame {
@@ -44,7 +48,7 @@ export interface VsmPageManagementFrame {
   perPageBins?: readonly VsmPerPageBin[]
   /** Entries uploaded to `res.nextMaps`, for the page address remap. */
   nextMapCount?: number
-  options?: VsmPageManagementOptions
+  options: VsmPageManagementOptions
 }
 
 export const SLOT_MAIN = 0
@@ -136,7 +140,7 @@ export function vsmPageManagementContext(
   res: VsmResources,
   frame: VsmPageManagementFrame,
 ): VsmPageManagementContext {
-  const stats = !!frame.options?.stats
+  const stats = !!frame.options.stats
   const existing = res.pageManagement
   if (existing && existing.device === frame.device && existing.stats === stats) return existing
   const device = frame.device

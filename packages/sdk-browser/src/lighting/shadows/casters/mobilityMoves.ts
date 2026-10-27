@@ -81,6 +81,12 @@ export function settleMoving(s: MobilityState, threshold: number) {
   for (let k = list.length - 1; k >= 0; k--) {
     const rank = list[k],
       lead = rank < s.leads.length ? s.leads[rank] : -1
+    // Parked since (`parkRank`): already static, its word written, nothing to touch.
+    if (!s.moving[rank]) {
+      list[k] = list[list.length - 1]
+      list.pop()
+      continue
+    }
     let rest = (frame - s.lastMoved[rank]) >>> 0
     if (lead >= 0) rest = Math.min(rest, (frame - s.leadMoved[lead]) >>> 0)
     if (rest <= threshold) continue

@@ -16,7 +16,9 @@ import {
   CACHE_STATIC_ROOT,
   FAR_SHADOW_ROOT,
   HIDDEN_SHADOW_ROOT,
+  IMMOVABLE_ROOT,
   MARK_BITS,
+  MOVABLE_ROOT,
   nodeCasting,
   SHADOWLESS_ROOT,
   WORLD_SPACE_ROOT,
@@ -87,6 +89,8 @@ test('no two bits of the mark are alike, whoever reads them', () => {
     cacheStatic: CACHE_STATIC_ROOT,
     worldSpaceRepresentation: WORLD_SPACE_ROOT,
     hiddenShadow: HIDDEN_SHADOW_ROOT,
+    movable: MOVABLE_ROOT,
+    immovable: IMMOVABLE_ROOT,
   }
   assert.deepEqual(homes, MARK_BITS, 'a home for every bit of the table, its value')
   assert.equal(CASTS_NO_SHADOW, MARK_BITS.sprite | MARK_BITS.shadowless)

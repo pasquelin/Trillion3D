@@ -60,7 +60,8 @@ function snapshotMap(
 }
 
 /** Every map the image's plan packed for the main view: its suns' levels, its local lights' maps
- *  — a sun's clipmap of another view keyed apart (`VsmLightCache.view`) left out. */
+ *  — a sun's clipmap of another view keyed apart (`VsmLightCache.view`) and its first-person
+ *  clipmap (`VsmLightCache.typeTag`) left out. */
 export function snapshotShadowMaps(
   entries: Iterable<VsmLightCache>,
   kindOf: (light: string) => SceneLight['kind'] | undefined,
@@ -68,7 +69,8 @@ export function snapshotShadowMaps(
   const maps: ShadowMapSnapshot[] = []
   for (const entry of entries) {
     const kind = kindOf(entry.lightId)
-    if (!kind || entry.mapId < 0 || (entry.view !== undefined && entry.view !== '')) continue
+    const otherView = entry.view !== undefined && entry.view !== ''
+    if (!kind || entry.mapId < 0 || otherView || entry.typeTag !== 0) continue
     for (const map of entry.mapCaches) maps.push(snapshotMap(entry, kind, map.projectionData))
   }
   return maps

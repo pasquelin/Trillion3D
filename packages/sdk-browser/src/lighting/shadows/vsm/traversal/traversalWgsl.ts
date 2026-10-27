@@ -10,13 +10,17 @@
  * rect is not empty, `vsmRenderMapMips`), as the reference's packed views are one a map and mip. Queue
  * 0 holds every view's roots — a placement's, or the placement tree's top nodes and the members
  * drawn whatever the view — and each level tests an entry's children against its view:
- * - in the view's map (`outsideFrustum`, `vsmDescentInMap`): the box's world sphere
- *   (`casterSphere`, the casters' own), its radius doubled — the sphere of a box within it lies within
- *   it —, against the map's box cull (`vsmBoxInView`), a local light's range first; a cell of the
- *   tree alike (`vsmDescentCellOutside`);
- * - on a page to draw of the layer its placement's casters draw into (`vsmDescentNoPage`); the
- *   receiver cover is left to the cull, the descent holding to the storage buffers every device has;
- *   a cell of the tree is not tested, its placements are;
+ * - in the view's map (`outsideFrustum`, `vsmDescentInMap`): a local light's range first, on the
+ *   box's world sphere (`casterSphere`, the casters' own) with its radius doubled — the sphere of a
+ *   box within it lies within it —, then the box itself, the oriented box the casters' kernel gives a
+ *   cluster (`casterSphere`'s axes, `vsmCasterBoxInView`), against the map's box cull
+ *   (`vsmBoxInView`): the box of a node holds the boxes of the clusters below it (the compiler's
+ *   hierarchy is the box of their boxes), so what it misses they miss; a cell of the tree alike, its
+ *   world box (`vsmDescentCellOutside`);
+ * - on a page to draw of the layer its placement's casters draw into (`vsmDescentNoPage`), looked
+ *   for under the cube about the node's sphere doubled (`vsmDescentCube`), not the oriented box;
+ *   the receiver cover is left to the cull, the descent holding to the storage buffers every device
+ *   has; a cell of the tree is not tested, its placements are;
  * - its subtree needed at the view's mip (`vsmDescentNeeded`): the greatest error its clusters
  *   replace (`maxParentError`) over the node's ball, projected by the mip as the cull projects a
  *   cluster's (`vsmRenderViewPixels`), past the shadows' threshold. A projection that only grows as
@@ -53,6 +57,7 @@
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
 import { FLOAT32_MAX } from '../../../../../../math/src/wgsl/constants.ts'
+import { unitOrZero } from '../../../../../../math/src/wgsl/inverseTranspose.ts'
 import { wgslF32 } from '../../../../../../math/src/wgsl/number.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
 import { CLUSTER_LAYOUT } from '../../../../geometry/dag/layout.ts'
@@ -84,7 +89,11 @@ import {
 import { requestPriorityOf } from '../../../../geometry/dag/shader/error.ts'
 import { worldAtEyeWgsl } from '../../../../geometry/dag/shader/worldPoseWgsl.ts'
 import type { DescentShape } from '../../../../geometry/dag/shader/descentShape.ts'
-import { VSM_BOX_CULL_WGSL, VSM_BOX_VIEW_WGSL } from '../invalidation/boxCullWgsl.ts'
+import {
+  VSM_BOX_CULL_WGSL,
+  VSM_BOX_VIEW_WGSL,
+  VSM_CASTER_BOX_CULL_WGSL,
+} from '../invalidation/boxCullWgsl.ts'
 import {
   MOBILITY_DEFORMS,
   MOBILITY_MOVING,
@@ -124,12 +133,18 @@ export const VSM_DESCENT_SPECS: readonly VsmBindingSpec[] = [
 const VSM_REQUEST_CATEGORY = 0
 
 /** A box's sphere doubled: the sphere of any box within the box lies within it — its centre in the
- *  box, its radius no greater —, grown past the roundings of the two spheres (`casterSphere`). */
-const DESCENT_GROWTH = 2 + 2 ** -16
+ *  box, its radius no greater —, grown past the roundings of the two spheres (`casterSphere`). What
+ *  the tests that stay on a sphere or its cube hold a node by: a local light's range, the pages to
+ *  draw (`vsmDescentCube`) and the previous image's occlusion (`vsmHiddenBefore`), which the casters'
+ *  cull makes on the cube about a cluster's sphere. */
+const DESCENT_BALL_GROWTH = 2 + 2 ** -16
 /** What a node's projection is raised by against its clusters': the roundings of its shifted
- *  centre beside theirs. */
+ *  centre beside theirs; what a cell's half extents and sphere are raised by (`vsmDescentCellAxes`,
+ *  `vsmDescentCellBall`): the roundings of its corners. */
 const DESCENT_LOD_SLACK = 1 + 2 ** -10
-/** The roundings of a shifted centre, relative to its distance from the map's origin. */
+/** The roundings of a shifted centre, relative to its distance from the map's origin: the box's
+ *  centre is summed in single precision beside the cluster's, each off by 2^-24 of it, so the box
+ *  grows by this (2^6 times that) to hold what its clusters' boxes hold. */
 const DESCENT_SHIFT_SLACK = 2 ** -18
 
 /** The kernels' entry points, by role. */
@@ -154,7 +169,7 @@ ${DAG_PRIMITIVE_READS}
 /** The placements' words (\`../../casters/rootWords.ts\`): the mobility words, the instances' state
  *  per view, the offsets' distances, a section each. */
 @group(1) @binding(8) var<storage,read> rootWords:array<u32>;
-const DESCENT_GROWTH:f32=${wgslF32(DESCENT_GROWTH)};
+const DESCENT_BALL_GROWTH:f32=${wgslF32(DESCENT_BALL_GROWTH)};
 const DESCENT_LOD_SLACK:f32=${wgslF32(DESCENT_LOD_SLACK)};
 const DESCENT_SHIFT_SLACK:f32=${wgslF32(DESCENT_SHIFT_SLACK)};
 /** The descent's \`work\`: the frame counters first (\`counterBase\`), the camera cut's, at the words
@@ -181,69 +196,81 @@ fn heldHere(view:u32)->bool{
  let map=descentViewWord(view)&0xFFFFu;
  return map>=params.viewFirst&&map<params.viewFirst+params.viewCount;
 }
-/** The sphere of shifted world centre \`high\` + \`low\` and radius \`high.w\`, doubled, in map space
- *  \`pd\`'s: its centre and half extent as the cull takes a cluster's (\`vsmRenderCullView\`), and its
- *  box cull. */`
+/** The box of shifted world centre \`high\` + \`low\` and world half axes \`axes\` in map space \`pd\`'s:
+ *  its centre and its box cull as the cull takes a cluster's (\`vsmRenderCullView\`), each axis grown
+ *  by the roundings of the shifted centre, with the map's shifted-to-clip matrix it is taken by; and
+ *  the half side of the cube about its sphere (\`high.w\`) doubled, \`extent\`, for the tests that
+ *  stay on a sphere or a cube (\`vsmDescentCube\`). */`
 
 const descentViewsText = /* wgsl */ `
-struct VsmDescentBox{center:vec3f,extent:vec3f,cull:VsmBoxInView,}
-fn vsmDescentBox(pd:VsmProjectionData,high:vec4f,low:vec3f)->VsmDescentBox{
+struct VsmDescentBox{center:vec3f,extent:vec3f,shiftedToClip:mat4x4f,cull:VsmBoxInView,}
+/** Axis \`a\` longer by \`by\` along itself; one of no length has no direction (a node's axes carry the
+ *  margin of \`casterSphere\`, a cell's the extent of its box). */
+fn vsmDescentGrown(a:vec3f,by:f32)->vec3f{
+ return a+unitOrZero(a)*by;
+}
+fn vsmDescentBox(pd:VsmProjectionData,high:vec4f,low:vec3f,axes:array<vec3f,3>)->VsmDescentBox{
  var box:VsmDescentBox;
+ box.shiftedToClip=vsmShiftedToClip(pd.shiftedToMapUv);
  box.center=(high.xyz+pd.originShiftHigh)+(low+pd.originShiftLow);
- box.extent=vec3f(high.w*DESCENT_GROWTH+DESCENT_SHIFT_SLACK*length(box.center));
+ let slack=DESCENT_SHIFT_SLACK*length(box.center);
+ box.extent=vec3f(high.w*DESCENT_BALL_GROWTH+slack);
  let viewToClip=pd.lightViewToClip;
  let isOrtho=viewToClip[3][3]>=1.0;
  let nearClip=pd.lightKind!=LIGHT_KIND_DIRECTIONAL;
- let shiftedToClip=vsmShiftedToClip(pd.shiftedToMapUv);
- let boxPoint=vsmBoxCullPoint(box.center,box.extent,isOrtho,nearClip);
- box.cull=vsmBoxInView(shiftedToClip*vec4f(boxPoint,1.0),shiftedToClip[0],shiftedToClip[1],shiftedToClip[2],box.extent,viewToClip,isOrtho,nearClip);
+ box.cull=vsmCasterBoxInView(box.center,vsmDescentGrown(axes[0],slack),vsmDescentGrown(axes[1],slack),vsmDescentGrown(axes[2],slack),box.shiftedToClip,viewToClip,isOrtho,nearClip);
  return box;
 }
-/** Whether map \`id\` holds the sphere of shifted world centre \`high\` + \`low\` and radius \`high.w\`:
- *  a local light's range, then the map's box cull, the cull's own (\`vsmRenderCullCandidate\`,
- *  \`vsmRenderCullView\`), on the sphere doubled. */
-fn vsmDescentInMap(id:u32,high:vec4f,low:vec3f)->bool{
- let pd=vsmProjectionOf(vsmHandleFromId(id));
- return vsmDescentBoxInMap(pd,vsmDescentBox(pd,high,low));
+/** The cull of the cube of half side \`box.extent.x\` about the node's sphere doubled, in map \`pd\`'s
+ *  space: what the pages under a node are looked for by (\`vsmDescentNoPage\`). */
+fn vsmDescentCube(pd:VsmProjectionData,box:VsmDescentBox)->VsmBoxInView{
+ let r=box.extent.x;
+ let viewToClip=pd.lightViewToClip;
+ return vsmCasterBoxInView(box.center,vec3f(r,0.0,0.0),vec3f(0.0,r,0.0),vec3f(0.0,0.0,r),box.shiftedToClip,viewToClip,viewToClip[3][3]>=1.0,pd.lightKind!=LIGHT_KIND_DIRECTIONAL);
 }
-/** Whether map \`pd\` holds a sphere's box \`box\` (\`vsmDescentInMap\`). */
+/** Whether map \`pd\` holds the box of shifted world centre \`high\` + \`low\` and half axes \`axes\`
+ *  (sphere radius \`high.w\`): a local light's range on the sphere doubled, then the map's box cull,
+ *  the cull's own (\`vsmRenderCullCandidate\`, \`vsmRenderCullView\`), on the box. */
+fn vsmDescentInMap(pd:VsmProjectionData,high:vec4f,low:vec3f,axes:array<vec3f,3>)->bool{
+ return vsmDescentBoxInMap(pd,vsmDescentBox(pd,high,low,axes));
+}
+/** Whether map \`pd\` holds a node's box \`box\` (\`vsmDescentInMap\`). */
 fn vsmDescentBoxInMap(pd:VsmProjectionData,box:VsmDescentBox)->bool{
  let reach=pd.lightRange+box.extent.x;
  if(pd.lightKind!=LIGHT_KIND_DIRECTIONAL&&dot(box.center,box.center)>reach*reach){return false;}
  return box.cull.inMapView;
 }
-/** The pixels map \`id\`'s mip \`mip\` spans of an error \`error\` over the ball of shifted centre
- *  \`centre\` and radius \`radius\` (\`vsmRenderViewPixels\`), raised by the roundings. */
-fn vsmDescentPixels(id:u32,mip:u32,centre:vec3f,radius:f32,error:f32)->f32{
- let pd=vsmProjectionOf(vsmHandleFromId(id));
+/** The pixels map \`pd\`'s mip \`mip\` spans of an error \`error\` over the ball of shifted centre
+ *  \`centre\` and radius \`radius\` (\`vsmRenderViewPixels\`), raised by the roundings; \`shiftedToClip\`
+ *  the map's matrix. */
+fn vsmDescentPixels(pd:VsmProjectionData,shiftedToClip:mat4x4f,mip:u32,centre:vec3f,radius:f32,error:f32)->f32{
  let viewToClip=pd.lightViewToClip;
  let isOrtho=viewToClip[3][3]>=1.0;
  let perspective=select(1.0,0.0,isOrtho);
  let near=select(viewToClip[3][2]/(1.0-viewToClip[2][2]),0.0,isOrtho);
  let focal=0.5*abs(viewToClip[1][1])*f32(VSM_LEVEL0_TEXELS>>mip);
- let pixels=vsmRenderViewPixels(error,centre,radius+DESCENT_SHIFT_SLACK*length(centre),vsmShiftedToClip(pd.shiftedToMapUv),viewToClip,focal,near,perspective);
+ let pixels=vsmRenderViewPixels(error,centre,radius+DESCENT_SHIFT_SLACK*length(centre),shiftedToClip,viewToClip,focal,near,perspective);
  return pixels*DESCENT_LOD_SLACK;
 }
-/** A node's ball (its \`sphere\`) in the shifted space of map \`id\`, from its box's sphere (\`high\`,
- *  \`low\`): the placement's linear part on its offset from the box's centre, as the casters lay a
- *  cluster's (\`vsmRenderCaster\`). */
-fn vsmDescentBall(id:u32,node:CullNode,w:u32,high:vec4f,low:vec3f)->vec3f{
- let pd=vsmProjectionOf(vsmHandleFromId(id));
- let centre=(high.xyz+pd.originShiftHigh)+(low+pd.originShiftLow);
- return centre+worldsLinear(w)*(node.sphere.xyz-(node.minimum+node.maximum)*0.5);
+/** A node's ball (its \`sphere\`) centre in the shifted space of the map \`box\` is of, from the
+ *  box's centre: the placement's linear part on the node's offset from the box's centre, as the
+ *  casters lay a cluster's (\`vsmRenderCaster\`). */
+fn vsmDescentBall(box:VsmDescentBox,node:CullNode,w:u32)->vec3f{
+ return box.center+worldsLinear(w)*(node.sphere.xyz-(node.minimum+node.maximum)*0.5);
 }
 /** Whether the running entry's map does not hold the box \`lo\`..\`hi\` of placement \`w\`, grown by its
- *  deformation's reach (\`vsmDescentBoxInMap\`), or holds no page its casters draw under it
- *  (\`vsmDescentNoPage\`). */`
+ *  deformation's reach (\`vsmDescentBoxInMap\`: the frustum on the oriented box, the range on the
+ *  sphere doubled), or holds no page its casters draw under the cube about that sphere
+ *  (\`vsmDescentCube\`, \`vsmDescentNoPage\`). */`
 
 const descentBallText = () => /* wgsl */ `
 fn outsideFrustum(w:u32,lo:vec3f,hi:vec3f)->bool{
- var high:vec4f;var low:vec3f;
- casterSphere(w,lo,hi,deformReach,&high,&low);
+ var high:vec4f;var low:vec3f;var axes:array<vec3f,3>;
+ casterSphere(w,lo,hi,deformReach,&high,&low,&axes);
  let h=vsmHandleFromId(descentMap());
  let pd=vsmProjectionOf(h);
- let box=vsmDescentBox(pd,high,low);
- return !vsmDescentBoxInMap(pd,box)||vsmDescentNoPage(w,h,pd,box.cull);
+ let box=vsmDescentBox(pd,high,low,axes);
+ return !vsmDescentBoxInMap(pd,box)||vsmDescentNoPage(w,h,pd,vsmDescentCube(pd,box));
 }
 /** Whether the running entry's view of map \`h\` (\`pd\`) has no page to draw that the casters of
  *  placement \`w\` would draw under the box cull \`cull\`, in the layer the placement draws into
@@ -273,14 +300,15 @@ fn vsmDescentNeeded(node:CullNode,w:u32)->bool{
  return vsmDescentReach(node,w)>params.threshold;
 }
 /** The pixels the running entry's map spans, at its mip, of the error its subtree replaces
- *  (\`vsmDescentPixels\`): none where the map does not hold the node. */
+ *  (\`vsmDescentPixels\`): none where the map does not hold the node (\`vsmDescentBoxInMap\`). */
 fn vsmDescentReach(node:CullNode,w:u32)->f32{
- var high:vec4f;var low:vec3f;
- casterSphere(w,node.minimum,node.maximum,deformReach,&high,&low);
- let id=descentMap();
- if(!vsmDescentInMap(id,high,low)){return 0.0;}
+ var high:vec4f;var low:vec3f;var axes:array<vec3f,3>;
+ casterSphere(w,node.minimum,node.maximum,deformReach,&high,&low,&axes);
+ let pd=vsmProjectionOf(vsmHandleFromId(descentMap()));
+ let box=vsmDescentBox(pd,high,low,axes);
+ if(!vsmDescentBoxInMap(pd,box)){return 0.0;}
  let stretch=bitcast<f32>(framesStretchBits(w));
- return vsmDescentPixels(id,descentMip(),vsmDescentBall(id,node,w,high,low),node.sphere.w*stretch,node.maxParentError*stretch);
+ return vsmDescentPixels(pd,box.shiftedToClip,descentMip(),vsmDescentBall(box,node,w),node.sphere.w*stretch,node.maxParentError*stretch);
 }
 /** A kept leaf's request priority: the reach of the error its pages replace over the threshold, as
  *  the camera's (\`leafPriority\`), at the shadow views' category; unbounded without a ceiling. */
@@ -289,10 +317,16 @@ fn vsmDescentPriority(node:CullNode,w:u32)->u32{
  return ${requestPriorityOf(VSM_REQUEST_CATEGORY, 'reach')};
 }
 /** Whether the running entry's map does not hold a cell of the placement tree, its render-frame box
- *  \`lo\`..\`hi\` (the main view's eye taken off its world box, \`cellLow\`): its sphere carried to the
- *  map's shifted space by the eye. */
+ *  \`lo\`..\`hi\` (the main view's eye taken off its world box, \`cellLow\`): its box and its sphere
+ *  carried to the map's shifted space by the eye. */
 fn vsmDescentCellOutside(lo:vec3f,hi:vec3f)->bool{
- return !vsmDescentInMap(descentMap(),vsmDescentCellBall(lo,hi),vec3f(0.0));
+ return !vsmDescentInMap(vsmProjectionOf(vsmHandleFromId(descentMap())),vsmDescentCellBall(lo,hi),vec3f(0.0),vsmDescentCellAxes(lo,hi));
+}
+/** The half axes of a cell's render-frame box: its half extents on the world's axes, grown by the
+ *  roundings of its corners. */
+fn vsmDescentCellAxes(lo:vec3f,hi:vec3f)->array<vec3f,3>{
+ let side=0.5*(hi-lo)*DESCENT_LOD_SLACK;
+ return array<vec3f,3>(vec3f(side.x,0.0,0.0),vec3f(0.0,side.y,0.0),vec3f(0.0,0.0,side.z));
 }
 /** The sphere of a cell's render-frame box in the world: the centre in single precision, whose
  *  roundings, a few units of its last place, grow the ball. */
@@ -300,18 +334,19 @@ fn vsmDescentCellBall(lo:vec3f,hi:vec3f)->vec4f{
  let world=0.5*(lo+hi)+cutView.cameraWorld;
  return vec4f(world,length(0.5*(hi-lo))*DESCENT_LOD_SLACK+DESCENT_SHIFT_SLACK*length(world));
 }
-/** Whether the pyramid of the running entry's map hides the box of a sphere (\`high\`, \`low\`, its
- *  centre \`prev\` further on where the previous image drew it) in its mip: in the main pass the
- *  previous frame's, tested where the previous image drew it, in both layers of the map; in the post
+/** Whether the pyramid of the running entry's map hides the box of half axes \`axes\` about a sphere
+ *  (\`high\`, \`low\`, its centre \`prev\` further on where the previous image drew it) in its mip: in the
+ *  main pass the previous frame's, the cube about the sphere doubled tested where the previous image
+ *  drew it (the casters' cull tests a cluster so: \`vsmHiddenBefore\`), in both layers of the map; in the post
  *  pass this frame's, each layer's stale rect clipped as the cull clips it, and a layer with no
  *  page to draw under the box hides it. */`
 
 const descentHiddenText = /* wgsl */ `
-fn vsmDescentHidden(high:vec4f,low:vec3f,prev:vec3f)->bool{
+fn vsmDescentHidden(high:vec4f,low:vec3f,prev:vec3f,axes:array<vec3f,3>)->bool{
  let h=vsmHandleFromId(descentMap());
  let pd=vsmProjectionOf(h);
  let mip=descentMip();
- let box=vsmDescentBox(pd,high,low);
+ let box=vsmDescentBox(pd,high,low,axes);
  let texels=i32(VSM_LEVEL0_TEXELS>>mip);
  let nearClip=pd.lightKind!=LIGHT_KIND_DIRECTIONAL;
  if(cutPass()==CUT_POST){
@@ -335,14 +370,15 @@ fn vsmDescentHiddenNow(h:VsmHandle,mip:u32,cull:VsmBoxInView,texels:i32,staticLa
  *  (\`BOX_OCCLUDED\`), or, in the post pass, hidden by this frame's, gone (\`BOX_CULLED\`). */
 fn boxSight(lo:vec3f,hi:vec3f,w:u32)->u32{
  if((cutView.occlusion&OCCLUSION_TWO_PASS)==0u){return BOX_SEEN;}
- var high:vec4f;var low=vec3f(0.0);var prev=vec3f(0.0);
+ var high:vec4f;var low=vec3f(0.0);var prev=vec3f(0.0);var axes:array<vec3f,3>;
  if(w==NO_INDEX){
   high=vsmDescentCellBall(lo,hi);
+  axes=vsmDescentCellAxes(lo,hi);
  }else{
-  casterSphere(w,lo,hi,deformReach,&high,&low);
+  casterSphere(w,lo,hi,deformReach,&high,&low,&axes);
   prev=vsmRenderPrevShift(w,0.5*(lo+hi),high.xyz,low);
  }
- if(!vsmDescentHidden(high,low,prev)){return BOX_SEEN;}
+ if(!vsmDescentHidden(high,low,prev,axes)){return BOX_SEEN;}
  return select(BOX_OCCLUDED,BOX_CULLED,cutPass()==CUT_POST);
 }
 /** The placement's pose at the main view's eye, as the casters read it. */`
@@ -419,13 +455,15 @@ ${descentDeclarationsText()}${descentViewsText}${descentBallText()}${descentHidd
       DAG_VIEWS_WGSL,
       DAG_ARM_WGSL,
       markReachWgsl,
+      unitOrZero,
       worldAtEyeWgsl('worlds'),
       VSM_CASTER_SPHERE_WGSL,
       VSM_PREV_SHIFT_WGSL,
       VSM_RENDER_VIEW_PIXELS_WGSL,
       VSM_RENDER_MAP_VIEW_WGSL,
-      VSM_BOX_VIEW_WGSL,
       VSM_BOX_CULL_WGSL,
+      VSM_BOX_VIEW_WGSL,
+      VSM_CASTER_BOX_CULL_WGSL,
       VSM_CASTER_LAYER_WGSL,
       VSM_OCCLUSION_TEST_WGSL,
       VSM_CONSTANTS_WGSL,

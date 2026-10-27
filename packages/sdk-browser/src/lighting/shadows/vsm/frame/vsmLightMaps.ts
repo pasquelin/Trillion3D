@@ -82,40 +82,59 @@ export function sunMapsFor(lights: readonly VsmFrameLight[], least = VSM_DEFAULT
  * up to whole rows of the pool, as the reference rounds them,
  * never past the pages one binding of the device holds (`vsmPoolPagesBound`).
  */
-export function vsmPoolAsked(rt: WebgpuPagesRuntime) {
+function vsmPoolAsked(rt: WebgpuPagesRuntime) {
   return Math.min(
     vsmPoolPagesBound(rt.gpu.device!.limits),
     alignUp(Math.max(1, readShadowSetting(rt, 'shadowMaxPhysicalPages')), POOL_PAGES_X),
   )
 }
 
-/** The set's options for `fullMapCapacity` maps and `sunMaps` clipmap maps (`sunMapsFor`), at
- *  `poolPages`, with the occlusion culling's pyramid and tables or without (`occlusion`): the
- *  receiver cover holds the suns' clipmap levels. `mapSlotsPast` the map slots past the blocks the
- *  lights asked, none for the default. */
+/** What a set is kept for, besides its maps: the physical pages, the occlusion culling's pyramid
+ *  (`occlusion`) and its second layer for the dynamic casters (`dynamicHzb`), the pages kept from
+ *  one frame to the next (`cacheEnabled`), the receiver cover of every map (`localCover`). */
+export type VsmAsked = {
+  poolPages: number
+  occlusion: boolean
+  dynamicHzb: boolean
+  cacheEnabled: boolean
+  localCover: boolean
+}
+
+/** What the settings ask of the frame's set (`shadowMaxPhysicalPages`, `shadowOcclusionCulling`,
+ *  `shadowDynamicHzb`, `shadowCache`, `shadowUseReceiverMaskLocal`). */
+export const vsmAsked = (rt: WebgpuPagesRuntime): VsmAsked => ({
+  poolPages: vsmPoolAsked(rt),
+  occlusion: readShadowSetting(rt, 'shadowOcclusionCulling'),
+  dynamicHzb: readShadowSetting(rt, 'shadowDynamicHzb'),
+  cacheEnabled: readShadowSetting(rt, 'shadowCache'),
+  localCover: readShadowSetting(rt, 'shadowUseReceiverMaskLocal'),
+})
+
+/** What a set of `layout` holds of it: its pool, and whether it has the pyramid, its second layer,
+ *  the kept pages and the cover of every map. */
+export const askedOfLayout = (layout: VsmLayout): VsmAsked => ({
+  poolPages: layout.poolPages,
+  occlusion: layout.occlusion,
+  dynamicHzb: layout.hzbLayers > 1,
+  cacheEnabled: layout.cacheEnabled,
+  localCover: layout.coverLocal,
+})
+
+/** The set's options for `fullMapCapacity` maps and `sunMaps` clipmap maps (`sunMapsFor`), for what
+ *  is `asked` of it (`vsmAsked`): the receiver cover holds the suns' clipmap levels, every map's
+ *  with `localCover`. `mapSlotsPast` the map slots past the blocks the lights asked, none for the
+ *  default. */
 export const engineVsmOptions = (
   fullMapCapacity: number,
   sunMaps: number,
-  poolPages: number | undefined,
-  occlusion: boolean,
-  dynamicHzb: boolean,
+  asked: VsmAsked,
   mapSlotsPast?: number,
 ): VsmResourceOptions => ({
   fullMapCapacity,
   sunMapCapacity: sunMaps + 1,
-  poolPages,
-  occlusion,
-  dynamicHzb,
+  ...asked,
   mapSlotsPast,
 })
-
-/** Whether the frame's set takes the occlusion culling (`shadowOcclusionCulling`). */
-export const vsmOcclusionAsked = (rt: WebgpuPagesRuntime) =>
-  readShadowSetting(rt, 'shadowOcclusionCulling')
-
-/** Whether the frame's set takes a second pyramid layer for the dynamic casters (`shadowDynamicHzb`). */
-export const vsmDynamicHzbAsked = (rt: WebgpuPagesRuntime) =>
-  readShadowSetting(rt, 'shadowDynamicHzb')
 
 /** The map slots past the blocks that a set of `layout` holds. */
 export const mapSlotsPastOf = (layout: VsmLayout) => layout.mapSlots - layout.fullMapCapacity

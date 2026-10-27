@@ -24,11 +24,11 @@ import { createVsmResources } from './resources.ts'
 import { wgslStructLayout } from './wgslStructLayout.fixture.ts'
 import { vsmLayout } from './layout.ts'
 
-const options = { fullMapCapacity: 127, sunMapCapacity: 35 }
+const vsmOptions = { fullMapCapacity: 127, sunMapCapacity: 35 }
 
 /** Every kernel of the physical pages declares the struct: the one text they share. */
 const kernelTexts = () =>
-  Object.values(vsmPhysicalPageKernels(vsmLayout(options), { stats: false })).map(
+  Object.values(vsmPhysicalPageKernels(vsmLayout(vsmOptions), { stats: false })).map(
     (kernel) => kernel.code,
   )
 
@@ -36,7 +36,7 @@ const kernelTexts = () =>
 function assertParamsStruct(text: string) {
   const { size, offsets } = wgslStructLayout(text, 'VsmPmParams')
   assert.equal(size, VSM_PM_PARAMS_BYTES)
-  assert.deepEqual(Object.values(offsets), [0, 4])
+  assert.deepEqual(Object.values(offsets), [0, 4, 8, 12])
 }
 
 /** The words each slot's write holds beyond word `words`, from the writes to the parameter buffer
@@ -53,8 +53,8 @@ function assertWithinWords(
     })
 }
 
-test('VSM_PM_PARAMS_BYTES is the size of the struct the kernels read: 8', () => {
-  assert.equal(VSM_PM_PARAMS_BYTES, 8)
+test('VSM_PM_PARAMS_BYTES is the size of the struct the kernels read: 16', () => {
+  assert.equal(VSM_PM_PARAMS_BYTES, 16)
   const texts = kernelTexts()
   assert.ok(texts.length > 0)
   for (const text of texts) assertParamsStruct(text)
@@ -81,7 +81,7 @@ async function encodeAll(alignment = 256) {
   const encoder = fake.device.createCommandEncoder(),
     pass = encoder.beginComputePass(),
     steps = new ComputeRun().begin(encoder)
-  const res = createVsmResources(fake.device, { ...options, poolPages: 256 })
+  const res = createVsmResources(fake.device, { ...vsmOptions, poolPages: 256 })
   const perPageBins = [3, 2, 1, 4].map((count, b) => ({ offset: 2 * b, count }))
   const writes: { offset: number; words: number[] }[] = []
   /** The parameter writes each encoder call made, in call order. */
@@ -102,7 +102,7 @@ async function encodeAll(alignment = 256) {
         mapCount: 5,
         nextMapCount: 7,
         perPageBins,
-        options: { stats },
+        options: { stats, lruAllocation: true, fullClears: false },
       }
       for (let again = 0; again < 2; again++) {
         counted(() => encodeVsmPageCarry(pass, res, frame))
@@ -132,7 +132,7 @@ async function encodeAll(alignment = 256) {
 /** The parameter buffer's writes over the three encoders, the cache valid and not. */
 const parameterWrites = async () => (await encodeAll()).writes
 
-test('the writes to the parameter slots stay within the struct’s 2 words', async () => {
+test('the writes to the parameter slots stay within the struct’s 4 words', async () => {
   const writes = await parameterWrites()
   assert.ok(writes.length >= 8, 'every slot is written, cache valid and not')
   assert.ok(
@@ -168,10 +168,22 @@ test('at 256 bytes a call writes its parameter slot once, as the whole slot went
 })
 
 test('the guard fails when a word beyond the struct is written', async () => {
-  // Each slot's 2 words — a write sends only those that changed —, spilled 2 words past them.
+  // Each slot's 4 words — a write sends only those that changed —, spilled 2 words past them.
   const spilled = (await parameterWrites()).map(({ offset }) => {
     const slot = offset & ~255
-    return { offset: slot, words: [7, 1, 0, 1] }
+    return { offset: slot, words: [7, 1, 1, 0, 0, 1] }
   })
-  assert.throws(() => assertWithinWords(spilled, 2), /word 3 of a slot holds 1/)
+  assert.throws(() => assertWithinWords(spilled, 4), /word 5 of a slot holds 1/)
+})
+
+test('the slots carry the page allocation and the clears the frame asks', () => {
+  const slotOf = (options: { lruAllocation: boolean; fullClears: boolean }) => {
+    const fake = fakeDevice({ limits: { maxStorageBuffersPerShaderStage: 10 } })
+    const res = createVsmResources(fake.device, { ...vsmOptions, poolPages: 256 })
+    const steps = new ComputeRun().begin(fake.device.createCommandEncoder())
+    encodeVsmPageMapping(steps, res, { device: fake.device, mapCount: 5, options })
+    return Array.from(res.pageManagement!.paramsU32.subarray(0, VSM_PM_PARAMS_BYTES / 4))
+  }
+  assert.deepEqual(slotOf({ lruAllocation: true, fullClears: false }).slice(2), [1, 0])
+  assert.deepEqual(slotOf({ lruAllocation: false, fullClears: true }).slice(2), [0, 1])
 })

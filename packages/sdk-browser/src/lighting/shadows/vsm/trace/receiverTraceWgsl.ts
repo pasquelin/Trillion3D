@@ -61,12 +61,14 @@ export const vsmReceiverTraceWgsl = (host: VsmTraceHost) =>
     ],
     /* wgsl */ `
 /** \`worldNormal\`: the shading normal, which the receiver's biases follow (normal bias,
- *  receiver-plane depth slope); \`opacity\`: a subsurface receiver's, at most 0.99, which sets how much
+ *  receiver-plane depth slope); \`hair\`: the pixel is a hair strand's, whose receiver plane faces the
+ *  light (the slope reads the direction to the light in place of the normal; a hair pixel is a
+ *  subsurface one, which the normal bias does not move); \`opacity\`: a subsurface receiver's, at most 0.99, which sets how much
  *  light its shadow lets through (\`vsmSubsurfaceShadow\`) and how wide a sun's disk is for it; −1 for a
  *  receiver that has none; \`coated\`: the pixel wears a clear coat (a coat weight above zero, merged or a
  *  lobe), which the back-face cull spares; \`firstPerson\`: the pixel is a first-person object's, which the suns'
  *  first-person clipmaps do not shadow. */
-struct VsmSurfaceInfo{valid:bool,subsurface:bool,coated:bool,worldNormal:vec3f,opacity:f32,firstPerson:bool,}
+struct VsmSurfaceInfo{valid:bool,subsurface:bool,coated:bool,hair:bool,worldNormal:vec3f,opacity:f32,firstPerson:bool,}
 /** What a receiver brings to its lights: its pixel, whether it is in the view rect and its shading
  *  info; where a light can shade it (\`info.valid\`), its view depth, its shifted point, its screen
  *  ray length and its blue noise — zero elsewhere, where no light reads them (the projection's

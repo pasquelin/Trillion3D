@@ -2,7 +2,7 @@ import { FLOAT32_MAX } from '../../../../../../math/src/wgsl/constants.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
 import { CUT_RULE_WGSL } from '../../../../geometry/cut/rule.ts'
 import { projectedBoundWgsl } from '../../../../geometry/dag/shader/projectedBoundWgsl.ts'
-import { VSM_BOX_CULL_WGSL } from '../invalidation/boxCullWgsl.ts'
+import { VSM_BOX_CULL_WGSL, VSM_CASTER_BOX_CULL_WGSL } from '../invalidation/boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import { VSM_PAGE_MARKS_GATHER_WGSL } from '../pageGatherWgsl.ts'
 import { VSM_HANDLE_WGSL } from '../pageTableWgsl.ts'
@@ -48,8 +48,10 @@ import { VSM_OCCLUSION_TEST_WGSL } from '../occlusion/occlusionTestWgsl.ts'
  * detail chosen here, each mip view tested against this frame's pyramid. Without a previous
  * pyramid, one cull with no test (`vsmRenderCull`).
  *
- * Bounds: a world sphere per caster; the instance box is the sphere's axis-aligned box in shifted
- * space, and its radius the sphere's.
+ * Bounds: a world sphere and a world box per caster. The map's frustum culls the box (its centre
+ * and three half axes), the light's range, the level of detail and the raster choice measure the
+ * sphere; the instance box is the sphere's axis-aligned box in shifted space, and its radius the
+ * sphere's.
  */
 /** Group 0 of `vsmRenderCull` (VSM resources of the current frame). */
 export const VSM_RENDER_CULL_SPECS: readonly VsmBindingSpec[] = [
@@ -236,13 +238,11 @@ fn vsmRenderCullView(cand:VsmRenderCandidate,k:u32,viewIndex:u32,directional:boo
  if((view.w&select(1u,2u,staticLayer))==0u){return;}`
 
 const cullViewFrustumText = /* wgsl */ `
- // Frustum cull; non-static geometry also within the depth range (0, the largest float).
- let extent=vec3f(radius);
- let boxPoint=vsmBoxCullPoint(center,extent,isOrtho,nearClip);
- let cull=vsmBoxInView(shiftedToClip*vec4f(boxPoint,1.0),shiftedToClip[0],shiftedToClip[1],shiftedToClip[2],extent,viewToClip,isOrtho,nearClip);
+ // Frustum cull of the caster's own box; non-static geometry also within the map's dynamic depth range (\`dynamicDepthCullRange\`).
+ let cull=vsmCasterBoxInView(center,cand.a0,cand.a1,cand.a2,shiftedToClip,viewToClip,isOrtho,nearClip);
  var visible=cull.inMapView;
  if(visible&&!staticLayer){
-  visible=cull.clipHigh.z>0.0&&cull.clipLow.z<FLOAT32_MAX;
+  visible=cull.clipHigh.z>pd.dynamicDepthCullRange.x&&cull.clipLow.z<pd.dynamicDepthCullRange.y;
  }
  if(!visible){return;}
  // The pages it draws are invalidated as it draws them where it deforms, or where its offset is evaluated
@@ -295,7 +295,9 @@ const cullViewMipsText = /* wgsl */ `
   if(!second&&lod==VSM_RENDER_LOD_NOT_DRAWN){continue;}
   // A cluster drawn behind marks the pages it is drawn into, to be invalidated when the finer level is resident.
   let lodBehind=vsm.lodDeltaInvalidates!=0u&&lod==VSM_RENDER_LOD_BEHIND;
-  if(kind==VSM_RENDER_CULL_FIRST&&vsmHiddenBefore(pd,center+cand.prevShift,extent,nearClip,mipLevel,levelTexels,staticLayer)){
+  // The previous image drew the caster's box under the placement's previous pose, whose axes the candidate does not keep:
+  // its sphere's cube stands for it, at the centre where it was drawn.
+  if(kind==VSM_RENDER_CULL_FIRST&&vsmHiddenBefore(pd,center+cand.prevShift,vec3f(radius),nearClip,mipLevel,levelTexels,staticLayer)){
    vsmRenderHold(k,viewIndex,mipLevel,directional);
    continue;
   }
@@ -390,9 +392,9 @@ ${cullBindingsText}${cullSoftwareEmitText}${cullViewHeadText}${cullViewFrustumTe
       VSM_PAGE_MARKS_GATHER_WGSL,
       VSM_RENDER_PARAMS_WGSL,
       VSM_BOX_CULL_WGSL,
+      VSM_CASTER_BOX_CULL_WGSL,
       VSM_RENDER_VIEW_PIXELS_WGSL,
       CUT_RULE_WGSL,
-      FLOAT32_MAX,
       FLAT_INDEX_WGSL,
       WORKGROUP_THREADS_WGSL,
     ],

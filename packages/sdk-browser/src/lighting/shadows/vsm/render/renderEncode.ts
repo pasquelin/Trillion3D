@@ -276,15 +276,13 @@ function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
   const { device } = ctx,
     sorted = ctx.buffers.sorted!,
     params = ctx.groups!.params,
-    staticSlice = res.layout.staticSlice
+    cached = res.layout.cacheEnabled
   const group = (layout: GPUBindGroupLayout, specs: Parameters<typeof vsmBindGroupEntries>[1]) =>
     device.createBindGroup({ layout, entries: vsmBindGroupEntries(res, specs) })
   return {
     software: [
       softwareGroup(res, ctx, ctx.software.all.groups[1]!, params, 0),
-      staticSlice
-        ? softwareGroup(res, ctx, ctx.software.static.groups[1]!, params, staticSlice)
-        : undefined,
+      cached ? softwareGroup(res, ctx, ctx.software.static.groups[1]!, params, 1) : undefined,
     ],
     occlusion: occlusionGroups(res, ctx),
     views0: group(ctx.views.groups[0], VSM_RENDER_VIEWS_SPECS),

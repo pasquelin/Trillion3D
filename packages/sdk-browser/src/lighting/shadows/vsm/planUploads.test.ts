@@ -131,14 +131,14 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    '3580cc061de74d0b826e924050e7fc352349f18a2536700aec3f5c2cf3057a3c',
-    'c77ae7d291730d17b79d9ef0416edeb219a2056814d0b1aa0f68c1f0cd5ea653',
-    '87954f1c90b8d97f4bfc0bca7e09b8dc2b02c2d72cda51cba499455c2bbe18f1',
+    'd8aa7472f8052b536299d0212809e627a6baddf0b162fbcba28c69f9bf92cc93',
+    'ae1948fc1c97a4a60360feecaf5e49cff72c60d124b886ea2dec7d869d48c060',
+    '11450b8e4cec4051cf640d7874c1c3aa9c6b8ec8b9f5abeb11490965feb65d05',
   ],
   2: [
-    'bd014f84ecc91ec5d5f8616ac7e894f4593f4bb31b7a6744b57898e0a975e481',
-    'a474654be8d8c7a6f0a9c4daeb1ff5c38edb994167440ef2f0b48a2bdfbe29a8',
-    'da98c9e7b73416f7737b87d79b9ab68f61464062d64e4db5c046fcf639843c22',
+    '71d2b6cafdcfb5b7febe6d0ca56cf026e74a51741ddd5a0b1f9c8f60a92c4a44',
+    'fd4f3d78412bbab0fb8d90343aa2d9852c4ced53dac66a01259201d954c23964',
+    'ec693da0eb4a2b18b7f7b84a25ee33cc28c148c433d44f6fa9e2d609ca16809e',
   ],
 }
 

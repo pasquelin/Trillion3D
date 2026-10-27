@@ -34,7 +34,13 @@ import { encodeLightShaftBloom } from '../../modules/sky/lightShafts/frame.ts'
 import { encodePreLight } from './preLight.ts'
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
-import { bindBlend, composeOnto, encodeBlend, prepareBlend } from './encodeBlend.ts'
+import {
+  bindBlend,
+  composeOnto,
+  encodeBlend,
+  encodeMarkedLayers,
+  prepareBlend,
+} from './encodeBlend.ts'
 import { encodeFrontPass } from '../../blend/frontPass.ts'
 import { effectsShown } from '../../post/effects/stagePlan.ts'
 import { holdReflectionImage } from '../../lighting/reflections/frame.ts'
@@ -314,6 +320,9 @@ export function encodeSurfaceLighting(
   // The transparents are selected and ordered first; light lists encode before resolve, its inputs —
   // every lighting resource the blend group names made with them.
   const blendRuns = prepareBlend(rt, encoder)
+  // What the sun's page marking reads of the transparents, in the lights (`encodeDirectLights`): the
+  // water's depth, and the front layer where no image before left one.
+  encodeMarkedLayers(rt, device, encoder, blendRuns)
   const direct = encodeDirectLights(rt, device, encoder, cam, viewProj)
   // The local fog volumes of the view in the light buffer just pushed, and the buffer of their lists,
   // made before any group binds the fog's resources.

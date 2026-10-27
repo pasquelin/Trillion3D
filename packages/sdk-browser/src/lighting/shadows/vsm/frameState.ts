@@ -45,7 +45,7 @@ export function createVsmFrameState(
       cache ??
       new VsmCacheManager({
         poolPages: layout.poolPages,
-        cacheEnabled: layout.staticSlice === 1,
+        cacheEnabled: layout.cacheEnabled,
       }),
     frameStamp: 0,
     projectionImage: new ArrayBuffer(layout.mapSlots * VSM_PROJECTION_RECORD_BYTES),

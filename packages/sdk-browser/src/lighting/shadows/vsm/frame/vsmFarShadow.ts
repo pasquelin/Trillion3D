@@ -7,7 +7,6 @@ import {
   viewDistanceFactor,
 } from '../../../../../../sdk-core/src/contracts/cutOptions.ts'
 import {
-  readShadowSetting,
   SHADOW_RULES,
   type ShadowValues,
 } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
@@ -21,11 +20,6 @@ import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { noDofBias } from '../dofBias.ts'
 import type { VsmMapSettings } from '../mapSettings.ts'
 import type { VsmBoundLight } from '../mapViews.ts'
-
-/** Whether any light takes a shadow: the one gate of every light, the sun's included
- *  (`shadowQuality` above 0). Off, the frame plans no map and the lit programs drop their shadow
- *  code (`planVsmFrame`, `directLightResources`). */
-export const shadowsOn = (rt: WebgpuPagesRuntime) => readShadowSetting(rt, 'shadowQuality') > 0
 
 /**
  * The draw distances the casters take (`VsmRenderScene.drawDistance`): the view's factor, the

@@ -6,11 +6,12 @@ import { VSM_PRESSURE_CALM_FRAMES, VSM_PROJECTION_RECORD_BYTES } from '../consta
 import { constructGpuResources, ledgerRoom } from '../../../../gpu/core/deviceLedger.ts'
 import { destroyEngineVsm, engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
 import {
+  askedOfLayout,
   engineVsmOptions,
   mapSlotsPastOf,
   sunMapsFor,
   sunMapsOf,
-  vsmPoolAsked,
+  vsmAsked,
 } from './vsmLightMaps.ts'
 import { engineVsmBytes } from './vsmStats.ts'
 import { growVsmTables } from '../resources.ts'
@@ -40,9 +41,7 @@ export function growEngineVsm(
   const options = engineVsmOptions(
     Math.max(fullMapCapacity, layout.fullMapCapacity),
     Math.max(vsm.sunMaps, sunMapsFor(list)),
-    layout.poolPages,
-    layout.occlusion,
-    layout.hzbLayers > 1,
+    askedOfLayout(layout),
     Math.max(mapSlotsPast, mapSlotsPastOf(layout)),
   )
   const grown = vsmLayout(options)
@@ -55,7 +54,7 @@ export function growEngineVsm(
 }
 
 /**
- * A pool drawn short of the one asked (`vsmPoolAsked`, the setting's fixed size) grows back once the
+ * A pool drawn short of the one asked (`vsmAsked`, the setting's fixed size) grows back once the
  * budget's room holds a larger one: the pool the GPU budget drew short — the reference's pool is
  * never smaller than its setting, a GPU budget being no part of it. At most every `VSM_PRESSURE_CALM_FRAMES` frames — the wait
  * before it raises a resolution the budget lowered —, and only by the pages the room holds beside
@@ -74,16 +73,14 @@ export function regrowEngineVsm(
   const { layout } = vsm.res,
     { lights } = rt
   const pages = layout.poolPages
-  const asked = vsmPoolAsked(rt)
+  const asked = vsmAsked(rt).poolPages
   if (pages >= asked || rt.run.frame < vsm.regrowFrame) return vsm
   vsm.regrowFrame = rt.run.frame + VSM_PRESSURE_CALM_FRAMES
   const { fullMapCapacity } = layout
   const options = engineVsmOptions(
     fullMapCapacity,
     sunMapsFor(list),
-    asked,
-    layout.occlusion,
-    layout.hzbLayers > 1,
+    { ...askedOfLayout(layout), poolPages: asked },
     mapSlotsPastOf(layout),
   )
   const room = ledgerRoom(device)

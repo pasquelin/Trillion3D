@@ -10,7 +10,7 @@
  * open the record, those its view and its turn move follow, the origin shift and the clipmap's
  * origin, which move with the eye every frame, lie together, the corner, the range, the
  * table's origin and a sun's far-shadow distance follow, and the view the occlusion pyramid last
- * held the map by closes it.
+ * held the map by and the dynamic casters' depth range close it.
  *
  * Matrices: 16 floats in the engine's column-major, column-vector convention (`m[column·4 + row]`),
  * as WGSL's mat4x4f reads them. All distances in metres.
@@ -20,6 +20,7 @@ import { writeSplitDouble } from '../../../../../../math/src/float/splitDouble.t
 import { wordViews } from '../../../../gpu/core/wordViews.ts'
 import { multiplyMatrix4, transposeMatrix4 } from '../../../../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../../../../math/src/matrix/matrix4Inverse.ts'
+import { FLOAT32_MAX } from '../../../../../../math/src/constants.ts'
 import { VSM_PROJECTION_RECORD_BYTES } from '../constants.ts'
 
 /** Each field's byte offset in a record (`VsmProjectionRecord`). */
@@ -50,6 +51,7 @@ const RECORD_OFFSET = {
   prevClipDepth: 368,
   prevFinestMip: 384,
   viewSlot: 388,
+  dynamicDepthCullRange: 392,
 } as const
 
 /** A map's record, its matrices and vectors its own: a writer fills them in place frame after
@@ -102,6 +104,11 @@ export interface VsmProjectionDataValues {
   /** The place of the map's view among the views drawn (`VsmCacheManager.viewSlotOf`): the bit of
    *  the instances' per-view cache state (`../../casters/instanceStateWgsl.ts`) it reads. */
   viewSlot: number
+  /** The clip depths a non-static caster must reach to be drawn into the map (`vsmRenderCullView`):
+   *  its far end past x, its near end short of y. A clipmap level cut tightly takes x just short of
+   *  the end of the range its level shows (`dynamicCullNear`); every other map takes 0 and the
+   *  largest float. */
+  dynamicDepthCullRange: [number, number]
 }
 
 /** Default record, every array its own. */
@@ -133,6 +140,7 @@ export function vsmDefaultProjectionData(): VsmProjectionDataValues {
     prevShiftedToClip: new Float64Array(16),
     prevClipDepth: [0, 0, 0],
     viewSlot: 0,
+    dynamicDepthCullRange: [0, FLOAT32_MAX],
   }
 }
 
@@ -179,6 +187,8 @@ export function writeVsmProjectionData(
   u[base + O.prevTableOrigin / 4] = d.prevTableOrigin >>> 0
   u[base + O.prevFinestMip / 4] = d.prevFinestMip
   u[base + O.viewSlot / 4] = d.viewSlot
+  f[base + O.dynamicDepthCullRange / 4] = d.dynamicDepthCullRange[0]
+  f[base + O.dynamicDepthCullRange / 4 + 1] = d.dynamicDepthCullRange[1]
   for (let k = 0; k < 3; k++) f[base + O.prevClipDepth / 4 + k] = d.prevClipDepth[k]
 }
 

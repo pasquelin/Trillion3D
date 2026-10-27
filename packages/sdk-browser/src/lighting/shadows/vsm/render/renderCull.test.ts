@@ -5,9 +5,10 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { FLOAT32_MAX } from '../../../../../../math/src/constants.ts'
 import { wgslConstants } from '../../../../materials/texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
-import { Mat } from '../../../../materials/texture/shaderRunMatrix.fixture.ts'
+import { Mat, matrixProduct } from '../../../../materials/texture/shaderRunMatrix.fixture.ts'
 import { vsmLayout } from '../layout.ts'
 import { VSM_RENDER_ARGS_POST, VSM_RENDER_ARGS_WGSL } from './renderParamsWgsl.ts'
 import { vsmRenderCullWgsl } from './renderCullWgsl.ts'
@@ -66,6 +67,7 @@ function viewCull(
   const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
   const map = {
     ...{ uncached: false, useCover: false, finestMip: 0, viewSlot: 0, wpoThreshold: 0 },
+    dynamicDepthCullRange: [0, FLOAT32_MAX],
     ...{ lightViewToClip: identity, shiftedToMapUv: identity },
     ...{ originShiftHigh: [0, 0, 0], originShiftLow: [0, 0, 0] },
   }
@@ -103,6 +105,7 @@ function viewCull(
     ...{ c: [10, 0, 0, 1], l: [0, 0, 0], row: 3, corners: 3, flags: 0, farDepth: 0 },
     ...{ own: [0, 0, 0, 1], parent: [0, 0, 0, 1], errors: [0, 0], edge: 0 },
     ...{ inst: [0, 0, 0, 1], viewBits: 0, offsetDisableSq: 0 },
+    ...{ a0: [1, 0, 0], a1: [0, 1, 0], a2: [0, 0, 1] },
     prevShift,
   })
   const kind = (name: 'FIRST' | 'SECOND' | 'POST') => C[`VSM_RENDER_CULL_${name}`]
@@ -196,4 +199,73 @@ test('every cluster of a placement whose offset invalidates its shadows is drawn
   const bare = C.VSM_RENDER_CAND_PLACEMENT_ALWAYS
   assert.equal(layerOf(bare, 100, 101), 'static', 'the always bit alone')
   assert.equal(layerOf(C.VSM_RENDER_CAND_DYNAMIC, 0, 0), 'dynamic', 'a placement that moves')
+})
+
+// The map's dynamic depth range cuts the casters that move: one whose far end (the box's highest
+// clip depth) is not past its near limit is left out, as is one whose near end passes the far limit;
+// a caster in the static layer is not cut by it.
+test('a moving caster beyond the map’s dynamic depth range is culled, a static one is not', () => {
+  const { run, drawn, caster, kind, map } = viewCull(() => false)
+  const C = wgslConstants(CULL)
+  // The box spans clip depths 0.5 to 1 in the stub (`clipLow.z`, `clipHigh.z`).
+  const drawnWith = (flags: number, range: [number, number]) => {
+    drawn.length = 0
+    map.dynamicDepthCullRange = range
+    run.vsmRenderCullView({ ...caster([0, 0, 0]), flags }, 5, 0, false, kind('FIRST'), 0)
+    return drawn.length === 1
+  }
+  const moving = C.VSM_RENDER_CAND_DYNAMIC
+  assert.ok(drawnWith(moving, [0, FLOAT32_MAX]), 'no limit: drawn')
+  assert.ok(drawnWith(moving, [0.9, FLOAT32_MAX]), 'its far end (1) is past the near limit 0.9')
+  assert.ok(!drawnWith(moving, [1, FLOAT32_MAX]), 'its far end is not past the near limit 1')
+  assert.ok(!drawnWith(moving, [0, 0.5]), 'its near end (0.5) is not short of the far limit 0.5')
+  assert.ok(drawnWith(0, [1, FLOAT32_MAX]), 'a static caster: the range does not cut it')
+})
+
+// The frustum cull tests the caster's box, not a cube about its sphere: a thin box (100 x 1 x 1) lying
+// along the map's x axis, turned 45 degrees in the world, whose sphere's cube reaches the frustum
+// while its own body lies a long way off the frustum's side is culled; the same box through the
+// frustum is kept.
+test('the cull tests the caster’s oriented box: a thin turned box off the frustum is culled, the cube about its sphere would keep it', () => {
+  const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  // The shifted space turned 45 degrees about z to the map's clip space (an orthographic map).
+  const c = Math.SQRT1_2
+  const toClip = new Mat([c, -c, 0, 0, c, c, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  const cull = shaderRun<{
+    vsmCasterBoxInView(...a: unknown[]): { inMapView: boolean }
+    vsmBoxCullPoint(...a: unknown[]): number[]
+    vsmBoxInView(...a: unknown[]): { inMapView: boolean }
+  }>(CULL, ['vsmCasterBoxInView', 'vsmBoxCullPoint', 'vsmBoxInView'], wgslConstants(CULL))
+  // Half axes in the world: 50 along the box's length (the map's x), 0.5 across it, 0.5 in z.
+  const along = 50 * c,
+    across = 0.5 * c
+  const axes = [
+    [along, along, 0],
+    [-across, across, 0],
+    [0, 0, 0.5],
+  ]
+  const radius = Math.hypot(50, 0.5, 0.5)
+  // The cube about the sphere is the cull's former volume.
+  const cube = (centre: number[]) => {
+    const extent = [radius, radius, radius]
+    const point = cull.vsmBoxCullPoint(centre, extent, true, true)
+    return cull.vsmBoxInView(
+      matrixProduct(toClip, [...point, 1]),
+      toClip[0],
+      toClip[1],
+      toClip[2],
+      extent,
+      identity,
+      true,
+      true,
+    )
+  }
+  const box = (centre: number[]) =>
+    cull.vsmCasterBoxInView(centre, ...axes, toClip, identity, true, true)
+  // 30 clip units off the map's x axis: the body (y within 0.5 of 30) clears the frustum (|y| <= 1),
+  // the cube (50 a side along the world's axes, 70 in clip) does not.
+  const off = [-30 * c, 30 * c, 0.5]
+  assert.equal(cube(off).inMapView, true, 'the cube about the sphere reaches the frustum')
+  assert.equal(box(off).inMapView, false, 'the box itself does not')
+  assert.equal(box([0, 0, 0.5]).inMapView, true, 'through the frustum, it is kept')
 })

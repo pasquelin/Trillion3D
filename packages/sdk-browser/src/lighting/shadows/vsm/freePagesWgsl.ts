@@ -85,16 +85,23 @@ const PM_AGE_EMPTY:u32=0xffffffffu;
 /** A kept page's age stops a step under the empty pages' (\`poolRank\`): taken after every one. */
 const PM_AGE_KEPT_MAX:u32=${2 ** (POOL_AGES - 2) - 1}u;
 fn poolSlotCount()->u32{return vsm.poolPages;}
-/** Frames since the page was last wanted: 0 when wanted this frame (\`vsmKeepPages\`), in use. */
+/** The pool page slot \`j\` stands for: itself, or without \`lruAllocation\` the pool taken from its
+ *  end, so that the sort's lower slot first lists the highest page first — the order a list popped
+ *  from its tail hands the pages of the pool out in. */
+fn poolPage(j:u32)->u32{return select(vsm.poolPages-1u-j,j,vsmPm.lruAllocation!=0u);}
+/** Frames since the page was last wanted: 0 when wanted this frame (\`vsmKeepPages\`), in use. Without
+ *  \`lruAllocation\` a page not wanted now is a step old, whatever its age. */
 fn poolSlotAge(j:u32)->u32{
- let info=vsmPoolPageInfo[j];
+ let info=vsmPoolPageInfo[poolPage(j)];
  if(info.flags==0u){return PM_AGE_EMPTY;}
- return min(vsm.frameStamp-info.lastWantedStamp,PM_AGE_KEPT_MAX);
+ let age=min(vsm.frameStamp-info.lastWantedStamp,PM_AGE_KEPT_MAX);
+ return select(min(age,1u),age,vsmPm.lruAllocation!=0u);
 }
-/** The page's level: its map's clipmap level (a local light's is 0), then its mip. */
+/** The page's level: its map's clipmap level (a local light's is 0), then its mip; 0 without
+ *  \`lruAllocation\`. */
 fn poolSlotTier(j:u32)->u32{
- let info=vsmPoolPageInfo[j];
- if(info.flags==0u){return 0u;}
+ let info=vsmPoolPageInfo[poolPage(j)];
+ if(info.flags==0u||vsmPm.lruAllocation==0u){return 0u;}
  return u32(max(vsmProjectionData[info.mapId].mapLevel,0i))+info.mipLevel;
 }
 /** Only a page wanted this frame is in use: one wanted last frame and not now may be taken. */
@@ -103,7 +110,7 @@ fn poolBurst()->u32{return vsm.poolPages;}
 fn poolPlaced(total:u32){atomicStore(&vsmFreePages[PM_FREE_COUNT],total);atomicStore(&vsmFreePages[PM_FREE_SHORT],0u);}
 /** The queue's entry \`at\` (0 its head) as the stack's \`total − 1 − at\`: the head is popped first. */
 fn poolEmit(at:u32,j:u32){
- atomicStore(&vsmFreePages[PM_FREE_FIRST+atomicLoad(&vsmFreePages[PM_FREE_COUNT])-1u-at],j);
+ atomicStore(&vsmFreePages[PM_FREE_FIRST+atomicLoad(&vsmFreePages[PM_FREE_COUNT])-1u-at],poolPage(j));
 }
 `,
 )

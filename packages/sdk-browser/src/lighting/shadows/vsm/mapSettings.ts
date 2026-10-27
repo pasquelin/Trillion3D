@@ -100,16 +100,28 @@ export interface VsmClipmapConfig {
   wpoDisable: boolean
   wpoLodBias: number
   wpoInvalidatesOnScale: boolean
+  /** Whether the clipmap keeps no page from one frame to the next: all its levels are drawn again
+   *  each frame (`shadowForceInvalidateDirectional`; a first-person clipmap always). */
+  forceInvalidate: boolean
+  /** Whether the depth a level's moving casters are culled by ends at the level's own radius
+   *  (`shadowClipmapCullDynamicTightly`); a clipmap that keeps no page also cuts its depth range
+   *  there. */
+  cullTightly: boolean
+  /** Whether the clipmap's pages are drawn for the receivers' cover alone
+   *  (`shadowUseReceiverMaskDirectional`); the dynamic casters' depth range is cut only with it. */
+  useCover: boolean
 }
 
 /** The config of the clipmap being set up, rewritten by each `vsmClipmapConfig`. */
 const config: VsmClipmapConfig = {
   ...{ firstLevel: 0, lastLevel: 0, coarseFrom: -1, coarseTo: -1, keepsDynamic: false },
   ...{ wpoDisable: false, wpoLodBias: 0, wpoInvalidatesOnScale: false },
+  ...{ forceInvalidate: false, cullTightly: true, useCover: true },
 }
 
 /** The config of a sun's first-person clipmap (`shadowFirstPersonClipmap`): the regular config with its
- *  own level range and no coarse level; the one object rewritten, as `vsmClipmapConfig`'s. */
+ *  own level range, no coarse level and no page kept; the one object rewritten, as
+ *  `vsmClipmapConfig`'s. */
 export function vsmFirstPersonClipmapConfig(shadows: ShadowValues) {
   vsmClipmapConfig(shadows)
   config.firstLevel = shadows.shadowFirstPersonClipmapFirstLevel
@@ -117,6 +129,7 @@ export function vsmFirstPersonClipmapConfig(shadows: ShadowValues) {
   config.coarseFrom = -1
   config.coarseTo = -1
   config.keepsDynamic = false
+  config.forceInvalidate = true
   return config
 }
 
@@ -132,5 +145,8 @@ export function vsmClipmapConfig(shadows: ShadowValues) {
   config.wpoDisable = shadows.shadowClipmapWpoDisableDistance
   config.wpoLodBias = shadows.shadowClipmapWpoDisableDistanceLodBias
   config.wpoInvalidatesOnScale = shadows.shadowClipmapWpoDisableDistanceInvalidateOnScaleChange
+  config.forceInvalidate = shadows.shadowForceInvalidateDirectional
+  config.cullTightly = shadows.shadowClipmapCullDynamicTightly
+  config.useCover = shadows.shadowUseReceiverMaskDirectional
   return config
 }

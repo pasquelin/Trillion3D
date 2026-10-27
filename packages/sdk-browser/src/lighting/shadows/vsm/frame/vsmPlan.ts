@@ -14,7 +14,8 @@ import { vsmCastBoxes } from '../invalidation/castBoxes.ts'
 import { settingsRevision } from '../../../../../../sdk-core/src/contracts/settingRules.ts'
 import { createViewFingerprint } from '../../../../frame/view/viewFingerprint.ts'
 import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
-import { shadowsOn, sunCascadesOf, vsmFirstPersonActive, vsmMapSettings } from './vsmFarShadow.ts'
+import { sunCascadesOf, vsmFirstPersonActive, vsmMapSettings } from './vsmFarShadow.ts'
+import { shadowsOn, tracesTranslucent } from './vsmGates.ts'
 import { vsmSunLevels } from '../mapSettings.ts'
 import { releaseEngineVsm, unshadowLights, vsmCountersOn } from './engineVsm.ts'
 import { wholeTableRows } from './vsmLightMaps.ts'
@@ -31,6 +32,7 @@ import type { VsmLayout } from '../layout.ts'
 import { VSM_RENDER_CORNER_TIERS, VSM_RENDER_SOFTWARE_BIN } from '../render/renderParamsWgsl.ts'
 import { chainReady, type PreparedPipeline } from '../../../deferred/fullscreen.ts'
 import { holdsVoxels } from './vsmRasterScene.ts'
+import { marksPixels, marksWaterSurface } from './vsmFrontLayer.ts'
 import { vsmProjectionPipeline } from '../projection/projectionPipelines.ts'
 import { onePassMaskFormat } from '../projection/maskFormat.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
@@ -172,6 +174,9 @@ function framePipelines(
   const marking = vsmMarkingPipes(device, layout),
     render = vsmRenderComputePipes(device, layout)
   const casts = vsmCastPipes(device, layout)
+  const fronts = tracesTranslucent(rt) ? [false, true] : [false],
+    waters = marksWaterSurface(rt) ? [false, true] : [false]
+  const froxels = !marksPixels(rt)
   const pipes = [
     casts.args,
     casts.stale,
@@ -180,9 +185,10 @@ function framePipelines(
     marking.prune(),
     marking.rect(),
     marking.coarse(),
-    marking.pixels(),
-    // The program that also marks the translucent front layer, where the project traces their shadow.
-    rt.setup.translucentShadow.quality ? marking.pixels(true) : undefined,
+    // The programs of the pixel pass the image can run: the one that also marks the translucent front
+    // layer, where the project traces their shadow, and the ones that mark the water's surface, drawn
+    // ahead of the lights where the scene has water.
+    ...fronts.flatMap((front) => waters.map((water) => marking.pixels(front, water))),
     ...Object.values(vsmPageManagementPipes(device, layout, vsmCountersOn(device))).map(
       ({ pipe }) => pipe,
     ),
@@ -201,9 +207,7 @@ function framePipelines(
         ]
       : []),
     // The froxels' marking, where the setting takes it.
-    ...(vsmMapSettings(rt).shadows.shadowMarkPagesUseFroxels
-      ? [marking.froxelBuild(), marking.froxelArgs(), marking.froxelMark()]
-      : []),
+    ...(froxels ? [marking.froxelBuild(), marking.froxelArgs(), marking.froxelMark()] : []),
   ]
   const stages: (PreparedPipeline<unknown> | undefined)[] = [
     ...pipes.map((pipe) => pipe?.prepared),
@@ -223,6 +227,7 @@ interface CompiledFor {
   voxels: boolean
   translucent: boolean
   froxels: boolean
+  water: boolean
   counters: boolean
 }
 const compiledFor = new WeakMap<VsmLayout, CompiledFor>()
@@ -237,8 +242,9 @@ function framePipelinesCompiled(rt: WebgpuPagesRuntime, device: GPUDevice, layou
   const now: CompiledFor = {
     rasters: rt.vis.rasters,
     voxels: holdsVoxels(rt),
-    translucent: !!rt.setup.translucentShadow.quality,
-    froxels: !!vsmMapSettings(rt).shadows.shadowMarkPagesUseFroxels,
+    translucent: tracesTranslucent(rt),
+    froxels: !marksPixels(rt),
+    water: marksWaterSurface(rt),
     counters: vsmCountersOn(device),
   }
   const known = compiledFor.get(layout)
@@ -248,6 +254,7 @@ function framePipelinesCompiled(rt: WebgpuPagesRuntime, device: GPUDevice, layou
     known.voxels === now.voxels &&
     known.translucent === now.translucent &&
     known.froxels === now.froxels &&
+    known.water === now.water &&
     known.counters === now.counters
   )
     return true

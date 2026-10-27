@@ -56,6 +56,19 @@ function heldSwitches(options: WorldOptions, settings: WorldSettings, invalidate
 /** The held switches (`heldSwitches`). */
 type Held = ReturnType<typeof heldSwitches>
 
+/** The members of the world's switches that are no accessors: the held values and settings, the
+ *  quality, `apply` — which writes into the session just opened each switch the page changed since
+ *  it was `given` its options —, the page's guides (one set for the world's life, drawn by every
+ *  session it opens) and `dispose`, which stops a benchmark run the world's quality asked. */
+type WorldBase = {
+  held: Held
+  settings: WorldSettings
+  quality: ReturnType<typeof createWorldQuality>
+  apply(opened: MeasuredWorld, given: MeasuredWorldOptions): void
+  guides: Guides
+  dispose(): void
+}
+
 /** The three settings of the registry with a switch of their own, written into the open session
  *  in place when their resolved value changes. */
 function watchSettings(
@@ -215,7 +228,7 @@ export function worldSwitches(
   runtime: () => SwitchedRuntime,
   frames: { readonly last: FrameMetrics | null },
   benchmark?: (signal: AbortSignal) => QualityBenchmark,
-) {
+): WorldSwitches {
   const invalidate = () => runtime().invalidate()
   const settings: WorldSettings = createWorldSettings()
   // The page's own level, `true` included: it holds over a scene's and a preset's.
@@ -233,21 +246,18 @@ export function worldSwitches(
   const quality = createWorldQuality(settings, scale, options.quality, QUALITY_LEVELS, made)
   watchSettings(settings, runtime, invalidate)
   for (const family of Object.values(families)) family.watch(() => runtime().explorer, invalidate)
-  const switches = composed(
-    {
-      held,
-      settings,
-      quality,
-      /** Writes into the session just opened each switch the page changed since it was `given` its
-       *  options. */
-      apply(opened: MeasuredWorld, given: MeasuredWorldOptions) {
-        applyHeld(held, families, opened, given)
-      },
-      /** The page's guides: one set for the world's life, drawn by every session it opens. */
-      guides: held.guides as Guides,
-      /** Stops a benchmark run the world's quality asked: the world is disposed. */
-      dispose: () => stop.abort(),
+  const base: WorldBase = {
+    held,
+    settings,
+    quality,
+    apply(opened, given) {
+      applyHeld(held, families, opened, given)
     },
+    guides: held.guides,
+    dispose: () => stop.abort(),
+  }
+  const switches = composed(
+    base,
     pageAccessors(held, settings),
     rasterAccessors(families),
     ruledAccessors(families),
@@ -255,5 +265,10 @@ export function worldSwitches(
   )
   return switches
 }
-/** What `worldSwitches` builds: named, so the types that hold it refer to it rather than spell it out. */
-export type WorldSwitches = ReturnType<typeof worldSwitches>
+/** What `worldSwitches` builds, named part by part, so the types that hold it refer to its parts
+ *  rather than spell them out. */
+export type WorldSwitches = WorldBase &
+  ReturnType<typeof pageAccessors> &
+  ReturnType<typeof rasterAccessors> &
+  ReturnType<typeof ruledAccessors> &
+  ReturnType<typeof sessionAccessors>

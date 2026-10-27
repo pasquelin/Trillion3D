@@ -28,7 +28,7 @@ total is `shadowPoolBytes` (`lighting/shadows/vsm/frame/vsmStats.ts`). Rules a c
 
 - **Fixed size.** The physical pool is the setting's (`shadowMaxPhysicalPages`, rounded up to whole
   rows of 128 pages, as the reference rounds it), held to what one binding of the device holds
-  (`vsmPoolAsked`, `lighting/shadows/vsm/frame/vsmLightMaps.ts`). It follows neither the view's size nor
+  (`vsmAsked`, `lighting/shadows/vsm/frame/vsmLightMaps.ts`). It follows neither the view's size nor
   its fill: a full pool raises the global resolution bias instead (below).
 
 - **Never a crash, never an allocation the budget refuses.** Past the room, the pool is made with
@@ -95,8 +95,9 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
    persistent hierarchy culling runs over every view of a pass, each candidate node carrying its
    view: a view is a map of a light and a mip of it that has a page to draw (the reference's packed
    views, one a map and mip), queue 0 holds every view's roots (or the placement tree's top nodes),
-   and each level tests an entry's children against its view — in the map's frustum (the box's
-   sphere doubled, so that no cluster sphere within it is left out), the error its subtree replaces
+   and each level tests an entry's children against its view — in the map's frustum (the node's
+   own oriented box, which holds the boxes of the clusters below it; a local light's range on its
+   sphere doubled; the pages to draw under the cube about that sphere), the error its subtree replaces
    seen at the view's mip, projected as the cull projects a cluster's — and, while the previous
    frame's pyramid and tables are kept, against the map's pyramid (below). A kept leaf asks for its
    pages in each view that keeps it, through the camera's one request path (`requestPage`, read back
@@ -112,7 +113,9 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
    cull (`render/renderCullWgsl.ts`, a thread a caster and a light) takes each map and each mip it
    draws as a view of its own: the engine's cut rule on the cluster's errors projected by that view
    (`vsmRenderLodAt`, at the cut's threshold times two to `shadowGeometryLodBias`, 1 by default, the
-   reference's own, over the streaming's quality scale), the frustum, the
+   reference's own, over the streaming's quality scale), the frustum (the cluster's own oriented box
+   in the map's shifted space, its centre and three half axes, not a cube about its sphere; the sphere
+   keeps the light's range, the level of detail and the raster choice), the
    page rect clipped to the stale rect, its overlap with a page to draw, then the rect walked by
    windows of four pages a side, a record a window that holds a page of the caster's stale layer. The
    bin (`render/renderBinWgsl.ts`) sorts the records by raster pipeline and marks their pages drawn;
@@ -278,6 +281,42 @@ distance-field cascade's shadow: the distance, the cascades and the distance-fie
 changed by one has no cached page of the old one, they are drawn again. The edge is not: what the view's
 `shadowDistanceScale`, near levels, overlap and switches make of it each frame reaches the next frame's test, and
 the cached pages are kept.
+
+A cache entry is keyed by the light's id, the view it is drawn for and its shadow type (0 the regular maps, 1 a sun's
+first-person clipmap), as one structural key (`vsmCacheKey`), so that a light named with a `#` and a view with any name
+never share an entry. The first-person clipmap keeps its sun's own id and lives as long as the sun does (a removed light
+takes all its entries). A placement that is parked or taken away goes back to static in the mobility state (`park`, called
+by `flipWorld`): not moving, never moved, its pose kept (shown again where it stands, it is no move), its word written again by
+`flipWorld`; a placement that takes its row later starts as a new one.
+
+**A level's depth range and its moving casters.** A level that keeps pages draws its dynamic layer again each frame, so a
+moving caster is culled past the end of what the level shows: with `shadowClipmapCullDynamicTightly` (true) the level's
+projection record carries `dynamicDepthCullRange`, whose near-side limit is the clip depth of the point `cullingEnd` along
+the light, `cullingEnd` being the level's radius at its level less the clipmap's resolution bias (the pool pressure bias
+is not in it), and whose far-side limit is the largest float; the cull (`vsmRenderCullView`) reads both for the casters
+not in the static layer, and a map that is not a clipmap level keeps `0` and the largest float. A clipmap that keeps no
+page (`shadowForceInvalidateDirectional`, false; the first-person clipmap always) is drawn uncached, and with
+`shadowClipmapCullDynamicTightly` its depth range itself is cut, from `depthRadius` on the near side to `cullingEnd` on
+the far side, with no shift for the eye's depth.
+
+**The cache's and the receiver masks' switches.** Each is a view setting at the reference's default.
+`shadowCache` (true) keeps the pages from one frame to the next: off, every light is drawn uncached each frame, the
+distant lights are never kept, and the set is made without a static layer in its pool (`VsmLayout.cacheEnabled`), so
+a change makes the set again (`heldVsm`) and drops its pages. `shadowForceInvalidateLocal` (0) draws the local lights
+uncached each frame: 1 those that are not distant, 2 all of them (`addVsmLocalLightShadow`).
+`shadowCacheAllocateViaLru` (true) keeps the pool sort's order (empty pages first, then by the age step of the last
+request, the finer level first); off, `poolSlotAge` and `poolSlotTier` rank every page not wanted this frame alike,
+so the empty pages go first, then the highest pool index (`poolPage`, `VsmPmParams.lruAllocation`). `shadowForceFullPageClears` (false) clears a stale page's
+layers whatever the cleared bits say (`VsmPmParams.fullClears`, `vsmListClears`).
+`shadowCacheDeformableMeshesInvalidate` (true): off, a placement that a skin or a morph deforms keeps
+`MOBILITY_OFTEN_MOVING` but not `MOBILITY_DEFORMS` in its word, so the raster no longer invalidates the pages its casters
+draw as it draws them, and the placement settles to static after `shadowCacheFramesStaticThreshold` frames; a change
+writes every word again (`uploadRootWords`).
+`shadowUseReceiverMaskDirectional` (true) and `shadowUseReceiverMaskLocal` (false) give a light's maps the receiver cover
+(`VSM_MAP_COVERAGE`, `VsmLightCache.useCover`): a page of a map with it is drawn only for the receivers its mask holds and
+its dynamic layer is drawn again each frame; a change of the setting draws the light's pages again, and the sun's
+dynamic depth range is cut by `shadowClipmapCullDynamicTightly` only while its cover is on. The cover is sized for the
+suns' maps alone; with the local setting on it is sized for every map (`VsmLayout.coverLocal`) and the set is made again.
 
 **The distance-field cascade.** The same levels shape the cascade after them: `encodeSunFieldShadow`
 (`frame/render/encodeSunFieldShadow.ts`) traces the sun's shadow against the distance fields of the meshes the

@@ -1,6 +1,8 @@
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { castFlagsOf } from './castFlags.ts'
+import { readShadowSetting } from '../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { CAST_STATE_WORDS } from './castChanges.ts'
+import { movesOften } from './mobilityState.ts'
 
 /**
  * What `mobility.writeRoots` reads of the roots, built once per runtime and kept on its lights
@@ -11,7 +13,12 @@ import { CAST_STATE_WORDS } from './castChanges.ts'
 export type RootWordsSource = {
   device: GPUDevice
   push: (first: number, count: number) => void
+  /** Whether a deformation has the pages its casters draw invalidated as they are drawn
+   *  (`shadowCacheDeformableMeshesInvalidate`), the setting the words were last written with. */
+  deformInvalidates: boolean
   castFlags: (rank: number) => number
+  /** Whether a banked root reads its rest pose: no deformation moves its vertices. */
+  rests: (rank: number) => boolean
   disableSq: (rank: number) => number
 }
 
@@ -25,6 +32,7 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
     { selectionRoots } = layout
   const source: RootWordsSource = {
     device,
+    deformInvalidates: readShadowSetting(rt, 'shadowCacheDeformableMeshesInvalidate'),
     push: (first, count) => {
       // Three sections of the buffer's placements: the words, the instances' state (the GPU's), the
       // distances.
@@ -39,12 +47,13 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
         count,
       )
     },
-    // A banked root that reads its rest pose rests: no deformation moves its vertices.
+    rests: (rank) => rt.vis.deformation?.tracks.named(rank) === -1,
     castFlags: (rank) =>
       castFlagsOf(
         selectionRoots[rank],
         rt.vis.rootOffsets.rowOf(rank),
-        rt.vis.deformation?.tracks.named(rank) === -1,
+        source.rests(rank),
+        source.deformInvalidates,
       ),
     disableSq: (rank) => {
       const row = rt.vis.rootOffsets.rowOf(rank)
@@ -91,6 +100,18 @@ export function uploadRootWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!pose) poseReaders.set(rt, (pose = (rank) => rt.layout.selectionRoots[rank].world.elements))
   mobility.ensure(selectionRoots.length, pose)
   const source = sourceOf(rt, device)
+  // The setting turned: every word is written again with it, and each root a deformation moves now
+  // takes a forced move, so that its pages are staled by the move and the settle that follow — it
+  // leaves or joins the static layer as any root that moved does (`mobility.move`).
+  const invalidates = readShadowSetting(rt, 'shadowCacheDeformableMeshesInvalidate')
+  if (invalidates !== source.deformInvalidates) {
+    source.deformInvalidates = invalidates
+    mobility.rewrite()
+    for (let rank = 0; rank < selectionRoots.length; rank++) {
+      const deforms = selectionRoots[rank].deformation && !source.rests(rank)
+      if (deforms && movesOften(source.castFlags(rank))) mobility.move(rank, pose(rank), true)
+    }
+  }
   const owed = Math.max(1, mobility.words.length)
   // A buffer made anew: every word goes up, and every page may cast anew.
   const made = !lights.rootWords || lights.rootWords.size !== ROOT_SECTIONS * owed * 4

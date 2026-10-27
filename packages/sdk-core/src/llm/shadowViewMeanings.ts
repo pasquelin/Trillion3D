@@ -44,6 +44,14 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "How many clipmap levels past the distance an object evaluates its offset at still draw that offset in a directional light's shadow (3, the default; 2 to 4 suits most scenes): each level more doubles the radius of the shadow that is animated, at the cost of more pages drawn again each frame. Read where shadowClipmapWpoDisableDistance is on.",
   shadowClipmapWpoDisableDistanceInvalidateOnScaleChange:
     "Whether a clipmap level is drawn again when the level its world position offset stops at shifts with the view's resolution or field of view (false, the default). true can make the shadows of moving vegetation more consistent, at the price of unpredictable redraw spikes, since a change of the view then redraws whole levels. Read where shadowClipmapWpoDisableDistance is on.",
+  shadowClipmapCullDynamicTightly:
+    "Whether the casters that move are culled against the depth a clipmap level shows (true, the default): a level's depth range ends at its own radius, less the resolution bias, so a moving caster farther along the light than the level can show is not drawn into it. With shadowForceInvalidateDirectional on, the level's depth range itself is cut to that end. false draws the moving casters over the whole depth range.",
+  shadowForceInvalidateDirectional:
+    "Whether a directional light's clipmap keeps no page from one frame to the next (false, the default): true draws every page of every level again each frame, at the cost of drawing the whole clipmap every frame; the first-person clipmap always does. Read with shadowClipmapCullDynamicTightly, which then also cuts each level's depth range at its end.",
+  shadowUseReceiverMaskDirectional:
+    "Whether a directional light's clipmap draws its pages for the pixels that ask them alone (true, the default): each page keeps a mask of the receivers inside it and a caster that touches no receiver is not drawn, which culls far more at lower resolutions. false draws every caster that touches a page. Changing it draws the sun's pages again.",
+  shadowUseReceiverMaskLocal:
+    "Whether the maps of a point, spot or rectangle light draw their pages for the pixels that ask them alone (false, the default): each page keeps a mask of the receivers inside it and a caster that touches no receiver is not drawn. true makes the shadow set hold the mask of every map, not the suns' alone, and makes the set again when it changes; a page of a light that takes it is drawn again each frame in its dynamic layer.",
   shadowMarkCoarsePagesDirectional:
     "Coarse pages of a directional light's clipmap: 0 none, 1 marks them, 2 (the default) marks them and keeps the dynamic layer of those very large pages cached while casters move, so that a moving object does not redraw them.",
   shadowMarkCoarsePagesLocal:
@@ -90,6 +98,16 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "Smallest angle in degrees (5, the default) a sun's disk takes on a subsurface surface: the disk grows toward it as the surface's opacity falls, which softens the shadow the way the light diffuses in the material.",
   shadowMaxDofResolutionBias:
     "Most levels (1, the default) by which the shadow maps' resolution is lowered where the depth of field blurs the image: the bias grows with the circle of confusion's radius and is full from 8 pixels; 0 turns it off. Nothing happens without a depth of field.",
+  shadowCache:
+    "Whether the shadow pages are kept from one frame to the next (true, the default). false draws every light uncached each frame, keeps no distant light, and makes the pool without a separate layer for the static casters, so it costs the full shadow raster every frame; changing it makes the shadows' set again, its pages dropped.",
+  shadowCacheAllocateViaLru:
+    'Whether a page that no map wants this frame is taken for a new request by the age of its last request (true, the default): an empty page first, then the one wanted longest ago, the finer level first within an age step. false takes them in the order of the pool, after the empty ones, whatever their age.',
+  shadowCacheDeformableMeshesInvalidate:
+    'Whether the pages an object that a skin or a morph deforms is drawn into are invalidated as it draws them, whether or not its transform moved (true, the default), so its shadow follows its animation. false caches it as dynamic while it moves and as static after shadowCacheFramesStaticThreshold frames without a move, so a still object that animates keeps the shadow of the pose it had.',
+  shadowForceInvalidateLocal:
+    'Which local lights draw their pages again each frame, uncached (0, the default): 0 none, 1 those that are not distant, 2 all of them, the distant ones too. Costs the full raster of the lights it names every frame; for finding whether a stale page is the cause of an artefact.',
+  shadowForceFullPageClears:
+    'Whether a page whose layers are stale is always cleared whole (false, the default: a page is cleared once, and not again while nothing was drawn into it since). true clears pages the cache already knows are clear, at the cost of the clears; for finding whether a stale page is the cause of an artefact.',
   shadowCacheInvalidateUseHzb:
     "Whether a changed placement invalidates only the shadow pages it is not hidden from (true, the default): its bounds are tested page by page against the previous frame's depth pyramid, and a page it is fully occluded on keeps its cache. Needs the occlusion culling (shadowOcclusionCulling); without it every page its bounds touch is invalidated.",
   shadowDeferredInvalidationBudget:

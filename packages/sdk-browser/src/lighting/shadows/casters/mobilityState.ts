@@ -56,6 +56,16 @@ export function touchRank(s: MobilityState, rank: number) {
   if (rank >= 0 && rank < s.moving.length) s.changed.mark(rank)
 }
 
+/** Placement `rank` is parked or taken away: the cache state of its row goes back to static — not
+ *  moving, never moved —, so that a placement that reuses the row starts as a new one. Its pose is
+ *  kept: shown again where it stands it is no move. Its word is written anew by the caller. It
+ *  stays in `movingList` until `settleMoving` drops it. */
+export function parkRank(s: MobilityState, rank: number) {
+  if (rank < 0 || rank >= s.moving.length) return
+  s.moving[rank] = 0
+  s.lastMoved[rank] = 0
+}
+
 /** Placement `rank` moves at this frame: the static slice leaves it out. */
 function startMoving(s: MobilityState, rank: number) {
   s.moving[rank] = 1
@@ -69,16 +79,25 @@ export function promoteRank(s: MobilityState, rank: number) {
   touchRank(s, rank)
 }
 
+/** The cast flags that keep a placement out of the dynamic layer: it casts no shadow
+ *  (`MOBILITY_SHADOWLESS`) or never invalidates them (`MOBILITY_CACHE_STATIC`). */
+const KEEPS_STATIC = MOBILITY_SHADOWLESS | MOBILITY_CACHE_STATIC
+
+/** Whether a placement whose word is `cast` moves often (`MOBILITY_OFTEN_MOVING`) and casts shadows
+ *  that can be invalidated: neither shadowless nor pinned to its cached shadows. */
+export const movesOften = (cast: number) =>
+  !(cast & KEEPS_STATIC) && !!(cast & MOBILITY_OFTEN_MOVING)
+
 /** Placement `rank`, whose word is `cast`, arrives in the scene — new in the layout, or taken from
  *  a parked row —: one that is often moving (`MOBILITY_OFTEN_MOVING`, or an offset that invalidates
  *  its shadows) is cached as dynamic from its first image, its first box in the dynamic layer alone,
  *  and settles to static after the frames without a move as any other does. One that casts no
- *  shadow, or never invalidates them (`MOBILITY_CACHE_STATIC`), does not. Its word is written by
- *  the caller. */
+ *  shadow (`MOBILITY_SHADOWLESS`), or never invalidates them (`MOBILITY_CACHE_STATIC`), does not.
+ *  Its word is written by the caller. */
 export function arriveRank(s: MobilityState, rank: number, cast: number) {
   if (s.moving[rank] === 1) return
-  if (cast & (MOBILITY_SHADOWLESS | MOBILITY_CACHE_STATIC)) return
-  if (cast & (MOBILITY_OFTEN_MOVING | MOBILITY_OFFSET_INVALIDATES)) startMoving(s, rank)
+  if (movesOften(cast) || (!(cast & KEEPS_STATIC) && cast & MOBILITY_OFFSET_INVALIDATES))
+    startMoving(s, rank)
 }
 
 /** The word of a placement: moving, and how it casts (`cast`, the flags `castFlags` gave: its

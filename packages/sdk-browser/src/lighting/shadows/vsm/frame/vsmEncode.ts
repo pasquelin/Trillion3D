@@ -42,6 +42,7 @@ import {
   keepOcclusionTables,
   vsmOcclusionContext,
 } from '../occlusion/occlusionPass.ts'
+import { waterDepthMarked } from '../../../../blend/water/waterTargets.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import {
   markingFrontLayer,
@@ -129,6 +130,7 @@ const frameScratch = (vsm: EngineVsm) =>
       viewToShifted: new Float32Array(16),
       originShift: [0, 0, 0],
       front: undefined,
+      water: undefined,
     },
     markingFront: newMarkingFront(),
     frontSeen: newFrontSeen(),
@@ -199,7 +201,11 @@ export function encodeVsmFrame(
     mapCount: plan.projectionCount,
     perPageBins: perPage.all,
     nextMapCount: plan.nextMapCount,
-    options: { stats: vsm.countersOn },
+    options: {
+      stats: vsm.countersOn,
+      lruAllocation: state.maps.shadows.shadowCacheAllocateViaLru,
+      fullClears: state.maps.shadows.shadowForceFullPageClears,
+    },
   }
   // What the passes of the run read cleared or copied before it, none between them: the overflow
   // flags, cleared whatever the counters say (they are read back every frame), the raster's marks,
@@ -322,6 +328,7 @@ function encodeVsmMarking(
     view.originShift[2] = -cam.eye[2]
     vsmViewToShifted(view.viewToShifted as Float32Array, cam.view, view.originShift)
     view.front = front
+    view.water = waterDepthMarked(rt)
     markingFrame.view = view
   } else markingFrame.view = undefined
   const marking = steps.pass(MARKING_PASS)

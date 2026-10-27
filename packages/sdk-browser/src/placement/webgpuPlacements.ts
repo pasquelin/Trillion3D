@@ -26,7 +26,9 @@ export const flipWorld =
     rt.run.gpuSelection?.markWorld(rank, rootMark(root))
     rt.run.gpuSelection?.drawDistanceWorld(rank, root.drawDistance)
     if (rt.run.gpuSelection?.rootParentWorld(rank, root.rootParent) === false) askNodeRoom(rt)
-    // Whether it casts (`MOBILITY_SHADOWLESS`) is its mobility's: the caster passes skip it.
+    // Whether it casts (`MOBILITY_SHADOWLESS`) is its mobility's: the caster passes skip it. A root
+    // parked leaves its cache state: a placement that takes its row later starts static.
+    if (root.parked) rt.lights.mobility.park(rank)
     rt.lights.mobility.touch(rank)
     // A row parked or taken lies in its cell, or in none, from now on (`worldRoot.ts`).
     linkWorldCell(rt, rank)

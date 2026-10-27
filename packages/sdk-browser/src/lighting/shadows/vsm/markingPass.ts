@@ -9,9 +9,10 @@
  * The light grid is pruned first (`vsmPruneLightGrid`, `projection/lightGridWgsl.ts`) into the shadowed
  * lights' grid: the pixel and froxel passes walk only the lights that have a map, and stop at the first
  * single-page light, which the coarse marking marks; the projection reads the same grid.
- * Where the project traces the translucent surfaces' shadow (`shadowTranslucentQuality`) and the
- * image before drew a translucent front layer (`VsmMarkingFront`), that pass is the program that
- * also marks the suns' pages of the surface that layer holds in front of each pixel.
+ * Where the project traces the translucent surfaces' shadow (`shadowTranslucentQuality`) and a
+ * translucent front layer is in hand (`VsmMarkingFront`), and where the single-layer water drew a depth
+ * before the marking (`VsmMarkingView.water`), that pass is the program that also marks the suns'
+ * pages of the surface that layer holds in front of each pixel, and of the water's surface.
  *
  * Per-page passes (the page table clears) go through a per-page dispatcher: ids
  * binned by their finest mip level (`vsmCachePerPageBins`), uploaded into `res.perPageIds`, one dispatch per
@@ -56,6 +57,7 @@ import {
   VSM_INIT_RECT_SPECS,
   VSM_MARK_PIXELS_GROUP_XY,
   VSM_FRONT_DEPTH_BINDING,
+  VSM_WATER_DEPTH_BINDING,
   VSM_MARKING_PARAMS_BYTES,
   VSM_PER_PAGE_GROUP_XY,
   VSM_PIXELS_SPECS,
@@ -264,16 +266,22 @@ export interface VsmMarkingView {
   viewToShifted: ArrayLike<number>
   /** The map view's origin shift (−camera position), double precision, split high/low. */
   originShift: [number, number, number]
-  /** The translucent front layer the image before drew, where the pass marks from it
-   *  (`vsmPixelPageMarkingWgsl` `front`); none: the program without it runs. */
+  /** The translucent front layer, where the pass marks from it (`vsmPixelPageMarkingWgsl` `front`);
+   *  none: the program without it runs. */
   front?: VsmMarkingFront
+  /** The scene's depth with the single-layer water drawn into it, where the pass marks the water's
+   *  surface (`vsmPixelPageMarkingWgsl` `water`); none: the program without it runs. */
+  water?: GPUTextureView
 }
 
-/** The front layer of the image before, as the marking reads it. */
+/** The translucent front layer, as the marking reads it: the image before's, or the image's own. */
 export interface VsmMarkingFront {
   /** The Hi-Z's level 0, both layers (`HIZ_FRONT_LAYER`): zero depth where no translucent surface lay. */
   depth: GPUTextureView
-  /** The view-projection of that image, referred to this image's eye (`matrixAtRenderOrigin`),
+  /** Whether the layer is this image's own, drawn before the marking: read at the pixel, with no
+   *  reprojection; else the image before's. */
+  sameImage: boolean
+  /** The view-projection of the image before, referred to this image's eye (`matrixAtRenderOrigin`),
    *  column-major. */
   previousViewProjection: Float64Array
   /** The size that image drew its layer at. */
@@ -301,10 +309,20 @@ export interface VsmMarkingFrame {
 const RECT_LABEL = 'vsm.initPageRects',
   COARSE_LABEL = 'vsm.markCoarse',
   PRUNE_LABEL = 'vsm.pruneLightGrid',
-  PIXELS_LABEL = 'vsm.markPagesFromPixels',
-  FRONT_PIXELS_LABEL = 'vsm.markPagesFromPixelsFront'
-/** The pixel pass's two programs: without and with the translucent front layer's marks. */
-type PixelsVariant = 'pixels' | 'pixelsFront'
+  PIXELS_LABEL = 'vsm.markPagesFromPixels'
+/** The pixel pass's programs, by the layers they mark (the translucent front layer's marks bit 0, the
+ *  water's bit 1), or none. */
+const PIXELS_VARIANTS = ['pixels', 'pixelsFront', 'pixelsWater', 'pixelsFrontWater'] as const
+type PixelsVariant = (typeof PIXELS_VARIANTS)[number]
+/** The index of the variant that marks the `front` layer and the `water`. */
+const pixelsIndex = (front: boolean, water: boolean) => (front ? 1 : 0) | (water ? 2 : 0)
+/** The variant of the pixel pass that marks the `front` layer and the `water`. */
+const pixelsVariant = (front: boolean, water: boolean): PixelsVariant =>
+  PIXELS_VARIANTS[pixelsIndex(front, water)]
+/** The label of that variant's pipe and groups: the pass's, the variant's name past `pixels` (a
+ *  suffix for each layer it marks); made where a pipe or group is, not each frame. */
+const pixelsLabel = (front: boolean, water: boolean) =>
+  PIXELS_LABEL + pixelsVariant(front, water).slice('pixels'.length)
 
 /** The bind group layouts of the marking's kernels, the entries of the group past the tables'. */
 const clearGroups = (tables: GPUBindGroupLayoutEntry[], written: readonly unknown[]) => [
@@ -333,7 +351,7 @@ const froxelMarkGroups = (tables: GPUBindGroupLayoutEntry[]) => [
     computeUniformEntry(8),
   ],
 ]
-const pixelsGroups = (tables: GPUBindGroupLayoutEntry[], front: boolean) => [
+const pixelsGroups = (tables: GPUBindGroupLayoutEntry[], front: boolean, water: boolean) => [
   tables,
   [
     computeTextureEntry(0, 'depth'),
@@ -348,6 +366,7 @@ const pixelsGroups = (tables: GPUBindGroupLayoutEntry[], front: boolean) => [
     ...(front
       ? [computeTextureEntry(VSM_FRONT_DEPTH_BINDING, 'unfilterable-float', '2d-array')]
       : []),
+    ...(water ? [computeTextureEntry(VSM_WATER_DEPTH_BINDING, 'depth')] : []),
   ],
 ]
 
@@ -451,14 +470,14 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
         [[...entries(VSM_COARSE_SPECS), computeUniformEntry(4)]],
       )),
     ...froxelMarkingPipes(device, layout, held),
-    /** The pixel pass, with the translucent front layer's marks (`front`) or without. */
-    pixels: (front = false) =>
-      (held[front ? 'pixelsFront' : 'pixels'] ??= vsmComputePipe(
+    /** The pixel pass, with the translucent front layer's marks (`front`) and the water's (`water`), or without. */
+    pixels: (front = false, water = false) =>
+      (held[pixelsVariant(front, water)] ??= vsmComputePipe(
         device,
-        front ? FRONT_PIXELS_LABEL : PIXELS_LABEL,
-        vsmPixelPageMarkingWgsl(layout, front),
+        pixelsLabel(front, water),
+        vsmPixelPageMarkingWgsl(layout, front, water),
         'vsmMarkPagesFromPixels',
-        pixelsGroups(entries(VSM_PIXELS_SPECS), front),
+        pixelsGroups(entries(VSM_PIXELS_SPECS), front, water),
       )),
   }
 }
@@ -479,11 +498,10 @@ interface TableGroups {
   clear: Partial<Record<ClearSet, GPUBindGroup>>
   rect?: GPUBindGroup
   coarse?: GPUBindGroup
-  pixels?: GPUBindGroup
-  pixelsFront?: GPUBindGroup
+  pixels: Partial<Record<PixelsVariant, GPUBindGroup>>
   froxelMark?: GPUBindGroup
 }
-const newTableGroups = (): TableGroups => ({ clear: {} })
+const newTableGroups = (): TableGroups => ({ clear: {}, pixels: {} })
 /** The maps a clear walks (`vsmMarkingClears`). */
 type ClearSet = 'all' | 'directionalOnly'
 /** The per-page dispatch slots: all then directional-only bins (`resetPageTables`). */
@@ -520,6 +538,7 @@ function fillMarkingParams(f: Float32Array, u: Uint32Array, frame: VsmMarkingFra
       copyMatrix4(f, front.previousViewProjection, 32)
       f[48] = front.size[0]
       f[49] = front.size[1]
+      u[57] = front.sameImage ? 1 : 0
     }
   }
   // The number of page rects to clear.
@@ -559,18 +578,22 @@ function createPixelsView(device: GPUDevice, params: GPUBuffer) {
     bufferEntry(7, () => view?.sunMapIds),
     bufferEntry(8, () => params),
   ]
-  const frontEntries = [
-    ...viewEntries,
-    resourceEntry(VSM_FRONT_DEPTH_BINDING, () => view?.front?.depth),
-  ]
+  const frontEntry = resourceEntry(VSM_FRONT_DEPTH_BINDING, () => view?.front?.depth),
+    waterEntry = resourceEntry(VSM_WATER_DEPTH_BINDING, () => view?.water)
+  const entriesOf = {
+    pixels: viewEntries,
+    pixelsFront: [...viewEntries, frontEntry],
+    pixelsWater: [...viewEntries, waterEntry],
+    pixelsFrontWater: [...viewEntries, frontEntry, waterEntry],
+  } satisfies Record<PixelsVariant, GPUBindGroupEntry[]>
   return {
-    /** The pixel pass's group 1 over `v`: with the front layer's depth where `v` holds one. */
+    /** The pixel pass's group 1 over `v`: with the front layer's depth and the water's where `v` holds them. */
     group(p: VsmComputePipe, v: VsmMarkingView) {
       view = v
-      const entries = (viewBound.entries[0] = v.front ? frontEntries : viewEntries)
+      const entries = (viewBound.entries[0] = entriesOf[pixelsVariant(!!v.front, !!v.water)])
       if (viewBound.entriesMoved(p.groups[1])) viewGroup = undefined
       return (viewGroup ??= device.createBindGroup({
-        label: v.front ? FRONT_PIXELS_LABEL : PIXELS_LABEL,
+        label: pixelsLabel(!!v.front, !!v.water),
         layout: p.groups[1],
         entries,
       }))
@@ -727,6 +750,10 @@ const tablesGroup =
             ],
     })
 
+/** Whether the marking marks from the pixels: the froxels' marking (`shadowMarkPagesUseFroxels`)
+ *  reads neither the front layer nor the water's depth. */
+export const marksFromPixels = (shadows: ShadowValues) => !shadows.shadowMarkPagesUseFroxels
+
 /** The marks from the pixels of the view `v`, one group a tile. */
 function markFromPixels(
   state: MarkingState,
@@ -737,14 +764,15 @@ function markFromPixels(
 ) {
   const stridedX = ceilDiv(v.viewSize[0], markStride(s.shadowPageMarkingPixelStrideX)),
     stridedY = ceilDiv(v.viewSize[1], markStride(s.shadowPageMarkingPixelStrideY))
-  const front = !!v.front
-  const pixels = state.pipes.pixels(front)
-  const key = front ? 'pixelsFront' : 'pixels'
-  groups[key] ??= state.group(front ? FRONT_PIXELS_LABEL : PIXELS_LABEL, pixels, VSM_PIXELS_SPECS)
+  const front = !!v.front,
+    water = !!v.water
+  const pixels = state.pipes.pixels(front, water)
+  const key = pixelsVariant(front, water)
+  groups.pixels[key] ??= state.group(pixelsLabel(front, water), pixels, VSM_PIXELS_SPECS)
   dispatch(
     pass,
     pixels,
-    groups[key],
+    groups.pixels[key],
     state.pixelsView.group(pixels, v),
     // A group a tile, in rows: the kernel reads its tile back (`vsmMarkPagesFromPixels`).
     ceilDiv(stridedX, VSM_MARK_PIXELS_GROUP_XY) * ceilDiv(stridedY, VSM_MARK_PIXELS_GROUP_XY),
@@ -774,9 +802,9 @@ function encodeMarking(state: MarkingState, pass: GPUComputePassEncoder, frame: 
   dispatch(pass, coarse, groups.coarse, undefined, ceilDiv(mapCount, VSM_GROUP_WIDTH))
   const v = frame.view
   const s = frame.settings ?? VSM_DEFAULT_SHADOWS
-  if (v && s.shadowMarkPagesUseFroxels)
-    state.froxels.mark(pass, v, frame.perspective, groups, state.group, VSM_PIXELS_SPECS)
-  else if (v) markFromPixels(state, pass, v, s, groups)
+  if (!v) return
+  if (marksFromPixels(s)) markFromPixels(state, pass, v, s, groups)
+  else state.froxels.mark(pass, v, frame.perspective, groups, state.group, VSM_PIXELS_SPECS)
 }
 
 const uniformBuffer = (device: GPUDevice, label: string, size: number) =>

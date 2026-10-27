@@ -94,18 +94,18 @@ export const VSM_FEEDBACK_POOL = 0
 /**
  * Bytes of a map's projection record (`projection/projectionData.ts`, `VsmProjectionRecord`): its four 4×4
  * float matrices (the fourth the occlusion's previous clip matrix), five rows of 16 bytes (four of a
- * 3-vector and a word, the previous view's depth terms) and thirteen words (four scalars, the
+ * 3-vector and a word, the previous view's depth terms) and sixteen words (four scalars, the
  * two-word corner, the range, the table's origin, a sun's far-shadow distance, the threshold its
- * offsets are left out past, the previous id, table origin and finest mip), at the 16-byte
- * alignment its matrices give the struct.
+ * offsets are left out past, the previous id, table origin and finest mip, the view slot and the
+ * two-word dynamic depth range), at the 16-byte alignment its matrices give the struct.
  */
-export const VSM_PROJECTION_RECORD_BYTES = 4 * 64 + 5 * 16 + alignUp(13 * 4, 16) // 400
+export const VSM_PROJECTION_RECORD_BYTES = 4 * 64 + 5 * 16 + alignUp(16 * 4, 16) // 400
 /** Byte size of `VsmUniforms` (`uniforms.ts`, uniform address space). */
 export const VSM_UNIFORMS_BYTES = 224
 
 /** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `render/renderParamsWgsl.ts`)
  *  and of one record it emits (vec4u, `render/renderCullWgsl.ts`). */
-export const VSM_RENDER_CANDIDATE_BYTES = 128
+export const VSM_RENDER_CANDIDATE_BYTES = 160
 export const VSM_RENDER_RECORD_BYTES = 16
 /** Bytes of a light of the frame in the raster's table (`vsmWriteLights`): its first map's id and its map count, padded to
  *  a `vec4u`. */

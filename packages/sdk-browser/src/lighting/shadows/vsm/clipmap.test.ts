@@ -7,15 +7,19 @@ import assert from 'node:assert/strict'
 import {
   VSM_MAP_COARSE,
   VSM_MAP_COARSE_KEEPS_DYNAMIC,
+  VSM_MAP_COVERAGE,
+  VSM_MAP_UNCACHED,
   VSM_NEXT_KEEPS_PAGES,
   VSM_SUN_DEPTH_KEEP,
   vsmLocalMipLevel,
 } from './constants.ts'
 import { createVsmClipmap, type VsmClipmap, type VsmViewport } from './clipmap.ts'
 import { VsmCacheManager } from './cacheManager.ts'
+import { vsmCacheKey } from './lightCache.ts'
 import { addVsmLocalLightShadow, vsmLocalViewData } from './localLight.ts'
 import { VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
 import { SUN, PROJECTION, VIEW, frame, mapsOf } from './clipmap.fixture.ts'
+import { FLOAT32_MAX } from '../../../../../math/src/constants.ts'
 
 test('the levels: 6 to 22, a radius of 2^(L+1) cm, a depth range of 1000 radii', () => {
   const clipmap = frame(new VsmCacheManager(), [0, 0, 0])
@@ -312,4 +316,164 @@ test('a shift of the offset threshold redraws a cached level only where the sett
   assert.equal(kept(false, 2048), VSM_NEXT_KEEPS_PAGES, 'off: kept')
   assert.equal(kept(true, 2048), 0, 'on: the threshold shifted, drawn again')
   assert.equal(kept(true, 1024), VSM_NEXT_KEEPS_PAGES, 'on, the threshold the same: kept')
+})
+
+// A level's view-to-clip in centimetres: the clip depth of the light-space depth `z` (relative to
+// the eye's level), 1 at the near side and 0 at the far one.
+const clipDepth = (level: VsmClipmap['levels'][number], z: number) =>
+  level.viewToClip[10] * z * 0.01 + level.viewToClip[14]
+
+test('a level’s dynamic cull range ends where its radius, less the resolution bias, ends', () => {
+  const clipmap = frame(new VsmCacheManager(), [0, 0, 0])
+  // Level 6 at width 1024: the bias is 1.5, so the level shows 2^(6 + 1 - 1.5) cm along the light,
+  // a single-precision radius.
+  const cullingEnd = Math.fround(2 ** (6 + 1 - 1.5)),
+    depthRadius = 128e3
+  const near = clipmap.cacheEntry.mapCaches[0].projectionData.dynamicDepthCullRange
+  assert.ok(Math.abs(near[0] - clipDepth(clipmap.levels[0], cullingEnd)) < 1e-12)
+  assert.ok(Math.abs(near[0] - (1 - (cullingEnd + depthRadius) * (0.5 / depthRadius))) < 1e-12)
+  assert.equal(near[1], FLOAT32_MAX)
+  assert.equal(clipmap.levels[0].viewToClip[14], 0.5, 'the matrix is the cached one')
+  const off = frame(
+    new VsmCacheManager(),
+    [0, 0, 0],
+    1024,
+    mapsOf({ shadowClipmapCullDynamicTightly: false }),
+  )
+  assert.deepEqual(off.cacheEntry.mapCaches[0].projectionData.dynamicDepthCullRange, [
+    0,
+    FLOAT32_MAX,
+  ])
+  assert.deepEqual(off.levels[0].viewToClip, clipmap.levels[0].viewToClip, 'the same matrix')
+})
+
+/** `frames` frames of a sun under `maps`, each marked rendered, the last clipmap returned. */
+function renderedFrames(cache: VsmCacheManager, frames: number, maps?: ReturnType<typeof mapsOf>) {
+  let clipmap!: VsmClipmap
+  for (let n = 0; n < frames; n++) {
+    cache.frameStamp = n
+    clipmap = frame(cache, [0, 0, 0], 1024, maps)
+    clipmap.cacheEntry.markRendered(n)
+  }
+  return clipmap
+}
+
+test('a clipmap that keeps no page cuts its depth range from the near side of the level to the end of what it shows', () => {
+  const clipmap = renderedFrames(
+    new VsmCacheManager(),
+    3,
+    mapsOf({ shadowForceInvalidateDirectional: true }),
+  )
+  const cullingEnd = 2 ** (6 + 1 - 1.5),
+    depthRadius = 128e3
+  const level = clipmap.levels[0]
+  assert.ok(Math.abs(clipDepth(level, -depthRadius) - 1) < 1e-9, 'the near side: depthRadius')
+  assert.ok(Math.abs(clipDepth(level, cullingEnd)) < 1e-9, 'the far side: cullingEnd')
+  const record = clipmap.cacheEntry.mapCaches[0].projectionData
+  assert.deepEqual(record.dynamicDepthCullRange, [0, FLOAT32_MAX], 'the range is the matrix’s own')
+  assert.ok(clipmap.cacheEntry.isUncached && record.flags & VSM_MAP_UNCACHED, 'uncached')
+  assert.ok(!renderedFrames(new VsmCacheManager(), 3).cacheEntry.isUncached, 'otherwise cached')
+  const loose = renderedFrames(
+    new VsmCacheManager(),
+    3,
+    mapsOf({ shadowForceInvalidateDirectional: true, shadowClipmapCullDynamicTightly: false }),
+  )
+  assert.equal(loose.levels[0].viewToClip[14], 0.5, 'not tight: the cached level’s matrix')
+  assert.ok(loose.cacheEntry.isUncached, 'still uncached')
+})
+
+test('a first-person clipmap keeps no page and cuts its depth range tightly, beside the sun’s own entry', () => {
+  const cache = new VsmCacheManager()
+  const regular = renderedFrames(cache, 3)
+  let own!: VsmClipmap
+  for (let n = 0; n < 3; n++) {
+    cache.frameStamp = n
+    const camera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
+    const viewport = { width: 1024, height: 1024 }
+    own = createVsmClipmap(cache, { ...SUN, firstPerson: true }, camera, viewport)
+    own.cacheEntry.markRendered(n)
+  }
+  assert.notEqual(own.cacheEntry, regular.cacheEntry)
+  assert.equal(cache.entries.get(vsmCacheKey('sun', '', 1)), own.cacheEntry)
+  assert.equal(cache.entries.get(vsmCacheKey('sun', '')), regular.cacheEntry)
+  assert.ok(own.cacheEntry.isUncached && !regular.cacheEntry.isUncached)
+  // Its first level is 8: radius 2^9 cm, shown to 2^(8 + 1 - 1.5) cm.
+  const level = own.levels[0],
+    depthRadius = 2 ** 9 * 1000
+  assert.ok(Math.abs(clipDepth(level, -depthRadius) - 1) < 1e-9)
+  assert.ok(Math.abs(clipDepth(level, 2 ** (8 + 1 - 1.5))) < 1e-9)
+})
+
+test('a sun’s clipmap draws for the receivers’ cover unless the setting turns it off, which draws its pages again and cuts no depth range', () => {
+  const covered = (clipmap: VsmClipmap) =>
+    clipmap.cacheEntry.mapCaches.map((map) => !!(map.projectionData.flags & VSM_MAP_COVERAGE))
+  const on = renderedFrames(new VsmCacheManager(), 3)
+  assert.ok(on.cacheEntry.useCover && covered(on).every(Boolean), 'by default')
+  const near = on.cacheEntry.mapCaches[0].projectionData.dynamicDepthCullRange[0]
+  assert.notEqual(near, 0, 'and its moving casters are culled past the level')
+  const cache = new VsmCacheManager()
+  renderedFrames(cache, 3)
+  const off = mapsOf({ shadowUseReceiverMaskDirectional: false })
+  const turned = frame(cache, [0, 0, 0], 1024, off)
+  assert.ok(turned.cacheEntry.isUncached, 'turned off: the cached pages are drawn again')
+  assert.ok(!turned.cacheEntry.useCover && !covered(turned).some(Boolean))
+  assert.deepEqual(turned.cacheEntry.mapCaches[0].projectionData.dynamicDepthCullRange, [
+    0,
+    FLOAT32_MAX,
+  ])
+  const tight = renderedFrames(
+    new VsmCacheManager(),
+    3,
+    mapsOf({ shadowUseReceiverMaskDirectional: false, shadowForceInvalidateDirectional: true }),
+  )
+  const cullingEnd = 2 ** (6 + 1 - 1.5)
+  assert.ok(Math.abs(clipDepth(tight.levels[0], cullingEnd)) < 1e-9, 'nothing cached: still tight')
+})
+
+const localCamera = { view: VIEW, projection: PROJECTION, perspective: true, eye: [0, 0, 0] }
+const localViews = [vsmLocalViewData(localCamera, { width: 1024, height: 768 })]
+const localSpot = {
+  ...{ id: 'spot', kind: 'spot' as const, position: [0, 3, -20], direction: [0, -1, 0] },
+  ...{ range: 6, outerCone: 0.601 },
+}
+
+test('a local light draws for the receivers’ cover only where the setting asks it, and is drawn again when that changes', () => {
+  const cache = new VsmCacheManager()
+  const covers = (changes: Parameters<typeof mapsOf>[0]) => {
+    const entry = addVsmLocalLightShadow(cache, localSpot, localViews, mapsOf(changes)).cacheEntry
+    entry.markRendered(cache.frameStamp)
+    return [entry.useCover, !!(entry.mapCaches[0].projectionData.flags & VSM_MAP_COVERAGE)]
+  }
+  assert.deepEqual(covers({}), [false, false], 'by default: none')
+  for (cache.frameStamp = 1; cache.frameStamp < 3; cache.frameStamp++) covers({})
+  const entry = cache.entries.get(vsmCacheKey('spot'))!
+  assert.ok(!entry.isInvalidated(), 'drawn')
+  assert.deepEqual(covers({ shadowUseReceiverMaskLocal: true }), [true, true])
+  assert.ok(!entry.isInvalidated(), 'drawn')
+  cache.frameStamp = 4
+  const off = mapsOf({ shadowUseReceiverMaskLocal: false })
+  addVsmLocalLightShadow(cache, localSpot, localViews, off)
+  assert.ok(entry.isInvalidated() && !entry.useCover, 'turned off again: drawn again')
+})
+
+test('shadowForceInvalidateLocal draws the lights uncached each frame: none, those that are not distant, all of them', () => {
+  const uncached = (mode: number, distantMode: number) => {
+    const cache = new VsmCacheManager()
+    const maps = mapsOf({ shadowForceInvalidateLocal: mode, shadowDistantLightMode: distantMode })
+    let entry!: ReturnType<typeof addVsmLocalLightShadow>['cacheEntry']
+    for (cache.frameStamp = 0; cache.frameStamp < 4; cache.frameStamp++) {
+      entry = addVsmLocalLightShadow(cache, localSpot, localViews, maps).cacheEntry
+      entry.markRendered(cache.frameStamp)
+    }
+    return entry.isUncached
+  }
+  // A light that is not distant (mode 0 of the distant lights), then one that is (mode 2: all).
+  assert.deepEqual(
+    [0, 1, 2].map((mode) => uncached(mode, 0)),
+    [false, true, true],
+  )
+  assert.deepEqual(
+    [0, 1, 2].map((mode) => uncached(mode, 2)),
+    [false, false, true],
+  )
 })
