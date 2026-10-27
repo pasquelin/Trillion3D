@@ -37,6 +37,9 @@ const PASS_DESCRIPTOR: GPUComputePassDescriptor = { label: PASS }
 
 type MaskFormat = ReturnType<typeof onePassMaskFormat>
 
+/** The mask images a set holds, each made where its mask is asked. */
+type HairMaskImages = { sunsImage?: GPUTexture; localsImage?: GPUTexture }
+
 /** The masks of the strands' projection: written in the pixels of the tiles with strands alone. */
 export interface VsmHairMasks {
   /** A layer a sun; none where the frame holds no sun. */
@@ -128,7 +131,7 @@ export function encodeVsmHairProjection(
   const format = locals ? target.localFormat : undefined
   if (!(held.masks && masksFit(held.masks, width, height, sunLayers, format))) {
     // Made at the asked size and grown only: a view that shrinks keeps the larger masks.
-    const made = ensureSet(
+    const made = ensureSet<HairMaskImages, VsmHairMasks>(
       held.masks,
       device,
       {

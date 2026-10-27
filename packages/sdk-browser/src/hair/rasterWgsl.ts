@@ -97,12 +97,12 @@ const SUBPIXEL=${SUBPIXEL_SAMPLES}.0;
 var<private> OFFSETS:array<vec2f,${samples}>=array<vec2f,${samples}>(${offsets.join(',')});
 // An edge from u to v as a triangle tests it: walked from the lesser of its corners (by x, then y) to
 // the other, its function times the sign that gives the edge's own, times the triangle's turn.
-struct HairEdge{from:vec2f,to:vec2f,sign:f32}
+struct HairEdge{tail:vec2f,head:vec2f,sign:f32}
 fn hairEdgeOf(u:vec2f,v:vec2f,turn:f32)->HairEdge{
  let forward=u.x<v.x||(u.x==v.x&&u.y<=v.y);
  return HairEdge(select(v,u,forward),select(u,v,forward),select(-turn,turn,forward));
 }
-fn hairEdgeAt(e:HairEdge,p:vec2f)->f32{return e.sign*edgeFunction(e.from,e.to,p);}
+fn hairEdgeAt(e:HairEdge,p:vec2f)->f32{return e.sign*edgeFunction(e.tail,e.head,p);}
 // The least and the greatest x of the triangle abc within the rows y0 to y1.
 fn rowSpan(a:vec2f,b:vec2f,c:vec2f,y0:f32,y1:f32)->vec2f{
  var lo=3.0e38;

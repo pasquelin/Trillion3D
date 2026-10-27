@@ -153,6 +153,6 @@ export function encodeHairNodeArgs(
   nodes: HairNodes,
 ) {
   pass.setPipeline(pipelines.args)
-  pass.setBindGroup(0, nodes.argsGroup(device, pipelines.args, nodes))
+  pass.setBindGroup(0, nodes.argsGroup(device, pipelines.args, nodes, undefined, undefined))
   pass.dispatchWorkgroups(1)
 }

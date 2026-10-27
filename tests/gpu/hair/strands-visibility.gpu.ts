@@ -73,7 +73,12 @@ async function assertScene(scene: SceneName, off: GPUFeatureName[]) {
     0,
     'specular, backlit, flags and lighting channels are the settings’',
   )
-  assert.ok(gbuffer.pixels > 0 && gbuffer.patched > 0, 'some pixels are covered wholly')
+  assert.ok(gbuffer.pixels > 0, 'some pixels hold strands')
+  // A strand's coverage is its radius over the least radius when it is thinner (the widening to the
+  // least radius does not widen what it covers): the thin ribbon never covers a pixel wholly.
+  if (scene === 'thin')
+    assert.equal(gbuffer.patched, 0, 'a ribbon thinner than a pixel covers none wholly')
+  else assert.ok(gbuffer.patched > 0, 'some pixels are covered wholly')
   assert.equal(
     gbuffer.nearestMismatches,
     0,

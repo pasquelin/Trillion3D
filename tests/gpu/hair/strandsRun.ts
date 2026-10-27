@@ -9,8 +9,8 @@ import { fromHalf } from '../../../packages/math/src/float/half.ts'
 import { frameAround } from '../../../packages/math/src/vector/frame.ts'
 import { HAIR_STRANDS_POINT_BYTES } from '../../../packages/sdk-core/src/contracts/hairStrandsAbi.ts'
 import type { HairStrands } from '../../../packages/sdk-core/src/hair/hairStrandsFile.ts'
+import { HAIR_AABB_PRECISION_SCALE } from '../../../packages/sdk-browser/src/hair/boundsWgsl.ts'
 import {
-  HAIR_AABB_PRECISION_SCALE,
   HAIR_BOUNDS_FLOATS,
   HAIR_MIN_VOXEL_SIZE,
 } from '../../../packages/sdk-browser/src/hair/boundsPass.ts'

@@ -108,7 +108,8 @@ interface HairImageBuffersExtra {
   /** The words of each band's window, written for each image. */
   readonly windowWords: Uint32Array<ArrayBuffer>
 }
-type HairImageBuffers = ReturnType<typeof allocateSamples> & HairImageBuffersExtra
+type HairSampleBuffers = ReturnType<typeof allocateSamples>
+type HairImageBuffers = HairSampleBuffers & HairImageBuffersExtra
 
 /** What an instance keeps on the GPU between images: its block, and the bind groups. */
 interface HairInstanceGpu {
@@ -411,7 +412,7 @@ function makeHairResources(
     extendHairImageTargets,
   )
   state.targets = targets.resources
-  const buffers = ensureSet(
+  const buffers = ensureSet<HairSampleBuffers, HairImageBuffersExtra>(
     state.buffers,
     device,
     {
@@ -442,7 +443,7 @@ function makeHairResources(
     },
   )
   state.buffers = buffers.resources
-  const nodes = ensureSet(
+  const nodes = ensureSet<ReturnType<typeof allocateHairNodes>, HairNodes>(
     state.nodes,
     device,
     {
