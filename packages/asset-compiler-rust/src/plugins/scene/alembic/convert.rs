@@ -14,14 +14,10 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         .tables
         .read_source(file, bytes, &archive.file.sha256());
     {
-        let mut world = World {
-            archive: &archive,
-            scene: &mut scene,
-            cancelled: request.cancelled,
-        };
-        let root = world.archive.root_object()?;
+        let mut world = World::new(&archive, &mut scene, request.cancelled);
+        let root = archive.root_object()?;
         // What a top-level object attaches has no parent: the scene's roots, in walk order.
-        for child in world.archive.children(&root)? {
+        for child in archive.children(&root)? {
             world.visit(&child, 0)?;
         }
     }
@@ -33,6 +29,9 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         plugin,
         file,
         started,
-        &format!("alembic: {} carries no polygonal mesh", file.display()),
+        &format!(
+            "alembic: {} carries neither a polygonal mesh nor curves",
+            file.display()
+        ),
     )
 }

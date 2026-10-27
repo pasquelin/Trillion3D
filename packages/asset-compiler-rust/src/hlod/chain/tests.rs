@@ -11,6 +11,8 @@ pub(crate) mod decoded;
 pub(crate) mod fallback;
 #[cfg(test)]
 pub(crate) mod tables;
+#[cfg(test)]
+pub(crate) mod traced;
 use super::builds::world_dag;
 use super::*;
 use crate::compiler::tables::partition::HlodNode;
@@ -123,7 +125,10 @@ pub(crate) fn built<T>(instances: &[Instance], run: impl FnOnce(&builds::Builder
 }
 
 pub(crate) fn cooked(instances: &[Instance], cells: usize) -> Result<Cooked> {
-    built(instances, |builder| cook(instances, &tree(cells), builder)).map(|(cooked, _)| cooked)
+    built(instances, |builder| {
+        cook(instances, &tree(cells), (builder, &[]))
+    })
+    .map(|(cooked, _)| cooked)
 }
 
 #[test]

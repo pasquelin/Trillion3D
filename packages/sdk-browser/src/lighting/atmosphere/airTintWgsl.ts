@@ -16,6 +16,10 @@ import type { AirShape } from './shape.ts'
  * table by (`transmittanceAddress`), blended as a sampler would, and squared, the table holding
  * its square root.
  *
+ * The surface cache's cards take the light another way (`airGroundTintOf`): one tint a light, the air's transmittance toward it
+ * from 500 m over the ground (the block's `sunTransmittance`, `secondTransmittance`), the same for every texel of every card,
+ * so that the cards' light is not a colour a texel.
+ *
  * The block names the light buffer (`directLights`) and the light structure (`DirectLight`) as the
  * lighting programs declare them.
  */
@@ -38,12 +42,24 @@ fn tintStored(uv:vec2f)->vec3f{
  let high=mix(tintTexel(c.x,c.y+1),tintTexel(c.x+1,c.y+1),f.x);
  return mix(low,high,f.y);
 }
-fn airTintOf(rank:u32,light:DirectLight,P:vec3f)->vec3f{
+/** The air's light that light \`rank\` is, 0 or 1, where it asks for its transmittance per surface point; 2 for a light that does not. */
+fn airPerPixelLight(rank:u32)->u32{
  let flags=directLights.atmosphere[${ATMOSPHERE_SLOT.lightFlags}];
  let slots=directLights.atmosphere[${ATMOSPHERE_SLOT.lightSlots}];
  var k=2u;
  if(f32(rank)==slots.x){k=0u;}else if(f32(rank)==slots.y){k=1u;}
- if(k==2u||flags[2u+k]==0.0){return vec3f(1.0);}
+ return select(k,2u,k==2u||flags[2u+k]==0.0);
+}
+/** The tint of light \`rank\` for the surface cache's cards: the air's transmittance toward it from 500 m over the ground, one for a
+ *  light that does not ask for its transmittance per point (its colour is already tinted by it). */
+fn airGroundTintOf(rank:u32)->vec3f{
+ let k=airPerPixelLight(rank);
+ if(k==2u){return vec3f(1.0);}
+ return directLights.atmosphere[select(${ATMOSPHERE_SLOT.sunTransmittance}u,${ATMOSPHERE_SLOT.secondTransmittance}u,k==1u)].xyz;
+}
+fn airTintOf(rank:u32,light:DirectLight,P:vec3f)->vec3f{
+ let k=airPerPixelLight(rank);
+ if(k==2u){return vec3f(1.0);}
  let planet=directLights.atmosphere[${ATMOSPHERE_SLOT.planet}];
  let place=directLights.atmosphere[${ATMOSPHERE_SLOT.planetPlace}];
  let q=vec3f((P.x-place.x)*0.001,(P.y-planet.w)*0.001+planet.y,(P.z-place.y)*0.001);

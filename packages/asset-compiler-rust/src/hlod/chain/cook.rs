@@ -57,18 +57,22 @@ pub(crate) struct Cooked {
     pub table: Vec<u8>,
     pub dag: Vec<u8>,
     pub report: Value,
+    /// The world's trees for ray tracing (`traced.rs`), none when no actor holds a triangle.
+    pub ray_tracing: Option<crate::ray_tracing::WorldTrees>,
 }
 
 /// The world's HLOD layers of `instances` over the chain of HLOD cells `tree`, built by `builder`,
-/// and their actors.
+/// and their actors; `materials` are the published scene's, those the actors of a merged layer wear.
 pub(crate) fn cook(
     instances: &[Instance],
     tree: &[HlodNode],
-    builder: &builds::Builder,
+    (builder, materials): (&builds::Builder, &[Value]),
 ) -> Result<(Cooked, Vec<builds::Actor>)> {
     let (mut world, actors, rows, failures, measures) =
         builds::world_dag(instances, tree, builder)?;
+    let ray_tracing = super::traced::ray_tracing(&world, &actors, materials)?;
     let mut cooked = bundles::pack_world(&mut world, (tree, &rows), builder.hlod)?;
+    cooked.ray_tracing = ray_tracing;
     // Per HLOD level from 0, as the measures count them (`Measures`).
     let per_layer = |f: &dyn Fn(&builds::Actor) -> usize| -> Vec<usize> {
         (0..measures.stages.len())

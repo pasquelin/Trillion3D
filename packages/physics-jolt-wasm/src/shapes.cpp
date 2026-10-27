@@ -19,13 +19,13 @@ using namespace JPH;
 
 namespace trillion {
 
-RefConst<Shape> primitive(uint32_t kind, float a, float b, float c) {
+RefConst<Shape> primitiveOfKind(uint32_t kind, const uint32_t *extents) {
+  // The shape is shared by its dimensions' bits.
   uint64_t key = 0;
-  uint32_t bits[3];
-  std::memcpy(bits, (float[3]){a, b, c}, 12);
-  for (uint32_t v : {kind, bits[0], bits[1], bits[2]}) key = key * 0x100000001B3ull ^ v;
+  for (uint32_t v : {kind, extents[0], extents[1], extents[2]}) key = key * 0x100000001B3ull ^ v;
   auto &cache = world().primitives;
   if (auto found = cache.find(key); found != cache.end()) return found->second;
+  const float a = f32(extents), b = f32(extents + 1), c = f32(extents + 2);
   RefConst<Shape> shape;
   if (kind == BOX) {
     float smallest = std::min(a, std::min(b, c));
@@ -42,6 +42,10 @@ RefConst<Shape> primitive(uint32_t kind, float a, float b, float c) {
   else shape = new CylinderShape(a, b, std::min(cDefaultConvexRadius, std::min(a, b) * 0.5f));
   cache.emplace(key, shape);
   return shape;
+}
+
+RefConst<Shape> queryPrimitive(uint32_t kind, const uint32_t *extents) {
+  return primitiveOfKind(kind == 1 ? SPHERE : kind == 2 ? BOX : CAPSULE, extents);
 }
 
 void prunePrimitives() {
@@ -75,7 +79,7 @@ RefConst<Shape> meshShape(uint32_t kind, const uint32_t *data, uint32_t vertices
 RefConst<Shape> compoundShape(const uint32_t *data, uint32_t words) {
   StaticCompoundShapeSettings settings;
   for (const uint32_t *part = data; part + PART_WORDS <= data + words; part += PART_WORDS) {
-    RefConst<Shape> shape = part[0] > CYLINDER ? nullptr : primitive(part[0], f32(part + 1), f32(part + 2), f32(part + 3));
+    RefConst<Shape> shape = part[0] > CYLINDER ? nullptr : primitiveOfKind(part[0], part + 1);
     if (!shape) return nullptr;
     settings.AddShape(vec3(part + 4), quat(part + 7), shape);
   }
@@ -92,7 +96,7 @@ RefConst<Shape> shapeOf(const uint32_t *w) {
     const uint32_t *frame = massFrame(w, words);
     if (words == 0 && w[24] != (kind == COOKED)) return nullptr;
     RefConst<Shape> shape = kind == COOKED ? cookedShape(w[ADD_WORDS], vec3(w + 13))
-                                           : primitive(kind, f32(w + 13), f32(w + 14), f32(w + 15));
+                                           : primitiveOfKind(kind, w + 13);
     // Its mass frame names the centre of mass it turns about.
     if (!shape || !frame) return shape;
     return new OffsetCenterOfMassShape(shape, vec3(frame) - shape->GetCenterOfMass());

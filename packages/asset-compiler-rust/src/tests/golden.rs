@@ -43,12 +43,7 @@ pub(super) fn compile_golden(dir: &Path, name: &str) -> GoldenRun {
 /// the router, like any compiler caller, and knows no more than it which format
 /// it is given.
 pub(super) fn compile_golden_source(source: &Path, name: &str) -> GoldenRun {
-    let (options, root) = golden_options(source, name);
-    let reports = std::sync::Mutex::new(Vec::new());
-    let result = compile(&options, |report| {
-        reports.lock().expect("reports").push(report);
-    })
-    .unwrap_or_else(|e| panic!("{name}: compile: {e}"));
+    let (result, reports, options, root) = compiled(source, name);
     let paged = paged(&options.key_directory(result["key"].as_str().expect("key")));
     let [previews, binary] = <[Vec<u8>; 2]>::try_from(paged.sidecars).expect("head and one mesh");
     GoldenRun {
@@ -56,10 +51,35 @@ pub(super) fn compile_golden_source(source: &Path, name: &str) -> GoldenRun {
         slim: paged.manifest,
         binary,
         previews,
-        reports: reports.into_inner().expect("reports"),
+        reports,
         cache: options.cache.clone(),
         root,
     }
+}
+
+/// What compiling `source` with the golden options answers, for a scene that has no mesh page to
+/// reread — a groom alone. Its throwaway root is erased at once.
+pub(super) fn compile_golden_answer(source: &Path, name: &str) -> Value {
+    let (result, _, _, root) = compiled(source, name);
+    let _ = fs::remove_dir_all(&root);
+    result
+}
+
+/// The one compile of the goldens: the answer, the reports it published, its options and the
+/// throwaway root that carries them.
+fn compiled(source: &Path, name: &str) -> (Value, Vec<Value>, Options, PathBuf) {
+    let (options, root) = golden_options(source, name);
+    let reports = std::sync::Mutex::new(Vec::new());
+    let result = compile(&options, |report| {
+        reports.lock().expect("reports").push(report);
+    })
+    .unwrap_or_else(|e| panic!("{name}: compile: {e}"));
+    (
+        result,
+        reports.into_inner().expect("reports"),
+        options,
+        root,
+    )
 }
 
 /// Refusal code of a source the compiler does not accept, with the same options

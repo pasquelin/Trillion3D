@@ -1,8 +1,7 @@
 import { EngineError } from '../../../sdk-core/src/contracts/cache.ts'
 import {
-  channelMask,
   channelWords,
-  maskWords,
+  objectTypeWords,
   resolveCollision,
   type CollisionChannel,
   type CollisionOptions,
@@ -16,7 +15,7 @@ import {
   OVERLAP_WORDS,
 } from '../../../sdk-core/src/physics/layout.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { NO_INDEX } from '../../../math/src/constants.ts'
+import { ignoredWord, writeShapeExtents } from './raycast.ts'
 import type { PhysicsSession } from './session/session.ts'
 
 /** The words of the channel an overlap tests in when it names none: the channel, then the masks of what it blocks and overlaps (`OVERLAP_AT`). */
@@ -93,10 +92,7 @@ export async function physicsOverlap(
       : OVERLAP.anyByObject
     : OVERLAP[mode]
   words[OVERLAP_AT.shape] = SHAPE[shape.type]
-  if (shape.type === 'sphere') floats[OVERLAP_AT.extents] = shape.radius
-  else if (shape.type === 'box')
-    floats.set([shape.halfExtents.x, shape.halfExtents.y, shape.halfExtents.z], OVERLAP_AT.extents)
-  else floats.set([shape.halfHeight, shape.radius], OVERLAP_AT.extents)
+  writeShapeExtents(floats, OVERLAP_AT.extents, shape)
   floats.set([options.at.x, options.at.y, options.at.z], OVERLAP_AT.position)
   floats.set(options.rotation ?? [0, 0, 0, 1], OVERLAP_AT.rotation)
   // The query answers like a body of its own: the channel and responses are a body's.
@@ -106,12 +102,8 @@ export async function physicsOverlap(
       : DEFAULT_OVERLAP_CHANNEL,
     OVERLAP_AT.channel,
   )
-  words.set(
-    maskWords(options.objectTypes ? channelMask(options.objectTypes) : 0n),
-    OVERLAP_AT.objectTypes,
-  )
-  const ignored = options.ignore ? session.engineIdOf(options.ignore) : NO_INDEX
-  words[OVERLAP_AT.ignored] = ignored < 0 ? NO_INDEX : ignored
+  words.set(objectTypeWords(options.objectTypes), OVERLAP_AT.objectTypes)
+  words[OVERLAP_AT.ignored] = ignoredWord(session, options.ignore)
   const reply = await session.overlap(words)
   const hits: OverlapHit[] = []
   for (let i = 0; i < reply.length; i += OVERLAP_HIT_WORDS) {

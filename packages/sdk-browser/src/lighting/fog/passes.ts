@@ -48,6 +48,14 @@ export interface FogPassInputs {
   cloudShadow: CloudShadowSet
   /** The sky light's harmonics and uniform, or the stand-in that gives none. */
   sky: SkyLightReadSet
+  /** The translucency volume this image made, whose light the cells read in the place of the sky light's: its cells and the slices'
+   *  law as the surfaces read them (`published` of `translucencyGi/gpu.ts`), and the light itself (`fogView`); none where no volume is
+   *  made, the stand-in volume then. */
+  translucencyGi?: {
+    readonly grid: ArrayLike<number>
+    readonly z: ArrayLike<number>
+    readonly fogView: GPUTextureView
+  }
   /** The global distance field, where each sample of a cell finds the sky's visibility in it (`distanceFieldSkyOcclusion`
    *  gives it under its gate); none, the sky is wholly visible. */
   field?: GlobalFieldRead
@@ -137,6 +145,7 @@ function scatterEntries(context: FogPassContext, input: FogPassInputs, textures:
     cloudShadowMap1: input.cloudShadow.maps[1],
     skyHarmonics: { buffer: input.sky.harmonics },
     skyParams: { buffer: input.sky.params },
+    translucencyGi: input.translucencyGi?.fogView ?? context.emptyVolume,
     staticIn: textures.baked ?? resources.bakedStandIn,
   })
 }
@@ -239,6 +248,7 @@ function encodeScatter(
   next[21] = input.sky.params
   next[22] = textures.baked ?? null
   next[23] = input.localTiles
+  next[24] = input.translucencyGi?.fogView
   pass.setPipeline(pipeline)
   pass.setBindGroup(
     0,

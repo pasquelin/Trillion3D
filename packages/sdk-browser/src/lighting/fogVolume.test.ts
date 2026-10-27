@@ -182,6 +182,17 @@ test('the frame carries the fog-wide settings: the edge fade, the sky light’s 
   near([glow({ fogMatchesVolume: true }) / glow({})], [FOG_MATCH_GLOW_SCALE], 'unit', 1e-3)
 })
 
+test('the frame carries the translucency volume the cells read: its cells and the slices’ law, zero where the image made none', () => {
+  const at = FOG_VOLUME_FRAME_AT
+  const words = (more: Parameters<typeof image>[3]) =>
+    writeFogVolumeFrame(newFogVolumeFrame(), image(camera([1, 2, 3]), true, {}, more))
+  const made = words({ translucencyGi: { grid: [44, 25, 24, 1], z: [1, 1, 4, 0] } })
+  assert.deepEqual(Array.from(made.subarray(at.giGrid, at.giGrid + 4)), [44, 25, 24, 1])
+  assert.deepEqual(Array.from(made.subarray(at.giZ, at.giZ + 4)), [1, 1, 4, 0])
+  const none = words({})
+  assert.deepEqual(Array.from(none.subarray(at.giGrid, at.giGrid + 8)), Array(8).fill(0))
+})
+
 test('the view block’s switches: each lane zero at the defaults, set by the settings, the observer by an orthographic view’s height', () => {
   const slot = (block: Float32Array, s: number) => Array.from(block.subarray(s * 4, s * 4 + 4))
   const block = (settings: Parameters<typeof image>[2], look = LOOK) =>

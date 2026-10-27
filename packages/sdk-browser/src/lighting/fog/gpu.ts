@@ -23,7 +23,14 @@ export interface FogVolumeInputs
   extends
     Omit<
       FogVolumeImage,
-      'previous' | 'grid' | 'resource' | 'rebuildSamples' | 'skipHidden' | 'voxels' | 'staticBuilt'
+      | 'previous'
+      | 'grid'
+      | 'resource'
+      | 'rebuildSamples'
+      | 'skipHidden'
+      | 'voxels'
+      | 'staticBuilt'
+      | 'translucencyGi'
     >,
     FogPassInputs {
   /** The objects of the volume material domain, none where the scene holds none. */
@@ -104,6 +111,7 @@ function writeFrame(
   image.voxels = voxels
   image.staticLight = input.staticLight
   image.staticBuilt = staticBuilt
+  image.translucencyGi = input.translucencyGi
   image.previous = kept ? previous : undefined
   writeFogVolumeFrame(resources.frame.words.f, image as FogVolumeImage)
   resources.frame.send()
@@ -178,10 +186,12 @@ function newParts(device: GPUDevice, resources: FogVolumeResources, none: FogRea
       voxels: false,
       staticLight: newFogStaticLight(),
       staticBuilt: false,
+      translucencyGi: undefined,
       sunRank: -1,
       lightCells: [0, 0],
       frameIndex: 0,
       preExposure: 1,
+      exposure: 1,
     },
     context: {
       device,

@@ -34,7 +34,7 @@ export type ToPhysics =
    *  when the page's clock stands `at` steps from its start. */
   | { type: 'water'; water: WaterSpec | null; at: number }
   /** Scene queries (`CAST_WORDS` each), answered against the last step by a `cast` reply. */
-  | { type: 'cast'; id: number; queries: Uint32Array }
+  | { type: 'cast'; id: number; query: Uint32Array }
   /** An overlap query (`OVERLAP_WORDS`), answered against the last step by an `overlap` reply. */
   | { type: 'overlap'; id: number; query: Uint32Array }
   /** The world's character: its settings (`null` removes it), the downward pull the world's

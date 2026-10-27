@@ -52,6 +52,7 @@ const DECLARATIONS = {
   voxelEmitOut: `@group(0) @binding(${b.voxelEmitOut}) var fogVoxelEmitOut:texture_storage_3d<rgba16float,write>;`,
   voxelIn: `@group(0) @binding(${b.voxelIn}) var fogVoxelIn:texture_3d<f32>;`,
   voxelEmitIn: `@group(0) @binding(${b.voxelEmitIn}) var fogVoxelEmitIn:texture_3d<f32>;`,
+  translucencyGi: `@group(0) @binding(${b.translucencyGi}) var fogGiVolume:texture_3d<f32>;`,
   staticOut: `@group(0) @binding(${b.staticOut}) var fogStaticOut:texture_storage_3d<${FOG_STATIC_FORMAT},write>;`,
   staticIn: `@group(0) @binding(${b.staticIn}) var fogStaticIn:texture_storage_3d<${FOG_STATIC_FORMAT},read>;`,
 } as const

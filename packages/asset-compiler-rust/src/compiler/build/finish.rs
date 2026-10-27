@@ -20,7 +20,7 @@ pub(super) fn finish_job(
     (bin, offset, threads, estimated_working_bytes, waited): Sizes<'_>,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Value> {
-    let (scene_plugin, coplanar_report, texture_preview_report) = reports;
+    let (scene_plugin, coplanar_report, texture_preview_report, hair_strands) = reports;
     let Staged {
         voxels,
         distance_fields,
@@ -81,6 +81,10 @@ pub(super) fn finish_job(
     if let Some(tracing) = ray_tracing {
         result["rayTracing"] = tracing;
     }
+    // Named only by a scene whose nodes carry curves.
+    if let Some(strands) = hair_strands {
+        result["hairStrands"] = strands;
+    }
     // Named only by a job that baked a volumetric lightmap.
     if let Some(lightmap) = volumetric_lightmap {
         result["volumetricLightmap"] = lightmap;
@@ -112,8 +116,8 @@ pub(super) fn finish_job(
 }
 
 /// What the stages report beside their products: the scene plugin's provenance, the coplanar and
-/// the texture preview reports.
-type Reports = (Option<Value>, Value, Value);
+/// the texture preview reports, and the hair strands' section.
+type Reports = (Option<Value>, Value, Value, Option<Value>);
 
 /// What the job's metrics weigh: the source binary, the geometry written, the workers, the
 /// admitted working set and the primitives the room made wait (`budget/admission.rs`).

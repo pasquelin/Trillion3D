@@ -377,7 +377,9 @@ triangles (naming the model and the triangle's glTF `material`), a body on its s
 and `radius`) sweeps that shape; `maxDistance` defaults to `camera.far`; `ignore` names a body to
 pass through, the asker's own; `channel` (`{ objectType, responses }`, the visibility channel with every
 channel blocked by default) makes it stop at what blocks that channel and pass through what overlaps or
-ignores it (a trigger, the pawn). Without `exact` or `shape`, `world.raycast` asks the engine's GPU
+ignores it (a trigger, the pawn); `objectTypes: [...]` makes it stop at the bodies of those object types
+instead, whatever they answer (`{ exact: true, objectTypes: ['worldStatic', 'worldDynamic'] }` meets the
+level and the movable bodies, a trigger included). Without `exact` or `shape`, `world.raycast` asks the engine's GPU
 ray query, on the triangles the world draws ([Picking](SDK.md#picking-moving-and-saving)). With
 physics off, an exact raycast throws `PHYSICS_OFF`.
 

@@ -94,5 +94,6 @@ pub(super) fn pack_world(
         table,
         dag: dag_bytes,
         report,
+        ray_tracing: None,
     })
 }

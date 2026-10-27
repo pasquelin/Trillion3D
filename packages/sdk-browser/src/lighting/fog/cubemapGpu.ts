@@ -1,5 +1,5 @@
-import { HALF_MAX } from '../../../../math/src/constants.ts'
 import { toHalf } from '../../../../math/src/float/half.ts'
+import { rgbToHalfRgba } from '../../gpu/core/halfTexels.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import {
   cubemapMipCount,
@@ -11,14 +11,8 @@ import {
 const HALF_ONE = toHalf(1)
 
 /** The half floats of the `texels` RGB texels of `rgb`, a one in the alpha channel. */
-function rgba16(rgb: ArrayLike<number>, from: number, texels: number) {
-  const out = new Uint16Array(texels * 4)
-  for (let i = 0; i < texels; i++) {
-    for (let c = 0; c < 3; c++) out[i * 4 + c] = toHalf(Math.min(rgb[from + i * 3 + c], HALF_MAX))
-    out[i * 4 + 3] = HALF_ONE
-  }
-  return out
-}
+const rgba16 = (rgb: ArrayLike<number>, from: number, texels: number) =>
+  rgbToHalfRgba(new Uint16Array(texels * 4), rgb, from, texels)
 
 /**
  * THE FOG'S CUBEMAP AS A TEXTURE: a cube of half floats with its whole chain of levels, of which two

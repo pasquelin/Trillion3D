@@ -48,7 +48,6 @@ const TAA_PASSES: ReadonlyArray<readonly [TaaPass, string]> = [
   ['decimateHistory', 'temporal decimate history'],
   ['detectThinGeometry', 'temporal detect thin geometry'],
   ['relaxThinGeometry', 'temporal thin geometry weight relaxation'],
-  ['flickerMeasure', 'temporal flicker measure'],
   ['rejectShading', 'temporal reject shading'],
   ['spatialAntiAliasing', 'temporal spatial anti-aliasing'],
   ['updateHistory', 'temporal update history'],

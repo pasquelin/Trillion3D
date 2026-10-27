@@ -13,7 +13,7 @@ use crate::support::le::words;
 use crate::Result;
 
 /// A parameter's scope, read from its metadata, as the spread it names.
-fn scope_of(meta: &str) -> Spread {
+pub(super) fn scope_of(meta: &str) -> Spread {
     match meta_value(meta, "geoScope") {
         Some("fvr") => Spread::FaceVarying,
         Some("uni") => Spread::Uniform,
@@ -24,31 +24,31 @@ fn scope_of(meta: &str) -> Spread {
 
 /// A geometry parameter ready to be read corner by corner.
 pub(super) struct GeomParam {
-    values: Vec<f32>,
+    param: Param<f32>,
     width: usize,
-    indices: Option<Vec<u32>>,
-    scope: Spread,
 }
 
 impl GeomParam {
     /// The rank of this corner's value: the one rule of `Spread::slot`. `corner` is its rank in
     /// the face-index table, `vertex` the vertex it designates, `face` the face it belongs to.
     pub(super) fn slot(&self, corner: usize, vertex: usize, face: usize) -> Option<u32> {
-        self.scope
-            .slot(self.indices.as_deref(), corner, face, vertex)
+        let param = &self.param;
+        param
+            .scope
+            .slot(param.indices.as_deref(), corner, face, vertex)
     }
 
     /// The value at this rank, or `None` if the file places it outside what it wrote.
     pub(super) fn value(&self, slot: u32) -> Option<&[f32]> {
         let start = usize::try_from(slot).ok()?.checked_mul(self.width)?;
-        self.values.get(start..start.checked_add(self.width)?)
+        self.param.values.get(start..start.checked_add(self.width)?)
     }
 
     /// Does the parameter cover every corner of this mesh? A parameter that overruns, for lack of
     /// a complete sample or coherent indices, is dropped whole rather than filled in.
     fn covers(&self, corners: &[i32], faces: usize) -> bool {
-        let count = self.values.len() / self.width;
-        let domain = match self.scope {
+        let count = self.param.values.len() / self.width;
+        let domain = match self.param.scope {
             Spread::Point => corners
                 .iter()
                 .copied()
@@ -58,7 +58,7 @@ impl GeomParam {
             Spread::Uniform => faces,
             Spread::Constant => 1,
         };
-        match &self.indices {
+        match &self.param.indices {
             Some(indices) => {
                 indices.len() >= domain
                     && indices
@@ -127,8 +127,12 @@ impl Geometry {
         width: usize,
         dropped: &'static str,
     ) -> Result<Option<GeomParam>> {
-        let Some(found) = read_param(archive, geom, name, width)? else {
+        let Some(found) = read_param(archive, geom, name, width as u8, single_floats)? else {
             return Ok(None);
+        };
+        let found = GeomParam {
+            param: found,
+            width,
         };
         if !found.covers(&self.corners, self.counts.len()) {
             self.dropped.push(dropped);
@@ -138,37 +142,71 @@ impl Geometry {
     }
 }
 
-/// The named parameter, whether written as direct values or as indexed values.
-fn read_param(
+/// A geometry parameter as the file writes it: its values, `extent` numbers each, the index table of
+/// an indexed one, and the scope it declares.
+pub(super) struct Param<T> {
+    pub(super) values: Vec<T>,
+    pub(super) indices: Option<Vec<u32>>,
+    pub(super) scope: Spread,
+    /// Whether the file names the scope `vertex`, which `scope` folds with `varying` and the scopes
+    /// it does not know.
+    pub(super) vertex: bool,
+}
+
+impl<T: Clone> Param<T> {
+    /// The values behind the index table, `extent` numbers each: those of the parameter itself when
+    /// it is not indexed. `None` when an index leaves the values.
+    pub(super) fn expanded(self, extent: usize) -> Option<Vec<T>> {
+        let Some(indices) = self.indices else {
+            return Some(self.values);
+        };
+        let mut out = Vec::with_capacity(indices.len() * extent);
+        for slot in indices {
+            let start = usize::try_from(slot).ok()?.checked_mul(extent)?;
+            out.extend_from_slice(self.values.get(start..start.checked_add(extent)?)?);
+        }
+        Some(out)
+    }
+}
+
+/// The values of `bytes`, written as the data type `pod`, or `None` for a type the reader does not
+/// take: what a parameter's decoder answers.
+pub(super) type Decode<T> = fn(u32, &[u8]) -> Option<Vec<T>>;
+
+/// The values of single-precision floats, and of nothing else.
+pub(super) fn single_floats(pod: u32, bytes: &[u8]) -> Option<Vec<f32>> {
+    (pod == POD_F32).then(|| words(bytes, f32::from_le_bytes).collect())
+}
+
+/// The named parameter of `extent` numbers each, whether written as direct values or as indexed
+/// values, decoded by `decode`.
+pub(super) fn read_param<T>(
     archive: &Archive,
-    geom: &Properties,
+    props: &Properties,
     name: &str,
-    width: usize,
-) -> Result<Option<GeomParam>> {
-    let Some(header) = geom.find(name) else {
+    extent: u8,
+    decode: Decode<T>,
+) -> Result<Option<Param<T>>> {
+    let Some(header) = props.find(name) else {
         return Ok(None);
     };
-    let scope = scope_of(&header.meta);
-    if let Some(compound) = geom.compound(archive, name)? {
-        let Some(values) = compound.sample(archive, ".vals", POD_F32, Some(width as u8))? else {
-            return Ok(None);
-        };
-        let indices = compound
-            .sample(archive, ".indices", POD_U32, Some(1))?
-            .map(|bytes| words(bytes, u32::from_le_bytes).collect());
-        return Ok(Some(GeomParam {
-            values: words(values, f32::from_le_bytes).collect(),
-            width,
-            indices,
-            scope,
-        }));
-    }
-    Ok(geom
-        .sample(archive, name, POD_F32, Some(width as u8))?
-        .map(|values| GeomParam {
-            values: words(values, f32::from_le_bytes).collect(),
-            width,
-            indices: None,
-            scope,
-        }))
+    let (scope, vertex) = (
+        scope_of(&header.meta),
+        meta_value(&header.meta, "geoScope") == Some("vtx"),
+    );
+    let (values, indices) = match props.compound(archive, name)? {
+        Some(compound) => (
+            compound.decoded(archive, ".vals", extent, decode)?,
+            compound
+                .sample(archive, ".indices", POD_U32, Some(1))?
+                .map(|bytes| words(bytes, u32::from_le_bytes).collect()),
+        ),
+        None => (props.decoded(archive, name, extent, decode)?, None),
+    };
+    Ok(values.map(|values| Param {
+        values,
+        indices,
+        scope,
+        vertex,
+    }))
 }

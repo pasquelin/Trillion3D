@@ -15,7 +15,8 @@
 //! **What it yields**: the `Xform` and `Scope` hierarchy, triangulated polygonal `Mesh`, their
 //! normals and `primvars:st`, `GeomSubset` of the `materialBind` family as distinct primitives,
 //! instances (one glTF mesh per prototype), `UsdPreviewSurface` materials and their
-//! `UsdUVTexture` textures, `defaultPrim`, `metersPerUnit` and `upAxis`.
+//! `UsdUVTexture` textures, `defaultPrim`, `metersPerUnit` and `upAxis`, and the strands of a groom
+//! (`BasisCurves`, `curves.rs`), which travel in the scene as the arrays of their node.
 //! **What it counts in the report without yielding**: see the `usd-*` constants of `world.rs`.
 use super::*;
 use crate::plugins::scene::convert::SceneTables;
@@ -29,6 +30,7 @@ use std::{
 };
 
 mod convert;
+mod curves;
 mod extras;
 mod layer;
 mod light;
@@ -65,7 +67,7 @@ impl Plugin for Usd {
     /// The version names the reader and the conversion generation: changing it invalidates
     /// caches, so every already compiled USD scene is reread.
     fn version(&self) -> &'static str {
-        "usd-openusd-0.7.0-gltf-9"
+        "usd-openusd-0.7.0-gltf-10"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["usd", "usda", "usdc"]

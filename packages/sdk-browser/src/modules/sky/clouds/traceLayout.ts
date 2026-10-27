@@ -68,8 +68,9 @@ export const CLOUD_TRACE_BINDING = {
  *  - `empty`: the empty-space table's slice depth and its whole depth in centimetres, and the
  *    slices its start is moved by;
  *  - `ground`: the ground's albedo the cloud bounces light from;
- *  - `local`: the samples of a lamp's shadow ray, and 1 when the clouds are a hole in the alpha (their
- *    light is left out, their coverage kept: `alphaHole`);
+ *  - `local`: the samples of a lamp's shadow ray, 1 when the clouds are a hole in the alpha (their
+ *    light is left out, their coverage kept: `alphaHole`), and the exposure of the image, which a lamp's blend with it is
+ *    taken at (`lightStrength`);
  *  - `haze`: where the haze of the Rayleigh scattering alone starts on the cloud (kilometres) and the
  *    inverse of the distance it fades in over, then the same for the Mie scattering alone: the two
  *    volumes are read apart when the starts are not both 0. */
@@ -125,6 +126,8 @@ export interface CloudTraceImage {
   /** The pre-exposure the image's light is written multiplied by (`PreExposure.now`): the traced
    *  luminance leaves multiplied by it. 1 when absent, as in a capture. */
   preExposure?: number
+  /** The exposure of the image (`PreExposure.exposure`): a lamp that follows it is lit at it (`lightStrength`). 1 when absent. */
+  exposure?: number
 }
 
 /** The words of `out` as unsigned integers, made once for each array written. */

@@ -30,8 +30,11 @@ pub(crate) const NORMALS_DROPPED: &str = "normals-dropped";
 pub(crate) const HIERARCHY_TOO_DEEP: &str = "hierarchy-too-deep";
 /// A block that declares more than the allocation ceiling admits.
 pub(crate) const SIZE_UNSUPPORTED: &str = "size-unsupported";
-/// Curves: no surface to draw.
+/// Curves of a kind the strands of a groom are not read from: no surface to draw.
 pub(crate) const CURVES_UNSUPPORTED: &str = "curves-unsupported";
+/// Curves whose point counts pass the points the object carries: the curves from there on are left
+/// out.
+pub(crate) const CURVES_TRUNCATED: &str = "curves-truncated";
 /// A light with no punctual equivalent.
 pub(crate) const LIGHT_UNSUPPORTED: &str = "light-unsupported";
 /// A texture read from a channel glTF does not carry there.

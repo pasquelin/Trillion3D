@@ -24,9 +24,8 @@ import { SKY_CUBE_WGSL } from './cubeWgsl.ts'
  *
  * What a program calls:
  * - `skyLightReflection(r, roughness)`: the filtered cube along the reflection vector `r` of the
- *   scene, at the mip the roughness asks (`roughnessMip`, trilinear), times the light's colour; with
- *   a blend (`SkyLightCubeUse.blend`) above 0, mixed with the blend destination's cube by that
- *   fraction (the destination multiplied by the colour);
+ *   scene, at the mip the roughness asks (`roughnessMip`, trilinear), times the light's colour: the
+ *   cube alone, never mixed with a blend's destination cube (the diffuse read mixes the harmonics);
  * - `skyLightRay(d)`: the same along a ray `d` that leaves the scene, of roughness 0;
  * - `skyLightDiffuse(n)`: the diffuse light of a surface of normal `n` of the scene, the harmonics
  *   (`skyHarmonicsIrradiance`: three dot products against the first band's vectors, three against
@@ -129,12 +128,7 @@ fn skyLightReflection(r:vec3f,roughness:f32)->vec3f{
  let d=sceneToCube(r);
  let mip=roughnessMip(roughness,skyLight.levels.y);
  let layer=i32(skyLight.levels.z);
- var sky=textureSampleLevel(skyLightCube,skyLightSampler,d,layer,mip).rgb*skyLight.colour.rgb;
- if(skyLight.levels.w>0.0){
-  let destination=textureSampleLevel(skyLightCube,skyLightSampler,d,layer+1,mip).rgb*skyLight.colour.rgb;
-  sky=mix(sky,destination,skyLight.levels.w);
- }
- return sky;
+ return textureSampleLevel(skyLightCube,skyLightSampler,d,layer,mip).rgb*skyLight.colour.rgb;
 }
 fn skyLightRay(d:vec3f)->vec3f{return skyLightReflection(d,0.0);}
 `,

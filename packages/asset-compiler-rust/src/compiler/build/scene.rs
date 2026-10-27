@@ -18,6 +18,8 @@ pub(super) struct Job<'a> {
     pub picked: &'a Picked,
     pub images: &'a Images,
     pub mesh_builds: &'a [MeshBuild],
+    /// The grooms the scene's nodes carried, taken out of it (`hair_strands::take`).
+    pub strands: &'a [crate::hair_strands::Carried],
 }
 
 /// The nodes the job compiles, and the meshes they place.
@@ -63,17 +65,30 @@ pub(super) fn load_scene(o: &Options, scene: &PreparedScene) -> Result<RuntimeSo
 }
 
 /// The identical meshes of `g` shared, a hierarchy that loops refused before any publication (the
-/// world walk would never see it), and the nodes the job compiles picked.
-pub(super) fn pick(o: &Options, g: &mut Value, bin: &[u8]) -> Result<Picked> {
+/// world walk would never see it), and the nodes the job compiles picked. A scene whose only
+/// geometry is the `strands` it shows compiles no mesh; one that shows neither is refused as ever.
+pub(super) fn pick(
+    o: &Options,
+    g: &mut Value,
+    bin: &[u8],
+    strands: &[crate::hair_strands::Carried],
+) -> Result<Picked> {
     let shared_nodes = mesh_share::share_identical_meshes(g, bin);
     nodes::check_acyclic(g)?;
     let (scene_nodes, hidden) = nodes::scene_nodes(g)?;
+    // A scene that shows a groom needs no mesh: the selection finds none, and keeps none.
+    let grooms = strands
+        .iter()
+        .any(|one| one.is_shown(&scene_nodes, &hidden));
     let select::NodeSelection {
         chosen,
         selected_triangles,
         meshes,
         mesh_map,
-    } = select::select_nodes(o, g, &scene_nodes)?;
+    } = match select::select_nodes(o, g, &scene_nodes) {
+        Err(refusal) if grooms && refusal.code == "EMPTY_SLICE" => select::NodeSelection::default(),
+        selected => selected?,
+    };
     // The fallback meshes an instanced layer without a cluster DAG stands its objects on join the
     // meshes compiled, after the others (`source/fallback.rs`).
     let mut meshes = meshes;
@@ -110,3 +125,6 @@ pub(super) fn read_images(
         shas,
     })
 }
+
+#[cfg(test)]
+mod tests;

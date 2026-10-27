@@ -148,7 +148,7 @@ pub(crate) fn build_dag_primitive(
     )?;
     laps.lap("readMs");
     // The cut is taken of the clusters as the trim left them: the ranks the pages carry.
-    let ray_tracing = primitive_tree(pos, &built.clusters, inputs.traced);
+    let ray_tracing = primitive_tree(pos, &built.clusters, inputs.traced)?;
     laps.lap("rayTracingMs");
     let to_page = (read.grid, inputs.root_pages, inputs.scale, own_collider);
     let paged = page_dag(

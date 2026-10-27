@@ -93,9 +93,7 @@ pub(super) fn node_table(g: &Value, parents: &AssemblyParents) -> Result<Vec<Val
 
 /// Writes, on each of `nodes` that draws a mesh, what its settings say of it that the runtime reads
 /// from the node table: the distances it is drawn at (`"drawDistance"`, `DrawDistance`), whether a
-/// view's primed depth draws it (`"farField"`), whether it casts far shadows
-/// (`"castFarShadow"`) and whether a sun's far-shadow test reaches it (`"farShadowTest"`), each
-/// left out when it names none. The settings are those of the node's rank in `g` (`"sourceNode"`), resolved once for each node the core keeps
+/// view's primed depth draws it (`"farField"`), each left out when it names none. The settings are those of the node's rank in `g` (`"sourceNode"`), resolved once for each node the core keeps
 /// — a node that moved to a cell resolved them for its row (`partition/candidates.rs`).
 pub(super) fn name_object_settings(
     nodes: &mut [Value],
@@ -114,12 +112,6 @@ pub(super) fn name_object_settings(
         }
         if setting.far_field {
             entry["farField"] = json!(true);
-        }
-        if setting.cast_far_shadow {
-            entry["castFarShadow"] = json!(true);
-        }
-        if let Some(test) = setting.far_shadow_test {
-            entry["farShadowTest"] = json!(test);
         }
     }
     Ok(())

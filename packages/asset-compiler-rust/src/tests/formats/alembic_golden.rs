@@ -67,17 +67,18 @@ fn an_ogawa_file_routes_to_the_alembic_plugin() {
     fs::remove_dir_all(&dir).expect("cleanup");
 }
 
-// Behaviour 30: what the driver does not convert, it counts — curves, subdivision
+// Behaviour 30: what the driver does not convert, it counts — subdivision
 // rendered as flat polygons, animation of which only the first sample is read,
 // missing normals — and an `Xform` that does not inherit from its parent becomes
-// a scene root, with its own matrix.
+// a scene root, with its own matrix. A curves object that holds no curve brings
+// no node and counts nothing.
 #[test]
 fn what_the_plugin_leaves_aside_is_counted_and_a_detached_xform_becomes_a_root() {
     let run = compile_golden_source(&golden_dir("alembic/limits").join("cases.abc"), "alembic");
     let (manifest, gltf) = run.prepared("alembic");
     assert_eq!(
         manifest["unsupported"],
-        json!({"alembic-animation-ignored": 1, "curves-unsupported": 1,
+        json!({"alembic-animation-ignored": 1,
                "alembic-normals-missing": 3, "alembic-subd-as-polygons": 1,
                "alembic-transform-not-inherited": 1})
     );

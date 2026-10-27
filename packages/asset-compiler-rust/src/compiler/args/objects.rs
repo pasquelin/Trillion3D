@@ -4,9 +4,7 @@
 //! clip baked into the scene's animation banks (`SkinnedInstance`, `../tables/motion/bank.rs`),
 //! the distances it is drawn at (`DrawDistance`, `draw_distance.rs`), and the name of the
 //! streaming grid it streams on (`RUNTIME_GRID_SETTING`, `PartitionGrid`), whether a view's
-//! primed depth draws it (`FAR_FIELD_SETTING`), whether it casts far shadows
-//! (`CAST_FAR_SHADOW_SETTING`) and whether a sun's far-shadow test reaches it
-//! (`FAR_SHADOW_TEST_SETTING`, none when no source names it: the view's rule decides).
+//! primed depth draws it (`FAR_FIELD_SETTING`).
 //! For each setting of a node, the first that names it:
 //! 1. the first rule of `objectSettings.objects` whose match names the node, as `meshBuild` names
 //!    its objects;
@@ -38,9 +36,7 @@ mod skinned;
 /// partition's main grid (`SPATIALLY_LOADED_SETTING`), the instance it is when a skinned one
 /// is instanced (`SKINNED_INSTANCE_SETTING`), none when it is not, and the name of the streaming
 /// grid it streams on (`RUNTIME_GRID_SETTING`), none for the first grid, whether a view's
-/// primed depth draws it (`FAR_FIELD_SETTING`), whether it casts far shadows
-/// (`CAST_FAR_SHADOW_SETTING`) and whether a sun's far-shadow test reaches it
-/// (`FAR_SHADOW_TEST_SETTING`), none when no source names it.
+/// primed depth draws it (`FAR_FIELD_SETTING`).
 #[derive(Clone, Debug, PartialEq)]
 pub(crate) struct ObjectSetting {
     pub spatially_loaded: bool,
@@ -48,8 +44,6 @@ pub(crate) struct ObjectSetting {
     pub draw_distance: Option<DrawDistance>,
     pub runtime_grid: Option<String>,
     pub far_field: bool,
-    pub cast_far_shadow: bool,
-    pub far_shadow_test: Option<bool>,
 }
 
 /// The settings one source names, each none where it names none; `skinned` names its instance,
@@ -61,8 +55,6 @@ struct Named {
     draw_distance: Option<Option<DrawDistance>>,
     runtime_grid: Option<String>,
     far_field: Option<bool>,
-    cast_far_shadow: Option<bool>,
-    far_shadow_test: Option<bool>,
 }
 
 impl Named {
@@ -78,8 +70,6 @@ impl Named {
             .map(|v| DrawDistance::read(v, &format!("{what}{DRAW_DISTANCE_SETTING}")))
             .transpose()?;
         let far_field = read.boolean(FAR_FIELD_SETTING)?;
-        let cast_far_shadow = read.boolean(CAST_FAR_SHADOW_SETTING)?;
-        let far_shadow_test = read.boolean(FAR_SHADOW_TEST_SETTING)?;
         let runtime_grid = present(map.get(RUNTIME_GRID_SETTING))
             .map(|v| match grid_name_of(v) {
                 Some(name) => Ok(name.to_string()),
@@ -95,8 +85,6 @@ impl Named {
             draw_distance,
             runtime_grid,
             far_field,
-            cast_far_shadow,
-            far_shadow_test,
         })
     }
 
@@ -108,8 +96,6 @@ impl Named {
             draw_distance: self.draw_distance.or(lower.draw_distance),
             runtime_grid: self.runtime_grid.or_else(|| lower.runtime_grid.clone()),
             far_field: self.far_field.or(lower.far_field),
-            cast_far_shadow: self.cast_far_shadow.or(lower.cast_far_shadow),
-            far_shadow_test: self.far_shadow_test.or(lower.far_shadow_test),
         }
     }
 
@@ -121,8 +107,6 @@ impl Named {
             draw_distance: self.draw_distance.flatten(),
             runtime_grid: self.runtime_grid,
             far_field: self.far_field.unwrap_or(DEFAULT_FAR_FIELD),
-            cast_far_shadow: self.cast_far_shadow.unwrap_or(DEFAULT_CAST_FAR_SHADOW),
-            far_shadow_test: self.far_shadow_test,
         }
     }
 }
@@ -185,12 +169,7 @@ mod tests {
     // no boolean is refused by name, saying what it takes and what it got.
     #[test]
     fn a_switch_that_is_no_boolean_is_refused_by_name_with_what_it_takes() {
-        for key in [
-            SPATIALLY_LOADED_SETTING,
-            FAR_FIELD_SETTING,
-            CAST_FAR_SHADOW_SETTING,
-            FAR_SHADOW_TEST_SETTING,
-        ] {
+        for key in [SPATIALLY_LOADED_SETTING, FAR_FIELD_SETTING] {
             let refusal = ObjectSettings::read(Some(&json!({ key: "yes" }))).expect_err(key);
             assert_eq!(
                 refusal,

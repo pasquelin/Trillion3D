@@ -44,13 +44,15 @@ fn probeBottomCell(level:u32,P:vec3f)->vec3i{
 /** The fractions of \`P\` between the eight probes round it: the weights of their trilinear interpolation. */
 fn probeFraction(level:u32,P:vec3f)->vec3f{return fract(probeCornerFloat(level,P));}
 /** The share a level has of the answer at \`P\`: one a fade inside the level's lowest and highest probes, falling to nothing at them, where the
- *  level no longer holds all eight probes round the point. The one rule by which a level is picked to read a point and to mark it. */
-const LEVEL_INV_FADE:f32=${wgslF32(SCREEN_PROBE_CONSTANTS.radianceInvLevelFadeSize)};
-fn levelEdgeFade(level:u32,P:vec3f)->f32{
+ *  level no longer holds all eight probes round the point, over \`1 / invFade\` probes. The one rule by which a level is picked to read a point and to mark it. */
+fn levelEdgeFadeOver(level:u32,P:vec3f,invFade:f32)->f32{
  let among=probeCornerFloat(level,P);
- let inside=saturate(min(among,vec3f(f32(bounce.counts.x)-1.0)-among)*LEVEL_INV_FADE);
+ let inside=saturate(min(among,vec3f(f32(bounce.counts.x)-1.0)-among)*invFade);
  return min(inside.x,min(inside.y,inside.z));
 }
+const LEVEL_INV_FADE:f32=${wgslF32(SCREEN_PROBE_CONSTANTS.radianceInvLevelFadeSize)};
+/** A level's share of the answer at \`P\`, its edge fading over the cache's own size. */
+fn levelEdgeFade(level:u32,P:vec3f)->f32{return levelEdgeFadeOver(level,P,LEVEL_INV_FADE);}
 /** Positive remainder of a cell modulo the cube side: the level's toroidal storage. */
 fn probeWrap(cell:vec3i)->vec3u{
  let side=i32(bounce.counts.x);
@@ -76,10 +78,11 @@ fn cellEntry(level:u32,wrapped:vec3u)->u32{
 }
 /**
  * Where a level reads a surface at \`P\`, the point itself, never pushed off its surface: the first of the eight probes around it (\`corner\`)
- * and its share of the answer (\`fade\`, \`levelEdgeFade\`) — a partial answer would make a seam. The one rule by which a surface point marks the cells that hold its light (\`poolMarkWgsl.ts\`).
+ * and its share of the answer (\`fade\`, \`levelEdgeFade\`, over the fade a caller names where it has one of its own: \`bounceReadOver\`) — a partial answer would make a seam. The one rule by which a surface point marks the cells that hold its light (\`poolMarkWgsl.ts\`).
  */
 struct BounceRead{corner:vec3i,fade:f32,}
-fn bounceRead(level:u32,P:vec3f)->BounceRead{return BounceRead(probeBottomCell(level,P),levelEdgeFade(level,P));}`,
+fn bounceReadOver(level:u32,P:vec3f,invFade:f32)->BounceRead{return BounceRead(probeBottomCell(level,P),levelEdgeFadeOver(level,P,invFade));}
+fn bounceRead(level:u32,P:vec3f)->BounceRead{return bounceReadOver(level,P,LEVEL_INV_FADE);}`,
 )
 
 /**

@@ -41,6 +41,7 @@ function encodePass(
   const queue = probeQueueShapeOf(work.probesPerFrame, atlasDownsample, full, cascades.probes)
   work.queueProbes = queue.probes
   pool.clear(encoder)
+  pool.markTranslucent(encoder, work.translucent, surface)
   const pass = encoder.beginComputePass({ label: BOUNCE_PASS })
   pool.dispatch(pass, work, surface)
   pass.end()
@@ -58,6 +59,7 @@ function newWork(): PoolWork {
     interpolateDownsample: 1,
     downsampleSq: 0,
     supersampleSq: 0,
+    translucent: undefined,
   }
 }
 
@@ -69,6 +71,7 @@ function fillWork(work: PoolWork, cache: ScreenProbeSettings['cache']) {
   work.interpolateDownsample = cache.interpolateDownsample
   work.downsampleSq = cache.downsampleSq
   work.supersampleSq = cache.supersampleSq
+  work.translucent = cache.translucentMark
 }
 
 /**

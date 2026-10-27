@@ -130,7 +130,8 @@ export function writeSampleOffsets(
  * were made for —, the numbers that map a depth to a slice and a device depth to a view depth, how
  * the history is read (`previous`, `history`: the previous image's view against this one's, and
  * where its cells end) and blended, the lights it takes, the tuning, the medium, the baked light it takes (`FogStaticLight`), the pre-exposure its light is
- * written multiplied by — with the ratio of it to the history's and its reciprocal — and the
+ * written multiplied by — with the ratio of it to the history's, its reciprocal and the exposure of the image before, which the lights' blend with its inverse is taken at —, the translucency volume
+ * the cells read (its slices in `giGrid.z`, whether one is made in `giGrid.w`, the slices' law in `giZ`) and the
  * offsets of the samples. Every field is written by `writeFogVolumeFrame`; what a surface reads of it is the view
  * block (`viewSlots.ts`).
  */
@@ -157,6 +158,8 @@ export const FOG_VOLUME_FRAME = fieldLayout('FogVolumeFrame', [
   ['glow', 'vec4f'],
   ['staticLight', 'vec4f'],
   ['exposure', 'vec4f'],
+  ['giGrid', 'vec4f'],
+  ['giZ', 'vec4f'],
   ['offsets', vec4Array(MAX_REBUILD_SAMPLES)],
   ['frame', 'vec4u'],
 ] as const)

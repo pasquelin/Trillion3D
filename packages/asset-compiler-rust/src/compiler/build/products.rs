@@ -26,8 +26,8 @@ pub(super) struct Staged {
     /// The manifest's `meshCards` section, its file among the products; none for a scene whose
     /// meshes keep no card (`maxMeshCards`).
     pub mesh_cards: Option<Value>,
-    /// The manifest's `rayTracing` section, its file among the products; none for a scene none of
-    /// whose primitives has a triangle.
+    /// The manifest's `rayTracing` section, its file among the products; none when neither a
+    /// primitive nor an HLOD actor of the scene has a triangle.
     pub ray_tracing: Option<Value>,
     /// The manifest's `volumetricLightmap` section, its file among the products; none for a job
     /// that asks for no bake (`lightmapBake`).
@@ -187,8 +187,12 @@ pub(super) fn stage_products(
     let (cards_file, mesh_cards) = pool
         .install(|| write_mesh_cards(&geometry.cards, directory, progress))?
         .unzip();
-    let (tracing_file, ray_tracing) =
-        write_ray_tracing(inputs.ray_tracing, directory, progress)?.unzip();
+    let (tracing_file, ray_tracing) = write_ray_tracing(
+        (inputs.ray_tracing, world.ray_tracing.as_ref()),
+        directory,
+        progress,
+    )?
+    .unzip();
     let source_gltf = match tables.described {
         Some(scene) => product(directory, "source.gltf", &serde_json::to_vec(&scene)?)?,
         None => source_gltf,

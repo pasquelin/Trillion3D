@@ -20,7 +20,8 @@ import { AIR_SHOWN, fog } from './fogBlockAccess.ts'
  * the ground, through the same density as the first — and the
  * haze of the air (`aerialPerspective`, `../atmosphere/hazeReadWgsl.ts`) lies over the fog's: the
  * fog's inscattering and transmittance first, then the haze's light through the fog's
- * transmittance, the two transmittances multiplied. Without one, nothing of it is read. The local fog
+ * transmittance, the two transmittances multiplied. A fog that holds its light out (`fogHeld`) leaves the coverage of all of it alone: the
+ * height fog's, the local volumes', the haze's and the volume's inscattering are nothing. Without one, nothing of it is read. The local fog
  * volumes (`localFogOver`, `./fog/localWgsl.ts`) lie over the height fog, the haze behind both: a surface,
  * a translucent fragment and the clouds are fogged by them, a translucent surface's vertex only where the run says so
  * (`LOCAL_FOG_FLAG.onTranslucent`); each is given the pixel it is seen in, which finds the tile whose
@@ -67,10 +68,10 @@ fn localFogApplies()->bool{return localFogCount()>0u;}
 `
       : '',
     laid: (toward: string) =>
-      local ? `\n if(local){over=fogStack(localFogOver(${toward},pixel),over);}` : '',
+      local ? `\n if(local){over=fogStack(fogHeld(localFogOver(${toward},pixel)),over);}` : '',
     // A vertex's volumes: those of the tile it lies in, when a translucent surface is fogged by them.
     vertex: local
-      ? `if(!fogDrawn()||!localFogFlagged(${LOCAL_FOG_FLAG.onTranslucent}u)){return vec4f(0.0,0.0,0.0,1.0);}\n return localFogOverVertex(P-eye);`
+      ? `if(!fogDrawn()||!localFogFlagged(${LOCAL_FOG_FLAG.onTranslucent}u)){return vec4f(0.0,0.0,0.0,1.0);}\n return fogHeld(localFogOverVertex(P-eye));`
       : 'return vec4f(0.0,0.0,0.0,1.0);',
     background: local ? '||localFogApplies()' : '',
     free: local ? '&&!localFogApplies()' : '',
@@ -112,7 +113,7 @@ fn fogLaidFar(P:vec3f,eye:vec3f,haze:bool)->vec4f{
  let mode=${fog(FOG_SLOT.color)}.w;
  if(mode>${FOG_MODE.exponential - 0.5}){over=heightFog(P,eye,withSky);}
  else if(mode>${FOG_MODE.none}.5){over=linearFog(P,eye,withSky);}
- if(haze&&${AIR_SHOWN}){over=fogStack(over,aerialPerspective(P,eye));}
+ if(haze&&${AIR_SHOWN}){over=fogStack(over,fogHeld(aerialPerspective(P,eye)));}
  return over;
 }
 /** The local fog volumes over a vertex \`P\` seen from \`eye\`, in the tile the vertex lies in, where a translucent

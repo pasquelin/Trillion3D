@@ -20,6 +20,7 @@ import {
   vsmOrStandIns,
 } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
+import { measureBeforeTranslucency } from '../../post/taa/frame.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { litImageShown } from '../prepare/contractLight.ts'
 import { viewProj } from '../backend/helpers.ts'
@@ -130,6 +131,7 @@ function imageOf(
     lightGridCells: [tiles[1], tiles[2]],
     sunShadowChannel: channel === NO_INDEX ? undefined : channel,
     preExposure: preExposureOf(rt).now,
+    exposure: preExposureOf(rt).exposure,
   }
   return image
 }
@@ -198,7 +200,8 @@ function programsOf(
 }
 
 /** The sky where no surface was drawn (`air`: the image shows an atmosphere), the fog over the lit image
- *  and the sky, the haze marched on the surfaces (`air` again), then the clouds over them. */
+ *  and the sky, the haze marched on the surfaces (`air` again), then the clouds over them. The temporal pass measures the
+ *  lit image first (`measureBeforeTranslucency`), before any of them lies on it. */
 export function encodeSkyAndClouds(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -206,6 +209,7 @@ export function encodeSkyAndClouds(
   cam: EngineCamera,
   air: boolean,
 ) {
+  if (rt.gpu.hdrView) measureBeforeTranslucency(rt, encoder, rt.gpu.hdrView)
   if (air) encodeSky(rt, encoder)
   encodeHeightFog(rt, encoder, air)
   if (air) encodeOpaqueHaze(rt, encoder)

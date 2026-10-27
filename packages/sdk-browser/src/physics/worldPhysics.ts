@@ -9,6 +9,7 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { Engine } from '../session/engine/types.ts'
 import { physicsLink } from './physicsLink.ts'
 import { physicsOverlap, type OverlapOptions, type OverlapShape } from './overlap.ts'
+import { createViewOriginCast, type ViewOriginCast } from './viewOriginCast.ts'
 import { emptyPhysicsStats, type PhysicsStats } from './protocol.ts'
 import {
   simulationRangeOf,
@@ -120,19 +121,24 @@ function linkPhysics(s: PhysicsState) {
   })
 }
 
-/** Runs the frame's physics, timed into the `physics` CPU stage of `engine`, then clocks the
- *  water's surface and finds the meshes that hold it (`water/waterCarry.ts`); returns whether a body is
- *  still on its way, or waves still move a mesh that holds the surface. */
+/** Runs the frame's physics, timed into the `physics` CPU stage of `engine`, then clocks the water's
+ *  surface and finds the meshes that hold it (`water/waterCarry.ts`); returns whether a body is
+ *  still on its way, or waves still move a mesh that holds the surface. An orthographic camera's view
+ *  is the engine's drawn one (`Engine.drawnCamera`). The engine is handed the
+ *  cast of the view origin while a session runs (`ViewOriginCast`) at each frame, not once: it may
+ *  open after the session, or be made again. */
 function physicsFrame(
   s: PhysicsState,
   camera: Camera,
-  engine: Pick<Engine, 'cpuStep'> | undefined,
+  engine: Pick<Engine, 'cpuStep' | 'setViewOriginCast' | 'drawnCamera'> | undefined,
+  viewOriginCast: ViewOriginCast,
 ) {
   const { session } = s
   let moving = false
+  engine?.setViewOriginCast(session ? viewOriginCast : null)
   if (session) {
     const start = cpuNow()
-    moving = session.frame(camera, s.range)
+    moving = session.frame(camera, s.range, engine?.drawnCamera())
     // The frame's own work, plus the ticks received since the last one (`session.frame`).
     session.stats.mainMs += msSince(start)
     engine?.cpuStep('physicsMs', session.stats.mainMs)
@@ -151,7 +157,9 @@ export function createWorldPhysics(
   runtime: {
     invalidate(): void
     /** The session drawing now: its engine takes the physics step's CPU bound. */
-    readonly explorer: { readonly engine: Pick<Engine, 'cpuStep'> } | null
+    readonly explorer: {
+      readonly engine: Pick<Engine, 'cpuStep' | 'setViewOriginCast' | 'drawnCamera'>
+    } | null
   },
   root: Object3D,
   camera: () => Camera,
@@ -165,6 +173,7 @@ export function createWorldPhysics(
   })
   const handle = joined({ ...s.joints.methods }, simulationControls(s), worldControls(s))
   setGravity(s, settings.gravity ?? 'earth')
+  const viewOriginCast = createViewOriginCast(() => s.session)
   if (options) handle.enabled = true
   linkPhysics(s)
   return {
@@ -178,7 +187,7 @@ export function createWorldPhysics(
     },
     /** Runs the frame's physics (`physicsFrame`): whether a body is still on its way, or waves
      *  still move a mesh that holds the surface. */
-    frame: () => physicsFrame(s, camera(), runtime.explorer?.engine),
+    frame: () => physicsFrame(s, camera(), runtime.explorer?.engine, viewOriginCast),
     /** The character's body in the running session, for `world.controls`; `watch` is told
      *  each time a session starts or ends. */
     character: {

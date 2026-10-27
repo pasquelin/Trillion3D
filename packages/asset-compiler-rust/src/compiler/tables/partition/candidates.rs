@@ -60,8 +60,7 @@ impl Row {
 /// nothing moves it, itself or through a node above it, and an instanced skinned object's mobility
 /// keeps it still —, the root of its batch, the main grid it streams on (`assign_grids`), and the
 /// distances it is drawn at, when its settings name any (`DrawDistance`), whether a view's primed
-/// depth draws it (`far_field`), whether it casts far shadows (`cast_far_shadow`) and whether a
-/// sun's far-shadow test reaches it (`far_shadow_test`).
+/// depth draws it (`far_field`).
 pub(super) struct Candidate {
     pub node: usize,
     pub mesh: usize,
@@ -73,8 +72,6 @@ pub(super) struct Candidate {
     pub grid: usize,
     pub draw_distance: Option<DrawDistance>,
     pub far_field: bool,
-    pub cast_far_shadow: bool,
-    pub far_shadow_test: Option<bool>,
 }
 
 impl Candidate {
@@ -118,12 +115,6 @@ impl Candidate {
         }
         if self.far_field {
             entry["farField"] = json!(true);
-        }
-        if self.cast_far_shadow {
-            entry["castFarShadow"] = json!(true);
-        }
-        if let Some(test) = self.far_shadow_test {
-            entry["farShadowTest"] = json!(test);
         }
         // An instance of an assembly: what replaces the roots of its part's primitives.
         if let Some(roots) = table[id].get("rootParents") {
@@ -207,8 +198,6 @@ impl Found {
             grid: 0,
             draw_distance: setting.draw_distance,
             far_field: setting.far_field,
-            cast_far_shadow: setting.cast_far_shadow,
-            far_shadow_test: setting.far_shadow_test,
         });
         Ok(())
     }

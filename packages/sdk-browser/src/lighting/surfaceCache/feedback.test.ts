@@ -210,8 +210,8 @@ test('a table too full to list every element keeps those of its first places, in
 
 test('an element the table gives no place is not counted, and adds nothing to the count of another', () => {
   const elements = Array.from({ length: 40 }, (_, at): [number, number] => [at + 1, 0])
-  // One key for all: the first thirty-two take the places its probes reach, the others find none.
-  const made = compacted({ elements, places: 64, room: 64, key: () => 5 })
+  // Keys that all start at one place: the first thirty-two take the places its probes reach, the others find none.
+  const made = compacted({ elements, places: 64, room: 64, key: (first) => 5 + 64 * first })
   assert.equal(made.count, 32)
   assert.deepEqual(
     made.out.map(([, second]) => second >>> 16),

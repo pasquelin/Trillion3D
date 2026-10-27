@@ -39,6 +39,7 @@ pub(crate) fn validate_compile_options(o: &Options) -> Result<()> {
             .or_else(|| o.mesh_build.as_ref().err().cloned())
             .or_else(|| o.object_settings.as_ref().err().cloned())
             .or_else(|| o.lightmap_bake.as_ref().err().cloned())
+            .or_else(|| o.hair_strands.as_ref().err().cloned())
     };
     match refusal {
         Some(message) => Err(CompilerError::new("INVALID_OPTIONS", message)),

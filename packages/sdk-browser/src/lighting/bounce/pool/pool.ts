@@ -1,5 +1,6 @@
 import { ceilDiv, workgroupCount } from '../../../../../math/src/scalar/integers.ts'
 import type { BounceCascades } from '../../../../../sdk-core/src/bounce/cascades.ts'
+import type { TranslucentMarkSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
 import {
   computeBufferEntry,
@@ -43,6 +44,18 @@ export interface PoolMarker {
   mark(pass: GPUComputePassEncoder, grid: GPUBuffer, marks: GPUBuffer): void
 }
 
+/** The translucent surfaces' mark of the cells they read (`translucentMark.ts`): `mark` encodes, in the image's encoder, the pass that draws
+ *  their meshes and marks the bitmap `marks` of the levels' uniform `grid` from their fragments — after the bitmap is cleared and before
+ *  the pool's kernels, which are a compute pass of their own. */
+export interface TranslucentMarker {
+  mark(
+    encoder: GPUCommandEncoder,
+    grid: GPUBuffer,
+    marks: GPUBuffer,
+    settings: TranslucentMarkSettings,
+  ): void
+}
+
 /** The screen probes the last image cast, whose records the pool marks the cells they stand in from (`MARK_PROBES_SHADER`): the atlas
  *  of their points, the buffer that holds the count of the adaptive ones placed, the uniform ones' count, the
  *  most adaptive ones the atlas holds, and the atlas's extent in probes. */
@@ -65,6 +78,8 @@ export type MarkSurface = {
   probes: MarkProbes | undefined
   /** The marks the engine's other passes add (the translucency volume's, `../../translucencyGi/frame.ts`), none while they have none. */
   markers: readonly PoolMarker[]
+  /** The translucent surfaces' mark, none while the scene draws none. */
+  translucent: TranslucentMarker | undefined
 }
 
 /** No marker. */
@@ -77,6 +92,7 @@ export const createMarkSurface = (): MarkSurface => ({
   size: [0, 0],
   probes: undefined,
   markers: NO_MARKERS,
+  translucent: undefined,
 })
 
 /** What the last statistics that came back say of the pool (`POOL_WORK`): the probes alive, those that hold nothing yet, those not traced
@@ -264,6 +280,8 @@ export interface PoolWork {
   interpolateDownsample: number
   downsampleSq: number
   supersampleSq: number
+  /** How the translucent surfaces mark the cells they read; none where they do not. */
+  translucent: TranslucentMarkSettings | undefined
 }
 
 /** The bind groups of the pool's kernels: those over the slots, the table and the work buffer, and the finish pass's. */
@@ -551,6 +569,15 @@ export async function createBouncePool(
      */
     dispatch(pass: GPUComputePassEncoder, work: PoolWork, surface: MarkSurface | undefined) {
       return dispatchPool(kit, pass, work, surface)
+    },
+    /** The translucent surfaces' mark (`MarkSurface.translucent`), encoded after `clear` and before the pass: only in a pool the image's surfaces mark. */
+    markTranslucent(
+      encoder: GPUCommandEncoder,
+      settings: TranslucentMarkSettings | undefined,
+      surface: MarkSurface | undefined,
+    ) {
+      if (settings && kit.surfaceMarks && surface?.translucent)
+        surface.translucent.mark(encoder, kit.grid, buffers.marks, settings)
     },
     /** The statistics copied to the staging buffer `clear` took, after the pass. */
     copy(encoder: GPUCommandEncoder) {

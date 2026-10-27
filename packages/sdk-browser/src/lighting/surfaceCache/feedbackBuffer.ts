@@ -9,13 +9,23 @@ import {
 } from '../../../../sdk-core/src/lighting/surfaceCache/feedback.ts'
 import type { SurfaceCache } from '../../../../sdk-core/src/lighting/surfaceCache/state.ts'
 import { advanceFeedbackFrame } from '../../../../sdk-core/src/lighting/surfaceCache/update.ts'
-import { bufferEntries, computeBufferEntry } from '../../gpu/core/computeBindings.ts'
+import { bufferEntries, computeBufferEntry, wholeBuffer } from '../../gpu/core/computeBindings.ts'
 import { startedComputeStages } from '../../gpu/core/computeStages.ts'
-import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
+import {
+  dispatchRows,
+  groupWidth,
+  groupWidthConstants,
+  WORKGROUP_THREADS,
+} from '../../gpu/dispatch/grid.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { createReadbackRing } from '../../gpu/core/readbackRing.ts'
 import { FEEDBACK_AT, FEEDBACK_HEADER_WORDS, feedbackWords } from './feedbackLayout.ts'
-import { FEEDBACK_COMPACTION_ENTRIES, FEEDBACK_COMPACTION_SHADER } from './feedbackWgsl.ts'
+import {
+  FEEDBACK_ARGS_BINDING,
+  FEEDBACK_ARGS_ENTRY,
+  FEEDBACK_COMPACTION_ENTRIES,
+  FEEDBACK_COMPACTION_SHADER,
+} from './feedbackWgsl.ts'
 
 /**
  * THE FEEDBACK OF THE RAYS THAT READ THE CARDS, on the GPU and back (`sampleWgsl.ts` writes it, `feedback.ts`
@@ -27,8 +37,9 @@ import { FEEDBACK_COMPACTION_ENTRIES, FEEDBACK_COMPACTION_SHADER } from './feedb
  * the parts' places, the tile's size and place in it (`feedbackTileJitter`, which the feedback clock moves
  * on from image to image), the cache's clock and the level bias. The last-read part persists between
  * images: the buffer is made again, and they begin again, only when the image's size or the page table's
- * room changes. `end` then compacts it (`feedbackWgsl.ts`: the table of keys and the list cleared, the
- * two kernels, the list copied to a staging buffer of the ring) and moves the feedback clock on, the
+ * room changes. `end` then compacts it (`feedbackWgsl.ts`: the table of keys, its counts and the list cleared, the
+ * three kernels — the building's dispatch arguments, the table's building over them, the table's compaction —,
+ * the list copied to a staging buffer of the ring) and moves the feedback clock on, the
  * way the clock of the pages' last reads moves with the images that wrote feedback. No image waits for the list:
  * its staging buffers (`IN_FLIGHT`) map when the copy's image is submitted — the next image's `begin` says it
  * is —, and `take` gives the newest list that came back, once, for the cache's update to read.
@@ -46,11 +57,13 @@ interface Held {
 }
 
 /** What the compaction holds for a list of `unique` elements: the keys, the first element's rank of each place, its
- *  count, and the list, each twice as many words as the list holds elements — a table of twice the room. */
+ *  count, and the list, each twice as many words as the list holds elements — a table of twice the room —, and the
+ *  arguments of the table's building. */
 interface Table {
   readonly unique: number
   readonly buffers: readonly GPUBuffer[]
   readonly listed: GPUBuffer
+  readonly args: GPUBuffer
 }
 
 const storage = (device: GPUDevice, label: string, words: number, extra = 0) =>
@@ -66,76 +79,127 @@ function createTable(device: GPUDevice, unique: number): Table {
     storage(device, name, 2 * unique),
   )
   const listed = storage(device, 'list', 2 * unique, GPUBufferUsage.COPY_SRC)
-  return { unique, buffers: [keys, firsts, counts, listed], listed }
+  // Three words, x y z, the workgroups of the table's building.
+  const args = storage(device, 'args', 3, GPUBufferUsage.INDIRECT)
+  return { unique, buffers: [keys, firsts, counts, listed], listed, args }
 }
 
-/** The compaction's kernels, started: their group's layout (the feedback buffer read, the four others written). */
+/** The compaction's kernels, started, and the layouts of their groups: the building's arguments (the feedback buffer
+ *  read, the arguments written) and the table's (the feedback buffer read, the four others written). */
 function createKernels(device: GPUDevice) {
-  const layout = device.createBindGroupLayout({
+  const module = device.createShaderModule({
+    label: 'Trillion3D surface cache feedback compaction',
+    code: FEEDBACK_COMPACTION_SHADER,
+  })
+  const argsLayout = device.createBindGroupLayout({
+    entries: [
+      computeBufferEntry(0, 'read-only-storage'),
+      computeBufferEntry(FEEDBACK_ARGS_BINDING, 'storage'),
+    ],
+  })
+  const tableLayout = device.createBindGroupLayout({
     entries: [
       computeBufferEntry(0, 'read-only-storage'),
       ...[1, 2, 3, 4].map((binding) => computeBufferEntry(binding, 'storage')),
     ],
   })
-  const stages = startedComputeStages(
-    device,
-    'Trillion3D surface cache feedback',
-    device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    device.createShaderModule({
-      label: 'Trillion3D surface cache feedback compaction',
-      code: FEEDBACK_COMPACTION_SHADER,
-    }),
-    FEEDBACK_COMPACTION_ENTRIES,
+  const started = (
+    layout: GPUBindGroupLayout,
+    entries: readonly string[],
+    constants?: Record<string, number>,
+  ) =>
+    startedComputeStages(
+      device,
+      'Trillion3D surface cache feedback',
+      device.createPipelineLayout({ bindGroupLayouts: [layout] }),
+      module,
+      entries,
+      constants,
+    )
+  const args = started(
+    argsLayout,
+    [FEEDBACK_ARGS_ENTRY],
+    groupWidthConstants(groupWidth(device.limits)),
   )
-  return { layout, stages }
+  const table = started(tableLayout, FEEDBACK_COMPACTION_ENTRIES)
+  return {
+    argsLayout,
+    tableLayout,
+    args,
+    table,
+    get ready() {
+      return args.ready && table.ready
+    },
+  }
 }
 
-/** The compaction (`feedbackWgsl.ts`) on `device`: its kernels, its table and its group over the buffer it reads. */
+/** The compaction (`feedbackWgsl.ts`) on `device`: its kernels, its table and its groups over the buffer it reads. */
 function createCompaction(device: GPUDevice) {
-  const { layout, stages } = createKernels(device)
+  const kernels = createKernels(device)
   let table: Table | undefined
-  let group: GPUBindGroup | undefined
+  let groups: { readonly args: GPUBindGroup; readonly table: GPUBindGroup } | undefined
   let bound: GPUBuffer | undefined
   return {
     get ready() {
-      return stages.ready
+      return kernels.ready
     },
-    /** The table of `unique` elements, its group over `buffer`: kept while they are what is asked. */
+    /** The table of `unique` elements, its groups over `buffer`: kept while they are what is asked. */
     ensure(buffer: GPUBuffer, unique: number) {
       if (!table || table.unique !== unique) {
-        if (table) for (const old of table.buffers) retire(device, old)
+        if (table) for (const old of [...table.buffers, table.args]) retire(device, old)
         table = createTable(device, unique)
-        group = undefined
+        groups = undefined
       }
-      if (bound !== buffer) group = undefined
+      if (bound !== buffer) groups = undefined
       bound = buffer
-      group ??= device.createBindGroup({
-        label: 'Trillion3D surface cache feedback compaction',
-        layout,
-        entries: bufferEntries([buffer, ...table.buffers]),
-      })
+      const label = 'Trillion3D surface cache feedback compaction'
+      groups ??= {
+        args: device.createBindGroup({
+          label,
+          layout: kernels.argsLayout,
+          entries: [
+            { binding: 0, resource: wholeBuffer(buffer) },
+            { binding: FEEDBACK_ARGS_BINDING, resource: wholeBuffer(table.args) },
+          ],
+        }),
+        table: device.createBindGroup({
+          label,
+          layout: kernels.tableLayout,
+          entries: bufferEntries([buffer, ...table.buffers]),
+        }),
+      }
     },
     /** The bytes of the list. */
     get bytes() {
       return table?.listed.size ?? 0
     },
-    /** The table cleared, the two kernels over `elements` elements, the list copied to `staging`. */
-    encode(encoder: GPUCommandEncoder, elements: number, staging: GPUBuffer) {
-      if (!table || !group || !stages.ready) return
+    /** The table cleared, the three kernels — each its own pass — and the list copied to `staging`. */
+    encode(encoder: GPUCommandEncoder, staging: GPUBuffer) {
+      if (!table || !groups || !kernels.ready) return
       const [keys, , counts, listed] = table.buffers
       for (const buffer of [keys, counts, listed]) encoder.clearBuffer(buffer)
-      const pass = encoder.beginComputePass({ label: 'Trillion3D surface cache feedback' })
-      pass.setBindGroup(0, group)
-      pass.setPipeline(stages.pipelineOf('buildFeedbackTable'))
-      dispatchRows(pass, ceilDiv(elements, WORKGROUP_THREADS))
-      pass.setPipeline(stages.pipelineOf('compactFeedbackTable'))
-      dispatchRows(pass, ceilDiv(2 * table.unique, WORKGROUP_THREADS))
-      pass.end()
+      const pass = (label: string) =>
+        encoder.beginComputePass({ label: `Trillion3D surface cache feedback ${label}` })
+      let compute = pass('table arguments')
+      compute.setPipeline(kernels.args.pipelineOf(FEEDBACK_ARGS_ENTRY))
+      compute.setBindGroup(0, groups.args)
+      compute.dispatchWorkgroups(1)
+      compute.end()
+      compute = pass('table')
+      compute.setPipeline(kernels.table.pipelineOf('buildFeedbackTable'))
+      compute.setBindGroup(0, groups.table)
+      compute.dispatchWorkgroupsIndirect(table.args, 0)
+      compute.end()
+      compute = pass('compaction')
+      compute.setPipeline(kernels.table.pipelineOf('compactFeedbackTable'))
+      compute.setBindGroup(0, groups.table)
+      dispatchRows(compute, ceilDiv(2 * table.unique, WORKGROUP_THREADS))
+      compute.end()
       encoder.copyBufferToBuffer(listed, 0, staging, 0, listed.size)
     },
     reset() {
-      for (const buffer of table?.buffers ?? []) buffer.destroy()
-      table = group = bound = undefined
+      for (const buffer of [...(table?.buffers ?? []), table?.args]) buffer?.destroy()
+      table = groups = bound = undefined
     },
   }
 }
@@ -218,7 +282,7 @@ export function createSurfaceFeedback(device: GPUDevice) {
       const now = rays.held
       const staging = active && now && ring.take(now.elements, compaction.bytes)
       if (!staging) return
-      compaction.encode(encoder, now.elements, staging)
+      compaction.encode(encoder, staging)
       advanceFeedbackFrame(cache)
     },
     /** The newest list that came back, once: the feedback the cache's update takes. */

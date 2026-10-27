@@ -166,12 +166,30 @@ pub(super) fn finish_compile(
     let stage = texture_stage(job, &built);
     let (mut previews, preview_report) = stage_textures(&built.pool, &stage, progress)?;
     let products = products_of(job, (&built, &written), (&scene, &source, &previews));
-    let mut staged = stage_products(&products, covers, (source_bin, source_gltf), progress)?;
+    let hair = crate::hair_strands::HairInputs {
+        carried: job.strands,
+        world: &written.placement.world,
+        scene_nodes: &job.picked.scene_nodes,
+        hidden: &job.picked.hidden,
+        ending_point: job.o.hair_strands()?.ending_point(),
+        cancelled: &job.o.cancelled,
+    };
+    // The groom is built beside the products over the geometry, on the job's workers.
+    let (staged, groom) = built.pool.install(|| {
+        rayon::join(
+            || stage_products(&products, covers, (source_bin, source_gltf), progress),
+            || crate::hair_strands::write_hair_strands(&hair, &built.directory, progress),
+        )
+    });
+    let mut staged = staged?;
+    // Named only by a scene whose nodes carry curves.
+    let (strands_file, hair_strands) = groom?.unzip();
+    staged.products.extend(strands_file);
     // The world's flattened materials' textures join the scene's: one texture section.
     previews.append(&mut staged.world_previews);
     finish_job(
         (job.o, job.key, &built.directory),
-        (staged, (provenance, coplanar, preview_report)),
+        (staged, (provenance, coplanar, preview_report, hair_strands)),
         (&written.primitives, &written.geometry_files, &previews),
         (
             job.picked.selected_triangles,

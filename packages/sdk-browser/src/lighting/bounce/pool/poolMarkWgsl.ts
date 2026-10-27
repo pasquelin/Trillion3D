@@ -13,23 +13,24 @@ const MARK_GROUP = 8
 /**
  * THE MARK OF A POINT: the finest level that holds the surface point `P` — the point itself, never pushed off its surface — with a share
  * of its answer above `dither` (`bounceRead`; zero where the mark is not dithered) marks the eight probes round it, a bit a cell in the
- * order of the table (`cellEntry`): the bit of the entry in the bitmap `marks`; a cell the level does not hold is left unmarked. Sky marks nothing, nor does a point no level reaches: the
+ * order of the table (`cellEntry`): the bit of the entry in the bitmap `marks`; a cell the level does not hold is left unmarked. The share fades over the cache's own size at a level's edge, or over the one `markPointOver` is given.
+ * Sky marks nothing, nor does a point no level reaches: the
  * sky light answers there.
  */
-export const markPoint = (marks: number) =>
+export const markPoint = (marks: number, group = 0) =>
   wgslBlock(
-    `markPoint(${marks})`,
+    `markPoint(${marks},${group})`,
     [BOUNCE_GRID_STRUCTS_WGSL, BOUNCE_CELLS_WGSL, bitAt],
-    `@group(0) @binding(${marks}) var<storage,read_write> marks:array<atomic<u32>>;
+    `@group(${group}) @binding(${marks}) var<storage,read_write> marks:array<atomic<u32>>;
 fn markCell(level:u32,cell:vec3i){
  if(!levelHolds(level,cell)){return;}
  let entry=cellEntry(level,probeWrap(cell));
  atomicOr(&marks[entry>>5u],1u<<(entry&31u));
 }
-fn markPointBiased(P:vec3f,dither:f32,bias:u32){
+fn markPointOver(P:vec3f,dither:f32,bias:u32,invFade:f32){
  for(var level=0u;level<CASCADE_LEVELS;level++){
   if(level>=bounce.counts.y){break;}
-  let read=bounceRead(level,P);
+  let read=bounceReadOver(level,P,invFade);
   if(read.fade<=dither){continue;}
   // The cells the view fills ask the level \`bias\` coarser (held to the coarsest), and mark the cube round the point there.
   let marked=min(level+bias,bounce.counts.y-1u);
@@ -40,6 +41,7 @@ fn markPointBiased(P:vec3f,dither:f32,bias:u32){
   return;
  }
 }
+fn markPointBiased(P:vec3f,dither:f32,bias:u32){markPointOver(P,dither,bias,LEVEL_INV_FADE);}
 fn markPoint(P:vec3f){markPointBiased(P,0.0,0u);}`,
   )
 

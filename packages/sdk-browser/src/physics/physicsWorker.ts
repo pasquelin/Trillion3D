@@ -124,9 +124,9 @@ function advance({ to, steps: count }: Extract<ToPhysics, { type: 'advance' }>) 
 
 /** A query between two steps, against the last one's bodies; the commands still queued are
  *  applied first, so it sees the tiles restored with them. */
-function cast({ id, queries }: Extract<ToPhysics, { type: 'cast' }>) {
+function cast({ id, query }: Extract<ToPhysics, { type: 'cast' }>) {
   if (queued.length && results!.room()) run(0)
-  const hits = jolt!.cast(queries)
+  const hits = jolt!.cast(query)
   scope.postMessage({ type: 'cast', id, hits }, [hits.buffer])
 }
 

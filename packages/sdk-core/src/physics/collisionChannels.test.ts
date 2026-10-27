@@ -2,7 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   channelIndex,
-  channelMask,
   channelsMeet,
   COLLISION_CHANNELS,
   COLLISION_PROFILES,
@@ -36,7 +35,11 @@ test('a profile blocks every channel it does not name', () => {
 
 test('overlapAll overlaps the eight engine channels and blocks the rest, on queries alone', () => {
   const all = resolveCollision({ profile: 'OverlapAll' }, 'BlockAll')
-  assert.equal(all.overlap, channelMask(COLLISION_CHANNELS.slice(0, 8)))
+  const engine = COLLISION_CHANNELS.slice(0, 8)
+  assert.equal(
+    all.overlap,
+    engine.reduce((mask, channel) => mask | (1n << BigInt(channelIndex(channel))), 0n),
+  )
   assert.equal(all.block, ((1n << 64n) - 1n) ^ all.overlap)
   assert.deepEqual([all.query, all.physics], [true, false])
 })

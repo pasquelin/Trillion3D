@@ -18,7 +18,10 @@ function receiveResults(c: SessionParts, posed: SessionParts['bodies'], m: Physi
   c.character.hear?.(m.character, m.feet, m.steps)
   c.vehicles.receive(m.vehicles, m.steps)
   s.redraw = true
+  // The world a scene query tells moves with a body that moved; a tick that moved none leaves it, and
+  // one that rests says so itself (`rested`).
   if (m.resting) c.link.rested(m.heard, m.step)
+  else if (moved > 0) s.revision++
   // The last tick before sleep changes the count even when it moves nothing: a frame shows it.
   const changed =
     moved > 0 || m.active !== stats.active || !!m.character || !!m.feet || !!m.vehicles

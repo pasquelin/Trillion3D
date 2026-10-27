@@ -25,21 +25,24 @@ template <class Normal> void writeHit(uint32_t *out, const BodyID &id, float fra
   BodyLockRead lock(world().system->GetBodyLockInterfaceNoLock(), id);
   if (!lock.Succeeded()) return;
   const Body &body = lock.GetBody();
-  out[0] = uint32_t(body.GetUserData());
+  out[HIT_AT_BODY] = uint32_t(body.GetUserData());
   Vec3 n = normal(body);
   float values[7] = {fraction, float(point.GetX()), float(point.GetY()), float(point.GetZ()), n.GetX(), n.GetY(), n.GetZ()};
-  std::memcpy(out + 1, values, sizeof values);
+  std::memcpy(out + HIT_AT_FRACTION, values, sizeof values);
 }
 
 void cast(const uint32_t *q, uint32_t *out) {
   const NarrowPhaseQuery &query = world().system->GetNarrowPhaseQuery();
-  RVec3 origin(vec3(q + 1));
-  Vec3 travel = vec3(q + 4);
-  IgnoredBody ignored(q[10]);
-  // A trace stops at what blocks its channel; what it overlaps is no wall to it.
-  const Query trace = traceQuery(q + 11);
+  RVec3 origin(vec3(q + CAST_AT_ORIGIN));
+  Vec3 travel = vec3(q + CAST_AT_TRAVEL);
+  IgnoredBody ignored(q[CAST_AT_IGNORED]);
+  // A trace stops at what blocks its channel; what it overlaps is no wall to it. By object types
+  // it stops at the bodies of those types instead, whatever they answer.
+  const Query trace = q[CAST_AT_STOP] == CAST_STOP_OBJECT_TYPES ? objectQuery(q + CAST_AT_OBJECT_TYPES)
+                                                              : traceQuery(q + CAST_AT_CHANNEL);
   const LayerMeets blocks(trace, Meeting::Block);
-  if (q[0] == 0) {
+  const uint32_t kind = q[CAST_AT_KIND];
+  if (kind == 0) {
     RRayCast ray(origin, travel);
     RayCastResult hit;
     if (!query.CastRay(ray, hit, {}, blocks, ignored)) return;
@@ -47,9 +50,8 @@ void cast(const uint32_t *q, uint32_t *out) {
     return writeHit(out, hit.mBodyID, hit.mFraction, point,
                     [&](const Body &body) { return body.GetWorldSpaceSurfaceNormal(hit.mSubShapeID2, point); });
   }
-  // The swept shape is the body primitive of the same dimensions (layout.ts CAST: sphere 1, box 2,
-  // capsule 3).
-  RefConst<Shape> shape = primitive(q[0] == 1 ? SPHERE : q[0] == 2 ? BOX : CAPSULE, f32(q + 7), f32(q + 8), f32(q + 9));
+  // The swept shape is the body primitive of the same dimensions.
+  RefConst<Shape> shape = queryPrimitive(kind, q + CAST_AT_EXTENTS);
   RShapeCast sweep(shape, Vec3::sOne(), RMat44::sTranslation(origin), travel);
   ShapeCastSettings settings;
   ClosestHitCollisionCollector<CastShapeCollector> closest;
@@ -97,7 +99,7 @@ uint32_t *jolt_cast_buffer(uint32_t count) {
 uint32_t *jolt_cast(uint32_t count) {
   for (uint32_t i = 0; i < count; ++i) {
     uint32_t *out = trillion::hits.data() + i * trillion::HIT_WORDS;
-    out[0] = trillion::MISS;
+    out[trillion::HIT_AT_BODY] = trillion::MISS;
     trillion::cast(trillion::queries.data() + i * trillion::CAST_WORDS, out);
   }
   return trillion::hits.data();

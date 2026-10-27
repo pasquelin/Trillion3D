@@ -97,6 +97,9 @@ private:
 /// The channel of a query and the answers it gives, read from five words: `channel, block low,
 /// block high, overlap low, overlap high` (layout.ts CAST, OVERLAP).
 Query traceQuery(const uint32_t *w);
+/// The query that seeks the bodies whose channel is among the object types of two words, `low,
+/// high` (layout.ts CAST, OVERLAP): each one it meets blocks, whatever it answers.
+Query objectQuery(const uint32_t *w);
 
 /// How the simulation takes the bodies of layers `a` and `b` (`taken`), from a table filled as the
 /// filters are defined.

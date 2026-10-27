@@ -11,13 +11,11 @@ import { REFLECTION_TILES_WGSL, REFLECTION_TRACE_BINDINGS as B } from './trace/t
  * THE TILES A SURFACE'S REFLECTIONS RUN OVER, classified on the GPU every image (`classifyTiles`)
  * into four lists, so every later kernel runs only where it has work: a workgroup a TRACING tile of
  * `REFLECTION_SIDE`² grid texels (`grids.ts`), each thread a texel, reads its block's pixels — their
- * flags and, for a pixel that reflects, the lobe it traces (`reflectionPixelTraces`) —, picks the
- * pixel the texel casts from this image (`classifyPicked`, the tile jitter held to the viewport), and
- * lists:
+ * flags and, for a pixel that reflects, the lobe it traces (`reflectionPixelTraces`) —, and lists:
  *
- * - the tracing tile among the TRACING tiles (`tracingOut`) where a pixel of it traces — the screen
- *   stage runs over these, writing the picked pixels' ray words the classification wrote —, else among
- *   the UNUSED ones (`clearTracingOut`), whose ray words the clear empties (`clearTracing`), so no
+ * - the tracing tile among the TRACING tiles (`tracingOut`) where a pixel of it traces — the ray generation
+ *   (`generateRays`, `trace/trace.ts`) runs over these, picking each texel's pixel (`reflectionPickedPixel`) and writing its ray,
+ *   then the screen stage —, else among the UNUSED ones (`clearTracingOut`), whose rays the clear empties (`clearTracing`), so no
  *   stale ray of an earlier image is left: no kernel reads a ray there;
  * - each of the RESOLVE tiles it covers, `REFLECTION_SIDE`² pixels inside the viewport — `block` of them a side, its
  *   texels' blocks being `block` pixels a side: one tile at a block of one pixel, four at two —, among the
@@ -30,7 +28,7 @@ import { REFLECTION_TILES_WGSL, REFLECTION_TRACE_BINDINGS as B } from './trace/t
  * the count returning at once, no read back.
  *
  * Cost: a thread a grid texel, a flag read for each of its block's pixels, a normal for each that
- * reflects and a lobe word for each that carries one; a ray word a texel of a tracing tile; one
+ * reflects and a lobe word for each that carries one; one
  * atomic a texel that traces; a word and three atomics a listed tile.
  */
 export const REFLECTION_CLASSIFY_WGSL = wgslBlock(
@@ -53,20 +51,6 @@ export const REFLECTION_CLASSIFY_WGSL = wgslBlock(
   ],
   `/** The resolve tiles of the workgroup's tracing tile a pixel traces in, a bit each. */
 var<workgroup> tileTraces:atomic<u32>;
-/** The pixel texel \`g\` casts from this image: its jitter (\`reflectionJitter\`), held to the viewport,
- *  so a block cut by the viewport's edge still casts from a pixel inside it. */
-fn classifyPicked(g:vec2u)->vec2u{
- return min(g*reflectionBlock()+reflectionJitter(g),reflectionViewport()-vec2u(1u));
-}
-/** The ray word of texel \`g\`, whose block's traced pixels are \`mask\`, a bit each in its
- *  pixels' order: the rank of the pixel this image picks (\`classifyPicked\`), under the traced bit where
- *  it traces — a picked pixel that does not trace casts no ray, never handing it to a block neighbour. */
-fn classifyTraced(mask:u32,g:vec2u)->u32{
- let block=reflectionBlock();
- let o=classifyPicked(g)-g*block;
- let k=o.x+o.y*block.x;
- return k|select(0u,REFLECTION_TRACED,((mask>>k)&1u)!=0u);
-}
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn classifyTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id) local:vec3u,@builtin(local_invocation_index) lane:u32){
  let coord=tile.xy*${REFLECTION_SIDE}u+local.xy;
@@ -86,7 +70,6 @@ fn classifyTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id)
  if(mask!=0u){atomicOr(&tileTraces,1u<<(resolve.x+resolves.x*resolve.y));}
  workgroupBarrier();
  let traced=atomicLoad(&tileTraces);
- if(traced!=0u&&inside){textureStore(surfaceRays,coord,REFLECTION_RAY_WORD,vec4u(classifyTraced(mask,coord),0u,0u,0u));}
  if(lane==0u){
   let entry=tile.x|(tile.y<<16u);
   if(traced!=0u){tracingOut.entries[tracingOutAppend(1u,1u)]=entry;}
@@ -101,14 +84,14 @@ fn classifyTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id)
   }
  }
 }
-/** The clear of an unused tracing tile (\`clearTracingOut\`): its texels' ray words emptied, so no
+/** The clear of an unused tracing tile (\`clearTracingOut\`): its texels' depths set to none (\`REFLECTION_NO_RAY_DEPTH\`), so no
  *  kernel reads a ray of an earlier image there. */
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
 fn clearTracing(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_id) local:vec3u){
  let t=reflectionTileOf(tile,groups);
  if(t==REFLECTION_NO_TILE){return;}
  let g=reflectionTileOrigin(t)+local.xy;
- if(all(g<reflectionGridSize())){textureStore(surfaceRays,vec2i(g),REFLECTION_RAY_WORD,vec4u(0u));}
+ if(all(g<reflectionGridSize())){textureStore(surfaceRays,vec2i(g),REFLECTION_RAY_DEPTH,vec4u(bitcast<u32>(REFLECTION_NO_RAY_DEPTH),0u,0u,0u));}
 }`,
 )
 

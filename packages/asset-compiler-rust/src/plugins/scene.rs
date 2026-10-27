@@ -135,7 +135,7 @@ pub(crate) fn single_input<'a, P: AsRef<Path>>(
 }
 
 /// Common end of the drivers that fill their tables themselves: a cancelled conversion or one
-/// without a surface is refused by name before writing anything; otherwise the scene goes
+/// without a surface or a groom is refused by name before writing anything; otherwise the scene goes
 /// into the cache at its key, and progress publishes its counts once the folder is written.
 fn finish(
     scene: impl SceneOutput,
@@ -146,7 +146,8 @@ fn finish(
     empty: &str,
 ) -> Result<PathBuf> {
     cancel::check(request.cancelled)?;
-    if !scene.nodes().iter().any(|node| node.get("mesh").is_some()) {
+    let drawn = |node: &Value| node.get("mesh").is_some() || crate::hair_strands::carries(node);
+    if !scene.nodes().iter().any(drawn) {
         return Err(CompilerError::new("IMPORT_EMPTY", empty));
     }
     let directory = crate::imports_dir(request.cache).join(scene.key());

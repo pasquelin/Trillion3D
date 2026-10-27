@@ -1,5 +1,6 @@
 use crate::*;
 
+#[derive(Default)]
 pub(crate) struct NodeSelection {
     pub chosen: BTreeSet<usize>,
     pub selected_triangles: usize,

@@ -1,5 +1,6 @@
 // The fog volume's light on one cell, the scatter program run as shipped (`shaderRun`) over a volume of
-// 20 × 12 × 8 cells and a view of 160 × 90 pixels (`fogScatter.test.ts`, `fogLights.test.ts`).
+// 20 × 12 × 8 cells and a view of 160 × 90 pixels (`fogScatter.test.ts`, `fogLights.test.ts`, `fogLightShare.test.ts`, `fogSkyLight.test.ts`).
+import { kindLane } from '../../../sdk-core/src/scene/light/lanes.fixture.ts'
 import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 import { FOG_SLOT, FOG_SLOTS } from '../../../sdk-core/src/scene/core/fog.ts'
 import { ATMOSPHERE_SLOTS } from '../../../sdk-core/src/scene/core/atmospherePack.ts'
@@ -33,9 +34,10 @@ export const SUN: Light = {
   colorIntensity: [1, 0.5, 0.25, 4],
   directionCone: [0, -1, 0, -2],
   // The record's lanes: kind word (a sun: rank 2 and its shadows-the-fog flag), shadow slot, the share the fog scatters, inner cone.
-  params: [10, -1, 1, -2],
+  params: [kindLane(10), -1, 1, -2],
   shape: [0, 0, 0, 0],
   capsule: [0, 0, 0, 0],
+  traits: [0, 0, 0, 0],
 }
 
 /** A white lamp of intensity 50 at `centre`, reaching `range` metres: no cone, no shape. */
@@ -46,6 +48,7 @@ export const lampOf = (centre: readonly number[], range = 40): Light => ({
   params: [0, -1, 1, -2],
   shape: [0, 0, 0, 0],
   capsule: [0, 0, 0, 0],
+  traits: [0, 0, 0, 0],
 })
 
 /** The scatter on the cell `cell`, over the scene `world` describes: its lights, the fog's first
@@ -86,6 +89,12 @@ export function scatter(
     previousEye?: V3
     /** The local fog volumes' block of the light buffer (`directLights.localFog`), zero where none. */
     localFog?: number[][]
+    /** The translucency volume the image made (its cells with a last word of 1, the slices' law): the cells then read
+     *  `giTexels` — the ambient light in the first half of the slices, the three linear bands' weights in the second —
+     *  at the places `giTaps` keeps. */
+    translucencyGi?: NonNullable<Parameters<typeof image>[3]>['translucencyGi']
+    giTexels?: [number[], number[]]
+    giTaps?: number[][]
   } = {},
 ) {
   const { lights = [], density = 0.1, falloff = 0 } = world
@@ -97,7 +106,12 @@ export function scatter(
     cam,
     world.volumetric ?? true,
     { ...PLAIN, ...world.settings },
-    { sunRank: world.sunRank ?? -1, previous, resource: image(CAM).grid },
+    {
+      sunRank: world.sunRank ?? -1,
+      previous,
+      resource: image(CAM).grid,
+      translucencyGi: world.translucencyGi,
+    },
   )
   const block = emptyLights({ fog: FOG_SLOTS, atmosphere: ATMOSPHERE_SLOTS })
   block.fog[FOG_SLOT.law] = [density, falloff, 0, 1]
@@ -107,6 +121,7 @@ export function scatter(
   block.count = lights.length
   block.items = lights
   const out = table()
+  const giVolume = {}
   const run = shaderRun<{ scatterMain: (c: V3) => void }>(FOG_PROGRAMS.scatter, ['scatterMain'], {
     frame: frameScope(img),
     directLights: block,
@@ -124,6 +139,8 @@ export function scatter(
     fogVoxelEmitIn: table(),
     // The static term's volume is not read: the frame says no pass wrote it.
     fogStaticIn: table(),
+    fogGiVolume: giVolume,
+    mat2x3f: (ambient: number[], directional: number[]) => [ambient, directional],
     shadowFactor: (_slice: number, light: Light) => (
       world.shadowReads?.push(light.params[0]),
       world.shade ?? 1
@@ -138,10 +155,10 @@ export function scatter(
     // No clouds' shade over the sun.
     cloudShadowOnSurface: () => 1,
     lightFunctionFogLocalOf: () => [1, 1, 1],
-    textureSampleLevel: (_t: unknown, _s: unknown, uvw: number[]) => (
-      world.sampled?.push(uvw),
-      world.previous ?? [0, 0, 0, 0]
-    ),
+    textureSampleLevel: (texture: unknown, _s: unknown, uvw: number[]) =>
+      texture === giVolume
+        ? (world.giTaps?.push(uvw), [...world.giTexels![uvw[2] < 0.5 ? 0 : 1], 0])
+        : (world.sampled?.push(uvw), world.previous ?? [0, 0, 0, 0]),
   })
   run.scatterMain(cell)
   return out.cells.get(cell.join(',')) as number[] | undefined
@@ -150,3 +167,8 @@ export function scatter(
 export const CELL: V3 = [3, 4, 2]
 export const EXTINCTION = 0.05 // half the density of 0.1, per metre
 export const G = 0.2
+
+/** A lamp five metres off the cell's point, whole in its range: lit by its inverse square. */
+export const lampAt = (P: V3): Light => lampOf([P[0] + 3, P[1] + 4, P[2]])
+/** The red word the program stored at the cell `CELL` over the scene `world` describes. */
+export const lit = (world: Parameters<typeof scatter>[1]) => scatter(CELL, world)![0]

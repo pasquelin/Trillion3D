@@ -13,7 +13,8 @@ import type { VolumetricLightmapData } from '../../../../sdk-core/src/lighting/v
  * - `skyShadowing`: whether the sky light's term is multiplied by the visibility the lightmap stores
  *   (the bent normal's length) in place of the sky's visibility the global distance field gives: the
  *   light lights the volume, is stationary and casts shadows — and the lightmap holds a bent normal, which
- *   a bake without a sky light does not.
+ *   a bake without a sky light does not — and the image made no translucency volume, whose light takes the
+ *   sky light's whole place in the cells (`translucencyGiWgsl.ts`).
  */
 export interface FogStaticLight {
   intensity: number
@@ -43,15 +44,18 @@ export interface FogStaticLightSources {
   readonly lightmap: VolumetricLightmapData | undefined
   /** The sky light the frame holds, if any. */
   readonly sky: SkyLightPart | undefined
+  /** The image made a translucency volume, which the cells take in the place of the sky light's term. */
+  readonly translucencyGi: boolean
 }
 
 /** `into` set to what the image takes of the baked light (`FogStaticLight`). Nothing is allocated. */
 export function setFogStaticLight(into: FogStaticLight, from: FogStaticLightSources) {
-  const { medium, lit, skyLighting, lightmap, sky } = from
+  const { medium, lit, skyLighting, lightmap, sky, translucencyGi } = from
   into.intensity = lit && lightmap ? medium.staticLightingScatteringIntensity : 0
   into.skyDiffuse = !!sky && sky.light.mobility !== 'static' && skyLighting
   into.skyShadowing =
     into.skyDiffuse &&
+    !translucencyGi &&
     sky!.light.mobility === 'stationary' &&
     sky!.light.castShadows &&
     lightmap?.skyBentNormal !== undefined

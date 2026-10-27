@@ -52,6 +52,9 @@ pub(super) fn visit(
         world.count("invisible", 1);
         return None;
     }
+    if depth == 0 {
+        world.root_width = curves::declared_width(prim, world.unit);
+    }
     report(world, prim);
     node(world, prim, type_name, (depth, scale))
 }
@@ -98,6 +101,12 @@ fn node(
         if let Some(mesh) = mesh::build(world, prim, &data_key(prim)) {
             node["mesh"] = json!(mesh);
             world.count("meshInstances", 1);
+        }
+    }
+    if type_name == "BasisCurves" {
+        if let Some(strands) = curves::build(world, prim, depth == 0) {
+            node["extensions"] = strands;
+            world.count("strandObjects", 1);
         }
     }
     if is_light(type_name) {

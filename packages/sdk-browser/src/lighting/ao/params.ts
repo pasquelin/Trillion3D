@@ -21,7 +21,7 @@ export interface AoImage {
   world: ArrayLike<number>
   /** Whether the projection is a perspective (`EngineCamera.perspective`). */
   perspective: boolean
-  /** The image's rank in the temporal sequence (the temporal pass's), 0 with none. */
+  /** The image's rank in the view's sequence of images drawn (`stochasticPhase`). */
   noiseIndex: number
   /** What the horizon method reads beside (`horizon/params.ts`): the engine's frame counter, this image's view-projection,
    *  whether its history is dropped this image (a camera cut, or a history whose last image is not the image before) and the

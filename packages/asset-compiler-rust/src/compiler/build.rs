@@ -31,7 +31,9 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
     let o = &*moved;
     let mut loaded = load_scene(o, &routed.scene)?;
     let bin = loaded.binary.bytes();
-    let picked = pick(o, &mut loaded.g, bin)?;
+    // The grooms the scene's nodes carry leave it here, before anything reads its accessors.
+    let strands = crate::hair_strands::take(&mut loaded.g, bin)?;
+    let picked = pick(o, &mut loaded.g, bin, &strands)?;
     // The pool is born and dies with this job: its workers adopt its counters, not a neighbour's.
     let pool = phases.pool(o.threads)?;
     let images = read_images(&pool, &loaded.g, bin, (&picked, &image_root))?;
@@ -54,6 +56,7 @@ pub fn compile(o: &Options, progress: impl Fn(Value) + Sync) -> Result<Value> {
         picked: &picked,
         images: &images,
         mesh_builds: &mesh_builds,
+        strands: &strands,
     };
     let (built, source_bin, produced) = compile_stage(&job, (pool, &phases, started), &progress)?;
     let sealed = written(o, produced, &progress)?;

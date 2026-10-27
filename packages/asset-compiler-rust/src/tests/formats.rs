@@ -1,5 +1,7 @@
 use super::*;
+pub(in crate::tests) mod alembic_curves;
 pub(in crate::tests) mod alembic_golden;
+mod alembic_writer;
 pub(in crate::tests) mod blend_driver;
 pub(in crate::tests) mod blend_golden;
 pub(in crate::tests) mod blend_layouts;

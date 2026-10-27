@@ -18,10 +18,13 @@ const SAMPLE_KEY_BYTES: usize = 16;
 /// Data types this driver reads. The others are left at their rank, without being decoded.
 pub(super) const POD_BOOL: u32 = 0;
 pub(super) const POD_U8: u32 = 1;
+pub(super) const POD_I8: u32 = 2;
+pub(super) const POD_I16: u32 = 4;
 pub(super) const POD_U32: u32 = 5;
 pub(super) const POD_I32: u32 = 6;
 pub(super) const POD_F32: u32 = 10;
 pub(super) const POD_F64: u32 = 11;
+pub(super) const POD_STRING: u32 = 12;
 
 /// The kind of a property.
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -73,6 +76,11 @@ impl Properties {
         Ok(Properties { entries })
     }
 
+    /// Whether the group holds no property.
+    pub(super) fn is_empty(&self) -> bool {
+        self.entries.is_empty()
+    }
+
     pub(super) fn find(&self, name: &str) -> Option<&Property> {
         self.entries.iter().find(|entry| entry.name == name)
     }
@@ -83,6 +91,21 @@ impl Properties {
             Some(found) => Properties::read(archive, found.child).map(Some),
             None => Ok(None),
         }
+    }
+
+    /// The first sample of a named property of `extent` components, decoded by `decode` from its data
+    /// type and its bytes. An absent, empty or undecodable property yields `None`.
+    pub(super) fn decoded<T>(
+        &self,
+        archive: &Archive,
+        name: &str,
+        extent: u8,
+        decode: impl FnOnce(u32, &[u8]) -> Option<T>,
+    ) -> Result<Option<T>> {
+        let Some(found) = self.find(name).filter(|found| found.extent == extent) else {
+            return Ok(None);
+        };
+        Ok(first_sample(archive, found)?.and_then(|bytes| decode(found.pod, bytes)))
     }
 
     /// The first sample of a named property, key stripped. An absent, empty or other-typed

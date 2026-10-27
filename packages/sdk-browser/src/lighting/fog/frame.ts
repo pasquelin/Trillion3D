@@ -89,6 +89,9 @@ export interface FogVolumeImage {
    *  that pass only then. */
   staticLight: FogStaticLight
   staticBuilt: boolean
+  /** The translucency volume this image made, whose light the cells take in the place of the sky light's: its cells and the
+   *  slices' law as the surfaces read them (`published` of `translucencyGi/gpu.ts`); none where no volume is made. */
+  translucencyGi?: { readonly grid: ArrayLike<number>; readonly z: ArrayLike<number> }
   /** The rank of the directional light that lights the volume — the one the forward readers take
    *  (`SceneLightStore.forwardDirectionalSlot`): of the highest priority, then the brightest —, −1
    *  for none. */
@@ -99,6 +102,8 @@ export interface FogVolumeImage {
   frameIndex: number
   /** The pre-exposure the volume's light is written multiplied by (`../../post/exposure/pre.ts`). */
   preExposure: number
+  /** The exposure of the image before (`../../post/exposure/pre.ts`), which the lights' blend with its inverse is taken at. */
+  exposure: number
 }
 
 /** The depth buffer's map to a view depth, `a` and `b`, rewritten each image. */
@@ -171,7 +176,8 @@ function writeHistory(out: Float32Array, image: FogVolumeImage) {
   )
   // The history's light, written multiplied by its own pre-exposure, is brought to this image's.
   const now = image.preExposure
-  put(out, at.exposure, now, previous ? now / previous.preExposure : 1, 1 / now)
+  // `w`: the exposure of the image before, which a light's blend with its inverse is taken at (`lightStrength`).
+  put(out, at.exposure, now, previous ? now / previous.preExposure : 1, 1 / now, image.exposure)
 }
 
 /** The medium's fields, the tuning, the lights it takes and the offsets of the samples. */
@@ -213,7 +219,11 @@ function writeMedium(out: Float32Array, image: FogVolumeImage) {
     medium.glow[1] * glowScale,
     medium.glow[2] * glowScale,
   )
-  const { staticLight } = image
+  const { staticLight, translucencyGi } = image
+  if (translucencyGi) {
+    out.set(translucencyGi.grid, at.giGrid)
+    out.set(translucencyGi.z, at.giZ)
+  }
   put(
     out,
     at.staticLight,

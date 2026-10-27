@@ -67,6 +67,7 @@ pub(crate) fn options(source: PathBuf, cache: PathBuf) -> Options {
         mesh_build: crate::MeshBuildOptions::read(None),
         object_settings: crate::ObjectSettings::read(None),
         lightmap_bake: crate::LightmapBakeOptions::read(None),
+        hair_strands: crate::HairOptions::read(None),
         cancelled: Arc::new(AtomicBool::new(false)),
     }
 }

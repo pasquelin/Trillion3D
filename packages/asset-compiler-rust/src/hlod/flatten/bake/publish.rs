@@ -13,7 +13,9 @@ use crate::texture::{AtlasKind, Ladder, PreviewSource, TexturePreview};
 use crate::{Options, Result};
 use image::ImageEncoder;
 use serde_json::{json, Value};
+mod coverage;
 mod document;
+pub(crate) use coverage::{coverage_of, wear_coverage};
 pub(crate) use document::place;
 
 /// What an atlas image is to the material: base colour, normal map, metal-roughness map, emission
@@ -237,14 +239,7 @@ fn flattened_material(
         "pbrMetallicRoughness": pbr,
         "doubleSided": double_sided,
     });
-    match coverage {
-        Coverage::Opaque => {}
-        Coverage::Blend => material["alphaMode"] = json!("BLEND"),
-        Coverage::Mask => {
-            material["alphaMode"] = json!("MASK");
-            material["alphaCutoff"] = json!(MASK_CUTOFF);
-        }
-    }
+    wear_coverage(&mut material, coverage);
     if let Some(index) = normal {
         material["normalTexture"] = json!({"index": index});
     }

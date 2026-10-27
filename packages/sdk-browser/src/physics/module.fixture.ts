@@ -1,7 +1,7 @@
 import { readFile } from 'node:fs/promises'
 import { Worker as NodeWorker } from 'node:worker_threads'
 import { channelWords, resolveCollision } from '../../../sdk-core/src/physics/collisionChannels.ts'
-import { CAST, CAST_WORDS, EVENT_WORDS } from '../../../sdk-core/src/physics/layout.ts'
+import { CAST, CAST_AT, CAST_WORDS, EVENT_WORDS } from '../../../sdk-core/src/physics/layout.ts'
 import {
   DEFAULT_PHYSICS_BUDGET,
   DEFAULT_RESTITUTION_THRESHOLD,
@@ -79,10 +79,13 @@ export function events(jolt: Module) {
 /** A ray down at `x` through the module, straight: its hit words. */
 export function castDown(jolt: Module, x: number) {
   const query = new Uint32Array(CAST_WORDS)
-  query[0] = CAST.ray
-  query[10] = NO_INDEX
-  new Float32Array(query.buffer).set([x, 5, 0, 0, -10, 0], 1)
-  query.set(channelWords(resolveCollision({ objectType: 'visibility' }, 'BlockAll')), 11)
+  query[CAST_AT.kind] = CAST.ray
+  query[CAST_AT.ignored] = NO_INDEX
+  new Float32Array(query.buffer).set([x, 5, 0, 0, -10, 0], CAST_AT.origin)
+  query.set(
+    channelWords(resolveCollision({ objectType: 'visibility' }, 'BlockAll')),
+    CAST_AT.channel,
+  )
   return jolt.cast(query)
 }
 

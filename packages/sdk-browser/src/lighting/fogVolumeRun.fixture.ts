@@ -130,6 +130,7 @@ export function image(
     staticLight: { ...newFogStaticLight(), skyDiffuse: true },
     staticBuilt: false,
     preExposure: 1,
+    exposure: 1,
     ...more,
   }
 }
@@ -167,6 +168,8 @@ export function frameScope(img: FogVolumeImage) {
           'glow',
           'staticLight',
           'exposure',
+          'giGrid',
+          'giZ',
         ] as const
       ).map((name) => [name, vec(at[name])]),
     ),

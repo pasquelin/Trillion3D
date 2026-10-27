@@ -177,8 +177,12 @@ export function channelIndex(channel: CollisionChannel | number): number {
 }
 
 /** The bit mask of `channels`. */
-export const channelMask = (channels: readonly (CollisionChannel | number)[]) =>
+const channelMask = (channels: readonly (CollisionChannel | number)[]) =>
   channels.reduce((mask, channel) => mask | channelBit(channelIndex(channel)), 0n)
+
+/** The two words (`maskWords`) of the object types a query seeks, both 0 for no list. */
+export const objectTypeWords = (types?: readonly (CollisionChannel | number)[]) =>
+  maskWords(types ? channelMask(types) : 0n)
 
 /** The profile a body is made with when it names none (`CollisionOptions.profile`). */
 export const defaultProfile = (

@@ -1,4 +1,5 @@
 import type { AirShadowMaps } from '../../lighting/atmosphere/bindings.ts'
+import { FLAGS_VIEW } from '../../materials/surface/surfaceOutputs.ts'
 import { createAtmosphereGpu } from '../../lighting/atmosphere/gpu.ts'
 import type { AirInputs } from '../../lighting/atmosphere/encode.ts'
 import { FRAME_FLOATS, writeAirFrame } from '../../lighting/atmosphere/frame.ts'
@@ -113,7 +114,7 @@ export const atmosphereHoldout = (rt: WebgpuPagesRuntime) =>
  *  pass's colour alone over it. */
 export function encodeSky(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu } = rt,
-    flags = gpu.surfaces?.views()[3]
+    flags = gpu.surfaces?.views()[FLAGS_VIEW]
   if (!gpu.atmosphere || !gpu.hdrView || !flags || !gpu.deferred) return
   const [width, height] = gpu.targetSize
   // Held out, or drawn in no view (`inMainView` off): the sky is black and lays its coverage on the alpha, which
@@ -128,7 +129,7 @@ export function encodeSky(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
  *  drew is hazed up to its depth. */
 export function encodeOpaqueHaze(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   const { gpu } = rt,
-    flags = gpu.surfaces?.views()[3]
+    flags = gpu.surfaces?.views()[FLAGS_VIEW]
   if (
     !rt.lights.store.environment?.atmosphere?.inMainView ||
     !gpu.atmosphere?.drawOpaqueHaze ||

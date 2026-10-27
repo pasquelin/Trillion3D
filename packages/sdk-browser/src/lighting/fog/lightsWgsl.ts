@@ -1,3 +1,4 @@
+import { lightStrengthWgsl } from '../direct/lightStrengthWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { luminance } from '../../../../math/src/wgsl/color.ts'
 import { hgPhase } from '../../../../math/src/wgsl/lighting.ts'
@@ -6,6 +7,7 @@ import { VOLUME_LAMP_WGSL } from '../direct/lampSeenWgsl.ts'
 import { REACH } from '../direct/lightTermsWgsl.ts'
 import { FOG_VOLUME_FLAG } from './frame.ts'
 import { FOG_SKY_LIGHT_WGSL } from './skyLightWgsl.ts'
+import { FOG_GI_WGSL } from './translucencyGiWgsl.ts'
 
 /**
  * THE LIGHT A CELL OF THE VOLUME SCATTERS TOWARD THE EYE: what each light gives it at a point, by
@@ -30,7 +32,9 @@ import { FOG_SKY_LIGHT_WGSL } from './skyLightWgsl.ts'
  * the colours are overridden, by the fog's inscattering colour times the ambient harmonic, times
  * the same intensity (none where no sky light is); either times the sample's sky visibility (`fogSkyVisibility`, `skyVisibilityWgsl.ts`: the share of the sky
  * a cone straight up from the sample sees through the global distance field). Where the frame leaves the sky light to the
- * static term's pass (`staticLight.y`: stationary, casting shadows, a lightmap with a bent normal), this one adds none of it. And the local lights of the cell's list of the
+ * static term's pass (`staticLight.y`: stationary, casting shadows, a lightmap with a bent normal), this one adds none of it. Where the image made
+ * a translucency volume (`fogGiShown`), its light along the camera vector (`fogGiLight`, `translucencyGiWgsl.ts`) takes the place of the sky
+ * light's whole, the sky's visibility and the fog's colours with it. And the local lights of the cell's list of the
  * light grid (`gridCell`): a point, a spot or a lamp with a size by the inverse square of its
  * distance, or along its tube (`lampSeen`), the squared distance a cell's radius (scaled,
  * `frame.tune.w`) longer, so that no cell spikes near the light — a square centimetre at least,
@@ -44,13 +48,20 @@ import { FOG_SKY_LIGHT_WGSL } from './skyLightWgsl.ts'
  */
 export const FOG_LIGHTS_WGSL = wgslBlock(
   'FOG_LIGHTS_WGSL',
-  [luminance, hgPhase, VOLUME_LAMP_WGSL, FOG_SKY_LIGHT_WGSL],
+  [
+    luminance,
+    hgPhase,
+    VOLUME_LAMP_WGSL,
+    FOG_SKY_LIGHT_WGSL,
+    FOG_GI_WGSL,
+    lightStrengthWgsl('frame.exposure.w'),
+  ],
   `
 /** The sun's light at \`P\`: its colour, its shadow, the phase function. */
 fn fogSun(P:vec3f,toEye:vec3f)->vec3f{
  if(frame.lighting.x<0.0){return vec3f(0.0);}
  let light=directLights.items[u32(frame.lighting.x)];
- var colour=light.colorIntensity.rgb*(light.colorIntensity.w*light.params.z)*lightFunctionOf(light.params.x,P);
+ var colour=light.colorIntensity.rgb*(lightStrength(light)*light.params.z)*lightFunctionOf(light.params.x,P);
  let fogLobe=directLights.fog[${FOG_SLOT.lobe}].rgb*directLights.fog[${FOG_SLOT.sun}].w;
  if((u32(frame.medium.w)&${FOG_VOLUME_FLAG.fogColors}u)!=0u&&directLights.fog[${FOG_SLOT.cubemap}].w<0.5&&dot(directLights.fog[${FOG_SLOT.sun}].xyz,directLights.fog[${FOG_SLOT.sun}].xyz)>0.0){
   colour=fogLobe*luminance(colour);
@@ -87,7 +98,7 @@ ${REACH('vec3f(0.0)')}
   else if(isSpot(light)){seen.w*=fogSpotFade(light,P,fade);}
  }
  if(seen.w>0.0&&shadowsFog(light)&&(u32(frame.medium.w)&${FOG_VOLUME_FLAG.localShadows}u)!=0u){seen.w*=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);}
- return light.colorIntensity.rgb*lightFunctionFogLocalOf(light.params.x,P)*(light.colorIntensity.w*light.params.z)*(seen.w*hgPhase(frame.medium.x,dot(seen.xyz,toEye)));
+ return light.colorIntensity.rgb*lightFunctionFogLocalOf(light.params.x,P)*(lightStrength(light)*light.params.z)*(seen.w*hgPhase(frame.medium.x,dot(seen.xyz,toEye)));
 }
 /** The light of every light at the sample of a cell at \`offset\` within it: the sun, the sky light and
  *  the local lights of the cell's list, each taken at the distance its inverse square is read at
@@ -103,7 +114,8 @@ fn fogLightAt(cell:vec3u,offset:vec3f)->vec3f{
   toEye=-frame.forward.xyz;
  }
  var light=fogSun(P,toEye);
- if(frame.staticLight.y<=0.0){
+ if(fogGiShown()){light+=fogGiLight(P,toEye);}
+ else if(frame.staticLight.y<=0.0){
   let sky=fogSky(toEye,span);
   if(any(sky>vec3f(0.0))){light+=sky*fogSkyVisibility(P);}
  }

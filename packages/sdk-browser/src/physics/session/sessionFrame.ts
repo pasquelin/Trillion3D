@@ -1,7 +1,8 @@
 import type { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { MAX_CATCH_UP_STEPS } from '../../../../sdk-core/src/physics/options.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
-import { resolveCameraWorld } from '../../camera/world.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { viewWorld } from '../view.ts'
 import type { SessionParts } from './sessionParts.ts'
 
 /** The scene's tree or its bodies changed: they are reconciled, with the joints and vehicles. */
@@ -44,13 +45,13 @@ export function createSessionFrame(c: SessionParts) {
     /** The frame's physics: bodies reconciled, everything drawn at its time, the view (`range`),
      *  commands sent, then the steps it owes. Whether a body is still on its way or the worker
      *  steps on (and asks for the next frame). */
-    frame(camera: Camera, range: number | null) {
+    frame(camera: Camera, range: number | null, drawn?: EngineCamera | null) {
       c.touched.eye = camera
       if (s.dirty) reconcileBodies(c)
       drawAtTime(c)
       ;[c.stats.mainMs, s.received] = [s.received, 0]
-      const reach = c.view(camera, c.writer, range)
-      const world = resolveCameraWorld(camera).matrixWorld.elements
+      const reach = c.view(camera, c.writer, range, drawn)
+      const world = viewWorld(camera, drawn)
       for (let i = 0; i < 3; i++) eye[i] = world[12 + i]
       c.tiles.update(eye, reach)
       link.flush()

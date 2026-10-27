@@ -6,13 +6,23 @@ import type { SessionParts } from './sessionParts.ts'
 import { engineIdOf } from '../simulatedIds.ts'
 import { drawnBySoft } from '../soft/softVertices.ts'
 
-/** A query posted to the worker (`post`, given its id) after the frame's commands: its answer. */
-async function ask(c: SessionParts, post: (id: number) => void) {
-  await c.started
+/** The query `query` posted to the worker as a `type` message after the frame's commands, its hits
+ *  given to `answer`; handed over (`transfer`), or copied, which leaves `query` to its owner. */
+function ask(
+  c: SessionParts,
+  type: 'cast' | 'overlap',
+  query: Uint32Array,
+  transfer: boolean,
+  answer: (hits: Uint32Array) => void,
+) {
+  if (!c.s.ready) {
+    const held = transfer ? query : query.slice()
+    return void c.started.then(() => ask(c, type, held, transfer, answer))
+  }
   c.link.flush()
   const id = ++c.s.asked
-  post(id)
-  return new Promise<Uint32Array>((resolve) => c.casts.set(id, resolve))
+  c.casts.set(id, answer)
+  c.worker.postMessage({ type, id, query }, transfer ? [query.buffer] : [])
 }
 
 /** What the world asks of a session between its frames: its clock, its water, the scene's changes,
@@ -51,10 +61,16 @@ export function createSessionControls(c: SessionParts) {
     },
     /** Scene queries (`CAST_WORDS` each), answered after the frame's commands: hits in order. */
     cast: (queries: Uint32Array) =>
-      ask(c, (id) => worker.postMessage({ type: 'cast', id, queries }, [queries.buffer])),
+      new Promise<Uint32Array>((resolve) => ask(c, 'cast', queries, true, resolve)),
+    /** One scene query (`CAST_WORDS`) like `cast`, posted copied — the caller may write it again —
+     *  and answered to `answer`, with no promise made: for the query asked again and again. */
+    castTo: (query: Uint32Array, answer: (hits: Uint32Array) => void) =>
+      ask(c, 'cast', query, false, answer),
     /** An overlap query (`OVERLAP_WORDS`), answered after the frame's commands: the bodies it meets. */
     overlap: (query: Uint32Array) =>
-      ask(c, (id) => worker.postMessage({ type: 'overlap', id, query }, [query.buffer])),
+      new Promise<Uint32Array>((resolve) => ask(c, 'overlap', query, true, resolve)),
+    /** The world's revision: it moves when what a scene query tells could (`SessionState.revision`). */
+    revision: () => s.revision,
     /** The model a tile body's engine id belongs to, or the mesh a body's names, or `null`. */
     objectOf: bodies.slots.objectOf,
     /** The engine id of `node`'s body; -1 while it is not simulated. */

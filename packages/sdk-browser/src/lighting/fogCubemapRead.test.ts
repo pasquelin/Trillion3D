@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { near } from '../../../math/src/float/near.fixture.ts'
 import { cubemapMipCount } from '../../../sdk-core/src/scene/core/fogCubemap.ts'
 import { fogBlockOf } from './fog/readWgsl.ts'
+import { FOG_VIEW_SLOT, FOG_VIEW_SLOTS } from './fog/viewSlots.ts'
 import type { V3 } from './fogVolumeRun.fixture.ts'
 import { fogRun } from './fogShaderRun.fixture.ts'
 
@@ -100,4 +101,63 @@ test('the cubemap’s average at 45° between two faces is the blend of their me
   const step = Math.PI / 180
   assert.ok(Math.abs(at(seam + step) - at(seam - step)) < 0.02)
   assert.ok(at(seam - step) < at(seam) && at(seam) < at(seam + step))
+})
+
+test('the sky light that lights the fog is read on the sky light’s own cube array at the mip, in the direction and in the colour the fog’s cubemap binding gives it', () => {
+  const mips = 7
+  const roughness = 0.5
+  const layer = 1
+  const fogView = Array.from({ length: FOG_VIEW_SLOTS }, () => [0, 0, 0, 0])
+  fogView[FOG_VIEW_SLOT.heightFog] = [0, 0.75, roughness, mips]
+  fogView[FOG_VIEW_SLOT.skyLightColour] = [0.5, 0.25, 2, 0]
+  const names = ['fogSkyLightStrength', 'fogSkyLightColour']
+  type Read = { fogSkyLightStrength: () => number; fogSkyLightColour: (d: V3) => number[] }
+  const askedOnLight: { direction: number[]; layer: number; mip: number }[] = []
+  const onLight = fogRun<Read>(undefined, names, {
+    fogView,
+    resources: {
+      block: fogBlockOf({ group: 0, skyLight: true }),
+      scope: {
+        skyLightCube: {},
+        skyLightSampler: {},
+        skyLight: { levels: [1, mips - 1, layer, 0] },
+        textureSampleLevel: (_t: unknown, _s: unknown, d: number[], at: number, mip: number) => {
+          askedOnLight.push({ direction: [...d], layer: at, mip })
+          return [0.2, 0.4, 0.8, 1]
+        },
+      },
+    },
+  })
+  const askedOnFog: { direction: number[]; mip: number }[] = []
+  const onFog = fogRun<Read>(undefined, names, {
+    fogView,
+    resources: {
+      block: fogBlockOf({ group: 0, cubemap: 1, sampler: 2 }),
+      scope: {
+        fogCubemap: {},
+        fogSampler: {},
+        textureSampleLevel: (_t: unknown, _s: unknown, d: number[], mip: number) => {
+          askedOnFog.push({ direction: [...d], mip })
+          return [0.2, 0.4, 0.8, 1]
+        },
+      },
+    },
+  })
+  assert.equal(onLight.fogSkyLightStrength(), 0.75)
+  assert.equal(onFog.fogSkyLightStrength(), 0.75)
+  const ray: V3 = [0.6, 0.8, 0]
+  near(onLight.fogSkyLightColour(ray), [0.1, 0.1, 1.6], 'the light’s colour times the cube', 1e-6)
+  near(onFog.fogSkyLightColour(ray), [0.1, 0.1, 1.6], 'the same on the cubemap binding', 1e-6)
+  assert.deepEqual(
+    askedOnLight.map(({ layer: at }) => at),
+    [layer],
+    'the layer the capture has ready',
+  )
+  assert.deepEqual(askedOnLight[0].direction, askedOnFog[0].direction)
+  assert.deepEqual(askedOnLight[0].direction, [0.6, 0, 0.8], 'the cube’s frame (`sceneToCube`)')
+  assert.equal(
+    askedOnLight[0].mip,
+    askedOnFog[0].mip,
+    'the mip of the fog’s roughness over its count of mips',
+  )
 })

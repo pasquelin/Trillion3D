@@ -97,6 +97,13 @@ Query traceQuery(const uint32_t *w) {
   return query;
 }
 
+Query objectQuery(const uint32_t *w) {
+  Query query;
+  query.byObject = true;
+  query.objects = u64(w);
+  return query;
+}
+
 void clearFilters() {
   table.clear();
   ranks.clear();

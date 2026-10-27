@@ -77,6 +77,10 @@ pub(super) struct World<'a> {
     /// prototype with the same materials cite the same glTF mesh.
     pub(super) meshes: HashMap<(String, Vec<Option<usize>>), usize>,
     pub(super) cancelled: &'a AtomicBool,
+    /// The metres a unit of the layer is worth (`layer::meters_per_unit`).
+    pub(super) unit: f64,
+    /// The width the groom declares on the top prim being walked (`curves::declared_width`).
+    pub(super) root_width: Option<f32>,
 }
 
 impl World<'_> {
@@ -101,9 +105,7 @@ impl World<'_> {
 pub(super) fn refusal(type_name: &str) -> Option<&'static str> {
     Some(match type_name {
         "PointInstancer" => POINT_INSTANCER,
-        "BasisCurves" | "NurbsCurves" | "HermiteCurves" => {
-            crate::plugins::scene::codes::CURVES_UNSUPPORTED
-        }
+        "NurbsCurves" | "HermiteCurves" => crate::plugins::scene::codes::CURVES_UNSUPPORTED,
         "Volume" | "OpenVDBAsset" | "Field3DAsset" => VOLUME,
         "SkelRoot" | "Skeleton" | "SkelAnimation" | "BlendShape" => SKEL,
         "Camera" => crate::plugins::scene::codes::CAMERA_UNSUPPORTED,

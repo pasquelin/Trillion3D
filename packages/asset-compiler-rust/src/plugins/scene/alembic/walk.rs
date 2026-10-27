@@ -1,11 +1,11 @@
 //! Walking the hierarchy: what each object is, and what it becomes in the scene.
 //!
-//! An Alembic object names its schema in its metadata. This driver keeps three: `Xform`, which
-//! carries a transform, `PolyMesh` and `SubD`, which carry a surface, and `FaceSet`, which names
-//! faces of its mesh. Everything else — curves, points, NURBS surfaces, cameras, lamps — is
-//! counted on the report under its name: this driver imports static geometry, and what it does
-//! not convert, it says rather than hiding. Descent continues under a skipped object: only an
-//! `Xform` carries a transform, so nothing is moved by walking through it.
+//! An Alembic object names its schema in its metadata. This driver keeps four: `Xform`, which
+//! carries a transform, `PolyMesh` and `SubD`, which carry a surface, `FaceSet`, which names
+//! faces of its mesh, and `Curves`, the strands of a groom. Everything else — points, NURBS
+//! surfaces, cameras, lamps — is counted on the report under its name: this driver imports static
+//! geometry, and what it does not convert, it says rather than hiding. Descent continues under a
+//! skipped object: only an `Xform` carries a transform, so nothing is moved by walking through it.
 use super::archive::{Archive, Object, MAX_DEPTH};
 use super::kind::{kind_of, Kind};
 use super::property::{Properties, POD_BOOL, POD_F64, POD_U8};
@@ -16,22 +16,59 @@ use crate::Result;
 use serde_json::json;
 use std::sync::atomic::AtomicBool;
 
+mod strands;
 mod surface;
+
+/// What an `Xform` above the object being visited declares for the groom (`World::declared_width`).
+#[derive(Clone, Copy)]
+enum Declared {
+    /// Not looked for yet: it is read when the first curves object below the `Xform` asks.
+    Unread,
+    /// It declares nothing: it has neither user properties nor arbitrary geometry parameters.
+    Nothing,
+    /// It declares attributes, whose width is this one, if they give a finite one.
+    Attributes(Option<f32>),
+}
+
+/// An `Xform` above the object being visited: where its properties lie, and what they declare.
+struct Link {
+    top: Option<u64>,
+    declared: Declared,
+}
 
 /// What a walk has at hand.
 pub(super) struct World<'a> {
-    pub(super) archive: &'a Archive,
-    pub(super) scene: &'a mut Scene,
-    pub(super) cancelled: &'a AtomicBool,
+    archive: &'a Archive,
+    scene: &'a mut Scene,
+    cancelled: &'a AtomicBool,
+    /// The `Xform`s from the top of the hierarchy to the object being visited.
+    chain: Vec<Link>,
 }
 
-impl World<'_> {
+impl<'a> World<'a> {
+    /// A walk of `archive` that fills `scene`.
+    pub(super) fn new(
+        archive: &'a Archive,
+        scene: &'a mut Scene,
+        cancelled: &'a AtomicBool,
+    ) -> Self {
+        Self {
+            archive,
+            scene,
+            cancelled,
+            chain: Vec::new(),
+        }
+    }
+
     /// The top-level properties of an object, those that carry its schema.
     fn top(&self, object: &Object) -> Result<Option<Properties>> {
-        match object.group.first().copied() {
-            Some(first) => Properties::read(self.archive, first).map(Some),
-            None => Ok(None),
-        }
+        self.properties(object.group.first().copied())
+    }
+
+    /// The properties the group at `top` holds.
+    fn properties(&self, top: Option<u64>) -> Result<Option<Properties>> {
+        top.map(|first| Properties::read(self.archive, first))
+            .transpose()
     }
 
     /// Builds the nodes of this object and its descendants, and yields those its parent attaches.
@@ -53,13 +90,23 @@ impl World<'_> {
             return Ok(Vec::new());
         }
         let children = self.archive.children(object)?;
+        if kind == Kind::Xform {
+            self.chain.push(Link {
+                top: object.group.first().copied(),
+                declared: Declared::Unread,
+            });
+        }
         let mut attached = Vec::new();
         for child in &children {
             attached.extend(self.visit(child, depth + 1)?);
         }
+        if kind == Kind::Xform {
+            self.chain.pop();
+        }
         match kind {
             Kind::Xform => self.xform_node(object, attached),
             Kind::Mesh | Kind::SubD => self.mesh_node(object, kind, &children, attached),
+            Kind::Curves => self.curves_node(object, attached),
             Kind::FaceSet => Ok(Vec::new()),
             Kind::Skipped(reason) => {
                 self.scene.tables.report.add(reason);

@@ -5,6 +5,7 @@ use super::kind::{kind_of, Kind};
 use super::ogawa::MAGIC;
 use super::*;
 
+mod curves;
 mod geometry;
 use std::fs;
 
@@ -94,10 +95,7 @@ fn the_schema_metadata_names_what_each_object_is() {
         ("schema=AbcGeom_PolyMesh_v1;schemaBaseType=x", Kind::Mesh),
         ("schema=AbcGeom_SubD_v1", Kind::SubD),
         ("schema=AbcGeom_FaceSet_v1", Kind::FaceSet),
-        (
-            "schema=AbcGeom_Curve_v2",
-            Kind::Skipped(crate::plugins::scene::codes::CURVES_UNSUPPORTED),
-        ),
+        ("schema=AbcGeom_Curve_v2", Kind::Curves),
         (
             "schema=AbcGeom_Points_v1",
             Kind::Skipped("alembic-points-unsupported"),
@@ -119,6 +117,16 @@ fn the_schema_metadata_names_what_each_object_is() {
             "isInstance=1;schema=AbcGeom_PolyMesh_v1",
             Kind::Skipped("alembic-instance-unsupported"),
         ),
+        (
+            "isInstance=1;schema=AbcGeom_Xform_v3",
+            Kind::Skipped("alembic-instance-unsupported"),
+        ),
+        (
+            "isInstance=1",
+            Kind::Skipped("alembic-instance-unsupported"),
+        ),
+        // The one instance this driver reads: curves, in place, once for each instance.
+        ("isInstance=1;schema=AbcGeom_Curve_v2", Kind::Curves),
     ];
     for (meta, expected) in kinds {
         assert_eq!(kind_of(meta), expected, "{meta}");

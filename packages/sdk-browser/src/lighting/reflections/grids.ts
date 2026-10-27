@@ -13,12 +13,12 @@ import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
  * `texelWgsl.ts`, two words each in `REFLECTION_GRID_FORMAT`.
  *
  * - THE GRID, a texel a block of the level's pixels a side (`ReflectionView.grid`; here `pixels` texels at most), the tracing
- *   buffers: the fresh texels the trace writes (`fresh`, a ray's radiance and hit), the ray words in `REFLECTION_RAY_FORMAT`:
- *   the block's pixel that traces this image, which the classification picks (`tiles.ts`), and the rays in
- *   `REFLECTION_DIRECTION_FORMAT` (`directions`): the direction and the cone angle of each ray, which the screen stage writes
- *   and the resolve reads to weigh a neighbour's ray on the pixel's own lobe. The ray words
- *   are the layers of one array texture (`REFLECTION_RAY_LAYERS`): the word, then the traced pixel's depth, an `f32`'s bits,
- *   which the screen stage writes and the resolve reads in place of the neighbour's surface.
+ *   buffers: the fresh texels the trace writes (`fresh`, a ray's radiance and hit), and the rays (`rays`), the layers of one array
+ *   texture of `REFLECTION_RAY_FORMAT` (`REFLECTION_RAY_LAYERS`) which the ray generation writes (`generateRays`, `trace/trace.ts`)
+ *   and every later kernel reads: the depth of the pixel the texel casts from this image, an `f32`'s bits, negative where the texel
+ *   casts none (the clear of an unused tracing tile writes -1), which the resolve reads in place of the neighbour's surface; then the
+ *   ray's direction, two halves in a word and the third beside the cone angle in the next — the cone angle the inverse of the ray's pdf,
+ *   negative for a pixel of a first-person object —, which the stages trace and the resolve weighs a neighbour's ray on the pixel's own lobe by.
  * - THE HISTORY, a texel a pixel in `REFLECTION_HISTORY_FORMAT`: two that take turns as the one the temporal accumulation reads and the
  *   one it writes (`history`, ping-ponged so no kernel reads what it writes). The resolved pixels the
  *   accumulation reads are the view's, one for both surfaces,
@@ -31,14 +31,13 @@ import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
  *   `REFLECTION_PENDING_WORDS` words, the trace's `vec2u`, which the scene stage runs over.
  */
 export const REFLECTION_GRID_FORMAT: GPUTextureFormat = 'rg32uint'
-/** A texel's ray word (`classifyTraced`): its block's traced pixel. */
+/** A texel's ray, in the layers of one array texture (`REFLECTION_RAY_LAYERS`): the traced pixel's depth, then the direction and the cone
+ *  angle as the reference stores its ray, four half floats in two words. One array, not a half-float texture beside a depth: the
+ *  stages that read the ray bind it as the one storage texture they read and write, none of the sampled textures a stage holds
+ *  being left for it (and a half-float texture reads as storage only where the device grants the tier-1 formats). */
 export const REFLECTION_RAY_FORMAT: GPUTextureFormat = 'r32uint'
-/** A texel's ray (`surfaceDirections`): its direction in three half floats and its cone angle in the fourth, as the reference stores
- *  its rays. */
-export const REFLECTION_DIRECTION_FORMAT: GPUTextureFormat = 'rgba16float'
-/** The layers of the ray texture, an array of `REFLECTION_RAY_FORMAT`: a texel's ray word and its traced pixel's depth. The depth is a
- *  layer beside the word, not a texture of its own: the screen stage binds the array as the one storage texture it reads and writes. */
-const REFLECTION_RAY_LAYERS = 2
+/** The layers of the ray texture: the depth, the direction's first two halves, its third half with the cone angle. */
+const REFLECTION_RAY_LAYERS = 3
 /** A history texel (`historyPack`): its radiance and depth, its luminance's second moment and its
  *  count, four words. */
 export const REFLECTION_HISTORY_FORMAT: GPUTextureFormat = 'rgba32uint'
@@ -70,11 +69,9 @@ const tilesOf = (width: number, height: number) =>
 /** Bytes of one texel of the grids (`REFLECTION_GRID_FORMAT`). */
 export const REFLECTION_GRID_TEXEL_BYTES = texelBytesOf(REFLECTION_GRID_FORMAT)
 
-/** Bytes of the textures a ray is written in, a texel each: the ray word and the traced pixel's depth (`REFLECTION_RAY_LAYERS` layers of
- *  `REFLECTION_RAY_FORMAT`), the direction and the cone angle (`REFLECTION_DIRECTION_FORMAT`). */
-export const REFLECTION_RAY_BYTES =
-  REFLECTION_RAY_LAYERS * texelBytesOf(REFLECTION_RAY_FORMAT) +
-  texelBytesOf(REFLECTION_DIRECTION_FORMAT)
+/** Bytes of the texture a ray is written in, a texel each: the traced pixel's depth, the direction and the cone angle (`REFLECTION_RAY_LAYERS`
+ *  layers of `REFLECTION_RAY_FORMAT`). */
+export const REFLECTION_RAY_BYTES = REFLECTION_RAY_LAYERS * texelBytesOf(REFLECTION_RAY_FORMAT)
 
 /** Bytes of one history texel (`REFLECTION_HISTORY_FORMAT`). */
 export const REFLECTION_HISTORY_TEXEL_BYTES = texelBytesOf(REFLECTION_HISTORY_FORMAT)
@@ -83,7 +80,7 @@ export const REFLECTION_HISTORY_TEXEL_BYTES = texelBytesOf(REFLECTION_HISTORY_FO
 export const resolvedBytes = (width: number, height: number) =>
   width * height * REFLECTION_GRID_TEXEL_BYTES
 
-/** Bytes of a surface's textures over targets of `width × height` pixels: the grid's 8 + 2 · 4 + 8 = 24
+/** Bytes of a surface's textures over targets of `width × height` pixels: the grid's 8 + 3 · 4 = 20
  *  a texel, a pixel's, the history's 2 · 16 = 32 a pixel, the four tile lists, the list of the rays the screen
  *  missed, 8 a texel at most. */
 export const gridBytes = (width: number, height: number) => {
@@ -119,7 +116,6 @@ export function createReflectionGrids(device: GPUDevice, label: string, pixels: 
   const textures = [
     createKernelTexture(device, label, size, REFLECTION_GRID_FORMAT),
     createKernelTexture(device, label, [...size, REFLECTION_RAY_LAYERS], REFLECTION_RAY_FORMAT),
-    createKernelTexture(device, label, size, REFLECTION_DIRECTION_FORMAT),
     createKernelTexture(device, label, pixels, REFLECTION_HISTORY_FORMAT),
     createKernelTexture(device, label, pixels, REFLECTION_HISTORY_FORMAT),
   ]
@@ -148,12 +144,10 @@ export function createReflectionGrids(device: GPUDevice, label: string, pixels: 
     /** The pixels the textures were made for. */
     pixels,
     fresh: views[0],
-    /** The ray words, an array view of `REFLECTION_RAY_LAYERS` layers. */
+    /** The rays, an array view of `REFLECTION_RAY_LAYERS` layers. */
     rays: views[1],
-    /** The rays' directions and cone angles. */
-    directions: views[2],
     /** The history's turn about, `history[parity]`. */
-    history: [views[3], views[4]] as const,
+    history: [views[2], views[3]] as const,
     destroy() {
       for (const texture of textures) texture.destroy()
       for (const made of Object.values(lists)) made.destroy()

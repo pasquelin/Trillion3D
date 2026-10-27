@@ -209,6 +209,7 @@ pub(crate) fn compile_primitive(
         mesh: mesh as u32,
         primitive: primitive as u32,
         flags: crate::ray_tracing::material_flags(material, blended),
+        cell: 0,
     };
     let mut dag = build_primitive(
         inputs,

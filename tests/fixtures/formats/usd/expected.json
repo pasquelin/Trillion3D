@@ -141,7 +141,7 @@
   "notes": [],
   "plugin": {
     "name": "usd",
-    "version": "usd-openusd-0.7.0-gltf-9"
+    "version": "usd-openusd-0.7.0-gltf-10"
   },
   "primitives": 2,
   "rule": "The driver yields the composed scene and nothing else: polygons fan-triangulated, one primitive per material part, normals and primvars:st resolved by their interpolation, UsdPreviewSurface to pbrMetallicRoughness, and the layer's unit and up-axis carried by the scene root.",
@@ -155,7 +155,7 @@
   ],
   "scenePlugin": {
     "name": "usd",
-    "version": "usd-openusd-0.7.0-gltf-9"
+    "version": "usd-openusd-0.7.0-gltf-10"
   },
   "selectedNodes": 1,
   "selectedTriangles": 4,

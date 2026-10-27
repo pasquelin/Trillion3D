@@ -4,6 +4,7 @@ pub mod coplanar;
 mod dag;
 pub(crate) mod displace;
 pub(crate) mod distance_field;
+pub(crate) mod hair_strands;
 mod manifest_binary;
 #[cfg(any(test, feature = "oracle"))]
 pub mod oracle;
@@ -92,6 +93,9 @@ pub struct Options {
     /// The volumetric lightmap's bake (`lightmapBake`, `LightmapBakeOptions::read`): none when the
     /// job names none; `Err` with the job's refusal when it does not read.
     pub lightmap_bake: std::result::Result<LightmapBakeOptions, String>,
+    /// The hair strands' settings (`hairEndingPoint`, `HairOptions::read`): the reference's when the
+    /// job names none; `Err` with the job's refusal when they do not read.
+    pub hair_strands: std::result::Result<HairOptions, String>,
     pub cancelled: Arc<AtomicBool>,
 }
 fn check(o: &Options) -> Result<()> {
@@ -112,9 +116,9 @@ pub(crate) mod trace;
 use compiler::accessor::create::*;
 use compiler::accessor::types::*;
 pub use compiler::args::{
-    job_options, machine_threads, parse_compiler_args, positive, Hlod, HlodBuilder, HlodLayer,
-    HlodLodSelection, JobDefaults, LightmapBakeOptions, MaterialOptions, MeshBuildOptions,
-    ObjectSettings, PartitionGrid, VoxelizeOptions, ID_FIELD,
+    job_options, machine_threads, parse_compiler_args, positive, HairOptions, Hlod, HlodBuilder,
+    HlodLayer, HlodLodSelection, JobDefaults, LightmapBakeOptions, MaterialOptions,
+    MeshBuildOptions, ObjectSettings, PartitionGrid, VoxelizeOptions, ID_FIELD,
 };
 pub use compiler::build::compile;
 use compiler::build::progress::with_ratio;

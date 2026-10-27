@@ -50,7 +50,6 @@ const TAA_LABELS = [
   'temporal decimate history',
   'temporal detect thin geometry',
   'temporal thin geometry weight relaxation',
-  'temporal flicker measure',
   'temporal reject shading',
   'temporal spatial anti-aliasing',
   'temporal update history',
@@ -68,7 +67,7 @@ test('a floor is its slowest resource at its peak, plus a fixed cost a pass', ()
 })
 
 test('the passes count their shipped constants', () => {
-  // TAA at half the display per axis, split into its eight passes as the engine times them
+  // TAA at half the display per axis, split into its passes as the engine times them
   // (`TAA_*_PASS`), the rows summing to the temporal pass's: its analysis' fetches a render texel
   // over the four a display pixel holds, and its update and resolve's (`taaFetchCount.test.ts`);
   // 61 B a display pixel: the history at twice the display per axis, five bytes a pixel (11-11-10
@@ -86,41 +85,22 @@ test('the passes count their shipped constants', () => {
   // To the last bits: the shading rejection's fetches a texel are a share of its tile (32² read,
   // 26² written), no longer a sum of powers of two.
   assert.ok(Math.abs(sum('texels') / frame.D - (fetches.analysis / 4 + fetches.resolve)) < 1e-9)
-  // The flicker measure's own dispatch: the colour (8 B), the reprojection word (4) and the thin
-  // geometry's mask (1) read again, and its errors written and read, 32 bits a cell, a 32 × 32 tile
-  // for the 26 × 26 texels a workgroup writes.
-  const errors = (4 * 32 * 32) / (26 * 26)
-  assert.ok(Math.abs(sum('bytes') - (61 * frame.D + (157 + 13 + 2 * errors) * frame.P)) < 1e-3)
+  assert.ok(Math.abs(sum('bytes') - (61 * frame.D + 157 * frame.P)) < 1e-3)
   assert.ok(
     Math.abs(sum('bytes') - (TAA_DISPLAY_BYTES * frame.D + TAA_RENDER_BYTES * frame.P)) < 1e-3,
   )
   // Each pass its own: the two measures 1 B a render pixel each, the nearest velocity 33, the
-  // reprojection 41, the thin geometry's detection 5 and relaxation 6, the flicker measure 22 and
-  // the shading rejection 35 (its mask included) with the errors a tile's cell each, the
+  // reprojection 41, the thin geometry's detection 5 and relaxation 6, the shading rejection 44
+  // (its mask included, and the flicker measure that begins it: the flicker history read and
+  // written, 4 B each, and the flicker luma, 1 B; its error and count pass in registers), the
   // anti-aliaser 4, the update 22 and 41 a display pixel,
   // the resolve 20 a display pixel; the display layers' resolve none in this frame.
   const per = (unit: Pick<Frame, 'P' | 'D'>) =>
     TAA_LABELS.map((label) => pass(label).work({ ...frame, ...unit }).bytes ?? Number.NaN)
   // The measures before the translucency, a byte each; the thin geometry's word between the detection
   // and its weight relaxation, the mask and the coverage history bytes it writes.
-  assert.deepEqual(
-    per({ P: 1, D: 0 }).map((bytes) => Math.round(bytes * 1e6) / 1e6),
-    [
-      1,
-      1,
-      33,
-      41,
-      5,
-      6,
-      Math.round((22 + errors) * 1e6) / 1e6,
-      Math.round((35 + errors) * 1e6) / 1e6,
-      4,
-      22,
-      0,
-      0,
-    ],
-  )
-  assert.deepEqual(per({ P: 0, D: 1 }), [0, 0, 0, 0, 0, 0, 0, 0, 0, 41, 20, 0])
+  assert.deepEqual(per({ P: 1, D: 0 }), [1, 1, 33, 41, 5, 6, 44, 4, 22, 0, 0])
+  assert.deepEqual(per({ P: 0, D: 1 }), [0, 0, 0, 0, 0, 0, 0, 0, 41, 20, 0])
   // One sun: one ray of five samples, two fetches each, plus the screen ray's start and four samples.
   const vsm = pass('vsm.projection').work(frame)
   assert.equal(vsm.texels, frame.P * (5 + 5 * 2))
@@ -132,6 +112,13 @@ test('the passes count their shipped constants', () => {
   const trace = pass('reflection trace')
   const marched = (reflecting: number) => trace.work({ ...frame, reflecting }).texels!
   assert.equal((marched(1) - marched(0)) / frame.P, (4 + 16 * 3 + 3) / TRACE_SHARE)
+  // It writes its fresh texel (rg32uint, 8) and its ray's textures (the word and the depth, r32uint 4 each, the direction rgba16float, 8)
+  // and the last pass the reflection target's three layers of rgba16float, 24.
+  const written = (reflecting: number) => trace.work({ ...frame, reflecting }).bytes!
+  assert.equal((written(1) - written(0)) / frame.P, (8 + 16) / TRACE_SHARE)
+  const denoise = pass('reflection denoise')
+  const stored = (reflecting: number) => denoise.work({ ...frame, reflecting }).bytes!
+  assert.equal((stored(1) - stored(0)) / frame.P, (8 + 16) / TRACE_SHARE + 24)
 })
 
 const report = {

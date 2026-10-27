@@ -292,6 +292,7 @@ test('the light buffer’s regions sit where the lighting, the air’s programs 
   assert.equal(lights.localFog, LIGHT_BUFFER_AT.localFog)
   assert.equal(lights.ltc, LIGHT_BUFFER_AT.ltc)
   assert.equal(lights.skin, LIGHT_BUFFER_AT.skin)
+  assert.equal(lights.sheen, LIGHT_BUFFER_AT.sheen)
   assert.equal(lights.items, LIGHT_BUFFER_AT.items)
   // The air's programs read the front of the same bytes, by the same names: the fog, the air's block
   // and view, the fog volume's, the haze volume, the published transmittance, the local fog volumes'.

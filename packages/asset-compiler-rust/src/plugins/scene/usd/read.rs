@@ -32,6 +32,16 @@ pub(super) fn number(value: &sdf::Value) -> Option<f64> {
     })
 }
 
+/// An array of floats: widths, a roughness. Half and double precision fold into `f32`.
+pub(super) fn floats(value: &sdf::Value) -> Option<Vec<f32>> {
+    Some(match value {
+        sdf::Value::FloatVec(v) => v.clone(),
+        sdf::Value::DoubleVec(v) => v.iter().map(|x| *x as f32).collect(),
+        sdf::Value::HalfVec(v) => v.iter().map(|x| f32::from(*x)).collect(),
+        _ => return None,
+    })
+}
+
 /// A triple: a colour, a normal, a position or the three angles of a rotation.
 pub(super) fn triple(value: &sdf::Value) -> Option<[f64; 3]> {
     Some(match value {
@@ -93,6 +103,14 @@ pub(super) fn pairs(value: &sdf::Value) -> Option<Vec<[f32; 2]>> {
         sdf::Value::Vec2hVec(v) => v.iter().map(|p| [f32::from(p.x), f32::from(p.y)]).collect(),
         _ => return None,
     })
+}
+
+/// An array of strings: group names.
+pub(super) fn strings(value: &sdf::Value) -> Option<Vec<String>> {
+    match value {
+        sdf::Value::StringVec(v) => Some(v.clone()),
+        _ => None,
+    }
 }
 
 /// An array of integers: vertex counts per face, indices, faces of a `GeomSubset`. A negative

@@ -60,6 +60,7 @@ phases! {
  voxels=>Voxels=>"voxelsMs",
  distance_fields=>DistanceFields=>"distanceFieldsMs",
  mesh_cards=>MeshCards=>"meshCardsMs",
+ hair_strands=>HairStrands=>"hairStrandsMs",
  volumetric_lightmap=>VolumetricLightmap=>"volumetricLightmapMs",
  job=>Job=>"jobMs",
 }

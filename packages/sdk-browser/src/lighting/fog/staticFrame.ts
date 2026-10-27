@@ -13,7 +13,7 @@ import { setFogStaticLight } from './staticLight.ts'
  * light's — and the sky light the frame holds.
  */
 export function fillFogStaticLight(
-  inputs: Pick<FogVolumeInputs, 'staticLight' | 'lightmap'>,
+  inputs: Pick<FogVolumeInputs, 'staticLight' | 'lightmap' | 'translucencyGi'>,
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   medium: ResolvedVolumetricFog,
@@ -26,5 +26,6 @@ export function fillFogStaticLight(
     skyLighting: overrides.skyLighting,
     lightmap: inputs.lightmap?.data,
     sky: heldSkyLight(rt),
+    translucencyGi: !!inputs.translucencyGi,
   })
 }

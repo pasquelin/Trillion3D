@@ -45,11 +45,15 @@ export interface FogResourceBindings {
    *  `../atmosphere/hazeReadWgsl.ts`); left out, the haze is read by hand from the light buffer's region
    *  (`HAZE_READ_WGSL`). */
   readonly haze?: number
+  /** Whether the program lists the sky light's whole read (`skyLightReadWgsl`): the sky light that lights the fog is then read on its cube
+   *  (`fogSkyLightColour`) instead of on the binding of `cubemap`, which holds the fog's own cubemap alone, or none. The mip is the one the fog
+   *  reads the cube at, from the count of mips the view block carries (`FOG_VIEW_SLOT.heightFog`). */
+  readonly skyLight?: boolean
 }
 
 /** The bindings as a block name reads them, in their declared order. */
 export const fogBindingsLabel = (b: FogResourceBindings) =>
-  `${b.group}, ${b.cubemap}, ${b.volume}, ${b.sampler}${b.translucent ? ', translucent' : ''}${b.lightShaft === undefined ? '' : `, ${b.lightShaft}`}${b.tiles === undefined ? '' : `, tiles ${b.tiles}`}${b.localFog === false ? ', no local fog volumes' : ''}${b.haze === undefined ? '' : `, haze ${b.haze}`}`
+  `${b.group}, ${b.cubemap}, ${b.volume}, ${b.sampler}${b.translucent ? ', translucent' : ''}${b.lightShaft === undefined ? '' : `, ${b.lightShaft}`}${b.tiles === undefined ? '' : `, tiles ${b.tiles}`}${b.localFog === false ? ', no local fog volumes' : ''}${b.haze === undefined ? '' : `, haze ${b.haze}`}${b.skyLight ? ', sky light' : ''}`
 
 /** The view-projection the volume was built with, from the first four slots. */
 const viewProjection = () =>
@@ -60,15 +64,17 @@ const reach = `directLights.fog[${FOG_SLOT.reach}]`
 /** The cubemap's read: its colour along a direction, at its sharpest (level 0) and at its smallest
  *  (the last level, one texel a face), through the sampler — trilinear, seamless across the faces'
  *  edges. The level asked for the smallest is the cubemap's count of levels, past the last, which
- *  the sampler holds to it. While the sky light lights the height fog the binding holds the sky
- *  light's filtered cube in the place of the fog's (`fogReadOf`): the view block carries the strength
- *  the fog mixes it in by, the roughness and the count of mips it is read at (`FOG_VIEW_SLOT.heightFog`)
- *  and the light's colour (`skyLightColour`), and `fogSkyLightColour` reads it along a direction of the
- *  scene, turned into the cube's frame, at the mip of the roughness. */
+ *  the sampler holds to it. */
 const cubemapText = (b: Required<Pick<FogResourceBindings, 'group' | 'cubemap'>>) => `
 @group(${b.group}) @binding(${b.cubemap}) var fogCubemap:texture_cube<f32>;
 fn fogCubeSharp(direction:vec3f)->vec3f{return textureSampleLevel(fogCubemap,fogSampler,direction,0.0).rgb;}
-fn fogCubeAverage(direction:vec3f)->vec3f{return textureSampleLevel(fogCubemap,fogSampler,direction,directLights.fog[${FOG_SLOT.cubemap}].z).rgb;}
+fn fogCubeAverage(direction:vec3f)->vec3f{return textureSampleLevel(fogCubemap,fogSampler,direction,directLights.fog[${FOG_SLOT.cubemap}].z).rgb;}`
+
+/** The sky light that lights the fog, read on the binding of the cubemap: while the sky light lights the height fog that binding holds
+ *  the sky light's filtered cube in the place of the fog's (`fogReadOf`); the view block carries the strength the fog mixes it in by, the
+ *  roughness and the count of mips it is read at (`FOG_VIEW_SLOT.heightFog`) and the light's colour (`skyLightColour`), and `fogSkyLightColour`
+ *  reads it along a direction of the scene, turned into the cube's frame, at the mip of the roughness. */
+const SKY_ON_CUBEMAP_TEXT = `
 fn fogSkyLightStrength()->f32{return ${view(FOG_VIEW_SLOT.heightFog)}.y;}
 fn fogSkyLightColour(direction:vec3f)->vec3f{
  let read=${view(FOG_VIEW_SLOT.heightFog)};
@@ -76,10 +82,22 @@ fn fogSkyLightColour(direction:vec3f)->vec3f{
  return ${view(FOG_VIEW_SLOT.skyLightColour)}.rgb*textureSampleLevel(fogCubemap,fogSampler,sceneToCube(direction),mip).rgb;
 }`
 
-/** The answers of a program with no cubemap: the fog's own is white, so that the tint alone colours
- *  it, and the sky light does not light the fog. */
+/** The same light, read on the sky light's own cube array (`skyLightReadWgsl`, which the program lists): the layer the capture has ready, at the
+ *  same mip, in the same colour, through the same sampler as the binding of the cubemap would give. */
+const SKY_ON_LIGHT_TEXT = `
+fn fogSkyLightStrength()->f32{return ${view(FOG_VIEW_SLOT.heightFog)}.y;}
+fn fogSkyLightColour(direction:vec3f)->vec3f{
+ let read=${view(FOG_VIEW_SLOT.heightFog)};
+ let mip=roughnessMip(read.z,read.w);
+ return ${view(FOG_VIEW_SLOT.skyLightColour)}.rgb*textureSampleLevel(skyLightCube,skyLightSampler,sceneToCube(direction),i32(skyLight.levels.z),mip).rgb;
+}`
+
+/** The answers of a program with no cubemap: the fog's own is white, so that the tint alone colours it. */
 const NO_CUBEMAP_TEXT = `fn fogCubeSharp(direction:vec3f)->vec3f{return vec3f(1.0);}
-fn fogCubeAverage(direction:vec3f)->vec3f{return vec3f(1.0);}
+fn fogCubeAverage(direction:vec3f)->vec3f{return vec3f(1.0);}`
+
+/** The answers of a program that reads no sky light on the fog: it does not light it. */
+const NO_SKY_TEXT = `
 fn fogSkyLightStrength()->f32{return 0.0;}
 fn fogSkyLightColour(direction:vec3f)->vec3f{return vec3f(0.0);}`
 
@@ -214,6 +232,7 @@ function fogResourcesWgsl(b: FogResourceBindings): WgslDecl {
       ? 'fn fogVolumeExclude(toward:vec3f)->f32{return 0.0;}\nfn fogVolumeLookup(toward:vec3f)->vec4f{return vec4f(0.0,0.0,0.0,1.0);}'
       : `@group(${group}) @binding(${volume}) var fogVolume:texture_3d<f32>;${SAMPLE_TEXT}${translucent ? TRILINEAR_TEXT : FILTERED_TEXT}${translucent ? TRANSLUCENT_UV_TEXT : SCREEN_UV_TEXT}${VOLUME_TEXT}`,
     cubemap === undefined ? NO_CUBEMAP_TEXT : cubemapText({ group, cubemap }),
+    b.skyLight ? SKY_ON_LIGHT_TEXT : cubemap === undefined ? NO_SKY_TEXT : SKY_ON_CUBEMAP_TEXT,
     lightShaft === undefined
       ? 'fn lightShaftMask(pixel:vec2f)->f32{return 1.0;}'
       : lightShaftText({ group, lightShaft }),
@@ -227,7 +246,7 @@ function fogResourcesWgsl(b: FogResourceBindings): WgslDecl {
       perspectiveDivide,
       rand3dPcg16,
       logSliceOfDepth,
-      ...(cubemap === undefined ? [] : [SKY_CUBE_WGSL]),
+      ...(cubemap === undefined && !b.skyLight ? [] : [SKY_CUBE_WGSL]),
       ...(localFog === false ? [] : [fogTilesWgsl(b)]),
     ],
     declarations.join('\n'),

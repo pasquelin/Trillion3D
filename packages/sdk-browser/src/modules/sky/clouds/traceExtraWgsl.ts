@@ -2,6 +2,7 @@ import { wgslBlock, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { vsmConsumerWgsl } from '../../../lighting/direct/vsmConsumerWgsl.ts'
 import { directLightWgsl } from '../../../lighting/direct/lightWgsl.ts'
 import { VOLUME_LAMP_WGSL } from '../../../lighting/direct/lampSeenWgsl.ts'
+import { lightStrengthWgsl } from '../../../lighting/direct/lightStrengthWgsl.ts'
 import { TILE_SLICE_WGSL } from '../../../lighting/direct/lightingWgsl.ts'
 import { vsmFragmentSampleWgsl } from '../../../lighting/direct/shadowTraceWgsl.ts'
 import { VSM_TRACE_KINDS_SUN } from '../../../lighting/shadows/vsm/trace/traceWgsl.ts'
@@ -111,7 +112,7 @@ fn cloudLocalLights(rel:vec3f,o:CloudOctaves)->array<vec3f,3>{
   if(isSun(light)||light.params.z<=0.0){continue;}
   let seen=volumeLamp(light,P,LAMP_BIAS);
   if(seen.w<=0.0){continue;}
-  let colour=light.colorIntensity.rgb*(light.colorIntensity.w*light.params.z*seen.w*UNIFORM_PHASE);
+  let colour=light.colorIntensity.rgb*(lightStrength(light)*light.params.z*seen.w*UNIFORM_PHASE);
   let through=cloudLampShadow(rel,light.positionRange.xyz-P,o);
   for(var m=0u;m<o.count;m++){sum[m]+=colour*through[m];}
  }
@@ -150,7 +151,13 @@ export const cloudTraceExtraWgsl = (p: CloudTraceKey) => {
       vsmFragmentSampleWgsl(vsm.pool, B.vsmView, VSM_TRACE_KINDS_SUN, G),
     )
   }
-  if (p.localLights) uses.push(directLightWgsl(), TILE_SLICE_WGSL, VOLUME_LAMP_WGSL)
+  if (p.localLights)
+    uses.push(
+      directLightWgsl(),
+      lightStrengthWgsl('cloudTrace.local.z'),
+      TILE_SLICE_WGSL,
+      VOLUME_LAMP_WGSL,
+    )
   if (p.skyLight) uses.push(skyLightDiffuseWgsl(CLOUD_TRACE_SKY_LIGHT))
   if (p.volumeShadowMap) uses.push(cloudShadowReadWgsl(CLOUD_TRACE_SHADOW_MAPS))
   return wgslBlock(

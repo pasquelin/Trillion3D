@@ -30,8 +30,11 @@ pub(crate) mod place;
 mod records;
 #[cfg(test)]
 pub(crate) mod tests;
+mod traced;
 pub(crate) mod voxels;
+mod warnings;
 pub(crate) use cover::SourceCover;
+use warnings::assignment_warnings;
 mod cook;
 pub(crate) use cook::{cook, merged_lods, Cooked, Instance};
 
@@ -46,9 +49,9 @@ pub(crate) const WORLD_ROOTS_DAG: &str = "world-roots.dag";
 pub(crate) const WORLD_ROOTS_BIN: &str = "world-roots.bin";
 
 /// What the world stage hands back: its products, its report, the published scene with the
-/// flattened materials and their glTF ranks, their textures' chains, and the distance field and the
+/// flattened materials and their glTF ranks, their textures' chains, the distance field and the
 /// cards of each HLOD cell whose layer allows a distance field (`allowDistanceField`), for the
-/// distance field and the mesh cards stages to write.
+/// distance field and the mesh cards stages to write, and the trees of the actors for ray tracing.
 pub(crate) struct Staged {
     pub products: Vec<Product>,
     pub report: Value,
@@ -56,6 +59,8 @@ pub(crate) struct Staged {
     pub previews: Vec<crate::texture::TexturePreview>,
     pub fields: Vec<crate::distance_field::Placed>,
     pub cards: Vec<crate::card_representation::PlacedCards>,
+    /// The world's trees for ray tracing, for the ray-tracing stage to write after the primitives'.
+    pub ray_tracing: Option<crate::ray_tracing::WorldTrees>,
 }
 
 impl Staged {
@@ -68,6 +73,7 @@ impl Staged {
             previews: Vec::new(),
             fields: Vec::new(),
             cards: Vec::new(),
+            ray_tracing: None,
         }
     }
 }
@@ -110,6 +116,9 @@ pub(crate) fn stage_world_roots(
         return Ok(Staged::nothing());
     }
     let nodes = values(published, "nodes")?;
+    let scene_materials = published["materials"]
+        .as_array()
+        .map_or(&[][..], Vec::as_slice);
     let instances = instances::gather(
         cells,
         (nodes, source.0),
@@ -139,9 +148,10 @@ pub(crate) fn stage_world_roots(
             hlod,
             room: o.ram_budget_bytes(),
         };
-        cook(&instances, &cells.tree, &builder)
+        cook(&instances, &cells.tree, (&builder, scene_materials))
     })?;
     let mut report = cooked.report;
+    let ray_tracing = cooked.ray_tracing;
     let fields = take_fields(&mut actors);
     let cards = take_cards(&mut actors);
     report["actorFields"] = json!(fields.len());
@@ -160,6 +170,7 @@ pub(crate) fn stage_world_roots(
         previews,
         fields,
         cards,
+        ray_tracing,
     })
 }
 
@@ -171,55 +182,6 @@ fn fallbacks_of(published: &Value) -> BTreeMap<u64, u64> {
             let source = crate::compiler::source::fallback::of(mesh)?;
             Some((source as u64, rank as u64))
         })
-        .collect()
-}
-
-/// What the job tells of how its objects were assigned: each layer that lost its parent
-/// (`Hlod::chains`), each object whose mark won over a rule
-/// naming another layer, each node marked that no HLOD takes, each object its settings make an
-/// instanced skinned one that stays a plain skinned one, and each batch root whose `runtimeGrid` no
-/// streaming grid bears: told, never an error.
-fn assignment_warnings(cells: &CellMembers, hlod: &crate::Hlod, nodes: &[Value]) -> Vec<String> {
-    let name = |node: usize| {
-        nodes
-            .get(node)
-            .and_then(|n| n["name"].as_str())
-            .unwrap_or("")
-    };
-    let overruled = cells.overruled.iter().map(|&(node, layer, ruled)| {
-        format!(
-            "node {node} {}: its mark puts it in {}, over the rule naming {}",
-            name(node),
-            hlod.layers[layer].name,
-            hlod.layers[ruled].name
-        )
-    });
-    let unplaced = (cells.unplaced.iter()).map(|&node| {
-        format!(
-            "node {node} {}: marked, but no HLOD takes it — it moves, itself or through a node \
-             above it, or is not spatially loaded, a parent, hidden, held whole by no cell below a \
-             grid's top, or turned away by its layer's size filter",
-            name(node)
-        )
-    });
-    let banks = (cells.bank_warnings.iter()).map(|(node, why)| {
-        format!(
-            "node {node} {}: not an instanced skinned object — {why} —: its host's clips move it",
-            name(*node)
-        )
-    });
-    let grids = (cells.unknown_grids.iter()).map(|(node, grid)| {
-        format!(
-            "node {node} {}: its runtimeGrid {grid:?} is no streaming grid of the job: it streams \
-             on the first grid",
-            name(*node)
-        )
-    });
-    (hlod.dropped.iter().cloned())
-        .chain(overruled)
-        .chain(unplaced)
-        .chain(banks)
-        .chain(grids)
         .collect()
 }
 

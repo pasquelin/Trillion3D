@@ -20,7 +20,7 @@ fn everything_this_driver_does_not_carry_is_counted_by_its_name() {
         point3f[] positions = [(0, 0, 0)]
     }}
 
-    def BasisCurves "Cheveux"
+    def NurbsCurves "Cheveux"
     {{
         int[] curveVertexCounts = [2]
         point3f[] points = [(0, 0, 0), (0, 1, 0)]
@@ -68,6 +68,102 @@ fn everything_this_driver_does_not_carry_is_counted_by_its_name() {
         run.result["sourceTriangles"], 4,
         "the quad and the subdivided surface are rendered flat"
     );
+}
+
+// Behavior 34b: the `BasisCurves` of a groom are not left out: they are the strands of the groom,
+// grouped, packed, and written in a product the manifest's `hairStrands` section names. Two curves
+// of three and two points, a width for each curve, one group: each curve is given the control point
+// at its end, so the group holds seven points.
+#[test]
+fn basis_curves_are_the_strands_of_a_groom() {
+    let hair = format!(
+        r#"{QUAD}
+    def BasisCurves "Cheveux"
+    {{
+        int[] curveVertexCounts = [3, 2]
+        point3f[] points = [(0, 0, 0), (0, 1, 0), (0, 2, 0), (1, 0, 0), (1, 1, 0)]
+        float[] widths = [0.01, 0.02] (interpolation = "uniform")
+    }}"#
+    );
+    let run = compile_layer("cheveux", &wrap("", &hair));
+    assert!(
+        unsupported(&run).get("curves-unsupported").is_none(),
+        "curves of a groom are read"
+    );
+    let section = &run.result["hairStrands"];
+    assert_eq!(section["version"], 1);
+    assert_eq!(section["file"], "hairStrands.bin");
+    assert_eq!(section["curves"], 2);
+    assert_eq!(section["points"], 7);
+    assert_eq!(
+        section["groups"],
+        json!([{"groupId": 0, "curves": 2, "points": 7, "flags": 24}])
+    );
+    // The head, one record, two curves padded to eight bytes, seven points, two seeds and two
+    // lengths padded to words.
+    assert_eq!(section["bytes"], 16 + 80 + 8 + 7 * 8 + 4 + 4);
+}
+
+// Behavior 34c: a layer of curves alone is a groom, as the reference imports one: it is compiled,
+// with no mesh, and the curves of every object of the layer are merged into one groom — here two
+// objects of two curves each, which share the one group, shuffled together.
+#[test]
+fn a_layer_of_curves_alone_is_compiled_as_one_groom() {
+    let hair = r#"
+    def BasisCurves "Left"
+    {
+        int[] curveVertexCounts = [2, 2]
+        point3f[] points = [(0, 0, 0), (0, 1, 0), (1, 0, 0), (1, 1, 0)]
+    }
+    def Xform "Deplace"
+    {
+        double3 xformOp:translate = (5, 0, 0)
+        uniform token[] xformOpOrder = ["xformOp:translate"]
+        def BasisCurves "Right"
+        {
+            int[] curveVertexCounts = [2, 2]
+            point3f[] points = [(0, 0, 0), (0, 1, 0), (1, 0, 0), (1, 1, 0)]
+            float[] widths = [0.01, 0.02, 0.03, 0.04]
+        }
+    }"#;
+    let dir = scratch("usd", "cheveux-seuls");
+    let source = dir.join("scene.usda");
+    fs::write(&source, wrap("", hair)).expect("couche");
+    let answer = compile_golden_answer(&source, "cheveux-seuls");
+    fs::remove_dir_all(&dir).ok();
+    assert_eq!(answer["selectedNodes"], 0, "no mesh is compiled");
+    let section = &answer["hairStrands"];
+    assert_eq!(section["curves"], 4);
+    assert_eq!(
+        section["points"], 12,
+        "four curves of two points, one more each"
+    );
+    assert_eq!(
+        section["groups"],
+        json!([{"groupId": 0, "curves": 4, "points": 12, "flags": 24}]),
+        "one groom, one group"
+    );
+}
+
+// Behavior 34d: curves a layer hides are no groom: a layer of nothing else is refused as holding
+// nothing to draw, as a layer of hidden meshes is.
+#[test]
+fn a_layer_of_hidden_curves_alone_is_refused_as_empty() {
+    let hair = r#"
+    def BasisCurves "Cache"
+    {
+        token visibility = "invisible"
+        int[] curveVertexCounts = [2]
+        point3f[] points = [(0, 0, 0), (0, 1, 0)]
+    }"#;
+    let dir = scratch("usd", "cheveux-caches");
+    let source = dir.join("scene.usda");
+    fs::write(&source, wrap("", hair)).expect("couche");
+    assert_eq!(
+        refused_golden_source(&source, "cheveux-caches"),
+        "IMPORT_EMPTY"
+    );
+    fs::remove_dir_all(&dir).ok();
 }
 
 // Behavior 35: variant set read only at default selection, states so.

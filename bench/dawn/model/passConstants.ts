@@ -8,6 +8,15 @@ import {
   REFLECTION_LEVEL_KNOBS,
 } from '../../../packages/sdk-core/src/contracts/reflectionLevels.ts'
 import { REFLECTION_RULES } from '../../../packages/sdk-core/src/contracts/reflectionOptions.ts'
+import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
+import {
+  REFLECTION_GRID_TEXEL_BYTES,
+  REFLECTION_HISTORY_TEXEL_BYTES,
+  REFLECTION_PENDING_BYTES,
+  REFLECTION_RAY_BYTES,
+} from '../../../packages/sdk-browser/src/lighting/reflections/grids.ts'
+import { REFLECTION_TARGET_LAYERS } from '../../../packages/sdk-browser/src/lighting/reflections/weight.ts'
+import { HDR_FORMAT } from '../../../packages/sdk-browser/src/scene/targetFormats.ts'
 import type { Work } from './floor.ts'
 
 export type Frame = {
@@ -116,25 +125,29 @@ export const MARCH_ITERATIONS = 16,
 /** What a reflecting pixel's screen stage reads besides its march (`traceScreen`): its flags, depth,
  *  normal and lobes; at the hit, two texels for whether the surface is a transparent one
  *  (`hizFrontOver`) and the one texel of the last lit image it lands in (`reflectionSeenAnswer`); it
- *  writes its 16-byte fresh texel and its 4-byte direction. A ray the screen left reads, in the scene
- *  stage (`traceScene`), its 16-byte entry, its partial texel, its pixel's flags, depth, normal and
+ *  writes its fresh texel (`REFLECTION_GRID_FORMAT`) and its ray's textures (`REFLECTION_RAY_BYTES`: the ray word and the
+ *  traced pixel's depth, the direction and cone angle). A ray the screen left reads, in the scene
+ *  stage (`traceScene`), its entry of the list of the missed rays (`REFLECTION_PENDING_BYTES`), its pixel's flags, depth, normal and
  *  lobes, and writes its fresh texel; its march of the field and its read of the cache are the scene's, unmodelled here. The
  *  spatial reuse reads the fresh texel and the pixel's depth and normal, and each neighbour's texel,
  *  depth, normal and direction (the default level's `reconstructionSamples`, `REFLECTION_LEVEL_KNOBS`;
  *  the widening reads `reflectionBilateralSamples`); the temporal accumulation the scratch
  *  texel, depth and normal, four history texels and 21 fresh ones; the last pass the pixel's flags,
  *  depth, normal, lobes and base colour and its neighbours' history texels where its history is short;
- *  each writes 16 bytes, the last 8 (`HDR_FORMAT`). */
+ *  the reuse writes a resolved texel (`GRID_BYTES`), the accumulation a history texel (`HISTORY_BYTES`), the last pass
+ *  the reflection target's layers (`REFLECTION_TARGET_LAYERS`) of `HDR_FORMAT` each. */
 export const TRACE_SHARE = REFLECTION_LEVEL_KNOBS[DEFAULT_REFLECTION_LEVEL].downsample ** 2,
   TRACE_LOADS = 4,
   HIT_LOADS = 2 + 1,
   SCENE_LOADS = 2 + 4,
-  GRID_BYTES = 16,
-  RAY_BYTES = 4,
+  GRID_BYTES = REFLECTION_GRID_TEXEL_BYTES,
+  RAY_BYTES = REFLECTION_RAY_BYTES,
+  PENDING_BYTES = REFLECTION_PENDING_BYTES,
+  HISTORY_BYTES = REFLECTION_HISTORY_TEXEL_BYTES,
   SPATIAL_LOADS = 3 + REFLECTION_LEVEL_KNOBS[DEFAULT_REFLECTION_LEVEL].reconstructionSamples * 4,
   TEMPORAL_LOADS = 3 + 4 + 21,
   BILATERAL_LOADS = 5 + REFLECTION_RULES.reflectionBilateralSamples.default,
-  TARGET_BYTES = 8
+  TARGET_BYTES = REFLECTION_TARGET_LAYERS * texelBytesOf(HDR_FORMAT)
 /** The size of a P-pixel 16:9 image. */
 const sizeOf = (P: number) => {
   const w = Math.round(Math.sqrt(P * (16 / 9)))

@@ -27,12 +27,12 @@ function volumeInput(
 ): FogVolumeInputs {
   const buffer = () =>
     gpu.device.createBuffer({ size: 256, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM })
-  const { previous, grid, resource, rebuildSamples, skipHidden, ...rest } = image(
+  const { previous, grid, resource, rebuildSamples, skipHidden, translucencyGi, ...rest } = image(
     CAM,
     true,
     settings,
   )
-  void [previous, grid, resource, rebuildSamples, skipHidden]
+  void [previous, grid, resource, rebuildSamples, skipHidden, translucencyGi]
   return {
     ...rest,
     allocated: [160, 90],

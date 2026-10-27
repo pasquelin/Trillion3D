@@ -4,7 +4,7 @@
  * event records the module writes back. Every word is 32 bits, read as `uint32` or `float32` in
  * place. A change to any layout below bumps `PHYSICS_LAYOUT_VERSION` and the module with it.
  */
-export const PHYSICS_LAYOUT_VERSION = 20
+export const PHYSICS_LAYOUT_VERSION = 21
 
 /** Command opcodes, the first word of each command. */
 export const OP = {
@@ -94,14 +94,35 @@ export const PART_WORDS = 11
 
 /**
  * A scene query (`jolt_cast`): `kind, origin x, y, z, travel x, y, z, a, b, c, ignored, channel,
- * answer block low, high, answer overlap low, high` — a ray, or a sphere (radius `a`), box (half
- * extents `a, b, c`) or capsule (half height `a`, radius `b`) swept along `travel`, through the body
- * whose engine id is `ignored` (`NO_INDEX`, `../../../math/src/constants.ts`: none), and stopped by
- * what blocks its `channel` as it answers channels (`FILTER_WORDS`). Its hit: `engine id, fraction, point x, y, z, normal x, y, z`; a miss names no
- * body (`0xFFFFFFFF`). A tile's glTF material is its collider's, read from `physics.json`.
+ * answer block low, high, answer overlap low, high, object types low, high, stop` — a ray, or a
+ * sphere (radius `a`), box (half extents `a, b, c`) or capsule (half height `a`, radius `b`) swept
+ * along `travel`, through the body whose engine id is `ignored` (`NO_INDEX`,
+ * `../../../math/src/constants.ts`: none). What stops it is `stop` (`CAST_STOP`): by `channel`, what
+ * blocks its channel as it answers channels (`FILTER_WORDS`); by `objectTypes`, the bodies whose
+ * channel is among the object types (a mask of channels, two words), whatever they answer (an
+ * overlap query's `objectTypes`). Its hit (`HIT_AT`): `engine id, fraction, point x, y, z, normal x,
+ * y, z`; a miss names no body (`0xFFFFFFFF`). A tile's glTF material is its collider's, read from
+ * `physics.json`.
  */
-export const CAST_WORDS = 16
+export const CAST_WORDS = 19
+/** The word each field of a scene query is at: `origin`, `travel` and `extents` the first of their
+ *  three words, `channel` of its five (the channel, the answers it blocks and overlaps) and
+ *  `objectTypes` of its two. */
+export const CAST_AT = {
+  kind: 0,
+  origin: 1,
+  travel: 4,
+  extents: 7,
+  ignored: 10,
+  channel: 11,
+  objectTypes: 16,
+  stop: 18,
+} as const
+/** What stops a scene query (`CAST_AT.stop`): what blocks its channel, or the bodies of its object types. */
+export const CAST_STOP = { channel: 0, objectTypes: 1 } as const
 export const HIT_WORDS = 8
+/** The word each field of a scene query's hit is at: `point` and `normal` the first of their three words. */
+export const HIT_AT = { body: 0, fraction: 1, point: 2, normal: 5 } as const
 /** Words of RESTORE before its bytes (`op, handle, byteCount`), and of RELEASE (`op, handle`). */
 export const RESTORE_WORDS = 3
 export const RELEASE_WORDS = 2

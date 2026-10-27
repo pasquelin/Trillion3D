@@ -58,6 +58,11 @@ impl SceneTables {
         self.lights.push(source.json());
         self.lights.len() - 1
     }
+    /// Writes a groom's arrays into this scene's binary and returns the `extensions` the node that
+    /// carries the curves holds (`hair_strands::carrier`).
+    pub(crate) fn strands(&mut self, groom: &crate::hair_strands::Description) -> Value {
+        crate::hair_strands::carrier::extension(groom, &mut self.bin, &mut self.accessors)
+    }
     /// Adds node and returns rank.
     pub(crate) fn node(&mut self, node: Value) -> usize {
         self.nodes.push(node);

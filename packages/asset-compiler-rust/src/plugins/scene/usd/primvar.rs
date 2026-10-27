@@ -50,15 +50,36 @@ impl<T: Copy> Primvar<T> {
     }
 }
 
-/// Reads a primvar of a prim: its value, its `<name>:indices`, its declared spread. Also yields
-/// `true` when either of the two values comes from a time sample.
-pub(super) fn read<T: Copy>(
+/// A primvar as the layer writes it, before any spread is chosen for it: its values, its indices when
+/// it has some, the interpolation it names, and whether a time sample answered.
+pub(super) struct Written<T> {
+    pub(super) values: Vec<T>,
+    pub(super) indices: Option<Vec<i64>>,
+    pub(super) interpolation: Option<String>,
+    pub(super) sampled: bool,
+}
+
+impl<T: Clone> Written<T> {
+    /// The values behind the indices, those of the primvar itself when it has none; `None` when an
+    /// index leaves them.
+    pub(super) fn flattened(self) -> Option<Vec<T>> {
+        let Some(indices) = self.indices else {
+            return Some(self.values);
+        };
+        indices
+            .iter()
+            .map(|&slot| self.values.get(usize::try_from(slot).ok()?).cloned())
+            .collect()
+    }
+}
+
+/// Reads the primvar `name` of a prim as the layer writes it: its value, its `<name>:indices`, its
+/// declared interpolation.
+pub(super) fn written<T>(
     prim: &usd::Prim,
     name: &str,
     decode: impl Fn(&sdf::Value) -> Option<Vec<T>>,
-    points: usize,
-    corners: usize,
-) -> Option<(Primvar<T>, bool)> {
+) -> Option<Written<T>> {
     let attribute = prim.attribute(name);
     let (value, mut sampled) = read::first(&attribute)?;
     let values = decode(&value)?;
@@ -69,7 +90,32 @@ pub(super) fn read<T: Copy>(
         }
         None => None,
     };
-    let declared = read::metadata(&attribute, "interpolation");
-    let spread = declared_spread(declared.as_deref(), values.len(), points, corners);
-    Some((Primvar::new(values, indices, spread), sampled))
+    Some(Written {
+        values,
+        indices,
+        interpolation: read::metadata(&attribute, "interpolation"),
+        sampled,
+    })
+}
+
+/// Reads a primvar of a prim: its value, its `<name>:indices`, its declared spread. Also yields
+/// `true` when either of the two values comes from a time sample.
+pub(super) fn read<T: Copy>(
+    prim: &usd::Prim,
+    name: &str,
+    decode: impl Fn(&sdf::Value) -> Option<Vec<T>>,
+    points: usize,
+    corners: usize,
+) -> Option<(Primvar<T>, bool)> {
+    let written = written(prim, name, decode)?;
+    let spread = declared_spread(
+        written.interpolation.as_deref(),
+        written.values.len(),
+        points,
+        corners,
+    );
+    Some((
+        Primvar::new(written.values, written.indices, spread),
+        written.sampled,
+    ))
 }

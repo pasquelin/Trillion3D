@@ -70,7 +70,7 @@ export function writeCloudTraceOptions(
     at.local,
     clamp(quality.cloudLocalLightShadowSamples, 0, 128),
     settings.alphaHole ? 1 : 0,
-    0,
+    image.exposure ?? 1,
     0,
   )
 }

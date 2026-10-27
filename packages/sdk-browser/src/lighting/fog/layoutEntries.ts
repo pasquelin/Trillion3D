@@ -72,6 +72,7 @@ const ENTRY: Record<
   cloudShadowMap1: computeTextureEntry(FOG_BINDING.cloudShadowMap1, 'float'),
   skyHarmonics: computeBufferEntry(FOG_BINDING.skyHarmonics, 'uniform'),
   skyParams: computeBufferEntry(FOG_BINDING.skyParams, 'uniform'),
+  translucencyGi: computeTextureEntry(FOG_BINDING.translucencyGi, 'float', '3d'),
   staticOut: computeStorageTextureEntry(
     FOG_BINDING.staticOut,
     FOG_STATIC_FORMAT,

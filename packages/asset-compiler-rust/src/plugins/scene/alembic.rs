@@ -8,14 +8,16 @@
 //!
 //! **What it reads.** The `Xform` hierarchy — first sample, composed operation stack, declared
 //! inheritance —, `PolyMesh` — positions, faces, normals and texture coordinates, whatever their
-//! scope —, `SubD`, rendered as the flat polygons they carry, and `FaceSet`, each of which gives
-//! a material to the mesh that holds it. Alembic describes no shading network: a material is a
-//! name, and this driver therefore invents neither colour nor texture for it.
+//! scope —, `SubD`, rendered as the flat polygons they carry, `FaceSet`, each of which gives
+//! a material to the mesh that holds it, and `Curves`, the strands of a groom, which travel in the
+//! scene as the arrays of their node (`hair_strands`). Alembic describes no shading network: a
+//! material is a name, and this driver therefore invents neither colour nor texture for it.
 //!
-//! **What it counts on the report without returning it**: curves, points, NURBS surfaces, cameras,
-//! lamps, objects of another schema, instances by reference, animation — only the first sample is
-//! read —, faces claimed by two face sets, degenerate faces, inconsistent geometry parameters, and
-//! `.arbGeomParams`, which carries whatever the exporter chose to put there.
+//! **What it counts on the report without returning it**: points, NURBS surfaces, cameras,
+//! lamps, objects of another schema, instances by reference — but those of curves, read in place —,
+//! animation — only the first sample is read —, faces claimed by two face sets, degenerate faces,
+//! inconsistent geometry parameters, and `.arbGeomParams`, which carries whatever the exporter chose
+//! to put there.
 use super::*;
 use crate::plugins::scene::codes::{FILE_INVALID, SIZE_UNSUPPORTED};
 use serde_json::json;
@@ -23,6 +25,7 @@ use std::time::Instant;
 
 mod archive;
 mod convert;
+mod curves;
 mod geom;
 mod kind;
 mod mesh;
@@ -63,7 +66,7 @@ impl Plugin for Alembic {
     /// The version names the reader — written here, on the Ogawa container — and the conversion
     /// generation: changing it invalidates caches, so every already-compiled Alembic scene is reread.
     fn version(&self) -> &'static str {
-        "alembic-ogawa-1-gltf-3"
+        "alembic-ogawa-1-gltf-4"
     }
     fn extensions(&self) -> &'static [&'static str] {
         &["abc"]

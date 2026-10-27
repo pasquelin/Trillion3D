@@ -7,7 +7,7 @@ import { PHYSICAL_SURFACE_FLAG } from '../../materials/surface/physicalLobes.ts'
 import { REFLECTION_TRACE_BINDINGS as B } from './trace/traceBindings.ts'
 import { REFLECTION_GROUP, reflectionBindingsWgsl, reflectionFrontWgsl } from './viewLayout.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
-import { REFLECTION_DIRECTION_FORMAT, REFLECTION_RAY_FORMAT } from './grids.ts'
+import { REFLECTION_RAY_FORMAT } from './grids.ts'
 
 /**
  * THE SURFACE THE REFLECTIONS READ, one reading for every kernel (`trace/trace.ts`): a group binds one of
@@ -22,11 +22,13 @@ import { REFLECTION_DIRECTION_FORMAT, REFLECTION_RAY_FORMAT } from './grids.ts'
  * texel's block this image traces, the tile jitter: none for a block of one pixel across; for a block of two pixels across and one down
  * (the checkerboard), the texel's row plus the frame index, modulo two, picks the column; for a block of two both ways, the texel's
  * cell in its 2 × 2 group plus the frame index, modulo four, picks one of the four rooks — every image the four texels
- * of a group stand for four rows and four columns. `reflectionTracedOf`: the pixel a grid texel stands for this image — the
- * classification's pick (`tiles.ts`), told in the texel's ray word, which the classification writes (`surfaceRays`, storage) and the
- * screen stage writes its surface's depth beside, in the layer after it; every kernel after them reads it sampled
- * (`surfaceRaysRead`, `reflectionRayWord`), one view of the same texture. The ray itself is `surfaceDirections`'s texel, written
- * by the screen stage: its direction and its cone angle, the inverse of its pdf (`reflectionRayAt`, `reflectionPdfOfCone`), read sampled by the resolve.
+ * of a group stand for four rows and four columns. `reflectionPickedPixel`: the pixel a grid texel stands for this image — its
+ * block's jitter pixel, held to the viewport, a block cut by the viewport's edge still standing for a pixel inside it —, which the ray
+ * generation (`generateRays`, `trace/trace.ts`) casts from and the resolve finds again. The texel's ray is `surfaceRays`'s texels
+ * (`REFLECTION_RAY_DEPTH`, `REFLECTION_RAY_DIRECTION`, `REFLECTION_RAY_CONE`), which the ray generation writes as storage and every
+ * kernel after it reads, the resolve sampled (`surfaceRaysRead`): the depth of the picked pixel, negative where the texel casts no ray
+ * (`reflectionRayTraces`), and the ray's direction and its cone angle, the inverse of its pdf, negative for a pixel of a first-person
+ * object (`reflectionRayAt`, `reflectionRayStored`, `reflectionPdfOfCone`).
  * `reflectingPixelAt`: the surface `layer` at pixel `coord` as every kernel opens it —
  * its point, unit normal, direction to the eye and roughness, its depth as the view stores it (`z`,
  * `surfaceDepthAt`), its surface flags (`flags`), and the lobe it traces (`topN`, `top`):
@@ -52,14 +54,13 @@ export const REFLECTION_SURFACES_WGSL = wgslBlock(
 @group(0) @binding(${B.lobes}) var surfaceLobes:texture_2d<u32>;
 @group(0) @binding(${B.rays}) var surfaceRays:texture_storage_2d_array<${REFLECTION_RAY_FORMAT},read_write>;
 @group(0) @binding(${B.raysRead}) var surfaceRaysRead:texture_2d_array<u32>;
-@group(0) @binding(${B.directions}) var surfaceDirections:texture_storage_2d<${REFLECTION_DIRECTION_FORMAT},write>;
-@group(0) @binding(${B.directionsRead}) var surfaceDirectionsRead:texture_2d<f32>;
-/** The layers of the ray texture (\`REFLECTION_RAY_LAYERS\`): a texel's ray word and its traced pixel's depth, an \`f32\`'s bits. */
-const REFLECTION_RAY_WORD:i32=0;
-const REFLECTION_RAY_DEPTH:i32=1;
-/** The traced bit of a ray's word (\`classifyTraced\`): over the picked pixel's rank in its block, set
- *  where that pixel traces this image. */
-const REFLECTION_TRACED:u32=16u;
+/** The layers of the ray texture (\`REFLECTION_RAY_LAYERS\`): the depth of the pixel the texel casts from, an \`f32\`'s bits, then the ray's
+ *  direction (two halves) and its third half with the cone angle. */
+const REFLECTION_RAY_DEPTH:i32=0;
+const REFLECTION_RAY_DIRECTION:i32=1;
+const REFLECTION_RAY_CONE:i32=2;
+/** The depth a tracing tile's clear leaves in the texels it empties: a negative one, no ray. */
+const REFLECTION_NO_RAY_DEPTH:f32=-1.0;
 fn surfaceFlagsAt(coord:vec2i)->u32{return textureLoad(surfaceFlags,coord,0).r;}
 fn surfaceNormalAt(coord:vec2i)->vec4f{return textureLoad(surfaceNormals,coord,0);}
 fn surfaceLobesAt(coord:vec2i)->vec4u{return textureLoad(surfaceLobes,coord,0);}
@@ -117,16 +118,24 @@ fn reflectionJitter(g:vec2u)->vec2u{
  if(block.y<2u){return vec2u((g.y+turn)%2u,0u);}
  return fourRooksJitter(g,turn);
 }
-/** Grid texel \`g\`'s ray word: its block's picked pixel. */
-fn reflectionRayWord(g:vec2u)->u32{return textureLoad(surfaceRaysRead,vec2i(g),REFLECTION_RAY_WORD,0).r;}
-/** Grid texel \`g\`'s ray: its direction in \`xyz\` and its cone angle in \`w\`. */
-fn reflectionRayAt(g:vec2i)->vec4f{return textureLoad(surfaceDirectionsRead,g,0);}
+/** The pixel of grid texel \`g\`'s block picked this image: its jitter pixel, held to the viewport. */
+fn reflectionPickedPixel(g:vec2u)->vec2u{
+ return min(g*reflectionBlock()+reflectionJitter(g),reflectionViewport()-vec2u(1u));
+}
+/** The ray of grid texel \`g\`: its direction in \`xyz\` and its cone angle, signed, in \`w\`, from the words of the layers that hold them. */
+fn reflectionRayOf(direction:u32,cone:u32)->vec4f{return vec4f(unpack2x16float(direction),unpack2x16float(cone));}
+/** The words of a ray of direction \`R\` and signed cone angle \`cone\`, the layers' order. */
+fn reflectionRayWords(R:vec3f,cone:f32)->vec2u{return vec2u(pack2x16float(R.xy),pack2x16float(vec2f(R.z,cone)));}
+/** Grid texel \`g\`'s ray as a kernel that does not write it reads it, sampled. */
+fn reflectionRayAt(g:vec2i)->vec4f{
+ return reflectionRayOf(textureLoad(surfaceRaysRead,g,REFLECTION_RAY_DIRECTION,0).r,textureLoad(surfaceRaysRead,g,REFLECTION_RAY_CONE,0).r);
+}
+/** The depth of the pixel grid texel \`g\` casts from, as a kernel that does not write it reads it, sampled. */
+fn reflectionRayDepth(g:vec2i)->f32{return bitcast<f32>(textureLoad(surfaceRaysRead,g,REFLECTION_RAY_DEPTH,0).r);}
 /** The pdf of a ray of cone angle \`cone\`: its inverse. */
 fn reflectionPdfOfCone(cone:f32)->f32{return 1.0/abs(cone);}
-/** Whether the picked pixel of a texel of ray word \`w\` casts a ray this image. */
-fn reflectionWordTraces(w:u32)->bool{return (w&REFLECTION_TRACED)!=0u;}
-/** The pixel of grid texel \`g\`'s block picked this image, its ray word \`w\`. */
-fn reflectionTracedOf(g:vec2u,w:u32)->vec2u{return reflectionBlockPixel(g,w&(REFLECTION_TRACED-1u));}
+/** Whether a texel whose picked pixel's depth is \`depth\` casts a ray this image: it does where the depth is positive. */
+fn reflectionRayTraces(depth:f32)->bool{return depth>0.0;}
 struct ReflectingPixel{P:vec3f,N:vec3f,V:vec3f,rough:f32,topN:vec3f,top:f32,z:f32,flags:u32,}
 fn reflectingPixelAt(layer:u32,coord:vec2i,flags:u32)->ReflectingPixel{
  let z=surfaceDepthAt(layer,coord);

@@ -129,22 +129,17 @@ pub const SKINNED_INSTANCE_SETTING: &str = "skinnedInstance";
 pub const RUNTIME_GRID_SETTING: &str = "runtimeGrid";
 pub const FAR_FIELD_SETTING: &str = "farField";
 pub const DEFAULT_FAR_FIELD: bool = false;
-pub const CAST_FAR_SHADOW_SETTING: &str = "castFarShadow";
-pub const DEFAULT_CAST_FAR_SHADOW: bool = false;
-pub const FAR_SHADOW_TEST_SETTING: &str = "farShadowTest";
 pub const DRAW_DISTANCE_SETTING: &str = "drawDistance";
 pub const DRAW_DISTANCE_SETTINGS: [&str; 3] = ["min", "max", "perInstance"];
 pub const DEFAULT_DRAW_DISTANCE_MIN: f64 = 0.0;
 pub const DEFAULT_DRAW_DISTANCE_MAX: f64 = 0.0;
 pub const DEFAULT_DRAW_DISTANCE_PER_INSTANCE: bool = false;
-pub const OBJECT_SETTINGS: [&str; 7] = [
+pub const OBJECT_SETTINGS: [&str; 5] = [
     "spatiallyLoaded",
     "skinnedInstance",
     "drawDistance",
     "runtimeGrid",
     "farField",
-    "castFarShadow",
-    "farShadowTest",
 ];
 pub const SKINNED_INSTANCE_SETTINGS: [&str; 7] = [
     "clip",

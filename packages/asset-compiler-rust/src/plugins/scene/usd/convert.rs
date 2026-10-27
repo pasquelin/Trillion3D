@@ -25,7 +25,7 @@ pub(super) fn convert(request: &SceneRequest<'_>, plugin: &dyn ScenePlugin) -> R
         plugin,
         file,
         started,
-        "usd: no visible mesh in this layer",
+        "usd: no visible mesh or curves in this layer",
     )
 }
 
@@ -54,10 +54,12 @@ fn traverse(
         materials: HashMap::new(),
         meshes: HashMap::new(),
         cancelled: request.cancelled,
+        unit: layer::meters_per_unit(stage),
+        root_width: None,
     };
     // The root carries the layer unit: a length read under it, such as a light's radius, is
     // put into metres by that same scale, and the walk takes it down with it.
-    let unit = layer::meters_per_unit(stage);
+    let unit = world.unit;
     let children: Vec<usize> = roots(stage)
         .iter()
         .filter_map(|prim| visit::visit(&mut world, prim, 0, unit))

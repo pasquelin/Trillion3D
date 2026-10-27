@@ -1,4 +1,4 @@
-import { toHalf } from '../../../../../math/src/float/half.ts'
+import { rgbToHalfRgba } from '../../../gpu/core/halfTexels.ts'
 import {
   skyLightCubemapScales,
   type SkyLightCubemapFit,
@@ -46,17 +46,19 @@ export interface SkyCubemapUpload {
   rgba?: Uint16Array<ArrayBuffer>
 }
 
-/** The texture of `cube`, none of its faces written yet. */
+/** The texture of `cube` with `mipLevelCount` levels, none of its faces written yet. */
 export function openSkyCubemap(
   device: GPUDevice,
   cube: SkyLightCubemap,
   fit: SkyLightCubemapFit,
   label = 'Trillion3D sky light cubemap',
+  mipLevelCount = 1,
 ): SkyCubemapUpload {
   const { size } = cube
   const texture = device.createTexture({
     label,
     size: { width: size, height: size, depthOrArrayLayers: CUBE_FACES },
+    mipLevelCount,
     format: 'rgba16float',
     usage: TEXTURE_BINDING | COPY_DST,
   })
@@ -79,11 +81,7 @@ export function writeSkyCubemapFaces(
   let budget = CONVERT_BUDGET
   while (upload.written < CUBE_FACES && (budget > 0 || upload.written === 0)) {
     const face = upload.written
-    const at = face * faceTexels * 3
-    for (let i = 0; i < faceTexels; i++) {
-      for (let c = 0; c < 3; c++) rgba[i * 4 + c] = toHalf(texels[at + i * 3 + c] * fit.cube)
-      rgba[i * 4 + 3] = toHalf(1)
-    }
+    rgbToHalfRgba(rgba, texels, face * faceTexels * 3, faceTexels, fit.cube)
     device.queue.writeTexture(
       { texture, origin: [0, 0, face] },
       rgba,

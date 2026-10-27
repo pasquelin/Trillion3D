@@ -1,3 +1,4 @@
+use crate::hair_strands::abi::{HAIR_STRANDS_ENDING_POINT_FIELD, HAIR_STRANDS_ENDING_POINT_OPTION};
 use crate::volumetric_lightmap::bake::abi::{LIGHTMAP_BAKE_FIELD, LIGHTMAP_BAKE_OPTION};
 use crate::*;
 pub(crate) use serde_json::Map;
@@ -14,6 +15,7 @@ pub fn machine_threads() -> usize {
         .min(MAX_THREADS)
 }
 
+mod hair_strands;
 mod lightmap_bake;
 mod materials;
 pub(crate) mod mesh_build;
@@ -25,6 +27,7 @@ mod texture_formats;
 mod usage;
 mod voxelize;
 pub use crate::hlod::options::{marked, Hlod, HlodBuilder, HlodLayer, HlodLodSelection};
+pub use hair_strands::HairOptions;
 pub use lightmap_bake::LightmapBakeOptions;
 pub use materials::MaterialOptions;
 pub use mesh_build::MeshBuildOptions;
@@ -70,9 +73,9 @@ pub const ID_FIELD: &str = "id";
 /// The fields a job names as JSON, beside `JOB_FIELDS`, each with the flag holding it on the
 /// command line: the HLOD, the scene's temporal anti-aliasing, the responsive objects, the
 /// settings by material name, the voxelized objects, the partition's scheme and main grid or its
-/// several grids, the mesh build settings, each object's settings and the volumetric lightmap's
-/// bake.
-const JSON_OPTIONS: [(&str, &str); 11] = [
+/// several grids, the mesh build settings, each object's settings, the volumetric lightmap's
+/// bake and the hair strands' ending point.
+const JSON_OPTIONS: [(&str, &str); 12] = [
     (HLOD_OPTION, HLOD_FIELD),
     (TEMPORAL_AA_OPTION, TEMPORAL_AA_FIELD),
     (RESPONSIVE_OPTION, RESPONSIVE_FIELD),
@@ -84,6 +87,10 @@ const JSON_OPTIONS: [(&str, &str); 11] = [
     (MESH_BUILD_OPTION, MESH_BUILD_FIELD),
     (OBJECT_SETTINGS_OPTION, OBJECT_SETTINGS_FIELD),
     (LIGHTMAP_BAKE_OPTION, LIGHTMAP_BAKE_FIELD),
+    (
+        HAIR_STRANDS_ENDING_POINT_OPTION,
+        HAIR_STRANDS_ENDING_POINT_FIELD,
+    ),
 ];
 
 /// Whether `key` is a field a job names as JSON.
@@ -149,6 +156,7 @@ pub fn job_options(
         mesh_build: MeshBuildOptions::read(job.get(MESH_BUILD_FIELD)),
         object_settings: ObjectSettings::read(job.get(OBJECT_SETTINGS_FIELD)),
         lightmap_bake: LightmapBakeOptions::read(job.get(LIGHTMAP_BAKE_FIELD)),
+        hair_strands: HairOptions::read(job.get(HAIR_STRANDS_ENDING_POINT_FIELD)),
         cancelled,
     })
 }
@@ -253,6 +261,10 @@ impl Options {
     /// This job's lightmap bake, or its refusal (`INVALID_OPTIONS`) when it does not read.
     pub(crate) fn lightmap_bake(&self) -> crate::Result<&LightmapBakeOptions> {
         refused(&self.lightmap_bake)
+    }
+    /// This job's hair strands settings, or their refusal (`INVALID_OPTIONS`) when they do not read.
+    pub(crate) fn hair_strands(&self) -> crate::Result<&HairOptions> {
+        refused(&self.hair_strands)
     }
     /// This job's RAM budget in bytes, `ramBudgetMb`; past what a `usize` counts, no bound.
     pub fn ram_budget_bytes(&self) -> usize {

@@ -17,6 +17,9 @@ import { along, type createStepClock } from '../step/stepClock.ts'
  * clock); `moving`: what it answered. `received`: page ms spent on ticks since the last frame, its
  * `physics` stage's; `asked`:
  * the scene queries sent; `waterAt`: the page's step the water's waves start at (`setWater`).
+ * `revision`: counts the changes of the world a scene query could tell — a tick that moved a body,
+ * the world woken (by the commands sent: a body moved, added or removed, a collision tile streamed
+ * in) or at rest —, so a query asked at one revision answers the same until it moves.
  */
 export function createSessionState() {
   return {
@@ -28,6 +31,7 @@ export function createSessionState() {
     reached: 0,
     owed: 0,
     redraw: false,
+    revision: 0,
     drawnStep: Number.NaN,
     drawnOwed: Number.NaN,
     moving: false,
@@ -52,6 +56,7 @@ export function createWorkerLink(
     if (!s.live) s.reached = clock.steps
     ;[s.live, s.sent, s.redraw] = [true, true, true]
     s.wakes++
+    s.revision++
   }
   /** The one post that wakes the worker; a transfer list rides only the flush's own words. */
   const post = (message: ToPhysics, transfer?: Transferable[]) => {
@@ -66,6 +71,7 @@ export function createWorkerLink(
     rested(heard: number, at: number) {
       s.reached = Math.max(s.reached, at)
       if (heard === s.wakes) [s.live, s.redraw] = [false, true]
+      s.revision++
     },
     /** The fraction of a step the frame's time stands at (`along`), as everything is drawn. */
     at: () => along(clock.drawn, s.reached, step, s.live),

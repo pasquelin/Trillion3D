@@ -1,6 +1,6 @@
 //! The flattened materials appended to the published document: each image, its texture over the
 //! one clamped, mipmapped sampler, each material naming its textures (`place`).
-use super::{flattened_material, Coverage, Image, Published, ANISOTROPY, EMISSIVE_STRENGTH};
+use super::{coverage_of, flattened_material, Image, Published, ANISOTROPY, EMISSIVE_STRENGTH};
 use crate::texture::TexturePreview;
 use serde_json::{json, Value};
 
@@ -43,10 +43,7 @@ pub(crate) fn place(
         // base image's alpha is.
         let mut slot = [None::<usize>; 6];
         let strength = material.images.iter().find_map(|image| image.strength);
-        let coverage = (material.images.iter())
-            .map(|image| image.coverage)
-            .find(|&coverage| coverage != Coverage::Opaque)
-            .unwrap_or(Coverage::Opaque);
+        let coverage = coverage_of(&material.images);
         let names: Vec<String> = material
             .images
             .iter()

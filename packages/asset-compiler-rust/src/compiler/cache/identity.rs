@@ -11,6 +11,7 @@
 //! Identity is therefore built in two parts: what the source declares, stripped of
 //! its timings and run provenance, and the fingerprint of the resources compilation
 //! actually consumes — the geometry binary and each image file the scene cites.
+use crate::hair_strands::abi::HAIR_STRANDS_ENDING_POINT_FIELD;
 use crate::volumetric_lightmap::bake::abi::LIGHTMAP_BAKE_FIELD;
 use crate::*;
 
@@ -133,6 +134,10 @@ pub(crate) fn cache_key(
         .and_then(LightmapBakeOptions::identity)
     {
         material[LIGHTMAP_BAKE_FIELD] = named.clone();
+    }
+    // The hair strands' ending point, only when the job turns it off: a job that gives it keeps its key.
+    if let Some(named) = o.hair_strands.as_ref().ok().and_then(HairOptions::identity) {
+        material[HAIR_STRANDS_ENDING_POINT_FIELD] = named;
     }
     keyed(material, crate::physics_cook::JOLT_COMMIT)
 }

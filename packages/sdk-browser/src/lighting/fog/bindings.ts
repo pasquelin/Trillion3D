@@ -61,6 +61,9 @@ export const FOG_BINDING = {
   /** The sky light's harmonics and the view's uniform (`skyLightDiffuseWgsl`), read by the scatter's sky. */
   skyHarmonics: 36,
   skyParams: 37,
+  /** The translucency volume's light before its history (`published.fogView`), read by the scatter's cells in the place of
+   *  the sky light's (`fogGiLight`), through the volumes' sampler. */
+  translucencyGi: 38,
   /** The volumetric lightmap's eleven bindings (`volumetricLightmapWgsl`) from this one, read by the static
    *  term's pass. */
   lightmap: 40,
@@ -110,6 +113,7 @@ const SCATTER_BINDINGS = {
   cloudShadowMap1: true,
   skyHarmonics: true,
   skyParams: true,
+  translucencyGi: true,
   staticIn: true,
   localTiles: true,
 } as const
