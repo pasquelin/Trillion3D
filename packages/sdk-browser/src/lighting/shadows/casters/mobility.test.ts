@@ -6,8 +6,6 @@ import assert from 'node:assert/strict'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../mobilityBits.ts'
 import { createShadowMobility } from './mobility.ts'
 import { MOVE_MOVING, MOVE_NONE, MOVE_PROMOTED } from '../../../placement/update.ts'
-import { createShadowResidence } from './residence.ts'
-import { pageResidency } from '../../../geometry/dag/readiness.fixture.ts'
 
 /** Placements that say nothing of how they cast: the words hold their mobility alone. */
 const none = () => 0
@@ -108,24 +106,4 @@ test('a placement posed where it already stands does not move', () => {
   mobility.move(1, shifted)
   mobility.writeRoots(() => {}, { castFlags: none })
   assert.deepEqual([...mobility.words], [MOBILITY_MOVING, MOBILITY_MOVING], 'a new pose: moved')
-})
-
-test('a residency flag that drops and rises between two plans is no change for the shadows', () => {
-  const residence = createShadowResidence()
-  const flags = new Uint32Array(4),
-    changed: number[] = []
-  const flush = () => residence.flush(pageResidency(flags), (page) => changed.push(page))
-  flags[2] = 1
-  residence.noteRow(2)
-  flush()
-  assert.deepEqual(changed, [2], 'a page that arrived')
-  // A cluster rewrite: the flag drops, then rises again before the next plan reads it.
-  residence.noteRow(2)
-  residence.noteRow(2)
-  flush()
-  assert.deepEqual(changed, [2], 'nothing new: the light cuts see the same page')
-  flags[2] = 0
-  residence.noteRow(2)
-  flush()
-  assert.deepEqual(changed, [2, 2], 'a page that left')
 })

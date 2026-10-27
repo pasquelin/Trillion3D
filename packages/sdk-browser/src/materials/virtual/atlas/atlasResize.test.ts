@@ -143,30 +143,3 @@ test('growing the pool keeps the resident count, and a pool full for the view re
   assert.equal(copies().length, 1)
   assert.equal(atlas.roomFor(0), true, 'a free layer')
 })
-
-test('an evicted tile names its texture, so a cutout shadow that read it can follow', () => {
-  const { gpu } = textureDevice()
-  const layout = tileLayout(4096, 4096)
-  const textures = [raw(layout), raw(layout)]
-  const evicted: number[] = []
-  const atlas = createWebgpuTileAtlas(gpu, {
-    ...atlasOptions,
-    layers: lossless(1),
-    feedbackOffset: 0,
-    clock: () => 1,
-    textures,
-    onEvicted: (slot) => evicted.push(slot),
-  })
-  atlas.pinTails({ writeTexture() {} } as never, () => {})
-  // The tile no pixel reads any more is of texture 1; texture 0 fills the rest of the layer.
-  atlas.place({ slot: 1, level: 0, tx: 0, ty: 0 })
-  for (let i = 0, placed = 0; placed < TILES_PER_LAYER - 3; i++)
-    if (atlas.place({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) })) placed++
-  assert.equal(atlas.pools[0].resident, TILES_PER_LAYER)
-  assert.deepEqual(evicted, [], 'a full pool evicts nothing until a tile asks for a place')
-  // The GPU's queue names texture 1's place first: two tails take places 0 and 1.
-  const pool = atlas.pools[0]
-  pool.follow(Uint32Array.from([1, 2]), pool.arrivals)
-  atlas.place({ slot: 0, level: 1, tx: 0, ty: 0 })
-  assert.deepEqual(evicted, [1], 'the place the queue gave: texture 1')
-})

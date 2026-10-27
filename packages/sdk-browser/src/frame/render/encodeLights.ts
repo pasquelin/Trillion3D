@@ -118,8 +118,8 @@ function fillDirectParams(
   )
 }
 
-/** A view that lists no light: the held representation change is released, and the scene's lights
- *  are followed as far as they exist. */
+/** A view that lists no light: the scene's lights are followed as far as they exist. The world's
+ *  change boxes stay for the first lit frame's plan. */
 function encodeUnlitView(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -131,7 +131,6 @@ function encodeUnlitView(
     lights,
     lights: { store },
   } = rt
-  lights.changes.releaseDeferred()
   // A lit view with no lamp may still hold an environment: its irradiance goes to the GPU.
   if (!store.unlit) uploadSceneLights(device, lights)
   if (lights.buffer) followLitTables(rt, device, lights.buffer)
@@ -175,8 +174,7 @@ export function encodeDirectLights(
   encodeSurfaceCache(rt, device, encoder, cam)
   fillDirectParams(rt, cam, store.environment)
   // The unlit view reads neither light lists nor a shadow map: it therefore encodes none of them.
-  // A representation change held for the camera to rest is released to the list now: the first
-  // lit frame's invalidation stales its pages, whatever the camera does.
+  // The world's change boxes wait: the first lit frame's invalidation stales its pages.
   // A view that is not lit (`ViewOverrides.lighting`) lists none either.
   if (!active || store.unlit || !rt.views.active.overrides.lighting) {
     encodeUnlitView(rt, device, encoder, cam, viewProjection)

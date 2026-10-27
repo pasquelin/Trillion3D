@@ -40,11 +40,16 @@ const GRID = fieldLayout('VsmFroxelGrid', [
   ['capacity', 'u32'],
   ['viewRectMin', 'vec2u'],
   ['viewSize', 'vec2u'],
+  ['markLocalLights', 'u32'],
 ] as const)
 export const VSM_FROXEL_GRID_BYTES = 4 * GRID.words
+/** The word of the grid that says whether its froxels mark the local lights' pages. */
+export const FROXEL_MARK_LOCAL_LIGHTS_WORD = GRID.at.markLocalLights
 
 /** What the grid is made from: the view's +z-forward view-to-clip (column-major, `vsmForwardZViewToClip`),
- *  its size and rect, the matrix that takes its space to the shifted one, and the room the list has. */
+ *  its size and rect, the matrix that takes its space to the shifted one, the room the list has and
+ *  whether its froxels mark the local lights' pages beside the suns' (the single-layer water's marks
+ *  the suns' alone: the water takes no shadow from a local light). */
 export interface FroxelGridInputs {
   viewToClip: ArrayLike<number>
   perspective: boolean
@@ -52,6 +57,7 @@ export interface FroxelGridInputs {
   viewSize: readonly [number, number]
   viewToShifted: ArrayLike<number>
   capacity: number
+  markLocalLights: boolean
 }
 
 /** Writes the grid into `out` (`VSM_FROXEL_GRID_BYTES`): the reference's constants — a froxel a tile
@@ -86,6 +92,7 @@ export function writeFroxelGrid(out: ArrayBuffer, input: FroxelGridInputs) {
   u[at.viewRectMin + 1] = input.viewRectMin[1]
   u[at.viewSize] = width
   u[at.viewSize + 1] = height
+  u[at.markLocalLights] = input.markLocalLights ? 1 : 0
 }
 
 /**

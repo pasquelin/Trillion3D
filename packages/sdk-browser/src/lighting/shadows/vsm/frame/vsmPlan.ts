@@ -11,9 +11,10 @@ import { vsmLocalShadowGate, type VsmGateView } from '../localGate.ts'
 import { FRUSTUM_PLANE_VALUES } from '../../../../../../math/src/geometry/frustum/frustum.ts'
 import type { VsmProjectionLight } from '../projection/projectionPass.ts'
 import { vsmCastBoxes } from '../invalidation/castBoxes.ts'
+import { shadowsFollowCells } from '../../casters/followChanges.ts'
 import { settingsRevision } from '../../../../../../sdk-core/src/contracts/settingRules.ts'
 import { createViewFingerprint } from '../../../../frame/view/viewFingerprint.ts'
-import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
+import { assignChannels, heldVsm } from './vsmPlanSteps.ts'
 import { sunCascadesOf, vsmFirstPersonActive, vsmMapSettings } from './vsmFarShadow.ts'
 import { shadowsOn, tracesTranslucent } from './vsmGates.ts'
 import { vsmSunLevels } from '../mapSettings.ts'
@@ -31,7 +32,7 @@ import { vsmDescentPipes } from '../traversal/traversalPass.ts'
 import type { VsmLayout } from '../layout.ts'
 import { vsmRenderTiersDrawn, type CompiledTiers } from '../render/renderParamsWgsl.ts'
 import { chainReady, type PreparedPipeline } from '../../../deferred/fullscreen.ts'
-import { marksWaterSurface, viewMarkingOf } from './vsmFrontLayer.ts'
+import { marksWater, viewMarkingOf } from './vsmFrontLayer.ts'
 import { vsmProjectionPipeline } from '../projection/projectionPipelines.ts'
 import { onePassMaskFormat } from '../projection/maskFormat.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
@@ -175,8 +176,8 @@ function framePipelines(
     render = vsmRenderComputePipes(device, layout)
   const casts = vsmCastPipes(device, layout)
   const fronts = tracesTranslucent(rt) ? [false, true] : [false],
-    waters = marksWaterSurface(rt) ? [false, true] : [false]
-  const froxels = viewMarkingOf(rt) === 'froxels'
+    froxels = viewMarkingOf(rt) === 'froxels',
+    waters = marksWater(rt) && !froxels ? [false, true] : [false]
   const raster = vsmRasterPipe(device, layout, pageLayout, rt.vis.rasters)
   const pipes = [
     casts.args,
@@ -207,8 +208,10 @@ function framePipelines(
           ...Object.values(vsmOcclusionPipes(device, layout)),
         ]
       : []),
-    // The froxels' marking, where the setting takes it.
+    // The froxels' marking, where the setting takes it, with the build over the water's surface where
+    // the scene has water drawn.
     ...(froxels ? [marking.froxelBuild(), marking.froxelArgs(), marking.froxelMark()] : []),
+    ...(froxels && marksWater(rt) ? [marking.froxelBuild(true)] : []),
   ]
   const stages: (PreparedPipeline<unknown> | undefined)[] = [
     ...pipes.map((pipe) => pipe?.prepared),
@@ -255,7 +258,7 @@ function framePipelinesCompiled(
     rasters: rt.vis.rasters,
     translucent: tracesTranslucent(rt),
     froxels: viewMarkingOf(rt) === 'froxels',
-    water: marksWaterSurface(rt),
+    water: marksWater(rt),
     counters: vsmCountersOn(device),
   }
   const known = compiledFor.get(layout)
@@ -316,9 +319,8 @@ export function projectionLight(
 /**
  * A frame in which no light takes a shadow (`shadowsOn`): the maps held are freed
  * (`shadowDynamicDeallocationMode` 1) or kept with their cache dropped (the casters change
- * unseen, and a later plan draws every light uncached), the representation changes held for the
- * camera to rest are released to the list (`shadowsUnsettled` waits for none) and no light reads
- * a shadow. Always false: the frame has no plan.
+ * unseen, and a later plan draws every light uncached), the world's change boxes are dropped with
+ * the cache they would stale, and no light reads a shadow. Always false: the frame has no plan.
  */
 function planNoShadows(rt: WebgpuPagesRuntime) {
   const { lights } = rt,
@@ -327,7 +329,7 @@ function planNoShadows(rt: WebgpuPagesRuntime) {
     if (readShadowSetting(rt, 'shadowDynamicDeallocationMode') === 1) releaseEngineVsm(lights)
     else dropEngineVsmCache(vsm, rt.run.frame)
   }
-  lights.changes.releaseDeferred()
+  lights.changes.settled()
   unshadowLights(lights.store)
   return false
 }
@@ -393,16 +395,17 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   const { state } = vsm
   state.maps = vsmMapSettings(rt)
   followDepthOfField(rt, cam, state.maps.shadows.shadowMaxDofResolutionBias, state.maps.dof)
-  followCasters(rt)
+  // The world's cells that switched between their placements and their HLOD actors are declared
+  // here; a cluster entering or leaving residency is the cull's (`lodDeltaInvalidates`).
+  shadowsFollowCells(rt)
   // The placements that moved, came or went: the diff of their boxes, encoded before the stale.
   const diff = followRoots(rt, device, state.maps.shadows)
   // Read once the placements' words are written (`followRoots`): this frame's world-space stand-ins.
   if (state.maps.firstPerson) state.maps.firstPerson.active = vsmFirstPersonActive(rt)
   // The invalidation: the world's change boxes and the diff's shadow changes against the PREVIOUS
   // frame's maps, read before the plan gives this frame its ids — the maps only when something
-  // changed. Representation changes held for the camera to rest enter now: they invalidate at once.
+  // changed.
   const changes = lights.changes
-  changes.releaseDeferred()
   const boxes = vsmCastBoxes(state.cache, changes),
     castMaps = vsmCastMaps(state.cache, boxes, lights.casts)
   changes.settled()

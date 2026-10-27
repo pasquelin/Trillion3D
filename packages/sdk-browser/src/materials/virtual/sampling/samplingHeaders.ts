@@ -54,7 +54,7 @@ function atlasHeaders(atlas: WebgpuTileAtlas, journal: ReadonlySet<Texture>) {
    *  appended after open was pinned from the picture it has when first visited. */
   const pictures: number[] = []
   const { identities, slots, hold } = createHolds()
-  const visit = (slot: number, force: boolean, moved?: Set<number>, copies?: TileCopies) => {
+  const visit = (slot: number, force: boolean, copies?: TileCopies) => {
     const { texture, source } = textures[slot]
     if (!texture) return 0
     let result = 0
@@ -65,10 +65,7 @@ function atlasHeaders(atlas: WebgpuTileAtlas, journal: ReadonlySet<Texture>) {
     }
     if (source.kind === 'host' && pictures[slot] !== texture.version) {
       pictures[slot] = texture.version
-      if (copies?.refresh(atlas, slot)) {
-        result |= HEADERS_WRITTEN
-        moved?.add(slot)
-      }
+      if (copies?.refresh(atlas, slot)) result |= HEADERS_WRITTEN
     }
     const revision = texture.sampling + texture.placement
     if (!force && seen[slot] === revision) return result
@@ -76,10 +73,9 @@ function atlasHeaders(atlas: WebgpuTileAtlas, journal: ReadonlySet<Texture>) {
     const { pages } = atlas
     const was = slotSampled(pages, slot)
     if (!pages.setSampling(slot, texture)) return result
-    moved?.add(slot)
     return result | HEADERS_WRITTEN | (was === slotSampled(pages, slot) ? 0 : HEADERS_SWITCHED)
   }
-  return (force: boolean, moved?: Set<number>, copies?: TileCopies) => {
+  return (force: boolean, copies?: TileCopies) => {
     let result = 0
     // A regrown table copied existing headers. Only a new/reused slot was just uploaded;
     // pending picture and filter changes on its neighbours still belong to the next frame.
@@ -89,14 +85,14 @@ function atlasHeaders(atlas: WebgpuTileAtlas, journal: ReadonlySet<Texture>) {
         // A released slot forgets its record: reused, even by the same one, it is new.
         if (!texture) {
           if (identities[slot]) hold(slot, undefined)
-        } else if (identities[slot] !== texture) result |= visit(slot, true, moved, copies)
+        } else if (identities[slot] !== texture) result |= visit(slot, true, copies)
       }
       return result
     }
     for (const record of journal)
       for (const slot of slots.get(record) ?? [])
         // A slot released or reused since holds another record: its own write is journaled.
-        if (textures[slot].texture === record) result |= visit(slot, false, moved, copies)
+        if (textures[slot].texture === record) result |= visit(slot, false, copies)
     return result
   }
 }
@@ -109,8 +105,7 @@ function atlasHeaders(atlas: WebgpuTileAtlas, journal: ReadonlySet<Texture>) {
  * written since the last, and nothing else — one write among ten thousand textures visits one
  * slot. A slot's header is rewritten only when its record's counters moved past the ones it was
  * last written at. `force` visits every slot not seen yet: the first time, and each slot a growth
- * appended. Colour slots whose header moved are added to `colorMoved`; the result is a mask of
- * `HEADERS_WRITTEN` and `HEADERS_SWITCHED`. The same visit hands `copies` each host-image slot
+ * appended. The result is a mask of `HEADERS_WRITTEN` and `HEADERS_SWITCHED`. The same visit hands `copies` each host-image slot
  * whose picture moved since — a new version of its record —, for its places in the pool to be
  * copied again; one copied counts as a written header.
  */
@@ -121,10 +116,10 @@ export function samplingHeaders(
 ) {
   const colour = atlasHeaders(color, journal),
     other = atlasHeaders(data, journal)
-  return (force: boolean, colorMoved?: Set<number>, copies?: TileCopies) => {
+  return (force: boolean, copies?: TileCopies) => {
     let result = 0
     if (force || journal.size) {
-      result = colour(force, colorMoved, copies) | other(force, undefined, copies)
+      result = colour(force, copies) | other(force, copies)
       if (!force) journal.clear()
     }
     return result

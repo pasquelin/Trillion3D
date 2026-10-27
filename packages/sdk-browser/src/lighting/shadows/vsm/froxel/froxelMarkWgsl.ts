@@ -14,7 +14,10 @@
  *   coarse marking.
  * It culls no pixel that faces away from a light, takes no page dilation, and marks no page for the
  * translucent front layer: the reference's froxel marking replaces the pixel marks of the deferred
- * buffers whole.
+ * buffers whole. The froxels of the single-layer water's surface (the pixels the water drew over,
+ * `froxelBuildWgsl.ts`) are marked by the same kernel over a grid of their own, after the scene's, in
+ * the suns' clipmaps alone (`VsmFroxelGrid.markLocalLights` off): the water takes no shadow from a
+ * local light.
  *
  * Group 0: the VSM tables, as the pixel pass's (`VSM_PIXELS_SPECS`). Group 1: 0 the grid (uniform), 1
  * the list of froxels (its held count at word 1), 3 the deferred `View`, 4 the lights, 5 the light grid,
@@ -128,7 +131,8 @@ fn ${FROXEL_MARK_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups
  for(var index=0u;index<vsmMarking.sunMapCount;index++){
   vsmMarkClipmapFroxel(vsmHandleFromId(vsmDirectionalLightIds[index]),centreShifted,box,extraBias);
  }
- // Local lights, over the cell of the light grid the froxel lies in: that of the tile's middle pixel at its depth.
+ // Local lights, but for the water's froxels, over the cell of the light grid the froxel lies in: that of the tile's middle pixel at its depth.
+ if(froxelGrid.markLocalLights==0u){return;}
  let middle=vec2f(vsmFroxelTile(froxel)*${8}u+vec2u(${4}u));
  let slice=cellSlice(pixelCell(middle,vsmFroxelDeviceZ(centre.z)));
  for(var k=0u;k<slice.y;k++){

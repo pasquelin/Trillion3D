@@ -290,27 +290,3 @@ export const LIGHT_FLAG = /* @__PURE__ */ (() =>
 export const LIGHT_FUNCTION_STEP = /* @__PURE__ */ (() => 8 * LIGHT_KIND_SPAN)()
 /** The bits the flags and the rank take below the index: `LIGHT_FUNCTION_STEP` is `1 << this`. */
 export const LIGHT_FUNCTION_SHIFT = 5
-/** What the scheduler knows of the view: a camera, not a matrix, to stay without a dependency. */
-export interface ShadowViewpoint {
-  /** Where the viewpoint stands. */ position: readonly [number, number, number]
-  /** Which way it looks. */ forward: readonly [number, number, number]
-  /** Half its vertical opening. */ halfFovY: number
-  /** Width over height. */ aspect: number
-  /** Nearest distance. */ near: number
-  /** Farthest distance. */ far: number
-  /** World size of one pixel at the near plane: the finest footprint any pixel of the view has. */
-  pixelNear: number
-}
-/** The eleven numbers of a view, in order: position, axis, half-field, aspect, near, far, and
- *  the pixel's footprint at the near plane. */
-export const VIEW_NUMBERS = 11
-export function writeView<T extends Float32Array | Float64Array>(view: ShadowViewpoint, out: T) {
-  out.set(view.position)
-  out.set(view.forward, 3)
-  out[6] = view.halfFovY
-  out[7] = view.aspect
-  out[8] = view.near
-  out[9] = view.far
-  out[10] = view.pixelNear
-  return out
-}

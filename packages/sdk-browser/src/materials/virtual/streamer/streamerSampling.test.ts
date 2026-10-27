@@ -1,7 +1,7 @@
 // A texture's sampling follows its record, not the surfaces that wear it — the records written
 // since the last render visited, before the hold verdict, then the headers written where a word
-// moved, whichever pass reads the texture —, and a moved colour texture is signalled as a landed
-// tile is, so the cutout shadows that read it follow and a held image is released.
+// moved, whichever pass reads the texture —, and a moved texture is signalled as a landed
+// tile is, so a held image is released.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTileStreamer } from './streamer.ts'
@@ -28,9 +28,9 @@ const host = () => {
 }
 
 /** A streamer over one colour and one data texture, both whole in their tail; counts the page
- *  table writes and the colour signals. */
+ *  table writes and the signals. */
 function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
-  const signalled: number[][] = []
+  const signalled = { count: 0 }
   const { device, writes } = fakeDevice(BACKEND)
   const blocks = { bc7: [], astc: [], etc2: [] }
   const whole = (texture?: Texture) => ({
@@ -51,8 +51,8 @@ function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
     budgetMs: Number.MAX_SAFE_INTEGER,
     clock: createFrameBudget(Infinity),
     onFailure: (phase, error) => assert.fail(`${phase}: ${String(error)}`),
-    onColorChanged: (slots) => {
-      signalled.push(slots === -1 ? [-1] : [...slots])
+    onColorChanged: () => {
+      signalled.count++
       onColour()
     },
   })
@@ -83,19 +83,19 @@ test('the headers follow their hosts at each render, only what moved written', a
   colour.anisotropy = 8
   await follow(textures)
   assert.equal(colourRecord.minFilter, 'nearestMipNearest', 'the filter written after it')
-  assert.deepEqual(signalled, [[1]], 'the colour slot, as a landed tile')
+  assert.equal(signalled.count, 1, 'signalled as a landed tile is')
   assert.equal(writes(), opened + 1)
   await follow(textures)
   assert.equal(writes(), opened + 1, 'the same state: written once')
   // A placement moves no version: the matrix recomposed at the write moves the header.
   data.offset.x = 0.5
   await follow(textures)
-  assert.deepEqual(signalled, [[1], []], 'signalled, no shadow reads a data map')
+  assert.equal(signalled.count, 2, 'a data header written is signalled too')
   assert.equal(writes(), opened + 2, 'one send per atlas that moved')
   // An addressing rides in the header too: written, and the cutout shadows told, as a filter.
   colour.wrapS = 'clamp'
   await follow(textures)
-  assert.deepEqual(signalled, [[1], [], [1]], 'the colour slot, for its cutout shadows')
+  assert.equal(signalled.count, 3, 'an addressing is signalled as a filter is')
   assert.equal(writes(), opened + 3)
   textures.destroy()
 })
@@ -112,7 +112,7 @@ test('two engines over the same texture both write the change', async () => {
   assert.equal(await follow(first.textures), true, 'a filter rule switched on')
   assert.equal(second.textures.followSampling(), true, 'the second engine learns it too')
   assert.deepEqual([first.writes(), second.writes()], [opened[0] + 1, opened[1] + 1])
-  assert.deepEqual([first.signalled, second.signalled], [[[1]], [[1]]])
+  assert.deepEqual([first.signalled.count, second.signalled.count], [1, 1])
   colour.magFilter = 'linear'
   assert.equal(await follow(first.textures), true, 'switched off: the pages change class')
   colour.wrapS = 'clamp'
@@ -130,7 +130,7 @@ test('the map of a transparent surface alone follows its host, no surface reread
   map.wrapT = 'mirror'
   await follow(textures)
   assert.deepEqual([read.magFilter, read.wrapT], ['nearest', 'mirror'], 'the item’s record')
-  assert.deepEqual(signalled, [[1]])
+  assert.equal(signalled.count, 1)
   textures.destroy()
 })
 

@@ -1,5 +1,5 @@
-// During a pose barrier the shadow drain does not pump tiles: an arrival invalidates
-// every map (`shadowsFollowTextures`) and the queue would never empty.
+// During a pose barrier the shadow drain does not pump tiles: an arrival changes the image the
+// drain replays and the queue would never empty.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { pumpResidentTiles } from '../prepare/lightResources.ts'

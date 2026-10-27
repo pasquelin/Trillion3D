@@ -32,22 +32,14 @@ import {
  */
 export function createWebgpuTileStreamer(options: TileStreamerOptions) {
   const { device, encoding } = options
-  /** Colour textures a pump served or evicted a tile of, named once each. */
-  const colorChanged = new Set<number>()
-  const { color, data } = openStreamerAtlases(device, options, colorChanged, () => published.clock)
+  const { color, data } = openStreamerAtlases(device, options, () => published.clock)
   const feedback = createWebgpuTileFeedback(device, color.pages.entries + data.pages.entries)
   const counters = createTileCounters()
   const sources = createHeldSources(device, options, counters)
   const requests = createTileRequests({ feedback, color, data, counters })
   const atlases: [typeof color, typeof data] = [color, data]
   const published = createTilePublish(device, feedback, atlases)
-  const follow = createSamplingFollow(
-    device,
-    atlases,
-    sources,
-    colorChanged,
-    options.onColorChanged,
-  )
+  const follow = createSamplingFollow(device, atlases, sources, options.onColorChanged)
   return {
     color,
     data,
@@ -58,7 +50,6 @@ export function createWebgpuTileStreamer(options: TileStreamerOptions) {
     pump: createTilePump({
       ...options,
       color,
-      colorChanged,
       sources,
       requests,
       counters,

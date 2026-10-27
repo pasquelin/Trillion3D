@@ -30,16 +30,15 @@ export type TileStreamerOptions = {
    *  after the arrivals, and stops where the frame's share or its own ceiling is spent. */
   clock: FrameClock
   onFailure: (phase: string, error: unknown) => void
-  /** Colour textures a tile of which arrived or was evicted in this pump, or whose sampling moved
-   *  — what a cutout-foliage shadow follows —, or `-1` when the pool was resized. */
-  onColorChanged: (slots: ReadonlySet<number> | -1) => void
+  /** Said when colour tiles arrived in a pump, a colour texture's sampling moved, or the pool was
+   *  resized: the resources the image reads changed. */
+  onColorChanged: () => void
 }
 
 /** The colour and data atlases of a streamer; `clock` is read when the feedback reduction stamps. */
 export function openStreamerAtlases(
   device: GPUDevice,
   options: TileStreamerOptions,
-  colorChanged: Set<number>,
   clock: () => number,
 ) {
   const { encoding } = options
@@ -49,7 +48,6 @@ export function openStreamerAtlases(
     layers: options.layers.color,
     feedbackOffset: 0,
     textures: options.color,
-    onEvicted: (slot) => colorChanged.add(slot),
     clock,
   })
   const data = createWebgpuTileAtlas(device, {
@@ -85,7 +83,6 @@ export function createSamplingFollow(
   device: GPUDevice,
   atlases: readonly [WebgpuTileAtlas, WebgpuTileAtlas],
   sources: ReturnType<typeof createTileSources>,
-  colorChanged: Set<number>,
   onColorChanged: TileStreamerOptions['onColorChanged'],
 ) {
   const [color, data] = atlases
@@ -108,11 +105,10 @@ export function createSamplingFollow(
      *  again, signalled as a landed tile is. True when a filter rule switched
      *  on or off: the rows that wear it change resolve class. */
     followSampling() {
-      colorChanged.clear()
-      const found = followHeaders(false, colorChanged, sources)
+      const found = followHeaders(false, sources)
       if (!(found & HEADERS_WRITTEN)) return false
       flushAll()
-      onColorChanged(colorChanged)
+      onColorChanged()
       return (found & HEADERS_SWITCHED) !== 0
     },
   }

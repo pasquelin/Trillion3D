@@ -11,11 +11,11 @@ import { followTexturePressure } from '../../frame/io/memory.ts'
 import { shadowsUnsettled } from '../../frame/backend/state/lights.ts'
 import { convergeBound, texturesConverged, drainsAgain } from './convergeRules.ts'
 /** Images a barrier grants at most to the shadow pages' round trips: a report read, casters
- *  loaded, pages staled by their arrival. A still camera takes a few; a moving camera voids pages
+ *  loaded, pages drawn again. A still camera takes a few; a moving camera voids pages
  *  every image and never converges: the bound is there for it. */
 const SHADOW_DRAIN_LIMIT = 64
 /** Texture → shadow round-trips at most: each turn that redraws a sun page can move what the shadow
- *  asks of textures, and each arrived tile voids the shadows. */
+ *  asks of textures. */
 const POSE_ROUNDS = 4
 
 /**
@@ -71,8 +71,8 @@ async function convergeTextures(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice, pi
 
 /**
  * Drains shadow maps: images are rendered until the virtual shadow maps settle
- * (`shadowsUnsettled`), whatever staled their pages: an arriving tile, a moving camera or a
- * geometry page that entered or left. Each image's loads are awaited, and a page made resident
+ * (`shadowsUnsettled`), whatever staled their pages: a moving camera, a placement that moved, a
+ * surface that changed. Each image's loads are awaited, and a page made resident
  * after the last image draws one more, so its arrivals reach the maps here and not in the first
  * still frame after the barrier. Returns the number of frames drained.
  */
@@ -95,9 +95,8 @@ async function drainShadows(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
  * A drained pose: textures converged AND shadows drained, alternating until calm, and the same
  * predicate as the held image (`unsettledMask`) to say whether it is acquired. Order alone is not
  * enough: what a foliage shadow asks of textures is read at the sun levels
- * (`../../visibility/shader/request.ts`), and a page redrawn by the drain moves that request; an arrived
- * tile, conversely, voids every shadow. A turn whose drain redrew nothing has converged its textures
- * on the final pages: that is the stop.
+ * (`../../visibility/shader/request.ts`), and a page redrawn by the drain moves that request. A turn
+ * whose drain redrew nothing has converged its textures on the final pages: that is the stop.
  *
  * These images are ordinary images of the pose (`textureConverging`): every pixel speaks, the
  * temporal pass runs on them as on any other, none is held. What the barrier did, and what still keeps the pose

@@ -13,7 +13,6 @@ export type {
   AtmosphereSunIndex,
   SceneLight,
   SceneLightingView,
-  ShadowViewpoint,
 } from '../../sdk-core/src/scene/light/contracts.ts'
 export {
   BOUNCE_PROBE_QUEUE,

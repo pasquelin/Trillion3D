@@ -13,7 +13,7 @@ import { tileLevelBytes, type TextureLevelRequest } from '../../texture/levelRea
 import { tileRecord } from '../../texture/tileRecords.ts'
 
 /** Milliseconds each fake copy costs on the test's own clock — the budget is read on it — and
- *  what the shadows that follow the landed colour tiles cost after the last copy. */
+ *  what the follow of the landed colour tiles costs after the last copy. */
 const COPY_MS = 2,
   FOLLOW_MS = 1
 
@@ -122,7 +122,7 @@ test('a pass copies until its millisecond budget is spent, then defers the rest 
   assert.equal(
     metrics.textureUploadPeakMs,
     2 * COPY_MS + FOLLOW_MS,
-    'the peak is the pass that was measured, the shadow follow included',
+    'the peak is the pass that was measured, the follow of the landed tiles included',
   )
   assert.equal(metrics.textureUploadMs, 2 * COPY_MS + FOLLOW_MS)
   // No fresh feedback: the deferred tiles are served from the backlog, budget after budget.

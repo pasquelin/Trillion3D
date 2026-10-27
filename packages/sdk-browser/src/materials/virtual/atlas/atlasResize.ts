@@ -8,8 +8,8 @@ import { grownByCopy } from '../../../gpu/core/tableGrowth.ts'
 /**
  * An atlas pool changes layers WITHOUT losing what it holds. The new pool keeps the pinned places
  * first — every tail, wherever it was pinned —, then the most looked-at by the GPU's queue, as
- * many as it holds; the others are evicted wherever they sat, the table says so, `onEvicted` hears
- * their texture and the coarse level takes over. Surviving layers are copied in one command, slot
+ * many as it holds; the others are evicted wherever they sat, the table says so
+ * and the coarse level takes over. Surviving layers are copied in one command, slot
  * for slot: the page table does not move for them; a kept tile of a vanishing layer is moved into a
  * free slot, copied and re-registered in the table. A tail never leaves: only a pool drawn under
  * its tails' floor, which `texturePoolFor` never draws, refuses by name, before anything moves.
@@ -26,7 +26,6 @@ export function resizeTileAtlas(
   pool: WebgpuTilePool,
   pages: WebgpuTilePageTable,
   resident: Map<number, number>,
-  onEvicted?: (slot: number) => void,
 ): { pool: WebgpuTilePool; evicted: number } {
   const next = createWebgpuTilePool(device, options)
   let evicted = 0
@@ -34,7 +33,7 @@ export function resizeTileAtlas(
     device,
     [pool],
     (encoder) => {
-      evicted = moveTiles(encoder, tapOf, { pool, next, pages, resident }, onEvicted)
+      evicted = moveTiles(encoder, tapOf, { pool, next, pages, resident })
     },
     `Trillion3D texture pool ${options.kind} ${options.lane} resize`,
   )
@@ -47,7 +46,6 @@ function moveTiles(
   encoder: GPUCommandEncoder,
   tapOf: (slot: number) => number,
   { pool, next, pages, resident }: Moved,
-  onEvicted?: (slot: number) => void,
 ) {
   const kept = Math.min(pool.layers, next.layers)
   encoder.copyTextureToTexture({ texture: pool.texture }, { texture: next.texture }, [
@@ -69,7 +67,7 @@ function moveTiles(
     displaced: number[] = []
   let evicted = 0
   for (const index of order.slice(next.tiles)) {
-    evictTile(pool, index, { pages, resident }, onEvicted)
+    evictTile(pool, index, { pages, resident })
     evicted++
   }
   // Kept in place where its layer survives; moved into a free place of the new pool otherwise.
@@ -103,18 +101,15 @@ type Moved = {
   resident: Map<number, number>
 }
 
-/** Gives the streamed tile at `index` of `pool` back: the table and `resident` forget it, and
- *  `onEvicted` hears its texture, for whoever reads it to follow. */
+/** Gives the streamed tile at `index` of `pool` back: the table and `resident` forget it. */
 export function evictTile(
   pool: WebgpuTilePool,
   index: number,
   table: { pages: Pick<WebgpuTilePageTable, 'clearTile'>; resident: Map<number, number> },
-  onEvicted?: (slot: number) => void,
 ) {
   const id = pool.keyOf(index),
     key = tileKeyOf(id)
   table.pages.clearTile(key)
   table.resident.delete(id)
   pool.release(index)
-  onEvicted?.(key.slot)
 }

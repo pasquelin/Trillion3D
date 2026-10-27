@@ -77,7 +77,7 @@ function banc(capturing = false) {
     capture: { capturing },
     lights: {
       store: { count: 1 },
-      changes: { representationChanged: (min: number[]) => shadowChanges.push(min[0]) },
+      changes: { worldChanged: (min: number[]) => shadowChanges.push(min[0]) },
     },
     layout: {
       packedPages,

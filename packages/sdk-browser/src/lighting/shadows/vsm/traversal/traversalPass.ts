@@ -51,6 +51,7 @@ import {
   createWebgpuBindIdentity,
   type WebgpuBindIdentity,
 } from '../../../../gpu/bind/bindIdentity.ts'
+import { VSM_LIGHT_WORDS, VSM_RENDER_LIGHT_BYTES } from '../constants.ts'
 import type { VsmLayout } from '../layout.ts'
 import { vsmOcclusionEntries } from '../occlusion/occlusionPass.ts'
 import { VSM_RENDER_FIRST_SLOT, vsmRenderParamsEntry } from '../render/renderParams.ts'
@@ -71,9 +72,10 @@ export interface VsmDescentScene {
 }
 
 /** The descent's sizes for a frame: queue 0's entries a view, the views at most (a map and a mip of
- *  it with a page to draw), the nodes it may open, the pages it may list. */
+ *  it with a page to draw), the lights of the frame, the nodes it may open, the pages it may list. */
 interface DescentSizes {
   views: number
+  lights: number
   nodeBudget: number
   candCap: number
 }
@@ -91,7 +93,6 @@ export function vsmDescentPipes(device: GPUDevice, layout: VsmLayout) {
     [
       vsmRenderParamsEntry(0),
       ...vsmBindGroupLayoutEntries(VSM_DESCENT_SPECS, COMPUTE),
-      computeBufferEntry(3, 'read-only-storage', COMPUTE),
       computeBufferEntry(4, 'storage', COMPUTE),
       computeBufferEntry(8, 'read-only-storage', COMPUTE),
     ],
@@ -140,6 +141,10 @@ export interface VsmDescent {
   /** Its readout's ranks and its uniform's caps this frame. */
   listCap: number
   queueCap: number
+  /** Where the frame's lights lie in its `work`, in bytes, and how many bytes they take
+   *  (`clearVsmDescent`). */
+  lightsAt: number
+  lightBytes: number
 }
 
 const descents = new WeakMap<VsmResources, VsmDescent>()
@@ -186,6 +191,8 @@ function descentOf(res: VsmResources, device: GPUDevice): VsmDescent {
     vsmSets: vsmFrameSetHeld<GPUBindGroup>(),
     listCap: 0,
     queueCap: 0,
+    lightsAt: 0,
+    lightBytes: 0,
   }
   descents.set(res, d)
   return d
@@ -205,21 +212,27 @@ export function vsmDescentGrowth(res: VsmResources, scene: VsmDescentScene, size
 /** The descent's queue words — every view's queue 0 and the entries no budget bounds, then the
  *  nodes it opens — and its lists' bytes: its flags (the queue, the listed pages and the nodes held
  *  for the post pass, as many as the queue's entries), its readout, its work (the frame counters,
- *  the views' list, the pages' mask: `counterBase`). */
-function listBytes({ info }: VsmDescentScene, { views, nodeBudget, candCap }: DescentSizes) {
+ *  the views' list, the frame's lights, the pages' mask: `counterBase`). */
+function listBytes(
+  { info }: VsmDescentScene,
+  { views, lights, nodeBudget, candCap }: DescentSizes,
+) {
   const queueCap = entryWords(VSM_DESCENT_SHAPE) * (info.entries * views + nodeBudget)
   return {
     queueCap,
     flags: 4 * flagShapeWords({ queueWords: queueCap, candCap, nodeBudget }),
     out: 4 * copiedWords(info.listCap),
-    work: 4 * (FRAME_COUNTERS + 1 + views + info.blockCount * BLOCK_MASK_WORDS),
+    work:
+      4 *
+      (FRAME_COUNTERS + 1 + views + VSM_LIGHT_WORDS * lights + info.blockCount * BLOCK_MASK_WORDS),
     viewBase: FRAME_COUNTERS,
+    lightBase: FRAME_COUNTERS + 1 + views,
   }
 }
 
-/** The raster's lists the descent binds: the parameters' window, the frame's lights, the counters and
- *  the placements' words (`RenderListGroups`, the object the VSM group is held under, made again when
- *  one of them moved). */
+/** The raster's lists the descent uses: the parameters' window, the counters and the placements'
+ *  words, which it binds, and the frame's lights, which it copies into its `work` (`RenderListGroups`,
+ *  the object the VSM group is held under, made again when one of them moved). */
 export interface VsmDescentLists {
   params: GPUBufferBinding
   lights: GPUBuffer
@@ -260,6 +273,8 @@ export function prepareVsmDescent(
   }
   d.listCap = info.listCap
   d.queueCap = bytes.queueCap
+  d.lightsAt = 4 * bytes.lightBase
+  d.lightBytes = VSM_RENDER_LIGHT_BYTES * sizes.lights
   writeBlock(d, info, sizes, twoPass)
   const next = d.culling.next
   next.length = 0
@@ -328,23 +343,24 @@ function cullingGroups(d: VsmDescent, tables: VsmDescentScene['tables']) {
 
 /** The descent's VSM group over the tables of `res.current` and the raster's lists `d.lists`. */
 function vsmGroup(res: VsmResources, d: VsmDescent) {
-  const { params, lights, counts, rootWords } = d.lists!
+  const { params, counts, rootWords } = d.lists!
   return d.device.createBindGroup({
     label: `${LABEL}.vsm`,
     layout: d.pipes!.views.groups[1]!,
     entries: [
       { binding: 0, resource: params },
       ...vsmBindGroupEntries(res, VSM_DESCENT_SPECS),
-      { binding: 3, resource: { buffer: lights } },
       { binding: 4, resource: { buffer: counts } },
       { binding: 8, resource: { buffer: rootWords } },
     ],
   })
 }
 
-/** The views' count cleared, out of the pass: the views kernel counts from none. */
+/** The views' count cleared and the frame's lights copied into the work (`descentLight`), out of the
+ *  pass: the views kernel counts from none, over the lights as this frame wrote them. */
 export function clearVsmDescent(encoder: GPUCommandEncoder, d: VsmDescent, viewBase: number) {
   encoder.clearBuffer(d.work!, viewBase * 4, 4)
+  encoder.copyBufferToBuffer(d.lists!.lights, 0, d.work!, d.lightsAt, d.lightBytes)
 }
 
 /** What a descent is encoded for: the lights of the frame, whose maps list the views, and the views

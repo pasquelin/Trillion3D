@@ -13,6 +13,8 @@
  * translucent front layer is in hand (`VsmMarkingFront`), and where the single-layer water drew a depth
  * before the marking (`VsmMarkingView.water`), that pass is the program that also marks the suns'
  * pages of the surface that layer holds in front of each pixel, and of the water's surface.
+ * The froxel marking marks the water's surface in a second pass of its own, the suns' pages alone
+ * (`froxel/froxelMarking.ts`).
  *
  * Per-page passes (the page table clears) go through a per-page dispatcher: ids
  * binned by their finest mip level (`vsmCachePerPageBins`), uploaded into `res.perPageIds`, one dispatch per
@@ -78,14 +80,16 @@ import {
   FROXEL_ARGS_ENTRY,
   FROXEL_ARGS_WGSL,
   FROXEL_BUILD_ENTRY,
-  FROXEL_BUILD_WGSL,
+  FROXEL_SCENE_BINDING,
+  froxelBuildWgsl,
 } from './froxel/froxelBuildWgsl.ts'
 import {
   createFroxelMarking,
   type FroxelMarking,
   FROXEL_ARGS_LABEL,
-  FROXEL_BUILD_LABEL,
   FROXEL_MARK_LABEL,
+  froxelBuildLabel,
+  type FroxelMarkContext,
   type FroxelPipes,
   type TablesGroup,
 } from './froxel/froxelMarking.ts'
@@ -332,8 +336,13 @@ const clearGroups = (tables: GPUBindGroupLayoutEntry[], written: readonly unknow
     ...written.map((_, n) => computeBufferEntry(4 + n, 'storage')),
   ],
 ]
-const froxelBuildGroups = () => [
-  [computeTextureEntry(0, 'depth'), computeUniformEntry(1), computeBufferEntry(2, 'storage')],
+const froxelBuildGroups = (water: boolean) => [
+  [
+    computeTextureEntry(0, 'depth'),
+    computeUniformEntry(1),
+    computeBufferEntry(2, 'storage'),
+    ...(water ? [computeTextureEntry(FROXEL_SCENE_BINDING, 'depth')] : []),
+  ],
 ]
 const froxelArgsGroups = () => [
   [computeUniformEntry(0), computeBufferEntry(1, 'storage'), computeBufferEntry(2, 'storage')],
@@ -379,26 +388,31 @@ type HeldPipes = Partial<
     | 'coarse'
     | PixelsVariant
     | 'froxelBuild'
+    | 'froxelWaterBuild'
     | 'froxelArgs'
     | 'froxelMark',
     VsmComputePipe
   >
 >
 
-/** The froxels' build, the arguments of the marking over them and the marking itself (`froxel/`),
- *  where the view marks the pages from the froxels; each made when first asked, into `held`. */
+/** The key of the froxel build of the scene's froxels, or of the water's, in `held`. */
+const froxelBuildVariant = (water: boolean) => (water ? 'froxelWaterBuild' : 'froxelBuild')
+
+/** The froxels' build — the scene's and, over the water's depth, the water's —, the arguments of the
+ *  marking over them and the marking itself (`froxel/`), where the view marks the pages from the
+ *  froxels; each made when first asked, into `held`. */
 const froxelMarkingPipes = (
   device: GPUDevice,
   layout: VsmLayout,
   held: HeldPipes,
 ): FroxelPipes => ({
-  froxelBuild: () =>
-    (held.froxelBuild ??= vsmComputePipe(
+  froxelBuild: (water = false) =>
+    (held[froxelBuildVariant(water)] ??= vsmComputePipe(
       device,
-      FROXEL_BUILD_LABEL,
-      FROXEL_BUILD_WGSL,
+      froxelBuildLabel(water),
+      froxelBuildWgsl(water),
       FROXEL_BUILD_ENTRY,
-      froxelBuildGroups(),
+      froxelBuildGroups(water),
     )),
   froxelArgs: () =>
     (held.froxelArgs ??= vsmComputePipe(
@@ -732,6 +746,8 @@ interface MarkingState {
   pixelsView: ReturnType<typeof createPixelsView>
   prune: ReturnType<typeof createPrune>
   froxels: FroxelMarking
+  /** What the froxel passes take of the frame beside its view, rewritten by each frame. */
+  froxelContext: FroxelMarkContext
 }
 
 /** Group 0 of `p` over the tables `specs` name and the parameters at `paramsBinding`. */
@@ -752,8 +768,8 @@ const tablesGroup =
 
 /** What the marking marks past the coarse pages: nothing where `shadowMarkPixelPages` is off (the
  *  pages of the view are not asked), else the pages from the pixels or, with
- *  `shadowMarkPagesUseFroxels`, from the froxels, which read neither the front layer nor the
- *  water's depth. */
+ *  `shadowMarkPagesUseFroxels`, from the froxels, which read the water's depth (the suns' pages of
+ *  its surface) but not the front layer. */
 export const viewMarking = (shadows: ShadowValues): 'none' | 'pixels' | 'froxels' =>
   !shadows.shadowMarkPixelPages ? 'none' : shadows.shadowMarkPagesUseFroxels ? 'froxels' : 'pixels'
 
@@ -786,6 +802,11 @@ function markFromPixels(
 function encodeMarking(state: MarkingState, pass: GPUComputePassEncoder, frame: VsmMarkingFrame) {
   const { device, params, pipes, clears } = state
   const mapCount = frame.mapCount
+  const s = frame.settings ?? VSM_DEFAULT_SHADOWS
+  const marking = viewMarking(s)
+  // The froxels' buffers (the water's with the scene's) are held while the marking is from them, a
+  // frame without a map included.
+  if (marking !== 'froxels') state.froxels.destroy()
   // No shadow map: nothing to mark.
   if (mapCount === 0) return
   // The shadowed lights' grid first: the marking and the projection both read it, whatever the projection holds.
@@ -804,11 +825,12 @@ function encodeMarking(state: MarkingState, pass: GPUComputePassEncoder, frame: 
   groups.coarse ??= state.group(COARSE_LABEL, coarse, VSM_COARSE_SPECS, 4)
   dispatch(pass, coarse, groups.coarse, undefined, ceilDiv(mapCount, VSM_GROUP_WIDTH))
   const v = frame.view
-  const s = frame.settings ?? VSM_DEFAULT_SHADOWS
-  const marking = viewMarking(s)
   if (!v || marking === 'none') return
-  if (marking === 'pixels') markFromPixels(state, pass, v, s, groups)
-  else state.froxels.mark(pass, v, frame.perspective, groups, state.group, VSM_PIXELS_SPECS)
+  if (marking === 'pixels') return markFromPixels(state, pass, v, s, groups)
+  const froxels = state.froxelContext
+  froxels.perspective = frame.perspective
+  froxels.groups = groups
+  state.froxels.mark(pass, v, froxels)
 }
 
 const uniformBuffer = (device: GPUDevice, label: string, size: number) =>
@@ -822,11 +844,12 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
   const paramData = new ArrayBuffer(VSM_MARKING_PARAMS_BYTES)
   const pipes = vsmMarkingPipes(device, res.layout)
   const tables = vsmFrameSetHeld<TableGroups>()
+  const group = tablesGroup(device, res, params)
   const state: MarkingState = {
     device,
     res,
     params,
-    group: tablesGroup(device, res, params),
+    group,
     paramF32: new Float32Array(paramData),
     paramU32: new Uint32Array(paramData),
     pipes,
@@ -843,6 +866,7 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
     pixelsView: createPixelsView(device, params),
     prune: createPrune(device),
     froxels: createFroxelMarking(device, pipes, params),
+    froxelContext: { perspective: true, groups: {}, tablesGroup: group, specs: VSM_PIXELS_SPECS },
   }
   return {
     encode: (pass, frame) => encodeMarking(state, pass, frame),

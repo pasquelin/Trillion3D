@@ -20,8 +20,6 @@ type TileLanesOptions = {
   /** Layers of each lane's pool; a lane no texture takes has none, and no pool. */
   layers: LaneCounts
   textures: readonly { lane: PoolLane; tap: number }[]
-  /** A tile a resize gave up: its texture. */
-  onEvicted?: (slot: number) => void
 }
 
 /** The shape of the pool of `lane` at `layers` layers. */
@@ -66,7 +64,6 @@ function resizeLane(
     lane.pool,
     context.pages,
     lane.resident,
-    options.onEvicted,
   )
   lane.pool = result.pool
   return result.evicted

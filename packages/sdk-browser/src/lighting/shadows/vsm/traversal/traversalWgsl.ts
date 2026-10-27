@@ -19,10 +19,13 @@
  *   world box (`vsmDescentCellOutside`). The boxes of a placement are grown by the reach of its
  *   deformation, and by its offsets' only in the maps that allow them (`vsmDescentGrowth`), as the
  *   cull grows a cluster's;
- * - on a page to draw of the layer its placement's casters draw into (`vsmDescentNoPage`), looked
- *   for under the cube about the node's sphere doubled (`vsmDescentCube`), not the oriented box;
- *   the receiver cover is left to the cull, the descent holding to the storage buffers every device
- *   has; a cell of the tree is not tested, its placements are;
+ * - drawn in the layer its placement's casters draw into (`vsmDescentNotDrawn`): in the dynamic
+ *   layer, within the map's dynamic depth range (`vsmCasterInDepthRange`, the cull's own test on
+ *   the node's oriented box, whose clip depths hold its clusters'); then on a page to draw of the
+ *   layer, looked for under the cube about the node's sphere doubled (`vsmDescentCube`), not the
+ *   oriented box, and, in a map that keeps a receiver cover, over a receiver of it where the layer
+ *   is not the static one (`vsmCasterUsesCover`, `vsmTouchesMappedPixels`, the cull's own); a cell of
+ *   the tree is not tested, its placements are;
  * - its subtree needed at the view's mip (`vsmDescentNeeded`): the greatest error its clusters
  *   replace (`maxParentError`) over the node's ball, projected by the mip as the cull projects a
  *   cluster's (`vsmRenderViewPixels`), past the shadows' threshold. A projection that only grows as
@@ -53,11 +56,13 @@
  *
  * Group 0: the cut's tables at the culling's bindings (`DAG_BINDINGS_WGSL`): the nodes, the
  * descent's uniform block (`cutView`, the main view's with the descent's caps), its flags, its readout
- * (`out`, the requests), its `work`, the worlds, the frame words, the cold words, the tree, the poses
- * the previous image drew. Group 1: 0 the raster's parameters (uniform, dynamic), 1 the maps'
- * records, 2 the stale rects, 3 the frame's lights, 4 the raster's counters (rw atomic), 5 the VSM
- * uniforms, 6 the page marks, 8 the placements' words (`rootWords`). Group 2: the occlusion's (`VSM_OCCLUSION_TEST_WGSL`), the previous frame's pyramid and
- * tables in the main pass, this frame's in the post pass.
+ * (`out`, the requests), its `work` (which also holds the frame's lights, copied in at the start of
+ * the frame, `descentLight`), the worlds, the frame words, the cold words, the tree, the poses the
+ * previous image drew. Group 1: 0 the raster's parameters (uniform, dynamic), 1 the maps' records,
+ * 2 the stale rects, 3 the receiver cover, 4 the raster's counters (rw atomic), 5 the VSM uniforms,
+ * 6 the page marks, 8 the placements' words (`rootWords`): eight storage buffers in all, the most a
+ * stage is sure to hold. Group 2: the occlusion's (`VSM_OCCLUSION_TEST_WGSL`), the previous frame's
+ * pyramid and tables in the main pass, this frame's in the post pass.
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
 import { FLOAT32_MAX } from '../../../../../../math/src/wgsl/constants.ts'
@@ -95,7 +100,6 @@ import { requestPriorityOf } from '../../../../geometry/dag/shader/error.ts'
 import { worldAtEyeWgsl } from '../../../../geometry/dag/shader/worldPoseWgsl.ts'
 import type { DescentShape } from '../../../../geometry/dag/shader/descentShape.ts'
 import {
-  VSM_BOX_CULL_WGSL,
   VSM_BOX_VIEW_WGSL,
   VSM_CASTER_BOX_CULL_WGSL,
   VSM_OFFSET_GROWS_WGSL,
@@ -107,12 +111,13 @@ import {
   MOBILITY_OFFSET_INVALIDATES,
 } from '../../mobilityBits.ts'
 import { ROOT_WORDS_WGSL } from '../../casters/rootWordsWgsl.ts'
-import { VSM_CONSTANTS_WGSL } from '../constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_LIGHT_WORDS } from '../constants.ts'
 import { VSM_HANDLE_WGSL } from '../pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_READ_WGSL } from '../projection/projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
 import { VSM_RENDER_PARAMS_WGSL } from '../render/renderParamsWgsl.ts'
+import { VSM_RENDER_OVERLAP_WGSL } from '../render/renderOverlapWgsl.ts'
 import { VSM_CASTER_LAYER_WGSL, VSM_RENDER_VIEW_PIXELS_WGSL } from '../render/renderCullWgsl.ts'
 import { VSM_CASTER_SPHERE_WGSL, VSM_PREV_SHIFT_WGSL } from '../render/renderCandidatesWgsl.ts'
 import { VSM_OCCLUSION_TEST_WGSL } from '../occlusion/occlusionTestWgsl.ts'
@@ -134,6 +139,7 @@ export const VSM_DESCENT_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'staleRects', binding: 2 },
   { resource: 'uniforms', binding: 5 },
   { resource: 'pageMarks', binding: 6 },
+  { resource: 'receiverCover', binding: 3 },
 ]
 
 /** The category of the shadow views' requests, the priority word's top two bits: the reference's
@@ -172,7 +178,6 @@ ${VIEW_UNIFORM_STRUCT}
 ${DAG_OUTPUT_STRUCT}
 ${DAG_PRIMITIVE_READS}
 @group(1) @binding(0) var<uniform> params:VsmRenderParams;
-@group(1) @binding(3) var<storage,read> lights:array<vec4u>;
 @group(1) @binding(4) var<storage,read_write> counts:array<atomic<u32>>;
 /** The placements' words (\`../../casters/rootWords.ts\`): the mobility words, the instances' state
  *  per view, the offsets' distances and the deformations' reach, a section each
@@ -183,13 +188,15 @@ const DESCENT_LOD_SLACK:f32=${wgslF32(DESCENT_LOD_SLACK)};
 const DESCENT_SHIFT_SLACK:f32=${wgslF32(DESCENT_SHIFT_SLACK)};
 /** The descent's \`work\`: the frame counters first (\`counterBase\`), the camera cut's, at the words
  *  its arming kernel reads whatever the cut; the views' list behind them — its count, then each
- *  view's map and mip (\`descentMap\`, \`descentMip\`), \`params.viewCap\` of them —; then the pages'
+ *  view's map and mip (\`descentMap\`, \`descentMip\`), \`params.viewCap\` of them —; the frame's lights,
+ *  \`VSM_LIGHT_WORDS\` words each, the raster's table of them (\`descentLight\`); then the pages'
  *  mask, a bit a packed page, which lists a page once (\`candAppend\`), a block of
  *  \`BLOCK_MASK_WORDS\` words a workgroup's pages. */
 fn counterBase()->u32{return 0u;}
 fn viewBase()->u32{return ${FRAME_COUNTERS}u;}
 fn blockCount()->u32{return ceilDiv(cutView.clusterCount,WORKGROUP_THREADS);}
-fn drawMaskBase()->u32{return viewBase()+1u+params.viewCap;}
+fn lightBase()->u32{return viewBase()+1u+params.viewCap;}
+fn drawMaskBase()->u32{return lightBase()+${VSM_LIGHT_WORDS}u*params.lightCount;}
 fn drawMaskWord(i:u32)->u32{return drawMaskBase()+bitWord(i);}
 fn drawBit(i:u32)->u32{return bitMask(i);}
 fn descentViews()->u32{return min(atomicLoad(&work[viewBase()]),params.viewCap);}
@@ -198,7 +205,12 @@ fn descentViewWord(view:u32)->u32{return atomicLoad(&work[viewBase()+1u+view]);}
 /** The running entry's map and mip. */
 fn descentMap()->u32{return descentViewWord(descentView)&0xFFFFu;}
 fn descentMip()->u32{return descentViewWord(descentView)>>16u;}
-fn descentMapsEnd(light:vec4u)->u32{return min(light.x+light.y,vsm.mapCount);}
+/** Light \`rank\` of the frame: its first map's id and its map count. */
+fn descentLight(rank:u32)->vec2u{
+ let at=lightBase()+${VSM_LIGHT_WORDS}u*rank;
+ return vec2u(atomicLoad(&work[at]),atomicLoad(&work[at+1u]));
+}
+fn descentMapsEnd(light:vec2u)->u32{return min(light.x+light.y,vsm.mapCount);}
 /** Whether view \`view\`, held for the post pass, is a map of the view pass running (\`params.viewFirst\`,
  *  \`params.viewCount\`: the ids of its maps), whose pyramid the pass has just built. */
 fn heldHere(view:u32)->bool{
@@ -233,7 +245,7 @@ fn vsmDescentBox(pd:VsmProjectionData,high:vec4f,low:vec3f,axes:array<vec3f,3>)-
  return box;
 }
 /** The cull of the cube of half side \`box.extent.x\` about the node's sphere doubled, in map \`pd\`'s
- *  space: what the pages under a node are looked for by (\`vsmDescentNoPage\`). */
+ *  space: what the pages under a node are looked for by (\`vsmDescentNotDrawn\`). */
 fn vsmDescentCube(pd:VsmProjectionData,box:VsmDescentBox)->VsmBoxInView{
  let r=box.extent.x;
  let viewToClip=pd.lightViewToClip;
@@ -285,32 +297,36 @@ fn vsmDescentBoxOf(pd:VsmProjectionData,w:u32,lo:vec3f,hi:vec3f)->VsmDescentBox{
 }
 /** Whether the running entry's map does not hold the box \`lo\`..\`hi\` of placement \`w\`, grown by the
  *  reach the map allows (\`vsmDescentBoxInMap\`: the frustum on the oriented box, the range on the
- *  sphere doubled), or holds no page its casters draw under the cube about that sphere
- *  (\`vsmDescentCube\`, \`vsmDescentNoPage\`). */
+ *  sphere doubled), or draws none of the clusters under it (\`vsmDescentNotDrawn\`). */
 fn outsideFrustum(w:u32,lo:vec3f,hi:vec3f)->bool{
  let h=vsmHandleFromId(descentMap());
  let pd=vsmProjectionOf(h);
  let box=vsmDescentBoxOf(pd,w,lo,hi);
- return !vsmDescentBoxInMap(pd,box)||vsmDescentNoPage(w,h,pd,vsmDescentCube(pd,box));
+ return !vsmDescentBoxInMap(pd,box)||vsmDescentNotDrawn(w,h,pd,box);
 }
-/** Whether the running entry's view of map \`h\` (\`pd\`) has no page to draw that the casters of
- *  placement \`w\` would draw under the box cull \`cull\`, in the layer the placement draws into
- *  (\`vsmCasterLayer\`, the cull's rule, decided for the placement as the reference decides it for an
- *  instance): a placement cached still whose surfaces wear an offset that may invalidate has its
- *  clusters that evaluate it in the dynamic layer too. */
-fn vsmDescentNoPage(w:u32,h:VsmHandle,pd:VsmProjectionData,cull:VsmBoxInView)->bool{
+/** Whether the running entry's view of map \`h\` (\`pd\`) draws none of the clusters of placement \`w\`
+ *  under the node box \`box\`, in the layer the placement draws into (\`vsmCasterLayer\`, the cull's
+ *  rule, decided for the placement as the reference decides it for an instance): a placement cached
+ *  still whose surfaces wear an offset that may invalidate has its clusters that evaluate it in the
+ *  dynamic layer too. A cell of the tree (no placement) draws something. */
+fn vsmDescentNotDrawn(w:u32,h:VsmHandle,pd:VsmProjectionData,box:VsmDescentBox)->bool{
  if(w>=vsmRootCount()){return false;}
  let roots=vsmRootWords(w);
- let mip=descentMip();
+ let cube=vsmDescentCube(pd,box);
  let layer=vsmCasterLayer((roots.word&${MOBILITY_MOVING | MOBILITY_DEFORMS}u)!=0u,roots.viewBits,pd);
- if(vsmDescentTouches(cull,h,mip,layer)){return false;}
+ if(vsmDescentDraws(h,pd,box,cube,layer)){return false;}
  if(!layer.staticLayer||(roots.word&${MOBILITY_OFFSET_INVALIDATES}u)==0u){return true;}
- return !vsmDescentTouches(cull,h,mip,vsmCasterLayer(true,roots.viewBits,pd));
+ return !vsmDescentDraws(h,pd,box,cube,vsmCasterLayer(true,roots.viewBits,pd));
 }
-/** Whether box cull \`cull\` lies on a page of map \`h\`'s mip \`mip\` the layer \`layer\` draws into, as the cull asks a
- *  caster's (its fine pages taken too, its receiver cover left to the cull). */
-fn vsmDescentTouches(cull:VsmBoxInView,h:VsmHandle,mip:u32,layer:VsmCasterLayer)->bool{
- return vsmTouchesMappedPixelRect(h,mip,vsmStalePixels(cull,h,mip,layer.staticLayer,layer.transitioned),layer.markMask,false);
+/** Whether a caster under the node box \`box\` (\`cube\`: the cube about its sphere doubled) could be
+ *  drawn into map \`h\`'s (\`pd\`) mip of the running entry in layer \`layer\`, as the cull asks a
+ *  caster's: the dynamic layer within the map's dynamic depth range, and a page of the layer to draw
+ *  under the cube (its fine pages taken too) over a receiver of the cover where the map keeps one and
+ *  the layer is not the static one (\`vsmRenderCullView\`'s \`useCover\`). */
+fn vsmDescentDraws(h:VsmHandle,pd:VsmProjectionData,box:VsmDescentBox,cube:VsmBoxInView,layer:VsmCasterLayer)->bool{
+ if(!vsmCasterInDepthRange(layer,box.cull,pd)){return false;}
+ let mip=descentMip();
+ return vsmTouchesMappedPixels(h,mip,vsmStalePixels(cube,h,mip,layer.staticLayer,layer.transitioned),layer.markMask,false,vsmCasterUsesCover(layer,pd));
 }
 /** The pixels the running entry's map spans, at its mip, of an error \`error\` of node \`node\` of
  *  placement \`w\` (\`vsmDescentPixels\`), the error taken at the placement's smallest axis scale as
@@ -416,7 +432,7 @@ const descentKernelsText = () => /* wgsl */ `
 @compute @workgroup_size(WORKGROUP_THREADS) fn ${VSM_DESCENT_ENTRY.views}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let rank=flatIndex(id,n,WORKGROUP_THREADS);
  if(rank>=params.lightCount){return;}
- let light=lights[rank];
+ let light=descentLight(rank);
  let end=descentMapsEnd(light);
  var listed=0u;
  for(var map=light.x;map<end;map++){listed+=countOneBits(vsmRenderMapMips(map));}
@@ -487,7 +503,7 @@ ${descentDeclarationsText()}${descentViewsText}${descentBallText()}${descentHidd
       VSM_PREV_SHIFT_WGSL,
       VSM_RENDER_VIEW_PIXELS_WGSL,
       VSM_RENDER_MAP_VIEW_WGSL,
-      VSM_BOX_CULL_WGSL,
+      VSM_RENDER_OVERLAP_WGSL,
       VSM_BOX_VIEW_WGSL,
       VSM_CASTER_BOX_CULL_WGSL,
       VSM_CASTER_LAYER_WGSL,

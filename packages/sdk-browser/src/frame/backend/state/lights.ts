@@ -11,7 +11,6 @@ import {
 } from '../../../../../sdk-core/src/scene/light/shadow/changes.ts'
 import type { GpuLightTiles } from '../../../lighting/tiles/tiles.ts'
 import type { LightFunctionFrame } from '../../../lighting/lightFunction/frame.ts'
-import { createShadowResidence } from '../../../lighting/shadows/casters/residence.ts'
 import {
   createShadowMobility,
   type ShadowMobility,
@@ -44,8 +43,6 @@ export interface WebgpuLightState {
   /** Group 0's layout of the shadow raster: the page rows, as the visibility pass binds them, less
    *  what the raster never reads (`../../../lighting/shadows/casters/pageGroup.ts`); absent while shadows are off. */
   pageLayout: GPUBindGroupLayout | undefined
-  /** Residency flips, compared frame to frame (`../../../lighting/shadows/casters/residence.ts`). */
-  residence: ReturnType<typeof createShadowResidence>
   /** Which placements move: the static or dynamic cache a caster's pages are drawn in. */
   mobility: ShadowMobility
   /** A word per placement, what the raster splits its casters by and the diff of their boxes follows
@@ -85,7 +82,6 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
     sunRanks: undefined,
     tiles: undefined,
     pageLayout: undefined,
-    residence: createShadowResidence(),
     mobility: createShadowMobility(),
     rootWords: undefined,
     casts: undefined,
@@ -99,13 +95,12 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
 }
 
 /**
- * True while the shadows can still change what the image shows: a representation change held for
- * the camera to rest, or the virtual shadow maps still drawing, by their own state
- * (`vsmSettle.ts`). A scene without a shadow light, or an unlit view, waits for no map.
+ * True while the shadows can still change what the image shows: the virtual shadow maps still
+ * drawing, by their own state (`vsmSettle.ts`). A scene without a shadow light, or an unlit view,
+ * waits for no map.
  */
 export function shadowsUnsettled(lights: WebgpuLightState) {
-  const { changes, store, vsm } = lights
-  if (changes.deferred()) return true
+  const { store, vsm } = lights
   // The virtual shadow maps: pages drawn, invalidated or uncached since the last count read back,
   // the budget feedback moving the resolution (`vsmSettle.ts`).
   return !!vsm && !!store.count && !store.unlit && vsmUnsettled(vsm.settle, vsm.countersOn)

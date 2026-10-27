@@ -63,8 +63,8 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
    which the stale puts it in the dynamic layer of the maps that allow the offset and in the static layer of the others;
    a placement that pins its shadows
    (`shadowCacheInvalidation` `static`) names nothing for a move. Then the CPU's boxes of what no
-   placement says — a page entering or leaving residency, a cell's objects and HLOD actor, a
-   surface or a texture that changed, a deforming geometry — records of the same format in their
+   placement says — a cell's objects and HLOD actor, a surface whose alpha changed, a deforming
+   geometry — records of the same format in their
    own buffer (`invalidation/castBoxes.ts`, `invalidation/castInvalidation.ts`,
    `invalidation/castStale.ts`).
 2. The plan: clipmaps, local lights, map ids, projection data (`vsm/frameSetup.ts`,
@@ -74,7 +74,7 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
    A frame with `shadowQuality` at 0 stops at the plan's door: it plans no map, keeps the set held with
    its cache dropped, or frees it with `shadowDynamicDeallocationMode` 1 (a later frame that shadows again
    draws every light uncached, or starts a cache of its own, so no page of a stale cache is read),
-   releases the representation changes held for the camera to rest (the frame settles at once) and
+   drops the world's change boxes with the cache they would stale and
    gives every light the answer "no shadow". The lit programs are asked without their shadow code;
    the shadow rows, the pipelines and the mask are not made or funded while the setting holds.
 
@@ -97,8 +97,10 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
    view: a view is a map of a light and a mip of it that has a page to draw (the reference's packed
    views, one a map and mip), queue 0 holds every view's roots (or the placement tree's top nodes),
    and each level tests an entry's children against its view — in the map's frustum (the node's
-   own oriented box, which holds the boxes of the clusters below it; a local light's range on its
-   sphere doubled; the pages to draw under the cube about that sphere), the error its subtree replaces
+   own oriented box, which holds the boxes of the clusters below it, and, in the dynamic layer, the
+   map's dynamic depth range on that box; a local light's range on its sphere doubled; the pages to
+   draw under the cube about that sphere, over a receiver of the map's cover where the map keeps one
+   and the layer is not the static one, as the cull asks a cluster's), the error its subtree replaces
    seen at the view's mip, projected as the cull projects a cluster's — and, while the previous
    frame's pyramid and tables are kept, against the map's pyramid (below). A kept leaf asks for its
    pages in each view that keeps it, through the camera's one request path (`requestPage`, read back
@@ -459,7 +461,12 @@ distance has stopped it marks the page for the next frame (the physical page's `
 dynamic layer marked stale so that the cull considers it, never drawn). `shadowInvalidateOnLodDelta` (false) marks the pages of a
 cluster drawn behind the level the view asks, for want of the finer one resident; the invalidation waits for the page's turn,
 `shadowDeferredInvalidationBudget` a frame (-1 all, 0 none; the count lives after the slices, `vsmKeepPages`). A map of one
-page ignores both; so do the coarse pages that keep their dynamic layer.
+page ignores both; so do the coarse pages that keep their dynamic layer. This is the one channel of streaming: the CPU
+declares no box for a cluster entering or leaving residency, nor for a colour tile arriving, and what it declares of a
+cell or a surface is a primitive or material update (a cell's switch between its placements and its HLOD actor, a
+surface whose alpha mode or cutoff moved). With the switch off, the default, the cost is a cached page drawn before a
+finer form arrived: it keeps what it was drawn with, and may show as darker patches along page edges, until the page
+is drawn again for another reason.
 
 **Depth of field lowers the maps' resolution.** Where the view draws a depth of field, the page marking and the sun's level
 choice add `shadowMaxDofResolutionBias` (1) levels in proportion to the circle of confusion's radius over eight pixels
@@ -484,7 +491,11 @@ the froxel's centre asks (the depth of field's bias added), every page its box o
 space and its rect of pixels taken to pages, the receiver cover's cells marked for a map that has one —, and in each local
 light of the light grid's cell at its centre that it reaches, the face its centre lies in, at the mip its centre asks. A light with
 a map of one page is left to the coarse marking (the pixel marking leaves it out as well). The froxel marking culls no pixel
-that faces away from a light, takes no page dilation and marks no page for the translucent front layer; its list takes a
+that faces away from a light, takes no page dilation and marks no page for the translucent front layer. Where the scene's
+single-layer water drew its depth before the marking (the water is drawn with `singleLayerWaterDepthPrepass`), a second pass of
+the same kernels follows the scene's over the froxels of the pixels the water drew over (`vsmBuildFroxels` over the water's
+depth, keeping the pixels whose depth differs from the scene's), with a grid and a list of their own, and marks the suns' pages
+alone: the water takes no shadow from a local light. Its list takes a
 froxel a pixel of the view at most, as the reference's room, held to the device's binding. The froxels are the reference's;
 their order in the list is not (the reference reduces the depth pyramid's first level through a hash).
 

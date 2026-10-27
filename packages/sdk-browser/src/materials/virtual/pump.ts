@@ -12,8 +12,6 @@ type PumpParts = {
   budgetMs: number
   budgetBytes: number
   color: WebgpuTileAtlas
-  /** Colour textures the pass served or evicted a tile of, named once each. */
-  colorChanged: Set<number>
   sources: ReturnType<typeof createTileSources>
   requests: ReturnType<typeof createTileRequests>
   counters: TileCounters
@@ -21,7 +19,8 @@ type PumpParts = {
   residency: ReturnType<typeof createResidencyBias>
   flushAll: () => void
   onFailure: (phase: string, error: unknown) => void
-  onColorChanged: (slots: ReadonlySet<number>) => void
+  /** Said once by a pass that landed a colour tile. */
+  onColorChanged: () => void
 }
 
 /** The most tiles a pass lands, whatever their format: a fixed count a frame, the byte and the
@@ -40,15 +39,15 @@ const MAX_TILES_PER_PASS = 32
 export const createTilePump =
   (p: PumpParts) =>
   (frame: number, unbounded = false) => {
-    const { clock, sources, requests, counters, colorChanged } = p
+    const { clock, sources, requests, counters } = p
     clock.stage(p.budgetMs)
     if (!unbounded) p.residency.follow(requests.coverageOf)
     let served = 0,
       waiting = 0,
       bytes = 0,
       stop = false,
+      colorLanded = false,
       encoder: GPUCommandEncoder | undefined
-    colorChanged.clear()
     const open = () =>
       (encoder ??= p.device.createCommandEncoder({ label: 'Trillion3D texture tiles' }))
     const wanted = requests.take(frame),
@@ -56,18 +55,23 @@ export const createTilePump =
     counters.worked = wanted.to > wanted.from || requests.askedCount > 0
     /** One request served, unless it resides: counted, the budgets read after it. */
     const serve = (request: TileRequest) => {
-      if (request.atlas.resides(request.key)) return
+      const { atlas, key } = request
+      if (atlas.resides(key)) return
+      const evicted = atlas.evictions
       let verdict: ReturnType<typeof sources.serve> = 'waiting'
       try {
         verdict = sources.serve(request.atlas, request.key, at, open)
       } catch (error) {
         p.onFailure('texture-tile-failed', error)
       }
+      // A place given up or taken changed the atlas's page table, whether or not the write after it
+      // landed: the colour that follows it is told all the same.
+      if (atlas === p.color && (atlas.evictions !== evicted || atlas.resides(key)))
+        colorLanded = true
       if (verdict === 'waiting') waiting++
       else if (verdict === 'served') {
         served++
         bytes += request.atlas.poolOf(request.key.slot).tileBytes
-        if (request.atlas === p.color) colorChanged.add(request.key.slot)
         clock.spend()
         stop =
           !unbounded && (served >= MAX_TILES_PER_PASS || bytes >= p.budgetBytes || !clock.admits())
@@ -88,8 +92,8 @@ export const createTilePump =
     counters.deferred = requests.deferred
     counters.pending = waiting + requests.deferred + askedLeft
     counters.bytesLastFrame = bytes
-    // The shadows that follow the landed tiles are the pass's cost too: timed before the clock stops.
-    if (colorChanged.size) p.onColorChanged(colorChanged)
+    // What follows the landed colour tiles is the pass's cost too: timed before the clock stops.
+    if (colorLanded) p.onColorChanged()
     counters.pass(clock.stageMs(), unbounded)
     clock.pause()
     return { served, pending: counters.pending }

@@ -1,9 +1,8 @@
 /**
  * THE CPU'S CHANGE BOXES, AS SHADOW CHANGES: what no placement says — geometry rewritten in place, a
- * light, a cell's switch, a surface, residency, released representation changes
- * (`sdk-core/src/scene/light/shadow/changes.ts`). Each is a record in a buffer of its own, which
- * the stale reads after the diff's list (`castInvalidationWgsl.ts`): one kernel over the same maps
- * (`vsmCastMaps`). No light is filtered here: the kernel's range test and map cull decide
+ * light, a cell's switch, a surface (`sdk-core/src/scene/light/shadow/changes.ts`). Each is a record
+ * in a buffer of its own, which the stale reads after the diff's list (`castInvalidationWgsl.ts`):
+ * one kernel over the same maps (`vsmCastMaps`). No light is filtered here: the kernel's range test and map cull decide
  * (`vsmStaleBoxPages`).
  *
  * A record holds its box, never less, along each world axis: a flat or long box stays flat or long.

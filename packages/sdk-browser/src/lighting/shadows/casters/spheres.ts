@@ -7,7 +7,7 @@ import { writeClusterSphere } from './clusterSphere.ts'
 const sphereScratch = new Float32Array(CLUSTER_SPHERE_FLOATS)
 
 /** Grows the flat box to the cluster's world sphere: an overestimate, never an underestimate. What
- *  a change the CPU declares is boxed by (`noteResidenceChange`, a cell's switch, a surface). */
+ *  a change the CPU declares is boxed by (a cell's switch, a surface). */
 export function growClusterBox(rec: PageRec, roots: Placements, box: Float64Array, rank: number) {
   writeClusterSphere(rec, roots, sphereScratch, 0, rank)
   const x = sphereScratch[0] + sphereScratch[4],

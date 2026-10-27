@@ -1,9 +1,7 @@
 // The steps of the frame's shadow-map plan (`vsmPlan.ts`, `planVsmFrame`): the set held for the
-// frame's lights, the casters' residency followed, and the lights' projection records.
+// frame's lights, and the lights' projection records.
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import type { planVirtualShadowFrame, VsmFrameLight } from '../frameSetup.ts'
-import { noteResidenceChange } from '../../casters/bounds.ts'
-import { shadowsFollowCells } from '../../casters/followChanges.ts'
 import { askedOfLayout, fullMapsFor, sunMapsFor, vsmAsked } from './vsmLightMaps.ts'
 import { dynamicHzbOf } from '../layout.ts'
 import { grantEngineVsm } from './vsmGrant.ts'
@@ -45,20 +43,6 @@ export function heldVsm(rt: WebgpuPagesRuntime, device: GPUDevice, list: VsmFram
     vsm = grantEngineVsm(rt, device, list, wanted)
   else if (!short) vsm = regrowEngineVsm(rt, device, list, vsm)
   return vsm && reserveProjection(rt, device, vsm, list) ? vsm : undefined
-}
-
-/** The casters' residency changes since the last frame, and the world's cells that switched between
- *  their placements and their HLOD actors: a cluster that entered or left residency, or whose cell
- *  now draws it or no longer does, is declared here, its box joining the change list at once (a
- *  cluster is no instance: the diff of the instances' boxes, `castDiff.ts`, never sees it). The
- *  placements that moved, came or went are the diff's (`followRoots`). */
-export function followCasters(rt: WebgpuPagesRuntime) {
-  const { lights } = rt
-  const { clusters, recordOf, selectionRoots, placement } = rt.layout
-  lights.residence.flush(clusters.residency, (page) =>
-    noteResidenceChange(lights, selectionRoots, placement, page, recordOf(page)!, undefined, true),
-  )
-  shadowsFollowCells(rt)
 }
 
 /** The projection record of each shadowed light, in the plan's light order (`plan.projected`): the

@@ -75,7 +75,6 @@ export function settledRt() {
       rasterRebuild: undefined,
     },
     lights: {
-      changes: { deferred: () => false },
       // A manual exposure: the lit image asks no exposure meter (`../../post/exposure/frame.ts`).
       store: { count: 0, epoch: 1, environment: { exposure: 1 } },
       // The declared-light buffer prepare makes before any frame (`preparePages.ts`): the one the

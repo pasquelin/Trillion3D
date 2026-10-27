@@ -3,7 +3,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../../../materials/texture/shaderRun.fixture.ts'
-import { FROXEL_TILE_SIZE, VSM_FROXEL_GRID_WGSL, writeFroxelGrid } from './froxelGrid.ts'
+import {
+  FROXEL_MARK_LOCAL_LIGHTS_WORD,
+  FROXEL_TILE_SIZE,
+  VSM_FROXEL_GRID_WGSL,
+  writeFroxelGrid,
+} from './froxelGrid.ts'
 
 // A +z-forward perspective projection (reversed depth, infinite far) of 90 degrees over a 1600 x 800 view, near 0.5.
 const NEAR = 0.5
@@ -23,6 +28,7 @@ test('the grid’s slices are as deep as they are wide, the near plane read off 
     viewSize: [1600, 800],
     viewToShifted: new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]),
     capacity: 100,
+    markLocalLights: true,
   })
   const f = new Float32Array(data),
     u = new Uint32Array(data)
@@ -33,6 +39,7 @@ test('the grid’s slices are as deep as they are wide, the near plane read off 
   assert.ok(Math.abs(f[28]! - radius) < 1e-9, `radius ${f[28]}`)
   assert.ok(Math.abs(f[25]! - (1 + radius)) < 1e-7)
   assert.equal(u[31], 100, 'the room')
+  assert.equal(u[FROXEL_MARK_LOCAL_LIGHTS_WORD], 1, 'the local lights are marked')
   const grid = {
     near: f[24]!,
     depthScale1: f[25]!,

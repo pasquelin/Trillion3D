@@ -1,10 +1,10 @@
-// A camera stop releases the representation changes held during the move: their pages are drawn
-// again in the frame that marks them, with every other page it reads — none waits. Until then
-// they hold a depth of their extent and are read — never skipped to a coarser level or the far
-// proxy, which would drop the shadow. This proof walks the bench's street view of the generated
-// facade (`facade-7`: pale walls the sun cuts into sharp shadows, cast through the windows by walls
-// the camera does not see), stops, reads the first still frame off the canvas, and counts the
-// pixels it shades otherwise than the settled one away from every edge of the settled image.
+// A camera stop draws the pages the move staled in the frame that marks them, with every other page
+// it reads — none waits. Until then they hold a depth of their extent and are read — never skipped
+// to a coarser level or the far proxy, which would drop the shadow. This proof walks the bench's
+// street view of the generated facade (`facade-7`: pale walls the sun cuts into sharp shadows, cast
+// through the windows by walls the camera does not see), stops, reads the first still frame off the
+// canvas, and counts the pixels it shades otherwise than the settled one away from every edge of
+// the settled image.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { SUN } from '../../../bench/runner/lighting/lamps.ts'

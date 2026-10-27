@@ -267,7 +267,10 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * `shadowInvalidateOnLodDelta` invalidates the pages a cluster is drawn into when it is drawn coarser than the view
  * asks because the finer level is not resident yet, so that they are drawn again once it is; the pages so marked are
  * invalidated at most `shadowDeferredInvalidationBudget` a frame (-1 unbounded, 0 none; the rest keep their mark and
- * retry the next frame).
+ * retry the next frame). It is the one channel of streaming: with it off (the default) a cluster
+ * that enters or leaves residency, or a colour tile that arrives, invalidates no page, and the pages show what they were
+ * drawn with until a placement, a surface or a cell changes them (a node moved, a surface whose alpha moved, a cell that
+ * switched between its placements and its HLOD actor).
  * `shadowCacheFramesStaticThreshold` is the frames a placement that moved waits, without a move, to be cached as
  * static again; `shadowCacheMaxPageAgeSinceLastRequest` and `shadowCacheMaxLightAgeSinceLastRequest` the frames a
  * page, a light, unrequested is kept; `shadowDynamicResolutionMaxResolutionLodBias` the most the global resolution

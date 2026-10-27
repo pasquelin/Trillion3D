@@ -65,12 +65,8 @@ export function createClusterSyncFor(rt: WebgpuPagesCore) {
     write: createInfoWriter(rt.vis),
     classes: rt.vis.presentClasses,
     displacedClasses: rt.vis.displacedClasses,
-    // Origin of the resource change: the page enters residency or leaves it. The shadows compare
-    // the flag at their next plan (`../../lighting/shadows/casters/residence.ts`).
-    onResidenceChange: (_rec, page) => (
-      run.gate.resourcesChanged(),
-      rt.lights.residence.noteRow(page)
-    ),
+    // Origin of the resource change: the page enters residency or leaves it.
+    onResidenceChange: () => run.gate.resourcesChanged(),
   })
 }
 

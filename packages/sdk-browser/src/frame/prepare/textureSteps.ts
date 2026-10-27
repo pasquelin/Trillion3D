@@ -11,7 +11,6 @@ import {
   poolEncoding,
 } from '../../materials/texture/blockFormats.ts'
 import type { TexturePool } from '../../geometry/residency/memoryBudgets.ts'
-import { shadowsFollowTextures } from '../../lighting/shadows/casters/followChanges.ts'
 import { catalogueReport, pageTablesReport } from './textureCensus.ts'
 import {
   PREVIEW_ATLAS_COLOR,
@@ -95,13 +94,9 @@ export function tileStreamerFor(
       budgetMs: rt.setup.textureUploadMs,
       clock: rt.clock,
       onFailure: rt.diag.diagnosticFailure,
-      onColorChanged: (slots) => {
-        // Origin of the resource change: colour tiles have just reached the pool or left it, or a
-        // texture's sampling moved, and the shadow of the cutout foliage that reads them follows —
-        // once per pump.
-        rt.run.gate.resourcesChanged()
-        shadowsFollowTextures(rt, slots)
-      },
+      // Origin of the resource change: colour tiles have just reached the pool, a texture's
+      // sampling moved, or the pool was resized — once per pump.
+      onColorChanged: () => rt.run.gate.resourcesChanged(),
     })
 }
 

@@ -38,18 +38,19 @@ function historyCamera(rt: WebgpuPagesRuntime, image: number) {
 export const viewMarkingOf = (rt: WebgpuPagesRuntime) => viewMarking(vsmMapSettings(rt).shadows)
 
 /**
- * Whether the scene's single-layer water is to have its depth drawn before a marking that marks from
- * the pixels, which then marks the suns' pages at the water's surface: the water is drawn
+ * Whether the scene's single-layer water is to have its depth drawn before a marking, which then
+ * marks the suns' pages at the water's surface — from the pixels in the pixel pass, from the froxels
+ * in a pass of their own (`createFroxelMarking`): the view marks pages, and the water is drawn
  * (`singleLayerWater`) with its depth pass (`singleLayerWaterDepthPrepass`). What the marking's
  * pipelines are made for, whether or not this image marks a sun's pages.
  */
-export const marksWaterSurface = (rt: WebgpuPagesRuntime) =>
-  viewMarkingOf(rt) === 'pixels' && waterDepthPrepassWanted(rt)
+export const marksWater = (rt: WebgpuPagesRuntime) =>
+  viewMarkingOf(rt) !== 'none' && waterDepthPrepassWanted(rt)
 
 /** Whether the water's depth is to be drawn before this image's marking: a sun's pages are marked
- *  (`marksSunPages`) at the water's surface (`marksWaterSurface`). */
+ *  (`marksSunPages`) at the water's surface (`marksWater`). */
 export const drawsWaterBeforeMarking = (rt: WebgpuPagesRuntime) =>
-  marksSunPages(rt) && marksWaterSurface(rt)
+  marksSunPages(rt) && marksWater(rt)
 
 /**
  * Whether the transparents' front pass is to be drawn before this image's marking: a sun's pages are

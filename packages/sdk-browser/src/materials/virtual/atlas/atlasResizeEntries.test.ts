@@ -1,6 +1,6 @@
 // What a shrink of the tile pool does to the tiles it holds past its surviving layers: a resident
 // tile moved takes the finer entries it served to its new place, not the old one, which the new
-// pool no longer holds; an evicted one is told to its texture; a pinned tail keeps a place.
+// pool no longer holds; an evicted one is cleared from the table; a pinned tail keeps a place.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTilePool } from '../pool/pool.ts'
@@ -46,9 +46,9 @@ test('a tile moved by a shrink takes the finer entries it served to its new plac
       assert.equal(pages.entryOf({ ...fine, tx, ty }), tx === 2 && ty === 1 ? finer : moved)
 })
 
-// Behaviour: a shrink tells each texture it evicts a tile of, for whoever reads it to
-// follow; a tail it would displace, which only a pool drawn under its floor holds, refuses by name.
-test('a shrink tells the texture of each tile it evicts, and never clears a tail as a tile', () => {
+// Behaviour: a shrink clears each tile it evicts from the table; a tail it would displace, which
+// only a pool drawn under its floor holds, refuses by name and is never cleared as a tile.
+test('a shrink clears each tile it evicts, and never clears a tail as a tile', () => {
   const { gpu } = textureDevice()
   const cleared: number[] = []
   const pages = {
@@ -68,18 +68,8 @@ test('a shrink tells the texture of each tile it evicts, and never clears a tail
     pool.adopt(index, id)
     resident.set(id, index)
   }
-  const heard: number[] = []
   const shrunk = { ...options, layers: 1 }
-  const result = resizeTileAtlas(
-    gpu,
-    shrunk,
-    () => 0,
-    pool,
-    pages as never,
-    resident,
-    (slot) => heard.push(slot),
-  )
-  assert.deepEqual(heard, [1, 1], 'the texture of each tile evicted hears it')
+  const result = resizeTileAtlas(gpu, shrunk, () => 0, pool, pages as never, resident)
   assert.equal(result.evicted, 2)
   assert.equal(cleared.length, 2)
   assert.equal(resident.size, TILES_PER_LAYER)

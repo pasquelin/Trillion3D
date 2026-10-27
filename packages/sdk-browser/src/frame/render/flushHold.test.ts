@@ -63,7 +63,7 @@ function flushState(adopts?: () => boolean, armed = true) {
     context: { gpuCanvas: undefined },
     blendState: { blendGpu: [], visibleBlend: [], blendIndex: { revision: 0 } },
     // An unlit scene: the frame entry asks no lit program of the device (`askLobedPrograms`).
-    lights: { changes: { deferred: () => false }, store: { unlit: true, count: 0 } },
+    lights: { store: { unlit: true, count: 0 } },
     // No bounce asked: the frame entry asks no screen probes' program (`screenProbesCast`).
     bounce: { wanted: false },
     // One view, the main one: the primed pyramid is off by default (`askPrimeHiz`).

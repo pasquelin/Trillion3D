@@ -119,7 +119,7 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
   shadowDeferredInvalidationBudget:
     'Most shadow pages a frame whose deferred invalidation (see shadowInvalidateOnLodDelta) is carried out: -1 (the default) all of them, 0 none; the pages over the budget keep their mark and are invalidated in the frames after.',
   shadowInvalidateOnLodDelta:
-    'Whether the shadow pages a cluster is drawn into are invalidated when it is drawn at a coarser level than the shadow view asks because the finer level is not resident yet (false, the default), so that they are drawn again when it is; pairs with shadowDeferredInvalidationBudget, which spreads the invalidations over frames.',
+    'Whether the shadow pages a cluster is drawn into are invalidated when it is drawn at a coarser level than the shadow view asks because the finer level is not resident yet (false, the default), so that they are drawn again when it is; pairs with shadowDeferredInvalidationBudget, which spreads the invalidations over frames. It is the only streaming channel: off, a cluster entering or leaving residency, or a colour tile arriving, invalidates no page.',
   shadowCacheFramesStaticThreshold:
     'Frames (100, the default) a placement that moved must go without moving or being invalidated before its shadows are cached as static again, in the layer a still object is drawn into.',
   shadowCacheMaxPageAgeSinceLastRequest:

@@ -110,6 +110,9 @@ export const VSM_RENDER_RECORD_BYTES = 16
 /** Bytes of a light of the frame in the raster's table (`vsmWriteLights`): its first map's id and its map count, padded to
  *  a `vec4u`. */
 export const VSM_RENDER_LIGHT_BYTES = 16
+/** Words of a light in that table, and in the shadow views' descent's `work`, which it is copied into
+ *  (`traversal/traversalPass.ts`). */
+export const VSM_LIGHT_WORDS = VSM_RENDER_LIGHT_BYTES / 4
 /** The records one list of the raster holds: the cut's cap of visible clusters times the raster's
  *  indirection multiplier, never under 1 (`shadowRasterIndirectionMultiplier`, 1.5) - the
  *  reference's rule for its cluster indirections. */

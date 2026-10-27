@@ -185,12 +185,7 @@ export type {
 export type { SceneExposure } from './contracts/exposureOptions.ts'
 /** The distances an object is drawn at: a draw source holds them, an object's settings name them. */
 export type { DrawDistanceSettings } from './contracts/objectOptions.ts'
-export type {
-  AtmosphereSunIndex,
-  SceneLight,
-  SceneLightingView,
-  ShadowViewpoint,
-} from './scene/light/contracts.ts'
+export type { AtmosphereSunIndex, SceneLight, SceneLightingView } from './scene/light/contracts.ts'
 export type { LightingCapabilities } from './scene/light/capabilities.ts'
 export { validateSceneLight } from './scene/light/validate.ts'
 export { validateSceneEnvironment } from './scene/core/environment.ts'

@@ -4,6 +4,7 @@ import { CUT_RULE_WGSL } from '../../../../geometry/cut/rule.ts'
 import { projectedBoundWgsl } from '../../../../geometry/dag/shader/projectedBoundWgsl.ts'
 import {
   VSM_BOX_CULL_WGSL,
+  VSM_BOX_VIEW_WGSL,
   VSM_CASTER_BOX_CULL_WGSL,
   VSM_OFFSET_GROWS_WGSL,
   VSM_VIEW_LENS_WGSL,
@@ -93,11 +94,13 @@ fn vsmRenderViewPixels(error:f32,centre:vec3f,radius:f32,toClip:mat4x4f,viewToCl
  * \`vsmRenderCullView\`, and the shadow views' descent's, \`../traversal/traversalWgsl.ts\`): the static layer where the map
  * is cached and the caster is neither dynamic (\`dynamicCaster\`) nor cached as dynamic in the map's view (\`viewBits\` bit
  * \`viewSlot\`), else the dynamic one; one in the static layer whose cache state turned this frame (bit 16 + \`viewSlot\`)
- * draws into every wanted page. With the marks of the pages it draws into.
+ * draws into every wanted page. With the marks of the pages it draws into, and the two tests the layer
+ * decides: the dynamic layer's within the map's dynamic depth range (\`vsmCasterInDepthRange\`) and the
+ * receiver cover's, asked of every layer but the static one (\`vsmCasterUsesCover\`).
  */
 export const VSM_CASTER_LAYER_WGSL = wgslBlock(
   'VSM_CASTER_LAYER_WGSL',
-  [VSM_CONSTANTS_WGSL, VSM_PROJECTION_DATA_WGSL],
+  [VSM_CONSTANTS_WGSL, VSM_PROJECTION_DATA_WGSL, VSM_BOX_VIEW_WGSL],
   `struct VsmCasterLayer{staticLayer:bool,transitioned:bool,markMask:u32,}
 fn vsmCasterLayer(dynamicCaster:bool,viewBits:u32,pd:VsmProjectionData)->VsmCasterLayer{
  let staticLayer=!pd.uncached&&!dynamicCaster&&((viewBits>>pd.viewSlot)&1u)==0u;
@@ -105,6 +108,14 @@ fn vsmCasterLayer(dynamicCaster:bool,viewBits:u32,pd:VsmProjectionData)->VsmCast
  let markMask=select(select(VSM_PAGE_DYNAMIC_STALE,VSM_PAGE_STATIC_STALE,staticLayer),VSM_PAGE_WANTED,transitioned);
  return VsmCasterLayer(staticLayer,transitioned,markMask);
 }
+/** Whether a box cull \`cull\` of a caster of layer \`layer\` is within map \`pd\`'s dynamic depth range:
+ *  only the dynamic layer is cut by it. */
+fn vsmCasterInDepthRange(layer:VsmCasterLayer,cull:VsmBoxInView,pd:VsmProjectionData)->bool{
+ return layer.staticLayer||vsmInDynamicDepthRange(cull,pd.dynamicDepthCullRange);
+}
+/** Whether a caster of layer \`layer\` is asked over a receiver of map \`pd\`'s cover: not the static
+ *  layer, whose pages may be kept whole. */
+fn vsmCasterUsesCover(layer:VsmCasterLayer,pd:VsmProjectionData)->bool{return pd.useCover&&!layer.staticLayer;}
 `,
 )
 
@@ -237,7 +248,7 @@ fn vsmRenderCullView(cand:VsmRenderCandidate,k:u32,viewIndex:u32,directional:boo
  // One that changed its cache state this frame redraws every page it overlaps, the stale ones of both layers.
  let transitioned=layer.transitioned;
  // The receiver cover and the mark mask depend on the cache state.
- let useCover=pd.useCover&&!staticLayer;
+ let useCover=vsmCasterUsesCover(layer,pd);
  let markMask=layer.markMask;
  // A view with no stale page of the caster's layer draws nothing of it (\`vsmRenderViews\`).
  if((view.w&select(1u,2u,staticLayer))==0u){return;}`
@@ -247,11 +258,7 @@ const cullViewFrustumText = /* wgsl */ `
  // The box holds the reach of the placement's offset only where this map grows the bounds by it (\`vsmOffsetGrows\`).
  let fit=select(cand.axisFit,vec3f(1.0),placementAllowed);
  let cull=vsmCasterBoxInView(center,cand.a0*fit.x,cand.a1*fit.y,cand.a2*fit.z,shiftedToClip,viewToClip,isOrtho,nearClip);
- var visible=cull.inMapView;
- if(visible&&!staticLayer){
-  visible=cull.clipHigh.z>pd.dynamicDepthCullRange.x&&cull.clipLow.z<pd.dynamicDepthCullRange.y;
- }
- if(!visible){return;}
+ if(!cull.inMapView||!vsmCasterInDepthRange(layer,cull,pd)){return;}
  // The pages it draws are invalidated as it draws them where it deforms, or where its offset is evaluated
  // now — within the distance of the main view — and its object lets it invalidate.
  let eyeCentre=cand.c.xyz+cand.l+cand.inst.xyz;

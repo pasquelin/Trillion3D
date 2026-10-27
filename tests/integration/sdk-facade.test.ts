@@ -157,8 +157,9 @@ test('generated inventory and explicit facade files are current', async () => {
   // HostAttributes, HostBox, HostColour, HostDisposable, HostMaterials, HostMesh, HostNodeMatrix,
   // HostRotation, HostScene, HostVector, ControlVector); the camera a view is drawn from is the core's
   // (ViewCamera, for HostCamera), and the meshes a page draws and the colour a surface declares are
-  // named in the engine's words (PageMesh, PageMaterials, SurfaceColour).
-  assert.equal(inventory.exports.length, 875)
+  // named in the engine's words (PageMesh, PageMaterials, SurfaceColour). The shadows' viewpoint
+  // (ShadowViewpoint) left with the CPU streaming invalidations.
+  assert.equal(inventory.exports.length, 874)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

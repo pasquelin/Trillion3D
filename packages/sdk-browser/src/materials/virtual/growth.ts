@@ -11,7 +11,7 @@ import type { TileTexture } from './tileTexture.ts'
  * feedback counting every rank, its tail pinned from its source, the headers written.
  */
 export function createTileGrowth(
-  { device, onColorChanged }: { device: GPUDevice; onColorChanged: (slots: -1) => void },
+  { device, onColorChanged }: { device: GPUDevice; onColorChanged: () => void },
   parts: {
     color: WebgpuTileAtlas
     data: WebgpuTileAtlas
@@ -44,7 +44,7 @@ export function createTileGrowth(
       const results = [color.resize(device, layers.color), data.resize(device, layers.data)]
       if (results.some((result) => result.replaced)) {
         flushAll()
-        onColorChanged(-1)
+        onColorChanged()
       }
       return results.reduce((total, result) => total + result.evicted, 0)
     },

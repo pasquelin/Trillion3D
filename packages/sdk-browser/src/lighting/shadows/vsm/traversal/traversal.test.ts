@@ -26,6 +26,7 @@ import { vsmLayout } from '../layout.ts'
 import { FRAME_COUNTERS } from '../../../../geometry/dag/shader/floorWgsl.ts'
 
 import { vsmDescentWgsl } from '../traversal/traversalWgsl.ts'
+import { VSM_LIGHT_WORDS } from '../constants.ts'
 
 import { Mat } from '../../../../materials/texture/shaderRunMatrix.fixture.ts'
 
@@ -166,12 +167,16 @@ test('the descent’s groups are made once, its VSM group once a frame set', () 
 // A view of the shadow views' descent is a map of a light and a mip of it that has a page to draw
 // (`vsmDescentViews`): a light lists one for each such mip of each of its maps, in the room the
 // parameters name, and the post pass of a view pass judges the held nodes of the maps of that pass
-// alone (`heldHere`).
+// alone (`heldHere`). The lights are read from the descent's `work`, where the frame copies them.
 test('the descent lists a view for each mip of each map of a light that has a page to draw', () => {
   const descent = vsmDescentWgsl(LAYOUT)
-  const work = new Array(FRAME_COUNTERS + 1 + 4).fill(0)
   // Light 0 holds maps 0 and 1 — map 0 has pages to draw in mips 0 and 2, map 1 in none —, light 1
-  // the map 5, mip 0.
+  // the map 5, mip 0. The counters, the views' count and its four places, then the lights.
+  const light = (first: number, count: number) => [
+    ...[first, count],
+    ...new Array(VSM_LIGHT_WORDS - 2).fill(0),
+  ]
+  const work = [...new Array(FRAME_COUNTERS + 1 + 4).fill(0), ...light(0, 2), ...light(5, 1)]
   const mips = new Map([
     [0, 0b101],
     [1, 0],
@@ -180,10 +185,6 @@ test('the descent lists a view for each mip of each map of a light that has a pa
   const scope = {
     ...wgslConstants(descent),
     work,
-    lights: [
-      [0, 2, 0, 0],
-      [5, 1, 0, 0],
-    ],
     params: { lightCount: 2, viewCap: 4, viewFirst: 0, viewCount: 4 },
     vsm: { mapCount: 100 },
     vsmRenderMapMips: (map: number) => mips.get(map),
@@ -337,8 +338,8 @@ test('the descent’s page test takes the cube about the node’s doubled sphere
     ['vsmDescentCube'],
     { ...C, vsmCasterBoxInView: (...a: unknown[]) => (cubes.push(a), { inMapView: true }) },
   )
-  const box = { center: [1, 2, 3], extent: [0.5, 0.5, 0.5], shiftedToClip: PROJECTION }
-  vsmDescentCube(boxPd(C.LIGHT_KIND_DIRECTIONAL!), box)
+  const cubeBox = { center: [1, 2, 3], extent: [0.5, 0.5, 0.5], shiftedToClip: PROJECTION }
+  vsmDescentCube(boxPd(C.LIGHT_KIND_DIRECTIONAL!), cubeBox)
   const [centre, a0, a1, a2] = cubes[0]! as number[][]
   assert.deepEqual(
     [centre, a0, a1, a2].map((v) => Array.from(v!)),
@@ -351,11 +352,12 @@ test('the descent’s page test takes the cube about the node’s doubled sphere
     'the cube’s axes are the extent’s',
   )
   assert.equal(cubes[0]![7], false, 'a sun clips at no near plane')
-  // `outsideFrustum` gives the page test that cube: out of the map's box, or with no page under it.
-  const cube = { cube: true }
+  // `outsideFrustum` asks the node's box of the map and of the clusters' drawing (`vsmDescentNotDrawn`):
+  // out of the map's box, or nothing under it drawn.
+  const box = { box: true }
   const asked: unknown[][] = []
   let inMap = true,
-    noPage = false
+    notDrawn = false
   const { outsideFrustum } = shaderRun<{ outsideFrustum(...a: unknown[]): boolean }>(
     code,
     ['outsideFrustum'],
@@ -364,18 +366,17 @@ test('the descent’s page test takes the cube about the node’s doubled sphere
       vsmHandleFromId: (id: number) => ({ id }),
       descentMap: () => 3,
       vsmProjectionOf: () => ({ pd: true }),
-      vsmDescentBoxOf: () => ({ box: true }),
+      vsmDescentBoxOf: () => box,
       vsmDescentBoxInMap: () => inMap,
-      vsmDescentCube: (...a: unknown[]) => (asked.push(['cube', ...a]), cube),
-      vsmDescentNoPage: (...a: unknown[]) => (asked.push(['pages', ...a]), noPage),
+      vsmDescentNotDrawn: (...a: unknown[]) => (asked.push(a), notDrawn),
     },
   )
   assert.equal(outsideFrustum(7, [0, 0, 0], [1, 1, 1]), false)
-  assert.deepEqual(asked.at(-1), ['pages', 7, { id: 3 }, { pd: true }, cube], 'the cube’s cull')
-  noPage = true
-  assert.equal(outsideFrustum(7, [0, 0, 0], [1, 1, 1]), true, 'no page under the cube')
+  assert.deepEqual(asked.at(-1), [7, { id: 3 }, { pd: true }, box], 'the node’s box')
+  notDrawn = true
+  assert.equal(outsideFrustum(7, [0, 0, 0], [1, 1, 1]), true, 'nothing under it drawn')
   asked.length = 0
   inMap = false
   assert.equal(outsideFrustum(7, [0, 0, 0], [1, 1, 1]), true, 'outside the map’s box')
-  assert.deepEqual(asked, [], 'the pages are not looked for')
+  assert.deepEqual(asked, [], 'the drawing is not asked')
 })

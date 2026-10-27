@@ -49,6 +49,12 @@ export const VSM_BOX_VIEW_WGSL = wgslBlock(
  *  first cull reads of the previous view; \`inMapView\` the sides
  *  tested too. */
 struct VsmBoxInView{clipLow:vec3f,clipHigh:vec3f,pastFar:bool,pastNear:bool,inMapView:bool,inDepth:bool,}
+/** Whether the box's clip depths reach into a map's dynamic depth range \`range\` (near, far): the
+ *  test non-static geometry takes after the frustum's (\`vsmCasterInDepthRange\`, which the cull of a
+ *  cluster and the shadow views' descent on a node's box both ask). */
+fn vsmInDynamicDepthRange(cull:VsmBoxInView,range:vec2f)->bool{
+ return cull.clipHigh.z>range.x&&cull.clipLow.z<range.y;
+}
 /** The frustum cull of a box under an orthographic view, from its centre and its half axes (its
  *  extent along each local axis) in clip space. */
 fn vsmBoxInOrthoView(clipCentre:vec3f,axisX:vec3f,axisY:vec3f,axisZ:vec3f,nearClip:bool)->VsmBoxInView{

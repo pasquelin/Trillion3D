@@ -44,7 +44,7 @@ import {
 import { CAST_DIFF_WGSL } from '../../lighting/shadows/casters/castDiffWgsl.ts'
 import {
   FROXEL_ARGS_WGSL,
-  FROXEL_BUILD_WGSL,
+  froxelBuildWgsl,
 } from '../../lighting/shadows/vsm/froxel/froxelBuildWgsl.ts'
 import { vsmFroxelPageMarkingWgsl } from '../../lighting/shadows/vsm/froxel/froxelMarkWgsl.ts'
 
@@ -64,7 +64,8 @@ export function vsmVariants() {
     VSM_MARKING_PIXELS_FRONT: vsmPixelPageMarkingWgsl(layout, true),
     VSM_MARKING_PIXELS_WATER: vsmPixelPageMarkingWgsl(layout, false, true),
     VSM_MARKING_PIXELS_FRONT_WATER: vsmPixelPageMarkingWgsl(layout, true, true),
-    FROXEL_BUILD_WGSL,
+    FROXEL_BUILD_WGSL: froxelBuildWgsl(false),
+    FROXEL_WATER_BUILD_WGSL: froxelBuildWgsl(true),
     FROXEL_ARGS_WGSL,
     VSM_MARKING_FROXELS: vsmFroxelPageMarkingWgsl(layout),
     VSM_INVALIDATION: castInvalidationWgsl(layout),

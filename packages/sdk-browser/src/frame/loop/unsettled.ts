@@ -75,8 +75,8 @@ function loadMask(rt: WebgpuPagesRuntime) {
   if (services.clustersOwed()) mask |= BIT.clustersOwed
   // Pending tiles must render on arrival, and settle must read what the pose requests.
   if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending
-  // A shadow page stale and read, a request report on its way, a representation change held
-  // until the camera rests: each must find a frame (`shadowsUnsettled`).
+  // A shadow page stale and read, a request report on its way: each must find a frame
+  // (`shadowsUnsettled`).
   if (shadowsUnsettled(lights)) mask |= BIT.shadowsPending
   // Pending cut pages must land before holding; the cut difference keeps this count.
   if (services.cutPending.count) mask |= BIT.cutPending

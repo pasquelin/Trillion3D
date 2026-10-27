@@ -10,7 +10,7 @@
  *  first-person clipmaps alone; its object casts while hidden (`castHiddenShadow`), so that the
  *  view's filter, which hides it, does not take it out of the shadows; one of its surfaces wears an
  *  offset whose evaluation may invalidate its shadows (its object does not keep them), so that its
- *  clusters may draw into the dynamic layer (`vsmDescentNoPage`), and one of them evaluates it
+ *  clusters may draw into the dynamic layer (`vsmDescentNotDrawn`), and one of them evaluates it
  *  whatever the distance says (`alwaysEvaluateWorldPositionOffset`); its object is often moving
  *  (`mobility` `'movable'`, or a skin or a morph deforms it, unless it says otherwise), so that it
  *  arrives cached as dynamic. One word a placement, never

@@ -26,8 +26,6 @@ type AtlasOptions = {
   layers: LaneCounts
   feedbackOffset: number
   textures: TileTexture[]
-  /** A tile gave its place up: the texture it belonged to, for whoever reads it to follow. */
-  onEvicted?: (slot: number) => void
   /** The clock the next feedback reduction stamps at: what an arrival is used at
    *  (`../slotUse.ts`). */
   clock: () => number
@@ -89,7 +87,7 @@ function evict(a: AtlasState, lane: Lane, forced = false) {
         index = place
   }
   if (index === undefined) return undefined
-  evictTile(lane.pool, index, { pages: a.pages, resident: lane.resident }, a.options.onEvicted)
+  evictTile(lane.pool, index, { pages: a.pages, resident: lane.resident })
   a.evictions++
   return index
 }

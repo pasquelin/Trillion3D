@@ -110,10 +110,11 @@ test('the occlusion’s two culls a view pass: cull, raster, pyramid, second cul
     await settled
   }
   const first = frame(false)
-  // The kept tables' three copies open the frame; the shadow views' requests read back close it (the
-  // requests' copy came with the shadow views' descent, `traversal/`): the casters' list has a fixed
-  // room, its count read back by none.
+  // The kept tables' three copies and the frame's lights copied into the descent's work open the
+  // frame; the shadow views' requests read back close it (the requests' copy came with the shadow
+  // views' descent, `traversal/`): the casters' list has a fixed room, its count read back by none.
   assert.deepEqual(first.commands, [
+    'copy',
     'copy',
     'copy',
     'copy',
@@ -125,7 +126,7 @@ test('the occlusion’s two culls a view pass: cull, raster, pyramid, second cul
     first.entries.includes('vsmRenderCull') && !first.entries.includes('vsmRenderCullFirst'),
   )
   const { commands, entries } = frame(true)
-  assert.deepEqual(commands.slice(3), [
+  assert.deepEqual(commands.slice(4), [
     `compute ${VSM_PASS_PREFIX}render.cull 0`,
     `render ${VSM_PASS_PREFIX}render.raster 0`,
     'copy',

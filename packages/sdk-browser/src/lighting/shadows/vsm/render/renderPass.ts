@@ -358,6 +358,7 @@ function descentSizesOf(
       1,
       passes.reduce((sum, pass) => sum + pass.mips, 0),
     ),
+    lights,
     nodeBudget: Math.max(1, firstNodes),
     candCap: Math.max(1, scene.packedPages),
   }

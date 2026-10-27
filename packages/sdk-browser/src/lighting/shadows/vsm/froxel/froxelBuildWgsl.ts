@@ -10,7 +10,8 @@
  * The list is one buffer of words (`FROXEL_LIST_HEADER_WORDS`, the marking's stage binds eight storage
  * buffers already): its first word the count, its second the count held to the room, then the froxels,
  * two words each (the tile's x | y << 16, the slice).
- * Group 0 of the build: 0 the depth, 1 the grid (uniform), 2 the list (rw, atomic).
+ * Group 0 of the build: 0 the depth, 1 the grid (uniform), 2 the list (rw, atomic); the water's build, `FROXEL_SCENE_BINDING`
+ * the scene's depth.
  * Group 0 of the arguments' kernel: 0 the grid, 1 the list (rw), 2 the indirect arguments (rw).
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
@@ -25,22 +26,38 @@ import {
 
 export const FROXEL_BUILD_ENTRY = 'vsmBuildFroxels'
 export const FROXEL_ARGS_ENTRY = 'vsmFroxelArgs'
+/** The binding of the scene's depth in the water's build. */
+export const FROXEL_SCENE_BINDING = 3
 
-/** The build of the froxels of the depth. */
-export const FROXEL_BUILD_WGSL = wgslProgram(
-  /* wgsl */ `
+/** The pixel of the build's thread in a depth texture. */
+const PIXEL_AT = 'vec2i(froxelGrid.viewRectMin+pixel)'
+
+/** Whether a pixel of depth `deviceZ` has a froxel: it is not the infinitely far, and, in the water's
+ *  build, the water drew over it. */
+const seen = (water: boolean) =>
+  water
+    ? `(deviceZ!=0.0||froxelGrid.isOrtho!=0u)&&deviceZ!=textureLoad(froxelScene,${PIXEL_AT},0)`
+    : 'deviceZ!=0.0||froxelGrid.isOrtho!=0u'
+
+/** The build of the froxels of the depth; with `water`, of the froxels of the single-layer water's
+ *  surface: the depth read is the scene's with the water drawn into it, and a pixel has a froxel
+ *  only where the water drew over it, its depth differing from the scene's (`froxelScene`,
+ *  `FROXEL_SCENE_BINDING`), as the pixel marking tells the water's surface (`vsmMarkWater`). */
+export const froxelBuildWgsl = (water: boolean) =>
+  wgslProgram(
+    /* wgsl */ `
 @group(0) @binding(0) var froxelDepth:texture_depth_2d;
 @group(0) @binding(1) var<uniform> froxelGrid:VsmFroxelGrid;
 @group(0) @binding(2) var<storage,read_write> froxelList:array<atomic<u32>>;
-var<workgroup> tileSlices:array<i32,${FROXEL_TILE_SIZE * FROXEL_TILE_SIZE}>;
+${water ? `@group(0) @binding(${FROXEL_SCENE_BINDING}) var froxelScene:texture_depth_2d;\n` : ''}var<workgroup> tileSlices:array<i32,${FROXEL_TILE_SIZE * FROXEL_TILE_SIZE}>;
 @compute @workgroup_size(${FROXEL_TILE_SIZE},${FROXEL_TILE_SIZE})
 fn ${FROXEL_BUILD_ENTRY}(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id) local:vec3u,@builtin(local_invocation_index) lane:u32){
  let pixel=tile.xy*${FROXEL_TILE_SIZE}u+local.xy;
  var slice=FROXEL_INVALID_SLICE;
  if(all(pixel<froxelGrid.viewSize)){
-  let deviceZ=textureLoad(froxelDepth,vec2i(froxelGrid.viewRectMin+pixel),0);
-  // The infinitely far (device depth 0 of a perspective view) has no slice.
-  if(deviceZ!=0.0||froxelGrid.isOrtho!=0u){
+  let deviceZ=textureLoad(froxelDepth,${PIXEL_AT},0);
+  // The infinitely far (device depth 0 of a perspective view) has no slice${water ? '; nor has a pixel the water did not draw over' : ''}.
+  if(${seen(water)}){
    slice=vsmFroxelSlice(vsmFroxelViewDepth(deviceZ));
   }
  }
@@ -61,8 +78,8 @@ fn ${FROXEL_BUILD_ENTRY}(@builtin(workgroup_id) tile:vec3u,@builtin(local_invoca
  }
 }
 `,
-  [VSM_FROXEL_GRID_WGSL],
-)
+    [VSM_FROXEL_GRID_WGSL],
+  )
 
 /** The indirect arguments of the marking over the froxels: its groups of `FROXEL_MARK_GROUP`
  *  threads in rows, and the count held to the list's room. */
