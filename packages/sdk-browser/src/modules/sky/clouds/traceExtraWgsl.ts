@@ -107,6 +107,7 @@ fn cloudLocalLights(rel:vec3f,o:CloudOctaves)->array<vec3f,3>{
  let slice=cellSlice(gridCell(cloudLampPixel,cloudLampDepth(P),cloudTrace.view.zw));
  for(var i=0u;i<slice.y;i++){
   let rank=listedLight(slice,i);
+  if(!listedDrawn(slice,rank)){continue;}
   if(!lightReaches(rank,P)){continue;}
   let light=directLights.items[rank];
   if(isSun(light)||light.params.z<=0.0){continue;}

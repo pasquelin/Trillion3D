@@ -5,6 +5,7 @@ import type { FakeCanvas } from '../../../bench/dawn/page/canvas.ts'
 import { measureOutput } from '../../../bench/core/paths.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import { coplanarCache, openEngineWorld, proofCanvas } from '../../kit/device/renderHarness.ts'
+import { preparationSettled } from '../world/proofWorld.ts'
 import { perspectiveSlope } from '../../../packages/math/src/projection/camera.ts'
 
 /** The image's size: small, every surface still many pixels wide. */
@@ -69,5 +70,6 @@ export async function openFacingWorld(name: string, options: Record<string, unkn
     ...options,
   })
   world.setPose(FACING)
+  await preparationSettled(world)
   return world
 }

@@ -49,7 +49,7 @@ function settleFrameSelection(timing: WebgpuPagesCore['timing'], submitted: bool
 
 /** What the image copied for the CPU maps only once the image that copied it is submitted: the
  *  counts of a sampled image, the transparents' verdict counts (`verdictRead.ts`), the texture
- *  feedback where it was published, the light tiles, the cells its bounce pass marked, the sky's
+ *  feedback where it was published, the light tiles, the cells its bounce pass marked (the translucency volume's own cache's too), the sky's
  *  harmonics, the exposure it left (`../../post/exposure/meter.ts`), the reflections' counters
  *  (`../../lighting/reflections/census.ts`) and the shadow pages. */
 function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
@@ -58,6 +58,7 @@ function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
   if (published) rt.vis.textures?.feedback.submitted()
   rt.lights.tiles?.submitted()
   rt.bounce.probes?.submitted()
+  rt.bounce.translucency?.probes?.submitted()
   rt.gpu.reflection?.census.submitted()
   rt.gpu.exposure?.submitted()
   vsmSubmitted(rt)

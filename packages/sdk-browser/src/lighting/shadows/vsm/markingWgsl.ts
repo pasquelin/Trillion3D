@@ -110,7 +110,7 @@ export type VsmClearWalk = 'all' | 'directionalOnly'
 export type VsmClearStep = 'requests' | 'receiver' | 'tables'
 
 /** One clear of the marking: the maps it walks and the tables it clears there. */
-interface VsmClearPlan {
+export interface VsmClearPlan {
   walk: VsmClearWalk
   targets: VsmClearTarget[]
 }

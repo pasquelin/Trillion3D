@@ -261,7 +261,7 @@ fn lightAttenuation(rank:u32,standalone:bool,lightTile:u32,i:u32,texel:SurfaceTe
  if(!facesLightCentre(rank,light,P,texel.normal,standalone)){return ray;}
  ray=ShadowRay(${SHADOW_FORMAT_PARTS[format].full},false);
  if(hasLightFunction(light)){
-  ray.factor*=lightFunctionShade(lightFunctionOf(light.params.x,P));
+  ray.factor*=lightFunctionShade(lightFunctionOf(light,P));
   ray.complete=!isVisibleToLight(ray.factor);
  }
  if(!ray.complete&&standalone){

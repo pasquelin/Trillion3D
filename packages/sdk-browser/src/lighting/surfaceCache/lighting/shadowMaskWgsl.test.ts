@@ -103,5 +103,5 @@ test('the direct light reads a texel’s factor as the format keeps it and multi
   assert.match(DIRECT_WGSL, /struct ShadowRay\{factor:f32,complete:bool\}/)
   // The mask multiplies the factor by the function's share of the format, then the clouds' shade, and settles it as before.
   for (const mask of [SHADOW_MASK_PROGRAM_WGSL, SHADOW_MASK_COLOURED_PROGRAM_WGSL])
-    assert.match(mask, /ray\.factor\*=lightFunctionShade\(lightFunctionOf\(light\.params\.x,P\)\);/)
+    assert.match(mask, /ray\.factor\*=lightFunctionShade\(lightFunctionOf\(light,P\)\);/)
 })

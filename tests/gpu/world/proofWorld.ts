@@ -8,6 +8,7 @@ import { openDefaultWorld } from '../../kit/device/defaultWorld.ts'
 import type { MeasuredWorld } from '../../../packages/sdk-browser/src/session/explorer.ts'
 import type { CameraPose } from '../../../packages/sdk-core/src/contracts/base.ts'
 import type { SceneLight } from '../../../packages/sdk-core/src/scene/light/contracts.ts'
+import { pipelinesSettled } from '../../../packages/sdk-browser/src/lighting/deferred/compileLedger.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
 import { measurementSdk, proofCanvas } from '../../kit/device/renderHarness.ts'
 
@@ -27,13 +28,29 @@ export const SDK_URL = pathToFileURL(
  *  made: `flush` draws barrier images (`settlePose`) that are drawn for the pending work, which
  *  keep the reflections' two consecutive lit images (`RadianceSettle`) from ever being verified. */
 export async function settle(world: MeasuredWorld, pose?: CameraPose) {
-  for (let i = 0; i < SETTLE_FRAMES; i++) {
+  for (let i = 0; i < SETTLE_FRAMES;) {
     await animationFrame()
     const metrics = world.render(pose)
     // The engine's own metrics object, rewritten by every frame: copied while it is this one's.
     if (metrics.frameHeld) return { ...metrics }
+    // A frame drawn while the preparation still compiles pipelines is no frame of the budget:
+    // the budget counts the frames of the prepared engine.
+    const compiling = pipelinesSettled(world.gpuDevice)
+    if (compiling) await compiling
+    else i++
   }
   return null
+}
+
+/** Settles once every pipeline compile in flight on the world's device has: the preparation of
+ *  the engine goes on after the session opens, and the frames a proof counts follow it. */
+export async function preparationSettled(world: MeasuredWorld) {
+  for (
+    let compiling = pipelinesSettled(world.gpuDevice);
+    compiling;
+    compiling = pipelinesSettled(world.gpuDevice)
+  )
+    await compiling
 }
 
 /** The compiled full manifest of a bench scene (`.mesure/assets/<scene>-derived`, off git:

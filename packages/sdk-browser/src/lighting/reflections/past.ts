@@ -73,7 +73,7 @@ fn reflectionPastTexel(past:ReflectionPast)->vec2i{
 fn reflectionPastAgrees(past:ReflectionPast,noise:f32,thickness:f32)->bool{
  if(!past.valid){return false;}
  let at=reflectionPastTexel(past);
- let kept=select(hizOpaqueDepth(at),textureLoad(reflectionDepthHistory,at,0).r,reflectionView.traced.y!=0u);
+ let kept=select(hizOpaqueDepth(at),textureLoad(reflectionDepthHistory,at${stored ? '' : ',0'}).r,reflectionView.traced.y!=0u);
  return abs(kept-past.z)<thickness*mix(0.5,2.0,noise);
 }
 /** The opaque depth of this image, kept for the next image's hits (\`reflectionDepthHistory\`): a thread a pixel. */

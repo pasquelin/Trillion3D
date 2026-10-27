@@ -61,7 +61,7 @@ export const FOG_LIGHTS_WGSL = wgslBlock(
 fn fogSun(P:vec3f,toEye:vec3f)->vec3f{
  if(frame.lighting.x<0.0){return vec3f(0.0);}
  let light=directLights.items[u32(frame.lighting.x)];
- var colour=light.colorIntensity.rgb*(lightStrength(light)*light.params.z)*lightFunctionOf(light.params.x,P);
+ var colour=light.colorIntensity.rgb*(lightStrength(light)*light.params.z)*lightFunctionOf(light,P);
  let fogLobe=directLights.fog[${FOG_SLOT.lobe}].rgb*directLights.fog[${FOG_SLOT.sun}].w;
  if((u32(frame.medium.w)&${FOG_VOLUME_FLAG.fogColors}u)!=0u&&directLights.fog[${FOG_SLOT.cubemap}].w<0.5&&dot(directLights.fog[${FOG_SLOT.sun}].xyz,directLights.fog[${FOG_SLOT.sun}].xyz)>0.0){
   colour=fogLobe*luminance(colour);
@@ -98,7 +98,7 @@ ${REACH('vec3f(0.0)')}
   else if(isSpot(light)){seen.w*=fogSpotFade(light,P,fade);}
  }
  if(seen.w>0.0&&shadowsFog(light)&&(u32(frame.medium.w)&${FOG_VOLUME_FLAG.localShadows}u)!=0u){seen.w*=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);}
- return light.colorIntensity.rgb*lightFunctionFogLocalOf(light.params.x,P)*(lightStrength(light)*light.params.z)*(seen.w*hgPhase(frame.medium.x,dot(seen.xyz,toEye)));
+ return light.colorIntensity.rgb*lightFunctionFogLocalOf(light,P)*(lightStrength(light)*light.params.z)*(seen.w*hgPhase(frame.medium.x,dot(seen.xyz,toEye)));
 }
 /** The light of every light at the sample of a cell at \`offset\` within it: the sun, the sky light and
  *  the local lights of the cell's list, each taken at the distance its inverse square is read at
@@ -126,7 +126,11 @@ fn fogLightAt(cell:vec3u,offset:vec3f)->vec3f{
   let biasSquared=radius*radius;
   // The edge fade is a number of cells of the flat grid: the distance to the cell's far corner on its slice.
   let fade=select(0.0,length(P-fogCellPoint(cell+vec3u(1u,1u,0u),offset).xyz)*frame.blend.z,frame.blend.z>0.0);
-  for(var index=0u;index<slice.y;index++){light+=fogLocal(listedLight(slice,index),P,toEye,biasSquared,fade);}
+  for(var index=0u;index<slice.y;index++){
+   let rank=listedLight(slice,index);
+   if(!listedDrawn(slice,rank)){continue;}
+   light+=fogLocal(rank,P,toEye,biasSquared,fade);
+  }
  }
  return light;
 }`,
