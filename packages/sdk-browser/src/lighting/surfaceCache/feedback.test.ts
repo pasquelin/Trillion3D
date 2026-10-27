@@ -200,7 +200,7 @@ test('a table too full to list every element keeps those of its first places, in
     }
   }
   const expected = taken
-    .filter((element) => element)
+    .filter((element): element is [number, number] => element !== undefined)
     .slice(0, room - 1)
     .map(([first, second]) => [first, second | (1 << 16)])
   const made = compacted({ elements, places, room })
