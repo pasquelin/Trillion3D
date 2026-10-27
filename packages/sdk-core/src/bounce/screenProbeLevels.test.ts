@@ -52,9 +52,10 @@ test('the screen probes default to their ultra level with every pass on, and a l
       values.screenProbeSurfaceBias,
       values.screenProbeMinTraceDistance,
       values.screenProbeHistoryDistanceThreshold,
+      values.screenProbeHistoryDistanceThresholdForFoliage,
       values.screenProbeRelativeSpeedThreshold,
     ],
-    [0.05, 0.0001, 0.01, 0.005],
+    [0.05, 0.0001, 0.01, 0.03, 0.005],
   )
   assert.deepEqual(
     [

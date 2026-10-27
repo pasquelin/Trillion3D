@@ -20,11 +20,12 @@ import { REFLECTION_DEPTH_BINDING, REFLECTION_GROUP } from '../../reflections/vi
 import { atlasEntry } from '../atlas.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
-import { spHistory } from './historyWgsl.ts'
+import { spHistoryDepth } from './historyWgsl.ts'
 import { spProbes, spReach } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
+import { spVectors } from './vectorsWgsl.ts'
 
-/** The screen trace's bindings: the probes' records and pixels, the ray words, the last image's meta words (the depths it
+/** The screen trace's bindings: the probes' records and pixels, the ray words, the last image's depths (the ones it
  *  was lit at) and the surfaces' vectors, the radiance and ends written, the list the rays the screen left are
  *  appended to; the cascades, whose level the probe stands in says how far the screen is trusted (`spLocalReach`). */
 export const TRACE_SCREEN_BINDINGS = bindingTable({
@@ -34,7 +35,7 @@ export const TRACE_SCREEN_BINDINGS = bindingTable({
   counts: [3, 'buffer-read'],
   pixels: [4, 'buffer-read'],
   ray: [5, 'uint'],
-  meta: [6, 'uint'],
+  depth: [6, 'float'],
   vectors: [7, 'uint'],
   radiance: [8, { store: F.trace }],
   hit: [9, { store: F.hit }],
@@ -128,8 +129,8 @@ fn spHitHistory(H:vec3f,hitPoint:vec3f,noise:f32)->SpHistoryHit{
  * stands for), goes no further than the cascades trust the screen — `reach`, `spLocalReach`: past it the field of the world's
  * probes answers: twice the diagonal of the cell of the finest level that holds the probe, the scene's limit where none does
  * — and marches the depth pyramid (`screenMarch`, a surface `sp.tuning.w` of its depth thick, times `screenProbeThicknessScaleWithoutField` where the probe's surface has no distance field (`screenTraceDepthThresholdScale`) — the setting `screenProbeRelativeDepthThickness` times the projection's scale —, `sp.counts.z` iterations, down to the full-resolution depth by the setting `hizFullResDepth`). A
- * start off the screen, a hit near its edge, a hit the last image lit another surface at (its depth then, in the history's meta
- * word, against the one expected within `sp.tuning.z` of device depth, widened or narrowed by the noise), or on a thin
+ * start off the screen, a hit near its edge, a hit the last image lit another surface at (its device depth then, in the history's depths,
+ * against the one expected within `sp.tuning.z`, widened or narrowed by the noise), or on a thin
  * sheet that transmits light (`SUBSURFACE_FLAG`, the surface buffer's mark of backface diffuse light, by the setting `screenProbeSkipFoliageHits`), or one with a thin feature in front of it (`spThinFeature`, `screenProbeThicknessCertaintySteps` samples, taken only where foliage hits are kept), is a miss, the next
  * stage's. A ray the screen answers keeps the radiance the last image lit its hit with, and is moving when what it met moves
  * against the probe (`sp.motion.x`: their speeds' difference over the probe's depth, a metre at least); every ray keeps its
@@ -195,7 +196,7 @@ fn spScreenTrace(probe:SpProbe,pixel:vec2u,reach:f32,d:vec3f,noise:f32)->SpSeen{
  if(sp.trace.y>0.0&&spThinFeature(S0,delta,end,marched.t,size,sp.trace.y)){return seen;}
  let previous=spHitHistory(H,hitPoint,noise);
  if(!previous.kept){return seen;}
- if(spDeviceGap(textureLoad(metaIn,previous.texel,0).r,previous.expected)>=sp.tuning.z*mix(0.5,2.0,noise)){return seen;}
+ if(spDeviceGap(textureLoad(depthIn,previous.texel,0).r,previous.expected)>=sp.tuning.z*mix(0.5,2.0,noise)){return seen;}
  if(spFlag(SP_FLAG_SKIP_FOLIAGE_HITS)&&(textureLoad(sceneFlags,vec2i(floor(H.xy)),0).r&${SUBSURFACE_FLAG}u)!=0u){return seen;}
  seen.hit=true;
  // The last image holds its light multiplied by the pre-exposure it was lit with: read as it is.
@@ -265,7 +266,8 @@ ${wgslConsts({ SP_TRACE: side })}`,
       spReach,
       spProbes(S.info, S.normal, S.counts),
       spRays(S.ray, S.pixels, S.blue),
-      spHistory(S.meta, S.vectors),
+      spVectors(S.vectors),
+      spHistoryDepth(S.depth),
       SP_SCREEN_TRACE,
       SP_TRACE_SCREEN_ENTRY,
     ],

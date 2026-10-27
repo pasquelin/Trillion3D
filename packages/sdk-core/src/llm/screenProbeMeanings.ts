@@ -81,6 +81,8 @@ const HISTORY_AND_SCREEN_TRACE_MEANINGS = /* @__PURE__ */ (() =>
       'The same weight for the probes a pixel falls back to where the first weights left none.',
     screenProbeHistoryDistanceThreshold:
       "The relative depth difference past which a pixel's history is another surface's and is dropped (raised at the grazing angles of the surface): lower removes ghosting, raises flicker.",
+    screenProbeHistoryDistanceThresholdForFoliage:
+      "screenProbeHistoryDistanceThreshold for the pixels that light their backface (thin double-sided sheets, with screenProbeTwoSidedFoliageBackfaceDiffuse on) alone: foliage has many edges and discontinuities, so a larger threshold keeps more of its history. A history texel of the other kind (a sheet's against a solid surface's) is dropped whatever the threshold.",
     screenProbeRejectBasedOnNormal:
       "Whether a pixel's history is also dropped where the surface kept there faces another way than the pixel's (past screenProbeNormalThreshold): it removes the streaks a moving object leaves on the ground under it, for a little more cost.",
     screenProbeNormalThreshold:

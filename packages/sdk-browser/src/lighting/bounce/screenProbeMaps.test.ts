@@ -2,7 +2,7 @@
 // a hit’s gap in device depth.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { spHistory } from './screen/historyWgsl.ts'
+import { spHistoryDepth } from './screen/historyWgsl.ts'
 import { spCommon } from './screen/commonWgsl.ts'
 import {
   equalAreaDecode,
@@ -11,7 +11,6 @@ import {
 } from '../../../../math/src/wgsl/octahedral.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
 
 test('the equal-area map of the sphere and its inverse agree, and the octahedron border wraps to a texel inside', () => {
   const map = shaderRun<{
@@ -82,24 +81,18 @@ test("a ray's end word keeps its distance to a few millionths, and whether what 
 })
 
 test('a hit of the screen trace is kept by its gap in device depth, as the depth buffer holds it: a distance does not loosen the test a relative one would', () => {
-  const half = (depth: number) => (builtins.pack2x16float([depth, 0]) as number) & 0xffff
-  const gap = (slab: number[]) =>
-    shaderRun<{ spDeviceGap: (word: number, expected: number[]) => number }>(
-      wgslModule(spCommon([4, 2]), spHistory(7, 8)),
-      ['spDeviceGap'],
-      { reflectionView: { slab } },
-    ).spDeviceGap
-  // A perspective: the device depth is A + B / w, A the slab's y and B the projection's. At 10 m, the history holds 10 and the point is
-  // expected at 10.5: the gap is B (1/10 - 1/10.5), whatever the A.
+  const { spDeviceGap: gap } = shaderRun<{
+    spDeviceGap: (kept: number, expected: number[]) => number
+  }>(wgslModule(spHistoryDepth(7)), ['spDeviceGap'], {})
+  // The point is expected at the clip position `[x, y, z, w]`, its device depth `z / w`; the gap is the plain difference of the two.
+  assert.ok(Math.abs(gap(0.3, [0, 0, 1, 2]) - 0.2) < 1e-6)
+  // A perspective: the device depth is B / w. At 100 m a metre apart is a gap of a hundredth of the threshold; the relative test (a half
+  // to one and a half of an eighth of a percent of the depth at a metre in a hundred) would have refused it.
   const B = 0.1
-  for (const A of [0, 0.2]) {
-    const expected = [0, 0, (A + B / 10.5) * 10.5, 10.5]
-    const found = gap([1, A, 0, 1])(half(10), expected)
-    assert.ok(Math.abs(found - B * (1 / 10 - 1 / 10.5)) < 1e-6, `A ${A}: ${found}`)
-  }
-  // At 100 m a metre apart is a gap of a hundredth of the threshold; the relative test (a half to one and a half of an eighth of a
-  // percent of the depth at a metre in a hundred) would have refused it.
-  assert.ok(gap([1, 0, 0, 1])(half(100), [0, 0, B, 101]) < 0.005 / 100)
-  // An orthographic view: the device depth is the linear one, the gap the plain difference.
-  assert.ok(Math.abs(gap([1, 0, 0, 0])(half(10), [0, 0, 10.5, 1]) - 0.5) < 1e-6)
+  assert.ok(gap(B / 100, [0, 0, B, 101]) < 0.005 / 100)
+  assert.ok(Math.abs(gap(B / 100, [0, 0, B, 101]) - B * (1 / 100 - 1 / 101)) < 1e-9)
+  assert.ok(
+    gap(0, [0, 0, 0.2, 1]) >= 1e30,
+    'a texel that kept no surface holds no depth: it matches nothing',
+  )
 })

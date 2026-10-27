@@ -127,14 +127,6 @@ export const REFLECTION_BILATERAL_WGSL = wgslBlock(
 @group(0) @binding(${B.base}) var traceBase:texture_2d<f32>;
 @group(0) @binding(${B.target}) var reflectionOut:texture_storage_2d_array<${HDR_FORMAT},write>;
 @group(0) @binding(${B.frontTarget}) var frontOut:texture_storage_2d<${FRONT_TRACED_FORMAT},write>;
-/** The linear depth (\`surfaceLinearDepth\`) of a depth \`z\` of the view, straight from the projection:
- *  under a perspective \`z = A + B / w\` (\`ReflectionView.slab\`: \`A\` its \`y\`), \`B\` the pixel's own
- *  (\`bilateralDepthB\`, of its depth \`z\` and linear depth \`depth\`), the same over the view; under an
- *  orthographic one the depth itself. No matrix a tap. */
-fn bilateralDepthB(z:f32,depth:f32)->f32{return (z-reflectionView.slab.y)*depth;}
-fn bilateralLinearDepth(z:f32,b:f32)->f32{
- return select(z,b/(z-reflectionView.slab.y),slabPerspective(reflectionView.slab));
-}
 /** What the lobe the pixel \`own\` at \`coord\` of the surface \`layer\` traces reflects of its history
  *  \`held\`, and, while that is short or noisy, of its neighbours' (the spatial filter). */
 fn bilateralTop(coord:vec2i,own:ReflectingPixel,held:vec4u,layer:u32)->vec3f{
@@ -147,7 +139,6 @@ fn bilateralTop(coord:vec2i,own:ReflectingPixel,held:vec4u,layer:u32)->vec3f{
  if(!(reflectionDone(REFLECTION_BILATERAL)&&(noisy||disocclusion>0.01)&&radius>1.0)){return texelRadiance(held.xy);}
  let taps=u32(mix(f32(reflectionView.taps.y),f32(2u*reflectionView.taps.y),disocclusion)+0.5);
  let depth=surfaceLinearDepth(own.P);
- let b=bilateralDepthB(own.z,depth);
  let span=reflectionSurfaceSpan(depth,own.N,own.V);
  let size=vec2i(reflectionViewport());
  // A 2 × 2 seed, the same taps for the four pixels of a block, so their reads stay coherent.
@@ -160,7 +151,8 @@ fn bilateralTop(coord:vec2i,own:ReflectingPixel,held:vec4u,layer:u32)->vec3f{
   let n=textureLoad(bilateralIn,tap,0);
   if(!historyValid(n)){continue;}
   let apart=distance(vec2f(tap),vec2f(coord));
-  let other=bilateralLinearDepth(surfaceDepthAt(layer,tap),b);
+  // A tap's linear depth straight from the projection (\`reflectionLinearOfDevice\`): no matrix a tap.
+ let other=reflectionLinearOfDevice(surfaceDepthAt(layer,tap));
   let same=reflectionSameSurface(span,depth,own.N,other,normalize(surfaceNormalAt(tap).xyz),apart);
   if(!(same>0.0)){continue;}
   let theirs=reflectionDenoised(texelRadiance(n.xy));

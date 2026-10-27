@@ -216,6 +216,6 @@ export const SCREEN_PROBE_CONSTANTS = {
   radianceMaxHitDistance: 655.04,
   /** Frames the temporal pass takes before a pixel's history is as heavy as it gets, at an update speed of 1. */
   maxFramesAccumulated: 10,
-  /** The most a pixel's frames are coded by in the history's meta word: four bits. */
+  /** The most a pixel's frames are coded by in the history's frames byte: four bits. */
   maxFramesCoded: 15,
 } as const

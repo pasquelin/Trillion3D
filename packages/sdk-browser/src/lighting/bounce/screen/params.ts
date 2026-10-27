@@ -67,6 +67,7 @@ function putWeights(staged: Float32Array, settings: ScreenProbeSettings) {
   staged[at.scene] = v.screenProbeSurfaceBias
   staged[at.scene + 1] = v.screenProbeHistoryDistanceThreshold
   staged[at.scene + 2] = Math.cos(v.screenProbeNormalThreshold * DEG2RAD)
+  staged[at.scene + 3] = v.screenProbeHistoryDistanceThresholdForFoliage
 }
 
 /** The numbers of the parameters the settings give: the radiance cache's, the motion's and the thicknesses'. */

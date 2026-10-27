@@ -8,7 +8,7 @@ import { spProbes, spSurface } from './probesWgsl.ts'
 import { bindingTable } from './screenProbeLayout.ts'
 
 /** The screen data's bindings: the probes' records and pixels, the image's normals and flags, the last
- *  image's meta words (the history's depths and frames), and what it writes — nine coefficients of the directions the probe's pixels face, a
+ *  image's depths and shading, and what it writes — nine coefficients of the directions the probe's pixels face, a
  *  word a probe saying whether most of them hold no history. */
 export const SCREEN_DATA_BINDINGS = bindingTable({
   params: [0, 'uniform'],
@@ -18,11 +18,12 @@ export const SCREEN_DATA_BINDINGS = bindingTable({
   pixels: [4, 'buffer-read'],
   normals: [5, 'float'],
   flags: [6, 'uint'],
-  meta: [7, 'uint'],
+  depth: [7, 'float'],
   brdf: [8, 'buffer'],
   disocclusion: [9, 'buffer'],
   vectors: [10, 'uint'],
   blue: [11, 'float'],
+  shading: [12, 'uint'],
 })
 
 const B = SCREEN_DATA_BINDINGS.at
@@ -51,9 +52,9 @@ const SCREEN_DATA_WGSL = wgslBlock(
 @group(0) @binding(${B.disocclusion}) var<storage,read_write> disocclusion:array<u32>;
 const SP_SUMS:u32=${SUMS}u;
 var<workgroup> partial:array<array<f32,${SUMS}>,${FOOTPRINT}>;
-/** Whether most of the last image's pixels round \`P\` hold no history, that is, fewer than the frames the filter waits for. */
-fn spDisoccluded(pixel:vec2u,P:vec3f,N:vec3f)->bool{
- let h=spReproject(pixel,P,N,blueNoiseScalar(pixel,sp.size.w));
+/** Whether the last image's pixels round the surface \`s\` of \`pixel\` hold no history, that is, fewer than the frames the filter waits for. */
+fn spDisoccluded(pixel:vec2u,s:SpSurface)->bool{
+ let h=spReproject(pixel,s.P,s.N,s.backface,blueNoiseScalar(pixel,sp.size.w));
  if(dot(h.weights,vec4f(1.0))<=0.0){return true;}
  return min(spHistoryFrames(h)+1.0,f32(sp.counts.x))<sp.tuning.x;
 }
@@ -70,7 +71,7 @@ fn spFootprint(lane:u32,probe:SpProbe,own:vec2f)->array<f32,${SUMS}>{
   let cosine=spCosine(s.N);
   for(var k=0u;k<9u;k++){mine[k]=cosine[k];}
   mine[9]=1.0;
-  mine[10]=select(0.0,1.0,spFlag(SP_FLAG_DISOCCLUSION)&&spDisoccluded(pixel,s.P,s.N));
+  mine[10]=select(0.0,1.0,spFlag(SP_FLAG_DISOCCLUSION)&&spDisoccluded(pixel,s));
  }
  return mine;
 }
@@ -98,7 +99,7 @@ export const screenDataShader = (samples: readonly [number, number]) =>
     spCommon(samples),
     spSurface(B.normals, B.flags),
     spProbes(B.info, B.normal, B.counts),
-    spHistory(B.meta, B.vectors),
+    spHistory(B.depth, B.shading, B.vectors),
     blueNoiseWgsl(0, B.blue),
     SCREEN_DATA_WGSL,
   ])

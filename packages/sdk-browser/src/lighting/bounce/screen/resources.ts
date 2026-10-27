@@ -50,7 +50,7 @@ function probeTextures(
   }
 }
 
-/** The textures of the pixels: the history's pair of words and the meta's, the occlusion (with the bent normal where the level keeps it). */
+/** The textures of the pixels: the history's words, the depth and the shading it was found at, the occlusion (with the bent normal where the level keeps it). */
 function pixelTextures(
   a: ResourceAllocator,
   { width, height }: ScreenProbeGeometry,
@@ -60,7 +60,8 @@ function pixelTextures(
   const pair = <T>(make: (side: number) => T): Turn<T> => [make(0), make(1)]
   return {
     history: pair((side) => a.texture(`history ${side}`, [width, height], F.history)),
-    meta: pair((side) => a.texture(`history meta ${side}`, [width, height], F.meta)),
+    depth: pair((side) => a.texture(`history depth ${side}`, [width, height], F.depth)),
+    shading: pair((side) => a.texture(`history shading ${side}`, [width, height], F.shading)),
     occlusion: a.texture(
       'occlusion',
       [ceilDiv(width, downsample), ceilDiv(height, downsample)],
@@ -72,7 +73,7 @@ function pixelTextures(
 /**
  * What a view's screen probes keep, at the sizes of `capacity` (`screenProbeGeometry`, of the size the view's targets are made at):
  * the probes' records, the rays' words, the trace's radiance and ends, the gathered radiance, the probes' irradiance, the pixels'
- * history (and its meta words) and the occlusion; and the buffers: each probe's pixel, its cosine lobes, whether it is disoccluded, its share of
+ * history (with the depth and the shading it was found at) and the occlusion; and the buffers: each probe's pixel, its cosine lobes, whether it is disoccluded, its share of
  * rays that move, the placement's mask, counts and lists, the list of the rays the screen left to the scene (and the head that
  * empties it), the indirect arguments of the kernels over the probes in use. All written by compute passes, so every texture is a
  * storage texture and a sampled one.

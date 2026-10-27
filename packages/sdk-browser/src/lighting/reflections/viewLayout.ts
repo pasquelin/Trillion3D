@@ -150,13 +150,19 @@ export const reflectionBindingsWgsl = (group: number) =>
  * A clip point's depth that grows linearly along the view (`reflectionLinearDepth`): its `w` under a perspective,
  * its `z` under an orthographic projection (`ReflectionView.slab`), and the one of a world point in this view
  * (`surfaceLinearDepth`): the engine's one depth for both projections, which a program that declares the
- * reflection's view (`reflectionViewWgsl`) lists beside it.
+ * reflection's view (`reflectionViewWgsl`) lists beside it. `reflectionLinearOfDevice` turns a device depth of this view (a depth
+ * buffer's, a clip point's `z / w`) back to that depth: under a perspective `z = A + B / w` (`ReflectionView.slab`, `A` its `y`, `B` its
+ * `z`), so `w = B / (z - A)`, and a device depth at the far end (`z - A` nil) is as far as a float goes; under an orthographic
+ * projection the depth is the device depth itself.
  */
 export const REFLECTION_LINEAR_DEPTH_WGSL = wgslBlock(
   'REFLECTION_LINEAR_DEPTH_WGSL',
   [REFLECTION_VIEW_WGSL, slabPerspective],
   `fn reflectionLinearDepth(clip:vec4f)->f32{return select(clip.z,clip.w,slabPerspective(reflectionView.slab));}
-fn surfaceLinearDepth(P:vec3f)->f32{return reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));}`,
+fn surfaceLinearDepth(P:vec3f)->f32{return reflectionLinearDepth(reflectionView.viewProj*vec4f(P,1.0));}
+fn reflectionLinearOfDevice(z:f32)->f32{
+ return select(z,reflectionView.slab.z/max(z-reflectionView.slab.y,1e-30),slabPerspective(reflectionView.slab));
+}`,
 )
 
 /** The deferred lighting's view in the reflection group, for a program that has none of its own. */

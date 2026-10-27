@@ -3,6 +3,7 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { computeTextureEntry } from '../../../gpu/core/computeBindings.ts'
 import { ditherLight, packLight, unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
+import { BLUE_NOISE_FORMAT } from '../../../gpu/noise/blueNoiseTextures.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { SUBSURFACE_FLAG } from '../../../materials/surface/subsurface.ts'
 import { ACCUMULATION_WGSL } from '../../../post/taa/accumulationWgsl.ts'
@@ -14,7 +15,9 @@ import { spProbes, spSurface } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
 
 /** What the temporal pass binds of the pixels: the image's normals and flags, this image's occlusion, the last image's history (what
- *  the lighting reads) and its meta words, the ones written, the surfaces' vectors and the blue noise. */
+ *  the lighting reads), depths and shading, the ones written, the surfaces' vectors and the blue noise. With the reflection group's
+ *  five, the pass reads the sixteen sampled textures a stage holds and writes the four storage textures it holds: the blue noise is read
+ *  as a read-only storage texture (`blueNoiseWgsl`'s `loadOnly`), which the history's depths and shading take the sampled slot of. */
 const PIXEL_BINDINGS = {
   params: [0, 'uniform'],
   normals: [1, 'float'],
@@ -23,9 +26,11 @@ const PIXEL_BINDINGS = {
   history: [4, 'uint'],
   historyOut: [5, { store: F.history }],
   vectors: [6, 'uint'],
-  meta: [16, 'uint'],
-  metaOut: [17, { store: F.meta }],
-  blue: [15, 'float'],
+  depth: [16, 'float'],
+  depthOut: [17, { store: F.depth }],
+  shading: [19, 'uint'],
+  shadingOut: [20, { store: F.shading }],
+  blue: [15, { store: BLUE_NOISE_FORMAT, access: 'read-only' }],
 } as const
 
 /** The pixels' bindings alone: the pass of a level that casts no probe. */
@@ -252,7 +257,8 @@ fn spKeptOf(h:SpHistory)->SpKept{
 const spTemporalPixel = (
   probes: boolean,
 ) => `@group(0) @binding(${B.historyOut}) var historyOut:texture_storage_2d<${F.history},write>;
-@group(0) @binding(${B.metaOut}) var metaOut:texture_storage_2d<${F.meta},write>;
+@group(0) @binding(${B.depthOut}) var depthOut:texture_storage_2d<${F.depth},write>;
+@group(0) @binding(${B.shadingOut}) var shadingOut:texture_storage_2d<${F.shading},write>;
 @compute @workgroup_size(SP_GROUP,SP_GROUP)
 fn temporal(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
  let inside=all(id.xy<sp.size.xy);
@@ -261,11 +267,10 @@ fn temporal(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) group
  let live=inside&&s.lit;
  if(inside&&!s.lit){
   textureStore(historyOut,at,vec4u(0u));
-  textureStore(metaOut,at,vec4u(0u));
+  textureStore(depthOut,at,vec4f(0.0));
+  textureStore(shadingOut,at,vec4u(0u));
  }
- let foliage=live&&(textureLoad(sceneFlags,at,0).r&${SUBSURFACE_FLAG}u)!=0u;
- let backface=spFlag(SP_FLAG_BACKFACE_DIFFUSE)&&foliage;
- let strength=select(1.0,sp.foliage.x,foliage);
+ let strength=select(1.0,sp.foliage.x,live&&s.foliage);
  let occluded=spFlag(SP_FLAG_OCCLUSION);
  let longest=f32(sp.counts.x);
  var noise=0.0;
@@ -279,8 +284,8 @@ fn temporal(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) group
  if(live){
   noise=blueNoiseScalar(id.xy,sp.size.w);
   if(occluded){cell=spOcclusionCell(at,s,noise);}
-  fresh=spIntegrate(vec2u(at),s,${probes},backface,spSkyAt(cell,s.N,strength));
-  h=spReproject(vec2u(at),s.P,s.N,noise);
+  fresh=spIntegrate(vec2u(at),s,${probes},s.backface,spSkyAt(cell,s.N,strength));
+  h=spReproject(vec2u(at),s.P,s.N,s.backface,noise);
   kept=spKeptOf(h);
   if(kept.held>0.0){
    let before=spHistoryKept(h);
@@ -360,14 +365,15 @@ const spTemporalBlend = (bentNormal: boolean) => ` if(!live){return;}
   packLight(ditherLight(max(back,vec3f(0.0)),noise)),
   spBentPack(direction*clamp(occlusion.w,1.0/255.0,1.0)));
  textureStore(historyOut,at,select(word,vec4u(0u),noHistory));
- textureStore(metaOut,at,vec4u(select(spMetaOf(surfaceLinearDepth(s.P),frames,amount,s.N),0u,noHistory),0u,0u,0u));
+ textureStore(depthOut,at,vec4f(select(s.z,0.0,noHistory),0.0,0.0,0.0));
+ textureStore(shadingOut,at,vec4u(select(spShadingPack(s.N,s.hair,s.backface),0u,noHistory),select(spFramesOf(frames,amount),0u,noHistory),0u,0u));
 }`
 
 /**
  * THE TEMPORAL PASS: each pixel's irradiance, rough specular and back (`spIntegrate`, the probes it reads) and occlusion blended with
  * their history. The
  * history is where the pixel's surface was in the last image (`spReproject`: its four texels, bilinear, each kept only where
- * its own depth is the one the point is expected at). The frames it holds count up to `sp.counts.x`: a pixel's new light enters
+ * its own depth is the one the point is expected at and it lights its backface as the pixel does). The frames it holds count up to `sp.counts.x`: a pixel's new light enters
  * at the engine's accumulation share (`accumulationShare`) of the frames held, so that a settled pixel averages as many images
  * as that and a pixel with no history takes the new light whole; where the new light is no reading (no probe weighed on the pixel,
  * `a` zero) the history leans on four times the count, and a pixel with neither a reading nor a history keeps nothing (its
@@ -378,8 +384,8 @@ const spTemporalBlend = (bentNormal: boolean) => ` if(!live){return;}
  * setting asks (`SP_FLAG_FAST_UPDATE_CLAMP`). The history's occlusion, its amount and the direction of the open sky, is held within the mean of the
  * occlusion's three-by-three neighbourhood this image, plus or minus its deviation times `screenProbeOcclusionClampScale`, each of
  * the four numbers apart (no clamp where it is not above zero, or where the occlusion is not temporal): an occlusion that moved is
- * followed, not ghosted. The pixel's depth, the amount of fast
- * update and the frames it now holds are kept for the next image (the meta word), its light, rough specular, back and occlusion in the
+ * followed, not ghosted. The pixel's device depth, its normal with its marks, and the frames it now holds with the amount of fast
+ * update are kept for the next image, its light, rough specular, back and occlusion in the
  * words the lighting reads (the occlusion's direction, with the bent normal, the unit direction of the blend; else the surface's own
  * normal). A pixel on no lit surface keeps none.
  */
@@ -420,8 +426,8 @@ ${wgslConsts({ SP_OCCLUSION_DOWNSAMPLE: downsample, SP_GROUP: 8 })}`,
       spCommon(samples),
       spSurface(B.normals, B.flags),
       ...(probes ? [spProbes(B.info, B.normal, B.counts)] : []),
-      spHistory(B.meta, B.vectors),
-      blueNoiseWgsl(0, B.blue),
+      spHistory(B.depth, B.shading, B.vectors),
+      blueNoiseWgsl(0, B.blue, true),
       probes ? spIntegrate(B) : SP_NO_PROBES,
       spTemporal(probes, bentNormal),
     ],

@@ -61,14 +61,6 @@ export const octCellsDecode = wgslFn(
 }`,
 )
 
-/** The two cells of the octahedron of `bits` bits an axis that a unit normal lies nearest: the inverse of `octCellsDecode` at the
- *  cells' centres (`octEncode`'s square point, scaled to the grid's step less one and rounded). */
-export const octCellsEncode = wgslFn(
-  'octCellsEncode',
-  [octEncode],
-  'fn octCellsEncode(n:vec3f,bits:u32)->vec2u{return vec2u(round((octEncode(n)*0.5+0.5)*f32((1u<<bits)-1u)));}',
-)
-
 /** The step of an octahedral byte, 2/255 in `f32`: a byte `q` back to `[-1, 1]` as
  *  `f32(q)·OCT_BYTE_STEP − 1` (`OCT_BYTE_STEP` of `../constants.ts`, `OCT_SCALE` of the Rust codec). */
 const OCT_BYTE_STEP = wgslConst(

@@ -1,4 +1,6 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { PIXEL_MODEL, pixelModelOf } from '../../../materials/surface/pixelModel.ts'
+import { SUBSURFACE_FLAG } from '../../../materials/surface/subsurface.ts'
 import { SURFACE_MODEL_MASK, MODEL_FLAG } from '../../../materials/surface/surfaceModelWord.ts'
 import { WORLD_AT_WGSL } from '../../deferred/worldAtWgsl.ts'
 import { CACHE_WORDS_WGSL } from '../cache/cacheWordsWgsl.ts'
@@ -52,23 +54,28 @@ fn spAdaptiveWeight(pixel:vec2u,P:vec3f,N:vec3f,depth:f32,probePixel:vec2u,probe
  * The surface a pixel shows, as every screen-probe kernel reads it: the image's depth through the depth
  * pyramid's first level (`hizOpaqueDepth`), the normal and the surface flags at `normals` and `flags`
  * of group 0. A pixel is lit when a surface was drawn there (a depth above zero: reverse-Z) of a model that
- * the light reaches — the physical, diffuse and toon ones — and its normal is one.
+ * the light reaches — the physical, diffuse and toon ones — and its normal is one. `z` is its device depth; `hair` whether its
+ * shading model is the hair's; `foliage` whether it is a thin double-sided sheet, `backface` whether it lights its backface (a sheet, where the setting asks).
  */
 export const spSurface = (normals: number, flags: number) =>
   wgslBlock(
     `spSurface(${normals}, ${flags})`,
-    [WORLD_AT_WGSL],
+    [WORLD_AT_WGSL, pixelModelOf],
     `@group(0) @binding(${normals}) var sceneNormals:texture_2d<f32>;
 @group(0) @binding(${flags}) var sceneFlags:texture_2d<u32>;
-struct SpSurface{lit:bool,P:vec3f,N:vec3f,z:f32,}
+struct SpSurface{lit:bool,P:vec3f,N:vec3f,z:f32,hair:bool,foliage:bool,backface:bool,}
 fn spSurfaceAt(pix:vec2u)->SpSurface{
  let coord=vec2i(pix);
  let z=hizOpaqueDepth(coord);
- let model=textureLoad(sceneFlags,coord,0).r&${SURFACE_MODEL_MASK}u;
+ let flags=textureLoad(sceneFlags,coord,0).r;
+ let model=flags&${SURFACE_MODEL_MASK}u;
  let n=textureLoad(sceneNormals,coord,0).xyz;
  let facing=dot(n,n)>0.5;
+ let foliage=(flags&${SUBSURFACE_FLAG}u)!=0u;
  let lit=z>0.0&&facing&&(model==${MODEL_FLAG.physical}u||model==${MODEL_FLAG.diffuse}u||model==${MODEL_FLAG.toon}u);
- return SpSurface(lit,worldAt(vec2f(pix)+vec2f(0.5),z),select(vec3f(0.0,0.0,1.0),normalize(n),facing),z);
+ return SpSurface(
+  lit,worldAt(vec2f(pix)+vec2f(0.5),z),select(vec3f(0.0,0.0,1.0),normalize(n),facing),z,
+  pixelModelOf(flags)==${PIXEL_MODEL.hair}u,foliage,spFlag(SP_FLAG_BACKFACE_DIFFUSE)&&foliage);
 }`,
   )
 

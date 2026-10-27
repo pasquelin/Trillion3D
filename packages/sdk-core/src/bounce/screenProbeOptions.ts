@@ -84,6 +84,7 @@ const TRACE_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     number('screenProbeInterpolationDepthWeight', 1, ANY_NUMBER),
     number('screenProbeInterpolationDepthWeightFallback', 0.1, ANY_NUMBER),
     positive('screenProbeHistoryDistanceThreshold', 0.01),
+    positive('screenProbeHistoryDistanceThresholdForFoliage', 0.03),
     flag('screenProbeRejectBasedOnNormal', false),
     number('screenProbeNormalThreshold', 45, [0, 180]),
     positive('screenProbeRelativeSpeedThreshold', 0.005),

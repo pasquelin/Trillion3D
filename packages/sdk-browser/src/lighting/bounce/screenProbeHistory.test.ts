@@ -12,41 +12,55 @@ import { SCREEN_INDIRECT_WGSL } from './screen/indirectWgsl.ts'
 import { spVectors } from './screen/vectorsWgsl.ts'
 import { SCREEN_PROBE_FLAGS } from './screen/screenProbeLayout.ts'
 
-/** The history of a 64 by 64 image run on the shipped text: `set` the depths the four texels round its centre kept, `reproject` the
- *  pixel at the centre over the point at the origin. */
-function historyOf() {
-  const identity = builtins.mat4x4f(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1)
-  const half = (depth: number) => (builtins.pack2x16float([depth, 0]) as number) & 0xffff
+/** The history of a 64 by 64 image run on the shipped text, seen at a perspective whose device depth is `A + B / w` (`slab` `[1, A, B, 1]`, the
+ *  view-projection adding `A + B` to the clip depth): `set` the linear depths the four texels round its centre kept, `mark` which of them
+ *  light their backface, `reproject` the pixel at the centre over the point at the origin. */
+function historyOf(A = 0) {
+  const B = 0.1
+  const identity = builtins.mat4x4f(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, A + B, 1)
   const depths = new Map<string, number>()
+  const backfaces = new Map<string, boolean>()
   const texels = [
     [31, 31],
     [32, 31],
     [31, 32],
     [32, 32],
   ]
-  const { spReproject } = shaderRun<{
+  const depthIn = {},
+    shadingIn = {}
+  const run = shaderRun<{
     spReproject: (
       pixel: number[],
       P: number[],
       N: number[],
+      backface: boolean,
       noise: number,
-    ) => { texel: number[]; weights: number[]; metas: number[]; w: number }
-  }>(wgslModule(spCommon([4, 2]), spHistory(7, 8)), ['spReproject'], {
+    ) => { texel: number[]; weights: number[]; codes: number[] }
+    spShadingPack: (N: number[], hair: boolean, backface: boolean) => number
+  }>(wgslModule(spCommon([4, 2]), spHistory(7, 9, 8)), ['spReproject', 'spShadingPack'], {
     sp: {
       size: [64, 64, 16, 0],
       counts: [10, 0, 0, 0],
       mode: [0, 0, SCREEN_PROBE_FLAGS.temporal, 0],
-      scene: [0, 0.01],
+      scene: [0, 0.01, 0, 0.03],
       motion: [0.005, 10, 0.9, 0],
     },
-    reflectionView: { radianceViewProj: identity, radiance: [64, 64, 0, 0], slab: [1, 0, 0, 1] },
-    metaIn: {},
+    reflectionView: { radianceViewProj: identity, radiance: [64, 64, 0, 0], slab: [1, A, B, 1] },
+    depthIn,
+    shadingIn,
     viewToEye: () => [0, 0, 1],
-    textureLoad: (_: unknown, texel: number[]) => [half(depths.get(String(texel)) ?? 0), 0, 0, 0],
+    textureLoad: (texture: unknown, texel: number[]) => {
+      const at = String(texel)
+      // A texel the test sets no depth keeps none: a device depth of zero.
+      if (texture === depthIn) return [depths.has(at) ? A + B / depths.get(at)! : 0, 0, 0, 0]
+      return [run.spShadingPack([0, 0, 1], false, backfaces.get(at) ?? false), 0x2b, 0, 0]
+    },
   })
   return {
     set: (values: number[]) => texels.forEach((t, i) => depths.set(String(t), values[i])),
-    reproject: (N: number[], noise: number) => spReproject([32, 32], [0, 0, 0], N, noise),
+    mark: (values: boolean[]) => texels.forEach((t, i) => backfaces.set(String(t), values[i])),
+    reproject: (N: number[], noise: number, backface = false) =>
+      run.spReproject([32, 32], [0, 0, 0], N, backface, noise),
   }
 }
 
@@ -68,12 +82,54 @@ test("a history texel counts where its depth is the expected one within a thresh
   assert.equal(weights([0, 0, 1], 0)[1], 0, 'the noise narrows the threshold to a half')
   assert.equal(weights([0, 0, 1], 1)[1], 0.25, 'and widens it by a half')
   const kept = reproject([0, 0, 1], 0.5)
-  assert.equal(kept.w, 1, 'the depth expected: the linear depth, the clip w of a perspective')
-  assert.notEqual(
-    kept.metas[0],
-    0,
-    'the meta word of a texel comes with its weight: the depth it kept',
+  assert.deepEqual(
+    kept.codes,
+    [0x2b, 0x2b, 0x2b, 0x2b],
+    'the frames code of a texel comes with its weight',
   )
+  assert.deepEqual(
+    historyOf().reproject([0, 0, 1], 0.5).weights,
+    [0, 0, 0, 0],
+    'a texel that kept no surface (a device depth of zero) is nothing',
+  )
+  // A view whose far end is finite gives the device depth zero a depth of its own: still nothing.
+  assert.deepEqual(
+    historyOf(-0.1).reproject([0, 0, 1], 0.5).weights,
+    [0, 0, 0, 0],
+    'even where the zero depth is the far plane’s',
+  )
+})
+
+test('a pixel that lights its backface takes the history of such pixels alone, within a wider threshold', () => {
+  const { set, mark, reproject } = historyOf()
+  // A depth 2 % off: past the threshold (1 %) of a solid surface, within a foliage pixel's (3 %).
+  set([1, 1.02, 1, 1.02])
+  const sheet = (backface: boolean, flags: boolean[]) => {
+    mark(flags)
+    return reproject([0, 0, 1], 0.5, backface).weights
+  }
+  assert.deepEqual(
+    sheet(true, [true, true, true, true]),
+    [0.25, 0.25, 0.25, 0.25],
+    'foliage keeps more',
+  )
+  assert.deepEqual(
+    sheet(false, [false, false, false, false]),
+    [0.25, 0, 0.25, 0],
+    'a solid surface keeps less',
+  )
+  assert.deepEqual(
+    sheet(true, [true, false, true, false]),
+    [0.25, 0, 0.25, 0],
+    'a texel of another kind is nothing, whatever its depth',
+  )
+  assert.deepEqual(
+    sheet(false, [true, true, false, false]),
+    [0, 0, 0.25, 0],
+    'and a solid surface does not take a sheet’s',
+  )
+  set([1, 1.04, 1, 1])
+  assert.equal(sheet(true, [true, true, true, true])[1], 0, 'past the wider threshold too')
 })
 
 test('a pixel the camera alone moves keeps its exact reprojection and no speed, a dynamic one the vector it names, however small', () => {

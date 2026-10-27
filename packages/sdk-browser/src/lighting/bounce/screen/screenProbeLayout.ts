@@ -47,9 +47,14 @@ export const SCREEN_PROBE_FORMATS = {
    *  specular light and the irradiance of its backface (each `packLight`), and its short-range occlusion with the direction of the
    *  open sky, the bent normal times the amount (`spBentPack`). A pixel on no lit surface, or that read nothing and held nothing, is zero. */
   history: 'rgba32uint',
-  /** What the temporal pass alone keeps of a pixel (`spMetaOf`): the depth it was measured at, its amount of fast update and the
-   *  frames it holds. */
-  meta: 'r32uint',
+  /** The device depth the temporal pass found a pixel's surface at, as the depth buffer held it (zero for none): what a history texel is
+   *  told from another surface's by, and what the screen trace's hits are kept by (`spDeviceGap`). */
+  depth: 'r32float',
+  /** What the temporal pass keeps of a pixel's surface beside its depth, two words: its normal and shading info in the 10-10-10-2 bits
+   *  of a normalised texel (`spShadingPack`: the normal as `n · ½ + ½`, then whether the pixel is hair and whether it lights its
+   *  backface), and the frames it holds with its amount of fast update, one byte (`spFramesOf`). Core storage holds no 10-10-10-2 nor
+   *  single byte texel. */
+  shading: 'rg32uint',
   /** A pixel's short-range occlusion: its amount, or, with the bent normal, the direction of the open sky times the amount (`spBentPack`). */
   occlusion: 'r32float',
   bentOcclusion: 'r32uint',
@@ -221,7 +226,8 @@ export const SCREEN_PROBE_FLAGS = {
  * held to; `spatial`, the spatial filter's position scale and its angle, the width the probes a pixel reads are
  * jittered and the furthest a ray looks; `occlusion`, the horizon search's slices, steps and foreground fraction and the scale of
  * the neighbourhood the history's occlusion is held to; `scene`, the bias off a surface a ray starts at, the history's relative
- * depth threshold and the cosine of the angle past which a history texel's normal is another surface's; `cache`, the radiance cache's radius scale (the
+ * depth threshold, the cosine of the angle past which a history texel's normal is another surface's and the history's relative depth
+ * threshold on the pixels that light their backface; `cache`, the radiance cache's radius scale (the
  * multiple of a probe's nearest ray start the direction a ray reads it by is moved onto a sphere of), the texels a side of its maps and
  * the levels of detail they hold; `motion`, the relative speed
  * difference from which a ray's end moves, the inverse of the share of moving light from which the history gives

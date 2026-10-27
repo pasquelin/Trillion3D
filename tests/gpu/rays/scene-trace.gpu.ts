@@ -82,7 +82,7 @@ async function measure() {
     const made = ensureSceneTrace(undefined, device, file, roots.length)
     assert.ok(made.sceneTrace, `the scene trace is made: ${made.why}`)
     trace = made.sceneTrace
-    trace.syncPlacements(roots, rt.run.gate.revisions.scene)
+    trace.syncPlacements(roots)
     trace.writeParams({
       eye: [eye[0], eye[1], eye[2]],
       treeRoot: cut.treeRoot,

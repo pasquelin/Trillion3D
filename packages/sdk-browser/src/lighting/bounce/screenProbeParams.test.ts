@@ -127,7 +127,7 @@ test('the screen probes parameters are the words of the settings and the image, 
   assert.deepEqual(floats(at.weights), [-10000, -1000, 0.1, 10].map(Math.fround))
   assert.deepEqual(floats(at.spatial), [1000, 10 * DEG2RAD, 1, 200].map(Math.fround))
   assert.deepEqual(floats(at.occlusion), [2, 3, 0.3, 1].map(Math.fround))
-  assert.deepEqual(floats(at.scene), [0.05, 0.01, Math.cos(45 * DEG2RAD), 0].map(Math.fround))
+  assert.deepEqual(floats(at.scene), [0.05, 0.01, Math.cos(45 * DEG2RAD), 0.03].map(Math.fround))
   assert.deepEqual(floats(at.motion), [0.005, 10, 0.9, 0.0001].map(Math.fround))
   assert.deepEqual(floats(at.tuning), [4, 0.4, 0.005, 0.03].map(Math.fround))
   assert.deepEqual(
