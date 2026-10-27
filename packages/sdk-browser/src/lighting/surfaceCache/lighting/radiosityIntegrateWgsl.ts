@@ -98,13 +98,12 @@ fn ${RADIOSITY_INTEGRATE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_
  let transfer=tvBasis(normal)*vec4f(TV_L0,TV_L1,TV_L1,TV_L1);
  var radiance=max(vec3f(dot(sum[0],transfer),dot(sum[1],transfer),dot(sum[2],transfer)),vec3f(0.0));
  if(total>0.0){radiance/=total;}
- let seed=vec3i(i32(texel.atlas.x),i32(texel.atlas.y),i32(texel.temporal)+2);
- let noise=f32(rand3dPcg16(seed).x)/65536.0;
  if(lgFlag(FLAG_TEMPORAL)){
   let history=unpackLight(textureLoad(indirectAtlas,vec2i(texel.atlas)).x);
-  radiance=mix(history,radiance,1.0/(1.0+framesBlended));
+  let seed=vec3i(i32(texel.atlas.x),i32(texel.atlas.y),i32(texel.temporal)+2);
+  radiance=ditherLight(mix(history,radiance,1.0/(1.0+framesBlended)),f32(rand3dPcg16(seed).x)/65536.0);
  }
- textureStore(indirectAtlas,vec2i(texel.atlas),vec4u(packLight(ditherLight(radiance,noise)),0u,0u,0u));
+ textureStore(indirectAtlas,vec2i(texel.atlas),vec4u(packLight(radiance),0u,0u,0u));
 }`,
   [
     lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),

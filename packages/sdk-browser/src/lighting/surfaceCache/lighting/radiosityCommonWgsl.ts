@@ -13,9 +13,9 @@ import { PAGE_LIGHTING } from './layout.ts'
  * THE PROBES. A probe lies every `spacing` texels of a card, a texel of the page it falls in, jittered inside its cell
  * by the page's image of the pattern (`probeJitter`: a Hammersley point of the pattern's `maxFrames`, scrambled by two
  * fixed words, times the spacing, or the fixed index where one is set); each traces `hemisphere` × `hemisphere` rays over
- * its texel's hemisphere (`radiosityRay`: the cell of the ray jittered by the probe's blue noise at its page's image, the
- * uniform mapping of the hemisphere, turned to the texel's normal by the Frisvad basis). A RADIOSITY TILE is the unit
- * the probes are listed in: one probe where the spacing is 4 or more — its tile the probe's, in probes —, else the whole
+ * its texel's hemisphere (`radiosityRay`: the cell of the ray jittered by the probe's blue noise at its page's image or the
+ * fixed index, the uniform mapping of the hemisphere, turned to the texel's normal by the Frisvad basis). A RADIOSITY TILE is
+ * the unit the probes are listed in: one probe where the spacing is 4 or more — its tile the probe's, in probes —, else the whole
  * 8 × 8 tile of its page. Its place is a word: the page in 22 bits and the tile along x and y in 5 each. The tiles are
  * `radiosityAt` in the context; a kernel that works a trace or a probe a thread finds the tile, the probe in it and the ray
  * by `unswizzle`, the probes of a tile in rows, the rays of a probe in rows after them.
@@ -46,8 +46,10 @@ fn radTilePage(word:u32)->u32{return word&0x3fffffu;}
 fn radTileCoord(word:u32)->vec2u{return vec2u((word>>22u)&31u,(word>>27u)&31u);}
 fn radTileAt(i:u32)->u32{return ctxW(lp.radiosityAt+i);}
 fn radTileCount()->u32{return min(ctxW(CTX_RADIOSITY_TILES),lp.radiosityTiles);}
+/** The index the jitter of a probe and of its rays is drawn at: the page's \`temporal\` one, or the setting's fixed one. */
+fn jitterIndex(temporal:u32)->u32{return select(u32(lp.fixedJitter),temporal,lp.fixedJitter<0);}
 fn probeJitter(temporal:u32)->vec2u{
- let index=select(u32(lp.fixedJitter),temporal,lp.fixedJitter<0)%lp.maxFrames;
+ let index=jitterIndex(temporal)%lp.maxFrames;
  return vec2u(hammersley16(index,lp.maxFrames,vec2u(0x4ae4u,0x9bdbu))*f32(lp.spacing));
 }
 fn pageJitter(page:u32)->vec2u{return probeJitter(scPageW(page,PAGE_INDIRECT_TEMPORAL));}
@@ -122,7 +124,7 @@ fn planeWeight(position:vec3f,normal:vec3f,probe:vec3f)->f32{
 }
 /** The direction of ray \`ray\` of the probe \`probeCoord\` (its place on the card) of a texel of normal \`normal\`. */
 fn radiosityRay(normal:vec3f,temporal:u32,probeCoord:vec2u,ray:vec2u)->vec3f{
- let uv=(vec2f(ray)+blueNoiseVec2(probeCoord,temporal))/f32(lp.hemisphere);
+ let uv=(vec2f(ray)+blueNoiseVec2(probeCoord,jitterIndex(temporal)))/f32(lp.hemisphere);
  let phi=TWO_PI*uv.x;
  let sine=sqrt(1.0-uv.y*uv.y);
  let b=tangentBasis(normal);
