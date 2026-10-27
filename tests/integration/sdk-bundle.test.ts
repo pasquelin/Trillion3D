@@ -28,8 +28,10 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // the package, and its browser condition. A module whose top-level values are built by calls not
   // marked pure, or whose imports run code, shows here as bytes: a bundle that never reads a table
   // must drop it. The core's 1_547 fell to 1_371 once `ANY_NUMBER` (a `Number.MAX_VALUE` read) and
-  // `PREVIEW_STORED_LAYOUTS` (a spread) became literals: neither is kept alive any more.
-  assert.equal(baseline.outputFiles[0].contents.length, 1_371)
+  // `PREVIEW_STORED_LAYOUTS` (a spread) became literals: neither is kept alive any more. It reads
+  // 1_372 since the surface cache's rules are built as sub-tables, each in a call marked pure: the
+  // same code, one minified name a letter longer.
+  assert.equal(baseline.outputFiles[0].contents.length, 1_372)
   assert.equal(proposed.outputFiles[0].contents.length, 1_360)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_019)
   assert.ok(

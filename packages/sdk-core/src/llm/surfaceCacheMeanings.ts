@@ -88,11 +88,13 @@ const RADIOSITY_MEANINGS = /* @__PURE__ */ (() => ({
 
 /** What each setting of the surface cache means (`../contracts/surfaceCacheOptions.ts`); they apply
  *  where the scene has meshes with cards. The defaults and the ranges are the schema's own. */
-export const SURFACE_CACHE_MEANINGS: Readonly<Record<SurfaceCacheField, string>> = {
-  ...ATLAS_MEANINGS,
-  ...CAPTURE_MEANINGS,
-  ...FEEDBACK_MEANINGS,
-  ...UPDATE_MEANINGS,
-  ...DIRECT_LIGHT_MEANINGS,
-  ...RADIOSITY_MEANINGS,
-}
+// A spread at the top level is not pure to a bundler: marked so, a bundle that never reads the meanings drops them.
+export const SURFACE_CACHE_MEANINGS: Readonly<Record<SurfaceCacheField, string>> =
+  /* @__PURE__ */ (() => ({
+    ...ATLAS_MEANINGS,
+    ...CAPTURE_MEANINGS,
+    ...FEEDBACK_MEANINGS,
+    ...UPDATE_MEANINGS,
+    ...DIRECT_LIGHT_MEANINGS,
+    ...RADIOSITY_MEANINGS,
+  }))()

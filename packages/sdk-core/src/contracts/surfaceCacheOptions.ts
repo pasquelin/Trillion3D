@@ -14,88 +14,94 @@ import {
 import { MAX_LIGHTS_PER_TILE } from '../lighting/surfaceCache/lightingMath.ts'
 
 /** The cards the atlas keeps and the resolutions they are kept at. */
-const ATLAS_RULES = /* @__PURE__ */ rulesOf([
-  count('surfaceCacheAtlasSize', 4096, 1),
-  number('surfaceCacheResolution', 1, [0.5, 1]),
-  number('surfaceCacheSceneDetail', 1, [0.125, 8]),
-  nonNegative('surfaceCacheCardTexelDensityScale', 100),
-  count('surfaceCacheCardMinResolution', 2, 0),
-  count('surfaceCacheOrthographicCardMinResolution', 1, 0),
-  integer('surfaceCacheCardMaxResolution', 512, [1, 2048]),
-  nonNegative('surfaceCacheCardMaxTexelDensity', 0.2),
-  nonNegative('surfaceCacheMeshCardsMinSize', 10),
-  flag('surfaceCacheMeshCardsCullFaces', true),
-] as const)
+const ATLAS_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    count('surfaceCacheAtlasSize', 4096, 1),
+    number('surfaceCacheResolution', 1, [0.5, 1]),
+    number('surfaceCacheSceneDetail', 1, [0.125, 8]),
+    nonNegative('surfaceCacheCardTexelDensityScale', 100),
+    count('surfaceCacheCardMinResolution', 2, 0),
+    count('surfaceCacheOrthographicCardMinResolution', 1, 0),
+    integer('surfaceCacheCardMaxResolution', 512, [1, 2048]),
+    nonNegative('surfaceCacheCardMaxTexelDensity', 0.2),
+    nonNegative('surfaceCacheMeshCardsMinSize', 10),
+    flag('surfaceCacheMeshCardsCullFaces', true),
+  ] as const))()
 
 /** How the cards' surface is captured into the atlas, kept and given up. */
-const CAPTURE_RULES = /* @__PURE__ */ rulesOf([
-  number('surfaceCacheCardCaptureMargin', 0, ANY),
-  positive('surfaceCacheCaptureLodScaleFactor', 1),
-  count('surfaceCacheNumFramesToKeepUnusedPages', 256, 0),
-  integer('surfaceCacheCompress', 1, [0, 2]),
-  count('surfaceCacheCardCapturesPerFrame', 300, 0),
-  integer('surfaceCacheCardCaptureFactor', 64, [1, 1024]),
-  count('surfaceCacheRemovesPerFrame', 512, 0),
-  number('surfaceCacheCardCaptureRefreshFraction', 0.125, [0, 1]),
-  flag('surfaceCacheCardCaptureEnableInvalidation', true),
-  flag('surfaceCacheAllowCardSharing', true),
-  flag('surfaceCacheAllowCardDownsampleFromSelf', true),
-  flag('surfaceCacheResampleLighting', true),
-  integer('surfaceCacheDilationMode', 0, [0, 2]),
-  number('surfaceCacheDiffuseColorBoost', 1, [1, 4]),
-  flag('surfaceCacheFastCameraMode', false),
-] as const)
+const CAPTURE_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    number('surfaceCacheCardCaptureMargin', 0, ANY),
+    positive('surfaceCacheCaptureLodScaleFactor', 1),
+    count('surfaceCacheNumFramesToKeepUnusedPages', 256, 0),
+    integer('surfaceCacheCompress', 1, [0, 2]),
+    count('surfaceCacheCardCapturesPerFrame', 300, 0),
+    integer('surfaceCacheCardCaptureFactor', 64, [1, 1024]),
+    count('surfaceCacheRemovesPerFrame', 512, 0),
+    number('surfaceCacheCardCaptureRefreshFraction', 0.125, [0, 1]),
+    flag('surfaceCacheCardCaptureEnableInvalidation', true),
+    flag('surfaceCacheAllowCardSharing', true),
+    flag('surfaceCacheAllowCardDownsampleFromSelf', true),
+    flag('surfaceCacheResampleLighting', true),
+    integer('surfaceCacheDilationMode', 0, [0, 2]),
+    number('surfaceCacheDiffuseColorBoost', 1, [1, 4]),
+    flag('surfaceCacheFastCameraMode', false),
+  ] as const))()
 
 /** The feedback with which the rays that read the cards ask for finer pages. */
-const FEEDBACK_RULES = /* @__PURE__ */ rulesOf([
-  flag('surfaceCacheFeedback', true),
-  integer('surfaceCacheFeedbackTileSize', 16, [1, 256]),
-  nonNegative('surfaceCacheFeedbackMinPageHits', 16),
-  integer('surfaceCacheFeedbackUniqueElements', 1024, [1, 16384]),
-  number('surfaceCacheFeedbackResLevelBias', -0.5, ANY),
-] as const)
+const FEEDBACK_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    flag('surfaceCacheFeedback', true),
+    integer('surfaceCacheFeedbackTileSize', 16, [1, 256]),
+    nonNegative('surfaceCacheFeedbackMinPageHits', 16),
+    integer('surfaceCacheFeedbackUniqueElements', 1024, [1, 16384]),
+    number('surfaceCacheFeedbackResLevelBias', -0.5, ANY),
+  ] as const))()
 
 /** How much of the cache's light an image updates, and which part of it first. */
-const UPDATE_RULES = /* @__PURE__ */ rulesOf([
-  integer('surfaceCacheDirectLightingUpdateFactor', 32, [1, 1024]),
-  integer('surfaceCacheRadiosityUpdateFactor', 64, [1, 1024]),
-  number('surfaceCacheLightingUpdateSpeed', 1, [0.5, 16]),
-  number('surfaceCacheLightingQuality', 1, [0.5, 6]),
-  flag('surfaceCacheLightingForceFullUpdate', false),
-  integer('surfaceCacheFreezeUpdateFrame', 0, INT32_RANGE),
-  number('surfaceCacheLightingMaxDistanceFromFrustumToPrioritize', 500, ANY),
-] as const)
+const UPDATE_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    integer('surfaceCacheDirectLightingUpdateFactor', 32, [1, 1024]),
+    integer('surfaceCacheRadiosityUpdateFactor', 64, [1, 1024]),
+    number('surfaceCacheLightingUpdateSpeed', 1, [0.5, 16]),
+    number('surfaceCacheLightingQuality', 1, [0.5, 6]),
+    flag('surfaceCacheLightingForceFullUpdate', false),
+    integer('surfaceCacheFreezeUpdateFrame', 0, INT32_RANGE),
+    number('surfaceCacheLightingMaxDistanceFromFrustumToPrioritize', 500, ANY),
+  ] as const))()
 
 /** The direct light of the cache's texels, its shadows traced through the global field or the scene's triangles. */
-const DIRECT_LIGHT_RULES = /* @__PURE__ */ rulesOf([
-  flag('surfaceCacheDirectLighting', true),
-  integer('surfaceCacheDirectLightingMaxLightsPerTile', 8, [1, MAX_LIGHTS_PER_TILE]),
-  nonNegative('surfaceCacheDirectLightingGlobalSdfShadowRayBias', 1),
-  flag('surfaceCacheDirectLightingCloudTransmittance', true),
-  flag('surfaceCacheDirectLightingHardwareRayTracing', true),
-  nonNegative('surfaceCacheDirectLightingHardwareRayTracingShadowRayBias', 1),
-  nonNegative('surfaceCacheDirectLightingHardwareRayTracingEndBias', 1),
-  flag('surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing', true),
-  flag('surfaceCacheDirectLightingHardwareRayTracingForceTwoSided', false),
-  count('surfaceCacheHardwareRayTracingMaxIterations', 8192, 1),
-] as const)
+const DIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    flag('surfaceCacheDirectLighting', true),
+    integer('surfaceCacheDirectLightingMaxLightsPerTile', 8, [1, MAX_LIGHTS_PER_TILE]),
+    nonNegative('surfaceCacheDirectLightingGlobalSdfShadowRayBias', 1),
+    flag('surfaceCacheDirectLightingCloudTransmittance', true),
+    flag('surfaceCacheDirectLightingHardwareRayTracing', true),
+    nonNegative('surfaceCacheDirectLightingHardwareRayTracingShadowRayBias', 1),
+    nonNegative('surfaceCacheDirectLightingHardwareRayTracingEndBias', 1),
+    flag('surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing', true),
+    flag('surfaceCacheDirectLightingHardwareRayTracingForceTwoSided', false),
+    count('surfaceCacheHardwareRayTracingMaxIterations', 8192, 1),
+  ] as const))()
 
 /** The indirect light: the probes, their filter and their blend over the images. */
-const RADIOSITY_RULES = /* @__PURE__ */ rulesOf([
-  flag('surfaceCacheRadiosity', true),
-  integer('surfaceCacheRadiosityProbeSpacing', 4, [1, 8]),
-  integer('surfaceCacheRadiosityHemisphereProbeResolution', 4, [1, 16]),
-  flag('surfaceCacheRadiositySpatialFilterProbes', true),
-  integer('surfaceCacheRadiositySpatialFilterProbesKernelSize', 1, [0, 2]),
-  flag('surfaceCacheRadiosityProbePlaneWeighting', true),
-  number('surfaceCacheRadiosityProbePlaneWeightingDepthScale', -100, ANY),
-  number('surfaceCacheRadiosityMaxRayIntensity', 40, [0, 1000000]),
-  number('surfaceCacheRadiosityDistanceFieldSurfaceBias', 10, [0, 1000]),
-  number('surfaceCacheRadiosityDistanceFieldSurfaceSlopeBias', 5, [0, 1000]),
-  flag('surfaceCacheRadiosityTemporal', true),
-  integer('surfaceCacheRadiosityTemporalMaxFramesAccumulated', 4, [1, 255]),
-  integer('surfaceCacheRadiosityTemporalFixedJitterIndex', -1, [-1, INT32_RANGE[1]]),
-] as const)
+const RADIOSITY_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    flag('surfaceCacheRadiosity', true),
+    integer('surfaceCacheRadiosityProbeSpacing', 4, [1, 8]),
+    integer('surfaceCacheRadiosityHemisphereProbeResolution', 4, [1, 16]),
+    flag('surfaceCacheRadiositySpatialFilterProbes', true),
+    integer('surfaceCacheRadiositySpatialFilterProbesKernelSize', 1, [0, 2]),
+    flag('surfaceCacheRadiosityProbePlaneWeighting', true),
+    number('surfaceCacheRadiosityProbePlaneWeightingDepthScale', -100, ANY),
+    number('surfaceCacheRadiosityMaxRayIntensity', 40, [0, 1000000]),
+    number('surfaceCacheRadiosityDistanceFieldSurfaceBias', 10, [0, 1000]),
+    number('surfaceCacheRadiosityDistanceFieldSurfaceSlopeBias', 5, [0, 1000]),
+    flag('surfaceCacheRadiosityTemporal', true),
+    integer('surfaceCacheRadiosityTemporalMaxFramesAccumulated', 4, [1, 255]),
+    integer('surfaceCacheRadiosityTemporalFixedJitterIndex', -1, [-1, INT32_RANGE[1]]),
+  ] as const))()
 
 /**
  * The surface cache: the cards each mesh carries (flat boxes along its faces, built by the compiler),
@@ -197,14 +203,15 @@ const RADIOSITY_RULES = /* @__PURE__ */ rulesOf([
  * `surfaceCacheFeedbackUniqueElements` (1024) pages are told in an image. The level a ray tells is the one its cone
  * calls for plus `surfaceCacheFeedbackResLevelBias` (-0.5, half a level coarser).
  */
-export const SURFACE_CACHE_RULES = {
+// A spread at the top level is not pure to a bundler: marked so, a bundle that never reads the table drops it.
+export const SURFACE_CACHE_RULES = /* @__PURE__ */ (() => ({
   ...ATLAS_RULES,
   ...CAPTURE_RULES,
   ...FEEDBACK_RULES,
   ...UPDATE_RULES,
   ...DIRECT_LIGHT_RULES,
   ...RADIOSITY_RULES,
-}
+}))()
 
 /** The field of one setting of the surface cache. */
 export type SurfaceCacheField = keyof typeof SURFACE_CACHE_RULES
