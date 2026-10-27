@@ -193,15 +193,18 @@ export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
  *  far-shadow test reads (\`vsmFarShadowSkipped\`), and its longest edge in world units (\`edge\`, 0 for none known),
  *  which picks its raster. Then what each map judges its level of detail by (\`vsmRenderLodAt\`):
  *  its own bounds and its parent group's, each a centre from the world sphere's and a radius in
- *  world units, and both errors in world units — the parent's negative for a root; the square of
+ *  world units, and both errors in world units, scaled as the camera's cut scales them (the
+ *  placement's smallest axis scale) — the parent's negative for a root; the square of
  *  the distance past which its object stops evaluating its offset (\`offsetDisableSq\`, 0 for never,
  *  given to every cluster of a placement whose offset may invalidate its shadows).
  *  Last, how far its centre moved since the previous image (\`prevShift\`): the occlusion's first
  *  cull tests it where that image drew it; the placement's cache state per view (\`viewBits\`: bits
  *  0..15 cached as dynamic, 16..31 turned this frame), and the ball of the whole object the cluster
  *  belongs to, a centre from the world sphere's and a radius (\`inst\`): what a map judges whether
- *  the object stays out of the coarse pages by. */
-struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,a0:vec3f,corners:u32,a1:vec3f,flags:u32,a2:vec3f,farDepth:f32,prevShift:vec3f,edge:f32,own:vec4f,parent:vec4f,inst:vec4f,errors:vec2f,offsetDisableSq:f32,viewBits:u32,}
+ *  the object stays out of the coarse pages by. Its half axes hold the reach of the placement's
+ *  offset (\`casterSphere\`); \`axisFit\` is the factor each keeps where a map does not grow the bounds by
+ *  it (\`vsmOffsetGrows\`), one for a placement with none. */
+struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,a0:vec3f,corners:u32,a1:vec3f,flags:u32,a2:vec3f,farDepth:f32,prevShift:vec3f,edge:f32,own:vec4f,parent:vec4f,inst:vec4f,errors:vec2f,offsetDisableSq:f32,viewBits:u32,axisFit:vec3f,}
 const VSM_RENDER_CAND_DYNAMIC:u32=1u;
 const VSM_RENDER_CAND_DEFORMING:u32=2u;
 /** Bit 2: the row's triangles face the light clockwise in world space — a mirroring placement

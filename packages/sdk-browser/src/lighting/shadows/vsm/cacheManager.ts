@@ -159,9 +159,11 @@ export class VsmCacheManager {
     for (const entry of this.entries.values()) entry.seenThisFrame = false
   }
 
-  /** Invalidates: drops the previous frame's buffers (all pages become uncached). */
+  /** Invalidates: drops the previous frame's buffers and has every light drawn uncached again
+   *  (all pages become uncached); the entries and their ids stand. */
   invalidate() {
     this.prevFrame = null
+    for (const entry of this.entries.values()) entry.invalidate()
   }
 
   /** Processes the removed lights: entries of removed lights go (their ids may be reused). */

@@ -38,6 +38,9 @@ export function createMobilityState() {
     /** The square of the distance past which each placement's object stops evaluating its offset,
      *  0 for never (`writeRootWords`), what the GPU reads after the words. */
     disable: new Float32Array(0),
+    /** The reach of each placement's deformation (`ClusterRoot.deformReach`), the part of its mark's
+     *  reach the offsets do not add: what the GPU reads after the distances (`writeRootWords`). */
+    reach: new Float32Array(0),
     /** How many placements' words carry `MOBILITY_WORLD_SPACE`: whether a sun takes a first-person clipmap. */
     worldSpace: 0,
     wholeWords: true,
@@ -143,6 +146,7 @@ function resizePlacements(
   s.words = new Uint32Array(Math.max(1, placements))
   s.worldSpace = 0
   s.disable = new Float32Array(Math.max(1, placements))
+  s.reach = new Float32Array(Math.max(1, placements))
   s.wholeWords = true
   // Placements the last resize added and no write has weighed yet stay arrivals.
   s.arrived = Math.min(s.arrived, kept)

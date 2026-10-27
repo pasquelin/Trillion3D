@@ -48,7 +48,16 @@ test('a map’s view hands the clusters small in its pixels to the software rast
   const software = (
     c: object,
     { edge = 32, cull = inside, tessellated = false }: Record<string, unknown> = {},
-  ) => run(edge as number)(c, [0, 0, -10], perspective, perspective, 200, 0.1, 1, cull, tessellated)
+  ) =>
+    run(edge as number)(
+      c,
+      [0, 0, -10],
+      perspective,
+      perspective,
+      { focal: 200, near: 0.1, perspective: true },
+      cull,
+      tessellated,
+    )
   assert.equal(software(cand(1)), true, '23.6 pixels: the software raster')
   assert.equal(software(cand(1), { edge: 20 }), false, 'past a 20-pixel edge: the hardware')
   assert.equal(software(cand(1, C.VSM_RENDER_CAND_MOVING)), false, 'moving: its whole sphere')

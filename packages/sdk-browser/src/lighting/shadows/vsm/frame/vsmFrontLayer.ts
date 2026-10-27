@@ -5,7 +5,7 @@ import { frontStamp } from '../../../reflections/frontLayer.ts'
 import { vsmMapSettings } from './vsmFarShadow.ts'
 import { marksSunPages, tracesTranslucent } from './vsmGates.ts'
 import { matrixAtRenderOrigin } from '../../../../../../math/src/projection/renderOrigin.ts'
-import { marksFromPixels, type VsmMarkingFront } from '../markingPass.ts'
+import { viewMarking, type VsmMarkingFront } from '../markingPass.ts'
 import { waterDepthPrepassWanted } from '../../../../blend/water/waterTargets.ts'
 
 /** The image the marking last ran for: its number (`WebgpuRun.frame`) and the size it drew at. */
@@ -33,9 +33,9 @@ function historyCamera(rt: WebgpuPagesRuntime, image: number) {
   return before && rt.gpu.reflection?.front.drawn === frontStamp(image) ? before : undefined
 }
 
-/** Whether the marking of this image marks from the pixels (`marksFromPixels`): the one rule the
+/** What the marking of this image marks past the coarse pages (`viewMarking`): the one rule the
  *  pipelines made, the froxels' and the water's depth follow. */
-export const marksPixels = (rt: WebgpuPagesRuntime) => marksFromPixels(vsmMapSettings(rt).shadows)
+export const viewMarkingOf = (rt: WebgpuPagesRuntime) => viewMarking(vsmMapSettings(rt).shadows)
 
 /**
  * Whether the scene's single-layer water is to have its depth drawn before a marking that marks from
@@ -44,7 +44,7 @@ export const marksPixels = (rt: WebgpuPagesRuntime) => marksFromPixels(vsmMapSet
  * pipelines are made for, whether or not this image marks a sun's pages.
  */
 export const marksWaterSurface = (rt: WebgpuPagesRuntime) =>
-  marksPixels(rt) && waterDepthPrepassWanted(rt)
+  viewMarkingOf(rt) === 'pixels' && waterDepthPrepassWanted(rt)
 
 /** Whether the water's depth is to be drawn before this image's marking: a sun's pages are marked
  *  (`marksSunPages`) at the water's surface (`marksWaterSurface`). */
@@ -60,7 +60,7 @@ export const drawsWaterBeforeMarking = (rt: WebgpuPagesRuntime) =>
  */
 export const drawsFrontBeforeMarking = (rt: WebgpuPagesRuntime) =>
   marksSunPages(rt) &&
-  marksPixels(rt) &&
+  viewMarkingOf(rt) === 'pixels' &&
   tracesTranslucent(rt) &&
   !historyCamera(rt, rt.lights.vsm?.frameScratch?.frontSeen.image ?? 0)
 

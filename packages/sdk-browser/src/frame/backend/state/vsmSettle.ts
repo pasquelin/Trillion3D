@@ -55,11 +55,21 @@ export function noteVsmFrame(
   for (const light of plan.lights)
     if (light.entry.isUncached || light.entry.isInvalidated()) cause = true
   if (cause) settle.causeFrame = frame
-  // A frame with no map draws nothing and reads no count: it is its own answer.
-  if (plan.overflow || plan.projectionCount === 0) {
-    settle.landedFrame = frame
-    settle.landedRendered = 0
-  }
+  if (plan.overflow || plan.projectionCount === 0) noteNoMapFrame(settle, frame)
+}
+
+/** Frame `frame` shadows no light and plans nothing (`shadowQuality` 0 with the set kept): a
+ *  frame with no map, whose answer the plan's `noteVsmFrame` gives for a plan with none. */
+export function noteVsmIdleFrame(settle: VsmSettle, frame: number) {
+  settle.frame = frame
+  noteNoMapFrame(settle, frame)
+}
+
+/** A frame with no map draws nothing and reads no count: it is its own answer. A copy of an older
+ *  frame still in flight lands with an older stamp, which `landVsmStats` ignores. */
+function noteNoMapFrame(settle: VsmSettle, frame: number) {
+  settle.landedFrame = frame
+  settle.landedRendered = 0
 }
 
 /** The count copy `staging` of frame `frame` was recorded. */

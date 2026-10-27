@@ -70,13 +70,14 @@ function writeParams(
 ) {
   const { slots, paramsU32: u } = ctx,
     cacheValid = res.prevFrameKept,
-    { lruAllocation, fullClears } = frame.options
+    { lruAllocation, fullClears, skipDynamicInvalidation } = frame.options
   for (let s = first; s < end; s++) {
     const b = s * slots.strideWords
     u[b + 0] = frame.nextMapCount ?? 0
     u[b + 1] = cacheValid ? 1 : 0
     u[b + 2] = lruAllocation ? 1 : 0
     u[b + 3] = fullClears ? 1 : 0
+    u[b + 4] = skipDynamicInvalidation ? 1 : 0
   }
   // What changed of the slots' structs, in one write: never the padding, never more writes than
   // the whole slots sent.

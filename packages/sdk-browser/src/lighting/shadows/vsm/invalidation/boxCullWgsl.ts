@@ -1,10 +1,40 @@
 import { VSM_PAGE_MARKS_GATHER_WGSL } from '../pageGatherWgsl.ts'
-import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../../../math/src/wgsl/decl.ts'
 import { FLOAT32_MAX } from '../../../../../../math/src/wgsl/constants.ts'
 import { perspectiveDivide } from '../../../../../../math/src/wgsl/projection.ts'
 import { floorLog2 } from '../../../../../../math/src/wgsl/integer.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import { VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from '../pageTableWgsl.ts'
+/** Whether a map allows an offset that `applies` (the offset's own conditions: a placement's may
+ *  invalidate its shadows; a surface wears one its placement evaluates): it is evaluated `always`,
+ *  whatever the distance says, or the map's level (`wpoThreshold`) is not past the square of the
+ *  distance the object stops at (`disableSq`, 0 for never). The map then grows the bounds of the
+ *  placement by the offset's reach and caches the placement as dynamic there: the cull's
+ *  (`vsmRenderCullView`), the shadow views' descent's and the invalidation's
+ *  (`vsmOffsetAllowed`). */
+export const VSM_OFFSET_GROWS_WGSL = wgslFn(
+  'vsmOffsetGrows',
+  [],
+  `fn vsmOffsetGrows(applies:bool,always:bool,disableSq:f32,wpoThreshold:f32)->bool{
+ return applies&&(always||disableSq<=0.0||wpoThreshold<=disableSq);
+}`,
+)
+
+/** A map's lens at mip `mip`: the pixels a unit spans at depth one (an orthographic view's a
+ *  unit), its near plane (none for an orthographic view) and whether it is a perspective view — the
+ *  `lens` of `vsmRenderViewPixels`. The cull's, the shadow views'
+ *  descent's and the patches' (`../tessellation/shadowViewWgsl.ts`). */
+export const VSM_VIEW_LENS_WGSL = wgslBlock(
+  'VSM_VIEW_LENS_WGSL',
+  [VSM_CONSTANTS_WGSL],
+  `struct VsmViewLens{focal:f32,near:f32,perspective:bool,}
+fn vsmViewLens(viewToClip:mat4x4f,mip:u32)->VsmViewLens{
+ let isOrtho=viewToClip[3][3]>=1.0;
+ return VsmViewLens(0.5*abs(viewToClip[1][1])*f32(VSM_LEVEL0_TEXELS>>mip),select(viewToClip[3][2]/(1.0-viewToClip[2][2]),0.0,isOrtho),!isOrtho);
+}
+`,
+)
+
 /**
  * The frustum cull of a box given in clip space, the pixels it covers and the mip level covering a
  * rect, which read no page table nor mark: the part of `VSM_BOX_CULL_WGSL` that the patches of a

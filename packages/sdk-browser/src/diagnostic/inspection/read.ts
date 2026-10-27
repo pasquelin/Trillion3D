@@ -113,7 +113,8 @@ async function readInspection(rt: WebgpuPagesRuntime): Promise<FrameInspection |
     camera = inspectedCamera(cam),
     cutCamera = run.cullView ? inspectedCamera(run.cullView.camera) : camera
   const clusters = snapshotClusters(rt)
-  const vsm = lights.vsm,
+  // A set whose last frame planned no map (`stats.maps`) holds none to show, as no set does.
+  const vsm = lights.vsm?.stats.maps ? lights.vsm : undefined,
     maps = vsm
       ? snapshotShadowMaps(vsm.state.cache.entries.values(), (id) => lights.store.light(id)?.kind)
       : []

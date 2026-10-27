@@ -25,11 +25,7 @@ test('a placement’s far-shadow test bits reach its word and are cleared when i
   const mobility = createShadowMobility()
   mobility.ensure(1, () => new Float64Array(16))
   let said = MOBILITY_FAR_TESTED
-  const write = () =>
-    mobility.writeRoots(
-      () => {},
-      () => said,
-    )
+  const write = () => mobility.writeRoots(() => {}, { castFlags: () => said })
   write()
   assert.deepEqual([...mobility.words], [MOBILITY_FAR_TESTED])
   for (said of [MOBILITY_FAR_SKIPPED, 0]) {
@@ -45,10 +41,9 @@ test('a placement that casts far shadows has the far bit, written again when tou
   let far = new Set([1, 3])
   const pushed: number[][] = []
   const write = () =>
-    mobility.writeRoots(
-      (first, count) => pushed.push([first, count]),
-      (rank) => (far.has(rank) ? MOBILITY_FAR_SHADOW : 0),
-    )
+    mobility.writeRoots((first, count) => pushed.push([first, count]), {
+      castFlags: (rank) => (far.has(rank) ? MOBILITY_FAR_SHADOW : 0),
+    })
   write()
   assert.deepEqual([...mobility.words], [0, MOBILITY_FAR_SHADOW, 0, MOBILITY_FAR_SHADOW])
   far = new Set()
@@ -83,17 +78,11 @@ test('a moving placement stays moving across a grow of the roots', () => {
   const mobility = createShadowMobility()
   mobility.ensure(2, () => new Float64Array(16))
   mobility.move(1, new Float64Array(16).fill(1))
-  mobility.writeRoots(
-    () => {},
-    () => 0,
-  )
+  mobility.writeRoots(() => {}, { castFlags: () => 0 })
   mobility.ensure(4, () => new Float64Array(16))
   assert.equal(mobility.moves(1), true)
   const pushed: Array<[number, number]> = []
-  mobility.writeRoots(
-    (first, count) => pushed.push([first, count]),
-    () => 0,
-  )
+  mobility.writeRoots((first, count) => pushed.push([first, count]), { castFlags: () => 0 })
   assert.deepEqual(pushed, [[0, 4]], 'the whole grown set')
   assert.deepEqual([...mobility.words], [0, MOBILITY_MOVING, 0, 0])
 })
@@ -114,10 +103,7 @@ test('a placement that pins its shadows has the pin, and never the moving bit', 
   mobility.ensure(2, () => new Float64Array(16))
   mobility.move(0, new Float64Array(16).fill(1))
   mobility.move(1, new Float64Array(16).fill(1))
-  mobility.writeRoots(
-    () => {},
-    (rank) => (rank === 0 ? pinned : 0),
-  )
+  mobility.writeRoots(() => {}, { castFlags: (rank) => (rank === 0 ? pinned : 0) })
   const pin = pinned & MOBILITY_CACHE_STATIC
   assert.deepEqual(
     [...mobility.words].map((word) => word & (MOBILITY_MOVING | pin)),
@@ -155,10 +141,7 @@ test('a deformed placement without the deforming bit is still often moving, and 
   assert.ok((left & MOBILITY_OFTEN_MOVING) !== 0)
   const mobility = createShadowMobility()
   mobility.ensure(1, () => new Float64Array(16))
-  mobility.writeRoots(
-    () => {},
-    () => left,
-  )
+  mobility.writeRoots(() => {}, { castFlags: () => left })
   assert.deepEqual([...mobility.words], [left | MOBILITY_MOVING])
 })
 
@@ -206,11 +189,7 @@ test('a new placement that is often moving starts moving, a new still one does n
     [3, MOBILITY_OFFSET_INVALIDATES],
     [4, MOBILITY_OFTEN_MOVING | MOBILITY_SHADOWLESS],
   ])
-  const write = () =>
-    mobility.writeRoots(
-      () => {},
-      (rank) => words.get(rank) ?? 0,
-    )
+  const write = () => mobility.writeRoots(() => {}, { castFlags: (rank) => words.get(rank) ?? 0 })
   const moving = (...ranks: number[]) => ranks.map((rank) => mobility.moves(rank))
   mobility.ensure(5, () => new Float64Array(16))
   write()

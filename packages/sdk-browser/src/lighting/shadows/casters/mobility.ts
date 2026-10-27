@@ -44,6 +44,9 @@ export function createShadowMobility() {
     get disable() {
       return s.disable
     },
+    get reach() {
+      return s.reach
+    },
     /** How many placements stand for a first-person object (`MOBILITY_WORLD_SPACE`), as the words
      *  last written hold them. */
     get worldSpace() {

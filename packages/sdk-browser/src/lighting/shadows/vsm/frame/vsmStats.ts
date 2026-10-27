@@ -29,8 +29,9 @@ export interface VsmEngineStats {
   renderedPages: number
 }
 
-/** A set's diagnostics before its first frame. */
-export const createVsmEngineStats = (): VsmEngineStats => ({
+/** The diagnostics of a set that counted nothing: before its first frame, or after a frame that
+ *  shadowed no light. */
+const NO_STATS: Readonly<VsmEngineStats> = Object.freeze({
   lights: 0,
   maps: 0,
   tableBlocks: 0,
@@ -44,6 +45,12 @@ export const createVsmEngineStats = (): VsmEngineStats => ({
   cachedPages: 0,
   renderedPages: 0,
 })
+
+/** A set's diagnostics before its first frame. */
+export const createVsmEngineStats = (): VsmEngineStats => ({ ...NO_STATS })
+
+/** `stats` zeroed in place: the object the panel and the inspection hold stays the same. */
+export const resetVsmEngineStats = (stats: VsmEngineStats) => void Object.assign(stats, NO_STATS)
 
 /** Bytes freeing `vsm` gives back (`destroyEngineVsm`): its set, mask, projection views and blue
  *  noise and raster lists, each as the device ledger counted it. */

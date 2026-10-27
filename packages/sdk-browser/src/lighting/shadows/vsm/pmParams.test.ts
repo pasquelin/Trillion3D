@@ -36,7 +36,7 @@ const kernelTexts = () =>
 function assertParamsStruct(text: string) {
   const { size, offsets } = wgslStructLayout(text, 'VsmPmParams')
   assert.equal(size, VSM_PM_PARAMS_BYTES)
-  assert.deepEqual(Object.values(offsets), [0, 4, 8, 12])
+  assert.deepEqual(Object.values(offsets), [0, 4, 8, 12, 16])
 }
 
 /** The words each slot's write holds beyond word `words`, from the writes to the parameter buffer
@@ -53,8 +53,8 @@ function assertWithinWords(
     })
 }
 
-test('VSM_PM_PARAMS_BYTES is the size of the struct the kernels read: 16', () => {
-  assert.equal(VSM_PM_PARAMS_BYTES, 16)
+test('VSM_PM_PARAMS_BYTES is the size of the struct the kernels read: 20', () => {
+  assert.equal(VSM_PM_PARAMS_BYTES, 20)
   const texts = kernelTexts()
   assert.ok(texts.length > 0)
   for (const text of texts) assertParamsStruct(text)
@@ -102,7 +102,7 @@ async function encodeAll(alignment = 256) {
         mapCount: 5,
         nextMapCount: 7,
         perPageBins,
-        options: { stats, lruAllocation: true, fullClears: false },
+        options: { stats, lruAllocation: true, fullClears: false, skipDynamicInvalidation: false },
       }
       for (let again = 0; again < 2; again++) {
         counted(() => encodeVsmPageCarry(pass, res, frame))
@@ -132,7 +132,7 @@ async function encodeAll(alignment = 256) {
 /** The parameter buffer's writes over the three encoders, the cache valid and not. */
 const parameterWrites = async () => (await encodeAll()).writes
 
-test('the writes to the parameter slots stay within the struct’s 4 words', async () => {
+test('the writes to the parameter slots stay within the struct’s 5 words', async () => {
   const writes = await parameterWrites()
   assert.ok(writes.length >= 8, 'every slot is written, cache valid and not')
   assert.ok(
@@ -168,22 +168,28 @@ test('at 256 bytes a call writes its parameter slot once, as the whole slot went
 })
 
 test('the guard fails when a word beyond the struct is written', async () => {
-  // Each slot's 4 words — a write sends only those that changed —, spilled 2 words past them.
+  // Each slot's 5 words — a write sends only those that changed —, spilled 1 word past them.
   const spilled = (await parameterWrites()).map(({ offset }) => {
     const slot = offset & ~255
-    return { offset: slot, words: [7, 1, 1, 0, 0, 1] }
+    return { offset: slot, words: [7, 1, 1, 0, 0, 0, 1] }
   })
-  assert.throws(() => assertWithinWords(spilled, 4), /word 5 of a slot holds 1/)
+  assert.throws(() => assertWithinWords(spilled, 5), /word 6 of a slot holds 1/)
 })
 
-test('the slots carry the page allocation and the clears the frame asks', () => {
-  const slotOf = (options: { lruAllocation: boolean; fullClears: boolean }) => {
+test('the slots carry the page allocation, the clears and the invalidations the frame asks', () => {
+  const slotOf = (options: {
+    lruAllocation: boolean
+    fullClears: boolean
+    skipDynamicInvalidation: boolean
+  }) => {
     const fake = fakeDevice({ limits: { maxStorageBuffersPerShaderStage: 10 } })
     const res = createVsmResources(fake.device, { ...vsmOptions, poolPages: 256 })
     const steps = new ComputeRun().begin(fake.device.createCommandEncoder())
     encodeVsmPageMapping(steps, res, { device: fake.device, mapCount: 5, options })
     return Array.from(res.pageManagement!.paramsU32.subarray(0, VSM_PM_PARAMS_BYTES / 4))
   }
-  assert.deepEqual(slotOf({ lruAllocation: true, fullClears: false }).slice(2), [1, 0])
-  assert.deepEqual(slotOf({ lruAllocation: false, fullClears: true }).slice(2), [0, 1])
+  const on = { lruAllocation: true, fullClears: false, skipDynamicInvalidation: false }
+  assert.deepEqual(slotOf(on).slice(2), [1, 0, 0])
+  assert.deepEqual(slotOf({ ...on, lruAllocation: false, fullClears: true }).slice(2), [0, 1, 0])
+  assert.deepEqual(slotOf({ ...on, skipDynamicInvalidation: true }).slice(2), [1, 0, 1])
 })

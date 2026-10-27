@@ -61,6 +61,8 @@ import { worldAtEyeWgsl } from '../../../../geometry/dag/shader/worldPoseWgsl.ts
 import { worldTableWgsl } from '../../../../geometry/dag/worlds/worldTable.ts'
 import { VISIBLE_LAYOUT_WGSL } from '../../../../geometry/dag/visible/layout.ts'
 import { casterReachWgsl, markReachWgsl } from '../../../../deformation/halfFloat.ts'
+import { DAG_AXIS_SCALES_WGSL } from '../../../../geometry/dag/shader/primitiveWgsl.ts'
+import { ROOT_WORDS_WGSL } from '../../casters/rootWordsWgsl.ts'
 import { ROOT_BOX_DOUBLES } from '../../../../placement/roots/rootWorldSends.ts'
 import { TESSELLATED_FLAGS_WGSL } from '../../../../visibility/tessellation/rowWgsl.ts'
 import { VSM_RENDER_PARAMS_WGSL } from './renderParamsWgsl.ts'
@@ -112,11 +114,9 @@ export const VSM_CASTER_SPHERE_WGSL = wgslBlock(
   `const SPHERE_GROWTH:f32=${wgslF32(SPHERE_GROWTH)};
 const SPHERE_MARGIN:f32=${wgslF32(SPHERE_MARGIN)};
 const CENTRE_ERROR:f32=${wgslF32(CENTRE_ERROR)};
-/** The world sphere and the world box of a cluster of box \`lo\`..\`hi\` under the world \`w\` places it
- *  by: the centre a single-precision product of the linear part beside the exact translation, split
- *  into a high and a low single, the radius the farthest corner, grown past every rounding. Centre
- *  then radius in \`high\`, the centre's low part in \`low\`; the box about that centre in \`axes\`, its
- *  three half axes.
+/** The half axes of the box of half extents \`half\` about \`centre\`, grown by \`reach\`, under the
+ *  linear part \`l\` of a placement, in \`axes\`, and the radius of its sphere, the farthest corner,
+ *  grown past every rounding.
  *
  *  A half axis is a column of the linear part times the local half extent (the reach included): a
  *  single-precision product a component, off by 2^-24 of itself at most, so grown by
@@ -125,19 +125,8 @@ const CENTRE_ERROR:f32=${wgslF32(CENTRE_ERROR)};
  *  rounding). Its three axes, each grown along itself, hold the ball of that margin about the centre
  *  where the columns are orthogonal (a rotation and a scale on each axis); a placement with a shear
  *  has the constants' slack over the roundings (8 and 16) to cover what the skew takes. */
-fn casterSphere(w:u32,lo:vec3f,hi:vec3f,reach:f32,high:ptr<function,vec4f>,low:ptr<function,vec3f>,axes:ptr<function,array<vec3f,3>>){
- let centre=(lo+hi)*0.5;
- let extent=(hi-lo)*0.5+vec3f(casterReach(reach));
- let l=worldsLinear(w);
- let lc=l*centre;
- let o0=worldsOrigin(w,0u);let o1=worldsOrigin(w,1u);
- var origin=array<vec2u,3>(o0.xy,o0.zw,o1.xy);
- var hiPart=vec3f(0.0);var loPart=vec3f(0.0);
- for(var a=0u;a<3u;a++){
-  let split=splitDouble(dAdd(fromF32(bitcast<u32>(lc[a])),origin[a]));
-  hiPart[a]=bitcast<f32>(split.x);
-  loPart[a]=bitcast<f32>(split.y);
- }
+fn casterAxes(l:mat3x3f,centre:vec3f,half:vec3f,reach:f32,axes:ptr<function,array<vec3f,3>>)->f32{
+ let extent=half+vec3f(casterReach(reach));
  var m:array<f32,9>;
  var size=0.0;var sums=0.0;
  for(var i=0u;i<3u;i++){
@@ -162,11 +151,31 @@ fn casterSphere(w:u32,lo:vec3f,hi:vec3f,reach:f32,high:ptr<function,vec4f>,low:p
   r2=max(r2,norm);
  }
  let margin=sqrt(sums)*SPHERE_MARGIN+size*CENTRE_ERROR;
- *high=vec4f(hiPart,sqrt(r2)*SPHERE_GROWTH+margin);
- *low=loPart;
  for(var j=0u;j<3u;j++){
   (*axes)[j]=vec3f(m[j],m[3u+j],m[6u+j])*SPHERE_GROWTH+unitOrZero(l[j])*margin;
  }
+ return sqrt(r2)*SPHERE_GROWTH+margin;
+}
+/** The world sphere and the world box of a cluster of box \`lo\`..\`hi\` under the world \`w\` places it
+ *  by: the centre a single-precision product of the linear part beside the exact translation, split
+ *  into a high and a low single, the radius the farthest corner (\`casterAxes\`). Centre then radius
+ *  in \`high\`, the centre's low part in \`low\`; the box about that centre in \`axes\`, its three half
+ *  axes. */
+fn casterSphere(w:u32,lo:vec3f,hi:vec3f,reach:f32,high:ptr<function,vec4f>,low:ptr<function,vec3f>,axes:ptr<function,array<vec3f,3>>){
+ let centre=(lo+hi)*0.5;
+ let l=worldsLinear(w);
+ let lc=l*centre;
+ let o0=worldsOrigin(w,0u);let o1=worldsOrigin(w,1u);
+ var origin=array<vec2u,3>(o0.xy,o0.zw,o1.xy);
+ var hiPart=vec3f(0.0);var loPart=vec3f(0.0);
+ for(var a=0u;a<3u;a++){
+  let split=splitDouble(dAdd(fromF32(bitcast<u32>(lc[a])),origin[a]));
+  hiPart[a]=bitcast<f32>(split.x);
+  loPart[a]=bitcast<f32>(split.y);
+ }
+ let radius=casterAxes(l,centre,(hi-lo)*0.5,reach,axes);
+ *high=vec4f(hiPart,radius);
+ *low=loPart;
 }
 `,
 )
@@ -279,6 +288,8 @@ const VSM_RENDER_CASTERS_WGSL = wgslBlock(
     splitDouble,
     VSM_CASTER_SPHERE_WGSL,
     VSM_PREV_SHIFT_WGSL,
+    DAG_AXIS_SCALES_WGSL,
+    ROOT_WORDS_WGSL,
   ],
   `
 ${CLUSTER_INFO.wgsl}
@@ -307,6 +318,12 @@ fn casterBoxMax(r:u32)->vec3f{return vec3f(casterCold(r,${COLD_MAX}u),casterCold
 fn casterHot(r:u32)->Cluster{
  let a=clustersCluster(r,0u);let b=clustersCluster(r,1u);let c=clustersCluster(r,2u);
  return Cluster(bitcast<vec4f>(a),bitcast<vec4f>(b),bitcast<f32>(c.x),bitcast<f32>(c.y),c.z);
+}
+/** A cluster's two errors in world units under a placement whose smallest axis scale is \`scale\`, as
+ *  the camera's cut scales the errors it compares (\`placedScale\`): a root's parent error, negative,
+ *  stays negative whatever the scale, even none. */
+fn vsmRenderErrors(lodError:f32,parentError:f32,scale:f32)->vec2f{
+ return vec2f(lodError*scale,select(parentError*scale,parentError,parentError<0.0));
 }
 /** A caster's candidate flags, from its placement's word: cached as dynamic while its placement
  *  moves or deforms, and deforming — its pages invalidated as it draws them — while it deforms. */
@@ -386,10 +403,8 @@ fn vsmRenderEdge(n:u32,flags:u32,stretch:f32)->f32{
  *  in world units, their centres from the sphere's (the placement's linear part on their local
  *  offsets from the box's centre: exact beside the split translation). */
 fn vsmRenderCaster(i:u32,w:u32){
- var word=0u;var viewBits=0u;var disableSq=0.0;
- let rootCount=arrayLength(&rootWords)/3u;
- if(w<rootCount){word=rootWords[w];viewBits=rootWords[rootCount+w];disableSq=bitcast<f32>(rootWords[2u*rootCount+w]);}
- if((word&${MOBILITY_SHADOWLESS}u)!=0u){return;}
+ let roots=vsmRootWords(w);
+ if((roots.word&${MOBILITY_SHADOWLESS}u)!=0u){return;}
  let r=i+framesWord(w,${RECORD_SHIFT_WORD}u);
  let cluster=casterHot(r);
  if((cluster.flags&(CLUSTER_NEVER|CLUSTER_TRANSPARENT))!=0u){return;}
@@ -399,7 +414,7 @@ fn vsmRenderCaster(i:u32,w:u32){
  if(record.indexCount==0u||(record.flags&${FLAG_SPRITE}u)!=0u){return;}
  // An object that stands for a first-person one, or casts while hidden, is hidden by the view's filter and
  // casts all the same.
- if(!worldDraws(i,w)||(vsmRenderFilteredOut(w)&&(word&${MOBILITY_WORLD_SPACE | MOBILITY_HIDDEN_SHADOW}u)==0u)){return;}
+ if(!worldDraws(i,w)||(vsmRenderFilteredOut(w)&&(roots.word&${MOBILITY_WORLD_SPACE | MOBILITY_HIDDEN_SHADOW}u)==0u)){return;}
  let reach=casterReach(markReach(markOf(w)));
  var lo=casterBoxMin(r);var hi=casterBoxMax(r);
  if(casterCold(r,${COLD_HAS_BOX}u)==0.0){
@@ -426,15 +441,15 @@ fn vsmRenderCaster(i:u32,w:u32){
  // A surface that wears an offset: its placement evaluates it, or the surface does whatever the placement says.
  let wears=record.wpo!=0u;
  let offsetAlways=wears&&(record.wpo&WPO_ROW_ALWAYS)!=0u;
- let offsetEvaluated=wears&&((word&${MOBILITY_OFFSET_SILENT}u)==0u||offsetAlways);
+ let offsetEvaluated=wears&&((roots.word&${MOBILITY_OFFSET_SILENT}u)==0u||offsetAlways);
  // The placement's own offset facts, which decide the layer of all its clusters alike.
- let placementOffset=(word&${MOBILITY_OFFSET_INVALIDATES}u)!=0u;
+ let placementOffset=(roots.word&${MOBILITY_OFFSET_INVALIDATES}u)!=0u;
  let offsetFlags=select(0u,VSM_RENDER_CAND_OFFSET,offsetEvaluated)|select(0u,VSM_RENDER_CAND_OFFSET_ALWAYS,offsetAlways)
   |select(0u,VSM_RENDER_CAND_PLACEMENT_OFFSET,placementOffset)
-  |select(0u,VSM_RENDER_CAND_PLACEMENT_ALWAYS,(word&${MOBILITY_OFFSET_ALWAYS}u)!=0u)
-  |select(0u,VSM_RENDER_CAND_OFFSET_KEEPS,(word&${MOBILITY_OFFSET_KEEPS_CACHE}u)!=0u)
-  |select(0u,VSM_RENDER_CAND_WORLD_SPACE,(word&${MOBILITY_WORLD_SPACE}u)!=0u);
- let flags=vsmRenderCandidateFlags(word)|select(0u,VSM_RENDER_CAND_FLIPPED,flipped)|vsmRenderFarFlags(word,w)|extra|offsetFlags;
+  |select(0u,VSM_RENDER_CAND_PLACEMENT_ALWAYS,(roots.word&${MOBILITY_OFFSET_ALWAYS}u)!=0u)
+  |select(0u,VSM_RENDER_CAND_OFFSET_KEEPS,(roots.word&${MOBILITY_OFFSET_KEEPS_CACHE}u)!=0u)
+  |select(0u,VSM_RENDER_CAND_WORLD_SPACE,(roots.word&${MOBILITY_WORLD_SPACE}u)!=0u);
+ let flags=vsmRenderCandidateFlags(roots.word)|select(0u,VSM_RENDER_CAND_FLIPPED,flipped)|vsmRenderFarFlags(roots.word,w)|extra|offsetFlags;
  // Out of every map view's far-shadow distance: no view takes it, no cull need read it.
  let farDepth=vsmRenderFarDepth(object);
  if(vsmFarShadowSkipped(flags,farDepth,params.farDrop)){return;}
@@ -445,13 +460,25 @@ fn vsmRenderCaster(i:u32,w:u32){
  if(slot>=params.casterCap){return;}
  let l=worldsLinear(w);
  let centre=(lo+hi)*0.5;
+ // A map that does not grow the bounds by the placement's offset (\`vsmOffsetGrows\`) holds the deformation's reach alone:
+ // the factor each half axis keeps there, from the axes that part makes.
+ var axisFit=vec3f(1.0);
+ let bare=vsmBareReach(roots,reach);
+ if(bare<reach){
+  var bareAxes:array<vec3f,3>;
+  casterAxes(l,centre,(hi-lo)*0.5,bare,&bareAxes);
+  for(var j=0u;j<3u;j++){
+   let full=length(axes[j]);
+   axisFit[j]=select(1.0,min(length(bareAxes[j])/full,1.0),full>0.0);
+  }
+ }
  // The instance's ball from the cluster's centre: what each map judges the instance by whole, the same for every cluster of it.
  let ball=vsmRenderInstance(w,object);
  let inst=vec4f(ball.xyz-(pose*vec4f(centre,1.0)).xyz,ball.w);
  let lod=vec4f(l*(own.xyz-centre),own.w*stretch);
  let parent=vec4f(l*(cluster.parentSphere.xyz-centre),cluster.parentSphere.w*stretch);
- let errors=vec2f(cluster.lodError,cluster.parentError)*stretch;
- candidates[slot]=VsmRenderCandidate(high,low,slot,axes[0],corners,axes[1],flags,axes[2],farDepth,vsmRenderPrevShift(w,centre,high.xyz,low),vsmRenderEdge(n,record.flags,stretch),lod,parent,inst,errors,select(0.0,disableSq,offsetEvaluated||placementOffset),viewBits);
+ let errors=vsmRenderErrors(cluster.lodError,cluster.parentError,minAxisScale(l));
+ candidates[slot]=VsmRenderCandidate(high,low,slot,axes[0],corners,axes[1],flags,axes[2],farDepth,vsmRenderPrevShift(w,centre,high.xyz,low),vsmRenderEdge(n,record.flags,stretch),lod,parent,inst,errors,select(0.0,roots.disableSq,offsetEvaluated||placementOffset),roots.viewBits,axisFit);
  let at=VISIBLE_HEADER_WORDS+VISIBLE_RECORD_WORDS*slot;
  casters[at]=i;
  casters[at+1u]=w;

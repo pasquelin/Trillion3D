@@ -205,6 +205,7 @@ export function encodeVsmFrame(
       stats: vsm.countersOn,
       lruAllocation: state.maps.shadows.shadowCacheAllocateViaLru,
       fullClears: state.maps.shadows.shadowForceFullPageClears,
+      skipDynamicInvalidation: state.maps.shadows.shadowCacheDebugSkipDynamicPageInvalidation,
     },
   }
   // What the passes of the run read cleared or copied before it, none between them: the overflow

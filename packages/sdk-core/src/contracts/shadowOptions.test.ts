@@ -42,6 +42,7 @@ const SHADOW_MAP_DEFAULTS = {
   ...{
     shadowCullBackfacingPixels: true,
     shadowMarkPagesUseFroxels: false,
+    shadowMarkPixelPages: true,
     shadowPageMarkingPixelStrideX: 2,
     shadowMarkPixelPagesMipModeLocal: 0,
   },
@@ -51,6 +52,7 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowCache: true, shadowCacheAllocateViaLru: true },
   ...{ shadowCacheDeformableMeshesInvalidate: true, shadowForceInvalidateLocal: 0 },
   ...{ shadowForceFullPageClears: false, shadowUseReceiverMaskDirectional: true },
+  ...{ shadowCacheDebugSkipDynamicPageInvalidation: false, shadowDynamicDeallocationMode: 0 },
   shadowUseReceiverMaskLocal: false,
   shadowFirstPersonClipmap: true,
   shadowFirstPersonClipmapFirstLevel: 8,
@@ -193,6 +195,10 @@ test('the shadow maps’ settings refuse what they cannot take, in words', () =>
   refuses('shadowForceInvalidateLocal', 3, /from 0 to 2/)
   refuses('shadowForceInvalidateLocal', 0.5, /whole/)
   refuses('shadowForceFullPageClears', 1, /true or false/)
+  refuses('shadowCacheDebugSkipDynamicPageInvalidation', 1, /true or false/)
+  refuses('shadowDynamicDeallocationMode', 3, /from 0 to 2/)
+  refuses('shadowDynamicDeallocationMode', 0.5, /whole/)
+  refuses('shadowMarkPixelPages', 1, /true or false/)
   refuses('shadowUseReceiverMaskDirectional', 1, /true or false/)
   refuses('shadowUseReceiverMaskLocal', 1, /true or false/)
   refuses('shadowLightActiveFrameCount', 0, /at least 1/)

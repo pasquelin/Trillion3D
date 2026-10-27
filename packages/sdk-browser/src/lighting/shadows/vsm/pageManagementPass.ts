@@ -38,6 +38,8 @@ interface VsmPageManagementOptions {
   lruAllocation: boolean
   /** A page is cleared whole whatever it holds (`shadowForceFullPageClears`). */
   fullClears: boolean
+  /** Skips every invalidation a page carries (`shadowCacheDebugSkipDynamicPageInvalidation`). */
+  skipDynamicInvalidation: boolean
 }
 
 export interface VsmPageManagementFrame {

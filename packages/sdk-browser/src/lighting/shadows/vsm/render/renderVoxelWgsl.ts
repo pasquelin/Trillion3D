@@ -68,7 +68,7 @@ const voxelFragment = () => /* wgsl */ `
  if(!vsmRenderPoolTexel(in.window,in.position.xy,&texel)){discard;}
  let hit=voxelPixel(in.start,in.dir,in.cells);
  if(!hit.found){discard;}
- vsmRenderJoin(in.window,texel,voxelDepth(in.depth,hit.t));
+ vsmRenderJoin(in.window,texel,vsmRenderDepth(voxelDepth(in.depth,hit.t)));
 }`
 
 /**

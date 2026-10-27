@@ -23,6 +23,7 @@ import { releaseVsmInvalidation } from '../invalidation/castStale.ts'
 import type { VsmCastBoxes } from '../invalidation/castBoxes.ts'
 import type { CastDiffAsk } from '../../casters/castDiff.ts'
 import { releaseVsmPageManagement } from '../pageManagementPass.ts'
+import { keepVsmFrame } from '../pageManagementEncode.ts'
 import { releaseVsmOcclusion } from '../occlusion/occlusionPass.ts'
 import { createVsmFrameState, type VsmFrameState } from '../frameState.ts'
 import type { VsmFramePlan } from '../frameSetup.ts'
@@ -37,6 +38,7 @@ import { createReadbackRing, type ReadbackRing } from '../../../../gpu/core/read
 import {
   createVsmSettle,
   landVsmStats,
+  noteVsmIdleFrame,
   type VsmSettle,
 } from '../../../../frame/backend/state/vsmSettle.ts'
 import {
@@ -51,7 +53,7 @@ import type { VsmResourceOptions } from '../layout.ts'
 import type { VsmFrameScratch } from './vsmEncode.ts'
 import { destroyMask, type VsmMask } from './vsmMask.ts'
 import { sunMapsOf } from './vsmLightMaps.ts'
-import { createVsmEngineStats, type VsmEngineStats } from './vsmStats.ts'
+import { createVsmEngineStats, resetVsmEngineStats, type VsmEngineStats } from './vsmStats.ts'
 
 /** What the engine keeps of the virtual shadow maps between frames. */
 export interface EngineVsm {
@@ -206,6 +208,25 @@ export function destroyEngineVsm(vsm: EngineVsm) {
 export function releaseEngineVsm(lights: WebgpuPagesRuntime['lights']) {
   if (lights.vsm) destroyEngineVsm(lights.vsm)
   lights.vsm = undefined
+}
+
+/** The maps `vsm` holds are kept while no light reads a shadow, their cache dropped: the pages in
+ *  the pool are no longer known to match the casters (which change unseen), so the next frame that
+ *  shadows draws every light uncached, as a pool newly made is, and projects its mask again. The
+ *  plan, what it left pending and the frame's counts are forgotten: the set counts no light and no
+ *  map, as a frame of no map does, and the frame `frame` settles at once (`noteVsmIdleFrame`). Every
+ *  idle frame does it, and a repeat leaves the same state. */
+export function dropEngineVsmCache(vsm: EngineVsm, frame: number) {
+  vsm.state.cache.invalidate()
+  keepVsmFrame(vsm.res, { mapsGranted: false })
+  vsm.projectionHold.drop()
+  vsm.plan = undefined
+  vsm.renderedPlan = undefined
+  vsm.pendingBoxes = null
+  vsm.pendingDiff = null
+  vsm.pendingCastMaps = null
+  resetVsmEngineStats(vsm.stats)
+  noteVsmIdleFrame(vsm.settle, frame)
 }
 
 /** No light reads a shadow this frame. */

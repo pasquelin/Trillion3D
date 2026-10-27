@@ -50,6 +50,7 @@ import {
 } from '../mobilityBits.ts'
 import { CAST_BOXED, CAST_SEEN, CAST_STATE_WORDS } from './castChanges.ts'
 import { CAST_EMIT_WGSL } from './castChangesWgsl.ts'
+import { ROOT_SECTION, ROOT_WORDS_WGSL } from './rootWordsWgsl.ts'
 
 /** The share of a bound's magnitude a box is widened by: the single rounding of a double, and of the
  *  centre and extent a record is made of, with room to spare. */
@@ -180,10 +181,7 @@ fn worldDigest(r:u32)->vec2u{
  let at=r*CAST_STATE_WORDS;
  if(at+CAST_STATE_WORDS>arrayLength(&castState)){return;}
  let cur=instanceBox(r);
- var word=0u;
- var disableSq=0.0;
- let placements=arrayLength(&rootWords)/3u;
- if(r<placements){word=rootWords[r];disableSq=bitcast<f32>(rootWords[2u*placements+r]);}
+ let roots=vsmRootWords(r);
  let was=castState[at+7u];
  let seen=(was&CAST_SEEN)!=0u;
  let wasBoxed=(was&CAST_BOXED)!=0u;
@@ -193,30 +191,30 @@ fn worldDigest(r:u32)->vec2u{
  let worldMoved=seen&&any(digest!=vec2u(castState[at+8u],castState[at+9u]));
  // Remembered as it stands now, whatever follows.
  storeBox(at,cur);
- castState[at+3u]=word;
+ castState[at+3u]=roots.word;
  castState[at+7u]=CAST_SEEN|select(0u,CAST_BOXED,cur.has);
  castState[at+8u]=digest.x;castState[at+9u]=digest.y;
  if(diff.quiet!=0u){return;}
- let castsNow=cur.has&&(word&MOBILITY_SHADOWLESS)==0u;
+ let castsNow=cur.has&&(roots.word&MOBILITY_SHADOWLESS)==0u;
  let castsWas=seen&&wasBoxed&&(wasWord&MOBILITY_SHADOWLESS)==0u;
- let movingNow=(word&MOBILITY_MOVING)!=0u;
+ let movingNow=(roots.word&MOBILITY_MOVING)!=0u;
  let movingWas=(wasWord&MOBILITY_MOVING)!=0u;
  // The layer a box was and is cached in: the dynamic one for a placement that moves or deforms.
- let dynamicNow=cachedDynamic(word);
+ let dynamicNow=cachedDynamic(roots.word);
  let dynamicWas=cachedDynamic(wasWord);
  // A placement that left casts nothing from now on, and its pages hold it where it was.
- if(castsWas&&!castsNow){emitBox(wasBox,dynamicWas,ALL_VIEWS,wasWord,disableSq);return;}
+ if(castsWas&&!castsNow){emitBox(wasBox,dynamicWas,ALL_VIEWS,wasWord,roots.disableSq);return;}
  if(!castsNow){return;}
- if(!castsWas){emitBox(cur,dynamicNow,ALL_VIEWS,word,disableSq);return;}
- let pinned=(word&MOBILITY_CACHE_STATIC)!=0u;
+ if(!castsWas){emitBox(cur,dynamicNow,ALL_VIEWS,roots.word,roots.disableSq);return;}
+ let pinned=(roots.word&MOBILITY_CACHE_STATIC)!=0u;
  let moved=!pinned&&(worldMoved||!sameBox(cur,wasBox));
  if(moved){
-  emitBox(wasBox,dynamicWas,ALL_VIEWS,wasWord,disableSq);
-  emitBox(cur,dynamicNow,ALL_VIEWS,word,disableSq);
- }else if(movingNow!=movingWas||((word^wasWord)&MOBILITY_CAST_BITS)!=0u){
+  emitBox(wasBox,dynamicWas,ALL_VIEWS,wasWord,roots.disableSq);
+  emitBox(cur,dynamicNow,ALL_VIEWS,roots.word,roots.disableSq);
+ }else if(movingNow!=movingWas||((roots.word^wasWord)&MOBILITY_CAST_BITS)!=0u){
   // Where it stands: a cache state turned (it began to move, or settled and the static layer must
   // draw it), or its casting flags changed.
-  emitBox(cur,dynamicNow&&dynamicWas,ALL_VIEWS,word,disableSq);
+  emitBox(cur,dynamicNow&&dynamicWas,ALL_VIEWS,roots.word,roots.disableSq);
  }
 }
 /** The instances' cache state per view, one thread a placement (the reference's per-view bit arrays,
@@ -230,13 +228,11 @@ fn worldDigest(r:u32)->vec2u{
  let r=flatIndex(id,n,WORKGROUP_THREADS);
  // The worlds are the diff's: named so that both entries bind the same group.
  let worlds=arrayLength(&rootWorlds);
- if(r>=diff.roots||worlds==0xffffffffu){return;}
- let base=arrayLength(&rootWords)/3u;
+ let base=vsmRootCount();
  let at=r*CAST_STATE_WORDS;
- if(at+CAST_STATE_WORDS>arrayLength(&castState)||base+r>=arrayLength(&rootWords)){return;}
- let word=rootWords[r];
- let disableSq=bitcast<f32>(rootWords[2u*base+r]);
- let deforming=(word&MOBILITY_DEFORMS)!=0u;
+ if(r>=min(diff.roots,base)||worlds==0xffffffffu||at+CAST_STATE_WORDS>arrayLength(&castState)){return;}
+ let roots=vsmRootWordsIn(r,base);
+ let deforming=(roots.word&MOBILITY_DEFORMS)!=0u;
  let previous=castState[at+10u];
  var dynamic=0u;
  var changed=0u;
@@ -255,11 +251,18 @@ fn worldDigest(r:u32)->vec2u{
  }
  let allViews=select(0xffffu,(1u<<diff.views)-1u,diff.views<16u);
  castState[at+10u]=dynamic|(allViews<<16u);
- rootWords[base+r]=dynamic|(changed<<16u);
- if(diff.quiet!=0u||invalidate==0u||(word&MOBILITY_SHADOWLESS)!=0u){return;}
+ rootWords[${ROOT_SECTION.state}u*base+r]=dynamic|(changed<<16u);
+ if(diff.quiet!=0u||invalidate==0u||(roots.word&MOBILITY_SHADOWLESS)!=0u){return;}
  let cur=instanceBox(r);
- if(cur.has){emitBox(cur,true,invalidate,word,disableSq);}
+ if(cur.has){emitBox(cur,true,invalidate,roots.word,roots.disableSq);}
 }
 `,
-  [toF32, CAST_EMIT_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL, UNBOUNDED_EXTENT_WGSL],
+  [
+    toF32,
+    CAST_EMIT_WGSL,
+    FLAT_INDEX_WGSL,
+    WORKGROUP_THREADS_WGSL,
+    UNBOUNDED_EXTENT_WGSL,
+    ROOT_WORDS_WGSL,
+  ],
 )

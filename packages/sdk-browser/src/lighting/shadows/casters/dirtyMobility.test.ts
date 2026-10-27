@@ -3,49 +3,14 @@
 // write holds.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { uploadRootWords } from './rootWords.ts'
-import { createShadowMobility } from './mobility.ts'
 import { MOBILITY_MOVING, MOBILITY_SHADOWLESS } from '../mobilityBits.ts'
-import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
-import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { replayWrites } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
+import { rootWordsTwin } from './rootWords.fixture.ts'
 
 const ROOTS = 1000,
   /** Pages each placement holds. */
   PAGES = 3
 
-/** Whether a write is of the words' section, the first (the state and the distances go after it). */
-const inWords = ({ offset }: { offset?: number }) => (offset ?? 0) < 2 * ROOTS * 4
-
-/** `ROOTS` placements of `PAGES` pages, and the bytes their words buffer holds. */
-function twin() {
-  const roots = Array.from({ length: ROOTS }, () => ({
-    world: { elements: new Float64Array(16) },
-    pages: new Array(PAGES).fill({}),
-  }))
-  const { device, writes } = fakeDevice()
-  const rt = {
-    layout: { selectionRoots: roots, placement: { packedCount: ROOTS * PAGES } },
-    lights: { mobility: createShadowMobility() },
-    vis: { rootOffsets: { rowOf: () => undefined } },
-    context: {} as { shadowCacheDeformableMeshesInvalidate?: boolean },
-    gpu: { device },
-  } as unknown as WebgpuPagesRuntime
-  // The buffer's three sections (`rootWords.ts`): the words, the instances' state, the distances.
-  const bytes = new ArrayBuffer(3 * ROOTS * 4 + 32)
-  /** The words written since the last call (a write's `size` counts words), held on the GPU's copy. */
-  const sent = () => {
-    const words = writes.filter(inWords).reduce((sum, { size }) => sum + size!, 0)
-    replayWrites(bytes, writes)
-    return words
-  }
-  const held = () => {
-    sent()
-    return [...new Uint32Array(bytes)].slice(0, ROOTS)
-  }
-  const upload = () => uploadRootWords(rt, device)
-  return { rt, roots, held, sent, upload, writes }
-}
+const twin = () => rootWordsTwin(ROOTS, PAGES)
 
 test('the words of a new set of roots are written once, a change writes the placements’ own', () => {
   const { rt, roots, held, sent, upload } = twin(),
@@ -69,7 +34,7 @@ test('the words of a new set of roots are written once, a change writes the plac
 })
 
 test('placements next to each other are written in one run, with the same words', () => {
-  const { rt, roots, held, sent, upload, writes } = twin(),
+  const { rt, roots, held, sent, upload, writes, inWords } = twin(),
     { mobility } = rt.lights
   upload()
   sent()
@@ -97,18 +62,18 @@ test('a set of roots grown writes every word again, and keeps the state', () => 
 })
 
 test('turning shadowCacheDeformableMeshesInvalidate puts the deformers through a forced move, the others stay', () => {
-  const { rt, roots, upload } = twin(),
+  const { rt, roots, context, upload } = twin(),
     { mobility } = rt.lights
   ;(roots[7] as { deformation?: object }).deformation = {}
   upload()
   for (let frame = 0; frame < 101; frame++) mobility.settle(100)
   upload()
   assert.deepEqual([mobility.moves(7), mobility.moves(8)], [false, false], 'settled')
-  rt.context.shadowCacheDeformableMeshesInvalidate = false
+  context.shadowCacheDeformableMeshesInvalidate = false
   upload()
   assert.deepEqual([mobility.moves(7), mobility.moves(8)], [true, false], 'off: the deformer moves')
   for (let frame = 0; frame < 101; frame++) mobility.settle(100)
-  rt.context.shadowCacheDeformableMeshesInvalidate = true
+  context.shadowCacheDeformableMeshesInvalidate = true
   upload()
   assert.deepEqual([mobility.moves(7), mobility.moves(8)], [true, false], 'on: it moves again')
 })

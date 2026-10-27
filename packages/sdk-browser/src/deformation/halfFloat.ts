@@ -26,17 +26,26 @@ function sendReach(rt: WebgpuPagesRuntime, rank: number, root: ClusterRoot<PageR
   return true
 }
 
+/** A reach that is not a number bounds nothing: unbounded, as the GPU's cap reads it
+ *  (`casterReachWgsl`), so that it is one value to send and compare, not one that differs from
+ *  itself each frame. */
+const boundedReach = (reach: number) => (Number.isNaN(reach) ? Infinity : reach)
+
 /** Root `rank`'s deformation moves a vertex up to `reach` this frame (`sendReach`). */
 export function holdReach(rt: WebgpuPagesRuntime, rank: number, reach: number) {
-  const root = rt.layout.selectionRoots[rank]
-  root.deformReach = reach
+  const root = rt.layout.selectionRoots[rank],
+    held = boundedReach(reach)
+  // The shadows' words of the placement hold the deformation's part alone (`rootWords.ts`), for the
+  // maps that do not grow its bounds by the offsets' (`vsmOffsetGrows`).
+  if (root.deformReach !== held) rt.lights.mobility.touch(rank)
+  root.deformReach = held
   return sendReach(rt, rank, root)
 }
 
 /** Root `rank`'s offsets move a vertex up to `reach` (`sendReach`), in its units. */
 export function holdOffsetReach(rt: WebgpuPagesRuntime, rank: number, reach: number) {
   const root = rt.layout.selectionRoots[rank]
-  root.offsetReach = reach
+  root.offsetReach = boundedReach(reach)
   return sendReach(rt, rank, root)
 }
 

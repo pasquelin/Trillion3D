@@ -3,6 +3,7 @@ import { castFlagsOf } from './castFlags.ts'
 import { readShadowSetting } from '../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { CAST_STATE_WORDS } from './castChanges.ts'
 import { movesOften } from './mobilityState.ts'
+import { ROOT_SECTION, ROOT_SECTIONS } from './rootWordsWgsl.ts'
 
 /**
  * What `mobility.writeRoots` reads of the roots, built once per runtime and kept on its lights
@@ -20,7 +21,17 @@ export type RootWordsSource = {
   /** Whether a banked root reads its rest pose: no deformation moves its vertices. */
   rests: (rank: number) => boolean
   disableSq: (rank: number) => number
+  /** The reach of the root's deformation (`ClusterRoot.deformReach`), 0 for none. */
+  deformReach: (rank: number) => number
 }
+
+/** The sections the host writes (`ROOT_SECTION`, `rootWordsWgsl.ts`), and the arrays of the mobility
+ *  they come from; the instances' state is the GPU's. */
+const HOST_SECTIONS = [
+  [ROOT_SECTION.word, 'words'],
+  [ROOT_SECTION.distance, 'disable'],
+  [ROOT_SECTION.reach, 'reach'],
+] as const
 
 function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const built = rt.lights.mobilitySource
@@ -34,18 +45,16 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
     device,
     deformInvalidates: readShadowSetting(rt, 'shadowCacheDeformableMeshesInvalidate'),
     push: (first, count) => {
-      // Three sections of the buffer's placements: the words, the instances' state (the GPU's), the
-      // distances.
-      const { rootWords } = lights,
+      const { rootWords, mobility } = lights,
         placements = rootWords!.size / (ROOT_SECTIONS * 4)
-      source.device.queue.writeBuffer(rootWords!, first * 4, lights.mobility.words, first, count)
-      source.device.queue.writeBuffer(
-        rootWords!,
-        (2 * placements + first) * 4,
-        lights.mobility.disable,
-        first,
-        count,
-      )
+      for (const [section, field] of HOST_SECTIONS)
+        source.device.queue.writeBuffer(
+          rootWords!,
+          (section * placements + first) * 4,
+          mobility[field],
+          first,
+          count,
+        )
     },
     rests: (rank) => rt.vis.deformation?.tracks.named(rank) === -1,
     castFlags: (rank) =>
@@ -59,17 +68,13 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
       const row = rt.vis.rootOffsets.rowOf(rank)
       return row ? row.disable * row.disable : 0
     },
+    deformReach: (rank) => selectionRoots[rank]?.deformReach ?? 0,
   }
   lights.mobilitySource = source
   return source
 }
 
-/** The sections of the placements' buffer, a word a placement each: the mobility words, the
- *  instances' state per view (`castDiffWgsl.ts`, `castInstanceState`) and the squares of the offsets'
- *  distances. */
-const ROOT_SECTIONS = 3
-
-/** The buffer of `roots` placements' words (`ROOT_SECTIONS`); a binding holds at least one. */
+/** The buffer of `roots` placements' words (`ROOT_SECTIONS`, `rootWordsWgsl.ts`); a binding holds at least one. */
 const rootWordsBuffer = (device: GPUDevice, roots: number) =>
   device.createBuffer({
     label: 'Trillion3D shadow placement words v2',
@@ -121,13 +126,9 @@ export function uploadRootWords(rt: WebgpuPagesRuntime, device: GPUDevice) {
     mobility.rewrite()
   }
   let wrote = made
-  mobility.writeRoots(
-    (first, count) => {
-      source.push(first, count)
-      wrote = true
-    },
-    source.castFlags,
-    source.disableSq,
-  )
+  mobility.writeRoots((first, count) => {
+    source.push(first, count)
+    wrote = true
+  }, source)
   return wrote
 }

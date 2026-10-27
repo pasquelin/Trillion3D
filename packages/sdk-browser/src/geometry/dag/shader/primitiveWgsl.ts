@@ -3,6 +3,26 @@ import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { boxBehindPlane } from '../../../../../math/src/wgsl/geometry.ts'
 import { outsidePlanesFn } from './outsidePlanesWgsl.ts'
 
+/** The smallest and the largest scale of a placement's three axes — the lengths of the columns of
+ *  its linear part `l`: the level of detail scales an error by the first and a radius by the second
+ *  (`placedScale`, `error.ts`), the camera's cut and the shadow views' descent and casters alike. A
+ *  length is the root of a square and the root is monotone, so the extremes are taken on the
+ *  squares and rooted once (`axisScales`), or the smallest alone (`minAxisScale`). */
+export const DAG_AXIS_SCALES_WGSL = wgslBlock(
+  'DAG_AXIS_SCALES_WGSL',
+  [],
+  `fn axisSquares(l:mat3x3f)->vec3f{return vec3f(dot(l[0],l[0]),dot(l[1],l[1]),dot(l[2],l[2]));}
+fn axisScales(l:mat3x3f)->vec2f{
+ let s=axisSquares(l);
+ return vec2f(sqrt(min(s.x,min(s.y,s.z))),sqrt(max(s.x,max(s.y,s.z))));
+}
+fn minAxisScale(l:mat3x3f)->f32{
+ let s=axisSquares(l);
+ return sqrt(min(s.x,min(s.y,s.z)));
+}
+`,
+)
+
 /**
  * WHAT A CUT READS OF A PLACEMENT, made where it is read: no block is stored per placement beyond
  * the host's words and its pose (`../worlds/worlds.ts`, `worldPoseWgsl.ts`), so a placement no kept group
@@ -19,7 +39,7 @@ import { outsidePlanesFn } from './outsidePlanesWgsl.ts'
  */
 export const DAG_PRIMITIVE_WGSL = wgslBlock(
   'DAG_PRIMITIVE_WGSL',
-  [boxBehindPlane, NO_INDEX],
+  [boxBehindPlane, NO_INDEX, DAG_AXIS_SCALES_WGSL],
   `/** The placement this thread reads, its world at the eye, that world transposed, and its axes'
  *  smallest and largest scales — the lengths of its matrix's three first columns. */
 var<private> placedW:u32=NO_INDEX;
@@ -30,8 +50,7 @@ var<private> placedScale:vec2f;
 fn placed(w:u32){
  if(placedW==w){return;}
  placedW=w;placedPose=worldPose(w);placedT=transpose(placedPose);
- let s=vec3f(length(placedPose[0].xyz),length(placedPose[1].xyz),length(placedPose[2].xyz));
- placedScale=vec2f(min(s.x,min(s.y,s.z)),max(s.x,max(s.y,s.z)));
+ placedScale=axisScales(mat3x3f(placedPose[0].xyz,placedPose[1].xyz,placedPose[2].xyz));
 }
 /** \`view · world\` of primitive \`w\`. */
 fn viewWorld(w:u32)->mat4x4f{placed(w);return cutView.view*placedPose;}

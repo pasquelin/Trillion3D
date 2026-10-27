@@ -77,7 +77,8 @@ function viewCull(
     ...{ pastNear: false, pastFar: false },
   }
   const held: unknown[][] = [],
-    drawn: unknown[][] = []
+    drawn: unknown[][] = [],
+    boxes: unknown[][] = []
   const run = shaderRun<{ vsmRenderCullView(...a: unknown[]): void }>(CULL, ['vsmRenderCullView'], {
     ...C,
     params: {},
@@ -88,6 +89,7 @@ function viewCull(
     vsmShiftedToClip: (m: Mat) => m,
     vsmBoxCullPoint: () => [0, 0, 0],
     vsmBoxInView: () => inView,
+    vsmCasterBoxInView: (...args: unknown[]) => (boxes.push(args), inView),
     vsmClipRadius: () => 1,
     vsmIsFineCaster: () => false,
     vsmRenderLodAt: () => C.VSM_RENDER_LOD_OWN,
@@ -106,11 +108,11 @@ function viewCull(
     ...{ c: [10, 0, 0, 1], l: [0, 0, 0], row: 3, corners: 3, flags: 0, farDepth: 0 },
     ...{ own: [0, 0, 0, 1], parent: [0, 0, 0, 1], errors: [0, 0], edge: 0 },
     ...{ inst: [0, 0, 0, 1], viewBits: 0, offsetDisableSq: 0 },
-    ...{ a0: [1, 0, 0], a1: [0, 1, 0], a2: [0, 0, 1] },
+    ...{ a0: [1, 0, 0], a1: [0, 1, 0], a2: [0, 0, 1], axisFit: [1, 1, 1] },
     prevShift,
   })
   const kind = (name: 'FIRST' | 'SECOND' | 'POST') => C[`VSM_RENDER_CULL_${name}`]
-  return { run, held, drawn, caster, kind, map }
+  return { run, held, drawn, boxes, caster, kind, map }
 }
 
 // The first cull holds a caster back where the previous image drew it (the candidate's `prevShift`
@@ -291,4 +293,39 @@ test('a software cluster is binned by its layer, a hardware one by its tier', ()
     assert.equal(drawn[0]![2], bin, `software ${software}, flags ${flags}`)
     assert.equal(((drawn[0]![1] as number) >>> 24) & 15, 0, 'the word holds no tier')
   }
+})
+
+// The box the cull tests is the candidate's half axes where the map grows the bounds of its
+// placement by the reach of its offset (`vsmOffsetGrows`), and each axis scaled by the candidate's
+// fit (`axisFit`, the deformation's reach alone) where it does not.
+test('a map that does not allow a placement’s offset culls the box its deformation alone makes', () => {
+  const C = wgslConstants(CULL)
+  const { run, boxes, caster, kind, map } = viewCull(() => false)
+  const OFFSET = C.VSM_RENDER_CAND_PLACEMENT_OFFSET!,
+    ALWAYS = C.VSM_RENDER_CAND_PLACEMENT_ALWAYS!
+  const axes = (flags: number, threshold: number) => {
+    map.wpoThreshold = threshold
+    boxes.length = 0
+    const cand = {
+      ...caster([0, 0, 0]),
+      ...{ a0: [2, 0, 0], a1: [0, 4, 0], a2: [0, 0, 8], axisFit: [0.5, 0.25, 1] },
+      ...{ flags, offsetDisableSq: 4 },
+    }
+    run.vsmRenderCullView(cand, 5, 0, false, kind('FIRST'), 0)
+    return boxes[0]!.slice(1, 4).map((axis) => Array.from(axis as number[]))
+  }
+  const whole = [
+    [2, 0, 0],
+    [0, 4, 0],
+    [0, 0, 8],
+  ]
+  const bare = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 8],
+  ]
+  assert.deepEqual(axes(OFFSET, 1), whole, 'a level within the distance: the offset grows it')
+  assert.deepEqual(axes(OFFSET, 9), bare, 'a level past it: the deformation’s box')
+  assert.deepEqual(axes(OFFSET | ALWAYS, 9), whole, 'evaluated whatever the distance says')
+  assert.deepEqual(axes(0, 1), bare, 'an offset that may not invalidate: no map grows it')
 })

@@ -105,7 +105,7 @@ export const VSM_UNIFORMS_BYTES = 224
 
 /** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `render/renderParamsWgsl.ts`)
  *  and of one record it emits (vec4u, `render/renderCullWgsl.ts`). */
-export const VSM_RENDER_CANDIDATE_BYTES = 160
+export const VSM_RENDER_CANDIDATE_BYTES = 176
 export const VSM_RENDER_RECORD_BYTES = 16
 /** Bytes of a light of the frame in the raster's table (`vsmWriteLights`): its first map's id and its map count, padded to
  *  a `vec4u`. */

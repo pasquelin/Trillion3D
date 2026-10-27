@@ -16,7 +16,8 @@
  * swapped bit turns the winding the setup reads, `det`); a pixel joins the pool by `atomicMax`
  * where a masked row's cutout keeps it, as the hardware fragment does
  * (`renderRasterWgsl.ts`), its dither at the map's virtual pixel: the page's first texel plus the
- * pixel's offset in the page, at its centre.
+ * pixel's offset in the page, at its centre; the cutout is evaluated only for a depth greater than
+ * the texel holds.
  *
  * Two entry points: `vsmRenderSoftware` writes the dynamic layer's records into the pool's slice 0,
  * what every reader samples; `vsmRenderSoftwareStatic` writes the static layer's records into the
@@ -64,7 +65,7 @@ import { VSM_PROJECTION_DATA_WGSL } from '../projection/projectionDataWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
 import { VSM_CASTER_PROJECTION_WGSL } from './renderCasterWgsl.ts'
-import { VSM_RENDER_WINDOW_WGSL } from './renderRasterWgsl.ts'
+import { VSM_RENDER_DEPTH_WGSL, VSM_RENDER_WINDOW_WGSL } from './renderRasterWgsl.ts'
 import { VSM_RENDER_PARAMS_WGSL, VSM_RENDER_RECORD_WGSL } from './renderParamsWgsl.ts'
 
 /** Group 1's VSM resources: the projection data, the one pool slice the entry writes, the
@@ -130,12 +131,15 @@ fn vsmSoftwareSides(page:PageInfo)->PageInfo{var p=page;p.flags&=~${FLAG_BACK}u;
 
 const softwarePixelAndKernels = (masks: MaskSet, wpo: WpoSet, subgroups: boolean) => /* wgsl */ `
 /** A covered pixel of the record's page: kept by a masked row's cutout, its
- *  depth joins the bound slice's texel by \`atomicMax\` (\`vsmRenderJoin\`'s rule). */
+ *  depth joins the bound slice's texel by \`atomicMax\` (\`vsmRenderJoin\`'s rule). A masked row
+ *  evaluates its cutout only for a depth that can win (\`vsmRenderBeats\`). */
 fn writePixel(t:Tri,pixel:vec2i,c:vec3f,mode:u32){
  if(pixel.x>t.maxPixel.x||pixel.y>t.maxPixel.y){return;}
  let texel=vsmUnpackTableEntry(swRecord.w).physicalAddress*VSM_PAGE_TEXELS+vec2u(pixel);
  let page=pages[t.row];
+ let depth=vsmRenderDepth(t.depth.x+t.depth.y*c.y+t.depth.z*c.z);
  if((page.flags&${FLAG_MASK}u)!=0u){
+  if(!vsmRenderBeats(texel,0u,depth)){return;}
   let cut=triCutout(t,c);
   if(!${
     maskKnowsPixel(masks)
@@ -143,7 +147,7 @@ fn writePixel(t:Tri,pixel:vec2i,c:vec3f,mode:u32){
       : 'maskKeep(page,cut.at.xy,1.0,cut.ddx,cut.ddy)'
   }){return;}
  }
- vsmPoolAtomicMax(texel,0u,bitcast<u32>(clamp(t.depth.x+t.depth.y*c.y+t.depth.z*c.z,0.0,1.0)));
+ vsmPoolAtomicMax(texel,0u,depth);
 }
 ${clusterRasterKernels(subgroups, shadowClusterTarget(wpo.programs.length > 0))}`
 
@@ -167,6 +171,7 @@ ${softwareDeclarations()}${softwarePixelAndKernels(masks, wpo, subgroups)}
       PAGE_GEOMETRY_WGSL,
       VSM_CASTER_PROJECTION_WGSL,
       VSM_RENDER_WINDOW_WGSL,
+      VSM_RENDER_DEPTH_WGSL,
       VSM_RENDER_RECORD_WGSL,
       VSM_RENDER_PARAMS_WGSL,
       VSM_CONSTANTS_WGSL,

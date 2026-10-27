@@ -17,7 +17,7 @@ import { assignChannels, followCasters, heldVsm } from './vsmPlanSteps.ts'
 import { sunCascadesOf, vsmFirstPersonActive, vsmMapSettings } from './vsmFarShadow.ts'
 import { shadowsOn, tracesTranslucent } from './vsmGates.ts'
 import { vsmSunLevels } from '../mapSettings.ts'
-import { releaseEngineVsm, unshadowLights, vsmCountersOn } from './engineVsm.ts'
+import { dropEngineVsmCache, releaseEngineVsm, unshadowLights, vsmCountersOn } from './engineVsm.ts'
 import { wholeTableRows } from './vsmLightMaps.ts'
 import { VSM_OVERFLOW_MAP_SLOTS } from '../constants.ts'
 import { nextPow2 } from '../../../../../../math/src/scalar/integers.ts'
@@ -31,7 +31,7 @@ import { vsmDescentPipes } from '../traversal/traversalPass.ts'
 import type { VsmLayout } from '../layout.ts'
 import { vsmRenderTiersDrawn, type CompiledTiers } from '../render/renderParamsWgsl.ts'
 import { chainReady, type PreparedPipeline } from '../../../deferred/fullscreen.ts'
-import { marksPixels, marksWaterSurface } from './vsmFrontLayer.ts'
+import { marksWaterSurface, viewMarkingOf } from './vsmFrontLayer.ts'
 import { vsmProjectionPipeline } from '../projection/projectionPipelines.ts'
 import { onePassMaskFormat } from '../projection/maskFormat.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
@@ -176,7 +176,7 @@ function framePipelines(
   const casts = vsmCastPipes(device, layout)
   const fronts = tracesTranslucent(rt) ? [false, true] : [false],
     waters = marksWaterSurface(rt) ? [false, true] : [false]
-  const froxels = !marksPixels(rt)
+  const froxels = viewMarkingOf(rt) === 'froxels'
   const raster = vsmRasterPipe(device, layout, pageLayout, rt.vis.rasters)
   const pipes = [
     casts.args,
@@ -254,7 +254,7 @@ function framePipelinesCompiled(
     tiers: { twoSided: rt.vis.materialTable.twoSided, voxels: holdsVoxels(rt) },
     rasters: rt.vis.rasters,
     translucent: tracesTranslucent(rt),
-    froxels: !marksPixels(rt),
+    froxels: viewMarkingOf(rt) === 'froxels',
     water: marksWaterSurface(rt),
     counters: vsmCountersOn(device),
   }
@@ -314,13 +314,19 @@ export function projectionLight(
 }
 
 /**
- * A frame in which no light takes a shadow (`shadowsOn`): the maps held are freed — their cache
- * would go stale while the casters change unseen, and a later plan starts with its own —, the
- * representation changes held for the camera to rest are released to the list (`shadowsUnsettled`
- * waits for none) and no light reads a shadow. Always false: the frame has no plan.
+ * A frame in which no light takes a shadow (`shadowsOn`): the maps held are freed
+ * (`shadowDynamicDeallocationMode` 1) or kept with their cache dropped (the casters change
+ * unseen, and a later plan draws every light uncached), the representation changes held for the
+ * camera to rest are released to the list (`shadowsUnsettled` waits for none) and no light reads
+ * a shadow. Always false: the frame has no plan.
  */
-function planNoShadows({ lights }: WebgpuPagesRuntime) {
-  releaseEngineVsm(lights)
+function planNoShadows(rt: WebgpuPagesRuntime) {
+  const { lights } = rt,
+    { vsm } = lights
+  if (vsm) {
+    if (readShadowSetting(rt, 'shadowDynamicDeallocationMode') === 1) releaseEngineVsm(lights)
+    else dropEngineVsmCache(vsm, rt.run.frame)
+  }
   lights.changes.releaseDeferred()
   unshadowLights(lights.store)
   return false

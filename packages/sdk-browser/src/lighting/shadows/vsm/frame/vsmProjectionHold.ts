@@ -101,6 +101,10 @@ export function createVsmProjectionHold() {
       kept.set(next)
       for (let k = 0; k < asked.length; k++) masks[k] = asked[k]
     },
+    /** The mask is no longer what the last projection wrote: the next `held` answers false. */
+    drop() {
+      masks.fill(undefined)
+    },
   }
 }
 

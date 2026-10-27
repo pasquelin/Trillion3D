@@ -27,7 +27,9 @@
  * Masked materials keep the engine's cutout (`maskKeep`, the depth material's clip) at the VSM
  * texel's derivatives, its dither at the map's own pixel (`vsmRenderMapPixel`), whatever page holds
  * the texel; an unmasked row, which `maskKeep` keeps whole, is told by a flat word and reads no page. The depth itself is the interpolated clip z / w, clamped to [0,1] before the
- * bitcast, and joins the pool's word only where it is greater (`vsmPoolAtomicMax`).
+ * bitcast, and joins the pool's word only where it is greater (`vsmPoolAtomicMax`). A masked row is
+ * tested against the depth the pool already holds before its cutout is evaluated
+ * (`vsmRenderBeats`): a fragment that cannot win evaluates no material.
  *
  * Group 0 = the engine's shadow page group (`lighting/shadows/casters/pageGroup.ts`, the visibility
  * layout less flags / uniform / instances / slot offsets). Group 1: 0 the sorted records (vertex),
@@ -150,10 +152,23 @@ fn vsmRenderWindowMip(window:vec4u)->u32{return window.w>>1u;}
 `,
 )
 
+/** The word a depth \`z\` joins the pool as: clamped to [0,1], its bits, which order as the floats do
+ *  (non-negative): the hardware fragment's (\`vsmRenderJoin\`) and the software raster's. And whether
+ *  that word can join the pool at \`texel\` of \`slice\`: it is greater than the word already held, the
+ *  only depth the join writes (\`vsmPoolAtomicMax\`). A word only grows, so a depth that cannot win now
+ *  never will: a masked row asks before it evaluates its cutout. */
+export const VSM_RENDER_DEPTH_WGSL = wgslBlock(
+  'VSM_RENDER_DEPTH_WGSL',
+  [],
+  `fn vsmRenderDepth(z:f32)->u32{return bitcast<u32>(clamp(z,0.0,1.0));}
+fn vsmRenderBeats(texel:vec2u,slice:u32,depth:u32)->bool{return depth>vsmPoolLoad(texel,slice);}
+`,
+)
+
 /** The fragment's half of the window: a pixel's pool texel and the join of its depth. */
 export const VSM_RENDER_JOIN_WGSL = wgslBlock(
   'VSM_RENDER_JOIN_WGSL',
-  [VSM_CONSTANTS_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_RENDER_RECORD_WGSL],
+  [VSM_CONSTANTS_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_RENDER_RECORD_WGSL, VSM_RENDER_DEPTH_WGSL],
   `/** The pool texel of pixel \`pixel\` of \`window\` (\`vsmRenderWindowOf\`), through the page table: none
  *  (false) where the record does not draw the pixel's page or the page is not one to draw. */
 fn vsmRenderPoolTexel(window:vec4u,pixel:vec2f,texel:ptr<function,vec2u>)->bool{
@@ -165,14 +180,15 @@ fn vsmRenderPoolTexel(window:vec4u,pixel:vec2f,texel:ptr<function,vec2u>)->bool{
  *texel=entry.physicalAddress*VSM_PAGE_TEXELS+(p&vec2u(VSM_PAGE_TEXEL_MASK));
  return true;
 }
-/** The depth \`z\` joined to the pool at \`texel\`, in the window's layer's slice (\`staticSlice\` for
- *  the static layer): a static caster writes the static slice alone; the pages that drew it merge it
- *  into slice 0, what every reader samples, after the raster (\`vsmMergePages\`). */
-fn vsmRenderJoin(window:vec4u,texel:vec2u,z:f32){
- let depth=bitcast<u32>(clamp(z,0.0,1.0));
- let staticLayer=(window.w&1u)!=0u;
- vsmPoolAtomicMax(texel,select(0u,vsm.staticSlice,staticLayer),depth);
-}`,
+/** The slice of the pool the window's layer joins its depths to (\`staticSlice\` for the static layer):
+ *  a static caster writes the static slice alone; the pages that drew it merge it into slice 0, what
+ *  every reader samples, after the raster (\`vsmMergePages\`). */
+fn vsmRenderSlice(window:vec4u)->u32{return select(0u,vsm.staticSlice,(window.w&1u)!=0u);}
+/** The word \`depth\` (\`vsmRenderDepth\`) joined to the pool at \`texel\`, in the window's layer's slice. */
+fn vsmRenderJoin(window:vec4u,texel:vec2u,depth:u32){
+ vsmPoolAtomicMax(texel,vsmRenderSlice(window),depth);
+}
+`,
 )
 
 const renderRasterVertex = (wpo: WpoSet) => /* wgsl */ `${PAGE_BINDING.indices}
@@ -215,12 +231,15 @@ const renderRasterFragment = (masks: MaskSet) => /* wgsl */ `
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  var texel:vec2u;
  if(!vsmRenderPoolTexel(in.window,in.position.xy,&texel)){discard;}
+ let depth=vsmRenderDepth(in.clip.z/in.clip.w);
+ // A masked row evaluates its cutout only for a depth that can win.
+ if(in.masked!=0u&&!vsmRenderBeats(texel,vsmRenderSlice(in.window),depth)){discard;}
  if(in.masked!=0u&&!${
    maskKnowsPixel(masks)
      ? 'maskKeepAt(pages[in.row],in.uv,1.0,gx,gy,vsmRenderMapPixel(in.clip,vsmRenderWindowMip(in.window)))'
      : 'maskKeep(pages[in.row],in.uv,1.0,gx,gy)'
  }){discard;}
- vsmRenderJoin(in.window,texel,in.clip.z/in.clip.w);
+ vsmRenderJoin(in.window,texel,depth);
 }`
 
 /** The depth fragment and vertex of the casters' draw; a surface whose graph wires an `opacityMask` is

@@ -66,6 +66,8 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "Share of a page (0.05, the default) from its border within which a pixel of the view also maps the neighbouring page of a directional light's clipmap: higher values reduce page misses at screen edges and disocclusions, and raise the page count; 0 maps the pixel's page alone.",
   shadowPageDilationBorderSizeLocal:
     "Share of a page (0.05, the default) from its border within which a pixel of the view also maps the neighbouring page of a point, spot or rectangle light's maps: higher values reduce page misses at screen edges and disocclusions, and raise the page count; 0 maps the pixel's page alone.",
+  shadowMarkPixelPages:
+    "Whether the pixels of the view mark the shadow pages they need (true, the default). false marks only the coarse pages: no page is asked for the view, neither from the pixels nor from the froxels (the translucent front layer's and the water surface's marks included), so the shadows lose the pages the view needs; for finding what the marking costs, or whether it is the cause of an artefact.",
   shadowMarkPagesUseFroxels:
     "Whether the shadow pages are marked from froxels (false, the default): the depth is cut into screen tiles of 8 pixels and depth slices as deep as they are wide, and each froxel the depth fills marks the pages its box overlaps in every light's maps, in place of each pixel marking its own. It marks the same pages for fewer threads on a view with large flat areas; it does not cull the pixels that face away from a light, and it marks no page for the translucent front layer.",
   shadowCullBackfacingPixels:
@@ -108,6 +110,10 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     'Which local lights draw their pages again each frame, uncached (0, the default): 0 none, 1 those that are not distant, 2 all of them, the distant ones too. Costs the full raster of the lights it names every frame; for finding whether a stale page is the cause of an artefact.',
   shadowForceFullPageClears:
     'Whether a page whose layers are stale is always cleared whole (false, the default: a page is cleared once, and not again while nothing was drawn into it since). true clears pages the cache already knows are clear, at the cost of the clears; for finding whether a stale page is the cause of an artefact.',
+  shadowCacheDebugSkipDynamicPageInvalidation:
+    "Whether the shadow pages ignore the invalidations a cached page carries (false, the default): true applies none of them, neither the static and dynamic ones of the objects that moved nor the deferred ones nor the receiver cover's redraw, so a moved object leaves its old shadow; for finding whether an invalidation is the cause of an artefact. A page cached whole under an offset the map allows is still handed to the casters' cull, nothing drawn in it.",
+  shadowDynamicDeallocationMode:
+    "What a frame at shadowQuality 0 does with the shadow set held, from 0 to 2 (0, the default): 1 frees its pool and tables; 0 and 2 keep them, their cache dropped so that the pages are drawn again when the shadows come back (0 frees only where a many-light shading mode is in use, which this engine does not have). Keeping holds the pool's memory while the shadows are off; freeing makes the set again when they come back.",
   shadowCacheInvalidateUseHzb:
     "Whether a changed placement invalidates only the shadow pages it is not hidden from (true, the default): its bounds are tested page by page against the previous frame's depth pyramid, and a page it is fully occluded on keeps its cache. Needs the occlusion culling (shadowOcclusionCulling); without it every page its bounds touch is invalidated.",
   shadowDeferredInvalidationBudget:
@@ -186,7 +192,7 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     'The same for a spot light, whose radius is that of the sphere inscribed in the end of its cone (2.54648, the default).',
   shadowTexelsPerPixelRect: 'The same for a rectangle light (1.27324, the default).',
   shadowQuality:
-    "The one gate every light passes, the sun's included, from 0 to 5 (5, the default): 0 turns every shadow off — no shadow map, page, trace or pool is made, the lit passes read none and drop their shadow code, and the maps held are freed —, 1 to 5 shadow every light the same way, these maps having a single method. The quality levels write 0, 3 and 5 below the top one and 5 at 'cinematic': the first draws no shadow at all.",
+    "The one gate every light passes, the sun's included, from 0 to 5 (5, the default): 0 turns every shadow off — no shadow map, page, trace or pool is made, the lit passes read none and drop their shadow code, and the maps held are freed or kept as shadowDynamicDeallocationMode says —, 1 to 5 shadow every light the same way, these maps having a single method. The quality levels write 0, 3 and 5 below the top one and 5 at 'cinematic': the first draws no shadow at all.",
   shadowTranslucentQuality:
     "How a translucent surface reads the shadow of a light, 0 or 1 (0, the default; read once when the session opens, no quality level writes it): 0 takes one sample of the light's shadow map at the surface's point, cheap enough for every layer of a blend; 1 runs the full trace the opaque surfaces get — rays across the light's disk, a screen ray for contact — for every translucent pixel, at a high cost, and also asks the sun's shadow pages for the nearest translucent surface the image before drew in front of each pixel, which the opaque pixels' pages do not cover.",
   shadowTranslucentLocalLights:

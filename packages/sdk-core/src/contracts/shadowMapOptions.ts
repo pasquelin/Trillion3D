@@ -40,6 +40,7 @@ const CLIPMAP_AND_MARKING_RULES = /* @__PURE__ */ (() =>
     integer('shadowMarkPixelPagesMipModeLocal', 0, [0, 2]),
     nonNegative('shadowPageDilationBorderSizeDirectional', 0.05),
     nonNegative('shadowPageDilationBorderSizeLocal', 0.05),
+    flag('shadowMarkPixelPages', true),
     flag('shadowMarkPagesUseFroxels', false),
     flag('shadowCullBackfacingPixels', true),
     integer('shadowPageMarkingPixelStrideX', 2, [1, 128]),
@@ -61,6 +62,8 @@ const BIAS_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     flag('shadowCacheDeformableMeshesInvalidate', true),
     integer('shadowForceInvalidateLocal', 0, [0, 2]),
     flag('shadowForceFullPageClears', false),
+    flag('shadowCacheDebugSkipDynamicPageInvalidation', false),
+    integer('shadowDynamicDeallocationMode', 0, [0, 2]),
     flag('shadowCacheInvalidateUseHzb', true),
     integer('shadowDeferredInvalidationBudget', -1, [-1, INT32_RANGE[1]]),
     flag('shadowInvalidateOnLodDelta', false),
@@ -150,6 +153,7 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowMarkPixelPagesMipModeLocal` | 0 | |
  * | `shadowPageDilationBorderSizeDirectional` | 0.05 | |
  * | `shadowPageDilationBorderSizeLocal` | 0.05 | |
+ * | `shadowMarkPixelPages` | true | |
  * | `shadowMarkPagesUseFroxels` | false | |
  * | `shadowCullBackfacingPixels` | true | |
  * | `shadowPageMarkingPixelStrideX` | 2 | |
@@ -166,6 +170,8 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowCacheDeformableMeshesInvalidate` | true | |
  * | `shadowForceInvalidateLocal` | 0 | |
  * | `shadowForceFullPageClears` | false | |
+ * | `shadowCacheDebugSkipDynamicPageInvalidation` | false | |
+ * | `shadowDynamicDeallocationMode` | 0 | |
  * | `shadowCacheInvalidateUseHzb` | true | |
  * | `shadowDeferredInvalidationBudget` | -1 | |
  * | `shadowInvalidateOnLodDelta` | false | |
@@ -222,6 +228,10 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * `shadowMarkPixelPagesMipModeLocal` limits the mips a local light's pixels mark: 0 all eight, 1 the even ones, 2 the
  * odd ones (fewer duplicated instances, a harsher fall-off between mips).
  *
+ * `shadowMarkPixelPages` marks the pages the view's pixels ask; off, only the coarse pages are marked, the pixels' and
+ * the froxels' marks (the translucent front layer's and the water's surface included) all skipped, for finding what the
+ * marking costs or whether it is the cause of an artefact.
+ *
  * `shadowMarkPagesUseFroxels` marks the pages from the froxels of the depth (screen tiles of 8 pixels by depth
  * slices as deep as they are wide, one per slice a tile holds) in place of pixel by pixel: fewer marks for the
  * same pages, no per-pixel back-face cull and no translucent front-layer marks.
@@ -273,7 +283,15 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * after `shadowCacheFramesStaticThreshold` frames without a move, its animation no longer redrawing its pages.
  * `shadowForceInvalidateLocal` draws the local lights uncached each frame: 0 none, 1 those that are not distant,
  * 2 all of them. `shadowForceFullPageClears` clears a page whose layers are stale whole, though what it holds was
- * cleared already.
+ * cleared already. `shadowCacheDebugSkipDynamicPageInvalidation` applies none of the invalidations a cached page
+ * carries (the moved casters' static and dynamic ones, the deferred ones, the receiver cover's): the shadows keep
+ * the pages as they were drawn, so they show a moved object's old shadow; for finding whether an invalidation is
+ * the cause of an artefact. It skips no more: a page cached whole under an offset the map allows is still handed
+ * to the casters' cull, nothing drawn in it, as the reference leaves it. `shadowDynamicDeallocationMode` is what a frame that shadows no light
+ * (`shadowQuality` 0) does with the set it holds: 1 frees its pool and tables; 0 and 2 keep them, their cache
+ * dropped so that the pages are drawn again when the shadows come back (0 frees only where a many-light shading
+ * mode is in use, which this engine does not have, so it keeps them as 2 does). Keeping costs the pool's memory
+ * while the shadows are off; freeing costs the set made again when they come back.
  * `shadowUseReceiverMaskDirectional` and `shadowUseReceiverMaskLocal` draw a light's pages into the receivers' cover
  * alone (the pixels that ask the page): a sun's clipmap by default, a local light's when set (the cover then holds
  * every map, not the suns' alone; a change makes the shadows' set again). A light that changes it is drawn again.

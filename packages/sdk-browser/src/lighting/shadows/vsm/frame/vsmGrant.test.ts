@@ -19,6 +19,11 @@ import {
 import { webgpuPagesEngine } from '../../../../frame/backend/pages.ts'
 import { createTextureCaches } from '../../../../materials/texture/textureCaches.ts'
 import { createPageCache } from '../../../../geometry/streaming/pageCache.ts'
+import { VsmCacheManager } from '../cacheManager.ts'
+import { dropEngineVsmCache, type EngineVsm } from './engineVsm.ts'
+import { createVsmEngineStats } from './vsmStats.ts'
+import { createVsmSettle } from '../../../../frame/backend/state/vsmSettle.ts'
+import { createVsmProjectionHold } from './vsmProjectionHold.ts'
 
 /** The first physical pool slice: its size follows the pool's pages. */
 const POOL = 'vsm.physicalPool0'
@@ -157,7 +162,9 @@ test('a device whose binding holds fewer pages than the setting names holds the 
   )
 })
 
-test('shadowQuality 0 makes no shadow set and frees the one held; any level above it shadows the sun again', async () => {
+/** The sun's shadow set of a quality that toggles 3 -> 0 -> 5, with `mode` for what quality 0 does
+ *  with the set held (`shadowDynamicDeallocationMode`). */
+async function toggleQuality(mode: number) {
   installGpuGlobals()
   const gpu = fakeDevice({ ...BACKEND, limits: SHADOW_LIMITS })
   const sceneLights = createSceneLightStore()
@@ -168,6 +175,7 @@ test('shadowQuality 0 makes no shadow set and frees the one held; any level abov
     ...{ gpuDevice: gpu.device, maxResidentPages: 2, viewport: [32, 32] as [number, number] },
     // A small pool: the set is made, freed and made again, each time in the fake device's memory.
     ...{ sceneLights, shadowQuality: 0, shadowMaxPhysicalPages: 512 },
+    ...{ shadowDynamicDeallocationMode: mode },
   }
   const backend = webgpuPagesEngine(context)
   const pools = () => gpu.buffers.filter((buffer) => buffer.label?.startsWith(POOL)).length
@@ -186,13 +194,87 @@ test('shadowQuality 0 makes no shadow set and frees the one held; any level abov
     const made = pools()
     assert.ok(made > 0, 'a pool is made for it')
     context.shadowQuality = 0
-    assert.equal(await frame(), null, 'back to 0: no map')
-    assert.equal(freed(), made, 'every pool made is freed, the one held with its cache')
+    // Freed (mode 1): no set, no count. Kept (0 and 2): the set counts no light.
+    assert.equal(await frame(), mode === 1 ? null : 0, 'back to 0: no map')
+    const freedAtZero = freed()
     context.shadowQuality = 5
-    assert.ok(await frame(), 'quality 5: the sun casts again, from a set of its own')
-    assert.equal(pools() - freed(), 1, 'one pool alive: a new one, the first not reused')
+    assert.ok(await frame(), 'quality 5: the sun casts again')
+    return { made, freedAtZero, alive: pools() - freed() }
   } finally {
     disposeQuadRun(backend, fixture)
+  }
+}
+
+test('shadowQuality 0 makes no shadow set; mode 1 frees the one held, any level above it shadows the sun again from a set of its own', async () => {
+  const { made, freedAtZero, alive } = await toggleQuality(1)
+  assert.equal(freedAtZero, made, 'every pool made is freed, the one held with its cache')
+  assert.equal(alive, 1, 'one pool alive: a new one, the first not reused')
+})
+
+test('shadowQuality 0 under mode 0 or 2 keeps the set held, and the sun casts again from it', async () => {
+  for (const mode of [0, 2]) {
+    const { made, freedAtZero, alive } = await toggleQuality(mode)
+    assert.equal(freedAtZero, 0, `mode ${mode}: no pool freed at quality 0`)
+    assert.equal(alive, made, `mode ${mode}: the pools made are the ones alive, none made again`)
+  }
+})
+
+test('a set kept while no light shadows drops its cache, forgets its plan and counts, and a repeat leaves the same state', () => {
+  const cache = new VsmCacheManager()
+  const entry = cache.lightEntryFor('sun', 1)
+  entry.markRendered(5)
+  cache.keepFrameForNext({ mapCount: 1 })
+  const stats = Object.assign(createVsmEngineStats(), {
+    ...{ lights: 2, maps: 5, tableBlocks: 1, projectionPasses: 2, freePages: 7 },
+    ...{ invalidationThreads: 40, pressureBiasStat: 1, render: {} },
+  })
+  const settle = createVsmSettle()
+  settle.landedRendered = 2
+  const hold = createVsmProjectionHold()
+  const mask = {}
+  hold.held(mask)
+  hold.keep()
+  const vsm = {
+    stats,
+    settle,
+    projectionHold: hold,
+    state: { cache },
+    res: { prevFrameKept: true, occlusion: undefined },
+    plan: {},
+    renderedPlan: {},
+    pendingBoxes: {},
+    pendingDiff: {},
+    pendingCastMaps: {},
+  }
+  assert.ok(hold.held(mask), 'the projection ran from these inputs')
+  assert.ok(cache.hasPreviousFrame() && !entry.isInvalidated())
+  const dropped = () => ({
+    previous: cache.hasPreviousFrame(),
+    invalidated: entry.isInvalidated(),
+    entries: cache.entries.size,
+    kept: vsm.res.prevFrameKept,
+    held: hold.held(mask),
+    plan: [vsm.plan, vsm.renderedPlan],
+    pending: [vsm.pendingBoxes, vsm.pendingDiff, vsm.pendingCastMaps],
+    stats: { ...vsm.stats },
+  })
+  for (const drop of [1, 2]) {
+    dropEngineVsmCache(vsm as unknown as EngineVsm, 10 + drop)
+    assert.deepEqual(
+      dropped(),
+      {
+        ...{ previous: false, invalidated: true, entries: 1, kept: false, held: false },
+        ...{ plan: [undefined, undefined], pending: [null, null, null] },
+        stats: createVsmEngineStats(),
+      },
+      `drop ${drop}: the cache dropped, the light drawn uncached, nothing planned, nothing counted`,
+    )
+    assert.equal(vsm.stats, stats, 'the counts are zeroed in place')
+    assert.deepEqual(
+      [settle.landedFrame, settle.landedRendered],
+      [10 + drop, 0],
+      'the idle frame settles it at once',
+    )
   }
 })
 

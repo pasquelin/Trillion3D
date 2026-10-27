@@ -154,7 +154,7 @@ export const QUALITY_LEVELS: QualityLevels = {
   },
   // The shadows' levels write the shadow rules' rows (`SHADOW_PRESET_LEVELS`: the sun's distance
   // scale, near levels, overlap and far-field shadow, which shape the edge of the far-shadow test,
-  // and the shadow maps' resolution biases, radius threshold, ray and sample counts, page pool,
+  // and the shadow maps' resolution biases, ray and sample counts, page pool,
   // local coarse marking and quality) and the volumetric fog's quality level
   // (`VOLUMETRIC_FOG_PRESET_LEVELS`); the culling's switches and the fog's other settings stay at
   // their defaults at every level.

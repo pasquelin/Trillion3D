@@ -750,9 +750,12 @@ const tablesGroup =
             ],
     })
 
-/** Whether the marking marks from the pixels: the froxels' marking (`shadowMarkPagesUseFroxels`)
- *  reads neither the front layer nor the water's depth. */
-export const marksFromPixels = (shadows: ShadowValues) => !shadows.shadowMarkPagesUseFroxels
+/** What the marking marks past the coarse pages: nothing where `shadowMarkPixelPages` is off (the
+ *  pages of the view are not asked), else the pages from the pixels or, with
+ *  `shadowMarkPagesUseFroxels`, from the froxels, which read neither the front layer nor the
+ *  water's depth. */
+export const viewMarking = (shadows: ShadowValues): 'none' | 'pixels' | 'froxels' =>
+  !shadows.shadowMarkPixelPages ? 'none' : shadows.shadowMarkPagesUseFroxels ? 'froxels' : 'pixels'
 
 /** The marks from the pixels of the view `v`, one group a tile. */
 function markFromPixels(
@@ -802,8 +805,9 @@ function encodeMarking(state: MarkingState, pass: GPUComputePassEncoder, frame: 
   dispatch(pass, coarse, groups.coarse, undefined, ceilDiv(mapCount, VSM_GROUP_WIDTH))
   const v = frame.view
   const s = frame.settings ?? VSM_DEFAULT_SHADOWS
-  if (!v) return
-  if (marksFromPixels(s)) markFromPixels(state, pass, v, s, groups)
+  const marking = viewMarking(s)
+  if (!v || marking === 'none') return
+  if (marking === 'pixels') markFromPixels(state, pass, v, s, groups)
   else state.froxels.mark(pass, v, frame.perspective, groups, state.group, VSM_PIXELS_SPECS)
 }
 

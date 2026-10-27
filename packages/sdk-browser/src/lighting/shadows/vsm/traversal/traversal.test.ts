@@ -30,8 +30,6 @@ import { vsmDescentWgsl } from '../traversal/traversalWgsl.ts'
 import { Mat } from '../../../../materials/texture/shaderRunMatrix.fixture.ts'
 
 const LAYOUT = vsmLayout({ fullMapCapacity: 7, sunMapCapacity: 3 })
-/** A pointer, as a shader run hands one: what `&x` gives. */
-type Ref = { set(value: unknown): void }
 const CULL = vsmRenderCullWgsl(LAYOUT)
 
 // The shadow views' descent drops a node only where no cluster under it could be drawn in that map's
@@ -73,16 +71,13 @@ test('a shadow view’s descent keeps every node a cluster under it could be dra
       for (const mip of [0, 3]) {
         const node = run.vsmDescentPixels(pd, viewToClip, mip, centre, radius, error)
         const focal = 0.5 * Math.abs(viewToClip[1][1]) * (C.VSM_LEVEL0_TEXELS >> mip)
-        const persp = ortho ? 0 : 1
         const cluster = cull.vsmRenderViewPixels(
           error * random(),
           ball,
           inner,
           viewToClip,
           viewToClip,
-          focal,
-          near,
-          persp,
+          { focal, near, perspective: !ortho },
         )
         assert.ok(node >= cluster, `${k} mip ${mip}: ${node} < ${cluster}`)
       }
@@ -221,22 +216,17 @@ test('a node hidden by a view’s pyramid in both layers is held, then gone; sho
       ...C,
       cutView: { occlusion: C.OCCLUSION_TWO_PASS, cameraWorld: [0, 0, 0] },
       cutPass: () => pass,
-      deformReach: 0,
-      casterSphere: (...a: unknown[]) => {
-        const [high, low, axes] = a.slice(4) as Ref[]
-        high.set([0, 0, 0, 1])
-        low.set([0, 0, 0])
-        axes.set([
-          [1, 0, 0],
-          [0, 1, 0],
-          [0, 0, 1],
-        ])
-      },
+      rootWords: [],
       vsmRenderPrevShift: () => [0, 0, 0],
       descentMap: () => 3,
       descentMip: () => 2,
       vsmHandleFromId: (id: number) => ({ id }),
       vsmProjectionOf: () => ({ lightKind: 1 }),
+      // The node's box in the map, carrying its sphere.
+      vsmDescentBoxOf: () => ({
+        ...{ center: [0, 0, 0], extent: [1, 1, 1], cull: {} },
+        ...{ high: [0, 0, 0, 1], low: [0, 0, 0] },
+      }),
       vsmDescentBox: () => ({ center: [0, 0, 0], extent: [1, 1, 1], cull: {} }),
       vsmHiddenBefore: (...a: unknown[]) => layer(a[6] as boolean),
       vsmDescentHiddenNow: (...a: unknown[]) => layer(a[4] as boolean),
@@ -290,22 +280,102 @@ test('with the previous frame kept, the post pass of the descent follows the pyr
 // The descent culls a node by its own oriented box under its placement (`casterSphere`'s half axes,
 // `vsmCasterBoxInView`), as the casters' cull does a cluster; the cube about the doubled sphere
 // stays for the light's range, the pages to draw and the previous image's occlusion test.
-test('the descent’s frustum cull takes the node’s box, the doubled sphere kept for the range and the occlusion cube', () => {
+const PROJECTION = new Mat([1.2, 0, 0, 0, 0, 1.2, 0, 0, 0, 0, 0, -1, 0, 0, 0.1, 0])
+const boxPd = (lightKind: number) => ({
+  ...{ shiftedToMapUv: PROJECTION, lightViewToClip: PROJECTION, lightKind },
+  ...{ originShiftHigh: [0, 0, 0], originShiftLow: [0, 0, 0] },
+})
+
+test('the descent’s box is the node’s oriented box grown by the roundings, the doubled sphere kept for the range and the occlusion cube', () => {
   const code = vsmDescentWgsl(LAYOUT)
-  assert.ok(code.includes('casterSphere(w,lo,hi,deformReach,&high,&low,&axes)'), 'the node’s axes')
-  assert.ok(code.includes('vsmCasterBoxInView(box.center,'), 'the cull is the casters’')
+  const C = wgslConstants(code)
+  const asked: unknown[][] = []
+  const { vsmDescentBox } = shaderRun<{ vsmDescentBox(...a: unknown[]): Record<string, number[]> }>(
+    code,
+    ['vsmDescentBox'],
+    {
+      ...C,
+      vsmShiftedToClip: (m: Mat) => m,
+      vsmCasterBoxInView: (...a: unknown[]) => (asked.push(a), { inMapView: true }),
+    },
+  )
+  // A sphere of radius 2 about (3, 4, 0), the box's half axes along the world's: 1, 2 and 3.
+  const box = vsmDescentBox(
+    boxPd(C.LIGHT_KIND_DIRECTIONAL! + 1),
+    [3, 4, 0, 2],
+    [0, 0, 0],
+    [
+      [1, 0, 0],
+      [0, 2, 0],
+      [0, 0, 3],
+    ],
+  )
+  const slack = C.DESCENT_SHIFT_SLACK! * 5
+  const near = (a: number[], b: number[]) =>
+    a.every((x, k) => Math.abs(x - b[k]!) <= 1e-5 * Math.max(1, Math.abs(b[k]!)))
+  assert.ok(near(Array.from(box.center!), [3, 4, 0]))
+  // The cull is the casters' on the box: each axis longer by the roundings along itself.
+  const args = asked[0]! as number[][]
+  assert.ok(near(Array.from(args[0]!), [3, 4, 0]))
+  assert.ok(near(Array.from(args[1]!), [1 + slack, 0, 0]))
+  assert.ok(near(Array.from(args[2]!), [0, 2 + slack, 0]))
+  assert.ok(near(Array.from(args[3]!), [0, 0, 3 + slack]))
+  assert.equal(asked[0]![7], true, 'a local light clips at the near plane')
+  // The doubled sphere, for the range and the occlusion: a cube about it, grown by the same roundings.
+  const half = 2 * C.DESCENT_BALL_GROWTH! + slack
+  assert.ok(near(Array.from(box.extent!), [half, half, half]))
 })
 
 // The pages to draw under a node are looked for under the cube about its doubled sphere, one
 // projection of its own (`vsmDescentCube`), not under the oriented box the frustum test takes.
 test('the descent’s page test takes the cube about the node’s doubled sphere', () => {
   const code = vsmDescentWgsl(LAYOUT)
-  assert.ok(
-    code.includes('vsmDescentNoPage(w,h,pd,vsmDescentCube(pd,box))'),
-    'outsideFrustum gives the page test the cube’s cull',
+  const C = wgslConstants(code)
+  const cubes: unknown[][] = []
+  const { vsmDescentCube } = shaderRun<{ vsmDescentCube(...a: unknown[]): unknown }>(
+    code,
+    ['vsmDescentCube'],
+    { ...C, vsmCasterBoxInView: (...a: unknown[]) => (cubes.push(a), { inMapView: true }) },
   )
-  assert.ok(
-    code.includes('vec3f(r,0.0,0.0),vec3f(0.0,r,0.0),vec3f(0.0,0.0,r),box.shiftedToClip'),
+  const box = { center: [1, 2, 3], extent: [0.5, 0.5, 0.5], shiftedToClip: PROJECTION }
+  vsmDescentCube(boxPd(C.LIGHT_KIND_DIRECTIONAL!), box)
+  const [centre, a0, a1, a2] = cubes[0]! as number[][]
+  assert.deepEqual(
+    [centre, a0, a1, a2].map((v) => Array.from(v!)),
+    [
+      [1, 2, 3],
+      [0.5, 0, 0],
+      [0, 0.5, 0],
+      [0, 0, 0.5],
+    ],
     'the cube’s axes are the extent’s',
   )
+  assert.equal(cubes[0]![7], false, 'a sun clips at no near plane')
+  // `outsideFrustum` gives the page test that cube: out of the map's box, or with no page under it.
+  const cube = { cube: true }
+  const asked: unknown[][] = []
+  let inMap = true,
+    noPage = false
+  const { outsideFrustum } = shaderRun<{ outsideFrustum(...a: unknown[]): boolean }>(
+    code,
+    ['outsideFrustum'],
+    {
+      ...C,
+      vsmHandleFromId: (id: number) => ({ id }),
+      descentMap: () => 3,
+      vsmProjectionOf: () => ({ pd: true }),
+      vsmDescentBoxOf: () => ({ box: true }),
+      vsmDescentBoxInMap: () => inMap,
+      vsmDescentCube: (...a: unknown[]) => (asked.push(['cube', ...a]), cube),
+      vsmDescentNoPage: (...a: unknown[]) => (asked.push(['pages', ...a]), noPage),
+    },
+  )
+  assert.equal(outsideFrustum(7, [0, 0, 0], [1, 1, 1]), false)
+  assert.deepEqual(asked.at(-1), ['pages', 7, { id: 3 }, { pd: true }, cube], 'the cube’s cull')
+  noPage = true
+  assert.equal(outsideFrustum(7, [0, 0, 0], [1, 1, 1]), true, 'no page under the cube')
+  asked.length = 0
+  inMap = false
+  assert.equal(outsideFrustum(7, [0, 0, 0], [1, 1, 1]), true, 'outside the map’s box')
+  assert.deepEqual(asked, [], 'the pages are not looked for')
 })

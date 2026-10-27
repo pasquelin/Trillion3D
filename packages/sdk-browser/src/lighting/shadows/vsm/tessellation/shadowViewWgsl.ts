@@ -3,7 +3,7 @@ import { transformHalfExtent } from '../../../../../../math/src/wgsl/geometry.ts
 import { BOX3 } from '../../../../visibility/tessellation/patchWgsl.ts'
 import { TESS_VIEW } from '../../../../visibility/tessellation/viewWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
-import { VSM_BOX_VIEW_WGSL } from '../invalidation/boxCullWgsl.ts'
+import { VSM_BOX_VIEW_WGSL, VSM_VIEW_LENS_WGSL } from '../invalidation/boxCullWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from '../projection/projectionDataWgsl.ts'
 import { VSM_RENDER_RECORD_WGSL } from '../render/renderParamsWgsl.ts'
 
@@ -32,6 +32,7 @@ export const VSM_TESS_VIEW_WGSL = wgslBlock(
     VSM_CONSTANTS_WGSL,
     VSM_PROJECTION_DATA_WGSL,
     VSM_BOX_VIEW_WGSL,
+    VSM_VIEW_LENS_WGSL,
     transformHalfExtent,
     VSM_RENDER_RECORD_WGSL,
   ],
@@ -39,11 +40,8 @@ export const VSM_TESS_VIEW_WGSL = wgslBlock(
  let shift=raw.originShiftHigh+raw.originShiftLow;
  var clip=raw.shiftedToMapUv;
  clip[3]=raw.shiftedToMapUv*vec4f(shift,1.0);
- let m=raw.lightViewToClip;
- let perspective=m[3][3]<1.0;
- let near=m[3][2]/(1.0-m[2][2]);
- let pixels=f32(VSM_LEVEL0_TEXELS>>mip);
- return TessView(clip,vec3f(clip[0].w,clip[1].w,clip[2].w),-shift,select(0.0,near,perspective),0.5*abs(m[1][1])*pixels*tu.edgesPerPixel,perspective);
+ let lens=vsmViewLens(raw.lightViewToClip,mip);
+ return TessView(clip,vec3f(clip[0].w,clip[1].w,clip[2].w),-shift,lens.near,lens.focal*tu.edgesPerPixel,lens.perspective);
 }
 fn vsmTessOnWindow(box:Box3,world:mat4x4f,raw:VsmProjectionRecord,record:vec4u)->bool{
  let ortho=raw.lightViewToClip[3][3]>=1.0;

@@ -15,7 +15,7 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
  * the shadow changes' (`invalidation/castInvalidationWgsl.ts`), from the list's records.
  */
 import { MOBILITY_OFFSET_ALWAYS, MOBILITY_OFFSET_INVALIDATES } from '../mobilityBits.ts'
-import { VSM_BOX_CULL_WGSL } from './invalidation/boxCullWgsl.ts'
+import { VSM_BOX_CULL_WGSL, VSM_OFFSET_GROWS_WGSL } from './invalidation/boxCullWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from './constants.ts'
 import { VSM_HANDLE_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from './pageTableWgsl.ts'
 import {
@@ -61,7 +61,12 @@ ${wgslConsts({ VSM_BOX_MOVING, MOBILITY_OFFSET_ALWAYS, MOBILITY_OFFSET_INVALIDAT
  *  every invalidation entry runs over the previous frame's maps. */
 const VSM_STALE_PAGES_WGSL = wgslBlock(
   'VSM_STALE_PAGES_WGSL',
-  [VSM_INVALIDATION_INSTANCE_WGSL, VSM_BOX_CULL_WGSL, VSM_PROJECTION_DATA_READ_WGSL],
+  [
+    VSM_INVALIDATION_INSTANCE_WGSL,
+    VSM_BOX_CULL_WGSL,
+    VSM_OFFSET_GROWS_WGSL,
+    VSM_PROJECTION_DATA_READ_WGSL,
+  ],
   `
 /** A page rect that holds no page: its first corner past its last. */
 const VSM_EMPTY_PAGE_RECT:vec4u=vec4u(0xffffffffu,0xffffffffu,0u,0u);
@@ -76,8 +81,7 @@ fn vsmMappedRectPages(pixels:vec4i,h:VsmHandle,mipLevel:u32)->vec4u{
 /** Whether an instance's offset is allowed in a map: its placement's offset invalidates its shadows,
  *  and a surface always evaluates it or the map's level is not past the distance its object stops at. */
 fn vsmOffsetAllowed(inst:VsmInvalidationInstance,pd:VsmProjectionData)->bool{
- return (inst.offsetBits&MOBILITY_OFFSET_INVALIDATES)!=0u&&((inst.offsetBits&MOBILITY_OFFSET_ALWAYS)!=0u
-  ||inst.offsetDisableSq<=0.0||pd.wpoThreshold<=inst.offsetDisableSq);
+ return vsmOffsetGrows((inst.offsetBits&MOBILITY_OFFSET_INVALIDATES)!=0u,(inst.offsetBits&MOBILITY_OFFSET_ALWAYS)!=0u,inst.offsetDisableSq,pd.wpoThreshold);
 }
 /** Whether an instance is cached as static in a map: its view is cached, its box does not move, and
  *  its offset is not allowed there. */

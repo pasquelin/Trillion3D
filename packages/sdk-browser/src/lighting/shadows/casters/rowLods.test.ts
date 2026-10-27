@@ -18,6 +18,7 @@ import { CAST_DIFF_WGSL } from './castDiffWgsl.ts'
 import { CAST_HEADER_WORDS, CAST_RECORD_WORDS, CAST_STATE_WORDS } from './castChanges.ts'
 import { ROOT_BOX_DOUBLES } from '../../../placement/roots/rootWorldSends.ts'
 import { createShadowMobility } from './mobility.ts'
+import { ROOT_SECTIONS } from './rootWordsWgsl.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
 import {
@@ -124,8 +125,8 @@ const bitsOf = (x: number) => ((bits[0] = x), asBits[0])
 function diffKernel(roots: number, records = 16) {
   const rootBoxes: number[][] = Array.from({ length: roots * ROOT_BOX_DOUBLES }, () => double(0))
   const rootWorlds: number[][] = Array.from({ length: roots * 16 }, () => double(0))
-  // The words, the instances' state, the squares of the offsets' distances (`ROOT_SECTIONS`).
-  const rootWords = new Array<number>(3 * roots).fill(0)
+  // The words, the instances' state, the squares of the offsets' distances, the reach (`ROOT_SECTIONS`).
+  const rootWords = new Array<number>(ROOT_SECTIONS * roots).fill(0)
   const castState = new Array<number>(roots * CAST_STATE_WORDS).fill(0)
   const castChanges = new Array<number>(CAST_HEADER_WORDS + records * CAST_RECORD_WORDS).fill(0)
   const diff = { roots, quiet: 0 }

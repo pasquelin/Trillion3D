@@ -41,13 +41,14 @@ export const VSM_PM_GROUP_RESOURCES = 0
 export const VSM_PM_GROUP_PARAMS = 1
 export const VSM_PM_GROUP_PER_PAGE = 2
 /** Byte size of `VsmPmParams`; its slots lie the device's `uniformStride` apart. */
-export const VSM_PM_PARAMS_BYTES = 16
+export const VSM_PM_PARAMS_BYTES = 20
 
 /**
  * Loose parameters of the physical page kernels (update, address remap, ...): the next-map entries
  * this frame holds, whether last frame's pages are kept, whether a free page is taken by the age of
  * its last request (`shadowCacheAllocateViaLru`) and whether a page is cleared whole whatever it
- * holds (`shadowForceFullPageClears`) (offsets 0, 4, 8 and 12).
+ * holds (`shadowForceFullPageClears`) and whether the invalidations the pages carry are skipped
+ * (`shadowCacheDebugSkipDynamicPageInvalidation`) (offsets 0, 4, 8, 12 and 16).
  */
 const VSM_PM_PARAMS_WGSL = wgslBlock(
   'VSM_PM_PARAMS_WGSL',
@@ -58,6 +59,7 @@ struct VsmPmParams{
  hasPrevFrame:u32,
  lruAllocation:u32,
  fullClears:u32,
+ skipDynamicInvalidation:u32,
 }
 @group(${VSM_PM_GROUP_PARAMS}) @binding(0) var<uniform> vsmPm:VsmPmParams;
 `,
@@ -243,9 +245,14 @@ fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
      let keepDynamic=requestFine==0u&&projection.coarseDynamicCached;
      let skipDynamic=singlePage||(keepDynamic&&!staticStale);
      var keepDeferred=false;
-     if(staticStale){
+     // The debug switch skips the whole block: the invalidations the page holds are not applied,
+     // and a deferred one keeps its mark.
+     let skipInvalidation=vsmPm.skipDynamicInvalidation!=0u;
+     let stale=!skipInvalidation&&staticStale;
+     let dynamicHeld=skipDynamic||skipInvalidation;
+     if(stale){
       nextMarks|=VSM_PAGE_ANY_STALE;
-     }else if(!skipDynamic){
+     }else if(!dynamicHeld){
       if((prevMeta&VSM_META_DYNAMIC_STALE)!=0u){
        nextMarks|=VSM_PAGE_DYNAMIC_STALE;
       }`
@@ -260,7 +267,7 @@ const keepPagesSecondText = /* wgsl */ `
      // An invalidation that waits (a cluster drawn coarser for want of its finer level) is carried
      // out within the frame's budget, both layers; over it, the page keeps the mark and tries again.
      if((prevMeta&VSM_META_DEFERRED)!=0u){
-      if(skipDynamic){
+      if(dynamicHeld){
        keepDeferred=true;
       }else if(vsm.deferredBudget<0){
        nextMarks|=VSM_PAGE_ANY_STALE;
@@ -289,6 +296,7 @@ const keepPagesSecondText = /* wgsl */ `
      // A page an offset is allowed on, cached whole: its dynamic layer is marked stale so that the
      // raster's cull considers it (an offset that starts to move invalidates it), but it is neither
      // cleared nor drawn: its entry is not drawable and its words say nothing is stale.
+     // (The debug switch does not skip it: it is no invalidation, and the reference keeps it, by the same single-page and coarse rule.)
      if(!skipDynamic&&(prevMeta&VSM_META_FORCE_CACHED)!=0u){nextMarks|=VSM_PAGE_DYNAMIC_STALE;}
      // The page's entry (cleared again where a new map takes the page).
      vsmPageTableStore(entryIndex,vsmPackTableEntry(vsmPoolPageOf(poolIndex),drawsNow));

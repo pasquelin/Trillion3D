@@ -71,8 +71,9 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
    `vsm/clipmap.ts`, `vsm/localLight.ts`, `vsm/cacheManager.ts`). A local light takes its maps only
    if it passes the gates of [Local lights' shadow gates](#local-lights-shadow-gates-and-distant-lights).
 
-   A frame with `shadowQuality` at 0 stops at the plan's door: it plans no map, frees the set held (a
-   later frame that shadows again starts a cache of its own, so no page of a stale cache is read),
+   A frame with `shadowQuality` at 0 stops at the plan's door: it plans no map, keeps the set held with
+   its cache dropped, or frees it with `shadowDynamicDeallocationMode` 1 (a later frame that shadows again
+   draws every light uncached, or starts a cache of its own, so no page of a stale cache is read),
    releases the representation changes held for the camera to rest (the frame settles at once) and
    gives every light the answer "no shadow". The lit programs are asked without their shadow code;
    the shadow rows, the pipelines and the mask are not made or funded while the setting holds.
@@ -317,6 +318,19 @@ writes every word again (`uploadRootWords`).
 its dynamic layer is drawn again each frame; a change of the setting draws the light's pages again, and the sun's
 dynamic depth range is cut by `shadowClipmapCullDynamicTightly` only while its cover is on. The cover is sized for the
 suns' maps alone; with the local setting on it is sized for every map (`VsmLayout.coverLocal`) and the set is made again.
+`shadowDynamicDeallocationMode` (0, from 0 to 2) is what a frame at `shadowQuality` 0 does with the set held (`planNoShadows`):
+1 frees it (`releaseEngineVsm`: the pool, the tables, the cache), 0 and 2 keep it and drop its cache (`dropEngineVsmCache`: the
+previous frame forgotten, every light's entry invalidated, so the first frame that shadows again draws each light uncached; no
+page is read that the casters, changing unseen, could have left stale; the plan and the reads it left pending are forgotten, and the
+set counts no light and no map, so the panel shows 0 and the inspection no map, and each such frame settles it at once, `noteVsmIdleFrame`). Mode 0 frees only where a many-light shading mode is in
+use, which this engine does not have, so it behaves as 2: the pool's memory is held while the shadows are off, and a toggle of
+`shadowQuality` makes no set again. `shadowCacheDebugSkipDynamicPageInvalidation` (false) is a debugging switch: the page
+management applies none of the invalidations a cached page carries (the static and dynamic ones of the moved casters, the
+deferred ones, which keep their mark, and the receiver cover's redraw; `VsmPmParams.skipDynamicInvalidation`, `vsmKeepPages`), so a
+moved object leaves its old shadow in the pages. It skips no more: a page cached whole under an offset the map allows keeps the
+dynamic-stale mark that has the casters' cull consider it (nothing is cleared or drawn in it; it is no invalidation, and the
+reference leaves it on too: `VirtualShadowMapPhysicalPageManagement.usf` 443, where the switch only clears `bDynamicPageInvalidation`,
+`VirtualShadowMapArray.cpp` 3294, and so the block of 328).
 
 **The distance-field cascade.** The same levels shape the cascade after them: `encodeSunFieldShadow`
 (`frame/render/encodeSunFieldShadow.ts`) traces the sun's shadow against the distance fields of the meshes the
@@ -453,6 +467,12 @@ choice add `shadowMaxDofResolutionBias` (1) levels in proportion to the circle o
 layer for the dynamic casters in the depth pyramid is `shadowDynamicHzb` (false; it needs the occlusion and the cache): the
 first layer holds the static slice alone, which static casters and the invalidation test against, the second the static and the
 dynamic slice merged for the dynamic casters.
+
+**Marking off.** With `shadowMarkPixelPages` (true) off, the marking of the view marks nothing past the coarse pages: neither the
+pixel marking (the translucent front layer's and the water surface's marks included) nor the froxel marking runs
+(`encodeMarking`, `viewMarking`), and the water's depth and the transparents' front pass are not drawn ahead of it
+(`vsmFrontLayer.ts`); the pages of the view are never asked, so the shadows show where the coarse
+pages and the cache hold them. It is a profiling and debugging switch.
 
 **Marking from froxels.** With `shadowMarkPagesUseFroxels` (false) the pages are marked from the froxels of the depth, in place of
 pixel by pixel (`vsm/froxel/`): the screen is cut into tiles of 8 pixels and the depth into slices as deep as they are wide

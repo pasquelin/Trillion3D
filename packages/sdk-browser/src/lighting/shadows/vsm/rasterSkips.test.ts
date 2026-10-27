@@ -180,15 +180,19 @@ test('a candidate is tested where the world’s merged shells are, or every mesh
 
 // The candidate carries its sphere and the three half axes of its box (the frustum cull's volume), its
 // group's and its parent's bounds and errors, each map judging its own level of detail
-// (`vsmRenderLodAt`): 160 bytes, each vec3 followed by a scalar and no byte of padding, the far depth
-// at byte 76.
+// (`vsmRenderLodAt`): each of the first three vec3s followed by a scalar, the far depth at byte 76,
+// and last the fit of the half axes (`axisFit`), a vec3 at byte 160 that the 16-byte alignment pads
+// to 176.
 test('the candidate kernel gives every candidate its far-shadow flags and depth, and drops what no view takes', () => {
   {
     const code = vsmRenderCandidatesWgsl()
-    assert.ok(code.includes('vsmRenderFarFlags(word,w)'), 'one rule for every caster')
+    assert.ok(code.includes('vsmRenderFarFlags(roots.word,w)'), 'one rule for every caster')
     assert.ok(code.includes('vsmRenderFarDepth(object)'))
-    assert.ok(code.includes('rootWords[w]'), 'its placement’s word, read once')
-    assert.equal(code.match(/rootWords\[w\]/g)?.length, 1, 'not again for each rule')
+    assert.equal(
+      functionsOf(code, ['vsmRenderCaster']).match(/vsmRootWords\(w\)/g)?.length,
+      1,
+      'its placement’s words, read once',
+    )
     const drop = code.indexOf('if(vsmFarShadowSkipped(flags,farDepth,params.farDrop)){return;}')
     assert.ok(drop > 0 && drop < code.indexOf('atomicAdd(&counts[0]'), 'dropped before the append')
     assert.ok(
@@ -198,10 +202,10 @@ test('the candidate kernel gives every candidate its far-shadow flags and depth,
   }
   const candidate = wgslStructLayout(CULL, 'VsmRenderCandidate')
   assert.deepEqual([candidate.size, candidate.offsets.farDepth], [VSM_RENDER_CANDIDATE_BYTES, 76])
-  assert.equal(candidate.size, 160)
-  const { a0, a1, a2, corners, flags } = candidate.offsets
+  const { a0, a1, a2, corners, flags, axisFit } = candidate.offsets
   assert.deepEqual([a0, a1, a2], [32, 48, 64], 'the half axes, each with a scalar behind it')
   assert.deepEqual([corners, flags], [44, 60], 'the scalars fill the vec3s’ fourth words')
+  assert.equal(axisFit, 160, 'the fit of the half axes behind the rest')
   const { at } = VSM_RENDER_PARAMS
   assert.equal(
     [at.farMeshes, at.farDrop].every((word) => word !== undefined),
@@ -243,7 +247,7 @@ test('a caster the main view’s filter leaves out casts no shadow, none where n
   // first-person one or casts while hidden, which the filter hides from the view and which casts all the same.
   assert.ok(
     vsmRenderCandidatesWgsl().includes(
-      'if(!worldDraws(i,w)||(vsmRenderFilteredOut(w)&&(word&384u)==0u)){return;}',
+      'if(!worldDraws(i,w)||(vsmRenderFilteredOut(w)&&(roots.word&384u)==0u)){return;}',
     ),
   )
   assert.equal(VSM_RENDER_PARAMS.at.filterBase !== undefined, true, 'the parameters carry it')
@@ -296,10 +300,8 @@ test('a map’s view draws the clusters its own texels ask: the cut rule in its 
   const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
   const ortho = new Mat([0.01, 0, 0, 0, 0, 0.01, 0, 0, 0, 0, 0.001, 0, 0, 0, 0, 1])
   const focal = 0.5 * 0.01 * 16384
-  assert.equal(
-    run.vsmRenderViewPixels(0.01, [0, 0, 0], 1, identity, ortho, focal, 0, 0),
-    0.01 * focal,
-  )
+  const lens = { focal, near: 0, perspective: false }
+  assert.equal(run.vsmRenderViewPixels(0.01, [0, 0, 0], 1, identity, ortho, lens), 0.01 * focal)
   const CHILD = wgslConstants(CULL).VSM_RENDER_CAND_CHILD_RESIDENT
   const cand = (own: number, parent: number, child = true) => ({
     ...{ c: [0, 0, 0, 1], l: [0, 0, 0], row: 0, corners: 3, flags: child ? CHILD : 0 },
@@ -307,14 +309,14 @@ test('a map’s view draws the clusters its own texels ask: the cut rule in its 
     errors: [own, parent],
   })
   const draws = (own: number, parent: number, child?: boolean) =>
-    run.vsmRenderLodAt(cand(own, parent, child), [0, 0, 0], identity, ortho, focal, 0, 0) !== 0
+    run.vsmRenderLodAt(cand(own, parent, child), [0, 0, 0], identity, ortho, lens) !== 0
   assert.equal(draws(0.01, 0.02), true, 'its error within a texel, its parent past it')
   assert.equal(draws(0.02, 0.04), false, 'too coarse, its finer group resident')
   assert.equal(draws(0.02, 0.04, false), true, 'too coarse, its finer group not resident')
   assert.equal(draws(0.005, 0.01), false, 'its parent fine enough')
   assert.equal(draws(0.005, -1), true, 'a root')
   assert.equal(
-    run.vsmRenderLodAt(cand(0.02, 0.04, false), [0, 0, 0], identity, ortho, focal, 0, 0),
+    run.vsmRenderLodAt(cand(0.02, 0.04, false), [0, 0, 0], identity, ortho, lens),
     wgslConstants(CULL).VSM_RENDER_LOD_BEHIND,
     'drawn behind: over a texel, its finer group not resident',
   )
