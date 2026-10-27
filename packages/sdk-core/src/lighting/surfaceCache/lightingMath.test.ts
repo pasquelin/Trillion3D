@@ -27,14 +27,17 @@ const tilesOf = (side: number, changes: Partial<typeof defaults> = {}) =>
   updateTilesOf({ ...defaults, ...changes }, side)
 
 test('an update lights the atlas over its factor, in whole tiles, a page at least', () => {
-  // 4096 / sqrt(32) = 724.1, plus a half texel, up to 728 texels along a side; the radiosity over 64, 520.
-  assert.deepEqual(tilesOf(4096), { direct: (728 / 8) ** 2, indirect: (520 / 8) ** 2 })
+  // 4096 / sqrt(32) = 724.1, plus a half texel, 724 whole texels, up to 728 along a side; the radiosity over 64, 512.5 cut to 512.
+  assert.deepEqual(tilesOf(4096), { direct: (728 / 8) ** 2, indirect: (512 / 8) ** 2 })
+  // The half is cut, not rounded up to a tile: 3584 / 8 + 0.5 = 448.5 lights 448 texels, 56 tiles a side, not 57.
+  assert.equal(tilesOf(3584, { surfaceCacheDirectLightingUpdateFactor: 64 }).direct, 56 ** 2)
   // The speed divides the factor; a full update takes the whole atlas; a small atlas still lights a page.
   assert.equal(
     tilesOf(4096, { surfaceCacheLightingUpdateSpeed: 2 }).direct,
     tilesOf(4096, { surfaceCacheDirectLightingUpdateFactor: 16 }).direct,
   )
-  assert.equal(tilesOf(4096, { surfaceCacheLightingForceFullUpdate: true }).direct, 513 ** 2)
+  // A full update: 4096.5 cut to the 4096 texels of the atlas, 512 tiles a side.
+  assert.equal(tilesOf(4096, { surfaceCacheLightingForceFullUpdate: true }).direct, 512 ** 2)
   assert.equal(tilesOf(256, { surfaceCacheDirectLightingUpdateFactor: 1024 }).direct, 16 * 16)
   assert.equal(pageTiles(128, 128), 256)
   assert.equal(pageTiles(8, 16), 2)

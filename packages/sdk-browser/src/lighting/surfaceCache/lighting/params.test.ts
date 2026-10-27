@@ -16,15 +16,15 @@ import {
 import { shapeKey, shapeOf, sizesOf, tracedRaysFit, writeLightingParams } from './params.ts'
 import { lightingSettings as settings, near } from './params.fixture.ts'
 
-test('the lighting is sized by the reference defaults: an atlas of 4096 lights 8281 tiles directly and 4225 by radiosity', () => {
+test('the lighting is sized by the reference defaults: an atlas of 4096 lights 8281 tiles directly and 4096 by radiosity', () => {
   const shape = shapeOf(settings, 4096, false)
   assert.equal(shape.directTiles, 91 ** 2)
-  assert.equal(shape.indirectTiles, 65 ** 2)
+  assert.equal(shape.indirectTiles, 64 ** 2)
   assert.equal(shape.maxLights, 8)
   assert.equal(shape.spacing, 4)
   assert.equal(shape.hemisphere, 4)
   // A probe a tile of 4 × 4 texels: four to a tile of the cards' tiles.
-  assert.equal(shape.radiosityTiles, 4 * 65 ** 2)
+  assert.equal(shape.radiosityTiles, 4 * 64 ** 2)
   assert.equal(shape.probesPerTile, 1)
   assert.equal(shape.raysPerProbe, 16)
 })
@@ -34,7 +34,7 @@ test('the memory follows the shape: the probes at the spacing, a square of rays 
   assert.equal(sizes.probeAtlas, 1024)
   assert.equal(sizes.traceAtlas, 4096)
   assert.equal(sizes.tileLightsWords, 91 ** 2 * 9)
-  assert.equal(sizes.filteredWords, 4 * 65 ** 2 * 16)
+  assert.equal(sizes.filteredWords, 4 * 64 ** 2 * 16)
   // The lists follow the header, one after the other.
   const layout = contextLayout(10, 20, 30)
   assert.deepEqual(

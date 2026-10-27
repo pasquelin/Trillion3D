@@ -19,15 +19,18 @@ export const LIGHTING_CONTEXTS = { direct: 0, indirect: 1 } as const
 export const PRIORITY_HISTOGRAM_SIZE = 16
 
 /**
- * The tiles an update of a `side` atlas lights in an image: the atlas's texels over `factor` divided by `speed` (rounded,
- * held from 1 to 1024; 1 for `forceFull`), a square of whole tiles that is at least one page.
+ * The tiles an update of a `side` atlas lights in an image: the atlas's texels over `factor` divided by `speed` (in
+ * single precision, rounded, held from 1 to 1024; 1 for `forceFull`), a square of whole tiles that is at least one page.
+ * The side over the divisor's root, plus a half, is taken in single precision and cut to a whole number of texels before
+ * it is rounded up to tiles.
  */
 function updateTiles(side: number, factor: number, speed: number, forceFull: boolean) {
-  const divisor = forceFull ? 1 : clamp(Math.round(factor / speed), 1, 1024)
-  const along = Math.max(
-    ceilDiv(side / Math.sqrt(divisor) + 0.5, CARD_TILE_SIZE) * CARD_TILE_SIZE,
-    PAGE_SIZE,
-  )
+  const divisor = forceFull
+    ? 1
+    : clamp(Math.round(Math.fround(factor / Math.fround(speed))), 1, 1024)
+  const perSide = Math.fround(1 / Math.fround(Math.sqrt(divisor)))
+  const texels = Math.trunc(Math.fround(Math.fround(side * perSide) + 0.5))
+  const along = Math.max(ceilDiv(texels, CARD_TILE_SIZE) * CARD_TILE_SIZE, PAGE_SIZE)
   return (along / CARD_TILE_SIZE) ** 2
 }
 
