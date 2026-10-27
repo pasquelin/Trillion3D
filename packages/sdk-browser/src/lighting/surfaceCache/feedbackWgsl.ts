@@ -84,7 +84,9 @@ fn feedbackPlace(key:u32,taken:ptr<function,bool>)->u32{
   let held=atomicLoad(&keys[at]);
   if(held==key){return at;}
   if(held!=0u){continue;}
-  let swap=atomicCompareExchangeWeak(&keys[at],0u,key);
+  // The exchange may fail with the place still empty: it is tried again there before the next place is probed.
+  var swap=atomicCompareExchangeWeak(&keys[at],0u,key);
+  while(!swap.exchanged&&swap.old_value==0u){swap=atomicCompareExchangeWeak(&keys[at],0u,key);}
   if(swap.exchanged){*taken=true;return at;}
   if(swap.old_value==key){return at;}
  }
