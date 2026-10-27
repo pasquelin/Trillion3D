@@ -1,4 +1,4 @@
-// The feedback of the rays that read the cards: the compaction's two kernels (`feedbackWgsl.ts`, the shipped WGSL run as
+// The feedback of the rays that read the cards: the compaction's three kernels (`feedbackWgsl.ts`, the shipped WGSL run as
 // JavaScript by `shaderRun`) and the header the read library indexes the buffer by (`feedbackLayout.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -48,12 +48,16 @@ function compacted({ elements, counter, size, places = 16, room = 8, key }: Imag
   dispatch(run.buildFeedbackTable, elements.length)
   dispatch(run.compactFeedbackTable, places)
   const count = listed[0]
-  const out = Array.from({ length: Math.min(count, room - 1) }, (_, at) => [
+  const placed = Array.from({ length: Math.min(count, room - 1) }, (_, at) => [
     listed[2 * (at + 1)],
     listed[2 * (at + 1) + 1],
   ])
   // The table's order is its places': the list is read by element, the page's column and row first.
-  return { count, out: out.sort((a, b) => a[0] - b[0] || (a[1] & 0xffff) - (b[1] & 0xffff)) }
+  return {
+    count,
+    out: [...placed].sort((a, b) => a[0] - b[0] || (a[1] & 0xffff) - (b[1] & 0xffff)),
+    placed,
+  }
 }
 
 /** The key of the pair that makes each distinct pair its own, so that the table's places are the test's to place. */
@@ -125,4 +129,113 @@ test('the header’s words are the ones the read library indexes the feedback bu
     [...indexed].sort((a, b) => a - b),
     Object.values(FEEDBACK_AT).sort((a, b) => a - b),
   )
+})
+
+/** The reference's key of a pair, as its hash writes it: the first word mixed, the second folded into it. */
+function referenceKey(first: number, second: number) {
+  const mul = (a: number, b: number) => Math.imul(a, b) >>> 0
+  const left = (word: number, bits: number) => ((word << bits) | (word >>> (32 - bits))) >>> 0
+  let hash = first
+  hash = (hash ^ (hash >>> 16)) >>> 0
+  hash = mul(hash, 0x85ebca6b)
+  hash = (hash ^ (hash >>> 13)) >>> 0
+  hash = mul(hash, 0xc2b2ae35)
+  hash = (hash ^ (hash >>> 16)) >>> 0
+  const element = mul(left(mul(second, 0xcc9e2d51), 15), 0x1b873593)
+  return (mul(left((hash ^ element) >>> 0, 13), 5) + 0xe6546b64) >>> 0
+}
+
+/** A pair whose key the reference's hash makes zero, the empty place's own: a card and level, the page at column 2, row 1. */
+const ZERO_KEY: [number, number] = [0xfed9bf52, 0x0102]
+
+const feedbackKeyOf = (first: number, second: number) =>
+  shaderRun<{ feedbackKey: (a: number, b: number) => number }>(
+    FEEDBACK_COMPACTION_SHADER,
+    ['feedbackKey'],
+    {},
+  ).feedbackKey(first, second)
+
+test('the key of an element is the first word mixed with the second added, as the reference hashes it', () => {
+  assert.equal(referenceKey(5, 7), 4183854518)
+  for (const [first, second] of [
+    [5, 7],
+    [0x00ffffff, 0x0f0f00ff],
+    [0x12345678, 0],
+    [0xffffffff, 0xffff00ff],
+  ]) {
+    assert.equal(feedbackKeyOf(first, second), referenceKey(first, second))
+  }
+})
+
+test('a key the hash makes zero is one, so the element is told from the empty place and listed', () => {
+  assert.equal(referenceKey(...ZERO_KEY), 0)
+  assert.equal(feedbackKeyOf(...ZERO_KEY), 1)
+  const made = compacted({
+    elements: [[7, 7], ZERO_KEY, ZERO_KEY],
+    places: 16,
+  })
+  assert.deepEqual(made.out, [
+    [7, 7 | (1 << 16)],
+    [ZERO_KEY[0], ZERO_KEY[1] | (2 << 16)],
+  ])
+})
+
+test('a table too full to list every element keeps those of its first places, in the order of the places, as the reference’s', () => {
+  const elements = Array.from({ length: 40 }, (_, at): [number, number] => [1000 + at * 7, at])
+  const places = 64
+  const room = 17
+  // The reference's table: each distinct key takes the first free place from its own, elements in turn; the list is
+  // read place after place, the header taking the first element of the room.
+  const taken = new Array<[number, number] | undefined>(places).fill(undefined)
+  const keys = new Array<number>(places).fill(0)
+  for (const element of elements) {
+    const key = referenceKey(...element)
+    for (let step = 0; step < 32; step++) {
+      const at = (key + step) & (places - 1)
+      if (keys[at] === 0) {
+        keys[at] = key
+        taken[at] = element
+        break
+      }
+    }
+  }
+  const expected = taken
+    .filter((element) => element)
+    .slice(0, room - 1)
+    .map(([first, second]) => [first, second | (1 << 16)])
+  const made = compacted({ elements, places, room })
+  assert.equal(made.count, 40)
+  assert.deepEqual(made.placed, expected)
+})
+
+test('an element the table gives no place is not counted, and adds nothing to the count of another', () => {
+  const elements = Array.from({ length: 40 }, (_, at): [number, number] => [at + 1, 0])
+  // One key for all: the first thirty-two take the places its probes reach, the others find none.
+  const made = compacted({ elements, places: 64, room: 64, key: () => 5 })
+  assert.equal(made.count, 32)
+  assert.deepEqual(
+    made.out.map(([, second]) => second >>> 16),
+    new Array(32).fill(1),
+  )
+})
+
+/** The workgroups the table's building is asked for, given the counter and the size the feedback buffer holds. */
+function buildArgs(counter: number, size: number) {
+  const feedback = new Array<number>(FEEDBACK_HEADER_WORDS).fill(0)
+  feedback[FEEDBACK_AT.counter] = counter
+  feedback[FEEDBACK_AT.size] = size
+  const args = [9, 9, 9]
+  shaderRun<{ buildFeedbackTableArgs: () => void }>(
+    FEEDBACK_COMPACTION_SHADER,
+    ['buildFeedbackTableArgs'],
+    { feedback, args },
+  ).buildFeedbackTableArgs()
+  return args
+}
+
+test('the table’s building is dispatched over the elements written, the counter held to the buffer’s size, in rows', () => {
+  assert.deepEqual(buildArgs(130, 200), [3, 1, 1])
+  assert.deepEqual(buildArgs(500, 200), [4, 1, 1], 'a counter past the size')
+  assert.deepEqual(buildArgs(0, 200), [0, 1, 1], 'none written')
+  assert.deepEqual(buildArgs(64 * 70000, 64 * 70000), [65535, 2, 1], 'past one row of workgroups')
 })

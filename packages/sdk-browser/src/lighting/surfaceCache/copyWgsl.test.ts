@@ -105,7 +105,11 @@ test('the lookup along the normal blends the two rows around the roughness, the 
 })
 
 test('a cloth’s fuzz sends back the albedo of its lobe along the normal at half way between the surface’s roughness and one, floored', () => {
-  assert.ok(RESOLVE_WGSL.includes(`fn sheenFuzzRoughness(rough:f32)->f32{return clamp(0.5+0.5*rough,${wgslF32(0.02)},1.0);}`))
+  assert.ok(
+    RESOLVE_WGSL.includes(
+      `fn sheenFuzzRoughness(rough:f32)->f32{return clamp(0.5+0.5*rough,${wgslF32(0.02)},1.0);}`,
+    ),
+  )
   assert.match(
     RESOLVE_WGSL,
     /if\(cloth\)\{\n\s*let amount=packedCloth\(texel\);\n\s*let fuzzAlbedo=sheenLtcAlbedoAlongNormal\(sheenFuzzRoughness\(surface\.w\)\);\n\s*fuzzKeep=mix\(1\.0,1\.0-fuzzAlbedo,amount\);\n\s*fuzzAdded=packedFuzz\(texel\)\*fuzzAlbedo\*amount;/,

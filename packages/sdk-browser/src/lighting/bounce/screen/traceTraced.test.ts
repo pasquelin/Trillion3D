@@ -66,13 +66,20 @@ test('the traced stage binds clear of the cut’s tables, which keep the culling
   for (const binding of cut) assert.ok(!own.includes(binding), `binding ${binding}`)
   assert.equal(new Set(own).size, own.length, 'no binding twice')
   for (const binding of Object.values(TRACE_TRACED_FOG))
-    assert.ok(!library.includes(binding), `the fog’s binding ${binding} is clear of the cards’ layers`)
+    assert.ok(
+      !library.includes(binding),
+      `the fog’s binding ${binding} is clear of the cards’ layers`,
+    )
   for (const fog of [false, true]) {
     const held = traceTracedEntries(fog).map(({ binding }) => binding)
     assert.equal(new Set(held).size, held.length, 'the layout holds no binding twice')
     for (const binding of cut) assert.ok(held.includes(binding), `the cut’s table ${binding}`)
     for (const binding of Object.values(TRACE_TRACED_FOG))
-      assert.equal(held.includes(binding), fog, `the fog’s binding ${binding} is held only where it is on`)
+      assert.equal(
+        held.includes(binding),
+        fog,
+        `the fog’s binding ${binding} is held only where it is on`,
+      )
   }
   assert.deepEqual([TRACE_TRACED_SCENE.group, TRACE_TRACED_SCENE.first], [2, 0])
   assert.match(PROGRAM, /@group\(2\) @binding\(0\) var<uniform> stParams/)
@@ -144,8 +151,16 @@ test('the ray starts off the surface along its normal by the normal bias, the no
   )
   const probe = (foliage: boolean) => ({ P: [1, 2, 3], N: [0, 1, 0], foliage })
   assert.deepEqual(spTracedStart(probe(false), [0, 1, 0]), [1, 2.25, 3])
-  assert.deepEqual(spTracedStart(probe(false), [0, -1, 0]), [1, 2.25, 3], 'a plain surface keeps its normal')
-  assert.deepEqual(spTracedStart(probe(true), [0, -1, 0]), [1, 1.75, 3], 'a sheet’s normal faces the ray')
+  assert.deepEqual(
+    spTracedStart(probe(false), [0, -1, 0]),
+    [1, 2.25, 3],
+    'a plain surface keeps its normal',
+  )
+  assert.deepEqual(
+    spTracedStart(probe(true), [0, -1, 0]),
+    [1, 1.75, 3],
+    'a sheet’s normal faces the ray',
+  )
 })
 
 test('the self-intersection modes are the reference’s: 0 culls the back faces, 1 traces again once, 2 passes the near hits', () => {
@@ -214,7 +229,10 @@ test('a hit writes its light dithered by the tile’s blue noise and its distanc
   // The sky light that leaks onto a hit joins its light before it is written, at the distance the hit was found at.
   assert.match(entry, /if\(ray\.hit\)\{ray\.radiance\+=spSkyLeak\(direction,ray\.distance\);\}/)
   assert.match(entry, /let noise=blueNoiseVec2\(spProbeTile\(own\),sp\.mode\.w\)\.y;/)
-  assert.match(entry, /let lit=spTracedLit\(ray,probe,direction\);[^]*packLight\(ditherLight\(lit,noise\)\)/)
+  assert.match(
+    entry,
+    /let lit=spTracedLit\(ray,probe,direction\);[^]*packLight\(ditherLight\(lit,noise\)\)/,
+  )
   assert.match(entry, /spHitWord\(end,moving\),0u,0u,0u/)
   // A hit moves when the probe's speed and the speed of the placement met differ, over the probe's depth, by more than the setting's share.
   assert.match(
@@ -314,11 +332,16 @@ test('the height fog is laid over a hit from where the ray started over the dist
     FOG_PROGRAM,
     /fn spTracedLit\(ray:SpTraced,probe:SpProbe,d:vec3f\)->vec3f\{\n return spRayFogged\(ray\.radiance,spTracedStart\(probe,d\),d,ray\.distance,true\);/,
   )
-  assert.match(PROGRAM, /fn spTracedLit\(ray:SpTraced,probe:SpProbe,d:vec3f\)->vec3f\{\n return ray\.radiance;/)
+  assert.match(
+    PROGRAM,
+    /fn spTracedLit\(ray:SpTraced,probe:SpProbe,d:vec3f\)->vec3f\{\n return ray\.radiance;/,
+  )
   assert.equal(entry.match(/packLight\(/g)?.length, 1, 'the light is quantized once')
   assert.match(
     FOG_PROGRAM,
-    new RegExp(`@binding\\(${TRACE_TRACED_FOG.lights}\\) var<storage,read> directLights:DirectLights;`),
+    new RegExp(
+      `@binding\\(${TRACE_TRACED_FOG.lights}\\) var<storage,read> directLights:DirectLights;`,
+    ),
   )
   assert.doesNotMatch(PROGRAM, /reflectionFogged|spRayFogged|directLights/)
   // The fog is seen along the hit's own distance (not the end held to the furthest a ray looks), from the start.

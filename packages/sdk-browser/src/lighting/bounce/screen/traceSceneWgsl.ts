@@ -59,7 +59,11 @@ const C = TRACE_SCENE_BINDINGS.at
 
 /** The mark the hit word (`spHitWord`) of a ray holds when the traced stage (`traceTracedWgsl.ts`) left it to the radiance cache: `SP_FAR_PENDING`, all its bits set — a
  *  value no distance word holds, its exponent whole —, until `traceFar` answers it. */
-export const SP_FAR_PENDING = wgslBlock('SP_FAR_PENDING', [], 'const SP_FAR_PENDING:u32=0xffffffffu;')
+export const SP_FAR_PENDING = wgslBlock(
+  'SP_FAR_PENDING',
+  [],
+  'const SP_FAR_PENDING:u32=0xffffffffu;',
+)
 
 /** The width of the cone of a ray of the scene stage (`spRayCone`): the texels a side of the grid the ray's trace texel is a texel of. A program
  *  that names it declares the rays (`spRays`) and `SP_TRACE`. */

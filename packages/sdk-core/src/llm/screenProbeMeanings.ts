@@ -207,7 +207,7 @@ const RADIANCE_CACHE_AND_FOLIAGE_MEANINGS = /* @__PURE__ */ (() =>
     screenProbeMaxRoughnessToEvaluateRoughSpecular:
       "The roughness past which a pixel's rough specular reflection is the diffuse light over pi instead of four samples of its GGX lobe in the probes' radiance (blended over the 0.2 below it); a pixel whose reflection is traced whole takes the diffuse light too. Lower values save cost and lose rough specular.",
     screenProbeMaxRoughnessToEvaluateRoughSpecularForFoliage:
-      'The same roughness for the pixels of a thin double-sided sheet that transmits light (a leaf, a curtain). Negative, the default, is the row of the reflections\' level (reflectionQuality): 0.4 at high, 0.8 at ultra and cinematic and where the reflections are off.',
+      "The same roughness for the pixels of a thin double-sided sheet that transmits light (a leaf, a curtain). Negative, the default, is the row of the reflections' level (reflectionQuality): 0.4 at high, 0.8 at ultra and cinematic and where the reflections are off.",
   }) satisfies Partial<Record<ScreenProbeField, string>>)()
 
 /** What each setting of the screen probes means (`../bounce/screenProbeOptions.ts`); they apply where the

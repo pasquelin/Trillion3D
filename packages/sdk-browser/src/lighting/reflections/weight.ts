@@ -58,8 +58,8 @@ export const reflectionWeighWgsl = (lobes: boolean, f90: 'green' | 'slab' = 'gre
     [REFLECTED_WGSL, REFLECTION_WEIGHT_WGSL, DIELECTRIC_F0, f90 === 'green' ? envBrdfF90 : slabF90],
     `fn reflectionF90(f0:vec3f)->f32{return ${f90 === 'green' ? 'envBrdfF90' : 'slabF90'}(f0);}
 ${
-      lobes
-        ? `fn reflectionBaseShare(traced:Reflected,f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
+  lobes
+    ? `fn reflectionBaseShare(traced:Reflected,f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
  if(!hasCoat()){return traced.base*reflectionWeight(f0,reflectionF90(f0),rough,N,V);}
  // The coat's layers combined: the base's reflection weighed on the coat's reflectance, the grazing part of
  // its environment BRDF scaled by what the coat leaves, and what the coat lets through (one minus its own).
@@ -72,11 +72,11 @@ fn reflectionCoatShare(traced:Reflected,V:vec3f)->vec3f{
  if(!hasCoat()){return vec3f(0.0);}
  return traced.coat*lobes.coat*reflectionWeight(DIELECTRIC_F0,reflectionF90(DIELECTRIC_F0),lobes.coatRough,lobes.coatN,V).x;
 }`
-        : `fn reflectionBaseShare(traced:Reflected,f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
+    : `fn reflectionBaseShare(traced:Reflected,f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
  return traced.base*reflectionWeight(f0,reflectionF90(f0),rough,N,V);
 }
 fn reflectionCoatShare(traced:Reflected,V:vec3f)->vec3f{return vec3f(0.0);}`
-    }
+}
 fn reflectionShare(traced:Reflected,f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
  return reflectionBaseShare(traced,f0,rough,N,V)+reflectionCoatShare(traced,V);
 }`,

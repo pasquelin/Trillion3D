@@ -20,7 +20,8 @@ test('every screen-probe kernel is a module a device takes, at every level: its 
       )
       const sources = screenProbeSources(shape)
       assert.deepEqual(
-        Object.keys(sources).filter((name) => name !== 'occlusion' && name !== 'temporal').length > 0,
+        Object.keys(sources).filter((name) => name !== 'occlusion' && name !== 'temporal').length >
+          0,
         level !== 'low',
         `${level} makes the kernels over the probes only where it casts them`,
       )

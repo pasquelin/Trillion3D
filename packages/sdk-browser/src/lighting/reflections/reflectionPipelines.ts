@@ -36,7 +36,11 @@ interface ReflectionParts {
 /** The entries of the reflection group (`reflectionBindingsWgsl`) as `visibility` sees them, holding `parts`, in the group's order: the view uniform, the depth
  *  (`hizDepthEntries`), the lighting's view, the lit image (`hdrTargetDescriptor`), the front depth, the sky light. */
 const reflectionEntries = (visibility: GPUShaderStageFlags, parts: ReflectionParts) => [
-  computeUniformEntry(REFLECTION_VIEW_BINDING, { minBindingSize: REFLECTION_VIEW_BYTES }, visibility),
+  computeUniformEntry(
+    REFLECTION_VIEW_BINDING,
+    { minBindingSize: REFLECTION_VIEW_BYTES },
+    visibility,
+  ),
   ...(parts.depth === 'pyramid' ? hizDepthEntries(REFLECTION_DEPTH_BINDING, visibility) : []),
   ...(parts.depth === 'level0' ? hizLevelZeroEntries(REFLECTION_DEPTH_BINDING, visibility) : []),
   computeBufferEntry(REFLECTION_LIGHT_VIEW_BINDING, 'uniform', visibility),

@@ -128,11 +128,14 @@ fn stochasticOffsets(@builtin(workgroup_id) group:vec3u,@builtin(local_invocatio
 
 /** The program that picks the texel each pixel reads of the integration run at a reduction of two, over the `samples` of a tile. */
 export const stochasticShader = (samples: readonly [number, number]) =>
-  wgslProgram(`${spParams(S.params)}
-${wgslConsts({ SP_INTEGRATE_DOWNSAMPLE: 2 })}`, [
-    spCommon(samples),
-    spSurface(S.normals, S.flags),
-    blueNoiseWgsl(0, S.blue),
-    SP_INTEGRATE_CELLS,
-    STOCHASTIC_KERNEL,
-  ])
+  wgslProgram(
+    `${spParams(S.params)}
+${wgslConsts({ SP_INTEGRATE_DOWNSAMPLE: 2 })}`,
+    [
+      spCommon(samples),
+      spSurface(S.normals, S.flags),
+      blueNoiseWgsl(0, S.blue),
+      SP_INTEGRATE_CELLS,
+      STOCHASTIC_KERNEL,
+    ],
+  )

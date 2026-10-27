@@ -89,12 +89,22 @@ test('a neighbour past the card’s far edge is no probe of it: the filter skips
   // bound its page index (32·4/128 = 1, one page across) would be 1 + y·1, the first page of the next row, another part of the card.
   const looked: number[][] = []
   const { gatherNeighbour } = shaderRun<{
-    gatherNeighbour: (texel: object, page: number, probe: number[], ray: number[], sum: { v: number[] }, weight: { v: number }) => void
+    gatherNeighbour: (
+      texel: object,
+      page: number,
+      probe: number[],
+      ray: number[],
+      sum: { v: number[] },
+      weight: { v: number },
+    ) => void
   }>(RADIOSITY_FILTER_WGSL, ['gatherNeighbour'], {
     ...wgslConstants(RADIOSITY_FILTER_WGSL),
     lp: { spacing: 4, hemisphere: 4 },
     cardSizeInProbes: () => [32, 32],
-    cardProbeTexel: (_page: number, _size: number[], probe: number[]) => (looked.push(probe), { inside: false, valid: false }),
+    cardProbeTexel: (_page: number, _size: number[], probe: number[]) => (
+      looked.push(probe),
+      { inside: false, valid: false }
+    ),
   })
   const sum = { v: [0, 0, 0] },
     weight = { v: 0 }

@@ -134,7 +134,10 @@ test('a rough clear coat is weighed on its own roughness and normal, the base lo
     view: { reflection: [1, 1, 0, 0] },
     lobes: { coat: 0.5, coatRough: 0.9, coatN: [0, 0, 1] },
     // The weight of the environment BRDF is its roughness here, to read which roughness it is asked at.
-    reflectionWeight: (_f0: number[], _f90: number, rough: number) => (asked.push(rough), [rough, rough, rough]),
+    reflectionWeight: (_f0: number[], _f90: number, rough: number) => (
+      asked.push(rough),
+      [rough, rough, rough]
+    ),
     lobeRoughness: (rough: number) => rough,
     ndotvClamped: () => 1,
     environmentBrdfPair: () => [1, 0],
@@ -173,17 +176,24 @@ test('a surface whose roughness is 0 still weighs and reads the environment at t
 })
 
 test('each pass weighs on the grazing reflectance of its own rule: the green channel’s for the opaque composite, the greatest channel’s forward', () => {
-  const rule = (code: string) => /fn reflectionF90\(f0:vec3f\)->f32\{return (\w+)\(f0\);\}/.exec(code)?.[1]
+  const rule = (code: string) =>
+    /fn reflectionF90\(f0:vec3f\)->f32\{return (\w+)\(f0\);\}/.exec(code)?.[1]
   assert.equal(rule(wgslModule(reflectionWeighWgsl(true))), 'envBrdfF90')
   assert.equal(rule(wgslModule(reflectionWeighWgsl(false))), 'envBrdfF90')
   assert.equal(rule(wgslModule(reflectionWeighWgsl(true, 'slab'))), 'slabF90')
   assert.equal(rule(wgslModule(reflectionWeighWgsl(false, 'slab'))), 'slabF90')
   // The green channel's grazing value, and the greatest channel's, for a reflectance whose green is the least of its channels.
   const f0 = [0.02, 0.004, 0.01]
-  const { envBrdfF90, slabF90 } = shaderRun<{ envBrdfF90: (f0: number[]) => number; slabF90: (f0: number[]) => number }>(
+  const { envBrdfF90, slabF90 } = shaderRun<{
+    envBrdfF90: (f0: number[]) => number
+    slabF90: (f0: number[]) => number
+  }>(
     wgslModule(reflectionWeighWgsl(true)) + '\n' + wgslModule(reflectionWeighWgsl(true, 'slab')),
     ['envBrdfF90', 'slabF90'],
     {},
   )
-  assert.ok(Math.abs(envBrdfF90(f0) - 0.2) < 1e-6 && Math.abs(slabF90(f0) - 1) < 1e-6, `${envBrdfF90(f0)} ${slabF90(f0)}`)
+  assert.ok(
+    Math.abs(envBrdfF90(f0) - 0.2) < 1e-6 && Math.abs(slabF90(f0) - 1) < 1e-6,
+    `${envBrdfF90(f0)} ${slabF90(f0)}`,
+  )
 })

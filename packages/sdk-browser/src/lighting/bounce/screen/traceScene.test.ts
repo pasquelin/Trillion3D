@@ -188,7 +188,11 @@ test('the radiance cache’s answer to a ray the traced stage left (traceFar) is
   assert.deepEqual(spRayLit([1, 2, 3], probe, [0, 1, 0], 12, false), [1, 1.5, 2])
   assert.deepEqual(fog.seen, [{ from: [2, 3, 4], along: [0, 12, 0] }])
   spRayLit([1, 2, 3], probe, [0, 1, 0], 2, false)
-  assert.deepEqual(fog.seen[1].along, [0, 5, 0], 'a cache answer nearer than the sky’s length is fogged over the length')
+  assert.deepEqual(
+    fog.seen[1].along,
+    [0, 5, 0],
+    'a cache answer nearer than the sky’s length is fogged over the length',
+  )
   spRayLit([1, 2, 3], probe, [0, 1, 0], 2, true)
   assert.deepEqual(fog.seen[2].along, [0, 2, 0], 'a hit is fogged over the distance it hit at')
 })

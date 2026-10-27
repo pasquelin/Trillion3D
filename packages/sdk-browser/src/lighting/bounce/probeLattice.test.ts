@@ -146,7 +146,12 @@ test('the coordinate of a point, the first of the probes round it and the weight
       ]) {
         const P = origin.map((v, axis) => v + offset[axis] * spacing)
         const label = `origin ${origin}, level ${level}, point ${P}`
-        near(shader.probeCoordFloat(level, P), reference.coordFloat(P), `${label}: coordinate`, 1e-6)
+        near(
+          shader.probeCoordFloat(level, P),
+          reference.coordFloat(P),
+          `${label}: coordinate`,
+          1e-6,
+        )
         assert.deepEqual(
           shader.probeBottomCell(level, P),
           reference.bottomCorner(P).map((v, axis) => base[axis] + v),
@@ -177,7 +182,11 @@ test('a cell’s probe read back from its place is the same cell: cell to positi
         const where = shader.probePosition(cell, spacing)
         const label = `origin ${origin}, level ${level}, cell ${cell}`
         // The coordinate of the probe itself is its coordinate and a half: the floor of it is its own.
-        assert.deepEqual(shader.probeCoordFloat(level, where).map(Math.floor), k, `${label}: coordinate`)
+        assert.deepEqual(
+          shader.probeCoordFloat(level, where).map(Math.floor),
+          k,
+          `${label}: coordinate`,
+        )
         const past = where.map((v) => v + 0.25 * spacing)
         assert.deepEqual(shader.probeBottomCell(level, past), cell, `${label}: a quarter past`)
         near(shader.probeFraction(level, past), [0.25, 0.25, 0.25], `${label}: its weight`, 1e-6)
@@ -197,7 +206,9 @@ test('the level that covers a point is the reference’s pick: the first whose e
   const fade = SCREEN_PROBE_CONSTANTS.radianceInvLevelFadeSize
   for (const origin of ORIGINS) {
     const shader = follow(origin)
-    for (const distance of [0.2, 5, 11.9, 12.4, 12.55, 24.9, 25.4, 40, 49, 51, 99, 101, 190, 204, 206]) {
+    for (const distance of [
+      0.2, 5, 11.9, 12.4, 12.55, 24.9, 25.4, 40, 49, 51, 99, 101, 190, 204, 206,
+    ]) {
       for (const axis of [0, 1, 2])
         for (const sign of [1, -1]) {
           const P = origin.map((v, a) => (a === axis ? v + sign * distance : v + 0.13))
@@ -241,7 +252,8 @@ test('the eight probes a ray reads are the reference’s, at its weights: the co
       bounce: uniform(),
       cellTable: table,
       cacheNow: gathered,
-      textureLoad: (_: unknown, at: Vec, layer: number) => ATLAS_CALLS.textureLoad(table, at, layer),
+      textureLoad: (_: unknown, at: Vec, layer: number) =>
+        ATLAS_CALLS.textureLoad(table, at, layer),
     },
   )
   run.spCacheGatherOwn(P)

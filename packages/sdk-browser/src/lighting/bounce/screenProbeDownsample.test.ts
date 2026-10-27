@@ -174,7 +174,10 @@ test('the surface a cell weighs by is that of the pixel the integration lit, hel
   // The cache is filled by the thread of that pixel, and the ring reads it, for every cell inside the integration's.
   const code = stochasticShader([4, 2])
   assert.match(code, /if\(all\(spIntegratePixel\(pixel\/vec2u\(2u\)\)==pixel\)\)\{/)
-  assert.match(code, /if\(all\(cell<spIntegrateSize\(\)\)\)\{\n\s*let other=spSurfaceAt\(spIntegratePixel\(cell\)\);/)
+  assert.match(
+    code,
+    /if\(all\(cell<spIntegrateSize\(\)\)\)\{\n\s*let other=spSurfaceAt\(spIntegratePixel\(cell\)\);/,
+  )
   assert.match(code, /const SP_INTEGRATE_DOWNSAMPLE:u32=2u;/)
 })
 
