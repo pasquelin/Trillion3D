@@ -19,9 +19,8 @@ import { luminance } from '../../../../math/src/wgsl/color.ts'
  * - a FRESH texel, the trace's (`freshPack`) and the resolve's: the hit's distance as a half (bits
  *   0–14, held at the miss distance, `REFLECTION_MISS_DISTANCE`, where a ray met nothing) under a valid bit (15, the half's sign, a
  *   distance never negative), zero where the pixel casts or resolves nothing; a traced texel's ray
- *   beside it: the block's pixel the classification picked (`classifyTraced`, in `REFLECTION_RAY_FORMAT`: bits
- *   0–4 its rank in the block, a traced bit over it) and, in `REFLECTION_DIRECTION_FORMAT`, the ray's direction and its cone angle
- *   (`surfaceDirections`, `surfacesWgsl.ts`);
+ *   beside it, in the layers of `REFLECTION_RAY_FORMAT`: the depth of the block's pixel the ray generation picked and the ray's direction and its cone angle
+ *   (`surfaceRays`, `surfacesWgsl.ts`);
  * - a HISTORY texel, four words (`REFLECTION_HISTORY_FORMAT`), the temporal accumulation's
  *   (`historyPack`): the radiance's two words, the high half of `y` its surface's linear depth as a
  *   half — within 0.05 % of itself, under the history's distance threshold

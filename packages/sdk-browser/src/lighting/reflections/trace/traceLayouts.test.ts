@@ -8,7 +8,7 @@ import {
   REFLECTION_TRACE_BINDINGS as B,
   traceLayouts,
 } from './traceBindings.ts'
-import { REFLECTION_DIRECTION_FORMAT } from '../grids.ts'
+import { REFLECTION_RAY_FORMAT } from '../grids.ts'
 import { reflectionTraceShader } from './trace.ts'
 import { KERNELS, device, reached } from './traceLayouts.fixture.ts'
 
@@ -56,26 +56,36 @@ test('the scene stage reads the cache’s depth, direct, indirect and final laye
   assert.ok(![B.cards + 2, B.cards + 3, B.cards + 4].some((binding) => held.includes(binding)))
 })
 
-test('the two ray stages draw a ray’s direction from the blue noise at the grid texel and the image’s turn, and no other kernel reads it', () => {
+test('the ray generation alone draws a ray’s direction, from the blue noise at the grid texel and the image’s turn, and no other kernel reads it', () => {
   const program = reflectionTraceShader(false)
   assert.ok(program.includes('blueNoiseVec2(g,reflectionView.temporal.x)'))
   assert.ok(!program.includes('additive2d'), 'no plastic-number sequence beside it')
-  for (const entry of ['traceScreen', 'traceScene'])
-    assert.ok(reached(program, entry).has(B.blue), `${entry} reads the noise`)
-  for (const entry of ['classifyTiles', 'clearTracing', 'resolveSurface', 'temporalSurface'])
+  assert.ok(reached(program, 'generateRays').has(B.blue), 'generateRays reads the noise')
+  for (const entry of [
+    'classifyTiles',
+    'clearTracing',
+    'traceScreen',
+    'traceScene',
+    'resolveSurface',
+    'temporalSurface',
+  ])
     assert.ok(!reached(program, entry).has(B.blue), `${entry} does not`)
   const layouts = traceLayouts(device, false) as unknown as Record<
     string,
     { entries: { binding: number; storageTexture?: { access: string } }[] }
   >
-  for (const kernel of ['screen', 'scene']) {
-    const entry = layouts[kernel].entries.find(({ binding }) => binding === B.blue)
-    assert.equal(
-      entry?.storageTexture?.access,
-      'read-only',
-      `${kernel} binds it as read-only storage`,
+  const entry = layouts.generate.entries.find(({ binding }) => binding === B.blue)
+  assert.equal(entry?.storageTexture?.access, 'read-only', 'generate binds it as read-only storage')
+  for (const kernel of ['screen', 'scene'])
+    assert.ok(
+      !layouts[kernel].entries.some(({ binding }) => binding === B.blue),
+      `${kernel} binds no noise`,
     )
-  }
+  const hardware = hardwareSceneLayout(device) as unknown as { entries: { binding: number }[] }
+  assert.ok(
+    !hardware.entries.some(({ binding }) => binding === B.blue),
+    'nor does the scene stage through the scene’s triangles',
+  )
 })
 
 test('a mirror casts its reflection about its normal, and the roughness a ray is drawn at is the smooth-biased one', () => {
@@ -120,7 +130,7 @@ test('a drawn lobe ray is the mirror of the view about the drawn half vector, no
   assert.ok(!program.includes('min(dot(L,N),0.0)'))
 })
 
-test('no kernel binds more storage textures than a stage holds (four): the ray’s depth is a layer of the ray words, not a texture of its own', () => {
+test('no kernel binds more storage textures than a stage holds (four): the ray’s depth, direction and cone angle are layers of one ray texture, not textures of their own', () => {
   const program = reflectionTraceShader(false)
   assert.ok(!program.includes('rayDataOut') && !program.includes('rayDataIn'))
   assert.ok(!('rayDataOut' in B) && !('rayDataIn' in B))
@@ -134,20 +144,37 @@ test('no kernel binds more storage textures than a stage holds (four): the ray�
       assert.ok(storage.length <= 4, `${kernel} binds ${storage.length} storage textures`)
     }
     const rays = layouts.screen.entries.find(({ binding }) => binding === B.rays)
-    assert.equal(rays?.storageTexture?.viewDimension, '2d-array', 'the ray words are an array')
+    assert.equal(rays?.storageTexture?.viewDimension, '2d-array', 'the rays are an array')
   }
-  // The screen stage writes the depth in the layer after the word; the resolve reads it there.
+  // The ray generation writes the depth in the first layer; the resolve reads it there.
   assert.ok(program.includes('textureStore(surfaceRays,texel,REFLECTION_RAY_DEPTH,'))
   assert.ok(program.includes('textureLoad(surfaceRaysRead,g,REFLECTION_RAY_DEPTH,0)'))
 })
 
-test('the screen stage writes each ray as the reference stores it, its direction and its cone angle in the four half floats of a texel, which the resolve alone reads, its pdf the inverse of the cone', () => {
+test('the ray generation writes each ray as the reference stores it, its direction and its cone angle in the four half floats of two words beside the depth of its pixel, which the stages trace and the resolve reads, its pdf the inverse of the cone', () => {
   const program = reflectionTraceShader(false)
-  assert.equal(REFLECTION_DIRECTION_FORMAT, 'rgba16float')
+  assert.equal(REFLECTION_RAY_FORMAT, 'r32uint')
   assert.ok(
     program.includes(
-      'textureStore(surfaceDirections,texel,vec4f(ray.R,reflectionCastCone(own,ray)));',
+      'let words=reflectionRayWords(ray.R,select(cone,-cone,isFirstPerson(own.flags)));',
     ),
+    'the sign of the cone angle tells a first-person pixel',
+  )
+  assert.ok(
+    program.includes(
+      'textureStore(surfaceRays,texel,REFLECTION_RAY_DIRECTION,vec4u(words.x,0u,0u,0u));',
+    ),
+  )
+  assert.ok(
+    program.includes(
+      'textureStore(surfaceRays,texel,REFLECTION_RAY_CONE,vec4u(words.y,0u,0u,0u));',
+    ),
+  )
+  assert.ok(
+    program.includes(
+      'textureStore(surfaceRays,texel,REFLECTION_RAY_DEPTH,vec4u(bitcast<u32>(-surfaceDepthAt(layer,coord)),0u,0u,0u));',
+    ),
+    'a pixel that casts no ray keeps its depth negated',
   )
   // A mirror's ray is drawn from no distribution: its cone is the least angle; any other's is that of its ray's pdf.
   assert.ok(program.includes('if(own.top<0.001){return REFLECTION_MIN_CONE;}'))
@@ -156,26 +183,34 @@ test('the screen stage writes each ray as the reference stores it, its direction
       'return reflectionRayCone(own.topN,own.V,ray.axis.xyz,vec2f(ray.along,ray.alpha),ray.R);',
     ),
   )
-  assert.ok(program.includes('textureLoad(surfaceDirectionsRead,g,0)'))
   assert.ok(program.includes('fn reflectionPdfOfCone(cone:f32)->f32{return 1.0/abs(cone);}'))
   assert.ok(
     !program.includes('fn rayPack') && !program.includes('fn rayDirection'),
     'no octahedral word',
   )
-  assert.ok(reached(program, 'traceScreen').has(B.directions))
-  assert.ok(reached(program, 'resolveSurface').has(B.directionsRead))
-  for (const entry of ['traceScene', 'temporalSurface', 'bilateralOpaque'])
-    assert.ok(!reached(program, entry).has(B.directionsRead), `${entry} does not read them`)
+  // The generation writes them; the stages read them as the storage they are written through, the resolve sampled, no one else.
+  for (const entry of ['generateRays', 'traceScreen', 'traceScene', 'clearTracing'])
+    assert.ok(reached(program, entry).has(B.rays), `${entry} reaches the rays as storage`)
+  assert.ok(reached(program, 'resolveSurface').has(B.raysRead))
+  for (const entry of ['classifyTiles', 'temporalSurface', 'bilateralOpaque'])
+    assert.ok(
+      !reached(program, entry).has(B.rays) && !reached(program, entry).has(B.raysRead),
+      `${entry} does not read them`,
+    )
   const layouts = traceLayouts(device, false) as unknown as Record<
     string,
     { entries: { binding: number; storageTexture?: { access: string; format: string } }[] }
   >
-  const written = layouts.screen.entries.find(({ binding }) => binding === B.directions)
+  const written = layouts.generate.entries.find(({ binding }) => binding === B.rays)
   assert.deepEqual(
     [written?.storageTexture?.access, written?.storageTexture?.format],
-    ['write-only', 'rgba16float'],
+    ['read-write', 'r32uint'],
   )
-  assert.ok(layouts.resolve.entries.some(({ binding }) => binding === B.directionsRead))
+  assert.ok(layouts.resolve.entries.some(({ binding }) => binding === B.raysRead))
+  assert.ok(
+    !layouts.classify.entries.some(({ binding }) => binding === B.rays),
+    'the classification writes none',
+  )
 })
 
 test('a screen hit is final and a miss is listed with the distance it reached: no partial answer is kept, no confidence chain', () => {
@@ -187,7 +222,7 @@ test('a screen hit is final and a miss is listed with the distance it reached: n
   )
   assert.ok(
     program.includes(
-      'reflectionSceneStage(own.P,own.topN,ray,bitcast<f32>(missed.y),g,cone,isFirstPerson(own.flags))',
+      'reflectionSceneStage(own.P,own.topN,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson)',
     ),
   )
   for (const gone of ['partialOut', 'partialIn', 'reflectionChain', 'reflectionTake', 'confidence'])

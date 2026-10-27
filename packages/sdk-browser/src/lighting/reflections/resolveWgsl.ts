@@ -30,8 +30,8 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  * WEIGHT (`reflectionReuseWeight`): a neighbour's ray left `Q` along `d`, drawn among its lobe's visible
  * normals (`visibleGgxHalf`, bounded), whose half vector has the pdf p = 2 (V·h) D(h) / (k n·v + |v̂|) (`reflectionHalfPdf`,
  * anisotropic where the lobe is: D the anisotropic distribution, |v̂| the view's length stretched by the widths) and the ray it
- * gives, mirrored about it, the pdf p / (4 V·h) (`reflectionRayPdf`), whose inverse is the ray's cone (`reflectionRayCone`, held between 10⁻⁵ and 10⁴), which the screen stage stores with the
- * ray's direction, in a half-float texel (`surfaceDirections`), and its surface's depth beside it (the ray texture's layer); seen from the
+ * gives, mirrored about it, the pdf p / (4 V·h) (`reflectionRayPdf`), whose inverse is the ray's cone (`reflectionRayCone`, held between 10⁻⁵ and 10⁴), which the ray generation stores with the
+ * ray's direction, in half floats (`surfaceRays`), and its surface's depth beside it (the ray texture's layer); seen from the
  * pixel, the point it met — at the nearer of the two rays' distances, so a neighbour's far answer never
  * stands for the pixel's near one — lies along `L`, which the pixel's lobe weighs D(h′),
  * h′ = (V + L)/|V + L|: the ratio D(h′) over the ray's pdf, the pixel's BRDF over the ray's pdf (ratio-estimator
@@ -142,10 +142,9 @@ export const REFLECTION_RESOLVE_WGSL = wgslBlock(
     surfaceReflects,
   ],
   `@group(0) @binding(${B.freshIn}) var freshIn:texture_2d<u32>;
-/** The world point a traced texel \`g\`'s ray left, from its pixel \`source\`, its direction and its pdf. */
+/** The world point a traced texel \`g\`'s ray left, from its pixel \`source\` of depth \`depth\`, its direction and its pdf. */
 struct ReflectionRayData{Q:vec3f,d:vec3f,pdf:f32,}
-fn reflectionRayData(g:vec2i,source:vec2i)->ReflectionRayData{
- let depth=bitcast<f32>(textureLoad(surfaceRaysRead,g,REFLECTION_RAY_DEPTH,0).r);
+fn reflectionRayData(g:vec2i,source:vec2i,depth:f32)->ReflectionRayData{
  let ray=reflectionRayAt(g);
  return ReflectionRayData(worldAt(vec2f(source)+vec2f(0.5),depth),ray.xyz,reflectionPdfOfCone(ray.w));
 }
@@ -188,9 +187,8 @@ fn resolvePixel(coord:vec2i,layer:u32)->vec4u{
  for(var k=select(0,3,single);k<4;k++){
   let g=first+select(vec2i(k&1,k>>1u),resolveCheckerStep(k,coord.x),checker);
   if(any(g<vec2i(0))||any(g>=size)){continue;}
-  let w=reflectionRayWord(vec2u(g));
-  if(!reflectionWordTraces(w)){continue;}
-  let traced=vec2i(reflectionTracedOf(vec2u(g),w));
+  if(!reflectionRayTraces(reflectionRayDepth(g))){continue;}
+  let traced=vec2i(reflectionPickedPixel(vec2u(g)));
   let d=abs(vec2f(traced-p));
   var weight=(block.x-d.x)*(block.y-d.y);
   if(checker){weight=select(select(0.0,1.0,k==0),0.25,borrowed);}
@@ -241,12 +239,12 @@ fn resolvePixel(coord:vec2i,layer:u32)->vec4u{
    let n=vec2i(vec2f(coord)+tap.x*major+tap.y*minor+vec2f(0.5));
    let g=n/vec2i(reflectionBlock());
    if(any(g<vec2i(0))||any(g>=size)){continue;}
-   let w=reflectionRayWord(vec2u(g));
-   if(!reflectionWordTraces(w)){continue;}
-   let source=vec2i(reflectionTracedOf(vec2u(g),w));
+   let depth=reflectionRayDepth(g);
+   if(!reflectionRayTraces(depth)){continue;}
+   let source=vec2i(reflectionPickedPixel(vec2u(g)));
    let t=textureLoad(freshIn,g,0).xy;
    let reached=min(near,freshHit(t));
-   let ray=reflectionRayData(g,source);
+   let ray=reflectionRayData(g,source,depth);
    let wn=reflectionReuseWeight(P,own.topN,V,frame,widths,ray.Q,ray.d,reached,ray.pdf);
    if(!(wn>1e-6)){continue;}
    around+=wn*reflectionDenoised(texelRadiance(t));

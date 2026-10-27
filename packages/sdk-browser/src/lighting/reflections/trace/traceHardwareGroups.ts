@@ -33,7 +33,7 @@ export const createHardwareTraceGroups = (device: GPUDevice) => ({
 
 /**
  * The groups of the scene stage over the image's scene trace `rays` (`SceneRays`): group 0 of each surface, the scene stage's own
- * (`hardwareSceneLayout`) — the surface's pixels, its ray words, the lights, the fog's cubemap, the blue noise, the surfaces' vectors and the last image's depth, the fresh grid and the
+ * (`hardwareSceneLayout`) — the surface's pixels, its rays, the lights, the fog's cubemap, the surfaces' vectors and the last image's depth, the fresh grid and the
  * rays missed, the cut's tables the scene trace traces beside and what a hit reads of the surface cache —, and the scene trace's
  * (`hardwareTraceLayout`): the surfaces' made again only when a resource they name is not the one they were made over, the scene trace's
  * by its own binder (`sceneTraceGroupBinder`), which keeps it while its layout and buffers stay.
@@ -50,7 +50,7 @@ export function hardwareTraceGroups(
   const { next } = identity
   next.length = 0
   next.push(grids, front.grids, front.views.flags, front.views.normals, front.views.lobes)
-  next.push(inputs.flags, inputs.normals, inputs.lobes, inputs.lights, inputs.blue)
+  next.push(inputs.flags, inputs.normals, inputs.lobes, inputs.lights)
   next.push(inputs.fog.cubemap, inputs.fog.sampler)
   next.push(inputs.vectors, reflection.depthView)
   next.push(hit.tables, hit.depth, hit.final, hit.feedback, hit.instances)
@@ -78,7 +78,6 @@ export function hardwareTraceGroups(
           lobes: pixels.lobes,
           rays: own.rays,
           lights: { buffer: inputs.lights },
-          blue: inputs.blue,
           vectors: inputs.vectors,
           depthHistory: reflection.depthView,
           traceOut: own.fresh,

@@ -8,7 +8,9 @@ import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
 
 /** A sampled ray of a lobe (`reflectionLobeRay`), what the chain's stages trace (`wgsl.ts`): its
  *  direction `R`, the thin lobe it is read through — the lobe's long axis and the smoothest α
- *  (`axis`) —, and the widths of the lobe it stands for across (`alpha`) and along its axis (`along`). */
+ *  (`axis`) —, and the widths of the lobe it stands for across (`alpha`) and along its axis (`along`), which its cone angle is drawn
+ *  from. The ray the generation stores keeps its direction and its cone angle alone: the stages read it through the thin lobe and
+ *  leave the widths and the axis at zero (`reflectionStoredRay`, `trace/trace.ts`). */
 export const REFLECTION_LOBE_RAY_WGSL = wgslBlock(
   'REFLECTION_LOBE_RAY_WGSL',
   [],
@@ -30,7 +32,7 @@ fn reflectionFrameOf(N:vec3f,axis:vec3f)->ReflectionFrame{
 )
 
 /**
- * EVERY LOBE, SAMPLED (`reflectionLobeRay`, the trace's kernels', `u` the texel's blue noise of the image,
+ * EVERY LOBE, SAMPLED (`reflectionLobeRay`, the ray generation's, `u` the texel's blue noise of the image,
  * `reflectionSampleAt`, `trace/trace.ts`): every lobe that traces (`reach.ts`) casts its ray in a direction drawn from its
  * own GGX distribution, a new one every image,
  * so that the history's images (`temporalWgsl.ts`) and the neighbours' reuse (`resolveWgsl.ts`) average

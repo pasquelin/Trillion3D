@@ -95,7 +95,7 @@ fn reflectionSceneStage(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,begin:f32,coord:v
  * (`ReflectionEnd`) with its radiance, whether it was a hit and a distance: the hit's, or where a miss stopped being known, which the
  * next stage begins at — the pending list holds it beside the ray's texel.
  *
- * - `reflectionScreenStage`: the screen's answer along the lobe ray `lobe` (`sampleWgsl.ts`) of a
+ * - `reflectionScreenStage`: the screen's answer along the lobe ray `lobe` (`sampleWgsl.ts`, the ray the generation stored) of a
  *   surface at `P`, of normal `N`, seen from `V`, cast from the grid texel `coord` (`reflectionSeen`, `seen.ts`): a hit, or a
  *   miss at the distance the screen stopped knowing the ray, lengthened by `REFLECTION_MISS_OFFSET` (the distance of a
  *   march is not reliable), held to the longest ray and clipped to where it enters the sphere of the first-person stand-ins

@@ -21,6 +21,7 @@ import {
 
 /** The kernels' entries on their module, the opaque surface's then the front one's. */
 const ENTRIES = {
+  generate: ['generateRays', 'generateRays'],
   screen: ['traceScreen', 'traceScreen'],
   clearTracing: ['clearTracing', 'clearTracing'],
   scene: ['traceScene', 'traceScene'],
@@ -42,6 +43,7 @@ export async function createTraceStages(
 ) {
   const kernelLayouts = (layer: number) =>
     ({
+      generate: layouts.generate,
       screen: layouts.screen,
       clearTracing: layouts.clearTracing,
       scene: layouts.scene,
@@ -91,18 +93,19 @@ interface HardwareStage {
   pipeline(layer: number): GPUComputePipeline
 }
 
-/** The trace's passes, each timed alone under its label: the clear of the unused tracing tiles and the screen stage (the
- *  classification first, the clear before the rays), the scene stage, the denoising — the last pass's clear
+/** The trace's passes, each timed alone under its label: the clear of the unused tracing tiles, the ray generation and the screen stage (the
+ *  classification first, the clear then the generation before the screen march), the scene stage, the denoising — the last pass's clear
  *  over the clear tiles, then the resolve, the accumulation and the last pass over the resolve tiles —;
  *  and their kernels. */
 const PASSES = [
-  { label: REFLECTION_TRACE_PASS, kernels: ['clearTracing', 'screen'] },
+  { label: REFLECTION_TRACE_PASS, kernels: ['clearTracing', 'generate', 'screen'] },
   { label: REFLECTION_SCENE_PASS, kernels: ['scene'] },
   { label: REFLECTION_DENOISE_PASS, kernels: ['clear', 'resolve', 'temporal', 'bilateral'] },
 ] as const satisfies readonly { label: string; kernels: readonly (typeof KERNELS)[number][] }[]
 
 /** The list each kernel is dispatched over. */
 const LISTS = {
+  generate: 'tracing',
   screen: 'tracing',
   clearTracing: 'clearTracing',
   scene: 'pending',
@@ -116,7 +119,7 @@ const LISTS = {
 const OPAQUE = ['opaque'] as const
 const BOTH = ['opaque', 'front'] as const
 
-/** Whether the resolve of `side` reads the ray words of texels outside its own tile: it reconstructs from its neighbours, or its blocks are larger than a pixel. */
+/** Whether the resolve of `side` reads the rays of texels outside its own tile: it reconstructs from its neighbours, or its blocks are larger than a pixel. */
 const readsNeighbours = (
   side: (typeof BOTH)[number],
   block: readonly [number, number],
@@ -134,8 +137,8 @@ const classifying: [number, number] = [0, 0]
  * The reflections of the pixels of `size` in the trace's three passes on `encoder` (`PASSES`), each
  * opened, filled and ended in turn (`trace.ts`): for the opaque surface — and, with `front`, the image's
  * front pass having written a reflecting surface, for the front one —, its lists emptied on the encoder,
- * its tiles classified (`../tiles.ts`) over the grid of this image's blocks and its rays traced on the
- * screen; the rays the screen missed traced through the scene; then resolved, accumulated and filtered
+ * its tiles classified (`../tiles.ts`) over the grid of this image's blocks, its rays generated (the kernel `generateRays`, after the clear of the
+ * unused tiles, as the reference's pass of its own is) and traced on the screen; the rays the screen missed traced through the scene; then resolved, accumulated and filtered
  * over the resolve tiles, and answered by the field over the clear ones. Every kernel after the
  * classification is dispatched indirectly: over a list of tiles, the scene stage over the rays missed.
  * `depthGroup` is the reflection group over the depth pyramid, `block` the blocks of pixels a grid texel

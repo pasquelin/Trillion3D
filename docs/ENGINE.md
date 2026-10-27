@@ -2193,7 +2193,11 @@ zero alpha and the lighting reads the world's probes, as before.
 traces one ray for: one pixel at the default level and the cinematic one, 2 × 2 at `high`. A classification pass
 lists, each image, the tracing tiles of 8 × 8 texels where a pixel's lobe is under the roughness a ray is cast for
 (`reflectionMaxRoughnessToTrace`), and, for the pixels, the resolve tiles of 8 × 8 pixels where one traces —
-`block` of them a side in a tracing tile — and the others, which the field answers alone. The transparents' front layer is
+`block` of them a side in a tracing tile — and the others, which the field answers alone. A ray generation pass then runs over
+the tracing tiles: each texel picks the pixel of its block that casts this image and, where that pixel's lobe traces, draws its ray (direction, and the cone
+angle, the inverse of the ray's pdf, at least 10⁻⁵, negative for a pixel of a first-person object) into the ray texture the screen and scene stages and the
+resolve read, beside the pixel's depth (negated where it casts none). A ray goes as far as the longest ray whatever the roughness of its pixel: the reflections
+reuse no radiance cache that would shorten it. The transparents' front layer is
 traced like an opaque surface only where the level allows it and the level or the project asks for it
 (`reflectionFrontLayer`, false by default: never at `high`, always at `cinematic`); without it a transparent
 surface reflects the environment, and its front pass writes the covering depth
@@ -2235,7 +2239,7 @@ for (`demandSurfaceCache`, from the image the trace runs in, so the cache serves
 field's six resources (`REFLECTION_FIELD_WGSL`, bindings 39 to 44 of the trace's group 0), its object grid (54), the cache's tables, its
 depth and final layers and its feedback buffer (45 to 53, the albedo, normal, emission, direct and indirect
 layers, which no hit reads, left out of the layout), and the table of the placements (55): its sampled textures fourteen of the
-sixteen WebGPU guarantees, the ray words and the partial answers being read as storage textures for that: a scene with no distance field binds
+sixteen WebGPU guarantees, the rays and the partial answers being read as storage textures for that: a scene with no distance field binds
 the stand-in of one with no clipmap (`createNoFieldRead`) and its rays answer nothing, one whose cache is not made yet the stand-ins of `hitCards.ts`
 (a hit then finds no card). What the scene stage returns — the light of a hit, or the sky a ray reaches — takes, before its fog and under the ceiling
 of a ray, the sky light's diffuse light at the hit's normal (the zero normal for the sky) times `reflectionSkylightLeaking` (0 by default: none), its tint (`reflectionSkylightLeakingTintRed`, `…Green`, `…Blue`, white by default) and the average

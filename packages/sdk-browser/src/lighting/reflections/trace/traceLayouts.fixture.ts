@@ -9,6 +9,7 @@ export const device = {
 /** The kernels' entries and the layout each is made over. */
 export const KERNELS = {
   classifyTiles: 'classify',
+  generateRays: 'generate',
   keepDepth: 'keepDepth',
   traceScreen: 'screen',
   clearTracing: 'clearTracing',

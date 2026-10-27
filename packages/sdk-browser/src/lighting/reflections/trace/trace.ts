@@ -63,12 +63,13 @@ fn reflectionCastCone(own:ReflectingPixel,ray:ReflectionLobeRay)->f32{
  if(own.top<0.001){return REFLECTION_MIN_CONE;}
  return reflectionRayCone(own.topN,own.V,ray.axis.xyz,vec2f(ray.along,ray.alpha),ray.R);
 }
-/** The ray of grid texel \`texel\` as the ray generation stored it, read as the storage it is written through: the lobe ray of its direction (the thin lobe
- *  it is read through, \`lobeAlpha(0.0)\`, the only part of the lobe a stage reads), its cone angle and whether its pixel is a first-person object's. */
+/** The ray of grid texel \`texel\` as the ray generation stored it, read as the storage it is written through: the lobe ray of its direction (unit again, the
+ *  halves holding it to a thousandth, and read through the thin lobe \`lobeAlpha(0.0)\`, the only part of the lobe a stage reads), its cone angle and
+ *  whether its pixel is a first-person object's. */
 struct ReflectionStoredRay{ray:ReflectionLobeRay,cone:f32,firstPerson:bool,}
 fn reflectionStoredRay(texel:vec2i)->ReflectionStoredRay{
  let r=reflectionRayOf(textureLoad(surfaceRays,texel,REFLECTION_RAY_DIRECTION).r,textureLoad(surfaceRays,texel,REFLECTION_RAY_CONE).r);
- return ReflectionStoredRay(ReflectionLobeRay(r.xyz,vec4f(0.0,0.0,0.0,lobeAlpha(0.0)),0.0,0.0),abs(r.w),r.w<0.0);
+ return ReflectionStoredRay(ReflectionLobeRay(normalize(r.xyz),vec4f(0.0,0.0,0.0,lobeAlpha(0.0)),0.0,0.0),abs(r.w),r.w<0.0);
 }
 ${statistics ? COUNTING : ''}`
 
@@ -251,7 +252,7 @@ fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroup
  *   R · p_miss · S̄ steps of the march (a coarse mip read of eight loads each, a page table read and, near a
  *   surface, a page read of eight loads), a hit one read of its object grid cell and, of up to four objects, their cards (a
  *   card: a few words of its records, four texels of three layers);
- * - resolve: P · (4 + the reconstruction's samples) ray words and texels, a ray's data a tap; temporal:
+ * - resolve: P · (4 + the reconstruction's samples) rays and texels, a ray's data a tap; temporal:
  *   P · (8 history texels) and 144 resolved pixels a tile, staged once (`temporalStage`); bilateral: a
  *   pixel one history texel, and the filter's taps to twice as many, with their depths and
  *   normals, where its history counts under two images.

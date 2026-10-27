@@ -32,17 +32,18 @@ export type TraceInputs = {
   /** The surfaces' vectors of the image, which the accumulation reprojects a moving surface's history by
    *  (`../../bounce/screen/vectorSource.ts`); the view's stand-in of none where the velocity stage drew none. */
   vectors: GPUTextureView
-  /** The blue noise the ray stages draw a ray's direction from (`noiseViewOn`: the engine's, a stand-in until it is made). */
+  /** The blue noise the ray generation draws a ray's direction from (`noiseViewOn`: the engine's, a stand-in until it is made). */
   blue: GPUTextureView
   /** The scene trace the image's lighting made for rays through the scene's triangles (`sceneRaysOf`), where the scene stage casts them: none otherwise. */
   rays?: SceneRays
 }
 
-/** The kernels a surface runs, in their order (`trace.ts`): the screen stage over its tracing tiles
+/** The kernels a surface runs, in their order (`trace.ts`): the ray generation and the screen stage over its tracing tiles
  *  and the clear over the unused ones, the scene stage over the rays the screen stage missed, the last
  *  pass's clear over the clear tiles, then the resolve, the accumulation and the last pass over the
  *  resolve tiles. */
 export const KERNELS = [
+  'generate',
   'screen',
   'clearTracing',
   'scene',
@@ -91,8 +92,7 @@ export type TraceResources = {
 /** A buffer as a binding resource. */
 const list = (buffer: GPUBuffer) => ({ buffer })
 
-/** The classification's group: the surface's pixels, the ray words it picks them into and the four
- *  lists it fills. */
+/** The classification's group: the surface's pixels and the four lists it fills. */
 function classifyGroup(
   device: GPUDevice,
   layout: GPUBindGroupLayout,
@@ -105,7 +105,6 @@ function classifyGroup(
       flags: surface.flags,
       normals: surface.normals,
       lobes: surface.lobes,
-      rays: grids.rays,
       tracingOut: list(grids.tracing),
       clearTracingOut: list(grids.clearTracing),
       resolveOut: list(grids.resolve),
@@ -125,9 +124,8 @@ interface SurfaceKit {
   /** The surfaces' vectors of the image, and the depth of the last image: where a screen hit stood in it (`../past.ts`). */
   readonly past: Named
   readonly field: Named
-  /** A group over `layout` naming `named` and `more`. The ray words are sampled (`raysRead`) but by their
-   *  writers, the classification, the screen stage and the clear of the unused tracing tiles, which bind
-   *  them as storage. */
+  /** A group over `layout` naming `named` and `more`. The rays are sampled (`raysRead`) but by their
+   *  writers and readers as storage, the ray generation, the screen and scene stages and the clear of the unused tracing tiles. */
   readonly group: (
     layout: GPUBindGroupLayout,
     named: Named,
@@ -139,16 +137,24 @@ const parities = (make: (p: number) => GPUBindGroup) => [make(0), make(1)]
 // A group that names no history is the same at both parities: made once, served at both.
 const shared = (group: GPUBindGroup) => [group, group]
 
-/** The groups of the classification and of the kernels that trace: the screen stage, the clear of the
+/** The groups of the classification and of the kernels that trace: the ray generation, the screen stage, the clear of the
  *  unused tracing tiles and the scene stage. */
 function tracingGroups(kit: SurfaceKit, sceneEntries: GPUBindGroupEntry[]) {
   const { device, layouts, scene, surface, grids, field, past, group } = kit
   const { rays } = grids
   return {
-    // The classification picks the blocks' pixels into the ray words and fills the four lists; the
-    // screen stage writes the fresh grid of the rays it hit, the rays' directions and depths, and lists the rays it
-    // missed, which the scene stage — reading the words as the storage they are written through — finishes into the fresh grid.
+    // The classification fills the four lists; the ray generation draws the rays of the texels of the tracing tiles into the ray texture;
+    // the screen stage — reading them as the storage they are written through — writes the fresh grid of the rays it hit and lists the rays it
+    // missed, which the scene stage finishes into the fresh grid.
     classify: shared(classifyGroup(device, layouts.classify, surface, grids)),
+    generate: shared(
+      group(layouts.generate, {
+        rays,
+        ...field,
+        tiles: list(grids.tracing),
+        blue: scene.blue,
+      }),
+    ),
     screen: shared(
       group(layouts.screen, {
         rays,
@@ -156,9 +162,7 @@ function tracingGroups(kit: SurfaceKit, sceneEntries: GPUBindGroupEntry[]) {
         ...past,
         tiles: list(grids.tracing),
         traceOut: grids.fresh,
-        directions: grids.directions,
         pendingOut: list(grids.pending),
-        blue: scene.blue,
         ...(scene.census && { census: scene.census }),
       }),
     ),
@@ -167,7 +171,8 @@ function tracingGroups(kit: SurfaceKit, sceneEntries: GPUBindGroupEntry[]) {
       group(
         layouts.scene,
         {
-          ...scene,
+          lights: scene.lights,
+          ...(scene.census && { census: scene.census }),
           ...past,
           rays,
           traceOut: grids.fresh,
@@ -205,7 +210,6 @@ function resolvingGroups(
         ...field,
         tiles: resolve,
         freshIn: grids.fresh,
-        directionsRead: grids.directions,
         resolvedOut: resolved,
       }),
     ),

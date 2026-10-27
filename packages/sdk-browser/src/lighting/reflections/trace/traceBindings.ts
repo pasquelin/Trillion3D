@@ -18,7 +18,6 @@ import { BLUE_NOISE_FORMAT } from '../../../gpu/noise/blueNoiseTextures.ts'
 import { FRONT_TRACED_FORMAT } from '../frontLayer.ts'
 import {
   REFLECTION_DEPTH_FORMAT,
-  REFLECTION_DIRECTION_FORMAT,
   REFLECTION_GRID_FORMAT,
   REFLECTION_HISTORY_FORMAT,
   REFLECTION_RAY_FORMAT,
@@ -39,8 +38,8 @@ export const REFLECTION_LAYER_WGSL = wgslBlock('REFLECTION_LAYER_WGSL', [], '')
  * temporal accumulation and the last pass (`trace.ts`): the WGSL declarations, the layouts and the
  * entries read their numbers here. A group serves one surface — the opaque one or the transparents'
  * front one (`../frontLayer.ts`) — and one parity of the history's turn about (`traceGroups.ts`): its
- * flags, normals and lobes (its depth is the reflection group's), the blocks' ray words (`rays`: the
- * traced pixel the classification picks, the ray the screen stage casts), what a ray reads of the
+ * flags, normals and lobes (its depth is the reflection group's), the blocks' rays (`rays`: the depth of the
+ * pixel each texel casts from and the ray the ray generation draws), what a ray reads of the
  * scene — the lights, the bounce levels' uniform, the global distance field its scene stage marches
  * (`field`: six bindings) and the surface cache its hits read (`cards`: the tables, the atlas's seven layers and the
  * feedback buffer; `grid`, the field's object grid; `instances`, the table from an object of the grid to its
@@ -53,9 +52,8 @@ export const REFLECTION_LAYER_WGSL = wgslBlock('REFLECTION_LAYER_WGSL', [], '')
  * that moves by itself and a screen hit finds where it stood in the last image; the depth the last image kept, `depthHistory`,
  * which a screen hit is told from a surface the last image did not show there by, and the kernel that keeps this image's, `depthKeep`), the
  * lists the classification fills (`../tiles.ts`: `tracingOut`, `clearTracingOut`, `resolveOut`,
- * `clearOut` as it fills them, `tiles` as a kernel runs over one), the rays' directions and cone angles (`directions`, written by the screen
- * stage, `directionsRead`, read by the resolve), and the rays the screen stage missed
- * (`pendingOut`, `pendingIn`), which the scene stage runs over; the blue noise both ray stages draw a ray's direction from (`blue`, read as a
+ * `clearOut` as it fills them, `tiles` as a kernel runs over one), and the rays the screen stage missed
+ * (`pendingOut`, `pendingIn`), which the scene stage runs over; the blue noise the ray generation draws a ray's direction from (`blue`, read as a
  * read-only storage texture: no sampled texture of the stage's sixteen spent on it); the counters both ray stages add to (`census`, `../censusWgsl.ts`). The scene stage alone reads the fog's own cubemap and the sampler it is read through (`fogCubemap`, `fogSampler`), which tint the height fog laid over a ray.
  * The opaque last pass writes the reflection target the resolve reads, the front one the radiance the
  * forward fragments read.
@@ -77,8 +75,6 @@ export const REFLECTION_TRACE_BINDINGS = {
   target: 20,
   frontTarget: 21,
   tiles: 22,
-  directions: 23,
-  directionsRead: 24,
   pendingOut: 25,
   pendingIn: 26,
   tracingOut: 31,
@@ -132,18 +128,15 @@ const pixels = () => [
   computeTextureEntry(B.lobes, 'uint'),
 ]
 
-/** The grid's ray words, an array of `REFLECTION_RAY_LAYERS` layers (the word, the traced pixel's depth): the
- *  blocks' pixels the classification picks, with the depth of each the screen stage writes,
- *  written as storage by those two, read sampled by every kernel after them (`raysRead`) — never both in one group. */
+/** The grid's rays, an array of `REFLECTION_RAY_LAYERS` layers (the picked pixel's depth, the direction, the cone angle):
+ *  written as storage by the ray generation and the clear of the unused tracing tiles, read as storage by the
+ *  stages that trace them, read sampled by every kernel after them (`raysRead`) — never both in one group. */
 const rays = () =>
   computeStorageTextureEntry(B.rays, REFLECTION_RAY_FORMAT, 'read-write', '2d-array')
 const raysRead = () => computeTextureEntry(B.raysRead, 'uint', '2d-array')
-/** The rays' directions and cone angles: written by the screen stage as storage, read by the resolve sampled. */
-const directions = () => computeStorageTextureEntry(B.directions, REFLECTION_DIRECTION_FORMAT)
-const directionsRead = () => computeTextureEntry(B.directionsRead, 'unfilterable-float')
 
-/** The surface every kernel after the classification reads, its ray words (`words`: sampled but in
- *  the screen stage, which writes them), and the tiles it runs over — all but the scene stage, which
+/** The surface every kernel after the classification reads, its rays (`words`: sampled but in
+ *  the kernels that trace them, which read them as storage), and the tiles it runs over — all but the scene stage, which
  *  runs over the rays the screen missed (`tiles` false). */
 const surface = (words = raysRead(), tiles = true) => [
   ...pixels(),
@@ -151,7 +144,7 @@ const surface = (words = raysRead(), tiles = true) => [
   ...(tiles ? [computeBufferEntry(B.tiles, 'read-only-storage')] : []),
 ]
 
-/** The blue noise a ray's direction is drawn from (`blueNoiseVec2`): the screen stage's and the scene stage's, which draw the same ray. */
+/** The blue noise a ray's direction is drawn from (`blueNoiseVec2`): the ray generation's. */
 const noise = () => computeStorageTextureEntry(B.blue, BLUE_NOISE_FORMAT, 'read-only')
 
 /** Where a screen hit stood in the last image and what that image kept there: the surfaces' vectors of this image (`vectors`) and the depth
@@ -180,12 +173,11 @@ const fog = () => rayFogLayoutEntries(REFLECTION_FOG_BINDINGS, true)
  *  does not read, and the table from an object of the grid to its placement. The scene stage's alone. */
 const scene = () => [...field(), ...fog(), ...surfaceHitLayoutEntries(REFLECTION_HIT_BINDINGS)]
 
-/** The classification's layout: the pixels, the ray words it picks them into and the four lists it fills. */
+/** The classification's layout: the pixels and the four lists it fills. */
 const classifyLayout = (device: GPUDevice) =>
   device.createBindGroupLayout({
     entries: [
       ...pixels(),
-      rays(),
       computeBufferEntry(B.tracingOut, 'storage'),
       computeBufferEntry(B.clearTracingOut, 'storage'),
       computeBufferEntry(B.resolveOut, 'storage'),
@@ -193,7 +185,7 @@ const classifyLayout = (device: GPUDevice) =>
     ],
   })
 
-/** The layouts of each kernel's group 0: the classification, the trace's two stages and the clear of
+/** The layouts of each kernel's group 0: the classification, the ray generation, the trace's two stages and the clear of
  *  its unused tiles, the resolve, the temporal accumulation, and each surface's last pass and clear,
  *  each writing its surface's answer. The two ray stages bind the census's buffer where the project
  *  counts (`statistics`, `reflectionStatistics`). */
@@ -219,26 +211,25 @@ export const traceLayouts = (device: GPUDevice, statistics: boolean) => {
     keepDepth: device.createBindGroupLayout({
       entries: [computeStorageTextureEntry(B.depthKeep, REFLECTION_DEPTH_FORMAT)],
     }),
+    // The lights are read for the lobes the pixel's ray is drawn from (`lobesAt`, a cloth's sheen).
+    generate: layout([...field(), noise()], rays()),
     screen: layout(
       [
         ...field(),
         ...past(),
         storage(B.traceOut),
-        directions(),
         computeBufferEntry(B.pendingOut, 'storage'),
-        noise(),
         ...census,
       ],
       rays(),
     ),
     clearTracing: layout([], rays()),
-    // The ray words are read as the storage they are written through: no sampled texture of the stage's sixteen is spent on them,
+    // The rays are read as the storage they are written through: no sampled texture of the stage's sixteen is spent on them,
     // the hit's reads of the cache needing them.
     scene: layout(
       [
         ...scene(),
         ...past(),
-        noise(),
         ...census,
         storage(B.traceOut),
         computeBufferEntry(B.pendingIn, 'read-only-storage'),
@@ -247,7 +238,7 @@ export const traceLayouts = (device: GPUDevice, statistics: boolean) => {
       false,
     ),
     // The resolve decodes the pixel's lobes, a cloth's sheen read from the lights' tables (`setClothLobes`).
-    resolve: layout([...field(), sampled(B.freshIn), directionsRead(), storage(B.resolvedOut)]),
+    resolve: layout([...field(), sampled(B.freshIn), storage(B.resolvedOut)]),
     temporal: layout([sampled(B.temporalIn), sampled(B.historyIn), sampled(B.vectors), history]),
     bilateral: layout([...field(), ...opaque, ...last]),
     bilateralFront: layout([...field(), ...front, ...last]),
@@ -290,7 +281,6 @@ export const hardwareSceneLayout = oncePerDevice((device: GPUDevice) =>
       ...past(true),
       ...dagReadLayoutEntries(),
       ...surfaceHitCardsLayoutEntries(REFLECTION_HIT_BINDINGS),
-      noise(),
       computeStorageTextureEntry(B.traceOut, REFLECTION_GRID_FORMAT),
       computeBufferEntry(B.pendingIn, 'read-only-storage'),
     ],

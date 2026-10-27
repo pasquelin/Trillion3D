@@ -25,23 +25,23 @@ const SAMPLE_FLOATS = 8
  * (`../../lighting/reflections/trace/traceGroups.ts`): the history the accumulation wrote at the texel's
  * block's first pixel — its surface's linear depth (`historyDepth`) —, the fresh texel the trace wrote
  * — its hit's distance and valid bit (`freshPack`) —, and the ray's direction
- * (`surfaceDirections`; `../../lighting/reflections/texelWgsl.ts` lays the words out).
+ * (the ray texture's second and third layers, `REFLECTION_RAY_DIRECTION` and `REFLECTION_RAY_CONE`; `../../lighting/reflections/texelWgsl.ts` lays the words out).
  */
 const SAMPLES_WGSL = wgslProgram(
   `@group(0) @binding(0) var history:texture_2d<u32>;
 @group(0) @binding(1) var fresh:texture_2d<u32>;
-@group(0) @binding(2) var directions:texture_2d<f32>;
+@group(0) @binding(2) var rays:texture_2d_array<u32>;
 @group(0) @binding(3) var<storage,read_write> samples:array<vec4f>;
 @group(0) @binding(4) var<uniform> grid:array<vec4u,2>;
 @compute @workgroup_size(WORKGROUP_THREADS) fn main(@builtin(global_invocation_id) id:vec3u){
  let i=id.x;
  if(i>=grid[0].z){return;}
- let t=min(vec2u(i%grid[0].y,i/grid[0].y)*grid[0].x,textureDimensions(directions)-1u);
+ let t=min(vec2u(i%grid[0].y,i/grid[0].y)*grid[0].x,textureDimensions(rays)-1u);
  let f=textureLoad(fresh,t,0).y>>16u;
  let h=textureLoad(history,min(t*grid[1].xy,textureDimensions(history)-1u),0).y>>16u;
  let depth=select(0.0,unpack2x16float((h&0xfff0u)|8u).x,(h>>4u)!=0u);
  let valid=(f&0x8000u)!=0u&&depth>0.0;
- let d=textureLoad(directions,t,0).xyz;
+ let d=vec3f(unpack2x16float(textureLoad(rays,t,1,0).r),unpack2x16float(textureLoad(rays,t,2,0).r).x);
  samples[2u*i]=vec4f(d,unpack2x16float(f&0x7fffu).x);
  samples[2u*i+1u]=vec4f(vec2f(t),depth,select(0.0,1.0,valid));
 }`,
@@ -98,7 +98,7 @@ export function encodeReflectionSamples(
       entries: sequentialEntries([
         grids.history[parity],
         grids.fresh,
-        grids.directions,
+        grids.rays,
         { buffer: samples },
         { buffer: uniform },
       ]),

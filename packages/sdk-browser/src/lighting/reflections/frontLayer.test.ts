@@ -94,6 +94,7 @@ test('one chain: only the trace marches the field and samples a lobe; a forward 
   // read it.
   for (const kernel of [
     'override REFLECTION_LAYER:u32=0u;',
+    'generateTexel(id,REFLECTION_LAYER);',
     'missed=traceScreenTexel(id,REFLECTION_LAYER);',
     'let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));',
     'textureStore(resolvedOut,id,resolvePixel(vec2i(id),REFLECTION_LAYER));',
