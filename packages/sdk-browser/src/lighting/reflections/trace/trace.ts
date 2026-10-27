@@ -63,32 +63,62 @@ fn reflectionCastCone(own:ReflectingPixel,ray:ReflectionLobeRay)->f32{
  if(own.top<0.001){return REFLECTION_MIN_CONE;}
  return reflectionRayCone(own.topN,own.V,ray.axis.xyz,vec2f(ray.along,ray.alpha),ray.R);
 }
+/** The ray of grid texel \`texel\` as the ray generation stored it, read as the storage it is written through: the lobe ray of its direction (the thin lobe
+ *  it is read through, \`lobeAlpha(0.0)\`, the only part of the lobe a stage reads), its cone angle and whether its pixel is a first-person object's. */
+struct ReflectionStoredRay{ray:ReflectionLobeRay,cone:f32,firstPerson:bool,}
+fn reflectionStoredRay(texel:vec2i)->ReflectionStoredRay{
+ let r=reflectionRayOf(textureLoad(surfaceRays,texel,REFLECTION_RAY_DIRECTION).r,textureLoad(surfaceRays,texel,REFLECTION_RAY_CONE).r);
+ return ReflectionStoredRay(ReflectionLobeRay(r.xyz,vec4f(0.0,0.0,0.0,lobeAlpha(0.0)),0.0,0.0),abs(r.w),r.w<0.0);
+}
 ${statistics ? COUNTING : ''}`
+
+/** The ray generation: the kernel \`generateRays\` and the texel it casts. */
+const generateRaysWgsl =
+  () => `/** The ray generation of grid texel \`g\` of the surface \`layer\`: the pixel of its block this image picks (\`reflectionPickedPixel\`) casts a ray where its
+ *  lobe traces (\`reflectionPixelTraces\`) — its direction drawn, its cone angle the inverse of its pdf, negative for a pixel of a first-person
+ *  object — and the texel keeps the pixel's depth beside it; otherwise the texel keeps the pixel's depth negated, no ray. */
+fn generateTexel(g:vec2u,layer:u32){
+ let texel=vec2i(g);
+ let coord=vec2i(reflectionPickedPixel(g));
+ let flags=surfaceFlagsAt(coord);
+ if(surfaceReflects(flags)&&reflectionPixelTraces(coord,flags)){
+  let own=reflectingPixelAt(layer,coord,flags);
+  let ray=reflectionCastRay(own,reflectionSampleAt(g));
+  let cone=reflectionCastCone(own,ray);
+  let words=reflectionRayWords(ray.R,select(cone,-cone,isFirstPerson(own.flags)));
+  textureStore(surfaceRays,texel,REFLECTION_RAY_DIRECTION,vec4u(words.x,0u,0u,0u));
+  textureStore(surfaceRays,texel,REFLECTION_RAY_CONE,vec4u(words.y,0u,0u,0u));
+  textureStore(surfaceRays,texel,REFLECTION_RAY_DEPTH,vec4u(bitcast<u32>(own.z),0u,0u,0u));
+ }else{
+  textureStore(surfaceRays,texel,REFLECTION_RAY_DEPTH,vec4u(bitcast<u32>(-surfaceDepthAt(layer,coord)),0u,0u,0u));
+ }
+}
+/** One thread a grid texel of a tracing tile (\`tiles.ts\`). */
+@compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
+fn generateRays(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_id) local:vec3u){
+ let t=reflectionTileOf(tile,groups);
+ if(t==REFLECTION_NO_TILE){return;}
+ let id=reflectionTileOrigin(t)+local.xy;
+ if(all(id<reflectionGridSize())){generateTexel(id,REFLECTION_LAYER);}
+}`
 
 /** The screen stage: the kernel `traceScreen` and the texel it casts. */
 const traceScreenWgsl = (
   statistics: boolean,
 ) => `/** A ray the screen stage missed: its pending entry — its texel and the distance its miss reached — and whether there is one. */
 struct ReflectionMissed{entry:vec2u,missed:bool,}
-/** The screen stage of grid texel \`g\` of the surface \`layer\`, cast from the pixel of its block that
- *  traces this image (\`reflectionTracedOf\`): its ray marched on the screen, its direction and cone angle written
- *  and, beside them, its surface's depth (the ray texture's next layer), and its fresh texel where the screen hit;
- *  otherwise the ray missed, returned as its pending entry. A texel whose picked pixel does not trace writes nothing: no kernel
- *  reads a texel its ray word does not trace. */
+/** The screen stage of grid texel \`g\` of the surface \`layer\`, cast from the pixel of its block the ray generation picked
+ *  (\`reflectionPickedPixel\`) along the ray it stored (\`reflectionStoredRay\`): marched on the screen, its fresh texel written where the screen hit;
+ *  otherwise the ray missed, returned as its pending entry. A texel whose picked pixel casts no ray (its depth negative) writes nothing: no kernel
+ *  reads a texel that traces none. */
 fn traceScreenTexel(g:vec2u,layer:u32)->ReflectionMissed{
  let texel=vec2i(g);
- // The word its writer reads as storage, the one binding of it this kernel has.
- let word=textureLoad(surfaceRays,texel,REFLECTION_RAY_WORD).r;
- if(!reflectionWordTraces(word)){return ReflectionMissed(vec2u(0u),false);}
- let id=reflectionTracedOf(g,word);
- let coord=vec2i(id);
+ // The depth its writer reads as storage, the one binding of it this kernel has.
+ if(!reflectionRayTraces(bitcast<f32>(textureLoad(surfaceRays,texel,REFLECTION_RAY_DEPTH).r))){return ReflectionMissed(vec2u(0u),false);}
+ let coord=vec2i(reflectionPickedPixel(g));
  let own=reflectingPixelAt(layer,coord,surfaceFlagsAt(coord));
- let ray=reflectionCastRay(own,reflectionSampleAt(g));
- let b=reflectionScreenStage(own.P,own.topN,own.V,ray,g);
+ let b=reflectionScreenStage(own.P,own.topN,own.V,reflectionStoredRay(texel).ray,g);
  ${statistics ? 'countScreen(b.hit);' : ''}
- // What the resolve weighs the ray by: its direction and its cone angle, the inverse of its pdf, and its surface's depth beside them.
- textureStore(surfaceDirections,texel,vec4f(ray.R,reflectionCastCone(own,ray)));
- textureStore(surfaceRays,texel,REFLECTION_RAY_DEPTH,vec4u(bitcast<u32>(own.z),0u,0u,0u));
  if(b.hit){
   textureStore(traceOut,texel,freshPack(b.radiance,b.distance));
   return ReflectionMissed(vec2u(0u),false);
@@ -120,20 +150,18 @@ fn traceScreen(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups
 const traceSceneWgsl = (
   statistics: boolean,
   hardware: boolean,
-) => `/** The ray the screen stage missed, \`missed\`: drawn again from the same pixel — the same numbers, the
- *  same ray —, marched through the scene from where the screen stopped knowing it, and its texel's fresh
- *  radiance written whole. Its cone angle, which dithers the march's step, is the inverse of its pdf. A pixel of a
- *  first-person object (\`isFirstPerson\`) casts a ray that does not meet the stand-ins of first-person objects (\`ST_MEET_WORLD_SPACE\`). */
+) => `/** The ray the screen stage missed, \`missed\`: the ray the ray generation stored for its texel, marched through the scene from where the
+ *  screen stopped knowing it, and its texel's fresh radiance written whole. Its cone angle, which dithers the march's step, is the
+ *  inverse of its pdf. A pixel of a first-person object (the stored cone's sign) casts a ray that does not meet the stand-ins of
+ *  first-person objects (\`ST_MEET_WORLD_SPACE\`). */
 fn traceSceneRay(missed:vec2u){
  let g=vec2u(missed.x&0xffffu,missed.x>>16u);
  let texel=vec2i(g);
- // The word the classification wrote, read as the storage the screen stage reads it through.
- let id=reflectionTracedOf(g,textureLoad(surfaceRays,texel,REFLECTION_RAY_WORD).r);
- let coord=vec2i(id);
+ let coord=vec2i(reflectionPickedPixel(g));
  let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));
- let ray=reflectionCastRay(own,reflectionSampleAt(g));
- let cone=reflectionCastCone(own,ray);
- let b=reflectionSceneStage(own.P,own.topN,ray,bitcast<f32>(missed.y),g,cone,isFirstPerson(own.flags));
+ // The ray the ray generation stored, read as the storage the screen stage reads it through.
+ let stored=reflectionStoredRay(texel);
+ let b=reflectionSceneStage(own.P,own.topN,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson);
  textureStore(traceOut,texel,freshPack(${hardware ? 'makeFinite3(b.radiance)' : 'b.radiance'},b.distance));
  ${statistics ? 'countScene();' : ''}
 }
@@ -157,28 +185,31 @@ fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroup
  * pixel traces one lobe, its top layer's (`reflectingPixelAt`): its clear coat's where it carries one,
  * its base's elsewhere — the sharpest lobe it shows. The kernels of a surface, a thread a texel, a ray
  * or a pixel, each small enough for the GPU to keep many of its threads in flight — a tile
- * classification, the tracing split into a screen pass, a compaction and a scene pass, then a resolve,
+ * classification, the generation of the rays, the tracing split into a screen pass, a compaction and a scene pass, then a resolve,
  * a temporal accumulation and a spatial filter:
  *
- * 0. CLASSIFY (`../tiles.ts`): a workgroup a tracing tile of `REFLECTION_SIDE`² grid texels writes each
- *    texel's picked pixel — the tile jitter, the rooks of its block (`reflectionJitter`) — and
- *    whether it traces (`reflectionPixelTraces`: under a roughness of 0.4, or a clear coat whatever the roughness), and fills four lists: the tracing tiles and the unused ones, whose ray words a
+ * 0. CLASSIFY (`../tiles.ts`): a workgroup a tracing tile of `REFLECTION_SIDE`² grid texels reads each
+ *    texel's block for whether a pixel of it traces (`reflectionPixelTraces`: under a roughness of 0.4, or a clear coat whatever the roughness), and fills four lists: the tracing tiles and the unused ones, whose rays a
  *    clear empties (`clearTracing`); the resolve tiles of `REFLECTION_SIDE`² pixels a pixel traces in,
  *    and the clear ones. Every kernel after it is dispatched indirectly over one of the lists, on the GPU
  *    alone: a tile of rough surfaces is no texel of the grid.
- * 1. SCREEN (`traceScreen`): a grid texel casts from its picked pixel where that one traces
- *    (`reflectionTracedOf`), none where it does not, one whole ray of the lobe it traces (`../reach.ts`: the lobe's share of it
- *    from the last pass, whole under a roughness of 0.3, none past 0.4), in a
+ * 0′. GENERATE RAYS (`generateRays`): a grid texel of a tracing tile picks the pixel of its block this image casts from — the tile jitter, the
+ *    rooks of its block (`reflectionJitter`, `reflectionPickedPixel`) — and, where that one traces (`reflectionPixelTraces`), draws one whole ray of the lobe it
+ *    traces (`../reach.ts`: the lobe's share of it from the last pass, whole under a roughness of 0.3, none past 0.4), in a
  *    direction drawn among its GGX lobe's visible normals — a mirror's at its centre —, a
- *    blue noise read at its texel and the image's turn (`reflectionSampleAt`, `../sampleWgsl.ts`), marched on the screen exactly (the
+ *    blue noise read at its texel and the image's turn (`reflectionSampleAt`, `../sampleWgsl.ts`). It writes the ray's direction and its cone angle (the
+ *    inverse of its pdf, at least `REFLECTION_MIN_CONE`, negative for a pixel of a first-person object) and the picked pixel's depth beside them, negated where the pixel
+ *    casts none (`../grids.ts`): the one place a ray is drawn, the stages after it read it. The distance a ray goes is the view's longest ray
+ *    (`ReflectionView.march.w`), whatever the pixel's roughness: the reflections reuse no radiance cache that would shorten it.
+ * 1. SCREEN (`traceScreen`): a grid texel casts its stored ray (`reflectionStoredRay`) from its picked pixel where that one traces
+ *    (a positive depth), none where it does not, marched on the screen exactly (the
  *    chain's first stage, `../wgsl.ts`: the Hi-Z march, `../../../visibility/hiz/gpu/screenMarch.ts`, read in the last lit
- *    image, to the image's edge or where it gave the ray up). It writes the ray's direction and cone angle and, where the screen hit, the
+ *    image, to the image's edge or where it gave the ray up). It writes, where the screen hit, the
  *    texel's fresh texel — the radiance and the distance of what answered (`../texelWgsl.ts`).
  *    A ray it missed is listed with the distance its miss reached: the workgroup counts its rays
  *    missed, one append adds them to the list (`../../../gpu/dispatch/list.ts`), so the rays that go on sit
  *    side by side.
- * 1′. SCENE (`traceScene`): a thread a ray missed, dispatched over the list, indirectly: its ray drawn
- *    again — the same numbers, the same ray —, marched through the global distance field from where the screen stopped
+ * 1′. SCENE (`traceScene`): a thread a ray missed, dispatched over the list, indirectly: its stored ray, marched through the global distance field from where the screen stopped
  *    knowing the ray, the light of the surface it meets read in the surface cache's final lighting (`../sceneTrace.ts`,
  *    `../../surfaceCache/hitWgsl.ts`, never lit light by light), then, where its march left the scene, the screen's far trace and the
  *    environment, else the environment as well, the fresh texel written whole.
@@ -211,9 +242,9 @@ fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroup
  * mean, p_miss the share of rays the screen misses, S̄ their mean steps of the march through
  * the field, S the steps a clipmap at most (`GLOBAL_DISTANCE_FIELD_TRACE_MAX_STEPS`), C the clipmaps, H the cost of a hit's read;
  * r_m, r_s, r_h the iterations, steps and hit reads the GPU runs a second:
- * - classify: N flag reads at most, a normal and a lobe word a reflecting pixel, a ray word a texel of a
- *   tracing tile, three atomics a listed tile a list;
- * - screen: 64·T threads, a ray word read each (`reflectionTracedOf`); R · K̄ march iterations (one
+ * - classify: N flag reads at most, a normal and a lobe word a reflecting pixel, three atomics a listed tile a list;
+ * - generate: 64·T threads, a flag read and, where the picked pixel traces, its normal, lobes and depth, a blue noise read, a ray of 12 bytes written;
+ * - screen: 64·T threads, a depth read each; R · K̄ march iterations (one
  *   nearest read each, a farthest where the ray is not in front, a plane at the pixel), an 8-byte ray
  *   written for each ray, an 8-byte pending entry for each ray missed, one append a workgroup;
  * - scene: a thread a ray missed, R · p_miss of them, an 8-byte entry read each;
@@ -243,7 +274,7 @@ export const reflectionTraceShader = (statistics: boolean, hardware = false) =>
   wgslProgram(
     [
       traceDeclarations(statistics),
-      ...(hardware ? [] : [traceScreenWgsl(statistics)]),
+      ...(hardware ? [] : [generateRaysWgsl(), traceScreenWgsl(statistics)]),
       traceSceneWgsl(statistics, hardware),
     ].join('\n'),
     [

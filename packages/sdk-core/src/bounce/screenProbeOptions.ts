@@ -60,6 +60,10 @@ const TRACING_RANGE = [4, 16] as const
  *  in the screen probes' layout). The floor of log2(8192 − 16), the widest tracing, written out so that no bundle runs it. */
 const MAX_GATHER_MIPS = 12
 
+/** The values of `screenProbeDiffuseIntegralMethod`: the probes' preintegrated irradiance, the pixel's BRDF sampled over the probes' radiance, and the numerical
+ *  integral over every texel of the probes it reads (which has no tile classification). */
+export const DIFFUSE_INTEGRAL_METHOD = { preintegrated: 0, sampled: 1, numerical: 2 } as const
+
 /** The level, the probes, their filtering, their history and the short-range occlusion. */
 const PLACEMENT_AND_OCCLUSION_RULES = /* @__PURE__ */ (() =>
   [
@@ -96,6 +100,8 @@ const PLACEMENT_AND_OCCLUSION_RULES = /* @__PURE__ */ (() =>
     flag('screenProbeShortRangeAOApplyDuringIntegration', false),
     integer('screenProbeShortRangeAODownsampleFactor', -1, [-1, 2]),
     integer('screenProbeIntegrateDownsampleFactor', 1, [1, 2]),
+    flag('screenProbeIntegrationTileClassification', true),
+    integer('screenProbeDiffuseIntegralMethod', 0, [0, 2]),
   ] as const)()
 
 /** The scene traces, the history thresholds, the screen trace and the radiance cache. */
@@ -201,6 +207,12 @@ export type ScreenProbeSettings = LevelKnobs & {
   occlusion: boolean
   /** The reduction the integration of the probes runs at (`screenProbeIntegrateDownsampleFactor`), 1 or 2: the pixels of the image over a texel of it. */
   integrateDownsample: number
+  /** How a pixel's diffuse light is integrated from the probes (`screenProbeDiffuseIntegralMethod`): 0 the probes' preintegrated irradiance, 1 the pixel's BRDF
+   *  sampled over the probes' radiance, 2 the numerical integral over every texel of the probes (the slow reference). */
+  integralMethod: number
+  /** Whether the integration is dispatched over the lists of tiles of its three modes (`screenProbeIntegrationTileClassification`), over a level that casts and an integral
+   *  method that is not the numerical one: else it is dispatched over every pixel at once. */
+  tileClassification: boolean
   /** Whether the occlusion keeps its bent normal: the switch over a level that allows it, with the occlusion searched. */
   bentNormal: boolean
   /** Whether the pixels of a thin double-sided sheet gather the light along their backface: the switch over a level that allows it. */
@@ -323,9 +335,12 @@ const requestedOcclusionDownsample = (values: ScreenProbeValues, level: number) 
   return asked < 0 ? level : clamp(asked, 1, 2)
 }
 
-/** The reduction the integration is asked to run at (`screenProbeIntegrateDownsampleFactor`), from 1 to 2. */
+/** The reduction the integration is asked to run at (`screenProbeIntegrateDownsampleFactor`), from 1 to 2; 1 where its tiles are not classified
+ *  (`screenProbeIntegrationTileClassification`). */
 const requestedIntegrateDownsample = (values: ScreenProbeValues) =>
-  clamp(values.screenProbeIntegrateDownsampleFactor, 1, 2)
+  values.screenProbeIntegrationTileClassification
+    ? clamp(values.screenProbeIntegrateDownsampleFactor, 1, 2)
+    : 1
 
 /** The reduction the short-range occlusion is searched at: the one asked, else 1 where the occlusion is applied during the integration and
  *  the integration is not asked to run at that same reduction (the integration then reads the occlusion texel of its own pixel), or where it
@@ -404,6 +419,11 @@ export function resolveScreenProbes(values: ScreenProbeValues): ScreenProbeSetti
     occlusion,
     occlusionDownsample: occlusionDownsampleOf(values, knobs.occlusionDownsample),
     integrateDownsample: integrateDownsampleOf(values, knobs.occlusionDownsample, casts, occlusion),
+    integralMethod: values.screenProbeDiffuseIntegralMethod,
+    tileClassification:
+      casts &&
+      values.screenProbeIntegrationTileClassification &&
+      values.screenProbeDiffuseIntegralMethod !== DIFFUSE_INTEGRAL_METHOD.numerical,
     bentNormal: values.screenProbeBentNormal && knobs.bentNormal && occlusion,
     occlusionFoliageStrength: namedOr(
       values.screenProbeOcclusionFoliageStrength,
