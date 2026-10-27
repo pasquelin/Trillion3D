@@ -52,6 +52,7 @@ export type GlassContact = {
 const SLAB = [0, 0, 0, 0]
 screenSlabInto(SLAB, 0, [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1], HEIGHT, [0, 0, 0])
 
+/** The march's cap is the reflections' iterations (`reflectionScreenSteps`): its floor level counts back from it. */
 const SHADER = (group: number) =>
   wgslProgram(
     /* wgsl */ `
@@ -71,7 +72,7 @@ ${VSM_PROJECTION_VIEW_STRUCT}
  let stop=clipToFramebuffer(vsmView.shiftedToClip*vec4f(origin+towardLight*rayLength,1.0),size);
  let d=stop-start;
  let slab=vec4f(${[...SLAB].map(wgslF32).join(',')});
- let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),pixels,relative,slab,0xffffffffu,true);
+ let hit=screenMarch(start,d,screenMarchEnd(start.xy,d.xy,size),pixels,relative,slab,${REFLECTION_RULES.reflectionScreenSteps.default}u,true);
  out[1]=select(0.0,1.0,hit.t>=0.0);
  out[2]=select(0.0,1.0,hit.front);
 }`,
