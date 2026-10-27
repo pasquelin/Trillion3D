@@ -31,6 +31,8 @@ function allocate(allocator: ResourceAllocator, shape: LightingShape) {
     tileLights: allocator.buffer('lights of the tiles', sizes.tileLightsWords, 'storage'),
     /** What the passes bind in place of the traced shadows' masks and traces where those are not made. */
     standIn: allocator.buffer('stand-in for the traced shadows', 1, 'storage'),
+    /** What the context binds, read-only, in place of the rays' feedback where there is none: not the buffer above, which it binds writable beside. */
+    feedbackStandIn: allocator.buffer('stand-in for the feedback', 1, 'storage'),
     filtered: allocator.buffer('filtered radiosity rays', sizes.filteredWords, 'storage'),
     trace: allocator.texture('radiosity trace', [sizes.traceAtlas, sizes.traceAtlas], 'r32uint', {
       usage,

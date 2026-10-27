@@ -689,7 +689,7 @@ image, the pages left longest unlit first), `surfaceCacheLightingUpdateSpeed` (`
 `surfaceCacheLightingQuality` (`1`, from 0.5 to 6: it multiplies the radiosity probes' hemisphere by its square root and, from 6, halves their
 spacing), `surfaceCacheLightingForceFullUpdate` (`false`), `surfaceCacheFreezeUpdateFrame` (`0`; any other number stops the update clock
 and the pages' record of being lit, so that every image lights the same subset, for debugging), `surfaceCacheLightingMaxDistanceFromFrustumToPrioritize` (`500`, `-1`
-never: the pages near the frustum are lit twice as soon), `surfaceCacheDirectLighting` (`true`),
+never: the pages near the frustum are lit twice as soon), `surfaceCacheLightingFeedback` (`true`: a page the rays read at its finest level in the last two images is lit at the greatest update speed, 4, where the scene has acceleration structures and `surfaceCacheDirectLightingHardwareRayTracing` is on), `surfaceCacheDirectLighting` (`true`),
 `surfaceCacheDirectLightingMaxLightsPerTile` (`8`, up to 32, a power of two), `surfaceCacheDirectLightingGlobalSdfShadowRayBias` (`1`:
 voxels the shadow ray starts off the surface, three where it grazes the light) and `surfaceCacheDirectLightingCloudTransmittance`
 (`true`). Where the scene has acceleration structures the direct light's shadow is traced through the scene's triangles instead:

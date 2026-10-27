@@ -68,6 +68,7 @@ const UPDATE_RULES = /* @__PURE__ */ (() =>
     flag('surfaceCacheLightingForceFullUpdate', false),
     integer('surfaceCacheFreezeUpdateFrame', 0, INT32_RANGE),
     number('surfaceCacheLightingMaxDistanceFromFrustumToPrioritize', 500, ANY),
+    flag('surfaceCacheLightingFeedback', true),
   ] as const))()
 
 /** The direct light of the cache's texels, its shadows traced through the global field or the scene's triangles. */
@@ -162,7 +163,10 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  * texels by the factor, over `surfaceCacheLightingUpdateSpeed` 1; `surfaceCacheLightingForceFullUpdate` lights all of
  * them every image): a page's age counts four times faster than its distance from the eye slows it (the first
  * clipmap's half side, 1 over 1 + the distance over it), twice as fast within
- * `surfaceCacheLightingMaxDistanceFromFrustumToPrioritize` (500) centimetres of the view's frustum, -1 never.
+ * `surfaceCacheLightingMaxDistanceFromFrustumToPrioritize` (500) centimetres of the view's frustum, -1 never, and at
+ * the greatest speed, 4, for a page the rays read at its finest level in the last two images
+ * (`surfaceCacheLightingFeedback`, on, where the scene has acceleration structures and
+ * `surfaceCacheDirectLightingHardwareRayTracing` is on).
  * The direct light (`surfaceCacheDirectLighting`, on) goes to each tile of 8 × 8 texels from at most
  * `surfaceCacheDirectLightingMaxLightsPerTile` (8, raised to a power of two) lights, those of the most
  * luminance at the tile's depth range. Where the scene has acceleration structures

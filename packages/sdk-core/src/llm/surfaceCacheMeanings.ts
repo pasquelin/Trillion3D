@@ -53,6 +53,7 @@ const UPDATE_MEANINGS = /* @__PURE__ */ (() => ({
   surfaceCacheLightingForceFullUpdate: `Whether every image lights every texel of the surface cache, for debugging (off by default).`,
   surfaceCacheFreezeUpdateFrame: `Whether the update clock stops and the pages keep no record of being lit, so that every image updates the same subset of the surface cache, for debugging and profiling (${R.surfaceCacheFreezeUpdateFrame.default} by default: any other number freezes).`,
   surfaceCacheLightingMaxDistanceFromFrustumToPrioritize: `Centimetres: a page within this of the view's frustum is lit twice as soon (${R.surfaceCacheLightingMaxDistanceFromFrustumToPrioritize.default} by default); -1 never.`,
+  surfaceCacheLightingFeedback: `Whether a page the rays read at its finest level in the last two images is lit at the greatest update speed, 4, whatever its distance and place in the view (on by default); it applies only where the scene has acceleration structures and surfaceCacheDirectLightingHardwareRayTracing is on.`,
 }))()
 
 /** What the settings of the direct light of the cache and its shadows mean. */

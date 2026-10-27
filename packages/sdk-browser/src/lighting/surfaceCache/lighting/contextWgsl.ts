@@ -3,6 +3,7 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { WORKGROUP_THREADS, GROUP_GRID_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { PRIORITY_HISTOGRAM_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { FEEDBACK_AT } from '../feedbackLayout.ts'
 import { lightingCommonWgsl } from './commonWgsl.ts'
 import { CONTEXT_HEADER_WORDS, PAGE_LIGHTING } from './layout.ts'
 
@@ -14,7 +15,8 @@ import { CONTEXT_HEADER_WORDS, PAGE_LIGHTING } from './layout.ts'
  * - `contextHistogram`, a thread a page, puts the page's tiles in the bucket its priority gives it, for each of the two
  *   updates: a page's bucket is 15 less the log2 of four times the images since it was lit times its speed — one over
  *   one plus its distance from the eye over the first clipmap's half side, doubled within the prioritised distance of
- *   the frustum's planes —, a page never lit having waited 2048 images;
+ *   the frustum's planes, or four where the rays read the page at its finest level within the last two images (the
+ *   feedback, `FLAG_FEEDBACK`), whatever the rest gave —, a page never lit having waited 2048 images;
  * - `contextSelect` takes the bucket whose tiles bring the sum to the update's budget, and the tiles of it that fit;
  * - `contextList`, a thread a page, lists the page's tiles where its bucket is under the cut, or in it while its
  *   bucket's tiles fit, and the list keeps to the budget — the tiles are written where the page's count is added to the
@@ -34,6 +36,7 @@ const PAGE_STATE = wgslConsts({
   BUCKETS: PRIORITY_HISTOGRAM_SIZE,
   NEVER_LIT_FRAMES: 2048,
   CLEAR_WORDS: CONTEXT_HEADER_WORDS,
+  FEEDBACK_HI_RES: FEEDBACK_AT.lastUsedHiRes,
 })
 
 /** The writer of a slot of dispatch arguments in the context's header, for a program that holds the context as atomics. */
@@ -56,10 +59,13 @@ export const CONTEXT_ENTRIES = [
 
 /** The context program's bindings beside the tables (1) and the context (2): the shadow traces, whose count it empties. */
 export const CONTEXT_TRACES_BINDING = 3
+/** The binding of the rays' feedback buffer, read: the image each page was last read at its finest level. */
+export const CONTEXT_FEEDBACK_BINDING = 4
 
 export const CONTEXT_WGSL = wgslProgram(
   `${PAGE_STATE}
 @group(0) @binding(${CONTEXT_TRACES_BINDING}) var<storage,read_write> traces:array<atomic<u32>>;
+@group(0) @binding(${CONTEXT_FEEDBACK_BINDING}) var<storage,read> feedback:array<u32>;
 @compute @workgroup_size(${WORKGROUP_THREADS})
 fn contextClear(@builtin(local_invocation_index) lane:u32){
  for(var i=lane;i<CLEAR_WORDS;i+=${WORKGROUP_THREADS}u){atomicStore(&ctx[i],0u);}
@@ -94,7 +100,17 @@ fn pageView(page:u32)->PageView{
  }
  return view;
 }
-fn updateSpeed(view:PageView)->f32{
+/** The image the rays last read \`page\` at its finest level, 0 where they never did or the buffer holds no such part. */
+fn pageLastUsedHiRes(page:u32)->u32{
+ let at=feedback[FEEDBACK_HI_RES]+page;
+ if(at>=arrayLength(&feedback)){return 0u;}
+ return feedback[at];
+}
+fn updateSpeed(page:u32,view:PageView)->f32{
+ if(lgFlag(FLAG_FEEDBACK)){
+  let used=pageLastUsedHiRes(page);
+  if(used+2u>=lp.frame&&used<=lp.frame){return 4.0;}
+ }
  return select(1.0,2.0,view.near)/(1.0+max(view.distance*lp.firstClipmapRcp,0.0));
 }
 fn priorityBucket(last:u32,speed:f32)->u32{
@@ -107,7 +123,7 @@ fn contextHistogram(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgro
  if(page>=lp.pages||!pageMapped(page)){return;}
  let tiles=pageTilesOf(page);
  if(tiles==0u){return;}
- let speed=updateSpeed(pageView(page));
+ let speed=updateSpeed(page,pageView(page));
  for(var c=0u;c<2u;c++){
   atomicAdd(&ctx[CTX_HISTOGRAM+c*BUCKETS+priorityBucket(scPageW(page,PAGE_LAST_UPDATE+c),speed)],tiles);
  }
@@ -147,7 +163,7 @@ fn contextList(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) 
  if(page>=lp.pages||!pageMapped(page)){return;}
  let tiles=pageTilesOf(page);
  if(tiles==0u){return;}
- let speed=updateSpeed(pageView(page));
+ let speed=updateSpeed(page,pageView(page));
  let state=scPageAt(page);
  let record=!lgFlag(FLAG_FREEZE_UPDATE_FRAME);
  for(var c=0u;c<2u;c++){

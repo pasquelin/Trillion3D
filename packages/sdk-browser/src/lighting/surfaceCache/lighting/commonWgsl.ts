@@ -54,6 +54,7 @@ const CONSTANTS = wgslConsts({
   FLAG_FREEZE_UPDATE_FRAME: LIGHTING_FLAG.freezeUpdateFrame,
   FLAG_ADAPTIVE_SHADOWS: LIGHTING_FLAG.adaptiveShadowTracing,
   FLAG_FORCE_TWO_SIDED: LIGHTING_FLAG.forceTwoSided,
+  FLAG_FEEDBACK: LIGHTING_FLAG.feedback,
 })
 
 const TILES_WGSL = wgslBlock(

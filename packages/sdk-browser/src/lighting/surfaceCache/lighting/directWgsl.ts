@@ -25,7 +25,7 @@ import { SHADOW_MASK_WGSL } from './shadowMaskWgsl.ts'
  * multiplied by the pre-exposure and dithered in the last place of its word (`ditherLight`, by a hash of the texel and
  * the page's image, so that a light kept over many images does not drift).
  *
- * A light's irradiance at a texel (`cacheIrradiance`) is the engine's one light term for a point that is not a pixel
+ * A light's irradiance at a texel (`cacheLight`) is the engine's one light term for a point that is not a pixel
  * (`declaredIrradiance`, `../../direct/lightLoopWgsl.ts`): the falloff, the range, a spot's fade, a rectangle's form factor, the
  * cosine, the light function and the clouds' shade, the air's tint toward a sun — everything but its shadow, which the term leaves out. The shadow of a light that casts one and lights the texel is one ray marched through the global distance field
  * (`cacheShadowed`) from the texel to the light, as far as the trace reaches or the lamp is: it starts off the surface by
@@ -38,8 +38,9 @@ import { SHADOW_MASK_WGSL } from './shadowMaskWgsl.ts'
  * tile then records which of its lights it saw uniformly — every texel above the visible factor, or none; an
  * invalid texel counts as both — in the factor atlas, a bit a light, for the next update's adaptive tracing: the workgroup
  * counts, for each light, the texels that saw it and the texels it did not reach, and one thread builds the words from the
- * counts. `directShade` records none: it empties the tile's words, so that the next traced update of the tile traces
- * every texel.
+ * counts. `directShade` records the same from its own shadow: a texel the light reaches sees it where it casts none or
+ * its ray met nothing, and is shadowed from it where the ray met a surface; a texel it gives nothing is shadowed from it (no
+ * ray cast: the attenuation the masks keep for such a texel, nil).
  *
  * Lengths here are the cards' unit, the centimetre; the light term takes metres, the engine's.
  */
@@ -80,8 +81,8 @@ export const DIRECT_CLOUD_SHADOW: CloudShadowBindings = {
 }
 
 /** The light a texel receives from light `rank`, its shadow traced through the global distance field. */
-const CACHE_IRRADIANCE_WGSL = wgslBlock(
-  'CACHE_IRRADIANCE_WGSL',
+const CACHE_LIGHT_WGSL = wgslBlock(
+  'CACHE_LIGHT_WGSL',
   [
     DIRECT_LIGHT_WGSL,
     CM_PER_M_WGSL,
@@ -101,16 +102,23 @@ fn cacheShadowed(at:vec3f,normal:vec3f,toward:vec3f,span:f32,lamp:bool)->bool{
  if(lamp){ray.rayEndBias=lp.shadowBias;}
  return gdfTrace(ray).hitTime>=0.0;
 }
-fn cacheIrradiance(rank:u32,position:vec3f,normal:vec3f)->vec3f{
- let lit=declaredIrradiance(rank,position/CM_PER_M,normal,0.0);
- if(all(lit==vec3f(0.0))){return lit;}
+/** What a light gives a texel: its irradiance, shadow included, and what its shadow ray answered — \`visible\` where the light casts
+ *  none or the ray met nothing, \`shadowed\` where it met a surface or where the light gives the texel nothing, whether it casts
+ *  a shadow or not — no ray cast, the attenuation nil as the masks have it (\`lightAttenuation\`). */
+struct CacheLight{irradiance:vec3f,visible:bool,shadowed:bool}
+fn cacheLight(rank:u32,position:vec3f,normal:vec3f)->CacheLight{
+ var seen=CacheLight(declaredIrradiance(rank,position/CM_PER_M,normal,0.0),false,false);
  let light=directLights.items[rank];
- if(!castsShadow(light)){return lit;}
+ if(all(seen.irradiance==vec3f(0.0))){seen.shadowed=true;return seen;}
+ if(!castsShadow(light)){seen.visible=true;return seen;}
  let sun=isSun(light);
  let offset=light.positionRange.xyz*CM_PER_M-position;
  let toward=select(normalize(offset),-light.directionCone.xyz,sun);
  let span=select(min(length(offset),lp.maxTrace),lp.maxTrace,sun);
- return select(lit,vec3f(0.0),cacheShadowed(position,normal,toward,span,!sun));
+ seen.shadowed=cacheShadowed(position,normal,toward,span,!sun);
+ seen.visible=!seen.shadowed;
+ if(seen.shadowed){seen.irradiance=vec3f(0.0);}
+ return seen;
 }`,
 )
 
@@ -144,22 +152,43 @@ fn directTexel(tile:u32,at:vec2u)->DirectTexel{
  let first=tile*(lp.maxLights+1u);
  return DirectTexel(page,coord,surfaceTexel(page,coord*LG_TILE+at),first,select(0u,tileLights[first],lgFlag(FLAG_DIRECT)));
 }
+/** Counts the texel as seeing the tile's light \`k\` and as shadowed from it, as \`visible\` and \`shadowed\` say. */
+fn countLight(k:u32,visible:bool,shadowed:bool){
+ if(visible){atomicAdd(&visibleTexels[k],1u);}
+ if(shadowed){atomicAdd(&shadowedTexels[k],1u);}
+}
+/** Records, in the tile's words of the factor atlas, the lights the tile is uniform to — every texel sees it or every texel is
+ *  shadowed from it — once every thread of the tile has counted. */
+fn recordUniformLights(head:DirectTexel,lane:u32){
+ workgroupBarrier();
+ if(lane==0u){
+  var seen=array<u32,FACTOR_TILE_WORDS>();
+  for(var k=0u;k<head.lights;k++){
+   if(atomicLoad(&visibleTexels[k])==TILE_TEXELS||atomicLoad(&shadowedTexels[k])==TILE_TEXELS){
+    let rank=tileLights[head.first+1u+k];
+    seen[factorWordOf(rank)]|=factorBitOf(rank);
+   }
+  }
+  let at0=cardTileFactorWord(head.page,head.coord);
+  for(var i=0u;i<FACTOR_TILE_WORDS;i++){factors[at0+i]=seen[i];}
+ }
+}
 @compute @workgroup_size(8,8,1)
 fn ${DIRECT_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_id) at:vec3u,@builtin(local_invocation_index) lane:u32){
  let tile=flatGroup(group,n);
  if(tile>=ctxListed(LG_LIST_DIRECT)){return;}
  let head=directTexel(tile,at.xy);
  var irradiance=vec3f(0.0);
- if(head.texel.valid){
-  for(var k=0u;k<head.lights;k++){
-   irradiance+=cacheIrradiance(tileLights[head.first+1u+k],head.texel.position,head.texel.normal);
+ for(var k=0u;k<head.lights;k++){
+  // A texel that holds no surface counts as seeing the light and as shadowed from it.
+  var seen=CacheLight(vec3f(0.0),true,true);
+  if(head.texel.valid){
+   seen=cacheLight(tileLights[head.first+1u+k],head.texel.position,head.texel.normal);
+   irradiance+=seen.irradiance;
   }
+  countLight(k,seen.visible,seen.shadowed);
  }
- // The tile saw no light uniformly as far as the next traced update knows: it traces every texel.
- if(lane==0u){
-  let at0=cardTileFactorWord(head.page,head.coord);
-  for(var i=0u;i<FACTOR_TILE_WORDS;i++){factors[at0+i]=0u;}
- }
+ recordUniformLights(head,lane);
  storeDirect(head.page,head.texel,irradiance);
 }
 @compute @workgroup_size(8,8,1)
@@ -179,22 +208,9 @@ fn ${DIRECT_TRACED_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgr
    shadowed=!visible;
    if(ray.factor>0.0){irradiance+=declaredBareIrradiance(tileLights[head.first+1u+k],head.texel.position/CM_PER_M,head.texel.normal,0.0)*ray.factor;}
   }
-  if(visible){atomicAdd(&visibleTexels[k],1u);}
-  if(shadowed){atomicAdd(&shadowedTexels[k],1u);}
+  countLight(k,visible,shadowed);
  }
- workgroupBarrier();
- // The tile is uniform to a light where every texel sees it or every texel is shadowed from it.
- if(lane==0u){
-  var seen=array<u32,FACTOR_TILE_WORDS>();
-  for(var k=0u;k<head.lights;k++){
-   if(atomicLoad(&visibleTexels[k])==TILE_TEXELS||atomicLoad(&shadowedTexels[k])==TILE_TEXELS){
-    let rank=tileLights[head.first+1u+k];
-    seen[factorWordOf(rank)]|=factorBitOf(rank);
-   }
-  }
-  let at0=cardTileFactorWord(head.page,head.coord);
-  for(var i=0u;i<FACTOR_TILE_WORDS;i++){factors[at0+i]=seen[i];}
- }
+ recordUniformLights(head,lane);
  storeDirect(head.page,head.texel,irradiance);
 }`,
   [
@@ -203,7 +219,7 @@ fn ${DIRECT_TRACED_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgr
       context: { binding: DIRECT_BINDINGS.context, access: 'read' },
     }),
     surfaceTexelWgsl(lightingLayersWgsl(DIRECT_BINDINGS.depth, DIRECT_BINDINGS.normal)),
-    CACHE_IRRADIANCE_WGSL,
+    CACHE_LIGHT_WGSL,
     SHADOW_MASK_WGSL,
     packLight,
     ditherLight,

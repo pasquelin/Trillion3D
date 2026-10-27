@@ -62,6 +62,7 @@ export function lightSurfaceCache(
         : cloudShadowStandIn(device),
       lightFunction: frame.lightFunction,
       ...surfaceHitReads(rt, device),
+      feedback: state.feedback.buffer,
       transportEpoch: lights.store.transportEpoch,
       image: {
         eye: frame.cam.eye,

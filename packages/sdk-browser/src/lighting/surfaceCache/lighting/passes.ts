@@ -8,7 +8,7 @@ import { sceneTraceBindEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
 import type { SurfaceHitResources } from '../hitWgsl.ts'
 import type { SurfaceAtlases } from '../atlases.ts'
 import { COMBINE_BINDINGS } from './combineWgsl.ts'
-import { CONTEXT_TRACES_BINDING } from './contextWgsl.ts'
+import { CONTEXT_FEEDBACK_BINDING, CONTEXT_TRACES_BINDING } from './contextWgsl.ts'
 import { CULL_ENTRY } from './cullWgsl.ts'
 import {
   DIRECT_BINDINGS,
@@ -115,14 +115,16 @@ function fromContext(
 
 /** The tiles of the updates this image lights, chosen. */
 export function contextPasses(e: Encoding) {
-  const { params, context, standIn } = e.resources
+  const { params, context, standIn, feedbackStandIn } = e.resources
   const shadowTraces = e.traced?.buffers.traces ?? standIn
+  const feedback = e.inputs.feedback ?? feedbackStandIn
   const kernel = e.fixed.context
-  const group = kernel.group([params, e.tables, context, shadowTraces], () => [
+  const group = kernel.group([params, e.tables, context, shadowTraces, feedback], () => [
     buffer(0, params),
     buffer(1, e.tables),
     buffer(2, context),
     buffer(CONTEXT_TRACES_BINDING, shadowTraces),
+    buffer(CONTEXT_FEEDBACK_BINDING, feedback),
   ])
   single(e, kernel.pipeline('contextClear'), group)
   dispatch(e, kernel.pipeline('contextHistogram'), group, e.pages)

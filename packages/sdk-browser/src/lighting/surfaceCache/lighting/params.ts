@@ -154,6 +154,10 @@ export interface LightingImage {
   readonly firstClipmapExtent: number
   /** Whether the radiosity's history was lost since the last image. */
   readonly historyLost: boolean
+  /** Whether the rays' feedback can prioritise the pages: the feedback's buffer is made and the scene has acceleration
+   *  structures with `surfaceCacheDirectLightingHardwareRayTracing` on, whether or not the direct light is. It does where
+   *  `surfaceCacheLightingFeedback` is on. */
+  readonly feedback: boolean
 }
 
 /** The flags word of an image: which of the lighting's passes and options are on. */
@@ -181,7 +185,8 @@ function lightingFlagsOf(
       : 0) |
     (settings.surfaceCacheDirectLightingHardwareRayTracingForceTwoSided
       ? LIGHTING_FLAG.forceTwoSided
-      : 0)
+      : 0) |
+    (image.feedback && settings.surfaceCacheLightingFeedback ? LIGHTING_FLAG.feedback : 0)
   )
 }
 

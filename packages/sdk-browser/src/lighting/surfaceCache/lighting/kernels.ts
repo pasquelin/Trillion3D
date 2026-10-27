@@ -14,7 +14,12 @@ import { lightFunctionLayoutEntry } from '../../lightFunction/bindings.ts'
 import { sceneTraceLayoutEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
 import { surfaceCacheReadLayoutEntries } from '../sampleWgsl.ts'
 import { COMBINE_BINDINGS, COMBINE_ENTRIES, combineWgsl } from './combineWgsl.ts'
-import { CONTEXT_ENTRIES, CONTEXT_TRACES_BINDING, CONTEXT_WGSL } from './contextWgsl.ts'
+import {
+  CONTEXT_ENTRIES,
+  CONTEXT_FEEDBACK_BINDING,
+  CONTEXT_TRACES_BINDING,
+  CONTEXT_WGSL,
+} from './contextWgsl.ts'
 import { CULL_ENTRY, cullWgsl } from './cullWgsl.ts'
 import { DIRECT_BINDINGS, DIRECT_CLOUD_SHADOW, DIRECT_ENTRIES, DIRECT_WGSL } from './directWgsl.ts'
 import { createKernel, type Kernel } from '../kernel.ts'
@@ -92,6 +97,7 @@ function contextKernels(device: GPUDevice, constants: ReturnType<typeof groupWid
         computeBufferEntry(1, 'storage'),
         computeBufferEntry(2, 'storage'),
         computeBufferEntry(CONTEXT_TRACES_BINDING, 'storage'),
+        computeBufferEntry(CONTEXT_FEEDBACK_BINDING, ro),
       ],
       { constants },
     ),

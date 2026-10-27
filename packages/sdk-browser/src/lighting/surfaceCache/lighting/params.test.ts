@@ -103,6 +103,7 @@ function planesOf(eye: readonly number[]) {
     viewPreExposure: 1,
     firstClipmapExtent: 2500,
     historyLost: false,
+    feedback: false,
   })
   return new Float32Array(words.buffer, LIGHTING_PARAMS.at.frustum * 4, 20)
 }
@@ -139,6 +140,7 @@ test("an image's parameters carry the settings: the flags, the pre-exposed ray l
     viewPreExposure: 0.25,
     firstClipmapExtent: 2500,
     historyLost: false,
+    feedback: true,
   })
   const floats = new Float32Array(words.buffer)
   const at = LIGHTING_PARAMS.at
@@ -161,7 +163,8 @@ test("an image's parameters carry the settings: the flags, the pre-exposed ray l
     LIGHTING_FLAG.temporal |
     LIGHTING_FLAG.planeWeighting |
     LIGHTING_FLAG.historyValid |
-    LIGHTING_FLAG.adaptiveShadowTracing
+    LIGHTING_FLAG.adaptiveShadowTracing |
+    LIGHTING_FLAG.feedback
   assert.equal(words[at.flags], all)
   // The traced shadow's biases, in centimetres: the reference's defaults.
   near(floats[at.traceRayBias], 1)
@@ -180,6 +183,7 @@ test("an image's parameters carry the settings: the flags, the pre-exposed ray l
       viewPreExposure: 1,
       firstClipmapExtent: 2500,
       historyLost: true,
+      feedback: true,
     },
   )
   assert.equal(
@@ -208,6 +212,7 @@ test('the frozen update frame and the two-sided shadow rays are flags of the set
       viewPreExposure: 1,
       firstClipmapExtent: 2500,
       historyLost: false,
+      feedback: false,
     },
   )
   const flags = words[LIGHTING_PARAMS.at.flags]

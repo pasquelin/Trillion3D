@@ -120,6 +120,7 @@ export const LIGHTING_FLAG = {
   freezeUpdateFrame: 128,
   adaptiveShadowTracing: 256,
   forceTwoSided: 512,
+  feedback: 1024,
 } as const
 
 /** The parameters of an image's lighting passes: the atlas and the pages, the update clock, the lists' places and

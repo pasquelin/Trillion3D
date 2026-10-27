@@ -4,6 +4,7 @@ import { FLOAT32_MAX, NO_INDEX } from '../../../../../math/src/wgsl/constants.ts
 import { bitMask, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 import { casterReachWgsl, markReachWgsl } from '../../../deformation/halfFloat.ts'
 import { worldWgsl } from '../../../geometry/dag/shader/worldPoseWgsl.ts'
+import { DAG_AXIS_SCALES_WGSL } from '../../../geometry/dag/shader/primitiveWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { CLUSTER_NEVER, CLUSTER_TRANSPARENT } from '../../../geometry/dag/clusterFlags.ts'
@@ -171,8 +172,9 @@ fn cardBoxOutside(v:u32,pose:mat4x4f,lo:vec3f,hi:vec3f,reach:f32)->bool{
 const hooksText = /* wgsl */ `
 /** Whether the running entry's view does not hold the box \`lo\`..\`hi\` of placement \`w\`. */
 fn outsideFrustum(w:u32,lo:vec3f,hi:vec3f)->bool{return cardBoxOutside(descentView,worldsWorld(w),lo,hi,deformReach);}
-/** The pixels an error of placement \`w\` spans in the running entry's view. */
-fn cardPixels(w:u32,error:f32)->f32{return error*bitcast<f32>(framesStretchBits(w))*cardPixelsPerMetre(descentView);}
+/** The pixels an error of placement \`w\` spans in the running entry's view: the error at the placement's smallest axis
+ *  scale (\`minAxisScale\`), as the camera's cut and the shadow maps' take it. */
+fn cardPixels(w:u32,error:f32)->f32{return error*minAxisScale(worldsLinear(w))*cardPixelsPerMetre(descentView);}
 /** Whether the running entry's view needs the error \`node\`'s subtree replaces: it spans more than the
  *  threshold, or none bounds it. */
 fn cardNeeded(node:CullNode,w:u32)->bool{
@@ -237,7 +239,7 @@ fn cardEmitPage(i:u32,w:u32){
   hi=cluster.sphere.xyz+vec3f(cluster.sphere.w);
  }
  let pose=worldsWorld(w);
- let stretch=bitcast<f32>(framesStretchBits(w));
+ let scale=minAxisScale(worldsLinear(w));
  let childIn=childResident(i);
  var v=cardFirstView(w);
  while(v<params.views&&cardPlace(v)==w){
@@ -245,8 +247,8 @@ fn cardEmitPage(i:u32,w:u32){
   v++;
   if(cardBoxOutside(view,pose,lo,hi,reach)){continue;}
   let ppm=cardPixelsPerMetre(view);
-  let parentAbove=cluster.parentError<0.0||cluster.parentError*stretch*ppm>params.threshold;
-  let ownWithin=cluster.lodError*stretch*ppm<=params.threshold;
+  let parentAbove=cluster.parentError<0.0||cluster.parentError*scale*ppm>params.threshold;
+  let ownWithin=cluster.lodError*scale*ppm<=params.threshold;
   if(!drawsCompared(true,parentAbove,ownWithin,childIn)){continue;}
   let slot=atomicAdd(&counts[CARD_COUNT_ROWS],1u);
   if(slot>=params.rowCap){atomicStore(&counts[CARD_COUNT_VIEW_LOST+view],1u);continue;}
@@ -301,6 +303,7 @@ export const cardDescentWgsl = () =>
     markReachWgsl,
     casterReachWgsl,
     worldWgsl('worlds'),
+    DAG_AXIS_SCALES_WGSL,
     FLOAT32_MAX,
     NO_INDEX,
     bitMask,

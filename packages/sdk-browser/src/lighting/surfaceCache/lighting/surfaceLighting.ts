@@ -72,8 +72,10 @@ export interface LightingInputs {
   readonly field: GlobalFieldRead
   /** What the radiosity's rays read of the cache at their hits (`surfaceHitReads`). */
   readonly hit: SurfaceHitResources
+  /** The buffer the rays that read the cards write their feedback into, none while the image writes none (`feedbackBuffer.ts`). */
+  readonly feedback?: GPUBuffer
   /** The image's own numbers (`LightingImage`, less what the cache gives). */
-  readonly image: Omit<LightingImage, 'frame' | 'pages' | 'historyLost'>
+  readonly image: Omit<LightingImage, 'frame' | 'pages' | 'historyLost' | 'feedback'>
   /** Changes when the lights' transport does: the lighting then settles again. */
   readonly transportEpoch: number
 }
@@ -268,6 +270,10 @@ export function encodeLighting(
     frame: cache.frame,
     pages: cache.pages.length,
     historyLost: state.historyLost,
+    feedback:
+      inputs.feedback !== undefined &&
+      settings.surfaceCacheDirectLightingHardwareRayTracing &&
+      !!rt.context.rayTracing,
   })
   state.historyLost = false
   device.queue.writeBuffer(ready.resources.params, 0, state.words)

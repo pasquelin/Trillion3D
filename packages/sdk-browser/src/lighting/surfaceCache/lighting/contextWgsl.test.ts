@@ -1,0 +1,70 @@
+// The update context's program assembles with the feedback bound beside the tables, the context and the shadow traces; a page
+// the rays read at its finest level within the last two images updates at speed 4, whatever its distance and the frustum say.
+import test from 'node:test'
+import assert from 'node:assert/strict'
+import { assertProgramAssembles } from '../../../gpu/core/wgslNames.fixture.ts'
+import { wgslBufferBindings } from '../../../gpu/core/wgslBindings.fixture.ts'
+import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
+import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
+import { FEEDBACK_AT, FEEDBACK_HEADER_WORDS } from '../feedbackLayout.ts'
+import { CONTEXT_ENTRIES, CONTEXT_FEEDBACK_BINDING, CONTEXT_WGSL } from './contextWgsl.ts'
+import { LIGHTING_FLAG } from './layout.ts'
+
+test('the program assembles and binds the rays’ feedback read-only, where the kernel lays it', () => {
+  for (const entry of CONTEXT_ENTRIES) assertProgramAssembles(CONTEXT_WGSL, entry)
+  assert.deepEqual(
+    wgslBufferBindings(CONTEXT_WGSL).find(({ binding }) => binding === CONTEXT_FEEDBACK_BINDING),
+    { binding: CONTEXT_FEEDBACK_BINDING, type: 'read-only-storage' },
+  )
+  const named = wgslConstants(CONTEXT_WGSL)
+  assert.equal(named.FLAG_FEEDBACK, LIGHTING_FLAG.feedback)
+  assert.equal(named.FEEDBACK_HI_RES, FEEDBACK_AT.lastUsedHiRes)
+})
+
+/** A page's update speed (`updateSpeed`), run in JavaScript over the parameters and the feedback buffer it reads. */
+function speedRun() {
+  const lp = { flags: LIGHTING_FLAG.feedback as number, frame: 100, firstClipmapRcp: 0.001 }
+  // The buffer's header names where its last-read part begins, after the header here; it holds the pages 0 to 7.
+  const feedback = new Uint32Array(FEEDBACK_HEADER_WORDS + 8)
+  feedback[FEEDBACK_AT.lastUsedHiRes] = FEEDBACK_HEADER_WORDS
+  const run = shaderRun<{
+    updateSpeed: (page: number, view: { distance: number; near: boolean }) => number
+  }>(CONTEXT_WGSL, ['updateSpeed'], { ...wgslConstants(CONTEXT_WGSL), lp, feedback })
+  return {
+    lp,
+    /** The speed of page `page` last read at its finest level at image `used`, with the page `far` centimetres from the eye. */
+    speed(used: number, near = false, far = 1000, page = 0) {
+      feedback.fill(0, FEEDBACK_HEADER_WORDS)
+      feedback[FEEDBACK_HEADER_WORDS + page] = used
+      return run.updateSpeed(page, { distance: far, near })
+    },
+  }
+}
+
+test('a page read at its finest level within the last two images updates at speed 4, one read later or earlier does not', () => {
+  const { lp, speed } = speedRun()
+  // The reference's rule: last + 2 >= frame and last <= frame.
+  for (const used of [98, 99, 100])
+    assert.equal(speed(used), 4, `read at ${used}, image ${lp.frame}`)
+  assert.equal(speed(101), 0.5, 'read after the image: not the rule’s')
+  assert.equal(speed(97), 0.5, 'read three images ago')
+  assert.equal(speed(0), 0.5, 'never read')
+  // Applied after the frustum's doubling, over it: 4 whatever it gave.
+  assert.equal(speed(100, true), 4)
+  assert.equal(speed(100, true, 0), 4)
+  assert.equal(
+    speed(97, true),
+    1,
+    'the doubling of a page near the frustum stays where the rule does not apply',
+  )
+})
+
+test('the speed is the distance’s and the frustum’s where the feedback is off or the buffer holds no part for the page', () => {
+  const { lp, speed } = speedRun()
+  lp.flags = 0
+  assert.equal(speed(100), 0.5)
+  assert.equal(speed(100, true), 1)
+  lp.flags = LIGHTING_FLAG.feedback
+  // A page past the part the buffer holds was never read at its finest level.
+  assert.equal(speed(100, false, 1000, 8), 0.5)
+})
