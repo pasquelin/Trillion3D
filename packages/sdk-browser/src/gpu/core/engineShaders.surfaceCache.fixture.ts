@@ -32,7 +32,10 @@ import { DIRECT_WGSL } from '../../lighting/surfaceCache/lighting/directWgsl.ts'
 import { RADIOSITY_BUILD_WGSL } from '../../lighting/surfaceCache/lighting/radiosityBuildWgsl.ts'
 import { RADIOSITY_FILTER_WGSL } from '../../lighting/surfaceCache/lighting/radiosityFilterWgsl.ts'
 import { RADIOSITY_INTEGRATE_WGSL } from '../../lighting/surfaceCache/lighting/radiosityIntegrateWgsl.ts'
-import { RADIOSITY_TRACE_WGSL } from '../../lighting/surfaceCache/lighting/radiosityTraceWgsl.ts'
+import {
+  RADIOSITY_TRACE_WGSL,
+  RADIOSITY_TRACED_WGSL,
+} from '../../lighting/surfaceCache/lighting/radiosityTraceWgsl.ts'
 import { SHADOW_MASK_PROGRAM_WGSL } from '../../lighting/surfaceCache/lighting/shadowMaskWgsl.ts'
 import {
   SHADOW_ARGS_WGSL,
@@ -67,6 +70,7 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   SURFACE_CACHE_SHADOW_TRACE_WGSL: SHADOW_TRACE_WGSL,
   SURFACE_CACHE_RADIOSITY_BUILD_WGSL: RADIOSITY_BUILD_WGSL,
   SURFACE_CACHE_RADIOSITY_TRACE_WGSL: RADIOSITY_TRACE_WGSL,
+  SURFACE_CACHE_RADIOSITY_TRACED_WGSL: RADIOSITY_TRACED_WGSL,
   SURFACE_CACHE_RADIOSITY_FILTER_WGSL: RADIOSITY_FILTER_WGSL,
   SURFACE_CACHE_RADIOSITY_INTEGRATE_WGSL: RADIOSITY_INTEGRATE_WGSL,
   SURFACE_CACHE_CULL: cullWgsl(CULL_LIGHTS),

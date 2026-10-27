@@ -88,7 +88,7 @@ function createInstanceTable(device: GPUDevice) {
       rank(cacheRootsOf(rt))
       const words = instanceWords(
         state.cache.placements.keys(),
-        state.placements.rootOf,
+        state.placements.rootsOf,
         rankOf,
         table?.scratch ?? new Uint32Array(0),
       )

@@ -61,7 +61,7 @@ test('the trace binds its buffers clear of the cut’s tables, which keep the cu
 })
 
 test('the ray is cast as the shadow of a texel: any hit, front faces culled unless all are two-sided', () => {
-  assert.match(SHADOW_TRACE_WGSL, /var flags=ST_ANY_HIT\|ST_SHADOW;/)
+  assert.match(SHADOW_TRACE_WGSL, /var flags=ST_ANY_HIT\|ST_SHADOW\|ST_SKIP_TRANSLUCENT;/)
   assert.match(SHADOW_TRACE_WGSL, /if\(!lgFlag\(FLAG_FORCE_TWO_SIDED\)\)\{flags\|=ST_CULL_FRONT;\}/)
   // A ray that stopped before its walk was whole counts as blocked.
   assert.match(SHADOW_TRACE_WGSL, /return hit\.hit\|\|!stComplete;/)

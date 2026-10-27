@@ -45,11 +45,12 @@ export interface CardRoot extends TrackedRoot {
   }
 }
 
-/** A placement held: its number, the root it follows, the cards of its mesh and what it was last
- *  told as. */
+/** A placement held: its number, the root it follows, every root of the list that stands as it does (the roots of
+ *  one mesh at one world, its root among them), the cards of its mesh and what it was last told as. */
 interface Held {
   readonly id: number
   root: CardRoot
+  roots: readonly TrackedRoot[]
   readonly cards: MeshCards
   key: string
   version: number
@@ -129,26 +130,30 @@ function release(state: PlacementState, cache: SurfaceCache, entry: Held) {
 
 /** Reads the roots again as a whole: the placements gone forgotten, the new ones told. */
 function resync(state: PlacementState, cache: SurfaceCache, roots: readonly CardRoot[]) {
-  const wanted = new Map<string, { root: CardRoot; cards: MeshCards }>()
+  const wanted = new Map<string, { root: CardRoot; cards: MeshCards; roots: TrackedRoot[] }>()
   for (const root of roots) {
     const own = cardsOf(state, root)
     if (!own) continue
     const key = keyOf(own, root)
-    if (!wanted.has(key)) wanted.set(key, { root, cards: own })
+    const same = wanted.get(key)
+    if (same) same.roots.push(root)
+    else wanted.set(key, { root, cards: own, roots: [root] })
   }
   for (const entry of [...state.held]) {
     const same = wanted.get(entry.key)
     if (!same || same.cards !== entry.cards) release(state, cache, entry)
     else {
       entry.root = same.root
+      entry.roots = same.roots
       wanted.delete(entry.key)
     }
   }
-  for (const [key, { root, cards: own }] of wanted) {
+  for (const [key, { root, cards: own, roots: sharing }] of wanted) {
     const id = state.free.pop() ?? state.nextId++
     const entry: Held = {
       id,
       root,
+      roots: sharing,
       cards: own,
       key,
       version: NaN,
@@ -207,9 +212,9 @@ export function createCardPlacements(cards: readonly MeshCards[]) {
     get count() {
       return state.held.size
     },
-    /** The root the placement `id` follows, none for a number that names none: what the raster of the
-     *  cards draws the placement's mesh from. */
-    rootOf: (id: number): TrackedRoot | undefined => state.ids.get(id)?.root,
+    /** The roots the placement `id` stands for, as the list was last read: the roots of its mesh at its world, one for
+     *  each primitive the mesh has, so that a ray that met any primitive finds the cards. None for a number that names none. */
+    rootsOf: (id: number): readonly TrackedRoot[] => state.ids.get(id)?.roots ?? [],
     /**
      * The rank, in the cut's tables, of the placement the root of placement `id` stands as, in `roots`
      * — the list the placements follow (`cacheRootsOf`): a root of the cut is its place in the list, a

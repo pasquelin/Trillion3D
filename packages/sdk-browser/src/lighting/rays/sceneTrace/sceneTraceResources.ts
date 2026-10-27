@@ -18,12 +18,15 @@ const SCENE_TRACE_DEFAULTS = {
 
 /** What a trace is cast from and how far it reaches this frame: the eye the rays and the cut's
  *  worlds are taken to, three doubles; the cut's tree top (`CutTables.treeRoot`); the triangles a
- *  trace may meet before it stops, incomplete, with the hit it holds; and the settings of
+ *  trace may meet before it stops, incomplete, with the hit it holds; the distances in metres under
+ *  which a ray that skips near hits passes a back face, and a two-sided hit, by; and the settings of
  *  `SCENE_TRACE_DEFAULTS` it overrides. */
 interface SceneTraceView extends Partial<Record<keyof typeof SCENE_TRACE_DEFAULTS, number>> {
   readonly eye: readonly [number, number, number]
   readonly treeRoot: number
   readonly maxIterations: number
+  readonly skipBackFaceDistance: number
+  readonly skipTwoSidedDistance: number
 }
 
 /** What the table from a placement to its record reads of a root of the cut: the primitive it
@@ -121,6 +124,8 @@ function paramsWriter(device: GPUDevice, params: GPUBuffer, placementWord: numbe
     words[P.treeRoot] = view.treeRoot
     words[P.placements] = placements
     words[P.placementWord] = placementWord
+    floats[P.skipBackFaceDistance] = view.skipBackFaceDistance
+    floats[P.skipTwoSidedDistance] = view.skipTwoSidedDistance
     if (written?.every((word, at) => word === words[at])) return
     written ??= new Uint32Array(words.length)
     written.set(words)

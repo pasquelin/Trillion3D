@@ -38,21 +38,10 @@ import {
 import {
   shapedKernels,
   staticKernels,
-  tracedKernels,
+  tracedRadiosityKernels,
+  tracedShadowKernels,
 } from '../../lighting/surfaceCache/lighting/kernels.ts'
-import { combineWgsl } from '../../lighting/surfaceCache/lighting/combineWgsl.ts'
-import { CONTEXT_WGSL } from '../../lighting/surfaceCache/lighting/contextWgsl.ts'
-import { cullWgsl } from '../../lighting/surfaceCache/lighting/cullWgsl.ts'
-import { DIRECT_WGSL } from '../../lighting/surfaceCache/lighting/directWgsl.ts'
-import { RADIOSITY_BUILD_WGSL } from '../../lighting/surfaceCache/lighting/radiosityBuildWgsl.ts'
-import { RADIOSITY_FILTER_WGSL } from '../../lighting/surfaceCache/lighting/radiosityFilterWgsl.ts'
-import { RADIOSITY_INTEGRATE_WGSL } from '../../lighting/surfaceCache/lighting/radiosityIntegrateWgsl.ts'
-import { RADIOSITY_TRACE_WGSL } from '../../lighting/surfaceCache/lighting/radiosityTraceWgsl.ts'
-import { SHADOW_MASK_PROGRAM_WGSL } from '../../lighting/surfaceCache/lighting/shadowMaskWgsl.ts'
-import {
-  SHADOW_ARGS_WGSL,
-  SHADOW_TRACE_WGSL,
-} from '../../lighting/surfaceCache/lighting/shadowTraceWgsl.ts'
+import { SURFACE_CACHE_SHADERS as S } from './engineShaders.surfaceCache.fixture.ts'
 
 test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", async () => {
   const { device, pipelineLayouts: layouts } = fakeDevice()
@@ -142,24 +131,27 @@ test("the surface cache's lighting kernels fit WebGPU's default limits", () => {
   // every binding they name, those the layouts leave out — two layers a trace never reads — counted too.
   const { device, pipelineLayouts: layouts } = fakeDevice()
   staticKernels(device)
-  // The traced shadows' kernels: the trace binds the scene trace's group beside its own, its own with the cut's tables.
-  tracedKernels(device)
+  // The kernels that cast rays through triangles, the shadows' and the radiosity's: the trace binds the scene trace's group
+  // beside its own, its own with the cut's tables.
+  tracedShadowKernels(device)
+  tracedRadiosityKernels(device)
   shapedKernels(device, 8, false)
   shapedKernels(device, 8, true)
   withinDefaults(layouts, 'the surface cache lighting')
   for (const [name, text] of [
-    ['the update context', CONTEXT_WGSL],
-    ['the lights of the tiles', cullWgsl(8)],
-    ['the direct light', DIRECT_WGSL],
-    ['the shadow masks', SHADOW_MASK_PROGRAM_WGSL],
-    ['the shadow trace arguments', SHADOW_ARGS_WGSL],
-    ['the shadow trace', SHADOW_TRACE_WGSL],
-    ['the final light', combineWgsl(false)],
-    ['the final light of a compressed atlas', combineWgsl(true)],
-    ['the radiosity tiles', RADIOSITY_BUILD_WGSL],
-    ['the radiosity trace', RADIOSITY_TRACE_WGSL],
-    ['the radiosity filter and harmonics', RADIOSITY_FILTER_WGSL],
-    ['the radiosity integration', RADIOSITY_INTEGRATE_WGSL],
+    ['the update context', S.SURFACE_CACHE_CONTEXT_WGSL],
+    ['the lights of the tiles', S.SURFACE_CACHE_CULL],
+    ['the direct light', S.SURFACE_CACHE_DIRECT_WGSL],
+    ['the shadow masks', S.SURFACE_CACHE_SHADOW_MASK_WGSL],
+    ['the shadow trace arguments', S.SURFACE_CACHE_SHADOW_ARGS_WGSL],
+    ['the shadow trace', S.SURFACE_CACHE_SHADOW_TRACE_WGSL],
+    ['the final light', S.SURFACE_CACHE_COMBINE],
+    ['the final light of a compressed atlas', S.SURFACE_CACHE_COMBINE_COMPRESSED],
+    ['the radiosity tiles', S.SURFACE_CACHE_RADIOSITY_BUILD_WGSL],
+    ['the radiosity trace', S.SURFACE_CACHE_RADIOSITY_TRACE_WGSL],
+    ['the radiosity trace through triangles', S.SURFACE_CACHE_RADIOSITY_TRACED_WGSL],
+    ['the radiosity filter and harmonics', S.SURFACE_CACHE_RADIOSITY_FILTER_WGSL],
+    ['the radiosity integration', S.SURFACE_CACHE_RADIOSITY_INTEGRATE_WGSL],
   ] as const)
     withinDefaults([wgslComputeLayout(text)], name)
 })

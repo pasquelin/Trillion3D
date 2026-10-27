@@ -42,14 +42,14 @@ import { TABLE_AT, NO_MESH_CARDS, TILE } from './layout.ts'
  *
  * Bindings, consecutive from `first` in `group`: the tables (`surfaceTables`, read-only words: the
  * header, the mesh cards, the cards, the page table, the pages, the placements — `layout.ts`) and the
- * atlas's layers, sampled by load: depth, albedo, normal, emission, direct, indirect and final light; the library reads
- * the depth and the final light (`first + 1`, `first + 7`) — the albedo, the normal and the emission it declares for the
- * programs that read them through it, the direct and the indirect light (`first + 5`, `first + 6`) none: they hold the
- * places of the layout, and a program that only reads a hit leaves the layers it does not reach out of its own.
+ * atlas's layers, sampled by load: depth, albedo, normal, emission, direct, indirect and final light, at
+ * `SURFACE_CACHE_LAYER_AT`; the library reads the depth and the final light — the albedo, the normal and the emission it
+ * declares for the programs that read them through it, the direct and the indirect light none: they hold the places of
+ * the layout, and a program that only reads a hit leaves the layers it does not reach out of its own.
  * The albedo and the normal are float textures whether the atlas is compressed or not; the emission
  * is a float texture where it is (`compressed`: BC6H) and a texture of words of light (`packLight`)
  * where it is not, so a host passes the atlases' own `compressed` to the layout and to the library.
- * With `feedback` the eighth (`first + 8`) is the feedback buffer, written: its first words say where
+ * With `feedback` the binding after the layers (`SURFACE_CACHE_LAYER_AT.feedback`) is the feedback buffer, written: its first words say where
  * its parts are — the element counter, the elements (two words each), the pages' last use, and the
  * pages' last use by a read that could have used a finer page — and the feedback's own numbers: its
  * size in elements, the wrap mask of the tile of the image one pixel writes in and where in it, the
@@ -88,22 +88,36 @@ export interface SurfaceCacheRead {
   readonly compressed: boolean
 }
 
+/** Where the read library binds each atlas layer, and the feedback buffer, past the tables' binding. */
+export const SURFACE_CACHE_LAYER_AT = {
+  depth: 1,
+  albedo: 2,
+  normal: 3,
+  emissive: 4,
+  direct: 5,
+  indirect: 6,
+  final: 7,
+  feedback: 8,
+} as const
+
+const L = SURFACE_CACHE_LAYER_AT
+
 /** The layout entries of the tables and the atlas layers' bindings from `first`, and the feedback
- *  buffer's at `first + 8` when `read.feedback`. */
+ *  buffer's after them when `read.feedback`. */
 export function surfaceCacheReadLayoutEntries(
   first: number,
   read: SurfaceCacheRead,
 ): GPUBindGroupLayoutEntry[] {
   return [
     computeBufferEntry(first, 'read-only-storage'),
-    computeTextureEntry(first + 1, 'uint'),
-    computeTextureEntry(first + 2, 'float'),
-    computeTextureEntry(first + 3, 'float'),
-    computeTextureEntry(first + 4, read.compressed ? 'float' : 'uint'),
-    computeTextureEntry(first + 5, 'uint'),
-    computeTextureEntry(first + 6, 'uint'),
-    computeTextureEntry(first + 7, 'uint'),
-    ...(read.feedback ? [computeBufferEntry(first + 8, 'storage')] : []),
+    computeTextureEntry(first + L.depth, 'uint'),
+    computeTextureEntry(first + L.albedo, 'float'),
+    computeTextureEntry(first + L.normal, 'float'),
+    computeTextureEntry(first + L.emissive, read.compressed ? 'float' : 'uint'),
+    computeTextureEntry(first + L.direct, 'uint'),
+    computeTextureEntry(first + L.indirect, 'uint'),
+    computeTextureEntry(first + L.final, 'uint'),
+    ...(read.feedback ? [computeBufferEntry(first + L.feedback, 'storage')] : []),
   ]
 }
 
@@ -113,12 +127,12 @@ const recordTables = (group: number, first: number, access: 'read' | 'read_write
 
 /** The atlas layers' bindings' declarations (and the feedback buffer's). */
 const readBindings = (group: number, first: number, { feedback, compressed }: SurfaceCacheRead) =>
-  `@group(${group}) @binding(${first + 1}) var scDepthAtlas:texture_2d<u32>;
-@group(${group}) @binding(${first + 2}) var scAlbedoAtlas:texture_2d<f32>;
-@group(${group}) @binding(${first + 3}) var scNormalAtlas:texture_2d<f32>;
-@group(${group}) @binding(${first + 4}) var scEmissiveAtlas:texture_2d<${compressed ? 'f32' : 'u32'}>;
-@group(${group}) @binding(${first + 7}) var scFinalAtlas:texture_2d<u32>;
-${feedback ? `@group(${group}) @binding(${first + 8}) var<storage,read_write> scFeedback:array<atomic<u32>>;\n` : ''}`
+  `@group(${group}) @binding(${first + L.depth}) var scDepthAtlas:texture_2d<u32>;
+@group(${group}) @binding(${first + L.albedo}) var scAlbedoAtlas:texture_2d<f32>;
+@group(${group}) @binding(${first + L.normal}) var scNormalAtlas:texture_2d<f32>;
+@group(${group}) @binding(${first + L.emissive}) var scEmissiveAtlas:texture_2d<${compressed ? 'f32' : 'u32'}>;
+@group(${group}) @binding(${first + L.final}) var scFinalAtlas:texture_2d<u32>;
+${feedback ? `@group(${group}) @binding(${first + L.feedback}) var<storage,read_write> scFeedback:array<atomic<u32>>;\n` : ''}`
 
 /** The records: a word of the tables, a card, a mesh cards, and what takes a vector from the space
  *  of the mesh cards to a card's. */
@@ -483,7 +497,7 @@ const meshCardReads = (feedback: boolean) =>
 /**
  * The surface cache's read library for a program whose bindings are in `group` from `first`
  * (`surfaceCacheReadLayoutEntries`): with `read.feedback`, the program also writes the feedback buffer
- * at `first + 8`; `read.compressed` says the emission layer is a float texture.
+ * at `SURFACE_CACHE_LAYER_AT.feedback`; `read.compressed` says the emission layer is a float texture.
  */
 export function surfaceCacheSampleWgsl(
   group: number,

@@ -704,7 +704,16 @@ the front faces of a primitive that is not two-sided are culled; `true` takes al
 `…KernelSize` (`1`: 0 none, 1 four neighbours, 2 thirteen), `surfaceCacheRadiosityProbePlaneWeighting` (`true`) with its
 `…DepthScale` (`-100`), `surfaceCacheRadiosityMaxRayIntensity` (`40`, times the exposure),
 `surfaceCacheRadiosityDistanceFieldSurfaceBias` (`10` cm along a ray before it can hit) and `…SurfaceSlopeBias` (`5` cm off the
-texel), `surfaceCacheRadiosityTemporal` (`true`) with its `…MaxFramesAccumulated` (`4`) and `…FixedJitterIndex` (`-1`: the probes'
+texel) for its rays through the global distance field; where the scene has acceleration structures and its cut draws no cell of
+the world DAG, `surfaceCacheRadiosityHardwareRayTracing` (`true`) casts them through the scene's triangles instead, from
+`…HardwareRayTracingNormalBias` (`0.1` cm off the texel along its normal) and `…HardwareRayTracingBias` (`0.1` cm along the ray),
+the translucent primitives passed, the cards of the primitive hit read at the hit with
+`surfaceCacheHardwareRayTracingSurfaceCacheSamplingDepthBias` (`10` cm) and no light from a hit nearer than
+`surfaceCacheHardwareRayTracingMinTraceDistanceToSampleSurfaceCache` (`10` cm) or on the back of a one-sided primitive, a
+trace that stopped black and a miss the sky; `surfaceCacheHardwareRayTracingAvoidSelfIntersections` (`3`: 0 culls the back
+faces, 1 traces again from past a near hit, 2 and 3 pass the near hits as the ray travels) with
+`surfaceCacheHardwareRayTracingSkipBackFaceHitDistance` (`5` cm) and `…SkipTwoSidedHitDistance` (`1` cm) keeps a ray off the
+geometry it starts on. `surfaceCacheRadiosityTemporal` (`true`) with its `…MaxFramesAccumulated` (`4`) and `…FixedJitterIndex` (`-1`: the probes'
 jitter moves). A read of the cards finds each texel's final light, its albedo over π times its direct and indirect light plus its
 emission; the lighting settles over some hundred images after a change, and the frame is not held while it does. The capture's
 raster is not plugged in yet, so on an image today the cards hold no surface to light. A write names the settings it changes, `null` one's default; a value of

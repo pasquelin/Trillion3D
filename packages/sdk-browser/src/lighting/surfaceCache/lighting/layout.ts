@@ -123,9 +123,16 @@ export const LIGHTING_FLAG = {
   feedback: 1024,
 } as const
 
+/** How a radiosity ray through the scene's triangles avoids the geometry it starts on, the setting
+ *  `surfaceCacheHardwareRayTracingAvoidSelfIntersections` as it is: the back faces of the primitives that are not two-sided
+ *  culled, the ray traced again from past a near back face or two-sided hit, or such hits passed as the ray travels — and 3,
+ *  the best the traversal allows, passes them too, the scene trace's traversal being inline. */
+export const SELF_INTERSECTION = { cull: 0, retrace: 1, skip: 2 } as const
+
 /** The parameters of an image's lighting passes: the atlas and the pages, the update clock, the lists' places and
  *  capacities, the eye, the frustum (five planes, outward, in centimetres from the eye), the direct light's numbers and the
- *  radiosity's. */
+ *  radiosity's, those of its rays through the scene's triangles among them (the biases, how far a hit is read from the cards and
+ *  how near it lights nothing, in centimetres, and the way the ray avoids self-intersections). */
 export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
   ['atlasSide', 'u32'],
   ['frame', 'u32'],
@@ -155,6 +162,11 @@ export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
   ['minTrace', 'f32'],
   ['traceRayBias', 'f32'],
   ['traceEndBias', 'f32'],
+  ['radiosityRayBias', 'f32'],
+  ['radiosityNormalBias', 'f32'],
+  ['cardDepthBias', 'f32'],
+  ['cardMinDistance', 'f32'],
+  ['selfIntersections', 'u32'],
   ['camera', 'vec4f'],
   ['eye', 'vec4f'],
   ['frustum', vec4Array(5)],

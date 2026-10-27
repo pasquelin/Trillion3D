@@ -99,7 +99,7 @@ fn shadowRayBlocked(texel:SurfaceTexel,rank:u32)->bool{
  }
  let bias=lp.traceRayBias*(1.0+2.0*saturate(1.0-dot(toward,texel.normal)));
  let origin=(texel.position+toward*bias-lp.camera.xyz)/CM_PER_M;
- var flags=ST_ANY_HIT|ST_SHADOW;
+ var flags=ST_ANY_HIT|ST_SHADOW|ST_SKIP_TRANSLUCENT;
  if(!lgFlag(FLAG_FORCE_TWO_SIDED)){flags|=ST_CULL_FRONT;}
  let hit=stTrace(StRay(origin,toward,0.0,span/CM_PER_M,flags));
  return hit.hit||!stComplete;

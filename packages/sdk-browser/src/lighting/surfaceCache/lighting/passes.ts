@@ -16,7 +16,13 @@ import {
   DIRECT_ENTRY,
   DIRECT_TRACED_ENTRY,
 } from './directWgsl.ts'
-import type { staticKernels, ShapedKernels, tracedKernels } from './kernels.ts'
+import type {
+  staticKernels,
+  ShapedKernels,
+  tracedRadiosityKernels,
+  tracedShadowKernels,
+} from './kernels.ts'
+import type { Kernel } from '../kernel.ts'
 import { CONTEXT_ARGS, CONTEXT_AT } from './layout.ts'
 import type { LightingInputs } from './surfaceLighting.ts'
 import { RADIOSITY_BUILD_BINDINGS } from './radiosityBuildWgsl.ts'
@@ -25,7 +31,12 @@ import {
   RADIOSITY_INTEGRATE_BINDINGS,
   RADIOSITY_INTEGRATE_ENTRY,
 } from './radiosityIntegrateWgsl.ts'
-import { RADIOSITY_TRACE_BINDINGS, RADIOSITY_TRACE_ENTRY } from './radiosityTraceWgsl.ts'
+import {
+  RADIOSITY_TRACE_BINDINGS,
+  RADIOSITY_TRACE_ENTRY,
+  RADIOSITY_TRACED_BINDINGS,
+  RADIOSITY_TRACED_SCENE,
+} from './radiosityTraceWgsl.ts'
 import {
   SHADOW_MASK_BINDINGS,
   SHADOW_MASK_CLOUD_SHADOW,
@@ -49,13 +60,18 @@ import type { LightingResources, TracedShadowBuffers } from './resources.ts'
  * from its header (`CONTEXT_ARGS`).
  */
 
-/** What the direct light's shadows are traced with in an image: the programs, their buffers, the scene trace (its resources,
- *  which the image wrote the parameters of) and the cut's tables it is cast through. */
-export interface TracedShadows {
-  readonly kernels: ReturnType<typeof tracedKernels>
-  readonly buffers: TracedShadowBuffers
+/** What rays are cast through the scene's triangles with in an image: the programs, the scene trace (its resources, which the
+ *  image wrote the parameters of) and the cut's tables it is cast through. */
+export interface TracedScene<K = ReturnType<typeof tracedRadiosityKernels>> {
+  readonly kernels: K
   readonly sceneTrace: SceneTrace
   readonly views: DagReadTables
+}
+
+/** What the direct light's shadows are traced with in an image: their programs over the scene, and the buffers of their
+ *  masks and traces. */
+export interface TracedShadows extends TracedScene<ReturnType<typeof tracedShadowKernels>> {
+  readonly buffers: TracedShadowBuffers
 }
 
 /** Everything the passes of one image read. */
@@ -77,6 +93,8 @@ export interface Encoding {
   readonly filtered: boolean
   /** The traced shadows of the direct light; none, the direct light's shadow is one ray through the global distance field. */
   readonly traced?: TracedShadows
+  /** The scene the radiosity's rays are cast through; none, they are marched through the global distance field. */
+  readonly scene?: TracedScene
 }
 
 const buffer = (binding: number, resource: GPUBuffer) => ({
@@ -111,6 +129,19 @@ function fromContext(
   e.pass.setBindGroup(0, group)
   later.forEach((bound, at) => e.pass.setBindGroup(at + 1, bound))
   e.pass.dispatchWorkgroupsIndirect(e.resources.context, (CONTEXT_AT.args + 4 * slot) * 4)
+}
+
+/** The bind group of the scene trace's resources, in the group `where` of `kernel`. */
+function sceneGroup(
+  kernel: Pick<Kernel<string>, 'group'>,
+  sceneTrace: SceneTrace,
+  where: { readonly group: number; readonly first: number },
+) {
+  return kernel.group(
+    [sceneTrace.params, sceneTrace.nodes, sceneTrace.triangles, sceneTrace.table],
+    () => sceneTraceBindEntries(sceneTrace, where.first),
+    where.group,
+  )
 }
 
 /** The tiles of the updates this image lights, chosen. */
@@ -225,11 +256,7 @@ function shadowTracePass(e: Encoding, { kernels, buffers, sceneTrace, views }: T
       ...dagReadGroupEntries(views),
     ],
   )
-  const scene = kernels.shadowTrace.group(
-    [sceneTrace.params, sceneTrace.nodes, sceneTrace.triangles, sceneTrace.table],
-    () => sceneTraceBindEntries(sceneTrace, SHADOW_TRACE_SCENE.first),
-    SHADOW_TRACE_SCENE.group,
-  )
+  const scene = sceneGroup(kernels.shadowTrace, sceneTrace, SHADOW_TRACE_SCENE)
   fromContext(
     e,
     kernels.shadowTrace.pipeline(SHADOW_TRACE_ENTRY),
@@ -425,7 +452,7 @@ function radiosityIntegrate(e: Encoding) {
   fromContext(e, integrate.pipeline(RADIOSITY_INTEGRATE_ENTRY), group, CONTEXT_ARGS.indirectTiles)
 }
 
-/** The rays' probes: their tiles, the rays traced through the field, filtered, projected on the harmonics, integrated. */
+/** The rays' probes: their tiles, the rays traced through the scene's triangles or the field, filtered, projected on the harmonics, integrated. */
 export function radiosityPasses(e: Encoding) {
   radiosityTiles(e)
   traceRays(e)
@@ -434,15 +461,23 @@ export function radiosityPasses(e: Encoding) {
   combine(e, 'combineIndirect', CONTEXT_ARGS.indirectTiles)
 }
 
-/** The trace of the probes' rays. */
+/** The trace of the probes' rays, through the scene's triangles where the image has the scene trace, else the global field. */
 function traceRays(e: Encoding) {
+  if (e.scene) traceRaysThroughScene(e, e.scene)
+  else traceRaysThroughField(e)
+}
+
+/** What either trace of the probes' rays reads and writes, at its bindings `T`: the parameters, the cards' tables and
+ *  layers, the context, the trace atlas, the lights and the sky. */
+function rayTraceShared(
+  e: Encoding,
+  T: typeof RADIOSITY_TRACE_BINDINGS | typeof RADIOSITY_TRACED_BINDINGS,
+) {
   const { params, context, trace } = e.resources
   const { physical } = e.atlases
-  const T = RADIOSITY_TRACE_BINDINGS
-  const { sky, field, lights } = e.inputs
-  const kernel = e.fixed.radiosityTrace
-  const group = kernel.group(
-    [
+  const { sky, lights } = e.inputs
+  return {
+    identity: [
       params,
       e.tables,
       physical.depth,
@@ -455,12 +490,10 @@ function traceRays(e: Encoding) {
       sky.sampler,
       sky.harmonics,
       sky.params,
-      field.readGeneration,
-      e.hit.grid,
       e.hit.instances,
       e.noise,
     ],
-    () => [
+    entries: () => [
       buffer(0, params),
       buffer(T.tables, e.tables),
       view(T.depth, physical.depth),
@@ -470,11 +503,34 @@ function traceRays(e: Encoding) {
       view(T.out, trace),
       buffer(T.lights, lights),
       ...skyLightReadBindEntries(T.sky, sky),
-      ...field.readEntries(T.field),
-      buffer(T.grid, e.hit.grid),
       buffer(T.instances, e.hit.instances),
       view(T.noise, e.noise),
     ],
+  }
+}
+
+/** The trace of the probes' rays through the scene's triangles, beside the cut's tables. */
+function traceRaysThroughScene(e: Encoding, { kernels, sceneTrace, views }: TracedScene) {
+  const shared = rayTraceShared(e, RADIOSITY_TRACED_BINDINGS)
+  const kernel = kernels.radiosityTraced
+  const group = kernel.group(
+    [...shared.identity, views.nodes, views.frames, views.worlds, views.tree],
+    () => [...shared.entries(), ...dagReadGroupEntries(views)],
   )
+  const scene = sceneGroup(kernel, sceneTrace, RADIOSITY_TRACED_SCENE)
+  fromContext(e, kernel.pipeline(RADIOSITY_TRACE_ENTRY), group, CONTEXT_ARGS.traces, [scene])
+}
+
+/** The trace of the probes' rays through the global distance field. */
+function traceRaysThroughField(e: Encoding) {
+  const T = RADIOSITY_TRACE_BINDINGS
+  const shared = rayTraceShared(e, T)
+  const { field } = e.inputs
+  const kernel = e.fixed.radiosityTrace
+  const group = kernel.group([...shared.identity, field.readGeneration, e.hit.grid], () => [
+    ...shared.entries(),
+    ...field.readEntries(T.field),
+    buffer(T.grid, e.hit.grid),
+  ])
   fromContext(e, kernel.pipeline(RADIOSITY_TRACE_ENTRY), group, CONTEXT_ARGS.traces)
 }

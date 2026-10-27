@@ -32,6 +32,32 @@ test('the defaults are the reference’s highest levels’ row: the ultra and ci
   )
 })
 
+test('the rays through the scene’s triangles are the reference’s: radiosity traced, its biases, the self-intersection avoidance, and no level changes them', () => {
+  const defaults = resolveSettings(SURFACE_CACHE_RULES, {})
+  const traced = {
+    surfaceCacheRadiosityHardwareRayTracing: true,
+    surfaceCacheRadiosityHardwareRayTracingBias: 0.1,
+    surfaceCacheRadiosityHardwareRayTracingNormalBias: 0.1,
+    surfaceCacheHardwareRayTracingAvoidSelfIntersections: 3,
+    surfaceCacheHardwareRayTracingSkipBackFaceHitDistance: 5,
+    surfaceCacheHardwareRayTracingSkipTwoSidedHitDistance: 1,
+    surfaceCacheHardwareRayTracingMinTraceDistanceToSampleSurfaceCache: 10,
+    surfaceCacheHardwareRayTracingSurfaceCacheSamplingDepthBias: 10,
+  }
+  for (const [field, value] of Object.entries(traced)) {
+    for (const level of SCREEN_PROBE_LEVELS)
+      assert.equal(at(level)[field as keyof SurfaceCacheSettings], value, `${field} at ${level}`)
+    assert.equal(defaults[field as keyof SurfaceCacheSettings], value, field)
+  }
+  // The avoidance mode is a whole number from 0 to 3.
+  const rule =
+    SURFACE_CACHE_RULES.surfaceCacheHardwareRayTracingAvoidSelfIntersections as SettingRule
+  assert.equal(settingFits(rule, 3), true)
+  assert.equal(settingFits(rule, 4), false)
+  assert.equal(settingFits(rule, 1.5), false)
+  assert.equal(settingFits(rule, -1), false)
+})
+
 test('the high and low levels hold the reference’s rows of the atlas, the cards, the lights and the radiosity', () => {
   const high = at('high')
   assert.deepEqual(

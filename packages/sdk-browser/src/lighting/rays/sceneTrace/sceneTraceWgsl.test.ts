@@ -120,8 +120,46 @@ test('a ray’s flags choose what it meets: the first hit, the front faces, the 
   // An any-hit ray answers the hit alone: its normal is not turned into the world.
   assert.match(SCENE_TRACE_PROBE, /if\(best\.hit&&\(ray\.flags&ST_ANY_HIT\)==0u\)\{/)
   assert.match(SCENE_TRACE_PROBE, /\(stRay\.flags&ST_CULL_FRONT\)!=0u&&front&&!inst\.twoSided/)
-  assert.match(SCENE_TRACE_PROBE, /shadow&&\(flags&ST_TRANSLUCENT\)!=0u/)
-  assert.match(SCENE_TRACE_PROBE, /shadow&&\(entry\.mark&ST_CASTS_NO_SHADOW\)!=0u/)
+  assert.match(
+    SCENE_TRACE_PROBE,
+    /\(stRay\.flags&ST_SKIP_TRANSLUCENT\)!=0u&&\(flags&ST_TRANSLUCENT\)!=0u/,
+  )
+  assert.match(
+    SCENE_TRACE_PROBE,
+    /\(stRay\.flags&ST_SHADOW\)!=0u&&\(entry\.mark&ST_CASTS_NO_SHADOW\)!=0u/,
+  )
+})
+
+test('a ray’s flags also cull the back faces, skip the translucent primitives and pass the near hits by', () => {
+  const flag = (name: string, value: number) =>
+    assert.match(SCENE_TRACE_PROBE, new RegExp(`const ${name}:u32=${value}u;`))
+  // The literals pin the ABI on purpose: they follow any-hit 1, cull-front 2, shadow 4.
+  flag('ST_CULL_BACK', 8)
+  flag('ST_SKIP_TRANSLUCENT', 16)
+  flag('ST_SKIP_NEAR', 32)
+  // The back faces of a primitive that is not two-sided, as the front faces are.
+  assert.match(SCENE_TRACE_PROBE, /\(stRay\.flags&ST_CULL_BACK\)!=0u&&!front&&!inst\.twoSided/)
+  // The near hits: a two-sided primitive's under its distance, a one-sided one's back face under its own; after the ray's tMin.
+  assert.match(
+    SCENE_TRACE_PROBE,
+    /\(stRay\.flags&ST_SKIP_NEAR\)!=0u&&select\(!front&&t<stParams\.skipBackFaceDistance,t<stParams\.skipTwoSidedDistance,inst\.twoSided\)/,
+  )
+  const triangle = SCENE_TRACE_PROBE.slice(SCENE_TRACE_PROBE.indexOf('fn stTriangle'))
+  assert.ok(triangle.indexOf('t<stRay.tMin') < triangle.indexOf('ST_SKIP_NEAR'))
+  // A hit passed by was a step of the trace, as one culled is.
+  assert.ok(triangle.indexOf('!stStep()') < triangle.indexOf('ST_CULL_BACK'))
+  // The translucent primitives are left out by their own flag, not the shadow's.
+  assert.doesNotMatch(SCENE_TRACE_PROBE, /shadow&&\(flags&ST_TRANSLUCENT\)/)
+})
+
+test('the parameters end with the two distances a ray that passes near hits by reads, in metres', () => {
+  const P = SCENE_TRACE_PARAMS
+  assert.deepEqual(
+    [P.at.skipTwoSidedDistance - P.at.skipBackFaceDistance, P.at.skipBackFaceDistance],
+    [1, P.at.placementWord + 1],
+  )
+  assert.ok(P.at.skipTwoSidedDistance < P.words)
+  assert.match(P.wgsl, /skipBackFaceDistance:f32,skipTwoSidedDistance:f32,/)
 })
 
 test('the node is loaded in two parts, the head for the box and the rest once the box is met; a triangle is three vec4u', () => {

@@ -58,6 +58,10 @@ import {
   RADIOSITY_TRACE_ENTRY,
   RADIOSITY_TRACE_UNREAD,
   RADIOSITY_TRACE_WGSL,
+  RADIOSITY_TRACED_BINDINGS,
+  RADIOSITY_TRACED_SCENE,
+  RADIOSITY_TRACED_UNREAD,
+  RADIOSITY_TRACED_WGSL,
 } from './radiosityTraceWgsl.ts'
 
 /**
@@ -66,7 +70,9 @@ import {
  * `radiosityFilterWgsl.ts`, `radiosityIntegrateWgsl.ts`, and the traced shadows' `shadowMaskWgsl.ts` and
  * `shadowTraceWgsl.ts`), compiled off the frame, and the bind group of an image, made again
  * only when a resource it names moved. The programs that do not depend on the shape are made once for a device
- * (`staticKernels`), those of the traced shadows once a scene has acceleration structures (`tracedKernels`); the cull is
+ * (`staticKernels`), those that cast rays through the scene's triangles — the traced shadows' and the radiosity's, whose
+ * `radiosityTraceWgsl.ts` has a second program for them — once a scene has acceleration structures and each is traced (`tracedShadowKernels`,
+ * `tracedRadiosityKernels`); the cull is
  * made for the lights a tile keeps and the combine for the atlas's kind of emission layer (`shapedKernels`).
  */
 
@@ -117,15 +123,17 @@ function contextKernels(device: GPUDevice, constants: ReturnType<typeof groupWid
   }
 }
 
+/** The layout entries of the cards' tables at `tables` and the atlas's layers a program reads, those in `unread` left out. */
+const cardLayoutEntries = (tables: number, unread: readonly number[]) =>
+  surfaceCacheReadLayoutEntries(tables, { feedback: false, compressed: false }).filter(
+    ({ binding }) => !unread.includes(binding),
+  )
+
 /** The radiosity's programs that build the rays and trace them. */
 function radiosityTraceKernels(
   device: GPUDevice,
   constants: ReturnType<typeof groupWidthConstants>,
 ) {
-  const read = surfaceCacheReadLayoutEntries(RADIOSITY_TRACE_BINDINGS.tables, {
-    feedback: false,
-    compressed: false,
-  }).filter(({ binding }) => !RADIOSITY_TRACE_UNREAD.includes(binding))
   const R = RADIOSITY_BUILD_BINDINGS
   const T = RADIOSITY_TRACE_BINDINGS
   return {
@@ -148,7 +156,7 @@ function radiosityTraceKernels(
       RADIOSITY_TRACE_WGSL,
       [RADIOSITY_TRACE_ENTRY],
       [
-        ...read,
+        ...cardLayoutEntries(T.tables, RADIOSITY_TRACE_UNREAD),
         computeBufferEntry(T.context, ro),
         writes(T.out, 'r32uint'),
         computeBufferEntry(T.lights, ro),
@@ -211,11 +219,11 @@ export const staticKernels = oncePerDevice((device: GPUDevice) => {
 })
 
 /**
- * The programs of the traced shadows, made once for the device when a scene has acceleration structures: the masks, the
- * arguments of the trace's dispatch, and the trace, whose second group is the scene trace's (`sceneTraceLayoutEntries`),
- * its first the cut's tables beside its own.
+ * The traced shadows' programs, made once for the device when a scene has acceleration structures and its shadows are
+ * traced: the masks, the arguments of the trace's dispatch, and the trace, whose second group is the scene trace's
+ * (`sceneTraceLayoutEntries`), its first the cut's tables beside its own.
  */
-export const tracedKernels = oncePerDevice((device: GPUDevice) => {
+export const tracedShadowKernels = oncePerDevice((device: GPUDevice) => {
   const constants = groupWidthConstants(groupWidth(device.limits))
   const M = SHADOW_MASK_BINDINGS
   const A = SHADOW_ARGS_BINDINGS
@@ -267,6 +275,31 @@ export const tracedKernels = oncePerDevice((device: GPUDevice) => {
         ...dagReadLayoutEntries(),
       ],
       { layouts: [sceneTraceLayoutEntries(SHADOW_TRACE_SCENE.first)] },
+    ),
+  }
+})
+
+/** The radiosity's program that casts its rays through the scene's triangles, made once for the device when a scene has
+ *  acceleration structures and its radiosity is traced, laid out as the traced shadows' trace is. */
+export const tracedRadiosityKernels = oncePerDevice((device: GPUDevice) => {
+  const R = RADIOSITY_TRACED_BINDINGS
+  return {
+    radiosityTraced: createKernel(
+      device,
+      'radiosity trace through triangles',
+      RADIOSITY_TRACED_WGSL,
+      [RADIOSITY_TRACE_ENTRY],
+      [
+        ...cardLayoutEntries(R.tables, RADIOSITY_TRACED_UNREAD),
+        computeBufferEntry(R.context, ro),
+        writes(R.out, 'r32uint'),
+        computeBufferEntry(R.lights, ro),
+        ...skyLightReadLayoutEntries(R.sky, COMPUTE),
+        computeBufferEntry(R.instances, ro),
+        noise(R.noise),
+        ...dagReadLayoutEntries(),
+      ],
+      { layouts: [sceneTraceLayoutEntries(RADIOSITY_TRACED_SCENE.first)] },
     ),
   }
 })

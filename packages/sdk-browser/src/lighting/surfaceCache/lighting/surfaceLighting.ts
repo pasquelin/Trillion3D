@@ -1,4 +1,5 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
+import { DISTANCE_FIELD_UNITS_PER_METRE as CM } from '../../../../../sdk-core/src/contracts/distanceFieldAbi.ts'
 import type { RayTracing } from '../../../../../sdk-core/src/lighting/rayTracingFile.ts'
 import type { SurfaceCacheSettings } from '../../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
 import type { SurfaceCache } from '../../../../../sdk-core/src/lighting/surfaceCache/state.ts'
@@ -19,18 +20,25 @@ import {
 import type { SurfaceHitResources } from '../hitWgsl.ts'
 import type { SurfaceAtlases } from '../atlases.ts'
 import type { SurfaceTables } from '../tables.ts'
-import { shapedKernels, staticKernels, tracedKernels, type ShapedKernels } from './kernels.ts'
+import {
+  shapedKernels,
+  staticKernels,
+  tracedRadiosityKernels,
+  tracedShadowKernels,
+  type ShapedKernels,
+} from './kernels.ts'
 import { LIGHTING_PARAMS } from './layout.ts'
 import {
   contextPasses,
   directPasses,
   radiosityPasses,
   type Encoding,
+  type TracedScene,
   type TracedShadows,
 } from './passes.ts'
 import {
   shapeOf,
-  tracedShadowsFit,
+  tracedRaysFit,
   writeLightingParams,
   type LightingImage,
   type LightingShape,
@@ -51,16 +59,19 @@ import {
  *    (`surfaceCacheDirectLightingHardwareRayTracing`) the light's shadows come between the lights of the tiles and their
  *    light: the masks of each light on each tile (`shadowMaskWgsl.ts`), the traces they list counted and traced through the
  *    scene's triangles (`shadowTraceWgsl.ts`, the scene trace of `../../rays/sceneTrace/`);
- * 3. the radiosity: the probes' tiles, a ray a thread through the global distance field, the rays filtered, projected on
- *    the harmonics, the indirect light of the texels integrated, and the final light of its tiles combined again
- *    (`radiosityBuildWgsl.ts`, `radiosityTraceWgsl.ts`, `radiosityFilterWgsl.ts`, `radiosityIntegrateWgsl.ts`).
+ * 3. the radiosity: the probes' tiles, a ray a thread through the scene's triangles where the scene has acceleration structures
+ *    (`surfaceCacheRadiosityHardwareRayTracing`, the scene trace as the traced shadows' is) else through the global distance
+ *    field, the rays filtered, projected on the harmonics, the indirect light of the texels integrated, and the final light of
+ *    its tiles combined again (`radiosityBuildWgsl.ts`, `radiosityTraceWgsl.ts`, `radiosityFilterWgsl.ts`,
+ *    `radiosityIntegrateWgsl.ts`).
  *
  * What the image has not made — the pipelines still compiling, the budget refusing the memory — leaves the lighting where it was
- * and says so (`why`); the traced shadows' programs alone are not waited for: until they are compiled, and where the cut has no
- * tables or the buffers do not fit the device or its budget, the image's shadows are the distance field's. The traced
- * shadows' memory is the state's own, made when they are traced and given back when they are not: it is no part of the
- * lighting's shape. The pages' light settles over images after a change (`settle`: the images the updates take to cycle the
- * atlas and blend): while it does, the frame is not held.
+ * and says so (`why`); the programs of the rays through the scene's triangles alone are not waited for: until they are
+ * compiled, and where the cut has no tables or draws the world DAG's cells or the buffers do not fit the device or its budget,
+ * the image's shadows and radiosity rays are the distance field's. The traced shadows' memory and the scene trace are the
+ * state's own, made when they are wanted and given back when they are not: they are no part of the lighting's shape. The
+ * pages' light settles over images after a change (`settle`: the images the updates take to cycle the atlas and blend): while
+ * it does, the frame is not held.
  */
 
 /** What an image's lighting reads that the frame holds: the lights, the sky, the clouds' shade, the light functions, the field. */
@@ -94,7 +105,8 @@ export interface SurfaceLightingState {
   epoch: number
   /** Whether the radiosity's history is lost: the atlases or the lighting's memory were made again. */
   historyLost: boolean
-  /** The traced shadows' memory: their masks, traces and light tiles, and the scene trace made for the acceleration structures. */
+  /** The traced shadows' memory: their masks, traces and light tiles, and the scene trace made for the acceleration structures
+   *  (the radiosity's traced rays use it too). */
   tracedBuffers?: TracedShadowBuffers
   sceneTrace?: SceneTrace
 }
@@ -144,102 +156,139 @@ function prepared(state: SurfaceLightingState, device: GPUDevice, shape: Lightin
 }
 
 /** Gives back the traced shadows' memory: the state holds none after. */
-function releaseTraced(state: SurfaceLightingState) {
+function releaseShadowBuffers(state: SurfaceLightingState) {
   state.tracedBuffers?.dispose()
-  state.sceneTrace?.dispose()
   state.tracedBuffers = undefined
+}
+
+/** Gives back the traced shadows' memory and the scene trace: the state holds none after. */
+function releaseTraced(state: SurfaceLightingState) {
+  releaseShadowBuffers(state)
+  state.sceneTrace?.dispose()
   state.sceneTrace = undefined
 }
 
-/** What the traced shadows of an image are made from: the scene's file, the cut's tables and the programs, the light tiles
- *  and the placements they are sized by — or the first condition they lack, `keep` where it is a wait (for the cut's tables,
- *  for the programs that compile off the frame) that leaves the memory they hold, `refused` where the device refuses the
- *  buffers outright: said in `state.why`, beside the budget's refusals. */
+/** What the rays of an image through the scene's triangles are made from — the traced shadows' and the radiosity's: the scene's file,
+ *  the cut's tables and the programs, the light tiles the shadows are sized by (none where only the radiosity is traced) and the
+ *  placements — or the first condition they lack, `keep` where it is a wait (for the cut's tables, for the programs that compile
+ *  off the frame) that leaves the memory they hold, `refused` where the device refuses the buffers outright: said in `state.why`,
+ *  beside the budget's refusals. */
 type TracedNeeds =
   | { readonly why: string; readonly keep?: boolean; readonly refused?: boolean }
   | {
       readonly why?: undefined
       readonly keep?: undefined
-      readonly refused?: undefined
+      /** The shadows were wanted and their buffers do not fit the device: the radiosity's rays alone are traced. */
+      readonly refused: boolean
       readonly file: RayTracing
       readonly cut: CutTables
-      readonly kernels: ReturnType<typeof tracedKernels>
+      readonly shadows?: ReturnType<typeof tracedShadowKernels>
+      readonly radiosity?: ReturnType<typeof tracedRadiosityKernels>
       readonly lightTiles: number
       readonly placements: number
     }
 
+/** Why the device's limits keep rays out of the scene's triangles. */
+const TRACED_REFUSED = "the device's limits leave no room for the traced rays' buffers"
+
+/** `kernels` where every one of them has compiled, else none. */
+const compiled = <K extends Record<string, { readonly ready: boolean }>>(kernels: K | undefined) =>
+  kernels && Object.values(kernels).every((kernel) => kernel.ready) ? kernels : undefined
+
 /**
- * What the traced shadows of this image need, or the first condition they lack: the direct light or its traced path off,
- * the scene without acceleration structures, buffers that do not fit the device, the cut without tables, programs not
- * compiled yet.
+ * What the rays of this image through the scene's triangles need, or the first condition they lack: neither the direct light's
+ * traced shadows nor the radiosity's traced rays wanted, the scene without acceleration structures or a cut that draws
+ * geometry they do not hold, buffers that do not fit the device, the cut without tables, programs not compiled yet.
  */
 function tracedNeeds(
-  state: SurfaceLightingState,
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   settings: SurfaceCacheSettings,
   shape: LightingShape,
 ): TracedNeeds {
-  if (
-    !settings.surfaceCacheDirectLighting ||
-    !settings.surfaceCacheDirectLightingHardwareRayTracing
-  )
-    return { why: 'the direct light or its traced shadows are off' }
+  const shadows =
+    settings.surfaceCacheDirectLighting && settings.surfaceCacheDirectLightingHardwareRayTracing
+  const radiosity = shape.radiosity && settings.surfaceCacheRadiosityHardwareRayTracing
+  if (!shadows && !radiosity)
+    return { why: "neither the traced shadows nor the radiosity's traced rays are on" }
   const file = rt.context.rayTracing
   if (!file) return { why: 'the scene has no acceleration structures' }
-  const lightTiles = shape.directTiles * shape.maxLights
+  const selection = rt.run.gpuSelection
+  // The file holds the triangles of the scene's primitives, none of the world DAG's HLOD cells: where the cut packs them a ray
+  // would pass through them, so the rays stay in the distance field, which holds them.
+  if (selection?.world)
+    return { why: "the scene's acceleration structures hold none of the world DAG's cells" }
   const placements = rt.layout.selectionRoots.length
-  if (!tracedShadowsFit(device.limits, lightTiles, sceneTraceWords(file, placements)))
-    return {
-      why: "the device's limits leave no room for the traced shadows' buffers",
-      refused: true,
-    }
-  // The traced shadows' programs compile off the frame: until they are ready the image's shadows are the distance field's.
-  const kernels = tracedKernels(device)
-  const cut = rt.run.gpuSelection?.cutTables()
+  const scene = sceneTraceWords(file, placements)
+  const wantedTiles = shadows ? shape.directTiles * shape.maxLights : 0
+  // Shadows whose buffers do not fit the device leave the radiosity its rays, which need the scene trace's buffers alone.
+  const shadowsFit = shadows && tracedRaysFit(device.limits, wantedTiles, scene)
+  if (!shadowsFit && !(radiosity && tracedRaysFit(device.limits, 0, scene)))
+    return { why: TRACED_REFUSED, refused: true }
+  const lightTiles = shadowsFit ? wantedTiles : 0
+  const cut = selection?.cutTables()
   if (!cut) return { why: 'the cut has no tables yet', keep: true }
-  if (!Object.values(kernels).every((kernel) => kernel.ready))
-    return { why: "the traced shadows' programs are not compiled", keep: true }
-  return { file, cut, kernels, lightTiles, placements }
+  // The programs compile off the frame, only those of what is traced, each feature on its own: until a feature's are ready its
+  // rays are the distance field's.
+  const traced = {
+    shadows: compiled(shadowsFit ? tracedShadowKernels(device) : undefined),
+    radiosity: compiled(radiosity ? tracedRadiosityKernels(device) : undefined),
+  }
+  if (!traced.shadows && !traced.radiosity)
+    return { why: "the traced rays' programs are not compiled", keep: true }
+  return { file, cut, ...traced, lightTiles, placements, refused: shadows && !shadowsFit }
 }
 
 /**
- * The traced shadows of this image, or none where `tracedNeeds` says they are not made — the image then lights through the
- * distance field. Where none is wanted (not for the cut or the programs, which are waited for) the memory they held is given
- * back. Else the buffers and the scene trace, each made once for its size and file — where the device's budget refuses one,
- * `state.why` says so —, the scene trace's table of placements brought level with the cut's roots and its parameters written
- * for the image's eye.
+ * The scene the rays of this image are cast through, and the traced shadows made over it, or none where `tracedNeeds` says
+ * they are not made — the image then lights through the distance field. Where none is wanted (not for the cut or the programs,
+ * which are waited for) the memory they held is given back. Else the scene trace, made once for its size and file — where the
+ * device's budget refuses it, `state.why` says so —, its table of placements brought level with the cut's roots and its
+ * parameters written for the image's eye; and, where the shadows are traced, their buffers, made once for their size (the
+ * memory of the shadows alone is given back where only the radiosity is traced).
  */
-function tracedShadowsOf(
+function tracedOf(
   state: SurfaceLightingState,
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   settings: SurfaceCacheSettings,
   shape: LightingShape,
   eye: ArrayLike<number>,
-): TracedShadows | undefined {
-  const needs = tracedNeeds(state, rt, device, settings, shape)
+): { traced?: TracedShadows; scene?: TracedScene } {
+  const needs = tracedNeeds(rt, device, settings, shape)
   if (needs.why !== undefined) {
     if (needs.refused) state.why = needs.why
     if (!needs.keep) releaseTraced(state)
-    return undefined
+    return {}
   }
-  const { file, cut, kernels, lightTiles, placements } = needs
-  const traced = ensureTracedShadows(state.tracedBuffers, device, lightTiles)
-  const scene = ensureSceneTrace(state.sceneTrace, device, file, placements)
-  const { resources: buffers } = traced,
-    { sceneTrace } = scene
-  state.tracedBuffers = buffers
+  const { file, cut, shadows, radiosity, lightTiles, placements } = needs
+  if (needs.refused) state.why = TRACED_REFUSED
+  if (shadows) {
+    const held = ensureTracedShadows(state.tracedBuffers, device, lightTiles)
+    state.tracedBuffers = held.resources
+    state.why = held.why ?? state.why
+  } else releaseShadowBuffers(state)
+  const made = ensureSceneTrace(state.sceneTrace, device, file, placements)
+  const { sceneTrace } = made
   state.sceneTrace = sceneTrace
-  state.why = traced.why ?? scene.why ?? state.why
-  if (!buffers || !sceneTrace) return undefined
+  state.why = made.why ?? state.why
+  if (!sceneTrace) return {}
   sceneTrace.syncPlacements(rt.layout.selectionRoots)
   sceneTrace.writeParams({
     eye: [eye[0], eye[1], eye[2]],
     treeRoot: cut.treeRoot,
     maxIterations: settings.surfaceCacheHardwareRayTracingMaxIterations,
+    skipBackFaceDistance: settings.surfaceCacheHardwareRayTracingSkipBackFaceHitDistance / CM,
+    skipTwoSidedDistance: settings.surfaceCacheHardwareRayTracingSkipTwoSidedHitDistance / CM,
   })
-  return { kernels, buffers, sceneTrace, views: cut.views }
+  const views = cut.views
+  return {
+    scene: radiosity && { kernels: radiosity, sceneTrace, views },
+    traced:
+      shadows && state.tracedBuffers
+        ? { kernels: shadows, sceneTrace, views, buffers: state.tracedBuffers }
+        : undefined,
+  }
 }
 
 /**
@@ -277,6 +326,7 @@ export function encodeLighting(
   })
   state.historyLost = false
   device.queue.writeBuffer(ready.resources.params, 0, state.words)
+  const { traced, scene } = tracedOf(state, rt, device, settings, shape, inputs.image.eye)
   const encoding: Encoding = {
     ...ready,
     pass: state.pass.begin(encoder).pass,
@@ -291,7 +341,8 @@ export function encodeLighting(
     filtered:
       settings.surfaceCacheRadiositySpatialFilterProbes &&
       settings.surfaceCacheRadiositySpatialFilterProbesKernelSize > 0,
-    traced: tracedShadowsOf(state, rt, device, settings, shape, inputs.image.eye),
+    traced,
+    scene,
   }
   contextPasses(encoding)
   directPasses(encoding)

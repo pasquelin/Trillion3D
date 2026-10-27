@@ -17,6 +17,8 @@ import {
   type PlacedTriangles,
   traceBruteForce,
   type OracleRay,
+  type OracleRules,
+  PLAIN_RULES,
 } from './sceneTraceOracle.ts'
 
 export const RAYS = 4096
@@ -69,11 +71,7 @@ export class Casts {
     this.words[i * 12 + 8] = flags
   }
   /** The oracle's ray `i` from the eye: what the GPU holds, the float32 rounding included. */
-  oracle(
-    i: number,
-    eye: ArrayLike<number>,
-    rules: Omit<OracleRay, 'origin' | 'direction' | 'tMax'>,
-  ): OracleRay {
+  oracle(i: number, eye: ArrayLike<number>, rules: OracleRules): OracleRay {
     const f = this.floats,
       at = i * 12
     return {
@@ -116,10 +114,38 @@ export function nearestRays(casts: Casts) {
   }
 }
 
-/** The ray flags, written as literals to pin their ABI on purpose: any-hit 1, cull-front 2, shadow 4. */
+/** The rays that leave the surfaces the rays of `view` met: each from a centimetre past its hit, on along it, as a
+ *  texel's ray leaves its surface — within a closed primitive they meet its back faces first; a ray of `view` that met
+ *  nothing starts where it did. `flags` their rules. */
+export function surfaceRays(
+  casts: Casts,
+  view: Casts,
+  placed: PlacedTriangles,
+  eye: ArrayLike<number>,
+  flags: number,
+) {
+  for (let i = 0; i < RAYS; i++) {
+    const ray = view.oracle(i, eye, PLAIN_RULES)
+    const met = traceBruteForce(placed, ray)
+    const past = met.hit ? met.t + 0.01 : 0
+    casts.set(
+      i,
+      [0, 1, 2].map((a) => ray.origin[a] + ray.direction[a] * past - eye[a]),
+      ray.direction,
+      ray.tMax,
+      flags,
+    )
+  }
+}
+
+/** The ray flags, written as literals to pin their ABI on purpose: any-hit 1, cull-front 2, shadow 4, cull-back 8,
+ *  skip-translucent 16, skip-near 32. */
 const ANY_HIT = 1,
   CULL_FRONT = 2,
   SHADOW = 4
+export const CULL_BACK = 8,
+  SKIP_TRANSLUCENT = 16,
+  SKIP_NEAR = 32
 
 /** The shadow rays: from points of the ground drawn from a fixed seed, a hair above it, toward the
  *  sun; the first hit, the front faces culled, the shadow rules. */
@@ -133,7 +159,7 @@ export function shadowRays(casts: Casts, eye: ArrayLike<number>) {
       point.map((v, a) => v - eye[a]),
       SUN,
       SHADOW_REACH,
-      ANY_HIT | CULL_FRONT | SHADOW,
+      ANY_HIT | CULL_FRONT | SHADOW | SKIP_TRANSLUCENT,
     )
   }
 }
@@ -167,6 +193,7 @@ export function compareNearest(
   casts: Casts,
   answers: Answer[],
   eye: ArrayLike<number>,
+  rules: OracleRules = PLAIN_RULES,
 ) {
   const out = {
     triangles: placed.count,
@@ -188,10 +215,7 @@ export function compareNearest(
   }
   const met = new Set<number>()
   answers.forEach((gpu, i) => {
-    const cpu = traceBruteForce(
-      placed,
-      casts.oracle(i, eye, { anyHit: false, cullFront: false, shadow: false }),
-    )
+    const cpu = traceBruteForce(placed, casts.oracle(i, eye, rules))
     if (!gpu.complete) out.incomplete++
     if (!cpu.robust) return void out.grazing++
     if (gpu.hit !== cpu.hit) {
@@ -231,7 +255,7 @@ export function compareShadow(
   answers.forEach((gpu, i) => {
     const cpu = traceBruteForce(
       placed,
-      casts.oracle(i, eye, { anyHit: true, cullFront: true, shadow: true }),
+      casts.oracle(i, eye, { anyHit: true, cullFront: true, shadow: true, skipTranslucent: true }),
     )
     if (!gpu.complete) out.incomplete++
     if (!cpu.robust) return void out.grazing++

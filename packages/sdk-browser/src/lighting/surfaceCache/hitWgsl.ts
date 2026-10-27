@@ -7,7 +7,11 @@ import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
 import { globalDistanceFieldTraceWgsl } from '../distanceField/globalTraceWgsl.ts'
 import { globalObjectGridReadWgsl } from '../distanceField/objectGridWgsl.ts'
 import { globalReadLayoutEntries, type GlobalFieldRead } from '../distanceField/view.ts'
-import { surfaceCacheReadLayoutEntries, surfaceCacheSampleWgsl } from './sampleWgsl.ts'
+import {
+  SURFACE_CACHE_LAYER_AT as L,
+  surfaceCacheReadLayoutEntries,
+  surfaceCacheSampleWgsl,
+} from './sampleWgsl.ts'
 
 /**
  * THE LIGHT OF THE SURFACE A RAY MARCHED THROUGH THE GLOBAL DISTANCE FIELD MET (`scGlobalHit`), read in the surface cache's final
@@ -35,7 +39,7 @@ import { surfaceCacheReadLayoutEntries, surfaceCacheSampleWgsl } from './sampleW
  */
 
 /** Where a program of group `group` binds what a hit reads: the global field's six bindings from `field`, its object grid, the cache's
- *  library from `cards` (the tables, then the layers, the feedback buffer at `cards + 8` where `feedback`), and the table from an object
+ *  library from `cards` (the tables, then the layers and the feedback buffer where `feedback`, at `SURFACE_CACHE_LAYER_AT`), and the table from an object
  *  of the grid to its placement in the cache. */
 export interface SurfaceHitBindings {
   readonly group: number
@@ -56,13 +60,13 @@ export const surfaceHitBindingsFrom = (group: number, first: number): SurfaceHit
 })
 
 /** The cards' bindings a hit reads, as offsets of `cards`: the tables, the depth and the final light. */
-const SURFACE_HIT_CARDS_READ = [0, 1, 7] as const
-
-/** The feedback buffer's binding, as an offset of `cards` (`surfaceCacheReadLayoutEntries`). */
-const FEEDBACK_AT_CARDS = 8
+const SURFACE_HIT_CARDS_READ = [0, L.depth, L.final] as const
 
 /** What the library is asked to read at `b`: the emission, which a compressed atlas keeps as blocks, is no layer a hit reads. */
-const readOf = (b: SurfaceHitBindings) => ({ feedback: !!b.feedback, compressed: false })
+const readOf = (b: Pick<SurfaceHitBindings, 'feedback'>) => ({
+  feedback: !!b.feedback,
+  compressed: false,
+})
 
 /** What a hit reads of the cache, as the bind group binds it: its tables, the depth and final layers, the feedback buffer, the field's
  *  object grid and the table of instances (`../reflections/hitCards.ts`). */
@@ -87,7 +91,7 @@ export interface SurfaceHitReads {
  *  reach), the instances'. */
 export function surfaceHitLayoutEntries(b: SurfaceHitBindings): GPUBindGroupLayoutEntry[] {
   const read = SURFACE_HIT_CARDS_READ.map((at) => b.cards + at)
-  if (b.feedback) read.push(b.cards + FEEDBACK_AT_CARDS)
+  if (b.feedback) read.push(b.cards + L.feedback)
   return [
     ...globalReadLayoutEntries(b.field),
     computeBufferEntry(b.grid, 'read-only-storage'),
@@ -108,24 +112,22 @@ export function surfaceHitEntries(
     ...field.readEntries(b.field),
     { binding: b.grid, resource: { buffer: hit.grid } },
     { binding: b.cards, resource: { buffer: hit.tables } },
-    { binding: b.cards + 1, resource: hit.depth },
-    { binding: b.cards + 7, resource: hit.final },
-    ...(b.feedback
-      ? [{ binding: b.cards + FEEDBACK_AT_CARDS, resource: { buffer: hit.feedback } }]
-      : []),
+    { binding: b.cards + L.depth, resource: hit.depth },
+    { binding: b.cards + L.final, resource: hit.final },
+    ...(b.feedback ? [{ binding: b.cards + L.feedback, resource: { buffer: hit.feedback } }] : []),
     { binding: b.instances, resource: { buffer: hit.instances } },
   ]
 }
 
-/** The hit's read (`scGlobalHit`) over the bindings `b`, and the march (`gdfTrace`) it follows. */
-export function surfaceHitWgsl(b: SurfaceHitBindings) {
+/** The placement of a hit and the cone of a ray, over the bindings `b`: the table from an instance (an object of the grid, or a
+ *  placement of the scene trace's cut) to its placement in the cache, and the cache's read library the placement's mesh cards are
+ *  read with (`scPlacementMeshCards`, `scEvaluateMeshCards`). Nothing of the global field: a hit found without it reads this alone. */
+export function surfaceHitCardsWgsl(
+  b: Pick<SurfaceHitBindings, 'group' | 'cards' | 'instances' | 'feedback'>,
+) {
   return wgslBlock(
-    `SURFACE_HIT_WGSL(${b.group},${b.field},${b.grid},${b.cards},${b.instances},${!!b.feedback})`,
-    [
-      surfaceCacheSampleWgsl(b.group, b.cards, readOf(b)),
-      globalDistanceFieldTraceWgsl(b.group, b.field),
-      globalObjectGridReadWgsl(b.group, b.field, b.grid),
-    ],
+    `SURFACE_HIT_CARDS_WGSL(${b.group},${b.cards},${b.instances},${!!b.feedback})`,
+    [surfaceCacheSampleWgsl(b.group, b.cards, readOf(b))],
     `@group(${b.group}) @binding(${b.instances}) var<storage,read> hitInstances:array<u32>;
 /** The placement of the cache that the object of the grid named \`instance\` is, none for an instance past the table. */
 fn scHitPlacement(instance:u32)->u32{
@@ -136,8 +138,20 @@ fn scHitPlacement(instance:u32)->u32{
 fn scConeTangent(side:f32)->f32{
  let c=max(1.0-1.0/(side*side),0.05);
  return sqrt(1.0-c*c)/c;
+}`,
+  )
 }
-struct ScHitSurface{radiance:vec3f,face:vec3f,valid:bool,}
+
+/** The hit's read (`scGlobalHit`) over the bindings `b`, and the march (`gdfTrace`) it follows. */
+export function surfaceHitWgsl(b: SurfaceHitBindings) {
+  return wgslBlock(
+    `SURFACE_HIT_WGSL(${b.group},${b.field},${b.grid},${b.cards},${b.instances},${!!b.feedback})`,
+    [
+      surfaceHitCardsWgsl(b),
+      globalDistanceFieldTraceWgsl(b.group, b.field),
+      globalObjectGridReadWgsl(b.group, b.field, b.grid),
+    ],
+    `struct ScHitSurface{radiance:vec3f,face:vec3f,valid:bool,}
 /** The surface the march \`hit\` of the ray from the world point \`origin\` along \`dir\` met: its light, its face, and whether the cache gave
  *  any. \`spread\` is the tangent of the angle of the ray's cone, \`hiRes\` whether the finest pages are read, \`coord\` the pixel the
  *  feedback is written for. */

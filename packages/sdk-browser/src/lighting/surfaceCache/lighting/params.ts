@@ -23,19 +23,19 @@ import { contextLayout, LIGHTING_FLAG, LIGHTING_PARAMS, tracedShadowWords } from
 /** The longest a ray of the lighting travels, in centimetres: the bounce's reach. */
 const MAX_TRACE = BOUNCE_SETTINGS.rayReachMetres * CM
 
-/** The limits of the device that decide whether the traced shadows' buffers fit: the most a storage buffer binds and a buffer holds. */
+/** The limits of the device that decide whether the traced rays' buffers fit: the most a storage buffer binds and a buffer holds. */
 export type BufferLimits = Pick<GPUSupportedLimits, 'maxStorageBufferBindingSize' | 'maxBufferSize'>
 
 /**
- * Whether every buffer of the traced shadows fits a binding and a buffer of `limits`: the masks, the traces and the light
- * tiles of `lightTiles` light tiles (`tracedShadowWords`, the sizes they are made at), and the scene trace's nodes,
- * triangles and table of placements (`scene`, `sceneTraceWords`).
+ * Whether every buffer of the rays through the scene's triangles fits a binding and a buffer of `limits`: the scene trace's
+ * nodes, triangles and table of placements (`scene`, `sceneTraceWords`), and where the shadows are traced (`lightTiles`
+ * light tiles, none where only the radiosity is) their masks, traces and light tiles (`tracedShadowWords`, the sizes they
+ * are made at).
  */
-export function tracedShadowsFit(limits: BufferLimits, lightTiles: number, scene: SceneTraceWords) {
+export function tracedRaysFit(limits: BufferLimits, lightTiles: number, scene: SceneTraceWords) {
   const most = Math.min(limits.maxStorageBufferBindingSize, limits.maxBufferSize)
-  return [...Object.values(tracedShadowWords(lightTiles)), ...Object.values(scene)].every(
-    (words) => words * 4 <= most,
-  )
+  const shadows = lightTiles > 0 ? Object.values(tracedShadowWords(lightTiles)) : []
+  return [...shadows, ...Object.values(scene)].every((words) => words * 4 <= most)
 }
 
 /** What the lighting's resources and programs are made for. */
@@ -233,6 +233,12 @@ export function writeLightingParams(
   floats[at.minTrace] = settings.surfaceCacheRadiosityDistanceFieldSurfaceBias
   floats[at.traceRayBias] = settings.surfaceCacheDirectLightingHardwareRayTracingShadowRayBias
   floats[at.traceEndBias] = settings.surfaceCacheDirectLightingHardwareRayTracingEndBias
+  floats[at.radiosityRayBias] = settings.surfaceCacheRadiosityHardwareRayTracingBias
+  floats[at.radiosityNormalBias] = settings.surfaceCacheRadiosityHardwareRayTracingNormalBias
+  floats[at.cardDepthBias] = settings.surfaceCacheHardwareRayTracingSurfaceCacheSamplingDepthBias
+  floats[at.cardMinDistance] =
+    settings.surfaceCacheHardwareRayTracingMinTraceDistanceToSampleSurfaceCache
+  words[at.selfIntersections] = settings.surfaceCacheHardwareRayTracingAvoidSelfIntersections
   for (let k = 0; k < 3; k++) {
     floats[at.camera + k] = image.eye[k] * CM
     floats[at.eye + k] = image.eye[k]

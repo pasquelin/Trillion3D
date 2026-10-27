@@ -45,8 +45,9 @@ const BLAS_STACK = 16
  * rays and the placements are taken to — three doubles, as a ray of the ray query holds its origin —,
  * the distance and the tangent of the angle, squared, past which an instance is left out (seen from
  * the eye), the bound on the steps of a trace, the placement tree's top (none without a tree), the
- * placements the packing holds, and where in the table buffer the table from a placement to its
- * record begins.
+ * placements the packing holds, where in the table buffer the table from a placement to its
+ * record begins, and the two distances, in metres, under which a ray that asks it (`ST_SKIP_NEAR`)
+ * passes a hit by: a back face of a one-sided primitive, any hit on a two-sided one.
  */
 export const SCENE_TRACE_PARAMS = fieldLayout('StParams', [
   ['eyeXY', 'vec4u'],
@@ -57,6 +58,8 @@ export const SCENE_TRACE_PARAMS = fieldLayout('StParams', [
   ['treeRoot', 'u32'],
   ['placements', 'u32'],
   ['placementWord', 'u32'],
+  ['skipBackFaceDistance', 'f32'],
+  ['skipTwoSidedDistance', 'f32'],
 ] as const)
 
 /**
@@ -96,8 +99,16 @@ export const sceneTraceBindEntries = (
     resource: { buffer },
   }))
 
-/** What a ray's `flags` choose: the first hit, ignoring the faces toward the ray, the shadow rules. */
-const SCENE_TRACE_FLAGS = { anyHit: 1, cullFront: 2, shadow: 4 } as const
+/** What a ray's `flags` choose: the first hit, ignoring the faces toward the ray or those away from it, the shadow
+ *  rule (the placements that cast none), the translucent primitives left out, the near hits passed by. */
+const SCENE_TRACE_FLAGS = {
+  anyHit: 1,
+  cullFront: 2,
+  shadow: 4,
+  cullBack: 8,
+  skipTranslucent: 16,
+  skipNear: 32,
+} as const
 
 const R = RAY_TRACING_RECORD_AT
 
@@ -122,6 +133,9 @@ const SCENE_TRACE_CONSTS = wgslConsts({
   ST_ANY_HIT: SCENE_TRACE_FLAGS.anyHit,
   ST_CULL_FRONT: SCENE_TRACE_FLAGS.cullFront,
   ST_SHADOW: SCENE_TRACE_FLAGS.shadow,
+  ST_CULL_BACK: SCENE_TRACE_FLAGS.cullBack,
+  ST_SKIP_TRANSLUCENT: SCENE_TRACE_FLAGS.skipTranslucent,
+  ST_SKIP_NEAR: SCENE_TRACE_FLAGS.skipNear,
 })
 
 /** The constants, the structures and the state of the trace in progress. */
@@ -218,7 +232,10 @@ fn stTriangle(inst:StInstance,origin:vec3f,direction:vec3f,ti:u32,best:StHit)->S
  // Counter-clockwise from the ray's origin: the winding against the ray, turned over by a mirroring world.
  let front=(dot(normal,direction)<0.0)!=inst.mirrored;
  if((stRay.flags&ST_CULL_FRONT)!=0u&&front&&!inst.twoSided){return best;}
+ if((stRay.flags&ST_CULL_BACK)!=0u&&!front&&!inst.twoSided){return best;}
  if(t<stRay.tMin){return best;}
+ // A two-sided primitive's hit under its distance, a one-sided primitive's back face under its own: passed by.
+ if((stRay.flags&ST_SKIP_NEAR)!=0u&&select(!front&&t<stParams.skipBackFaceDistance,t<stParams.skipTwoSidedDistance,inst.twoSided)){return best;}
  if((stRay.flags&ST_ANY_HIT)!=0u){stDone=true;}
  return StHit(t,inst.placement,inst.record,ti,normal,front,inst.twoSided,true);
 }`
@@ -257,10 +274,9 @@ fn stEnter(w:u32,best:StHit,inverse:vec3f)->StHit{
  let nodes=stTable[at+ST_RECORD_NODES];
  if(nodes==0u){return best;}
  let flags=stTable[at+ST_RECORD_FLAGS];
- let shadow=(stRay.flags&ST_SHADOW)!=0u;
- if(shadow&&(flags&ST_TRANSLUCENT)!=0u){return best;}
+ if((stRay.flags&ST_SKIP_TRANSLUCENT)!=0u&&(flags&ST_TRANSLUCENT)!=0u){return best;}
  let entry=placementEnter(w,stParams.eyeXY,stParams.eyeZ,stRay.origin,stRay.direction);
- if(!entry.found||(shadow&&(entry.mark&ST_CASTS_NO_SHADOW)!=0u)){return best;}
+ if(!entry.found||((stRay.flags&ST_SHADOW)!=0u&&(entry.mark&ST_CASTS_NO_SHADOW)!=0u)){return best;}
  // The world box of the root, grown by the deformation's reach as the tree's leaf is: none past every finite one.
  if(!reachUnbounded(entry.mark)){
   let reach=vec3f(entry.reach);
@@ -329,10 +345,13 @@ ${placementTreeCast({
  * spent, a stack full.
  *
  * A ray's `flags` choose what it meets: `ST_ANY_HIT` ends the trace at the first hit (a shadow ray's);
- * `ST_CULL_FRONT` ignores a triangle whose winding faces the ray unless its primitive is two-sided
- * (`frontFace` as the world turns it); `ST_SHADOW` ignores the primitives flagged translucent and the
- * placements whose mark says they cast no shadow. An any-hit ray answers `hit` alone: its normal is not
- * turned into the world.
+ * `ST_CULL_FRONT` ignores a triangle whose winding faces the ray, `ST_CULL_BACK` one whose winding faces
+ * away, unless its primitive is two-sided (`frontFace` as the world turns it); `ST_SHADOW` ignores the
+ * placements whose mark says they cast no shadow; `ST_SKIP_TRANSLUCENT` the primitives flagged
+ * translucent; `ST_SKIP_NEAR` passes by, past the ray's `tMin`, a hit on a two-sided primitive nearer than
+ * `params.skipTwoSidedDistance` and a back face of a one-sided one nearer than `params.skipBackFaceDistance`
+ * (the ray goes on to the next hit, as a retrace from past it would find). An any-hit ray answers `hit`
+ * alone: its normal is not turned into the world.
  *
  * Level 1 is the cast of the ray through the placement tree (`placementTreeCast`, as the ray query
  * casts its own), front to back; a packing too small for a tree enters its placements in turn.
@@ -346,7 +365,7 @@ ${placementTreeCast({
  * first: a node is its 80 bytes loaded once, the box of a child decoded from the node's corner and
  * exponents and met by the slab test, the node's own box the grid its children are quantised on.
  * Every triangle the ray meets nearer than the best hit is a step of `params.maxIterations`, before
- * the ray's `tMin` and `ST_CULL_FRONT` judge it: the bound spent, the trace stops with the hit it holds and is
+ * the ray's `tMin` and its culling and skipping flags judge it: the bound spent, the trace stops with the hit it holds and is
  * incomplete. The walks themselves are bounded by their structures alone: the tree's boxes
  * (`TREE_STEPS`) and the record's nodes, each visited once. A full stack of the structure's walk
  * leaves the child out and marks the trace incomplete.

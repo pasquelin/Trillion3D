@@ -86,7 +86,8 @@ const DIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
     count('surfaceCacheHardwareRayTracingMaxIterations', 8192, 1),
   ] as const))()
 
-/** The indirect light: the probes, their filter and their blend over the images. */
+/** The indirect light: the probes, their rays through the global field or the scene's triangles, their filter and their
+ *  blend over the images. */
 const RADIOSITY_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('surfaceCacheRadiosity', true),
@@ -99,6 +100,14 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
     number('surfaceCacheRadiosityMaxRayIntensity', 40, [0, 1000000]),
     number('surfaceCacheRadiosityDistanceFieldSurfaceBias', 10, [0, 1000]),
     number('surfaceCacheRadiosityDistanceFieldSurfaceSlopeBias', 5, [0, 1000]),
+    flag('surfaceCacheRadiosityHardwareRayTracing', true),
+    nonNegative('surfaceCacheRadiosityHardwareRayTracingBias', 0.1),
+    nonNegative('surfaceCacheRadiosityHardwareRayTracingNormalBias', 0.1),
+    integer('surfaceCacheHardwareRayTracingAvoidSelfIntersections', 3, [0, 3]),
+    nonNegative('surfaceCacheHardwareRayTracingSkipBackFaceHitDistance', 5),
+    nonNegative('surfaceCacheHardwareRayTracingSkipTwoSidedHitDistance', 1),
+    nonNegative('surfaceCacheHardwareRayTracingMinTraceDistanceToSampleSurfaceCache', 10),
+    nonNegative('surfaceCacheHardwareRayTracingSurfaceCacheSamplingDepthBias', 10),
     flag('surfaceCacheRadiosityTemporal', true),
     integer('surfaceCacheRadiosityTemporalMaxFramesAccumulated', 4, [1, 255]),
     integer('surfaceCacheRadiosityTemporalFixedJitterIndex', -1, [-1, INT32_RANGE[1]]),
@@ -177,7 +186,8 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  * surface grazes the light, a lamp's ray ending `surfaceCacheDirectLightingHardwareRayTracingEndBias` (1) short of it,
  * culling the front faces of the primitives that are not two-sided unless
  * `surfaceCacheDirectLightingHardwareRayTracingForceTwoSided` (off) makes all so, and stopping after
- * `surfaceCacheHardwareRayTracingMaxIterations` (8192) triangles, a trace that stopped counting as a hit. A tile
+ * `surfaceCacheHardwareRayTracingMaxIterations` (8192) triangles, a trace that stopped counting as a hit (a ray through
+ * the scene's triangles that stops with none is a black hit). A tile
  * whose texels all saw a light, or all lay in its shadow, at its last update (adaptive tracing,
  * `surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing`, on) traces one texel in each quad of
  * four, a different one each update, and gives the quad its answer. Without acceleration structures, or with that
@@ -188,7 +198,18 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  * of two to 8) texels tracing a hemisphere of `surfaceCacheRadiosityHemisphereProbeResolution` (4) rays along a
  * side — `surfaceCacheLightingQuality` (1, to 6) multiplies it by its square root to 4 and, from 6, halves the
  * spacing — through the global field from `surfaceCacheRadiosityDistanceFieldSurfaceBias` (10) centimetres, the
- * surface that hit read at its final light, the sky where nothing was met, no ray brighter than
+ * surface that hit read at its final light, the sky where nothing was met. Where the scene has acceleration
+ * structures (`surfaceCacheRadiosityHardwareRayTracing`, on) the rays go through the scene's triangles instead: off
+ * the texel along its normal by `surfaceCacheRadiosityHardwareRayTracingNormalBias` (0.1) centimetres, from
+ * `surfaceCacheRadiosityHardwareRayTracingBias` (0.1) along the ray, passing the translucent primitives, the cards of
+ * the primitive hit read at the hit point and the hit's normal facing the ray, projected by at most
+ * `surfaceCacheHardwareRayTracingSurfaceCacheSamplingDepthBias` (10) centimetres, and no light taken from a hit nearer than
+ * `surfaceCacheHardwareRayTracingMinTraceDistanceToSampleSurfaceCache` (10), nor from the back face of a one-sided primitive.
+ * `surfaceCacheHardwareRayTracingAvoidSelfIntersections` (3) keeps a ray from the faces of the geometry it starts on,
+ * where the triangles differ from the cards' surface: 0 culls the back faces, 1 traces again from past a back face
+ * nearer than `surfaceCacheHardwareRayTracingSkipBackFaceHitDistance` (5) centimetres or a two-sided hit nearer than
+ * `surfaceCacheHardwareRayTracingSkipTwoSidedHitDistance` (1), 2 passes such hits as it traverses, 3 takes 2 (the
+ * traversal here is inline). No ray is brighter than
  * `surfaceCacheRadiosityMaxRayIntensity` (40) times the exposure; a probe's rays are filtered with those of its
  * neighbours' probes (`surfaceCacheRadiositySpatialFilterProbes`, on, a kernel of
  * `surfaceCacheRadiositySpatialFilterProbesKernelSize` 1: 0 none, 1 four neighbours, 2 thirteen) unless they lie

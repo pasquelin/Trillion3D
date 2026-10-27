@@ -1,10 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SURFACE_CACHE_RULES } from '../../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
-import {
-  resolveSettingsInto,
-  type SettingValues,
-} from '../../../../../sdk-core/src/contracts/settingRules.ts'
 import {
   lightsPerTile,
   MAX_LIGHTS_PER_TILE,
@@ -18,13 +13,8 @@ import {
   LIGHTING_PARAMS,
   tracedShadowWords,
 } from './layout.ts'
-import { shapeKey, shapeOf, sizesOf, tracedShadowsFit, writeLightingParams } from './params.ts'
-
-const settings = {} as SettingValues<typeof SURFACE_CACHE_RULES>
-resolveSettingsInto(SURFACE_CACHE_RULES, {}, settings)
-
-const near = (a: number, b: number, tolerance = 1e-5) =>
-  assert.ok(Math.abs(a - b) <= tolerance, `${a} vs ${b}`)
+import { shapeKey, shapeOf, sizesOf, tracedRaysFit, writeLightingParams } from './params.ts'
+import { lightingSettings as settings, near } from './params.fixture.ts'
 
 test('the lighting is sized by the reference defaults: an atlas of 4096 lights 8281 tiles directly and 4225 by radiosity', () => {
   const shape = shapeOf(settings, 4096, false)
@@ -221,31 +211,31 @@ test('the frozen update frame and the two-sided shadow rays are flags of the set
   assert.equal(flags & LIGHTING_FLAG.adaptiveShadowTracing, 0)
 })
 
-test('the traced shadows fit only where every buffer — the masks, the traces, the light tiles, the scene trace’s nodes, triangles and table — fits a binding and a buffer of the device', () => {
+test('the traced rays fit only where every buffer — the shadows’ masks, traces and light tiles, the scene trace’s nodes, triangles and table — fits a binding and a buffer of the device', () => {
   const shape = shapeOf(settings, 4096, false)
   const lightTiles = shape.directTiles * shape.maxLights
   const roomy = { maxStorageBufferBindingSize: 2 ** 30, maxBufferSize: 2 ** 30 }
   const scene = { nodes: 1000, triangles: 2000, table: 500 }
-  assert.equal(tracedShadowsFit(roomy, lightTiles, scene), true)
+  assert.equal(tracedRaysFit(roomy, lightTiles, scene), true)
   // The traces are the largest buffer: one word for each texel of each light tile.
   const words = tracedShadowWords(lightTiles)
   const bytes = words.traces * 4
   assert.ok(bytes > words.masks * 4 && bytes > words.lightTiles * 4)
   const binding = { ...roomy, maxStorageBufferBindingSize: bytes }
-  assert.equal(tracedShadowsFit(binding, lightTiles, scene), true)
+  assert.equal(tracedRaysFit(binding, lightTiles, scene), true)
   assert.equal(
-    tracedShadowsFit({ ...binding, maxStorageBufferBindingSize: bytes - 4 }, lightTiles, scene),
+    tracedRaysFit({ ...binding, maxStorageBufferBindingSize: bytes - 4 }, lightTiles, scene),
     false,
   )
-  assert.equal(tracedShadowsFit({ ...roomy, maxBufferSize: bytes - 4 }, lightTiles, scene), false)
+  assert.equal(tracedRaysFit({ ...roomy, maxBufferSize: bytes - 4 }, lightTiles, scene), false)
   // Each of the scene trace's buffers decides alone, to the word.
   const full = bytes / 4
   assert.equal(
-    tracedShadowsFit(binding, lightTiles, { nodes: full, triangles: full, table: full }),
+    tracedRaysFit(binding, lightTiles, { nodes: full, triangles: full, table: full }),
     true,
   )
   for (const name of ['nodes', 'triangles', 'table'] as const)
-    assert.equal(tracedShadowsFit(binding, lightTiles, { ...scene, [name]: full + 1 }), false, name)
+    assert.equal(tracedRaysFit(binding, lightTiles, { ...scene, [name]: full + 1 }), false, name)
 })
 
 test('the traced shadows’ sizes are one list: the buffers are made at it and the fit is checked against it', () => {
@@ -254,8 +244,14 @@ test('the traced shadows’ sizes are one list: the buffers are made at it and t
   const sceneSmall = { nodes: 1, triangles: 1, table: 1 }
   const most = Math.max(...Object.values(tracedShadowWords(100))) * 4
   const limits = { maxStorageBufferBindingSize: most, maxBufferSize: most }
-  assert.equal(tracedShadowsFit(limits, 100, sceneSmall), true)
-  assert.equal(tracedShadowsFit({ ...limits, maxBufferSize: most - 4 }, 100, sceneSmall), false)
+  assert.equal(tracedRaysFit(limits, 100, sceneSmall), true)
+  assert.equal(tracedRaysFit({ ...limits, maxBufferSize: most - 4 }, 100, sceneSmall), false)
+  // The radiosity traced alone: the scene trace's buffers decide, no shadow buffer being made.
+  assert.equal(tracedRaysFit({ ...limits, maxBufferSize: 4 }, 0, sceneSmall), true)
+  assert.equal(
+    tracedRaysFit({ ...limits, maxBufferSize: 4 }, 0, { ...sceneSmall, nodes: 2 }),
+    false,
+  )
 })
 
 test('the shape names nothing of the traced shadows: turning them on or off keeps the lighting’s resources', () => {

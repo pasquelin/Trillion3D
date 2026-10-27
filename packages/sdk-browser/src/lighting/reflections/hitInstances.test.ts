@@ -13,14 +13,19 @@ const root = (standsFor?: number): TrackedRoot => ({
   ...(standsFor === undefined ? {} : { standsFor }),
 })
 
-/** The words the table makes of the placements `held` — each its number and its root — over `rankOf`. */
+/** The words the table makes of the placements `held` — each its number and its root, or its roots — over `rankOf`. */
 function table(
-  held: [number, TrackedRoot][],
+  held: [number, TrackedRoot | TrackedRoot[]][],
   rankOf: (root: TrackedRoot) => number | undefined,
   scratch = new Uint32Array(0),
 ) {
   const roots = new Map(held)
-  const words = instanceWords(roots.keys(), (placement) => roots.get(placement), rankOf, scratch)
+  const words = instanceWords(
+    roots.keys(),
+    (placement) => [roots.get(placement)!].flat(),
+    rankOf,
+    scratch,
+  )
   return { words, listed: [...words.subarray(0, 1 + words[0])] }
 }
 
@@ -38,6 +43,28 @@ test('a placement is told by the rank of its root, an instance with none by no p
     (r) => ranks.get(r),
   )
   assert.deepEqual(listed, [3, 7, NO_PLACEMENT, 4])
+})
+
+test('every root that stands as a placement is told it: a hit of any primitive of its mesh finds its cards', () => {
+  const [a, b, c] = [root(), root(), root()]
+  const ranks = new Map([
+    [a, 0],
+    [b, 1],
+    [c, 3],
+  ])
+  const { listed } = table(
+    [
+      [9, [a, b]],
+      [4, c],
+    ],
+    (r) => ranks.get(r),
+  )
+  assert.deepEqual(listed, [4, 9, 9, NO_PLACEMENT, 4])
+})
+
+test('several roots of one placement sharing an instance are told that placement, not several', () => {
+  const [a, b] = [root(2), root(2)]
+  assert.deepEqual(table([[6, [a, b]]], () => undefined).listed, [3, NO_PLACEMENT, NO_PLACEMENT, 6])
 })
 
 test('a root the field’s scene does not hold has no instance, and is not told', () => {

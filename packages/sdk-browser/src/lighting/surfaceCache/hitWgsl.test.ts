@@ -7,6 +7,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
 import {
   surfaceHitBindingsFrom,
+  surfaceHitCardsWgsl,
   surfaceHitLayoutEntries,
   surfaceHitWgsl,
   type SurfaceHitBindings,
@@ -235,4 +236,21 @@ test('the feedback buffer is bound only for a program that writes it', () => {
   assert.ok(bindings({ ...b, feedback: true }).includes(b.cards + 8))
   assert.ok(wgslModule(surfaceHitWgsl({ ...b, feedback: true })).includes('scFeedback'))
   assert.ok(!wgslModule(surfaceHitWgsl(b)).includes('scFeedback'))
+})
+
+test('the placement of a hit and the cone of a ray are read without the global field: a hit found another way reads the cards alone', () => {
+  const b = surfaceHitBindingsFrom(0, 0)
+  const cards = wgslModule(surfaceHitCardsWgsl(b))
+  for (const name of [
+    'scHitPlacement',
+    'scConeTangent',
+    'scPlacementMeshCards',
+    'scEvaluateMeshCards',
+  ])
+    assert.ok(cards.includes(`fn ${name}(`), name)
+  assert.ok(cards.includes(`@binding(${b.instances}) var<storage,read> hitInstances`))
+  assert.doesNotMatch(cards, /gdf|Gdf|scGlobalHit/)
+  // The march’s read is the cards’ and the field’s.
+  const whole = wgslModule(surfaceHitWgsl(b))
+  assert.ok(whole.includes('fn scGlobalHit(') && whole.includes('fn scHitPlacement('))
 })

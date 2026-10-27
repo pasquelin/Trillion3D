@@ -40,7 +40,18 @@ export interface OracleRay {
   anyHit: boolean
   cullFront: boolean
   shadow: boolean
+  /** The faces away from the ray left out, the translucent primitives left out, and the near hits passed by: a two-sided
+   *  primitive's nearer than `twoSided`, a one-sided primitive's back face nearer than `backFace`. */
+  cullBack?: boolean
+  skipTranslucent?: boolean
+  skipNear?: { readonly backFace: number; readonly twoSided: number }
 }
+
+/** The rules of a ray, without the ray itself. */
+export type OracleRules = Omit<OracleRay, 'origin' | 'direction' | 'tMax'>
+
+/** The nearest hit, every face and every primitive met. */
+export const PLAIN_RULES: OracleRules = { anyHit: false, cullFront: false, shadow: false }
 
 /** The triangles of the cut in the world, the rank of the placement and of the triangle in the file
  *  with each: three copies of the corners, the exact ones and the shrunk and grown ones. */
@@ -116,32 +127,41 @@ export function placeTriangles(file: RayTracing, roots: readonly OracleRoot[]): 
 }
 
 /** What one pass over the triangles finds: the nearest hit (or none), whether another triangle is
- *  met at the same distance, and whether the nearest faces the ray. */
+ *  met at the same distance, whether the nearest faces the ray, and whether a hit lay as near to a
+ *  skip distance as a float tells apart. */
 interface Pass {
   hit: boolean
   t: number
   index: number
   front: boolean
   tie: boolean
+  atSkip: boolean
 }
 
 /** The triangles `corners` against `ray`: the nearest meeting the trace's rules let through, or the
  *  first of them for an any-hit ray. The front is the winding seen from the ray in the world: a world
  *  that mirrors turns the corners over, and so the winding with them. */
 function pass(set: PlacedTriangles, corners: Float64Array, ray: OracleRay): Pass {
-  const best: Pass = { hit: false, t: ray.tMax, index: -1, front: false, tie: false }
+  const best: Pass = { hit: false, t: ray.tMax, index: -1, front: false, tie: false, atSkip: false }
   const hits: number[] = []
   const normal = [0, 0, 0]
   const [dx, dy, dz] = [ray.direction[0], ray.direction[1], ray.direction[2]]
   for (let i = 0; i < set.count; i++) {
-    if (ray.shadow && (set.translucent[i] || set.noShadow[i])) continue
+    if (ray.shadow && set.noShadow[i]) continue
+    if (ray.skipTranslucent && set.translucent[i]) continue
     const t = rayTriangle(ray.origin, ray.direction, corners, i * 9, 1e-4, ray.tMax)
     if (t >= ray.tMax) continue
     const at = i * 9
     triangleCross(normal, 0, corners, at, at + 3, at + 6)
     const front = normal[0] * dx + normal[1] * dy + normal[2] * dz < 0
     if (ray.cullFront && front && !set.twoSided[i]) continue
-    if (ray.anyHit) return { hit: true, t, index: i, front, tie: false }
+    if (ray.cullBack && !front && !set.twoSided[i]) continue
+    if (ray.skipNear && (set.twoSided[i] || !front)) {
+      const skip = set.twoSided[i] ? ray.skipNear.twoSided : ray.skipNear.backFace
+      if (Math.abs(t - skip) <= distanceTolerance(skip)) best.atSkip = true
+      if (t < skip) continue
+    }
+    if (ray.anyHit) return { hit: true, t, index: i, front, tie: false, atSkip: best.atSkip }
     hits.push(t)
     if (t < best.t) Object.assign(best, { hit: true, t, index: i, front })
   }
@@ -166,6 +186,7 @@ export function traceBruteForce(set: PlacedTriangles, ray: OracleRay): OracleHit
   const shrunk = pass(set, set.shrunk, ray),
     grown = pass(set, set.grown, ray)
   const robust =
+    !exact.atSkip &&
     shrunk.hit === grown.hit &&
     (!shrunk.hit || ray.anyHit || shrunk.t - grown.t <= distanceTolerance(exact.t))
   return {
