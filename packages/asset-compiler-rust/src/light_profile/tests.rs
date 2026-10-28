@@ -144,16 +144,23 @@ fn a_light_names_its_profile_and_shares_it() {
     let named = json!({"extras":{"iesProfile":"lamp.ies","useIesBrightness":true,"iesBrightnessScale":2.0}});
     let mut first = json!({"kind":"point"});
     let mut second = json!({"kind":"spot"});
-    profiles.attach(&mut first, &named, &m, &mut counts).unwrap();
-    profiles.attach(&mut second, &named, &m, &mut counts).unwrap();
+    profiles
+        .attach(&mut first, &named, &m, &mut counts)
+        .unwrap();
+    profiles
+        .attach(&mut second, &named, &m, &mut counts)
+        .unwrap();
     assert_eq!(first["iesProfile"], second["iesProfile"]);
     assert_eq!(first["direction"], json!([0.0, -1.0, 0.0]));
     assert_eq!(first["emitterAxis"], json!([0.0, 0.0, -1.0]));
+    assert_eq!(first["iesBrightness"], json!(200.0));
     assert_eq!(first["useIesBrightness"], json!(true));
     assert_eq!(first["iesBrightnessScale"], json!(2.0));
     let mut missing = json!({"kind":"point"});
     let absent = json!({"extras":{"iesProfile":"none.ies"}});
-    profiles.attach(&mut missing, &absent, &m, &mut counts).unwrap();
+    profiles
+        .attach(&mut missing, &absent, &m, &mut counts)
+        .unwrap();
     assert!(missing.get("iesProfile").is_none());
     assert_eq!(counts["light-profile-unreadable"], 1);
     let mut sun = json!({"kind":"directional"});

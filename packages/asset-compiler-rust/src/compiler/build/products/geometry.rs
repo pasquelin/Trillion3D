@@ -77,10 +77,11 @@ fn stage_mesh_products(
 fn stage_lighting(
     inputs: &Products<'_>,
     progress: &(impl Fn(Value) + Sync),
-) -> Result<(Product, Option<Product>, Option<Value>)> {
+) -> Result<(Product, Vec<Product>, Option<Product>, Option<Value>)> {
     let Products {
         scene,
         directory,
+        image_root,
         scene_nodes,
         hidden,
         texture_previews,
@@ -94,10 +95,11 @@ fn stage_lighting(
         placement,
         ..
     } = *scene;
-    let (lights, declared) = stage_scene_lights(
+    let (lights, profile_files, declared) = stage_scene_lights(
         (g, &placement.world),
         (scene_nodes, hidden),
         directory,
+        image_root,
         progress,
     )?;
     let lightmap = LightmapInputs {
@@ -113,7 +115,7 @@ fn stage_lighting(
         cancelled: &o.cancelled,
     };
     let (file, section) = stage_volumetric_lightmap(lightmap, directory, progress)?.unzip();
-    Ok((lights, file, section))
+    Ok((lights, profile_files, file, section))
 }
 
 /// What the source meshes' geometry gives the manifest: the voxels, the distance fields
@@ -124,6 +126,8 @@ pub(super) struct Geometry {
     pub distance: Vec<Placed>,
     pub cards: Vec<PlacedCards>,
     pub lights: Product,
+    /// The IES profiles the lights name, one product for each distinct file.
+    pub profile_files: Vec<Product>,
     pub lightmap_file: Option<Product>,
     pub volumetric_lightmap: Option<Value>,
 }
@@ -134,13 +138,15 @@ pub(super) fn stage_geometry(
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Geometry> {
     let ((voxel_file, voxels), distance, cards) = stage_mesh_products(inputs, progress)?;
-    let (lights, lightmap_file, volumetric_lightmap) = stage_lighting(inputs, progress)?;
+    let (lights, profile_files, lightmap_file, volumetric_lightmap) =
+        stage_lighting(inputs, progress)?;
     Ok(Geometry {
         voxel_file,
         voxels,
         distance,
         cards,
         lights,
+        profile_files,
         lightmap_file,
         volumetric_lightmap,
     })

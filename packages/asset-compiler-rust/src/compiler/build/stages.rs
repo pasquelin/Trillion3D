@@ -171,7 +171,7 @@ pub(super) fn finish_compile(
         world: &written.placement.world,
         scene_nodes: &job.picked.scene_nodes,
         hidden: &job.picked.hidden,
-        ending_point: job.o.hair_strands()?.ending_point(),
+        settings: job.o.hair_strands()?,
         cancelled: &job.o.cancelled,
     };
     // The groom is built beside the products over the geometry, on the job's workers.

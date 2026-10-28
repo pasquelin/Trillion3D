@@ -1,6 +1,7 @@
 //! A glTF light that names a profile: `extras.iesProfile`, the path of an IES file relative to the
 //! scene, beside the image files. The light entry of `lights.json` then carries the product's name
-//! (`iesProfile`), the frame the profile is read in (`direction` and `emitterAxis`: the node's -Z and
+//! (`iesProfile`), the profile's brightness in candelas (`iesBrightness`: its greatest candela, or 1000
+//! for a file with none above 0), the frame the profile is read in (`direction` and `emitterAxis`: the node's -Z and
 //! +Y in the world) and the two brightness switches the light's `extras` name: `useIesBrightness`
 //! (a boolean) and `iesBrightnessScale` (a number of at least 0).
 use super::format::{encode, file_name};
@@ -26,12 +27,19 @@ fn count(counts: &mut Tally, reason: &'static str) {
     *counts.entry(reason).or_insert(0) += 1;
 }
 
+/// A profile once made: the name of its product and its brightness, in candelas.
+#[derive(Clone)]
+struct Made {
+    name: String,
+    brightness: f32,
+}
+
 /// The profiles a job's lights name: where their files are, where the products go, and what has
 /// been made so far (each profile once, however many lights name it).
 pub(crate) struct Profiles<'a> {
     root: &'a Path,
     directory: &'a Path,
-    made: BTreeMap<String, Option<String>>,
+    made: BTreeMap<String, Option<Made>>,
     products: Vec<Product>,
 }
 
@@ -52,28 +60,31 @@ impl<'a> Profiles<'a> {
         self.products
     }
 
-    /// The name of the product of the IES file at `uri`, made on the first ask; none, the reason
-    /// counted, when the file cannot be had.
-    fn product_of(&mut self, uri: &str, counts: &mut Tally) -> Result<Option<String>> {
+    /// The product of the IES file at `uri`, made on the first ask; none, the reason counted, when
+    /// the file cannot be had.
+    fn product_of(&mut self, uri: &str, counts: &mut Tally) -> Result<Option<Made>> {
         if let Some(name) = self.made.get(uri) {
             return Ok(name.clone());
         }
-        let name = match self.read(uri) {
+        let made = match self.read(uri) {
             Ok(photometry) => {
                 let bytes = encode(&photometry);
                 let name = file_name(&bytes);
                 if !self.products.iter().any(|made| made.name == name) {
                     self.products.push(product(self.directory, &name, &bytes)?);
                 }
-                Some(name)
+                Some(Made {
+                    name,
+                    brightness: photometry.brightness(),
+                })
             }
             Err(reason) => {
                 count(counts, reason);
                 None
             }
         };
-        self.made.insert(uri.to_string(), name.clone());
-        Ok(name)
+        self.made.insert(uri.to_string(), made.clone());
+        Ok(made)
     }
 
     fn read(&self, uri: &str) -> std::result::Result<Photometry, &'static str> {
@@ -96,7 +107,10 @@ impl<'a> Profiles<'a> {
         let Some(uri) = light.pointer("/extras/iesProfile").and_then(Value::as_str) else {
             return Ok(());
         };
-        if !matches!(entry.get("kind").and_then(Value::as_str), Some("point" | "spot")) {
+        if !matches!(
+            entry.get("kind").and_then(Value::as_str),
+            Some("point" | "spot")
+        ) {
             return Ok(());
         }
         // The contract refuses an axis parallel to the direction (a sheared matrix could give one).
@@ -108,10 +122,11 @@ impl<'a> Profiles<'a> {
             count(counts, DEGENERATE_FRAME);
             return Ok(());
         };
-        let Some(name) = self.product_of(uri, counts)? else {
+        let Some(made) = self.product_of(uri, counts)? else {
             return Ok(());
         };
-        entry["iesProfile"] = json!(name);
+        entry["iesProfile"] = json!(made.name);
+        entry["iesBrightness"] = json!(made.brightness);
         entry["direction"] = json!(direction);
         entry["emitterAxis"] = json!(up);
         brightness(entry, light, counts);
@@ -130,7 +145,10 @@ fn brightness(entry: &mut Value, light: &Value, counts: &mut Tally) {
         }
     }
     if let Some(named) = light.pointer("/extras/iesBrightnessScale") {
-        match named.as_f64().filter(|scale| scale.is_finite() && *scale >= 0.0) {
+        match named
+            .as_f64()
+            .filter(|scale| scale.is_finite() && *scale >= 0.0)
+        {
             Some(scale) => entry["iesBrightnessScale"] = json!(scale),
             None => count(counts, SCALE_INVALID),
         }

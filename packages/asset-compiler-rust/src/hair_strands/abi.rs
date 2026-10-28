@@ -2,9 +2,11 @@
 //!   packages/sdk-core/src/contracts/hairStrandsAbi.ts
 //! Edit the source, then run `pnpm run generate:shared-rules`.
 
-/// The job field and flag of the ending point, the file, the magic, the version, the records and the rank of each of their words, the tables' alignment, the flags, the attributes and the limits of `hairStrands.bin`.
+/// The job fields and flags of the ending point and of the groups' settings, the file, the magic, the version, the records and the rank of each of their words, the tables' alignment, the flags, the attributes and the limits of `hairStrands.bin`.
 pub const HAIR_STRANDS_ENDING_POINT_FIELD: &str = "hairEndingPoint";
 pub const HAIR_STRANDS_ENDING_POINT_OPTION: &str = "--hair-ending-point=";
+pub const HAIR_STRANDS_GROUPS_FIELD: &str = "hairGroups";
+pub const HAIR_STRANDS_GROUPS_OPTION: &str = "--hair-groups=";
 pub const HAIR_STRANDS_FILE: &str = "hairStrands.bin";
 pub const HAIR_STRANDS_MAGIC: u32 = 1397240660;
 pub const HAIR_STRANDS_VERSION: u32 = 1;
@@ -36,6 +38,10 @@ pub const HAIR_STRANDS_FLAG_INVALID_POINT: u32 = 4;
 pub const HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT: u32 = 8;
 pub const HAIR_STRANDS_FLAG_SHUFFLED_CURVE: u32 = 16;
 pub const HAIR_STRANDS_FLAG_ROOT_TILE: u32 = 256;
+pub const HAIR_STRANDS_FLAG_STABLE_SET: u32 = 512;
+pub const HAIR_STRANDS_FLAG_STABLE: u32 = 1024;
+pub const HAIR_STRANDS_FLAG_SCATTER_SET: u32 = 2048;
+pub const HAIR_STRANDS_FLAG_SCATTER: u32 = 4096;
 pub const HAIR_STRANDS_ATTRIBUTE_ROOT_UV: u32 = 1;
 pub const HAIR_STRANDS_ATTRIBUTE_COLOR: u32 = 16;
 pub const HAIR_STRANDS_ATTRIBUTE_ROUGHNESS: u32 = 32;

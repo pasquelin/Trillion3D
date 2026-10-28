@@ -14,6 +14,7 @@ pub mod proxy;
 pub(crate) mod ray_tracing;
 pub mod shared_math;
 mod simplify;
+pub(crate) mod sparse_volume;
 pub mod texture;
 pub mod volumetric_lightmap;
 mod voxel;
@@ -109,6 +110,7 @@ pub fn implementation_hash() -> &'static str {
 pub mod compiler;
 pub(crate) mod geometry_page;
 pub(crate) mod hlod;
+pub(crate) mod light_profile;
 pub mod support;
 #[cfg(test)]
 mod tests;

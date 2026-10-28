@@ -11,7 +11,7 @@
 //! Identity is therefore built in two parts: what the source declares, stripped of
 //! its timings and run provenance, and the fingerprint of the resources compilation
 //! actually consumes — the geometry binary and each image file the scene cites.
-use crate::hair_strands::abi::HAIR_STRANDS_ENDING_POINT_FIELD;
+use crate::hair_strands::abi::{HAIR_STRANDS_ENDING_POINT_FIELD, HAIR_STRANDS_GROUPS_FIELD};
 use crate::volumetric_lightmap::bake::abi::LIGHTMAP_BAKE_FIELD;
 use crate::*;
 
@@ -82,6 +82,16 @@ pub(crate) fn cache_key(
         "hlod":o.hlod.as_ref().map_or(Value::Null, |hlod| hlod.named.clone()),
         "errorModel":DAG_ERROR_MODEL,
     });
+    // The IES profiles the scene's lights name, only when some do: a job whose lights name none keeps its key.
+    let profiles = crate::light_profile::linked_profiles(&loaded.g, image_root);
+    if !profiles.is_empty() {
+        material["lightProfiles"] = json!(profiles);
+    }
+    // The `.vdb` files the scene's nodes cite, only when some do: a scene citing none keeps its key.
+    let volumes = crate::sparse_volume::linked_volumes(&loaded.g, image_root);
+    if !volumes.is_empty() {
+        material["sparseVolumes"] = json!(volumes);
+    }
     // The material settings, only when the job names some: a job naming none keeps its key.
     if let Some(named) = o
         .materials
@@ -136,8 +146,13 @@ pub(crate) fn cache_key(
         material[LIGHTMAP_BAKE_FIELD] = named.clone();
     }
     // The hair strands' ending point, only when the job turns it off: a job that gives it keeps its key.
-    if let Some(named) = o.hair_strands.as_ref().ok().and_then(HairOptions::identity) {
+    let hair = o.hair_strands.as_ref().ok();
+    if let Some(named) = hair.and_then(HairOptions::identity) {
         material[HAIR_STRANDS_ENDING_POINT_FIELD] = named;
+    }
+    // The settings of the groom's groups, only when the job names some.
+    if let Some(named) = hair.and_then(HairOptions::groups_identity) {
+        material[HAIR_STRANDS_GROUPS_FIELD] = named;
     }
     keyed(material, crate::physics_cook::JOLT_COMMIT)
 }

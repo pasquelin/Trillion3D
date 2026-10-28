@@ -10,7 +10,7 @@ use super::encode::{report, write};
 use crate::compiler::cache::storage::Product;
 use crate::compiler::source::node_transform::Mat4;
 use crate::support::perf::{Phase, Timer};
-use crate::Result;
+use crate::{HairOptions, Result};
 use serde_json::{json, Value};
 use std::borrow::Cow;
 use std::collections::BTreeSet;
@@ -20,13 +20,14 @@ use trillion3d_math::matrix::IDENTITY;
 
 /// What the stage reads: the grooms taken out of the scene, the world matrix of every node, the nodes
 /// the rendered scene reaches and those a hidden node hides (`Picked`), whether a curve is given a
-/// control point more at its end (the job's `hairEndingPoint`), and the job's cancellation token.
+/// control point more at its end (the job's `hairEndingPoint`) and the settings the job gives the groups
+/// (`hairGroups`), and the job's cancellation token.
 pub(crate) struct HairInputs<'a> {
     pub carried: &'a [Carried],
     pub world: &'a [Mat4],
     pub scene_nodes: &'a BTreeSet<usize>,
     pub hidden: &'a BTreeSet<usize>,
-    pub ending_point: bool,
+    pub settings: &'a HairOptions,
     pub cancelled: &'a AtomicBool,
 }
 
@@ -69,7 +70,15 @@ pub(crate) fn write_hair_strands(
         return Ok(None);
     }
     let _t = Timer::new(Phase::HairStrands);
-    let built = groups(&merged(inputs), inputs.ending_point, inputs.cancelled)?;
+    let mut built = groups(
+        &merged(inputs),
+        inputs.settings.ending_point(),
+        inputs.cancelled,
+    )?;
+    // The settings the job names for a group travel in its flags.
+    for group in &mut built {
+        group.flags |= inputs.settings.group_flags(group.id);
+    }
     if built.is_empty() {
         return Ok(None);
     }

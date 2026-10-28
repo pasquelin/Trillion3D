@@ -1,4 +1,7 @@
-use crate::hair_strands::abi::{HAIR_STRANDS_ENDING_POINT_FIELD, HAIR_STRANDS_ENDING_POINT_OPTION};
+use crate::hair_strands::abi::{
+    HAIR_STRANDS_ENDING_POINT_FIELD, HAIR_STRANDS_ENDING_POINT_OPTION, HAIR_STRANDS_GROUPS_FIELD,
+    HAIR_STRANDS_GROUPS_OPTION,
+};
 use crate::volumetric_lightmap::bake::abi::{LIGHTMAP_BAKE_FIELD, LIGHTMAP_BAKE_OPTION};
 use crate::*;
 pub(crate) use serde_json::Map;
@@ -74,8 +77,8 @@ pub const ID_FIELD: &str = "id";
 /// command line: the HLOD, the scene's temporal anti-aliasing, the responsive objects, the
 /// settings by material name, the voxelized objects, the partition's scheme and main grid or its
 /// several grids, the mesh build settings, each object's settings, the volumetric lightmap's
-/// bake and the hair strands' ending point.
-const JSON_OPTIONS: [(&str, &str); 12] = [
+/// bake and the hair strands' ending point and groups.
+const JSON_OPTIONS: [(&str, &str); 13] = [
     (HLOD_OPTION, HLOD_FIELD),
     (TEMPORAL_AA_OPTION, TEMPORAL_AA_FIELD),
     (RESPONSIVE_OPTION, RESPONSIVE_FIELD),
@@ -91,6 +94,7 @@ const JSON_OPTIONS: [(&str, &str); 12] = [
         HAIR_STRANDS_ENDING_POINT_OPTION,
         HAIR_STRANDS_ENDING_POINT_FIELD,
     ),
+    (HAIR_STRANDS_GROUPS_OPTION, HAIR_STRANDS_GROUPS_FIELD),
 ];
 
 /// Whether `key` is a field a job names as JSON.
@@ -156,7 +160,10 @@ pub fn job_options(
         mesh_build: MeshBuildOptions::read(job.get(MESH_BUILD_FIELD)),
         object_settings: ObjectSettings::read(job.get(OBJECT_SETTINGS_FIELD)),
         lightmap_bake: LightmapBakeOptions::read(job.get(LIGHTMAP_BAKE_FIELD)),
-        hair_strands: HairOptions::read(job.get(HAIR_STRANDS_ENDING_POINT_FIELD)),
+        hair_strands: HairOptions::read(
+            job.get(HAIR_STRANDS_ENDING_POINT_FIELD),
+            job.get(HAIR_STRANDS_GROUPS_FIELD),
+        ),
         cancelled,
     })
 }

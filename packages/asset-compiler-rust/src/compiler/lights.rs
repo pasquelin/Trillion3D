@@ -6,13 +6,15 @@
 //! and lux, and the engine takes them as the same numbers, with no luminous efficacy
 //! between them: the host sets exposure, never import. Detail in `docs/SDK.md`.
 use crate::compiler::source::node_transform::Mat4;
+use crate::light_profile::Profiles;
 use crate::*;
 
 mod emitter;
 mod fields;
 mod naming;
 use emitter::attach;
-use fields::{attach_shadow_distance, axis, colour_of, cone_of, range_of};
+use fields::{attach_shadow_distance, colour_of, cone_of, range_of};
+pub(crate) use fields::{axis, up_axis};
 use naming::unique_id;
 
 /// Range, in metres, of a punctual light that declares none: glTF gives it no end. A finite number
@@ -100,7 +102,7 @@ fn convert(light: &Value, m: &Mat4, id: String) -> std::result::Result<Value, &'
 /// `rejected` counts lights left aside, `counts` what was filled or omitted on a
 /// kept light: the report says where each written value comes from without taking
 /// anything from the reader.
-type Tally = BTreeMap<&'static str, usize>;
+pub(crate) type Tally = BTreeMap<&'static str, usize>;
 fn report(lights: Vec<Value>, rejected: Tally, counts: Tally) -> Value {
     json!({"version":SCENE_LIGHTS_VERSION,"sceneLightVersion":SCENE_LIGHT_CONTRACT,"count":lights.len(),"lights":lights,"rejected":rejected,"counts":counts})
 }
@@ -112,14 +114,18 @@ type Nodes<'a> = (&'a BTreeSet<usize>, &'a BTreeSet<usize>);
 /// light whose type, matrix or intensity fails the contract is counted in
 /// `rejected` and left aside: a compilation never dies on a light, it says so. `world` is every
 /// node's transform, computed once for the job (`proxy::placement::Placement`).
-fn scene_lights((g, world): (&Value, &[Mat4]), (reached, hidden): Nodes<'_>) -> Value {
+fn scene_lights(
+    (g, world): (&Value, &[Mat4]),
+    (reached, hidden): Nodes<'_>,
+    profiles: &mut Profiles<'_>,
+) -> Result<Value> {
     let (mut rejected, mut counts) = (Tally::new(), Tally::new());
     let (Some(nodes), Some(declared)) = (
         g.get("nodes").and_then(Value::as_array),
         g.pointer("/extensions/KHR_lights_punctual/lights")
             .and_then(Value::as_array),
     ) else {
-        return report(Vec::new(), rejected, counts);
+        return Ok(report(Vec::new(), rejected, counts));
     };
     let mut seen = BTreeSet::new();
     let mut lights = Vec::new();
@@ -142,12 +148,13 @@ fn scene_lights((g, world): (&Value, &[Mat4]), (reached, hidden): Nodes<'_>) -> 
             Ok(mut entry) => {
                 attach_shadow_distance(&mut entry, light, &mut counts);
                 attach(&mut entry, light, &mut counts);
+                profiles.attach(&mut entry, light, &world[index], &mut counts)?;
                 lights.push(entry);
             }
             Err(why) => *rejected.entry(why).or_insert(0) += 1,
         }
     }
-    report(lights, rejected, counts)
+    Ok(report(lights, rejected, counts))
 }
 /// Compilation stage: lights come out as a cache product under their name, outside
 /// the manifest, and as the document the bake of the volumetric lightmap reads. Its version
@@ -156,12 +163,14 @@ pub(crate) fn stage_scene_lights(
     scene: (&Value, &[Mat4]),
     scene_nodes: Nodes<'_>,
     directory: &Path,
+    image_root: &Path,
     progress: impl Fn(Value),
-) -> Result<(Product, Value)> {
-    let lights = scene_lights(scene, scene_nodes);
+) -> Result<(Product, Vec<Product>, Value)> {
+    let mut profiles = Profiles::new(image_root, directory);
+    let lights = scene_lights(scene, scene_nodes, &mut profiles)?;
     let written = product(directory, SCENE_LIGHTS_FILE, &serde_json::to_vec(&lights)?)?;
     progress(lights_event(&lights));
-    Ok((written, lights))
+    Ok((written, profiles.into_products(), lights))
 }
 
 /// The `lights` event: how many lights were kept, and the reasons the others were left out.

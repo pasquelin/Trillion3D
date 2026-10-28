@@ -38,7 +38,7 @@ impl Photometry {
     /// The profile's brightness: the greatest candela, or `DEFAULT_BRIGHTNESS` when there is none
     /// above 0.
     pub(crate) fn brightness(&self) -> f32 {
-        if self.max_candela <= 0.0 {
+        if !(self.max_candela > 0.0 && self.max_candela.is_finite()) {
             DEFAULT_BRIGHTNESS
         } else {
             self.max_candela

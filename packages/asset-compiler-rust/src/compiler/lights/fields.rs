@@ -19,9 +19,13 @@ pub(super) fn colour_of(light: &Value) -> [f64; 3] {
 }
 /// Emission axis of a glTF light: the node's −Z in world space, normalized. This is the direction
 /// of light propagation, exactly what the contract expects from a spot light and the sun.
-pub(super) fn axis(m: &Mat4) -> Option<[f64; 3]> {
+pub(crate) fn axis(m: &Mat4) -> Option<[f64; 3]> {
     let raw = [-m[8], -m[9], -m[10]];
     normalize_where(raw, |norm| norm.is_finite() && norm > 1e-9)
+}
+/// The node's +Y axis in world space, normalised: the up a light profile's horizontal angles are laid out from.
+pub(crate) fn up_axis(m: &Mat4) -> Option<[f64; 3]> {
+    normalize_where([m[4], m[5], m[6]], |norm| norm.is_finite() && norm > 1e-9)
 }
 /// Declared range in metres, otherwise `UNBOUNDED_RANGE`: a punctual light that names none reaches
 /// everywhere, as glTF defines it. A declared range is kept as written, with no ceiling.

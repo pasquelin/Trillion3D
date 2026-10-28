@@ -27,6 +27,7 @@ pub(super) fn finish_job(
         mesh_cards,
         ray_tracing,
         volumetric_lightmap,
+        sparse_volumes,
         products,
         paged,
         mut world_report,
@@ -88,6 +89,10 @@ pub(super) fn finish_job(
     // Named only by a job that baked a volumetric lightmap.
     if let Some(lightmap) = volumetric_lightmap {
         result["volumetricLightmap"] = lightmap;
+    }
+    // Named only by a scene whose nodes cite a `.vdb` volume.
+    if let Some(volumes) = sparse_volumes {
+        result["sparseVolumes"] = volumes;
     }
     // Named only by a scene whose objects play an item of the animation banks.
     if let Some(banks) = animation_banks {

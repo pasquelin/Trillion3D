@@ -136,12 +136,13 @@ fn the_groom_of_the_scene_is_the_objects_it_shows() {
     world[1] = translation([5.0, 0.0, 0.0]);
     let (scene, hidden) = (BTreeSet::from([0, 1, 2]), BTreeSet::from([2]));
     let cancelled = AtomicBool::new(false);
+    let settings = crate::HairOptions::default();
     let inputs = |carried| HairInputs {
         carried,
         world: &world,
         scene_nodes: &scene,
         hidden: &hidden,
-        ending_point: true,
+        settings: &settings,
         cancelled: &cancelled,
     };
     let both = merged(&inputs(&carried));

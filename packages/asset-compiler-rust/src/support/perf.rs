@@ -62,6 +62,7 @@ phases! {
  mesh_cards=>MeshCards=>"meshCardsMs",
  hair_strands=>HairStrands=>"hairStrandsMs",
  volumetric_lightmap=>VolumetricLightmap=>"volumetricLightmapMs",
+ sparse_volumes=>SparseVolumes=>"sparseVolumesMs",
  job=>Job=>"jobMs",
 }
 

@@ -32,6 +32,9 @@ pub(super) struct Staged {
     /// The manifest's `volumetricLightmap` section, its file among the products; none for a job
     /// that asks for no bake (`lightmapBake`).
     pub volumetric_lightmap: Option<Value>,
+    /// The manifest's `sparseVolumes` section, its file among the products; none for a scene whose
+    /// nodes cite no volume.
+    pub sparse_volumes: Option<Value>,
     /// Every product on disk in the folder, as its writer recorded it.
     pub products: Vec<Product>,
     pub paged: MeshPages,
@@ -197,6 +200,17 @@ pub(super) fn stage_products(
         Some(scene) => product(directory, "source.gltf", &serde_json::to_vec(&scene)?)?,
         None => source_gltf,
     };
+    let (volumes_file, sparse_volumes) = crate::sparse_volume::write_sparse_volumes(
+        &crate::sparse_volume::SparseVolumeInputs {
+            g: scene.g,
+            image_root: inputs.image_root,
+            scene_nodes: inputs.scene_nodes,
+            hidden: inputs.hidden,
+        },
+        directory,
+        progress,
+    )?
+    .unzip();
     let (physics_file, physics) = stage_physics(scene, primitives, collisions, directory)?;
     let (banks_file, animation_banks) = tables.banks.unzip();
     let first = [tables.file, source_bin, source_gltf, geometry.lights];
@@ -206,6 +220,8 @@ pub(super) fn stage_products(
     products.extend(cards_file);
     products.extend(tracing_file);
     products.extend(geometry.lightmap_file);
+    products.extend(volumes_file);
+    products.extend(geometry.profile_files);
     products.extend(banks_file);
     products.extend(world.products);
     Ok(Staged {
@@ -214,6 +230,7 @@ pub(super) fn stage_products(
         mesh_cards,
         ray_tracing,
         volumetric_lightmap: geometry.volumetric_lightmap,
+        sparse_volumes,
         products,
         paged,
         world_report: world.report,
