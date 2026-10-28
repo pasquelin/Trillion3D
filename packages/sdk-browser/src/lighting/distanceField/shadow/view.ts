@@ -107,9 +107,10 @@ function makeView(device: GPUDevice, shape: DfshShape, bytes: number): DfshView 
     mask: buffer('mask', STORAGE),
     culledObjects: buffer('culledObjects', STORAGE),
     objectArgs: buffer('objectArgs', STORAGE | GPUBufferUsage.INDIRECT),
-    tileCounts: buffer('tileCounts', STORAGE),
-    tileOffsets: buffer('tileOffsets', STORAGE),
-    tileData: buffer('tileData', STORAGE),
+    // The lists are copied out to the cards' direct light (`surfaceCache/lighting/meshShadow.ts`).
+    tileCounts: buffer('tileCounts', STORAGE | GPUBufferUsage.COPY_SRC),
+    tileOffsets: buffer('tileOffsets', STORAGE | GPUBufferUsage.COPY_SRC),
+    tileData: buffer('tileData', STORAGE | GPUBufferUsage.COPY_SRC),
     nextOffset: buffer('nextOffset', STORAGE),
     standIn: texture(
       'stand-in',

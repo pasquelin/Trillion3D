@@ -9,6 +9,11 @@ import {
   CONTEXT_AT,
   CONTEXT_HEADER_WORDS,
 } from '../../../packages/sdk-browser/src/lighting/surfaceCache/lighting/layout.ts'
+import {
+  WORD_LIGHT_FORMAT,
+  lightAtlasScalar,
+  type LightAtlasFormat,
+} from '../../../packages/sdk-browser/src/gpu/core/lightAtlasFormat.ts'
 import { autoKernel, computeReadback } from '../../kit/device/computeReadback.ts'
 import { wordReader } from './cardShadowRead.ts'
 
@@ -16,13 +21,13 @@ import { wordReader } from './cardShadowRead.ts'
  *  texels, those whose depth word is a surface's (under `INVALID_DEPTH_WORD`, as `surfaceTexel` reads it), those
  *  whose direct light is not zero, the least depth word and the greatest raw word. The atlas's layers are textures
  *  the proof reads by load, as the lighting does. */
-function rectCounter(device: GPUDevice) {
+function rectCounter(device: GPUDevice, light: LightAtlasFormat) {
   const pipeline = device.createComputePipeline(
     autoKernel(
       device.createShaderModule({
         code: `@group(0) @binding(0) var<storage,read> rects:array<vec4u>;
 @group(0) @binding(1) var depth:texture_2d<u32>;
-@group(0) @binding(2) var direct:texture_2d<u32>;
+@group(0) @binding(2) var direct:texture_2d<${lightAtlasScalar(light)}>;
 @group(0) @binding(3) var<storage,read_write> counts:array<vec4u>;
 @compute @workgroup_size(64) fn main(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let i=id.x+id.y*n.x*64u;
@@ -38,7 +43,7 @@ function rectCounter(device: GPUDevice) {
    if((word&0xffffu)<${INVALID_DEPTH_WORD}u){valid++;}
    low=min(low,word&0xffffu);
    raw=max(raw,word);
-   if(textureLoad(direct,vec2i(i32(x),i32(y)),0).x!=0u){lit++;}
+   if(${light === WORD_LIGHT_FORMAT ? 'textureLoad(direct,vec2i(i32(x),i32(y)),0).x!=0u' : 'any(textureLoad(direct,vec2i(i32(x),i32(y)),0).xyz!=vec3f(0.0))'}){lit++;}
   }
  }
  counts[i]=vec4u((r.z-r.x)*(r.w-r.y),valid,lit,low);
@@ -106,7 +111,11 @@ export async function readAtlas(rt: WebgpuPagesRuntime, device: GPUDevice) {
   for (let y = 0; y < atlases.side; y += 64)
     for (let x = 0; x < atlases.side; x += 64)
       rects.push([x, y, Math.min(x + 64, atlases.side), Math.min(y + 64, atlases.side)])
-  const counted = await rectCounter(device)(rects, atlases.physical.depth, atlases.physical.direct)
+  const counted = await rectCounter(device, cache.light as LightAtlasFormat)(
+    rects,
+    atlases.physical.depth,
+    atlases.physical.direct,
+  )
 
   // The pages of the tiles the last image listed to be lit: the list follows the context's header.
   const context = frame.lighting?.resources?.context
