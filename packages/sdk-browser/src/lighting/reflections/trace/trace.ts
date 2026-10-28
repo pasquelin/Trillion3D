@@ -3,7 +3,7 @@ import { directLightWgsl } from '../../direct/lightWgsl.ts'
 import { LOBES_DECODE_WGSL, LOBES_LIGHTING_WGSL } from '../../direct/lobesWgsl.ts'
 import { REFLECTION_SIDE } from '../constants.ts'
 import { listWgsl } from '../../../gpu/dispatch/list.ts'
-import { makeFinite3 } from '../../../../../math/src/wgsl/integer.ts'
+import { bitMask, bitWord, lowBits, makeFinite3 } from '../../../../../math/src/wgsl/integer.ts'
 import {
   REFLECTION_LAYER_WGSL,
   REFLECTION_TILES_WGSL,
@@ -22,9 +22,11 @@ import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../viewLayout.ts'
 import { REFLECTION_LOBE_RAYS_WGSL } from '../weight.ts'
 import { REFLECTION_CLASSIFY_WGSL } from '../tiles.ts'
 import { reflectionStagesWgsl } from '../wgsl.ts'
-import { REFLECTION_SCENE_TRACE_WGSL } from '../sceneTrace.ts'
-import { REFLECTION_SCENE_TRACE_HARDWARE_WGSL } from '../sceneTraceHardware.ts'
+import { reflectionSceneTraceWgsl } from '../sceneTrace.ts'
+import { reflectionSceneTraceHardwareWgsl } from '../sceneTraceHardware.ts'
+import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { isFirstPerson } from '../../../materials/surface/surfaceModel.ts'
+import type { MarchLanes } from '../../../visibility/hiz/gpu/screenMarchLanes.ts'
 
 /** The counting of the rays (`reflectionStatistics`): the two stages' tallies, which the kernels hold only where the project asks. */
 const COUNTING = `/** The screen stage's tally of a ray (\`reflectionCensus\`): a hit of the screen, which answers it whole, or a miss left to the
@@ -46,7 +48,8 @@ const traceDeclarations = (
   statistics: boolean,
 ) => `@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${B.traceOut}) var traceOut:texture_storage_2d<${REFLECTION_GRID_FORMAT},write>;
-var<workgroup> pendingCount:atomic<u32>;
+/** The lanes of the screen stage's workgroup that missed, a bit each along the Z-order curve of the group's texels. */
+var<workgroup> missedBits:array<atomic<u32>,${(REFLECTION_SIDE * REFLECTION_SIDE) / 32}>;
 var<workgroup> pendingBase:u32;
 /** The two numbers a texel's ray is drawn from: the blue noise at the grid texel \`g\` and the image's turn. */
 fn reflectionSampleAt(g:vec2u)->vec2f{return blueNoiseVec2(g,reflectionView.temporal.x);}
@@ -103,28 +106,55 @@ fn generateRays(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) group
  if(all(id<reflectionGridSize())){generateTexel(id,REFLECTION_LAYER);}
 }`
 
-/** The screen stage: the kernel `traceScreen` and the texel it casts. */
-const traceScreenWgsl = (
-  statistics: boolean,
-) => `/** A ray the screen stage missed: its pending entry — its texel and the distance its miss reached — and whether there is one. */
+/** The screen stage's begin: what a thread keeps of its texel and the cast of its march. */
+const SCREEN_BEGIN_WGSL = `/** A ray the screen stage missed: its pending entry — its texel and the distance its miss reached — and whether there is one. */
 struct ReflectionMissed{entry:vec2u,missed:bool,}
-/** The screen stage of grid texel \`g\` of the surface \`layer\`, cast from the pixel of its block the ray generation picked
- *  (\`reflectionPickedPixel\`) along the ray it stored (\`reflectionStoredRay\`): marched on the screen, its fresh texel written where the screen hit;
- *  otherwise the ray missed, returned as its pending entry. A texel whose picked pixel casts no ray (its depth negative) writes nothing: no kernel
- *  reads a texel that traces none. */
-fn traceScreenTexel(g:vec2u,layer:u32)->ReflectionMissed{
+/** What a thread keeps of the screen stage of its grid texel between the stage's begin and its end: whether the texel casts a ray, the pixel that casts it, the
+ *  ray the ray generation stored for it and the cast of its screen march (\`reflectionScreenBegin\`). */
+struct ReflectionScreenTexel{valid:bool,own:ReflectingPixel,stored:ReflectionStoredRay,aimed:ReflectionScreenCast,}
+fn reflectionScreenTexelNone()->ReflectionScreenTexel{
+ return ReflectionScreenTexel(false,ReflectingPixel(),ReflectionStoredRay(),reflectionScreenNone());
+}
+/** The begin of the screen stage of grid texel \`g\` of the surface \`layer\`, cast from the pixel of its block the ray generation picked
+ *  (\`reflectionPickedPixel\`) along the ray it stored (\`reflectionStoredRay\`). A texel whose picked pixel casts no ray (its depth negative) is not \`valid\`: it writes
+ *  nothing, no kernel reads a texel that traces none. */
+fn traceScreenBegin(g:vec2u,layer:u32)->ReflectionScreenTexel{
  let texel=vec2i(g);
+ var begun=reflectionScreenTexelNone();
  // The depth its writer reads as storage, the one binding of it this kernel has.
- if(!reflectionRayTraces(bitcast<f32>(textureLoad(surfaceRays,texel,REFLECTION_RAY_DEPTH).r))){return ReflectionMissed(vec2u(0u),false);}
+ if(!reflectionRayTraces(bitcast<f32>(textureLoad(surfaceRays,texel,REFLECTION_RAY_DEPTH).r))){return begun;}
  let coord=vec2i(reflectionPickedPixel(g));
- let own=reflectingPixelAt(layer,coord,surfaceFlagsAt(coord));
- let b=reflectionScreenStage(own.P,own.topN,own.V,reflectionStoredRay(texel).ray,g);
+ begun.valid=true;
+ begun.own=reflectingPixelAt(layer,coord,surfaceFlagsAt(coord));
+ begun.stored=reflectionStoredRay(texel);
+ begun.aimed=reflectionScreenBegin(begun.own.P,begun.own.topN,begun.stored.ray);
+ return begun;
+}`
+
+/** The screen stage's end: the fresh texel written where the screen hit, the ray returned as pending where it missed. */
+const screenEndWgsl = (
+  statistics: boolean,
+) => `/** The end of the screen stage of grid texel \`g\`, \`marched\` the march of its cast: its fresh texel written where the screen hit; otherwise the
+ *  ray missed, returned as its pending entry. */
+fn traceScreenEnd(begun:ReflectionScreenTexel,marched:ScreenHit,g:vec2u)->ReflectionMissed{
+ let b=reflectionScreenEnd(begun.own.P,begun.own.topN,begun.stored.ray,begun.aimed,marched,g);
  ${statistics ? 'countScreen(b.hit);' : ''}
  if(b.hit){
-  textureStore(traceOut,texel,freshPack(b.radiance,b.distance));
+  textureStore(traceOut,vec2i(g),freshPack(b.radiance,b.distance));
   return ReflectionMissed(vec2u(0u),false);
  }
  return ReflectionMissed(vec2u(g.x|(g.y<<16u),bitcast<u32>(b.distance)),true);
+}`
+
+/** The screen stage's kernel `traceScreen`, which lists the rays its group missed. */
+const screenKernelWgsl = (
+  statistics: boolean,
+  lanes: MarchLanes,
+) => `/** The place of the texel \`c\` of a tracing tile along the Z-order curve: the bits of its column and row interleaved, the column's lowest. */
+fn reflectionZOrder(c:vec2u)->u32{
+ var z=0u;
+ for(var b=0u;b<${Math.log2(REFLECTION_SIDE)}u;b++){z|=(((c.x>>b)&1u)<<(2u*b))|(((c.y>>b)&1u)<<(2u*b+1u));}
+ return z;
 }
 /** One thread a grid texel of a tracing tile (\`tiles.ts\`); the rays its group missed listed at once, one
  *  atomic a group on the list, the scene stage's dispatch raised to hold them. */
@@ -133,19 +163,31 @@ fn traceScreen(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups
  let t=reflectionTileOf(tile,groups);
  if(t==REFLECTION_NO_TILE){return;}
  let id=reflectionTileOrigin(t)+local.xy;
+ var begun=reflectionScreenTexelNone();
+ if(all(id<reflectionGridSize())){begun=traceScreenBegin(id,REFLECTION_LAYER);}
+${lanes === 'polyfill' ? ' screenMarchLane=lane;\n' : ''} // The march of the screen, every thread of the group taking part in it, in uniform control flow, those with no ray with none to march.
+ let marched=reflectionSeenMarch(begun.aimed.ray,begun.aimed.live);
  var missed=ReflectionMissed(vec2u(0u),false);
- if(all(id<reflectionGridSize())){missed=traceScreenTexel(id,REFLECTION_LAYER);}
- var slot=0u;
- if(missed.missed){slot=atomicAdd(&pendingCount,1u);}
- // The barrier also orders the group's adds to \`pendingCount\` (the tally's flush holds it).
+ if(begun.valid){missed=traceScreenEnd(begun,marched,id);}
+ // The rays the group missed take their places in the list along the Z-order of their texels, so that neighbours in the list are neighbours on the screen.
+ let z=reflectionZOrder(local.xy);
+ if(missed.missed){atomicOr(&missedBits[bitWord(z)],bitMask(z));}
+ // The barrier also orders the group's bits (the tally's flush holds it).
  ${statistics ? 'flushTally(lane);' : 'workgroupBarrier();'}
+ var slot=countOneBits(atomicLoad(&missedBits[bitWord(z)])&lowBits(z&31u));
+ for(var w=0u;w<bitWord(z);w++){slot+=countOneBits(atomicLoad(&missedBits[w]));}
  if(lane==0u){
-  let n=atomicLoad(&pendingCount);
+  var n=0u;
+  for(var w=0u;w<${(REFLECTION_SIDE * REFLECTION_SIDE) / 32}u;w++){n+=countOneBits(atomicLoad(&missedBits[w]));}
   if(n>0u){pendingBase=pendingOutAppend(n,${REFLECTION_SIDE * REFLECTION_SIDE}u);}
  }
  workgroupBarrier();
  if(missed.missed){pendingOut.entries[pendingBase+slot]=missed.entry;}
 }`
+
+/** The screen stage: the kernel `traceScreen` and the texel it casts. */
+const traceScreenWgsl = (statistics: boolean, lanes: MarchLanes) =>
+  [SCREEN_BEGIN_WGSL, screenEndWgsl(statistics), screenKernelWgsl(statistics, lanes)].join('\n')
 
 /** The scene stage: the kernel `traceScene` and the ray it marches. */
 const traceSceneWgsl = (
@@ -162,7 +204,7 @@ fn traceSceneRay(missed:vec2u){
  let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));
  // The ray the ray generation stored, read as the storage the screen stage reads it through.
  let stored=reflectionStoredRay(texel);
- let b=reflectionSceneStage(own.P,own.topN,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson);
+ let b=reflectionSceneStage(own.P,own.N,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson);
  textureStore(traceOut,texel,freshPack(${hardware ? 'makeFinite3(b.radiance)' : 'b.radiance'},b.distance));
  ${statistics ? 'countScene();' : ''}
 }
@@ -265,17 +307,29 @@ fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroup
  * (`../sceneTraceHardware.ts`), which the field's version (`../sceneTrace.ts`) stands in for until it is compiled and where the scene has none.
  * The census counts the field's march alone: this program is made without the counting (`hardwareReflectionKernels`, its storage buffers being the eight a stage may hold).
  *
+ * MINIMUM OCCUPANCY (`lanes`, `../../../visibility/hiz/gpu/screenMarchLanes.ts`): the screen stage's march gives a ray up when no more than
+ * `reflectionView.taps.z` lanes of its subgroup are still walking, counted by the subgroup's vote where the device has subgroups, else by a count in the
+ * workgroup's memory over virtual subgroups of 32 threads.
+ *
+ * THE SURFACE CACHE'S FINAL LIGHT, which a hit reads, is stored in the format the cache's atlases are (`light`, `lightAtlasFormat`): the program, the layouts
+ * and the final view the stage is bound with are all for the one.
+ *
  * CENSUS (`../censusWgsl.ts`), where the project counts (`statistics`, `reflectionStatistics`, off by default: the kernels are then
  * compiled without it, and bind no buffer for it): the two ray stages tally their rays in the workgroup's own memory —
  * the screen stage where each ray ended (a hit or a miss), the scene stage how each march through the field ended and the
  * steps it took — and add them to one buffer of counters per workgroup, which the host reads back
  * a few images late (`../census.ts`).
  */
-export const reflectionTraceShader = (statistics: boolean, hardware = false) =>
+export const reflectionTraceShader = (
+  statistics: boolean,
+  hardware = false,
+  lanes: MarchLanes = 'none',
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+) =>
   wgslProgram(
     [
       traceDeclarations(statistics),
-      ...(hardware ? [] : [generateRaysWgsl(), traceScreenWgsl(statistics)]),
+      ...(hardware ? [] : [generateRaysWgsl(), traceScreenWgsl(statistics, lanes)]),
       traceSceneWgsl(statistics, hardware),
     ].join('\n'),
     [
@@ -283,14 +337,18 @@ export const reflectionTraceShader = (statistics: boolean, hardware = false) =>
       directLightWgsl(),
       ...(hardware ? [makeFinite3] : []),
       isFirstPerson,
+      bitWord,
+      bitMask,
+      lowBits,
       LOBES_LIGHTING_WGSL,
       LOBES_DECODE_WGSL,
       REFLECTION_LAYER_WGSL,
       reflectionLightViewWgsl(REFLECTION_GROUP),
       reflectionStagesWgsl(
         REFLECTION_GROUP,
-        hardware ? REFLECTION_SCENE_TRACE_HARDWARE_WGSL : REFLECTION_SCENE_TRACE_WGSL,
+        hardware ? reflectionSceneTraceHardwareWgsl(light) : reflectionSceneTraceWgsl(light),
         hardware,
+        lanes,
       ),
       REFLECTION_LOBE_RAYS_WGSL,
       REFLECTION_SURFACES_WGSL,

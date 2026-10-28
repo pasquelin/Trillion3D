@@ -10,7 +10,7 @@
  * an array of `PER_LIGHT_MASK_LAYERS` layers at most (`VsmMask.perLight`), light `i` writing layer
  * `i % layers`, at the targets' size, the pixels a light reaches (`perLightScissor.ts`) the only ones its
  * steps touch. A frame of at most as many lights as layers keeps its masks: where the projection is held
- * (`vsmProjectionHold.ts`) and the masks stand, no light is traced again (`PerLightFrame.stale`).
+ * (`vsmProjectionHold.ts`) and the masks stand, no light is traced again (`PerLightFrame.stale`), so a still view keeps its dither.
  */
 import { vsmPerFrameSet, type VsmResources } from '../resources.ts'
 import { VSM_PROJECTION_GROUP_SIZE } from '../constants.ts'
@@ -29,7 +29,11 @@ import {
   recordOffset,
 } from './perLightRecord.ts'
 import { passGroupFor } from './projectionPass.ts'
-import type { VsmProjectionFrame, VsmProjectionSource } from './projectionPass.ts'
+import type {
+  VsmProjectionFrame,
+  VsmProjectionLight,
+  VsmProjectionSource,
+} from './projectionPass.ts'
 import { sunCount } from './projectionView.ts'
 import { pipelinesFor, tablesGroup } from './projectionPipelines.ts'
 import { vsmPerLightState, vsmProjectionReserve } from './projectionStore.ts'
@@ -82,6 +86,16 @@ interface PerLightInputs {
   ranks: ArrayLike<number>
   /** `shadowForcePerLightMaskClear`. */
   forceClear: boolean
+  /** The shadow the hair strands cast on the surfaces: a layer a light of the frame (`VsmProjectionTarget.hairShadow`); absent, the passes are the ones without it. */
+  hairShadow?: GPUTextureView
+  /** Told of each light once its projection is encoded, with its layer of the mask and the rectangle of pixels it reaches (the first column and
+   *  row, one past the last): the shadows other casters add to the layer (`capsuleLightMask`). */
+  afterMask?: (
+    encoder: GPUCommandEncoder,
+    light: VsmProjectionLight,
+    layer: GPUTextureView,
+    rect: readonly [number, number, number, number],
+  ) => void
 }
 
 /** The pass's frame: one object a session, rewritten each frame (`beginPerLightFrame`). */
@@ -145,17 +159,19 @@ class PerLightFrame implements PerLightLights {
 
   ready() {
     const { device, res } = this.inputs
-    return chainReady(perLightPipelinesOf(pipelinesFor(device, res.layout)).projection)
+    return chainReady(
+      perLightPipelinesOf(pipelinesFor(device, res.layout), !!this.inputs.hairShadow).projection,
+    )
   }
 
   encodeMask(encoder: GPUCommandEncoder, i: number) {
-    const { device, res, frame, source, mask, forceClear } = this.inputs
+    const { device, res, frame, source, mask, forceClear, hairShadow } = this.inputs
     // A frame of no more lights than layers finds each light's mask where the last frame left it.
     if (!this.stale && this.count <= mask.layers.length) return
     const state = vsmProjectionReserve(device, res)
     const held = vsmPerLightState(state)
     const p = pipelinesFor(device, res.layout)
-    const pipes = perLightPipelinesOf(p)
+    const pipes = perLightPipelinesOf(p, !!hairShadow)
     const projection = pipes.projection.get()
     if (!projection) return
     if (forceClear) {
@@ -182,7 +198,7 @@ class PerLightFrame implements PerLightLights {
         frame.hizDepth,
         source,
         mask.view,
-        { perLight: this.records },
+        { perLight: this.records, hairShadow },
       ),
       recordOffset(this.offsets, i),
     )
@@ -192,6 +208,12 @@ class PerLightFrame implements PerLightLights {
       1,
     )
     compute.end()
+    this.inputs.afterMask?.(
+      encoder,
+      frame.lights[this.ints[i * this.strideWords + PER_LIGHT_RECORD_AT.record]],
+      mask.layers[i % mask.layers.length],
+      [x0, y0, x1, y1],
+    )
     // The last light's mask encoded: the layers hold the frame's.
     if (i === this.count - 1) this.stale = false
   }

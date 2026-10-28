@@ -7,11 +7,8 @@ import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { tileBytes } from '../../materials/texture/tiles.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
-import { camera, quadScene } from '../backend/testScenes.fixture.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
+import { backendOf, camera, quadScene } from '../backend/testScenes.fixture.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 /** Record the source and flags of the real scratch upload, without pretending to rasterize pixels. */
 function open(map?: ImageBitmap) {
@@ -29,11 +26,10 @@ function open(map?: ImageBitmap) {
     texture.colorSpace = 'srgb'
     fixture.material.map = texture
   }
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
+    maxResidentPages: undefined,
     ...fixture,
     gpuDevice: gpu.device,
-    viewport: [32, 32],
     onDiagnostic: (d) => diagnostics.push(d),
   })
   const api = createExplorerMaterialApi({

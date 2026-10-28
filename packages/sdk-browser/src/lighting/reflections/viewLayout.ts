@@ -51,7 +51,7 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  *    (`z`), the disocclusion frames (`w`);
  *  - `lobe`, the roughness past which a lobe casts no ray (`x`), the fade to it (`y`), the sampling's bias (`z`), the smooth
  *    bias of every roughness (`w`, `reflectionSmoothed`, `surfacesWgsl.ts`);
- *  - `taps`, the reconstruction's samples (`x`), the bilateral filter's (`y`); `zw` unused (the period of the ray directions is the CPU's, `stageReflectionImage`);
+ *  - `taps`, the reconstruction's samples (`x`), the bilateral filter's (`y`), the lanes of a subgroup that must still be marching for the screen march to go on (`z`, `occupancy`); `w` unused (the period of the ray directions is the CPU's, `stageReflectionImage`);
  *  - `leak`, the share of the sky light's diffuse light that leaks onto a hit of the scene, by channel (`xyz`: the leaking
  *    times its tint, shared with the screen probes; `w`: the albedo a hit is taken to reflect it with);
  *  - `eyeSpread`, the angle one pixel spans at the eye (`eyeToPixelSpread`, `screenSlab.ts`), none under an orthographic projection;
@@ -193,8 +193,16 @@ export const reflectionLightViewWgsl = (group: number) =>
 export const reflectionFrontWgsl = (group: number) =>
   wgslBlock(
     `reflectionFrontWgsl(${group})`,
-    [reflectionViewWgsl(group)],
+    [reflectionFrontTracedWgsl(group)],
     `@group(${group}) @binding(${REFLECTION_FRONT_BINDING}) var reflectionFront:texture_2d<f32>;
-fn reflectionFrontTraced()->bool{return reflectionView.front.x!=0u;}
 fn reflectionFrontDepth(coord:vec2i)->f32{return textureLoad(reflectionFront,coord,0).r;}`,
+  )
+
+/** Whether this image's trace answered the front (`reflectionView.front.x`), alone: the forward programs, which read the front's depth from the traced radiance
+ *  (`frontLayer.ts`, `FRONT_TRACED_FORMAT`), bind no depth texture of it. */
+export const reflectionFrontTracedWgsl = (group: number) =>
+  wgslBlock(
+    `reflectionFrontTracedWgsl(${group})`,
+    [reflectionViewWgsl(group)],
+    `fn reflectionFrontTraced()->bool{return reflectionView.front.x!=0u;}`,
   )

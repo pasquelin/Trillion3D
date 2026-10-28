@@ -478,7 +478,7 @@ fn vsmRenderCaster(i:u32,w:u32){
  let lod=vec4f(l*(own.xyz-centre),own.w*stretch);
  let parent=vec4f(l*(cluster.parentSphere.xyz-centre),cluster.parentSphere.w*stretch);
  let errors=vsmRenderErrors(cluster.lodError,cluster.parentError,minAxisScale(l));
- candidates[slot]=VsmRenderCandidate(high,low,slot,axes[0],corners,axes[1],flags,axes[2],vsmRenderPrevShift(w,centre,high.xyz,low),vsmRenderEdge(n,record.flags,stretch),lod,parent,inst,errors,select(0.0,roots.disableSq,offsetEvaluated||placementOffset),roots.viewBits,vec4f(axisFit,prevAxes[0].x),vec4f(prevAxes[0].yz,prevAxes[1].xy),vec4f(prevAxes[1].z,prevAxes[2]));
+ candidates[slot]=VsmRenderCandidate(high,low,slot,axes[0],corners,axes[1],flags,axes[2],vsmRenderPrevShift(w,centre,high.xyz,low),vsmRenderEdge(n,record.flags,stretch),lod,parent,inst,errors,select(0.0,roots.disableSq,offsetEvaluated||placementOffset),roots.viewBits,vec4f(axisFit,prevAxes[0].x),vec4f(prevAxes[0].yz,prevAxes[1].xy),vec4f(prevAxes[1].z,prevAxes[2]),vec4f(record.displacementReach*stretch,record.displacementFadeOut,0.0,0.0));
  let at=VISIBLE_HEADER_WORDS+VISIBLE_RECORD_WORDS*slot;
  casters[at]=i;
  casters[at+1u]=w;

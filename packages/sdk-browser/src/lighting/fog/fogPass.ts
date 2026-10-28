@@ -6,10 +6,16 @@ import { HEIGHT_FOG_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { DEFERRED_BINDINGS } from '../deferred/bindings.ts'
 import { fullscreenDescriptor, preparedPipeline } from '../deferred/fullscreen.ts'
-import { heightFogLayoutEntries } from '../deferred/layoutEntries.ts'
+import { fogBehindWaterLayoutEntries, heightFogLayoutEntries } from '../deferred/layoutEntries.ts'
 import { createPassGroup } from '../deferred/passGroup.ts'
 import { fogReadBindEntries, type FogRead } from './read.ts'
-import { FOG_PASS_BINDINGS, HEIGHT_FOG_ENTRY, heightFogWgsl } from './fogPassWgsl.ts'
+import {
+  FOG_BEHIND_WATER_ENTRY,
+  FOG_PASS_BINDINGS,
+  HEIGHT_FOG_ENTRY,
+  fogBehindWaterWgsl,
+  heightFogWgsl,
+} from './fogPassWgsl.ts'
 
 /** The fog laid over the image, premultiplied: its inscattering added, what was there kept by what
  *  the fog's coverage (the pass's alpha, one minus the transmittance) lets through, the image's alpha,
@@ -42,10 +48,11 @@ function fogPipelineOf(
   layout: GPUBindGroupLayout,
   localFog: boolean,
   failed: (error: unknown) => void,
+  behindWater = false,
 ) {
   const module = device.createShaderModule({
     label: HEIGHT_FOG_PASS,
-    code: wgslModule(heightFogWgsl(localFog)),
+    code: wgslModule(behindWater ? fogBehindWaterWgsl(localFog) : heightFogWgsl(localFog)),
   })
   return (blend: GPUBlendState) => {
     const made = preparedPipeline(
@@ -54,7 +61,7 @@ function fogPipelineOf(
         device,
         module,
         layout,
-        HEIGHT_FOG_ENTRY,
+        behindWater ? FOG_BEHIND_WATER_ENTRY : HEIGHT_FOG_ENTRY,
         [{ format: HDR_FORMAT, blend }],
         HEIGHT_FOG_PASS,
       ),
@@ -82,6 +89,84 @@ function fogEntries(
   ]
 }
 
+/** The fog behind the water: its own layout, pipeline and group. */
+function behindWaterPass(d: GPUDevice, local: boolean, failedWith: (error: unknown) => void) {
+  const behindLayout = d.createBindGroupLayout({ entries: fogBehindWaterLayoutEntries(local) })
+  const pipeline = fogPipelineOf(d, behindLayout, local, failedWith, true)(FOG_OVER)
+  const { attachment, descriptor } = colourPass()
+  return { pipeline, group: createPassGroup(d, behindLayout), attachment, descriptor }
+}
+
+/** A pass that loads and stores one colour attachment, its view set at each draw. */
+function colourPass() {
+  const attachment: GPURenderPassColorAttachment = {
+    view: undefined as unknown as GPUTextureView,
+    loadOp: 'load',
+    storeOp: 'store',
+  }
+  return {
+    attachment,
+    descriptor: {
+      label: HEIGHT_FOG_PASS,
+      colorAttachments: [attachment],
+    } as GPURenderPassDescriptor,
+  }
+}
+
+/** Lays the fog over `target` at the water's linear depths, once the program is compiled. */
+function drawBehindWater(
+  encoder: GPUCommandEncoder,
+  behind: ReturnType<typeof behindWaterPass>,
+  entries: () => GPUBindGroupEntry[],
+  r: FogPassResources,
+  target: GPUTextureView,
+  waterDepth: GPUTextureView,
+  width: number,
+  height: number,
+) {
+  if (!behind.pipeline.ready) return
+  const bound = behind.group.get(
+    [
+      r.surface,
+      r.depth,
+      r.lights,
+      r.fog,
+      r.fog.cubemap,
+      r.fog.volume,
+      r.fog.tiles,
+      r.lightShaft,
+      r.haze,
+      waterDepth,
+    ],
+    () => [...entries(), { binding: DEFERRED_BINDINGS.waterLinearDepth, resource: waterDepth }],
+  )
+  behind.attachment.view = target
+  drawFullscreenTriangle(encoder, behind.descriptor, behind.pipeline.get(), bound, width, height)
+}
+
+/** The pass's group 0 over `r`, made again when a resource it names is replaced. */
+function fogGroup(
+  group: ReturnType<typeof createPassGroup>,
+  bindings: ReturnType<typeof FOG_PASS_BINDINGS>,
+  view: GPUBuffer,
+  r: FogPassResources,
+) {
+  return group.get(
+    [
+      r.surface,
+      r.depth,
+      r.lights,
+      r.fog,
+      r.fog.cubemap,
+      r.fog.volume,
+      r.fog.tiles,
+      r.lightShaft,
+      r.haze,
+    ],
+    () => fogEntries(bindings, view, r),
+  )
+}
+
 /**
  * The fog pass of a device (`HEIGHT_FOG_ENTRY`): its pipeline asked now, off the frame, and the
  * frames waiting for it (`preparedPipeline`); its group made again when a resource it names is
@@ -98,19 +183,19 @@ export function createHeightFogPass(
   const layout = device.createBindGroupLayout({ entries: heightFogLayoutEntries(localFog) })
   const pipelineOf = fogPipelineOf(device, layout, localFog, failed)
   const pipeline = pipelineOf(FOG_OVER)
-  // The holdout's blend is made at the first image that holds the fog out.
+  // The holdout's blend, made at the first image that holds the fog out.
   let holdoutPipeline: ReturnType<typeof pipelineOf> | undefined
   const group = createPassGroup(device, layout)
-  const attachment: GPURenderPassColorAttachment = {
-    view: undefined as unknown as GPUTextureView,
-    loadOp: 'load',
-    storeOp: 'store',
-  }
-  const descriptor: GPURenderPassDescriptor = {
-    label: HEIGHT_FOG_PASS,
-    colorAttachments: [attachment],
-  }
+  // The fog behind the water: its own layout, program and group, made at the first image that asks.
+  let behind: ReturnType<typeof behindWaterPass> | undefined
+  const { attachment, descriptor } = colourPass()
+  const groupOf = (r: FogPassResources) => fogGroup(group, bindings, view, r)
   return {
+    /** The layout of the pass's group 0, `localFog` the project switch it was made for, and its group over `r`: a pass that lays the
+     *  fog over a layer of its own binds them (`fogOverModules`). */
+    layout,
+    localFog,
+    groupOf,
     /** Whether the pipeline is compiled: a frame that finds it not draws no fog. */
     get ready() {
       return pipeline.ready
@@ -127,24 +212,36 @@ export function createHeightFogPass(
       if (holdout) holdoutPipeline ??= pipelineOf(FOG_HOLDOUT)
       const drawn = holdout ? holdoutPipeline! : pipeline
       if (!drawn.ready) return
-      const bound = group.get(
-        [
-          r.surface,
-          r.depth,
-          r.lights,
-          r.fog,
-          r.fog.cubemap,
-          r.fog.volume,
-          r.fog.tiles,
-          r.lightShaft,
-          r.haze,
-        ],
-        () => fogEntries(bindings, view, r),
-      )
+      const bound = groupOf(r)
       attachment.view = hdr
       drawFullscreenTriangle(encoder, descriptor, drawn.get(), bound, width, height)
     },
-    release: () => group.release(),
+    /** Lays the fog over the scene without the water (`target`, the water pass's colour copy) at the surface depths its linear depth
+     *  (`waterDepth`) holds, `width` × `height` texels; nothing while the program is not compiled. */
+    drawBehindWater(
+      encoder: GPUCommandEncoder,
+      target: GPUTextureView,
+      r: FogPassResources,
+      waterDepth: GPUTextureView,
+      width: number,
+      height: number,
+    ) {
+      behind ??= behindWaterPass(device, localFog, failed)
+      drawBehindWater(
+        encoder,
+        behind,
+        () => fogEntries(bindings, view, r),
+        r,
+        target,
+        waterDepth,
+        width,
+        height,
+      )
+    },
+    release: () => {
+      group.release()
+      behind?.group.release()
+    },
   }
 }
 

@@ -44,6 +44,7 @@ export const COMPOSE_BINDING = {
   depth: 3,
   sceneDepth: 4,
   sampler: 5,
+  water: 6,
 } as const
 
 /** What the composition binds of the air: the buffer, the image's frame and the fog's resources. */
@@ -52,7 +53,8 @@ export const COMPOSE_AIR_BINDINGS: AirBindings = { air: 'read', frame: true, fog
 const B = COMPOSE_BINDING
 
 /** What every program declares: the uniform, the cloud images (the secondary one with two
- *  surfaces), the scene's depth and the sampler. */
+ *  surfaces), the scene's depth, the sampler and the water's surface (\`waterFlag\`: its alpha is 1 where the
+ *  single-layer water was shaded over the pixel, 0 or a texture of one texel where no water was). */
 const composeDeclarations = (minMax: boolean) => `
 ${COMPOSE_VIEW.wgsl}
 @group(1) @binding(${B.view}) var<uniform> view:ComposeView;
@@ -62,6 +64,12 @@ ${COMPOSE_VIEW.wgsl}
 @group(1) @binding(${B.depth}) var cloudDepth:texture_2d<f32>;
 @group(1) @binding(${B.sceneDepth}) var sceneDepth:texture_depth_2d;
 @group(1) @binding(${B.sampler}) var linearSampler:sampler;
+@group(1) @binding(${B.water}) var waterFlag:texture_2d<f32>;
+/** Whether the single-layer water was shaded over the pixel: the image's own pixels, a texture smaller than them holding none. */
+fn isWaterPixel(pixel:vec2i)->bool{
+ if(any(vec2u(pixel)>=textureDimensions(waterFlag))){return false;}
+ return textureLoad(waterFlag,pixel,0).a>=0.5;
+}
 /** The secondary image's texel; the colour image's where only one surface is traced. */
 fn loadSecondary(c:vec2i)->vec4f{return loadBounded(${minMax ? 'cloudSecondary' : 'cloudColour'},view.bounds,c);}
 `

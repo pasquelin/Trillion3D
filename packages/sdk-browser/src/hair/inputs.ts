@@ -1,4 +1,6 @@
 import type { EngineCamera } from '../camera/engineCamera.ts'
+import type { HairDeepShadowLight, HairDeepShadowSettings } from './deepShadowMath.ts'
+import type { HairLutSettings } from './hairLutPass.ts'
 import type { HairShadowInputs } from './shadowCasters.ts'
 
 /** What the passes read of the camera. */
@@ -6,6 +8,61 @@ type HairCamera = Pick<
   EngineCamera,
   'view' | 'projection' | 'near' | 'eye' | 'viewRelative' | 'planes' | 'perspective'
 >
+
+/** How the strands integrate the environment's light: by the spherical harmonics of the sky (`sh`, the default), by a few directions weighed by the fibre (`adhoc`) or
+ *  by directions spread evenly over the sphere (`uniform`), the last two traced through the voxels; the directions a point casts, how far (metres), and whether the screen
+ *  occludes the directions. */
+export interface HairSkyLightingSettings {
+  readonly integration: 'sh' | 'adhoc' | 'uniform'
+  readonly sampleCount: number
+  readonly distanceThreshold: number
+  readonly screenTrace: boolean
+}
+
+/** The settings of the voxel volume the strands are summed into (`hairVoxel*`), lengths in metres. */
+export interface HairVoxelSettings {
+  /** The width of the smallest voxel. */
+  readonly worldSize: number
+  /** Voxels a page spans a side (a power of two) and pages the volume spans a side. */
+  readonly pageResolution: number
+  readonly pageCountPerDim: number
+  /** The scale of a macro group's box in the estimate of the page index it needs. */
+  readonly aabbScale: number
+  /** The voxel width follows the pages the view needs, at a speed and with a margin. */
+  readonly adaptive: boolean
+  /** The page index is found and allocated on the GPU (else by the CPU), and a page the levels find empty
+   *  leaves the page index. */
+  readonly gpuDriven: boolean
+  readonly invalidateEmptyPageIndex: boolean
+  /** What the transmittance through the volume reads: its densities, depth bias and stepping (the settings
+   *  of the shadow's own where the transmittance names none), how its rays are jittered (0 none, 1 each
+   *  frame, 2 constant), whether it takes 8 rays and marches through the levels. */
+  readonly densityScaleTransmittance: number
+  readonly depthBiasScaleTransmittance: number
+  readonly steppingScaleTransmittance: number
+  readonly jitterMode: number
+  readonly superSampling: boolean
+  readonly mipTraversal: boolean
+  /** What the occlusion and the environment's rays read: the density the strands give a voxel for the occlusion, the stepping of the march and the
+   *  start of the rays moved along them in voxels (`hairVoxelDensityScaleAO`, `hairVoxelSteppingScaleEnvironment`, `hairVoxelDepthBiasScaleEnvironment`). */
+  readonly densityScaleAO: number
+  readonly steppingScaleEnvironment: number
+  readonly depthBiasScaleEnvironment: number
+  readonly densityScaleEnvironment: number
+  /** What the shadow the strands cast on the surfaces reads of the volume (`hairVoxelDensityScaleShadow`, `hairVoxelDepthBiasScaleShadow`, `hairVoxelSteppingScaleShadow`). */
+  readonly densityScaleShadow: number
+  readonly depthBiasScaleShadow: number
+  readonly steppingScaleShadow: number
+  readonly correctionSpeed: number
+  readonly correctionThreshold: number
+  /** The least and the greatest page index kept, entries a side. */
+  readonly minPageIndexResolution: number
+  readonly maxPageIndexResolution: number
+  /** The opaque surface is written into the volume, `biasCount` voxels in front and `markCount` deep. */
+  readonly injectOpaqueDepth: boolean
+  readonly biasCount: number
+  readonly markCount: number
+}
 
 /**
  * EVERYTHING AN IMAGE OF THE STRANDS READS OF THE FRAME, in one record: the frame hook
@@ -30,6 +87,24 @@ export interface HairFrameInputs {
   /** The size a pixel's width at a distance of 1 is measured in: the image's, or the display's where
    *  the strands do not follow the resolution scale. */
   readonly pixelSize: readonly [number, number]
+  /** The lights that draw a deep shadow and the settings of the shadows; none while no light does, or the
+   *  transmittance and the shadow come from the voxels alone. */
+  readonly deepShadow?: {
+    readonly settings: HairDeepShadowSettings
+    readonly lights: readonly HairDeepShadowLight[]
+  }
+  /** The table of the fibre's scattering the strands are lit with (`hairLut*`) and the components of the BSDF
+   *  (`HAIR_COMPONENT` bits, `hairComponent*`); none for the frame hook of a proof, which lights nothing. */
+  readonly lut?: HairLutSettings
+  readonly components?: number
+  /** The filter of the shadow the strands cast on the surfaces and how its voxel rays are jittered (`hairDeepShadowMaskKernelType`, `hairDeepShadowRandomType`). */
+  readonly surfaceShadow?: { readonly kernelType: number; readonly randomType: number }
+  /** How the strands take the environment's light (`hairEnvironmentIntegration`, `hairSkyLighting*`); none for the frame hook of a proof, which lights nothing. */
+  readonly sky?: HairSkyLightingSettings
+  /** Whether the samples that scatter the scene's light take it from the lit image (`hairScatterSceneLighting`). */
+  readonly scatterSceneLighting?: boolean
+  /** The voxel volume's settings, none while the strands are not voxelized. */
+  readonly voxel?: HairVoxelSettings
   /** The voxel settings the macro groups' bounds read. */
   readonly sizeInPixel: number
   readonly pageResolution: number
@@ -43,6 +118,9 @@ export interface HairFrameInputs {
   readonly samplesPerPixel: number
   readonly meanSamplesPerPixel: number
   readonly sortByDepth: boolean
+  /** Whether the device's rasterizer writes the samples (`hairVisibilityComputeRaster` off, the default);
+   *  none or false, a compute raster does. */
+  readonly hardwareRaster?: boolean
   readonly fullCoverage: number
   /** The surfaces' colours and words, which the strands that cover a pixel wholly empty (their storage
    *  views, `SurfaceBuffer.stores`), and the layer of the colours that holds the emission (0 for

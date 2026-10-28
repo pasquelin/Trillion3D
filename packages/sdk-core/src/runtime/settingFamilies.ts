@@ -12,19 +12,26 @@ import { FILM_RULES } from '../contracts/filmOptions.ts'
 import { GAUSSIAN_BLUR_RULES } from '../contracts/gaussianBlurRules.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
 import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
+import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOptions.ts'
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
+import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
+import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
+import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
+import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
+import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
 import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
 import type { SettingRule, SettingValues } from '../contracts/settingRules.ts'
 import { SUBSURFACE_SCATTERING_RULES } from '../contracts/subsurfaceScatteringOptions.ts'
 import { STREAMING_RULES } from '../contracts/streamingOptions.ts'
 import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
+import { TEXTURE_FILTERING_RULES } from '../contracts/textureFilteringOptions.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
@@ -91,6 +98,7 @@ export const SETTING_FAMILIES = {
   temporal: { rules: TEMPORAL_RULES, group: 'edgeSmoothing', world: 'image' },
   hiz: { rules: HIZ_RULES, group: 'viewDistance', world: 'image' },
   lightFunction: { rules: LIGHT_FUNCTION_RULES, group: 'viewDistance', world: 'image' },
+  lightProfile: { rules: LIGHT_PROFILE_RULES, group: 'shadows', world: 'image' },
   volumetricLightmap: { rules: VOLUMETRIC_LIGHTMAP_RULES, group: 'viewDistance', world: 'image' },
   globalDistanceField: {
     rules: GLOBAL_DISTANCE_FIELD_RULES,
@@ -103,8 +111,16 @@ export const SETTING_FAMILIES = {
     world: 'image',
   },
   shadows: { rules: SHADOW_RULES, group: 'shadows', world: 'image' },
+  sampledLights: { rules: SAMPLED_LIGHTS_RULES, group: 'shadows', world: 'image' },
   indirectLight: { rules: SCREEN_PROBE_RULES, group: 'indirectLight', world: 'image' },
   reflections: { rules: REFLECTION_RULES, group: 'indirectLight', world: 'image' },
+  screenSpaceTracing: { rules: SCREEN_SPACE_TRACING_RULES, group: 'indirectLight', world: 'image' },
+  lightingDataFormat: { rules: LIGHTING_DATA_FORMAT_RULES, group: 'indirectLight', world: 'image' },
+  meshDistanceFieldTrace: {
+    rules: MESH_DISTANCE_FIELD_TRACE_RULES,
+    group: 'indirectLight',
+    world: 'image',
+  },
   surfaceCache: { rules: SURFACE_CACHE_RULES, group: 'indirectLight', world: 'image' },
   volumetricFog: { rules: VOLUMETRIC_FOG_RULES, group: 'shadows', world: 'image' },
   subsurfaceScattering: { rules: SUBSURFACE_SCATTERING_RULES, group: 'effects', world: 'image' },
@@ -112,7 +128,13 @@ export const SETTING_FAMILIES = {
   translucencyGi: { rules: TRANSLUCENCY_GI_RULES, group: 'indirectLight', world: 'image' },
   singleLayerWater: { rules: SINGLE_LAYER_WATER_RULES, group: 'effects', world: 'image' },
   hairStrands: { rules: HAIR_STRANDS_RULES, group: 'effects', world: 'image' },
+  heterogeneousVolumeRendering: {
+    rules: HETEROGENEOUS_VOLUME_RULES,
+    group: 'effects',
+    world: 'image',
+  },
   tessellation: { rules: TESSELLATION_RULES, group: 'viewDistance', world: 'image' },
+  textureFiltering: { rules: TEXTURE_FILTERING_RULES, group: 'textures', world: 'image' },
   motionBlur: { rules: MOTION_BLUR_RULES, group: 'imageEffects', world: 'image' },
   depthOfField: { rules: DEPTH_OF_FIELD_RULES, group: 'imageEffects', world: 'image' },
   bloom: { rules: BLOOM_RULES, group: 'imageEffects', world: 'image' },

@@ -1,4 +1,5 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { zOrderDecode } from '../../../../math/src/wgsl/integer.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { surfaceReflects } from '../../materials/surface/surfaceModel.ts'
 import { REFLECTION_SIDE } from './constants.ts'
@@ -6,6 +7,9 @@ import { listWgsl } from '../../gpu/dispatch/list.ts'
 import { REFLECTION_PIXEL_TRACES_WGSL } from './reach.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 import { REFLECTION_TILES_WGSL, REFLECTION_TRACE_BINDINGS as B } from './trace/traceBindings.ts'
+
+/** The tiles a block of workgroups of the classification spans across and down (its workgroups follow the Z-order curve inside the block). */
+const CLASSIFY_BLOCK = 8
 
 /**
  * THE TILES A SURFACE'S REFLECTIONS RUN OVER, classified on the GPU every image (`classifyTiles`)
@@ -24,6 +28,10 @@ import { REFLECTION_TILES_WGSL, REFLECTION_TRACE_BINDINGS as B } from './trace/t
  *   empties the resolved pixels and the history and answers a pixel
  *   that reflects with the probes' field alone. The block divides `REFLECTION_SIDE` (1 or 2: the level's rows).
  *
+ * The workgroups are dispatched in whole blocks of `CLASSIFY_BLOCK`² tiles, the grid's width a multiple of it (`classifyGroups`), and each takes its
+ * tile along the Z-order curve of its block (a block after the other along the rows), the workgroups past the grid's edge returning at once: the tiles
+ * of a list follow each other as neighbours on the screen.
+ *
  * Every kernel after it is dispatched indirectly over one of its lists, a row's last workgroups past
  * the count returning at once, no read back.
  *
@@ -37,6 +45,7 @@ export const REFLECTION_CLASSIFY_WGSL = wgslBlock(
     REFLECTION_SURFACES_WGSL,
     REFLECTION_PIXEL_TRACES_WGSL,
     REFLECTION_TILES_WGSL,
+    zOrderDecode,
     surfaceReflects,
     listWgsl({ name: 'tracingOut', group: 0, binding: B.tracingOut, entry: 'u32', append: true }),
     listWgsl({
@@ -52,8 +61,16 @@ export const REFLECTION_CLASSIFY_WGSL = wgslBlock(
   `/** The resolve tiles of the workgroup's tracing tile a pixel traces in, a bit each. */
 var<workgroup> tileTraces:atomic<u32>;
 @compute @workgroup_size(${REFLECTION_SIDE},${REFLECTION_SIDE})
-fn classifyTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id) local:vec3u,@builtin(local_invocation_index) lane:u32){
- let coord=tile.xy*${REFLECTION_SIDE}u+local.xy;
+fn classifyTiles(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) groups:vec3u,@builtin(local_invocation_id) local:vec3u,@builtin(local_invocation_index) lane:u32){
+ // The workgroups run in blocks of ${CLASSIFY_BLOCK}² tiles, a block after the other along the rows, the tiles of a block along the Z-order curve, so that tiles
+ // that follow each other in a list are neighbours on the screen: the coherency of the trace that pulls its rays from them.
+ let at=group.y*groups.x+group.x;
+ let inBlock=zOrderDecode(at%${CLASSIFY_BLOCK * CLASSIFY_BLOCK}u);
+ let block=at/${CLASSIFY_BLOCK * CLASSIFY_BLOCK}u;
+ let across=groups.x/${CLASSIFY_BLOCK}u;
+ let tile=vec2u((block%across)*${CLASSIFY_BLOCK}u,(block/across)*${CLASSIFY_BLOCK}u)+inBlock;
+ if(any(tile*${REFLECTION_SIDE}u>=reflectionGridSize())){return;}
+ let coord=tile*${REFLECTION_SIDE}u+local.xy;
  let inside=all(coord<reflectionGridSize());
  let viewport=reflectionViewport();
  var mask=0u;
@@ -76,9 +93,9 @@ fn classifyTiles(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id)
   else{clearTracingOut.entries[clearTracingOutAppend(1u,1u)]=entry;}
  }
  if(lane<resolves.x*resolves.y){
-  let at=tile.xy*resolves+vec2u(lane%resolves.x,lane/resolves.x);
-  if(all(at*${REFLECTION_SIDE}u<viewport)){
-   let entry=at.x|(at.y<<16u);
+  let resolveTile=tile*resolves+vec2u(lane%resolves.x,lane/resolves.x);
+  if(all(resolveTile*${REFLECTION_SIDE}u<viewport)){
+   let entry=resolveTile.x|(resolveTile.y<<16u);
    if(((traced>>lane)&1u)!=0u){resolveOut.entries[resolveOutAppend(1u,1u)]=entry;}
    else{clearOut.entries[clearOutAppend(1u,1u)]=entry;}
   }
@@ -102,7 +119,7 @@ export const classifyGroups = (
   block: readonly [number, number],
   into: [number, number],
 ) => {
-  into[0] = ceilDiv(size[0], REFLECTION_SIDE * block[0])
-  into[1] = ceilDiv(size[1], REFLECTION_SIDE * block[1])
+  into[0] = ceilDiv(size[0], REFLECTION_SIDE * block[0] * CLASSIFY_BLOCK) * CLASSIFY_BLOCK
+  into[1] = ceilDiv(size[1], REFLECTION_SIDE * block[1] * CLASSIFY_BLOCK) * CLASSIFY_BLOCK
   return into
 }

@@ -422,9 +422,12 @@ const cullViewFrustumText = (prefiltered: boolean) => /* wgsl */ `
  let objectPoint=vsmBoxCullPoint(objectCentre,objectExtent,isOrtho,nearClip);
  let objectCull=vsmBoxInView(shiftedToClip*vec4f(objectPoint,1.0),shiftedToClip[0],shiftedToClip[1],shiftedToClip[2],objectExtent,viewToClip,isOrtho,nearClip);
  // One radius for the object, the map's full resolution whatever the mip drawn (the instance cull's).
+ // The nearest depth of the object's ball: the base triangles' fallback is judged by the object, as an instance is (1 in an orthographic view).
+ let surfaceDepth=select(max((shiftedToClip*vec4f(objectCentre,1.0)).w-cand.inst.w,0.0),1.0,isOrtho);
  let fineObject=vsmIsFineCaster(staticLayer,vsmClipRadius(isOrtho,cand.inst.w,objectCentre,viewToClip)*f32(VSM_LEVEL0_TEXELS));`
 
-const cullViewMipText = (prefiltered: boolean) => /* wgsl */ `
+/** The head of the view loop: the second cull's level of detail and the stale pixels of each mip. */
+const cullMipLoopHeadText = `
  // The second cull keeps the level of detail the first chose.
  let second=kind==VSM_RENDER_CULL_SECOND;
  // The previous image drew the caster's box under the placement's previous pose (\`prevShift\`, the half
@@ -440,8 +443,12 @@ const cullViewMipText = (prefiltered: boolean) => /* wgsl */ `
   let mipLevel=view.y;
   let focal=bitcast<f32>(view.w);
   let levelTexels=i32(VSM_LEVEL0_TEXELS>>mipLevel);
-  let pixels=vsmStalePixels(cull,h,mipLevel,staticLayer,transitioned);
-  // The object first, by the pages it overlaps (the fine ones alone for a fine object), then the cluster.
+  let pixels=vsmStalePixels(cull,h,mipLevel,staticLayer,transitioned);`
+
+/** The tests of the caster's object and box against the pages and the pyramid of each mip. */
+const cullViewTestText = (
+  prefiltered: boolean,
+) => `  // The object first, by the pages it overlaps (the fine ones alone for a fine object), then the cluster.
   // Before the level of detail: a mip with no page to draw asks none.
   let objectRect=vsmStalePixels(objectCull,h,mipLevel,staticLayer,transitioned);
   if(!vsmTouchesMappedPixels(h,mipLevel,objectRect,markMask,fineObject,useCover)){continue;}
@@ -478,11 +485,16 @@ const cullViewMipText = (prefiltered: boolean) => /* wgsl */ `
   }
   if(kind>=VSM_RENDER_CULL_SECOND&&vsmHiddenNow(h,mipLevel,cull,levelTexels,pixels,${markMaskOf(prefiltered).hidden},staticLayer)){continue;}
   // The hardware raster's tier, or the software raster's bin of the caster's layer and its window.
-  let software=vsmRenderSoftware(cand,rasterScale,focal,cull,tessellated);
+  // A displaced surface whose displacement is gone from this view is drawn as its base triangles, whole: not as patches (the choice is the instance's, one or the other).
+  let fallback=tessellated&&vsmRenderFallsBack(cand,focal,surfaceDepth);
+  let software=vsmRenderSoftware(cand,rasterScale,focal,cull,tessellated&&!fallback);
   let bin=select(tier,VSM_RENDER_SOFTWARE_BIN+select(0u,1u,staticLayer),software);
-  vsmRenderEmit(cand.row,word|(mipLevel<<16u)|select(0u,1u<<30u,lodBehind),bin,h,mipLevel,vec4u(pixels)>>vec4u(VSM_LOG2_PAGE),markMask,select(VSM_RENDER_WINDOW_PAGES,VSM_RENDER_WINDOW_PAGES_SOFTWARE,software));
+  vsmRenderEmit(cand.row,select(word,word&~(1u<<23u),fallback)|(mipLevel<<16u)|select(0u,1u<<30u,lodBehind),bin,h,mipLevel,vec4u(pixels)>>vec4u(VSM_LOG2_PAGE),markMask,select(VSM_RENDER_WINDOW_PAGES,VSM_RENDER_WINDOW_PAGES_SOFTWARE,software));
  }
 }`
+
+const cullViewMipText = (prefiltered: boolean) =>
+  /* wgsl */ `${cullMipLoopHeadText}\n${cullViewTestText(prefiltered)}`
 
 const cullCandidateText = /* wgsl */ `
 /** A caster against the listed mip views of one map of its light (the first cull's, the post cull's or the cull

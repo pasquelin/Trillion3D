@@ -1,6 +1,7 @@
 import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { feedbackAttachment } from '../../frame/prepare/attachments.ts'
 import { skyLightReadOf } from '../../frame/render/skyLightState.ts'
+import { litImageShown } from '../../frame/prepare/contractLight.ts'
 import { bindForwardReflection } from '../../lighting/reflections/group.ts'
 import {
   WATER_COPY_PASS,
@@ -144,6 +145,27 @@ export function encodeColourCopy(f: WaterFrame) {
   return 1
 }
 
+/** The height fog laid on the colour copy at the depths of the copy's linear depth (`singleLayerWaterUnderwaterFogWhenCameraIsAboveWater`): the
+ *  fog behind the water, the copy being what the water refracts. Returns the draws encoded. */
+export function encodeFogBehindWater(f: WaterFrame) {
+  const { rt, targets } = f
+  const deferred = rt.gpu.deferred
+  if (!f.settings.singleLayerWaterUnderwaterFogWhenCameraIsAboveWater || !deferred) return 0
+  if (
+    !litImageShown(rt) ||
+    !(rt.lights.store.environment?.fog || (rt.gpu.localFog?.plan.count ?? 0) > 0)
+  )
+    return 0
+  deferred.fogBehindWater(
+    f.encoder,
+    targets.views.sceneColor,
+    targets.views.sceneDepth,
+    targets.width / targets.factor,
+    targets.height / targets.factor,
+  )
+  return 1
+}
+
 /** The mask of the refraction, where a culling asks for it. Returns the draws encoded. */
 export function encodeRefractionMask(f: WaterFrame) {
   const pipeline = f.stages.mask.pipeline.get()
@@ -171,7 +193,7 @@ function shadeAttachments(f: WaterFrame) {
   ]
 }
 
-/** The water shaded over the scene: volume, lights and fog, its surface written beside. Without the depth
+/** The water shaded over the scene: volume and lights, its surface written beside. Without the depth
  *  pass the scene's depth is kept before and after it. Returns the draws encoded. */
 export function encodeShading(f: WaterFrame) {
   const { encoder, targets, prepass } = f

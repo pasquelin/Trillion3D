@@ -1,3 +1,4 @@
+import { flagIf } from '../../../../../math/src/scalar/bits.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import { SCREEN_PROBE_FLAGS as F } from './screenProbeLayout.ts'
@@ -23,6 +24,8 @@ export interface ScreenProbeImage {
   /** The relative thickness the screen trace gives a surface, times the projection's depth scale
    *  (`screenRelativeThickness`). */
   relativeThickness: number
+  /** The projection's depth scale: 1 under a perspective, a power of ten under an orthographic projection (`screenRelativeThickness` of a relative thickness of one), which the slope tolerance of the short-range occlusion's rays is scaled by. */
+  depthThicknessScale: number
   /** The relative thickness the history-depth test gives a hit, times the projection's depth scale likewise (`screenRelativeThickness`). */
   historyThickness: number
   /** Whether the trace's march goes down to the full-resolution depth (`hizFullResDepth`). */
@@ -34,43 +37,44 @@ export interface ScreenProbeImage {
   roughSpecularFoliage: number
   /** A placement's pose moved since the poses the last drawn frame drew were kept (`GpuSelection.posesMoving`): the placement a ray's hit met has a speed to measure; else it has none. */
   posesMoving: boolean
+  /** The light is kept unrounded to the 11-11-10 floats' precision (`lightingDataFormat` is not `r11g11b10`): the filtered radiance keeps what the half floats of its texture hold. */
+  exactLight: boolean
   /** The rays the screen left are cast through the scene's triangles this image (`TracedSceneGroups`), the scene trace the lighting made for it
    *  (`SceneRays`) held, not marched through the global distance field. */
   rays?: SceneRays
 }
-
-/** Whether a flag is set: its bit, or none. */
-const bit = (on: boolean, flag: number) => (on ? flag : 0)
 
 /** The mode word's flags of an image at `settings`: each bit its meaning (`SCREEN_PROBE_FLAGS`). */
 export function screenProbeFlags(settings: ScreenProbeSettings, image: ScreenProbeImage) {
   const { values } = settings
   const sampled = values.screenProbeImportanceSampling
   return (
-    bit(image.screen && values.screenProbeScreenTraces, F.screenTraces) |
-    bit(sampled, F.importance) |
-    bit(sampled && settings.importanceLighting, F.importanceLighting) |
-    bit(sampled && image.history && values.screenProbeProbeRadianceHistory, F.radianceHistory) |
-    bit(image.history && values.screenProbeTemporal, F.temporal) |
-    bit(settings.stochasticInterpolation, F.stochastic) |
-    bit(image.cache, F.cache) |
-    bit(settings.irradianceFormat === 'octahedral', F.octahedral) |
-    bit(settings.occlusion, F.occlusion) |
-    bit(values.screenProbeSceneTraces, F.sceneTraces) |
-    bit(image.history && image.velocity, F.velocity) |
-    bit(values.screenProbeFastUpdateClamp, F.fastUpdateClamp) |
-    bit(values.screenProbeDisocclusionMaxFrames > 0, F.disocclusion) |
-    bit(values.screenProbeOcclusionTemporal, F.occlusionTemporal) |
-    bit(image.fullResDepth, F.fullResDepth) |
-    bit(values.screenProbeSkipFoliageHits, F.skipFoliageHits) |
-    bit(values.screenProbeSkipHairHits, F.skipHairHits) |
-    bit(values.screenProbeSkipUnlitHits, F.skipUnlitHits) |
-    bit(image.cache && settings.cache.skyVisibility, F.cacheSky) |
-    bit(settings.backfaceDiffuse, F.backfaceDiffuse) |
-    bit(values.screenProbeRejectBasedOnNormal, F.rejectNormal) |
-    bit(values.screenProbeShortRangeAOApplyDuringIntegration, F.occlusionInIntegration) |
-    bit(settings.temporalFilterProbes && image.history, F.probeTemporal) |
-    bit(values.screenProbeMaterialAO, F.materialAo) |
-    bit(image.posesMoving, F.posesMoving)
+    flagIf(image.screen && values.screenProbeScreenTraces, F.screenTraces) |
+    flagIf(sampled, F.importance) |
+    flagIf(sampled && settings.importanceLighting, F.importanceLighting) |
+    flagIf(sampled && image.history && values.screenProbeProbeRadianceHistory, F.radianceHistory) |
+    flagIf(image.history && values.screenProbeTemporal, F.temporal) |
+    flagIf(settings.stochasticInterpolation, F.stochastic) |
+    flagIf(image.cache, F.cache) |
+    flagIf(settings.irradianceFormat === 'octahedral', F.octahedral) |
+    flagIf(settings.occlusion, F.occlusion) |
+    flagIf(values.screenProbeSceneTraces, F.sceneTraces) |
+    flagIf(image.history && image.velocity, F.velocity) |
+    flagIf(values.screenProbeFastUpdateClamp, F.fastUpdateClamp) |
+    flagIf(values.screenProbeDisocclusionMaxFrames > 0, F.disocclusion) |
+    flagIf(values.screenProbeOcclusionTemporal, F.occlusionTemporal) |
+    flagIf(image.fullResDepth, F.fullResDepth) |
+    flagIf(values.screenProbeSkipFoliageHits, F.skipFoliageHits) |
+    flagIf(values.screenProbeSkipHairHits, F.skipHairHits) |
+    flagIf(values.screenProbeSkipUnlitHits, F.skipUnlitHits) |
+    flagIf(image.cache && settings.cache.skyVisibility, F.cacheSky) |
+    flagIf(settings.backfaceDiffuse, F.backfaceDiffuse) |
+    flagIf(values.screenProbeRejectBasedOnNormal, F.rejectNormal) |
+    flagIf(values.screenProbeShortRangeAOApplyDuringIntegration, F.occlusionInIntegration) |
+    flagIf(settings.temporalFilterProbes && image.history, F.probeTemporal) |
+    flagIf(values.screenProbeMaterialAO, F.materialAo) |
+    flagIf(image.posesMoving, F.posesMoving) |
+    flagIf(image.exactLight, F.exactLight) |
+    flagIf(values.screenProbeDebugForceTracesMoving, F.forceMoving)
   )
 }

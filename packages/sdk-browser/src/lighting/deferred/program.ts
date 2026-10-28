@@ -5,6 +5,7 @@ import type { SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
 import type { CloudShadowSet } from '../atmosphere/cloudShadowRead.ts'
 import type { ToneLut } from '../toneLut.ts'
 import type { VolumetricLightmapGpu } from '../volumetricLightmap/gpu.ts'
+import type { ContactBendResources } from '../contactShadow/bendTarget.ts'
 import type { LightProfileResources } from '../lightProfile/profileBindings.ts'
 import type { DeferredPlaceholders } from './setup.ts'
 import type { PerLightLights } from '../shadows/vsm/projection/perLightPass.ts'
@@ -15,6 +16,11 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** The declared lights, grown with the scene: the one buffer a contract program reads them from. */
   lights?: GPUBuffer
   tiles?: GPUBuffer
+  /** The light the sampled lighting left for the local lights' pass to add (`ContractKey.sampled`, `manyLightsSampled/spatialWgsl.ts`); absent, the stand-in. */
+  sampledLight?: GPUTextureView
+  /** The shadows the heterogeneous volumes cast this image, packed in one buffer (`../heterogeneousVolumes/beerShadowMapPack.ts`); absent, the
+   *  stand-in that casts none. Bound by a program that reads them (`ContractKey.volumeShadow`). */
+  volumeShadowMaps?: GPUBuffer
   /** How many directional lights and how many local lights the light buffer holds this image: the
    *  pass of a kind that has none is not drawn. Absent, both are. */
   suns?: number
@@ -53,6 +59,9 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** The light profiles' atlas and its sampler this image (`../lightProfile/profileAtlas.ts`); absent, the stand-in that
    *  answers no profile. Bound only by a program that reads them (`ContractKey.profileless`). */
   lightProfile?: LightProfileResources
+  /** The screen-space contact shadows' array of this image and the ranks of its layers (`contactShadowMethod` 1, `../contactShadow/bendTarget.ts`); absent, the stand-in of one
+   *  texel, which no light takes a layer from. Bound by a program that holds contact shadow code (`ContractKey.contactless`). */
+  contactBend?: ContactBendResources
   /** The ambient cubemap's cube, whole with its mips, and its colour (`ambientCubemapFrame.ts`); absent, the stand-in of a black cube.
    *  Bound only by a program that reads it (`ContractKey.cubeless`). */
   ambientCubemap?: { view: GPUTextureView; colour: GPUBuffer }
@@ -76,6 +85,8 @@ export interface DirectLightResources extends Partial<ContractKey> {
   /** What the screen probes left of the pixels' indirect light this image (`../bounce/screen/indirectWgsl.ts`): the
    *  history they keep, a texture the bounce program reads by load; absent, the stand-in that says none ran. */
   screenIndirect?: GPUTextureView
+  /** The short-range global illumination the screen probes gathered this image (`../bounce/screen/occlusionWgsl.ts`), a read-only storage texture the bounce program reads by load; absent, the black stand-in. */
+  screenShortRangeGi?: GPUTextureView
   /** The screen-space ambient occlusion this image drew (`../ao/frame.ts`): a texture of one byte a pixel the opaque
    *  resolve reads by load, where its view's word says to apply it; absent, the stand-in. */
   ambientOcclusion?: GPUTextureView
@@ -83,6 +94,9 @@ export interface DirectLightResources extends Partial<ContractKey> {
    *  in a buffer, and the uniform that describes them. Present, the indirect pass's program holding the code that applies it lights
    *  the image (`contractVariants.ts`); absent, the stand-ins and the program without it. */
   skyShadowing?: { bent: GPUBuffer; params: GPUBuffer }
+  /** The indirect capsule shadows' factors this image drew (`../capsuleShadows/host.ts`): a buffer whose first word is a row's bytes and whose pixels
+   *  begin at byte 256. Present, the indirect pass's program holding the code that applies them lights the image; absent, the stand-in and the program without it. */
+  capsuleIndirect?: GPUBuffer
   /** The volumetric lightmap on the GPU, where the scene has one and the image reads it
    *  (`../volumetricLightmap/frame.ts`): what the pass that gathers its light is bound to; absent, no light
    *  is gathered. */

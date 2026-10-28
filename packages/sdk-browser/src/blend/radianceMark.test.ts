@@ -6,7 +6,7 @@ import { installGpuGlobals } from '../../../../tests/kit/fakeDevice/globals.ts'
 import { checkStageLimits } from '../../../../tests/kit/fakeDevice/limitRules.ts'
 import { blendLayoutEntries } from '../gpu/bind/blendBindEntries.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
-import { drawRadianceMark, radianceMarker } from './radianceMark.ts'
+import { holdVolumeMarks, radianceMarker } from './radianceMark.ts'
 import { BLEND_BINDINGS } from '../gpu/bind/bindLayout.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import {
@@ -18,6 +18,8 @@ import {
   blendRadianceMarkShader,
   RADIANCE_MARK_DEPTH_BINDING,
   RADIANCE_MARK_GROUP,
+  VOLUME_MARK_FRAME_BINDING,
+  VOLUME_MARK_TEXTURE_BINDING,
 } from './radianceMarkWgsl.ts'
 
 installGpuGlobals()
@@ -95,7 +97,13 @@ function scene({ runs = 1, depth = true, ready = true } = {}) {
     },
   } as unknown as WebgpuPagesRuntime
   const draw = () =>
-    drawRadianceMark(rt, device, encoder, {} as GPUBuffer, {} as GPUBuffer, SETTINGS)
+    // The marker returns the draws encoded (`drawRadianceMark`), which its type does not name.
+    radianceMarker(rt, device, true)!.mark(
+      encoder,
+      {} as GPUBuffer,
+      {} as GPUBuffer,
+      SETTINGS,
+    ) as unknown as number
   return { rt, device, passes, asked, draw }
 }
 
@@ -153,4 +161,38 @@ test('the stage binds what it reads of the blend group alone: its two layouts ke
   )
   for (const binding of declared)
     assert.ok(read.has(binding), `binding ${binding} is declared but not in the layout`)
+})
+
+test('the same fragment marks the translucency volume before a medium returns, and the radiance cache after', () => {
+  const code = blendRadianceMarkShader()
+  const stage = code.slice(code.indexOf('@fragment fn fsRadianceMark'))
+  const kept = stage.indexOf('blendFragmentKept(')
+  const volume = stage.indexOf('if(tv.marks.x!=0u){markVolumeVoxels(in.view);}')
+  const medium = stage.indexOf('if(translucencyMedium(flags)){return;}')
+  const cache = stage.indexOf('markTranslucent(in.position.xy,in.view)')
+  assert.ok(kept >= 0 && kept < volume && volume < medium && medium < cache, 'in this order')
+  for (const binding of [VOLUME_MARK_FRAME_BINDING, VOLUME_MARK_TEXTURE_BINDING])
+    assert.match(
+      code,
+      new RegExp(`@group\\(${RADIANCE_MARK_GROUP}\\) @binding\\(${binding}\\) var[ <]`),
+    )
+})
+
+test('the volume marks an image holds are bound by the next pass that draws, the stand-ins by the pass that has none', () => {
+  const { rt, device, draw } = scene()
+  const created: number[][] = []
+  device.createBindGroup = (({ entries }: { entries: { binding: number }[] }) => {
+    created.push(entries.map((entry) => entry.binding))
+    return {}
+  }) as unknown as GPUDevice['createBindGroup']
+  const held = { frame: {} as GPUBuffer, view: {} as GPUTextureView }
+  holdVolumeMarks(rt, device, held)
+  assert.equal(draw(), 1)
+  const bound = created.find((bindings) => bindings.includes(VOLUME_MARK_FRAME_BINDING))
+  assert.ok(
+    bound?.includes(VOLUME_MARK_TEXTURE_BINDING),
+    'the frame and the marks are in the group',
+  )
+  holdVolumeMarks(rt, device, undefined)
+  assert.equal(draw(), 1, 'a pass without held marks binds the stand-ins')
 })

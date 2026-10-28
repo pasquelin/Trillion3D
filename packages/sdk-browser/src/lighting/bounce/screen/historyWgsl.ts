@@ -118,7 +118,12 @@ fn spReproject(pixel:vec2u,P:vec3f,N:vec3f,foliage:bool,noise:f32)->SpHistory{
  let stood=spStoodClip(motion,P,clip);
  if(stood.w<=0.0){return out;}
  let expected=reflectionLinearOfDevice(stood.z/stood.w);
- let px=ndcToPixel(motion.ndc,size)-vec2f(0.5);
+ // A point the last image showed (inside its edges) is held to the footprint of a bilinear read that stays in the image, one guard band
+ // — the sub-pixel grid the position is coded on, a 512th at the least — from the centres of its edge texels: the edge texel keeps its whole weight.
+ let at=ndcToPixel(motion.ndc,size);
+ if(any(at<vec2f(0.0))||any(at>size)){return out;}
+ let margin=max(exp2(-floor(log2(65535.0/size))),vec2f(1.0/512.0));
+ let px=clamp(at-vec2f(0.5),margin,size-vec2f(1.0)-margin);
  let base=floor(px);
  let f=px-base;
  let blend=vec4f((1.0-f.x)*(1.0-f.y),f.x*(1.0-f.y),(1.0-f.x)*f.y,f.x*f.y);

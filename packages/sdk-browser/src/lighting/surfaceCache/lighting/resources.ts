@@ -4,6 +4,7 @@ import { SURFACE_CACHE_ATLAS_LABEL } from '../../../diagnostic/stage/passLabels.
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
 import {
   LIGHTING_PARAMS,
+  SHADOW_TEXELS,
   lightTileArgsWords,
   lightTileCountsWords,
   PAGE_ARGS_WORDS,
@@ -11,6 +12,7 @@ import {
   tracedShadowWords,
 } from './layout.ts'
 import { type LightingShape, shapeKey, sizesOf } from './params.ts'
+import { STOCHASTIC_FRAMES_FORMAT, STOCHASTIC_RESOLVED_FORMAT } from './stochasticWgsl.ts'
 
 /**
  * THE LIGHTING'S OWN MEMORY, made for a shape (`shapeOf`) and again when it changes: the parameters' uniform, the update
@@ -18,7 +20,7 @@ import { type LightingShape, shapeKey, sizesOf } from './params.ts'
  * cull picks and the compaction places (`lightTilesWgsl.ts`: the culled, the compacted and each tile's own list, with where each tile's lights begin
  * in it), a small buffer that stands in for the traced shadows' where they are not made, the radiosity's rays filtered, and the two atlases
  * the radiosity keeps from one image to the next — the rays' radiance for each probe
- * (`trace`, the words of light, a square of rays a probe) and the probes' harmonics (`harmonics`, a layer a channel), and,
+ * (`trace`, the light in the atlas's format, a square of rays a probe) and the probes' harmonics (`harmonics`, a layer a channel), and,
  * with the probes' occlusion, the distance each ray met a surface at (`hits`, laid as the trace is; 1 × 1 without). They are
  * asked of the device's budget as the atlases are (`ensureLighting`): where it refuses, the lighting is off and says why.
  *
@@ -68,7 +70,7 @@ function allocate(allocator: ResourceAllocator, shape: LightingShape) {
     /** What the context binds, read-only, in place of the rays' feedback where there is none: not the buffer above, which it binds writable beside. */
     feedbackStandIn: allocator.buffer('stand-in for the feedback', 1, 'storage'),
     filtered: allocator.buffer('filtered radiosity rays', sizes.filteredWords, 'storage'),
-    trace: allocator.texture('radiosity trace', [sizes.traceAtlas, sizes.traceAtlas], 'r32uint', {
+    trace: allocator.texture('radiosity trace', [sizes.traceAtlas, sizes.traceAtlas], shape.light, {
       usage,
     }),
     hits: allocator.texture(
@@ -202,5 +204,62 @@ export function ensureLightSlots(held: LightSlots | undefined, device: GPUDevice
       label: `${SURFACE_CACHE_ATLAS_LABEL} light slots`,
     },
     (allocator) => allocateLightSlots(allocator, slots),
+  )
+}
+
+/** What the stochastic direct light keeps (`stochasticWgsl.ts`) for `tiles` tiles of the direct list and `samples` lights picked a texel, in an atlas of `side` texels: the
+ *  samples (four words each, one more a texel for the luminance the lights would give it), the light resolved before it is blended and, where it is blended
+ *  (`temporal`), the history of two images (the light and its second moment, the images accumulated), the one read and the one written alternately. */
+function allocateStochastic(
+  allocator: ResourceAllocator,
+  shape: { tiles: number; samples: number; side: number; temporal: boolean },
+) {
+  const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING
+  // Without the blend nothing is read or written of the resolved light and the history: one texel stands in.
+  const extent = shape.temporal ? shape.side : 1
+  const history = (name: string) => {
+    return {
+      lighting: allocator.texture(`${name} light`, [extent, extent], STOCHASTIC_RESOLVED_FORMAT, {
+        usage,
+      }),
+      frames: allocator.texture(`${name} images`, [extent, extent], STOCHASTIC_FRAMES_FORMAT, {
+        usage,
+      }),
+    }
+  }
+  return {
+    samples: allocator.buffer(
+      'stochastic direct light samples',
+      shape.tiles * SHADOW_TEXELS * (shape.samples + 1) * 4,
+      'storage',
+    ),
+    resolved: allocator.texture(
+      'stochastic resolved light',
+      [extent, extent],
+      STOCHASTIC_RESOLVED_FORMAT,
+      { usage },
+    ),
+    history: [history('stochastic history 0'), history('stochastic history 1')] as const,
+  }
+}
+
+/** The stochastic direct light's memory. */
+export type StochasticBuffers = ReturnType<typeof allocateStochastic> & HeldSet
+
+/** The stochastic direct light's memory for the shape: `held` where it is for it, else made, `held` given back — where the budget leaves room; none where it does not, with the reason. */
+export function ensureStochastic(
+  held: StochasticBuffers | undefined,
+  device: GPUDevice,
+  shape: { tiles: number; samples: number; side: number; temporal: boolean },
+) {
+  return ensureSet(
+    held,
+    device,
+    {
+      key: [shape.tiles, shape.samples, shape.side, shape.temporal],
+      what: 'the stochastic direct light',
+      label: `${SURFACE_CACHE_ATLAS_LABEL} stochastic direct light`,
+    },
+    (allocator) => allocateStochastic(allocator, shape),
   )
 }

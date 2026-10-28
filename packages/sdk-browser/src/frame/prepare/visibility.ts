@@ -1,4 +1,5 @@
 import { createReflectionPipelines } from '../../lighting/reflections/reflectionPipelines.ts'
+import { surfaceCacheLightOf } from '../../lighting/surfaceCache/light.ts'
 import { createWebgpuVisibilityShaders } from '../../visibility/passes/shaders.ts'
 import { NO_RASTERS, graphRastersOf } from '../../materials/graph/graphRasters.ts'
 import { grantsVertexTextures } from '../../gpu/core/vertexTextures.ts'
@@ -94,6 +95,7 @@ async function createHizFor(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   rt.vis.reflectionPipelines = await createReflectionPipelines(
     gpuDevice,
     rt.setup.reflectionStatistics,
+    surfaceCacheLightOf(rt, gpuDevice),
   )
   if (!rt.vis.reflectionPipelines) throw new Error('WEBGPU_REFLECTIONS_UNAVAILABLE')
 }

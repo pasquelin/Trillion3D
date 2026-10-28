@@ -12,6 +12,7 @@ import type { ExposureOptions } from '../../../sdk-core/src/contracts/exposureOp
 import type { TemporalOptions } from '../../../sdk-core/src/contracts/temporalOptions.ts'
 import type { HizOptions } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import type { LightFunctionOptions } from '../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import type { LightProfileOptions } from '../../../sdk-core/src/contracts/lightProfileOptions.ts'
 import type { VolumetricLightmapOptions } from '../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
 import type { DistanceFieldOcclusionOptions } from '../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import type { GlobalDistanceFieldOptions } from '../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
@@ -29,12 +30,18 @@ import type { SkyQualityOptions } from '../../../sdk-core/src/modules/sky/qualit
 import type { ScreenProbeOptions } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ReflectionOptions } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { VolumetricFogOptions } from '../../../sdk-core/src/contracts/volumetricFogOptions.ts'
+import type { LightingDataFormatOptions } from '../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
+import type { MeshDistanceFieldTraceOptions } from '../../../sdk-core/src/contracts/meshDistanceFieldTraceOptions.ts'
+import type { ScreenSpaceTracingOptions } from '../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import type { SingleLayerWaterOptions } from '../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import type { SubsurfaceScatteringOptions } from '../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
 import type { TranslucencyVolumeOptions } from '../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
 import type { TranslucencyGiOptions } from '../../../sdk-core/src/contracts/translucencyGiOptions.ts'
 import type { HairStrandsOptions } from '../../../sdk-core/src/contracts/hairStrandsOptions.ts'
+import type { HeterogeneousVolumeOptions } from '../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
+import type { SampledLightsOptions } from '../../../sdk-core/src/contracts/sampledLightsOptions.ts'
 import type { TessellationOptions } from '../../../sdk-core/src/contracts/tessellationOptions.ts'
+import type { TextureFilteringOptions } from '../../../sdk-core/src/contracts/textureFilteringOptions.ts'
 import type { RasterOptions } from '../../../sdk-core/src/contracts/rasterOptions.ts'
 import type { StreamingOptions } from '../../../sdk-core/src/contracts/streamingOptions.ts'
 
@@ -58,6 +65,7 @@ export interface SettingOptions
     TemporalOptions,
     HizOptions,
     LightFunctionOptions,
+    LightProfileOptions,
     VolumetricLightmapOptions,
     GlobalDistanceFieldOptions,
     SurfaceCacheOptions,
@@ -75,9 +83,15 @@ export interface SettingOptions
     SubsurfaceScatteringOptions,
     SingleLayerWaterOptions,
     HairStrandsOptions,
+    HeterogeneousVolumeOptions,
+    SampledLightsOptions,
     TessellationOptions,
+    TextureFilteringOptions,
     ScreenProbeOptions,
     ReflectionOptions,
+    ScreenSpaceTracingOptions,
+    LightingDataFormatOptions,
+    MeshDistanceFieldTraceOptions,
     AmbientOcclusionOptions,
     AmbientCubemapOptions,
     SkyQualityOptions,

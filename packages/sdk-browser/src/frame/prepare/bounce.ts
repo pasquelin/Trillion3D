@@ -1,6 +1,7 @@
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { createGpuBounceProbes } from '../../lighting/bounce/probes/probes.ts'
 import { screenProbeSettingsOf } from '../../lighting/bounce/screen/settingsOf.ts'
+import { restartIrradianceField } from '../../lighting/bounce/irradianceField/cache.ts'
 import { restartTranslucencyCache } from '../../lighting/translucencyGi/cache.ts'
 import { grantCapability } from '../io/drops.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -140,5 +141,8 @@ export function syncBouncePlacements(rt: WebgpuPagesRuntime) {
   if (rt.bounce.sceneEpoch === epoch) return
   rt.bounce.sceneEpoch = epoch
   // The volume's own cache reads no placements of its own: it follows the moves the world's probes saw.
-  if (probes.sync()) restartTranslucencyCache(rt.bounce)
+  if (probes.sync()) {
+    restartTranslucencyCache(rt.bounce)
+    restartIrradianceField(rt.bounce)
+  }
 }

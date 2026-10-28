@@ -161,6 +161,8 @@ function translucentState() {
      *  item reflects (lit, of the physical model), its lobes once one carries a lobe. Set with the
      *  records. */
     frontOutputs: 0 as FrontOutputs,
+    /** Whether an item is lit by the sampled lighting of the nearest translucent layer (`blendFrontLit`): any lit, non-medium model. Set with the records. */
+    frontLit: false,
     /** The single-layer water pass's targets, made at the first image that draws it
      *  (`./water/waterTargets.ts`). */
     waterTargets: undefined as WaterTargets | undefined,

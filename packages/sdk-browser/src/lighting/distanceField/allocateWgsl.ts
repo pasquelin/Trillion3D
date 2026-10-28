@@ -1,6 +1,11 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
-import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
+import {
+  FLAT_INDEX_WGSL,
+  GROUP_GRID_WGSL,
+  WORKGROUP_THREADS,
+  indirectArgsWgsl,
+} from '../../gpu/dispatch/grid.ts'
 import { squaredDistanceBetweenBoxes } from './aabbWgsl.ts'
 import { CONTROL } from './clipmapBlock.ts'
 import { clipmapCommonWgsl } from './clipmapCommonWgsl.ts'
@@ -131,9 +136,7 @@ export const LISTS_SHADER = wgslProgram(
 @group(0) @binding(3) var<storage,read_write> args:array<u32>;
 fn writeArgs(at:u32,groups:u32){
  let grid=groupGrid(groups);
- args[at]=grid.x;
- args[at+1u]=grid.y;
- args[at+2u]=1u;
+ writeIndirectArgs(at,grid.x,grid.y,1u);
 }
 fn countersAt()->u32{return CONTROL_COUNTERS+clip.packed*COUNTERS_PER_CLIPMAP;}
 @compute @workgroup_size(${LANES}) fn ${ALLOCATE_ENTRIES.init}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
@@ -162,5 +165,10 @@ fn countersAt()->u32{return CONTROL_COUNTERS+clip.packed*COUNTERS_PER_CLIPMAP;}
   lists[at]=lists[clip.maxPages+index];
  }
 }`,
-  [clipmapCommonWgsl(0, 0), FLAT_INDEX_WGSL, GROUP_GRID_WGSL],
+  [
+    clipmapCommonWgsl(0, 0),
+    FLAT_INDEX_WGSL,
+    GROUP_GRID_WGSL,
+    indirectArgsWgsl('args', { words: '1u' }),
+  ],
 )

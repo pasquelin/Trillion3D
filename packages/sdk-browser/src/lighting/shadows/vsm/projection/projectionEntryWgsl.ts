@@ -139,12 +139,27 @@ fn vsmFirstPersonTrace(r:VsmTraceResult,k:u32,pixel:VsmPixel,receiver:VsmReceive
 const PREFILTERED_TRACE = /* wgsl */ `  let prefiltered=vsmPrefilteredSample(vsmView.lights[k],receiver.P,inLight);
   let own=vsmPrefilteredCombine(prefiltered,vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight&&!vsmPrefilteredWhole(prefiltered)));`
 
+/** The suns' store under the shadow the strands cast on the surfaces (the `hair` cut): the least of the light's share and the layer of the light (`vsmHairShadow`, a layer a light of the frame). */
+const HAIR_SUN_STORE = `  var held=select(1.0,r.shadowFactor,r.rayCount>0u);
+  if(i32(k)<i32(textureNumLayers(vsmHairShadow))){held=min(held,textureLoad(vsmHairShadow,pixel.pos,i32(k),0).x);}
+  if(pixel.inRect){textureStore(vsmSunMask,pixel.pos,k,vec4f(held));}`
+
+/** The local lights' share under the strands' shadow (the `hair` cut), as the capsules' is. */
+const HAIR_LOCAL_SHARE = `
+   if(i32(k)<i32(textureNumLayers(vsmHairShadow))){
+    share=min(share,textureLoad(vsmHairShadow,pixel.pos,i32(k),0).x);
+   }`
+
 /** The suns' kernel: every sun of the frame (the first `sunCount` records), a layer of the suns' mask a
  *  sun, each pixel of the rect written (a pixel no sun shades, 1). A thread never leaves alone: the
  *  loops that vote are bounded by uniform values, a thread out of the rect or out of a sun's region
  *  keeps iterating as a no-op. With `prefiltered`, each sun is first sampled in its prefiltered distant
  *  shadow (`PREFILTERED_TRACE`). */
-export const vsmSunsEntryWgsl = (prefiltered = false, input: VsmInputType = 'gbuffer') => {
+export const vsmSunsEntryWgsl = (
+  prefiltered = false,
+  input: VsmInputType = 'gbuffer',
+  hair = false,
+) => {
   const t = KERNEL_INPUT[input]
   return /* wgsl */ `${FIRST_PERSON_TRACE}
 @compute @workgroup_size(${VSM_PROJECTION_GROUP_SIZE * VSM_PROJECTION_GROUP_SIZE})
@@ -155,7 +170,7 @@ fn vsmProjectSuns(@builtin(workgroup_id) groupId:vec3u,${t.groups}@builtin(local
   let inLight=vsmLightParticipates(k,pixel.info,pixel.shifted);${t.each}
 ${prefiltered ? PREFILTERED_TRACE : '  let own=vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight);'}
   let r=vsmSubsurfaceShadow(vsmFirstPersonTrace(own,k,pixel,receiver,inLight),pixel.info);
-  if(pixel.inRect){textureStore(vsmSunMask,pixel.pos,k,vec4f(select(1.0,r.shadowFactor,r.rayCount>0u)));}
+${hair ? HAIR_SUN_STORE : '  if(pixel.inRect){textureStore(vsmSunMask,pixel.pos,k,vec4f(select(1.0,r.shadowFactor,r.rayCount>0u)));}'}
  }
 }
 `
@@ -169,7 +184,12 @@ ${prefiltered ? PREFILTERED_TRACE : '  let own=vsmTraceLight(vsmView.lights[k],p
  *  that the adaptive ray count votes over its 32-pixel halves (`vsmProjectionVoteWgsl`): the loop runs
  *  to the longest list of the group's pixels (`vsmListBound`), a pixel past its own list (or out of
  *  the rect) traces as a no-op and votes neutrally. */
-export const vsmLocalsEntryWgsl = (subgroups: boolean, input: VsmInputType = 'gbuffer') => {
+export const vsmLocalsEntryWgsl = (
+  subgroups: boolean,
+  input: VsmInputType = 'gbuffer',
+  capsule = false,
+  hair = false,
+) => {
   const t = KERNEL_INPUT[input]
   return /* wgsl */ `
 /** \`share\` in lane \`lane\` of \`mask\`: its sixteenths in four bits (\`ONE_PASS_MASK_BITS\`). */
@@ -209,7 +229,14 @@ ${
   if(listed){k=shadowSliceRecord(i32(directLights.items[vsmShadowedRank(list,lane)].params.y));}
   let inLight=listed&&vsmLightParticipates(k,pixel.info,pixel.shifted);${t.each}
   let r=vsmSubsurfaceShadow(vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight),pixel.info);
-  if(listed){vsmMaskPack(&mask,lane,select(1.0,vsmFilterShadow(r.shadowFactor,pixel.noise),r.rayCount>0u));}
+  if(listed){
+   var share=select(1.0,vsmFilterShadow(r.shadowFactor,pixel.noise),r.rayCount>0u);${
+     capsule
+       ? '\n   if(i32(k)<i32(textureNumLayers(vsmCapsule))){\n    let held=textureLoad(vsmCapsule,pixel.pos,i32(k),0).x;\n    share=min(share,held*held);\n   }'
+       : ''
+   }${hair ? HAIR_LOCAL_SHARE : ''}
+   vsmMaskPack(&mask,lane,share);
+  }
  }
  if(pixel.inRect){textureStore(vsmLocalMask,pixel.pos,mask);}
 }

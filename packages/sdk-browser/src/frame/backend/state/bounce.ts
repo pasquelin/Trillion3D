@@ -1,9 +1,11 @@
 import type { BounceFrameMetrics } from '../../../../../sdk-core/src/contracts/shadowMetrics.ts'
 import type { MarkSurface } from '../../../lighting/bounce/pool/pool.ts'
 import type { GpuBounceProbes } from '../../../lighting/bounce/probes/probes.ts'
+import type { ScreenProbeStage } from '../../../lighting/bounce/screen/stage.ts'
 import type { ScreenProbeStore } from '../../../lighting/bounce/screen/store.ts'
 import type { SurfaceHitReads } from '../../../lighting/surfaceCache/hitWgsl.ts'
 import type { SceneRays } from '../../../lighting/surfaceCache/lighting/surfaceLighting.ts'
+import type { IrradianceFieldHold } from '../../../lighting/bounce/irradianceField/cache.ts'
 import type { TranslucencyCacheHold } from '../../../lighting/translucencyGi/cache.ts'
 
 /** What the image's probe pass is encoded with, taken when the image's lights are encoded: the lights lit, what the rays' hits read,
@@ -23,9 +25,14 @@ export interface WebgpuBounceState {
   /** The radiance cache of the translucency volume's own (`lighting/translucencyGi/cache.ts`), made where the volume reads one that is
    *  not the world's. */
   translucency?: TranslucencyCacheHold
+  /** The radiance cache of the irradiance field (`lighting/bounce/irradianceField/cache.ts`), made where the indirect light is gathered by the field. */
+  irradianceField?: IrradianceFieldHold
   /** The screen probes of the views, made at the first image that casts them
    *  (`lighting/bounce/screen/frame.ts`). */
   screen?: ScreenProbeStore
+  /** A stage a pass of the frame adds to the screen probes' pass, set again at each image by the pass that brings it (the hair strands'
+   *  environment light, `hair/environment.ts`): none else. */
+  stage?: ScreenProbeStage
   /** In-flight making of the probes; it is launched only once, at the first light. */
   pending: Promise<unknown> | undefined
   /** What the host asked. */

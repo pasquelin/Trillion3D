@@ -13,7 +13,7 @@ import assert from 'node:assert/strict'
 import { functionsOf } from '../../materials/texture/shaderRule.fixture.ts'
 import { localLightReaches } from './lightReachWgsl.ts'
 import { directLightingWgsl } from './lightLoop.fixture.ts'
-import { DIRECT_WGSL } from '../surfaceCache/lighting/directWgsl.ts'
+import { directProgramOf } from '../surfaceCache/lighting/directWgsl.ts'
 import { vsmPixelPageMarkingWgsl } from '../shadows/vsm/markingWgsl.ts'
 import { vsmLayout } from '../shadows/vsm/layout.ts'
 import { PROJECTION_CODE } from '../shadows/vsm/projection/projectionRun.fixture.ts'
@@ -26,6 +26,9 @@ import { projectionOf, projectionRecords, reachOf, shadesOf } from './lightReach
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
+
+const DIRECT_WGSL = directProgramOf('grey', WORD_LIGHT_FORMAT)
 
 const LIGHTING = wgslModule(directLightingWgsl({ lobeless: true }))
 const MARKING = vsmPixelPageMarkingWgsl(

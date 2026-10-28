@@ -103,6 +103,32 @@ export const DEFERRED_BINDINGS = {
   ambientCube: 72,
   ambientCubeSampler: 73,
   ambientCubeColour: 74,
+  /** The scene without the water's linear depth (the clip w, the water pass's copy), which the fog behind the water reads in place of the
+   *  device depth (`fogPassWgsl.ts`). */
+  waterLinearDepth: 75,
+  /** The screen-space contact shadows' array (`contactShadowMethod` 1, `contactBendWgsl`), a layer a marched light, 1 where lit: the passes of lights of a scene
+   *  that holds contact shadow code, a one-texel stand-in where the image marched none. */
+  contactBend: 77,
+  /** The ranks of the lights that have a layer in that array, in the order of its layers (`contactBendWgsl`): a uniform of
+   *  the same programs. */
+  contactBendRanks: 78,
+  /** The short-range global illumination the screen probes left of the pixels (`../bounce/screen/indirectWgsl.ts`): the bounce program's, a read-only storage texture of half floats read by load (the lit pass
+   *  has no sampled texture to spare), a black stand-in where the probes gathered none. */
+  screenShortRangeGi: 76,
+  /** The indirect capsule shadows' factors (`../capsuleShadows/host.ts`): a read-only storage buffer of bytes, one a pixel, 255 for light let through, read by load
+   *  (`capsuleIndirectAt`); the indirect pass's of an image that casts them, a stand-in where it drew none. */
+  capsuleIndirect: 79,
+  /** The light the sampled lighting leaves for the local lights' pass to add (`../manyLightsSampled/spatialWgsl.ts`, `ContractKey.sampled`): a sampled texture read by load, a stand-in where the image made none. */
+  sampledLight: 81,
+  /** The shadows the heterogeneous volumes cast, one read-only storage buffer of words (`beerShadowMapPack.ts`): the opaque lit passes' of a
+   *  scene whose volumes cast shadows (`ContractKey.volumeShadow`), a one-word stand-in where the image built none. */
+  volumeShadow: 82,
+} as const
+
+/** Where the programs that hold contact shadow code bind the screen-space shadows' array and the ranks of its layers (`contactBendWgsl`). */
+export const DEFERRED_CONTACT_BEND_BINDINGS = {
+  array: DEFERRED_BINDINGS.contactBend,
+  ranks: DEFERRED_BINDINGS.contactBendRanks,
 } as const
 
 /** Where the contract programs bind the sky light's resources, in group 0 (`skyLightReadWgsl`). */

@@ -2,7 +2,7 @@
 // build that is shared most (`../noise/`): its file, its textures, made once a device, and how a pass reads them.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { oncePerDevice } from './oncePerDevice.ts'
+import { oncePerDevice, oncePerDeviceKey } from './oncePerDevice.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
@@ -31,6 +31,23 @@ test('a device keeps what was made, never a failed build', async () => {
     if (expected === 'reject') await assert.rejects(make(device) as Promise<unknown>)
     else assert.equal(await make(device), expected)
   assert.equal(calls, 3)
+})
+
+test('a device keeps what was made for each key, and a failed build of one key is made again', async () => {
+  const device = {} as GPUDevice
+  const calls: string[] = []
+  const make = oncePerDeviceKey(async (_device, key: string) => {
+    calls.push(key)
+    if (key === 'lost' && calls.indexOf('lost') === calls.lastIndexOf('lost'))
+      throw new Error('lost')
+    return key
+  })
+  assert.equal(await make(device, 'a'), 'a')
+  assert.equal(await make(device, 'a'), 'a')
+  assert.equal(await make(device, 'b'), 'b')
+  await assert.rejects(make(device, 'lost') as Promise<unknown>)
+  assert.equal(await make(device, 'lost'), 'lost')
+  assert.deepEqual(calls, ['a', 'b', 'lost', 'lost'])
 })
 
 test('the blue noise file holds the two masks: the scalar one each value as often as any, blue in every image and along the frames, the vector one blue too', () => {

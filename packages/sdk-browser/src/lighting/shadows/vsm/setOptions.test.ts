@@ -44,6 +44,7 @@ test('the engine’s set options carry the kept pages and the cover into its lay
         cacheEnabled,
         coverMode,
         prefilteredDistant: false,
+        classic: false,
       }),
     )
   const [kept, uncached, covered] = [
@@ -75,6 +76,7 @@ test('the engine’s set options carry the kept pages and the cover into its lay
     cacheEnabled: true,
     coverMode: 'all',
     prefilteredDistant: false,
+    classic: false,
   })
   assert.equal(askedOfLayout(uncached).dynamicHzb, false, 'no second layer without the cache')
   // The second layer asked without the pyramid is no layer: the one rule the held set is weighed by.
@@ -92,7 +94,7 @@ test('the prefiltered distant shadow is asked of the set and read back from its 
   const asked = (prefilteredDistant: boolean) =>
     engineVsmOptions(63, 17, {
       ...{ poolPages: VSM_POOL_PAGES, occlusion: true, dynamicHzb: false },
-      ...{ cacheEnabled: true, coverMode: 'suns', prefilteredDistant },
+      ...{ cacheEnabled: true, coverMode: 'suns', prefilteredDistant, classic: false },
     })
   assert.equal(vsmLayout(asked(false)).prefilteredDistant, false)
   const on = vsmLayout(asked(true))
@@ -106,7 +108,7 @@ test('the cover masks are made where a receiver mask is on, a 1x1 stand-in else,
   const asked = (coverMode: 'suns' | 'none') =>
     engineVsmOptions(63, 17, {
       ...{ poolPages: VSM_POOL_PAGES, occlusion: true, dynamicHzb: false, cacheEnabled: true },
-      ...{ coverMode, prefilteredDistant: false },
+      ...{ coverMode, prefilteredDistant: false, classic: false },
     })
   const made = vsmLayout(asked('suns'))
   const none = vsmLayout(asked('none'))

@@ -5,14 +5,15 @@ import assert from 'node:assert/strict'
 import { assertProgramAssembles } from '../../../gpu/core/wgslNames.fixture.ts'
 import { wgslBufferBindings } from '../../../gpu/core/wgslBindings.fixture.ts'
 import { tracedShadowWords } from './layout.ts'
-import {
-  SHADOW_MASK_BINDINGS,
-  SHADOW_MASK_COLOURED_PROGRAM_WGSL,
-  SHADOW_MASK_ENTRIES,
-  SHADOW_MASK_PROGRAM_WGSL,
-} from './shadowMaskWgsl.ts'
-import { DIRECT_COLOURED_WGSL, DIRECT_WGSL } from './directWgsl.ts'
+import { SHADOW_MASK_BINDINGS, SHADOW_MASK_ENTRIES, shadowMaskProgramOf } from './shadowMaskWgsl.ts'
+import { directProgramOf } from './directWgsl.ts'
 import { lightFunctionPassWgsl } from './lightFunctionPassWgsl.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
+
+const SHADOW_MASK_PROGRAM_WGSL = shadowMaskProgramOf('grey')
+const SHADOW_MASK_COLOURED_PROGRAM_WGSL = shadowMaskProgramOf('colour')
+const DIRECT_WGSL = directProgramOf('grey', WORD_LIGHT_FORMAT)
+const DIRECT_COLOURED_WGSL = directProgramOf('colour', WORD_LIGHT_FORMAT)
 
 test('the program assembles in both formats: every name declared once, none reserved, the braces paired', () => {
   for (const entry of SHADOW_MASK_ENTRIES) {

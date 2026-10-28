@@ -9,17 +9,14 @@ import {
   type SceneLight,
 } from './contracts.ts'
 import {
-  createLightProfileBrightness,
-  iesBrightnessScaleOf,
-  profileBrightnessOf,
   profileLaneOf,
   profiledIntensityOf,
   profileSliceOf,
   refuseLightProfile,
   sameLightProfile,
-  useIesBrightnessOf,
   validateLightProfile,
 } from './lightProfile.ts'
+import { iesBrightnessScaleOf, useIesBrightnessOf } from './iesBrightness.ts'
 import { createSceneLightStore } from './store.ts'
 import { validateSceneLight } from './validate.ts'
 
@@ -131,32 +128,39 @@ test('a sun and a rect have no profile', () => {
 
 test('the intensity is the profile brightness times the scale, in EV its logarithm', () => {
   const named = { iesProfile: 'p', useIesBrightness: true, iesBrightnessScale: 0.5 }
-  assert.equal(profiledIntensityOf(spot(named), 7, 800), 400)
+  assert.equal(profiledIntensityOf(spot({ ...named, iesBrightness: 800 }), 7), 400)
   assert.equal(
-    profiledIntensityOf(spot({ ...named, intensityUnits: 'ev' }), 7, 1024),
+    profiledIntensityOf(spot({ ...named, iesBrightness: 1024, intensityUnits: 'ev' }), 7),
     Math.log2(512),
   )
   // A scale of 0 in EV is dark and finite, not minus infinity.
   assert.ok(
     Number.isFinite(
-      profiledIntensityOf(spot({ ...named, iesBrightnessScale: 0, intensityUnits: 'ev' }), 7, 800),
+      profiledIntensityOf(
+        spot({ ...named, iesBrightness: 800, iesBrightnessScale: 0, intensityUnits: 'ev' }),
+        7,
+      ),
     ),
   )
-  // Off, no profile or no brightness known yet: the declared intensity.
-  assert.equal(profiledIntensityOf(spot({ ...named, useIesBrightness: false }), 7, 800), 7)
-  assert.equal(profiledIntensityOf(spot({ useIesBrightness: true }), 7, 800), 7)
-  assert.equal(profiledIntensityOf(spot(named), 7, undefined), 7)
+  // Off, no profile or no brightness carried: the declared intensity.
+  assert.equal(
+    profiledIntensityOf(spot({ ...named, iesBrightness: 800, useIesBrightness: false }), 7),
+    7,
+  )
+  assert.equal(profiledIntensityOf(spot({ useIesBrightness: true, iesBrightness: 800 }), 7), 7)
+  assert.equal(profiledIntensityOf(spot(named), 7), 7)
 })
 
-test('the brightness view reports what changed', () => {
-  const view = createLightProfileBrightness()
-  assert.equal(view.brightnessOf('p'), undefined)
-  assert.equal(view.set('p', 800), true)
-  assert.equal(view.set('p', 800), false)
-  assert.equal(view.brightnessOf('p'), 800)
-  assert.equal(profileBrightnessOf(spot({ iesProfile: 'p' }), view), 800)
-  assert.equal(profileBrightnessOf(spot({ iesProfile: 'q' }), view), undefined)
-  assert.equal(profileBrightnessOf(spot(), view), undefined)
+test('the brightness of a profile is a finite number above 0, and only beside a profile', () => {
+  const named = { iesProfile: 'p', emitterAxis: forward }
+  assert.equal(validateSceneLight(spot({ ...named, iesBrightness: 120 })).iesBrightness, 120)
+  for (const bad of [0, -1, Number.NaN, Number.POSITIVE_INFINITY])
+    assert.throws(
+      () => validateSceneLight(spot({ ...named, iesBrightness: bad })),
+      /iesBrightness/,
+      String(bad),
+    )
+  assert.throws(() => validateSceneLight(spot({ iesBrightness: 120 })), /iesBrightness/)
 })
 
 test('two lights are the same light only with the same profile', () => {
@@ -167,6 +171,7 @@ test('two lights are the same light only with the same profile', () => {
     spot({ iesProfile: 'q' }),
     spot({ iesProfile: 'p', useIesBrightness: true }),
     spot({ iesProfile: 'p', iesBrightnessScale: 2 }),
+    spot({ iesProfile: 'p', iesBrightness: 90 }),
     spot(),
   ])
     assert.ok(!sameLightProfile(base, other))
@@ -238,30 +243,17 @@ test('a point light with a profile writes the direction its profile is read alon
   assert.equal(store.packed[at + LIGHT_FIELD.tubeHalfLength], 0, 'and no tube')
 })
 
-test("a loaded profile's brightness becomes the intensity of the lights that take it", () => {
+test("a profile's brightness is the intensity of the lights that take it", () => {
   const store = createSceneLightStore()
-  store.add(
-    spot({
-      id: 'a',
-      iesProfile: 'p',
-      emitterAxis: forward,
-      useIesBrightness: true,
-      iesBrightnessScale: 2,
-    }),
-  )
-  store.add(spot({ id: 'b', iesProfile: 'p', emitterAxis: forward }))
+  const named = { iesProfile: 'p', emitterAxis: forward, iesBrightness: 400 }
+  store.add(spot({ id: 'a', ...named, useIesBrightness: true, iesBrightnessScale: 2 }))
+  store.add(spot({ id: 'b', ...named }))
   const intensity = (slot: number) => store.packed[baseOf(slot) + LIGHT_FIELD.intensity]!
-  const declared = intensity(1)
-  const epoch = store.epoch
-  store.setProfileBrightness('p', 400)
-  assert.equal(intensity(0), Math.fround(brightnessOf(store.light('a')!, 400)))
-  assert.notEqual(intensity(0), declared)
-  assert.equal(intensity(1), declared, 'a light that does not take it keeps its own')
-  assert.ok(store.epoch > epoch)
-  const held = store.epoch
-  store.setProfileBrightness('p', 400)
-  assert.equal(store.epoch, held, 'the same brightness again changes nothing')
-  // A light added later takes the brightness already known.
-  store.add(spot({ id: 'c', iesProfile: 'p', emitterAxis: forward, useIesBrightness: true }))
-  assert.equal(intensity(2), Math.fround(brightnessOf(store.light('c')!, 400)))
+  assert.equal(intensity(0), Math.fround(brightnessOf(store.light('a')!)))
+  assert.notEqual(intensity(0), intensity(1), 'the scale and the brightness move the intensity')
+  assert.equal(
+    intensity(1),
+    Math.fround(brightnessOf(store.light('b')!)),
+    'a light that does not take it keeps its own',
+  )
 })

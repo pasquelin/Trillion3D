@@ -66,9 +66,13 @@ export interface VsmLightAllocation {
 
 export interface VsmFramePlan {
   frameStamp: number
-  /** Maps with projection data this frame: ids [0, projectionCount), the maps the frame asked for
-   *  whether the slots hold them or not. */
+  /** The slots of the frame's projection data: ids [0, projectionCount), the maps of one page from id 0 and the full maps from the end of
+   *  the range reserved for the first (`VsmMapIds.mapCount`); the maps the frame asked for whether the slots hold them or not. */
   projectionCount: number
+  /** The maps the frame asked for (`VsmMapIds.claimedCount`), the first `singleCount` of them the maps of one page, at the ids
+   *  [0, singleCount); the others are at the ids from the end of the reserved range. */
+  claimedCount: number
+  singleCount: number
   /** The id of the first sun's first map (`VsmMapIds.sunBase`). */
   sunBase: number
   /** Page-table blocks the maps' tables take (`tableBlocks.ts`). */
@@ -205,6 +209,8 @@ export function planVirtualShadowFrame(
   return {
     frameStamp: state.frameStamp,
     projectionCount: ids.mapCount,
+    claimedCount: ids.claimedCount,
+    singleCount: ids.singleCount,
     sunBase: ids.sunBase,
     tableBlocks: blocks,
     lights: allocations,

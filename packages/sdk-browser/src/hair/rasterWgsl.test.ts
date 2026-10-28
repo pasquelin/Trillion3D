@@ -5,7 +5,8 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { hairSpineClip, mixClip } from './rasterClip.fixture.ts'
-import { HAIR_RIBBON_CORNERS } from './ribbonWgsl.ts'
+import { HAIR_RIBBON_CORNERS } from './ribbonCorners.ts'
+import { HAIR_INLINE_PIXELS, HAIR_LARGE_LANES } from './rasterLimits.ts'
 import { rasterWgsl } from './rasterWgsl.ts'
 
 /** A point at a distance of 1 in front of a camera whose near plane is at 0.1 (the depth reversed: `z`
@@ -60,15 +61,45 @@ test('the cut lands both corners of the near end on the plane, and the triangles
 
 test('the raster cuts each segment once, before the corners, and builds its triangles from them', () => {
   const code = rasterWgsl(8, true)
-  const kernel = code.slice(code.indexOf('fn hairRaster'))
-  assert.equal(kernel.split('hairSpineClip(').length, 2, 'one cut a segment')
+  const setup = code.slice(code.indexOf('fn ribbonOf'), code.indexOf('fn ribbonBox'))
+  assert.equal(setup.split('hairSpineClip(').length, 2, 'one cut a segment')
   assert.ok(
-    kernel.indexOf('hairSpineClip(') < kernel.indexOf('cornerClip('),
+    setup.indexOf('hairSpineClip(') < setup.indexOf('cornerClip('),
     'the cut before the width',
+  )
+  const draw = code.slice(code.indexOf('fn drawRibbon'), code.indexOf('@compute'))
+  assert.match(
+    draw,
+    /fillTriangle\(corners\[cornerRank\(k\)\],corners\[cornerRank\(k\+1u\)\],corners\[cornerRank\(k\+2u\)\],ribbon\.code,lane,lanes\)/,
+  )
+  assert.ok(!code.includes('rasterTriangle'), 'no polygon cut of a triangle')
+})
+
+test('a thread draws the ribbons of a tile of pixels at most, a group of threads shares the others', () => {
+  const code = rasterWgsl(4, false)
+  assert.equal(HAIR_INLINE_PIXELS, 32 * 32, 'the area of a tile of the compute raster')
+  const kernel = code.slice(code.indexOf('fn hairRaster('), code.indexOf('fn hairRasterLarge'))
+  assert.ok(
+    kernel.indexOf('ribbonBox(') < kernel.indexOf('drawRibbon('),
+    'a ribbon is measured before one thread draws it',
   )
   assert.match(
     kernel,
-    /fillTriangle\(corners\[cornerRank\(k\)\],corners\[cornerRank\(k\+1u\)\],corners\[cornerRank\(k\+2u\)\],code\)/,
+    /if\(slot<LARGE_CAPACITY\)\{[^}]*return;/,
+    'a listed ribbon is not drawn here',
   )
-  assert.ok(!code.includes('rasterTriangle'), 'no polygon cut of a triangle')
+  assert.ok(
+    kernel.includes('\n drawRibbon(ribbon,vec2u(0u),vec2u(1u));'),
+    'a ribbon the list has no room for is drawn here, by one thread',
+  )
+  // The group's threads take every x-th pixel of every y-th row.
+  assert.match(code, /for\(var y=rowLo\+lane\.y;y<=rowHi;y\+=lanes\.y\)/)
+  assert.match(code, /for\(var x=colLo\+lane\.x;x<=colHi;x\+=lanes\.x\)/)
+  const [x, y] = HAIR_LARGE_LANES
+  assert.match(code, new RegExp(`@workgroup_size\\(${x},${y}\\) fn hairRasterLarge`))
+  assert.match(code, new RegExp(`drawRibbon\\(ribbon,lane\\.xy,vec2u\\(${x}u,${y}u\\)\\)`))
+  // The arguments over the list are its count (never past the room), and the list is emptied.
+  const args = code.slice(code.indexOf('fn hairLargeArgs'))
+  assert.match(args, /largeArgs\[0\]=min\(atomicLoad\(&large\[0\]\),LARGE_CAPACITY\)/)
+  assert.match(args, /atomicStore\(&large\[0\],0u\)/)
 })

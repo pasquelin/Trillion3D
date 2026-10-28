@@ -42,13 +42,15 @@ const cameraEv100 = (settings: ExposureValues, aperture: number) =>
  * scale the image is multiplied by; `mean` the mean luminance an image with that white point would
  * have (what the curve was read at); `compensation` the multiplier the middle grey is brought to
  * (the bias and the curve's factor in it); `grey` the log2 of the middle grey the local exposure
- * pulls toward. A manual exposure cancels the bias out of the grey and keeps the curve's factor.
+ * pulls toward; `scales` the scales the local exposure's contrast curves give at that mean (highlights, then shadows).
+ * A manual exposure cancels the bias out of the grey and keeps the curve's factor.
  */
 export interface HeldExposure {
   exposure: number
   mean: number
   compensation: number
   grey: number
+  scales: [number, number]
 }
 
 /** A new held exposure, an exposure of 1. */
@@ -57,6 +59,7 @@ export const newHeldExposure = (): HeldExposure => ({
   mean: 1,
   compensation: 1,
   grey: Math.log2(EXPOSURE_MIDDLE_GREY),
+  scales: [1, 1],
 })
 
 /** The mean luminance the manual exposure's curve is read at: the white point, 1 where the
@@ -74,19 +77,25 @@ const greyOf = (settings: ExposureValues, factor: number) =>
 
 /**
  * The manual exposure of `settings` for a camera of f-stop `aperture`, the compensation curve baked
- * in `table` (`exposureCurveTable`). Written into `out` when given, else a new object.
+ * in `table` (`exposureCurveTable`) and the local exposure's two contrast curves in `contrast`
+ * (`exposureCurveScaleTable`, none: scales of 1), read at the same mean as the reference's last average
+ * scene luminance, which the manual method's histogram of no pixel gives. Written into `out` when given, else a new object.
  */
 export function manualExposure(
   settings: ExposureValues,
   table: ArrayLike<number>,
   aperture: number,
   out: HeldExposure = newHeldExposure(),
+  contrast?: readonly [ArrayLike<number>, ArrayLike<number>],
 ): HeldExposure {
   const ev100 = settings.exposureApplyPhysicalCamera ? cameraEv100(settings, aperture) : 0
   const saturation = exposureSaturationLuminance(settings.exposureLensAttenuation)
   const white = saturation * 2 ** ev100
   out.mean = curveMean(settings, white)
-  const curve = exposureCurveFactor(table, Math.log2(out.mean / EXPOSURE_MIDDLE_GREY / saturation))
+  const ev = Math.log2(out.mean / EXPOSURE_MIDDLE_GREY / saturation)
+  const curve = exposureCurveFactor(table, ev)
+  out.scales[0] = contrast ? exposureCurveFactor(contrast[0], ev) : 1
+  out.scales[1] = contrast ? exposureCurveFactor(contrast[1], ev) : 1
   out.compensation = 2 ** settings.exposureBias * curve
   out.exposure = out.compensation / Math.max(LEAST_WHITE, white)
   out.grey = greyOf(settings, curve)
@@ -101,6 +110,7 @@ export function fixedExposure(
 ): HeldExposure {
   out.exposure = exposure
   out.mean = 1 / exposure
+  out.scales[0] = out.scales[1] = 1 // no eye adaptation runs: the reference keeps no average luminance, so no contrast curve is read
   out.compensation = 1
   out.grey = greyOf(settings, 1)
   return out

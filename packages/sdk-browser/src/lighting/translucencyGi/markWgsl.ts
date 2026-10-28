@@ -11,7 +11,7 @@ const b = MARK_GI_BINDING
 
 /**
  * THE MARK OF THE CELLS THE VOLUME READS, a thread a cell of the grid: a cell that is worth tracing (`giVisible`) marks, at its point
- * — the centre of the cell, or the point the image's jitter picks while the cascades are not asked coarser —, the probes of the cube that
+ * — the corner of the cell, or the point the image's jitter picks while the cascades are not asked coarser —, the probes of the cube that
  * covers it, in the cascade `translucencyGiRadianceCacheClipmapBias` coarser than the one that does, so that the cells that fill the
  * view take few of the probes the surfaces need (`markPointBiased`, the very bitmap the surfaces' marks fill). The mark is at the cell's own
  * point, not at the one the trace starts from (`giTracePoint` moves it forward off a surface by less than `gi.depth.y` slices): the
@@ -26,7 +26,7 @@ fn markCells(@builtin(global_invocation_id) id:vec3u){
  if(bounce.counts.w==0u||any(id>=gi.grid.xyz)){return;}
  if(!giVisible(id)){return;}
  let bias=u32(gi.temporal.w);
- let offset=select(vec3f(0.5),gi.jitter.xyz,bias==0u);
+ let offset=select(vec3f(0.0),gi.jitter.xyz,bias==0u);
  markPointBiased(giCellPoint(vec3f(id),offset),0.01,bias);
 }`,
   [BOUNCE_GRID_STRUCTS_WGSL, SP_REFLECTION, GI_VISIBLE_WGSL, markPoint(b.marks)],

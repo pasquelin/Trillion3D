@@ -11,6 +11,12 @@ export interface ContactShadowView {
   contactShadowOverrideLengthInWorldSpace: boolean
   contactShadowOverrideCastingIntensity: number
   contactShadowOverrideNonCastingIntensity: number
+  contactShadowMethod: number
+  contactShadowBendSurfaceThickness: number
+  contactShadowBendMaxLights: number
+  contactShadowIntensityMode: number
+  contactShadowIntensityFadeStart: number
+  contactShadowIntensityFadeLength: number
 }
 
 /** The view that overrides nothing and keeps the contact shadows on. */
@@ -20,6 +26,12 @@ export const NO_CONTACT_SHADOW_VIEW: Readonly<ContactShadowView> = /* @__PURE__ 
   contactShadowOverrideLengthInWorldSpace: false,
   contactShadowOverrideCastingIntensity: -1,
   contactShadowOverrideNonCastingIntensity: -1,
+  contactShadowMethod: 0,
+  contactShadowBendSurfaceThickness: 0.005,
+  contactShadowBendMaxLights: 8,
+  contactShadowIntensityMode: 0,
+  contactShadowIntensityFadeStart: 1600,
+  contactShadowIntensityFadeLength: 800,
 })
 
 /** The intensity a light's shadow has at a surface: the view's override when it is 0 or more, else the light's own, held to

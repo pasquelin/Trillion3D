@@ -14,7 +14,7 @@ type Inputs = {
   /** The CPU bytes the engine's host tables and the world roots hold now. */
   hostBytes: () => number
   /** The views beside the main one, drawn after its image (`world.addView`). */
-  drawViews?: () => void
+  drawViews?: (refreshMs: number | null) => void
 }
 
 /**
@@ -28,7 +28,7 @@ export function createDrawFrame(inputs: Inputs) {
   return () => {
     engine.render(camera)
     // Their cuts join the residency's union before the pages the frame lacks are asked.
-    drawViews?.()
+    drawViews?.(engine.refreshMs())
     const renderEnd = cpuNow()
     const missing = engine.pendingUrls()
     streaming.queueCached(missing)

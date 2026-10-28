@@ -14,13 +14,21 @@ import type { ComputeRun } from '../../../../gpu/core/lazyComputePass.ts'
 import { namedEntries } from '../../../../gpu/core/computeBindings.ts'
 import { hizDepthBindEntries } from '../../../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../../../visibility/hiz/gpu/types.ts'
-import { sunCount, VSM_PROJECTION_MAX_PASS_LIGHTS, type VsmTraceCounts } from './projectionView.ts'
+import {
+  sunCount,
+  VSM_PROJECTION_CLASSIC_BYTES,
+  VSM_PROJECTION_MAX_PASS_LIGHTS,
+  VSM_PROJECTION_VIEW_WORD,
+  type VsmTraceCounts,
+} from './projectionView.ts'
 import type { HairShadowSource } from '../../../../hair/viewGpu.ts'
 import { VSM_PROJECTION_BINDING, vsmProjectionGroups } from './projectionWgsl.ts'
 import { vsmPerFrameSet, type VsmResources } from '../resources.ts'
+import type { ClassicSettings, ClassicSun } from '../../classic/classicView.ts'
 import {
   VSM_PROJECTION_PASS,
   localsPipeline,
+  sunsHairPass,
   pipelinesFor,
   sunsPipeline,
   tablesGroup,
@@ -61,6 +69,8 @@ export interface VsmProjectionFrame {
   frameIndex: number
   /** The view's rays and steps of a trace (`VsmProjectionView.traceRays`); absent, the defaults'. */
   trace?: VsmTraceCounts
+  /** The classic shadows' words (`shadowVirtualEnable` off, `../../classic/classicView.ts`); absent, none. */
+  classic?: { suns: readonly ClassicSun[]; nearCentimetres: number; settings: ClassicSettings }
   /** The lights the passes project, the suns first (≤ `VSM_PROJECTION_MAX_PASS_LIGHTS`). */
   lights: readonly VsmProjectionLight[]
 }
@@ -97,6 +107,12 @@ export interface VsmProjectionTarget {
   /** The shadowed lights' grid the marking pruned (`vsmLightGridFor`), which the local lights' pass and
    *  the lighting read. */
   lightGrid?: GPUBuffer
+  /** The capsule shadows of the local lights: a layer a light of the frame (`VSM_PROJECTION_BINDING.capsule`); absent, none is read and the pass
+   *  is the one without them. */
+  capsule?: GPUTextureView
+  /** The shadow the hair strands cast on the surfaces: a layer a light of the frame (`VSM_PROJECTION_BINDING.hairShadow`, `hair/surfaceShadowPass.ts`); absent, none is read and the passes
+   *  are the ones without it (the `hair` cut). */
+  hairShadow?: GPUTextureView
   /** False: the local lights' one-pass projection is left out (`shadowOnePassProjection`), each shadowed
    *  light being projected alone by the per-light path (`perLightPass.ts`); absent, it is made. */
   onePass?: boolean
@@ -115,6 +131,9 @@ interface VsmProjectionLightCommon {
   /** The source's size: its radius in metres for a local light, the sine of its angular radius
    *  for a directional one; absent, a point source. */
   sourceRadius?: number
+  /** The light's own factors on the depth bias and its slope of a classic shadow (`SceneLight.shadowBias`, `shadowSlopeBias`); absent, the defaults (0.5, 0.5). */
+  shadowBias?: number
+  shadowSlopeBias?: number
 }
 
 /** Where a local light stands and how far it reaches. */
@@ -138,14 +157,8 @@ export type VsmProjectionLight = VsmProjectionLightCommon &
       } & VsmProjectionReach)
   )
 
-/** A pass's group over `source`, the frame's depth pyramid and the pass's own `bindings`: made again
- *  only when the layout or one of the resources it binds moved (`createWebgpuBindIdentity`). The locals'
- *  pass binds `lightGrid`, the suns' of a set with the prefiltered distant shadow `filterableMerged`, the
- *  per-light pass (`perLightPass.ts`) the records `perLight`. A pass over the hair strands (input
- *  `strands`) binds `strands` in the place of the surfaces of `source`, whose lights it walks. */
-export function passGroupFor(
-  device: GPUDevice,
-  state: VsmProjectionState,
+/** The resources a pass's group names, noted in the group's identity: the group is made again when one of them moved. */
+function noteGroupInputs(
   held: HeldGroup,
   groupLayout: GPUBindGroupLayout,
   hizDepth: HizDepth,
@@ -156,14 +169,17 @@ export function passGroupFor(
     filterableMerged,
     perLight,
     strands,
+    capsule,
+    hairShadow,
   }: {
+    capsule?: GPUTextureView
+    hairShadow?: GPUTextureView
     lightGrid?: GPUBuffer
     filterableMerged?: GPUBuffer
     perLight?: GPUBuffer
     strands?: HairShadowSource
-  } = {},
+  },
 ) {
-  const locals = !!lightGrid
   const { next } = held.identity
   next[0] = groupLayout
   next[1] = source.depth
@@ -182,6 +198,48 @@ export function passGroupFor(
   next[14] = strands?.hairDepth
   next[15] = strands?.counts
   next[16] = strands?.tiles
+  next[17] = capsule
+  next[18] = hairShadow
+}
+
+/** A pass's group over `source`, the frame's depth pyramid and the pass's own `bindings`: made again
+ *  only when the layout or one of the resources it binds moved (`createWebgpuBindIdentity`). The locals'
+ *  pass binds `lightGrid`, the suns' of a set with the prefiltered distant shadow `filterableMerged`, the
+ *  per-light pass (`perLightPass.ts`) the records `perLight`. A pass over the hair strands (input
+ *  `strands`) binds `strands` in the place of the surfaces of `source`, whose lights it walks. */
+export function passGroupFor(
+  device: GPUDevice,
+  state: VsmProjectionState,
+  held: HeldGroup,
+  groupLayout: GPUBindGroupLayout,
+  hizDepth: HizDepth,
+  source: VsmProjectionSource,
+  mask: GPUTextureView,
+  {
+    lightGrid,
+    filterableMerged,
+    perLight,
+    strands,
+    capsule,
+    hairShadow,
+  }: {
+    capsule?: GPUTextureView
+    hairShadow?: GPUTextureView
+    lightGrid?: GPUBuffer
+    filterableMerged?: GPUBuffer
+    perLight?: GPUBuffer
+    strands?: HairShadowSource
+  } = {},
+) {
+  const locals = !!lightGrid
+  noteGroupInputs(held, groupLayout, hizDepth, source, mask, {
+    lightGrid,
+    filterableMerged,
+    perLight,
+    strands,
+    capsule,
+    hairShadow,
+  })
   if (held.identity.moved())
     held.group = device.createBindGroup({
       label: locals
@@ -192,7 +250,17 @@ export function passGroupFor(
       layout: groupLayout,
       entries: strands
         ? strandsEntries(state, hizDepth, source, mask, strands, lightGrid, filterableMerged)
-        : surfaceEntries(state, hizDepth, source, mask, lightGrid, filterableMerged, perLight),
+        : surfaceEntries(
+            state,
+            hizDepth,
+            source,
+            mask,
+            lightGrid,
+            filterableMerged,
+            perLight,
+            capsule,
+            hairShadow,
+          ),
     })
   return held.group!
 }
@@ -206,6 +274,8 @@ const surfaceEntries = (
   lightGrid: GPUBuffer | undefined,
   filterableMerged: GPUBuffer | undefined,
   perLight: GPUBuffer | undefined,
+  capsule: GPUTextureView | undefined,
+  hairShadow: GPUTextureView | undefined,
 ) => [
   ...namedEntries(VSM_PROJECTION_BINDING, {
     view: { buffer: state.uniform! },
@@ -223,6 +293,8 @@ const surfaceEntries = (
       lightGrid: { buffer: lightGrid },
     }),
     ...(filterableMerged && { filterableMerged: { buffer: filterableMerged } }),
+    ...(capsule && { capsule }),
+    ...(hairShadow && { hairShadow }),
     ...(perLight && {
       perLight: { buffer: perLight, size: PER_LIGHT_RECORD_BINDING_BYTES },
     }),
@@ -270,6 +342,11 @@ export function writeVsmProjectionFrame(res: VsmResources, frame: VsmProjectionF
   const state = vsmProjectionReserve(device, res)
   const bytes = writeVsmProjectionView(state.words, frame, lights)
   device.queue.writeBuffer(state.uniform!, 0, state.staging, 0, bytes)
+  // The classic shadows' words lie after the last light the view could hold: a second upload, none while the shadows are virtual.
+  if (frame.classic) {
+    const at = 4 * VSM_PROJECTION_VIEW_WORD.classic
+    device.queue.writeBuffer(state.uniform!, at, state.staging, at, VSM_PROJECTION_CLASSIC_BYTES)
+  }
 }
 
 const PROJECTION_PASS: GPUComputePassDescriptor = { label: VSM_PROJECTION_PASS }
@@ -291,6 +368,31 @@ export const projectsLocals = (
   !!target.lightGrid &&
   !!target.locals &&
   target.onePass !== false
+
+/** The suns' projection into `target.suns`, once its pipeline is compiled. */
+function encodeSunsProjection(
+  pass: GPUComputePassEncoder,
+  stage: ReturnType<typeof sunsPipeline>,
+  groupLayout: GPUBindGroupLayout,
+  device: GPUDevice,
+  state: VsmProjectionState,
+  res: VsmResources,
+  frame: VsmProjectionFrame,
+  source: VsmProjectionSource,
+  target: VsmProjectionTarget,
+) {
+  const compiled = stage.get()
+  if (!compiled) return
+  pass.setPipeline(compiled)
+  pass.setBindGroup(
+    1,
+    passGroupFor(device, state, state.suns, groupLayout, frame.hizDepth, source, target.suns, {
+      filterableMerged: res.filterable?.merged,
+      hairShadow: target.hairShadow,
+    }),
+  )
+  pass.dispatchWorkgroups(vsmProjectionGroups(frame.width), vsmProjectionGroups(frame.height), 1)
+}
 
 /**
  * Projects the frame's lights (`writeVsmProjectionFrame`, written before), the opaque surfaces over the
@@ -316,22 +418,27 @@ export function encodeVirtualShadowProjection(
   const suns = sunCount(lights) > 0
   const locals = projectsLocals(lights, source, target)
   // Both pipelines or neither: the caller keeps the projection as drawn once it ran.
-  const sunsStage = suns ? sunsPipeline(p) : undefined
-  const mine = locals ? localsPipeline(p, target.localFormat) : undefined
+  const hair = !!target.hairShadow
+  const sunsHair = suns && hair ? sunsHairPass(p) : undefined
+  const sunsStage = suns ? (sunsHair ? sunsHair.pipeline : sunsPipeline(p)) : undefined
+  const mine = locals
+    ? localsPipeline(p, target.localFormat, 'gbuffer', !!target.capsule, hair)
+    : undefined
   if (!chainReady(sunsStage, mine?.pipeline)) return false
   const pass = steps.pass(PROJECTION_PASS)
   pass.setBindGroup(0, vsmGroup)
-  const sunsCompiled = sunsStage?.get()
-  if (sunsCompiled) {
-    pass.setPipeline(sunsCompiled)
-    pass.setBindGroup(
-      1,
-      passGroupFor(device, state, state.suns, p.sunsLayout, frame.hizDepth, source, target.suns, {
-        filterableMerged: res.filterable?.merged,
-      }),
+  if (sunsStage)
+    encodeSunsProjection(
+      pass,
+      sunsStage,
+      sunsHair?.groupLayout ?? p.sunsLayout,
+      device,
+      state,
+      res,
+      frame,
+      source,
+      target,
     )
-    pass.dispatchWorkgroups(vsmProjectionGroups(width), vsmProjectionGroups(height), 1)
-  }
   const compiled = mine?.pipeline.get()
   if (mine && compiled) {
     pass.setBindGroup(
@@ -344,7 +451,7 @@ export function encodeVirtualShadowProjection(
         frame.hizDepth,
         source,
         target.locals!,
-        { lightGrid: target.lightGrid },
+        { lightGrid: target.lightGrid, capsule: target.capsule, hairShadow: target.hairShadow },
       ),
     )
     pass.setPipeline(compiled)

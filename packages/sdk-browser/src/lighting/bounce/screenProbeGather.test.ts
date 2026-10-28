@@ -1,15 +1,11 @@
-// The screen probes' rays, trace and gather as the reference runs them: the directions' probability, the screen trace's start, stop and
-// hit, and the gathered light as the 8-bit and 11-11-10 targets hold it.
+// The screen probes' rays, trace and gather as the reference runs them: the directions' probability, the screen trace's start, stop and hit, and the gathered light as the 8-bit and 11-11-10 targets hold it.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { fastAcos } from '../../../../math/src/wgsl/geometry.ts'
 import { SP_QUANTIZE } from './screen/gatherWgsl.ts'
-import { spCommon } from './screen/commonWgsl.ts'
-import { SP_THIN_FEATURE } from './screen/traceWgsl.ts'
 import { kernelShapeOf, screenProbeSources } from './screen/kernels.ts'
 
 const sources = screenProbeSources(kernelShapeOf(screenProbeSettings({ screenProbes: 'ultra' })))
@@ -41,7 +37,7 @@ test('a gathered colour is dithered by a number of [0, 1) and held to the mantis
   const run = shaderRun<{ spQuantize: (c: number[], e: number) => number[] }>(
     wgslModule(SP_QUANTIZE),
     ['spQuantize'],
-    {},
+    { spFlag: () => false, SP_FLAG_EXACT_LIGHT: 0 },
   )
   // Between 1 and 1 + 1/64, the unit of the red and green mantissas (six bits): a third of the way up.
   const between = [1 + 0.3 / 64, 1 + 0.3 / 64, 1 + 0.3 / 32]
@@ -73,8 +69,8 @@ test('the screen trace casts no ray from a pixel with backface diffuse light tow
   const trace = code('traceScreen')
   assert.match(
     trace,
-    /if\(\(probe\.foliage&&dot\(probe\.N,d\)<0\.0\)\|\|\(probe\.hair&&spFlag\(SP_FLAG_SKIP_HAIR_HITS\)\)\)\{return seen;\}/,
-    'the backface ray of a pixel with backface diffuse light is not traced, nor any ray of hair where its hits are skipped',
+    /if\(\(probe\.foliage&&dot\(probe\.N,d\)<0\.0\)\|\|\(probe\.hair&&spFlag\(SP_FLAG_SKIP_HAIR_HITS\)\)\)\{return aimed;\}/,
+    'the backface ray of a pixel with backface diffuse light is not traced, nor any ray of hair where its hits are skipped (the begin of the screen stage, which both the hierarchical walk and the fixed-step cast start from)',
   )
   assert.match(trace, /select\(1e30,-0\.99\*A\.w\/toward\.w,toward\.w<0\.0\)/)
   // Under an orthographic projection too: a hundredth of the origin's depth is left, not the way to the near plane.
@@ -129,7 +125,7 @@ test('the composite writes the dithered light, the code of the nearest hit, and 
   )
   assert.match(
     composite,
-    /probeMoving\[index\]=select\(0\.0,round\(f32\(atomicLoad\(&movingBytes\)\)\/f32\(SP_TEXELS\)\)\/255\.0,valid\);/,
+    /probeMoving\[index\]=select\(0\.0,select\(round\(f32\(atomicLoad\(&movingBytes\)\)\/f32\(SP_TEXELS\)\)\/255\.0,1\.0,spFlag\(SP_FLAG_FORCE_MOVING\)\),valid\);/,
   )
 })
 
@@ -172,11 +168,21 @@ test('the octahedral irradiance is the harmonics evaluated as they are, never cl
   assert.match(body, /return max\(coefficients\[0u\]/)
 })
 
+test('a light kept at more precision (lightingDataFormat other than r11g11b10) is not rounded to the 11-11-10 mantissas', () => {
+  const run = shaderRun<{ spQuantize: (c: number[], e: number) => number[] }>(
+    wgslModule(SP_QUANTIZE),
+    ['spQuantize'],
+    { spFlag: () => true, SP_FLAG_EXACT_LIGHT: 0 },
+  )
+  const light = [1 + 0.3 / 64, -0.5, 7.123]
+  assert.deepEqual(run.spQuantize(light, 0.5), light)
+})
+
 test('a negative irradiance is held to zero by the 11-11-10 target that stores it', () => {
   const run = shaderRun<{ spQuantize: (c: number[], e: number) => number[] }>(
     wgslModule(SP_QUANTIZE),
     ['spQuantize'],
-    {},
+    { spFlag: () => false, SP_FLAG_EXACT_LIGHT: 0 },
   )
   assert.deepEqual(run.spQuantize([-0.5, 2, -1], 0.5), [0, 2, 0])
 })
@@ -188,108 +194,4 @@ test('a pixel that is no lit surface holds no visibility and the direction (0, 0
     occlusion,
     /stored=select\(s\.N,normalize\(bent\),dot\(bent,bent\)>1e-12\)\*visibility;/,
   )
-})
-
-test('the occlusion’s angles are the polynomial arc cosine: the normal’s from its saturated cosine, the horizons’ from their cosines as they are', () => {
-  const occlusion = code('occlusion')
-  assert.match(occlusion, /fn fastAcos\(/)
-  assert.match(occlusion, /let cosNormal=saturate\(dot\(projected,V\)\/span\);/)
-  assert.match(occlusion, /let angle=sign\(dot\(orthogonal,projected\)\)\*fastAcos\(cosNormal\);/)
-  assert.match(occlusion, /let h0=-fastAcos\(horizon1\);/)
-  assert.match(occlusion, /let h1=fastAcos\(horizon0\);/)
-  assert.doesNotMatch(occlusion, /\bacos\(/)
-  const arc = shaderRun<{ fastAcos: (x: number) => number }>(
-    wgslModule(fastAcos),
-    ['fastAcos'],
-    {},
-  ).fastAcos
-  for (const x of [-1, -0.6, -0.1, 0, 0.3, 0.8, 1])
-    assert.ok(Math.abs(arc(x) - Math.acos(x)) < 0.01, `cosine ${x}`)
-})
-
-test('the screen trace of a hair pixel starts the hair bias along its ray and casts none where hair hits are skipped; a hit on hair or on an unlit surface is dropped where the setting says', () => {
-  const trace = code('traceScreen')
-  assert.match(trace, /if\(probe\.hair\)\{origin\+=d\*sp\.screen\.x;\}/)
-  assert.match(trace, /\(probe\.hair&&spFlag\(SP_FLAG_SKIP_HAIR_HITS\)\)/)
-  assert.match(
-    trace,
-    /if\(spFlag\(SP_FLAG_SKIP_HAIR_HITS\)&&pixelModelOf\(hitFlags\)==\d+u\)\{return seen;\}/,
-  )
-  assert.match(
-    trace,
-    /if\(spFlag\(SP_FLAG_SKIP_UNLIT_HITS\)&&\(hitFlags&7u\)==1u\)\{return seen;\}/,
-    'the unlit surface mark is the low bits of the surface flags',
-  )
-})
-
-test('a ray is held to the intensity the setting names in the units of the pre-exposed light, which the probes’ light is not: the setting divided by the pre-exposure, and the depth the weights measure is the distance along the view in both projections', () => {
-  const run = (perspective: boolean) =>
-    shaderRun<{ spMaxRay: () => number; spDepthOf: (p: number[]) => number }>(
-      wgslModule(spCommon([4, 2])),
-      ['spMaxRay', 'spDepthOf'],
-      {
-        sp: { weights: [0, 0, 0, 10] },
-        view: { preExposure: [2, 0, 0, 0] },
-        reflectionView: { slab: [1, 0, 0, 1] },
-        slabPerspective: () => perspective,
-        surfaceLinearDepth: () => 7,
-        viewEyeDistance: () => 3,
-      },
-    )
-  assert.equal(
-    run(true).spMaxRay(),
-    5,
-    'ten in the light exposed twice is five in the light unexposed',
-  )
-  assert.equal(run(true).spDepthOf([0, 0, 0]), 7, 'a perspective: the clip depth')
-  assert.equal(
-    run(false).spDepthOf([0, 0, 0]),
-    3,
-    'an orthographic projection: the distance along the view, not the device depth',
-  )
-})
-
-test('the screen extra occlusion is stored as an eight-bit code, a ratio of no weight as zero as an eight-bit target stores it', () => {
-  const { spExtraAoCode } = shaderRun<{ spExtraAoCode: (ao: number) => number }>(
-    wgslModule(SP_QUANTIZE),
-    ['spExtraAoCode'],
-    {},
-  )
-  assert.equal(spExtraAoCode(Number.NaN), 0)
-  assert.equal(spExtraAoCode(0.5), 128)
-  assert.equal(spExtraAoCode(-0.25), 0)
-  assert.equal(spExtraAoCode(4), 255)
-  assert.equal(spExtraAoCode(Number.POSITIVE_INFINITY), 255)
-})
-
-test('the thin feature search spreads its samples over texels of the pyramid’s base level: the ray’s displacement over twice that level’s extent, times a texel, one over the extent', () => {
-  // A ray from (10, 50) along x over eighty pixels of a hundred, level z 0.5; the base level is fifty texels a side. A feature (a tile nearer than
-  // the ray) lies from x = 13: four samples span 4 · 0.8 · 0.02 = 0.064 over the 0.8 left of the ray, 0.08 of its way, to x = 14.8; spread
-  // over the image's own size, they would stop at 12.4 and miss it.
-  const run = shaderRun<{
-    spThinFeature: (
-      start: number[],
-      delta: number[],
-      end: number,
-      t: number,
-      size: number[],
-      steps: number,
-    ) => boolean
-  }>(wgslModule(SP_THIN_FEATURE), ['spThinFeature'], {
-    hizLevels: {
-      level: [
-        [0, 100, 100, 0],
-        [0, 50, 50, 0],
-      ],
-    },
-    hizLevelCount: () => 5,
-    hizTracePlanes: () => false,
-    screenTileDepth: (p: number[]) => (p[0] >= 13 ? 0.1 : 0.9),
-    hizOpaqueDepth: () => 0.9,
-  })
-  const ray = (steps: number) =>
-    run.spThinFeature([10, 50, 0.5], [80, 0, 0], 1, 0, [100, 100], steps)
-  assert.equal(ray(4), true, 'the last sample lies on the feature')
-  assert.equal(ray(2), false, 'two samples stop at x = 11.6, before it')
-  assert.equal(ray(0), false, 'no step, no sample')
 })

@@ -17,7 +17,7 @@ import {
  * reads a texture at the texel-centre transform. `sheenLtcAlbedo` is its third channel, the directional albedo; `sheenLtcTexel`
  * the texel at column `x` and row `y`.
  */
-export const sheenLtcTexel = wgslFn(
+const sheenLtcTexel = wgslFn(
   'sheenLtcTexel',
   [],
   `fn sheenLtcTexel(x:u32,y:u32)->vec4f{
@@ -33,15 +33,6 @@ export const sheenLtcCoefficients = wgslFn(
  let at=clamp(vec2f(sqrt(roughness),saturate(abs(NoV)+1e-5)),vec2f(0.0),vec2f(1.0))*${SHEEN_LTC_SIZE - 1}.0;
  let i=min(vec2u(at),vec2u(${SHEEN_LTC_SIZE - 2}u));let f=at-vec2f(i);
  return bilinear4(sheenLtcTexel(i.x,i.y),sheenLtcTexel(i.x+1u,i.y),sheenLtcTexel(i.x,i.y+1u),sheenLtcTexel(i.x+1u,i.y+1u),f);
-}`,
-)
-
-/** The directional albedo of the sheen lobe at (`NoV`, `roughness`): the third channel of `sheenLtcCoefficients`. */
-export const sheenLtcAlbedo = wgslFn(
-  'sheenLtcAlbedo',
-  [sheenLtcCoefficients],
-  `fn sheenLtcAlbedo(NoV:f32,roughness:f32)->f32{
- return sheenLtcCoefficients(NoV,roughness).z;
 }`,
 )
 

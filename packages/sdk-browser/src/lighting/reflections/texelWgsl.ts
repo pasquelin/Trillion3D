@@ -17,7 +17,7 @@ import { luminance } from '../../../../math/src/wgsl/color.ts'
  * half of `y` differs by kind:
  *
  * - a FRESH texel, the trace's (`freshPack`) and the resolve's: the hit's distance as a half (bits
- *   0–14, held at the miss distance, `REFLECTION_MISS_DISTANCE`, where a ray met nothing) under a valid bit (15, the half's sign, a
+ *   0–14, held at `REFLECTION_DISTANCE_MAX`; a ray that met nothing is told at the longest ray) under a valid bit (15, the half's sign, a
  *   distance never negative), zero where the pixel casts or resolves nothing; a traced texel's ray
  *   beside it, in the layers of `REFLECTION_RAY_FORMAT`: the depth of the block's pixel the ray generation picked and the ray's direction and its cone angle
  *   (`surfaceRays`, `surfacesWgsl.ts`);
@@ -55,7 +55,7 @@ fn texelWords(r:vec3f,high:u32)->vec4u{
 fn texelHalf(x:f32)->u32{return lowHalf(pack2x16float(vec2f(min(x,HALF_MAX),0.0)));}
 fn texelHalfOf(w:u32)->f32{return unpack2x16float(lowHalf(w)).x;}
 const REFLECTION_FRESH_VALID:u32=0x8000u;
-fn freshPack(r:vec3f,hit:f32)->vec4u{return texelWords(r,texelHalf(min(hit,REFLECTION_MISS_DISTANCE))|REFLECTION_FRESH_VALID);}
+fn freshPack(r:vec3f,hit:f32)->vec4u{return texelWords(r,texelHalf(min(hit,REFLECTION_DISTANCE_MAX))|REFLECTION_FRESH_VALID);}
 fn freshValid(t:vec2u)->bool{return ((t.y>>16u)&REFLECTION_FRESH_VALID)!=0u;}
 fn freshHit(t:vec2u)->f32{return texelHalfOf((t.y>>16u)&0x7fffu);}
 fn historyPack(r:vec3f,depth:f32,moment:f32,count:f32)->vec4u{

@@ -1,5 +1,4 @@
-import { timedDevice } from './imageTimer.fixture.ts'
-import { PART_ALIGN } from './encoder.ts'
+import { PART_ALIGN, timedDevice } from './imageTimer.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuTiming } from './timing.ts'

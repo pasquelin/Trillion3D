@@ -110,7 +110,7 @@ test('the ray generation is a kernel of its own over the tracing tiles, and it a
   assert.ok(PROGRAM.includes('let ray=reflectionCastRay(own,reflectionSampleAt(g));'))
   assert.ok(
     PROGRAM.includes(
-      'reflectionScreenStage(own.P,own.topN,own.V,reflectionStoredRay(texel).ray,g)',
+      'reflectionScreenEnd(begun.own.P,begun.own.topN,begun.stored.ray,begun.aimed,marched,g)',
     ),
   )
 })

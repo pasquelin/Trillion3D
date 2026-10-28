@@ -26,6 +26,8 @@ export const SINGLE_LAYER_WATER_MEANINGS: Readonly<Record<SingleLayerWaterField,
     'Whether the tiles that hold water are listed with subgroup operations where the device grants them; true by default.',
   singleLayerWaterDepthPrepass:
     "Whether the water's depth is drawn first, ahead of its shading; true by default. The tiles and the refraction mask are made from it.",
+  singleLayerWaterUnderwaterFogWhenCameraIsAboveWater:
+    'Whether the height fog is also laid on the scene seen through the water, at the depth of what lies behind it, when the camera is above the water; false by default. It avoids artifacts when entering and leaving the water in a strong fog, and causes some when the water is looked at from afar.',
   singleLayerWaterOptimizedClear:
     "Whether the water's depth is cleared over the view alone, not the whole target; true by default.",
   singleLayerWaterVelocityOutputPass:

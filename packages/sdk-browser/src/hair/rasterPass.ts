@@ -5,22 +5,36 @@ import { preparedPipelines } from '../gpu/core/preparedPipelines.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../gpu/dispatch/grid.ts'
 import { MODE_DEPTH, MODE_ID } from '../visibility/raster/contract.ts'
 import { boundGroups, type DrawnInstance } from './ribbonBinds.ts'
-import { clearWgsl, rasterWgsl } from './rasterWgsl.ts'
+import { clearWgsl, HAIR_LARGE_BINDING, rasterWgsl } from './rasterWgsl.ts'
 import type { HairTiles } from './tilesPass.ts'
 import { HAIR_ALL_TILES_DISPATCH, type HairSampleCount } from './visibilityMath.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
 
-/** The kernels of the raster, by sample count, whether the device has the 64-bit maximum, and the
- *  phase of the write without it. */
+/** The entries of the raster's module: the segments drawn by a thread, the large ribbons drawn by a group of
+ *  them, and the arguments of that group's dispatch. */
+type RasterEntry = 'hairRaster' | 'hairRasterLarge' | 'hairLargeArgs'
+
+/** The kernels of the raster, by sample count, whether the device has the 64-bit maximum, the phase of the
+ *  write without it, and the entry. */
 const rasterKernels = preparedPipelines(
-  ({ samples, wide, mode }: { samples: HairSampleCount; wide: boolean; mode: number }) =>
+  ({
+    samples,
+    wide,
+    mode,
+    entry,
+  }: {
+    samples: HairSampleCount
+    wide: boolean
+    mode: number
+    entry: RasterEntry
+  }) =>
     autoKernel(
-      `${HAIR_STRANDS_PASS_PREFIX}raster ${samples} ${wide ? 'wide' : `split ${mode}`}`,
+      `${HAIR_STRANDS_PASS_PREFIX}${entry} ${samples} ${wide ? 'wide' : `split ${mode}`}`,
       rasterWgsl(samples, wide),
-      'hairRaster',
+      entry,
       wide ? undefined : { MODE: mode },
     ),
-  ({ samples, wide, mode }) => `${samples} ${wide ? 'wide' : mode}`,
+  ({ samples, wide, mode, entry }) => `${entry} ${samples} ${wide ? 'wide' : mode}`,
 )
 const clearKernels = preparedPipelines(
   ({ samples, wide }: { samples: HairSampleCount; wide: boolean }) =>
@@ -32,14 +46,32 @@ const clearKernels = preparedPipelines(
   ({ samples, wide }) => `${samples} ${wide}`,
 )
 
+/** The clear of the samples of the tiles with strands, for either raster; none while it compiles. */
+export const clearSamplesPipeline = (device: GPUDevice, samples: HairSampleCount, wide: boolean) =>
+  clearKernels.of({ samples, wide })(device).get()
+
+/** One phase of the raster: the pipeline a thread draws a segment with, and the one a group of threads
+ *  draws a large ribbon with. */
+interface RasterPhase {
+  readonly raster: GPUComputePipeline
+  readonly large: GPUComputePipeline
+}
+
 /** The pipelines of the raster, in the order of its phases (one with the 64-bit maximum, the depth
- *  then the identifier without it), and the clear of the samples; none while one compiles. */
+ *  then the identifier without it), the one that writes the arguments over the large ribbons, and the
+ *  clear of the samples; none while one compiles. */
 export function rasterPipelines(device: GPUDevice, samples: HairSampleCount, wide: boolean) {
   const modes = wide ? [MODE_DEPTH] : [MODE_DEPTH, MODE_ID]
-  const phases = modes.map((mode) => rasterKernels.of({ samples, wide, mode })(device).get())
-  const clear = clearKernels.of({ samples, wide })(device).get()
-  return clear && phases.every((pipeline) => pipeline)
-    ? { phases: phases as GPUComputePipeline[], clear }
+  const kernel = (mode: number, entry: RasterEntry) =>
+    rasterKernels.of({ samples, wide, mode, entry })(device).get()
+  const phases = modes.map((mode) => ({
+    raster: kernel(mode, 'hairRaster'),
+    large: kernel(mode, 'hairRasterLarge'),
+  }))
+  const args = kernel(MODE_DEPTH, 'hairLargeArgs')
+  const clear = clearSamplesPipeline(device, samples, wide)
+  return clear && args && phases.every(({ raster, large }) => raster && large)
+    ? { phases: phases as RasterPhase[], args, clear }
     : undefined
 }
 
@@ -47,9 +79,9 @@ export function rasterPipelines(device: GPUDevice, samples: HairSampleCount, wid
  *  stay. */
 export function rasterBinds() {
   return {
-    frame: boundGroups<GPUBuffer, GPUTextureView, HairBandBuffers>(
-      2,
-      (device, pipeline, view, depth, band) =>
+    frame: boundGroups<GPUBuffer, GPUTextureView, HairBandBuffers, GPUBuffer>(
+      4,
+      (device, pipeline, view, depth, band, large) =>
         device.createBindGroup({
           layout: pipeline.getBindGroupLayout(1),
           entries: sequentialEntries([
@@ -57,8 +89,18 @@ export function rasterBinds() {
             depth,
             { buffer: band.samples },
             { buffer: band.window },
+            { buffer: large },
           ]),
         }),
+    ),
+    args: boundGroups<GPUBuffer, GPUBuffer, undefined>(1, (device, pipeline, large, args) =>
+      device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(1),
+        entries: [
+          { binding: HAIR_LARGE_BINDING, resource: { buffer: large } },
+          { binding: HAIR_LARGE_BINDING + 1, resource: { buffer: args } },
+        ],
+      }),
     ),
     clear: boundGroups<GPUBuffer, HairTiles, HairBandBuffers>(
       1,
@@ -77,10 +119,14 @@ export interface HairBandBuffers {
   readonly window: GPUBuffer
 }
 
-/** What the raster binds besides an instance: the view block and the bands of the samples, each with
- *  the bind groups made of it and the resources. */
+/** What the raster binds besides an instance: the view block, the list of large ribbons with the
+ *  arguments of the dispatch over it (`HAIR_LARGE_WORDS`, `HAIR_LARGE_ARGS_WORDS`) and the bands of the
+ *  samples, each with the bind groups made of it and the resources. */
 export interface HairRasterFrame {
   readonly viewBuffer: GPUBuffer
+  /** None with the hardware raster, which lists no large ribbon. */
+  readonly large: GPUBuffer | undefined
+  readonly largeArgs: GPUBuffer | undefined
   readonly bands: readonly (HairBandBuffers & { readonly raster: ReturnType<typeof rasterBinds> })[]
   /** How many of the bands the image reaches: those past it hold no row of it. */
   count: number
@@ -105,23 +151,41 @@ export function encodeHairClearSamples(
 }
 
 /** Rasters the strands of `drawn` in `pass`, band after band and phase after phase (each dispatch
- *  sees the ones before). */
+ *  sees the ones before). A thread draws a segment; the ribbons that span more than a tile of pixels
+ *  are listed by those threads, and the dispatch that follows draws them, a group of threads each
+ *  (`hairRasterLarge`), after the arguments over the list are written (`hairLargeArgs`, which empties
+ *  the list for the next instance). */
 export function encodeHairRaster(
   device: GPUDevice,
   pass: GPUComputePassEncoder,
-  pipelines: readonly GPUComputePipeline[],
+  pipelines: NonNullable<ReturnType<typeof rasterPipelines>>,
   frame: HairRasterFrame,
   depthView: GPUTextureView,
   drawn: readonly DrawnInstance[],
 ) {
+  const { viewBuffer, large, largeArgs } = frame
+  if (!large || !largeArgs) return
   for (let k = 0; k < frame.count; k++) {
     const band = frame.bands[k]!
-    for (const pipeline of pipelines) {
-      pass.setPipeline(pipeline)
-      pass.setBindGroup(1, band.raster.frame(device, pipeline, frame.viewBuffer, depthView, band))
+    for (const phase of pipelines.phases) {
       for (const instance of drawn) {
-        pass.setBindGroup(0, instance.group(pipeline))
+        pass.setPipeline(phase.raster)
+        pass.setBindGroup(
+          1,
+          band.raster.frame(device, phase.raster, viewBuffer, depthView, band, large),
+        )
+        pass.setBindGroup(0, instance.group(phase.raster))
         dispatchRows(pass, ceilDiv(instance.pointCount, WORKGROUP_THREADS))
+        pass.setPipeline(pipelines.args)
+        pass.setBindGroup(1, band.raster.args(device, pipelines.args, large, largeArgs, undefined))
+        pass.dispatchWorkgroups(1)
+        pass.setPipeline(phase.large)
+        pass.setBindGroup(
+          1,
+          band.raster.frame(device, phase.large, viewBuffer, depthView, band, large),
+        )
+        pass.setBindGroup(0, instance.group(phase.large))
+        pass.dispatchWorkgroupsIndirect(largeArgs, 0)
       }
     }
   }

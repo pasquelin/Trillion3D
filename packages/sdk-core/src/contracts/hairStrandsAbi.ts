@@ -23,6 +23,10 @@
  *  command line's flag holding it as JSON (`true` or `false`, default `true`). */
 export const HAIR_STRANDS_ENDING_POINT_FIELD = 'hairEndingPoint'
 export const HAIR_STRANDS_ENDING_POINT_OPTION = '--hair-ending-point='
+/** The job field that names the settings of a groom's groups by their group number, and the command
+ *  line's flag holding it as JSON (`hairGroupsOptions.ts`). */
+export const HAIR_STRANDS_GROUPS_FIELD = 'hairGroups'
+export const HAIR_STRANDS_GROUPS_OPTION = '--hair-groups='
 /** The product holding every group of strands, and the manifest's section naming it. */
 export const HAIR_STRANDS_FILE = 'hairStrands.bin'
 /** The first four bytes of `hairStrands.bin`: `T3HS` read as a little-endian `u32`. */
@@ -77,19 +81,25 @@ export const HAIR_STRANDS_GROUP_AT = {
 } as const
 /** The words of a group's record, and its bytes. */
 export const HAIR_STRANDS_GROUP_WORDS = 20
-export const HAIR_STRANDS_GROUP_BYTES = HAIR_STRANDS_GROUP_WORDS * 4
+export const HAIR_STRANDS_GROUP_BYTES = 80
 /** The bits of a group's flags: some curve had more points than a curve holds and lost the rest,
  *  the group held more curves or points than it can address and lost the curves past them, a curve
  *  held a point that is not a finite number and was left out, a curve was given one control point
  *  more at its end (the last segment of a strip would be lost otherwise), the curves of the group
  *  were shuffled (their order is not the file's), a root coordinate lies past 1 and names a tile of
- *  the texture sheet. */
+ *  the texture sheet. A job names for a group whether it is drawn stable and whether it lights the
+ *  scene behind it (`hairGroups`): each setting takes two bits, one that says the job named it and
+ *  one for its value, so that a group the job left alone follows the project's setting. */
 export const HAIR_STRANDS_FLAG_TRIMMED_POINT = 1
 export const HAIR_STRANDS_FLAG_TRIMMED_CURVE = 2
 export const HAIR_STRANDS_FLAG_INVALID_POINT = 4
 export const HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT = 8
 export const HAIR_STRANDS_FLAG_SHUFFLED_CURVE = 16
 export const HAIR_STRANDS_FLAG_ROOT_TILE = 256
+export const HAIR_STRANDS_FLAG_STABLE_SET = 512
+export const HAIR_STRANDS_FLAG_STABLE = 1024
+export const HAIR_STRANDS_FLAG_SCATTER_SET = 2048
+export const HAIR_STRANDS_FLAG_SCATTER = 4096
 /** The bits of a group's attributes: a root coordinate on each curve, a colour and a roughness on
  *  each point. */
 export const HAIR_STRANDS_ATTRIBUTE_ROOT_UV = 1

@@ -5,6 +5,7 @@ import { perspectiveDivide } from '../../../../../../math/src/wgsl/projection.ts
 import { floorLog2 } from '../../../../../../math/src/wgsl/integer.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import { VSM_PAGE_ADDRESS_WGSL, VSM_TABLE_ORIGIN_WGSL } from '../pageTableWgsl.ts'
+import { squaredDistanceBetweenBoxes } from '../../../distanceField/aabbWgsl.ts'
 import { prefilteredDeps } from '../prefilteredWgsl.ts'
 /** Whether a map allows an offset that `applies` (the offset's own conditions: a placement's may
  *  invalidate its shadows; a surface wears one its placement evaluates): it is evaluated `always`,
@@ -151,7 +152,7 @@ fn vsmLevelHoldingRect(r:vec4i,spanTexels:i32)->i32{
  */
 export const VSM_CASTER_BOX_CULL_WGSL = wgslBlock(
   'VSM_CASTER_BOX_CULL_WGSL',
-  [VSM_BOX_VIEW_WGSL],
+  [VSM_BOX_VIEW_WGSL, squaredDistanceBetweenBoxes],
   `fn vsmCasterBoxInView(center:vec3f,a0:vec3f,a1:vec3f,a2:vec3f,shiftedToClip:mat4x4f,viewToClip:mat4x4f,isOrtho:bool,nearClip:bool)->VsmBoxInView{
  let point=vsmBoxCullPoint(center,a0+a1+a2,isOrtho,nearClip);
  return vsmBoxInView(shiftedToClip*vec4f(point,1.0),shiftedToClip*vec4f(a0,0.0),shiftedToClip*vec4f(a1,0.0),shiftedToClip*vec4f(a2,0.0),vec3f(1.0),viewToClip,isOrtho,nearClip);
@@ -160,8 +161,7 @@ export const VSM_CASTER_BOX_CULL_WGSL = wgslBlock(
  *  light at its origin) lies wholly past the light's range: the gap between the origin and the box's
  *  axis-aligned bound (the oriented box lies in it) over \`range\`. */
 fn vsmCasterPastRange(center:vec3f,a0:vec3f,a1:vec3f,a2:vec3f,range:f32)->bool{
- let gap=max(abs(center)-(abs(a0)+abs(a1)+abs(a2)),vec3f(0.0));
- return dot(gap,gap)>range*range;
+ return squaredDistanceBetweenBoxes(vec3f(0.0),vec3f(0.0),center,abs(a0)+abs(a1)+abs(a2))>range*range;
 }
 `,
 )

@@ -47,7 +47,13 @@ async function passLayouts() {
     // lights', the indirect light — with bounce, its probes and surface cache are atlases, no storage buffer.
     'surface colour': device.createBindGroupLayout({ entries: colourLayoutEntries() }),
     'sun light': device.createBindGroupLayout({ entries: sunLayoutEntries(true) }),
+    'sun light with the screen-space contact shadows': device.createBindGroupLayout({
+      entries: sunLayoutEntries(true, true),
+    }),
     'local lights': device.createBindGroupLayout({ entries: localLayoutEntries(true) }),
+    'local lights with the screen-space contact shadows': device.createBindGroupLayout({
+      entries: localLayoutEntries(true, true, true),
+    }),
     'indirect light': device.createBindGroupLayout({
       entries: indirectLayoutEntries({ bounce: false, skyShadowing: true, lobes: true }),
     }),

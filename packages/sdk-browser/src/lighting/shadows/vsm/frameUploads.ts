@@ -2,7 +2,7 @@
  * THE PLAN'S UPLOADS (`frameSetup.ts`): the projection data the page marking reads, by id, and the
  * next-map data the page address update reads, by previous id — each where it changed alone.
  */
-import { VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
+import { VSM_MAX_SINGLE_PAGE_MAPS, VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
 import {
   VSM_HISTORY_BLEND_WORD,
   VSM_HISTORY_SUN_WORD,
@@ -31,13 +31,18 @@ export function uploadProjectionData(state: VsmFrameState, ids: VsmMapIds) {
     }
   }
   const words = wordViews(image).u
-  writeChanged(
-    device,
-    resources.current.projectionData,
-    words,
-    0,
-    (ids.mapCount * VSM_PROJECTION_RECORD_BYTES) / 4,
-  )
+  const record = VSM_PROJECTION_RECORD_BYTES / 4
+  // The slots between the two ranges of ids hold no map: they are not looked at.
+  const { projectionData } = resources.current
+  if (ids.singleCount > 0) writeChanged(device, projectionData, words, 0, ids.singleCount * record)
+  if (ids.mapCount > VSM_MAX_SINGLE_PAGE_MAPS)
+    writeChanged(
+      device,
+      projectionData,
+      words,
+      VSM_MAX_SINGLE_PAGE_MAPS * record,
+      ids.mapCount * record,
+    )
 }
 
 /** The ids whose next-map records a frame may change, increasing (`uploadNextMaps`). */

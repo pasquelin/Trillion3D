@@ -3,8 +3,7 @@
 // their own, and the passes read in the order the parts were submitted (`encoder.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PART_ALIGN } from './encoder.ts'
-import { MS, timer } from './imageTimer.fixture.ts'
+import { MS, PART_ALIGN, timer } from './imageTimer.fixture.ts'
 
 test('a part encoded and submitted while another is open is timed beside it, in submission order', async () => {
   const { f, timing, samples } = timer()

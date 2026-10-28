@@ -8,6 +8,7 @@ import {
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { FogGrid } from './layout.ts'
 import { FOG_BINDING, type FogProgramName } from './bindings.ts'
+import type { LazyProgram } from './resources.ts'
 import type { VoxelBuffers } from './voxelGpu.ts'
 import type { FogAtlas } from './voxelGraph.ts'
 
@@ -31,7 +32,7 @@ export interface VoxelPassContext {
   resources: {
     frame: { buffer: GPUBuffer }
     programs: Record<
-      Exclude<FogProgramName, 'scatterSky'>,
+      Exclude<FogProgramName, LazyProgram>,
       { layout: GPUBindGroupLayout; pipeline: { get(): GPUComputePipeline | undefined } }
     >
   }

@@ -1,4 +1,6 @@
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
+import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
+import { INDIRECT_FORMAT } from './indirectWords.ts'
 
 /**
  * WHAT THE SURFACE CACHE'S PASSES AND READERS AGREE ON: the formats of its textures, the words of
@@ -10,12 +12,13 @@ import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
  * texel with no surface; the albedo (`albedo`), the square root of the diffuse colour, and the
  * normal (`normal`), the card-space direction's first two components as `x · 0.5 + 0.5`, both 8
  * bits a channel (the capture atlas's normal holds the validity of the texel in its fourth); the
- * emission (`emissive`) and the three lightings — direct, indirect, final — as the 11-11-10 word of
- * a light (`packLight`). The layers are words and 8-bit channels, one kernel text for every device: a device
- * that grants `texture-formats-tier1` could hold the lights as `rg11b10ufloat` (the same four bytes), the
- * depth as `r16unorm` and the normal as `rg8unorm` (64 MiB less at 4096), each a second variant of every kernel
- * that touches a layer, to be taken where measured. `frames` is one word for each tile of 8 × 8 texels, for the
- * radiosity's accumulation.
+ * emission (`emissive`) as the 11-11-10 word of a light (`packLight`); the direct and final lighting in the format
+ * the lighting data format asks (`lightAtlasFormat`: the word, which a device that grants `texture-formats-tier1`
+ * holds as `rg11b10ufloat`, the same four bytes, half floats or single floats), and the indirect lighting in the words that format
+ * takes (`indirectWords.ts`: the layer is read and written in place). The depth and the other layers are words and 8-bit channels, one kernel
+ * text for every device: a device that grants `texture-formats-tier1` could hold the depth as `r16unorm` and the normal as `rg8unorm`
+ * (64 MiB less at 4096), each a second variant of every kernel that touches a layer, to be taken where measured. `frames` is one word for
+ * each tile of 8 × 8 texels, for the radiosity's accumulation.
  *
  * THE COMPRESSED ATLAS (`surfaceCacheCompress` 2, where the device has `texture-compression-bc`). The
  * albedo, the normal and the emission are kept as blocks of 4 × 4 texels, in BC7, BC5 and BC6H
@@ -34,15 +37,13 @@ import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
  * for each tile), which the copy of the light puts in the atlas.
  */
 
-/** The formats of the atlas's layers. */
+/** The formats of the atlas's layers that do not follow the light's: the direct and final lighting are `atlasFormats`'. */
 const ATLAS_FORMATS = {
   depth: 'r32uint',
   albedo: 'rgba8unorm',
   normal: 'rgba8unorm',
   emissive: 'r32uint',
-  direct: 'r32uint',
-  indirect: 'r32uint',
-  final: 'r32uint',
+  indirect: INDIRECT_FORMAT,
   frames: 'r32uint',
 } as const satisfies Record<string, GPUTextureFormat>
 
@@ -61,9 +62,13 @@ export const BLOCK_LAYERS = [
   'emissive',
 ] as const satisfies readonly (keyof typeof BLOCK_FORMATS)[]
 
-/** The formats of the atlas's layers, `compressed` or not. */
-export const atlasFormats = (compressed: boolean) =>
-  compressed ? { ...ATLAS_FORMATS, ...BLOCK_FORMATS } : ATLAS_FORMATS
+/** The formats of the atlas's layers, `compressed` or not, its direct and final lighting stored in `light`. */
+export const atlasFormats = (compressed: boolean, light: LightAtlasFormat) => ({
+  ...ATLAS_FORMATS,
+  direct: light,
+  final: light,
+  ...(compressed ? BLOCK_FORMATS : undefined),
+})
 
 /** The texels along a side of a block and the bytes of one, the same in the three formats. */
 export const BLOCK = { texels: 4, bytes: 16 } as const
@@ -81,17 +86,19 @@ export function stagingOf(captureSide: number) {
   return { across, rowBytes, layerBytes, bytes: layerBytes * BLOCK_LAYERS.length }
 }
 
-/** The formats of the capture atlas's layers. */
+/** The formats of the capture atlas's layers that do not follow the light's: its direct lighting is `captureFormats`'. */
 export const CAPTURE_FORMATS = {
   ids: 'r32uint',
   depth: 'r32float',
   albedo: 'rgba8unorm',
   normal: 'rgba8unorm',
   emissive: 'r32uint',
-  direct: 'r32uint',
-  indirect: 'r32uint',
+  indirect: INDIRECT_FORMAT,
   frames: 'r32uint',
 } as const satisfies Record<string, GPUTextureFormat>
+
+/** The formats of the capture atlas's layers, its direct lighting stored in `light` as the atlas's is. */
+export const captureFormats = (light: LightAtlasFormat) => ({ ...CAPTURE_FORMATS, direct: light })
 
 /** The texels of a tile of the atlas: what the lighting's work and the capture's lists are cut in. */
 export const TILE = 8

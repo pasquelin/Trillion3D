@@ -61,7 +61,7 @@ function weighedLobes(reflection: number[], coated: boolean, ray: Vec3, base: Ve
       lobes: { coat: 0.5, coatRough: 0.2, coatN: [0, 0, 1] },
       lobeRoughness: (rough: number) => rough,
       ndotvClamped: () => 1,
-      environmentBrdfPair: () => [1, 0],
+      shadingEnergyPair: () => [1, 0],
       envBrdfF90: () => 1,
     },
   ).resolvedWeighed(ray, base, coat, [1, 1, 1], 0, 0.5, N, V)

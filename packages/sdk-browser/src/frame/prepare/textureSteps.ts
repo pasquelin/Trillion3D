@@ -1,6 +1,5 @@
 import { msSince } from '../../diagnostic/stopwatch.ts'
 import { materialsAndTangentsCount } from '../io/catalogue.ts'
-import type { takeMaterialTextures } from './textures.ts'
 import { tileCatalogue } from '../../materials/virtual/catalogue.ts'
 import { createWebgpuTileStreamer } from '../../materials/virtual/streamer/streamer.ts'
 import {
@@ -22,9 +21,14 @@ import {
   PREVIEW_BASE,
   TEXTURE_PREVIEW_VERSION,
 } from '../../../../sdk-core/src/contracts/writtenFormats.ts'
+import type { StreamedFiltering } from '../../materials/virtual/streamer/streamerParts.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
-
-type Census = ReturnType<typeof takeMaterialTextures>
+import {
+  readTextureFilteringSetting,
+  streamedAnisotropyCeiling,
+} from '../../../../sdk-core/src/contracts/textureFilteringOptions.ts'
+import { stackTextures } from './textureStack.ts'
+import { type Census } from './textureStack.ts'
 
 /** The textures the render needs, said once. */
 export function reportTextureNeeds(rt: WebgpuPagesRuntime, { maps, dataMaps }: Census) {
@@ -45,7 +49,7 @@ export function reportTextureNeeds(rt: WebgpuPagesRuntime, { maps, dataMaps }: C
 export function textureCatalogues(
   rt: WebgpuPagesRuntime,
   gpuDevice: GPUDevice,
-  { maps, dataMaps }: Census,
+  { maps, dataMaps, siblings }: Census,
 ) {
   const caches = rt.context.textureCaches
   // The family is settled here, the chains in hand: the one the device samples AND the caches
@@ -74,7 +78,22 @@ export function textureCatalogues(
     caches.chainOf(list[index], atlas)
   const color = tileCatalogue(maps, chainOf(PREVIEW_ATLAS_COLOR, maps), encoding)
   const data = tileCatalogue(dataMaps, chainOf(PREVIEW_ATLAS_DATA, dataMaps), encoding)
+  stackTextures({ color, data }, siblings)
   return { choice, encoding, color, data }
+}
+
+/** How the streamed textures are read, as the settings hold it now: the same object while they
+ *  hold the same, so the headers compare it by identity. */
+function streamedFiltering(rt: WebgpuPagesRuntime) {
+  let held: StreamedFiltering | undefined
+  return () => {
+    const ceiling = streamedAnisotropyCeiling(
+        readTextureFilteringSetting(rt, 'virtualTextureMaxAnisotropy'),
+      ),
+      taps = readTextureFilteringSetting(rt, 'virtualTextureAnisotropicFiltering')
+    if (held?.ceiling !== ceiling || held.taps !== taps) held = { ceiling, taps }
+    return held
+  }
 }
 
 /** The tile streamer over the lane pools' `layers`. */
@@ -98,6 +117,8 @@ export function tileStreamerFor(
       // Origin of the resource change: colour tiles have just reached the pool, a texture's
       // sampling moved, or the pool was resized — once per pump.
       onColorChanged: () => rt.run.gate.resourcesChanged(),
+      // How the streamed textures are read, each image: a change writes the headers again.
+      filtering: streamedFiltering(rt),
     })
 }
 

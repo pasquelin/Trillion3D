@@ -226,6 +226,17 @@ function writeMapRecords(entry: VsmLightCache, light: VsmLocalLightInput, fields
   }
 }
 
+/** The light's shape words: its kind, range, cones and source. */
+function writeLocalShape(light: VsmLocalLightInput, radius: number, outerCone: number) {
+  shape[LOCAL_SHAPE_AT.type] = light.kind === 'spot' ? 1 : 0
+  shape[LOCAL_SHAPE_AT.range] = radius
+  shape[LOCAL_SHAPE_AT.outerCone] = outerCone
+  shape[LOCAL_SHAPE_AT.innerCone] = light.kind === 'spot' ? (light.innerCone ?? 0) : 0
+  shape[LOCAL_SHAPE_AT.sourceRadius] = light.sourceRadius ?? 0
+  shape[LOCAL_SHAPE_AT.softSourceRadius] = light.softSourceRadius ?? 0
+  shape[LOCAL_SHAPE_AT.sourceLength] = light.sourceLength ?? 0
+}
+
 /**
  * Sets up a local light's shadow: finds/updates the light's cache entry, computes the finest mip level, and
  * refreshes the cached projection data of each of its maps. The setup returned is the one the
@@ -247,13 +258,7 @@ export function addVsmLocalLightShadow(
   const numMaps = vsmMapsOf(light.kind)
   const cacheEntry = cache.lightEntryFor(light.id, numMaps)
 
-  shape[LOCAL_SHAPE_AT.type] = light.kind === 'spot' ? 1 : 0
-  shape[LOCAL_SHAPE_AT.range] = radius
-  shape[LOCAL_SHAPE_AT.outerCone] = outerCone
-  shape[LOCAL_SHAPE_AT.innerCone] = light.kind === 'spot' ? (light.innerCone ?? 0) : 0
-  shape[LOCAL_SHAPE_AT.sourceRadius] = light.sourceRadius ?? 0
-  shape[LOCAL_SHAPE_AT.softSourceRadius] = light.softSourceRadius ?? 0
-  shape[LOCAL_SHAPE_AT.sourceLength] = light.sourceLength ?? 0
+  writeLocalShape(light, radius, outerCone)
   // The light's bias: the view's, coarser while the light moves (`vsmMobilityAt`), its own added.
   const { shadows } = maps
   const frame = maps.frame

@@ -1,6 +1,7 @@
 import { createCheckedShaderModule } from '../../../gpu/core/shaderModule.ts'
 import { buildComputeStage, startedComputeStages } from '../../../gpu/core/computeStages.ts'
-import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
+import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
+import { oncePerDevice, oncePerDeviceKey } from '../../../gpu/core/oncePerDevice.ts'
 import { groupWidth, groupWidthConstants } from '../../../gpu/dispatch/grid.ts'
 import {
   cacheFilterEntries,
@@ -10,10 +11,10 @@ import {
   cacheTraceEntries,
   cacheTracedLayouts,
 } from './cacheBindings.ts'
-import { CACHE_FILTER_PROGRAM } from './cacheFilterWgsl.ts'
-import { CACHE_FIXUP_PROGRAM } from './cacheFixupWgsl.ts'
+import { cacheFilterProgram } from './cacheFilterWgsl.ts'
+import { cacheFixupProgram } from './cacheFixupWgsl.ts'
 import { CACHE_TILES_PROGRAM } from './cacheTilesWgsl.ts'
-import { CACHE_SPLAT_PROGRAM, CACHE_TRACED_PROGRAM, CACHE_TRACE_PROGRAM } from './cacheTraceWgsl.ts'
+import { cacheSplatProgramOf, cacheTraceProgramOf, cacheTracedProgramOf } from './cacheTraceWgsl.ts'
 
 /** The entry the trace kernel of either way of casting the rays runs. */
 const TRACE_ENTRY = 'traceTiles'
@@ -39,25 +40,59 @@ async function stage(
   return { layout, pipelines }
 }
 
-/** The pipelines of the cache's kernels and the layouts of their groups: made once for a device, whatever the maps' shape and the caches
- *  that run them. */
-export const createCacheKernels = oncePerDevice(async (device: GPUDevice) => {
-  const [tiles, trace, splat, filter, fixup] = await Promise.all([
+/** The pipelines of the kernels that do not touch the light — the tiles —, and the layouts of their groups: made once for a
+ *  device, whatever the maps' shape and the caches that run them. */
+const createSharedKernels = oncePerDevice(async (device: GPUDevice) => {
+  const [tiles] = await Promise.all([
     stage(
       device,
       CACHE_TILES_PROGRAM,
       'CACHE_TILES',
       cacheTilesEntries(),
-      [['generateTiles']],
+      [['generateTiles'], ['advanceSlice'], ['sortTiles']],
       true,
     ),
-    stage(device, CACHE_TRACE_PROGRAM, 'CACHE_TRACE', cacheTraceEntries(), [[TRACE_ENTRY]], true),
-    stage(device, CACHE_SPLAT_PROGRAM, 'CACHE_SPLAT', cacheSplatEntries(), [['spreadTiles']], true),
-    stage(device, CACHE_FILTER_PROGRAM, 'CACHE_FILTER', cacheFilterEntries(), [['filterMaps']]),
-    stage(device, CACHE_FIXUP_PROGRAM, 'CACHE_FIXUP', cacheFixupEntries(), [['fixupMaps']]),
   ])
   return {
-    tiles: { layout: tiles.layout, generateTiles: tiles.pipelines[0] },
+    tiles: {
+      layout: tiles.layout,
+      generateTiles: tiles.pipelines[0],
+      /** The move to the next slice of the tile list, between the passes of a full update's trace. */
+      advanceSlice: tiles.pipelines[1],
+      /** The tiles of the list ordered by the direction they trace (`screenProbeRadianceCacheSortTraceTiles`). */
+      sortTiles: tiles.pipelines[2],
+    },
+  }
+})
+
+/** The pipelines of the kernels that write or read the light — the trace, which reads the surface cache's final light stored in the same format, the spread, the filter and the fixup —, and
+ *  their layouts, for maps stored in the format `light`. */
+async function createLightKernels(device: GPUDevice, light: LightAtlasFormat) {
+  const [trace, splat, filter, fixup] = await Promise.all([
+    stage(
+      device,
+      cacheTraceProgramOf(light),
+      'CACHE_TRACE',
+      cacheTraceEntries(light),
+      [[TRACE_ENTRY]],
+      true,
+    ),
+    stage(
+      device,
+      cacheSplatProgramOf(light),
+      'CACHE_SPLAT',
+      cacheSplatEntries(light),
+      [['spreadTiles']],
+      true,
+    ),
+    stage(device, cacheFilterProgram(light), 'CACHE_FILTER', cacheFilterEntries(light), [
+      ['filterMaps'],
+    ]),
+    stage(device, cacheFixupProgram(light), 'CACHE_FIXUP', cacheFixupEntries(light), [
+      ['fixupMaps'],
+    ]),
+  ])
+  return {
     trace: { layout: trace.layout, traceTiles: trace.pipelines[0] },
     /** The spread of the trace atlas into the raw atlas, after the trace through the scene's triangles. */
     splat: { layout: splat.layout, spreadTiles: splat.pipelines[0] },
@@ -65,7 +100,20 @@ export const createCacheKernels = oncePerDevice(async (device: GPUDevice) => {
     /** The copy of the filtered maps to the final atlas, with their border and levels of detail. */
     fixup: { layout: fixup.layout, fixupMaps: fixup.pipelines[0] },
   }
-})
+}
+
+/** The light's kernels, memoised by device and format. */
+const lightKernels = oncePerDeviceKey(createLightKernels)
+
+/** The pipelines of the cache's kernels and the layouts of their groups for maps stored in the format `light`: those that write or read the light made once for a
+ *  device and a format, the others once for a device, whatever the maps' shape and the caches that run them. */
+export async function createCacheKernels(device: GPUDevice, light: LightAtlasFormat) {
+  const [shared, written] = await Promise.all([
+    createSharedKernels(device),
+    lightKernels(device, light),
+  ])
+  return { ...shared, ...written }
+}
 
 /**
  * A trace that casts rays through the scene's triangles, compiled off the frame and not waited for: its `layouts` (a group each, in the order
@@ -97,18 +145,18 @@ export function startedTracedKernel(
 }
 
 /**
- * The trace that casts the rays through the scene's triangles (`CACHE_TRACED_PROGRAM`), made once for the device when a scene has
- * acceleration structures and the cache's rays are traced: compiled off the frame, not waited for by the cache's own kernels — until it
- * is `ready` the rays are marched through the field. Its layouts are the cache's own group with the cut's tables, and the scene trace's.
+ * The trace that casts the rays through the scene's triangles (`cacheTracedProgramOf`), made once for the device and the format `light` the maps are stored in (the surface
+ * cache's final light is read in the same) when a scene has acceleration structures and the cache's rays are traced: compiled off the frame, not waited for by the cache's own
+ * kernels — until it is `ready` the rays are marched through the field. Its layouts are the cache's own group with the cut's tables, and the scene trace's.
  */
-export const tracedCacheKernels = oncePerDevice((device: GPUDevice) =>
+export const tracedCacheKernels = oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) =>
   startedTracedKernel(
     device,
-    'Trillion3D CACHE_TRACED',
-    cacheTracedLayouts().map((entries, at) =>
+    `Trillion3D CACHE_TRACED ${light}`,
+    cacheTracedLayouts(light).map((entries, at) =>
       device.createBindGroupLayout({ label: `Trillion3D CACHE_TRACED group ${at}`, entries }),
     ),
-    CACHE_TRACED_PROGRAM,
+    cacheTracedProgramOf(light),
     TRACE_ENTRY,
   ),
 )
@@ -116,5 +164,5 @@ export const tracedCacheKernels = oncePerDevice((device: GPUDevice) =>
 /** The traced trace's kernels, made. */
 export type TracedCacheKernels = ReturnType<typeof tracedCacheKernels>
 
-/** The cache's kernels, made. */
+/** The cache's kernels for one format, made. */
 export type CacheKernels = Awaited<ReturnType<typeof createCacheKernels>>

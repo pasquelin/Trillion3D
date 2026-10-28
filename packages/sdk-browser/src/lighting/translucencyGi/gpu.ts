@@ -17,7 +17,7 @@ import {
 } from './layout.ts'
 import type { TranslucencyGiKernels } from './kernels.ts'
 import { markerOf } from './marker.ts'
-import { giSampler, type GiResources, type GiVolume } from './resources.ts'
+import { giSampler, type GiResources } from './resources.ts'
 import { traceGroupOf, type GiTraceInputs } from './traceGroup.ts'
 
 /** What a view keeps of the volume between two images: its resources at the size of the grid, the turn the two volumes take, whether the
@@ -39,8 +39,8 @@ export interface TranslucencyGiState {
   /** The camera cuts seen: the history is none past one. */
   revision?: number
   published: {
-    /** The two textures the surfaces read, ambient and directional. */
-    volume?: GiVolume
+    /** The texture the surfaces read, the ambient light and the directional light stacked in its depth. */
+    volume?: GPUTextureView
     /** The light before its history and its intensity, which the fog reads (`integrateWgsl.ts`), in the same grid. */
     fogView?: GPUTextureView
     readonly grid: Float32Array
@@ -128,18 +128,17 @@ export interface GiCacheRead {
   cache: CacheRead
 }
 
-/** The frame's uniform written for an image: the grid, the view, the slices' law, the jitters, the settings of the trace, the filter and the
- *  history. Nothing is allocated by a call. */
-export function writeGiFrame(
-  device: GPUDevice,
-  state: TranslucencyGiState,
+type FrameViews = typeof FRAME_VIEWS
+type FrameAt = typeof TRANSLUCENCY_GI_FRAME.at
+
+/** The grid, the view, the slices' law, the jitters and the trace's and depth's settings of the frame's uniform. */
+function writeGiFrameTrace(
+  { u, f }: FrameViews,
+  at: FrameAt,
   grid: TranslucencyGiGrid,
   v: TranslucencyGiValues,
   image: GiImage,
-  read: GiCacheRead,
 ) {
-  const { u, f } = FRAME_VIEWS
-  const at = TRANSLUCENCY_GI_FRAME.at
   u[at.grid] = grid.x
   u[at.grid + 1] = grid.y
   u[at.grid + 2] = grid.z
@@ -163,6 +162,16 @@ export function writeGiFrame(
     translucencyGiFootprintLevel(grid.shift),
     v.translucencyGiTraceFromVolume ? 1 : 0,
   )
+}
+
+/** The history's, the filter's and the radiance cache's settings of the frame's uniform. */
+function writeGiFrameFilter(
+  f: Float32Array,
+  at: FrameAt,
+  v: TranslucencyGiValues,
+  image: GiImage,
+  read: GiCacheRead,
+) {
   put(
     f,
     at.temporal,
@@ -188,6 +197,22 @@ export function writeGiFrame(
     read.cache.mipmaps,
     read.cache.sky ? 1 : 0,
   )
+}
+
+/** The frame's uniform written for an image: the grid, the view, the slices' law, the jitters, the settings of the trace, the filter and the
+ *  history. Nothing is allocated by a call. */
+export function writeGiFrame(
+  device: GPUDevice,
+  state: TranslucencyGiState,
+  grid: TranslucencyGiGrid,
+  v: TranslucencyGiValues,
+  image: GiImage,
+  read: GiCacheRead,
+) {
+  const { f } = FRAME_VIEWS
+  const at = TRANSLUCENCY_GI_FRAME.at
+  writeGiFrameTrace(FRAME_VIEWS, at, grid, v, image)
+  writeGiFrameFilter(f, at, v, image, read)
   f.set(state.previous, at.previous)
   // The eye's travel since the image before, subtracted in double precision.
   put(
@@ -229,11 +254,9 @@ function fixedGroups(
       entries: [
         { binding: n.frame, resource: { buffer: r.frame } },
         { binding: n.cones, resource: cones },
-        { binding: n.historyAmbient, resource: r.volumes[1 - turn].ambient },
-        { binding: n.historyDirectional, resource: r.volumes[1 - turn].directional },
+        { binding: n.history, resource: r.volumes[1 - turn] },
         { binding: n.sampler, resource: giSampler(device) },
-        { binding: n.ambient, resource: r.volumes[turn].ambient },
-        { binding: n.directional, resource: r.volumes[turn].directional },
+        { binding: n.volume, resource: r.volumes[turn] },
         { binding: n.fog, resource: r.fogVolume },
       ],
     }),

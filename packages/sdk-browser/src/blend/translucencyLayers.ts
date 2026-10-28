@@ -1,6 +1,6 @@
 import { toHalf } from '../../../math/src/float/half.ts'
 import { HDR_FORMAT } from '../scene/targetFormats.ts'
-import { texelBytesOf } from '../gpu/core/textureBytes.ts'
+import { standInTexture } from '../gpu/core/standIns.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { computeSamplerEntry, computeTextureEntry } from '../gpu/core/computeBindings.ts'
 import { postSamplers } from '../gpu/core/postSamplers.ts'
@@ -49,21 +49,8 @@ export const layersGroup = (
 const ONE_HALF = toHalf(1)
 
 /** A 1×1 texture of the texel `halves` (the half floats of its four channels). */
-function standIn(device: GPUDevice, label: string, halves: readonly number[]) {
-  const texture = device.createTexture({
-    label,
-    size: [1, 1],
-    format: HDR_FORMAT,
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
-  })
-  device.queue.writeTexture(
-    { texture },
-    new Uint16Array(halves),
-    { bytesPerRow: texelBytesOf(HDR_FORMAT) },
-    [1, 1],
-  )
-  return texture
-}
+const standIn = (device: GPUDevice, label: string, halves: readonly number[]) =>
+  standInTexture(device, label, HDR_FORMAT, { texels: new Uint16Array(halves) })
 
 /** A 1×1 texture of what a texel no layer covers holds: no light and a transmittance of 1. */
 export const createNoTranslucency = (device: GPUDevice) =>

@@ -52,24 +52,15 @@ const pagesDeclarations = [
   VSM_BOX_VIEW_WGSL,
 ]
 const pagesOfGroup = new Map<number, WgslDecl>()
-/** The pyramid read at one page's place, over the occlusion group bound at group `group`: the cull's own (`VSM_OCCLUSION_GROUP`) or, for a
- *  program that already holds that group, another (the patches' tessellation, `tessellation/shadowSightWgsl.ts`). */
-function vsmOcclusionPagesWgsl(group: number) {
-  let block = pagesOfGroup.get(group)
-  if (!block)
-    pagesOfGroup.set(
-      group,
-      (block = wgslBlock(
-        group === VSM_OCCLUSION_GROUP
-          ? 'VSM_OCCLUSION_PAGES_WGSL'
-          : `VSM_OCCLUSION_PAGES_WGSL_${group}`,
-        pagesDeclarations,
-        /* wgsl */ `
+/** The pyramid, the kept tables, the marks and the rects, declared at `group`. */
+const occlusionBindingsText = (group: number) => `
 @group(${group}) @binding(0) var occlusionPyramid:texture_2d_array<f32>;
 @group(${group}) @binding(1) var occlusionTable:texture_2d<u32>;
 @group(${group}) @binding(2) var occlusionMarks:texture_2d<u32>;
-@group(${group}) @binding(3) var occlusionRects:texture_2d<u32>;
-/** A box's rect on a map's mip: its pixels (inclusive), its texels at pyramid level \`level\`, its
+@group(${group}) @binding(3) var occlusionRects:texture_2d<u32>;`
+
+/** A box's rect on a map's mip, and its place on the pyramid. */
+const OCCLUSION_RECT_TEXT = `/** A box's rect on a map's mip: its pixels (inclusive), its texels at pyramid level \`level\`, its
  *  depth. */
 struct VsmScreenRect{pixels:vec4i,texels:vec4i,level:i32,depth:f32,}
 fn vsmScreenRect(viewRect:vec4i,cull:VsmBoxInView)->VsmScreenRect{
@@ -93,8 +84,10 @@ fn vsmPyramidVisible(texels:vec4i,level:i32,depth:f32,layer:u32)->bool{
   }
  }
  return depth>=least;
-}
-/** The rect held at the level where a page is 4x4 texels: past it, the texels from the pixels. */
+}`
+
+/** The rect at a page's level, and its visibility on a page through the pyramid. */
+const OCCLUSION_PAGES_TEXT = `/** The rect held at the level where a page is 4x4 texels: past it, the texels from the pixels. */
 fn vsmPageLevelRect(rect:VsmScreenRect)->VsmScreenRect{
  var r=rect;
  if(r.level>i32(VSM_LOG2_PAGE)-3){
@@ -118,7 +111,21 @@ fn vsmPageVisibleHzb(h:VsmHandle,mipLevel:u32,r:VsmScreenRect,x:u32,y:u32,unmapp
  t+=vec2i(entry.physicalAddress<<vec2u(pageShift)).xyxy;
  return vsmPyramidVisible(t,r.level,r.depth,select(0u,vsm.hzbStaticLayer,staticLayer));
 }
-`,
+`
+
+/** The pyramid read at one page's place, over the occlusion group bound at group `group`: the cull's own (`VSM_OCCLUSION_GROUP`) or, for a
+ *  program that already holds that group, another (the patches' tessellation, `tessellation/shadowSightWgsl.ts`). */
+function vsmOcclusionPagesWgsl(group: number) {
+  let block = pagesOfGroup.get(group)
+  if (!block)
+    pagesOfGroup.set(
+      group,
+      (block = wgslBlock(
+        group === VSM_OCCLUSION_GROUP
+          ? 'VSM_OCCLUSION_PAGES_WGSL'
+          : `VSM_OCCLUSION_PAGES_WGSL_${group}`,
+        pagesDeclarations,
+        /* wgsl */ `${occlusionBindingsText(group)}\n${OCCLUSION_RECT_TEXT}\n${OCCLUSION_PAGES_TEXT}`,
       )),
     )
   return block
@@ -126,19 +133,8 @@ fn vsmPageVisibleHzb(h:VsmHandle,mipLevel:u32,r:VsmScreenRect,x:u32,y:u32,unmapp
 export const VSM_OCCLUSION_PAGES_WGSL = vsmOcclusionPagesWgsl(VSM_OCCLUSION_GROUP)
 
 const hiddenOfGroup = new Map<number, WgslDecl>()
-/** The tests of a box against the pyramid that need no stale rect: the first cull's (`vsmHiddenBefore`) and the second's (`vsmHiddenNow`), over the
- *  occlusion group at `group` (`vsmOcclusionPagesWgsl`). */
-export function vsmOcclusionHiddenWgsl(group: number) {
-  let block = hiddenOfGroup.get(group)
-  if (!block)
-    hiddenOfGroup.set(
-      group,
-      (block = wgslBlock(
-        group === VSM_OCCLUSION_GROUP
-          ? 'VSM_OCCLUSION_HIDDEN_WGSL'
-          : `VSM_OCCLUSION_HIDDEN_WGSL_${group}`,
-        [vsmOcclusionPagesWgsl(group), VSM_PROJECTION_DATA_WGSL, VSM_CASTER_BOX_CULL_WGSL],
-        /* wgsl */ `
+/** The kept stale rect of a map's mip and the visibility of a rect on its pages. */
+const OCCLUSION_PAGES_VISIBLE_TEXT = `
 /** The kept stale rect of a (map, mip, layer). */
 fn vsmKeptRect(id:u32,mipLevel:u32,staticLayer:bool)->vec4u{
  let index=vsmStaleRectIndex(id,mipLevel,staticLayer);
@@ -163,8 +159,10 @@ fn vsmPagesVisible(h:VsmHandle,mipLevel:u32,rect:VsmScreenRect,testMask:u32,stat
   }
  }
  return false;
-}
-/** Whether a map has a previous view to test mip \`mipLevel\` against: its previous table (a mip finer
+}`
+
+/** The tests of a box against the previous view's pyramid and this frame's. */
+const OCCLUSION_HIDDEN_TEXT = `/** Whether a map has a previous view to test mip \`mipLevel\` against: its previous table (a mip finer
  *  than the previous map's finest has no level in it) and its previous view. */
 fn vsmPrevViewHolds(pd:VsmProjectionData,mipLevel:u32)->bool{
  return vsmHandleIsValid(VsmHandle(pd.prevMapId,pd.prevTableOrigin,pd.prevFinestMip))&&mipLevel>=pd.prevFinestMip;
@@ -196,7 +194,21 @@ fn vsmHiddenNow(h:VsmHandle,mipLevel:u32,cull:VsmBoxInView,levelTexels:i32,clipp
  rect.pixels=clipped;
  return !vsmPagesVisible(h,mipLevel,rect,markMask,staticLayer);
 }
-`,
+`
+
+/** The tests of a box against the pyramid that need no stale rect: the first cull's (`vsmHiddenBefore`) and the second's (`vsmHiddenNow`), over the
+ *  occlusion group at `group` (`vsmOcclusionPagesWgsl`). */
+export function vsmOcclusionHiddenWgsl(group: number) {
+  let block = hiddenOfGroup.get(group)
+  if (!block)
+    hiddenOfGroup.set(
+      group,
+      (block = wgslBlock(
+        group === VSM_OCCLUSION_GROUP
+          ? 'VSM_OCCLUSION_HIDDEN_WGSL'
+          : `VSM_OCCLUSION_HIDDEN_WGSL_${group}`,
+        [vsmOcclusionPagesWgsl(group), VSM_PROJECTION_DATA_WGSL, VSM_CASTER_BOX_CULL_WGSL],
+        /* wgsl */ `${OCCLUSION_PAGES_VISIBLE_TEXT}\n${OCCLUSION_HIDDEN_TEXT}`,
       )),
     )
   return block

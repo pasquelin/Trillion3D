@@ -245,7 +245,7 @@ test('an image that cast screen probes marks the cells from their points, not fr
 })
 
 test('a closed series finds work again when a level that casts is chosen: the radiance cache is made, every probe is traced anew; given back where no screen probe reads it', async () => {
-  let level: 'low' | 'ultra' = 'low'
+  let level: 'off' | 'ultra' = 'off'
   const floor = await floorProbes(true, () => screenProbeSettings({ screenProbes: level }))
   const { probes, encoder } = floor
   probes.restart()
@@ -258,7 +258,7 @@ test('a closed series finds work again when a level that casts is chosen: the ra
   assert.ok(probes.cache.views && probes.cache.bytes > 0)
   assert.equal(probes.cache.pending, true)
   await closeSeries(floor, { live: 3 })
-  level = 'low'
+  level = 'off'
   probes.track(FLOOR_EYE, 1)
   assert.equal(probes.cache.views, undefined, 'given back')
   probes.dispose()

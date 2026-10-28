@@ -23,33 +23,8 @@ import {
   type HairSampleCount,
 } from './visibilityMath.ts'
 
-/**
- * THE COMPACTION: for each pixel of the tiles with any strand, the strands its samples hold, as the
- * list of the distinct ones. A sample counts when it holds a strand and is not behind the opaque
- * depth (strictly farther); strands with the same identifier (a segment of a group) are one, with
- * the count of samples that hold it and the nearest of their depths; with `sortByDepth` the list goes
- * from the nearest. The pixel's list is placed in the list of all the pixels by the workgroup, which
- * adds its pixels' counts to the shared counter once and hands each pixel its place; a workgroup
- * whose lists do not all fit in the room (`maxNodes`) stores none of them, its pixels with none and no
- * coverage. The samples stored are therefore the first of the room, whole (`HAIR_NODE_COUNTER_STORED`
- * counts them), however many the pixels asked for (`HAIR_NODE_COUNTER_PLACED`).
- *
- * What it writes: for each pixel, the descriptor of its list (the place of its first sample on 26
- * bits, how many on 6), and its coverage, the transmittance's share of the full coverage; for each
- * sample, its depth (24 bits) and its share of the pixel's samples (8 bits, a whole number of
- * 256ths) in a word, its identifier in the other, and its pixel.
- *
- * The samples lie in bands of rows, one buffer each (`HAIR_BAND_WGSL`): a dispatch is one band's, over
- * all the tiles, and takes none of the tiles outside its rows.
- */
-export function compactWgsl(samples: HairSampleCount, wide: boolean) {
-  const read = wide
-    ? `@group(0) @binding(3) var<storage,read> samples:array<vec2u>;
-fn readSample(index:u32)->vec2u{return samples[index];}`
-    : `@group(0) @binding(3) var<storage,read> samples:array<u32>;
-fn readSample(index:u32)->vec2u{return vec2u(samples[band.plane+index],samples[index]);}`
-  return wgslProgram(
-    `const SAMPLES=${samples}u;
+/** The bindings of the compaction kernel and the sample count. */
+const compactBindingsText = (samples: HairSampleCount, read: string) => `const SAMPLES=${samples}u;
 @group(0) @binding(1) var sceneDepth:texture_depth_2d;
 @group(0) @binding(2) var transmittance:texture_storage_2d<${HAIR_TRANSMITTANCE_FORMAT},read>;
 ${read}
@@ -60,8 +35,10 @@ ${read}
 @group(0) @binding(8) var coverageOut:texture_storage_2d<${HAIR_COVERAGE_FORMAT},write>;
 @group(0) @binding(9) var<storage,read_write> nodeVis:array<vec2u>;
 @group(0) @binding(10) var<storage,read_write> nodeCoord:array<u32>;
-@group(0) @binding(11) var<uniform> band:HairBand;
-struct Found{id:u32,count:u32,depth:u32}
+@group(0) @binding(11) var<uniform> band:HairBand;`
+
+/** The kernel's head: the samples of a pixel found, counted and given their place. */
+const compactFindText = (samples: HairSampleCount) => `struct Found{id:u32,count:u32,depth:u32}
 var<workgroup> allocCount:atomic<u32>;
 var<workgroup> allocBase:u32;
 var<workgroup> allocFits:u32;
@@ -97,8 +74,10 @@ var<workgroup> allocFits:u32;
     found[foundCount]=Found(hit.x,1u,hit.y);
     foundCount++;
    }
-  }
-  if(image.sortByDepth!=0u){
+  }`
+
+/** The kernel's tail: the samples sorted by depth where asked, then written with the pixel's descriptor and coverage. */
+const compactWriteText = `  if(image.sortByDepth!=0u){
    for(var i=0u;i<foundCount;i++){
     for(var j=i+1u;j<foundCount;j++){
      if(found[j].depth>found[i].depth){
@@ -143,7 +122,35 @@ var<workgroup> allocFits:u32;
  let first=select(0u,offset,stored>0u);
  textureStore(nodeIndex,vec2i(pixel),vec4u((first&${HAIR_NODE_OFFSET_MASK}u)|(stored<<${HAIR_NODE_OFFSET_BITS}u),0u,0u,0u));
  textureStore(coverageOut,vec2i(pixel),vec4f(coverage,0.0,0.0,0.0));
-}`,
+}`
+
+/**
+ * THE COMPACTION: for each pixel of the tiles with any strand, the strands its samples hold, as the
+ * list of the distinct ones. A sample counts when it holds a strand and is not behind the opaque
+ * depth (strictly farther); strands with the same identifier (a segment of a group) are one, with
+ * the count of samples that hold it and the nearest of their depths; with `sortByDepth` the list goes
+ * from the nearest. The pixel's list is placed in the list of all the pixels by the workgroup, which
+ * adds its pixels' counts to the shared counter once and hands each pixel its place; a workgroup
+ * whose lists do not all fit in the room (`maxNodes`) stores none of them, its pixels with none and no
+ * coverage. The samples stored are therefore the first of the room, whole (`HAIR_NODE_COUNTER_STORED`
+ * counts them), however many the pixels asked for (`HAIR_NODE_COUNTER_PLACED`).
+ *
+ * What it writes: for each pixel, the descriptor of its list (the place of its first sample on 26
+ * bits, how many on 6), and its coverage, the transmittance's share of the full coverage; for each
+ * sample, its depth (24 bits) and its share of the pixel's samples (8 bits, a whole number of
+ * 256ths) in a word, its identifier in the other, and its pixel.
+ *
+ * The samples lie in bands of rows, one buffer each (`HAIR_BAND_WGSL`): a dispatch is one band's, over
+ * all the tiles, and takes none of the tiles outside its rows.
+ */
+export function compactWgsl(samples: HairSampleCount, wide: boolean) {
+  const read = wide
+    ? `@group(0) @binding(3) var<storage,read> samples:array<vec2u>;
+fn readSample(index:u32)->vec2u{return samples[index];}`
+    : `@group(0) @binding(3) var<storage,read> samples:array<u32>;
+fn readSample(index:u32)->vec2u{return vec2u(samples[band.plane+index],samples[index]);}`
+  return wgslProgram(
+    `${compactBindingsText(samples, read)}\n${compactFindText(samples)}\n${compactWriteText}`,
     [HAIR_IMAGE_WGSL, HAIR_BAND_WGSL, hairTilePixel, FLAT_INDEX_WGSL],
   )
 }

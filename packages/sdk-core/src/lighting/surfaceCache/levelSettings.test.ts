@@ -2,7 +2,11 @@
 // the settings' defaults, which a setting a host names overrides.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SCREEN_PROBE_LEVELS, SURFACE_CACHE_LEVEL_ROWS } from '../../bounce/screenProbeLevels.ts'
+import {
+  SCREEN_PROBE_LEVELS,
+  SCREEN_PROBE_PRESET_LEVELS,
+  SURFACE_CACHE_LEVEL_ROWS,
+} from '../../bounce/screenProbeLevels.ts'
 import { resolveSettings, settingFits, type SettingRule } from '../../contracts/settingRules.ts'
 import {
   SURFACE_CACHE_RULES,
@@ -83,7 +87,7 @@ test('the culling of the placements the rays can meet is the reference’s: mode
   )
 })
 
-test('the high and low levels hold the reference’s rows of the atlas, the cards, the lights and the radiosity', () => {
+test('the high level holds the reference’s row of the atlas, the cards, the lights and the radiosity, and the balanced preset the medium one over it', () => {
   const high = at('high')
   assert.deepEqual(
     [
@@ -98,14 +102,21 @@ test('the high and low levels hold the reference’s rows of the atlas, the card
     ],
     [3584, 4, 512, 4, 64, 128, 8, 3],
   )
-  const low = at('low')
+  const medium = at(
+    'high',
+    Object.fromEntries(
+      Object.entries(SCREEN_PROBE_PRESET_LEVELS.balanced).filter(([name]) =>
+        name.startsWith('surfaceCache'),
+      ),
+    ),
+  )
   assert.deepEqual(
     [
-      low.surfaceCacheAtlasSize,
-      low.surfaceCacheCardTexelDensityScale,
-      low.surfaceCacheCardMaxResolution,
-      low.surfaceCacheDirectLightingUpdateFactor,
-      low.surfaceCacheRadiosityHemisphereProbeResolution,
+      medium.surfaceCacheAtlasSize,
+      medium.surfaceCacheCardTexelDensityScale,
+      medium.surfaceCacheCardMaxResolution,
+      medium.surfaceCacheDirectLightingUpdateFactor,
+      medium.surfaceCacheRadiosityHemisphereProbeResolution,
     ],
     [2048, 50, 256, 128, 3],
   )

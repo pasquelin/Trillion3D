@@ -1,5 +1,6 @@
 import { wgslBlock, type WgslDecl } from '../../../math/src/wgsl/decl.ts'
-import { BLEND_CLOUD_FOG_BINDINGS } from '../gpu/bind/bindLayout.ts'
+import { BLEND_BINDINGS, BLEND_CLOUD_FOG_BINDINGS } from '../gpu/bind/bindLayout.ts'
+import { hvCameraReadWgsl } from '../lighting/heterogeneousVolumes/cameraReadWgsl.ts'
 import {
   CLOUD_FOG_MODEL_BIT,
   MODEL_SHIFT,
@@ -90,6 +91,17 @@ fn cloudFogged(rgb:vec3f,v:VSOut)->vec3f{
 }`,
   )
 
+/** The heterogeneous volumes composited with the translucency lie between the camera and the layer: where this image made their camera map
+ *  (`BlendView.volumeCamera`), the fog is the volumes' radiance and transmittance over it (`hvCameraFog`, `cameraReadWgsl.ts`). */
+const VOLUME_CAMERA_FOG = wgslBlock(
+  'VOLUME_CAMERA_FOG',
+  [hvCameraReadWgsl(BLEND_BINDINGS.volumeCamera)],
+  `fn blendVolumeFog(in:VSOut,fog:vec4f)->vec4f{
+ if(uni.volumeCamera==0u){return fog;}
+ return hvCameraFog(fog,in.view,uni.eye.xyz,in.position.xy,uni.volumeCameraFactor,uni.preExposure);
+}`,
+)
+
 /** The fog a blended fragment is seen through, whole (`blendFog`): the one place a fragment, the alpha holdout and
  *  the thin layers take it from, so that all see the same fog, worked out once. From what its vertices gave it where
  *  the material's fog is per vertex (`fogVertexed`, from the material record), with the fog's volume over it, read for the
@@ -97,20 +109,20 @@ fn cloudFogged(rgb:vec3f,v:VSOut)->vec3f{
 const FOG_VERTEX_FRAGMENT = (layer: string) =>
   wgslBlock(
     'FOG_VERTEX_FRAGMENT',
-    [],
+    [VOLUME_CAMERA_FOG],
     `fn fogVertexed(in:VSOut)->bool{return !(${materialFlagOf('fogPerPixel')});}
 fn blendFog(in:VSOut)->vec4f{
- if(!fogVertexed(in)){return fogOver(in.view,uni.eye.xyz,in.position.xy);}
- return fogVolumeOver(${layer},in.view,uni.eye.xyz);
+ if(!fogVertexed(in)){return blendVolumeFog(in,fogOver(in.view,uni.eye.xyz,in.position.xy));}
+ return blendVolumeFog(in,fogVolumeOver(${layer},in.view,uni.eye.xyz));
 }`,
   )
 
 /** The same for a program whose surfaces all have their fog worked out for the pixel, or none (`fogVertexOf`). */
 const FOG_PIXEL_FRAGMENT = wgslBlock(
   'FOG_PIXEL_FRAGMENT',
-  [],
+  [VOLUME_CAMERA_FOG],
   `fn fogVertexed(in:VSOut)->bool{return false;}
-fn blendFog(in:VSOut)->vec4f{return fogOver(in.view,uni.eye.xyz,in.position.xy);}`,
+fn blendFog(in:VSOut)->vec4f{return blendVolumeFog(in,fogOver(in.view,uni.eye.xyz,in.position.xy));}`,
 )
 
 /** The vertex stage's fog layer: for a material that takes any fog, the fog laid per vertex (far fog and the haze,

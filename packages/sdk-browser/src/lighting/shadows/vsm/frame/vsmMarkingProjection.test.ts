@@ -27,6 +27,8 @@ function markingWords(projection: ArrayLike<number>, perspective: boolean, size:
   const marking = createVsmMarking(device, res)
   marking.encode(pass, {
     mapCount: 1,
+    claimed: 1,
+    singleMaps: 1,
     perspective,
     perPage: {
       ids: new Uint32Array(2),

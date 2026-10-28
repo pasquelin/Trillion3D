@@ -1,15 +1,16 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { meshFieldWgsl } from '../meshFieldWgsl.ts'
+import { DF_CULL_HELPERS_WGSL, dfCullFrustumWgsl } from '../objectCullWgsl.ts'
 import { DFSH_COMMON_WGSL } from './commonWgsl.ts'
 import { DFSH_BINDING as B, DFSH_CULL_GROUP, DFSH_OFFSET_GROUP } from './layout.ts'
 
 /**
  * THE MESHES CULLED TO THE CASCADE (`dfshCull`), a thread a mesh of the scene. A mesh is listed if it
- * casts a shadow, shown or hidden. It is listed if it is no cluster geometry (`dfshCasts`): a sun's
- * shadow maps draw the clusters at any distance, so the cascade would shadow them twice. Every mesh
- * the engine draws is made of clusters, so the list is empty and the passes after it run on nothing.
- * A sun without virtual shadow maps would trace the cluster meshes too (the pass's rule); none exists
- * today. It is listed if its bounding sphere meets the hull of the cascade (`dfshHullTouches`: no
+ * casts a shadow, shown or hidden. It is listed if it is no cluster geometry or the cascade lists the
+ * cluster meshes too (`dfshCasts`, `DFSH_FLAG.clusterMeshes`): where a sun's shadow maps draw the clusters
+ * at any distance the cascade would shadow them twice, so the flag is off, and as every mesh the engine
+ * draws is made of clusters the list is then empty and the passes after it run on nothing; a sun without
+ * virtual shadow maps has the flag on and traces them. It is listed if its bounding sphere meets the hull of the cascade (`dfCullInFrustum`: no
  * plane puts it wholly outside). It is listed if it is drawn at its distance from the eye (the
  * squared distance over `drawDistance2.x` if that is above 0.0001, under `.y` likewise). A place each
  * by an atomic add. The draw's arguments (the vertex count of the cube, the meshes listed, zeros) are
@@ -18,31 +19,28 @@ import { DFSH_BINDING as B, DFSH_CULL_GROUP, DFSH_OFFSET_GROUP } from './layout.
 export const DFSH_CULL_WGSL = wgslProgram(
   `@group(0) @binding(${B.culledObjects}) var<storage,read_write> culledObjects:array<u32>;
 @group(0) @binding(${B.objectArgs}) var<storage,read_write> objectArgs:array<atomic<u32>>;
-fn dfshHullTouches(centre:vec3f,radius:f32)->bool{
- for(var plane=0u;plane<dfsh.counts.x;plane++){
-  let p=dfsh.planes[plane];
-  if(dot(p.xyz,centre)-p.w>radius){return false;}
- }
- return true;
-}
-fn dfshCasts(flags:u32)->bool{
- return (flags&FLAG_CAST_SHADOW)!=0u&&(flags&FLAG_VIRTUALIZED)==0u;
+fn dfshCasts(flags:u32,clusterMeshes:bool)->bool{
+ return (flags&FLAG_CAST_SHADOW)!=0u&&(clusterMeshes||(flags&FLAG_VIRTUALIZED)==0u);
 }
 @compute @workgroup_size(${DFSH_CULL_GROUP})
 fn dfshCull(@builtin(global_invocation_id) id:vec3u){
  if(id.x==0u){atomicStore(&objectArgs[0],dfsh.counts.y);}
  if(id.x>=dfsh.tiles.z){return;}
  let bounds=loadDfObjectBounds(id.x);
- if(!dfshCasts(bounds.flags)){return;}
+ if(!dfshCasts(bounds.flags,(dfsh.counts.w&DFSH_CLUSTER_MESHES)!=0u)){return;}
  let centre=dfshFromEye(bounds.center);
- if(!dfshHullTouches(centre,bounds.sphereRadius)){return;}
- let range=loadDfObjectData(id.x).drawDistance2;
+ if(!dfCullInFrustum(centre,bounds.sphereRadius)){return;}
  let distanceSquared=dot(centre,centre);
- if((range.x<0.0001||distanceSquared>range.x)&&(range.y<0.0001||distanceSquared<range.y)){
+ if(dfCullDrawn(loadDfObjectData(id.x).drawDistance2,distanceSquared)){
   culledObjects[atomicAdd(&objectArgs[1],1u)]=id.x;
  }
 }`,
-  [DFSH_COMMON_WGSL, meshFieldWgsl(0, B.objects)],
+  [
+    DFSH_COMMON_WGSL,
+    meshFieldWgsl(0, B.objects),
+    DF_CULL_HELPERS_WGSL,
+    dfCullFrustumWgsl('dfsh.planes', 'dfsh.counts.x'),
+  ],
 )
 
 /**

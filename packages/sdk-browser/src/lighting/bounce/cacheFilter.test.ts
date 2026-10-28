@@ -3,11 +3,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { CACHE_FILTER_PROGRAM } from './cache/cacheFilterWgsl.ts'
+import { cacheFilterProgram } from './cache/cacheFilterWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { ATLAS_CALLS, cellProbes, oneLevel } from './atlas.fixture.ts'
 import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
 import { equalAreaDecode } from '../../../../math/src/wgsl/octahedral.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
+
+const CACHE_FILTER_PROGRAM = cacheFilterProgram(WORD_LIGHT_FORMAT)
 
 test('a probe filters with the neighbours its level holds that a probe holds: a cell past the cube’s edge, whose table entry is another cell’s, is none', () => {
   // Slots 1 to 4 hold the cells in turn: two beside the origin and the two ends of the cube along x, the table's wrap joining them.

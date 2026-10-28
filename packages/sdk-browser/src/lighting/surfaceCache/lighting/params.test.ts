@@ -9,9 +9,10 @@ import {
 import { CONTEXT_ARGS, CONTEXT_AT, CONTEXT_HEADER_WORDS, contextLayout } from './layout.ts'
 import { shapeOf, sizesOf } from './params.ts'
 import { lightingSettings as settings } from './params.fixture.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
 test('the lighting is sized by the reference defaults: an atlas of 4096 lights 8281 tiles directly and 4096 by radiosity', () => {
-  const shape = shapeOf(settings, 4096, false)
+  const shape = shapeOf(settings, 4096, false, WORD_LIGHT_FORMAT)
   assert.equal(shape.directTiles, 91 ** 2)
   assert.equal(shape.indirectTiles, 64 ** 2)
   assert.equal(shape.maxLights, 8)
@@ -24,7 +25,7 @@ test('the lighting is sized by the reference defaults: an atlas of 4096 lights 8
 })
 
 test('the memory follows the shape: the probes at the spacing, a square of rays a probe', () => {
-  const sizes = sizesOf(shapeOf(settings, 4096, false))
+  const sizes = sizesOf(shapeOf(settings, 4096, false, WORD_LIGHT_FORMAT))
   assert.equal(sizes.probeAtlas, 1024)
   assert.equal(sizes.traceAtlas, 4096)
   assert.equal(sizes.depthRangeWords, 91 ** 2)
@@ -58,12 +59,19 @@ test('the memory follows the shape: the probes at the spacing, a square of rays 
     'the dispatch arguments are in the header',
   )
   // Without radiosity nothing of it is made.
-  const off = sizesOf(shapeOf({ ...settings, surfaceCacheRadiosity: false }, 4096, false))
+  const off = sizesOf(
+    shapeOf({ ...settings, surfaceCacheRadiosity: false }, 4096, false, WORD_LIGHT_FORMAT),
+  )
   assert.deepEqual([off.probeAtlas, off.traceAtlas, off.filteredWords], [1, 1, 1])
 })
 
 test('a spacing under 4 puts a whole card tile in a radiosity tile, its probes many', () => {
-  const shape = shapeOf({ ...settings, surfaceCacheRadiosityProbeSpacing: 2 }, 4096, false)
+  const shape = shapeOf(
+    { ...settings, surfaceCacheRadiosityProbeSpacing: 2 },
+    4096,
+    false,
+    WORD_LIGHT_FORMAT,
+  )
   assert.equal(shape.radiosityTiles, shape.indirectTiles)
   assert.equal(shape.probesPerTile, 16)
 })

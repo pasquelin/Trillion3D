@@ -1,10 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import {
+  backendOf,
   quadScene,
   camera,
   assertBothQuadPagesDrawn,
@@ -14,8 +14,6 @@ import {
 import { settledImage } from './settledImage.fixture.ts'
 import { deepCoarseQuadsEngine } from './coarseQuads.fixture.ts'
 import type { Engine } from '../../session/engine/types.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 test('a surface capture blocks external renders while its own view is drawn, and not after', async () => {
   installGpuGlobals()
@@ -24,12 +22,9 @@ test('a surface capture blocks external renders while its own view is drawn, and
   const main = camera()
   let capturing = false,
     blocked: unknown
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
     onDiagnostic(event) {
       // The capture view's targets are granted: that view is the one drawn now.
       if (capturing && event.phase === 'frame-allocation')
@@ -71,12 +66,9 @@ test('a failed transparent material pipeline refuses the scene by name, never dr
       throw new Error('NO_FORWARD_MATERIAL')
     return create(descriptor)
   }
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   try {
     await assert.rejects(
@@ -135,13 +127,10 @@ test('a visible opaque primitive of root pages has complete exact-page coverage'
   installGpuGlobals()
   const fixture = quadScene(),
     { device } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     metadata: { ...fixture.metadata, primitives: [{ ...fixture.metadata.primitives[0] }] },
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   }) as Engine
   try {
     await backend.prepare()

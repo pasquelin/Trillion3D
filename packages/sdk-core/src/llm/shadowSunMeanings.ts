@@ -1,11 +1,15 @@
+import type { CapsuleShadowField } from '../contracts/capsuleShadowOptions.ts'
 import type { ContactShadowField } from '../contracts/contactShadowOptions.ts'
 import type { ShadowField } from '../contracts/shadowOptions.ts'
 import type { ShadowViewField } from './shadowViewMeanings.ts'
 
 /** The settings of the view that shape a sun's shadows by distance (`../contracts/shadowOptions.ts`,
  *  `../contracts/sunShadowOptions.ts`): the rest are the maps' (`shadowViewMeanings.ts`) and the
- *  contact shadows' (`contactShadowMeanings.ts`). */
-type ShadowSunField = Exclude<ShadowField, ShadowViewField | ContactShadowField>
+ *  contact shadows' (`contactShadowMeanings.ts`) and the capsule shadows' (`capsuleShadowMeanings.ts`). */
+type ShadowSunField = Exclude<
+  ShadowField,
+  ShadowViewField | ContactShadowField | CapsuleShadowField
+>
 
 /** What each of them means. */
 export const SHADOW_SUN_MEANINGS: Readonly<Record<ShadowSunField, string>> = {
@@ -27,6 +31,8 @@ export const SHADOW_SUN_MEANINGS: Readonly<Record<ShadowSunField, string>> = {
     'Factor from 0.0001 to 10000 on the distanceFieldShadowDistance of every directional light: below 1 shortens the distance-field cascade, above 1 lengthens it.',
   distanceFieldFarTransitionScale:
     "Factor from 0 to 1 on the length of the fade out at the far end of the distance-field cascade, which is the cascade's overlap length: 1, the default, fades like the other cascades, 0 does not fade.",
+  distanceFieldShadowing:
+    'Whether a sun may have a distance-field shadow cascade at all (true, the default): the master switch of the feature. Off, no cascade is drawn, whatever distanceFieldShadowQuality and each light say.',
   distanceFieldShadowQuality:
     'The steps of a ray of the distance-field cascade: 0 draws none, 1 twenty, 2 thirty-two, 3 (the default) sixty-four. At 3 alone, a thin transmitting surface keeps the light that survives the thickness it has gone through, by its own opacity.',
   distanceFieldShadowFullResolution:

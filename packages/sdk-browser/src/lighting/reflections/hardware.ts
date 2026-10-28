@@ -6,6 +6,7 @@ import { sceneRaysOf } from '../surfaceCache/lighting/surfaceLighting.ts'
 import type { ReflectionSettings } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { ScreenReflection } from './gpu.ts'
 import { hardwareReflectionKernels } from './reflectionPipelines.ts'
+import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 
 /**
  * THE SCENE STAGE'S RAYS THROUGH THE SCENE'S TRIANGLES (`sceneTraceHardware.ts`), whether this image casts them: the view is the main one — the
@@ -37,10 +38,11 @@ export function hardwareReflections(
   rt: WebgpuPagesRuntime,
   reflection: ScreenReflection,
   settings: ReflectionSettings,
+  light: LightAtlasFormat,
 ) {
   if (!wants(rt, settings)) return undefined
   const rays = sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame)
   if (!rays) return undefined
-  const stage = hardwareReflectionKernels(reflection.device)
+  const stage = hardwareReflectionKernels(reflection.device, light)
   return stage.ready ? { rays, stage } : undefined
 }

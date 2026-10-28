@@ -102,6 +102,23 @@ const SKY_SHADOWING_WGSL = wgslBlock(
  return lambertDiffuse(d.rgb,d.w,environmentIrradiance(N),ao)+lambertDiffuse(d.rgb,d.w,PI*skyLightDiffuseOccluded(sky),1.0);
 }`,
 )
+/**
+ * THE INDIRECT CAPSULE SHADOWS, the variant of the pass that holds their code (`capsule`): the factor the capsules of the objects that cast them let the
+ * indirect light through at a pixel, read once (`capsuleIndirectAt`) and multiplied into the bounce, the environment's light and the reflection — the indirect
+ * light alone, not the direct lights'. The buffer's first word is a row's bytes, its pixels begin at byte 256; a row of no bytes is no shadow.
+ */
+const CAPSULE_INDIRECT_WGSL = wgslBlock(
+  'CAPSULE_INDIRECT_WGSL',
+  [],
+  `@group(0) @binding(${DEFERRED_BINDINGS.capsuleIndirect}) var<storage,read> capsuleIndirect:array<u32>;
+fn capsuleIndirectAt(coord:vec2i)->f32{
+ let row=capsuleIndirect[0];
+ if(row==0u){return 1.0;}
+ let at=256u+u32(coord.y)*row+u32(coord.x);
+ return f32((capsuleIndirect[at>>2u]>>((at&3u)*8u))&255u)/255.0;
+}`,
+)
+
 /** The statements that read the pixel's bent normal and give the occlusions, after the ambient
  *  occlusion (`occlusion`) the pixel is under: the bent normal only where the image applies one, else
  *  the normal. The sky's specular occlusion is the base lobe's (`skySpec`, along the reflection about the normal, at the
@@ -150,7 +167,13 @@ const INDIRECT_TERMS = {
 }
 
 /** The modules the pass is made of, for the cuts of its class. */
-function indirectModules(bounce: boolean, skyShadowing: boolean, cubed: boolean, cut: LitPixelCut) {
+export function indirectModules(
+  bounce: boolean,
+  skyShadowing: boolean,
+  cubed: boolean,
+  cut: LitPixelCut,
+  capsule = false,
+) {
   return [
     STANDARD_LIGHTING_WGSL,
     LIGHTS_BINDING_WGSL,
@@ -171,6 +194,7 @@ function indirectModules(bounce: boolean, skyShadowing: boolean, cubed: boolean,
       ? [BOUNCE_APPLY_WGSL, RESOLVED_INDIRECT_WGSL]
       : [NO_BOUNCE_WGSL, resolvedReflectionWgsl]),
     ...(skyShadowing ? [SKY_SHADOWING_WGSL] : []),
+    ...(capsule ? [CAPSULE_INDIRECT_WGSL] : []),
     ...(cubed ? [ambientCubemapWgsl(cut.lobes)] : []),
     AMBIENT_OCCLUSION_READ_WGSL,
     LIT_PIXEL_WGSL,
@@ -185,6 +209,7 @@ function indirectMainWgsl(
   skyShadowing: boolean,
   cubed: boolean,
   cut: LitPixelCut,
+  capsule: boolean,
 ) {
   const terms = bounce
     ? INDIRECT_TERMS.bounce
@@ -204,7 +229,7 @@ function indirectMainWgsl(
  ${screenFoliageStatement(cut)}`
       : ''
   }
- ${AMBIENT_OCCLUSION_STATEMENT}${skyShadowing ? `\n ${skyShadowingStatements(cut.lobes)}` : ''}${
+ ${AMBIENT_OCCLUSION_STATEMENT}${capsule ? '\n let capsuleFactor=capsuleIndirectAt(coord);' : ''}${skyShadowing ? `\n ${skyShadowingStatements(cut.lobes)}` : ''}${
    bounce && cut.thin
      ? `
  ${THIN_SCREEN_BACK_STATEMENT}`
@@ -213,19 +238,20 @@ function indirectMainWgsl(
  let indirect=${terms};${
    cubed
      ? `
- let cube=ambientCubemapAt(albedo,base.a,normal.a,N,V,occlusion.sky);`
+ let cube=ambientCubemapAt(albedo,base.a,normal.a,N,V,occlusion.both);
+ thinCubeBack=ambientCubemapBack(N,thinScreenBack.a==2.0);`
      : ''
  }
- if(lightView==1u){return vec4f(preExposed(${reflection}),0.0);}
+ if(lightView==1u){return vec4f(preExposed(${reflection}${capsule ? '*capsuleFactor' : ''}),0.0);}
  let bounceLight=indirect[0]*occlusion.bounce;
  let ambientLight=${environment}+${lightmap}${cubed ? '+cube[0]' : ''};${
    cut.models
      ? `
- if(${scattersPixelModel('pixelModelId')}){scatterAdd(bounceLight+ambientLight);}`
+ if(${scattersPixelModel('pixelModelId')}){scatterAdd(${capsule ? '(bounceLight+ambientLight)*capsuleFactor' : 'bounceLight+ambientLight'});}`
      : ''
  }
  let rgb=litSurface(vec3f(0.0),bounceLight,ambientLight,${reflection},vec3f(0.0),N,P,occlusion.sky);
- return lightOut(rgb);
+ return lightOut(${capsule ? 'rgb*capsuleFactor' : 'rgb'});
 }`
 }
 
@@ -242,19 +268,21 @@ export function indirectPassWgsl({
   bounce,
   skyShadowing,
   cubed = false,
+  capsule = false,
   tileClass,
 }: {
   bounce: boolean
   skyShadowing: boolean
   cubed?: boolean
+  capsule?: boolean
   tileClass: TileClass
 }) {
   if (bounce && skyShadowing) throw new Error('the bounce program has no sky shadowing')
   // No light's term tests a pixel's lighting channels here: it unpacks none.
   const cut = { ...CLASS_CUTS[tileClass], channels: false }
   return wgslBlock(
-    `indirectPassWgsl(${bounce}, ${skyShadowing}, ${tileClass}${cubed ? ', cube' : ''})`,
-    indirectModules(bounce, skyShadowing, cubed, cut),
-    indirectMainWgsl(bounce, skyShadowing, cubed, cut),
+    `indirectPassWgsl(${bounce}, ${skyShadowing}, ${tileClass}${cubed ? ', cube' : ''}${capsule ? ', capsule' : ''})`,
+    indirectModules(bounce, skyShadowing, cubed, cut, capsule),
+    indirectMainWgsl(bounce, skyShadowing, cubed, cut, capsule),
   )
 }

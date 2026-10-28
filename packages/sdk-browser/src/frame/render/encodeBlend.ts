@@ -1,3 +1,4 @@
+import { drawsFrontBeforeSampledMarking } from '../../lighting/manyLightsSampled/frame.ts'
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { countBlendDraws, drawBlendPass, encodeHoldout } from '../../blend/draw.ts'
 import { writeBlendView } from '../../blend/uniforms.ts'
@@ -6,6 +7,8 @@ import { orderBlendPasses } from '../../blend/order/order.ts'
 import { encodeTransparentInstances } from '../../blend/transparent/draw.ts'
 import { encodeDistortion } from '../../blend/distortion.ts'
 import { encodeWater, encodeWaterDepth } from '../../blend/water/waterPass.ts'
+import { waterTargetsOf } from '../../blend/water/waterTargets.ts'
+import { encodeAfterWater } from './encodeClouds.ts'
 import { encodeFrontPass } from '../../blend/frontPass.ts'
 import {
   drawsFrontBeforeMarking,
@@ -22,6 +25,7 @@ import { directLightResources, heldDirectLightResources } from '../prepare/contr
 import { holdoutOn } from '../prepare/alphaHoldout.ts'
 import { voidStaleBlendGroups } from '../../blend/identity.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { composeHairStrands } from '../../hair/lighting.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import { transparentCounts } from '../backend/state/transparentCounts.ts'
 
@@ -118,7 +122,7 @@ export function encodeMarkedLayers(
 ) {
   if (!prepared) return
   const water = drawsWaterBeforeMarking(rt),
-    front = drawsFrontBeforeMarking(rt)
+    front = drawsFrontBeforeMarking(rt) || drawsFrontBeforeSampledMarking(rt)
   if (!water && !front) return
   const cpuStart = cpuNow()
   // Resolved here, ahead of the lights: what is held is the image before's.
@@ -231,7 +235,12 @@ export function encodeBlend(
   // The draws of the layers (`layerDraws`): each expands and draws the items of its own passes alone.
   const draws = layerDraws(rt)
   // The single-layer water, over the scene without it, before the layers that refract or blend it.
-  if (contract) countBlendDraws(rt, encodeWater(rt, device, encoder, contract))
+  const waterDrawn = contract ? encodeWater(rt, device, encoder, contract) : 0
+  if (contract) countBlendDraws(rt, waterDrawn)
+  // The sky, the fog, the haze and the clouds the image held back, over the water now shaded, before any layer is drawn over them.
+  encodeAfterWater(rt, waterDrawn ? waterTargetsOf(rt, device).views.specular : undefined)
+  // The strands, over the sky and the fog laid, before any layer is drawn when the setting puts them there.
+  composeHairStrands(rt, device, encoder, 'beforeTranslucent')
   if (contract)
     countBlendDraws(rt, encodeDistortion(rt, device, encoder, vis.blendPipelines?.transmission))
   for (const { at, active, only } of draws) {
@@ -247,6 +256,8 @@ export function encodeBlend(
       if (main) forget(main)
     }
   }
+  // The strands, over the layers composed in the lit image, before the translucency composed after the depth of field.
+  composeHairStrands(rt, device, encoder, 'afterTranslucent')
   if (!contract) return
   encodeAlphaHoldout(rt, device, encoder, contract, tone)
   timing.transparentDrawMs += cpuNow() - prepared

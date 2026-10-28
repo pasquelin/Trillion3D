@@ -7,10 +7,8 @@ import type { CloudShadowBindings } from '../../atmosphere/cloudShadowRead.ts'
 import { cloudShadowReadWgsl } from '../../atmosphere/cloudShadowRead.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { declaredLightWgsl } from '../../direct/lightLoopWgsl.ts'
-import {
-  lightProfileOfWgsl,
-  type LightProfileBindings,
-} from '../../lightProfile/lightProfileWgsl.ts'
+import { lightProfileOfWgsl } from '../../lightProfile/lightProfileWgsl.ts'
+import { type LightProfileBindings } from '../../lightProfile/lightProfileText.ts'
 import { lightStrengthWgsl } from '../../direct/lightStrengthWgsl.ts'
 import {
   hasLightFunctionWgsl,
@@ -245,17 +243,7 @@ export const SHADOW_MASK_ENTRIES = [
   'shadowMaskRect',
 ] as const
 
-/** The slot of each batchable type's entry. */
-export const SHADOW_MASK_TYPE_SLOTS = {
-  shadowMaskPoint: 0,
-  shadowMaskSpot: 1,
-  shadowMaskRect: 2,
-} as const
-
-/** The mask's program in `format`. */
-const shadowMaskProgram = (format: AtlasFormat) =>
-  wgslProgram(
-    `${wgslConsts({ PAGE_TEMPORAL: PAGE_LIGHTING.temporal, QUADS: SHADOW_QUADS, QUAD_ROW: CARD_TILE_SIZE / 2 })}
+const maskDeclarations = `${wgslConsts({ PAGE_TEMPORAL: PAGE_LIGHTING.temporal, QUADS: SHADOW_QUADS, QUAD_ROW: CARD_TILE_SIZE / 2 })}
 @group(0) @binding(${B.lightTiles}) var<storage,read> lightTiles:array<u32>;
 @group(0) @binding(${B.masks}) var<storage,read_write> masks:array<u32>;
 @group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
@@ -265,8 +253,10 @@ var<workgroup> sharedMask:array<atomic<u32>,SHADOW_MASK_TILE_WORDS>;
 var<workgroup> quadWrites:array<atomic<u32>,QUADS>;
 var<workgroup> sharedTraces:array<u32,${SHADOW_TEXELS}>;
 var<workgroup> traceCount:atomic<u32>;
-var<workgroup> traceBase:u32;
-/** The ray of light \`rank\`, \`standalone\` or not, at the texel \`i\` of the light tile \`lightTile\`: nothing of it where no light reaches the
+var<workgroup> traceBase:u32;`
+
+const maskAttenuation = (format: AtlasFormat) =>
+  `/** The ray of light \`rank\`, \`standalone\` or not, at the texel \`i\` of the light tile \`lightTile\`: nothing of it where no light reaches the
  *  texel, else its function (the atlas's, then, for a light the atlas holds no slot of, the scratch's), the clouds' shade and its profile's multiplier (\`lightProfileOf\`), each settling the texel when the factor falls to 0.01 or less. */
 fn lightAttenuation(rank:u32,standalone:bool,lightTile:u32,i:u32,texel:SurfaceTexel)->ShadowRay{
  var ray=ShadowRay(${SHADOW_FORMAT_PARTS[format].none},true);
@@ -294,8 +284,9 @@ fn lightAttenuation(rank:u32,standalone:bool,lightTile:u32,i:u32,texel:SurfaceTe
  }
  if(!castsShadow(light)){ray.complete=true;}
  return ray;
-}
-/** The masks of the light tiles \`first\` up to \`end\` of the compacted list, a workgroup of the dispatch each. */
+}`
+
+const maskTiles = `/** The masks of the light tiles \`first\` up to \`end\` of the compacted list, a workgroup of the dispatch each. */
 fn shadowMaskTiles(first:u32,end:u32,group:vec3u,n:vec3u,at:vec3u,lane:u32){
  let lightTile=first+flatGroup(group,n);
  // The dispatch's rows may hold groups past its tiles: they leave together.
@@ -326,7 +317,8 @@ fn shadowMaskTiles(first:u32,end:u32,group:vec3u,n:vec3u,at:vec3u,lane:u32){
   downsample=1u;
   write=picked;
  }
- if(write){
+ // The stochastic light traces the samples it picks (\`stochasticCompact\`), not the texels the masks leave unsettled.
+ if(write&&!lgFlag(FLAG_STOCHASTIC)){
   let slot=atomicAdd(&traceCount,1u);
   sharedTraces[slot]=packShadowTrace(lightTile,at.xy,downsample);
  }
@@ -338,8 +330,10 @@ fn shadowMaskTiles(first:u32,end:u32,group:vec3u,n:vec3u,at:vec3u,lane:u32){
  workgroupBarrier();
  if(lane<count){atomicStore(&traces[1u+traceBase+lane],sharedTraces[lane]);}
  if(lane<SHADOW_MASK_TILE_WORDS){masks[lightTile*SHADOW_MASK_TILE_WORDS+lane]=maskWord;}
-}
-@compute @workgroup_size(8,8,1)
+}`
+
+const maskEntries = () =>
+  `@compute @workgroup_size(8,8,1)
 fn shadowMaskLights(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_id) at:vec3u,@builtin(local_invocation_index) lane:u32){
  let tiles=perLightTiles();
  shadowMaskTiles(tiles.x,tiles.y,group,n,at,lane);
@@ -358,7 +352,22 @@ fn shadowMaskSpot(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:
 fn shadowMaskRect(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_id) at:vec3u,@builtin(local_invocation_index) lane:u32){
  let tiles=slotTiles(${SHADOW_MASK_TYPE_SLOTS.shadowMaskRect}u);
  shadowMaskTiles(tiles.x,tiles.y,group,n,at,lane);
-}`,
+}`
+
+/** The slot of each batchable type's entry. */
+export const SHADOW_MASK_TYPE_SLOTS = {
+  shadowMaskPoint: 0,
+  shadowMaskSpot: 1,
+  shadowMaskRect: 2,
+} as const
+
+/** The mask's program in `format`. */
+const shadowMaskProgram = (format: AtlasFormat) =>
+  wgslProgram(
+    `${maskDeclarations}
+${maskAttenuation(format)}
+${maskTiles}
+${maskEntries()}`,
     [
       lightingCommonWgsl({ tables: B.tables }),
       lightTileCountsWgsl(B.counts, 'read'),
@@ -376,8 +385,8 @@ fn shadowMaskRect(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:
     ],
   )
 
-export const SHADOW_MASK_PROGRAM_WGSL = shadowMaskProgram('grey')
-export const SHADOW_MASK_COLOURED_PROGRAM_WGSL = shadowMaskProgram('colour')
+const SHADOW_MASK_PROGRAM_WGSL = shadowMaskProgram('grey')
+const SHADOW_MASK_COLOURED_PROGRAM_WGSL = shadowMaskProgram('colour')
 
 /** The mask's program in `format`. */
 export const shadowMaskProgramOf = (format: AtlasFormat) =>

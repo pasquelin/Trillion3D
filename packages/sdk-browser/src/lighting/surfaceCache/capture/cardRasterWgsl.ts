@@ -1,11 +1,11 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { wgslFn } from '../../../../../math/src/wgsl/decl.ts'
+import { worldMatrix3 } from '../../../../../math/src/wgsl/matrix.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { SMALL_BINDINGS } from '../../../gpu/bind/bindLayout.ts'
 import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../../../visibility/shader/pageWgsl.ts'
 import { PAGE_GEOMETRY_WGSL } from '../../../visibility/shader/pageGeometryWgsl.ts'
-import { FLAG_DOUBLE } from '../../../visibility/types.ts'
 import { visTriangle } from '../../../visibility/visWords.ts'
 import { MODE_DEPTH, MODE_ID, rasterEntry } from '../../../visibility/raster/contract.ts'
 import { RASTER_TRI_WGSL } from '../../../visibility/raster/triWgsl.ts'
@@ -40,8 +40,8 @@ import {
  *  - a corner is placed by the view of its row on the picture of its page (`rasterViewport` is the
  *    picture's size, the box a triangle keeps the whole of it: `rasterSpan`), and a pixel joins the
  *    atlas's buffer at the picture's place (`rect`);
- *  - a card is captured as its surface is, whichever side of a triangle faces the view: no face is
- *    culled (`cardSides`);
+ *  - a face is culled by the material's own side, as the camera's raster does (the page's flags): a one-sided surface shows
+ *    its front only, a two-sided one both; the view mirrors the world (`cardWinding`);
  *  - the view's box is the card's volume: a pixel of a depth outside [0, 1] is not drawn, the depth
  *    being the engine's reversed depth, 1 at the card's outer face and 0 at its inner one.
  * The bindings are the camera raster's (`rasterLayoutEntries`), its `lists` the table of views, its
@@ -51,14 +51,21 @@ const cardTarget = (): ClusterRasterTarget => ({
   item: 'groupRow=select(NONE,at,at<lists[0]);',
   itemOwn: `cardRowView=cardViewOf(pages[row].depthBias);
  cardFrame=vec2f(cardRowView.rect.zw);`,
-  frame: 'let vp=cardRowView.viewProj*page.world;\n let det=1.0;',
+  frame: 'let vp=cardRowView.viewProj*page.world;\n let det=cardWinding(page);',
   clip: (v) => `vp*vec4f(pagePosition(page,h,${v}),1.0)`,
-  setupPage: 'cardSides(page)',
+  setupPage: 'page',
   triangle: '',
   masked: 'false',
   entries: `@compute @workgroup_size(WORKGROUP_THREADS) fn ${rasterEntry(MODE_DEPTH)}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){clusterGroup(g,lane,n,${MODE_DEPTH}u);}
 @compute @workgroup_size(WORKGROUP_THREADS) fn ${rasterEntry(MODE_ID)}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){clusterGroup(g,lane,n,${MODE_ID}u);}`,
 })
+
+/** The winding the setup turns faces by: the determinant of the page's world, reversed because a card's view mirrors the world (`cardPageView`). */
+const CARD_WINDING = wgslFn(
+  'cardWinding',
+  [worldMatrix3],
+  'fn cardWinding(page:PageInfo)->f32{return -determinant(worldMatrix3(page.world));}',
+)
 
 const CARD_FRAME = wgslFn('rasterViewport', [], 'fn rasterViewport()->vec2f{return cardFrame;}')
 /** The widest box a triangle keeps in a card's picture: the whole of a page, 128 pixels, less the first. */
@@ -71,8 +78,6 @@ var<private> cardFrame:vec2f;
 ${wgslConsts({ CARD_TABLE_HEAD, CARD_VIEW_WORDS })}
 fn cardWord(v:u32,k:u32)->u32{return lists[CARD_TABLE_HEAD+v*CARD_VIEW_WORDS+k];}
 fn cardViewOf(v:u32)->CardRasterView{return CardRasterView(cardMatrix(v),cardRect(v));}
-/** The page the setup reads its sides from: two-sided, no face is culled. */
-fn cardSides(page:PageInfo)->PageInfo{var p=page;p.flags|=${FLAG_DOUBLE}u;return p;}
 `
 
 /** The pixel stage: the fragment of a triangle of the card's picture, joining the atlas's buffer. */
@@ -113,6 +118,7 @@ ${viewText}${pixelText}${clusterRasterKernels(subgroups, cardTarget())}`,
       VIS_UNIFORMS_WGSL,
       PAGE_GEOMETRY_WGSL,
       RASTER_TRI_WGSL,
+      CARD_WINDING,
       CARD_FRAME,
       CARD_BOX,
       CARD_VIEW_READ_WGSL,
@@ -129,6 +135,8 @@ ${viewText}${pixelText}${clusterRasterKernels(subgroups, cardTarget())}`,
 export const CARD_ROWS_ENTRY = 'cardRows'
 export const CARD_EXPORT_ENTRY = 'cardExport'
 export const CARD_EXPORT_VIEWS_ENTRY = 'cardExportViews'
+export const CARD_CLEAR_IDS_ENTRY = 'cardClearIds'
+export const CARD_CLEAR_SURFACES_ENTRY = 'cardClearSurfaces'
 
 /**
  * THE ROWS' VIEWS: once the decode made a row of every cluster the cull listed, each row takes the
@@ -176,9 +184,44 @@ ${wgslConsts({ CARD_TABLE_HEAD, CARD_VIEW_WORDS, RECT_AT: CARD_VIEW.at.rect })}
  textureStore(capIds,at,vec4u(id,0u,0u,0u));
  textureStore(capDepth,at,vec4f(bitcast<f32>(key),0.0,0.0,0.0));
 }
+@compute @workgroup_size(8,8) fn ${CARD_CLEAR_IDS_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_id) lid:vec3u){
+ let base=CARD_TABLE_HEAD+wid.z*CARD_VIEW_WORDS+RECT_AT;
+ let rect=vec4u(lists[base],lists[base+1u],lists[base+2u],lists[base+3u]);
+ let p=wid.xy*8u+lid.xy;
+ if(p.x>=rect.z||p.y>=rect.w){return;}
+ textureStore(capIds,rect.xy+p,vec4u(0u));
+ textureStore(capDepth,rect.xy+p,vec4f(0.0));
+}
 @compute @workgroup_size(32) fn ${CARD_EXPORT_VIEWS_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_id) lid:vec3u){
  if(lid.x>=CARD_VIEW_WORDS){return;}
  textureStore(capIds,vec2u(lid.x,atlas.x+wid.x),vec4u(lists[CARD_TABLE_HEAD+wid.x*CARD_VIEW_WORDS+lid.x],0u,0u,0u));
+}`,
+    [],
+  )
+
+/**
+ * THE CLEAR OF THE CAPTURE, before the raster draws: over the rectangle of each view the identifiers and the depth
+ * hold no triangle (`cardClearIds`, bound as the export is), and the albedo, the normal and the emission hold what an
+ * emptied capture holds (`cardClearSurfaces`): no albedo, the normal facing the card, no emission. The raster, the export and the
+ * resolve then write the texels a surface reached alone. Group 0 of the surfaces' entry: the table of views, the
+ * albedo, the normal and the emission written; the same dispatch as the export's, the views along z.
+ */
+export const cardClearSurfacesSource = () =>
+  wgslProgram(
+    `@group(0) @binding(1) var<storage,read> lists:array<u32>;
+@group(0) @binding(2) var capAlbedo:texture_storage_2d<${CAPTURE_FORMATS.albedo},write>;
+@group(0) @binding(3) var capNormal:texture_storage_2d<${CAPTURE_FORMATS.normal},write>;
+@group(0) @binding(4) var capEmissive:texture_storage_2d<${CAPTURE_FORMATS.emissive},write>;
+${wgslConsts({ CARD_TABLE_HEAD, CARD_VIEW_WORDS, RECT_AT: CARD_VIEW.at.rect })}
+@compute @workgroup_size(8,8) fn ${CARD_CLEAR_SURFACES_ENTRY}(@builtin(workgroup_id) wid:vec3u,@builtin(local_invocation_id) lid:vec3u){
+ let base=CARD_TABLE_HEAD+wid.z*CARD_VIEW_WORDS+RECT_AT;
+ let rect=vec4u(lists[base],lists[base+1u],lists[base+2u],lists[base+3u]);
+ let p=wid.xy*8u+lid.xy;
+ if(p.x>=rect.z||p.y>=rect.w){return;}
+ let at=rect.xy+p;
+ textureStore(capAlbedo,at,vec4f(0.0));
+ textureStore(capNormal,at,vec4f(0.5,0.5,0.0,0.0));
+ textureStore(capEmissive,at,vec4u(0u));
 }`,
     [],
   )

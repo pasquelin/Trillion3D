@@ -2,7 +2,11 @@
 import test from 'node:test'
 import { EXPOSURE_CURVE_SAMPLES, resolveExposureCurve } from './exposureCurve.ts'
 import { exposureCurveAt } from './exposureCurveEval.ts'
-import { exposureCurveFactor, exposureCurveTable } from './exposureCurveTable.ts'
+import {
+  exposureCurveFactor,
+  exposureCurveScaleTable,
+  exposureCurveTable,
+} from './exposureCurveTable.ts'
 import { resolveExposureMeterMask } from './exposureMeterMask.ts'
 import { EXPOSURE_RULES, exposureSaturationLuminance } from './exposureOptions.ts'
 import { resolveSettings } from './settingRules.ts'
@@ -237,3 +241,19 @@ test('the metering mask option names a picture with a size, or none, and refuses
 
 /** The sun's shadow settings a quality preset resolves to: the shadows group's level over the
  *  defaults. */
+
+test('a contrast curve bakes its values as they are, ones for none, and the same table for the same option', () => {
+  assert.ok(exposureCurveScaleTable(undefined).every((scale) => scale === 1))
+  const keys = [
+    [0, 2],
+    [10, 0.5],
+  ] as [number, number][]
+  const table = exposureCurveScaleTable(keys)
+  assert.equal(table.length, EXPOSURE_CURVE_SAMPLES)
+  assert.equal(table[0], 2, 'held before the first key')
+  assert.equal(table[21], 2, 'EV100 0')
+  assert.equal(table[42], 0.5, 'EV100 10')
+  assert.equal(table[63], 0.5, 'held after the last key')
+  assert.equal(exposureCurveScaleTable(keys), table)
+  assert.notEqual(exposureCurveTable(keys), table, 'the compensation bakes 2^value')
+})

@@ -2,6 +2,12 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import type { WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { packLight } from '../../../gpu/core/smallFloatWgsl.ts'
+import {
+  lightStoreDeps,
+  lightTexelPlain,
+  WORD_LIGHT_FORMAT,
+  type LightAtlasFormat,
+} from '../../../gpu/core/lightAtlasFormat.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { skyLightReadWgsl, type SkyLightBindings } from '../../../modules/sky/skyLight/read.ts'
 import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
@@ -112,9 +118,9 @@ export const RADIOSITY_TRACE_ENTRY = 'radiosityTrace'
 const B = RADIOSITY_TRACE_BINDINGS
 const TB = RADIOSITY_TRACED_BINDINGS
 
-/** The declarations the kernel of either variant writes to and reads the lights from, at `b`'s bindings. */
-const kernelBindings = (b: { out: number; lights: number }) =>
-  `@group(0) @binding(${b.out}) var outTrace:texture_storage_2d<r32uint,write>;
+/** The declarations the kernel of either variant writes to, in the format `light`, and reads the lights from, at `b`'s bindings. */
+const kernelBindings = (b: { out: number; lights: number }, light: LightAtlasFormat) =>
+  `@group(0) @binding(${b.out}) var outTrace:texture_storage_2d<${light},write>;
 @group(0) @binding(${b.lights}) var<storage,read> directLights:DirectLights;`
 
 /** The kernel both variants share: a thread a ray, `bindings` the variant's declarations and `rayRadiance` its function
@@ -124,6 +130,7 @@ const kernelBindings = (b: { out: number; lights: number }) =>
 const radiosityKernel = (
   bindings: string,
   rayRadiance: string,
+  light: LightAtlasFormat,
   hitDistances = false,
 ) => `${bindings}
 ${rayRadiance}
@@ -141,11 +148,11 @@ ${hitDistances ? ' rayHitDistance=lp.maxTrace;\n' : ''} if(texel.valid){
   if(brightest>lp.maxRayIntensity){radiance*=lp.maxRayIntensity/brightest;}
  }
  let place=probeAtlasCoord(texel.atlas)*lp.hemisphere+at.ray;
- textureStore(outTrace,vec2i(place),vec4u(packLight(radiance*lp.preExposure),0u,0u,0u));
+ textureStore(outTrace,vec2i(place),${lightTexelPlain(light, 'radiance*lp.preExposure')});
 ${hitDistances ? ' if(lgFlag(FLAG_PROBE_OCCLUSION)){textureStore(outHits,vec2i(place),vec4f(rayHitDistance,0.0,0.0,0.0));}\n' : ''}}`
 
 /** What both variants read: the lighting's common text, the cards' layers, the radiosity's, the lights and the sky. */
-const sharedDeclarations = (b: typeof B | typeof TB): WgslDecl[] => [
+const sharedDeclarations = (b: typeof B | typeof TB, light: LightAtlasFormat): WgslDecl[] => [
   lightingCommonWgsl({ tables: b.tables, context: { binding: b.context, access: 'read' } }),
   READ_LIBRARY_LAYERS_WGSL,
   surfaceTexelWgsl(READ_LIBRARY_LAYERS_WGSL),
@@ -155,29 +162,36 @@ const sharedDeclarations = (b: typeof B | typeof TB): WgslDecl[] => [
   skyLightReadWgsl(b.sky),
   SKY_READ_WGSL,
   packLight,
+  ...lightStoreDeps(light),
 ]
 
-export const RADIOSITY_TRACE_WGSL = wgslProgram(
-  radiosityKernel(
-    kernelBindings(B),
-    `fn rayRadiance(texel:RadTexel,dir:vec3f)->vec3f{
+/** The trace through the global field, the rays' radiance stored in `light`, and the cache's final light read in it. */
+export const radiosityTraceProgramOf = (light: LightAtlasFormat) =>
+  wgslProgram(
+    radiosityKernel(
+      kernelBindings(B, light),
+      `fn rayRadiance(texel:RadTexel,dir:vec3f)->vec3f{
  let start=texel.position+texel.normal*lp.surfaceBias+dir*lp.surfaceBias;
  let hit=gdfTraceRay(start,dir,lp.minTrace,lp.maxTrace,1.0,true,false,vec2u(0u),0.0);
  if(hit.hitTime>=0.0){return scGlobalHit(start,dir,hit,scConeTangent(f32(lp.hemisphere)),true,-1.0,false,vec2u(0u)).radiance;}
  return skyProbeRadiance(dir);
 }`,
-  ),
-  [
-    ...sharedDeclarations(B),
-    surfaceHitWgsl({
-      group: 0,
-      field: B.field,
-      grid: B.grid,
-      cards: B.tables,
-      instances: B.instances,
-    }),
-  ],
-)
+      light,
+    ),
+    [
+      ...sharedDeclarations(B, light),
+      surfaceHitWgsl(
+        {
+          group: 0,
+          field: B.field,
+          grid: B.grid,
+          cards: B.tables,
+          instances: B.instances,
+        },
+        light,
+      ),
+    ],
+  )
 
 const TRACED_CONSTS = wgslConsts({
   RAD_AVOID_CULL: SELF_INTERSECTION.cull,
@@ -221,12 +235,11 @@ fn rayRadiance(texel:RadTexel,dir:vec3f)->vec3f{
  return scEvaluateMeshCards(cards,start+dir*hitCm,hit.normal,scConeTangent(f32(lp.hemisphere))*hitCm,lp.cardDepthBias,false,vec2u(0u)).radiance;
 }`
 
-export const RADIOSITY_TRACED_WGSL = wgslProgram(
-  radiosityKernel(kernelBindings(TB), TRACED_RADIANCE, true),
-  [
-    ...sharedDeclarations(TB),
+/** The trace through the scene's triangles, the rays' radiance stored in `light`, and the cache's final light read in it. */
+export const radiosityTracedProgramOf = (light: LightAtlasFormat) =>
+  wgslProgram(radiosityKernel(kernelBindings(TB, light), TRACED_RADIANCE, light, true), [
+    ...sharedDeclarations(TB, light),
     CM_PER_M_WGSL,
-    surfaceHitCardsWgsl({ group: 0, cards: TB.tables, instances: TB.instances }),
+    surfaceHitCardsWgsl({ group: 0, cards: TB.tables, instances: TB.instances }, light),
     sceneTraceWgsl(RADIOSITY_TRACED_SCENE.group, RADIOSITY_TRACED_SCENE.first),
-  ],
-)
+  ])

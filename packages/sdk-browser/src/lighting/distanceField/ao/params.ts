@@ -1,11 +1,15 @@
-import { hypot3 } from '../../../../../math/src/float/hypot.ts'
-import { clipPlanesFromMatrix } from '../../../../../math/src/geometry/frustum/frustum.ts'
-import { dotVector3 } from '../../../../../math/src/vector/vector.ts'
 import type { DistanceFieldOcclusionSettings } from '../../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import { CENTIMETRES_PER_METRE } from '../../../../../sdk-core/src/page/format.ts'
 import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
+import {
+  eyeFrame,
+  putPlanes,
+  putScaledColumns,
+  putScaledRows,
+  writeWorldToView,
+} from '../viewParams.ts'
 import {
   AO_DOWNSAMPLE,
   BOUNDING_SPHERE_RINGS,
@@ -60,63 +64,18 @@ const scratch = new Float64Array(16)
 const inverse = new Float64Array(16)
 const current = new Float64Array(16)
 const previous = new Float64Array(16)
-
-/** Writes the 16 numbers of `m`, its rows `rows` scaled by `by` (rows of the output: the position it yields). */
-function putScaledRows(out: Float32Array, at: number, m: ArrayLike<number>, by: number) {
-  for (let c = 0; c < 4; c++)
-    for (let r = 0; r < 4; r++) out[at + c * 4 + r] = m[c * 4 + r] * (r < 3 ? by : 1)
-}
-
-/** The same, its columns `0..2` scaled (the position it takes). */
-function putScaledColumns(out: Float32Array, at: number, m: ArrayLike<number>, by: number) {
-  for (let c = 0; c < 4; c++)
-    for (let r = 0; r < 4; r++) out[at + c * 4 + r] = m[c * 4 + r] * (c < 3 ? by : 1)
-}
-
-/** The frustum's raw planes (`clipPlanesFromMatrix`: x ≤ w, −w ≤ x, −w ≤ y, y ≤ w, z ≥ 0, z ≤ w) and the clip
- *  matrix they are taken from, kept between the frames. */
-const rawPlanes = new Float64Array(24)
 const clipScaled = new Float32Array(16)
-/** The raw planes' slots in the order the passes read them: −w ≤ x, x ≤ w, −w ≤ y, y ≤ w, z ≥ 0, z ≤ w. */
-const PLANE_SLOTS = [1, 0, 2, 3, 4, 5]
 
-/**
- * The six planes of the frustum of a view-projection of positions in centimetres, each as `(n, w)` with `dot(n, p) -
- * w` positive outside and `n` of unit length; a plane with no direction (the far plane of an infinite projection)
- * is left out. The count follows.
- */
-function putPlanes(out: Float32Array, at: number, clip: ArrayLike<number>) {
-  clipPlanesFromMatrix(rawPlanes, clip)
-  let count = 0
-  for (const slot of PLANE_SLOTS) {
-    const a = rawPlanes[4 * slot],
-      b = rawPlanes[4 * slot + 1],
-      c = rawPlanes[4 * slot + 2],
-      d = rawPlanes[4 * slot + 3]
-    const length = hypot3(a, b, c)
-    if (length < 1e-12) continue
-    putVec4(out, at + count * 4, -a / length, -b / length, -c / length, d / length)
-    count++
-  }
-  return count
-}
-
-/** The eye's frame, x right, y up, z forward, in centimetres: the world-to-view matrix and its inverse. */
+/** The eye's frame: the world-to-view matrix and its inverse. */
 function putViewFrames(out: Float32Array, image: DfaoImage) {
   const at = DFAO_PARAMS.at
-  const m = image.world
-  const right = [m[0], m[1], m[2]]
-  const up = [m[4], m[5], m[6]]
-  const forward = [-m[8], -m[9], -m[10]]
-  const eye = [m[12] * CM, m[13] * CM, m[14] * CM]
-  const axes = [right, up, forward]
+  const frame = eyeFrame(image.world)
+  writeWorldToView(out, at.worldToView, frame)
   for (let r = 0; r < 3; r++) {
-    for (let c = 0; c < 3; c++) out[at.worldToView + c * 4 + r] = axes[r][c]
-    out[at.worldToView + 12 + r] = -dotVector3(axes[r], eye)
-    for (let c = 0; c < 3; c++) out[at.viewToWorld + r * 4 + c] = axes[r][c]
-    out[at.viewToWorld + 12 + r] = eye[r]
+    for (let c = 0; c < 3; c++) out[at.viewToWorld + r * 4 + c] = frame.axes[r][c]
+    out[at.viewToWorld + 12 + r] = frame.eye[r]
   }
-  out[at.worldToView + 15] = out[at.viewToWorld + 15] = 1
+  out[at.viewToWorld + 15] = 1
 }
 
 /** The matrices of the image: the unprojection of this image and the last, the view-projection in centimetres, the

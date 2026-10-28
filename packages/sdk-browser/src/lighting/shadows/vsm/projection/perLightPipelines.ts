@@ -14,7 +14,12 @@ import { PER_LIGHT_MASK_FORMAT } from './maskFormat.ts'
 import { VSM_PER_LIGHT_ENTRY, vsmPerLightProjectionWgsl } from './perLightProjectionWgsl.ts'
 import { PER_LIGHT_RECORD_BINDING_BYTES } from './perLightRecord.ts'
 import { VSM_PROJECTION_HALF_LANES } from './projectionPixelWgsl.ts'
-import { sharedEntries, VSM_PROJECTION_PASS, type Pipelines } from './projectionPipelines.ts'
+import {
+  hairShadowEntry,
+  sharedEntries,
+  VSM_PROJECTION_PASS,
+  type Pipelines,
+} from './projectionPipelines.ts'
 import { VSM_PROJECTION_BINDING } from './projectionWgsl.ts'
 
 /** The per-light path's pipeline for one pool layout. */
@@ -25,11 +30,12 @@ export interface PerLightPipelines {
 }
 
 /** The per-light pipeline of `p`, made at its first ask. */
-export function perLightPipelinesOf(p: Pipelines): PerLightPipelines {
-  if (p.perLight) return p.perLight
+export function perLightPipelinesOf(p: Pipelines, hair = false): PerLightPipelines {
+  const held = hair ? p.perLightHair : p.perLight
+  if (held) return held
   const { device } = p
   const projectionLayout = device.createBindGroupLayout({
-    label: 'vsm.projection.perLight',
+    label: hair ? 'vsm.projection.perLight.hair' : 'vsm.projection.perLight',
     entries: [
       ...sharedEntries(),
       computeStorageTextureEntry(
@@ -42,12 +48,13 @@ export function perLightPipelinesOf(p: Pipelines): PerLightPipelines {
         hasDynamicOffset: true,
         minBindingSize: PER_LIGHT_RECORD_BINDING_BYTES,
       }),
+      ...(hair ? [hairShadowEntry()] : []),
     ],
   })
-  const label = `vsm.projection.perLight (${nativeOrPolyfill(gpuCapsOf(device), 'subgroups').tag})`
+  const label = `vsm.projection.perLight${hair ? '.hair' : ''} (${nativeOrPolyfill(gpuCapsOf(device), 'subgroups').tag})`
   // The halves vote over their subgroups where every subgroup is a half (`hasSubgroupsOf`).
   const subgroups = hasSubgroupsOf(device, VSM_PROJECTION_HALF_LANES)
-  return (p.perLight = {
+  const made = {
     projectionLayout,
     projection: preparedComputePipeline(device, {
       label: VSM_PROJECTION_PASS,
@@ -55,10 +62,13 @@ export function perLightPipelinesOf(p: Pipelines): PerLightPipelines {
       compute: {
         module: device.createShaderModule({
           label,
-          code: vsmPerLightProjectionWgsl(p.layout, subgroups),
+          code: vsmPerLightProjectionWgsl(p.layout, subgroups, hair),
         }),
         entryPoint: VSM_PER_LIGHT_ENTRY,
       },
     }),
-  })
+  }
+  if (hair) p.perLightHair = made
+  else p.perLight = made
+  return made
 }

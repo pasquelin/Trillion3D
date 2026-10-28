@@ -2,12 +2,8 @@
 // the atlas takes from it.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  PROFILE_SIDE,
-  decodeLightProfile,
-  isCompiledProfile,
-  lightProfileUrl,
-} from './profileFile.ts'
+import { PROFILE_SIDE } from './profileCodec.ts'
+import { decodeLightProfile, isCompiledProfile, lightProfileUrl } from './profileCodec.ts'
 
 /** A file of the compiler's layout: five little-endian words, then the half-float texels. */
 function file(texels: Uint16Array, brightness: number, words: number[] = []) {
@@ -22,12 +18,11 @@ function file(texels: Uint16Array, brightness: number, words: number[] = []) {
 }
 const SQUARE = PROFILE_SIDE * PROFILE_SIDE
 
-test('a profile file gives its brightness and its texels', () => {
+test('a profile file gives its texels, the brightness word of its head left to the light that carries it', () => {
   const texels = new Uint16Array(SQUARE)
   texels[0] = 0x3c00
   texels[SQUARE - 1] = 0x3800
   const profile = decodeLightProfile(file(texels, 1200))
-  assert.equal(profile.brightness, 1200)
   assert.equal(profile.texels.length, SQUARE)
   assert.equal(profile.texels[0], 0x3c00)
   assert.equal(profile.texels[SQUARE - 1], 0x3800)
@@ -35,13 +30,19 @@ test('a profile file gives its brightness and its texels', () => {
   const bytes = new Uint8Array(file(texels, 1200))
   const inside = new Uint8Array(bytes.length + 6)
   inside.set(bytes, 3)
-  assert.equal(decodeLightProfile(inside.subarray(3, 3 + bytes.length)).brightness, 1200)
+  assert.deepEqual(decodeLightProfile(inside.subarray(3, 3 + bytes.length)).texels, texels)
 })
 
 test('a file of another magic, version, size or length is refused', () => {
   const texels = new Uint16Array(SQUARE)
-  assert.throws(() => decodeLightProfile(file(texels, 1, [0x1234_5678])), /not a profile file/)
-  assert.throws(() => decodeLightProfile(file(texels, 1, [0x4549_3354, 2])), /another version/)
+  assert.throws(
+    () => decodeLightProfile(file(texels, 1, [0x1234_5678])),
+    /not a light profile file/,
+  )
+  assert.throws(
+    () => decodeLightProfile(file(texels, 1, [0x4549_3354, 2])),
+    /version 2, this engine reads 1/,
+  )
   assert.throws(
     () => decodeLightProfile(file(texels, 1, [0x4549_3354, 1, 128, 128])),
     /another size/,

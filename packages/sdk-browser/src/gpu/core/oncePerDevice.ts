@@ -18,3 +18,26 @@ export function oncePerDevice<T>(make: (device: GPUDevice) => T) {
     return value
   }
 }
+
+/**
+ * `make`, run once a device and a key and kept for every later caller of both: what a build that depends on a choice (a storage format) compiles
+ * is found made at a later frame. A promise that rejects or makes nothing is dropped, and made again at the next call, as `oncePerDevice` does.
+ */
+export function oncePerDeviceKey<K, T>(make: (device: GPUDevice, key: K) => T) {
+  const made = new WeakMap<GPUDevice, Map<K, T>>()
+  return (device: GPUDevice, key: K) => {
+    let ofDevice = made.get(device)
+    if (!ofDevice) made.set(device, (ofDevice = new Map()))
+    let value = ofDevice.get(key)
+    if (value !== undefined) return value
+    const held = ofDevice
+    value = make(device, key)
+    held.set(key, value)
+    if (value instanceof Promise)
+      value.then(
+        (result) => result === undefined && held.delete(key),
+        () => held.delete(key),
+      )
+    return value
+  }
+}

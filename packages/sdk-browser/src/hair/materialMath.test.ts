@@ -2,14 +2,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { MATERIAL_WGSL } from './materialWgsl.ts'
+import { HAIR_DEFAULT_MATERIAL, HAIR_FLAG } from './materialMath.ts'
 import {
-  HAIR_DEFAULT_MATERIAL,
-  HAIR_FLAG,
   packHairSample,
   unpackHairDepth,
   unpackHairSample,
   type HairSample,
-} from './materialMath.ts'
+} from './materialMath.fixture.ts'
 import { HAIR_DEPTH_SCALE, HAIR_NODE_DATA_WORDS } from './visibilityMath.ts'
 
 const SAMPLE: HairSample = {

@@ -335,3 +335,15 @@ export function processRequests(
   }
   return c.work
 }
+
+/** Lets every page that is not locked leave the atlas, the cards' mips tidied after: the optional pages the feedback asked for go, the coarsest level of each card stays
+ *  (`surfaceCacheForceEvictHiResPages`). */
+export function forceEvictEntireCache(cache: SurfaceCache) {
+  const dirty = createMarkedList()
+  while (evictOldest(cache, 0, dirty)) continue
+  for (let at = 0; at < dirty.count; at++) {
+    const index = dirty.list[at]
+    updateMipHierarchy(cache, cache.cards.at(index))
+    cache.changes.cards.add(index)
+  }
+}

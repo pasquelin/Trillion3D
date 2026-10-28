@@ -22,7 +22,13 @@ import { fieldLayout, vec4Array } from '../../gpu/core/fieldLayout.ts'
  * lights lies in the buffer of ranks (offset and count, twice), `mode` the cells a side, whether the blur is on,
  * whether the history holds and whether the blur reads the temporal filter's volume, `weights` the pre-exposure the light is written
  * multiplied by (the half floats keep their range at any exposure), the ratio that brings the history's to it,
- * the history's weight and the image's exposure (a light's blend with it, `lightStrength`), `eye` the camera, which the light functions fade from.
+ * the history's weight and the image's exposure (a light's blend with it, `lightStrength`), `eye` the camera, which the light functions fade from,
+ * `marks` whether the cells the surfaces read are marked (`translucencyVolumeMarkVoxels`) and whether the image before's marks hold as a history.
+ *
+ * THE MARKS (`markWgsl.ts`). Where the setting is on, three more textures of the volume's stacked extent (`volumeExtent` with one slab a cascade,
+ * `markExtent`) hold one `MARK_FORMAT` word a cell: the cells the surfaces marked, the cells those marks dilate to, and the dilation of the
+ * image before (its history); and three buffers, the list of the cells the dilation holds, how many it holds and the arguments of the dispatch
+ * over them.
  */
 
 /** The cascades: the inner one holds the view out to `translucencyVolumeInnerDistance`, the outer one the stretch to
@@ -51,6 +57,7 @@ export const TRANSLUCENCY_FRAME = fieldLayout('TranslucencyFrame', [
   ['mode', 'vec4u'],
   ['weights', 'vec4f'],
   ['eye', 'vec4f'],
+  ['marks', 'vec4u'],
 ] as const)
 /** Bytes of the frame's uniform. */
 export const TRANSLUCENCY_FRAME_BYTES = TRANSLUCENCY_FRAME.words * 4
@@ -66,3 +73,28 @@ export const volumeExtent = (dim: number): [number, number, number] => [
  *  stacked slabs hold the depth. */
 export const mostCellsPerSide = (maxDimension: number) =>
   Math.floor(maxDimension / TRANSLUCENCY_SLABS)
+
+/** The format of the marks' textures: a word a cell, written by the fragments that mark and read by the passes after. */
+export const MARK_FORMAT: GPUTextureFormat = 'r32uint'
+
+/** The extent of a marks' texture of `dim` cells a side: the two cascades' cells stacked along the depth. */
+export const markExtent = (dim: number): [number, number, number] => [
+  dim,
+  dim,
+  TRANSLUCENCY_CASCADES * dim,
+]
+
+/** The threads of a group of the injection over the list of marked cells. */
+export const MARKED_WORKGROUP = TRANSLUCENCY_WORKGROUP ** 3
+
+/** The groups along the first axis of a dispatch over a list past the limit of an axis: the list's groups wrap along the second axis in rows of it. */
+export const WRAPPED_GROUP_STRIDE = 128
+
+/** The most groups a dispatch holds along one axis. */
+export const MOST_GROUPS_PER_AXIS = 65535
+
+/** The most cells a list of marked cells holds: those of both cascades of `dim` cells a side. */
+export const markedCells = (dim: number) => TRANSLUCENCY_CASCADES * dim ** 3
+
+/** The bytes of the list of marked cells of `dim` cells a side (a word a cell of either cascade). */
+export const markedListBytes = (dim: number) => markedCells(dim) * 4

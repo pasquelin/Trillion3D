@@ -2,7 +2,8 @@
 // so the frame must not be held before — nor the lighting's settling begun — with the object still uncaptured (`closeImage`).
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { closeImage, type SurfaceCacheFrameState } from './frame.ts'
+import { closeImage } from './closeImage.ts'
+import type { SurfaceCacheFrameState } from './frame.ts'
 
 const NO_STATS = { meshCardsToAdd: 0, lockedCardsToUpdate: 0, hiResPagesToAdd: 0, desiredTexels: 0 }
 const NO_ACCOUNT = { captured: 0, copied: 0, refreshed: 0, waiting: 0 }

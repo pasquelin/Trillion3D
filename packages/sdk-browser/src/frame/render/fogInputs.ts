@@ -10,6 +10,7 @@ import { newFogStaticLight } from '../../lighting/fog/staticLight.ts'
 import { lightFunctionResources } from '../../lighting/lightFunction/frame.ts'
 import { opaquePyramidOf } from '../../lighting/reflections/frame.ts'
 import { vsmOrStandIns } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
+import { sampledVolumeFog } from '../../lighting/manyLightsSampled/volumeFrame.ts'
 import { noiseFrame } from './noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { viewProj } from '../backend/helpers.ts'
@@ -71,6 +72,7 @@ const inputs: Scratch<FogVolumeInputs> = {
   staticLight: newFogStaticLight(),
   lightmap: undefined,
   cut: false,
+  mlVolume: undefined,
   vsm: undefined,
 }
 /** The virtual shadow maps' slot of the inputs: its own object, whose fields are let go too. */
@@ -164,6 +166,7 @@ export function fogInputsOf(
   inputs.sky = skyLightReadOf(rt)
   fillFogStaticLight(inputs as FogVolumeInputs, rt, device, fog.medium)
   inputs.cut = cut
+  inputs.mlVolume = sampledVolumeFog(rt)
   return inputs as FogVolumeInputs
 }
 
@@ -175,6 +178,7 @@ export function clearFogInputs() {
     inputs.localTiles =
     inputs.medium =
     inputs.hiz =
+    inputs.mlVolume =
     inputs.cubemap =
     inputs.field =
     inputs.lightFunction =

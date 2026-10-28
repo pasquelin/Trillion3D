@@ -133,7 +133,17 @@ export const VSM_PROJECTION_BINDING = {
    *  tiles with strands; the depth of the nearest strand takes the opaque depth's binding (`sceneDepth`). */
   strandsCounts: 17,
   strandsTiles: 18,
+  /** The local lights' pass alone, where a capsule shadow casts (`capsule`): a layer a light of the frame, the share of the light the capsules let through
+   *  at each pixel (`capsuleShadows/host.ts`), read where the pass packs a light's share. */
+  capsule: 19,
+  /** The suns', local lights' and per-light passes, where the strands cast their shadow on the surfaces by their own deep shadows or voxels (the `hair` cut): a layer a light of the frame,
+   *  the share of the light the strands let through at each pixel (`hair/surfaceShadowPass.ts`), read where the pass writes a light's share. */
+  hairShadow: 20,
 } as const
+
+/** The declaration of the strands' shadow layers, which a pass of the `hair` cut reads. */
+export const HAIR_SHADOW_BINDING_WGSL = `
+@group(1) @binding(${VSM_PROJECTION_BINDING.hairShadow}) var vsmHairShadow:texture_2d_array<f32>;`
 
 /** The view uniform and the light kind the lights' records carry (`projectionView.ts`). */
 export const PROJECTION_VIEW = /* wgsl */ `
@@ -182,6 +192,7 @@ export const traceDeps = (layout: VsmLayout, kinds: number, input: VsmInputType 
     lone: false,
     kinds,
     input,
+    classic: layout.classic,
   }),
 ]
 
@@ -215,6 +226,7 @@ export function vsmSunsProjectionWgsl(
   layout: VsmLayout,
   subgroups = false,
   input: VsmInputType = 'gbuffer',
+  hair = false,
 ) {
   const prefiltered = layout.prefilteredDistant
   const strands = input === 'strands'
@@ -222,7 +234,7 @@ export function vsmSunsProjectionWgsl(
     [
       PROJECTION_VIEW,
       strands ? STRANDS_BINDINGS_WGSL : BINDINGS_WGSL,
-      `@group(1) @binding(${VSM_PROJECTION_BINDING.mask}) var vsmSunMask:texture_storage_2d_array<${VSM_SUN_MASK_FORMAT},write>;`,
+      `@group(1) @binding(${VSM_PROJECTION_BINDING.mask}) var vsmSunMask:texture_storage_2d_array<${VSM_SUN_MASK_FORMAT},write>;${hair ? HAIR_SHADOW_BINDING_WGSL : ''}`,
       ...(prefiltered
         ? [
             `@group(1) @binding(${VSM_PROJECTION_BINDING.filterableMerged}) var<storage,read> vsmFilterableMerged:array<u32>;
@@ -234,7 +246,7 @@ fn vsmFilterableMergedLoad(i:u32)->u32{return vsmFilterableMerged[i];}`,
       ...(strands ? [] : [VSM_PROJECTION_OPAQUE_WGSL]),
       vsmProjectionRegionWgsl(input),
       VSM_PROJECTION_SUBSURFACE_WGSL,
-      vsmSunsEntryWgsl(prefiltered, input),
+      vsmSunsEntryWgsl(prefiltered, input, hair),
     ].join('\n'),
     [
       ...projectionCommon(layout, pixelOfInput(input)),
@@ -257,6 +269,8 @@ export function vsmLocalsProjectionWgsl(
   maskFormat: ReturnType<typeof onePassMaskFormat>,
   subgroups = false,
   input: VsmInputType = 'gbuffer',
+  capsule = false,
+  hair = false,
 ) {
   const strands = input === 'strands'
   return wgslProgram(
@@ -271,13 +285,18 @@ export function vsmLocalsProjectionWgsl(
           : `
 @group(1) @binding(${VSM_PROJECTION_BINDING.tileLights}) var<storage,read> tileLights:array<u32>;`
       }
-@group(1) @binding(${VSM_PROJECTION_BINDING.lightGrid}) var<storage,read> vsmLightGrid:array<u32>;`,
+@group(1) @binding(${VSM_PROJECTION_BINDING.lightGrid}) var<storage,read> vsmLightGrid:array<u32>;${
+        capsule
+          ? `
+@group(1) @binding(${VSM_PROJECTION_BINDING.capsule}) var vsmCapsule:texture_2d_array<f32>;`
+          : ''
+      }${hair ? HAIR_SHADOW_BINDING_WGSL : ''}`,
       vsmProjectionVoteWgsl(subgroups),
       VSM_PROJECTION_PIXEL_WGSL,
       ...(strands ? [] : [VSM_PROJECTION_OPAQUE_WGSL]),
       vsmProjectionRegionWgsl(input),
       VSM_PROJECTION_SUBSURFACE_WGSL,
-      vsmLocalsEntryWgsl(subgroups, input),
+      vsmLocalsEntryWgsl(subgroups, input, capsule, hair),
     ].join('\n'),
     [
       ...projectionCommon(layout, pixelOfInput(input)),

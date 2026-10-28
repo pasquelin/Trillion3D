@@ -18,7 +18,7 @@ import { packShader, spriteShader } from '../../post/effects/depthOfField/dofSca
 import { dofRecombineShader } from '../../post/effects/depthOfField/dofRecombineMainWgsl.ts'
 import { DOWNSAMPLE_WGSL } from '../../post/filters/downsampleWgsl.ts'
 import { GAUSSIAN_WGSL } from '../../post/filters/gaussianWgsl.ts'
-import { GRID_WGSL, LOG_LIGHT_WGSL } from '../../post/finish/localWgsl.ts'
+import { gridWgsl, LOG_LIGHT_WGSL } from '../../post/finish/localWgsl.ts'
 import { BASIC_SETUP_WGSL } from '../../post/exposure/basicWgsl.ts'
 import { ADAPT_WGSL, MEASURE_WGSL } from '../../post/exposure/meterWgsl.ts'
 import { toneBakeShader } from '../../lighting/toneBakeWgsl.ts'
@@ -48,7 +48,8 @@ export const POST_SHADERS: Record<string, string> = {
   BLOOM_CONVOLUTION_INPUT_WGSL: CONVOLUTION_INPUT_WGSL,
   DOWNSAMPLE_WGSL,
   GAUSSIAN_WGSL,
-  GRID_WGSL,
+  GRID_WGSL_RG32: gridWgsl('rg32float'),
+  GRID_WGSL_RGBA16: gridWgsl('rgba16float'),
   LOG_LIGHT_WGSL,
   MEASURE_WGSL,
   BASIC_SETUP_WGSL,

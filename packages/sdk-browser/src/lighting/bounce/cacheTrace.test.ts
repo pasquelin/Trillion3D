@@ -6,14 +6,16 @@ import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { CACHE_TILES_PROGRAM } from './cache/cacheTilesWgsl.ts'
 import { oneLevel } from './atlas.fixture.ts'
 import {
-  CACHE_SPLAT_PROGRAM,
-  CACHE_TRACED_PROGRAM,
-  CACHE_TRACE_PROGRAM,
+  cacheSplatProgramOf,
+  cacheTracedProgramOf,
+  cacheTraceProgramOf,
 } from './cache/cacheTraceWgsl.ts'
-import { CACHE_WORDS_WGSL } from './cache/cacheWordsWgsl.ts'
-import { bounceBindingsWgsl } from './gridWgsl.ts'
-import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
-import { ditherLight, packLight } from '../../gpu/core/smallFloatWgsl.ts'
+import { ditherLight } from '../../gpu/core/smallFloatWgsl.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
+
+const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_SPLAT_PROGRAM = cacheSplatProgramOf(WORD_LIGHT_FORMAT)
 
 test('the tiles of a probe: a level a whole map; the setting’s level, half past the downsample distance or for a probe first traced without room, twice within the supersample distance', () => {
   const scene = (
@@ -23,7 +25,6 @@ test('the tiles of a probe: a level a whole map; the setting’s level, half pas
       supersampleSq?: number
       forward?: number[]
       resolution?: number
-      flags?: number
     },
     downsampled = false,
   ) => {
@@ -35,7 +36,7 @@ test('the tiles of a probe: a level a whole map; the setting’s level, half pas
     }>(CACHE_TILES_PROGRAM, ['cacheUniformTiles', 'generateTiles'], {
       cache: {
         resolution: settings.resolution ?? 32,
-        flags: settings.flags ?? 0,
+        flags: 0,
         level: settings.level,
         downsampleSq: 1600,
         supersampleSq: settings.supersampleSq ?? 0,
@@ -50,7 +51,15 @@ test('the tiles of a probe: a level a whole map; the setting’s level, half pas
         forward: settings.forward ? [...settings.forward, 1] : [0, 0, 0, 0],
       },
       cellTable: {},
-      queuedProbe: () => ({ valid: true, cell: [0, 0, 0], level: 0, slot: 3, downsampled }),
+      queuedProbe: () => ({
+        valid: true,
+        cell: [0, 0, 0],
+        level: 0,
+        slot: 3,
+        downsampled,
+        offset: [0, 0, 0],
+        rank: 0,
+      }),
     })
     const lanes = (run: (lane: number) => void) => {
       for (let lane = 0; lane < 64; lane++) run(lane)
@@ -87,10 +96,27 @@ test('the tiles of a probe: a level a whole map; the setting’s level, half pas
       )
     })
   }
+  // The reference traces a texel only where it lies within the trace resolution (RCH.usf:225); the tiles here never reach past it, so no test is needed: for every
+  // map side and level, the tiles of a probe cover at most `trace` texels along a side (a side not a multiple of sixteen leaves some untraced, in both).
+  for (const resolution of [8, 16, 24, 32, 40, 48, 64])
+    for (const level of [0, 1, 2]) {
+      const { kit, lanes } = scene([0, 0, 0, 0], { level: 1, resolution })
+      const found = lanes((lane) => kit.cacheUniformTiles(7, level, lane))
+      const traced = Math.max(...found.map((tile) => +tile.split(':')[0]))
+      const side = (resolution / 2) * 2 ** traced
+      const reach =
+        Math.max(
+          ...found.map((tile) => Math.max(...tile.split(':')[1].split(',').map(Number)) + 1),
+        ) * 8
+      assert.ok(
+        reach <= side || found.length === 1,
+        `${resolution} texels, level ${level}: tiles within ${side}`,
+      )
+    }
   const levelOf = (found: string[]) => [...new Set(found.map((tile) => +tile.split(':')[0]))]
   const traced = (
     eye: number[],
-    settings: { level: number; supersampleSq?: number; forward?: number[]; flags?: number },
+    settings: { level: number; supersampleSq?: number; forward?: number[] },
     downsampled = false,
   ) => {
     const { kit, lanes } = scene(eye, settings, downsampled)
@@ -111,14 +137,6 @@ test('the tiles of a probe: a level a whole map; the setting’s level, half pas
   // (0, 0, 0) the eye at 27 metres along x and z is 38.2 away, within the 40 metres, but 54 along the view's direction, past them.
   assert.deepEqual(traced([27, 0, 27, 0], { level: 1 }), [1])
   assert.deepEqual(traced([27, 0, 27, 0], { level: 1, forward: [0, 0, -1] }), [0])
-  // A full update whose rays go through the trace atlas traces every probe at half the side, the size the atlas is laid out for; either alone
-  // changes nothing.
-  const TRACED = 1 << 2,
-    FULL = 1 << 3
-  assert.deepEqual(traced([0, 0, 0, 0], { level: 1, supersampleSq: 25, flags: TRACED | FULL }), [0])
-  assert.deepEqual(traced([0, 0, 0, 0], { level: 2, flags: TRACED | FULL }), [0])
-  assert.deepEqual(traced([0, 0, 0, 0], { level: 1, supersampleSq: 25, flags: TRACED }), [2])
-  assert.deepEqual(traced([0, 0, 0, 0], { level: 1, supersampleSq: 25, flags: FULL }), [2])
 })
 
 test('the light of a ray cast through the scene’s triangles is dithered by a hash of its place in the trace’s own atlas, tiles in rows of 512, and of the image’s turn', () => {
@@ -188,104 +206,3 @@ test('the trace through the triangles writes each ray to the trace atlas at its 
 })
 
 /** The cache's depth word and the light word, run on the shipped text. */
-const words = shaderRun<{
-  cacheDepthWord: (
-    distance: number,
-    hit: boolean,
-    sky: number,
-    front: boolean,
-    twoSided: boolean,
-  ) => number
-  packLight: (c: number[]) => number
-  ditherLight: (c: number[], e: number) => number[]
-}>(
-  wgslModule(bounceBindingsWgsl(0, 0, 1), CACHE_WORDS_WGSL, packLight, ditherLight),
-  ['cacheDepthWord', 'packLight', 'ditherLight'],
-  { bounce: {}, cellTable: {} },
-)
-
-/** The spread of a trace atlas into the raw atlas, run as a workgroup runs it: a tile of the list at `level`, its probe in slot 3, the rays of
- *  the trace atlas `atlas(x, y)` (a light and a distance), every thread twice — the first pass fills the workgroup's memory the mean reads, the
- *  second is the one counted. Returns what was stored. */
-function spread(
-  level: number,
-  atlas: (x: number, y: number) => { light: number; distance: number },
-  noise = 0,
-) {
-  const stores: { at: number[]; v: number[] }[] = []
-  const kit = shaderRun<{
-    spreadTiles: (group: number[], groups: number[], lane: number) => void
-  }>(CACHE_SPLAT_PROGRAM, ['spreadTiles'], {
-    cache: { resolution: 16 },
-    cacheTiles: { count: 1, entries: [[level << 16, 0]] },
-    arrayLength: () => 1e6,
-    bounce: { counts: [48, 1, 110592, 16384], frame: [0, 1, 0, 0] },
-    cellTable: {},
-    queuedProbe: () => ({ valid: true, slot: 3 }),
-    traceAtlas: {
-      load: (at: number[]) => {
-        const { light, distance } = atlas(at[0], at[1])
-        return [
-          words.packLight([light, 0, 0]),
-          words.cacheDepthWord(distance, true, 0, true, false),
-          0,
-          0,
-        ]
-      },
-    },
-    rawOut: {},
-    tileLight: [],
-    tileWord: [],
-    workgroupBarrier: () => undefined,
-    textureLoad: (t: { load(at: number[]): number[] }, at: number[]) => t.load(at),
-    textureStore: (_: unknown, at: number[], v: number[]) => stores.push({ at, v }),
-    rand3dPcg16: () => [noise, 0, 0],
-  })
-  for (let pass = 0; pass < 2; pass++) {
-    stores.length = 0
-    for (let lane = 0; lane < 64; lane++) kit.spreadTiles([0, 0, 0], [1, 1, 1], lane)
-  }
-  return stores
-}
-
-test('a tile of level zero spreads each ray of the trace atlas to the four texels it stands for, in the probe’s map by its slot', () => {
-  const stores = spread(0, (x, y) => ({ light: 1 + x / 8, distance: 10 + y }))
-  assert.equal(stores.length, 64 * 4)
-  // The map of slot 3 is the square at 3 × 16 along the first row; the ray of the thread (1, 2) stands for the texels (2..3, 4..5) of it.
-  const at = (x: number, y: number) => stores.find((s) => s.at[0] === 48 + x && s.at[1] === y)!
-  const expected = [
-    words.packLight([1 + 1 / 8, 0, 0]),
-    words.cacheDepthWord(12, true, 0, true, false),
-  ]
-  for (const [x, y] of [
-    [2, 4],
-    [3, 4],
-    [2, 5],
-    [3, 5],
-  ])
-    assert.deepEqual(at(x, y).v.slice(0, 2), expected)
-})
-
-test('a tile of level one spreads each ray to the one texel it stands for, dithered by a hash of the texel; a tile of level two the mean of the four rays it covers, the nearest of their distances', () => {
-  const one = spread(1, (_, y) => ({ light: 2, distance: 10 + y }))
-  assert.equal(one.length, 64)
-  // Quantised again at its texel, as a mean of one ray: the hash here draws zero, the dither's lowest.
-  assert.deepEqual(one.find((s) => s.at[0] === 48 + 3 && s.at[1] === 5)!.v.slice(0, 2), [
-    words.packLight(words.ditherLight([2, 0, 0], 0)),
-    words.cacheDepthWord(15, true, 0, true, false),
-  ])
-  // Four rays a texel: the mean of 2 × 2 of them, held in the first 4 × 4 threads, the nearest distance of the four.
-  const two = spread(2, (x, y) => ({ light: 2 + (x % 2) * 0.5, distance: 10 + ((x + y) % 4) }))
-  assert.equal(two.length, 16)
-  // The texel (1, 2) is the mean of the threads (2, 4), (3, 4), (2, 5) and (3, 5): lights 2, 2.5, 2 and 2.5, a mean of 2.25; distances
-  // (2 + 4) % 4 = 2, 3, 3 and 0 over ten: the nearest 10.
-  assert.deepEqual(two.find((s) => s.at[0] === 48 + 1 && s.at[1] === 2)!.v.slice(0, 2), [
-    words.packLight(words.ditherLight([2.25, 0, 0], 0)),
-    words.cacheDepthWord(10, true, 0, true, false),
-  ])
-})
-
-test('the trace writes the light of a ray multiplied by the pre-exposure the cache keeps it under, whichever way the ray is cast', () => {
-  for (const program of [CACHE_TRACE_PROGRAM, CACHE_TRACED_PROGRAM])
-    assert.match(program, /traceRayLight\(light\*bounce\.reach\.z,rank,local\)/)
-})

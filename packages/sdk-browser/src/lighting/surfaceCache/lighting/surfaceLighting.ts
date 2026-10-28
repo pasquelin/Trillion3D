@@ -1,6 +1,14 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import type { RayTracing } from '../../../../../sdk-core/src/lighting/rayTracingFile.ts'
 import type { SurfaceCacheSettings } from '../../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
+import {
+  createMeshShadowState,
+  encodeMeshShadow,
+  meshShadowWanted,
+  releaseMeshShadow,
+  type MeshShadowState,
+} from './meshShadow.ts'
+import { MESH_SUN_STORAGE_BUFFERS } from './meshShadowWgsl.ts'
 import { directLayerStale } from './directLayer.ts'
 import {
   readCutSetting,
@@ -25,16 +33,20 @@ import {
 } from '../../rays/sceneTrace/sceneTraceResources.ts'
 import type { SurfaceHitResources } from '../hitWgsl.ts'
 import { cacheRootsOf } from '../placements.ts'
-import { clearLayer, type SurfaceAtlases } from '../atlases.ts'
+import type { SurfaceAtlases } from '../atlases.ts'
 import type { SurfaceTables } from '../tables.ts'
 import {
+  directMeshKernel,
+  meshSunKernel,
   fixedKernels,
   shapedKernels,
+  stochasticKernels,
   tracedRadiosityKernels,
   tracedShadowKernels,
   type ShapedKernels,
 } from './kernels.ts'
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
+import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import type { LightProfileResources } from '../../lightProfile/profileBindings.ts'
 import {
   lightFunctionFormatOf,
@@ -60,6 +72,7 @@ import {
 import {
   feedbackWritten,
   shapeOf,
+  stochasticSamplesOf,
   traceViewOf,
   tracedRaysFit,
   writeLightingParams,
@@ -71,10 +84,12 @@ import {
   ensureLighting,
   ensureLightSlots,
   ensureStandaloneScratch,
+  ensureStochastic,
   ensureTracedShadows,
   type LightingResources,
   type LightSlots,
   type StandaloneScratch,
+  type StochasticBuffers,
   type TracedShadowBuffers,
 } from './resources.ts'
 
@@ -123,10 +138,19 @@ export interface LightingInputs {
   /** The image's own numbers (`LightingImage`, less what the cache gives). */
   readonly image: Omit<
     LightingImage,
-    'frame' | 'pages' | 'historyLost' | 'feedback' | 'tracedRadiosity' | 'scratchAt'
+    | 'frame'
+    | 'pages'
+    | 'historyLost'
+    | 'feedback'
+    | 'tracedRadiosity'
+    | 'scratchAt'
+    | 'stochastic'
+    | 'stochasticHistory'
   >
   /** Changes when the lights' transport does: the lighting then settles again. */
   readonly transportEpoch: number
+  /** The distance the cards are kept to round the eye, in centimetres, margin included: the volume the suns' meshes are listed for (`meshShadow.ts`). */
+  readonly meshReach: number
   /** Whether the radiance cache of the world's probes, the screen probes or the reflections cast their rays through the scene's triangles this image: the
    *  scene trace is then made for them as well (`SceneRays`), whatever the lighting's own rays are. */
   readonly probes: boolean
@@ -181,6 +205,12 @@ export interface SurfaceLightingState {
    *  not traced and such a light function is, the scratch it writes to alone. */
   standalone?: StandaloneState
   scratchBuffers?: StandaloneScratch
+  /** The meshes' fields listed for the suns (`meshShadow.ts`): the resources of their lists. */
+  readonly meshShadow: MeshShadowState
+  /** The stochastic direct light's memory (`stochasticWgsl.ts`), the half of its history the next image reads, and whether that history holds an image. */
+  stochasticBuffers?: StochasticBuffers
+  stochasticRead: 0 | 1
+  stochasticHistory: boolean
 }
 
 /** The scene trace the lighting made for the world probes' rays in the image `frame`, none where it made none in that image. */
@@ -197,6 +227,9 @@ export function createSurfaceLighting(): SurfaceLightingState {
     epoch: NaN,
     historyLost: true,
     directHeld: true,
+    meshShadow: createMeshShadowState(),
+    stochasticRead: 0,
+    stochasticHistory: false,
   }
 }
 
@@ -225,9 +258,14 @@ function prepared(
   state.resources = made.resources
   if (!state.resources) return undefined
   const { shaped } = state
-  if (!shaped || shaped.maxLights !== shape.maxLights || shaped.compressed !== shape.compressed)
-    state.shaped = shapedKernels(device, shape.maxLights, shape.compressed)
-  const fixed = fixedKernels(device, format)
+  if (
+    !shaped ||
+    shaped.maxLights !== shape.maxLights ||
+    shaped.compressed !== shape.compressed ||
+    shaped.light !== shape.light
+  )
+    state.shaped = shapedKernels(device, shape.maxLights, shape.compressed, shape.light)
+  const fixed = fixedKernels(device, format, shape.light)
   const ready = state.shaped!.cull.ready && state.shaped!.combine.ready
   return ready && Object.values(fixed).every((kernel) => kernel.ready)
     ? {
@@ -242,6 +280,54 @@ function prepared(
 function releaseShadowBuffers(state: SurfaceLightingState) {
   state.tracedBuffers?.dispose()
   state.tracedBuffers = undefined
+}
+
+/** Gives back the stochastic direct light's memory: the state holds none after, and no history. */
+function releaseStochastic(state: SurfaceLightingState) {
+  state.stochasticBuffers?.dispose()
+  state.stochasticBuffers = undefined
+  state.stochasticHistory = false
+}
+
+/**
+ * What the stochastic direct light is made of for this image: its programs, compiled, and its memory, made again (and its history lost) where the shape changed; none where it is
+ * not asked for, the shadows are not traced, the programs are still compiling or the budget refuses the memory (`state.why`). The memory is given back where it is not asked for.
+ */
+function stochasticOf(
+  state: SurfaceLightingState,
+  device: GPUDevice,
+  shape: LightingShape,
+  settings: SurfaceCacheSettings,
+  format: AtlasFormat,
+  traced: boolean,
+) {
+  if (
+    !traced ||
+    !settings.surfaceCacheDirectLighting ||
+    !settings.surfaceCacheDirectLightingStochastic
+  ) {
+    releaseStochastic(state)
+    return undefined
+  }
+  const kernels = stochasticKernels(device, format, shape.light)
+  if (!Object.values(kernels).every((kernel) => kernel.ready)) return undefined
+  const made = ensureStochastic(state.stochasticBuffers, device, {
+    tiles: shape.directTiles,
+    samples: stochasticSamplesOf(settings),
+    side: shape.side,
+    temporal: settings.surfaceCacheDirectLightingStochasticTemporal,
+  })
+  if (made.resources !== state.stochasticBuffers) state.stochasticHistory = false
+  state.stochasticBuffers = made.resources
+  state.why = made.why ?? state.why
+  return (
+    made.resources && {
+      kernels,
+      buffers: made.resources,
+      read: state.stochasticRead,
+      temporal: settings.surfaceCacheDirectLightingStochasticTemporal,
+    }
+  )
 }
 
 /** Gives back the scratch of the light functions that is not the masks': the state holds none after. */
@@ -341,7 +427,7 @@ function tracedNeeds(
   // rays are the distance field's.
   const traced = {
     shadows: compiled(shadowsFit ? tracedShadowKernels(device, format) : undefined),
-    radiosity: compiled(radiosity ? tracedRadiosityKernels(device) : undefined),
+    radiosity: compiled(radiosity ? tracedRadiosityKernels(device, shape.light) : undefined),
   }
   if (!traced.shadows && !traced.radiosity && !probes)
     return { why: "the traced rays' programs are not compiled", keep: true }
@@ -424,7 +510,10 @@ function uploadParams(
   settings: SurfaceCacheSettings,
   shape: LightingShape,
   inputs: LightingInputs,
-  traces: Pick<LightingImage, 'feedback' | 'tracedRadiosity' | 'scratchAt'>,
+  traces: Pick<
+    LightingImage,
+    'feedback' | 'tracedRadiosity' | 'scratchAt' | 'stochastic' | 'stochasticHistory'
+  >,
 ) {
   if (inputs.transportEpoch !== state.epoch) {
     state.epoch = inputs.transportEpoch
@@ -441,33 +530,134 @@ function uploadParams(
   device.queue.writeBuffer(params, 0, state.words)
 }
 
+/** The scratch the light functions apart are evaluated in where the shadows are not traced (the traced shadows' masks hold it else), in a buffer of its own; where that
+ *  cannot be made they are lit as if they wore none. */
+function scratchOf(
+  state: SurfaceLightingState,
+  device: GPUDevice,
+  ready: ReturnType<typeof readyStandalone>['ready'],
+  traced: boolean,
+  lightTiles: number,
+) {
+  if (!ready.length || traced) {
+    releaseScratch(state)
+    return { scratch: undefined, lightFunctions: ready }
+  }
+  const made = ensureStandaloneScratch(state.scratchBuffers, device, lightTiles)
+  state.scratchBuffers = made.resources
+  state.why = made.why ?? state.why
+  const scratch = made.resources?.scratch
+  return { scratch, lightFunctions: scratch ? ready : [] }
+}
+
 /**
- * Lights the surface cache for this image on `encoder`: `lit`, or `waiting` for the programs to compile, or `none` where it
- * has nothing to light or no memory to do it in (`state.why` says why).
+ * The suns' shadow through the meshes' fields where the shadows are not traced: their lists made before the lighting's pass, and the program that
+ * reads them compiled; else, and the memory of the lists given back, the global field's.
  */
-export function encodeLighting(
+function meshShadowOf(
   state: SurfaceLightingState,
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  cache: SurfaceCache,
   settings: SurfaceCacheSettings,
-  atlases: SurfaceAtlases,
-  tables: SurfaceTables,
+  light: LightAtlasFormat,
+  format: AtlasFormat,
+  traced: boolean,
   inputs: LightingInputs,
+  directTiles: number,
 ) {
-  const shape = shapeOf(settings, atlases.side, atlases.compressed)
-  const format = lightFunctionFormatOf(rt)
-  const ready = prepared(state, device, shape, format)
-  if (!ready) return state.resources ? 'waiting' : 'none'
-  if (!tables.buffer || !cache.pages.length) return 'none'
-  const slots = lightSlotsOf(rt.lights.store.capacity)
-  const slotted = ensureLightSlots(state.lightSlots, device, slots)
-  state.lightSlots = slotted.resources
-  if (!slotted.resources) {
-    state.why = slotted.why ?? state.why
-    return 'none'
+  const wanted =
+    !traced &&
+    settings.surfaceCacheDirectLighting &&
+    settings.surfaceCacheDirectLightingOffscreenShadowingTraceMeshSdfs &&
+    device.limits.maxStorageBuffersPerShaderStage >= MESH_SUN_STORAGE_BUFFERS &&
+    meshShadowWanted(rt)
+  const kernel = wanted ? directMeshKernel(device, format, light) : undefined
+  const prepass = wanted ? meshSunKernel(device) : undefined
+  const lists =
+    kernel?.ready && prepass?.ready
+      ? encodeMeshShadow(state.meshShadow, rt, device, encoder, settings, {
+          eye: inputs.image.eye,
+          reach: inputs.meshReach,
+          directTiles,
+        })
+      : undefined
+  // The lists' memory is given back when the suns' fields are not wanted, not for the gap of an image (programs still compiling).
+  if (!kernel) releaseMeshShadow(state.meshShadow)
+  return lists && kernel && prepass && { lists, kernel, prepass }
+}
+
+/** The lighting's passes of the image over `encoding`, then the history the next image blends with, and the image's end. */
+function runLightingPasses(
+  state: SurfaceLightingState,
+  settings: SurfaceCacheSettings,
+  shape: LightingShape,
+  encoding: Encoding,
+) {
+  contextPasses(encoding)
+  directPasses(encoding)
+  // The history the next image blends with is the one this image wrote, in the other half; a image that blends none leaves none.
+  if (encoding.stochastic && settings.surfaceCacheDirectLightingStochasticTemporal) {
+    state.stochasticRead = state.stochasticRead === 0 ? 1 : 0
+    state.stochasticHistory = true
+  } else state.stochasticHistory = false
+  if (shape.radiosity) radiosityPasses(encoding)
+  state.pass.end()
+  state.settle = Math.max(0, state.settle - 1)
+  return 'lit' as const
+}
+
+/** What an image's lighting is made over: the state, the session and device, the encoder, the cache and its atlases, the image's inputs, its shape and the kernels and resources it is lit with. */
+interface LightingStep {
+  readonly state: SurfaceLightingState
+  readonly rt: WebgpuPagesRuntime
+  readonly device: GPUDevice
+  readonly encoder: GPUCommandEncoder
+  readonly cache: SurfaceCache
+  readonly settings: SurfaceCacheSettings
+  readonly atlases: SurfaceAtlases
+  readonly inputs: LightingInputs
+  readonly shape: LightingShape
+  readonly format: AtlasFormat
+  readonly ready: NonNullable<ReturnType<typeof prepared>>
+  readonly tables: GPUBuffer
+  readonly lightSlots: NonNullable<ReturnType<typeof ensureLightSlots>['resources']>
+  readonly slots: number
+}
+
+/** What the image lights through beside its step: the scene trace's shadows, scene and rays, the stochastic light, the suns' lists, the light functions apart and their scratch. */
+type LightingParts = Pick<
+  Encoding,
+  'traced' | 'scene' | 'stochastic' | 'meshShadow' | 'standalone' | 'scratch'
+>
+
+/** The encoding of the image's passes over its step and parts. */
+function encodingOf(step: LightingStep, parts: LightingParts): Encoding {
+  const { state, device, encoder, cache, settings, atlases, inputs, shape } = step
+  return {
+    ...step.ready,
+    lightSlots: step.lightSlots,
+    slots: step.slots,
+    pass: state.pass.begin(encoder).pass,
+    atlases,
+    tables: step.tables,
+    inputs,
+    hit: inputs.hit,
+    noise: noiseViewOn(device),
+    width: groupWidth(device.limits),
+    pages: cache.pages.length,
+    indirectTiles: shape.indirectTiles,
+    filtered:
+      settings.surfaceCacheRadiositySpatialFilterProbes &&
+      settings.surfaceCacheRadiositySpatialFilterProbesKernelSize > 0,
+    cullToTileDepthRange: settings.surfaceCacheDirectLightingCullToTileDepthRange,
+    ...parts,
   }
+}
+
+/** The image lit over `step`: the scene trace and the light functions apart prepared, the parameters uploaded, the placements the rays can meet chosen, then the passes. */
+function lightStep(step: LightingStep) {
+  const { state, rt, device, encoder, cache, settings, atlases, inputs, shape, format } = step
   // The light functions the atlas holds no slot of: those ready are evaluated into a scratch, in the masks' buffer where the shadows
   // are traced, else in a buffer of its own; where that cannot be made they are lit as if they wore none.
   const standalone = (state.standalone ??= createStandaloneState(device))
@@ -487,53 +677,87 @@ export function encodeLighting(
   )
   state.rays = rays
   const lightTiles = shape.directTiles * shape.maxLights
-  let scratch: GPUBuffer | undefined
-  let lightFunctions = apart.ready
-  if (lightFunctions.length && !traced) {
-    const made = ensureStandaloneScratch(state.scratchBuffers, device, lightTiles)
-    state.scratchBuffers = made.resources
-    state.why = made.why ?? state.why
-    scratch = made.resources?.scratch
-    if (!scratch) lightFunctions = []
-  } else releaseScratch(state)
-  uploadParams(state, device, ready.resources.params, cache, settings, shape, inputs, {
+  const { scratch, lightFunctions } = scratchOf(state, device, apart.ready, !!traced, lightTiles)
+  const stochastic = stochasticOf(state, device, shape, settings, format, !!traced)
+  uploadParams(state, device, step.ready.resources.params, cache, settings, shape, inputs, {
     feedback: feedbackWritten(inputs.feedback, rt.context.rayTracing),
     tracedRadiosity: !!scene,
     scratchAt: traced ? standaloneScratchAt(lightTiles, format) : 0,
+    stochastic: !!stochastic,
+    stochasticHistory: state.stochasticHistory,
   })
   // The placements the rays of this image can meet are chosen once, before any ray is cast.
   const placed = traced || scene || rays
   if (placed) placed.sceneTrace.cullPlacements(encoder, placed.views)
   // The direct light off, every texel of its layer holds none, the listed tiles' and the others' alike: cleared once, as it turns off.
-  if (directLayerStale(state, settings)) clearLayer(encoder, 'direct', atlases.physical.direct)
-  const encoding: Encoding = {
-    ...ready,
-    lightSlots: slotted.resources,
-    slots,
-    pass: state.pass.begin(encoder).pass,
-    atlases,
-    tables: tables.buffer,
+  if (directLayerStale(state, settings)) atlases.clearLayer(encoder, 'direct')
+  const meshShadow = meshShadowOf(
+    state,
+    rt,
+    device,
+    encoder,
+    settings,
+    shape.light,
+    format,
+    !!traced,
     inputs,
-    hit: inputs.hit,
-    noise: noiseViewOn(device),
-    width: groupWidth(device.limits),
-    pages: cache.pages.length,
-    indirectTiles: shape.indirectTiles,
-    filtered:
-      settings.surfaceCacheRadiositySpatialFilterProbes &&
-      settings.surfaceCacheRadiositySpatialFilterProbesKernelSize > 0,
-    cullToTileDepthRange: settings.surfaceCacheDirectLightingCullToTileDepthRange,
+    shape.directTiles,
+  )
+  const encoding = encodingOf(step, {
     traced,
     scene,
+    stochastic,
+    meshShadow,
     standalone: uploadStandalone(standalone, rt, device, lightFunctions),
     scratch,
+  })
+  return runLightingPasses(state, settings, shape, encoding)
+}
+
+/**
+ * Lights the surface cache for this image on `encoder`: `lit`, or `waiting` for the programs to compile, or `none` where it
+ * has nothing to light or no memory to do it in (`state.why` says why).
+ */
+export function encodeLighting(
+  state: SurfaceLightingState,
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  cache: SurfaceCache,
+  settings: SurfaceCacheSettings,
+  atlases: SurfaceAtlases,
+  tables: SurfaceTables,
+  inputs: LightingInputs,
+) {
+  const shape = shapeOf(settings, atlases.side, atlases.compressed, atlases.light)
+  const format = lightFunctionFormatOf(rt)
+  const ready = prepared(state, device, shape, format)
+  if (!ready) return state.resources ? 'waiting' : 'none'
+  if (!tables.buffer || !cache.pages.length) return 'none'
+  const slots = lightSlotsOf(rt.lights.store.capacity)
+  const slotted = ensureLightSlots(state.lightSlots, device, slots)
+  state.lightSlots = slotted.resources
+  if (!slotted.resources) {
+    state.why = slotted.why ?? state.why
+    return 'none'
   }
-  contextPasses(encoding)
-  directPasses(encoding)
-  if (shape.radiosity) radiosityPasses(encoding)
-  state.pass.end()
-  state.settle = Math.max(0, state.settle - 1)
-  return 'lit'
+  const lightSlots = slotted.resources
+  return lightStep({
+    state,
+    rt,
+    device,
+    encoder,
+    cache,
+    settings,
+    atlases,
+    inputs,
+    shape,
+    format,
+    ready,
+    tables: tables.buffer,
+    lightSlots,
+    slots,
+  })
 }
 
 /** Gives back the lighting's memory: the state of `owner` holds none after. */
@@ -544,6 +768,8 @@ export function disposeSurfaceLighting(owner: { lighting?: SurfaceLightingState 
   lighting.lightSlots?.dispose()
   releaseTraced(lighting)
   releaseScratch(lighting)
+  releaseStochastic(lighting)
+  releaseMeshShadow(lighting.meshShadow)
   if (lighting.standalone) disposeStandaloneState(lighting.standalone)
   owner.lighting = undefined
 }

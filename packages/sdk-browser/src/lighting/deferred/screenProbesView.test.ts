@@ -1,4 +1,4 @@
-// The screen probes in the frame: their passes in order, the level low and the level off, the render scale, the budget and the order in the frame.
+// The screen probes in the frame: their passes in order, the level off, the render scale, the budget and the order in the frame.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -55,7 +55,7 @@ test('one image of screen probes encodes its passes in order, hands the lighting
   assert.equal(metrics.unavailable, null)
 })
 
-test('the placement is a pass of its own that asks the probes of their pixels and hands the pool the probes it placed, and the trace follows in another; a level that casts none places nothing and shades in the trace', async () => {
+test('the placement is a pass of its own that asks the probes of their pixels and hands the pool the probes it placed, and the trace follows in another', async () => {
   const { h, rt, encode } = await probesRuntime()
   await encode()
   const before = h.dispatches.length
@@ -86,14 +86,6 @@ test('the placement is a pass of its own that asks the probes of their pixels an
     1,
     'asked once, in the placement',
   )
-  const low = await probesRuntime({ screenProbes: 'low' })
-  await low.encode()
-  const lowBefore = low.h.dispatches.length
-  const none = placeScreenProbes(low.rt, low.h.encoder)
-  assert.equal(none?.marks, undefined, 'no probe placed')
-  assert.equal(low.h.dispatches.length, lowBefore, 'nothing encoded by the placement')
-  traceScreenProbes(low.rt, low.h.encoder, none)
-  assert.deepEqual(dispatchedEntries(low.h.dispatches.slice(lowBefore)), ['occlusion', 'temporal'])
 })
 
 test('the screen probes leave out the passes their settings leave out, and cast none at the level off', async () => {
@@ -125,10 +117,21 @@ test('the screen probes leave out the passes their settings leave out, and cast 
   encodeProbeImage(off.rt, off.h.encoder)
   assert.deepEqual(off.h.dispatches, [])
   assert.equal(off.rt.bounce.screen!.metrics, undefined)
+  // The bounce wanted with the probes off is the reference's `r.ScreenProbeGather 0` (`ScreenProbeGather.cpp:2194-2201`): black diffuse and rough specular, the Lumen
+  // diffuse global illumination having taken the sky light's place. The mode is the probes' light, none of it left.
   assert.deepEqual(
     screenProbeWords(off.h),
+    [FOLIAGE_STRENGTH, 0.5, 1, 0],
+    'the level off under a bounce leaves the lighting no light: black, as the reference does',
+  )
+  // With no bounce asked there is no global illumination to take the sky light's place: the lighting keeps the sky light's irradiance (mode bit 0), as with no global illumination in the reference.
+  const unlit = await probesRuntime({ screenProbes: 'off' })
+  unlit.rt.bounce.wanted = false
+  encodeProbeImage(unlit.rt, unlit.h.encoder)
+  assert.deepEqual(
+    screenProbeWords(unlit.h),
     [FOLIAGE_STRENGTH, 0.5, 1, 1],
-    'the level off leaves the lighting the sky light under their occlusion alone, never the black of a pixel the probes gather and did not read',
+    'no bounce: the sky light under their occlusion alone, never the black of a pixel the probes gather and did not read',
   )
   // The level off gives the view's probes back: the budget holds none, the lighting is left none to read.
   const held = await probesRuntime()
@@ -139,17 +142,7 @@ test('the screen probes leave out the passes their settings leave out, and cast 
   assert.equal(held.rt.gpu.screenProbes, undefined, 'off gives them back')
 })
 
-test('the level low runs the occlusion and the temporal pass alone over one probe, and tells the lighting to read their occlusion over the world’s light; a level that casts tells it the probes’ light', async () => {
-  const low = await probesRuntime({ screenProbes: 'low' })
-  await low.encode()
-  assert.deepEqual(dispatchedEntries(low.h.dispatches), ['occlusion', 'temporal'])
-  const metrics = low.rt.bounce.screen!.metrics!
-  assert.deepEqual([metrics.level, metrics.raysPerImage, metrics.atlas], ['low', 0, [0, 0]])
-  assert.deepEqual(
-    screenProbeWords(low.h),
-    [1, 0.5, 1, 1],
-    'the foliage strength of the level low (1), the albedo cap, the intensity, mode 1',
-  )
+test('a level that casts tells the lighting the probes’ light, and the level off under a bounce tells it they left none: black, as the reference’s screen probe gather off', async () => {
   const ultra = await probesRuntime()
   await ultra.encode()
   assert.deepEqual(
@@ -165,17 +158,14 @@ test('the level low runs the occlusion and the temporal pass alone over one prob
     [FOLIAGE_STRENGTH, 0.5, 1, 4],
     'mode 0 and bit 2: the probes’ light, the occlusion already in it',
   )
-  const bare = await probesRuntime({
-    screenProbes: 'low',
-    screenProbeShortRangeOcclusion: false,
-  })
-  encodeProbeImage(bare.rt, bare.h.encoder)
-  assert.deepEqual(bare.h.dispatches, [], 'a level with no probe and no occlusion runs nothing')
-  assert.equal(bare.rt.gpu.screenProbes, undefined)
+  const off = await probesRuntime({ screenProbes: 'off' })
+  encodeProbeImage(off.rt, off.h.encoder)
+  assert.deepEqual(off.h.dispatches, [], 'a level with no probe runs nothing')
+  assert.equal(off.rt.gpu.screenProbes, undefined)
   assert.deepEqual(
-    screenProbeWords(bare.h),
-    [1, 0.5, 1, 1],
-    'mode 1: no probe ran; the foliage strength of the level low (1), as above',
+    screenProbeWords(off.h),
+    [FOLIAGE_STRENGTH, 0.5, 1, 0],
+    'mode 0 with no probe to read: their light is none, so the pixels are black',
   )
 })
 

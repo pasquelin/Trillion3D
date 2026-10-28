@@ -1,3 +1,4 @@
+import { flagIf } from '../../../../math/src/scalar/bits.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { writeChanged } from '../../gpu/core/writeChanged.ts'
 import {
@@ -68,23 +69,80 @@ function flagsOf(
   trace: ReflectionSettings,
   { temporal, reconstruction, bilateral, sceneTraces, distantTraces }: FlagSwitches = trace,
 ) {
-  const bit = (on: boolean, flag: number) => (on ? flag : 0)
   return (
-    bit(sceneTraces, REFLECTION_COUNTS.REFLECTION_SCENE_TRACES) |
-    bit(distantTraces, REFLECTION_COUNTS.REFLECTION_DISTANT_TRACES) |
-    bit(trace.screenTraces, REFLECTION_COUNTS.REFLECTION_SCREEN_TRACES) |
-    bit(temporal, REFLECTION_COUNTS.REFLECTION_TEMPORAL) |
-    bit(reconstruction, REFLECTION_COUNTS.REFLECTION_RECONSTRUCTION) |
-    bit(bilateral, REFLECTION_COUNTS.REFLECTION_BILATERAL) |
-    bit(trace.sampleSceneColor, REFLECTION_COUNTS.REFLECTION_SCENE_COLOR) |
-    bit(trace.heightFog, REFLECTION_COUNTS.REFLECTION_HEIGHT_FOG) |
-    bit(trace.hiResSurface, REFLECTION_COUNTS.REFLECTION_HI_RES_SURFACE)
+    flagIf(sceneTraces, REFLECTION_COUNTS.REFLECTION_SCENE_TRACES) |
+    flagIf(distantTraces, REFLECTION_COUNTS.REFLECTION_DISTANT_TRACES) |
+    flagIf(trace.screenTraces, REFLECTION_COUNTS.REFLECTION_SCREEN_TRACES) |
+    flagIf(temporal, REFLECTION_COUNTS.REFLECTION_TEMPORAL) |
+    flagIf(reconstruction, REFLECTION_COUNTS.REFLECTION_RECONSTRUCTION) |
+    flagIf(bilateral, REFLECTION_COUNTS.REFLECTION_BILATERAL) |
+    flagIf(trace.sampleSceneColor, REFLECTION_COUNTS.REFLECTION_SCENE_COLOR) |
+    flagIf(trace.heightFog, REFLECTION_COUNTS.REFLECTION_HEIGHT_FOG) |
+    flagIf(trace.hiResSurface, REFLECTION_COUNTS.REFLECTION_HI_RES_SURFACE)
   )
 }
 
 /** The words of a lane of the staged view, as unsigned integers. */
 const lanesOf = (staged: Float32Array, field: keyof typeof REFLECTION_VIEW_AT) =>
   new Uint32Array(staged.buffer, REFLECTION_VIEW_AT[field] * 4, 4)
+
+/** Four floats at the lane `field` of the staged view `staged`. */
+function putLane(
+  staged: Float32Array,
+  field: keyof typeof REFLECTION_VIEW_AT,
+  x: number,
+  y: number,
+  z: number,
+  w: number,
+) {
+  const at = REFLECTION_VIEW_AT[field]
+  staged[at] = x
+  staged[at + 1] = y
+  staged[at + 2] = z
+  staged[at + 3] = w
+}
+
+/** The float lanes of what a ray may spend and do (`reach` to `hardware`), `t` the trace's settings. */
+function putTraceLanes(
+  staged: Float32Array,
+  t: ReflectionSettings,
+  cardDepthBias: number,
+  preExposure: number,
+) {
+  const put = (
+    field: keyof typeof REFLECTION_VIEW_AT,
+    x: number,
+    y: number,
+    z: number,
+    w: number,
+  ) => putLane(staged, field, x, y, z, w)
+  put('reach', t.surfaceBias, t.distantDistance, t.maxRoughnessFoliage, t.bilateralDepthScale)
+  put('march', t.relativeThickness, t.distantTolerance, t.distantOffsetBias, t.traceDistance)
+  put(
+    'light',
+    t.maxRayIntensity / preExposure,
+    t.sampleDepthThickness,
+    t.sampleFacing,
+    t.fogSkyDistance,
+  )
+  put('denoise', t.historyFrames, t.clampScale, t.historyDistance, t.tonemapRange)
+  put(
+    'spread',
+    t.reconstructionRadius,
+    t.bilateralRadius,
+    t.reconstructionMinWeight,
+    t.disocclusionFrames,
+  )
+  put('lobe', t.maxRoughness, t.roughnessFade, t.samplingBias, t.smoothBias)
+  put(
+    'leak',
+    t.skylightLeakColor[0],
+    t.skylightLeakColor[1],
+    t.skylightLeakColor[2],
+    t.skylightLeakAlbedo,
+  )
+  put('hardware', t.hardwareBias, t.hardwareNormalBias, t.hardwarePullbackBias, cardDepthBias)
+}
 
 /**
  * The writer of what a ray may spend and which of its stages run into the staged view `staged`
@@ -95,20 +153,6 @@ function createTraceWriter(staged: Float32Array) {
   const [grid, scene, taps, frontLanes] = (['grid', 'scene', 'taps', 'front'] as const).map(
     (field) => lanesOf(staged, field),
   )
-  /** Four floats at the lane `field` of the staged view. */
-  const put = (
-    field: keyof typeof REFLECTION_VIEW_AT,
-    x: number,
-    y: number,
-    z: number,
-    w: number,
-  ) => {
-    const at = REFLECTION_VIEW_AT[field]
-    staged[at] = x
-    staged[at + 1] = y
-    staged[at + 2] = z
-    staged[at + 3] = w
-  }
   return (
     trace: ReflectionSettings,
     size: readonly [number, number],
@@ -134,33 +178,8 @@ function createTraceWriter(staged: Float32Array) {
     })
     taps[0] = trace.reconstructionSamples
     taps[1] = trace.bilateralSamples
-    const t = trace
-    put('reach', t.surfaceBias, t.distantDistance, t.maxRoughnessFoliage, t.bilateralDepthScale)
-    put('march', t.relativeThickness, t.distantTolerance, t.distantOffsetBias, t.traceDistance)
-    put(
-      'light',
-      t.maxRayIntensity / preExposure,
-      t.sampleDepthThickness,
-      t.sampleFacing,
-      t.fogSkyDistance,
-    )
-    put('denoise', t.historyFrames, t.clampScale, t.historyDistance, t.tonemapRange)
-    put(
-      'spread',
-      t.reconstructionRadius,
-      t.bilateralRadius,
-      t.reconstructionMinWeight,
-      t.disocclusionFrames,
-    )
-    put('lobe', t.maxRoughness, t.roughnessFade, t.samplingBias, t.smoothBias)
-    put(
-      'leak',
-      t.skylightLeakColor[0],
-      t.skylightLeakColor[1],
-      t.skylightLeakColor[2],
-      t.skylightLeakAlbedo,
-    )
-    put('hardware', t.hardwareBias, t.hardwareNormalBias, t.hardwarePullbackBias, cardDepthBias)
+    taps[2] = trace.screenMinimumOccupancy
+    putTraceLanes(staged, trace, cardDepthBias, preExposure)
   }
 }
 
@@ -207,6 +226,8 @@ export function createReflectionViewWriter(device: GPUDevice, buffer: GPUBuffer)
       staged[REFLECTION_VIEW_AT.firstPerson + k] = frame.firstPerson?.[k] ?? 0
     const trace = frame.settings ?? (defaults ??= defaultReflections())
     writeTrace(trace, frame.size, frame.cardDepthBias ?? 0, frame.preExposure ?? 1)
+    // The lit image is tested against the depth with the same per-projection scale as the march (orthographic views only).
+    staged[REFLECTION_VIEW_AT.light + 1] = screenRelativeThickness(m, trace.sampleDepthThickness)
     staged[REFLECTION_VIEW_AT.thickness] = screenRelativeThickness(m, trace.relativeThickness)
     staged[REFLECTION_VIEW_AT.historyThickness] = screenRelativeThickness(
       m,

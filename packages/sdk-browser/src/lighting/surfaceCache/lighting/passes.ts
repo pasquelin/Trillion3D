@@ -19,8 +19,11 @@ import {
   DIRECT_BINDINGS,
   DIRECT_CLOUD_SHADOW,
   DIRECT_LIGHT_PROFILE,
+  DIRECT_ENTRIES,
   DIRECT_ENTRY,
   DIRECT_TRACED_ENTRY,
+  MESH_PREPASS_ENTRY,
+  MESH_PREPASS_OUT,
 } from './directWgsl.ts'
 import type {
   fixedKernels,
@@ -29,6 +32,8 @@ import type {
   tracedShadowKernels,
 } from './kernels.ts'
 import type { Kernel } from '../kernel.ts'
+import type { MeshShadow } from './meshShadow.ts'
+import { MESH_SHADOW_GROUP } from './meshShadowWgsl.ts'
 import type { StandalonePrepared } from './lightFunctionPass.ts'
 import { LIGHT_FUNCTION_PASS_BINDINGS, LIGHT_FUNCTION_PASS_ENTRY } from './lightFunctionPassWgsl.ts'
 import { LIGHTING_CONTEXTS } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
@@ -72,7 +77,24 @@ import {
   SHADOW_TRACE_ENTRY,
   SHADOW_TRACE_SCENE,
 } from './shadowTraceWgsl.ts'
-import type { LightingResources, LightSlots, TracedShadowBuffers } from './resources.ts'
+import {
+  STOCHASTIC_COMPACT_BINDINGS,
+  STOCHASTIC_COMPACT_ENTRY,
+  STOCHASTIC_GENERATE_BINDINGS,
+  STOCHASTIC_GENERATE_ENTRY,
+  STOCHASTIC_GENERATE_LIGHT_PROFILE,
+  STOCHASTIC_SHADE_BINDINGS,
+  STOCHASTIC_SHADE_ENTRY,
+  STOCHASTIC_TEMPORAL_BINDINGS,
+  STOCHASTIC_TEMPORAL_ENTRY,
+} from './stochasticWgsl.ts'
+import type { stochasticKernels } from './kernels.ts'
+import type {
+  LightingResources,
+  LightSlots,
+  StochasticBuffers,
+  TracedShadowBuffers,
+} from './resources.ts'
 import { TILE_DEPTH_RANGE_BINDINGS, TILE_DEPTH_RANGE_ENTRY } from './tileDepthRangeWgsl.ts'
 
 /**
@@ -122,6 +144,21 @@ export interface Encoding {
   readonly cullToTileDepthRange: boolean
   /** The traced shadows of the direct light; none, the direct light's shadow is one ray through the global distance field. */
   readonly traced?: TracedShadows
+  /** The stochastic direct light (`stochasticWgsl.ts`), where it is asked for and the shadows are traced: its programs, its memory and the half of its history this image reads. */
+  readonly stochastic?: {
+    readonly kernels: ReturnType<typeof stochasticKernels>
+    readonly buffers: StochasticBuffers
+    readonly read: 0 | 1
+    /** Whether the light is blended over the images (`surfaceCacheDirectLightingStochasticTemporal`). */
+    readonly temporal: boolean
+  }
+  /** The meshes' fields listed for the suns (`meshShadow.ts`) and the direct light's program that reads them; none, the suns' shadow is one ray through the global field too. */
+  readonly meshShadow?: {
+    readonly lists: MeshShadow
+    readonly kernel: Kernel<(typeof DIRECT_ENTRIES)[number]>
+    /** The pass that traces the suns through the lists and the fields before the direct light, which reads what it stores. */
+    readonly prepass: Kernel<typeof MESH_PREPASS_ENTRY>
+  }
   /** The scene the radiosity's rays are cast through; none, they are marched through the global distance field. */
   readonly scene?: TracedScene
   /** The light functions the atlas holds no slot of: their dispatches and the bits the cull marks their lights by. */
@@ -389,10 +426,209 @@ function shadowTracePass(e: Encoding, { kernels, buffers, sceneTrace, views }: T
   )
 }
 
+/** The lights each texel picks (`stochasticGenerate`). */
+function stochasticGeneratePass(
+  e: Encoding,
+  kernels: NonNullable<Encoding['stochastic']>['kernels'],
+  samples: GPUBuffer,
+) {
+  const { params, context, cardTileLights, cardTileOffsets } = e.resources
+  const { physical } = e.atlases
+  const { lights, lightFunction, lightProfile } = e.inputs
+  const G = STOCHASTIC_GENERATE_BINDINGS
+  const generating = kernels.generate.group(
+    [
+      params,
+      e.tables,
+      context,
+      physical.depth,
+      physical.normal,
+      cardTileLights,
+      cardTileOffsets,
+      lights,
+      samples,
+      lightFunction,
+      lightProfile.view,
+      lightProfile.sampler,
+      e.noise,
+    ],
+    () => [
+      buffer(0, params),
+      buffer(G.tables, e.tables),
+      buffer(G.context, context),
+      view(G.depth, physical.depth),
+      view(G.normal, physical.normal),
+      buffer(G.cardTileLights, cardTileLights),
+      buffer(G.cardTileOffsets, cardTileOffsets),
+      buffer(G.lights, lights),
+      buffer(G.samples, samples),
+      view(G.lightFunction, lightFunction),
+      ...lightProfileBindEntries(STOCHASTIC_GENERATE_LIGHT_PROFILE, lightProfile),
+      view(G.noise, e.noise),
+    ],
+  )
+  fromContext(
+    e,
+    kernels.generate.pipeline(STOCHASTIC_GENERATE_ENTRY),
+    generating,
+    CONTEXT_ARGS.directTiles,
+  )
+}
+
+/** The traces of the lights picked (`stochasticCompact`), in the shadow traces' list the masks left empty. */
+function stochasticCompactPass(
+  e: Encoding,
+  kernels: NonNullable<Encoding['stochastic']>['kernels'],
+  samples: GPUBuffer,
+  traced: TracedShadows,
+) {
+  const { params, context, cardTileLights, cardTileOffsets } = e.resources
+  const { physical } = e.atlases
+  const { masks, traces } = traced.buffers
+  const C = STOCHASTIC_COMPACT_BINDINGS
+  const compacting = kernels.compact.group(
+    [
+      params,
+      e.tables,
+      context,
+      cardTileLights,
+      cardTileOffsets,
+      samples,
+      masks,
+      traces,
+      physical.depth,
+      physical.normal,
+    ],
+    () => [
+      buffer(0, params),
+      buffer(C.tables, e.tables),
+      buffer(C.context, context),
+      buffer(C.cardTileLights, cardTileLights),
+      buffer(C.cardTileOffsets, cardTileOffsets),
+      buffer(C.samples, samples),
+      buffer(C.masks, masks),
+      buffer(C.traces, traces),
+      view(C.depth, physical.depth),
+      view(C.normal, physical.normal),
+    ],
+  )
+  fromContext(
+    e,
+    kernels.compact.pipeline(STOCHASTIC_COMPACT_ENTRY),
+    compacting,
+    CONTEXT_ARGS.directTiles,
+  )
+}
+
+/** The lights each texel picks and the traces of those picked (`stochasticGenerate`, `stochasticCompact`), in the shadow traces' list the masks left empty. */
+function stochasticSamplePasses(
+  e: Encoding,
+  { kernels, buffers }: NonNullable<Encoding['stochastic']>,
+  traced: TracedShadows,
+) {
+  stochasticGeneratePass(e, kernels, buffers.samples)
+  stochasticCompactPass(e, kernels, buffers.samples, traced)
+}
+
+/** The blend of the resolved light with the images before (`stochasticTemporal`), the history taking turns. */
+function stochasticTemporalPass(
+  e: Encoding,
+  kernels: NonNullable<Encoding['stochastic']>['kernels'],
+  buffers: NonNullable<Encoding['stochastic']>['buffers'],
+  read: number,
+) {
+  const { params, context } = e.resources
+  const { physical } = e.atlases
+  const { samples, resolved, history } = buffers
+  const T = STOCHASTIC_TEMPORAL_BINDINGS
+  const [last, next] = [history[read], history[read === 0 ? 1 : 0]]
+  const blending = kernels.temporal.group(
+    [
+      params,
+      e.tables,
+      context,
+      physical.depth,
+      physical.normal,
+      samples,
+      resolved,
+      last.lighting,
+      last.frames,
+      next.lighting,
+      next.frames,
+      physical.direct,
+    ],
+    () => [
+      buffer(0, params),
+      buffer(T.tables, e.tables),
+      buffer(T.context, context),
+      view(T.depth, physical.depth),
+      view(T.normal, physical.normal),
+      buffer(T.samples, samples),
+      view(T.resolved, resolved),
+      view(T.historyLighting, last.lighting),
+      view(T.historyFrames, last.frames),
+      view(T.lightingOut, next.lighting),
+      view(T.framesOut, next.frames),
+      view(T.out, physical.direct),
+    ],
+  )
+  fromContext(
+    e,
+    kernels.temporal.pipeline(STOCHASTIC_TEMPORAL_ENTRY),
+    blending,
+    CONTEXT_ARGS.directTiles,
+  )
+}
+
+/** The light of the picked lights (`stochasticShade`) and, where it is blended over the images, the blend (`stochasticTemporal`), in the place of the direct light's own program. */
+function stochasticShadingPasses(
+  e: Encoding,
+  { kernels, buffers, read, temporal }: NonNullable<Encoding['stochastic']>,
+  traced: TracedShadows,
+) {
+  const { params, context, cardTileLights, cardTileOffsets } = e.resources
+  const { physical } = e.atlases
+  const { samples, resolved, history } = buffers
+  const { masks } = traced.buffers
+  const S = STOCHASTIC_SHADE_BINDINGS
+  const shading = kernels.shade.group(
+    [
+      params,
+      e.tables,
+      context,
+      physical.depth,
+      physical.normal,
+      cardTileLights,
+      cardTileOffsets,
+      samples,
+      masks,
+      physical.direct,
+      resolved,
+    ],
+    () => [
+      buffer(0, params),
+      buffer(S.tables, e.tables),
+      buffer(S.context, context),
+      view(S.depth, physical.depth),
+      view(S.normal, physical.normal),
+      buffer(S.cardTileLights, cardTileLights),
+      buffer(S.cardTileOffsets, cardTileOffsets),
+      buffer(S.samples, samples),
+      buffer(S.masks, masks),
+      view(S.out, physical.direct),
+      view(S.resolved, resolved),
+    ],
+  )
+  fromContext(e, kernels.shade.pipeline(STOCHASTIC_SHADE_ENTRY), shading, CONTEXT_ARGS.directTiles)
+  if (temporal) stochasticTemporalPass(e, kernels, buffers, read)
+}
+
 /** The passes between the lights of the tiles and their light: the shadow masks, the traces' arguments
  *  and the traces. */
 function shadowPasses(e: Encoding, traced: TracedShadows) {
   shadowMaskPass(e, traced)
+  // The stochastic light lists the traces of the lights it picked (the masks list none), before the arguments count them.
+  if (e.stochastic) stochasticSamplePasses(e, e.stochastic, traced)
   shadowArgsPass(e, traced)
   shadowTracePass(e, traced)
 }
@@ -414,23 +650,10 @@ function tileDepthRangePass(e: Encoding) {
   fromContext(e, kernel.pipeline(TILE_DEPTH_RANGE_ENTRY), ranges, CONTEXT_ARGS.directTiles)
 }
 
-/**
- * The light tiles of the direct list, as the reference makes them: the lights of each tile, picked and appended to a list of light tiles (the
- * counters emptied before, the culled list written, the offsets of the slots and the arguments of the dispatches over them
- * then made), and the list compacted by slot (the count of what each slot has placed emptied before).
- */
-function lightTilePasses(e: Encoding) {
-  const { params, context, culledLightTiles, compactedLightTiles, cardTileLights } = e.resources
-  const { cardTileOffsets, depthRanges } = e.resources
-  const { counts, args } = e.lightSlots
-  const tallies = e.fixed.lightTileCounts
-  const C = LIGHT_TILE_COUNTS_BINDINGS
-  const tallying = tallies.group([params, counts, args], () => [
-    buffer(0, params),
-    buffer(C.counts, counts),
-    buffer(C.args, args),
-  ])
-  single(e, tallies.pipeline('lightTilesClear'), tallying)
+/** The lights of each tile of the direct list, picked and appended to the list of light tiles (`cull`). */
+function lightTileCullPass(e: Encoding) {
+  const { params, context, culledLightTiles, cardTileOffsets, depthRanges } = e.resources
+  const { counts } = e.lightSlots
   const cull = e.shaped.cull
   const K = CULL_BINDINGS
   const culling = cull.group(
@@ -458,9 +681,13 @@ function lightTilePasses(e: Encoding) {
     ],
   )
   fromContext(e, cull.pipeline(CULL_ENTRY), culling, CONTEXT_ARGS.directTiles)
-  single(e, tallies.pipeline('lightTilesOffsets'), tallying)
-  dispatch(e, tallies.pipeline('lightTilesArgs'), tallying, e.slots)
-  single(e, tallies.pipeline('lightTilesClearCompacted'), tallying)
+}
+
+/** The list of light tiles compacted by slot, each tile's lights placed in it. */
+function lightTileCompactPass(e: Encoding) {
+  const { params, context, culledLightTiles, compactedLightTiles, cardTileLights } = e.resources
+  const { cardTileOffsets } = e.resources
+  const { counts } = e.lightSlots
   const compact = e.fixed.lightTileCompact
   const P = LIGHT_TILE_COMPACT_BINDINGS
   const compacting = compact.group(
@@ -493,19 +720,39 @@ function lightTilePasses(e: Encoding) {
   )
 }
 
-/** The depth range of each tile of the direct list, the lights of each tile, their light on its texels, and the final light of the tiles. */
-export function directPasses(e: Encoding) {
+/**
+ * The light tiles of the direct list, as the reference makes them: the lights of each tile, picked and appended to a list of light tiles (the
+ * counters emptied before, the culled list written, the offsets of the slots and the arguments of the dispatches over them
+ * then made), and the list compacted by slot (the count of what each slot has placed emptied before).
+ */
+function lightTilePasses(e: Encoding) {
+  const { params } = e.resources
+  const { counts, args } = e.lightSlots
+  const tallies = e.fixed.lightTileCounts
+  const C = LIGHT_TILE_COUNTS_BINDINGS
+  const tallying = tallies.group([params, counts, args], () => [
+    buffer(0, params),
+    buffer(C.counts, counts),
+    buffer(C.args, args),
+  ])
+  single(e, tallies.pipeline('lightTilesClear'), tallying)
+  lightTileCullPass(e)
+  single(e, tallies.pipeline('lightTilesOffsets'), tallying)
+  dispatch(e, tallies.pipeline('lightTilesArgs'), tallying, e.slots)
+  single(e, tallies.pipeline('lightTilesClearCompacted'), tallying)
+  lightTileCompactPass(e)
+}
+/** The direct light of the texels, by the program over the global field, the meshes' fields for the suns, or the traced masks (`DIRECT_ENTRY`, `DIRECT_TRACED_ENTRY`). */
+function directShadePass(e: Encoding) {
   const { params, context, cardTileLights, cardTileOffsets } = e.resources
   const shadowMasks = masksOf(e)
   const { physical, factors } = e.atlases
   const common = [buffer(0, params), buffer(1, e.tables), buffer(2, context)]
-  if (e.cullToTileDepthRange) tileDepthRangePass(e)
-  lightTilePasses(e)
-  lightFunctionPasses(e)
-  if (e.traced) shadowPasses(e, e.traced)
   const D = DIRECT_BINDINGS
   const { cloudShadow, field } = e.inputs
-  const direct = e.fixed.direct.group(
+  // The program that reads the meshes' fields for the sun, where they are listed and the shadows are not traced; else the program over the global field.
+  const kernel = e.meshShadow && !e.traced ? e.meshShadow.kernel : e.fixed.direct
+  const direct = kernel.group(
     [
       params,
       e.tables,
@@ -544,7 +791,50 @@ export function directPasses(e: Encoding) {
     ],
   )
   const entry = e.traced ? DIRECT_TRACED_ENTRY : DIRECT_ENTRY
-  fromContext(e, e.fixed.direct.pipeline(entry), direct, CONTEXT_ARGS.directTiles)
+  const lists = e.meshShadow && !e.traced ? e.meshShadow.lists : undefined
+  if (e.meshShadow && lists) meshSunPass(e, e.meshShadow.prepass, lists)
+  fromContext(
+    e,
+    kernel.pipeline(entry),
+    direct,
+    CONTEXT_ARGS.directTiles,
+    lists && [kernel.group(lists.read.identity, lists.read.entries, MESH_SHADOW_GROUP)],
+  )
+}
+
+/** The suns traced through the meshes' fields for the texels of the direct list (`MESH_PREPASS_ENTRY`), their visibility stored for the direct light to read. */
+function meshSunPass(e: Encoding, kernel: Kernel<typeof MESH_PREPASS_ENTRY>, lists: MeshShadow) {
+  const { params, context } = e.resources
+  const { physical } = e.atlases
+  const D = DIRECT_BINDINGS
+  const group = kernel.group(
+    [params, e.tables, context, physical.depth, physical.normal, lists.visibility],
+    () => [
+      buffer(0, params),
+      buffer(D.tables, e.tables),
+      buffer(D.context, context),
+      view(D.depth, physical.depth),
+      view(D.normal, physical.normal),
+      buffer(MESH_PREPASS_OUT, lists.visibility),
+    ],
+  )
+  fromContext(e, kernel.pipeline(MESH_PREPASS_ENTRY), group, CONTEXT_ARGS.directTiles, [
+    kernel.group(lists.identity, lists.entries, MESH_SHADOW_GROUP),
+  ])
+}
+
+/** The depth range of each tile of the direct list, the lights of each tile, their light on its texels, and the final light of the tiles. */
+export function directPasses(e: Encoding) {
+  if (e.cullToTileDepthRange) tileDepthRangePass(e)
+  lightTilePasses(e)
+  lightFunctionPasses(e)
+  if (e.traced) shadowPasses(e, e.traced)
+  if (e.traced && e.stochastic) {
+    stochasticShadingPasses(e, e.stochastic, e.traced)
+    combine(e, 'combineDirect', CONTEXT_ARGS.directTiles)
+    return
+  }
+  directShadePass(e)
   combine(e, 'combineDirect', CONTEXT_ARGS.directTiles)
 }
 

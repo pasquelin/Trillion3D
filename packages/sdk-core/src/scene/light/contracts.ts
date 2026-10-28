@@ -121,6 +121,25 @@ export interface SceneLight
    *  the light that crosses the thickness behind the lit side); absent, off. It acts on a `movable`
    *  light that casts a shadow alone (`transmitsOf`). */
   transmission?: boolean
+  /** Whether the light draws a deep shadow of the hair strands it reaches (an extra cost for the light);
+   *  absent, off. */
+  castHairDeepShadow?: boolean
+  /** How the four layers of the light's hair deep shadow are spread, from 0 (evenly) to 1 (gathered near the
+   *  front); absent, 0.5. */
+  hairDeepShadowLayerDistribution?: number
+  /** Directional only, read with the classic shadow maps (`shadowVirtualEnable` off): the number of cascades the sun's shadow is drawn in, an integer of at least 0 (0 draws none);
+   *  absent, 4. */
+  dynamicShadowCascades?: number
+  /** Directional only, classic shadow maps: how much longer each cascade is than the one before, a number of at least 1 (1 linear); absent, 3. */
+  cascadeDistributionExponent?: number
+  /** Directional only, classic shadow maps: the share of a cascade's length it fades into the next over, from 0 to 1; absent, 0.1. */
+  cascadeTransitionFraction?: number
+  /** Directional only, classic shadow maps: the distance in metres the sun's shadow reaches, at least 0 (0 draws none); absent, 400. */
+  dynamicShadowDistance?: number
+  /** The factor on the constant depth bias of the light's classic shadow (`shadowVirtualEnable` off), a number from 0 to 4; absent, 0.5. */
+  shadowBias?: number
+  /** The factor on the slope depth bias of the light's classic shadow, a number from 0 to 4; absent, 0.5. */
+  shadowSlopeBias?: number
   /** Point, spot and rect only: the factor on the resolution its shadow is given, a number of at
    *  least 0; absent, 1. It acts on whether the light takes a shadow and how it fades
    *  (`shadowFadeResolution`, `shadowResolutionScaleZeroDisables`), 0 taking the shadow away. */
@@ -195,11 +214,8 @@ export interface SceneLight
  * the compiler oracle; it is not an image to look at, and it is black without a rigged bounce.
  */
 export type SceneLightingView = 'auto' | 'lit' | 'unlit' | 'bounce'
-/**
- * Published settings of direct lighting. These are named product choices, not buried
- * constants: every runtime bound rereads them, and the diagnostic publishes them as-is.
- */
-export const LIGHT_SETTINGS = /* @__PURE__ */ (() =>
+/** The solar disk and the light grid's cells, lists and slices. */
+const SUN_AND_GRID_SETTINGS = /* @__PURE__ */ (() =>
   ({
     /** Angular radius of the solar disk in radians; zero explicitly requests hard shadows. This is the
      *  directional light's own default (a disk of 0.5357 degrees); the sky module's sun part sets the
@@ -226,6 +242,10 @@ export const LIGHT_SETTINGS = /* @__PURE__ */ (() =>
     gridFarFloor: 10,
     /** The most depth, in metres, the grid's last slice starts at: a farther light is listed in it. */
     gridFarMax: 2097.152,
+  }) as const)()
+/** The shadow pages, their requests and the sun's clipmaps. */
+const SHADOW_PAGE_SETTINGS = /* @__PURE__ */ (() =>
+  ({
     /**
      * Side of a shadow page, in texels: the unit of the physical pool, of the virtual maps and of
      * invalidation. A moving object only stales the pages its projected box covers.
@@ -236,15 +256,6 @@ export const LIGHT_SETTINGS = /* @__PURE__ */ (() =>
     /** Virtual pages the shading may request per frame at least, as many as the pool holds past it;
      *  the rest ask again the next frame. */
     shadowRequestCap: 4096,
-    /** The widest half-angle a spot's cone is lit at, in radians (88.9°). */
-    spotConeLimit: 88.9 * DEG2RAD,
-    /** The least gap, in radians, between a spot's inner and outer cone. */
-    spotConeGap: 0.001,
-    /** The exponent of a lamp's fall-off by its range alone (`SceneLight.radialExponent`). */
-    radialExponent: 8,
-    /** The squared distance, in square metres, added to a lamp's squared distance in its inverse
-     *  square: 1 square centimetre, so that the light stays finite at the lamp. */
-    lampDistanceBias: 1e-4,
     /**
      * Clipmap levels of a directional light. Level `L` has texels of `2^L` metres, and a pixel
      * reads the level whose texel is at most its own footprint: sixteen levels cover a far/near
@@ -269,6 +280,29 @@ export const LIGHT_SETTINGS = /* @__PURE__ */ (() =>
      * no bias is a length of the scene.
      */
     shadowNormalOffsetTexels: 0.5,
+  }) as const)()
+/** The spot cones and the lamps' fall-off. */
+const LAMP_SETTINGS = /* @__PURE__ */ (() =>
+  ({
+    /** The widest half-angle a spot's cone is lit at, in radians (88.9°). */
+    spotConeLimit: 88.9 * DEG2RAD,
+    /** The least gap, in radians, between a spot's inner and outer cone. */
+    spotConeGap: 0.001,
+    /** The exponent of a lamp's fall-off by its range alone (`SceneLight.radialExponent`). */
+    radialExponent: 8,
+    /** The squared distance, in square metres, added to a lamp's squared distance in its inverse
+     *  square: 1 square centimetre, so that the light stays finite at the lamp. */
+    lampDistanceBias: 1e-4,
+  }) as const)()
+/**
+ * Published settings of direct lighting. These are named product choices, not buried
+ * constants: every runtime bound rereads them, and the diagnostic publishes them as-is.
+ */
+export const LIGHT_SETTINGS = /* @__PURE__ */ (() =>
+  ({
+    ...SUN_AND_GRID_SETTINGS,
+    ...SHADOW_PAGE_SETTINGS,
+    ...LAMP_SETTINGS,
   }) as const)()
 /**
  * Shadow slices the atlas addresses, under the page table's own rules — never a limit on
@@ -326,27 +360,32 @@ export const LIGHT_SHADOWED = { none: 0, static: 1, dynamic: 3 } as const
  *
  *   bits 0-1 rank | 2-4 flags | 5-7 channels | 8-9 shadowed | 10-15 profile | 16 undrawn | 17-22 function index | 23 marker
  */
+// The values below that are derived are pure calls a bundle that reads no light drops: arithmetic on names is code it cannot tell from a call that throws (a BigInt).
 export const LIGHT_CHANNELS_SHIFT = 5
 /** The bits of the kind word that hold a light's shadowed value. */
 export const LIGHT_SHADOWED_BITS = 2
 /** The mask of a light's shadowed value in the kind word, once shifted down (`LIGHT_SHADOWED`). */
-export const LIGHT_SHADOWED_MASK = 2 ** LIGHT_SHADOWED_BITS - 1
-export const LIGHT_SHADOWED_SHIFT = LIGHT_CHANNELS_SHIFT + LIGHTING_CHANNEL_COUNT
-export const LIGHT_PROFILE_SHIFT = LIGHT_SHADOWED_SHIFT + LIGHT_SHADOWED_BITS
+export const LIGHT_SHADOWED_MASK = /* @__PURE__ */ (() => 2 ** LIGHT_SHADOWED_BITS - 1)()
+export const LIGHT_SHADOWED_SHIFT = /* @__PURE__ */ (() =>
+  LIGHT_CHANNELS_SHIFT + LIGHTING_CHANNEL_COUNT)()
+export const LIGHT_PROFILE_SHIFT = /* @__PURE__ */ (() =>
+  LIGHT_SHADOWED_SHIFT + LIGHT_SHADOWED_BITS)()
 /** The bits of the kind word that hold a light's profile. */
 export const LIGHT_PROFILE_BITS = 6
 /** The profiles the lights can name at once: the slice plus one fits `LIGHT_PROFILE_BITS` bits. */
-export const LIGHT_PROFILE_SLICES = 2 ** (LIGHT_PROFILE_BITS - 1)
+export const LIGHT_PROFILE_SLICES = /* @__PURE__ */ (() => 2 ** (LIGHT_PROFILE_BITS - 1))()
 /** The bit of the kind word that is set where the view leaves the light out (`lightDrawn`); a word written anew says drawn. */
-export const LIGHT_UNDRAWN_SHIFT = LIGHT_PROFILE_SHIFT + LIGHT_PROFILE_BITS
-export const LIGHT_FUNCTION_SHIFT = LIGHT_UNDRAWN_SHIFT + 1
+export const LIGHT_UNDRAWN_SHIFT = /* @__PURE__ */ (() =>
+  LIGHT_PROFILE_SHIFT + LIGHT_PROFILE_BITS)()
+export const LIGHT_FUNCTION_SHIFT = /* @__PURE__ */ (() => LIGHT_UNDRAWN_SHIFT + 1)()
 /** The bits of the kind word the parts fill: under the marker. */
 export const LIGHT_PAYLOAD_BITS = 23
 /** The constant bit above the parts (`LIGHT_PAYLOAD_BITS`) that keeps the lane a normal float. */
-export const LIGHT_KIND_MARKER = 2 ** LIGHT_PAYLOAD_BITS
+export const LIGHT_KIND_MARKER = /* @__PURE__ */ (() => 2 ** LIGHT_PAYLOAD_BITS)()
 /** What the readers keep of the kind word: everything but the marker. */
-export const LIGHT_PAYLOAD_MASK = LIGHT_KIND_MARKER - 1
+export const LIGHT_PAYLOAD_MASK = /* @__PURE__ */ (() => LIGHT_KIND_MARKER - 1)()
 /** The bits of the kind word that hold the index of a light's light function. */
-export const LIGHT_FUNCTION_BITS = LIGHT_PAYLOAD_BITS - LIGHT_FUNCTION_SHIFT
+export const LIGHT_FUNCTION_BITS = /* @__PURE__ */ (() =>
+  LIGHT_PAYLOAD_BITS - LIGHT_FUNCTION_SHIFT)()
 /** The entries of the light function table a light can name, entry 0 (none) included. */
-export const LIGHT_FUNCTION_ENTRIES = 2 ** LIGHT_FUNCTION_BITS
+export const LIGHT_FUNCTION_ENTRIES = /* @__PURE__ */ (() => 2 ** LIGHT_FUNCTION_BITS)()

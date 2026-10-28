@@ -8,9 +8,11 @@ export const IMAGE_READS = {
   velocity: true,
   previousInverse: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1],
   relativeThickness: 0.02,
+  depthThicknessScale: 1,
   historyThickness: 0.005,
   fullResDepth: true,
   skylightLeak: [0, 0, 0] as const,
   roughSpecularFoliage: 0.8,
   posesMoving: false,
+  exactLight: false,
 }

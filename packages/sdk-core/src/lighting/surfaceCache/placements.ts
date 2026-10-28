@@ -95,16 +95,29 @@ export function removeAllMeshCards(cache: SurfaceCache) {
 
 /**
  * Makes the atlas the size the settings ask for, and the kind (`compressed`: its albedo, normal and
- * emission in blocks): when it is not that size or that kind already, every card leaves it, and an
- * empty atlas takes its place. Whether it was remade: the textures of the atlas must be made again.
+ * emission in blocks), under the pre-exposure the cards' light is stored with and in the format `light` it is stored in: when it is not that size, that kind, that
+ * pre-exposure or that format already, every card leaves it, and an empty atlas takes its place. Whether it was remade: the textures of the atlas must be made again.
  */
-export function updateAtlasSize(cache: SurfaceCache, compressed: boolean) {
+export function updateAtlasSize(
+  cache: SurfaceCache,
+  compressed: boolean,
+  preExposure: number,
+  light: string,
+) {
   const pages = atlasPages(cache.settings)
-  if (pages === cache.atlasPages && compressed === cache.compressed) return false
+  if (
+    pages === cache.atlasPages &&
+    compressed === cache.compressed &&
+    preExposure === cache.preExposure &&
+    light === cache.light
+  )
+    return false
   removeAllMeshCards(cache)
   cache.allocator = createPageAllocator(pages, pages)
   cache.atlasPages = pages
   cache.compressed = compressed
+  cache.preExposure = preExposure
+  cache.light = light
   return true
 }
 

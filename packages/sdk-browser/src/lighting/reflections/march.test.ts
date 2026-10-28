@@ -214,6 +214,8 @@ test('the reference walk that spends its iterations meets nothing, and says how 
   const { o, d } = falling(20, 120, 30, 100, 0.5, 0.01)
   const whole = march.hit(o, d)
   assert.ok(whole.at && whole.at[0] >= 100 && whole.at[0] < 101, `${whole.at?.[0]}`)
+  // A hit keeps the last point the ray passed above a surface before it, where a hit that is rejected resumes from.
+  assert.ok(whole.above > 0 && whole.above <= (whole.at[0] - 20) / 100, `${whole.above}`)
   // Three iterations cover a few pixels of the way: no coarse cell stands in for the wall.
   const cut = march.hit(o, d, { cap: 3 })
   assert.equal(cut.at, undefined)

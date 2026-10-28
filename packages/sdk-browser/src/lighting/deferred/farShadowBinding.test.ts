@@ -59,7 +59,23 @@ test('the bounce layout binds the screen probes result as a sampled texture, wit
     for (const { limit, kind, count } of counts(layout))
       assert.ok(count <= limitOf(limit), `${count} ${kind}`)
   const storage = counts(entries).find((c) => c.limit === 'maxStorageTexturesPerShaderStage')
-  assert.equal(storage?.count, 3, 'lobes, subsurface and reflection')
+  assert.equal(
+    storage?.count,
+    4,
+    'lobes, subsurface, reflection and the short-range global illumination: the four every device grants',
+  )
+  // Every key of the indirect pass — bounce or not, the sky's shadowing, the ambient cubemap, the lobes — stays within the default of the stage.
+  for (const bounce of [false, true])
+    for (const skyShadowing of [false, true])
+      for (const lobes of [false, true])
+        for (const cubed of [false, true])
+          for (const { limit, kind, count } of counts(
+            indirectLayoutEntries({ bounce, skyShadowing, lobes, cubed }),
+          ))
+            assert.ok(
+              count <= limitOf(limit),
+              `${count} ${kind} (bounce ${bounce}, sky ${skyShadowing}, lobes ${lobes}, cubed ${cubed})`,
+            )
 })
 
 // The stand-in a frame binds where no distance-field shadow was drawn is one word, which the resolve

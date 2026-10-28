@@ -4,11 +4,12 @@ import { SURFACE_CACHE_RULES } from '../../../../../sdk-core/src/contracts/surfa
 import { LIGHTING_PARAMS, SELF_INTERSECTION } from './layout.ts'
 import { shapeOf, writeLightingParams } from './params.ts'
 import { lightingImage, lightingSettings as settings, near } from './params.fixture.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
 test('the radiosity’s traced rays carry the reference’s biases and distances, in centimetres, and the avoidance setting as it is', () => {
   const words = new Uint32Array(LIGHTING_PARAMS.words)
   const floats = new Float32Array(words.buffer)
-  const shape = shapeOf(settings, 1024, false)
+  const shape = shapeOf(settings, 1024, false, WORD_LIGHT_FORMAT)
   const at = LIGHTING_PARAMS.at
   writeLightingParams(words, shape, settings, lightingImage())
   near(floats[at.radiosityRayBias], 0.1)

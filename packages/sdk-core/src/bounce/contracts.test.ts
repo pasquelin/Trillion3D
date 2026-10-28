@@ -52,11 +52,13 @@ test('the queue is laid in the rows of the temporary atlas its probes are traced
   assert.deepEqual(probeQueueShapeOf(8, 6, true), { row: 128, probes: probePool })
 })
 
-test('a pool of its own is a row a power of two wide of as many rows as hold the square of the side asked, within 1 to 1 024', () => {
+test('a pool of its own is a row a power of two wide of as many rows as hold the square of the side asked, within 1 to 255, the 16 bits of a slot plus one holding them', () => {
   assert.equal(probePoolOf(128), BOUNCE_SETTINGS.probePool)
   assert.equal(probePoolOf(100), 128 * 79)
   assert.equal(probePoolOf(0), 1)
-  assert.equal(probePoolOf(1e6), 1024 * 1024)
+  // 255 rows of 256: 65280 slots, the last one named 65280 in the owner word's 16 bits; a side of 256 would make 65536.
+  assert.equal(probePoolOf(1e6), 256 * 255)
+  assert.ok(probePoolOf(1e6) + 1 <= 0xffff)
   // The queue of a pool is never more than it holds, and the world's pool is the default.
   assert.equal(queueFor(1e6, 6, 4096), 4096)
   assert.equal(queueFor(0, 6, probePoolOf(100)) <= probePoolOf(100), true)
@@ -121,6 +123,9 @@ test('the reflections trace with the reference’s budgets: 50 screen iterations
   // The iterations have no upper bound: the reference takes any count.
   assert.equal(reflections({ reflectionScreenSteps: 300 }).screenSteps, 300)
   assert.equal(reflections({ reflectionDistantScreenSteps: 1000 }).distantSteps, 1000)
+  // The march is never given up for want of lanes by default, as the reference's minimum occupancy of 0.
+  assert.equal(reflections({}).screenMinimumOccupancy, 0)
+  assert.equal(reflections({ reflectionScreenMinimumOccupancy: 8 }).screenMinimumOccupancy, 8)
   // The bilateral filter's boost: zero turns it off, and it never passes the images a history holds; its depth weight is 10 000.
   assert.equal(reflections({}).disocclusionFrames, 2)
   assert.equal(reflections({ reflectionBilateralDisocclusionFrames: 0 }).disocclusionFrames, 0)

@@ -2,7 +2,7 @@ import type { JsonSchemaProperty, Trillion3dTool } from './types.ts'
 import { lightShaftProperties } from './lightShaftSchema.ts'
 import { lightingChannelsProperty } from './lightingChannelsMeanings.ts'
 import { DEFAULT_LIGHT_MOBILITY, LIGHT_MOBILITY } from '../scene/light/contracts.ts'
-import { DEFAULT_TEMPERATURE_KELVIN } from '../scene/light/fields.ts'
+import { DEFAULT_CLASSIC_CASCADES, DEFAULT_TEMPERATURE_KELVIN } from '../scene/light/fields.ts'
 import { EXPLORER_OPTIONS_SCHEMA } from './explorerOptionsSchema.ts'
 import { COMPILER_OPTIONS_SCHEMA } from './compilerOptionsSchema.ts'
 import { LEAST_POOL_BUDGET } from '../contracts/poolBudgets.ts'
@@ -18,6 +18,7 @@ import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
+import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
 import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
@@ -26,6 +27,7 @@ import { lightProperties } from './lightLampSchema.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
+import { TEXTURE_FILTERING_RULES } from '../contracts/textureFilteringOptions.ts'
 import { BLOOM_RULES } from '../contracts/bloomRules.ts'
 import { GAUSSIAN_BLUR_RULES } from '../contracts/gaussianBlurRules.ts'
 import { FILM_RULES } from '../contracts/filmOptions.ts'
@@ -33,11 +35,15 @@ import { COLOR_GRADING_RULES } from '../contracts/colorGradingOptions.ts'
 import { SUBSURFACE_SCATTERING_RULES } from '../contracts/subsurfaceScatteringOptions.ts'
 import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
 import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
+import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOptions.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
 import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
+import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
+import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
+import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
 import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_CUBEMAP_RULES } from '../contracts/ambientCubemapOptions.ts'
@@ -157,6 +163,65 @@ const lightFogAndShadowProperties = (): Record<string, JsonSchemaProperty> => ({
     default: false,
     description:
       "Whether this light shines through the subsurface-profile surfaces it shadows (the light that crosses their thickness: ears, fingers, wax). It takes effect only for a 'movable' light that casts shadows.",
+  },
+  castHairDeepShadow: {
+    type: 'boolean',
+    default: false,
+    description:
+      'Whether this light draws a deep shadow of the hair strands it reaches, the high quality self-shadowing of a groom (an extra cost for the light).',
+  },
+  hairDeepShadowLayerDistribution: {
+    type: 'number',
+    minimum: 0,
+    maximum: 1,
+    default: 0.5,
+    description:
+      "How the four layers of this light's hair deep shadow are spread, from 0 (evenly) to 1 (gathered near the front, for more detail on small near details).",
+  },
+  dynamicShadowCascades: {
+    type: 'integer',
+    minimum: 0,
+    default: DEFAULT_CLASSIC_CASCADES.cascades,
+    description:
+      'For a directional light, with shadowVirtualEnable off: the number of cascades its shadow is drawn in (0 draws none), held to shadowCsmMaxCascades.',
+  },
+  cascadeDistributionExponent: {
+    type: 'number',
+    minimum: 1,
+    default: DEFAULT_CLASSIC_CASCADES.exponent,
+    description:
+      'For a directional light, with shadowVirtualEnable off: how much longer each cascade is than the one before (1: all alike, 3: each three times as long).',
+  },
+  cascadeTransitionFraction: {
+    type: 'number',
+    minimum: 0,
+    maximum: 1,
+    default: DEFAULT_CLASSIC_CASCADES.transitionFraction,
+    description:
+      'For a directional light, with shadowVirtualEnable off: the share of a cascade it fades into the next one over, from 0 to 1.',
+  },
+  shadowBias: {
+    type: 'number',
+    minimum: 0,
+    maximum: 4,
+    default: 0.5,
+    description:
+      "The factor on the constant depth bias of this light's classic shadow (shadowVirtualEnable off), from 0 to 4: a larger one pushes the shadow off its casters, against self-shadowing.",
+  },
+  shadowSlopeBias: {
+    type: 'number',
+    minimum: 0,
+    maximum: 4,
+    default: 0.5,
+    description:
+      "The factor on the slope depth bias of this light's classic shadow (shadowVirtualEnable off), from 0 to 4: the bias a surface grazing the light takes.",
+  },
+  dynamicShadowDistance: {
+    type: 'number',
+    minimum: 0,
+    default: DEFAULT_CLASSIC_CASCADES.distance,
+    description:
+      'For a directional light, with shadowVirtualEnable off: the distance in metres its shadow reaches (0 draws none), times shadowDistanceScale.',
   },
 })
 
@@ -387,6 +452,11 @@ const SHADING_SETTING_TOOLS: Trillion3dTool[] = [
     LIGHT_FUNCTION_RULES,
   ),
   /* @__PURE__ */ settingTool(
+    'trillion3d_set_light_profile',
+    'Changes from the next frame the atlas of the light profiles (the photometric shapes the lights name): the texels a side of a slice, and the most profiles the atlas holds. The atlas is made with the profiles the lights ask, up to that number, and made again when more are asked.',
+    LIGHT_PROFILE_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
     'trillion3d_set_volumetric_lightmap',
     "Changes from the next frame whether the precomputed indirect light of the scene (its volumetric lightmap) is read, by the fog's static term and by the lighting of movable objects; on by default. Off, every read answers black.",
     VOLUMETRIC_LIGHTMAP_RULES,
@@ -424,6 +494,11 @@ const POST_SETTING_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_tessellation',
     'Changes from the next frame how a material that names a displacement and switches its tessellation on is drawn: whether it is cut into micro-triangles and pushed along its normals by its height map, the size in pixels of those micro-triangles, the patches a group of the dicing pass takes, and the patches the splitting queue and the visible list hold. A scene whose materials name no displacement is not touched.',
     TESSELLATION_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_texture_filtering',
+    'Changes from the next image the most reads anisotropic filtering takes along a footprint: for the textures streamed by tile (every map of a material), where it also bounds the tiles a pixel asks for, and for the other textures, read through a sampler of their own. A lower ceiling reads fewer taps and costs less, at the cost of sharpness on surfaces seen at a grazing angle.',
+    TEXTURE_FILTERING_RULES,
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_bloom',
@@ -480,6 +555,11 @@ const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
     HAIR_STRANDS_RULES,
   ),
   /* @__PURE__ */ settingTool(
+    'trillion3d_set_heterogeneous_volume_rendering',
+    'Changes from the next frame whether the heterogeneous volumes — volumes of a sparse texture a scene declares — are drawn (on by default), whether the device profile allows them, whether they cast shadows onto the scene and whether they are composited with the translucent surfaces.',
+    HETEROGENEOUS_VOLUME_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
     'trillion3d_set_sky_quality',
     "Changes from the next frame how the sky is drawn: the atmosphere's switches, its samples and their caps, the sizes of its tables and of the haze volume it hazes the distance with, whether a light's shadow shades the air, the clouds' tracing and shadows, the light shafts and the sky light's capture. Each setting's default is the reference's fourth level; the quality presets write the lower ones, and 'cinematic' the fifth.",
     SKY_QUALITY_RULES,
@@ -493,6 +573,21 @@ const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_reflections',
     "Changes from the next frame how the reflections are traced: their level (off, high, ultra, cinematic: how many rays a pixel's reflection is made of and how the rays round it are read), how far a reflected ray looks before the sky answers — the iterations of its march of the screen, the steps it may take in each of the four rings the world's probes cut it into (a ring that spends them before it found a surface is skipped, one that found a surface keeps it), whether and how its first metres are walked in detail, whether the screen is looked at once more past the rings, how far and in how many steps —, what a ray brings back (the ceiling of its radiance, the fog along it, the lit image where a scene hit agrees with the screen) and how the rays are denoised in space and time.",
     REFLECTION_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_screen_space_tracing',
+    "Changes from the next frame what answers the reflections and the indirect diffuse light (the scene's rays by default, or rays marched through the depth the image drew, or nothing), and the quality, roughness fade, tiles, stencil and compute path of the screen reflections and the rays and sky distance of the screen indirect light.",
+    SCREEN_SPACE_TRACING_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_lighting_data_format',
+    'Changes from the next frame the format the light is kept at between the passes of the indirect light (the screen probes, the radiance cache, the translucency volume): 11-11-10 floats (the default), half floats or single floats.',
+    LIGHTING_DATA_FORMAT_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_mesh_distance_field_trace',
+    "Changes from the next frame whether the rays of the indirect light, the reflections and the surface cache's shadows march the meshes' own distance fields over the first stretch of each ray, in place of the global distance field alone (off by default; more exact, dearer where meshes overlap): which of those rays do, how far they march the meshes and how far from the camera a mesh is marched, the meshes a cell of the view grid lists, the radius under which a small mesh is left out, the tuning of the mostly two-sided meshes (foliage) and the grid's cell size and depth slices.",
+    MESH_DISTANCE_FIELD_TRACE_RULES,
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_surface_cache',

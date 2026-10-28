@@ -11,7 +11,7 @@ const levelRow = (level: CastingLevel) => {
 /** The screen probes switch, their placement, their rays, their filtering and their history. */
 const PLACEMENT_AND_FILTER_MEANINGS = /* @__PURE__ */ (() =>
   ({
-    screenProbes: `How a pixel gets its indirect light: from probes placed on the screen, one a tile of pixels, each tracing the screen, then the scene, then the world's bounce probes, filtered in space and time. A level sets the tile, the rays and the probes' format: ${levelRow('high')}; ${levelRow('ultra')}; ${levelRow('cinematic')}. low casts none and reads the world's bounce probes under the short-range occlusion; off lights nothing the screen probes do, and a quality preset writes the bounce off with it. true is the default level, false is off.`,
+    screenProbes: `How a pixel gets its indirect light: from probes placed on the screen, one a tile of pixels, each tracing the screen, then the scene, then the world's bounce probes, filtered in space and time. A level sets the tile, the rays and the probes' format: ${levelRow('high')}; ${levelRow('ultra')}; ${levelRow('cinematic')}. off lights nothing the screen probes do (the pixels' indirect light is then black while the bounce is on), and the smooth quality preset writes the bounce off with it; the balanced preset is the high level with the irradiance field gathering the light (finalGatherMethod). true is the default level, false is off.`,
     screenProbeQuality:
       "Scale on the screen probes' rays and tiles: the rays along a probe's side follow its square root (powers of two, 4 to 16); from 6 the tiles are halved, from 4 the jitter of the probes a pixel reads is.",
     screenProbeUpdateSpeed:
@@ -19,20 +19,114 @@ const PLACEMENT_AND_FILTER_MEANINGS = /* @__PURE__ */ (() =>
     screenProbeAdaptiveFraction:
       "Share of the uniform probes the adaptive placement may add where a tile's probes do not cover a surface; 0 places none, above 1 is allowed.",
     screenProbeGatherScale:
-      "The side of the octahedron a probe's rays are filtered and integrated at, as a share of the side they are traced at, from 0.1 to 1 (the whole number nearest its inverse divides the tracing side): above 1 would upsample, which the reference does not support.",
+      "The side of the octahedron a probe's rays are filtered and integrated at, as a multiple of the side they are traced at, from 0.1 to 4: under 1 the whole number nearest its inverse divides the tracing side, from 1 the whole number nearest it multiplies it, to at most 16 texels a side (the workgroup memory of the conversion).",
     screenProbeScreenTraces:
       "Whether a probe's ray first looks for what the last image shows (the depth pyramid and the lit image) before the world's bounce probes answer it; false, every ray is the bounce probes' alone.",
     screenProbeImportanceSampling:
       "Whether the probes' rays go where the light is: the directions are drawn by the cosine lobes of the pixels the probe stands for and by the light the last image gathered there, three rays under the minimum probability giving their place to one ray of the best, refined into four; false, the same octahedron of rays at every probe.",
+  }) satisfies Partial<Record<ScreenProbeField, string>>)()
+
+/** The spatial and temporal filters. */
+const FILTER_MEANINGS = /* @__PURE__ */ (() =>
+  ({
     screenProbeSpatialFilter:
       "Whether a probe's gathered light is averaged with the four probes beside it, each weighed by its depth and by the angle its ray makes, as many passes as screenProbeSpatialFilterPasses; false, none.",
     screenProbeSpatialFilterPasses: 'Passes of the spatial filter.',
     screenProbeSpatialFilterKernel:
       'The half size of the spatial filter kernel: any value above 0 runs the filter, 0 turns it off (the filter itself is the fixed neighbourhood of four probes, eight more where a probe moves).',
     screenProbeMaxRayIntensity:
-      "The most radiance a ray adds to its probe: a brighter ray is scaled down to it, so that a lit pixel's glare does not flicker in the probes. A number of the pre-exposed light (the light as the camera's exposure scales it, the reference's own unit), so a darker exposure holds a brighter scene radiance to it.",
+      "The most radiance a ray adds to its probe: a brighter ray is scaled down to it, so that a lit pixel's glare does not flicker in the probes. A number of the pre-exposed light (the light as the camera's exposure scales it, the reference's own unit), so a darker exposure holds a brighter scene radiance to it. Held to 100000 at most.",
     screenProbeTemporal:
       "Whether a pixel's indirect light is blended with its history, reprojected through the last image's view; false, each image stands alone.",
+    screenProbeDownsampleFactor:
+      "Pixels along a side of the tile one probe is placed on, from 4 to 64; a negative value takes the level's row.",
+    screenProbeTracingResolution:
+      "Rays along a side of a probe's octahedron before the quality scales them, 4 to 16 (a power of two); a negative value takes the level's row.",
+    screenProbeNumAdaptiveProbes:
+      "Adaptive probes a tile may add (4 takes a 2 by 2 sample grid, 8 a 4 by 2, 16 or more a 4 by 4); a negative value takes the level's row.",
+    screenProbeFullResolutionJitterWidth:
+      "The width, in tiles, the point a pixel reads its probes from is jittered by (halved from quality 4); a negative value takes the level's row.",
+    screenProbeOcclusionSlices:
+      "View-space slices the short-range occlusion searches a pixel along; a value under 1 takes the level's row.",
+    screenProbeOcclusionForegroundPower:
+      "How strongly occluders in front of the horizon weigh, held to 0.1 to 10; a negative value takes the level's row.",
+    screenProbeOcclusionPyramid:
+      "Whether the short-range occlusion reads the depth pyramid (1, quicker, less detail on thin occluders) or the depth itself (0); a negative value takes the level's row.",
+    screenProbeIrradianceFormat:
+      "How a probe keeps its irradiance: 'level' the level's row, 'sh3' spherical harmonics, 'octahedral' an octahedral map; an occlusion applied during the integration with the bent normal always takes the harmonics.",
+    screenProbeRadianceCacheUpdate:
+      "Whether the world's probes are updated at every image (their marks, the probes given back and the maps traced); false freezes them as they are, for debugging.",
+    screenProbeRadianceCacheForceFullUpdate:
+      "Whether every image updates the whole world's probes cache at no budget (every probe given back and traced anew), for debugging.",
+    screenProbeDebugForceTracesMoving:
+      'Whether every probe counts as moving (its history gives way and its filter reaches twelve neighbours), for debugging.',
+    screenProbeReferenceMode:
+      "Whether the probes are the slow reference of the indirect light: tiles of 16 pixels, 32 rays along a probe's side (workgroups of 1024 threads: a device granting fewer refuses the probes), a gather side of 8, every pixel integrated numerically over the probes' radiance, and no importance sampling, spatial filter, probe filtering in time, radiance cache or short-range occlusion, whatever those settings say.",
+    screenProbeFilteringWaveOps:
+      "Whether the conversion of a probe's radiance to its harmonics sums over the subgroups of the device (32 or 64 lanes, where every subgroup has as many) instead of one thread adding the texels in turn: the same sums, added in another order.",
+    screenProbeScreenTracesMinimumOccupancy:
+      "The number of lanes of a subgroup (32 threads) that must still be marching the depth pyramid for the screen trace of a probe's ray to go on (0 by default: never given up): when fewer are left, the rays still marching give the screen up where they stopped and go on to the scene. A scalability setting that abandons the few long traces that keep a whole subgroup waiting.",
+    screenProbeScreenTracesHZBTraversal:
+      "Whether a probe's ray walks the depth pyramid hierarchically, which finds thin features, or casts a ray of 16 fixed steps over the furthest depth, limited to a fifth of the screen's width, which is quicker and misses thin features and ends at the first sample behind a surface.",
+    screenProbeRadianceCacheSortTraceTiles:
+      "Whether the trace tiles of the world's probes are ordered by the direction they trace, in groups of 64 tiles, before they are traced, so that the rays of a subgroup point the same way (false by default, as the reference).",
+    screenProbeOcclusionVisibilityBitmask:
+      "Whether the short-range occlusion keeps, for each slice, a bitmask of 32 sectors the samples occlude (a sample's surface given a thickness of half the foreground fraction of the pixel's depth), instead of the highest horizon of each side: a thin occluder then leaves the sectors beside it open. The direction of the open sky is not found in this mode (the normal stands in for it).",
+    screenProbeOcclusionHorizonSearch:
+      'Whether the short-range occlusion searches the depth along view-space slices for the occluded horizon (true), or integrates the hemisphere stochastically: 4 rays a pixel (8 from a quality of 2, 16 from 6), cosine distributed, each cast over the furthest depth in four steps, blocked where it meets a surface.',
+    screenProbeOcclusionSlopeCompareToleranceScale:
+      'Scales the slope tolerance of the rays the stochastic hemisphere casts to tell a hit (0.5 by default); read only where the horizon search is off.',
+    screenProbeShortRangeGI:
+      "Whether the short-range occlusion also gathers the light the near surfaces of the last image give a pixel (experimental in the reference): along its slices, past the occlusion's reach to a fraction of the screen, the horizon's new surfaces add their lit colour, weighed by the share of the horizon they raise, the cosines of the two normals and a fade at the edge of the search. Only the horizon search finds it (not the visibility bitmask nor the stochastic hemisphere).",
+    screenProbeShortRangeGIMaxScreenFraction:
+      "The furthest the short-range global illumination reaches, as a fraction of the screen's width (0.1 by default), held between the occlusion's reach and one.",
+    screenProbeShortRangeGIMaxRayIntensity:
+      'The most a sample of the short-range global illumination adds, in the pre-exposed light of the last image (5 by default): a brighter one is scaled down to it.',
+  }) satisfies Partial<Record<ScreenProbeField, string>>)()
+
+/** The rest of the filters. */
+const FILTER_MEANINGS_REST = /* @__PURE__ */ (() =>
+  ({
+    screenProbeShortRangeGIHistoryDepthTestRelativeThickness:
+      "The relative depth thickness within which the last image's depth must agree with a sample's expected depth for the sample to give light (0.0005 by default).",
+    finalGatherMethod:
+      "How the indirect light of the opaque surfaces is gathered: 'screenProbes' (the default), probes placed on the screen that trace the screen and the scene, filtered in space and time, or 'irradianceField', the world's probes placed round the pixels, their irradiance and occlusion precomputed, interpolated to the pixels: quicker, lower quality. The irradianceField* settings shape the field.",
+    irradianceFieldNumClipmaps:
+      'The levels of probes of the irradiance field, from 1 (4 by default); each is wider than the one before by irradianceFieldClipmapDistributionBase.',
+    irradianceFieldClipmapWorldExtent:
+      'The extent of the first level of the irradiance field, in metres (50 by default).',
+    irradianceFieldClipmapDistributionBase:
+      'The base of the power that sizes each next level of the irradiance field against the first (2 by default).',
+    irradianceFieldNumProbesToTraceBudget:
+      'The probes of the irradiance field traced each image, in the cost of a whole map each (100 by default).',
+    irradianceFieldGridResolution:
+      "The cells a side of a level of the irradiance field's probe placement grid, from 1 to 256 (64 by default).",
+    irradianceFieldProbeResolution:
+      "The texels a side of a probe's radiance map in the irradiance field, 8 to 64 (16 by default): the rays traced for a probe are its square.",
+    irradianceFieldIrradianceProbeResolution:
+      "The texels a side of a probe's irradiance map in the irradiance field (6 by default).",
+    irradianceFieldOcclusionProbeResolution:
+      "The texels a side of a probe's occlusion map in the irradiance field (16 by default).",
+    irradianceFieldNumMipmaps:
+      'The levels of detail of the radiance maps of the irradiance field, 1 to 3 (3 by default).',
+    irradianceFieldProbeAtlasResolutionInProbes:
+      "The probes along a side of the irradiance field's atlas, 1 to 255 (128 by default): the memory the field holds; past it the cells go unanswered.",
+    irradianceFieldProbeOcclusionBias:
+      'The bias off the surface, along its normal and toward the viewer, the occlusion of a probe is read at to avoid self-occlusion, in metres (0.008 by default).',
+    irradianceFieldShortRangeAORadius:
+      'The radius of the short-range occlusion the irradiance field gathers with, in pixels (32 by default).',
+    irradianceFieldInterpolateDownsampleFactor:
+      'The reduction the irradiance field is interpolated and shaded at, 1 or 2 (2 by default).',
+    irradianceFieldMarkProbesDownsampleFactor:
+      "The reduction, on top of the interpolation's, the pixels mark the irradiance field's probes at, 1 to 8 (2 by default): too high and small geometry flickers black.",
+    irradianceFieldAdaptivePlacement:
+      'Whether the irradiance field places probes where an interpolation fails for want of an unoccluded one (false by default).',
+    irradianceFieldAdaptivePlacementFeedbackTileSize:
+      'One pixel in every tile of this many pixels a side reports the interpolation failures of the adaptive placement, 1 to 256 (8 by default).',
+    irradianceFieldMaxRoughnessToEvaluateRoughSpecular:
+      'The roughness past which a pixel of the irradiance field takes its diffuse light as its rough specular (0.8 by default).',
+    screenProbeClearHistoryEveryFrame:
+      "Whether the probes' history is cleared at every image, for debugging: each image then stands alone, as after a camera cut.",
     screenProbeMaxFramesAccumulated:
       "The frames a pixel's history holds at most, from 1 (scaled by screenProbeUpdateSpeed, and a count past 15 is kept in four bits as a share of it): each new image enters at one over one plus the frames held.",
     screenProbeMaxRayDirections:
@@ -71,7 +165,7 @@ const OCCLUSION_AND_TRACE_MEANINGS = /* @__PURE__ */ (() =>
     screenProbeOcclusionMaxAlbedo:
       'The albedo above which the multiple bounces of the occlusion see none more (the material occlusion too): near-white surfaces keep some.',
     screenProbeOcclusionFoliageStrength:
-      "The most the short-range occlusion applies on the pixels of a thin double-sided sheet that transmits light (a leaf, a curtain: a material with a subsurface colour), from 0 (none) to 1 (whole): their occlusion amount is mixed toward 1 by it, which stands for the light scattering through the sheet. Negative, the default, is the level's row: 1 at low, whose world probes light them flatter, 0.7 at high, ultra and cinematic.",
+      "The most the short-range occlusion applies on the pixels of a thin double-sided sheet that transmits light (a leaf, a curtain: a material with a subsurface colour), from 0 (none) to 1 (whole): their occlusion amount is mixed toward 1 by it, which stands for the light scattering through the sheet. Negative, the default, is the level's row: 0.7 at high, ultra and cinematic (the balanced preset writes 1, whose irradiance field lights them flatter).",
     screenProbeOcclusionClampScale:
       "How far, in deviations of its neighbourhood, the history of the occlusion may stray from the neighbourhood's mean: larger ghosts more and flickers less; zero or less, no clamp.",
     screenProbeShortRangeAOApplyDuringIntegration:
@@ -79,7 +173,7 @@ const OCCLUSION_AND_TRACE_MEANINGS = /* @__PURE__ */ (() =>
     screenProbeShortRangeAODownsampleFactor:
       "The reduction, 1 or 2, the short-range occlusion is searched at (the pixels of the image over a texel of it): 2 searches a fourth of the pixels and rebuilds the others from their neighbours. -1 (the default) takes the level's own (high 2, ultra and cinematic 1). It is 1 where the occlusion is applied during the integration (screenProbeShortRangeAOApplyDuringIntegration) and the integration is asked another reduction (screenProbeIntegrateDownsampleFactor), or where it is not blended with its history (screenProbeOcclusionTemporal false).",
     screenProbeIntegrateDownsampleFactor:
-      'The reduction, 1 (the default) or 2, the integration of the probes runs at (the pixels of the image over a texel of it): 2 integrates a fourth of the pixels, one of each two by two block taken in turn over four images, which makes the pass faster but can blur some of the fine indirect light of a normal map; the temporal pass then rebuilds each pixel from the four texels round it, picked stochastically by their depth and normal. It is 1 where the short-range occlusion is applied during the integration (screenProbeShortRangeAOApplyDuringIntegration) at another reduction than this one (screenProbeShortRangeAODownsampleFactor), and where the level casts no probe or its tiles are not classified (screenProbeIntegrationTileClassification false). With both at 2 the occlusion is searched at the same reduction.',
+      'The reduction, 1 (the default) or 2, the integration of the probes runs at (the pixels of the image over a texel of it): 2 integrates a fourth of the pixels, one of each two by two block taken in turn over four images, which makes the pass faster but can blur some of the fine indirect light of a normal map; the temporal pass then rebuilds each pixel from the four texels round it, picked stochastically by their depth and normal. It is 1 where the short-range occlusion is applied during the integration (screenProbeShortRangeAOApplyDuringIntegration) at another reduction than this one (screenProbeShortRangeAODownsampleFactor), and where its tiles are not classified (screenProbeIntegrationTileClassification false). With both at 2 the occlusion is searched at the same reduction.',
     screenProbeIntegrationTileClassification:
       "Whether the integration of the probes is dispatched over lists of tiles of eight by eight pixels, one list for each of its three modes (true, the default): the simple mode takes the diffuse light over pi for the rough specular and samples nothing, the sampled mode samples the pixel's BRDF over the probes' radiance for its diffuse light where screenProbeDiffuseIntegralMethod asks it and samples the lobe of the rough specular, and the complete mode (any tile with a hair pixel) samples the whole sphere for hair; a tile with no lit pixel is cleared and integrated by none. A tile takes the most complete mode of its pixels. false, one dispatch over every pixel runs every branch for each of them (slower), and the integration is not downsampled (screenProbeIntegrateDownsampleFactor is then 1).",
     screenProbeDiffuseIntegralMethod:
@@ -91,7 +185,7 @@ const OCCLUSION_AND_TRACE_MEANINGS = /* @__PURE__ */ (() =>
     screenProbeMinTraceDistance:
       "Metres: the nearest a probe's scene ray starts (from the point it leaves the surface by), from 0.0001 (the default) to 10.",
     screenProbeSurfaceBias:
-      "Metres: how far off the surface a probe's scene ray starts (along the surface's normal and along the ray), and, twice, how far back from where the screen lost the ray the trace begins.",
+      "Metres, from 0.0001 to 1: how far off the surface a probe's scene ray starts (along the surface's normal and along the ray), and, twice, how far back from where the screen lost the ray the trace begins.",
   }) satisfies Partial<Record<ScreenProbeField, string>>)()
 
 /** The interpolation, the history, the disocclusion and the screen trace. */
@@ -114,7 +208,7 @@ const HISTORY_AND_SCREEN_TRACE_MEANINGS = /* @__PURE__ */ (() =>
     screenProbeRelativeSpeedThreshold:
       "The speed difference, over the probe's depth (a metre at least), from which the end of a ray counts as moving against its probe.",
     screenProbeFastUpdateFraction:
-      "The share of a pixel's light that must move (rays ending on moving surfaces) for its history to give way entirely.",
+      "The share of a pixel's light that must move (rays ending on moving surfaces) for its history to give way entirely (taken as 0.001 at least).",
     screenProbeMaxFastUpdate:
       'The most the history gives way by where the light moves, from 0 to 1: nearer 1, faster to follow the change and noisier.',
     screenProbeFastUpdateClamp:
@@ -159,7 +253,7 @@ const RADIANCE_CACHE_AND_FOLIAGE_MEANINGS = /* @__PURE__ */ (() =>
     screenProbeRadianceCacheTemporaryAtlasDownsampleFactor:
       "The factor, from 1 to 1024 (6 by default), the radiance cache's atlas is divided by for the temporary atlas the world probes one image updates are traced into: the pool over it is the most probes an image queues at a small budget (four times the budget past it). Larger, less transient memory, but a queue that may overflow and show artifacts.",
     screenProbeMarkDownsampleFactor:
-      'Where the image casts no screen probe (the level low), the cells of the radiance cache it reads are marked from one pixel in this many along each side of the image already downsampled by screenProbeInterpolateDownsampleFactor (2 by default, from 1 to 8; the pixel turns with the frame): larger marks fewer pixels, but small geometry may flicker black.',
+      'Where the image casts no screen probe (the irradiance field or the light of the screen itself gathers it, the level is off, or it is the first image), the cells of the radiance cache it reads are marked from one pixel in this many along each side of the image already downsampled by screenProbeInterpolateDownsampleFactor (2 by default, from 1 to 8; the pixel turns with the frame): larger marks fewer pixels, but small geometry may flicker black.',
     screenProbeInterpolateDownsampleFactor:
       'The downsampling, from 1 to 2 (2 by default), of the image that the cells of the radiance cache are marked from where the image casts no screen probe, before screenProbeMarkDownsampleFactor: one pixel in this many along each side, turning with the frame.',
     screenProbeTranslucencyReflectionsRadianceCache:
@@ -182,6 +276,11 @@ const RADIANCE_CACHE_AND_FOLIAGE_MEANINGS = /* @__PURE__ */ (() =>
       'Metres: only the probes nearer the eye than this may be supersampled; zero or less, none.',
     screenProbeRadianceCacheMipmaps:
       "The levels of detail of the radiance cache's maps, from 1 to 3: a ray's cone wider than a texel of the map reads a coarser level (each half the side of the one before), so that the maps' texels are not aliased; 1 keeps the whole side alone.",
+  }) satisfies Partial<Record<ScreenProbeField, string>>)()
+
+/** The rest of the radiance cache's. */
+const RADIANCE_CACHE_MEANINGS_REST = /* @__PURE__ */ (() =>
+  ({
     screenProbeRadianceCacheSkyVisibility:
       'Whether the radiance cache keeps the sky apart from the light: each texel holds, beside the light the rays found on surfaces, the share of its ray that left the scene, which the reader fills with the sky itself in that direction (the sky then follows the current sun without the maps being traced again); false, the sky is in the light.',
     screenProbeRadianceCacheHardwareRayTracing:
@@ -214,6 +313,11 @@ const RADIANCE_CACHE_AND_FOLIAGE_MEANINGS = /* @__PURE__ */ (() =>
       "Metres: the distance of a probe's ray hit at which the sky light leaks onto it whole (10 by default; the share grows linearly from the probe's surface), held to the furthest a ray looks (screenProbeMaxTraceDistance); used only where reflectionSkylightLeaking is above 0.",
     screenProbeHeightFogOnGI:
       "Whether the height fog is laid over the light the probes' rays bring back from the scene, as it is over the reflections' rays (false by default: the effect is usually less noticeable than on the reflections, and in a heavily fogged scene it mismatches the direct lighting, the sky lighting being removed). A ray a hit found is fogged along the distance it hit at, from the point it started at; a ray that found nothing, and was answered by the radiance cache or the sky, from the probe's own point over at least reflectionMinDistanceForFoggingSky; the fog is laid on the light where it is written, with no pass of its own; the rays the screen answered already hold the fog the image drew. It needs reflectionHeightFog on, and is used only at a level that casts probes.",
+  }) satisfies Partial<Record<ScreenProbeField, string>>)()
+
+/** The foliage and the roughness limits. */
+const FOLIAGE_MEANINGS = /* @__PURE__ */ (() =>
+  ({
     screenProbeTwoSidedFoliageBackfaceDiffuse:
       "Whether the pixels of a thin double-sided sheet that transmits light (a leaf, a curtain: a material with a subsurface colour) gather the light along their backface from the probes, accumulated like the front's and lit on the subsurface colour, over a level that allows it (ultra and cinematic do; high does not); false, or at a level that does not, the back of the sheet reads the sky light's irradiance.",
     screenProbeMaxRoughnessToEvaluateRoughSpecular:
@@ -227,7 +331,11 @@ const RADIANCE_CACHE_AND_FOLIAGE_MEANINGS = /* @__PURE__ */ (() =>
 export const SCREEN_PROBE_MEANINGS: Readonly<Record<ScreenProbeField, string>> =
   /* @__PURE__ */ (() => ({
     ...PLACEMENT_AND_FILTER_MEANINGS,
+    ...FILTER_MEANINGS,
+    ...FILTER_MEANINGS_REST,
     ...OCCLUSION_AND_TRACE_MEANINGS,
     ...HISTORY_AND_SCREEN_TRACE_MEANINGS,
     ...RADIANCE_CACHE_AND_FOLIAGE_MEANINGS,
+    ...RADIANCE_CACHE_MEANINGS_REST,
+    ...FOLIAGE_MEANINGS,
   }))()

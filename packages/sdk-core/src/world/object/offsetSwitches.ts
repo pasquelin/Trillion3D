@@ -1,5 +1,12 @@
 import { noteNodeWrite } from '../../scene/core/nodeEdits.ts'
 import { isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
+import {
+  NO_SHADOW_CAPSULES,
+  OBJECT_CAPSULE_SHADOW_RULES,
+  SHADOW_CAPSULES_EXPECTED,
+  isShadowCapsules,
+  type ShadowCapsuleBody,
+} from '../../contracts/capsuleShadowOptions.ts'
 import { OBJECT_MOBILITIES, type ObjectMobility } from '../../contracts/objectAbi.ts'
 import {
   DEFAULT_LIGHTING_CHANNELS,
@@ -40,6 +47,10 @@ import {
  * `../../contracts/filmOptions.ts`): its pixels draw black, lit by nothing, and punch a hole in the alpha.
  * One more, `castContactShadow` (true), says whether the object stops the contact shadow rays the lights
  * cast from the pixels around it (`../../contracts/contactShadowOptions.ts`); `false` lets them through.
+ * `castCapsuleDirectShadow` and `castCapsuleIndirectShadow` (false) say whether the object casts the capsule shadows of its
+ * `shadowCapsules` (none), spheres and capsules fitted to its bones, from the lights and on the sky and the indirect light
+ * (`../../contracts/capsuleShadowOptions.ts`), `capsuleIndirectShadowMinVisibility` (0.1) the share of the indirect light that
+ * stays under that shadow.
  * `lightingChannels` (channel 0 alone) says which of the three lighting channels the object is in: a light
  * lights it, and a light's shadow holds it, only where they share a channel (`../../contracts/lightingChannelsAbi.ts`).
  * And two that hide it by who looks: `ownerNoSee` (false) hides the object from the views that belong to
@@ -75,6 +86,10 @@ export interface OffsetSwitches {
   castHiddenShadow: boolean
   holdout: boolean
   castContactShadow: boolean
+  castCapsuleDirectShadow: boolean
+  castCapsuleIndirectShadow: boolean
+  capsuleIndirectShadowMinVisibility: number
+  shadowCapsules: readonly ShadowCapsuleBody[]
   lightingChannels: Readonly<LightingChannels>
   ownerNoSee: boolean
   onlyOwnerSee: boolean
@@ -92,6 +107,11 @@ const DEFAULTS: Readonly<OffsetSwitches> = {
   castHiddenShadow: false,
   holdout: false,
   castContactShadow: true,
+  castCapsuleDirectShadow: OBJECT_CAPSULE_SHADOW_RULES.castCapsuleDirectShadow.default,
+  castCapsuleIndirectShadow: OBJECT_CAPSULE_SHADOW_RULES.castCapsuleIndirectShadow.default,
+  capsuleIndirectShadowMinVisibility:
+    OBJECT_CAPSULE_SHADOW_RULES.capsuleIndirectShadowMinVisibility.default,
+  shadowCapsules: NO_SHADOW_CAPSULES,
   lightingChannels: DEFAULT_LIGHTING_CHANNELS,
   ownerNoSee: false,
   onlyOwnerSee: false,
@@ -143,6 +163,8 @@ function switchRule<K extends SwitchKey>(
 }
 
 const isBoolean = (value: unknown): value is boolean => typeof value === 'boolean'
+const isUnit = (value: unknown): value is number =>
+  isFiniteNumber(value) && value >= 0 && value <= 1
 const isDistance = (value: unknown): value is number => isFiniteNumber(value) && value >= 0
 const isShadowCache = (value: unknown): value is ShadowCacheInvalidation =>
   SHADOW_CACHE_INVALIDATIONS.some((one) => one === value)
@@ -177,6 +199,19 @@ const SWITCHES = {
   castHiddenShadow: switchRule('castHiddenShadow', isBoolean, 'true or false'),
   holdout: switchRule('holdout', isBoolean, 'true or false'),
   castContactShadow: switchRule('castContactShadow', isBoolean, 'true or false'),
+  castCapsuleDirectShadow: switchRule('castCapsuleDirectShadow', isBoolean, 'true or false'),
+  castCapsuleIndirectShadow: switchRule('castCapsuleIndirectShadow', isBoolean, 'true or false'),
+  capsuleIndirectShadowMinVisibility: switchRule(
+    'capsuleIndirectShadowMinVisibility',
+    isUnit,
+    'a number from 0 to 1',
+  ),
+  shadowCapsules: switchRule(
+    'shadowCapsules',
+    isShadowCapsules,
+    SHADOW_CAPSULES_EXPECTED,
+    (bodies) => (bodies.length ? Object.freeze([...bodies]) : NO_SHADOW_CAPSULES),
+  ),
   // The channels held are the one frozen object of their mask: equal sets are the same value.
   lightingChannels: switchRule(
     'lightingChannels',

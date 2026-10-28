@@ -54,13 +54,17 @@ for (const pool of ['vsmFilterableSeparate', 'vsmFilterableMerged'] as const)
 /** A clipmap of three levels, the maps 0 to 2: level 0's page 0 at (64, 64), level 1's page 1 at (32, 32)
  *  (the finer level's texel (x, y) is the coarser one's (x / 2, y / 2) less the corner steps' offset),
  *  level 2's page 2 at (16, 16). A page is `written` (its dynamic layer drawn into) or as cleared. */
-function mergeWorld(written: [boolean, boolean, boolean], corner1: [number, number] = [0, 0]) {
+function mergeWorld(
+  written: [boolean, boolean, boolean],
+  corner1: [number, number] = [0, 0],
+  page1: [number, number] = [32, 32],
+) {
   const w = filterableWorld()
   w.addMap(0, { levelsLeft: 3 })
   w.addMap(1, { levelsLeft: 2, cornerSteps: corner1 })
   w.addMap(2, { levelsLeft: 1 })
   w.addPage(0, 0, [64, 64], { secondary: true, written: written[0] })
-  w.addPage(1, 1, [32, 32], { secondary: true, written: written[1] })
+  w.addPage(1, 1, page1, { secondary: true, written: written[1] })
   w.addPage(2, 2, [16, 16], { secondary: true, written: written[2] })
   w.list('filterable', [0])
   return w
@@ -92,11 +96,12 @@ test('the merge down: from 1 where the page’s dynamic layer is as cleared, tim
   for (const lx of [0, 1, 7, 16, 31]) assert.equal(out(lx, 3), rampAt(lx), `texel ${lx}`)
 })
 
-test('the coarser level’s corner steps move the read by 32 texels a step, halved at each level', () => {
-  const w = mergeWorld([false, true, false], [1, 0])
+test('the coarser level’s corner steps move the read by a quarter of the map’s texels (4096, 32 pages) a step, halved at each level', () => {
+  // Level 1's page that covers the page (64, 64) of level 0 is, with a corner step of one in x, 32 pages along: (64, 32).
+  const w = mergeWorld([false, true, false], [1, 0], [64, 32])
   fill(w, 1, 'ramp')
   const out = merged(w)
-  for (const lx of [0, 5, 20]) assert.equal(out(lx, 9), rampAt(lx, 32), `texel ${lx}`)
+  for (const lx of [0, 5, 20]) assert.equal(out(lx, 9), rampAt(lx), `texel ${lx}`)
 })
 
 test('a page written starts at its own value; a coarser page as cleared adds nothing, a written one multiplies', () => {

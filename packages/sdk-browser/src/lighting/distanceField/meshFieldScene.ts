@@ -130,6 +130,10 @@ export function createMeshFieldScene(
     get roots() {
       return scene.roots
     },
+    /** The placements in the order of the GPU's records: each with the cut's root it places and its record's rank. */
+    get placements() {
+      return tracker.objects
+    },
     /** How many times the resources the bindings name were made anew; 0 before the first image of the field. */
     get generation() {
       return scene.group.generation

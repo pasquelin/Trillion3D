@@ -29,6 +29,7 @@ import {
 import { type VsmResources, vsmBindGroupLayoutEntries } from './resources.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../../../session/memory/pools.ts'
 import type { VsmLayout } from './layout.ts'
+import { uniformBuffer } from '../../../gpu/core/uniformBlock.ts'
 
 /** Options of the page management passes. */
 interface VsmPageManagementOptions {
@@ -163,11 +164,7 @@ export function vsmPageManagementContext(
     label: 'vsm.pm.params',
     entries: paramsEntries(),
   })
-  const params = device.createBuffer({
-    label: 'vsm.pm.params',
-    size: slots.bytes,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  const params = uniformBuffer(device, 'vsm.pm.params', slots.bytes)
   const paramsGroup = device.createBindGroup({
     label: 'vsm.pm.params',
     layout: paramsLayout,

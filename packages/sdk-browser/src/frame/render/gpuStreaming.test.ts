@@ -1,17 +1,19 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
 import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera, streamingQuadBackend } from '../backend/testScenes.fixture.ts'
+import {
+  backendOf,
+  quadScene,
+  camera,
+  streamingQuadBackend,
+} from '../backend/testScenes.fixture.ts'
 import { coarseQuadScene } from '../backend/coarseQuads.fixture.ts'
 import type { Engine } from '../../session/engine/types.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 test('a GPU-driven image reaches the queue as one command buffer', async () => {
   installGpuGlobals()
@@ -23,12 +25,9 @@ test('a GPU-driven image reaches the queue as one command buffer', async () => {
     fixture.indices,
   )
   const { device, submits } = fakeDevice({ ...BACKEND, packed: packDagSelection(collected.roots) })
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   }) as Engine
   try {
     await backend.prepare()

@@ -23,12 +23,6 @@ export function boxSphereOf(box: ArrayLike<number>): BoxSphere {
   return volume
 }
 
-/** A copy of `bounds`. */
-export const copyBoxSphere = (bounds: BoxSphere): BoxSphere => ({
-  box: Float64Array.from(bounds.box),
-  sphere: Float64Array.from(bounds.sphere),
-})
-
 /** `out` as `bounds` grown by `amount` on every side: its box and its sphere. */
 export function expandInto(out: BoxSphere, bounds: BoxSphere, amount: number) {
   boxGrow(out.box, 0, bounds.box, 0, amount)

@@ -11,7 +11,8 @@ import {
   type SurfaceHitBindings,
 } from '../../surfaceCache/hitWgsl.ts'
 import { dagReadLayoutEntries } from '../../../geometry/dag/shader/bindings.ts'
-import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
+import { oncePerDevice, oncePerDeviceKey } from '../../../gpu/core/oncePerDevice.ts'
+import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { sceneTraceLayoutEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
 import { HDR_FORMAT } from '../../../scene/targetFormats.ts'
 import { BLUE_NOISE_FORMAT } from '../../../gpu/noise/blueNoiseTextures.ts'
@@ -118,8 +119,9 @@ export const REFLECTION_HIT_BINDINGS: SurfaceHitBindings = {
   feedback: true,
 }
 
-/** The hit's read the scene stage's rays end in (`scGlobalHit`), over the group's bindings. */
-export const REFLECTION_SURFACE_HIT_WGSL = surfaceHitWgsl(REFLECTION_HIT_BINDINGS)
+/** The hit's read the scene stage's rays end in (`scGlobalHit`), over the group's bindings, the cache's final light stored in `light`. */
+export const reflectionSurfaceHitWgsl = (light: LightAtlasFormat) =>
+  surfaceHitWgsl(REFLECTION_HIT_BINDINGS, light)
 
 /** The surface every kernel reads — its flags, normals and lobes. */
 const pixels = () => [
@@ -171,7 +173,11 @@ const fog = () => rayFogLayoutEntries(REFLECTION_FOG_BINDINGS, true)
 /** What a ray reads of the scene here — the field with the lights, and what a hit reads (`REFLECTION_HIT_BINDINGS`): the global
  *  distance field the ray is marched through with its object grid, the surface cache its hit is read in, less the layers a hit
  *  does not read, and the table from an object of the grid to its placement. The scene stage's alone. */
-const scene = () => [...field(), ...fog(), ...surfaceHitLayoutEntries(REFLECTION_HIT_BINDINGS)]
+const scene = (light: LightAtlasFormat) => [
+  ...field(),
+  ...fog(),
+  ...surfaceHitLayoutEntries(REFLECTION_HIT_BINDINGS, light),
+]
 
 /** The classification's layout: the pixels and the four lists it fills. */
 const classifyLayout = (device: GPUDevice) =>
@@ -185,39 +191,27 @@ const classifyLayout = (device: GPUDevice) =>
     ],
   })
 
-/** The layouts of each kernel's group 0: the classification, the ray generation, the trace's two stages and the clear of
- *  its unused tiles, the resolve, the temporal accumulation, and each surface's last pass and clear,
- *  each writing its surface's answer. The two ray stages bind the census's buffer where the project
- *  counts (`statistics`, `reflectionStatistics`). */
-export const traceLayouts = (device: GPUDevice, statistics: boolean) => {
+type LayoutOf = (
+  entries: GPUBindGroupLayoutEntry[],
+  words?: GPUBindGroupLayoutEntry,
+  tiles?: boolean,
+) => GPUBindGroupLayout
+
+const storageEntry = (binding: number) =>
+  computeStorageTextureEntry(binding, REFLECTION_GRID_FORMAT)
+const sampledEntry = (binding: number) => computeTextureEntry(binding, 'uint')
+
+/** The layouts of the ray stages: the generation, the screen stage, the clearing of unused tiles and the scene stage. */
+function rayLayouts(layout: LayoutOf, statistics: boolean, light: LightAtlasFormat) {
   const census = statistics ? [computeBufferEntry(B.census, 'storage')] : []
-  const layout = (
-    entries: GPUBindGroupLayoutEntry[],
-    words?: GPUBindGroupLayoutEntry,
-    tiles?: boolean,
-  ) => device.createBindGroupLayout({ entries: [...surface(words, tiles), ...entries] })
-  const storage = (binding: number) => computeStorageTextureEntry(binding, REFLECTION_GRID_FORMAT)
-  const sampled = (binding: number) => computeTextureEntry(binding, 'uint')
-  // What the opaque surface's answer writes past the field and its lights: the reflection target; the front one's: the radiance the
-  // forward fragments read.
-  const opaque = [computeStorageTextureEntry(B.target, HDR_FORMAT, 'write-only', '2d-array')]
-  const front = [computeStorageTextureEntry(B.frontTarget, FRONT_TRACED_FORMAT)]
-  // The last pass reads the history; the clear empties it and the resolved pixels.
-  const last = [sampled(B.bilateralIn)]
-  const history = computeStorageTextureEntry(B.historyOut, REFLECTION_HISTORY_FORMAT)
-  const clear = [storage(B.resolvedOut), history]
   return {
-    classify: classifyLayout(device),
-    keepDepth: device.createBindGroupLayout({
-      entries: [computeStorageTextureEntry(B.depthKeep, REFLECTION_DEPTH_FORMAT)],
-    }),
     // The lights are read for the lobes the pixel's ray is drawn from (`lobesAt`, a cloth's sheen).
     generate: layout([...field(), noise()], rays()),
     screen: layout(
       [
         ...field(),
         ...past(),
-        storage(B.traceOut),
+        storageEntry(B.traceOut),
         computeBufferEntry(B.pendingOut, 'storage'),
         ...census,
       ],
@@ -228,22 +222,62 @@ export const traceLayouts = (device: GPUDevice, statistics: boolean) => {
     // the hit's reads of the cache needing them.
     scene: layout(
       [
-        ...scene(),
+        ...scene(light),
         ...past(),
         ...census,
-        storage(B.traceOut),
+        storageEntry(B.traceOut),
         computeBufferEntry(B.pendingIn, 'read-only-storage'),
       ],
       rays(),
       false,
     ),
+  }
+}
+
+/** The layouts of the resolve, the temporal accumulation and each surface's last pass and clear. */
+function answerLayouts(layout: LayoutOf) {
+  // What the opaque surface's answer writes past the field and its lights: the reflection target; the front one's: the radiance the
+  // forward fragments read.
+  const opaque = [computeStorageTextureEntry(B.target, HDR_FORMAT, 'write-only', '2d-array')]
+  const front = [computeStorageTextureEntry(B.frontTarget, FRONT_TRACED_FORMAT)]
+  // The last pass reads the history; the clear empties it and the resolved pixels.
+  const last = [sampledEntry(B.bilateralIn)]
+  const history = computeStorageTextureEntry(B.historyOut, REFLECTION_HISTORY_FORMAT)
+  const clear = [storageEntry(B.resolvedOut), history]
+  return {
     // The resolve decodes the pixel's lobes, a cloth's sheen read from the lights' tables (`setClothLobes`).
-    resolve: layout([...field(), sampled(B.freshIn), storage(B.resolvedOut)]),
-    temporal: layout([sampled(B.temporalIn), sampled(B.historyIn), sampled(B.vectors), history]),
+    resolve: layout([...field(), sampledEntry(B.freshIn), storageEntry(B.resolvedOut)]),
+    temporal: layout([
+      sampledEntry(B.temporalIn),
+      sampledEntry(B.historyIn),
+      sampledEntry(B.vectors),
+      history,
+    ]),
     bilateral: layout([...field(), ...opaque, ...last]),
     bilateralFront: layout([...field(), ...front, ...last]),
     clear: layout([...field(), ...opaque, ...clear]),
     clearFront: layout([...field(), ...front, ...clear]),
+  }
+}
+
+/** The layouts of each kernel's group 0: the classification, the ray generation, the trace's two stages and the clear of
+ *  its unused tiles, the resolve, the temporal accumulation, and each surface's last pass and clear,
+ *  each writing its surface's answer. The two ray stages bind the census's buffer where the project
+ *  counts (`statistics`, `reflectionStatistics`). The surface cache's final light is read in the format `light`. */
+export const traceLayouts = (
+  device: GPUDevice,
+  statistics: boolean,
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+) => {
+  const layout: LayoutOf = (entries, words, tiles) =>
+    device.createBindGroupLayout({ entries: [...surface(words, tiles), ...entries] })
+  return {
+    classify: classifyLayout(device),
+    keepDepth: device.createBindGroupLayout({
+      entries: [computeStorageTextureEntry(B.depthKeep, REFLECTION_DEPTH_FORMAT)],
+    }),
+    ...rayLayouts(layout, statistics, light),
+    ...answerLayouts(layout),
   }
 }
 
@@ -271,7 +305,7 @@ export const REFLECTION_HARDWARE_SCENE = { group: 2, first: 0 } as const
 
 /** The layout of group 0 of the scene stage that casts its rays through the scene's triangles, once a device: the scene stage's less the
  *  global field and its object grid (the rays are not marched), with the cut's tables and what a hit reads of the surface cache. */
-export const hardwareSceneLayout = oncePerDevice((device: GPUDevice) =>
+const hardwareSceneLayoutOf = oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) =>
   device.createBindGroupLayout({
     label: 'Trillion3D reflection scene trace',
     entries: [
@@ -280,12 +314,18 @@ export const hardwareSceneLayout = oncePerDevice((device: GPUDevice) =>
       ...fog(),
       ...past(true),
       ...dagReadLayoutEntries(),
-      ...surfaceHitCardsLayoutEntries(REFLECTION_HIT_BINDINGS),
+      ...surfaceHitCardsLayoutEntries(REFLECTION_HIT_BINDINGS, light),
       computeStorageTextureEntry(B.traceOut, REFLECTION_GRID_FORMAT),
       computeBufferEntry(B.pendingIn, 'read-only-storage'),
     ],
   }),
 )
+
+/** The layout of group 0 of the scene stage that casts its rays through the scene's triangles, once a device and a format of the cache's final light. */
+export const hardwareSceneLayout = (
+  device: GPUDevice,
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+) => hardwareSceneLayoutOf(device, light)
 
 /** The layout of the scene trace's own group (`REFLECTION_HARDWARE_SCENE`), once a device. */
 export const hardwareTraceLayout = oncePerDevice((device: GPUDevice) =>

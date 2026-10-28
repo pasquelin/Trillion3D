@@ -2,7 +2,8 @@
 // point light, one a spot; the full maps a set is first made for, the mask's lights, the raster's
 // views, and the set's options for them.
 import { PER_LIGHT_MASK_LAYERS } from '../projection/maskFormat.ts'
-import { alignUp } from '../../../../../../math/src/scalar/integers.ts'
+import { alignUp, nextPow2 } from '../../../../../../math/src/scalar/integers.ts'
+import { VSM_MAX_SINGLE_PAGE_MAPS } from '../constants.ts'
 import { vsmPoolPagesBound } from '../layoutBytes.ts'
 import type { VsmFrameLight } from '../frameSetup.ts'
 import { vsmShadowed } from '../seenLights.ts'
@@ -10,7 +11,7 @@ import {
   POOL_PAGES_X,
   VSM_TABLES_PER_ROW,
   type VsmCoverMode,
-  vsmCoverModeOf,
+  vsmCoverModeOfSettings,
   type VsmLayout,
   type VsmResourceOptions,
 } from '../layout.ts'
@@ -18,6 +19,7 @@ import { VSM_DEFAULT_SUN_LEVELS, type VsmViewLight } from '../mapViews.ts'
 import { vsmViewPasses } from '../render/renderViewPasses.ts'
 import type { VsmMaskNeeds } from './vsmMask.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
+import { shadowsOnePass } from './vsmGates.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 
 /** The clipmap levels the sun of `entry` takes at most. */
@@ -37,6 +39,13 @@ export function fullMapsFor(lights: readonly VsmFrameLight[]) {
 
 /** The page-table blocks of a set whose suns take `sunMaps` clipmap maps in all (`fullMapsFor`). */
 const fullMapsOfSuns = (sunMaps: number) => wholeTableRows(2 * sunMaps + 16)
+
+/** The map slots a set holds for a frame of `projectionCount` slots (`VsmFramePlan.projectionCount`): the ids reserved for the maps of
+ *  one page and the full maps' rounded up to a power of two. */
+export const mapSlotsFor = (projectionCount: number) =>
+  projectionCount <= VSM_MAX_SINGLE_PAGE_MAPS
+    ? projectionCount
+    : VSM_MAX_SINGLE_PAGE_MAPS + nextPow2(projectionCount - VSM_MAX_SINGLE_PAGE_MAPS)
 
 /** The options of the set a scene with no casting light yet is first granted when its page adds one sun of `sunLevels` clipmap levels: the layout its pipelines are compiled for (`vsmReserveSetLayout`). */
 export const reserveSetOptions = (asked: VsmAsked, sunLevels: number) =>
@@ -65,7 +74,7 @@ export function maskNeedsFor(
     }
   return {
     suns,
-    onePass: readShadowSetting(rt, 'shadowOnePassProjection'),
+    onePass: shadowsOnePass(rt),
     localLights: readShadowSetting(rt, 'shadowOnePassProjectionMaxLightsPerPixel'),
     perLightLayers: Math.min(locals, PER_LIGHT_MASK_LAYERS),
   }
@@ -122,6 +131,8 @@ export type VsmAsked = {
   cacheEnabled: boolean
   coverMode: VsmCoverMode
   prefilteredDistant: boolean
+  /** The shadows are classic shadow maps (`shadowVirtualEnable` off). */
+  classic: boolean
 }
 
 /** What the settings ask of the frame's set (`shadowMaxPhysicalPages`, `shadowOcclusionCulling`,
@@ -133,11 +144,9 @@ export const vsmAsked = (rt: WebgpuPagesRuntime): VsmAsked => ({
   occlusion: readShadowSetting(rt, 'shadowOcclusionCulling'),
   dynamicHzb: readShadowSetting(rt, 'shadowDynamicHzb'),
   cacheEnabled: readShadowSetting(rt, 'shadowCache'),
-  coverMode: vsmCoverModeOf(
-    readShadowSetting(rt, 'shadowUseReceiverMaskLocal'),
-    readShadowSetting(rt, 'shadowUseReceiverMaskDirectional'),
-  ),
+  coverMode: vsmCoverModeOfSettings((key) => readShadowSetting(rt, key)),
   prefilteredDistant: readShadowSetting(rt, 'shadowPrefilteredDistant'),
+  classic: !readShadowSetting(rt, 'shadowVirtualEnable'),
 })
 
 /** What a set of `layout` holds of it: its pool, and whether it has the pyramid, its second layer,
@@ -149,6 +158,7 @@ export const askedOfLayout = (layout: VsmLayout): VsmAsked => ({
   cacheEnabled: layout.cacheEnabled,
   coverMode: layout.coverMode,
   prefilteredDistant: layout.prefilteredDistant,
+  classic: layout.classic,
 })
 
 /** The set's options for `fullMapCapacity` maps and `sunMaps` clipmap maps (`sunMapsFor`), for what

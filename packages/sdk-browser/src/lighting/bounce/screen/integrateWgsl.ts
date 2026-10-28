@@ -19,6 +19,7 @@ import {
   IRRADIANCE_PROBE_SIDE,
   SCREEN_PROBE_CONSTANTS,
 } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
+import { makeFinite3 } from '../../../../../math/src/wgsl/integer.ts'
 import { ditherLight, packLight, unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { PHYSICAL_SURFACE_FLAG } from '../../../materials/surface/physicalLobes.ts'
 import { SURFACE_EMISSIVE_AO_WGSL } from '../../../materials/surface/surfaceEmission.ts'
@@ -248,48 +249,16 @@ fn spProbeLight(picked:SpPicked,d:vec3f,level:u32)->vec3f{
 }`,
   )
 
-/**
- * THE ROUGH SPECULAR of a pixel (`spRoughSpecular`): the light of its specular lobe, read from the probes' radiance instead of a
- * traced ray, for the pixels whose reflection the traced rays do not give whole. How much of it a pixel takes: it is blended to its
- * diffuse light over pi (the mean radiance of its hemisphere) by `spRoughLerp`. Else `ROUGH_SAMPLES` points of
- * the lobe are drawn (`visibleGgxHalf`, the visible normals of a GGX distribution of the roughness held to 0.2 at least, so that no
- * lobe is narrower than two texels of a sixteen-wide probe, round the pixel's normal — the base layer's, under a clear coat —, or, for a pixel with
- * an anisotropic lobe (the lobes target, `lobes`), the widths along and across its axis, in the frame of its axis), each by a Hammersley point scrambled by a hash of the pixel and the
- * image's rank modulo eight (the second dimension pulled a tenth toward the middle, away from the grazing normals), turned to the
- * direction a ray leaves the view by (`2 (V·H) H − V`; the point itself, over the whole sphere, for a hair pixel of a complete tile, whose shading is
- * weighed over the sphere when the lighting composes it), and read from the probes the pixel interpolates (`spProbeLight`: each probe's filtered radiance at
- * that direction, bilinear in its octahedron, the border wrapped as an octahedron's, weighed as the diffuse's are; the
- * nearest level the cone of a sample asks, `spRoughLevel`). Where the occlusion is
- * applied during the integration (`screenProbeShortRangeAOApplyDuringIntegration`, off by default), or the probes keep an extra ambient occlusion (`extraAo`),
- * the samples are multiplied by the share of its direction the pixel's open sky leaves (`directionVisibility`: the occlusion's bent normal and amount
- * against the hemisphere); else the lighting applies the occlusion to the rough specular once, after the blend (`screenSpecularOcclusion`). The samples are averaged tonemapped (`light / (1 + luminance)`), so that one bright texel does not flicker the pixel, and the mean
- * mapped back.
- */
-const roughSpecularWgsl = (lobes: number, extraAo: boolean, mips: number) =>
-  wgslBlock(
-    `SP_ROUGH_SPECULAR(${lobes}, ${extraAo}, ${mips})`,
-    [
-      SP_PICKED,
-      SP_ROUGH_LERP,
-      probeLightWgsl(mips),
-      Frame3,
-      frameAround,
-      intoFrame,
-      outOfFrame,
-      hammersley16,
-      sampleSphereEven,
-      luminance,
-      INVERSE_PI,
-      visibleGgxHalf,
-      directionVisibility,
-      LOBE_AXIS_WGSL,
-      TWO_PI,
-    ],
-    `@group(0) @binding(${lobes}) var lobesIn:texture_2d<u32>;
+/** The declarations of the rough specular: the lobes' texture and the constants of its samples. */
+const roughSpecularDeclarations = (
+  lobes: number,
+) => `@group(0) @binding(${lobes}) var lobesIn:texture_2d<u32>;
 const SP_ROUGH_SAMPLES:u32=${ROUGH_SAMPLES}u;
 const SP_ROUGH_MIN:f32=0.2;
-const SP_ROUGH_BIAS:f32=0.9;
-/** The level of detail the cone of one of the samples reads, the nearest (the reference's sampler takes a point filter between the levels): the cone is the
+const SP_ROUGH_BIAS:f32=0.9;`
+
+/** The level of detail a sample reads, and the tonemap its sum is taken in. */
+const ROUGH_LEVEL_WGSL = `/** The level of detail the cone of one of the samples reads, the nearest (the reference's sampler takes a point filter between the levels): the cone is the
  *  solid angle of a quarter of the sphere's half, its width in texels of the gather the square root of its share of the sphere. */
 fn spRoughLevel()->u32{
  let solidAngle=1.0/f32(SP_ROUGH_SAMPLES);
@@ -298,8 +267,12 @@ fn spRoughLevel()->u32{
  return u32(floor(clamp(log2(texels),0.0,f32(SP_MIP_LEVELS-1u))+0.5));
 }
 fn spTonemap(c:vec3f)->vec3f{return c/(1.0+luminance(c));}
-fn spUntonemap(c:vec3f)->vec3f{return c/max(1.0-luminance(c),1e-4);}
-/** The rough specular of the lit pixel \`pixel\` (surface \`s\`) that reads the probes \`picked\`, whose irradiance at its normal is \`irradiance\`;
+fn spUntonemap(c:vec3f)->vec3f{return c/max(1.0-luminance(c),1e-4);}`
+
+/** The rough specular of a lit pixel: the lobe's frame and widths, the samples drawn over the lobe or the sphere, their light averaged in the tonemapped space. */
+const roughSpecularBody = (
+  extraAo: boolean,
+) => `/** The rough specular of the lit pixel \`pixel\` (surface \`s\`) that reads the probes \`picked\`, whose irradiance at its normal is \`irradiance\`;
  *  \`sky\` the open sky it has (the unit direction in \`xyz\`, the amount in \`w\`), which weighs each sample by the share of its direction the sky leaves;
  *  \`sphere\` whether its samples are drawn over the whole sphere (the hair of a complete tile). */
 fn spRoughSpecular(pixel:vec2u,s:SpSurface,picked:SpPicked,irradiance:vec3f,sky:vec4f,sphere:bool)->vec3f{
@@ -341,7 +314,46 @@ fn spRoughSpecular(pixel:vec2u,s:SpSurface,picked:SpPicked,irradiance:vec3f,sky:
   sum+=spTonemap(spProbeLight(picked,L,level)*visibility);
  }
  return mix(spUntonemap(sum/f32(SP_ROUGH_SAMPLES)),diffuse,blend);
-}`,
+}`
+
+/**
+ * THE ROUGH SPECULAR of a pixel (`spRoughSpecular`): the light of its specular lobe, read from the probes' radiance instead of a
+ * traced ray, for the pixels whose reflection the traced rays do not give whole. How much of it a pixel takes: it is blended to its
+ * diffuse light over pi (the mean radiance of its hemisphere) by `spRoughLerp`. Else `ROUGH_SAMPLES` points of
+ * the lobe are drawn (`visibleGgxHalf`, the visible normals of a GGX distribution of the roughness held to 0.2 at least, so that no
+ * lobe is narrower than two texels of a sixteen-wide probe, round the pixel's normal — the base layer's, under a clear coat —, or, for a pixel with
+ * an anisotropic lobe (the lobes target, `lobes`), the widths along and across its axis, in the frame of its axis), each by a Hammersley point scrambled by a hash of the pixel and the
+ * image's rank modulo eight (the second dimension pulled a tenth toward the middle, away from the grazing normals), turned to the
+ * direction a ray leaves the view by (`2 (V·H) H − V`; the point itself, over the whole sphere, for a hair pixel of a complete tile, whose shading is
+ * weighed over the sphere when the lighting composes it), and read from the probes the pixel interpolates (`spProbeLight`: each probe's filtered radiance at
+ * that direction, bilinear in its octahedron, the border wrapped as an octahedron's, weighed as the diffuse's are; the
+ * nearest level the cone of a sample asks, `spRoughLevel`). Where the occlusion is
+ * applied during the integration (`screenProbeShortRangeAOApplyDuringIntegration`, off by default), or the probes keep an extra ambient occlusion (`extraAo`),
+ * the samples are multiplied by the share of its direction the pixel's open sky leaves (`directionVisibility`: the occlusion's bent normal and amount
+ * against the hemisphere); else the lighting applies the occlusion to the rough specular once, after the blend (`screenSpecularOcclusion`). The samples are averaged tonemapped (`light / (1 + luminance)`), so that one bright texel does not flicker the pixel, and the mean
+ * mapped back.
+ */
+const roughSpecularWgsl = (lobes: number, extraAo: boolean, mips: number) =>
+  wgslBlock(
+    `SP_ROUGH_SPECULAR(${lobes}, ${extraAo}, ${mips})`,
+    [
+      SP_PICKED,
+      SP_ROUGH_LERP,
+      probeLightWgsl(mips),
+      Frame3,
+      frameAround,
+      intoFrame,
+      outOfFrame,
+      hammersley16,
+      sampleSphereEven,
+      luminance,
+      INVERSE_PI,
+      visibleGgxHalf,
+      directionVisibility,
+      LOBE_AXIS_WGSL,
+      TWO_PI,
+    ],
+    [roughSpecularDeclarations(lobes), ROUGH_LEVEL_WGSL, roughSpecularBody(extraAo)].join('\n'),
   )
 
 /** The factor (`distantIlluminationRescale`) that puts the diffuse light of a pixel of albedo `albedo`, integrated over its whole hemisphere, under an occlusion `ao`: the light
@@ -470,11 +482,91 @@ fn spPickedExtraAo(picked:SpPicked,N:vec3f)->f32{
  */
 const SP_STORED = wgslBlock(
   'SP_STORED',
-  [packLight, unpackLight, ditherLight],
-  `fn spPacked(c:vec3f,e:f32)->u32{return packLight(ditherLight(c,e));}
+  [packLight, unpackLight, ditherLight, makeFinite3],
+  `fn spPacked(c:vec3f,e:f32)->u32{return packLight(ditherLight(max(makeFinite3(c),vec3f(0.0)),e));}
 fn spStored(c:vec3f,e:f32)->vec3f{return unpackLight(spPacked(c,e));}
 fn spStoredMoving(moving:f32)->f32{return round(saturate(moving)*255.0)/255.0;}`,
 )
+
+/** The declarations of the integration: the probes' pixels, header, indices and motion, their irradiance and gathered light, the surface's base colour and emissive occlusion. */
+const integrateDeclarations = (
+  at: IntegrateBindings,
+) => `@group(0) @binding(${at.pixels}) var<storage,read> probePixels:array<u32>;
+@group(0) @binding(${at.header}) var<storage,read> header:array<u32>;
+@group(0) @binding(${at.indices}) var<storage,read> indices:array<u32>;
+@group(0) @binding(${at.moving}) var<storage,read> probeMoving:array<f32>;
+@group(0) @binding(${at.irradiance}) var probeIrradiance:texture_2d<f32>;
+@group(0) @binding(${at.gather}) var probeGather:texture_2d<f32>;
+@group(0) @binding(${at.base}) var sceneBase:texture_2d<f32>;
+@group(0) @binding(${at.emissiveAo}) var emissiveAo:texture_2d<f32>;
+const SP_JITTER_PLANE_SCALE:f32=${SCREEN_PROBE_CONSTANTS.jitterPlaneWeightScale};`
+
+/** The offset the pixel reads its probes from. */
+const INTEGRATE_JITTER_WGSL = `/** The offset the pixel reads its probes from: the noise's jitter, kept where the jittered pixel is on the pixel's own plane. */
+fn spJitterOffset(pixel:vec2u,s:SpSurface,depth:f32)->vec2f{
+ if(sp.spatial.z<=0.0){return vec2f(0.0);}
+ let width=sp.spatial.z*mix(1.0,0.5,saturate((depth-5.0)/5.0));
+ let jitter=(blueNoiseVec2(pixel,sp.frames.y)*2.0-vec2f(1.0))*f32(sp.size.z)*width;
+ let jittered=clamp(vec2f(pixel)+jitter,vec2f(0.0),vec2f(sp.size.xy)-vec2f(1.0));
+ // The point is at the jittered position itself, at the depth of the texel it falls in, not at the centre of that texel.
+ let point=worldAt(jittered+vec2f(0.5),hizOpaqueDepth(vec2i(floor(jittered))));
+ let away=abs(dot(point,s.N)-dot(s.P,s.N))/depth;
+ return select(vec2f(0.0),jitter,exp2(SP_JITTER_PLANE_SCALE*away*away)>SP_MIN_WEIGHT);
+}`
+
+/** The diffuse light of a pixel by the method the setting names. */
+const integrateDiffuse = (
+  at: IntegrateBindings,
+) => `/** The diffuse light of the pixel \`pixel\` (surface \`s\`) that reads the probes \`picked\`, integrated in the mode \`mode\` by its method (\`spDiffuseMethod\`): the irradiance of the probes at the direction \`lit\` (its normal) under the occlusion \`ao\` (the extra ambient occlusion
+ *  and, where the short-range occlusion is applied during the integration, the least of it and that), put
+ *  under the multiple bounces of that occlusion on the pixel's albedo (the base colour not metal, capped at \`sp.foliage.w\`); or the pixel's BRDF sampled over the radiance of the probes
+ *  (not in the simple mode) or its numerical integral (where every pixel is integrated at once), put under the occlusion by the factor of its distant illumination.
+ *  Then, where the setting asks, it is put under the multiple bounces of the material's own occlusion. */
+fn spDiffuse(picked:SpPicked,pixel:vec2u,s:SpSurface,ao:f32,lit:vec3f,mode:u32)->vec3f{
+ let at=vec2i(pixel);
+ let base=textureLoad(sceneBase,at,0);
+ let albedo=min(base.rgb*(1.0-base.a),vec3f(sp.foliage.w));
+ let method=spDiffuseMethod(s.hair);
+ var light=vec3f(0.0);
+ if(method==SP_METHOD_PREINTEGRATED){
+  light=spPickedIrradiance(picked,lit,ao);
+  if(ao>0.0){light*=bouncedOcclusion(albedo,ao)/ao;}
+ }else if(method==SP_METHOD_SAMPLED&&mode!=SP_TILE_SIMPLE){
+  light=spSampledDiffuse(picked,pixel,s.N,s.hair&&mode>=SP_TILE_COMPLETE)*distantIlluminationRescale(albedo,ao);
+ }${
+   at.numerical
+     ? `else if(method==SP_METHOD_NUMERICAL&&mode==SP_TILE_EVERY){
+  light=spNumericalDiffuse(picked,s)*distantIlluminationRescale(albedo,ao);
+ }`
+     : ''
+ }
+ if(spFlag(SP_FLAG_MATERIAL_AO)){light*=bouncedOcclusion(albedo,surfaceEmissiveAo(at,textureLoad(sceneFlags,at,0).r).a);}
+ return light;
+}`
+
+/** What the probes give a lit pixel: its diffuse light, its rough specular and, where asked, its back. */
+const integrateEntry = (
+  at: IntegrateBindings,
+) => `/** What the probes give a lit pixel: its diffuse light in \`light.rgb\` and the share of it that moves in \`light.a\` (zero where no probe weighs), its rough specular and its back. */
+struct SpIntegrated{light:vec4f,rough:u32,back:u32,}
+fn spIntegrate(pixel:vec2u,cell:vec2u,s:SpSurface,mode:u32,withBack:bool,sky:vec4f)->SpIntegrated{
+ let depth=spDepthOf(s.P);
+ let picked=spPickProbes(pixel,spJitterOffset(pixel,s,depth),s,depth);
+ if(!picked.valid){return SpIntegrated(vec4f(0.0),0u,0u);}
+ var places=picked.atlas;
+ var moving=0.0;
+ for(var corner=0u;corner<4u;corner++){moving+=probeMoving[spIndexOf(places[corner])]*picked.weights[corner];}
+ let ao=min(sky.w,spPickedExtraAo(picked,s.N));
+ // With the bent normal the diffuse light is read at the normal turned toward it by as much as the occlusion shuts the sky: the surface's own where it shuts none.
+ let lit=${at.bentNormal ? 'normalize(mix(sky.xyz,s.N,ao))' : 's.N'};
+ let diffuse=spDiffuse(picked,pixel,s,ao,lit,mode);
+ let e=blueNoiseScalar(cell,sp.size.w%8u);
+ var out=SpIntegrated(vec4f(spStored(diffuse,e),spStoredMoving(max(moving,0.004))),0u,0u);
+ if(mode==SP_TILE_SIMPLE){out.rough=spPacked(diffuse*INVERSE_PI,e);}
+ else{out.rough=spPacked(spRoughSpecular(pixel,s,picked,diffuse,vec4f(sky.xyz,ao),s.hair&&mode>=SP_TILE_COMPLETE),e);}
+ if(withBack){out.back=spPacked(spPickedIrradiance(picked,-s.N,1.0),e);}
+ return out;
+}`
 
 /**
  * THE INTEGRATION: each pixel reads its irradiance from the probes round it (`spIntegrate`, which the integration's kernel calls for
@@ -511,69 +603,10 @@ export const spIntegrate = (at: IntegrateBindings) =>
       BOUNCED_OCCLUSION,
       SURFACE_EMISSIVE_AO_WGSL,
     ],
-    `@group(0) @binding(${at.pixels}) var<storage,read> probePixels:array<u32>;
-@group(0) @binding(${at.header}) var<storage,read> header:array<u32>;
-@group(0) @binding(${at.indices}) var<storage,read> indices:array<u32>;
-@group(0) @binding(${at.moving}) var<storage,read> probeMoving:array<f32>;
-@group(0) @binding(${at.irradiance}) var probeIrradiance:texture_2d<f32>;
-@group(0) @binding(${at.gather}) var probeGather:texture_2d<f32>;
-@group(0) @binding(${at.base}) var sceneBase:texture_2d<f32>;
-@group(0) @binding(${at.emissiveAo}) var emissiveAo:texture_2d<f32>;
-const SP_JITTER_PLANE_SCALE:f32=${SCREEN_PROBE_CONSTANTS.jitterPlaneWeightScale};
-/** The offset the pixel reads its probes from: the noise's jitter, kept where the jittered pixel is on the pixel's own plane. */
-fn spJitterOffset(pixel:vec2u,s:SpSurface,depth:f32)->vec2f{
- if(sp.spatial.z<=0.0){return vec2f(0.0);}
- let width=sp.spatial.z*mix(1.0,0.5,saturate((depth-5.0)/5.0));
- let jitter=(blueNoiseVec2(pixel,sp.frames.y)*2.0-vec2f(1.0))*f32(sp.size.z)*width;
- let jittered=clamp(vec2f(pixel)+jitter,vec2f(0.0),vec2f(sp.size.xy)-vec2f(1.0));
- let other=spSurfaceAt(vec2u(floor(jittered)));
- let away=abs(dot(other.P,s.N)-dot(s.P,s.N))/depth;
- return select(vec2f(0.0),jitter,exp2(SP_JITTER_PLANE_SCALE*away*away)>SP_MIN_WEIGHT);
-}
-/** The diffuse light of the pixel \`pixel\` (surface \`s\`) that reads the probes \`picked\`, integrated in the mode \`mode\` by its method (\`spDiffuseMethod\`): the irradiance of the probes at the direction \`lit\` (its normal) under the occlusion \`ao\` (the extra ambient occlusion
- *  and, where the short-range occlusion is applied during the integration, the least of it and that), put
- *  under the multiple bounces of that occlusion on the pixel's albedo (the base colour not metal, capped at \`sp.foliage.w\`); or the pixel's BRDF sampled over the radiance of the probes
- *  (not in the simple mode) or its numerical integral (where every pixel is integrated at once), put under the occlusion by the factor of its distant illumination.
- *  Then, where the setting asks, it is put under the multiple bounces of the material's own occlusion. */
-fn spDiffuse(picked:SpPicked,pixel:vec2u,s:SpSurface,ao:f32,lit:vec3f,mode:u32)->vec3f{
- let at=vec2i(pixel);
- let base=textureLoad(sceneBase,at,0);
- let albedo=min(base.rgb*(1.0-base.a),vec3f(sp.foliage.w));
- let method=spDiffuseMethod(s.hair);
- var light=vec3f(0.0);
- if(method==SP_METHOD_PREINTEGRATED){
-  light=spPickedIrradiance(picked,lit,ao);
-  if(ao>0.0){light*=bouncedOcclusion(albedo,ao)/ao;}
- }else if(method==SP_METHOD_SAMPLED&&mode!=SP_TILE_SIMPLE){
-  light=spSampledDiffuse(picked,pixel,s.N,s.hair&&mode>=SP_TILE_COMPLETE)*distantIlluminationRescale(albedo,ao);
- }${
-   at.numerical
-     ? `else if(method==SP_METHOD_NUMERICAL&&mode==SP_TILE_EVERY){
-  light=spNumericalDiffuse(picked,s)*distantIlluminationRescale(albedo,ao);
- }`
-     : ''
- }
- if(spFlag(SP_FLAG_MATERIAL_AO)){light*=bouncedOcclusion(albedo,surfaceEmissiveAo(at,textureLoad(sceneFlags,at,0).r).a);}
- return light;
-}
-/** What the probes give a lit pixel: its diffuse light in \`light.rgb\` and the share of it that moves in \`light.a\` (zero where no probe weighs), its rough specular and its back. */
-struct SpIntegrated{light:vec4f,rough:u32,back:u32,}
-fn spIntegrate(pixel:vec2u,cell:vec2u,s:SpSurface,mode:u32,withBack:bool,sky:vec4f)->SpIntegrated{
- let depth=spDepthOf(s.P);
- let picked=spPickProbes(pixel,spJitterOffset(pixel,s,depth),s,depth);
- if(!picked.valid){return SpIntegrated(vec4f(0.0),0u,0u);}
- var places=picked.atlas;
- var moving=0.0;
- for(var corner=0u;corner<4u;corner++){moving+=probeMoving[spIndexOf(places[corner])]*picked.weights[corner];}
- let ao=min(sky.w,spPickedExtraAo(picked,s.N));
- // With the bent normal the diffuse light is read at the normal turned toward it by as much as the occlusion shuts the sky: the surface's own where it shuts none.
- let lit=${at.bentNormal ? 'normalize(mix(sky.xyz,s.N,ao))' : 's.N'};
- let diffuse=spDiffuse(picked,pixel,s,ao,lit,mode);
- let e=blueNoiseScalar(cell,sp.size.w%8u);
- var out=SpIntegrated(vec4f(spStored(diffuse,e),spStoredMoving(max(moving,0.004))),0u,0u);
- if(mode==SP_TILE_SIMPLE){out.rough=spPacked(diffuse*INVERSE_PI,e);}
- else{out.rough=spPacked(spRoughSpecular(pixel,s,picked,diffuse,vec4f(sky.xyz,ao),s.hair&&mode>=SP_TILE_COMPLETE),e);}
- if(withBack){out.back=spPacked(spPickedIrradiance(picked,-s.N,1.0),e);}
- return out;
-}`,
+    [
+      integrateDeclarations(at),
+      INTEGRATE_JITTER_WGSL,
+      integrateDiffuse(at),
+      integrateEntry(at),
+    ].join('\n'),
   )

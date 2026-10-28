@@ -21,6 +21,9 @@ const { frontPack: pack } = shaderRun<{ frontPack: (c: Vec3) => number }>(
   {},
 )
 
+/** The bits of the float32 `x`: the word of the front's depth in a traced texel. */
+const floatBits = (x: number) => new Uint32Array(new Float32Array([x]).buffer)[0]
+
 type Reflected = { base: Vec3; coat: Vec3 }
 
 /** The translucency volume's read, which the forward program lists and these tests do not run. */
@@ -31,9 +34,9 @@ const GI_STUB = wgslBlock(
 )
 
 /** `forwardTrace` of the shipped forward program (`forwardIndirectWgsl`), over a front texel `texel`
- *  and a front depth `depth` at every pixel, `answered` whether this image's trace answered the
+ *  (its third word the bits of the front depth, `FRONT_TRACED_FORMAT`) at every pixel, `answered` whether this image's trace answered the
  *  front; the field answers `field`. */
-function forward(texel: number[], depth: number, answered = true) {
+function forward(texel: number[], answered = true) {
   const field: Vec3 = [7, 7, 7]
   const run = shaderRun<{
     forwardTrace: (
@@ -46,10 +49,9 @@ function forward(texel: number[], depth: number, answered = true) {
     ) => Reflected
   }>(
     wgslModule(forwardIndirectWgsl(1, false, 24, GI_STUB)),
-    ['forwardTrace', 'frontUnpack', 'reflectionFrontTraced', 'reflectionFrontDepth'],
+    ['forwardTrace', 'frontUnpack', 'reflectionFrontTraced'],
     {
       frontTraced: { load: () => texel },
-      reflectionFront: { load: () => [depth, 0, 0, 0] },
       reflectionView: { front: [answered ? 1 : 0, 0, 0, 0] },
       reflectionEnvironmentOf: () => ({ base: field, coat: [0, 0, 0] }),
     },
@@ -60,8 +62,8 @@ function forward(texel: number[], depth: number, answered = true) {
 
 test('a fragment at the front depth reads the trace’s radiance; any other, the environment', () => {
   const z = 0.25
-  const texel = [pack([1, 2, 4]), pack([0.5, 0, 0]), 0, 0]
-  const read = forward(texel, z)
+  const texel = [pack([1, 2, 4]), pack([0.5, 0, 0]), floatBits(z), 0]
+  const read = forward(texel)
   const front = read(z)
   front.base.forEach((c, k) => assert.ok(Math.abs(c - [1, 2, 4][k]) < 1e-2, `${front.base}`))
   assert.ok(Math.abs(front.coat[0] - 0.5) < 1e-3, 'the coat’s own')
@@ -71,7 +73,7 @@ test('a fragment at the front depth reads the trace’s radiance; any other, the
   // front: the field, no ray.
   assert.deepEqual(read(z * (1 - 2 ** -12)).base, [7, 7, 7])
   assert.deepEqual(read(z, false).base, [7, 7, 7])
-  assert.deepEqual(forward(texel, z, false)(z).base, [7, 7, 7])
+  assert.deepEqual(forward(texel, false)(z).base, [7, 7, 7])
 })
 
 test('one chain: only the trace marches the field and samples a lobe; a forward program reads its answer', () => {
@@ -95,7 +97,7 @@ test('one chain: only the trace marches the field and samples a lobe; a forward 
   for (const kernel of [
     'override REFLECTION_LAYER:u32=0u;',
     'generateTexel(id,REFLECTION_LAYER);',
-    'missed=traceScreenTexel(id,REFLECTION_LAYER);',
+    'begun=traceScreenBegin(id,REFLECTION_LAYER);',
     'let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));',
     'textureStore(resolvedOut,id,resolvePixel(vec2i(id),REFLECTION_LAYER));',
     'textureStore(historyOut,id,temporalPixel(vec2i(id),local.xy,REFLECTION_LAYER));',

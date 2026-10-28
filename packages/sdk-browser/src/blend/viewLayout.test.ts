@@ -13,7 +13,7 @@ test('the view table yields the shipped struct and its WGSL offsets', () => {
   // structure it names.
   assert.ok(
     wgslSource(BLEND_VIEW_WGSL).endsWith(
-      'struct BlendView{viewProj:mat4x4f,camPos:vec4f,viewRight:vec4f,viewUp:vec4f,clipW:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,roughDiffuse:u32,shadingAccurate:u32,viewport:vec2f,eye:vec3f,pixelRatio:f32,mipBias:f32,exposure:f32,preExposure:f32,toneCurve:u32,pixelError:f32,time:f32,realTime:f32,clearCoatNormal:u32,clipPlane:vec4f,bake:Bake,volumeCorner:array<vec4f,2>,volumeScale:array<vec4f,2>,volumeRead:vec4f,giGrid:vec4f,giZ:vec4f,holdout:u32,normalCurvature:vec3f,}',
+      'struct BlendView{viewProj:mat4x4f,camPos:vec4f,viewRight:vec4f,viewUp:vec4f,clipW:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,roughDiffuse:u32,shadingAccurate:u32,viewport:vec2f,eye:vec3f,pixelRatio:f32,mipBias:f32,exposure:f32,preExposure:f32,toneCurve:u32,pixelError:f32,time:f32,realTime:f32,clearCoatNormal:u32,clipPlane:vec4f,bake:Bake,volumeCorner:array<vec4f,2>,volumeScale:array<vec4f,2>,volumeRead:vec4f,giGrid:vec4f,giZ:vec4f,holdout:u32,volumeCamera:u32,volumeCameraFactor:f32,normalCurvature:vec3f,}',
     ),
   )
   assert.equal(BLEND_VIEW_SIZE, 240 + BAKE_BYTES + 9 * 16)
@@ -27,6 +27,11 @@ test('the view table yields the shipped struct and its WGSL offsets', () => {
   assert.deepEqual([VIEW.giGrid, VIEW.giZ], [60 + BAKE_BYTES / 4 + 20, 60 + BAKE_BYTES / 4 + 24])
   // The alpha holdout's switch follows the read words.
   assert.equal(VIEW.holdout, 60 + BAKE_BYTES / 4 + 28)
+  // The heterogeneous volumes' camera map's switch and factor take the two words the holdout leaves before the next vec4 boundary.
+  assert.deepEqual(
+    [VIEW.volumeCamera, VIEW.volumeCameraFactor],
+    [VIEW.holdout + 1, VIEW.holdout + 2],
+  )
   // The normal curvature's curve follows, a vec3f on its own 16-byte boundary.
   assert.equal(VIEW.normalCurvature, VIEW.holdout + 4)
   assert.deepEqual(

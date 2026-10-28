@@ -171,6 +171,44 @@ function arrivalsBuffer(gpu: CastDiffGpu, mobility: ShadowMobility, some: boolea
   return buffer
 }
 
+/** The diff's GPU state for `device`, its parameters written and the buffers it reads named; whether placements arrived. */
+function stageCastDiff(
+  device: GPUDevice,
+  lights: WebgpuPagesRuntime['lights'],
+  casts: NonNullable<WebgpuPagesRuntime['lights']['casts']>,
+  ask: CastDiffAsk,
+  {
+    boxes,
+    words,
+    state,
+    worlds,
+  }: { boxes: GPUBuffer; words: GPUBuffer; state: GPUBuffer; worlds: GPUBuffer },
+) {
+  let gpu = gpus.get(casts)
+  if (gpu?.device !== device) {
+    gpu?.params.destroy()
+    gpu?.arrivals?.destroy()
+    gpus.set(casts, (gpu = createCastDiffGpu(device)))
+  }
+  // The placements that arrived, one array the state per view reads; the buffer is bound whatever.
+  const { mobility } = lights
+  const arrived = mobility.hasArrivals()
+  const arrivals = arrivalsBuffer(gpu, mobility, arrived)
+  gpu.words[0] = ask.roots
+  gpu.words[1] = ask.quiet ? 1 : 0
+  gpu.words[2] = ask.views
+  gpu.words[3] = arrived ? 1 : 0
+  device.queue.writeBuffer(gpu.params, 0, gpu.words)
+  const { named } = gpu
+  named[6].buffer = arrivals
+  named[1].buffer = boxes
+  named[2].buffer = words
+  named[3].buffer = state
+  named[4].buffer = casts.buffer
+  named[5].buffer = worlds
+  return { gpu, arrived }
+}
+
 /** The diff over `ask.roots` placements, into `encoder`: its parameters written, its group over the
  *  boxes the roots pass derived, the words, its memory and the list. Nothing while its kernel
  *  compiles: the memory is then left as it is, and the next diff names what changed meanwhile. */
@@ -198,28 +236,12 @@ export function encodeCastDiff(
     void Promise.all([compiled.prepare(), stated.prepare()]).catch(() => {})
     return
   }
-  let gpu = gpus.get(casts)
-  if (gpu?.device !== device) {
-    gpu?.params.destroy()
-    gpu?.arrivals?.destroy()
-    gpus.set(casts, (gpu = createCastDiffGpu(device)))
-  }
-  // The placements that arrived, one array the state per view reads; the buffer is bound whatever.
-  const { mobility } = lights
-  const arrived = mobility.hasArrivals()
-  const arrivals = arrivalsBuffer(gpu, mobility, arrived)
-  gpu.words[0] = ask.roots
-  gpu.words[1] = ask.quiet ? 1 : 0
-  gpu.words[2] = ask.views
-  gpu.words[3] = arrived ? 1 : 0
-  device.queue.writeBuffer(gpu.params, 0, gpu.words)
-  const { named } = gpu
-  named[6].buffer = arrivals
-  named[1].buffer = boxes
-  named[2].buffer = words
-  named[3].buffer = state
-  named[4].buffer = casts.buffer
-  named[5].buffer = worlds
+  const { gpu, arrived } = stageCastDiff(device, rt.lights, casts, ask, {
+    boxes,
+    words,
+    state,
+    worlds,
+  })
   const pass = steps.pass(DIFF_PASS)
   const threads = ceilDiv(ask.roots, WORKGROUP_THREADS)
   if (ask.diff) {
@@ -237,7 +259,7 @@ export function encodeCastDiff(
   }
   if (ask.state) {
     casts.stateOwed--
-    if (arrived) mobility.clearArrivals()
+    if (arrived) lights.mobility.clearArrivals()
   }
   if (ask.diff) {
     casts.followedRoots = ask.roots

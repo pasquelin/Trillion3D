@@ -19,10 +19,12 @@ const groupWords = Object.fromEntries(
 export function hairStrandsAbiRust() {
   return `${header(['packages/sdk-core/src/contracts/hairStrandsAbi.ts'], '//!')}
 
-/// The job field and flag of the ending point, the file, the magic, the version, the records and the rank of each of their words, the tables' alignment, the flags, the attributes and the limits of \`hairStrands.bin\`.
+/// The job fields and flags of the ending point and of the groups' settings, the file, the magic, the version, the records and the rank of each of their words, the tables' alignment, the flags, the attributes and the limits of \`hairStrands.bin\`.
 ${rustConsts({
   HAIR_STRANDS_ENDING_POINT_FIELD: [hair.HAIR_STRANDS_ENDING_POINT_FIELD, '&str'],
   HAIR_STRANDS_ENDING_POINT_OPTION: [hair.HAIR_STRANDS_ENDING_POINT_OPTION, '&str'],
+  HAIR_STRANDS_GROUPS_FIELD: [hair.HAIR_STRANDS_GROUPS_FIELD, '&str'],
+  HAIR_STRANDS_GROUPS_OPTION: [hair.HAIR_STRANDS_GROUPS_OPTION, '&str'],
   HAIR_STRANDS_FILE: [hair.HAIR_STRANDS_FILE, '&str'],
   HAIR_STRANDS_MAGIC: [hair.HAIR_STRANDS_MAGIC, 'u32'],
   HAIR_STRANDS_VERSION: [hair.HAIR_STRANDS_VERSION, 'u32'],
@@ -39,6 +41,10 @@ ${rustConsts({
   HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT: [hair.HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT, 'u32'],
   HAIR_STRANDS_FLAG_SHUFFLED_CURVE: [hair.HAIR_STRANDS_FLAG_SHUFFLED_CURVE, 'u32'],
   HAIR_STRANDS_FLAG_ROOT_TILE: [hair.HAIR_STRANDS_FLAG_ROOT_TILE, 'u32'],
+  HAIR_STRANDS_FLAG_STABLE_SET: [hair.HAIR_STRANDS_FLAG_STABLE_SET, 'u32'],
+  HAIR_STRANDS_FLAG_STABLE: [hair.HAIR_STRANDS_FLAG_STABLE, 'u32'],
+  HAIR_STRANDS_FLAG_SCATTER_SET: [hair.HAIR_STRANDS_FLAG_SCATTER_SET, 'u32'],
+  HAIR_STRANDS_FLAG_SCATTER: [hair.HAIR_STRANDS_FLAG_SCATTER, 'u32'],
   HAIR_STRANDS_ATTRIBUTE_ROOT_UV: [hair.HAIR_STRANDS_ATTRIBUTE_ROOT_UV, 'u32'],
   HAIR_STRANDS_ATTRIBUTE_COLOR: [hair.HAIR_STRANDS_ATTRIBUTE_COLOR, 'u32'],
   HAIR_STRANDS_ATTRIBUTE_ROUGHNESS: [hair.HAIR_STRANDS_ATTRIBUTE_ROUGHNESS, 'u32'],

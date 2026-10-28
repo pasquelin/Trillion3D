@@ -27,6 +27,11 @@ interface CaptureTargets {
   readonly ids: GPUTextureView
   /** The depth of that triangle: `r32float`, a storage texture. */
   readonly depth: GPUTextureView
+  /** The albedo, the normal and the emission of each texel: `rgba8unorm`, `rgba8unorm`, `r32uint`, storage textures the clear empties
+   *  and the resolve writes (`../copy.ts`). */
+  readonly albedo: GPUTextureView
+  readonly normal: GPUTextureView
+  readonly emissive: GPUTextureView
 }
 
 /**

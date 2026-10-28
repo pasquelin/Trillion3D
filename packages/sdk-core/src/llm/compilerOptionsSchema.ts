@@ -16,10 +16,14 @@ import {
   VOXELIZE_FIELD,
   type JobField,
 } from '../contracts/compilerAbi.ts'
-import { HAIR_STRANDS_ENDING_POINT_FIELD } from '../contracts/hairStrandsAbi.ts'
+import {
+  HAIR_STRANDS_ENDING_POINT_FIELD,
+  HAIR_STRANDS_GROUPS_FIELD,
+} from '../contracts/hairStrandsAbi.ts'
 import { LIGHTMAP_BAKE_FIELD } from '../contracts/lightmapBakeAbi.ts'
 import { PARTITION_SCHEME_FIELD } from '../contracts/partitionOptions.ts'
 import { hairEndingPoint } from './hairEndingPointSchema.ts'
+import { hairGroups } from './hairGroupsSchema.ts'
 import { hlod } from './hlodSchema.ts'
 import { lightmapBake } from './lightmapBakeSchema.ts'
 import { materials, responsive, temporalAntialiasing, voxelize } from './materialSchema.ts'
@@ -106,6 +110,7 @@ export const COMPILER_OPTIONS_SCHEMA: JsonSchemaObject = /* @__PURE__ */ (() => 
     [OBJECT_SETTINGS_FIELD]: objectSettings,
     [LIGHTMAP_BAKE_FIELD]: lightmapBake,
     [HAIR_STRANDS_ENDING_POINT_FIELD]: hairEndingPoint,
+    [HAIR_STRANDS_GROUPS_FIELD]: hairGroups,
   },
   required: ['source', 'cache', 'resourceBaseUrl'] satisfies JobField[],
   additionalProperties: false,

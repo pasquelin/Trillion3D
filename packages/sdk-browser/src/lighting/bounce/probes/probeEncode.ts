@@ -74,6 +74,32 @@ function fillWork(work: PoolWork, cache: ScreenProbeSettings['cache']) {
   work.translucent = cache.translucentMark
 }
 
+/** What the radiance cache reads of the image besides the probes' queue: the lights, the sky light, the surface cache's reads, the eye, the scene's rays and the pre-exposure. */
+interface QueuedInputs {
+  lights: GPUBuffer
+  sky: SkyLightReadSet
+  reads: SurfaceHitReads
+  eye: ArrayLike<number>
+  rays: SceneRays | undefined
+  preExposure: number
+}
+
+/** Encodes the pass of an image of probes and hands its queue to the radiance cache; nothing while the cache is frozen (it keeps its probes and its maps as they are).
+ *  Asked for in full, every image gives every probe back. */
+function queueImage(
+  parts: ProbeParts,
+  now: ScreenProbeSettings,
+  work: ReturnType<typeof newWork>,
+  encoder: GPUCommandEncoder,
+  surface: MarkSurface | undefined,
+  inputs: QueuedInputs,
+) {
+  if (!now.values.screenProbeRadianceCacheUpdate) return
+  if (now.values.screenProbeRadianceCacheForceFullUpdate) parts.pool.discard()
+  const queue = encodePass(parts, encoder, surface, work, now.cache.temporaryAtlasDownsample)
+  parts.cache.queued(now, { args: parts.pool.args, ...inputs, queue })
+}
+
 /**
  * The encoding of an image of probes: its marks and a probe batch, whose maps the radiance cache makes after, and what the series says
  * of itself. `frame` counts the images that encoded something, the clock of the pool.
@@ -128,16 +154,13 @@ export function createProbeEncoder(
         preExposure,
         forward,
       )
-      const queue = encodePass(parts, encoder, surface, work, now.cache.temporaryAtlasDownsample)
-      parts.cache.queued(now, {
-        args: pool.args,
+      queueImage(parts, now, work, encoder, surface, {
         lights: lights(),
         sky,
         reads,
         eye: viewpoint,
         rays,
         preExposure,
-        queue,
       })
     },
   }

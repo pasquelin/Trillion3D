@@ -1,4 +1,4 @@
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { ditherLight, packLight } from '../../../gpu/core/smallFloatWgsl.ts'
@@ -10,6 +10,11 @@ import {
   surfaceHitLayoutEntries,
   surfaceHitWgsl,
 } from '../../surfaceCache/hitWgsl.ts'
+import {
+  WORD_LIGHT_FORMAT,
+  withLightAtlasEntry,
+  type LightAtlasFormat,
+} from '../../../gpu/core/lightAtlasFormat.ts'
 import { atlasEntry } from '../atlas.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
 import { BOUNCE_CM_WGSL } from '../tracedHitWgsl.ts'
@@ -48,10 +53,10 @@ export const TRACE_SCENE_HIT = surfaceHitBindingsFrom(0, 22)
 /** Where the stage reads the fog's cubemap and its sampler, where the height fog is laid over the light of its rays (`screenProbeHeightFogOnGI`). */
 export const TRACE_SCENE_FOG: RayFogBindings = { cubemap: 38, sampler: 39 }
 /** The layout of the scene stage's group 0, with the fog's reads where `fog` says. */
-export const traceSceneEntries = (fog: boolean) => [
-  ...TRACE_SCENE_BINDINGS.entries,
+export const traceSceneEntries = (fog: boolean, light: LightAtlasFormat = WORD_LIGHT_FORMAT) => [
+  ...withLightAtlasEntry(TRACE_SCENE_BINDINGS.entries, TRACE_SCENE_BINDINGS.at.cacheFinal, light),
   atlasEntry(TRACE_SCENE_PROBES),
-  ...surfaceHitLayoutEntries(TRACE_SCENE_HIT),
+  ...surfaceHitLayoutEntries(TRACE_SCENE_HIT, light),
   ...rayFogLayoutEntries(TRACE_SCENE_FOG, fog),
 ]
 
@@ -64,6 +69,9 @@ export const SP_FAR_PENDING = wgslBlock(
   [],
   'const SP_FAR_PENDING:u32=0xffffffffu;',
 )
+
+/** The bit of a ray's hit word (`spHitWord`: the distance in the bits under the sign, the moving flag in the lowest) that says a hit of the meshes' fields answered the ray (`traceMeshWgsl.ts`): the scene stage leaves it. */
+export const SP_MESH_HIT = wgslBlock('SP_MESH_HIT', [], 'const SP_MESH_HIT:u32=0x80000000u;')
 
 /** The width of the cone of a ray of the scene stage (`spRayCone`): the texels a side of the grid the ray's trace texel is a texel of. A program
  *  that names it declares the rays (`spRays`) and `SP_TRACE`. */
@@ -112,10 +120,11 @@ fn spListed(id:vec3u,groups:vec3u)->SpListed{
  * probes, centimetres for the field and the cache. `spMarch` is a probe's ray: it leaves a point the bias (`sp.scene.x`) off the probe's
  * surface along its normal (turned toward the ray on a probe with backface diffuse light) and again along itself, `begin` and `reach` are measured from there, and it is dithered.
  */
-export const SP_MARCH = wgslBlock(
-  'SP_MARCH',
-  [surfaceHitWgsl(TRACE_SCENE_HIT), BOUNCE_CM_WGSL],
-  `struct SpMarch{lighting:vec3f,hit:bool,distance:f32,}
+export const spMarchWgsl = (light: LightAtlasFormat) =>
+  wgslBlock(
+    `SP_MARCH(${light})`,
+    [surfaceHitWgsl(TRACE_SCENE_HIT, light), BOUNCE_CM_WGSL],
+    `struct SpMarch{lighting:vec3f,hit:bool,distance:f32,}
 fn spMarchRay(start:vec3f,d:vec3f,begin:f32,reach:f32,side:f32,dithered:bool,coord:vec2u)->SpMarch{
  var out=SpMarch(vec3f(0.0),false,0.0);
  if(begin>=reach||gdfView.clipmaps==0u){return out;}
@@ -132,7 +141,7 @@ fn spMarch(probe:SpProbe,d:vec3f,begin:f32,reach:f32,coord:vec2u,side:f32)->SpMa
  if(probe.foliage&&dot(normal,d)<0.0){normal=-normal;}
  return spMarchRay(probe.P+(normal+d)*sp.scene.x,d,begin,reach,side,true,coord);
 }`,
-)
+  )
 
 /**
  * THE SCENE STAGE'S ANSWER TO A PROBE'S RAY the screen did not answer: the march through the global distance field from where the screen
@@ -144,10 +153,10 @@ fn spMarch(probe:SpProbe,d:vec3f,begin:f32,reach:f32,coord:vec2u,side:f32)->SpMa
  * distance of the hit of a march, the cache's distance or the furthest a ray looks for a ray that hit nothing —, the light written once (`spRayLit`). A hit of the field's march is never moving (the field holds no velocity) and keeps in the ray's word, as its end, the reach it
  * was marched to, not the distance it hit at: a grazing hit's distance is noise the filters cannot remove.
  */
-const sceneRay = (fog: boolean) =>
+const sceneRay = (fog: boolean, light: LightAtlasFormat) =>
   wgslBlock(
-    `SP_SCENE_RAY(${fog})`,
-    fog ? [SP_MARCH, rayFogWgsl(TRACE_SCENE_FOG)] : [SP_MARCH],
+    `SP_SCENE_RAY(${fog},${light})`,
+    fog ? [spMarchWgsl(light), rayFogWgsl(TRACE_SCENE_FOG)] : [spMarchWgsl(light)],
     `struct SpScene{radiance:vec3f,word:u32,}
 /** What the radiance cache answers along \`d\` from the probe: its eight probes gathered for the ray alone, then what lies past the near scene. */
 fn spFarRay(probe:SpProbe,d:vec3f,side:f32)->SpFar{
@@ -178,14 +187,15 @@ fn spSceneRay(probe:SpProbe,d:vec3f,missed:f32,coord:vec2u,side:f32)->SpScene{
 
 /** The scene stage, a thread a listed ray: its texel and where the screen left it read, its radiance and end written. `traceFar` is the
  *  radiance cache's answer to the rays the traced stage left (`SP_FAR_PENDING`): the rays whose word carries the mark, alone. */
-const traceSceneStage = (fog: boolean) =>
+const traceSceneStage = (fog: boolean, light: LightAtlasFormat) =>
   wgslBlock(
-    `SP_TRACE_SCENE(${fog})`,
+    `SP_TRACE_SCENE(${fog},${light})`,
     [
       spListedRays(C.sceneRays),
       SP_RAY_CONE,
-      sceneRay(fog),
+      sceneRay(fog, light),
       SP_FAR_PENDING,
+      SP_MESH_HIT,
       packLight,
       ditherLight,
       SP_TARGET_DITHER,
@@ -201,6 +211,8 @@ fn traceScene(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) g
  let ray=spListed(id,groups);
  if(!ray.ok){return;}
  let texel=vec2i(ray.at);
+ // A hit of the meshes' fields answered the ray already.
+ if((textureLoad(hitIo,texel).r&SP_MESH_HIT)!=0u){return;}
  let t=ray.at%SP_TRACE;
  let scene=spSceneRay(ray.probe,spRayDirection(ray.atlas,t,spIndexOf(ray.atlas)),spHitDistance(textureLoad(hitIo,texel).r),spRayNoiseTexel(spIndexOf(ray.atlas),t),spRayCone(ray.atlas,t));
  textureStore(radianceOut,texel,vec4u(spTraceLight(scene.radiance,texel),0u,0u,0u));
@@ -221,7 +233,15 @@ fn traceFar(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) gro
   )
 
 /** The scene stage's program over `side × side` rays a probe and `samples` of a tile, laying the height fog over the light of its rays where `fog`. */
-export const traceSceneShader = (side: number, samples: readonly [number, number], fog: boolean) =>
+export const traceSceneShader = (
+  side: number,
+  samples: readonly [number, number],
+  fog: boolean,
+  /** What the program holds beside the scene stage's entries: the meshes' stage (`traceMeshWgsl.ts`). */
+  extra: readonly WgslDecl[] = [],
+  /** The format the radiance cache's final maps are stored in. */
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+) =>
   wgslProgram(
     `${spParams(C.params)}
 ${wgslConsts({ SP_TRACE: side })}`,
@@ -231,8 +251,9 @@ ${wgslConsts({ SP_TRACE: side })}`,
       spCommon(samples),
       spReach,
       spProbeRecords(C.info, C.normal, true),
-      spCacheRead(C.cacheFinal, C.cacheRaw, C.cacheSky, 'private'),
+      spCacheRead(C.cacheFinal, C.cacheRaw, C.cacheSky, 'private', light),
       spRays(C.ray, C.pixels, C.blue, true),
-      traceSceneStage(fog),
+      traceSceneStage(fog, light),
+      ...extra,
     ],
   )

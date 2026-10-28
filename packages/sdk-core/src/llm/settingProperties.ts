@@ -8,7 +8,7 @@
  */
 import type { JsonSchemaProperty } from './types.ts'
 import { ruleSchema } from './schemaParts.ts'
-import { exposureCurveProperty } from './exposureCurveSchema.ts'
+import { contrastCurveProperty, exposureCurveProperty } from './exposureCurveSchema.ts'
 import {
   WORLD_STREAMING_RULES,
   type WorldStreamingField,
@@ -27,6 +27,7 @@ import { SKY_TRANSLUCENT_MEANINGS, type SkyTranslucentField } from './skyTranslu
 import { TEMPORAL_RULES, type TemporalField } from '../contracts/temporalOptions.ts'
 import { HIZ_RULES, type HizField } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES, type LightFunctionField } from '../contracts/lightFunctionOptions.ts'
+import { LIGHT_PROFILE_RULES, type LightProfileField } from '../contracts/lightProfileOptions.ts'
 import {
   GLOBAL_DISTANCE_FIELD_RULES,
   type GlobalDistanceFieldField,
@@ -41,6 +42,7 @@ import { HIZ_PRIME_MEANINGS, type HizPrimeField } from './hizPrimeMeanings.ts'
 import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
 import { SHADOW_SUN_MEANINGS } from './shadowSunMeanings.ts'
 import { CONTACT_SHADOW_MEANINGS } from './contactShadowMeanings.ts'
+import { CAPSULE_SHADOW_MEANINGS } from './capsuleShadowMeanings.ts'
 import { SHADOW_VIEW_MEANINGS } from './shadowViewMeanings.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { MOTION_BLUR_MEANINGS } from './motionBlurMeanings.ts'
@@ -48,6 +50,8 @@ import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
 import { DEPTH_OF_FIELD_MEANINGS } from './depthOfFieldMeanings.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
 import { TESSELLATION_MEANINGS } from './tessellationMeanings.ts'
+import { TEXTURE_FILTERING_RULES } from '../contracts/textureFilteringOptions.ts'
+import { TEXTURE_FILTERING_MEANINGS } from './textureFilteringMeanings.ts'
 import { BLOOM_RULES } from '../contracts/bloomRules.ts'
 import { GAUSSIAN_BLUR_RULES } from '../contracts/gaussianBlurRules.ts'
 import { BLOOM_MEANINGS } from './bloomMeanings.ts'
@@ -64,6 +68,10 @@ import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.t
 import { SINGLE_LAYER_WATER_MEANINGS } from './singleLayerWaterMeanings.ts'
 import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
 import { HAIR_STRANDS_MEANINGS } from './hairStrandsMeanings.ts'
+import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOptions.ts'
+import { HETEROGENEOUS_VOLUME_MEANINGS } from './heterogeneousVolumeMeanings.ts'
+import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
+import { SAMPLED_LIGHTS_MEANINGS } from './sampledLightsMeanings.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_VOLUME_MEANINGS } from './translucencyVolumeMeanings.ts'
 import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
@@ -72,6 +80,12 @@ import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { SCREEN_PROBE_MEANINGS } from './screenProbeMeanings.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
 import { REFLECTION_MEANINGS } from './reflectionMeanings.ts'
+import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
+import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
+import { LIGHTING_DATA_FORMAT_MEANINGS } from './lightingDataFormatMeanings.ts'
+import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
+import { MESH_DISTANCE_FIELD_TRACE_MEANINGS } from './meshDistanceFieldTraceMeanings.ts'
+import { SCREEN_SPACE_TRACING_MEANINGS } from './screenSpaceTracingMeanings.ts'
 import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { SURFACE_CACHE_MEANINGS } from './surfaceCacheMeanings.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
@@ -404,6 +418,14 @@ const LIGHT_FUNCTION_MEANINGS: Readonly<Record<LightFunctionField, string>> = {
   lightFunctionTranslucent: 'Whether the translucent layers read the atlas; false by default.',
 }
 
+/** What each setting of the atlas of the light profiles means (`../contracts/lightProfileOptions.ts`). */
+const LIGHT_PROFILE_MEANINGS: Readonly<Record<LightProfileField, string>> = {
+  lightProfileAtlasResolution:
+    'The texels a side of a slice of the atlas of the light profiles, from 16 to 4096; 256 by default. A profile of another side is resampled to it when it is written.',
+  lightProfileAtlasMaxProfiles:
+    'The most profiles the atlas of the light profiles holds, from 1 to 32; 32 by default. The atlas is made with the profiles the lights ask, up to this, and made again when more are asked; a light whose profile has no slice shines as a lamp with none.',
+}
+
 /** What each quality setting of the sky means (`../modules/sky/quality.ts`). The atmosphere's and
  *  the light shafts' are written by the quality presets; the clouds' and the sky light's capture
  *  stay at their defaults at every preset. */
@@ -632,9 +654,12 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(SHADING_RULES, SHADING_MEANINGS),
   ...ruleProperties(EXPOSURE_RULES, EXPOSURE_MEANINGS),
   exposureCurve: exposureCurveProperty(),
+  localExposureHighlightContrastCurve: contrastCurveProperty('highlight'),
+  localExposureShadowContrastCurve: contrastCurveProperty('shadow'),
   ...ruleProperties(TEMPORAL_RULES, TEMPORAL_MEANINGS),
   ...ruleProperties(HIZ_RULES, { ...HIZ_MEANINGS, ...HIZ_PRIME_MEANINGS }),
   ...ruleProperties(LIGHT_FUNCTION_RULES, LIGHT_FUNCTION_MEANINGS),
+  ...ruleProperties(LIGHT_PROFILE_RULES, LIGHT_PROFILE_MEANINGS),
   ...ruleProperties(VOLUMETRIC_LIGHTMAP_RULES, VOLUMETRIC_LIGHTMAP_MEANINGS),
   ...ruleProperties(GLOBAL_DISTANCE_FIELD_RULES, GLOBAL_DISTANCE_FIELD_MEANINGS),
   ...ruleProperties(DISTANCE_FIELD_OCCLUSION_RULES, DISTANCE_FIELD_OCCLUSION_MEANINGS),
@@ -642,10 +667,12 @@ export const settingRuleProperties = () => ({
     ...SHADOW_SUN_MEANINGS,
     ...SHADOW_VIEW_MEANINGS,
     ...CONTACT_SHADOW_MEANINGS,
+    ...CAPSULE_SHADOW_MEANINGS,
   }),
   ...ruleProperties(MOTION_BLUR_RULES, MOTION_BLUR_MEANINGS),
   ...ruleProperties(DEPTH_OF_FIELD_RULES, DEPTH_OF_FIELD_MEANINGS),
   ...ruleProperties(TESSELLATION_RULES, TESSELLATION_MEANINGS),
+  ...ruleProperties(TEXTURE_FILTERING_RULES, TEXTURE_FILTERING_MEANINGS),
   ...ruleProperties(BLOOM_RULES, BLOOM_MEANINGS),
   ...ruleProperties(GAUSSIAN_BLUR_RULES, GAUSSIAN_BLUR_MEANINGS),
   ...ruleProperties(FILM_RULES, FILM_MEANINGS),
@@ -656,8 +683,13 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(SUBSURFACE_SCATTERING_RULES, SUBSURFACE_SCATTERING_MEANINGS),
   ...ruleProperties(SINGLE_LAYER_WATER_RULES, SINGLE_LAYER_WATER_MEANINGS),
   ...ruleProperties(HAIR_STRANDS_RULES, HAIR_STRANDS_MEANINGS),
+  ...ruleProperties(HETEROGENEOUS_VOLUME_RULES, HETEROGENEOUS_VOLUME_MEANINGS),
+  ...ruleProperties(SAMPLED_LIGHTS_RULES, SAMPLED_LIGHTS_MEANINGS),
   ...ruleProperties(SCREEN_PROBE_RULES, SCREEN_PROBE_MEANINGS),
   ...ruleProperties(REFLECTION_RULES, REFLECTION_MEANINGS),
+  ...ruleProperties(SCREEN_SPACE_TRACING_RULES, SCREEN_SPACE_TRACING_MEANINGS),
+  ...ruleProperties(LIGHTING_DATA_FORMAT_RULES, LIGHTING_DATA_FORMAT_MEANINGS),
+  ...ruleProperties(MESH_DISTANCE_FIELD_TRACE_RULES, MESH_DISTANCE_FIELD_TRACE_MEANINGS),
   ...ruleProperties(SURFACE_CACHE_RULES, SURFACE_CACHE_MEANINGS),
   ...ruleProperties(AMBIENT_OCCLUSION_RULES, AMBIENT_OCCLUSION_MEANINGS),
   ...ruleProperties(AMBIENT_CUBEMAP_RULES, AMBIENT_CUBEMAP_MEANINGS),

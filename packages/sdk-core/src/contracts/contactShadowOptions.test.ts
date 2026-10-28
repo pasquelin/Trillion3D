@@ -13,6 +13,12 @@ const FIELDS = [
   'contactShadowOverrideLengthInWorldSpace',
   'contactShadowOverrideCastingIntensity',
   'contactShadowOverrideNonCastingIntensity',
+  'contactShadowMethod',
+  'contactShadowBendSurfaceThickness',
+  'contactShadowBendMaxLights',
+  'contactShadowIntensityMode',
+  'contactShadowIntensityFadeStart',
+  'contactShadowIntensityFadeLength',
 ] as const
 
 const OVERRIDES = FIELDS.filter(

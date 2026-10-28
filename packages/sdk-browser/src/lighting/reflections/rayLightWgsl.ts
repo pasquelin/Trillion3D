@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { interleavedGradientNoise } from '../../../../math/src/wgsl/sampling.ts'
 import { clipToFramebuffer } from '../../../../math/src/wgsl/projection.ts'
+import { makeFinite3 } from '../../../../math/src/wgsl/integer.ts'
 import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { FOG_MODE, FOG_SLOT } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { fogBlockOf } from '../fog/readWgsl.ts'
@@ -43,6 +44,10 @@ export const reflectionFogWgsl = (cubemap: number, sampler: number) =>
 const REFLECTION_RAY_HELD_WGSL = `fn reflectionEdgeNoise(coord:vec2u)->f32{
  return interleavedGradientNoise(vec2f(coord)+vec2f(0.5),f32(reflectionView.temporal.y));
 }
+/** The last lit image at \`texel\`, one point of its level 0, in the units of a ray's radiance: a channel that is not finite or is negative reads as black. */
+fn reflectionLitAt(texel:vec2i)->vec3f{
+ return max(makeFinite3(textureLoad(reflectionImage,texel,0).rgb),vec3f(0.0))*reflectionView.radiance.w;
+}
 fn reflectionHitVignette(S:vec2f,Q:vec2f)->f32{
  return min(reflectionVignette(S/view.viewport.xy*2.0-1.0),reflectionVignette(Q/reflectionView.radiance.xy*2.0-1.0));
 }
@@ -64,8 +69,7 @@ fn reflectionHeld(at:vec3f,N:vec3f,noise:f32)->vec4f{
  if(!past.valid){return none;}
  let weight=reflectionHitVignette(S.xy,past.pixel);
  if(weight<noise||!reflectionPastAgrees(past,noise,reflectionView.light.y)){return none;}
- let lit=textureLoad(reflectionImage,reflectionPastTexel(past),0);
- return vec4f(lit.rgb*reflectionView.radiance.w,weight);
+ return vec4f(reflectionLitAt(reflectionPastTexel(past)),weight);
 }`
 
 /** What a hit shows (`reflectionSeenAt`), with the sky light leaking onto it (`reflectionSkylightLeak`) and the cone it is read with
@@ -122,6 +126,7 @@ export const reflectionRayLightWgsl = (group: number, stored = false) =>
       REFLECTION_VIGNETTE_WGSL,
       REFLECTION_CLAMP_WGSL,
       REFLECTION_LINEAR_DEPTH_WGSL,
+      makeFinite3,
       reflectionPastWgsl(group, stored),
       SKY_DIFFUSE_READ_WGSL,
       clipToFramebuffer,

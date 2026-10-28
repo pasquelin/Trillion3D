@@ -4,7 +4,7 @@ import { surfaceReflects } from '../../materials/surface/surfaceModel.ts'
 import { loadOnlyTarget } from '../../gpu/core/loadOnlyTarget.ts'
 import { FRONT_PACK_WGSL } from './frontPackWgsl.ts'
 import { FRONT_TRACED_FORMAT } from './frontLayer.ts'
-import { reflectionFrontWgsl } from './viewLayout.ts'
+import { reflectionFrontTracedWgsl } from './viewLayout.ts'
 import { reflectionEnvironmentLobesWgsl, reflectionWeighWgsl } from './weight.ts'
 
 /** How far a fragment's depth may lie from the front depth and still be that surface (`forwardTrace`):
@@ -33,7 +33,7 @@ const forwardReflectionWgsl = (group: number, lobes: boolean, traced: number) =>
     [
       reflectionWeighWgsl(lobes, 'slab'),
       reflectionEnvironmentLobesWgsl(lobes),
-      reflectionFrontWgsl(group),
+      reflectionFrontTracedWgsl(group),
       surfaceReflects,
       FRONT_PACK_WGSL,
     ],
@@ -42,7 +42,7 @@ const FRONT_DEPTH_THRESHOLD:u32=${FRONT_DEPTH_THRESHOLD}u;
 /** Whether the depth \`z\` at pixel \`at\` is the front pass's there: the bit patterns of two depths of
  *  the view, never negative, within \`FRONT_DEPTH_THRESHOLD\` units. */
 fn frontDepthMatches(at:vec2i,z:f32)->bool{
- let a=bitcast<u32>(reflectionFrontDepth(at));
+ let a=textureLoad(frontTraced,at).z;
  let b=bitcast<u32>(z);
  return max(a,b)-min(a,b)<=FRONT_DEPTH_THRESHOLD;
 }

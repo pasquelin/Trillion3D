@@ -58,8 +58,9 @@ function historyOf(A = 0) {
   return {
     set: (values: number[]) => texels.forEach((t, i) => depths.set(String(t), values[i])),
     mark: (values: boolean[]) => texels.forEach((t, i) => foliages.set(String(t), values[i])),
-    reproject: (N: number[], noise: number, foliage = false) =>
-      run.spReproject([32, 32], [0, 0, 0], N, foliage, noise),
+    put: (texel: number[], depth: number) => depths.set(String(texel), depth),
+    reproject: (N: number[], noise: number, foliage = false, P = [0, 0, 0]) =>
+      run.spReproject([32, 32], P, N, foliage, noise),
   }
 }
 
@@ -96,6 +97,26 @@ test("a history texel counts where its depth is the expected one within a thresh
     historyOf(-0.1).reproject([0, 0, 1], 0.5).weights,
     [0, 0, 0, 0],
     'even where the zero depth is the far plane’s',
+  )
+})
+
+test('a point the last image showed at its very edge keeps its edge texel whole: the position is held a guard band inside the texel centres, a point past the edge has no history', () => {
+  const { put, reproject } = historyOf()
+  put([0, 31], 1)
+  put([0, 32], 1)
+  // A history position at x = 0.005 of 64, a hundredth of a texel inside the edge: held to the first texel's centre plus the guard band.
+  const edge = reproject([0, 0, 1], 0.5, false, [-1 + 0.01 / 64, 0, 0])
+  assert.deepEqual(edge.texel, [0, 31])
+  assert.ok(edge.weights[0] > 0.49 && edge.weights[2] > 0.49, 'the edge texels keep their weight')
+  assert.deepEqual(
+    [edge.weights[1], edge.weights[3]],
+    [0, 0],
+    'the texel past them has under the least weight',
+  )
+  assert.deepEqual(
+    reproject([0, 0, 1], 0.5, false, [-1 - 0.01 / 64, 0, 0]).weights,
+    [0, 0, 0, 0],
+    'a position past the edge has no history',
   )
 })
 

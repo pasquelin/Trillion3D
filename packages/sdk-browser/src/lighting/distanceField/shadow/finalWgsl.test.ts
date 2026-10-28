@@ -34,13 +34,13 @@ test('the cascade’s hull keeps a mesh whose sphere is not wholly outside a pla
     [1, 0, 0, 100],
     [0, 0, -1, 0],
   ]
-  const { dfshHullTouches } = shaderRun<{
-    dfshHullTouches: (centre: number[], radius: number) => boolean
-  }>(DFSH_CULL_WGSL, ['dfshHullTouches'], { dfsh: { counts: [2, 0, 0, 0], planes } })
-  assert.equal(dfshHullTouches([0, 0, 50], 10), true, 'inside')
-  assert.equal(dfshHullTouches([150, 0, 50], 60), true, 'its sphere reaches the plane')
-  assert.equal(dfshHullTouches([150, 0, 50], 40), false, 'wholly outside the first plane')
-  assert.equal(dfshHullTouches([0, 0, -30], 20), false, 'wholly outside the second plane')
+  const { dfCullInFrustum } = shaderRun<{
+    dfCullInFrustum: (centre: number[], radius: number) => boolean
+  }>(DFSH_CULL_WGSL, ['dfCullInFrustum'], { dfsh: { counts: [2, 0, 0, 0], planes } })
+  assert.equal(dfCullInFrustum([0, 0, 50], 10), true, 'inside')
+  assert.equal(dfCullInFrustum([150, 0, 50], 60), true, 'its sphere reaches the plane')
+  assert.equal(dfCullInFrustum([150, 0, 50], 40), false, 'wholly outside the first plane')
+  assert.equal(dfCullInFrustum([0, 0, -30], 20), false, 'wholly outside the second plane')
 })
 
 const NEAR = { range: [0, 1000, 1e9, 0], fade: [-1, 1, 1, 0], lane: [1, 0, 0, 0] }

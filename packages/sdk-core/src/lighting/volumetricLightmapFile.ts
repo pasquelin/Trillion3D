@@ -1,5 +1,8 @@
-import { EngineError } from '../contracts/cache.ts'
-import { checkSidecarHead } from '../contracts/sidecarSection.ts'
+import {
+  checkSidecarHead,
+  sidecarRefusal,
+  type SidecarRefusal,
+} from '../contracts/sidecarSection.ts'
 import { hexOfBytes } from '../../../math/src/scalar/hex.ts'
 import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import {
@@ -113,9 +116,7 @@ const BYTES_PER_TEXEL = [4, 4, 4, 1]
 const SKY_LAYER = 8
 const WORD = 4
 
-const refuse = (why: string): never => {
-  throw new EngineError('INVALID_CACHE', `volumetric lightmap: ${why}`, {})
-}
+const refuse: SidecarRefusal = sidecarRefusal('volumetric lightmap')
 
 const texels = (size: VolumeSize) => size[0] * size[1] * size[2]
 

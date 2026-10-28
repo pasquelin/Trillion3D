@@ -11,6 +11,7 @@ import {
   type FrameAtlases,
 } from './cache/frameAtlases.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 
 /** The updates in a row at a quarter of the texels held that make an atlas again at the size asked. */
 const SHRINK_AFTER_UPDATES = 30
@@ -18,7 +19,7 @@ const SHRINK_AFTER_UPDATES = 30
 /** No atlas held, and the storage of maps of 16 texels with the sky's visibility. */
 function emptyAtlases() {
   const { device } = fakeDevice()
-  const shape = { resolution: 16, mipmaps: 1, skyVisibility: true }
+  const shape = { resolution: 16, mipmaps: 1, skyVisibility: true, light: 'r32uint' as const }
   const state: FrameAtlases = {
     device,
     temp: undefined,
@@ -50,12 +51,16 @@ test('the atlases of a frame are kept while their extent holds the queue’s blo
   >[1]
   assert.notEqual(tempFor(state, other, { row: 16, probes: 64 }), taller)
   // The trace atlas holds whole rows of 512 tiles, and is kept for as many tiles as they hold.
-  const atlas = traceAtlasFor(state, 1000)!
+  const atlas = traceAtlasFor(state, 1000, WORD_LIGHT_FORMAT)!
   assert.equal(atlas.tiles, 1024)
-  assert.equal(atlas.bytes, cacheTraceBytes(1024))
-  assert.equal(traceAtlasFor(state, 600), atlas)
-  assert.equal(traceAtlasFor(state, 1024), atlas, 'a few more tiles within the last row')
-  assert.notEqual(traceAtlasFor(state, 1025), atlas)
+  assert.equal(atlas.bytes, cacheTraceBytes(1024, WORD_LIGHT_FORMAT))
+  assert.equal(traceAtlasFor(state, 600, WORD_LIGHT_FORMAT), atlas)
+  assert.equal(
+    traceAtlasFor(state, 1024, WORD_LIGHT_FORMAT),
+    atlas,
+    'a few more tiles within the last row',
+  )
+  assert.notEqual(traceAtlasFor(state, 1025, WORD_LIGHT_FORMAT), atlas)
 })
 
 test('the atlases of a frame shrink once the updates have stayed at a quarter of their texels, and any larger update in the run starts it over', () => {
@@ -73,10 +78,10 @@ test('the atlases of a frame shrink once the updates have stayed at a quarter of
   assert.deepEqual(shrunk.extent, [64, 64])
   assert.equal(tempFor(state, storage, small), shrunk, 'kept again at the size asked')
 
-  const wide = traceAtlasFor(state, 4000)!
+  const wide = traceAtlasFor(state, 4000, WORD_LIGHT_FORMAT)!
   for (let update = 1; update < SHRINK_AFTER_UPDATES; update++)
-    assert.equal(traceAtlasFor(state, 100), wide)
-  const narrow = traceAtlasFor(state, 100)!
+    assert.equal(traceAtlasFor(state, 100, WORD_LIGHT_FORMAT), wide)
+  const narrow = traceAtlasFor(state, 100, WORD_LIGHT_FORMAT)!
   assert.notEqual(narrow, wide)
   assert.equal(narrow.tiles, 512, 'one row, the least an atlas holds')
 })
@@ -84,22 +89,30 @@ test('the atlases of a frame shrink once the updates have stayed at a quarter of
 test('an update counts toward the shrink while it asks at most a quarter of the tiles held, and one asking more starts the count over', () => {
   const { state } = emptyAtlases()
   // 4096 tiles held: 1024 is a quarter of them exactly, 1025 more than that.
-  const held = traceAtlasFor(state, 4096)!
+  const held = traceAtlasFor(state, 4096, WORD_LIGHT_FORMAT)!
   for (let update = 1; update < SHRINK_AFTER_UPDATES; update++)
-    assert.equal(traceAtlasFor(state, 1024), held)
-  assert.equal(traceAtlasFor(state, 1025), held, 'past a quarter: kept, the count started over')
+    assert.equal(traceAtlasFor(state, 1024, WORD_LIGHT_FORMAT), held)
+  assert.equal(
+    traceAtlasFor(state, 1025, WORD_LIGHT_FORMAT),
+    held,
+    'past a quarter: kept, the count started over',
+  )
   for (let update = 1; update < SHRINK_AFTER_UPDATES; update++)
-    assert.equal(traceAtlasFor(state, 1024), held)
-  assert.notEqual(traceAtlasFor(state, 1024), held, 'the last of a full run at a quarter')
+    assert.equal(traceAtlasFor(state, 1024, WORD_LIGHT_FORMAT), held)
+  assert.notEqual(
+    traceAtlasFor(state, 1024, WORD_LIGHT_FORMAT),
+    held,
+    'the last of a full run at a quarter',
+  )
 })
 
 test('the trace atlas alone is given back where the traced mode is off, the others with it', () => {
   const { state, storage } = emptyAtlases()
   const temp = tempFor(state, storage, { row: 4, probes: 16 })
-  traceAtlasFor(state, 100)
+  traceAtlasFor(state, 100, WORD_LIGHT_FORMAT)
   dropTraceAtlas(state)
   assert.deepEqual([state.temp, state.traceAtlas], [temp, undefined])
-  traceAtlasFor(state, 100)
+  traceAtlasFor(state, 100, WORD_LIGHT_FORMAT)
   dropTemp(state)
   assert.deepEqual([state.temp, state.traceAtlas], [undefined, undefined])
 })

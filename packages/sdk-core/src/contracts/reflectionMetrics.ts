@@ -1,16 +1,13 @@
 /**
  * How the reflections' scene rays ended, each ray of the scene stage counted once: no distance field to march
  * (`noField`); the march met a surface and the surface cache gave its light (`hit`); the march met nothing and the
- * ray left the scene to the environment (`open`); the screen's far trace answered what left it (`distant`); the ray went
- * nowhere — the march met a surface none of the cards near it gave any light of, or nothing before the surface the screen
- * met — and the probes' field answers it (`miss`); the screen's surface was closer than the march can tell, no march made
- * (`bound`).
+ * ray left the scene to the environment (`open`); the screen's far trace answered what left it (`distant`); the screen's
+ * surface was closer than the march can tell, no march made (`bound`); a surface no card lights is a `hit`, black.
  */
 export interface ReflectionSceneEnded {
   noField: number
   hit: number
   open: number
-  miss: number
   bound: number
   distant: number
 }

@@ -108,6 +108,7 @@ test('the distance-field cascade runs from the near levels’ end, fading in and
   for (const none of [
     cascade({ ...max, shadowFarField: false }),
     cascade({ ...max, distanceFieldShadowQuality: 0 }),
+    cascade({ ...max, distanceFieldShadowing: false }),
     cascade(max, { distanceFieldShadows: false }),
     cascade(max, {}, false),
     cascade(max, { distanceFieldShadowDistance: false }),

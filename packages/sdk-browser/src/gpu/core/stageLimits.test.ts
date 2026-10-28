@@ -77,7 +77,7 @@ const bindsFront = (layouts: GPUBindGroupLayoutDescriptor[], binding: number) =>
         entry.binding === binding &&
         (entry.visibility & GPUShaderStage.FRAGMENT) !== 0 &&
         entry.storageTexture?.access === 'read-only' &&
-        entry.storageTexture.format === 'rg32uint' &&
+        entry.storageTexture.format === 'rgba32uint' &&
         (entry.storageTexture.viewDimension ?? '2d') === '2d',
     ),
   )
@@ -155,14 +155,18 @@ test("the blends and the transmissive stages fit WebGPU's default limits", async
   // The opaque surfaces' flags (`BLEND_BINDINGS.surfaceFlags`) make it 4 of 4.
   // The translucency global illumination volume (the see-through surfaces' indirect light, two filtered fetches) is read through two sampled 3D
   // textures, the ambient light and the directional light, and a trilinear sampler, which take the sampled texture and the uniform buffer the
-  // world's probes' atlas and levels held and one more: a surface no longer gathers the probes. 16 of 16 sampled textures, 4 of 16 samplers,
+  // world's probes' atlas and levels held and one more: a surface no longer gathers the probes. The volume's ambient and directional light are
+  // stacked in one texture (as the translucency lighting volume's cascades are), which frees a sampled texture for the light profiles' atlas,
+  // read by the lit programs of a translucent surface, and its sampler is the fifth: 16 of 16 sampled textures, 5 of 16 samplers,
   // 9 of 12 uniform buffers.
+  // The front's depth rides in the third word of its traced radiance (`FRONT_TRACED_FORMAT`), which frees the reflection group's depth texture of it for the
+  // heterogeneous volumes' camera map (`BLEND_BINDINGS.volumeCamera`, a sampled 2D array): the count is the same.
   assert.deepEqual(fragmentCounts(layouts), {
     maxSampledTexturesPerShaderStage: 16,
     maxStorageBuffersPerShaderStage: 8,
     maxStorageTexturesPerShaderStage: 4,
     maxUniformBuffersPerShaderStage: 9,
-    maxSamplersPerShaderStage: 4,
+    maxSamplersPerShaderStage: 5,
   })
   // The vertex stage holds the eight storage buffers too: the geometry's three, the items, the lights, the
   // instances, the spans with the clusters' identity words after them, and the lists of the local fog volumes it

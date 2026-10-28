@@ -1,9 +1,16 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { bilinear3 } from '../../../../../math/src/wgsl/sampling.ts'
-import { unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
+import {
+  WORD_LIGHT_FORMAT,
+  lightAtlasScalar,
+  lightOfTexel,
+  lightReadDeps,
+  type LightAtlasFormat,
+} from '../../../gpu/core/lightAtlasFormat.ts'
 import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
 import { REFLECTION_ENVIRONMENT_WGSL } from '../../reflections/field.ts'
 import { CACHE_WORDS_WGSL } from '../cache/cacheWordsWgsl.ts'
+import { rawWordChannel } from '../cache/cacheRawWgsl.ts'
 
 /** Where the eight probes round a point are kept: shared by the workgroup of a probe, a lane gathering each (`spCacheGather`), or
  *  private to a thread that reads the cache for a ray of its own (`spCacheGatherOwn`). */
@@ -16,7 +23,8 @@ const cacheGatheredWgsl = (
   raw: number,
   sky: number,
   scope: CacheGatherScope,
-) => `@group(0) @binding(${final}) var cacheFinal:texture_2d<u32>;
+  light: LightAtlasFormat,
+) => `@group(0) @binding(${final}) var cacheFinal:texture_2d<${lightAtlasScalar(light)}>;
 @group(0) @binding(${raw}) var cacheRaw:texture_2d<u32>;
 @group(0) @binding(${sky}) var cacheSky:texture_2d<f32>;
 struct CacheSample{radiance:vec3f,distance:f32,sky:f32,}
@@ -69,7 +77,7 @@ fn spCacheGatherOwnBiased(P:vec3f,bias:u32,random:f32){
 fn spCacheGatherOwn(P:vec3f){spCacheGatherOwnBiased(P,0u,0.0);}`
 
 /** The texel reads of a probe's map: the taps, the light of a level, the light at a fraction of a level, the sky share. */
-const CACHE_TEXELS_TEXT = `
+const cacheTexelsText = (light: LightAtlasFormat) => `
 /** The border of a final map's first level, in texels: one doubled for each level of detail past the first, so that the coarsest keeps one. */
 fn spCacheBorder()->u32{return 1u<<(u32(sp.cache.z)-1u);}
 /** The four taps round the point \`q\` of a final map at \`tile\`, in texels of the map from the corner of its border, less a half: the texels'
@@ -84,7 +92,7 @@ fn spCacheLevel(slot:u32,uv:vec2f,res:u32,level:u32)->vec3f{
  let tile=cacheTileOf(slot,(res+2u*border)>>level);
  let q=uv*f32(res>>level)+vec2f(f32(border>>level)-0.5);
  var taps=array<vec3f,4>();
- for(var i=0u;i<4u;i++){taps[i]=unpackLight(textureLoad(cacheFinal,spCacheTaps(tile,q,i),i32(level)).r);}
+ for(var i=0u;i<4u;i++){taps[i]=${lightOfTexel(light, 'textureLoad(cacheFinal,spCacheTaps(tile,q,i),i32(level))')};}
  return bilinear3(taps[0],taps[1],taps[2],taps[3],q-floor(q))*bounce.reach.w;
 }
 /** The light along the point \`uv\` at the level of detail \`mip\` (a fraction: the two levels it lies between, mixed). */
@@ -106,8 +114,8 @@ fn spCacheSky(slot:u32,uv:vec2f,res:u32)->f32{
  return mix(mix(taps[0],taps[1],f.x),mix(taps[2],taps[3],f.x),f.y);
 }`
 
-/** What a probe gives along a ray, the cache's sample, and what lies past the screen. */
-const CACHE_SAMPLE_TEXT = `
+/** What a probe gives along a ray, the cache's sample, and what lies past the screen; the distance word is read from the raw atlas of the format `light`. */
+const cacheSampleText = (light: LightAtlasFormat) => `
 /** What the probe at corner \`i\` gives along the ray \`d\` from \`P\`, of a cone \`size\` texels of its grid a side: nothing where it holds no map. */
 fn spCacheProbe(i:u32,P:vec3f,d:vec3f,res:u32,size:f32)->CacheSample{
  // The table names a probe by its slot plus one, zero for none (\`traced\`): its maps lie at the slot itself.
@@ -123,7 +131,7 @@ fn spCacheProbe(i:u32,P:vec3f,d:vec3f,res:u32,size:f32)->CacheSample{
  let correction=t*t/(radius*dot(towards,d));
  let uv=equalAreaEncode(towards);
  let mip=clamp(log2(f32(res)/size),0.0,sp.cache.z-1.0);
- let word=textureLoad(cacheRaw,vec2i(cacheTileOf(slot,res)+min(vec2u(uv*f32(res)),vec2u(res-1u))),0).g;
+ let word=textureLoad(cacheRaw,vec2i(cacheTileOf(slot,res)+min(vec2u(uv*f32(res)),vec2u(res-1u))),0).${rawWordChannel(light, 'rg')};
  let apart=spFlag(SP_FLAG_CACHE_SKY);
  return CacheSample(
   spCacheRadiance(slot,uv,res,mip)*correction,
@@ -180,19 +188,27 @@ fn spFarOf(P:vec3f,d:vec3f,size:f32)->SpFar{
  * interpolated the same way, fills the light with the sky itself along the ray (`spCacheSky`). `spFarOf` is a ray's answer
  * past the screen and the near scene: the cache's, with the distance it reads (the greatest a probe's ray holds, `CACHE_MAX_HIT`, where the probes' rays met
  * no surface, which the ray's word then keeps as the furthest a ray looks); the environment's, at the ray's reach, where the cache covers no point of it.
+ * The final maps are read as the format `light` stores them (`lightOfTexel`).
  */
 export const spCacheRead = (
   final: number,
   raw: number,
   sky: number,
   scope: CacheGatherScope = 'workgroup',
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
 ) =>
   wgslBlock(
-    `spCacheRead(${final}, ${raw}, ${sky}, ${scope})`,
-    [CACHE_WORDS_WGSL, unpackLight, bilinear3, REFLECTION_ENVIRONMENT_WGSL, SKY_READ_WGSL],
-    cacheGatheredWgsl(final, raw, sky, scope) +
+    `spCacheRead(${final}, ${raw}, ${sky}, ${scope}, ${light})`,
+    [
+      CACHE_WORDS_WGSL,
+      ...lightReadDeps(light),
+      bilinear3,
+      REFLECTION_ENVIRONMENT_WGSL,
+      SKY_READ_WGSL,
+    ],
+    cacheGatheredWgsl(final, raw, sky, scope, light) +
       cacheHeldWgsl +
       cacheGatherWgsl(scope) +
-      CACHE_TEXELS_TEXT +
-      CACHE_SAMPLE_TEXT,
+      cacheTexelsText(light) +
+      cacheSampleText(light),
   )

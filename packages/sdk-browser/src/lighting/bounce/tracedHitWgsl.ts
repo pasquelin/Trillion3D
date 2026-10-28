@@ -3,6 +3,7 @@ import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { DISTANCE_FIELD_UNITS_PER_METRE } from '../../../../sdk-core/src/contracts/distanceFieldAbi.ts'
 import { sceneTraceWgsl } from '../rays/sceneTrace/sceneTraceWgsl.ts'
 import { surfaceHitCardsWgsl, type SurfaceHitBindings } from '../surfaceCache/hitWgsl.ts'
+import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 
 /** The centimetres in a metre (`BOUNCE_CM`), the field's unit, which the lengths of a ray are converted to and the cards are read in. */
 export const BOUNCE_CM_WGSL = wgslBlock(
@@ -22,10 +23,11 @@ export const BOUNCE_CM_WGSL = wgslBlock(
 export const tracedHitLightWgsl = (
   cards: Pick<SurfaceHitBindings, 'group' | 'cards' | 'instances'>,
   scene: { readonly group: number; readonly first: number },
+  light: LightAtlasFormat,
 ) =>
   wgslBlock(
-    `tracedHitLightWgsl(${cards.group},${cards.cards},${cards.instances},${scene.group},${scene.first})`,
-    [BOUNCE_CM_WGSL, surfaceHitCardsWgsl(cards), sceneTraceWgsl(scene.group, scene.first)],
+    `tracedHitLightWgsl(${cards.group},${cards.cards},${cards.instances},${scene.group},${scene.first},${light})`,
+    [BOUNCE_CM_WGSL, surfaceHitCardsWgsl(cards, light), sceneTraceWgsl(scene.group, scene.first)],
     `fn tracedHitLight(hit:StHit,origin:vec3f,d:vec3f,side:f32,depthBias:f32,nearest:f32,coord:vec2u)->vec3f{
  let hitCm=hit.distance*f32(BOUNCE_CM);
  if((!hit.frontFace&&!hit.twoSided)||hitCm<nearest){return vec3f(0.0);}

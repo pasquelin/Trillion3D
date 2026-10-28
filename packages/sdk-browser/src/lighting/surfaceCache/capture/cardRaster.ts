@@ -151,7 +151,10 @@ interface Descent {
   out?: GPUBuffer
   work?: GPUBuffer
   flags?: RecordTexture
-  readonly groups: Record<'cut' | 'card' | 'arm' | 'rows' | 'export', HeldGroup>
+  readonly groups: Record<
+    'cut' | 'card' | 'arm' | 'rows' | 'export' | 'clearIds' | 'clearSurfaces',
+    HeldGroup
+  >
 }
 
 function createDescent(device: GPUDevice): Descent {
@@ -175,6 +178,8 @@ function createDescent(device: GPUDevice): Descent {
       arm: heldGroup(),
       rows: heldGroup(),
       export: heldGroup(),
+      clearIds: heldGroup(),
+      clearSurfaces: heldGroup(),
     },
   }
 }
@@ -393,6 +398,51 @@ function createRasterGroup(device: GPUDevice) {
   }
 }
 
+/** The clear pass, before the cull: the rectangle of each view emptied in the capture atlas — no triangle and no depth in the identifiers and
+ *  the depth, no albedo, the normal facing the card, no emission — so that the raster and what shades it write the texels a surface reached alone. */
+function encodeClear(
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  d: Descent,
+  b: Buffers,
+  targets: Targets,
+  n: number,
+) {
+  const end = cardEndPipes(device)
+  const clear = encoder.beginComputePass({ label: 'Trillion3D card capture clear' })
+  const ids = d.groups.clearIds.identity.next
+  ids[0] = b.table
+  ids[1] = targets.ids
+  ids[2] = targets.depth
+  clear.setBindGroup(
+    0,
+    bound(device, d.groups.clearIds, end.clearIds.groups[0]!, 3, () => [
+      { binding: 1, resource: { buffer: b.table } },
+      { binding: 2, resource: targets.ids },
+      { binding: 3, resource: targets.depth },
+    ]),
+  )
+  clear.setPipeline(end.clearIds.pipeline!)
+  clear.dispatchWorkgroups(PAGE_SIZE / EXPORT_TILE, PAGE_SIZE / EXPORT_TILE, n)
+  const surfaces = d.groups.clearSurfaces.identity.next
+  surfaces[0] = b.table
+  surfaces[1] = targets.albedo
+  surfaces[2] = targets.normal
+  surfaces[3] = targets.emissive
+  clear.setBindGroup(
+    0,
+    bound(device, d.groups.clearSurfaces, end.clearSurfaces.groups[0]!, 4, () => [
+      { binding: 1, resource: { buffer: b.table } },
+      { binding: 2, resource: targets.albedo },
+      { binding: 3, resource: targets.normal },
+      { binding: 4, resource: targets.emissive },
+    ]),
+  )
+  clear.setPipeline(end.clearSurfaces.pipeline!)
+  clear.dispatchWorkgroups(PAGE_SIZE / EXPORT_TILE, PAGE_SIZE / EXPORT_TILE, n)
+  clear.end()
+}
+
 /** The cull pass: the views' descent over the cut, the clusters it lists decoded into rows (`cardDescentWgsl.ts`). */
 function encodeCull(
   device: GPUDevice,
@@ -494,6 +544,81 @@ function encodeExport(
   exported.end()
 }
 
+/** What the raster keeps between two images: the buffers of the views' pages and the descent's. */
+interface RasterHeld {
+  buffers?: Buffers
+  descent?: Descent
+}
+
+/** The views of `pages` that have a rank in the cut, at most `most`, in `sources`, and which pages they are, in `drawn`: how many. */
+function collectViews(
+  sources: CardViewSource[],
+  drawn: number[],
+  pages: Parameters<CardRaster['draw']>[2],
+  views: Parameters<CardRaster['draw']>[3],
+  most: number,
+  rankOf: (placement: number) => number,
+) {
+  sources.length = drawn.length = 0
+  for (let at = 0; at < pages.length && sources.length < most; at++) {
+    const place = rankOf(pages[at]!.placement)
+    if (place < 0) continue
+    sources.push({ view: views[at]!, place })
+    drawn.push(at)
+  }
+  return sources.length
+}
+
+/** The views `sources` (`n` of them) drawn into `targets`: the views' table and parameters written, then the descent's clear, the cull, the raster and the export. */
+function encodeViews(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  held: RasterHeld,
+  rasterGroup: ReturnType<typeof createRasterGroup>,
+  s: NonNullable<ReturnType<typeof sessionOf>>,
+  tables: NonNullable<ReturnType<NonNullable<ReturnType<typeof sessionOf>>['cut']['cutTables']>>,
+  targets: Targets,
+  sources: readonly CardViewSource[],
+  order: number[],
+) {
+  const n = sources.length
+  if (held.buffers?.side !== targets.side || held.buffers.views !== targets.viewRows) {
+    held.buffers?.dispose()
+    held.buffers = createBuffers(device, targets.side, targets.viewRows)
+  }
+  const b = held.buffers
+  // The table of views in the order of their placements.
+  writeCardViews(b.table32, sources, order)
+  const d = (held.descent ??= createDescent(device))
+  device.queue.writeBuffer(b.table, 0, b.table32.bytes, 0, cardTableWords(n) * 4)
+  const { params32 } = b
+  params32.u[CARD_PARAMS.at.views] = n
+  params32.u[CARD_PARAMS.at.rowCap] = b.rows
+  // The pages are drawn at the view's pixel error over the capture's detail factor.
+  params32.f[CARD_PARAMS.at.threshold] =
+    rt.run.gate.pixelError / (rt.surfaceCache?.settings.surfaceCacheCaptureLodScaleFactor ?? 1)
+  device.queue.writeBuffer(b.params, 0, params32.bytes)
+  prepareDescent(rt, device, d, b, tables, s.cut.pageCount)
+  encodeClear(device, encoder, d, b, targets, n)
+  encodeCull(device, encoder, d, b, s, tables, n)
+  encodeRaster(device, encoder, b, rasterGroup(b, s, targets.ids))
+  encodeExport(device, encoder, d, b, targets, n)
+  return b
+}
+
+/** Gives back what the raster holds. */
+function disposeHeld(held: RasterHeld) {
+  held.buffers?.dispose()
+  const d = held.descent
+  d?.uniform.destroy()
+  d?.args.destroy()
+  d?.out?.destroy()
+  d?.work?.destroy()
+  d?.flags?.texture.destroy()
+  held.buffers = held.descent = undefined
+}
+
 /**
  * The raster of the cards' views of the session `rt` on `device`. `rankOf` is the rank, in the cut's
  * tables, of the root a placement of the cache follows, -1 where the cut holds none.
@@ -506,8 +631,7 @@ export function createCardRaster(
   let failure: unknown
   let asked = false
   let pipes: ReturnType<typeof askCardPipes> = []
-  let buffers: Buffers | undefined
-  let descent: Descent | undefined
+  const held: RasterHeld = {}
   const rasterGroup = createRasterGroup(device)
   const sources: CardViewSource[] = []
   const order: number[] = []
@@ -533,37 +657,19 @@ export function createCardRaster(
       const s = sessionOf(rt, session)
       const tables = s?.cut.cutTables()
       if (!s || !tables || !compiled()) return undefined
-      sources.length = drawn.length = 0
-      const most = targets.viewRows
-      for (let at = 0; at < pages.length && sources.length < most; at++) {
-        const place = rankOf(pages[at]!.placement)
-        if (place < 0) continue
-        sources.push({ view: views[at]!, place })
-        drawn.push(at)
-      }
-      const n = sources.length
-      if (!n) return undefined
-      if (buffers?.side !== targets.side || buffers.views !== targets.viewRows) {
-        buffers?.dispose()
-        buffers = createBuffers(device, targets.side, targets.viewRows)
-      }
-      const b = buffers
-      // The table of views in the order of their placements.
-      writeCardViews(b.table32, sources, order)
-      const d = (descent ??= createDescent(device))
-      device.queue.writeBuffer(b.table, 0, b.table32.bytes, 0, cardTableWords(n) * 4)
-      const { params32 } = b
-      params32.u[CARD_PARAMS.at.views] = n
-      params32.u[CARD_PARAMS.at.rowCap] = b.rows
-      // The pages are drawn at the view's pixel error over the capture's detail factor.
-      params32.f[CARD_PARAMS.at.threshold] =
-        rt.run.gate.pixelError / (rt.surfaceCache?.settings.surfaceCacheCaptureLodScaleFactor ?? 1)
-      device.queue.writeBuffer(b.params, 0, params32.bytes)
-      prepareDescent(rt, device, d, b, tables, s.cut.pageCount)
-      encodeCull(device, encoder, d, b, s, tables, n)
-      encodeRaster(device, encoder, b, rasterGroup(b, s, targets.ids))
-      encodeExport(device, encoder, d, b, targets, n)
-
+      if (!collectViews(sources, drawn, pages, views, targets.viewRows, rankOf)) return undefined
+      const b = encodeViews(
+        rt,
+        device,
+        encoder,
+        held,
+        rasterGroup,
+        s,
+        tables,
+        targets,
+        sources,
+        order,
+      )
       return {
         pages: drawn,
         rows: b.pages,
@@ -571,14 +677,6 @@ export function createCardRaster(
         classKeys: presentClassKeys(rt.vis.presentClasses),
       }
     },
-    dispose() {
-      buffers?.dispose()
-      descent?.uniform.destroy()
-      descent?.args.destroy()
-      descent?.out?.destroy()
-      descent?.work?.destroy()
-      descent?.flags?.texture.destroy()
-      buffers = descent = undefined
-    },
+    dispose: () => disposeHeld(held),
   }
 }

@@ -1,7 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import { createArrivalQueue } from '../../geometry/integration/arrivalQueue.ts'
 import { createFrameBudget } from '../../geometry/integration/frameBudget.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
@@ -9,10 +8,8 @@ import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/fakeDevice/globals.ts'
-import { quadScene, camera } from '../backend/testScenes.fixture.ts'
+import { backendOf, quadScene, camera } from '../backend/testScenes.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('paged transparent commands disappear outside the view and return with both faces on CPU and GPU cuts', async () => {
@@ -33,13 +30,11 @@ test('paged transparent commands disappear outside the view and return with both
       fixture.indices,
     ).roots
     const mock = fakeDevice({ ...BACKEND, packed: gpuCut ? packDagSelection(roots) : undefined })
-    const backend = webgpuPagesEngine({
-      textureCaches: createTextureCaches(createPageCache()),
+    const backend = backendOf({
       ...fixture,
       draws: graphDraws(fixture.source, fixture.associations),
       gpuDevice: mock.device,
       maxResidentPages: 4,
-      viewport: [32, 32],
     })
     try {
       await backend.prepare()
@@ -82,12 +77,10 @@ test('queued page arrivals are integrated by the next render without a second GP
   installGpuGlobals()
   const fixture = quadScene(),
     mock = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: mock.device,
     maxResidentPages: 4,
-    viewport: [32, 32],
   })
   try {
     await backend.prepare()

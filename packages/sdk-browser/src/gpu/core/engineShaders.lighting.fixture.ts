@@ -37,6 +37,10 @@ import { UNLIT_LIGHTING_SHADER, litPassShaders } from './shaderTexts.fixture.ts'
 import { CLASSIFY_WGSL } from '../../lighting/deferred/classifyWgsl.ts'
 import { indirectPassWgsl } from '../../lighting/deferred/indirectPassWgsl.ts'
 import { localPassWgsl, sunPassWgsl } from '../../lighting/deferred/lightPassWgsl.ts'
+import {
+  cubeAverageShader,
+  cubeFilterShader,
+} from '../../lighting/deferred/ambientCubemapFilterWgsl.ts'
 import { perLightPassWgsl } from '../../lighting/deferred/perLightPassWgsl.ts'
 import { FULL_CONTRACT } from '../../lighting/deferred/contractCuts.ts'
 import { TILE_CLASS_NAMES, TILE_CLASSES } from '../../lighting/deferred/tileClass.ts'
@@ -176,6 +180,9 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   GDF_MIP_TEXTURE: mipShader(true),
   GDF_FILL: FILL_SHADER,
   STREAMING_SHADER,
+  // The ambient cubemap's mip chain: the box filter and the angular filter (`../../lighting/deferred/ambientCubemapBuild.ts`).
+  AMBIENT_CUBEMAP_AVERAGE: cubeAverageShader(),
+  AMBIENT_CUBEMAP_FILTER: cubeFilterShader(),
   // The primed depth pyramid's kernel (`../../visibility/hiz/gpu/pipelines.ts`).
   HIZ_PRIMED_SHADER,
 }

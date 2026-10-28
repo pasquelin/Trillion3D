@@ -7,7 +7,7 @@ import { BOUNCE_APPLY_WGSL } from '../bounce/applyWgsl.ts'
 import { SCREEN_INDIRECT_WGSL } from '../bounce/screen/indirectWgsl.ts'
 import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { LOBE_AXIS_WGSL, reflectionLobeWgsl } from '../lobeAxisWgsl.ts'
-import { ENVIRONMENT_BRDF_WGSL } from '../direct/environmentBrdfWgsl.ts'
+import { ENERGY_TERMS_WGSL } from '../direct/energyTermsWgsl.ts'
 import { surfaceReflects } from '../../materials/surface/surfaceModel.ts'
 import { loadOnlyTarget } from '../../gpu/core/loadOnlyTarget.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
@@ -35,7 +35,7 @@ fn reflectionLook(light:vec3f)->vec3f{
 
 /**
  * What a lit surface keeps of the radiance it reflects (`reflectionWeighWgsl`). `reflectionWeight`
- * is the preintegrated environment BRDF of its GGX lobe at its roughness as it is and N·V held to [0, 1] (`environmentBrdf`, in every
+ * is the energy terms of its GGX lobe at its roughness as it is and N·V held to [0, 1] (`energyTerms`, in every
  * lighting program; the table's own clamp is the only floor, as the reference reads it on every path), on its reflectance `f0`: `surfaceF0` of its colour and metalness, a dielectric's on a coat, the water's own,
  * and its grazing value `f90`, by the rule of the pass (`reflectionF90`): the green channel's for the opaque composite (`envBrdfF90`), the greatest
  * channel's for the forward fragments and the sky's own light (`slabF90`).
@@ -47,9 +47,9 @@ fn reflectionLook(light:vec3f)->vec3f{
  */
 const REFLECTION_WEIGHT_WGSL = wgslBlock(
   'REFLECTION_WEIGHT_WGSL',
-  [ENVIRONMENT_BRDF_WGSL],
+  [ENERGY_TERMS_WGSL],
   `fn reflectionWeight(f0:vec3f,f90:f32,rough:f32,N:vec3f,V:vec3f)->vec3f{
- return environmentBrdf(f0,f90,rough,saturate(dot(N,V)));
+ return energyTerms(f0,f90,rough,saturate(dot(N,V)));
 }`,
 )
 export const reflectionWeighWgsl = (lobes: boolean, f90: 'green' | 'slab' = 'green') =>
@@ -62,9 +62,8 @@ ${
     ? `fn reflectionBaseShare(traced:Reflected,f0:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
  if(!hasCoat()){return traced.base*reflectionWeight(f0,reflectionF90(f0),rough,N,V);}
  // The coat's layers combined: the base's reflection weighed on the coat's reflectance, the grazing part of
- // its environment BRDF scaled by what the coat leaves, and what the coat lets through (one minus its own).
- let ab=environmentBrdfPair(rough,saturate(dot(N,V)));
- let base=f0*ab.x+vec3f(reflectionF90(f0)*ab.y*(1.0-lobes.coat));
+ // its energy terms scaled by what the coat leaves, and what the coat lets through (one minus its own).
+ let base=energyTerms(f0,reflectionF90(f0)*(1.0-lobes.coat),rough,saturate(dot(N,V)));
  let F=lobes.coat*reflectionWeight(DIELECTRIC_F0,reflectionF90(DIELECTRIC_F0),lobes.coatRough,lobes.coatN,V).x;
  return traced.base*base*(1.0-F);
 }
@@ -94,7 +93,7 @@ const REFLECTION_BASE_LOBE_WGSL = wgslBlock(
 )
 
 /** The lobe a surface traces, laid out (`reflectionTopLobe`): `lobe` its axis in `xyz` (none for a round lobe) and its width along it in `w`,
- *  `across` its width across it. The coat's where the surface carries a clear coat, round; the base lobe's elsewhere, anisotropic where the
+ *  `across` its width across it. The coat's where the surface carries a clear coat, round but for the material's anisotropy, which stretches it as the base's; the base lobe's elsewhere, anisotropic where the
  *  material is, at the roughness `rough` of the lobe traced. */
 export const REFLECTION_TOP_LOBE_WGSL = wgslBlock(
   'REFLECTION_TOP_LOBE_WGSL',
@@ -103,6 +102,11 @@ export const REFLECTION_TOP_LOBE_WGSL = wgslBlock(
 fn reflectionTopLobe(rough:f32)->ReflectionTopLobe{
  if(lobes.on&&lobes.coat>0.0){
   let alpha=lobeAlpha(lobes.coatRough);
+  // The material's anisotropy stretches the coat's lobe as it stretches the base's, along the same axis, from the coat's own width.
+  if(lobes.skewed){
+   let strength=(lobes.at-lobes.ab)/max(lobes.at+lobes.ab,0.002);
+   return ReflectionTopLobe(vec4f(lobes.T,max(alpha*(1.0+strength),0.001)),max(alpha*(1.0-strength),0.001),true);
+  }
   return ReflectionTopLobe(vec4f(0.0,0.0,0.0,alpha),alpha,true);
  }
  return ReflectionTopLobe(reflectionLobe(rough),reflectionAcross(rough),false);
@@ -296,7 +300,7 @@ export const RESOLVED_INDIRECT_WGSL = wgslBlock(
  let colour=clothDiffuse(rgb,metal);
  var diffuse=vec3f(0.0);
  // The material's occlusion is the screen probes' integration's (\`spDiffuse\`): it is not taken again here.
- if(screened){diffuse=screenDiffuse(rgb,colour,seen,foliage);}
+ if(screened){diffuse=screenDiffuse(rgb,colour,seen,foliage)+lambertDiffuse(colour.rgb,colour.w,screenShortRangeGiAt(coord),1.0);}
  else if(screenOcclusionOnly()){diffuse=bounceLighting(colour.rgb,colour.w,N,P,ao)*screenShortRange(rgb,seen,foliage);}
  let left=reflectionLeftShare(traced.a);
  // The rays' answer alone: no ray answered no share of the lobes, or a pixel the probes did not read while they gather has no rough light either, as its diffuse.

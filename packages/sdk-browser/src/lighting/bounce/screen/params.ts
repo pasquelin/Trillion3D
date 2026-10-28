@@ -1,4 +1,5 @@
 import { DEG2RAD } from '../../../../../math/src/constants.ts'
+import { clamp } from '../../../../../math/src/scalar/reals.ts'
 import { SCREEN_PROBE_CONSTANTS as C } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
@@ -6,6 +7,9 @@ import { wordViews } from '../../../gpu/core/wordViews.ts'
 import { writeChanged } from '../../../gpu/core/writeChanged.ts'
 import { SCREEN_PROBE_PARAMS as P, type ScreenProbeGeometry } from './screenProbeLayout.ts'
 import { type ScreenProbeImage, screenProbeFlags } from './modeFlags.ts'
+
+/** The most a ray's intensity may be held to: the composite quantises it to a whole number, so a larger bound would only coarsen the step. */
+const MAX_RAY_INTENSITY_CEILING = 100000
 
 /** The words of the parameters that are the image's and the probes' shapes: the size, the grid, the mode, the counts. */
 function putWords(
@@ -34,6 +38,7 @@ function putWords(
     lighting >= 0 ? lighting : stateIndex >= 0 ? stateIndex : view,
     jitter,
     lighting >= 0 ? lighting : view,
+    values.screenProbeScreenTracesMinimumOccupancy,
   )
   putVec4(words, at.grid, geometry.tilesX, geometry.tilesY, geometry.rows, geometry.maxAdaptive)
   putVec4(
@@ -64,7 +69,7 @@ function putWeights(staged: Float32Array, settings: ScreenProbeSettings) {
     C.depthWeightScale * v.screenProbeInterpolationDepthWeight,
     C.depthWeightScale * v.screenProbeInterpolationDepthWeightFallback,
     v.screenProbeMinPdfToTrace,
-    v.screenProbeMaxRayIntensity,
+    Math.min(v.screenProbeMaxRayIntensity, MAX_RAY_INTENSITY_CEILING),
   )
   putVec4(
     staged,
@@ -165,6 +170,23 @@ function putTraced(staged: Float32Array, settings: ScreenProbeSettings, image: S
     rays?.minHitDistance ?? 0,
     rays?.selfIntersections ?? 0,
   )
+  putVec4(staged, at.projection, image.depthThicknessScale, 0, 0, 0)
+}
+
+/** The short-range global illumination's numbers: its furthest reach as a share of the image's width (the reference's fraction of the screen, never under the occlusion's two tiles, never over
+ *  one) and the steps a slice takes to reach it (the occlusion's, over the square root of the two reaches). */
+function putGi(staged: Float32Array, geometry: ScreenProbeGeometry, settings: ScreenProbeSettings) {
+  const { values: v } = settings
+  const aoFraction = (2 * geometry.tile) / geometry.width
+  const fraction = clamp(v.screenProbeShortRangeGIMaxScreenFraction, aoFraction, 1)
+  putVec4(
+    staged,
+    P.at.gi,
+    fraction,
+    Math.ceil(v.screenProbeOcclusionSteps * Math.sqrt(fraction / aoFraction)),
+    v.screenProbeShortRangeGIMaxRayIntensity,
+    v.screenProbeShortRangeGIHistoryDepthTestRelativeThickness,
+  )
 }
 
 /**
@@ -187,6 +209,7 @@ export function createScreenProbeParams(device: GPUDevice, buffer: GPUBuffer) {
     putWeights(staged, settings)
     putMotion(staged, settings, image)
     putTraced(staged, settings, image)
+    putGi(staged, geometry, settings)
     staged.set(image.previousInverse, P.at.previous)
     writeChanged(device, buffer, words, 0, P.words)
   }

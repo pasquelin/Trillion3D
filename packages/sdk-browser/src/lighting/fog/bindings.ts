@@ -1,3 +1,5 @@
+import { ML_BINDING } from '../manyLightsSampled/volumeBindings.ts'
+
 /**
  * WHERE THE VOLUME'S PROGRAMS BIND what they read and write, in group 0: one table of numbers, so the
  * passes, the layouts and the shaders agree (`programs.ts` writes the programs, `passes.ts` binds them).
@@ -83,6 +85,9 @@ export const FOG_BINDING = {
   localTiles: 66,
   /** The global distance field's six bindings (`globalDistanceFieldReadWgsl`) from this one, read by the sky scatter. */
   field: 70,
+  /** The sampled lighting's volume (`manyLightsSampled/volumeBindings.ts`), read by the scatter: its uniform and its samples. */
+  mlParams: ML_BINDING.params,
+  mlSamplesIn: ML_BINDING.samplesIn,
 } as const
 
 /** What a program binds, by name. */
@@ -123,6 +128,9 @@ export const FOG_PROGRAM_BINDINGS = {
   furthest: { frame: true, hiz: true, furthestOut: true },
   scatter: SCATTER_BINDINGS,
   scatterSky: { ...SCATTER_BINDINGS, field: true },
+  // The same two scatters with the local lights lit by samples (`sampledLightsVolume`).
+  scatterSampled: { ...SCATTER_BINDINGS, mlParams: true, mlSamplesIn: true },
+  scatterSkySampled: { ...SCATTER_BINDINGS, mlParams: true, mlSamplesIn: true, field: true },
   static: {
     lights: true,
     frame: true,

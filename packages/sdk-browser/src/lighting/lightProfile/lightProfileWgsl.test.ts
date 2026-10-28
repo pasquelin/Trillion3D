@@ -11,12 +11,9 @@ import {
   LIGHT_PROFILE_SHIFT,
 } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
-import {
-  LIGHT_PROFILE_COORDINATES_WGSL,
-  lightProfileMultiplierWgsl,
-  lightProfileOfWgsl,
-  NO_LIGHT_PROFILE_WGSL,
-} from './lightProfileWgsl.ts'
+import { lightProfileOfWgsl, NO_LIGHT_PROFILE_WGSL } from './lightProfileWgsl.ts'
+import { lightProfileMultiplierWgsl } from './lightProfileText.ts'
+import { LIGHT_PROFILE_COORDINATES_WGSL } from './lightProfileCoordinates.ts'
 
 type V3 = [number, number, number]
 

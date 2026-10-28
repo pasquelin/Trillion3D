@@ -9,15 +9,12 @@ import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { camera, disposeQuadRun, quadScene } from './testScenes.fixture.ts'
-import { webgpuPagesEngine } from './pages.ts'
+import { backendOf, camera, disposeQuadRun, quadScene } from './testScenes.fixture.ts'
 import { createGuideSet } from '../../guides/guideSet.ts'
 import { families } from '../../session/host/families.ts'
 import { MATERIAL_SURFACES_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { gateCompiles } from '../../lighting/deferred/gatedDevice.fixture.ts'
 import { surfaceWritten } from '../../geometry/pages/surfaceWrites.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 /** The executing device, whose compiles land off the thread a task after they are asked, and which
@@ -52,12 +49,9 @@ test('no image compiles a pipeline, whatever enters the scene after preparation'
   const mesh = fixture.source.children[0] as PageMesh
   mesh.material = material
   const guides = createGuideSet()
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: gpu.device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
     guides,
   })
   const resolves = () => gpu.passes.filter(({ label }) => label === MATERIAL_SURFACES_PASS).length

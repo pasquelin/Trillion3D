@@ -60,6 +60,8 @@ const BLEND_VIEW_FIELDS = [
   ['giGrid', 'vec4f'],
   ['giZ', 'vec4f'],
   ['holdout', 'u32'],
+  ['volumeCamera', 'u32'],
+  ['volumeCameraFactor', 'f32'],
   ['normalCurvature', 'vec3f'],
 ] as const
 const LAYOUT = fieldLayout('BlendView', BLEND_VIEW_FIELDS)

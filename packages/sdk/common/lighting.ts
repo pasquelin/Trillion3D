@@ -34,6 +34,7 @@ export { DEFAULT_LIGHT_UNITS, LIGHT_UNITS } from '../../sdk-core/src/scene/light
 export type { LightUnits } from '../../sdk-core/src/scene/light/lightUnits.ts'
 export { LIGHT_FIELD } from '../../sdk-core/src/scene/light/fields.ts'
 export type { LightingCapabilities } from '../../sdk-core/src/scene/light/capabilities.ts'
+export type { LightRangeView } from '../../sdk-core/src/scene/light/drawRange.ts'
 export type { LightShadowView } from '../../sdk-core/src/scene/light/shadowedBits.ts'
 export { SHADOW_PAGE } from '../../sdk-core/src/scene/light/shadow/sunEntries.ts'
 export type {

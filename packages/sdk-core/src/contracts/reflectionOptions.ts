@@ -43,7 +43,8 @@ import {
  * with its own default.
  *
  * THE SCREEN: a ray first marches the depth pyramid and reads the last lit image where it meets a
- * surface (`reflectionScreenTraces`), `reflectionScreenSteps` iterations at most (50), a surface being as thick
+ * surface (`reflectionScreenTraces`), `reflectionScreenSteps` iterations at most (50), or until no more than
+ * `reflectionScreenMinimumOccupancy` lanes of its subgroup are still marching (0: never), a surface being as thick
  * as `reflectionRelativeDepthThickness` (0.5 %) of its depth. The march is strict: a ray that passes behind a
  * surface gives the screen up, one that spends its iterations has hit nothing, and either hands the ray over to the
  * scene where it stopped knowing. A hit near the border of the image, or of the last, is answered by the screen by chance
@@ -141,6 +142,7 @@ export const REFLECTION_RULES = /* @__PURE__ */ (() =>
     choice('reflectionQuality', DEFAULT_REFLECTION_LEVEL, REFLECTION_LEVELS),
     flag('reflectionScreenTraces', true),
     count('reflectionScreenSteps', 50, 1),
+    count('reflectionScreenMinimumOccupancy', 0, 0),
     positive('reflectionRelativeDepthThickness', 0.005),
     positive('reflectionHistoryDepthTestRelativeThickness', 0.005),
     flag('reflectionDistantScreenTraces', true),
@@ -237,8 +239,10 @@ export interface ReflectionSettings {
   frontBilateral: boolean
   frontSceneTraces: boolean
   frontDistantTraces: boolean
-  /** The iterations of the screen march, and of the far one. */
+  /** The iterations of the screen march, and of the far one; the lanes of a subgroup that must still be marching for the screen march to go on
+   *  (0: no such test). */
   screenSteps: number
+  screenMinimumOccupancy: number
   distantSteps: number
   /** Whether the screen is traced, the scene, and whether the screen looks again past the field; whether a hit
    *  the screen agrees with takes the lit image; whether the lighting is fogged along its ray. */
@@ -379,6 +383,7 @@ function frontLayerOf(
     frontBlock: water ? water.block : [density.block, density.blockY],
     frontReconstruction: values.reflectionReconstruction && (water?.reconstruction ?? true),
     frontTemporal: values.reflectionTemporal && (water?.temporal ?? true),
+    // The translucent surfaces' denoiser runs its spatial filter whatever its temporal pass does (LumenReflections.cpp:2247-2248), unlike the opaque one's.
     frontBilateral: values.reflectionBilateralFilter && (water?.bilateral ?? true),
     frontSceneTraces: probes.values.screenProbeSceneTraces && (water?.sceneTraces ?? true),
     frontDistantTraces:
@@ -430,6 +435,7 @@ function marchOf(values: ReflectionValues, probes: ScreenProbeSettings) {
   const sample = values.reflectionSampleSceneColor
   return {
     screenSteps: values.reflectionScreenSteps,
+    screenMinimumOccupancy: values.reflectionScreenMinimumOccupancy,
     distantSteps: values.reflectionDistantScreenSteps,
     screenTraces,
     sceneTraces: probes.values.screenProbeSceneTraces,
@@ -465,7 +471,7 @@ function denoiserOf(values: ReflectionValues) {
   return {
     temporal: values.reflectionTemporal,
     reconstruction: values.reflectionReconstruction,
-    bilateral: values.reflectionBilateralFilter,
+    bilateral: values.reflectionTemporal && values.reflectionBilateralFilter,
     historyFrames: values.reflectionMaxFramesAccumulated,
     clampScale: values.reflectionNeighborhoodClampScale,
     rayDirections: values.reflectionMaxRayDirections,

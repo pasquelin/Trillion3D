@@ -181,9 +181,98 @@ function markGroup(
   }))
 }
 
+/** The grid of the view `v` and the zeroed count, written to the froxel state `st`. */
+function uploadFroxelGrid(
+  device: GPUDevice,
+  gridData: ArrayBuffer,
+  countZero: Uint32Array<ArrayBuffer>,
+  st: FroxelState,
+  v: FroxelMarkView,
+  ctx: FroxelMarkContext,
+  water: boolean,
+) {
+  writeFroxelGrid(gridData, {
+    viewToClip: v.viewToClip,
+    perspective: ctx.perspective,
+    viewRectMin: v.viewRectMin,
+    viewSize: v.viewSize,
+    viewToShifted: v.viewToShifted,
+    capacity: st.capacity,
+    markLocalLights: !water,
+  })
+  device.queue.writeBuffer(st.grid, 0, gridData)
+  device.queue.writeBuffer(st.list, 0, countZero)
+}
+
 /** The passes of the marking, the scene's and the water's, each with froxel buffers of its own. */
 const SCENE = 0,
   WATER = 1
+
+/** The froxels a view holds at most: a froxel a pixel (the reference's room, held to the device's binding). */
+function froxelCapacity(device: GPUDevice, v: FroxelMarkView) {
+  return clampLowWins(
+    v.viewSize[0] * v.viewSize[1],
+    1,
+    Math.floor((storageBufferCap(device.limits) - 4 * FROXEL_LIST_HEADER_WORDS) / 8),
+  )
+}
+
+/** What the passes of the marking hold: the froxel state of the scene's and of the water's. */
+type FroxelPasses = (FroxelState | undefined)[]
+
+function releaseFroxelPass(passes: FroxelPasses, pass: number) {
+  const held = passes[pass]
+  if (!held) return
+  for (const buffer of [held.list, held.args, held.grid]) buffer.destroy()
+  passes[pass] = undefined
+}
+
+/** One pass over the froxels of the view `v`: the scene's, or the water's (`water`), whose froxels
+ *  are the pixels the water drew over (`v.water` over the scene's depth `v.depth`) and whose pages
+ *  are the suns' alone. The grid and the count written, the froxels built tile by tile, the marking's
+ *  arguments sized on the GPU from their count, then the marking over them. */
+function markFroxelPass(
+  device: GPUDevice,
+  pipes: FroxelPipes,
+  params: GPUBuffer,
+  passes: FroxelPasses,
+  scratch: { gridData: ArrayBuffer; countZero: Uint32Array<ArrayBuffer> },
+  pass: GPUComputePassEncoder,
+  v: FroxelMarkView,
+  ctx: FroxelMarkContext,
+  water: boolean,
+) {
+  const which = water ? WATER : SCENE
+  const st = (passes[which] ??= makeFroxelState(device, froxelCapacity(device, v)))
+  uploadFroxelGrid(device, scratch.gridData, scratch.countZero, st, v, ctx, water)
+  const build = pipes.froxelBuild(water),
+    sizing = pipes.froxelArgs(),
+    mark = pipes.froxelMark(ctx.throttled)
+  const buildBound = water
+    ? buildGroup(device, st, build, v.water!, v.depth)
+    : buildGroup(device, st, build, v.depth)
+  const argsBound = argsGroup(device, st, sizing)
+  const markBound = markGroup(device, params, st, v, mark)
+  // Each asked, so that the three compile together, not one after the other.
+  const buildPipeline = build.pipeline,
+    sizingPipeline = sizing.pipeline,
+    markPipeline = mark.pipeline
+  if (!buildPipeline || !sizingPipeline || !markPipeline) return
+  pass.setPipeline(buildPipeline)
+  pass.setBindGroup(0, buildBound)
+  pass.dispatchWorkgroups(
+    ceilDiv(v.viewSize[0], FROXEL_TILE_SIZE),
+    ceilDiv(v.viewSize[1], FROXEL_TILE_SIZE),
+  )
+  pass.setPipeline(sizingPipeline)
+  pass.setBindGroup(0, argsBound)
+  pass.dispatchWorkgroups(1)
+  ctx.groups.froxelMark ??= ctx.tablesGroup(FROXEL_MARK_LABEL, mark, ctx.specs)
+  pass.setPipeline(markPipeline)
+  pass.setBindGroup(0, ctx.groups.froxelMark)
+  pass.setBindGroup(1, markBound)
+  pass.dispatchWorkgroupsIndirect(st.args, 0)
+}
 
 /** The froxels' marking over `pipes`, the marking `params` bound to its groups. */
 export function createFroxelMarking(
@@ -191,88 +280,25 @@ export function createFroxelMarking(
   pipes: FroxelPipes,
   params: GPUBuffer,
 ): FroxelMarking {
-  const passes: (FroxelState | undefined)[] = [undefined, undefined]
-  const gridData = new ArrayBuffer(VSM_FROXEL_GRID_BYTES)
-  const countZero = new Uint32Array(4)
-  /** The froxels a view holds at most: a froxel a pixel (the reference's room, held to the device's
-   *  binding). */
-  const capacityOf = (v: FroxelMarkView) =>
-    clampLowWins(
-      v.viewSize[0] * v.viewSize[1],
-      1,
-      Math.floor((storageBufferCap(device.limits) - 4 * FROXEL_LIST_HEADER_WORDS) / 8),
-    )
-  function release(pass: number) {
-    const held = passes[pass]
-    if (!held) return
-    for (const buffer of [held.list, held.args, held.grid]) buffer.destroy()
-    passes[pass] = undefined
-  }
-  /** One pass over the froxels of the view `v`: the scene's, or the water's (`water`), whose froxels
-   *  are the pixels the water drew over (`v.water` over the scene's depth `v.depth`) and whose pages
-   *  are the suns' alone. The grid and the count written, the froxels built tile by tile, the marking's
-   *  arguments sized on the GPU from their count, then the marking over them. */
-  function markPass(
-    pass: GPUComputePassEncoder,
-    v: FroxelMarkView,
-    ctx: FroxelMarkContext,
-    water: boolean,
-  ) {
-    const which = water ? WATER : SCENE
-    const st = (passes[which] ??= makeFroxelState(device, capacityOf(v)))
-    writeFroxelGrid(gridData, {
-      viewToClip: v.viewToClip,
-      perspective: ctx.perspective,
-      viewRectMin: v.viewRectMin,
-      viewSize: v.viewSize,
-      viewToShifted: v.viewToShifted,
-      capacity: st.capacity,
-      markLocalLights: !water,
-    })
-    device.queue.writeBuffer(st.grid, 0, gridData)
-    device.queue.writeBuffer(st.list, 0, countZero)
-    const build = pipes.froxelBuild(water),
-      sizing = pipes.froxelArgs(),
-      mark = pipes.froxelMark(ctx.throttled)
-    const buildBound = water
-      ? buildGroup(device, st, build, v.water!, v.depth)
-      : buildGroup(device, st, build, v.depth)
-    const argsBound = argsGroup(device, st, sizing)
-    const markBound = markGroup(device, params, st, v, mark)
-    // Each asked, so that the three compile together, not one after the other.
-    const buildPipeline = build.pipeline,
-      sizingPipeline = sizing.pipeline,
-      markPipeline = mark.pipeline
-    if (!buildPipeline || !sizingPipeline || !markPipeline) return
-    pass.setPipeline(buildPipeline)
-    pass.setBindGroup(0, buildBound)
-    pass.dispatchWorkgroups(
-      ceilDiv(v.viewSize[0], FROXEL_TILE_SIZE),
-      ceilDiv(v.viewSize[1], FROXEL_TILE_SIZE),
-    )
-    pass.setPipeline(sizingPipeline)
-    pass.setBindGroup(0, argsBound)
-    pass.dispatchWorkgroups(1)
-    ctx.groups.froxelMark ??= ctx.tablesGroup(FROXEL_MARK_LABEL, mark, ctx.specs)
-    pass.setPipeline(markPipeline)
-    pass.setBindGroup(0, ctx.groups.froxelMark)
-    pass.setBindGroup(1, markBound)
-    pass.dispatchWorkgroupsIndirect(st.args, 0)
+  const passes: FroxelPasses = [undefined, undefined]
+  const scratch = {
+    gridData: new ArrayBuffer(VSM_FROXEL_GRID_BYTES),
+    countZero: new Uint32Array(4),
   }
   return {
     mark(pass, v, ctx) {
       // A view resized holds the buffers of the size before no longer, the water's included.
-      const capacity = capacityOf(v)
-      if (passes[SCENE]?.capacity !== capacity) release(SCENE)
-      if (passes[WATER]?.capacity !== capacity) release(WATER)
-      markPass(pass, v, ctx, false)
+      const capacity = froxelCapacity(device, v)
+      if (passes[SCENE]?.capacity !== capacity) releaseFroxelPass(passes, SCENE)
+      if (passes[WATER]?.capacity !== capacity) releaseFroxelPass(passes, WATER)
+      markFroxelPass(device, pipes, params, passes, scratch, pass, v, ctx, false)
       // The water's surface after the scene's: the water takes no shadow from a local light. Its
       // buffers are held while the marking is on, whether or not this image drew water.
-      if (v.water) markPass(pass, v, ctx, true)
+      if (v.water) markFroxelPass(device, pipes, params, passes, scratch, pass, v, ctx, true)
     },
     destroy() {
-      release(SCENE)
-      release(WATER)
+      releaseFroxelPass(passes, SCENE)
+      releaseFroxelPass(passes, WATER)
     },
   }
 }

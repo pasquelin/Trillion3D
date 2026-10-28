@@ -1,4 +1,4 @@
-import { NODE_SPECS, NOISE_FUNCTIONS } from './nodeSpecs.ts'
+import { NODE_SPECS, NOISE_FUNCTIONS, SPARSE_ADDRESS_MODES, SPARSE_MIP_MODES } from './nodeSpecs.ts'
 import type { GraphNode, GraphStore } from './graph.ts'
 import { graphError } from './valueType.ts'
 
@@ -22,6 +22,7 @@ export function validateGraph(graph: GraphStore) {
     for (const name of NODE_SPECS[kind].required)
       if (!node.inputs[name]) throw graphError(missingInput(kind, name), { node: id, kind })
     validateTexture(graph, node)
+    validateSparseVolume(node)
     validateProps(node)
   }
 }
@@ -33,6 +34,38 @@ function validateTexture(graph: GraphStore, node: GraphNode) {
     throw graphError(`${kind} requires a texture`, { node: id })
   if (kind === 'textureSample' && !graph.textures.has(id) && !node.inputs.texture)
     throw graphError('Missing input texture', { node: id })
+}
+
+/** A sparse volume node names the node of the scene that cites its volume, a sample its mip mode,
+ *  its derivatives where that mode reads them (`Missing DDX(UVs) parameter`,
+ *  `HLSLMaterialTranslator.cpp:16093-16101`), its addressing and one of the two attribute textures
+ *  (`MaterialExpressions.cpp:22285`); it holds a volume or reads one by its wire (`Missing input
+ *  texture`, `:22241`). */
+function validateSparseVolume(node: GraphNode) {
+  const { kind, id, props } = node
+  if (!kind.startsWith('sparseVolumeTexture')) return
+  const source = props.source as number
+  if (!Number.isInteger(source))
+    throw graphError(`${kind} needs the node of a volume`, { node: id })
+  if (kind !== 'sparseVolumeTextureSample') {
+    if (source < 0) throw graphError(`${kind} requires a sparse volume texture`, { node: id })
+    return
+  }
+  if (source < 0 && !node.inputs.texture) throw graphError('Missing input texture', { node: id })
+  if (!(SPARSE_MIP_MODES as readonly unknown[]).includes(props.mipMode))
+    throw graphError(`a sparse volume read has no mip mode '${String(props.mipMode)}'`, {
+      node: id,
+    })
+  if (!(SPARSE_ADDRESS_MODES as readonly unknown[]).includes(props.address))
+    throw graphError(`a sparse volume read has no address mode '${String(props.address)}'`, {
+      node: id,
+    })
+  if (props.attributes !== 0 && props.attributes !== 1)
+    throw graphError('a sparse volume read picks the attributes 0 or 1', { node: id })
+  if (props.mipMode === 'derivative') {
+    if (!node.inputs.ddx) throw graphError('Missing DDX(UVs) parameter', { node: id })
+    if (!node.inputs.ddy) throw graphError('Missing DDY(UVs) parameter', { node: id })
+  }
 }
 
 /** A node's own settings: its noise function, desaturation weights, parameter name and coordinate set. */

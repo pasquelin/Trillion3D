@@ -26,4 +26,6 @@ export const TRANSLUCENCY_VOLUME_MEANINGS: Readonly<Record<TranslucencyVolumeFie
     'Degrees, from 0; 45 by default. The least field of view the cascades follow while translucencyVolumeAdaptToPerspective is on, so that zooming in does not make the light pop.',
   translucencyVolumeFovSnap:
     'Degrees, above 0; 10 by default. While translucencyVolumeAdaptToPerspective is on, the field of view is rounded up to a multiple of this, which makes the volume jump in steps as the field animates, not crawl.',
+  translucencyVolumeMarkVoxels:
+    'Whether the cells of the translucency lighting volume that the see-through surfaces read are marked first, and only those are lit and filtered; false by default. Each image, before the volume is made, the surfaces that read it are drawn once more, each fragment marking the eight cells round its point in either cascade; every marked cell then marks the eight cells at the corners of the cube round it, the cells marked are listed, and the injection runs over that list alone while the filters write nothing in a cell that is not marked, and take no history from a cell that was not. A scene whose surfaces cover a small part of the cascades lights far fewer cells; the light a surface reads is the same.',
 }

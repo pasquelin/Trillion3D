@@ -129,12 +129,9 @@ export function traceGroups(g: GroupParts, kernels: CastKernels) {
   }
 }
 
-/** The filter: the composite into the octahedron (and, with the temporal filter of the probes, into the history texture of this turn, which the filter reads
- *  beside the last turn's), the spatial passes, the conversion to what the pixels read, the border and the coarser level of the filtered radiance. */
-export function filterGroups(g: GroupParts, kernels: CastKernels) {
-  const { device, r, inputs, features, last, turn, final, ranks, common, probe, records } = g
-  const { extraAo } = features
-  const { mips } = r
+/** The composite into the octahedron (and, with the temporal filter of the probes, into the history texture of this turn, which the filter reads beside the last turn's). */
+function compositeGroups(g: GroupParts, kernels: CastKernels) {
+  const { device, r, inputs, features, last, turn, common, probe, records } = g
   const composited = features.filterProbes ? r.probeHistory[turn] : r.gather[0]
   return {
     composite: groupOf(
@@ -148,7 +145,7 @@ export function filterGroups(g: GroupParts, kernels: CastKernels) {
         hit: r.hit,
         gather: composited,
         blue: inputs.blue,
-        ...(extraAo && { ao: r.extraAo[0] }),
+        ...(features.extraAo && { ao: r.extraAo[0] }),
         ...buffers({ moving: r.moving }),
       }),
     ),
@@ -167,21 +164,35 @@ export function filterGroups(g: GroupParts, kernels: CastKernels) {
           vectors: inputs.vectors,
         }),
       ),
-    spatial: ranks.map((rank, pass) =>
-      groupOf(
-        device,
-        kernels.spatial,
-        namedEntries(SPATIAL_BINDINGS.at, {
-          ...common,
-          ...records,
-          ...buffers({ disocclusion: r.disocclusion, moving: r.moving, pass: rank }),
-          gatherIn: r.gather[pass % 2],
-          gatherOut: r.gather[1 - (pass % 2)],
-          blue: inputs.blue,
-          ...(extraAo && { aoIn: r.extraAo[pass % 2], aoOut: r.extraAo[1 - (pass % 2)] }),
-        }),
-      ),
+  }
+}
+
+/** The spatial passes, one group each. */
+function spatialGroups(g: GroupParts, kernels: CastKernels) {
+  const { device, r, inputs, features, ranks, common, records } = g
+  const { extraAo } = features
+  return ranks.map((rank, pass) =>
+    groupOf(
+      device,
+      kernels.spatial,
+      namedEntries(SPATIAL_BINDINGS.at, {
+        ...common,
+        ...records,
+        ...buffers({ disocclusion: r.disocclusion, moving: r.moving, pass: rank }),
+        gatherIn: r.gather[pass % 2],
+        gatherOut: r.gather[1 - (pass % 2)],
+        blue: inputs.blue,
+        ...(extraAo && { aoIn: r.extraAo[pass % 2], aoOut: r.extraAo[1 - (pass % 2)] }),
+      }),
     ),
+  )
+}
+
+/** The conversion to what the pixels read, the border and the coarser levels of the filtered radiance. */
+function convertGroups(g: GroupParts, kernels: CastKernels) {
+  const { device, r, features, final, common, probe } = g
+  const { mips } = r
+  return {
     convert: groupOf(
       device,
       kernels.convert,
@@ -191,7 +202,7 @@ export function filterGroups(g: GroupParts, kernels: CastKernels) {
         ...buffers({ counts: r.counts }),
         gather: r.gather[final],
         irradiance: r.irradiance,
-        ...(extraAo && { ao: r.extraAo[final] }),
+        ...(features.extraAo && { ao: r.extraAo[final] }),
       }),
     ),
     fixup: groupOf(
@@ -219,26 +230,44 @@ export function filterGroups(g: GroupParts, kernels: CastKernels) {
   }
 }
 
-/** The pixels: the short-range occlusion, the integration of the probes where the level casts them (the classification of the tiles it is dispatched
- *  over, the texel each pixel reads where it is downsampled, the integration) and the temporal pass, which blends what the integration left. */
-export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
-  const { device, r, inputs, features, last, turn, common, probe, surface } = g
+/** The filter: the composite, the spatial passes, the conversion to what the pixels read, the border and the coarser level of the filtered radiance. */
+export function filterGroups(g: GroupParts, kernels: CastKernels) {
+  return {
+    ...compositeGroups(g, kernels),
+    spatial: spatialGroups(g, kernels),
+    ...convertGroups(g, kernels),
+  }
+}
+
+/** The short-range occlusion pass's group. */
+function occlusionGroup(g: GroupParts, kernels: ScreenProbeKernels) {
+  const { device, r, inputs, features, last, common, surface } = g
+  return groupOf(
+    device,
+    kernels.occlusion,
+    namedEntries(OCCLUSION_BINDINGS.at, {
+      ...common,
+      ...surface,
+      occlusion: r.occlusion,
+      blue: inputs.blue,
+      ...(features.shortRangeGi && {
+        vectors: inputs.vectors,
+        keptDepth: r.keptDepth[last],
+        shortRangeGi: r.shortRangeGi,
+      }),
+    }),
+  )
+}
+
+/** The integration of the probes: the classification of the tiles it is dispatched over, the texel each pixel reads where it is downsampled, the integration. */
+function integrationGroups(g: GroupParts, kernels: ScreenProbeKernels) {
+  const { device, r, inputs, common, probe, surface } = g
   const { cast } = kernels
-  const integration = cast?.integrate ?? cast?.integrateEvery
+  const integration = cast.integrate ?? cast.integrateEvery
   const integrated = { light: r.light, rough: r.rough, back: r.back }
   return {
-    occlusion: groupOf(
-      device,
-      kernels.occlusion,
-      namedEntries(OCCLUSION_BINDINGS.at, {
-        ...common,
-        ...surface,
-        occlusion: r.occlusion,
-        blue: inputs.blue,
-      }),
-    ),
     tile:
-      cast?.tile &&
+      cast.tile &&
       groupOf(
         device,
         cast.tile,
@@ -250,7 +279,7 @@ export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
         }),
       ),
     stochastic:
-      cast?.stochastic &&
+      cast.stochastic &&
       groupOf(
         device,
         cast.stochastic,
@@ -285,27 +314,47 @@ export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
             moving: r.moving,
             counts: r.counts,
           }),
-          ...(cast?.tile && buffers({ tiles: r.tileList, args: r.tileArgs })),
+          ...(cast.tile && buffers({ tiles: r.tileList, args: r.tileArgs })),
         }),
       ),
-    temporal: groupOf(
-      device,
-      kernels.temporal,
-      namedEntries(TEMPORAL_BINDINGS.at, {
-        ...common,
-        ...surface,
-        ...(cast && integrated),
-        ...(cast && features.integrate > 1 && { offsets: r.offsets }),
-        occlusion: r.occlusion,
-        history: r.history[last],
-        historyOut: r.history[turn],
-        shading: r.shading[last],
-        shadingOut: r.shading[turn],
-        keptDepth: r.keptDepth[last],
-        keptDepthOut: r.keptDepth[turn],
-        vectors: inputs.vectors,
-        blue: inputs.blue,
+  }
+}
+
+/** The temporal pass's group, which blends what the integration left. */
+function temporalGroup(g: GroupParts, kernels: ScreenProbeKernels) {
+  const { device, r, inputs, features, last, turn, common, surface } = g
+  const integrated = { light: r.light, rough: r.rough, back: r.back }
+  return groupOf(
+    device,
+    kernels.temporal,
+    namedEntries(TEMPORAL_BINDINGS.at, {
+      ...common,
+      ...surface,
+      ...integrated,
+      ...(features.integrate > 1 && { offsets: r.offsets }),
+      occlusion: r.occlusion,
+      history: r.history[last],
+      historyOut: r.history[turn],
+      shading: r.shading[last],
+      shadingOut: r.shading[turn],
+      keptDepth: r.keptDepth[last],
+      keptDepthOut: r.keptDepth[turn],
+      vectors: inputs.vectors,
+      blue: inputs.blue,
+      ...(features.shortRangeGi && {
+        giNew: r.shortRangeGi,
+        giHistory: r.shortRangeGiHistory[last],
+        giOut: r.shortRangeGiHistory[turn],
       }),
-    ),
+    }),
+  )
+}
+
+/** The pixels: the short-range occlusion, the integration of the probes and the temporal pass. */
+export function pixelGroups(g: GroupParts, kernels: ScreenProbeKernels) {
+  return {
+    occlusion: occlusionGroup(g, kernels),
+    ...integrationGroups(g, kernels),
+    temporal: temporalGroup(g, kernels),
   }
 }

@@ -1,4 +1,5 @@
 import type { TranslucencyGiValues } from '../../../../sdk-core/src/contracts/translucencyGiOptions.ts'
+import type { LightingDataFormat } from '../../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
 import { ceilDiv, floorLog2 } from '../../../../math/src/scalar/integers.ts'
 import { halton } from '../../../../math/src/sequence/halton.ts'
 import { fieldLayout } from '../../gpu/core/fieldLayout.ts'
@@ -12,11 +13,12 @@ import { hasTextureFormatsTier1 } from '../../gpu/core/textureFormatsTier.ts'
  * image before's (`integrateWgsl.ts`), and which the see-through surfaces read with one filtered fetch (`readWgsl.ts`).
  *
  * THE TEXTURES. The trace holds `tracing × tracing` cones a cell: a texture of `grid.x · tracing` by `grid.y · tracing` by `grid.z`
- * texels, the cone `(i, j)` of cell `(x, y, z)` at `(x · tracing + i, y · tracing + j, z)`. The volume the surfaces read is two
- * textures of the grid's size (`volumeExtent`): the ambient light (the harmonics' constant band, one colour) in the lighting data format
- * (`translucencyGiAmbientFormat`) and the directional light (the three linear bands, the colours' luminance, signed) in half floats. Two such
- * pairs take turns: the one written is the history of the next image. The fog's volume, the light before its history and its intensity, is one
- * texture of twice the grid's depth (`fogVolumeExtent`): the ambient light in the first half of the slices, the directional light in the second.
+ * texels, the cone `(i, j)` of cell `(x, y, z)` at `(x · tracing + i, y · tracing + j, z)`. The volume the surfaces read is one
+ * texture of twice the grid's depth (`volumeExtent`): the ambient light (the harmonics' constant band, one colour) in the first half of the
+ * slices and the directional light (the three linear bands, the colours' luminance, signed) in the second, both in the volume's format
+ * (`translucencyGiVolumeFormat`: half floats, single floats where the lighting data format is single floats and the device filters them). Two
+ * such textures take turns: the one written is the history of the next image. The fog's volume, the light before its history and its
+ * intensity, is one texture of the same shape, in half floats.
  *
  * THE FRAME. One uniform every pass reads (`TRANSLUCENCY_GI_FRAME`): `grid` the cells along the axes and the shift of the cell's side;
  * `extent` the view's size and its reciprocal; `zParams` the slices' logarithm (scale, offset, slices a doubling) and the camera's near
@@ -33,7 +35,7 @@ import { hasTextureFormatsTier1 } from '../../gpu/core/textureFormatsTier.ts'
  * set at the eye), all of the camera without the anti-aliasing jitter (the cells' places and the history's reprojection do not shake with it).
  */
 
-/** The format of the directional volume the surfaces read, whose light has signs, and of the fog's volume: half floats. */
+/** The format of the volume the surfaces read, whose directional light has signs, and of the fog's volume: half floats. */
 export const TRANSLUCENCY_GI_VOLUME_FORMAT: GPUTextureFormat = 'rgba16float'
 
 /**
@@ -45,7 +47,7 @@ export const TRANSLUCENCY_GI_VOLUME_FORMAT: GPUTextureFormat = 'rgba16float'
  */
 export function translucencyGiConeFormat(
   features: { has(name: string): boolean },
-  setting: TranslucencyGiValues['translucencyGiLightingDataFormat'],
+  setting: LightingDataFormat,
 ): GPUTextureFormat {
   if (setting === 'rgba32') return 'rgba32float'
   return setting === 'r11g11b10' && hasTextureFormatsTier1(features)
@@ -54,10 +56,10 @@ export function translucencyGiConeFormat(
 }
 
 /**
- * The format of the ambient volume the surfaces read, from the format of the cones' light (`translucencyGiConeFormat`): the same lighting data
+ * The format the ambient light is written to the precision of, from the format of the cones' light (`translucencyGiConeFormat`): the same lighting data
  * format. The surfaces read the volume through a filtering sampler, so single floats are kept where the device filters them
  * (`float32-filterable`, `../../gpu/core/float32Filterable.ts`), half floats where it does not (JUSTIFIED-WEB: the core of WebGPU filters
- * no `rgba32float` texture). The directional volume stays in half floats whatever the setting, as the reference keeps it.
+ * no `rgba32float` texture). The volume the surfaces read holds it in the format that follows (`translucencyGiVolumeFormat`).
  */
 export const translucencyGiAmbientFormat = (
   coneFormat: GPUTextureFormat,
@@ -65,6 +67,20 @@ export const translucencyGiAmbientFormat = (
 ): GPUTextureFormat =>
   coneFormat === 'rg11b10ufloat' || (coneFormat === 'rgba32float' && hasFloat32Filterable(features))
     ? coneFormat
+    : TRANSLUCENCY_GI_VOLUME_FORMAT
+
+/**
+ * The format of the volume the surfaces read, whose two halves lie in one texture: half floats, which hold the directional light's signs and
+ * the ambient light written to the lighting data format's precision (`giQuantize`: the 11-11-10 floats are half floats of fewer bits), or
+ * single floats where the lighting data format is single floats and the device filters them (`translucencyGiAmbientFormat`), the directional
+ * light then in single floats too.
+ */
+export const translucencyGiVolumeFormat = (
+  coneFormat: GPUTextureFormat,
+  features: { has(name: string): boolean },
+): GPUTextureFormat =>
+  translucencyGiAmbientFormat(coneFormat, features) === 'rgba32float'
+    ? 'rgba32float'
     : TRANSLUCENCY_GI_VOLUME_FORMAT
 
 /** The side of a workgroup of the kernels over the cones and the cells, texels. */
@@ -167,15 +183,8 @@ export const traceExtent = (
   tracing: number,
 ): [number, number, number] => [grid.x * tracing, grid.y * tracing, grid.z]
 
-/** The size of each of the two volumes the surfaces read: the grid's. */
+/** The size of the volume the surfaces read and of the fog's: the grid's, twice as deep (the ambient light, then the directional). */
 export const volumeExtent = (grid: TranslucencyGiGrid): [number, number, number] => [
-  grid.x,
-  grid.y,
-  grid.z,
-]
-
-/** The size of the fog's volume: the grid's, twice as deep (the ambient light, then the directional). */
-export const fogVolumeExtent = (grid: TranslucencyGiGrid): [number, number, number] => [
   grid.x,
   grid.y,
   grid.z * 2,

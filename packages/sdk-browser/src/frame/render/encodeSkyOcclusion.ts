@@ -14,9 +14,11 @@ import { writeDfaoRead } from '../../lighting/distanceField/ao/readWgsl.ts'
 import { releaseSkyOcclusion } from '../../lighting/distanceField/ao/state.ts'
 import type { DistanceFieldScene } from '../../lighting/distanceField/scene.ts'
 import { NO_SKY_LIGHT_OCCLUSION } from '../../modules/sky/skyLight/read.ts'
+import { capsuleSkyShadows } from '../../lighting/capsuleShadows/host.ts'
 import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { noiseFrame } from './noiseFrame.ts'
+import { describeImage } from '../backend/helpers.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { cameraSeen, previousCameraOf, type CameraImage } from '../backend/state/previousCamera.ts'
 import { wantsContractLighting } from '../prepare/lit.ts'
@@ -110,16 +112,9 @@ function describe(
   before: CameraImage | undefined,
   velocity: boolean,
 ) {
-  const { gpu } = rt
-  image.view = gpu.targetSize
-  image.extent = gpu.allocatedSize
+  describeImage(image, rt, cam)
   image.viewProjection = cam.viewProjection
   image.previousViewProjection = before?.viewProjection ?? cam.viewProjection
-  image.world = cam.world
-  image.projection = cam.projection
-  image.near = cam.near
-  image.far = cam.far
-  image.perspective = cam.perspective > 0.5
   image.frame = rt.run.frame
   image.temporalIndex = noiseFrame(rt) & 3
   image.velocity = velocity
@@ -164,6 +159,7 @@ export function encodeSkyOcclusion(
     image: drawn,
     distances: occlusionDistances(rt.distanceFields!.settings, part.light.occlusionMaxDistance),
     historyCut: cut,
+    skyShadows: capsuleSkyShadows(rt, cam),
   })
   state.seen = rt.run.frame
   if (!view) return

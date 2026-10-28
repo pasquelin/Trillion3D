@@ -1,3 +1,4 @@
+import { storageBufferCap } from '../../../session/memory/pools.ts'
 import { ceilDiv, nextPow2 } from '../../../../../math/src/scalar/integers.ts'
 import { length3 } from '../../../../../math/src/vector/vector.ts'
 import { DISTANCE_FIELD_UNITS_PER_METRE as CM } from '../../../../../sdk-core/src/contracts/distanceFieldAbi.ts'
@@ -14,6 +15,8 @@ import {
 import { CARD_TILE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
 import type { SceneTrace, SceneTraceWords } from '../../rays/sceneTrace/sceneTraceResources.ts'
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
+import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
+import { lightWordsOf } from '../../../gpu/core/lightWords.ts'
 import {
   CARD_TILE_OFFSET_WORDS,
   contextLayout,
@@ -46,7 +49,7 @@ export function tracedRaysFit(
   format: AtlasFormat,
   scratch: boolean,
 ) {
-  const most = Math.min(limits.maxStorageBufferBindingSize, limits.maxBufferSize)
+  const most = storageBufferCap(limits)
   const shadows =
     lightTiles > 0 ? Object.values(tracedShadowWords(lightTiles, format, scratch)) : []
   return [...shadows, ...Object.values(scene)].every((words) => words * 4 <= most)
@@ -56,6 +59,8 @@ export function tracedRaysFit(
 export interface LightingShape {
   readonly side: number
   readonly compressed: boolean
+  /** The format the atlas's light, and the radiosity's rays', are stored in. */
+  readonly light: LightAtlasFormat
   readonly directTiles: number
   readonly indirectTiles: number
   readonly maxLights: number
@@ -71,7 +76,7 @@ export interface LightingShape {
 }
 
 /**
- * The shape of the lighting of an atlas of `side` texels, `compressed` or not, under `settings`. It names nothing of the
+ * The shape of the lighting of an atlas of `side` texels, `compressed` or not, its light stored in `light`, under `settings`. It names nothing of the
  * traced shadows: their buffers are a set of their own (`ensureTracedShadows`), so that turning the traced path on or off
  * leaves the lighting's memory, and the radiosity's history, as they were.
  */
@@ -79,6 +84,7 @@ export function shapeOf(
   settings: SurfaceCacheSettings,
   side: number,
   compressed: boolean,
+  light: LightAtlasFormat,
 ): LightingShape {
   const tiles = updateTilesOf(settings, side)
   const spacing = probeSpacing(
@@ -94,6 +100,7 @@ export function shapeOf(
   return {
     side,
     compressed,
+    light,
     directTiles: tiles.direct,
     indirectTiles: tiles.indirect,
     maxLights: lightsPerTile(settings.surfaceCacheDirectLightingMaxLightsPerTile),
@@ -137,7 +144,7 @@ export function sizesOf(shape: LightingShape) {
     lightTileWords: shape.directTiles * shape.maxLights * LIGHT_TILE_WORDS,
     cardTileOffsetWords: shape.directTiles * CARD_TILE_OFFSET_WORDS,
     filteredWords: shape.radiosity
-      ? shape.radiosityTiles * shape.probesPerTile * shape.raysPerProbe
+      ? shape.radiosityTiles * shape.probesPerTile * shape.raysPerProbe * lightWordsOf(shape.light)
       : 1,
     probeAtlas: shape.radiosity ? probes : 1,
     traceAtlas: shape.radiosity ? probes * shape.hemisphere : 1,
@@ -201,6 +208,18 @@ export interface LightingImage {
   readonly scratchAt: number
   /** The exposure of the view the lights are strengthened under (`lightStrength`): the last image's, as the CPU knows it. */
   readonly exposure: number
+  /** Whether the image lights its texels from the lights it picks for each (`surfaceCacheDirectLightingStochastic`, with its shadows traced), and whether
+   *  the history it blends them with was kept since the last image. */
+  readonly stochastic?: boolean
+  readonly stochasticHistory?: boolean
+}
+
+/** The lights picked for each texel: the setting, 3 taken as 4. */
+export const stochasticSamplesOf = (
+  settings: Pick<SurfaceCacheSettings, 'surfaceCacheDirectLightingStochasticSamplePerTexel'>,
+) => {
+  const samples = settings.surfaceCacheDirectLightingStochasticSamplePerTexel
+  return samples > 2 ? 4 : samples
 }
 
 /** Whether the image's rays write the feedback: its buffer is made and the scene has acceleration structures — the scene's
@@ -238,25 +257,13 @@ export function traceViewOf(
   }
 }
 
-/** The flags word of an image: which of the lighting's passes and options are on. */
-function lightingFlagsOf(
-  shape: LightingShape,
-  settings: SurfaceCacheSettings,
-  image: LightingImage,
-): number {
+/** The flags of the direct light and of what prioritises the cards' updates. */
+function directFlagsOf(settings: SurfaceCacheSettings, image: LightingImage) {
   return (
     (settings.surfaceCacheDirectLighting ? LIGHTING_FLAG.direct : 0) |
-    (shape.radiosity ? LIGHTING_FLAG.radiosity : 0) |
     (settings.surfaceCacheLightingMaxDistanceFromFrustumToPrioritize >= 0
       ? LIGHTING_FLAG.prioritizeFrustum
       : 0) |
-    (settings.surfaceCacheRadiositySpatialFilterProbes &&
-    settings.surfaceCacheRadiositySpatialFilterProbesKernelSize > 0
-      ? LIGHTING_FLAG.filter
-      : 0) |
-    (settings.surfaceCacheRadiosityTemporal ? LIGHTING_FLAG.temporal : 0) |
-    (settings.surfaceCacheRadiosityProbePlaneWeighting ? LIGHTING_FLAG.planeWeighting : 0) |
-    (image.historyLost ? 0 : LIGHTING_FLAG.historyValid) |
     (updateFrameFrozen(settings) ? LIGHTING_FLAG.freezeUpdateFrame : 0) |
     (settings.surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing
       ? LIGHTING_FLAG.adaptiveShadowTracing
@@ -268,31 +275,76 @@ function lightingFlagsOf(
     (settings.surfaceCacheDirectLightingCullToTileDepthRange
       ? LIGHTING_FLAG.cullToTileDepthRange
       : 0) |
-    (shape.probeOcclusion && image.tracedRadiosity ? LIGHTING_FLAG.probeOcclusion : 0) |
     (lightTilesPerType(settings.surfaceCacheDirectLightingBatchShadows)
       ? LIGHTING_FLAG.lightTilesPerType
       : 0)
   )
 }
 
-/** Writes the parameters of an image into `words`, `LIGHTING_PARAMS.words` long. */
-export function writeLightingParams(
-  words: Uint32Array,
+/** The flags of the radiosity and of the history it blends. */
+function radiosityFlagsOf(
   shape: LightingShape,
   settings: SurfaceCacheSettings,
   image: LightingImage,
 ) {
-  const floats = new Float32Array(words.buffer, words.byteOffset, words.length)
-  const ints = new Int32Array(words.buffer, words.byteOffset, words.length)
+  return (
+    (shape.radiosity ? LIGHTING_FLAG.radiosity : 0) |
+    (settings.surfaceCacheRadiositySpatialFilterProbes &&
+    settings.surfaceCacheRadiositySpatialFilterProbesKernelSize > 0
+      ? LIGHTING_FLAG.filter
+      : 0) |
+    (settings.surfaceCacheRadiosityTemporal ? LIGHTING_FLAG.temporal : 0) |
+    (settings.surfaceCacheRadiosityProbePlaneWeighting ? LIGHTING_FLAG.planeWeighting : 0) |
+    (image.historyLost ? 0 : LIGHTING_FLAG.historyValid) |
+    (shape.probeOcclusion && image.tracedRadiosity ? LIGHTING_FLAG.probeOcclusion : 0)
+  )
+}
+
+/** The flags of the stochastic direct light. */
+function stochasticFlagsOf(settings: SurfaceCacheSettings, image: LightingImage) {
+  return (
+    (image.stochastic ? LIGHTING_FLAG.stochastic : 0) |
+    (image.stochastic && settings.surfaceCacheDirectLightingStochasticTemporal
+      ? LIGHTING_FLAG.stochasticTemporal
+      : 0) |
+    (image.stochastic && image.stochasticHistory ? LIGHTING_FLAG.stochasticHistory : 0)
+  )
+}
+
+/** The flags word of an image: which of the lighting's passes and options are on. */
+function lightingFlagsOf(
+  shape: LightingShape,
+  settings: SurfaceCacheSettings,
+  image: LightingImage,
+): number {
+  return (
+    directFlagsOf(settings, image) |
+    radiosityFlagsOf(shape, settings, image) |
+    stochasticFlagsOf(settings, image)
+  )
+}
+
+/** The views of an image's parameters: its words, as floats and as integers. */
+interface ParamViews {
+  readonly words: Uint32Array
+  readonly floats: Float32Array
+  readonly ints: Int32Array
+}
+
+/** The sizes, the update lists and the exposure of an image's parameters. */
+function writeLightingLayout(
+  { words, floats }: ParamViews,
+  shape: LightingShape,
+  settings: SurfaceCacheSettings,
+  image: LightingImage,
+) {
   const at = LIGHTING_PARAMS.at
   const { context } = sizesOf(shape)
-  const flags = lightingFlagsOf(shape, settings, image)
-  words.fill(0)
   words[at.atlasSide] = shape.side
   words[at.frame] = image.frame
   words[at.noiseFrame] = image.noiseFrame
   words[at.pages] = image.pages
-  words[at.flags] = flags
+  words[at.flags] = lightingFlagsOf(shape, settings, image)
   words[at.directTiles] = litTiles(settings, shape.directTiles)
   words[at.indirectTiles] = litTiles(settings, shape.indirectTiles)
   words[at.directAt] = context.directAt
@@ -306,6 +358,16 @@ export function writeLightingParams(
   floats[at.preExposure] = image.preExposure
   floats[at.shadowBias] = settings.surfaceCacheDirectLightingGlobalSdfShadowRayBias
   floats[at.maxTrace] = image.maxTraceDistance * CM
+}
+
+/** The radiosity's probes, filter, accumulation and biases of an image's parameters. */
+function writeLightingRadiosity(
+  { words, floats, ints }: ParamViews,
+  shape: LightingShape,
+  settings: SurfaceCacheSettings,
+  image: LightingImage,
+) {
+  const at = LIGHTING_PARAMS.at
   words[at.spacing] = shape.spacing
   words[at.spacingShift] = Math.log2(nextPow2(shape.spacing))
   words[at.hemisphere] = shape.hemisphere
@@ -327,8 +389,33 @@ export function writeLightingParams(
     settings.surfaceCacheHardwareRayTracingMinTraceDistanceToSampleSurfaceCache
   words[at.selfIntersections] = settings.surfaceCacheHardwareRayTracingAvoidSelfIntersections
   floats[at.probeOcclusionStrength] = probeOcclusionStrength(settings)
+}
+
+/** Writes the parameters of an image into `words`, `LIGHTING_PARAMS.words` long. */
+export function writeLightingParams(
+  words: Uint32Array,
+  shape: LightingShape,
+  settings: SurfaceCacheSettings,
+  image: LightingImage,
+) {
+  const views = {
+    words,
+    floats: new Float32Array(words.buffer, words.byteOffset, words.length),
+    ints: new Int32Array(words.buffer, words.byteOffset, words.length),
+  }
+  const { floats } = views
+  const at = LIGHTING_PARAMS.at
+  words.fill(0)
+  writeLightingLayout(views, shape, settings, image)
+  writeLightingRadiosity(views, shape, settings, image)
   words[at.scratchAt] = image.scratchAt
   floats[at.exposure] = image.exposure
+  words[at.stochasticSamples] = stochasticSamplesOf(settings)
+  floats[at.stochasticMinWeight] = settings.surfaceCacheDirectLightingStochasticMinWeight
+  floats[at.stochasticMaxFrames] =
+    settings.surfaceCacheDirectLightingStochasticTemporalMaxFramesAccumulated
+  floats[at.stochasticClampScale] =
+    settings.surfaceCacheDirectLightingStochasticTemporalNeighborhoodClampScale
   for (let k = 0; k < 3; k++) {
     floats[at.camera + k] = image.eye[k] * CM
     floats[at.eye + k] = image.eye[k]

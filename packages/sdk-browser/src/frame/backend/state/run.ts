@@ -10,6 +10,7 @@ import type { WebgpuBudgetState } from '../../../geometry/residency/budgetState.
 import type { MovedWorlds } from '../../render/movedWorlds.ts'
 import type { DeviceGrant } from '../../../gpu/core/errorScope.ts'
 import type { GraphClocks } from '../../../materials/graph/clocks.ts'
+import type { HoldLog } from '../../loop/deviceAnswer.ts'
 
 /** What the current image decided and counted: the cut, the coverage budget, the metrics the host
  *  reads, and the occlusion history the next image inherits. */
@@ -122,6 +123,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** True when the current image was held and nothing more will be drawn unasked: no CPU step
    *  was executed, and no device answer in flight asks another — targets refused included. */
   frameHeld: boolean
+  /** What the frames that entered did, for a trace of why frames were drawn or held (`noteHold`, `../../loop/deviceAnswer.ts`). */
+  hold: HoldLog
   /** True when the frame held drew no image — a device answer in flight, targets not granted (`holdWebgpuFrame`): it is no image of the view's number (`../../loop/imageNumber.ts`), whatever it says of `frameHeld`. */
   heldEmpty: boolean
   /** True while every image is drawn and none is presented (`../../loop/firstImage.ts`), every

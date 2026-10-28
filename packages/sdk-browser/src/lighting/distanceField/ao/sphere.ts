@@ -58,3 +58,21 @@ function windsOutward(vertices: Float32Array, indices: readonly number[]) {
   }
   return true
 }
+
+/** The bounding sphere's vertex and index buffers (`stencilSphere`), uploaded once, labelled `label`. */
+export function sphereBuffers(device: GPUDevice, label: string) {
+  const sphere = stencilSphere()
+  const vertices = device.createBuffer({
+    label: `${label} sphere vertices`,
+    size: sphere.vertices.byteLength,
+    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
+  })
+  const indices = device.createBuffer({
+    label: `${label} sphere indices`,
+    size: Math.ceil(sphere.indices.byteLength / 4) * 4,
+    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
+  })
+  device.queue.writeBuffer(vertices, 0, sphere.vertices)
+  device.queue.writeBuffer(indices, 0, sphere.indices)
+  return { vertices, indices, indexCount: sphere.indices.length }
+}

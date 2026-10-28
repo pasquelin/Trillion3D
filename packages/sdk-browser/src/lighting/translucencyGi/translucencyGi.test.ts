@@ -22,7 +22,6 @@ import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbe
 import {
   TRANSLUCENCY_GI_GROUP,
   traceExtent,
-  fogVolumeExtent,
   translucencyGiFootprintLevel,
   translucencyGiGrid,
   translucencyGiJitter,
@@ -37,8 +36,11 @@ test('the grid is the reference’s: cells of 32 pixels, slices on the logarithm
   assert.deepEqual([grid.x, grid.y, grid.z, grid.shift], [60, 34, 26, 5])
   assert.deepEqual([grid.logZScale, grid.logZOffset, grid.zScale], [1, 1, 4])
   assert.deepEqual(traceExtent(grid, 3), [180, 102, 26])
-  assert.deepEqual(volumeExtent(grid), [60, 34, 26], 'each of the two volumes the surfaces read')
-  assert.deepEqual(fogVolumeExtent(grid), [60, 34, 52], 'the fog’s, the two halves stacked')
+  assert.deepEqual(
+    volumeExtent(grid),
+    [60, 34, 52],
+    'the volume the surfaces read and the fog’s: the two halves stacked',
+  )
   // A cell side that is not a power of two counts the cells by the side, the pyramid’s level by its logarithm.
   const odd = translucencyGiGrid(
     { ...values, translucencyGiGridPixelSize: 48 },
@@ -90,7 +92,7 @@ test('a slice and its depth are each other’s inverse', () => {
   const run = shaderRun<{
     giDepthOfSlice: (slice: number) => number
     giSliceOfDepth: (depth: number) => number
-  }>(integrateGiProgram('rgba16float'), ['giDepthOfSlice', 'giSliceOfDepth'], {
+  }>(integrateGiProgram('rgba16float', 'rgba16float'), ['giDepthOfSlice', 'giSliceOfDepth'], {
     gi: { zParams: [1, 1, 4, 0.1] },
   })
   for (const depth of [0.1, 1, 7.5, 80]) {
@@ -105,7 +107,7 @@ test('a constant radiance projected on the harmonics gives its irradiance back: 
   const radiance = 2
   const run = shaderRun<{
     giProject: (cell: number[]) => { c: number[][] }
-  }>(integrateGiProgram('rgba16float'), ['giProject'], {
+  }>(integrateGiProgram('rgba16float', 'rgba16float'), ['giProject'], {
     gi: { trace: [3, 20, 1, 1] },
     cones: { load: () => [radiance, radiance, radiance, 0] },
   })
@@ -246,4 +248,44 @@ test('the volume is made whenever it is enabled, the lit image shown and the scr
   assert.equal(wanted(scene({}), { ...values, translucencyGi: false }), false)
   assert.equal(wanted(scene({ bounce: false }), values), false, 'no screen probes cast')
   assert.equal(wanted(scene({ unlit: true }), values), false, 'the lit image is not shown')
+})
+
+// The volume the surfaces read holds the ambient and the directional light in the two halves of one texture (`giSampleVolume`) in place of two
+// textures (`giSampleVolumes`, gone): the same depth coordinate, held half a slice inside, so that the trilinear filter never mixes the halves.
+test('a point read in the stacked volume is the point read in each of the two textures, at the edges of the depth as inside it', () => {
+  const slices = 5
+  const ambient = [0.1, 0.9, 0.3, 0.7, 0.5]
+  const directional = [-2, 4, -6, 8, -10]
+  const stacked = [...ambient, ...directional]
+  /** The hardware's linear filter along the depth of a texture of `texels`, the edge held: a coordinate in [0, 1] of the texture's depth. */
+  const filtered = (texels: number[], coordinate: number) => {
+    const at = coordinate * texels.length - 0.5
+    const first = Math.floor(at)
+    const t = at - first
+    const read = (k: number) => texels[Math.min(Math.max(k, 0), texels.length - 1)]
+    return read(first) * (1 - t) + read(first + 1) * t
+  }
+  const inside = (w: number) => Math.min(Math.max(w * slices, 0.5), slices - 0.5)
+  for (const w of [
+    0,
+    0.5 / slices,
+    0.1,
+    0.2,
+    0.37,
+    0.5,
+    0.75,
+    1 - 0.5 / slices,
+    0.999,
+    1,
+    1.2,
+    -0.3,
+  ]) {
+    const separate = [ambient, directional].map((texels) => filtered(texels, inside(w) / slices))
+    const halves = [0, 1].map((slab) =>
+      filtered(stacked, (inside(w) + slab * slices) / (2 * slices)),
+    )
+    halves.forEach((value, k) =>
+      assert.ok(Math.abs(value - separate[k]) < 1e-12, `w ${w}, half ${k}`),
+    )
+  }
 })

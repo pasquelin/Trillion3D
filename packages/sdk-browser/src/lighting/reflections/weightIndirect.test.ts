@@ -49,6 +49,8 @@ const indirect = (read: boolean, only: boolean, sky = false) =>
       screenDiffuse: () => [0.1, 0.2, 0.3],
       bounceLighting: () => [1, 1, 1],
       screenShortRange: () => [0.5, 0.5, 0.5],
+      screenShortRangeGiAt: () => [0, 0, 0],
+      lambertDiffuse: () => [0, 0, 0],
       screenRoughAt: () => [2, 2, 2],
       screenSpecularOcclusion: () => 0.5,
       skyLit: () => sky,
@@ -140,7 +142,7 @@ test('a rough clear coat is weighed on its own roughness and normal, the base lo
     ),
     lobeRoughness: (rough: number) => rough,
     ndotvClamped: () => 1,
-    environmentBrdfPair: () => [1, 0],
+    shadingEnergyPair: () => [1, 0],
     envBrdfF90: () => 1,
   })
   const traced = { base: [2, 2, 2], coat: [1, 2, 3] }

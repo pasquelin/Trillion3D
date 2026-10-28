@@ -7,15 +7,13 @@ import { webgpuPagesEngine } from '../frame/backend/pages.ts'
 import { installGpuGlobals } from '../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { camera, quadScene } from '../frame/backend/testScenes.fixture.ts'
+import { backendOf, camera, quadScene } from '../frame/backend/testScenes.fixture.ts'
 import { DAG, dagLevel } from '../session/engine/pagesEngine.fixture.ts'
 import { fanScene, quadCluster } from '../session/engine/pagesEngineScenes.fixture.ts'
 import type { ViewCamera } from './world.ts'
 import type { EngineContext, Engine } from '../session/engine/types.ts'
 import type { ClusterManifest } from '../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../materials/texture/textureCaches.ts'
-import { createPageCache } from '../geometry/streaming/pageCache.ts'
 
 /** The fan's manifest without its primitives: same shape as `QUAD_MANIFEST`
  *  (`packages/sdk-browser/src/session/engine/pagesEngineScenes.fixture.ts`), the fields the mock backend never reads left at neutral values. */
@@ -79,12 +77,10 @@ async function webgpuEngine(scene: SceneContext): Promise<EngineState> {
   clock.ms = 0
   const held = mock.method(performance, 'now', () => clock.ms)
   const gpu = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...scene,
     gpuDevice: gpu.device,
     maxResidentPages: 8,
-    viewport: [32, 32],
   })
   await backend.prepare()
   return { gpu, backend, dispose: () => held.mock.restore() }

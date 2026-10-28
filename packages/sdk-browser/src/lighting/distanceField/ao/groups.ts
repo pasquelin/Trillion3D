@@ -45,6 +45,31 @@ const packGroups = (group: GroupOf, view: DfaoView) =>
     ]),
   )
 
+/** The groups that pack an image another pass made of the history's (`dfaoPackFrom`), kept on the view while the pass's texture is the same. */
+const sourcedPacks = new WeakMap<
+  DfaoView,
+  { source: GPUTextureView; packed: GPUBuffer; params: GPUBuffer; group: GPUBindGroup }
+>()
+
+/** The group that packs `source`, a texture of the grid's size and the history's format, into the buffer the lit pass reads. */
+export function dfaoPackFrom(
+  device: GPUDevice,
+  programs: DfaoPrograms,
+  view: DfaoView,
+  source: GPUTextureView,
+) {
+  const held = sourcedPacks.get(view)
+  if (held?.source === source && held.packed === view.packed && held.params === view.params)
+    return held.group
+  const group = groupMaker(
+    device,
+    programs,
+    view,
+  )('pack', namedEntries(B, { history: source, packed: wholeBuffer(view.packed) }))
+  sourcedPacks.set(view, { source, packed: view.packed, params: view.params, group })
+  return group
+}
+
 /** The group maker of the passes: their layout, the view's parameters, and the entries given. */
 const groupMaker =
   (device: GPUDevice, programs: DfaoPrograms, view: DfaoView): GroupOf =>

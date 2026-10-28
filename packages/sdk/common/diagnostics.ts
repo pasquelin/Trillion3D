@@ -24,6 +24,8 @@ export type {
   GpuFrameMs,
   GpuPassTiming,
   GpuPassTimings,
+  GpuTimerStats,
+  TessellationLoss,
   ViewFrameMetrics,
 } from '../../sdk-core/src/contracts/metrics.ts'
 export { frameStatistics, summarize } from '../../sdk-core/src/runtime/stats.ts'

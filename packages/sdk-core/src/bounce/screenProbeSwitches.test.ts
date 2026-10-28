@@ -35,9 +35,12 @@ test('a switch off, or an occlusion of no strength, leaves its pass out; a value
     { screenProbeOcclusionIntensity: 2 },
     { screenProbeMaxFastUpdate: 2 },
     { screenProbeFastUpdateFraction: 0 },
+    { screenProbeOcclusionForegroundPower: 100 },
+    { screenProbeSurfaceBias: 0 },
+    { screenProbeSurfaceBias: 1.5 },
     { screenProbeMaxTraceDistance: 0 },
     { screenProbeMaxTraceDistance: 10486 },
-    { screenProbeGatherScale: 1.5 },
+    { screenProbeGatherScale: 4.5 },
     { screenProbeGatherScale: 0.05 },
     { screenProbeSpatialFilterMaxHitAngle: 0 },
     { screenProbes: 'ultra ' },
@@ -84,15 +87,10 @@ test("the radiance cache: its maps' side and its probes' budget are a level's ro
   // Read by the screen probes of a level that casts, while the switch is on; the world's probes keep a row of the finest casting level.
   const read = (options: object) => screenProbeSettings(options).radianceCache
   assert.deepEqual(
-    [
-      read({}),
-      read({ screenProbeRadianceCache: false }),
-      read({ screenProbes: 'low' }),
-      read({ screenProbes: 'off' }),
-    ],
-    [true, false, false, false],
+    [read({}), read({ screenProbeRadianceCache: false }), read({ screenProbes: 'off' })],
+    [true, false, false],
   )
-  assert.equal(screenProbeSettings({ screenProbes: 'low' }).cache.resolution, 16)
+  assert.equal(screenProbeSettings({ screenProbes: 'off' }).cache.resolution, 16)
   for (const refused of [
     { screenProbeRadianceCacheMipmaps: 0 },
     { screenProbeRadianceCacheMipmaps: 4 },
@@ -148,9 +146,9 @@ test('the temporal filter of the probes and the extra ambient occlusion need a l
   } as const
   const ultra = screenProbeSettings(on)
   assert.deepEqual([ultra.temporalFilterProbes, ultra.extraAo], [true, true])
-  const low = screenProbeSettings({ ...on, screenProbes: 'low' })
+  const off = screenProbeSettings({ ...on, screenProbes: 'off' })
   assert.deepEqual(
-    [low.temporalFilterProbes, low.extraAo],
+    [off.temporalFilterProbes, off.extraAo],
     [false, false],
     'a level that casts no probe',
   )
@@ -164,8 +162,10 @@ test('the temporal filter of the probes and the extra ambient occlusion need a l
   )
   assert.throws(() => screenProbeSettings({ screenProbeGatherNumMips: 0 }), TypeError)
   // A level that casts no probe holds one level of gather, whatever is asked: no mip texture is made, no atlas refused for them.
-  for (const screenProbes of ['off', 'low'] as const)
-    assert.equal(screenProbeSettings({ screenProbes, screenProbeGatherNumMips: 5 }).gatherMips, 1)
+  assert.equal(
+    screenProbeSettings({ screenProbes: 'off', screenProbeGatherNumMips: 5 }).gatherMips,
+    1,
+  )
   // A probe's square of the finest level (the gather plus a border of 2 ** levels) must fit the 8192 texels of a texture on any device.
   assert.equal(screenProbeSettings({ screenProbeGatherNumMips: 12 }).gatherMips, 12)
   assert.throws(() => screenProbeSettings({ screenProbeGatherNumMips: 13 }), TypeError)
@@ -194,98 +194,37 @@ test('the short-range occlusion is searched at the setting’s reduction, else t
   )
 })
 
-test('the integration runs at the reduction asked, 1 by default and 2 at most, held to 1 where the level casts no probe or the occlusion is searched and applied during it at another reduction; with both asked 2 the occlusion is searched at 2', () => {
-  const integrate = (options: object) => screenProbeSettings(options).integrateDownsample
-  const occlusion = (options: object) => screenProbeSettings(options).occlusionDownsample
-  assert.equal(integrate({ screenProbes: 'ultra' }), 1, 'the default')
-  assert.equal(integrate({ screenProbes: 'ultra', screenProbeIntegrateDownsampleFactor: 2 }), 2)
-  assert.equal(integrate({ screenProbes: 'low', screenProbeIntegrateDownsampleFactor: 2 }), 1)
-  assert.equal(integrate({ screenProbes: 'off', screenProbeIntegrateDownsampleFactor: 2 }), 1)
-  // The occlusion applied during the integration and searched at another reduction (the ultra level's is 1): the integration is not downsampled.
-  const applied = {
+test("a setting of the level's row replaces it where it is given, and a negative one names the row's", () => {
+  const level = screenProbeSettings({ screenProbes: 'ultra' })
+  const given = screenProbeSettings({
     screenProbes: 'ultra',
-    screenProbeShortRangeAOApplyDuringIntegration: true,
-    screenProbeIntegrateDownsampleFactor: 2,
-  }
-  assert.equal(integrate(applied), 1)
-  assert.equal(occlusion(applied), 1)
-  // Asked the same reduction, both run at it.
-  const same = { ...applied, screenProbeShortRangeAODownsampleFactor: 2 }
-  assert.equal(integrate(same), 2)
-  assert.equal(occlusion(same), 2)
-  // The high level's own occlusion reduction is 2: the integration asked 2 agrees with it.
-  const high = { ...applied, screenProbes: 'high' }
-  assert.equal(integrate(high), 2)
-  assert.equal(occlusion(high), 2)
-  // Without the occlusion applied during the integration the two are independent.
-  assert.equal(integrate({ screenProbes: 'high', screenProbeIntegrateDownsampleFactor: 2 }), 2)
-  assert.equal(occlusion({ screenProbes: 'ultra', screenProbeIntegrateDownsampleFactor: 2 }), 1)
-  // Where the occlusion is off, it asks nothing of the integration.
-  assert.equal(
-    integrate({
-      ...applied,
-      screenProbeShortRangeOcclusion: false,
-      screenProbeIntegrateDownsampleFactor: 2,
-    }),
-    2,
-  )
-})
-
-test('the integration’s tiles are classified by default, and not where the switch is off, the method is the numerical integral, or the level casts no probe; the diffuse method takes 0, 1 or 2, and unclassified tiles integrate at the image’s size', () => {
-  const settings = (options: object) => screenProbeSettings({ screenProbes: 'ultra', ...options })
+    screenProbeDownsampleFactor: 32,
+    screenProbeTracingResolution: 4,
+    screenProbeNumAdaptiveProbes: 16,
+    screenProbeFullResolutionJitterWidth: 0.25,
+    screenProbeOcclusionSlices: 1,
+    screenProbeOcclusionForegroundPower: 0.05,
+    screenProbeOcclusionPyramid: 1,
+    screenProbeIrradianceFormat: 'octahedral',
+  })
   assert.deepEqual(
-    [settings({}).tileClassification, settings({}).integralMethod],
-    [true, 0],
-    'the reference’s defaults',
+    [given.downsampleFactor, given.adaptiveProbes, given.occlusionSlices, given.occlusionPyramid],
+    [32, 16, 1, true],
   )
+  assert.deepEqual(
+    [given.jitterWidth, given.occlusionForegroundPower],
+    [0.25, 0.1],
+    'the power is held to 0.1 at least',
+  )
+  assert.equal(given.irradianceFormat, 'octahedral')
+  assert.deepEqual(
+    [level.downsampleFactor, level.adaptiveProbes, level.occlusionSlices, level.occlusionPyramid],
+    [16, 8, 2, false],
+  )
+  assert.equal(level.irradianceFormat, 'sh3')
   assert.equal(
-    settings({ screenProbeIntegrationTileClassification: false }).tileClassification,
-    false,
+    screenProbeSettings({ screenProbes: 'high', screenProbeIrradianceFormat: 'sh3' })
+      .irradianceFormat,
+    'sh3',
   )
-  assert.equal(settings({ screenProbeDiffuseIntegralMethod: 1 }).tileClassification, true)
-  assert.equal(
-    settings({ screenProbeDiffuseIntegralMethod: 2 }).tileClassification,
-    false,
-    'the numerical integral is run over every pixel',
-  )
-  assert.equal(settings({ screenProbeDiffuseIntegralMethod: 2 }).integralMethod, 2)
-  assert.equal(screenProbeSettings({ screenProbes: 'low' }).tileClassification, false)
-  for (const refused of [
-    { screenProbeDiffuseIntegralMethod: 3 },
-    { screenProbeDiffuseIntegralMethod: -1 },
-  ])
-    assert.throws(() => settings(refused), TypeError, JSON.stringify(refused))
-  // Without the classification the integration is not downsampled, whatever is asked; the numerical integral, which does not classify, keeps the reduction asked.
-  const twice = { screenProbeIntegrateDownsampleFactor: 2 }
-  assert.equal(settings({ ...twice }).integrateDownsample, 2)
-  assert.equal(
-    settings({ ...twice, screenProbeIntegrationTileClassification: false }).integrateDownsample,
-    1,
-  )
-  assert.equal(settings({ ...twice, screenProbeDiffuseIntegralMethod: 2 }).integrateDownsample, 2)
-})
-
-test('the translucent surfaces mark the radiance cache by default, at a quarter of the image, behind the depth pyramid’s test, fading over four probes; the pyramid level follows the downsample, and the switch takes the mark away', () => {
-  assert.deepEqual(screenProbeSettings().cache.translucentMark, {
-    downsample: 4,
-    hizMip: 2,
-    hizTest: true,
-    invFade: 0.25,
-  })
-  const mip = (factor: number) =>
-    screenProbeSettings({ screenProbeTranslucencyReflectionsMarkDownsampleFactor: factor }).cache
-      .translucentMark?.hizMip
-  // A texel of the read level covers a downsampled pixel, the reference's levels (0, 0, 1, 2, 3, 5 of a half-size first level) one further in our full-size pyramid.
-  assert.deepEqual([1, 2, 4, 8, 16, 64].map(mip), [1, 1, 2, 3, 4, 6])
-  const off = screenProbeSettings({
-    screenProbeTranslucencyReflectionsRadianceCache: false,
-    screenProbeTranslucencyReflectionsHizOcclusionTest: false,
-    screenProbeTranslucencyReflectionsClipmapFadeSize: 16,
-  })
-  assert.equal(off.cache.translucentMark, undefined)
-  const bare = screenProbeSettings({
-    screenProbeTranslucencyReflectionsHizOcclusionTest: false,
-    screenProbeTranslucencyReflectionsClipmapFadeSize: 16,
-  }).cache.translucentMark
-  assert.deepEqual([bare?.hizTest, bare?.invFade], [false, 1 / 16])
 })

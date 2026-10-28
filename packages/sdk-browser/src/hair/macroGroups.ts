@@ -63,26 +63,15 @@ function extendRect(
   extent[3] = Math.max(extent[3]!, py)
 }
 
-/**
- * Writes into `out` the pixels the six bounds `box` cover in `camera`'s image of `width` by `height`:
- * what of the box lies in front of the near plane, projected — its corners in front, and where each of
- * its twelve edges crosses the plane (a corner behind it is not moved to it, which would leave out the
- * part of an edge between the plane and the corner's place) —, the least and greatest pixel rounded
- * outward and held to the image. A box with no point in front of the plane is held to it whole: its
- * corners at the plane's depth.
- */
-function projectedScreenRect(
-  out: [number, number, number, number],
+/** The corners of `box` in front of `plane`, projected into the extent; their eye-space places are kept in `eyeCorners`. Returns how many are in front. */
+function extendCorners(
+  projection: EngineCamera['projection'],
+  view: EngineCamera['view'],
   box: ArrayLike<number>,
-  camera: Pick<EngineCamera, 'view' | 'projection' | 'near'>,
   width: number,
   height: number,
+  plane: number,
 ) {
-  const { view, projection, near } = camera
-  // The plane, just past the near one, so that every point added has a positive w.
-  const plane = near + NEAR_MARGIN
-  extent[0] = extent[1] = Infinity
-  extent[2] = extent[3] = -Infinity
   let front = 0
   for (let corner = 0; corner < 8; corner++) {
     const x = corner & 1 ? box[3]! : box[0]!,
@@ -104,7 +93,16 @@ function projectedScreenRect(
       )
     }
   }
-  // The edges join the corners that differ by one axis; one that crosses the plane adds the point there.
+  return front
+}
+
+/** The points where the twelve edges of the box, in `eyeCorners`, cross `plane`, projected into the extent. */
+function extendEdges(
+  projection: EngineCamera['projection'],
+  width: number,
+  height: number,
+  plane: number,
+) {
   for (let corner = 0; corner < 8; corner++)
     for (let axis = 1; axis < 8; axis <<= 1) {
       if (corner & axis) continue
@@ -123,6 +121,30 @@ function projectedScreenRect(
         -plane,
       )
     }
+}
+
+/**
+ * Writes into `out` the pixels the six bounds `box` cover in `camera`'s image of `width` by `height`:
+ * what of the box lies in front of the near plane, projected — its corners in front, and where each of
+ * its twelve edges crosses the plane (a corner behind it is not moved to it, which would leave out the
+ * part of an edge between the plane and the corner's place) —, the least and greatest pixel rounded
+ * outward and held to the image. A box with no point in front of the plane is held to it whole: its
+ * corners at the plane's depth.
+ */
+function projectedScreenRect(
+  out: [number, number, number, number],
+  box: ArrayLike<number>,
+  camera: Pick<EngineCamera, 'view' | 'projection' | 'near'>,
+  width: number,
+  height: number,
+) {
+  const { view, projection, near } = camera
+  // The plane, just past the near one, so that every point added has a positive w.
+  const plane = near + NEAR_MARGIN
+  extent[0] = extent[1] = Infinity
+  extent[2] = extent[3] = -Infinity
+  const front = extendCorners(projection, view, box, width, height, plane)
+  extendEdges(projection, width, height, plane)
   if (!front)
     for (let corner = 0; corner < 8; corner++)
       extendRect(

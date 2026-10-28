@@ -12,6 +12,7 @@ import { BUILD_PASS } from '../occlusion/occlusionPass.ts'
 import type { EngineVsm } from './engineVsm.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { heldMaskBytes } from './vsmMask.ts'
+import { vsmHairProjectionBytes } from '../projection/hairProjectionPass.ts'
 import { vsmProjectionHeldBytes } from '../projection/projectionStore.ts'
 import { vsmRenderContextBytes, type VsmRenderStats } from '../render/renderPass.ts'
 import { vsmThrottleBytes } from '../throttle.ts'
@@ -67,6 +68,7 @@ export const resetVsmEngineStats = (stats: VsmEngineStats) => void Object.assign
 export const engineVsmBytes = (vsm: EngineVsm) =>
   vsm.res.bytes +
   vsmProjectionHeldBytes(vsm.res) +
+  vsmHairProjectionBytes(vsm.res) +
   heldMaskBytes(vsm) +
   vsmRenderContextBytes(vsm.res) +
   vsmThrottleBytes(vsm.res)

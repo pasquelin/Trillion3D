@@ -79,7 +79,7 @@ export function writeComposeView(out: Float32Array, input: ComposeInput, part: C
 const imageEntries = new Map<boolean, GPUBindGroupLayoutEntry[]>()
 
 /** The cloud images' group (group 1): the uniform, the colour, secondary (two surfaces) and depth
- *  images, the scene's depth, and the sampler (`RECONSTRUCT_SAMPLER`), made once for each kind and
+ *  images, the scene's depth, the sampler (`RECONSTRUCT_SAMPLER`) and the water's surface, made once for each kind and
  *  shared: not to be changed. */
 function composeEntries(setup: CloudSetup) {
   let entries = imageEntries.get(setup.minMaxDepth)
@@ -93,6 +93,7 @@ function composeEntries(setup: CloudSetup) {
       computeTextureEntry(b.depth, 'float', '2d', stage),
       computeTextureEntry(b.sceneDepth, 'depth', '2d', stage),
       computeSamplerEntry(b.sampler, 'filtering', stage),
+      computeTextureEntry(b.water, 'float', '2d', stage),
     ]
     imageEntries.set(setup.minMaxDepth, entries)
   }

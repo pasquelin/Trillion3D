@@ -27,8 +27,8 @@ export const REFLECTION_CONSTANTS = {
   /** The distance past which a ray is taken as infinite: 2²³ world units, where a float32 no
    *  longer holds a unit step. */
   REFLECTION_FAR: 2 ** 23,
-  /** The distance of a ray that met nothing, in metres: the greatest half in centimetres, 65504 cm, the one distance a miss is told at. */
-  REFLECTION_MISS_DISTANCE: HALF_MAX / CENTIMETRES_PER_METRE,
+  /** The greatest distance a texel holds, in metres: the greatest half in centimetres, 65504 cm; a ray that met nothing is told at the longest ray, held to it. */
+  REFLECTION_DISTANCE_MAX: HALF_MAX / CENTIMETRES_PER_METRE,
   /** The least extent of that window the clamp's move is measured against (`temporalPixel`), in
    *  the display's white (the image's pre-exposure applied): the window's extent, held at 0.1 at least,
    *  a tenth of the display's white. A window of near-equal texels — a smooth glass reflecting a
@@ -48,7 +48,7 @@ export const REFLECTION_CONSTANTS = {
   REFLECTION_PULLBACK: 4,
   /** The metres (2 cm) by which the screen stage lengthens the distance of a ray it traced and missed: the distance a screen march
    *  reports is not reliable, so a ray that reached the longest ray stays past it and is not traced again by the scene stage, one that did
-   *  not is corrected by the pull back of the march that follows (`reflectionScreenStage`). */
+   *  not is corrected by the pull back of the march that follows (`reflectionScreenEnd`). */
   REFLECTION_MISS_OFFSET: 0.02,
   /** The factor of a march's step, drawn about 1 near a mirror between this and its reciprocal, and the cone angle
    *  (π/256) from which it is no longer drawn. */

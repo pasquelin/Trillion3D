@@ -12,7 +12,11 @@ const runtime = (context: object, water = true) =>
   ({ context, run: { frame: 1 }, blendState: { water } }) as unknown as WebgpuPagesRuntime
 
 const marking = (marks: boolean, froxels: boolean) =>
-  viewMarking({ shadowMarkPixelPages: marks, shadowMarkPagesUseFroxels: froxels } as ShadowValues)
+  viewMarking({
+    shadowVirtualEnable: true,
+    shadowMarkPixelPages: marks,
+    shadowMarkPagesUseFroxels: froxels,
+  } as ShadowValues)
 
 for (const froxels of [false, true]) {
   const kind = froxels ? 'froxels' : 'pixels'

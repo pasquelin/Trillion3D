@@ -22,7 +22,7 @@ import {
   vsmHistoryLayout,
 } from './prefilteredConstants.ts'
 
-export const POOL_PAGES = 128
+const POOL_PAGES = 128
 const X_PARTS = ['vsmFilterableXLoad', 'vsmFilterableXStore']
 const Y_PARTS = ['vsmFilterableYLoad', 'vsmFilterableYStore']
 const OPTIONS: VsmResourceOptions = {

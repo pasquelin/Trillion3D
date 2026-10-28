@@ -85,6 +85,23 @@ fn groupGrid(groups:u32)->vec2u{return vec2u(min(groups,GROUP_WIDTH),ceilDiv(max
 `,
 )
 
+/** The declaration of `writeIndirectArgs(slot, x, y, z)`: the three words of one indirect dispatch's arguments at `base + slot * words` of
+ *  `buffer` (`atomic`: a buffer of atomics, stored). The one writer of the engine's dispatch arguments, which a kernel lists as a
+ *  dependency and wraps in the call it needs (a count split by `groupGrid`, or the groups a pass names). `base` and `words` are WGSL
+ *  expressions; each combination is a declaration of its own. */
+export const indirectArgsWgsl = (
+  buffer: string,
+  { base = '0u', words = '3u', atomic = false } = {},
+) => {
+  const put = (word: number, value: string) =>
+    atomic ? `atomicStore(&${buffer}[at+${word}u],${value});` : `${buffer}[at+${word}u]=${value};`
+  return wgslBlock(
+    `INDIRECT_ARGS_WGSL(${buffer},${base},${words},${atomic})`,
+    [],
+    `fn writeIndirectArgs(slot:u32,x:u32,y:u32,z:u32){let at=${base}+slot*${words};${put(0, 'x')}${put(1, 'y')}${put(2, 'z')}}`,
+  )
+}
+
 /** A list's indirect argument, x then y at `work[groups]`, raised by its appends as each slice of
  *  `WORKGROUP_THREADS` entries opens: the split only grows, so the last slice's stands. */
 export const OPEN_SLICE_WGSL = wgslBlock(

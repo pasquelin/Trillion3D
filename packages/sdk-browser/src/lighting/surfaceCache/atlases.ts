@@ -2,12 +2,14 @@ import { ledgerAdmitted } from '../../gpu/core/deviceLedger.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { countingAllocator, gpuAllocator } from '../../gpu/core/resourceAllocator.ts'
 import { SURFACE_CACHE_ATLAS_LABEL } from '../../diagnostic/stage/passLabels.ts'
+import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
+import { lightWordsOf } from '../../gpu/core/lightWords.ts'
 import { shadowFactorWords } from './lighting/layout.ts'
 import {
   atlasFormats,
   BLOCK_FORMATS,
   BLOCK_LAYERS,
-  CAPTURE_FORMATS,
+  captureFormats,
   INVALID_DEPTH_WORD,
   stagingOf,
   TILE,
@@ -17,11 +19,13 @@ import {
  * THE ATLASES OF THE SURFACE CACHE: the physical atlas the cards' pages live in, one texture for each
  * of its layers — the depth, the albedo, the normal, the emission, the direct, indirect and final
  * light, and a word for each tile of the radiosity's accumulation (`atlasFormats`) —, and the
- * capture atlas the pages being captured in an image are drawn into (`CAPTURE_FORMATS`), a smaller
+ * capture atlas the pages being captured in an image are drawn into (`captureFormats`), a smaller
  * square of the same pages. Both are squares of `side` texels; the capture atlas is the physical
  * atlas's side over the square root of `surfaceCacheCardCaptureFactor`, never under one card of the
  * greatest resolution (`captureAtlasPages`). They are made where the device's budget leaves room
- * for the whole (`ensureSurfaceAtlases`): the cache is then off, with the reason, where it does not.
+ * for the whole (`ensureSurfaceAtlases`): the cache is then off, with the reason, where it does not. The direct and final light are stored in the
+ * format the lighting data format asks (`light`, `lightAtlasFormat`), the indirect light in the words it takes (`lightWordsOf`): an atlas is made
+ * again where that format moved, as it is where its size does.
  *
  * A COMPRESSED atlas keeps its albedo, normal and emission in blocks (`BLOCK_FORMATS`): those three
  * textures can only be copied into and sampled, so they are made here by hand, kept by name
@@ -34,14 +38,21 @@ import {
  * the layers.
  */
 
-/** The usage of every layer: written by a compute pass, drawn into by the pass that clears it, read
+/** The format a layer of light takes where the device grants `texture-formats-tier1` and the setting asks for 11-11-10 floats (`lightAtlasFormat`): it is a storage
+ *  texture there, but renders only on a device that also grants `rg11b10ufloat-renderable`, so no render pass clears it: copies of zeros do (`clearByCopies`). */
+const NATIVE_LIGHT_FORMAT = 'rg11b10ufloat' satisfies LightAtlasFormat
+
+/** The usage of every layer of `format`: written by a compute pass, drawn into by the pass that clears it, read
  *  by load, copied. */
-const usage = () =>
+const usage = (format: GPUTextureFormat) =>
   GPUTextureUsage.TEXTURE_BINDING |
   GPUTextureUsage.STORAGE_BINDING |
-  GPUTextureUsage.RENDER_ATTACHMENT |
+  (format === NATIVE_LIGHT_FORMAT ? 0 : GPUTextureUsage.RENDER_ATTACHMENT) |
   GPUTextureUsage.COPY_SRC |
   GPUTextureUsage.COPY_DST
+
+/** The bytes of the buffer of zeros the layers no render pass clears are cleared from, a strip of rows at a time. */
+const ZERO_STRIP_BYTES = 1 << 20
 
 /** The usage of a block-compressed layer: the copies of blocks write it, the passes sample it. */
 const blockUsage = () => GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST
@@ -69,32 +80,36 @@ function allocate(
   captureSide: number,
   compressed: boolean,
   viewRows: number,
+  light: LightAtlasFormat,
 ) {
-  const formats = atlasFormats(compressed)
+  const formats = atlasFormats(compressed, light)
+  const captured = captureFormats(light)
+  const words = lightWordsOf(light)
   const physical = {
     depth: layer('depth', side, formats.depth),
     albedo: layer('albedo', side, formats.albedo),
     normal: layer('normal', side, formats.normal),
     emissive: layer('emissive', side, formats.emissive),
     direct: layer('direct lighting', side, formats.direct),
-    indirect: layer('indirect lighting', side, formats.indirect),
+    indirect: layer('indirect lighting', side * words, formats.indirect, side),
     final: layer('final lighting', side, formats.final),
     frames: layer('radiosity frames', Math.max(1, side / TILE), formats.frames),
   }
   const capture = {
     // Past its image, the identifier texture holds the views the page's texels are placed by.
-    ids: layer('capture ids', captureSide, CAPTURE_FORMATS.ids, captureSide + viewRows),
-    depth: layer('capture depth', captureSide, CAPTURE_FORMATS.depth),
-    albedo: layer('capture albedo', captureSide, CAPTURE_FORMATS.albedo),
-    normal: layer('capture normal', captureSide, CAPTURE_FORMATS.normal),
-    emissive: layer('capture emission', captureSide, CAPTURE_FORMATS.emissive),
-    direct: layer('capture direct lighting', captureSide, CAPTURE_FORMATS.direct),
-    indirect: layer('capture indirect lighting', captureSide, CAPTURE_FORMATS.indirect),
-    frames: layer(
-      'capture radiosity frames',
-      Math.max(1, captureSide / TILE),
-      CAPTURE_FORMATS.frames,
+    ids: layer('capture ids', captureSide, captured.ids, captureSide + viewRows),
+    depth: layer('capture depth', captureSide, captured.depth),
+    albedo: layer('capture albedo', captureSide, captured.albedo),
+    normal: layer('capture normal', captureSide, captured.normal),
+    emissive: layer('capture emission', captureSide, captured.emissive),
+    direct: layer('capture direct lighting', captureSide, captured.direct),
+    indirect: layer(
+      'capture indirect lighting',
+      captureSide * words,
+      captured.indirect,
+      captureSide,
     ),
+    frames: layer('capture radiosity frames', Math.max(1, captureSide / TILE), captured.frames),
   }
   return {
     physical,
@@ -111,6 +126,7 @@ function surfaceAtlasBytes(
   captureSide: number,
   compressed: boolean,
   viewRows: number,
+  light: LightAtlasFormat,
 ) {
   const counting = countingAllocator()
   allocate(
@@ -120,6 +136,7 @@ function surfaceAtlasBytes(
     captureSide,
     compressed,
     viewRows,
+    light,
   )
   return counting.bytes() + (compressed ? stagingOf(captureSide).bytes : 0)
 }
@@ -140,6 +157,8 @@ export interface SurfaceAtlases {
   /** Whether the albedo, normal and emission are kept in blocks (BC7, BC5, BC6H): the emission is then a
    *  float texture, not a layer of words of light. */
   readonly compressed: boolean
+  /** The format the direct and final light are stored in (`lightAtlasFormat`); the indirect light takes its words (`lightWordsOf`). */
+  readonly light: LightAtlasFormat
   /** The textures of the three layers in blocks, which the copies of blocks name, and the buffer the
    *  encoders write the blocks to; none unless `compressed`. */
   readonly blocks?: {
@@ -154,16 +173,25 @@ export interface SurfaceAtlases {
    *  surface, the rest to nothing — in render passes on `encoder`, and the two factor atlases; the layers in
    *  blocks are cleared by `createBlockClear`. */
   clear(encoder: GPUCommandEncoder): void
+  /** Clears the layer `name` of the physical atlas to nothing, in the way its format is cleared. */
+  clearLayer(encoder: GPUCommandEncoder, name: 'direct'): void
   dispose(): void
 }
 
-/** The textures of the blocks, made by hand and kept by layer, and the layer maker over `allocator` that
- *  makes them. */
+/** The textures of the blocks, made by hand and kept by layer, the textures of the layers cleared by copies (`NATIVE_LIGHT_FORMAT`) kept by their views, and the layer
+ *  maker over `allocator` that makes them. */
 function blockLayers(device: GPUDevice, allocator: ReturnType<typeof gpuAllocator>) {
   const kept = new Map<string, GPUTexture>()
+  const copied = new Map<GPUTextureView, GPUTexture>()
   const layer: LayerMaker = (name, size, format, height = size) => {
+    if (format === NATIVE_LIGHT_FORMAT) {
+      const texture = allocator.image(name, [size, height], format, { usage: usage(format) })
+      const view = texture.createView()
+      copied.set(view, texture)
+      return view
+    }
     if (!(Object.values(BLOCK_FORMATS) as GPUTextureFormat[]).includes(format))
-      return allocator.texture(name, [size, height], format, { usage: usage() })
+      return allocator.texture(name, [size, height], format, { usage: usage(format) })
     const texture = device.createTexture({
       label: `${SURFACE_CACHE_ATLAS_LABEL} ${name}`,
       size: [size, size],
@@ -173,7 +201,7 @@ function blockLayers(device: GPUDevice, allocator: ReturnType<typeof gpuAllocato
     kept.set(name, texture)
     return texture.createView()
   }
-  return { layer, kept }
+  return { layer, kept, copied }
 }
 
 /** The three layers in blocks, by name, and the staging buffer the encoders write the blocks of an
@@ -195,8 +223,19 @@ function blocksOf(
   }
 }
 
+/** Clears the layer `texture` of 4-byte texels, no render pass's attachment, with copies from `zeros`, a strip of rows at a time. */
+function clearByCopies(encoder: GPUCommandEncoder, texture: GPUTexture, zeros: GPUBuffer) {
+  const bytesPerRow = texture.width * 4
+  const rows = Math.max(1, Math.floor(ZERO_STRIP_BYTES / bytesPerRow))
+  for (let y = 0; y < texture.height; y += rows)
+    encoder.copyBufferToTexture({ buffer: zeros, bytesPerRow }, { texture, origin: [0, y] }, [
+      texture.width,
+      Math.min(rows, texture.height - y),
+    ])
+}
+
 /** Clears the layer `name` of the physical atlas, a render pass's attachment, to `value` in one pass. */
-export function clearLayer(
+function clearLayer(
   encoder: GPUCommandEncoder,
   name: string,
   view: GPUTextureView,
@@ -211,17 +250,29 @@ export function clearLayer(
 }
 
 /** Clears the layers of the physical atlas that a render pass can — the depth to a texel with no
- *  surface, the rest to nothing — one pass each; the layers in blocks are left to `createBlockClear`. */
+ *  surface, the rest to nothing — one pass each, those no render pass can by copies of zeros; the layers in blocks are left to `createBlockClear`. */
 function clearLayers(
   encoder: GPUCommandEncoder,
   physical: SurfaceAtlases['physical'],
   compressed: boolean,
+  copied: ReadonlyMap<GPUTextureView, GPUTexture>,
+  zeros: GPUBuffer | undefined,
 ): void {
   for (const [name, view] of Object.entries(physical)) {
     if (compressed && name in BLOCK_FORMATS) continue
-    clearLayer(encoder, name, view, name === 'depth' ? CLEAR.depth : 0)
+    const texture = copied.get(view)
+    if (texture) clearByCopies(encoder, texture, zeros!)
+    else clearLayer(encoder, name, view, name === 'depth' ? CLEAR.depth : 0)
   }
 }
+
+/** The buffer of zeros the layers cleared by copies are cleared from. */
+const zeroStrip = (device: GPUDevice) =>
+  device.createBuffer({
+    label: `${SURFACE_CACHE_ATLAS_LABEL} zeros`,
+    size: ZERO_STRIP_BYTES,
+    usage: GPUBufferUsage.COPY_SRC,
+  })
 
 function makeAtlases(
   device: GPUDevice,
@@ -229,10 +280,11 @@ function makeAtlases(
   captureSide: number,
   compressed: boolean,
   viewRows: number,
+  light: LightAtlasFormat,
   bytes: number,
 ): SurfaceAtlases {
   const allocator = gpuAllocator(device, SURFACE_CACHE_ATLAS_LABEL)
-  const { layer, kept } = blockLayers(device, allocator)
+  const { layer, kept, copied } = blockLayers(device, allocator)
   const { physical, capture, factors, captureFactors } = allocate(
     layer,
     (name, words) => allocator.buffer(name, words, 'storage'),
@@ -240,8 +292,10 @@ function makeAtlases(
     captureSide,
     compressed,
     viewRows,
+    light,
   )
   const blocks = compressed ? blocksOf(device, kept, captureSide) : undefined
+  const zeros = copied.size ? zeroStrip(device) : undefined
   return {
     physical,
     capture,
@@ -251,14 +305,20 @@ function makeAtlases(
     captureSide,
     viewRows,
     compressed,
+    light,
     blocks,
     bytes,
     cleared: false,
     clear(encoder) {
-      clearLayers(encoder, physical, compressed)
+      clearLayers(encoder, physical, compressed, copied, zeros)
       encoder.clearBuffer(factors)
       encoder.clearBuffer(captureFactors)
       this.cleared = true
+    },
+    clearLayer(encoder, name) {
+      const texture = copied.get(physical[name])
+      if (texture) clearByCopies(encoder, texture, zeros!)
+      else clearLayer(encoder, name, physical[name])
     },
     dispose: () =>
       retire(device, {
@@ -266,14 +326,15 @@ function makeAtlases(
           allocator.destroy()
           for (const texture of kept.values()) texture.destroy()
           blocks?.staging.destroy()
+          zeros?.destroy()
         },
       }),
   }
 }
 
 /**
- * The atlases of `side` and `captureSide`, `compressed` or not: the ones `held` where they are those
- * sizes and that kind, else made, the old ones given back — made where the device's budget leaves room,
+ * The atlases of `side` and `captureSide`, `compressed` or not, their light stored in `light`: the ones `held` where they are those
+ * sizes, that kind and that format, else made, the old ones given back — made where the device's budget leaves room,
  * the bytes the old ones give back credited (`ledgerAdmitted`); none where it does not, with the reason
  * (`why`, for the frame's metrics). `extra` is the bytes of what the caller makes beside them, so that
  * the budget is asked for the whole.
@@ -285,6 +346,7 @@ export function ensureSurfaceAtlases(
   captureSide: number,
   compressed: boolean,
   viewRows: number,
+  light: LightAtlasFormat,
   extra = 0,
 ): { atlases?: SurfaceAtlases; why?: string } {
   if (
@@ -292,15 +354,16 @@ export function ensureSurfaceAtlases(
     held.side === side &&
     held.captureSide === captureSide &&
     held.viewRows === viewRows &&
-    held.compressed === compressed
+    held.compressed === compressed &&
+    held.light === light
   )
     return { atlases: held }
-  const bytes = surfaceAtlasBytes(side, captureSide, compressed, viewRows)
+  const bytes = surfaceAtlasBytes(side, captureSide, compressed, viewRows, light)
   const { value, why } = ledgerAdmitted(device, {
     held,
     asked: bytes + extra,
     what: 'the surface cache',
-    make: () => makeAtlases(device, side, captureSide, compressed, viewRows, bytes),
+    make: () => makeAtlases(device, side, captureSide, compressed, viewRows, light, bytes),
   })
   return { atlases: value, why }
 }

@@ -58,7 +58,7 @@ export function reflectionGroup(
 }
 
 /** The forward programs' reflection group of `reflection` (`reflectionForwardLayout`): the view, level 0 of the depth `depth`
- *  (`GpuHiz.depth`), the lighting's view `lightView`, the front depth and the sky light, made again when one of them is not the one
+ *  (`GpuHiz.depth`), the lighting's view `lightView` and the sky light, made again when one of them is not the one
  *  it was made over. */
 function forwardReflectionGroup(
   reflection: ScreenReflection,
@@ -67,10 +67,9 @@ function forwardReflectionGroup(
   sky: SkyLightReadSet,
 ) {
   const { device, forward } = reflection
-  const front = reflection.front.views.depth
   const { next } = forward.identity
   next.length = 0
-  next.push(depth, lightView, front, sky.cube, sky.harmonics, sky.params)
+  next.push(depth, lightView, sky.cube, sky.harmonics, sky.params)
   return (
     heldProgramGroup(forward) ??
     keptProgramGroup(
@@ -81,7 +80,6 @@ function forwardReflectionGroup(
         { binding: REFLECTION_VIEW_BINDING, resource: { buffer: reflection.uniform } },
         ...hizLevelZeroBindEntries(REFLECTION_DEPTH_BINDING, depth),
         { binding: REFLECTION_LIGHT_VIEW_BINDING, resource: { buffer: lightView } },
-        { binding: REFLECTION_FRONT_BINDING, resource: front },
         ...skyLightReadBindEntries(REFLECTION_SKY_LIGHT, sky),
       ],
       'Trillion3D reflection forward',

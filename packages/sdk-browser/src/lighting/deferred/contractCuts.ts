@@ -27,6 +27,14 @@ export type ContractKey = {
   /** The image sets no ambient cubemap: no cube read in the indirect pass, no cube, sampler or colour bound
    *  (`ambientCubemapWgsl.ts`). The opaque lit passes' alone: a translucent program's key leaves the cube out. */
   cubeless: boolean
+  /** The sampled lighting lights the local lights (`manyLightsSampled`): the local lights' pass adds the light it left (`sampledLight`) in place of walking the lights,
+   *  and no light is lit one by one. Left out, false. Kept by the twin, and by every program that serves a frame of this cut. */
+  sampled?: boolean
+  /** The sampled lighting lights the directional lights too: the sun's pass lights none. Left out, false. */
+  sampledSun?: boolean
+  /** The image holds the shadows the heterogeneous volumes cast (`heterogeneousVolumesShadows` on, a volume in the scene): the opaque lit
+   *  passes read them (`beerShadowReadWgsl.ts`) and bind their buffer. Left out, false: no read, no binding. */
+  volumeShadow?: boolean
 }
 
 /** The passes whose programs are keyed on a `ContractKey`: the opaque lit passes', and the forward
@@ -37,7 +45,7 @@ type Cut = Exclude<keyof ContractKey, 'narrow'>
 /** What a program can leave out besides its lists' width — bit `k` of a set is `CUTS[k]` —: every
  *  pass, opaque or blend, makes every cut, each read off what that pass lights
  *  (`../../frame/prepare/contractLight.ts`). */
-const CUTS: readonly Cut[] = [
+export const CUTS: readonly Cut[] = [
   'unshadowed',
   'rectless',
   'sunless',
@@ -47,12 +55,16 @@ const CUTS: readonly Cut[] = [
   'channelless',
   'profileless',
   'cubeless',
+  'sampled',
+  'sampledSun',
+  'volumeShadow',
 ]
 export const CUT_COUNT = CUTS.length
 /** The bit of cut `name` in a set, read off `CUTS`'s order. */
 const cutBit = (name: Cut) => 1 << CUTS.indexOf(name)
 const UNSHADOWED = cutBit('unshadowed'),
-  KINDS = cutBit('sunless') | cutBit('localless')
+  KINDS = cutBit('sunless') | cutBit('localless'),
+  SAMPLED = cutBit('sampled') | cutBit('sampledSun')
 /** The lobe cut's and the contact cut's bits: the only cuts a program's twin keeps (`twinOf`). */
 const LOBELESS_BIT = CUTS.indexOf('lobeless'),
   LOBELESS = cutBit('lobeless'),
@@ -81,6 +93,9 @@ export const FULL_CONTRACT: Readonly<ContractKey> = {
   channelless: false,
   profileless: false,
   cubeless: false,
+  sampled: false,
+  sampledSun: false,
+  volumeShadow: false,
 }
 
 /** The set of cuts `key` makes; `lobed`, when given, says the lobe cut in its place. Read by every
@@ -106,10 +121,11 @@ export function keyOf(narrow: boolean, set: number) {
  *  the test serves the frame meanwhile, `SERVING`); and the light profile code, which a scene with no profiled
  *  light leaves out of its own, bound to the stand-in atlas where the frame has none; and the ambient cubemap's code, bound
  *  to the stand-in cube and a black colour where the image sets none. */
-export const twinOf = (set: number) => set & (LOBELESS | CONTACTLESS)
+export const twinOf = (set: number) => set & (LOBELESS | CONTACTLESS | SAMPLED)
 
 /** Whether `key` is a twin's: it leaves out no code but, maybe, the lobes' and the contact shadows'. */
-export const isTwin = (key: Partial<ContractKey>) => !(cutsIn(key) & ~(LOBELESS | CONTACTLESS))
+export const isTwin = (key: Partial<ContractKey>) =>
+  !(cutsIn(key) & ~(LOBELESS | CONTACTLESS | SAMPLED))
 
 /** The sets of cuts of the programs that serve a frame of cuts `set`, the most cuts first — the
  *  closest fit: a program serves the frames that keep what it leaves out. An unshadowed frame
@@ -120,7 +136,13 @@ const serving = (set: number) => {
   const served = set & UNSHADOWED ? set | KINDS : set
   const sets: number[] = []
   for (let own = served; ; own = (own - 1) & served) {
-    if (!(own & UNSHADOWED && own & KINDS) && (own & KINDS) !== KINDS) sets.push(own)
+    // A program lights the sampled lights in a way no other does: only the frames of the very same sampled cuts are served by it.
+    if (
+      !(own & UNSHADOWED && own & KINDS) &&
+      (own & KINDS) !== KINDS &&
+      (own & SAMPLED) === (set & SAMPLED)
+    )
+      sets.push(own)
     if (!own) break
   }
   const size = (n: number) => n.toString(2).replace(/0/g, '').length

@@ -96,6 +96,15 @@ export const rand4dPcg32 = wgslFn(
  return v;
 }`,
 )
+/** The R2 low-discrepancy sequence: the `n`-th point of the unit square (Roberts, 2018), the generalized golden ratio's powers as the steps. */
+export const r2Sequence = wgslFn(
+  'r2Sequence',
+  [],
+  `fn r2Sequence(n:u32)->vec2f{
+ let phi=1.324717957244746;
+ return fract(vec2f(1.0/phi,1.0/(phi*phi))*f32(n));
+}`,
+)
 export const hammersley16 = wgslFn(
   'hammersley16',
   [],
@@ -197,6 +206,19 @@ export const sampleSphereEven = wgslFn(
   `fn sampleSphereEven(e:vec2f)->vec3f{
  let phi=2.0*PI*e.x;
  let cosTheta=1.0-2.0*e.y;
+ let sinTheta=sinFromCosUnclamped(cosTheta);
+ return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
+}`,
+)
+
+/** A direction of the cosine lobe about the third axis, the polar map of the unit square: `e.x` turns it, its sine is the root of `e.y` less its square root's complement
+ *  (`sin^2 = 1 - e.y`, the cosine the root of `e.y`). */
+export const sampleCosineHemisphere = wgslFn(
+  'sampleCosineHemisphere',
+  [PI, sinFromCosUnclamped],
+  `fn sampleCosineHemisphere(e:vec2f)->vec3f{
+ let phi=2.0*PI*e.x;
+ let cosTheta=sqrt(e.y);
  let sinTheta=sinFromCosUnclamped(cosTheta);
  return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
 }`,

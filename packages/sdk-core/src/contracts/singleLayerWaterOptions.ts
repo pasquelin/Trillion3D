@@ -53,6 +53,8 @@ import {
  * and `singleLayerWaterTiledSceneColorCopy` restrict the reflection composite and the scene copy to the
  * 8 by 8 tiles that hold water, `singleLayerWaterWaveOps` lists those tiles with subgroup operations where the
  * device grants them, and `singleLayerWaterOptimizedClear` copies the scene's depth over the view alone.
+ * `singleLayerWaterUnderwaterFogWhenCameraIsAboveWater` lays the height fog on the scene copy behind the water, at the depths of the copy,
+ * even when the camera is above the water; the engine has no camera under the water, so it is the only way that fog is laid there.
  *
  * Not ported: `r.Water.SingleLayer.ForceVelocity` (deprecated and ignored by the reference itself),
  * `r.Water.SingleLayer.MobileFallback` and `r.ParallelSingleLayerWaterPass` (a mobile renderer and a
@@ -80,6 +82,7 @@ export const SINGLE_LAYER_WATER_RULES = /* @__PURE__ */ (() =>
     flag('singleLayerWaterWaveOps', true),
     flag('singleLayerWaterDepthPrepass', true),
     flag('singleLayerWaterOptimizedClear', true),
+    flag('singleLayerWaterUnderwaterFogWhenCameraIsAboveWater', false),
     choice('singleLayerWaterVelocityOutputPass', 'depthPrepass', WATER_VELOCITY_PASSES),
     flag('singleLayerWaterShadersSupportDistanceFieldShadow', true),
     flag('singleLayerWaterDistanceFieldShadow', true),

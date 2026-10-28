@@ -6,89 +6,43 @@ import { isSubsurfaceModel } from '../../../materials/surface/subsurface.ts'
 import { PIXEL_MODEL, pixelModelOf } from '../../../materials/surface/pixelModel.ts'
 import { subsurfaceDensity } from '../../subsurfaceDensity.ts'
 import { meshFieldWgsl } from '../meshFieldWgsl.ts'
-import { DFSH_COMMON_WGSL } from './commonWgsl.ts'
-import {
-  DFSH_BINDING as B,
-  DFSH_HALF_FORMAT,
-  DFSH_MAX_CONE_RADIUS,
-  DFSH_MIN_CONE_RADIUS,
-  DFSH_TILE,
-} from './layout.ts'
+import { DFSH_COMMON_WGSL, dfshCommonWgsl } from './commonWgsl.ts'
+import { DFSH_BINDING as B, DFSH_HALF_FORMAT, DFSH_TILE } from './layout.ts'
+import { dfshTraceObjectWgsl } from './traceObjectWgsl.ts'
+
+export const DFSH_TRACE_OBJECT_WGSL = dfshTraceObjectWgsl(0)
 
 /**
- * THE RAY OF A PIXEL THROUGH A MESH'S FIELD (`dfshTraceObject`), the visibility it leaves `visibility`
- * at the least of: the ray, from the surface toward the sun, is taken into the mesh's volume and
- * clipped to its box grown by the cone's radius at the mesh (the tangent of the sun's angle over the
- * distance along the ray to the mesh's centre, at most the widest cone radius); each step reads the
- * field at the sample held to the box (the distance to the box added to the field's), the visibility
- * of the step the share of the cone's radius there (held between the narrowest and the widest) the
- * distance covers, at least the mesh's self-shadow ramp; the next step is that distance, or a
- * quarter of the steps' count's inverse at least; the ray stops when fully occluded or past the
- * box, and as it nears the last step it is forced toward shadow. A two-sided mesh has its surface
- * expanded, by its bias times the share of the ray that has gone, over twice the bias. For a thin
- * transmitting surface (`density` of at least 0; a negative one is a surface that transmits nothing)
- * a step's visibility is at least what the light keeps through the thickness it has gone in the
- * mesh's volume (the time along the ray, scaled to the world), the exponential of the minus
- * thickness times the density, so that it is never wholly occluded — whatever the density, which is
- * the pixel's own (`dfshDensityOf`): a density of 0 lets all the light through.
+ * THE RAY OF A POINT THROUGH THE MESHES OF THE TILE IT STARTS IN (`dfshTraceThroughTile`), for the sun `sun` of the `suns` the bind group
+ * `group` holds: the positions from the eye, in centimetres, the lists the group's tile bindings hold, one after the other, a sun's after
+ * its predecessor's (its tiles from the word `counts.z` of its block, its entries from `view.x`): the tile's meshes in the order of
+ * the list, a ray with no cone (no tangent, no least radius), the meshes' surfaces expanded, no thin transmission, until it is wholly
+ * occluded; 1 outside the grid of tiles. The cards' direct light reads it for the suns (`lighting/surfaceCache/lighting/meshShadowWgsl.ts`).
  */
-export const DFSH_TRACE_OBJECT_WGSL = wgslBlock(
-  'DFSH_TRACE_OBJECT_WGSL',
-  [DFSH_COMMON_WGSL, meshFieldWgsl(0, B.objects)],
-  `
-fn dfshLineBox(origin:vec3f,end:vec3f,boxMin:vec3f,boxMax:vec3f)->vec2f{
- let inverse=1.0/(end-origin);
- let first=(boxMin-origin)*inverse;
- let second=(boxMax-origin)*inverse;
- let farthest=max(first,second);
- let closest=min(first,second);
- return saturate(vec2f(max(closest.x,max(closest.y,closest.z)),min(farthest.x,min(farthest.y,farthest.z))));
-}
-fn dfshTraceObject(object:u32,rayStart:vec3f,rayEnd:vec3f,tanAngle:f32,visibilityIn:f32,density:f32)->f32{
- var visibility=visibilityIn;
- let data=loadDfObjectData(object);
- let volumeStart=dfWorldToVolume(data,dfshWorld(rayStart));
- let volumeEnd=dfWorldToVolume(data,dfshWorld(rayEnd));
- var direction=volumeEnd-volumeStart;
- let rayLength=length(direction);
- direction=direction/rayLength;
- let toVolume=1.0/max(data.toWorldScale.x,max(data.toWorldScale.y,data.toWorldScale.z));
- let minRadius=${DFSH_MIN_CONE_RADIUS}*toVolume;
- var maxRadius=${DFSH_MAX_CONE_RADIUS}.0*toVolume;
- let selfShadowScale=1.0/max(data.selfShadowBias*toVolume,0.0001);
- let coneAtObject=min(tanAngle*max(dot(-volumeStart,direction),0.0),maxRadius);
- let times=dfshLineBox(volumeStart,volumeEnd,-data.extent-vec3f(coneAtObject),data.extent+vec3f(coneAtObject));
- if(times.x>=times.y){return visibility;}
- let mips=dfAssetMip(data.asset,0u).numMips;
- let asset=dfAssetMip(data.asset,mips-1u);
- let expand=data.surfaceBias*(exp2(f32(DF_MAX_MIPS)-f32(mips))+select(0.0,dfsh.range.z-1.0,data.mostlyTwoSided));
- var maxEncoded=asset.scaleBias.x+asset.scaleBias.y;
- if(data.mostlyTwoSided){maxEncoded-=expand;}
- maxRadius=min(maxRadius,maxEncoded);
- let maxSteps=u32(dfsh.trace.z);
- let minStep=1.0/(4.0*dfsh.trace.z);
- var time=times.x*rayLength;
- let endTime=times.y*rayLength;
- var stopped=maxSteps;
- for(var iteration=0u;iteration<maxSteps;iteration++){
-  let at=volumeStart+direction*time;
-  let clamped=clamp(at,-data.extent,data.extent);
-  var field=sampleSparseMeshSdf(clamped,asset)+length(clamped-at);
-  if(data.mostlyTwoSided){field-=expand*saturate(time/max(2.0*expand,1e-6));}
-  let selfShadow=1.0-saturate(time*selfShadowScale);
-  let radius=clamp(tanAngle*time,minRadius,maxRadius);
-  var share=max(saturate(field/radius),selfShadow);
-  if(density>=0.0){share=max(share,saturate(exp(-time*data.volumeScale*density)));}
-  visibility=min(visibility,share);
-  time+=max(abs(field),minStep);
-  if(visibility<0.01||time>endTime){
-   stopped=iteration;
-   break;
-  }
+export const dfshTileTraceWgsl = (group: number, suns: number) =>
+  wgslBlock(
+    `DFSH_TILE_TRACE_WGSL ${group} ${suns}`,
+    [dfshCommonWgsl(group, suns), dfshTraceObjectWgsl(group, suns)],
+    `@group(${group}) @binding(${B.tileOffsets}) var<storage,read> tileOffsets:array<u32>;
+@group(${group}) @binding(${B.tileCounts}) var<storage,read> tileCounts:array<u32>;
+@group(${group}) @binding(${B.tileData}) var<storage,read> tileData:array<u32>;
+var<private> dfshSet:u32=0xffffffffu;
+fn dfshTraceThroughTile(sun:u32,rayStart:vec3f,rayEnd:vec3f)->f32{
+ if(dfshSet!=sun){dfsh=dfshSuns[sun];dfshSet=sun;}
+ let tile=dfshTileOf(rayStart);
+ if(tile.x<0){return 1.0;}
+ let own=u32(tile.y)*dfsh.tiles.x+u32(tile.x);
+ let at=dfsh.counts.z+own;
+ let start=dfshTileStart(own,tileOffsets[at]);
+ let count=min(tileCounts[at],dfshTileRoom(start));
+ var visibility=1.0;
+ for(var k=0u;k<count;k++){
+  visibility=dfshTraceCone(tileData[dfsh.view.x+start+k],rayStart,rayEnd,0.0,0.0,true,visibility,-1.0);
+  if(visibility<0.01){return 0.0;}
  }
- return min(visibility,1.0-f32(stopped)/f32(maxSteps));
+ return visibility;
 }`,
-)
+  )
 
 /**
  * WHAT THE TRACES OF A TEXEL SHARE (`dfshBlockOf` and after): the texel's block of pixels — its top

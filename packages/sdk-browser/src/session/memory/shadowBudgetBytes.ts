@@ -1,6 +1,6 @@
 import { BOUNCE_SETTINGS } from '../../../../sdk-core/src/bounce/contracts.ts'
 import { tableBytes, tableExtent } from '../../lighting/bounce/atlas.ts'
-import { vsmCoverModeOf, vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
+import { vsmCoverModeOfSettings, vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
 import { vsmResourceBytes } from '../../lighting/shadows/vsm/layoutBytes.ts'
 import { VSM_RENDER_RECORD_BYTES, vsmRecordCapacity } from '../../lighting/shadows/vsm/constants.ts'
 import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
@@ -25,10 +25,7 @@ import { alignUp } from '../../../../math/src/scalar/integers.ts'
  * never a pass: the core holds this budget, and no shadow pass (`scripts/build/core-sources.ts`).
  */
 function oneSunShadowMaps() {
-  const coverMode = vsmCoverModeOf(
-    readSetting(SHADOW_RULES, {}, 'shadowUseReceiverMaskLocal'),
-    readSetting(SHADOW_RULES, {}, 'shadowUseReceiverMaskDirectional'),
-  )
+  const coverMode = vsmCoverModeOfSettings((key) => readSetting(SHADOW_RULES, {}, key))
   const layout = vsmLayout({ coverMode, fullMapCapacity: 63, sunMapCapacity: 18 })
   const records = vsmRecordCapacity(
     cutListCaps().visible,

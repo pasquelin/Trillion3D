@@ -1,10 +1,17 @@
 import type { EngineContext } from '../session/engine/types.ts'
 import type { ExposureCurveOption } from '../../../sdk-core/src/contracts/exposureCurve.ts'
-import { exposureCurveTable } from '../../../sdk-core/src/contracts/exposureCurveTable.ts'
+import {
+  exposureCurveScaleTable,
+  exposureCurveTable,
+} from '../../../sdk-core/src/contracts/exposureCurveTable.ts'
 import {
   resolveExposureMeterMask,
   type ExposureMeterMaskImage,
 } from '../../../sdk-core/src/contracts/exposureMeterMask.ts'
+import {
+  resolveAmbientCubemap,
+  type AmbientCubemapOptions,
+} from '../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
 import { settingsWritten, settingWriter } from '../../../sdk-core/src/contracts/settingRules.ts'
 import { SETTING_FAMILIES, type FamilyName } from '../../../sdk-core/src/runtime/settingFamilies.ts'
 import { familyWriters } from './familyWriters.ts'
@@ -54,6 +61,13 @@ export interface ExplorerRuleApi {
    *  edit of the old one in place is not seen); one that is not a curve is refused; read by the
    *  next image's meter. */
   setExposureCurve(option?: ExposureCurveOption): void
+  /** Writes the local exposure's highlight contrast curve (`exposureCurve.ts`): a scale the highlights'
+   *  contrast is multiplied by, by how bright the scene is, as a list of keys `[ev, scale]` or a curve
+   *  object; `undefined`, `null` or `false` gives back none. Replaced as `setExposureCurve`'s is; read by the
+   *  next image's meter. */
+  setLocalExposureHighlightContrastCurve(option?: ExposureCurveOption): void
+  /** The same for the shadows' contrast (`setLocalExposureHighlightContrastCurve`). */
+  setLocalExposureShadowContrastCurve(option?: ExposureCurveOption): void
   /** Writes the automatic exposure's metering mask (`exposureMeterMask.ts`): a picture, an
    *  `ImageBitmap` as `loader.imageBitmap` decodes one, whose red channel weighs where the image
    *  is measured; `undefined` or `null` gives back none. One that is not a picture is refused;
@@ -70,6 +84,9 @@ export interface ExplorerRuleApi {
    *  made, its slots and their size, the most lights that read it, its format, and which
    *  consumers read it; read by the next image. */
   setLightFunction: FamilyWriter<'lightFunction'>
+  /** Writes the light profiles' atlas setting `field` (`lightProfileOptions.ts`): the texels a side of a
+   *  slice and the most profiles it holds; read by the next image. */
+  setLightProfile: FamilyWriter<'lightProfile'>
   /** Writes the volumetric lightmap's setting `field` (`volumetricLightmapOptions.ts`): whether the
    *  precomputed light is read; read by the next image. */
   setVolumetricLightmap: FamilyWriter<'volumetricLightmap'>
@@ -123,6 +140,13 @@ export interface ExplorerRuleApi {
    *  reflected ray's march of the screen, the far screen trace and the denoiser; read by the next
    *  image's trace. */
   setReflections: FamilyWriter<'reflections'>
+  /** Writes the screen-space traces' setting `field` (`screenSpaceTracingOptions.ts`): the method that answers the reflections and the indirect light, and the screen reflections' and screen indirect light's quality and passes; read by the next frame. */
+  setScreenSpaceTracing: FamilyWriter<'screenSpaceTracing'>
+  /** Writes the lighting data format's setting `field` (`lightingDataFormatOptions.ts`): the format the light is kept at between the passes of the indirect light — one `null` gives it back to its default, one left out stays —; one a setting does not take is refused. */
+  setLightingDataFormat: FamilyWriter<'lightingDataFormat'>
+  /** Writes the meshes' fields trace's setting `field` (`meshDistanceFieldTraceOptions.ts`): whether the rays march the meshes' own distance fields, which of them do, how far and the view grid the
+   *  meshes are culled to — one `null` gives it back to it, one left out stays —; one a setting does not take is refused. */
+  setMeshDistanceFieldTrace: FamilyWriter<'meshDistanceFieldTrace'>
   /** Writes the screen-space ambient occlusion's setting `field` (`ambientOcclusionOptions.ts`): the
    *  master switch, the intensity, radius, fade, power, bias, the quality and the resolutions it
    *  follows, and whether it occludes the screen probes' light; read by the next image's
@@ -130,8 +154,14 @@ export interface ExplorerRuleApi {
   setAmbientOcclusion: FamilyWriter<'ambientOcclusion'>
   /** Writes the ambient cubemap's setting `field` (`ambientCubemapOptions.ts`): the tint of the cube's light, a linear colour of three
    *  channels, and the intensity that multiplies it; read by the next image's indirect light. The cube itself is a world option
-   *  (`ambientCubemap`), given at the opening. */
+   *  (`ambientCubemap`), given at the opening and changed by `setAmbientCubemapCube`. */
   setAmbientCubemap: FamilyWriter<'ambientCubemap'>
+  /** Writes the ambient cubemap's cube (`ambientCubemapOptions.ts`): `{ size, texels }`, the side of a face in texels (a power of two from
+   *  16 to 1024) and the six faces' linear colours; `undefined` or `null` takes the light away. One that is not a cube is refused; the
+   *  next image filters the new cube's mip chain over the images it takes (the images drawn meanwhile are drawn again and light nothing
+   *  from the cube), and frees the old one's. A cube is told from the one held by its texels array: one edited in place is not seen,
+   *  a new array is. */
+  setAmbientCubemapCube(cube?: AmbientCubemapOptions['ambientCubemap']): void
   /** Writes the volumetric fog's setting `field` (`volumetricFogOptions.ts`): its quality level
    *  (`'off'`, `'low'`, `'high'`, `'ultra'`) and the filtering, temporal reprojection,
    *  jitter, history weight, depth distribution, emissive, conservative depth, distance bias,
@@ -156,6 +186,10 @@ export interface ExplorerRuleApi {
    *  visibility buffer's samples and merging, the voxel volume's size, pages, allocation, march and shadow terms, and the rays a strand's
    *  pixel casts toward a light; read by the next frame. */
   setHairStrands: FamilyWriter<'hairStrands'>
+  /** Writes the heterogeneous volumes' setting `field` (`heterogeneousVolumeOptions.ts`): whether the volumes are drawn, allowed by the device profile, cast shadows and are composited with the translucency; read by the next frame. */
+  setHeterogeneousVolumeRendering: FamilyWriter<'heterogeneousVolumeRendering'>
+  /** Writes the sampled lighting's setting `field` (`sampledLightsOptions.ts`): whether the view is lit by it, its draw, rays and filters; read by the next image. */
+  setSampledLights: FamilyWriter<'sampledLights'>
   /** Writes the sky's quality setting `field` (`sky/quality.ts`): the atmosphere's switches,
    *  samples, caps and tables, the clouds', the light shafts' and the sky light's; read by the next
    *  image's passes. */
@@ -165,6 +199,10 @@ export interface ExplorerRuleApi {
    *  patches a group of the dicing pass takes, and the patches the splitting queue and the
    *  visible list hold; read by the next image's tessellation. */
   setTessellation: FamilyWriter<'tessellation'>
+  /** Writes the texture filtering's setting `field` (`textureFilteringOptions.ts`): the most reads
+   *  anisotropic filtering takes, for the textures streamed by tile and for the clouds' textures; read
+   *  by the next image. */
+  setTextureFiltering: FamilyWriter<'textureFiltering'>
   /** Writes the setting `field` of how the view streams a partitioned scene's cells and of the
    *  warm-up an HLOD switch waits on (`worldStreamingOptions.ts`). */
   setWorldStreaming: FamilyWriter<'worldStreaming'>
@@ -189,7 +227,7 @@ export interface ExplorerRuleApi {
 }
 
 /** The explorer's writers of the run-time settings (`ExplorerRuleApi`): the families' by their
- *  field, the exposure's curve and metering mask, and the cluster raster's five. */
+ *  field, the exposure's curve and metering mask, the ambient cubemap's cube, and the cluster raster's five. */
 export function createExplorerRuleApi({ check, context }: Inputs): ExplorerRuleApi {
   const raster = settingWriter(SETTING_FAMILIES.raster.rules, context, check)
   return {
@@ -200,10 +238,28 @@ export function createExplorerRuleApi({ check, context }: Inputs): ExplorerRuleA
       context.exposureCurve = option
       settingsWritten()
     },
+    setLocalExposureHighlightContrastCurve(option) {
+      exposureCurveScaleTable(option)
+      check()
+      context.localExposureHighlightContrastCurve = option
+      settingsWritten()
+    },
+    setLocalExposureShadowContrastCurve(option) {
+      exposureCurveScaleTable(option)
+      check()
+      context.localExposureShadowContrastCurve = option
+      settingsWritten()
+    },
     setExposureMeterMask(image) {
       const mask = resolveExposureMeterMask(image)
       check()
       context.exposureMeterMask = mask
+      settingsWritten()
+    },
+    setAmbientCubemapCube(cube) {
+      const resolved = resolveAmbientCubemap({ ambientCubemap: cube }).ambientCubemap
+      check()
+      context.ambientCubemap = resolved
       settingsWritten()
     },
     setSoftwareRaster: (on) => raster('softwareRaster', on),

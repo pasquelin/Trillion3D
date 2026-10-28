@@ -24,6 +24,15 @@ const pair = (constA: number, constB: number) => spec(['a', 'b'], [], { constA, 
 const both = spec(['a', 'b'], ['a', 'b'])
 const COLOUR = ['rgb', 'r', 'g', 'b', 'a', 'rgba']
 
+/** The modes of a sparse volume read's level: the computed one, an absolute one, the computed plus a
+ *  bias, or the one the coordinate's derivatives give (`ETextureMipValueMode`,
+ *  `MaterialExpressionSparseVolumeTextureSample.h:35-45`). */
+export const SPARSE_MIP_MODES = ['none', 'level', 'bias', 'derivative'] as const
+
+/** How a coordinate past the volume's sides reads: the edge, wrapped around, or mirrored
+ *  (`SVTADDRESSMODE_*`, `SparseVolumeTextureCommon.ush:14-16`). */
+export const SPARSE_ADDRESS_MODES = ['clamp', 'wrap', 'mirror'] as const
+
 /** The noise functions of a `noise` node: gradient noise of a simplex lattice (`simplex`) and of a
  *  cubic one (`gradient`), a gradient noise that repeats every 15 cells (`fastGradient`), a gradient
  *  noise (`gradientAlu`) and a value noise (`valueAlu`) of hashed lattice points, and the distance to
@@ -52,6 +61,14 @@ export const NODE_SPECS = {
     ['uv', 'texture', 'mip'],
     [],
     { name: '', mipMode: 'none', constMip: -1, constCoordinate: 0 },
+    COLOUR,
+  ),
+  sparseVolumeTextureObject: spec([], [], { source: -1 }),
+  sparseVolumeTextureParameter: spec([], [], { name: '', source: -1 }),
+  sparseVolumeTextureSample: spec(
+    ['uvw', 'texture', 'mip', 'ddx', 'ddy'],
+    [],
+    { source: -1, name: '', mipMode: 'none', constMip: 0, address: 'clamp', attributes: 0 },
     COLOUR,
   ),
   texCoord: spec([], [], { index: 0, uTiling: 1, vTiling: 1 }),

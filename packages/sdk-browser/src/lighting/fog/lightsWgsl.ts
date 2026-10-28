@@ -1,6 +1,7 @@
 import { lightStrengthWgsl } from '../direct/lightStrengthWgsl.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { luminance } from '../../../../math/src/wgsl/color.ts'
+import { sinFromCosUnclamped } from '../../../../math/src/wgsl/geometry.ts'
 import { hgPhase } from '../../../../math/src/wgsl/lighting.ts'
 import { FOG_SLOT } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { VOLUME_LAMP_WGSL } from '../direct/lampSeenWgsl.ts'
@@ -8,6 +9,7 @@ import { REACH } from '../direct/lightTermsWgsl.ts'
 import { FOG_VOLUME_FLAG } from './frame.ts'
 import { FOG_SKY_LIGHT_WGSL } from './skyLightWgsl.ts'
 import { FOG_GI_WGSL } from './translucencyGiWgsl.ts'
+import { ML_SHADE_WGSL } from '../manyLightsSampled/volumeWgsl.ts'
 
 /**
  * THE LIGHT A CELL OF THE VOLUME SCATTERS TOWARD THE EYE: what each light gives it at a point, by
@@ -45,20 +47,24 @@ import { FOG_GI_WGSL } from './translucencyGiWgsl.ts'
  * cone and of a rectangle's plane fade over a number of cells (`frame.blend.z`, none by default), so
  * that they flicker less. An orthographic view's rays are parallel: the eye's direction is the
  * view's own, its distance the one along the forward.
+ *
+ * With `sampled` (`sampledLightsVolume`), the local lights and, where the setting says, the sun are lit by the samples the sampled lighting drew in its own froxel grid
+ * (`manyLightsSampled/volumeWgsl.ts`): their light is read there (`mlVolumeLight`, shaded for the cell's sample) in place of the walk of the cell's list.
  */
-export const FOG_LIGHTS_WGSL = wgslBlock(
-  'FOG_LIGHTS_WGSL',
-  [
-    luminance,
-    hgPhase,
-    VOLUME_LAMP_WGSL,
-    FOG_SKY_LIGHT_WGSL,
-    FOG_GI_WGSL,
-    lightStrengthWgsl('frame.exposure.w'),
-  ],
-  `
+/** The sun's and a local light's light at a point (`fogSun`, `fogLocal`): with `sampled`, each with a switch for its shadow. */
+const fogLightTermsWgsl = (sampled: boolean) =>
+  wgslBlock(
+    sampled ? 'FOG_LIGHT_TERMS_SAMPLED_WGSL' : 'FOG_LIGHT_TERMS_WGSL',
+    [
+      luminance,
+      hgPhase,
+      VOLUME_LAMP_WGSL,
+      lightStrengthWgsl('frame.exposure.w'),
+      sinFromCosUnclamped,
+    ],
+    `
 /** The sun's light at \`P\`: its colour, its shadow, the phase function. */
-fn fogSun(P:vec3f,toEye:vec3f)->vec3f{
+fn fogSun(P:vec3f,toEye:vec3f${sampled ? ',shadowed:bool' : ''})->vec3f{
  if(frame.lighting.x<0.0){return vec3f(0.0);}
  let light=directLights.items[u32(frame.lighting.x)];
  var colour=light.colorIntensity.rgb*(lightStrength(light)*light.params.z)*lightFunctionOf(light,P);
@@ -67,10 +73,10 @@ fn fogSun(P:vec3f,toEye:vec3f)->vec3f{
   colour=fogLobe*luminance(colour);
  }
  var shade=1.0;
- if(shadowsFog(light)){
+ if(${sampled ? 'shadowed&&' : ''}shadowsFog(light)){
   shade=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);
   shade*=cloudShadowOnSurface(u32(frame.lighting.x),P);
- }
+ }${sampled ? '\n // The samples decide the shadow; the clouds above the point still shade the sun.\n else if(!shadowed){shade=cloudShadowOnSurface(u32(frame.lighting.x),P);}' : ''}
  if(shade<=0.0){return vec3f(0.0);}
  return colour*(shade*hgPhase(frame.medium.x,dot(-light.directionCone.xyz,toEye)));
 }
@@ -82,14 +88,14 @@ fn fogSpotFade(light:DirectLight,P:vec3f,fade:f32)->f32{
  let offset=P-light.positionRange.xyz;
  let along=dot(light.directionCone.xyz,offset);
  let across=length(offset-light.directionCone.xyz*along);
- return saturate((along*sqrt(1.0-cosine*cosine)/cosine-across)/fade);
+ return saturate((along*sinFromCosUnclamped(cosine)/cosine-across)/fade);
 }
 /** One local light's light at \`P\`, \`biasSquared\` the squared distance its inverse square is taken
  *  at longer than the real one, in the way of the cell's size, \`fade\` the distance over which the edge
  *  of its cone or of its plane fades (0 none): its colour times its share, its attenuation as a medium
  *  sees it (\`volumeLamp\`), faded at the cone's edge or in front of the plane, its shadow where it
  *  shadows the fog, and the phase function. */
-fn fogLocal(rank:u32,P:vec3f,toEye:vec3f,biasSquared:f32,fade:f32)->vec3f{
+fn fogLocal(rank:u32,P:vec3f,toEye:vec3f,biasSquared:f32,fade:f32${sampled ? ',shadowed:bool' : ''})->vec3f{
 ${REACH('vec3f(0.0)')}
  if(isSun(light)||light.params.z<=0.0){return vec3f(0.0);}
  var seen=volumeLamp(light,P,biasSquared);
@@ -97,9 +103,21 @@ ${REACH('vec3f(0.0)')}
   if(isRect(light)){seen.w*=saturate(dot(P-light.positionRange.xyz,light.directionCone.xyz)/fade);}
   else if(isSpot(light)){seen.w*=fogSpotFade(light,P,fade);}
  }
- if(seen.w>0.0&&shadowsFog(light)&&(u32(frame.medium.w)&${FOG_VOLUME_FLAG.localShadows}u)!=0u){seen.w*=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);}
+ if(seen.w>0.0&&${sampled ? 'shadowed&&' : ''}shadowsFog(light)&&(u32(frame.medium.w)&${FOG_VOLUME_FLAG.localShadows}u)!=0u){seen.w*=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);}
  return light.colorIntensity.rgb*lightFunctionFogLocalOf(light,P)*(lightStrength(light)*light.params.z)*(seen.w*hgPhase(frame.medium.x,dot(seen.xyz,toEye)));
-}
+}`,
+  )
+
+export const fogLightsWgsl = (sampled: boolean) =>
+  wgslBlock(
+    sampled ? 'FOG_LIGHTS_SAMPLED_WGSL' : 'FOG_LIGHTS_WGSL',
+    [
+      fogLightTermsWgsl(sampled),
+      FOG_SKY_LIGHT_WGSL,
+      FOG_GI_WGSL,
+      ...(sampled ? [ML_SHADE_WGSL] : []),
+    ],
+    `
 /** The light of every light at the sample of a cell at \`offset\` within it: the sun, the sky light and
  *  the local lights of the cell's list, each taken at the distance its inverse square is read at
  *  (\`fogLocal\`), the cell's radius scaled, where the list holds one. */
@@ -113,7 +131,7 @@ fn fogLightAt(cell:vec3u,offset:vec3f)->vec3f{
   span=max(span*span/max(dot(-toEyeFull,frame.forward.xyz),1e-6),1e-6);
   toEye=-frame.forward.xyz;
  }
- var light=fogSun(P,toEye);
+ var light=${sampled ? 'select(fogSun(P,toEye,true),vec3f(0.0),mlp.flags2.x!=0u)' : 'fogSun(P,toEye)'};
  if(fogGiShown()){light+=fogGiLight(P,toEye);}
  else if(frame.staticLight.y<=0.0){
   let sky=fogSky(toEye,span);
@@ -126,12 +144,18 @@ fn fogLightAt(cell:vec3u,offset:vec3f)->vec3f{
   let biasSquared=radius*radius;
   // The edge fade is a number of cells of the flat grid: the distance to the cell's far corner on its slice.
   let fade=select(0.0,length(P-fogCellPoint(cell+vec3u(1u,1u,0u),offset).xyz)*frame.blend.z,frame.blend.z>0.0);
-  for(var index=0u;index<slice.y;index++){
+${
+  sampled
+    ? `  light+=mlVolumeLight(cell,P,toEye,biasSquared,fade);`
+    : `  for(var index=0u;index<slice.y;index++){
    let rank=listedLight(slice,index);
    if(!listedDrawn(slice,rank)){continue;}
    light+=fogLocal(rank,P,toEye,biasSquared,fade);
-  }
+  }`
+}
  }
  return light;
 }`,
-)
+  )
+
+export const FOG_LIGHTS_WGSL = fogLightsWgsl(false)

@@ -222,7 +222,7 @@ test('a screen hit is final and a miss is listed with the distance it reached: n
   )
   assert.ok(
     program.includes(
-      'reflectionSceneStage(own.P,own.topN,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson)',
+      'reflectionSceneStage(own.P,own.N,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson)',
     ),
   )
   for (const gone of ['partialOut', 'partialIn', 'reflectionChain', 'reflectionTake', 'confidence'])

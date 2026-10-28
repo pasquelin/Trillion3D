@@ -1,6 +1,7 @@
 // The ids of a frame's maps (`mapIds.ts`): two ranges as the reference lays them — the maps of one page
-// (a distant light's) from id 0, then the full maps, the suns' first — so that a distant light keeps
-// its id whatever the full maps do; the prefiltered history addresses the suns from their first map.
+// (a distant light's) from id 0, in a range of fixed size, then the full maps from the end of it, the suns' first — so that a
+// distant light keeps its id whatever the full maps do, and no full map's id moves with the number of distant ones; the prefiltered
+// history addresses the suns from their first map.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import type { SceneLight } from '../../../../../sdk-core/src/scene/light/contracts.ts'
@@ -17,7 +18,7 @@ import {
 import { VsmMapIds } from './mapIds.ts'
 import { VsmLightCache } from './lightCache.ts'
 import { VsmCacheManager } from './cacheManager.ts'
-import { VSM_RECORD_MAP_COUNT } from './constants.ts'
+import { VSM_MAX_SINGLE_PAGE_MAPS, VSM_RECORD_MAP_COUNT } from './constants.ts'
 
 /** An entry of `maps` maps, distant or not (`VsmLightCache.updateLocal`). */
 const entryOf = (id: string, maps: number, distant = false) => {
@@ -41,9 +42,12 @@ test('the maps of one page take the first ids, then the suns, then the full maps
   ids.claim(far, 'light')
   ids.seal()
   const at = [far, singleUnreferenced, sun, near, fullUnreferenced].map((e) => ids.firstIdOf(e))
-  assert.deepEqual(at, [0, 6, 7, 24, 30])
-  assert.equal(ids.mapCount, 36)
-  assert.equal(ids.sunBase, 7, 'the suns lie from the end of the single-page range')
+  const full = VSM_MAX_SINGLE_PAGE_MAPS
+  assert.deepEqual(at, [0, 6, full, full + 17, full + 23])
+  assert.equal(ids.mapCount, full + 29, 'the slots, up to the last full map')
+  assert.equal(ids.claimedCount, 36)
+  assert.equal(ids.singleCount, 7)
+  assert.equal(ids.sunBase, full, 'the suns lie from the end of the single-page range')
   // The same lights again, with another number of full maps: the single-page maps keep their ids.
   ids.reset()
   ids.claim(far, 'light')
@@ -51,6 +55,23 @@ test('the maps of one page take the first ids, then the suns, then the full maps
   ids.claim(entryOf('sun', 17), 'sun')
   ids.seal()
   assert.equal(ids.firstIdOf(far), 0)
+  // The full maps keep their ids when a distant light comes or goes.
+  const lamp = entryOf('lamp', 6)
+  ids.reset()
+  ids.claim(lamp, 'light')
+  ids.seal()
+  const alone = ids.firstIdOf(lamp)
+  ids.reset()
+  ids.claim(far, 'light')
+  ids.claim(lamp, 'light')
+  ids.seal()
+  assert.equal(ids.firstIdOf(lamp), alone)
+  assert.equal(ids.mapCount, VSM_MAX_SINGLE_PAGE_MAPS + 6)
+  // Only distant lights: the slots end with them.
+  ids.reset()
+  ids.claim(far, 'light')
+  ids.seal()
+  assert.deepEqual([ids.mapCount, ids.claimedCount], [6, 6])
 })
 
 test('nothing moves until the claims are committed, and the ids more than a record names are refused', () => {
@@ -63,13 +84,19 @@ test('nothing moves until the claims are committed, and the ids more than a reco
   assert.deepEqual([lamp.mapId, lamp.prevMapId], [4, -1], 'claimed, not moved')
   assert.equal(ids.nextMapCount, 10, 'the next-map data under its previous ids is known at once')
   cache.commitIds(ids)
-  assert.deepEqual([lamp.mapId, lamp.prevMapId], [0, 4])
+  assert.deepEqual([lamp.mapId, lamp.prevMapId], [VSM_MAX_SINGLE_PAGE_MAPS, 4])
   ids.reset()
   assert.equal(ids.exhausted, false)
-  ids.claim(entryOf('whole', VSM_RECORD_MAP_COUNT), 'light')
+  ids.claim(entryOf('whole', VSM_RECORD_MAP_COUNT - VSM_MAX_SINGLE_PAGE_MAPS), 'light')
+  ids.seal()
   assert.equal(ids.exhausted, false)
   ids.claim(entryOf('one more', 1), 'light')
+  ids.seal()
   assert.equal(ids.exhausted, true)
+  ids.reset()
+  ids.claim(entryOf('too many distant', VSM_MAX_SINGLE_PAGE_MAPS + 1, true), 'light')
+  ids.seal()
+  assert.equal(ids.exhausted, true, 'more maps of one page than their range holds')
   ids.reset()
   assert.equal(ids.exhausted, false, 'a new frame starts over')
 })
@@ -113,8 +140,8 @@ test('a plan lays the ids by range: the distant lights, the sun, then the lights
   assert.equal(run, 6)
   assert.deepEqual(
     ['far', 'sun', 'near'].map((id) => first.get(id)!.firstId),
-    [0, run, run + suns],
-    'the distant lamp’s run, then the sun, then the full maps',
+    [0, VSM_MAX_SINGLE_PAGE_MAPS, VSM_MAX_SINGLE_PAGE_MAPS + suns],
+    'the distant lamp’s run, then the sun, then the full maps, from the end of the single-page range',
   )
   // Another lamp in view: the distant lamp keeps its id.
   const second = plan([lamp('near', -10, 5), lamp('other', -12, 5), far, sun])

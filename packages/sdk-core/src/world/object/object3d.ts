@@ -14,6 +14,7 @@ import type { SceneLink } from './sceneLink.ts'
 import { defineOffsetSwitches, type ShadowCacheInvalidation } from './offsetSwitches.ts'
 import type { ObjectMobility } from '../../contracts/objectAbi.ts'
 import type { LightingChannels } from '../../contracts/lightingChannelsAbi.ts'
+import type { ShadowCapsuleBody } from '../../contracts/capsuleShadowOptions.ts'
 
 /** Scratch values of the pose methods below — the world reads too: none of them allocates. */
 const aim = new Vector3(),
@@ -140,6 +141,18 @@ export class Object3D extends TransformNode {
    *  (`contactShadows`, a light's `contactShadowLength`): `true` by default; `false` lets the rays
    *  through the object's pixels, which then cast no contact shadow, whatever its material. */
   declare castContactShadow: boolean
+  /** Whether the object's `shadowCapsules` cast a soft shadow on the scene from the lights
+   *  (`capsuleDirectShadows`); `false` by default. Needs a dynamic shadow. */
+  declare castCapsuleDirectShadow: boolean
+  /** Whether the object's `shadowCapsules` cast a soft shadow on the sky and the indirect light
+   *  (`capsuleIndirectShadows`); `false` by default. */
+  declare castCapsuleIndirectShadow: boolean
+  /** The share of the indirect light that stays under the object's indirect capsule shadow, from 0 to 1;
+   *  0.1 by default. */
+  declare capsuleIndirectShadowMinVisibility: number
+  /** The spheres and capsules, fitted to the object's bones, that cast its capsule shadows: none by
+   *  default. The value read is frozen: write a whole list to change it. */
+  declare shadowCapsules: readonly ShadowCapsuleBody[]
   /** The lighting channels the object is in (`{ channel0, channel1, channel2 }`, each true or false):
    *  a light lights its surfaces, and its shadow holds it, only where the object and the light share a
    *  channel (`SceneLight.lightingChannels`). Channel 0 alone by default; no channel at all is legal

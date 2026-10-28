@@ -1,7 +1,10 @@
 import { signalWith } from '../../../sdk-core/src/runtime/followSignal.ts'
 import { explorerSwitch } from '../../../sdk-core/src/runtime/explorerSwitches.ts'
 import { trackSettings } from '../../../sdk-core/src/contracts/settingRules.ts'
-import { exposureCurveTable } from '../../../sdk-core/src/contracts/exposureCurveTable.ts'
+import {
+  exposureCurveScaleTable,
+  exposureCurveTable,
+} from '../../../sdk-core/src/contracts/exposureCurveTable.ts'
 import { resolveExposureMeterMask } from '../../../sdk-core/src/contracts/exposureMeterMask.ts'
 import { resolveAmbientCubemap } from '../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
 import type { WorldRootsHold } from '../geometry/hlod/worldRoots.ts'
@@ -22,6 +25,8 @@ import type { RayTracing } from '../../../sdk-core/src/lighting/rayTracingFile.t
 import { createSceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
 import { createSceneFogVolumeStore } from '../../../sdk-core/src/scene/volume/store.ts'
 import { createSceneLocalFogStore } from '../../../sdk-core/src/scene/localFog/store.ts'
+import { createSceneHeterogeneousVolumeStore } from '../../../sdk-core/src/scene/heterogeneousVolume/store.ts'
+import { sparseVolumesReader } from '../lighting/heterogeneousVolumes/sparseVolumeLoad.ts'
 import { dagWarningsDiagnostic } from '../../../sdk-core/src/contracts/dagWarnings.ts'
 import { createTextureCaches, type TextureCache } from '../materials/texture/textureCaches.ts'
 import { resolveDiagnosticGpuVariant } from '../diagnostic/gpuVariant.ts'
@@ -82,6 +87,7 @@ async function sessionLights(session: ExplorerSession, base: string) {
     importedLightIds,
     sceneVolumes: createSceneFogVolumeStore(),
     sceneLocalFog: createSceneLocalFogStore(),
+    sceneHeterogeneousVolumes: createSceneHeterogeneousVolumeStore(),
   }
 }
 
@@ -89,6 +95,8 @@ async function sessionLights(session: ExplorerSession, base: string) {
 function optionContext(session: ExplorerSession) {
   const { options, diagnosticChannel } = session
   exposureCurveTable(options.exposureCurve) // refused at the opening when it is not a curve
+  exposureCurveScaleTable(options.localExposureHighlightContrastCurve)
+  exposureCurveScaleTable(options.localExposureShadowContrastCurve)
   return {
     maxResidentPages: options.maxResidentPages,
     pixelError: options.pixelError,
@@ -105,6 +113,8 @@ function optionContext(session: ExplorerSession) {
     // another kind or out of range, as the world refuses them.
     ...resolvedFamilies(options),
     exposureCurve: options.exposureCurve,
+    localExposureHighlightContrastCurve: options.localExposureHighlightContrastCurve,
+    localExposureShadowContrastCurve: options.localExposureShadowContrastCurve,
     exposureMeterMask: resolveExposureMeterMask(options.exposureMeterMask), // refused when not a picture
     ambientCubemap: resolveAmbientCubemap(options).ambientCubemap, // refused when not a cube
     admitGpuMemory: options.admitGpuMemory,
@@ -174,6 +184,7 @@ function engineContext(
     meshCards,
     rayTracing,
     hairStrandsFile: hairStrandsReader(metadata, inputs.base, signal, unmetered),
+    sparseVolumesFile: sparseVolumesReader(metadata, inputs.base, signal, unmetered),
     lightProfileFile: lightProfileReader(inputs.base, signal),
     volumetricLightmapData: volumetricLightmap?.data,
     readVolumetricLightmapCell: volumetricLightmap?.readCell,

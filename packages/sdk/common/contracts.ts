@@ -95,10 +95,12 @@ export type {
   GeometryPageFormat,
 } from '../../sdk-core/src/page/contracts.ts'
 export type { GpuMemoryFrameMetrics } from '../../sdk-core/src/contracts/gpuMemory.ts'
+export type { HairGroupOption } from '../../sdk-core/src/contracts/hairGroupsOptions.ts'
 export type { HardwareBenchmarkResult } from '../../sdk-core/src/runtime/hardwareBenchmark.ts'
 export type { HostImage } from '../../sdk-core/src/contracts/hostImage.ts'
 export type { LightCloudShadowParameters } from '../../sdk-core/src/world/light/lightCloudShadowSettings.ts'
 export type { LightContactShadowParameters } from '../../sdk-core/src/world/light/lightContactShadowSettings.ts'
+export type { LightingChannels } from '../../sdk-core/src/contracts/lightingChannelsAbi.ts'
 export type { LightShaftParameters } from '../../sdk-core/src/world/light/lightShaftSettings.ts'
 export { LOD_QUALITY, lodQuality } from '../../sdk-core/src/lod/policy.ts'
 export type { LodQualityId } from '../../sdk-core/src/lod/policy.ts'
@@ -109,6 +111,7 @@ export {
   TEXTURE_PREVIEW_VERSION,
 } from '../../sdk-core/src/contracts/writtenFormats.ts'
 export type { MaterialShadingModel } from '../../sdk-core/src/world/material/shadingModel.ts'
+export type { Pin } from '../../sdk-core/src/world/material/graph/graph.ts'
 export type {
   ReflectionFrameMetrics,
   ReflectionSceneEnded,
@@ -137,7 +140,10 @@ export { SceneNode } from '../../sdk-core/src/scene/core/node.ts'
 export type { SceneSecondLayer } from '../../sdk-core/src/scene/core/fogSecond.ts'
 export type { SceneVolumetricFog } from '../../sdk-core/src/scene/core/fogVolumetric.ts'
 export type { ShadowCacheInvalidation } from '../../sdk-core/src/world/object/offsetSwitches.ts'
+export type { ShadowCapsuleBody } from '../../sdk-core/src/contracts/capsuleShadowOptions.ts'
+export type { SkyLightCubemap } from '../../sdk-core/src/modules/sky/skyLightCubemap.ts'
 export type { SoftBodyType } from '../../sdk-core/src/physics/soft/soft.ts'
+export type { SparseVolumeSampleOptions } from '../../sdk-core/src/world/material/graph/inputs.ts'
 export type { SurfaceCacheFrameMetrics } from '../../sdk-core/src/contracts/surfaceCacheMetrics.ts'
 export {
   TABLE_FILTERS,
@@ -155,3 +161,4 @@ export type {
 } from '../../sdk-core/src/scene/core/tableSurfaces.ts'
 export type { TablePage, TableSlot } from '../../sdk-core/src/scene/core/tablePages.ts'
 export type { VolumeMaterial } from '../../sdk-core/src/contracts/volumeMaterial.ts'
+export type { Wire } from '../../sdk-core/src/world/material/graph/wired.ts'

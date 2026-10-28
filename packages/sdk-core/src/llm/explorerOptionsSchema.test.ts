@@ -1,3 +1,4 @@
+import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -18,6 +19,7 @@ import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
+import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
 import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOptions.ts'
@@ -34,15 +36,20 @@ import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOption
 import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
 import { SCREEN_PROBE_RULES } from '../bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
+import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../contracts/meshDistanceFieldTraceOptions.ts'
+import { LIGHTING_DATA_FORMAT_RULES } from '../contracts/lightingDataFormatOptions.ts'
+import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptions.ts'
 import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_CUBEMAP_RULES } from '../contracts/ambientCubemapOptions.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
+import { TEXTURE_FILTERING_RULES } from '../contracts/textureFilteringOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
 import { EXPOSURE_RULES } from '../contracts/exposureOptions.ts'
 import { SKY_QUALITY_RULES } from '../modules/sky/quality.ts'
 import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
+import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOptions.ts'
 
 const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
 const explorer = { manifestUrl: '/assets/model/manifest.json' }
@@ -126,6 +133,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...TEMPORAL_RULES,
     ...HIZ_RULES,
     ...LIGHT_FUNCTION_RULES,
+    ...LIGHT_PROFILE_RULES,
     ...GLOBAL_DISTANCE_FIELD_RULES,
     ...DISTANCE_FIELD_OCCLUSION_RULES,
     ...VOLUMETRIC_LIGHTMAP_RULES,
@@ -141,12 +149,18 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...SUBSURFACE_SCATTERING_RULES,
     ...SINGLE_LAYER_WATER_RULES,
     ...HAIR_STRANDS_RULES,
+    ...HETEROGENEOUS_VOLUME_RULES,
+    ...SAMPLED_LIGHTS_RULES,
     ...SCREEN_PROBE_RULES,
     ...REFLECTION_RULES,
+    ...SCREEN_SPACE_TRACING_RULES,
+    ...MESH_DISTANCE_FIELD_TRACE_RULES,
+    ...LIGHTING_DATA_FORMAT_RULES,
     ...SURFACE_CACHE_RULES,
     ...AMBIENT_OCCLUSION_RULES,
     ...AMBIENT_CUBEMAP_RULES,
     ...TESSELLATION_RULES,
+    ...TEXTURE_FILTERING_RULES,
     ...DEPTH_OF_FIELD_RULES,
     ...EXPOSURE_RULES,
     ...SKY_QUALITY_RULES,

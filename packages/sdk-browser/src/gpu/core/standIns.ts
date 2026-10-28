@@ -7,7 +7,7 @@ import { texelBytesOf } from './textureBytes.ts'
  * `'3d'` `dimension`), sampled only, at zero; bound as storage too with `storage`, where a
  * program's store of it is folded away. Given
  * `fill`, every byte of its first layer is `fill`: the white a tile pool lane without layers
- * samples.
+ * samples. Given `texels`, every layer holds those texels (a cube's six faces).
  */
 export function standInTexture(
   device: Pick<GPUDevice, 'createTexture' | 'queue'>,
@@ -17,17 +17,21 @@ export function standInTexture(
     side = 1,
     layers = 1,
     fill,
+    texels,
     storage = false,
     dimension = '2d',
   }: {
     side?: number
     layers?: number
     fill?: number
+    /** The texels of one layer (`side` × `side` of `format`, in the typed array's words), written to every layer: the value a stand-in
+     *  holds where a byte of `fill` is not it. */
+    texels?: ArrayBufferView
     storage?: boolean
     dimension?: GPUTextureDimension
   } = {},
 ) {
-  const copied = fill === undefined ? 0 : GPUTextureUsage.COPY_DST
+  const copied = fill === undefined && !texels ? 0 : GPUTextureUsage.COPY_DST
   const texture = device.createTexture({
     label,
     size: [side, side, layers],
@@ -36,8 +40,17 @@ export function standInTexture(
     usage:
       GPUTextureUsage.TEXTURE_BINDING | copied | (storage ? GPUTextureUsage.STORAGE_BINDING : 0),
   })
-  if (fill !== undefined) {
-    const row = side * texelBytesOf(format)
+  const row = side * texelBytesOf(format)
+  if (texels) {
+    const layer = new Uint8Array(texels.buffer, texels.byteOffset, texels.byteLength)
+    const bytes = new Uint8Array(layer.length * layers)
+    for (let at = 0; at < layers; at++) bytes.set(layer, at * layer.length)
+    device.queue.writeTexture({ texture }, bytes, { bytesPerRow: row, rowsPerImage: side }, [
+      side,
+      side,
+      layers,
+    ])
+  } else if (fill !== undefined) {
     const bytes = new Uint8Array(side * row).fill(fill)
     device.queue.writeTexture({ texture }, bytes, { bytesPerRow: row }, [side, side])
   }

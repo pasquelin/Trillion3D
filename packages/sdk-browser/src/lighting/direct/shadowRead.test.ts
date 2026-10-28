@@ -204,6 +204,18 @@ function translucentRead(
   return shadowFactor(shadowSliceOf(channel, channel === 0, false), {}, [0, 0, 0], [0, 1, 0], true)
 }
 
+test('with classic shadow maps a translucent surface reads every light by the classic filter, whatever its marks and the quality say', () => {
+  const [SUN, LOCAL] = [0, 1]
+  for (const bits of [0, 7]) {
+    assert.equal(translucentRead({ classic: true }, bits, SUN), 0.25)
+    assert.equal(translucentRead({ classic: true, localShadows: true }, bits, LOCAL), 0.25)
+  }
+  // The program holds the classic trace and no one-sample read.
+  const text = wgslModule(directShadowWgsl({ pass: 'blend', classic: true }))
+  assert.ok(text.includes('vsmTraceFactor'))
+  assert.ok(!text.includes('fn vsmSampleFactor('))
+})
+
 const asking = (own: Partial<TranslucentMaterialShadow>) => ({
   materials: { local: false, localTrace: false, directionalTrace: false, ...own },
 })

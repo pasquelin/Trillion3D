@@ -10,15 +10,22 @@ import { TABLE_LANES } from '../atlas.ts'
 
 /** Words a slot of the pool holds (`slots`): the entry plus one of the cell it holds — zero for a free slot; the entry the last pass's
  *  indirection named it by —, the cell's three coordinates, the frame that last read it, the frame that last traced it (zero: never) and
- *  its level. */
+ *  its level, the offset from the cell's place (three floats) and its rank: zero for the probe of the cell, one or two for an adaptive probe the cell
+ *  took (`POOL_ADAPTIVE`). */
 export const POOL_SLOT = {
-  words: 7,
+  words: 11,
   owner: 0,
   cell: 1,
   usedAt: 4,
   tracedAt: 5,
   level: 6,
+  offset: 7,
+  rank: 10,
 } as const
+
+/** The adaptive probes a cell may take beside its own (the reference's `MAX_ADAPTIVE_PROBES`), the interpolation misses a cell must count in an image to take one, and the precision the misses'
+ *  ideal offsets are summed at: a whole cell is `2 · precision / 2` units wide, centred on `precision / 2`. */
+export const POOL_ADAPTIVE = { probes: 2, misses: 4, precision: 128 } as const
 
 /** Priority buckets: the first holds the probes never traced. */
 export const POOL_PRIORITY_BUCKETS = 16
@@ -96,6 +103,7 @@ export const POOL_PARAMS = fieldLayout('PoolParams', [
   ['fullUpdate', 'u32'],
   ['distances', 'vec2f'],
   ['markDownsample', 'vec2u'],
+  ['adaptive', 'u32'],
 ] as const)
 /** Bytes of the pool's parameters. */
 export const POOL_PARAMS_BYTES = POOL_PARAMS.words * 4
@@ -112,6 +120,10 @@ export const POOL_BINDINGS = {
   marks: 5,
   queue: 6,
   published: 7,
+  /** The adaptive probes of each entry (`POOL_ADAPTIVE.probes` words an entry: the slot plus one that holds each in the low sixteen bits, the one the lit passes read in the high sixteen),
+   *  and the interpolation misses the pixels counted (four words an entry: their count, then the sums of the ideal offsets by axis, in the units of `POOL_ADAPTIVE.precision`). */
+  adaptive: 8,
+  misses: 9,
 } as const
 
 /** The finish pass's bindings (`POOL_FINISH_SHADER`): the work buffer, the arguments of the dispatches over the queue and the levels'

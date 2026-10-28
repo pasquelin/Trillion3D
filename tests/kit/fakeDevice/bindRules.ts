@@ -1,3 +1,4 @@
+import { layoutProblems } from '../../../packages/sdk-browser/src/gpu/core/wgslLayoutMatch.fixture.ts'
 import { BUFFER, READ_WRITE_FORMATS, TEXTURE, isStorageFormat, type Features } from './formats.ts'
 import type { BufferInfo } from './bufferRules.ts'
 import type { ViewInfo } from './textureRules.ts'
@@ -133,4 +134,34 @@ export function checkPipelineLayout(
         `${where}: ${dynamic[kind]} dynamic ${kind} buffers exceed the limit (${max}).`,
       )
   }
+}
+
+/**
+ * What WebGPU refuses of a pipeline whose layout is its own: a binding its entry points read that the layout lacks, or holds of
+ * another kind, type, format or dimension, or hides from the stage that reads it. The texts of the shader modules
+ * are read for the groups and bindings each entry point names (`layoutProblems`).
+ */
+export function checkPipelineShaders(descriptor: {
+  label?: string
+  layout?: unknown
+  vertex?: { module?: { code?: string }; entryPoint?: string }
+  fragment?: { module?: { code?: string }; entryPoint?: string }
+  compute?: { module?: { code?: string }; entryPoint?: string }
+}) {
+  const layout = descriptor.layout as
+    | { bindGroupLayouts?: Iterable<{ entries?: Iterable<GPUBindGroupLayoutEntry> }> }
+    | string
+    | undefined
+  if (!layout || typeof layout === 'string' || !layout.bindGroupLayouts) return
+  const groups = [...layout.bindGroupLayouts].map((group) =>
+    group?.entries ? [...group.entries] : undefined,
+  )
+  const problems: string[] = []
+  for (const stage of [descriptor.vertex, descriptor.fragment, descriptor.compute]) {
+    const code = stage?.module?.code
+    if (typeof code !== 'string' || !stage?.entryPoint) continue
+    problems.push(...layoutProblems(code, groups, stage.entryPoint))
+  }
+  if (problems.length)
+    throw new Error(`[Pipeline "${descriptor.label ?? ''}"]: ${problems.join('; ')}.`)
 }

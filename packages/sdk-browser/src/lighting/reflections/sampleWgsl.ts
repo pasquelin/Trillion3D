@@ -45,7 +45,7 @@ fn reflectionFrameOf(N:vec3f,axis:vec3f)->ReflectionFrame{
  *   the visible normals cover (`visibleGgxHalf`, its height bounded by the view's reflection) — its height
  *   drawn over all but the sampling bias's share of it nearest the horizon, the grazing microfacets whose
  *   rays are the noisiest and dimmest —, unstretched; the ray its mirror about it, its pdf that of the half vector, 2 (v·h) D(h) /
- *   (k n·v + |v̂|) with `k` the bound (`reflectionHalfPdf`), over 4 (v·h) (`reflectionRayPdf`), which the reuse weighs by (`resolveWgsl.ts`) and
+ *   (k n·v + |v̂|) with `k` the bound (`reflectionHalfPdf`, `reflectionRayPdf`), which the reuse weighs by (`resolveWgsl.ts`) and
  *   whose inverse is the ray's cone.
  * - THIN RAYS: each ray is read through the cone of the smoothest lobe the engine draws (`lobeAlpha(0)`,
  *   under a pixel over the whole march), so the mean of the rays is the lobe's own. A wider cone with a

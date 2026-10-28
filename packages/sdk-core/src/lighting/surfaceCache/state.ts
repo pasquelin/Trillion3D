@@ -159,6 +159,10 @@ export interface SurfaceCache {
   /** Whether the atlas keeps its albedo, normal and emission in blocks (`surfaceCacheCompress`): the
    *  atlas is made again, and emptied, when that changes. */
   compressed: boolean
+  /** The pre-exposure the cards' light was captured under (`UpdateView.preExposure`): the atlas is made again, and emptied, when it changes. */
+  preExposure: number
+  /** The format the atlas stores its light in (`UpdateView.light`): the atlas is made again, and emptied, when it changes. */
+  light: string
   /** Who holds the physical pages. */
   allocator: PageAllocator
   readonly cards: SpanArray<Card>
@@ -192,6 +196,8 @@ export function createSurfaceCache(settings: SurfaceCacheSettings): SurfaceCache
     settings,
     atlasPages: 0,
     compressed: false,
+    preExposure: 0,
+    light: '',
     allocator: createPageAllocator(0, 0),
     cards: createSpanArray<Card>(),
     meshCards: createSpanArray<MeshCardsInstance>(),

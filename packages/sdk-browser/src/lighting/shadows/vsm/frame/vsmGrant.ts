@@ -40,6 +40,49 @@ export type VsmRefusal = Refusal & {
   poolPages: number
 }
 
+/** The largest pool of the halvings of `first` the device makes a set of; the set, or the last error it threw. */
+function grantLargestPool(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  list: readonly VsmFrameLight[],
+  {
+    options,
+    first,
+    asked,
+    poolAsked,
+    grownFrom,
+    frame,
+  }: {
+    options: ReturnType<typeof engineVsmOptions>
+    first: NonNullable<ReturnType<typeof vsmPoolWithin>>
+    asked: ReturnType<typeof vsmLayout>
+    poolAsked: number
+    grownFrom: number
+    frame: number
+  },
+): { vsm: EngineVsm; error?: undefined } | { vsm?: undefined; error: unknown } {
+  const { lights } = rt
+  let error: unknown
+  for (const pool of halvings(first, vsmPoolDraw(options))) {
+    const pages = pool.layout.poolPages
+    let vsm: EngineVsm
+    try {
+      vsm = madeSet(rt, device, list, { ...options, poolPages: pages }, poolAsked)
+    } catch (thrown) {
+      error = thrown
+      continue
+    }
+    vsm.regrowFrame = frame + VSM_PRESSURE_CALM_FRAMES
+    sayGranted(rt, pages, grownFrom, poolAsked, () =>
+      outOfMemoryContext('shadow', vsmResourceBytes(asked), pool),
+    )
+    lights.vsmRefusal = undefined
+    if (lights.shadowReason?.startsWith(UNAVAILABLE)) lights.shadowReason = null
+    return { vsm: (lights.vsm = vsm) }
+  }
+  return { error }
+}
+
 /**
  * Replaces the engine's maps by a set of `fullMapCapacity` full maps, at the most physical pages up
  * to `pagesAsked` that the budget's room holds once the frame's other shadow bytes are set aside
@@ -96,24 +139,16 @@ export function grantEngineVsm(
     refuseNoPool(rt, refusal, options, asked)
     return undefined
   }
-  let error: unknown
-  for (const pool of halvings(first, vsmPoolDraw(options))) {
-    const pages = pool.layout.poolPages
-    let vsm: EngineVsm
-    try {
-      vsm = madeSet(rt, device, list, { ...options, poolPages: pages }, poolAsked)
-    } catch (thrown) {
-      error = thrown
-      continue
-    }
-    vsm.regrowFrame = frame + VSM_PRESSURE_CALM_FRAMES
-    sayGranted(rt, pages, grownFrom, poolAsked, () =>
-      outOfMemoryContext('shadow', vsmResourceBytes(asked), pool),
-    )
-    lights.vsmRefusal = undefined
-    if (lights.shadowReason?.startsWith(UNAVAILABLE)) lights.shadowReason = null
-    return (lights.vsm = vsm)
-  }
+  const granted = grantLargestPool(rt, device, list, {
+    options,
+    first,
+    asked,
+    poolAsked,
+    grownFrom,
+    frame,
+  })
+  if (granted.vsm) return granted.vsm
+  const { error } = granted
   // Not the budget's room, which was measured: the device refused even the floor, asked again
   // after its refusal's wait, or at once for other lights.
   refusal(deviceRefusal(frame, same ? refused : undefined))

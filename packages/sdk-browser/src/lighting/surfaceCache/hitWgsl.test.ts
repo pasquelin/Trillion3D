@@ -13,6 +13,7 @@ import {
   type SurfaceHitBindings,
 } from './hitWgsl.ts'
 import { NO_MESH_CARDS } from './layout.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 
 /** What the cache's library was asked, call by call. */
 type Read = {
@@ -58,7 +59,7 @@ function hitSurface({
   instances = [1, 7],
   weights = { 107: 1 },
 }: Hit = {}) {
-  const text = wgslModule(surfaceHitWgsl(surfaceHitBindingsFrom(0, 0)))
+  const text = wgslModule(surfaceHitWgsl(surfaceHitBindingsFrom(0, 0), WORD_LIGHT_FORMAT))
   const reads: Read[] = []
   const grid: { at: Vec3[]; clipmaps: number[] } = { at: [], clipmaps: [] }
   const evaluated: number[][] = []
@@ -231,16 +232,19 @@ test('the light is evaluated for the pixel the ray is traced for, which the feed
 test('the feedback buffer is bound only for a program that writes it', () => {
   // The feedback buffer is the ninth binding of the library: the instances' go past it.
   const b: SurfaceHitBindings = { ...surfaceHitBindingsFrom(0, 0), instances: 16 }
-  const bindings = (at: SurfaceHitBindings) => surfaceHitLayoutEntries(at).map((e) => e.binding)
+  const bindings = (at: SurfaceHitBindings) =>
+    surfaceHitLayoutEntries(at, WORD_LIGHT_FORMAT).map((e) => e.binding)
   assert.ok(!bindings(b).includes(b.cards + 8))
   assert.ok(bindings({ ...b, feedback: true }).includes(b.cards + 8))
-  assert.ok(wgslModule(surfaceHitWgsl({ ...b, feedback: true })).includes('scFeedback'))
-  assert.ok(!wgslModule(surfaceHitWgsl(b)).includes('scFeedback'))
+  assert.ok(
+    wgslModule(surfaceHitWgsl({ ...b, feedback: true }, WORD_LIGHT_FORMAT)).includes('scFeedback'),
+  )
+  assert.ok(!wgslModule(surfaceHitWgsl(b, WORD_LIGHT_FORMAT)).includes('scFeedback'))
 })
 
 test('the placement of a hit and the cone of a ray are read without the global field: a hit found another way reads the cards alone', () => {
   const b = surfaceHitBindingsFrom(0, 0)
-  const cards = wgslModule(surfaceHitCardsWgsl(b))
+  const cards = wgslModule(surfaceHitCardsWgsl(b, WORD_LIGHT_FORMAT))
   for (const name of [
     'scHitPlacement',
     'scConeTangent',
@@ -251,6 +255,6 @@ test('the placement of a hit and the cone of a ray are read without the global f
   assert.ok(cards.includes(`@binding(${b.instances}) var<storage,read> hitInstances`))
   assert.doesNotMatch(cards, /gdf|Gdf|scGlobalHit/)
   // The march’s read is the cards’ and the field’s.
-  const whole = wgslModule(surfaceHitWgsl(b))
+  const whole = wgslModule(surfaceHitWgsl(b, WORD_LIGHT_FORMAT))
   assert.ok(whole.includes('fn scGlobalHit(') && whole.includes('fn scHitPlacement('))
 })

@@ -1,8 +1,9 @@
 /**
  * THE ID HALF OF THE SHADOW MAP ARRAY, a frame's (`frameSetup.ts`): the ids of the maps in two ranges,
  * as the reference lays them (`AllocateShadowMapSlots`) — the maps of one page (a distant light's) from
- * id 0, in a range of their own sized to this frame's, then the full maps past it, the suns' clipmaps
- * first, then the local lights'. In each range a light comes before the entries no light referenced.
+ * id 0, in a range of fixed size (`VSM_MAX_SINGLE_PAGE_MAPS`), then the full maps from the end of it, the suns' clipmaps
+ * first, then the local lights'. A frame's ids are then the slots up to the last full map's (`mapCount`), its
+ * maps those it claimed (`claimedCount`), the slots between the two ranges holding none. In each range a light comes before the entries no light referenced.
  * A map is given its id by the order of its run (`VSM_ID_RUN`) whatever the order it was claimed in:
  * a claim is the entry and its map count, and the ids are laid once every claim is made (`seal`).
  * Nothing is moved by a claim: the entries take their ids when the frame's plan is kept
@@ -10,15 +11,15 @@
  * hold them (`planVirtualShadowFrame`). The next-map data each map leaves under its previous id is kept
  * here too. Where each map's table lies is the table packing's (`tableBlocks.ts`).
  */
-import { VSM_RECORD_MAP_COUNT, VSM_NEXT_ID_VALID } from './constants.ts'
+import { VSM_MAX_SINGLE_PAGE_MAPS, VSM_RECORD_MAP_COUNT, VSM_NEXT_ID_VALID } from './constants.ts'
 import type { VsmLightCache, VsmNextMap } from './lightCache.ts'
 
 /** Next-map data stride on the GPU (`VsmNextMap`). */
 export const VSM_NEXT_MAP_BYTES = 16
 
 /** The runs of ids, in the order they lie: the maps of one page of the lights, then of the entries no
- *  light referenced; the suns' clipmaps; the full maps of the lights, then of the entries no light
- *  referenced. */
+ *  light referenced (both in the first range); the suns' clipmaps; the full maps of the lights, then of the entries no light
+ *  referenced (from the end of the first range). */
 const SINGLE_PAGE = 0,
   SUN = 2,
   FULL = 3,
@@ -40,12 +41,17 @@ interface VsmIdClaim {
 
 /** The id half of the shadow map array. */
 export class VsmMapIds {
-  /** The maps claimed this frame: ids [0, mapCount). */
+  /** The slots of the frame's ids: [0, mapCount), the maps of one page first, the full maps from the end of the range reserved for them
+   *  (`VSM_MAX_SINGLE_PAGE_MAPS`); the bound of a loop over the ids, zero where no map was claimed. */
   mapCount = 0
+  /** The maps claimed this frame. */
+  claimedCount = 0
+  /** The maps of one page claimed: the ids [0, singleCount). */
+  singleCount = 0
   /** The id of the first sun's first map: the suns' clipmaps lie from it, the prefiltered distant
    *  shadow's history addresses them from it (`vsmHistoryLayout`). */
   sunBase = 0
-  /** More maps claimed than an id can name (`VSM_RECORD_MAP_COUNT`): no set holds them. */
+  /** More maps of one page than their range holds, or slots than an id can name (`VSM_RECORD_MAP_COUNT`): no set holds them. */
   exhausted = false
   /** The next-map data count: one past the largest previous id given next data
    *  this frame; the ids below it given none read zero (flags 0 = no caching). */
@@ -64,7 +70,7 @@ export class VsmMapIds {
 
   /** Empties the allocator for a new frame, keeping its storage. */
   reset() {
-    this.mapCount = this.sunBase = this.claimCount = 0
+    this.mapCount = this.sunBase = this.claimCount = this.claimedCount = this.singleCount = 0
     this.exhausted = false
     this.nextMapCount = 0
     this.nextMapIdCount = 0
@@ -87,20 +93,26 @@ export class VsmMapIds {
     claim.unreferenced = unreferenced
     claim.id = -1
     this.runSizes[run] += count
-    this.mapCount += count
-    this.exhausted ||= this.mapCount > VSM_RECORD_MAP_COUNT
+    this.claimedCount += count
     if (entry.mapId >= 0) this.nextMapCount = Math.max(this.nextMapCount, entry.mapId + count)
     this.held.set(entry, claim)
   }
 
-  /** Lays the runs one after the other and gives every claim its id. */
+  /** Lays the runs out and gives every claim its id: the maps of one page from id 0, the full maps from the end of the range reserved for the
+   *  first. */
   seal() {
-    let base = 0
-    const starts = this.runStarts
-    for (let run = 0; run < RUNS; run++) {
-      starts[run] = base
-      base += this.runSizes[run]
-    }
+    const starts = this.runStarts,
+      sizes = this.runSizes
+    starts[SINGLE_PAGE] = 0
+    starts[SINGLE_PAGE + 1] = sizes[SINGLE_PAGE]
+    this.singleCount = sizes[SINGLE_PAGE] + sizes[SINGLE_PAGE + 1]
+    starts[SUN] = VSM_MAX_SINGLE_PAGE_MAPS
+    starts[FULL] = starts[SUN] + sizes[SUN]
+    starts[FULL + 1] = starts[FULL] + sizes[FULL]
+    const full = this.claimedCount - this.singleCount
+    this.mapCount = full > 0 ? VSM_MAX_SINGLE_PAGE_MAPS + full : this.singleCount
+    this.exhausted =
+      this.singleCount > VSM_MAX_SINGLE_PAGE_MAPS || this.mapCount > VSM_RECORD_MAP_COUNT
     this.sunBase = starts[SUN]
     for (let i = 0; i < this.claimCount; i++) {
       const claim = this.claims[i]

@@ -1,5 +1,5 @@
-// The resolve of a capture (`RESOLVE_WGSL`): the albedo a card keeps for a texel. The diffuse colour keeps all of its energy under the
-// specular lobe (the energy preservation of the environment path is one there) and gains that lobe; the lobe's reflectance at normal
+// The resolve of a capture (`RESOLVE_WGSL`): the albedo a card keeps for a texel. The diffuse colour is not darkened by the specular lobe
+// (the energy preservation is off in a project whose material buffer is the blendable one) and gains that lobe; the lobe's reflectance at normal
 // incidence is the material's own specular.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -9,25 +9,27 @@ import { SHEEN_LTC_ALBEDO_ALONG_NORMAL } from '../../../../sdk-core/src/lighting
 import {
   COPY_COMPRESSED_WGSL,
   COPY_WGSL,
-  RESAMPLE_LIGHTING_WGSL,
+  resampleLightingProgramOf,
   RESOLVE_WGSL,
   copyEntryPoints,
 } from './copyWgsl.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
+
+const RESAMPLE_LIGHTING_WGSL = resampleLightingProgramOf(false, WORD_LIGHT_FORMAT)
 
 test('the resolve assembles and reads the surfaces’ words beside their colours', () => {
   assertProgramAssembles(RESOLVE_WGSL, 'resolvePages', 'the capture resolve')
   assert.match(RESOLVE_WGSL, /@group\(0\) @binding\(9\) var capWords:texture_2d_array<u32>;/)
 })
 
-test('the diffuse colour keeps all of its energy under the specular lobe, and the lobe is added', () => {
+test('the diffuse colour is not darkened by the specular lobe, and the lobe is added', () => {
   // The lobe is the energy table's, of roughness one along the normal, with the energy its single scattering misses restored.
   assert.match(RESOLVE_WGSL, /let lobe=lobeEnergy\(f0,f90,1\.0\);/)
   assert.match(RESOLVE_WGSL, /let restored=vec3f\(1\.0\)\+f0\*\(\(1\.0-e\.x\)\/e\.x\);/)
   assert.match(RESOLVE_WGSL, /return restored\*\(e\.x\*f0\+e\.y\*\(f90-f0\)\);/)
   assert.doesNotMatch(RESOLVE_WGSL, /ROUGH_LOBE/)
-  // No energy preservation darkens the diffuse colour by the lobe's luminance.
-  assert.doesNotMatch(RESOLVE_WGSL, /preserved/)
-  assert.doesNotMatch(RESOLVE_WGSL, /fn luminance/)
+  // The energy preservation is off (the reference's blendable material buffer): neither the diffuse colour nor the subsurface colour is darkened by the lobe.
+  assert.doesNotMatch(RESOLVE_WGSL, /transmission=/)
   assert.match(RESOLVE_WGSL, /var diffuse=\(color-color\*metal\)\*layers\+lobe\*layers\+haze;/)
 })
 
@@ -122,7 +124,7 @@ test('the fuzz scales the whole of the diffuse colour — the lobes, the haze an
     'var diffuse=(color-color*metal)*layers+lobe*layers+haze;',
     'diffuse+=select(transmitted*INVERSE_PI',
     'diffuse=diffuse*fuzzKeep+fuzzAdded;',
-    'albedo=vec4f(sqrt(max(diffuse,vec3f(0.0))),1.0);',
+    'textureStore(outAlbedo,p,vec4f(sqrt(max(diffuse,vec3f(0.0))),1.0));',
   ].map((statement) => body.indexOf(statement))
   assert.ok(statements.every((at) => at >= 0))
   assert.deepEqual(

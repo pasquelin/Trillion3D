@@ -1,7 +1,14 @@
-import { HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT } from '../../../sdk-core/src/contracts/hairStrandsAbi.ts'
+import {
+  HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT,
+  HAIR_STRANDS_FLAG_SCATTER,
+  HAIR_STRANDS_FLAG_SCATTER_SET,
+  HAIR_STRANDS_FLAG_STABLE,
+  HAIR_STRANDS_FLAG_STABLE_SET,
+} from '../../../sdk-core/src/contracts/hairStrandsAbi.ts'
 import type { wordViews } from '../gpu/core/wordViews.ts'
 import { HAIR_DEFAULT_MATERIAL, HAIR_FLAG } from './materialMath.ts'
 import type { HairInstance } from './scene.ts'
+import { hairGroupFlags } from './groupFlags.ts'
 
 /** The words of a block, read three ways (`wordViews`). */
 type Words = ReturnType<typeof wordViews>
@@ -47,7 +54,7 @@ export function writeHairViewBlock(
  * scale), the position offset and the radius, the material of the instance, its point count and
  * whether its group was built for strips; then what the material pass reads: the default strand
  * material's colour and roughness, its specular and backlit share, the flags of the strands (`flags`,
- * `HAIR_FLAG`), a word no pass reads, its object's lighting channels and the macro group it lies in.
+ * `HAIR_FLAG`, the project's with the group's own settings over them, `hairGroupFlags`), a word no pass reads, its object's lighting channels and the macro group it lies in.
  */
 export function writeHairInstanceBlock(
   words: Words,
@@ -90,7 +97,7 @@ export function writeHairInstanceBlock(
   f[41] = HAIR_DEFAULT_MATERIAL.backlit
   f[42] = 0
   f[43] = 0
-  u[44] = flags
+  u[44] = hairGroupFlags(group.flags, flags)
   u[45] = 0
   u[46] = HAIR_DEFAULT_MATERIAL.lightChannels
   u[47] = macroGroup

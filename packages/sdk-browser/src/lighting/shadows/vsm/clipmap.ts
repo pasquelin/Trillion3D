@@ -290,60 +290,17 @@ function snapLastLevel(ox: number, oy: number, oz: number, lastLevel: number) {
 const depthOfViewZ = (viewToClip: ArrayLike<number>, zScale: number, z: number) =>
   z * -zScale + viewToClip[14]
 
-/** Level `levelIndex` of `clipmap` (its first level `firstLevel`, the depth of its levels
- *  `depthSpanRatio` times their radius): its snapped corner, its offset from the last level's, its
- *  cache entry's depth range and its projection from metres. `prevCullDistance`, in centimetres, is
- *  where the level before ends its band (0 for the first); returns where this one ends it. */
-function buildLevel(
+/** The level's view-to-clip from metres and the distances its moving casters are drawn between; where the level ends its band (centimetres). */
+function projectLevel(
   clipmap: VsmClipmap,
-  levelIndex: number,
-  firstLevel: number,
-  depthSpanRatio: number,
+  level: VsmClipmap['levels'][number],
+  levelEntry: VsmClipmap['cacheEntry']['mapCaches'][number],
+  absoluteLevel: number,
+  halfWidthCm: number,
+  depthRadius: number,
   config: VsmClipmapConfig,
   prevCullDistance: number,
 ) {
-  const level = heldLevel(clipmap.levels, levelIndex)
-  const absoluteLevel = levelIndex + firstLevel
-  const levelRadiusCm = vsmClipmapLevelRadiusCm(absoluteLevel)
-  const halfWidthCm = 2 * levelRadiusCm
-  const snapCm = levelRadiusCm
-
-  const csx = Math.floor(eyeInLight[0] / snapCm + 0.5),
-    csy = Math.floor(eyeInLight[1] / snapCm + 0.5)
-  const snappedX = csx * snapCm,
-    snappedY = csy * snapCm
-  const cornerX = -Math.trunc(csx) + LEVEL_SPAN_RADII / 2,
-    cornerY = Math.trunc(csy) + LEVEL_SPAN_RADII / 2
-  transformAffinePoint(swc, viewToWorldRotation, snappedX, snappedY, eyeInLight[2])
-
-  // The corner offset relative to the origin snapped at the last level, in whole snap steps.
-  const levelX = Math.trunc(-snappedX),
-    levelY = Math.trunc(snappedY)
-  const lastX = Math.trunc(-lastLevelSnap[0]),
-    lastY = Math.trunc(lastLevelSnap[1])
-  const bias = (LEVEL_SPAN_RADII / 2) * Math.trunc(snapCm)
-  level.cornerFromLast[0] = Math.trunc((levelX - lastX + bias) / snapCm) | 0
-  level.cornerFromLast[1] = Math.trunc((levelY - lastY + bias) / snapCm) | 0
-
-  const levelEntry = clipmap.cacheEntry.mapCaches[levelIndex]
-  let depthRadius = levelRadiusCm * depthSpanRatio
-  entryCell[0] = cornerX * (VSM_LEVEL0_PAGES >> 2)
-  entryCell[1] = cornerY * (VSM_LEVEL0_PAGES >> 2)
-
-  level.wpoThreshold = config.wpoDisable
-    ? vsmWpoThreshold(absoluteLevel, config.wpoLodBias, clipmap.levelBias)
-    : 0
-  levelEntry.updateLevel(
-    clipmap.cacheEntry,
-    entryCell,
-    levelRadiusCm,
-    eyeInLight[2],
-    depthRadius,
-    level.wpoThreshold,
-    config.wpoInvalidatesOnScale,
-  )
-  depthRadius = levelEntry.clipmap.depthRadius
-
   // The level's view-to-clip from metres; its depth offset 1 − zOffset·zScale is unitless,
   // taken from the centimetre values themselves: the exact value, no unit round trip. The
   // distance its moving casters are drawn to is the level's own radius less the resolution bias.
@@ -378,7 +335,79 @@ function buildLevel(
     level.dynamicCullNear = depthOfViewZ(viewToClip, zScale, -prevCullDistance)
     level.dynamicCullFar = depthOfViewZ(viewToClip, zScale, -cullingEnd)
   }
+  return cullingEnd
+}
 
+/** The level's corner snapped to whole steps of `snapCm` under the eye, its offset from the last level's written into `level`, and its world centre in `swc`. */
+function snapLevel(level: VsmClipmap['levels'][number], snapCm: number) {
+  const csx = Math.floor(eyeInLight[0] / snapCm + 0.5),
+    csy = Math.floor(eyeInLight[1] / snapCm + 0.5)
+  const snappedX = csx * snapCm,
+    snappedY = csy * snapCm
+  const cornerX = -Math.trunc(csx) + LEVEL_SPAN_RADII / 2,
+    cornerY = Math.trunc(csy) + LEVEL_SPAN_RADII / 2
+  transformAffinePoint(swc, viewToWorldRotation, snappedX, snappedY, eyeInLight[2])
+
+  // The corner offset relative to the origin snapped at the last level, in whole snap steps.
+  const levelX = Math.trunc(-snappedX),
+    levelY = Math.trunc(snappedY)
+  const lastX = Math.trunc(-lastLevelSnap[0]),
+    lastY = Math.trunc(lastLevelSnap[1])
+  const bias = (LEVEL_SPAN_RADII / 2) * Math.trunc(snapCm)
+  level.cornerFromLast[0] = Math.trunc((levelX - lastX + bias) / snapCm) | 0
+  level.cornerFromLast[1] = Math.trunc((levelY - lastY + bias) / snapCm) | 0
+  return { cornerX, cornerY }
+}
+
+/** Level `levelIndex` of `clipmap` (its first level `firstLevel`, the depth of its levels
+ *  `depthSpanRatio` times their radius): its snapped corner, its offset from the last level's, its
+ *  cache entry's depth range and its projection from metres. `prevCullDistance`, in centimetres, is
+ *  where the level before ends its band (0 for the first); returns where this one ends it. */
+function buildLevel(
+  clipmap: VsmClipmap,
+  levelIndex: number,
+  firstLevel: number,
+  depthSpanRatio: number,
+  config: VsmClipmapConfig,
+  prevCullDistance: number,
+) {
+  const level = heldLevel(clipmap.levels, levelIndex)
+  const absoluteLevel = levelIndex + firstLevel
+  const levelRadiusCm = vsmClipmapLevelRadiusCm(absoluteLevel)
+  const halfWidthCm = 2 * levelRadiusCm
+  const snapCm = levelRadiusCm
+
+  const { cornerX, cornerY } = snapLevel(level, snapCm)
+
+  const levelEntry = clipmap.cacheEntry.mapCaches[levelIndex]
+  let depthRadius = levelRadiusCm * depthSpanRatio
+  entryCell[0] = cornerX * (VSM_LEVEL0_PAGES >> 2)
+  entryCell[1] = cornerY * (VSM_LEVEL0_PAGES >> 2)
+
+  level.wpoThreshold = config.wpoDisable
+    ? vsmWpoThreshold(absoluteLevel, config.wpoLodBias, clipmap.levelBias)
+    : 0
+  levelEntry.updateLevel(
+    clipmap.cacheEntry,
+    entryCell,
+    levelRadiusCm,
+    eyeInLight[2],
+    depthRadius,
+    level.wpoThreshold,
+    config.wpoInvalidatesOnScale,
+  )
+  depthRadius = levelEntry.clipmap.depthRadius
+
+  const cullingEnd = projectLevel(
+    clipmap,
+    level,
+    levelEntry,
+    absoluteLevel,
+    halfWidthCm,
+    depthRadius,
+    config,
+    prevCullDistance,
+  )
   for (let k = 0; k < 3; k++) level.worldCentre[k] = swc[k] * VSM_UNIT_PER_CM
   return cullingEnd
 }
@@ -401,6 +430,27 @@ function lightLevelBias(
       ? vsmLightMobility(cache.lightMoves, light.id, pose, frame, active)
       : 0
   return vsmSunBias(shadows, mobility, screenBias, VSM_LIGHT_SHADOW.levelBias)
+}
+
+/** The light's clipmap held by its cache entry, rewritten for this frame's light, direction, origin and first level. */
+function fillClipmap(
+  cacheEntry: Parameters<typeof heldClipmap>[0],
+  light: VsmDirectionalLightInput,
+  lightDirection: ArrayLike<number>,
+  origin: ArrayLike<number>,
+  firstLevel: number,
+  levelBias: number,
+) {
+  const clipmap = heldClipmap(cacheEntry)
+  clipmap.light = light
+  for (let k = 0; k < 3; k++) {
+    clipmap.lightDirection[k] = lightDirection[k]
+    clipmap.originWorld[k] = origin[k]
+  }
+  clipmap.lightViewRotation.set(worldToLightView)
+  clipmap.firstLevel = firstLevel
+  clipmap.levelBias = levelBias
+  return clipmap
 }
 
 /**
@@ -452,16 +502,7 @@ export function createVsmClipmap(
   )
   const levelBias = lightLevelBias(cache, light, maps, lightDirection, screenBias)
 
-  const clipmap = heldClipmap(cacheEntry)
-  clipmap.light = light
-  for (let k = 0; k < 3; k++) {
-    clipmap.lightDirection[k] = lightDirection[k]
-    clipmap.originWorld[k] = origin[k]
-  }
-  clipmap.lightViewRotation.set(worldToLightView)
-  clipmap.firstLevel = firstLevel
-  clipmap.levelBias = levelBias
-
+  const clipmap = fillClipmap(cacheEntry, light, lightDirection, origin, firstLevel, levelBias)
   snapLastLevel(ox, oy, oz, lastLevel)
   transformAffinePoint(eyeInLight, worldToLightView, ox, oy, oz)
   clipmap.levels.length = Math.min(clipmap.levels.length, levelCount)

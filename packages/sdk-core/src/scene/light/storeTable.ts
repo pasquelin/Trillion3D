@@ -15,7 +15,6 @@ import { sameSceneLight } from './equal.ts'
 import {
   LIGHT_FIELD,
   baseOf,
-  brightnessOf,
   kindWordOf,
   writeContactGi,
   writeDrawRange,
@@ -31,7 +30,7 @@ import { NO_CONTACT_SHADOW_VIEW, type ContactShadowView } from './contactShadowV
 import { NO_LIGHT_SHADOW_VIEW, type LightShadowView } from './shadowedBits.ts'
 import { contactShadowOfLight, sameLightContactShadow } from './lightContactShadow.ts'
 import { createLightRanks } from './lightRanks.ts'
-import { createLightProfileBrightness, profileLaneOf, profileSliceOf } from './lightProfile.ts'
+import { profileLaneOf, profileSliceOf } from './lightProfile.ts'
 import { createEnvironmentBlock } from './environmentBlock.ts'
 
 /** What a light store holds: the packed table and its parts, the lights' records and the counters
@@ -66,8 +65,6 @@ export interface LightTable extends LightLanes {
   readonly shadowView: LightShadowView
   /** The view's settings the lights' draw ranges are folded with (`writeDrawRange`). */
   readonly rangeView: LightRangeView
-  /** The brightness of the light profiles that are loaded (`setTableProfileBrightness`). */
-  readonly profiles: ReturnType<typeof createLightProfileBrightness>
   /** Rises when a light that names a profile is added or removed, or a light's profile changes: what the profile
    *  atlas's sync (`lighting/lightProfile/profileSync.ts`) waits on, so that it scans the lights only then. */
   profileEpoch: number
@@ -166,7 +163,6 @@ export function createLightTable(): LightTable {
     contactView,
     shadowView,
     rangeView: { ...NO_LIGHT_RANGE_VIEW },
-    profiles: createLightProfileBrightness(),
     profileEpoch: 0,
   }
   growTable(table)
@@ -385,22 +381,6 @@ export function assignLightProfile(table: LightTable, slot: number, slice: numbe
   writeKind(table, slot, table.records.get(table.ids[slot])!, undefined, profileLaneOf(slice))
   table.epoch++
   table.notTransport++
-}
-
-/**
- * Records the brightness of a loaded light profile: the lights that name it and take its brightness for their intensity
- * (`useIesBrightness`) have their intensity lane written again and the epoch published; their light transport moved.
- */
-export function setTableProfileBrightness(table: LightTable, profile: string, brightness: number) {
-  if (!table.profiles.set(profile, brightness)) return
-  let moved = false
-  for (const [slot, id] of table.ids.entries()) {
-    const light = table.records.get(id)!
-    if (light.iesProfile !== profile || !light.useIesBrightness) continue
-    table.packed[baseOf(slot) + LIGHT_FIELD.intensity] = brightnessOf(light, brightness)
-    moved = true
-  }
-  if (moved) table.epoch++
 }
 
 /** Records the atlas slice a light occupies, without touching the rest of its fields. The store

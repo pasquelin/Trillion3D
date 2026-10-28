@@ -81,7 +81,7 @@ import { DAG_NO_GATES_WGSL } from '../../../../geometry/dag/shader/noGatesWgsl.t
 import { DAG_READING_WGSL } from '../../../../geometry/dag/shader/snapshotWgsl.ts'
 import { DAG_VIEWS_WGSL } from '../../../../geometry/dag/shader/viewsWgsl.ts'
 import { DAG_ARM_WGSL } from '../../../../geometry/dag/shader/armWgsl.ts'
-import { bitMask, bitWord, ceilDivWgsl } from '../../../../../../math/src/wgsl/integer.ts'
+import { DRAW_MASK_ACCESS_WGSL } from '../../../../geometry/dag/shader/drawMaskWgsl.ts'
 import {
   BLOCK_MASK_WORDS_WGSL,
   DAG_FLOOR_GUARD_WGSL,
@@ -190,11 +190,8 @@ ${DAG_PRIMITIVE_READS}
  *  \`BLOCK_MASK_WORDS\` words a workgroup's pages. */
 fn counterBase()->u32{return 0u;}
 fn viewBase()->u32{return ${FRAME_COUNTERS}u;}
-fn blockCount()->u32{return ceilDiv(cutView.clusterCount,WORKGROUP_THREADS);}
 fn lightBase()->u32{return viewBase()+1u+params.viewCap;}
 fn drawMaskBase()->u32{return lightBase()+${VSM_LIGHT_WORDS}u*params.lightCount;}
-fn drawMaskWord(i:u32)->u32{return drawMaskBase()+bitWord(i);}
-fn drawBit(i:u32)->u32{return bitMask(i);}
 fn descentViews()->u32{return min(atomicLoad(&work[viewBase()]),params.viewCap);}
 /** View \`view\`: the map in the low half of its word, its mip in the three bits above, the lighting
  *  channels of the map's light, as a mask, in the three above those. */
@@ -255,7 +252,8 @@ fn vsmDescentBall(box:VsmDescentBox,node:CullNode,w:u32)->vec3f{
 }
 `
 
-const descentBallText = (prefiltered: boolean) => /* wgsl */ `
+/** The growth of a placement's bounds and its box in a map's space. */
+const descentGrowthText = `
 /** The reach that grows the bounds of placement \`w\` in the map of wpo threshold \`wpoThreshold\`, from
  *  its mark's whole reach \`deformReach\` (the deformation's and the offsets' together): the whole
  *  where the map grows them by the offsets' (\`vsmOffsetGrows\`, the cull's rule for the placement's
@@ -271,8 +269,12 @@ fn vsmDescentBoxOf(pd:VsmProjectionData,w:u32,lo:vec3f,hi:vec3f,growth:f32)->Vsm
  var high:vec4f;var low:vec3f;var axes:array<vec3f,3>;
  casterSphere(w,lo,hi,growth,&high,&low,&axes);
  return vsmDescentBox(pd,high,low,axes);
-}
-/** What the running entry's view holds of a node's box: whether the placement is out of the view for
+}`
+
+/** What the running entry's view holds of a node's box, and whether it draws any of it. */
+const descentViewText = (
+  prefiltered: boolean,
+) => `/** What the running entry's view holds of a node's box: whether the placement is out of the view for
  *  want of a lighting channel the light shares (\`shut\`, the other fields then unset), its map's record,
  *  the box in that map (grown by the reach \`growth\` the map allows), the lens of its mip and, once a
  *  hook asks them, the edge scales of the node's ball (\`vsmDescentScales\`). A node is tested by
@@ -326,8 +328,10 @@ fn vsmDescentDraws(h:VsmHandle,pd:VsmProjectionData,box:VsmDescentBox,layer:VsmC
  if(!vsmCasterInDepthRange(layer,box.cull,pd)){return false;}
  let mip=descentMip();
  return vsmTouchesMappedPixels(h,mip,vsmStalePixels(box.cull,h,mip,layer.staticLayer,layer.transitioned),${prefiltered ? 'vsmCasterMarkMask(layer,box.cull,pd)' : 'layer.markMask'},false,vsmCasterUsesCover(layer,pd));
-}
-/** The smallest and the largest edge scale of the ball of node \`node\` of placement \`w\` in the running
+}`
+
+/** The scales of a node's ball and whether its error shows. */
+const descentScalesText = `/** The smallest and the largest edge scale of the ball of node \`node\` of placement \`w\` in the running
  *  entry's mip view (\`vsmRenderEdgeScales\`), the radius at the placement's largest stretch, projected
  *  once for the node; the view \`descentHeld\` is the node's. */
 fn vsmDescentScales(node:CullNode,w:u32)->vec2f{
@@ -359,8 +363,10 @@ fn vsmDescentReach(node:CullNode,w:u32)->f32{
 fn vsmDescentNeeded(node:CullNode,w:u32)->bool{
  if(node.maxParentError<0.0){return true;}
  return vsmDescentBoxInMap(descentHeld.pd,descentHeld.box)&&vsmDescentShows(node,w,node.maxParentError);
-}
-/** Whether every cluster of the pages \`first\` to \`first + count\`, a leaf's, has its finer group
+}`
+
+/** Whether a leaf's groups are closed, the view floor and the request priority. */
+const descentClosedText = `/** Whether every cluster of the pages \`first\` to \`first + count\`, a leaf's, has its finer group
  *  resident: none waits for it. A leaf that does is kept (the reference's sign of \`MinLODError\`). */
 fn vsmDescentClosed(first:u32,count:u32)->bool{
  for(var k=0u;k<count;k++){if(!childResident(first+k)){return false;}}
@@ -382,8 +388,10 @@ fn vsmDescentPriority(node:CullNode,w:u32)->u32{
  var reach=FLOAT32_MAX;
  if(node.maxParentError>=0.0){reach=vsmDescentReach(node,w)/max(params.threshold,1e-30);}
  return ${requestPriorityOf(VSM_REQUEST_CATEGORY, 'reach')};
-}
-/** Whether the running entry's map does not hold a cell of the placement tree, its render-frame box
+}`
+
+/** A cell of the placement tree against the running entry's map. */
+const descentCellText = `/** Whether the running entry's map does not hold a cell of the placement tree, its render-frame box
  *  \`lo\`..\`hi\` (the main view's eye taken off its world box, \`cellLow\`): its box and its sphere
  *  carried to the map's shifted space by the eye. */
 fn vsmDescentCellOutside(lo:vec3f,hi:vec3f)->bool{
@@ -405,6 +413,9 @@ fn vsmDescentCellBall(lo:vec3f,hi:vec3f)->vec4f{
  *  cull tests a cluster so: \`vsmHiddenBefore\`), in both layers of the map; in the post
  *  pass this frame's, each layer's stale rect clipped as the cull clips it, and a layer with no
  *  page to draw under the box hides it. */`
+
+const descentBallText = (prefiltered: boolean) =>
+  /* wgsl */ `${descentGrowthText}\n${descentViewText(prefiltered)}\n${descentScalesText}\n${descentClosedText}\n${descentCellText}`
 
 const descentHiddenText = /* wgsl */ `
 fn vsmDescentHidden(h:VsmHandle,pd:VsmProjectionData,box:VsmDescentBox,prev:vec3f,prevAxes:array<vec3f,3>)->bool{
@@ -544,9 +555,7 @@ ${descentDeclarationsText()}${descentViewsText}${descentBallText(layout.prefilte
       VSM_RENDER_PARAMS_WGSL,
       vsmBindingsWgsl(1, VSM_DESCENT_SPECS, layout),
       FLOAT32_MAX,
-      bitMask,
-      bitWord,
-      ceilDivWgsl,
+      DRAW_MASK_ACCESS_WGSL,
       FLAT_INDEX_WGSL,
       WORKGROUP_THREADS_WGSL,
     ],

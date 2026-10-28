@@ -63,6 +63,7 @@ const BIAS_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     nonNegative('shadowScreenRayLength', 0.015),
     nonNegative('shadowSubsurfaceMinSourceAngle', 5),
     flag('shadowOnePassProjection', true),
+    flag('clusteredDeferredShading', true),
     flag('shadowForcePerLightMaskClear', false),
     integer('shadowOnePassProjectionMaxLightsPerPixel', 16, [1, 32]),
     flag('shadowAllowScreenOverflowMessages', true),
@@ -116,6 +117,22 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
     count('shadowMaxPhysicalPages', 4096, 1),
     integer('shadowDistantLightMode', 1, [0, 2]),
     integer('shadowMaxDistantUpdatePerFrame', 1, [-1, INT32_RANGE[1]]),
+    flag('shadowVirtualEnable', true),
+    integer('shadowCsmMaxCascades', 10, [0, 10]),
+    number('shadowCsmTransitionScale', 1, [0, 2]),
+    integer('shadowMaxCsmResolution', 2048, [1, 8192]),
+    nonNegative('shadowCsmDepthBias', 10),
+    nonNegative('shadowCsmSlopeScaleDepthBias', 3),
+    number('shadowCsmReceiverBias', 0.9, [0, 1]),
+    nonNegative('shadowCsmSplitPenumbraScale', 0.5),
+    nonNegative('shadowTransitionScale', 60),
+    nonNegative('shadowPointLightDepthBias', 0.02),
+    nonNegative('shadowPointLightSlopeScaleDepthBias', 3),
+    nonNegative('shadowSpotLightDepthBias', 3),
+    nonNegative('shadowSpotLightSlopeScaleDepthBias', 3),
+    nonNegative('shadowMaxSlopeScaleDepthBias', 1),
+    nonNegative('shadowSpotLightTransitionScale', 60),
+    number('shadowSpotLightReceiverBias', 0.5, [0, 1]),
     flag('shadowPointLightShadows', true),
     flag('shadowPointLightCubemaps', true),
     flag('shadowResolutionScaleZeroDisables', true),
@@ -188,6 +205,7 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowScreenRayLength` | 0.015 | |
  * | `shadowSubsurfaceMinSourceAngle` | 5 | |
  * | `shadowOnePassProjection` | true | |
+ * | `clusteredDeferredShading` | true | |
  * | `shadowForcePerLightMaskClear` | false | |
  * | `shadowOnePassProjectionMaxLightsPerPixel` | 16 | |
  * | `shadowAllowScreenOverflowMessages` | true | |
@@ -231,6 +249,22 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowMaxPhysicalPages` | 4096 | 512 512 2048 8192 |
  * | `shadowDistantLightMode` | 1 | |
  * | `shadowMaxDistantUpdatePerFrame` | 1 | |
+ * | `shadowVirtualEnable` | true | |
+ * | `shadowCsmMaxCascades` | 10 | |
+ * | `shadowCsmTransitionScale` | 1 | |
+ * | `shadowMaxCsmResolution` | 2048 | |
+ * | `shadowCsmDepthBias` | 10 | |
+ * | `shadowCsmSlopeScaleDepthBias` | 3 | |
+ * | `shadowCsmReceiverBias` | 0.9 | |
+ * | `shadowCsmSplitPenumbraScale` | 0.5 | |
+ * | `shadowTransitionScale` | 60 | |
+ * | `shadowPointLightDepthBias` | 0.02 | |
+ * | `shadowPointLightSlopeScaleDepthBias` | 3 | |
+ * | `shadowSpotLightDepthBias` | 3 | |
+ * | `shadowSpotLightSlopeScaleDepthBias` | 3 | |
+ * | `shadowMaxSlopeScaleDepthBias` | 1 | |
+ * | `shadowSpotLightTransitionScale` | 60 | |
+ * | `shadowSpotLightReceiverBias` | 0.5 | |
  * | `shadowPointLightShadows` | true | |
  * | `shadowPointLightCubemaps` | true | |
  * | `shadowResolutionScaleZeroDisables` | true | |
@@ -304,6 +338,9 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * packed shares take. The suns are projected apart in both. `shadowForcePerLightMaskClear` clears the projection's
  * target before each light's projection (false, the default, relies on the projection writing every pixel it reaches);
  * it changes no image and only applies when `shadowOnePassProjection` is false.
+ * `clusteredDeferredShading` lights every light of a pixel's cell in one pass over the
+ * image (true, the default here); false takes the shadowed local lights out of that pass and lights each by a draw of its own, as
+ * `shadowOnePassProjection` false does: a light is lit by the per-light path where either is false.
  * `shadowOnePassProjectionMaxLightsPerPixel` is the most local lights a pixel keeps the shadow of in its mask, 4 bits a
  * light, from 1 to 32 (a mask of 32 bits a pixel up to 8 lights, 64 up to 16, 128 up to 32); a light of the pixel's cell
  * past them is read from one sample of its own map by the lighting.

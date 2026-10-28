@@ -9,14 +9,11 @@ import { MATERIAL_SURFACES_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { camera, disposeQuadRun, quadScene } from '../backend/testScenes.fixture.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
+import { backendOf, camera, disposeQuadRun, quadScene } from '../backend/testScenes.fixture.ts'
 import { runtime } from './targets.fixture.ts'
 import { frameTargetAllocation } from './targetAllocation.ts'
 import { wantsEmissiveAo } from './emissiveAoLayer.ts'
 import { surfaceWritten } from '../../geometry/pages/surfaceWrites.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 type Gpu = ReturnType<typeof fakeDevice>
@@ -30,12 +27,9 @@ async function opened(emits: boolean) {
   if (emits) material.emissive = [0.5, 0.25, 0]
   const mesh = fixture.source.children[0] as PageMesh
   mesh.material = material
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: gpu.device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   await backend.prepare()
   // The images it takes for the frame targets to settle (made aside, then in place).

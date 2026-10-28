@@ -61,8 +61,8 @@ const keys: JsonSchemaProperty = /* @__PURE__ */ (() => ({
   },
 }))()
 
-/** The schema of the explorer's `exposureCurve` option (`../contracts/exposureCurve.ts`). */
-export const exposureCurveProperty = (): JsonSchemaProperty => ({
+/** The schema of a curve option (`../contracts/exposureCurve.ts`) described by `description`. */
+const curveProperty = (description: string): JsonSchemaProperty => ({
   anyOf: [
     keys,
     {
@@ -73,6 +73,17 @@ export const exposureCurveProperty = (): JsonSchemaProperty => ({
     },
     { type: 'boolean', description: 'false: no curve.' },
   ],
-  description:
-    'Exposure compensation curve of the automatic exposure: stops added to its target by how bright the scene is. A key sits at an EV100 (the mean luminance over middle grey, one stop a doubling) and gives the stops added there (0 none, -1 twice as dark, 1 twice as bright). Baked into a 64-sample table over EV100 -10 to +20. None by default; set later by explorer.setExposureCurve.',
+  description,
 })
+
+/** The schema of the explorer's `exposureCurve` option. */
+export const exposureCurveProperty = (): JsonSchemaProperty =>
+  curveProperty(
+    'Exposure compensation curve of the automatic exposure: stops added to its target by how bright the scene is. A key sits at an EV100 (the mean luminance over middle grey, one stop a doubling) and gives the stops added there (0 none, -1 twice as dark, 1 twice as bright). Baked into a 64-sample table over EV100 -10 to +20. None by default; set later by explorer.setExposureCurve.',
+  )
+
+/** The schema of the explorer's local exposure contrast curve options: `which` is 'highlight' or 'shadow'. */
+export const contrastCurveProperty = (which: 'highlight' | 'shadow'): JsonSchemaProperty =>
+  curveProperty(
+    `Curve of the local exposure's ${which} contrast: a key sits at an EV100 (the mean luminance over middle grey, one stop a doubling) and gives the scale the ${which} contrast (local exposure ${which} contrast setting) is multiplied by there; the 'compensation' of a key is that scale, not stops. Baked into a 64-sample table over EV100 -10 to +20. None by default (scale 1); set later by explorer.setLocalExposure${which === 'highlight' ? 'Highlight' : 'Shadow'}ContrastCurve.`,
+  )

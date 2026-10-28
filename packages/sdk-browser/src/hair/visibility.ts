@@ -7,6 +7,9 @@ import {
 } from './compactionPass.ts'
 import { encodeHairDepth, encodeHairGbuffer, gbufferPipelines } from './gbufferPass.ts'
 import { encodeHairMaterial, materialPipelines } from './materialPass.ts'
+import { encodeHairDeepShadows } from './deepShadowPass.ts'
+import { encodeHairVoxels } from './voxelPass.ts'
+import { encodeHairMsaa, msaaPipelines } from './msaaPass.ts'
 import { encodeHairClearSamples, encodeHairRaster, rasterPipelines } from './rasterPass.ts'
 import { pixelSizeAtDepth1 } from './scene.ts'
 import type { MacroGroup } from './macroGroups.ts'
@@ -37,7 +40,7 @@ import type { HairInstance } from './scene.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
 
 /** The programs of the image's passes, with what picks them. */
-export interface HairPrograms {
+interface HairProgramsCommon {
   readonly samples: HairSampleCount
   readonly wide: boolean
   readonly blendable: boolean
@@ -45,11 +48,18 @@ export interface HairPrograms {
   readonly patch: boolean
   readonly transmit: NonNullable<ReturnType<typeof transmittancePipelines>>
   readonly tiles: NonNullable<ReturnType<typeof tilePipelines>>
-  readonly raster: NonNullable<ReturnType<typeof rasterPipelines>>
   readonly compact: NonNullable<ReturnType<typeof compactionPipelines>>
   readonly material: NonNullable<ReturnType<typeof materialPipelines>>
   readonly gbuffer: NonNullable<ReturnType<typeof gbufferPipelines>>
 }
+
+/** The programs, with the device's rasterizer writing the samples (`msaa`) or a compute raster doing it
+ *  (`raster`). */
+export type HairPrograms = HairProgramsCommon &
+  (
+    | { readonly hardware: true; readonly msaa: NonNullable<ReturnType<typeof msaaPipelines>> }
+    | { readonly hardware: false; readonly raster: NonNullable<ReturnType<typeof rasterPipelines>> }
+  )
 
 /** The programs for the image, none while one compiles. They are asked together (the frame is held
  *  until all are there) and then kept until what picks them moves: nothing is asked of the pipelines'
@@ -61,6 +71,7 @@ function programsFor(
   samples: HairSampleCount,
   sorted: boolean,
   patch: boolean,
+  hardware: boolean,
 ) {
   const caps = gpuCapsOf(device)
   const wide = caps.wideAtomics,
@@ -72,17 +83,19 @@ function programsFor(
     held.wide === wide &&
     held.blendable === blendable &&
     held.sorted === sorted &&
-    held.patch === patch
+    held.patch === patch &&
+    held.hardware === hardware
   )
     return held
   const transmit = transmittancePipelines(device, blendable)
   const tiles = tilePipelines(device)
-  const raster = rasterPipelines(device, samples, wide)
+  const raster = hardware ? undefined : rasterPipelines(device, samples, wide)
+  const msaa = hardware ? msaaPipelines(device, samples, wide) : undefined
   const compact = compactionPipelines(device, samples, wide)
   const material = materialPipelines(device, sorted)
   const gbuffer = gbufferPipelines(device, patch)
-  if (!transmit || !tiles || !raster || !compact || !material || !gbuffer) return undefined
-  return (gpu.programs = {
+  if (!transmit || !tiles || !compact || !material || !gbuffer) return undefined
+  const common = {
     samples,
     wide,
     blendable,
@@ -90,11 +103,13 @@ function programsFor(
     patch,
     transmit,
     tiles,
-    raster,
     compact,
     material,
     gbuffer,
-  })
+  }
+  if (msaa) return (gpu.programs = { ...common, hardware: true, msaa })
+  if (raster) return (gpu.programs = { ...common, hardware: false, raster })
+  return undefined
 }
 
 /**
@@ -138,7 +153,14 @@ function acquire(
   }
   const samples = hairSampleCount(inputs.samplesPerPixel)
   const mean = hairMeanSampleCount(samples, inputs.meanSamplesPerPixel)
-  const programs = programsFor(device, gpu, samples, inputs.sortByDepth, !!inputs.surfaces)
+  const programs = programsFor(
+    device,
+    gpu,
+    samples,
+    inputs.sortByDepth,
+    !!inputs.surfaces,
+    !!inputs.hardwareRaster,
+  )
   if (!programs) return undefined
   for (const member of members) if (!member.group.tangentsWritten) return undefined
   const asked = hairNodeCapacity(rect, mean)
@@ -157,6 +179,7 @@ function acquire(
       allocated: inputs.allocated,
       samples,
       blendable: programs.blendable,
+      hardware: programs.hardware,
       needed: Math.min(asked, HAIR_NODE_ROOM_MAX),
     },
     fail,
@@ -166,17 +189,11 @@ function acquire(
 /** The least radii of a strand, for the image: written in place each image. */
 const radii: [number, number, number, number] = [0, 0, 0, 0]
 
-/**
- * Writes the blocks of the image, only the words that changed: the view's (strands never thinner than
- * the samples of a pixel can find, which the transmittance — one sample a pixel — and the visibility —
- * its count — see differently, each at the width of a groom drawn stable too, over the view-projection
- * with the image's jitter, the eye at the origin, and its inverse), the image's, each instance's and
- * each band's window.
- */
-function writeBlocks(device: GPUDevice, gpu: HairViewGpu, record: HairViewRecord) {
-  const { inputs, imageBlock, tileRect } = gpu
+/** The view's block: the strands never thinner than the samples of a pixel can find, over the view-projection with the image's jitter. */
+function writeViewBlock(gpu: HairViewGpu, record: HairViewRecord) {
+  const { inputs } = gpu
   const { camera, size } = inputs
-  const { samples, needed, buffers } = record
+  const { samples } = record
   const pixelSize = pixelSizeAtDepth1(
     camera.projection,
     camera.perspective,
@@ -199,6 +216,13 @@ function writeBlocks(device: GPUDevice, gpu: HairViewGpu, record: HairViewRecord
     inputs.sortByDepth,
   )
   gpu.viewBlock.send()
+}
+
+/** The image's block. */
+function writeImageBlock(gpu: HairViewGpu, record: HairViewRecord) {
+  const { inputs, imageBlock, tileRect } = gpu
+  const { size } = inputs
+  const { needed, buffers } = record
   const { u, f } = imageBlock.words
   u[0] = size[0]
   u[1] = size[1]
@@ -210,6 +234,11 @@ function writeBlocks(device: GPUDevice, gpu: HairViewGpu, record: HairViewRecord
   u[7] = inputs.sortByDepth ? 1 : 0
   u[8] = inputs.emissionLayer
   imageBlock.send()
+}
+
+/** Each drawn instance's block. */
+function writeInstanceBlocks(device: GPUDevice, gpu: HairViewGpu) {
+  const { inputs } = gpu
   const { drawn, members } = gpu
   drawn.length = 0
   for (let material = 0; material < members.length; material++) {
@@ -218,7 +247,7 @@ function writeBlocks(device: GPUDevice, gpu: HairViewGpu, record: HairViewRecord
     writeHairInstanceBlock(
       held.block.words,
       instance,
-      camera.eye,
+      inputs.camera.eye,
       material,
       gpu.macroGroups[material]!,
       inputs.flags,
@@ -226,7 +255,210 @@ function writeBlocks(device: GPUDevice, gpu: HairViewGpu, record: HairViewRecord
     held.block.send()
     drawn.push(held.drawn)
   }
-  writeHairWindows(device, buffers, size[0], size[1])
+}
+
+/** The instances the voxels and the deep shadows are made of: the drawn ones, and those only their shadow is cast by, each group's apart. */
+function writeGroupInstances(
+  device: GPUDevice,
+  gpu: HairViewGpu,
+  macroGroups: readonly MacroGroup<HairInstance>[],
+) {
+  const { inputs, drawn, members } = gpu
+  const { camera } = inputs
+  const { voxelDrawn, groupInstances } = gpu
+  voxelDrawn.length = 0
+  for (const list of groupInstances) list.length = 0
+  if (!inputs.surfaces || !(inputs.voxel || inputs.deepShadow)) return
+  for (let rank = 0; rank < macroGroups.length; rank++) {
+    const list = (groupInstances[rank] ??= [])
+    for (const instance of macroGroups[rank]!.shadowMembers) {
+      const held = instanceGpu(device, gpu, instance)
+      writeHairInstanceBlock(held.block.words, instance, camera.eye, 0, rank, inputs.flags)
+      held.block.send()
+      list.push(held.drawn)
+      if (instance.supportsVoxelization) voxelDrawn.push(held.drawn)
+    }
+  }
+  for (let material = 0; material < members.length; material++) {
+    groupInstances[gpu.macroGroups[material]!]!.push(drawn[material]!)
+    if (members[material]!.supportsVoxelization) voxelDrawn.push(drawn[material]!)
+  }
+}
+
+/**
+ * Writes the blocks of the image, only the words that changed: the view's (strands never thinner than
+ * the samples of a pixel can find, which the transmittance — one sample a pixel — and the visibility —
+ * its count — see differently, each at the width of a groom drawn stable too, over the view-projection
+ * with the image's jitter, the eye at the origin, and its inverse), the image's, each instance's and
+ * each band's window.
+ */
+function writeBlocks(
+  device: GPUDevice,
+  gpu: HairViewGpu,
+  record: HairViewRecord,
+  macroGroups: readonly MacroGroup<HairInstance>[],
+) {
+  writeViewBlock(gpu, record)
+  writeImageBlock(gpu, record)
+  writeInstanceBlocks(device, gpu)
+  writeHairWindows(device, record.buffers, gpu.inputs.size[0], gpu.inputs.size[1])
+  writeGroupInstances(device, gpu, macroGroups)
+}
+
+/** The volumes the light is traced through once the strands are lit: the voxels, and the deep shadows of the lights that draw one. */
+function encodeVolumes(
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  gpu: HairViewGpu,
+  macroGroups: readonly MacroGroup<HairInstance>[],
+  depthView: GPUTextureView,
+  fail: (error: unknown) => void,
+) {
+  const { inputs } = gpu
+  // The strands are summed into the voxel volume the light is traced through once they are lit (the
+  // surfaces are handed to the lighting); else no volume is held.
+  if (inputs.voxel && inputs.surfaces)
+    encodeHairVoxels(device, encoder, gpu.voxel, {
+      settings: inputs.voxel,
+      macroGroups,
+      bounds: gpu.bounds,
+      eye: inputs.camera.eye,
+      instances: gpu.voxelDrawn,
+      viewBuffer: gpu.viewBlock.buffer,
+      depthView,
+      fail,
+    })
+  else gpu.voxel.dispose()
+  // The lights that draw a deep shadow draw it, once the strands are lit.
+  gpu.deepShadows =
+    inputs.deepShadow && inputs.surfaces
+      ? encodeHairDeepShadows(device, encoder, gpu.deepShadow, {
+          settings: inputs.deepShadow.settings,
+          lights: inputs.deepShadow.lights,
+          macroGroups,
+          groupInstances: gpu.groupInstances,
+          bounds: gpu.bounds,
+          viewBuffer: gpu.viewBlock.buffer,
+          renderSize: inputs.size,
+          fail,
+        })
+      : undefined
+  if (!gpu.deepShadows) gpu.deepShadow.dispose()
+}
+
+/** The material of the compacted samples and the surfaces' buffers they write, in the open compute pass. */
+function encodeShading(
+  device: GPUDevice,
+  pass: GPUComputePassEncoder,
+  gpu: HairViewGpu,
+  { targets, buffers, nodes }: HairViewRecord,
+  programs: NonNullable<HairViewGpu['programs']>,
+) {
+  const { inputs, drawn } = gpu
+  const { tiles } = buffers
+  encodeHairNodeArgs(device, pass, programs.compact, nodes)
+  encodeHairMaterial(
+    device,
+    pass,
+    programs.material,
+    gpu.materialBinds,
+    nodes,
+    drawn,
+    tiles,
+    targets.nodeIndexView,
+  )
+  encodeHairGbuffer(
+    device,
+    pass,
+    programs.gbuffer,
+    gpu.gbufferBinds,
+    tiles,
+    nodes,
+    targets,
+    inputs.surfaces,
+  )
+}
+
+/** The visibility samples drawn: by the device's rasterizer, in passes of its own between two compute passes (the second returned), or by the compute raster in the open pass. */
+function encodeVisibilitySamples(
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  gpu: HairViewGpu,
+  { targets, buffers }: HairViewRecord,
+  programs: NonNullable<HairViewGpu['programs']>,
+  pass: GPUComputePassEncoder,
+  compute: () => GPUComputePassEncoder,
+) {
+  const { inputs, imageBlock, drawn, rect } = gpu
+  const depthView = inputs.depthView!
+  if (!programs.hardware) {
+    encodeHairRaster(device, pass, programs.raster, buffers.raster, depthView, drawn)
+    return pass
+  }
+  pass.end()
+  encodeHairMsaa(
+    device,
+    encoder,
+    programs.msaa,
+    targets.msaa!,
+    {
+      viewBuffer: gpu.viewBlock.buffer,
+      depthView,
+      image: imageBlock.buffer,
+      size: inputs.size,
+      rect,
+    },
+    drawn,
+    buffers.tiles,
+    buffers.bands,
+    buffers.raster.count,
+  )
+  return compute()
+}
+
+/** The tiles the strands touch, the clear of their samples, the visibility samples, their compaction, their material and the depth of the nearest strand of each pixel, in compute passes. */
+function encodeSamples(
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  gpu: HairViewGpu,
+  record: HairViewRecord,
+  programs: NonNullable<HairViewGpu['programs']>,
+) {
+  const { inputs, tileRect, imageBlock, drawn, rect } = gpu
+  const depthView = inputs.depthView!
+  const { targets, buffers, nodes } = record
+  const { tiles } = buffers
+  const compute = () => encoder.beginComputePass({ label: `${HAIR_STRANDS_PASS_PREFIX}visibility` })
+  let pass = compute()
+  encodeHairTiles(
+    device,
+    pass,
+    programs.tiles,
+    tiles,
+    imageBlock.buffer,
+    targets.transmittanceView,
+    tileRect,
+  )
+  encodeHairClearSamples(
+    device,
+    pass,
+    (programs.hardware ? programs.msaa : programs.raster).clear,
+    buffers.raster,
+    imageBlock.buffer,
+    tiles,
+  )
+  pass = encodeVisibilitySamples(device, encoder, gpu, record, programs, pass, compute)
+  for (let k = 0; k < buffers.raster.count; k++) {
+    const band = buffers.bands[k]!
+    encodeHairCompaction(
+      pass,
+      programs.compact,
+      band.compact(device, programs.compact.compact, record.compaction, band, nodes, depthView),
+      tiles,
+    )
+  }
+  encodeShading(device, pass, gpu, record, programs)
+  pass.end()
 }
 
 /**
@@ -257,8 +489,8 @@ export function encodeHairVisibility(
   const { targets, buffers, nodes } = record
   const { tiles } = buffers
   hairTileRect(tileRect, rect)
-  writeBlocks(device, gpu, record)
-
+  writeBlocks(device, gpu, record, macroGroups)
+  encodeVolumes(device, encoder, gpu, macroGroups, depthView, fail)
   // What the passes fill starts empty: the counters first, outside any pass; the samples are emptied
   // where the tiles say they will be read.
   clearHairTiles(encoder, tiles)
@@ -278,56 +510,7 @@ export function encodeHairVisibility(
     },
     drawn,
   )
-  const pass = encoder.beginComputePass({ label: `${HAIR_STRANDS_PASS_PREFIX}visibility` })
-  encodeHairTiles(
-    device,
-    pass,
-    programs.tiles,
-    tiles,
-    imageBlock.buffer,
-    targets.transmittanceView,
-    tileRect,
-  )
-  encodeHairClearSamples(
-    device,
-    pass,
-    programs.raster.clear,
-    buffers.raster,
-    imageBlock.buffer,
-    tiles,
-  )
-  encodeHairRaster(device, pass, programs.raster.phases, buffers.raster, depthView, drawn)
-  for (let k = 0; k < buffers.raster.count; k++) {
-    const band = buffers.bands[k]!
-    encodeHairCompaction(
-      pass,
-      programs.compact,
-      band.compact(device, programs.compact.compact, record.compaction, band, nodes, depthView),
-      tiles,
-    )
-  }
-  encodeHairNodeArgs(device, pass, programs.compact, nodes)
-  encodeHairMaterial(
-    device,
-    pass,
-    programs.material,
-    gpu.materialBinds,
-    nodes,
-    drawn,
-    tiles,
-    targets.nodeIndexView,
-  )
-  encodeHairGbuffer(
-    device,
-    pass,
-    programs.gbuffer,
-    gpu.gbufferBinds,
-    tiles,
-    nodes,
-    targets,
-    inputs.surfaces,
-  )
-  pass.end()
+  encodeSamples(device, encoder, gpu, record, programs)
   if (programs.gbuffer.depth) {
     // The surfaces the strands cover wholly were emptied: their depth becomes the strands'.
     gpu.depthPass.depthStencilAttachment.view = depthView

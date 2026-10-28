@@ -1,4 +1,5 @@
 import { buildComputeStages } from '../../../gpu/core/computeStages.ts'
+import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import {
   REFLECTION_DENOISE_PASS,
   REFLECTION_SCENE_PASS,
@@ -91,6 +92,8 @@ type TraceStages = Awaited<ReturnType<typeof createTraceStages>>
  *  transparents' front one (1) (`hardwareReflectionKernels`, `../reflectionPipelines.ts`). */
 interface HardwareStage {
   pipeline(layer: number): GPUComputePipeline
+  /** The format of the surface cache's final light the stage is for (`lightAtlasFormat`). */
+  readonly light: LightAtlasFormat
 }
 
 /** The trace's passes, each timed alone under its label: the clear of the unused tracing tiles, the ray generation and the screen stage (the
@@ -133,6 +136,18 @@ const readsNeighbours = (
 /** The classification's workgroups, written in place each image (`classifyGroups`). */
 const classifying: [number, number] = [0, 0]
 
+/** Each list's head as an image starts it, of each side the image traces: one copy a list. */
+function resetHeads(
+  encoder: GPUCommandEncoder,
+  reflection: TraceResources,
+  sides: readonly ('opaque' | 'front')[],
+) {
+  for (const side of sides) {
+    const { lists } = side === 'opaque' ? reflection.grids : reflection.front.grids
+    for (const list of lists) resetListIn(reflection.device, encoder, list)
+  }
+}
+
 /**
  * The reflections of the pixels of `size` in the trace's three passes on `encoder` (`PASSES`), each
  * opened, filled and ended in turn (`trace.ts`): for the opaque surface — and, with `front`, the image's
@@ -164,15 +179,14 @@ export function encodeReflectionTrace(
   const groups = traceGroups(reflection, stages, stages.layouts, inputs)
   const traced =
     hardware && inputs.rays
-      ? { stage: hardware, groups: hardwareTraceGroups(reflection, inputs, inputs.rays) }
+      ? {
+          stage: hardware,
+          groups: hardwareTraceGroups(reflection, inputs, inputs.rays, hardware.light),
+        }
       : undefined
   const parity = (reflection.trace.parity ^= 1)
   const sides = front ? BOTH : OPAQUE
-  for (const side of sides) {
-    const { lists } = side === 'opaque' ? reflection.grids : reflection.front.grids
-    // Each head as an image starts it: one copy a list.
-    for (const list of lists) resetListIn(reflection.device, encoder, list)
-  }
+  resetHeads(encoder, reflection, sides)
   for (const { label, kernels } of PASSES) {
     const pass = encoder.beginComputePass({ label })
     // The depth pyramid's group, every kernel's: set once, kept across their pipelines.

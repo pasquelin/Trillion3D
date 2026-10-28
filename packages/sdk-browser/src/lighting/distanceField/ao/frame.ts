@@ -1,4 +1,3 @@
-import { heldColour } from '../../../gpu/core/heldAttachment.ts'
 import type { DistanceFieldOcclusionSettings } from '../../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import { dispatchOn } from '../../../gpu/core/computeStages.ts'
 import { ComputeRun } from '../../../gpu/core/lazyComputePass.ts'
@@ -8,12 +7,14 @@ import { CONE_GLOBAL_GROUP } from './coneGlobalWgsl.ts'
 import { COMBINE_GROUP } from './combineWgsl.ts'
 import { CULL_GROUP } from './cullWgsl.ts'
 import { CLEAR_GROUP } from './gridWgsl.ts'
-import { dfaoGroups, type DfaoSources } from './groups.ts'
+import { dfaoGroups, dfaoPackFrom, type DfaoSources } from './groups.ts'
 import { DFAO_PARAMS } from './layout.ts'
 import { dfaoPrograms, dfaoProgramsReady, type DfaoPrograms } from './pipelines.ts'
 import { writeDfaoParams, type DfaoHistory, type DfaoImage, type DfaoScene } from './params.ts'
 import { HISTORY_GROUP } from './historyWgsl.ts'
-import { ensureDfaoView, objectCapacity, type DfaoView } from './view.ts'
+import { encodeTileScatter, tileScatterTargets } from '../tileScatter.ts'
+import { ensureDfaoView, type DfaoView } from './view.ts'
+import { objectCapacity } from '../../rays/meshTrace/gridPasses.ts'
 
 const LABEL = 'Trillion3D distance-field occlusion'
 const GRID_PASS: GPUComputePassDescriptor = { label: `${LABEL} grid` }
@@ -22,15 +23,7 @@ const OFFSETS_PASS: GPUComputePassDescriptor = { label: `${LABEL} offsets` }
 const CONES_PASS: GPUComputePassDescriptor = { label: `${LABEL} cones` }
 const HISTORY_PASS: GPUComputePassDescriptor = { label: `${LABEL} history` }
 const PACK_PASS: GPUComputePassDescriptor = { label: `${LABEL} pack` }
-const scatterTarget = heldColour({ loadOp: 'clear', storeOp: 'discard' })
-const COUNT_TILES: GPURenderPassDescriptor = {
-  label: `${LABEL} count tiles`,
-  colorAttachments: [scatterTarget],
-}
-const WRITE_TILES: GPURenderPassDescriptor = {
-  label: `${LABEL} write tiles`,
-  colorAttachments: [scatterTarget],
-}
+const SCATTER = tileScatterTargets(LABEL)
 /** The image's compute passes that follow one another, one pass but on a frame timed per pass. */
 const steps = new ComputeRun()
 
@@ -54,6 +47,15 @@ export interface DfaoInputs extends Omit<DfaoSources, 'vectors'> {
   distances: DfaoScene['distances']
   /** The history is dropped this image: a camera cut, a transform reset, a cube capture. */
   historyCut: boolean
+  /** Darkens the bent normals the history ended in before the lit pass reads them, without touching the history: given the
+   *  encoder to dispatch on, the texture they are in (`rgba16float`, the bent normal and the depth in centimetres) and its size in
+   *  pixels, it returns a texture of the same kind and size holding the image to light with, or nothing for the bent normals
+   *  as they are (`encodeCapsuleSkyShadows`). */
+  skyShadows?: (
+    encoder: GPUCommandEncoder,
+    bent: GPUTextureView,
+    size: readonly [number, number],
+  ) => GPUTextureView | undefined
 }
 
 const floats = new Float32Array(DFAO_PARAMS.words)
@@ -122,17 +124,17 @@ function scatter(
   tiles: readonly [number, number],
   which: 'count' | 'write',
 ) {
-  scatterTarget.view = view.standIn.view
-  const pipeline = (which === 'count' ? programs.countTiles : programs.writeTiles).get()
-  if (!pipeline) return
-  const pass = encoder.beginRenderPass(which === 'count' ? COUNT_TILES : WRITE_TILES)
-  pass.setViewport(0, 0, tiles[0], tiles[1], 0, 1)
-  pass.setPipeline(pipeline)
-  pass.setBindGroup(0, groups.scatter)
-  pass.setVertexBuffer(0, programs.sphere.vertices)
-  pass.setIndexBuffer(programs.sphere.indices, 'uint16')
-  pass.drawIndexedIndirect(view.objectArgs, 0)
-  pass.end()
+  SCATTER.target.view = view.standIn.view
+  encodeTileScatter(
+    encoder,
+    SCATTER[which],
+    which === 'count' ? programs.countTiles : programs.writeTiles,
+    groups.scatter,
+    tiles[0],
+    tiles[1],
+    view.objectArgs,
+    programs.sphere,
+  )
 }
 
 /** The cones traced against the global field and the meshes' fields, then combined into bent normals. */
@@ -204,21 +206,102 @@ function encodeHistory(
 
 /** The image the history ended in, in the texture `at` of the history (`encodeHistory`), packed into the buffer the lit pass
  *  reads (`packWgsl.ts`). */
-function encodePack(
-  programs: DfaoPrograms,
-  view: DfaoView,
-  groups: Record<string, GPUBindGroup>,
-  at: 0 | 1,
-) {
+function encodePack(programs: DfaoPrograms, view: DfaoView, group: GPUBindGroup) {
   const [width, height] = occlusionBuffers(view.shape.extent).grid
   const pass = steps.pass(PACK_PASS)
   dispatchOn(
     pass,
     programs.single.pack,
-    groups[`pack${at}`],
+    group,
     ceilDiv(width, HISTORY_GROUP),
     ceilDiv(height, HISTORY_GROUP),
   )
+}
+
+type Dfao = {
+  programs: ReturnType<typeof dfaoPrograms>
+  view: NonNullable<DfaoState['view']>
+}
+
+/** The view the image is drawn into, made again where it cannot hold the image (`state.why` says why it cannot be made). */
+function dfaoViewOf(state: DfaoState, device: GPUDevice, inputs: DfaoInputs) {
+  const { view, why } = ensureDfaoView(state.view, device, {
+    extent: inputs.image.extent,
+    objects: objectCapacity(inputs.objects?.count ?? 0),
+    perTile: inputs.settings.objectsPerCullTile,
+  })
+  state.view = view
+  state.why = why
+  return view
+}
+
+/** The image's parameters written and the bind groups of its passes. */
+function uploadDfao(
+  device: GPUDevice,
+  programs: Dfao['programs'],
+  view: Dfao['view'],
+  inputs: DfaoInputs,
+  reading: boolean,
+) {
+  const history: DfaoHistory = { lastView: reading ? view.lastView : undefined }
+  writeDfaoParams(
+    floats,
+    words,
+    inputs.image,
+    inputs.settings,
+    {
+      objects: inputs.objects?.count ?? 0,
+      sphereIndices: programs.sphere.indexCount,
+      distances: inputs.distances,
+    },
+    history,
+  )
+  device.queue.writeBuffer(view.params, 0, floats)
+  return dfaoGroups(
+    device,
+    programs,
+    view,
+    { ...inputs, vectors: inputs.vectors ?? programs.noVectors },
+    view.historyAt,
+  )
+}
+
+/** The passes of an image in order: the grid, the tile lists and the cones, the history and the pack; the view's history moved on. */
+function encodeDfaoChain(
+  c: Dfao & {
+    device: GPUDevice
+    encoder: GPUCommandEncoder
+    groups: ReturnType<typeof dfaoGroups>
+    inputs: DfaoInputs
+    global: boolean
+    traced: boolean
+    reading: boolean
+  },
+) {
+  const { device, encoder, programs, view, groups, inputs, global, traced } = c
+  const { settings, image } = inputs
+  if (traced) clearTileLists(encoder, view)
+  steps.begin(encoder)
+  encodeGrid(programs, view, groups)
+  if (traced) encodeTileLists(programs, view, groups, image)
+  encodeCones(programs, view, groups, { global, objects: traced, settings })
+  const at = encodeHistory(programs, view, groups, {
+    read: c.reading,
+    stability: settings.stabilityPass,
+  })
+  const lit = inputs.skyShadows?.(
+    steps.apart(),
+    view.history[at].view,
+    occlusionBuffers(view.shape.extent).grid,
+  )
+  encodePack(programs, view, lit ? dfaoPackFrom(device, programs, view, lit) : groups[`pack${at}`])
+  steps.end()
+  view.historyAt = at
+  view.historyValid = settings.useHistory
+  view.lastView = [
+    Math.floor(image.view[0] / AO_DOWNSAMPLE),
+    Math.floor(image.view[1] / AO_DOWNSAMPLE),
+  ]
 }
 
 /**
@@ -245,52 +328,10 @@ export function encodeDistanceFieldOcclusion(
   // Every pipeline of the chain asked here, before the view, the params or the history move.
   if (!dfaoProgramsReady(programs, { global, objects: traced ? shape : undefined }))
     return undefined
-  const { view, why } = ensureDfaoView(state.view, device, {
-    extent: image.extent,
-    objects: objectCapacity(objects?.count ?? 0),
-    perTile: settings.objectsPerCullTile,
-  })
-  state.view = view
-  state.why = why
+  const view = dfaoViewOf(state, device, inputs)
   if (!view) return undefined
   const reading = settings.useHistory && view.historyValid && !inputs.historyCut
-  const history: DfaoHistory = { lastView: reading ? view.lastView : undefined }
-  writeDfaoParams(
-    floats,
-    words,
-    image,
-    settings,
-    {
-      objects: objects?.count ?? 0,
-      sphereIndices: programs.sphere.indexCount,
-      distances: inputs.distances,
-    },
-    history,
-  )
-  device.queue.writeBuffer(view.params, 0, floats)
-  const groups = dfaoGroups(
-    device,
-    programs,
-    view,
-    { ...inputs, vectors: inputs.vectors ?? programs.noVectors },
-    view.historyAt,
-  )
-  if (traced) clearTileLists(encoder, view)
-  steps.begin(encoder)
-  encodeGrid(programs, view, groups)
-  if (traced) encodeTileLists(programs, view, groups, image)
-  encodeCones(programs, view, groups, { global, objects: traced, settings })
-  const at = encodeHistory(programs, view, groups, {
-    read: reading,
-    stability: settings.stabilityPass,
-  })
-  encodePack(programs, view, groups, at)
-  steps.end()
-  view.historyAt = at
-  view.historyValid = settings.useHistory
-  view.lastView = [
-    Math.floor(image.view[0] / AO_DOWNSAMPLE),
-    Math.floor(image.view[1] / AO_DOWNSAMPLE),
-  ]
+  const groups = uploadDfao(device, programs, view, inputs, reading)
+  encodeDfaoChain({ device, encoder, programs, view, groups, inputs, global, traced, reading })
   return view
 }

@@ -5,6 +5,7 @@ import { TILE_SIZE } from './cones.ts'
 import { DFAO_GRID_WGSL } from './gridWgsl.ts'
 import { DFAO_BINDING as B } from './layout.ts'
 import { meshFieldWgsl } from '../meshFieldWgsl.ts'
+import { DF_CULL_HELPERS_WGSL, dfCullFrustumWgsl, dfCullGroupWgsl } from '../objectCullWgsl.ts'
 
 /** The threads of a group of the meshes' culling to the view, and of the start offsets. */
 export const CULL_GROUP = 64
@@ -20,48 +21,21 @@ export const CULL_GROUP = 64
 export const DFAO_CULL_OBJECTS_WGSL = wgslProgram(
   `@group(0) @binding(${B.culledObjects}) var<storage,read_write> culledObjects:array<u32>;
 @group(0) @binding(${B.objectArgs}) var<storage,read_write> objectArgs:array<atomic<u32>>;
-var<workgroup> groupCount:atomic<u32>;
-var<workgroup> groupBase:u32;
-var<workgroup> groupObjects:array<u32,${CULL_GROUP}>;
-fn dfaoDistanceSquared(v:vec3f)->f32{
- if(dfao.depth.z>0.5){return dot(v,v);}
- let along=dot(v,dfao.viewToWorld[2].xyz);
- if(along==0.0){return 3.0e38;}
- let d=dot(v,v)/along;
- return d*d;
-}
-fn dfaoInFrustum(center:vec3f,radius:f32)->bool{
- for(var plane=0u;plane<dfao.counts.x;plane++){
-  let p=dfao.planes[plane];
-  if(dot(p.xyz,center)-p.w>radius){return false;}
- }
- return true;
-}
-@compute @workgroup_size(${CULL_GROUP})
-fn dfaoCullObjects(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
- if(id.x==0u){atomicStore(&objectArgs[0],dfao.counts.z);}
- if(lane==0u){atomicStore(&groupCount,0u);}
- workgroupBarrier();
- if(id.x<dfao.counts.y){
-  let bounds=loadDfObjectBounds(id.x);
-  let sphere=bounds.sphereRadius;
-  let center=bounds.center.hi+bounds.center.lo;
-  let distanceSquared=dfaoDistanceSquared(dfao.viewToWorld[3].xyz-center);
-  let farthest=dfao.distances.w+sphere;
-  if(distanceSquared<farthest*farthest&&dfaoInFrustum(center,sphere+dfao.distances.x)){
-   let range=loadDfObjectData(id.x).drawDistance2;
-   if((range.x<0.0001||distanceSquared>range.x)&&(range.y<0.0001||distanceSquared<range.y)){
-    groupObjects[atomicAdd(&groupCount,1u)]=id.x;
-   }
-  }
- }
- workgroupBarrier();
- let count=atomicLoad(&groupCount);
- if(lane==0u){groupBase=atomicAdd(&objectArgs[1],count);}
- workgroupBarrier();
- if(lane<count){culledObjects[groupBase+lane]=groupObjects[lane];}
+fn dfCullKeeps(index:u32,bounds:DfObjectBounds,centre:vec3f)->bool{
+ let sphere=bounds.sphereRadius;
+ let distanceSquared=dfCullDistanceSquared(dfao.viewToWorld[3].xyz-centre,dfao.depth.z>0.5,dfao.viewToWorld[2].xyz);
+ let farthest=dfao.distances.w+sphere;
+ return distanceSquared<farthest*farthest
+  &&dfCullInFrustum(centre,sphere+dfao.distances.x)
+  &&dfCullDrawn(loadDfObjectData(index).drawDistance2,distanceSquared);
 }`,
-  [DFAO_COMMON_WGSL, meshFieldWgsl(0, B.objects)],
+  [
+    DFAO_COMMON_WGSL,
+    meshFieldWgsl(0, B.objects),
+    DF_CULL_HELPERS_WGSL,
+    dfCullFrustumWgsl('dfao.planes', 'dfao.counts.x'),
+    dfCullGroupWgsl('dfaoCullObjects', CULL_GROUP, 'dfao.counts.y', 'dfao.counts.z'),
+  ],
 )
 
 /**

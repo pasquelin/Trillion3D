@@ -1,5 +1,9 @@
-import { EngineError } from '../contracts/cache.ts'
-import { assertSidecarSection, checkSidecarHead } from '../contracts/sidecarSection.ts'
+import {
+  assertSidecarSection,
+  checkSidecarHead,
+  sidecarRefusal,
+  type SidecarRefusal,
+} from '../contracts/sidecarSection.ts'
 import {
   HAIR_STRANDS_ATTRIBUTE_COLOR,
   HAIR_STRANDS_ATTRIBUTE_ROOT_UV,
@@ -9,7 +13,11 @@ import {
   HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT,
   HAIR_STRANDS_FLAG_INVALID_POINT,
   HAIR_STRANDS_FLAG_ROOT_TILE,
+  HAIR_STRANDS_FLAG_SCATTER,
+  HAIR_STRANDS_FLAG_SCATTER_SET,
   HAIR_STRANDS_FLAG_SHUFFLED_CURVE,
+  HAIR_STRANDS_FLAG_STABLE,
+  HAIR_STRANDS_FLAG_STABLE_SET,
   HAIR_STRANDS_FLAG_TRIMMED_CURVE,
   HAIR_STRANDS_FLAG_TRIMMED_POINT,
   HAIR_STRANDS_GROUP_AT,
@@ -79,9 +87,7 @@ export interface HairStrands {
   readonly groups: readonly HairStrandsGroup[]
 }
 
-const refuse = (why: string): never => {
-  throw new EngineError('INVALID_CACHE', `hair strands: ${why}`, {})
-}
+const refuse: SidecarRefusal = sidecarRefusal('hair strands')
 
 /** The flag and attribute bits a record may carry. */
 const KNOWN_FLAGS =
@@ -90,7 +96,11 @@ const KNOWN_FLAGS =
   HAIR_STRANDS_FLAG_INVALID_POINT |
   HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT |
   HAIR_STRANDS_FLAG_SHUFFLED_CURVE |
-  HAIR_STRANDS_FLAG_ROOT_TILE
+  HAIR_STRANDS_FLAG_ROOT_TILE |
+  HAIR_STRANDS_FLAG_STABLE_SET |
+  HAIR_STRANDS_FLAG_STABLE |
+  HAIR_STRANDS_FLAG_SCATTER_SET |
+  HAIR_STRANDS_FLAG_SCATTER
 const KNOWN_ATTRIBUTES =
   HAIR_STRANDS_ATTRIBUTE_ROOT_UV | HAIR_STRANDS_ATTRIBUTE_COLOR | HAIR_STRANDS_ATTRIBUTE_ROUGHNESS
 
@@ -179,6 +189,64 @@ function checkCurves(curves: Uint8Array, pointCount: number) {
   if (next !== pointCount) refuse('curves that do not hold the points of their group')
 }
 
+/** Where each table starts, one after the other, as `encode.rs` lays them out, and where the last ends. */
+function tableOffsets(
+  recordsEnd: number,
+  before: { curves: number; points: number; rootUvs: number; colors: number; roughness: number },
+) {
+  let end = recordsEnd
+  const table = (size: number, alignment = 1) => {
+    end = alignUp(end, alignment)
+    const at = end
+    end += size
+    return at
+  }
+  const offsets = {
+    curves: table(before.curves * HAIR_STRANDS_CURVE_BYTES),
+    points: table(before.points * HAIR_STRANDS_POINT_BYTES, HAIR_STRANDS_POINTS_ALIGNMENT),
+    seeds: table(before.curves * HAIR_STRANDS_SEED_BYTES),
+    lengths: table(before.curves * HAIR_STRANDS_LENGTH_BYTES, HAIR_STRANDS_TABLE_ALIGNMENT),
+    rootUvs: table(before.rootUvs * HAIR_STRANDS_ROOT_UV_BYTES, HAIR_STRANDS_TABLE_ALIGNMENT),
+    colors: table(before.colors * HAIR_STRANDS_COLOR_BYTES),
+    roughness: table(before.roughness * HAIR_STRANDS_ROUGHNESS_BYTES),
+  }
+  return { offsets, end }
+}
+
+/** The groups of `records`, each a view of its part of every table of `bytes`. */
+function groupsOf(
+  bytes: Uint8Array<ArrayBuffer>,
+  records: readonly ReturnType<typeof readRecord>[],
+  offsets: ReturnType<typeof tableOffsets>['offsets'],
+): HairStrandsGroup[] {
+  const slice = (at: number, rank: number, stride: number, count: number) =>
+    bytes.subarray(at + rank * stride, at + (rank + count) * stride)
+  const groups = records.map((record): HairStrandsGroup => {
+    const { firstCurve, firstPoint, firstRootUv, firstColor, firstRoughness, ...own } = record
+    const { curveCount, pointCount, attributes } = own
+    const curves = slice(offsets.curves, firstCurve, HAIR_STRANDS_CURVE_BYTES, curveCount)
+    checkCurves(curves, pointCount)
+    const held = (attribute: number) => (attributes & attribute) !== 0
+    return {
+      ...own,
+      curves,
+      points: slice(offsets.points, firstPoint, HAIR_STRANDS_POINT_BYTES, pointCount),
+      seeds: slice(offsets.seeds, firstCurve, HAIR_STRANDS_SEED_BYTES, curveCount),
+      lengths: slice(offsets.lengths, firstCurve, HAIR_STRANDS_LENGTH_BYTES, curveCount),
+      rootUvs: held(HAIR_STRANDS_ATTRIBUTE_ROOT_UV)
+        ? slice(offsets.rootUvs, firstRootUv, HAIR_STRANDS_ROOT_UV_BYTES, curveCount)
+        : undefined,
+      colors: held(HAIR_STRANDS_ATTRIBUTE_COLOR)
+        ? slice(offsets.colors, firstColor, HAIR_STRANDS_COLOR_BYTES, pointCount)
+        : undefined,
+      roughness: held(HAIR_STRANDS_ATTRIBUTE_ROUGHNESS)
+        ? slice(offsets.roughness, firstRoughness, HAIR_STRANDS_ROUGHNESS_BYTES, pointCount)
+        : undefined,
+    }
+  })
+  return groups
+}
+
 /**
  * Reads the file `bytes` hold, or throws `INVALID_CACHE`; a file of another version throws
  * `UNSUPPORTED_FORMAT`. The file must be its head, its records and its tables, no more: the
@@ -208,47 +276,8 @@ export function parseHairStrands(bytes: Uint8Array<ArrayBuffer>): HairStrands {
     return record
   })
   if (before.points !== pointTotal) refuse('a head that counts other points than its groups')
-  // The tables one after the other, as `encode.rs` lays them out.
-  let end = recordsEnd
-  const table = (size: number, alignment = 1) => {
-    end = alignUp(end, alignment)
-    const at = end
-    end += size
-    return at
-  }
-  const curvesAt = table(before.curves * HAIR_STRANDS_CURVE_BYTES)
-  const pointsAt = table(before.points * HAIR_STRANDS_POINT_BYTES, HAIR_STRANDS_POINTS_ALIGNMENT)
-  const seedsAt = table(before.curves * HAIR_STRANDS_SEED_BYTES)
-  const lengthsAt = table(before.curves * HAIR_STRANDS_LENGTH_BYTES, HAIR_STRANDS_TABLE_ALIGNMENT)
-  const rootUvsAt = table(before.rootUvs * HAIR_STRANDS_ROOT_UV_BYTES, HAIR_STRANDS_TABLE_ALIGNMENT)
-  const colorsAt = table(before.colors * HAIR_STRANDS_COLOR_BYTES)
-  const roughnessAt = table(before.roughness * HAIR_STRANDS_ROUGHNESS_BYTES)
+  const { offsets, end } = tableOffsets(recordsEnd, before)
   if (alignUp(end, HAIR_STRANDS_TABLE_ALIGNMENT) !== bytes.byteLength)
     refuse('not its head, its records and its tables')
-  const slice = (at: number, rank: number, stride: number, count: number) =>
-    bytes.subarray(at + rank * stride, at + (rank + count) * stride)
-  const groups = records.map((record): HairStrandsGroup => {
-    const { firstCurve, firstPoint, firstRootUv, firstColor, firstRoughness, ...own } = record
-    const { curveCount, pointCount, attributes } = own
-    const curves = slice(curvesAt, firstCurve, HAIR_STRANDS_CURVE_BYTES, curveCount)
-    checkCurves(curves, pointCount)
-    const held = (attribute: number) => (attributes & attribute) !== 0
-    return {
-      ...own,
-      curves,
-      points: slice(pointsAt, firstPoint, HAIR_STRANDS_POINT_BYTES, pointCount),
-      seeds: slice(seedsAt, firstCurve, HAIR_STRANDS_SEED_BYTES, curveCount),
-      lengths: slice(lengthsAt, firstCurve, HAIR_STRANDS_LENGTH_BYTES, curveCount),
-      rootUvs: held(HAIR_STRANDS_ATTRIBUTE_ROOT_UV)
-        ? slice(rootUvsAt, firstRootUv, HAIR_STRANDS_ROOT_UV_BYTES, curveCount)
-        : undefined,
-      colors: held(HAIR_STRANDS_ATTRIBUTE_COLOR)
-        ? slice(colorsAt, firstColor, HAIR_STRANDS_COLOR_BYTES, pointCount)
-        : undefined,
-      roughness: held(HAIR_STRANDS_ATTRIBUTE_ROUGHNESS)
-        ? slice(roughnessAt, firstRoughness, HAIR_STRANDS_ROUGHNESS_BYTES, pointCount)
-        : undefined,
-    }
-  })
-  return { groups }
+  return { groups: groupsOf(bytes, records, offsets) }
 }

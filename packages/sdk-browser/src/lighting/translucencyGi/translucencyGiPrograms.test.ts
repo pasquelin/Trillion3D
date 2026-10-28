@@ -9,6 +9,7 @@ import { integrateGiProgram } from './integrateWgsl.ts'
 import { traceGiProgram, TRACE_GI_BINDINGS } from './traceWgsl.ts'
 import { MARK_GI_PROGRAM } from './markWgsl.ts'
 import { quantizationErrorsOf } from '../../post/taa/colorSpaceWgsl.ts'
+import { lightingDataFormatOf } from '../../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
 import { translucencyGiConeFormat } from './layout.ts'
 
 const values = resolveSettings(TRANSLUCENCY_GI_RULES, {})
@@ -48,7 +49,10 @@ test('the cones’ light is in half floats by default, in the 11-11-10 floats wh
     'the default keeps more precision than the reference’s 11-11-10 floats, on purpose',
   )
   assert.equal(
-    translucencyGiConeFormat(tier1, values.translucencyGiLightingDataFormat),
+    translucencyGiConeFormat(
+      tier1,
+      lightingDataFormatOf(values.translucencyGiLightingDataFormat, 'r11g11b10'),
+    ),
     'rgba16float',
   )
   assert.equal(
@@ -60,21 +64,22 @@ test('the cones’ light is in half floats by default, in the 11-11-10 floats wh
   assert.equal(translucencyGiConeFormat(tier1, 'rgba16'), 'rgba16float')
   assert.equal(translucencyGiConeFormat(none, 'rgba32'), 'rgba32float')
   // Only the 11-11-10 programs open with the language extension, and each dithers to its format’s mantissas (6, 6, 5 bits against 10).
-  const packed = [
-    traceGiProgram('rg11b10ufloat'),
-    filterGiProgram('rg11b10ufloat'),
-    integrateGiProgram('rg11b10ufloat'),
-  ]
+  const packed = [traceGiProgram('rg11b10ufloat'), filterGiProgram('rg11b10ufloat')]
   const half = [
     traceGiProgram('rgba16float'),
     filterGiProgram('rgba16float'),
-    integrateGiProgram('rgba16float'),
+    integrateGiProgram('rgba16float', 'rgba16float'),
   ]
   for (const text of packed) {
     assert.match(text, /^requires texture_formats_tier1;/m)
     assert.match(text, /texture_storage_3d<rg11b10ufloat,write>/)
     assert.ok(text.includes(quantizationErrorsOf('rg11b10ufloat')))
   }
+  // The integration writes the volume in half floats whatever the cones’ format, the ambient light dithered to the packed mantissas: no
+  // storage texture of the packed format, so no extension.
+  const integrated = integrateGiProgram('rg11b10ufloat', 'rgba16float')
+  assert.doesNotMatch(integrated, /^requires texture_formats_tier1;/m)
+  assert.ok(integrated.includes(quantizationErrorsOf('rg11b10ufloat')))
   for (const text of half) {
     assert.doesNotMatch(text, /^requires texture_formats_tier1;/m)
     assert.match(text, /texture_storage_3d<rgba16float,write>/)
@@ -89,8 +94,8 @@ test('the programs bind the textures and buffers their layouts name, and nothing
     ['trace packed', traceGiProgram('rg11b10ufloat')],
     ['filter', filterGiProgram('rgba16float')],
     ['filter packed', filterGiProgram('rg11b10ufloat')],
-    ['integrate', integrateGiProgram('rgba16float')],
-    ['integrate packed', integrateGiProgram('rg11b10ufloat')],
+    ['integrate', integrateGiProgram('rgba16float', 'rgba16float')],
+    ['integrate packed', integrateGiProgram('rg11b10ufloat', 'rgba16float')],
   ] as const) {
     const bound = [...text.matchAll(/@group\((\d+)\) @binding\((\d+)\)/g)].map(
       (m) => `${m[1]}:${m[2]}`,
@@ -101,29 +106,31 @@ test('the programs bind the textures and buffers their layouts name, and nothing
 })
 
 test('the integration writes the fog’s volume before the history and the intensity, then the volume the surfaces read as the reference splits it', () => {
-  const text = integrateGiProgram('rgba16float')
+  const text = integrateGiProgram('rgba16float', 'rgba16float')
   assert.match(text, /var fogVolume:texture_storage_3d/)
   const bound = [...text.matchAll(/@group\(0\) @binding\((\d+)\)/g)].map((m) => m[1])
-  assert.deepEqual(bound.sort(), ['0', '1', '2', '3', '4', '5', '6', '7'])
-  // The ambient light (the constant band, to the format’s precision) in the first texture, the luminance of each linear band in the second;
-  // the history reads the two of the image before and rebuilds the linear bands with the ambient light’s colour.
+  assert.deepEqual(bound.sort(), ['0', '1', '2', '3', '4', '5'])
+  // The ambient light (the constant band, to the format’s precision) in the first half of the volume’s slices, the luminance of each linear
+  // band in the second; the history reads the volume of the image before and rebuilds the linear bands with the ambient light’s colour.
   assert.match(
     text,
-    /textureStore\(ambientVolume,id,vec4f\(giQuantize\(sh\.c\[0\],id\.xy,id\.z\),0\.0\)\)/,
+    /textureStore\(volume,id,vec4f\(giQuantize\(sh\.c\[0\],id\.xy,id\.z\),0\.0\)\)/,
   )
   assert.match(
     text,
-    /textureStore\(directionalVolume,id,vec4f\(luminance\(sh\.c\[1\]\),luminance\(sh\.c\[2\]\),luminance\(sh\.c\[3\]\),0\.0\)\)/,
+    /textureStore\(volume,vec3u\(id\.xy,id\.z\+slices\),vec4f\(luminance\(sh\.c\[1\]\),luminance\(sh\.c\[2\]\),luminance\(sh\.c\[3\]\),0\.0\)\)/,
+  )
+  assert.match(text, /giSampleVolume\(history,historySampler,uvw,slices\)/)
+  assert.match(text, /var volume:texture_storage_3d<rgba16float,write>/)
+  // Where the ambient light is single floats the volume is, the directional light with it; the ambient light packed is written to the
+  // packed precision (`giQuantize`) into half floats, which hold the packed floats exactly.
+  assert.match(
+    integrateGiProgram('rgba32float', 'rgba32float'),
+    /var volume:texture_storage_3d<rgba32float,write>/,
   )
   assert.match(
-    text,
-    /giSampleVolumes\(historyAmbient,historyDirectional,historySampler,uvw,slices\)/,
-  )
-  assert.match(text, /var ambientVolume:texture_storage_3d<rgba16float,write>/)
-  assert.match(text, /var directionalVolume:texture_storage_3d<rgba16float,write>/)
-  assert.match(
-    integrateGiProgram('rg11b10ufloat'),
-    /var ambientVolume:texture_storage_3d<rg11b10ufloat,write>/,
+    integrateGiProgram('rg11b10ufloat', 'rgba16float'),
+    /var volume:texture_storage_3d<rgba16float,write>/,
   )
 })
 
@@ -132,4 +139,10 @@ test('the volume chooses the radiance cache’s level for its cell with the numb
   assert.match(program, /const GI_COVERAGE_RANDOM:f32=0\.5;/)
   assert.match(program, /spCacheGatherOwnBiased\(giOrigin,bias,GI_COVERAGE_RANDOM\)/)
   assert.match(program, /spLocalReachBiased\(giOrigin,bias,GI_COVERAGE_RANDOM\)/)
+})
+
+test('a volume whose own format is global follows the shared lighting data format, and its own wins otherwise', () => {
+  assert.equal(lightingDataFormatOf('global', 'r11g11b10'), 'r11g11b10')
+  assert.equal(lightingDataFormatOf('global', 'rgba32'), 'rgba32')
+  assert.equal(lightingDataFormatOf('rgba16', 'r11g11b10'), 'rgba16')
 })

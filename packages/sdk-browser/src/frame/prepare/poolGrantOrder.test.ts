@@ -1,16 +1,14 @@
 // The prepare grants of the geometry pool (`cache.ts`) and of the texture pools (`textures.ts`)
 // are answered asynchronously: what reads a pool, and what sets it meanwhile, must see the pool
 // the device granted, never the one asked.
+import { backendOf } from '../backend/testScenes.fixture.ts'
 import test, { type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { deepQuadScene } from '../backend/deepQuad.fixture.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import type { MemoryBudgetsReport } from '../../session/memory/pools.ts'
 import { refusing } from './refusing.fixture.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 /** The pools a test answers: the geometry pool's buffer, or the texture pools. */
 const GEOMETRY = ['createBuffer', 'geometry page cache'] as const
@@ -36,11 +34,10 @@ function granting(
   })
   const events: EngineDiagnostic[] = []
   const fixture = deepQuadScene()
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
+    maxResidentPages: undefined,
     ...fixture,
     gpuDevice: gpu.device,
-    viewport: [32, 32],
     onDiagnostic: (event: EngineDiagnostic) => events.push(event),
   })
   t.after(() => {

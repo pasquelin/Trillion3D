@@ -24,6 +24,38 @@ function resolveShared<V extends object>(
   return defaults as V
 }
 
+/** The group's fields `given` by `light` into `validated`, each as its rule takes it, the directional
+ *  ones (`directional`) refused on a light that is not a directional one. */
+function validateGroup<V extends object>(
+  light: SceneLight,
+  validated: SceneLight,
+  given: Record<string, unknown>,
+  resolve: (given: Record<string, unknown>) => V,
+  directional: readonly string[],
+) {
+  if (light.kind !== 'directional') {
+    const field = directional.find((name) => given[name] !== undefined)
+    if (field !== undefined)
+      throw new EngineError(
+        'INVALID_SCENE_LIGHT',
+        `${light.id}: ${field} expects a directional light: it exists only for one`,
+        given,
+      )
+  }
+  if (!Object.keys(given).length) return
+  let resolved: V
+  try {
+    resolved = resolve(given)
+  } catch (error) {
+    throw new EngineError('INVALID_SCENE_LIGHT', `${light.id}: ${(error as Error).message}`, given)
+  }
+  const into = validated as unknown as Record<string, unknown>
+  for (const field of Object.keys(given)) {
+    const value = resolved[field as keyof V]
+    into[field] = Array.isArray(value) ? [...value] : value
+  }
+}
+
 /**
  * A GROUP OF LIGHT FIELDS NAMED, TYPED AND DEFAULTED BY SETTING RULES (cloud shadows, light shafts,
  * contact shadows): the one way such a group is validated into a record, read from a held record and
@@ -46,37 +78,6 @@ export function ruledLightFields<V extends object>(
   }
   const held = new WeakMap<SceneLight, V>()
 
-  /** The group's fields of `light` into `validated`, each as its rule takes it, the directional
-   *  ones refused on a light that is not a directional one. */
-  function validate(light: SceneLight, validated: SceneLight) {
-    const given = givenOf(light)
-    if (light.kind !== 'directional') {
-      const field = (directionalOnly ?? fields).find((name) => given[name] !== undefined)
-      if (field !== undefined)
-        throw new EngineError(
-          'INVALID_SCENE_LIGHT',
-          `${light.id}: ${field} expects a directional light: it exists only for one`,
-          given,
-        )
-    }
-    if (!Object.keys(given).length) return
-    let resolved: V
-    try {
-      resolved = resolve(given)
-    } catch (error) {
-      throw new EngineError(
-        'INVALID_SCENE_LIGHT',
-        `${light.id}: ${(error as Error).message}`,
-        given,
-      )
-    }
-    const into = validated as unknown as Record<string, unknown>
-    for (const field of Object.keys(given)) {
-      const value = resolved[field as keyof V]
-      into[field] = Array.isArray(value) ? [...value] : value
-    }
-  }
-
   /** The group's settings of a held record, each its default where the record names none. The
    *  record is the store's own, replaced at every change: the answer is made once for it. */
   function of(light: SceneLight): V {
@@ -92,5 +93,10 @@ export function ruledLightFields<V extends object>(
     return fields.every((field) => sameValue(x[field] as SettingValue, y[field] as SettingValue))
   }
 
-  return { validate, of, same }
+  return {
+    validate: (light: SceneLight, validated: SceneLight) =>
+      validateGroup(light, validated, givenOf(light), resolve, directionalOnly ?? fields),
+    of,
+    same,
+  }
 }

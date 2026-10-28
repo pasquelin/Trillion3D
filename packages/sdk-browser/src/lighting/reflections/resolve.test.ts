@@ -1,7 +1,7 @@
 // The pdf of the half vector a reflection ray is drawn with, the pdf of the ray it gives, the cone that pdf gives the ray and the weight the
 // reuse puts on a neighbour's ray (`reflectionHalfPdf`, `reflectionRayPdf`, `reflectionRayCone`, `reflectionRayWeight`, run in JavaScript by
 // `shaderRun`), against the closed forms of the visible-normal distribution: the half vector's 2 (v·h) D(h) / (k n·v + |v̂|), k the bound of the
-// cap, |v̂| the view stretched by the widths, the ray's that over 4 (v·h), the cone 4 (v·h) over the half vector's.
+// cap, |v̂| the view stretched by the widths, the ray carries that same pdf, the cone its inverse.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -48,8 +48,8 @@ const near = (a: number, b: number, what: string, relative = 2e-4) =>
 
 const N: Vec3 = [0, 0, 1]
 /** The reference's distribution of the visible normals' half vector `h`, in the frame (x along the axis, y across, z the normal), for the
- *  widths `(ax, ay)`: the density `D`, the pdf `half` of the half vector, the pdf `pdf` of the ray along `d` it gives, that over 4 (v·h),
- *  and the cone `cone` of that ray, the inverse of its pdf before the floors, 4 (v·h) over the half vector's pdf. */
+ *  widths `(ax, ay)`: the density `D`, the pdf `half` of the half vector, the pdf `pdf` of the ray along `d` it gives, the same,
+ *  and the cone `cone` of that ray, the inverse of its pdf before the floors. */
 function expected(V: Vec3, d: Vec3, ax: number, ay: number) {
   const h = unit([V[0] + d[0], V[1] + d[1], V[2] + d[2]])
   const a2 = ax * ay
@@ -61,7 +61,7 @@ function expected(V: Vec3, d: Vec3, ax: number, ay: number) {
   const k = (wide ** 2 - a * a * wide ** 2) / (wide ** 2 + a * a * V[2] ** 2)
   const stretched = Math.hypot(V[0] * ax, V[1] * ay, V[2])
   const half = (2 * dot(V, h) * D) / (k * V[2] + stretched)
-  return { D, half, pdf: half / (4 * dot(V, h)), cone: (4 * dot(V, h)) / half }
+  return { D, half, pdf: half, cone: 1 / half }
 }
 
 const V = unit([0.3, 0.1, 0.9])
@@ -71,7 +71,7 @@ const mirror = (n: Vec3): Vec3 => {
   return [c * n[0] - V[0], c * n[1] - V[1], c * n[2] - V[2]]
 }
 
-test('the pdf of a round lobe’s ray is that of the visible normals’ half vector over 4 (v·h), the half vector’s 2 (v·h) D / (k n·v + |v̂|)', () => {
+test('the pdf of a round lobe’s ray is that of the visible normals’ half vector, 2 (v·h) D / (k n·v + |v̂|)', () => {
   for (const [alpha, tilt] of [
     [0.04, [0.05, 0.02, 1]],
     [0.3, [-0.2, 0.1, 1]],
@@ -93,9 +93,9 @@ test('the pdf of a round lobe’s ray is that of the visible normals’ half vec
   }
 })
 
-// α 0.25 seen at n·v 0.7, the ray drawn with the half vector at the normal (v·h = 0.7): the half vector's pdf is 5.197, the ray's 5.197 / 2.8 = 1.856,
-// so its cone is 0.539 radians, not the 0.192 the half vector's pdf gives — 4 (v·h) = 2.8 times as wide.
-test('a ray’s cone is 4 (v·h) over its half vector’s pdf, not the inverse of that pdf: α 0.25 at n·v 0.7 gives 0.539, not 0.192', () => {
+// α 0.25 seen at n·v 0.7, the ray drawn with the half vector at the normal: the half vector's pdf is 5.197, which the ray carries, so its cone is
+// 1 / 5.197 = 0.192 radians.
+test('a ray’s cone is the inverse of its half vector’s pdf: α 0.25 at n·v 0.7 gives 0.192', () => {
   const alpha = 0.25
   const Vn: Vec3 = [Math.sqrt(1 - 0.49), 0, 0.7]
   const f = run.reflectionFrameOf(N, [0, 0, 0])
@@ -103,14 +103,13 @@ test('a ray’s cone is 4 (v·h) over its half vector’s pdf, not the inverse o
   const half = run.reflectionHalfPdf(N, Vn, f, [alpha, alpha], N)
   near(half, 5.197, 'the half vector’s pdf', 1e-3)
   const cone = run.reflectionRayCone(N, Vn, [0, 0, 0], [alpha, alpha], d)
-  near(cone, 0.5387, 'the cone', 1e-3)
-  near(cone, (4 * 0.7) / half, 'the cone against 4 (v·h) / the half vector’s pdf')
-  assert.ok(cone > 2.7 / half, `not the half vector’s inverse ${1 / half}: ${cone}`)
+  near(cone, 0.1924, 'the cone', 1e-3)
+  near(cone, 1 / half, 'the cone against the half vector’s inverse')
 })
 
 // The ray drawn by the screen stage's own sampler (`reflectionSampleDirection`, a few blue-noise pairs), its cone from the pdf of the half vector it
 // was mirrored about, against the reference's cone of that ray.
-test('the cone of a ray the sampler draws is the reference’s: 4 (v·h) over the pdf of the half vector it drew', () => {
+test('the cone of a ray the sampler draws is the reference’s: the inverse of the pdf of the half vector it drew', () => {
   const sample = shaderRun<{
     reflectionSampleDirection: (N: Vec3, V: Vec3, axis: Vec3, widths: number[], u: number[]) => Vec3
   }>(wgslModule(REFLECTION_SAMPLE_WGSL), ['reflectionSampleDirection'], {

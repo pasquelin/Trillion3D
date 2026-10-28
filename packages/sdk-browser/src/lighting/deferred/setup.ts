@@ -5,6 +5,7 @@ import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { arrayView } from '../../gpu/core/textureViews.ts'
 import { BOUNCE_ATLAS_FORMAT } from '../bounce/atlas.ts'
 import { BOUNCE_GRID_BYTES } from '../bounce/uniform.ts'
+import { BEND_MAX_LAYERS } from '../contactShadow/bendDispatches.ts'
 import { VSM_PROJECTION_RECORD_BYTES, VSM_UNIFORMS_BYTES } from '../shadows/vsm/constants.ts'
 import { VSM_SUN_MASK_FORMAT } from '../shadows/vsm/projection/maskFormat.ts'
 import { VSM_PROJECTION_VIEW_BYTES } from '../shadows/vsm/projection/projectionView.ts'
@@ -75,17 +76,25 @@ function createSkyOcclusionStandIns(device: GPUDevice) {
     DFAO_READ_WORDS * 4,
     GPUBufferUsage.UNIFORM,
   )
+  // A row of no bytes: the read answers 1 (`capsuleIndirectAt`).
+  const capsuleIndirect = standInBuffer(
+    device,
+    'Trillion3D empty indirect capsule shadows',
+    16,
+    GPUBufferUsage.STORAGE,
+  )
   return {
-    views: { skyShadowing: { bent: dfaoBent, params: dfaoRead } },
+    views: { skyShadowing: { bent: dfaoBent, params: dfaoRead }, capsuleIndirect },
     destroy() {
       dfaoBent.destroy()
       dfaoRead.destroy()
+      capsuleIndirect.destroy()
     },
   }
 }
 
-/** The one-texel stand-ins of the images a resolve reads where the frame drew none. */
-function createImageStandIns(device: GPUDevice) {
+/** The one-texel stand-ins of the lit image's own inputs: the reflection, the screen probes' light, the ambient occlusion and the lightmap's light. */
+function createLitImageStandIns(device: GPUDevice) {
   // One texel of zero: what a resolve bound before its reflection target reads.
   const reflection = standInTexture(device, 'Trillion3D empty reflection', HDR_FORMAT, {
     storage: true,
@@ -97,6 +106,13 @@ function createImageStandIns(device: GPUDevice) {
     device,
     'Trillion3D empty screen indirect',
     SCREEN_PROBE_FORMATS.history,
+  )
+  // One texel of zero, read as storage: the short-range global illumination a resolve reads where the screen probes gathered none, which adds none.
+  const screenShortRangeGi = standInTexture(
+    device,
+    'Trillion3D empty short-range global illumination',
+    SCREEN_PROBE_FORMATS.shortRangeGi,
+    { storage: true },
   )
   // One texel of zero: what a resolve reads of the ambient occlusion where the image drew none, and applies none
   // of (`DeferredLighting.setAmbientOcclusion`).
@@ -112,6 +128,26 @@ function createImageStandIns(device: GPUDevice) {
     'Trillion3D empty volumetric lightmap light',
     VOLUMETRIC_LIGHT_FORMAT,
   )
+  return {
+    views: {
+      reflection: reflection.createView(),
+      screenIndirect: screenIndirect.createView(),
+      screenShortRangeGi: screenShortRangeGi.createView(),
+      ambientOcclusion: ambientOcclusion.createView(),
+      volumetricLight: volumetricLight.createView(),
+    },
+    destroy() {
+      reflection.destroy()
+      screenIndirect.destroy()
+      screenShortRangeGi.destroy()
+      ambientOcclusion.destroy()
+      volumetricLight.destroy()
+    },
+  }
+}
+
+/** The one-texel stand-ins of the images the fog and the translucent surfaces read: the light shafts' mask, the haze's volume and the surface flags. */
+function createFogImageStandIns(device: GPUDevice) {
   // One white texel: the light shafts' mask where the image drew none, which multiplies the fog by 1.
   const lightShaft = standInTexture(
     device,
@@ -132,9 +168,40 @@ function createImageStandIns(device: GPUDevice) {
     SURFACE_WORDS_FORMAT,
     { storage: true },
   )
+  return {
+    views: {
+      surfaceFlags: surfaceFlags.createView(),
+      lightShaft: lightShaft.createView(),
+      hazeVolume: hazeVolume.createView(),
+    },
+    destroy() {
+      surfaceFlags.destroy()
+      lightShaft.destroy()
+      hazeVolume.destroy()
+    },
+  }
+}
+
+/** The stand-ins of the light inputs a scene may name none of: the light profiles, the contact shadows, the volumes' shadows and the ambient cubemap. */
+function createLightInputStandIns(device: GPUDevice) {
   // One texel of zero: the light profiles' atlas where the scene names none, bound by the twin programs that hold the profile code
   // (`twinOf`): a lane of 0 never reads it.
   const lightProfile = standInTexture(device, 'Trillion3D empty light profile', 'r16float')
+  // One texel: the screen-space contact shadows' array where the image marched none (`contactBendWgsl` takes no layer from a one-texel texture).
+  const contactBend = standInTexture(device, 'Trillion3D empty contact shadow march', 'r32float')
+  const contactBendRanks = standInBuffer(
+    device,
+    'Trillion3D empty contact shadow march ranks',
+    BEND_MAX_LAYERS * 4,
+    GPUBufferUsage.UNIFORM,
+  )
+  // One word of zero: no light has a volume's shadow (`beerShadowMask` takes the slice past the count).
+  const volumeShadowMaps = standInBuffer(
+    device,
+    'Trillion3D empty volume shadows',
+    4,
+    GPUBufferUsage.STORAGE,
+  )
   // One texel of zero on each of the six faces, and a colour of zero: the ambient cubemap where the image sets none, bound by
   // the twin programs that hold the cube code (`twinOf`): it lights nothing.
   const ambientCube = standInTexture(device, 'Trillion3D empty ambient cubemap', 'rgba16float', {
@@ -153,25 +220,31 @@ function createImageStandIns(device: GPUDevice) {
         colour: ambientCubeColour,
       },
       lightProfile: { view: arrayView(lightProfile), sampler: postSamplers(device).clamped },
-      surfaceFlags: surfaceFlags.createView(),
-      reflection: reflection.createView(),
-      screenIndirect: screenIndirect.createView(),
-      ambientOcclusion: ambientOcclusion.createView(),
-      volumetricLight: volumetricLight.createView(),
-      lightShaft: lightShaft.createView(),
-      hazeVolume: hazeVolume.createView(),
+      contactBend: { view: arrayView(contactBend), ranks: contactBendRanks },
+      volumeShadowMaps,
     },
     destroy() {
       ambientCube.destroy()
       ambientCubeColour.destroy()
       lightProfile.destroy()
-      surfaceFlags.destroy()
-      reflection.destroy()
-      screenIndirect.destroy()
-      ambientOcclusion.destroy()
-      volumetricLight.destroy()
-      lightShaft.destroy()
-      hazeVolume.destroy()
+      contactBend.destroy()
+      contactBendRanks.destroy()
+      volumeShadowMaps.destroy()
+    },
+  }
+}
+
+/** The one-texel stand-ins of the images a resolve reads where the frame drew none. */
+function createImageStandIns(device: GPUDevice) {
+  const lit = createLitImageStandIns(device),
+    fog = createFogImageStandIns(device),
+    inputs = createLightInputStandIns(device)
+  return {
+    views: { ...lit.views, ...fog.views, ...inputs.views },
+    destroy() {
+      lit.destroy()
+      fog.destroy()
+      inputs.destroy()
     },
   }
 }

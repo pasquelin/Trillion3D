@@ -123,15 +123,25 @@ function dispatchClasses(
   })
 }
 
+/** The surfaces the classes write for a capture atlas of `side` texels: the emission and occlusion, the subsurface and the lobes. */
+const createShadeSurfaces = (device: GPUDevice, side: number): SurfaceBuffer =>
+  createSurfaceBuffer(device, side, side, { emissiveAo: true, subsurface: true, lobes: true })
+
+/** Whether the classes of the present materials are compiled for the capture and the group layout of the shade is made. */
+function shadeClassesReady(rt: WebgpuPagesRuntime) {
+  const classes = rt.vis.shadeClasses
+  return (
+    !!classes &&
+    !!rt.vis.shadeBindGroupLayout &&
+    classesReady(classes.cards(), presentClassKeys(rt.vis.presentClasses))
+  )
+}
+
 /** The capture's shading, made for a capture atlas of `side` texels. */
 export function createCardShading(rt: WebgpuPagesRuntime, device: GPUDevice, side: number) {
   let bins: ShadeBins | undefined
   let failure: unknown
-  const surfaces: SurfaceBuffer = createSurfaceBuffer(device, side, side, {
-    emissiveAo: true,
-    subsurface: true,
-    lobes: true,
-  })
+  const surfaces = createShadeSurfaces(device, side)
   const uniform = createResolveUniform(device)
   const words = new Float32Array(SHADE_UNIFORM.words)
   const ints = new Uint32Array(words.buffer)
@@ -148,13 +158,7 @@ export function createCardShading(rt: WebgpuPagesRuntime, device: GPUDevice, sid
     surfaces,
     /** Whether the capture can be shaded now: its bins are compiled and so are its classes of the present materials. */
     get ready() {
-      const classes = rt.vis.shadeClasses
-      return (
-        !!bins &&
-        !!classes &&
-        !!rt.vis.shadeBindGroupLayout &&
-        classesReady(classes.cards(), presentClassKeys(rt.vis.presentClasses))
-      )
+      return !!bins && shadeClassesReady(rt)
     },
     /** What stopped the bins from being made, none while they are or are being. */
     get failure() {

@@ -1,4 +1,5 @@
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { readLightProfileSetting } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
 import { createLightProfileAtlas, type LightProfileAtlas } from './profileAtlas.ts'
 import type { LightProfileResources } from './profileBindings.ts'
 import {
@@ -55,11 +56,29 @@ export function encodeLightProfiles(rt: Rt, device: GPUDevice) {
         .catch((error) => rt.diag.diagnosticFailure('light-profile-failed', error))
         .finally(() => frame.loading--)
   }
-  frame.sync.sync(store)
+  frame.sync.sync(
+    store,
+    readLightProfileSetting(rt, 'lightProfileAtlasResolution'),
+    readLightProfileSetting(rt, 'lightProfileAtlasMaxProfiles'),
+  )
+  // No light names a profile any more: the texture goes, and is made again with the next profile a light names.
+  if (store.profiled === 0) frame.atlas.destroy()
 }
 
-/** Whether a profile file is still being read: the image drawn meanwhile is drawn again (`holdWebgpuFrame`). */
-export const lightProfilesWaiting = (rt: Rt) => (rt.lights.lightProfile?.loading ?? 0) > 0
+/** Whether a profile file is still being read, or one has been read, or a setting of the atlas moved, that the lights have not been given the slice of yet: the image drawn meanwhile
+ *  is drawn again (`holdWebgpuFrame`), and the next syncs the atlas. */
+export const lightProfilesWaiting = (rt: Rt) => {
+  const frame = rt.lights.lightProfile
+  return (
+    !!frame &&
+    (frame.loading > 0 ||
+      !frame.sync.upToDate(
+        rt.lights.store,
+        readLightProfileSetting(rt, 'lightProfileAtlasResolution'),
+        readLightProfileSetting(rt, 'lightProfileAtlasMaxProfiles'),
+      ))
+  )
+}
 
 /** What a program that reads the light profiles binds, or none where the scene names no profile. */
 export function lightProfileResources(rt: Rt): LightProfileResources | undefined {

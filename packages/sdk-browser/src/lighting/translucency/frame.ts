@@ -17,6 +17,7 @@ import { cloudShadowStandIn } from '../atmosphere/cloudShadowStandIn.ts'
 import { lightFunctionResources } from '../lightFunction/frame.ts'
 import { vsmConsumerResources, vsmOrStandIns } from '../shadows/vsm/frame/vsmConsumers.ts'
 import type { CascadeView } from './bounds.ts'
+import { sampleTranslucencyCells, sampledVolumeFog } from '../manyLightsSampled/volumeFrame.ts'
 import {
   createTranslucencyVolumeGpu,
   type TranslucencyInputs,
@@ -75,7 +76,15 @@ const inputs: {
   previousPreExposure: 1,
   exposure: 1,
   cut: false,
+  image: 0,
+  mlVolume: undefined,
+  sampleCells: undefined,
 }
+
+/** The image the translucency volume's own samples are drawn for (`sampleCells`), set while `withVolume` runs. */
+const sampling: { rt?: WebgpuPagesRuntime; cam?: EngineCamera } = {}
+const sampleCells: NonNullable<TranslucencyInputs['sampleCells']> = (pass, cascades, dim) =>
+  sampleTranslucencyCells(sampling.rt!, sampling.cam!, pass, cascades, dim)
 
 /** Whether the scene's surfaces read the volume: some blended item now in the table is lit from it
  *  (`TransparentTable.volumeReaders`, the count of `readsVolume` items, which grows with the table and starts again from zero when
@@ -89,41 +98,51 @@ const made = (rt: WebgpuPagesRuntime, settings: TranslucencyVolumeValues) =>
   rt.blendState.runCount > 0 && wanted(rt, settings)
 
 /** The volume's GPU work made where there is none: its pipelines compile off the frame, the frames wait for them. */
-function start(rt: WebgpuPagesRuntime, device: GPUDevice, held: TranslucencyVolumeState) {
+function start(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  held: TranslucencyVolumeState,
+  settings: TranslucencyVolumeValues,
+) {
   held.gpu ??= createTranslucencyVolumeGpu(device, (error) =>
     rt.diag.diagnosticFailure('translucency-volume-program-failed', error),
   )
+  // The pipelines of the marked cells compile only where the setting asks them.
+  if (settings.translucencyVolumeMarkVoxels) held.gpu.askMarks()
 }
 
 /** Starts the volume's GPU work once a scene's surfaces are lit from it, at a frame's entry: the frames wait for its pipelines. A
  *  scene whose surfaces are lit forward makes nothing, and reads no setting. */
 export function askTranslucencyVolume(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!rt.vis.blendPipelines?.translucencyVolume) return
-  if (wanted(rt, settingsOf(rt))) start(rt, device, (rt.gpu.translucencyVolume ??= newState()))
+  const settings = settingsOf(rt)
+  if (wanted(rt, settings)) start(rt, device, (rt.gpu.translucencyVolume ??= newState()), settings)
 }
 
 /**
- * The translucency lighting volume of this image, built before the blends read it (after the shadow maps it reads): the cascades placed
- * round the camera, the light of the lights each reaches injected, filtered (`createTranslucencyVolumeGpu`). A scene whose surfaces
- * are lit forward, or with the setting off, makes nothing and lets go of what it held.
+ * Runs `use` over the volume of this image and what the image tells its passes (`inputs`, rewritten here and let go of when `use` returns):
+ * the camera's axes the cascades are placed by, the lights, the shadow maps, the exposure. A scene whose surfaces are lit forward, or with the
+ * setting off, makes nothing and lets go of what it held; none too where the lights or the pipelines are not there yet. `last`: the
+ * image's last use, which alone moves the camera-cut revision on (the preparation of the marks, before it, reads the same cut).
  */
-export function encodeTranslucencyVolume(
+function withVolume<T>(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
-  steps: ComputeRun,
   cam: EngineCamera,
+  use: (volume: TranslucencyVolumeGpu, input: TranslucencyInputs) => T,
+  last = true,
 ) {
   const { gpu, lights } = rt
   const settings = settingsOf(rt)
   if (!made(rt, settings)) return void (gpu.translucencyVolume && disposeTranslucencyVolume(gpu))
   const held = (gpu.translucencyVolume ??= newState())
-  start(rt, device, held)
+  start(rt, device, held, settings)
   const volume = held.gpu!
   const buffer = lights.buffer
   if (!buffer || !gpu.deferred || !volume.ready) return void volume.reset()
   const { placeholders } = gpu.deferred
   const cut = rt.run.gate.temporalRevision !== held.revision
-  held.revision = rt.run.gate.temporalRevision
+  if (last) held.revision = rt.run.gate.temporalRevision
   cameraForward(forward, cam.world)
   writeDividedVector3(right, 0, cam.world[0], cam.world[1], cam.world[2])
   writeDividedVector3(up, 0, cam.world[4], cam.world[5], cam.world[6])
@@ -146,11 +165,53 @@ export function encodeTranslucencyVolume(
   inputs.previousPreExposure = pre.previous
   inputs.exposure = pre.exposure
   inputs.cut = cut
+  inputs.image = rt.run.frame
+  inputs.mlVolume = sampledVolumeFog(rt)
+  sampling.rt = rt
+  sampling.cam = cam
+  inputs.sampleCells = sampleCells
   try {
-    volume.encode(steps, inputs as TranslucencyInputs)
+    return use(volume, inputs as TranslucencyInputs)
   } finally {
-    inputs.lightBuffer = inputs.vsm = inputs.lightFunction = inputs.cloudShadow = undefined
+    inputs.lightBuffer =
+      inputs.vsm =
+      inputs.lightFunction =
+      inputs.cloudShadow =
+      inputs.mlVolume =
+      inputs.sampleCells =
+        undefined
+    sampling.rt = sampling.cam = undefined
   }
+}
+
+/**
+ * The cells of the volume the surfaces will read, to be marked before the volume is built (`translucencyVolumeMarkVoxels`): the cascades
+ * placed and the marks emptied. Returns where the surfaces mark (`TranslucencyVolumeGpu.prepare`: the frame uniform and the texture the
+ * fragments of `translucencyVolumeMarkWgsl` read and write), none where the cells are not marked this image — `encodeTranslucencyVolume`
+ * then lights every cell. Called once an image, after the lights are uploaded and before the pass that marks.
+ */
+export function prepareTranslucencyVolumeMarks(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  steps: ComputeRun,
+  cam: EngineCamera,
+) {
+  return withVolume(rt, device, cam, (volume, input) => volume.prepare(steps, input), false)
+}
+
+/**
+ * The translucency lighting volume of this image, built before the blends read it (after the shadow maps it reads): the cascades placed
+ * round the camera, the light of the lights each reaches injected — over the cells the surfaces marked (`prepareTranslucencyVolumeMarks`),
+ * or every cell —, filtered (`createTranslucencyVolumeGpu`). A scene whose surfaces are lit forward, or with the setting off, makes nothing
+ * and lets go of what it held.
+ */
+export function encodeTranslucencyVolume(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  steps: ComputeRun,
+  cam: EngineCamera,
+) {
+  withVolume(rt, device, cam, (volume, input) => volume.encode(steps, input))
 }
 
 /** The texture the blends bind as the volume: this image's, the one-cell stand-in where none is made. */

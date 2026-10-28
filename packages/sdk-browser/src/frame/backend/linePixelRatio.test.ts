@@ -1,10 +1,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera } from './testScenes.fixture.ts'
+import { backendOf, quadScene, camera } from './testScenes.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { SHADE_UNIFORM, VIS_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
 import { FLAG_MASK, MATERIAL_RANK_MASK } from '../../visibility/types.ts'
@@ -12,8 +11,6 @@ import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../materials/table/ma
 import { BLEND_ITEM_SHIPPED } from '../../blend/itemLayout.fixture.ts'
 import { VIEW } from '../../blend/viewLayout.ts'
 import { materialRecordsSent } from '../../materials/table/materialRecordsSent.fixture.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 /** The words of the buffer `label` names, after the frames of a line surface 2.5 CSS pixels wide
  *  at a pixel ratio of 2, and the record of rank `rank` (`MATERIAL_RECORD`) as the material table
@@ -26,12 +23,10 @@ async function frameWords(transparent = false, dashed = false) {
   if (dashed) Object.assign(scene.material, { dashSize: 0.25, gapSize: 0.5 })
   if (transparent) Object.assign(scene.material, { transparent: true, opacity: 0.5 })
   const { device, buffers, textureWrites } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...scene,
     gpuDevice: device,
     maxResidentPages: 4,
-    viewport: [32, 32],
     pixelRatio: () => 2,
   })
   try {

@@ -23,6 +23,7 @@ import { AIR_TINT_WGSL } from '../atmosphere/airTintWgsl.ts'
 import {
   contactShadowWgsl,
   raysLabel,
+  type ContactBendBindings,
   type ContactRays,
 } from '../contactShadow/contactShadowWgsl.ts'
 import { SHADOW_TERMS_WGSL } from './shadowTermsWgsl.ts'
@@ -78,7 +79,12 @@ const irradianceLightWgsl = (key: Partial<ContractKey>, term: 'irradiance' | 'ba
 /** The fragments the surface term of a light lists, by what its program holds (`declaredLightWgsl`). */
 const lightDeps = (
   key: Partial<ContractKey>,
-  held: { models: boolean; airTint: boolean; rays: ContactRays | undefined },
+  held: {
+    models: boolean
+    airTint: boolean
+    rays: ContactRays | undefined
+    bend?: ContactBendBindings
+  },
 ) => [
   LAMP_WGSL,
   THIN_TRANSMISSION_WGSL,
@@ -89,7 +95,7 @@ const lightDeps = (
   ...(key.channelless ? [] : [lightChannelsOf, SURFACE_CHANNELS_WGSL]),
   ...(held.models ? [SHADING_MODEL_LIGHT_WGSL, PROFILE_LIGHT_WGSL] : []),
   ...(held.models && !key.rectless ? [PROFILE_RECT_WGSL] : []),
-  ...(held.rays ? [contactShadowWgsl(held.rays)] : []),
+  ...(held.rays ? [contactShadowWgsl(held.rays, held.bend)] : []),
 ]
 
 /**
@@ -159,7 +165,15 @@ export const declaredLightWgsl = (
     cut = FULL_CUT,
     airTint = true,
     rays,
-  }: { term?: LightTerm; cut?: LightCut; airTint?: boolean; rays?: ContactRays } = {},
+    bend,
+  }: {
+    term?: LightTerm
+    cut?: LightCut
+    airTint?: boolean
+    rays?: ContactRays
+    /** The bindings of the screen-space shadows' array and of its layers' ranks (`contactBendWgsl`) a pass that holds them gives: the light finds its layer there. */
+    bend?: ContactBendBindings
+  } = {},
 ) => {
   const shadowed = !key.unshadowed,
     contact = !key.contactless
@@ -173,15 +187,15 @@ export const declaredLightWgsl = (
   // where it holds them, or the one of the surface whose material asks (`rays`).
   const cast = contact ? (rays ?? (models ? 'models' : 'lights')) : undefined
   return wgslBlock(
-    `declaredLightWgsl(${variantLabel(key)}, ${term}${cutLabel(cut)}${airTintLabel(airTint)}${cast ? raysLabel(cast) : ''})`,
-    lightDeps(key, { models, airTint, rays: cast }),
-    `${split ? SPLIT_HEAD : WHOLE_HEAD}${REACH(zero)}${key.channelless ? '' : CHANNELS(zero)}${key.rectless ? '' : rectBranch(out, split, shadowed, cut, models, contact)}${LAMP_SEEN(zero, 'LAMP_BIAS')}${shadowed ? shadeStatement(out, cut) : catcherOf(cut, CATCHER_NONE(out))}
+    declaredLabel(key, term, cut, airTint, cast, bend),
+    lightDeps(key, { models, airTint, rays: cast, bend }),
+    `${split ? SPLIT_HEAD : WHOLE_HEAD}${REACH(zero)}${key.channelless ? '' : CHANNELS(zero)}${cast && bend ? '\n contactBendSet(rank);' : ''}${key.rectless ? '' : rectBranch(out, split, shadowed, cut, models, contact)}${LAMP_SEEN(zero, 'LAMP_BIAS')}${shadowed ? shadeStatement(out, cut) : catcherOf(cut, CATCHER_NONE(out))}
  let bits=shadowBitsOf(light);${contact ? `\n let contact=contactShadow(light,P,lamp.centre,bits);` : ''}
  let terms=${termsOf(shadowed, contact, split)};
  let strength=lightStrength(light)*lamp.falloff;
  let transmissionEnergy=strength*terms.transmission;
  let surfaceEnergy=strength*terms.surface;
- let color=light.colorIntensity.rgb*lightFunctionOf(light,P)*${key.profileless ? '' : 'lightProfileOf(light,P)*'}${airTint ? 'airTintOf(rank,light,P)*' : ''}cloudShadowOnSurface(rank,P);
+ let color=light.colorIntensity.rgb*lightFunctionOf(light,P)*${key.profileless ? '' : 'lightProfileOf(light,P)*'}${airTint ? 'airTintOf(rank,light,P)*' : ''}cloudShadowOnSurface(rank,P);${models ? '\n hairLightRank=rank;' : ''}
  // A surface with no thin transmission adds an exact zero: 0·x is ±0, and ±0 added to a term leaves
  // the light's sum as it is (\`exactZeros.test.ts\`). A thin one lets the light through from either
  // side, its direction the lamp's centre (\`thinTransmission\`).
@@ -195,6 +209,17 @@ ${split ? SPLIT_TAIL : wholeTail(cut)}
 }`,
   )
 }
+
+/** The block's name: the variant, the term and what cuts it. */
+const declaredLabel = (
+  key: Partial<ContractKey>,
+  term: LightTerm,
+  cut: LightCut,
+  airTint: boolean,
+  cast: ContactRays | undefined,
+  bend: ContactBendBindings | undefined,
+) =>
+  `declaredLightWgsl(${variantLabel(key)}, ${term}${cutLabel(cut)}${airTintLabel(airTint)}${cast ? raysLabel(cast) : ''}${cast && bend ? `, bend ${bend.array} ${bend.ranks}` : ''})`
 
 const WHOLE_HEAD =
   'fn declaredLight(rank:u32,rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,shading:LobeSurface)->vec3f{'
@@ -297,6 +322,14 @@ const shadeStatement = (out: Out, cut: LightCut) => `
  let back=${cut.thin ? 'thinSurface()&&lamp.side<0.0' : 'false'};
  let facing=${cut.thin ? 'thinSurface()||' : ''}${cut.models ? `surfaceModel==${MODEL_FLAG.toon}u||surfaceModel==${MODEL_FLAG.shadow}u${FACING_MODELS}||` : ''}lamp.side>0.0||lamp.cosine>0.0;${shadeRead(out, 'select(N,-N,back)', 'facing', 'lamp.falloff', cut)}`
 
+/** The shading every walk of the lights opens with: the pixel's lobes and cloth, handed to each light's term; `surface` is the expression of the lobed surface. */
+export const SHADING_TEXT = (surface = 'clothSurface(lobeSurface(rgb,metal,rough,N,V))') =>
+  `let shading=${surface};lobeView(shading);`
+
+/** The term of the light of rank `rank` in a walk (`SHADING_TEXT`'s shading, the loop's `rank`). */
+export const DECLARED_TERM_TEXT = (rank = 'rank') =>
+  `declaredLight(${rank},rgb,metal,rough,N,V,P,ao,shading)`
+
 /**
  * The one loop that walks a point's lights: a pixel's in full (\`sliceLighting\`; split into its
  * diffuse and specular shares, \`sliceLightingSplit\`), the lights of a
@@ -312,7 +345,7 @@ export const sliceLightingWgsl = (term: 'surface' | 'split' = 'surface', models 
       ? `
 fn sliceLightingSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,slice:vec2u)->LightSplit{
  var result=LightSplit(vec3f(0.0),vec3f(0.0));
- let shading=clothSurface(lobeSurface(rgb,metal,rough,N,V));lobeView(shading);
+ ${SHADING_TEXT()}
  for(var index=0u;index<slice.y;index++){
   let rank=listedLight(slice,index);
   if(!listedDrawn(slice,rank)){continue;}
@@ -325,11 +358,11 @@ fn sliceLightingSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,slic
       : `
 fn sliceLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
  var result=vec3f(0.0);
- let shading=${models ? 'modelLobeSurface(clothSurface(lobeSurface(rgb,metal,rough,N,V)))' : 'clothSurface(lobeSurface(rgb,metal,rough,N,V))'};lobeView(shading);
+ ${SHADING_TEXT(models ? 'modelLobeSurface(clothSurface(lobeSurface(rgb,metal,rough,N,V)))' : undefined)}
  for(var index=0u;index<slice.y;index++){
   let rank=listedLight(slice,index);
   if(!listedDrawn(slice,rank)){continue;}
-  result+=declaredLight(rank,rgb,metal,rough,N,V,P,ao,shading);
+  result+=${DECLARED_TERM_TEXT()};
  }
  return result;
 }`,

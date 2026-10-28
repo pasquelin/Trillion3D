@@ -1,16 +1,13 @@
 import test, { mock } from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
 import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
 import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera } from './testScenes.fixture.ts'
+import { backendOf, quadScene, camera } from './testScenes.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('mixed GPU and transparent pages wait for initial coverage before validating the resident cut', async () => {
@@ -46,14 +43,12 @@ test('mixed GPU and transparent pages wait for initial coverage before validatin
       ...collected.roots.filter((root) => root.pages[0].transparent),
     ]),
   })
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     draws: graphDraws(fixture.source, fixture.associations),
     indices: new Map(),
     gpuDevice: device,
     maxResidentPages: 4,
-    viewport: [32, 32],
   })
   try {
     await backend.prepare()
@@ -116,13 +111,11 @@ test('cached clustered cuts keep visibility current and leave unchanged mesh ind
   fixture.metadata.primitives.push(otherPrimitive)
   fixture.associations.set(otherMesh, { meshes: 2, primitives: 0 })
   for (const [url, array] of other.indices) fixture.indices.set(`other-${url}`, array)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     draws: graphDraws(fixture.source, fixture.associations),
     gpuDevice: device,
     maxResidentPages: 6,
-    viewport: [32, 32],
   })
   // Triangles the image drew: the instance count the cut writes falls to zero, the encode plan
   // never moves. A double-sided item draws its triangles twice, once per face pass.

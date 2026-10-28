@@ -46,11 +46,15 @@ const pair = (rough: number, NoV: number) => [0.9 - 0.4 * rough, 0.05 + 0.2 * No
 const slab = (f0: number[]) => Math.min(Math.max(50 * Math.max(...f0), 0), 1)
 const coat = { coat: 0.6, coatRough: 0.3, coatN: unit([0.2, 0.1, 1]) as V3 }
 let coated = false
+/** What the host's \`coatLayerKeep\` answers while a coated pixel is lit: one minus the coat's weight times its own lobe's energy. */
+let layerKeep = 1
+let thin = false
 
 const shader = (lobes: boolean) =>
   shaderRun<{
     cubemapMipFromRoughness: (roughness: number, mipCount: number) => number
     offSpecularPeakDirection: (N: V3, R: V3, roughness: number) => number[]
+    ambientCubemapBack: (N: V3, folded: boolean) => number[]
     ambientCubemapAt: (
       rgb: V3,
       metal: number,
@@ -61,7 +65,12 @@ const shader = (lobes: boolean) =>
     ) => number[][]
   }>(
     wgslModule(ambientCubemapWgsl(lobes)),
-    ['cubemapMipFromRoughness', 'offSpecularPeakDirection', 'ambientCubemapAt'],
+    [
+      'cubemapMipFromRoughness',
+      'offSpecularPeakDirection',
+      'ambientCubemapAt',
+      'ambientCubemapBack',
+    ],
     {
       ...F32_SCOPE,
       ambientCube: {},
@@ -74,10 +83,15 @@ const shader = (lobes: boolean) =>
       },
       environmentLightingFrom: (rgb: number[], metal: number, irradiance: number[], ao: number) =>
         rgb.map((x, k) => (x * (1 - metal) * irradiance[k] * ao) / Math.PI),
-      thinSurface: () => false,
+      thinSurface: () => thin,
       indirectF0: f0Of,
       indirectKeep: () => KEEP,
-      environmentBrdfPair: pair,
+      shadingEnergyPair: pair,
+      energyTerms: (f0: number[], f90: number, rough: number, NoV: number) => {
+        const ab = pair(rough, NoV)
+        return f0.map((x) => x * ab[0] + f90 * ab[1])
+      },
+      coatLayerKeep: () => layerKeep,
       hasCoat: () => coated,
       lobes: coat,
     },
@@ -187,6 +201,9 @@ test('under a clear coat the base lobe is weighed by what the coat leaves and th
     const rgb = [between(0, 1), between(0, 1), between(0, 1)] as V3
     const metal = between(0, 1),
       rough = between(0, 1)
+    const ab = pair(rough, dot(N, V)),
+      coatAb = pair(coat.coatRough, Math.min(Math.max(dot(coat.coatN, V), 0), 1))
+    layerKeep = 1 - coat.coat * (0.04 * coatAb[0] + 1 * coatAb[1])
     samples.length = 0
     const [, specular] = lobed.ambientCubemapAt(rgb, metal, rough, N, V, 1)
     assert.equal(samples.length, 3)
@@ -195,15 +212,29 @@ test('under a clear coat the base lobe is weighed by what the coat leaves and th
     top.direction.forEach((x, k) => assert.ok(Math.abs(samples[2].dir[k] - x) < 1e-5))
     assert.ok(Math.abs(samples[2].mip - top.mip) < 1e-4)
     const f0 = f0Of(rgb, metal)
-    const ab = pair(rough, dot(N, V)),
-      coatAb = pair(coat.coatRough, Math.min(Math.max(dot(coat.coatN, V), 0), 1))
-    const weight = coat.coat * (0.04 * coatAb[0] + 1 * coatAb[1])
     const baseCube = cubeAt(base.direction, base.mip),
       coatCube = cubeAt(top.direction, top.mip)
     for (let k = 0; k < 3; k++) {
       const under = baseCube[k] * COLOUR[k] * (f0[k] * ab[0] + slab(f0) * ab[1] * (1 - coat.coat))
-      near(specular[k], under * (1 - weight) + coatCube[k] * COLOUR[k] * weight, `coated ${round}`)
+      near(
+        specular[k],
+        under * layerKeep + coatCube[k] * COLOUR[k] * (1 - layerKeep),
+        `coated ${round}`,
+      )
     }
   }
   coated = false
+})
+
+test('a thin surface\u2019s back takes the cube along the opposite normal, or along the normal where it folds into the front, a surface that is not thin none', () => {
+  const N = sphere()
+  const along = (direction: number[]) =>
+    cubeAt(direction, MIPS - 4).map((x, k) => Math.PI * x * COLOUR[k])
+  assert.deepEqual(plain.ambientCubemapBack(N, false), [0, 0, 0])
+  thin = true
+  const back = plain.ambientCubemapBack(N, false),
+    folded = plain.ambientCubemapBack(N, true)
+  thin = false
+  along(N.map((x) => -x)).forEach((x, k) => near(back[k], x, 'back'))
+  along(N).forEach((x, k) => near(folded[k], x, 'folded'))
 })

@@ -1,3 +1,4 @@
+import { sinFromCosUnclamped } from '../../../../math/src/wgsl/geometry.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { safeRcp } from '../../../../math/src/wgsl/reals.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
@@ -33,7 +34,14 @@ import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
  */
 export const LAMP_LOBE_WGSL = wgslBlock(
   'LAMP_LOBE_WGSL',
-  [STANDARD_LIGHTING_WGSL, LAMP_WGSL, safeRcp, SHADING_MODEL_STATE_WGSL, lightTraits],
+  [
+    STANDARD_LIGHTING_WGSL,
+    LAMP_WGSL,
+    safeRcp,
+    sinFromCosUnclamped,
+    SHADING_MODEL_STATE_WGSL,
+    lightTraits,
+  ],
   `
 /** One over the root of \`x\`, nothing where it is nothing or below. */
 fn safeInverseSqrt(x:f32)->f32{return safeRcp(sqrt(max(x,0.0)));}
@@ -88,7 +96,7 @@ fn lobeEnergy(a2:f32,VoH:f32,sine:f32,softSine:f32,lineCos:f32)->vec2f{
  *  placed by one Newton step on the direction around the disk. \`NoL\`, \`NoV\`, \`VoL\` are the dots of
  *  the normal, the light and the view. */
 fn sphereMoved(NoL:f32,NoV:f32,VoL:f32,sine:f32)->vec4f{
- let cosAlpha=sqrt(1.0-sine*sine);
+ let cosAlpha=sinFromCosUnclamped(sine);
  let RoL=2.0*NoL*NoV-VoL;
  if(RoL>=cosAlpha){return vec4f(NoL,VoL,1.0,abs(NoV));}
  let rInvLengthT=sine*safeInverseSqrt(1.0-RoL*RoL);

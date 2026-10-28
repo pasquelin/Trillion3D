@@ -256,3 +256,15 @@ test('the transmissive stages set the ask before they light, the single-layer wa
   assert.ok(beside.includes('fn contactShadow('))
   assert.ok(!beside.includes('contactAsked='))
 })
+
+test('a light finds its layer of the screen-space march by its rank', () => {
+  const bend = { array: 77, ranks: 78 }
+  const code = wgslModule(declaredLightWgsl(FULL_CONTRACT, { bend }))
+  assert.ok(code.includes('@group(0) @binding(77) var contactBend'))
+  assert.ok(code.includes('@group(0) @binding(78) var<uniform> contactBendRanks'))
+  assert.ok(code.includes('contactBendSet(rank);'))
+  assert.ok(code.includes('return contactBendRead(contactOwn);'))
+  // Without the bindings the light casts its own ray, whatever the pass.
+  const without = wgslModule(declaredLightWgsl(FULL_CONTRACT))
+  assert.ok(!without.includes('contactBendSet'))
+})

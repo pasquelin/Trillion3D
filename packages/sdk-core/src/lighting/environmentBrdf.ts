@@ -53,7 +53,7 @@ function integrate(noV: number, roughness: number): [number, number] {
   return [a / SAMPLES, b / SAMPLES]
 }
 
-const unorm16 = (v: number) => Math.trunc(clamp(v, 0, 1) * 65535 + 0.5)
+export const unorm16 = (v: number) => Math.trunc(clamp(v, 0, 1) * 65535 + 0.5)
 
 let table: Uint32Array<ArrayBuffer> | null = null
 

@@ -1,7 +1,14 @@
+import { sampledLightsKey, lightsFrontLayer } from '../../lighting/manyLightsSampled/frame.ts'
+import { indirectWordsView } from '../../lighting/bounce/screen/indirectWords.ts'
 import {
   askLightFunctionPrograms,
   lightFunctionResources,
 } from '../../lighting/lightFunction/frame.ts'
+import {
+  heterogeneousShadowBufferOf,
+  volumeShadowsOn,
+} from '../../lighting/heterogeneousVolumes/volumeShadowRead.ts'
+import { bendResourcesOf } from '../../lighting/contactShadow/bendTarget.ts'
 import { lightProfileResources } from '../../lighting/lightProfile/frame.ts'
 import {
   ambientCubemapOn,
@@ -26,9 +33,11 @@ import {
   vsmSunShadowMask,
 } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
+import { marksVolumeVoxels } from '../../blend/radianceMarkSetting.ts'
 import { sunShadowMask } from '../../lighting/distanceField/shadow/state.ts'
 import { skyOcclusionRead } from '../../lighting/distanceField/ao/state.ts'
 import { skyOcclusionPlanned } from '../render/encodeSkyOcclusion.ts'
+import { capsuleIndirectPlanned, capsuleIndirectRead } from '../../lighting/capsuleShadows/host.ts'
 import { lobesHeld, rowsWearLobes } from './lobesTarget.ts'
 import { castsContactShadows } from '../../lighting/contactShadow/frame.ts'
 import { wantsContractLighting } from './lit.ts'
@@ -79,14 +88,7 @@ const channelledFor = (pass: LitPass, rt: WebgpuPagesRuntime) =>
  *  shadow code only where a light takes a shadow (`shadowsOn`), the contact shadows' where the pass
  *  casts them. */
 export const keyFor = (pass: LitPass, rt: WebgpuPagesRuntime) =>
-  contractKey(
-    rt.lights.store,
-    shadowsOn(rt),
-    lobedFor(pass, rt),
-    contactFor(pass, rt),
-    channelledFor(pass, rt),
-    pass === 'opaque' && ambientCubemapOn(rt),
-  )
+  contractKey(rt, pass, shadowsOn(rt))
 
 /** The lit programs prepare compiles beside the others when the image wants the contract (#1362),
  *  with bounce too when the session wants it; a failed one is said, then or later. The one it
@@ -122,11 +124,14 @@ export const blendContext = (rt: WebgpuPagesRuntime) => {
     cloudShade: rt.blendState.cloudShade,
     translucentShadow: rt.setup.translucentShadow,
     translucentRectLights: rt.setup.translucentRectLights,
+    sampledFront: lightsFrontLayer(rt),
     localFog: rt.setup.localFog,
     rasters: rt.vis.rasters,
     frontLayer: tracesFrontLayer(rt.context),
     waterReflects: waterTraces(rt),
-    radianceMark: readScreenProbeSetting(rt, 'screenProbeTranslucencyReflectionsRadianceCache'),
+    radianceMark:
+      readScreenProbeSetting(rt, 'screenProbeTranslucencyReflectionsRadianceCache') ||
+      marksVolumeVoxels(rt),
     waterSeparate: waterSeparates(rt),
     waterSunTrace: readSingleLayerWaterSetting(rt, 'singleLayerWaterShadersSupportVsmFiltering'),
   }
@@ -146,15 +151,13 @@ export const blendContext = (rt: WebgpuPagesRuntime) => {
  * `key`, fresh unless a frame hands in the one it reuses from one image to the next.
  */
 function contractKey(
-  store: LightStore,
+  rt: WebgpuPagesRuntime,
+  pass: LitPass,
   shadowed: boolean,
-  lobed: boolean,
-  contact: boolean,
-  channelled: boolean,
-  cubed: boolean,
   key: Partial<ContractKey> = {},
 ) {
-  const sun = store.shadowedSuns > 0,
+  const { store } = rt.lights,
+    sun = store.shadowedSuns > 0,
     local = store.shadowedLocals > 0,
     rect = store.rects > 0
   key.narrow = store.count <= LIGHT_SETTINGS.tileLights
@@ -162,15 +165,18 @@ function contractKey(
   key.rectless = !rect
   key.sunless = !key.unshadowed && !sun
   key.localless = !key.unshadowed && !local
-  key.lobeless = !lobed
-  key.contactless = !contact
-  key.channelless = !channelled
+  key.lobeless = !lobedFor(pass, rt)
+  key.contactless = !contactFor(pass, rt)
+  key.channelless = !channelledFor(pass, rt)
   key.profileless = store.profiled === 0
-  key.cubeless = !cubed
+  key.cubeless = !(pass === 'opaque' && ambientCubemapOn(rt))
+  // The opaque passes read the shadows the heterogeneous volumes cast while the scene has volumes that cast them.
+  key.volumeShadow = pass === 'opaque' && volumeShadowsOn(rt)
+  // The sampled lighting lights the local lights (and the suns, if it is asked to) of the opaque passes once it is lighting them (`sampledLightsKey`).
+  sampledLightsKey(rt, pass === 'opaque', key)
   return key as ContractKey
 }
 
-type LightStore = WebgpuPagesRuntime['lights']['store']
 /** The lit program the frame waits for (#1362): while the image wants the contract and no compiled
  *  program can light it, its compile — never the unlit stand-in meanwhile —, else nothing. */
 export function litProgramPending(rt: WebgpuPagesRuntime) {
@@ -192,6 +198,16 @@ export function askLobedPrograms(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if (!wantsContractLighting(rt)) return
   askLightFunctionPrograms(rt, device)
   const { deferred } = rt.gpu
+  // A bounce the host wants and a lamp to light: its lit program compiles now, beside the probes' rigging, not after it (the key follows what the bounce wants, not the grid it has).
+  const { bounce, lights } = rt
+  if (
+    bounce.wanted &&
+    !bounce.probes &&
+    !bounce.reason &&
+    !lights.store.unlit &&
+    lights.store.count
+  )
+    deferred?.askBounce(pickKeyOf(rt))
   // The fog pass is asked now, the frames waiting for its compile, not at the first image it lays fog on.
   deferred?.askFog()
   if (deferred && rowsWearLobes(rt))
@@ -208,15 +224,7 @@ function litKeyInto(rt: WebgpuPagesRuntime, into: DirectLightResources, active: 
   if (active) {
     // Lobe code while the targets hold the lobes of a surface that carries one (`physicalLobes.ts`).
     const shadowed = shadowsOn(rt) && (!!lights.pageLayout || !!lights.vsm)
-    contractKey(
-      lights.store,
-      shadowed,
-      lobedFor('opaque', rt),
-      contactFor('opaque', rt),
-      channelledFor('opaque', rt),
-      ambientCubemapOn(rt),
-      into,
-    )
+    contractKey(rt, 'opaque', shadowed, into)
     into.narrow &&= !!lights.tiles
   } else Object.assign(into, FULL_CONTRACT)
 }
@@ -224,6 +232,9 @@ function litKeyInto(rt: WebgpuPagesRuntime, into: DirectLightResources, active: 
 const pickResources: DirectLightResources = {}
 /** The occlusion the image will read, named for the pick alone: the key reads whether one is named, never its buffers, which the encoding writes. */
 const PLANNED_OCCLUSION = {} as NonNullable<DirectLightResources['skyShadowing']>
+
+/** The indirect capsule shadows the image will read, named for the pick alone as the occlusion is. */
+const PLANNED_CAPSULE = {} as NonNullable<DirectLightResources['capsuleIndirect']>
 
 /**
  * What picks the lit program of the image (`bind`, `../../lighting/deferred/deferred.ts`) and nothing else: the key's cuts, the
@@ -236,6 +247,7 @@ export function pickKeyOf(rt: WebgpuPagesRuntime) {
   litKeyInto(rt, pickResources, active)
   pickResources.bounceGrid = lit && rt.bounce.wanted ? rt.bounce.probes?.uniform : undefined
   pickResources.skyShadowing = lit && skyOcclusionPlanned(rt) ? PLANNED_OCCLUSION : undefined
+  pickResources.capsuleIndirect = lit && capsuleIndirectPlanned(rt) ? PLANNED_CAPSULE : undefined
   return pickResources
 }
 
@@ -285,10 +297,17 @@ function litPassResources(rt: WebgpuPagesRuntime, lit: boolean) {
     : undefined
   // The light profiles' atlas, where the scene names any (`../../lighting/lightProfile/frame.ts`).
   contractResources.lightProfile = lit ? lightProfileResources(rt) : undefined
+  // The screen-space contact shadows' array of the image (`../../lighting/contactShadow/bendTarget.ts`), none where it marched none.
+  contractResources.contactBend = lit ? bendResourcesOf(rt) : undefined
+  // The shadows the heterogeneous volumes cast this image (`encodeHeterogeneousVolumes`, the `shadows` phase), none where it built none.
+  contractResources.volumeShadowMaps = lit ? heterogeneousShadowBufferOf(rt.gpu) : undefined
   // The ambient cubemap's cube, whole with its mips, and its colour (`../../lighting/deferred/ambientCubemapFrame.ts`).
   contractResources.ambientCubemap = ambientCubemapResources(rt, lit)
   // What the screen probes left of the pixels' indirect light this image (`../../lighting/bounce/screen/frame.ts`).
-  contractResources.screenIndirect = lit ? rt.gpu.screenProbes?.indirect : undefined
+  contractResources.screenIndirect = lit
+    ? (rt.gpu.screenProbes?.indirect ?? indirectWordsView(rt))
+    : undefined
+  contractResources.screenShortRangeGi = lit ? rt.gpu.screenProbes?.shortRangeGi : undefined
   // The ambient occlusion this image drew (`../../lighting/ao/frame.ts`).
   contractResources.ambientOcclusion = lit ? rt.gpu.ambientOcclusion?.output : undefined
   // The volumetric lightmap, where the scene has one and the setting reads it
@@ -297,6 +316,8 @@ function litPassResources(rt: WebgpuPagesRuntime, lit: boolean) {
     lit && rt.gpu.device ? volumetricLightmapOf(rt, rt.gpu.device) : undefined
   // The sky light's distance-field occlusion this image drew (`../render/encodeSkyOcclusion.ts`): the program that applies it.
   contractResources.skyShadowing = lit ? skyOcclusionRead(rt) : undefined
+  // The indirect capsule shadows this image drew (`../../lighting/capsuleShadows/host.ts`).
+  contractResources.capsuleIndirect = lit ? capsuleIndirectRead(rt) : undefined
   // The shadowed local lights lit one by one (`shadowOnePassProjection` false).
   contractResources.perLight = lit ? vsmPerLight(rt) : undefined
 }

@@ -41,7 +41,6 @@ export function countedBy(
         noField: fate('noField'),
         hit: fate('hit'),
         open: fate('open'),
-        miss: fate('miss'),
         bound: fate('bound'),
         distant: fate('distant'),
       },

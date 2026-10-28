@@ -8,13 +8,14 @@ import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
 import { surfaceHitBindingsFrom } from '../surfaceCache/hitWgsl.ts'
 import { probeRayWgsl } from './probeRayWgsl.ts'
 import type { ProbeRayModule } from './probeRay.fixture.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 
 /** `probeRay` from `origin` along +x, over `[begin, 20]` metres, where the march meets a surface at `hitTime` centimetres from the origin
  *  (`-1`: none) after `steps`; the image's frame 13. What the march and the hit's read were asked is returned beside the answer. */
 function ray(hitTime: number, begin = 0, steps = 9, clipmaps = 4) {
   const asked: { input?: Record<string, unknown>; hit?: unknown[] } = {}
   const { probeRay } = shaderRun<ProbeRayModule>(
-    wgslModule(probeRayWgsl(surfaceHitBindingsFrom(0, 0))),
+    wgslModule(probeRayWgsl(surfaceHitBindingsFrom(0, 0), WORD_LIGHT_FORMAT)),
     ['probeRay'],
     {
       gdfView: { clipmaps },

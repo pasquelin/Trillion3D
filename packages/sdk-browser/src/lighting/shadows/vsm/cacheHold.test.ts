@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { VsmCacheManager } from './cacheManager.ts'
 import { VSM_DEFAULT_SHADOWS } from './mapSettings.ts'
 import { VsmMapIds } from './mapIds.ts'
+import { VSM_MAX_SINGLE_PAGE_MAPS } from './constants.ts'
 
 const VSM_LIGHT_KEEP_FRAMES = VSM_DEFAULT_SHADOWS.shadowCacheMaxLightAgeSinceLastRequest
 
@@ -68,5 +69,5 @@ test('a dropped plan moves no id and has the clipmaps draw afresh', () => {
   ids.reset().claim(lamp, 'light')
   ids.seal()
   cache.commitIds(ids)
-  assert.deepEqual([lamp.mapId, lamp.prevMapId], [0, 4])
+  assert.deepEqual([lamp.mapId, lamp.prevMapId], [VSM_MAX_SINGLE_PAGE_MAPS, 4])
 })

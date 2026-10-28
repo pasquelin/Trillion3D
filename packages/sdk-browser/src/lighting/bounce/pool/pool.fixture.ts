@@ -15,7 +15,14 @@ import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { PROBE_QUEUE_WORDS } from '../probes/probeQueueWgsl.ts'
 import { screenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { POOL_SHADER } from './poolWgsl.ts'
-import { POOL_SLOT, POOL_WORK, freshWork, poolLimits, poolShapeOf } from './poolLayout.ts'
+import {
+  POOL_ADAPTIVE,
+  POOL_SLOT,
+  POOL_WORK,
+  freshWork,
+  poolLimits,
+  poolShapeOf,
+} from './poolLayout.ts'
 
 /** The probes the fixture's pool queues at most, whatever its slots: the world's pool. */
 export const POOL_QUEUE = BOUNCE_SETTINGS.probePool
@@ -58,7 +65,9 @@ const NAMES = [
   'stampChange',
   'clearIndirection',
   'updateProbes',
+  'updateAdaptive',
   'allocateProbes',
+  'allocateAdaptive',
   'countProbes',
   'cutProbes',
   'emitProbes',
@@ -105,6 +114,7 @@ export function simulatedPool(
   cascades: BounceCascades,
   slotCount: number,
   published?: ReturnType<typeof simulatedAtlas>,
+  adaptive = false,
 ) {
   const slots = new Uint32Array(slotCount * POOL_SLOT.words)
   const shape = poolShapeOf(cascades)
@@ -119,7 +129,17 @@ export function simulatedPool(
     forward: [0, 0, 0, 0],
     levels: [],
   }
-  const pool = { room: 0, keep: 0, cap: 0, fullUpdate: 0, distances: [0, 0] }
+  // The world's pool takes no adaptive probes: its buffers are never read.
+  const adaptiveProbes = new Uint32Array(adaptive ? shape.entries * POOL_ADAPTIVE.probes : 1)
+  const misses = new Uint32Array(adaptive ? shape.entries * 4 : 1)
+  const pool = {
+    room: 0,
+    keep: 0,
+    cap: 0,
+    fullUpdate: 0,
+    distances: [0, 0],
+    adaptive: adaptive ? 1 : 0,
+  }
   const kit = shaderRun<Record<(typeof NAMES)[number], (id?: number[]) => void>>(
     POOL_SHADER,
     [...NAMES],
@@ -131,10 +151,11 @@ export function simulatedPool(
       table,
       work,
       marks,
+      adaptive: adaptiveProbes,
+      misses,
       probeQueue,
       publishedOut: published,
       // A cell's coordinates are signed words in the slots and the queue.
-      bitcast_u32: (x: number) => x >>> 0,
       bitcast_vec3i: (v: number[]) => v.map((x) => x | 0),
     },
   )
@@ -149,6 +170,9 @@ export function simulatedPool(
     table,
     work,
     marks,
+    /** The adaptive probes of each entry (two words an entry) and the interpolation misses (four words an entry: their count, the sums by axis). */
+    adaptiveProbes,
+    misses,
     /** The cell `x, y, z` of `level` is read by the image. */
     mark(level: number, x: number, y: number, z: number) {
       const entry = poolEntryOf(cascades, level, x, y, z)
@@ -184,9 +208,11 @@ export function simulatedPool(
       pool.distances = image.distances ?? [40 * 40, 0]
       over('clearIndirection', table.length)
       overSlots('updateProbes')
+      overSlots('updateAdaptive')
       over('clearWork', POOL_WORK.stack)
       if (image.restart) kit.stampChange()
       over('allocateProbes', shape.markWords)
+      over('allocateAdaptive', shape.entries)
       marks.fill(0)
       overSlots('countProbes')
       // The probes first traced in this pass: those the slots hold never traced as the pass finds them.
@@ -241,10 +267,10 @@ export function cityPool(eye: number[]) {
 }
 
 /** The levels around an eye at `eye` and a pool of `capacity` probes over them. */
-export function poolAt(eye: number[], capacity = 64) {
+export function poolAt(eye: number[], capacity = 64, adaptive = false) {
   const cascades = { ...createBounceCascades([0, 0, 0, 10, 10, 10]), probes: capacity }
   cascades.follow(eye)
-  const pool = simulatedPool(cascades, capacity)
+  const pool = simulatedPool(cascades, capacity, undefined, adaptive)
   /** The cell `dx, dy, dz` cells from the one the eye is in, in the level. */
   const around = (level: number, dx: number, dy: number, dz: number) => {
     const spacing = cascades.levels[level].spacing

@@ -438,7 +438,8 @@ fn vsmFilterableMergeSource(g:VsmMergeGroup,lane:u32){
  if(level>=vsmMergeLevels(g.dest)){return;}
  let source=vsmHandleOffset(g.dest.handle,i32(level));
  let scale=1.0/f32(1u<<level);
- let quarter=f32(VSM_LEVEL0_PAGES>>2u);
+ // The corner steps are a quarter of the map's texels each, as the level's texels are read in (VSM_LEVEL0_TEXELS), not of its pages.
+ let quarter=f32(VSM_LEVEL0_TEXELS>>2u);
  let bias=vec2f(vsmProjectionData[source.id].cornerSteps)*quarter-vec2f(g.dest.cornerSteps)*quarter*scale;
  let tileTexel=vec2f(g.info.pageAddress*VSM_PAGE_TEXELS+g.tile.tileOrigin);
  let sourcePage=vsmFilterPageAt(source,vsmLevelTexelAt(tileTexel*scale+bias).vPage);

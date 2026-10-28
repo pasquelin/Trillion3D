@@ -1,5 +1,6 @@
 import { createNamedStore } from '../namedStore.ts'
-import { resolveFogVolume, sameFogVolume, type SceneFogVolume } from './contracts.ts'
+import { resolveFogVolume, type SceneFogVolume } from './contracts.ts'
+import { sameGraphedObject } from './objectFields.ts'
 import type { ResolvedFogVolume } from './contracts.ts'
 
 /** The volume objects of a scene (`createSceneFogVolumeStore`). */
@@ -10,7 +11,7 @@ export type SceneFogVolumeStore = ReturnType<typeof createSceneFogVolumeStore>
 export const createSceneFogVolumeStore = () =>
   createNamedStore<SceneFogVolume, ResolvedFogVolume>({
     resolve: resolveFogVolume,
-    same: sameFogVolume,
+    same: sameGraphedObject,
     noun: 'fog volume',
     duplicate: 'DUPLICATE_SCENE_FOG_VOLUME',
     unknown: 'UNKNOWN_SCENE_FOG_VOLUME',

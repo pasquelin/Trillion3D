@@ -8,6 +8,7 @@
  * passes read it (`screenOcclusionAt`).
  */
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { DECLARED_TERM_TEXT, SHADING_TEXT } from '../direct/lightLoopWgsl.ts'
 import { lightingBase, type LightingBindings } from '../direct/lightingWgsl.ts'
 import { PER_LIGHT_RECORD_WGSL } from '../shadows/vsm/projection/perLightRecord.ts'
 import {
@@ -16,7 +17,13 @@ import {
   DEFERRED_LIGHT_PROFILE_BINDINGS,
 } from './bindings.ts'
 import { variantLabel, type ContractKey } from './contractCuts.ts'
-import { LIGHTS_BINDING_WGSL, keyOfClass, litPassImports } from './lightPassWgsl.ts'
+import {
+  LIGHTS_BINDING_WGSL,
+  keyOfClass,
+  litPassImports,
+  withContactBend,
+  withVolumeShadow,
+} from './lightPassWgsl.ts'
 import { litPixelStatements } from './litSurfaceWgsl.ts'
 import { TILE_VERTEX_WGSL } from './tilePass.ts'
 import type { TileClass } from './tileClass.ts'
@@ -45,8 +52,8 @@ const PER_LIGHT_LOOP_WGSL = wgslBlock(
   [],
   `
 fn perLightLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,rank:u32)->vec3f{
- let shading=clothSurface(lobeSurface(rgb,metal,rough,N,V));lobeView(shading);
- return declaredLight(rank,rgb,metal,rough,N,V,P,ao,shading);
+ ${SHADING_TEXT()}
+ return ${DECLARED_TERM_TEXT()};
 }`,
 )
 
@@ -60,7 +67,7 @@ export function perLightPassWgsl(key: ContractKey, tileClass: TileClass) {
   return wgslBlock(
     `perLightPassWgsl(${variantLabel(lights)}, ${tileClass})`,
     [
-      lightingBase(PER_LIGHT_BINDINGS, lights, {
+      lightingBase(withVolumeShadow(withContactBend(PER_LIGHT_BINDINGS, lights), lights), lights, {
         narrow: key.narrow,
         environment: false,
         slices: false,

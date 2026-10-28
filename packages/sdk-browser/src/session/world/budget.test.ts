@@ -26,8 +26,10 @@ import { DEFAULT_GPU_BUDGET, EFFECT_TARGET_BYTES } from '../memory/budget.fixtur
  *  662 902 724 plus its depth pyramid (89 473 024 B: 8192 × 2048 r32float texels at level 0, seven
  *  levels), both frame sets' kept tables (33 554 432 B: a page table, its marks and the stale rects
  *  each), its page list and arguments, and the projection records' 96 more bytes over both frames.
+ *  Retaken when the full maps' ids began past the 8192 reserved for the maps of one page, with 1024 more map slots by default:
+ *  1024 projection records over both frames, next-map records and per-page ids, 643 072 B.
  *  The receiver cover is the default settings' (`coverMode` `'suns'`, `vsmCoverModeOf`); that of every map (`'all'`) is 23 592 600 B more. */
-const ONE_SUN_SHADOW_MAP_BYTES = 921_749_336
+const ONE_SUN_SHADOW_MAP_BYTES = 922_392_408
 
 const budget = (
   frame: Partial<FrameMetrics> | null,

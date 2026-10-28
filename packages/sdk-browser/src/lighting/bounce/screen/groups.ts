@@ -106,8 +106,8 @@ function createGroups(
   const { cast } = kernels
   return {
     ...pixelGroups(parts, kernels),
-    /** The groups of the kernels over the probes, where the level casts them. */
-    cast: cast && {
+    /** The groups of the kernels over the probes. */
+    cast: {
       ...placeGroups(parts, cast),
       ...rayGroups(parts, cast),
       ...traceGroups(parts, cast),

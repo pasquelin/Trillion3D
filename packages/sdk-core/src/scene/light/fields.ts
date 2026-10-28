@@ -29,7 +29,7 @@ import { contactShadowOfLight } from './lightContactShadow.ts'
 import { writeContactShadow, type ContactShadowView } from './contactShadowView.ts'
 import { shadowedBitsOf, type LightShadowView } from './shadowedBits.ts'
 import { spotAnglesOf } from './spotAngles.ts'
-import { profileBrightnessOf, profiledIntensityOf, type LightProfileView } from './lightProfile.ts'
+import { profiledIntensityOf } from './lightProfile.ts'
 import {
   coneSphereRadius,
   drawShareOf,
@@ -115,6 +115,15 @@ const rectSidesOf = (light: Pick<SceneLight, 'size'>): [number, number] => {
  *  radius (0 for none), half a rectangle's width. */
 export const sourceRadiusOf = (light: SceneLight) =>
   light.kind === 'rect' ? rectSidesOf(light)[0] / 2 : (light.emitterRadius ?? 0)
+
+/** What a directional light's classic shadow cascades (`SceneLight.dynamicShadowCascades` and the
+ *  three fields beside it) are when it names none; the distance in metres. */
+export const DEFAULT_CLASSIC_CASCADES = {
+  cascades: 4,
+  exponent: 3,
+  transitionFraction: 0.1,
+  distance: 400,
+} as const
 
 /** The kelvin of a light that names none: the white of the working space. */
 export const DEFAULT_TEMPERATURE_KELVIN = 6500
@@ -239,10 +248,10 @@ export const intensityOf = (light: SceneLight) => light.intensity ?? defaultInte
  * as it is where it does not; a rect's radiance, its candelas over half its face's area. A nit is
  * worth the source's area (`sourceAreaOf`); a lumen the sphere's 4π, the spot's cone
  * `2π (1 − cos)`, the rect's π. A light whose `useIesBrightness` is on takes its profile's brightness
- * for its intensity once it is known (`profileBrightness`, `profiledIntensityOf`).
+ * (`iesBrightness`) for its intensity (`profiledIntensityOf`).
  */
-export function brightnessOf(light: SceneLight, profileBrightness?: number) {
-  const intensity = profiledIntensityOf(light, intensityOf(light), profileBrightness)
+export function brightnessOf(light: SceneLight) {
+  const intensity = profiledIntensityOf(light, intensityOf(light))
   if (!readsUnits(light)) return intensity
   const candelas = lampCandelas(
     intensity,
@@ -334,8 +343,6 @@ export interface LightLanes {
   readonly words: Uint32Array
   readonly contactView: ContactShadowView
   readonly shadowView: LightShadowView
-  /** The brightness of the light profiles that are loaded, which a light's intensity may be (`SceneLight.useIesBrightness`). */
-  readonly profiles: LightProfileView
 }
 
 /** The size, in metres, past which a light's source takes no rough diffuse: its weight fades from 1 at a point to 0 here. */
@@ -404,10 +411,7 @@ export function writeLightFields(
   writeVector(packed, base + LIGHT_FIELD.position, light.position ?? [0, 0, 0])
   packed[base + LIGHT_FIELD.range] = light.range ?? 0
   writeVector(packed, base + LIGHT_FIELD.color, lightColour(light))
-  packed[base + LIGHT_FIELD.intensity] = brightnessOf(
-    light,
-    profileBrightnessOf(light, into.profiles),
-  )
+  packed[base + LIGHT_FIELD.intensity] = brightnessOf(light)
   writeVector(packed, base + LIGHT_FIELD.direction, light.direction ?? [0, -1, 0])
   const spot = light.kind === 'spot'
   const [inner, outer] = spot ? spotConesOf(light) : [0, 0]

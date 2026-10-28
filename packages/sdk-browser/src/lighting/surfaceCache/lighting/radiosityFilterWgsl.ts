@@ -2,6 +2,14 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { ditherLight, packLight, unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
+import {
+  lightAtlasScalar,
+  lightLoad,
+  WORD_LIGHT_FORMAT,
+  type LightAtlasFormat,
+} from '../../../gpu/core/lightAtlasFormat.ts'
+import { indirectWordsWgsl } from '../indirectWords.ts'
+import { lightWordsOf } from '../../../gpu/core/lightWords.ts'
 import { lightingCommonWgsl, lightingLayersWgsl, surfaceTexelWgsl } from './commonWgsl.ts'
 import {
   radiosityCommonWgsl,
@@ -45,11 +53,12 @@ export const RADIOSITY_FILTER_BINDINGS = {
 
 const B = RADIOSITY_FILTER_BINDINGS
 
-/** The neighbours of a probe that filter it. */
-const FILTER_WGSL = wgslBlock(
-  'RADIOSITY_FILTER_NEIGHBOURS_WGSL',
-  [],
-  `
+/** The neighbours of a probe that filter it, over the rays' radiance stored in `light`. */
+const filterWgsl = (light: LightAtlasFormat) =>
+  wgslBlock(
+    `RADIOSITY_FILTER_NEIGHBOURS_WGSL(${light})`,
+    [],
+    `
 fn neighbourOffset(k:u32)->vec2i{
  var four=array<vec2i,4>(vec2i(0,1),vec2i(1,0),vec2i(0,-1),vec2i(-1,0));
  var thirteen=array<vec2i,13>(vec2i(0,2),vec2i(-1,1),vec2i(0,1),vec2i(1,1),vec2i(-2,0),vec2i(-1,0),vec2i(0,0),vec2i(1,0),vec2i(2,0),vec2i(-1,-1),vec2i(0,-1),vec2i(1,-1),vec2i(0,-2));
@@ -58,7 +67,7 @@ fn neighbourOffset(k:u32)->vec2i{
 }
 fn neighbourCount()->u32{return select(13u,4u,lp.filterKernel==1u);}
 fn traceAt(probeAtlas:vec2u,ray:vec2u)->vec3f{
- return unpackLight(textureLoad(probeTrace,vec2i(probeAtlas*lp.hemisphere+ray),0).x);
+ return ${lightLoad(light, 'probeTrace', 'vec2i(probeAtlas*lp.hemisphere+ray)')};
 }
 /** Adds the ray \`ray\` of the probe \`probeInCard\` of the page \`page\`'s card, if it lies on the card — a neighbour past its edge is no probe of it, never one of the
  *  page that follows in the table — in a lit page, and holds a surface on the plane of the texel. */
@@ -73,12 +82,35 @@ fn gatherNeighbour(texel:RadTexel,page:u32,probeInCard:vec2i,ray:vec2u,sum:ptr<f
  if(w>0.0){*sum+=traceAt(probeAtlasCoord(at.atlas),ray)*w;*weight+=w;}
 }
 `,
-)
+  )
 
 export const RADIOSITY_FILTER_ENTRIES = ['radiosityFilter', 'radiosityToSh'] as const
 
-export const RADIOSITY_FILTER_WGSL = wgslProgram(
-  `@group(0) @binding(${B.trace}) var probeTrace:texture_2d<u32>;
+/** How the filter reads a ray's radiance from the trace atlas of `light` and keeps it in the buffer of filtered rays, and how the projection reads it back: the spellings,
+ *  the word format keeping the radiance as the word the filter dithers it to, the native 11-11-10 format as the word it decodes from, the floats as their words. */
+const filterAccess = (light: LightAtlasFormat) => {
+  const words = lightWordsOf(light)
+  // The word format holds the radiance of a ray as the word the filter keeps it in; the native 11-11-10 format as the word it decodes from.
+  const centre =
+    light === WORD_LIGHT_FORMAT
+      ? 'textureLoad(probeTrace,vec2i(own*lp.hemisphere+at.ray),0).x'
+      : words === 1
+        ? 'packLight(textureLoad(probeTrace,vec2i(own*lp.hemisphere+at.ray),0).xyz)'
+        : lightLoad(light, 'probeTrace', 'vec2i(own*lp.hemisphere+at.ray)')
+  const kept = (i: string) =>
+    words === 1
+      ? ` filtered[${i}]=result;\n`
+      : ` let kept=lightPack(result);\n${Array.from({ length: words }, (_, j) => ` filtered[${i}*${words}u+${j}u]=kept[${j}];\n`).join('')}`
+  const filteredLight = (i: string) =>
+    words === 1
+      ? `unpackLight(filtered[${i}])`
+      : `lightFloats(vec3u(${Array.from({ length: 3 }, (_, j) => (j < words ? `filtered[(${i})*${words}u+${j}u]` : '0u')).join(',')}))`
+  return { words, centre, kept, filteredLight }
+}
+
+const radiosityFilterEntry = (light: LightAtlasFormat) => {
+  const { words, centre, kept } = filterAccess(light)
+  return `@group(0) @binding(${B.trace}) var probeTrace:texture_2d<${lightAtlasScalar(light)}>;
 @group(0) @binding(${B.filtered}) var<storage,read_write> filtered:array<u32>;
 @group(0) @binding(${B.harmonics}) var outHarmonics:texture_storage_2d_array<rgba16float,write>;
 @compute @workgroup_size(${WORKGROUP_THREADS})
@@ -90,20 +122,23 @@ fn radiosityFilter(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgrou
  let probe=thread.probe;
  let texel=thread.texel;
  let own=probeAtlasCoord(texel.atlas);
- let centre=textureLoad(probeTrace,vec2i(own*lp.hemisphere+at.ray),0).x;
+ let centre=${centre};
  var result=centre;
  if(texel.valid){
-  var sum=unpackLight(centre)*2.0;
+  var sum=${words === 1 ? 'unpackLight(centre)' : 'centre'}*2.0;
   var weight=2.0;
   let pageProbe=vec2u(vec2f(scPageF(probe.page,4u),scPageF(probe.page,5u))*vec2f(cardSizeInProbes(probe.page)));
   let probeInCard=vec2i(pageProbe+radTileCoord(radTileAt(at.tile))*radTileProbes()+at.probe);
   for(var k=0u;k<neighbourCount();k++){gatherNeighbour(texel,probe.page,probeInCard+neighbourOffset(k),at.ray,&sum,&weight);}
   let noise=blueNoiseScalar(own*lp.hemisphere+at.ray,texel.temporal+1u);
-  result=packLight(ditherLight(sum/weight,noise));
+  result=${words === 1 ? 'packLight(ditherLight(sum/weight,noise))' : 'sum/weight'};
  }
- filtered[i]=result;
+${kept('i')}}`
 }
-@compute @workgroup_size(${WORKGROUP_THREADS})
+
+const radiosityToShEntry = (light: LightAtlasFormat) => {
+  const { filteredLight } = filterAccess(light)
+  return `@compute @workgroup_size(${WORKGROUP_THREADS})
 fn radiosityToSh(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let p=id.x+id.y*n.x*${WORKGROUP_THREADS}u;
  let side=radTileProbes();
@@ -118,7 +153,7 @@ fn radiosityToSh(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups
   let rays=lp.hemisphere*lp.hemisphere;
   for(var r=0u;r<rays;r++){
    let ray=vec2u(r%lp.hemisphere,r/lp.hemisphere);
-   let radiance=select(traceAt(own,ray),unpackLight(filtered[p*rays+r]),lgFlag(FLAG_FILTER));
+   let radiance=select(traceAt(own,ray),${filteredLight('p*rays+r')},lgFlag(FLAG_FILTER));
    let basis=tvBasis(radiosityRay(texel.normal,texel.temporal,texel.cardCoord>>vec2u(lp.spacingShift),ray))*(TWO_PI/f32(rays));
    red+=basis*radiance.x;green+=basis*radiance.y;blue+=basis*radiance.z;
   }
@@ -127,16 +162,29 @@ fn radiosityToSh(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups
  textureStore(outHarmonics,at,0,red);
  textureStore(outHarmonics,at,1,green);
  textureStore(outHarmonics,at,2,blue);
-}`,
-  [
-    lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
-    surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
-    radiosityCommonWgsl(),
-    radiosityRayWgsl(B.noise),
-    radiosityProbeVisibilityWgsl(B.hits),
-    FILTER_WGSL,
-    packLight,
-    unpackLight,
-    ditherLight,
-  ],
-)
+}`
+}
+
+/**
+ * The filter's and the projection's program over the rays' radiance stored in `light`. The filtered rays are kept in the words of the indirect light
+ * (`lightWordsOf`): the 11-11-10 word of a ray's radiance, dithered in its last place, or the words of its floats.
+ */
+export const radiosityFilterProgramOf = (light: LightAtlasFormat) => {
+  const { words } = filterAccess(light)
+  return wgslProgram(
+    `${radiosityFilterEntry(light)}
+${radiosityToShEntry(light)}`,
+    [
+      lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
+      surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
+      radiosityCommonWgsl(),
+      radiosityRayWgsl(B.noise),
+      radiosityProbeVisibilityWgsl(B.hits),
+      filterWgsl(light),
+      packLight,
+      unpackLight,
+      ditherLight,
+      ...(words === 1 ? [] : [indirectWordsWgsl(words)]),
+    ],
+  )
+}

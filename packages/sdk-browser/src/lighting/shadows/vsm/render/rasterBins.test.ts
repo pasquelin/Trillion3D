@@ -2,6 +2,7 @@
 // three families of corner tiers, a two-sided row drawn once with no face culled, the tiers a frame
 // draws, and the software raster's two bins by layer.
 
+import { shadowPageLayout } from '../../casters/pageGroup.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -85,7 +86,7 @@ test('the two-sided tiers’ pipelines cull no face', async () => {
   const limits = { maxStorageBufferBindingSize: 1 << 27, maxBufferSize: 1 << 27 }
   const fake = fakeDevice({ limits })
   const { device, renderPipelines } = fake
-  const pipes = vsmRasterPipe(device, LAYOUT, device.createBindGroupLayout({ entries: [] }))
+  const pipes = vsmRasterPipe(device, LAYOUT, shadowPageLayout(device))
   const made = (tier: number) =>
     renderPipelines.find(({ label }) => label === `vsm.render.raster${tier}`)
   const prepare = (tiers: readonly number[]) =>

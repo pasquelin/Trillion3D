@@ -5,9 +5,14 @@ import assert from 'node:assert/strict'
 import { assertProgramAssembles } from '../../../gpu/core/wgslNames.fixture.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
-import { RADIOSITY_FILTER_ENTRIES, RADIOSITY_FILTER_WGSL } from './radiosityFilterWgsl.ts'
-import { RADIOSITY_INTEGRATE_ENTRY, RADIOSITY_INTEGRATE_WGSL } from './radiosityIntegrateWgsl.ts'
-import { RADIOSITY_TRACE_ENTRY, RADIOSITY_TRACE_WGSL } from './radiosityTraceWgsl.ts'
+import { RADIOSITY_FILTER_ENTRIES, radiosityFilterProgramOf } from './radiosityFilterWgsl.ts'
+import { RADIOSITY_INTEGRATE_ENTRY, radiosityIntegrateProgramOf } from './radiosityIntegrateWgsl.ts'
+import { RADIOSITY_TRACE_ENTRY, radiosityTraceProgramOf } from './radiosityTraceWgsl.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
+
+const RADIOSITY_FILTER_WGSL = radiosityFilterProgramOf(WORD_LIGHT_FORMAT)
+const RADIOSITY_INTEGRATE_WGSL = radiosityIntegrateProgramOf(WORD_LIGHT_FORMAT)
+const RADIOSITY_TRACE_WGSL = radiosityTraceProgramOf(WORD_LIGHT_FORMAT)
 
 test('the fixed jitter index, where one is set, holds the probes and the cells of their rays: both draw at jitterIndex', () => {
   const T = RADIOSITY_TRACE_WGSL

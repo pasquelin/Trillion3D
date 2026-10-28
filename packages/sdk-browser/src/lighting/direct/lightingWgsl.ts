@@ -18,7 +18,11 @@ import {
   vsmBindingsLabel,
   vsmTraceBindingsLabel,
 } from './shadowBindings.ts'
-import { raysLabel, type ContactRays } from '../contactShadow/contactShadowWgsl.ts'
+import {
+  raysLabel,
+  type ContactBendBindings,
+  type ContactRays,
+} from '../contactShadow/contactShadowWgsl.ts'
 import { directShadowWgsl, translucentShadowLabel, type TranslucentShadow } from './shadowWgsl.ts'
 import { type ContractKey, variantLabel } from '../deferred/contractCuts.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
@@ -31,12 +35,11 @@ import {
   type LightFunctionBindings,
 } from '../lightFunction/readWgsl.ts'
 import { fogBindingsLabel, type FogResourceBindings } from '../fog/readWgsl.ts'
+import { lightProfileOfWgsl, NO_LIGHT_PROFILE_WGSL } from '../lightProfile/lightProfileWgsl.ts'
 import {
   lightProfileBindingsLabel,
-  lightProfileOfWgsl,
-  NO_LIGHT_PROFILE_WGSL,
   type LightProfileBindings,
-} from '../lightProfile/lightProfileWgsl.ts'
+} from '../lightProfile/lightProfileText.ts'
 import {
   cloudShadowReadWgsl,
   NO_CLOUD_SHADOW_WGSL,
@@ -122,6 +125,9 @@ export type LightingBindings = {
   /** Where the sun's distance-field shadow is bound, beside the mask (`vsmFarFactor`); left out, a
    *  program reads none. */
   farShadowMask?: number
+  /** Where the shadows the heterogeneous volumes cast are bound (`beerShadowReadWgsl`): each shadowed light's share is multiplied by the
+   *  transmittance of the volumes toward it; left out, a program reads none. */
+  volumeShadow?: number
   trace?: VsmTraceBindings
   /** The binding of the per-light draw's mask, an array a layer a light (`directShadowWgsl`, `pass: 'perLight'`): the
    *  shadow of the one light the draw lights is its layer, no other shadow read. */
@@ -139,6 +145,8 @@ export type LightingBindings = {
    *  every light is unchanged (`NO_LIGHT_PROFILE_WGSL`). With the key's `profileless` the light term holds no profile
    *  read at all. */
   lightProfile?: LightProfileBindings
+  /** The bindings of the screen-space contact shadows' array and of its layers' ranks (`contactBendWgsl`): a light with a layer in it takes its contact shadow from it. */
+  contactBend?: ContactBendBindings
 }
 
 /** The bindings as a block name reads them, in their declared order, the defaults resolved. */
@@ -148,21 +156,24 @@ export const bindingsLabel = ({
   maskFallback,
   vsm,
   farShadowMask,
+  volumeShadow,
   trace,
   fog,
   lightFunction,
   cloudShadow,
   lightProfile,
+  contactBend,
   perLightMask,
 }: LightingBindings) =>
-  `${vsmSunMask ?? null} ${vsmMask ?? null}${maskFallback ? ` + ${maskFallback.lightGrid} ${vsmBindingsLabel(maskFallback.vsm)} ${maskFallback.view}` : ''}, ${vsm ? vsmBindingsLabel(vsm) : null}, ${farShadowMask ?? null}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fog ? fogBindingsLabel(fog) : null}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow ? `cloud ${cloudShadow.group}:${cloudShadow.block}` : null}${lightProfile ? `, profile ${lightProfileBindingsLabel(lightProfile)}` : ''}${perLightMask === undefined ? '' : `, per-light mask ${perLightMask}`}`
+  `${vsmSunMask ?? null} ${vsmMask ?? null}${maskFallback ? ` + ${maskFallback.lightGrid} ${vsmBindingsLabel(maskFallback.vsm)} ${maskFallback.view}` : ''}, ${vsm ? vsmBindingsLabel(vsm) : null}, ${farShadowMask ?? null}${volumeShadow === undefined ? '' : ` volume ${volumeShadow}`}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fog ? fogBindingsLabel(fog) : null}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow ? `cloud ${cloudShadow.group}:${cloudShadow.block}` : null}${lightProfile ? `, profile ${lightProfileBindingsLabel(lightProfile)}` : ''}${contactBend ? `, contact bend ${contactBend.array} ${contactBend.ranks}` : ''}${perLightMask === undefined ? '' : `, per-light mask ${perLightMask}`}`
 
 /**
  * The state a surface is lit through, and what a program does with the thin two-sided surface:
  * `thinSubsurface`, the transmission colour of the pixel (zero where it is not thin),
  * `thinScreenBack`, the irradiance at its back that the screen probes left in the pixel (`screenBackAt`,
  * `../bounce/screen/indirectWgsl.ts`) with its alpha 1 where they answered, or 2 with their front irradiance where the level gathers no
- * light at the back — set by the pass that reads them, zero in any other —, and `thinSurface`, the one test every term of its back reads.
+ * light at the back — set by the pass that reads them, zero in any other —, `thinCubeBack`, the irradiance the ambient cubemap gives its back
+ * (`ambientCubemapBack`) — set by the pass that reads the cube, zero in any other —, and `thinSurface`, the one test every term of its back reads.
  */
 export const THIN_SURFACE_WGSL = wgslBlock(
   'THIN_SURFACE_WGSL',
@@ -170,6 +181,7 @@ export const THIN_SURFACE_WGSL = wgslBlock(
   `
 var<private> thinSubsurface:vec3f=vec3f(0.0);
 var<private> thinScreenBack:vec4f=vec4f(0.0);
+var<private> thinCubeBack:vec3f=vec3f(0.0);
 /** Whether the surface is thin and two-sided, the one test every term of its back reads. */
 fn thinSurface()->bool{return any(thinSubsurface!=vec3f(0.0));}`,
 )
@@ -209,11 +221,11 @@ fn environmentLighting(rgb:vec3f,metal:f32,N:vec3f,ao:f32)->vec3f{
 fn thinBack(N:vec3f,P:vec3f,ao:f32)->vec3f{
  if(!thinSurface()){return vec3f(0.0);}
  if(thinScreenBack.a==2.0){
-  return lambertDiffuse(thinSubsurface*INVERSE_PI,0.0,thinScreenBack.rgb,1.0)+lambertDiffuse(thinSubsurface*INVERSE_PI,0.0,environmentIrradiance(N)+environmentSky(N),ao);
+  return lambertDiffuse(thinSubsurface*INVERSE_PI,0.0,thinScreenBack.rgb,1.0)+lambertDiffuse(thinSubsurface*INVERSE_PI,0.0,environmentIrradiance(N)+environmentSky(N)+thinCubeBack,ao);
  }
  var probes=thinScreenBack.rgb;
  if(thinScreenBack.a==0.0){probes=indirectIrradiance(P,-N);}
- return lambertDiffuse(thinSubsurface,0.0,probes+environmentIrradiance(-N)+environmentSky(-N),ao);
+ return lambertDiffuse(thinSubsurface,0.0,probes+environmentIrradiance(-N)+environmentSky(-N)+thinCubeBack,ao);
 }
 /** The lit surface, one sum for every pass that lights one (the indirect light's pass, the translucent
  *  surfaces): its declared \`lights\`, its \`bounce\` and \`environment\` under the coat
@@ -224,6 +236,32 @@ fn litSurface(lights:vec3f,bounce:vec3f,environment:vec3f,reflection:vec3f,emiss
  return lights+bounce+environment+reflection+emissive+thinBack(N,P,ao);
 }`,
 )
+
+/** The shadow read of a pass: the per-light mask's, the shadow maps' own, or the sun and local masks'. */
+const shadowReadOf = (
+  bindings: LightingBindings,
+  key: Partial<ContractKey>,
+  translucentShadow: TranslucentShadow | undefined,
+) =>
+  directShadowWgsl(
+    bindings.perLightMask !== undefined
+      ? { pass: 'perLight', mask: bindings.perLightMask, volumeShadow: bindings.volumeShadow }
+      : bindings.vsmSunMask === undefined
+        ? {
+            vsm: bindings.vsm,
+            trace: bindings.trace,
+            kinds: vsmTraceKindsOf(key),
+            ...translucentShadow,
+          }
+        : {
+            pass: 'mask',
+            sun: bindings.vsmSunMask,
+            local: bindings.vsmMask,
+            farMask: bindings.farShadowMask,
+            volumeShadow: bindings.volumeShadow,
+            fallback: bindings.maskFallback,
+          },
+  )
 
 /**
  * Base of the lighting passes: contract types, shadow reads, and the contribution of a
@@ -272,24 +310,7 @@ export const lightingBase = (
       ...(key.rectless ? [] : [key.lobeless ? LOBELESS_RECT_WGSL : LOBES_RECT_WGSL]),
       lambertDiffuse,
       directLightWgsl(narrow ? LIGHT_SETTINGS.tileLights : undefined),
-      directShadowWgsl(
-        bindings.perLightMask !== undefined
-          ? { pass: 'perLight', mask: bindings.perLightMask }
-          : bindings.vsmSunMask === undefined
-            ? {
-                vsm: bindings.vsm,
-                trace: bindings.trace,
-                kinds: vsmTraceKindsOf(key),
-                ...translucentShadow,
-              }
-            : {
-                pass: 'mask',
-                sun: bindings.vsmSunMask,
-                local: bindings.vsmMask,
-                farMask: bindings.farShadowMask,
-                fallback: bindings.maskFallback,
-              },
-      ),
+      shadowReadOf(bindings, key, translucentShadow),
       ...(bindings.fog ? [fogBlockOf(bindings.fog)] : []),
       bindings.lightFunction
         ? lightFunctionReadWgsl(bindings.lightFunction)
@@ -302,7 +323,7 @@ export const lightingBase = (
               ? lightProfileOfWgsl(bindings.lightProfile)
               : NO_LIGHT_PROFILE_WGSL,
           ]),
-      declaredLightWgsl(key, { cut, airTint, rays }),
+      declaredLightWgsl(key, { cut, airTint, rays, bend: bindings.contactBend }),
       ...(slices ? [TILE_SLICE_WGSL, sliceLightingWgsl('surface', cut?.models ?? true)] : []),
       THIN_SURFACE_WGSL,
       ...(environment ? [ENVIRONMENT_LIGHTING_WGSL] : []),

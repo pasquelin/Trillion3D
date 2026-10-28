@@ -110,7 +110,7 @@ fn reconstructPixel(position:vec4f)->Reconstructed{
  if(r.tracedNow){return plainOut(freshColour,newDepth);}
  if(!r.valid){return plainOut(sampleTraced(tracedColour,screenUv),depthData(sampleTraced(tracedDepth,screenUv)));}
  var colour=sampleHistoryLight(historyColour,r.previousUv);
- var depth=depthData(sampleHistory(historyDepth,r.previousUv));
+ var depth=fixupDepth(depthData(sampleHistory(historyDepth,r.previousUv)));
  let deviceZ=textureLoad(halfDepth,vec2i(position.xy),0).x;
  let distanceKm=pixelDistanceKm(r.cell,deviceZ);
  if(deviceZ>0.0&&abs(distanceKm-depth.scene)>distanceKm*0.1){

@@ -14,7 +14,12 @@ import {
   surfaceHitCardsLayoutEntries,
   surfaceHitLayoutEntries,
 } from '../../surfaceCache/hitWgsl.ts'
-import { RADIANCE_CACHE_FORMATS as F, RADIANCE_CACHE_TEMP_FORMATS as T } from './cacheLayout.ts'
+import {
+  WORD_LIGHT_FORMAT,
+  lightAtlasSampleType,
+  type LightAtlasFormat,
+} from '../../../gpu/core/lightAtlasFormat.ts'
+import { radianceCacheFormats, radianceRawFormat, radianceCacheTempFormats } from './cacheLayout.ts'
 
 /** The bindings of the kernel that makes the trace tiles of the probes the frame queued (`cacheTilesWgsl.ts`): the levels' uniform,
  *  the cell table, the queue, the cache's parameters and the list of the tiles. */
@@ -69,7 +74,7 @@ export const CACHE_TRACE_SKY_LIGHT = {
 } as const
 
 /** The layout of the trace kernel's first bindings, those of both its ways of casting the rays: all but what a hit reads. */
-const cacheTraceBaseEntries = () => {
+const cacheTraceBaseEntries = (light: LightAtlasFormat) => {
   const B = CACHE_TRACE_BINDINGS
   return [
     computeUniformEntry(B.grid),
@@ -77,16 +82,16 @@ const cacheTraceBaseEntries = () => {
     computeBufferEntry(B.queue, 'read-only-storage'),
     atlasEntry(B.table),
     computeBufferEntry(B.tiles, 'read-only-storage'),
-    computeStorageTextureEntry(B.raw, F.raw),
+    computeStorageTextureEntry(B.raw, radianceRawFormat(light)),
     computeUniformEntry(B.params),
     ...skyLightReadLayoutEntries(CACHE_TRACE_SKY_LIGHT, COMPUTE),
   ]
 }
 
-/** The layout of the trace kernel. */
-export const cacheTraceEntries = () => [
-  ...cacheTraceBaseEntries(),
-  ...surfaceHitLayoutEntries(CACHE_TRACE_HIT),
+/** The layout of the trace kernel, the surface cache's final light read in the format `light`. */
+export const cacheTraceEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => [
+  ...cacheTraceBaseEntries(light),
+  ...surfaceHitLayoutEntries(CACHE_TRACE_HIT, light),
 ]
 
 /** Where the trace that casts its rays through the scene's triangles reads what a hit finds, from 22 (`probeRayTracedWgsl.ts`): the
@@ -97,12 +102,12 @@ export const CACHE_TRACED_HIT = { group: 0, cards: 22, instances: 30 } as const
 /** The scene trace's group and its first binding in it. */
 export const CACHE_TRACED_SCENE = { group: 1, first: 0 } as const
 
-/** The layouts of the trace kernel that casts its rays through the scene's triangles: its own group, then the scene trace's. */
-export const cacheTracedLayouts = () => [
+/** The layouts of the trace kernel that casts its rays through the scene's triangles: its own group, then the scene trace's; the surface cache's final light read in the format `light`. */
+export const cacheTracedLayouts = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => [
   [
-    ...cacheTraceBaseEntries(),
+    ...cacheTraceBaseEntries(light),
     ...dagReadLayoutEntries(),
-    ...surfaceHitCardsLayoutEntries(CACHE_TRACED_HIT),
+    ...surfaceHitCardsLayoutEntries(CACHE_TRACED_HIT, light),
   ],
   sceneTraceLayoutEntries(CACHE_TRACED_SCENE.first),
 ]
@@ -120,7 +125,7 @@ export const CACHE_SPLAT_BINDINGS = {
 } as const
 
 /** The layout of the spread's kernel. */
-export const cacheSplatEntries = () => {
+export const cacheSplatEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => {
   const B = CACHE_SPLAT_BINDINGS
   return [
     computeUniformEntry(B.grid),
@@ -129,7 +134,7 @@ export const cacheSplatEntries = () => {
     computeUniformEntry(B.params),
     computeBufferEntry(B.tiles, 'read-only-storage'),
     computeTextureEntry(B.trace, 'uint'),
-    computeStorageTextureEntry(B.raw, F.raw),
+    computeStorageTextureEntry(B.raw, radianceRawFormat(light)),
   ]
 }
 
@@ -146,9 +151,10 @@ export const CACHE_FILTER_BINDINGS = {
   noise: 7,
 } as const
 
-/** The layout of the filter kernel. */
-export const cacheFilterEntries = () => {
+/** The layout of the filter kernel, its light written in the format `light` stores it in. */
+export const cacheFilterEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => {
   const B = CACHE_FILTER_BINDINGS
+  const T = radianceCacheTempFormats(light)
   return [
     computeUniformEntry(B.grid),
     atlasEntry(B.table),
@@ -178,16 +184,17 @@ export const CACHE_FIXUP_BINDINGS = {
   sky: 10,
 } as const
 
-/** The layout of the fixup's kernel. */
-export const cacheFixupEntries = () => {
+/** The layout of the fixup's kernel, the filtered light read and the final maps written in the format `light` stores it in. */
+export const cacheFixupEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => {
   const B = CACHE_FIXUP_BINDINGS
+  const F = radianceCacheFormats(light)
   return [
     computeUniformEntry(B.grid),
     atlasEntry(B.table),
     computeBufferEntry(B.queue, 'read-only-storage'),
     computeUniformEntry(B.params),
     computeTextureEntry(B.raw, 'uint'),
-    computeTextureEntry(B.filtered, 'uint'),
+    computeTextureEntry(B.filtered, lightAtlasSampleType(light)),
     computeTextureEntry(B.filteredSky, 'unfilterable-float'),
     computeStorageTextureEntry(B.final0, F.final),
     computeStorageTextureEntry(B.final1, F.final),

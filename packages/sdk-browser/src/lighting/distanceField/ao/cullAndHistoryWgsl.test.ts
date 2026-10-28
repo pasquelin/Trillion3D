@@ -10,19 +10,12 @@ import { DFAO_FLAG } from './layout.ts'
 
 const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 
-/** `dfaoDistanceSquared` of the vector `v` from a mesh to the eye, the view looking along +z. */
+/** `dfCullDistanceSquared` (the shared cull's) of the vector `v` from a mesh to the eye, the view looking along +z. */
 function distanceSquared(v: number[], perspective: boolean) {
-  const { dfaoDistanceSquared } = shaderRun<{ dfaoDistanceSquared: (v: number[]) => number }>(
-    DFAO_CULL_OBJECTS_WGSL,
-    ['dfaoDistanceSquared'],
-    {
-      dfao: {
-        depth: [0, 0, perspective ? 1 : 0, 0],
-        viewToWorld: builtins.mat4x4f(...IDENTITY),
-      },
-    },
-  )
-  return dfaoDistanceSquared(v)
+  const { dfCullDistanceSquared } = shaderRun<{
+    dfCullDistanceSquared: (v: number[], perspective: boolean, forward: number[]) => number
+  }>(DFAO_CULL_OBJECTS_WGSL, ['dfCullDistanceSquared'], {})
+  return dfCullDistanceSquared(v, perspective, [0, 0, 1])
 }
 
 test('an orthographic view culls a mesh by its length over its depth along the view, so one off the axis is farther', () => {

@@ -1,8 +1,9 @@
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { INVERSE_PI, PI } from '../../../../math/src/wgsl/constants.ts'
-import { luminance, srgbToLinear } from '../../../../math/src/wgsl/color.ts'
+import { srgbToLinear } from '../../../../math/src/wgsl/color.ts'
 import { clampNoV, pow5 } from '../../../../math/src/wgsl/lighting.ts'
 import { octDecode, octEncode } from '../../../../math/src/wgsl/octahedral.ts'
+import { HAIR_BSDF_WGSL } from '../../hair/hairBsdfWgsl.ts'
 import { SKIN_TABLE_SIZE } from '../../../../sdk-core/src/lighting/skinTable.ts'
 import { PIXEL_MODEL, quantise8, quantise8x2 } from '../../materials/surface/pixelModel.ts'
 import { SURFACE_F0_WGSL } from '../../materials/surface/surfaceSpecular.ts'
@@ -31,7 +32,7 @@ import { SHADOW_TERMS_WGSL } from './shadowTermsWgsl.ts'
  *   skin's thickness. Its indirect diffuse colour is its base colour and its subsurface colour added.
  * - The subsurface profile: the physical model's Burley diffuse and a specular of two lobes, the profile's (`profileModelWgsl.ts`);
  *   its diffuse light is the one the screen-space scattering spreads (`../subsurface/litHook.ts`).
- * - The hair: no diffuse or specular lobe; the light is `hairShading`, the three components of the fibre
+ * - The hair: no diffuse or specular lobe; the light is `hairLight`, the three components of the fibre
  *   (the reflection R, the transmission TT, the internal reflection TRT) of a Gaussian lobe each along the
  *   fibre — the normal is the fibre's direction, pointing to its root —, and a multiple scattering
  *   approximation, its scatter amount the metalness the pixel stored (`modelScatter`). Its indirect diffuse colour is the
@@ -74,82 +75,37 @@ fn skinTransmission(N:vec3f,L:vec3f)->vec3f{
 }`,
 )
 
+/** The transmittance of the strands toward light \`rank\` along \`L\`: none of a mask by default — the global scattering one, the local none —;
+ *  a pass that holds a transmittance mask per light declares its own, which replaces this one (\`weak\`). */
+const hairTransmittanceFor = wgslFn(
+  'hairTransmittanceFor',
+  [HAIR_BSDF_WGSL],
+  'fn hairTransmittanceFor(rank:u32,L:vec3f)->HairTransmittanceData{return hairTransmittanceInit(true,true);}',
+  { weak: true },
+)
+
 /**
- * The hair's BSDF: a Gaussian lobe along the fibre for each of its components, as the fibre's
- * reflection (R), transmission (TT) and internal reflection (TRT), summed under a multiple
- * scattering approximation. `N` is the fibre's direction, `L` and `V` the unit directions toward the
- * light and the eye, `shade` the light's visibility, `backlit` how much light the fibre lets through from
- * behind (the TT term, the R term in the half turn behind it) and `area` the width a source of size adds
- * to the lobes. The scatter amount (`modelScatter`) weighs the diffuse approximation of the multiple scattering.
+ * The hair's light: the hair BSDF of the strands (`HAIR_BSDF_WGSL`, `../../hair/hairBsdfWgsl.ts`) under a transmittance of no mask — the global
+ * scattering one, the local none, the opaque visibility the light's `visible` — and the scatter amount (`modelScatter`) as its metallic.
+ * `N` is the fibre's direction, `L` and `V` the unit directions toward the light and the eye, `shade` the light's visibility, `backlit` how
+ * much light the fibre lets through from behind and `area` the width a source of size adds to the lobes.
  */
 const HAIR_WGSL = wgslBlock(
   'HAIR_WGSL',
-  [SHADING_MODEL_STATE_WGSL, SURFACE_F0_WGSL, PI, INVERSE_PI, luminance, pow5],
+  [SHADING_MODEL_STATE_WGSL, SURFACE_F0_WGSL, HAIR_BSDF_WGSL, hairTransmittanceFor, PI],
   `
-fn hairG(B:f32,theta:f32)->f32{return exp(-0.5*theta*theta/(B*B))/(sqrt(2.0*PI)*max(B,0.01));}
-fn hairF(cosine:f32)->f32{
- let n=1.55;
- let f0=((1.0-n)/(1.0+n))*((1.0-n)/(1.0+n));
- return f0+(1.0-f0)*pow5(1.0-cosine);
-}
-fn acosFast(x:f32)->f32{
- let a=abs(x);
- let r=(-0.156583*a+0.5*PI)*sqrt(1.0-a);
- return select(PI-r,r,x>=0.0);
-}
-fn asinFast(x:f32)->f32{return 0.5*PI-acosFast(x);}
-/** The soft Kajiya-Kay diffuse of the multiple scattering: the fibre seen as the normal turned to the eye, the
- *  scatter amount, and the base colour's tint where the light is shadowed. */
-fn hairDiffuse(base:vec3f,N:vec3f,V:vec3f,L:vec3f,shade:f32)->vec3f{
- let kajiya=1.0-abs(dot(N,L));
- let fake=normalize(V-N*dot(V,N));
- let wrapped=saturate((dot(fake,L)+1.0)/4.0);
- let scatter=INVERSE_PI*mix(wrapped,kajiya,0.33)*modelScatter;
- let baseOverLuma=abs(base/max(luminance(base),0.0001));
- let tint=select(vec3f(1.0),pow(baseOverLuma,vec3f(1.0-shade)),shade<1.0);
- return sqrt(abs(base))*scatter*tint;
-}
-fn hairShading(base:vec3f,rough:f32,N:vec3f,V:vec3f,L:vec3f,shade:f32,visible:f32,backlit:f32,area:f32)->vec3f{
- let r=clamp(rough,1.0/255.0,1.0);
- let VoL=dot(V,L);
- let sinL=clamp(dot(N,L),-1.0,1.0);
- let sinV=clamp(dot(N,V),-1.0,1.0);
- let cosD=cos(0.5*abs(asinFast(sinV)-asinFast(sinL)));
- let Lp=L-sinL*N;
- let Vp=V-sinV*N;
- let cosPhi=dot(Lp,Vp)*inverseSqrt(dot(Lp,Lp)*dot(Vp,Vp)+1e-4);
- let cosHalf=sqrt(saturate(0.5+0.5*cosPhi));
- let nPrime=1.19/cosD+0.36*cosD;
- let shift=0.035;
- let alpha=vec3f(-shift*2.0,shift,shift*4.0);
- let B=vec3f(area+r*r,area+r*r/2.0,area+r*r*2.0);
- var S=vec3f(0.0);
- // R
- let sa=sin(alpha.x);let ca=cos(alpha.x);
- let shiftR=2.0*sa*(ca*cosHalf*sqrt(1.0-sinV*sinV)+sa*sinV);
- let mR=hairG(B.x*sqrt(2.0)*cosHalf,sinL+sinV-shiftR);
- S+=vec3f(mR*0.25*cosHalf*hairF(sqrt(saturate(0.5+0.5*VoL)))*(surfaceSpecular*2.0)*mix(1.0,backlit,saturate(-VoL)));
- // TT
- let mTT=hairG(B.y,sinL+sinV-alpha.y);
- let a=1.0/nPrime;
- let h=cosHalf*(1.0+a*(0.6-0.8*cosPhi));
- let f=hairF(cosD*sqrt(saturate(1.0-h*h)));
- let tt=pow(abs(base),vec3f(0.5*sqrt(1.0-(h*a)*(h*a))/cosD));
- S+=mTT*exp(-3.65*cosPhi-3.98)*(1.0-f)*(1.0-f)*tt*backlit;
- // TRT
- let mTRT=hairG(B.z,sinL+sinV-alpha.z);
- let f2=hairF(cosD*0.5);
- let trt=pow(abs(base),vec3f(0.8/cosD));
- S+=mTRT*exp(17.0*cosPhi-16.78)*(1.0-f2)*(1.0-f2)*f2*trt;
- // The multiple scattering: the global scattering is one, the local none.
- S=S*visible+hairDiffuse(base,N,V,L,shade);
- return max(S,vec3f(0.0));
+/** The rank of the light in hand: set by the light's term before it asks its model (\`hairTransmittanceFor\`). */
+var<private> hairLightRank:u32=0u;
+fn hairLight(base:vec3f,rough:f32,N:vec3f,V:vec3f,L:vec3f,shade:f32,visible:f32,backlit:f32,area:f32)->vec3f{
+ var td=hairTransmittanceFor(hairLightRank,L);
+ td.opaqueVisibility=visible;
+ return hairShading(base,rough,surfaceSpecular,modelScatter,1.0,L,V,N,shade,td,backlit,area);
 }
 /** What the hair gives its diffuse light: its response to the light from the direction the fibre is seen
  *  along, weighed by the whole sphere's solid angle and held to one — no energy is added. */
 fn hairEnvironment(base:vec3f,rough:f32,N:vec3f,V:vec3f)->vec3f{
  let L=normalize(V-N*dot(V,N));
- return min(vec3f(1.0),2.0*PI*hairShading(base,rough,N,V,L,1.0,1.0,0.0,0.2));
+ return min(vec3f(1.0),2.0*PI*hairLight(base,rough,N,V,L,1.0,1.0,0.0,0.2));
 }`,
 )
 
@@ -266,7 +222,7 @@ fn modelTransmission(rgb:vec3f,rough:f32,N:vec3f,V:vec3f,L:vec3f,specular:vec3f,
  if(pixelModel==${profile}u){return select(vec3f(0.0),profileTransmission(N,V,L,terms.thickness),transmits);}
  // A mesh's hair lights with an opaque visibility of 1 (the reference's default transmittance data): the surface shadow
  // weighs no part of it; the tint and the soft diffuse keep the transmission shadow.
- if(pixelModel==${hair}u){return hairShading(rgb,rough,N,V,L,terms.transmission,1.0,1.0,0.0);}
+ if(pixelModel==${hair}u){return hairLight(rgb,rough,N,V,L,terms.transmission,1.0,1.0,0.0);}
  if(pixelModel==${eye}u){return eyeTransmission(rgb,N,V,specular,cosine,sine,rect);}
  return vec3f(0.0);
 }

@@ -39,6 +39,22 @@ const SHADOW_MAP_DEFAULTS = {
   ...{ shadowRayCountDirectional: 8, shadowSamplesPerRayDirectional: 4 },
   ...{ shadowRayCountLocal: 8, shadowSamplesPerRayLocal: 4, shadowMaxPhysicalPages: 4096 },
   ...{ shadowDistantLightMode: 1, shadowMaxDistantUpdatePerFrame: 1 },
+  ...{ shadowVirtualEnable: true },
+  ...{ shadowCsmMaxCascades: 10 },
+  ...{ shadowCsmTransitionScale: 1 },
+  ...{ shadowMaxCsmResolution: 2048 },
+  ...{ shadowCsmDepthBias: 10 },
+  ...{ shadowCsmSlopeScaleDepthBias: 3 },
+  ...{ shadowCsmReceiverBias: 0.9 },
+  ...{ shadowCsmSplitPenumbraScale: 0.5 },
+  ...{ shadowTransitionScale: 60 },
+  ...{ shadowPointLightDepthBias: 0.02 },
+  ...{ shadowPointLightSlopeScaleDepthBias: 3 },
+  ...{ shadowSpotLightDepthBias: 3 },
+  ...{ shadowSpotLightSlopeScaleDepthBias: 3 },
+  ...{ shadowSpotLightTransitionScale: 60 },
+  ...{ shadowMaxSlopeScaleDepthBias: 1 },
+  ...{ shadowSpotLightReceiverBias: 0.5 },
   ...{ shadowPointLightShadows: true, shadowPointLightCubemaps: true },
   ...{ shadowResolutionScaleZeroDisables: true, shadowMaxResolution: 2048 },
   ...{ shadowFadeResolution: 64, shadowMinResolution: 32, shadowFadeExponent: 0.25 },
@@ -70,6 +86,7 @@ const SHADOW_MAP_DEFAULTS = {
   shadowFirstPersonRequestMinLevelClamp: 8,
   shadowSubsurfaceMinSourceAngle: 5,
   shadowOnePassProjection: true,
+  clusteredDeferredShading: true,
   shadowForcePerLightMaskClear: false,
   shadowOnePassProjectionMaxLightsPerPixel: 16,
   shadowAllowScreenOverflowMessages: true,
@@ -94,7 +111,11 @@ const SHADOW_MAP_DEFAULTS = {
 /** The view's far-shadow settings at their defaults. */
 const SUN_SHADOW_DEFAULTS = {
   ...{ shadowMaxFarCascades: 10, shadowFarDistanceOverride: 0, distanceFieldDistanceScale: 1 },
-  ...{ distanceFieldFarTransitionScale: 1, distanceFieldShadowQuality: 3 },
+  ...{
+    distanceFieldFarTransitionScale: 1,
+    distanceFieldShadowQuality: 3,
+    distanceFieldShadowing: true,
+  },
   ...{ distanceFieldShadowFullResolution: false, distanceFieldShadowTileSize: 2 },
   ...{ distanceFieldShadowTwoSidedBias: 1, distanceFieldShadowObjectsPerTile: 128 },
   ...{ distanceFieldShadowScatterTiles: true, distanceFieldShadowCompactTiles: true },
@@ -106,6 +127,22 @@ const CONTACT_SHADOW_DEFAULTS = {
   ...{ contactShadows: true, contactShadowOverrideLength: -1 },
   ...{ contactShadowOverrideLengthInWorldSpace: false, contactShadowOverrideCastingIntensity: -1 },
   contactShadowOverrideNonCastingIntensity: -1,
+  ...{
+    contactShadowMethod: 0,
+    contactShadowBendSurfaceThickness: 0.005,
+    contactShadowBendMaxLights: 8,
+    contactShadowIntensityMode: 0,
+  },
+  ...{ contactShadowIntensityFadeStart: 1600, contactShadowIntensityFadeLength: 800 },
+}
+
+/** The view's capsule shadow settings at their defaults. */
+const CAPSULE_SHADOW_DEFAULTS = {
+  ...{ capsuleShadows: true, capsuleDirectShadows: true, capsuleIndirectShadows: true },
+  ...{ capsuleShadowsFullResolution: false, capsuleMaxDirectOcclusionDistance: 4 },
+  ...{ capsuleMaxIndirectOcclusionDistance: 2, capsuleShadowFadeAngleFromVertical: Math.PI / 3 },
+  ...{ capsuleIndirectConeAngle: Math.PI / 8, capsuleSkyAngleScale: 0.6, capsuleMinSkyAngle: 15 },
+  capsuleIndirectSelfShadowingIntensity: 0.8,
 }
 
 test('the shadow settings read by their rules, a light’s own beside them', () => {
@@ -114,6 +151,7 @@ test('the shadow settings read by their rules, a light’s own beside them', () 
     ...{ shadowNearLevels: 10, shadowOverlapScale: 1, shadowFarField: true },
     ...{ shadowMultipassViews: true, ...SUN_SHADOW_DEFAULTS, ...SHADOW_MAP_DEFAULTS },
     ...CONTACT_SHADOW_DEFAULTS,
+    ...CAPSULE_SHADOW_DEFAULTS,
     ...{
       shadowGeometryLodBias: 1,
       shadowOcclusionCulling: true,

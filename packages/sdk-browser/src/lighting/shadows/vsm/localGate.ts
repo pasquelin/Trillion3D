@@ -95,6 +95,27 @@ export function vsmLocalShadowGate(light: SceneLight, view: VsmGateView, shadows
   const scale = shadowResolutionScaleOf(light)
   if (shadows.shadowResolutionScaleZeroDisables && scale <= 0) return false
   if (cube && !shadows.shadowPointLightCubemaps) return false
+  const fade = vsmShadowFade(
+    vsmLocalShadowResolution(light, view, shadows),
+    shadows.shadowFadeResolution,
+    shadows.shadowMinResolution,
+    shadows.shadowFadeExponent,
+  )
+  return fade > MIN_FADE
+}
+
+/**
+ * The resolution, in texels a side, a local light's shadow has when seen from `view`: its bounds' radius on the screen times its kind's
+ * texels per pixel, raised or lowered by the light's scale and held to `shadowMaxResolution` (less a spot's borders), as the gate reads it
+ * and as a classic shadow map is drawn at (`shadowVirtualEnable` off). The light has a position and a range.
+ */
+export function vsmLocalShadowResolution(
+  light: SceneLight,
+  view: VsmGateView,
+  shadows: ShadowValues,
+) {
+  const cube = light.kind !== 'spot'
+  const scale = shadowResolutionScaleOf(light)
   const texels =
     light.kind === 'point'
       ? shadows.shadowTexelsPerPixelPoint
@@ -106,12 +127,5 @@ export function vsmLocalShadowGate(light: SceneLight, view: VsmGateView, shadows
   // smaller than the borders holds the shadow to nothing rather than wrapping to no cap at all.
   const most = Math.max(0, shadows.shadowMaxResolution - 2 * (cube ? 0 : SPOT_BORDER))
   const scaled = scaledResolution(unscaled, scale, most)
-  const resolution = shadows.shadowFadeUsesResolutionScale ? scaled : unscaled
-  const fade = vsmShadowFade(
-    resolution,
-    shadows.shadowFadeResolution,
-    shadows.shadowMinResolution,
-    shadows.shadowFadeExponent,
-  )
-  return fade > MIN_FADE
+  return shadows.shadowFadeUsesResolutionScale ? scaled : unscaled
 }

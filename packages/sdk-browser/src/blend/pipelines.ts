@@ -214,6 +214,8 @@ export interface BlendPipelineOptions {
   /** Whether the programs light a rectangle light as a rectangle (the project switch
    *  `translucentRectLights`, read once when the session opens): as a point light unless given. */
   translucentRectLights?: boolean
+  /** Whether the nearest translucent layer is lit by the sampled lighting (`lightsFrontLayer`): the programs read the light it left. */
+  sampledFront?: boolean
   /** Whether the programs hold the local fog volumes' code (the project switch
    *  `localFogVolumeSupport`, on unless false). */
   localFog?: boolean
@@ -314,6 +316,7 @@ function blendProgramSetup(
     cloudShade = false,
     translucentShadow: projectShadow = TRANSLUCENT_SHADOW_DEFAULT,
     translucentRectLights = TRANSLUCENT_RECT_LIGHTS_DEFAULT,
+    sampledFront = false,
     localFog = true,
     rasters = NO_RASTERS,
     waterSunTrace = false,
@@ -336,7 +339,7 @@ function blendProgramSetup(
     reads: { clouds: cloudShade || cloudFogOf(items), fog: fogVertexOf(items) },
     translucencyVolume: translucencyVolumeOf(items),
     translucentShadow: { ...projectShadow, materials: translucentShadowOf(items, waterSunTrace) },
-    scene: { rectLights: translucentRectLights, contact: contactShadowsOf(items) },
+    scene: { rectLights: translucentRectLights, contact: contactShadowsOf(items), sampledFront },
   }
 }
 

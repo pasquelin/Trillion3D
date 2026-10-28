@@ -42,7 +42,7 @@ test("only a local light's point source drops its steps; a sun's disk of no widt
 })
 
 test("a sun's ray takes the exact square-to-disk map, a local light's the approximate one", () => {
-  assert.match(trace, /vsmConeDirection\(basis,s,vsmLightDisk\(directional,noise4\.xy\)\)/)
+  assert.match(trace, /vsmConeDirection\(basis,s,disk\)/)
   assert.match(
     functionsOf(VSM_TRACE_COMMON_WGSL, ['vsmLightDisk']),
     /fn vsmLightDisk\(directional:bool,E:vec2f\)->vec2f\{\s*if\(directional\)\{return uniformDiskConcentric\(E\);\}\s*return approxDiskMap\(E\);/,
@@ -167,4 +167,15 @@ test("the depth of field bias is on a pixel's read of a sun's level, off a trans
   assert.match(functionsOf(CODE, ['vsmLightMapAt']), /vsmSampledLevel\(base,d2,sceneDepth\)/)
   const sample = functionsOf(wgslSource(vsmSampleLightWgsl(forwardPool(0))), ['vsmSampleLight'])
   assert.match(sample, /vsmLightMapAt\(light,shifted,-1\.0\)/)
+})
+
+test("a sun's ray is its axis moved across by the disk point times its radius, normalised", () => {
+  const { vsmSunDirection } = shaderRun<{
+    vsmSunDirection: (basis: object, radius: number, disk: number[]) => number[]
+  }>(VSM_TRACE_COMMON_WGSL, ['vsmSunDirection'], {})
+  const basis = { x: [1, 0, 0], y: [0, 1, 0], z: [0, 0, 1] }
+  const length = Math.hypot(0.3, 1)
+  const dir = vsmSunDirection(basis, 0.3, [1, 0])
+  assert.ok(Math.abs(dir[0] - 0.3 / length) < 1e-6)
+  assert.ok(Math.abs(dir[2] - 1 / length) < 1e-6)
 })

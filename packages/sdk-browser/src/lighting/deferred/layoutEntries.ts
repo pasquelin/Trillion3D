@@ -12,6 +12,7 @@ import { PHYSICAL_LOBES_TARGET } from '../../materials/surface/physicalLobes.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
 import { VSM_SUN_MASK_FORMAT } from '../shadows/vsm/projection/maskFormat.ts'
 import { REFLECTION_TARGET } from '../reflections/weight.ts'
+import { SCREEN_PROBE_FORMATS } from '../bounce/screen/screenProbeLayout.ts'
 import {
   computeBufferEntry,
   computeSamplerEntry,
@@ -107,9 +108,34 @@ export const unlitLayoutEntries = (): GPUBindGroupLayoutEntry[] => [
   computeBufferEntry(DEFERRED_BINDINGS.view, 'uniform', fragment),
 ]
 
+/** The screen-space contact shadows' array and the ranks of its layers, which a pass of lights reads where its program holds contact shadow
+ *  code (`ContractKey.contactless`); none otherwise. */
+const contactBendEntries = (contact: boolean): GPUBindGroupLayoutEntry[] =>
+  contact
+    ? [
+        computeTextureEntry(
+          DEFERRED_BINDINGS.contactBend,
+          'unfilterable-float',
+          '2d-array',
+          fragment,
+        ),
+        computeUniformEntry(DEFERRED_BINDINGS.contactBendRanks, {}, fragment),
+      ]
+    : []
+
+/** The shadows the heterogeneous volumes cast, which a pass of lights reads where its program holds their read (`ContractKey.volumeShadow`);
+ *  none otherwise. */
+const volumeShadowEntry = (volume: boolean): GPUBindGroupLayoutEntry[] =>
+  volume ? [computeBufferEntry(DEFERRED_BINDINGS.volumeShadow, 'read-only-storage', fragment)] : []
+
 /** The sun's pass: the light buffer and the ranks of the directional lights in it, the shadows and the
- *  sun's distance-field shadow, the clouds' shade. */
-export const sunLayoutEntries = (lobes: boolean): GPUBindGroupLayoutEntry[] => [
+ *  sun's distance-field shadow, the clouds' shade, and, where the program holds contact shadow code (`contact`), the screen-space
+ *  contact shadows. */
+export const sunLayoutEntries = (
+  lobes: boolean,
+  contact = false,
+  volume = false,
+): GPUBindGroupLayoutEntry[] => [
   ...pixelEntries(),
   ...tileEntries(),
   lightsEntry(),
@@ -118,6 +144,8 @@ export const sunLayoutEntries = (lobes: boolean): GPUBindGroupLayoutEntry[] => [
   computeBufferEntry(DEFERRED_BINDINGS.farShadowMask, 'read-only-storage', fragment),
   ...cloudShadowLayoutEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, fragment),
   occlusionEntry(),
+  ...contactBendEntries(contact),
+  ...volumeShadowEntry(volume),
   ...surfaceTargets(lobes),
 ]
 
@@ -136,7 +164,13 @@ const profileEntries = (profiled: boolean): GPUBindGroupLayoutEntry[] =>
 
 /** The local lights' pass: the light buffer and the grid's lists, the shadows, the light profiles where the scene has
  *  any, and the sun's distance-field shadow, which only the view of the shadows reads. */
-export const localLayoutEntries = (lobes: boolean, profiled = false): GPUBindGroupLayoutEntry[] => [
+export const localLayoutEntries = (
+  lobes: boolean,
+  profiled = false,
+  contact = false,
+  sampled = false,
+  volume = false,
+): GPUBindGroupLayoutEntry[] => [
   ...pixelEntries(),
   ...tileEntries(),
   lightsEntry(),
@@ -146,7 +180,25 @@ export const localLayoutEntries = (lobes: boolean, profiled = false): GPUBindGro
   computeBufferEntry(DEFERRED_BINDINGS.farShadowMask, 'read-only-storage', fragment),
   occlusionEntry(),
   ...profileEntries(profiled),
+  ...contactBendEntries(contact),
+  ...(sampled
+    ? [computeTextureEntry(DEFERRED_BINDINGS.sampledLight, 'unfilterable-float', '2d', fragment)]
+    : []),
+  ...volumeShadowEntry(volume),
   ...surfaceTargets(lobes),
+]
+
+/** The strands' samples' lighting (`../../hair/hairLightWgsl.ts`): the local lights' group and the clouds' shade, which the
+ *  suns of a cell are lit with. */
+export const hairLayoutEntries = (
+  lobes: boolean,
+  profiled = false,
+  contact = false,
+  sampled = false,
+  volume = false,
+): GPUBindGroupLayoutEntry[] => [
+  ...localLayoutEntries(lobes, profiled, contact, sampled, volume),
+  ...cloudShadowLayoutEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, fragment),
 ]
 
 /** The per-light draw (`perLightPassWgsl.ts`): the light buffer, the light functions' atlas, the mask of the
@@ -155,6 +207,8 @@ export const localLayoutEntries = (lobes: boolean, profiled = false): GPUBindGro
 export const perLightLayoutEntries = (
   lobes: boolean,
   profiled = false,
+  contact = false,
+  volume = false,
 ): GPUBindGroupLayoutEntry[] => [
   ...pixelEntries(),
   ...tileEntries(),
@@ -168,6 +222,8 @@ export const perLightLayoutEntries = (
     fragment,
   ),
   ...profileEntries(profiled),
+  ...contactBendEntries(contact),
+  ...volumeShadowEntry(volume),
   ...surfaceTargets(lobes),
 ]
 
@@ -194,11 +250,13 @@ export const indirectLayoutEntries = ({
   skyShadowing,
   lobes,
   cubed = false,
+  capsule = false,
 }: {
   bounce: boolean
   skyShadowing: boolean
   lobes: boolean
   cubed?: boolean
+  capsule?: boolean
 }): GPUBindGroupLayoutEntry[] => [
   ...pixelEntries(),
   ...tileEntries(),
@@ -208,7 +266,16 @@ export const indirectLayoutEntries = ({
   REFLECTION_TARGET.layoutEntry(),
   ...skyLightReadLayoutEntries(DEFERRED_SKY_LIGHT_BINDINGS, fragment),
   ...(bounce
-    ? [computeTextureEntry(DEFERRED_BINDINGS.screenIndirect, 'uint', '2d', fragment)]
+    ? [
+        computeTextureEntry(DEFERRED_BINDINGS.screenIndirect, 'uint', '2d', fragment),
+        computeStorageTextureEntry(
+          DEFERRED_BINDINGS.screenShortRangeGi,
+          SCREEN_PROBE_FORMATS.shortRangeGi,
+          'read-only',
+          '2d',
+          fragment,
+        ),
+      ]
     : []),
   ...(skyShadowing
     ? [
@@ -216,9 +283,20 @@ export const indirectLayoutEntries = ({
         computeBufferEntry(DEFERRED_BINDINGS.dfaoRead, 'uniform', fragment),
       ]
     : []),
+  ...(capsule
+    ? [computeBufferEntry(DEFERRED_BINDINGS.capsuleIndirect, 'read-only-storage', fragment)]
+    : []),
   ...cubemapEntries(cubed),
   ...surfaceTargets(lobes),
 ]
+
+/** The layout of the fog behind the water: the fog pass's, and the scene without the water's linear depth. */
+export function fogBehindWaterLayoutEntries(localFog: boolean): GPUBindGroupLayoutEntry[] {
+  return [
+    ...heightFogLayoutEntries(localFog),
+    computeTextureEntry(DEFERRED_BINDINGS.waterLinearDepth, 'unfilterable-float', '2d', fragment),
+  ]
+}
 
 /** The fog pass's layout: the surface's flags and the depth, the view, the light buffer, the fog's cubemap,
  *  volume, light shafts' mask, local fog volumes' lists and sampler, and the haze's volume. */

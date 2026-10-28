@@ -133,6 +133,61 @@ function createKernels(device: GPUDevice) {
   }
 }
 
+/** The groups of the compaction over `buffer` and `table`. */
+function compactionGroups(
+  device: GPUDevice,
+  kernels: ReturnType<typeof createKernels>,
+  buffer: GPUBuffer,
+  table: Table,
+) {
+  const label = 'Trillion3D surface cache feedback compaction'
+  return {
+    args: device.createBindGroup({
+      label,
+      layout: kernels.argsLayout,
+      entries: [
+        { binding: 0, resource: wholeBuffer(buffer) },
+        { binding: FEEDBACK_ARGS_BINDING, resource: wholeBuffer(table.args) },
+      ],
+    }),
+    table: device.createBindGroup({
+      label,
+      layout: kernels.tableLayout,
+      entries: bufferEntries([buffer, ...table.buffers]),
+    }),
+  }
+}
+
+/** The table cleared, the three kernels — each its own pass — and the list copied to `staging`. */
+function encodeCompaction(
+  encoder: GPUCommandEncoder,
+  staging: GPUBuffer,
+  kernels: ReturnType<typeof createKernels>,
+  table: Table,
+  groups: ReturnType<typeof compactionGroups>,
+) {
+  const [keys, , counts, listed] = table.buffers
+  for (const buffer of [keys, counts, listed]) encoder.clearBuffer(buffer)
+  const pass = (label: string) =>
+    encoder.beginComputePass({ label: `Trillion3D surface cache feedback ${label}` })
+  let compute = pass('table arguments')
+  compute.setPipeline(kernels.args.pipelineOf(FEEDBACK_ARGS_ENTRY))
+  compute.setBindGroup(0, groups.args)
+  compute.dispatchWorkgroups(1)
+  compute.end()
+  compute = pass('table')
+  compute.setPipeline(kernels.table.pipelineOf('buildFeedbackTable'))
+  compute.setBindGroup(0, groups.table)
+  compute.dispatchWorkgroupsIndirect(table.args, 0)
+  compute.end()
+  compute = pass('compaction')
+  compute.setPipeline(kernels.table.pipelineOf('compactFeedbackTable'))
+  compute.setBindGroup(0, groups.table)
+  dispatchRows(compute, ceilDiv(2 * table.unique, WORKGROUP_THREADS))
+  compute.end()
+  encoder.copyBufferToBuffer(listed, 0, staging, 0, listed.size)
+}
+
 /** The compaction (`feedbackWgsl.ts`) on `device`: its kernels, its table and its groups over the buffer it reads. */
 function createCompaction(device: GPUDevice) {
   const kernels = createKernels(device)
@@ -152,22 +207,7 @@ function createCompaction(device: GPUDevice) {
       }
       if (bound !== buffer) groups = undefined
       bound = buffer
-      const label = 'Trillion3D surface cache feedback compaction'
-      groups ??= {
-        args: device.createBindGroup({
-          label,
-          layout: kernels.argsLayout,
-          entries: [
-            { binding: 0, resource: wholeBuffer(buffer) },
-            { binding: FEEDBACK_ARGS_BINDING, resource: wholeBuffer(table.args) },
-          ],
-        }),
-        table: device.createBindGroup({
-          label,
-          layout: kernels.tableLayout,
-          entries: bufferEntries([buffer, ...table.buffers]),
-        }),
-      }
+      groups ??= compactionGroups(device, kernels, buffer, table)
     },
     /** The bytes of the list. */
     get bytes() {
@@ -176,26 +216,7 @@ function createCompaction(device: GPUDevice) {
     /** The table cleared, the three kernels — each its own pass — and the list copied to `staging`. */
     encode(encoder: GPUCommandEncoder, staging: GPUBuffer) {
       if (!table || !groups || !kernels.ready) return
-      const [keys, , counts, listed] = table.buffers
-      for (const buffer of [keys, counts, listed]) encoder.clearBuffer(buffer)
-      const pass = (label: string) =>
-        encoder.beginComputePass({ label: `Trillion3D surface cache feedback ${label}` })
-      let compute = pass('table arguments')
-      compute.setPipeline(kernels.args.pipelineOf(FEEDBACK_ARGS_ENTRY))
-      compute.setBindGroup(0, groups.args)
-      compute.dispatchWorkgroups(1)
-      compute.end()
-      compute = pass('table')
-      compute.setPipeline(kernels.table.pipelineOf('buildFeedbackTable'))
-      compute.setBindGroup(0, groups.table)
-      compute.dispatchWorkgroupsIndirect(table.args, 0)
-      compute.end()
-      compute = pass('compaction')
-      compute.setPipeline(kernels.table.pipelineOf('compactFeedbackTable'))
-      compute.setBindGroup(0, groups.table)
-      dispatchRows(compute, ceilDiv(2 * table.unique, WORKGROUP_THREADS))
-      compute.end()
-      encoder.copyBufferToBuffer(listed, 0, staging, 0, listed.size)
+      encodeCompaction(encoder, staging, kernels, table, groups)
     },
     reset() {
       for (const buffer of [...(table?.buffers ?? []), table?.args]) buffer?.destroy()
@@ -243,20 +264,25 @@ function createFeedbackBuffer(device: GPUDevice) {
   }
 }
 
+/** The ring the compacted list is read back through, handing each list that came back to `received`. */
+function createFeedbackRing(device: GPUDevice, received: (feedback: Feedback) => void) {
+  return createReadbackRing<number>(
+    device,
+    { label: 'Trillion3D surface cache feedback readback', bytes: 16, count: IN_FLIGHT },
+    (mapped, _staging, bufferSize) => {
+      const words = new Uint32Array(mapped.slice(0))
+      received({ words, capacity: words.length / 2, bufferSize })
+    },
+  )
+}
+
 /** The surface cache's feedback on `device`. */
 export function createSurfaceFeedback(device: GPUDevice) {
   const compaction = createCompaction(device)
   const rays = createFeedbackBuffer(device)
   let latest: Feedback | undefined
   let active = false
-  const ring = createReadbackRing<number>(
-    device,
-    { label: 'Trillion3D surface cache feedback readback', bytes: 16, count: IN_FLIGHT },
-    (mapped, _staging, bufferSize) => {
-      const words = new Uint32Array(mapped.slice(0))
-      latest = { words, capacity: words.length / 2, bufferSize }
-    },
-  )
+  const ring = createFeedbackRing(device, (feedback) => (latest = feedback))
   return {
     /** The buffer of the image `begin` made ready, none where the image writes no feedback. */
     get buffer() {

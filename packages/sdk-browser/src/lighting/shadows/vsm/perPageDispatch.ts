@@ -25,6 +25,7 @@ import type { VsmResources } from './resources.ts'
 import { writeChangedSlots } from '../../../gpu/core/writeChanged.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../../../session/memory/pools.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { uniformBuffer } from '../../../gpu/core/uniformBlock.ts'
 
 /**
  * Bindings of the per-page dispatch setup in `group` (0 = `vsmPerPage` dynamic uniform, 1 = `vsmPerPageIds`)
@@ -77,11 +78,7 @@ export class VsmPerPageDispatcher {
       VSM_PER_PAGE_BIN_WORDS,
     )
     this.args = new Uint32Array(this.slots.bytes / 4)
-    this.params = device.createBuffer({
-      label: 'vsm.pm.perPage',
-      size: this.slots.bytes,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    })
+    this.params = uniformBuffer(device, 'vsm.pm.perPage', this.slots.bytes)
     this.bindGroupLayout = device.createBindGroupLayout({
       label: 'vsm.pm.perPage',
       entries: vsmPerPageDispatchEntries(),

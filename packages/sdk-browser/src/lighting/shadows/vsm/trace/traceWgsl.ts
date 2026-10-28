@@ -33,6 +33,7 @@ import { vsmTraceRayWgsl } from './traceRayWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
 import { transformPoint } from '../../../../../../math/src/wgsl/projection.ts'
 import { vsmScreenSegmentWgsl } from './traceScreenWgsl.ts'
+import { classicTraceWgsl } from '../../classic/classicTraceWgsl.ts'
 import {
   Frame3,
   frameAround,
@@ -88,9 +89,14 @@ export interface VsmTraceHost {
   subgroups?: boolean
   /** The kinds of light it traces by default (`vsmTraceLightWgsl`), both unless given. */
   kinds?: number
+  /** The rays a LOCAL light's trace casts, in place of the view's (`VsmProjectionView.traceRays`, which stays the suns' and every other trace's): a trace that
+   *  wants one ray a receiver, the sampled lighting's. Left out, the view's count, in the very text it always had. */
+  rays?: number
   /** The pixels it traces from (`../inputType.ts`): a strand's (`strands`) casts no screen ray, as the
    *  opaque depth holds the surfaces the strands stand in front of; the deferred buffers' unless given. */
   input?: VsmInputType
+  /** The shadows are classic shadow maps: the trace is the classic filter's (`classicTraceWgsl.ts`). */
+  classic?: boolean
 }
 
 /** The screen segment of a receiver's rays, where it casts one: a thin-subsurface receiver does not. */
@@ -101,6 +107,7 @@ const SCREEN_RAY_TEXT = /* wgsl */ `
 
 const traceLightSetupText = (
   lone: boolean,
+  rays?: number,
 ) => /* wgsl */ `fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,participating:bool)->VsmTraceResult{
  let P=receiver.P;
  let directional=vsmLightIsDirectional(light);
@@ -120,7 +127,7 @@ const traceLightSetupText = (
  // A projection group's pass traces one kind of light (\`VSM_TRACE_KINDS\`), so its ray count is read from the
  // kind alone: the loop that votes (\`rayCountStatement\`) is bound by a value every lane of the group has,
  // where the lane's own light (\`light\`, the one of its list) is not known to be one.
- let rays=select(vsmView.traceRays.y,vsmView.traceRays.x,${lone ? 'directional' : `VSM_TRACE_KINDS==${VSM_TRACE_KINDS_SUN}u`});
+ let rays=select(${rays === undefined ? 'vsmView.traceRays.y' : `${rays}u`},vsmView.traceRays.x,${lone ? 'directional' : `VSM_TRACE_KINDS==${VSM_TRACE_KINDS_SUN}u`});
  // A sun with no ray takes one tap along its axis; a local light with none one tap of its map (\`vsmLocalTap\`).
  let single=directional&&rays==0u;
  let tap=!directional&&rays==0u;
@@ -176,6 +183,14 @@ const traceLightTracedText = (screenRay: boolean) => /* wgsl */ `
   }
  }`
 
+/** The classic shadows' trace of the light, after the setup that found its receiver (`classicTraceWgsl.ts`): one filtered read, no ray, so the share is that of one. */
+const CLASSIC_TRACE_TEXT = /* wgsl */ `
+ if(!traced){return result;}
+ result.shadowFactor=vsmClassicShadow(light,P,n,axis,dist,directional);
+ result.rayCount=1u;
+ return result;
+}`
+
 const traceLightRaysText = (lone: boolean, subgroups: boolean) => /* wgsl */ `
  var missed=0u;
  var occluderSum=0.0;
@@ -190,8 +205,9 @@ const traceLightRaysText = (lone: boolean, subgroups: boolean) => /* wgsl */ `
   var hit=false;
   if(running){
    let noise4=vsmRayNoise4(pixel.pos,vsmView.frameIndex,i,rayCap);
-   let cone=vsmConeDirection(basis,s,vsmLightDisk(directional,noise4.xy));
-   let dir=cone.dir;
+   let disk=vsmLightDisk(directional,noise4.xy);
+   let cone=vsmConeDirection(basis,s,disk);
+   let dir=select(cone.dir,vsmSunDirection(basis,s,disk),directional);
    // The start, within the dither square across the light. A local ray's is moved along the light
    // onto the receiver's plane (its slope in the light's frame), never more than the cap, in the
    // world; a sun ray's is moved in the map's UV once projected, and biased (\`vsmSunDitherBias\`).
@@ -245,9 +261,11 @@ export const vsmTraceWgsl = ({
   subgroups = false,
   kinds = VSM_TRACE_KINDS_BOTH,
   input = 'gbuffer',
+  rays,
+  classic = false,
 }: VsmTraceHost) =>
   wgslBlock(
-    `vsmTraceWgsl(${hiz.join(', ')}, ${lone}, ${subgroups}, ${kinds}${input === 'strands' ? ', strands' : ''})`,
+    `vsmTraceWgsl(${hiz.join(', ')}, ${lone}, ${subgroups}, ${kinds}${input === 'strands' ? ', strands' : ''}${rays === undefined ? '' : `, ${rays} rays`}${classic ? ', classic' : ''})`,
     [
       VSM_CONSTANTS_WGSL,
       Frame3,
@@ -267,8 +285,9 @@ export const vsmTraceWgsl = ({
       vsmTraceRayWgsl(pool),
       vsmRayNoiseWgsl(noise),
       ...(lone && subgroups ? [SUBGROUP_ALL_WGSL] : []),
+      ...(classic ? [classicTraceWgsl(pool)] : []),
     ],
     `/** 'participating' = the lane takes part in the group's votes and traces. */
-${traceLightSetupText(lone)}${traceLightTracedText(input !== 'strands')}${traceLightRaysText(lone, subgroups)}
+${traceLightSetupText(lone, rays)}${classic ? CLASSIC_TRACE_TEXT : `${traceLightTracedText(input !== 'strands')}${traceLightRaysText(lone, subgroups)}`}
 `,
   )

@@ -135,6 +135,10 @@
 // far depth, a pad, and the projection record its `farShadowEdge` word (the offsets from `wpoThreshold` on
 // moved up four bytes, the record's 400 bytes kept by the pad before `prevShiftedToClip`); the projection
 // buffers and `vsm.render.params` move.
+// Retaken when the full maps' ids began past the 8192 reserved for the maps of one page (`mapIds.ts`) and the sets held 1024 more map
+// slots (`VSM_MAPS_PAST_BLOCKS`): the projection buffers are sized by the map slots and a full map's record lies at its id, so the
+// projection data, and every table addressed by a map id (the next-map data, the page rects, the page-management lists), moved with
+// them, while the maps, the pages and their order are the same. Nothing else moves them: the throttle is off here.
 import { mulberry32 } from '../../../../../math/src/sequence/random.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -142,14 +146,14 @@ import { planFrames, randomWorld } from './planFrames.fixture.ts'
 
 const DIGESTS: Record<number, string[]> = {
   1: [
-    'e819168b943d307e82026b6f7d3f70c6650e29c13a3e675c943bfebeef7fb949',
-    '0da51756c1a438e34f06c1380df456f7af5c5f265c9b55da42e284e46f746709',
-    '00ac255403a6e5426a368131e5dfc1a307eaa8ea6d27aed2d8def6aec474415f',
+    'c2f84e953b6209926e5e35413983bcba35e7e8c511a05b661dd5a2f3dd6e6ea2',
+    '188f14f7b666c86328f88ddff410e2064eb9642d3cc28a43d149d05875469251',
+    'c00eeb3ac5565b66bc069f832c8fbdf1a5ce54f07524af7e25d9a541a2ee5787',
   ],
   2: [
-    'f06ef448853e0e9c3567ff27f4edba805a3472a70f7b6d93967c9fae077b2c22',
-    'e3520cc6634dc70218f2ea824aea2beb22025b94fd2e46ebc108cee2a8d9116a',
-    '337dd72c30239e36e72b1942b7def5fa68b558705c1cb4e1b3b2f67bba2f4877',
+    '794b1313f0cbce479c7027be0edeea95fd0d3924c3e995a3b64a3c7c89e8b5a1',
+    'dd47584e21893f7737b2c59d949d7ebf9a809797065721c1b85287d2667b0a79',
+    'cf141bb6432c478acf98a5add9e3e4a54fe49f57562951ddf9b8e95b0c5ff811',
   ],
 }
 

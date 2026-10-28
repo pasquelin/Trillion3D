@@ -28,6 +28,21 @@ const transfer = (k: number) => {
 }
 const terms = IRRADIANCE_TERMS.map((_, k) => transfer(k))
 
+/** The irradiance a lightmap's third-order harmonics `sh` (`vlmSh3`) give a surface of normal `N`: the harmonics dotted with the normal's cosine transfer, never negative. Its host declares the lightmap (`volumetricLightmapWgsl`). */
+export const VOLUMETRIC_IRRADIANCE_WGSL = wgslBlock(
+  'VOLUMETRIC_IRRADIANCE_WGSL',
+  [],
+  `
+fn volumetricIrradiance(sh:VlmSh3,N:vec3f)->vec3f{
+ let sq=N*N;
+ let low=vec4f(${terms.slice(0, 4).join(',')});
+ let high=vec4f(${terms.slice(4, 8).join(',')});
+ let top=${terms[8]};
+ return max(vlmDotSh3(sh,low,high,top),vec3f(0.0));
+}
+`,
+)
+
 /**
  * THE LIGHT THE VOLUMETRIC LIGHTMAP GIVES THE PIXELS, a pass of its own: the lit passes have not a
  * sampled texture to spare for the nine of the lightmap (`sampleWgsl.ts`). A fullscreen draw reads each lit
@@ -48,16 +63,10 @@ export const VOLUMETRIC_LIGHT_WGSL = wgslBlock(
     WORLD_AT_WGSL,
     PIXEL_TILE_CLASS_WGSL,
     volumetricLightmapWgsl(0, VOLUMETRIC_LIGHT_FIRST),
+    VOLUMETRIC_IRRADIANCE_WGSL,
     FULLSCREEN_VERTEX,
   ],
   `
-fn volumetricIrradiance(sh:VlmSh3,N:vec3f)->vec3f{
- let sq=N*N;
- let low=vec4f(${terms.slice(0, 4).join(',')});
- let high=vec4f(${terms.slice(4, 8).join(',')});
- let top=${terms[8]};
- return max(vlmDotSh3(sh,low,high,top),vec3f(0.0));
-}
 @fragment fn ${VOLUMETRIC_LIGHT_ENTRY}(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let coord=vec2i(pixel.xy);
  if(pixelTileClass(textureLoad(words,coord,${SURFACE_WORDS.flags},0).r)==0u){return vec4f(0.0);}

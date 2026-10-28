@@ -21,11 +21,7 @@ import {
   HAIR_TILE_LISTS,
   HAIR_TILE_SIZE,
 } from './visibilityMath.ts'
-
-/** How far behind the nearest strand the surfaces' depth is put: the passes that read the depth beside
- *  the strands (the screen-space ones) need no more than a pixel the strands cover to be behind them,
- *  and the bias keeps the strands' own comparison against it from rejecting them. */
-export const HAIR_DEPTH_BIAS = 0.001
+import { HAIR_DEPTH_BIAS } from './depthBias.ts'
 
 /** What the passes after the material read of a pixel's samples: the nearest depth (reverse-Z, the
  *  greatest), and whether any of them casts a contact shadow or lights the scene behind it. The host

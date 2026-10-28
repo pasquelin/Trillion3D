@@ -51,8 +51,9 @@ import { TRANSPARENT_FRONT_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { createKernelTexture, createReflectionGrids, gridBytes } from './grids.ts'
 import { storageTextureLayout } from '../../gpu/core/computeBindings.ts'
 
-/** The format of the front's traced radiance: the base's and the coat's words. */
-export const FRONT_TRACED_FORMAT: GPUTextureFormat = 'rg32uint'
+/** The format of the front's traced radiance: the base's and the coat's words, then the bits of the front pass's depth at the pixel (`z`, written by
+ *  the last pass, which the forward programs match a fragment's depth against: the front depth needs no texture of its own in their group), a word spare. */
+export const FRONT_TRACED_FORMAT: GPUTextureFormat = 'rgba32uint'
 /** How a fragment binds it: words, read by load alone, as a read-only storage texture (the blend's
  *  group, `loadOnlyTarget`): none of the sixteen sampled textures of the stage is spent on it. */
 export const FRONT_TRACED_LAYOUT = storageTextureLayout(FRONT_TRACED_FORMAT)
@@ -63,11 +64,12 @@ const FRONT_OUTPUT = {
   flags: { wgsl: 'u32', format: SURFACE_FORMATS[3], from: 0 },
   normal: { wgsl: 'vec4f', format: SURFACE_FORMATS[1], from: 1 },
   lobes: { wgsl: 'vec4u', format: PHYSICAL_LOBES_FORMAT, from: 2 },
+  base: { wgsl: 'vec4f', format: SURFACE_FORMATS[0], from: 3 },
 } as const
-/** What a front pass writes past the depth and the flags: nothing, the surface, or it and its lobes. */
+/** What a front pass writes past the depth and the flags: nothing, the surface, it and its lobes, or those and the base colour and metalness (what the sampled lighting of the layer reads). */
 export type FrontOutputs = (typeof FRONT_OUTPUT)[keyof typeof FRONT_OUTPUT]['from']
 /** Each `FrontOutputs`' outputs in order: the stage's targets, `FrontOut` and attachments read them. */
-export const FRONT_OUTPUTS = ([0, 1, 2] as const).map((outputs) =>
+export const FRONT_OUTPUTS = ([0, 1, 2, 3] as const).map((outputs) =>
   Object.entries(FRONT_OUTPUT)
     .filter(([, { from }]) => from <= outputs)
     .map(([name, output]) => ({ name: name as keyof typeof FRONT_OUTPUT, ...output })),
@@ -99,6 +101,8 @@ type FrontHeld = {
   normals: GPUTexture
   lobes: GPUTexture
   traced: GPUTexture
+  /** The surface buffer the sampled lighting reads the layer as (`FrontSurface`), made at the view's size the first time a pass writes the base colour. */
+  surface?: FrontSurface
   grids: ReturnType<typeof createReflectionGrids>
   views: {
     depth: GPUTextureView
@@ -107,6 +111,19 @@ type FrontHeld = {
     lobes: GPUTextureView
     traced: GPUTextureView
   }
+}
+
+/**
+ * The front layer as the buffer of an opaque surface is laid out, for the passes that light a surface: the base colour and metalness (layer 0) and the normal and roughness
+ * (layer 1) of the layer, its flags, the base the front pass wrote and the rest copied after it (`FrontLayer.surfaceFrom`).
+ */
+export interface FrontSurface {
+  readonly colours: GPUTexture
+  readonly words: GPUTexture
+  readonly coloursView: GPUTextureView
+  readonly wordsView: GPUTextureView
+  /** The layer 0 of the colours, which the front pass draws the base colour into. */
+  readonly baseView: GPUTextureView
 }
 
 /** The usage of a texture the front pass draws into and a program reads (read where made: the globals are the device's). */
@@ -119,7 +136,12 @@ const frontTexture = (
 ) => device.createTexture({ label: LABEL, size, format, usage })
 
 /** The textures of a front layer at `width × height`, `blends` sizing its depth and flags. */
-function createFrontHeld(device: GPUDevice, width: number, height: number, blends: boolean) {
+function createFrontHeld(
+  device: GPUDevice,
+  width: number,
+  height: number,
+  blends: boolean,
+): FrontHeld {
   const full: [number, number] = [width, height],
     one: [number, number] = [1, 1]
   const depth = frontTexture(
@@ -147,6 +169,28 @@ function createFrontHeld(device: GPUDevice, width: number, height: number, blend
     traced,
     grids: createReflectionGrids(device, LABEL, one),
     views,
+  }
+}
+
+function createFrontSurface(device: GPUDevice, width: number, height: number): FrontSurface {
+  const colours = device.createTexture({
+    label: LABEL,
+    size: [width, height, 2],
+    format: SURFACE_FORMATS[0]!,
+    usage: attached() | GPUTextureUsage.COPY_DST,
+  })
+  const words = device.createTexture({
+    label: LABEL,
+    size: [width, height, 1],
+    format: SURFACE_FORMATS[3]!,
+    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+  })
+  return {
+    colours,
+    words,
+    coloursView: colours.createView({ dimension: '2d-array' }),
+    wordsView: words.createView({ dimension: '2d-array' }),
+    baseView: colours.createView({ dimension: '2d', baseArrayLayer: 0, arrayLayerCount: 1 }),
   }
 }
 
@@ -179,7 +223,11 @@ function growFrontHeld(
     const n = growFront(device, size, held.normals, () =>
         frontTexture(device, FRONT_OUTPUT.normal.format, attached(), [width, height]),
       ),
-      t = growFront(device, size, held.traced, () => createFrontTraced(device, [width, height]))
+      // Twice the view tall while the sampled lighting lights the layer: its light lies in the second half (`manyLightsSampled/frontLightWgsl.ts`).
+      tracedSize = { width, height: outputs > 2 ? height * 2 : height },
+      t = growFront(device, tracedSize, held.traced, () =>
+        createFrontTraced(device, [tracedSize.width, tracedSize.height]),
+      )
     if (n.texture !== held.normals) views.normals = (held.normals = n.texture).createView()
     if (t.texture !== held.traced) views.traced = (held.traced = t.texture).createView()
     bytes.targetBytes += n.bytes + t.bytes
@@ -202,6 +250,15 @@ function growFrontHeld(
     if (l.texture !== held.lobes) views.lobes = (held.lobes = l.texture).createView()
     bytes.targetBytes += l.bytes
   }
+  if (outputs > 2 && !(held.surface && holds(size, held.surface.colours))) {
+    if (held.surface) {
+      retire(device, held.surface.colours)
+      retire(device, held.surface.words)
+    }
+    held.surface = createFrontSurface(device, width, height)
+    bytes.targetBytes +=
+      width * height * (2 * texelBytesOf(SURFACE_FORMATS[0]!) + texelBytesOf(SURFACE_FORMATS[3]!))
+  }
 }
 
 const cleared = (): GPURenderPassColorAttachment => ({
@@ -210,6 +267,64 @@ const cleared = (): GPURenderPassColorAttachment => ({
   storeOp: 'store',
   clearValue: [0, 0, 0, 0],
 })
+
+/** The front pass's attachments: one per output (`FRONT_OUTPUT`), the pass descriptor over the depth copy, and each `FrontOutputs`' attachments in its outputs' order. */
+function frontPassTargets(views: FrontHeld['views']) {
+  const out = {
+    front: cleared(),
+    flags: cleared(),
+    normal: cleared(),
+    lobes: cleared(),
+    base: cleared(),
+  }
+  out.flags.view = views.flags
+  const colours = FRONT_OUTPUTS.map((list) => list.map(({ name }) => out[name]))
+  const pass: GPURenderPassDescriptor = {
+    label: TRANSPARENT_FRONT_PASS,
+    colorAttachments: colours[0],
+    // The opaque depth copied in first (`encodeFrontPass`): a surface behind it is never the front.
+    depthStencilAttachment: { view: views.depth, depthLoadOp: 'load', depthStoreOp: 'store' },
+  }
+  return { out, colours, pass }
+}
+
+/** The front pass's attachments for `outputs`: its normals, radiance and lobes made at the view's size the first time they are written, their bytes added to `bytes`. */
+function beginFrontOutputs(
+  device: GPUDevice,
+  size: { width: number; height: number },
+  held: FrontHeld,
+  targets: ReturnType<typeof frontPassTargets>,
+  outputs: FrontOutputs,
+  bytes: { targetBytes: number },
+) {
+  const { out, colours, pass } = targets
+  pass.colorAttachments = colours[outputs]
+  growFrontHeld(device, size, held, outputs, bytes)
+  if (outputs > 0) out.normal.view = held.views.normals
+  if (outputs > 1) out.lobes.view = held.views.lobes
+  if (outputs > 2) out.base.view = held.surface!.baseView
+  return pass
+}
+
+/** The layer's normals and flags copied next to the base colour the pass wrote (`FrontLayer.surfaceFrom`). */
+function copyIntoSurface(encoder: GPUCommandEncoder, held: FrontHeld, surface: FrontSurface) {
+  const size = [surface.colours.width, surface.colours.height] as const
+  encoder.copyTextureToTexture(
+    { texture: held.normals },
+    { texture: surface.colours, origin: [0, 0, 1] },
+    size,
+  )
+  encoder.copyTextureToTexture({ texture: held.flags }, { texture: surface.words }, size)
+}
+
+/** Gives back everything a front layer holds. */
+function destroyHeld(held: FrontHeld) {
+  for (const texture of [held.depth, held.flags, held.normals, held.lobes, held.traced])
+    texture.destroy()
+  held.surface?.colours.destroy()
+  held.surface?.words.destroy()
+  held.grids.destroy()
+}
 
 /** A view's front layer at `width × height`, `blends` sizing it (`frontLayer.ts`), its grids the
  *  opaque surface's. */
@@ -221,16 +336,7 @@ export function createFrontLayer(
 ) {
   const held = createFrontHeld(device, width, height, blends),
     { views } = held
-  const out = { front: cleared(), flags: cleared(), normal: cleared(), lobes: cleared() }
-  out.flags.view = views.flags
-  /** Each `FrontOutputs`' attachments, in its outputs' order. */
-  const colours = FRONT_OUTPUTS.map((list) => list.map(({ name }) => out[name]))
-  const pass: GPURenderPassDescriptor = {
-    label: TRANSPARENT_FRONT_PASS,
-    colorAttachments: colours[0],
-    // The opaque depth copied in first (`encodeFrontPass`): a surface behind it is never the front.
-    depthStencilAttachment: { view: views.depth, depthLoadOp: 'load', depthStoreOp: 'store' },
-  }
+  const targets = frontPassTargets(views)
   return {
     /** Whether it holds the view's pixels: the scene had a blend when it was made. */
     wanted: blends,
@@ -240,6 +346,12 @@ export function createFrontLayer(
      *  reflecting surface (`frontStamp`): zero before any. */
     drawn: 0,
     reflected: 0,
+    /** The stamp of the last image whose pass wrote the layer as a surface (`surfaceFrom`): zero before any. */
+    surfaced: 0,
+    /** The layer as a surface buffer's layers, once a pass wrote it. */
+    get surface() {
+      return held.surface
+    },
     /** The front surface's grids (`grids.ts`): a texel until it first reflects. */
     get grids() {
       return held.grids
@@ -254,18 +366,24 @@ export function createFrontLayer(
       bytes: { targetBytes: number },
     ) {
       this.drawn = stamp
-      out.front.view = front
-      pass.colorAttachments = colours[outputs]
+      targets.out.front.view = front
       if (outputs > 0) this.reflected = stamp
-      growFrontHeld(device, { width, height }, held, outputs, bytes)
-      if (outputs > 0) out.normal.view = views.normals
-      if (outputs > 1) out.lobes.view = views.lobes
-      return pass
+      return beginFrontOutputs(device, { width, height }, held, targets, outputs, bytes)
+    },
+    /** The layer as a surface buffer's layers (`FrontSurface`), after a pass of `outputs` 3: its normals and flags copied next to the base colour the pass wrote. */
+    surfaceFrom(encoder: GPUCommandEncoder): FrontSurface | undefined {
+      const { surface } = held
+      if (!surface) return undefined
+      this.surfaced = this.drawn
+      copyIntoSurface(encoder, held, surface)
+      return surface
+    },
+    /** The anisotropic and clear-coat lobes of the layer, the target the lit pixel's statements read. */
+    get lobesView() {
+      return views.lobes
     },
     dispose() {
-      for (const texture of [held.depth, held.flags, held.normals, held.lobes, held.traced])
-        texture.destroy()
-      held.grids.destroy()
+      destroyHeld(held)
     },
   }
 }

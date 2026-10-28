@@ -1,3 +1,7 @@
+import { releaseScreenSpaceTracing } from '../../lighting/screenSpaceTracing/stage.ts'
+import { disposeSampledLights } from '../../lighting/manyLightsSampled/frame.ts'
+import { disposeSampledVolumes } from '../../lighting/manyLightsSampled/volumeFrame.ts'
+import { disposeSampledHair } from '../../lighting/manyLightsSampled/hairFrame.ts'
 import { DEFORMATION_PASS } from '../../deformation/pass.ts'
 import { releaseLightProfiles } from '../../lighting/lightProfile/frame.ts'
 import { releaseAmbientCubemap } from '../../lighting/deferred/ambientCubemapFrame.ts'
@@ -16,23 +20,19 @@ import { toneTableMetrics } from '../../lighting/toneLut.ts'
 import { vsmFrameMetrics } from '../../lighting/shadows/vsm/frame/vsmStats.ts'
 import { releaseEngineVsm } from '../../lighting/shadows/vsm/frame/engineVsm.ts'
 import { releaseShadowCasters } from '../../lighting/shadows/casters/release.ts'
-import { releaseWebgpuView, useWebgpuView } from '../backend/state/viewSwitch.ts'
+import { disposeViewPasses, releaseWebgpuView, useWebgpuView } from '../backend/state/viewSwitch.ts'
 import type { WebgpuView } from '../backend/state/view.ts'
 import { transparentCounts } from '../backend/state/transparentCounts.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
 import { bounceState } from '../backend/state/bounce.ts'
 import { viewTargetBytes } from '../backend/state/gpu.ts'
-import { disposeFogVolume } from '../render/encodeFogVolume.ts'
-import { disposeTranslucencyVolume } from '../../lighting/translucency/frame.ts'
+import { releaseIndirectWords } from '../../lighting/bounce/screen/indirectWords.ts'
+import { releaseIrradianceField } from '../../lighting/bounce/irradianceField/cache.ts'
 import { releaseTranslucencyCache } from '../../lighting/translucencyGi/cache.ts'
-import { disposeTranslucencyGi } from '../../lighting/translucencyGi/frame.ts'
-import { disposeLocalFog } from '../render/localFogGpu.ts'
 import { disposeDistanceFields } from '../../lighting/distanceField/frame.ts'
-import { disposeHairStrands, disposeHairView } from '../../hair/frame.ts'
+import { disposeHairStrands } from '../../hair/frame.ts'
 import { disposeSurfaceCache, surfaceCacheMetrics } from '../../lighting/surfaceCache/frame.ts'
 import { disposeVolumetricLightmap } from '../../lighting/volumetricLightmap/frame.ts'
-import { disposeLightShafts } from '../../modules/sky/lightShafts/frame.ts'
-import { disposeCloudView } from '../../modules/sky/clouds/viewTargets.ts'
 import { disposeSkyModule } from '../render/encodeCloudsSky.ts'
 import { releaseUnlitLights } from '../render/captureLights.ts'
 
@@ -147,25 +147,18 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
   }
 }
 
-/** The passes that make the image after the lighting resolve, released: the deferred resolve, the
- *  temporal pass, the velocity stage, the exposure, the finishing, the effects, the guides, the
- *  particles, the frame difference and the atmosphere. */
+/** The passes that make the image after the lighting resolve, released: the sampled lights, the
+ *  screen-space tracing, the deferred resolve, every view's own passes (`disposeViewPasses`), the
+ *  guides, the particles, the frame difference and the atmosphere. */
 function disposeImagePasses(gpu: WebgpuPagesRuntime['gpu']) {
+  if (gpu.device) {
+    disposeSampledLights(gpu.device)
+    disposeSampledVolumes(gpu.device)
+    disposeSampledHair(gpu.device)
+  }
+  releaseScreenSpaceTracing(gpu)
   gpu.deferred?.dispose()
-  gpu.temporal?.dispose()
-  gpu.temporal = undefined
-  gpu.velocity?.dispose()
-  gpu.velocity = undefined
-  gpu.exposure?.dispose()
-  gpu.exposure = undefined
-  gpu.finish?.dispose()
-  gpu.finish = undefined
-  gpu.effects?.dispose()
-  gpu.effects = undefined
-  gpu.screenProbes?.dispose()
-  gpu.screenProbes = undefined
-  gpu.ambientOcclusion?.dispose()
-  gpu.ambientOcclusion = undefined
+  disposeViewPasses(gpu)
   gpu.guides?.dispose()
   gpu.guides = undefined
   gpu.particles?.dispose()
@@ -174,13 +167,6 @@ function disposeImagePasses(gpu: WebgpuPagesRuntime['gpu']) {
   gpu.frameDifference = undefined
   gpu.atmosphere?.dispose()
   gpu.atmosphere = undefined
-  disposeFogVolume(gpu)
-  disposeTranslucencyVolume(gpu)
-  disposeTranslucencyGi(gpu)
-  disposeLocalFog(gpu)
-  disposeLightShafts(gpu)
-  disposeCloudView(gpu)
-  disposeHairView(gpu)
 }
 
 /** The cut's resources: rays, fields, deformation, the GPU selection, the visibility and the targets. */
@@ -233,6 +219,8 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   rt.bounce.probes?.dispose()
   rt.bounce.probes = undefined
   releaseTranslucencyCache(rt.bounce)
+  releaseIrradianceField(rt.bounce)
+  releaseIndirectWords(gpu)
   rt.bounce.screen?.dispose()
   rt.bounce.screen = undefined
   rt.compose?.gpu?.dispose()

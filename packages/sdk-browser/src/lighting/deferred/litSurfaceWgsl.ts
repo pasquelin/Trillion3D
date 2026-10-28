@@ -29,6 +29,9 @@ import { DEFERRED_BINDINGS } from './bindings.ts'
 import { PIXEL_TILE_CLASS_WGSL, TILE_CLASS, type TileClass } from './tileClass.ts'
 import { VIEW_WGSL, WORLD_AT_WGSL } from './worldAtWgsl.ts'
 
+/** The diffuse colour the lighting view shows every surface with, as WGSL text: the reference's default brightness of a lighting-only view, 0.3. */
+const LIGHTING_ONLY_BRIGHTNESS = '0.3'
+
 /** The surface's colour layers (the base and metalness, the normal and roughness), by load. */
 export const COLOURS_BINDING_WGSL = wgslBlock(
   'COLOURS_BINDING_WGSL',
@@ -176,7 +179,7 @@ export const litPixelStatements = ({ models, thin, lobes, channels }: LitPixelCu
  let coord=vec2i(pixel.xy);
  let surfaceFlag=textureLoad(words,coord,${SURFACE_WORDS.flags},0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
  if(pixelTileClass(surfaceFlag)==0u){discard;}
- ${models ? 'var' : 'let'} base=textureLoad(colours,coord,${SURFACE_COLOUR_LAYERS.base},0);
+ var base=textureLoad(colours,coord,${SURFACE_COLOUR_LAYERS.base},0);
  let normal=textureLoad(colours,coord,${SURFACE_COLOUR_LAYERS.normal},0);
  let emissive=surfaceEmissiveAo(coord,surfaceFlag);
  let z=textureLoad(depth,coord,0);
@@ -217,4 +220,6 @@ ${
     : ''
 }
  let lightView=u32(view.views.x);
- let albedo=select(base.rgb,vec3f(1.0),lightView==3u);`
+ // The lighting view overrides the surface's colours (diffuse brightness, no specular: neither a dielectric's nor a metal's) and the metalness that would spend the diffuse.
+ if(lightView==3u){base.a=0.0;surfaceSpecular=0.0;}
+ let albedo=select(base.rgb,vec3f(${LIGHTING_ONLY_BRIGHTNESS}),lightView==3u);`

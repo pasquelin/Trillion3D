@@ -6,7 +6,7 @@ import { binMarksWgsl } from '../render/renderBinWgsl.ts'
 import { VSM_TESS_VIEW_WGSL } from './shadowViewWgsl.ts'
 
 /** The group the occlusion's textures are bound at in the tessellation's programs: the pyramid, the kept page table, the marks and the stale rects. */
-export const VSM_TESS_OCCLUSION_GROUP = 3
+const VSM_TESS_OCCLUSION_GROUP = 3
 
 /**
  * THE SIGHT OF A SHADOW PATCH (`vsmPatchHidden`, over what its record gives all its patches, `vsmPatchSightOf`), the occlusion test of a patch by its map's pyramid, the render cull's own test of a

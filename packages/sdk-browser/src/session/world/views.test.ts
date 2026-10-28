@@ -7,6 +7,9 @@ import { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { ViewFrameMetrics } from '../../../../sdk-core/src/contracts/metrics.ts'
 import type { MeasuredWorld } from '../explorer.ts'
 import { createWorldViews } from './views.ts'
+import { createFrameCap, resetFrameCap, skipsDisplayFrame } from '../../frame/cadence.ts'
+
+const HZ60 = 1000 / 60
 
 const canvas = { width: 200, height: 100, clientWidth: 100, clientHeight: 50 } as HTMLCanvasElement
 
@@ -57,7 +60,7 @@ test('views are made in the open session, drawn after the main image, their metr
   assert.ok(asked > 0, 'a frame asked once made')
   const seen: number[] = []
   right.onFrame(({ metrics }) => seen.push(metrics.index))
-  views.draw()
+  views.draw(null)
   const frame: { views?: readonly ViewFrameMetrics[] } = {}
   views.drawnIn(frame)
   views.dispatch()
@@ -82,10 +85,38 @@ test('a view capped below the world’s rate is left out of the frames it is not
   const { made, world } = session()
   views.attach(world)
   await settle()
-  views.draw()
-  views.draw()
+  views.draw(HZ60)
+  views.draw(HZ60)
   assert.equal(made[0].drawn, 1, 'one image a second at most')
   views.attach(null)
-  views.draw()
+  views.draw(HZ60)
   assert.equal(made[0].drawn, 1, 'no session, no image')
+})
+
+test('a view is capped by the rule of the main view’s cap: whole refreshes, 50 a second on 60 Hz is 30', async () => {
+  const views = createWorldViews({ canvas, pixelRatio: 1, invalidate: () => {} })
+  views.addView({ viewport: { x: 0, y: 0, width: 10, height: 10 }, maxFrameRate: 50 })
+  const { made, world } = session()
+  views.attach(world)
+  await settle()
+  const cap = createFrameCap(50)
+  resetFrameCap(cap, HZ60)
+  const refresh = { display: HZ60, settled: true }
+  let main = 0
+  const timeline = { currentTime: 0 }
+  Object.assign(globalThis, { document: { timeline } })
+  try {
+    for (let frame = 0; frame < 60; frame++) {
+      const now = (timeline.currentTime = 1000 + frame * HZ60)
+      views.draw(HZ60)
+      if (!skipsDisplayFrame(cap, refresh, now)) {
+        main++
+        cap.drawnAt = now
+      }
+    }
+  } finally {
+    delete (globalThis as { document?: unknown }).document
+  }
+  assert.equal(main, 30, 'the main view draws every second refresh')
+  assert.equal(made[0].drawn, main, 'the view draws on the same refreshes')
 })

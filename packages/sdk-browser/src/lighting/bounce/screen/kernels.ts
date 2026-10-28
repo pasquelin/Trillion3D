@@ -1,4 +1,5 @@
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { buildComputeStages } from '../../../gpu/core/computeStages.ts'
 import { validatedOrWhy } from '../../../gpu/core/errorScope.ts'
 import { checkShaderModule } from '../../../gpu/core/shaderModule.ts'
@@ -30,14 +31,13 @@ import {
   traceTracedSceneEntries,
   traceTracedShader,
 } from './traceTracedWgsl.ts'
-import { traceScreenEntries, traceScreenShader } from './traceWgsl.ts'
+import type { MarchLanes } from '../../../visibility/hiz/gpu/screenMarchLanes.ts'
+import { type SceneCompaction, traceScreenEntries, traceScreenShader } from './traceWgsl.ts'
 
 /** What the kernels' code depends on: the rays a side of a probe's octahedron and the texels a side they are gathered into, the
  *  samples of a tile an adaptive probe may stand on, the short-range occlusion's shape. A view's settings that agree on these share
  *  their kernels. */
 export interface KernelShape {
-  /** Whether probes are cast: the kernels over them are made. */
-  casts: boolean
   side: number
   gather: number
   samples: readonly [number, number]
@@ -56,11 +56,23 @@ export interface KernelShape {
   classified: boolean
   /** Whether the height fog is laid over the light of the probes' rays (`screenProbeHeightFogOnGI`): the scene stages that write it lay it. */
   heightFog: boolean
+  /** Whether the conversion sums its projection by the subgroups where the device has them (`screenProbeFilteringWaveOps`). */
+  waveOps: boolean
+  /** Whether the screen trace gives a ray up when few lanes of its subgroup are still marching (`screenProbeScreenTracesMinimumOccupancy` above zero). */
+  occupancy: boolean
+  /** Whether the screen trace walks the depth pyramid hierarchically (`screenProbeScreenTracesHZBTraversal`), else casts a ray of a fixed number of steps. */
+  hierarchical: boolean
+  /** Whether the short-range occlusion also gathers the light of the near surfaces (`screenProbeShortRangeGI`). */
+  shortRangeGi: boolean
+  /** The format the radiance cache's final maps are read in: the kernels that read the cache are written for it. */
+  light: LightAtlasFormat
 }
 
 /** The shape of the kernels `settings` need. */
-export const kernelShapeOf = (settings: ScreenProbeSettings): KernelShape => ({
-  casts: settings.casts,
+export const kernelShapeOf = (
+  settings: ScreenProbeSettings,
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+): KernelShape => ({
   side: settings.tracingResolution,
   gather: settings.gatherResolution,
   samples: adaptiveSamples(settings.adaptiveProbes),
@@ -69,6 +81,10 @@ export const kernelShapeOf = (settings: ScreenProbeSettings): KernelShape => ({
     pyramid: settings.occlusionPyramid,
     power: settings.occlusionForegroundPower,
     bentNormal: settings.bentNormal,
+    bitmask: settings.values.screenProbeOcclusionVisibilityBitmask,
+    rays: settings.occlusionRays,
+    gi: settings.shortRangeGi,
+    slope: settings.values.screenProbeOcclusionSlopeCompareToleranceScale,
   },
   filterProbes: settings.temporalFilterProbes,
   extraAo: settings.extraAo,
@@ -77,6 +93,11 @@ export const kernelShapeOf = (settings: ScreenProbeSettings): KernelShape => ({
   integral: settings.integralMethod,
   classified: settings.tileClassification,
   heightFog: settings.values.screenProbeHeightFogOnGI,
+  waveOps: settings.values.screenProbeFilteringWaveOps,
+  occupancy: settings.values.screenProbeScreenTracesMinimumOccupancy > 0,
+  hierarchical: settings.values.screenProbeScreenTracesHZBTraversal,
+  shortRangeGi: settings.shortRangeGi,
+  light,
 })
 
 /** The key of the rays a side of a probe, the samples of a tile and whether the fog is laid over the light, which the scene stage cast through the scene's triangles depends on alone. */
@@ -90,12 +111,15 @@ const probesKey = (shape: Pick<KernelShape, 'side' | 'gather' | 'samples'>) =>
 /** The key of the whole shape: two shapes that agree on it share a set of kernels. */
 export const shapeKey = (shape: KernelShape) =>
   [
-    shape.casts,
     probesKey(shape),
     shape.occlusion.downsample,
     shape.occlusion.pyramid,
     shape.occlusion.power,
     shape.occlusion.bentNormal,
+    shape.occlusion.bitmask,
+    shape.occlusion.rays,
+    shape.occlusion.gi,
+    shape.occlusion.slope,
     shape.filterProbes,
     shape.extraAo,
     shape.gatherMips,
@@ -103,6 +127,11 @@ export const shapeKey = (shape: KernelShape) =>
     shape.integral,
     shape.classified,
     shape.heightFog,
+    shape.waveOps,
+    shape.occupancy,
+    shape.hierarchical,
+    shape.shortRangeGi,
+    shape.light,
   ].join('|')
 
 /** A kernel's source: its WGSL, the entries of its group 0, its entry points, the pipeline constants it needs, and the key
@@ -131,23 +160,41 @@ const withList = <E extends string>(source: KernelSource<E>, width: number): Ker
   return constants ? { ...source, constants } : source
 }
 
+/** Bytes of workgroup memory the conversion holds for a gather of `gather` texels a side: the basis (nine floats a texel), the light and the occlusion (a vec3f takes 16 bytes in an array), the nine
+ *  coefficients and, with the sums by subgroups of `waves` lanes, their partial sums. */
+export function convertWorkgroupBytes(gather: number, extraAo: boolean, waves: number) {
+  const texels = gather * gather
+  const shared = texels * (36 + 16 + (extraAo ? 8 : 0)) + 9 * 16 + (extraAo ? 9 * 8 : 0)
+  return shared + (waves > 0 ? Math.ceil(texels / waves) * 9 * (16 + (extraAo ? 8 : 0)) : 0)
+}
+
 /** The sources of the trace's two stages — the screen's, the scene's: the march through the global distance field and the radiance cache
  *  for the rays it leaves, which lays the height fog over the light of its rays where the shape asks it — over `side × side` rays a probe and `samples` of a tile;
  *  both read or fill the list of the rays the screen left, so both are built at the device's dispatch `width`. */
-const traceSources = (shape: KernelShape, width: number) => {
+const traceSources = (
+  shape: KernelShape,
+  width: number,
+  march: MarchLanes,
+  compaction: SceneCompaction,
+) => {
   const { side, samples, heightFog } = shape
   const probes = probesKey(shape)
   return {
     traceScreen: withList(
-      sourceOf(probes, traceScreenShader(side, samples), traceScreenEntries(), 'traceScreen'),
+      sourceOf(
+        `${probes}|${march}|${shape.hierarchical}|${compaction}`,
+        traceScreenShader(side, samples, march, shape.hierarchical, compaction),
+        traceScreenEntries(),
+        'traceScreen',
+      ),
       width,
     ),
     traceScene: withList(
       {
         ...sourceOf(
-          `${probes}|${heightFog}`,
-          traceSceneShader(side, samples, heightFog),
-          traceSceneEntries(heightFog),
+          `${probes}|${heightFog}|${shape.light}`,
+          traceSceneShader(side, samples, heightFog, [], shape.light),
+          traceSceneEntries(heightFog, shape.light),
           'traceScene',
           'traceFar',
         ),
@@ -164,40 +211,9 @@ const mipName = (level: number) => `mip${level}`
 /** The level a kernel of the name `name` makes (`mipName`), none for another kernel. */
 export const mipLevelOf = (name: string) => /^mip(\d+)$/.exec(name)?.[1]
 
-/** The sources of the kernels over the probes: the placement, the screen data, the rays, the trace's two stages, the composite, the temporal filter
- *  of the probes, the spatial filter and the conversion, the border of the filtered radiance and its coarser levels, then the classification of the pixels'
- *  tiles, the texel each pixel reads of the integration and the integration of the probes they read, in the order `encode.ts` dispatches them. The temporal filter, the extra ambient occlusion, the
- *  coarser levels, the classification of the tiles and the texel each pixel reads exist where the shape asks them. */
-const castSources = (shape: KernelShape, width: number) => {
-  const {
-    side,
-    gather,
-    samples,
-    occlusion,
-    filterProbes,
-    extraAo,
-    gatherMips,
-    integrate,
-    integral,
-    classified,
-  } = shape
-  const probes = probesKey(shape)
-  const leveled = `${gather}|${samples}|${gatherMips}`
-  const levels = Array.from({ length: gatherMips - 1 }, (_, at) => at + 1)
-  const integrated = {
-    key: `${samples}|${occlusion.downsample}|${integrate}|${integral}|${classified}|${occlusion.bentNormal}|${extraAo}|${gatherMips}`,
-    code: integrateShader(
-      occlusion.downsample,
-      integrate,
-      integral,
-      samples,
-      occlusion.bentNormal,
-      extraAo,
-      gatherMips,
-      classified,
-    ),
-    entries: integrateEntries(occlusion.bentNormal, classified),
-  }
+/** The sources of the placement, the screen data and the rays. */
+const castHeadSources = (shape: KernelShape) => {
+  const { side, gather, samples } = shape
   return {
     place: sourceOf(
       `${samples}`,
@@ -216,8 +232,22 @@ const castSources = (shape: KernelShape, width: number) => {
       SCREEN_DATA_BINDINGS.entries,
       'screenData',
     ),
-    rays: sourceOf(probes, raysShader(side, gather, samples), raysEntries(), 'genRays'),
-    ...traceSources(shape, width),
+    rays: sourceOf(
+      `${probesKey(shape)}|${shape.light}`,
+      raysShader(side, gather, samples, shape.light),
+      raysEntries(shape.light),
+      'genRays',
+    ),
+  }
+}
+
+/** The sources of the filter of the radiance the trace left: the composite, the temporal filter of the probes, the spatial filter, the conversion, the border and the coarser levels. */
+const castFilterSources = (shape: KernelShape, waves: number) => {
+  const { side, gather, samples, filterProbes, extraAo, gatherMips } = shape
+  const probes = probesKey(shape)
+  const leveled = `${gather}|${samples}|${gatherMips}`
+  const levels = Array.from({ length: gatherMips - 1 }, (_, at) => at + 1)
+  return {
     composite: sourceOf(
       `${probes}|${extraAo}`,
       compositeShader(side, gather, samples, extraAo),
@@ -239,8 +269,8 @@ const castSources = (shape: KernelShape, width: number) => {
       'spatialFilter',
     ),
     convert: sourceOf(
-      `${probes}|${extraAo}`,
-      convertShader(side, gather, samples, extraAo),
+      `${probes}|${extraAo}|${gather <= side ? waves : 0}`,
+      convertShader(side, gather, samples, extraAo, gather <= side ? waves : 0),
       convertEntries(extraAo),
       'convert',
     ),
@@ -261,6 +291,27 @@ const castSources = (shape: KernelShape, width: number) => {
         ),
       ]),
     ),
+  }
+}
+
+/** The sources of the pixels' side: the texel each pixel reads, the classification of the tiles and the integration of the probes they read. */
+const castPixelSources = (shape: KernelShape) => {
+  const { samples, occlusion, extraAo, gatherMips, integrate, integral, classified } = shape
+  const integrated = {
+    key: `${samples}|${occlusion.downsample}|${integrate}|${integral}|${classified}|${occlusion.bentNormal}|${extraAo}|${gatherMips}`,
+    code: integrateShader(
+      occlusion.downsample,
+      integrate,
+      integral,
+      samples,
+      occlusion.bentNormal,
+      extraAo,
+      gatherMips,
+      classified,
+    ),
+    entries: integrateEntries(occlusion.bentNormal, classified),
+  }
+  return {
     ...(integrate > 1 && {
       stochastic: sourceOf(
         `${samples}`,
@@ -291,36 +342,67 @@ const castSources = (shape: KernelShape, width: number) => {
   }
 }
 
+/** The sources of the kernels over the probes: the placement, the screen data, the rays, the trace's two stages, the composite, the temporal filter
+ *  of the probes, the spatial filter and the conversion, the border of the filtered radiance and its coarser levels, then the classification of the pixels'
+ *  tiles, the texel each pixel reads of the integration and the integration of the probes they read, in the order `encode.ts` dispatches them. The temporal filter, the extra ambient occlusion, the
+ *  coarser levels, the classification of the tiles and the texel each pixel reads exist where the shape asks them. */
+const castSources = (
+  shape: KernelShape,
+  width: number,
+  waves: number,
+  march: MarchLanes,
+  compaction: SceneCompaction,
+) => ({
+  ...castHeadSources(shape),
+  ...traceSources(shape, width, march, compaction),
+  ...castFilterSources(shape, waves),
+  ...castPixelSources(shape),
+})
+
 /**
  * THE SCREEN PROBES' KERNELS' SOURCES for a shape, in the order `encode.ts` dispatches them: where probes are cast, the placement, the screen
  * data, the rays, the screen trace, the scene's, the composite, the spatial filter and the conversion; then,
  * at every level that draws, the short-range occlusion, and, where probes are cast, the classification of the pixels' tiles and the integration of
- * the probes, and the temporal pass (which blends what the integration left, and alone keeps the occlusion's history where there are none). `width` is the device's dispatch width.
+ * the probes, and the temporal pass (which blends what the integration left, and alone keeps the occlusion's history where there are none). `width` is the device's dispatch width, `waves` the lanes of the
+ * subgroups it sums the conversion's projection by (none: the serial sum), `march` how the screen trace counts the lanes still marching (`screenMarchLanes.ts`; `none` where the shape asks no minimum occupancy), `compaction` how it ranks the rays it lists for the scene stage.
  */
-export const screenProbeSources = (shape: KernelShape, width = groupWidth()) => {
+export const screenProbeSources = (
+  shape: KernelShape,
+  width = groupWidth(),
+  waves = 0,
+  march: MarchLanes = 'none',
+  compaction: SceneCompaction = 'polyfill',
+) => {
   const { samples, occlusion } = shape
   return {
-    ...(shape.casts ? castSources(shape, width) : {}),
-    occlusion: sourceOf(
-      `${samples}|${occlusion.downsample}|${occlusion.pyramid}|${occlusion.power}|${occlusion.bentNormal}`,
-      occlusionShader(occlusion, samples),
-      occlusionEntries(occlusion.bentNormal),
-      'occlusion',
-    ),
+    ...castSources(shape, width, waves, march, compaction),
+    occlusion: occlusionSource(shape),
     temporal: sourceOf(
-      `${samples}|${occlusion.downsample}|${shape.casts}|${occlusion.bentNormal}|${shape.integrate}`,
+      `${samples}|${occlusion.downsample}|${occlusion.bentNormal}|${shape.integrate}|${occlusion.gi}`,
       temporalShader(
         occlusion.downsample,
         samples,
-        shape.casts,
         occlusion.bentNormal,
         shape.integrate,
+        occlusion.gi,
       ),
-      temporalEntries(shape.casts, occlusion.bentNormal, shape.integrate),
+      temporalEntries(occlusion.bentNormal, shape.integrate, occlusion.gi),
       'temporal',
     ),
   }
 }
+
+/** The source of the short-range occlusion's kernel for a shape: the one pass the irradiance field also runs alone. */
+export const occlusionSource = ({
+  samples,
+  occlusion,
+}: Pick<KernelShape, 'samples' | 'occlusion'>) =>
+  sourceOf(
+    `${samples}|${occlusion.downsample}|${occlusion.pyramid}|${occlusion.power}|${occlusion.bentNormal}|${occlusion.bitmask}|${occlusion.rays}|${occlusion.slope}|${occlusion.gi}`,
+    occlusionShader(occlusion, samples),
+    occlusionEntries(occlusion.bentNormal, occlusion.gi),
+    'occlusion',
+  )
 
 /** A kernel: its group's layout, and its pipelines by entry point. */
 export interface Kernel<E extends string> {
@@ -364,13 +446,13 @@ export interface CastKernels {
  *  the probes is run, how many levels the gathered radiance holds, the reduction the integration runs at, and whether the fog's reads are bound to the scene stages. */
 export type KernelFeatures = Pick<
   KernelShape,
-  'extraAo' | 'filterProbes' | 'gatherMips' | 'integrate' | 'heightFog'
+  'extraAo' | 'filterProbes' | 'gatherMips' | 'integrate' | 'heightFog' | 'shortRangeGi' | 'light'
 >
 
 /** The screen probes' kernels, compiled: the pixels' two, and those over the probes where the level casts them. */
 export interface ScreenProbeKernels {
   features: KernelFeatures
-  cast?: CastKernels
+  cast: CastKernels
   occlusion: Kernel<'occlusion'>
   temporal: Kernel<'temporal'>
 }
@@ -429,18 +511,21 @@ export type TracedSceneKernel = ReturnType<typeof tracedSceneKernel>
  */
 export function tracedSceneKernel(
   device: GPUDevice,
-  shape: Pick<KernelShape, 'side' | 'samples' | 'heightFog'>,
+  shape: Pick<KernelShape, 'side' | 'samples' | 'heightFog' | 'light'>,
 ) {
-  const label = `Trillion3D SCREEN_PROBE_TRACED ${raysKey(shape)}`
+  const label = `Trillion3D SCREEN_PROBE_TRACED ${raysKey(shape)} ${shape.light}`
   return startedTracedKernel(
     device,
     label,
     [
-      device.createBindGroupLayout({ label, entries: traceTracedEntries(shape.heightFog) }),
+      device.createBindGroupLayout({
+        label,
+        entries: traceTracedEntries(shape.heightFog, shape.light),
+      }),
       reflectionSceneLayout(device),
       device.createBindGroupLayout({ label, entries: traceTracedSceneEntries() }),
     ],
-    traceTracedShader(shape.side, shape.samples, shape.heightFog),
+    traceTracedShader(shape.side, shape.samples, shape.heightFog, shape.light),
     'traceTriangles',
   )
 }

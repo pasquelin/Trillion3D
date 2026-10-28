@@ -79,6 +79,8 @@ export function viewCull(
     ...{ a0: [1, 0, 0], a1: [0, 1, 0], a2: [0, 0, 1] },
     // The axis fit (1, 1, 1) and the previous half axes (the same), in the pads of the vec3 members.
     ...{ tail0: [1, 1, 1, 1], tail1: [0, 0, 0, 1], tail2: [0, 0, 0, 1] },
+    // No displacement: none to fall back from.
+    tess: [0, 0, 0, 0],
     prevShift,
   })
   const kind = (name: 'FIRST' | 'SECOND' | 'POST') => C[`VSM_RENDER_CULL_${name}`]

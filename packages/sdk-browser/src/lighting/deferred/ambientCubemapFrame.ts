@@ -1,59 +1,42 @@
-import { mipSize } from '../../../../math/src/scalar/integers.ts'
 import {
   ambientCubemapColour,
   isAmbientCubemapActive,
   readAmbientCubemapSetting,
 } from '../../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
-import {
-  ambientCubemapMipRows,
-  prepareAmbientCubemap,
-  preparedMipCount,
-  type PreparedAmbientCubemap,
-} from '../../../../sdk-core/src/lighting/ambientCubemapMips.ts'
 import type { SkyLightCubemap } from '../../../../sdk-core/src/modules/sky/skyLightCubemap.ts'
-import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
-import { rgbToHalfRgba } from '../../gpu/core/halfTexels.ts'
-import { cubemapPairFit, openSkyCubemap } from '../../modules/sky/skyLight/cubemap.ts'
+import { cubemapPairFit } from '../../modules/sky/skyLight/cubemap.ts'
+import {
+  advanceCubeBuild,
+  closeCubeBuild,
+  openCubeBuild,
+  type CubeBuild,
+} from './ambientCubemapBuild.ts'
 
 /**
  * THE AMBIENT CUBEMAP OF AN IMAGE: the cube the host gave (`EngineContext.ambientCubemap`) as a texture with its mip chain, the colour
  * its light is multiplied by, and whether the image has the light at all (`ContractKey.cubeless`). The indirect pass reads it
  * (`ambientCubemapWgsl.ts`).
  *
- * The chain is filtered by angle on the CPU (`ambientCubemapMips.ts`: the sky light's own filter is a convolution by the GGX
- * lobe of a roughness, another kernel), rows by rows within a time budget an image (`MS_PER_IMAGE`), uploaded as half floats and
- * kept while the data is the same; a cube brighter than a half float holds is rescaled and the light given the inverse
- * (`cubemapPairFit`), so nothing is clamped. The cube is the light's only once the chain is whole: the images drawn meanwhile are
- * drawn again (`ambientCubemapPending`), never held, and light nothing from it.
+ * The chain is filtered by angle on the GPU (`ambientCubemapBuild.ts`: the sky light's own filter is a convolution by the GGX
+ * lobe of a roughness, another kernel), over the images a budget of texels an image allows, and kept while the data is the same; a cube
+ * brighter than a half float holds is rescaled and the light given the inverse (`cubemapPairFit`), so nothing is clamped. The cube is
+ * the light's only once the chain is whole: the images drawn meanwhile are drawn again (`ambientCubemapPending`), never held, and light
+ * nothing from it.
  */
-
-/** The time the filter spends on the chain in one image, at least one chunk of rows past it. */
-const MS_PER_IMAGE = 2
-
-/** The texels filtered between two looks at the clock: a row of the finer mips, several of the coarser. */
-const CHUNK_TEXELS = 512
 
 /** `GPUBufferUsage.UNIFORM` and `.COPY_DST`, written in the clear: the layout is also read from Node. */
 const UNIFORM = 64,
   BUFFER_COPY_DST = 8
 
-/** The cube held: its data, the chain made ready, the texture and the next rows of the next mip to write. */
+/** The cube held: its data, the chain being made or made, and what the light is multiplied by for the fit to a half float. */
 interface HeldCube {
   readonly data: SkyLightCubemap
-  readonly prepared: PreparedAmbientCubemap
-  readonly texture: GPUTexture
-  readonly view: GPUTextureView
+  readonly build: CubeBuild
   /** The cube was multiplied by `fit.cube` to fit a half float; the light is multiplied by `light`. */
   readonly cube: number
   readonly light: number
-  /** One chunk's filtered numbers and half floats, reused. */
-  readonly numbers: Float32Array<ArrayBuffer>
-  readonly halves: Uint16Array<ArrayBuffer>
-  level: number
-  face: number
-  row: number
 }
 
 /** What the runtime keeps of the ambient cubemap. */
@@ -123,63 +106,22 @@ export const ambientCubemapOn = (rt: Rt) => follow(rt).on
 /** Whether the chain is still being written: the image drawn meanwhile is drawn again (`holdWebgpuFrame`). */
 export const ambientCubemapPending = (rt: Rt) => rt.lights.ambientCubemap?.pending === true
 
-/** The texture of `data` with its chain, none of its rows written yet. */
+/** The cube of `data` held, its chain not begun. */
 function open(device: GPUDevice, data: SkyLightCubemap): HeldCube {
-  const prepared = prepareAmbientCubemap(data)
   const fit = cubemapPairFit(data)
-  const { texture } = openSkyCubemap(
-    device,
-    data,
-    fit,
-    'Trillion3D ambient cubemap',
-    preparedMipCount(prepared),
-  )
-  const chunk = Math.max(CHUNK_TEXELS, data.size)
   return {
     data,
-    prepared,
-    texture,
-    view: texture.createView({ dimension: 'cube' }),
+    build: openCubeBuild(device, data, 'Trillion3D ambient cubemap'),
     cube: fit.cube,
     light: fit.light,
-    numbers: new Float32Array(chunk * 3),
-    halves: new Uint16Array(chunk * 4),
-    level: 0,
-    face: 0,
-    row: 0,
   }
 }
 
-/** The next rows of the chain filtered and written, within the budget of this image and at least one chunk; true once the last is. */
-function write(device: GPUDevice, cube: HeldCube) {
-  const { prepared, texture, numbers, halves } = cube
-  const count = preparedMipCount(prepared)
-  const started = cpuNow()
-  do {
-    const side = mipSize(prepared.size, cube.level)
-    const rows = Math.min(side - cube.row, Math.max(1, Math.floor(CHUNK_TEXELS / side)))
-    ambientCubemapMipRows(prepared, cube.level, cube.face, cube.row, rows, numbers)
-    rgbToHalfRgba(halves, numbers, 0, side * rows, cube.cube)
-    device.queue.writeTexture(
-      { texture, mipLevel: cube.level, origin: [0, cube.row, cube.face] },
-      halves,
-      { bytesPerRow: side * 8, rowsPerImage: rows },
-      { width: side, height: rows },
-    )
-    cube.row += rows
-    if (cube.row === side) {
-      cube.row = 0
-      if (++cube.face === 6) {
-        cube.face = 0
-        cube.level++
-      }
-    }
-  } while (cube.level < count && msSince(started) < MS_PER_IMAGE)
-  return cube.level === count
-}
-
 function drop(frame: AmbientCubemapFrame, device: GPUDevice) {
-  if (frame.held) retire(device, frame.held.texture)
+  if (frame.held) {
+    closeCubeBuild(device, frame.held.build)
+    retire(device, frame.held.build.texture)
+  }
   frame.held = undefined
 }
 
@@ -206,7 +148,7 @@ export function ambientCubemapResources(rt: Rt, lit: boolean) {
     frame.held = open(device, cube)
   }
   const held = frame.held!
-  const whole = held.level === preparedMipCount(held.prepared) || write(device, held)
+  const whole = advanceCubeBuild(device, held.data, held.build, held.cube)
   frame.pending = !whole
   const colour = (frame.colour ??= device.createBuffer({
     label: 'Trillion3D ambient cubemap colour',
@@ -223,7 +165,7 @@ export function ambientCubemapResources(rt: Rt, lit: boolean) {
     }
   }
   if (moved) device.queue.writeBuffer(colour, 0, written)
-  return whole ? { view: held.view, colour } : undefined
+  return whole ? { view: held.build.view, colour } : undefined
 }
 
 /** Hands the cube and the colour to the retire list: the session's end. */

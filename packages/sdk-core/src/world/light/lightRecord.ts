@@ -208,6 +208,8 @@ export function lightFromRecord(record: SceneLight): Light {
     radius: record.emitterRadius,
     angularRadius: record.angularRadius,
     softAngle: record.softAngle,
+    hairDeepShadowLayerDistribution: record.hairDeepShadowLayerDistribution,
+    castHairDeepShadow: record.castHairDeepShadow,
     atmosphereSun: record.atmosphereSun,
     atmosphereSunIndex: record.atmosphereSunIndex,
     forwardShadingPriority: record.forwardShadingPriority,

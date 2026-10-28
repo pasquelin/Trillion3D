@@ -6,6 +6,7 @@ import { vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { sheenLtcCoefficients } from '../sheenLtcWgsl.ts'
 import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
+import { MIN_FUZZ_ROUGHNESS } from './sheenFuzz.ts'
 
 /**
  * THE CLOTH'S FUZZ LOBE, a layer of fibres over the surface, lit through the sheen table the light buffer holds
@@ -23,16 +24,6 @@ import { RECT_LIGHT_WGSL } from './rectLightWgsl.ts'
  * a point, a sun or a lamp's centre by `sheenFuzzEval`, a rectangle by `sheenRect`.
  */
 
-/** What the fuzz of a rectangle is multiplied by besides its integral, as WGSL text: nothing. The reference multiplies the
- *  rectangle's integral by 2π, "to match the path tracer", and then by the rectangle's base irradiance again, neither of which a
- *  point light of the same solid angle gets; both are left out (`proofs-t2/proof-sheen-rect.py` prints the ratios). To port them
- *  literally, set this to `'TWO_PI*'` and list `TWO_PI` among the block's dependencies (and, for the second, multiply by
- *  `rectFormOf(r)` in the caller): one line each. */
-const SHEEN_RECT_SCALE = ''
-
-/** The least roughness of the fuzz: the roughness is held to it and to 1. */
-export const MIN_FUZZ_ROUGHNESS = 0.02
-
 /** The fuzz's roughness from the surface's `rough`: half way between the surface's and one, the range the cloth's roughness
  *  is mapped onto for the sheen table, held between `MIN_FUZZ_ROUGHNESS` and 1. */
 export const sheenFuzzRoughness = wgslFn(
@@ -43,7 +34,7 @@ export const sheenFuzzRoughness = wgslFn(
 
 /** What a pixel's view fixes of its fuzz: the frame of the normal and the view (`T1` the view's part across the
  *  normal, unit, `T2` across both) and the table's `aInv`, `bInv` and `albedo`. */
-export const SHEEN_VIEW_WGSL = wgslStruct(
+const SHEEN_VIEW_WGSL = wgslStruct(
   'SheenView',
   [],
   'struct SheenView{T1:vec3f,T2:vec3f,aInv:f32,bInv:f32,albedo:f32,}',
@@ -51,7 +42,7 @@ export const SHEEN_VIEW_WGSL = wgslStruct(
 
 /** The fuzz of a pixel of normal `N` seen along `V`, of fuzz roughness `fuzzRoughness` (`sheenFuzzRoughness`), read
  *  from the table (`sheenLtcCoefficients`) at the cosine the surface's lobes take (`ndotvClamped`). A view along the normal has no across part: the frame takes any axis across the normal. */
-export const sheenViewOf = wgslFn(
+const sheenViewOf = wgslFn(
   'sheenViewOf',
   [SHEEN_VIEW_WGSL, sheenLtcCoefficients, ndotvClamped, vectorRejection, tangentSide],
   `fn sheenViewOf(N:vec3f,V:vec3f,fuzzRoughness:f32)->SheenView{
@@ -64,7 +55,7 @@ export const sheenViewOf = wgslFn(
 
 /** The vector `q` (a direction, or a corner relative to the point) moved by the table's transform, in the frame of the normal
  *  and the view (`T1`, `T2`, `N`): `(aInv x + bInv z, aInv y, z)`. The one formula of the point path and the rectangle's. */
-export const sheenCorner = wgslFn(
+const sheenCorner = wgslFn(
   'sheenCorner',
   [SHEEN_VIEW_WGSL],
   `fn sheenCorner(v:SheenView,N:vec3f,q:vec3f)->vec3f{
@@ -79,7 +70,7 @@ export const sheenCorner = wgslFn(
  * distribution of the direction moved by the transform (`sheenCorner`), `cos'/π`, times the transform's Jacobian,
  * `(aInv/|w|²)²` with `w` the moved direction. Zero at or below the horizon.
  */
-export const sheenFuzzEval = wgslFn(
+const sheenFuzzEval = wgslFn(
   'sheenFuzzEval',
   [SHEEN_VIEW_WGSL, sheenCorner, INVERSE_PI],
   `fn sheenFuzzEval(v:SheenView,N:vec3f,L:vec3f)->f32{
@@ -93,7 +84,7 @@ export const sheenFuzzEval = wgslFn(
 /** The light a fuzz of colour `fuzz` and cloth amount `amount` adds for a light in the direction `L` of energy
  *  `energy` (its colour, attenuation and shadow, without the cosine): the colour times the amount, the energy, the
  *  lobe (`sheenFuzzEval`) and its albedo. */
-export const sheenFuzz = wgslFn(
+const sheenFuzz = wgslFn(
   'sheenFuzz',
   [SHEEN_VIEW_WGSL, sheenFuzzEval],
   `fn sheenFuzz(v:SheenView,N:vec3f,L:vec3f,fuzz:vec3f,amount:f32,energy:f32)->vec3f{
@@ -103,7 +94,7 @@ export const sheenFuzz = wgslFn(
 
 /** What the diffuse and the specular under a fuzz of cloth amount `amount` keep of their light: one minus the amount
  *  times the fuzz's albedo (the mix of one and one minus the albedo by the amount). */
-export const sheenKeep = wgslFn(
+const sheenKeep = wgslFn(
   'sheenKeep',
   [SHEEN_VIEW_WGSL],
   'fn sheenKeep(v:SheenView,amount:f32)->f32{return 1.0-amount*v.albedo;}',
@@ -125,7 +116,8 @@ export const SHEEN_LOBE_WGSL = wgslBlock(
  * radiance, times the albedo. A small rectangle far away gives its solid angle times what a point light in its direction gives
  * (`sheenFuzzEval` times the albedo), the same light by either path. Per unit of the rectangle's radiance and before its range window
  * (`r.window`), the caller's; the integral already holds the cosine and the distance, so the light's falloff is not applied to it again.
- * The line that ends the function is the one place the scale of the rectangle's integral is decided (`SHEEN_RECT_SCALE`).
+ * The integral is not scaled again: the reference's extra factor of 2π on a rectangle's fuzz, and its second multiplication by the
+ * rectangle's base irradiance, give a rectangle what a point light of the same solid angle does not get, so neither is applied.
  */
 export const SHEEN_RECT_WGSL = wgslBlock(
   'SHEEN_RECT_WGSL',
@@ -133,7 +125,7 @@ export const SHEEN_RECT_WGSL = wgslBlock(
   `
 fn sheenRect(v:SheenView,N:vec3f,r:RectView)->f32{
  let moved=RectView(sheenCorner(v,N,r.a),sheenCorner(v,N,r.b),sheenCorner(v,N,r.c),sheenCorner(v,N,r.d),1.0);
- return ${SHEEN_RECT_SCALE}v.albedo*INVERSE_PI*rectIrradianceOf(moved,vec3f(0.0,0.0,1.0)).w;
+ return v.albedo*INVERSE_PI*rectIrradianceOf(moved,vec3f(0.0,0.0,1.0)).w;
 }`,
 )
 

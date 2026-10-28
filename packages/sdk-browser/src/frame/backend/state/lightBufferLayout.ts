@@ -11,6 +11,7 @@ import {
   LIT_TRANSMISSION_VEC4S,
 } from '../../../../../sdk-core/src/lighting/subsurfaceProfile/litRows.ts'
 import { ENV_BRDF_TEXELS } from '../../../../../sdk-core/src/lighting/environmentBrdf.ts'
+import { SHADING_ENERGY_SIZE } from '../../../../../sdk-core/src/lighting/shadingEnergy.ts'
 import { SKIN_TABLE_TEXELS } from '../../../../../sdk-core/src/lighting/skinTable.ts'
 import { SHEEN_LTC_SIZE } from '../../../../../sdk-core/src/lighting/sheenLtc.ts'
 
@@ -22,11 +23,12 @@ const ATMOSPHERE_BYTES_AT = HEAD_BYTES + SCENE_ENVIRONMENT_FLOATS * 4,
   LTC_BYTES = ATMOSPHERE_BYTES_AT + ATMOSPHERE_REGION_BYTES
 const SKIN_AT = LTC_BYTES + LTC_SIZE * LTC_SIZE * 32,
   ENV_BRDF_AT = SKIN_AT + SKIN_TABLE_TEXELS * 4,
-  SHEEN_AT = ENV_BRDF_AT + ENV_BRDF_TEXELS * 4,
+  ENERGY_AT = ENV_BRDF_AT + ENV_BRDF_TEXELS * 4,
+  SHEEN_AT = ENERGY_AT + SHADING_ENERGY_SIZE * SHADING_ENERGY_SIZE * 4,
   PROFILES_AT = SHEEN_AT + SHEEN_LTC_SIZE * SHEEN_LTC_SIZE * 8,
   TRANSMISSIONS_AT = PROFILES_AT + LIT_PROFILE_ROWS * 16
 /** Where each region of the buffer starts, in bytes: the atmosphere's regions, the
- *  fog volume's view block, the rectangles' lobe, the skin table, the environment BRDF, the sheen table, the subsurface profiles' rows and their transmission rows, then the light slots. */
+ *  fog volume's view block, the rectangles' lobe, the skin table, the environment BRDF, the GGX energy table, the sheen table, the subsurface profiles' rows and their transmission rows, then the light slots. */
 export const LIGHT_BUFFER_AT = {
   atmosphere: ATMOSPHERE_BYTES_AT,
   /** The fog volume's view block, which the CPU writes each image its volume is built. */
@@ -38,6 +40,8 @@ export const LIGHT_BUFFER_AT = {
   skin: SKIN_AT,
   /** The preintegrated environment BRDF, a word a texel, written once. */
   envBrdf: ENV_BRDF_AT,
+  /** The GGX energy table the environment lights weigh a reflection by, a word a texel, written once (`shadingEnergy.ts`). */
+  shadingEnergy: ENERGY_AT,
   /** The sheen lobe's table a cloth's fuzz is lit through, two words of four half floats a texel, written once
    *  (`../../../lighting/sheenLtcWgsl.ts`). */
   sheen: SHEEN_AT,

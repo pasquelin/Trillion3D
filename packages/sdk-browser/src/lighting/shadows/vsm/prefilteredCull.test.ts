@@ -184,7 +184,7 @@ function viewMasks(pd: object, box: { clipLow: number[]; clipHigh: number[] }) {
     ...{ c: [10, 0, 0, 1], l: [0, 0, 0], row: 3, corners: 3, flags: 0, farDepth: 0 },
     ...{ own: [0, 0, 0, 1], parent: [0, 0, 0, 1], errors: [0, 0], edge: 0 },
     ...{ inst: [0, 0, 0, 1], viewBits: 0, offsetDisableSq: 0, prevShift: [0, 0, 0] },
-    ...{ tail0: [1, 1, 1, 1], tail1: [0, 0, 0, 1], tail2: [0, 0, 0, 1] },
+    ...{ tail0: [1, 1, 1, 1], tail1: [0, 0, 0, 1], tail2: [0, 0, 0, 1], tess: [0, 0, 0, 0] },
     ...{ a0: [1, 0, 0], a1: [0, 1, 0], a2: [0, 0, 1] },
   }
   run.vsmRenderCullViews(caster, 5, 0, 1, 3, C.VSM_RENDER_CULL_SECOND)

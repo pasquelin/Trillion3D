@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { FOG_LIGHTS_WGSL } from './lightsWgsl.ts'
+import { FOG_LIGHTS_WGSL, fogLightsWgsl } from './lightsWgsl.ts'
 import { FOG_PLAN_WGSL } from './planWgsl.ts'
 
 /**
@@ -20,10 +20,11 @@ import { FOG_PLAN_WGSL } from './planWgsl.ts'
  * is kept where it is positive and finite as a 32-bit float, and made zero where it is not
  * (\`fogPositiveFinite\`). The program lists the grid it reads the cells through (\`fogGridWgsl\`).
  */
-export const FOG_SCATTER_WGSL = wgslBlock(
-  'FOG_SCATTER_WGSL',
-  [FOG_PLAN_WGSL, FOG_LIGHTS_WGSL],
-  `
+export const fogScatterWgsl = (sampled: boolean) =>
+  wgslBlock(
+    sampled ? 'FOG_SCATTER_SAMPLED_WGSL' : 'FOG_SCATTER_WGSL',
+    [FOG_PLAN_WGSL, sampled ? fogLightsWgsl(true) : FOG_LIGHTS_WGSL],
+    `
 /** The light of a cell over \`samples\` samples, one for each offset of the jitter. */
 fn fogCellLight(cell:vec3u,samples:u32)->vec3f{
  var sum=vec3f(0.0);
@@ -51,4 +52,4 @@ fn scatterMain(@builtin(global_invocation_id) cell:vec3u){
  }
  textureStore(fogScattering,vec3i(cell),fogPositiveFinite(result));
 }`,
-)
+  )

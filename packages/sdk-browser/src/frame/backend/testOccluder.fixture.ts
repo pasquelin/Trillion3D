@@ -13,7 +13,7 @@ import type { PageRec, ClusterRoot } from '../../geometry/selection/types.ts'
 import { selectVisiblePages } from '../../geometry/cut/cut.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { DAG, dagRoots, exactPrimitive } from '../../session/engine/pagesEngine.fixture.ts'
-import { camera, withDraws } from './testScenes.fixture.ts'
+import { backendOf, camera, withDraws } from './testScenes.fixture.ts'
 import type { Placements } from '../../geometry/selection/placements.ts'
 import {
   backendRasterRgba,
@@ -21,8 +21,6 @@ import {
 } from '../../../../../bench/oracles/browser/cpu-image/backendImage.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { unpackVisibilityId } from '../../../../../bench/oracles/browser/cpu-image/ids.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 export function occluderScene() {
   const geometry = new Geometry()
@@ -124,8 +122,7 @@ export async function preparedOccluderRun(
   viewport: [number, number],
 ) {
   const { source, indices, draws } = scene
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     source,
     metadata,
     indices,

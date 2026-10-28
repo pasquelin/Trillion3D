@@ -72,7 +72,7 @@ const shadowStage = (
   )
 
 /** The compiled pipelines of the chain, by name; `dice` one for each of `DICE_LAYERS`. */
-export type ShadowPipelines = Record<
+type ShadowPipelines = Record<
   'seedArgs' | 'seed' | 'resume' | 'plan' | 'split' | 'shadowArgs' | 'windowFill',
   GPUComputePipeline
 > & { dice: GPUComputePipeline[] }

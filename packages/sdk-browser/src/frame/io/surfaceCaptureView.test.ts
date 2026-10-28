@@ -1,13 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera, quadBackend } from '../backend/testScenes.fixture.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import { backendOf, quadScene, camera, quadBackend } from '../backend/testScenes.fixture.ts'
 
 test('opaque materials are rendered before lighting into reusable GPU surface textures', async () => {
   installGpuGlobals()
@@ -41,11 +38,9 @@ test('surface capture uses its own camera and leaves the main view untouched, wi
   const { device, textureBufferCopies } = fakeDevice(BACKEND)
   const fixture = quadScene()
   const viewport: [number, number] = [32, 32]
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
     viewport,
   })
   try {
@@ -118,12 +113,10 @@ test('surface capture rejects missing pages and a device-limit failure keeps the
   const { device } = fakeDevice(BACKEND)
   const fixture = quadScene()
   const viewport: [number, number] = [32, 32]
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     indices: new Map(),
     gpuDevice: device,
-    maxResidentPages: 2,
     viewport,
   })
   try {

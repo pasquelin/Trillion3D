@@ -105,6 +105,8 @@ test('the strands are marked after the surfaces, from the pixels or the froxels:
   const frame = (froxels: boolean) =>
     ({
       mapCount: 1,
+      claimed: 1,
+      singleMaps: 1,
       perspective: true,
       perPage: {
         ids: new Uint32Array(2),

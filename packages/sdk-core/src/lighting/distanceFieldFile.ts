@@ -1,5 +1,9 @@
-import { EngineError } from '../contracts/cache.ts'
-import { assertSidecarSection, checkSidecarHead } from '../contracts/sidecarSection.ts'
+import {
+  assertSidecarSection,
+  checkSidecarHead,
+  sidecarRefusal,
+  type SidecarRefusal,
+} from '../contracts/sidecarSection.ts'
 import {
   DISTANCE_FIELD_BRICK,
   DISTANCE_FIELD_FLAG_HLOD_CELL,
@@ -71,9 +75,7 @@ export interface MeshDistanceField {
   readonly mips: readonly DistanceFieldMip[]
 }
 
-const refuse = (why: string): never => {
-  throw new EngineError('INVALID_CACHE', `distance fields: ${why}`, {})
-}
+const refuse: SidecarRefusal = sidecarRefusal('distance fields')
 
 const VOXELS = DISTANCE_FIELD_BRICK ** 3
 

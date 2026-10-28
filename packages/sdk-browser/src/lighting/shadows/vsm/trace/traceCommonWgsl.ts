@@ -44,6 +44,11 @@ fn vsmConeDirection(basis:Frame3,s:f32,disk:vec2f)->VsmConeRay{
  let cosTheta=sqrt(max(0.0,1.0-dot(across,across)));
  return VsmConeRay(outOfFrame(vec3f(across,cosTheta),basis),cosTheta);
 }
+/** A sun's ray toward a point of its disk: the axis moved across by the disk point times the sun's radius (its sine), then
+ *  normalised — the disk is on the plane across the axis, not on the sphere (\`vsmConeDirection\`, the local lights'). */
+fn vsmSunDirection(basis:Frame3,radius:f32,disk:vec2f)->vec3f{
+ return outOfFrame(normalize(vec3f(disk*radius,1.0)),basis);
+}
 `,
 )
 

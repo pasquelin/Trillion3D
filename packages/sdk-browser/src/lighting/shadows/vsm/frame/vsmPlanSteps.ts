@@ -41,6 +41,7 @@ export function heldVsm(rt: WebgpuPagesRuntime, device: GPUDevice, list: VsmFram
       kept.dynamicHzb !== dynamicHzbOf(asked.occlusion, asked.cacheEnabled, asked.dynamicHzb) ||
       kept.cacheEnabled !== asked.cacheEnabled ||
       kept.prefilteredDistant !== asked.prefilteredDistant ||
+      kept.classic !== asked.classic ||
       !vsmCoverHolds(kept.coverMode, asked.coverMode))
   if (!vsm || moved || poolMoved || (short && !growEngineVsm(device, list, vsm, wanted)))
     vsm = grantEngineVsm(rt, device, list, wanted)

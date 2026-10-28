@@ -129,36 +129,71 @@ test("the water's depth and the front layer the sun's marking reads are drawn be
   assert.ok(lights < frontPass, 'the front pass after the lights stands for the others')
 })
 
-test("the air is encoded before the surface cards read the sky's light and the clouds' shade", () => {
+test("the air is encoded before the surface cache's update, from the shadow pages of the image before, and before the cards read the sky's light and the clouds' shade", () => {
   const source = readFileSync(new URL('./encodeLights.ts', import.meta.url), 'utf8')
   const lit = source.slice(source.indexOf('export function encodeDirectLights'))
-  const uploaded = lit.indexOf('uploadSceneLights(device, lights)'),
-    shadows = lit.indexOf('encodeVsmFrame('),
+  const lists = lit.indexOf('encodeLightLists('),
     air = lit.indexOf('encodeAir('),
+    cache = lit.indexOf('encodeSurfaceCache('),
+    shadows = lit.indexOf('encodeVsmFrame('),
     cards = lit.indexOf('lightSurfaceCards(')
   assert.ok(
-    uploaded >= 0 && uploaded < air,
-    'the light buffer is pushed before the atmosphere reads it',
+    lists >= 0 && lists < air,
+    'the light buffer is pushed and the lists made before the air',
   )
+  assert.ok(air < cache, 'the tables are made before the surface cache update')
   assert.ok(
-    shadows > uploaded && shadows < air,
-    'the air reads this image shadow pages, not the last',
+    air < shadows && cache < shadows,
+    'the air reads the pages of the image before, this image shadow pages are rendered after it',
   )
+  assert.ok(shadows < cards, 'the cards read this image shadow pages')
   assert.ok(air < cards, 'the cards read this image air, not the last')
-  const unlit = source.slice(
-    source.indexOf('function encodeUnlitView'),
-    source.indexOf('function ensureLightGrid'),
+  assert.ok(
+    lit.indexOf('followUnlitLights(') < air,
+    'the unlit view follows its lights before the air too',
   )
-  const unlitAir = unlit.indexOf('encodeAir(')
-  assert.ok(unlitAir >= 0 && unlitAir < unlit.indexOf('lightSurfaceCards('), 'the unlit view too')
   const airBody = source.slice(
     source.indexOf('function encodeAir'),
-    source.indexOf('function encodeUnlitView'),
+    source.indexOf('function followUnlitLights'),
   )
   assert.ok(
     airBody.indexOf('encodeAtmosphere(') >= 0 &&
       airBody.indexOf('encodeAtmosphere(') < airBody.indexOf('encodeSkyCapture('),
     'the sky light capture is made over this image air, before the cards',
+  )
+})
+
+test("the sun's distance-field shadow and the shadow maps' projection are made after the indirect light, just before the lighting", () => {
+  const source = readFileSync(new URL('./preLight.ts', import.meta.url), 'utf8')
+  const order = [
+    'encodeIndirectLight(rt, device, encoder, cam, overrides)',
+    'encodeLightShaftOcclusion(rt, device, encoder, cam)',
+    'encodeSunFieldShadow(rt, encoder, cam)',
+    'encodeHeldVsmProjection(rt, projection)',
+  ].map((call) => source.indexOf(call))
+  assert.ok(
+    order.every((at) => at >= 0),
+    `each is called: ${order}`,
+  )
+  assert.deepEqual(
+    order,
+    [...order].sort((a, b) => a - b),
+    'in this order: the distance field first, as the projection takes the least of the two',
+  )
+})
+
+test('the lists of the lights are made before the surface cache is updated, and the unlit view keeps its cache', () => {
+  const source = readFileSync(new URL('./encodeLights.ts', import.meta.url), 'utf8')
+  const lit = source.slice(source.indexOf('export function encodeDirectLights'))
+  const lists = lit.indexOf('encodeLightLists('),
+    cache = lit.indexOf('encodeSurfaceCache(')
+  assert.ok(lists >= 0 && lists < cache, 'the light grid, then the scene update')
+  assert.ok(
+    lit.indexOf('const lit = ') < lists &&
+      lit.indexOf('if (!lit) followUnlitLights(') > lists &&
+      lit.indexOf('if (lit) encodeVsmFrame(') > cache &&
+      lit.indexOf('if (!lit) {') > cache,
+    'the unlit view skips the lists and the shadows, follows its lights, and does not leave before the cache',
   )
 })
 

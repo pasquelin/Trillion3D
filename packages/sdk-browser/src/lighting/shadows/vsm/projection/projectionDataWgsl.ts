@@ -63,9 +63,17 @@ export const vsmShiftedToClip = wgslFn(
 }`,
 )
 
+/** The view depth of a device depth (reverse-Z), from a view's transform words `t` (`vsmWriteDepthFromDeviceZ`). */
+export const vsmViewDepthOfDeviceZ = wgslFn(
+  'vsmViewDepthOfDeviceZ',
+  [],
+  'fn vsmViewDepthOfDeviceZ(deviceZ:f32,t:vec4f)->f32{return deviceZ*t.x+t.y+1.0/(deviceZ*t.z-t.w);}',
+)
+
 export const VSM_PROJECTION_DATA_WGSL = wgslBlock(
   'VSM_PROJECTION_DATA_WGSL',
   [
+    vsmViewDepthOfDeviceZ,
     VSM_CONSTANTS_WGSL,
     VSM_HANDLE_WGSL,
     VSM_PROJECTION_RECORD_WGSL,
@@ -128,10 +136,6 @@ fn vsmCubeFace(d:vec3f)->u32{
  if(abs(d.x)>=abs(d.y)&&abs(d.x)>=abs(d.z)){return select(1u,0u,d.x>0.0);}
  else if(abs(d.y)>abs(d.z)){return select(3u,2u,d.y>0.0);}
  return select(5u,4u,d.z>0.0);
-}
-/** The view depth of a device depth (reverse-Z), from a view's transform words \`t\`. */
-fn vsmViewDepthOfDeviceZ(deviceZ:f32,t:vec4f)->f32{
- return deviceZ*t.x+t.y+1.0/(deviceZ*t.z-t.w);
 }
 /** The world size of a pixel at a view depth, the narrower of its two spans, for a view of
  *  \`viewToClip\` (looking down +z) drawn at \`viewSize\` pixels. */

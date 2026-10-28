@@ -14,14 +14,8 @@ test('the screen probes default to their ultra level with every pass on, and a l
   const settings = screenProbeSettings()
   const { values } = settings
   assert.deepEqual(
-    [
-      settings.level,
-      settings.enabled,
-      settings.casts,
-      settings.downsampleFactor,
-      settings.adaptiveProbes,
-    ],
-    ['ultra', true, true, 16, 8],
+    [settings.level, settings.enabled, settings.downsampleFactor, settings.adaptiveProbes],
+    ['ultra', true, 16, 8],
   )
   assert.deepEqual(
     [settings.tracingResolution, settings.gatherResolution, settings.irradianceFormat],
@@ -116,7 +110,7 @@ test('each level holds its own row of the table, and true and false are the defa
       level,
     )
     assert.deepEqual(
-      [at.stochasticInterpolation, at.occlusionSlices, at.bentNormal, at.casts],
+      [at.stochasticInterpolation, at.occlusionSlices, at.bentNormal, at.enabled],
       [row.stochasticInterpolation, row.occlusionSlices, row.bentNormal, true],
       level,
     )
@@ -127,25 +121,8 @@ test('each level holds its own row of the table, and true and false are the defa
     ),
     [32, 16, 8],
   )
-  // The second level of the reference holds an occlusion row of its own and casts no probe; the first lights nothing.
-  const low = screenProbeSettings({ screenProbes: 'low' })
-  assert.deepEqual(
-    [
-      low.casts,
-      low.enabled,
-      low.occlusionSlices,
-      low.occlusionDownsample,
-      low.occlusionForegroundPower,
-    ],
-    [false, true, 1, 1, 1.5],
-  )
-  assert.deepEqual(
-    [
-      screenProbeSettings({ screenProbes: 'off' }).enabled,
-      screenProbeSettings({ screenProbes: 'off' }).casts,
-    ],
-    [false, false],
-  )
+  // The first level lights nothing.
+  assert.equal(screenProbeSettings({ screenProbes: 'off' }).enabled, false)
   // The level is read as the anti-aliasing's is: true the default level, false off.
   assert.equal(screenProbeSettings({ screenProbes: true }).level, DEFAULT_SCREEN_PROBE_LEVEL)
   assert.deepEqual(
@@ -155,22 +132,40 @@ test('each level holds its own row of the table, and true and false are the defa
     ],
     ['off', false],
   )
-  // The presets below the top write the levels the reference's scalability levels run: the lowest lights nothing, its bounce off too;
-  // the cinematic preset writes the level of its name.
+  // The presets below the top write the levels the reference's scalability levels run (`BaseScalability.ini`, `GlobalIlluminationQuality`): the lowest lights nothing, its bounce off too;
+  // the medium one gathers by the irradiance field over the high level; the cinematic preset writes the level of its name.
   assert.deepEqual(
     Object.values(SCREEN_PROBE_PRESET_LEVELS).map((preset) => preset.screenProbes),
-    ['off', 'low', 'high', 'cinematic'],
+    ['off', 'high', 'high', 'cinematic'],
+  )
+  assert.equal(SCREEN_PROBE_PRESET_LEVELS.balanced.finalGatherMethod, 'irradianceField')
+  const medium = screenProbeSettings(
+    Object.fromEntries(
+      Object.entries(SCREEN_PROBE_PRESET_LEVELS.balanced).filter(
+        ([name]) => !name.startsWith('surfaceCache'),
+      ),
+    ),
+  )
+  assert.deepEqual(
+    [
+      medium.finalGather,
+      medium.occlusionSlices,
+      medium.occlusionDownsample,
+      medium.occlusionForegroundPower,
+      medium.occlusionFoliageStrength,
+    ],
+    ['irradianceField', 1, 1, 1.5, 1],
+    'the medium row: one slice, no reduction, the foreground rejected by 1.5, foliage whole',
   )
   assert.equal(SCREEN_PROBE_PRESET_LEVELS.smooth.bounce, false)
 })
 
-test('the short-range occlusion on the pixels with backface diffuse light is whole at the second level, whose world probes light them flatter, and 0.7 above, a setting replacing the row', () => {
+test('the short-range occlusion on the pixels with backface diffuse light is 0.7 at every level that casts, a setting replacing the row', () => {
   const strength = (options: Parameters<typeof screenProbeSettings>[0]) =>
     screenProbeSettings(options).occlusionFoliageStrength
-  assert.equal(strength({ screenProbes: 'low' }), 1)
   for (const level of ['high', 'ultra', 'cinematic'] as const)
     assert.equal(strength({ screenProbes: level }), 0.7, level)
-  assert.equal(strength({ screenProbes: 'low', screenProbeOcclusionFoliageStrength: 0.4 }), 0.4)
+  assert.equal(strength({ screenProbes: 'high', screenProbeOcclusionFoliageStrength: 0.4 }), 0.4)
   assert.equal(
     strength({ screenProbes: 'ultra', screenProbeOcclusionFoliageStrength: 0 }),
     0,
@@ -212,6 +207,8 @@ test('the quality scales the rays and the tile, the update speed the history, ea
     [gather(1), gather(0.5), gather(0.4), gather(0.1), gather(0.5, 4)],
     [8, 4, 2, 1, 8],
   )
+  // From one up, the tracing's side times the whole number nearest the scale, held to 16.
+  assert.deepEqual([gather(2, 0.25), gather(2.4, 0.25), gather(3), gather(4)], [8, 8, 16, 16])
   // The light the rays follow needs the importance sampling on.
   assert.equal(
     screenProbeSettings({ screenProbeImportanceSampling: false }).importanceLighting,

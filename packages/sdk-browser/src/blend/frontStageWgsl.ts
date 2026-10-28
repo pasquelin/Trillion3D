@@ -63,6 +63,11 @@ export const blendReflects = (
   )
 }
 
+/** Whether a blend of material `mat` is lit by the sampled lighting of the nearest translucent layer, the CPU's twin of `frontLit`: lit, and not lit as a medium: any shading
+ *  model, not the reflecting ones alone (what makes a front pass of `outputs` 3 write the surface). */
+export const blendFrontLit = (mat: Pick<VisMaterial, 'lit' | 'translucencyLighting'>) =>
+  mat.lit && !lightsAsMedium(mat.translucencyLighting)
+
 /**
  * THE FRONT STAGE (`fsFront`), the front pass's fragment (`../lighting/reflections/frontLayer.ts`), in a module
  * of its own (`blendFrontShader`): the blend's vertex stage and material reads, no light. A fragment the
@@ -74,8 +79,10 @@ export const blendReflects = (
  * test keeps the nearest. No colour, no feedback.
  */
 const frontStageWgsl = (outputs: FrontOutputs, graphs: readonly SurfaceProgram[]) => {
-  const lobes = outputs === 2,
+  const lobes = outputs >= 2,
     reflects = outputs > 0,
+    // With the base colour (outputs 3) the surface is written wherever the sampled lighting lights the layer, whatever the model.
+    lights = outputs === 3,
     written = FRONT_OUTPUTS[outputs]
   return wgslBlock(
     `frontStageWgsl(${outputs}${graphs.length ? ', graphs' : ''})`,
@@ -95,25 +102,39 @@ const frontStageWgsl = (outputs: FrontOutputs, graphs: readonly SurfaceProgram[]
     `struct FrontOut{${fragmentMembers(written)}}
 const FRONT_BEHIND:f32=${wgslF32(FRONT_BEHIND)};
 /** Whether a blend of item flags \`flags\` is lit by a lit view, of a model that reflects, and not lit as a medium. */
-fn frontReflects(flags:u32)->bool{return blendLit(flags)&&surfaceReflects(modelFlag(flags)|pixelModelFlag(pixelModelOf(flags)))&&!translucencyMedium(flags);}
+fn frontReflects(flags:u32)->bool{return blendLit(flags)&&surfaceReflects(modelFlag(flags)|pixelModelFlag(pixelModelOf(flags)))&&!translucencyMedium(flags);}${
+      lights
+        ? `
+/** Whether a blend of item flags \`flags\` is lit by the sampled lighting of the layer: lit by a lit view and not lit as a medium, of any model. */
+fn frontLit(flags:u32)->bool{return blendLit(flags)&&!translucencyMedium(flags);}`
+        : ''
+    }
 @fragment fn fsFront(in:VSOut,@builtin(front_facing) front:bool)->FrontOut{
  let g=blendGrads(in);
  let base=blendBase(in,g);
  // A thin translucent layer (a transmissive record) covers its pixel whole, whatever its opacity, and is cut by none.
  let thin=materialAt(in.${WORDS.material}&${FACING_MATERIAL_MASK}u).transmission>0.0;
  let covers=thin||blendAlpha(in,base)>=REFLECTION_FRONT_COVERAGE${waterOf(graphs) ? `||(g.graph.flags&${GRAPH_FLAG.water}u)!=0u` : ''};
- let reflects=${reflects ? `frontReflects(${graphs.length ? 'blendGraphFlags(in.ids.y,g.graph)' : 'in.ids.y'})` : 'false'};
+ let reflects=${reflects ? `${lights ? 'frontLit' : 'frontReflects'}(${graphs.length ? 'blendGraphFlags(in.ids.y,g.graph)' : 'in.ids.y'})` : 'false'};
  if(!blendFragmentKept(in,base,thin,front)||!(covers||reflects)){discard;return FrontOut(${fragmentZeros(written)});}
  let depth=vec4f(select(0.0,in.position.z*FRONT_BEHIND,covers),0.0,0.0,0.0);
 ${
   reflects
     ? ` if(!reflects){return FrontOut(depth,${fragmentZeros(written.slice(1))});}
  blendPhysicalBegin(in,g);
-${lobes && graphs.length ? ' blendGraphLobes(g.graph);\n' : ''} let s=blendSurface(in,front,g,base);
+${lobes && graphs.length ? ' blendGraphLobes(g.graph);\n' : ''} let s=blendSurface(in,front,g,base);${
+        lights
+          ? `\n let model=modelFlag(${graphs.length ? 'blendGraphFlags(in.ids.y,g.graph)' : 'in.ids.y'})|pixelModelFlag(pixelModelOf(${graphs.length ? 'blendGraphFlags(in.ids.y,g.graph)' : 'in.ids.y'}));`
+          : ''
+      }
 ${
   lobes
     ? ` let lobed=blendLobedTexel(s);
- return FrontOut(depth,select(${MODEL_FLAG.physical}u,${MODEL_FLAG.physical | PHYSICAL_SURFACE_FLAG}u,lobed.on),vec4f(s.N,${waterOf(graphs) ? `select(s.rough,0.0,(g.graph.flags&${GRAPH_FLAG.water}u)!=0u)` : 's.rough'}),lobed.texel);`
+ return FrontOut(depth,${
+   lights
+     ? `select(model,model|${PHYSICAL_SURFACE_FLAG}u,lobed.on&&surfaceReflects(model))`
+     : `select(${MODEL_FLAG.physical}u,${MODEL_FLAG.physical | PHYSICAL_SURFACE_FLAG}u,lobed.on)`
+ },vec4f(s.N,${waterOf(graphs) ? `select(s.rough,0.0,(g.graph.flags&${GRAPH_FLAG.water}u)!=0u)` : 's.rough'}),lobed.texel${outputs === 3 ? ',vec4f(s.rgb,s.metal)' : ''});`
     : ` return FrontOut(depth,${MODEL_FLAG.physical}u,vec4f(s.N,${waterOf(graphs) ? `select(s.rough,0.0,(g.graph.flags&${GRAPH_FLAG.water}u)!=0u)` : 's.rough'}));`
 }`
     : ' return FrontOut(depth,0u);'
@@ -131,7 +152,7 @@ export const blendFrontShader = (
   offsets: WpoSet = NO_WPO,
 ) => {
   const code = wgslModule(
-    blendVertexWgsl(outputs === 2, clipping, NO_VERTEX_WORDS, offsets),
+    blendVertexWgsl(outputs >= 2, clipping, NO_VERTEX_WORDS, offsets),
     BLEND_MAPS_WGSL,
     frontStageWgsl(outputs, graphs),
     ...clipDirective(clipping),

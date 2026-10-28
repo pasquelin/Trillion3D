@@ -33,7 +33,14 @@ const WRITE = [
   textureStore(reflectionOut,coord,0,vec4f(seen.ray*(seen.share.x+seen.share.y),select(seen.share.x,REFLECTION_PROBES_LEFT,entirely)));
   textureStore(reflectionOut,coord,1,vec4f(seen.field,select(0.0,1.0-seen.share.y,hasCoat())));`,
   `let blended=bilateralBlended(seen);
-  textureStore(frontOut,coord,vec4u(frontPack(blended.base),frontPack(blended.coat),0u,0u));`,
+  textureStore(frontOut,coord,vec4u(frontPack(blended.base),frontPack(blended.coat),bitcast<u32>(reflectionFrontDepth(coord)),0u));`,
+] as const
+
+/** What a pixel that reflects nothing leaves behind it: the opaque surface nothing, the front one the front's depth alone (`FRONT_TRACED_FORMAT`'s third word, which a forward
+ *  fragment matches its own depth against) over no radiance, so that every pixel of the front layer holds its depth of this image, never an earlier one's. */
+const NOT_REFLECTING = [
+  '',
+  'textureStore(frontOut,coord,vec4u(0u,0u,bitcast<u32>(reflectionFrontDepth(coord)),0u));',
 ] as const
 
 /** What a kernel does before it reads its pixel: the clear empties the resolved pixel and the history,
@@ -58,7 +65,7 @@ fn ${name}(@builtin(workgroup_id) tile:vec3u,@builtin(num_workgroups) groups:vec
  let coord=vec2i(id);
  ${BEFORE[kind]}
  let flags=surfaceFlagsAt(coord);
- if(!surfaceReflects(flags)){return;}
+ if(!surfaceReflects(flags)){${NOT_REFLECTING[layer]}return;}
  let own=reflectingPixelAt(${layer}u,coord,flags);
  ${SEEN[kind](layer)}
  ${WRITE[layer]}

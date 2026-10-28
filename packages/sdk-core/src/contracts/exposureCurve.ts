@@ -56,10 +56,15 @@ export interface ExposureCurveObject {
 export type ExposureCurveOption =
   readonly ExposureCurveKeyOption[] | ExposureCurveObject | null | false
 
-/** The option a session or a world takes for the curve, beside the exposure's settings
- *  (`exposureOptions.ts`): `exposureCurve`, none by default. */
+/** The options a session or a world takes for the curves, beside the exposure's settings
+ *  (`exposureOptions.ts`), none by default: `exposureCurve`, the compensation of the automatic exposure; and the local exposure's
+ *  `localExposureHighlightContrastCurve` and `localExposureShadowContrastCurve`, whose keys give a scale the highlights'
+ *  and the shadows' contrast (`localExposureHighlightContrast`, `localExposureShadowContrast`) are multiplied by, by EV100
+ *  (`compensation` is then that scale, not stops). */
 export interface ExposureCurveOptions {
   exposureCurve?: ExposureCurveOption
+  localExposureHighlightContrastCurve?: ExposureCurveOption
+  localExposureShadowContrastCurve?: ExposureCurveOption
 }
 
 /** A key resolved: every setting set, the tangents of an `auto` key computed. */

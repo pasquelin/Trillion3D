@@ -7,8 +7,20 @@ import {
   encodeVirtualShadowProjection,
   writeVsmProjectionFrame,
 } from '../projection/projectionPass.ts'
+import {
+  encodeVsmHairProjection,
+  releaseVsmHairProjection,
+  vsmHairMasks,
+} from '../projection/hairProjectionPass.ts'
 import { PER_LIGHT_MASK_LAYERS } from '../projection/maskFormat.ts'
 import { sunCount, VSM_PROJECTION_MAX_PASS_LIGHTS } from '../projection/projectionView.ts'
+import {
+  capsuleCastsDirect,
+  capsuleLightMask,
+  capsuleLocalLayers,
+  encodeCapsuleSunMasks,
+} from '../../../capsuleShadows/host.ts'
+import { encodeHairSurfaceShadow } from '../../../../hair/surfaceShadowPass.ts'
 import { beginPerLightFrame } from '../projection/perLightPass.ts'
 import { noteVsmRequestSet } from '../traversal/requests.ts'
 import {
@@ -22,6 +34,7 @@ import { shadowsUnsettled } from '../../../../frame/backend/state/lights.ts'
 import { lightGridCulled } from '../../../tiles/cullView.ts'
 import { ensureMask, type VsmPerLightMask } from './vsmMask.ts'
 import { vsmProjectionReserve } from '../projection/projectionStore.ts'
+import { shadowsOnePass } from './vsmGates.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { VsmBoundLight } from '../mapViews.ts'
@@ -30,6 +43,9 @@ import type { VsmProjectionSource } from '../projection/projectionPass.ts'
 import type { VsmFrameScratch } from './vsmEncode.ts'
 import type { VsmThrottleState } from '../throttle.ts'
 import { projectionLight } from './vsmPlan.ts'
+import { sunCascadesOf } from './vsmDense.ts'
+import type { ClassicSettings, ClassicSun } from '../../classic/classicView.ts'
+import { nearInCentimetres } from '../../classic/denseEntries.ts'
 import { vsmRasterScene } from './vsmRasterScene.ts'
 import { vsmMapSettings } from './vsmFarShadow.ts'
 import { vsmTraceKey } from './vsmProjectionHold.ts'
@@ -143,6 +159,35 @@ export function encodeVsmRaster(
   if (stats?.passes === 0 && !stats.empty) vsm.renderedPlan = undefined
 }
 
+const classicSuns: ClassicSun[] = []
+const classicScratch = {
+  suns: classicSuns,
+  nearCentimetres: 0,
+  settings: undefined as unknown as ClassicSettings,
+}
+
+/** The classic shadows' words of the frame's view (`shadowVirtualEnable` off): its suns, with the cascades their lights name, and the settings. */
+function classicOf(
+  rt: WebgpuPagesRuntime,
+  cam: EngineCamera,
+  plan: NonNullable<EngineVsm['plan']>,
+  shadows: ClassicSettings,
+) {
+  classicSuns.length = 0
+  for (const lane of plan.projected) {
+    if (!lane.clipmap || lane.firstPerson) continue
+    const light = rt.lights.store.light(lane.id)
+    classicSuns.push({
+      mapId: lane.firstId,
+      firstLevel: lane.clipmap.firstLevel,
+      cascades: light && sunCascadesOf(light),
+    })
+  }
+  classicScratch.nearCentimetres = nearInCentimetres(cam.near)
+  classicScratch.settings = shadows
+  return classicScratch
+}
+
 /** The frame's projection context (`VsmProjectionFrame`), rebuilt in place in `scratch` from the
  * plan's lights a channel reads (`planVsmFrame`), the camera, the phase and the depth
  * pyramid, and written once into the view uniform (`writeVsmProjectionFrame`): what the opaque
@@ -174,11 +219,16 @@ function projectionContext(
   context.camera.projection = projection
   context.camera.perspective = cam.perspective === 1
   context.frameIndex = lightingPhase(rt)
-  context.trace = vsmMapSettings(rt).shadows
+  const { shadows } = vsmMapSettings(rt)
+  context.trace = shadows
+  context.classic = shadows.shadowVirtualEnable ? undefined : classicOf(rt, cam, plan, shadows)
   writeVsmProjectionFrame(vsm.res, context)
   scratch.projecting = true
   return context
 }
+
+/** The names of the context's lights, in its order (`encodeHairSurfaceShadow`). */
+const hairLightIds: string[] = []
 
 /** The ranks, in the light buffer, of the context's lights, indexed as they are (`takePerLightPath`). */
 const perLightRanks: number[] = []
@@ -186,10 +236,11 @@ const perLightRanks: number[] = []
 /** The per-light path of the frame (`shadowOnePassProjection` false): the shadowed local lights of the
  *  context, past its suns, each to be lit alone by the lighting (`perLightPass.ts`), into `mask`. */
 function takePerLightPath(
-  { rt, device, vsm, plan }: VsmFrame,
+  { rt, device, vsm, plan, cam }: VsmFrame,
   context: NonNullable<ReturnType<typeof projectionContext>>,
   source: VsmProjectionSource,
   mask: VsmPerLightMask,
+  hairShadow: GPUTextureView | undefined,
 ) {
   perLightRanks.length = context.lights.length
   for (let k = sunCount(context.lights); k < context.lights.length; k++)
@@ -201,8 +252,102 @@ function takePerLightPath(
     source,
     mask,
     ranks: perLightRanks,
-    forceClear: readShadowSetting(rt, 'shadowForcePerLightMaskClear'),
+    // The classic projection clears each light's mask layer before it draws it, as the reference's classic branch does and its virtual one does not.
+    forceClear:
+      readShadowSetting(rt, 'shadowForcePerLightMaskClear') ||
+      !readShadowSetting(rt, 'shadowVirtualEnable'),
+    afterMask: capsuleLightMask(rt, cam),
+    hairShadow,
   })
+}
+
+/** The opaque projection's inputs: the image's depth, normals and flags, the surfaces' words and the lights the lighting walks, in the cells of its grid. */
+function fillOpaqueSource(
+  rt: WebgpuPagesRuntime,
+  scratch: VsmFrameScratch,
+  views: GPUTextureView[],
+) {
+  const { lights, gpu } = rt
+  const source = scratch.opaque
+  source.depth = gpu.depthView!
+  source.normalRough = views[1]
+  source.flags = views[3]
+  source.subsurface = gpu.surfaces!.subsurfaceView
+  source.lobes = gpu.surfaces!.lobesView
+  // The local lights' pass walks the lights the lighting walks, in the cells of its grid.
+  source.deferredView = gpu.deferred!.uniform
+  source.directLights = lights.buffer
+  source.tileLights = lights.tiles?.buffer
+  source.gridCells =
+    lights.tiles && lights.tiles.tilesX * lights.tiles.tilesY * LIGHT_SETTINGS.gridSlices
+  return source
+}
+
+/** The classic shadows' lights are shaded by the strands too (the strands' deep shadow or voxels, laid on the maps'): a layer a light. */
+function classicHairShadow(
+  { rt, device, cam, plan }: VsmFrame,
+  context: NonNullable<ReturnType<typeof projectionContext>>,
+  steps: ComputeRun,
+  normals: GPUTextureView,
+) {
+  if (!context.classic) return undefined
+  hairLightIds.length = context.lights.length
+  for (let k = 0; k < context.lights.length; k++) hairLightIds[k] = plan.projected[k].id
+  return encodeHairSurfaceShadow(rt, device, steps, cam, hairLightIds, normals)
+}
+
+/** The projection's target: the masks it writes, the light grid, the strands' shadow and the capsules' layers. */
+function fillTarget(
+  rt: WebgpuPagesRuntime,
+  cam: EngineCamera,
+  steps: ComputeRun,
+  scratch: VsmFrameScratch,
+  context: NonNullable<ReturnType<typeof projectionContext>>,
+  mask: ReturnType<typeof ensureMask>,
+  grid: ReturnType<typeof vsmProjectionReserve>['lightGrid'] | undefined,
+  onePass: boolean,
+  hairShadow: GPUTextureView | undefined,
+) {
+  const target = scratch.target
+  target.suns = mask.sunsView
+  target.locals = mask.localsView
+  target.localFormat = mask.localFormat
+  target.lightGrid = grid
+  target.onePass = onePass
+  target.hairShadow = hairShadow
+  target.capsule =
+    onePass && mask.locals
+      ? capsuleLocalLayers(rt, cam, steps.apart(), context.lights, sunCount(context.lights))
+      : undefined
+  return target
+}
+
+/** The inputs the projection hold compares to the last projection's (`vsmProjectionHold.ts`). */
+function writeProjectionHold(
+  { rt, cam, projection, vsm }: VsmFrame,
+  context: NonNullable<ReturnType<typeof projectionContext>>,
+  source: VsmProjectionSource,
+  onePass: boolean,
+  maxLights: number,
+  gridWords: number,
+) {
+  const { lights, gpu } = rt
+  const hold = vsm.projectionHold.inputs
+  hold.view = cam.view
+  hold.projection = projection
+  hold.revisions = rt.run.gate.revisions
+  hold.lightsEpoch = lights.store.epoch
+  hold.shadowEpoch = shadowEpoch(lights)
+  hold.phase = context.frameIndex
+  hold.trace = vsmTraceKey(context.trace!)
+  hold.size = gpu.allocatedSize
+  // Zero: the one-pass projection is off, no pixel keeps a light in its mask.
+  hold.maxLights = onePass ? maxLights : 0
+  hold.lights = context.lights
+  hold.gridCells = source.gridCells ?? 0
+  hold.gridWords = gridWords
+  hold.gridCulled = lightGridCulled()
+  hold.cullBackfacing = readShadowSetting(rt, 'shadowCullBackfacingPixels')
 }
 
 /** Projection of the opaque surfaces: one pass, every light of the frame's context, four a layer
@@ -225,47 +370,24 @@ function encodeVsmProjection(
   const suns = sunCount(context.lights)
   const maxLights = readShadowSetting(rt, 'shadowOnePassProjectionMaxLightsPerPixel')
   // The one-pass projection, or each shadowed local light alone, lit after the others.
-  const onePass = readShadowSetting(rt, 'shadowOnePassProjection')
+  const onePass = shadowsOnePass(rt)
   const mask = ensureMask(device, vsm, width, height, {
     suns,
     onePass,
     localLights: maxLights,
     perLightLayers: Math.min(context.lights.length - suns, PER_LIGHT_MASK_LAYERS),
   })
-  const source = scratch.opaque
-  source.depth = gpu.depthView!
-  source.normalRough = views[1]
-  source.flags = views[3]
-  source.subsurface = gpu.surfaces!.subsurfaceView
-  source.lobes = gpu.surfaces!.lobesView
-  // The local lights' pass walks the lights the lighting walks, in the cells of its grid.
-  source.deferredView = gpu.deferred!.uniform
-  source.directLights = lights.buffer
-  source.tileLights = lights.tiles?.buffer
-  source.gridCells =
-    lights.tiles && lights.tiles.tilesX * lights.tiles.tilesY * LIGHT_SETTINGS.gridSlices
+  const source = fillOpaqueSource(rt, scratch, views)
   // The shadowed lights' grid the marking pruned, over the light grid's view part, read before the hold
   // is asked: a grid made again runs the pass.
   const gridWords = lights.tiles?.worldStart ?? 0
   const grid = gridWords ? vsmProjectionReserve(device, vsm.res).lightGrid : undefined
+  const hairShadow = classicHairShadow(frame, context, steps, views[1])
   const perLight =
-    onePass || !mask.perLight ? undefined : takePerLightPath(frame, context, source, mask.perLight)
-  const hold = vsm.projectionHold.inputs
-  hold.view = cam.view
-  hold.projection = projection
-  hold.revisions = rt.run.gate.revisions
-  hold.lightsEpoch = lights.store.epoch
-  hold.shadowEpoch = shadowEpoch(lights)
-  hold.phase = context.frameIndex
-  hold.trace = vsmTraceKey(context.trace!)
-  hold.size = gpu.allocatedSize
-  // Zero: the one-pass projection is off, no pixel keeps a light in its mask.
-  hold.maxLights = onePass ? maxLights : 0
-  hold.lights = context.lights
-  hold.gridCells = source.gridCells ?? 0
-  hold.gridWords = gridWords
-  hold.gridCulled = lightGridCulled()
-  hold.cullBackfacing = readShadowSetting(rt, 'shadowCullBackfacingPixels')
+    !onePass && mask.perLight
+      ? takePerLightPath(frame, context, source, mask.perLight, hairShadow)
+      : undefined
+  writeProjectionHold(frame, context, source, onePass, maxLights, gridWords)
   // What the pass writes and the light grid of a new buffer run it again.
   const held = vsm.projectionHold.held(
     mask.suns,
@@ -273,17 +395,18 @@ function encodeVsmProjection(
     source.tileLights,
     grid,
   )
-  const standing = held && !shadowsUnsettled(lights)
+  // A capsule shadow moves with its object, and the strands' with them: the masks they are taken into are projected again, not held.
+  const standing = held && !shadowsUnsettled(lights) && !capsuleCastsDirect(rt) && !hairShadow
   // The per-light path is held with the projection: its lights are traced again where it is not.
   if (!standing) perLight?.markStale()
-  if (standing) return 0
-  const target = scratch.target
-  target.suns = mask.sunsView
-  target.locals = mask.localsView
-  target.localFormat = mask.localFormat
-  target.lightGrid = grid
-  target.onePass = onePass
+  const hair = gpu.hair?.visible?.shadow
+  if (standing && !hair) releaseVsmHairProjection(vsm.res)
+  if (standing && (!hair || vsmHairMasks(vsm.res))) return 0
+  const target = fillTarget(rt, cam, steps, scratch, context, mask, grid, onePass, hairShadow)
+  const hairMasks = encodeVsmHairProjection(steps, vsm.res, context, source, target, hair)
+  if (standing) return hairMasks ? 1 : 0
   if (!encodeVirtualShadowProjection(steps, vsm.res, context, source, target)) return 0
+  if (suns) encodeCapsuleSunMasks(rt, cam, steps.apart(), context.lights, suns, mask.sunsView)
   vsm.projectionHold.keep()
   return 1
 }

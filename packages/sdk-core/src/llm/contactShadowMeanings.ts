@@ -13,4 +13,16 @@ export const CONTACT_SHADOW_MEANINGS: Readonly<Record<ContactShadowField, string
     "The intensity every light's contact shadow has where its ray meets a surface that casts contact shadows (every surface but an eye's and one of an object that sets castContactShadow to false), when it is 0 or more, held to 1 where it is more; below 0, the default of -1, each light's own contactShadowCastingIntensity.",
   contactShadowOverrideNonCastingIntensity:
     "The intensity every light's contact shadow has where its ray meets a surface that does not cast contact shadows (an eye's, or one of an object that sets castContactShadow to false), when it is 0 or more, held to 1 where it is more; below 0, the default of -1, each light's own contactShadowNonCastingIntensity.",
+  contactShadowMethod:
+    "How the lights' contact shadows are cast: 0, the default, the short stochastic ray each lit pixel casts toward the light; 1, the Bend screen-space shadow, a texture made before the lighting by marching a wavefront of sixty-four pixels toward each light's place on the screen (about 60 steps, the first four able to shadow alone, the last eight fading).",
+  contactShadowBendSurfaceThickness:
+    'How thick, from just above 0 to 1, the surface a pixel stands for is taken to be when a Bend ray meets it, as a share of the depth left between the pixel and the far plane: 0.005 by default. A thicker value shadows more, and fainter; used by the method 1 alone.',
+  contactShadowBendMaxLights:
+    "How many lights the Bend screen-space shadow serves in an image, from 1 to 16: 8 by default. The suns come first, then the local lights nearest the eye; the others cast the short stochastic ray. Each light costs one texture of the image's size (4 bytes a pixel: about 8 MB at 1080p, 33 MB at 4K). Used by the method 1 alone.",
+  contactShadowIntensityMode:
+    "How the Bend shadow's intensity is found: 0, the default, by the surface the ray hit (contactShadowCastingIntensity if its object casts contact shadows, else contactShadowNonCastingIntensity); 1, by the depth of the shadowed pixel, from the non-casting intensity to the casting one over contactShadowIntensityFadeLength from contactShadowIntensityFadeStart; 2, the casting intensity everywhere. Used by the method 1 alone.",
+  contactShadowIntensityFadeStart:
+    'The depth, in centimetres, where the Bend shadow starts fading from the non-casting intensity to the casting one: 1600 (16 metres) by default. Read only by contactShadowIntensityMode 1.',
+  contactShadowIntensityFadeLength:
+    'The length, in centimetres, of that fade: 800 (8 metres) by default, above 0. Read only by contactShadowIntensityMode 1.',
 }

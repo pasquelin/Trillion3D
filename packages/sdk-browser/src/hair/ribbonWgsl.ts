@@ -4,22 +4,12 @@ import {
 } from '../../../sdk-core/src/contracts/hairStrandsAbi.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { HAIR_FLAG } from './materialMath.ts'
+import { HAIR_RIBBON_CORNERS } from './ribbonCorners.ts'
 
 /** The words of the view block the strands' passes read (`HAIR_VIEW_WGSL`), and its bytes. */
 export const HAIR_VIEW_WORDS = 44
 /** The words of an instance's block (`HAIR_RIBBON_WGSL`'s `Instance`), and its bytes. */
 export const HAIR_INSTANCE_WORDS = 48
-
-/**
- * The corners of a segment's two triangles, as bits by the rank (0 to 5) of the corner among the
- * six a segment is drawn with: whether it lies at the segment's tip (the next control point), and
- * whether it lies on the strand's right. A group built for a strip of triangles (a curve given one
- * control point more at its end) cuts the ribbon along one diagonal, any other along the other.
- */
-export const HAIR_RIBBON_CORNERS = {
-  strip: { tips: 0b110100, rights: 0b011010 },
-  list: { tips: 0b101010, rights: 0b011100 },
-} as const
 
 /** What a pass reads of the view: its view-projection (with the temporal jitter, the eye at the
  *  origin); the direction the camera faces, and in its fourth float whether the projection is

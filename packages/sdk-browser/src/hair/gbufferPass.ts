@@ -48,7 +48,7 @@ export function gbufferPipelines(device: GPUDevice, patch: boolean) {
 }
 
 /** The surfaces' storage views the patch writes: the colours' and the words' (`SurfaceBuffer.stores`). */
-export type HairSurfaceStores = readonly [GPUTextureView, GPUTextureView]
+type HairSurfaceStores = readonly [GPUTextureView, GPUTextureView]
 
 /** The textures of the image the passes read and write (`HairImageTargets`). */
 interface HairGbufferTargets {

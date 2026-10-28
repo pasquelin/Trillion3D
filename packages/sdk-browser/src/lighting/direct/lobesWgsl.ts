@@ -7,7 +7,7 @@ import { LAMP_SURFACE_LIGHT_WGSL } from './lampLobeWgsl.ts'
 import { CLOTH_SHEEN_WGSL, SHEEN_LOBE_WGSL, SHEEN_RECT_WGSL } from './sheenLobeWgsl.ts'
 import { SHADING_MODEL_PIXEL_WGSL } from './shadingModelWgsl.ts'
 import { CLEAR_COAT_WGSL } from './clearCoatWgsl.ts'
-import { ENVIRONMENT_BRDF_WGSL } from './environmentBrdfWgsl.ts'
+import { ENERGY_TERMS_WGSL } from './energyTermsWgsl.ts'
 import { RECT_SURFACE_LIGHT_WGSL } from './rectLightWgsl.ts'
 import {
   DIELECTRIC_F0,
@@ -54,7 +54,7 @@ export const LOBES_LIGHTING_WGSL = wgslBlock(
     envBrdfF90,
     ndotvClamped,
     clampNoV,
-    ENVIRONMENT_BRDF_WGSL,
+    ENERGY_TERMS_WGSL,
     LOBE_AXIS_WGSL,
     SURFACE_LIGHT_WGSL,
     LAMP_SURFACE_LIGHT_WGSL,
@@ -142,10 +142,10 @@ fn indirectF0(rgb:vec3f,metal:f32)->vec3f{
  return surfaceF0(rgb,metal);
 }
 /** What the coat lets through of the base's reflections: one minus the coat's weight times the energy of its own
- *  dielectric lobe at its roughness and N·V (the environment BRDF every reflection weighs the coat by), one without a coat. */
+ *  dielectric lobe at its roughness and N·V (the energy terms every reflection weighs the coat by), one without a coat. */
 fn coatLayerKeep()->f32{
  if(!hasCoat()){return 1.0;}
- return 1.0-lobes.coat*environmentBrdf(DIELECTRIC_F0,envBrdfF90(DIELECTRIC_F0),lobeRoughness(lobes.coatRough),clampNoV(lobes.coatNoV)).x;
+ return 1.0-lobes.coat*energyTerms(DIELECTRIC_F0,envBrdfF90(DIELECTRIC_F0),lobeRoughness(lobes.coatRough),clampNoV(lobes.coatNoV)).x;
 }
 /** The view's length in the stretched frame, finished once a pixel on its surface's N·V
  *  (\`lobeSurface\`), which the light loop hands it (\`sliceLighting\`): one N·V a pixel. */

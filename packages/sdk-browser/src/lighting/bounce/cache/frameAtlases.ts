@@ -1,3 +1,4 @@
+import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { ledgerAdmitted } from '../../../gpu/core/deviceLedger.ts'
 import { retire } from '../../../gpu/core/frameRetire.ts'
 import {
@@ -113,9 +114,9 @@ export function tempFor(state: FrameAtlases, storage: CacheStorage, queue: Cache
   return (state.temp = atlas)
 }
 
-/** The trace atlas for `tiles` tiles, the held one where it holds as many and has not stayed a quarter of them for `SHRINK_AFTER_UPDATES`
+/** The trace atlas for `tiles` tiles, its rays' light stored in `light` (the atlases of a frame are given back whenever the cache's maps are made again, so the held one is of that format), the held one where it holds as many and has not stayed a quarter of them for `SHRINK_AFTER_UPDATES`
  *  updates; else made, where the device's budget leaves room — none where it does not, and the rays are marched. */
-export function traceAtlasFor(state: FrameAtlases, tiles: number) {
+export function traceAtlasFor(state: FrameAtlases, tiles: number, light: LightAtlasFormat) {
   const held = state.traceAtlas
   const { atlas, small } = keptOrMade(
     state.device,
@@ -127,9 +128,9 @@ export function traceAtlasFor(state: FrameAtlases, tiles: number) {
       texels: held?.tiles ?? 0,
     },
     {
-      asked: cacheTraceBytes(tiles),
+      asked: cacheTraceBytes(tiles, light),
       what: 'the radiance cache’s trace atlas',
-      make: () => createTraceAtlas(state.device, tiles),
+      make: () => createTraceAtlas(state.device, tiles, light),
     },
   )
   state.smallTrace = small

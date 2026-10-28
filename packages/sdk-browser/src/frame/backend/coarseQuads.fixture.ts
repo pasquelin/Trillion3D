@@ -1,13 +1,10 @@
 // The coarse quads the page tests draw: the red quad of `testScenes.fixture.ts` with its two
 // clusters under one coarse parent, alone or twice, a hundred units apart.
 import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
 import type { Engine } from '../../session/engine/types.ts'
 import { dagLevel, MANIFEST_IDENTITY } from '../../session/engine/pagesEngine.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
-import { webgpuPagesEngine } from './pages.ts'
-import { quadScene, withDraws } from './testScenes.fixture.ts'
+import { backendOf, quadScene, withDraws } from './testScenes.fixture.ts'
 import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 /** The quad, with its two clusters replaced by a single coarse cluster of the given screen error. */
@@ -83,12 +80,10 @@ export function deepCoarseQuadsScene() {
  *  (`poolBytes`). */
 export function deepCoarseQuadsEngine(device: GPUDevice) {
   const fixture = deepCoarseQuadsScene()
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 3,
-    viewport: [32, 32],
   }) as Engine
   return { fixture, backend }
 }

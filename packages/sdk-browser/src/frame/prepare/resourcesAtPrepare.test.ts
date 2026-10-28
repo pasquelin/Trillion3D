@@ -1,15 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera, quadBackend } from '../backend/testScenes.fixture.ts'
+import { backendOf, quadScene, camera, quadBackend } from '../backend/testScenes.fixture.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import type { Engine } from '../../session/engine/types.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('trace failure diagnostics retain bounded stack and cause context', async () => {
@@ -17,16 +14,13 @@ test('trace failure diagnostics retain bounded stack and cause context', async (
   const events: EngineDiagnostic[] = []
   const fixture = quadScene(),
     { device } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     indices: new Map(),
     readPage: async () => {
       throw new Error('PAGE_STREAM_FAILED', { cause: new Error('NETWORK_ROOT') })
     },
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
     onDiagnostic: (event: EngineDiagnostic) => events.push(event),
   } as never)
   try {
@@ -59,12 +53,9 @@ test('texture queues are pinned at prepare, and a texture that fits in its queue
   })
   const mesh = fixture.source.children[0] as PageMesh
   mesh.material = material
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
     maxTextureTransferBytesPerFrame: 16,
   }) as Engine
   try {

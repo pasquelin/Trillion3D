@@ -26,7 +26,8 @@ import { FEEDBACK_AT } from './feedbackLayout.ts'
  * `compactFeedbackTable`, a thread a place of the table: a place with a count takes the next place of the
  * list (`listed`, whose first element holds the number of the elements taken, which may pass its room,
  * and whose elements follow, two words each) and writes there the words of the element it recorded, the
- * count in the high sixteen bits of the second.
+ * count in the high sixteen bits of the second. The count saturates at 65535: the reference shifts it into the high bits, where a count of 65536 wraps to
+ * none and an element written that often is lost (a bug of the reference, not ported).
  *
  * Bindings of group 0: the feedback buffer the rays wrote (`feedback`, read), the table's keys, the
  * rank of each place's first element, its counts, and the list the CPU reads back; the arguments the first

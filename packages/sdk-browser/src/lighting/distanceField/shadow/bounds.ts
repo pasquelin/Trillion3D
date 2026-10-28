@@ -145,6 +145,33 @@ export function cascadeBounds(
   toLight: readonly number[],
 ): CascadeBounds {
   sliceCorners(cam, near, far)
+  return hullOfCorners(toLight, sliceSphere(cam, near, far) * CM)
+}
+
+/**
+ * The bounds of the cube of half side `half` (metres) about `centre` (metres, from the eye), for the light shining from the direction
+ * `toLight` (a unit vector): the hull of the cube and of the space it sweeps toward the light, as a cascade's slice has it. A volume
+ * of the scene that is no slice of the view (the surface cache's cube about the view).
+ */
+export function boxBounds(
+  centre: readonly [number, number, number],
+  half: number,
+  toLight: readonly number[],
+): CascadeBounds {
+  // The cube's corners in a slice's order: top right, bottom right, top left, bottom left, near then far.
+  for (let corner = 0; corner < 8; corner++) {
+    const sx = CORNER_SIGNS[2 * (corner % 4)],
+      sy = CORNER_SIGNS[2 * (corner % 4) + 1]
+    CORNERS[corner][0] = centre[0] + sx * half
+    CORNERS[corner][1] = centre[1] + sy * half
+    CORNERS[corner][2] = centre[2] + (corner < 4 ? half : -half)
+  }
+  for (let k = 0; k < 3; k++) SPHERE[k] = centre[k]
+  return hullOfCorners(toLight, half * Math.sqrt(3) * CM)
+}
+
+/** The hull of the eight `CORNERS` (a slice's or a cube's) and what they sweep toward the light, the bounding sphere `SPHERE` of radius `radius` (centimetres). */
+function hullOfCorners(toLight: readonly number[], radius: number): CascadeBounds {
   for (let k = 0; k < 3; k++) {
     let sum = 0
     for (const corner of CORNERS) sum += corner[k]
@@ -183,7 +210,6 @@ export function cascadeBounds(
     hull[4 * k + 2] = PLANES[4 * k + 2]
     hull[4 * k + 3] = PLANES[4 * k + 3] * CM
   }
-  const radius = sliceSphere(cam, near, far) * CM
   // The light's right and up: any pair across it, stable while the light is.
   normalise(crossVector3(RIGHT, Math.abs(toLight[1]) < 0.999 ? AXIS_Y : AXIS_X, toLight))
   const right: [number, number, number] = [RIGHT[0], RIGHT[1], RIGHT[2]]

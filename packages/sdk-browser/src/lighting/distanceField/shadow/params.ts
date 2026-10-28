@@ -2,11 +2,13 @@ import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { DEG2RAD, RAD2DEG } from '../../../../../math/src/constants.ts'
 import { writeSplitDouble } from '../../../../../math/src/float/splitDouble.ts'
 import { clamp } from '../../../../../math/src/scalar/reals.ts'
+import { largestAxisScale } from '../../../../../math/src/vector/vector.ts'
 import { multiplyMatrix4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
 import type { DistanceFieldCascade } from '../../../../../sdk-core/src/contracts/sunCascades.ts'
 import { CENTIMETRES_PER_METRE as CM } from '../../../../../sdk-core/src/page/format.ts'
 import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
+import { putEyeAxes, putScaledRows } from '../viewParams.ts'
 import { cascadeBounds, type CascadeBounds, type CascadeCamera } from './bounds.ts'
 import {
   DFSH_CUBE_VERTICES,
@@ -66,6 +68,8 @@ export interface DfshSettings {
   perTile: number
   scatterTiles: boolean
   compactTiles: boolean
+  /** Whether the meshes made of clusters are listed too (`DFSH_FLAG.clusterMeshes`): the sun has no virtual shadow maps. Absent, they are not. */
+  clusterMeshes?: boolean
   subsampleDepth: boolean
   transmission: boolean
   snapTexels: number
@@ -116,8 +120,7 @@ function putUnproject(out: Float32Array, at: number, image: DfshImage) {
   current.set(image.viewProjection)
   multiplyMatrix4(product, current, translation)
   invertMatrix4(inverse, product)
-  for (let c = 0; c < 4; c++)
-    for (let r = 0; r < 4; r++) out[at + c * 4 + r] = inverse[c * 4 + r] * (r < 3 ? CM : 1)
+  putScaledRows(out, at, inverse, CM)
 }
 
 /**
@@ -158,26 +161,6 @@ function putToShadow(
   out[at + 15] = 1
 }
 
-/** The greatest length the matrix at `at` gives the world's three axes (the scale of its largest
- *  axis), per centimetre. */
-function maxAxisScale(matrix: Float32Array, at: number) {
-  let most = 0
-  for (let c = 0; c < 3; c++) {
-    const column = at + c * 4
-    most = Math.max(most, Math.hypot(matrix[column], matrix[column + 1], matrix[column + 2]))
-  }
-  return most
-}
-
-/** Writes the rows that take a position from the eye to the view's right, up and forward axes: the
- *  camera's world matrix (column-major, looking down its `-z`). */
-function putAxes(out: Float32Array, at: number, world: ArrayLike<number>) {
-  putVec4(out, at, world[0], world[1], world[2])
-  putVec4(out, at + 4, world[4], world[5], world[6])
-  // `0 - x`, not `-x`: a zero component stays +0.
-  putVec4(out, at + 8, 0 - world[8], 0 - world[9], 0 - world[10])
-}
-
 /** How a device depth turns into a distance (the occlusion's own, `ao/params.ts`). */
 function putDepth(out: Float32Array, at: number, image: DfshImage) {
   if (image.perspective) putVec4(out, at, image.near, 0, 1)
@@ -207,7 +190,7 @@ export function writeDfshParams(
   putUnproject(floats, base + at.unproject, image)
   const placed = { bounds, toLight: light.toLight, eye: image.eye }
   putToShadow(floats, base + at.toShadow, placed, settings.snapTexels)
-  putAxes(floats, base + at.axes, image.world)
+  putEyeAxes(floats, base + at.axes, image.world)
   floats.set(bounds.planes, base + at.planes)
   for (let k = 0; k < 3; k++) {
     writeSplitDouble(floats, base + at.eyeHigh + k, base + at.eyeLow + k, image.eye[k] * CM)
@@ -235,7 +218,7 @@ export function writeDfshParams(
     floats,
     base + at.expand,
     (1.414 * bounds.radius) / side,
-    DFSH_MAX_CONE_RADIUS * maxAxisScale(floats, base + at.toShadow),
+    DFSH_MAX_CONE_RADIUS * largestAxisScale(floats, base + at.toShadow),
   )
   const down = downsampleOf(settings)
   words.set([image.view[0], image.view[1], down, layer], base + at.view)
@@ -243,7 +226,8 @@ export function writeDfshParams(
   words.set([side, room, scene.objects, settings.perTile], base + at.tiles)
   const flags =
     (settings.subsampleDepth ? DFSH_FLAG.subsampleDepth : 0) |
-    (settings.compactTiles ? DFSH_FLAG.compactTiles : 0)
+    (settings.compactTiles ? DFSH_FLAG.compactTiles : 0) |
+    (settings.clusterMeshes ? DFSH_FLAG.clusterMeshes : 0)
   words.set([bounds.planeCount, DFSH_CUBE_VERTICES, 0, flags], base + at.counts)
   putDepth(floats, base + at.depth, image)
 }

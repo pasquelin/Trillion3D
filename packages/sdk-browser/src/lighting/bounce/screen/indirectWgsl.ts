@@ -8,6 +8,7 @@ import { unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { DEFERRED_BINDINGS } from '../../deferred/bindings.ts'
 import { VIEW_WGSL } from '../../deferred/worldAtWgsl.ts'
 import { SP_BENT_WGSL } from './historyWgsl.ts'
+import { SCREEN_PROBE_FORMATS as F } from './screenProbeLayout.ts'
 
 /** The occlusion an albedo makes of an occlusion `ao` (`bouncedOcclusion`): a surface lit by the light that bounced off the occluders. */
 export const BOUNCED_OCCLUSION = wgslBlock(
@@ -64,6 +65,11 @@ export const SCREEN_INDIRECT_WGSL = wgslBlock(
 fn screenWordsAt(coord:vec2i)->vec4u{
  let last=vec2i(textureDimensions(screenIndirect))-vec2i(1);
  return textureLoad(screenIndirect,clamp(coord,vec2i(0),last),0);
+}
+@group(0) @binding(${DEFERRED_BINDINGS.screenShortRangeGi}) var screenShortRangeGi:texture_storage_2d<${F.shortRangeGi},read>;
+/** The short-range global illumination the probes gathered at a pixel: the light the near surfaces of the last image give it, which no occlusion darkens. */
+fn screenShortRangeGiAt(coord:vec2i)->vec3f{
+ return textureLoad(screenShortRangeGi,clamp(coord,vec2i(0),vec2i(textureDimensions(screenShortRangeGi))-vec2i(1))).rgb;
 }
 fn screenOcclusionOf(word:vec4u)->f32{return select(0.0,max(spBentUnpack(word.w).w,1.0/255.0),word.w!=0u);}
 fn screenIndirectAt(coord:vec2i)->vec4f{

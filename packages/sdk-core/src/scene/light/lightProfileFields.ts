@@ -16,11 +16,17 @@ export interface SceneLightProfile {
   /**
    * Beside an `iesProfile`: whether the light's intensity is the profile's brightness (its greatest
    * candela) times `iesBrightnessScale`, written in the light's unit, in place of `intensity`;
-   * absent, off. The profile's brightness is known once the profile is loaded; until then the
-   * light keeps its `intensity`.
+   * absent, off. The profile's brightness is the light's `iesBrightness`; a light that carries none
+   * keeps its `intensity`.
    */
   useIesBrightness?: boolean
   /** Beside an `iesProfile` and `useIesBrightness`: the factor on the profile's brightness; at
    *  least 0, absent 1. */
   iesBrightnessScale?: number
+  /**
+   * Beside an `iesProfile`: the brightness of the profile, its greatest candela, a finite number
+   * above 0. The compiler writes it with the profile it made (`lights.json`); absent, the light
+   * has no brightness of its profile to take.
+   */
+  iesBrightness?: number
 }

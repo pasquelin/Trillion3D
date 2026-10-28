@@ -1,7 +1,12 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
-import { FLAT_INDEX_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
+import {
+  FLAT_INDEX_WGSL,
+  GROUP_GRID_WGSL,
+  WORKGROUP_THREADS,
+  indirectArgsWgsl,
+} from '../../../gpu/dispatch/grid.ts'
 import { lightingCommonWgsl } from './commonWgsl.ts'
 import {
   BATCHABLE_LIGHT_TYPES,
@@ -126,10 +131,7 @@ fn culledLight(word:u32)->u32{return word&(TILE_LIGHT_RANK_MASK|TILE_LIGHT_STAND
 const countsProgram = () =>
   wgslProgram(
     `@group(0) @binding(${LIGHT_TILE_COUNTS_BINDINGS.args}) var<storage,read_write> lightTileArgs:array<u32>;
-fn setArgs(entry:u32,groups:vec2u){
- let at=entry*LT_ARGS_WORDS;
- lightTileArgs[at]=groups.x;lightTileArgs[at+1u]=groups.y;lightTileArgs[at+2u]=1u;
-}
+fn setArgs(entry:u32,groups:vec2u){writeIndirectArgs(entry,groups.x,groups.y,1u);}
 @compute @workgroup_size(${WORKGROUP_THREADS})
 fn lightTilesClear(@builtin(local_invocation_index) lane:u32){
  for(var i=lane;i<LT_HEAD+lightSlots();i+=${WORKGROUP_THREADS}u){atomicStore(&lightTileCounts[i],0u);}
@@ -159,7 +161,11 @@ fn lightTilesArgs(@builtin(global_invocation_id) id:vec3u){
 fn lightTilesClearCompacted(@builtin(local_invocation_index) lane:u32){
  for(var i=lane;i<lightSlots();i+=${WORKGROUP_THREADS}u){atomicStore(&lightTileCounts[placedAt(i)],0u);}
 }`,
-    [lightTileCountsWgsl(LIGHT_TILE_COUNTS_BINDINGS.counts, 'atomic'), GROUP_GRID_WGSL],
+    [
+      lightTileCountsWgsl(LIGHT_TILE_COUNTS_BINDINGS.counts, 'atomic'),
+      GROUP_GRID_WGSL,
+      indirectArgsWgsl('lightTileArgs', { words: 'LT_ARGS_WORDS' }),
+    ],
   )
 
 /** The program of the counters: the clears, the offsets of the slots and the arguments of the dispatches. */

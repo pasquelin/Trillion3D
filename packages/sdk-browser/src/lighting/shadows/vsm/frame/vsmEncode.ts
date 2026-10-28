@@ -1,3 +1,7 @@
+import {
+  sampledMarkingFrontSamples,
+  sampledMarkingSamples,
+} from '../../../manyLightsSampled/frame.ts'
 import { vsmViewToShifted } from '../froxel/froxelView.ts'
 import { VSM_PRESSURE_BIAS_NONE } from '../constants.ts'
 import { vsmLightGridFor, vsmProjectionReserve } from '../projection/projectionStore.ts'
@@ -35,15 +39,11 @@ import { markVirtualShadowRendered, type VsmLightAllocation } from '../frameSetu
 import { encodeCastInvalidation, endCastInvalidation } from '../invalidation/castInvalidation.ts'
 import { createCastChanges } from '../../casters/castChanges.ts'
 import { encodeCastDiff } from '../../casters/castDiff.ts'
+import { denseOf } from './vsmDense.ts'
 import { lightIdsBuffer, type EngineVsm } from './engineVsm.ts'
 import { VSM_PASS_PREFIX } from '../../../../diagnostic/stage/passLabels.ts'
 import { encodeVsmRaster, type VsmFrame } from './vsmProject.ts'
-import {
-  askVsmThrottleStrength,
-  clearVsmThrottle,
-  encodeVsmThrottle,
-  vsmThrottleState,
-} from '../throttle.ts'
+import { askVsmThrottleStrength, encodeVsmThrottle, vsmThrottleState } from '../throttle.ts'
 import {
   encodeVsmPyramid,
   prepareVsmPyramid,
@@ -116,6 +116,8 @@ const frameScratch = (vsm: EngineVsm) =>
     target: { suns: undefined as never, locals: undefined as never, localFormat: 'r32uint' },
     marking: {
       mapCount: 0,
+      claimed: 0,
+      singleMaps: 0,
       perPage: undefined as never,
       perspective: true,
       view: undefined,
@@ -139,6 +141,7 @@ const frameScratch = (vsm: EngineVsm) =>
       originShift: [0, 0, 0],
       front: undefined,
       water: undefined,
+      hair: undefined,
     },
     markingFront: newMarkingFront(),
     frontSeen: newFrontSeen(),
@@ -159,7 +162,7 @@ function encodeVsmChanges(
   const { lights } = rt,
     { res, stats } = vsm
   stats.lights = plan.lights.length
-  stats.maps = plan.projectionCount
+  stats.maps = plan.claimedCount
   stats.tableBlocks = plan.tableBlocks
   // Published as the bias the maps see: one under `VSM_PRESSURE_BIAS_NONE`, where its fall stalls, is none.
   const { pressureBias } = vsm.state.cache
@@ -186,6 +189,58 @@ function encodeVsmChanges(
   vsm.pendingCastMaps = null
 }
 
+/** The frame's context for a plan that draws: the stats cleared, the throttle where the settings ask it, the projection of the render. */
+function vsmFrameOf(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  vsm: EngineVsm,
+  plan: NonNullable<EngineVsm['plan']>,
+  pmFrame: ReturnType<typeof pageManagementFrameOf>,
+  strength: number,
+): VsmFrame {
+  const { res } = vsm
+  // What the passes of the run read cleared before it: the overflow flags, cleared whatever the counters
+  // say (they are read back every frame).
+  encoder.clearBuffer(res.stats)
+  // The compute throttle where the settings ask it: its buffers are cleared, and its kernels run, inside the marking.
+  const throttle = plan.throttleReady ? vsmThrottleState(device, res) : undefined
+  return {
+    rt,
+    device,
+    encoder,
+    cam,
+    projection: taaRenderProjection(rt, cam, renderProjection),
+    vsm,
+    plan,
+    throttle,
+    strength,
+  }
+}
+
+/** The raster of the lights `drawn`, with the tables kept for the occlusion and the pyramid built over what the view passes drew; the pyramid, none where every light was fully cached. */
+function encodeRasterWork(frame: VsmFrame, drawn: readonly VsmLightAllocation[]) {
+  const { rt, device, encoder, vsm, plan } = frame
+  const { res } = vsm
+  // Every light fully cached: no page to draw, no tables to keep, no pyramid to build. The next frame,
+  // with no previous tables kept, culls once a view pass.
+  if (drawn.length === 0) {
+    vsm.renderedPlan = plan
+    return undefined
+  }
+  // The frame's tables kept for the occlusion's second cull and the next frame's first.
+  keepOcclusionTables(encoder, res, { mapCount: plan.projectionCount, blocks: plan.tableBlocks })
+  markVirtualShadowRendered(plan, drawn)
+  encodeVsmRaster(frame, drawn)
+  // The pyramid's last build of the frame, over what the view passes drew since their own build
+  // between the two culls.
+  const pyramid = vsmOcclusionContext(res, device)
+  if (pyramid)
+    prepareVsmPyramid(encoder, res, pyramid, readShadowSetting(rt, 'shadowOcclusionFullUpdate'))
+  return pyramid
+}
+
 /**
  * The frame's GPU work of the virtual shadow maps, after the light lists and before the lighting:
  * invalidation, page management, marking, allocation, raster and post-render; the projection, whose
@@ -207,29 +262,13 @@ export function encodeVsmFrame(
   const scratch = frameScratch(vsm)
   const perPage = vsmCachePerPageBins(state.cache, scratch.perPage)
   const pmFrame = pageManagementFrameOf(device, vsm, plan, perPage)
-  // What the passes of the run read cleared before it: the overflow flags, cleared whatever the counters
-  // say (they are read back every frame).
-  if (drawing) encoder.clearBuffer(res.stats)
-  // The compute throttle where the settings ask it: its buffers cleared before the kernels and the cull.
-  const throttle = drawing && plan.throttleReady ? vsmThrottleState(device, res) : undefined
-  if (throttle) clearVsmThrottle(encoder, res, throttle)
   // The render-scale controller is given the time budget each frame, named or not.
   const strength = askVsmThrottleStrength(
     rt,
     state.maps.shadows.shadowDynamicResolutionTimeBudgetMs,
   )
-  const frame: VsmFrame | undefined = drawing
-    ? {
-        rt,
-        device,
-        encoder,
-        cam,
-        projection: taaRenderProjection(rt, cam, renderProjection),
-        vsm,
-        plan,
-        throttle,
-        strength,
-      }
+  const frame = drawing
+    ? vsmFrameOf(rt, device, encoder, cam, vsm, plan, pmFrame, strength)
     : undefined
   const steps = frontRun.begin(encoder)
   encodeVsmChanges(rt, device, steps, vsm, plan)
@@ -244,19 +283,7 @@ export function encodeVsmFrame(
   const drawn = rasterLights(plan, scratch.raster)
   // Every light fully cached: no page to draw, no tables to keep, no pyramid to build. The next frame,
   // with no previous tables kept, culls once a view pass.
-  let pyramid: ReturnType<typeof vsmOcclusionContext>
-  if (drawn.length === 0) vsm.renderedPlan = plan
-  else {
-    // The frame's tables kept for the occlusion's second cull and the next frame's first.
-    keepOcclusionTables(encoder, res, { mapCount: plan.projectionCount, blocks: plan.tableBlocks })
-    markVirtualShadowRendered(plan, drawn)
-    encodeVsmRaster(frame, drawn)
-    // The pyramid's last build of the frame, over what the view passes drew since their own build
-    // between the two culls.
-    pyramid = vsmOcclusionContext(res, device)
-    if (pyramid)
-      prepareVsmPyramid(encoder, res, pyramid, readShadowSetting(rt, 'shadowOcclusionFullUpdate'))
-  }
+  const pyramid = encodeRasterWork(frame, drawn)
   // The build and the post-render follow one another: one compute pass, but on a frame timed per pass.
   resetVsmClearArgs(encoder, res, pmFrame)
   resetVsmFilterable(encoder, res, pmFrame)
@@ -314,6 +341,53 @@ function uploadLightIds({ device, vsm, plan }: VsmFrame, suns: Uint32Array<Array
   return directional
 }
 
+/** The marking's view of the image: its depth, normals and flags, the light lists and grid, the size and the shifts, the front layer and the strands'. */
+function fillMarkingView(
+  frame: VsmFrame,
+  scratch: VsmFrameScratch,
+  views: GPUTextureView[],
+  directLights: GPUBuffer,
+  tileLights: GPUBuffer,
+  directional: number,
+  front: ReturnType<typeof markingFrontLayer>,
+) {
+  const { rt, device, cam, projection, vsm } = frame
+  const { lights, gpu } = rt
+  const [width, height] = gpu.targetSize
+  const view = scratch.markingView
+  view.depth = gpu.depthView!
+  view.normalRough = views[1]
+  view.flags = views[3]
+  view.view = gpu.deferred!.uniform
+  view.directLights = directLights
+  view.tileLights = tileLights
+  // Made before the pass, the grid the projection and the lighting read after it.
+  const gridWords = rt.lights.tiles!.worldStart
+  view.lightGrid = vsmLightGridFor(
+    device,
+    vsmProjectionReserve(device, vsm.res),
+    Math.max(gridWords, 1),
+  )
+  view.gridCells =
+    gridWords && rt.lights.tiles!.tilesX * rt.lights.tiles!.tilesY * LIGHT_SETTINGS.gridSlices
+  view.lightVsmIds = vsm.lightIds
+  view.sunMapIds = vsm.directionalIds
+  view.sunMapCount = directional
+  view.viewSize[0] = width
+  view.viewSize[1] = height
+  view.viewToClip = vsmForwardZViewToClip(projection, forwardZViewToClip)
+  view.originShift[0] = -cam.eye[0]
+  view.originShift[1] = -cam.eye[1]
+  view.originShift[2] = -cam.eye[2]
+  vsmViewToShifted(view.viewToShifted as Float32Array, cam.view, view.originShift)
+  view.front = front
+  view.water = waterDepthMarked(rt)
+  view.hair = gpu.hair?.visible?.shadow
+  view.samples = sampledMarkingSamples(rt)
+  view.frontSamples = sampledMarkingFrontSamples(rt)
+  return view
+}
+
 /** The page marking, a compute pass of the run `steps`: the physical page addresses remapped to this frame's ids,
  *  then the marking's clears, coarse pages and every pixel of the visibility buffer. The suns' ids
  *  and the light ids go up only where they changed. */
@@ -334,44 +408,28 @@ function encodeVsmMarking(
   const markingFrame = scratch.marking
   const front = markingFrontLayer(rt, cam, scratch.frontSeen, scratch.markingFront)
   markingFrame.mapCount = plan.projectionCount
+  markingFrame.claimed = plan.claimedCount
+  markingFrame.singleMaps = plan.singleCount
   markingFrame.perPage = perPage
   markingFrame.perspective = cam.perspective === 1
   markingFrame.settings = vsm.state.maps.shadows
   markingFrame.throttled = !!throttle
+  markingFrame.dense = denseOf(rt, cam, plan, vsm.state.maps.shadows, width, height)
   if (lights.buffer && tiles) {
-    const view = scratch.markingView
-    view.depth = gpu.depthView!
-    view.normalRough = views[1]
-    view.flags = views[3]
-    view.view = gpu.deferred!.uniform
-    view.directLights = lights.buffer
-    view.tileLights = tiles
-    // Made before the pass, the grid the projection and the lighting read after it.
-    const gridWords = lights.tiles!.worldStart
-    view.lightGrid = vsmLightGridFor(
-      device,
-      vsmProjectionReserve(device, res),
-      Math.max(gridWords, 1),
+    markingFrame.view = fillMarkingView(
+      frame,
+      scratch,
+      views,
+      lights.buffer,
+      tiles,
+      directional,
+      front,
     )
-    view.gridCells =
-      gridWords && lights.tiles!.tilesX * lights.tiles!.tilesY * LIGHT_SETTINGS.gridSlices
-    view.lightVsmIds = vsm.lightIds
-    view.sunMapIds = vsm.directionalIds
-    view.sunMapCount = directional
-    view.viewSize[0] = width
-    view.viewSize[1] = height
-    view.viewToClip = vsmForwardZViewToClip(projection, forwardZViewToClip)
-    view.originShift[0] = -cam.eye[0]
-    view.originShift[1] = -cam.eye[1]
-    view.originShift[2] = -cam.eye[2]
-    vsmViewToShifted(view.viewToShifted as Float32Array, cam.view, view.originShift)
-    view.front = front
-    view.water = waterDepthMarked(rt)
-    markingFrame.view = view
   } else markingFrame.view = undefined
   const marking = steps.pass(MARKING_PASS)
-  // The compute throttle first, so that the marking reads the bias it adds to the maps' records.
-  encodeVsmThrottle(marking, frame)
+  // The compute throttle runs inside the marking, between the page rects' initialisation and the page tables' clear, so that the
+  // marking's pixels read the bias it adds to the maps' records.
+  markingFrame.afterRects = throttle ? (pass) => encodeVsmThrottle(pass, frame) : undefined
   encodeVsmPageCarry(marking, res, pmFrame)
   vsm.marking.encode(marking, markingFrame)
   encodeVsmPageMapping(steps, res, pmFrame)

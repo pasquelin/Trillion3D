@@ -10,6 +10,7 @@ import {
   FINISH_BINDINGS as F,
   POOL_ARGS,
   POOL_BINDINGS as B,
+  POOL_ADAPTIVE,
   POOL_COST,
   POOL_PARAMS,
   POOL_PRIORITY_BUCKETS,
@@ -28,6 +29,11 @@ const POOL_CONSTS = wgslBlock(
     SLOT_USED: POOL_SLOT.usedAt,
     SLOT_TRACED: POOL_SLOT.tracedAt,
     SLOT_LEVEL: POOL_SLOT.level,
+    SLOT_OFFSET: POOL_SLOT.offset,
+    SLOT_RANK: POOL_SLOT.rank,
+    MAX_ADAPTIVE: POOL_ADAPTIVE.probes,
+    ADAPTIVE_MISSES: POOL_ADAPTIVE.misses,
+    ADAPTIVE_PRECISION: POOL_ADAPTIVE.precision,
     W_FREE: POOL_WORK.free,
     W_REFUSED: POOL_WORK.refused,
     W_QUEUED: POOL_WORK.queued,
@@ -59,7 +65,8 @@ const POOL_CONSTS = wgslBlock(
  * THE POOL'S STATE, as the kernels read it: the levels' uniform (`bounce`) and the pool's parameters (`pool`), the slots (`slots`, a record of
  * `SLOT_WORDS` words each, `POOL_SLOT`), the table (`table`: an entry a word — the slot plus one that holds the cell in the low sixteen
  * bits, its indirection, cleared and made again every pass, the slot plus one the lit passes read for it in the high sixteen, which a
- * probe takes at its first trace and gives back with its cell), the work buffer (`work`, `POOL_WORK`) and the marks' bitmap (`marks`).
+ * probe takes at its first trace and gives back with its cell), the adaptive probes of each entry (`adaptive`, `POOL_BINDINGS.adaptive`: the same two halves, a word a rank) and the interpolation misses
+ * the pixels counted (`misses`), both read and written only where the pool is adaptive (`pool.adaptive`), the work buffer (`work`, `POOL_WORK`) and the marks' bitmap (`marks`).
  */
 const POOL_STATE = wgslBlock(
   'POOL_STATE',
@@ -71,7 +78,11 @@ const POOL_STATE = wgslBlock(
 @group(0) @binding(${B.table}) var<storage,read_write> table:array<u32>;
 @group(0) @binding(${B.work}) var<storage,read_write> work:array<atomic<u32>>;
 @group(0) @binding(${B.marks}) var<storage,read_write> marks:array<atomic<u32>>;
+@group(0) @binding(${B.adaptive}) var<storage,read_write> adaptive:array<u32>;
+@group(0) @binding(${B.misses}) var<storage,read_write> misses:array<u32>;
 fn entries()->u32{return bounce.counts.y*bounce.counts.z;}
+/** The word of the adaptive probe of rank \`rank\` (one or two) of the entry \`entry\`. */
+fn adaptiveAt(entry:u32,rank:u32)->u32{return entry*MAX_ADAPTIVE+rank-1u;}
 /** The frame number: the images the pool has worked in, from one. */
 fn frameNumber()->u32{return bounce.frame.z;}
 fn slotWord(slot:u32,word:u32)->u32{return slots[slot*SLOT_WORDS+word];}
@@ -117,7 +128,8 @@ fn marked(entry:u32)->bool{return ((atomicLoad(&marks[entry>>5u])>>(entry&31u))&
  * - `clearIndirection`, a thread an entry: the slot every entry named is forgotten; the published half is left. The marks of the image's cells
  *   are made after it (`pool.ts`), the bitmap they set read from `updateProbes` on.
  * - `updateProbes`, a thread a slot: the probe of the last pass's indirection is put back in it if its cell is still held by its level and the
- *   marks read it now (stamped with the frame number) or it was read in the last `keep` frames; else it is given back (its published half cleared, its
+ *   marks read it now (stamped with the frame number) or it was read in the last `keep` frames (two at most where the free slots hold fewer than the
+ *   frame's budget of new probes); else it is given back (its published half cleared, its
  *   slot on the stack); in a full update (`fullUpdate`) every probe is given back, so that the cells the image reads take new ones, all never traced.
  *   It touches only the stack of free slots and the slots, nothing `clearWork` zeroes.
  * - `clearWork`: the counters, the histogram and the cut of the image, zeroed.
@@ -145,11 +157,16 @@ fn marked(entry:u32)->bool{return ((atomicLoad(&marks[entry>>5u])>>(entry&31u))&
 export const POOL_SHADER = wgslProgram(
   `@group(0) @binding(${B.queue}) var<storage,read_write> probeQueue:array<u32>;
 @group(0) @binding(${B.published}) var publishedOut:texture_storage_2d_array<${BOUNCE_ATLAS_FORMAT},write>;
-/** Gives the probe of the slot back: the slot the lit passes read for its entry forgotten, its slot on the stack. */
+/** Gives the probe of the slot back: the slot the lit passes read for its entry forgotten (an adaptive probe's word whole), its slot on the stack. */
 fn giveBack(slot:u32){
  let at=slot*SLOT_WORDS;
  let entry=slots[at+SLOT_OWNER]-1u;
- if((table[entry]>>16u)==slot+1u){table[entry]=table[entry]&0xffffu;}
+ let rank=slots[at+SLOT_RANK];
+ if(rank==0u){
+  if((table[entry]>>16u)==slot+1u){table[entry]=table[entry]&0xffffu;}
+ }else{
+  adaptive[adaptiveAt(entry,rank)]=0u;
+ }
  slots[at+SLOT_OWNER]=0u;
  let top=atomicAdd(&work[W_FREE],1u);
  atomicStore(&work[W_STACK+top],slot);
@@ -170,10 +187,13 @@ fn takeSlot()->u32{
 fn queueProbe(rank:u32,slot:u32,downsampled:bool){
  let at=rank*QUEUE_WORDS;
  let cell=slotCell(slot);
- probeQueue[at]=packQueued(slot,slotWord(slot,SLOT_LEVEL),downsampled);
- probeQueue[at+1u]=bitcast<u32>(cell.x);
- probeQueue[at+2u]=bitcast<u32>(cell.y);
- probeQueue[at+3u]=bitcast<u32>(cell.z);
+ probeQueue[at]=packQueued(slot,slotWord(slot,SLOT_LEVEL),downsampled,slotWord(slot,SLOT_RANK));
+ probeQueue[at+1u]=u32(cell.x);
+ probeQueue[at+2u]=u32(cell.y);
+ probeQueue[at+3u]=u32(cell.z);
+ probeQueue[at+4u]=slotWord(slot,SLOT_OFFSET);
+ probeQueue[at+5u]=slotWord(slot,SLOT_OFFSET+1u);
+ probeQueue[at+6u]=slotWord(slot,SLOT_OFFSET+2u);
 }
 /** A trace of the probe of the slot at this image: its first publishes it to the table. */
 fn traced(slot:u32){
@@ -182,7 +202,13 @@ fn traced(slot:u32){
  slots[at+SLOT_TRACED]=frameNumber();
  if(first){
   let entry=slots[at+SLOT_OWNER]-1u;
-  table[entry]=(table[entry]&0xffffu)|((slot+1u)<<16u);
+  let rank=slots[at+SLOT_RANK];
+  if(rank==0u){
+   table[entry]=(table[entry]&0xffffu)|((slot+1u)<<16u);
+  }else{
+   let word=adaptiveAt(entry,rank);
+   adaptive[word]=(adaptive[word]&0xffffu)|((slot+1u)<<16u);
+  }
  }
 }
 /** Where the histogram of \`count\` words from \`first\` stops being able to give \`limit\` whole: the first bucket whose cost brings the sum to the
@@ -204,18 +230,30 @@ fn clearWork(@builtin(global_invocation_id) id:vec3u){
 fn stampChange(){atomicStore(&work[W_CHANGED],frameNumber());}
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn clearIndirection(@builtin(global_invocation_id) id:vec3u){
- if(id.x<entries()){table[id.x]=table[id.x]&0xffff0000u;}
+ if(id.x<entries()){
+  table[id.x]=table[id.x]&0xffff0000u;
+  if(pool.adaptive!=0u){
+   for(var rank=1u;rank<=MAX_ADAPTIVE;rank++){
+    let word=adaptiveAt(id.x,rank);
+    adaptive[word]=adaptive[word]&0xffff0000u;
+   }
+  }
+ }
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn updateProbes(@builtin(global_invocation_id) id:vec3u){
  let slot=id.x;
  if(slot>=bounce.counts.w||!holds(slot)){return;}
+ // An adaptive probe follows its cell's own (\`updateAdaptive\`).
+ if(slotWord(slot,SLOT_RANK)!=0u){return;}
  let entry=slotWord(slot,SLOT_OWNER)-1u;
  var kept=levelHolds(slotWord(slot,SLOT_LEVEL),slotCell(slot));
  if(kept&&marked(entry)){
   slots[slot*SLOT_WORDS+SLOT_USED]=frameNumber();
  }else if(kept){
-  kept=frameNumber()-slotWord(slot,SLOT_USED)<pool.keep;
+  // Short of room for the frame's budget of new probes (the free slots, as they stand), a probe nothing reads is kept two frames at most.
+  let keep=select(pool.keep,min(2u,pool.keep),atomicLoad(&work[W_FREE])*COST_NORMAL<pool.room);
+  kept=frameNumber()-slotWord(slot,SLOT_USED)<keep;
  }
  if(kept&&pool.fullUpdate==0u){table[entry]=table[entry]|(slot+1u);}else{giveBack(slot);}
 }
@@ -240,14 +278,73 @@ fn allocateProbes(@builtin(global_invocation_id) id:vec3u){
   let cell=entryCell(entry);
   let at=slot*SLOT_WORDS;
   slots[at+SLOT_OWNER]=entry+1u;
-  slots[at+SLOT_CELL]=bitcast<u32>(cell.x);
-  slots[at+SLOT_CELL+1u]=bitcast<u32>(cell.y);
-  slots[at+SLOT_CELL+2u]=bitcast<u32>(cell.z);
+  slots[at+SLOT_CELL]=u32(cell.x);
+  slots[at+SLOT_CELL+1u]=u32(cell.y);
+  slots[at+SLOT_CELL+2u]=u32(cell.z);
   slots[at+SLOT_USED]=frameNumber();
   slots[at+SLOT_TRACED]=0u;
   slots[at+SLOT_LEVEL]=entryLevel(entry);
+  slots[at+SLOT_RANK]=0u;
+  slots[at+SLOT_OFFSET]=0u;
+  slots[at+SLOT_OFFSET+1u]=0u;
+  slots[at+SLOT_OFFSET+2u]=0u;
   table[entry]=(table[entry]&0xffff0000u)|(slot+1u);
  }
+}
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn updateAdaptive(@builtin(global_invocation_id) id:vec3u){
+ let slot=id.x;
+ if(slot>=bounce.counts.w||!holds(slot)){return;}
+ let rank=slotWord(slot,SLOT_RANK);
+ if(rank==0u){return;}
+ let entry=slotWord(slot,SLOT_OWNER)-1u;
+ // Kept while its cell's own probe is (this pass's indirection holds it), the cell is held by its level and a pixel read it in the frames the pool keeps probes.
+ var kept=(table[entry]&0xffffu)!=0u&&pool.fullUpdate==0u&&levelHolds(slotWord(slot,SLOT_LEVEL),slotCell(slot));
+ if(kept){kept=frameNumber()-slotWord(slot,SLOT_USED)<pool.keep;}
+ if(kept){
+  let word=adaptiveAt(entry,rank);
+  adaptive[word]=(adaptive[word]&0xffff0000u)|(slot+1u);
+ }else{
+  giveBack(slot);
+ }
+}
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn allocateAdaptive(@builtin(global_invocation_id) id:vec3u){
+ let entry=id.x;
+ if(pool.adaptive==0u||entry>=entries()){return;}
+ let count=misses[entry];
+ let sum=vec3u(misses[entries()+entry],misses[2u*entries()+entry],misses[3u*entries()+entry]);
+ misses[entry]=0u;
+ misses[entries()+entry]=0u;
+ misses[2u*entries()+entry]=0u;
+ misses[3u*entries()+entry]=0u;
+ if(count<=ADAPTIVE_MISSES||(table[entry]&0xffffu)==0u){return;}
+ var rank=0u;
+ for(var r=1u;r<=MAX_ADAPTIVE;r++){
+  if(rank==0u&&(adaptive[adaptiveAt(entry,r)]&0xffffu)==0u){rank=r;}
+ }
+ if(rank==0u){return;}
+ let slot=takeSlot();
+ if(slot==NO_SLOT){return;}
+ atomicMax(&work[W_HIGH],slot+1u);
+ let level=entryLevel(entry);
+ let cell=entryCell(entry);
+ // The mean ideal offset the pixels summed in the units of the precision: a whole cell is \`ADAPTIVE_PRECISION\` of them, centred on half.
+ let offset=(vec3f(sum)/f32(count)-vec3f(f32(ADAPTIVE_PRECISION)*0.5))*(bounce.levels[level].spacing*2.0/f32(ADAPTIVE_PRECISION));
+ let at=slot*SLOT_WORDS;
+ slots[at+SLOT_OWNER]=entry+1u;
+ slots[at+SLOT_CELL]=u32(cell.x);
+ slots[at+SLOT_CELL+1u]=u32(cell.y);
+ slots[at+SLOT_CELL+2u]=u32(cell.z);
+ slots[at+SLOT_USED]=frameNumber();
+ slots[at+SLOT_TRACED]=0u;
+ slots[at+SLOT_LEVEL]=level;
+ slots[at+SLOT_RANK]=rank;
+ slots[at+SLOT_OFFSET]=bitcast<u32>(offset.x);
+ slots[at+SLOT_OFFSET+1u]=bitcast<u32>(offset.y);
+ slots[at+SLOT_OFFSET+2u]=bitcast<u32>(offset.z);
+ let word=adaptiveAt(entry,rank);
+ adaptive[word]=(adaptive[word]&0xffff0000u)|(slot+1u);
 }
 @compute @workgroup_size(WORKGROUP_THREADS)
 fn countProbes(@builtin(global_invocation_id) id:vec3u){

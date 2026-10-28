@@ -1,4 +1,4 @@
-import { checkGroup, checkLayout, checkPipelineLayout } from './bindRules.ts'
+import { checkGroup, checkLayout, checkPipelineLayout, checkPipelineShaders } from './bindRules.ts'
 import {
   checkBuffer,
   checkClear,
@@ -151,6 +151,13 @@ export function validating<T extends object>(device: T): T {
   guard(owner, 'createPipelineLayout', (d: GPUPipelineLayoutDescriptor) =>
     checkPipelineLayout(d, limits()),
   )
+  for (const name of [
+    'createRenderPipeline',
+    'createRenderPipelineAsync',
+    'createComputePipeline',
+    'createComputePipelineAsync',
+  ])
+    guard(owner, name, checkPipelineShaders)
   guard(owner, 'createBindGroup', (d: GPUBindGroupDescriptor) =>
     checkGroup(d, resolve, limits(), features),
   )

@@ -1,3 +1,4 @@
+import { sinFromCosUnclamped } from '../../../../../math/src/wgsl/geometry.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { CLOUD_SHADOW_FORMAT, CLOUD_SHADOW_GROUP_SIZE } from './shadowLayout.ts'
 import { CLOUD_SHADOW_ROUND } from './shadowWgsl.ts'
@@ -42,7 +43,7 @@ export const SKY_OCCLUSION_FILTER_PROGRAM = wgslProgram(
 fn uniformHemisphere(e:vec2f)->vec3f{
  let phi=6.283185307179586*e.x;
  let cosTheta=e.y;
- let sinTheta=sqrt(1.0-cosTheta*cosTheta);
+ let sinTheta=sinFromCosUnclamped(cosTheta);
  return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
 }
 @compute @workgroup_size(${CLOUD_SHADOW_GROUP_SIZE},${CLOUD_SHADOW_GROUP_SIZE},1)
@@ -67,6 +68,6 @@ fn skyOcclusionFilterMain(@builtin(global_invocation_id) id:vec3u){
  let opticalDepth=select(100.0,-log(transmittance/count),transmittance>0.0);
  textureStore(destination,id.xy,cloudShadowStore(vec3f(depth/count,extinction/count,opticalDepth)));
 }`,
-  [CLOUD_SHADOW_ROUND],
+  [CLOUD_SHADOW_ROUND, sinFromCosUnclamped],
 )
 export const SKY_OCCLUSION_FILTER_ENTRY = 'skyOcclusionFilterMain'

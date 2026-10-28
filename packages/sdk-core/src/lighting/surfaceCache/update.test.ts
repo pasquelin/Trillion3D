@@ -94,3 +94,54 @@ test('a fixed debugging resolution gives every card that many texels, whatever i
     'held to the greatest resolution, 512',
   )
 })
+
+test('the debugging reset, the pre-exposure of the cards’ light and the forced eviction act on the image they are asked in', () => {
+  assert.equal(defaults.surfaceCacheReset, false)
+  assert.equal(defaults.surfaceCacheResetEveryNthFrame, 0)
+  assert.equal(defaults.surfaceCacheForceEvictHiResPages, false)
+  const view = {
+    origins: [[0, 0, 0]] as [number, number, number][],
+    orthographic: false,
+    clipmapExtent: 100000,
+  }
+  const { cache } = updated({})
+  // The first image made the atlas under the pre-exposure it was given (none: 0); the next one is not reset unless asked.
+  assert.equal(updateSurfaceCache(cache, defaults, view).reset, false)
+  assert.equal(updateSurfaceCache(cache, defaults, { ...view, reset: true }).reset, true)
+  const evicted = updateSurfaceCache(cache, defaults, { ...view, forceEvictHiResPages: true })
+  assert.equal(evicted.reset, false)
+  // A pre-exposure other than the one the cards were captured under makes the atlas again and empties it, once.
+  assert.equal(updateSurfaceCache(cache, defaults, { ...view, preExposure: 2 }).reset, true)
+  assert.equal(cache.preExposure, 2)
+  assert.equal(updateSurfaceCache(cache, defaults, { ...view, preExposure: 2 }).reset, false)
+})
+
+test('the format the atlas stores its light in makes the atlas again and empties it, once, as the pre-exposure does', () => {
+  const view = {
+    origins: [[0, 0, 0]] as [number, number, number][],
+    orthographic: false,
+    clipmapExtent: 100000,
+  }
+  const { cache } = updated({})
+  // The first image made the atlas in the format it was given; an image that names none keeps it.
+  assert.equal(updateSurfaceCache(cache, defaults, { ...view, light: 'r32uint' }).reset, true)
+  assert.equal(updateSurfaceCache(cache, defaults, { ...view, light: 'r32uint' }).reset, false)
+  assert.equal(updateSurfaceCache(cache, defaults, view).reset, false)
+  assert.equal(updateSurfaceCache(cache, defaults, { ...view, light: 'rgba16float' }).reset, true)
+  assert.equal(cache.light, 'rgba16float')
+  assert.equal(updateSurfaceCache(cache, defaults, { ...view, light: 'rgba16float' }).reset, false)
+})
+
+test('the sun’s shadow on the cards is traced through the meshes’ fields by default, from two centimetres off the texel', () => {
+  assert.equal(defaults.surfaceCacheDirectLightingOffscreenShadowingTraceMeshSdfs, true)
+  assert.equal(defaults.surfaceCacheDirectLightingMeshSdfShadowRayBias, 2)
+})
+
+test('the stochastic direct light is off, with one sample a texel, blended over 12 images', () => {
+  assert.equal(defaults.surfaceCacheDirectLightingStochastic, false)
+  assert.equal(defaults.surfaceCacheDirectLightingStochasticTemporal, true)
+  assert.equal(defaults.surfaceCacheDirectLightingStochasticTemporalMaxFramesAccumulated, 12)
+  assert.equal(defaults.surfaceCacheDirectLightingStochasticTemporalNeighborhoodClampScale, 2)
+  assert.equal(defaults.surfaceCacheDirectLightingStochasticSamplePerTexel, 1)
+  assert.equal(defaults.surfaceCacheDirectLightingStochasticMinWeight, 0.001)
+})

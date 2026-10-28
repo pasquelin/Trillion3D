@@ -30,7 +30,7 @@ import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
  * WEIGHT (`reflectionReuseWeight`): a neighbour's ray left `Q` along `d`, drawn among its lobe's visible
  * normals (`visibleGgxHalf`, bounded), whose half vector has the pdf p = 2 (V·h) D(h) / (k n·v + |v̂|) (`reflectionHalfPdf`,
  * anisotropic where the lobe is: D the anisotropic distribution, |v̂| the view's length stretched by the widths) and the ray it
- * gives, mirrored about it, the pdf p / (4 V·h) (`reflectionRayPdf`), whose inverse is the ray's cone (`reflectionRayCone`, held between 10⁻⁵ and 10⁴), which the ray generation stores with the
+ * gives, mirrored about it, that same pdf p (`reflectionRayPdf`: the half vector's, with no Jacobian to the reflected direction, as the weight's divisor and the cone's inverse alike), whose inverse is the ray's cone (`reflectionRayCone`, held between 10⁻⁵ and 10⁴), which the ray generation stores with the
  * ray's direction, in half floats (`surfaceRays`), and its surface's depth beside it (the ray texture's layer); seen from the
  * pixel, the point it met — at the nearer of the two rays' distances, so a neighbour's far answer never
  * stands for the pixel's near one — lies along `L`, which the pixel's lobe weighs D(h′),
@@ -73,12 +73,11 @@ fn reflectionHalfPdf(N:vec3f,V:vec3f,f:ReflectionFrame,widths:vec2f,h:vec3f)->f3
  return 2.0*max(dot(V,h),0.0)*reflectionLobeDensity(N,f,widths,h)/(k*nv+stretched);
 }
 /** The pdf of the ray cast along \`d\` from a lobe of normal \`N\` seen from \`V\`, laid on the axis \`axis\` (none for a round lobe) with the widths
- *  \`widths\` (along the axis, across): the pdf of the half vector it was drawn with (\`reflectionHalfPdf\`) carried over to the reflected ray,
- *  divided by 4 (V·h) (V·h held above a millionth). */
+ *  \`widths\` (along the axis, across): the pdf of the half vector it was drawn with (\`reflectionHalfPdf\`), the one the weight divides by and the cone inverts. */
 fn reflectionRayPdf(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,d:vec3f)->f32{
  let f=reflectionFrameOf(N,axis);
  let h=normalize(V+d);
- return reflectionHalfPdf(N,V,f,widths,h)/(4.0*max(saturate(dot(V,h)),1e-6));
+ return reflectionHalfPdf(N,V,f,widths,h);
 }
 /** The cone angle of a ray of that pdf: its inverse, the pdf held above a ten-thousandth, the angle above \`REFLECTION_MIN_CONE\`. */
 fn reflectionRayCone(N:vec3f,V:vec3f,axis:vec3f,widths:vec2f,d:vec3f)->f32{
@@ -183,7 +182,7 @@ fn resolvePixel(coord:vec2i,layer:u32)->vec4u{
  var total=0.0;
  var best=0.0;
  var centreTexel=vec2i(0);
- var hit=REFLECTION_MISS_DISTANCE;
+ var hit=REFLECTION_DISTANCE_MAX;
  for(var k=select(0,3,single);k<4;k++){
   let g=first+select(vec2i(k&1,k>>1u),resolveCheckerStep(k,coord.x),checker);
   if(any(g<vec2i(0))||any(g>=size)){continue;}
@@ -212,7 +211,8 @@ fn resolvePixel(coord:vec2i,layer:u32)->vec4u{
   let V=own.V;
   // The lobe the neighbours' rays are weighed on: the pixel's, its widths scaled by the roughness scale, laid on the frame of its axis.
   let shape=reflectionTopLobe(own.top);
-  let widths=vec2f(shape.lobe.w,shape.across)*(lobeAlpha(clamp(own.top*reflectionView.reconstructionScale,0.0,1.0))/alpha);
+  let scaled=clamp(own.top*reflectionView.reconstructionScale,0.0,1.0);
+  let widths=vec2f(shape.lobe.w,shape.across)*(scaled*scaled/alpha);
   let frame=reflectionFrameOf(own.topN,shape.lobe.xyz);
   // The disc of neighbours, round; for an anisotropic lobe stretched along the screen image of its axes, by the strength of the anisotropy.
   var major=vec2f(radius,0.0);

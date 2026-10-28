@@ -253,6 +253,8 @@ export function createCloudViewGpu(device: GPUDevice) {
     state: createCloudViewState(),
     /** What the last image left for the translucent surfaces; none before an image that draws. */
     shown: undefined as CloudShown | undefined,
+    /** The composition of the last image where it waits for the single-layer water to be shaded (`encodeCloudView`'s `deferred`); none else. */
+    pending: undefined as ((water?: GPUTextureView) => void) | undefined,
     last: emptyLast(),
     /** The depth range textures for a view of `view` pixels drawn in a target allocated at
      *  `allocated`; with `quarter`, the quarter-size texture of two surfaces as well. */

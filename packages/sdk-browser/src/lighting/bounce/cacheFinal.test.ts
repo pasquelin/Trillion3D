@@ -3,11 +3,15 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { CACHE_FILTER_PROGRAM } from './cache/cacheFilterWgsl.ts'
-import { CACHE_FIXUP_PROGRAM } from './cache/cacheFixupWgsl.ts'
+import { cacheFilterProgram } from './cache/cacheFilterWgsl.ts'
+import { cacheFixupProgram } from './cache/cacheFixupWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { octWrapBorder } from '../../../../math/src/wgsl/octahedral.ts'
 import { packLight, unpackLight } from '../../gpu/core/smallFloatWgsl.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
+
+const CACHE_FILTER_PROGRAM = cacheFilterProgram(WORD_LIGHT_FORMAT)
+const CACHE_FIXUP_PROGRAM = cacheFixupProgram(WORD_LIGHT_FORMAT)
 
 /** The final maps of one probe, in slot zero queued at `entry`, made by the fixup's phases run as a workgroup runs them: every thread of a phase
  *  before the next, a block of texels at a time. The first level is `input(x, y)` over the map, `noise` the hash the dither is given. Returns

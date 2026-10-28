@@ -4,6 +4,7 @@
 
 import type { ShadowValues } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { arrayOf, fieldLayout } from '../../../../gpu/core/fieldLayout.ts'
+import { CLASSIC_VEC4S } from '../../classic/classicView.ts'
 
 /** The rays and steps of a view's traces (`VsmProjectionView.traceRays`): its shadow settings'. */
 export type VsmTraceCounts = Pick<
@@ -63,11 +64,15 @@ const VIEW = fieldLayout('VsmProjectionView', [
   ['projectionRect', 'vec4i'],
   ['traceRays', 'vec4u'],
   ['lights', arrayOf(LIGHT, VSM_PROJECTION_MAX_PASS_LIGHTS)],
+  // After the lights, so that the header and the records lie where they always lay and a view of the virtual maps uploads the very bytes it did: the classic shadows' words (`classicView.ts`) are written and uploaded only where the shadows are classic.
+  ['classic', { wgsl: `array<vec4f,${CLASSIC_VEC4S}>`, words: 4 * CLASSIC_VEC4S, align: 4 }],
 ] as const)
 
 /** Words of the header (the view up to its lights) and of a light's record. */
 export const VSM_PROJECTION_HEADER_WORDS = VIEW.at.lights
 export const VSM_PROJECTION_LIGHT_WORDS = LIGHT.words
+/** The bytes of the classic block at the end of the view, and where it begins. */
+export const VSM_PROJECTION_CLASSIC_BYTES = 16 * CLASSIC_VEC4S
 /** Byte size of `VsmProjectionView` (uniform). */
 export const VSM_PROJECTION_VIEW_BYTES = 4 * VIEW.words
 

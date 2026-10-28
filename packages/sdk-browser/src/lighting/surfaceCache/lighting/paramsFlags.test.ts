@@ -12,6 +12,7 @@ import {
   planesOf,
   viewProjection,
 } from './params.fixture.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
 /** An image from the origin, its view the one of a camera there. */
 const atOrigin = (image: Parameters<typeof lightingImage>[0] = {}) =>
@@ -38,7 +39,7 @@ test('the frustum planes are outward, in centimetres from the eye, whatever the 
 })
 
 test("an image's parameters carry the settings: the flags, the pre-exposed ray limit, the view's ray reach in centimetres, the eye in both units", () => {
-  const shape = shapeOf(settings, 1024, false)
+  const shape = shapeOf(settings, 1024, false, WORD_LIGHT_FORMAT)
   const words = new Uint32Array(LIGHTING_PARAMS.words)
   writeLightingParams(words, shape, settings, {
     frame: 9,
@@ -103,7 +104,7 @@ test('the frozen update frame and the two-sided shadow rays are flags of the set
   const words = new Uint32Array(LIGHTING_PARAMS.words)
   writeLightingParams(
     words,
-    shapeOf(settings, 1024, false),
+    shapeOf(settings, 1024, false, WORD_LIGHT_FORMAT),
     {
       ...settings,
       surfaceCacheFreezeUpdateFrame: 1,
@@ -123,7 +124,7 @@ test('the lights are culled to the depth range of the tile unless the setting is
     const words = new Uint32Array(LIGHTING_PARAMS.words)
     writeLightingParams(
       words,
-      shapeOf(settings, 1024, false),
+      shapeOf(settings, 1024, false, WORD_LIGHT_FORMAT),
       { ...settings, surfaceCacheDirectLightingCullToTileDepthRange: cull },
       atOrigin(),
     )
@@ -139,7 +140,7 @@ test('the light tiles of the point lights, the spots and the rectangles are gath
     const words = new Uint32Array(LIGHTING_PARAMS.words)
     writeLightingParams(
       words,
-      shapeOf(settings, 1024, false),
+      shapeOf(settings, 1024, false, WORD_LIGHT_FORMAT),
       { ...settings, surfaceCacheDirectLightingBatchShadows: batch },
       atOrigin(),
     )
@@ -154,7 +155,7 @@ test('the light tiles of the point lights, the spots and the rectangles are gath
 test('a frozen cache lights no tile and holds the update frame, its lists keeping their size', () => {
   const written = (changes: Partial<typeof settings>) => {
     const words = new Uint32Array(LIGHTING_PARAMS.words)
-    const shape = shapeOf(settings, 1024, false)
+    const shape = shapeOf(settings, 1024, false, WORD_LIGHT_FORMAT)
     writeLightingParams(words, shape, { ...settings, ...changes }, lightingImage())
     return { words, shape }
   }
@@ -168,7 +169,10 @@ test('a frozen cache lights no tile and holds the update frame, its lists keepin
   assert.equal(frozen.words[at.indirectTiles], 0)
   assert.ok(frozen.words[at.flags] & LIGHTING_FLAG.freezeUpdateFrame)
   // The lists the shape makes are those of the unfrozen cache.
-  assert.deepEqual(shapeOf({ ...settings, surfaceCacheFreeze: true }, 1024, false), lit.shape)
+  assert.deepEqual(
+    shapeOf({ ...settings, surfaceCacheFreeze: true }, 1024, false, WORD_LIGHT_FORMAT),
+    lit.shape,
+  )
   // A frozen update frame alone still lights its tiles.
   assert.equal(
     written({ surfaceCacheFreezeUpdateFrame: 1 }).words[at.directTiles],

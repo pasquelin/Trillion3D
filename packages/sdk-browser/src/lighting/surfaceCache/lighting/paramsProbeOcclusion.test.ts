@@ -5,19 +5,21 @@ import assert from 'node:assert/strict'
 import { LIGHTING_FLAG, LIGHTING_PARAMS } from './layout.ts'
 import { shapeOf, sizesOf, writeLightingParams } from './params.ts'
 import { lightingImage, lightingSettings as settings } from './params.fixture.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
 const on = { ...settings, surfaceCacheRadiosityProbeOcclusion: true }
 
 test('the probe occlusion is off by default at a strength of 0.5, and kept as a hit-distance atlas of 1 × 1 while off', () => {
   assert.equal(settings.surfaceCacheRadiosityProbeOcclusion, false)
   assert.equal(settings.surfaceCacheRadiosityProbeOcclusionStrength, 0.5)
-  const off = shapeOf(settings, 1024, false)
+  const off = shapeOf(settings, 1024, false, WORD_LIGHT_FORMAT)
   assert.equal(off.probeOcclusion, false)
   assert.equal(sizesOf(off).hitAtlas, 1)
 })
 
 test('the shape asks for the hit distances only with the occlusion on, a strength over 0, the radiosity and its rays through the triangles', () => {
-  const shapeWith = (changes: object) => shapeOf({ ...on, ...changes }, 1024, false)
+  const shapeWith = (changes: object) =>
+    shapeOf({ ...on, ...changes }, 1024, false, WORD_LIGHT_FORMAT)
   const wanted = shapeWith({})
   assert.equal(wanted.probeOcclusion, true)
   assert.equal(sizesOf(wanted).hitAtlas, sizesOf(wanted).traceAtlas)
@@ -35,7 +37,7 @@ test('the image’s flag is on only where the shape asks for the occlusion and t
     const words = new Uint32Array(LIGHTING_PARAMS.words)
     writeLightingParams(
       words,
-      shapeOf(values, 1024, false),
+      shapeOf(values, 1024, false, WORD_LIGHT_FORMAT),
       values,
       lightingImage({ tracedRadiosity }),
     )

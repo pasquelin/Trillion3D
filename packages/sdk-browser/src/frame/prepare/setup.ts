@@ -49,6 +49,8 @@ function projectSwitches(context: EngineContext) {
     translucentShadow: {
       quality: readSetting(SHADOW_RULES, context, 'shadowTranslucentQuality'),
       localShadows: readSetting(SHADOW_RULES, context, 'shadowTranslucentLocalLights'),
+      /** The classic shadow maps (`shadowVirtualEnable` off): the translucent surfaces read every light by the classic filter, as the opaque ones' projection does. */
+      classic: !readSetting(SHADOW_RULES, context, 'shadowVirtualEnable'),
     },
     /** Whether the reflections' trace counts its rays, the project switch `reflectionStatistics` (off): read once, here, as
      *  `translucentShadow` is, for the trace's kernels are compiled with the counting or without it

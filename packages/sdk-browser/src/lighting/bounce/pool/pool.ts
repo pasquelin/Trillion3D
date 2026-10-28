@@ -24,6 +24,7 @@ import {
   POOL_BINDINGS as B,
   POOL_PARAMS,
   POOL_PARAMS_BYTES,
+  POOL_ADAPTIVE,
   POOL_SLOT,
   POOL_WORK,
   freshWork,
@@ -198,7 +199,7 @@ async function createProbeMarks(device: GPUDevice, grid: GPUBuffer, marks: GPUBu
 }
 
 /** The buffers the pool keeps and the passes bind, for `slots` probes and a table of `shape`. */
-function createPoolBuffers(device: GPUDevice, slots: number, shape: PoolShape) {
+function createPoolBuffers(device: GPUDevice, slots: number, shape: PoolShape, adaptive: boolean) {
   const storage = (label: string, words: number, extra = 0) =>
     device.createBuffer({
       label: `Trillion3D bounce pool ${label} v1`,
@@ -212,6 +213,9 @@ function createPoolBuffers(device: GPUDevice, slots: number, shape: PoolShape) {
     table: storage('table', Math.max(1, shape.tableTexels * 4)),
     work,
     marks: storage('marks', shape.markWords),
+    // The adaptive probes of each entry and the interpolation misses (`POOL_BINDINGS.adaptive`): a word each where the pool is not adaptive, which nothing reads.
+    adaptive: storage('adaptive', adaptive ? shape.entries * POOL_ADAPTIVE.probes : 1),
+    misses: storage('misses', adaptive ? shape.entries * 4 : 1),
     args: storage('arguments', POOL_ARGS.words, GPUBufferUsage.INDIRECT),
     params: device.createBuffer({
       label: 'Trillion3D bounce pool parameters v1',
@@ -235,6 +239,8 @@ const compilePool = oncePerDevice(async (device: GPUDevice) => {
       computeBufferEntry(B.marks, 'storage'),
       computeBufferEntry(B.queue, 'storage'),
       atlasEntry(B.published, true),
+      computeBufferEntry(B.adaptive, 'storage'),
+      computeBufferEntry(B.misses, 'storage'),
     ],
   })
   const pipelines = await buildComputeStages(device, [layout], module, [
@@ -242,7 +248,9 @@ const compilePool = oncePerDevice(async (device: GPUDevice) => {
     'stampChange',
     'clearIndirection',
     'updateProbes',
+    'updateAdaptive',
     'allocateProbes',
+    'allocateAdaptive',
     'countProbes',
     'cutProbes',
     'emitProbes',
@@ -303,6 +311,8 @@ function createPoolGroups(
         marks: { buffer: buffers.marks },
         queue: { buffer: parts.queue },
         published: parts.published,
+        adaptive: { buffer: buffers.adaptive },
+        misses: { buffer: buffers.misses },
       }),
     }),
     finish: device.createBindGroup({
@@ -350,7 +360,7 @@ function createPoolStats(device: GPUDevice) {
 
 /** The writer of the pool's parameters (`POOL_PARAMS`) for the work of an image, which is a full update where `full`: no budget, every probe
  *  given back. The probes it may queue are the work's. */
-function createPoolParams(device: GPUDevice, buffer: GPUBuffer) {
+function createPoolParams(device: GPUDevice, buffer: GPUBuffer, adaptive: boolean) {
   const { u: words, f: floats } = wordViews(new ArrayBuffer(POOL_PARAMS_BYTES))
   const P = POOL_PARAMS.at
   return (work: PoolWork, full: boolean) => {
@@ -361,6 +371,7 @@ function createPoolParams(device: GPUDevice, buffer: GPUBuffer) {
     words[P.fullUpdate] = limits.fullUpdate
     words[P.markDownsample] = work.markDownsample
     words[P.markDownsample + 1] = work.interpolateDownsample
+    words[P.adaptive] = adaptive ? 1 : 0
     floats[P.distances] = work.downsampleSq
     floats[P.distances + 1] = work.supersampleSq
     writeChanged(device, buffer, words, 0, POOL_PARAMS.words)
@@ -379,6 +390,7 @@ function encodePoolKernels(
   groups: ReturnType<typeof createPoolGroups>,
   args: GPUBuffer,
   shape: PoolShape,
+  adaptive: boolean,
   restart: boolean,
   mark: () => void,
 ) {
@@ -405,9 +417,11 @@ function encodePoolKernels(
   mark()
   finish(compiled.sizeSlots)
   slots('updateProbes')
+  if (adaptive) slots('updateAdaptive')
   over('clearWork', POOL_WORK.stack)
   if (restart) alone('stampChange')
   over('allocateProbes', shape.markWords)
+  if (adaptive) over('allocateAdaptive', shape.entries)
   finish(compiled.sizeSlots)
   slots('countProbes')
   alone('cutProbes')
@@ -425,6 +439,8 @@ interface PoolParts {
   published: GPUTextureView
   queue: GPUBuffer
   surfaceMarks: boolean
+  /** Whether the cells take adaptive probes where the pixels miss the interpolation (the irradiance field's: `irradianceFieldAdaptivePlacement`); the others' results are the same without. */
+  adaptive: boolean
 }
 
 /** What the pool keeps between two images. */
@@ -433,6 +449,8 @@ interface PoolKit {
   readonly buffers: ReturnType<typeof createPoolBuffers>
   readonly compiled: Awaited<ReturnType<typeof compilePool>>
   readonly shape: PoolShape
+  /** Whether the pool takes adaptive probes (`PoolParts.adaptive`): only then its two adaptive kernels run. */
+  readonly adaptive: boolean
   /** The marks of the image's surfaces, none in a pool that only the engine's other passes mark. */
   readonly surfaceMarks:
     | {
@@ -480,6 +498,7 @@ function dispatchPool(
     kit.groups,
     kit.buffers.args,
     kit.shape,
+    kit.adaptive,
     kit.pendingRestart,
     mark,
   )
@@ -493,7 +512,7 @@ async function createPoolKit(
   parts: PoolParts,
 ): Promise<PoolKit> {
   const shape = poolShapeOf(cascades)
-  const buffers = createPoolBuffers(device, cascades.probes, shape)
+  const buffers = createPoolBuffers(device, cascades.probes, shape, parts.adaptive)
   const compiled = await compilePool(device)
   const { stats, ring } = createPoolStats(device)
   return {
@@ -501,6 +520,7 @@ async function createPoolKit(
     buffers,
     compiled,
     shape,
+    adaptive: parts.adaptive,
     surfaceMarks: parts.surfaceMarks
       ? {
           imageMarks: await createImageMarks(device, parts.grid, buffers.marks, buffers.params),
@@ -510,7 +530,7 @@ async function createPoolKit(
     groups: createPoolGroups(device, compiled, buffers, parts),
     stats,
     ring,
-    writeParams: createPoolParams(device, buffers.params),
+    writeParams: createPoolParams(device, buffers.params, parts.adaptive),
     staging: undefined,
     pendingRestart: false,
     // The first pass has no history: it is a full update.
@@ -519,49 +539,15 @@ async function createPoolKit(
   }
 }
 
-/**
- * THE POOL OF PROBES, on the GPU (`poolWgsl.ts`): a fixed count of probes, given to the cells the image reads and given back, and
- * the choice of those traced each image, none of it read back to be decided. Every image marks the points of the screen probes the last
- * image cast — the image's own surface where it cast none —, the indirection is made again from the probes it kept and the cells round
- * the points take a probe from the pool or are refused one; every probe is then in the one histogram the budget chooses the probes traced
- * from, and the queue and the arguments of the dispatches over it, which the passes that read it are dispatched by (`args`), are written.
- * The CPU is told, a few images late, how many probes are alive, hold nothing yet or have not been traced since the lights last changed
- * (`stats`): the series is open while any are (`working`).
- */
-export async function createBouncePool(
-  device: GPUDevice,
-  cascades: BounceCascades,
-  parts: PoolParts,
-) {
-  const kit = await createPoolKit(device, cascades, parts)
-  const { buffers, stats, ring } = kit
+/** The methods of the pool the bounce pass calls, in the order it calls them: the marks cleared, the pool's work, the translucent surfaces' mark, the statistics copied,
+ *  the copy mapped once submitted. */
+function poolPasses(kit: PoolKit) {
+  const { buffers, ring } = kit
   return {
-    /** The statistics the last read brought back (`PoolStats`): a few images late. */
-    stats,
-    /** The arguments of the dispatches over the probes the image traces (`POOL_ARGS`): what the radiance cache is dispatched by. */
-    args: buffers.args,
-    /** Whether the series is open: a restart not yet encoded or counted, or probes alive that hold nothing yet or have not been traced since
-     *  the lights last changed, as the last statistics counted them. */
-    get working() {
-      return poolWorking(kit)
-    },
-    /** The lights changed: the next pass keeps its frame as the frame of the change; the series is open till every probe is traced since. */
-    restart() {
-      kit.pendingRestart = true
-    },
-    /** The cache the probes hold is discarded (the maps were made again, or the lighting changed by a great deal): the next pass is a full
-     *  update, which also restarts the series. */
-    discard() {
-      kit.pendingRestart = kit.pendingDiscard = true
-    },
     /** The marks' bitmap cleared and a staging buffer taken for the statistics, before the pass. */
     clear(encoder: GPUCommandEncoder) {
       kit.staging = ring.take()
       encoder.clearBuffer(buffers.marks)
-    },
-    /** Whether the next pass is a full update (`discard`): known before it, as the block of its queue (`work.queueProbes`) follows it. */
-    get full() {
-      return kit.pendingDiscard
     },
     /**
      * The pool's work in the bounce pass: the indirection cleared, the cells the image reads marked (from the screen probes' points where `surface`
@@ -591,6 +577,51 @@ export async function createBouncePool(
       kit.surfaceMarks?.probeMarks.destroy()
       for (const buffer of Object.values(buffers)) buffer.destroy()
     },
+  }
+}
+
+/**
+ * THE POOL OF PROBES, on the GPU (`poolWgsl.ts`): a fixed count of probes, given to the cells the image reads and given back, and
+ * the choice of those traced each image, none of it read back to be decided. Every image marks the points of the screen probes the last
+ * image cast — the image's own surface where it cast none —, the indirection is made again from the probes it kept and the cells round
+ * the points take a probe from the pool or are refused one; every probe is then in the one histogram the budget chooses the probes traced
+ * from, and the queue and the arguments of the dispatches over it, which the passes that read it are dispatched by (`args`), are written.
+ * The CPU is told, a few images late, how many probes are alive, hold nothing yet or have not been traced since the lights last changed
+ * (`stats`): the series is open while any are (`working`).
+ */
+export async function createBouncePool(
+  device: GPUDevice,
+  cascades: BounceCascades,
+  parts: PoolParts,
+) {
+  const kit = await createPoolKit(device, cascades, parts)
+  const { buffers, stats, ring } = kit
+  return {
+    /** The statistics the last read brought back (`PoolStats`): a few images late. */
+    stats,
+    /** The arguments of the dispatches over the probes the image traces (`POOL_ARGS`): what the radiance cache is dispatched by. */
+    args: buffers.args,
+    /** The buffers the pixels' gather of an adaptive pool reads and writes: the slots (their offsets, the frame each was last read), the adaptive probes of each entry and the interpolation misses. */
+    adaptive: { slots: buffers.slots, probes: buffers.adaptive, misses: buffers.misses },
+    /** Whether the series is open: a restart not yet encoded or counted, or probes alive that hold nothing yet or have not been traced since
+     *  the lights last changed, as the last statistics counted them. */
+    get working() {
+      return poolWorking(kit)
+    },
+    /** The lights changed: the next pass keeps its frame as the frame of the change; the series is open till every probe is traced since. */
+    restart() {
+      kit.pendingRestart = true
+    },
+    /** The cache the probes hold is discarded (the maps were made again, or the lighting changed by a great deal): the next pass is a full
+     *  update, which also restarts the series. */
+    discard() {
+      kit.pendingRestart = kit.pendingDiscard = true
+    },
+    /** Whether the next pass is a full update (`discard`): known before it, as the block of its queue (`work.queueProbes`) follows it. */
+    get full() {
+      return kit.pendingDiscard
+    },
+    ...poolPasses(kit),
   }
 }
 

@@ -14,9 +14,12 @@ import { vsmComputePipe, type VsmComputePipe } from '../../shadows/vsm/passKit.t
 import { CAPTURE_FORMATS } from '../layout.ts'
 import { CARD_DESCENT_ENTRY, cardDescentWgsl } from './cardDescentWgsl.ts'
 import {
+  CARD_CLEAR_IDS_ENTRY,
+  CARD_CLEAR_SURFACES_ENTRY,
   CARD_EXPORT_ENTRY,
   CARD_EXPORT_VIEWS_ENTRY,
   CARD_ROWS_ENTRY,
+  cardClearSurfacesSource,
   cardExportSource,
   cardRasterSource,
   cardRowsSource,
@@ -25,7 +28,7 @@ import {
 /**
  * THE PIPELINES OF THE CARDS' CAPTURE, compiled off the frame (`prepared`) the first time a session
  * asks for them: the descent and the cull of the views (`cardDescentWgsl.ts`), the rows' views, the
- * raster of the clusters and the export (`cardRasterWgsl.ts`). The raster holds no graph of the session:
+ * raster of the clusters, the clear before it and the export (`cardRasterWgsl.ts`). The raster holds no graph of the session:
  * the capture draws no alpha mask and no world position offset.
  */
 
@@ -71,7 +74,34 @@ const exportPipe = (device: GPUDevice, which: string, entry: string) =>
     ],
   ])
 
-/** The kernels that follow the decode and the raster, one a device. */
+/** The clear of the albedo, the normal and the emission over the views' rectangles: the table of views, the three textures written. */
+const clearSurfacesPipe = (device: GPUDevice) =>
+  vsmComputePipe(
+    device,
+    `${LABEL} clear surfaces`,
+    cardClearSurfacesSource(),
+    CARD_CLEAR_SURFACES_ENTRY,
+    [
+      [
+        computeBufferEntry(1, 'read-only-storage', COMPUTE),
+        computeStorageTextureEntry(2, CAPTURE_FORMATS.albedo),
+        computeStorageTextureEntry(3, CAPTURE_FORMATS.normal),
+        computeStorageTextureEntry(4, CAPTURE_FORMATS.emissive),
+      ],
+    ],
+  )
+
+/** The clear of the identifiers and the depth over the views' rectangles: the table of views, the two textures written. */
+const clearIdsPipe = (device: GPUDevice) =>
+  vsmComputePipe(device, `${LABEL} clear ids`, cardExportSource(), CARD_CLEAR_IDS_ENTRY, [
+    [
+      computeBufferEntry(1, 'read-only-storage', COMPUTE),
+      computeStorageTextureEntry(2, CAPTURE_FORMATS.ids),
+      computeStorageTextureEntry(3, CAPTURE_FORMATS.depth),
+    ],
+  ])
+
+/** The kernels that follow the decode and the raster, and the clear that precedes them, one a device. */
 export const cardEndPipes = oncePerDevice((device: GPUDevice) => ({
   rows: vsmComputePipe(device, `${LABEL} rows`, cardRowsSource(), CARD_ROWS_ENTRY, [
     [
@@ -81,6 +111,8 @@ export const cardEndPipes = oncePerDevice((device: GPUDevice) => ({
   ]),
   exportIds: exportPipe(device, 'ids', CARD_EXPORT_ENTRY),
   exportViews: exportPipe(device, 'views', CARD_EXPORT_VIEWS_ENTRY),
+  clearIds: clearIdsPipe(device),
+  clearSurfaces: clearSurfacesPipe(device),
 }))
 
 /** The raster's pipes, one a device: the depth phase and the identifier phase. */
@@ -108,6 +140,8 @@ export function askCardPipes(device: GPUDevice, failed: (error: unknown) => void
     end.rows,
     end.exportIds,
     end.exportViews,
+    end.clearIds,
+    end.clearSurfaces,
     raster.depth,
     raster.ids,
   ]

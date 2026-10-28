@@ -20,7 +20,8 @@
 /** The names of the channels, in the order of the bits of their mask. */
 export const LIGHTING_CHANNEL_NAMES = ['channel0', 'channel1', 'channel2'] as const
 /** The channels a light and an object each hold. */
-export const LIGHTING_CHANNEL_COUNT = LIGHTING_CHANNEL_NAMES.length
+// A literal, held to the names' count by its type: a count read off the list is a property read a bundle that reads no channel cannot drop.
+export const LIGHTING_CHANNEL_COUNT: (typeof LIGHTING_CHANNEL_NAMES)['length'] = 3
 
 /** An object's or a light's lighting channels: each true where the object or light is in the channel. */
 export type LightingChannels = {
@@ -76,7 +77,7 @@ export function isLightingChannels(value: unknown): value is LightingChannels {
 }
 
 /** What a set of lighting channels is, for the refusal of one that is not. */
-export const LIGHTING_CHANNELS_EXPECTED = `{ ${LIGHTING_CHANNEL_NAMES.join(', ')} }, each true or false`
+export const LIGHTING_CHANNELS_EXPECTED = '{ channel0, channel1, channel2 }, each true or false'
 
 /** Why `value` is no set of lighting channels, or `undefined`. */
 export const lightingChannelsRefusal = (property: string, value: unknown) =>

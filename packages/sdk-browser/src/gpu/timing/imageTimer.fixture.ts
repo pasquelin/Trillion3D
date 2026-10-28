@@ -4,6 +4,8 @@ import type { GpuTimingSample } from './types.ts'
 
 /** A millisecond, in the nanoseconds the device's timestamps count. */
 export const MS = 1_000_000n
+/** The first query of a part: its resolve lands at a 256-byte offset, 32 timestamps (a contract of the timer's layout). */
+export const PART_ALIGN = 32
 
 /** The kit's device with timestamp queries, as a timer is measured on (`supported`); without them
  *  when not. */

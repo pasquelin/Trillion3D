@@ -99,6 +99,9 @@ export const VSM_OVERFLOW_KINDS = 5
 const VSM_RECORD_MAP_ID_BITS = 16
 /** The map ids a record names: the most maps a frame holds. */
 export const VSM_RECORD_MAP_COUNT = 1 << VSM_RECORD_MAP_ID_BITS
+/** The ids reserved for the maps of one page (the distant lights'), from id 0: the full maps' ids start past them, so that a light
+ *  coming or going among the distant ones moves no full map's id. */
+export const VSM_MAX_SINGLE_PAGE_MAPS = 1024 * 8
 export const VSM_FEEDBACK_POOL = 0
 /** Bytes of the status feedback message (`res.feedback`): the message id (`VSM_FEEDBACK_POOL`), the free
  *  pages (i32) and the pressure bias (f32 bits), a word each. */
@@ -118,7 +121,7 @@ export const VSM_UNIFORMS_BYTES = 224
 
 /** Bytes of one candidate of the raster's cull (`VsmRenderCandidate`, `render/renderParamsWgsl.ts`)
  *  and of one record it emits (vec4u, `render/renderCullWgsl.ts`). */
-export const VSM_RENDER_CANDIDATE_BYTES = 208
+export const VSM_RENDER_CANDIDATE_BYTES = 224
 export const VSM_RENDER_RECORD_BYTES = 16
 /** Bytes of a light of the frame in the raster's table (`vsmWriteLights`): its first map's id, its map count and
  *  its lighting channels, padded to a `vec4u`. */

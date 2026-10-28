@@ -18,6 +18,7 @@ import { waterWanted } from '../../blend/water/waterTargets.ts'
 import { vsmMapSettings } from '../../lighting/shadows/vsm/frame/vsmFarShadow.ts'
 import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
+import { describeImage } from '../backend/helpers.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { wantsContractLighting } from '../prepare/lit.ts'
 import { sunsOf } from './sunFieldLights.ts'
@@ -64,32 +65,26 @@ function gate(rt: WebgpuPagesRuntime) {
   return { scene, depth, flags, subsurface: surfaces.subsurfaceView, device: gpu.device }
 }
 
-/** The view's settings of the cascade, into `settings` (`SUN_SHADOW_RULES`), on a device whose
+/** The view's settings of the cascade, `quality` to `snapTexels` (`SUN_SHADOW_RULES`), into `into`, on a device whose
  *  textures go to `limit` texels across. */
-function settingsOf(rt: WebgpuPagesRuntime, limit: number) {
+export function dfshSettingsOf(rt: WebgpuPagesRuntime, limit: number, into: DfshSettings) {
   const { shadows } = vsmMapSettings(rt)
-  settings.quality = shadows.distanceFieldShadowQuality
-  settings.fullResolution = shadows.distanceFieldShadowFullResolution
-  settings.tileSize = shadows.distanceFieldShadowTileSize
-  settings.twoSidedBias = shadows.distanceFieldShadowTwoSidedBias
-  settings.perTile = shadows.distanceFieldShadowObjectsPerTile
-  settings.scatterTiles = shadows.distanceFieldShadowScatterTiles
-  settings.compactTiles = shadows.distanceFieldShadowCompactTiles
-  settings.subsampleDepth = shadows.distanceFieldShadowSubsampleDepth
-  settings.snapTexels = snapTexelsOf(shadows.distanceFieldShadowSnapResolution, limit)
+  into.quality = shadows.distanceFieldShadowQuality
+  into.fullResolution = shadows.distanceFieldShadowFullResolution
+  into.tileSize = shadows.distanceFieldShadowTileSize
+  into.twoSidedBias = shadows.distanceFieldShadowTwoSidedBias
+  into.perTile = shadows.distanceFieldShadowObjectsPerTile
+  into.scatterTiles = shadows.distanceFieldShadowScatterTiles
+  into.compactTiles = shadows.distanceFieldShadowCompactTiles
+  into.subsampleDepth = shadows.distanceFieldShadowSubsampleDepth
+  into.snapTexels = snapTexelsOf(shadows.distanceFieldShadowSnapResolution, limit)
 }
 
 /** The image described to the cascade, from the camera and the frame's targets. */
 function describe(rt: WebgpuPagesRuntime, cam: EngineCamera) {
-  image.view = rt.gpu.targetSize
-  image.extent = rt.gpu.allocatedSize
-  image.world = cam.world
-  image.projection = cam.projection
+  describeImage(image, rt, cam)
   image.viewProjection = cam.viewProjection
   image.eye = cam.eye
-  image.near = cam.near
-  image.far = cam.far
-  image.perspective = cam.perspective > 0.5
 }
 
 /**
@@ -122,7 +117,7 @@ function traceSunFieldShadow(
   state.mask = undefined
   const drawn = gate(rt)
   if (drawn) {
-    settingsOf(rt, drawn.device.limits.maxTextureDimension2D)
+    dfshSettingsOf(rt, drawn.device.limits.maxTextureDimension2D, settings)
     settings.transmission = !at
     sunsOf(rt, state)
   }

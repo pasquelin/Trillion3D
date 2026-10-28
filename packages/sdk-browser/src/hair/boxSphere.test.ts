@@ -2,14 +2,8 @@
 // by a matrix.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import {
-  boxSphereOf,
-  copyBoxSphere,
-  expandInto,
-  maximumAxisScale,
-  transformBox,
-  unionInto,
-} from './boxSphere.ts'
+import { boxSphereOf, expandInto, maximumAxisScale, transformBox, unionInto } from './boxSphere.ts'
+import { copyBoxSphere } from './boxSphere.fixture.ts'
 
 const near = (a: ArrayLike<number>, b: ArrayLike<number>, why: string) => {
   assert.equal(a.length, b.length, why)

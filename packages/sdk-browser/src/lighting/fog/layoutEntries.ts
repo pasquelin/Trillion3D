@@ -87,6 +87,8 @@ const ENTRY: Record<
   graphPages: computeBufferEntry(FOG_BINDING.graphPages, 'read-only-storage'),
   graphSampler: computeSamplerEntry(FOG_BINDING.graphSampler),
   localTiles: computeBufferEntry(FOG_BINDING.localTiles, 'read-only-storage'),
+  mlParams: computeUniformEntry(FOG_BINDING.mlParams),
+  mlSamplesIn: computeStorageTextureEntry(FOG_BINDING.mlSamplesIn, 'r32uint', 'read-only', '3d'),
 }
 
 /** The layout of the voxelisation of objects that wear a graph: the plain voxelisation's entries,

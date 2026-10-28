@@ -14,14 +14,13 @@ import { REFLECTION_SIDE } from './constants.ts'
  *
  * The scene stage counts each ray it takes once, by how its march through the global distance field ended
  * (`fates`, `REFLECTION_FATES`, `sceneTrace.ts`): no field to march (`noField`), a surface hit (the cache gave its
- * light), the ray leaving the scene to the environment, the screen's far trace answering it (`distant`, `wgsl.ts`), a
- * miss that went nowhere (the field answers it: the march met a surface none of the cards near it gave any light of), or no march
+ * light; black where no card lights the surface), the ray leaving the scene to the environment, the screen's far trace answering it (`distant`, `wgsl.ts`), or no march
  * at all because the screen followed the ray to the longest ray; and, for the rays that marched, the steps the march took (`work`: under 8, 16, 32, 64, 128, 256,
  * 512, 1 024, 2 048, 4 096, 8 192, more).
  *
  * A workgroup counts in its own memory and adds its words to the buffer once (`workgroupTallyWgsl`).
  */
-export const REFLECTION_FATES = ['noField', 'hit', 'open', 'miss', 'bound', 'distant'] as const
+export const REFLECTION_FATES = ['noField', 'hit', 'open', 'bound', 'distant'] as const
 export type ReflectionFate = (typeof REFLECTION_FATES)[number]
 /** Buckets of the march's steps: under 8, doubling, the last open. */
 export const REFLECTION_WORK_BUCKETS = 12
@@ -47,7 +46,6 @@ export const REFLECTION_FATE_WGSL = wgslBlock(
     REFLECTION_FATE_NO_FIELD: fate('noField'),
     REFLECTION_FATE_HIT: fate('hit'),
     REFLECTION_FATE_OPEN: fate('open'),
-    REFLECTION_FATE_MISS: fate('miss'),
     REFLECTION_FATE_BOUND: fate('bound'),
     REFLECTION_FATE_DISTANT: fate('distant'),
   })}

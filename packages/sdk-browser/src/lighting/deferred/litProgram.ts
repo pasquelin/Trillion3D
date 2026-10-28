@@ -17,7 +17,12 @@ import {
 } from './bindings.ts'
 import type { ContractKey } from './contractCuts.ts'
 import { indirectPassWgsl } from './indirectPassWgsl.ts'
-import { indirectLayoutEntries, localLayoutEntries, sunLayoutEntries } from './layoutEntries.ts'
+import {
+  hairLayoutEntries,
+  indirectLayoutEntries,
+  localLayoutEntries,
+  sunLayoutEntries,
+} from './layoutEntries.ts'
 import { localPassWgsl, sunPassWgsl } from './lightPassWgsl.ts'
 import { buildRenderPipeline, preparedPipeline, type PreparedPipeline } from './fullscreen.ts'
 import { createPassGroup } from './passGroup.ts'
@@ -27,6 +32,7 @@ import { drawTileClasses, lightPipelineDescriptor, moduleOfClass } from './tileP
 import { TILE_CLASS, TILE_CLASS_NAMES, TILE_CLASSES, type TileClass } from './tileClass.ts'
 import { createPerLightProgram, type PerLightProgram } from './perLightProgram.ts'
 import type { PerLightLights } from '../shadows/vsm/projection/perLightPass.ts'
+import type { VsmHairMasks } from '../shadows/vsm/projection/hairProjectionPass.ts'
 
 /** What a program is made from: whether it reads the probes (`bounce`), the key of the lights it
  *  lights (`ContractKey`: its list width, its cuts of shadow, rectangle and lobe code), whether it
@@ -35,6 +41,8 @@ export interface LitSources {
   bounce: boolean
   key: ContractKey
   skyShadowing: boolean
+  /** Whether it applies the indirect capsule shadows (`capsuleIndirect`). */
+  capsule: boolean
   label: string
 }
 
@@ -90,23 +98,32 @@ export async function createLitProgram(
   sources: LitSources,
   bindings: DeferredBindings,
 ) {
-  const { bounce, key, skyShadowing, label } = sources
+  const { bounce, key, skyShadowing, capsule, label } = sources
   const lobes = !key.lobeless,
     profiled = !key.profileless,
-    cubed = !key.cubeless
-  const layouts = {
-    sun: device.createBindGroupLayout({ entries: sunLayoutEntries(lobes) }),
-    local: device.createBindGroupLayout({ entries: localLayoutEntries(lobes, profiled) }),
-    indirect: device.createBindGroupLayout({
-      entries: indirectLayoutEntries({ bounce, skyShadowing, lobes, cubed }),
-    }),
-  }
+    cubed = !key.cubeless,
+    contact = !key.contactless,
+    sampled = !!key.sampled,
+    volume = !!key.volumeShadow
+  const layouts = litLayouts(device, {
+    bounce,
+    skyShadowing,
+    capsule,
+    lobes,
+    profiled,
+    cubed,
+    contact,
+    sampled,
+    volume,
+  })
   const passes = await litPasses(device, sources, layouts)
   const perLight = createPerLightProgram(device, {
     key,
     classes: classesOf(key),
     lobes,
     profiled,
+    contact,
+    volume,
     label,
     localLayout: layouts.local,
   })
@@ -116,28 +133,73 @@ export async function createLitProgram(
     placeholders: bindings.placeholders,
     bounce,
     skyShadowing,
+    capsule,
     lobes,
     profiled,
     cubed,
+    contact,
+    sampled,
+    volume,
     label,
+    key,
     layouts,
     ...passes,
     perLight,
-    groups: {
-      sun: createPassGroup(device, layouts.sun),
-      local: createPassGroup(device, layouts.local),
-      indirect: createPassGroup(device, layouts.indirect),
-      perLight: createPassGroup(device, perLight.layout),
-    },
+    groups: litGroups(device, layouts, perLight.layout),
     // What the groups name, in a fixed order, so that a frame whose resources did not move allocates
     // nothing (`createPassGroup`).
-    named: { sun: [], local: [], indirect: [], perLight: [] },
+    named: { sun: [], local: [], indirect: [], perLight: [], hair: [] },
   }
 
   return {
     /** Whether it reads the probes' light. */
     bounce,
     ...litCalls(p),
+  }
+}
+
+/** The layouts of the four passes' group 0, over the variant's features. */
+function litLayouts(
+  device: GPUDevice,
+  f: {
+    bounce: boolean
+    skyShadowing: boolean
+    capsule: boolean
+    lobes: boolean
+    profiled: boolean
+    cubed: boolean
+    contact: boolean
+    sampled: boolean
+    volume: boolean
+  },
+) {
+  const { bounce, skyShadowing, capsule, lobes, profiled, cubed, contact, sampled, volume } = f
+  return {
+    sun: device.createBindGroupLayout({ entries: sunLayoutEntries(lobes, contact, volume) }),
+    local: device.createBindGroupLayout({
+      entries: localLayoutEntries(lobes, profiled, contact, sampled, volume),
+    }),
+    indirect: device.createBindGroupLayout({
+      entries: indirectLayoutEntries({ bounce, skyShadowing, lobes, cubed, capsule }),
+    }),
+    hair: device.createBindGroupLayout({
+      entries: hairLayoutEntries(lobes, profiled, contact, sampled, volume),
+    }),
+  }
+}
+
+/** The pass groups of the passes, over their layouts. */
+function litGroups(
+  device: GPUDevice,
+  layouts: ReturnType<typeof litLayouts>,
+  perLightLayout: GPUBindGroupLayout,
+) {
+  return {
+    sun: createPassGroup(device, layouts.sun),
+    local: createPassGroup(device, layouts.local),
+    hair: createPassGroup(device, layouts.hair),
+    indirect: createPassGroup(device, layouts.indirect),
+    perLight: createPassGroup(device, perLightLayout),
   }
 }
 
@@ -174,6 +236,18 @@ function litCalls(p: LitState) {
     ) {
       return drawLit(p, pass, draws, step, perLight)
     },
+    /** What the pass that lights the strands' samples is made over (`../../hair/hairLightPass.ts`): the layouts of its group 0 —
+     *  the local lights' with the clouds' shade for the lights, the indirect pass's for the sky light —, and what its
+     *  program is made from. Its groups follow the last `bind` (`hairGroup`, `hairSkyGroup`). */
+    hair: {
+      layout: p.layouts.hair,
+      skyLayout: p.layouts.indirect,
+      key: p.key,
+      cubed: p.cubed,
+      label: p.label,
+    },
+    hairGroup: (masks: HairMasks) => p.held?.hair(masks),
+    hairSkyGroup: () => p.held?.indirect,
     /** Whether the pipelines of the per-light path are compiled (`createPerLightProgram`); the frames wait for them otherwise. */
     perLightReady: () => p.perLight.ready(),
     release() {
@@ -183,11 +257,11 @@ function litCalls(p: LitState) {
   }
 }
 
-type LitLayouts = Record<'sun' | 'local' | 'indirect', GPUBindGroupLayout>
+type LitLayouts = Record<'sun' | 'local' | 'indirect' | 'hair', GPUBindGroupLayout>
 
 /** The pipelines of the three passes, made together. */
 async function litPasses(device: GPUDevice, sources: LitSources, layouts: LitLayouts) {
-  const { bounce, key, skyShadowing, label } = sources
+  const { bounce, key, skyShadowing, capsule, label } = sources
   const classes = classesOf(key)
   const [sun, local, indirect] = await Promise.all([
     passPipelines(
@@ -209,7 +283,8 @@ async function litPasses(device: GPUDevice, sources: LitSources, layouts: LitLay
     passPipelines(
       device,
       classes,
-      (c) => indirectPassWgsl({ bounce, skyShadowing, cubed: !key.cubeless, tileClass: c }),
+      (c) =>
+        indirectPassWgsl({ bounce, skyShadowing, cubed: !key.cubeless, capsule, tileClass: c }),
       'indirectMain',
       layouts.indirect,
       `${label}_INDIRECT`,
@@ -218,6 +293,9 @@ async function litPasses(device: GPUDevice, sources: LitSources, layouts: LitLay
   return { sun, local, indirect }
 }
 
+/** The masks of the shadows on the strands' pixels (`VsmHairMasks`): none where the frame holds no light of the kind. */
+type HairMasks = Pick<VsmHairMasks, 'suns' | 'locals'>
+
 /** The groups of the last `bind`. */
 interface HeldGroups {
   sun: GPUBindGroup
@@ -225,6 +303,8 @@ interface HeldGroups {
   indirect: GPUBindGroup
   /** The per-light draw's group, where the frame lights the shadowed local lights one by one (`DirectLightResources.perLight`). */
   perLight?: GPUBindGroup
+  /** The local lights' group with the strands' masks in place of the surfaces' (`hairGroup`). */
+  hair(masks: HairMasks): GPUBindGroup
   /** Whether the scene has a light of the kind each of the first two passes walks. */
   suns: boolean
   locals: boolean
@@ -237,21 +317,30 @@ interface LitState {
   readonly placeholders: DeferredBindings['placeholders']
   readonly bounce: boolean
   readonly skyShadowing: boolean
+  readonly capsule: boolean
   readonly lobes: boolean
   /** Whether the program reads the light profiles: it binds their atlas (`ContractKey.profileless`). */
   readonly profiled: boolean
   /** Whether the program reads the ambient cubemap: it binds the cube (`ContractKey.cubeless`). */
   readonly cubed: boolean
+  /** Whether the passes of lights hold contact shadow code (`ContractKey.contactless`): they bind the screen-space shadows' array and its layers' ranks. */
+  readonly contact: boolean
+  /** Whether the local lights' pass adds the light the sampled lighting left (`ContractKey.sampled`): it binds that light's texture. */
+  readonly sampled: boolean
+  /** Whether the passes of lights read the volumes' shadows (`ContractKey.volumeShadow`): they bind the packed buffer. */
+  readonly volume: boolean
   readonly label: string
+  /** The key of the lights the program lights. */
+  readonly key: ContractKey
   readonly layouts: LitLayouts
   readonly sun: Awaited<ReturnType<typeof passPipelines>>
   readonly local: Awaited<ReturnType<typeof passPipelines>>
   readonly indirect: Awaited<ReturnType<typeof passPipelines>>
   readonly groups: Record<
-    'sun' | 'local' | 'indirect' | 'perLight',
+    'sun' | 'local' | 'indirect' | 'perLight' | 'hair',
     ReturnType<typeof createPassGroup>
   >
-  readonly named: Record<'sun' | 'local' | 'indirect' | 'perLight', unknown[]>
+  readonly named: Record<'sun' | 'local' | 'indirect' | 'perLight' | 'hair', unknown[]>
   /** The per-light passes, whose pipelines are made at the first frame that takes the path. */
   readonly perLight: PerLightProgram
   held?: HeldGroups
@@ -283,6 +372,17 @@ function resolveDirect(
   direct: DirectLightResources,
 ) {
   return {
+    ...resolveLightInputs(placeholders, direct),
+    ...resolveIndirectInputs(device, placeholders, direct),
+  }
+}
+
+/** The direct lights' inputs of the frame, an absent one by its stand-in. */
+function resolveLightInputs(
+  placeholders: DeferredBindings['placeholders'],
+  direct: DirectLightResources,
+) {
+  return {
     tiles: direct.tiles ?? placeholders.tiles,
     sunRanks: direct.sunRanks ?? placeholders.sunRanks,
     mask: direct.vsmMask ?? placeholders.vsmMask,
@@ -291,6 +391,19 @@ function resolveDirect(
     farMask: direct.farShadowMask ?? placeholders.farShadowMask,
     lightFunction: direct.lightFunction ?? placeholders.lightFunction,
     lightProfile: direct.lightProfile ?? placeholders.lightProfile,
+    contactBend: direct.contactBend ?? placeholders.contactBend,
+    sampledLight: direct.sampledLight ?? placeholders.volumetricLight,
+    volumeShadowMaps: direct.volumeShadowMaps ?? placeholders.volumeShadowMaps,
+  }
+}
+
+/** The ambient and indirect inputs of the frame, an absent one by its stand-in. */
+function resolveIndirectInputs(
+  device: GPUDevice,
+  placeholders: DeferredBindings['placeholders'],
+  direct: DirectLightResources,
+) {
+  return {
     cube: direct.ambientCubemap ?? placeholders.ambientCubemap,
     cloudShadow: direct.cloudShadow ?? cloudShadowStandIn(device),
     sky: direct.sky ?? skyLightStandIn(device),
@@ -298,7 +411,9 @@ function resolveDirect(
     occlusion: direct.ambientOcclusion ?? placeholders.ambientOcclusion,
     lightmapLight: direct.volumetricLight ?? placeholders.volumetricLight,
     screen: direct.screenIndirect ?? placeholders.screenIndirect,
+    screenGi: direct.screenShortRangeGi ?? placeholders.screenShortRangeGi,
     shadowing: direct.skyShadowing ?? placeholders.skyShadowing,
+    capsuleIndirect: direct.capsuleIndirect ?? placeholders.capsuleIndirect,
   }
 }
 
@@ -340,11 +455,16 @@ function nameResources(
   sunNamed.push(surface, depth, lights, tileList, r.sunRanks, r.sunMask, r.farMask)
   sunNamed.push(r.lightFunction, cloudShadow.block, cloudShadow.maps[0], cloudShadow.maps[1])
   sunNamed.push(cloudShadow.sampler, r.occlusion)
+  if (p.contact) sunNamed.push(r.contactBend.view, r.contactBend.ranks)
+  if (p.volume) sunNamed.push(r.volumeShadowMaps)
   localNamed.length = 0
   localNamed.push(surface, depth, lights, tileList, r.tiles, r.mask, r.sunMask)
   localNamed.push(r.lightFunction, r.farMask, r.lightGrid, r.occlusion)
   // The atlas's view changes only when its texture is made: the group follows it.
   if (p.profiled) localNamed.push(r.lightProfile.view)
+  if (p.contact) localNamed.push(r.contactBend.view, r.contactBend.ranks)
+  if (p.sampled) localNamed.push(r.sampledLight)
+  if (p.volume) localNamed.push(r.volumeShadowMaps)
   localNamed.push(
     fallback.vsmUniforms.buffer,
     fallback.vsmPageTable.buffer,
@@ -358,6 +478,7 @@ function nameResources(
   indirectNamed.push(sky.sampler, sky.harmonics, sky.params)
   if (p.bounce) indirectNamed.push(r.screen)
   if (p.skyShadowing) indirectNamed.push(shadowing.bent, shadowing.params)
+  if (p.capsule) indirectNamed.push(r.capsuleIndirect)
   if (p.cubed) indirectNamed.push(r.cube.view, r.cube.colour)
 }
 
@@ -392,13 +513,42 @@ function bindLitGroups(
   const fallback = vsmFallback(direct.vsm, p.placeholders)
   nameResources(p, surface, depth, direct, lights, tileList, r, fallback)
   return {
-    sun: groups.sun.get(named.sun, () => sunEntries(shared, r)),
+    sun: groups.sun.get(named.sun, () => sunEntries(p, shared, r)),
     local: groups.local.get(named.local, () => localEntries(p, shared, r, fallback)),
     indirect: groups.indirect.get(named.indirect, () => indirectEntries(p, shared, r)),
+    hair: (masks) => hairGroup(p, shared, r, fallback, masks),
     perLight: direct.perLight && perLightGroup(p, shared, r, lights, tileList, direct.perLight),
-    suns: direct.suns !== 0,
-    locals: direct.locals !== 0,
+    // The suns the sampled lighting lights are left out of the sun's pass; the local lights' pass adds the sampled light even where the scene has no local light.
+    suns: direct.suns !== 0 && !direct.sampledSun,
+    locals: direct.locals !== 0 || !!direct.sampled,
   }
+}
+
+/** The group of the pass that lights the strands' samples: the local lights' resources with the strands' masks at the ranks
+ *  of the surfaces' (the sun's mask and the local lights' mask the shadows are read at), and the clouds' shade. */
+function hairGroup(
+  p: LitState,
+  shared: SharedBindings,
+  r: Resolved,
+  fallback: Fallback,
+  masks: HairMasks,
+) {
+  const suns = masks.suns ?? r.sunMask,
+    locals = masks.locals ?? r.mask
+  const named = p.named.hair
+  named.length = 0
+  named.push(...p.named.local, suns, locals)
+  const { cloudShadow } = r
+  named.push(cloudShadow.block, cloudShadow.maps[0], cloudShadow.maps[1], cloudShadow.sampler)
+  return p.groups.hair.get(named, () => [
+    ...localEntries(
+      p,
+      { ...shared, shadows: { ...shared.shadows, vsmSunMask: suns } },
+      { ...r, mask: locals },
+      fallback,
+    ),
+    ...cloudShadowBindEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, cloudShadow),
+  ])
 }
 
 /** The per-light draw's group: the pixel's layers, the light buffer, the light functions, the mask the
@@ -417,6 +567,8 @@ function perLightGroup(
   named.push(pixel.lobes, lights, tileList, r.lightFunction, perLight.mask, perLight.records)
   named.push(r.occlusion)
   if (p.profiled) named.push(r.lightProfile.view)
+  if (p.contact) named.push(r.contactBend.view, r.contactBend.ranks)
+  if (p.volume) named.push(r.volumeShadowMaps)
   return p.groups.perLight.get(named, () => [
     ...namedEntries(DEFERRED_BINDINGS, {
       ...pixel,
@@ -426,10 +578,12 @@ function perLightGroup(
       perLightRecord: { buffer: perLight.records, size: PER_LIGHT_RECORD_BINDING_BYTES },
     }),
     ...profileEntries(p, r),
+    ...contactBendEntries(p, r),
+    ...volumeShadowEntries(p, r),
   ])
 }
 
-function sunEntries({ pixel, shadows }: SharedBindings, r: Resolved) {
+function sunEntries(p: LitState, { pixel, shadows }: SharedBindings, r: Resolved) {
   return [
     ...namedEntries(DEFERRED_BINDINGS, {
       ...pixel,
@@ -439,8 +593,25 @@ function sunEntries({ pixel, shadows }: SharedBindings, r: Resolved) {
       ambientOcclusion: r.occlusion,
     }),
     ...cloudShadowBindEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, r.cloudShadow),
+    ...contactBendEntries(p, r),
+    ...volumeShadowEntries(p, r),
   ]
 }
+
+/** The screen-space contact shadows' array and the ranks of its layers, of a program that holds contact shadow code. */
+const contactBendEntries = (p: LitState, r: Resolved) =>
+  p.contact
+    ? [
+        { binding: DEFERRED_BINDINGS.contactBend, resource: r.contactBend.view },
+        { binding: DEFERRED_BINDINGS.contactBendRanks, resource: { buffer: r.contactBend.ranks } },
+      ]
+    : []
+
+/** The volumes' shadows' buffer of a program that reads them. */
+const volumeShadowEntries = (p: LitState, r: Resolved) =>
+  p.volume
+    ? [{ binding: DEFERRED_BINDINGS.volumeShadow, resource: { buffer: r.volumeShadowMaps } }]
+    : []
 
 /** The light profiles' atlas and sampler of a program that reads them. */
 const profileEntries = (p: LitState, r: Resolved) =>
@@ -464,11 +635,14 @@ function localEntries(
       ambientOcclusion: r.occlusion,
     }),
     ...profileEntries(p, r),
+    ...contactBendEntries(p, r),
+    ...(p.sampled ? [{ binding: DEFERRED_BINDINGS.sampledLight, resource: r.sampledLight }] : []),
+    ...volumeShadowEntries(p, r),
   ]
 }
 
 function indirectEntries(p: LitState, { pixel }: SharedBindings, r: Resolved) {
-  const { bounce, skyShadowing, cubed } = p
+  const { bounce, skyShadowing, cubed, capsule } = p
   const { shadowing } = r
   return [
     ...namedEntries(DEFERRED_BINDINGS, {
@@ -476,11 +650,12 @@ function indirectEntries(p: LitState, { pixel }: SharedBindings, r: Resolved) {
       ambientOcclusion: r.occlusion,
       volumetricLight: r.lightmapLight,
       reflection: r.reflection,
-      ...(bounce && { screenIndirect: r.screen }),
+      ...(bounce && { screenIndirect: r.screen, screenShortRangeGi: r.screenGi }),
       ...(skyShadowing && {
         dfaoBent: { buffer: shadowing.bent },
         dfaoRead: { buffer: shadowing.params },
       }),
+      ...(capsule && { capsuleIndirect: { buffer: r.capsuleIndirect } }),
       ...(cubed && {
         ambientCube: r.cube.view,
         ambientCubeSampler: postSamplers(p.device).mipped,

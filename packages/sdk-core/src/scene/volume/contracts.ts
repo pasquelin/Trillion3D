@@ -1,10 +1,10 @@
-import { EngineError } from '../../contracts/cache.ts'
 import type { MaterialGraph } from '../../world/material/graph/api.ts'
 import {
   resolveVolumeMaterial,
   type VolumeMaterial,
   type VolumeMaterialOptions,
 } from '../../contracts/volumeMaterial.ts'
+import { IDENTITY_MATRIX, checkMatrix, volumeRefusal, type VolumeRefusal } from './objectFields.ts'
 
 /**
  * AN OBJECT VOXELISED INTO THE FOG'S VOLUME (`SceneFogVolume`): a placed box of space whose
@@ -55,16 +55,12 @@ export interface ResolvedFogVolume {
   boundsMax: Vec3
   material: VolumeMaterial
   /** Its graph, and the graph's version when it was resolved: a write to the graph changes the
-   *  record, which tells the frame to read it again (`sameFogVolume`). */
+   *  record, which tells the frame to read it again (`sameGraphedObject`). */
   graph?: MaterialGraph
   graphVersion?: number
 }
 
-const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] as const
-
-function refuse(id: unknown, message: string): never {
-  throw new EngineError('INVALID_SCENE_FOG_VOLUME', `fog volume ${String(id)}: ${message}`, { id })
-}
+const refuse: VolumeRefusal = volumeRefusal('INVALID_SCENE_FOG_VOLUME', 'fog volume')
 
 function vector(id: string, name: string, value: unknown): Vec3 {
   if (!Array.isArray(value) || value.length !== 3 || !value.every(Number.isFinite))
@@ -79,12 +75,11 @@ function vector(id: string, name: string, value: unknown): Vec3 {
  * @throws EngineError `INVALID_SCENE_FOG_VOLUME` naming the field that is not what it expects.
  */
 export function resolveFogVolume(volume: SceneFogVolume): ResolvedFogVolume {
-  const { id, shape = 'box', matrix = IDENTITY } = volume
+  const { id, shape = 'box', matrix = IDENTITY_MATRIX } = volume
   if (typeof id !== 'string' || !id) refuse(id, 'id expects a non-empty string')
   if (!FOG_VOLUME_SHAPES.includes(shape))
     refuse(id, `shape expects ${FOG_VOLUME_SHAPES.join(' or ')}`)
-  if (matrix.length !== 16 || !matrix.every(Number.isFinite))
-    refuse(id, 'matrix expects sixteen finite numbers')
+  checkMatrix(refuse, id, matrix)
   const a = vector(id, 'boundsMin', volume.boundsMin ?? [-0.5, -0.5, -0.5])
   const b = vector(id, 'boundsMax', volume.boundsMax ?? [0.5, 0.5, 0.5])
   return {
@@ -94,22 +89,21 @@ export function resolveFogVolume(volume: SceneFogVolume): ResolvedFogVolume {
     boundsMin: [Math.min(a[0], b[0]), Math.min(a[1], b[1]), Math.min(a[2], b[2])],
     boundsMax: [Math.max(a[0], b[0]), Math.max(a[1], b[1]), Math.max(a[2], b[2])],
     material: resolveVolumeMaterial(volume.material),
-    ...(volume.graph && {
-      graph: volumeGraph(id, volume.graph),
-      graphVersion: volume.graph.version,
-    }),
+    ...volumeGraphFields(refuse, id, volume.graph),
   }
 }
 
+/** The `graph` and `graphVersion` of an object that wears `graph`, none for one that wears none;
+ *  `refuse` names the object refused for a graph of another domain. */
+export const volumeGraphFields = (
+  refuse: VolumeRefusal,
+  id: string,
+  graph: MaterialGraph | undefined,
+) => graph && { graph: volumeGraph(refuse, id, graph), graphVersion: graph.version }
+
 /** The graph an object wears, which must be one of the volume domain. */
-function volumeGraph(id: string, graph: MaterialGraph) {
+function volumeGraph(refuse: VolumeRefusal, id: string, graph: MaterialGraph) {
   if (!graph?.isMaterialGraph || graph.domain !== 'volume')
     refuse(id, 'graph expects a graph of the volume domain (material.graph)')
   return graph
 }
-
-/** Whether two resolved objects are the same: their numbers, and the very graph at the version it
- *  was read (the graph is no text a comparison can read). */
-export const sameFogVolume = (a: ResolvedFogVolume, b: ResolvedFogVolume) =>
-  a.graph === b.graph &&
-  JSON.stringify({ ...a, graph: undefined }) === JSON.stringify({ ...b, graph: undefined })

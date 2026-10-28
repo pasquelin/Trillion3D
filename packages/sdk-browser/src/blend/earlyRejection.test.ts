@@ -31,7 +31,7 @@ test('the blend fragment stage writes nothing to memory', () => {
   assert.doesNotMatch(BLEND_SHADER, /\brtProxy\b/, 'no proxy bound, no ray traced')
   assert.match(
     BLEND_SHADER,
-    /var frontTraced:texture_storage_2d<rg32uint,read>;/,
+    /var frontTraced:texture_storage_2d<rgba32uint,read>;/,
     'the front radiance, read by load',
   )
 })

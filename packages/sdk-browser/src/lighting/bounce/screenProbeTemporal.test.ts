@@ -22,7 +22,7 @@ function occlusionOf(downsample: number, lift = 0, flags = 0) {
     spOcclusionHood: (pick: OcclusionPick, local: number[]) => number[][]
     spSkyAt: (cell: number[], N: number[], strength: number) => number[]
   }>(
-    temporalShader(downsample, [4, 2], false, false, 1),
+    temporalShader(downsample, [4, 2], false, 1),
     ['spOcclusionCell', 'spOcclusionHood', 'spSkyAt'],
     {
       SP_OCCLUSION_DOWNSAMPLE: downsample,
@@ -137,7 +137,7 @@ test('the open sky weighs the rough specular only where the occlusion is applied
 })
 
 test('where the integration applied the occlusion to the light already, the temporal pass keeps none of it: no cell picked, no neighbourhood, its history occlusion the whole amount', () => {
-  const code = temporalShader(2, [4, 2], true, true, 1)
+  const code = temporalShader(2, [4, 2], true, 1)
   assert.match(
     code,
     /let occluded=spFlag\(SP_FLAG_OCCLUSION\)&&!spFlag\(SP_FLAG_OCCLUSION_IN_INTEGRATION\);/,

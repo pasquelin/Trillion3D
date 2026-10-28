@@ -60,6 +60,9 @@ export const DFSH_FLAG = {
   /** The tiles' lists lie one after the other, from the start offsets (`distanceFieldShadowCompactTiles`),
    *  else each tile has a place of its own. */
   compactTiles: 2,
+  /** The meshes made of clusters are listed too, as the reference's cull draws them (`bDrawNaniteMeshes`) where the sun has no virtual
+   *  shadow maps: with them the maps draw the clusters and the cascade would shadow them twice, so the flag is off. */
+  clusterMeshes: 4,
 } as const
 
 /**

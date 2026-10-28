@@ -20,41 +20,78 @@ import { TILE_CLASS_NAMES, TILE_CLASSES, type TileClass } from './tileClass.ts'
 type ClassPipelines = PreparedPipeline<GPURenderPipeline>[]
 
 /** What the per-light passes are made for: the program's key, the classes it holds code for, whether its surfaces carry lobes,
- *  whether it reads the light profiles, the program's label and its local pass's group layout. */
+ *  whether it reads the light profiles and holds contact shadow code, the program's label and its local pass's group layout. */
 export interface PerLightSources {
   key: ContractKey
   classes: readonly TileClass[]
   lobes: boolean
   profiled: boolean
+  contact: boolean
+  /** Whether the draw reads the volumes' shadows (`ContractKey.volumeShadow`). */
+  volume: boolean
   label: string
   localLayout: GPUBindGroupLayout
+}
+
+/** A pipeline for each class of tile of the pass `wgsl` writes, the entry `entry` over `groupLayout`; the
+ *  classes the program holds no code for use the highest it holds (`moduleOfClass`). */
+function classPipelines(
+  device: GPUDevice,
+  { classes, label }: Pick<PerLightSources, 'classes' | 'label'>,
+  wgsl: (tileClass: TileClass) => WgslDecl,
+  entry: string,
+  groupLayout: GPUBindGroupLayout,
+  name: string,
+): ClassPipelines {
+  const modules = classes.map((tileClass) => {
+    const named = `${label}_${name}_${TILE_CLASS_NAMES[tileClass]}`
+    return device.createShaderModule({ label: named, code: wgslModule(wgsl(tileClass)) })
+  })
+  return TILE_CLASSES.map((tileClass) =>
+    preparedPipeline(
+      device,
+      lightPipelineDescriptor(device, modules, groupLayout, entry, `${label}_${name}`, tileClass),
+    ),
+  )
+}
+
+/** The pipelines of `set` that are compiled, by class, in `into`. */
+function compiledOf(set: ClassPipelines, into: (GPURenderPipeline | undefined)[]) {
+  into.length = 0
+  for (const pipeline of set) into.push(pipeline.get())
+  return into
+}
+
+/** Sets light `i`'s record at its offset in `group`, and the scissor to the pixels the light reaches. */
+function scissorToLight(
+  pass: GPURenderPassEncoder,
+  group: GPUBindGroup,
+  perLight: PerLightLights,
+  i: number,
+) {
+  const { ints } = perLight
+  const at = i * (perLight.stride / 4) + PER_LIGHT_RECORD_AT.rect
+  pass.setBindGroup(0, group, recordOffset(perLight.offsets, i))
+  pass.setScissorRect(ints[at], ints[at + 1], ints[at + 2] - ints[at], ints[at + 3] - ints[at + 1])
 }
 
 /** The per-light passes of a lit program (`createLitProgram`). */
 export function createPerLightProgram(device: GPUDevice, sources: PerLightSources) {
   const { key, classes, label } = sources
   const layout = device.createBindGroupLayout({
-    entries: perLightLayoutEntries(sources.lobes, sources.profiled),
+    entries: perLightLayoutEntries(
+      sources.lobes,
+      sources.profiled,
+      sources.contact,
+      sources.volume,
+    ),
   })
-  /** A pipeline for each class of tile of the pass `wgsl` writes, the entry `entry` over `groupLayout`; the
-   *  classes the program holds no code for use the highest it holds (`moduleOfClass`). */
   const pipelinesOf = (
     wgsl: (tileClass: TileClass) => WgslDecl,
     entry: string,
     groupLayout: GPUBindGroupLayout,
     name: string,
-  ): ClassPipelines => {
-    const modules = classes.map((tileClass) => {
-      const named = `${label}_${name}_${TILE_CLASS_NAMES[tileClass]}`
-      return device.createShaderModule({ label: named, code: wgslModule(wgsl(tileClass)) })
-    })
-    return TILE_CLASSES.map((tileClass) =>
-      preparedPipeline(
-        device,
-        lightPipelineDescriptor(device, modules, groupLayout, entry, `${label}_${name}`, tileClass),
-      ),
-    )
-  }
+  ) => classPipelines(device, { classes, label }, wgsl, entry, groupLayout, name)
   let unbatched: ClassPipelines | undefined, lights: ClassPipelines | undefined
   const compiledBatched: (GPURenderPipeline | undefined)[] = [],
     compiledLights: (GPURenderPipeline | undefined)[] = []
@@ -72,12 +109,6 @@ export function createPerLightProgram(device: GPUDevice, sources: PerLightSource
       'PER_LIGHT',
     )
     return { unbatched, lights }
-  }
-  /** The pipelines of `set` that are compiled, by class, in `into`. */
-  const compiledOf = (set: ClassPipelines, into: (GPURenderPipeline | undefined)[]) => {
-    into.length = 0
-    for (const pipeline of set) into.push(pipeline.get())
-    return into
   }
   return {
     /** The group layout of the per-light draw. */
@@ -98,15 +129,7 @@ export function createPerLightProgram(device: GPUDevice, sources: PerLightSource
       perLight: PerLightLights,
       i: number,
     ) {
-      const { ints } = perLight
-      const at = i * (perLight.stride / 4) + PER_LIGHT_RECORD_AT.rect
-      pass.setBindGroup(0, group, recordOffset(perLight.offsets, i))
-      pass.setScissorRect(
-        ints[at],
-        ints[at + 1],
-        ints[at + 2] - ints[at],
-        ints[at + 3] - ints[at + 1],
-      )
+      scissorToLight(pass, group, perLight, i)
       return drawTileClasses(pass, compiledOf(asks().lights, compiledLights), draws)
     },
   }

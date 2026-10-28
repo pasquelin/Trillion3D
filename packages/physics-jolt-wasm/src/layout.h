@@ -27,6 +27,9 @@ enum FilterBit : uint32_t { FILTER_QUERY = 1, FILTER_PHYSICS = 2, FILTER_STILL =
 enum OverlapMode : uint32_t { OVERLAP_MULTI = 0, OVERLAP_ANY = 1, OVERLAP_BLOCKING = 2, OVERLAP_MULTI_BY_OBJECT = 3, OVERLAP_ANY_BY_OBJECT = 4 };
 enum OverlapHit : uint32_t { OVERLAP_HIT_BLOCKING = 1 };
 
+/// What stops a scene query (layout.ts CAST_STOP).
+enum CastStop : uint32_t { CAST_STOP_CHANNEL = 0, CAST_STOP_OBJECT_TYPES = 1 };
+
 /// Joint kinds of the JOINT command (layout.ts JOINT).
 enum JointKind : uint32_t { FIXED = 0, POINT = 1, HINGE = 2, SLIDER = 3, DISTANCE = 4, CONE = 5, SWING_TWIST = 6, SIX_DOF = 7, PATH = 8, PULLEY = 9, GEAR = 10, RACK_AND_PINION = 11 };
 
@@ -55,7 +58,7 @@ constexpr uint32_t ADD_WORDS = 25;
 constexpr uint32_t PART_WORDS = 11;
 constexpr uint32_t FILTER_WORDS = 8;
 constexpr uint32_t MAX_FILTERS = 65536;
-constexpr uint32_t CAST_WORDS = 18;
+constexpr uint32_t CAST_WORDS = 19;
 constexpr uint32_t CAST_AT_KIND = 0;
 constexpr uint32_t CAST_AT_ORIGIN = 1;
 constexpr uint32_t CAST_AT_TRAVEL = 4;
@@ -63,8 +66,23 @@ constexpr uint32_t CAST_AT_EXTENTS = 7;
 constexpr uint32_t CAST_AT_IGNORED = 10;
 constexpr uint32_t CAST_AT_CHANNEL = 11;
 constexpr uint32_t CAST_AT_OBJECT_TYPES = 16;
+constexpr uint32_t CAST_AT_STOP = 18;
 constexpr uint32_t HIT_WORDS = 8;
+constexpr uint32_t HIT_AT_BODY = 0;
+constexpr uint32_t HIT_AT_FRACTION = 1;
+constexpr uint32_t HIT_AT_POINT = 2;
+constexpr uint32_t HIT_AT_NORMAL = 5;
 constexpr uint32_t OVERLAP_WORDS = 20;
+constexpr uint32_t OVERLAP_AT_MODE = 0;
+constexpr uint32_t OVERLAP_AT_SHAPE = 1;
+constexpr uint32_t OVERLAP_AT_EXTENTS = 2;
+constexpr uint32_t OVERLAP_AT_POSITION = 5;
+constexpr uint32_t OVERLAP_AT_ROTATION = 8;
+constexpr uint32_t OVERLAP_AT_CHANNEL = 12;
+constexpr uint32_t OVERLAP_AT_BLOCK = 13;
+constexpr uint32_t OVERLAP_AT_OVERLAP = 15;
+constexpr uint32_t OVERLAP_AT_OBJECT_TYPES = 17;
+constexpr uint32_t OVERLAP_AT_IGNORED = 19;
 constexpr uint32_t OVERLAP_HIT_WORDS = 3;
 constexpr uint32_t RESTORE_WORDS = 3;
 constexpr uint32_t RELEASE_WORDS = 2;

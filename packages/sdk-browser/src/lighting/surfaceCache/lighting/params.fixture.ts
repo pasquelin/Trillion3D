@@ -5,6 +5,7 @@ import {
   type SettingValues,
 } from '../../../../../sdk-core/src/contracts/settingRules.ts'
 import { MAX_TRACE_DISTANCE_METRES } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 import { shapeOf, writeLightingParams, type LightingImage } from './params.ts'
 import { LIGHTING_PARAMS } from './layout.ts'
 
@@ -64,7 +65,7 @@ export function planesOf(eye: readonly number[]) {
   const words = new Uint32Array(LIGHTING_PARAMS.words)
   writeLightingParams(
     words,
-    shapeOf(lightingSettings, 1024, false),
+    shapeOf(lightingSettings, 1024, false, WORD_LIGHT_FORMAT),
     lightingSettings,
     lightingImage({ eye, viewProjection: viewProjection(eye) }),
   )

@@ -5,17 +5,13 @@ import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { spHistory } from './historyWgsl.ts'
 import { spProbes, spSurface } from './probesWgsl.ts'
-import { PDF_LOBE_WORDS, bindingTable } from './screenProbeLayout.ts'
+import { PDF_LOBE_WORDS, PROBE_PIXEL_BINDINGS, bindingTable } from './screenProbeLayout.ts'
 
 /** The screen data's bindings: the probes' records and pixels, the image's normals and flags, the last
  *  image's shading, and what it writes — nine coefficients of the directions the probe's pixels face, a
  *  word a probe saying whether most of them hold no history. */
 export const SCREEN_DATA_BINDINGS = bindingTable({
-  params: [0, 'uniform'],
-  info: [1, 'float'],
-  normal: [2, 'uint'],
-  counts: [3, 'buffer-read'],
-  pixels: [4, 'buffer-read'],
+  ...PROBE_PIXEL_BINDINGS,
   normals: [5, 'float'],
   flags: [6, 'uint'],
   brdf: [8, 'buffer'],

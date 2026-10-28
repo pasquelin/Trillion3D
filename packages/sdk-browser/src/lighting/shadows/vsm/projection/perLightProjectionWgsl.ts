@@ -29,6 +29,7 @@ import {
 } from './projectionRegionWgsl.ts'
 import {
   BINDINGS_WGSL,
+  HAIR_SHADOW_BINDING_WGSL,
   PROJECTION_VIEW,
   projectionCommon,
   traceDeps,
@@ -42,7 +43,7 @@ export const VSM_PER_LIGHT_ENTRY = 'vsmProjectPerLight'
 /** The pixel of a group, inside the rectangle of the light's record. */
 const PER_LIGHT_PIXEL_OF_WGSL = vsmPixelOfWgsl('VSM_PER_LIGHT_PIXEL_OF_WGSL', 'vsmPerLight.rect')
 
-const entry = /* wgsl */ `
+const entry = (hair: boolean) => /* wgsl */ `
 @compute @workgroup_size(${VSM_PROJECTION_GROUP_SIZE * VSM_PROJECTION_GROUP_SIZE})
 fn ${VSM_PER_LIGHT_ENTRY}(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_index) groupIndex:u32){
  vsmLaneInit(groupIndex);
@@ -51,25 +52,31 @@ fn ${VSM_PER_LIGHT_ENTRY}(@builtin(workgroup_id) groupId:vec3u,@builtin(local_in
  let receiver=vsmReceiverOf(pixel,pixel.info.valid);
  let inLight=vsmLightParticipates(k,pixel.info,pixel.shifted);
  let r=vsmSubsurfaceShadow(vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight),pixel.info);
- if(pixel.inRect){textureStore(vsmLightMask,pixel.pos,vsmPerLight.layer,vec4f(sqrt(select(1.0,r.shadowFactor,r.rayCount>0u))));}
+${
+  hair
+    ? ` var share=select(1.0,r.shadowFactor,r.rayCount>0u);
+ if(i32(k)<i32(textureNumLayers(vsmHairShadow))){share=min(share,textureLoad(vsmHairShadow,pixel.pos,i32(k),0).x);}
+ if(pixel.inRect){textureStore(vsmLightMask,pixel.pos,vsmPerLight.layer,vec4f(sqrt(share)));}`
+    : ' if(pixel.inRect){textureStore(vsmLightMask,pixel.pos,vsmPerLight.layer,vec4f(sqrt(select(1.0,r.shadowFactor,r.rayCount>0u))));}'
+}
 }
 `
 
 /** The per-light kernel for the pool `layout`; its halves vote over their subgroups with `subgroups`
  *  (`vsmProjectionVoteWgsl`), as the other passes' do. */
-export function vsmPerLightProjectionWgsl(layout: VsmLayout, subgroups = false) {
+export function vsmPerLightProjectionWgsl(layout: VsmLayout, subgroups = false, hair = false) {
   return wgslProgram(
     [
       PROJECTION_VIEW,
       BINDINGS_WGSL,
       `@group(1) @binding(${VSM_PROJECTION_BINDING.mask}) var vsmLightMask:texture_storage_2d_array<${PER_LIGHT_MASK_FORMAT},write>;
-@group(1) @binding(${VSM_PROJECTION_BINDING.perLight}) var<uniform> vsmPerLight:PerLightRecord;`,
+@group(1) @binding(${VSM_PROJECTION_BINDING.perLight}) var<uniform> vsmPerLight:PerLightRecord;${hair ? HAIR_SHADOW_BINDING_WGSL : ''}`,
       vsmProjectionVoteWgsl(subgroups),
       VSM_PROJECTION_PIXEL_WGSL,
       VSM_PROJECTION_OPAQUE_WGSL,
       VSM_PROJECTION_REGION_WGSL,
       VSM_PROJECTION_SUBSURFACE_WGSL,
-      entry,
+      entry(hair),
     ].join('\n'),
     [
       ...projectionCommon(layout, PER_LIGHT_PIXEL_OF_WGSL),

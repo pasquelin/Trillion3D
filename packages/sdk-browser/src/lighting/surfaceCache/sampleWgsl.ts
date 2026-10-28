@@ -5,6 +5,12 @@ import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { computeBufferEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
 import { unpackLight } from '../../gpu/core/smallFloatWgsl.ts'
 import {
+  lightAtlasScalar,
+  lightAtlasSampleType,
+  WORD_LIGHT_FORMAT,
+  type LightAtlasFormat,
+} from '../../gpu/core/lightAtlasFormat.ts'
+import {
   MAX_RES_LEVEL,
   MIN_RES_LEVEL,
   PAGE_SIZE,
@@ -50,7 +56,9 @@ import { TABLE_AT, NO_MESH_CARDS, TILE } from './layout.ts'
  * the layout, and a program that only reads a hit leaves the layers it does not reach out of its own.
  * The albedo and the normal are float textures whether the atlas is compressed or not; the emission
  * is a float texture where it is (`compressed`: BC6H) and a texture of words of light (`packLight`)
- * where it is not, so a host passes the atlases' own `compressed` to the layout and to the library.
+ * where it is not, so a host passes the atlases' own `compressed` to the layout and to the library. The direct and final light are textures
+ * of words or of floats as the atlases' own `light` format is (`lightAtlasFormat`), which the layout and the library are asked for alike; the indirect light is
+ * always words (`indirectWords.ts`).
  * With `feedback` the binding after the layers (`SURFACE_CACHE_LAYER_AT.feedback`) is the feedback buffer, written: its first words say where
  * its parts are — the element counter, the elements (two words each), the pages' last use, and the
  * pages' last use by a read that could have used a finer page — and the feedback's own numbers: its
@@ -84,11 +92,13 @@ const CONSTANTS = wgslConsts({
   SC_AT_COLOR_BOOST: TABLE_AT.colorBoost,
 })
 
-/** What a program reads the cache with: whether it also writes the feedback buffer, and whether the atlas
- *  it reads is compressed (`SurfaceAtlases.compressed`) — both named, so that a stale call is a type error. */
+/** What a program reads the cache with: whether it also writes the feedback buffer, whether the atlas
+ *  it reads is compressed (`SurfaceAtlases.compressed`) and the format of its direct and final light (`SurfaceAtlases.light`) — all named, so that a
+ *  stale call is a type error. */
 export interface SurfaceCacheRead {
   readonly feedback: boolean
   readonly compressed: boolean
+  readonly light: LightAtlasFormat
 }
 
 /** Where the read library binds each atlas layer, and the feedback buffer, past the tables' binding. */
@@ -117,9 +127,9 @@ export function surfaceCacheReadLayoutEntries(
     computeTextureEntry(first + L.albedo, 'float'),
     computeTextureEntry(first + L.normal, 'float'),
     computeTextureEntry(first + L.emissive, read.compressed ? 'float' : 'uint'),
-    computeTextureEntry(first + L.direct, 'uint'),
+    computeTextureEntry(first + L.direct, lightAtlasSampleType(read.light)),
     computeTextureEntry(first + L.indirect, 'uint'),
-    computeTextureEntry(first + L.final, 'uint'),
+    computeTextureEntry(first + L.final, lightAtlasSampleType(read.light)),
     ...(read.feedback ? [computeBufferEntry(first + L.feedback, 'storage')] : []),
   ]
 }
@@ -129,12 +139,16 @@ const recordTables = (group: number, first: number, access: 'read' | 'read_write
   `@group(${group}) @binding(${first}) var<storage,${access}> surfaceTables:array<u32>;\n`
 
 /** The atlas layers' bindings' declarations (and the feedback buffer's). */
-const readBindings = (group: number, first: number, { feedback, compressed }: SurfaceCacheRead) =>
+const readBindings = (
+  group: number,
+  first: number,
+  { feedback, compressed, light }: SurfaceCacheRead,
+) =>
   `@group(${group}) @binding(${first + L.depth}) var scDepthAtlas:texture_2d<u32>;
 @group(${group}) @binding(${first + L.albedo}) var scAlbedoAtlas:texture_2d<f32>;
 @group(${group}) @binding(${first + L.normal}) var scNormalAtlas:texture_2d<f32>;
 @group(${group}) @binding(${first + L.emissive}) var scEmissiveAtlas:texture_2d<${compressed ? 'f32' : 'u32'}>;
-@group(${group}) @binding(${first + L.final}) var scFinalAtlas:texture_2d<u32>;
+@group(${group}) @binding(${first + L.final}) var scFinalAtlas:texture_2d<${lightAtlasScalar(light)}>;
 ${feedback ? `@group(${group}) @binding(${first + L.feedback}) var<storage,read_write> scFeedback:array<atomic<u32>>;\n` : ''}`
 
 /** The records: a word of the tables, a card, a mesh cards, and what takes a vector from the space
@@ -219,7 +233,7 @@ fn scCardWorld(card:ScCard,uv:vec2f,depth:f32)->vec3f{
 `
 
 /** The reads of the atlas's layers: four texels, in the order of a gather, each layer. */
-const atlasReads = (compressed: boolean) => `
+const atlasReads = (compressed: boolean, light: LightAtlasFormat) => `
 fn scClampTexel(p:vec2i)->vec2i{let s=i32(scAtlasSide());return clamp(p,vec2i(0),vec2i(s-1));}
 /** The top left texel of the gather of the point \`uv\` of the atlas: the texel the bilinear weights of a sample
  *  (\`ScSample.weights\`) start from, the same sub-texel bias taken, so that a point a hair under a texel's centre
@@ -242,7 +256,16 @@ fn scLight4(tex:texture_2d<u32>,b:vec2i,w:vec4f)->vec3f{
  return unpackLight(textureLoad(tex,scClampTexel(b+vec2i(0,1)),0).x)*w.x+unpackLight(textureLoad(tex,scClampTexel(b+vec2i(1,1)),0).x)*w.y
   +unpackLight(textureLoad(tex,scClampTexel(b+vec2i(1,0)),0).x)*w.z+unpackLight(textureLoad(tex,scClampTexel(b),0).x)*w.w;
 }
-/** The emission, weighted over the four texels: a float texture's where the atlas is compressed, else a
+${
+  light === WORD_LIGHT_FORMAT
+    ? ''
+    : `/** A layer of light stored in floats, weighted over the four texels. */
+fn scLightFloats4(tex:texture_2d<f32>,b:vec2i,w:vec4f)->vec3f{
+ return textureLoad(tex,scClampTexel(b+vec2i(0,1)),0).xyz*w.x+textureLoad(tex,scClampTexel(b+vec2i(1,1)),0).xyz*w.y
+  +textureLoad(tex,scClampTexel(b+vec2i(1,0)),0).xyz*w.z+textureLoad(tex,scClampTexel(b),0).xyz*w.w;
+}
+`
+}/** The emission, weighted over the four texels: a float texture's where the atlas is compressed, else a
  *  layer of light's. */
 fn scEmissive4(b:vec2i,w:vec4f)->vec3f{
 ${
@@ -363,8 +386,12 @@ fn scAccumulator()->ScAccum{
 }
 `
 
-/** The sample of one card, added to the accumulator. */
-const SAMPLE_CARD_TEXT = `
+/** The reader of a layer of light stored in `light`, weighted over four texels (`scLight4`, or `scLightFloats4` for the floats). */
+export const lightReaderOf = (light: LightAtlasFormat) =>
+  light === WORD_LIGHT_FORMAT ? 'scLight4' : 'scLightFloats4'
+
+/** The sample of one card, added to the accumulator, the final light read stored in `light`. */
+const sampleCardText = (light: LightAtlasFormat) => `
 /**
  * The sample of card \`cardIndex\` at the point \`meshPos\` of the space of the mesh cards, if the point is
  * in the card's box and the face is turned to the normal (\`axisWeights\`, the squares of its components
@@ -400,7 +427,7 @@ fn scSampleCard(meshPos:vec3f,radius:f32,bias:f32,cardIndex:u32,axisWeights:vec3
  if(!(cardWeight>0.0)){return;}
  weights=weights/sum;
  let invPre=scF(SC_AT_INV_PRE_EXPOSURE);
- (*acc).lit+=scLight4(scFinalAtlas,b,weights)*invPre*cardWeight;
+ (*acc).lit+=${lightReaderOf(light)}(scFinalAtlas,b,weights)*invPre*cardWeight;
  (*acc).weightSum+=cardWeight;
  // The single sample that weighs most.
  if(cardWeight>(*acc).maxWeight){(*acc).best=s;(*acc).maxWeight=cardWeight;}
@@ -495,8 +522,11 @@ fn scEvaluateMeshCards(meshCards:u32,worldPos:vec3f,worldNormal:vec3f,radius:f32
 `
 
 /** The cards of a mesh cards read for a point, and the accumulator evaluated. */
-const meshCardReads = (feedback: boolean) =>
-  SAMPLE_CARD_TEXT + SAMPLE_MESH_CARDS_TEXT + feedbackWriteWgsl(feedback) + evaluateWgsl(feedback)
+const meshCardReads = (feedback: boolean, light: LightAtlasFormat) =>
+  sampleCardText(light) +
+  SAMPLE_MESH_CARDS_TEXT +
+  feedbackWriteWgsl(feedback) +
+  evaluateWgsl(feedback)
 
 /**
  * The surface cache's read library for a program whose bindings are in `group` from `first`
@@ -508,10 +538,10 @@ export function surfaceCacheSampleWgsl(
   first: number,
   read: SurfaceCacheRead,
 ): WgslDecl {
-  const { feedback, compressed } = read
+  const { feedback, compressed, light } = read
   return wgslBlock(
-    `SURFACE_CACHE_SAMPLE_WGSL(${group},${first},${feedback},${compressed})`,
+    `SURFACE_CACHE_SAMPLE_WGSL(${group},${first},${feedback},${compressed},${light})`,
     [unpackLight, surfaceCacheRecordsWgsl(group, first, 'read')],
-    `${readBindings(group, first, read)}${atlasReads(compressed)}${sampleReads(feedback)}${meshCardReads(feedback)}`,
+    `${readBindings(group, first, read)}${atlasReads(compressed, light)}${sampleReads(feedback)}${meshCardReads(feedback, light)}`,
   )
 }

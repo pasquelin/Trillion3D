@@ -611,6 +611,83 @@ interface VsmRasterOcclusion {
   twoPass: boolean
 }
 
+/** What a view pass of the raster works with: the frame's groups and lists, the cull pipelines and the half-passes' resources. */
+interface ViewPassWork {
+  readonly ctx: VsmRenderContext
+  readonly groups: ReturnType<typeof renderGroups>
+  readonly world: GPUBindGroup
+  readonly scene: Pick<VsmRenderScene, 'decode'>
+  readonly args: GPUBuffer
+  readonly lights: number
+  readonly descent: VsmRasterDescent & { viewBase: number }
+  readonly occlusion?: VsmRasterOcclusion
+  readonly culls: VsmRenderCullPipes
+  readonly tessellation: VsmRenderScene['tessellation']
+  readonly pageCompute: GPUBindGroup | undefined
+  readonly lay: number
+  readonly twoPass: boolean
+  readonly raster: (label: string) => void
+}
+
+/** The view pass `p`: its cull and bin in one compute pass, its raster, the software half and, with the occlusion's two culls, the second half. */
+function encodeOneViewPass(encoder: GPUCommandEncoder, work: ViewPassWork, p: number) {
+  const {
+    ctx,
+    groups,
+    world,
+    scene,
+    args,
+    lights,
+    descent,
+    occlusion,
+    culls,
+    tessellation,
+    pageCompute,
+    lay,
+    twoPass,
+    raster,
+  } = work
+  const { counts } = groups.lists
+  const each = ctx.passes.pass(p)
+  if (p) clearPassCounts(encoder, counts)
+  tessellation?.begin(encoder, false)
+  const pass = encoder.beginComputePass(each.cull)
+  if (!p) {
+    const sight = mainSight(ctx, groups.tables, twoPass)
+    encodeCandidates(pass, ctx, groups.lists, world, descent, sight)
+    scene.decode(pass, RASTER_PASS_MAIN)
+  }
+  encodeViewPass(pass, ctx, groups, args, each.offset, lights, twoPass, culls, lay)
+  // The records the pass listed are cut into patches, to be rastered by the software half's pass.
+  tessellation?.compute(
+    pass,
+    false,
+    groups.lists,
+    each.offset,
+    mainSight(ctx, groups.tables, twoPass),
+  )
+  pass.end()
+  raster(each.raster)
+  // The software half after the hardware raster, over the same sorted records.
+  if (pageCompute)
+    encodeSoftwarePass(
+      encoder,
+      each.software,
+      ctx,
+      groups.tables,
+      args,
+      each.offset,
+      pageCompute,
+      false,
+      tessellation,
+    )
+  if (twoPass)
+    encodeSecondHalf(encoder, ctx, groups, args, each, occlusion!, {
+      ...{ pageCompute, tessellation, raster, culls },
+      ...{ world, decode: scene.decode, descent },
+    })
+}
+
 /**
  * The frame's raster: the counters cleared, the shadow views' descent (`descent`) and the
  * candidates over the pages it listed, the camera cut's tables bound by `world`, the list of casters
@@ -662,46 +739,23 @@ export function vsmEncodeRaster(
     pageCompute && (scene.hardwareEdge ?? 0) > 0 && vsmViewsLaid(ctx.device) ? mostMaps : 0
   const raster = (label: string) =>
     encodeRaster(encoder, label, tiers, ctx.target, scene.pageGroup, groups.tables.raster1, args)
-  for (let p = 0; p < passes; p++) {
-    const each = ctx.passes.pass(p)
-    if (p) clearPassCounts(encoder, counts)
-    tessellation?.begin(encoder, false)
-    const pass = encoder.beginComputePass(each.cull)
-    if (!p) {
-      const sight = mainSight(ctx, groups.tables, twoPass)
-      encodeCandidates(pass, ctx, groups.lists, world, descent, sight)
-      scene.decode(pass, RASTER_PASS_MAIN)
-    }
-    encodeViewPass(pass, ctx, groups, args, each.offset, lights, twoPass, culls, lay)
-    // The records the pass listed are cut into patches, to be rastered by the software half's pass.
-    tessellation?.compute(
-      pass,
-      false,
-      groups.lists,
-      each.offset,
-      mainSight(ctx, groups.tables, twoPass),
-    )
-    pass.end()
-    raster(each.raster)
-    // The software half after the hardware raster, over the same sorted records.
-    if (pageCompute)
-      encodeSoftwarePass(
-        encoder,
-        each.software,
-        ctx,
-        groups.tables,
-        args,
-        each.offset,
-        pageCompute,
-        false,
-        tessellation,
-      )
-    if (twoPass)
-      encodeSecondHalf(encoder, ctx, groups, args, each, occlusion!, {
-        ...{ pageCompute, tessellation, raster, culls },
-        ...{ world, decode: scene.decode, descent },
-      })
+  const work: ViewPassWork = {
+    ctx,
+    groups,
+    world,
+    scene,
+    args,
+    lights,
+    descent,
+    occlusion,
+    culls,
+    tessellation,
+    pageCompute,
+    lay,
+    twoPass,
+    raster,
   }
+  for (let p = 0; p < passes; p++) encodeOneViewPass(encoder, work, p)
 }
 
 const secondRun = new ComputeRun()

@@ -1,6 +1,6 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
-import { WORKGROUP_THREADS, GROUP_GRID_WGSL } from '../../../gpu/dispatch/grid.ts'
+import { WORKGROUP_THREADS, GROUP_GRID_WGSL, indirectArgsWgsl } from '../../../gpu/dispatch/grid.ts'
 import { PRIORITY_HISTOGRAM_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
 import { zOrderDecode } from '../../../../../math/src/wgsl/integer.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
@@ -69,11 +69,8 @@ const PAGE_STATE = wgslConsts({
 /** The writer of a slot of dispatch arguments in the context's header, for a program that holds the context as atomics. */
 export const ARGS_WRITER_WGSL = wgslBlock(
   'LIGHTING_ARGS_WRITER_WGSL',
-  [GROUP_GRID_WGSL],
-  `fn setArgs(slot:u32,groups:vec2u){
- let at=CTX_ARGS+slot*4u;
- atomicStore(&ctx[at],groups.x);atomicStore(&ctx[at+1u],groups.y);atomicStore(&ctx[at+2u],1u);
-}`,
+  [GROUP_GRID_WGSL, indirectArgsWgsl('ctx', { base: 'CTX_ARGS', words: '4u', atomic: true })],
+  `fn setArgs(slot:u32,groups:vec2u){writeIndirectArgs(slot,groups.x,groups.y,1u);}`,
 )
 
 export const CONTEXT_ENTRIES = [

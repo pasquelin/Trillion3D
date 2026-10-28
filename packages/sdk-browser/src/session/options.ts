@@ -36,7 +36,7 @@ export interface MeasuredWorldOptions extends SettingOptions {
    *  the limit. The session goes on with the cut it runs; the owner says it by name. */
   onContentRefused?: (what: string, reason: string) => void
   /** Draws the views beside the main one, after each frame's main image (`world.addView`). */
-  drawViews?: () => void
+  drawViews?: (refreshMs: number | null) => void
   /** Called after every frame the session draws, with that frame's metrics. */
   onFrame?: (metrics: import('../../../sdk-core/src/contracts/metrics.ts').FrameMetrics) => void
   /** The world's time, in seconds, read at each image: the sum of the seconds the world's clips and

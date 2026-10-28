@@ -50,6 +50,8 @@ export interface ScreenProbeView {
   image?: ScreenProbeGeometry
   /** What the lighting reads this image: the history the temporal pass wrote; none where the image cast no probe. */
   indirect: GPUTextureView | undefined
+  /** The short-range global illumination the temporal pass wrote this image, which the lighting adds to the probes' light; none where the level gathers none. */
+  shortRangeGi: GPUTextureView | undefined
   /** Bytes the resources hold. */
   readonly bytes: number
   /** Gives the resources back, destroyed once the image that names them is submitted (`retire`). */
@@ -68,7 +70,6 @@ function settingsKeyOf(settings: ScreenProbeSettings) {
     keys.set(
       settings,
       (key = [
-        settings.casts,
         settings.downsampleFactor,
         settings.adaptiveProbes,
         settings.values.screenProbeAdaptiveFraction,
@@ -121,6 +122,7 @@ function makeView(
     begun: false,
     previousInverse: new Float64Array(16),
     indirect: undefined,
+    shortRangeGi: undefined,
     bytes,
     dispose() {
       retire(device, allocator)

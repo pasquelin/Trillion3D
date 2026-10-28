@@ -6,7 +6,10 @@ import { lightFunctionResources } from '../lighting/lightFunction/frame.ts'
 import { translucentCloudVertex } from './cloudVertex.ts'
 import { FLAGS_VIEW } from '../materials/surface/surfaceOutputs.ts'
 import { translucencyVolumeView } from '../lighting/translucency/frame.ts'
-import { translucencyGiSampler, translucencyGiViews } from '../lighting/translucencyGi/frame.ts'
+import { translucencyGiSampler, translucencyGiView } from '../lighting/translucencyGi/frame.ts'
+import { lightProfileResources } from '../lighting/lightProfile/frame.ts'
+import { cameraStandIn, heterogeneousCameraOf } from '../lighting/heterogeneousVolumes/cameraMap.ts'
+import { lightProfileStandIn } from '../lighting/lightProfile/profileStandIn.ts'
 
 /** Each runtime's one lighting record, rewritten by each image: the live entries read it. */
 const records = new WeakMap<object, BlendLighting>()
@@ -51,11 +54,15 @@ export function blendLightResources(
   into.lightFunctionAtlas = lightFunction
   // The translucency lighting volume this image built, or the stand-in the surfaces lit from it read black from.
   into.translucencyVolume = translucencyVolumeView(rt, rt.gpu.device!)
-  // The translucency global illumination volume this image built, its two textures, or the stand-ins the surfaces read the sky light from.
-  const gi = translucencyGiViews(rt, rt.gpu.device!)
-  into.translucencyGiAmbient = gi.ambient
-  into.translucencyGiDirectional = gi.directional
+  // The translucency global illumination volume this image built, or the stand-in the surfaces read the sky light from.
+  into.translucencyGi = translucencyGiView(rt, rt.gpu.device!)
   into.translucencyGiSampler = translucencyGiSampler(rt.gpu.device!)
+  // The light profiles' atlas the scene's lights name, or the stand-in a profiled light never reads.
+  const profiles = lightProfileResources(rt) ?? lightProfileStandIn(rt.gpu.device!)
+  into.lightProfileAtlas = profiles.view
+  into.lightProfileSampler = profiles.sampler
+  // The heterogeneous volumes' camera map this image made (composited with the translucency), or the stand-in that holds nothing.
+  into.volumeCamera = heterogeneousCameraOf(rt.gpu)?.view ?? cameraStandIn(rt.gpu.device!)
   // The clouds' shade and the cloud image the programs that read the clouds read per vertex, or
   // their stand-ins (`cloudVertex.ts`).
   into.cloudShade = clouds.shade

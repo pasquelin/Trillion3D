@@ -141,6 +141,8 @@ export function planFrames() {
     endCastInvalidation(encoder, casts)
     marking.encode(encoder.beginComputePass(), {
       mapCount: plan.projectionCount,
+      claimed: plan.claimedCount,
+      singleMaps: plan.singleCount,
       perspective: true,
       perPage: vsmCachePerPageBins(state.cache, perPage),
     })

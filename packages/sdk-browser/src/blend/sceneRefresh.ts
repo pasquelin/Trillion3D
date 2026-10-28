@@ -1,3 +1,4 @@
+import { blendFrontLit } from './frontStageWgsl.ts'
 import {
   BLEND_ITEM_WORDS,
   ITEM_FLAGS_WORD,
@@ -37,6 +38,7 @@ export function refreshBlendScene(rt: WebgpuPagesRuntime, device: GPUDevice, pos
     blendState.channelled = false
     blendState.translucencyPasses = 0
     blendState.frontOutputs = 0
+    blendState.frontLit = false
     return
   }
   if (posesOnly) writeBlendPoses(blendState, device.queue, buffer)
@@ -82,6 +84,7 @@ function writeBlendRecords(rt: WebgpuPagesRuntime, queue: GPUQueue, buffer: GPUB
   blendState.channelled = channelled
   blendState.translucencyPasses = passes
   blendState.frontOutputs = frontStageOf(items)
+  blendState.frontLit = items.some((item) => blendFrontLit(item.surface))
   queue.writeBuffer(buffer, 0, packed.buffer, 0, packed.byteLength)
 }
 

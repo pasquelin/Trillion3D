@@ -49,9 +49,14 @@ function writtenBiases(shadows: ReturnType<typeof settings>, pool: number) {
     device: { createBindGroup: () => ({}) } as unknown as GPUDevice,
     ...{ mapSlots: 8, feedbackWords: 0, feedback: [buffer, buffer], throttle: [buffer, buffer] },
     ...{ params, paramU32: new Uint32Array(data), paramF32: new Float32Array(data) },
-    ...{ maxBiases: [0, 0], pipelines: { process: pipeline, update: pipeline } },
+    ...{ maxBiases: [0, 0], pipelines: { process: pipeline, update: pipeline, clear: pipeline } },
     ...{ prevKept: true, active: true },
-    groups: { process: vsmFrameSetHeld(), update: vsmFrameSetHeld() },
+    groups: {
+      process: vsmFrameSetHeld(),
+      update: vsmFrameSetHeld(),
+      clearThrottle: vsmFrameSetHeld(),
+      clearFeedback: vsmFrameSetHeld(),
+    },
   }
   const pass = {
     setPipeline() {},
@@ -109,7 +114,8 @@ function uploads() {
    *  adding `extra` to the maps' bias (marking the buffer), and the frame set swapped. */
   let sent = 0
   const frame = (maps: number, extra: number) => {
-    ids.mapCount = maps
+    // The maps are of one page, at the ids from 0.
+    ids.mapCount = ids.singleCount = maps
     const buffer = res.current.projectionData
     uploadProjectionData(state, ids)
     const image = gpu.get(buffer) ?? new ArrayBuffer(buffer.size)

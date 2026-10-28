@@ -102,17 +102,11 @@ ${neighbours} return ${emission ? `${emission}(ctx,given.values)` : fallbackOf('
   }
 }
 
-/** The pass's program for a material. */
-export function lightFunctionPassWgsl(p: LightFunctionPassProgram) {
-  const material = materialText(p)
-  const mapped = lightFunctionPassMapped(p)
-  const maps = mapped
-    ? `${tileDeclarations(MAP_BINDINGS, 'color')}
-@group(0) @binding(${MAP_SAMPLER_BINDING}) var mapsSampler:sampler;
-`
-    : ''
-  return wgslProgram(
-    `const LF_PI:f32=3.14159265358979;
+/** The bindings of the pass and the types it reads: the maps' where the material samples them, the light's block, the material's given values and the shares of a tile. */
+const lightFunctionDeclarations = (
+  maps: string,
+  given: string,
+) => `const LF_PI:f32=3.14159265358979;
 const LF_POINT:u32=${KINDS.point}u;
 const LF_SPOT:u32=${KINDS.spot}u;
 @group(0) @binding(${B.lightTiles}) var<storage,read> lightTiles:array<u32>;
@@ -120,10 +114,12 @@ const LF_SPOT:u32=${KINDS.spot}u;
 ${maps}/** A light's block: the rows of the matrix that takes a world point to its axes, then the tangent of a spot's outer cone, the fade
  *  distance and the disabled brightness, then the light's rank and its kind's. */
 struct LightBlock{toLight:array<vec4f,4>,shape:vec4f,ids:vec4u,}
-${material.given}
+${given}
 @group(0) @binding(${B.given}) var<uniform> given:Given;
-var<workgroup> shares:array<f32,${SHADOW_TEXELS}>;
-/** The coordinate of the material at the point \`P\` (metres): the point in the light's axes, as the light vector with its x and z swapped
+var<workgroup> shares:array<f32,${SHADOW_TEXELS}>;`
+
+/** The coordinate of the material at a point, in the light's axes. */
+const LIGHT_FUNCTION_UV = `/** The coordinate of the material at the point \`P\` (metres): the point in the light's axes, as the light vector with its x and z swapped
  *  so that xy lie across the light's direction. */
 fn lightFunctionUv(P:vec3f)->vec2f{
  let placed=P.x*given.light.toLight[0]+P.y*given.light.toLight[1]+P.z*given.light.toLight[2]+given.light.toLight[3];
@@ -134,16 +130,19 @@ fn lightFunctionUv(P:vec3f)->vec2f{
   return vec2f((atan2(unit.y,unit.x)+LF_PI)/(2.0*LF_PI),acos(clamp(unit.z,-1.0,1.0))/LF_PI);
  }
  return v.xy;
-}
-${material.colour}
-/** The share of the light the texel at \`P\` receives: the grey of the material's colour, faded to the disabled brightness by the
+}`
+
+/** The share of the light a texel receives from the material's colour. */
+const LIGHT_FUNCTION_SHARE = `/** The share of the light the texel at \`P\` receives: the grey of the material's colour, faded to the disabled brightness by the
  *  distance from the eye, held to 0 to 1. */
 fn lightFunctionShare(colour:vec3f,P:vec3f)->f32{
  let fade=given.light.shape.y;
  let alpha=saturate((fade-length(lp.eye.xyz-P))/(fade*0.2));
  return saturate(mix(given.light.shape.z,dot(colour,vec3f(0.3333)),alpha));
-}
-@compute @workgroup_size(8,8,1)
+}`
+
+/** The kernel: a thread a texel of a light's tile, its share written to the scratch; the material is read at the neighbours' points where it is sampled from maps (\`mapped\`). */
+const lightFunctionEntry = (mapped: boolean) => `@compute @workgroup_size(8,8,1)
 fn ${LIGHT_FUNCTION_PASS_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_id) at:vec3u,@builtin(local_invocation_index) lane:u32){
  let tiles=slotTiles(LT_BATCHABLE+given.light.ids.x);
  let lightTile=tiles.x+flatGroup(group,n);
@@ -175,7 +174,23 @@ ${
  if(lane<SCRATCH_TILE_WORDS){
   masks[scratchWordOf(lightTile,2u*lane)]=pack2x16float(vec2f(shares[2u*lane],shares[2u*lane+1u]));
  }
-}`,
+}`
+
+/** The pass's program for a material. */
+export function lightFunctionPassWgsl(p: LightFunctionPassProgram) {
+  const material = materialText(p)
+  const mapped = lightFunctionPassMapped(p)
+  const maps = mapped
+    ? `${tileDeclarations(MAP_BINDINGS, 'color')}
+@group(0) @binding(${MAP_SAMPLER_BINDING}) var mapsSampler:sampler;
+`
+    : ''
+  return wgslProgram(
+    `${lightFunctionDeclarations(maps, material.given)}
+${LIGHT_FUNCTION_UV}
+${material.colour}
+${LIGHT_FUNCTION_SHARE}
+${lightFunctionEntry(mapped)}`,
     [
       ...(p.graph ? [p.graph.compiled.wgsl] : mapped ? [COLOR_SAMPLE] : []),
       lightingCommonWgsl({ tables: B.tables }),

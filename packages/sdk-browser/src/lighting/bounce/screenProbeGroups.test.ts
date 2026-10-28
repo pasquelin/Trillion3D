@@ -31,8 +31,23 @@ const inputsOf = (tag: string) => {
     ].map((name) => [name, one(name)]),
   )
   const fog = { cubemap: one('fogCubemap'), sampler: one('fogSampler') }
-  return { ...views, hit, fog, field: { readGeneration: 1 } } as unknown as ScreenProbeInputs
+  return {
+    ...views,
+    hit,
+    fog,
+    field: { readGeneration: 1, readEntries: () => [] },
+  } as unknown as ScreenProbeInputs
 }
+
+/** A stand-in for a structure the groups only name: any field of it is another stand-in. */
+const stub = (): object =>
+  new Proxy(() => undefined, {
+    get: (_, key) => (typeof key === 'symbol' || key === 'then' ? undefined : stub()),
+  })
+
+/** `fields` over a stand-in: a field it names is its own, any other is a stand-in. */
+const withStubs = (fields: Record<string, unknown>) =>
+  new Proxy(fields, { get: (target, key: string) => (key in target ? target[key] : stub()) })
 
 test('a group set is made again when an input comes back after another, never the set held for the one that left', () => {
   const made: GPUBindGroupDescriptor[] = []
@@ -44,9 +59,13 @@ test('a group set is made again when an input comes back after another, never th
     features: {},
     occlusion: kernel,
     temporal: kernel,
+    // The kernels over the probes: each one a kernel of the same kind, the levels of the filtered radiance none.
+    cast: new Proxy({ mips: [] } as Record<string, unknown>, {
+      get: (target, key: string) => (key in target ? target[key] : kernel),
+    }),
   } as unknown as ScreenProbeKernels
   const pair = () => [{}, {}]
-  const resources = {
+  const resources = withStubs({
     params: {},
     counts: {},
     pixels: {},
@@ -59,7 +78,7 @@ test('a group set is made again when an input comes back after another, never th
     history: pair(),
     shading: pair(),
     keptDepth: pair(),
-  } as unknown as ScreenProbeResources
+  }) as unknown as ScreenProbeResources
   const groupsOf = createScreenProbeGroups(device, kernels, resources, [])
   const a = inputsOf('a'),
     b = inputsOf('b')

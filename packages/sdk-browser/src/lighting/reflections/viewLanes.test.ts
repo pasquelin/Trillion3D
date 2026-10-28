@@ -126,6 +126,12 @@ test('the reference’s settings of the trace and the denoiser travel with the v
   assert.equal(lanes({ reflectionBilateralSamples: 1024 }).words('taps')[1], 1024)
   assert.equal(lanes({ reflectionBilateralSamples: 5000 }).words('taps')[1], 1024)
   assert.equal(lanes({ reflectionBilateralSamples: 0 }).words('taps')[1], 0)
+  assert.equal(
+    lanes({}).words('taps')[2],
+    0,
+    'the screen march is never given up for want of lanes',
+  )
+  assert.equal(lanes({ reflectionScreenMinimumOccupancy: 8 }).words('taps')[2], 8)
   assert.deepEqual([...every.words('grid').slice(0, 3)], [64, 32, 1])
   // The level 'high': a ray a block of 2 × 2, three neighbours, the least weight 1; 'off': no lobe traces.
   const high = lanes({ reflectionQuality: 'high' })
@@ -193,6 +199,19 @@ test('the first-person stand-ins travel with the view: their sphere in the world
       firstPerson: [1, 2, 3, 0.5],
     }),
     { sphere: [1, 2, 3, 0.5], minimum: Math.fround(0.1) },
+  )
+})
+
+test('the opaque surface’s spatial filter is part of its temporal pass: with the temporal pass off the filter is off too, the front layer’s keeps its own', () => {
+  const flags = (options: object) => lanesOf({ settings: reflections(options) }).words('scene')
+  const bilateral = REFLECTION_COUNTS.REFLECTION_BILATERAL
+  assert.ok((flags({})[2] & bilateral) !== 0 && (flags({})[3] & bilateral) !== 0)
+  const noTemporal = flags({ reflectionTemporal: false })
+  assert.equal(noTemporal[2] & bilateral, 0)
+  assert.notEqual(
+    noTemporal[3] & bilateral,
+    0,
+    'the translucent surfaces’ denoiser filters whatever its temporal pass does',
   )
 })
 

@@ -5,9 +5,10 @@ import assert from 'node:assert/strict'
 import { standaloneScratchAt, standaloneScratchWords, tracedShadowWords } from './layout.ts'
 import { shapeKey, shapeOf, tracedRaysFit } from './params.ts'
 import { lightingSettings as settings } from './params.fixture.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
 test('the traced rays fit only where every buffer — the shadows’ masks and traces, the scene trace’s nodes, triangles and table — fits a binding and a buffer of the device', () => {
-  const shape = shapeOf(settings, 4096, false)
+  const shape = shapeOf(settings, 4096, false, WORD_LIGHT_FORMAT)
   const lightTiles = shape.directTiles * shape.maxLights
   const roomy = { maxStorageBufferBindingSize: 2 ** 30, maxBufferSize: 2 ** 30 }
   const scene = { nodes: 1000, triangles: 2000, table: 500 }
@@ -75,7 +76,7 @@ test('the traced shadows’ sizes are one list: the buffers are made at it and t
 })
 
 test('the shape names nothing of the traced shadows: turning them on or off keeps the lighting’s resources', () => {
-  const shape = shapeOf(settings, 4096, false)
+  const shape = shapeOf(settings, 4096, false, WORD_LIGHT_FORMAT)
   assert.ok(!('traced' in shape))
   const direct = { ...settings, surfaceCacheDirectLighting: !settings.surfaceCacheDirectLighting }
   const traced = {
@@ -83,8 +84,8 @@ test('the shape names nothing of the traced shadows: turning them on or off keep
     surfaceCacheDirectLightingHardwareRayTracing:
       !settings.surfaceCacheDirectLightingHardwareRayTracing,
   }
-  assert.equal(shapeKey(shapeOf(direct, 4096, false)), shapeKey(shape))
-  assert.equal(shapeKey(shapeOf(traced, 4096, false)), shapeKey(shape))
+  assert.equal(shapeKey(shapeOf(direct, 4096, false, WORD_LIGHT_FORMAT)), shapeKey(shape))
+  assert.equal(shapeKey(shapeOf(traced, 4096, false, WORD_LIGHT_FORMAT)), shapeKey(shape))
 })
 
 test('the coloured atlas doubles the masks, two bytes a texel, and the scratch of the light functions apart from the atlas follows them: 32 words a light tile', () => {

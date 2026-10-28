@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { surfaceHitWgsl, type SurfaceHitBindings } from '../surfaceCache/hitWgsl.ts'
+import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 import { BOUNCE_CM_WGSL } from './tracedHitWgsl.ts'
 
 /** What a world probe's ray answers (`ProbeRay`), the one text both ways of casting the ray share (the centimetres in a metre, the field's unit
@@ -24,10 +25,10 @@ export const PROBE_RAY_WGSL = wgslBlock(
  * program that calls it declares the cascades' uniform (`bounce`). Where the scene has acceleration structures the ray is cast through
  * the scene's triangles instead (`probeRayTracedWgsl.ts`), and answers the same.
  */
-export const probeRayWgsl = (hit: SurfaceHitBindings) =>
+export const probeRayWgsl = (hit: SurfaceHitBindings, light: LightAtlasFormat) =>
   wgslBlock(
-    `probeRayWgsl(${hit.group},${hit.field},${hit.cards})`,
-    [PROBE_RAY_WGSL, surfaceHitWgsl(hit)],
+    `probeRayWgsl(${hit.group},${hit.field},${hit.cards},${light})`,
+    [PROBE_RAY_WGSL, surfaceHitWgsl(hit, light)],
     `fn probeRay(origin:vec3f,d:vec3f,begin:f32,reach:f32,side:f32,coord:vec2u)->ProbeRay{
  var out=ProbeRay(vec3f(0.0),1.0,reach,0u,true,false);
  if(gdfView.clipmaps==0u||begin>=reach){return out;}

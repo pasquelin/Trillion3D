@@ -76,6 +76,54 @@ function makeGroups(
   }
 }
 
+/**
+ * The groups of the three passes that list a light's meshes by the tiles of its shadow space — the cull, the start offsets and the
+ * scatter — over what the view holds and the meshes `objects` name: the passes of a light that no pixel of the image's depth is
+ * traced for (the surface cache's lights, `lighting/surfaceCache/lighting/meshShadow.ts`), so they bind neither the depth nor the
+ * surfaces. Made at each call: a light's pass is one a frame.
+ */
+export function dfshLightGroups(
+  device: GPUDevice,
+  programs: DfshPrograms,
+  view: DfshView,
+  objects: DfshObjects,
+): Pick<DfshGroups, 'cull' | 'offsets' | 'scatter'> {
+  const entries = objects.bindEntries(B.objects)
+  const named = (resources: Partial<Record<keyof typeof B, GPUBindingResource>>) =>
+    namedEntries(B, resources)
+  const light = named({ params: { buffer: view.params, size: DFSH_PARAMS_BYTES } })
+  const group = (name: 'cull' | 'offsets' | 'scatter', ...parts: GPUBindGroupEntry[][]) =>
+    device.createBindGroup({
+      label: `Trillion3D light distance-field shadow ${name}`,
+      layout: programs.layouts[name],
+      entries: parts.flat(),
+    })
+  const tiles = {
+    tileCounts: wholeBuffer(view.tileCounts),
+    tileOffsets: wholeBuffer(view.tileOffsets),
+    tileData: wholeBuffer(view.tileData),
+  }
+  const culled = { culledObjects: wholeBuffer(view.culledObjects) }
+  return {
+    cull: group(
+      'cull',
+      light,
+      entries.slice(1, 3),
+      named({ ...culled, objectArgs: wholeBuffer(view.objectArgs) }),
+    ),
+    offsets: group(
+      'offsets',
+      light,
+      named({
+        tileCounts: tiles.tileCounts,
+        tileOffsets: tiles.tileOffsets,
+        nextOffset: wholeBuffer(view.nextOffset),
+      }),
+    ),
+    scatter: group('scatter', light, entries.slice(2, 3), named({ ...culled, ...tiles })),
+  }
+}
+
 /** What a view's groups were made over, to know again. */
 interface GroupsKept {
   over: unknown[]

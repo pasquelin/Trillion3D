@@ -77,6 +77,8 @@ export const SCREEN_PROBE_FORMATS = {
   /** A pixel's short-range occlusion: its amount, or, with the bent normal, the direction of the open sky times the amount (`spBentPack`). */
   occlusion: 'r32float',
   bentOcclusion: 'r32uint',
+  /** The short-range global illumination of a pixel, the light the near surfaces of the last image give it (`screenProbeShortRangeGI`): a colour, a texel for each of the occlusion's. */
+  shortRangeGi: 'rgba16float',
 } as const satisfies Record<string, GPUTextureFormat>
 
 /** What a kernel binds and how: a uniform, a read-only or writable storage buffer, a sampled float or
@@ -98,6 +100,15 @@ function entryOf(binding: number, kind: BindingKind): GPUBindGroupLayoutEntry {
   if (kind === 'uint') return computeTextureEntry(binding, 'uint')
   return computeStorageTextureEntry(binding, kind.store, kind.access)
 }
+
+/** The bindings the kernels over a view's probes open with: the uniform, the probes' info and normal and the tiles' counts and pixels. */
+export const PROBE_PIXEL_BINDINGS = {
+  params: [0, 'uniform'],
+  info: [1, 'float'],
+  normal: [2, 'uint'],
+  counts: [3, 'buffer-read'],
+  pixels: [4, 'buffer-read'],
+} as const
 
 /**
  * A kernel's bindings in one table, name → binding number and kind: `at` the number of each name — the
@@ -143,15 +154,15 @@ export interface ScreenProbeGeometry {
 export const adaptiveSamples = (count: number): readonly [number, number] =>
   count >= 16 ? [4, 4] : count >= 8 ? [4, 2] : [2, 2]
 
-/** The workgroups of the adaptive placement, a thread a sample: the samples of the whole tiles of the image, tiles rounded down, in
- *  groups of 8 × 8 threads. The uniform probes cover the tiles rounded up, but a last partial row or column of tiles gets adaptive
- *  samples only where a workgroup the whole tiles fill reaches it. */
+/** The workgroups of the adaptive placement, a thread a sample: the samples of every tile of the image, tiles rounded up as the uniform probes' are, in
+ *  groups of 8 × 8 threads. The reference rounds the tiles down here (`ScreenProbeGather.cpp:2348`, `DivideAndRoundDown`), which leaves the last partial row or column of tiles
+ *  adaptive samples only where a workgroup the whole tiles fill reaches it, a bug of the reference not ported: the image loses no row nor column. */
 export function adaptiveWorkgroups(
   g: Pick<ScreenProbeGeometry, 'width' | 'height' | 'tile' | 'samplesX' | 'samplesY'>,
 ) {
   return [
-    ceilDiv(Math.trunc(g.width / g.tile) * g.samplesX, 8),
-    ceilDiv(Math.trunc(g.height / g.tile) * g.samplesY, 8),
+    ceilDiv(ceilDiv(g.width, g.tile) * g.samplesX, 8),
+    ceilDiv(ceilDiv(g.height, g.tile) * g.samplesY, 8),
   ] as const
 }
 
@@ -168,12 +179,7 @@ const probeTexels = (tracing: number, gather: number, mips: number) =>
 /** What the shape of the probes depends on in the settings. */
 type ShapeSettings = Pick<
   ScreenProbeSettings,
-  | 'casts'
-  | 'downsampleFactor'
-  | 'adaptiveProbes'
-  | 'tracingResolution'
-  | 'gatherResolution'
-  | 'gatherMips'
+  'downsampleFactor' | 'adaptiveProbes' | 'tracingResolution' | 'gatherResolution' | 'gatherMips'
 > & { values: Pick<ScreenProbeValues, 'screenProbeAdaptiveFraction'> }
 
 /**
@@ -191,7 +197,7 @@ export function geometryOfTile(
   const tilesX = Math.max(1, ceilDiv(width, tile)),
     tilesY = Math.max(1, ceilDiv(height, tile))
   const fraction = settings.values.screenProbeAdaptiveFraction
-  const adaptive = settings.casts && settings.adaptiveProbes > 0 && fraction > 0
+  const adaptive = settings.adaptiveProbes > 0 && fraction > 0
   const rows = tilesY + (adaptive ? Math.trunc(tilesY * fraction) : 0)
   const uniform = tilesX * tilesY
   const maxAdaptive = adaptive
@@ -217,7 +223,7 @@ export function geometryOfTile(
 /**
  * The shapes of the probes of a view of `width × height` pixels at `settings` (`geometryOfTile`): the tile the settings name,
  * doubled, up to sixty-four pixels, until the atlas's textures fit the `side` a device's texture may measure (its
- * `maxTextureDimension2D`). A level that casts no probe holds one tile the size of the image: a single probe no kernel reads.
+ * `maxTextureDimension2D`).
  */
 export function screenProbeGeometry(
   width: number,
@@ -225,7 +231,7 @@ export function screenProbeGeometry(
   settings: ShapeSettings,
   side = Infinity,
 ): ScreenProbeGeometry {
-  let tile = settings.casts ? settings.downsampleFactor : Math.max(width, height)
+  let tile = settings.downsampleFactor
   let found = geometryOfTile(width, height, tile, settings)
   while (tile < MAX_TILE && !atlasFits(found, settings, side)) {
     tile *= 2
@@ -267,6 +273,8 @@ export const SCREEN_PROBE_FLAGS = {
   probeTemporal: 1 << 22,
   materialAo: 1 << 23,
   posesMoving: 1 << 24,
+  forceMoving: 1 << 25,
+  exactLight: 1 << 26,
 } as const
 
 /**
@@ -297,10 +305,10 @@ export const SCREEN_PROBE_FLAGS = {
  * occlusion's furthest hit, metres, and exponent (`z`, `w`); `leak`, the sky light's share that leaks onto the surfaces the rays find, by channel (`xyz`), and the
  * roughness it is read at (`w`); `frames`, the frame indices the noise of three families of passes is drawn at, which a fixed index may move apart: the screen probes'
  * gather state (`x`: the probes' screen trace, the short-range occlusion and the light's last blend), the probes' jitter (`y`: the pixels' jitter and the probe they pick) and the stochastic
- * lighting's (`z`: the pixels' history test and the occlusion texel each reads; `w` unused); `traced`, the numbers of the rays cast through the scene's triangles in
+ * lighting's (`z`: the pixels' history test and the occlusion texel each reads) and, in `w`, the least lanes of a subgroup that must still be marching for the screen trace of a ray to go on (`screenProbeScreenTracesMinimumOccupancy`); `traced`, the numbers of the rays cast through the scene's triangles in
  * metres (`screenProbeHardwareRayTracingBias`, `…NormalBias`, `…HairBias`, then the pull-back bias); `tracedHit`, what a hit of
- * theirs is read with (the cards' depth bias and the nearest hit that lights anything, centimetres) and the way a ray
- * avoids the geometry it starts on; `previous`, the inverse of
+ * theirs is read with (the cards' depth bias and the nearest hit that lights anything, centimetres), the way a ray
+ * avoids the geometry it starts on,  `gi`, the short-range global illumination's furthest reach as a share of the screen (`x`), its steps a slice (`y`), the most a sample adds (`z`, `screenProbeShortRangeGIMaxRayIntensity`) and the relative thickness its history test allows (`w`); `projection`, the depth scale of the projection (`x`: one under a perspective, a power of ten under an orthographic projection), which the short-range occlusion's stochastic rays scale their slope tolerance by; `previous`, the inverse of
  * the view-projection the last lit image was drawn with.
  */
 export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
@@ -322,6 +330,8 @@ export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
   ['frames', 'vec4u'],
   ['traced', 'vec4f'],
   ['tracedHit', 'vec4f'],
+  ['gi', 'vec4f'],
+  ['projection', 'vec4f'],
   ['previous', 'mat4x4f'],
 ] as const)
 /** Bytes of the parameters. */

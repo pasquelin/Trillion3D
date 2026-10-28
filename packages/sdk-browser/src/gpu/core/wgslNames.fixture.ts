@@ -30,7 +30,7 @@ const WGSL_OWN = new Set([
     'u32 uniform vec2 vec3 vec4 vec2f vec3f vec4f vec2h vec3h vec4h vec2i vec3i vec4i vec2u vec3u ' +
     'vec4u workgroup write ' +
     'texture_2d texture_2d_array texture_3d texture_cube texture_cube_array texture_depth_2d texture_depth_2d_array ' +
-    'texture_storage_2d texture_storage_2d_array texture_storage_3d texture_multisampled_2d ' +
+    'texture_storage_2d texture_storage_2d_array texture_storage_3d texture_multisampled_2d texture_depth_multisampled_2d ' +
     'r32float r32uint r8uint r8unorm rg32float rg32uint rg8uint rg8unorm rg11b10ufloat rgb10a2unorm rgba8uint rgba8unorm rgba16float rgba32float rgba32uint ' +
     'abs acos all any arrayLength asin atan atan2 atomicAdd atomicAnd atomicCompareExchangeWeak atomicExchange atomicLoad ' +
     'atomicMax atomicMin atomicOr atomicStore atomicStoreMax atomicStoreMin atomicSub atomicXor ceil clamp cos countLeadingZeros countOneBits cross ' +
@@ -40,7 +40,7 @@ const WGSL_OWN = new Set([
     'sign sin smoothstep sqrt step storageBarrier subgroupAdd subgroupAll subgroupAny subgroupBallot subgroupBroadcastFirst ' +
     'subgroupElect subgroupExclusiveAdd subgroupMax subgroupMin subgroupShuffle subgroupShuffleXor tan tanh textureDimensions textureGather textureGatherCompare ' +
     'textureLoad textureNumLayers textureNumLevels textureSample textureSampleBias textureSampleCompare ' +
-    'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureStore transpose ' +
+    'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureBarrier textureStore transpose ' +
     'trunc unpack2x16float unpack2x16snorm unpack2x16unorm unpack4x8snorm unpack4x8unorm workgroupBarrier workgroupUniformLoad'
   ).split(/\s+/),
 ])

@@ -5,12 +5,20 @@ import assert from 'node:assert/strict'
 import { assertProgramAssembles } from '../../../gpu/core/wgslNames.fixture.ts'
 import { functionsOf } from '../../../materials/texture/shaderRule.fixture.ts'
 import {
-  DIRECT_COLOURED_WGSL,
+  directProgramOf,
   DIRECT_ENTRIES,
   DIRECT_ENTRY,
+  directMeshProgramOf,
   DIRECT_TRACED_ENTRY,
-  DIRECT_WGSL,
+  MESH_PREPASS_ENTRY,
+  meshSunPrepassProgram,
 } from './directWgsl.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
+
+const DIRECT_WGSL = directProgramOf('grey', WORD_LIGHT_FORMAT)
+const DIRECT_COLOURED_WGSL = directProgramOf('colour', WORD_LIGHT_FORMAT)
+const DIRECT_MESH_WGSL = directMeshProgramOf('grey', WORD_LIGHT_FORMAT)
+const DIRECT_MESH_COLOURED_WGSL = directMeshProgramOf('colour', WORD_LIGHT_FORMAT)
 
 test('the program assembles with both entries, over grey masks and over the coloured atlas’s', () => {
   for (const program of [DIRECT_WGSL, DIRECT_COLOURED_WGSL])
@@ -56,4 +64,43 @@ test('a light’s irradiance on a texel is multiplied by the light’s factor on
     /irradiance\+=gathered\(rank,declaredBareIrradiance\(rank,[^;]*\)\)\*ray\.factor;/,
     'the light of the masks’ entry',
   )
+})
+
+test('the program that reads the meshes’ fields reads each sun’s visibility, stored by the pass before, and the other answers none', () => {
+  for (const program of [DIRECT_MESH_WGSL, DIRECT_MESH_COLOURED_WGSL])
+    for (const entry of DIRECT_ENTRIES) assertProgramAssembles(program, entry)
+  // It traces nothing: the lists and the fields are bound by the pass before, which keeps both passes within ten storage buffers.
+  assert.ok(!DIRECT_MESH_WGSL.includes('dfshTraceThroughTile'))
+  assert.ok(DIRECT_MESH_WGSL.includes('return meshSunVisible[meshTexel*4u+sun];'))
+  assert.ok(DIRECT_MESH_WGSL.includes('var<uniform> dfshSuns:array<DfshParams,4>;'))
+  assert.ok(DIRECT_MESH_WGSL.includes('meshTexel=tile*TILE_TEXELS+at.x+at.y*LG_TILE;'))
+  assert.ok(!DIRECT_WGSL.includes('dfshTraceThroughTile'))
+  assert.ok(!DIRECT_WGSL.includes('meshTexel'))
+  assert.ok(
+    DIRECT_WGSL.includes(
+      'fn meshSunVisibility(position:vec3f,normal:vec3f,toward:vec3f)->f32{return -1.0;}',
+    ),
+  )
+  // A sun it answers for casts its shadow as a visibility, the irradiance times it; the other lights keep the global field's ray.
+  const text = functionsOf(DIRECT_MESH_WGSL, ['cacheLight'])
+  assert.ok(text.includes('seen.irradiance*=visibility;'))
+  assert.ok(text.includes('cacheShadowed(position,normal,toward,span,!sun)'))
+})
+
+test('the pass before the direct light traces each listed sun through its lists, for the texels of the direct list', () => {
+  const program = meshSunPrepassProgram()
+  assertProgramAssembles(program, MESH_PREPASS_ENTRY)
+  assert.ok(program.includes('dfshTraceThroughTile(sun,start,start+toward*lp.maxTrace)'))
+  assert.ok(program.includes('var<uniform> dfshSuns:array<DfshParams,4>;'))
+  assert.ok(program.includes('var<storage,read_write> meshSunVisible:array<f32>;'))
+})
+
+test('a light’s irradiance on the cards is the engine’s one term, whose lamps of a size integrate the capsule with no distance bias, as the reference does', () => {
+  // The reference integrates the capsule with its distance bias zero (DeferredLightingCommon.ush:546-548).
+  for (const entry of ['cacheLight', 'directShadeTraced'] as const) {
+    const text = functionsOf(DIRECT_WGSL, [entry])
+    assert.match(text, /declared(?:Bare)?Irradiance\(rank,[^;]*,0\.0\)/)
+  }
+  assert.ok(DIRECT_WGSL.includes('fn capsuleLamp('))
+  assert.ok(DIRECT_WGSL.includes('falloff=i01*safeRcp(lineCos*0.5+0.5+bias*i01);'))
 })

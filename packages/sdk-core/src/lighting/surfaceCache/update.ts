@@ -1,6 +1,6 @@
 import type { SurfaceCacheSettings } from '../../contracts/surfaceCacheOptions.ts'
 import { cardLimits } from './cardResolution.ts'
-import { processRequests, type CaptureWork } from './captures.ts'
+import { forceEvictEntireCache, processRequests, type CaptureWork } from './captures.ts'
 import type { Feedback } from './feedback.ts'
 import { removeAllMeshCards, updateAtlasSize } from './placements.ts'
 import { cullPlacements, maxTileCapturesPerFrame, planRequests, type CardView } from './requests.ts'
@@ -11,8 +11,8 @@ import type { SurfaceCache } from './state.ts'
  * (`updateSurfaceCache`), and the two clocks the passes after it advance.
  *
  * In the order of the steps: the settings are taken; the atlas is made again if its size or its kind
- * (compressed or not) changed, and emptied if the sharing or the downsampling was switched, or at every image while
- * `surfaceCacheRecaptureEveryFrame` is on; the
+ * (compressed or not) or the pre-exposure of the cards' light changed, and emptied if the sharing or the downsampling was switched, a reset is asked, or at every image while
+ * `surfaceCacheRecaptureEveryFrame` is on (the optional pages leave first when asked); the
  * tables are consolidated; the placements are given mesh cards or lose them (`cullPlacements`); the
  * law is asked about every card, the feedback read, the requests cut at the budget (`planRequests`);
  * and the requests are served (`processRequests`). What comes out is what the GPU does: the pages to
@@ -27,6 +27,14 @@ export interface UpdateView extends CardView {
   readonly ready?: (placement: number) => boolean
   /** Whether the atlas the pages go to keeps its albedo, normal and emission in blocks; false by default. */
   readonly compressed?: boolean
+  /** The pre-exposure the cards' light is stored under (`cachedLightingPreExposure`); the atlas is made again when it changes. Unchanged by default. */
+  readonly preExposure?: number
+  /** The format the atlas stores its light in (`lightingDataFormat` on the device: a name the host chooses); the atlas is made again, and the cards leave it, when it changes. Unchanged by default. */
+  readonly light?: string
+  /** Whether the debugging reset is asked for this image (`surfaceCacheReset` turned on, or an image that is a multiple of `surfaceCacheResetEveryNthFrame`): the atlas and the cards are emptied. */
+  readonly reset?: boolean
+  /** Whether the optional pages are asked to leave the atlas this image (`surfaceCacheForceEvictHiResPages` turned on). */
+  readonly forceEvictHiResPages?: boolean
 }
 
 /** Joins the runs given back in the cache's tables. */
@@ -49,12 +57,19 @@ export function updateSurfaceCache(
   cache.settings = settings
   const switched =
     settings.surfaceCacheRecaptureEveryFrame ||
+    !!view.reset ||
     cache.allowCardSharing !== settings.surfaceCacheAllowCardSharing ||
     cache.allowDownsampleFromSelf !== settings.surfaceCacheAllowCardDownsampleFromSelf
   cache.allowCardSharing = settings.surfaceCacheAllowCardSharing
   cache.allowDownsampleFromSelf = settings.surfaceCacheAllowCardDownsampleFromSelf
-  const remade = updateAtlasSize(cache, view.compressed ?? false)
+  const remade = updateAtlasSize(
+    cache,
+    view.compressed ?? false,
+    view.preExposure ?? cache.preExposure,
+    view.light ?? cache.light,
+  )
   consolidate(cache)
+  if (view.forceEvictHiResPages) forceEvictEntireCache(cache)
   if (switched) removeAllMeshCards(cache)
   cache.stats.meshCardsToAdd = 0
   cache.stats.lockedCardsToUpdate = 0

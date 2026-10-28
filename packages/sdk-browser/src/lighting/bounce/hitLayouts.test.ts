@@ -9,7 +9,7 @@ import { limitOf, stageBindingCounts } from '../../../../../tests/kit/fakeDevice
 import { reflectionSceneLayout } from '../reflections/reflectionPipelines.ts'
 import { REFLECTION_GROUP } from '../reflections/viewLayout.ts'
 import { reachedBindings } from './reachedBindings.fixture.ts'
-import { CACHE_TRACED_PROGRAM, CACHE_TRACE_PROGRAM } from './cache/cacheTraceWgsl.ts'
+import { cacheTracedProgramOf, cacheTraceProgramOf } from './cache/cacheTraceWgsl.ts'
 import {
   CACHE_TRACED_HIT,
   CACHE_TRACE_HIT,
@@ -22,6 +22,10 @@ import {
   traceTracedShader,
   TRACE_TRACED_HIT,
 } from './screen/traceTracedWgsl.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
+
+const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
 
 const PROGRAMS = {
   'the screen probes’ scene stage': {

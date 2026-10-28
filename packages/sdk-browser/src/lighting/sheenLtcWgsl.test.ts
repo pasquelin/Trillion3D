@@ -13,7 +13,7 @@ import { BACKEND } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createSceneLightContractBuffer } from '../frame/backend/state/lightBuffer.ts'
 import { LIGHT_BUFFER_AT } from '../frame/backend/state/lightBufferLayout.ts'
-import { sheenLtcAlbedo } from './sheenLtcWgsl.ts'
+import { sheenLtcAlbedo } from './sheenLtcWgsl.fixture.ts'
 
 const SIZE = SHEEN_LTC_SIZE
 const halves = sheenLtcHalves()

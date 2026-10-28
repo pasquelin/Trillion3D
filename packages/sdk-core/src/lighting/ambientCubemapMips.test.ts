@@ -1,15 +1,12 @@
-// The ambient cubemap's mip chain (`ambientCubemapMips.ts`): the sizes of the chain, a uniform cube staying uniform at every mip, the
+// The ambient cubemap's mip chain (`ambientCubemapMips.ts`, filtered by the reference `ambientCubemapMips.fixture.ts`): the sizes of the chain, a uniform cube staying uniform at every mip, the
 // last mips holding the cube convolved by the hemisphere (a lit upper half-space gives its pole and its opposite pole
 // shares that sum to the whole), and the first mip staying close to the cube.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { mipSize } from '../../../math/src/scalar/integers.ts'
 import { cubemapMipCount } from '../scene/core/fogCubemap.ts'
-import {
-  AMBIENT_CUBEMAP_DIFFUSE_MIP,
-  ambientCubemapMipRows,
-  prepareAmbientCubemap,
-} from './ambientCubemapMips.ts'
+import { AMBIENT_CUBEMAP_DIFFUSE_MIP } from './ambientCubemapMips.ts'
+import { ambientCubemapMipRows, prepareAmbientCubemap } from './ambientCubemapMips.fixture.ts'
 
 const SIZE = 32
 /** The cube's mip chain, whole: mip `i` is `6 · side² · 3` numbers, each face filtered in one go. */

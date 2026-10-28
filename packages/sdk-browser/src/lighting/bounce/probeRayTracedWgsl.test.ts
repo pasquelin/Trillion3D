@@ -9,15 +9,17 @@ import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
 import { MISS, type Hit } from '../rays/sceneTrace/sceneTraceHit.fixture.ts'
 import type { ProbeRayModule } from './probeRay.fixture.ts'
 import { CACHE_TRACED_HIT, CACHE_TRACED_SCENE } from './cache/cacheBindings.ts'
-import { CACHE_TRACED_PROGRAM } from './cache/cacheTraceWgsl.ts'
+import { cacheTracedProgramOf } from './cache/cacheTraceWgsl.ts'
 import { probeRayTracedWgsl } from './probeRayTracedWgsl.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
+const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
 
 /** `probeRay` from the world point [11, 2, 3] along +x over `[0.3, 20]` metres, the eye at [10, 0, 0], where the trace answers `hit`
  *  after `steps`, complete or not. What the trace and the cards' read were asked is returned beside the answer. */
 function ray(hit: Hit, complete = true, steps = 9, reach = 20) {
   const asked: { ray?: Record<string, unknown>; cards?: unknown[] } = {}
   const { probeRay } = shaderRun<ProbeRayModule>(
-    wgslModule(probeRayTracedWgsl(CACHE_TRACED_HIT, CACHE_TRACED_SCENE)),
+    wgslModule(probeRayTracedWgsl(CACHE_TRACED_HIT, CACHE_TRACED_SCENE, WORD_LIGHT_FORMAT)),
     ['probeRay'],
     {
       cache: { eye: [10, 0, 0, 0], traced: [0.08, 10, 10] },

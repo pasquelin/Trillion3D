@@ -3,6 +3,7 @@ import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
 import { dagReadGroupEntries } from '../../../geometry/dag/shader/bindings.ts'
 import { sceneTraceGroupBinder } from '../../rays/sceneTrace/sceneTraceGroup.ts'
 import { surfaceHitCardsEntries } from '../../surfaceCache/hitWgsl.ts'
+import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import type { ReflectionGrids } from '../grids.ts'
 import { rayFogBindEntries } from '../rayFog.ts'
@@ -42,14 +43,16 @@ export function hardwareTraceGroups(
   reflection: TraceResources,
   inputs: TraceInputs,
   rays: SceneRays,
+  light: LightAtlasFormat,
 ): HardwareGroups {
   const { device, grids, front, trace } = reflection
+  const layout = hardwareSceneLayout(device, light)
   const { identity } = trace.hardware
   const { sceneTrace, views } = rays
   const { hit } = inputs
   const { next } = identity
   next.length = 0
-  next.push(grids, front.grids, front.views.flags, front.views.normals, front.views.lobes)
+  next.push(layout, grids, front.grids, front.views.flags, front.views.normals, front.views.lobes)
   next.push(inputs.flags, inputs.normals, inputs.lobes, inputs.lights)
   next.push(inputs.fog.cubemap, inputs.fog.sampler)
   next.push(inputs.vectors, reflection.depthView)
@@ -70,7 +73,7 @@ export function hardwareTraceGroups(
     own: ReflectionGrids,
   ) =>
     device.createBindGroup({
-      layout: hardwareSceneLayout(device),
+      layout,
       entries: [
         ...namedEntries(REFLECTION_TRACE_BINDINGS, {
           flags: pixels.flags,

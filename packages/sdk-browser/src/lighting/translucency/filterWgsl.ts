@@ -11,6 +11,8 @@ export const FILTER_BINDING = {
   injected: 1,
   volume: 2,
   written: 3,
+  marks: 4,
+  historyMarks: 5,
 } as const
 const b = FILTER_BINDING
 
@@ -30,6 +32,9 @@ const b = FILTER_BINDING
  * each axis, which is its 3 × 3 × 3 neighbours weighed 1, 2, 1 along each axis (a quarter, a half, a quarter), the cascade's
  * edge held (a read past it takes the edge cell). The injection is one cell a light's cell, so the blur hides the cells'
  * squares. With the blur off it only packs the light it takes.
+ *
+ * Where the cells are marked (`tv.marks.x`, `translucencyVolumeMarkVoxels`) both filters write nothing but zero in a cell the dilated marks leave
+ * empty, and the temporal filter takes no history from a cell the image before's marks left empty (`tv.marks.y`: it was never lit).
  */
 const FILTER_WGSL = wgslBlock(
   'FILTER_WGSL',
@@ -58,6 +63,12 @@ fn tvBlurred(cascade:u32,c:vec3i)->TvTexel{
  if(tv.mode.w!=0u){return tvLoad(tvVolume,cascade,c);}
  return tvInjected(cascade,c);
 }
+/** Whether cell \`c\` of cascade \`cascade\`, inside it, is marked in \`marks\`: the stacked marks hold the cascades one after the other along the depth. */
+fn tvMarkedIn(marks:texture_3d<u32>,cascade:u32,c:vec3i)->bool{
+ return textureLoad(marks,vec3i(c.xy,c.z+i32(cascade*tv.mode.x)),0).x!=0u;
+}
+/** A cell of no light, which the filters write where a cell is not marked. */
+fn tvEmpty()->TvTexel{return TvTexel(vec4f(0.0),vec3f(0.0));}
 /** The weight of the cell \`offset\` away along one axis in the blur: a quarter, a half, a quarter. */
 fn tvBlurWeight(offset:i32)->f32{return select(0.25,0.5,offset==0);}
 @compute @workgroup_size(${TRANSLUCENCY_WORKGROUP},${TRANSLUCENCY_WORKGROUP},${TRANSLUCENCY_WORKGROUP})
@@ -66,13 +77,20 @@ fn temporalMain(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=dim||id.y>=dim||id.z>=dim*2u){return;}
  let cascade=id.z/dim;
  let cell=vec3i(i32(id.x),i32(id.y),i32(id.z%dim));
+ if(tv.marks.x!=0u&&!tvMarkedIn(tvMarks,cascade,cell)){
+  tvStore(cascade,vec3u(id.xy,id.z%dim),tvEmpty());
+  return;
+ }
  var value=tvInjected(cascade,cell);
  if(tv.mode.z!=0u){
   let P=tvCellPoint(cascade,vec3f(cell));
+  // Floored: a point up to a cell before the previous volume is outside it (the reference truncates toward zero, which would read its first cell there).
   let history=vec3i(floor((P-tv.prevCorner[cascade].xyz)/tv.prevScale[cascade].w));
   let dimension=i32(dim);
   var alpha=1.0;
   if(any(history<vec3i(0))||any(history>=vec3i(dimension))){alpha=0.0;}
+  // A cell the image before left unmarked was not lit: no history.
+  else if(tv.marks.y!=0u&&!tvMarkedIn(tvHistoryMarks,cascade,history)){alpha=0.0;}
   if(cascade==1u){alpha*=tvBorder(cascade,(vec3f(cell)+vec3f(0.5))/f32(dim));}
   if(alpha>0.0){
    var past=tvLoad(tvVolume,cascade,history);
@@ -91,7 +109,11 @@ fn spatialMain(@builtin(global_invocation_id) id:vec3u){
  if(id.x>=dim||id.y>=dim||id.z>=dim*2u){return;}
  let cascade=id.z/dim;
  let cell=vec3i(i32(id.x),i32(id.y),i32(id.z%dim));
- var value=TvTexel(vec4f(0.0),vec3f(0.0));
+ if(tv.marks.x!=0u&&!tvMarkedIn(tvMarks,cascade,cell)){
+  tvStore(cascade,vec3u(id.xy,id.z%dim),tvEmpty());
+  return;
+ }
+ var value=tvEmpty();
  if(tv.mode.y!=0u){
   for(var z=-1;z<=1;z++){for(var y=-1;y<=1;y++){for(var x=-1;x<=1;x++){
    let w=tvBlurWeight(x)*tvBlurWeight(y)*tvBlurWeight(z);
@@ -112,6 +134,8 @@ export const FILTER_PROGRAM = wgslProgram(
 @group(0) @binding(${b.injected}) var tvInjectedIn:texture_3d<f32>;
 @group(0) @binding(${b.volume}) var tvVolume:texture_3d<f32>;
 @group(0) @binding(${b.written}) var tvWritten:texture_storage_3d<${VOLUME_FORMAT},write>;
+@group(0) @binding(${b.marks}) var tvMarks:texture_3d<u32>;
+@group(0) @binding(${b.historyMarks}) var tvHistoryMarks:texture_3d<u32>;
 `,
   [FILTER_WGSL],
 )

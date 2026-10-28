@@ -34,7 +34,7 @@ import {
 
 /** The formats of the cones' light and of the ambient volume, the reference's lighting data format (0 1 2):
  *  `r11g11b10` the 11-11-10 floats (the reference's default), `rgba16` half floats (ours: more precision, on purpose), `rgba32` single floats. */
-const TRANSLUCENCY_GI_LIGHTING_DATA_FORMATS = ['r11g11b10', 'rgba16', 'rgba32'] as const
+const TRANSLUCENCY_GI_LIGHTING_DATA_FORMATS = ['global', 'r11g11b10', 'rgba16', 'rgba32'] as const
 
 /** The volume's settings by field, each with the reference's default:
  *  `translucencyGi`, on — the volume is made at all; off, a surface reads the sky light's irradiance alone;
@@ -51,10 +51,10 @@ const TRANSLUCENCY_GI_LIGHTING_DATA_FORMATS = ['r11g11b10', 'rgba16', 'rgba32'] 
  *  `translucencyGiRadianceCacheProbeResolution`, 8 — the texels a side of a probe's map, 8 to 64;
  *  `translucencyGiRadianceCacheNumMipmaps`, 3 — the levels of detail of the maps, 1 to 3;
  *  `translucencyGiRadianceCacheNumProbesToTraceBudget`, 100 — the probes traced an image, in the cost of a whole map each;
- *  `translucencyGiRadianceCacheProbeAtlasResolutionInProbes`, 128 — the probes along a side of the atlas of the maps, 1 to 1024, which sets the pool;
+ *  `translucencyGiRadianceCacheProbeAtlasResolutionInProbes`, 128 — the probes along a side of the atlas of the maps, 1 to 255, which sets the pool;
  *  `translucencyGiRadianceCacheReprojectionRadiusScale`, 10 — the multiple of a probe's nearest ray start that the sphere its map is read through is as wide as;
  *  `translucencyGiLightingDataFormat`, `rgba16` — the format of the cones' light and of the ambient volume the surfaces read
- *  (`TRANSLUCENCY_GI_LIGHTING_DATA_FORMATS`; the directional volume is always half floats): the half floats keep more precision than the reference's
+ *  (`TRANSLUCENCY_GI_LIGHTING_DATA_FORMATS`; `global` follows the shared `lightingDataFormat`; the directional volume is always half floats): the half floats keep more precision than the reference's
  *  11-11-10 floats (`r11g11b10`, the reference's default), on purpose; a device without the storage textures of the 11-11-10 format keeps half floats;
  *  `translucencyGiGridPixelSize`, 32 — pixels, the side of a cell across the image (the largest power of two within it is used);
  *  `translucencyGiGridDistributionLogZScale`, 1 — per metre (0.01 per centimetre in the reference), the depth slices' logarithm's scale;
@@ -86,7 +86,7 @@ export const TRANSLUCENCY_GI_RULES = /* @__PURE__ */ (() =>
     integer('translucencyGiRadianceCacheProbeResolution', 8, [8, 64]),
     integer('translucencyGiRadianceCacheNumMipmaps', 3, [1, 3]),
     count('translucencyGiRadianceCacheNumProbesToTraceBudget', 100, 1),
-    integer('translucencyGiRadianceCacheProbeAtlasResolutionInProbes', 128, [1, 1024]),
+    integer('translucencyGiRadianceCacheProbeAtlasResolutionInProbes', 128, [1, 255]),
     nonNegative('translucencyGiRadianceCacheReprojectionRadiusScale', 10),
     choice('translucencyGiLightingDataFormat', 'rgba16', TRANSLUCENCY_GI_LIGHTING_DATA_FORMATS),
     integer('translucencyGiGridPixelSize', 32, [1, 1024]),

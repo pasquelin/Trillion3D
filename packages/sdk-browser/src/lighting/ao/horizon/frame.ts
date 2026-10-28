@@ -1,11 +1,18 @@
+import { NEVER_SEEN } from '../../../frame/backend/state/previousCamera.ts'
 import type { AmbientOcclusionSettings } from '../../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { clipToPreviousClip } from '../../../../../math/src/matrix/matrix4Motion.ts'
 import { AMBIENT_OCCLUSION_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { writeChanged } from '../../../gpu/core/writeChanged.ts'
-import { fullscreenDraw } from '../../../post/filters/fullscreenDraw.ts'
-import { aoCommonEntries, specCache, type AoMethod, type AoNeeded } from '../method.ts'
-import { createDepthTerms, type AoImage } from '../params.ts'
+import {
+  aoCommonEntries,
+  aoPassGroups,
+  createAoScratch,
+  specCache,
+  type AoMethod,
+  type AoNeeded,
+} from '../method.ts'
+import type { AoImage } from '../params.ts'
 import type { AoView } from '../view.ts'
 import { HORIZON_BINDINGS as B, HORIZON_PARAMS, HORIZON_PARAMS_BYTES } from './layout.ts'
 import { writeHorizonParams } from './params.ts'
@@ -43,7 +50,7 @@ export const createHorizonHistory = (): HorizonHistory => ({
   valid: false,
   images: 0,
   rect: [0, 0],
-  seen: 0,
+  seen: NEVER_SEEN,
 })
 
 /** The share of the limit the history reaches before a view may rest: nine tenths. */
@@ -67,16 +74,11 @@ interface ScratchFrame {
  *  uniform's words (and the same as the integers `writeChanged` compares), the rectangle drawn, the matrices of the motion and
  *  what the passes are told of the history — one set for each view's method, shared with no other. */
 function createScratch() {
-  const words = new Float32Array(HORIZON_PARAMS.words)
   const clipToPrevious = new Float32Array(16)
   const frame: ScratchFrame = { historyRect: [1, 1], vectors: false, clipToPrevious }
   return {
-    draw: fullscreenDraw(AMBIENT_OCCLUSION_PASS),
+    ...createAoScratch(HORIZON_PARAMS.words),
     compute: { label: AMBIENT_OCCLUSION_PASS },
-    terms: createDepthTerms(),
-    words,
-    sent: new Uint32Array(words.buffer),
-    rect: [0, 0],
     current: new Float64Array(16),
     inverse: new Float64Array(16),
     motion: new Float64Array(16),
@@ -105,38 +107,34 @@ function groupsOf(
   next[3] = history.valid
   next[4] = history.parity
   if (identity.moved())
-    view.groups[identity.slot] = passes.map((pass, at) =>
-      needed.device.createBindGroup({
-        label: `${AMBIENT_OCCLUSION_PASS} horizon ${pass.target}`,
-        ...(pass.kind === 'spatial'
-          ? {
-              layout: programs.spatialLayout,
-              entries: [
-                ...aoCommonEntries(view.params[at], needed, false),
-                { binding: B.input, resource: view.textures[pass.input!] },
-                { binding: B.spatialOut, resource: view.textures[pass.target] },
-              ],
-            }
-          : {
-              layout: programs.layout,
-              entries: [
-                ...aoCommonEntries(view.params[at], needed),
-                {
-                  binding: B.input,
-                  resource: pass.input ? view.textures[pass.input] : needed.empty,
-                },
-                {
-                  binding: B.history,
-                  resource:
-                    pass.history && history.valid
-                      ? view.textures[pass.history]
-                      : programs.noHistory,
-                },
-                { binding: B.vectors, resource: needed.vectors ?? programs.noVectors },
-              ],
-            }),
-      }),
-    )
+    aoPassGroups(view, needed.device, passes, (pass, at) => ({
+      label: `${AMBIENT_OCCLUSION_PASS} horizon ${pass.target}`,
+      ...(pass.kind === 'spatial'
+        ? {
+            layout: programs.spatialLayout,
+            entries: [
+              ...aoCommonEntries(view.params[at], needed, false),
+              { binding: B.input, resource: view.textures[pass.input!] },
+              { binding: B.spatialOut, resource: view.textures[pass.target] },
+            ],
+          }
+        : {
+            layout: programs.layout,
+            entries: [
+              ...aoCommonEntries(view.params[at], needed),
+              {
+                binding: B.input,
+                resource: pass.input ? view.textures[pass.input] : needed.empty,
+              },
+              {
+                binding: B.history,
+                resource:
+                  pass.history && history.valid ? view.textures[pass.history] : programs.noHistory,
+              },
+              { binding: B.vectors, resource: needed.vectors ?? programs.noVectors },
+            ],
+          }),
+    }))
   return view.groups[identity.slot]
 }
 

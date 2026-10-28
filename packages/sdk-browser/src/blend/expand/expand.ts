@@ -22,7 +22,7 @@ import {
 import { VERDICT_GROUP } from '../verdict/verdictWgsl.ts'
 import { VERDICT_WORDS } from '../verdict/verdictLayout.ts'
 import { createVerdictRead } from '../verdict/verdictRead.ts'
-import { sameWords } from '../../gpu/core/sameWords.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 export type BlendExpand = ReturnType<typeof expandApi>
 
@@ -75,7 +75,7 @@ function expandUploads(
         argsBase: region.args + viewArgsWord(entries, view),
       })
       const held = sent[view]
-      if (held && sameWords(held, uni)) return
+      if (held && sameValues(held, uni)) return
       sent[view] = uni.slice()
       device.queue.writeBuffer(buffers.uniforms, slots.pass.offset(view)[0], uni)
     },

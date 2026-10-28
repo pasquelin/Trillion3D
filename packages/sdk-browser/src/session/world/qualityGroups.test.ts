@@ -79,11 +79,11 @@ test("the view distance's levels write the objects' draw distance scale, and the
   assert.equal(settings.get('cutViewDistanceScale'), 3, 'the page, over the preset')
 })
 
-test("the indirect light's levels write the screen probes' level alone, and the page's holds", () => {
+test("the indirect light's levels write the screen probes' level, the medium one the irradiance field and its rows, and the page's holds", () => {
   const { settings, quality: q } = quality()
   const levels = {
     smooth: 'off',
-    balanced: 'low',
+    balanced: 'high',
     fine: 'high',
     max: 'ultra',
     cinematic: 'cinematic',
@@ -93,6 +93,20 @@ test("the indirect light's levels write the screen probes' level alone, and the 
     assert.equal(settings.get('screenProbes'), level, preset)
     // The lowest level has no diffuse global illumination at all: the bounce is written off with it, and with it alone.
     assert.equal(settings.get('bounce'), preset === 'smooth' ? false : true, `${preset} bounce`)
+    // The reference's medium global illumination alone gathers by the irradiance field (`BaseScalability.ini` `GlobalIlluminationQuality@1`: `r.FinalGatherMethod=0`), with its
+    // short-range occlusion row and its smaller surface cache; every other level keeps the screen probes and the cache's own rows.
+    const medium = preset === 'balanced'
+    assert.deepEqual(
+      [
+        settings.get('finalGatherMethod'),
+        settings.get('screenProbeOcclusionSlices'),
+        settings.get('screenProbeShortRangeAODownsampleFactor'),
+        settings.get('screenProbeOcclusionFoliageStrength'),
+        settings.get('surfaceCacheAtlasSize') === 2048,
+      ],
+      medium ? ['irradianceField', 1, 1, 1, true] : ['screenProbes', -1, -1, -1, false],
+      `${preset} medium row`,
+    )
   }
   // The probes' other settings are no level's: the page's value holds through a group given back.
   settings.set('screenProbeSceneTraces', false, 'page')

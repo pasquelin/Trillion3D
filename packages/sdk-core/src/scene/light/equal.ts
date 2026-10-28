@@ -21,6 +21,7 @@ import {
   shadowsFogOf,
   transmitsOf,
   sunDiskTintOf,
+  DEFAULT_CLASSIC_CASCADES as CLASSIC,
 } from './fields.ts'
 import { sameSceneFog } from '../core/fog.ts'
 import { sameSceneAtmosphere } from '../core/atmosphere.ts'
@@ -74,24 +75,52 @@ export const sameLightRecord = (a: SceneLight, b: SceneLight) =>
 
 /** Two lights of the same kind, as strong, in the same unit, scattering and casting alike. */
 function sameStrength(a: SceneLight, b: SceneLight) {
+  return sameKindAndShares(a, b) && sameShadowing(a, b) && sameCascades(a, b)
+}
+
+/** Two lights of the same kind, unit, scattering and shares of the surface response. */
+function sameKindAndShares(a: SceneLight, b: SceneLight) {
   return (
     a.kind === b.kind &&
     intensityOf(a) === intensityOf(b) &&
     lightUnitsOf(a) === lightUnitsOf(b) &&
-    a.castsShadow === b.castsShadow &&
     fogScatteringOf(a) === fogScatteringOf(b) &&
-    shadowsFogOf(a) === shadowsFogOf(b) &&
     transmitsOf(a) === transmitsOf(b) &&
     lightingChannelMaskOf(a) === lightingChannelMaskOf(b) &&
     mobilityOf(a) === mobilityOf(b) &&
-    shadowResolutionScaleOf(a) === shadowResolutionScaleOf(b) &&
-    sameLightShadow(a, b) &&
     diffuseShareOf(a) === diffuseShareOf(b) &&
     specularShareOf(a) === specularShareOf(b) &&
     inverseExposureBlendOf(a) === inverseExposureBlendOf(b) &&
     maxDrawDistanceOf(a) === maxDrawDistanceOf(b) &&
-    (a.softAngle ?? 0) === (b.softAngle ?? 0) &&
     sameVector(a.color, b.color)
+  )
+}
+
+/** Two lights that cast, resolve and bias their shadows alike. */
+function sameShadowing(a: SceneLight, b: SceneLight) {
+  return (
+    a.castsShadow === b.castsShadow &&
+    shadowsFogOf(a) === shadowsFogOf(b) &&
+    shadowResolutionScaleOf(a) === shadowResolutionScaleOf(b) &&
+    sameLightShadow(a, b) &&
+    (a.softAngle ?? 0) === (b.softAngle ?? 0) &&
+    (a.castHairDeepShadow ?? false) === (b.castHairDeepShadow ?? false) &&
+    (a.hairDeepShadowLayerDistribution ?? 0.5) === (b.hairDeepShadowLayerDistribution ?? 0.5) &&
+    (a.shadowBias ?? 0.5) === (b.shadowBias ?? 0.5) &&
+    (a.shadowSlopeBias ?? 0.5) === (b.shadowSlopeBias ?? 0.5)
+  )
+}
+
+/** Two lights whose directional shadow cascades are cut alike. */
+function sameCascades(a: SceneLight, b: SceneLight) {
+  return (
+    (a.dynamicShadowCascades ?? CLASSIC.cascades) ===
+      (b.dynamicShadowCascades ?? CLASSIC.cascades) &&
+    (a.cascadeDistributionExponent ?? CLASSIC.exponent) ===
+      (b.cascadeDistributionExponent ?? CLASSIC.exponent) &&
+    (a.cascadeTransitionFraction ?? CLASSIC.transitionFraction) ===
+      (b.cascadeTransitionFraction ?? CLASSIC.transitionFraction) &&
+    (a.dynamicShadowDistance ?? CLASSIC.distance) === (b.dynamicShadowDistance ?? CLASSIC.distance)
   )
 }
 

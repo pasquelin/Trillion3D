@@ -1,5 +1,6 @@
 import {
   flagSetting as flag,
+  integerSetting as integer,
   numberSetting as number,
   rulesOf,
   ANY_NUMBER,
@@ -23,7 +24,16 @@ import {
  *   where the ray meets a surface that casts contact shadows, when it is 0 or more; below 0, the
  *   lights' own. The effective intensity is held to 1 (`writeContactShadow`);
  * - `contactShadowOverrideNonCastingIntensity` (−1, any number): the same where the ray meets one
- *   that does not.
+ *   that does not;
+ * - `contactShadowMethod` (0): how the lights' rays are cast: 0 the short stochastic ray every lit pixel casts, 1 the screen-space
+ *   shadow of a wavefront marched from each pixel toward the light (Bend), a texture of the light's own made before the lighting;
+ * - `contactShadowBendSurfaceThickness` (0.005): how thick the surface a pixel stands for is taken to be when a Bend ray meets it;
+ * - `contactShadowIntensityMode` (0): how the Bend shadow's intensity is found: 0 by the hit surface's `castContactShadow` flag, 1 by
+ *   its depth, from the non-casting intensity to the casting one over a fade, 2 the casting intensity everywhere;
+ * - `contactShadowBendMaxLights` (8, 1 to 16): how many lights the Bend march serves in an image, the suns first then the local lights nearest the eye;
+ *   the others cast their stochastic ray. Each costs a layer of the image's size (4 bytes a pixel);
+ * - `contactShadowIntensityFadeStart` (1600) and `contactShadowIntensityFadeLength` (800): the depth (centimetres) where that fade
+ *   begins and its length, read in mode 1.
  */
 export const CONTACT_SHADOW_RULES = /* @__PURE__ */ (() =>
   [
@@ -32,6 +42,12 @@ export const CONTACT_SHADOW_RULES = /* @__PURE__ */ (() =>
     flag('contactShadowOverrideLengthInWorldSpace', false),
     number('contactShadowOverrideCastingIntensity', -1, ANY_NUMBER),
     number('contactShadowOverrideNonCastingIntensity', -1, ANY_NUMBER),
+    integer('contactShadowMethod', 0, [0, 1]),
+    number('contactShadowBendSurfaceThickness', 0.005, [0.00001, 1]),
+    integer('contactShadowBendMaxLights', 8, [1, 16]),
+    integer('contactShadowIntensityMode', 0, [0, 2]),
+    number('contactShadowIntensityFadeStart', 1600, [0, 1e9]),
+    number('contactShadowIntensityFadeLength', 800, [0.0001, 1e9]),
   ] as const)()
 
 /** The same rules by their field: what the frame reads the view's settings with (`ContactShadowView`). */

@@ -98,6 +98,7 @@ const HANDED_IN = new Set([
   'post/taa/historyResolve.ts',
   'lighting/bounce/cache/cacheKernels.ts',
   'lighting/bounce/screen/kernels.ts',
+  'lighting/bounce/irradianceField/maps.ts',
   'lighting/ao/pipelines.ts',
   'lighting/ao/horizon/pipelines.ts',
   'lighting/atmosphere/opaqueHaze.ts',
@@ -127,7 +128,12 @@ test('the list holds the text of every call that compiles a module', () => {
     'engineShaders.taa.fixture.ts',
     'engineShaders.surfaceCache.fixture.ts',
     'engineShaders.sceneTrace.fixture.ts',
+    'engineShaders.lightFormat.fixture.ts',
     'engineShaders.hair.fixture.ts',
+    'engineShaders.heterogeneousVolumes.fixture.ts',
+    'engineShaders.capsuleShadows.fixture.ts',
+    'engineShaders.manyLights.fixture.ts',
+    'engineShaders.screenSpaceTracing.fixture.ts',
     'shaderTexts.fixture.ts',
   ]
     .map((name) => readFileSync(new URL(`./${name}`, import.meta.url), 'utf8'))

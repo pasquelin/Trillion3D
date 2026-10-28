@@ -1,22 +1,18 @@
 import type { BounceShape } from '../../../../sdk-core/src/bounce/contracts.ts'
 import type { ScreenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { TranslucencyGiValues } from '../../../../sdk-core/src/contracts/translucencyGiOptions.ts'
-import { NO_PLACEMENT_BOXES } from '../../geometry/dag/placement/placementBoxes.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { WebgpuBounceState } from '../../frame/backend/state/bounce.ts'
-import { skyLightReadOf } from '../../frame/render/skyLightState.ts'
-import { cachedLightingPreExposureOf } from '../../post/exposure/frame.ts'
-import { createMarkSurface, type MarkSurface } from '../bounce/pool/pool.ts'
-import { createGpuBounceProbes, type GpuBounceProbes } from '../bounce/probes/probes.ts'
-import { screenProbeSettingsOf } from '../bounce/screen/settingsOf.ts'
-import type { SurfaceHitReads } from '../surfaceCache/hitWgsl.ts'
-import type { SceneRays } from '../surfaceCache/lighting/surfaceLighting.ts'
+import { createMarkSurface } from '../bounce/pool/pool.ts'
 import {
-  KEEP_IMAGES,
-  translucencyGiEndDistanceOf,
-  translucencyGiSettings,
-  wanted,
-} from './settings.ts'
+  encodeHeldProbes,
+  idleExpired,
+  startHeldProbes,
+  type ProbeFrame,
+  type ProbeHold,
+} from '../bounce/probes/hold.ts'
+import { screenProbeSettingsOf } from '../bounce/screen/settingsOf.ts'
+import { translucencyGiEndDistanceOf, translucencyGiSettings, wanted } from './settings.ts'
 import { translucencyGiMarkers } from './marker.ts'
 import {
   clipmapsCovering,
@@ -28,20 +24,10 @@ import {
 const ownCacheWanted = (rt: WebgpuPagesRuntime, v: TranslucencyGiValues) =>
   v.translucencyGiRadianceCache && !v.translucencyGiShareRadianceCacheWithOpaque && wanted(rt, v)
 
-/** What the volume keeps of its own cache between two images. */
-export interface TranslucencyCacheHold {
-  probes: GpuBounceProbes | undefined
-  /** The shape the probes are made, or being made, for. */
-  key: string | undefined
-  /** The images since the cache was last wanted. */
-  idle: number
+/** What the volume keeps of its own cache between two images; its pool is marked from the cells' mark alone, no image surface. */
+export interface TranslucencyCacheHold extends ProbeHold {
   /** The screen probes' settings object and the numbers (`INPUTS`) `shape`, `shapeKey` and `settings` were made from: made again when one moved. */
   readonly followed: { screen: ScreenProbeSettings | undefined; inputs: Float64Array }
-  shape: BounceShape | undefined
-  shapeKey: string | undefined
-  settings: ScreenProbeSettings | undefined
-  /** What the pool is marked from: the cells' mark alone, no image surface. */
-  readonly surface: MarkSurface
 }
 
 /** The numbers the cache's shape and settings are made of, in the order `inputsOf` writes them. */
@@ -124,34 +110,6 @@ export function releaseTranslucencyCache(bounce: WebgpuBounceState) {
   if (bounce.translucency) drop(bounce.translucency)
 }
 
-/** The probes of the shape `key` made, off the frame: the levels first centred on the origin — they follow the eye before anything reads
- *  them —, the world's moves of the placements restarting them (`restartTranslucencyCache`) instead of a read of their own. */
-function start(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  hold: TranslucencyCacheHold,
-  key: string,
-) {
-  hold.key = key
-  void createGpuBounceProbes(
-    device,
-    [0, 0, 0, 0, 0, 0],
-    { boxes: () => NO_PLACEMENT_BOXES },
-    () => rt.lights.buffer!,
-    () => hold.settings!,
-    { shape: hold.shape, surfaceMarks: false },
-  )
-    .then((probes) => {
-      if (hold.key !== key || rt.gpu.device !== device) return probes.dispose()
-      hold.probes = probes
-      rt.run.gate.resourcesChanged()
-    })
-    .catch((error: unknown) => {
-      if (hold.key !== key) return
-      rt.diag.diagnosticFailure('translucency-cache-unavailable', error)
-    })
-}
-
 /**
  * The probe pass of the volume's own cache, with the world's (the cells it marks are marked against this image's depth, as the world's are):
  * its levels follow the eye, the cells the volume marked last image (the mark alone: no image surface marks here) take probes, and the maps
@@ -162,12 +120,7 @@ function start(
 export function encodeTranslucencyCache(
   rt: WebgpuPagesRuntime,
   encoder: GPUCommandEncoder,
-  frame: {
-    reads: SurfaceHitReads
-    rays: SceneRays | undefined
-    viewpoint: ArrayLike<number>
-    forward: ArrayLike<number> | undefined
-  },
+  frame: ProbeFrame,
 ) {
   const { bounce, lights } = rt
   const device = rt.gpu.device
@@ -175,7 +128,7 @@ export function encodeTranslucencyCache(
   const v = translucencyGiSettings(rt)
   const hold = translucencyCacheHold(bounce)
   if (!ownCacheWanted(rt, v)) {
-    if (++hold.idle >= KEEP_IMAGES) drop(hold)
+    if (idleExpired(hold)) drop(hold)
     return
   }
   hold.idle = 0
@@ -183,23 +136,21 @@ export function encodeTranslucencyCache(
   const key = hold.shapeKey!
   if (hold.key !== key) {
     drop(hold)
-    if (lights.buffer) start(rt, device, hold, key)
+    // The levels follow the eye before anything reads them; the world's moves of the placements restart them
+    // (`restartTranslucencyCache`) instead of a read of their own.
+    if (lights.buffer)
+      startHeldProbes(
+        rt,
+        device,
+        hold,
+        key,
+        { surfaceMarks: false },
+        'translucency-cache-unavailable',
+      )
   }
-  const { probes } = hold
-  if (!probes) return
-  if (bounce.historyLost) probes.discard()
-  probes.track(frame.viewpoint, cachedLightingPreExposureOf(rt))
+  if (!hold.probes) return
   hold.surface.markers = translucencyGiMarkers(rt, 'own')
-  probes.encode(
-    encoder,
-    frame.viewpoint,
-    skyLightReadOf(rt),
-    frame.reads,
-    cachedLightingPreExposureOf(rt),
-    hold.surface,
-    frame.rays,
-    frame.forward,
-  )
+  encodeHeldProbes(rt, encoder, hold.probes, hold.surface, frame)
 }
 
 /** The maps of the probes the volume's cache queued this image traced, in a pass of their own, before the volume reads them. */
@@ -210,14 +161,6 @@ export function flushTranslucencyCache(bounce: WebgpuBounceState, encoder: GPUCo
 /** The world's placements moved or arrived: the volume's cache holds the light of a scene that was. */
 export function restartTranslucencyCache(bounce: WebgpuBounceState) {
   bounce.translucency?.probes?.restart()
-}
-
-/** The probes the volume's cells read this image: its own cache's where it has one, the world's where shared, none where it reads no cache. */
-export function translucencyCacheProbes(rt: WebgpuPagesRuntime, v: TranslucencyGiValues) {
-  if (!v.translucencyGiRadianceCache) return undefined
-  return v.translucencyGiShareRadianceCacheWithOpaque
-    ? rt.bounce.probes
-    : rt.bounce.translucency?.probes
 }
 
 /** How the trace reads the cache of this image (`TranslucencyGiFrame.cache`): the radius scale of the sphere a map is read through, the maps'

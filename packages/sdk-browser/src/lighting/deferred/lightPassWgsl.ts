@@ -16,6 +16,7 @@ import { MODEL_FLAG } from '../../materials/surface/surfaceModelWord.ts'
 import {
   DEFERRED_BINDINGS,
   DEFERRED_CLOUD_SHADOW_BINDINGS,
+  DEFERRED_CONTACT_BEND_BINDINGS,
   DEFERRED_LIGHT_FUNCTION_BINDINGS,
   DEFERRED_LIGHT_PROFILE_BINDINGS,
 } from './bindings.ts'
@@ -32,6 +33,7 @@ import {
 } from './litSurfaceWgsl.ts'
 import { TILE_VERTEX_WGSL } from './tilePass.ts'
 import type { TileClass } from './tileClass.ts'
+import { DECLARED_TERM_TEXT, SHADING_TEXT } from '../direct/lightLoopWgsl.ts'
 import { LOBES_TARGET_WGSL } from '../direct/lobesWgsl.ts'
 import { lightingBase, pixelCellWgsl, type LightingBindings } from '../direct/lightingWgsl.ts'
 import { CONTRACT_SHADOW_BINDINGS } from '../direct/shadowBindings.ts'
@@ -44,7 +46,7 @@ export const LIGHTS_BINDING_WGSL = wgslBlock(
   `@group(0) @binding(${DEFERRED_BINDINGS.lights}) var<storage,read> directLights:DirectLights;`,
 )
 /** The light grid's lists. */
-const TILES_BINDING_WGSL = wgslBlock(
+export const TILES_BINDING_WGSL = wgslBlock(
   'TILES_BINDING_WGSL',
   [],
   `@group(0) @binding(${DEFERRED_BINDINGS.tiles}) var<storage,read> tileLights:array<u32>;`,
@@ -81,6 +83,24 @@ const VISIBILITY_BINDINGS: LightingBindings = {
   farShadowMask: DEFERRED_BINDINGS.farShadowMask,
 }
 
+/** The bindings `bindings` with the screen-space contact shadows' array (`contactShadowMethod` 1) where the pass holds contact shadow
+ *  code (`ContractKey.contactless`): the lights of the pass find their layer in it. */
+export const withContactBend = (bindings: LightingBindings, key: ContractKey): LightingBindings =>
+  key.contactless ? bindings : { ...bindings, contactBend: DEFERRED_CONTACT_BEND_BINDINGS }
+
+/** The bindings `bindings` with the volumes' shadows' buffer (`ContractKey.volumeShadow`): the lights of the pass multiply their share by the
+ *  transmittance of the volumes toward them. */
+export const withVolumeShadow = (bindings: LightingBindings, key: ContractKey): LightingBindings =>
+  key.volumeShadow ? { ...bindings, volumeShadow: DEFERRED_BINDINGS.volumeShadow } : bindings
+
+/** The strands' samples' lighting (`../../hair/hairLightWgsl.ts`): the local lights' bindings with the sun's distance-field
+ *  shadow and the clouds' shade the suns of the cell are lit with, so that a strand reads what a surface reads; the masks
+ *  bound at the shadows' ranks are the strands' own. */
+export const HAIR_LIGHT_BINDINGS: LightingBindings = {
+  ...VISIBILITY_BINDINGS,
+  cloudShadow: DEFERRED_CLOUD_SHADOW_BINDINGS,
+}
+
 /** The sum of the directional lights of the scene on a pixel, in the order of their ranks. */
 const SUN_LOOP_WGSL = wgslBlock(
   'SUN_LOOP_WGSL',
@@ -88,9 +108,9 @@ const SUN_LOOP_WGSL = wgslBlock(
   `
 fn sunLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->vec3f{
  var result=vec3f(0.0);
- let shading=clothSurface(lobeSurface(rgb,metal,rough,N,V));lobeView(shading);
+ ${SHADING_TEXT()}
  for(var index=1u;index<=sunRanks[0];index++){
-  result+=declaredLight(sunRanks[index],rgb,metal,rough,N,V,P,ao,shading);
+  result+=${DECLARED_TERM_TEXT('sunRanks[index]')};
  }
  return result;
 }`,
@@ -99,14 +119,14 @@ fn sunLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32)->ve
 /** The sum of the lights of a cell's list on a pixel but the directional ones, in the order of
  *  their ranks; with `skipHeld`, but the shadowed local lights as well, which the per-light draw lights
  *  (`perLightPassWgsl.ts`) — a light is lit by this loop or by its own draw, never both. */
-export const localLoopWgsl = wgslVariants((skipHeld) =>
+const localLoopWgsl = wgslVariants((skipHeld) =>
   wgslBlock(
     skipHeld ? 'LOCAL_LOOP_UNBATCHED_WGSL' : 'LOCAL_LOOP_WGSL',
     skipHeld ? [LOCAL_SHADOWED_WGSL] : [],
     `
 fn localLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,slice:vec2u)->vec3f{
  var result=vec3f(0.0);
- let shading=clothSurface(lobeSurface(rgb,metal,rough,N,V));lobeView(shading);
+ ${SHADING_TEXT()}
  for(var index=0u;index<slice.y;index++){
   let rank=listedLight(slice,index);
   if(!listedDrawn(slice,rank)){continue;}
@@ -116,7 +136,7 @@ fn localLighting(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,ao:f32,sl
   if(lightHasLocalShadow(rank)){continue;}`
       : ''
   }
-  result+=declaredLight(rank,rgb,metal,rough,N,V,P,ao,shading);
+  result+=${DECLARED_TERM_TEXT()};
  }
  return result;
 }`,
@@ -175,7 +195,7 @@ export function sunPassWgsl(key: ContractKey, tileClass: TileClass) {
   return wgslBlock(
     `sunPassWgsl(${variantLabel(lights)}, ${tileClass})`,
     [
-      lightingBase(SUN_BINDINGS, lights, {
+      lightingBase(withVolumeShadow(withContactBend(SUN_BINDINGS, lights), lights), lights, {
         narrow: key.narrow,
         environment: false,
         slices: false,
@@ -206,6 +226,20 @@ export function sunPassWgsl(key: ContractKey, tileClass: TileClass) {
  * share of their light the shadows let through, the sun's distance-field shadow among them, white
  * where no shadowed light reaches.
  */
+const SAMPLED_LIGHT_BINDING_WGSL = wgslBlock(
+  'SAMPLED_LIGHT_BINDING_WGSL',
+  [],
+  `@group(0) @binding(${DEFERRED_BINDINGS.sampledLight}) var sampledLight:texture_2d<f32>;`,
+)
+
+/** The body of the local lights' pass where the sampled lighting lights them (`ContractKey.sampled`): no walk of the cell's lights, the light the sampled lighting left for
+ *  the pixel, un-exposed to go through `lightOut`'s pre-exposure again, and its scattering luminance in `scatterLuma`. */
+const SAMPLED_LOCAL_BODY = `
+ let left=textureLoad(sampledLight,coord,0);
+ let exposure=max(view.preExposure.x,1e-20);
+ scatterLuma=left.a/exposure;
+ return lightOut(left.rgb/exposure);`
+
 export function localPassWgsl(
   key: ContractKey,
   tileClass: TileClass,
@@ -217,24 +251,36 @@ export function localPassWgsl(
   return wgslBlock(
     `localPassWgsl(${variantLabel(lights)}, ${tileClass}${skipHeld ? ', unbatched' : ''})`,
     [
-      lightingBase(visibility ? VISIBILITY_BINDINGS : LOCAL_BINDINGS, lights, {
-        narrow: key.narrow,
-        environment: false,
-        cut,
-        // The loop skips the directional lights, the air's alone; the shadows' view sums them.
-        airTint: visibility,
-      }),
+      lightingBase(
+        withVolumeShadow(
+          withContactBend(visibility ? VISIBILITY_BINDINGS : LOCAL_BINDINGS, lights),
+          lights,
+        ),
+        lights,
+        {
+          narrow: key.narrow,
+          environment: false,
+          cut,
+          // The loop skips the directional lights, the air's alone; the shadows' view sums them.
+          airTint: visibility,
+        },
+      ),
       pixelCellWgsl(),
       ...head,
       LIGHTS_BINDING_WGSL,
       TILES_BINDING_WGSL,
       TILE_VERTEX_WGSL,
       localLoopWgsl(skipHeld),
+      ...(key.sampled ? [SAMPLED_LIGHT_BINDING_WGSL] : []),
       ...tail,
     ],
     `
-@fragment fn localMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}${PIXEL_CELL}
- return lightOut(localLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),cell));
+@fragment fn localMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}${
+      key.sampled
+        ? SAMPLED_LOCAL_BODY
+        : `${PIXEL_CELL}
+ return lightOut(localLighting(albedo,base.a,normal.a,N,V,P,screenOcclusionAt(coord),cell));`
+    }
 }${
       visibility
         ? `

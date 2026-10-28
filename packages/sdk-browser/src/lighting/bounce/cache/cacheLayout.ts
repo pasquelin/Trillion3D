@@ -2,7 +2,17 @@ import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { listBytes } from '../../../gpu/dispatch/list.ts'
 import { textureBytesOf } from '../../../gpu/core/textureBytes.ts'
+import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
+import { lightWordsOf } from '../../../gpu/core/lightWords.ts'
 import { POOL_ROW_PROBES } from '../atlas.ts'
+
+/** The raw atlas's format where the light is one word (the 11-11-10 format, native or not): two words a texel, the light's and the ray's distance word. */
+const RADIANCE_RAW_FORMAT = 'rg32uint' as const
+
+/** The raw atlas's format for a light stored in `light`: a texel is the words of the light (`lightWordsOf`) and the ray's distance word beside them, which
+ *  the light's one word and the distance fill, else the four words of a vector (the light's two or three, the distance last). */
+export const radianceRawFormat = (light: LightAtlasFormat) =>
+  lightWordsOf(light) === 1 ? RADIANCE_RAW_FORMAT : ('rgba32uint' as const)
 
 /**
  * THE RADIANCE CACHE'S SHAPES. Every probe of the world's pool (`../pool/pool.ts`) holds the light it sees in
@@ -27,20 +37,24 @@ import { POOL_ROW_PROBES } from '../atlas.ts'
  *
  * A map may be read once its probe is published to the cell table (`../pool/poolWgsl.ts`: a probe is published at its first trace), and
  * the update that traces it is encoded before anything reads the table that names it.
+ *
+ * The light of the final atlas (and of the filter's output) is stored in the format the lighting data format asks (`CacheShape.light`,
+ * `../../../gpu/core/lightAtlasFormat.ts`); the raw atlas, and the trace atlas, hold the light in the words of that format beside the distance word (`radianceRawFormat`),
+ * so that no ray's light is rounded to the 11-11-10 floats' mantissas where the format asks for more.
  */
-export const RADIANCE_CACHE_FORMATS = {
-  raw: 'rg32uint',
-  final: 'r32uint',
-  sky: 'r32float',
-} as const satisfies Record<string, GPUTextureFormat>
+export const radianceCacheFormats = (light: LightAtlasFormat) =>
+  ({
+    raw: radianceRawFormat(light),
+    final: light,
+    sky: 'r32float',
+  }) as const satisfies Record<string, GPUTextureFormat>
 
 /** The formats of the atlases that last a frame: the filter's output keeps the light and the sky's share as the final atlas does, the trace
  *  atlas a ray's words as the raw one does. */
-export const RADIANCE_CACHE_TEMP_FORMATS = {
-  filtered: RADIANCE_CACHE_FORMATS.final,
-  filteredSky: RADIANCE_CACHE_FORMATS.sky,
-  trace: RADIANCE_CACHE_FORMATS.raw,
-} as const satisfies Record<string, GPUTextureFormat>
+export const radianceCacheTempFormats = (light: LightAtlasFormat) => {
+  const held = radianceCacheFormats(light)
+  return { filtered: held.final, filteredSky: held.sky, trace: held.raw } as const
+}
 
 /** The side, in texels, of a trace tile: a workgroup. */
 export const CACHE_TILE_SIDE = 8
@@ -49,13 +63,13 @@ export const CACHE_TILE_SIDE = 8
  *  the light of a ray is dithered by the place of. */
 export const CACHE_TRACE_ATLAS_TILES = 512
 
-/** The flags of the cache's parameters (`flags`): the filter runs, the sky's share is kept apart, the rays go through the trace atlas, the
- *  frame is a full update. */
+/** The flags of the cache's parameters (`flags`): the filter runs, the sky's share is kept apart, the rays go through the trace atlas. */
 export const RADIANCE_CACHE_FLAGS = {
   filter: 1 << 0,
   sky: 1 << 1,
   traced: 1 << 2,
-  full: 1 << 3,
+  /** The rays cast through the scene's triangles add the leaking sky light (`leak`): the cache makes irradiance maps. */
+  leak: 1 << 3,
 } as const
 
 /** The level every probe's trace tiles are cut at (`level`): the resolution the map is traced at, half of its side, the whole side or
@@ -83,6 +97,8 @@ export const RADIANCE_CACHE_PARAMS = fieldLayout('RadianceCacheParams', [
   ['filterAngle', 'f32'],
   ['eye', 'vec4f'],
   ['traced', 'vec3f'],
+  ['leak', 'vec4f'],
+  ['leakDistance', 'f32'],
 ] as const)
 /** Bytes of the cache's parameters. */
 export const RADIANCE_CACHE_PARAMS_BYTES = RADIANCE_CACHE_PARAMS.words * 4
@@ -90,9 +106,10 @@ export const RADIANCE_CACHE_PARAMS_BYTES = RADIANCE_CACHE_PARAMS.words * 4
 /** The most tiles a probe's map is traced in: every texel of a map twice the side. */
 const maxTilesPerProbe = (resolution: number) => (resolution / (CACHE_TILE_SIDE / 2)) ** 2
 
-/** Entries the tile list holds: every probe a frame queues, at most the whole pool of `slots` probes in a full update, each at the most tiles. */
+/** Entries the tile list holds: every probe a frame queues, at most the whole pool of `slots` probes in a full update, each at the most tiles,
+ *  and the last one the cell the first tile of the slice of the list being traced is kept in (`advanceSlice`). */
 export const cacheTileCapacity = (resolution: number, slots: number) =>
-  slots * maxTilesPerProbe(resolution)
+  slots * maxTilesPerProbe(resolution) + 1
 
 /** The extent of an atlas of a pool of `slots` probes' squares of `side` texels: the raw atlas's, of the maps of `resolution` texels. */
 export function cacheExtent(side: number, slots: number): [number, number] {
@@ -122,14 +139,34 @@ export const cacheTempExtent = (resolution: number, temp: CacheTemp): [number, n
   ceilDiv(temp.probes, temp.row) * resolution,
 ]
 
+/** The most tiles the trace atlas holds: the rows of a texture of the side every device grants at least (8192 texels; `limits.ts` checks the device's own). */
+const MAX_TRACE_ATLAS_TILES = CACHE_TRACE_ATLAS_TILES * (8192 / CACHE_TILE_SIDE)
+
 /** The tiles the trace atlas holds for the queue's block `temp`: the tiles of every probe traced at half the side (a probe is traced at a
- *  quarter of its rays at the least), times the share that the tiles ask beyond it. A map under sixteen texels a side is one tile. */
+ *  quarter of its rays at the least), times the share that the tiles ask beyond it. A map under sixteen texels a side is one tile. A full
+ *  update (`full`) has no budget to keep its probes within that share: it holds the tiles of every probe traced at the whole side, no more
+ *  than the atlas can, the rest of its tiles being traced in further slices (`cacheTraceSlices`). */
 export const cacheTraceTiles = (
   resolution: number,
   temp: CacheTemp,
   tiles: keyof typeof RADIANCE_CACHE_TILE_LEVELS,
-) =>
-  temp.probes * ceilDiv(resolution, 2 * CACHE_TILE_SIDE) ** 2 * (tiles === 'supersampled' ? 4 : 1)
+  full = false,
+) => {
+  const asked =
+    temp.probes *
+    ceilDiv(resolution, 2 * CACHE_TILE_SIDE) ** 2 *
+    (full || tiles === 'supersampled' ? 4 : 1)
+  return full ? Math.min(asked, MAX_TRACE_ATLAS_TILES) : asked
+}
+
+/** The slices a full update's tiles are traced in, `traceTiles` of them at a time: the tiles of every probe of the block `temp` at the most (all
+ *  at twice the side), over what the atlas holds. One for an update within its budget. */
+export const cacheTraceSlices = (
+  resolution: number,
+  temp: CacheTemp,
+  traceTiles: number,
+  full: boolean,
+) => (full ? Math.max(1, ceilDiv(temp.probes * maxTilesPerProbe(resolution), traceTiles)) : 1)
 
 /** The extent of the trace atlas for `tiles` tiles. */
 export const cacheTraceExtent = (tiles: number): [number, number] => [
@@ -143,43 +180,50 @@ export interface CacheShape {
   resolution: number
   mipmaps: number
   skyVisibility: boolean
+  /** The format the final maps and the filter's light are stored in (`lightingDataFormat` on the device's features, `lightAtlasFormat`). */
+  light: LightAtlasFormat
 }
 
 /** Whether two shapes are one cache's. */
 export const sameShape = (a: CacheShape, b: CacheShape) =>
-  a.resolution === b.resolution && a.mipmaps === b.mipmaps && a.skyVisibility === b.skyVisibility
+  a.resolution === b.resolution &&
+  a.mipmaps === b.mipmaps &&
+  a.skyVisibility === b.skyVisibility &&
+  a.light === b.light
 
 /** Bytes of the atlases of a frame for the queue's block `temp` (`cacheTempExtent`): the filter's light and its sky's share (a texel where the
  *  sky is not kept apart). */
 export const cacheTempBytes = (shape: CacheShape, temp: CacheTemp) => {
   const size = cacheTempExtent(shape.resolution, temp)
+  const formats = radianceCacheTempFormats(shape.light)
   return (
-    textureBytesOf({ size, format: RADIANCE_CACHE_TEMP_FORMATS.filtered })! +
+    textureBytesOf({ size, format: formats.filtered })! +
     textureBytesOf({
       size: shape.skyVisibility ? size : [1, 1],
-      format: RADIANCE_CACHE_TEMP_FORMATS.filteredSky,
+      format: formats.filteredSky,
     })!
   )
 }
 
-/** Bytes of the trace atlas for `tiles` tiles. */
-export const cacheTraceBytes = (tiles: number) =>
-  textureBytesOf({ size: cacheTraceExtent(tiles), format: RADIANCE_CACHE_TEMP_FORMATS.trace })!
+/** Bytes of the trace atlas for `tiles` tiles, its rays' light stored in `light`. */
+export const cacheTraceBytes = (tiles: number, light: LightAtlasFormat) =>
+  textureBytesOf({ size: cacheTraceExtent(tiles), format: radianceRawFormat(light) })!
 
 /** Bytes a cache of `slots` probes' maps of the shape `shape` holds: the atlases that last and the tile list (those of a frame, `cacheTempBytes`
  *  and `cacheTraceBytes`, come and go with the queue). */
 export function cacheBytes(shape: CacheShape, slots: number) {
   const { resolution, mipmaps, skyVisibility } = shape
+  const formats = radianceCacheFormats(shape.light)
   const size = cacheExtent(resolution, slots)
   const finalSize = cacheExtent(cacheFinalSide(resolution, mipmaps), slots)
   return (
-    textureBytesOf({ size, format: RADIANCE_CACHE_FORMATS.raw })! +
+    textureBytesOf({ size, format: formats.raw })! +
     textureBytesOf({
       size: finalSize,
-      format: RADIANCE_CACHE_FORMATS.final,
+      format: formats.final,
       mipLevelCount: mipmaps,
     })! +
-    (skyVisibility ? textureBytesOf({ size: finalSize, format: RADIANCE_CACHE_FORMATS.sky })! : 0) +
+    (skyVisibility ? textureBytesOf({ size: finalSize, format: formats.sky })! : 0) +
     listBytes(cacheTileCapacity(resolution, slots), 2) +
     RADIANCE_CACHE_PARAMS_BYTES
   )

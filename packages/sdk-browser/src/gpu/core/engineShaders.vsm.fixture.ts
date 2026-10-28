@@ -10,6 +10,7 @@ import {
   vsmPageRectInitWgsl,
   vsmClearRasterMarksWgsl,
   vsmCoarseMarkingWgsl,
+  vsmDenseMarkingWgsl,
 } from '../../lighting/shadows/vsm/markingWgsl.ts'
 import { vsmFilterableKernels } from '../../lighting/shadows/vsm/filterableWgsl.ts'
 import { vsmPageManagementKernels } from '../../lighting/shadows/vsm/pageManagementWgsl.ts'
@@ -68,6 +69,7 @@ export function vsmVariants() {
     VSM_PRUNE_LIGHT_GRID: vsmPruneLightGridWgsl(),
     VSM_MARKING_RECTS: vsmPageRectInitWgsl(layout),
     VSM_MARKING_COARSE: vsmCoarseMarkingWgsl(layout),
+    VSM_MARKING_DENSE: vsmDenseMarkingWgsl(layout),
     VSM_MARKING_PIXELS: vsmPixelPageMarkingWgsl(layout),
     VSM_MARKING_PIXELS_FRONT: vsmPixelPageMarkingWgsl(layout, true),
     VSM_MARKING_PIXELS_WATER: vsmPixelPageMarkingWgsl(layout, false, true),
@@ -173,11 +175,27 @@ export function vsmVariants() {
   for (const [name, kernel] of Object.entries(vsmFilterableKernels(prefiltered)))
     variants[`VSM_PM_${upper(name)}`] = kernel.code
   variants.VSM_PROJECTION_SUNS_PREFILTERED = vsmSunsProjectionWgsl(prefiltered)
+  // The classic shadows (`shadowVirtualEnable` off): the projections that filter the dense maps in place of the soft rays.
+  const classic = vsmLayout({ ...layoutOptions, classic: true })
+  variants.VSM_PROJECTION_SUNS_CLASSIC = vsmSunsProjectionWgsl(classic)
+  variants.VSM_PROJECTION_LOCALS_CLASSIC = vsmLocalsProjectionWgsl(classic, 'rg32uint')
+  // The same, under the shadow the hair strands cast on the surfaces (the `hair` cut).
+  variants.VSM_PROJECTION_SUNS_CLASSIC_HAIR = vsmSunsProjectionWgsl(classic, false, 'gbuffer', true)
+  variants.VSM_PROJECTION_LOCALS_CLASSIC_HAIR = vsmLocalsProjectionWgsl(
+    classic,
+    'rg32uint',
+    false,
+    'gbuffer',
+    false,
+    true,
+  )
+  variants.VSM_PROJECTION_PER_LIGHT_HAIR = vsmPerLightProjectionWgsl(classic, false, true)
   // The programs the layout changes: the cull and the descent asking the request bits, the three
   // page markings, the page management.
   variants.VSM_RENDER_CULL_PREFILTERED = vsmRenderCullWgsl(prefiltered)
   variants.VSM_DESCENT_PREFILTERED = vsmDescentWgsl(prefiltered)
   variants.VSM_MARKING_COARSE_PREFILTERED = vsmCoarseMarkingWgsl(prefiltered)
+  variants.VSM_MARKING_DENSE_PREFILTERED = vsmDenseMarkingWgsl(prefiltered)
   variants.VSM_MARKING_PIXELS_PREFILTERED = vsmPixelPageMarkingWgsl(prefiltered)
   variants.VSM_MARKING_FROXELS_PREFILTERED = vsmFroxelPageMarkingWgsl(prefiltered)
   for (const [pageLayout, suffix] of [

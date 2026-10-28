@@ -73,12 +73,13 @@ test('blended and transmissive surfaces, lit or unlit, are fogged from the eye o
   // (`clearCoatNormal`), in the gap before the clip plane, in the struct's 16-byte alignment.
   assert.match(
     wgslSource(BLEND_VIEW_WGSL),
-    /pixelRatio:f32,mipBias:f32,exposure:f32,preExposure:f32,toneCurve:u32,pixelError:f32,time:f32,realTime:f32,clearCoatNormal:u32,clipPlane:vec4f,bake:Bake,volumeCorner:array<vec4f,2>,volumeScale:array<vec4f,2>,volumeRead:vec4f,giGrid:vec4f,giZ:vec4f,holdout:u32,normalCurvature:vec3f,\}/,
+    /pixelRatio:f32,mipBias:f32,exposure:f32,preExposure:f32,toneCurve:u32,pixelError:f32,time:f32,realTime:f32,clearCoatNormal:u32,clipPlane:vec4f,bake:Bake,volumeCorner:array<vec4f,2>,volumeScale:array<vec4f,2>,volumeRead:vec4f,giGrid:vec4f,giZ:vec4f,holdout:u32,volumeCamera:u32,volumeCameraFactor:f32,normalCurvature:vec3f,\}/,
   )
   // The clip plane of the view's, a vec4 behind them at the next 16 bytes (`clipPlane`): 240 bytes, the
   // clock in the gap the plane's alignment left, then the copy of the tone table's baking words, then the translucency
   // lighting volume's five vec4 (two cascades' corners and scales, the read words), the global illumination volume's two (its grid and
-  // slices' law), then the holdout word (`holdout`) and the normal curvature's three
+  // slices' law), then the holdout word (`holdout`), the heterogeneous volumes' camera map's switch and factor (`volumeCamera`, `volumeCameraFactor`:
+  // they take two of the three words the holdout leaves before the next 16-byte boundary, so the size does not move) and the normal curvature's three
   // words, which the struct's 16-byte alignment pads to 32 bytes.
   assert.equal(BLEND_VIEW_SIZE, 240 + BAKE_BYTES + 7 * 16 + 32)
 })

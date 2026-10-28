@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { sceneTraceWgsl } from '../rays/sceneTrace/sceneTraceWgsl.ts'
 import type { SurfaceHitBindings } from '../surfaceCache/hitWgsl.ts'
+import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 import { PROBE_RAY_WGSL } from './probeRayWgsl.ts'
 import { tracedHitLightWgsl } from './tracedHitWgsl.ts'
 
@@ -22,10 +23,15 @@ import { tracedHitLightWgsl } from './tracedHitWgsl.ts'
 export const probeRayTracedWgsl = (
   cards: Pick<SurfaceHitBindings, 'group' | 'cards' | 'instances'>,
   scene: { readonly group: number; readonly first: number },
+  light: LightAtlasFormat,
 ) =>
   wgslBlock(
-    `probeRayTracedWgsl(${cards.group},${cards.cards},${cards.instances},${scene.group},${scene.first})`,
-    [PROBE_RAY_WGSL, sceneTraceWgsl(scene.group, scene.first), tracedHitLightWgsl(cards, scene)],
+    `probeRayTracedWgsl(${cards.group},${cards.cards},${cards.instances},${scene.group},${scene.first},${light})`,
+    [
+      PROBE_RAY_WGSL,
+      sceneTraceWgsl(scene.group, scene.first),
+      tracedHitLightWgsl(cards, scene, light),
+    ],
     `fn probeRay(origin:vec3f,d:vec3f,begin:f32,reach:f32,side:f32,coord:vec2u)->ProbeRay{
  var out=ProbeRay(vec3f(0.0),1.0,max(reach-cache.traced.x,begin),0u,true,false);
  let end=out.distance;

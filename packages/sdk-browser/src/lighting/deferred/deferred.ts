@@ -204,6 +204,56 @@ function viewSetters(state: LightingState, view: DeferredView) {
   }
 }
 
+/** The lighting's calls that ask the lit programs of a variant table for what a frame lit with some resources needs. */
+function variantAsks(variants: ContractVariants) {
+  return {
+    /** What a frame lit with these resources waits for: the lit program's compile while no ready
+     *  one can light it, else nothing (`contractVariants.ts`). */
+    awaited: (direct: DirectLightResources) => variants.awaited(...keyOf(direct)),
+    /** Starts the compile of the bounce program of the key these resources ask, before the probes it reads exist: the bounce wants it, and it compiles beside the probes' rigging
+     *  instead of after it. Nothing waits for it here (`awaited` does once the probes are there). */
+    askBounce: (direct: DirectLightResources) =>
+      void variants.exact(true, !!direct.narrow, cutsIn(direct)),
+    /** Asks the per-light path's pipelines (`PerLightProgram.ready`) of the program a frame lit with these resources will bind, once it
+     *  is compiled: their compile holds the frames, so that no image is drawn without the lights they draw (and
+     *  advances no history) while they compile. Returns the compile of that program while it is pending: the frames wait for it too. */
+    askPerLight: (direct: DirectLightResources) => {
+      // The program the image will bind once compiled, never the one lent while it compiles: what the frame waits for follows the lights'
+      // configuration, not which compile happened to land first. The compile pending, else the per-light pipelines asked (their ask holds the frames).
+      const exact = variants.exact(
+        ...keyOf(direct),
+        !!direct.skyShadowing,
+        !!direct.capsuleIndirect,
+      )
+      if (!exact.program) return exact.pending
+      exact.program.perLightReady()
+    },
+  }
+}
+
+/** The lighting's calls that lay the fog over a lit image or a layer of its own. */
+function fogCalls(
+  state: LightingState,
+  statics: Statics,
+  placeholders: LightingParts['placeholders'],
+) {
+  return {
+    /** Lays the fog over the lit image, after the lights and the sky (`fogPass`); nothing while the
+     *  pass is not asked or not compiled. */
+    fog: fogPass(state, statics, placeholders),
+    /** The fog pass's group 0 and layout over the frame's resources, for a pass that lays the fog over a layer of its own (the hair strands'
+     *  composition, `fogOverModules`); none while the pass is not asked or compiled. */
+    fogBinding: () => {
+      const pass = statics.fog()
+      const resources = fogResourcesOf(state, placeholders)
+      if (!pass?.ready || !resources) return undefined
+      return { layout: pass.layout, localFog: pass.localFog, group: pass.groupOf(resources) }
+    },
+    /** Lays the fog over the water pass's copy of the scene (`fogBehindWaterPass`). */
+    fogBehindWater: fogBehindWaterPass(state, statics, placeholders),
+  }
+}
+
 /** The lighting's calls over its parts (`LightingParts`). */
 function lightingOf({ view, placeholders, tone, variants, statics, litReady }: LightingParts) {
   const state: LightingState = {
@@ -230,6 +280,10 @@ function lightingOf({ view, placeholders, tone, variants, statics, litReady }: L
     get usesContract() {
       return !!state.active
     },
+    /** The lit program the frame was bound to, none for the unlit view's: the strands' light is made over its layouts and groups. */
+    get litProgram() {
+      return state.active
+    },
     /** Whether the frame is lit with the bounce program, which reads the probes' light. */
     get bouncing() {
       return !!state.active?.bounce
@@ -239,26 +293,12 @@ function lightingOf({ view, placeholders, tone, variants, statics, litReady }: L
     /** Select and lazily compile the active lighting program. */
     bind: programBind(state, variants, statics, composerOf),
     settle: () => variants.settle(),
-    /** What a frame lit with these resources waits for: the lit program's compile while no ready
-     *  one can light it, else nothing (`contractVariants.ts`). */
-    awaited: (direct: DirectLightResources) => variants.awaited(...keyOf(direct)),
-    /** Asks the per-light path's pipelines (`PerLightProgram.ready`) of the program a frame lit with these resources will bind, once it
-     *  is compiled: their compile holds the frames, so that no image is drawn without the lights they draw (and
-     *  advances no history) while they compile. Returns the compile of that program while it is pending: the frames wait for it too. */
-    askPerLight: (direct: DirectLightResources) => {
-      // The program the image will bind once compiled, never the one lent while it compiles: what the frame waits for follows the lights'
-      // configuration, not which compile happened to land first. The compile pending, else the per-light pipelines asked (their ask holds the frames).
-      const exact = variants.exact(...keyOf(direct), !!direct.skyShadowing)
-      if (!exact.program) return exact.pending
-      exact.program.perLightReady()
-    },
+    ...variantAsks(variants),
     /** Asks for the fog pass, made at the first lit image: its compile holds the frames. */
     askFog: () => statics.askFog(),
     /** Draws the lit image's light (`lightPass`). */
     light: lightPass(state, statics, placeholders, view.buffer),
-    /** Lays the fog over the lit image, after the lights and the sky (`fogPass`); nothing while the
-     *  pass is not asked or not compiled. */
-    fog: fogPass(state, statics, placeholders),
+    ...fogCalls(state, statics, placeholders),
     /** True once the frame's program composes the finishing in (#963); the first call compiles
      *  what it needs, and `sink` hears why it cannot. */
     composesFinish: (sink: (phase: string, error: unknown) => void) =>
@@ -312,7 +352,13 @@ function programBind(
   ) => {
     // A program still compiling lends the frame the best one ready (`contractVariants.ts`).
     state.active =
-      (wantsContract && variants.pick(...keyOf(direct), onFailure, !!direct.skyShadowing)) ||
+      (wantsContract &&
+        variants.pick(
+          ...keyOf(direct),
+          onFailure,
+          !!direct.skyShadowing,
+          !!direct.capsuleIndirect,
+        )) ||
       undefined
     state.surface = surface
     state.depth = depth
@@ -384,7 +430,7 @@ function lightPass(
 /** The shadowed local lights the frame lights one by one (`DirectLightResources.perLight`), where the view shows the whole lighting;
  *  else none, and the batched loop lights them. */
 const perLightOf = (lightView: number, direct: DirectLightResources) =>
-  lightView === 0 || lightView === 3 ? direct.perLight : undefined
+  (lightView === 0 || lightView === 3) && !direct.sampled ? direct.perLight : undefined
 
 /**
  * The lights of the lit image, one driver for both paths: the steps of `litSteps` in their order, into the pass `pass` the colour
@@ -421,6 +467,23 @@ function drawLights(
   return made
 }
 
+/** What the fog passes are bound to this frame, none while the frame is not lit or bound. */
+function fogResourcesOf(
+  state: LightingState,
+  placeholders: ReturnType<typeof createDeferredPlaceholders>,
+): FogPassResources | undefined {
+  const { active, surface, depth, direct } = state
+  if (!active || !surface || !depth || !direct.lights) return undefined
+  return {
+    surface,
+    depth,
+    lights: direct.lights,
+    fog: direct.fog ?? placeholders.fog,
+    lightShaft: direct.lightShaft ?? placeholders.lightShaft,
+    haze: direct.haze ?? placeholders.hazeVolume,
+  }
+}
+
 /** The lighting's `fog`: the fog laid over the lit image, once the lights and the sky are in it —
  *  holding its light out where `holdout` says —, from the resources the frame was bound to (`bind`): its light buffer, the fog's cubemap and volume,
  *  the light shafts' mask and the haze's volume, each by its stand-in where the image has none. */
@@ -431,17 +494,30 @@ function fogPass(
 ) {
   return (encoder: GPUCommandEncoder, hdr: GPUTextureView, holdout = false) => {
     const pass = statics.fog()
-    const { active, surface, depth, direct, drawn } = state
-    if (!pass?.ready || !active || !surface || !depth || !direct.lights) return
-    const resources: FogPassResources = {
-      surface,
-      depth,
-      lights: direct.lights,
-      fog: direct.fog ?? placeholders.fog,
-      lightShaft: direct.lightShaft ?? placeholders.lightShaft,
-      haze: direct.haze ?? placeholders.hazeVolume,
-    }
-    pass.draw(encoder, hdr, resources, drawn[0], drawn[1], holdout)
+    const resources = fogResourcesOf(state, placeholders)
+    if (!pass?.ready || !resources) return
+    pass.draw(encoder, hdr, resources, state.drawn[0], state.drawn[1], holdout)
+  }
+}
+
+/** The lighting's `fogBehindWater`: the fog over the scene without the single-layer water, at the depths the water pass's copy holds, from the
+ *  resources the frame was bound to; nothing while the fog pass is not asked or compiled. */
+function fogBehindWaterPass(
+  state: LightingState,
+  statics: Statics,
+  placeholders: ReturnType<typeof createDeferredPlaceholders>,
+) {
+  return (
+    encoder: GPUCommandEncoder,
+    target: GPUTextureView,
+    waterDepth: GPUTextureView,
+    width: number,
+    height: number,
+  ) => {
+    const pass = statics.fog()
+    const resources = fogResourcesOf(state, placeholders)
+    if (!pass?.ready || !resources) return
+    pass.drawBehindWater(encoder, target, resources, waterDepth, width, height)
   }
 }
 

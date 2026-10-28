@@ -28,12 +28,9 @@ import {
   VISIBILITY_SECONDARY_PASS,
 } from '../../diagnostic/stage/passLabels.ts'
 import type { Engine } from '../../session/engine/types.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
-import { camera, quadScene } from '../backend/testScenes.fixture.ts'
+import { backendOf, camera, quadScene } from '../backend/testScenes.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 test('the compute steps of a visibility image that follow one another are one pass, and nothing clears between them', async () => {
   installGpuGlobals()
@@ -112,12 +109,9 @@ test('the GPU cut is one compute pass, its arguments armed inside it, before the
   const { source, metadata, indices, associations } = fixture
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const gpu = fakeDevice({ ...BACKEND, packed: packDagSelection(collected.roots) })
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: gpu.device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   }) as Engine
   await backend.prepare()
   const cam = camera()

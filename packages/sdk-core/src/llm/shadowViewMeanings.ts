@@ -108,6 +108,8 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     'Finest clipmap level (8, the default, from 0 to 30) the pixels of first-person objects ask for, so that geometry close to the camera requests no very high resolution while a distant one still can.',
   shadowOnePassProjection:
     'Whether the shadow of every shadowed local light is projected in one pass into the packed mask the clustered light loop reads (true, the default). false takes each shadowed local light out of that loop and lights it by a draw of its own after the batched lights, from a screen mask it clears, projects into and composites for that light alone: no cap on the lights a pixel keeps and no dither of the packed shares, at the cost of a projection, a mask and a draw per light. The suns are projected apart either way.',
+  clusteredDeferredShading:
+    "Whether the lights of a pixel's cell are all lit in one pass over the image (true, the default). false lights each shadowed local light by a draw of its own after the batched lights, as shadowOnePassProjection false does (a light takes the per-light path where either is false); the suns and the unshadowed lights stay in the one pass. The images agree up to the dither the packed shadow shares take and the cap on the lights a pixel keeps.",
   shadowForcePerLightMaskClear:
     "Whether the per-light projection's target is cleared before each light's projection (false, the default; it applies only with shadowOnePassProjection false). The projection writes every pixel it reaches, so the clear changes no image; it is a debugging switch.",
   shadowOnePassProjectionMaxLightsPerPixel:
@@ -198,6 +200,38 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     'Distant point, spot and rectangle lights: 1 (the default) takes a light whose shadow map fits in one page — its pixel footprint is below the finest threshold — as distant: its map is its last mip alone, always marked, drawn once and then kept, whatever moves, until its turn to be updated (shadowMaxDistantUpdatePerFrame); 2 makes every local light distant; 0 none. A light that moves or changes its shape is drawn again at once.',
   shadowMaxDistantUpdatePerFrame:
     'How many distant lights are drawn again each frame, the ones left longest first (1, the default); a light that was missed is drawn in a later frame. -1 draws all of them every frame; 0 never draws them again once drawn, until they move.',
+  shadowVirtualEnable:
+    "Whether the shadows are the virtual shadow maps (true, the default). Off, every light takes a classic shadow map instead: a map of fixed resolution whose pages are all resident, drawn again each image with no marking and no cache, cascaded for a sun (shadowCsmMaxCascades), filtered by a percentage-closer kernel in place of the soft rays. The result is that of the classic atlas; the pages are the virtual maps' pool, one raster for both.",
+  shadowCsmMaxCascades:
+    "The most cascades a sun's classic shadow is drawn in (10, the default, from 0 to 10; 0 gives a sun no classic shadow). A sun takes its own count of cascades, held to this. Read only with shadowVirtualEnable off.",
+  shadowCsmTransitionScale:
+    "The scale of the fade between a sun's cascades (1, the default, from 0 to 2; 0, none). Read only with shadowVirtualEnable off.",
+  shadowMaxCsmResolution:
+    "The most texels a side a sun's cascade is drawn in (2048, the default). Read only with shadowVirtualEnable off.",
+  shadowCsmDepthBias:
+    "The constant depth bias of a sun's cascades, in the depth units of the shadow maps (10, the default). Read only with shadowVirtualEnable off.",
+  shadowCsmSlopeScaleDepthBias:
+    "The slope-scaled depth bias of a sun's cascades (3, the default). Read only with shadowVirtualEnable off.",
+  shadowCsmReceiverBias:
+    "The receiver bias of a sun's cascades, from 0 to 1 (0.9, the default). Read only with shadowVirtualEnable off.",
+  shadowCsmSplitPenumbraScale:
+    "The scale of the penumbra at the splits of a sun's cascades (0.5, the default). Read only with shadowVirtualEnable off.",
+  shadowTransitionScale:
+    'How sharply a classic shadow fades in from its caster (60, the default): a larger value makes a smaller fade region and more self-shadowing. Read only with shadowVirtualEnable off.',
+  shadowPointLightDepthBias:
+    "The depth bias of a point light's classic shadow (0.02, the default). Read only with shadowVirtualEnable off.",
+  shadowPointLightSlopeScaleDepthBias:
+    "The slope-scaled depth bias of a point light's classic shadow (3, the default). Read only with shadowVirtualEnable off.",
+  shadowSpotLightDepthBias:
+    "The depth bias of a spot light's classic shadow (3, the default). Read only with shadowVirtualEnable off.",
+  shadowSpotLightSlopeScaleDepthBias:
+    "The slope-scaled depth bias of a spot light's classic shadow (3, the default). Read only with shadowVirtualEnable off.",
+  shadowMaxSlopeScaleDepthBias:
+    'The most the slope of a surface to the light adds to the depth bias of a classic shadow, as a number of times its slope bias (1, the default), for every light. Read only with shadowVirtualEnable off.',
+  shadowSpotLightTransitionScale:
+    'The same as shadowTransitionScale for a spot light (60, the default). Read only with shadowVirtualEnable off.',
+  shadowSpotLightReceiverBias:
+    "The receiver bias of a spot light's classic shadow, from 0 to 1 (0.5, the default). Read only with shadowVirtualEnable off.",
   shadowPointLightShadows:
     'Whether point and rectangle lights take a shadow at all (true, the default); off, only spot and directional lights do.',
   shadowPointLightCubemaps:

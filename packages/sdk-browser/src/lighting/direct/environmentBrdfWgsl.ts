@@ -8,11 +8,9 @@ import {
  * WHAT A SURFACE KEEPS OF THE LIGHT OF EVERY DIRECTION, read from the preintegrated table the light buffer holds
  * (`environmentBrdf.ts`): the table read at (N·V, roughness) as a texture is, bilinear between the texel centres and held to
  * the edge (`environmentBrdfPair`: `x` the share under a Fresnel of one, `y` the share under its fifth power). `environmentBrdf`
- * weighs it on the reflectance `f0` and its grazing value `f90`, which the caller gives: each composite has its own rule for it (the
- * green channel's, `envBrdfF90`, for the water's and the coat's; the greatest channel's, `slabF90`, for the slab's environment
- * lighting), and the weight is `f0·x + f90·y`. The weight of every reflected radiance — the probes', the screen's, the trace's — and of the
- * clear coat's own share.
- */
+ * weighs it on the reflectance `f0` and its grazing value `f90`, which the caller gives (the water's: the green channel's, `envBrdfF90`), and the weight is
+ * `f0·x + f90·y`. The weight of the single-layer water's reflection alone: the environment lights weigh a reflection by the energy
+ * terms (`energyTermsWgsl.ts`). */
 export const ENVIRONMENT_BRDF_WGSL = wgslBlock(
   'ENVIRONMENT_BRDF_WGSL',
   [],

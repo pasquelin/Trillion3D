@@ -58,12 +58,12 @@ interface Inventory {
 
 test('generated inventory and explicit facade files are current', async () => {
   const inventory: Inventory = apiInventory()
-  // 798 exports: the public API holds neither WGSL text (the shaders' maths library declares
+  // 892 exports: the public API holds neither WGSL text (the shaders' maths library declares
   // it), a shadow atlas, a CPU transport, Hi-Z oracles, a CPU Hi-Z pyramid, a hierarchy batch, example-only helpers, the world
   // roots' object record no reader takes, nor the removed graphics path's renderer, CPU page
   // decoding and comparison layout; it holds the names the public signatures carry: EvictionOrder,
   // PageHome, PageHomes, QualityResolution, TextureLevelAddress, TextureLevelStore,
-  // WorldQualityOptions, ModelScene and the documented settings of `world.controls`
+  // WorldQualityOptions, ModelScene, HairGroupOption (a group of `hairGroups`) and the documented settings of `world.controls`
   // (ControlSettings, CharacterSettings); the sources a session draws and their association
   // (DrawSource, DrawRanks, DrawAssociations) and the row a parent composes (PlacementLink); and the
   // page cache a streamer reads through,
@@ -159,8 +159,10 @@ test('generated inventory and explicit facade files are current', async () => {
   // HostRotation, HostScene, HostVector, ControlVector); the camera a view is drawn from is the core's
   // (ViewCamera, for HostCamera), and the meshes a page draws and the colour a surface declares are
   // named in the engine's words (PageMesh, PageMaterials, SurfaceColour). The shadows' viewpoint
-  // (ShadowViewpoint) left with the CPU streaming invalidations.
-  assert.equal(inventory.exports.length, 879)
+  // (ShadowViewpoint) left with the CPU streaming invalidations. The names the object and light signatures hand a caller are public
+  // too: an object's capsule shadow body (ShadowCapsuleBody), the cubemap a sky light is lit by (SkyLightCubemap) and the options of a
+  // sparse volume sample (SparseVolumeSampleOptions), with the pin and the wire that signature names (Pin, Wire).
+  assert.equal(inventory.exports.length, 892)
   assert.deepEqual(inventory.collisions, [])
   // The page words of the world families shadow the engine contracts of the same name in the
   // browser condition; the inventory names every such pair (the lighting scene's `Scene` left with

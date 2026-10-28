@@ -29,6 +29,7 @@ import { HIZ_RULES } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import { VOLUMETRIC_LIGHTMAP_RULES } from '../../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
 import { SKY_QUALITY_RULES } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { TESSELLATION_RULES } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
+import { TEXTURE_FILTERING_RULES } from '../../../../sdk-core/src/contracts/textureFilteringOptions.ts'
 import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { MOTION_BLUR_RULES } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import { BLOOM_RULES } from '../../../../sdk-core/src/contracts/bloomRules.ts'
@@ -38,14 +39,20 @@ import { COLOR_GRADING_RULES } from '../../../../sdk-core/src/contracts/colorGra
 import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import { HAIR_STRANDS_RULES } from '../../../../sdk-core/src/contracts/hairStrandsOptions.ts'
+import { HETEROGENEOUS_VOLUME_RULES } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import { SUBSURFACE_SCATTERING_RULES } from '../../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_GI_RULES } from '../../../../sdk-core/src/contracts/translucencyGiOptions.ts'
 import { SCREEN_PROBE_RULES } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { REFLECTION_RULES } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
+import { LIGHTING_DATA_FORMAT_RULES } from '../../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
+import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../../../../sdk-core/src/contracts/meshDistanceFieldTraceOptions.ts'
+import { SCREEN_SPACE_TRACING_RULES } from '../../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_CUBEMAP_RULES } from '../../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import { SAMPLED_LIGHTS_RULES } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
+import { LIGHT_PROFILE_RULES } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import { SURFACE_CACHE_RULES } from '../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
@@ -91,6 +98,8 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(TEMPORAL_RULES, {}),
   // The tessellation of displaced materials: each its contract's default.
   ...resolveSettings(TESSELLATION_RULES, {}),
+  // The texture filtering's anisotropy ceilings: 8 and 8, the top texture quality row.
+  ...resolveSettings(TEXTURE_FILTERING_RULES, {}),
   // The depth pyramid's trace, transparent fold and transparent test: each its contract's default.
   ...resolveSettings(HIZ_RULES, {}),
   // The volumetric lightmap: read, its contract's default.
@@ -120,16 +129,28 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(SINGLE_LAYER_WATER_RULES, {}),
   // The hair strands: off, a new project's defaults.
   ...resolveSettings(HAIR_STRANDS_RULES, {}),
+  // The heterogeneous volumes: the reference's defaults.
+  ...resolveSettings(HETEROGENEOUS_VOLUME_RULES, {}),
   // The screen probes: the level `ultra`, its other settings the contract's defaults.
   ...resolveSettings(SCREEN_PROBE_RULES, {}),
   // The reflections' trace: the reference's 50 screen iterations and 256 steps a ring.
   ...resolveSettings(REFLECTION_RULES, {}),
+  // The screen-space traces: the scene answers the reflections and the indirect light; the screen reflections' and screen indirect light's settings are the reference's.
+  ...resolveSettings(SCREEN_SPACE_TRACING_RULES, {}),
+  // The lighting data format: the reference's 11-11-10 floats.
+  ...resolveSettings(LIGHTING_DATA_FORMAT_RULES, {}),
+  // The meshes' fields trace: off by default, the reference's project setting; its distances and grid are the reference's.
+  ...resolveSettings(MESH_DISTANCE_FIELD_TRACE_RULES, {}),
   // The screen-space ambient occlusion: the reference's post-process defaults, in metres.
   ...resolveSettings(AMBIENT_OCCLUSION_RULES, {}),
   // The ambient cubemap: a white tint at an intensity of 1, the cube none.
   ...resolveSettings(AMBIENT_CUBEMAP_RULES, {}),
   // The light functions: the reference's atlas defaults, the translucent layers off.
   ...resolveSettings(LIGHT_FUNCTION_RULES, {}),
+  // The light profiles' atlas: the reference's 256 texels a slice and 32 profiles.
+  ...resolveSettings(LIGHT_PROFILE_RULES, {}),
+  // The sampled lights: each its contract's default.
+  ...resolveSettings(SAMPLED_LIGHTS_RULES, {}),
   // The global distance field: the reference's clipmaps, update rhythm and atlas budgets.
   ...resolveSettings(GLOBAL_DISTANCE_FIELD_RULES, {}),
   // The surface cache: the reference's atlas, card law, capture budgets and feedback.

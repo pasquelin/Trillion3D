@@ -5,6 +5,7 @@ import {
   type SkyQualityValues,
 } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import { airShapeKey, airShapeOf, type AirShape } from '../../lighting/atmosphere/shape.ts'
+import type { AirShadowMaps } from '../../lighting/atmosphere/bindings.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /**
@@ -31,6 +32,11 @@ interface AirState {
   readonly requests: AirRequests
   /** The image the settings were last read in. */
   read?: number
+  /** Whether the image before projected shadow maps, which the air of this one reads the pages of (`previousMapsOf`). */
+  shadowed?: boolean
+  /** The image `maps` were chosen for, and the shadow maps the air of that image reads. */
+  mapsFrame?: number
+  maps?: AirShadowMaps
   quality?: SkyQualityValues
   shape?: AirShape
   key?: string

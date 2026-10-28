@@ -1,6 +1,7 @@
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { screenProbeSettingsOf } from '../screen/settingsOf.ts'
 import { flushTranslucencyCache } from '../../translucencyGi/cache.ts'
+import { flushIrradianceField } from '../irradianceField/cache.ts'
 
 /** Whether the radiance cache of this image casts its rays through the scene's triangles where it can: the cache is made and its
  *  setting (`screenProbeRadianceCacheHardwareRayTracing`) is on. The scene trace is the surface cache lighting's, which keeps it
@@ -20,4 +21,5 @@ export function radianceCacheTraced(rt: WebgpuPagesRuntime) {
 export function flushRadianceCache(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
   rt.bounce.probes?.cache.flush(encoder)
   flushTranslucencyCache(rt.bounce, encoder)
+  flushIrradianceField(rt.bounce, encoder)
 }

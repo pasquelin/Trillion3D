@@ -153,16 +153,22 @@ export const BLEND_BINDINGS = {
    *  forward programs' reflection group no longer binds (`reflectionForwardLayout`: the depth pyramid's two and the lit image). */
   translucencyVolume: 47,
   /** The translucency global illumination volume the see-through surfaces read their indirect light from
-   *  (`../../lighting/translucencyGi/readWgsl.ts`): two sampled 3D textures of the same grid — the ambient light (`rg11b10ufloat` where the
-   *  device grants the format as storage, else `rgba16float`) and the directional light, signed (`rgba16float`) —, and the trilinear sampler
-   *  they are read through. They take the sampled texture the world's probes' atlas held, which a surface no longer gathers, and one more. */
-  translucencyGiAmbient: 21,
+   *  (`../../lighting/translucencyGi/readWgsl.ts`): one sampled 3D texture, the ambient light and the directional light, signed, stacked in its
+   *  depth (`rgba16float`, single floats where the lighting data format is), and the trilinear sampler it is read through. It takes the sampled
+   *  texture the world's probes' atlas held, which a surface no longer gathers. */
+  translucencyGi: 21,
   translucencyGiSampler: 22,
-  translucencyGiDirectional: 26,
+  /** The light profiles' atlas, a sampled 2D array of half floats, and the sampler it is read through (`BLEND_LIGHT_PROFILE_BINDINGS`): the
+   *  sampled texture slot the stacked volume freed, and the next sampler past the opaque flags' binding. */
+  lightProfileAtlas: 26,
+  lightProfileSampler: 49,
   /** The opaque surfaces' flags, read by load at the surface a contact shadow ray hits (`blend/contactSceneWgsl.ts`): the
    *  fourth and last storage texture of the fragment stage. They lie in the surfaces' word target (`SURFACE_OUTPUTS`), which
    *  no other texture the stage binds holds: the slot stays. */
   surfaceFlags: 48,
+  /** The beer map of the camera and the radiance the volumes composited with the translucency lay (`../../lighting/heterogeneousVolumes/cameraMap.ts`): one
+   *  sampled 2D array of half floats, in the sampled texture the front depth freed (`FRONT_TRACED_FORMAT` carries it). */
+  volumeCamera: 50,
 }
 
 /**
@@ -241,6 +247,12 @@ export const BLEND_CLOUD_FOG_BINDINGS = {
   colour: BLEND_BINDINGS.lightFunctionAtlas + 9,
   depth: BLEND_BINDINGS.lightFunctionAtlas + 10,
   sampler: BLEND_BINDINGS.lightFunctionAtlas + 11,
+} as const
+/** Where a transparent's fragment reads the light profiles (`lightProfileOfWgsl`), in group 0. */
+export const BLEND_LIGHT_PROFILE_BINDINGS = {
+  group: 0,
+  atlas: BLEND_BINDINGS.lightProfileAtlas,
+  sampler: BLEND_BINDINGS.lightProfileSampler,
 } as const
 /** What a transparent's fragment traces its shadow with (`directShadowWgsl`): the blue noise is a
  *  read-only storage texture, read by load (`loadOnly`). */

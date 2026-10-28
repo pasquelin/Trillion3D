@@ -1,4 +1,8 @@
-import { computeBufferEntry, computeUniformEntry } from '../gpu/core/computeBindings.ts'
+import {
+  computeBufferEntry,
+  computeStorageTextureEntry,
+  computeUniformEntry,
+} from '../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { grantsVertexTextures } from '../gpu/core/vertexTextures.ts'
 import { blendLayoutEntries } from '../gpu/bind/blendBindEntries.ts'
@@ -8,7 +12,13 @@ import { TRANSLUCENT_MARK_BINDINGS } from '../lighting/bounce/pool/translucentMa
 import { stageDescriptors, type FrontStagePipelines } from './stagePipelines.ts'
 import { stageOfCulls } from './frontStage.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
-import { blendRadianceMarkShader, RADIANCE_MARK_DEPTH_BINDING } from './radianceMarkWgsl.ts'
+import { MARK_FORMAT } from '../lighting/translucency/layout.ts'
+import {
+  blendRadianceMarkShader,
+  RADIANCE_MARK_DEPTH_BINDING,
+  VOLUME_MARK_FRAME_BINDING,
+  VOLUME_MARK_TEXTURE_BINDING,
+} from './radianceMarkWgsl.ts'
 import type { Clipping } from '../gpu/core/clipDistances.ts'
 import type { SurfaceProgram } from '../materials/graph/surfaceProgram.ts'
 import { NO_WPO, type WpoSet } from '../materials/graph/wpoProgram.ts'
@@ -52,7 +62,7 @@ export const radianceMarkBlendLayout = oncePerDevice((device: GPUDevice) =>
 )
 
 /** The mark group's layout (after the blend group's), once a device: the parameters and the levels' uniform, the bitmap the fragments mark,
- *  and the depth pyramid, all seen by the fragment stage. */
+ *  the depth pyramid, and the translucency volume's frame and marks (`translucencyVolumeMarkWgsl`), all seen by the fragment stage. */
 export const radianceMarkLayout = oncePerDevice((device: GPUDevice) =>
   device.createBindGroupLayout({
     label: 'Trillion3D translucent radiance mark',
@@ -61,6 +71,14 @@ export const radianceMarkLayout = oncePerDevice((device: GPUDevice) =>
       computeUniformEntry(TRANSLUCENT_MARK_BINDINGS.grid, {}, GPUShaderStage.FRAGMENT),
       computeBufferEntry(TRANSLUCENT_MARK_BINDINGS.marks, 'storage', GPUShaderStage.FRAGMENT),
       ...hizDepthEntries(RADIANCE_MARK_DEPTH_BINDING, GPUShaderStage.FRAGMENT),
+      computeUniformEntry(VOLUME_MARK_FRAME_BINDING, {}, GPUShaderStage.FRAGMENT),
+      computeStorageTextureEntry(
+        VOLUME_MARK_TEXTURE_BINDING,
+        MARK_FORMAT,
+        'write-only',
+        '3d',
+        GPUShaderStage.FRAGMENT,
+      ),
     ],
   }),
 )

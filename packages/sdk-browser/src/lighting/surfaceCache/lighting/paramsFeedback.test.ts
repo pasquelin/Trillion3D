@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { LIGHTING_FLAG, LIGHTING_PARAMS } from './layout.ts'
 import { feedbackWritten, shapeOf, traceViewOf, writeLightingParams } from './params.ts'
 import { lightingImage, lightingSettings as settings } from './params.fixture.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
 test('the feedback prioritises the pages only where the setting is on (default on) and the image says the hardware path and the buffer are there', () => {
   assert.equal(settings.surfaceCacheLightingFeedback, true)
@@ -10,7 +11,7 @@ test('the feedback prioritises the pages only where the setting is on (default o
     const words = new Uint32Array(LIGHTING_PARAMS.words)
     writeLightingParams(
       words,
-      shapeOf(settings, 1024, false),
+      shapeOf(settings, 1024, false, WORD_LIGHT_FORMAT),
       { ...settings, surfaceCacheLightingFeedback: setting },
       lightingImage({ feedback: image }),
     )

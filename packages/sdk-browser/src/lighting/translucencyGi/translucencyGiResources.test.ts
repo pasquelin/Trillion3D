@@ -8,11 +8,12 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { withinDefaults } from '../../gpu/core/stageLimits.fixture.ts'
 import { pipelinesSettled } from '../deferred/compileLedger.ts'
 import { translucencyGiKernels } from './kernels.ts'
-import { translucencyGiViews } from './frame.ts'
+import { translucencyGiView } from './frame.ts'
 import { createGiResources } from './resources.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { writeGiFrame, type GiCacheRead, type TranslucencyGiState } from './gpu.ts'
 import { TRANSLUCENCY_GI_FRAME, translucencyGiAmbientFormat, translucencyGiGrid } from './layout.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 
 const values = resolveSettings(TRANSLUCENCY_GI_RULES, {})
 
@@ -61,9 +62,9 @@ test('the history is carried by the eye’s travel, taken in double precision', 
   assert.deepEqual([...words.slice(cache, cache + 4)], [10, 8, 3, 0])
 })
 
-test('the volume the surfaces read is two textures: the ambient light in the lighting data format, the directional light always in half floats', () => {
-  // The ambient volume follows the cones’ format; single floats are kept where the device filters them, half floats where it does not,
-  // since the surfaces read the volume through a filtering sampler.
+test('the volume the surfaces read is one texture twice as deep as the grid, the ambient and the directional light stacked, in half floats or in single floats where the ambient light is', () => {
+  // The ambient light follows the cones’ format; single floats are kept where the device filters them, half floats where it does not,
+  // since the surfaces read the volume through a filtering sampler. The volume holds both lights in one format.
   const filters = new Set(['float32-filterable'])
   const plain = new Set<string>()
   assert.equal(translucencyGiAmbientFormat('rg11b10ufloat', plain), 'rg11b10ufloat')
@@ -71,26 +72,25 @@ test('the volume the surfaces read is two textures: the ambient light in the lig
   assert.equal(translucencyGiAmbientFormat('rgba32float', filters), 'rgba32float')
   assert.equal(translucencyGiAmbientFormat('rgba32float', plain), 'rgba16float')
   const grid = translucencyGiGrid(values, 1920, 1080, 0.1, 80)
-  for (const [cones, ambient, features] of [
+  for (const [cones, volume, features] of [
     ['rgba16float', 'rgba16float', ['texture-formats-tier1']],
-    ['rg11b10ufloat', 'rg11b10ufloat', ['texture-formats-tier1']],
+    ['rg11b10ufloat', 'rgba16float', ['texture-formats-tier1']],
     ['rgba32float', 'rgba32float', ['texture-formats-tier1', 'float32-filterable']],
     ['rgba32float', 'rgba16float', ['texture-formats-tier1']],
   ] as const) {
     const { device, textures } = fakeDevice({ features: [...features] })
     const resources = createGiResources(device as unknown as GPUDevice, grid, 3, cones)
-    const named = (suffix: string) => textures.filter((t) => t.label?.endsWith(suffix))
-    // Two pairs take turns, each of the grid’s size; the fog’s volume is one texture twice as deep, in half floats.
+    const named = (prefix: string) => textures.filter((t) => t.label?.includes(prefix))
+    // Two take turns, each twice the grid’s depth; the fog’s volume is of the same shape, in half floats.
     assert.equal(resources.volumes.length, 2)
-    for (const texture of [...named('ambient'), ...named('directional')])
-      assert.deepEqual([texture.width, texture.height, texture.depthOrArrayLayers], [60, 34, 26])
     assert.deepEqual(
-      named('ambient').map((t) => t.format),
-      [ambient, ambient],
-    )
-    assert.deepEqual(
-      named('directional').map((t) => t.format),
-      ['rgba16float', 'rgba16float'],
+      named('volume ')
+        .filter((t) => !t.label?.includes('fog'))
+        .map((t) => [t.width, t.height, t.depthOrArrayLayers, t.format]),
+      [
+        [60, 34, 52, volume],
+        [60, 34, 52, volume],
+      ],
     )
     const [fog] = named('fog volume')
     assert.deepEqual([fog.format, fog.depthOrArrayLayers], ['rgba16float', 52])
@@ -98,18 +98,14 @@ test('the volume the surfaces read is two textures: the ambient light in the lig
   }
 })
 
-test('the surfaces read the two textures of the image’s volume, one half-float one-cell stand-in per device where none is made', () => {
+test('the surfaces read the image’s volume, one half-float one-cell stand-in per device where none is made', () => {
   const rt = { gpu: {}, context: {} } as unknown as WebgpuPagesRuntime
   const half = fakeDevice({ features: ['texture-formats-tier1'] })
-  const views = translucencyGiViews(rt, half.device as unknown as GPUDevice)
-  const format = (view: GPUTextureView) => (view as unknown as { format: string }).format
-  assert.deepEqual(
-    [format(views.ambient), format(views.directional)],
-    ['rgba16float', 'rgba16float'],
-  )
+  const view = translucencyGiView(rt, half.device as unknown as GPUDevice)
+  assert.equal((view as unknown as { format: string }).format, 'rgba16float')
   assert.equal(
-    translucencyGiViews(rt, half.device as unknown as GPUDevice),
-    views,
+    translucencyGiView(rt, half.device as unknown as GPUDevice),
+    view,
     'one for the device',
   )
   // The format the setting asks for does not change it: a sampled 3D float texture binds any filterable float format.
@@ -117,22 +113,20 @@ test('the surfaces read the two textures of the image’s volume, one half-float
     gpu: {},
     context: { translucencyGiLightingDataFormat: 'r11g11b10' },
   } as unknown as WebgpuPagesRuntime
-  assert.equal(translucencyGiViews(asked, half.device as unknown as GPUDevice), views)
-  for (const view of [views.ambient, views.directional]) {
-    const texture = (
-      view as unknown as {
-        texture: { width: number; depthOrArrayLayers: number; dimension: string }
-      }
-    ).texture
-    assert.deepEqual([texture.width, texture.depthOrArrayLayers, texture.dimension], [1, 1, '3d'])
-  }
-  // A volume made is what the surfaces read: its two views, whichever the stand-ins.
-  const volume = { ambient: views.directional, directional: views.ambient }
+  assert.equal(translucencyGiView(asked, half.device as unknown as GPUDevice), view)
+  const texture = (
+    view as unknown as {
+      texture: { width: number; depthOrArrayLayers: number; dimension: string }
+    }
+  ).texture
+  assert.deepEqual([texture.width, texture.depthOrArrayLayers, texture.dimension], [1, 1, '3d'])
+  // A volume made is what the surfaces read.
+  const volume = {} as GPUTextureView
   const made = {
     gpu: { translucencyGi: { published: { volume } } },
     context: {},
   } as unknown as WebgpuPagesRuntime
-  assert.equal(translucencyGiViews(made, half.device as unknown as GPUDevice), volume)
+  assert.equal(translucencyGiView(made, half.device as unknown as GPUDevice), volume)
 })
 
 test('the kernels fit WebGPU’s default limits and are built on their layouts', async () => {
@@ -140,9 +134,9 @@ test('the kernels fit WebGPU’s default limits and are built on their layouts',
   const { device, pipelineLayouts: layouts } = fakeDevice({ features: ['texture-formats-tier1'] })
   // The kernels are asked of the device as a frame asks them, off the frame, and awaited as the frame gate awaits them.
   for (const format of ['rgba16float', 'rg11b10ufloat', 'rgba32float'] as const) {
-    assert.equal(translucencyGiKernels(device, format), undefined)
+    assert.equal(translucencyGiKernels(device, format, WORD_LIGHT_FORMAT), undefined)
     await pipelinesSettled(device)
-    const kernels = translucencyGiKernels(device, format)!
+    const kernels = translucencyGiKernels(device, format, WORD_LIGHT_FORMAT)!
     assert.deepEqual(Object.keys(kernels).sort(), ['filter', 'integrate', 'mark', 'trace'])
   }
   withinDefaults(layouts, 'the translucency global illumination volume')

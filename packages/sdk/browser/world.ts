@@ -67,7 +67,6 @@ export type {
   GraphData,
   GraphNode,
   ParameterValue,
-  Pin,
 } from '../../sdk-core/src/world/material/graph/graph.ts'
 export { Group, Object3D } from '../../sdk-core/src/world/object/object3d.ts'
 export { light, Light } from '../../sdk-core/src/world/light/light.ts'
@@ -103,4 +102,3 @@ export { TransformNode } from '../../sdk-core/src/world/object/transformNode.ts'
 export { Vector3 } from '../../sdk-core/src/world/math/vector3.ts'
 export type { ViewSet } from '../../sdk-core/src/world/camera/viewSet.ts'
 export type { WindOptions } from '../../sdk-core/src/world/animation/wind.ts'
-export type { Wire } from '../../sdk-core/src/world/material/graph/wired.ts'

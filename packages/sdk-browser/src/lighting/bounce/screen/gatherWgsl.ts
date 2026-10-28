@@ -12,16 +12,16 @@ import { ditherLight, packLight, unpackLight } from '../../../gpu/core/smallFloa
 import { BLUE_NOISE_HALF_PERIOD, blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { SP_TARGET_DITHER, spCoefficientTexel, spCommon, spParams } from './commonWgsl.ts'
 import { spProbes } from './probesWgsl.ts'
-import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
+import {
+  SCREEN_PROBE_FORMATS as F,
+  PROBE_PIXEL_BINDINGS,
+  bindingTable,
+} from './screenProbeLayout.ts'
 
 /** The composite's bindings: the probes' records and pixels, the ray words, what the trace wrote, the
  *  gathered texels written and the share of each probe's rays that move. */
 export const COMPOSITE_BINDINGS = bindingTable({
-  params: [0, 'uniform'],
-  info: [1, 'float'],
-  normal: [2, 'uint'],
-  counts: [3, 'buffer-read'],
-  pixels: [4, 'buffer-read'],
+  ...PROBE_PIXEL_BINDINGS,
   ray: [5, 'uint'],
   radiance: [6, 'uint'],
   hit: [7, 'uint'],
@@ -63,7 +63,7 @@ const MOVING_WORD = 5
 
 /**
  * WHAT A TARGET OF 11-11-10 BITS HOLDS, and the 8-bit code of a hit distance. The gathered texels are kept in a half-float texture, which holds
- * what the 11-11-10 target holds exactly: `spQuantize` is a colour dithered by the number `e` of [0, 1) and rounded to that format's mantissas. The
+ * what the 11-11-10 target holds exactly: `spQuantize` is a colour dithered by the number `e` of [0, 1) and rounded to that format's mantissas, or, with the light kept at more precision (`lightingDataFormat` other than `r11g11b10`, `SP_FLAG_EXACT_LIGHT`), the colour as it is. The
  * gathered texel's hit distance is kept as the whole number `spHitCode` makes of it, the square root of its share of the greatest
  * (`SCREEN_PROBE_CONSTANTS.radianceMaxHitDistance`) in the 254 steps above the first, rounded to the 255 an 8-bit unsigned normalised target has — the distance
  * `-1` of a texel no ray fell in is the code 0, the greatest distance the code 255 —, and `spHitFromCode` is the filter's reading of it.
@@ -72,11 +72,15 @@ export const SP_QUANTIZE = wgslBlock(
   'SP_QUANTIZE',
   [unpackLight, packLight, ditherLight],
   `const SP_PROBE_MAX_HIT:f32=${wgslF32(SCREEN_PROBE_CONSTANTS.radianceMaxHitDistance)};
-fn spQuantize(c:vec3f,e:f32)->vec3f{return unpackLight(packLight(ditherLight(c,e)));}
+fn spQuantize(c:vec3f,e:f32)->vec3f{return select(unpackLight(packLight(ditherLight(c,e))),c,spFlag(SP_FLAG_EXACT_LIGHT));}
 // A ratio of no weight is not a number, which the reference's eight-bit store writes as zero; WGSL leaves a clamp of it to the
 // implementation, so its bits are read.
 fn spExtraAoCode(ao:f32)->f32{return select(round(saturate(ao)*255.0),0.0,(bitcast<u32>(ao)&0x7fffffffu)>0x7f800000u);}
 fn spExtraAoStored(ao:f32)->f32{return spExtraAoCode(ao)/255.0;}
+// The occlusion the spatial filter writes is kept as the 11-11-10 target of the light holds its first channel (six bits of mantissa), not as the eight-bit code.
+fn spExtraAoFiltered(ao:f32)->f32{
+ return unpackLight(packLight(vec3f(select(ao,0.0,(bitcast<u32>(ao)&0x7fffffffu)>0x7f800000u)))).x;
+}
 fn spHitCode(distance:f32)->f32{
  if(!(distance>=0.0)){return 0.0;}
  return round(clamp(sqrt(distance/SP_PROBE_MAX_HIT)*(254.0/255.0)+1.0/255.0,0.0,1.0)*255.0);
@@ -116,7 +120,7 @@ fn spCompositeRay(atlas:vec2u,index:u32,t:vec2u){
  var lighting=unpackLight(textureLoad(radianceIn,at,0).r)*weight;
  let strongest=max(lighting.x,max(lighting.y,lighting.z));
  if(strongest>spMaxRay()){lighting*=spMaxRay()/strongest;}
- let tile=spProbeTile(probePixels[index]);
+ let tile=spProbeTile(index,probePixels[index]);
  let texel=(vec2f(coord)+blueNoiseVec2(tile,sp.mode.w))*(f32(SP_GATHER)/mip)-vec2f(0.5);
  let floored=floor(texel);
  let shifted=select(vec2i(1),vec2i(0),texel-floored<blueNoiseVec2(tile,sp.mode.w+${BLUE_NOISE_HALF_PERIOD}u));
@@ -155,20 +159,20 @@ fn composite(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index)
  let atlas=group.xy;
  let index=spIndexOf(atlas);
  let t=vec2u(lane%SP_TRACE,lane/SP_TRACE);
- if(lane<SP_TEXELS){
-  for(var word=0u;word<${ACCUMULATED}u;word++){atomicStore(&accumulated[lane*${ACCUMULATED}u+word],0u);}
-  atomicStore(&accumulated[lane*${ACCUMULATED}u+${HIT_WORD}u],bitcast<u32>(SP_PROBE_MAX_HIT));
+ for(var texelLane=lane;texelLane<SP_TEXELS;texelLane+=SP_RAYS){
+  for(var word=0u;word<${ACCUMULATED}u;word++){atomicStore(&accumulated[texelLane*${ACCUMULATED}u+word],0u);}
+  atomicStore(&accumulated[texelLane*${ACCUMULATED}u+${HIT_WORD}u],bitcast<u32>(SP_PROBE_MAX_HIT));
  }
  if(lane==0u){atomicStore(&movingBytes,0u);}
  workgroupBarrier();
  let valid=spProbeOrDead(atlas).depth>0.0;
  if(valid){spCompositeRay(atlas,index,t);}
  workgroupBarrier();
- if(lane<SP_TEXELS){
-  let texel=atlas*SP_GATHER+vec2u(lane%SP_GATHER,lane/SP_GATHER);
+ for(var texelLane=lane;texelLane<SP_TEXELS;texelLane+=SP_RAYS){
+  let texel=atlas*SP_GATHER+vec2u(texelLane%SP_GATHER,texelLane/SP_GATHER);
   var out=vec4f(0.0,0.0,0.0,255.0);
 ${extraAo ? '  var ao=1.0;\n' : ''}  if(valid){
-   let base=lane*${ACCUMULATED}u;
+   let base=texelLane*${ACCUMULATED}u;
    let unscale=spMaxRay()*(f32(SP_RAYS)/4294967295.0);
    let light=vec3f(f32(atomicLoad(&accumulated[base])),f32(atomicLoad(&accumulated[base+1u])),f32(atomicLoad(&accumulated[base+2u])))*unscale;
    let e=spTargetDither(texel,0);
@@ -180,7 +184,7 @@ ${extraAo ? '   ao=select(1.0,pow(saturate(nearest/sp.screen.z),sp.screen.w),nea
   textureStore(gatherOut,vec2i(texel),out);
 ${extraAo ? '  textureStore(aoOut,vec2i(texel),vec4f(spExtraAoStored(ao),0.0,0.0,0.0));\n' : ''} }
  workgroupBarrier();
- if(lane==0u){probeMoving[index]=select(0.0,round(f32(atomicLoad(&movingBytes))/f32(SP_TEXELS))/255.0,valid);}
+ if(lane==0u){probeMoving[index]=select(0.0,select(round(f32(atomicLoad(&movingBytes))/f32(SP_TEXELS))/255.0,1.0,spFlag(SP_FLAG_FORCE_MOVING)),valid);}
 }`,
   )
 
@@ -202,59 +206,8 @@ ${wgslConsts({ SP_TRACE: side, SP_RAYS: side * side, SP_GATHER: gather, SP_TEXEL
     ],
   )
 
-/**
- * THE CONVERSION TO IRRADIANCE: the probe's filtered radiance projected on the order-2 basis (`spBasis`: the mean over the
- * `G × G` texels, each the same solid angle, times 4π — the projection of a radiance sampled on the sphere in equal areas),
- * and kept as the pixels read it. A group a probe, a thread each texel (and more, where the gather is coarser than the rays). The nine coefficients of each channel are the
- * probe's: stored as they are (a texel a coefficient, nine to a probe) where the format is the harmonics', or evaluated at the
- * normals of an octahedral map of `IRRADIANCE_PROBE_SIDE` texels a side and a border of one (`irradianceShader`; the border the texel its wrap names, `octWrapBorder`) where it is the octahedral irradiance. The irradiance, and the constant
- * coefficient, are kept as an 11-11-10 target holds them (`spQuantize`), dithered by a hash of the texel and the frame. A probe that stands on
- * no lit surface holds zero. With the extra ambient occlusion, the texels' occlusion (`ao`, one where the texel received no ray: `aoWeight` zero) is projected on the same basis, with
- * the weight of the texels that hold one, and the alpha of the irradiance's block of the octahedron's side and border holds, at each normal, the first
- * evaluated with the cosine lobe (`spCosine`) over the second's, as its eight-bit code (`spExtraAoCode`): the occlusion the probe finds there; zero on a probe on no lit surface.
- * The block of a probe then holds its harmonics, where they are the format, in its first nine texels (`spCoefficientTexel`): the one texture carries both, a sampled texture of the integration spared.
- */
-const spConvert = (extraAo: boolean) =>
-  wgslBlock(
-    `SP_CONVERT(${extraAo})`,
-    [TWO_PI, SP_QUANTIZE, SP_TARGET_DITHER, ...(extraAo ? [] : [spCoefficientTexel(false)])],
-    `@group(0) @binding(${V.gather}) var gatherIn:texture_2d<f32>;
-@group(0) @binding(${V.irradiance}) var irradianceOut:texture_storage_2d<${F.irradiance},write>;
-const SP_BASIS_WORDS:u32=SP_TEXELS*9u;
-var<workgroup> basis:array<f32,SP_BASIS_WORDS>;
-var<workgroup> light:array<vec3f,SP_TEXELS>;
-var<workgroup> coefficients:array<vec3f,9>;
-${
-  extraAo
-    ? `@group(0) @binding(${V.ao}) var aoIn:texture_2d<f32>;
-var<workgroup> occlusion:array<vec2f,SP_TEXELS>;
-var<workgroup> occlusionSum:array<vec2f,9>;`
-    : ''
-}
-fn spIrradianceAt(n:vec3f)->vec3f{
- return ${irradianceShader((k) => `coefficients[${k}u]`, 'n')};
-}
-@compute @workgroup_size(SP_TRACE,SP_TRACE)
-fn convert(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
- let atlas=group.xy;
- let t=vec2u(lane%SP_GATHER,lane/SP_GATHER);
- let valid=spProbeOrDead(atlas).depth>0.0;
- if(lane<SP_TEXELS){
-  let b=spBasis(equalAreaDecode((vec2f(t)+vec2f(0.5))/f32(SP_GATHER)));
-  for(var k=0u;k<9u;k++){basis[lane*9u+k]=b[k];}
-  let kept=textureLoad(gatherIn,vec2i(atlas*SP_GATHER+t),0);
-  light[lane]=select(vec3f(0.0),kept.rgb,valid);
-${
-  extraAo
-    ? `  // A texel holds an occlusion where its rays gave a hit distance (the code of none is zero).
-  let hasRay=valid&&spHitFromCode(kept.w)>=0.0;
-  occlusion[lane]=select(vec2f(0.0),vec2f(textureLoad(aoIn,vec2i(atlas*SP_GATHER+t),0).r,1.0),hasRay);`
-    : ''
-}
- }
- workgroupBarrier();
- // 4π times the mean over the texels: the projection of a radiance sampled on the sphere in equal areas.
- for(var s=lane;s<9u;s+=SP_RAYS){
+/** The projection of the texels' light (and occlusion) on the basis, one thread a coefficient summing the texels in turn: the sum without the subgroups. */
+const serialProjection = (extraAo: boolean) => ` for(var s=lane;s<9u;s+=SP_RAYS){
   var sum=vec3f(0.0);
   for(var i=0u;i<SP_TEXELS;i++){sum+=basis[i*9u+s]*light[i];}
   coefficients[s]=sum*(2.0*TWO_PI/f32(SP_TEXELS));
@@ -265,7 +218,97 @@ ${
   occlusionSum[s]=sumAo;`
     : ''
 }
+ }`
+
+/** The same projection by the subgroups, the sum of a thread a texel over the lanes of its subgroup (`subgroupAdd`, the sums of the subgroups then added in the
+ *  workgroup's memory, `SP_WAVES` of `SP_WAVE` lanes): the reference's wave sums, whose order of addition differs from the serial sum's. */
+const waveProjection = (extraAo: boolean) => ` if(lane<SP_TEXELS){
+  let wave=lane/SP_WAVE;
+  for(var k=0u;k<9u;k++){
+   let sum=subgroupAdd(basis[lane*9u+k]*light[lane]);
+   if(subgroupElect()){waveLight[wave*9u+k]=sum;}
+${
+  extraAo
+    ? `   let sumAo=subgroupAdd(basis[lane*9u+k]*occlusion[lane]);
+   if(subgroupElect()){waveOcclusion[wave*9u+k]=sumAo;}`
+    : ''
+}
+  }
  }
+ workgroupBarrier();
+ for(var s=lane;s<9u;s+=SP_RAYS){
+  var sum=vec3f(0.0);
+  for(var w=0u;w<SP_WAVES;w++){sum+=waveLight[w*9u+s];}
+  coefficients[s]=sum*(2.0*TWO_PI/f32(SP_TEXELS));
+${
+  extraAo
+    ? `  var sumAo=vec2f(0.0);
+  for(var w=0u;w<SP_WAVES;w++){sumAo+=waveOcclusion[w*9u+s];}
+  occlusionSum[s]=sumAo;`
+    : ''
+}
+ }`
+
+/** The declarations of the conversion: the gathered radiance in, the irradiance out, the workgroup's memory (the basis, the light, the coefficients, the waves' sums, the occlusion). */
+const convertDeclarations = (
+  extraAo: boolean,
+  waves: number,
+) => `@group(0) @binding(${V.gather}) var gatherIn:texture_2d<f32>;
+@group(0) @binding(${V.irradiance}) var irradianceOut:texture_storage_2d<${F.irradiance},write>;
+const SP_BASIS_WORDS:u32=SP_TEXELS*9u;
+var<workgroup> basis:array<f32,SP_BASIS_WORDS>;
+var<workgroup> light:array<vec3f,SP_TEXELS>;
+var<workgroup> coefficients:array<vec3f,9>;
+${
+  waves > 0
+    ? `enable subgroups;
+diagnostic(off,subgroup_uniformity);
+const SP_WAVE:u32=${waves}u;
+const SP_WAVES:u32=(SP_TEXELS+SP_WAVE-1u)/SP_WAVE;
+var<workgroup> waveLight:array<vec3f,SP_WAVES*9u>;
+${extraAo ? 'var<workgroup> waveOcclusion:array<vec2f,SP_WAVES*9u>;' : ''}`
+    : ''
+}
+${
+  extraAo
+    ? `@group(0) @binding(${V.ao}) var aoIn:texture_2d<f32>;
+var<workgroup> occlusion:array<vec2f,SP_TEXELS>;
+var<workgroup> occlusionSum:array<vec2f,9>;`
+    : ''
+}`
+
+/** The irradiance of the coefficients along a normal. */
+const SP_IRRADIANCE_AT_WGSL = `fn spIrradianceAt(n:vec3f)->vec3f{
+ return ${irradianceShader((k) => `coefficients[${k}u]`, 'n')};
+}`
+
+/** The conversion's kernel up to its barrier: the basis and the light (and the occlusion) of every texel of the probe. */
+const convertLoad = (extraAo: boolean) => `@compute @workgroup_size(SP_TRACE,SP_TRACE)
+fn convert(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
+ let atlas=group.xy;
+ let valid=spProbeOrDead(atlas).depth>0.0;
+ for(var texelLane=lane;texelLane<SP_TEXELS;texelLane+=SP_RAYS){
+  let t=vec2u(texelLane%SP_GATHER,texelLane/SP_GATHER);
+  let b=spBasis(equalAreaDecode((vec2f(t)+vec2f(0.5))/f32(SP_GATHER)));
+  for(var k=0u;k<9u;k++){basis[texelLane*9u+k]=b[k];}
+  let kept=textureLoad(gatherIn,vec2i(atlas*SP_GATHER+t),0);
+  light[texelLane]=select(vec3f(0.0),kept.rgb,valid);
+${
+  extraAo
+    ? `  // A texel holds an occlusion where its rays gave a hit distance (the code of none is zero).
+  let hasRay=valid&&spHitFromCode(kept.w)>=0.0;
+  occlusion[texelLane]=select(vec2f(0.0),vec2f(textureLoad(aoIn,vec2i(atlas*SP_GATHER+t),0).r,1.0),hasRay);`
+    : ''
+}
+ }
+ workgroupBarrier();`
+
+/** The projection of the light on the basis, the coefficients kept as the format holds them and the block of the octahedron written. */
+const convertProject = (
+  extraAo: boolean,
+  waves: number,
+) => ` // 4π times the mean over the texels: the projection of a radiance sampled on the sphere in equal areas.
+${waves > 0 ? waveProjection(extraAo) : serialProjection(extraAo)}
  workgroupBarrier();
 ${
   extraAo
@@ -298,15 +341,42 @@ ${
     : `  textureStore(irradianceOut,vec2i(at),vec4f(spQuantize(spIrradianceAt(n),spTargetDither(at,0)),0.0));`
 }
  }
-}`,
+}`
+
+/**
+ * THE CONVERSION TO IRRADIANCE: the probe's filtered radiance projected on the order-2 basis (`spBasis`: the mean over the
+ * `G × G` texels, each the same solid angle, times 4π — the projection of a radiance sampled on the sphere in equal areas),
+ * and kept as the pixels read it. A group a probe, a thread each texel (and more, where the gather is coarser than the rays). The nine coefficients of each channel are the
+ * probe's: stored as they are (a texel a coefficient, nine to a probe) where the format is the harmonics', or evaluated at the
+ * normals of an octahedral map of `IRRADIANCE_PROBE_SIDE` texels a side and a border of one (`irradianceShader`; the border the texel its wrap names, `octWrapBorder`) where it is the octahedral irradiance. The irradiance, and the constant
+ * coefficient, are kept as an 11-11-10 target holds them (`spQuantize`), dithered by a hash of the texel and the frame. A probe that stands on
+ * no lit surface holds zero. With the extra ambient occlusion, the texels' occlusion (`ao`, one where the texel received no ray: `aoWeight` zero) is projected on the same basis, with
+ * the weight of the texels that hold one, and the alpha of the irradiance's block of the octahedron's side and border holds, at each normal, the first
+ * evaluated with the cosine lobe (`spCosine`) over the second's, as its eight-bit code (`spExtraAoCode`): the occlusion the probe finds there; zero on a probe on no lit surface.
+ * The block of a probe then holds its harmonics, where they are the format, in its first nine texels (`spCoefficientTexel`): the one texture carries both, a sampled texture of the integration spared.
+ * The projection's sums are the reference's wave sums where `waves` is not zero, the lanes a subgroup holds (`subgroupAdd` of the thread a texel, the subgroups' sums added in the
+ * workgroup's memory); else the same sums, one thread a coefficient adding the texels in turn.
+ */
+const spConvert = (extraAo: boolean, waves: number) =>
+  wgslBlock(
+    `SP_CONVERT(${extraAo}, ${waves})`,
+    [TWO_PI, SP_QUANTIZE, SP_TARGET_DITHER, ...(extraAo ? [] : [spCoefficientTexel(false)])],
+    [
+      convertDeclarations(extraAo, waves),
+      SP_IRRADIANCE_AT_WGSL,
+      convertLoad(extraAo),
+      convertProject(extraAo, waves),
+    ].join('\n'),
   )
 
-/** The conversion's program over the `gather × gather` texels of a probe, a group `side × side` threads wide, and `samples` of a tile; with the extra ambient occlusion where `extraAo`. */
+/** The conversion's program over the `gather × gather` texels of a probe, a group `side × side` threads wide, and `samples` of a tile; with the extra ambient occlusion where `extraAo`;
+ *  with the sums of its projection by the subgroups of `waves` lanes where it is not zero. */
 export const convertShader = (
   side: number,
   gather: number,
   samples: readonly [number, number],
   extraAo = false,
+  waves = 0,
 ) =>
   wgslProgram(
     `${spParams(V.params)}
@@ -317,5 +387,5 @@ ${wgslConsts({
   SP_TEXELS: gather * gather,
   SP_OCT_SIDE: IRRADIANCE_PROBE_SIDE,
 })}`,
-    [spCommon(samples), spProbes(V.info, V.normal, V.counts), spConvert(extraAo)],
+    [spCommon(samples), spProbes(V.info, V.normal, V.counts), spConvert(extraAo, waves)],
   )

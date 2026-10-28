@@ -1,3 +1,4 @@
+import { FRONT_MARK } from '../lighting/manyLightsSampled/frontLightWgsl.ts'
 import { translucentMarksFrom } from '../lighting/direct/shadowWgsl.ts'
 import { MODEL_FLAG, fogFreeFlag, modelFlag } from '../materials/surface/surfaceModelWord.ts'
 import { lightlessLane } from '../materials/surface/translucencyLighting.ts'
@@ -64,6 +65,35 @@ fn blendLights(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f)->vec3f{
 }
 `
 
+/** The nearest translucent layer lit by the sampled lighting (\`sampledLightsFrontLayer\`): the light the sampled lighting left for the pixel lies in the second half of the front's traced radiance
+ *  (\`frontTraced\`, twice the view tall while the layer is lit by it, \`frontLayer.ts\`), as three half floats and a mark in two words; a fragment of the front's depth reads it where the mark is set,
+ *  un-exposed to go through the blend's pre-exposure again. */
+const frontLitText =
+  () => `fn frontLitRow(position:vec4f)->vec2i{return vec2i(i32(position.x),i32(position.y)+i32(textureDimensions(frontTraced).y/2u));}
+fn frontLitHere(position:vec4f)->bool{
+ return textureDimensions(frontTraced).y>=2u*u32(uni.viewport.y)&&frontDepthMatches(vec2i(position.xy),position.z)&&textureLoad(frontTraced,frontLitRow(position)).y!=0u;
+}
+fn frontLitLight(position:vec4f)->vec3f{
+ let t=textureLoad(frontTraced,frontLitRow(position));
+ return vec3f(unpack2x16float(t.x),unpack2x16float(t.y).x)/max(uni.preExposure,1e-20);
+}
+/** What the mark of a lit texel says (\`FRONT_MARK\`): the sampled light holds no diffuse light, or no sun. */
+fn frontLitMark(position:vec4f)->u32{return u32(unpack2x16float(textureLoad(frontTraced,frontLitRow(position)).y).y+0.5);}
+/** The suns' light of the layer by the forward loop, where the sampled light holds none (the directional lights are not part of it): the lights of the cell the fragment stands in that are suns. */
+fn frontSunLighting(s:BlendSurface,V:vec3f,P:vec3f,pixel:vec2f,z:f32)->vec3f{
+ vsmTraceAt(pixel);
+ let slice=cellSlice(gridCell(pixel,z,vec2u(uni.lightTiles)));
+ var result=vec3f(0.0);
+ let shading=clothSurface(lobeSurface(s.rgb,s.metal,s.rough,s.N,V));lobeView(shading);
+ for(var index=0u;index<slice.y;index++){
+  let rank=listedLight(slice,index);
+  if(!listedDrawn(slice,rank)||!isSun(directLights.items[rank])){continue;}
+  result+=declaredLight(rank,s.rgb,s.metal,s.rough,s.N,V,P,1.0,shading);
+ }
+ return result;
+}
+`
+
 /** The light of a layer by how its material is lit (`blendLightsOf`): the mode alone says it, whatever the layer's blend mode, and the
  *  plan puts each layer in the pipeline of its lighting (`BLEND_LIGHTINGS`, `blendLightingOf`), so the pipeline's constant `BLEND_LIGHTING`
  *  folds the other lightings' code away. Forward, each declared light read for the pixel, and a shadow catcher always; in a volume mode no
@@ -72,12 +102,31 @@ fn blendLights(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f)->vec3f{
  *  reflection (`blendMedium`). */
 const blendLightsOfText = (
   volume: boolean,
+  sampledFront: boolean,
 ) => `// The lighting program this pipeline draws (\`BLEND_LIGHTINGS\`), one constant of the pipeline: the code of the other lightings is folded away.
 override ${BLEND_LIGHTING}:u32=0u;
 // The layer's light, by its material's lighting mode (\`translucencyLightingOf\`): forward lights it with the declared lights, a shadow
 // catcher always; a volume mode lights it with no declared light${volume ? ", but, in a normal or additive layer of a surface the volume lights, the translucency lighting volume's at its point" : ''}.
 fn blendLightsOf(in:VSOut,front:bool,g:BlendGrads,s:BlendSurface,V:vec3f,flags:u32)->vec3f{
- if(${BLEND_LIGHTING}==L_FORWARD&&(translucencyLightingOf(flags)==TL_FORWARD||modelFlag(flags)==${MODEL_FLAG.shadow}u)){return blendLights(in,front,g,s,V);}
+ if(${BLEND_LIGHTING}==L_FORWARD&&(translucencyLightingOf(flags)==TL_FORWARD||modelFlag(flags)==${MODEL_FLAG.shadow}u)){${
+   sampledFront
+     ? `
+  if(frontLitHere(in.position)){
+   blendLightsSet(in,front,g,s,V);
+   let mark=frontLitMark(in.position);
+   var lit=frontLitLight(in.position);${
+     volume
+       ? `
+   // The layer that keeps the specular light alone takes the diffuse light of the translucency volume (and not its specular).
+   if((mark&${FRONT_MARK.specularOnly}u)!=0u){lit+=translucencyVolumeLight(s.rgb,s.metal,s.N,in.view,translucencyLightingOf(flags),in.position.xy);}`
+       : ''
+   }
+   if((mark&${FRONT_MARK.sunsApart}u)!=0u){lit+=frontSunLighting(s,V,in.view,in.position.xy,in.position.z);}
+   return lit;
+  }
+ `
+     : ''
+ }return blendLights(in,front,g,s,V);}
  blendLightsSet(in,front,g,s,V);
 ${
   volume
@@ -201,7 +250,7 @@ export const blendFragmentWgsl = (o: StageOptions & { readonly volume: boolean }
       wireframeEdge,
       DIAGNOSTIC_PALETTE_WGSL,
     ],
-    `${blendLayerText(o)}${blendLightsOfText(volume)}${blendFragmentBodyText(volume, graphs, shade)}${blendEntriesText(shade)}${coverageStageText('Blend', 'blendLayer', shade)}${responsiveStageText('Blend', 'blendLayer', 'layer.s.alpha', false, shade, depth)}`,
+    `${blendLayerText(o)}${o.sampledFront ? frontLitText() : ''}${blendLightsOfText(volume, o.sampledFront)}${blendFragmentBodyText(volume, graphs, shade)}${blendEntriesText(shade)}${coverageStageText('Blend', 'blendLayer', shade)}${responsiveStageText('Blend', 'blendLayer', 'layer.s.alpha', false, shade, depth)}`,
   )
 }
 

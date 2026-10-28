@@ -34,10 +34,17 @@ ${VSM_PROJECTION_VIEW_STRUCT}
  * expressions; a thin two-sided surface takes no normal bias and no screen ray, as the projection's
  * subsurface pixel. Every receiver the trace reads is the light's: `facing` was tested by
  * `shadowFactor`, its range by `lampSeen`. It traces the light kinds `kinds` (`vsmTraceKindsOf`).
+ * With `classic` (`shadowVirtualEnable` off) the trace is the classic filter's (`../shadows/classic/classicTraceWgsl.ts`) over the view's classic words, one filtered read in place of the rays.
  */
-export const vsmFragmentTraceWgsl = (pool: number, t: VsmTraceBindings, kinds: number) =>
+export const vsmFragmentTraceWgsl = (
+  pool: number,
+  t: VsmTraceBindings,
+  kinds: number,
+  rays?: number,
+  classic = false,
+) =>
   wgslBlock(
-    `vsmFragmentTraceWgsl(${pool}, ${vsmTraceBindingsLabel(t)}, ${kinds})`,
+    `vsmFragmentTraceWgsl(${pool}, ${vsmTraceBindingsLabel(t)}, ${kinds}${rays === undefined ? '' : `, ${rays} rays`}${classic ? ', classic' : ''})`,
     [
       vsmTraceViewWgsl(t.view, kinds),
       blueNoiseWgsl(0, t.noise, t.loadOnly),
@@ -48,6 +55,8 @@ export const vsmFragmentTraceWgsl = (pool: number, t: VsmTraceBindings, kinds: n
         lone: true,
         subgroups: t.subgroups,
         kinds,
+        rays,
+        classic,
       }),
       VSM_SHADOW_FILTER_WGSL,
     ],

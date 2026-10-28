@@ -33,6 +33,7 @@ import { VsmFeedbackReadback, vsmFeedbackReadbackBytes } from '../feedbackReadba
 import { VsmOverflowLog } from '../overflowLog.ts'
 import { createVsmMarking, vsmMarkingBytes, type VsmMarking } from '../markingPass.ts'
 import { releaseVsmRender } from '../render/renderPass.ts'
+import { releaseVsmHairProjection } from '../projection/hairProjectionPass.ts'
 import { releaseVsmProjection } from '../projection/projectionStore.ts'
 import { createReadbackRing, type ReadbackRing } from '../../../../gpu/core/readbackRing.ts'
 import {
@@ -200,6 +201,7 @@ export function destroyEngineVsm(vsm: EngineVsm) {
   releaseVsmOcclusion(vsm.res)
   releaseVsmInvalidation(vsm.res)
   releaseVsmProjection(vsm.res)
+  releaseVsmHairProjection(vsm.res)
   releaseVsmThrottle(vsm.res)
   vsm.res.destroy()
   vsm.lightIds.destroy()

@@ -51,7 +51,7 @@ export interface SunCascades {
 
 /** The share of `count` levels' span, each `exponent` times the one before, that lies before level
  *  `index` (0 for the first). */
-function accumulatedScale(exponent: number, index: number, count: number) {
+export function accumulatedScale(exponent: number, index: number, count: number) {
   if (index <= 0) return 0
   let size = 1,
     before = 0,
@@ -91,6 +91,7 @@ export function sunCascades(
       : 0
   const hasField =
     view.shadowFarField &&
+    view.distanceFieldShadowing &&
     view.distanceFieldShadowQuality > 0 &&
     (nearCount > 0 ? fieldReach > reach : fieldReach > 0)
   const total = Math.max(nearCount + farCount, nearCount + (hasField ? 1 : 0))

@@ -55,11 +55,15 @@ export type BlendLighting = {
    *  the one-cell stand-in where none is made (`BlendView.volumeRead` then says so). */
   translucencyVolume: GPUTextureView
   /** The translucency global illumination volume the surfaces read their indirect light from (`../../lighting/translucencyGi/readWgsl.ts`):
-   *  this image's ambient and directional light, two textures of the one grid, or their one-cell stand-ins where none is made
+   *  this image's ambient and directional light, stacked in one texture of the one grid, or its one-cell stand-in where none is made
    *  (`BlendView.giGrid` then says so), and their trilinear sampler. */
-  translucencyGiAmbient: GPUTextureView
-  translucencyGiDirectional: GPUTextureView
+  translucencyGi: GPUTextureView
   translucencyGiSampler: GPUSampler
+  /** The light profiles' atlas and its sampler (`BLEND_LIGHT_PROFILE_BINDINGS`), or the stand-in a program that reads none binds. */
+  lightProfileAtlas: GPUTextureView
+  lightProfileSampler: GPUSampler
+  /** The beer map of the camera and the volumes' radiance in two layers, or the stand-in (`BlendView.volumeCamera` then says none is made). */
+  volumeCamera: GPUTextureView
   /** The clouds' shade of the forward directional light, the block and the one map its vertices
    *  read (`BLEND_CLOUD_SHADE_BINDINGS`), or its stand-in, which shades nothing: read by the
    *  programs that read the clouds per vertex alone, bound by every program's group: the pass
@@ -155,11 +159,15 @@ const BLEND_TABLE: { readonly [name in Single]: Row } = {
   lightFunctionAtlas: ['fragment', storageTextureLayout(ATLAS_TEXTURE_FORMAT)],
   // The translucency lighting volume: one filterable 3D texture, the ambient and directional light of its two cascades stacked, sampled trilinear.
   translucencyVolume: ['fragment', textureLayout('float', '3d')],
-  // The translucency global illumination volume, its ambient and its directional light, and their sampler: the surfaces' indirect light,
+  // The translucency global illumination volume, its ambient and its directional light stacked, and its sampler: the surfaces' indirect light,
   // two filtered fetches.
-  translucencyGiAmbient: ['fragment', textureLayout('float', '3d')],
-  translucencyGiDirectional: ['fragment', textureLayout('float', '3d')],
+  translucencyGi: ['fragment', textureLayout('float', '3d')],
   translucencyGiSampler: ['fragment', { sampler: { type: 'filtering' } }],
+  // The light profiles' atlas and its sampler, read by the lit programs of a scene whose lights name a profile.
+  lightProfileAtlas: ['fragment', textureLayout('float', '2d-array')],
+  lightProfileSampler: ['fragment', { sampler: { type: 'filtering' } }],
+  // The heterogeneous volumes' camera map and radiance, read by load.
+  volumeCamera: ['fragment', textureLayout('unfilterable-float', '2d-array')],
   // The surfaces' records (`../../materials/table/materialTable.ts`), which the vertex stage reads an item's
   // factors and maps from and a lobed fragment its lobes: a texture, the fragment stage holding
   // the eight storage buffers WebGPU guarantees.

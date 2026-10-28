@@ -6,6 +6,7 @@ import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { untag } from '../../../../../tests/kit/fakeDevice/fakeWebgpuDevice.ts'
 import {
+  backendOf,
   quadScene,
   camera,
   disposeQuadRun,
@@ -16,8 +17,6 @@ import { coarseQuadScene } from './coarseQuads.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
 import { deepQuadScene } from './deepQuad.fixture.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 test('detail replaces the complete GPU fallback only after every replacement is uploaded', async () => {
   installGpuGlobals()
@@ -69,12 +68,9 @@ test('a refinement the GPU budget holds to the two leaves draws the finest level
   const fixture = deepQuadScene(),
     { device } = fakeDevice(BACKEND),
     events: EngineDiagnostic[] = []
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
     onDiagnostic: (event) => events.push(event),
   }) as ReturnType<typeof webgpuPagesEngine> & { selectedPageIds(): string[] }
   try {
@@ -103,16 +99,13 @@ test('a failed initial page reader rejects preparation before exposing a partial
   installGpuGlobals()
   const fixture = quadScene(),
     { device, draws } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     indices: new Map(),
     readPage: async () => {
       throw new Error('PAGE_STREAM_FAILED')
     },
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   try {
     await assert.rejects(backend.prepare(), /PAGE_STREAM_FAILED/)

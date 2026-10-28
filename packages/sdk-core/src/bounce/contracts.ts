@@ -6,6 +6,7 @@
  */
 
 import { ceilDiv, nextPow2 } from '../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 
 /** Bounce lighting settings. Published operational limits consumed by the runtime engine. */
 export const BOUNCE_SETTINGS = {
@@ -46,18 +47,19 @@ export interface BounceShape {
 /** The most levels a cache holds: what the declared uniform of the levels has room for. */
 export const BOUNCE_MAX_LEVELS = 6
 
-/** The most probes along a side of the atlas a pool is asked for. */
-const MAX_ATLAS_PROBES = 1024
+/** The most probes along a side of the atlas a pool is asked for: the pool's table keeps an owner as its slot plus one in 16 bits, and a side of 255
+ *  makes 255 rows of 256, 65280 slots, where 256 would make 65536, whose last slot would write 0, no owner. */
+const MAX_ATLAS_PROBES = 255
 
 /** The width of a row of the atlas of a pool of `probes`: the power of two over the side of its square, so that a probe's row is a shift. */
 export const probeRowOf = (probes: number) => nextPow2(Math.ceil(Math.sqrt(probes)))
 
 /**
- * The probes of a pool asked for `requested` probes along a side of its atlas, held to 1 to 1024: a row the next power of two over it wide,
+ * The probes of a pool asked for `requested` probes along a side of its atlas, held to 1 to 255: a row the next power of two over it wide,
  * as many rows as hold the square of it.
  */
 export function probePoolOf(requested: number) {
-  const side = Math.min(Math.max(Math.trunc(requested), 1), MAX_ATLAS_PROBES)
+  const side = clamp(Math.trunc(requested), 1, MAX_ATLAS_PROBES)
   const width = nextPow2(side)
   return width * ceilDiv(side * side, width)
 }

@@ -30,6 +30,8 @@ import {
  * - `distanceFieldDistanceScale` (1, from 0.0001 to 10 000): the factor on every light's
  *   `distanceFieldShadowDistance`; `distanceFieldFarTransitionScale` (1, from 0 to 1): the factor on
  *   the length of the cascade's fade out at its far end, 0 none;
+ * - `distanceFieldShadowing` (on): whether a sun's distance-field cascade is allowed at all, the master switch of the feature (`r.DistanceFieldShadowing`,
+ *   `DistanceFieldShadowing.cpp:36-41`); off, no cascade is drawn, whatever the quality and the light say;
  * - `distanceFieldShadowQuality` (3, from 0 to 3): the steps of a ray, 0 none (no cascade drawn),
  *   1 twenty, 2 thirty-two, 3 sixty-four (at 3 alone, a thin transmitting surface keeps the light that
  *   survives the thickness it has gone through, by its own opacity);
@@ -58,6 +60,7 @@ export const SUN_SHADOW_RULES = /* @__PURE__ */ (() =>
     nonNegative('shadowFarDistanceOverride', 0),
     number('distanceFieldDistanceScale', 1, [0.0001, 10000]),
     number('distanceFieldFarTransitionScale', 1, [0, 1]),
+    flag('distanceFieldShadowing', true),
     integer('distanceFieldShadowQuality', 3, [0, 3]),
     flag('distanceFieldShadowFullResolution', false),
     positive('distanceFieldShadowTileSize', 2, 'a finite number of metres above 0'),

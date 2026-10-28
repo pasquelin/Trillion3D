@@ -9,22 +9,17 @@ import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { TRACE_SCENE_HIT } from './screen/traceSceneWgsl.ts'
 import { BLUE_NOISE_HALF_PERIOD } from '../../gpu/noise/blueNoiseWgsl.ts'
 import { assertProgramAssembles } from '../../gpu/core/wgslNames.fixture.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 
 test('every screen-probe kernel is a module a device takes, at every level: its names declared, none reserved or twice, its bindings the layout holds', () => {
   const levels = SCREEN_PROBE_LEVELS.filter((level) => level !== 'off')
-  assert.deepEqual(levels, ['low', 'high', 'ultra', 'cinematic'])
+  assert.deepEqual(levels, ['high', 'ultra', 'cinematic'])
   for (const level of levels)
     for (const screenProbeHeightFogOnGI of [false, true]) {
       const shape = kernelShapeOf(
         screenProbeSettings({ screenProbes: level, screenProbeHeightFogOnGI }),
       )
       const sources = screenProbeSources(shape)
-      assert.deepEqual(
-        Object.keys(sources).filter((name) => name !== 'occlusion' && name !== 'temporal').length >
-          0,
-        level !== 'low',
-        `${level} makes the kernels over the probes only where it casts them`,
-      )
       for (const [name, { code, entries, points }] of Object.entries(sources)) {
         const where = `${level} ${name}${screenProbeHeightFogOnGI ? ' with the fog' : ''}`
         assertProgramAssembles(code, undefined, where)
@@ -80,13 +75,13 @@ test('every kernel reads the blue noise where the probes need a random number �
       'blueNoiseVec2(tile,sp.mode.w)',
       'blueNoiseScalar(id.xy,sp.size.w%SP_TILE_JITTERS+spatialPass.x+11u)',
     ],
-    rays: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
+    rays: ['blueNoiseVec2(spProbeTile(index,probePixels[index]),sp.mode.w)'],
     traceScreen: [
-      'blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)',
+      'blueNoiseVec2(spProbeTile(index,probePixels[index]),sp.mode.w)',
       'f32(sp.frames.x%SP_TILE_JITTERS)',
     ],
-    traceField: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
-    traceScene: ['blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w)'],
+    traceField: ['blueNoiseVec2(spProbeTile(index,probePixels[index]),sp.mode.w)'],
+    traceScene: ['blueNoiseVec2(spProbeTile(index,probePixels[index]),sp.mode.w)'],
     screenData: ['blueNoiseScalar(pixel,sp.frames.z)'],
     occlusion: ['blueNoiseVec2(pixel,sp.frames.x)', 'fourRooksJitter(cell,sp.frames.x)'],
     integrate: [
@@ -125,17 +120,26 @@ test('the screen probes settings are read again at each image, and resolved only
 test('the traced scene kernel is kept by the rays a side of a probe, the samples of a tile and the fog on the rays: an option that changes none keeps it, one that does makes another', () => {
   const { device } = fakeDevice()
   const store = createScreenProbeStore()
-  const kernel = store.tracedFor(device, screenProbeSettings({ screenProbes: 'ultra' }))
+  const kernel = store.tracedFor(
+    device,
+    screenProbeSettings({ screenProbes: 'ultra' }),
+    WORD_LIGHT_FORMAT,
+  )
   assert.equal(
     store.tracedFor(
       device,
       screenProbeSettings({ screenProbes: 'ultra', screenProbeGatherNumMips: 2 }),
+      WORD_LIGHT_FORMAT,
     ),
     kernel,
     'the levels of the gather',
   )
   assert.notEqual(
-    store.tracedFor(device, screenProbeSettings({ screenProbes: 'ultra', screenProbeQuality: 4 })),
+    store.tracedFor(
+      device,
+      screenProbeSettings({ screenProbes: 'ultra', screenProbeQuality: 4 }),
+      WORD_LIGHT_FORMAT,
+    ),
     kernel,
     'sixteen rays a side',
   )
@@ -143,6 +147,7 @@ test('the traced scene kernel is kept by the rays a side of a probe, the samples
     store.tracedFor(
       device,
       screenProbeSettings({ screenProbes: 'ultra', screenProbeHeightFogOnGI: true }),
+      WORD_LIGHT_FORMAT,
     ),
     kernel,
     'the fog on the rays',
@@ -174,17 +179,17 @@ test('a device that refused the kernels is the store’s reason only while it is
   const settled = () => new Promise((resolve) => setTimeout(resolve, 0))
   const store = createScreenProbeStore()
   const refusing = fakeDevice({ failCompile: true }).device
-  assert.equal(store.kernelsFor(refusing, settings), undefined)
+  assert.equal(store.kernelsFor(refusing, settings, WORD_LIGHT_FORMAT), undefined)
   await settled()
   assert.ok(store.reason, 'the owner’s refusal is the reason')
   const next = fakeDevice().device
-  store.kernelsFor(next, settings)
+  store.kernelsFor(next, settings, WORD_LIGHT_FORMAT)
   assert.equal(store.reason, null, 'the new owner starts without the old one’s reason')
   await settled()
   assert.equal(store.reason, null, 'the new owner compiled')
   const late = createScreenProbeStore()
-  late.kernelsFor(fakeDevice({ failCompile: true }).device, settings)
-  late.kernelsFor(fakeDevice().device, settings)
+  late.kernelsFor(fakeDevice({ failCompile: true }).device, settings, WORD_LIGHT_FORMAT)
+  late.kernelsFor(fakeDevice().device, settings, WORD_LIGHT_FORMAT)
   await settled()
   assert.equal(late.reason, null, 'a refusal of a device that is no longer the owner is ignored')
 })
@@ -196,9 +201,9 @@ test('the sources the store wrote for a device are written again for the next on
     failCompile: true,
     limits: { maxComputeWorkgroupsPerDimension: 1000 },
   })
-  store.kernelsFor(first.device, settings)
+  store.kernelsFor(first.device, settings, WORD_LIGHT_FORMAT)
   const second = fakeDevice({ limits: { maxComputeWorkgroupsPerDimension: 2000 } })
-  store.kernelsFor(second.device, settings)
+  store.kernelsFor(second.device, settings, WORD_LIGHT_FORMAT)
   await new Promise((resolve) => setTimeout(resolve, 0))
   const widths = second.computePipelines.map((pipeline) => pipeline.compute.constants?.GROUP_WIDTH)
   assert.ok(widths.includes(2000), 'built at the second device’s width')

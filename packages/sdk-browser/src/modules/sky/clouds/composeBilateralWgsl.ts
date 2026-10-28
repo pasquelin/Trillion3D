@@ -13,6 +13,11 @@
  *   that disables the disocclusion, the colour image is read bilinearly, for a soft look;
  *   elsewhere the chosen texel is read as it is.
  *
+ * Over a pixel the single-layer water was shaded on (`isWaterPixel`), the clouds that count are those in front of the water's
+ * surface: with two surfaces each texel's furthest depth is held to the pixel's distance, a pixel no cloud front lies before takes no
+ * cloud, and the cloud is read bilinearly; with one surface the blend by depth is kept for a pixel no cloud lies before, and the
+ * texels whose scene depth reaches the water are taken alone where far water meets depths of an unrendered distance.
+ *
  * With one surface (`PLAIN_BILATERAL`): the pixel's distance is held to the furthest scene depth of
  * the four; where the four depths differ from it by more than a tenth of it the four texels are
  * blended by the inverse of their depth gap (a thousand per kilometre, plus one), the fog laid once
@@ -28,6 +33,11 @@ const WEIGHT_PER_KM = 1000
 /** The share of its distance a pixel's depth may differ from the four texels' before they are
  *  blended by their depth. */
 const BLEND_SHARE = 0.1
+/** Over water: a scene depth beyond this is a pixel the depth pass did not render, kilometres; the far water this far from the eye takes
+ *  the texels whose scene depth reaches it, within this tolerance. */
+const UNRENDERED_KM = 500
+const FAR_WATER_KM = 1
+const WATER_ACCEPTANCE_KM = 0.001
 
 /** The four texels around the pixel, and the soft sample's position among them. */
 const BILATERAL_TEXELS = `
@@ -39,6 +49,9 @@ const BILATERAL_TEXELS = `
  let softUv=(vec2f(coords[0])+0.25+(vec2f(side)*0.5+0.5)*0.5)*view.textureSize.zw;`
 
 export const MIN_MAX_BILATERAL = `${BILATERAL_TEXELS}
+ // Over the water the furthest depth of a texel is no further than the water.
+ let water=isWaterPixel(pixel);
+ if(water){for(var k=0;k<4;k++){depths[k].w=min(depths[k].w,pixelKm);}}
  var best=coords[0];var bestDepth=depths[0].w;var bestGap=abs(pixelKm-depths[0].w);var bestFront=false;
  var farthest=depths[0].w;var nearest=depths[0].w;
  for(var k=0;k<4;k++){
@@ -51,7 +64,9 @@ export const MIN_MAX_BILATERAL = `${BILATERAL_TEXELS}
   }
  }
  let fronts=vec4f(depths[0].x,depths[1].x,depths[2].x,depths[3].x);
+ if(water&&!any(fronts<vec4f(pixelKm))){discard;}
  if(all(fronts>vec4f(pixelKm+${FRONT_MARGIN_KM}))){discard;}
+ if(water){return fogFromUv(softUv,sampleBounded(cloudColour,view.bounds,softUv));}
  let closests=vec4f(depths[0].z,depths[1].z,depths[2].z,depths[3].z);
  let frontOfClosest=all(fronts<=closests);
  let leastDepth=min(min(depths[0].yzw,depths[1].yzw),min(depths[2].yzw,depths[3].yzw));
@@ -63,15 +78,31 @@ export const MIN_MAX_BILATERAL = `${BILATERAL_TEXELS}
  return fogOnCloud(vec2f(best)*view.textureSize.zw,bestDepth,texel);`
 
 export const PLAIN_BILATERAL = `${BILATERAL_TEXELS}
+ let water=isWaterPixel(pixel);
+ let anyFront=any(vec4f(depths[0].x,depths[1].x,depths[2].x,depths[3].x)<vec4f(pixelKm));
  let reachKm=max(max(depths[0].y,depths[1].y),max(depths[2].y,depths[3].y));
  let distanceKm=min(pixelKm,reachKm);
  let sceneDepths=vec4f(depths[0].y,depths[1].y,depths[2].y,depths[3].y);
  let gap=abs(vec4f(distanceKm)-sceneDepths);
  if(max(max(gap.x,gap.y),max(gap.z,gap.w))>distanceKm*${BLEND_SHARE}){
-  var weights=vec4f(1.0)/(gap*${WEIGHT_PER_KM}.0+vec4f(1.0));
-  weights=weights/dot(weights,vec4f(1.0));
-  let blended=weights.x*loadBounded(cloudColour,view.bounds,coords[0])+weights.y*loadBounded(cloudColour,view.bounds,coords[1])+weights.z*loadBounded(cloudColour,view.bounds,coords[2])+weights.w*loadBounded(cloudColour,view.bounds,coords[3]);
-  let frontKm=weights.x*depths[0].x+weights.y*depths[1].x+weights.z*depths[2].x+weights.w*depths[3].x;
-  return fogOnCloud(position.xy*frame.size.zw,frontKm,blended);
+  var sum=vec4f(0.0);var frontSum=0.0;var count=0.0;
+  if(water&&any(sceneDepths>vec4f(${UNRENDERED_KM}.0))&&!all(sceneDepths>vec4f(${UNRENDERED_KM}.0))&&distanceKm>${FAR_WATER_KM}.0){
+   for(var k=0;k<4;k++){
+    if(depths[k].y>distanceKm-${WATER_ACCEPTANCE_KM}){
+     sum+=loadBounded(cloudColour,view.bounds,coords[k]);
+     frontSum+=depths[k].x;
+     count+=1.0;
+    }
+   }
+  }
+  if(!water||(count==0.0&&anyFront)){
+   var weights=vec4f(1.0)/(gap*${WEIGHT_PER_KM}.0+vec4f(1.0));
+   weights=weights/dot(weights,vec4f(1.0));
+   sum=weights.x*loadBounded(cloudColour,view.bounds,coords[0])+weights.y*loadBounded(cloudColour,view.bounds,coords[1])+weights.z*loadBounded(cloudColour,view.bounds,coords[2])+weights.w*loadBounded(cloudColour,view.bounds,coords[3]);
+   frontSum=weights.x*depths[0].x+weights.y*depths[1].x+weights.z*depths[2].x+weights.w*depths[3].x;
+   count=1.0;
+  }
+  if(count==0.0){discard;}
+  return fogOnCloud(position.xy*frame.size.zw,frontSum/count,sum/count);
  }
  return fogFromUv(softUv,sampleBounded(cloudColour,view.bounds,softUv));`

@@ -16,11 +16,11 @@ import { dotVector3 as dot } from '../../../../math/src/vector/vector.ts'
 import { sheenLtcHalves, SHEEN_LTC_SIZE } from '../../../../sdk-core/src/lighting/sheenLtc.ts'
 import {
   CLOTH_SHEEN_WGSL,
-  MIN_FUZZ_ROUGHNESS,
   SHEEN_LOBE_WGSL,
   SHEEN_RECT_WGSL,
   sheenFuzzRoughness,
 } from './sheenLobeWgsl.ts'
+import { MIN_FUZZ_ROUGHNESS } from './sheenFuzz.ts'
 
 type V3 = [number, number, number]
 type View = { T1: V3; T2: V3; aInv: number; bInv: number; albedo: number }

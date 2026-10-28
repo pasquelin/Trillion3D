@@ -19,7 +19,7 @@ import { fogGridWgsl, FOG_CELLS_WGSL } from './gridWgsl.ts'
 import { FOG_FURTHEST_WGSL, FOG_INTEGRATE_WGSL } from './integrateWgsl.ts'
 import { FOG_STATIC_FORMAT } from './layout.ts'
 import { FOG_FRAME_STRUCT_WGSL, fogBlockOf } from './readWgsl.ts'
-import { FOG_SCATTER_WGSL } from './scatterWgsl.ts'
+import { fogScatterWgsl } from './scatterWgsl.ts'
 import { FOG_STATIC_WGSL } from './staticWgsl.ts'
 import { FOG_NO_SKY_VISIBILITY_WGSL, FOG_SKY_VISIBILITY_WGSL } from './skyVisibilityWgsl.ts'
 import {
@@ -123,7 +123,12 @@ const SKY_LIGHT = skyLightDiffuseWgsl({ group: 0, harmonics: b.skyHarmonics, par
 
 /** The scatter, over the sky's visibility `visibility` finds (`FOG_SKY_VISIBILITY_WGSL`, or `FOG_NO_SKY_VISIBILITY_WGSL`),
  *  with the local fog volumes' code unless `local` is false. */
-const scatterProgram = (bindings: FogBindings, visibility: WgslDecl, local: boolean) =>
+const scatterProgram = (
+  bindings: FogBindings,
+  visibility: WgslDecl,
+  local: boolean,
+  sampled = false,
+) =>
   wgslProgram(`${declarations(bindings)}\n`, [
     DIRECT_LIGHT_WGSL,
     TILE_SLICE_WGSL,
@@ -134,7 +139,7 @@ const scatterProgram = (bindings: FogBindings, visibility: WgslDecl, local: bool
     CLOUD_SHADOW,
     SKY_LIGHT,
     visibility,
-    FOG_SCATTER_WGSL,
+    fogScatterWgsl(sampled),
     fogGridWgsl(local),
   ])
 
@@ -153,12 +158,13 @@ const staticProgram = (bindings: FogBindings, local: boolean) =>
  * THE VOLUME'S PROGRAMS, each over the bindings it names (`bindings.ts`).
  * - `furthest`: the furthest depth around each cell of the grid across the image, read from
  *   the depth pyramid the frame builds (`FOG_FURTHEST_WGSL`);
- * - `scatter`: the light each cell scatters, blended with the previous volume (`FOG_SCATTER_WGSL`), over
+ * - `scatter`: the light each cell scatters, blended with the previous volume (`fogScatterWgsl`), over
  *   the light buffer, the light lists, the sun's shadow — the virtual shadow maps a blended surface
  *   reads, one sample of the light's map (`directShadowWgsl`) — and the fog's cubemap;
  * - `scatterSky`: the same scatter with the global distance field bound, which finds the share of the sky each sample sees
  *   (`FOG_SKY_VISIBILITY_WGSL`, a sample at a time); made once an image asks for it, the plain `scatter` serving
  *   until then and wherever the field is not asked for;
+ * - `scatterSampled`, `scatterSkySampled`: those two with the local lights lit by samples (`sampledLightsVolume`, `fogLightsWgsl`), made once an image asks for them;
  * - `static`: the baked light each cell scatters (`FOG_STATIC_WGSL`), a pass of its own before the scatter,
  *   which binds the most sampled textures a stage may: the volumetric lightmap's eight, the depth, the
  *   furthest depths and the cubemap; the scatter loads what it writes as a storage texture;
@@ -187,6 +193,18 @@ const fogPrograms = (local: boolean) =>
       FOG_PROGRAM_BINDINGS.scatterSky,
       FOG_SKY_VISIBILITY_WGSL(b.field),
       local,
+    ),
+    scatterSampled: scatterProgram(
+      FOG_PROGRAM_BINDINGS.scatterSampled,
+      FOG_NO_SKY_VISIBILITY_WGSL,
+      local,
+      true,
+    ),
+    scatterSkySampled: scatterProgram(
+      FOG_PROGRAM_BINDINGS.scatterSkySampled,
+      FOG_SKY_VISIBILITY_WGSL(b.field),
+      local,
+      true,
     ),
     static: staticProgram(FOG_PROGRAM_BINDINGS.static, local),
     integrate: wgslProgram(`${declarations(FOG_PROGRAM_BINDINGS.integrate)}\n`, [

@@ -6,7 +6,6 @@ import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
 import { compareImages } from '../../../../sdk-core/src/runtime/compareImages.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
-import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
 import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
 import {
@@ -17,14 +16,12 @@ import { shadeVisibility } from '../../../../../bench/oracles/browser/cpu-image/
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera } from './testScenes.fixture.ts'
+import { backendOf, quadScene, camera } from './testScenes.fixture.ts'
 import { rootPage, twoPrimitives } from './rootPages.fixture.ts'
 import { engineCamera } from '../../camera/camera.fixture.ts'
 import { surfaceOf } from '../../geometry/pages/surface.ts'
 import { rasterVisibilityIds } from '../../../../../bench/oracles/browser/cpu-image/raster.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', async () => {
@@ -51,8 +48,7 @@ test('GPU page ids skip a non-hierarchy primitive that sits first in allPages', 
   const packed = packDagSelection(collected.roots)
   const { device } = fakeDevice({ ...BACKEND, packed })
   const viewport: [number, number] = [32, 32]
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     source,
     metadata,
     indices,
@@ -84,15 +80,12 @@ test('a failed GPU selection readback keeps the device: the cut is read again', 
   const collected = collectClusterPages(source, graphDraws(source, associations), metadata, indices)
   const packed = packDagSelection(collected.roots)
   const { device } = fakeDevice({ ...BACKEND, packed, failMap: true })
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     source,
     metadata,
     indices,
     draws: graphDraws(source, associations),
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   await backend.prepare()
   backend.render(camera())
@@ -107,15 +100,12 @@ test('webgpu visbuffer ids match the CPU oracle for a stable pose', async () => 
   installGpuGlobals()
   const { device, textures } = fakeDevice(BACKEND)
   const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     source,
     metadata,
     indices,
     draws: graphDraws(source, associations),
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   const cam = camera()
   await backend.prepare()

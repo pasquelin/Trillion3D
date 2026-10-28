@@ -42,6 +42,45 @@ function compositionLayouts(
   return { asIs: layout(true), flagless: layout(false) }
 }
 
+/** One input's composition: into the capture target, or into it and the canvas at once. */
+async function composeInput(
+  device: GPUDevice,
+  sources: CompositionSources,
+  layouts: ReturnType<typeof compositionLayouts>,
+  label: string,
+  input: ComposeInput,
+  finish: boolean,
+) {
+  const display = { format: DISPLAY_FORMAT }
+  const name = `${label}_COMPOSE_${finish ? 'FINISH_' : ''}${input.toUpperCase()}`
+  const code = (finish ? sources.finish! : sources.plain)[input]
+  const module = await createCheckedShaderModule(device, code, name)
+  const groups = finish ? [layouts[input], finishLayout(device)] : layouts[input]
+  const [draw, present] = await Promise.all([
+    makeFullscreenPipeline(device, module, groups, 'compose', [display]),
+    makeFullscreenPipeline(device, module, groups, 'composePresent', [
+      display,
+      { format: CANVAS_FORMAT },
+    ]),
+  ])
+  // The canvas alone, for a frame whose display colour nothing reads: compiled at the first that
+  // asks, and the frame composes both until it has landed.
+  let canvas: GPURenderPipeline | undefined, building: Promise<void> | undefined
+  return {
+    draw,
+    present,
+    get canvas() {
+      building ??= makeFullscreenPipeline(device, module, groups, 'compose', [
+        { format: CANVAS_FORMAT },
+      ]).then(
+        (made) => void (canvas = made),
+        () => undefined,
+      )
+      return canvas
+    },
+  }
+}
+
 /**
  * A program's composition pipelines, one per input (the flagless ones for a frame that holds no
  * as-is pixel): the plain ones, compiled with it, and those that finish the image — its local
@@ -54,37 +93,8 @@ export async function createCompositions(
   label: string,
 ) {
   const layouts = compositionLayouts(device, !!sources.lut)
-  const display = { format: DISPLAY_FORMAT }
-  /** One input's composition: into the capture target, or into it and the canvas at once. */
-  const compile = async (input: ComposeInput, finish = false) => {
-    const name = `${label}_COMPOSE_${finish ? 'FINISH_' : ''}${input.toUpperCase()}`
-    const code = (finish ? sources.finish! : sources.plain)[input]
-    const module = await createCheckedShaderModule(device, code, name)
-    const groups = finish ? [layouts[input], finishLayout(device)] : layouts[input]
-    const [draw, present] = await Promise.all([
-      makeFullscreenPipeline(device, module, groups, 'compose', [display]),
-      makeFullscreenPipeline(device, module, groups, 'composePresent', [
-        display,
-        { format: CANVAS_FORMAT },
-      ]),
-    ])
-    // The canvas alone, for a frame whose display colour nothing reads: compiled at the first that
-    // asks, and the frame composes both until it has landed.
-    let canvas: GPURenderPipeline | undefined, building: Promise<void> | undefined
-    return {
-      draw,
-      present,
-      get canvas() {
-        building ??= makeFullscreenPipeline(device, module, groups, 'compose', [
-          { format: CANVAS_FORMAT },
-        ]).then(
-          (made) => void (canvas = made),
-          () => undefined,
-        )
-        return canvas
-      },
-    }
-  }
+  const compile = (input: ComposeInput, finish = false) =>
+    composeInput(device, sources, layouts, label, input, finish)
   type Pipelines = Awaited<ReturnType<typeof compile>>
   /** Every input's pipelines at once, so a frame switching inputs compiles nothing. */
   const compileAll = async (finish = false) => {

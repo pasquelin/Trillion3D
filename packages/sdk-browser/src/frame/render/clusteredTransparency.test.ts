@@ -2,16 +2,18 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { BufferAttribute } from '../../../../sdk-core/src/world/buffer/attribute.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera, streamingQuadBackend } from '../backend/testScenes.fixture.ts'
+import {
+  backendOf,
+  quadScene,
+  camera,
+  streamingQuadBackend,
+} from '../backend/testScenes.fixture.ts'
 import { coarseQuadScene } from '../backend/coarseQuads.fixture.ts'
 import type { Engine } from '../../session/engine/types.ts'
 import { settledImage } from '../backend/settledImage.fixture.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('clustered transparency submits only visible pages in one two-sided mesh draw', async () => {
@@ -31,12 +33,9 @@ test('clustered transparency submits only visible pages in one two-sided mesh dr
   primitive.pass = 'clustered-blend'
   primitive.pages[1].min = [99, -1, 0]
   primitive.pages[1].max = [101, 1, 0]
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   }) as Engine
   try {
     await backend.prepare()
@@ -81,12 +80,9 @@ test('clustered transparency reads the opaque geometry instead of copying it', a
     const positions = new Float32Array(3000)
     positions.set(fixture.geometry.getAttribute('position')!.array)
     fixture.geometry.setAttribute('position', new BufferAttribute(positions, 3))
-    const backend = webgpuPagesEngine({
-      textureCaches: createTextureCaches(createPageCache()),
+    const backend = backendOf({
       ...fixture,
       gpuDevice: device,
-      maxResidentPages: 2,
-      viewport: [32, 32],
     })
     try {
       await backend.prepare()
@@ -171,12 +167,9 @@ test('a transparent switched to double-sided still expands all its instances', a
   G.sided(fixture.material, G.FRONT_SIDE)
   fixture.metadata.primitives[0].pass = 'clustered-blend'
   const mesh = fixture.source.children[0] as PageMesh
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   }) as Engine
   try {
     await backend.prepare()

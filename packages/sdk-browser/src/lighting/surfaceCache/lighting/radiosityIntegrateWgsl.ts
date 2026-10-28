@@ -1,6 +1,9 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
 import { ditherLight, packLight, unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
+import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
+import { indirectWordsWgsl } from '../indirectWords.ts'
+import { lightWordsOf } from '../../../gpu/core/lightWords.ts'
 import { lightingCommonWgsl, lightingLayersWgsl, surfaceTexelWgsl } from './commonWgsl.ts'
 import { radiosityCommonWgsl, radiosityProbeVisibilityWgsl } from './radiosityCommonWgsl.ts'
 
@@ -20,7 +23,7 @@ import { radiosityCommonWgsl, radiosityProbeVisibilityWgsl } from './radiosityCo
  * word it is kept in, so that a small step is not lost.
  *
  * Bindings: 0 the parameters, 1 the tables, 2 the context, 3 and 4 the depth and normal layers, 5 the
- * probes' harmonics, one layer a channel, 6 the indirect light, read and written, 7 the tiles' count of images, read and written, 8 the distances the rays
+ * probes' harmonics, one layer a channel, 6 the indirect light (the words of the atlas's light, `indirectWords.ts`), read and written, 7 the tiles' count of images, read and written, 8 the distances the rays
  * met their surfaces at (read where the probes' occlusion is on).
  */
 
@@ -39,8 +42,7 @@ const B = RADIOSITY_INTEGRATE_BINDINGS
 
 export const RADIOSITY_INTEGRATE_ENTRY = 'radiosityIntegrate'
 
-export const RADIOSITY_INTEGRATE_WGSL = wgslProgram(
-  `const BILINEAR_EXPAND:f32=1.0;
+const integrateProbes = `const BILINEAR_EXPAND:f32=1.0;
 @group(0) @binding(${B.harmonics}) var probeHarmonics:texture_2d_array<f32>;
 @group(0) @binding(${B.indirect}) var indirectAtlas:texture_storage_2d<r32uint,read_write>;
 @group(0) @binding(${B.frames}) var framesAtlas:texture_storage_2d<r32uint,read_write>;
@@ -59,8 +61,11 @@ fn addProbe(texel:RadTexel,page:u32,probe:vec2u,weight:f32,sum:ptr<function,mat3
  if(lgFlag(FLAG_PLANE_WEIGHTING)){w=min(w,planeWeight(texel.position,texel.normal,at.position));}
  if(lgFlag(FLAG_PROBE_OCCLUSION)){w=min(w,probeVisibility(texel.position,at));}
  if(w>0.0){*sum=*sum+harmonicsAt(probeAtlasCoord(at.atlas))*w;*total+=w;}
-}
-@compute @workgroup_size(8,8,1)
+}`
+
+const integrateEntry = (light: LightAtlasFormat) => {
+  const words = lightWordsOf(light)
+  return `@compute @workgroup_size(8,8,1)
 fn ${RADIOSITY_INTEGRATE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_id) at:vec3u,@builtin(local_invocation_index) lane:u32){
  let tile=flatGroup(group,n);
  if(tile>=ctxListed(LG_LIST_INDIRECT)){return;}
@@ -77,7 +82,7 @@ fn ${RADIOSITY_INTEGRATE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_
  }
  workgroupBarrier();
  if(!(texel.inside&&texel.valid)){
-  if(texel.inside){textureStore(indirectAtlas,vec2i(texel.atlas),vec4u(0u));}
+  if(texel.inside){${words === 1 ? 'textureStore(indirectAtlas,vec2i(texel.atlas),vec4u(0u));' : 'indirectWriteInPlace(indirectAtlas,vec2i(texel.atlas),vec3f(0.0));'}}
   return;
  }
  let inCard=texel.cardCoord;
@@ -95,20 +100,30 @@ fn ${RADIOSITY_INTEGRATE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_
  var radiance=max(vec3f(dot(sum[0],transfer),dot(sum[1],transfer),dot(sum[2],transfer)),vec3f(0.0));
  if(total>0.0){radiance/=total;}
  if(lgFlag(FLAG_TEMPORAL)){
-  let history=unpackLight(textureLoad(indirectAtlas,vec2i(texel.atlas)).x);
+  let history=${words === 1 ? 'unpackLight(textureLoad(indirectAtlas,vec2i(texel.atlas)).x)' : 'indirectReadWrite(indirectAtlas,vec2i(texel.atlas))'};
   let seed=vec3i(i32(texel.atlas.x),i32(texel.atlas.y),i32(texel.temporal)+2);
-  radiance=ditherLight(mix(history,radiance,1.0/(1.0+framesBlended)),f32(rand3dPcg16(seed).x)/65536.0);
+  radiance=${words === 1 ? 'ditherLight(mix(history,radiance,1.0/(1.0+framesBlended)),f32(rand3dPcg16(seed).x)/65536.0)' : 'mix(history,radiance,1.0/(1.0+framesBlended))'};
  }
- textureStore(indirectAtlas,vec2i(texel.atlas),vec4u(packLight(radiance),0u,0u,0u));
-}`,
-  [
-    lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
-    surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
-    radiosityCommonWgsl(),
-    radiosityProbeVisibilityWgsl(B.hits),
-    packLight,
-    unpackLight,
-    ditherLight,
-    rand3dPcg16,
-  ],
-)
+ ${words === 1 ? 'textureStore(indirectAtlas,vec2i(texel.atlas),vec4u(packLight(radiance),0u,0u,0u));' : 'indirectWriteInPlace(indirectAtlas,vec2i(texel.atlas),radiance);'}
+}`
+}
+
+/** The integration's program, the indirect layer holding the words of light stored in `light`. */
+export const radiosityIntegrateProgramOf = (light: LightAtlasFormat) => {
+  const words = lightWordsOf(light)
+  return wgslProgram(
+    `${integrateProbes}
+${integrateEntry(light)}`,
+    [
+      lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
+      surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
+      radiosityCommonWgsl(),
+      radiosityProbeVisibilityWgsl(B.hits),
+      packLight,
+      unpackLight,
+      ditherLight,
+      rand3dPcg16,
+      ...(words === 1 ? [] : [indirectWordsWgsl(words)]),
+    ],
+  )
+}

@@ -1,7 +1,7 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { FLOAT32_MAX, NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
-import { bitMask, bitWord, ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
+import { DRAW_MASK_ACCESS_WGSL } from '../../../geometry/dag/shader/drawMaskWgsl.ts'
 import { casterReachWgsl, markReachWgsl } from '../../../deformation/halfFloat.ts'
 import { worldWgsl } from '../../../geometry/dag/shader/worldPoseWgsl.ts'
 import { DAG_AXIS_SCALES_WGSL } from '../../../geometry/dag/shader/primitiveWgsl.ts'
@@ -133,10 +133,7 @@ ${wgslConsts({
  *  page, which lists a page once (\`candAppend\`), a block of \`BLOCK_MASK_WORDS\` words a workgroup's
  *  pages. */
 fn counterBase()->u32{return 0u;}
-fn blockCount()->u32{return ceilDiv(cutView.clusterCount,WORKGROUP_THREADS);}
 fn drawMaskBase()->u32{return ${FRAME_COUNTERS}u;}
-fn drawMaskWord(i:u32)->u32{return drawMaskBase()+bitWord(i);}
-fn drawBit(i:u32)->u32{return bitMask(i);}
 fn descentViews()->u32{return params.views;}
 `
 
@@ -299,9 +296,7 @@ export const cardDescentWgsl = () =>
     DAG_AXIS_SCALES_WGSL,
     FLOAT32_MAX,
     NO_INDEX,
-    bitMask,
-    bitWord,
-    ceilDivWgsl,
+    DRAW_MASK_ACCESS_WGSL,
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
   ])

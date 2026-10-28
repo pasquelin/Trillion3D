@@ -26,6 +26,11 @@ import {
   vsmTraceKindsOf,
 } from '../lighting/shadows/vsm/trace/traceWgsl.ts'
 
+/** The cuts the contract adds beside the code paths, off. */
+const OFF_CUTS = Object.fromEntries(
+  Object.entries(FULL_CONTRACT).filter(([, value]) => value === false || value === undefined),
+)
+
 /** Every key a scene can ask (`contractKey`): `unshadowed` leaves out both kinds' reads, so no
  *  kind is cut beside it, and a shadowed scene casts from at least one kind. A forward program holds no
  *  contact shadow: its keys always say so. */
@@ -36,6 +41,9 @@ const KEYS: ContractKey[] = [false, true].flatMap((rectless) =>
     [false, true, false],
     [false, false, true],
   ].map(([unshadowed, sunless, localless]) => ({
+    // Every cut the contract holds off (the sampled lighting's, the volume's…): a forward program lights no light by them.
+    ...FULL_CONTRACT,
+    ...OFF_CUTS,
     narrow: false,
     unshadowed,
     rectless,

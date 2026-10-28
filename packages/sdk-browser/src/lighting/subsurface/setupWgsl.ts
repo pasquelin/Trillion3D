@@ -16,15 +16,14 @@ const KIND = { separable: 1, sampled: 2, inView: 4 } as const
  *   missing one rebuilt from the neighbours — the mean of the left and the right with the quality low, the mean of the pair
  *   (left and right, or above and below) whose luminances differ least with the quality high; with `validate`, a neighbour that is not
  *   a profile pixel adds nothing, and the mean is then taken over those that do.
- * The texels outside the image are black.
+ * A texel outside the image repeats the edge texel (a point sampler that clamps).
  */
 export const SSS_RECONSTRUCT_WGSL = wgslBlock(
   'SSS_RECONSTRUCT_WGSL',
   [SSS_COMMON_WGSL, luminance],
   `struct SssLight{diffuse:vec3f,specular:vec3f}
 fn sssSceneTexel(p:vec2i)->vec4f{
- if(any(p<vec2i(0))||any(p>=vec2i(textureDimensions(texA)))){return vec4f(0.0);}
- return textureLoad(texA,p,0);
+ return textureLoad(texA,clamp(p,vec2i(0),vec2i(textureDimensions(texA))-vec2i(1)),0);
 }
 fn sssChecker(p:vec2i)->bool{return ((u32(p.x)+u32(p.y)+view.words.z)%2u)!=0u;}
 fn sssLookup(p:vec2i,o:vec2i,validate:bool)->vec3f{

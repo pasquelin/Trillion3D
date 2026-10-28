@@ -1,6 +1,7 @@
 import { toHalf } from '../../../../math/src/float/half.ts'
 import { rgbToHalfRgba } from '../../gpu/core/halfTexels.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
 import {
   cubemapMipCount,
   faceAverages,
@@ -68,18 +69,10 @@ function cubemapBytes(size: number) {
 /** The stand-in a program that reads a cubemap is bound to when the fog has none: one white texel a
  *  face, so that the tint alone colours the fog. */
 export function createWhiteCubemap(device: GPUDevice) {
-  const texture = device.createTexture({
-    label: 'Trillion3D fog no cubemap',
-    size: { width: 1, height: 1, depthOrArrayLayers: 6 },
-    format: 'rgba16float',
-    usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+  const texture = standInTexture(device, 'Trillion3D fog no cubemap', 'rgba16float', {
+    layers: 6,
+    texels: new Uint16Array(4).fill(HALF_ONE),
   })
-  device.queue.writeTexture(
-    { texture },
-    new Uint16Array(24).fill(HALF_ONE),
-    { bytesPerRow: 8, rowsPerImage: 1 },
-    { width: 1, height: 1, depthOrArrayLayers: 6 },
-  )
   return {
     texture,
     view: texture.createView({ dimension: 'cube' }),

@@ -16,11 +16,17 @@ import type { VoxelGraphSet } from './voxelGraph.ts'
 import { FOG_VOLUME_FORMAT } from './read.ts'
 import { postSamplers } from '../../gpu/core/postSamplers.ts'
 
+/** The scatters made at the first ask, the plain `scatter` serving in place of them until then. */
+export type LazyProgram = 'scatterSky' | 'scatterSampled' | 'scatterSkySampled'
+const LAZY_PROGRAMS: readonly LazyProgram[] = ['scatterSky', 'scatterSampled', 'scatterSkySampled']
+
 /** The entry points of the programs. */
 const ENTRY_POINT = {
   furthest: 'furthestMain',
   scatter: 'scatterMain',
   scatterSky: 'scatterMain',
+  scatterSampled: 'scatterMain',
+  scatterSkySampled: 'scatterMain',
   static: 'staticMain',
   integrate: 'integrateMain',
   prepare: 'prepareMain',
@@ -99,10 +105,12 @@ function createFogPrograms(device: GPUDevice, failed: (error: unknown) => void, 
     })
     return makeProgram(device, failed, label, layoutEntries(name), module, ENTRY_POINT[name])
   }
-  const programs = {} as Record<Exclude<FogProgramName, 'scatterSky'>, FogProgram>
+  const programs = {} as Record<Exclude<FogProgramName, LazyProgram>, FogProgram>
   for (const name of Object.keys(texts) as FogProgramName[])
-    if (name !== 'scatterSky') programs[name] = program(name)
-  let sky: FogProgram | undefined
+    if (!LAZY_PROGRAMS.includes(name as LazyProgram))
+      programs[name as Exclude<FogProgramName, LazyProgram>] = program(name)
+  const lazy: Partial<Record<LazyProgram, FogProgram>> = {}
+  const lazyProgram = (name: LazyProgram) => (lazy[name] ??= program(name))
   // The voxelisation of the set in place and of the one before it, the more recent first.
   const graphs: { key: string; program: FogProgram }[] = []
   const graphVoxelize = (set: VoxelGraphSet) => {
@@ -117,7 +125,13 @@ function createFogPrograms(device: GPUDevice, failed: (error: unknown) => void, 
     graphs.length = Math.min(graphs.length, 2)
     return program
   }
-  return { programs, skyScatter: () => (sky ??= program('scatterSky')), graphVoxelize }
+  return {
+    programs,
+    skyScatter: () => lazyProgram('scatterSky'),
+    /** The scatter with the local lights lit by samples, with or without the distance field's sky visibility. */
+    sampledScatter: (sky: boolean) => lazyProgram(sky ? 'scatterSkySampled' : 'scatterSampled'),
+    graphVoxelize,
+  }
 }
 
 /** Whether `held` are the textures of `grid` and hold the voxelised objects' volumes where `voxels`
@@ -171,7 +185,11 @@ export function createFogVolumeResources(
   local = true,
 ) {
   const frame = uniformBlock(device, 'Trillion3D fog frame', FOG_VOLUME_FRAME_WORDS * 4)
-  const { programs, skyScatter, graphVoxelize } = createFogPrograms(device, failed, local)
+  const { programs, skyScatter, sampledScatter, graphVoxelize } = createFogPrograms(
+    device,
+    failed,
+    local,
+  )
   const textures = createFogTextures(device)
   let standIn: ReturnType<typeof createBakedStandIn> | undefined
   return {
@@ -182,6 +200,8 @@ export function createFogVolumeResources(
     /** The scatter that finds the sky's visibility of each sample in the global distance field, its pipeline asked at the
      *  first call: the plain scatter serves until it is `ready`. */
     skyScatter,
+    /** The scatters that light the local lights by samples (`sampledLightsVolume`), with and without the sky's visibility, their pipelines asked at the first call: the plain ones serve until they are `ready`. */
+    sampledScatter,
     /** The voxelisation that evaluates the graphs of `set`, its pipeline asked at the first call: the plain
      *  voxelisation serves until it is `ready`. */
     graphVoxelize,

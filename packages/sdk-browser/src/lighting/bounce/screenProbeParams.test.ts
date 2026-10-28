@@ -112,7 +112,7 @@ test('the hair and unlit hits of the screen trace are skipped only where asked, 
   const first = { ...IMAGE_READS, history: false }
   assert.equal(flag({ screenProbeTemporalFilterProbes: true }, F.probeTemporal, first), 0)
   assert.equal(
-    flag({ screenProbeTemporalFilterProbes: true, screenProbes: 'low' }, F.probeTemporal),
+    flag({ screenProbeTemporalFilterProbes: true, screenProbes: 'off' }, F.probeTemporal),
     0,
     'a level that casts no probe',
   )
@@ -151,11 +151,13 @@ test('the screen probes parameters are the words of the settings and the image, 
     velocity: true,
     previousInverse,
     relativeThickness: 0.03,
+    depthThicknessScale: 1,
     historyThickness: 0.004,
     fullResDepth: true,
     skylightLeak: [0.1, 0.2, 0.3] as const,
     roughSpecularFoliage: 0.4,
     posesMoving: false,
+    exactLight: false,
   })
   write(geometry, settings, image(11))
   const at = SCREEN_PROBE_PARAMS.at

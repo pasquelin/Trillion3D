@@ -1,20 +1,17 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
 import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { dagLevel } from '../../session/engine/pagesEngine.fixture.ts'
-import { quadScene, camera, flushedImage } from './testScenes.fixture.ts'
+import { backendOf, quadScene, camera, flushedImage } from './testScenes.fixture.ts'
 import { coarseQuadScene, deepCoarseQuadsEngine } from './coarseQuads.fixture.ts'
 import { settledImage } from './settledImage.fixture.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import type { Engine } from '../../session/engine/types.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 test('a host drop deferred for coverage is applied once the pool gives the page its slot to another', async () => {
   installGpuGlobals()
@@ -58,15 +55,12 @@ test('a leaf carrying its own coarse representation keeps that GPU fallback duri
     ...fixture.metadata,
     primitives: [{ ...fixture.metadata.primitives[0], ...level }],
   }
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     metadata,
     indices: new Map(),
     readPage: async () => fixture.indices.get('2')!,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   }) as Engine
   try {
     await backend.prepare()
@@ -94,8 +88,7 @@ test('cancelling initial coverage loading cannot publish a ready backend', async
     gate = new Promise<void>((resolve) => {
       release = resolve
     })
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     indices: new Map(),
     readPage: async (url) => {
@@ -105,8 +98,6 @@ test('cancelling initial coverage loading cannot publish a ready backend', async
     },
     signal: controller.signal,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   try {
     const preparing = backend.prepare()
@@ -136,12 +127,9 @@ test('moving opaque cameras use the current GPU selection without CPU reselectio
   const packed = packDagSelection(collected.roots)
   const { device, draws, buffers } = fakeDevice({ ...BACKEND, packed })
   const events: Array<{ phase: string; context?: Record<string, unknown> }> = []
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
     onDiagnostic: (event) => events.push(event),
   }) as Engine
   try {

@@ -1,7 +1,7 @@
 /**
  * THE COMPUTE THROTTLE (`throttleWgsl.ts` holds its kernels; the options are described in
  * `docs/SHADOWS.md`). The throttled cull counts the clusters it draws in each map, the frame keeps the
- * counts, and the next frame's two kernels, run before its marking, carry them to its maps and add
+ * counts, and the next frame's kernels, run in its marking, carry them to its maps and add
  * their levels to the maps' bias in the projection records.
  *
  * What the CPU holds is the kernels' parameters and the buffers of the two frames that take turns by
@@ -26,6 +26,8 @@ import { vsmFeedbackWords } from './render/renderParamsWgsl.ts'
 import { vsmFrameParity, vsmFrameSetHeld, vsmPerFrameSet } from './resources.ts'
 import type { VsmPerFrameSet, VsmResources } from './resources.ts'
 import {
+  VSM_THROTTLE_CLEAR_ENTRY,
+  VSM_THROTTLE_CLEAR_WGSL,
   VSM_THROTTLE_PARAMS,
   VSM_THROTTLE_PROCESS_ENTRY,
   VSM_THROTTLE_PROCESS_WGSL,
@@ -46,6 +48,7 @@ const processKernel = autoKernel(
   VSM_THROTTLE_PROCESS_WGSL,
   VSM_THROTTLE_PROCESS_ENTRY,
 )
+const clearKernel = autoKernel(`${LABEL}.clear`, VSM_THROTTLE_CLEAR_WGSL, VSM_THROTTLE_CLEAR_ENTRY)
 const updateKernel = autoKernel(
   `${LABEL}.update`,
   VSM_THROTTLE_UPDATE_WGSL,
@@ -56,6 +59,7 @@ const updateKernel = autoKernel(
 export const vsmThrottleStages = (device: GPUDevice) => [
   processKernel(device),
   updateKernel(device),
+  clearKernel(device),
 ]
 
 /** The throttle's buffers of a set: the two frames' that take turns, a frame writing the pair of its
@@ -74,12 +78,21 @@ export interface VsmThrottleState {
   paramF32: Float32Array<ArrayBuffer>
   /** The most levels the throttle may add to a sun's maps and to a local light's, rewritten by each frame. */
   maxBiases: [number, number]
-  pipelines: { process: GPUComputePipeline; update: GPUComputePipeline }
+  pipelines: {
+    process: GPUComputePipeline
+    update: GPUComputePipeline
+    clear: GPUComputePipeline
+  }
   /** Whether the previous frame ran the throttle and kept its maps: its pair is there to read. */
   prevKept: boolean
-  /** Whether this frame cleared its pair, i.e. runs the throttle. */
+  /** Whether this frame runs the throttle (`encodeVsmThrottle` cleared its pair). */
   active: boolean
-  groups: { process: VsmPerFrameSet<GPUBindGroup>; update: VsmPerFrameSet<GPUBindGroup> }
+  groups: {
+    process: VsmPerFrameSet<GPUBindGroup>
+    update: VsmPerFrameSet<GPUBindGroup>
+    clearThrottle: VsmPerFrameSet<GPUBindGroup>
+    clearFeedback: VsmPerFrameSet<GPUBindGroup>
+  }
 }
 
 /** Every buffer the state holds. */
@@ -122,10 +135,16 @@ function makeVsmThrottle(device: GPUDevice, mapSlots: number): VsmThrottleState 
     pipelines: {
       process: processKernel(device).get()!,
       update: updateKernel(device).get()!,
+      clear: clearKernel(device).get()!,
     },
     prevKept: false,
     active: false,
-    groups: { process: vsmFrameSetHeld(), update: vsmFrameSetHeld() },
+    groups: {
+      process: vsmFrameSetHeld(),
+      update: vsmFrameSetHeld(),
+      clearThrottle: vsmFrameSetHeld(),
+      clearFeedback: vsmFrameSetHeld(),
+    },
   }
 }
 
@@ -164,18 +183,6 @@ export function releaseVsmThrottle(res: VsmResources) {
 /** Bytes the throttle's buffers of `res` hold. */
 export const vsmThrottleBytes = (res: VsmResources) =>
   res.throttle ? buffersOf(res.throttle).reduce((sum, buffer) => sum + buffer.size, 0) : 0
-
-/** The frame begins: its pair cleared before the raster counts. */
-export function clearVsmThrottle(
-  encoder: GPUCommandEncoder,
-  res: VsmResources,
-  held: VsmThrottleState,
-) {
-  const pair = vsmFrameParity(res)
-  encoder.clearBuffer(held.feedback[pair])
-  encoder.clearBuffer(held.throttle[pair])
-  held.active = true
-}
 
 /** The frame is done (`keepVsmFrame`): where it ran the throttle and kept its maps, the next frame
  *  reads its pair; else it has no previous buffers and skips the kernels. */
@@ -224,6 +231,7 @@ function writeParameters({ device, vsm, plan, strength }: VsmFrame, held: VsmThr
   )
   u[at.nextCount] = plan.nextMapCount
   u[at.slotCount] = plan.projectionCount
+  u[at.singleMaps] = plan.singleCount
   f[at.strength] = strength
   f[at.loadBudget] = load > 0 ? load : FLOAT32_MAX
   f[at.historyWeight] = shadows.shadowDynamicResolutionPerVsmBiasHistoryWeight
@@ -281,25 +289,55 @@ const updateGroup = kernelGroup(
   ],
 )
 
+/** The clear kernel's: the buffer of this frame's pair that `buffer` names. */
+const clearGroup = (label: string, buffer: (held: VsmThrottleState, now: 0 | 1) => GPUBuffer) =>
+  kernelGroup(
+    label,
+    (held) => held.pipelines.clear,
+    (held, _res, now) => [buffer(held, now)],
+  )
+const clearThrottleGroup = clearGroup('clearThrottle', (held, now) => held.throttle[now])
+const clearFeedbackGroup = clearGroup('clearFeedback', (held, now) => held.feedback[now])
+
+/** Zeroes the words of a buffer of this frame's pair with the clear kernel, bound by `group`. */
+function clearWords(
+  pass: GPUComputePassEncoder,
+  frame: VsmFrame,
+  held: VsmThrottleState,
+  set: VsmPerFrameSet<GPUBindGroup>,
+  group: typeof clearThrottleGroup,
+  words: number,
+) {
+  pass.setPipeline(held.pipelines.clear)
+  pass.setBindGroup(0, vsmPerFrameSet(set, frame.vsm.res, group, held))
+  pass.dispatchWorkgroups(Math.max(1, ceilDiv(words, WORKGROUP_THREADS)))
+}
+
 /**
- * The two kernels into `pass`, process then update, before the marking: the previous frame's counts
- * carried to this frame's ids (`nextMaps` names where each previous id went), then the intensities
- * fitted and added to the projection data's bias. None on a frame with no previous frame's buffers
- * (the first, one after a frame that kept nothing or did not throttle). The projection data is marked
- * written on the GPU: the next upload of this buffer sends it whole.
+ * The throttle's steps into `pass`, between the marking's page rects and its table clears: the throttle buffer of this frame zeroed; where the
+ * previous frame's buffers are there to read (the first, one after a frame that kept nothing or did not throttle, have none), the two kernels,
+ * process then update, the previous frame's counts carried to this frame's ids (`nextMaps` names where each previous id went), then the
+ * intensities fitted and added to the projection data's bias; then the feedback of this frame zeroed, for the raster to count in. The
+ * projection data is marked written on the GPU: the next upload of this buffer sends it whole.
  */
 export function encodeVsmThrottle(pass: GPUComputePassEncoder, frame: VsmFrame) {
   const { vsm, plan, throttle: held } = frame
-  if (!held?.prevKept) return
+  if (!held) return
   const { res } = vsm
-  writeParameters(frame, held)
-  // Every previous id is a thread; thread 0 also writes the totals, so one workgroup at least.
-  pass.setPipeline(held.pipelines.process)
-  pass.setBindGroup(0, vsmPerFrameSet(held.groups.process, res, processGroup, held, res.nextMaps))
-  pass.dispatchWorkgroups(Math.max(1, ceilDiv(plan.nextMapCount, WORKGROUP_THREADS)))
-  pass.setPipeline(held.pipelines.update)
-  pass.setBindGroup(0, vsmPerFrameSet(held.groups.update, res, updateGroup, held, res.nextMaps))
-  pass.dispatchWorkgroups(Math.max(1, ceilDiv(plan.projectionCount, WORKGROUP_THREADS)))
-  const written = (plan.projectionCount * VSM_PROJECTION_RECORD_BYTES) / 4
-  markWrittenOnGpu(res.current.projectionData, written)
+  held.active = true
+  const throttleWords = vsmThrottleWords(held.mapSlots)
+  clearWords(pass, frame, held, held.groups.clearThrottle, clearThrottleGroup, throttleWords)
+  if (held.prevKept) {
+    writeParameters(frame, held)
+    // Every previous id is a thread; thread 0 also writes the totals, so one workgroup at least.
+    pass.setPipeline(held.pipelines.process)
+    pass.setBindGroup(0, vsmPerFrameSet(held.groups.process, res, processGroup, held, res.nextMaps))
+    pass.dispatchWorkgroups(Math.max(1, ceilDiv(plan.nextMapCount, WORKGROUP_THREADS)))
+    pass.setPipeline(held.pipelines.update)
+    pass.setBindGroup(0, vsmPerFrameSet(held.groups.update, res, updateGroup, held, res.nextMaps))
+    pass.dispatchWorkgroups(Math.max(1, ceilDiv(plan.projectionCount, WORKGROUP_THREADS)))
+    const written = (plan.projectionCount * VSM_PROJECTION_RECORD_BYTES) / 4
+    markWrittenOnGpu(res.current.projectionData, written)
+  }
+  clearWords(pass, frame, held, held.groups.clearFeedback, clearFeedbackGroup, held.feedbackWords)
 }

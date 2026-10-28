@@ -11,6 +11,7 @@ import type { GlobalDistanceFieldOptions } from '../../../../sdk-core/src/contra
 import type { SurfaceCacheOptions } from '../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
 import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import type { LightFunctionOptions } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
+import type { LightProfileOptions } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { ReflectionOptions } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
@@ -19,8 +20,14 @@ import type { ShadowOptions } from '../../../../sdk-core/src/contracts/shadowOpt
 import type { SkyQualityOptions } from '../../../../sdk-core/src/modules/sky/quality.ts'
 import type { TemporalOptions } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import type { TessellationOptions } from '../../../../sdk-core/src/contracts/tessellationOptions.ts'
+import type { TextureFilteringOptions } from '../../../../sdk-core/src/contracts/textureFilteringOptions.ts'
+import type { LightingDataFormatOptions } from '../../../../sdk-core/src/contracts/lightingDataFormatOptions.ts'
+import type { MeshDistanceFieldTraceOptions } from '../../../../sdk-core/src/contracts/meshDistanceFieldTraceOptions.ts'
+import type { ScreenSpaceTracingOptions } from '../../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import type { SingleLayerWaterOptions } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import type { HairStrandsOptions } from '../../../../sdk-core/src/contracts/hairStrandsOptions.ts'
+import type { HeterogeneousVolumeOptions } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
+import type { SampledLightsOptions } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
 import type { SubsurfaceScatteringOptions } from '../../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
 import type { TranslucencyVolumeOptions } from '../../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
 import type { TranslucencyGiOptions } from '../../../../sdk-core/src/contracts/translucencyGiOptions.ts'
@@ -83,6 +90,14 @@ export interface WorldImageSettings {
    *  back to it, one left out stays —; one a setting does not take is refused. */
   get lightFunction(): FamilyValues<'lightFunction'>
   set lightFunction(options: LightFunctionOptions)
+  /** The light profiles' atlas settings, each by its field (`WorldOptions`), resolved over the page and
+   *  the quality preset: `lightProfileAtlasResolution` (256) — the texels a side of a slice; a profile of another
+   *  side is resampled to it — and `lightProfileAtlasMaxProfiles` (32, from 1 to 32) — the most profiles the atlas
+   *  holds; it is made with the profiles the lights ask, up to this, and made again when more are asked.
+   *  Written, the settings named apply from the next frame over the preset — one `null` gives it
+   *  back to it, one left out stays —; one a setting does not take is refused. */
+  get lightProfile(): FamilyValues<'lightProfile'>
+  set lightProfile(options: LightProfileOptions)
   /** The volumetric lightmap's setting, by its field (`WorldOptions`), resolved over the page and
    *  the quality preset: `volumetricLightmap`, whether the precomputed light is read, on by
    *  default. Written, the setting named applies from the next frame over the preset — `null`
@@ -232,6 +247,18 @@ export interface WorldImageSettings {
    *  — one `null` gives it back to it, one left out stays —; one a setting does not take is refused. */
   get reflections(): FamilyValues<'reflections'>
   set reflections(options: ReflectionOptions)
+  /** The screen-space traces' settings, each by its field (`WorldOptions`), resolved over the page: what answers the reflections and the indirect
+   *  diffuse light (`reflectionMethod`, `globalIlluminationMethod`: `'scene'`, `'screen'` or `'off'`) and the quality, roughness fade, tiles, stencil,
+   *  compute path and temporal filter of the screen reflections, the rays and sky distance of the screen indirect light (`screenSpaceTracingOptions.ts`). */
+  get screenSpaceTracing(): FamilyValues<'screenSpaceTracing'>
+  set screenSpaceTracing(options: ScreenSpaceTracingOptions)
+  /** The lighting data format's setting (`lightingDataFormat`, `r11g11b10` by default), resolved over the page: the format the light is kept at between the passes of the indirect light (`lightingDataFormatOptions.ts`). */
+  get lightingDataFormat(): FamilyValues<'lightingDataFormat'>
+  set lightingDataFormat(options: LightingDataFormatOptions)
+  /** The meshes' fields trace's settings, each by its field (`WorldOptions`), resolved over the page: whether the rays of the indirect light, the reflections and the surface cache's
+   *  shadows march the meshes' own distance fields (`meshDistanceFieldTrace`, off by default), which of them do, how far, and the view grid the meshes are culled to (`meshDistanceFieldTraceOptions.ts`). */
+  get meshDistanceFieldTrace(): FamilyValues<'meshDistanceFieldTrace'>
+  set meshDistanceFieldTrace(options: MeshDistanceFieldTraceOptions)
   /** The volumetric fog's settings, each by its field (`WorldOptions`), resolved over the page
    *  and the quality preset: `volumetricFogQuality` (`'off'`, `'low'`, `'high'`, `'ultra'`)
    *  and the eleven settings the fog volume is read with. Written, the settings named apply
@@ -287,6 +314,18 @@ export interface WorldImageSettings {
    *  back its default, one left out stays —; one a setting does not take is refused. */
   get hairStrands(): FamilyValues<'hairStrands'>
   set hairStrands(options: HairStrandsOptions)
+  /** The heterogeneous volumes' settings, each by its field (`WorldOptions`), resolved over the page: `heterogeneousVolumes` (true) — whether
+   *  the volumes of a sparse texture a scene declares are drawn —, `heterogeneousVolumesAllowed` (true) — whether the device profile allows them —,
+   *  `heterogeneousVolumesShadows` (false) and `heterogeneousVolumesTranslucency` (false). Written, the settings named apply from the next
+   *  frame — one `null` gives it back its default, one left out stays —; one a setting does not take is refused. */
+  get heterogeneousVolumeRendering(): FamilyValues<'heterogeneousVolumeRendering'>
+  set heterogeneousVolumeRendering(options: HeterogeneousVolumeOptions)
+  /** The sampled lighting's settings, each by its field (`WorldOptions`), resolved over the page: `sampledLights` (false) lights the view by a few
+   *  lights drawn for each pixel among the many that reach it, one shadow ray traced for each and the result denoised, so that the cost of many
+   *  shadow casting lights stays fixed; the other settings (`sampledLights…`) shape the draw, the rays and the filters. Written, the settings named
+   *  apply from the next frame — one `null` gives it back its default, one left out stays —; one a setting does not take is refused. */
+  get sampledLights(): FamilyValues<'sampledLights'>
+  set sampledLights(options: SampledLightsOptions)
   /** The sky's quality settings, each by its field (`WorldOptions`), resolved over the page and the
    *  quality preset: the atmosphere's — `atmosphereOn`, the samples and caps of its marches
    *  (`atmosphereSamplesMin`, `atmosphereSamplesMax`, `skyTableSamplesMax`, `aerialSamplesPerSlice`),
@@ -307,4 +346,13 @@ export interface WorldImageSettings {
    *  gives it back to it, one left out stays —; one a setting does not take is refused. */
   get tessellation(): FamilyValues<'tessellation'>
   set tessellation(options: TessellationOptions)
+  /** The texture filtering, each setting by its field (`WorldOptions`), resolved over the page and
+   *  the quality preset: `textureMaxAnisotropy`, the most reads anisotropic filtering takes for the
+   *  clouds' textures, the only ones not streamed by tile; `virtualTextureMaxAnisotropy`, the same for the textures
+   *  streamed by tile, where it also bounds the tiles a pixel asks for (8 each by default; the
+   *  presets write 1 and 4, 2 and 4, 4 and 8). Written, the settings named apply from the next image
+   *  over the preset — one `null` gives it back to it, one left out stays —; one a setting does not
+   *  take is refused. */
+  get textureFiltering(): FamilyValues<'textureFiltering'>
+  set textureFiltering(options: TextureFilteringOptions)
 }

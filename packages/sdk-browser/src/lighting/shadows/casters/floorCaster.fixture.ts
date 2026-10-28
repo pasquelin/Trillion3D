@@ -11,11 +11,12 @@ import { packDagSelection } from '../../../geometry/dag/pack/pack.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { webgpuPagesEngine } from '../../../frame/backend/pages.ts'
-import { SHADOW_LIMITS, mixedBinScene } from '../../../frame/backend/testScenes.fixture.ts'
+import {
+  backendOf,
+  SHADOW_LIMITS,
+  mixedBinScene,
+} from '../../../frame/backend/testScenes.fixture.ts'
 import type { DrawAssociations } from '../../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../../geometry/streaming/pageCache.ts'
 
 /** The backend over the floor and the caster, lit by `light`, with whatever `options` add, the
  *  caster placed by the rows of `placements` when given; prepared. */
@@ -37,12 +38,10 @@ export async function floorCasterBackend(
   const gpu = fakeDevice({ ...BACKEND, packed: packDagSelection(roots), limits: SHADOW_LIMITS })
   const lights = createSceneLightStore()
   lights.add(light)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...scene,
     gpuDevice: gpu.device,
     maxResidentPages: 4,
-    viewport: [32, 32],
     pixelError: 0,
     sceneLights: lights,
     ...options,

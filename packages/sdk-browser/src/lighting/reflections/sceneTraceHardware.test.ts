@@ -9,7 +9,8 @@ import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
 import { MISS, type Hit } from '../rays/sceneTrace/sceneTraceHit.fixture.ts'
 import { REFLECTION_FATES } from './censusWgsl.ts'
 import { REFLECTION_COUNTS } from './constants.ts'
-import { REFLECTION_SCENE_TRACE_HARDWARE_WGSL } from './sceneTraceHardware.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
+import { reflectionSceneTraceHardwareWgsl } from './sceneTraceHardware.ts'
 
 const HIT: Hit = { ...MISS, hit: true, distance: 2.5, placement: 7, object: 9, normal: [0, 1, 0] }
 
@@ -52,7 +53,7 @@ function stage(
     testFate: () => number
     testWork: () => number
   }>(
-    `${wgslModule(REFLECTION_SCENE_TRACE_HARDWARE_WGSL)}
+    `${wgslModule(reflectionSceneTraceHardwareWgsl(WORD_LIGHT_FORMAT))}
 fn testFate()->u32{return reflectionFate;}
 fn testWork()->u32{return reflectionWork;}`,
     ['reflectionSceneTrace', 'reflectionLobeOf', 'reflectionDistantStart', 'testFate', 'testWork'],

@@ -26,25 +26,28 @@ import {
   type TranslucencyGiGridInto,
 } from './layout.ts'
 import { clearVolumeView } from '../../gpu/core/standIns.ts'
-import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
-import { createGiResources, giSampler, giveBack, resourcesKey, type GiVolume } from './resources.ts'
+import { createGiResources, giSampler, giveBack, resourcesKey } from './resources.ts'
+import { idleExpired } from '../bounce/probes/hold.ts'
 import {
-  KEEP_IMAGES,
   translucencyGiEndDistanceOf,
+  translucencyCacheLight,
+  translucencyCacheProbes,
+  translucencyGiFormatSetting,
   translucencyGiSettings,
   wanted,
 } from './settings.ts'
-import { cacheReadOf, translucencyCacheProbes, type CacheRead } from './cache.ts'
+import { cacheReadOf, type CacheRead } from './cache.ts'
 
 /** Asks the volume's kernels of the device off the frame once the scene's surfaces could read it: the frames are drawn without it while they compile. */
 export function askTranslucencyGi(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const v = translucencyGiSettings(rt)
   if (!wanted(rt, v)) return
-  const format = translucencyGiConeFormat(device.features, v.translucencyGiLightingDataFormat)
-  translucencyGiKernels(device, format)
+  const format = translucencyGiConeFormat(device.features, translucencyGiFormatSetting(rt, v))
+  const light = translucencyCacheLight(rt, device, v)
+  translucencyGiKernels(device, format, light)
   // A refusal leaves the see-through surfaces without the volume: said once, on the console too,
   // as a refused pipeline is (`framePipelines.ts`).
-  const reason = takeTranslucencyGiRefusal(device, format)
+  const reason = takeTranslucencyGiRefusal(device, format, light)
   if (!reason) return
   log.warn(`WebGPU translucency volume refused: ${reason}`)
   rt.diag.engineDiagnostic(
@@ -70,7 +73,7 @@ function unpublish(device: GPUDevice, held: TranslucencyGiState) {
   held.published.volume = held.published.fogView = undefined
   held.known = false
   held.marks = 'none'
-  if (++held.idle >= KEEP_IMAGES) release(device, held)
+  if (idleExpired(held)) release(device, held)
 }
 
 /** The resources at the size of `grid`: the held ones, else made, the old given back. */
@@ -104,7 +107,8 @@ function traceInputs(
   const probes = translucencyCacheProbes(rt, v)
   const placeholders = rt.gpu.deferred?.placeholders
   if (!placeholders) return false
-  const cache = probes?.cache.views ?? rt.bounce.screen?.noCache(device)
+  const light = translucencyCacheLight(rt, device, v)
+  const cache = probes?.cache.views ?? rt.bounce.screen?.noCache(device, light)
   if (!cache) return false
   const inputs = held.inputs
   inputs.params = params
@@ -115,7 +119,7 @@ function traceInputs(
   inputs.cacheFinal = cache.final
   inputs.cacheRaw = cache.raw
   inputs.cacheSky = cache.sky
-  inputs.reads = surfaceHitReads(rt, device, inputs.reads)
+  inputs.reads = surfaceHitReads(rt, device, inputs.reads, light)
   return true
 }
 
@@ -246,8 +250,9 @@ export function encodeTranslucencyGi(
   if (!wanted(rt, v)) return void (gpu.translucencyGi && unpublish(device, gpu.translucencyGi))
   const held = (gpu.translucencyGi ??= newGiState(rt))
   // The four kernels are made whole, asked at the frame's entry (`askTranslucencyGi`): none, no pass.
-  const coneFormat = translucencyGiConeFormat(device.features, v.translucencyGiLightingDataFormat)
-  const kernels = translucencyGiKernels(device, coneFormat)
+  const coneFormat = translucencyGiConeFormat(device.features, translucencyGiFormatSetting(rt, v))
+  const light = translucencyCacheLight(rt, device, v)
+  const kernels = translucencyGiKernels(device, coneFormat, light)
   const probes = gpu.screenProbes
   const group = reflectionGroupOf(rt)
   const ready = traceReady(rt, device, held, v)
@@ -268,16 +273,9 @@ export function encodeTranslucencyGi(
   publish(held, grid, v, image, history, marksOf(cached, shared))
 }
 
-/** The stand-in the surfaces read where no volume is made: one-cell 3D textures of half floats, black, whichever format the volume would
- *  hold its ambient light in (a sampled `texture_3d<f32>` binds any filterable float format). */
-const standIn = oncePerDevice((device: GPUDevice): GiVolume => ({
-  ambient: clearVolumeView(device),
-  directional: clearVolumeView(device),
-}))
-
-/** The two textures the blends bind as the volume, ambient and directional: this image's, the one-cell stand-in where none is made. */
-export const translucencyGiViews = (rt: WebgpuPagesRuntime, device: GPUDevice): GiVolume =>
-  rt.gpu.translucencyGi?.published.volume ?? standIn(device)
+/** The texture the blends bind as the volume, the ambient and the directional light stacked: this image's, the one-cell stand-in (black, half floats, whichever format the volume would hold its light in) where none is made. */
+export const translucencyGiView = (rt: WebgpuPagesRuntime, device: GPUDevice): GPUTextureView =>
+  rt.gpu.translucencyGi?.published.volume ?? clearVolumeView(device)
 
 /** The sampler the blends read the volume through. */
 export const translucencyGiSampler = giSampler

@@ -3,27 +3,37 @@ import { EngineError } from '../../../contracts/cache.ts'
 /**
  * The type of a value in a material graph. `flex` is a scalar written as a constant: it fits any
  * width (a node asks for a vector and gets the scalar repeated); `f1` to `f4` are exact widths;
- * `texture` is a texture object, which no arithmetic accepts.
+ * `texture` is a texture object and `sparseVolume` a sparse volume texture object, which no arithmetic
+ * accepts.
  */
-export type ValueType = 'flex' | 'f1' | 'f2' | 'f3' | 'f4' | 'texture'
+export type ValueType = 'flex' | 'f1' | 'f2' | 'f3' | 'f4' | 'texture' | 'sparseVolume'
 
 /** The error of a graph that cannot be built or compiled: `INVALID_MATERIAL`, with the node. */
 export const graphError = (what: string, details: Record<string, unknown> = {}) =>
   new EngineError('INVALID_MATERIAL', `Material graph: ${what}`, details)
 
-/** How many components a value holds: a `flex` scalar one, a texture none. */
+/** How many components a value holds: a `flex` scalar one, an object none. */
 export const widthOf = (type: ValueType) =>
-  type === 'flex' || type === 'f1' ? 1 : type === 'texture' ? 0 : Number(type[1])
+  type === 'flex' || type === 'f1' ? 1 : isObject(type) ? 0 : Number(type[1])
+
+/** Whether `type` is an object (a texture or a sparse volume texture), not a number. */
+const isObject = (type: ValueType) => type === 'texture' || type === 'sparseVolume'
 
 /** The exact type of `width` components, 1 to 4. */
 export const vectorType = (width: number): ValueType => `f${width}` as ValueType
 
 /** Whether `type` is a number or a vector (not a texture). */
-export const isNumeric = (type: ValueType) => type !== 'texture'
+export const isNumeric = (type: ValueType) => !isObject(type)
 
 /** A type as an error names it. */
 export const describeType = (type: ValueType) =>
-  type === 'flex' ? 'scalar constant' : type === 'texture' ? 'texture' : `float${type[1]}`
+  type === 'flex'
+    ? 'scalar constant'
+    : type === 'texture'
+      ? 'texture'
+      : type === 'sparseVolume'
+        ? 'sparse volume texture'
+        : `float${type[1]}`
 
 /** Refuses a texture where `what` (an operation) needs a number or a vector. */
 export function assertNumeric(type: ValueType, what: string) {

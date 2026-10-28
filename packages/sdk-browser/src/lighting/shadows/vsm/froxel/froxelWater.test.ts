@@ -49,6 +49,8 @@ async function marking(settings: Partial<typeof VSM_DEFAULT_SHADOWS>) {
   ) =>
     ({
       mapCount,
+      claimed: mapCount,
+      singleMaps: mapCount,
       perspective: true,
       perPage: {
         ids: new Uint32Array(2),

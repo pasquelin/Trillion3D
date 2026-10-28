@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { makeFinite3 } from '../../../../../math/src/wgsl/integer.ts'
 import { downsampleBase } from '../../../../../math/src/wgsl/sampling.ts'
 import { computeTextureEntry } from '../../../gpu/core/computeBindings.ts'
 import { ditherLight, packLight, unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
@@ -27,12 +28,12 @@ const PIXEL_BINDINGS = {
   keptDepth: [12, 'float'],
   keptDepthOut: [13, { store: F.keptDepth }],
   blue: [15, 'float'],
+  giNew: [16, { store: F.shortRangeGi, access: 'read-only' }],
+  giHistory: [17, { store: F.shortRangeGi, access: 'read-only' }],
+  giOut: [18, { store: F.shortRangeGi }],
 } as const
 
-/** The pixels' bindings alone: the pass of a level that casts no probe. */
-const TEMPORAL_PIXEL_BINDINGS = bindingTable(PIXEL_BINDINGS)
-
-/** The temporal pass's bindings where probes are cast: the pixels', and what the integration of the probes left of each pixel — its light
+/** The temporal pass's bindings: the pixels', and what the integration of the probes left of each pixel — its light
  *  with the share of it that moves, its rough specular and its back (each the 11-11-10 word, `packLight`) —, and, where the integration is downsampled, the texel
  *  of it each pixel reads (`offsets`). */
 export const TEMPORAL_BINDINGS = bindingTable({
@@ -45,11 +46,13 @@ export const TEMPORAL_BINDINGS = bindingTable({
 
 const B = TEMPORAL_BINDINGS.at
 
-/** The layout of the temporal pass's group: the occlusion is read as a float, or, with the bent normal, as the word that holds it; the offsets are read
- *  where the integration is downsampled (`integrate` above one) and the level casts probes. */
-export const temporalEntries = (probes: boolean, bentNormal: boolean, integrate: number) =>
-  (probes ? TEMPORAL_BINDINGS : TEMPORAL_PIXEL_BINDINGS).entries
+/** The layout of the temporal pass's group: the occlusion is read as a float, or, with the bent normal, as the word that holds it; the short-range global illumination's three textures (this image's, the
+ *  history's and the one written) are bound where the level gathers it (`gi`); the offsets are read
+ *  where the integration is downsampled (`integrate` above one). */
+export const temporalEntries = (bentNormal: boolean, integrate: number, gi = false) =>
+  TEMPORAL_BINDINGS.entries
     .filter((entry) => entry.binding !== B.offsets || integrate > 1)
+    .filter((entry) => gi || entry.binding < B.giNew)
     .map((entry) =>
       entry.binding === B.occlusion && bentNormal
         ? computeTextureEntry(B.occlusion, 'uint')
@@ -151,6 +154,22 @@ fn spKeptOf(h:SpHistory)->SpKept{
 }`,
 )
 
+/** The short-range global illumination the last image kept where the pixel's history stands (`spKeptGi`): the colours of the four texels `h` names, by their weights, none where it has none. */
+const SP_KEPT_GI = wgslBlock(
+  'SP_KEPT_GI',
+  [],
+  `@group(0) @binding(${B.giNew}) var giNew:texture_storage_2d<${F.shortRangeGi},read>;
+@group(0) @binding(${B.giHistory}) var giHistory:texture_storage_2d<${F.shortRangeGi},read>;
+@group(0) @binding(${B.giOut}) var giOut:texture_storage_2d<${F.shortRangeGi},write>;
+fn spKeptGi(h:SpHistory)->vec3f{
+ var sum=vec3f(0.0);
+ for(var i=0u;i<4u;i++){
+  if(h.weights[i]>0.0){sum+=textureLoad(giHistory,h.texel+vec2i(i32(i&1u),i32(i>>1u))).rgb*h.weights[i];}
+ }
+ return sum/max(dot(h.weights,vec4f(1.0)),1e-5);
+}`,
+)
+
 /** Where a pixel finds what the integration left of it: its own texel where the integration is not downsampled (`integrate` one), else the one of the four round it
  *  that its offset names (`downsampleBase`, the same cell the offset was picked from in `stochasticWgsl.ts`, the offset past it, held to the integration's texels) and whether the four could stand for it.
  *  The offsets are read as the storage they are written through, so that none of the stage's sixteen sampled textures is spent on them. */
@@ -174,7 +193,7 @@ fn spFreshAt(at:vec2i)->SpFreshAt{return SpFreshAt(at,true);}`
 }`,
   )
 
-/** What the integration left of a pixel: its light with the share of it that moves, its rough specular and its back; none where the level casts no probe. */
+/** What the integration left of a pixel: its light with the share of it that moves, its rough specular and its back. */
 const spFresh = (integrate: number) =>
   wgslBlock(
     `spFresh(${integrate})`,
@@ -187,7 +206,7 @@ ${SP_LIGHT_RANGE}`,
 
 /** The temporal kernel's pixel: its fresh light and occlusion, its reprojected history and how fast its light moves. */
 const spTemporalPixel = (
-  probes: boolean,
+  gi: boolean,
 ) => `@group(0) @binding(${B.historyOut}) var historyOut:texture_storage_2d<${F.history},write>;
 @group(0) @binding(${B.shadingOut}) var shadingOut:texture_storage_2d<${F.shading},write>;
 @group(0) @binding(${B.keptDepthOut}) var keptDepthOut:texture_storage_2d<${F.keptDepth},write>;
@@ -200,7 +219,7 @@ fn temporal(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_in
  // A pixel that is no lit surface keeps no light, but the depth it showed.
  if(!s.lit){
   textureStore(historyOut,at,vec4u(0u));
-  textureStore(shadingOut,at,vec4u(0u));
+  ${gi ? 'textureStore(giOut,at,vec4f(0.0));\n  ' : ''}textureStore(shadingOut,at,vec4u(0u));
   textureStore(keptDepthOut,at,vec4f(s.z,0.0,0.0,0.0));
   return;
  }
@@ -212,16 +231,10 @@ fn temporal(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_in
  let dither=blueNoiseScalar(id.xy,sp.frames.x);
  var pick=SpOcclusionPick(vec2i(0),vec2i(0),true);
  if(occluded){pick=spOcclusionCell(at,s,noise);}
- ${
-   probes
-     ? `let fresh=spFreshAt(at);
+ let fresh=spFreshAt(at);
  let freshLight=textureLoad(lightIn,fresh.texel,0);
  let freshRough=unpackLight(textureLoad(roughIn,fresh.texel,0).r);
- let freshBack=unpackLight(textureLoad(backIn,fresh.texel,0).r);`
-     : `let freshLight=vec4f(0.0);
- let freshRough=vec3f(0.0);
- let freshBack=vec3f(0.0);`
- }
+ let freshBack=unpackLight(textureLoad(backIn,fresh.texel,0).r);
  let h=spReproject(id.xy,s.P,s.N,s.foliage,noise);
  let kept=spKeptOf(h);
  var frames=0.0;
@@ -238,9 +251,7 @@ fn temporal(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_in
  let clamped=kept.held>0.0&&spFlag(SP_FLAG_FAST_UPDATE_CLAMP)&&fast>0.0;`
 
 /** The temporal kernel's light, rough specular, back and occlusion as the pixel's own, before the blend with the history. */
-const spTemporalOwn = (
-  probes: boolean,
-) => ` let reading=${probes ? 'freshLight.a>0.0&&fresh.valid' : 'true'};
+const spTemporalOwn = ` let reading=freshLight.a>0.0&&fresh.valid;
  // The light is trusted where it was read and an occlusion texel could stand for the pixel.
  let trusted=reading&&pick.valid;
  var light=freshLight.rgb;
@@ -251,22 +262,19 @@ const spTemporalOwn = (
 
 /** The temporal kernel up to the neighbourhood the fast update holds the history to: the pixel's fresh light and occlusion, its reprojected
  *  history and how fast its light moves. */
-const spTemporalFresh = (probes: boolean) =>
-  [spTemporalPixel(probes), spTemporalOwn(probes)].join('\n')
+const spTemporalFresh = (gi: boolean) => [spTemporalPixel(gi), spTemporalOwn].join('\n')
 
 /** The temporal kernel from the blend: the history held, mixed with the fresh light and written. */
-const spTemporalBlend = (probes: boolean, bentNormal: boolean) => ` if(kept.held>0.0){
+const spTemporalBlend = (bentNormal: boolean, gi: boolean) => `${
+  gi ? ' var gathered=select(vec3f(0.0),textureLoad(giNew,pick.cell).rgb,occluded);\n' : ''
+} if(kept.held>0.0){
   var history=kept.light;
   var historyRough=kept.rough;
   var historyOcclusion=${bentNormal ? 'kept.occlusion' : 'vec4f(0.0,0.0,1.0,kept.occlusion.w)'};
-  ${
-    probes
-      ? `if(clamped){
+  if(clamped){
    let range=spLightRange(fresh.texel,freshLight.rgb,freshRough);
    history=clamp(history,range[0],range[1]);
    historyRough=clamp(historyRough,range[2],range[3]);
-  }`
-      : ''
   }
   if(occluded&&spFlag(SP_FLAG_OCCLUSION_TEMPORAL)&&sp.occlusion.w>0.0){
    let hood=spOcclusionHood(pick,local);
@@ -280,8 +288,9 @@ const spTemporalBlend = (probes: boolean, bentNormal: boolean) => ` if(kept.held
   rough=mix(historyRough,rough,share);
   back=mix(kept.back,back,share);
   occlusion=select(occlusion,mix(historyOcclusion,occlusion,share),spFlag(SP_FLAG_OCCLUSION_TEMPORAL));
- }else if(!reading){
+${gi ? '  gathered=mix(spKeptGi(h),gathered,share);\n' : ''} }else if(!reading){
   light=vec3f(0.0);
+${gi ? '  gathered=vec3f(0.0);\n' : ''}
   rough=vec3f(0.0);
   back=vec3f(0.0);
   occlusion=vec4f(0.0);
@@ -289,12 +298,12 @@ const spTemporalBlend = (probes: boolean, bentNormal: boolean) => ` if(kept.held
  let direction=${bentNormal ? 'select(s.N,normalize(occlusion.xyz),dot(occlusion.xyz,occlusion.xyz)>1e-8)' : 's.N'};
  let noHistory=!reading&&kept.held<=0.0;
  let word=vec4u(
-  packLight(ditherLight(max(light,vec3f(0.0)),dither)),
-  packLight(ditherLight(max(rough,vec3f(0.0)),dither)),
-  packLight(ditherLight(max(back,vec3f(0.0)),dither)),
+  packLight(ditherLight(max(makeFinite3(light),vec3f(0.0)),dither)),
+  packLight(ditherLight(max(makeFinite3(rough),vec3f(0.0)),dither)),
+  packLight(ditherLight(max(makeFinite3(back),vec3f(0.0)),dither)),
   spBentPack(direction*clamp(occlusion.w,1.0/255.0,1.0)));
  textureStore(historyOut,at,select(word,vec4u(0u),noHistory));
- textureStore(shadingOut,at,vec4u(spShadingPack(s.N,s.foliage),select(spFramesOf(frames,amount),0u,noHistory),0u,0u));
+${gi ? ' textureStore(giOut,at,vec4f(select(gathered,vec3f(0.0),noHistory),0.0));\n' : ''} textureStore(shadingOut,at,vec4u(spShadingPack(s.N,s.foliage),select(spFramesOf(frames,amount),0u,noHistory),0u,0u));
  textureStore(keptDepthOut,at,vec4f(s.z,0.0,0.0,0.0));
 }`
 
@@ -320,29 +329,31 @@ const spTemporalBlend = (probes: boolean, bentNormal: boolean) => ` if(kept.held
  * normal). Where the integration applied the occlusion to the light already (`screenProbeShortRangeAOApplyDuringIntegration`) the history keeps no
  * occlusion: its amount is one. A pixel on no lit surface keeps no light.
  */
-const spTemporal = (probes: boolean, bentNormal: boolean, integrate: number) =>
+const spTemporal = (bentNormal: boolean, integrate: number, gi: boolean) =>
   wgslBlock(
-    `SP_TEMPORAL(${probes}, ${bentNormal}, ${integrate})`,
+    `SP_TEMPORAL(${bentNormal}, ${integrate}, ${gi})`,
     [
-      ...(probes ? [spFresh(integrate)] : []),
+      spFresh(integrate),
+      ...(gi ? [SP_KEPT_GI] : []),
       SP_TEMPORAL_HOODS(bentNormal),
       SP_KEPT,
       SP_BENT_WGSL,
       packLight,
       ditherLight,
+      makeFinite3,
       ACCUMULATION_WGSL,
     ],
-    [spTemporalFresh(probes), spTemporalBlend(probes, bentNormal)].join('\n'),
+    [spTemporalFresh(gi), spTemporalBlend(bentNormal, gi)].join('\n'),
   )
 
 /** The temporal pass's program over the occlusion's `downsample` (kept with the bent normal where `bentNormal`) and `samples` of a tile,
- *  blending the light the probes' integration left, run at the reduction `integrate`, where `probes` (the level casts them), else over the pixels' bindings alone. */
+ *  blending the light the probes' integration left, run at the reduction `integrate`. */
 export const temporalShader = (
   downsample: number,
   samples: readonly [number, number],
-  probes: boolean,
   bentNormal: boolean,
   integrate: number,
+  gi = false,
 ) =>
   wgslProgram(
     `${spParams(B.params)}
@@ -352,6 +363,6 @@ ${wgslConsts({ SP_OCCLUSION_DOWNSAMPLE: downsample, SP_GROUP: 8 })}`,
       spSurface(B.normals, B.flags),
       spHistory(B.shading, B.keptDepth, B.vectors),
       blueNoiseWgsl(0, B.blue),
-      spTemporal(probes, bentNormal, integrate),
+      spTemporal(bentNormal, integrate, gi),
     ],
   )

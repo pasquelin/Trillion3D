@@ -5,17 +5,17 @@ import { ndcToPixel } from '../../../../../math/src/wgsl/projection.ts'
 import { SP_TARGET_DITHER, spCommon, spParams } from './commonWgsl.ts'
 import { SP_QUANTIZE } from './gatherWgsl.ts'
 import { spProbes } from './probesWgsl.ts'
-import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
+import {
+  SCREEN_PROBE_FORMATS as F,
+  PROBE_PIXEL_BINDINGS,
+  bindingTable,
+} from './screenProbeLayout.ts'
 import { spVectors } from './vectorsWgsl.ts'
 
 /** The temporal filter of the probes' bindings: the probes' records and pixels, the last image's records and composited radiance, this image's composited
  *  radiance, the filtered radiance written and the surfaces' vectors. */
 export const PROBE_FILTER_BINDINGS = bindingTable({
-  params: [0, 'uniform'],
-  info: [1, 'float'],
-  normal: [2, 'uint'],
-  counts: [3, 'buffer-read'],
-  pixels: [4, 'buffer-read'],
+  ...PROBE_PIXEL_BINDINGS,
   historyInfo: [5, 'float'],
   history: [6, 'float'],
   composite: [7, 'float'],

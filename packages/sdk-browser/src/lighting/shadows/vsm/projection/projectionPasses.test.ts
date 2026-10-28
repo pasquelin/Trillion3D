@@ -32,7 +32,8 @@ test('the suns’ pass stores a layer a sun under the uniform sun count, the vot
   assert.match(SUNS, /texture_storage_2d_array<r32float,write>/)
   assert.match(SUNS, /lights:array<VsmProjectionLight,1024>/)
   assert.equal(VSM_PROJECTION_MAX_PASS_LIGHTS, 1024)
-  assert.equal(VSM_PROJECTION_VIEW_BYTES, 416 + 1024 * 48)
+  // The classic shadows' block (twenty vec4s) closes the view, after the lights; the header and the records lie where they did.
+  assert.equal(VSM_PROJECTION_VIEW_BYTES, 416 + 1024 * 48 + 320)
 })
 
 test('the local lights’ pass walks its pixel’s shadowed lights and packs four bits a light', () => {

@@ -1,3 +1,4 @@
+import { sinFromCosUnclamped } from '../../../../math/src/wgsl/geometry.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { CONE_BASE_COSINE } from '../../../../sdk-core/src/scene/light/drawRange.ts'
@@ -12,10 +13,10 @@ import { CONE_BASE_COSINE } from '../../../../sdk-core/src/scene/light/drawRange
  */
 export const CONE_SPHERE_WGSL = wgslBlock(
   'CONE_SPHERE_WGSL',
-  [],
+  [sinFromCosUnclamped],
   `const CONE_BASE_COSINE:f32=${wgslF32(CONE_BASE_COSINE)};
 fn coneSphere(apex:vec3f,axis:vec3f,range:f32,cosine:f32)->vec4f{
- if(cosine<CONE_BASE_COSINE){return vec4f(apex+axis*(range*cosine),range*sqrt(1.0-cosine*cosine));}
+ if(cosine<CONE_BASE_COSINE){return vec4f(apex+axis*(range*cosine),range*sinFromCosUnclamped(cosine));}
  let radius=range/(2.0*cosine);
  return vec4f(apex+axis*radius,radius);
 }`,

@@ -71,6 +71,10 @@ lighting pass (`lighting/shadows/vsm/frame/engineVsm.ts`, `vsmEncode.ts`), in th
 2. The plan: clipmaps, local lights, map ids, projection data (`vsm/frameSetup.ts`,
    `vsm/clipmap.ts`, `vsm/localLight.ts`, `vsm/cacheManager.ts`). A local light takes its maps only
    if it passes the gates of [Local lights' shadow gates](#local-lights-shadow-gates-and-distant-lights).
+   The map ids lie in two ranges, as the reference lays them: the maps of one page (a distant light's) from id 0, in a
+   range of 8192 ids, and the full maps from id 8192, the suns' clipmaps first. A full map's id does not move when a
+   distant light comes or goes; the ids between the ranges hold no map: the marking's kernels walk the maps the frame claimed and the throttle's
+   fit skips the gap (`vsm/mapIds.ts`).
 
    A frame with `shadowQuality` at 0 stops at the plan's door: it plans no map, keeps the set held with
    its cache dropped, or frees it with `shadowDynamicDeallocationMode` 1 (a later frame that shadows again
@@ -252,6 +256,22 @@ uncached to cached.
 ```js
 world.shadows = { shadowDistantLightMode: 0 } // no light is distant: every local light follows its casters
 world.shadows = { shadowMaxDistantUpdatePerFrame: 4 } // up to four distant lights a frame
+```
+
+## Classic shadow maps
+
+`shadowVirtualEnable` (`true`) keeps the virtual shadow maps. Set to `false`, every light takes a classic shadow map instead: a map of fixed
+resolution whose pages are all resident, asked for by the lights and not by the pixels of the view (no marking), and drawn by the same raster in the same pool.
+
+- A sun is drawn in cascades. Its distance (400 m by default) times `shadowDistanceScale` (0 to 2) is divided in `min(4, shadowCsmMaxCascades)`
+  cascades, each three times as long as the one before; a cascade fades into the next over a tenth of its length times `shadowCsmTransitionScale`
+  (0 to 2). A cascade is drawn in the clipmap level whose texels are the nearest at or above those `shadowMaxCsmResolution` (2048) texels
+  over its bounding sphere give, over the pages that sphere covers. An orthographic view draws no cascade.
+- A local light is drawn in one mip of its map, whose texels are the nearest at or under its resolution (the gate's, above), over every page.
+- The biases are `shadowCsmDepthBias` (10), `shadowCsmSlopeScaleDepthBias` (3), `shadowCsmReceiverBias` (0.9), `shadowCsmSplitPenumbraScale` (0.5), `shadowTransitionScale` (60), `shadowPointLightDepthBias` (0.02), `shadowPointLightSlopeScaleDepthBias` (3), `shadowSpotLightDepthBias` (3), `shadowSpotLightSlopeScaleDepthBias` (3), `shadowSpotLightTransitionScale` (60) and `shadowSpotLightReceiverBias` (0.5).
+
+```js
+const world = createWorld('viewer', { shadowVirtualEnable: false, shadowCsmMaxCascades: 3 }) // classic maps, three cascades
 ```
 
 ## Far casters
@@ -590,8 +610,8 @@ the reference's default, its meaning in `sdk-core/src/llm/shadowViewMeanings.ts`
 
 **The compute throttle (off by default).** Beside the pool's bias, the dynamic resolution can lower the maps'
 resolution when the shadow raster costs too much, wholly on the GPU as the reference does: the raster counts the
-clusters it draws in each map, and the next frame's two kernels, run before its marking, carry the counts to its maps
-and add to each map's bias in its projection record the share of the cost it takes. Nothing is read back. It is off
+clusters it draws in each map, and the next frame's kernels, run inside its marking between the page rects' initialisation and the clear of the page
+tables, zero the throttle buffer, carry the counts to its maps, add to each map's bias in its projection record the share of the cost it takes, then zero the feedback the raster counts in. Nothing is read back. It is off
 while `shadowDynamicResolutionTimeBudgetMs` and `shadowDynamicResolutionLoadBudget` are both 0, the default: nothing is
 made, counted, written or run, and the marking and the raster are the programs without it; the sampling always reads
 the bias of the clipmap map its level falls in, as the reference's does, which is the base map's while unthrottled. A
@@ -781,6 +801,7 @@ mask, which this path does not make.
 
 ```js
 world.shadows = { shadowOnePassProjection: false } // light each shadowed local light by a draw of its own
+world.shadows = { clusteredDeferredShading: false } // the reference's UseClusteredDeferredShading off: the same per-light draws
 world.shadows = { shadowOnePassProjection: false, shadowForcePerLightMaskClear: true } // debugging: no image change
 world.shadows = { shadowOnePassProjection: null } // back to the one pass
 ```

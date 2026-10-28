@@ -213,7 +213,7 @@ export const CAPTURE_PASS = 'Trillion3D capture emission and occlusion'
  *  one family, as one scope holds them in a frame, and are filed with the geometry. */
 export const HAIR_STRANDS_PASS_PREFIX = 'Trillion3D hair strands '
 /** The family of the hair strands' passes. */
-export const HAIR_STRANDS_PASSES = definePassFamily({
+const HAIR_STRANDS_PASSES = definePassFamily({
   prefix: HAIR_STRANDS_PASS_PREFIX,
   stage: 'geometry',
   block: 'other',

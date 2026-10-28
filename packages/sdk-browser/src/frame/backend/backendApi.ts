@@ -210,6 +210,7 @@ export function backendHostApi(rt: WebgpuPagesRuntime) {
     selectedPageIds: () => run.shown.map((rec) => rec.url),
     selectedClusterIds: () => run.shown.map((rec) => rec.clusterId),
     drawnCamera: () => drawnCamera(rt),
+    refreshMs: () => rt.views.main.scale.refreshMs,
     rasterView: () => rasterView(rt),
     pendingUrls: () => pendingUrls(rt),
     retainedRanks() {

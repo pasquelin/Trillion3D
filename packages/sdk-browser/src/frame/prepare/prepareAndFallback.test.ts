@@ -1,33 +1,28 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import {
+  backendOf,
   assertBothQuadPagesDrawn,
   camera,
   quadBackend,
   quadScene,
 } from '../backend/testScenes.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 /** The quad prepared with no resident bytes, its first frame rendered. */
 async function firstFrameWithoutBytes() {
   installGpuGlobals()
   const { device, draws } = fakeDevice(BACKEND)
   const { source, metadata, associations, geometry, material } = quadScene()
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     source,
     metadata,
     indices: new Map(),
     draws: graphDraws(source, associations),
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   await backend.prepare()
   backend.render(camera())
@@ -82,14 +77,11 @@ test('webgpu pages prepare without resident bytes and stream the visible set', a
 
 test('webgpu pages without a device fail prepare so the explorer can fall back', async () => {
   const { source, metadata, indices, associations, geometry, material } = quadScene()
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     source,
     metadata,
     indices,
     draws: graphDraws(source, associations),
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   await assert.rejects(backend.prepare(), /WEBGPU_UNAVAILABLE/)
   backend.dispose()

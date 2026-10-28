@@ -1,3 +1,5 @@
+import { directLightResources } from '../prepare/contractLight.ts'
+import { encodeSampledSamples } from '../../lighting/manyLightsSampled/frame.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { readHizSetting } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import {
@@ -18,6 +20,11 @@ import { ensureBounce, syncBouncePlacements } from '../prepare/bounce.ts'
 import { followGlobalLighting } from '../prepare/globalLighting.ts'
 import type { QueuedBounce } from '../backend/state/bounce.ts'
 import { createMarkSurface, NO_MARKERS, type MarkProbes } from '../../lighting/bounce/pool/pool.ts'
+import {
+  encodeIrradianceField,
+  releaseIrradianceField,
+  restartIrradianceField,
+} from '../../lighting/bounce/irradianceField/cache.ts'
 import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
 import { lastCastProbes } from '../../lighting/bounce/screen/frame.ts'
 import {
@@ -25,7 +32,10 @@ import {
   releaseTranslucencyCache,
   restartTranslucencyCache,
 } from '../../lighting/translucencyGi/cache.ts'
-import { radianceMarker } from '../../blend/radianceMark.ts'
+import { holdVolumeMarks, markDrawable, radianceMarker } from '../../blend/radianceMark.ts'
+import { marksVolumeVoxels } from '../../blend/radianceMarkSetting.ts'
+import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
+import { prepareTranslucencyVolumeMarks } from '../../lighting/translucency/frame.ts'
 import { translucencyGiMarkers } from '../../lighting/translucencyGi/marker.ts'
 import { planVsmFrame } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
 import { encodeVsmFrame } from '../../lighting/shadows/vsm/frame/vsmEncode.ts'
@@ -44,6 +54,7 @@ import {
   encodeSurfaceCache,
   surfaceHitReads,
 } from '../../lighting/surfaceCache/frame.ts'
+import { surfaceCacheLightOf } from '../../lighting/surfaceCache/light.ts'
 import { lightSurfaceCache } from '../../lighting/surfaceCache/lighting/frame.ts'
 import { sceneRaysOf } from '../../lighting/surfaceCache/lighting/surfaceLighting.ts'
 import { heldSkyLight } from './skyLightHeld.ts'
@@ -141,15 +152,8 @@ function encodeAir(
 }
 
 /** A view that lists no light: the scene's lights are followed as far as they exist. The world's
- *  change boxes stay for the first lit frame's plan. Returns whether the atmosphere was encoded. */
-function encodeUnlitView(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-  cam: EngineCamera,
-  viewProjection: ArrayLike<number>,
-  inverseViewProjection: ArrayLike<number>,
-) {
+ *  change boxes stay for the first lit frame's plan. */
+function followUnlitLights(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const {
     lights,
     lights: { store },
@@ -157,9 +161,29 @@ function encodeUnlitView(
   // A lit view with no lamp may still hold an environment: its irradiance goes to the GPU.
   if (!store.unlit) uploadSceneLights(device, lights)
   if (lights.buffer) followLitTables(rt, device, lights.buffer)
-  const air = encodeAir(rt, device, encoder, cam, viewProjection, inverseViewProjection)
-  lightSurfaceCards(rt, device, encoder, cam, viewProjection)
-  return air
+}
+
+/** The compute passes that empty the translucency volume's marks. */
+const volumeMarkRun = new ComputeRun()
+
+/**
+ * The cells of the translucency lighting volume the see-through surfaces will read, prepared to be marked (`translucencyVolumeMarkVoxels`,
+ * `prepareTranslucencyVolumeMarks`): the cascades placed and the marks emptied, before the pass that draws the surfaces marks them with the
+ * radiance cache's (`drawRadianceMark`), else alone (`drawHeldVolumeMarks`, in the pre-light step). Only where that pass can be drawn this
+ * image, else the volume is made whole. After the lights are uploaded, with the transparents prepared (`prepared`).
+ */
+function prepareVolumeMarks(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  prepared: boolean,
+) {
+  if (!marksVolumeVoxels(rt) || !prepared || !markDrawable(rt))
+    return holdVolumeMarks(rt, device, undefined)
+  const marks = prepareTranslucencyVolumeMarks(rt, device, volumeMarkRun.begin(encoder), cam)
+  volumeMarkRun.end()
+  holdVolumeMarks(rt, device, marks)
 }
 
 /** The light grid's buffer at this image's size. */
@@ -178,11 +202,45 @@ function ensureLightGrid(rt: WebgpuPagesRuntime) {
 }
 
 /**
+ * The lights' side of an image up to its per-tile light lists, lit views only: the light functions' indices are in the kind words
+ * before the buffer goes up, the light profiles' slices likewise, the virtual shadow maps' CPU plan (`../../lighting/shadows/vsm/frame/`)
+ * gives every shadowed light its projection record before the light buffer goes up, the buffer goes to the GPU before the per-tile lists
+ * (the blend pass reads it directly, without tiles, and must stay lit even on a device that could not fit the lists), the lights
+ * this view draws are written once into their kind words (the light lists and the walks of every light read the bit), then the
+ * lists. Returns whether the lists were encoded.
+ */
+function encodeLightLists(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  viewProjection: ArrayLike<number>,
+) {
+  const { lights } = rt,
+    { store } = lights
+  encodeLightFunctions(rt, device, encoder, cam)
+  encodeLightProfiles(rt, device)
+  planVsmFrame(rt, device, cam)
+  uploadSceneLights(device, lights)
+  drawLights(
+    device,
+    lights.buffer,
+    store,
+    lights.drawn,
+    lightDrawViewOf(cam, store, vsmMapSettings(rt).shadows),
+  )
+  if (lights.buffer) followLitTables(rt, device, lights.buffer)
+  ensureLightGrid(rt)
+  return encodeTileLists(rt, device, encoder, viewProjection, cam)
+}
+
+/**
  * Direct lighting of an image, in order: the virtual shadow maps' CPU plan, the light buffer, the per-tile
- * light lists (cut by the depth pyramid this image built), the virtual shadow maps' GPU work
- * (`../../lighting/shadows/vsm/frame/vsmEncode.ts`), the air (the sky's requests, the clouds' shadow maps,
- * the atmosphere's tables, which read this image's shadow pages, and the sky light's capture over them), the
- * surface cache's lighting, which reads the air, bounce, then
+ * light lists (cut by the depth pyramid this image built), the air (the sky's requests, the clouds' shadow maps,
+ * the atmosphere's tables, which read the shadow pages of the image before, and the sky light's capture over them),
+ * the surface cache's capture of the cards (the light grid and the air before the cache's update, as the reference
+ * orders them), the virtual shadow maps' GPU work (`../../lighting/shadows/vsm/frame/vsmEncode.ts`), the surface
+ * cache's lighting, which reads the air, bounce, then
  * the parameters deferred resolve will reread. A scene with no declared light launches neither
  * shadows nor lists: it pays nothing, and the unlit view outputs its raw albedo. Returns whether the
  * atmosphere was encoded. `prepared`: the transparents were prepared this image (`prepareBlend`), which the radiance cache's mark draws.
@@ -202,44 +260,31 @@ export function encodeDirectLights(
   lights.lightsActive = active
   // The meshes' distance fields and the global field, before any pass that reads them.
   encodeDistanceFields(rt, device, encoder, cam, heldSkyLight(rt))
-  // The cards of the meshes captured into their atlas, for the rays that read it (`lighting/surfaceCache/frame.ts`).
-  encodeSurfaceCache(rt, device, encoder, cam)
   fillDirectParams(rt, cam, store.environment)
   // The unlit view reads neither light lists nor a shadow map: it therefore encodes none of them.
   // The world's change boxes wait: the first lit frame's invalidation stales its pages.
   // A view that is not lit (`ViewOverrides.lighting`) lists none either.
-  if (!active || store.unlit || !rt.views.active.overrides.lighting) {
-    return encodeUnlitView(rt, device, encoder, cam, viewProjection, inverseViewProjection)
-  }
-  // The light functions' indices are in the kind words before the buffer goes up.
-  encodeLightFunctions(rt, device, encoder, cam)
-  // The light profiles' slices likewise.
-  encodeLightProfiles(rt, device)
-  // The virtual shadow maps (`../../lighting/shadows/vsm/frame/`): the CPU plan gives every shadowed light its
-  // projection record before the light buffer goes up; the GPU work follows the light lists, which the
-  // per-pixel marking and the local lights' projection walk, and precedes the air and the lighting pass
-  // that read the masks.
-  planVsmFrame(rt, device, cam)
-  // The buffer goes to the GPU before the per-tile lists: the blend pass reads it directly, without
-  // tiles, and must stay lit even on a device that could not fit the lists.
-  uploadSceneLights(device, lights)
-  // Which lights this view draws, once, into their kind words: the light lists and the walks of every light read the bit.
-  drawLights(
-    device,
-    lights.buffer,
-    store,
-    lights.drawn,
-    lightDrawViewOf(cam, store, vsmMapSettings(rt).shadows),
-  )
-  if (lights.buffer) followLitTables(rt, device, lights.buffer)
-  ensureLightGrid(rt)
-  const listed = encodeTileLists(rt, device, encoder, viewProjection, cam)
-  // Shadow pages of this image, which the air reads.
-  encodeVsmFrame(rt, device, encoder, cam)
-  // The air before the cards: their rays read the sky's light and the clouds' shade of this image, not the last.
+  const lit = !!active && !store.unlit && rt.views.active.overrides.lighting
+  // The per-tile light lists come before the surface cache's update, as the reference builds its light grid before the scene's update.
+  const listed = lit && encodeLightLists(rt, device, encoder, cam, viewProjection)
+  if (!lit) followUnlitLights(rt, device)
+  // The air before the cards and the cache's capture of them, as the reference makes its sky tables before its scene update:
+  // the cards' rays read the sky's light and the clouds' shade of this image, not the last. Its tables read the shadow pages of the image before.
   const air = encodeAir(rt, device, encoder, cam, viewProjection, inverseViewProjection)
+  // The cards of the meshes captured into their atlas, for the rays that read it (`lighting/surfaceCache/frame.ts`).
+  encodeSurfaceCache(rt, device, encoder, cam)
+  // Shadow pages of this image, which the lighting below reads.
+  // The sampled lighting's samples, before the maps' pages are marked, where the samples mark them (`marksPagesFromSamples`); nothing otherwise.
+  if (lit) encodeSampledSamples(rt, encoder, directLightResources(rt))
+  if (lit) encodeVsmFrame(rt, device, encoder, cam)
   // The light of the cards' texels, which the rays of the bounce and of the reflections read, brought up to date by the lights just pushed.
   lightSurfaceCards(rt, device, encoder, cam, viewProjection)
+  if (!lit) {
+    // No marks of an image before outlive it.
+    holdVolumeMarks(rt, device, undefined)
+    return air
+  }
+  prepareVolumeMarks(rt, device, encoder, cam, prepared)
   encodeBounce(rt, device, encoder, cam, prepared)
   // Kept bounce resources follow the placements even while bounce is toggled off.
   syncBouncePlacements(rt)
@@ -305,6 +350,45 @@ function encodeTileLists(
  *  never those of another image. */
 export const directTiles = () => directParams
 
+/** The probes traced again where a light, or the light functions the bounce reads, changed. */
+function restartOnLightChange(
+  rt: WebgpuPagesRuntime,
+  probes: NonNullable<WebgpuPagesRuntime['bounce']['probes']>,
+) {
+  const { bounce, lights } = rt
+  // The store revision rises as soon as a light is added, set or removed: that is the signal the
+  // grid needs to restart, and it costs no read. A change of fog alone is not one.
+  // The light functions the bounce's lights wear are light transport too: the atlas changed, or the bounce began or
+  // stopped reading it (`lightFunctionBounce`), and the probes are traced again.
+  const functions = lightFunctionRevision(rt, 'lightFunctionBounce')
+  if (bounce.lightEpoch !== lights.store.transportEpoch || bounce.lightFunctions !== functions) {
+    bounce.lightEpoch = lights.store.transportEpoch
+    bounce.lightFunctions = functions
+    probes.restart()
+    restartTranslucencyCache(bounce)
+    restartIrradianceField(bounce)
+  }
+}
+
+/** What the probe pass reads this image: the surface cache's hits, the scene's rays and the surface drawn. */
+function queuedBounce(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  probes: NonNullable<WebgpuPagesRuntime['bounce']['probes']>,
+  prepared: boolean,
+): QueuedBounce {
+  return {
+    reads: surfaceHitReads(
+      rt,
+      device,
+      undefined,
+      probes.cache.views?.light ?? surfaceCacheLightOf(rt, device),
+    ),
+    rays: sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame),
+    surface: drawnSurface(rt, device, prepared),
+  }
+}
+
 /**
  * An irradiance-probe batch, when there is work. The grid rereads the light buffer that was just
  * pushed, so bounce follows a moving light without one extra image of lag. A scene where nothing
@@ -327,21 +411,14 @@ function encodeBounce(
   bounce.historyLost = false
   // The irradiance diagnostic view outputs raw values: composition skips ACES and sRGB.
   rt.gpu.deferred?.setRawOutput(lights.store.lightingView === 'bounce')
-  if (!probes) return void releaseTranslucencyCache(bounce)
+  if (!probes) {
+    releaseTranslucencyCache(bounce)
+    return void releaseIrradianceField(bounce)
+  }
   syncBouncePlacements(rt)
   // The sky light their rays reach is captured this image, before the cards (`encodeSkyCapture`): the probes wait only while no cube of it is ready.
   if (skyLightPending(rt)) return
-  // The store revision rises as soon as a light is added, set or removed: that is the signal the
-  // grid needs to restart, and it costs no read. A change of fog alone is not one.
-  // The light functions the bounce's lights wear are light transport too: the atlas changed, or the bounce began or
-  // stopped reading it (`lightFunctionBounce`), and the probes are traced again.
-  const functions = lightFunctionRevision(rt, 'lightFunctionBounce')
-  if (bounce.lightEpoch !== lights.store.transportEpoch || bounce.lightFunctions !== functions) {
-    bounce.lightEpoch = lights.store.transportEpoch
-    bounce.lightFunctions = functions
-    probes.restart()
-    restartTranslucencyCache(bounce)
-  }
+  restartOnLightChange(rt, probes)
   followGlobalLighting(rt, probes)
   // Camera world position, posted by image entry: the levels re-centre on it by cell step. No
   // allocation. What the image draws tells which cells it reads (`drawnSurface`): a pivoting camera
@@ -353,11 +430,7 @@ function encodeBounce(
   probes.track(viewpoint, cachedLightingPreExposureOf(rt))
   // The rays marched through the field read the surface cache at their hits: it is made for the images to come.
   demandSurfaceCache(rt)
-  const queued: QueuedBounce = {
-    reads: surfaceHitReads(rt, device),
-    rays: sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame),
-    surface: drawnSurface(rt, device, prepared),
-  }
+  const queued = queuedBounce(rt, device, probes, prepared)
   // An image that casts screen probes marks the cells its own probes stand in: the pass waits for their placement, and the radiance
   // cache's update that follows it fills every cell they read before they read it (`encodeQueuedBounce`, in the pre-light step).
   if (screenProbesCast(rt)) bounce.queued = queued
@@ -393,6 +466,14 @@ function encodeBouncePass(
     rays,
     viewpoint,
     forward: orthographic ? viewForward : undefined,
+  })
+  // The irradiance field's cache, where it gathers the pixels' light: its cells marked from this image's pixels, as the world's are.
+  encodeIrradianceField(rt, encoder, {
+    reads,
+    rays,
+    viewpoint,
+    forward: orthographic ? viewForward : undefined,
+    surface,
   })
 }
 

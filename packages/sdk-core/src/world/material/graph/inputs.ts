@@ -1,6 +1,11 @@
 import type { Texture } from '../../texture/texture.ts'
 import type { Pin } from './graph.ts'
-import type { NodeProp, NoiseFunction } from './nodeSpecs.ts'
+import type {
+  NodeProp,
+  NoiseFunction,
+  SPARSE_ADDRESS_MODES,
+  SPARSE_MIP_MODES,
+} from './nodeSpecs.ts'
 import { MathGraph } from './math.ts'
 import { given, type Wire } from './wired.ts'
 
@@ -19,6 +24,26 @@ export interface TextureSampleOptions {
   name?: string
   mipMode?: MipMode
   constCoordinate?: number
+}
+
+/** The options of a sparse volume texture sample. */
+export interface SparseVolumeSampleOptions {
+  /** The coordinate in the volume, 0 to 1 on each side; the point's place in the object's bounds
+   *  when not wired. */
+  uvw?: Pin
+  /** A sparse volume texture object wired in place of the node's own. */
+  texture?: Pin
+  /** The level (`level`) or the bias (`bias`) by `mipMode`, wired or a number. */
+  mip?: Wire
+  /** The derivatives of the coordinate, read by the mode `derivative`. */
+  ddx?: Pin
+  ddy?: Pin
+  /** The name of a sparse volume parameter replacing the node's volume (`set`). */
+  name?: string
+  mipMode?: (typeof SPARSE_MIP_MODES)[number]
+  address?: (typeof SPARSE_ADDRESS_MODES)[number]
+  /** The attribute texture the read gives, 0 or 1. */
+  attributes?: 0 | 1
 }
 
 /** The nodes that bring a value in: parameters, textures, coordinates, time, positions. */
@@ -50,6 +75,29 @@ export class InputGraph extends MathGraph {
     if (typeof mip === 'number') held.constMip = mip
     else if (mip) inputs.mip = mip
     return this.addNode('textureSample', held, inputs, texture)
+  }
+  /** A sparse volume texture as an object: the volume the node `source` of the scene cites, to wire
+   *  into the `texture` input of samples. */
+  sparseVolumeTextureObject(source: number) {
+    return this.addNode('sparseVolumeTextureObject', { source })
+  }
+  /** A sparse volume texture object that a parameter of this name replaces: `set(name, node)`
+   *  gives it the volume another node cites. */
+  sparseVolumeTextureParameter(name: string, source: number) {
+    return this.addNode('sparseVolumeTextureParameter', { name, source })
+  }
+  /** Reads the volume the node `source` cites (or the one wired to `texture`) at `uvw`. Its outputs
+   *  are rgb, r, g, b, a and rgba of the attribute texture `attributes`. */
+  sparseVolumeTextureSample(source: number | undefined, options: SparseVolumeSampleOptions = {}) {
+    const { uvw, texture, mip, ddx, ddy, ...props } = options
+    const inputs: Record<string, Pin> = {}
+    for (const [name, pin] of Object.entries({ uvw, texture, ddx, ddy }))
+      if (pin) inputs[name] = pin
+    const held: Record<string, NodeProp> = given(props)
+    if (source !== undefined) held.source = source
+    if (typeof mip === 'number') held.constMip = mip
+    else if (mip) inputs.mip = mip
+    return this.addNode('sparseVolumeTextureSample', held, inputs)
   }
   /** Texture coordinate set `index` times the tiling. */
   texCoord(index = 0, uTiling = 1, vTiling = 1) {

@@ -5,6 +5,8 @@ import { autoKernel } from '../gpu/core/computeStages.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import type { ResourceAllocator } from '../gpu/core/resourceAllocator.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
+import { hairMsaaPass, msaaBinds } from './msaaPass.ts'
+import { HAIR_MSAA_SAMPLES, HAIR_MSAA_VIS_FORMAT } from './msaaWgsl.ts'
 import { boundGroups, type DrawnInstance } from './ribbonBinds.ts'
 import {
   CLEAR_TARGETS_WGSL,
@@ -124,7 +126,9 @@ function transmittanceBinds() {
   }
 }
 
-const ONE = { r: 1, g: 0, b: 0, a: 0 }
+/** The usage of a multisampled target: drawn into, then read by the resolve. */
+const attachedUsage = () => GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING
+
 const ZERO = { r: 0, g: 0, b: 0, a: 0 }
 
 /** The textures of an image, named to `allocator`, all of the size `width` by `height` the opaque depth
@@ -140,6 +144,7 @@ export function allocateHairImageTargets(
   height: number,
   blendable: boolean,
   readback: GPUTextureUsageFlags,
+  hardware = false,
 ) {
   const written = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | readback
   // The transmittance and the depth of the nearest strand are the pass's attachments too.
@@ -155,6 +160,19 @@ export function allocateHairImageTargets(
     bits: blendable
       ? undefined
       : allocator.buffer('transmittance product', width * height, 'storage'),
+    // The four-sample targets of the hardware raster: the strands' depth and identifiers.
+    msaaDepth: hardware
+      ? allocator.image('msaa depth', [width, height], DEPTH_FORMAT, {
+          usage: attachedUsage(),
+          sampleCount: HAIR_MSAA_SAMPLES,
+        })
+      : undefined,
+    msaaVis: hardware
+      ? allocator.image('msaa identifiers', [width, height], HAIR_MSAA_VIS_FORMAT, {
+          usage: attachedUsage(),
+          sampleCount: HAIR_MSAA_SAMPLES,
+        })
+      : undefined,
   }
 }
 
@@ -166,13 +184,12 @@ export function allocateHairImageTargets(
  * writes every pixel of those tiles: every reader of them goes through the tiles.
  */
 export function extendHairImageTargets(targets: ReturnType<typeof allocateHairImageTargets>) {
-  const { transmittance, nodeIndex, coverage, hairOnlyDepth, bits } = targets
+  const { transmittance, nodeIndex, coverage, hairOnlyDepth, bits, msaaDepth, msaaVis } = targets
   const transmittanceView = transmittance.createView()
   const hairOnlyDepthView = hairOnlyDepth.createView()
   const attachments: GPURenderPassColorAttachment[] = [
     {
       view: transmittanceView,
-      clearValue: ONE,
       loadOp: 'load',
       storeOp: bits ? 'discard' : 'store',
     },
@@ -182,7 +199,21 @@ export function extendHairImageTargets(targets: ReturnType<typeof allocateHairIm
     view: undefined as never,
     depthReadOnly: true,
   }
+  const msaa =
+    msaaDepth && msaaVis
+      ? (() => {
+          const msaaDepthView = msaaDepth.createView()
+          const msaaVisView = msaaVis.createView()
+          return {
+            msaaDepthView,
+            msaaVisView,
+            msaaPass: hairMsaaPass(msaaDepthView, msaaVisView),
+            msaaBinds: msaaBinds(),
+          }
+        })()
+      : undefined
   return {
+    msaa,
     blendable: !bits,
     transmittanceView,
     nodeIndexView: nodeIndex.createView(),

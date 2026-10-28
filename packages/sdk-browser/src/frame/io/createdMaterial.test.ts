@@ -4,7 +4,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import {
   FLAG_HAS_COLOR,
   MATERIAL_RANK_MASK,
@@ -14,13 +13,11 @@ import {
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera } from '../backend/testScenes.fixture.ts'
+import { backendOf, quadScene, camera } from '../backend/testScenes.fixture.ts'
 import { createExplorerMaterialApi } from '../../api/materialApi.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { materialRecordsSent } from '../../materials/table/materialRecordsSent.fixture.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../materials/table/materialLayout.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 /** The quad opened on WebGPU, its material API, and what its drawn rows say: the colour of the
  *  record each names, as the material table last sent it up, and their flags. */
@@ -29,12 +26,10 @@ function openQuad(edit: (fixture: ReturnType<typeof quadScene>) => void = () => 
   const fixture = quadScene(),
     { device, buffers, textureWrites } = fakeDevice(BACKEND)
   edit(fixture)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,
-    viewport: [32, 32],
   })
   const api = createExplorerMaterialApi({
     check: () => {},

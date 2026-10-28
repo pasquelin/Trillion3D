@@ -1,8 +1,9 @@
-import { frontStamp } from '../lighting/reflections/frontLayer.ts'
+import { frontStamp, type FrontOutputs } from '../lighting/reflections/frontLayer.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { readHizSetting } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import { drawBlendRuns, type BlendRuns } from './draw.ts'
 import { waterFrontOf } from './water/waterReflection.ts'
+import { lightsFrontLayer } from '../lighting/manyLightsSampled/frame.ts'
 import { tracesTranslucent } from '../lighting/shadows/vsm/frame/vsmGates.ts'
 
 /** The front pass's runs: no reflection read, near to far — the depth it writes rejects early
@@ -43,10 +44,18 @@ export function encodeFrontPass(
   )
     return
   const { frontLayer } = reflection.settings(rt.context, waterFrontOf(rt))
-  if (!frontLayer && !readHizSetting(rt, 'hizFoldTransparents') && !tracesTranslucent(rt)) return
-  // The reflecting surface is written only where the trace answers the front layer (`ReflectionSettings.frontLayer`): else the
-  // covering depth alone, which the depth pyramid folds in.
-  const outputs = frontLayer ? blendState.frontOutputs : 0
+  const sampledFront = lightsFrontLayer(rt)
+  if (
+    !frontLayer &&
+    !sampledFront &&
+    !readHizSetting(rt, 'hizFoldTransparents') &&
+    !tracesTranslucent(rt)
+  )
+    return
+  // The reflecting surface is written only where the trace answers the front layer (`ReflectionSettings.frontLayer`) or the sampled lighting lights it
+  // (`sampledLightsFrontLayer`, which also takes its base colour, of every lit model): else the covering depth alone, which the depth pyramid folds in.
+  const outputs: FrontOutputs =
+    blendState.frontLit && sampledFront ? 3 : frontLayer ? blendState.frontOutputs : 0
   const set = vis.blendPipelines.front(outputs)
   if (!set.ready) return set.ask()
   const hizFront = hiz.front(true)
@@ -56,8 +65,12 @@ export function encodeFrontPass(
     front.depth.width,
     front.depth.height,
   ])
-  const pass = encoder.beginRenderPass(front.begin(frontStamp(run.frame), hizFront, outputs, gpu))
+  const descriptor = front.begin(frontStamp(run.frame), hizFront, outputs, gpu)
+  // The surface written only for the sampled lighting is not one the reflections trace.
+  if (!frontLayer) front.reflected = 0
+  const pass = encoder.beginRenderPass(descriptor)
   pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
   run.gpuDrawCalls += drawBlendRuns(rt, device, pass, set, FRONT_RUNS)
   pass.end()
+  if (outputs === 3) front.surfaceFrom(encoder)
 }

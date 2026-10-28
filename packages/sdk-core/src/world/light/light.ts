@@ -28,7 +28,7 @@ import {
   type LightNumber,
 } from './lightNumbers.ts'
 import { copyLamp, defineLampSettings, takeLamp } from './lightLampSettings.ts'
-import { defaultOnFlag } from './lightFlags.ts'
+import { lightFlag } from './lightFlags.ts'
 import { lightMobility } from './lightMobility.ts'
 import { defineLightingChannels } from './lightChannels.ts'
 
@@ -38,7 +38,7 @@ export type { LightParameters }
 const AIMED = new Set(['directional', 'spot', 'hemisphere'])
 const point = new Vector3()
 /** Whether a light may be the sun of the atmosphere, on by default (`Light.atmosphereSun`). */
-const atmosphereSun = defaultOnFlag('atmosphereSun')
+const atmosphereSun = lightFlag('atmosphereSun', true)
 /** The lights a page set to the atmosphere's second light (`Light.atmosphereSunIndex`): few, as the
  *  lights left out of the candidates. */
 const SUN_INDEX = new WeakMap<Light, AtmosphereSunIndex>()
@@ -115,6 +115,8 @@ export class Light extends Object3D {
   declare angularRadius: number
   /** Directional only: the soft angle of the source's disk, in degrees from 0 up to 180 (`SceneLight.softAngle`); 0 by default. */
   declare softAngle: number
+  /** How the four layers of the light's hair deep shadow are spread, from 0 (evenly) to 1 (near the front) (`SceneLight.hairDeepShadowLayerDistribution`); 0.5 by default. */
+  declare hairDeepShadowLayerDistribution: number
   /** How much of the light the volumetric fog and the clouds scatter: 0 leaves it out of both; 1. */
   declare fogScattering: number
   /** The factor on the resolution a point, spot or rectangle light's shadow is given
@@ -140,6 +142,8 @@ export class Light extends Object3D {
   /** Whether the light shines through the subsurface-profile surfaces it shadows (`SceneLight.transmission`);
    *  off by default, and acting on a movable light that casts a shadow alone. */
   declare transmission: boolean
+  /** Whether the light draws a deep shadow of the hair strands it reaches (`SceneLight.castHairDeepShadow`); off by default. */
+  declare castHairDeepShadow: boolean
 
   /** Which kind of light this is: `'point'`, `'spot'`, `'directional'`… */
   readonly kind: string

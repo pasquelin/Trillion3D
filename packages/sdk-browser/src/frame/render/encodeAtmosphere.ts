@@ -58,17 +58,62 @@ export function askAtmosphere(rt: WebgpuPagesRuntime, device: GPUDevice) {
   )
 }
 
-/** The virtual shadow maps and the blue noise this image's air reads: the engine's where it
+/** The virtual shadow maps and the blue noise the sky and the haze are drawn with: the engine's where it
  *  projects some, their stand-ins else (`vsmOrStandIns`). */
-export function mapsOf(rt: WebgpuPagesRuntime) {
+function mapsOf(rt: WebgpuPagesRuntime) {
   const { placeholders } = rt.gpu.deferred!
   return vsmOrStandIns(vsmConsumerResources(rt), placeholders)
 }
 
+/** Whether every map of this image kept the id it had in the image before (`VsmMapIds`: each claimed map left its next-map data under its previous
+ *  id, naming the id it has now), so that the previous frame set's tables, indexed by id, describe the same lights. A new map, or one that moved,
+ *  makes the previous pages those of another light. */
+function mapIdsKept({ state: { ids } }: NonNullable<WebgpuPagesRuntime['lights']['vsm']>) {
+  if (ids.nextMapIdCount !== ids.claimedCount) return false
+  for (let j = 0; j < ids.nextMapIdCount; j++) {
+    const prevId = ids.nextMapIds[j]
+    if (ids.nextMaps[prevId].nextMapId !== prevId) return false
+  }
+  return true
+}
+
 /**
- * The air's tables and volume for this image, before the lighting resolve reads them: the tables
- * of the air when it changed, the sky around the eye and the haze volume, and the sky's sums when
- * the sun moved. False when the image shows no atmosphere, or its programs are not compiled yet —
+ * The virtual shadow maps the air's tables are made with, before this image's shadow pages are rendered
+ * (`encodeVsmFrame`): the pages of the image before, as the reference makes its sky look-up tables
+ * before it renders any shadow depth. Their page table, projection records and uniforms are the previous
+ * frame set's (`VsmResources.prev`, swapped in at the end of that image), of which the pool still holds
+ * the pages; the stand-ins where the image before projected none, this one projects none, or a map changed id since (`mapIdsKept`). Chosen once
+ * an image.
+ */
+export function previousMapsOf(rt: WebgpuPagesRuntime) {
+  const state = airStateOf(rt)
+  if (state.mapsFrame === rt.run.frame && state.maps) return state.maps
+  const now = vsmConsumerResources(rt)
+  const vsm = rt.lights.vsm
+  const held = !!now && !!vsm && state.shadowed === true && mapIdsKept(vsm)
+  state.shadowed = !!now
+  state.mapsFrame = rt.run.frame
+  // Copied: `vsmOrStandIns` rewrites one object at each call, which the sky and the haze ask again later in the image.
+  return Object.assign(
+    (state.maps ??= {} as NonNullable<typeof state.maps>),
+    vsmOrStandIns(
+      held && now && vsm
+        ? {
+            ...now,
+            pageTable: vsm.res.prev.pageTable,
+            projectionData: vsm.res.prev.projectionData,
+            uniforms: vsm.res.prev.uniforms,
+          }
+        : undefined,
+      rt.gpu.deferred!.placeholders,
+    ),
+  )
+}
+
+/**
+ * The air's tables and volume for this image, before the lighting resolve reads them (and before the surface
+ * cache's update, as the reference makes its sky look-up tables): the tables of the air when it changed, the sky around
+ * the eye and the haze volume, and the sky's sums when the sun moved. False when the image shows no atmosphere, or its programs are not compiled yet —
  * then the image draws without one, and `encodeSky` draws nothing.
  */
 export function encodeAtmosphere(
@@ -94,7 +139,7 @@ export function encodeAtmosphere(
   })
   inputs.frame[FRAME_LAYOUT.at.hidden] = air.inMainView ? 0 : 1
   inputs.frame[FRAME_LAYOUT.at.hidden + 1] = atmosphereHoldout(rt) ? 1 : 0
-  const maps = mapsOf(rt)
+  const maps = previousMapsOf(rt)
   inputs.buffer = lights.buffer
   inputs.version = lights.store.atmosphereVersion
   inputs.maps = maps

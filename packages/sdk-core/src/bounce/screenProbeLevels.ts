@@ -1,28 +1,43 @@
 /**
  * THE SCREEN PROBES' LEVELS AND CONSTANTS: the values each quality level holds (`SCREEN_PROBE_LEVEL_KNOBS`,
- * `SCREEN_PROBE_LOW_KNOBS`) and the numbers no level sets (`SCREEN_PROBE_CONSTANTS`), apart from the settings that
+ * and the numbers no level sets (`SCREEN_PROBE_CONSTANTS`), apart from the settings that
  * read them (`./screenProbeOptions.ts`).
  */
 
 import type { SurfaceCacheOptions } from '../contracts/surfaceCacheOptions.ts'
 
 /** The levels, `'off'` first, then from the coarsest to the finest. */
-export const SCREEN_PROBE_LEVELS = ['off', 'low', 'high', 'ultra', 'cinematic'] as const
+export const SCREEN_PROBE_LEVELS = ['off', 'high', 'ultra', 'cinematic'] as const
 /** A level of the screen probes. */
 export type ScreenProbeLevel = (typeof SCREEN_PROBE_LEVELS)[number]
 /** The level of a view that names none. */
 export const DEFAULT_SCREEN_PROBE_LEVEL: CastingLevel = 'ultra'
 
-/** The levels that cast screen probes: `'off'` lights nothing, `'low'` takes the sky light's irradiance under the short-range occlusion. */
-export type CastingLevel = Exclude<ScreenProbeLevel, 'off' | 'low'>
+/** The levels that cast screen probes: `'off'` lights nothing. */
+export type CastingLevel = Exclude<ScreenProbeLevel, 'off'>
 
-/** What each quality level below the top writes of the level, the reference's own scalability levels: the lowest
- *  lights nothing (the bounce is off, as its first row has no diffuse global illumination), the second reads the
- *  world's probes under the short-range occlusion, the third is `high` (`runtime/qualityLevels.ts`); `max` writes
- *  nothing, the default `ultra`; `cinematic` is the level of its own name, the reference's fifth row. */
+/** What each quality level below the top writes of the level, the reference's own scalability levels (`BaseScalability.ini` `GlobalIlluminationQuality@0` to `@Cine`): the lowest
+ *  lights nothing (the bounce is off, as its first row has no diffuse global illumination), the second is the medium one — the irradiance field gathers the opaque surfaces' light
+ *  (`r.FinalGatherMethod=0`) over the high level's probes for the cache, with the short-range occlusion at its row's one slice and full reduction, foliage strength 1 (`ShortRangeAO.*`),
+ *  and the smaller surface cache (a smaller atlas at half the cards' density and resolution, the reference's `GlobalIlluminationQuality@1`) — the third is `high` (`runtime/qualityLevels.ts`); `max` writes nothing, the default `ultra`; `cinematic` is the level of its own name, the reference's fifth row. */
 export const SCREEN_PROBE_PRESET_LEVELS = {
   smooth: { screenProbes: 'off', bounce: false },
-  balanced: { screenProbes: 'low' },
+  balanced: {
+    screenProbes: 'high',
+    finalGatherMethod: 'irradianceField',
+    screenProbeShortRangeAODownsampleFactor: 1,
+    screenProbeOcclusionSlices: 1,
+    screenProbeOcclusionFoliageStrength: 1,
+    surfaceCacheAtlasSize: 2048,
+    surfaceCacheCardTexelDensityScale: 50,
+    surfaceCacheCardMinResolution: 2,
+    surfaceCacheCardMaxResolution: 256,
+    surfaceCacheDirectLightingMaxLightsPerTile: 4,
+    surfaceCacheDirectLightingUpdateFactor: 128,
+    surfaceCacheRadiosityUpdateFactor: 128,
+    surfaceCacheRadiosityProbeSpacing: 4,
+    surfaceCacheRadiosityHemisphereProbeResolution: 3,
+  },
   fine: { screenProbes: 'high' },
   cinematic: { screenProbes: 'cinematic' },
 } as const
@@ -78,16 +93,6 @@ type GatherKnobs = {
 
 /** What a level holds. */
 export type LevelKnobs = OcclusionKnobs & GatherKnobs
-
-/** What the second level holds: its occlusion search alone, no probe is cast. */
-export const SCREEN_PROBE_LOW_KNOBS: Readonly<OcclusionKnobs> = {
-  occlusionDownsample: 1,
-  occlusionPyramid: true,
-  occlusionForegroundPower: 1.5,
-  occlusionSlices: 1,
-  occlusionFoliageStrength: 1,
-  bentNormal: false,
-}
 
 /** The levels' values: each casting level's tile, probes, rays, irradiance format, interpolation, jitter and
  *  occlusion search. */
@@ -148,23 +153,11 @@ export const SCREEN_PROBE_LEVEL_KNOBS: Readonly<Record<CastingLevel, LevelKnobs>
 /**
  * What each level of the global illumination holds of the surface cache's settings (`../contracts/surfaceCacheOptions.ts`), the
  * reference's scalability rows: the settings' own defaults are the `'ultra'` row, `'cinematic'` holds the same, `'high'` a smaller
- * atlas and cards, fewer lights a tile, a slower update and coarser, fewer radiosity probes, and `'low'` — which reads the world's
- * probes — a still smaller atlas at half the cards' density and resolution; `'off'` lights nothing with it and holds none. A setting
+ * atlas and cards, fewer lights a tile, a slower update and coarser, fewer radiosity probes (the medium level's still smaller atlas is the `balanced` preset's, `SCREEN_PROBE_PRESET_LEVELS`); `'off'` lights nothing with it and holds none. A setting
  * a host names keeps its value over the row (`resolveSurfaceCacheSettings`).
  */
 export const SURFACE_CACHE_LEVEL_ROWS: Readonly<Record<ScreenProbeLevel, SurfaceCacheOptions>> = {
   off: {},
-  low: {
-    surfaceCacheAtlasSize: 2048,
-    surfaceCacheCardTexelDensityScale: 50,
-    surfaceCacheCardMinResolution: 2,
-    surfaceCacheCardMaxResolution: 256,
-    surfaceCacheDirectLightingMaxLightsPerTile: 4,
-    surfaceCacheDirectLightingUpdateFactor: 128,
-    surfaceCacheRadiosityUpdateFactor: 128,
-    surfaceCacheRadiosityProbeSpacing: 4,
-    surfaceCacheRadiosityHemisphereProbeResolution: 3,
-  },
   high: {
     surfaceCacheAtlasSize: 3584,
     surfaceCacheCardTexelDensityScale: 100,
@@ -181,8 +174,7 @@ export const SURFACE_CACHE_LEVEL_ROWS: Readonly<Record<ScreenProbeLevel, Surface
 }
 
 /** Whether `level` casts screen probes. */
-export const castsProbes = (level: ScreenProbeLevel): level is CastingLevel =>
-  level !== 'off' && level !== 'low'
+export const castsProbes = (level: ScreenProbeLevel): level is CastingLevel => level !== 'off'
 
 /**
  * What no level sets and no setting reads: the numbers that are literals of the passes, as the reference writes them

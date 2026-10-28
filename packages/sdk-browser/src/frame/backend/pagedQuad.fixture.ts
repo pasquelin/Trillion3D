@@ -1,15 +1,13 @@
+import { backendOf } from './testScenes.fixture.ts'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { encodePage } from '../../geometry/codec/encodePage.fixture.ts'
 import { dagRoots, exactPrimitive } from '../../session/engine/pagesEngine.fixture.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { QUAD_MANIFEST, quadMesh } from '../../session/engine/pagesEngineScenes.fixture.ts'
-import { webgpuPagesEngine } from './pages.ts'
 import type { EngineDiagnostic } from '../../diagnostic/types.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 const POSITIONS = new Float32Array([-1, -1, 0, 1, -1, 0, 1, 1, 0, -1, 1, 0])
 /** The two triangles of the quad, as the corner lists a compiler would cluster them into. */
@@ -89,12 +87,10 @@ export function pagedQuadBackend(
   readGeometryPage = async (url: string) => fixture.bytes.get(url)!,
 ) {
   const gpu = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: gpu.device,
     maxResidentPages: fixture.metadata.primitives[0].pages.length,
-    viewport: [32, 32],
     readGeometryPage,
     onDiagnostic: (event: EngineDiagnostic) => events.push(event),
   } as never)

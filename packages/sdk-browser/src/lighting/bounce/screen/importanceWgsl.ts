@@ -7,24 +7,29 @@ import { SCREEN_PROBE_CONSTANTS } from '../../../../../sdk-core/src/bounce/scree
 import { workgroupSortWgsl } from '../../../gpu/core/workgroupSortWgsl.ts'
 import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
+import {
+  WORD_LIGHT_FORMAT,
+  withLightAtlasEntry,
+  type LightAtlasFormat,
+} from '../../../gpu/core/lightAtlasFormat.ts'
 import { atlasEntry } from '../atlas.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { spCacheRead } from './cacheReadWgsl.ts'
 import { spPdfLobes, spProbes } from './probesWgsl.ts'
-import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
+import {
+  SCREEN_PROBE_FORMATS as F,
+  PROBE_PIXEL_BINDINGS,
+  bindingTable,
+} from './screenProbeLayout.ts'
 import { spVectors } from './vectorsWgsl.ts'
 
 /** The rays' bindings: the probes' records and pixels, the last image's probes and their filtered radiance, the probes'
  *  coefficients of the pixels' directions, the ray words written, the cascades and the radiance cache's maps the far light is
  *  read from, the light buffer (the sky it holds), the surfaces' vectors of the image. */
 export const RAYS_BINDINGS = bindingTable({
-  params: [0, 'uniform'],
-  info: [1, 'float'],
-  normal: [2, 'uint'],
-  counts: [3, 'buffer-read'],
-  pixels: [4, 'buffer-read'],
+  ...PROBE_PIXEL_BINDINGS,
   historyInfo: [5, 'float'],
   historyGather: [6, 'float'],
   brdf: [7, 'buffer-read'],
@@ -39,7 +44,10 @@ export const RAYS_BINDINGS = bindingTable({
 })
 /** The atlas of the cascades' probes, which the rays' layout adds (`atlasEntry`). */
 export const RAYS_PROBES = 10
-export const raysEntries = () => [...RAYS_BINDINGS.entries, atlasEntry(RAYS_PROBES)]
+export const raysEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => [
+  ...withLightAtlasEntry(RAYS_BINDINGS.entries, RAYS_BINDINGS.at.cacheFinal, light),
+  atlasEntry(RAYS_PROBES),
+]
 
 const B = RAYS_BINDINGS.at
 
@@ -173,7 +181,7 @@ fn genRays(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) l
  workgroupBarrier();
  var light=0.0;
  if(live&&lit){
-  let direction=equalAreaDecode((vec2f(t)+blueNoiseVec2(spProbeTile(probePixels[index]),sp.mode.w))/f32(SP_TRACE));
+  let direction=equalAreaDecode((vec2f(t)+blueNoiseVec2(spProbeTile(index,probePixels[index]),sp.mode.w))/f32(SP_TRACE));
   let own=probePixels[index];
   light=spLightLuminance(probe,vec2u(own&0xffffu,own>>16u),direction,t);
  }
@@ -199,7 +207,12 @@ fn genRays(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) l
 )
 
 /** The rays' program over `side × side` rays a probe, the last image's light read from a gather of `gather × gather` texels, and `samples` of a tile. */
-export const raysShader = (side: number, gather: number, samples: readonly [number, number]) => {
+export const raysShader = (
+  side: number,
+  gather: number,
+  samples: readonly [number, number],
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+) => {
   const count = side * side
   return wgslProgram(
     `${spParams(B.params)}
@@ -213,7 +226,7 @@ ${wgslConsts({ SP_TRACE: side, SP_RAYS: count, SP_GATHER: gather })}
       spPdfLobes(B.brdf),
       spVectors(B.vectors),
       blueNoiseWgsl(0, B.blue),
-      spCacheRead(B.cacheFinal, B.cacheRaw, B.cacheSky),
+      spCacheRead(B.cacheFinal, B.cacheRaw, B.cacheSky, 'workgroup', light),
       workgroupSortWgsl('rays', count),
       RAYS_WGSL,
     ],

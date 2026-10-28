@@ -16,9 +16,6 @@ import {
 } from './visibilityMath.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
 
-/** The bytes of a compacted sample's pixel: its x on the low `HAIR_COORD_BITS` bits, its y above. */
-const NODE_COORD_BYTES = 4
-
 const compactKernels = preparedPipelines(
   ({ samples, wide }: { samples: HairSampleCount; wide: boolean }) =>
     autoKernel(
@@ -116,7 +113,7 @@ export const allocateHairNodes = (
     'storage',
     readback,
   ),
-  nodeCoord: allocator.buffer('node pixel', capacity * (NODE_COORD_BYTES / 4), 'storage', readback),
+  nodeCoord: allocator.buffer('node pixel', capacity, 'storage', readback),
   nodeData: allocator.buffer('node material', capacity * HAIR_NODE_DATA_WORDS, 'storage', readback),
   nodeCounter: allocator.buffer('node counters', HAIR_NODE_COUNTERS, 'storage', readback),
   nodeArgs: allocator.buffer('node arguments', HAIR_DISPATCH_ARGS_WORDS, 'args', readback),

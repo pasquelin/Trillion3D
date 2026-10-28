@@ -30,10 +30,13 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // must drop it. The core's 1_547 fell to 1_371 once `ANY_NUMBER` (a `Number.MAX_VALUE` read) and
   // `PREVIEW_STORED_LAYOUTS` (a spread) became literals: neither is kept alive any more. It reads
   // 1_372 since the surface cache's rules are built as sub-tables, each in a call marked pure: the
-  // same code, one minified name a letter longer.
-  assert.equal(baseline.outputFiles[0].contents.length, 1_372)
-  assert.equal(proposed.outputFiles[0].contents.length, 1_360)
-  assert.equal(browserProposed.outputFiles[0].contents.length, 3_019)
+  // same code, one minified name a letter longer. The core's 1_373 and the browser's 3_025 since the
+  // lighting's new top-level symbols, all dropped from these bundles, push one more name past a letter:
+  // every kept module unchanged. The package's 1_362 since one more name past a letter, the same
+  // way: the core's bundle of the same modules keeps its 1_373.
+  assert.equal(baseline.outputFiles[0].contents.length, 1_373)
+  assert.equal(proposed.outputFiles[0].contents.length, 1_362)
+  assert.equal(browserProposed.outputFiles[0].contents.length, 3_025)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),
   )

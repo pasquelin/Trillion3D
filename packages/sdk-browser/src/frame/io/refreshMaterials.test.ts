@@ -4,7 +4,6 @@
 // again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import {
   FLAG_MASK,
   MATERIAL_RANK_MASK,
@@ -17,11 +16,9 @@ import { materialRecordsSent } from '../../materials/table/materialRecordsSent.f
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND, writtenBytes } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera } from '../backend/testScenes.fixture.ts'
+import { backendOf, quadScene, camera } from '../backend/testScenes.fixture.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { surfaceWritten } from '../../geometry/pages/surfaceWrites.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 test('a blended surface rewritten in place reaches its record at the values refresh', async () => {
   installGpuGlobals()
@@ -29,12 +26,9 @@ test('a blended surface rewritten in place reaches its record at the values refr
     { device, writes, textureWrites } = fakeDevice(BACKEND)
   fixture.material.transparent = true
   fixture.material.opacity = 0.5
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   /** The colour and opacity of the record the item names (its material word, `BlendItem.material`). */
   const rgba = () => {
@@ -71,12 +65,10 @@ test('an opaque colour rewritten in place writes its one record and no cluster',
   installGpuGlobals()
   const fixture = quadScene(),
     { device, writes, textureWrites } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,
-    viewport: [32, 32],
   })
   const rowWrites = () =>
     writes.filter((w) => w.buffer.label === 'Trillion3D decoded clusters').length
@@ -107,12 +99,10 @@ test('an opaque surface turned masked cuts every cluster of its material', async
   installGpuGlobals()
   const fixture = quadScene(),
     { device, buffers } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
     maxResidentPages: 4,
-    viewport: [32, 32],
   })
   const masked = () => {
     const table = buffers.findLast((buffer) => buffer.label === 'Trillion3D decoded clusters')!

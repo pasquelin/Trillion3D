@@ -10,6 +10,8 @@ import {
 import { composeAirGroup, type CloudViewFrame } from './viewGroups.ts'
 import type { HeldClouds } from './composeWgsl.ts'
 import { drawFullscreenTriangle } from '../../../gpu/shader/fullscreenTriangle.ts'
+import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
+import { standInTexture } from '../../../gpu/core/standIns.ts'
 import { cloudPass, cloudSteps, encodeDepthRange, encodeHaze, encodeTrace } from './viewFrame.ts'
 import type { CloudDepthRange, CloudImages } from './viewTargets.ts'
 import { cloudShownOf } from './cloudShown.ts'
@@ -20,6 +22,11 @@ import { cloudShownOf } from './cloudShown.ts'
  * composition over the lit image (`encodeCompose`), after the depth range, the trace and the haze
  * (`viewFrame.ts`).
  */
+
+/** The water's surface a composition binds where no water was shaded over the image: one texel, no water. */
+const noWater = oncePerDevice((device) =>
+  standInTexture(device, 'Trillion3D cloud no water', 'rgba8unorm').createView(),
+)
 
 const reconstructWords = new Float32Array(new ArrayBuffer(RECONSTRUCT_VIEW.words * 4))
 const composeWords = new Float32Array(new ArrayBuffer(COMPOSE_VIEW.words * 4))
@@ -123,14 +130,22 @@ function composeBlock(f: CloudViewFrame) {
   return block
 }
 
-/** Group 1 of the composition: the uniform, the image `shown`, the scene's depth and the sampler. */
+/** Group 1 of the composition: the uniform, the image `shown`, the scene's depth, the sampler and the water's surface. */
 function imagesGroup(
   f: CloudViewFrame,
   layout: GPUBindGroupLayout,
   block: GPUBuffer,
   shown: CloudImages,
+  water: GPUTextureView,
 ) {
-  const names = [block, shown.views.colour, shown.views.secondary, shown.views.depth, f.sceneDepth]
+  const names = [
+    block,
+    shown.views.colour,
+    shown.views.secondary,
+    shown.views.depth,
+    f.sceneDepth,
+    water,
+  ]
   return f.gpu.group('compose cloud', layout, names, () => [
     { binding: C.view, resource: { buffer: block } },
     { binding: C.colour, resource: shown.views.colour },
@@ -138,14 +153,20 @@ function imagesGroup(
     { binding: C.depth, resource: shown.views.depth },
     { binding: C.sceneDepth, resource: f.sceneDepth },
     { binding: C.sampler, resource: f.programs.sampler },
+    { binding: C.water, resource: water },
   ])
 }
 
 /** The image `shown` laid over the lit image: its luminance added to the lit image multiplied by
  *  its transmittance. */
-function encodeCompose(f: CloudViewFrame, block: GPUBuffer, shown: CloudImages) {
+function encodeCompose(
+  f: CloudViewFrame,
+  block: GPUBuffer,
+  shown: CloudImages,
+  water: GPUTextureView,
+) {
   const pass = f.programs.compose(f.setup)
-  const group = imagesGroup(f, pass.layout, block, shown)
+  const group = imagesGroup(f, pass.layout, block, shown, water)
   const air = composeAirGroup(f, pass.air, 'compose air')
   drawFullscreenTriangle(
     f.encoder,
@@ -163,7 +184,10 @@ function encodeCompose(f: CloudViewFrame, block: GPUBuffer, shown: CloudImages) 
     f.encoder,
     cloudPass('Trillion3D cloud holdout', [f.hdr], true),
     held.pipeline.get(),
-    [composeAirGroup(f, held.air, 'compose air held'), imagesGroup(f, held.layout, block, shown)],
+    [
+      composeAirGroup(f, held.air, 'compose air held'),
+      imagesGroup(f, held.layout, block, shown, water),
+    ],
     f.view.width,
     f.view.height,
   )
@@ -196,18 +220,27 @@ export function cloudProgramsReady(
 /**
  * One image of the clouds of a view, encoded on `f.encoder` over its lit image: the scene's depth
  * range, the trace, the haze per pixel where it is asked, the reconstruction and the composition.
- * The image's view-projection without jitter is the next one's history.
+ * The image's view-projection without jitter is the next one's history. With `deferred` (an image
+ * the single-layer water is shaded over), the composition is not encoded: it is returned, to be called
+ * once the water is shaded, with the texture whose alpha says where the water lies (none where it was
+ * not drawn), so that the clouds in front of the water lie over it and the pixels it covers take the
+ * clouds that are before its surface.
  */
-export function encodeCloudView(f: CloudViewFrame) {
+export function encodeCloudView(f: CloudViewFrame, deferred = false) {
   const range = encodeDepthRange(f)
   cloudSteps.begin(f.encoder)
   const { traced, raw } = encodeTrace(f, range)
   if (raw) encodeHaze(f, traced, raw)
   cloudSteps.end()
   const { image: shown, fogged } = encodeReconstruct(f, traced, range)
-  encodeCompose(f, composeBlock(f), shown)
+  const block = composeBlock(f)
   // The translucent surfaces read the image that was rebuilt or traced: with the fog laid on it
   // where the setup asks. A direct trace has no image to read.
   f.gpu.shown = f.setup.direct ? undefined : cloudShownOf(f, shown, fogged ?? shown.views.colour)
   commitCloudView(f.gpu.state, f.camera.viewProjection)
+  if (!deferred) {
+    encodeCompose(f, block, shown, noWater(f.device))
+    return undefined
+  }
+  return (water?: GPUTextureView) => encodeCompose(f, block, shown, water ?? noWater(f.device))
 }

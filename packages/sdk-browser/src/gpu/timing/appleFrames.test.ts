@@ -5,8 +5,7 @@
 // time while the passes that ran have theirs: `summarizeTimestamps` spans the valid pairs.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { PART_ALIGN } from './encoder.ts'
-import { MS, timer } from './imageTimer.fixture.ts'
+import { MS, PART_ALIGN, timer } from './imageTimer.fixture.ts'
 import { summarizeTimestamps } from './sample.ts'
 import { createSlotMemory } from './slotMemory.ts'
 

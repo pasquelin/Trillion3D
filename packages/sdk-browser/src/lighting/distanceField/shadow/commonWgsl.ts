@@ -16,18 +16,30 @@ import { DFSH_BINDING, DFSH_FLAG, DFSH_PARAMS } from './layout.ts'
  * (`dfshTileStart`), and holds at most what is left of the room after that start, or the place
  * (`dfshTileRoom`).
  */
-export const DFSH_COMMON_WGSL = wgslBlock(
-  'DFSH_COMMON_WGSL',
-  [unprojectPoint, DOUBLE_FLOAT_WGSL],
-  `${wgslConsts({
-    DFSH_SUBSAMPLE_DEPTH: DFSH_FLAG.subsampleDepth,
-    DFSH_COMPACT_TILES: DFSH_FLAG.compactTiles,
-    FLAG_CAST_SHADOW: OBJECT_FLAGS.castShadow,
-    FLAG_VIRTUALIZED: OBJECT_FLAGS.virtualized,
-    DF_MAX_MIPS: DISTANCE_FIELD_MIPS,
-  })}
+/**
+ * The declarations in the bind group `group` (0 for the cascade's own passes; the cards' direct light reads them from another). With
+ * `suns` of 1 or more, the binding holds that many blocks, one a sun, and `dfsh` is a private copy the reader sets to the sun it traces for
+ * (`dfshSuns[k]`), so that every function below reads the sun it was set to.
+ */
+export const dfshCommonWgsl = (group = 0, suns = 0) =>
+  wgslBlock(
+    `DFSH_COMMON_WGSL ${group} ${suns}`,
+    [unprojectPoint, DOUBLE_FLOAT_WGSL],
+    `${wgslConsts({
+      DFSH_SUBSAMPLE_DEPTH: DFSH_FLAG.subsampleDepth,
+      DFSH_COMPACT_TILES: DFSH_FLAG.compactTiles,
+      DFSH_CLUSTER_MESHES: DFSH_FLAG.clusterMeshes,
+      FLAG_CAST_SHADOW: OBJECT_FLAGS.castShadow,
+      FLAG_VIRTUALIZED: OBJECT_FLAGS.virtualized,
+      DF_MAX_MIPS: DISTANCE_FIELD_MIPS,
+    })}
 ${DFSH_PARAMS.wgsl}
-@group(0) @binding(${DFSH_BINDING.params}) var<uniform> dfsh:DfshParams;
+${
+  suns > 0
+    ? `@group(${group}) @binding(${DFSH_BINDING.params}) var<uniform> dfshSuns:array<DfshParams,${suns}>;
+var<private> dfsh:DfshParams;`
+    : `@group(${group}) @binding(${DFSH_BINDING.params}) var<uniform> dfsh:DfshParams;`
+}
 fn dfshDepthCm(z:f32)->f32{
  let distance=select(dfsh.depth.y+(1.0-z)*dfsh.depth.x,dfsh.depth.x/max(z,1e-30),dfsh.depth.z>0.5);
  return min(distance*100.0,3.4e38);
@@ -48,4 +60,6 @@ fn dfshTileOf(p:vec3f)->vec2i{
  let t=vec2f(s.x,1.0-s.y)*side;
  return select(vec2i(-1),vec2i(t),all(t>=vec2f(0.0))&&all(t<vec2f(side)));
 }`,
-)
+  )
+
+export const DFSH_COMMON_WGSL = dfshCommonWgsl(0)

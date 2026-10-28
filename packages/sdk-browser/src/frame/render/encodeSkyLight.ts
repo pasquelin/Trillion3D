@@ -11,7 +11,7 @@ import { SKY_LIGHT_READ_WORDS, writeSkyLightRead } from '../../modules/sky/skyLi
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { skyOcclusionUse } from '../../lighting/distanceField/ao/state.ts'
 import { airRequests, airShapeOfRuntime, atmosphereDeclared } from './airState.ts'
-import { mapsOf } from './encodeAtmosphere.ts'
+import { previousMapsOf } from './encodeAtmosphere.ts'
 import { shownHeightFogOf } from './encodeFogVolume.ts'
 import { capturePreExposure } from './skyLightFog.ts'
 import { skyLightStateOf, type SkyLightState } from './skyLightState.ts'
@@ -68,7 +68,7 @@ function airOf(rt: WebgpuPagesRuntime, state: SkyLightState) {
       buffer: lights.buffer,
       ...gpu.atmosphere.tables,
       volumes: gpu.atmosphere.volumes,
-      maps: mapsOf(rt),
+      maps: previousMapsOf(rt),
     }
     return { air, fog: fog(), atmosphere: true }
   }
@@ -82,7 +82,7 @@ function airOf(rt: WebgpuPagesRuntime, state: SkyLightState) {
     multiScatter: bare.multiScatter,
     sampler: bare.sampler,
     volumes: bare.volumes,
-    maps: mapsOf(rt),
+    maps: previousMapsOf(rt),
   }
   return { air, fog: fog(), atmosphere: false }
 }

@@ -196,6 +196,36 @@ export type LitPrograms = ContractVariantOptions & {
   key: ContractKey
   localFog?: boolean
 }
+/** One table of lit programs, over whether its programs hold the sky light's occlusion and the indirect capsule shadows. */
+function litTable(
+  device: GPUDevice,
+  bindings: DeferredBindings,
+  { skyShadowing, capsule }: { skyShadowing: boolean; capsule: boolean },
+  { onReady, onFailure }: { onReady?: () => void } & ContractVariantOptions,
+  ready?: () => Promise<unknown>,
+) {
+  return createLitVariants<LitProgram>(
+    async (bounce, key) => {
+      const [program] = await Promise.all([
+        createLitProgram(
+          device,
+          {
+            bounce,
+            key,
+            skyShadowing,
+            capsule,
+            label: `${bounce ? 'BOUNCE' : 'DIRECT'}${variantLabel(key)}${skyShadowing ? '_SKY_SHADOWING' : ''}${capsule ? '_CAPSULE' : ''}`,
+          },
+          bindings,
+        ),
+        ready?.(),
+      ])
+      return program
+    },
+    { onReady, onFailure, dispose: (program) => program.release() },
+  )
+}
+
 /**
  * The lighting passes' lit programs (`createLitVariants`): the sun's, the local lights' and the
  * indirect light's passes (`createLitProgram`) at each key. The program without bounce has a
@@ -211,57 +241,46 @@ export function createContractVariants(
   { onFailure }: ContractVariantOptions = {},
   ready?: () => Promise<unknown>,
 ) {
-  const tableOf = (skyShadowing: boolean) =>
-    createLitVariants<LitProgram>(
-      async (bounce, key) => {
-        const [program] = await Promise.all([
-          createLitProgram(
-            device,
-            {
-              bounce,
-              key,
-              skyShadowing,
-              label: `${bounce ? 'BOUNCE' : 'DIRECT'}${variantLabel(key)}${skyShadowing ? '_SKY_SHADOWING' : ''}`,
-            },
-            bindings,
-          ),
-          ready?.(),
-        ])
-        return program
-      },
-      { onReady, onFailure, dispose: (program) => program.release() },
-    )
-  const plain = tableOf(false)
-  let shadowed: ReturnType<typeof tableOf> | undefined
+  const tableOf = (skyShadowing: boolean, capsule: boolean) =>
+    litTable(device, bindings, { skyShadowing, capsule }, { onReady, onFailure }, ready)
+  const plain = tableOf(false, false)
+  // The tables that hold the code of the sky light's occlusion and of the indirect capsule shadows, by which of the two they hold, each made at the first image that asks.
+  const others = new Map<string, ReturnType<typeof tableOf>>()
+  const tableFor = (skyShadowing: boolean, capsule: boolean) => {
+    if (!skyShadowing && !capsule) return plain
+    const key = `${skyShadowing}${capsule}`
+    let table = others.get(key)
+    if (!table) others.set(key, (table = tableOf(skyShadowing, capsule)))
+    return table
+  }
   return {
     ...plain,
-    /** The program to light this frame with (`createLitVariants`); with `skyShadowing`, and no bounce, the one that
-     *  applies the occlusion where one is ready, else the first table's. */
+    /** The program to light this frame with (`createLitVariants`); with `skyShadowing` and no bounce, or with `capsule`, the one that
+     *  applies the occlusion or the capsule shadows where one is ready, else the first table's. */
     pick(
       bounce: boolean,
       narrow: boolean,
       set: number,
       onFailure?: (error: unknown) => void,
       skyShadowing = false,
+      capsule = false,
     ) {
-      if (skyShadowing && !bounce) {
-        const program = (shadowed ??= tableOf(true)).pick(false, narrow, set, onFailure)
+      const sky = skyShadowing && !bounce
+      if (sky || capsule) {
+        const program = tableFor(sky, capsule).pick(bounce, narrow, set, onFailure)
         if (program) return program
       }
       return plain.pick(bounce, narrow, set, onFailure)
     },
-    /** The program of this set itself (`createLitVariants`), in the table `pick` reads first: the occlusion's with `skyShadowing` and no bounce. */
-    exact(bounce: boolean, narrow: boolean, set: number, skyShadowing = false) {
-      return (skyShadowing && !bounce ? (shadowed ??= tableOf(true)) : plain).exact(
-        bounce,
-        narrow,
-        set,
-      )
+    /** The program of this set itself (`createLitVariants`), in the table `pick` reads first. */
+    exact(bounce: boolean, narrow: boolean, set: number, skyShadowing = false, capsule = false) {
+      return tableFor(skyShadowing && !bounce, capsule).exact(bounce, narrow, set)
     },
-    settle: () => Promise.all([plain.settle(), shadowed?.settle()]).then(() => {}),
+    settle: () =>
+      Promise.all([plain.settle(), ...[...others.values()].map((t) => t.settle())]).then(() => {}),
     release() {
       plain.release()
-      shadowed?.release()
+      for (const table of others.values()) table.release()
     },
   }
 }

@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { sceneTraceWgsl } from '../rays/sceneTrace/sceneTraceWgsl.ts'
 import { surfaceHitCardsWgsl } from '../surfaceCache/hitWgsl.ts'
+import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 import { REFLECTION_FATE_WGSL } from './censusWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { RADIANCE_ANSWER, REFLECTION_LOBE_WGSL } from './field.ts'
@@ -33,18 +34,19 @@ import { REFLECTION_HARDWARE_SCENE, REFLECTION_HIT_BINDINGS } from './trace/trac
  * scene trace's culling radius (`stParams.cullRadius`) about the eye, `32/31` of the exit less `1/31` of the trace's length, from the
  * surface itself where it is outside the sphere.
  */
-export const REFLECTION_SCENE_TRACE_HARDWARE_WGSL = wgslBlock(
-  'REFLECTION_SCENE_TRACE_HARDWARE_WGSL',
-  [
-    REFLECTION_LOBE_WGSL,
-    REFLECTION_CONSTANTS_WGSL,
-    REFLECTION_FATE_WGSL,
-    RADIANCE_ANSWER,
-    REFLECTION_SCENE_TRACE_RESULT,
-    surfaceHitCardsWgsl(REFLECTION_HIT_BINDINGS),
-    sceneTraceWgsl(REFLECTION_HARDWARE_SCENE.group, REFLECTION_HARDWARE_SCENE.first),
-  ],
-  `fn reflectionDistantStart(P:vec3f,R:vec3f,stop:f32)->f32{
+export const reflectionSceneTraceHardwareWgsl = (light: LightAtlasFormat) =>
+  wgslBlock(
+    `REFLECTION_SCENE_TRACE_HARDWARE_WGSL(${light})`,
+    [
+      REFLECTION_LOBE_WGSL,
+      REFLECTION_CONSTANTS_WGSL,
+      REFLECTION_FATE_WGSL,
+      RADIANCE_ANSWER,
+      REFLECTION_SCENE_TRACE_RESULT,
+      surfaceHitCardsWgsl(REFLECTION_HIT_BINDINGS, light),
+      sceneTraceWgsl(REFLECTION_HARDWARE_SCENE.group, REFLECTION_HARDWARE_SCENE.first),
+    ],
+    `fn reflectionDistantStart(P:vec3f,R:vec3f,stop:f32)->f32{
  let local=P-view.display.yzw;
  let radius=stParams.cullRadius;
  let along=dot(R,local);
@@ -57,12 +59,12 @@ export const REFLECTION_SCENE_TRACE_HARDWARE_WGSL = wgslBlock(
 }
 /** The answer of a trace that met the triangle \`hit\` from \`origin\` along \`R\`: the light of the cards of its placement, black where none
  *  gives any, seen as a surface the march met is (\`reflectionSeenAt\`), a hit. */
-fn reflectionHardwareHit(P:vec3f,origin:vec3f,R:vec3f,hit:StHit,coord:vec2u,cone:f32)->RadianceAnswer{
+fn reflectionHardwareHit(origin:vec3f,R:vec3f,hit:StHit,coord:vec2u,cone:f32)->RadianceAnswer{
  let at=origin+R*hit.distance;
  let cards=scPlacementMeshCards(scHitPlacement(hit.object));
  let radius=reflectionHitSpread(cone)*hit.distance*REFLECTION_CENTIMETRES;
  let light=scEvaluateMeshCards(cards,at*REFLECTION_CENTIMETRES,hit.normal,radius,reflectionView.hardware.w,reflectionDone(REFLECTION_HI_RES_SURFACE),coord);
- return RadianceAnswer(reflectionSeenAt(light.radiance,at,hit.normal,coord),true,distance(P,at));
+ return RadianceAnswer(reflectionSeenAt(light.radiance,at,hit.normal,coord),true,hit.distance);
 }
 fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,begin:f32,coord:vec2u,cone:f32,firstPerson:bool)->ReflectionSceneTrace{
  reflectionWork=0u;
@@ -79,7 +81,7 @@ fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,begin:f32,coord:vec2
   let hit=stTrace(StRay(origin-view.display.yzw,lobe.R,start,far,ST_SKIP_TRANSLUCENT|ST_CULL_BACK|select(ST_MEET_WORLD_SPACE,0u,firstPerson)));
   reflectionWork=stSteps;
   if(hit.hit){
-   answer=reflectionHardwareHit(P,origin,lobe.R,hit,coord,cone);
+   answer=reflectionHardwareHit(origin,lobe.R,hit,coord,cone);
    open=false;
   }else if(!stComplete){
    // A trace that stopped before its walk was whole, holding no hit, is a black hit at the end of the ray.
@@ -90,4 +92,4 @@ fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,begin:f32,coord:vec2
  reflectionFate=select(REFLECTION_FATE_OPEN,REFLECTION_FATE_HIT,answer.hit);
  return ReflectionSceneTrace(answer,open);
 }`,
-)
+  )

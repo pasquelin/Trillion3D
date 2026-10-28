@@ -8,6 +8,8 @@ export type BufferKind = 'storage' | 'uniform' | 'args' | 'list' | 'head'
 export interface TextureOptions {
   usage?: GPUTextureUsageFlags
   dimension?: '2d' | '3d'
+  /** The samples a texel holds (a multisampled attachment); 1 by default. */
+  sampleCount?: 1 | 4
 }
 
 /**
@@ -62,12 +64,20 @@ const usageOf = (kind: BufferKind) => {
 const descriptorOf = (
   size: readonly number[],
   format: GPUTextureFormat,
-  { dimension = '2d' }: TextureOptions,
+  { dimension = '2d', sampleCount = 1 }: TextureOptions,
   mipLevelCount = 1,
-) => ({ size: [...size], format, dimension, mipLevelCount })
+) => ({ size: [...size], format, dimension, mipLevelCount, sampleCount })
 
 /** The bytes of a buffer of `words` 32-bit words: never under a vector's. */
 const bufferBytes = (words: number) => Math.max(16, words * 4)
+
+/** A view of all the levels of `texture`, and a view of each alone. */
+const mipViews = (texture: GPUTexture, levels: number) => ({
+  all: texture.createView(),
+  levels: Array.from({ length: levels }, (_, level) =>
+    texture.createView({ baseMipLevel: level, mipLevelCount: 1 }),
+  ),
+})
 
 /** The allocator over `device`: textures (sampled and storage unless told otherwise) and buffers as asked, named with `label`
  *  first, all counted and kept to be destroyed together. */
@@ -102,13 +112,7 @@ export function gpuAllocator(device: GPUDevice, label: string) {
       return make(name, size, format, options).createView()
     },
     mipped(name: string, size: readonly number[], format: GPUTextureFormat, levels: number) {
-      const created = make(name, size, format, {}, levels)
-      return {
-        all: created.createView(),
-        levels: Array.from({ length: levels }, (_, level) =>
-          created.createView({ baseMipLevel: level, mipLevelCount: 1 }),
-        ),
-      }
+      return mipViews(make(name, size, format, {}, levels), levels)
     },
     image(
       name: string,

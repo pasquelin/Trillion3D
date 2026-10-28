@@ -84,7 +84,7 @@ async function frames() {
     mask: {} as GPUTextureView,
     ready: () => ready,
     encodeMask: (_encoder, i) => void gpu.commands.push(`mask ${i}`),
-    markStale: () => undefined,
+    markStale: () => {},
   }
   /** The order of the lit image's passes and the masks between them, the `loadOp` of each pass and the
    *  pipelines it drew with. */

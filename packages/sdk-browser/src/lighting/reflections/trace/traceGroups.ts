@@ -277,15 +277,9 @@ function surfaceGroups(
   return { ...tracingGroups(kit, sceneEntries), ...resolvingGroups(kit, vectors, last) }
 }
 
-/** The bind groups of `reflection`'s trace over `inputs` on `layouts`, made again when a resource
- *  they name is not the one they were made over (`stages`, the pipelines they serve, among them). */
-export function traceGroups(
-  reflection: TraceResources,
-  stages: object,
-  layouts: TraceLayouts,
-  inputs: TraceInputs,
-) {
-  const { device, targetView, resolvedView, depthView, grids, trace, front, census } = reflection
+/** The resources the trace's groups name, recorded in the identity they are made again when it moves. */
+function recordGroupInputs(reflection: TraceResources, stages: object, inputs: TraceInputs) {
+  const { targetView, resolvedView, depthView, grids, trace, front, census } = reflection
   const { next } = trace.identity
   next.length = 0
   next.push(
@@ -304,6 +298,18 @@ export function traceGroups(
   next.push(inputs.field, inputs.field.readGeneration, inputs.vectors, inputs.blue)
   const { hit } = inputs
   next.push(hit.tables, hit.depth, hit.final, hit.feedback, hit.grid, hit.instances)
+}
+
+/** The bind groups of `reflection`'s trace over `inputs` on `layouts`, made again when a resource
+ *  they name is not the one they were made over (`stages`, the pipelines they serve, among them). */
+export function traceGroups(
+  reflection: TraceResources,
+  stages: object,
+  layouts: TraceLayouts,
+  inputs: TraceInputs,
+) {
+  const { device, targetView, resolvedView, depthView, grids, trace, front, census } = reflection
+  recordGroupInputs(reflection, stages, inputs)
   if (!trace.identity.moved() && trace.groups) return trace.groups
   // What a ray reads of the scene, the scene stage's.
   const scene: Named = {

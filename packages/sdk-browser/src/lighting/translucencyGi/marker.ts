@@ -7,6 +7,7 @@ import type { TranslucencyGiState } from './gpu.ts'
 import { reflectionGroupOf } from './image.ts'
 import { translucencyGiKernels } from './kernels.ts'
 import { TRANSLUCENCY_GI_GROUP } from './layout.ts'
+import { translucencyCacheLight, translucencyGiSettings } from './settings.ts'
 import { MARK_GI_BINDING } from './markWgsl.ts'
 
 /**
@@ -45,7 +46,13 @@ export function markerOf(rt: WebgpuPagesRuntime, held: TranslucencyGiState): Poo
     mark(pass, grid, marks) {
       const device = rt.gpu.device
       const kernels =
-        device && held.resources && translucencyGiKernels(device, held.resources.coneFormat)
+        device &&
+        held.resources &&
+        translucencyGiKernels(
+          device,
+          held.resources.coneFormat,
+          translucencyCacheLight(rt, device, translucencyGiSettings(rt)),
+        )
       const reflection = reflectionGroupOf(rt)
       if (!device || !kernels || !reflection || !held.resources) return
       const { frame } = held.resources

@@ -7,6 +7,7 @@ import {
 } from '../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { SceneLightStore } from '../../../../../sdk-core/src/scene/light/store.ts'
 import { environmentBrdfTable } from '../../../../../sdk-core/src/lighting/environmentBrdf.ts'
+import { shadingEnergyWords } from '../../../../../sdk-core/src/lighting/shadingEnergy.ts'
 import { sheenLtcHalves } from '../../../../../sdk-core/src/lighting/sheenLtc.ts'
 import { ltcTable } from '../../../../../sdk-core/src/lighting/ltcTable.ts'
 import { HEAD_BYTES, LIGHT_BUFFER_AT } from './lightBufferLayout.ts'
@@ -19,7 +20,7 @@ const SLOT_BYTES = SCENE_LIGHT_FLOATS * 4
 const bufferSlots = (store: SceneLightStore) => Math.max(store.capacity, LIGHT_SETTINGS.tileLights)
 
 /** Contract light buffer for the store's light slots — the header, the environment's irradiance,
- *  the atmosphere's regions, the fitted lobe of the rectangles and the environment BRDF, written here once, then every
+ *  the atmosphere's regions, the fitted lobe of the rectangles, the environment BRDF and the GGX energy table, written here once, then every
  *  slot. */
 export function createSceneLightContractBuffer(device: GPUDevice, store: SceneLightStore) {
   const buffer = device.createBuffer({
@@ -29,6 +30,7 @@ export function createSceneLightContractBuffer(device: GPUDevice, store: SceneLi
   })
   device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.ltc, ltcTable())
   device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.envBrdf, environmentBrdfTable())
+  device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.shadingEnergy, shadingEnergyWords())
   device.queue.writeBuffer(buffer, LIGHT_BUFFER_AT.sheen, sheenLtcHalves())
   return buffer
 }

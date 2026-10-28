@@ -7,6 +7,7 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { FEEDBACK_AT, FEEDBACK_HEADER_WORDS, feedbackWords } from './feedbackLayout.ts'
 import { FEEDBACK_COMPACTION_SHADER } from './feedbackWgsl.ts'
 import { surfaceCacheSampleWgsl } from './sampleWgsl.ts'
+import { WORD_LIGHT_FORMAT } from '../../gpu/core/lightAtlasFormat.ts'
 
 type Kernels = {
   buildFeedbackTable: (id: number[], groups: number[]) => void
@@ -121,7 +122,9 @@ test('the buffer’s parts follow the header, the last-read part a power of two 
 })
 
 test('the header’s words are the ones the read library indexes the feedback buffer by', () => {
-  const text = wgslModule(surfaceCacheSampleWgsl(0, 0, { feedback: true, compressed: false }))
+  const text = wgslModule(
+    surfaceCacheSampleWgsl(0, 0, { feedback: true, compressed: false, light: WORD_LIGHT_FORMAT }),
+  )
   const indexed = new Set(
     [...text.matchAll(/scFeedback\[(\d+)\]/g)].map((match) => Number(match[1])),
   )

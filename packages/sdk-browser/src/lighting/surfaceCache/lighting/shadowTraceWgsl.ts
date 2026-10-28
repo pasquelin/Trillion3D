@@ -67,15 +67,12 @@ fn ${SHADOW_ARGS_ENTRY}(){
   ],
 )
 
-export const SHADOW_TRACE_ENTRY = 'shadowTrace'
-
-const shadowTraceProgram = (format: AtlasFormat) =>
-  wgslProgram(
-    `@group(0) @binding(${B.traces}) var<storage,read> traces:array<u32>;
+const traceDeclarations = `@group(0) @binding(${B.traces}) var<storage,read> traces:array<u32>;
 @group(0) @binding(${B.masks}) var<storage,read_write> masks:array<atomic<u32>>;
 @group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
-@group(0) @binding(${B.lightTiles}) var<storage,read> lightTiles:array<u32>;
-/** The byte of the texel \`coord\` in the mask of light tile \`lightTile\`. */
+@group(0) @binding(${B.lightTiles}) var<storage,read> lightTiles:array<u32>;`
+
+const traceMasks = `/** The byte of the texel \`coord\` in the mask of light tile \`lightTile\`. */
 fn maskByteAt(lightTile:u32,coord:vec2u)->u32{
  let bit=shadowBit(coord);
  return shadowByteIn(atomicLoad(&masks[lightTile*SHADOW_MASK_TILE_WORDS+bit/32u]),bit);
@@ -105,8 +102,10 @@ fn shadowRayBlocked(texel:SurfaceTexel,rank:u32)->bool{
  if(!lgFlag(FLAG_FORCE_TWO_SIDED)){flags|=ST_CULL_FRONT;}
  let hit=stTrace(StRay(origin,toward,0.0,span/CM_PER_M,flags));
  return hit.hit||!stComplete;
-}
-@compute @workgroup_size(${WORKGROUP_THREADS})
+}`
+
+const traceEntry = () =>
+  `@compute @workgroup_size(${WORKGROUP_THREADS})
 fn ${SHADOW_TRACE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
  let i=flatGroup(group,n)*${WORKGROUP_THREADS}u+lane;
  if(i>=traces[0]){return;}
@@ -132,7 +131,15 @@ fn ${SHADOW_TRACE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgro
    setMaskByte(lightTile,other,was,select(was,0u,shadowed)|SHADOW_COMPLETE);
   }
  }
-}`,
+}`
+
+export const SHADOW_TRACE_ENTRY = 'shadowTrace'
+
+const shadowTraceProgram = (format: AtlasFormat) =>
+  wgslProgram(
+    `${traceDeclarations}
+${traceMasks}
+${traceEntry()}`,
     [
       lightingCommonWgsl({ tables: B.tables }),
       surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),

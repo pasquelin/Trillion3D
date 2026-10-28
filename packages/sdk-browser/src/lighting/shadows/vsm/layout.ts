@@ -9,6 +9,7 @@ import {
   VSM_POOL_PAGES,
   VSM_PAGE_TEXELS,
   VSM_LEVEL0_PAGES,
+  VSM_MAX_SINGLE_PAGE_MAPS,
   VSM_RECORD_MAP_COUNT,
   VSM_PAGE_TABLE_BLOCK_HEIGHT,
   VSM_TABLE_ROW_WIDTH,
@@ -28,8 +29,15 @@ export type VsmCoverMode = (typeof VSM_COVER_MODES)[number]
 /** Whether a cover made for `held` holds what one made for `asked` does. */
 /** The receiver cover the receiver-mask settings ask (`shadowUseReceiverMaskLocal`, `shadowUseReceiverMaskDirectional`): every map's where
  *  the local one is on, the suns' where only the directional one is, none otherwise. */
-export const vsmCoverModeOf = (local: boolean, directional: boolean): VsmCoverMode =>
+const vsmCoverModeOf = (local: boolean, directional: boolean): VsmCoverMode =>
   local ? 'all' : directional ? 'suns' : 'none'
+
+/** The cover mode the receiver-mask settings make, read through `read` (the frame's runtime, or the defaults for the memory
+ *  budget): the one place the two settings are turned into a mode. */
+export const vsmCoverModeOfSettings = (
+  read: (key: 'shadowUseReceiverMaskLocal' | 'shadowUseReceiverMaskDirectional') => boolean,
+): VsmCoverMode =>
+  vsmCoverModeOf(read('shadowUseReceiverMaskLocal'), read('shadowUseReceiverMaskDirectional'))
 
 export const vsmCoverHolds = (held: VsmCoverMode, asked: VsmCoverMode) =>
   VSM_COVER_MODES.indexOf(held) >= VSM_COVER_MODES.indexOf(asked)
@@ -59,6 +67,8 @@ export interface VsmResourceOptions {
   /** The suns' clipmaps hold a prefiltered shadow of their far levels (`shadowPrefilteredDistant`):
    *  the filter's pools, lists and history are made with the set; default false. */
   prefilteredDistant?: boolean
+  /** The shadows are classic shadow maps (`shadowVirtualEnable` off): the projection passes are those of the classic filter (`../classic/classicTraceWgsl.ts`), not the soft rays'; default false. */
+  classic?: boolean
 }
 
 /** Everything derived from the options; also what `writeVsmUniforms` needs. */
@@ -100,6 +110,8 @@ export interface VsmLayout {
   pyramidSize: [number, number]
   /** Whether the set holds the prefiltered distant shadow's buffers (`prefilteredDistant`). */
   prefilteredDistant: boolean
+  /** Whether the projection passes filter classic shadow maps (`classic`). */
+  classic: boolean
   /** The page-table blocks the suns' clipmap maps take at most, the first of the table
    *  (`tableBlocks.ts`): what the prefiltered shadow keeps of the previous frame. */
   sunMapSlots: number
@@ -120,10 +132,11 @@ export const VSM_TABLES_PER_ROW = VSM_TABLE_ROW_WIDTH / 2 / VSM_LEVEL0_PAGES
 if (!isPow2(VSM_TABLES_PER_ROW))
   throw new Error('VSM: page table row must be a power of two tables')
 
-/** Declared: the maps a set holds past one a block unless the lights ask more (`mapSlotsPast`), the records a frame may write beyond its blocks:
- *  a map whose finest mip is coarser than 0 takes a quarter of a block or less (`tableBlocks.ts`),
- *  so far lights take records, not table rows. Each is a projection record (304 B) of both frames. */
-const VSM_MAPS_PAST_BLOCKS = 1024 * 8
+/** Declared: the map slots a set holds unless the lights ask more (`mapSlotsPast`): the ids reserved for the maps of one page
+ *  (`VSM_MAX_SINGLE_PAGE_MAPS`) and the records a frame may write for full maps past its blocks: a map whose finest mip is
+ *  coarser than 0 takes a quarter of a block or less (`tableBlocks.ts`), so far lights take records, not table rows. Each is a
+ *  projection record (304 B) of both frames. */
+const VSM_MAPS_PAST_BLOCKS = VSM_MAX_SINGLE_PAGE_MAPS + 1024
 
 /** The physical pool's row, in pages: one page-table row's width, a power of two. */
 export const POOL_PAGES_X = Math.floor(VSM_TABLE_ROW_WIDTH / VSM_PAGE_TEXELS)
@@ -151,26 +164,35 @@ function coverLayout(coverMode: VsmCoverMode, maxFull: number, sunMaps: number) 
 export const dynamicHzbOf = (occlusion: boolean, cacheEnabled: boolean, dynamicHzb?: boolean) =>
   occlusion && cacheEnabled && !!dynamicHzb
 
-/** Pure sizing; no device needed: each pool slice is one buffer, bound whole
- *  (`poolSliceBytes`; the pages a device's binding holds, `vsmPoolPagesBound`). */
-export function vsmLayout(options: VsmResourceOptions): VsmLayout {
-  const cacheEnabled = options.cacheEnabled ?? true,
-    occlusion = options.occlusion ?? true
-  // The physical pool: fixed power-of-two row width, height for the requested page count.
-  const physicalPagesY = ceilDiv(Math.max(1, options.poolPages ?? VSM_POOL_PAGES), POOL_PAGES_X)
+/** The physical pool: a fixed power-of-two row width, the height for the requested page count. */
+function poolLayoutOf(pages: number | undefined) {
+  const physicalPagesY = ceilDiv(Math.max(1, pages ?? VSM_POOL_PAGES), POOL_PAGES_X)
   const poolPages = POOL_PAGES_X * physicalPagesY
   const poolTexelsXY: [number, number] = [
     POOL_PAGES_X * VSM_PAGE_TEXELS,
     physicalPagesY * VSM_PAGE_TEXELS,
   ]
+  return { poolPages, physicalPagesY, poolTexelsXY }
+}
 
-  // The page table: `VSM_TABLES_PER_ROW` blocks a row, one block at least.
-  const maxFull = Math.max(1, options.fullMapCapacity)
+/** The page table: `VSM_TABLES_PER_ROW` blocks a row, one block at least. */
+function pageTableOf(maxFull: number) {
   const pageTableRows = ceilDiv(maxFull, VSM_TABLES_PER_ROW)
   const pageTableSize: [number, number] = [
     VSM_TABLES_PER_ROW * VSM_LEVEL0_PAGES,
     pageTableRows * VSM_PAGE_TABLE_BLOCK_HEIGHT,
   ]
+  return { pageTableRows, pageTableSize }
+}
+
+/** Pure sizing; no device needed: each pool slice is one buffer, bound whole
+ *  (`poolSliceBytes`; the pages a device's binding holds, `vsmPoolPagesBound`). */
+export function vsmLayout(options: VsmResourceOptions): VsmLayout {
+  const cacheEnabled = options.cacheEnabled ?? true,
+    occlusion = options.occlusion ?? true
+  const { poolPages, physicalPagesY, poolTexelsXY } = poolLayoutOf(options.poolPages)
+  const maxFull = Math.max(1, options.fullMapCapacity)
+  const { pageTableRows, pageTableSize } = pageTableOf(maxFull)
   // The page marks carry VSM_LOG2_PAGE mips.
   const markMips = VSM_LOG2_PAGE
   const flags = mipChain(pageTableSize[0], pageTableSize[1], markMips)
@@ -212,6 +234,7 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
     hzbStaticLayer: hzbLayers - 1,
     pyramidSize: vsmPyramidSize(poolTexelsXY),
     prefilteredDistant: options.prefilteredDistant ?? false,
+    classic: options.classic ?? false,
     sunMapSlots: Math.min(maxFull, sunMaps),
   }
 }

@@ -1,5 +1,4 @@
-import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
-import { ledgerAdmitted } from '../../../gpu/core/deviceLedger.ts'
+import { shapeView } from '../../../gpu/core/shapeView.ts'
 import { textureBytesOf } from '../../../gpu/core/textureBytes.ts'
 import { viewResources, type ViewTexture } from '../viewResources.ts'
 import { occlusionBuffers, tileCounts, CONE_DIRECTIONS } from './cones.ts'
@@ -21,9 +20,6 @@ export interface DfaoShape {
   objects: number
   perTile: number
 }
-
-/** The meshes the lists have room for: `count` rounded up to a multiple of 256. */
-export const objectCapacity = (count: number) => Math.max(1, ceilDiv(count, 256)) * 256
 
 /**
  * A VIEW'S OCCLUSION RESOURCES, at the extent its buffers are made at: the normals and depths grid, the bent normals at
@@ -155,13 +151,10 @@ export function ensureDfaoView(
   device: GPUDevice,
   shape: DfaoShape,
 ): { view?: DfaoView; why?: string } {
-  if (held && dfaoShapeKey(held.shape) === dfaoShapeKey(shape)) return { view: held }
-  const asked = dfaoViewBytes(shape)
-  const { value, why } = ledgerAdmitted(device, {
-    held,
-    asked,
+  return shapeView(held, device, {
+    same: held !== undefined && dfaoShapeKey(held.shape) === dfaoShapeKey(shape),
     what: 'the distance-field occlusion',
-    make: () => makeView(device, shape, asked),
+    bytes: () => dfaoViewBytes(shape),
+    make: (asked) => makeView(device, shape, asked),
   })
-  return { view: value, why }
 }

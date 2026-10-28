@@ -19,6 +19,7 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { VoxelBuffers } from './voxelGpu.ts'
 import { encodeStatic } from './staticPass.ts'
 import { encodeVoxels, type VoxelGraphPass } from './voxelPasses.ts'
+import type { SampledVolumeBinding } from '../manyLightsSampled/volume.ts'
 
 /** What one image gives the volume's passes: the scene's depth and, where this image built the depth
  *  pyramid's farthest layer of the finished opaque depth before the volume (after the raster's rest
@@ -27,6 +28,8 @@ import { encodeVoxels, type VoxelGraphPass } from './voxelPasses.ts'
  *  light lists, the virtual shadow maps the sun's shadow reads (the very ones a blended surface
  *  binds), and the fog's cubemap, none where it has none. */
 export interface FogPassInputs {
+  /** The sampled lighting's volume this image (`sampledLightsVolume`): its resources; none, the cells walk the lights of their list. */
+  mlVolume?: SampledVolumeBinding
   depth: GPUTextureView
   hiz?: HizDepth
   lights: GPUBuffer
@@ -71,6 +74,8 @@ export function createFogGroups() {
     furthest: createProgramGroups(),
     scatter: createProgramGroups(),
     scatterSky: createProgramGroups(),
+    scatterSampled: createProgramGroups(),
+    scatterSkySampled: createProgramGroups(),
     static: createProgramGroups(),
     integrate: createProgramGroups(),
     prepare: createProgramGroups(),
@@ -203,10 +208,35 @@ function encodeFurthest(
  *  plain one. */
 function scatterOf(context: FogPassContext, input: FogPassInputs) {
   const { resources, groups } = context
+  if (
+    input.mlVolume &&
+    input.mlVolume.drawn === input.mlVolume.image &&
+    resources.sampledScatter(!!input.field).pipeline.ready
+  ) {
+    // The lights lit by the sampled lighting's volume (`sampledLightsVolume`): the variant of the scatter that reads it, with the sky's visibility where the field is given.
+    return input.field
+      ? {
+          program: resources.sampledScatter(true),
+          groups: groups.scatterSkySampled,
+          field: input.field,
+          volume: input.mlVolume,
+        }
+      : {
+          program: resources.sampledScatter(false),
+          groups: groups.scatterSampled,
+          field: undefined,
+          volume: input.mlVolume,
+        }
+  }
   const sky = input.field && resources.skyScatter()
   return sky?.pipeline.ready
-    ? { program: sky, groups: groups.scatterSky, field: input.field }
-    : { program: resources.programs.scatter, groups: groups.scatter, field: undefined }
+    ? { program: sky, groups: groups.scatterSky, field: input.field, volume: undefined }
+    : {
+        program: resources.programs.scatter,
+        groups: groups.scatter,
+        field: undefined,
+        volume: undefined,
+      }
 }
 
 const FOG_PASS: GPUComputePassDescriptor = { label: FOG_VOLUME_PASS }
@@ -219,7 +249,7 @@ function encodeScatter(
   textures: VolumeTextures,
 ) {
   const { device, ping, whiteCubemap } = context
-  const { program, groups, field } = scatterOf(context, input)
+  const { program, groups, field, volume } = scatterOf(context, input)
   const pipeline = program.pipeline.get()
   if (!pipeline) return
   const { next } = groups.identity
@@ -249,6 +279,8 @@ function encodeScatter(
   next[22] = textures.baked ?? null
   next[23] = input.localTiles
   next[24] = input.translucencyGi?.fogView
+  next[25] = volume?.params
+  next[26] = volume?.samplesRead
   pass.setPipeline(pipeline)
   pass.setBindGroup(
     0,
@@ -256,6 +288,12 @@ function encodeScatter(
       keptProgramGroup(device, program.layout, groups, [
         ...scatterEntries(context, input, textures),
         ...(field?.readEntries(FOG_BINDING.field) ?? []),
+        ...(volume
+          ? namedEntries(FOG_BINDING, {
+              mlParams: { buffer: volume.params },
+              mlSamplesIn: volume.samplesRead,
+            })
+          : []),
       ]),
   )
   const { cells } = context

@@ -20,6 +20,8 @@ export interface StageOptions {
   readonly graphs: boolean
   readonly shade: CloudVertexText
   readonly marks: boolean
+  /** The nearest translucent layer is lit by the sampled lighting (`sampledLightsFrontLayer`): its fragment reads that light in place of walking the lights. */
+  readonly sampledFront: boolean
   readonly depth: boolean
   readonly layer: boolean
 }
@@ -31,6 +33,7 @@ export const stageOptions = (
   programs: readonly SurfaceProgram[] | undefined,
   reads: VertexReads,
   marks: boolean,
+  sampledFront = false,
 ): StageOptions => {
   const graphs = !!programs?.length
   return {
@@ -38,6 +41,7 @@ export const stageOptions = (
     graphs,
     shade: cloudVertexText(reads),
     marks,
+    sampledFront,
     depth: graphs && depthOf(programs),
     layer: graphs && layerOf(programs),
   }
@@ -52,7 +56,7 @@ export const stageSurface = (lobes: boolean, programs?: readonly SurfaceProgram[
 
 /** The part of a stage's block name that says which pieces its text holds: the lights' key and the options past it. */
 export const stageLabel = (o: StageOptions) =>
-  `${variantLabel(o.lit)}, ${o.graphs}${o.shade.key}${o.marks ? ', surface shadow marks' : ''}${o.depth ? ', pushed depth' : ''}${o.layer ? ', layer' : ''}`
+  `${variantLabel(o.lit)}, ${o.graphs}${o.shade.key}${o.marks ? ', surface shadow marks' : ''}${o.sampledFront ? ', sampled front light' : ''}${o.depth ? ', pushed depth' : ''}${o.layer ? ', layer' : ''}`
 
 /** The statements that set, before a translucent layer is lit, whether its diffuse light is the rough diffuse (`shadingRoughDiffuse`,
  *  `BlendView.roughDiffuse`; a cloth then takes Lambert's, `setCloth`) and whether the visibility of its specular lobes is the exact one

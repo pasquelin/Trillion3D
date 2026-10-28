@@ -15,6 +15,7 @@ import {
 import { matrixAtRenderOrigin } from '../../../../../../math/src/projection/renderOrigin.ts'
 import { vsmWriteDepthFromDeviceZ } from '../constants.ts'
 import { VSM_DEFAULT_SHADOWS } from '../mapSettings.ts'
+import { classicBiasWord, writeClassicView } from '../../classic/classicView.ts'
 import {
   VSM_PROJECTION_HEADER_WORDS,
   VSM_PROJECTION_LIGHT_WORD,
@@ -57,7 +58,10 @@ export interface ViewWords {
 const ORIGIN = [0, 0, 0] as const
 
 /** What the view's header is written from (`VsmProjectionFrame`). */
-type ViewInputs = Pick<VsmProjectionFrame, 'width' | 'height' | 'camera' | 'frameIndex' | 'trace'>
+type ViewInputs = Pick<
+  VsmProjectionFrame,
+  'width' | 'height' | 'camera' | 'frameIndex' | 'trace' | 'classic'
+>
 
 /** The view's matrices into `scratch`: its inverse — the eye its translation (words 12-14) —, the
  *  origin shift, and the shifted-to-view, view-to-clip, shifted-to-clip matrices and its inverse. */
@@ -122,6 +126,15 @@ function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number, sun
   u[rays + 1] = trace.shadowRayCountLocal
   u[rays + 2] = trace.shadowSamplesPerRayDirectional
   u[rays + 3] = trace.shadowSamplesPerRayLocal
+  const { classic } = inputs
+  if (classic)
+    writeClassicView(
+      f,
+      VSM_PROJECTION_VIEW_WORD.classic,
+      classic.suns,
+      classic.settings,
+      classic.nearCentimetres,
+    )
 }
 
 /** The header's screen words (`screenRayScale` on) from view-to-clip `v2c`. */
@@ -156,6 +169,7 @@ function writeLightRecord(
   o: number,
   light: VsmProjectionLight,
   shift: Float64Array,
+  classic: boolean,
 ) {
   const d = light.direction
   const p = light.type === 'directional' ? ORIGIN : light.position
@@ -166,7 +180,9 @@ function writeLightRecord(
     f[o + L.direction + k] = -d[k]
   }
   f[o + L.radius] = light.type === 'directional' ? 0 : light.radius
-  f[o + L.sourceRadius] = light.sourceRadius ?? 0
+  // A classic shadow casts no soft ray, so the slot of the source's size carries the light's two bias factors, packed (`classicBiasWord`, read by `classicTraceWgsl.ts`).
+  if (classic) u[o + L.sourceRadius] = classicBiasWord(light.shadowBias, light.shadowSlopeBias)
+  else f[o + L.sourceRadius] = light.sourceRadius ?? 0
   // The cone's cosine as the lighting packs it: −2, which no direction's cosine reaches, off a spot.
   f[o + L.cosCone] = light.type === 'spot' ? Math.cos(light.coneAngle) : NO_CONE
   i[o + L.mapId] = light.mapId | 0
@@ -194,6 +210,7 @@ export function writeVsmProjectionView(
       VSM_PROJECTION_HEADER_WORDS + k * VSM_PROJECTION_LIGHT_WORDS,
       lights[k],
       scratch.shift,
+      inputs.classic !== undefined,
     )
   return 4 * words
 }

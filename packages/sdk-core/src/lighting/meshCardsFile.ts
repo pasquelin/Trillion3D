@@ -1,5 +1,9 @@
-import { EngineError } from '../contracts/cache.ts'
-import { assertSidecarSection, checkSidecarHead } from '../contracts/sidecarSection.ts'
+import {
+  assertSidecarSection,
+  checkSidecarHead,
+  sidecarRefusal,
+  type SidecarRefusal,
+} from '../contracts/sidecarSection.ts'
 import {
   MESH_CARDS_CARD_BYTES,
   MESH_CARDS_DIRECTIONS,
@@ -54,9 +58,7 @@ export interface MeshCards {
   readonly cards: readonly MeshCard[]
 }
 
-const refuse = (why: string): never => {
-  throw new EngineError('INVALID_CACHE', `mesh cards: ${why}`, {})
-}
+const refuse: SidecarRefusal = sidecarRefusal('mesh cards')
 
 /** The flag bits a record may carry. */
 const KNOWN_FLAGS = MESH_CARDS_FLAG_TWO_SIDED | MESH_CARDS_FLAG_HLOD_CELL

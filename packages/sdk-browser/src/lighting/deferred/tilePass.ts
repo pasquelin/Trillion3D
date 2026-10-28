@@ -1,6 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { DEFERRED_BINDINGS } from './bindings.ts'
-import { buildRenderPipeline } from './fullscreen.ts'
 import {
   TILE_CLASS_NAMES,
   TILE_CLASSES,
@@ -36,7 +35,7 @@ override TILE_CLASS:u32=0u;
 
 /** A light added to the lit image: its colour summed with what lies there, and its alpha — the luminance of the light the subsurface
  *  scattering spreads (`SSS_LIT_WGSL`), zero for a pixel it does not reach. */
-export const ADDITIVE_LIGHT: GPUBlendState = {
+const ADDITIVE_LIGHT: GPUBlendState = {
   color: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
   alpha: { operation: 'add', srcFactor: 'one', dstFactor: 'one' },
 }
@@ -45,7 +44,7 @@ export const ADDITIVE_LIGHT: GPUBlendState = {
  * The descriptor of the pipeline of one class of a tile pass: the fragment stage `entryPoint` of
  * `module`, over the tiles of `tileClass` (`TILE_VERTEX_WGSL`), on `layout`.
  */
-export const tilePipelineDescriptor = (
+const tilePipelineDescriptor = (
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
@@ -88,10 +87,6 @@ export const lightPipelineDescriptor = (
     `${label}_${TILE_CLASS_NAMES[tileClass]}`,
     tileClass,
   )
-
-/** That pipeline, built off the thread. */
-export const tilePipeline = (...description: Parameters<typeof tilePipelineDescriptor>) =>
-  buildRenderPipeline(description[0], tilePipelineDescriptor(...description))
 
 /**
  * The tiles of every class drawn in `pass`, each by the indirect draw of its class in `draws`

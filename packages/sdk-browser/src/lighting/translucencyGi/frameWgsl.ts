@@ -74,11 +74,11 @@ export const giQuantizeWgsl = (format: GPUTextureFormat) =>
   )
 
 /**
- * THE VOLUME READ AT A POINT OF THE GRID (`giVolumeCoord`, `giSampleVolumes`, `giSampleVolume`). The coordinate of a clip position is the image's across and the
- * slice's fraction of the grid's depth (the `slices` given, the slices' law `zParams`). The volume the surfaces and the history read is two
- * textures of the one grid, the ambient light and the directional light (`giSampleVolumes`); the fog's holds them in the two halves of one
- * texture (`giSampleVolume`, `stackedSample`). Each is read trilinearly, the depth held half a slice inside; the result is the ambient light
- * in the first column, the directional in the second.
+ * THE VOLUME READ AT A POINT OF THE GRID (`giVolumeCoord`, `giSampleVolume`). The coordinate of a clip position is the image's across and the
+ * slice's fraction of the grid's depth (the `slices` given, the slices' law `zParams`). The volume the surfaces, the history and the fog read
+ * holds the ambient light and the directional light in the two halves of one texture (`stackedSample`). Each half is read trilinearly, the
+ * depth held half a slice inside it, so that the filter never mixes the two; the result is the ambient light in the first column, the
+ * directional in the second.
  */
 export const GI_SAMPLE_WGSL = wgslBlock(
   'GI_SAMPLE_WGSL',
@@ -90,11 +90,6 @@ export const GI_SAMPLE_WGSL = wgslBlock(
 }
 fn giSampleVolume(volume:texture_3d<f32>,smp:sampler,uvw:vec3f,slices:f32)->mat2x3f{
  return mat2x3f(stackedSample(volume,smp,uvw,slices,0.0,2.0).xyz,stackedSample(volume,smp,uvw,slices,1.0,2.0).xyz);
-}
-/** The two lights of two textures of the one grid: the ambient light and the directional light, each read trilinear. */
-fn giSampleVolumes(ambient:texture_3d<f32>,directional:texture_3d<f32>,smp:sampler,uvw:vec3f,slices:f32)->mat2x3f{
- let at=vec3f(uvw.xy,clamp(uvw.z*slices,0.5,slices-0.5)/slices);
- return mat2x3f(textureSampleLevel(ambient,smp,at,0.0).xyz,textureSampleLevel(directional,smp,at,0.0).xyz);
 }`,
 )
 

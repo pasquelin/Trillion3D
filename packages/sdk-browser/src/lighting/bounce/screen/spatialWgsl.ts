@@ -1,20 +1,21 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { fastAcos } from '../../../../../math/src/wgsl/geometry.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { SP_QUANTIZE } from './gatherWgsl.ts'
 import { spProbes } from './probesWgsl.ts'
-import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
+import {
+  SCREEN_PROBE_FORMATS as F,
+  PROBE_PIXEL_BINDINGS,
+  bindingTable,
+} from './screenProbeLayout.ts'
 
 /** The spatial filter's bindings: the probes' records and pixels, the probes flagged as disoccluded, the
  *  gathered radiance read and the one written, the share of each probe's rays that move, the rank of the pass (its first word). */
 export const SPATIAL_BINDINGS = bindingTable({
-  params: [0, 'uniform'],
-  info: [1, 'float'],
-  normal: [2, 'uint'],
-  counts: [3, 'buffer-read'],
-  pixels: [4, 'buffer-read'],
+  ...PROBE_PIXEL_BINDINGS,
   disocclusion: [5, 'buffer-read'],
   gatherIn: [6, 'float'],
   gatherOut: [7, { store: F.gather }],
@@ -45,27 +46,10 @@ const SP_NEIGHBOURS = wgslBlock(
  vec2i(-2,0),vec2i(2,0),vec2i(0,-2),vec2i(0,2),vec2i(-1,1),vec2i(1,1),vec2i(-1,-1),vec2i(1,-1));`,
 )
 
-/**
- * THE SPATIAL FILTER, one pass of it: each texel of a probe's octahedron averages the same texel of the four
- * probes next to it — the uniform probes of the tiles at its left, right, above and below — and its
- * own. A neighbour weighs by how near its depth the probe's lies (`exp2(-scale · (Δdepth / depth)²)`, so
- * that a probe on another surface weighs nothing) and by the angle its ray makes with the probe's: the neighbour's
- * hit, from the neighbour, along the texel's direction, seen from the probe, against the direction itself
- * — one minus the angle over `screenProbeSpatialFilterMaxHitAngle` —, the neighbour's distance held to the probe's own,
- * so that a contact shadow keeps its edge and a long distance is not mistaken for a wall. A probe flagged as
- * disoccluded (`screenData`) takes its neighbours' light whatever the angle: what its pixels hold of
- * history is too short to wait for. A probe over a hundredth of its rays moving (`probeMoving`) filters
- * strongly: eight probes more and no angle test, its history being short too. A texel that received no ray (a distance
- * of `-1`) gives none and takes none; the distance is the composite's code (`spHitCode`), carried through the passes. The light a pass writes is
- * as an 11-11-10 target holds it (`spQuantize`), dithered by the blue noise of the texel at the frame, the pass's rank and eleven. With the extra
- * ambient occlusion the same weights average it (`aoIn`, `aoOut`): `ao` is the weighted occlusion of the neighbour, its weight in `w` of the
- * light's.
- */
-const spSpatial = (extraAo: boolean) =>
-  wgslBlock(
-    `SP_SPATIAL(${extraAo})`,
-    [SP_NEIGHBOURS, SP_QUANTIZE],
-    `@group(0) @binding(${B.pixels}) var<storage,read> probePixels:array<u32>;
+/** The declarations of the spatial filter: the probes' pixels, the disocclusion, the motion, the gathered radiance in and out, and the extra occlusion where it is kept. */
+const spatialDeclarations = (
+  extraAo: boolean,
+) => `@group(0) @binding(${B.pixels}) var<storage,read> probePixels:array<u32>;
 @group(0) @binding(${B.disocclusion}) var<storage,read> disocclusion:array<u32>;
 @group(0) @binding(${B.moving}) var<storage,read> probeMoving:array<f32>;
 @group(0) @binding(${B.gatherIn}) var gatherIn:texture_2d<f32>;
@@ -76,8 +60,12 @@ ${
     ? `@group(0) @binding(${B.aoIn}) var aoIn:texture_2d<f32>;
 @group(0) @binding(${B.aoOut}) var aoOut:texture_storage_2d<${F.extraAo},write>;`
     : ''
-}
-/** The weight of a neighbour's probe by how near its depth lies to the probe's: nothing for a probe on no lit surface. */
+}`
+
+/** What a neighbour's probe gives a texel, weighed by its depth and by the angle to the texel's hit. */
+const spatialNeighbour = (
+  extraAo: boolean,
+) => `/** The weight of a neighbour's probe by how near its depth lies to the probe's: nothing for a probe on no lit surface. */
 fn spFilterPosition(neighbour:f32,depth:f32)->f32{
  if(neighbour<0.0){return 0.0;}
  let relative=abs(neighbour-depth)/depth;
@@ -100,14 +88,16 @@ fn spGatherNeighbour(tile:vec2i,t:vec2u,P:vec3f,direction:vec3f,depth:f32,hit:f3
  if(!relax){
   let reach=select(keptHit,min(keptHit,hit),hit>=0.0);
   let toHit=probe.P+direction*reach-P;
-  let angle=acos(clamp(dot(toHit,direction)/max(length(toHit),1e-6),-1.0,1.0));
+  let angle=fastAcos(dot(toHit,direction)/max(length(toHit),1e-6));
   angleWeight=1.0-saturate(angle/sp.spatial.y);
  }
  let weight=position*angleWeight;
  ${extraAo ? 'let ao=textureLoad(aoIn,vec2i(atlas*SP_GATHER+t),0).r*weight;' : 'let ao=0.0;'}
  return SpNeighbour(vec4f(kept.rgb*weight,weight),ao);
-}
-@compute @workgroup_size(8,8)
+}`
+
+/** The kernel: the texel's own light and its neighbours' summed, quantized with a dither. */
+const spatialKernel = (extraAo: boolean) => `@compute @workgroup_size(8,8)
 fn spatialFilter(@builtin(global_invocation_id) id:vec3u){
  let atlas=id.xy/SP_GATHER;
  if(atlas.x>=sp.grid.x||atlas.y>=sp.grid.z){return;}
@@ -119,7 +109,7 @@ fn spatialFilter(@builtin(global_invocation_id) id:vec3u){
  var occlusion=1.0;
  let ownHit=spHitFromCode(own.w);
  if(probe.depth>0.0){
-  let tile=spProbeTile(probePixels[index]);
+  let tile=spProbeTile(index,probePixels[index]);
   let direction=equalAreaDecode((vec2f(t)+blueNoiseVec2(tile,sp.mode.w))/f32(SP_GATHER));
   let moving=probeMoving[index]>0.01;
   let relax=disocclusion[index]!=0u||moving;
@@ -135,8 +125,30 @@ fn spatialFilter(@builtin(global_invocation_id) id:vec3u){
   occlusion=select(0.0,totalAo/total.w,total.w>0.0);
  }
  textureStore(gatherOut,vec2i(id.xy),out);
-${extraAo ? ' textureStore(aoOut,vec2i(id.xy),vec4f(spExtraAoStored(occlusion),0.0,0.0,0.0));' : ''}
-}`,
+${extraAo ? ' textureStore(aoOut,vec2i(id.xy),vec4f(spExtraAoFiltered(occlusion),0.0,0.0,0.0));' : ''}
+}`
+
+/**
+ * THE SPATIAL FILTER, one pass of it: each texel of a probe's octahedron averages the same texel of the four
+ * probes next to it — the uniform probes of the tiles at its left, right, above and below — and its
+ * own. A neighbour weighs by how near its depth the probe's lies (`exp2(-scale · (Δdepth / depth)²)`, so
+ * that a probe on another surface weighs nothing) and by the angle its ray makes with the probe's (the polynomial arc cosine, `fastAcos`): the neighbour's
+ * hit, from the neighbour, along the texel's direction, seen from the probe, against the direction itself
+ * — one minus the angle over `screenProbeSpatialFilterMaxHitAngle` —, the neighbour's distance held to the probe's own,
+ * so that a contact shadow keeps its edge and a long distance is not mistaken for a wall. A probe flagged as
+ * disoccluded (`screenData`) takes its neighbours' light whatever the angle: what its pixels hold of
+ * history is too short to wait for. A probe over a hundredth of its rays moving (`probeMoving`) filters
+ * strongly: eight probes more and no angle test, its history being short too. A texel that received no ray (a distance
+ * of `-1`) gives none and takes none; the distance is the composite's code (`spHitCode`), carried through the passes. The light a pass writes is
+ * as an 11-11-10 target holds it (`spQuantize`), dithered by the blue noise of the texel at the frame, the pass's rank and eleven. With the extra
+ * ambient occlusion the same weights average it (`aoIn`, `aoOut`): `ao` is the weighted occlusion of the neighbour, its weight in `w` of the
+ * light's.
+ */
+const spSpatial = (extraAo: boolean) =>
+  wgslBlock(
+    `SP_SPATIAL(${extraAo})`,
+    [SP_NEIGHBOURS, SP_QUANTIZE, fastAcos],
+    [spatialDeclarations(extraAo), spatialNeighbour(extraAo), spatialKernel(extraAo)].join('\n'),
   )
 
 /** The spatial filter's program over `gather × gather` texels a probe and `samples` of a tile; with the extra ambient occlusion where `extraAo`. */

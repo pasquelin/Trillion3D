@@ -7,7 +7,11 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { MARK_BITS, SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
+import {
+  MARK_BITS,
+  SHADOWLESS_ROOT,
+  WORLD_SPACE_ROOT,
+} from '../../visibility/shader/castingMark.ts'
 import { DFSH_CULL_WGSL } from '../distanceField/shadow/cullWgsl.ts'
 import { flagsOf } from '../distanceField/objectCasting.ts'
 import { vsmRenderCandidatesWgsl } from './vsm/render/renderCandidatesWgsl.ts'
@@ -26,16 +30,25 @@ test('the shadow raster takes every cluster caster whatever its mark, and the ca
     Object.keys(VSM_RENDER_PARAMS.at).filter((field) => /^far/.test(field)),
     [],
   )
-  const { dfshCasts } = shaderRun<{ dfshCasts: (flags: number) => boolean }>(
-    DFSH_CULL_WGSL,
-    ['dfshCasts'],
-    wgslConstants(DFSH_CULL_WGSL),
-  )
+  const { dfshCasts } = shaderRun<{
+    dfshCasts: (flags: number, clusterMeshes: boolean) => boolean
+  }>(DFSH_CULL_WGSL, ['dfshCasts'], wgslConstants(DFSH_CULL_WGSL))
   let combinations = 0
   for (let combination = 0; combination < 1 << BITS.length; combination++) {
     const mark = BITS.reduce((bits, bit, k) => bits | ((combination >> k) & 1 ? bit : 0), 0)
     // The cascade: the placement is made of clusters, whatever its mark, and is left out.
-    assert.equal(dfshCasts(flagsOf(true, false, false, mark)), false, `cascade, mark ${mark}`)
+    assert.equal(
+      dfshCasts(flagsOf(true, false, false, mark), false),
+      false,
+      `cascade, mark ${mark}`,
+    )
+    // A sun without virtual shadow maps lists them (the reference's cull keeps a mesh of clusters when its shadow maps are not the virtual
+    // ones, DistanceFieldShadowing.cpp:655, .usf:111-113): all but the placements that cast none into the cascade.
+    assert.equal(
+      dfshCasts(flagsOf(true, false, false, mark), true),
+      (mark & (SHADOWLESS_ROOT | WORLD_SPACE_ROOT)) === 0,
+      `no maps, mark ${mark}`,
+    )
     combinations++
   }
   assert.equal(combinations, 16)

@@ -1,3 +1,4 @@
+import { sinFromCosUnclamped } from '../../../../../math/src/wgsl/geometry.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { DFAO_COMMON_WGSL } from './commonWgsl.ts'
 import { DFAO_BINDING as B } from './layout.ts'
@@ -71,7 +72,7 @@ fn dfaoTileHit(v:CullVertex)->bool{
  let at=tile.y*dfao.cones.z+tile.x;
  let axisCosine=tileAxis[at];
  let ranges=tileRanges[at];
- let sine=sqrt(1.0-axisCosine.w*axisCosine.w);
+ let sine=sinFromCosUnclamped(axisCosine.w);
  let centre=(dfao.worldToView*vec4f(v.center.xyz,1.0)).xyz;
  let sphere=vec4f(centre,v.center.w+0.5*dfao.distances.x);
  if(!dfaoSphereMeetsCone(sphere,axisCosine.xyz,axisCosine.w,sine)){return false;}
@@ -95,5 +96,5 @@ fn dfaoObjectCullWrite(v:CullVertex)->@location(0) vec4f{
  }
  return vec4f(0.0);
 }`,
-  [DFAO_COMMON_WGSL, meshFieldWgsl(0, B.objects)],
+  [DFAO_COMMON_WGSL, meshFieldWgsl(0, B.objects), sinFromCosUnclamped],
 )

@@ -3,12 +3,9 @@ import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import { coarseQuadScene } from '../backend/coarseQuads.fixture.ts'
-import { camera, disposeQuadRun } from '../backend/testScenes.fixture.ts'
+import { backendOf, camera, disposeQuadRun } from '../backend/testScenes.fixture.ts'
 import { settledImage } from '../backend/settledImage.fixture.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 // `geometryAllocationBytes` counts the page slots AND the vertex buffers held beside them —
 // the float geometry of what no page covers, a one-vertex placeholder at least. The budget pays the
@@ -20,11 +17,10 @@ import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 function budgetedQuad(geometryPoolBytes: number) {
   const fixture = coarseQuadScene(),
     { device } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
+    maxResidentPages: undefined,
     ...fixture,
     gpuDevice: device,
-    viewport: [32, 32],
     geometryPoolBytes,
   })
   return { fixture, backend }

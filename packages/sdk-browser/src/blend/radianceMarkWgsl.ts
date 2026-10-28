@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { wgslModule } from '../../../math/src/wgsl/assemble.ts'
 import { translucencyMedium } from '../lighting/translucency/modeWgsl.ts'
+import { translucencyVolumeMarkWgsl } from '../lighting/translucency/markWgsl.ts'
 import { hizDepthWgsl } from '../visibility/hiz/gpu/pyramidTexture.ts'
 import {
   translucentMark,
@@ -23,6 +24,9 @@ import { BLEND_FRAGMENT_KEPT_WGSL } from './frontStageWgsl.ts'
 /** The group the radiance mark's resources are bound in, and where its depth pyramid's three bindings begin in it. */
 export const RADIANCE_MARK_GROUP = 1
 export const RADIANCE_MARK_DEPTH_BINDING = 3
+/** The bindings, after the depth pyramid's three, of the translucency volume's frame and of its marks (`translucencyVolumeMarkWgsl`). */
+export const VOLUME_MARK_FRAME_BINDING = RADIANCE_MARK_DEPTH_BINDING + 3
+export const VOLUME_MARK_TEXTURE_BINDING = VOLUME_MARK_FRAME_BINDING + 1
 
 /**
  * THE RADIANCE MARK STAGE (`fsRadianceMark`), the translucent surfaces' fragment that marks the cells of the radiance cache they read
@@ -30,8 +34,10 @@ export const RADIANCE_MARK_DEPTH_BINDING = 3
  * reads, no light and no target. A fragment is marked unless the opaque surfaces hide it (the farthest depth of the pyramid's level `hizMip`
  * at its place being nearer than it, compared as device depths, the reverse of a view depth's order, so handed over negated), the blend would
  * not keep it (`blendFragmentKept`: the cutout, the line dash, a thin layer always kept), or its surface is lit as a medium
- * (`translucencyMedium`: a medium reads the translucency lighting volume, not the cache). Its bindings: the parameters, the levels' uniform and
- * the bitmap (`TRANSLUCENT_MARK_BINDINGS`), then the depth pyramid (`hizDepthWgsl`), in the group after the blend's.
+ * (`translucencyMedium`: a medium reads the translucency lighting volume, not the cache). The same fragment marks the cells of the
+ * translucency lighting volume the surface reads (`translucencyVolumeMarkVoxels`, `translucencyVolumeMarkWgsl`), mediums included, as the reference
+ * marks both in one pass. Its bindings: the parameters, the levels' uniform and the bitmap (`TRANSLUCENT_MARK_BINDINGS`), then the depth pyramid
+ * (`hizDepthWgsl`), then the volume's frame and marks, in the group after the blend's.
  */
 const radianceMarkStageWgsl = (graphs: readonly SurfaceProgram[]) =>
   wgslBlock(
@@ -44,6 +50,11 @@ const radianceMarkStageWgsl = (graphs: readonly SurfaceProgram[]) =>
       BLEND_LOBELESS_WGSL,
       hizDepthWgsl(RADIANCE_MARK_GROUP, RADIANCE_MARK_DEPTH_BINDING),
       translucentMark(RADIANCE_MARK_GROUP, TRANSLUCENT_MARK_BINDINGS),
+      translucencyVolumeMarkWgsl(
+        RADIANCE_MARK_GROUP,
+        VOLUME_MARK_FRAME_BINDING,
+        VOLUME_MARK_TEXTURE_BINDING,
+      ),
     ],
     `/** The farthest opaque depth at the place \`uv\` of the view, in the pyramid's level \`hizMip\` (level 0 is the depth itself). */
 fn markFarthest(uv:vec2f)->f32{
@@ -59,7 +70,9 @@ fn markFarthest(uv:vec2f)->f32{
  // The base map is sampled only where the cutout asks its alpha: a thin layer is kept whole, a cutout of 0 passes any alpha.
  var base=vec4f(1.0);
  if(!thin&&in.alphaAo.x>0.0){base=blendBase(in,g);}
- if(translucencyMedium(flags)||!blendFragmentKept(in,base,thin,front)){discard;return;}
+ if(!blendFragmentKept(in,base,thin,front)){discard;return;}
+ if(tv.marks.x!=0u){markVolumeVoxels(in.view);}
+ if(translucencyMedium(flags)){return;}
  markTranslucent(in.position.xy,in.view);
 }`,
   )

@@ -6,6 +6,7 @@ import { PIXEL_MODEL, pixelModelOf } from '../../materials/surface/pixelModel.ts
 import { noContactShadow } from '../../materials/surface/surfaceModel.ts'
 import { LIGHT_SHADOWED_WGSL } from '../direct/lightReachWgsl.ts'
 import { SHADING_MODEL_STATE_WGSL } from '../direct/shadingModelState.ts'
+import { BEND_MAX_LAYERS } from './bendDispatches.ts'
 import { VSM_CM_PER_UNIT } from '../shadows/vsm/constants.ts'
 import { subsurfaceDensity } from '../subsurfaceDensity.ts'
 
@@ -20,7 +21,7 @@ const SCREEN_RAY = 0.2
 
 /** Whether the surface of flags `flags`, where a ray hit, casts a contact shadow: its object does not let the rays
  *  through and it is not of the eye model. */
-const hitCastsContactShadow = wgslFn(
+export const hitCastsContactShadow = wgslFn(
   'hitCastsContactShadow',
   [noContactShadow, pixelModelOf],
   `fn hitCastsContactShadow(flags:u32)->bool{return !noContactShadow(flags)&&pixelModelOf(flags)!=${PIXEL_MODEL.eye}u;}`,
@@ -90,7 +91,7 @@ fn contactHold(P:vec3f){
  contactOrigin=contactStart.xyz/contactStart.w;
  contactOwn=contactPixel(contactOrigin.xy);
  contactDepth=contactSceneDepth(contactOwn);
- contactDither=interleavedGradientNoise(vec2f(contactOwn)+0.5,f32(u32(view.jitter.w)&7u));
+ contactDither=interleavedGradientNoise(vec2f(contactOwn),f32(u32(view.jitter.w)&7u));
  contactScale=select(view.contact.w*dot(P-view.camera.xyz,view.contact.xyz),1.0,view.camera.w==0.0);${asked ? `\n contactAskedTolerance=contactTolerance(${wgslF32(SCREEN_RAY)}*contactScale);` : ''}
 }
 fn contactRay(L:vec3f,ray:f32,hairNoShadow:bool)->ContactHit{
@@ -126,18 +127,58 @@ const OWN_RAY = `
  let own=bits==SHADOWED_DYNAMIC&&record.x!=0.0;`
 const OWN_LENGTH = 'abs(record.x)*select(contactScale,1.0,record.x<0.0)'
 
+export interface ContactBendBindings {
+  /** The array's binding. */
+  readonly array: number
+  /** The binding of the uniform of the ranks of its layers. */
+  readonly ranks: number
+}
+/**
+ * THE SCREEN-SPACE SHADOW A LIGHT'S MARCH LEFT (`contactShadowMethod` 1, `bendPass.ts`), read at the pixel in place of the stochastic ray: a
+ * texture array of group 0 and the uniform of the ranks of its layers (a layer for each light marched, `ContactBendBindings`), 1 where lit. A light's layer is
+ * found by its rank before its term (\`contactBendSet\`); \`contactBendLayer\` is −1 where the light has none — the image marched none (the texture is one texel,
+ * a stand-in), or not this light — and the light then casts its stochastic ray.
+ */
+const BEND_BLOCKS = new Map<string, WgslDecl>()
+const contactBendWgsl = ({ array, ranks }: ContactBendBindings) => {
+  const key = `${array} ${ranks}`
+  let block = BEND_BLOCKS.get(key)
+  if (!block)
+    BEND_BLOCKS.set(
+      key,
+      (block = wgslBlock(
+        `contactBendWgsl(${array}, ${ranks})`,
+        [],
+        `@group(0) @binding(${array}) var contactBend:texture_2d_array<f32>;
+@group(0) @binding(${ranks}) var<uniform> contactBendRanks:array<vec4u,${BEND_MAX_LAYERS / 4}>;
+var<private> contactBendLayer:i32=-1;
+fn contactBendSet(rank:u32){
+ contactBendLayer=-1;
+ if(textureDimensions(contactBend).x<=1u){return;}
+ for(var layer=0u;layer<${BEND_MAX_LAYERS}u;layer++){
+  let held=contactBendRanks[layer>>2u][layer&3u];
+  if(held==rank){contactBendLayer=i32(layer);return;}
+  if(held==0xffffffffu){return;}
+ }
+}
+fn contactBendRead(pixel:vec2i)->f32{return textureLoad(contactBend,pixel,contactBendLayer,0).r;}`,
+      )),
+    )
+  return block
+}
+
 /** What each mode of rays (`ContactRays`) is made of: `head`, the statements that decide the ray (its length `ray`, with `record`
  *  the light's `contactGi`) or return the light's whole term where it casts none; `hairNoShadow`, the test a march lets a hair strand
  *  of a light with no dynamic shadow (`bits`) hit what shares its depth by; whether the hit's occlusion is weighed by what the hit sheet
  *  lets through (`attenuated`); and the declarations that come with it. */
-const MODES = (() => {
+const MODES = (bend: boolean) => {
   const { hair, eye } = PIXEL_MODEL
   const hairNoShadow = `bits==SHADOWED_NONE&&pixelModel==${hair}u`
   return {
     lights: {
       head: `${OWN_RAY}
  if(!own){return 1.0;}
- contactHold(P);
+ contactHold(P);${bend ? '\n if(contactBendLayer>=0){return contactBendRead(contactOwn);}' : ''}
  let ray=${OWN_LENGTH};`,
       hairNoShadow: 'false',
       attenuated: false,
@@ -148,7 +189,7 @@ const MODES = (() => {
  let hair=bits!=SHADOWED_DYNAMIC&&pixelModel==${hair}u;
  let eye=pixelModel==${eye}u;
  if(!(own||hair||eye)){return 1.0;}
- contactHold(P);
+ contactHold(P);${bend ? '\n if(own&&!hair&&!eye&&contactBendLayer>=0){return contactBendRead(contactOwn);}' : ''}
  var ray=0.0;
  if(own){ray=${OWN_LENGTH};}
  if(hair){ray=${wgslF32(SCREEN_RAY)}*contactScale;}
@@ -171,16 +212,17 @@ const MODES = (() => {
     ContactRays,
     { head: string; hairNoShadow: string; attenuated: boolean; deps: WgslDecl[] }
   >
-})()
+}
 
 /** The light's share past what stands against the surface, along `L` (`contactShadow`). A ray is cast only where the
  *  conditions the reference gives hold; each ray is cast once, the pixel's shared work done once. */
 const shadowOf = (
   rays: ContactRays,
-) => `fn contactShadow(light:DirectLight,P:vec3f,L:vec3f,bits:u32)->f32{${MODES[rays].head}
+  bend: boolean,
+) => `fn contactShadow(light:DirectLight,P:vec3f,L:vec3f,bits:u32)->f32{${MODES(bend)[rays].head}
  if(ray<=0.0){return 1.0;}
- let hit=contactRay(L,ray,${MODES[rays].hairNoShadow});${HIT_OCCLUSION}${
-   MODES[rays].attenuated ? '\n occlusion=contactAttenuation(occlusion,hit.distance);' : ''
+ let hit=contactRay(L,ray,${MODES(bend)[rays].hairNoShadow});${HIT_OCCLUSION}${
+   MODES(bend)[rays].attenuated ? '\n occlusion=contactAttenuation(occlusion,hit.distance);' : ''
  }
  return 1.0-occlusion;
 }`
@@ -191,16 +233,18 @@ const shadowOf = (
  * (`shadowBitsOf`): its own ray (`DirectLight.contactGi`) needs the dynamic one. By `rays` (`ContactRays`): with `models`, a hair's
  * ray goes to a light without it and an eye's to every light; `asked` casts the one short ray of the surface a pass says
  * asks (its private `contactAsked`), and no other. The pass gives the reads of the scene (`contactSceneDepth(pixel)`,
- * `contactSceneFlags(pixel)`).
+ * `contactSceneFlags(pixel)`). With `bend`, the binding of the screen-space shadows' array (`contactBendWgsl`): a light with a layer there takes
+ * its shadow from it in place of the ray (`lights` and `models` rays alone).
  */
-export const contactShadowWgsl = (rays: ContactRays) =>
+export const contactShadowWgsl = (rays: ContactRays, bend?: ContactBendBindings) =>
   wgslBlock(
-    `contactShadowWgsl(${rays})`,
+    `contactShadowWgsl(${rays}${bend === undefined ? '' : `, bend ${bend.array} ${bend.ranks}`})`,
     [
       contactRaysWgsl(rays === 'asked'),
       hitCastsContactShadow,
       LIGHT_SHADOWED_WGSL,
-      ...MODES[rays].deps,
+      ...MODES(bend !== undefined)[rays].deps,
+      ...(bend === undefined ? [] : [contactBendWgsl(bend)]),
     ],
-    shadowOf(rays),
+    shadowOf(rays, bend !== undefined),
   )

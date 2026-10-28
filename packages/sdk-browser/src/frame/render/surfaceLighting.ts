@@ -28,11 +28,14 @@ import {
   subsurfaceSwitches,
   subsurfaceTransmittanceDistance,
 } from '../../lighting/subsurface/frame.ts'
-import { encodeSkyAndClouds } from './encodeClouds.ts'
+import { encodeAfterWater, encodeSkyAndClouds } from './encodeClouds.ts'
 import { encodeLightShaftBloom } from '../../modules/sky/lightShafts/frame.ts'
 import { encodePreLight } from './preLight.ts'
 import { encodeTranslucencyVolume } from '../../lighting/translucency/frame.ts'
+import { readHeterogeneousVolumeSetting } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
+import { encodeHeterogeneousVolumes } from '../../lighting/heterogeneousVolumes/liveShadingFrame.ts'
 import { encodeHairStrands } from '../../hair/frame.ts'
+import { encodeHairLighting } from '../../hair/lighting.ts'
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import {
@@ -54,6 +57,11 @@ import { BOUNCE_LIGHT_VIEW, lightViewCode, showsRaw } from '../../visibility/sha
 import { createFrameDifference } from './frameDifference.ts'
 import { atlasViewReady, drawAtlasView } from '../../lighting/surfaceCache/frame.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import {
+  encodeLightPower,
+  encodeSampledFront,
+  encodeSampledLights,
+} from '../../lighting/manyLightsSampled/frame.ts'
 import { reflects, type ViewOverrides } from '../backend/state/viewOverrides.ts'
 import { encodeViewOverrides, finishUncomposed } from './viewOverrides.ts'
 
@@ -173,6 +181,11 @@ function lightSurfaces(
   deferred.setModelSwitches(run.shading[SHADING.switches] | subsurfaceSwitches(rt))
   deferred.setSubsurfaceDistance(subsurfaceTransmittanceDistance(rt))
   deferred.update(inverseViewProj, cameraWorldArray, width, height, clear, raw, direct)
+  // The sampled lighting's samples and their screen traces, after the reflection view is staged (`encodePreLight`) and before the lit passes.
+  const sampledDirect = directLightResources(rt)
+  encodeSampledLights(rt, encoder, sampledDirect)
+  // The nearest translucent layer, written by the transparents' front pass (`encodeFrontPass`), lit by the same lighting with its own histories.
+  encodeSampledFront(rt, encoder, sampledDirect)
   run.gpuDrawCalls += deferred.light(encoder, gpu.hdrView!)
 }
 
@@ -190,6 +203,7 @@ function drawOverLit(
   clear: ReturnType<typeof clearValueOf>,
   air: boolean,
   blendKey: ReturnType<typeof bindBlend> | undefined,
+  volumes?: () => void,
 ) {
   // The sky where no surface was drawn, the fog over it and the surfaces, the haze on the surfaces and
   // the clouds over them, before the transparents are drawn.
@@ -199,6 +213,7 @@ function drawOverLit(
   encodeSeeThroughBackground(rt, encoder, clear)
   const responsive = clearResponsive(rt, device, encoder)
   const filter = beginDisplayFilter(rt, device)
+  volumes?.()
   // Bound again with the lit pass's resources (`lightSurfaces`, resolved after the shadows' projection and every
   // pass that makes one); nothing between makes another, so they are held, not resolved again.
   encodeBlend(
@@ -208,6 +223,8 @@ function drawOverLit(
     blendKey && bindBlend(rt, device, true),
     overrides.particles ? directTiles() : undefined,
   )
+  // What the image held back for the water is laid after it (`encodeBlend`); an image that did not reach that stage lays it here, none is lost.
+  encodeAfterWater(rt)
   // An image that shows no effects has no depth of field to wait for, and one the chain does not
   // follow (`overrides.post`) no pass to compose in: its layers are composed at once, under the
   // see-through views' edges, an overlay on the image and its layers
@@ -339,6 +356,8 @@ export function encodeSurfaceLighting(
   const blendRuns = prepareBlend(rt, encoder)
   // What the sun's page marking reads of the transparents, in the lights (`encodeDirectLights`): the
   // water's depth, and the front layer where no image before left one.
+  // The change of each light's power since the image before, measured at the head of the lighting for every sampling that follows.
+  encodeLightPower(rt, encoder, cam.eye, preExposureOf(rt))
   encodeMarkedLayers(rt, device, encoder, blendRuns)
   const air = encodeDirectLights(rt, device, encoder, cam, viewProj, inverseViewProj, blendRuns)
   const direct = directTiles()
@@ -350,9 +369,18 @@ export function encodeSurfaceLighting(
   // surface the trace reads.
   const blendKey = blendRuns ? bindBlend(rt, device) : undefined
   if (blendKey) encodeFrontPass(rt, device, encoder)
+  // The shadows the heterogeneous volumes cast, built before any light is applied.
+  encodeHeterogeneousVolumes(rt, device, encoder, cam, 'shadows')
   encodePreLight(rt, device, encoder, cam, direct, overrides)
   lightSurfaces(rt, encoder, clear, raw, direct)
+  // The hair strands are lit with the lights; they are laid on the image where `hairStrandsComposition` says (`encodeBlend`).
+  encodeHairLighting(rt, device, encoder, cam)
   encodeVolumeAndScattering(rt, device, encoder, cam)
+  // Composited with the translucency (`Translucency` on), the volumes go before the transparents, which are then drawn over them, or after
+  // them as `Composition` says; else after (`GetHeterogeneousVolumesComposition`, `HeterogeneousVolumes.cpp:403`).
+  const volumesFirst =
+    !!readHeterogeneousVolumeSetting(rt, 'heterogeneousVolumesTranslucency') &&
+    readHeterogeneousVolumeSetting(rt, 'heterogeneousVolumesComposition') === 0
   const { responsive, filter } = drawOverLit(
     rt,
     device,
@@ -362,7 +390,10 @@ export function encodeSurfaceLighting(
     clear,
     air,
     blendKey,
+    volumesFirst ? () => encodeHeterogeneousVolumes(rt, device, encoder, cam) : undefined,
   )
+  // The heterogeneous volumes, over the lit image once the sky, the fog and the transparents are on it (the default composition: after the translucency).
+  if (!volumesFirst) encodeHeterogeneousVolumes(rt, device, encoder, cam)
   if (!overrides.post) return finishUncomposed(rt, encoder, overrides, filter)
   // Composition reads the temporal result, or the lit image without accumulation.
   const asIs = readsAsIs(rt)

@@ -35,6 +35,8 @@ import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { LOBE_AXIS_WGSL } from '../lobeAxisWgsl.ts'
 import { REFLECTION_CLAMP_WGSL, REFLECTION_ENVIRONMENT_WGSL } from './field.ts'
 import { reflectionSeenWgsl } from './seen.ts'
+import type { MarchLanes } from '../../visibility/hiz/gpu/screenMarchLanes.ts'
+
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_LOBE_RAY_WGSL } from './sampleWgsl.ts'
 import { REFLECTION_SCENE_TRACE_WGSL } from './sceneTrace.ts'
@@ -58,16 +60,28 @@ const SCREEN_STAGE_TEXT = `/** What a stage of a ray ends with: the radiance it 
 struct ReflectionEnd{radiance:vec3f,hit:bool,distance:f32,}
 /** The lobe a ray is read through: its direction and its narrower width. */
 fn reflectionRayLobe(lobe:ReflectionLobeRay)->ReflectionLobe{return reflectionLobeOf(lobe.R,lobe.axis.w);}
-/** The screen stage of a ray: a hit, which is final, or a miss, whose distance is where the screen stopped knowing the ray, lengthened by
- *  \`REFLECTION_MISS_OFFSET\`, held to the longest ray and handed off no further than the first-person stand-ins' sphere
- *  (\`reflectionClipFirstPerson\`); 0 where the screen was not traced. */
-fn reflectionScreenStage(P:vec3f,N:vec3f,V:vec3f,lobe:ReflectionLobeRay,coord:vec2u)->ReflectionEnd{
+/** The screen stage of a ray in three steps, so that the march of the screen (\`reflectionSeenMarch\`), which the threads of a workgroup may have to take
+ *  part in together (\`screenMarchLanes.ts\`), stands in the kernel's uniform control flow: \`reflectionScreenBegin\` the ray's span and whether the screen is traced
+ *  for it (\`live\`: the screen traced this image and the ray's origin, off along the normal, inside the image — \`reflectionOriginOnScreen\`), the march of the
+ *  kernel, \`reflectionScreenEnd\` the stage's end. \`reflectionScreenNone\` is the cast of a thread with no ray. */
+struct ReflectionScreenCast{ray:ReflectionRay,bias:f32,live:bool,}
+fn reflectionScreenNone()->ReflectionScreenCast{
+ return ReflectionScreenCast(ReflectionRay(vec3f(0.0),vec3f(0.0),0.0,1.0,1.0,0.0,0.0),0.0,false);
+}
+fn reflectionScreenBegin(P:vec3f,N:vec3f,lobe:ReflectionLobeRay)->ReflectionScreenCast{
+ let bias=reflectionRayBias(P,N);
+ let live=reflectionDone(REFLECTION_SCREEN_TRACES)&&reflectionView.traced.x!=0u&&reflectionOriginOnScreen(P,N,bias);
+ return ReflectionScreenCast(reflectionRaySpan(P,N,reflectionRayLobe(lobe),bias,0.0,reflectionView.march.w),bias,live);
+}
+/** The end of the screen stage of a ray, \`marched\` the march of its cast: a hit, which is final, or a miss, whose distance is where the screen stopped
+ *  knowing the ray, lengthened by \`REFLECTION_MISS_OFFSET\`, held to the longest ray and handed off no further than the first-person stand-ins' sphere
+ *  (\`reflectionClipFirstPerson\`); 0 where the screen was not traced for it. */
+fn reflectionScreenEnd(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,aimed:ReflectionScreenCast,marched:ScreenHit,coord:vec2u)->ReflectionEnd{
  var ended=ReflectionEnd(vec3f(0.0),false,0.0);
- if(reflectionDone(REFLECTION_SCREEN_TRACES)&&reflectionView.traced.x!=0u&&dot(N,V)>0.0){
-  let seen=reflectionSeen(P,N,reflectionRayLobe(lobe),reflectionRayBias(P,N),coord);
-  if(seen.answer.hit){return ReflectionEnd(seen.answer.color,true,min(seen.answer.distance,reflectionView.march.w));}
-  ended.distance=reflectionClipFirstPerson(P,lobe.R,min(seen.left+REFLECTION_MISS_OFFSET,reflectionView.march.w));
- }
+ if(!aimed.live){return ended;}
+ let seen=reflectionSeen(P,N,reflectionRayLobe(lobe),aimed.ray,aimed.bias,marched,coord);
+ if(seen.answer.hit){return ReflectionEnd(seen.answer.color,true,min(seen.answer.distance,reflectionView.march.w));}
+ ended.distance=reflectionClipFirstPerson(P,lobe.R,min(seen.left+REFLECTION_MISS_OFFSET,reflectionView.march.w));
  return ended;
 }`
 
@@ -81,12 +95,12 @@ fn reflectionSceneStage(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,begin:f32,coord:v
   let far=reflectionDistant(P,N,reflectionRayLobe(lobe),coord);
   if(far.hit){
    reflectionFate=select(reflectionFate,REFLECTION_FATE_DISTANT,reflectionFate==REFLECTION_FATE_OPEN);
-   return ReflectionEnd(far.color,true,far.distance);
+   return ReflectionEnd(reflectionClampRay(far.color+reflectionSkylightLeak(vec3f(0.0))),true,reflectionView.march.w);
   }
   let sky=reflectionFogged(reflectionEnvironment(lobe.R,0.0)+reflectionSkylightLeak(vec3f(0.0)),P,lobe.R*max(reflectionView.light.w,reflectionView.march.w));
-  return ReflectionEnd(reflectionClampRay(sky),false,REFLECTION_MISS_DISTANCE);
+  return ReflectionEnd(reflectionClampRay(sky),false,reflectionView.march.w);
  }
- return ReflectionEnd(reflectionField(reflectionRayLobe(lobe)),false,REFLECTION_MISS_DISTANCE);
+ return ReflectionEnd(reflectionField(reflectionRayLobe(lobe)),false,reflectionView.march.w);
 }`
 
 /**
@@ -95,15 +109,15 @@ fn reflectionSceneStage(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,begin:f32,coord:v
  * (`ReflectionEnd`) with its radiance, whether it was a hit and a distance: the hit's, or where a miss stopped being known, which the
  * next stage begins at — the pending list holds it beside the ray's texel.
  *
- * - `reflectionScreenStage`: the screen's answer along the lobe ray `lobe` (`sampleWgsl.ts`, the ray the generation stored) of a
- *   surface at `P`, of normal `N`, seen from `V`, cast from the grid texel `coord` (`reflectionSeen`, `seen.ts`): a hit, or a
+ * - `reflectionScreenBegin`, the march (`reflectionSeenMarch`, `seen.ts`) and `reflectionScreenEnd`: the screen's answer along the lobe ray `lobe` (`sampleWgsl.ts`, the ray the generation stored) of a
+ *   surface at `P`, of normal `N`, cast from the grid texel `coord` (`reflectionSeen`, `seen.ts`): a hit, or a
  *   miss at the distance the screen stopped knowing the ray, lengthened by `REFLECTION_MISS_OFFSET` (the distance of a
  *   march is not reliable), held to the longest ray and clipped to where it enters the sphere of the first-person stand-ins
- *   (`reflectionClipFirstPerson`, `firstPerson.ts`);
+ *   (`reflectionClipFirstPerson`, `firstPerson.ts`), none where the ray's biased origin lies off the image;
  * - `reflectionSceneStage`: what the screen missed of a ray cast from the grid texel `coord`, the scene's answer (`reflectionSceneTrace`) from where the
  *   screen stopped knowing it, then, where the march saw the ray leave the scene (`open`), what the screen shows past the field
  *   (`reflectionDistant`, where the setting is on) and the environment's, fogged over the sky's length and held to the ceiling of a ray;
- *   the environment through the lobe for a ray no card gave any light of.
+ *   the environment through the lobe for the ray no stage settled. A ray that meets a surface no card lights is a black hit; a ray, a hit or a miss, that ends in the far trace or the sky is told at the longest ray (`ReflectionView.march.w`).
  *
  * `stored`: the depth the last image kept is bound as a read-only storage texture (`reflectionPastWgsl`), as the scene stage through the scene's triangles reads it.
  *
@@ -114,11 +128,12 @@ export const reflectionStagesWgsl = (
   group: number,
   sceneTrace: WgslDecl = REFLECTION_SCENE_TRACE_WGSL,
   stored = false,
+  lanes: MarchLanes = 'none',
 ) =>
   wgslBlock(
-    `reflectionStagesWgsl(${group},${sceneTrace.name},${stored})`,
+    `reflectionStagesWgsl(${group},${sceneTrace.name},${stored},${lanes})`,
     [
-      reflectionSeenWgsl(group, stored),
+      reflectionSeenWgsl(group, stored, lanes),
       REFLECTION_FIRST_PERSON_WGSL,
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_FIELD_STAGE_WGSL,

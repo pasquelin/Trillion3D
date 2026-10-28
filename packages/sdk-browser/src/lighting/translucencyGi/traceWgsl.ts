@@ -2,6 +2,11 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { blueNoiseWgsl } from '../../gpu/noise/blueNoiseWgsl.ts'
 import { computeStorageTextureEntry } from '../../gpu/core/computeBindings.ts'
+import {
+  WORD_LIGHT_FORMAT,
+  withLightAtlasEntry,
+  type LightAtlasFormat,
+} from '../../gpu/core/lightAtlasFormat.ts'
 import { DIRECT_LIGHT_WGSL } from '../direct/lightWgsl.ts'
 import { surfaceHitLayoutEntries } from '../surfaceCache/hitWgsl.ts'
 import { atlasEntry } from '../bounce/atlas.ts'
@@ -10,7 +15,7 @@ import { spCacheRead } from '../bounce/screen/cacheReadWgsl.ts'
 import { spCommon } from '../bounce/screen/commonWgsl.ts'
 import { spReach } from '../bounce/screen/probesWgsl.ts'
 import { bindingTable } from '../bounce/screen/screenProbeLayout.ts'
-import { SP_MARCH, TRACE_SCENE_HIT } from '../bounce/screen/traceSceneWgsl.ts'
+import { spMarchWgsl, TRACE_SCENE_HIT } from '../bounce/screen/traceSceneWgsl.ts'
 import { giFormatWgsl, giQuantizeWgsl, GI_VISIBLE_WGSL } from './frameWgsl.ts'
 import { TRANSLUCENCY_GI_GROUP, TRANSLUCENCY_GI_SLOT_SIDE } from './layout.ts'
 
@@ -30,12 +35,15 @@ export const TRACE_GI_BINDINGS = bindingTable({
 /** The cones' light written, the cascades' atlas. */
 export const TRACE_GI_LIGHT = 2
 export const TRACE_GI_PROBES = 9
-/** The layout of the trace's group 0, the cones' light written in `format`. */
-export const traceGiEntries = (format: GPUTextureFormat) => [
-  ...TRACE_GI_BINDINGS.entries,
+/** The layout of the trace's group 0, the cones' light written in `format`, the radiance cache's final maps read in `light`. */
+export const traceGiEntries = (
+  format: GPUTextureFormat,
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+) => [
+  ...withLightAtlasEntry(TRACE_GI_BINDINGS.entries, TRACE_GI_BINDINGS.at.cacheFinal, light),
   computeStorageTextureEntry(TRACE_GI_LIGHT, format, 'write-only', '3d'),
   atlasEntry(TRACE_GI_PROBES),
-  ...surfaceHitLayoutEntries(TRACE_SCENE_HIT),
+  ...surfaceHitLayoutEntries(TRACE_SCENE_HIT, light),
 ]
 
 const C = TRACE_GI_BINDINGS.at
@@ -94,10 +102,11 @@ const GI_PARAMS_WGSL = wgslBlock(
  * `gi.trace.x` texels a side. `giCellSetup` is what the cell's cones share, done once for them: where they start, how far they march and
  * the eight probes round the start.
  */
-const GI_CONE_WGSL = wgslBlock(
-  'GI_CONE_WGSL',
-  [SP_MARCH],
-  `/** The number the cache's level is chosen with at the volume's cell (\`cacheCoverage\`): a half, so that a level answers only while the point lies more than half the fade's width inside its edge. */
+const giConeWgsl = (light: LightAtlasFormat) =>
+  wgslBlock(
+    `GI_CONE_WGSL(${light})`,
+    [spMarchWgsl(light)],
+    `/** The number the cache's level is chosen with at the volume's cell (\`cacheCoverage\`): a half, so that a level answers only while the point lies more than half the fade's width inside its edge. */
 const GI_COVERAGE_RANDOM:f32=0.5;
 var<private> giOrigin:vec3f;
 var<private> giReach:f32;
@@ -127,7 +136,7 @@ fn giCone(d:vec3f)->vec3f{
  else if(!hit){light+=reflectionEnvironment(d,0.0);}
  return light+spSkyLeak(d,end);
 }`,
-)
+  )
 
 /**
  * WHAT THE CELLS OF A WORKGROUP SHARE (`GI_SHARED_WGSL`): a workgroup traces a block of `TRANSLUCENCY_GI_GROUP` cone texels a side, which
@@ -135,10 +144,11 @@ fn giCone(d:vec3f)->vec3f{
  * seen, where its cones start, how far they march, the eight probes round the start (`CacheGathered`, copied whole) and the noise —, made once by a lane
  * of the workgroup (`giCellStore`) and read by the threads of the cell's cones (`giCellLoad`) into the private state `giCone` reads.
  */
-const GI_SHARED_WGSL = wgslBlock(
-  'GI_SHARED_WGSL',
-  [GI_CONE_WGSL],
-  `const GI_SLOTS:u32=${TRANSLUCENCY_GI_SLOT_SIDE * TRANSLUCENCY_GI_SLOT_SIDE}u;
+const giSharedWgsl = (light: LightAtlasFormat) =>
+  wgslBlock(
+    `GI_SHARED_WGSL(${light})`,
+    [giConeWgsl(light)],
+    `const GI_SLOTS:u32=${TRANSLUCENCY_GI_SLOT_SIDE * TRANSLUCENCY_GI_SLOT_SIDE}u;
 var<workgroup> giSeen:array<u32,GI_SLOTS>;
 var<workgroup> giNoise:array<vec2f,GI_SLOTS>;
 var<workgroup> giStartOf:array<vec3f,GI_SLOTS>;
@@ -155,7 +165,7 @@ fn giCellLoad(slot:u32){
  giReach=giReachOf[slot];
  cacheNow=giCacheOf[slot];
 }`,
-)
+  )
 
 /**
  * THE TRACE, a thread a cone: the workgroup covers a block of `TRANSLUCENCY_GI_GROUP` texels a side of the cones' texture, as
@@ -167,13 +177,13 @@ fn giCellLoad(slot:u32){
  * down to it) and written to the format's precision (`giQuantize`, the draw of the written texel). The barrier is reached by every thread,
  * the ones beyond the grid included.
  */
-const giTraceEntry = (format: GPUTextureFormat) =>
+const giTraceEntry = (format: GPUTextureFormat, light: LightAtlasFormat) =>
   wgslBlock(
-    `GI_TRACE_ENTRY(${format})`,
+    `GI_TRACE_ENTRY(${format},${light})`,
     [
       GI_PARAMS_WGSL,
       GI_TRACE_POINT_WGSL,
-      GI_SHARED_WGSL,
+      giSharedWgsl(light),
       giQuantizeWgsl(format),
       ...giFormatWgsl(format),
       DIRECT_LIGHT_WGSL,
@@ -219,7 +229,10 @@ fn traceCones(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) blo
   )
 
 /** The trace's program, writing the cones' light in `format`, over cones of `side` texels a side an octahedron (the screen probes' kernels' constants, a cone as wide as a texel). */
-export const traceGiProgram = (format: GPUTextureFormat) =>
+export const traceGiProgram = (
+  format: GPUTextureFormat,
+  light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+) =>
   wgslProgram(
     `@group(0) @binding(${C.params}) var<uniform> spBase:ScreenProbeParams;
 var<private> sp:ScreenProbeParams;
@@ -228,9 +241,9 @@ var<private> sp:ScreenProbeParams;
       spCommon([1, 1]),
       bounceBindingsWgsl(0, C.bounceGrid, TRACE_GI_PROBES),
       spReach,
-      spCacheRead(C.cacheFinal, C.cacheRaw, C.cacheSky, 'private'),
+      spCacheRead(C.cacheFinal, C.cacheRaw, C.cacheSky, 'private', light),
       blueNoiseWgsl(0, C.blue),
       GI_VISIBLE_WGSL,
-      giTraceEntry(format),
+      giTraceEntry(format, light),
     ],
   )

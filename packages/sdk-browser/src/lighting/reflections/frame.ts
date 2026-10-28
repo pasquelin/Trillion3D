@@ -8,11 +8,18 @@ import type { ScreenReflection } from './gpu.ts'
 import { reflectionField, reflectionGroup, reflectionLightView } from './group.ts'
 import { readableCache } from './hitCards.ts'
 import { hardwareReflections } from './hardware.ts'
+import { followReflectionLight } from './reflectionPipelines.ts'
+import { surfaceCacheLightOf } from '../surfaceCache/light.ts'
+import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 import { rayFogReadOf } from './rayFog.ts'
 import { sceneRaysOf } from '../surfaceCache/lighting/surfaceLighting.ts'
 import { stageReflectionImage } from './image.ts'
 import { holdLitImage, vectorsReach } from './litImage.ts'
-import { cameraSeen, previousCameraOf } from '../../frame/backend/state/previousCamera.ts'
+import {
+  cameraSeen,
+  NEVER_SEEN,
+  previousCameraOf,
+} from '../../frame/backend/state/previousCamera.ts'
 import { demandSurfaceCache, surfaceHitReads } from '../surfaceCache/frame.ts'
 import { encodeReflectionTrace } from './trace/traceEncode.ts'
 import { screenProbeVectors } from '../bounce/screen/vectorSource.ts'
@@ -120,6 +127,7 @@ function bindTraceInputs(
   reflection: ScreenReflection,
   settings: ReflectionSettings,
   surfaces: NonNullable<WebgpuPagesRuntime['gpu']['surfaces']>,
+  light: LightAtlasFormat,
 ) {
   const { gpu, lights } = rt
   const views = surfaces.views()
@@ -136,9 +144,9 @@ function bindTraceInputs(
   if (settings.marchesField) demandSurfaceCache(rt)
   const writes = rt.views.active === rt.views.main ? cache : undefined
   writes?.feedback.begin(writes.cache, gpu.targetSize, rt.surfaceCache?.lighting?.begunFeedback)
-  inputs.hit = surfaceHitReads(rt, reflection.device).hit
+  inputs.hit = surfaceHitReads(rt, reflection.device, undefined, light).hit
   // The vectors are this image's motion since the image before: read only against that image's history.
-  const reach = vectorsReach(reflection.lit.held, reflection.frame.image ?? 0)
+  const reach = vectorsReach(reflection.lit.held, reflection.frame.image ?? NEVER_SEEN)
   inputs.vectors = (reach && screenProbeVectors(rt)) || reflection.noVectors
   // The blue noise a ray's direction is drawn from: asked of the file here (`blueNoiseNow`), the stand-in bound until it is made.
   blueNoiseNow(reflection.device)
@@ -186,6 +194,13 @@ export function stageReflections(
     gpu.deferred?.setReflectionLook(1, 1)
     return undefined
   }
+  // The kernels follow the format the surface cache's final light is stored in.
+  followReflectionLight(
+    vis,
+    reflection.device,
+    rt.setup.reflectionStatistics,
+    surfaceCacheLightOf(rt, reflection.device),
+  )
   // What a ray may spend and which stages run, from the session's settings (`settings.ts`): the `'off'` level traces nothing.
   const settings = reflection.settings(rt.context, waterFrontOf(rt))
   // The look of the light a surface reflects, which the lighting's passes read in the view whether this image traces or not.
@@ -214,10 +229,10 @@ export function traceReflections(
 ) {
   if (!staged) return
   const { reflection, stages, depth, lightView, surfaces, settings } = staged
-  const writes = bindTraceInputs(rt, reflection, settings, surfaces)
+  const writes = bindTraceInputs(rt, reflection, settings, surfaces, stages.light)
   const group = reflectionGroup(reflection, depth, lightView, skyLightReadOf(rt))
   // Where the scene has acceleration structures the scene stage's rays go through its triangles; else they are marched through the field.
-  const hardware = hardwareReflections(rt, reflection, settings)
+  const hardware = hardwareReflections(rt, reflection, settings, stages.light)
   reflection.inputs.rays = hardware?.rays
   // The rays count this image's alone: the counters emptied before the trace, copied after it.
   reflection.census.clear(encoder)
@@ -234,7 +249,7 @@ export function traceReflections(
     !!reflection.frame.front,
     hardware?.stage,
   )
-  reflection.depthImage = reflection.frame.image ?? 0
+  reflection.depthImage = reflection.frame.image ?? NEVER_SEEN
   reflection.census.copy(encoder, rt.run.frame, !hardware)
   writes?.feedback.end(encoder, writes.cache)
 }

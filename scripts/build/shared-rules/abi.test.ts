@@ -18,7 +18,10 @@ import {
 } from '../../../packages/sdk-core/src/contracts/compilerAbi.ts'
 import { PARTITION_SCHEME_FIELD } from '../../../packages/sdk-core/src/contracts/partitionOptions.ts'
 import { LIGHTMAP_BAKE_FIELD } from '../../../packages/sdk-core/src/contracts/lightmapBakeAbi.ts'
-import { HAIR_STRANDS_ENDING_POINT_FIELD } from '../../../packages/sdk-core/src/contracts/hairStrandsAbi.ts'
+import {
+  HAIR_STRANDS_ENDING_POINT_FIELD,
+  HAIR_STRANDS_GROUPS_FIELD,
+} from '../../../packages/sdk-core/src/contracts/hairStrandsAbi.ts'
 import {
   DISPLACEMENT_MAP_KEYS,
   DISPLACEMENT_TEXTURE_KEYS,
@@ -60,6 +63,7 @@ test('the compiler reads the job fields, scopes and simplifications the schema n
       OBJECT_SETTINGS_FIELD,
       LIGHTMAP_BAKE_FIELD,
       HAIR_STRANDS_ENDING_POINT_FIELD,
+      HAIR_STRANDS_GROUPS_FIELD,
     ].sort(),
   )
   assert.deepEqual(words(rust, 'pub const SCOPES'), [...ASSET_SCOPES])

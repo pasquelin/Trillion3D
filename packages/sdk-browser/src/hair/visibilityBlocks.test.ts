@@ -1,11 +1,19 @@
 // The blocks the strands' passes read, as the host writes them: the view's and an instance's.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT } from '../../../sdk-core/src/contracts/hairStrandsAbi.ts'
+import {
+  HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT,
+  HAIR_STRANDS_FLAG_SCATTER,
+  HAIR_STRANDS_FLAG_SCATTER_SET,
+  HAIR_STRANDS_FLAG_STABLE,
+  HAIR_STRANDS_FLAG_STABLE_SET,
+} from '../../../sdk-core/src/contracts/hairStrandsAbi.ts'
 import { wordViews } from '../gpu/core/wordViews.ts'
 import { HAIR_IMAGE_WORDS } from './imageBlock.ts'
 import { HAIR_INSTANCE_WORDS, HAIR_VIEW_WORDS } from './ribbonWgsl.ts'
 import type { HairInstance } from './scene.ts'
+import { HAIR_FLAG } from './materialMath.ts'
+import { hairGroupFlags } from './groupFlags.ts'
 import { writeHairInstanceBlock, writeHairViewBlock } from './visibilityBlocks.ts'
 
 test('the blocks are as many words as the shaders declare', () => {
@@ -64,4 +72,26 @@ test('the instance block seen from the eye: translation less the eye, unit axes,
   )
   writeHairInstanceBlock(words, instanceOf(0), [1, 2, 3], 7, 3, 0x10)
   assert.equal(u[34], 0, 'a group not built for strips')
+})
+
+test('a group takes the project flags for what its job left alone, and its own for what it named', () => {
+  const project = HAIR_FLAG.castContactShadow | HAIR_FLAG.stableRaster
+  assert.equal(hairGroupFlags(0, project), project, 'a group not named follows the project')
+  assert.equal(
+    hairGroupFlags(HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT, project),
+    project,
+    'whatever else its flags say',
+  )
+  // Named off, the stable raster goes, the other flags stay; named on, scatter comes.
+  assert.equal(hairGroupFlags(HAIR_STRANDS_FLAG_STABLE_SET, project), HAIR_FLAG.castContactShadow)
+  assert.equal(
+    hairGroupFlags(HAIR_STRANDS_FLAG_SCATTER_SET | HAIR_STRANDS_FLAG_SCATTER, project),
+    project | HAIR_FLAG.scatterSceneLight,
+  )
+  // A value without its name is nothing the job said.
+  assert.equal(hairGroupFlags(HAIR_STRANDS_FLAG_STABLE | HAIR_STRANDS_FLAG_SCATTER, 0), 0)
+  assert.equal(
+    hairGroupFlags(HAIR_STRANDS_FLAG_STABLE_SET | HAIR_STRANDS_FLAG_STABLE, 0),
+    HAIR_FLAG.stableRaster,
+  )
 })

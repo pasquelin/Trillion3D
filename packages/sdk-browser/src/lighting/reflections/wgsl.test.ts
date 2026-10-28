@@ -9,7 +9,6 @@ import { withoutComments } from '../../../../math/src/wgsl/comments.fixture.ts'
 import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
 import { REFLECTION_VIGNETTE_WGSL } from './field.ts'
 import { reflectionStagesWgsl } from './wgsl.ts'
-import { REFLECTION_CONSTANTS } from './constants.ts'
 import { origin, ahead } from './rayPoints.fixture.ts'
 
 type Vignette = { reflectionVignette: (ndc: number[]) => number }
@@ -58,8 +57,10 @@ test('a screen hit stands against the noise of its pixel at the frame index modu
       'if(tested&&!reflectionPastAgrees(past,noise,reflectionView.historyThickness)){return seen;}',
     ),
   )
-  assert.ok(text.includes('reflectionSeenAnswer(P,H.xy,marched.pixel,marched.plane,coord,true)'))
-  assert.ok(text.includes('hizPlane(cell),coord,false)'))
+  assert.ok(
+    text.includes('reflectionSeenAnswer(P,H.xy,H.z,marched.pixel,marched.plane,coord,true)'),
+  )
+  assert.ok(text.includes('plane,coord,false)'))
   assert.ok(text.includes('seen.hit=true;'))
   assert.ok(!text.includes('reflectionEdgeFade') && !text.includes('REFLECTION_EDGE'))
 })
@@ -82,16 +83,18 @@ test('no reflection draws a random number of its own: no seed, no hash, no frame
   assert.doesNotMatch(text, /\.frame\b/, 'the rank of the frame')
 })
 
-/** The screen and scene stages of a ray (`reflectionScreenStage`, `reflectionSceneStage`), run over the answers the test gives them. */
+/** The screen and scene stages of a ray (`reflectionScreenBegin` and `reflectionScreenEnd`, `reflectionSceneStage`), run over the answers the test gives them. */
 function stages(options: {
   seen?: { hit: boolean; color?: Vec3; distance?: number; left?: number }
   traced?: { hit: boolean; color?: Vec3; distance?: number; open: boolean }
   far?: { hit: boolean; color?: Vec3; distance?: number }
   screen?: boolean
+  /** Whether the ray's biased origin lies inside the image (true when absent). */
+  onScreen?: boolean
   /** The sphere that holds the first-person stand-ins (centre, radius), and the least distance a ray is handed off at. */
   standIns?: { sphere: number[]; minimum: number }
 }) {
-  const { seen, traced, far, screen = true, standIns } = options
+  const { seen, traced, far, screen = true, onScreen = true, standIns } = options
   const answer = (a: { hit: boolean; color?: Vec3; distance?: number }) => ({
     color: a.color ?? [0, 0, 0],
     hit: a.hit,
@@ -99,11 +102,13 @@ function stages(options: {
   })
   const asked: { firstPerson?: unknown } = {}
   const run = shaderRun<{
-    reflectionScreenStage: (
+    reflectionScreenBegin: (P: Vec3, N: Vec3, lobe: object) => { live: boolean }
+    reflectionScreenEnd: (
       P: Vec3,
       N: Vec3,
-      V: Vec3,
       lobe: object,
+      aimed: object,
+      marched: object,
       coord: number[],
     ) => { radiance: Vec3; hit: boolean; distance: number }
     reflectionSceneStage: (
@@ -115,35 +120,44 @@ function stages(options: {
       cone: number,
       firstPerson: boolean,
     ) => { radiance: Vec3; hit: boolean; distance: number }
-  }>(wgslModule(reflectionStagesWgsl(1)), ['reflectionScreenStage', 'reflectionSceneStage'], {
-    reflectionView: {
-      traced: [screen ? 1 : 0, 0, 0, 0],
-      march: [0, 0, 0, 100],
-      light: [40, 0, 0, 0],
-      firstPerson: standIns?.sphere ?? [0, 0, 0, 0],
-      firstPersonMinimum: standIns?.minimum ?? 0.04,
+  }>(
+    wgslModule(reflectionStagesWgsl(1)),
+    ['reflectionScreenBegin', 'reflectionScreenEnd', 'reflectionSceneStage'],
+    {
+      reflectionView: {
+        traced: [screen ? 1 : 0, 0, 0, 0],
+        march: [0, 0, 0, 100],
+        light: [40, 0, 0, 0],
+        firstPerson: standIns?.sphere ?? [0, 0, 0, 0],
+        firstPersonMinimum: standIns?.minimum ?? 0.04,
+      },
+      reflectionDone: () => true,
+      reflectionRayBias: () => 0,
+      reflectionOriginOnScreen: () => onScreen,
+      reflectionRayLobe: (lobe: { R: Vec3 }) => ({ R: lobe.R }),
+      reflectionRaySpan: () => ({}),
+      reflectionSeen: () => ({
+        answer: answer(seen ?? { hit: false }),
+        left: seen?.left ?? 0,
+      }),
+      reflectionSceneTrace: (...args: unknown[]) => {
+        asked.firstPerson = args[6]
+        return { answer: answer(traced ?? { hit: false }), open: !!traced?.open }
+      },
+      reflectionDistant: () => answer(far ?? { hit: false }),
+      reflectionEnvironment: (_: Vec3, rough: number) =>
+        rough === 0 ? [0.5, 0.5, 0.5] : [0.25, 0.25, 0.25],
+      reflectionSkylightLeak: () => [0, 0, 0],
+      reflectionFogged: (rgb: Vec3) => rgb,
+      reflectionClampRay: (rgb: Vec3) => rgb,
+      reflectionField: () => [0.125, 0.125, 0.125],
+      reflectionFate: 0,
     },
-    reflectionDone: () => true,
-    reflectionRayBias: () => 0,
-    reflectionRayLobe: (lobe: { R: Vec3 }) => ({ R: lobe.R }),
-    reflectionSeen: () => ({
-      answer: answer(seen ?? { hit: false }),
-      left: seen?.left ?? 0,
-    }),
-    reflectionSceneTrace: (...args: unknown[]) => {
-      asked.firstPerson = args[6]
-      return { answer: answer(traced ?? { hit: false }), open: !!traced?.open }
-    },
-    reflectionDistant: () => answer(far ?? { hit: false }),
-    reflectionEnvironment: (_: Vec3, rough: number) =>
-      rough === 0 ? [0.5, 0.5, 0.5] : [0.25, 0.25, 0.25],
-    reflectionSkylightLeak: () => [0, 0, 0],
-    reflectionFogged: (rgb: Vec3) => rgb,
-    reflectionClampRay: (rgb: Vec3) => rgb,
-    reflectionField: () => [0.125, 0.125, 0.125],
-    reflectionFate: 0,
-  })
-  return Object.assign(run, { asked })
+  )
+  // The screen stage as the kernel runs it: its begin, the march (the answers the test gives stand for it) and its end.
+  const reflectionScreenStage = (P: Vec3, N: Vec3, lobe: object, coord: number[]) =>
+    run.reflectionScreenEnd(P, N, lobe, run.reflectionScreenBegin(P, N, lobe), {}, coord)
+  return Object.assign(run, { asked, reflectionScreenStage })
 }
 
 const ray = { R: ahead, axis: [0, 0, 0, 0], alpha: 0, along: 0 }
@@ -151,23 +165,22 @@ const ray = { R: ahead, axis: [0, 0, 0, 0], alpha: 0, along: 0 }
 test('the screen stage ends a ray in a hit, whole and final, or in a miss that reached the distance the screen stopped knowing it at, lengthened by 2 cm', () => {
   const N: Vec3 = [0, 0, 1]
   const hit = stages({ seen: { hit: true, color: [1, 2, 3], distance: 4 } })
-  const [P, V] = [origin, N]
-  assert.deepEqual(hit.reflectionScreenStage(P, N, V, ray, [0, 0]), {
+  const P = origin
+  assert.deepEqual(hit.reflectionScreenStage(P, N, ray, [0, 0]), {
     radiance: [1, 2, 3],
     hit: true,
     distance: 4,
   })
-  const miss = stages({ seen: { hit: false, left: 3 } }).reflectionScreenStage(P, N, V, ray, [0, 0])
+  const miss = stages({ seen: { hit: false, left: 3 } }).reflectionScreenStage(P, N, ray, [0, 0])
   assert.deepEqual([miss.hit, miss.radiance], [false, [0, 0, 0]])
   assert.ok(Math.abs(miss.distance - 3.02) < 1e-6, `${miss.distance}`)
   // A distance past the longest ray is held to it, hit or miss.
   assert.equal(
-    stages({ seen: { hit: false, left: 99.99 } }).reflectionScreenStage(P, N, V, ray, [0, 0])
-      .distance,
+    stages({ seen: { hit: false, left: 99.99 } }).reflectionScreenStage(P, N, ray, [0, 0]).distance,
     100,
   )
   assert.equal(
-    stages({ seen: { hit: true, distance: 150 } }).reflectionScreenStage(P, N, V, ray, [0, 0])
+    stages({ seen: { hit: true, distance: 150 } }).reflectionScreenStage(P, N, ray, [0, 0])
       .distance,
     100,
   )
@@ -175,24 +188,29 @@ test('the screen stage ends a ray in a hit, whole and final, or in a miss that r
   const none = stages({ seen: { hit: true, distance: 4 }, screen: false })
   assert.deepEqual(
     [
-      none.reflectionScreenStage(P, N, V, ray, [0, 0]).hit,
-      none.reflectionScreenStage(P, N, V, ray, [0, 0]).distance,
+      none.reflectionScreenStage(P, N, ray, [0, 0]).hit,
+      none.reflectionScreenStage(P, N, ray, [0, 0]).distance,
     ],
     [false, 0],
   )
-  assert.equal(hit.reflectionScreenStage(P, N, [0, 0, -1], ray, [0, 0]).hit, false)
+  // A surface facing away from the eye is traced as any other: the stage has no gate on the facing.
+  assert.equal(hit.reflectionScreenStage(P, N, ray, [0, 0]).hit, true)
+  // A ray whose biased origin lies off the image is not traced on the screen: its stage ends at 0.
+  const off = stages({ seen: { hit: true, distance: 4 }, onScreen: false })
+  assert.deepEqual(
+    [
+      off.reflectionScreenStage(P, N, ray, [0, 0]).hit,
+      off.reflectionScreenStage(P, N, ray, [0, 0]).distance,
+    ],
+    [false, 0],
+  )
 })
 
 test('a ray the screen missed is handed off where it enters the sphere of the first-person stand-ins, no nearer than the least distance, a hit and a ray that misses it untouched', () => {
   const N: Vec3 = [0, 0, 1]
   const missAt = (standIns: { sphere: number[]; minimum: number } | undefined, left = 20) =>
-    stages({ seen: { hit: false, left }, standIns }).reflectionScreenStage(
-      origin,
-      N,
-      N,
-      ray,
-      [0, 0],
-    ).distance
+    stages({ seen: { hit: false, left }, standIns }).reflectionScreenStage(origin, N, ray, [0, 0])
+      .distance
   const near = (a: number, b: number) => assert.ok(Math.abs(a - b) < 1e-5, `${a} is not ${b}`)
   // No stand-ins in the scene (radius 0): the miss goes on whole, the 2 cm lengthened.
   near(missAt(undefined), 20.02)
@@ -215,7 +233,7 @@ test('a ray the screen missed is handed off where it enters the sphere of the fi
     seen: { hit: true, distance: 9 },
     standIns: { sphere: [5, 0, 0, 1], minimum: 0.04 },
   })
-  assert.equal(hit.reflectionScreenStage(origin, N, N, ray, [0, 0]).distance, 9)
+  assert.equal(hit.reflectionScreenStage(origin, N, ray, [0, 0]).distance, 9)
 })
 
 test('the scene stage tells the scene trace whether the ray is cast from a first-person pixel', () => {
@@ -242,14 +260,15 @@ test('the scene stage ends a ray in the scene’s hit, else the screen’s far h
     {
       radiance: [2, 2, 2],
       hit: true,
-      distance: 9,
+      distance: 100,
     },
   )
   const sky = end({ traced: { hit: false, open: true } })
   assert.deepEqual([sky.hit, sky.radiance], [false, [0.5, 0.5, 0.5]])
-  assert.ok(
-    Math.abs(sky.distance - REFLECTION_CONSTANTS.REFLECTION_MISS_DISTANCE) < 1e-3,
-    `a ray that met nothing is told at 655.04 m, the greatest half in centimetres: ${sky.distance}`,
+  assert.equal(
+    sky.distance,
+    100,
+    'a ray that met nothing, or a far hit, is told at the longest ray',
   )
   const field = end({ traced: { hit: false, open: false } })
   assert.deepEqual([field.hit, field.radiance], [false, [0.125, 0.125, 0.125]])

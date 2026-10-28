@@ -3,17 +3,16 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createProfileSlots } from './profileSlots.ts'
-import type { LightProfileData } from './profileFile.ts'
+import type { LightProfileData } from './profileCodec.ts'
 
-const data = (brightness: number): LightProfileData => ({
-  brightness,
+const data = (): LightProfileData => ({
   texels: new Uint16Array(4),
 })
 
 test('a profile named by two lights holds one slot, freed with the last', () => {
-  const slots = createProfileSlots()
-  slots.add('a', data(1))
-  slots.add('a', data(1))
+  const slots = createProfileSlots(32)
+  slots.add('a', data())
+  slots.add('a', data())
   assert.equal(slots.refsOf('a'), 2)
   assert.equal(slots.plan().length, 1, 'written once')
   slots.remove('a')
@@ -25,9 +24,9 @@ test('a profile named by two lights holds one slot, freed with the last', () => 
 })
 
 test('a profile has no slice before it is planned, and the plan gives the free slices in order', () => {
-  const slots = createProfileSlots()
-  slots.add('a', data(1))
-  slots.add('b', data(2))
+  const slots = createProfileSlots(32)
+  slots.add('a', data())
+  slots.add('b', data())
   assert.equal(slots.sliceOf('a'), -1)
   const uploads = slots.plan()
   assert.deepEqual(
@@ -40,12 +39,12 @@ test('a profile has no slice before it is planned, and the plan gives the free s
 })
 
 test('a profile added later takes a freed slice and leaves the others where they are', () => {
-  const slots = createProfileSlots()
-  slots.add('a', data(1))
-  slots.add('b', data(2))
+  const slots = createProfileSlots(32)
+  slots.add('a', data())
+  slots.add('b', data())
   slots.plan()
   slots.remove('a')
-  slots.add('c', data(3))
+  slots.add('c', data())
   const uploads = slots.plan()
   assert.deepEqual(
     uploads.map((u) => u.slice),
@@ -58,7 +57,7 @@ test('a profile added later takes a freed slice and leaves the others where they
 
 test('profiles past the atlas’s slices have none, and take the first one freed', () => {
   const slots = createProfileSlots(2)
-  for (const id of ['a', 'b', 'c']) slots.add(id, data(1))
+  for (const id of ['a', 'b', 'c']) slots.add(id, data())
   slots.plan()
   assert.equal(slots.sliceOf('c'), -1)
   slots.remove('a')
@@ -72,23 +71,8 @@ test('profiles past the atlas’s slices have none, and take the first one freed
 })
 
 test('an id that is no profile names no slice and no light', () => {
-  const slots = createProfileSlots()
+  const slots = createProfileSlots(32)
   assert.equal(slots.sliceOf('x'), -1)
   assert.equal(slots.refsOf('x'), 0)
   slots.remove('x')
-})
-
-test('a profile replaced with other data is written again into the slice it has, one given the same data is not', () => {
-  const slots = createProfileSlots()
-  const first = data(1)
-  slots.add('a', first)
-  slots.plan()
-  slots.update('a', first)
-  assert.deepEqual(slots.plan(), [], 'the same data: nothing to write')
-  const second = data(2)
-  slots.update('a', second)
-  const uploads = slots.plan()
-  assert.deepEqual(uploads, [{ slice: 0, data: second }])
-  slots.update('missing', second)
-  assert.deepEqual(slots.plan(), [])
 })

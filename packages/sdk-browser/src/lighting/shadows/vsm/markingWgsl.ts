@@ -16,7 +16,7 @@
  * What the engine's view uniform lacks (the +z-forward view-to-clip matrix, the depth-from-device-Z
  * coefficients, the origin shift, the view rect) comes in `VsmMarkingParams` (`markingPass.ts`).
  */
-import { VSM_CONSTANTS_WGSL } from './constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_MAX_SINGLE_PAGE_MAPS } from './constants.ts'
 import {
   VSM_HANDLE_WGSL,
   VSM_PAGE_ADDRESS_WGSL,
@@ -45,7 +45,7 @@ import { hairTilePixel } from '../../../hair/tilesWgsl.ts'
 import { HAIR_TILE_ALL, HAIR_TILE_LISTS } from '../../../hair/visibilityMath.ts'
 import { FLAT_INDEX_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
-import { wgslBlock, wgslVariants } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn, wgslVariants } from '../../../../../math/src/wgsl/decl.ts'
 import { ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 import { clipToFramebuffer, perspectiveDivide } from '../../../../../math/src/wgsl/projection.ts'
 import { HIZ_FRONT_LAYER } from '../../../visibility/hiz/gpu/pyramidTexture.ts'
@@ -68,7 +68,8 @@ export const VSM_MARKING_PARAMS_BYTES = 240
  * 96 originShiftLow, 108 rectsToClear, 112 viewRectMin, 120 viewSize, 128 previousViewProjection,
  * 192 historySize, 200 pageDilation (the sun's, the local lights'), 208 markStride, 216
  * cullBackfacing, 220 firstPersonBias (a negative one marks nothing for the pixels of first-person objects),
- * 224 firstPersonLevelClamp, 228 frontSameImage (1: the front layer is the image's own). historySize,
+ * 224 firstPersonLevelClamp, 228 frontSameImage (1: the front layer is the image's own), 232 singleMaps (the maps of one
+ * page claimed, at the ids from 0). historySize,
  * frontSameImage and the matrix before them are read by the pass that marks from the translucent
  * front layer alone (`vsmPixelPageMarkingWgsl` `front`). The rest the marking never varies is
  * constants of the shader (`constants.ts`).
@@ -94,6 +95,7 @@ struct VsmMarkingParams{
  firstPersonBias:f32,
  firstPersonLevelClamp:i32,
  frontSameImage:u32,
+ singleMaps:u32,
 }
 `,
 )
@@ -104,7 +106,7 @@ struct VsmMarkingParams{
 export type VsmClearTarget = 'pageRequests' | 'pageTable' | 'pageMarks' | 'receiverCover'
 
 /** The maps a clear walks: every map, or the suns' alone. */
-export type VsmClearWalk = 'all' | 'directionalOnly'
+type VsmClearWalk = 'all' | 'directionalOnly'
 /** The marking's clears, in the order they run: the page requests, the receiver cover, the page table
  *  and its flags. */
 export type VsmClearStep = 'requests' | 'receiver' | 'tables'
@@ -297,13 +299,22 @@ export const VSM_INIT_RECT_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'mappedRects', binding: 2, access: 'read_write' },
 ]
 
+/** The id of the claimed map `k`, the maps of one page being the first `singleMaps` and the full maps those past them, from the end of the range reserved for the first (`VSM_MAX_SINGLE_PAGE_MAPS`). */
+const VSM_CLAIMED_MAP_ID_WGSL = wgslFn(
+  'vsmClaimedMapId',
+  [],
+  `fn vsmClaimedMapId(k:u32,singleMaps:u32)->u32{return select(${VSM_MAX_SINGLE_PAGE_MAPS}u+k-singleMaps,k,k<singleMaps);}`,
+)
+
 /** The page rect bounds init, entry `vsmInitPageRects`, 256 threads. Binding 4: params. */
 export const vsmPageRectInitWgsl = (layout: VsmLayout) =>
   wgslProgram(
     `@group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
 @compute @workgroup_size(${256}) fn vsmInitPageRects(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let index=flatIndex(id,n,256u);
- if(index<vsmMarking.rectsToClear){
+ let thread=flatIndex(id,n,256u);
+ if(thread<vsmMarking.rectsToClear){
+  // Thread t: mip t % VSM_MIPS of the claimed map t / VSM_MIPS.
+  let index=vsmClaimedMapId(thread/VSM_MIPS,vsmMarking.singleMaps)*VSM_MIPS+thread%VSM_MIPS;
   let empty=vec4u(VSM_LEVEL0_PAGES,VSM_LEVEL0_PAGES,0u,0u);
   vsmStaleRects[2u*index]=empty;
   vsmStaleRects[2u*index+1u]=empty;
@@ -316,6 +327,7 @@ export const vsmPageRectInitWgsl = (layout: VsmLayout) =>
       VSM_MARKING_PARAMS_WGSL,
       vsmBindingsWgsl(0, VSM_INIT_RECT_SPECS, layout),
       FLAT_INDEX_WGSL,
+      VSM_CLAIMED_MAP_ID_WGSL,
     ],
   )
 
@@ -364,19 +376,22 @@ export const VSM_COARSE_SPECS: readonly VsmBindingSpec[] = [
 export const markedPageFlagsText = (prefiltered: boolean, fine = true) =>
   `VSM_PAGE_WANTED${fine ? '|VSM_PAGE_FINE' : ''}${prefiltered ? '|VSM_PAGE_PRIMARY' : ''}`
 
-/** The coarse page marking, entry `vsmMarkCoarse`, 256 threads. Binding 4: params. */
-export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
-  wgslProgram(
-    `@group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
+/** The coarse marking's binding and the head of its kernel: the claimed map and the flags it asks pages with. */
+const coarseHeadText = (
+  layout: VsmLayout,
+) => `@group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
 @compute @workgroup_size(${256}) fn vsmMarkCoarse(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- // Thread k: map k.
- let mapId=flatIndex(id,n,256u);
+ // Thread k: claimed map k.
+ let thread=flatIndex(id,n,256u);
+ let mapId=vsmClaimedMapId(thread,vsmMarking.singleMaps);
  if(mapId>=vsm.mapCount){return;}
  let handle=vsmHandleFromId(mapId);
  let pd=vsmProjectionOf(handle);
  // A coarse page is asked for without the fine bit.
- let flags=${markedPageFlagsText(layout.prefilteredDistant, false)};
- if(pd.lightUnseen){
+ let flags=${markedPageFlagsText(layout.prefilteredDistant, false)};`
+
+/** The coarse pages a map asks for: a sun's four around the clipmap origin, a local light's last mip. */
+const COARSE_PAGES_TEXT = ` if(pd.lightUnseen){
   // An unseen light's map asks for no page.
  }else if(pd.lightKind==LIGHT_KIND_DIRECTIONAL){
   if(pd.coarseLevel){
@@ -410,6 +425,77 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
   if(pd.useCover){vsmFillCover(entryCell);}
  }
 }
+`
+
+/** The coarse page marking, entry `vsmMarkCoarse`, 256 threads. Binding 4: params. */
+export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
+  wgslProgram(`${coarseHeadText(layout)}\n${COARSE_PAGES_TEXT}`, [
+    ...prefilteredDeps(layout.prefilteredDistant),
+    VSM_CONSTANTS_WGSL,
+    VSM_HANDLE_WGSL,
+    VSM_PAGE_ADDRESS_WGSL,
+    VSM_TABLE_ORIGIN_WGSL,
+    VSM_MARKING_PARAMS_WGSL,
+    vsmBindingsWgsl(0, VSM_COARSE_SPECS, layout),
+    VSM_PROJECTION_DATA_READ_WGSL,
+    VSM_MARK_PAGE_ADDRESS_WGSL,
+    VSM_FILL_COVER_WGSL,
+    FLAT_INDEX_WGSL,
+    VSM_CLAIMED_MAP_ID_WGSL,
+  ])
+
+// ---- Dense marking (the classic shadow maps) ----------------------------------------------------
+
+/** The words of one dense entry (`vsmMarkDense`): the sphere's centre and radius, the map, the mip and the kind. */
+export const VSM_DENSE_ENTRY_WORDS = 8
+/** The kinds of a dense entry: the pages a sphere covers in a clipmap level's map, or every page of a mip of a map. */
+const VSM_DENSE_KIND = { sphere: 0, whole: 1 } as const
+/** The threads that walk one entry's pages (a group of 64, this many over 64 groups across). */
+export const VSM_DENSE_GROUPS_ACROSS = 16
+const VSM_DENSE_THREADS = VSM_DENSE_GROUPS_ACROSS * 64
+
+/**
+ * The dense marking, entry `vsmMarkDense`, 64 threads, a row of groups an entry (`vsmDense`, group 1 binding 0): for a classic shadow map
+ * (`shadowVirtualEnable` off) every page it draws is asked for whatever the view marks — the pages of a clipmap level a sphere (a cascade's bounds) covers, or
+ * every page of one mip of a map (a local light's) —, as the coarse marking asks its own, with the flags of a page marked from the view. Binding 4: params.
+ */
+export const vsmDenseMarkingWgsl = (layout: VsmLayout) =>
+  wgslProgram(
+    `struct VsmDenseEntry{centre:vec3f,radius:f32,mapId:u32,mip:u32,kind:u32,spare:u32,}
+@group(1) @binding(0) var<storage,read> vsmDense:array<VsmDenseEntry>;
+@group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
+@compute @workgroup_size(${64}) fn vsmMarkDense(@builtin(global_invocation_id) id:vec3u){
+ let entry=vsmDense[id.y];
+ let handle=vsmHandleFromId(entry.mapId);
+ let pd=vsmProjectionOf(handle);
+ if(pd.lightUnseen){return;}
+ let flags=${markedPageFlagsText(layout.prefilteredDistant)};
+ var origin=vec2i(0);
+ var size=vec2i(1);
+ var mip=entry.mip;
+ if(entry.kind==${VSM_DENSE_KIND.whole}u){
+  size=vec2i(i32(max(1u,vsmTexelsAtLevel(mip)>>VSM_LOG2_PAGE)));
+ }else{
+  // The pages a sphere covers in the level's map: its centre's UV and the share of the map its radius spans along each axis.
+  mip=0u;
+  let toMapShift=vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,vsmMarking.originShiftHigh,vsmMarking.originShiftLow);
+  let m=pd.shiftedToMapUv;
+  let uv=(m*vec4f(entry.centre+toMapShift,1.0)).xy;
+  let extent=entry.radius*vec2f(length(vec3f(m[0][0],m[1][0],m[2][0])),length(vec3f(m[0][1],m[1][1],m[2][1])));
+  let pages=f32(VSM_LEVEL0_PAGES);
+  let low=vec2i(floor((uv-extent)*pages));
+  let high=vec2i(floor((uv+extent)*pages));
+  origin=max(low,vec2i(0));
+  size=min(high,vec2i(i32(VSM_LEVEL0_PAGES)-1))-origin+vec2i(1);
+ }
+ if(any(size<=vec2i(0))){return;}
+ let total=u32(size.x*size.y);
+ for(var k=id.x;k<total;k+=${VSM_DENSE_THREADS}u){
+  let cell=vsmTableEntryOf(handle,mip,vec2u(origin)+vec2u(k%u32(size.x),k/u32(size.x)));
+  vsmRequestPage(cell,flags);
+  if(pd.useCover){vsmFillCover(cell);}
+ }
+}
 `,
     [
       ...prefilteredDeps(layout.prefilteredDistant),
@@ -422,7 +508,6 @@ export const vsmCoarseMarkingWgsl = (layout: VsmLayout) =>
       VSM_PROJECTION_DATA_READ_WGSL,
       VSM_MARK_PAGE_ADDRESS_WGSL,
       VSM_FILL_COVER_WGSL,
-      FLAT_INDEX_WGSL,
     ],
   )
 
@@ -453,7 +538,8 @@ fn vsmMarkedLevel(base:VsmProjectionData,shiftedPosition:vec3f,extraBias:f32)->i
 }
 
 /** The marking's functions past `vsmMarkedLevel`, the one text of the plain and the throttled block. */
-const markingHelpersText = (prefiltered: boolean) => `
+/** The mip level a local light's page is marked at, and the receiver cover's mark. */
+const markingLevelText = `
 /** The mip level a local light's page is marked at. */
 fn vsmMarkLocalMipLevel(pd:VsmProjectionData,shiftedPosition:vec3f,sceneDepth:f32,extraBias:f32)->u32{
  let toMapShift=vsmSubtractHighLow(pd.originShiftHigh,pd.originShiftLow,vsmMarking.originShiftHigh,vsmMarking.originShiftLow);
@@ -467,8 +553,12 @@ fn vsmMarkCover(entryCell:VsmTableCell,mapTexelAt:vec2u){
  if(vsmCoverInBounds(t,0u)){
   _=vsmReceiverCoverOr(vsmCoverIndex(t,0u),1u<<(coverCell.y*4u+coverCell.x));
  }
-}
-/** Marks the page of a position. \`ortho\`, a literal at each call: a clipmap level's projection is
+}`
+
+/** The mark of the page of a position. */
+const markingPageText = (
+  prefiltered: boolean,
+) => `/** Marks the page of a position. \`ortho\`, a literal at each call: a clipmap level's projection is
  *  orthographic, its w row (0, 0, 0, 1) gives w = 1 exactly for a finite point, and the divide
  *  that would return xyz as they are is left out (\`orthoW.test.ts\`). */
 fn vsmMarkPage(handle:VsmHandle,mipLevel:u32,shiftedPosition:vec3f,hasMargin:bool,marginOffset:vec2f,ortho:bool){
@@ -500,8 +590,10 @@ fn vsmMarkPage(handle:VsmHandle,mipLevel:u32,shiftedPosition:vec3f,hasMargin:boo
   let entryCell3=vsmTableEntryOf(handle,mipLevel,marginPageB);
   if(vsmTableCellPack(entryCell3)!=vsmTableCellPack(entryCell)){vsmRequestPage(entryCell3,flags);}
  }
-}
-/** Marks the page of a position in a sun's clipmap, \`extraBias\` levels beyond the map's own bias and
+}`
+
+/** The mark of a page in a sun's clipmap and for a local light. */
+const markingLightsText = `/** Marks the page of a position in a sun's clipmap, \`extraBias\` levels beyond the map's own bias and
  *  no level below \`minLevel\`. The biased level is raised to the clipmap's
  *  first: a level below it marks the first anyway, and the first (0 or more) keeps the difference
  *  from overflowing where a point at the clipmap's origin gives a level of -infinity. */
@@ -524,6 +616,9 @@ fn vsmMarkPageLocal(lightShiftedPosition:vec3f,radialNotSpot:bool,handleIn:VsmHa
  vsmMarkPage(handle,mipLevel,shiftedPosition,hasMargin,marginOffset,false);
 }
 `
+
+const markingHelpersText = (prefiltered: boolean) =>
+  `${markingLevelText}\n${markingPageText(prefiltered)}\n${markingLightsText}`
 
 /**
  * The page marking and the projection helpers it calls, against the primary
@@ -795,6 +890,9 @@ ${
  * spared the back-face cull and the first-person rules, and reading no surface. Neither the front layer
  * nor the water is marked from them. The reference takes the pixel at its thread's rank in the whole
  * dispatch, the tile it reads left unused: here the pixels are the tile's own.
+ *
+ * `locals` false leaves the local lights' marks out: the pages of their maps are then marked from the sampled lighting's samples alone
+ * (`manyLightsSampled/vsmSampleMarkingWgsl.ts`).
  */
 export const vsmPixelPageMarkingWgsl = (
   layout: VsmLayout,
@@ -802,11 +900,12 @@ export const vsmPixelPageMarkingWgsl = (
   water = false,
   throttled = false,
   input: VsmInputType = 'gbuffer',
+  locals = true,
 ) => {
   const strands = input === 'strands'
   return wgslProgram(
     `${strands ? '@group(1) @binding(0) var hairDepth:texture_2d<f32>;' : '@group(1) @binding(0) var depth:texture_depth_2d;'}
-${pixelMarkingHead(front, water, strands)}${pixelMarkingDirectional(front, water, strands)}${pixelMarkingLocal(strands)}
+${pixelMarkingHead(front, water, strands)}${pixelMarkingDirectional(front, water, strands)}${locals ? pixelMarkingLocal(strands) : '\n}'}
 `,
     [
       VSM_HANDLE_WGSL,

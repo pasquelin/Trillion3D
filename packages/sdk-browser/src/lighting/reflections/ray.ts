@@ -4,6 +4,7 @@ import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_LOBE_WGSL } from './field.ts'
 import { REFLECTION_DEPTH_BINDING, reflectionBindingsWgsl } from './viewLayout.ts'
 import { SCREEN_MARCH_WGSL } from '../../visibility/hiz/gpu/screenMarch.ts'
+import type { MarchLanes } from '../../visibility/hiz/gpu/screenMarchLanes.ts'
 
 /**
  * The screen ray of a reflection (`reflectionRaySpan`: the part of it between the distances `start` and `stop`
@@ -13,18 +14,19 @@ import { SCREEN_MARCH_WGSL } from '../../visibility/hiz/gpu/screenMarch.ts'
  * screen parameter into a distance along the ray (`reflectionRayDistance`): the clip `w` of its two ends, where it
  * starts and how long it is. It leaves the surface off along its normal by `reflectionRayBias`, twice the distance
  * from the pixel's point to its far corner measured along the normal: a ray never starts inside the depth it leaves.
+ * `reflectionOriginOnScreen`: whether the ray's origin, the surface's point left off along its normal by `bias`, lies inside the image: a ray that starts outside is not marched.
  * `reflectionReach`: the world distance along a reflected ray, from its origin `A` (clip) along
  * `toward` (clip), to which the screen can answer: where it meets the near plane, or `REFLECTION_FAR`.
  */
-export const reflectionRayWgsl = (group: number) =>
+export const reflectionRayWgsl = (group: number, lanes: MarchLanes = 'none') =>
   wgslBlock(
-    `reflectionRayWgsl(${group})`,
+    `reflectionRayWgsl(${group},${lanes})`,
     [
       reflectionBindingsWgsl(group),
       REFLECTION_CONSTANTS_WGSL,
       REFLECTION_LOBE_WGSL,
       clipToFramebuffer,
-      SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING),
+      SCREEN_MARCH_WGSL(group, REFLECTION_DEPTH_BINDING, lanes),
     ],
     `fn reflectionReach(A:vec4f,toward:vec4f)->f32{
  let grow=toward.z-toward.w;
@@ -33,6 +35,10 @@ export const reflectionRayWgsl = (group: number) =>
 fn reflectionRayBias(P:vec3f,N:vec3f)->f32{
  let S=clipToFramebuffer(reflectionView.viewProj*vec4f(P,1.0),view.viewport.xy);
  return 2.0*abs(dot(worldAt(S.xy+vec2f(0.5),S.z)-P,N));
+}
+fn reflectionOriginOnScreen(P:vec3f,N:vec3f,bias:f32)->bool{
+ let clip=reflectionView.viewProj*vec4f(P+N*bias,1.0);
+ return all(clip.xy>=vec2f(-clip.w))&&all(clip.xy<=vec2f(clip.w));
 }
 struct ReflectionRay{o:vec3f,d:vec3f,end:f32,wb:f32,we:f32,start:f32,span:f32,}
 fn reflectionRaySpan(P:vec3f,N:vec3f,lobe:ReflectionLobe,bias:f32,start:f32,stop:f32)->ReflectionRay{

@@ -91,7 +91,12 @@ export function validateAtmosphereSunIndex(value: unknown, who: string): Atmosph
 function validateSwitch(
   light: SceneLight,
   validated: SceneLight,
-  field: 'useTemperature' | 'shadowsAir' | 'transmittancePerPixel' | 'transmission',
+  field:
+    | 'useTemperature'
+    | 'shadowsAir'
+    | 'transmittancePerPixel'
+    | 'transmission'
+    | 'castHairDeepShadow',
 ) {
   const value = light[field]
   if (value === undefined) return
@@ -100,6 +105,45 @@ function validateSwitch(
       [field]: value,
     })
   validated[field] = value
+}
+/** `hairDeepShadowLayerDistribution`, copied onto `validated` when given: a number from 0 to 1. */
+function validateHairDeepShadowLayerDistribution(light: SceneLight, validated: SceneLight) {
+  const value = light.hairDeepShadowLayerDistribution
+  if (value === undefined) return
+  if (!isFiniteNumber(value) || value < 0 || value > 1)
+    throw new EngineError(
+      'INVALID_SCENE_LIGHT',
+      `${light.id}: hairDeepShadowLayerDistribution expected in [0, 1]`,
+      { hairDeepShadowLayerDistribution: value },
+    )
+  validated.hairDeepShadowLayerDistribution = value
+}
+/** The classic cascades' four fields of a sun, copied onto `validated` when given: a count of cascades (an integer from 0), the exponent (1 or more), the transition fraction (0 to 1), the distance in metres (0 or more). */
+function validateCascadeFields(light: SceneLight, validated: SceneLight) {
+  const fields = [
+    ['dynamicShadowCascades', 0, 1e6, true],
+    ['cascadeDistributionExponent', 1, 1e6, false],
+    ['cascadeTransitionFraction', 0, 1, false],
+    ['dynamicShadowDistance', 0, 1e9, false],
+    ['shadowBias', 0, 4, false],
+    ['shadowSlopeBias', 0, 4, false],
+  ] as const
+  for (const [field, low, high, whole] of fields) {
+    const value = light[field]
+    if (value === undefined) continue
+    if (
+      !isFiniteNumber(value) ||
+      value < low ||
+      value > high ||
+      (whole && !Number.isInteger(value))
+    )
+      throw new EngineError(
+        'INVALID_SCENE_LIGHT',
+        `${light.id}: ${field} expected ${whole ? 'an integer ' : ''}in [${low}, ${high}]`,
+        { [field]: value },
+      )
+    validated[field] = value
+  }
 }
 /** `lightingChannels`, copied onto `validated` when given: a set of the three channels. */
 function validateLightingChannels(light: SceneLight, validated: SceneLight) {
@@ -212,6 +256,9 @@ export function validateSceneLight(light: SceneLight): SceneLight {
   validateIntensity(light, validated)
   validateTemperature(light, validated)
   validateSwitch(light, validated, 'transmission')
+  validateSwitch(light, validated, 'castHairDeepShadow')
+  validateHairDeepShadowLayerDistribution(light, validated)
+  validateCascadeFields(light, validated)
   validateLightingChannels(light, validated)
   validateFogFields(light, validated)
   validateMobility(light, validated)

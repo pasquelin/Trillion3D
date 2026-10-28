@@ -43,7 +43,7 @@ import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 // The view joined the translucency global illumination volume's grid and slices' law (`giGrid`, `giZ`).
 // The vertex stage no longer leaves an item of another pass out (`otherPass`, the view's `translucencyPass` and the item's are gone): each draw expands its own items alone (`expand/expansionViews.ts`).
 // Retaken for the vertex stage's triangle word: the item's lighting channels and the material's facts it carries for the fragment (`TRI_LIGHTING_CHANNELS_SHIFT`, `TRI_MATERIAL_SHIFT`).
-const VERTEX = '668aebbcfb8c69b6161f4f1f887f46dc205e5cde9fa5180a577d5100ee501c0f'
+const VERTEX = '9143a8cd283204cfe1cce9e0207d21ba57c9e44961624c10e84c89f109c129d2'
 // Retaken when the blend module took that vertex, the per-material responsiveness it writes for
 // the temporal pass where its material asks one, and the stored tangents' frame in a
 // module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
@@ -134,7 +134,17 @@ const VERTEX = '668aebbcfb8c69b6161f4f1f887f46dc205e5cde9fa5180a577d5100ee501c0f
 // The reflection lobe lost its probe bands and long axis (`reflectionLobeOf`), the environment alone standing for the probes' field.
 // The standard material's Fresnel took the specular grazing value (`slabF90`, `fresnelSchlick(f0,f90,cosine)`) and the split sum its F90 (`math/src/wgsl/lighting.ts`); retaken for the sixth cut (`contactless`, always set in a blend program) and the occlusion that left the diffuse and toon models of a shadowed light.
 // Retaken when the light terms' documentation and cache irradiance dependencies were reworded in the text (`lightTermsWgsl`) and the shadow factor became a declared block (`shadowFactorWgsl`).
-const BLEND = 'a7a0b924c1b3ae83bf8950178161aa83b68199242223092281196dc7f5033c05'
+// Retaken when the translucency global illumination volume's ambient and directional light were stacked in one texture and the freed slot
+// bound the light profiles' atlas: the text moved in three places and nowhere else (the digest held through the run before). (1) The volume:
+// one declaration `translucencyGiVolume` at binding 21 in place of two at 21 and 26, read by `giSampleVolume` (two `stackedSample` halves)
+// in place of `giSampleVolumes`, which left `GI_SAMPLE_WGSL`. (2) Every key that is not `profileless` holds the profile read
+// (`lightProfileOfWgsl`: the atlas at binding 26, its sampler at 49, `lightProfileMultiplier`, `lightProfileOf`) in place of the stand-in that
+// answered 1 (`NO_LIGHT_PROFILE_WGSL`). (3) The light loop's term of a profiled light multiplies by it.
+// Retaken (with the vertex stage) for the lighting lot of 28/10: the blend view's camera-map words in its padding (`volumeCamera`), the fog
+// a blended surface takes through the heterogeneous volumes' camera map (`blendVolumeFog`), the shared shading and declared-term text
+// (`SHADING_TEXT`, `DECLARED_TERM_TEXT`), the front layer's depth carried by its traced radiance (`FRONT_TRACED_FORMAT`), and the direct
+// loops' sine through `sinFromCosUnclamped`. The proofs of the blend on the GPU did not pass before this lot either.
+const BLEND = '992ccde28e8f1b02542a5db9aee77343a785c6e71815572bb47c6e8c2b312245'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

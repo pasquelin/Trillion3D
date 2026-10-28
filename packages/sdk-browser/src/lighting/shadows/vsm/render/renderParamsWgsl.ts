@@ -237,7 +237,7 @@ export const VSM_RENDER_PARAMS_WGSL = wgslBlock(
  *  each half axis keeps where a map does not grow the bounds by that reach (\`vsmOffsetGrows\`), one for
  *  a placement with none (\`vsmCandFit\`), then the three half axes of the previous pose
  *  (\`vsmCandPrevAxes\`), left out for a placement that stood still (\`VSM_RENDER_CAND_STILL\`). */
-struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,a0:vec3f,corners:u32,a1:vec3f,flags:u32,a2:vec3f,prevShift:vec3f,edge:f32,own:vec4f,parent:vec4f,inst:vec4f,errors:vec2f,offsetDisableSq:f32,viewBits:u32,tail0:vec4f,tail1:vec4f,tail2:vec4f,}
+struct VsmRenderCandidate{c:vec4f,l:vec3f,row:u32,a0:vec3f,corners:u32,a1:vec3f,flags:u32,a2:vec3f,prevShift:vec3f,edge:f32,own:vec4f,parent:vec4f,inst:vec4f,errors:vec2f,offsetDisableSq:f32,viewBits:u32,tail0:vec4f,tail1:vec4f,tail2:vec4f,tess:vec4f,}
 const VSM_RENDER_CAND_DYNAMIC:u32=1u;
 const VSM_RENDER_CAND_DEFORMING:u32=2u;
 /** Bit 2: the row's triangles face the light clockwise in world space — a mirroring placement
@@ -274,6 +274,12 @@ const VSM_RENDER_CAND_CHANNELS_SHIFT:u32=15u;
 /** The factor each half axis of the candidate's box keeps where a map does not grow the bounds by its
  *  placement's offset. */
 fn vsmCandFit(c:VsmRenderCandidate)->vec3f{return c.tail0.xyz;}
+/** Whether a displaced surface of the candidate, seen from a map's mip view of \`focal\` pixels a unit at depth one and from \`depth\` (the nearest depth of its object's ball, 1 in an orthographic
+ *  view), has its displacement gone: the greatest distance it moves a point, in pixels, at or under the size it fades out below (\`tess.x\`, \`tess.y\`: none for a surface that
+ *  is not displaced, never fades or is masked). The surface is then drawn as its base triangles, not cut into patches. */
+fn vsmRenderFallsBack(c:VsmRenderCandidate,focal:f32,depth:f32)->bool{
+ return c.tess.y>0.0&&depth>0.0&&c.tess.x*focal/depth<=c.tess.y;
+}
 /** The half axes of the candidate's box under the pose the previous image drew its placement in: the
  *  current ones for a placement that stood still, else those the record holds in its pads. */
 fn vsmCandPrevAxes(c:VsmRenderCandidate)->array<vec3f,3>{

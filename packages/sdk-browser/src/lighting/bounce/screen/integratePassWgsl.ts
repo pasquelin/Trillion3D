@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { makeFinite3 } from '../../../../../math/src/wgsl/integer.ts'
 import { fourRooksJitter } from '../../../../../math/src/wgsl/sampling.ts'
 import { DIFFUSE_INTEGRAL_METHOD } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { computeTextureEntry } from '../../../gpu/core/computeBindings.ts'
@@ -205,7 +206,7 @@ export const EVERY_POINT = 'integrateEvery'
 const integrateKernel = (classified: boolean) =>
   wgslBlock(
     `INTEGRATE_KERNEL(${classified})`,
-    [SP_TILE_COUNT],
+    [SP_TILE_COUNT, makeFinite3],
     `@group(0) @binding(${I.light}) var lightOut:texture_storage_2d<${F.light},write>;
 @group(0) @binding(${I.rough}) var roughOut:texture_storage_2d<${F.rough},write>;
 @group(0) @binding(${I.back}) var backOut:texture_storage_2d<${F.back},write>;
@@ -224,7 +225,7 @@ fn spIntegrateCell(cell:vec2u,mode:u32){
   rough=read.rough;
   back=read.back;
  }
- textureStore(lightOut,at,light);
+ textureStore(lightOut,at,vec4f(max(makeFinite3(light.rgb),vec3f(0.0)),light.a));
  textureStore(roughOut,at,vec4u(rough,0u,0u,0u));
  textureStore(backOut,at,vec4u(back,0u,0u,0u));
 }

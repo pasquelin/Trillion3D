@@ -18,6 +18,7 @@ import {
 } from './shadowTraceWgsl.ts'
 import { SHADOW_SLICE_WGSL } from './shadowSlice.ts'
 import { vsmSampleMapLocalWgsl } from '../shadows/vsm/sampleMapWgsl.ts'
+import { beerShadowReadWgsl } from '../heterogeneousVolumes/beerShadowReadWgsl.ts'
 import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { VSM_TRACE_KINDS_BOTH, VSM_TRACE_KINDS_SUN } from '../shadows/vsm/trace/traceWgsl.ts'
 import {
@@ -95,6 +96,7 @@ const blendShadowWgsl = (options: BlendShadowOptions) => {
     trace = BLEND_TRACE_BINDINGS,
     quality = TRANSLUCENT_SHADOW_DEFAULT.quality,
     localShadows = TRANSLUCENT_SHADOW_DEFAULT.localShadows,
+    classic = false,
     materials = NO_TRANSLUCENT_MATERIAL_SHADOW,
   } = options
   const asked = asksOfItsOwn(materials)
@@ -108,11 +110,11 @@ const blendShadowWgsl = (options: BlendShadowOptions) => {
   // Whether each kind of light is read by the trace, as an expression of the fragment: always
   // where the project's switch says, where the surface's mark does, else never (one sample).
   const traceOf = (asks: boolean, mark: number) =>
-    quality > 0 ? 'true' : asks ? `(translucentShadowBits&${mark}u)!=0u` : 'false'
+    classic || quality > 0 ? 'true' : asks ? `(translucentShadowBits&${mark}u)!=0u` : 'false'
   const sun = traceOf(materials.directionalTrace, TRANSLUCENT_SHADOW_MARK.directionalTrace)
   const local = traceOf(materials.localTrace, TRANSLUCENT_SHADOW_MARK.localTrace)
   const reads = localAny ? [sun, local] : [sun]
-  const label = `directShadowWgsl(${vsmBindingsLabel(vsm)}, ${vsmTraceBindingsLabel(trace)}, ${kinds}, ${quality > 0}, ${localShadows}${materialsLabel(materials)})`
+  const label = `directShadowWgsl(${vsmBindingsLabel(vsm)}, ${vsmTraceBindingsLabel(trace)}, ${kinds}, ${quality > 0}, ${localShadows}${classic ? ', classic' : ''}${materialsLabel(materials)})`
   if (!kinds) {
     return wgslBlock(label, [VSM_NO_PIXEL_WGSL, shadowFactorWgsl('\n return 1.0;', asked)], '')
   }
@@ -123,7 +125,7 @@ const blendShadowWgsl = (options: BlendShadowOptions) => {
     [
       SHADOW_SLICE_WGSL,
       vsmConsumerWgsl(vsm),
-      ...(traces ? [vsmFragmentTraceWgsl(vsm.pool, trace, kinds)] : []),
+      ...(traces ? [vsmFragmentTraceWgsl(vsm.pool, trace, kinds, undefined, classic)] : []),
       ...(samples ? [vsmFragmentSampleWgsl(vsm.pool, trace.view, kinds, 0, !traces)] : []),
       shadowFactorWgsl(blendReadWgsl(sun, local, localAny, localShadows), asked),
     ],
@@ -138,13 +140,14 @@ const blendShadowWgsl = (options: BlendShadowOptions) => {
  * surface that faces away from the light unlit whatever the mask holds. The mask is at \`mask\` of group 0, read at the pixel
  * \`vsmMaskAt\` names.
  */
-const perLightShadowWgsl = ({ mask }: PerLightShadowOptions) =>
+const perLightShadowWgsl = ({ mask, volumeShadow }: PerLightShadowOptions) =>
   wgslBlock(
-    `directShadowWgsl(perLight ${mask})`,
+    `directShadowWgsl(perLight ${mask}${volumeShadow === undefined ? '' : ` volume ${volumeShadow}`})`,
     [
+      ...(volumeShadow === undefined ? [] : [beerShadowReadWgsl(volumeShadow)]),
       shadowFactorWgsl(`
  let encoded=textureLoad(vsmPerLightMask,vsmMaskPixel,perLight.layer,0).z;
- return encoded*encoded;`),
+ return encoded*encoded${volumeShadow === undefined ? '' : '*beerShadowMask(light,P)'};`),
     ],
     `@group(0) @binding(${mask}) var vsmPerLightMask:texture_2d_array<f32>;
 /** The resolve's pixel: the mask is read there. */
@@ -153,9 +156,9 @@ fn vsmMaskAt(coord:vec2i){vsmMaskPixel=coord;}`,
   )
 
 /** The shadow read of an opaque lit pass: the trace the projection stored in the frame's masks. */
-const maskShadowWgsl = ({ sun, local, farMask, fallback }: MaskShadowOptions) =>
+const maskShadowWgsl = ({ sun, local, farMask, fallback, volumeShadow }: MaskShadowOptions) =>
   wgslBlock(
-    `directShadowWgsl(${sun}, ${local ?? null}, ${farMask ?? null}${fallback ? `, ${fallback.lightGrid} ${vsmBindingsLabel(fallback.vsm)} ${fallback.view}` : ''})`,
+    `directShadowWgsl(${sun}, ${local ?? null}, ${farMask ?? null}${fallback ? `, ${fallback.lightGrid} ${vsmBindingsLabel(fallback.vsm)} ${fallback.view}` : ''}${volumeShadow === undefined ? '' : ` volume ${volumeShadow}`})`,
     [
       vsmMaskWgsl(sun, local, farMask, fallback?.lightGrid),
       SHADOW_SLICE_WGSL,
@@ -166,10 +169,21 @@ const maskShadowWgsl = ({ sun, local, farMask, fallback }: MaskShadowOptions) =>
             vsmSampleMapLocalWgsl(forwardPool(fallback.vsm.pool)),
           ]
         : []),
-      shadowFactorWgsl(`
+      ...(volumeShadow === undefined ? [] : [beerShadowReadWgsl(volumeShadow)]),
+      shadowFactorWgsl(
+        volumeShadow === undefined
+          ? `
  if(shadowSliceIsSun(slice)){return vsmSunFactor(shadowSliceRecord(slice));}${
    local === undefined ? '\n return 1.0;' : '\n return vsmLocalFactor(slice,P);'
- }`),
+ }`
+          : // The share of the light times the transmittance of the volumes toward it (HeterogeneousVolumesShadowMask.usf).
+            `
+ var share=1.0;
+ if(shadowSliceIsSun(slice)){share=vsmSunFactor(shadowSliceRecord(slice));}${
+   local === undefined ? '' : '\n else{share=vsmLocalFactor(slice,P);}'
+ }
+ return share*beerShadowMask(light,P);`,
+      ),
     ],
     '',
   )
@@ -207,6 +221,8 @@ fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,facing:bool)->f32{
 export type TranslucentShadow = {
   quality: number
   localShadows: boolean
+  /** The shadows are classic shadow maps (`shadowVirtualEnable` off): every light is read by the classic filter, whatever `quality` says. */
+  classic?: boolean
   /** What the surfaces of the scene ask past the switches: the code the program holds. */
   materials?: TranslucentMaterialShadow
 }
@@ -255,7 +271,7 @@ export const TRANSLUCENT_SHADOW_DEFAULT: TranslucentShadow = {
 /** The switches as a block name reads them, empty where a program names none (the defaults). */
 export const translucentShadowLabel = (read?: TranslucentShadow) =>
   read
-    ? `, ${read.quality > 0 ? 'traced' : 'sampled'}${read.localShadows ? ', local' : ''}${read.materials ? materialsLabel(read.materials) : ''}`
+    ? `, ${read.classic ? 'classic' : read.quality > 0 ? 'traced' : 'sampled'}${read.localShadows ? ', local' : ''}${read.materials ? materialsLabel(read.materials) : ''}`
     : ''
 
 /** What a shadow read takes (`directShadowWgsl`): the pass kind — a mask read at the binding of the
@@ -267,6 +283,8 @@ type PerLightShadowOptions = {
   pass: 'perLight'
   /** The binding of the per-light mask, an array a layer a light. */
   mask: number
+  /** Where the shadows the heterogeneous volumes cast are bound (`beerShadowReadWgsl`); left out, none is read. */
+  volumeShadow?: number
 }
 
 type BlendShadowOptions = {
@@ -279,6 +297,8 @@ type BlendShadowOptions = {
   quality?: number
   /** Whether local lights shadow: `TRANSLUCENT_SHADOW_DEFAULT`'s unless given. */
   localShadows?: boolean
+  /** The shadows are classic shadow maps: one read, the classic filter's, for every light (`TranslucentShadow.classic`). */
+  classic?: boolean
   /** What some surface asks of its own: none unless given. */
   materials?: TranslucentMaterialShadow
 }
@@ -290,6 +310,8 @@ type MaskShadowOptions = {
   /** The local lights' mask, where the pass walks local lights. */
   local?: number
   farMask?: number
+  /** Where the shadows the heterogeneous volumes cast are bound (`beerShadowReadWgsl`); left out, none is read. */
+  volumeShadow?: number
   /** Where the shadowed lights' grid and the maps a light past the mask's lanes is read from are bound
    *  (`local` needs them). */
   fallback?: VsmMaskReadBindings

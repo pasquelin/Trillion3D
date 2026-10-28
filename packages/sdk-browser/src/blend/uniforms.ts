@@ -23,6 +23,7 @@ import {
 } from '../materials/surface/pixelModel.ts'
 import { writeTranslucencyVolumeView } from '../lighting/translucency/frame.ts'
 import { writeTranslucencyGiView } from '../lighting/translucencyGi/frame.ts'
+import { heterogeneousCameraOf } from '../lighting/heterogeneousVolumes/cameraMap.ts'
 import { holdoutOn } from '../frame/prepare/alphaHoldout.ts'
 
 /** Diagnostic bits that the WHOLE pass carries: they do not depend on the item. None for beauty
@@ -153,6 +154,10 @@ function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directT
   writeTranslucencyVolumeView(rt, packed, VIEW.volumeCorner, VIEW.volumeScale, VIEW.volumeRead)
   // The translucency global illumination volume this image built, where the surfaces read their indirect light.
   writeTranslucencyGiView(rt, packed, VIEW.giGrid, VIEW.giZ)
+  // The heterogeneous volumes' camera map, where this image made one: whether it is read and the camera's pixels a texel covers.
+  const camera = heterogeneousCameraOf(rt.gpu)
+  ints[VIEW.volumeCamera] = camera ? 1 : 0
+  packed[VIEW.volumeCameraFactor] = camera?.factor ?? 1
   // The alpha holdout, which the layers of a held-out primitive read.
   ints[VIEW.holdout] = holdoutOn(rt) ? 1 : 0
   // The curve a material's normal curvature takes its roughness by, the opaque resolve's.

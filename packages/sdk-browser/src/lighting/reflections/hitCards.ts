@@ -3,10 +3,11 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 import { standInBuffer, standInTexture } from '../../gpu/core/standIns.ts'
 import { atlasFormats } from '../surfaceCache/layout.ts'
+import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 import { instanceWords } from './hitInstances.ts'
 import type { SurfaceHitResources } from '../surfaceCache/hitWgsl.ts'
 import { cacheRootsOf } from '../surfaceCache/placements.ts'
-import { sameWords } from '../../gpu/core/sameWords.ts'
+import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 
 /**
  * WHAT THE RAYS' HITS READ OF THE SURFACE CACHE (`../surfaceCache/hitWgsl.ts`), as the resources a pass binds
@@ -17,35 +18,36 @@ import { sameWords } from '../../gpu/core/sameWords.ts'
  *
  * Where the cache is not made — a session with no cards, the image before the first the cache was asked for —
  * every one is a stand-in: tables whose header holds nothing, so a hit finds no mesh cards, and the field answers the
- * ray. A compressed atlas changes only the layers no hit reads.
+ * ray. A compressed atlas changes only the layers no hit reads. The final light is stored in the format the atlases' light is (`lightAtlasFormat`):
+ * the stand-in of a format is a texel of it, as the cache's own.
  */
 
 const WORD = 4
 
-/** The stand-ins of a device: zero tables, a texel of each layer a hit reads, empty feedback, grid and instances. */
+/** The stand-ins of a device: zero tables, a texel of each layer a hit reads (the final light's of the format asked), empty feedback, grid and instances. */
 function createStandIns(device: GPUDevice) {
   const buffer = (label: string, bytes: number) =>
     standInBuffer(device, `Trillion3D reflection hit, no ${label}`, bytes, GPUBufferUsage.STORAGE)
-  const formats = atlasFormats(false)
-  const view = (layer: keyof typeof formats) =>
-    standInTexture(device, `Trillion3D reflection hit, no ${layer}`, formats[layer]).createView()
-  const resources: SurfaceHitResources = {
+  const view = (layer: string, format: GPUTextureFormat) =>
+    standInTexture(device, `Trillion3D reflection hit, no ${layer}`, format).createView()
+  const shared = {
     tables: buffer('tables', 64 * WORD),
-    depth: view('depth'),
-    final: view('final'),
+    depth: view('depth', atlasFormats(false, WORD_LIGHT_FORMAT).depth),
     feedback: buffer('feedback', 64 * WORD),
     grid: buffer('grid', 16),
     instances: buffer('instances', 16),
   }
+  const ofLight = new Map<LightAtlasFormat, SurfaceHitResources>()
   return {
-    resources,
+    shared,
+    /** The stand-ins whose final light is a texel of `light`. */
+    resources(light: LightAtlasFormat): SurfaceHitResources {
+      let held = ofLight.get(light)
+      if (!held) ofLight.set(light, (held = { ...shared, final: view('final', light) }))
+      return held
+    },
     dispose() {
-      for (const resource of [
-        resources.tables,
-        resources.feedback,
-        resources.grid,
-        resources.instances,
-      ])
+      for (const resource of [shared.tables, shared.feedback, shared.grid, shared.instances])
         resource.destroy()
     },
   }
@@ -93,7 +95,7 @@ function createInstanceTable(device: GPUDevice) {
         table?.scratch ?? new Uint32Array(0),
       )
       const count = 1 + words[0]
-      if (table && sameWords(table.uploaded, words.subarray(0, count))) return table.buffer
+      if (table && sameValues(table.uploaded, words.subarray(0, count))) return table.buffer
       const held = table
       const buffer = sizedBuffer(
         device,
@@ -127,19 +129,19 @@ export function createHitCards(device: GPUDevice) {
   /** What the image binds where the cache is made: written in place each image. */
   const current = {} as { -readonly [K in keyof SurfaceHitResources]: SurfaceHitResources[K] }
   return {
-    /** What the scene stage's hits of the image bind: the cache's where it is made, the stand-ins where it is not. */
-    resources(rt: WebgpuPagesRuntime): SurfaceHitResources {
+    /** What the scene stage's hits of the image bind, for the final light stored in `light`: the cache's where it is made in that format, the stand-ins where it is not. */
+    resources(rt: WebgpuPagesRuntime, light: LightAtlasFormat): SurfaceHitResources {
       stand ??= createStandIns(device)
       const state = readableCache(rt)
-      if (!state) return stand.resources
+      if (!state || state.atlases!.light !== light) return stand.resources(light)
       const { physical } = state.atlases!
       // Only the main view writes the cache's feedback (`feedbackBuffer.ts`).
       const main = rt.views.active === rt.views.main
       current.tables = state.tables.buffer!
       current.depth = physical.depth
       current.final = physical.final
-      current.feedback = (main && state.feedback.buffer) || stand.resources.feedback
-      current.grid = rt.distanceFields?.scene.field.resources?.objectGrid ?? stand.resources.grid
+      current.feedback = (main && state.feedback.buffer) || stand.shared.feedback
+      current.grid = rt.distanceFields?.scene.field.resources?.objectGrid ?? stand.shared.grid
       current.instances = instances.update(rt, state)
       return current
     },

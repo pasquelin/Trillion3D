@@ -19,30 +19,8 @@ import {
 import { writeRootWords } from './mobilityWrite.ts'
 import { MOBILITY_DEFORMS } from '../mobilityBits.ts'
 
-/**
- * WHICH PLACEMENTS MOVE, as the shadow pages see them: the reference's per-primitive cache state
- * (cached as dynamic or as static, the frame of its last invalidation), kept for each placement — a
- * root of the cut. A placement becomes moving the first time it moves: from then on the static slice
- * of the virtual shadow maps leaves it out, and its later moves redraw only the dynamic slice of
- * the pages they cross. The first move is the one that changes the static slice, so it stales those
- * pages whole.
- *
- * A moving placement that has not moved for `settle`'s threshold of frames turns static again (100
- * frames, the reference's own): with the receiver mask, every dynamic page is drawn again each
- * frame, so a resting dynamic caster would cost its pages forever. What the GPU reads is one word a
- * placement (`MOBILITY_*`, `../mobilityBits.ts`): the words of the placements whose mobility or
- * casting changed (`touch`) are written again, them alone.
- *
- * Its members: `moves(rank)`, whether placement `rank` has moved: the static layer does not hold
- * it; `cachedDynamic(rank)`, whether it is cached as dynamic: it has moved, or a deformation moves
- * its vertices (the sign of the boxes the CPU declares); `poseOf(rank)`, the pose it was last seen at, a view of the state, none past the placements it
- * is sized for; `words`, one word a placement; `arrivals`, the placements that arrived since the diff last ran
- * over them, a bit each, with `hasArrivals`, `sendArrivals` and `clearArrivals`; `holds`, `ensure`, `move`, `invalidate`, `follow`,
- * `moveLead`, `settle`, `touch`, `park`, `rearrive` and `writeRoots`, those of
- * `mobilityState.ts`, `mobilityMoves.ts` and `mobilityWrite.ts`.
- */
-export function createShadowMobility() {
-  const s = createMobilityState()
+/** What the shadow mobility answers of its state: the placements that move, their poses and the counts and words written. */
+function mobilityReaders(s: ReturnType<typeof createMobilityState>) {
   return {
     moves: (rank: number) => s.moving[rank] === 1,
     cachedDynamic: (rank: number) =>
@@ -74,6 +52,12 @@ export function createShadowMobility() {
     },
     holds: (rank: number, world: ArrayLike<number>, box?: ArrayLike<number>) =>
       holdsPose(s, rank, world, box),
+  }
+}
+
+/** What the shadow mobility does to its state: ensures, moves, follows and writes. */
+function mobilityActions(s: ReturnType<typeof createMobilityState>) {
+  return {
     ensure: (placements: number, worldOf: (rank: number) => ArrayLike<number>) =>
       ensureLayout(s, placements, worldOf),
     move: (rank: number, world: ArrayLike<number>, forced = false) =>
@@ -113,6 +97,37 @@ export function createShadowMobility() {
     rewrite: () => void (s.wholeWords = true),
     writeRoots: writeRootWords.bind(null, s),
   }
+}
+
+/**
+ * WHICH PLACEMENTS MOVE, as the shadow pages see them: the reference's per-primitive cache state
+ * (cached as dynamic or as static, the frame of its last invalidation), kept for each placement — a
+ * root of the cut. A placement becomes moving the first time it moves: from then on the static slice
+ * of the virtual shadow maps leaves it out, and its later moves redraw only the dynamic slice of
+ * the pages they cross. The first move is the one that changes the static slice, so it stales those
+ * pages whole.
+ *
+ * A moving placement that has not moved for `settle`'s threshold of frames turns static again (100
+ * frames, the reference's own): with the receiver mask, every dynamic page is drawn again each
+ * frame, so a resting dynamic caster would cost its pages forever. What the GPU reads is one word a
+ * placement (`MOBILITY_*`, `../mobilityBits.ts`): the words of the placements whose mobility or
+ * casting changed (`touch`) are written again, them alone.
+ *
+ * Its members: `moves(rank)`, whether placement `rank` has moved: the static layer does not hold
+ * it; `cachedDynamic(rank)`, whether it is cached as dynamic: it has moved, or a deformation moves
+ * its vertices (the sign of the boxes the CPU declares); `poseOf(rank)`, the pose it was last seen at, a view of the state, none past the placements it
+ * is sized for; `words`, one word a placement; `arrivals`, the placements that arrived since the diff last ran
+ * over them, a bit each, with `hasArrivals`, `sendArrivals` and `clearArrivals`; `holds`, `ensure`, `move`, `invalidate`, `follow`,
+ * `moveLead`, `settle`, `touch`, `park`, `rearrive` and `writeRoots`, those of
+ * `mobilityState.ts`, `mobilityMoves.ts` and `mobilityWrite.ts`.
+ */
+export function createShadowMobility() {
+  const s = createMobilityState()
+  // The readers' getters stay live: their descriptors are carried over, not their values.
+  return Object.defineProperties(
+    mobilityActions(s),
+    Object.getOwnPropertyDescriptors(mobilityReaders(s)),
+  ) as ReturnType<typeof mobilityActions> & ReturnType<typeof mobilityReaders>
 }
 
 export type ShadowMobility = ReturnType<typeof createShadowMobility>

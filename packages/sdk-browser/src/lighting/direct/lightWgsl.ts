@@ -15,6 +15,7 @@ import {
   LIT_TRANSMISSION_VEC4S,
 } from '../../../../sdk-core/src/lighting/subsurfaceProfile/litRows.ts'
 import { ENV_BRDF_TEXELS } from '../../../../sdk-core/src/lighting/environmentBrdf.ts'
+import { SHADING_ENERGY_SIZE } from '../../../../sdk-core/src/lighting/shadingEnergy.ts'
 import { SKIN_TABLE_TEXELS } from '../../../../sdk-core/src/lighting/skinTable.ts'
 import { SHEEN_LTC_SIZE } from '../../../../sdk-core/src/lighting/sheenLtc.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -99,12 +100,13 @@ struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,
  *  image (\`../atmosphere/layout.ts\`), all zero without an atmosphere; the fitted specular lobe a
  *  rectangle is integrated with, written once (\`ltcTable.ts\`); the preintegrated skin table, a word a
  *  texel (\`skinTable.ts\`), written once it is loaded; the preintegrated environment BRDF, a word a
- *  texel (\`environmentBrdf.ts\`), written once; the sheen lobe's table, two words of four half floats a texel
+ *  texel (\`environmentBrdf.ts\`), written once; the GGX energy table the environment lights weigh a reflection by, a word a
+ *  texel (\`shadingEnergy.ts\`), written once; the sheen lobe's table, two words of four half floats a texel
  *  (\`sheenLtc.ts\`), written once; the subsurface profiles' dual specular the lights read, a
  *  \`vec4\` a profile (\`litRows.ts\`), written as the profiles change, and their transmission, the texel and the
  *  samples of the profile, \`LIT_TRANSMISSION_VEC4S\` \`vec4\` a profile; then every light, as many as the
  *  scene holds. */
-struct DirectLights{count:u32,forwardRank:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,${LIGHT_AIR_MEMBERS}ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,skin:array<u32,${SKIN_TABLE_TEXELS}>,envBrdf:array<u32,${ENV_BRDF_TEXELS}>,sheen:array<vec2u,${SHEEN_LTC_SIZE * SHEEN_LTC_SIZE}>,profiles:array<vec4f,${LIT_PROFILE_ROWS}>,transmissions:array<vec4f,${LIT_PROFILE_ROWS * LIT_TRANSMISSION_VEC4S}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}`
+struct DirectLights{count:u32,forwardRank:u32,pad1:u32,pad2:u32,environment:array<vec4f,${ENVIRONMENT_COEFFICIENTS}>,${LIGHT_AIR_MEMBERS}ltc:array<vec4f,${LTC_SIZE * LTC_SIZE * 2}>,skin:array<u32,${SKIN_TABLE_TEXELS}>,envBrdf:array<u32,${ENV_BRDF_TEXELS}>,energy:array<u32,${SHADING_ENERGY_SIZE * SHADING_ENERGY_SIZE}>,sheen:array<vec2u,${SHEEN_LTC_SIZE * SHEEN_LTC_SIZE}>,profiles:array<vec4f,${LIT_PROFILE_ROWS}>,transmissions:array<vec4f,${LIT_PROFILE_ROWS * LIT_TRANSMISSION_VEC4S}>,items:array<DirectLight${slots ? `,${slots}` : ''}>,}`
 
 /** The tests of a light's kind and flags, what reaches a point, and the shares it gives. */
 const DIRECT_QUERIES_TEXT = `/** Each kind's test reads the rank through \`isKind\` (\`isRect\` too, \`rectLightWgsl.ts\`). */

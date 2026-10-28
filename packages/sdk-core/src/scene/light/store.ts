@@ -26,7 +26,6 @@ import {
   setTableContactView,
   setTableShadowView,
   setTableEnvironment,
-  setTableProfileBrightness,
   setTableRangeView,
   sliceOf,
   type LightTable,
@@ -181,10 +180,6 @@ function writers(table: LightTable) {
     assignDrawn: (slot: number, drawn: boolean) => assignDrawn(table, slot, drawn),
     assignLightFunction: (slot: number, index: number) => assignLightFunction(table, slot, index),
     assignLightProfile: (slot: number, slice: number) => assignLightProfile(table, slot, slice),
-    /** Records the brightness of a loaded light profile, which the intensity of the lights that take it is written from
-     *  (`SceneLight.useIesBrightness`). */
-    setProfileBrightness: (profile: string, brightness: number) =>
-      setTableProfileBrightness(table, profile, brightness),
     assignSlice: (slot: number, slice: number) => assignSlice(table, slot, slice),
   }
 }

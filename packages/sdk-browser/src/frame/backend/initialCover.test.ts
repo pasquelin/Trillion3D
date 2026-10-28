@@ -3,15 +3,12 @@ import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
 import { Geometry } from '../../../../sdk-core/src/world/geometry/geometry.ts'
 import { Group } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { DAG, dagRoots, exactPrimitive } from '../../session/engine/pagesEngine.fixture.ts'
-import { camera } from './testScenes.fixture.ts'
+import { backendOf, camera } from './testScenes.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 test('the initial cover also protects regions first discovered after a camera jump', async () => {
   installGpuGlobals()
@@ -79,15 +76,13 @@ test('the initial cover also protects regions first discovered after a camera ju
     ['1', new Uint32Array([0, 2, 3])],
     ['2', new Uint32Array([4, 5, 6])],
   ])
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     source,
     metadata,
     indices,
     draws: graphDraws(source, new Map([[mesh, { meshes: 0, primitives: 0 }]])),
     gpuDevice: device,
     maxResidentPages: 3,
-    viewport: [32, 32],
   })
   await backend.prepare()
   const cam = camera()

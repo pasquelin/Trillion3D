@@ -11,8 +11,9 @@ import { ensureBounceFits } from '../limits.ts'
 import { createBouncePool, type PoolStats } from '../pool/pool.ts'
 import { POOL_SLOT, poolShapeOf, poolWorkWords } from '../pool/poolLayout.ts'
 import { PROBE_QUEUE_WORDS } from './probeQueueWgsl.ts'
+import { lightAtlasFormat, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { createCacheKernels } from '../cache/cacheKernels.ts'
-import { createRadianceCache } from '../cache/radianceCache.ts'
+import { createRadianceCache, type AfterUpdate } from '../cache/radianceCache.ts'
 import { createProbeStorage } from './probeStorage.ts'
 import { createPlacementFollow } from './probeSync.ts'
 import { createProbeEncoder, type ProbeParts, type ProbeScene } from './probeEncode.ts'
@@ -30,6 +31,10 @@ const defaultScreenProbeSettings = (() => {
 export interface ProbeOptions {
   shape?: BounceShape
   surfaceMarks?: boolean
+  /** A pass that follows each update of the radiance cache's maps (`AfterUpdate`): the irradiance field's maps. */
+  afterUpdate?: AfterUpdate
+  /** Whether the cells take adaptive probes where the pixels miss the interpolation (`irradianceFieldAdaptivePlacement`): the irradiance field's cache alone. */
+  adaptive?: boolean
 }
 
 /**
@@ -39,7 +44,8 @@ export interface ProbeOptions {
 async function createProbeRig(
   device: GPUDevice,
   bounds: readonly number[],
-  { shape = BOUNCE_SETTINGS, surfaceMarks = true }: ProbeOptions,
+  light: LightAtlasFormat,
+  { shape = BOUNCE_SETTINGS, surfaceMarks = true, adaptive = false }: ProbeOptions,
 ) {
   const cascades = createBounceCascades(bounds, shape)
   const extent = tableExtent(cascades.levels.length * cascades.cells)
@@ -58,12 +64,13 @@ async function createProbeRig(
     for (const resource of [queue, table]) resource.destroy()
   }
   try {
-    const cacheKernels = await createCacheKernels(device)
+    const cacheKernels = await createCacheKernels(device, light)
     const bouncePool = await createBouncePool(device, cascades, {
       grid: uniform.buffer,
       published: view,
       queue,
       surfaceMarks,
+      adaptive,
     })
     return { cascades, uniform, queue, view, extent, pool: bouncePool, cacheKernels, release }
   } catch (error) {
@@ -107,6 +114,8 @@ function probeApi(
     /** The pool's last statistics that came back: probes alive, those holding nothing yet — zero once every cell the image reads
      *  holds a map —, those not traced since the lights last changed, marks refused for want of a probe, probes queued, cells marked (`pool/pool.ts`). */
     stats,
+    /** The buffers an adaptive pool's pixels read and write (`BouncePool.adaptive`): the slots, the adaptive probes of each entry and the interpolation misses. */
+    adaptive: pool.adaptive,
     uniform: uniform.buffer,
     /** The radiance cache: the maps of the light by direction in every probe, which the screen probes read. */
     cache,
@@ -132,14 +141,16 @@ export async function createGpuBounceProbes(
   settings: () => ScreenProbeSettings = defaultScreenProbeSettings,
   options: ProbeOptions = {},
 ) {
-  const rig = await createProbeRig(device, bounds, options)
+  const light = lightAtlasFormat(settings().cache.light, device.features)
+  const rig = await createProbeRig(device, bounds, light, options)
   const { cascades, uniform } = rig
   const restartCache = { remade: () => undefined as void }
   const cache = createRadianceCache(
     device,
-    rig.cacheKernels,
+    { light, kernels: rig.cacheKernels },
     { grid: uniform.buffer, table: rig.view, queue: rig.queue, slots: cascades.probes },
     () => restartCache.remade(),
+    options.afterUpdate,
   )
   const parts: ProbeParts = { cascades, pool: rig.pool, uniform, cache }
   const encoder = createProbeEncoder(parts, lights, settings)

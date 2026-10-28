@@ -55,20 +55,21 @@ test('the cone of a hit’s read is the ray’s cone angle through the pixel’s
   }
 })
 
-test('a surface no card of the cache gives any light of answers nothing: the probes’ field answers the ray', () => {
-  const missed = sceneStage({ hit: 0.5, light: null })(origin, ahead)
-  assert.equal(missed.fate, 'miss')
-  assert.deepEqual([missed.answer.hit, missed.open], [false, false])
+test('a surface no card of the cache gives any light of is a black hit at the march’s distance', () => {
+  const dark = sceneStage({ hit: 0.5, light: null })(origin, ahead)
+  assert.equal(dark.fate, 'hit')
+  assert.deepEqual([dark.answer.hit, dark.open, dark.answer.color], [true, false, [0, 0, 0]])
+  assert.ok(Math.abs(dark.answer.distance - 0.5) < 1e-6, `${dark.answer.distance}`)
 })
 
-test('a march that meets nothing leaves the scene; one the screen followed to the longest ray does not claim the sky', () => {
+test('a march that meets nothing leaves the scene; one the screen followed to the longest ray leaves it as well', () => {
   const nothing = sceneStage({ steps: 40 })(origin, ahead)
   assert.equal(nothing.fate, 'open', 'the cache is not read: the field met nothing')
   assert.deepEqual([nothing.answer.hit, nothing.open, nothing.work], [false, true, 40])
-  // A ray the screen followed to the longest ray has nothing left to march: the field answers, the sky is not claimed.
+  // A ray the screen followed to the longest ray has nothing left to march: it leaves the scene, the far trace and the mirror sky follow.
   const bounded = sceneStage()(origin, ahead, [0, 0], 200)
   assert.equal(bounded.fate, 'bound')
-  assert.deepEqual([bounded.answer.hit, bounded.open, bounded.work], [false, false, 0])
+  assert.deepEqual([bounded.answer.hit, bounded.open, bounded.work], [false, true, 0])
   // The march reaches the longest ray, and no further.
   const reached = (options: Parameters<typeof sceneStage>[0]) => {
     const walk = sceneStage(options)

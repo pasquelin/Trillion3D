@@ -17,11 +17,24 @@ import { gbufferBinds, gbufferDepthPass } from './gbufferPass.ts'
 import { HAIR_IMAGE_WORDS } from './imageBlock.ts'
 import type { HairFrameInputsWritable } from './inputs.ts'
 import { materialBinds } from './materialPass.ts'
+import { msaaResolveBinds } from './msaaPass.ts'
+import type { HairLut } from './hairLutPass.ts'
+import {
+  createHairDeepShadowState,
+  type HairDeepShadows,
+  type HairDeepShadowState,
+} from './deepShadowPass.ts'
+import { createHairVoxelState, type HairVoxelState } from './voxelPass.ts'
 import { rasterBinds, type HairBandBuffers, type HairRasterFrame } from './rasterPass.ts'
+import { HAIR_LARGE_ARGS_WORDS, HAIR_LARGE_WORDS } from './rasterWgsl.ts'
 import { bufferEntries } from '../gpu/core/computeBindings.ts'
 import { boundGroups, type DrawnInstance } from './ribbonBinds.ts'
 import { HAIR_INSTANCE_WORDS, HAIR_VIEW_WORDS } from './ribbonWgsl.ts'
 import type { HairInstance, HairScene, HairViewLists } from './scene.ts'
+import type { HairEnvironment } from './environment.ts'
+import type { HairSkyAo } from './skyAoPass.ts'
+import type { HairSurfaceShadow } from './surfaceShadowPass.ts'
+import type { HairLighting } from './lighting.ts'
 import type { HairPrograms } from './visibility.ts'
 import { allocateHairTiles, hairTiles, type HairTiles } from './tilesPass.ts'
 import {
@@ -90,8 +103,9 @@ export interface HairViewRecord {
 }
 
 /** A band of the samples: its buffer and window (`HAIR_BAND_WGSL`), and the bind groups made over them. */
-export interface HairBandGpu extends HairBandBuffers {
+interface HairBandGpu extends HairBandBuffers {
   readonly raster: ReturnType<typeof rasterBinds>
+  readonly resolve: ReturnType<typeof msaaResolveBinds>
   readonly compact: ReturnType<typeof compactionBinds>
 }
 
@@ -101,6 +115,8 @@ interface HairImageBuffersExtra {
   readonly width: number
   readonly height: number
   readonly sampleCount: HairSampleCount
+  /** Whether the hardware raster draws the samples (no list of large ribbons). */
+  readonly hardware: boolean
   readonly rows: number
   readonly tiles: HairTiles
   readonly bands: readonly HairBandGpu[]
@@ -162,12 +178,87 @@ export interface HairViewGpu {
   readonly macroGroups: number[]
   readonly rect: [number, number, number, number]
   readonly tileRect: [number, number, number, number]
+  /** The voxel volume of the view, made when the strands are lit (`encodeHairVoxels`), and the instances
+   *  it voxelizes this image, refilled in place. */
+  readonly voxel: HairVoxelState
+  readonly voxelDrawn: DrawnInstance[]
+  /** The deep shadows of the view, and what the last image drew; every instance of each macro group, by the
+   *  group's rank. */
+  readonly deepShadow: HairDeepShadowState
+  /** The table of the fibre's scattering (`ensureHairLut`, `frame.ts`), once the strands are lit. */
+  lut?: HairLut
+  /** The light of the strands (`encodeHairLighting`), made when they are first lit. */
+  lighting?: HairLighting
+  /** The environment light of the strands from the radiance cache (`armHairEnvironment`). */
+  environment?: HairEnvironment
+  /** The occlusion of the image with the strands' laid on it (`encodeHairSkyAo`). */
+  skyAo?: HairSkyAo
+  /** The shadow of the strands on the surfaces, a layer a light (`encodeHairSurfaceShadow`). */
+  surfaceShadow?: HairSurfaceShadow
+  deepShadows?: HairDeepShadows
+  readonly groupInstances: DrawnInstance[][]
   /** The strands of the image last encoded, for the passes of the frame that read them: none until
    *  `encodeHairStrands` sets it, and none again when an image has none to show. */
   visible?: HairVisibilityView
   /** The bytes the view holds. */
   readonly bytes: number
   dispose(): void
+}
+
+/** The bytes the view holds: its blocks, its instances' and the sets it keeps. */
+function hairViewBytes(state: HairViewGpu) {
+  const { bounds, viewBlock, imageBlock, instances } = state
+  let bytes = bounds.bytes + viewBlock.buffer.size + imageBlock.buffer.size
+  for (const { block } of instances.values()) bytes += block.buffer.size
+  for (const held of [
+    state.targets,
+    state.buffers,
+    state.nodes,
+    state.voxel.set,
+    state.deepShadow.set,
+  ])
+    bytes += held?.bytes ?? 0
+  bytes +=
+    (state.lut?.bytes ?? 0) +
+    (state.lighting?.bytes ?? 0) +
+    (state.environment?.bytes ?? 0) +
+    (state.skyAo?.bytes ?? 0) +
+    (state.surfaceShadow?.bytes ?? 0)
+  return bytes
+}
+
+/** Gives back all the view holds: its sets, and its blocks retired (the image being encoded may still name them). */
+function disposeHairView(device: GPUDevice, state: HairViewGpu) {
+  const { bounds, viewBlock, imageBlock, instances } = state
+  state.targets?.dispose()
+  state.buffers?.dispose()
+  state.nodes?.dispose()
+  state.voxel.dispose()
+  state.deepShadow.dispose()
+  state.lut?.dispose()
+  state.lut = undefined
+  state.lighting?.dispose()
+  state.lighting = undefined
+  state.environment?.dispose()
+  state.environment = undefined
+  state.skyAo?.dispose()
+  state.skyAo = undefined
+  state.surfaceShadow?.dispose()
+  state.surfaceShadow = undefined
+  const buffers = [
+    viewBlock.buffer,
+    imageBlock.buffer,
+    ...[...instances.values()].map(({ block }) => block.buffer),
+  ]
+  retire(device, {
+    destroy() {
+      bounds.destroy()
+      for (const buffer of buffers) buffer.destroy()
+    },
+  })
+  instances.clear()
+  state.targets = state.buffers = state.nodes = state.visible = state.record = undefined
+  state.told.clear()
 }
 
 /** The strands of `scene` for a view on `device`, none of them drawn yet; `inputs` is the record the
@@ -199,35 +290,20 @@ export function createHairViewGpu(
     materialBinds: materialBinds(viewBlock.buffer, imageBlock.buffer),
     gbufferBinds: gbufferBinds(imageBlock.buffer),
     depthPass: gbufferDepthPass(),
+    voxel: createHairVoxelState(),
+    voxelDrawn: [],
+    deepShadow: createHairDeepShadowState(),
+    groupInstances: [],
     drawn: [],
     members: [],
     macroGroups: [],
     rect: [0, 0, 0, 0],
     tileRect: [0, 0, 0, 0],
     get bytes() {
-      let bytes = bounds.bytes + viewBlock.buffer.size + imageBlock.buffer.size
-      for (const { block } of instances.values()) bytes += block.buffer.size
-      for (const held of [state.targets, state.buffers, state.nodes]) bytes += held?.bytes ?? 0
-      return bytes
+      return hairViewBytes(state)
     },
     dispose() {
-      state.targets?.dispose()
-      state.buffers?.dispose()
-      state.nodes?.dispose()
-      const buffers = [
-        viewBlock.buffer,
-        imageBlock.buffer,
-        ...[...instances.values()].map(({ block }) => block.buffer),
-      ]
-      retire(device, {
-        destroy() {
-          bounds.destroy()
-          for (const buffer of buffers) buffer.destroy()
-        },
-      })
-      instances.clear()
-      state.targets = state.buffers = state.nodes = state.visible = state.record = undefined
-      state.told.clear()
+      disposeHairView(device, state)
     },
   }
   return state
@@ -247,8 +323,10 @@ export function instanceGpu(
       HAIR_INSTANCE_WORDS * 4,
     )
     const { group } = instance
+    // Nine pipelines take turns with an instance's resources: the transmittance, the raster's two phases
+    // each with its large ribbons, the material, the voxel raster and the deep shadow's two passes.
     const groups = boundGroups<GPUBuffer, GPUBuffer, GPUBuffer>(
-      3,
+      9,
       (made, pipeline, points, tangents, uniform) =>
         made.createBindGroup({
           layout: pipeline.getBindGroupLayout(0),
@@ -295,6 +373,8 @@ interface HairImageDemand {
   readonly allocated: readonly [number, number]
   readonly samples: HairSampleCount
   readonly blendable: boolean
+  /** Whether the device's rasterizer writes the samples, which asks for the multisampled targets. */
+  readonly hardware: boolean
   /** The most compacted samples the image may place. */
   readonly needed: number
 }
@@ -309,6 +389,7 @@ function allocateSamples(
   rows: number,
   tileCapacity: number,
   readback: GPUBufferUsageFlags,
+  hardware: boolean,
 ) {
   const count = hairBandCount(height, rows)
   return {
@@ -324,6 +405,12 @@ function allocateSamples(
     windows: Array.from({ length: count }, (_, k) =>
       allocator.buffer(`window ${k}`, HAIR_BAND_WORDS, 'uniform'),
     ),
+    // The ribbons too large for a thread, listed by the compute raster, and the dispatch over them:
+    // the hardware raster needs neither.
+    large: hardware ? undefined : allocator.buffer('large ribbons', HAIR_LARGE_WORDS, 'storage'),
+    largeArgs: hardware
+      ? undefined
+      : allocator.buffer('large ribbons arguments', HAIR_LARGE_ARGS_WORDS, 'args'),
   }
 }
 
@@ -337,10 +424,12 @@ const heldFits = (state: HairViewGpu, demand: HairImageDemand, room: number) => 
     targets.key[0] === demand.allocated[0] &&
     targets.key[1] === demand.allocated[1] &&
     targets.key[2] === demand.blendable &&
+    targets.key[3] === demand.hardware &&
     !!buffers &&
     buffers.width >= width &&
     buffers.height >= height &&
     buffers.sampleCount === demand.samples &&
+    buffers.hardware === demand.hardware &&
     !!nodes &&
     nodes.capacity >= room
   )
@@ -374,75 +463,126 @@ export function ensureHairResources(
   return record
 }
 
-/** Makes the sets `demand` asks for that `state` does not hold, and the record of them; whether all
- *  are there. */
-function makeHairResources(
-  device: GPUDevice,
+/** The textures of the strands for `demand`, kept or made. */
+function ensureTargets(
   state: HairViewGpu,
-  demand: HairImageDemand,
-  room: number,
-  fail: (error: unknown) => void,
+  device: GPUDevice,
+  { allocated, blendable, hardware }: HairImageDemand,
 ) {
-  const { size, allocated, samples, blendable } = demand
-  const [width, height] = size
-  const tileCapacity = hairTileGrid(width, height).count
-  const limit = storageBufferCap(device.limits)
-  const refuse = (why: string) => {
-    tellHairOnce(state, 'resources', why, fail)
-    return false
-  }
-  if (room * Math.max(HAIR_SAMPLE_BYTES, HAIR_NODE_DATA_BYTES) > limit)
-    return refuse(`${room} compacted samples exceed the device's ${limit} bytes of one binding`)
-  const bandRows = Math.min(hairBandRows(width, samples, limit), alignUp(height, HAIR_TILE_SIZE))
-  if (bandRows <= 0)
-    return refuse(
-      `a tile of rows of ${samples} samples a pixel over ${width} pixels exceeds the device's ${limit}`,
-    )
   const { readback } = state
   const targets = ensureSet(
     state.targets,
     device,
     {
-      key: [allocated[0], allocated[1], blendable],
+      key: [allocated[0], allocated[1], blendable, hardware],
       what: 'the textures of the hair strands',
       label: TARGETS_LABEL,
     },
     (allocator) =>
-      allocateHairImageTargets(allocator, allocated[0], allocated[1], blendable, readback.textures),
+      allocateHairImageTargets(
+        allocator,
+        allocated[0],
+        allocated[1],
+        blendable,
+        readback.textures,
+        hardware,
+      ),
     extendHairImageTargets,
   )
   state.targets = targets.resources
+  return targets
+}
+
+/** What the sample buffers carry beside them: the bands of each (their bind groups), the tiles and the raster's view. */
+function hairBufferExtras(
+  state: HairViewGpu,
+  made: HairSampleBuffers,
+  {
+    width,
+    height,
+    samples,
+    hardware,
+    bandRows,
+    tileCapacity,
+  }: {
+    width: number
+    height: number
+    samples: HairSampleCount
+    hardware: boolean
+    bandRows: number
+    tileCapacity: number
+  },
+): HairImageBuffersExtra {
+  const bands = made.samples.map((buffer, k): HairBandGpu => ({
+    samples: buffer,
+    window: made.windows[k]!,
+    raster: rasterBinds(),
+    resolve: msaaResolveBinds(),
+    compact: compactionBinds(),
+  }))
+  return {
+    width,
+    height,
+    sampleCount: samples,
+    hardware,
+    rows: bandRows,
+    tiles: hairTiles(tileCapacity, made.tileBuffers),
+    bands,
+    raster: {
+      viewBuffer: state.viewBlock.buffer,
+      large: made.large,
+      largeArgs: made.largeArgs,
+      bands,
+      count: 0,
+    },
+    windowWords: new Uint32Array(HAIR_BAND_WORDS * bands.length),
+  }
+}
+
+/** The samples and the tiles of the strands for `demand` in bands of `bandRows`, kept or made. */
+function ensureBuffers(
+  state: HairViewGpu,
+  device: GPUDevice,
+  { size, samples, hardware }: HairImageDemand,
+  bandRows: number,
+) {
+  const [width, height] = size
+  const tileCapacity = hairTileGrid(width, height).count
+  const { readback } = state
   const buffers = ensureSet<HairSampleBuffers, HairImageBuffersExtra>(
     state.buffers,
     device,
     {
-      key: [width, height, samples, bandRows, tileCapacity],
+      key: [width, height, samples, bandRows, tileCapacity, hardware],
       what: 'the samples and the tiles of the hair strands',
       label: SAMPLES_LABEL,
-      fits: (held) => held.width >= width && held.height >= height && held.sampleCount === samples,
+      fits: (held) =>
+        held.width >= width &&
+        held.height >= height &&
+        held.sampleCount === samples &&
+        held.hardware === hardware,
     },
     (allocator) =>
-      allocateSamples(allocator, width, height, samples, bandRows, tileCapacity, readback.buffers),
-    (made): HairImageBuffersExtra => {
-      const bands = made.samples.map((buffer, k): HairBandGpu => ({
-        samples: buffer,
-        window: made.windows[k]!,
-        raster: rasterBinds(),
-        compact: compactionBinds(),
-      }))
-      return {
+      allocateSamples(
+        allocator,
         width,
         height,
-        sampleCount: samples,
-        rows: bandRows,
-        tiles: hairTiles(tileCapacity, made.tileBuffers),
-        bands,
-        raster: { viewBuffer: state.viewBlock.buffer, bands, count: 0 },
-        windowWords: new Uint32Array(HAIR_BAND_WORDS * bands.length),
-      }
-    },
+        samples,
+        bandRows,
+        tileCapacity,
+        readback.buffers,
+        hardware,
+      ),
+    (made) =>
+      hairBufferExtras(state, made, { width, height, samples, hardware, bandRows, tileCapacity }),
   )
   state.buffers = buffers.resources
+  return buffers
+}
+
+/** The compacted samples of the strands, `room` of them, kept or made. */
+function ensureNodes(state: HairViewGpu, device: GPUDevice, room: number) {
+  const { readback } = state
   const nodes = ensureSet<ReturnType<typeof allocateHairNodes>, HairNodes>(
     state.nodes,
     device,
@@ -456,6 +596,36 @@ function makeHairResources(
     (made) => hairNodes(room, made),
   )
   state.nodes = nodes.resources
+  state.nodes = nodes.resources
+  return nodes
+}
+
+/** Makes the sets `demand` asks for that `state` does not hold, and the record of them; whether all
+ *  are there. */
+function makeHairResources(
+  device: GPUDevice,
+  state: HairViewGpu,
+  demand: HairImageDemand,
+  room: number,
+  fail: (error: unknown) => void,
+) {
+  const { size, samples } = demand
+  const [width, height] = size
+  const limit = storageBufferCap(device.limits)
+  const refuse = (why: string) => {
+    tellHairOnce(state, 'resources', why, fail)
+    return false
+  }
+  if (room * Math.max(HAIR_SAMPLE_BYTES, HAIR_NODE_DATA_BYTES) > limit)
+    return refuse(`${room} compacted samples exceed the device's ${limit} bytes of one binding`)
+  const bandRows = Math.min(hairBandRows(width, samples, limit), alignUp(height, HAIR_TILE_SIZE))
+  if (bandRows <= 0)
+    return refuse(
+      `a tile of rows of ${samples} samples a pixel over ${width} pixels exceeds the device's ${limit}`,
+    )
+  const targets = ensureTargets(state, device, demand)
+  const buffers = ensureBuffers(state, device, demand, bandRows)
+  const nodes = ensureNodes(state, device, room)
   const why = targets.why ?? buffers.why ?? nodes.why
   if (!state.targets || !state.buffers || !state.nodes) return refuse(why ?? 'no room')
   const held = state.record

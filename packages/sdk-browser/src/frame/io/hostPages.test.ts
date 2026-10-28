@@ -5,11 +5,8 @@ import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { camera, disposeQuadRun } from '../backend/testScenes.fixture.ts'
+import { backendOf, camera, disposeQuadRun } from '../backend/testScenes.fixture.ts'
 import { coarseQuadScene } from '../backend/coarseQuads.fixture.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 /** The coarse quad whose pages are in no memory: its cover page is the one the host's reader gives
  *  at prepare; the two detail pages are asked of it, when `readPage` is, only by a capture. */
@@ -18,8 +15,7 @@ function hostedQuad() {
   const { device } = fakeDevice(BACKEND)
   const scene = coarseQuadScene()
   const asked: string[] = []
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...scene,
     indices: new Map(),
     readPage: async (url) => {
@@ -28,7 +24,6 @@ function hostedQuad() {
     },
     gpuDevice: device,
     maxResidentPages: 3,
-    viewport: [32, 32],
   })
   return { backend, asked, scene }
 }

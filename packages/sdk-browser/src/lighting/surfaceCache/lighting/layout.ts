@@ -214,6 +214,9 @@ export const LIGHTING_FLAG = {
   cullToTileDepthRange: 2048,
   probeOcclusion: 4096,
   lightTilesPerType: 8192,
+  stochastic: 16384,
+  stochasticTemporal: 32768,
+  stochasticHistory: 65536,
 } as const
 
 /** How a radiosity ray through the scene's triangles avoids the geometry it starts on, the setting
@@ -266,6 +269,10 @@ export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
   ['probeOcclusionStrength', 'f32'],
   ['scratchAt', 'u32'],
   ['exposure', 'f32'],
+  ['stochasticSamples', 'u32'],
+  ['stochasticMinWeight', 'f32'],
+  ['stochasticMaxFrames', 'f32'],
+  ['stochasticClampScale', 'f32'],
   ['camera', 'vec4f'],
   ['eye', 'vec4f'],
   ['frustum', vec4Array(5)],

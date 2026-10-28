@@ -1,5 +1,6 @@
 /**
- * THE COMPUTE THROTTLE'S KERNELS (`throttle.ts`), run before the marking while the throttle is on:
+ * THE COMPUTE THROTTLE'S KERNELS (`throttle.ts`), run in the marking while the throttle is on:
+ * `vsmThrottleClear`, a thread a word of a buffer, zeroes the throttle buffer before the carry and the feedback after the fit;
  * `vsmThrottleProcess`, a thread a previous map id, carries the previous frame's cluster counts and
  * intensity to the map's id of this frame, and `vsmThrottleUpdate`, a thread a map of this frame, fits
  * the intensities and adds their levels to the maps' bias in the projection data.
@@ -12,7 +13,11 @@ import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
 import { WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
-import { VSM_CONSTANTS_WGSL, VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
+import {
+  VSM_CONSTANTS_WGSL,
+  VSM_MAX_SINGLE_PAGE_MAPS,
+  VSM_PROJECTION_RECORD_BYTES,
+} from './constants.ts'
 import {
   VSM_PROJECTION_KIND_WORD,
   VSM_PROJECTION_LEVEL_BIAS_WORD,
@@ -37,6 +42,7 @@ export const vsmThrottleWords = (mapSlots: number) =>
 
 export const VSM_THROTTLE_PROCESS_ENTRY = 'vsmThrottleProcess'
 export const VSM_THROTTLE_UPDATE_ENTRY = 'vsmThrottleUpdate'
+export const VSM_THROTTLE_CLEAR_ENTRY = 'vsmThrottleClear'
 
 /** The kernels' parameters: the previous frame's map count (the next-map data's), this frame's, the
  *  dynamic resolution's strength (−1 for none), the load budget, the history weight and the most each
@@ -49,7 +55,7 @@ export const VSM_THROTTLE_PARAMS = fieldLayout('VsmThrottleParams', [
   ['historyWeight', 'f32'],
   ['maxBiasDirectional', 'f32'],
   ['maxBiasLocal', 'f32'],
-  ['padding', 'u32'],
+  ['singleMaps', 'u32'],
 ] as const)
 
 /** The estimate of the raster's cost of a cluster of the hardware raster and of the software raster. */
@@ -144,6 +150,7 @@ fn vsmThrottleCost(hardware:f32,software:f32)->f32{return ${COST_HARDWARE}*hardw
  }
  if(id.x==0u){atomicStore(&outThrottle[VSM_TB_HEADER_TOTAL_THROTTLE],bitcast<u32>(globalIntensity));}
  if(id.x>=params.slotCount){return;}
+ if(id.x>=params.singleMaps&&id.x<${VSM_MAX_SINGLE_PAGE_MAPS}u){return;}
  let slot=VSM_TB_SIZEOF_HEADER+VSM_TB_SIZEOF_ENTRY*id.x;
  let hardware=atomicLoad(&outThrottle[slot+VSM_TB_ENTRY_HW_CLUSTERS]);
  let software=atomicLoad(&outThrottle[slot+VSM_TB_ENTRY_SW_CLUSTERS]);
@@ -164,4 +171,15 @@ fn vsmThrottleCost(hardware:f32,software:f32)->f32{return ${COST_HARDWARE}*hardw
 }
 `,
   [WORKGROUP_THREADS_WGSL, VSM_CONSTANTS_WGSL, VSM_THROTTLE_PARAMS_WGSL],
+)
+
+/** Group 0 of `vsmThrottleClear`: 0 the buffer to zero (rw). Dispatch: a thread a word of it, one workgroup at least. */
+export const VSM_THROTTLE_CLEAR_WGSL = wgslProgram(
+  /* wgsl */ `
+@group(0) @binding(0) var<storage,read_write> words:array<u32>;
+@compute @workgroup_size(WORKGROUP_THREADS) fn ${VSM_THROTTLE_CLEAR_ENTRY}(@builtin(global_invocation_id) id:vec3u){
+ if(id.x<arrayLength(&words)){words[id.x]=0u;}
+}
+`,
+  [WORKGROUP_THREADS_WGSL],
 )

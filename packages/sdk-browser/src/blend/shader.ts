@@ -13,6 +13,7 @@ import {
   BLEND_CLOUD_SHADE_BINDINGS,
   BLEND_FOG_BINDINGS,
   BLEND_LIGHT_FUNCTION_BINDINGS,
+  BLEND_LIGHT_PROFILE_BINDINGS,
   BLEND_TRACE_BINDINGS,
   BLEND_VSM_BINDINGS,
 } from '../gpu/bind/bindLayout.ts'
@@ -47,6 +48,8 @@ export const TRANSLUCENT_RECT_LIGHTS_DEFAULT: boolean = SHADOW_RULES.translucent
 export interface TranslucentScene {
   readonly rectLights: boolean
   readonly contact: boolean
+  /** The nearest translucent layer is lit by the sampled lighting (`sampledLightsFrontLayer`): the programs read the light it left for that layer. */
+  readonly sampledFront?: boolean
 }
 
 /** The scene of no contact shadows and the project switch at its default. */
@@ -85,29 +88,28 @@ const blendProgram = (
   offsets: WpoSet = NO_WPO,
   translucentShadow: TranslucentShadow = TRANSLUCENT_SHADOW_DEFAULT,
   volume = false,
+  sampledFront = false,
 ) => {
   const options = stageOptions(
     key,
     programs,
     reads,
     asksOfItsOwn(translucentShadow.materials ?? NO_TRANSLUCENT_MATERIAL_SHADOW),
+    sampledFront,
   )
-  const gi = translucentGiWgsl(
-    BLEND_BINDINGS.translucencyGiAmbient,
-    BLEND_BINDINGS.translucencyGiDirectional,
-    BLEND_BINDINGS.translucencyGiSampler,
-  )
+  const gi = translucentGiWgsl(BLEND_BINDINGS.translucencyGi, BLEND_BINDINGS.translucencyGiSampler)
   const graphs = programs.length ? blendGraphs(programs, stageLobes(options)) : undefined
   const bindings = {
     vsm: BLEND_VSM_BINDINGS,
     trace: { ...BLEND_TRACE_BINDINGS, subgroups },
     fog: { ...BLEND_FOG_BINDINGS, localFog },
     lightFunction: BLEND_LIGHT_FUNCTION_BINDINGS,
+    lightProfile: BLEND_LIGHT_PROFILE_BINDINGS,
     // The clouds' shade, read per vertex (`blendVertexWgsl`), where the program reads the clouds.
     ...(reads.clouds && { cloudShadow: BLEND_CLOUD_SHADE_BINDINGS }),
   }
   return wgslBlock(
-    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''}${graphs ? `, ${graphs.key}` : ''}${options.shade.key}${localFog ? '' : ', no local fog volumes'}${translucentShadowLabel(translucentShadow)}${volume ? ', translucency volume' : ''})`,
+    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''}${graphs ? `, ${graphs.key}` : ''}${options.shade.key}${localFog ? '' : ', no local fog volumes'}${translucentShadowLabel(translucentShadow)}${volume ? ', translucency volume' : ''}${sampledFront ? ', sampled front light' : ''})`,
     [
       blendVertexWgsl(stageLobes(options), clipping, options.shade, offsets),
       STANDARD_LIGHTING_WGSL,
@@ -205,6 +207,7 @@ export const blendShader = (
       offsets,
       translucentShadow,
       translucencyVolume,
+      !!scene.sampledFront,
     ),
     ...(dual ? [DUAL_SOURCE_WGSL] : []),
     ...clipDirective(clipping),

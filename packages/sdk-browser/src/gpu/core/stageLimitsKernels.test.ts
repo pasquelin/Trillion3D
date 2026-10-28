@@ -23,7 +23,8 @@ import { TREE_LEAVES_WGSL } from '../../placement/tree/treeLeavesWgsl.ts'
 import { ROOT_BOXES_WGSL } from '../../placement/roots/rootBoxesWgsl.ts'
 import { COMPOSE_ROOTS_WGSL, COMPOSE_WORLDS_WGSL } from '../../placement/compose/gpuComposeWgsl.ts'
 import { wgslComputeLayout } from './wgslBindings.fixture.ts'
-import { withinDefaults } from './stageLimits.fixture.ts'
+import { storageBufferCount, withinDefaults } from './stageLimits.fixture.ts'
+import { MESH_SUN_STORAGE_BUFFERS } from '../../lighting/surfaceCache/lighting/meshShadowWgsl.ts'
 import { RAY_QUERY_WGSL } from '../../lighting/rays/rayQueryWgsl.ts'
 import { DEFORM_INDEX_SHADER } from '../../lighting/rays/deformIndexWgsl.ts'
 import { SCENE_TRACE_PROBE } from '../../lighting/rays/sceneTrace/sceneTraceProbe.fixture.ts'
@@ -33,25 +34,26 @@ import { CLEAR_BLOCKS_WGSL, ENCODE_WGSL } from '../../lighting/surfaceCache/comp
 import {
   COPY_COMPRESSED_WGSL,
   COPY_WGSL,
-  LIGHTS_WGSL,
-  RESAMPLE_COMPRESSED_WGSL,
-  RESAMPLE_LIGHTING_COMPRESSED_WGSL,
-  RESAMPLE_LIGHTING_WGSL,
-  RESAMPLE_WGSL,
+  lightsProgramOf,
+  resampleProgramOf,
+  resampleLightingProgramOf,
   RESOLVE_WGSL,
 } from '../../lighting/surfaceCache/copyWgsl.ts'
 import {
+  directMeshKernel,
+  meshSunKernel,
   fixedKernels,
   shapedKernels,
   tracedRadiosityKernels,
   tracedShadowKernels,
 } from '../../lighting/surfaceCache/lighting/kernels.ts'
 import { tracedCacheKernels } from '../../lighting/bounce/cache/cacheKernels.ts'
+import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
 import {
-  CACHE_SPLAT_PROGRAM,
-  CACHE_TRACED_PROGRAM,
+  cacheSplatProgramOf,
+  cacheTracedProgramOf,
 } from '../../lighting/bounce/cache/cacheTraceWgsl.ts'
-import { CACHE_FIXUP_PROGRAM } from '../../lighting/bounce/cache/cacheFixupWgsl.ts'
+import { cacheFixupProgram } from '../../lighting/bounce/cache/cacheFixupWgsl.ts'
 import { SCENE_CULL_WGSL } from '../../lighting/rays/sceneTrace/sceneCullWgsl.ts'
 import {
   kernelShapeOf,
@@ -60,6 +62,14 @@ import {
 } from '../../lighting/bounce/screen/kernels.ts'
 import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { SURFACE_CACHE_SHADERS as S } from './engineShaders.surfaceCache.fixture.ts'
+const RESAMPLE_WGSL = resampleProgramOf(false, WORD_LIGHT_FORMAT)
+const RESAMPLE_COMPRESSED_WGSL = resampleProgramOf(true, WORD_LIGHT_FORMAT)
+const RESAMPLE_LIGHTING_WGSL = resampleLightingProgramOf(false, WORD_LIGHT_FORMAT)
+const RESAMPLE_LIGHTING_COMPRESSED_WGSL = resampleLightingProgramOf(true, WORD_LIGHT_FORMAT)
+const LIGHTS_WGSL = lightsProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_FIXUP_PROGRAM = cacheFixupProgram(WORD_LIGHT_FORMAT)
+const CACHE_TRACED_PROGRAM = cacheTracedProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_SPLAT_PROGRAM = cacheSplatProgramOf(WORD_LIGHT_FORMAT)
 
 test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", async () => {
   const { device, pipelineLayouts: layouts } = fakeDevice()
@@ -72,7 +82,7 @@ test("the reflections' and the depth pyramid's kernels fit WebGPU's defaults", a
 
 test("the reflections' scene stage through the scene's triangles fits WebGPU's defaults: its group with the cut's tables, the reflection group, the scene trace's", () => {
   const { device, pipelineLayouts: layouts } = fakeDevice()
-  hardwareReflectionKernels(device)
+  hardwareReflectionKernels(device, WORD_LIGHT_FORMAT)
   assert.equal(layouts.length, 1)
   withinDefaults(layouts, 'the reflection scene stage through the scene triangles')
 })
@@ -131,7 +141,9 @@ test("the surface cache's capture kernels and atlas view fit WebGPU's default li
   // programs declare, beside, every binding they name — the resamples' read library holds layers they never
   // read, the clear of the blocks the pages' lists it does not use.
   const { device, pipelineLayouts: layouts } = fakeDevice()
-  const kernels = [false, true].map((compressed) => createCaptureKernels(device, compressed))
+  const kernels = [false, true].map((compressed) =>
+    createCaptureKernels(device, compressed, WORD_LIGHT_FORMAT),
+  )
   createAtlasViewer(device)
   withinDefaults(layouts, 'the surface cache')
   for (const [name, text] of [
@@ -150,20 +162,44 @@ test("the surface cache's capture kernels and atlas view fit WebGPU's default li
   for (const set of kernels) set.dispose()
 })
 
+test("the suns' shadow through the meshes' fields fits the storage buffers a device that grants ten has", () => {
+  // The pass that traces the suns binds the lists and the fields (seven) beside its three; the direct light, its eight and the visibility.
+  // A device that grants less lights the suns through the global field (`MESH_SUN_STORAGE_BUFFERS`).
+  const granted = { maxStorageBuffersPerShaderStage: MESH_SUN_STORAGE_BUFFERS }
+  const { device, pipelineLayouts: layouts } = fakeDevice({ limits: granted })
+  for (const light of ['r32uint', 'rgba16float'] as const) {
+    directMeshKernel(device, 'grey', light)
+    directMeshKernel(device, 'colour', light)
+  }
+  meshSunKernel(device)
+  assert.ok(layouts.length > 0)
+  for (const layout of layouts)
+    assert.ok((storageBufferCount(layout) ?? 0) <= MESH_SUN_STORAGE_BUFFERS)
+  assert.equal(
+    Math.max(...layouts.map((layout) => storageBufferCount(layout) ?? 0)),
+    MESH_SUN_STORAGE_BUFFERS,
+  )
+})
+
 test("the surface cache's lighting kernels fit WebGPU's default limits", () => {
   // The kernels are built on their own layouts, the ray of the radiosity binding the cache's read library, the
   // global field, the sky and the object grid: the most of any program of the cache. The programs declare, beside,
   // every binding they name, those the layouts leave out — two layers a trace never reads — counted too.
-  const { device, pipelineLayouts: layouts } = fakeDevice()
-  fixedKernels(device, 'grey')
-  fixedKernels(device, 'colour')
+  const { device, pipelineLayouts: layouts } = fakeDevice({
+    features: ['texture-formats-tier1'],
+  })
+  // The light stored in each of its formats: the layers a pass binds change their sample type and storage format, never their count.
+  for (const light of ['r32uint', 'rg11b10ufloat', 'rgba16float', 'rgba32float'] as const) {
+    fixedKernels(device, 'grey', light)
+    fixedKernels(device, 'colour', light)
+    tracedRadiosityKernels(device, light)
+    shapedKernels(device, 8, false, light)
+    shapedKernels(device, 8, true, light)
+  }
   // The kernels that cast rays through triangles, the shadows' and the radiosity's: the trace binds the scene trace's group
   // beside its own, its own with the cut's tables.
   tracedShadowKernels(device, 'grey')
   tracedShadowKernels(device, 'colour')
-  tracedRadiosityKernels(device)
-  shapedKernels(device, 8, false)
-  shapedKernels(device, 8, true)
   withinDefaults(layouts, 'the surface cache lighting')
   for (const [name, text] of [
     ['the update context', S.SURFACE_CACHE_CONTEXT_WGSL],
@@ -194,7 +230,7 @@ test("the surface cache's lighting kernels fit WebGPU's default limits", () => {
 
 test("the radiance cache's trace through the scene's triangles fits WebGPU's default limits: its group with the cut's tables, the scene trace's beside", () => {
   const { device, pipelineLayouts: layouts } = fakeDevice()
-  tracedCacheKernels(device)
+  tracedCacheKernels(device, WORD_LIGHT_FORMAT)
   withinDefaults(layouts, 'the radiance cache traced kernels')
   withinDefaults([wgslComputeLayout(CACHE_TRACED_PROGRAM)], 'the radiance cache traced trace')
 })
@@ -206,8 +242,13 @@ test("the radiance cache's spread of the trace atlas and its final maps fit WebG
 
 test("the screen probes' scene stage through the scene's triangles fits WebGPU's default limits, with the fog on its rays or not: its group with the cut's tables, the reflection group the scene stages read, the scene trace's", () => {
   const { device, pipelineLayouts: layouts } = fakeDevice()
-  tracedSceneKernel(device, { side: 8, samples: [4, 4], heightFog: false })
-  tracedSceneKernel(device, { side: 8, samples: [4, 4], heightFog: true })
+  tracedSceneKernel(device, {
+    side: 8,
+    samples: [4, 4],
+    heightFog: false,
+    light: WORD_LIGHT_FORMAT,
+  })
+  tracedSceneKernel(device, { side: 8, samples: [4, 4], heightFog: true, light: WORD_LIGHT_FORMAT })
   withinDefaults(layouts, 'the screen probes traced scene stage')
 })
 

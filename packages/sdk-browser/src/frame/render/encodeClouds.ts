@@ -36,6 +36,7 @@ import { followSkyModule, skyStateOf, sunChannelOf } from './encodeCloudsSky.ts'
 import { requestSkyAir as askSkyLightAir } from './encodeSkyLight.ts'
 import { cloudTraceFrameOf } from './skyModuleGate.ts'
 import { fogReadOf } from './localFogGpu.ts'
+import { waterWanted } from '../../blend/water/waterTargets.ts'
 
 /**
  * THE CLOUDS IN THE VIEW'S IMAGE, drawn after the sky and the haze on the surfaces and before the
@@ -200,9 +201,14 @@ function programsOf(
   return { setup, maps, channel, key, programs, tiles, held }
 }
 
+/** What the image lays over the lit image after the single-layer water, held until then (`encodeAfterWater`): by image, none once played. */
+const afterWater = new WeakMap<WebgpuPagesRuntime, () => void>()
+
 /** The sky where no surface was drawn (`air`: the image shows an atmosphere), the fog over the lit image
  *  and the sky, the haze marched on the surfaces (`air` again), then the clouds over them. The temporal pass measures the
- *  lit image first (`measureBeforeTranslucency`), before any of them lies on it. */
+ *  lit image first (`measureBeforeTranslucency`), before any of them lies on it. Where the single-layer water is shaded over
+ *  the image (`waterWanted`), the clouds are traced here but the sky, the fog, the haze and the clouds' composition wait for the water,
+ *  which is shaded over the lit image unfogged and without sky, as the reference orders them (`encodeAfterWater`). */
 export function encodeSkyAndClouds(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -211,10 +217,38 @@ export function encodeSkyAndClouds(
   air: boolean,
 ) {
   if (rt.gpu.hdrView) measureBeforeTranslucency(rt, encoder, rt.gpu.hdrView)
-  if (air) encodeSky(rt, encoder)
-  encodeHeightFog(rt, encoder, air)
-  if (air) encodeOpaqueHaze(rt, encoder)
+  const lay = () => {
+    if (air) encodeSky(rt, encoder)
+    encodeHeightFog(rt, encoder, air)
+    if (air) encodeOpaqueHaze(rt, encoder)
+  }
+  // An image's held work never outlives it: one an earlier image left unplayed is dropped here.
+  afterWater.delete(rt)
+  if (waterWanted(rt)) afterWater.set(rt, lay)
+  else lay()
   encodeClouds(rt, device, encoder, cam, air)
+}
+
+/** The composition of the clouds the image held back for the water (none where it held none), encoded now: over the image the water was
+ *  shaded over, `water` the texture whose alpha marks the water's pixels, none where it drew none. */
+function composeDeferredClouds(rt: WebgpuPagesRuntime, water?: GPUTextureView) {
+  const view = rt.gpu.clouds
+  const pending = view?.pending
+  if (!view || !pending) return
+  view.pending = undefined
+  pending(water)
+}
+
+/** What the image held back for the water, in the reference's order after it: the sky, the fog, the haze, then the clouds' composition
+ *  (`water` as `composeDeferredClouds` has it). Nothing where nothing was held, so the stage that finds the water done and the one
+ *  that closes the image can both call it: it plays once. */
+export function encodeAfterWater(rt: WebgpuPagesRuntime, water?: GPUTextureView) {
+  const lay = afterWater.get(rt)
+  if (lay) {
+    afterWater.delete(rt)
+    lay()
+  }
+  composeDeferredClouds(rt, water)
 }
 
 /** The air an image of the clouds reads, over `stands` (`cloudAirOf`): the atmosphere's tables and
@@ -315,11 +349,13 @@ function encodeClouds(
   const stands = cloudAirOf(rt, air)
   if (!part || !stands) return disposeCloudView(rt.gpu)
   // What the translucent surfaces read of the clouds is this image's, left by its encoding.
-  if (rt.gpu.clouds) rt.gpu.clouds.shown = undefined
+  if (rt.gpu.clouds) rt.gpu.clouds.shown = rt.gpu.clouds.pending = undefined
   const frame = frameOf(rt, device, encoder, cam, part, stands)
-  if (frame) encodeCloudView(frame)
+  // Where the single-layer water is shaded over the image, the clouds are composed after it (`composeDeferredClouds`).
+  const pending = frame ? encodeCloudView(frame, !!waterWanted(rt)) : undefined
   const view = rt.gpu.clouds
   if (!view) return
+  view.pending = pending
   view.last.drawn = !!frame
   if (frame) {
     view.last.preExposure = preExposureOf(rt).now

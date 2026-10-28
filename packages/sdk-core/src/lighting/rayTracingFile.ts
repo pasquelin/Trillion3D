@@ -1,5 +1,9 @@
-import { EngineError } from '../contracts/cache.ts'
-import { assertSidecarSection, checkSidecarHead } from '../contracts/sidecarSection.ts'
+import {
+  assertSidecarSection,
+  checkSidecarHead,
+  sidecarRefusal,
+  type SidecarRefusal,
+} from '../contracts/sidecarSection.ts'
 import { wordsOf } from '../runtime/ownBuffer.ts'
 import {
   RAY_TRACING_FLAG_ALL_TRANSLUCENT,
@@ -68,9 +72,7 @@ export interface RayTracing {
   readonly actorCells: number
 }
 
-const refuse = (why: string): never => {
-  throw new EngineError('INVALID_CACHE', `ray tracing: ${why}`, {})
-}
+const refuse: SidecarRefusal = sidecarRefusal('ray tracing')
 
 /** The flag bits a record may carry. */
 const KNOWN_FLAGS =

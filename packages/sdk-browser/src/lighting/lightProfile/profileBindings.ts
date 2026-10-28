@@ -1,5 +1,5 @@
 import { computeSamplerEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
-import type { LightProfileBindings } from './lightProfileWgsl.ts'
+import type { LightProfileBindings } from './lightProfileText.ts'
 
 /** What a program that reads the light profiles binds: the atlas's view and its sampler. */
 export interface LightProfileResources {

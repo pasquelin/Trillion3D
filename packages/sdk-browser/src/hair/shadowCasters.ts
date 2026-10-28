@@ -46,7 +46,7 @@ interface LightPlan {
 }
 
 /** The plan of an image: its lights' (`lights[0..count)`), refilled in place by each. */
-export interface HairShadowPlan {
+interface HairShadowPlan {
   readonly lights: LightPlan[]
   count: number
   distance: number

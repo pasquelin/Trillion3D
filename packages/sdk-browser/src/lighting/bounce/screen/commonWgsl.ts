@@ -90,8 +90,10 @@ fn spAdaptivePixel(tile:vec2u,sample:u32)->vec2u{
 }
 fn spAtlasOf(index:u32)->vec2u{return vec2u(index%sp.grid.x,index/sp.grid.x);}
 fn spIndexOf(atlas:vec2u)->u32{return atlas.y*sp.grid.x+atlas.x;}
-/** The tile of the probe that stands on the pixel \`word\` names (\`x | y << 16\`). */
-fn spProbeTile(word:u32)->vec2u{
+/** The tile of the probe \`index\`, which stands on the pixel \`word\` names (\`x | y << 16\`): a uniform probe's own, whose pixel is held in the image
+ *  where its tile is cut by the image's edge, an adaptive probe's that of its pixel. */
+fn spProbeTile(index:u32,word:u32)->vec2u{
+ if(index<sp.counts.y){return spAtlasOf(index);}
  let pix=vec2u(word&0xffffu,word>>16u);
  return (pix-min(pix,spTileJitter(sp.mode.x)))/vec2u(sp.size.z);
 }`,

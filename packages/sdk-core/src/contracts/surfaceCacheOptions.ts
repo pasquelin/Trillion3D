@@ -51,6 +51,9 @@ const CAPTURE_RULES = /* @__PURE__ */ (() =>
     number('surfaceCacheDiffuseColorBoost', 1, [1, 4]),
     flag('surfaceCacheFastCameraMode', false),
     flag('surfaceCacheRecaptureEveryFrame', false),
+    flag('surfaceCacheReset', false),
+    count('surfaceCacheResetEveryNthFrame', 0, 0),
+    flag('surfaceCacheForceEvictHiResPages', false),
   ] as const))()
 
 /** The feedback with which the rays that read the cards ask for finer pages. */
@@ -86,12 +89,20 @@ const DIRECT_LIGHT_RULES = /* @__PURE__ */ (() =>
     flag('surfaceCacheDirectLightingCullToTileDepthRange', true),
     integer('surfaceCacheDirectLightingBatchShadows', 2, [0, 2]),
     nonNegative('surfaceCacheDirectLightingGlobalSdfShadowRayBias', 1),
+    flag('surfaceCacheDirectLightingOffscreenShadowingTraceMeshSdfs', true),
+    nonNegative('surfaceCacheDirectLightingMeshSdfShadowRayBias', 2),
     flag('surfaceCacheDirectLightingCloudTransmittance', true),
     flag('surfaceCacheDirectLightingHardwareRayTracing', true),
     nonNegative('surfaceCacheDirectLightingHardwareRayTracingShadowRayBias', 1),
     nonNegative('surfaceCacheDirectLightingHardwareRayTracingEndBias', 1),
     flag('surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing', true),
     flag('surfaceCacheDirectLightingHardwareRayTracingForceTwoSided', false),
+    flag('surfaceCacheDirectLightingStochastic', false),
+    flag('surfaceCacheDirectLightingStochasticTemporal', true),
+    nonNegative('surfaceCacheDirectLightingStochasticTemporalMaxFramesAccumulated', 12),
+    nonNegative('surfaceCacheDirectLightingStochasticTemporalNeighborhoodClampScale', 2),
+    integer('surfaceCacheDirectLightingStochasticSamplePerTexel', 1, [1, 4]),
+    nonNegative('surfaceCacheDirectLightingStochasticMinWeight', 0.001),
     count('surfaceCacheHardwareRayTracingMaxIterations', 8192, 1),
   ] as const))()
 
@@ -196,7 +207,7 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  * every image updates the same subset of the pages, and `surfaceCacheFreeze` (off) freezes the cache altogether: no card is
  * captured, no old page leaves the atlas, neither update lights a tile, the rays tell no feedback, and the clock is held too.
  * Also for debugging, `surfaceCacheRecaptureEveryFrame` (off) empties the whole cache every image and lifts the budget of captures, so that every
- * card is captured again each image, and `surfaceCacheCardFixedDebugResolution` (-1), from 1 on, gives every card that many texels along its
+ * card is captured again each image, `surfaceCacheReset` (off) empties the atlas and the cards once each time it is turned on, `surfaceCacheResetEveryNthFrame` (0, never) does so every that many images, `surfaceCacheForceEvictHiResPages` (off) lets every optional page leave the atlas once each time it is turned on, and `surfaceCacheCardFixedDebugResolution` (-1), from 1 on, gives every card that many texels along its
  * longer side before the greatest resolution holds it, whatever its size and distance.
  *
  * THE LIGHTING. Each image lights the texels of a share of the cards' pages, the pages left longest unlit
@@ -224,10 +235,20 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  * the scene's triangles that stops with none is a black hit). A tile
  * whose texels all saw a light, or all lay in its shadow, at its last update (adaptive tracing,
  * `surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing`, on) traces one texel in each quad of
- * four, a different one each update, and gives the quad its answer. Without acceleration structures, or with that
+ * four, a different one each update, and gives the quad its answer. With `surfaceCacheDirectLightingStochastic` (off) a texel
+ * is lit by `surfaceCacheDirectLightingStochasticSamplePerTexel` (1, from 1 to 4, 3 taken as 4) lights picked among those of its tile, each with a
+ * chance proportional to the logarithm of one plus the luminance it would give (a light under
+ * `surfaceCacheDirectLightingStochasticMinWeight` (0.001) is never picked), weighted so that the mean is the light of all
+ * of them, and only the picked ones are traced; the result is blended over the images
+ * (`surfaceCacheDirectLightingStochasticTemporal`, on) for at most
+ * `surfaceCacheDirectLightingStochasticTemporalMaxFramesAccumulated` (12) images, the history held to within
+ * `surfaceCacheDirectLightingStochasticTemporalNeighborhoodClampScale` (2) standard deviations of the texel's 5 × 5 neighbours.
+ * Without acceleration structures, or with that
  * option off, the shadow is one ray through the global distance field, started
  * off the texel by `surfaceCacheDirectLightingGlobalSdfShadowRayBias` (1) voxels, more where the surface grazes
- * the light; the lights wear the clouds' shade unless `surfaceCacheDirectLightingCloudTransmittance` is off. The
+ * the light, except for a sun with shadows while `surfaceCacheDirectLightingOffscreenShadowingTraceMeshSdfs` is on (the default): its ray is traced through the
+ * distance fields of the meshes the cards' volume reaches, started off the texel by `surfaceCacheDirectLightingMeshSdfShadowRayBias` (2) centimetres, three times
+ * that where the surface grazes the light; the lights wear the clouds' shade unless `surfaceCacheDirectLightingCloudTransmittance` is off. The
  * indirect light (`surfaceCacheRadiosity`, on) is a probe every `surfaceCacheRadiosityProbeSpacing` (4, a power
  * of two to 8) texels tracing a hemisphere of `surfaceCacheRadiosityHemisphereProbeResolution` (4) rays along a
  * side — `surfaceCacheLightingQuality` (1, to 6) multiplies it by its square root to 4 and, from 6, halves the

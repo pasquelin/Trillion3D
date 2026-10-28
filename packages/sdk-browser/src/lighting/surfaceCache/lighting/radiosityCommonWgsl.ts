@@ -2,7 +2,7 @@ import { wgslBlock, type WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { hammersley16 } from '../../../../../math/src/wgsl/sampling.ts'
 import { PI, TWO_PI } from '../../../../../math/src/wgsl/constants.ts'
-import { fastAtan2 } from '../../../../../math/src/wgsl/geometry.ts'
+import { fastAtan2, sinFromCosUnclamped } from '../../../../../math/src/wgsl/geometry.ts'
 import { PAGE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { TV_SH_WGSL } from '../../translucency/frameWgsl.ts'
@@ -146,13 +146,13 @@ export const radiosityCommonWgsl = (): WgslDecl =>
 export const radiosityRayWgsl = (noise: number): WgslDecl =>
   wgslBlock(
     `RADIOSITY_RAY_WGSL(${noise})`,
-    [TWO_PI, blueNoiseWgsl(0, noise), RADIOSITY_WGSL],
+    [TWO_PI, blueNoiseWgsl(0, noise), RADIOSITY_WGSL, sinFromCosUnclamped],
     `
 /** The direction of ray \`ray\` of the probe \`probeCoord\` (its place on the card) of a texel of normal \`normal\`. */
 fn radiosityRay(normal:vec3f,temporal:u32,probeCoord:vec2u,ray:vec2u)->vec3f{
  let uv=(vec2f(ray)+blueNoiseVec2(probeCoord,jitterIndex(temporal)))/f32(lp.hemisphere);
  let phi=TWO_PI*uv.x;
- let sine=sqrt(1.0-uv.y*uv.y);
+ let sine=sinFromCosUnclamped(uv.y);
  let b=tangentBasis(normal);
  return b[0]*(sine*cos(phi))+b[1]*(sine*sin(phi))+b[2]*uv.y;
 }

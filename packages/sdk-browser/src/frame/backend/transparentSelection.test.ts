@@ -1,13 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import * as G from '../../scene/host/graph/graph.fixture.ts'
-import { webgpuPagesEngine } from './pages.ts'
 import { installGpuGlobals, transparentDraws } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera, quadBackend } from './testScenes.fixture.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
+import { backendOf, quadScene, camera, quadBackend } from './testScenes.fixture.ts'
 import type { PageMesh } from '../../geometry/pages/pageMesh.ts'
 
 test('a host diagnostic exception cannot break GPU initialization or rendering', async () => {
@@ -60,12 +57,9 @@ test('transparent frustum selection preserves intersections and transformed boun
     if (item.scale) mesh.scale.fromArray(item.scale)
     if (item.rotate) mesh.rotation.y = 0.5
     fixture.source.updateMatrixWorld(true)
-    const backend = webgpuPagesEngine({
-      textureCaches: createTextureCaches(createPageCache()),
+    const backend = backendOf({
       ...fixture,
       gpuDevice: device,
-      maxResidentPages: 2,
-      viewport: [32, 32],
     })
     try {
       await backend.prepare()
@@ -105,12 +99,9 @@ test('transparent selection follows each camera without retaining an old rejecte
   const fixture = quadScene(),
     { device, draws } = fakeDevice(BACKEND)
   fixture.material.transparent = true
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   // Triangles the last image actually drew: the plan is the same from one image to the next,
   // only the instance count the cut writes changes.

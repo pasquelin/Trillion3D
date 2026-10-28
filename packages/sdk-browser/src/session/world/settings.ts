@@ -107,7 +107,9 @@ export const RULE_FIELDS: ReadonlySet<string> = new Set(
 
 /** A world's registry over the engine's settings; over the families of `table` where it is not the
  *  engine's own (`SETTING_FAMILIES`). */
-export const createWorldSettings = (table: FamilyTable = SETTING_FAMILIES) =>
+export const createWorldSettings = (
+  table: FamilyTable = SETTING_FAMILIES,
+): ReturnType<typeof createRenderSettings<typeof WORLD_SETTINGS>> =>
   createRenderSettings(
     table === SETTING_FAMILIES
       ? WORLD_SETTINGS

@@ -3,6 +3,7 @@ import { DEFAULT_TEMPERATURE_KELVIN } from '../../scene/light/fields.ts'
 import { Color } from '../math/color.ts'
 import { listen } from '../observed.ts'
 import type { Light } from './light.ts'
+import { lightFlag } from './lightFlags.ts'
 import { lightChanged } from './lightNumbers.ts'
 
 /** The settings of a light that touch the air and its colour, held aside the light's own numbers:
@@ -11,51 +12,36 @@ import { lightChanged } from './lightNumbers.ts'
  *  temperature (`SceneLight.useTemperature`), whether its shadow shades the air
  *  (`shadowsAir`) and whether the air's transmittance toward it is read per surface point
  *  (`transmittancePerPixel`) and whether it shines through the subsurface-profile surfaces it
- *  shadows (`transmission`). */
+ *  shadows (`transmission`) and whether it draws a hair deep shadow (`castHairDeepShadow`). */
 const LIGHT_SWITCHES = [
   'useTemperature',
   'shadowsAir',
   'transmittancePerPixel',
   'transmission',
+  'castHairDeepShadow',
 ] as const
 /** The name of one of the switches. */
 export type LightSwitch = (typeof LIGHT_SWITCHES)[number]
 
-/** The lights each switch is on for: few, so a set each and not a field every light would carry. */
-const ON: Record<LightSwitch, WeakSet<Light>> = {
-  useTemperature: new WeakSet(),
-  shadowsAir: new WeakSet(),
-  transmittancePerPixel: new WeakSet(),
-  transmission: new WeakSet(),
-}
+/** Each switch, a flag that is off by default (`lightFlag`). */
+const FLAGS = Object.fromEntries(
+  LIGHT_SWITCHES.map((name) => [name, lightFlag(name, false)]),
+) as Record<LightSwitch, ReturnType<typeof lightFlag>>
 
 /** Turns the switches `p` names on for `light`; the others stay off. */
 export function takeSwitches(light: Light, p: Partial<Record<LightSwitch, boolean>>) {
-  for (const name of LIGHT_SWITCHES) if (p[name]) ON[name].add(light)
+  for (const name of LIGHT_SWITCHES) FLAGS[name].take(light, p[name])
 }
 
 /** Gives `light` the switches `source` has. */
 export function copySwitches(light: Light, source: Light) {
-  for (const name of LIGHT_SWITCHES) {
-    if (ON[name].has(source)) ON[name].add(light)
-    else ON[name].delete(light)
-  }
+  for (const name of LIGHT_SWITCHES) FLAGS[name].copy(light, source)
 }
 
 /** Defines the switches as accessors of `proto`: a write is noted on the light and reaches the
  *  world at once. */
 export function defineSwitches(proto: Light) {
-  for (const name of LIGHT_SWITCHES)
-    Object.defineProperty(proto, name, {
-      get(this: Light) {
-        return ON[name].has(this)
-      },
-      set(this: Light, value: boolean) {
-        if (value) ON[name].add(this)
-        else ON[name].delete(this)
-        lightChanged(this)
-      },
-    })
+  for (const name of LIGHT_SWITCHES) FLAGS[name].define(proto)
 }
 
 /** The tint of each light's sun disk that was read or written: few, so a map and not a colour
@@ -98,6 +84,9 @@ export function copyTint(light: Light, source: Light) {
 export function recordColourAndAir(light: Light, record: SceneLight) {
   if (light.useTemperature) record.useTemperature = true
   if (light.transmission) record.transmission = true
+  if (light.castHairDeepShadow) record.castHairDeepShadow = true
+  if (light.hairDeepShadowLayerDistribution !== 0.5)
+    record.hairDeepShadowLayerDistribution = light.hairDeepShadowLayerDistribution
   if (light.temperatureKelvin !== DEFAULT_TEMPERATURE_KELVIN)
     record.temperatureKelvin = light.temperatureKelvin
   if (record.kind !== 'directional') return

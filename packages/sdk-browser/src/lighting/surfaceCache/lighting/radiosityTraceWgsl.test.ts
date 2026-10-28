@@ -10,12 +10,16 @@ import {
   RADIOSITY_TRACE_BINDINGS,
   RADIOSITY_TRACE_ENTRY,
   RADIOSITY_TRACE_UNREAD,
-  RADIOSITY_TRACE_WGSL,
+  radiosityTraceProgramOf,
   RADIOSITY_TRACED_BINDINGS,
   RADIOSITY_TRACED_SCENE,
   RADIOSITY_TRACED_UNREAD,
-  RADIOSITY_TRACED_WGSL,
+  radiosityTracedProgramOf,
 } from './radiosityTraceWgsl.ts'
+import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
+
+const RADIOSITY_TRACE_WGSL = radiosityTraceProgramOf(WORD_LIGHT_FORMAT)
+const RADIOSITY_TRACED_WGSL = radiosityTracedProgramOf(WORD_LIGHT_FORMAT)
 
 for (const [name, text] of [
   ['through the global field', RADIOSITY_TRACE_WGSL],
@@ -182,4 +186,17 @@ test('the traced ray keeps the distance it met its surface at, from the texel, t
     /if\(lgFlag\(FLAG_PROBE_OCCLUSION\)\)\{textureStore\(outHits,vec2i\(place\),vec4f\(rayHitDistance,0\.0,0\.0,0\.0\)\);\}/,
   )
   assert.doesNotMatch(RADIOSITY_TRACE_WGSL, /rayHitDistance|outHits/)
+})
+
+test('the traced radiosity culls the back faces only where the self intersections are not avoided, as the reference forces two-sided in every other mode', () => {
+  // The reference sets the culling flags only in the mode that avoids nothing (LumenHardwareRayTracingCommon.ush:343 and :460).
+  const culls = RADIOSITY_TRACED_WGSL.match(/\|=ST_CULL_BACK/g) ?? []
+  assert.equal(culls.length, 1)
+  assert.ok(
+    RADIOSITY_TRACED_WGSL.includes(
+      'if(lp.selfIntersections==RAD_AVOID_CULL){flags|=ST_CULL_BACK;}',
+    ),
+  )
+  // A back face of a one-sided primitive that is hit anyway brings no light (the reference ends that path at :1054).
+  assert.ok(RADIOSITY_TRACED_WGSL.includes('(!hit.frontFace&&!hit.twoSided)){return vec3f(0.0);}'))
 })

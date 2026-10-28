@@ -1,21 +1,18 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesEngine } from './pages.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
 import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
 import { ROW_WORDS } from '../../visibility/types.ts'
 import { drawnPageIds, installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { camera } from './testScenes.fixture.ts'
+import { backendOf, camera } from './testScenes.fixture.ts'
 import { deepCoarseQuadsScene } from './coarseQuads.fixture.ts'
 import { DAG_READBACK_SLOTS } from '../../geometry/dag/layout.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { PAGE_INFO } from '../../visibility/pageInfo.ts'
 import { VISIBLE_RECORD_WORDS } from '../../geometry/dag/visible/layout.ts'
 import { VIS_HW, VIS_SW, VISIBLE_HEADER_WORDS } from '../../geometry/dag/visible/layout.fixture.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 /**
  * Frames a use protects its slot for: the frame that used it and the one after, so a slot any view
@@ -35,15 +32,13 @@ test('GPU camera jumps reclaim detail slots while preserving pinned coarse cover
   )
   const packed = packDagSelection(collected.roots)
   const { device, draws, buffers } = fakeDevice({ ...BACKEND, packed })
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
     // Three streaming slots of the widest page (24 bytes) beside the two roots' (`geometryPoolFor`):
     // five, below the eight clusters' 144, so the pool holds no home of each (`poolBytes`) and a
     // jump between the quads evicts.
     maxResidentPages: 3,
-    viewport: [32, 32],
   })
   const cam = camera()
   try {
@@ -80,15 +75,13 @@ test('a recycled pool slot is described by its new cluster in the decoded record
     fixture = deepCoarseQuadsScene()
   // Eight clusters share five slots, the two roots' among them, so every jump between the two
   // primitives recycles slots on eviction.
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
     // Three streaming slots of the widest page (24 bytes) beside the two roots' (`geometryPoolFor`):
     // five, below the eight clusters' 144, so the pool holds no home of each (`poolBytes`) and a
     // jump between the quads evicts.
     maxResidentPages: 3,
-    viewport: [32, 32],
   })
   const view = camera()
   const look = (x: number) => {

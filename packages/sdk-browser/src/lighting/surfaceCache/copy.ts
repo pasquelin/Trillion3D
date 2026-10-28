@@ -18,16 +18,16 @@ import {
   COPY_COMPRESSED_WGSL,
   COPY_WGSL,
   copyEntryPoints,
-  LIGHTS_WGSL,
-  RESAMPLE_COMPRESSED_WGSL,
-  RESAMPLE_LIGHTING_COMPRESSED_WGSL,
-  RESAMPLE_LIGHTING_WGSL,
-  RESAMPLE_WGSL,
+  lightsProgramOf,
+  resampleLightingProgramOf,
+  resampleProgramOf,
   RESOLVE_WGSL,
 } from './copyWgsl.ts'
+import { lightAtlasSampleType, type LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 import {
   atlasFormats,
   CAPTURE_FORMATS,
+  captureFormats,
   CAPTURE_PARAMS,
   PAGE_ENTRY_WORDS,
   PAGE_FLAGS,
@@ -81,16 +81,16 @@ interface Program {
   readonly entries: readonly string[]
 }
 
-/** The program of each kernel of an atlas `compressed` or not, in the order they run: the encoders of
+/** The program of each kernel of an atlas `compressed` or not and its light stored in `light`, in the order they run: the encoders of
  *  the blocks, three entry points — one for each layer in blocks —, are the compressed atlas's alone. */
-function programsOf(compressed: boolean) {
+function programsOf(compressed: boolean, light: LightAtlasFormat) {
   const kernels: Partial<Record<Kernel, Program>> = {
     resample: {
-      code: compressed ? RESAMPLE_COMPRESSED_WGSL : RESAMPLE_WGSL,
+      code: resampleProgramOf(compressed, light),
       entries: ['resamplePages'],
     },
     resampleLighting: {
-      code: compressed ? RESAMPLE_LIGHTING_COMPRESSED_WGSL : RESAMPLE_LIGHTING_WGSL,
+      code: resampleLightingProgramOf(compressed, light),
       entries: ['resampleLightingPages'],
     },
     resolve: { code: RESOLVE_WGSL, entries: ['resolvePages'] },
@@ -100,7 +100,7 @@ function programsOf(compressed: boolean) {
     },
   }
   if (compressed) kernels.encode = { code: ENCODE_WGSL, entries: ENCODE_ENTRIES }
-  kernels.lights = { code: LIGHTS_WGSL, entries: ['lightsPages'] }
+  kernels.lights = { code: lightsProgramOf(light), entries: ['lightsPages'] }
   return kernels
 }
 
@@ -131,8 +131,8 @@ const resolveEntries = () => [
 ]
 
 /** The resample's entries: the pages of the atlas read, the capture atlas's layers written. */
-const resampleEntries = (compressed: boolean) => [
-  ...surfaceCacheReadLayoutEntries(3, { feedback: false, compressed }),
+const resampleEntries = (compressed: boolean, light: LightAtlasFormat) => [
+  ...surfaceCacheReadLayoutEntries(3, { feedback: false, compressed, light }),
   write(11, CAPTURE_FORMATS.albedo),
   write(12, CAPTURE_FORMATS.normal),
   write(13, CAPTURE_FORMATS.emissive),
@@ -140,11 +140,15 @@ const resampleEntries = (compressed: boolean) => [
 ]
 
 /** The light-carrying resample's entries: the pages read, the capture atlas's light written. */
-const resampleLightingEntries = (compressed: boolean) => [
-  ...surfaceCacheReadLayoutEntries(3, { feedback: false, compressed }),
+const resampleLightingEntries = (
+  compressed: boolean,
+  light: LightAtlasFormat,
+  captured: ReturnType<typeof captureFormats>,
+) => [
+  ...surfaceCacheReadLayoutEntries(3, { feedback: false, compressed, light }),
   computeTextureEntry(11, 'uint'),
-  write(12, CAPTURE_FORMATS.direct),
-  write(13, CAPTURE_FORMATS.indirect),
+  write(12, captured.direct),
+  write(13, captured.indirect),
   write(14, CAPTURE_FORMATS.frames),
   computeBufferEntry(15, ro),
   computeBufferEntry(16, 'storage'),
@@ -160,10 +164,10 @@ const copyEntries = (formats: AtlasFormats, compressed: boolean) => [
 ]
 
 /** The lights' entries: the capture atlas's light read, the atlas's light written. */
-const lightsEntries = (formats: AtlasFormats) => [
+const lightsEntries = (formats: AtlasFormats, light: LightAtlasFormat) => [
   computeTextureEntry(3, 'float'),
   computeTextureEntry(4, 'uint'),
-  computeTextureEntry(5, 'uint'),
+  computeTextureEntry(5, lightAtlasSampleType(light)),
   computeTextureEntry(6, 'uint'),
   computeTextureEntry(7, 'uint'),
   write(8, formats.direct),
@@ -175,18 +179,21 @@ const lightsEntries = (formats: AtlasFormats) => [
   computeBufferEntry(14, 'storage'),
 ]
 
-/** The layout entries of the kernels of an atlas `compressed` or not, past their parameters (binding 0, the
+/** The layout entries of the kernels of an atlas `compressed` or not and its light stored in `light`, past their parameters (binding 0, the
  *  kernel's own): the pages' entries and the tile lists every kernel reads, then what it names. */
-function layoutEntriesOf(compressed: boolean): Record<Kernel, GPUBindGroupLayoutEntry[]> {
-  const formats = atlasFormats(compressed)
+function layoutEntriesOf(
+  compressed: boolean,
+  light: LightAtlasFormat,
+): Record<Kernel, GPUBindGroupLayoutEntry[]> {
+  const formats = atlasFormats(compressed, light)
   const lists = [computeBufferEntry(1, ro), computeBufferEntry(2, ro)]
   const layouts: Record<Kernel, GPUBindGroupLayoutEntry[]> = {
     resolve: resolveEntries(),
-    resample: resampleEntries(compressed),
-    resampleLighting: resampleLightingEntries(compressed),
+    resample: resampleEntries(compressed, light),
+    resampleLighting: resampleLightingEntries(compressed, light, captureFormats(light)),
     copy: copyEntries(formats, compressed),
     encode: [...captureLayerEntries(), computeBufferEntry(7, 'storage')],
-    lights: lightsEntries(formats),
+    lights: lightsEntries(formats, light),
   }
   for (const entries of Object.values(layouts)) entries.unshift(...lists)
   return layouts
@@ -364,8 +371,9 @@ function pipelinesOf(
   programs: Partial<Record<Kernel, Program>>,
   order: Kernel[],
   compressed: boolean,
+  light: LightAtlasFormat,
 ) {
-  const layoutEntries = layoutEntriesOf(compressed)
+  const layoutEntries = layoutEntriesOf(compressed, light)
   return Object.fromEntries(
     order.map((kernel) => [
       kernel,
@@ -547,9 +555,13 @@ function dispatchKernels(
   }
 }
 
-/** The capture's programs, pipelines and buffers on `device`, for an atlas `compressed` or not. */
-function createCaptureContext(device: GPUDevice, compressed: boolean): CaptureContext {
-  const programs = programsOf(compressed)
+/** The capture's programs, pipelines and buffers on `device`, for an atlas `compressed` or not and its light stored in `light`. */
+function createCaptureContext(
+  device: GPUDevice,
+  compressed: boolean,
+  light: LightAtlasFormat,
+): CaptureContext {
+  const programs = programsOf(compressed, light)
   const order = Object.keys(programs) as Kernel[]
   const paramWords = new Uint32Array(CAPTURE_PARAMS.words)
   const energy = device.createBuffer({
@@ -562,7 +574,7 @@ function createCaptureContext(device: GPUDevice, compressed: boolean): CaptureCo
     device,
     programs,
     order,
-    kernels: pipelinesOf(device, programs, order, compressed),
+    kernels: pipelinesOf(device, programs, order, compressed, light),
     params: paramBuffersOf(device, order),
     energy,
     width: groupWidth(device.limits),
@@ -617,16 +629,21 @@ function stagesOf(ctx: CaptureContext) {
   }
 }
 
-/** The capture's kernels on `device`, for an atlas `compressed` or not: their pipelines, compiled off
+/** The capture's kernels on `device`, for an atlas `compressed` or not and its light stored in `light`: their pipelines, compiled off
  *  the frame; the lists and parameters they are given each image. */
-export function createCaptureKernels(device: GPUDevice, compressed: boolean) {
-  const ctx = createCaptureContext(device, compressed)
+export function createCaptureKernels(
+  device: GPUDevice,
+  compressed: boolean,
+  light: LightAtlasFormat,
+) {
+  const ctx = createCaptureContext(device, compressed, light)
   const { kernels } = ctx
   const clear = compressed ? createBlockClear(device) : undefined
 
   return {
-    /** Whether the atlas these kernels are for is compressed: the kernels are made again when it is not. */
+    /** Whether the atlas these kernels are for is compressed, and the format of its light: the kernels are made again when it is not. */
     compressed,
+    light,
     /** Whether every kernel is compiled. */
     get ready() {
       return Object.values(kernels).every((k) => k.ready) && (clear?.ready ?? true)

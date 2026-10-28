@@ -5,7 +5,8 @@ import { BENCHMARK_WGSL } from '../benchmark/benchmarkWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
 import { dagSelectionShader } from '../../geometry/dag/shader/shader.ts'
 import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/selectionShader.fixture.ts'
-import { HIZ_SHADER } from '../../visibility/hiz/gpu/shader.ts'
+import { HIZ_IMAGE_LEVEL0, HIZ_SHADER, hizBuildShader } from '../../visibility/hiz/gpu/shader.ts'
+import { hizWorkSource } from '../../visibility/hiz/gpu/workDepthSource.ts'
 import { reflectionTraceShader } from '../../lighting/reflections/trace/trace.ts'
 import { blendFrontShader } from '../../blend/frontStageWgsl.ts'
 import { blendRadianceMarkShader } from '../../blend/radianceMarkWgsl.ts'
@@ -17,7 +18,7 @@ import { rasterSource } from '../../visibility/raster/shader.ts'
 import { decodePlanSource, decodeSource } from '../../visibility/decode/decodeWgsl.ts'
 import { binsSource } from '../../visibility/bins/binsWgsl.ts'
 import { measureSource } from '../../geometry/dag/info/measureWgsl.ts'
-import { DEPTH_EXPORT_SHADER, exportSource } from '../../visibility/raster/exportWgsl.ts'
+import { depthExportShader, exportSource } from '../../visibility/raster/exportWgsl.ts'
 import { REWRITE_CODE } from '../../lighting/deferred/surfaceRewriteWgsl.ts'
 import { diceSource } from '../../visibility/tessellation/diceWgsl.ts'
 import { planSource } from '../../visibility/tessellation/planWgsl.ts'
@@ -27,6 +28,7 @@ import { POST_SHADERS } from './engineShaders.post.fixture.ts'
 import { COMPOSE_SHADERS } from './engineShaders.compose.fixture.ts'
 import { SURFACE_CACHE_SHADERS } from './engineShaders.surfaceCache.fixture.ts'
 import { SCENE_TRACE_SHADERS } from './engineShaders.sceneTrace.fixture.ts'
+import { LIGHT_FORMAT_SHADERS } from './engineShaders.lightFormat.fixture.ts'
 import { BLUR_SHADERS } from './engineShaders.blur.fixture.ts'
 import { FOG_SHADERS, NO_LOCAL_FOG_SHADERS } from './engineShaders.fog.fixture.ts'
 import { wpoShaders } from './engineShaders.wpo.fixture.ts'
@@ -36,15 +38,25 @@ import { TAA_SHADERS } from './engineShaders.taa.fixture.ts'
 import { vsmVariants } from './engineShaders.vsm.fixture.ts'
 import { BLEND_SHADERS } from './engineShaders.blend.fixture.ts'
 import { HAIR_SHADERS } from './engineShaders.hair.fixture.ts'
+import { HETEROGENEOUS_VOLUME_SHADERS } from './engineShaders.heterogeneousVolumes.fixture.ts'
+import { CAPSULE_SHADOW_SHADERS } from './engineShaders.capsuleShadows.fixture.ts'
+import { SAMPLED_LIGHTS_SHADERS } from './engineShaders.manyLights.fixture.ts'
+import { SCREEN_SPACE_TRACING_SHADERS } from './engineShaders.screenSpaceTracing.fixture.ts'
 import { BLEND_SHADER } from './shaderTexts.fixture.ts'
 import { waterCopyShader, waterMaskShader } from '../../blend/water/waterPassWgsl.ts'
 import { waterTileKernels } from '../../blend/water/waterTileWgsl.ts'
-import { CACHE_FILTER_PROGRAM } from '../../lighting/bounce/cache/cacheFilterWgsl.ts'
-import { CACHE_FIXUP_PROGRAM } from '../../lighting/bounce/cache/cacheFixupWgsl.ts'
+import { cacheFilterProgram } from '../../lighting/bounce/cache/cacheFilterWgsl.ts'
+import { cacheFixupProgram } from '../../lighting/bounce/cache/cacheFixupWgsl.ts'
+import { indirectWordsProgram } from '../../lighting/bounce/screen/indirectWordsWgsl.ts'
+import { fieldGatherProgram } from '../../lighting/bounce/irradianceField/gatherWgsl.ts'
+import {
+  irradianceProgram,
+  occlusionProgram,
+} from '../../lighting/bounce/irradianceField/mapsWgsl.ts'
 import { CACHE_TILES_PROGRAM } from '../../lighting/bounce/cache/cacheTilesWgsl.ts'
 import {
-  CACHE_SPLAT_PROGRAM,
-  CACHE_TRACE_PROGRAM,
+  cacheSplatProgramOf,
+  cacheTraceProgramOf,
 } from '../../lighting/bounce/cache/cacheTraceWgsl.ts'
 import { POOL_FINISH_SHADER, POOL_SHADER } from '../../lighting/bounce/pool/poolWgsl.ts'
 import { MARK_IMAGE_SHADER, MARK_PROBES_SHADER } from '../../lighting/bounce/pool/poolMarkWgsl.ts'
@@ -76,6 +88,12 @@ import { isProgram, programOf } from '../../materials/graph/surfaceProgram.ts'
 import { maskGraphSets } from './engineShaders.mask.fixture.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
+import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
+
+const CACHE_FILTER_PROGRAM = cacheFilterProgram(WORD_LIGHT_FORMAT)
+const CACHE_FIXUP_PROGRAM = cacheFixupProgram(WORD_LIGHT_FORMAT)
+const CACHE_TRACE_PROGRAM = cacheTraceProgramOf(WORD_LIGHT_FORMAT)
+const CACHE_SPLAT_PROGRAM = cacheSplatProgramOf(WORD_LIGHT_FORMAT)
 
 /**
  * Every WGSL text the engine hands to `createShaderModule`, by its module's name, each variant a
@@ -119,6 +137,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   TRANSPARENT_OCCLUSION: transparentOcclusionShader(),
   DAG_SELECTION_SHADER,
   HIZ_SHADER,
+  HIZ_WORK_SHADER: hizBuildShader(HIZ_IMAGE_LEVEL0, hizWorkSource(true)),
+  HIZ_WORK_SHADER_NARROW: hizBuildShader(HIZ_IMAGE_LEVEL0, hizWorkSource(false)),
   REFLECTION_TRACE_SHADER: reflectionTraceShader(false),
   REFLECTION_TRACE_STATISTICS_SHADER: reflectionTraceShader(true),
   // The transparents' front stage, each of what its pass writes (`blend/frontStage.ts`).
@@ -144,7 +164,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   RASTER_MASKED_WIDE: rasterSource(maskGraphSets().camera, undefined, true),
   RASTER_EXPORT: exportSource(false),
   RASTER_EXPORT_WIDE: exportSource(true),
-  RASTER_DEPTH_EXPORT: DEPTH_EXPORT_SHADER,
+  RASTER_DEPTH_EXPORT: depthExportShader(true),
+  RASTER_DEPTH_EXPORT_NARROW: depthExportShader(false),
   TESSELLATION_SEED: seedSource(),
   TESSELLATION_PLAN: planSource(),
   TESSELLATION_SPLIT: splitSource(),
@@ -155,6 +176,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...COMPOSE_SHADERS,
   ...SURFACE_CACHE_SHADERS,
   ...SCENE_TRACE_SHADERS,
+  ...LIGHT_FORMAT_SHADERS,
   POOL_SHADER,
   POOL_FINISH_SHADER,
   MARK_IMAGE_SHADER,
@@ -164,6 +186,11 @@ export const ENGINE_SHADERS: Record<string, string> = {
   CACHE_SPLAT_PROGRAM,
   CACHE_FILTER_PROGRAM,
   CACHE_FIXUP_PROGRAM,
+  FIELD_IRRADIANCE_MAPS: irradianceProgram(8),
+  FIELD_OCCLUSION_MAPS: occlusionProgram(16),
+  FIELD_GATHER: fieldGatherProgram(),
+  INDIRECT_WORDS: indirectWordsProgram(false),
+  INDIRECT_WORDS_BENT: indirectWordsProgram(true),
   ...POST_SHADERS,
   ...BLUR_SHADERS,
   ...FOG_SHADERS,
@@ -201,6 +228,10 @@ export const ENGINE_SHADERS: Record<string, string> = {
   DISPLAY_FILTER_SHADER,
   ...BLEND_SHADERS,
   ...HAIR_SHADERS,
+  ...HETEROGENEOUS_VOLUME_SHADERS,
+  ...CAPSULE_SHADOW_SHADERS,
+  ...SAMPLED_LIGHTS_SHADERS,
+  ...SCREEN_SPACE_TRACING_SHADERS,
   BLEND_EXPAND_SHADER,
   BLEND_ORDER_SHADER,
   BLEND_VERDICT_SHADER,

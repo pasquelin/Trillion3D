@@ -45,7 +45,9 @@ import {
  *  surface reads the volume at, a pixel at a time, against the cells' squares; 0 none;
  *  `translucencyVolumeAdaptToPerspective`, off — the cascades follow the camera's field of view and aspect;
  *  `translucencyVolumeMinFov`, 45 — degrees, the least field of view they follow;
- *  `translucencyVolumeFovSnap`, 10 — degrees, the field is rounded up to a multiple of it. */
+ *  `translucencyVolumeFovSnap`, 10 — degrees, the field is rounded up to a multiple of it;
+ *  `translucencyVolumeMarkVoxels`, off — the cells the see-through surfaces read are marked in a pass of their own before the volume
+ *  is made, and only those (and the corners round them) are lit and filtered; the others hold nothing. */
 export const TRANSLUCENCY_VOLUME_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('translucencyVolume', true),
@@ -59,6 +61,7 @@ export const TRANSLUCENCY_VOLUME_RULES = /* @__PURE__ */ (() =>
     flag('translucencyVolumeAdaptToPerspective', false),
     number('translucencyVolumeMinFov', 45, atLeast(0)),
     number('translucencyVolumeFovSnap', 10, atLeast(0.001)),
+    flag('translucencyVolumeMarkVoxels', false),
   ] as const))()
 /** The field of one setting of the volume. */
 export type TranslucencyVolumeField = keyof typeof TRANSLUCENCY_VOLUME_RULES

@@ -1,12 +1,11 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { constructGpuResources } from '../../../gpu/core/deviceLedger.ts'
 import { createList } from '../../../gpu/dispatch/list.ts'
+import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import {
   CACHE_FIXUP_LEVELS,
   CACHE_TRACE_ATLAS_TILES,
-  RADIANCE_CACHE_FORMATS as F,
   RADIANCE_CACHE_PARAMS_BYTES,
-  RADIANCE_CACHE_TEMP_FORMATS as T,
   cacheExtent,
   cacheFinalSide,
   cacheTempBytes,
@@ -14,6 +13,9 @@ import {
   cacheTileCapacity,
   cacheTraceBytes,
   cacheTraceExtent,
+  radianceRawFormat,
+  radianceCacheFormats,
+  radianceCacheTempFormats,
   type CacheShape,
   type CacheTemp,
 } from './cacheLayout.ts'
@@ -22,6 +24,7 @@ import {
  *  kept), and, for the levels of detail the final atlas does not hold, a texel each that the fixup's kernel writes to. */
 function cacheAtlases(device: GPUDevice, shape: CacheShape, slots: number) {
   const { resolution, mipmaps, skyVisibility } = shape
+  const F = radianceCacheFormats(shape.light)
   const size = cacheExtent(resolution, slots)
   const finalSize = cacheExtent(cacheFinalSide(resolution, mipmaps), slots)
   const usage = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
@@ -39,13 +42,18 @@ function cacheAtlases(device: GPUDevice, shape: CacheShape, slots: number) {
   const spare = Array.from({ length: CACHE_FIXUP_LEVELS - mipmaps }, () =>
     atlas('spare', [1, 1], F.final),
   )
-  const read = { raw: raw.createView(), final: final.createView(), sky: sky.createView() }
+  const read = {
+    raw: raw.createView(),
+    final: final.createView(),
+    sky: sky.createView(),
+    light: shape.light,
+  }
   return {
     raw,
     final,
     sky,
     spare,
-    /** The views the screen probes read the maps by: the raw atlas's, the final atlas's with its levels of detail, the sky's share. */
+    /** The views the screen probes read the maps by: the raw atlas's, the final atlas's with its levels of detail, the sky's share, and the format the final atlas holds the light in. */
     read,
     views: {
       ...read,
@@ -94,6 +102,7 @@ export function destroyCacheStorage({ raw, final, sky, spare, tiles, params }: C
  *  sky is kept apart (a texel else). */
 export function createCacheTemp(device: GPUDevice, shape: CacheShape, temp: CacheTemp) {
   const size = cacheTempExtent(shape.resolution, temp)
+  const T = radianceCacheTempFormats(shape.light)
   const atlas = (label: string, extent: [number, number], format: GPUTextureFormat) =>
     device.createTexture({
       label: `Trillion3D radiance cache ${label} v1`,
@@ -121,19 +130,19 @@ export function createCacheTemp(device: GPUDevice, shape: CacheShape, temp: Cach
 /** The frame's atlases, made. */
 export type CacheTempStorage = ReturnType<typeof createCacheTemp>
 
-/** The trace atlas for `tiles` tiles: the rays of the trace through the scene's triangles, in the order of the tile list. */
-export function createTraceAtlas(device: GPUDevice, tiles: number) {
+/** The trace atlas for `tiles` tiles: the rays of the trace through the scene's triangles, in the order of the tile list, their light stored in `light`. */
+export function createTraceAtlas(device: GPUDevice, tiles: number, light: LightAtlasFormat) {
   const texture = device.createTexture({
     label: 'Trillion3D radiance cache trace v1',
     size: cacheTraceExtent(tiles),
-    format: T.trace,
+    format: radianceRawFormat(light),
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
   // What the atlas holds: whole rows of tiles, so an update asking a few more tiles within the last row keeps it.
   const capacity = Math.max(1, ceilDiv(tiles, CACHE_TRACE_ATLAS_TILES)) * CACHE_TRACE_ATLAS_TILES
   return {
     tiles: capacity,
-    bytes: cacheTraceBytes(capacity),
+    bytes: cacheTraceBytes(capacity, light),
     texture,
     view: texture.createView(),
     destroy: () => texture.destroy(),

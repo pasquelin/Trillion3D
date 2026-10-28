@@ -1,9 +1,11 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { sinFromCosUnclamped } from '../../../../math/src/wgsl/geometry.ts'
 import {
   GLOBAL_DISTANCE_FIELD_OBJECT_GRID_CARD_INTERPOLATION_RANGE_IN_VOXELS as CARD_RANGE_IN_VOXELS,
   GLOBAL_DISTANCE_FIELD_OBJECT_GRID_CELL_SIZE as GRID_CELL_SIZE,
 } from '../../../../sdk-core/src/lighting/globalDistanceField.ts'
 import { computeBufferEntry } from '../../gpu/core/computeBindings.ts'
+import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 import { globalDistanceFieldTraceWgsl } from '../distanceField/globalTraceWgsl.ts'
 import { globalObjectGridReadWgsl } from '../distanceField/objectGridWgsl.ts'
 import { globalReadLayoutEntries, type GlobalFieldRead } from '../distanceField/view.ts'
@@ -36,6 +38,9 @@ import {
  * Lengths are centimetres, the cards' and the field's unit. The reads of the field (`globalDistanceFieldTraceWgsl`), its grid and
  * the cache's library (`surfaceCacheSampleWgsl`, which writes the feedback — the finer page the ray's cone would have read — only for
  * a program whose bindings say so: `SurfaceHitBindings.feedback`, at the pixel `coord`) are read at the bindings of `SurfaceHitBindings`.
+ *
+ * The final layer is read in the format the atlases store their light in (`light`, `lightAtlasFormat`): a program, its layout and the final view
+ * it is bound with are all made for the one.
  */
 
 /** Where a program of group `group` binds what a hit reads: the global field's six bindings from `field`, its object grid, the cache's
@@ -62,10 +67,11 @@ export const surfaceHitBindingsFrom = (group: number, first: number): SurfaceHit
 /** The cards' bindings a hit reads, as offsets of `cards`: the tables, the depth and the final light. */
 const SURFACE_HIT_CARDS_READ = [0, L.depth, L.final] as const
 
-/** What the library is asked to read at `b`: the emission, which a compressed atlas keeps as blocks, is no layer a hit reads. */
-const readOf = (b: Pick<SurfaceHitBindings, 'feedback'>) => ({
+/** What the library is asked to read at `b`, the final light stored in `light`: the emission, which a compressed atlas keeps as blocks, is no layer a hit reads. */
+const readOf = (b: Pick<SurfaceHitBindings, 'feedback'>, light: LightAtlasFormat) => ({
   feedback: !!b.feedback,
   compressed: false,
+  light,
 })
 
 /** What a hit reads of the cache, as the bind group binds it: its tables, the depth and final layers, the feedback buffer, the field's
@@ -86,27 +92,31 @@ export interface SurfaceHitReads {
   hit: SurfaceHitResources
 }
 
-/** The layout entries of what a hit reads of the cache at `b`: its tables, depth and final layers and its feedback buffer where `b` says
+/** The layout entries of what a hit reads of the cache at `b`, its final light stored in `light`: its tables, depth and final layers and its feedback buffer where `b` says
  *  (the library's other layers are left out of the stage's layout: it holds nothing of a binding it does not reach), the instances'. */
 export function surfaceHitCardsLayoutEntries(
   b: Pick<SurfaceHitBindings, 'cards' | 'instances' | 'feedback'>,
+  light: LightAtlasFormat,
 ): GPUBindGroupLayoutEntry[] {
   const read = SURFACE_HIT_CARDS_READ.map((at) => b.cards + at)
   if (b.feedback) read.push(b.cards + L.feedback)
   return [
-    ...surfaceCacheReadLayoutEntries(b.cards, readOf(b)).filter(({ binding }) =>
+    ...surfaceCacheReadLayoutEntries(b.cards, readOf(b, light)).filter(({ binding }) =>
       read.includes(binding),
     ),
     computeBufferEntry(b.instances, 'read-only-storage'),
   ]
 }
 
-/** The layout entries of a hit's reads at `b`: the field's, its grid's, then the cache's (`surfaceHitCardsLayoutEntries`). */
-export function surfaceHitLayoutEntries(b: SurfaceHitBindings): GPUBindGroupLayoutEntry[] {
+/** The layout entries of a hit's reads at `b`: the field's, its grid's, then the cache's (`surfaceHitCardsLayoutEntries`), its final light stored in `light`. */
+export function surfaceHitLayoutEntries(
+  b: SurfaceHitBindings,
+  light: LightAtlasFormat,
+): GPUBindGroupLayoutEntry[] {
   return [
     ...globalReadLayoutEntries(b.field),
     computeBufferEntry(b.grid, 'read-only-storage'),
-    ...surfaceHitCardsLayoutEntries(b),
+    ...surfaceHitCardsLayoutEntries(b, light),
   ]
 }
 
@@ -139,13 +149,14 @@ export function surfaceHitEntries(
 
 /** The placement of a hit and the cone of a ray, over the bindings `b`: the table from an instance (an object of the grid, or a
  *  placement of the scene trace's cut) to its placement in the cache, and the cache's read library the placement's mesh cards are
- *  read with (`scPlacementMeshCards`, `scEvaluateMeshCards`). Nothing of the global field: a hit found without it reads this alone. */
+ *  read with (`scPlacementMeshCards`, `scEvaluateMeshCards`), its final light stored in `light`. Nothing of the global field: a hit found without it reads this alone. */
 export function surfaceHitCardsWgsl(
   b: Pick<SurfaceHitBindings, 'group' | 'cards' | 'instances' | 'feedback'>,
+  light: LightAtlasFormat,
 ) {
   return wgslBlock(
-    `SURFACE_HIT_CARDS_WGSL(${b.group},${b.cards},${b.instances},${!!b.feedback})`,
-    [surfaceCacheSampleWgsl(b.group, b.cards, readOf(b))],
+    `SURFACE_HIT_CARDS_WGSL(${b.group},${b.cards},${b.instances},${!!b.feedback},${light})`,
+    [surfaceCacheSampleWgsl(b.group, b.cards, readOf(b, light)), sinFromCosUnclamped],
     `@group(${b.group}) @binding(${b.instances}) var<storage,read> hitInstances:array<u32>;
 /** The placement of the cache that the object of the grid named \`instance\` is, none for an instance past the table. */
 fn scHitPlacement(instance:u32)->u32{
@@ -155,17 +166,26 @@ fn scHitPlacement(instance:u32)->u32{
 /** The tangent of the half angle of the cone of a ray that is one of \`side²\` that share the sphere's solid angle: \`acos(1 - 1 / side²)\`. */
 fn scConeTangent(side:f32)->f32{
  let c=max(1.0-1.0/(side*side),0.05);
- return sqrt(1.0-c*c)/c;
+ return sinFromCosUnclamped(c)/c;
+}
+struct ScMeshSurface{radiance:vec3f,valid:bool,}
+/** The light of the surface of the object \`instance\` of the meshes' fields at the world point \`world\` (centimetres), facing \`face\`: the cards of its placement sampled over \`range\` centimetres
+ *  (the reference's card interpolation radius, 10) at the footprint \`footprint\` of the ray's cone, and whether the cache gave any. */
+fn scMeshHit(world:vec3f,face:vec3f,instance:u32,footprint:f32,range:f32,hiRes:bool,coord:vec2u)->ScMeshSurface{
+ var taken=scAccumulator();
+ scSampleMeshCards(scPlacementMeshCards(scHitPlacement(instance)),world,face,footprint,range,hiRes,&taken);
+ let light=scEvaluate(taken,coord);
+ return ScMeshSurface(light.radiance,light.valid);
 }`,
   )
 }
 
-/** The hit's read (`scGlobalHit`) over the bindings `b`, and the march (`gdfTrace`) it follows. */
-export function surfaceHitWgsl(b: SurfaceHitBindings) {
+/** The hit's read (`scGlobalHit`) over the bindings `b`, its final light stored in `light`, and the march (`gdfTrace`) it follows. */
+export function surfaceHitWgsl(b: SurfaceHitBindings, light: LightAtlasFormat) {
   return wgslBlock(
-    `SURFACE_HIT_WGSL(${b.group},${b.field},${b.grid},${b.cards},${b.instances},${!!b.feedback})`,
+    `SURFACE_HIT_WGSL(${b.group},${b.field},${b.grid},${b.cards},${b.instances},${!!b.feedback},${light})`,
     [
-      surfaceHitCardsWgsl(b),
+      surfaceHitCardsWgsl(b, light),
       globalDistanceFieldTraceWgsl(b.group, b.field),
       globalObjectGridReadWgsl(b.group, b.field, b.grid),
     ],

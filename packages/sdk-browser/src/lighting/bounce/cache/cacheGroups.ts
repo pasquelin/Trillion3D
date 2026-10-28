@@ -81,89 +81,96 @@ export function cacheGroupsOf(
   }
 }
 
-/** The filter's group over a storage, the frame's atlases and the blue noise it dithers by: made again only where one of them moved (the noise
- *  is made after the cache, and replaces the stand-in a pass binds until it is). */
-export function cacheFilterBinder(device: GPUDevice, kernels: CacheKernels, wiring: CacheWiring) {
+/** A binder of one group: `identify` writes into `next` the identities of what `args` name, and `describe` makes the group's
+ *  descriptor of them — made again only where an identity moved. */
+function groupBinder<A extends unknown[]>(
+  device: GPUDevice,
+  identify: (next: unknown[], ...args: A) => void,
+  describe: (...args: A) => GPUBindGroupDescriptor,
+) {
   const identity = createWebgpuBindIdentity()
   let group: GPUBindGroup | undefined
-  return (s: CacheStorage, t: CacheTempStorage, noise: GPUTextureView) => {
-    const { next } = identity
-    next[0] = s
-    next[1] = t
-    next[2] = noise
-    if (identity.moved()) {
-      group = device.createBindGroup({
-        layout: kernels.filter.layout,
-        entries: namedEntries(CACHE_FILTER_BINDINGS, {
-          grid: wholeBuffer(wiring.grid),
-          table: wiring.table,
-          queue: wholeBuffer(wiring.queue),
-          params: wholeBuffer(s.params),
-          raw: s.views.raw,
-          filtered: t.views.filtered,
-          filteredSky: t.views.filteredSky,
-          noise,
-        }),
-      })
-    }
+  return (...args: A) => {
+    identify(identity.next, ...args)
+    if (identity.moved()) group = device.createBindGroup(describe(...args))
     return group!
   }
+}
+
+/** The filter's group over a storage, the frame's atlases and the blue noise it dithers by: made again only where one of them moved (the noise
+ *  is made after the cache, and replaces the stand-in a pass binds until it is). */
+export function cacheFilterBinder(device: GPUDevice, wiring: CacheWiring) {
+  return groupBinder(
+    device,
+    (next, _: CacheKernels, s: CacheStorage, t: CacheTempStorage, noise: GPUTextureView) => {
+      next[0] = s
+      next[1] = t
+      next[2] = noise
+    },
+    (kernels, s, t, noise) => ({
+      layout: kernels.filter.layout,
+      entries: namedEntries(CACHE_FILTER_BINDINGS, {
+        grid: wholeBuffer(wiring.grid),
+        table: wiring.table,
+        queue: wholeBuffer(wiring.queue),
+        params: wholeBuffer(s.params),
+        raw: s.views.raw,
+        filtered: t.views.filtered,
+        filteredSky: t.views.filteredSky,
+        noise,
+      }),
+    }),
+  )
 }
 
 /** The fixup's group over a storage and the frame's atlases: made again only where one of them moved. */
-export function cacheFixupBinder(device: GPUDevice, kernels: CacheKernels, wiring: CacheWiring) {
-  const identity = createWebgpuBindIdentity()
-  let group: GPUBindGroup | undefined
-  return (s: CacheStorage, t: CacheTempStorage) => {
-    const { next } = identity
-    next[0] = s
-    next[1] = t
-    if (identity.moved()) {
-      group = device.createBindGroup({
-        layout: kernels.fixup.layout,
-        entries: namedEntries(CACHE_FIXUP_BINDINGS, {
-          grid: wholeBuffer(wiring.grid),
-          table: wiring.table,
-          queue: wholeBuffer(wiring.queue),
-          params: wholeBuffer(s.params),
-          raw: s.views.raw,
-          filtered: t.views.filtered,
-          filteredSky: t.views.filteredSky,
-          final0: s.views.levels[0],
-          final1: s.views.levels[1],
-          final2: s.views.levels[2],
-          sky: s.views.sky,
-        }),
-      })
-    }
-    return group!
-  }
+export function cacheFixupBinder(device: GPUDevice, wiring: CacheWiring) {
+  return groupBinder(
+    device,
+    (next, _: CacheKernels, s: CacheStorage, t: CacheTempStorage) => {
+      next[0] = s
+      next[1] = t
+    },
+    (kernels, s, t) => ({
+      layout: kernels.fixup.layout,
+      entries: namedEntries(CACHE_FIXUP_BINDINGS, {
+        grid: wholeBuffer(wiring.grid),
+        table: wiring.table,
+        queue: wholeBuffer(wiring.queue),
+        params: wholeBuffer(s.params),
+        raw: s.views.raw,
+        filtered: t.views.filtered,
+        filteredSky: t.views.filteredSky,
+        final0: s.views.levels[0],
+        final1: s.views.levels[1],
+        final2: s.views.levels[2],
+        sky: s.views.sky,
+      }),
+    }),
+  )
 }
 
 /** The group of the spread of the trace atlas over a storage and the trace atlas: made again only where one of them moved. */
-export function cacheSplatBinder(device: GPUDevice, kernels: CacheKernels, wiring: CacheWiring) {
-  const identity = createWebgpuBindIdentity()
-  let group: GPUBindGroup | undefined
-  return (s: CacheStorage, atlas: TraceAtlas) => {
-    const { next } = identity
-    next[0] = s
-    next[1] = atlas
-    if (identity.moved()) {
-      group = device.createBindGroup({
-        layout: kernels.splat.layout,
-        entries: namedEntries(CACHE_SPLAT_BINDINGS, {
-          grid: wholeBuffer(wiring.grid),
-          table: wiring.table,
-          queue: wholeBuffer(wiring.queue),
-          params: wholeBuffer(s.params),
-          tiles: wholeBuffer(s.tiles),
-          trace: atlas.view,
-          raw: s.views.raw,
-        }),
-      })
-    }
-    return group!
-  }
+export function cacheSplatBinder(device: GPUDevice, wiring: CacheWiring) {
+  return groupBinder(
+    device,
+    (next, _: CacheKernels, s: CacheStorage, atlas: TraceAtlas) => {
+      next[0] = s
+      next[1] = atlas
+    },
+    (kernels, s, atlas) => ({
+      layout: kernels.splat.layout,
+      entries: namedEntries(CACHE_SPLAT_BINDINGS, {
+        grid: wholeBuffer(wiring.grid),
+        table: wiring.table,
+        queue: wholeBuffer(wiring.queue),
+        params: wholeBuffer(s.params),
+        tiles: wholeBuffer(s.tiles),
+        trace: atlas.view,
+        raw: s.views.raw,
+      }),
+    }),
+  )
 }
 
 /** The first identities of a trace's group, the same for both ways of casting: the storage, the lights and the sky light. */
@@ -198,82 +205,86 @@ function traceEntries(
 }
 
 /** The trace's group over a storage and what an image queued: made again only where one of them moved. */
-export function cacheTraceBinder(device: GPUDevice, kernels: CacheKernels, wiring: CacheWiring) {
-  const identity = createWebgpuBindIdentity()
-  let group: GPUBindGroup | undefined
-  return (s: CacheStorage, q: Queued) => {
-    const { next } = identity
-    traceKeys(next, s, q)
-    next[5] = q.reads.field.readGeneration
-    next[6] = q.reads.hit.tables
-    next[7] = q.reads.hit.depth
-    next[8] = q.reads.hit.final
-    next[9] = q.reads.hit.grid
-    next[10] = q.reads.hit.instances
-    if (identity.moved()) {
-      group = device.createBindGroup({
-        layout: kernels.trace.layout,
-        entries: [
-          ...traceEntries(wiring, s, q, s.views.raw),
-          ...surfaceHitEntries(CACHE_TRACE_HIT, q.reads.field, q.reads.hit),
-        ],
-      })
-    }
-    return group!
-  }
+export function cacheTraceBinder(device: GPUDevice, wiring: CacheWiring) {
+  return groupBinder(
+    device,
+    (next, _: CacheKernels, s: CacheStorage, q: Queued) => {
+      traceKeys(next, s, q)
+      next[5] = q.reads.field.readGeneration
+      next[6] = q.reads.hit.tables
+      next[7] = q.reads.hit.depth
+      next[8] = q.reads.hit.final
+      next[9] = q.reads.hit.grid
+      next[10] = q.reads.hit.instances
+    },
+    (kernels, s, q) => ({
+      layout: kernels.trace.layout,
+      entries: [
+        ...traceEntries(wiring, s, q, s.views.raw),
+        ...surfaceHitEntries(CACHE_TRACE_HIT, q.reads.field, q.reads.hit),
+      ],
+    }),
+  )
 }
 
 /** The groups of the trace that casts its rays through the scene's triangles: its own over a storage, the trace atlas it writes and what an
  *  image queued, the scene trace's over the scene trace of the image — each made again only where a resource it names moved. */
 export function cacheTracedBinder(device: GPUDevice, wiring: CacheWiring) {
-  const identity = createWebgpuBindIdentity()
   const sceneGroup = sceneTraceGroupBinder(device)
-  let group: GPUBindGroup | undefined
+  const ownGroup = groupBinder(
+    device,
+    (
+      next,
+      kernels: TracedCacheKernels,
+      s: CacheStorage,
+      q: Queued,
+      rays: SceneRays,
+      atlas: TraceAtlas,
+    ) => {
+      traceKeys(next, s, q)
+      next[13] = atlas
+      next[14] = kernels.layouts[0]
+      next[5] = q.reads.hit.tables
+      next[6] = q.reads.hit.depth
+      next[7] = q.reads.hit.final
+      next[8] = q.reads.hit.instances
+      next[9] = rays.views.nodes
+      next[10] = rays.views.frames
+      next[11] = rays.views.worlds
+      next[12] = rays.views.tree
+    },
+    (kernels, s, q, rays, atlas) => ({
+      layout: kernels.layouts[0],
+      entries: [
+        ...traceEntries(wiring, s, q, atlas.view),
+        ...dagReadGroupEntries(rays.views),
+        ...surfaceHitCardsEntries(CACHE_TRACED_HIT, q.reads.hit),
+      ],
+    }),
+  )
   return (
     kernels: TracedCacheKernels,
     s: CacheStorage,
     q: Queued,
     rays: SceneRays,
     atlas: TraceAtlas,
-  ) => {
-    const { next } = identity
-    traceKeys(next, s, q)
-    next[13] = atlas
-    next[14] = kernels.layouts[0]
-    next[5] = q.reads.hit.tables
-    next[6] = q.reads.hit.depth
-    next[7] = q.reads.hit.final
-    next[8] = q.reads.hit.instances
-    next[9] = rays.views.nodes
-    next[10] = rays.views.frames
-    next[11] = rays.views.worlds
-    next[12] = rays.views.tree
-    if (identity.moved()) {
-      group = device.createBindGroup({
-        layout: kernels.layouts[0],
-        entries: [
-          ...traceEntries(wiring, s, q, atlas.view),
-          ...dagReadGroupEntries(rays.views),
-          ...surfaceHitCardsEntries(CACHE_TRACED_HIT, q.reads.hit),
-        ],
-      })
-    }
-    const scene = sceneGroup(
-      kernels.layouts[CACHE_TRACED_SCENE.group],
-      rays.sceneTrace,
-      CACHE_TRACED_SCENE.first,
-    )
-    return [group!, scene] as const
-  }
+  ) =>
+    [
+      ownGroup(kernels, s, q, rays, atlas),
+      sceneGroup(
+        kernels.layouts[CACHE_TRACED_SCENE.group],
+        rays.sceneTrace,
+        CACHE_TRACED_SCENE.first,
+      ),
+    ] as const
 }
 
 /** What the cache's parameters say of the frame: the block of probes its atlases are laid out for, the tiles the trace atlas holds (`traceTiles`),
- *  whether its rays go through the trace atlas and whether it is a full update. */
+ *  whether its rays go through the trace atlas. */
 export interface FrameShape {
   queue: CacheTemp
   traceTiles: number
   traced: boolean
-  full: boolean
 }
 
 /** The words of the cache's parameters (`RADIANCE_CACHE_PARAMS`) for an image of `settings`, the eye at `eye`, the frame as `frame` says, and
@@ -293,7 +304,7 @@ export function writeCacheParams(
     (cache.filter ? RADIANCE_CACHE_FLAGS.filter : 0) |
     (cache.skyVisibility ? RADIANCE_CACHE_FLAGS.sky : 0) |
     (frame.traced ? RADIANCE_CACHE_FLAGS.traced : 0) |
-    (frame.full ? RADIANCE_CACHE_FLAGS.full : 0)
+    (cache.calculatesIrradiance ? RADIANCE_CACHE_FLAGS.leak : 0)
   words[P.mipmaps] = cache.mipmaps
   words[P.tempRow] = frame.queue.row
   words[P.traceTiles] = frame.traceTiles
@@ -301,6 +312,8 @@ export function writeCacheParams(
   floats[P.downsampleSq] = cache.downsampleSq
   floats[P.supersampleSq] = cache.supersampleSq
   floats[P.filterAngle] = cache.filterAngle
+  putVec4(floats, P.leak, ...cache.skylightLeak, cache.skylightLeakingRoughness)
+  floats[P.leakDistance] = cache.skylightLeakingInverseDistance
   putVec4(floats, P.eye, eye[0], eye[1], eye[2])
   putVec4(
     floats,

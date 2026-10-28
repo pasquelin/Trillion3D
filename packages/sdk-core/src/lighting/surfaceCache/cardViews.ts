@@ -18,8 +18,7 @@ import type { Card } from './cardTypes.ts'
  *
  * The card's three axes make a left-handed frame (`axisX = axisZ × axisY`), so the view MIRRORS the world:
  * the winding of a triangle on its picture is the opposite of the one a camera that looks along
- * `-axisZ` would see. A raster that culls by winding takes it into account; a card is captured as its
- * surface is, whichever side of a triangle faces the view.
+ * `-axisZ` would see. The raster that culls by the material's side takes it into account (`cardWinding`).
  */
 
 /** The view of one page of a card. */

@@ -78,6 +78,8 @@ export interface LightParameters
   /** Directional only: the soft angle of the source's disk, in degrees from 0 up to 180: it widens the highlight the sun leaves on a
    *  glossy surface without lighting more of the surface; 0 by default. */
   softAngle?: number
+  /** How the four layers of the light's hair deep shadow are spread, from 0 to 1; 0.5 by default. */
+  hairDeepShadowLayerDistribution?: number
   /** Whether a directional light may be the sun of the sky module's atmosphere (`scene.sky`):
    *  of the lights that may, the brightest is; `true` by default. */
   atmosphereSun?: boolean
@@ -112,6 +114,8 @@ export interface LightParameters
   /** Whether the light shines through the subsurface-profile surfaces it shadows; off by default,
    *  and acting on a movable light that casts a shadow alone. */
   transmission?: boolean
+  /** Whether the light draws a deep shadow of the hair strands it reaches; off by default. */
+  castHairDeepShadow?: boolean
   /** The lighting channels the light is in (`{ channel0, channel1, channel2 }`, each true or false): it
    *  lights an object's surfaces, and its shadow holds the object, only where they share a channel;
    *  channel 0 alone by default. */

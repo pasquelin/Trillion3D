@@ -41,7 +41,7 @@ export const lightFunctionConeTangentOf = (light: SceneLight) => {
   return degrees > 0 ? Math.tan(Math.min(degrees, LIGHT_FUNCTION_CONE_LIMIT) * DEG2RAD) : 0
 }
 
-const bad = (id: string, what: string, value: unknown) =>
+export const bad = (id: string, what: string, value: unknown) =>
   new EngineError('INVALID_SCENE_LIGHT', `${id}: ${what}`, { value })
 
 /** The scale, fade distance and disabled brightness of a light function, validated into `validated`

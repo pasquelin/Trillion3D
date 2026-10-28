@@ -1,8 +1,6 @@
 import type { HairStrandsGroup } from '../../../sdk-core/src/hair/hairStrandsFile.ts'
 import { alignUp } from '../../../math/src/scalar/integers.ts'
-
-/** The bytes of a tangent: two normals of four signed bytes each. */
-export const HAIR_TANGENT_BYTES = 8
+import { HAIR_TANGENT_BYTES } from './tangentBytes.ts'
 
 /**
  * The buffers of one group of strands as the passes bind them, both storage: the points (eight

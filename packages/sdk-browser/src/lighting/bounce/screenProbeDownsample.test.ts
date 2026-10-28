@@ -61,7 +61,7 @@ test('a pixel reads the texel of the integration its offset names, counted from 
   const run = (integrate: number, word: number) => {
     const { spFreshAt } = shaderRun<{
       spFreshAt: (at: number[]) => { texel: number[]; valid: boolean }
-    }>(temporalShader(1, [4, 2], true, false, integrate), ['spFreshAt'], {
+    }>(temporalShader(1, [4, 2], false, integrate), ['spFreshAt'], {
       sp: { size: [7, 9, 16, 0] },
       offsetsIn: 'offsets',
       textureLoad: () => [word, 0, 0, 0],
@@ -227,8 +227,7 @@ test('a level whose integration is downsampled has the pass that picks the texel
   assert.match(full.integrate!.code, /spSkyAt\(at,s\.N,spStrengthOf\(s\.foliage\)\)/)
   assert.match(full.integrate!.code, /let e=blueNoiseScalar\(cell,sp\.size\.w%8u\);/)
   // The temporal pass binds the offsets only where it reads them.
-  assert.equal(temporalEntries(true, false, 2).length - temporalEntries(true, false, 1).length, 1)
-  assert.equal(temporalEntries(false, false, 2).length, temporalEntries(false, false, 1).length)
+  assert.equal(temporalEntries(false, 2).length - temporalEntries(false, 1).length, 1)
   for (const [name, source] of Object.entries(full))
     assertProgramAssembles(source.code, undefined, name)
 })
