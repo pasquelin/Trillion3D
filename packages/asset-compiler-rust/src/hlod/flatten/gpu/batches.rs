@@ -112,8 +112,9 @@ impl<'a> Batches<'a> {
 
     /// Every batch's results set to all ones before it runs: an invocation the device drops
     /// leaves its result so, where the pass can tell it from any it writes. Measured on an Apple
-    /// GPU: a long batch lost whole SIMD groups of invocations now and then, no error raised, and
-    /// their results kept what the slot's batch before had written.
+    /// GPU with the distance field's kernel: a batch lost whole SIMD groups of invocations now and
+    /// then, no error raised, and their results kept what the slot's batch before had written; the
+    /// nearest pass, batches as long, lost none. The cause is not found.
     pub(crate) fn mark_unwritten(&mut self) {
         self.unwritten = vec![u8::MAX; (BATCH as u64 * self.bytes.1) as usize];
     }

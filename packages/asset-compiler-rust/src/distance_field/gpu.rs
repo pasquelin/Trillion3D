@@ -33,9 +33,9 @@
 //! double precision (`remeasure`); every other one took the steps the CPU takes, so its byte is the
 //! CPU's. The proof is the comparison of both builds, byte for byte (`gpu/tests.rs`).
 //!
-//! A device may drop invocations and raise no error: measured on an Apple GPU, a long batch of
-//! sponza lost whole SIMD groups now and then — 0.1 to 4 % of the field's bytes wrong, other ones
-//! each run. Each batch's values start all ones (`Batches::mark_unwritten`), which no voxel the
+//! A device may drop invocations of this kernel and raise no error: measured on an Apple GPU, a
+//! batch of sponza lost whole SIMD groups now and then — 0.1 to 4 % of the field's bytes wrong,
+//! other ones each run; the cause is not found. Each batch's values start all ones (`Batches::mark_unwritten`), which no voxel the
 //! kernel measures holds: a dropped one is doubtful and measured on the CPU, so the field is the
 //! CPU's whatever the device dropped, every run.
 use super::brick::{quantise, Brick, Frame, BRICK_VOXELS};
