@@ -66,6 +66,6 @@ pub(super) fn prelude() -> String {
 }
 
 /// The bindings in order: the chunk's uniform, the scene and the points read, the values written.
-pub(super) fn bindings() -> Vec<wgpu::BindingType> {
+pub(crate) fn bindings() -> Vec<wgpu::BindingType> {
     vec![UNIFORM, READ, READ, WRITE]
 }

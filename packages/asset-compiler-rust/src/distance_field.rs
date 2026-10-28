@@ -37,6 +37,18 @@ mod scene;
 mod settings;
 mod stage;
 
+/// A box's six faces, four corners each wound outward, corner bit `k` set at its high end on axis
+/// `k`: the closed boxes the tests measure.
+#[cfg(test)]
+const BOX_FACES: [[usize; 4]; 6] = [
+    [0, 4, 6, 2],
+    [1, 3, 7, 5],
+    [0, 1, 5, 4],
+    [2, 6, 7, 3],
+    [0, 2, 3, 1],
+    [4, 5, 7, 6],
+];
+
 pub(crate) use actors::{actors_field, actors_scene, field_bytes, scene_bytes, ActorTriangles};
 pub(crate) use encode::{Owner, Placed};
 pub(crate) use samples::hemisphere;

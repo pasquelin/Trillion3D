@@ -34,15 +34,7 @@ fn lattice(rows: usize, columns: usize, at: impl Fn(usize, usize) -> Point) -> V
 /// The box `low, high` closed, its twelve triangles wound outward.
 fn cuboid(low: Point, high: Point) -> Vec<[Point; 3]> {
     let corner = |c: usize| [0, 1, 2].map(|k| if (c >> k) & 1 == 1 { high[k] } else { low[k] });
-    let quads: [[usize; 4]; 6] = [
-        [0, 4, 6, 2],
-        [1, 3, 7, 5],
-        [0, 1, 5, 4],
-        [2, 6, 7, 3],
-        [0, 2, 3, 1],
-        [4, 5, 7, 6],
-    ];
-    (quads.iter())
+    (crate::distance_field::BOX_FACES.iter())
         .flat_map(|&[a, b, c, d]| [[a, b, c], [a, c, d]])
         .map(|t| t.map(corner))
         .collect()

@@ -111,16 +111,8 @@ mod tests {
         let positions = (0..8u32)
             .flat_map(|c| [0, 1, 2].map(|k| origin[k] + side * ((c >> k) & 1) as f32))
             .collect();
-        let quads: [[u32; 4]; 6] = [
-            [0, 4, 6, 2],
-            [1, 3, 7, 5],
-            [0, 1, 5, 4],
-            [2, 6, 7, 3],
-            [0, 2, 3, 1],
-            [4, 5, 7, 6],
-        ];
-        let indices = (quads.iter())
-            .flat_map(|[a, b, c, d]| [*a, *b, *c, *a, *c, *d])
+        let indices = (crate::distance_field::BOX_FACES.iter())
+            .flat_map(|&[a, b, c, d]| [a, b, c, a, c, d].map(|corner| corner as u32))
             .collect();
         (positions, indices)
     }

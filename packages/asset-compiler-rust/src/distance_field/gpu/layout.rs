@@ -4,11 +4,11 @@
 //! the workgroup, the stack, the bindings — lives in `flatten/gpu/layout.rs`.
 use crate::distance_field::scene::PULLBACK;
 // A boxed node and a triangle are the shell queries' records; a triangle's first corner carries
-// in its fourth word 1 when the triangle is two-sided.
+// in its fourth word 1 when the triangle is two-sided. The bindings are theirs, a voxel a point.
 pub(super) use crate::hlod::flatten::approximate::gpu::layout::{
-    BOX_NODE_RECORDS, MAX_DEPTH, STACK, TRIANGLE_RECORDS,
+    bindings, BOX_NODE_RECORDS, MAX_DEPTH, STACK, TRIANGLE_RECORDS,
 };
-use crate::hlod::flatten::gpu::layout::{wgsl_constants, NONE, READ, UNIFORM, WORKGROUP, WRITE};
+use crate::hlod::flatten::gpu::layout::{wgsl_constants, NONE, WORKGROUP};
 use trillion3d_page_codec::proxy::PROXY_CHILDREN;
 
 /// The scene's head: two records. The first holds the tree's first node, its first triangle, its
@@ -44,10 +44,4 @@ pub(super) fn prelude() -> String {
     let mut out = wgsl_constants(&constants);
     out += &format!("const PULLBACK: f32 = {:?};\n", PULLBACK as f32);
     out
-}
-
-/// The bindings in order: the chunk's uniform, the scene and the voxels' positions read, the
-/// values written.
-pub(super) fn bindings() -> Vec<wgpu::BindingType> {
-    vec![UNIFORM, READ, READ, WRITE]
 }
