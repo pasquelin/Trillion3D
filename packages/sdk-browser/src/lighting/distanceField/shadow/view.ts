@@ -1,4 +1,4 @@
-import { ledgerAdmitted } from '../../../gpu/core/deviceLedger.ts'
+import { shapeView } from '../../../gpu/core/shapeView.ts'
 import { textureBytesOf } from '../../../gpu/core/textureBytes.ts'
 import { viewResources, type ViewTexture } from '../viewResources.ts'
 import {
@@ -133,13 +133,10 @@ export function ensureDfshView(
   device: GPUDevice,
   shape: DfshShape,
 ): { view?: DfshView; why?: string } {
-  if (held && dfshShapeKey(held.shape) === dfshShapeKey(shape)) return { view: held }
-  const asked = dfshViewBytes(shape)
-  const { value, why } = ledgerAdmitted(device, {
-    held,
-    asked,
+  return shapeView(held, device, {
+    same: held !== undefined && dfshShapeKey(held.shape) === dfshShapeKey(shape),
     what: 'the sun’s distance-field shadow',
-    make: () => makeView(device, shape, asked),
+    bytes: () => dfshViewBytes(shape),
+    make: (asked) => makeView(device, shape, asked),
   })
-  return { view: value, why }
 }

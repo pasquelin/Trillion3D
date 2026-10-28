@@ -13,6 +13,7 @@ import { tintSet } from '../../../../sdk-core/src/world/light/lightAirSettings.t
 import { settingsSet } from '../../../../sdk-core/src/world/light/lightShaftSettings.ts'
 import { settingsSet as cloudShadowSettingsSet } from '../../../../sdk-core/src/world/light/lightCloudShadowSettings.ts'
 import { settingsSet as shadowSettingsSet } from '../../../../sdk-core/src/world/light/lightShadowSettings.ts'
+import { LIGHT_FUNCTION_DEFAULTS } from '../../../../sdk-core/src/scene/light/lightFunction.ts'
 import { settingsSet as contactShadowSettingsSet } from '../../../../sdk-core/src/world/light/lightContactShadowSettings.ts'
 import type { Camera } from '../../../../sdk-core/src/world/camera/camera.ts'
 import type { Color } from '../../../../sdk-core/src/world/math/color.ts'
@@ -27,6 +28,7 @@ import {
   type SavedGeometry,
   type SavedMaterial,
   type SavedNode,
+  type SavedPose,
   type SavedScene,
 } from './format.ts'
 
@@ -84,12 +86,22 @@ function saveMaterial(m: Material): SavedMaterial {
   return { kind: m.kind, parameters }
 }
 
+/** Where `o` stands and how it is turned; its Euler order and its up only where they are not the
+ *  defaults. */
+function savePose(o: Object3D): SavedPose {
+  return {
+    position: o.position.toArray(),
+    quaternion: o.quaternion.toArray(),
+    ...(o.rotation.order === 'XYZ' ? {} : { rotationOrder: o.rotation.order }),
+    ...(o.up.x === 0 && o.up.y === 1 && o.up.z === 0 ? {} : { up: o.up.toArray() }),
+  }
+}
+
 /** The camera's pose and optics. */
 function saveCamera(camera: Camera): SavedCamera {
   return {
     projection: camera.projection,
-    position: camera.position.toArray(),
-    quaternion: camera.quaternion.toArray(),
+    ...savePose(camera),
     optics: { ...camera._optics },
     ...(camera.fitAspect && { fitAspect: true }),
   }
@@ -134,8 +146,7 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
   const saved: SavedNode = {
     kind: mesh.isMesh ? 'mesh' : lamp.isLight ? 'light' : model.isLoadedModel ? 'model' : 'object',
     name: o.name,
-    position: o.position.toArray(),
-    quaternion: o.quaternion.toArray(),
+    ...savePose(o),
     scale: o.scale.toArray(),
     visible: o.visible,
     castShadow: o.castShadow,
@@ -152,13 +163,13 @@ function saveNode(o: Object3D, tables: Tables): SavedNode {
   }
   if ((o as { isGroup?: boolean }).isGroup) saved.kind = 'group'
   if (mesh.isMesh) saveMesh(saved, mesh, tables)
-  if (lamp.isLight) saved.light = saveLight(lamp)
+  if (lamp.isLight) saved.light = saveLight(lamp, tables)
   if (model.isLoadedModel) saved.model = { url: model.record.manifestUrl }
   return saved
 }
 
 /** A light's kind, colours, numbers and aim, and each setting it holds against its default. */
-function saveLight(lamp: Light): NonNullable<SavedNode['light']> {
+function saveLight(lamp: Light, { materials }: Tables): NonNullable<SavedNode['light']> {
   const shafts = settingsSet(lamp)
   const cloudShadows = cloudShadowSettingsSet(lamp)
   const contactShadows = contactShadowSettingsSet(lamp)
@@ -178,6 +189,7 @@ function saveLight(lamp: Light): NonNullable<SavedNode['light']> {
     ...(lamp.intensityUnits === DEFAULT_LIGHT_UNITS ? {} : { intensityUnits: lamp.intensityUnits }),
     ...(lamp.useTemperature ? { useTemperature: true as const } : {}),
     ...(lamp.transmission ? { transmission: true as const } : {}),
+    ...(lamp.castHairDeepShadow ? { castHairDeepShadow: true as const } : {}),
     ...(lamp.shadowsAir ? { shadowsAir: true as const } : {}),
     ...(lamp.transmittancePerPixel ? { transmittancePerPixel: true as const } : {}),
     ...(tintSet(lamp) ? { sunDiskTint: rgb(tintSet(lamp)!) } : {}),
@@ -185,6 +197,29 @@ function saveLight(lamp: Light): NonNullable<SavedNode['light']> {
     ...(Object.keys(cloudShadows).length ? { cloudShadows } : {}),
     ...(Object.keys(contactShadows).length ? { contactShadows } : {}),
     ...(Object.keys(shadows).length ? { shadows } : {}),
+    ...(lamp.lightFunction ? { lightFunction: saveLightFunction(lamp, materials) } : {}),
+  }
+}
+
+/** The light function `lamp` wears: its material by rank, and each setting against its default
+ *  (`LIGHT_FUNCTION_DEFAULTS`). */
+function saveLightFunction(lamp: Light, materials: Tables['materials']) {
+  const { scale, fadeDistance, disabledBrightness, coneAngle } = LIGHT_FUNCTION_DEFAULTS
+  const at = lamp.lightFunctionScale
+  return {
+    material: rank(materials, lamp.lightFunction!),
+    ...(at.x === scale[0] && at.y === scale[1] && at.z === scale[2]
+      ? {}
+      : { lightFunctionScale: at.toArray() }),
+    ...(lamp.lightFunctionFadeDistance === fadeDistance
+      ? {}
+      : { lightFunctionFadeDistance: lamp.lightFunctionFadeDistance }),
+    ...(lamp.lightFunctionDisabledBrightness === disabledBrightness
+      ? {}
+      : { lightFunctionDisabledBrightness: lamp.lightFunctionDisabledBrightness }),
+    ...(lamp.lightFunctionConeAngle === coneAngle
+      ? {}
+      : { lightFunctionConeAngle: lamp.lightFunctionConeAngle }),
   }
 }
 

@@ -58,6 +58,7 @@ import {
   type NamePattern,
   type Refuse,
 } from './nameMatch.ts'
+import { flagSetting, namedSetting } from './settingRules.ts'
 
 /** How an instanced skinned object plays its clip, each the default when left out. */
 export type SkinnedInstanceSettings = {
@@ -207,14 +208,13 @@ function drawDistanceOf(value: unknown, what: string, refuse: Refuse): false | D
   return named || (!wire.perInstance && (wire.min ?? DEFAULT_DRAW_DISTANCE_MIN) > 0) ? wire : false
 }
 
+/** What a switch takes, as a refusal names it. */
+const SWITCH = flagSetting('switch', false)
+
 /** The switch `named` holds under `setting`, `undefined` where it holds none.
  *  @throws TypeError (`refuse`) when it is not a boolean. */
 function switchOf(named: Record<string, unknown>, setting: string, what: string, refuse: Refuse) {
-  const value = named[setting]
-  if (value === undefined || value === null) return undefined
-  if (typeof value !== 'boolean')
-    refuse(`${what}${setting} must be true or false, got ${JSON.stringify(value)}`)
-  return value as boolean
+  return namedSetting(SWITCH, named[setting], `${what}${setting}`, refuse) as boolean | undefined
 }
 
 /** The settings of `named` the compiler reads, `what` naming them in a refusal. */

@@ -1,11 +1,17 @@
 import type { AmbientOcclusionSettings } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { writeChanged } from '../../gpu/core/writeChanged.ts'
-import { fullscreenDraw } from '../../post/filters/fullscreenDraw.ts'
 import { AO_BINDINGS, AO_PARAMS, AO_PARAMS_BYTES } from './layout.ts'
-import { aoCommonEntries, specCache, type AoMethod, type AoNeeded } from './method.ts'
+import {
+  aoCommonEntries,
+  aoPassGroups,
+  createAoScratch,
+  specCache,
+  type AoMethod,
+  type AoNeeded,
+} from './method.ts'
 import { aoShapeOf, type AoShape } from './occlusionWgsl.ts'
-import { createDepthTerms, writeAoParams, type AoImage } from './params.ts'
+import { writeAoParams, type AoImage } from './params.ts'
 import { aoPasses, aoTargetExtent, aoTargetRect, AO_TARGETS, type AoPass } from './plan.ts'
 import { aoPrograms } from './pipelines.ts'
 import type { AoView, AoViewSpec } from './view.ts'
@@ -24,37 +30,22 @@ function groupsOf(
   identity.next[1] = needed.normals
   identity.next[2] = needed.empty
   if (identity.moved())
-    view.groups[identity.slot] = passes.map((pass, at) =>
-      needed.device.createBindGroup({
-        label: `${AMBIENT_OCCLUSION_PASS} ${pass.target}`,
-        layout: programs.layout,
-        entries: [
-          ...aoCommonEntries(view.params[at], needed),
-          {
-            binding: AO_BINDINGS.setup,
-            resource: pass.setup ? view.textures[pass.setup] : programs.emptySetup,
-          },
-          {
-            binding: AO_BINDINGS.lower,
-            resource: pass.lower ? view.textures[pass.lower] : needed.empty,
-          },
-        ],
-      }),
-    )
+    aoPassGroups(view, needed.device, passes, (pass, at) => ({
+      label: `${AMBIENT_OCCLUSION_PASS} ${pass.target}`,
+      layout: programs.layout,
+      entries: [
+        ...aoCommonEntries(view.params[at], needed),
+        {
+          binding: AO_BINDINGS.setup,
+          resource: pass.setup ? view.textures[pass.setup] : programs.emptySetup,
+        },
+        {
+          binding: AO_BINDINGS.lower,
+          resource: pass.lower ? view.textures[pass.lower] : needed.empty,
+        },
+      ],
+    }))
   return view.groups[identity.slot]
-}
-
-/** What a method refills for each pass instead of making it: the draw's descriptor, the uniform's words (and the same as the
- *  integers `writeChanged` compares) and the rectangle drawn — one set for each view's method, shared with no other. */
-function createScratch() {
-  const words = new Float32Array(AO_PARAMS.words)
-  return {
-    draw: fullscreenDraw(AMBIENT_OCCLUSION_PASS),
-    words,
-    sent: new Uint32Array(words.buffer),
-    rect: [0, 0],
-    terms: createDepthTerms(),
-  }
 }
 
 /** The program a pass is drawn with: its search's, or the smoothing's or the setup's. */
@@ -99,7 +90,7 @@ const specOf = ({ passes }: DiscPlan, extent: readonly [number, number]): AoView
  *  reading the one before; the texture the lighting reads. */
 function drawPlan(
   { passes, shapes }: DiscPlan,
-  scratch: ReturnType<typeof createScratch>,
+  scratch: ReturnType<typeof createAoScratch>,
   settings: AmbientOcclusionSettings,
   encoder: GPUCommandEncoder,
   view: AoView,
@@ -135,7 +126,7 @@ export function discMethod(settings: AmbientOcclusionSettings): AoMethod {
   const smoothed = settings.compute && settings.computeSmooth ? planOf(settings, true) : plain
   const chosen = (accumulates: boolean) => (accumulates ? plain : smoothed)
   const plans = smoothed === plain ? [plain] : [plain, smoothed]
-  const scratch = createScratch()
+  const scratch = createAoScratch(AO_PARAMS.words)
   const cache = specCache((extent, accumulates) => specOf(chosen(accumulates), extent))
   return {
     spec: cache.spec,

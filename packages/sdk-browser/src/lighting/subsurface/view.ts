@@ -1,4 +1,4 @@
-import { ledgerAdmitted } from '../../gpu/core/deviceLedger.ts'
+import { shapeView } from '../../gpu/core/shapeView.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
@@ -169,13 +169,10 @@ export function ensureSubsurfaceView(
   device: GPUDevice,
   spec: SubsurfaceViewSpec,
 ): { view?: SubsurfaceView; why?: string } {
-  if (held && held.spec.key === spec.key) return { view: held }
-  const asked = subsurfaceViewBytes(spec)
-  const { value, why } = ledgerAdmitted(device, {
-    held,
-    asked,
+  return shapeView(held, device, {
+    same: held?.spec.key === spec.key,
     what: 'the subsurface scattering',
-    make: () => makeView(device, spec, asked),
+    bytes: () => subsurfaceViewBytes(spec),
+    make: (asked) => makeView(device, spec, asked),
   })
-  return { view: value, why }
 }

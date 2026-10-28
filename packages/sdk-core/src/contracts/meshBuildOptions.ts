@@ -111,7 +111,7 @@ import {
   type NamePattern,
   type Refuse,
 } from './nameMatch.ts'
-import { integerSetting, settingFits, settingTakes, type SettingRule } from './settingRules.ts'
+import { integerSetting, namedSetting, type SettingRule } from './settingRules.ts'
 
 /** One source's mesh build settings, each the next source's, or its default, when left out. */
 export type MeshBuildSettings = {
@@ -254,12 +254,7 @@ function settingsOf(named: Record<string, unknown>, what: string, refuse: Refuse
     if (name === DISPLACEMENT_MAPS_SETTING) {
       const refusal = displacementMapsRefusal(value)
       if (refusal !== undefined) refuse(`${what}${refusal}`)
-      wire[name] = value
-      continue
-    }
-    const rule = TAKES[name]
-    if (!settingFits(rule, value))
-      refuse(`${what}${name} must be ${settingTakes(rule)}, got ${JSON.stringify(value)}`)
+    } else namedSetting(TAKES[name], value, `${what}${name}`, refuse)
     wire[name] = value
   }
   return wire as MeshBuildSettingsWire

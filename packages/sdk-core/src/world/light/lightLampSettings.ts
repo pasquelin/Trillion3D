@@ -2,7 +2,7 @@ import type { SceneLight } from '../../scene/light/contracts.ts'
 import { LIGHT_SETTINGS } from '../../scene/light/contracts.ts'
 import { DEFAULT_LIGHT_UNITS, LIGHT_UNITS, type LightUnits } from '../../scene/light/lightUnits.ts'
 import { EngineError } from '../../contracts/cache.ts'
-import { defaultOnFlag } from './lightFlags.ts'
+import { lightFlag } from './lightFlags.ts'
 import { LOCAL_NUMBERS } from '../../scene/light/validateLamp.ts'
 import { lightChanged } from './lightNumbers.ts'
 import type { Light } from './light.ts'
@@ -11,7 +11,7 @@ import type { LightParameters } from './lightParameters.ts'
 /** The settings of a lamp that say how its light falls off and how much of it it gives, held beside
  *  the light's own numbers (`lightNumbers.ts`): the yes/no one that is on by default, whether it
  *  falls off as the inverse square of the distance. */
-const inverseSquared = defaultOnFlag('inverseSquared')
+const inverseSquared = lightFlag('inverseSquared', true)
 
 /** The lamps whose intensity a page wrote in another unit than unitless (`Light.intensityUnits`):
  *  few, so a map and not a field every light would carry. */

@@ -6,6 +6,8 @@
  * its defaults, never a copy, so with nothing written every setting is exactly today's value.
  */
 
+import { settingFits } from '../contracts/settingRules.ts'
+
 /** The groups a quality level is chosen for, in their code names (the D3 names, in English). */
 export const QUALITY_GROUPS = [
   'viewDistance',
@@ -69,16 +71,8 @@ export const STRONGEST_FIRST: readonly RenderSettingSource[] = [
 function check(name: string, entry: RenderSettingEntry, value: unknown, source: string) {
   if (entry.editorOnly && source !== 'editor')
     throw new Error(`RENDER_SETTING_EDITOR_ONLY: ${name} is the editor's`)
-  const fits =
-    entry.kind === 'flag'
-      ? typeof value === 'boolean'
-      : entry.kind === 'choice'
-        ? typeof value === 'string' && entry.choices.includes(value)
-        : typeof value === 'number' &&
-          (entry.kind === 'float' ? Number.isFinite(value) : Number.isInteger(value)) &&
-          value >= entry.range[0] &&
-          value <= entry.range[1]
-  if (!fits) throw new Error(`RENDER_SETTING_VALUE: ${name} does not take ${String(value)}`)
+  if (!settingFits({ ...entry, field: name }, value))
+    throw new Error(`RENDER_SETTING_VALUE: ${name} does not take ${String(value)}`)
 }
 
 /** The layers of a registry over `table` and the two reads of them: an entry by name, refused when

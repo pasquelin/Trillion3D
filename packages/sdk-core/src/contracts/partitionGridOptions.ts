@@ -13,7 +13,7 @@ import {
 } from './compilerAbi.ts'
 import { isFiniteNumber } from '../../../math/src/scalar/reals.ts'
 import { fieldsOf, refusal, type Refuse } from './nameMatch.ts'
-import { settingFits, settingTakes } from './settingRules.ts'
+import { namedSetting, settingFits, settingTakes } from './settingRules.ts'
 import {
   GRID_RULES,
   PARTITION_GRID_SETTINGS,
@@ -130,12 +130,8 @@ function readGrid(
   /** The value the job names of the setting `name`, `undefined` for none; refused when the rule
    *  does not take it. */
   const read = <K extends keyof typeof GRID_RULES>(name: K) => {
-    const value = named[name]
-    if (value == null) return undefined
-    const rule = GRID_RULES[name]
-    if (!settingFits(rule, value))
-      refuse(`${name} must be ${settingTakes(rule)}, got ${JSON.stringify(value)}`)
-    return value as (typeof GRID_RULES)[K]['default']
+    return namedSetting(GRID_RULES[name], named[name], name, refuse) as
+      (typeof GRID_RULES)[K]['default'] | undefined
   }
   /** The setting `name` as the job names it, else its rule's default. */
   const readOr = (name: 'cellSize' | 'loadingRange' | 'priority') =>

@@ -39,6 +39,17 @@ export function assertSidecarSection(
   return named as SidecarSection
 }
 
+/** A sidecar reader's refusal: throws `INVALID_CACHE` naming the file's content. */
+export type SidecarRefusal = (why: string) => never
+
+/** The refusal of the reader of the sidecar file that holds `what`, as `assertSidecarSection` and
+ *  `checkSidecarHead` name it. */
+export const sidecarRefusal =
+  (what: string): SidecarRefusal =>
+  (why) => {
+    throw new EngineError('INVALID_CACHE', `${what}: ${why}`, {})
+  }
+
 /** What `checkSidecarHead` checks a file's first two words against. */
 export interface SidecarHead {
   /** The word at byte 0. */

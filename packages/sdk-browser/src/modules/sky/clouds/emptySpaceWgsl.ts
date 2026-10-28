@@ -1,3 +1,4 @@
+import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
 import { uvToNdc } from '../../../../../math/src/wgsl/projection.ts'
 import { airProgram } from '../../../lighting/atmosphere/programs.ts'
 import { DEFAULT_AIR_SHAPE, type AirShape } from '../../../lighting/atmosphere/shape.ts'
@@ -66,11 +67,7 @@ fn ${CLOUD_EMPTY_SPACE_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(l
  }
  let startKm=(f32(lane.z)+cloudTrace.empty.z)*cloudTrace.empty.x*CLOUD_CM_TO_KM;
  frontKm[lane.z]=max(0.0,select(cloudTrace.empty.y*CLOUD_CM_TO_KM,startKm,value>0.0));
- workgroupBarrier();
- for(var stride=EMPTY_SPACE_SLICES/2u;stride>=1u;stride=stride/2u){
-  if(lane.z<stride){frontKm[lane.z]=min(frontKm[lane.z],frontKm[lane.z+stride]);}
-  workgroupBarrier();
- }
+ ${workgroupSumLoop('EMPTY_SPACE_SLICES', 'frontKm[lane.z]=min(frontKm[lane.z],frontKm[lane.z+stride]);', 'lane.z')}
  if(lane.z==0u){textureStore(tableOut,id.xy,vec4f(frontKm[0],0.0,0.0,0.0));}
 }`
 

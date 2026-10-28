@@ -33,7 +33,7 @@
  *   vertex a side, whatever the edge.
  */
 import { CENTIMETRES_PER_METRE } from '../page/format.ts'
-import { isRecord } from './nameMatch.ts'
+import { isRecord, unknownFieldOf } from './nameMatch.ts'
 import { choiceSetting, integerSetting, ruleFields, rulesOf } from './settingRules.ts'
 
 /** The key of a mesh build's settings holding its height maps. */
@@ -91,16 +91,13 @@ export function displacementMapsRefusal(value: unknown): string | undefined {
   for (const [at, map] of value.entries()) {
     const what = `${DISPLACEMENT_MAPS_SETTING}[${at}]`
     if (!isRecord(map)) return `${what} must be an object of ${DISPLACEMENT_MAP_KEYS.join(', ')}`
-    const keys = Object.keys(map)
-    const unknown = keys.find((key) => !(DISPLACEMENT_MAP_KEYS as readonly string[]).includes(key))
+    const unknown = unknownFieldOf(map, DISPLACEMENT_MAP_KEYS)
     if (unknown !== undefined) return `${what} has no field ${unknown}`
     const { texture, magnitude, center } = map as Record<string, unknown>
     const index = (texture as { index?: unknown } | null | undefined)?.index
     if (typeof index !== 'number' || !Number.isInteger(index) || index < 0)
       return `${what}.texture must be a texture info with a whole index of at least 0`
-    const stray = Object.keys(texture as object).find(
-      (key) => !(DISPLACEMENT_TEXTURE_KEYS as readonly string[]).includes(key),
-    )
+    const stray = unknownFieldOf(texture as object, DISPLACEMENT_TEXTURE_KEYS)
     if (stray !== undefined) return `${what}.texture has no field ${stray}`
     for (const [name, number, scale] of [
       ['magnitude', magnitude, CENTIMETRES_PER_METRE],

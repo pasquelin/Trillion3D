@@ -10,6 +10,7 @@ import {
 } from '../../../../sdk-core/src/contracts/materialOptions.ts'
 import type { RenderScale } from '../../frame/scale/renderScaleOption.ts'
 import { devicePixels, pixelRatioOf } from '../engine/common.ts'
+import { capSkips } from '../../frame/cadence.ts'
 import { frameStart } from '../../frame/scheduling.ts'
 import { SECOND_MS } from '../../frame/scale/scaleTargets.ts'
 import type { MeasuredWorld } from '../explorer.ts'
@@ -88,10 +89,6 @@ type ViewRecord = {
   view: WorldView | undefined
 }
 
-/** A display frame early by up to this share of the cap's interval still counts as due: frames
- *  land on the display's grid, a hair before or after the cap's. */
-const DUE_SLACK = 0.25
-
 /** What the world's views keep: the world, the records in the order they were added, the camera
  *  adopter, the session in place, and the views drawn in the frame under way. */
 type ViewsState = {
@@ -155,9 +152,10 @@ const opening = (state: ViewsState, record: ViewRecord, session: MeasuredWorld) 
       console.error('[trillion3d] A view could not be made', error)
   })
 
-/** Whether `record` is drawn in the frame that began at `now`, its cap kept. */
-const due = (record: ViewRecord, now: number) =>
-  now - record.drawnAt >= (SECOND_MS / record.options.maxFrameRate) * (1 - DUE_SLACK)
+/** Whether `record` is drawn in the frame that began at `now`, its cap kept on the display's
+ *  grid (`capSkips`, `refreshMs` the display's refresh once measured). */
+const due = (record: ViewRecord, now: number, refreshMs: number | null) =>
+  !capSkips(record.options.maxFrameRate, refreshMs, now - record.drawnAt)
 
 /** The record of a view added with `options`, over the canvas it names or the world's. */
 function newViewRecord({ world, adopt }: ViewsState, options: ViewOptions): ViewRecord {
@@ -290,13 +288,13 @@ const resized = (canvas: HTMLCanvasElement, size: readonly [number, number]) =>
   canvas.width !== size[0] || canvas.height !== size[1]
 
 /** Draws every view due in the frame under way, after its main image (`createDrawFrame`). */
-function drawDue(state: ViewsState) {
+function drawDue(state: ViewsState, refreshMs: number | null) {
   const { records, drawn, drawnRecords } = state
   drawn.length = drawnRecords.length = 0
   const now = frameStart()
   for (let index = 0; index < records.length; index++) {
     const record = records[index]
-    if (!record.handle || !record.host || !due(record, now)) continue
+    if (!record.handle || !record.host || !due(record, now, refreshMs)) continue
     // A view over a rectangle of the world's canvas follows that canvas's size, which no observer
     // of its own watches: measured again before it is drawn once that size moved.
     if (record.viewport && resized(state.world.canvas, record.measuredOver)) measure(state, record)
@@ -345,7 +343,7 @@ export function createWorldViews(world: WorldOfViews) {
         if (session) void opening(state, record, session)
       }
     },
-    draw: () => drawDue(state),
+    draw: (refreshMs: number | null) => drawDue(state, refreshMs),
     /** The frame's metrics carry the views it drew, whose hooks then run, after the world's. */
     drawnIn(metrics: { views?: readonly ViewFrameMetrics[] }) {
       metrics.views = drawn

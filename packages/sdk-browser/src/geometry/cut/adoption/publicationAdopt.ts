@@ -4,7 +4,7 @@ import type { createCutPending } from './pending.ts'
 import type { createWebgpuCutAdopter } from './adoption.ts'
 import type { GroupClosure } from '../groupClosure.ts'
 import { copyRankList } from './copyRanks.ts'
-import type { GpuCut } from '../../../gpu/core/selection.ts'
+import type { CutTotals } from '../../../gpu/core/selection.ts'
 import type { WebgpuResidencySets } from '../../residency/sets.ts'
 import type { WebgpuPagesCore } from '../../../frame/backend/runtime.ts'
 import type { ViewCut } from '../../../frame/backend/state/view.ts'
@@ -48,15 +48,7 @@ export function adoptView(
 /** A cut's counts, adopted with it: the image's metrics read them. */
 function applyTotals(
   run: WebgpuPagesCore['run'],
-  totals: Pick<
-    GpuCut['result'],
-    | 'selectedTriangles'
-    | 'transparentTriangles'
-    | 'frustumRejected'
-    | 'lodLevel'
-    | 'occluded'
-    | 'postHidden'
-  >,
+  totals: CutTotals,
   visible: number,
   ready: boolean,
 ) {

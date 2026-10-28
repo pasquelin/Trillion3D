@@ -3,6 +3,7 @@ import { preparedComputeStage } from '../../../gpu/core/computeStages.ts'
 import { chainReady } from '../../../lighting/deferred/fullscreen.ts'
 import { uniformStride } from '../../../session/memory/pools.ts'
 import { GEOMETRY_PAGE_MAGIC, NO_UNIT } from '../../../../../sdk-core/src/page/format.ts'
+import { opensWithMagic } from '../../../../../sdk-core/src/page/pageMagic.ts'
 import { namedRanks } from './namedRanks.ts'
 import {
   PAGE_INSTALL_LEVELS,
@@ -24,9 +25,7 @@ const INSTALL_DEPENDENCIES = 1 << 16
 
 /** Whether `bytes` open on a `WGP3` geometry page's magic: a page on disk, which the install pass
  *  transcodes into the pool; any other page — a voxel brick, an index page — is written as it is. */
-export const isGeometryPage = (bytes: Uint8Array) =>
-  bytes.byteLength >= 4 &&
-  new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0, true) === GEOMETRY_PAGE_MAGIC
+export const isGeometryPage = (bytes: Uint8Array) => opensWithMagic(bytes, GEOMETRY_PAGE_MAGIC)
 
 /** A page to install: its bytes on disk, the byte of the pool it takes and the bytes it may take
  *  there, the byte its streaming page starts at, and `dependencies`, which gives the byte each

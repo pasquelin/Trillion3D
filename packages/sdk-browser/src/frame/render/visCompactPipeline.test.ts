@@ -7,7 +7,7 @@ import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
 import { indirectDraws, installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND, dispatchedEntries } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera, quadBackend } from '../backend/testScenes.fixture.ts'
+import { backendOf, quadScene, camera, quadBackend } from '../backend/testScenes.fixture.ts'
 import type { RasterView } from '../backend/runtime.ts'
 import {
   assertOccluderImage,
@@ -16,8 +16,6 @@ import {
 } from '../backend/testOccluder.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
 import { MODE_DEPTH, rasterEntry } from '../../visibility/raster/contract.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 test('GPU Hi-Z builds the pyramid after the main pass, whose depth the buffer exports to level zero', async () => {
   installGpuGlobals()
@@ -86,15 +84,12 @@ test('a device that refuses the bins refuses the scene by name', async () => {
     packed: packDagSelection(collected.roots),
     failBins: true,
   })
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     source,
     metadata,
     indices,
     draws: graphDraws(source, associations),
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   // The GPU cut draws through the decode and the bins alone (#1483): no per-page loop stands in for them.
   await assert.rejects(backend.prepare(), /WEBGPU_DRAW_UNAVAILABLE/)

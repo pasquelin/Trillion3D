@@ -1,6 +1,11 @@
-import { EngineError } from '../../contracts/cache.ts'
 import type { LinearRgb } from '../../contracts/material.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
+import {
+  IDENTITY_MATRIX,
+  checkMatrix,
+  volumeRefusal,
+  type VolumeRefusal,
+} from '../volume/objectFields.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 
@@ -104,17 +109,7 @@ export interface ResolvedLocalFogVolume {
   sortPriority: number
 }
 
-const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1] as const
-
-function refuse(id: unknown, message: string): never {
-  throw new EngineError(
-    'INVALID_SCENE_LOCAL_FOG_VOLUME',
-    `local fog volume ${String(id)}: ${message}`,
-    {
-      id,
-    },
-  )
-}
+const refuse: VolumeRefusal = volumeRefusal('INVALID_SCENE_LOCAL_FOG_VOLUME', 'local fog volume')
 
 /** A finite number, else refused by `name`. */
 function finite(id: string, name: string, value: unknown): number {
@@ -141,10 +136,9 @@ const columnLength = (matrix: readonly number[], at: number) =>
  *   colour of three, or a matrix of sixteen whose columns are all of a length above 0.
  */
 export function resolveLocalFogVolume(volume: SceneLocalFogVolume): ResolvedLocalFogVolume {
-  const { id, matrix = IDENTITY } = volume
+  const { id, matrix = IDENTITY_MATRIX } = volume
   if (typeof id !== 'string' || !id) refuse(id, 'id expects a non-empty string')
-  if (!Array.isArray(matrix) || matrix.length !== 16 || !matrix.every(Number.isFinite))
-    refuse(id, 'matrix expects sixteen finite numbers')
+  checkMatrix(refuse, id, matrix)
   if ([0, 4, 8].some((at) => columnLength(matrix, at) <= 0))
     refuse(id, 'matrix expects columns that are not of length 0')
   const d = LOCAL_FOG_DEFAULTS

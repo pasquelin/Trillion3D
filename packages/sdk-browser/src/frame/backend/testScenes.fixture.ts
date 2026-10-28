@@ -53,6 +53,22 @@ export function quadScene() {
 }
 
 /**
+ * The WebGPU backend as the tests want it: fresh texture caches, two resident pages and a 32 px
+ * viewport unless `options` say otherwise. The one place a test builds its backend.
+ */
+export function backendOf(
+  options: Omit<EngineContext, 'textureCaches' | 'maxResidentPages' | 'viewport'> &
+    Partial<Pick<EngineContext, 'textureCaches' | 'maxResidentPages' | 'viewport'>>,
+) {
+  return webgpuPagesEngine({
+    textureCaches: createTextureCaches(createPageCache()),
+    maxResidentPages: 2,
+    viewport: [32, 32],
+    ...options,
+  })
+}
+
+/**
  * The WebGPU backend mounted on the red quad as the tests want it: two resident pages, a 32 px
  * viewport, and whatever the test adds. The fixture comes back for the test to dispose.
  */
@@ -61,14 +77,7 @@ export function quadBackend(
   options: Partial<Omit<EngineContext, 'source' | 'metadata' | 'indices' | 'draws'>> = {},
 ) {
   const fixture = quadScene()
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
-    ...fixture,
-    gpuDevice,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-    ...options,
-  })
+  const backend = backendOf({ ...fixture, gpuDevice, ...options })
   return { fixture, backend }
 }
 
@@ -80,14 +89,12 @@ export function streamingQuadBackend(
   },
   gpuDevice: EngineContext['gpuDevice'],
 ) {
-  return webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  return backendOf({
     ...scene,
     indices: new Map(),
     readPage: async (url) => scene.indices.get(url)!,
     gpuDevice,
     maxResidentPages: 3,
-    viewport: [32, 32],
   })
 }
 
@@ -103,14 +110,7 @@ export async function flushedGpuScene(
   const collected = collectClusterPages(scene.source, scene.draws, scene.metadata, scene.indices)
   const packed = packDagSelection(collected.roots)
   const gpu = fakeDevice({ ...BACKEND, packed, limits })
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
-    ...scene,
-    gpuDevice: gpu.device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
-    ...options,
-  })
+  const backend = backendOf({ ...scene, gpuDevice: gpu.device, ...options })
   await backend.prepare()
   backend.render(camera())
   await backend.flush()

@@ -1,5 +1,6 @@
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
 import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
+import { wordsOf } from '../../../gpu/core/wordViews.ts'
 import { cloudHazeInSecondPass, writeCloudTraceOptions } from './traceOptions.ts'
 import {
   cloudSetupOf,
@@ -33,6 +34,29 @@ export const CLOUD_TRACE_BINDING = {
   /** The closest surface's depth, written beside the colours where the haze is laid per pixel. */
   closest: 13,
 } as const
+
+/** What the trace's group is made of (`CLOUD_TRACE_BINDING`): the material's entries, then each resource at its binding; `secondary` and `closest` only where the pass writes them. */
+export const cloudTraceEntries = (
+  material: readonly GPUBindGroupEntry[],
+  r: {
+    block: GPUBindingResource
+    blueNoise: GPUBindingResource
+    depthRange: GPUBindingResource
+    colour: GPUBindingResource
+    secondary?: GPUBindingResource
+    depth: GPUBindingResource
+    closest?: GPUBindingResource
+  },
+): GPUBindGroupEntry[] => [
+  ...material,
+  { binding: CLOUD_TRACE_BINDING.block, resource: r.block },
+  { binding: CLOUD_TRACE_BINDING.blueNoise, resource: r.blueNoise },
+  { binding: CLOUD_TRACE_BINDING.depthRange, resource: r.depthRange },
+  { binding: CLOUD_TRACE_BINDING.colour, resource: r.colour },
+  ...(r.secondary ? [{ binding: CLOUD_TRACE_BINDING.secondary, resource: r.secondary }] : []),
+  { binding: CLOUD_TRACE_BINDING.depth, resource: r.depth },
+  ...(r.closest ? [{ binding: CLOUD_TRACE_BINDING.closest, resource: r.closest }] : []),
+]
 
 /** The block's fields:
  *  - `inverseView`: the inverse of the view-projection without the temporal jitter;
@@ -128,14 +152,6 @@ export interface CloudTraceImage {
   preExposure?: number
   /** The exposure of the image (`PreExposure.exposure`): a lamp that follows it is lit at it (`lightStrength`). 1 when absent. */
   exposure?: number
-}
-
-/** The words of `out` as unsigned integers, made once for each array written. */
-const wordViews = new WeakMap<Float32Array, Uint32Array>()
-const wordsOf = (out: Float32Array) => {
-  let words = wordViews.get(out)
-  if (!words) wordViews.set(out, (words = new Uint32Array(out.buffer, out.byteOffset, out.length)))
-  return words
 }
 
 /** The block's ray: the view, the traced image's place in the frame's plan, the layer, the reach and

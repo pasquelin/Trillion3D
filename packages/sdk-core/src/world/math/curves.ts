@@ -135,6 +135,17 @@ export class Path extends Curve {
   }
 }
 
+/** The command of a curved piece of an outline: its `segments` points after the cursor, the one at
+ *  `t = i / segments` made by `point(t, 1 - t)`. */
+function sampledAt(point: (t: number, s: number) => Vector2) {
+  return (segments: number, out: Vector2[]) => {
+    for (let i = 1; i <= segments; i++) {
+      const t = i / segments
+      out.push(point(t, 1 - t))
+    }
+  }
+}
+
 /** A closed outline in the plane, with holes: what `geometry.shape` fills and `extrude` sweeps. */
 export class Shape {
   /** Always `true`: tells a shape apart from anything else. */
@@ -169,33 +180,28 @@ export class Shape {
   quadraticCurveTo(cx: number, cy: number, x: number, y: number) {
     const from = this.cursor.clone()
     this.cursor = new Vector2(x, y)
-    this.commands.push((segments, out) => {
-      for (let i = 1; i <= segments; i++) {
-        const t = i / segments,
-          s = 1 - t
-        out.push(
+    this.commands.push(
+      sampledAt(
+        (t, s) =>
           new Vector2(
             s * s * from.x + 2 * s * t * cx + t * t * x,
             s * s * from.y + 2 * s * t * cy + t * t * y,
           ),
-        )
-      }
-    })
+      ),
+    )
     return this
   }
   /** Draws a curve to `(x, y)`, bent toward two control points. */
   bezierCurveTo(c1x: number, c1y: number, c2x: number, c2y: number, x: number, y: number) {
     const from = this.cursor.clone()
     this.cursor = new Vector2(x, y)
-    this.commands.push((segments, out) => {
-      for (let i = 1; i <= segments; i++) {
-        const t = i / segments,
-          s = 1 - t
+    this.commands.push(
+      sampledAt((t, s) => {
         const f = (a: number, b: number, c: number, d: number) =>
           s * s * s * a + 3 * s * s * t * b + 3 * s * t * t * c + t * t * t * d
-        out.push(new Vector2(f(from.x, c1x, c2x, x), f(from.y, c1y, c2y, y)))
-      }
-    })
+        return new Vector2(f(from.x, c1x, c2x, x), f(from.y, c1y, c2y, y))
+      }),
+    )
     return this
   }
   /** A circular arc around `(x, y)`, from `start` to `end` radians. */

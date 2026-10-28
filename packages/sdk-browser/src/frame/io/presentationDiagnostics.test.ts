@@ -4,17 +4,14 @@ import {
   presentationColorDiagnostic,
   outputColorDiagnostic,
 } from '../../diagnostic/presentationDiagnostic.ts'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
 import { packDagSelection } from '../../geometry/dag/pack/pack.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera, quadBackend } from '../backend/testScenes.fixture.ts'
+import { backendOf, quadScene, camera, quadBackend } from '../backend/testScenes.fixture.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 
 test('the GPU readback diagnostic distinguishes the requested clear color from the rendered pixels', () => {
   const pixels = new Uint8Array([42, 48, 60, 255, 1, 2, 3, 255, 4, 5, 6, 255, 7, 8, 9, 255])
@@ -77,12 +74,9 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
     fixture.indices,
   )
   const { device } = fakeDevice({ ...BACKEND, packed: packDagSelection(collected.roots) })
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...fixture,
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
     diagnosticDetail: 'trace' as never,
     onDiagnostic: (event: { phase: string; message: string; context: Record<string, unknown> }) =>
       events.push(event),

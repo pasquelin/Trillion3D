@@ -1,11 +1,10 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesEngine } from '../backend/pages.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera } from '../backend/testScenes.fixture.ts'
+import { backendOf, quadScene, camera } from '../backend/testScenes.fixture.ts'
 import {
   assertOccluderImage,
   occluderScene,
@@ -16,8 +15,6 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { DEFAULT_SCOPE } from '../../../../sdk-core/src/contracts/base.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import { drawnQuad } from '../backend/drawnQuad.fixture.ts'
 import { renderWebgpuPages } from './render.ts'
 import { flushWebgpuPages } from './flush.ts'
@@ -72,15 +69,12 @@ test("a visibility pass the device fails is the image's failure, said once: no o
   const { device } = fakeDevice({ ...BACKEND, failVisPass: true })
   const { source, metadata, indices, associations, geometry, material } = quadScene()
   const events: Array<{ phase: string; context: Record<string, unknown> }> = []
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     source,
     metadata,
     indices,
     draws: graphDraws(source, associations),
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
     onDiagnostic: (event) => events.push(event),
   }) as Engine
   await backend.prepare()

@@ -114,7 +114,7 @@ export class Ray {
   distanceToPlane(plane: Plane) {
     const denominator = plane.normal.dot(this.direction)
     if (denominator === 0) return plane.distanceToPoint(this.origin) === 0 ? 0 : null
-    const t = -(this.origin.dot(plane.normal) + plane.constant) / denominator
+    const t = -plane.distanceToPoint(this.origin) / denominator
     return t >= 0 ? t : null
   }
   /** Slab test; the entry point, or null when the ray misses the box. */

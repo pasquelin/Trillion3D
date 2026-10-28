@@ -15,6 +15,7 @@ import {
 import { boxRect, rootsBox } from '../rootsRect.ts'
 import { OUTLINE_UNIFORM_BYTES } from './outlineWgsl.ts'
 import type { OverlayFrame } from '../webgpuKinds.ts'
+import { uniformBuffer } from '../../../gpu/core/uniformBlock.ts'
 
 /** The scan target's size and the count of selections taken: a rectangle follows the selection
  *  it was taken from. */
@@ -64,11 +65,7 @@ function keeps(at: Float64Array, a: number, b: number, c: number, d: number) {
 export function newHeld(device: GPUDevice): Held {
   const { f: values, u: words, i: ints } = wordViews(new ArrayBuffer(OUTLINE_UNIFORM_BYTES))
   return {
-    uniform: device.createBuffer({
-      label: `${OUTLINE_PASS} uniform`,
-      size: OUTLINE_UNIFORM_BYTES,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    }),
+    uniform: uniformBuffer(device, `${OUTLINE_PASS} uniform`, OUTLINE_UNIFORM_BYTES),
     values,
     words,
     ints,

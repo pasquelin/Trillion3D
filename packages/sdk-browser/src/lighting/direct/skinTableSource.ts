@@ -2,7 +2,7 @@ import {
   SKIN_TABLE_FILE_BYTES,
   skinTableWords,
 } from '../../../../sdk-core/src/lighting/skinTable.ts'
-import { checked } from '../../geometry/cluster/checked.ts'
+import { shippedBytes, sourceBytes, type ByteSource } from '../../geometry/cluster/shippedBytes.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { wantsPixelModels } from '../../materials/surface/subsurface.ts'
 import { LIGHT_BUFFER_AT } from '../../frame/backend/state/lightBufferLayout.ts'
@@ -13,26 +13,18 @@ import { LIGHT_BUFFER_AT } from '../../frame/backend/state/lightBufferLayout.ts'
  * (`LIGHT_BUFFER_AT.skin`), where the lighting reads it. Until it is there the table reads zero: a skin
  * transmits no light. The host may supply the bytes — Node cannot follow a file URL with `fetch`.
  */
-type ByteSource = BufferSource | (() => Promise<BufferSource>)
-
 let pending: Promise<Uint32Array> | undefined
 let loaded: Uint32Array | undefined
 let failed = false
 let asked = false
 
 /** The file as a page fetches it: beside the module, by its URL. */
-async function resource(): Promise<BufferSource> {
-  const response = await checked(new URL('./skinTable.bin', import.meta.url).href)
-  return await response.arrayBuffer()
-}
+const resource = () => shippedBytes(new URL('./skinTable.bin', import.meta.url).href)
 
 /** The table's words, read once; a failed read is asked again at the next call. */
 function skinTableLoaded(source: ByteSource = resource): Promise<Uint32Array> {
   pending ??= (async () => {
-    const data = typeof source === 'function' ? await source() : source
-    const bytes = ArrayBuffer.isView(data)
-      ? new Uint8Array(data.buffer, data.byteOffset, data.byteLength)
-      : new Uint8Array(data)
+    const bytes = await sourceBytes(source)
     if (bytes.length !== SKIN_TABLE_FILE_BYTES)
       throw new RangeError(
         `the skin table holds ${bytes.length} bytes, not ${SKIN_TABLE_FILE_BYTES}`,

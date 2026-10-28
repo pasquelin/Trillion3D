@@ -1,6 +1,12 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { SURFACE_WORDS } from '../../materials/surface/surfaceOutputs.ts'
-import { PIXEL_TILE_CLASS_WGSL, TILE_PIXELS, TILE_VERTICES } from './tileClass.ts'
+import {
+  PIXEL_CLASS,
+  PIXEL_TILE_CLASS_WGSL,
+  TILE_CLASS,
+  TILE_PIXELS,
+  TILE_VERTICES,
+} from './tileClass.ts'
 import { VIEW_WGSL } from './worldAtWgsl.ts'
 
 /**
@@ -25,7 +31,7 @@ fn classifyMain(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocatio
  workgroupBarrier();
  if(id.x<u32(view.viewport.x)&&id.y<u32(view.viewport.y)){
   let found=pixelTileClass(textureLoad(words,vec2i(id.xy),${SURFACE_WORDS.flags},0).r);
-  if(found!=0u){atomicOr(&present,1u<<found);}
+  if(found!=${PIXEL_CLASS.none}u){atomicOr(&present,1u<<found);}
  }
  workgroupBarrier();
  if(lane!=0u){return;}
@@ -36,7 +42,7 @@ fn classifyMain(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocatio
  }
  let seen=atomicLoad(&present);
  if(seen==0u){return;}
- let tileClass=select(select(0u,1u,(seen&4u)!=0u),2u,(seen&8u)!=0u);
+ let tileClass=select(select(${TILE_CLASS.simple}u,${TILE_CLASS.single}u,(seen&${1 << PIXEL_CLASS.single}u)!=0u),${TILE_CLASS.complex}u,(seen&${1 << PIXEL_CLASS.complex}u)!=0u);
  let at=atomicAdd(&drawArgs[tileClass*4u+1u],1u);
  tileLists[tileClass*tiles.x*tiles.y+at]=(tile.y<<16u)|tile.x;
 }`,

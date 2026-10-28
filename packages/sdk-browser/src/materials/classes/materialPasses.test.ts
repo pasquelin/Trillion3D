@@ -5,14 +5,11 @@ import { encodeMaterialPasses } from './materialPasses.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { webgpuPagesEngine } from '../../frame/backend/pages.ts'
-import { camera, quadScene } from '../../frame/backend/testScenes.fixture.ts'
+import { backendOf, camera, quadScene } from '../../frame/backend/testScenes.fixture.ts'
 import { drawsOf, pipelinesOf, resolveFixture } from './materialPasses.fixture.ts'
 import type { FakePass } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { MATERIAL_COMPUTE_PASS, MATERIAL_SURFACES_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
-import { createTextureCaches } from '../texture/textureCaches.ts'
-import { createPageCache } from '../../geometry/streaming/pageCache.ts'
 import { commandArgs } from '../../../../../tests/kit/fakeDevice/fakeRenderPass.ts'
 import { noteClass } from '../../gpu/core/presentClasses.ts'
 import { SHADE_UNIFORM } from '../../visibility/shader/uniformLayout.ts'
@@ -95,15 +92,12 @@ test('a backend makes no material depth, its classes are compute stages, and dis
   installGpuGlobals()
   const { device, textures, renderPipelines, computePipelines, destroyed } = fakeDevice(BACKEND)
   const { source, metadata, indices, associations } = quadScene()
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     source,
     metadata,
     indices,
     draws: graphDraws(source, associations),
     gpuDevice: device,
-    maxResidentPages: 2,
-    viewport: [32, 32],
   })
   await backend.prepare()
   backend.render(camera())

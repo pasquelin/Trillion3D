@@ -1,4 +1,4 @@
-import { length3 } from '../../vector/vector.ts'
+import { dotVector3Xyz, length3 } from '../../vector/vector.ts'
 
 /**
  * Planes of a viewing frustum, stored flat: twenty-four floats, four per plane `a, b, c, d`,
@@ -163,7 +163,7 @@ export function frustumFarPlane(
 /** The signed distance of `(x, y, z)` to the plane `a, b, c, d` stored at `p[at]` — a distance
  *  for a unit normal, a scaled one otherwise: `a*x + b*y + c*z + d`, summed left to right. */
 function planeDistance(p: ArrayLike<number>, at: number, x: number, y: number, z: number) {
-  return p[at] * x + p[at + 1] * y + p[at + 2] * z + p[at + 3]
+  return dotVector3Xyz(p, x, y, z, at) + p[at + 3]
 }
 
 /** True when `(x, y, z)` is on the inner side of all six `planes`: the sphere of no radius kept

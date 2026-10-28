@@ -1,7 +1,14 @@
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
+import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { CAPTURED_IRRADIANCE_SIDE, IRRADIANCE_SIDE, IRRADIANCE_VECTORS } from './layout.ts'
 import { SKY_CUBE_WGSL, SKY_SAMPLING_WGSL } from './cubeWgsl.ts'
+
+/** One step of the threads' sum: a thread's harmonics and weight take those of the thread a stride on. */
+const ADD_THREADS = `
+   for(var k=0u;k<9u;k++){sums[at][k]+=sums[at+stride][k];}
+   weights[at]+=weights[at+stride];
+  `
 
 /**
  * THE SKY LIGHT'S DIFFUSE LIGHT, summed into nine harmonics by one group of `IRRADIANCE_SIDE`
@@ -50,14 +57,7 @@ fn termsOf(d:vec3f)->array<f32,9>{
 }
 /** The threads' sums added pairwise, the second half onto the first, until thread 0 holds all. */
 fn sumThreads(at:u32){
- workgroupBarrier();
- for(var stride=THREADS/2u;stride>0u;stride=stride>>1u){
-  if(at<stride){
-   for(var k=0u;k<9u;k++){sums[at][k]+=sums[at+stride][k];}
-   weights[at]+=weights[at+stride];
-  }
-  workgroupBarrier();
- }
+ ${workgroupSumLoop('THREADS', ADD_THREADS, 'at')}
 }
 /** The harmonics \`s\`, packed for the light's read. */
 fn packHarmonics(s:array<vec3f,9>){

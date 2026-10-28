@@ -1,5 +1,6 @@
 import { hasBit } from '../../../math/src/scalar/bits.ts'
 import { sum } from '../../../math/src/scalar/quantile.ts'
+import { opensWithMagic } from './pageMagic.ts'
 import { EngineError } from '../contracts/cache.ts'
 import {
   GEOMETRY_VOXEL,
@@ -150,6 +151,4 @@ export function checkVoxelPage(bytes: Uint8Array) {
 }
 
 /** Whether `bytes` open on a voxel page's magic. */
-export const isVoxelPage = (bytes: Uint8Array) =>
-  bytes.byteLength >= 4 &&
-  new DataView(bytes.buffer, bytes.byteOffset, 4).getUint32(0, true) === VOXEL_PAGE_MAGIC
+export const isVoxelPage = (bytes: Uint8Array) => opensWithMagic(bytes, VOXEL_PAGE_MAGIC)

@@ -1,4 +1,5 @@
 import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
+import { workgroupSumLoop } from '../../gpu/core/workgroupSumWgsl.ts'
 import { DISTANT_SKY, VIEW_SLOT } from './layout.ts'
 import { airProgram } from './programs.ts'
 import type { AirShape } from './shape.ts'
@@ -27,13 +28,6 @@ export const groundSkyMarch = (place: string) => `
  let march=skyViewMarch();`
 export const GROUND_SKY_RADIANCE = `integrateAir(start,dir,false,march,true,suns,1.0,AIR_REACH_KM).radiance*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz`
 
-/** The statements that sum a workgroup's `part` array into its first element, halving the stride. */
-const SUM_WORKGROUP = (threads: number) => `
- for(var stride=${threads / 2}u;stride>0u;stride=stride>>1u){
-  if(li<stride){part[li]+=part[li+stride];}
-  workgroupBarrier();
- }`
-
 const distantSkyProgram = (shape: AirShape) =>
   airProgram(
     { air: 'read_write', transmittance: true, multiScatter: true },
@@ -50,7 +44,7 @@ fn distantSkyMain(@builtin(local_invocation_index) li:u32){
  let start=vec3f(0.0,bottomRadius()+DISTANT_SKY_ALTITUDE_KM,0.0);
  let r=integrateAir(start,dir,false,march,false,suns,1.0,AIR_REACH_KM);
  part[li]=r.radiance*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz;
- workgroupBarrier();${SUM_WORKGROUP(DISTANT_SKY.directions)}
+ ${workgroupSumLoop(DISTANT_SKY.directions, 'part[li]+=part[li+stride];', 'li')}
  if(li==0u){
   // No table: the fog's sky is black.
   let mean=select(vec3f(0.0),part[0]/${DISTANT_SKY.directions}.0,DISTANT_SKY_ON);

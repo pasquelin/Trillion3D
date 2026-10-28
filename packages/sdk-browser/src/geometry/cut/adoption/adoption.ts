@@ -1,4 +1,9 @@
-import type { GpuCut, GpuSelection, SelectionUniforms } from '../../../gpu/core/selection.ts'
+import type {
+  CutTotals,
+  GpuCut,
+  GpuSelection,
+  SelectionUniforms,
+} from '../../../gpu/core/selection.ts'
 import { sameSelectionUniforms } from '../../../gpu/core/selectionCopy.ts'
 import type { PageRec } from '../../selection/types.ts'
 import type { CutDelta } from './delta.ts'
@@ -6,7 +11,7 @@ import { createHeadUnion } from './headUnion.ts'
 import { copyRanks, copyRankList, type RankList } from './copyRanks.ts'
 
 /** What the adoption counts of a readback. */
-type CutMetrics = {
+type CutMetrics = CutTotals & {
   /** True when the frame reread the shown list it already held: `desired` and `shown` are those of
    *  the previous frame, at the same ranks. False by default, and false as soon as a doubt exists. */
   cutHeld: boolean
@@ -18,12 +23,6 @@ type CutMetrics = {
   /** True when this adoption took the counts of a readback, adopted or not. */
   counted: boolean
   visible: number
-  selectedTriangles: number
-  transparentTriangles: number
-  frustumRejected: number
-  lodLevel: number
-  occluded: number
-  postHidden: number
 }
 
 /** What the adopter keeps from one readback to the next. */

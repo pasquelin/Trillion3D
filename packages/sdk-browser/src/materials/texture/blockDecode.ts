@@ -122,13 +122,23 @@ const SUBSETS: Uint8Array[][] = [
 ]
 
 /** Interpolation weights over 64, by index bits. */
-const WEIGHTS: readonly (readonly number[])[] = [
+export const WEIGHTS: readonly (readonly number[])[] = [
   [],
   [],
   [0, 21, 43, 64],
   [0, 9, 18, 27, 37, 46, 55, 64],
   [0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64],
 ]
+
+/** The blocks across and down a `width` × `height` surface, once `blocks` is checked to hold exactly
+ *  that many of `blockBytes` bytes. */
+export function blockGrid(blocks: Uint8Array, width: number, height: number, blockBytes: number) {
+  const across = blocksAcross(width),
+    down = blocksAcross(height)
+  if (blocks.byteLength !== across * down * blockBytes)
+    throw new Error(`TEXTURE_BLOCK_BYTES ${width}x${height}: ${blocks.byteLength}`)
+  return { across, down }
+}
 
 /** BC7 modes: subsets, partition bits, rotation bits, index-selection bit, colour and alpha bits,
  *  p-bits (per endpoint, or shared per subset), primary and secondary index bits. */
@@ -337,10 +347,7 @@ export function decodeBcLevel(
   height: number,
   twoChannel: boolean,
 ) {
-  const across = blocksAcross(width),
-    down = blocksAcross(height)
-  if (blocks.byteLength !== across * down * PREVIEW_BLOCK_BYTES)
-    throw new Error(`TEXTURE_BLOCK_BYTES ${width}x${height}: ${blocks.byteLength}`)
+  const { across, down } = blockGrid(blocks, width, height, PREVIEW_BLOCK_BYTES)
   const pitch = across * 16
   const out = new Uint8Array(pitch * down * 4)
   for (let by = 0; by < down; by++)

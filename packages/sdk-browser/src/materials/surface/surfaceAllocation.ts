@@ -5,6 +5,7 @@ import { EMISSIVE_AO_BYTES } from './surfaceEmission.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { standInTexture } from '../../gpu/core/standIns.ts'
+import { layerView } from '../../gpu/core/textureViews.ts'
 import {
   SURFACE_COLOURS_FORMAT,
   SURFACE_WORD_LAYERS,
@@ -166,10 +167,6 @@ function colouredParts(
 /** Each record's colours, for the record made from it with other targets (`withEmissiveAo`,
  *  `withLobes`). */
 const COLOURED = new WeakMap<SurfaceBuffer, ColouredParts>()
-
-/** The view of layer `at` of `texture`, a target of its own. */
-const layerView = (texture: GPUTexture, at: number) =>
-  texture.createView({ dimension: '2d', baseArrayLayer: at, arrayLayerCount: 1 })
 
 function assemble(parts: SurfaceParts, coloured: ColouredParts): SurfaceBuffer {
   const { words, lobes } = parts,

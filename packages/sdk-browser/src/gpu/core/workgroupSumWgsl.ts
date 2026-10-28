@@ -5,11 +5,12 @@
  * 0 holds the total for every thread past them. `add` is the statement of one step over `lane` and `stride`
  * (`sums[lane]+=sums[lane+stride];`), whatever the values it adds: a number, a row of them. The statements
  * hold the group's barriers: every thread of the group runs them, from uniform control flow, `lane` its index in the group.
+ * `lane` is the text of the thread's index in the group (`lane` by default: `lane.z`, `li`, `at`).
  * `width` is the group's thread count, a power of two the host knows (a number) or the shader names (a constant: the
  * text of an expression of `u32`).
  * @throws RangeError when a numeric `width` is not a power of two, which halving does not cover.
  */
-export function workgroupSumLoop(width: number | string, add: string) {
+export function workgroupSumLoop(width: number | string, add: string, lane = 'lane') {
   if (
     typeof width === 'number' &&
     (!Number.isInteger(width) || width < 2 || (width & (width - 1)) !== 0)
@@ -18,7 +19,7 @@ export function workgroupSumLoop(width: number | string, add: string) {
   const half = typeof width === 'number' ? `${width / 2}u` : `(${width})/2u`
   return `for(var stride=${half};stride>0u;stride>>=1u){
   workgroupBarrier();
-  if(lane<stride){${add}}
+  if(${lane}<stride){${add}}
  }
  workgroupBarrier();`
 }

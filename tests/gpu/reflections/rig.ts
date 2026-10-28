@@ -47,6 +47,7 @@ import {
   noiseViewOn,
 } from '../../../packages/sdk-browser/src/gpu/noise/blueNoiseTextures.ts'
 import { texelBytesOf } from '../../../packages/sdk-browser/src/gpu/core/textureBytes.ts'
+import { WORD_LIGHT_FORMAT } from '../../../packages/sdk-browser/src/gpu/core/lightAtlasFormat.ts'
 
 /**
  * The frame laid in the device, the engine's kernels built on it. `image` encodes one image; its
@@ -98,7 +99,8 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
   // The lighting's view of the image: the eye, the background, an exposure of one, no display
   // curve.
   const lightView = createDeferredView(device)
-  const direct = [0, 0, 0, 1, TONE_MAPPING_RANK.none, 0, 0, 0]
+  // The words `lightParams` and `display` take, then the sharpening strength, the pre-exposure, the scale shown at and the alpha flag (`DIRECT_AT`).
+  const direct = [0, 0, 0, 1, TONE_MAPPING_RANK.none, 0, 0, 0, 0, 1, 1, 0]
   lightView.write(
     inverse,
     [...frame.eye, 1],
@@ -125,7 +127,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
   // No surface cache: the stand-ins the scene stage's hits read, whose tables hold no placement, as an image whose cache is not
   // made binds them.
   const cards = createHitCards(device)
-  const hit = cards.resources({} as WebgpuPagesRuntime)
+  const hit = cards.resources({} as WebgpuPagesRuntime, WORD_LIGHT_FORMAT)
   // The field the scene stage marches the faces' rays through, of the same faces; none without them.
   const marched = rigField(device, standIns, frame.proxy?.faces)
   const inputs = {

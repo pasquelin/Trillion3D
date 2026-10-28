@@ -61,19 +61,22 @@ export function askedComputeStage(
 
 /** Runs `stage` on `group`, over `x` × `y` workgroups, in the compute pass `pass`: the dispatches of
  *  one job — a transform's three passes, a kernel's preparation — share one pass, each seeing what the
- *  one before wrote; nothing while the stage is not compiled. */
+ *  one before wrote; nothing while the stage is not compiled. A group of dynamic offsets binds at
+ *  `offset`. */
 export function dispatchOn(
   pass: GPUComputePassEncoder,
   stage: { get(): GPUComputePipeline | undefined },
   group: GPUBindGroup,
   x: number,
   y = 1,
+  offset?: number,
 ) {
   const pipeline = stage.get()
   // Not compiled: the step is skipped, the frame is held for it (`pipelinesCompiling`).
   if (!pipeline) return
   pass.setPipeline(pipeline)
-  pass.setBindGroup(0, group)
+  if (offset === undefined) pass.setBindGroup(0, group)
+  else pass.setBindGroup(0, group, [offset])
   pass.dispatchWorkgroups(x, y)
 }
 

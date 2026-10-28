@@ -9,6 +9,7 @@ import { vsmFrameSetHeld, type VsmPerFrameSet, type VsmResources } from '../reso
 import type { ViewWords } from './projectionViewWrite.ts'
 import type { PerLightLights } from './perLightPass.ts'
 import { sizedBuffer } from '../../../../gpu/core/sizedBuffer.ts'
+import { uniformBuffer } from '../../../../gpu/core/uniformBlock.ts'
 
 /** What a set's projection holds (`vsmProjectionReserve`), freed with the set
  *  (`releaseVsmProjection`): never shared by two sessions on one device. The engine projects its
@@ -67,11 +68,7 @@ export const vsmProjectionBytesToMake = (res: VsmResources | undefined) =>
  *  so that they never take the room they need. */
 export function vsmProjectionReserve(device: GPUDevice, res: VsmResources) {
   const state = projectionState(res)
-  state.uniform ??= device.createBuffer({
-    label: 'vsm.projection.view',
-    size: VSM_PROJECTION_VIEW_BYTES,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  state.uniform ??= uniformBuffer(device, 'vsm.projection.view', VSM_PROJECTION_VIEW_BYTES)
   state.blueNoiseView ??= blueNoiseNow(device)?.view
   return state
 }

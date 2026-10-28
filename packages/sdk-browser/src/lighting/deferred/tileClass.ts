@@ -59,6 +59,14 @@ const tileCount = (width: number, height: number) => tilesAcross(width) * tilesA
 export const tileListBytes = (width: number, height: number) =>
   TILE_CLASS_COUNT * tileCount(width, height) * 4
 
+/** What `pixelTileClass` returns: 0 for a pixel no light is drawn over, else one more than the class of its tile (`TILE_CLASS`). */
+export const PIXEL_CLASS = {
+  none: 0,
+  simple: TILE_CLASS.simple + 1,
+  single: TILE_CLASS.single + 1,
+  complex: TILE_CLASS.complex + 1,
+} as const
+
 /**
  * The class of a pixel from its surface flags: 0 where no light is drawn over it — the background,
  * an unlit surface, a surface shown as-is —, else one more than the class of its tile
@@ -72,9 +80,9 @@ export const PIXEL_TILE_CLASS_WGSL = wgslBlock(
   `
 fn pixelTileClass(flags:u32)->u32{
  let model=flags&${SURFACE_MODEL_MASK}u;
- if(model==0u||model==${UNLIT_FLAG}u||model==${AS_IS_FLAG}u){return 0u;}
- if((flags&${PHYSICAL_SURFACE_FLAG}u)!=0u){return 3u;}
- if(model!=${MODEL_FLAG.physical}u||(flags&${SUBSURFACE_FLAG}u)!=0u||pixelModelOf(flags)!=0u){return 2u;}
- return 1u;
+ if(model==0u||model==${UNLIT_FLAG}u||model==${AS_IS_FLAG}u){return ${PIXEL_CLASS.none}u;}
+ if((flags&${PHYSICAL_SURFACE_FLAG}u)!=0u){return ${PIXEL_CLASS.complex}u;}
+ if(model!=${MODEL_FLAG.physical}u||(flags&${SUBSURFACE_FLAG}u)!=0u||pixelModelOf(flags)!=0u){return ${PIXEL_CLASS.single}u;}
+ return ${PIXEL_CLASS.simple}u;
 }`,
 )

@@ -18,6 +18,7 @@ import {
   type SavedCamera,
   type SavedGeometry,
   type SavedNode,
+  type SavedPose,
 } from './format.ts'
 import { legacySky, type LegacySkyLight } from './legacySky.ts'
 
@@ -90,11 +91,15 @@ function savedIntensity(saved: NonNullable<SavedNode['light']>, version: number)
 }
 
 /** A light built again from what was saved of it, in a scene of `version`. */
-function readLight(saved: NonNullable<SavedNode['light']>, version: number) {
+function readLight(
+  saved: NonNullable<SavedNode['light']>,
+  version: number,
+  materials: readonly Material[],
+) {
   const { kind, color, groundColor, target, sh } = saved
   const { atmosphereSun, atmosphereSunIndex, shadowsFog, mobility } = saved
   const { useTemperature, shadowsAir, transmittancePerPixel, sunDiskTint, inverseSquared } = saved
-  const { transmission } = saved
+  const { transmission, castHairDeepShadow } = saved
   return new Light(kind, {
     ...savedValues(saved, version),
     ...savedIntensity(saved, version),
@@ -109,6 +114,7 @@ function readLight(saved: NonNullable<SavedNode['light']>, version: number) {
     inverseSquared,
     useTemperature,
     transmission,
+    castHairDeepShadow,
     shadowsAir,
     transmittancePerPixel,
     sunDiskTint,
@@ -116,6 +122,7 @@ function readLight(saved: NonNullable<SavedNode['light']>, version: number) {
     ...saved.cloudShadows,
     ...saved.contactShadows,
     ...saved.shadows,
+    ...readLightFunction(saved.lightFunction, materials),
   })
 }
 
@@ -123,8 +130,7 @@ function readLight(saved: NonNullable<SavedNode['light']>, version: number) {
  *  user data. */
 function wear(o: Object3D, saved: SavedNode) {
   o.name = saved.name
-  o.position.fromArray(saved.position)
-  o.quaternion.fromArray(saved.quaternion)
+  readPose(o, saved)
   o.scale.fromArray(saved.scale)
   o.visible = saved.visible
   o.castShadow = saved.castShadow
@@ -135,10 +141,32 @@ function wear(o: Object3D, saved: SavedNode) {
   o.userData = saved.userData
 }
 
+/** The light function a saved light wears: its material out of `materials`, and its settings. */
+function readLightFunction(
+  saved: NonNullable<SavedNode['light']>['lightFunction'],
+  materials: readonly Material[],
+) {
+  if (!saved) return {}
+  const { material, ...settings } = saved
+  return { ...settings, lightFunction: materials[material] }
+}
+
+/** The up of a node that saved none (`Object3D.up`'s default). */
+const DEFAULT_UP = [0, 1, 0]
+
+/** Puts `o` where it was saved, turned as it was: the Euler order first, so the angles follow the
+ *  quaternion read after it, never the other way round. */
+function readPose(o: Object3D, saved: SavedPose) {
+  o.position.fromArray(saved.position)
+  const order = saved.rotationOrder ?? 'XYZ'
+  if (o.rotation.order !== order) o.rotation.order = order
+  o.quaternion.fromArray(saved.quaternion)
+  o.up.fromArray(saved.up ?? DEFAULT_UP)
+}
+
 /** Puts a camera back where it was saved; a camera of another projection keeps its own. */
 function readCamera(saved: SavedCamera, camera: Camera) {
-  camera.position.fromArray(saved.position)
-  camera.quaternion.fromArray(saved.quaternion)
+  readPose(camera, saved)
   if (saved.projection !== camera.projection) return
   Object.assign(camera, saved.optics)
   camera.fitAspect = saved.fitAspect === true
@@ -199,7 +227,7 @@ export async function readScene(scene: Target, json: unknown, camera?: Camera) {
       if (saved.visible) skyLight = saved.light
       o = new Object3D() // its place and children stay; its light is the sky module's part
     } else if (saved.light) {
-      o = readLight(saved.light, json.formatVersion)
+      o = readLight(saved.light, json.formatVersion, materials)
     } else if (saved.model) {
       const load = scene.load(saved.model.url)
       loads.push(load)

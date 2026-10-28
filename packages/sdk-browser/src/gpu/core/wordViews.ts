@@ -24,3 +24,14 @@ export function wordViews(image: ArrayBuffer, byteOffset = 0): WordViews {
     )
   return views
 }
+
+const UNSIGNED = new WeakMap<Float32Array, Uint32Array>()
+
+/** The unsigned view of a float array's words, made once per array: a writer that fills the same
+ *  array every frame allocates nothing. */
+export function wordsOf(floats: Float32Array) {
+  let words = UNSIGNED.get(floats)
+  if (!words)
+    UNSIGNED.set(floats, (words = new Uint32Array(floats.buffer, floats.byteOffset, floats.length)))
+  return words
+}

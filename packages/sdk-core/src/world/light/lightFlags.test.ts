@@ -4,13 +4,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { Light } from './light.ts'
-import { defaultOnFlag } from './lightFlags.ts'
+import { lightFlag } from './lightFlags.ts'
 import { nodeWrites } from '../../scene/core/nodeEdits.ts'
 import { lampRecord } from './lightRecord.ts'
 import { brightnessOf } from '../../scene/light/fields.ts'
 
 test('a default-on setting is on until a page says false, and a write to it is noted', () => {
-  const flag = defaultOnFlag('shine')
+  const flag = lightFlag('shine', true)
   const proto = new Light('point')
   flag.define(proto)
   const named = new Light('point') as Light & { shine: boolean }

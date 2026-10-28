@@ -1,6 +1,6 @@
 import { preparedComputeStage } from '../../../gpu/core/computeStages.ts'
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
-import { preparedPipeline } from '../../deferred/fullscreen.ts'
+import { tileScatterPipeline } from '../tileScatter.ts'
 import { DFSH_STAND_IN_FORMAT } from './layout.ts'
 import type { DfshSettings } from './params.ts'
 import { DFSH_LAYOUTS, type DfshProgram } from './layouts.ts'
@@ -54,16 +54,14 @@ export const dfshPrograms = oncePerDevice((device: GPUDevice) => {
     code: DFSH_SHADERS.scatter,
   })
   const scatter = (fragment: string) =>
-    preparedPipeline(device, {
+    tileScatterPipeline(device, {
       label: `${LABEL} ${fragment}`,
       layout: pipelineLayout('scatter'),
-      vertex: { module: scatterModule, entryPoint: 'dfshScatterVs' },
-      fragment: {
-        module: scatterModule,
-        entryPoint: fragment,
-        targets: [{ format: DFSH_STAND_IN_FORMAT, writeMask: 0 }],
-      },
-      primitive: { topology: 'triangle-list', cullMode: 'back', frontFace: 'ccw' },
+      module: scatterModule,
+      vertex: 'dfshScatterVs',
+      fragment,
+      format: DFSH_STAND_IN_FORMAT,
+      sphere: false,
     })
   return {
     layouts,

@@ -1,4 +1,4 @@
-import { checked } from '../geometry/cluster/checked.ts'
+import { shippedBytes, type ByteSource } from '../geometry/cluster/shippedBytes.ts'
 
 /**
  * Loader of the SDK WebAssembly module (`packages/page-codec-wasm`). There is only one module,
@@ -72,18 +72,14 @@ export type SdkWasm = {
     out: number,
   ): number
 }
-type WasmSource = BufferSource | (() => Promise<BufferSource>)
 
 let pending: Promise<SdkWasm | null> | null = null
 let ready: SdkWasm | null = null
 
 /** Resource shipped next to the module: the browser takes it by URL, not from disk. */
-async function resource(): Promise<BufferSource> {
-  const response = await checked(new URL('./kernels.wasm', import.meta.url).href)
-  return await response.arrayBuffer()
-}
+const resource = () => shippedBytes(new URL('./kernels.wasm', import.meta.url).href)
 
-async function instantiate(source: WasmSource): Promise<SdkWasm | null> {
+async function instantiate(source: ByteSource): Promise<SdkWasm | null> {
   try {
     if (typeof WebAssembly === 'undefined') return null
     const bytes = typeof source === 'function' ? await source() : source
@@ -99,7 +95,7 @@ async function instantiate(source: WasmSource): Promise<SdkWasm | null> {
  * to run: the run-time cut writes its pages with it and has no second encoder. The host may supply
  * the bytes — that is what Node does, which cannot follow a file URL with `fetch`.
  */
-export async function requireSdkWasm(source: WasmSource = resource): Promise<SdkWasm> {
+export async function requireSdkWasm(source: ByteSource = resource): Promise<SdkWasm> {
   const module = await (pending ??= instantiate(source))
   if (!module || typeof module.encode_page !== 'function') throw new Error('SDK_WASM_UNAVAILABLE')
   return module

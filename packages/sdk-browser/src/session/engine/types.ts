@@ -19,6 +19,8 @@ import type { ReadLightmap } from '../../lighting/volumetricLightmap/fileLoad.ts
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneFogVolumeStore } from '../../../../sdk-core/src/scene/volume/store.ts'
 import type { SceneLocalFogStore } from '../../../../sdk-core/src/scene/localFog/store.ts'
+import type { SceneHeterogeneousVolumeStore } from '../../../../sdk-core/src/scene/heterogeneousVolume/store.ts'
+import type { SparseVolumesReader } from '../../lighting/heterogeneousVolumes/sparseVolumeLoad.ts'
 import type { StageProfile } from '../../../../sdk-core/src/runtime/stageProfile.ts'
 import type { EngineDrawCounters, EngineMetrics } from '../../diagnostic/metricKeys.ts'
 import type { MemoryBudgets, MemoryBudgetsReport } from '../memory/pools.ts'
@@ -76,6 +78,8 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
   signal: AbortSignal // Aborted by its dispose or its session's: `prepare` then fails as cancelled.
   prepare(): Promise<void>
   render(camera: ViewCamera): void
+  /** The display's refresh, ms, as the main view's scale control measured it; null until it found one. */
+  refreshMs(): number | null
   /** A view drawn beside the main one, from a camera of its own, into a canvas of its own or at a
    *  rectangle of the main one's (`../../frame/backend/state/persistentView.ts`). */
   addView(options: WebgpuViewOptions): Promise<EngineView>
@@ -182,7 +186,9 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  `setShading`, read at each frame by the material pass (`../../materials/classes/materialPasses.ts`);
  *  the exposure's, the automatic one's and the local one's
  *  (`../../../../sdk-core/src/contracts/exposureOptions.ts`), written by `setExposure`, and
- *  its compensation curve (`exposureCurve`), written by `setExposureCurve`, read at
+ *  its compensation curve (`exposureCurve`), written by `setExposureCurve`, and the local exposure's
+ *  contrast curves (`localExposureHighlightContrastCurve`, `localExposureShadowContrastCurve`), written by
+ *  `setLocalExposureHighlightContrastCurve` and `setLocalExposureShadowContrastCurve`, read at
  *  each frame by the meter (`../../post/exposure/frame.ts`) and the local exposure
  *  (`../../post/finish/frame.ts`); the temporal pass's
  *  (`../../../../sdk-core/src/contracts/temporalOptions.ts`), written by `setTemporal`, read at
@@ -215,7 +221,7 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  the screen-space ambient occlusion's (`../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts`), written by
  *  `setAmbientOcclusion`, read at each image by its passes (`../../lighting/ao/frame.ts`);
  *  the ambient cubemap's (`../../../../sdk-core/src/contracts/ambientCubemapOptions.ts`), written by
- *  `setAmbientCubemap`, its cube given at the opening (`ambientCubemap`), read at each image by the indirect light
+ *  `setAmbientCubemap`, its cube given at the opening (`ambientCubemap`) and changed by `setAmbientCubemapCube`, read at each image by the indirect light
  *  (`../../lighting/deferred/ambientCubemapFrame.ts`);
  *  the sky's quality (`../../../../sdk-core/src/modules/sky/quality.ts`), written by `setSkyQuality`,
  *  read at each image by the atmosphere (`../../frame/render/encodeAtmosphere.ts`);
@@ -224,6 +230,8 @@ export interface Engine extends EngineSceneUpdates, EngineProbes {
  *  the transparent clusters' test (`../../blend/transparent/occlusionHost.ts`);
  *  the light functions' (`../../../../sdk-core/src/contracts/lightFunctionOptions.ts`), written by
  *  `setLightFunction`, read at each image by the atlas (`../../lighting/lightFunction/frame.ts`);
+ *  the light profiles' atlas's (`../../../../sdk-core/src/contracts/lightProfileOptions.ts`), written by
+ *  `setLightProfile`, read at each image by the atlas (`../../lighting/lightProfile/frame.ts`);
  *  the software raster, on by default, the projected edge in pixels from which a cluster is
  *  the hardware rasterizer's, and the ordering of its cutout clusters by depth bucket
  *  (`../../../../sdk-core/src/contracts/rasterOptions.ts`), written by
@@ -301,6 +309,9 @@ export interface EngineContext extends SettingOptions {
   /** The reader of the strands of the cache's curves (`hairStrands.bin`), none for a cache whose scene
    *  carries none; called only while the strands are on (`hairStrands`). */
   hairStrandsFile?: HairStrandsReader
+  /** The reader of the cache's sparse volumes (`sparseVolumes.bin`), none for a cache whose scene cites
+   *  none; called only while a heterogeneous volume is declared. */
+  sparseVolumesFile?: SparseVolumesReader
   /** The reader of the cache's light profiles (`light-profile-*.bin`), called for each profile a light names that is not yet held
    *  (`../../lighting/lightProfile/frame.ts`); none where the session has no cache to read them from. */
   lightProfileFile?: LightProfileReader
@@ -312,6 +323,7 @@ export interface EngineContext extends SettingOptions {
   readVolumetricLightmapCell?: ReadLightmap['readCell']
   sceneVolumes?: SceneFogVolumeStore // the objects voxelised into the fog's volume, shared likewise
   sceneLocalFog?: SceneLocalFogStore // the local fog volumes, shared likewise
+  sceneHeterogeneousVolumes?: SceneHeterogeneousVolumeStore // the heterogeneous volumes, shared likewise
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
   /** Bounced light, on by default (`false` turns it off). */
   bounce?: boolean

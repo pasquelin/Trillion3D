@@ -12,7 +12,7 @@ import {
   cloudTraceExtraHeld,
   cloudTraceKeyText,
 } from '../clouds/traceExtraLayout.ts'
-import { CLOUD_TRACE_BINDING as B, CLOUD_TRACE_LAYOUT } from '../clouds/traceLayout.ts'
+import { CLOUD_TRACE_LAYOUT, cloudTraceEntries } from '../clouds/traceLayout.ts'
 import { CLOUD_TRACE_AIR } from '../clouds/traceWgsl.ts'
 import { capturedClouds, type CapturedClouds } from './captureClouds.ts'
 import { sameHeld, type Held, type SkyLightInputs } from './captureInputs.ts'
@@ -120,21 +120,17 @@ function traceGroupsOf(
     }),
     cloud: device.createBindGroup({
       layout: cloudTrace.cloud,
-      entries: [
-        ...clouds.material,
-        {
-          binding: B.block,
-          resource: {
-            buffer: t.blocks.trace,
-            offset: face * BLOCK_STRIDE,
-            size: CLOUD_TRACE_LAYOUT.words * 4,
-          },
+      entries: cloudTraceEntries(clouds.material, {
+        block: {
+          buffer: t.blocks.trace,
+          offset: face * BLOCK_STRIDE,
+          size: CLOUD_TRACE_LAYOUT.words * 4,
         },
-        { binding: B.blueNoise, resource: clouds.blueNoise },
-        { binding: B.depthRange, resource: t.cloudViews.depthRange },
-        { binding: B.colour, resource: t.cloudViews.colour },
-        { binding: B.depth, resource: t.cloudViews.depth },
-      ],
+        blueNoise: clouds.blueNoise,
+        depthRange: t.cloudViews.depthRange,
+        colour: t.cloudViews.colour,
+        depth: t.cloudViews.depth,
+      }),
     }),
   }))
 }

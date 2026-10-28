@@ -45,12 +45,22 @@ export function resetFrameCap(c: FrameCap, period: number) {
  *  or the refreshes the cap spans. */
 export const frameTimeBudget = (c: FrameCap, period: number) => c.floor * period
 
+/** Whether a frame `since` ms after the last drawn one is too soon for a cap of `floor` refreshes
+ *  of `period` ms: under `floor − ½` of them — the half takes the timestamps' jitter. */
+const tooSoon = (floor: number, period: number, since: number) =>
+  floor > 1 && since < (floor - 0.5) * period
+
+/** Whether a view capped at `maxFrameRate` leaves out the display frame that begins `since` ms after
+ *  its last drawn one, the display refreshing every `period` ms (null until measured, none left
+ *  out): the rule of the main view's cap (`skipsDisplayFrame`), for any view. */
+export const capSkips = (maxFrameRate: number, period: number | null, since: number) =>
+  period !== null && tooSoon(capFloor(maxFrameRate, period), period, since)
+
 /** What the cap reads of the refresh clock (`refreshClock.ts`), its fields loaded in place. */
 type Refresh = { readonly display: number; readonly settled: boolean }
 
-/** Whether the display frame that begins at `now` is left out under the cap: sooner than
- *  `floor − ½` refreshes of the display (`refresh`, once it is known) after the last drawn — the
- *  half takes the timestamps' jitter. */
+/** Whether the display frame that begins at `now` is left out under the cap: too soon
+ *  (`tooSoon`) after the last drawn, the display's refresh (`refresh`) known. */
 export function skipsDisplayFrame(c: FrameCap, refresh: Refresh, now: number) {
-  return c.floor > 1 && refresh.settled && now - c.drawnAt < (c.floor - 0.5) * refresh.display
+  return refresh.settled && tooSoon(c.floor, refresh.display, now - c.drawnAt)
 }

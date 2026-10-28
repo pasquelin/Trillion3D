@@ -32,7 +32,7 @@ test('a convergence image names, per pixel, the first of all its picks whose til
   )
   assert.match(
     wgslSource(TILE_REQUEST_WGSL),
-    /if\(missing&&word!=0u&&\(\(word>>24u\)&0x7fu\)==level\)\{return 0u;\}/,
+    /if\(missing&&word!=0u&&tileEntryLevel\(word\)==level\)\{return 0u;\}/,
   )
   for (const [name, text, choices] of [
     ['shade', wgslSource(SHADE_REQUEST_WGSL), 'choices'],

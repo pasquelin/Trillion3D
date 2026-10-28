@@ -1,15 +1,12 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesEngine } from '../../../frame/backend/pages.ts'
 import { PAGE_INFO_STRIDE, ROW_WORDS } from '../../../visibility/types.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera } from '../../../frame/backend/testScenes.fixture.ts'
+import { backendOf, quadScene, camera } from '../../../frame/backend/testScenes.fixture.ts'
 import { depthLayerUnits } from '../../../../../sdk-core/src/lod/depthLayer.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
-import { createTextureCaches } from '../../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../streaming/pageCache.ts'
 
 // Behaviour 22: the cluster's record carries the bias in positive units, which the decode puts at
 // the decoded cluster's depthBias word; a layer-0 cluster keeps that field at zero.
@@ -20,12 +17,10 @@ test('a cluster record carries the layer bias in positive units at the decoded d
   // stays at layer 0 (a missing field equals 0, as decoding leaves it).
   ;(scene.metadata.primitives[0].pages[1] as { depthLayer?: number }).depthLayer = 5
   const { device, buffers } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...scene,
     gpuDevice: device,
     maxResidentPages: 4,
-    viewport: [32, 32],
   })
   const view = camera()
   try {

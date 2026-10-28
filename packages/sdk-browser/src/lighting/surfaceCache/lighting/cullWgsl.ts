@@ -2,7 +2,9 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { luminance } from '../../../../../math/src/wgsl/color.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
+import { sinFromCosUnclamped } from '../../../../../math/src/wgsl/geometry.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
+import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
 import { AIR_TINT_WGSL } from '../../atmosphere/airTintWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { lightChannelsOf } from '../../direct/lightReachWgsl.ts'
@@ -76,11 +78,7 @@ var<workgroup> reduction:array<u32,${WORKGROUP_THREADS}>;
 /** The greatest of \`value\` over the workgroup. */
 fn groupMax(lane:u32,value:u32)->u32{
  reduction[lane]=value;
- workgroupBarrier();
- for(var stride=${WORKGROUP_THREADS / 2}u;stride>=1u;stride/=2u){
-  if(lane<stride){reduction[lane]=max(reduction[lane],reduction[lane+stride]);}
-  workgroupBarrier();
- }
+ ${workgroupSumLoop(WORKGROUP_THREADS, 'reduction[lane]=max(reduction[lane],reduction[lane+stride]);')}
  let greatest=reduction[0];
  workgroupBarrier();
  return greatest;
@@ -187,7 +185,7 @@ fn tileLightWeight(rank:u32,light:DirectLight,b:TileBox)->f32 {
  if(isSpot(light)){
   let cosCone=light.directionCone.w;
   let along=dot(worldCentre-position,direction);
-  let inside=sphereIntersectCone(worldCentre,radius,position,direction,cosCone,sqrt(1.0-cosCone*cosCone))&&along+radius>0.0&&along-radius<range;
+  let inside=sphereIntersectCone(worldCentre,radius,position,direction,cosCone,sinFromCosUnclamped(cosCone))&&along+radius>0.0&&along-radius<range;
   if(!inside){return -1.0;}
  }else if(isRect(light)){
   let spread=abs(b.card.axisX)*b.reach.x+abs(b.card.axisY)*b.reach.y+abs(b.card.axisZ)*b.reach.z;
@@ -257,6 +255,7 @@ fn ${CULL_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:v
 /** The cull program for tiles that keep `maxLights` lights. */
 export const cullWgsl = (maxLights: number) =>
   wgslProgram(cullHelpersWgsl(maxLights) + CULL_TILE_TEXT + cullKernelWgsl(), [
+    sinFromCosUnclamped,
     lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
     lightTileCountsWgsl(B.counts, 'atomic'),
     CULLED_LIGHT_TILE_WGSL,

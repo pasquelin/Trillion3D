@@ -1,6 +1,5 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { webgpuPagesEngine } from '../../../frame/backend/pages.ts'
 import {
   FLAG_LINE,
   MATERIAL_RANK_MASK,
@@ -10,12 +9,10 @@ import {
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
-import { quadScene, camera } from '../../../frame/backend/testScenes.fixture.ts'
+import { backendOf, quadScene, camera } from '../../../frame/backend/testScenes.fixture.ts'
 import { PAGE_INFO } from '../../../visibility/pageInfo.ts'
 import { materialRecordsSent } from '../../../materials/table/materialRecordsSent.fixture.ts'
 import { MATERIAL_RECORD, MATERIAL_RECORD_WORDS } from '../../../materials/table/materialLayout.ts'
-import { createTextureCaches } from '../../../materials/texture/textureCaches.ts'
-import { createPageCache } from '../../streaming/pageCache.ts'
 
 /** Each drawn cluster's line flag and the width its surface's record holds, after one frame of
  *  `scene`: the records as the table last sent them up. */
@@ -24,12 +21,10 @@ async function rowLineWidths(lineWidth: number | undefined) {
   const scene = quadScene()
   if (lineWidth !== undefined) scene.material.lineWidth = lineWidth
   const { device, buffers, textureWrites } = fakeDevice(BACKEND)
-  const backend = webgpuPagesEngine({
-    textureCaches: createTextureCaches(createPageCache()),
+  const backend = backendOf({
     ...scene,
     gpuDevice: device,
     maxResidentPages: 4,
-    viewport: [32, 32],
   })
   try {
     await backend.prepare()

@@ -1,6 +1,7 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { fastAcos } from '../../../../../math/src/wgsl/geometry.ts'
 import { interleavedGradientNoise } from '../../../../../math/src/wgsl/sampling.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
@@ -40,17 +41,6 @@ export const HORIZON_COMMON_WGSL = wgslBlock(
 fn hzDepthCm(uv:vec2f)->f32{return aoSceneDepth(aoPixelAt(uv));}`,
 )
 
-/** The arc cosine as a cubic-free polynomial: `(π/2 − 0.156583 |x|) · √(1 − |x|)`, mirrored for a negative argument. */
-const ARC_COS_WGSL = wgslBlock(
-  'HORIZON_ARC_COS_WGSL',
-  [PI],
-  `fn hzArcCos(x:f32)->f32{
- let a=abs(x);
- let r=(-0.156583*a+0.5*PI)*sqrt(1.0-a);
- return select(PI-r,r,x>=0.0);
-}`,
-)
-
 /** The temporal turn of the directions and the offsets of the steps, from the image's rank (`view.angles`). */
 const NOISE_WGSL = wgslBlock(
   'HORIZON_NOISE_WGSL',
@@ -76,7 +66,7 @@ const NOISE_WGSL = wgslBlock(
 const searchBlock = (taps: number, biasLevel: number) =>
   wgslBlock(
     `HORIZON_SEARCH(${taps},${biasLevel})`,
-    [HORIZON_COMMON_WGSL, ARC_COS_WGSL],
+    [HORIZON_COMMON_WGSL, fastAcos],
     `const HZ_TAPS:u32=${taps}u;
 const HZ_BIAS_LEVEL:i32=${biasLevel};
 fn hzHorizon(best:f32,uv:vec2f,level:i32,pos:vec3f,viewDir:vec3f,atten:f32)->f32{
@@ -99,7 +89,7 @@ fn hzSearch(base:vec2f,dir:vec2f,radius:f32,phase:f32,pos:vec3f,viewDir:vec3f,at
   best.x=hzHorizon(best.x,base+along,level,pos,viewDir,atten);
   best.y=hzHorizon(best.y,base-along,level,pos,viewDir,atten);
  }
- return vec2f(hzArcCos(clamp(best.x,-1.0,1.0)),hzArcCos(clamp(best.y,-1.0,1.0)));
+ return vec2f(fastAcos(clamp(best.x,-1.0,1.0)),fastAcos(clamp(best.y,-1.0,1.0)));
 }`,
   )
 
@@ -111,14 +101,14 @@ fn hzSearch(base:vec2f,dir:vec2f,radius:f32,phase:f32,pos:vec3f,viewDir:vec3f,at
  */
 const INTEGRAL_WGSL = wgslBlock(
   'HORIZON_INTEGRAL_WGSL',
-  [HORIZON_COMMON_WGSL, ARC_COS_WGSL, PI],
+  [HORIZON_COMMON_WGSL, fastAcos, PI],
   `fn hzIntegral(angles:vec2f,dir:vec2f,viewDir:vec3f,normal:vec3f)->f32{
  let planeNormal=normalize(cross(vec3f(dir,0.0),viewDir));
  let perp=cross(viewDir,planeNormal);
  let proj=normal-planeNormal*dot(normal,planeNormal);
  let len=length(proj)+0.000001;
  let cosAng=dot(proj,perp)/len;
- let gamma=hzArcCos(cosAng)-0.5*PI;
+ let gamma=fastAcos(cosAng)-0.5*PI;
  let cosGamma=dot(proj,viewDir)/len;
  let sinGamma=cosAng*-2.0;
  let ax=gamma+max(-angles.x-gamma,-0.5*PI);

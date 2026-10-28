@@ -30,6 +30,10 @@ export const isRecord = (value: unknown): value is Record<string, unknown> =>
 /** The fields a match may hold. */
 const MATCH_FIELDS = ['node', 'mesh', 'material', 'extras'] as const
 
+/** The first key of the object `value` that is none of `fields`, `undefined` where it holds only them. */
+export const unknownFieldOf = (value: object, fields: readonly string[]) =>
+  Object.keys(value).find((key) => !fields.includes(key))
+
 /** `value` as an object holding only `fields`, refused otherwise, `what` naming it. */
 export function fieldsOf(
   value: unknown,
@@ -38,7 +42,7 @@ export function fieldsOf(
   refuse: Refuse,
 ): Record<string, unknown> {
   if (!isRecord(value)) return refuse(`${what} must be an object of ${fields.join(', ')}`)
-  const unknown = Object.keys(value).find((key) => !fields.includes(key))
+  const unknown = unknownFieldOf(value, fields)
   if (unknown !== undefined) refuse(`${what} has no field ${unknown}: ${fields.join(', ')}`)
   return value as Record<string, unknown>
 }

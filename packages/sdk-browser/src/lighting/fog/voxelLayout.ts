@@ -2,6 +2,7 @@ import { fieldLayout, putVec4 as put } from '../../gpu/core/fieldLayout.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
+import { wordsOf } from '../../gpu/core/wordViews.ts'
 import type { ResolvedFogVolume } from '../../../../sdk-core/src/scene/volume/contracts.ts'
 
 /**
@@ -14,14 +15,6 @@ import type { ResolvedFogVolume } from '../../../../sdk-core/src/scene/volume/co
  * the one around that box (`radius = half the box's diagonal × the placement's largest axis scale`),
  * which decides the slices an object reaches.
  */
-
-/** The unsigned view of a record buffer's words, made once. */
-const views = new WeakMap<Float32Array, Uint32Array>()
-const wordsOf = (out: Float32Array) => {
-  let ints = views.get(out)
-  if (!ints) views.set(out, (ints = new Uint32Array(out.buffer, out.byteOffset, out.length)))
-  return ints
-}
 
 /** The program's place and the values' first texel of an object's graph (`createGraphValues`). */
 type GraphWords = (object: ResolvedFogVolume) => readonly [number, number]

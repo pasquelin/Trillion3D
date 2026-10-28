@@ -257,6 +257,20 @@ export function settingFits(rule: SettingRule, value: unknown) {
   )
 }
 
+/** The `value` a job names for the setting `name` under `rule`, `undefined` where it names none
+ *  (left out or `null`); `refuse`d, `name` first, when `rule` does not take it. */
+export function namedSetting(
+  rule: SettingRule,
+  value: unknown,
+  name: string,
+  refuse: (message: string) => never,
+) {
+  if (value === undefined || value === null) return undefined
+  if (!settingFits(rule, value))
+    refuse(`${name} must be ${settingTakes(rule)}, got ${JSON.stringify(value)}`)
+  return value
+}
+
 /** The setting of field `field` of the rules by field `rules` that `options` hold, resolved
  *  (`resolveSetting`): its default when they hold none. */
 export const readSetting = <R extends SettingRules, F extends keyof R>(

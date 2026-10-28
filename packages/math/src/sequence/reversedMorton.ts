@@ -1,3 +1,4 @@
+import { reverseBits32 } from '../scalar/bits.ts'
 import { floorLog2 } from '../scalar/integers.ts'
 
 /**
@@ -11,8 +12,7 @@ export function reversedMortonOffset(index: number, side: number) {
   const axisBits = floorLog2(side),
     bits = 2 * axisBits,
     wrapped = index % (side * side)
-  let reversed = 0
-  for (let bit = 0; bit < bits; bit++) reversed |= ((wrapped >> bit) & 1) << (bits - 1 - bit)
+  const reversed = reverseBits32(wrapped) >>> (32 - bits)
   let column = 0,
     row = 0
   for (let bit = 0; bit < axisBits; bit++) {

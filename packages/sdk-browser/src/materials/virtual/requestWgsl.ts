@@ -42,7 +42,7 @@ const tileRequestIndexWgsl = (k: string) =>
  if(level>=s.tail){return 0u;}
  let entry=${k}Entry(s,uv,level);
  let word=${k}Pages[entry];
- if(missing&&word!=0u&&((word>>24u)&0x7fu)==level){return 0u;}
+ if(missing&&word!=0u&&tileEntryLevel(word)==level){return 0u;}
  return entry-${k}Pages[2]+${k}Pages[0]+1u;
 }
 fn ${k}RequestIndex(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,next:bool,along:u32,aniso:bool,sampled:bool,missing:bool)->u32{

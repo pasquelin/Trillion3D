@@ -61,6 +61,7 @@ import {
   VSM_DESCENT_SPECS,
   vsmDescentWgsl,
 } from './traversalWgsl.ts'
+import { uniformBuffer } from '../../../../gpu/core/uniformBlock.ts'
 
 const LABEL = 'vsm.descent'
 
@@ -180,11 +181,7 @@ function descentOf(res: VsmResources, device: GPUDevice): VsmDescent {
   device.queue.writeBuffer(args, 0, DAG_ARGS_INITIAL)
   d = {
     device,
-    uniform: device.createBuffer({
-      label: `${LABEL}.uniform`,
-      size: DAG_UNIFORM_BYTES,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    }),
+    uniform: uniformBuffer(device, `${LABEL}.uniform`, DAG_UNIFORM_BYTES),
     block: new Uint32Array(DAG_UNIFORM_BYTES / 4),
     args,
     culling: createWebgpuBindIdentity(),

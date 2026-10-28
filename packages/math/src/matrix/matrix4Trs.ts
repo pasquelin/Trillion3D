@@ -1,5 +1,5 @@
 import { determinantIsNegative, type NumberSink } from './matrix4.ts'
-import { length3 } from '../vector/vector.ts'
+import { crossVector3, length3 } from '../vector/vector.ts'
 
 /**
  * Position, rotation and scale of a column-major 4×4 matrix, both ways. Quaternion
@@ -12,19 +12,6 @@ const rotation = new Float64Array(9)
 
 /** The three unit rotation columns of the last decomposition, stored axis after axis. */
 const axes = /* @__PURE__ */ new Float64Array(9)
-
-/** `axes[o..o+2] = axes[a..a+2] × axes[b..b+2]`. */
-function crossAxes(o: number, a: number, b: number) {
-  const ax = axes[a],
-    ay = axes[a + 1],
-    az = axes[a + 2],
-    bx = axes[b],
-    by = axes[b + 1],
-    bz = axes[b + 2]
-  axes[o] = ay * bz - az * by
-  axes[o + 1] = az * bx - ax * bz
-  axes[o + 2] = ax * by - ay * bx
-}
 
 /**
  * Fills the zero-length axes of `axes`. One missing axis is the cross product of the next two
@@ -61,7 +48,8 @@ function completeAxes(zx: boolean, zy: boolean, zz: boolean) {
     }
     zero[(k + 1) % 3] = false
   }
-  for (let i = 0; i < 3; i++) if (zero[i]) crossAxes(i * 3, ((i + 1) % 3) * 3, ((i + 2) % 3) * 3)
+  for (let i = 0; i < 3; i++)
+    if (zero[i]) crossVector3(axes, axes, axes, i * 3, ((i + 1) % 3) * 3, ((i + 2) % 3) * 3)
 }
 
 /**

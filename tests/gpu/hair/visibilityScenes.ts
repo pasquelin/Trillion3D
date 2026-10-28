@@ -14,7 +14,7 @@ import { hairMinRadiusAtDepth1 } from '../../../packages/sdk-browser/src/hair/vi
 
 export const WIDTH = 640
 export const HEIGHT = 360
-export const DISTANCE = 3
+const DISTANCE = 3
 export const SAMPLES = 8
 /** The coverage a pixel counts as full at: the option's default. */
 export const FULL_COVERAGE = 0.98
@@ -51,7 +51,7 @@ export type SceneName = keyof typeof SCENES
 /** A strand from a point a metre in front of the camera to one behind it (the camera at z = 3): the
  *  segment crosses the near plane (0.1) on the screen, three quarters of the half height under its
  *  centre, where its ribbon is a few pixels wide. */
-export const NEAR_STRAND = {
+const NEAR_STRAND = {
   radius: 0.002,
   points: [0.02, -0.2, 2, 0, 0.01, 3.2],
 } as const

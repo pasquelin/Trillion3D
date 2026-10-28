@@ -1,8 +1,10 @@
+import { AMBIENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { fullscreenDraw } from '../../post/filters/fullscreenDraw.ts'
 import { hizDepthBindEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../visibility/hiz/gpu/types.ts'
 import { AO_BINDINGS } from './layout.ts'
 import { aoExtentOf } from './plan.ts'
-import type { AoImage } from './params.ts'
+import { createDepthTerms, type AoImage } from './params.ts'
 import type { AoView, AoViewSpec } from './view.ts'
 
 /** What an image needs of the frame to draw the occlusion: the device, the surfaces' normals, the depth pyramid the image
@@ -53,6 +55,33 @@ export function specCache(
       return extent
     },
   }
+}
+
+/** What a method refills for each pass instead of making it: the draw's descriptor, the uniform's `paramWords` words (and the
+ *  same as the integers `writeChanged` compares), the rectangle drawn and the depth terms — one set for each view's method,
+ *  shared with no other. */
+export function createAoScratch(paramWords: number) {
+  const words = new Float32Array(paramWords)
+  return {
+    draw: fullscreenDraw(AMBIENT_OCCLUSION_PASS),
+    words,
+    sent: new Uint32Array(words.buffer),
+    rect: [0, 0],
+    terms: createDepthTerms(),
+  }
+}
+
+/** The groups of `passes`, each the bind group `describe` gives for it and its rank, kept in the view's `identity` slot: the
+ *  call of a frame whose identity moved (`view.identity.moved()`), which returns them. */
+export function aoPassGroups<P>(
+  view: AoView,
+  device: GPUDevice,
+  passes: readonly P[],
+  describe: (pass: P, at: number) => GPUBindGroupDescriptor,
+) {
+  return (view.groups[view.identity.slot] = passes.map((pass, at) =>
+    device.createBindGroup(describe(pass, at)),
+  ))
 }
 
 /** The entries every pass's group opens with, whichever method's: the pass's uniform, the depth pyramid and — for a pass that reads

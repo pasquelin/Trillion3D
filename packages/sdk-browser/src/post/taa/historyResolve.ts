@@ -13,6 +13,7 @@ import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import type { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { texelBytesOf } from '../../gpu/core/textureBytes.ts'
+import { entryOf } from '../../../../math/src/sequence/counts.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import {
   RESOLVE_BINDINGS,
@@ -80,17 +81,6 @@ const colourLayoutOf = (device: GPUDevice, colorFormat: GPUTextureFormat) =>
       computeStorageTextureEntry(RESOLVE_BINDINGS.half, colorFormat),
     ],
   })
-
-/** The group kept under `key`, made by `make` the first time it is asked. */
-const groupFor = (
-  groups: Map<GPUTextureView, GPUBindGroup>,
-  key: GPUTextureView,
-  make: () => GPUBindGroup,
-) => {
-  let group = groups.get(key)
-  if (!group) groups.set(key, (group = make()))
-  return group
-}
 
 /** A compute pass of the resolve over the display's `size`. */
 const dispatchResolve = (
@@ -202,7 +192,7 @@ function createColourResolve(device: GPUDevice, uniform: GPUBuffer) {
       if (!image || !format) throw new Error('TAA_OUTPUT_MISSING')
       const colour = colourOf(format)
       const { color } = image
-      const group = groupFor(groups, frame.color, () =>
+      const group = entryOf(groups, frame.color, () =>
         colourGroup(device, uniform, colour.layout, frame.color, color, halfView),
       )
       dispatchResolve(steps, pass, colour.stages[half ? 1 : 0].get(), group, size)
@@ -257,7 +247,7 @@ function createLayersResolve(device: GPUDevice) {
         groups.clear()
       }
       const [tint, add] = views
-      const group = groupFor(groups, history[0], () =>
+      const group = entryOf(groups, history[0], () =>
         device.createBindGroup({
           layout: layersLayout,
           entries: namedEntries(RESOLVE_LAYER_BINDINGS, {

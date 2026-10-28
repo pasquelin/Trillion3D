@@ -10,6 +10,7 @@ import {
   boxTransform,
   boxUnionBox,
 } from '../../../../math/src/geometry/box.ts'
+import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { sphereFromBounds } from '../../../../math/src/geometry/sphere.ts'
 import { Vector3 } from './vector3.ts'
 import type { Matrix4 } from './matrix4.ts'
@@ -131,7 +132,7 @@ export class Box3 {
           const placed = drawnCount({ count: child.count, instanceMatrix }),
             matrices = instanceMatrix.array
           for (let at = 0; at < placed; at++) {
-            for (let i = 0; i < 16; i++) placement[i] = matrices[16 * at + i]
+            copyMatrix4(placement, matrices, 0, 16 * at)
             boxTransform(other, 0, boxToFlat(local, other), 0, placement)
             boxTransform(other, 0, other, 0, child.matrixWorld.elements)
             this.unionFlat(other)

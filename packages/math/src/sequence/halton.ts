@@ -1,4 +1,5 @@
 import { WORD_RANGE } from '../constants.ts'
+import { reverseBits32 } from '../scalar/bits.ts'
 
 /**
  * The `index`-th term (from 1) of the van der Corput sequence in base `base`, in [0, 1): the
@@ -14,12 +15,7 @@ import { WORD_RANGE } from '../constants.ts'
  */
 export function halton(index: number, base: number) {
   if (base === 2 && index === index >>> 0) {
-    let i = index
-    i = ((i >>> 1) & 0x55555555) | ((i & 0x55555555) << 1)
-    i = ((i >>> 2) & 0x33333333) | ((i & 0x33333333) << 2)
-    i = ((i >>> 4) & 0x0f0f0f0f) | ((i & 0x0f0f0f0f) << 4)
-    i = ((i >>> 8) & 0x00ff00ff) | ((i & 0x00ff00ff) << 8)
-    return (((i >>> 16) | (i << 16)) >>> 0) / WORD_RANGE
+    return reverseBits32(index) / WORD_RANGE
   }
   let result = 0,
     fraction = 1 / base,

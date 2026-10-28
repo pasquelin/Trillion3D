@@ -16,6 +16,7 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../../../../gpu/core/computeBindings.ts'
+import { arrayLevelView } from '../../../../gpu/core/textureViews.ts'
 import { VSM_PASS_PREFIX } from '../../../../diagnostic/stage/passLabels.ts'
 import type { ComputeRun } from '../../../../gpu/core/lazyComputePass.ts'
 import { ceilDiv } from '../../../../../../math/src/scalar/integers.ts'
@@ -123,10 +124,6 @@ export interface VsmOcclusionContext {
   fullUpdate: number
 }
 
-/** A view of level `level` of the pyramid, as a one-level array. */
-const levelView = (pyramid: GPUTexture, level: number) =>
-  pyramid.createView({ dimension: '2d-array', baseMipLevel: level, mipLevelCount: 1 })
-
 /** The groups over the build's own buffers and the pyramid's levels. */
 function ownGroups(
   device: GPUDevice,
@@ -137,9 +134,9 @@ function ownGroups(
   const entries = (views: GPUTextureView[], first: number) =>
     views.map((resource, k) => ({ binding: first + k, resource }))
   const tileLevels = pyramidTileLevels(device)
-  const tile = Array.from({ length: tileLevels }, (_, k) => levelView(pyramid, k))
+  const tile = Array.from({ length: tileLevels }, (_, k) => arrayLevelView(pyramid, k))
   const top = Array.from({ length: pyramidTopLevels(tileLevels) }, (_, k) =>
-    levelView(pyramid, tileLevels + k),
+    arrayLevelView(pyramid, tileLevels + k),
   )
   return {
     select: vsmBufferGroup(device, pipes.select.groups[1], [params, pages, args]),
@@ -153,7 +150,7 @@ function ownGroups(
       layout: pipes.top.groups[1],
       entries: [
         { binding: 0, resource: { buffer: pages } },
-        { binding: 1, resource: levelView(pyramid, tileLevels - 1) },
+        { binding: 1, resource: arrayLevelView(pyramid, tileLevels - 1) },
         ...entries(top, 2),
       ],
     }),

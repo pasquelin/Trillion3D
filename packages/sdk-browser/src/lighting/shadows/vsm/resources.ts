@@ -706,6 +706,17 @@ export function vsmBindGroupEntries(
   return out
 }
 
+/** A bind group of `layout` over the tables `specs` name (`vsmBindGroupEntries`), the `extra` entries after them. */
+export const vsmSpecGroup = (
+  device: GPUDevice,
+  layout: GPUBindGroupLayout,
+  res: VsmResources,
+  specs: readonly VsmBindingSpec[],
+  label?: string,
+  extra: readonly GPUBindGroupEntry[] = [],
+) =>
+  device.createBindGroup({ label, layout, entries: [...vsmBindGroupEntries(res, specs), ...extra] })
+
 /** The prefiltered distant shadow's buffer a spec names. */
 function filterableBuffer(
   res: VsmResources,

@@ -1,6 +1,7 @@
 import { ceilDiv, floorLog2, nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 import { mipOf, type AssetMip, type AtlasBudget, type AtlasState } from './atlasState.ts'
 import type { AtlasStep } from './atlasRequests.ts'
 import { writeAssetRecord } from './assetRecords.ts'
@@ -84,12 +85,13 @@ function createBrickTexture(device: GPUDevice, sizeXY: number) {
 
 /** A buffer for `source` that replaces `old` (retired), written whole. */
 function remade(device: GPUDevice, old: GPUBuffer | undefined, source: Uint32Array, label: string) {
-  const next = device.createBuffer({
+  const next = sizedBuffer(
+    device,
+    old,
+    source.byteLength,
+    GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
     label,
-    size: source.byteLength,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-  })
-  if (old) retire(device, old)
+  )
   device.queue.writeBuffer(next, 0, source as Uint32Array<ArrayBuffer>)
   return next
 }

@@ -14,6 +14,7 @@ import {
 import { cross } from '../../../../../math/src/vector/vectorTuple.ts'
 import { VSM_FACE_MATRIX, VSM_MIN_DIRECTION_SQ, vsmWorldToLightRotation } from './clipmap.ts'
 import { VSM_LOCAL_NEAR_PLANE, VSM_UNIT_PER_CM } from './constants.ts'
+import { directionVector } from '../../../../../sdk-core/src/lighting/surfaceCache/cardTypes.ts'
 import {
   coneSphereAlong,
   coneSphereRadius,
@@ -22,15 +23,7 @@ import {
 /** The nearest depth a local light's casters take: 0.1 cm. */
 const VSM_LOCAL_MIN_LIGHT_W = 0.1 * VSM_UNIT_PER_CM
 
-/** The cube face directions and up vectors. */
-const CUBE_DIRECTIONS: [number, number, number][] = [
-  [-1, 0, 0],
-  [1, 0, 0],
-  [0, -1, 0],
-  [0, 1, 0],
-  [0, 0, -1],
-  [0, 0, 1],
-]
+/** The up vectors of the cube faces, whose directions are the six of `directionVector`. */
 const UP_VECTORS: [number, number, number][] = [
   [0, 1, 0],
   [0, 1, 0],
@@ -47,7 +40,7 @@ const UP_VECTORS: [number, number, number][] = [
 function pointFaceView(face: number) {
   const z: [number, number, number] = [0, 0, 0],
     x: [number, number, number] = [0, 0, 0]
-  normalizeVector3OrZero(z, CUBE_DIRECTIONS[face], VSM_MIN_DIRECTION_SQ)
+  normalizeVector3OrZero(z, directionVector(face), VSM_MIN_DIRECTION_SQ)
   normalizeVector3OrZero(x, cross(UP_VECTORS[face], z), VSM_MIN_DIRECTION_SQ)
   const y = cross(z, x)
   const m = new Float64Array(16)

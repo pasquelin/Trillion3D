@@ -32,13 +32,14 @@ import { frameParity, vsmOcclusionEntries } from '../occlusion/occlusionPass.ts'
 import type { VsmLayout } from '../layout.ts'
 import { vsmComputePipe } from '../passKit.ts'
 import {
-  vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
   vsmFrameSetHeld,
   vsmPerFrameSet,
+  vsmSpecGroup,
   type VsmPerFrameSet,
   type VsmResources,
 } from '../resources.ts'
+import { uniformBuffer } from '../../../../gpu/core/uniformBlock.ts'
 
 /** The pass that stales the shadow changes, its two kernels in it. */
 const CAST_LABEL = `${VSM_PASS_PREFIX}invalidateCastPages`
@@ -94,11 +95,7 @@ function castState(device: GPUDevice, res: VsmResources) {
     pipes: vsmCastPipes(device, res.layout),
     tables: vsmFrameSetHeld(),
     hzb: vsmFrameSetHeld(),
-    params: device.createBuffer({
-      label: `${CAST_LABEL}.params`,
-      size: VSM_CAST_PARAMS_BYTES,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    }),
+    params: uniformBuffer(device, `${CAST_LABEL}.params`, VSM_CAST_PARAMS_BYTES),
     groups: { sizing: heldGroup(), stale: heldGroup() },
   })
   const params = bufferEntry(0, () => state.params)
@@ -118,10 +115,7 @@ function castState(device: GPUDevice, res: VsmResources) {
 
 /** Group 0 of the stale over the tables of `res.current`. */
 const tablesGroup = (res: VsmResources, state: VsmCastState) =>
-  state.device.createBindGroup({
-    layout: state.pipes.stale.groups[0],
-    entries: vsmBindGroupEntries(res, VSM_INVALIDATION_SPECS),
-  })
+  vsmSpecGroup(state.device, state.pipes.stale.groups[0], res, VSM_INVALIDATION_SPECS)
 
 /** Group 2 of the stale over the tables of `res.current`: the pyramid, and the kept tables of the
  *  previous frame set, the ones the raster's first cull reads. */

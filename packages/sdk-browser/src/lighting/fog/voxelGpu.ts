@@ -3,7 +3,7 @@ import type { ResolvedVolumetricFog } from '../../../../sdk-core/src/scene/core/
 import type { VolumetricFogValues } from '../../../../sdk-core/src/contracts/volumetricFogOptions.ts'
 import type { ResolvedFogVolume } from '../../../../sdk-core/src/scene/volume/contracts.ts'
 import type { SceneFogVolumeStore } from '../../../../sdk-core/src/scene/volume/store.ts'
-import { retire } from '../../gpu/core/frameRetire.ts'
+import { sizedBuffer } from '../../gpu/core/sizedBuffer.ts'
 import { newGraphClocks, type GraphClocks } from '../../materials/graph/clocks.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import {
@@ -58,20 +58,25 @@ function createRecordBuffers(device: GPUDevice) {
     /** Room for `need` objects. */
     room(need: number) {
       if (need <= capacity) return
-      capacity = grownLength(capacity, Math.max(need, FIRST_CAPACITY))
-      if (objects) retire(device, objects)
-      if (spans) retire(device, spans)
-      staging = new Float32Array(capacity * FOG_VOXEL_OBJECT.words)
-      objects = device.createBuffer({
-        label: 'Trillion3D fog voxel objects',
-        size: staging.byteLength,
-        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-      })
-      spans = device.createBuffer({
-        label: 'Trillion3D fog voxel spans',
-        size: capacity * FOG_VOXEL_SPAN.words * 4,
-        usage: GPUBufferUsage.STORAGE,
-      })
+      const grown = grownLength(capacity, Math.max(need, FIRST_CAPACITY))
+      const next = new Float32Array(grown * FOG_VOXEL_OBJECT.words)
+      // Made first, the buffers they replace retired after; the capacity follows what was granted.
+      objects = sizedBuffer(
+        device,
+        objects,
+        next.byteLength,
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        'Trillion3D fog voxel objects',
+      )
+      spans = sizedBuffer(
+        device,
+        spans,
+        grown * FOG_VOXEL_SPAN.words * 4,
+        GPUBufferUsage.STORAGE,
+        'Trillion3D fog voxel spans',
+      )
+      staging = next
+      capacity = grown
     },
     dispose() {
       objects?.destroy()
@@ -119,14 +124,13 @@ function createGraphBuffers(device: GPUDevice) {
     send() {
       const { words } = values
       if (!planned || !words.length) return
-      if (!buffer || buffer.size < words.byteLength) {
-        if (buffer) retire(device, buffer)
-        buffer = device.createBuffer({
-          label: 'Trillion3D fog voxel graph values',
-          size: Math.max(grownLength(buffer?.size ?? 0, words.byteLength), 16),
-          usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
-        })
-      }
+      buffer = sizedBuffer(
+        device,
+        buffer,
+        Math.max(words.byteLength, 16),
+        GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+        'Trillion3D fog voxel graph values',
+      )
       device.queue.writeBuffer(buffer, 0, words)
       sent = planned
     },

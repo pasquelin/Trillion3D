@@ -51,16 +51,24 @@ export interface SavedMaterial {
   parameters: Record<string, unknown>
 }
 
+/** Where a node or the eye stands and how it is turned, from its parent. */
+export interface SavedPose {
+  /** Where it stands. */
+  position: number[]
+  /** How it is turned, as a quaternion. */
+  quaternion: number[]
+  /** The order its Euler angles turn in (`Object3D.rotation.order`); absent, `'XYZ'`. */
+  rotationOrder?: string
+  /** Which way is up for `lookAt` (`Object3D.up`); absent, +Y. */
+  up?: number[]
+}
+
 /** A node: its pose and what it is — a group, a mesh, a light or a loaded model — and below it. */
-export interface SavedNode extends OffsetSwitchValues {
+export interface SavedNode extends SavedPose, OffsetSwitchValues {
   /** What the node is. */
   kind: 'object' | 'group' | 'mesh' | 'light' | 'model'
   /** Its name. */
   name: string
-  /** Where it stands, from its parent. */
-  position: number[]
-  /** How it is turned, as a quaternion. */
-  quaternion: number[]
   /** How it is stretched on each axis. */
   scale: number[]
   /** Whether it is drawn. */
@@ -112,6 +120,9 @@ export interface SavedNode extends OffsetSwitchValues {
     /** A light that shines through the subsurface-profile surfaces it shadows (`Light.transmission`);
      *  absent, it does not. */
     transmission?: true
+    /** A light that draws a deep shadow of the hair strands it reaches (`Light.castHairDeepShadow`);
+     *  absent, it does not. */
+    castHairDeepShadow?: true
     /** A directional light whose shadow shades the air (`Light.shadowsAir`); absent, it does not. */
     shadowsAir?: true
     /** A directional light whose air transmittance is read per surface point
@@ -129,6 +140,15 @@ export interface SavedNode extends OffsetSwitchValues {
     /** The shadow settings (`Light.shadow*`, `Light.farShadow*`, `Light.distanceField*`) that differ
      *  from their defaults; absent, none. */
     shadows?: LightShadowParameters
+    /** The light function the light wears (`Light.lightFunction`): its material's rank in
+     *  `materials`, and the settings that differ from their defaults; absent, none. */
+    lightFunction?: {
+      material: number
+      lightFunctionScale?: [number, number, number]
+      lightFunctionFadeDistance?: number
+      lightFunctionDisabledBrightness?: number
+      lightFunctionConeAngle?: number
+    }
   }
   /** A compiled model, by the manifest address it was loaded from: never inlined. */
   model?: { url: string }
@@ -137,13 +157,9 @@ export interface SavedNode extends OffsetSwitchValues {
 }
 
 /** The camera a scene was saved with: its pose, projection and optics. */
-export interface SavedCamera {
+export interface SavedCamera extends SavedPose {
   /** Perspective or orthographic. */
   projection: 'perspective' | 'orthographic'
-  /** Where the eye stands. */
-  position: number[]
-  /** How the eye is turned. */
-  quaternion: number[]
   /** Field, near, far, zoom and box, by name. */
   optics: Record<string, number>
   /** An orthographic box widened to the picture's shape (`fitAspect`); absent when off. */

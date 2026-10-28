@@ -1,15 +1,14 @@
 import { postSamplers } from '../../../gpu/core/postSamplers.ts'
-import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { preparedComputeStage } from '../../../gpu/core/computeStages.ts'
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { standInTexture } from '../../../gpu/core/standIns.ts'
 import { preparedPipelines } from '../../../gpu/core/preparedPipelines.ts'
-import { preparedPipeline } from '../../deferred/fullscreen.ts'
 import type { ConeObjectsShape } from './coneObjectsWgsl.ts'
 import { DFAO_STAND_IN_FORMAT } from './layout.ts'
 import { DFAO_LAYOUTS, type DfaoProgram } from './layouts.ts'
 import { coneObjectsKey, DFAO_SHADERS } from './shaders.ts'
-import { stencilSphere } from './sphere.ts'
+import { tileScatterPipeline } from '../tileScatter.ts'
+import { sphereBuffers } from './sphere.ts'
 
 const LABEL = 'Trillion3D distance-field occlusion'
 
@@ -29,47 +28,20 @@ const SINGLE = {
 
 /** The scatter's pipeline over `layout` that draws the bounding sphere's faces and runs the fragment entry `fragment`. */
 function scatterPipeline(device: GPUDevice, layout: GPUPipelineLayout) {
-  const label = `${LABEL} scatter`
-  const module = device.createShaderModule({ label, code: DFAO_SHADERS.scatter })
+  const module = device.createShaderModule({
+    label: LABEL + ' scatter',
+    code: DFAO_SHADERS.scatter,
+  })
   return (fragment: string) =>
-    preparedPipeline(device, {
+    tileScatterPipeline(device, {
       label: `${LABEL} ${fragment}`,
       layout,
-      vertex: {
-        module,
-        entryPoint: 'dfaoObjectCullVs',
-        buffers: [
-          {
-            arrayStride: 16,
-            attributes: [{ shaderLocation: 0, offset: 0, format: 'float32x4' }],
-          },
-        ],
-      },
-      fragment: {
-        module,
-        entryPoint: fragment,
-        targets: [{ format: DFAO_STAND_IN_FORMAT, writeMask: 0 }],
-      },
-      primitive: { topology: 'triangle-list', cullMode: 'front', frontFace: 'ccw' },
+      module,
+      vertex: 'dfaoObjectCullVs',
+      fragment,
+      format: DFAO_STAND_IN_FORMAT,
+      sphere: true,
     })
-}
-
-/** The bounding sphere's vertex and index buffers. */
-function sphereBuffers(device: GPUDevice) {
-  const sphere = stencilSphere()
-  const vertices = device.createBuffer({
-    label: `${LABEL} sphere vertices`,
-    size: sphere.vertices.byteLength,
-    usage: GPUBufferUsage.VERTEX | GPUBufferUsage.COPY_DST,
-  })
-  const indices = device.createBuffer({
-    label: `${LABEL} sphere indices`,
-    size: ceilDiv(sphere.indices.byteLength, 4) * 4,
-    usage: GPUBufferUsage.INDEX | GPUBufferUsage.COPY_DST,
-  })
-  device.queue.writeBuffer(vertices, 0, sphere.vertices)
-  device.queue.writeBuffer(indices, 0, sphere.indices)
-  return { vertices, indices, indexCount: sphere.indices.length }
 }
 
 /**
@@ -113,7 +85,7 @@ export const dfaoPrograms = oncePerDevice((device: GPUDevice) => {
     coneObjectsKey,
   )
   const scatter = scatterPipeline(device, pipelineLayout('scatter'))
-  const sphere = sphereBuffers(device)
+  const sphere = sphereBuffers(device, LABEL)
   return {
     layouts,
     noVectors: standInTexture(device, `${LABEL} no vectors`, 'r32uint').createView(),

@@ -5,7 +5,7 @@ import { cloudHazeInSecondPass } from './traceOptions.ts'
 import { DEPTH_RANGE_VIEW, type DepthRangePass } from './depthRangeWgsl.ts'
 import { depthRangeSizes, writeDepthRangeView } from './depthRange.ts'
 import { CLOUD_HAZE_BINDING as H } from './traceHazeProgram.ts'
-import { CLOUD_TRACE_BINDING as B, CLOUD_TRACE_LAYOUT, writeCloudTrace } from './traceLayout.ts'
+import { CLOUD_TRACE_LAYOUT, cloudTraceEntries, writeCloudTrace } from './traceLayout.ts'
 import { cloudTraceDispatch } from './trace.ts'
 import { CLOUD_EMPTY_SPACE_DISPATCH } from './emptySpace.ts'
 import { CLOUD_EMPTY_SPACE_BINDING as E } from './emptySpaceWgsl.ts'
@@ -134,20 +134,16 @@ export function encodeTrace(f: CloudViewFrame, range: CloudDepthRange | undefine
         : range!.views.half
   const names = [f.material, block, f.noise, depthRange, out.views.colour, out.views.secondary]
   const closest = f.key.closestDepth ? raw?.views.depth : undefined
-  const cloud = gpu.group(
-    'trace cloud',
-    pass.cloud,
-    [...names, traced.views.depth, closest],
-    () => [
-      ...f.material,
-      { binding: B.block, resource: { buffer: block } },
-      { binding: B.blueNoise, resource: f.noise },
-      { binding: B.depthRange, resource: depthRange },
-      { binding: B.colour, resource: out.views.colour },
-      ...(setup.minMaxDepth ? [{ binding: B.secondary, resource: out.views.secondary! }] : []),
-      { binding: B.depth, resource: traced.views.depth },
-      ...(closest ? [{ binding: B.closest, resource: closest }] : []),
-    ],
+  const cloud = gpu.group('trace cloud', pass.cloud, [...names, traced.views.depth, closest], () =>
+    cloudTraceEntries(f.material, {
+      block: { buffer: block },
+      blueNoise: f.noise,
+      depthRange,
+      colour: out.views.colour,
+      secondary: setup.minMaxDepth ? out.views.secondary : undefined,
+      depth: traced.views.depth,
+      closest,
+    }),
   )
   const compute = cloudSteps.pass(TRACE_PASS)
   const pipeline = pass.pipeline.get()

@@ -4,6 +4,10 @@ import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fix
 import { Color } from '../../../packages/sdk-core/src/world/math/color.ts'
 import { colorBytesPerSample } from '../../../packages/sdk-browser/src/gpu/core/colorBytes.fixture.ts'
 import { blendTargets } from '../../../packages/sdk-browser/src/blend/blendTargets.ts'
+import {
+  ALPHA_ONLY,
+  COLOUR_ONLY,
+} from '../../../packages/sdk-browser/src/materials/surface/materialBlending.ts'
 
 interface WaterMaterial {
   tint: [number, number, number]
@@ -40,7 +44,7 @@ export const waterSurface = (transmission: number, thickness: number) =>
  *  lit colour, the request, the display layers and the responsiveness —: the limit a device must grant for
  *  a transmissive layer to draw. */
 export const WATER_ATTACHMENT_BYTES = colorBytesPerSample(
-  blendTargets('normal', GPUColorWrite.ALL, true, true).map((target) => target?.format),
+  blendTargets('normal', ALPHA_ONLY | COLOUR_ONLY, true, true).map((target) => target?.format),
 )
 
 interface GroundSpec {

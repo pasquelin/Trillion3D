@@ -1,10 +1,10 @@
-import { ledgerAdmitted } from '../../gpu/core/deviceLedger.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import {
   countingAllocator,
   gpuAllocator,
   type ResourceAllocator,
 } from '../../gpu/core/resourceAllocator.ts'
+import { shapeView } from '../../gpu/core/shapeView.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { AMBIENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
 
@@ -117,16 +117,12 @@ export function ensureAoView(
   device: GPUDevice,
   spec: AoViewSpec,
 ): { view?: AoView; why?: string } {
-  if (held && (held.spec === spec || sameSpec(held.spec, spec))) {
-    held.spec = spec
-    return { view: held }
-  }
-  const asked = aoViewBytes(spec)
-  const { value, why } = ledgerAdmitted(device, {
-    held,
-    asked,
+  const same = held !== undefined && (held.spec === spec || sameSpec(held.spec, spec))
+  if (same) held.spec = spec
+  return shapeView(held, device, {
+    same,
     what: 'the ambient occlusion',
-    make: () => makeView(device, spec, asked),
+    bytes: () => aoViewBytes(spec),
+    make: (asked) => makeView(device, spec, asked),
   })
-  return { view: value, why }
 }

@@ -1,7 +1,6 @@
-import { blocksAcross } from '../../../../sdk-core/src/texture/previewLevels.ts'
 import { PREVIEW_BLOCK_BYTES } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { toHalf } from '../../../../math/src/float/half.ts'
-import { decodeBc4Channel } from './blockDecode.ts'
+import { blockGrid, decodeBc4Channel, WEIGHTS } from './blockDecode.ts'
 
 /**
  * The layouts a texture's compression setting adds to the stored family (`texture/setting.rs`),
@@ -19,10 +18,7 @@ const RAW_BLOCK_BYTES = 16
 /** The texels of `blocks`, a `width` × `height` surface of BC4 blocks: one byte a texel when
  *  `single`, else RGBA8 with the channel in R, 0 in G and B, opaque. Whole blocks wide, rows packed. */
 export function decodeBc4Level(blocks: Uint8Array, width: number, height: number, single = false) {
-  const across = blocksAcross(width),
-    down = blocksAcross(height)
-  if (blocks.byteLength !== across * down * BC4_BLOCK_BYTES)
-    throw new Error(`TEXTURE_BLOCK_BYTES ${width}x${height}: ${blocks.byteLength}`)
+  const { across, down } = blockGrid(blocks, width, height, BC4_BLOCK_BYTES)
   const texel = single ? 1 : 4
   const pitch = across * 4 * texel
   const out = new Uint8Array(pitch * down * 4)
@@ -45,10 +41,7 @@ export function decodeRawLevel(
   codec: 'g8' | 'a8',
   single = false,
 ) {
-  const across = blocksAcross(width),
-    down = blocksAcross(height)
-  if (blocks.byteLength !== across * down * RAW_BLOCK_BYTES)
-    throw new Error(`TEXTURE_BLOCK_BYTES ${width}x${height}: ${blocks.byteLength}`)
+  const { across, down } = blockGrid(blocks, width, height, RAW_BLOCK_BYTES)
   const texel = single ? 1 : 4
   const pitch = across * 4 * texel
   const out = new Uint8Array(pitch * down * 4)
@@ -184,12 +177,6 @@ const ANCHORS = [
   15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 15, 2, 8, 2, 2, 8, 8, 15, 2, 8, 2,
   2, 8, 8, 2, 2,
 ]
-/** Interpolation weights over 64 of the three-bit and four-bit indices. */
-const WEIGHTS = [
-  [0, 9, 18, 27, 37, 46, 55, 64],
-  [0, 4, 9, 13, 17, 21, 26, 30, 34, 38, 43, 47, 51, 55, 60, 64],
-]
-
 /** An endpoint widened to the full 16 bits, by the format's rule: zero and the largest value keep their ends. */
 const unquantize = (value: number, bits: number) =>
   bits >= 15
@@ -265,7 +252,7 @@ function decodeBc6hBlock(
     for (let c = 0; c < 3; c++) ep[c][i] = unquantize(ep[c][i], m.bits)
   const part = m.partition ? read(5) : 0
   const indexBits = m.partition ? 3 : 4
-  const weights = WEIGHTS[indexBits - 3]
+  const weights = WEIGHTS[indexBits]
   for (let t = 0; t < 16; t++) {
     const subset = m.partition ? (PARTITIONS[part] >> t) & 1 : 0
     const anchor = t === 0 || (m.partition && subset === 1 && t === ANCHORS[part])
@@ -286,10 +273,7 @@ const writeTexel = (out: DataView, at: number, r: number, g: number, b: number) 
 /** The half-float RGBA texels of `blocks`, a `width` × `height` surface of BC6H blocks (unsigned):
  *  eight bytes a texel, whole blocks wide, rows packed. */
 export function decodeBc6hLevel(blocks: Uint8Array, width: number, height: number) {
-  const across = blocksAcross(width),
-    down = blocksAcross(height)
-  if (blocks.byteLength !== across * down * PREVIEW_BLOCK_BYTES)
-    throw new Error(`TEXTURE_BLOCK_BYTES ${width}x${height}: ${blocks.byteLength}`)
+  const { across, down } = blockGrid(blocks, width, height, PREVIEW_BLOCK_BYTES)
   const pitch = across * 4 * 8
   const out = new Uint8Array(pitch * down * 4)
   const view = new DataView(out.buffer)

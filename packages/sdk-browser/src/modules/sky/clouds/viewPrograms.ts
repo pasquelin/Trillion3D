@@ -3,6 +3,7 @@ import {
   preparedPipeline,
   type PreparedPipeline,
 } from '../../../lighting/deferred/fullscreen.ts'
+import { entryOf } from '../../../../../math/src/sequence/counts.ts'
 import { airShapeKey, type AirShape } from '../../../lighting/atmosphere/shape.ts'
 import type { CloudSetup } from './cloudModes.ts'
 import { postSamplers } from '../../../gpu/core/postSamplers.ts'
@@ -92,13 +93,6 @@ const reconstructKey = (s: CloudSetup, history: boolean) =>
 const composeKey = (s: CloudSetup, held?: HeldClouds) =>
   `${s.direct}|${s.upsampling}|${s.minMaxDepth}|${held ? `held ${held.cloud}` : ''}`
 
-/** The value `make` makes for `key`, made on the first ask and kept in `held`. */
-function memo<V>(held: Map<string, V>, key: string, make: () => V) {
-  let value = held.get(key)
-  if (value === undefined) held.set(key, (value = make()))
-  return value
-}
-
 /** The pass of the scene's depth range that writes `pass`'s texture. */
 function depthRangePass(device: GPUDevice, pass: DepthRangePass) {
   const d = describeDepthRange(pass, SIZE, SIZE)
@@ -166,13 +160,15 @@ function createCloudViewPrograms(
     shape,
     /** The linear, clamped sampler the reconstruction and the composition read the images through. */
     sampler: postSamplers(device).clamped,
-    depthRange: (pass: DepthRangePass) => memo(ranges, pass, () => depthRangePass(device, pass)),
+    depthRange: (pass: DepthRangePass) => entryOf(ranges, pass, () => depthRangePass(device, pass)),
     /** The tracing of the options `key`. */
     trace: (key: CloudTraceKey) =>
-      memo(traces, cloudTraceKeyText(key), () => createCloudTracePass(device, failed, key, shape)),
+      entryOf(traces, cloudTraceKeyText(key), () =>
+        createCloudTracePass(device, failed, key, shape),
+      ),
     /** The pass that builds the empty-space table, with the corners option `corners`. */
     emptySpace: (corners: boolean) =>
-      memo(emptySpaces, String(corners), () =>
+      entryOf(emptySpaces, String(corners), () =>
         createCloudEmptySpacePass(device, failed, corners, shape),
       ),
     /** The haze pass. */
@@ -180,11 +176,11 @@ function createCloudViewPrograms(
       return (haze ??= createCloudHazePass(device, failed, shape))
     },
     reconstruct: (setup: CloudSetup, history: boolean) =>
-      memo(reconstructions, reconstructKey(setup, history), () =>
+      entryOf(reconstructions, reconstructKey(setup, history), () =>
         reconstructPass(device, setup, history, shape.localFog),
       ),
     compose: (setup: CloudSetup, held?: HeldClouds) =>
-      memo(compositions, composeKey(setup, held), () =>
+      entryOf(compositions, composeKey(setup, held), () =>
         composePass(device, setup, shape.localFog, held),
       ),
   }
