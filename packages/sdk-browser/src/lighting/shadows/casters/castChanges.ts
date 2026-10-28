@@ -30,14 +30,19 @@ import { grownByCopy } from '../../../gpu/core/tableGrowth.ts'
 export const CAST_HEADER_WORDS = 4,
   CAST_RECORD_WORDS = 16
 /** Words of a placement's remembered state: its oriented box as it was (centre, half axes), its word,
- *  whether it was seen (`CAST_SEEN`) and had a box (`CAST_BOXED`), a digest of its world as it was, and
- *  its cache state in each view. */
-export const CAST_STATE_WORDS = 17
+ *  whether it was seen (`CAST_SEEN`), had a box (`CAST_BOXED`) and holds a swept box (`CAST_SWEPT`), a
+ *  digest of its world as it was, its cache state in each view, and the swept box (the bounds, minimum
+ *  then maximum, of every place it was cached as dynamic in since it last was cached as static). */
+export const CAST_STATE_WORDS = 23
 /** The word of a placement's state that holds its cache state in each view: bits 0..15 the views it
  *  was cached as dynamic in, bits 16..31 the views that tracked it (`castDiffWgsl.ts`). */
 export const CAST_VIEWS_WORD = 10
 export const CAST_SEEN = 1,
-  CAST_BOXED = 2
+  CAST_BOXED = 2,
+  CAST_SWEPT = 4
+/** The words of a placement's state that hold its swept box: its minimum, then its maximum. */
+export const CAST_SWEPT_MIN = 17,
+  CAST_SWEPT_MAX = 20
 /** Records a list holds at most: past the ceiling a frame's changes overflow into a stale of every
  *  page. It holds at least what the CPU's list of boxes holds apart (`SHADOW_CHANGE_BOXES`), which the
  *  invalidation reads beside it. */

@@ -1,5 +1,6 @@
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { shadowsUnsettled } from '../backend/state/lights.ts'
+import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { ambientOcclusionSettling } from '../../lighting/ao/frame.ts'
 import { screenProbesSettling } from '../../lighting/bounce/screen/frame.ts'
 import { reflectionsPending } from '../../lighting/reflections/gpu.ts'
@@ -35,6 +36,7 @@ const REASONS = [
   'translucencyGi',
   'screenProbes',
   'occlusion',
+  'casterSettling',
 ] as const
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
@@ -78,6 +80,9 @@ function loadMask(rt: WebgpuPagesRuntime) {
   // A shadow page stale and read, a request report on its way: each must find a frame
   // (`shadowsUnsettled`).
   if (shadowsUnsettled(lights)) mask |= BIT.shadowsPending
+  // A caster that moved stays cached as dynamic until enough still frames are drawn (`mobility.settle`): a view held before shows other shadows.
+  // The age advances in the shadows' plan, so it counts only while they run (`shadowsOn`): none, nothing is cached.
+  if (lights.mobility?.settling && shadowsOn(rt)) mask |= BIT.casterSettling
   // Pending cut pages must land before holding; the cut difference keeps this count.
   if (services.cutPending.count) mask |= BIT.cutPending
   // An HLOD switch waiting on its actor's warm-up switches on a later cut: a still view keeps
@@ -92,8 +97,8 @@ function loadMask(rt: WebgpuPagesRuntime) {
 function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
   const { vis, bounce } = rt
   let mask = 0
-  // Closed probe series hold; a pending unrefused series still needs a frame.
-  if (bounce.probes ? bounce.probes.working : bounce.pending && !bounce.reason)
+  // Closed probe series hold; a pending unrefused series still needs a frame. Switched off, nothing is waited for.
+  if (bounce.wanted && (bounce.probes ? bounce.probes.working : bounce.pending && !bounce.reason))
     mask |= BIT.bounceProbes
   // The translucency volume's own cache closes its series the same way.
   if (bounce.translucency?.probes?.working) mask |= BIT.bounceProbes

@@ -55,13 +55,25 @@ import {
   MOBILITY_OFFSET_INVALIDATES,
   MOBILITY_SHADOWLESS,
 } from '../mobilityBits.ts'
-import { CAST_BOXED, CAST_SEEN, CAST_STATE_WORDS, CAST_VIEWS_WORD } from './castChanges.ts'
+import {
+  CAST_BOXED,
+  CAST_SEEN,
+  CAST_STATE_WORDS,
+  CAST_SWEPT,
+  CAST_SWEPT_MAX,
+  CAST_SWEPT_MIN,
+  CAST_VIEWS_WORD,
+} from './castChanges.ts'
 import { CAST_EMIT_WGSL } from './castChangesWgsl.ts'
 import { ROOT_SECTION, ROOT_WORDS_WGSL } from './rootWordsWgsl.ts'
 
 /** The share of a bound's magnitude a box is widened by: the single rounding of a double, and of the
  *  centre and extent a record is made of, with room to spare. */
 const BOX_SLACK = 2 ** -22
+
+/** How many times its own reach a placement may sweep before the places it passed are staled and the sweep starts again from where it
+ *  stands: a vehicle crossing the map stales it piece by piece, never the whole at once. */
+const SWEPT_REACHES = 64
 
 /** Bytes of the diff's parameters (`CastDiffParams`). */
 export const CAST_DIFF_PARAMS_BYTES = 16
@@ -90,6 +102,9 @@ ${wgslConsts({
   MOBILITY_OFFSET_INVALIDATES,
   CAST_SEEN,
   CAST_BOXED,
+  CAST_SWEPT,
+  CAST_SWEPT_MIN,
+  CAST_SWEPT_MAX,
   CAST_STATE_WORDS,
   CAST_VIEWS_WORD,
   ROOT_BOX_DOUBLES,
@@ -97,6 +112,7 @@ ${wgslConsts({
   MATRIX_VALUES,
 })}
 const BOX_SLACK:f32=${wgslF32(BOX_SLACK)};
+const SWEPT_REACHES:f32=${wgslF32(SWEPT_REACHES)};
 struct InstanceBox{centre:vec3f,ax:vec3f,ay:vec3f,az:vec3f,has:bool,}
 /** A bound of a world box, rounded to single precision. */
 fn bound(d:vec2u)->f32{return bitcast<f32>(toF32(d));}
@@ -171,6 +187,37 @@ fn storedVec(at:u32,first:u32)->vec3f{
 fn storedBox(at:u32,has:bool)->InstanceBox{
  return InstanceBox(storedVec(at,0u),storedVec(at,4u),storedVec(at,11u),storedVec(at,14u),has);
 }
+/** The bounds, along the world's axes, of every place a placement was cached as dynamic in. */
+struct SweptBounds{lo:vec3f,hi:vec3f,has:bool,}
+/** \`swept\` grown by the world bounds of the box \`b\`. */
+fn sweptWith(swept:SweptBounds,b:InstanceBox)->SweptBounds{
+ if(!b.has){return swept;}
+ let reach=abs(b.ax)+abs(b.ay)+abs(b.az);
+ var grown=SweptBounds(b.centre-reach,b.centre+reach,true);
+ if(swept.has){grown=SweptBounds(min(swept.lo,grown.lo),max(swept.hi,grown.hi),true);}
+ return grown;
+}
+/** Whether \`swept\` has grown past \`SWEPT_REACHES\` times the reach of the box \`b\` it grows by: a placement that crossed that much is staled in
+ *  pieces as it goes, not whole at the end. A box of no reach has no limit. */
+fn sweptTooWide(swept:SweptBounds,b:InstanceBox)->bool{
+ let reach=abs(b.ax)+abs(b.ay)+abs(b.az);
+ let own=max(reach.x,max(reach.y,reach.z));
+ let size=swept.hi-swept.lo;
+ return swept.has&&own>0.0&&max(size.x,max(size.y,size.z))>SWEPT_REACHES*own;
+}
+/** Whether \`swept\` reaches past the box \`b\` (a sweep of that box alone, which a record of \`b\` already names, is not named again). */
+fn sweptBeyond(swept:SweptBounds,b:InstanceBox)->bool{
+ let own=sweptWith(SweptBounds(vec3f(0.0),vec3f(0.0),false),b);
+ return swept.has&&(!own.has||any(swept.lo<own.lo)||any(swept.hi>own.hi));
+}
+/** The box holding \`swept\`, widened as a placement's box is, so that no rounding leaves a page out. */
+fn sweptBox(swept:SweptBounds)->InstanceBox{
+ let centre=(swept.lo+swept.hi)*0.5;
+ let half=(swept.hi-swept.lo)*0.5;
+ let pad=max(max(abs(centre.x),abs(centre.y)),abs(centre.z))*BOX_SLACK;
+ let h=half*(1.0+BOX_SLACK)+vec3f(pad);
+ return InstanceBox(centre,vec3f(h.x,0.0,0.0),vec3f(0.0,h.y,0.0),vec3f(0.0,0.0,h.z),true);
+}
 fn sameBox(a:InstanceBox,b:InstanceBox)->bool{
  return all(a.centre==b.centre)&&all(a.ax==b.ax)&&all(a.ay==b.ay)&&all(a.az==b.az);
 }
@@ -200,35 +247,73 @@ fn worldDigest(r:u32)->vec2u{
  let wasWord=castState[at+3u];
  let wasBox=storedBox(at,wasBoxed);
  let digest=worldDigest(r);
+ // The layer a box was and is cached in: the dynamic one for a placement that moves or deforms.
+ let dynamicNow=cachedDynamic(roots.word);
+ let dynamicWas=cachedDynamic(wasWord);
+ // Every place the placement was cached as dynamic in, since it last was cached as static (an arrival
+ // is another primitive, it has none): worked out only for a placement that is dynamic now or holds a swept box.
+ var sweptWas=SweptBounds(vec3f(0.0),vec3f(0.0),false);
+ var swept=sweptWas;
+ // The sweep of the primitive an arrival replaced is another's: it is staled once, not carried (\`replaced\`).
+ var replaced=sweptWas;
+ if(dynamicNow||(was&CAST_SWEPT)!=0u){
+  let stored=SweptBounds(storedVec(at,CAST_SWEPT_MIN),storedVec(at,CAST_SWEPT_MAX),(was&CAST_SWEPT)!=0u);
+  let arrival=arrivedSince(r);
+  if(arrival){replaced=stored;}else{sweptWas=stored;}
+  swept=sweptWith(sweptWas,cur);
+ }
  let worldMoved=seen&&any(digest!=vec2u(castState[at+8u],castState[at+9u]));
  // Remembered as it stands now, whatever follows.
  storeBox(at,cur);
  castState[at+3u]=roots.word;
- castState[at+7u]=CAST_SEEN|select(0u,CAST_BOXED,cur.has);
+ // A sweep grown too wide is staled now and restarted from where the placement stands.
+ let flush=dynamicNow&&sweptTooWide(swept,cur);
+ var kept=swept;
+ if(flush){kept=sweptWith(SweptBounds(vec3f(0.0),vec3f(0.0),false),cur);}
+ let keepsSwept=dynamicNow&&kept.has;
+ castState[at+7u]=CAST_SEEN|select(0u,CAST_BOXED,cur.has)|select(0u,CAST_SWEPT,keepsSwept);
+ if(keepsSwept){
+  for(var a=0u;a<3u;a++){
+   castState[at+CAST_SWEPT_MIN+a]=bitcast<u32>(kept.lo[a]);
+   castState[at+CAST_SWEPT_MAX+a]=bitcast<u32>(kept.hi[a]);
+  }
+ }
  castState[at+8u]=digest.x;castState[at+9u]=digest.y;
  if(diff.quiet!=0u){return;}
+ // The places the replaced primitive passed hold its shadow in the static layer.
+ if(replaced.has){emitBox(sweptBox(replaced),false,ALL_VIEWS,wasWord,roots.disableSq);}
  let castsNow=cur.has&&(roots.word&MOBILITY_SHADOWLESS)==0u;
  let castsWas=seen&&wasBoxed&&(wasWord&MOBILITY_SHADOWLESS)==0u;
  let movingNow=(roots.word&MOBILITY_MOVING)!=0u;
  let movingWas=(wasWord&MOBILITY_MOVING)!=0u;
- // The layer a box was and is cached in: the dynamic one for a placement that moves or deforms.
- let dynamicNow=cachedDynamic(roots.word);
- let dynamicWas=cachedDynamic(wasWord);
  // A placement that left casts nothing from now on, and its pages hold it where it was.
- if(castsWas&&!castsNow){emitBox(wasBox,dynamicWas,ALL_VIEWS,wasWord,roots.disableSq);return;}
+ if(castsWas&&!castsNow){
+  emitBox(wasBox,dynamicWas,ALL_VIEWS,wasWord,roots.disableSq);
+  // The places it passed as a mover hold it too.
+  if(sweptWas.has){emitBox(sweptBox(swept),false,ALL_VIEWS,wasWord,roots.disableSq);}
+  return;
+ }
  if(!castsNow){return;}
+ if(flush){emitBox(sweptBox(swept),false,ALL_VIEWS,roots.word,roots.disableSq);}
  if(!castsWas){emitBox(cur,dynamicNow,ALL_VIEWS,roots.word,roots.disableSq);return;}
  let pinned=(roots.word&MOBILITY_CACHE_STATIC)!=0u;
  // An arrival that was seen casting left and entered: both of its boxes are stale, a pinned placement's included.
  let moved=arrivedSince(r)||(!pinned&&(worldMoved||!sameBox(cur,wasBox)));
+ // It is cached as static again: the static layer must draw it, and the coarse pages, which a mover's
+ // box leaves their dynamic layer, hold it at the places it passed: every page over them is staled whole.
+ let settles=sweptWas.has&&!dynamicNow;
+ var staleSwept=false;
  if(moved){
   emitBox(wasBox,dynamicWas,ALL_VIEWS,wasWord,roots.disableSq);
   emitBox(cur,dynamicNow,ALL_VIEWS,roots.word,roots.disableSq);
- }else if(movingNow!=movingWas||((roots.word^wasWord)&MOBILITY_CAST_BITS)!=0u){
-  // Where it stands: a cache state turned (it began to move, or settled and the static layer must
-  // draw it), or its casting flags changed.
+  staleSwept=settles;
+ }else if(dynamicNow!=dynamicWas||movingNow!=movingWas||((roots.word^wasWord)&MOBILITY_CAST_BITS)!=0u){
+  // Where it stands: a cache state turned (it began to move or to deform, or settled and the static layer must
+  // draw it, where it stood as well as where it stands), or its casting flags changed.
+  staleSwept=settles;
   emitBox(cur,dynamicNow&&dynamicWas,ALL_VIEWS,roots.word,roots.disableSq);
  }
+ if(staleSwept&&sweptBeyond(swept,cur)){emitBox(sweptBox(swept),false,ALL_VIEWS,roots.word,roots.disableSq);}
 }
 /** The instances' cache state per view, one thread a placement (the reference's per-view bit arrays,
  *  one word a placement: bits 0..15 the views it was cached as dynamic in, bits 16..31 the views

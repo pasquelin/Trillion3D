@@ -28,14 +28,24 @@ export const SDK_URL = pathToFileURL(
  *  made: `flush` draws barrier images (`settlePose`) that are drawn for the pending work, which
  *  keep the reflections' two consecutive lit images (`RadianceSettle`) from ever being verified. */
 export async function settle(world: MeasuredWorld, pose?: CameraPose) {
-  for (let i = 0; i < SETTLE_FRAMES;) {
+  return settleBy(world.gpuDevice, () => world.render(pose))
+}
+
+/** `settle` for a world that draws by its own `render` (`createWorld`): `draw` makes one frame and answers its metrics, `device` is the one whose compiles are waited for, `holds` the frames held in a row the image waits for. */
+export async function settleBy<M extends { frameHeld?: boolean | null }>(
+  device: GPUDevice | undefined,
+  draw: () => M | null,
+  holds = 1,
+): Promise<M | null> {
+  for (let i = 0, held = 0; i < SETTLE_FRAMES;) {
     await animationFrame()
-    const metrics = world.render(pose)
-    // The engine's own metrics object, rewritten by every frame: copied while it is this one's.
-    if (metrics.frameHeld) return { ...metrics }
+    const metrics = draw()
+    // The engine's own metrics object, rewritten by every frame: copied while it is this one's. `holds` frames held in a row end the wait.
+    held = metrics?.frameHeld ? held + 1 : 0
+    if (metrics && held >= holds) return { ...metrics }
     // A frame drawn while the preparation still compiles pipelines is no frame of the budget:
     // the budget counts the frames of the prepared engine.
-    const compiling = pipelinesSettled(world.gpuDevice)
+    const compiling = pipelinesSettled(device)
     if (compiling) await compiling
     else i++
   }

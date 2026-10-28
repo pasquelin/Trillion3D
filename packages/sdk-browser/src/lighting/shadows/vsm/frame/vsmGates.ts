@@ -5,7 +5,8 @@ import { wantsContractLighting } from '../../../../frame/prepare/lit.ts'
 /** Whether any light takes a shadow: the one gate of every light, the sun's included
  *  (`shadowQuality` above 0). Off, the frame plans no map and the lit programs drop their shadow
  *  code (`planVsmFrame`, `directLightResources`). */
-export const shadowsOn = (rt: WebgpuPagesRuntime) => readShadowSetting(rt, 'shadowQuality') > 0
+export const shadowsOn = (rt: Pick<WebgpuPagesRuntime, 'context'>) =>
+  readShadowSetting(rt, 'shadowQuality') > 0
 
 /** Whether the project traces the translucent surfaces' shadow (`shadowTranslucentQuality` above 0). */
 export const tracesTranslucent = (rt: WebgpuPagesRuntime) => rt.setup.translucentShadow.quality > 0

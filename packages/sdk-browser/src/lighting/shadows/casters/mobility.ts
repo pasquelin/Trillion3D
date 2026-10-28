@@ -49,6 +49,11 @@ export function createShadowMobility() {
       s.moving[rank] === 1 || (s.words[rank] & MOBILITY_DEFORMS) !== 0,
     poseOf: (rank: number) =>
       rank >= 0 && rank < s.moving.length ? s.poses.subarray(rank * 16, rank * 16 + 16) : undefined,
+    /** Whether a placement still moves in the cache's eyes, to turn static after the frames without a move (`settle`): the images drawn count
+     *  that age, so a view held before it ends would keep the caster cached as dynamic for good. */
+    get settling() {
+      return s.movingList.length > 0
+    },
     get words() {
       return s.words
     },
