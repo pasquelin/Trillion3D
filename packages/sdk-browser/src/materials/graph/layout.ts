@@ -10,11 +10,14 @@ export interface VectorSlot {
   readonly initial: readonly number[]
 }
 
-/** A texture held in a word of the values, by the texture itself or, for a parameter, by its name. */
+/** A texture held in a word of the values, by the texture itself or, for a parameter, by its name;
+ *  or a sparse volume texture, by the scene node (`source`) that cites its volume: the word holds
+ *  that node, which the host's volume table names (`Slots.sparseVolume`). */
 export interface TextureSlot {
   readonly key: string
   readonly name?: string
-  readonly texture: Texture
+  readonly texture?: Texture
+  readonly source?: number
 }
 
 /** The bytes of a four-component slot. */
@@ -22,7 +25,7 @@ const SLOT_BYTES = 16
 
 /**
  * THE VALUES A COMPILED GRAPH READS, laid out: the vector slots first (a scalar or vector parameter
- * each, one slot a name), then the texture words (the slot of each texture in the colour atlas).
+ * each, one slot a name), then the texture words (the slot of each texture in the colour atlas, the scene node of each sparse volume).
  * A parameter name used by two nodes is one slot; used as a scalar and as a vector it is refused.
  */
 export class Slots {
@@ -44,12 +47,33 @@ export class Slots {
     return at < 0 ? this.textures.push({ key, name, texture }) - 1 : at
   }
 
+  /** The index of the word of the sparse volume of `key`, added the first time it is asked. */
+  sparseVolume(key: string, source: number, name?: string) {
+    const at = this.textures.findIndex((slot) => slot.key === key)
+    return at < 0 ? this.textures.push({ key, name, source }) - 1 : at
+  }
+
+  /** The node a sparse volume slot names now: the one written by its parameter's name, else its own. */
+  private sourceOf(slot: TextureSlot, graph: MaterialGraph) {
+    const override = slot.name === undefined ? undefined : graph.values.get(slot.name)
+    return typeof override === 'number' ? override : slot.source!
+  }
+
+  /** The scene node each sparse volume slot reads now, in the order of the slots. */
+  sparseNodes(graph: MaterialGraph) {
+    return this.textures
+      .filter((slot) => slot.source !== undefined)
+      .map((slot) => this.sourceOf(slot, graph))
+  }
+
   /** The texture each slot reads now: the one written by its parameter's name, else its own. */
   current(graph: MaterialGraph) {
-    return this.textures.map((slot) => {
-      const override = slot.name === undefined ? undefined : graph.values.get(slot.name)
-      return (override as Texture | undefined)?.isTexture ? (override as Texture) : slot.texture
-    })
+    return this.textures
+      .filter((slot) => slot.source === undefined)
+      .map((slot) => {
+        const override = slot.name === undefined ? undefined : graph.values.get(slot.name)
+        return (override as Texture | undefined)?.isTexture ? (override as Texture) : slot.texture!
+      })
   }
 
   /** The words of texture slots, rounded up to whole four-word slots. */
@@ -84,8 +108,14 @@ export class Slots {
       if (value.length === 3 && !slot.scalar) floats[i * 4 + 3] = 1
     })
     const first = Math.max(this.vectors.length, 1) * 4
-    for (const [i, texture] of this.current(graph).entries()) {
-      const place = slotOf(texture)
+    const textures = this.current(graph)
+    let next = 0
+    for (const [i, slot] of this.textures.entries()) {
+      if (slot.source !== undefined) {
+        words[first + i] = this.sourceOf(slot, graph)
+        continue
+      }
+      const place = slotOf(textures[next++])
       if (place === undefined) return false
       words[first + i] = place
     }

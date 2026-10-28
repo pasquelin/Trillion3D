@@ -41,6 +41,7 @@ test('a batch job names the fields of one compile job, as the single job names t
     | 'objectSettings'
     | 'lightmapBake'
     | 'hairEndingPoint'
+    | 'hairGroups'
   type SameKeys<A, B> = [A] extends [B] ? ([B] extends [A] ? true : false) : false
   const same: SameKeys<Exclude<keyof BatchJob, 'id' | ConfigField>, JobField> = true
   assert.equal(same, true)

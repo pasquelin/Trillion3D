@@ -6,8 +6,8 @@ import { NEIGHBOURS, type State } from './state.ts'
 import { coerce, constantOf, type Value } from './value.ts'
 
 /** The code that reads the colour atlas slot held in the texture word `at` of the values. */
-const slotWord = (at: number): Value => ({
-  type: 'texture',
+export const slotWord = (at: number, type: 'texture' | 'sparseVolume' = 'texture'): Value => ({
+  type,
   code: `g.t[${at >> 2}].${'xyzw'[at & 3]}`,
 })
 
@@ -47,14 +47,19 @@ const levelOf = (s: State, n: GraphNode) =>
  *  of another is read at one of those points takes the footprint it took at the centre, which that
  *  read was made first (its coordinate is read before its footprint): the quad's one derivative,
  *  never one of a neighbour's neighbours. */
-function footprint(s: State, n: GraphNode, uv: Value): [string, string] {
+export function footprint(
+  s: State,
+  n: GraphNode,
+  uv: Value,
+  read: (state: State, node: GraphNode) => Value = coordinateOf,
+): [string, string] {
   if (s.derivatives === 'screen') return [`dpdx(${uv.code})`, `dpdy(${uv.code})`]
   if (s.centre) {
     const held = s.footprints.get(n.id)
     if (!held) throw graphError('a texture read beside the centre has no footprint', { node: n.id })
     return [...held]
   }
-  const [right, below] = NEIGHBOURS.map((context) => coordinateOf(s.at(context), n))
+  const [right, below] = NEIGHBOURS.map((context) => read(s.at(context), n))
   const found: [string, string] = [`(${right.code}-${uv.code})`, `(${below.code}-${uv.code})`]
   s.footprints.set(n.id, found)
   return found

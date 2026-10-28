@@ -53,8 +53,11 @@ export const PLACEMENT_EVALUATE = 1,
 /** The object's lighting channels, three bits above the contact shadow's, stored (`storedChannelsOf`: zero is
  *  the default): its pages carry them in `PageInfo.marks`, the lights' per-pixel test reads them. */
 export const PLACEMENT_CHANNELS_SHIFT = Math.log2(PLACEMENT_NO_CONTACT_SHADOW) + 1
-/** The HLOD index the placement draws as, from the bit above the channels. */
-export const PLACEMENT_HLOD_SHIFT = PLACEMENT_CHANNELS_SHIFT + LIGHTING_CHANNEL_COUNT
+/** The object casts an indirect capsule shadow (`Object3D.castCapsuleIndirectShadow`): its pages carry the bit in `PageInfo.marks`, above the channels. */
+export const PLACEMENT_CAPSULE_INDIRECT_CASTER =
+  1 << (PLACEMENT_CHANNELS_SHIFT + LIGHTING_CHANNEL_COUNT)
+/** The HLOD index the placement draws as, from the bit above the capsule caster's. */
+export const PLACEMENT_HLOD_SHIFT = PLACEMENT_CHANNELS_SHIFT + LIGHTING_CHANNEL_COUNT + 1
 /** The bits of the placement's switches the lighting channels take. */
 export const PLACEMENT_CHANNELS_MASK = ALL_LIGHTING_CHANNELS_MASK << PLACEMENT_CHANNELS_SHIFT
 /** The lighting channels an object's bits hold, stored (`PLACEMENT_CHANNELS_MASK`; zero is the default). */
@@ -65,7 +68,10 @@ export const placementChannelsOf = (objectBits: number) =>
   storedLightingChannels(placementStoredChannelsOf(objectBits))
 /** The switches a placement's pages carry in `PageInfo.marks`, copied as they are. */
 export const PLACEMENT_PAGE_MARKS =
-  PLACEMENT_FIRST_PERSON | PLACEMENT_NO_CONTACT_SHADOW | PLACEMENT_CHANNELS_MASK
+  PLACEMENT_FIRST_PERSON |
+  PLACEMENT_NO_CONTACT_SHADOW |
+  PLACEMENT_CHANNELS_MASK |
+  PLACEMENT_CAPSULE_INDIRECT_CASTER
 /**
  * THE BITS OF AN OBJECT, one word a root (`RootOffsetRow.bits`, `objectBits`): what its node says that a placement, a page, a
  * blend item reads, in the placement's own bits, under the HLOD index (first person, holdout, no contact shadow, the channels).

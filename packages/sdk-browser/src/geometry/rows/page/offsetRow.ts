@@ -3,6 +3,7 @@ import {
   PLACEMENT_CHANNELS_SHIFT,
   PLACEMENT_FIRST_PERSON,
   PLACEMENT_HOLDOUT,
+  PLACEMENT_CAPSULE_INDIRECT_CASTER,
   PLACEMENT_NO_CONTACT_SHADOW,
 } from '../../dag/info/placementInfoLayout.ts'
 import { storedChannelsOf } from '../../../../../sdk-core/src/contracts/lightingChannelsAbi.ts'
@@ -57,6 +58,7 @@ export const objectBits = (s: ReturnType<typeof switchesOfObject>) =>
   (s.firstPerson ? PLACEMENT_FIRST_PERSON : 0) |
   (s.holdout ? PLACEMENT_HOLDOUT : 0) |
   (s.castContactShadow ? 0 : PLACEMENT_NO_CONTACT_SHADOW) |
+  (s.castCapsuleIndirectShadow ? PLACEMENT_CAPSULE_INDIRECT_CASTER : 0) |
   (storedChannelsOf(s.lightingChannels) << PLACEMENT_CHANNELS_SHIFT) |
   (s.ownerNoSee ? OBJECT_OWNER_NO_SEE : 0) |
   (s.onlyOwnerSee ? OBJECT_ONLY_OWNER_SEE : 0)

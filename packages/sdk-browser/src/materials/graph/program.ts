@@ -86,7 +86,8 @@ export function compileOutput(c: Compilation, name: GraphOutput): CompiledOutput
   const state = new State({ ...c, output: name, translate: translateNode })
   const spec = GRAPH_OUTPUTS[name]
   const value = forceCast(state.value(pin), spec.type)
-  if (value.type === 'texture') throw graphError(`a texture cannot be wired to ${name}`)
+  if (value.type === 'texture' || value.type === 'sparseVolume')
+    throw graphError(`a texture cannot be wired to ${name}`)
   const body = [...state.e.lines, `return ${value.code};`].join('\n ')
   return { name, body, uses: state.uses, samples: state.samples }
 }

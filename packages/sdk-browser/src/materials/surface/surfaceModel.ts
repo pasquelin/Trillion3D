@@ -61,6 +61,10 @@ export const noContactShadow = wgslFn(
   [],
   `fn noContactShadow(flags:u32)->bool{return (flags&${NO_CONTACT_SHADOW_SURFACE_FLAG}u)!=0u;}`,
 )
+/** The surface flags' twenty-first bit marks a pixel of an object that casts an indirect capsule shadow (`Object3D.castCapsuleIndirectShadow`): its own surface keeps
+ *  less of that shadow (`capsuleIndirectSelfShadowingIntensity`). Written by the opaque resolve beside the other marks, read by the capsule shadows
+ *  (`capsuleCastsIndirect`); above the lighting channels' three bits. */
+export const CAPSULE_CASTER_SURFACE_FLAG = 1 << 20
 /** The surface flags' thirtieth bit marks a pixel of a held-out primitive (`PLACEMENT_HOLDOUT`,
  *  `FLAG_HOLDOUT`) the resolve drew black, lit by nothing, where the alpha holdout is in effect: the colour pass gives
  *  it an alpha of 1, a hole in the image's. Beside the unlit model, above the pixel model's four bits. */

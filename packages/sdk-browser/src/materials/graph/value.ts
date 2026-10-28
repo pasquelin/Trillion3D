@@ -18,7 +18,11 @@ export interface Value {
 
 /** The WGSL type of a value of `type`. */
 export const wgslType = (type: ValueType) =>
-  type === 'texture' ? 'u32' : widthOf(type) === 1 ? 'f32' : `vec${widthOf(type)}f`
+  type === 'texture' || type === 'sparseVolume'
+    ? 'u32'
+    : widthOf(type) === 1
+      ? 'f32'
+      : `vec${widthOf(type)}f`
 
 /** The WGSL literal of `numbers` as a value of `type`. */
 const literal = (type: ValueType, numbers: readonly number[]) =>

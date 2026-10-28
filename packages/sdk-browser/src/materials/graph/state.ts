@@ -30,6 +30,8 @@ export interface Uses {
   colour: boolean
   noise: boolean
   textures: boolean
+  /** Whether a sparse volume texture is read, which the host binds the volumes of. */
+  sparseVolumes: boolean
   sets: number
 }
 
@@ -59,6 +61,7 @@ export const noUses = (): Uses => ({
   colour: false,
   noise: false,
   textures: false,
+  sparseVolumes: false,
   sets: 0,
 })
 
@@ -70,6 +73,7 @@ export function mergeUses(into: Uses, from: Uses) {
   into.colour ||= from.colour
   into.noise ||= from.noise
   into.textures ||= from.textures
+  into.sparseVolumes ||= from.sparseVolumes
   into.sets |= from.sets
 }
 
