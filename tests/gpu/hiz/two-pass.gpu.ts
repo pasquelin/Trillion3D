@@ -20,9 +20,13 @@ test('the previous pyramid holds back, the post pass hides, and the still view h
   console.log(JSON.stringify({ adapter: reading.adapter, steps: reading.steps }))
   assertSoundProof(reading)
   const [beside, hidden, again] = reading.steps
-  for (const { x, images, gap } of reading.steps) {
+  for (const { x, images, gap, where, maxChannelError } of reading.steps) {
     assert.ok(images !== null, `at x=${x}, the still view was never held`)
-    assert.equal(gap, 0, `at x=${x}, the held image differs from a fresh engine's on ${gap} pixels`)
+    assert.equal(
+      gap,
+      0,
+      `at x=${x}, the held image differs from a fresh engine's on ${gap} pixels, by ${maxChannelError} at most: ${where.join('; ')}`,
+    )
   }
   assert.ok(beside.slab > 0, 'beside the wall, the slab is seen')
   assert.equal(hidden.slab, 0, 'behind the wall, the slab is hidden')

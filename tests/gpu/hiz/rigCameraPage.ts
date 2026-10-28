@@ -39,11 +39,13 @@ async function freshPose(
   }
 }
 
-/** One rig pose: the cut, the draw calls each frame encoded, whether the still frame was held, the
+/** One rig pose: the clusters the moved and the still image drew, the draw calls each frame encoded, whether the still frame was held, the
  *  slab's pixels, and the bytes each frame differs from the witness on. */
 interface RigStep {
   x: number
   clusters: number | null | undefined
+  /** The clusters the still image after it drew: the same pose, the pyramid of the moved image. */
+  clustersStill: number | null | undefined
   drawsMoved: number | null
   drawsStill: number | null
   stillHeld: boolean | null | undefined
@@ -60,6 +62,11 @@ export function runRigCamera() {
   return onOccluderScene<RigStep>(
     { stageProfile: true },
     async (backend, device, onDiagnostic, steps) => {
+      // A view's first image is a cut in ONE pass — it has no previous pyramid to test against — and
+      // draws everything in the main pass (`visibility/passes/passes.ts`, `frame/render/cutPyramid.ts`):
+      // fewer draw calls than every image after it. One image at the first pose, the rig not moved,
+      // gives the view its pyramid, so that every pose below counts the same two-pass draws.
+      await image(backend, camera)
       for (const x of POSES) {
         // The host writes the rig and nothing else: neither `updateMatrixWorld` nor the camera.
         rig.position.x = x
@@ -71,6 +78,7 @@ export function runRigCamera() {
         steps.push({
           x,
           clusters: moved.metrics.clusters,
+          clustersStill: still.metrics.clusters,
           drawsMoved,
           drawsStill: draws(backend),
           stillHeld: still.metrics.frameHeld,

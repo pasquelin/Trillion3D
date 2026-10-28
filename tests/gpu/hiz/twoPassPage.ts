@@ -50,6 +50,18 @@ async function freshPose(
   }
 }
 
+/** The pixels `held` and `witness` differ on, their count, the first of them (by index in the image, with
+ *  both colours) and the largest channel error. */
+function gapOf(held: ArrayLike<number>, witness: ArrayLike<number>) {
+  const { differentPixels: gap, maxChannelError } = compareImages(held, witness)
+  const where: string[] = []
+  for (let i = 0; i < held.length && where.length < 6; i += 4) {
+    const rgb = (image: ArrayLike<number>) => [image[i], image[i + 1], image[i + 2]].join(',')
+    if (rgb(held) !== rgb(witness)) where.push(`pixel ${i / 4} ${rgb(held)} / ${rgb(witness)}`)
+  }
+  return { gap, where, maxChannelError }
+}
+
 /** One pose: whether and when it held, what the main pass held and the post pass hid, the slab's
  *  pixels, and the pixels the held image differs from the witness on. */
 interface TwoPassStep {
@@ -59,6 +71,11 @@ interface TwoPassStep {
   postHidden: number
   slab: number
   gap: number
+  /** Where the held image and the witness differ: up to six pixels, each as `pixel held / witness`, and the
+   *  largest channel error: a history that has not converged differs by a level or two on an edge, a
+   *  cut that differs by a whole colour. */
+  where: string[]
+  maxChannelError: number
 }
 
 export function runTwoPass() {
@@ -73,7 +90,7 @@ export function runTwoPass() {
         occluded: held.occluded,
         postHidden: held.postHidden,
         slab: slabPixels(held.pixels),
-        gap: compareImages(held.pixels, witness).differentPixels,
+        ...gapOf(held.pixels, witness),
       })
     }
   })

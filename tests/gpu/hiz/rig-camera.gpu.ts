@@ -21,8 +21,26 @@ test('under a moved rig, the Hi-Z test reads the new view’s rectangles', async
   assertSoundProof(reading)
   const { steps } = reading
   assert.ok(steps.length >= 4, 'several rig poses')
-  for (const { x, clusters, drawsMoved, drawsStill, stillHeld, gapMoved, gapStill } of steps) {
-    assert.equal(clusters, steps[0].clusters, `at ${x}, the cut changed: the proof needs the same`)
+  for (const {
+    x,
+    clusters,
+    clustersStill,
+    drawsMoved,
+    drawsStill,
+    stillHeld,
+    gapMoved,
+    gapStill,
+  } of steps) {
+    // The clusters drawn are the cut's AFTER the occlusion (`FrameMetrics.clusters`): a slab behind the
+    // wall is held back and hidden for good, so the count follows the pose by design — the proof below
+    // needs the slab to flip. What the pose alone decides is the same for the moved image, whose
+    // previous pyramid is another pose's, and the still image, whose pyramid is its own: the post
+    // pass corrects the first by the second.
+    assert.equal(
+      clusters,
+      clustersStill,
+      `at ${x}, the moved image drew another cut than the still one`,
+    )
     assert.equal(gapMoved, 0, `at ${x}, the moved image differs from the witness: old rectangles`)
     // A held frame encodes and counts nothing: it would bypass the rig resolution, not prove it.
     assert.ok((drawsMoved ?? 0) > 0 && drawsStill === drawsMoved, `at ${x}, the draws differ`)
