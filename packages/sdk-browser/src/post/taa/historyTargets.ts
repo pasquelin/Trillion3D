@@ -1,4 +1,4 @@
-import { storedTargetUsage } from './resolve.ts'
+import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { keptTexture } from './keptTexture.ts'
 import { slotsOf } from './historyFrames.ts'
@@ -36,7 +36,7 @@ export const taaTargetBytes = (
 /** The frames of a history of `shape` and the half-size image of the display's, their textures kept
  *  in `textures`. */
 function makeHistoryFrames(device: GPUDevice, textures: GPUTexture[], shape: HistoryShape) {
-  const usage = storedTargetUsage()
+  const usage = loadOnlyUsage()
   const target = (label: string, format: GPUTextureFormat, width: number, height: number) => {
     return keptTexture(device, textures, {
       label,

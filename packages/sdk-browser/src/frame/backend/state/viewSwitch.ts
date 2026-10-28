@@ -64,6 +64,29 @@ export function onView<T, A = undefined>(
   }
 }
 
+/** The passes every view makes its image with, released: the temporal pass, the velocity stage,
+ *  the exposure, the finishing, the effects, the screen probes, the ambient occlusion, the
+ *  subsurface scattering, and the view's fog, translucency, light shafts, clouds and hair. */
+export function disposeViewPasses(gpu: WebgpuView['gpu']) {
+  gpu.temporal?.dispose()
+  gpu.velocity?.dispose()
+  gpu.exposure?.dispose()
+  gpu.finish?.dispose()
+  gpu.effects?.dispose()
+  gpu.screenProbes?.dispose()
+  gpu.ambientOcclusion?.dispose()
+  gpu.subsurface?.dispose()
+  gpu.temporal = gpu.velocity = gpu.exposure = undefined
+  gpu.finish = gpu.effects = gpu.screenProbes = gpu.ambientOcclusion = gpu.subsurface = undefined
+  disposeFogVolume(gpu)
+  disposeTranslucencyVolume(gpu)
+  disposeTranslucencyGi(gpu)
+  disposeLocalFog(gpu)
+  disposeLightShafts(gpu)
+  disposeCloudView(gpu)
+  disposeHairView(gpu)
+}
+
 /** Releases the targets of `view`, which is not the main one, its own pyramid, history, effect
  *  chain, cut, timer and canvas, and takes its cut out of what the residency holds; the view drawn
  *  before is drawn again — the main one when it was `view` —, so a capture under way keeps its
@@ -75,26 +98,7 @@ export function releaseWebgpuView(rt: WebgpuPagesRuntime, view: WebgpuView) {
   useWebgpuView(rt, back)
   view.hiz?.destroy()
   view.hiz = undefined
-  view.gpu.temporal?.dispose()
-  view.gpu.velocity?.dispose()
-  view.gpu.exposure?.dispose()
-  view.gpu.finish?.dispose()
-  view.gpu.effects?.dispose()
-  view.gpu.screenProbes?.dispose()
-  view.gpu.screenProbes = undefined
-  view.gpu.ambientOcclusion?.dispose()
-  view.gpu.ambientOcclusion = undefined
-  view.gpu.subsurface?.dispose()
-  view.gpu.subsurface = undefined
-  disposeFogVolume(view.gpu)
-  disposeTranslucencyVolume(view.gpu)
-  disposeTranslucencyGi(view.gpu)
-  disposeLocalFog(view.gpu)
-  disposeLightShafts(view.gpu)
-  disposeCloudView(view.gpu)
-  disposeHairView(view.gpu)
-  view.gpu.temporal = view.gpu.velocity = view.gpu.exposure = undefined
-  view.gpu.finish = view.gpu.effects = undefined
+  disposeViewPasses(view.gpu)
   // A canvas of its own is withdrawn; the main view's, which a view placed on it presents into,
   // stays.
   if (view.gpu.presenter !== viewGpu(rt, rt.views.main).presenter) view.gpu.presenter?.dispose()

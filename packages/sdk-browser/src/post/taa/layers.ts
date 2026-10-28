@@ -96,7 +96,7 @@ export const layerEntries = (filtered: boolean): GPUBindGroupLayoutEntry[] =>
  * The layers' two history pairs, in ping-pong with the colour's: made by the first image that
  * resolves them, dropped with the display filter (`../../frame/render/encodeDisplayFilter.ts`)
  * or the colour's targets, so a scene without a filtering blend keeps no byte of them. An image
- * that resolves none keeps them for the next. `usage` is theirs (`storedTargetUsage`).
+ * that resolves none keeps them for the next. `usage` is theirs (`loadOnlyUsage`).
  */
 export function createTaaFilterHistory(device: GPUDevice, usage: GPUTextureUsageFlags) {
   const textures: GPUTexture[] = [],
