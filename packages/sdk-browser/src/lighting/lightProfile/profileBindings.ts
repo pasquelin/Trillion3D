@@ -1,6 +1,11 @@
 import { computeSamplerEntry, computeTextureEntry } from '../../gpu/core/computeBindings.ts'
-import type { LightProfileAtlas } from './profileAtlas.ts'
 import type { LightProfileBindings } from './lightProfileWgsl.ts'
+
+/** What a program that reads the light profiles binds: the atlas's view and its sampler. */
+export interface LightProfileResources {
+  readonly view: GPUTextureView
+  readonly sampler: GPUSampler
+}
 
 /**
  * The two layout entries a program reads the light profiles through (`lightProfileMultiplierWgsl`):
@@ -19,7 +24,7 @@ export const lightProfileLayoutEntries = (
 /** The two bind group entries that match `lightProfileLayoutEntries`: the atlas's view and sampler. */
 export const lightProfileBindEntries = (
   b: Pick<LightProfileBindings, 'atlas' | 'sampler'>,
-  atlas: Pick<LightProfileAtlas, 'view' | 'sampler'>,
+  atlas: LightProfileResources,
 ): GPUBindGroupEntry[] => [
   { binding: b.atlas, resource: atlas.view },
   { binding: b.sampler, resource: atlas.sampler },

@@ -15,12 +15,9 @@ export const LAMP_SEEN = (zeroTerm: string, bias: string) => `
  if(lamp.falloff<=0.0){return ${zeroTerm};}`
 
 /**
- * A light's irradiance, one rule for every kind: what it adds at the point — a punctual light's
- * cosine, a rectangle's form factor (\`rectIrradiance\`), its exact zero out of range —, times the
- * clouds' shade (a punctual light's), the light function (\`lightFunctionOf\`) and the light profile (\`lightProfileOf\`). The term leaves the shadow
- * out: the program that holds it traces its own. \`given\` false leaves the clouds' shade and the light function
- * out too: the term of a program that keeps them, with the shadow, in a mask of its own. \`profiled\` false leaves the profile
- * out of the \`given\` term (the key's \`profileless\`).
+ * A light's irradiance, one rule for every kind: what it adds at the point, times the clouds' shade (a punctual light's), the light function
+ * and the light profile, and not its shadow. \`given\` false leaves the shade, the function and the profile out, for a program that keeps them,
+ * with the shadow, in a mask of its own; \`profiled\` false leaves the profile out of the \`given\` term (the key's \`profileless\`).
  */
 export const irradianceTerm = (rectless = false, given = true, profiled = true) => `
  var lit=vec3f(0.0);${

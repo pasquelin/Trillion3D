@@ -33,10 +33,7 @@ import {
   LIGHT_TILE_COUNTS_WGSL,
 } from '../../lighting/surfaceCache/lighting/lightTilesWgsl.ts'
 import { TILE_DEPTH_RANGE_WGSL } from '../../lighting/surfaceCache/lighting/tileDepthRangeWgsl.ts'
-import {
-  DIRECT_COLOURED_WGSL,
-  DIRECT_WGSL,
-} from '../../lighting/surfaceCache/lighting/directWgsl.ts'
+import { directProgramOf } from '../../lighting/surfaceCache/lighting/directWgsl.ts'
 import { lightFunctionPassWgsl } from '../../lighting/surfaceCache/lighting/lightFunctionPassWgsl.ts'
 import { RADIOSITY_BUILD_WGSL } from '../../lighting/surfaceCache/lighting/radiosityBuildWgsl.ts'
 import { RADIOSITY_FILTER_WGSL } from '../../lighting/surfaceCache/lighting/radiosityFilterWgsl.ts'
@@ -45,10 +42,7 @@ import {
   RADIOSITY_TRACE_WGSL,
   RADIOSITY_TRACED_WGSL,
 } from '../../lighting/surfaceCache/lighting/radiosityTraceWgsl.ts'
-import {
-  SHADOW_MASK_COLOURED_PROGRAM_WGSL,
-  SHADOW_MASK_PROGRAM_WGSL,
-} from '../../lighting/surfaceCache/lighting/shadowMaskWgsl.ts'
+import { shadowMaskProgramOf } from '../../lighting/surfaceCache/lighting/shadowMaskWgsl.ts'
 import {
   SHADOW_ARGS_WGSL,
   SHADOW_TRACE_COLOURED_WGSL,
@@ -78,12 +72,12 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   SURFACE_CACHE_FEEDBACK_COMPACTION_SHADER: FEEDBACK_COMPACTION_SHADER,
   SURFACE_CACHE_CONTEXT_WGSL: CONTEXT_WGSL,
   SURFACE_CACHE_SPLICE_WGSL: SPLICE_WGSL,
-  SURFACE_CACHE_DIRECT_WGSL: DIRECT_WGSL,
-  SURFACE_CACHE_DIRECT_COLOURED_WGSL: DIRECT_COLOURED_WGSL,
+  SURFACE_CACHE_DIRECT_WGSL: directProgramOf('grey'),
+  SURFACE_CACHE_DIRECT_COLOURED_WGSL: directProgramOf('colour'),
   SURFACE_CACHE_LIGHT_FUNCTION_PASS_WGSL: lightFunctionPassWgsl({ mapped: false }),
   SURFACE_CACHE_LIGHT_FUNCTION_PASS_MAPPED_WGSL: lightFunctionPassWgsl({ mapped: true }),
-  SURFACE_CACHE_SHADOW_MASK_WGSL: SHADOW_MASK_PROGRAM_WGSL,
-  SURFACE_CACHE_SHADOW_MASK_COLOURED_WGSL: SHADOW_MASK_COLOURED_PROGRAM_WGSL,
+  SURFACE_CACHE_SHADOW_MASK_WGSL: shadowMaskProgramOf('grey'),
+  SURFACE_CACHE_SHADOW_MASK_COLOURED_WGSL: shadowMaskProgramOf('colour'),
   SURFACE_CACHE_SHADOW_ARGS_WGSL: SHADOW_ARGS_WGSL,
   SURFACE_CACHE_SHADOW_TRACE_WGSL: SHADOW_TRACE_WGSL,
   SURFACE_CACHE_SHADOW_TRACE_COLOURED_WGSL: SHADOW_TRACE_COLOURED_WGSL,

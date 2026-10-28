@@ -36,11 +36,12 @@ import {
 import {
   DIRECT_BINDINGS,
   DIRECT_CLOUD_SHADOW,
-  DIRECT_COLOURED_WGSL,
   DIRECT_ENTRIES,
-  DIRECT_WGSL,
+  DIRECT_LIGHT_PROFILE,
+  directProgramOf,
 } from './directWgsl.ts'
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
+import { lightProfileLayoutEntries } from '../../lightProfile/profileBindings.ts'
 import { createKernel, type Kernel } from '../kernel.ts'
 import {
   RADIOSITY_BUILD_BINDINGS,
@@ -65,9 +66,9 @@ import {
 import {
   SHADOW_MASK_BINDINGS,
   SHADOW_MASK_CLOUD_SHADOW,
+  SHADOW_MASK_LIGHT_PROFILE,
   SHADOW_MASK_ENTRIES,
-  SHADOW_MASK_COLOURED_PROGRAM_WGSL,
-  SHADOW_MASK_PROGRAM_WGSL,
+  shadowMaskProgramOf,
 } from './shadowMaskWgsl.ts'
 import {
   SHADOW_ARGS_BINDINGS,
@@ -277,13 +278,13 @@ const staticKernels = oncePerDevice((device: GPUDevice) => {
 
 /** The direct light's program over masks in `format`, made once for the device. */
 const directKernelOf = {
-  grey: oncePerDevice((device: GPUDevice) => directKernel(device, DIRECT_WGSL)),
-  colour: oncePerDevice((device: GPUDevice) => directKernel(device, DIRECT_COLOURED_WGSL)),
+  grey: oncePerDevice((device: GPUDevice) => directKernel(device, 'grey')),
+  colour: oncePerDevice((device: GPUDevice) => directKernel(device, 'colour')),
 }
 
-function directKernel(device: GPUDevice, code: string) {
+function directKernel(device: GPUDevice, format: AtlasFormat) {
   const D = DIRECT_BINDINGS
-  return createKernel(device, 'direct light', code, DIRECT_ENTRIES, [
+  return createKernel(device, 'direct light', directProgramOf(format), DIRECT_ENTRIES, [
     computeBufferEntry(D.tables, ro),
     computeBufferEntry(D.context, ro),
     ...depthAndNormal(D.depth, D.normal),
@@ -296,6 +297,7 @@ function directKernel(device: GPUDevice, code: string) {
     computeBufferEntry(D.masks, ro),
     computeBufferEntry(D.factors, 'storage'),
     computeBufferEntry(D.cardTileOffsets, ro),
+    ...lightProfileLayoutEntries(DIRECT_LIGHT_PROFILE, COMPUTE),
   ])
 }
 
@@ -322,34 +324,41 @@ const shadowArgsKernel = oncePerDevice((device: GPUDevice) => {
   )
 })
 
-/** The masks and the trace over masks in the grey format, and in the colour one. */
-const MASK_PROGRAMS = {
-  grey: { mask: SHADOW_MASK_PROGRAM_WGSL, trace: SHADOW_TRACE_WGSL },
-  colour: { mask: SHADOW_MASK_COLOURED_PROGRAM_WGSL, trace: SHADOW_TRACE_COLOURED_WGSL },
-} as const satisfies Record<AtlasFormat, { mask: string; trace: string }>
+/** The trace over masks in the grey format, and in the colour one. */
+const TRACE_PROGRAMS = {
+  grey: SHADOW_TRACE_WGSL,
+  colour: SHADOW_TRACE_COLOURED_WGSL,
+} as const satisfies Record<AtlasFormat, string>
 
 function shadowKernels(device: GPUDevice, format: AtlasFormat) {
   const M = SHADOW_MASK_BINDINGS
   const T = SHADOW_TRACE_BINDINGS
-  const programs = MASK_PROGRAMS[format]
+  const trace = TRACE_PROGRAMS[format]
   return {
-    shadowMask: createKernel(device, 'shadow masks', programs.mask, SHADOW_MASK_ENTRIES, [
-      computeBufferEntry(M.tables, ro),
-      computeBufferEntry(M.counts, ro),
-      ...depthAndNormal(M.depth, M.normal),
-      computeBufferEntry(M.lightTiles, ro),
-      computeBufferEntry(M.masks, 'storage'),
-      computeBufferEntry(M.lights, ro),
-      lightFunctionLayoutEntry(M.lightFunction),
-      ...cloudShadowLayoutEntries(SHADOW_MASK_CLOUD_SHADOW, COMPUTE),
-      computeBufferEntry(M.factors, ro),
-      computeBufferEntry(M.traces, 'storage'),
-    ]),
+    shadowMask: createKernel(
+      device,
+      'shadow masks',
+      shadowMaskProgramOf(format),
+      SHADOW_MASK_ENTRIES,
+      [
+        computeBufferEntry(M.tables, ro),
+        computeBufferEntry(M.counts, ro),
+        ...depthAndNormal(M.depth, M.normal),
+        computeBufferEntry(M.lightTiles, ro),
+        computeBufferEntry(M.masks, 'storage'),
+        computeBufferEntry(M.lights, ro),
+        lightFunctionLayoutEntry(M.lightFunction),
+        ...cloudShadowLayoutEntries(SHADOW_MASK_CLOUD_SHADOW, COMPUTE),
+        computeBufferEntry(M.factors, ro),
+        computeBufferEntry(M.traces, 'storage'),
+        ...lightProfileLayoutEntries(SHADOW_MASK_LIGHT_PROFILE, COMPUTE),
+      ],
+    ),
     shadowArgs: shadowArgsKernel(device),
     shadowTrace: createKernel(
       device,
       'shadow trace',
-      programs.trace,
+      trace,
       [SHADOW_TRACE_ENTRY],
       [
         computeBufferEntry(T.tables, ro),
@@ -371,7 +380,7 @@ const tracedShadowKernelsOf = {
 }
 
 /**
- * The traced shadows' programs, made once for the device and the format of the masks when a scene has acceleration structures
+ * The traced shadows' programs, made once for the device and the format of the masks, when a scene has acceleration structures
  * and its shadows are traced: the masks, the arguments of the trace's dispatch, and the trace, whose second group is the
  * scene trace's (`sceneTraceLayoutEntries`), its first the cut's tables beside its own.
  */

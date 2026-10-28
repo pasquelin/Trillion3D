@@ -5,6 +5,7 @@ import type { SkyLightReadSet } from '../../modules/sky/skyLight/read.ts'
 import type { CloudShadowSet } from '../atmosphere/cloudShadowRead.ts'
 import type { ToneLut } from '../toneLut.ts'
 import type { VolumetricLightmapGpu } from '../volumetricLightmap/gpu.ts'
+import type { LightProfileResources } from '../lightProfile/profileBindings.ts'
 import type { DeferredPlaceholders } from './setup.ts'
 import type { PerLightLights } from '../shadows/vsm/projection/perLightPass.ts'
 
@@ -51,7 +52,7 @@ export interface DirectLightResources extends Partial<ContractKey> {
   lightFunction?: GPUTextureView
   /** The light profiles' atlas and its sampler this image (`../lightProfile/profileAtlas.ts`); absent, the stand-in that
    *  answers no profile. Bound only by a program that reads them (`ContractKey.profileless`). */
-  lightProfile?: { atlas: GPUTextureView; sampler: GPUSampler }
+  lightProfile?: LightProfileResources
   /** The ambient cubemap's cube, whole with its mips, and its colour (`ambientCubemapFrame.ts`); absent, the stand-in of a black cube.
    *  Bound only by a program that reads it (`ContractKey.cubeless`). */
   ambientCubemap?: { view: GPUTextureView; colour: GPUBuffer }

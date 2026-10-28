@@ -133,9 +133,11 @@ test('the multiplier is 1 for a light with no slice, and reads the atlas otherwi
   const read = wgslModule(lightProfileOfWgsl(b))
   assert.ok(
     read.includes(
-      `let lane=(kindWord(light)>>${LIGHT_PROFILE_SHIFT}u)&${2 ** LIGHT_PROFILE_BITS - 1}u;`,
+      `return (kindWord(light)>>${LIGHT_PROFILE_SHIFT}u)&${2 ** LIGHT_PROFILE_BITS - 1}u;`,
     ),
+    'the lane is the kind word shifted and masked',
   )
+  assert.ok(read.includes('let lane=lightProfileLane(light);'), 'the profile reads that one lane')
   assert.ok(read.includes('emitterAxisOf(light)'))
   assert.ok(read.includes('if(lane==0u){return 1.0;}'))
   assert.ok(read.includes('i32(lane)-1'))

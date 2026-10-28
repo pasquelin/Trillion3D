@@ -12,6 +12,7 @@ import {
   SHADOW_MASK_PROGRAM_WGSL,
 } from './shadowMaskWgsl.ts'
 import { DIRECT_COLOURED_WGSL, DIRECT_WGSL } from './directWgsl.ts'
+import { lightFunctionPassWgsl } from './lightFunctionPassWgsl.ts'
 
 test('the program assembles in both formats: every name declared once, none reserved, the braces paired', () => {
   for (const entry of SHADOW_MASK_ENTRIES) {
@@ -35,10 +36,14 @@ test('a texel that does not face the centre of a light that needs a mask is sett
     )
     assert.ok(gate < attenuation.indexOf(open), 'before the factor is opened')
     // The mask is a shadow's, a function's (the atlas's or apart from it) or the clouds' (one of the two lights the clouds' maps
-    // shade): no other light is gated.
+    // shade): no other light is gated, a profile among them (it is a factor of the mask, and of the direct term, never a gate).
     assert.match(
       mask,
       /return castsShadow\(light\)\|\|hasLightFunction\(light\)\|\|standalone\|\|clouded;/,
+    )
+    assert.doesNotMatch(
+      mask.slice(mask.indexOf('fn needsShadowMask('), mask.indexOf('fn facesLightCentre(')),
+      /rofile/,
     )
     assert.match(mask, /if\(!needsShadowMask\(rank,light,standalone\)\)\{return true;\}/)
   }
@@ -104,4 +109,38 @@ test('the direct light reads a texel’s factor as the format keeps it and multi
   // The mask multiplies the factor by the function's share of the format, then the clouds' shade, and settles it as before.
   for (const mask of [SHADOW_MASK_PROGRAM_WGSL, SHADOW_MASK_COLOURED_PROGRAM_WGSL])
     assert.match(mask, /ray\.factor\*=lightFunctionShade\(lightFunctionOf\(light,P\)\);/)
+})
+
+test('a light is multiplied by its profile once: by the mask on the traced path, by the light term on the cache’s own ray', () => {
+  for (const mask of [SHADOW_MASK_PROGRAM_WGSL, SHADOW_MASK_COLOURED_PROGRAM_WGSL]) {
+    const attenuation = mask.slice(mask.indexOf('fn lightAttenuation('))
+    const clouds = attenuation.indexOf('ray.factor*=cloudShadowOnSurface(rank,P);')
+    const profile = attenuation.indexOf('ray.factor*=lightProfileOf(light,P);')
+    const casts = attenuation.indexOf('if(!castsShadow(light)){ray.complete=true;}')
+    assert.ok(
+      clouds > 0 && clouds < profile && profile < casts,
+      'after the clouds, before the cast gate',
+    )
+    assert.match(
+      attenuation.slice(profile - 30, profile + 120),
+      /if\(!ray\.complete\)\{\s*ray\.factor\*=lightProfileOf\(light,P\);\s*ray\.complete=!isVisibleToLight\(ray\.factor\);/,
+    )
+  }
+  // The traced entry takes the term with no profile, the mask's factor holding it; the light's own ray takes the term with it, and the
+  // share a standalone light's function leaves in the scratch (`lightFunctionPassWgsl.ts`) holds none.
+  const traced = DIRECT_WGSL.slice(DIRECT_WGSL.indexOf('fn directShadeTraced'))
+  assert.match(traced, /declaredBareIrradiance\(rank,/)
+  assert.doesNotMatch(traced, /lightProfileOf|declaredIrradiance\(/)
+  const bare = DIRECT_WGSL.slice(DIRECT_WGSL.indexOf('fn declaredBareIrradiance('))
+  assert.doesNotMatch(bare.slice(0, bare.indexOf('\n}')), /lightProfileOf/)
+  const own = DIRECT_WGSL.slice(DIRECT_WGSL.indexOf('fn declaredIrradiance('))
+  assert.match(
+    own.slice(0, own.indexOf('\n}')),
+    /\*lightFunctionOf\(light,P\)\*lightProfileOf\(light,P\)/,
+  )
+  assert.doesNotMatch(
+    lightFunctionPassWgsl({ mapped: false }),
+    /lightProfileOf/,
+    'the scratch share holds no profile',
+  )
 })

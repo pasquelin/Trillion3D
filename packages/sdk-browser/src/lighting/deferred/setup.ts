@@ -152,7 +152,7 @@ function createImageStandIns(device: GPUDevice) {
         view: ambientCube.createView({ dimension: 'cube' }),
         colour: ambientCubeColour,
       },
-      lightProfile: { atlas: arrayView(lightProfile), sampler: postSamplers(device).clamped },
+      lightProfile: { view: arrayView(lightProfile), sampler: postSamplers(device).clamped },
       surfaceFlags: surfaceFlags.createView(),
       reflection: reflection.createView(),
       screenIndirect: screenIndirect.createView(),

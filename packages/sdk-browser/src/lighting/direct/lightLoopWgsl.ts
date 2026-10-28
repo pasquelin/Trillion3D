@@ -26,7 +26,6 @@ import {
   type ContactRays,
 } from '../contactShadow/contactShadowWgsl.ts'
 import { SHADOW_TERMS_WGSL } from './shadowTermsWgsl.ts'
-import { NO_LIGHT_PROFILE_WGSL } from '../lightProfile/lightProfileWgsl.ts'
 
 /**
  * What a program's light term holds of the surface models: `models`, the diffuse and toon models, the
@@ -71,13 +70,7 @@ const termsOf = (reads: boolean, contact: boolean, split: boolean) =>
 const irradianceLightWgsl = (key: Partial<ContractKey>, term: 'irradiance' | 'bareIrradiance') =>
   wgslBlock(
     `declaredLightWgsl(${variantLabel(key)}, ${term})`,
-    // The cache's irradiance reads no profile atlas (its profile is the mask's, `shadowMaskWgsl.ts`): unless its key says
-    // `profileless`, it holds the stand-in.
-    [
-      LAMP_WGSL,
-      AIR_TINT_WGSL,
-      ...(term === 'irradiance' && !key.profileless ? [NO_LIGHT_PROFILE_WGSL] : []),
-    ],
+    [LAMP_WGSL, AIR_TINT_WGSL],
     `fn ${term === 'irradiance' ? 'declaredIrradiance' : 'declaredBareIrradiance'}(rank:u32,P:vec3f,N:vec3f,reach:f32)->vec3f{${REACH('vec3f(0.0)')}${irradianceTerm(key.rectless, term === 'irradiance', !key.profileless)}
 }`,
   )
@@ -117,7 +110,8 @@ const lightDeps = (
  * the same text in both. A light's colour is multiplied by its light function at the point
  * (`lightFunctionOf`, `../lightFunction/readWgsl.ts`) and by its light profile's share toward the point
  * (`lightProfileOf`, `../lightProfile/lightProfileWgsl.ts`: 1 for a light with none), in that order, in the surface, split and
- * irradiance terms.
+ * irradiance terms, the program naming what answers the profile (the stand-in `NO_LIGHT_PROFILE_WGSL` or the atlas's read). The
+ * `bareIrradiance` leaves the profile out with the function: the mask that holds it applies it.
  * It is also multiplied by the air's transmittance toward it at the point where it asks for that
  * (`airTintOf`, `../atmosphere/airTintWgsl.ts`). `airTint` false leaves that factor out: it is for a
  * program whose lights are never the air's, the air's lights being directional ones and the local

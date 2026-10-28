@@ -1,5 +1,6 @@
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { createLightProfileAtlas, type LightProfileAtlas } from './profileAtlas.ts'
+import type { LightProfileResources } from './profileBindings.ts'
 import {
   createLightProfileRegistry,
   createLightProfileSync,
@@ -60,11 +61,11 @@ export function encodeLightProfiles(rt: Rt, device: GPUDevice) {
 /** Whether a profile file is still being read: the image drawn meanwhile is drawn again (`holdWebgpuFrame`). */
 export const lightProfilesWaiting = (rt: Rt) => (rt.lights.lightProfile?.loading ?? 0) > 0
 
-/** What a program that reads the light profiles binds: the atlas and its sampler, or none where the scene names no profile. */
-export function lightProfileResources(rt: Rt) {
+/** What a program that reads the light profiles binds, or none where the scene names no profile. */
+export function lightProfileResources(rt: Rt): LightProfileResources | undefined {
   const frame = rt.lights.lightProfile
   return frame && rt.lights.store.profiled > 0
-    ? { atlas: frame.atlas.view, sampler: frame.atlas.sampler }
+    ? { view: frame.atlas.view, sampler: frame.atlas.sampler }
     : undefined
 }
 

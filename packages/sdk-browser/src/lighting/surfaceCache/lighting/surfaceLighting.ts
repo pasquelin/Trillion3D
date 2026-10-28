@@ -35,6 +35,7 @@ import {
   type ShapedKernels,
 } from './kernels.ts'
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
+import type { LightProfileResources } from '../../lightProfile/profileBindings.ts'
 import {
   lightFunctionFormatOf,
   lightFunctionSlotSize,
@@ -110,6 +111,8 @@ export interface LightingInputs {
   readonly sky: SkyLightReadSet
   readonly cloudShadow: CloudShadowSet
   readonly lightFunction: GPUTextureView
+  /** The light profiles' atlas and sampler, the stand-in's where the scene names none (a lane of 0 never samples it). */
+  readonly lightProfile: LightProfileResources
   readonly field: GlobalFieldRead
   /** What the radiosity's rays read of the cache at their hits (`surfaceHitReads`). */
   readonly hit: SurfaceHitResources

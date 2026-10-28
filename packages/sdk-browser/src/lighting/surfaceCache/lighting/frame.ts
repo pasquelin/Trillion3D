@@ -9,6 +9,8 @@ import { radianceCacheTraced } from '../../bounce/cache/cacheFrame.ts'
 import { screenProbesTraced } from '../../bounce/screen/cast.ts'
 import { screenProbeSettingsOf } from '../../bounce/screen/settingsOf.ts'
 import { reflectionsTraced } from '../../reflections/hardware.ts'
+import { lightProfileResources } from '../../lightProfile/frame.ts'
+import { lightProfileStandIn } from '../../lightProfile/profileStandIn.ts'
 import { cloudShadowStandIn } from '../../atmosphere/cloudShadowStandIn.ts'
 import type { CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
 import { fieldSettingsOf, surfaceHitReads } from '../frame.ts'
@@ -67,6 +69,7 @@ export function lightSurfaceCache(
         ? frame.cloudShadow
         : cloudShadowStandIn(device),
       lightFunction: frame.lightFunction,
+      lightProfile: lightProfileResources(rt) ?? lightProfileStandIn(device),
       ...surfaceHitReads(rt, device),
       feedback: state.feedback.buffer,
       direction: cameraForward<[number, number, number]>([0, 0, 0], frame.cam.world),

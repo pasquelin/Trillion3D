@@ -344,7 +344,7 @@ function nameResources(
   localNamed.push(surface, depth, lights, tileList, r.tiles, r.mask, r.sunMask)
   localNamed.push(r.lightFunction, r.farMask, r.lightGrid, r.occlusion)
   // The atlas's view changes only when its texture is made: the group follows it.
-  if (p.profiled) localNamed.push(r.lightProfile.atlas)
+  if (p.profiled) localNamed.push(r.lightProfile.view)
   localNamed.push(
     fallback.vsmUniforms.buffer,
     fallback.vsmPageTable.buffer,
@@ -416,7 +416,7 @@ function perLightGroup(
   named.push(pixel.colours, pixel.emissiveAo, pixel.words, pixel.depth, pixel.subsurface)
   named.push(pixel.lobes, lights, tileList, r.lightFunction, perLight.mask, perLight.records)
   named.push(r.occlusion)
-  if (p.profiled) named.push(r.lightProfile.atlas)
+  if (p.profiled) named.push(r.lightProfile.view)
   return p.groups.perLight.get(named, () => [
     ...namedEntries(DEFERRED_BINDINGS, {
       ...pixel,
@@ -444,12 +444,7 @@ function sunEntries({ pixel, shadows }: SharedBindings, r: Resolved) {
 
 /** The light profiles' atlas and sampler of a program that reads them. */
 const profileEntries = (p: LitState, r: Resolved) =>
-  p.profiled
-    ? lightProfileBindEntries(DEFERRED_LIGHT_PROFILE_BINDINGS, {
-        view: r.lightProfile.atlas,
-        sampler: r.lightProfile.sampler,
-      })
-    : []
+  p.profiled ? lightProfileBindEntries(DEFERRED_LIGHT_PROFILE_BINDINGS, r.lightProfile) : []
 
 function localEntries(
   p: LitState,

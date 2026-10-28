@@ -10,6 +10,10 @@ import { globalDistanceFieldTraceWgsl } from '../../distanceField/globalTraceWgs
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { declaredLightWgsl } from '../../direct/lightLoopWgsl.ts'
 import { lightStrengthWgsl } from '../../direct/lightStrengthWgsl.ts'
+import {
+  lightProfileOfWgsl,
+  type LightProfileBindings,
+} from '../../lightProfile/lightProfileWgsl.ts'
 import { lightFunctionReadWgsl, type LightFunctionBindings } from '../../lightFunction/readWgsl.ts'
 import {
   CM_PER_M_WGSL,
@@ -31,7 +35,7 @@ import { LIGHT_CENTRE_FACING_WGSL, shadowMaskBlockOf } from './shadowMaskWgsl.ts
  *
  * A light's irradiance at a texel (`cacheLight`) is the engine's one light term for a point that is not a pixel
  * (`declaredIrradiance`, `../../direct/lightLoopWgsl.ts`): the falloff, the range, a spot's fade, a rectangle's form factor, the
- * cosine, the light function and the clouds' shade, the air's tint toward a sun at the ground (`airGroundTintOf`: a tint a
+ * cosine, the light function, the light's profile (`lightProfileOf`) and the clouds' shade, the air's tint toward a sun at the ground (`airGroundTintOf`: a tint a
  * light, not a texel's) — everything but its shadow, which the term leaves out —, times the light's factor on its indirect lighting (`gathered`). A texel that does not face the light's centre
  * takes none of it and casts no ray (`facesLightCentre`). The shadow of a light that casts one and lights the texel is one ray marched through the global distance field
  * (`cacheShadowed`) from the texel to the light, as far as the trace reaches or the lamp is: it starts off the surface by
@@ -69,6 +73,8 @@ export const DIRECT_BINDINGS = {
   masks: 19,
   factors: 20,
   cardTileOffsets: 21,
+  lightProfileAtlas: 22,
+  lightProfileSampler: 23,
 } as const
 
 /** Where the direct light's program reads the light functions, and the eye their fade is measured from. */
@@ -76,6 +82,13 @@ const DIRECT_LIGHT_FUNCTION: LightFunctionBindings = {
   group: 0,
   atlas: DIRECT_BINDINGS.lightFunction,
   eye: 'lp.eye.xyz',
+}
+
+/** Where the direct light's program reads the light profiles. */
+export const DIRECT_LIGHT_PROFILE: LightProfileBindings = {
+  group: 0,
+  atlas: DIRECT_BINDINGS.lightProfileAtlas,
+  sampler: DIRECT_BINDINGS.lightProfileSampler,
 }
 
 /** Where the direct light's program reads the clouds' shade. */
@@ -96,6 +109,7 @@ const CACHE_LIGHT_WGSL = wgslBlock(
     CM_PER_M_WGSL,
     lightFunctionReadWgsl(DIRECT_LIGHT_FUNCTION),
     cloudShadowReadWgsl(DIRECT_CLOUD_SHADOW),
+    lightProfileOfWgsl(DIRECT_LIGHT_PROFILE),
     declaredLightWgsl({}, { term: 'irradiance' }),
     declaredLightWgsl({}, { term: 'bareIrradiance' }),
     globalDistanceFieldTraceWgsl(0, DIRECT_BINDINGS.field),
@@ -142,7 +156,7 @@ export const DIRECT_ENTRY = 'directShade'
 export const DIRECT_TRACED_ENTRY = 'directShadeTraced'
 export const DIRECT_ENTRIES = [DIRECT_ENTRY, DIRECT_TRACED_ENTRY] as const
 
-/** The direct light's program. */
+/** The direct light's program over masks in `format`. */
 const directProgram = (format: AtlasFormat) =>
   wgslProgram(
     `${wgslConsts({ MAX_LIGHTS: MAX_LIGHTS_PER_TILE, TILE_TEXELS: SHADOW_TEXELS })}
@@ -263,3 +277,7 @@ fn ${DIRECT_TRACED_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgr
 /** The direct light's program over masks in the grey format, and over those of the light functions' coloured atlas. */
 export const DIRECT_WGSL = directProgram('grey')
 export const DIRECT_COLOURED_WGSL = directProgram('colour')
+
+/** The direct light's program over masks in `format`. */
+export const directProgramOf = (format: AtlasFormat) =>
+  format === 'colour' ? DIRECT_COLOURED_WGSL : DIRECT_WGSL

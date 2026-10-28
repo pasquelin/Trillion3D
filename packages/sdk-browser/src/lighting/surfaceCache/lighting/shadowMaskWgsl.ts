@@ -7,6 +7,10 @@ import type { CloudShadowBindings } from '../../atmosphere/cloudShadowRead.ts'
 import { cloudShadowReadWgsl } from '../../atmosphere/cloudShadowRead.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { declaredLightWgsl } from '../../direct/lightLoopWgsl.ts'
+import {
+  lightProfileOfWgsl,
+  type LightProfileBindings,
+} from '../../lightProfile/lightProfileWgsl.ts'
 import { lightStrengthWgsl } from '../../direct/lightStrengthWgsl.ts'
 import {
   hasLightFunctionWgsl,
@@ -94,10 +98,12 @@ fn factorTileWord(tile:vec2u,tilesAlong:u32)->u32{return FACTOR_TILE_WORDS*(tile
 `,
 )
 
-/** Whether a light needs the mask of its shadow — it casts one, wears a function (one the atlas holds, or, `standalone`, one it
- *  holds no slot of), or the clouds shade it (one of the two lights with a map of the clouds' shade) — and, for such a light,
- *  whether a texel faces its centre: the plain direction toward it, a sun's against its own. The mask gives a texel past that plain horizon no light and no ray, whatever its shape's wrapped cosine
- *  gives; a light that needs no mask has none to gate it, and lights the texel by its wrapped cosine alone. */
+/** The lights that carry a factor per texel in a mask (`needsShadowMask`): those that cast a shadow, wear a light function (the atlas's
+ *  or, `standalone`, apart from it), or are shaded by the clouds (one of the two lights with a map of them). A texel is gated for such a
+ *  light (`facesLightCentre`): it faces the plain direction toward the light's centre, a sun's against its own, or takes no light and no
+ *  ray. Any other light has no mask and lights the texel by its wrapped cosine alone. A light's profile is no reason for a mask, nor for the
+ *  gate: a lit light with a mask has its profile in the mask's factor (`lightAttenuation`), any other in the direct term
+ *  (`declaredIrradiance`), once a pair. */
 export const LIGHT_CENTRE_FACING_WGSL = wgslBlock(
   'LIGHT_CENTRE_FACING_WGSL',
   [DIRECT_LIGHT_WGSL, hasLightFunctionWgsl],
@@ -202,6 +208,8 @@ export const SHADOW_MASK_BINDINGS = {
   cloudSampler: 12,
   factors: 13,
   traces: 14,
+  lightProfileAtlas: 15,
+  lightProfileSampler: 16,
 } as const
 
 const B = SHADOW_MASK_BINDINGS
@@ -211,6 +219,13 @@ const SHADOW_MASK_LIGHT_FUNCTION: LightFunctionBindings = {
   group: 0,
   atlas: B.lightFunction,
   eye: 'lp.eye.xyz',
+}
+
+/** Where the mask's program reads the light profiles. */
+export const SHADOW_MASK_LIGHT_PROFILE: LightProfileBindings = {
+  group: 0,
+  atlas: B.lightProfileAtlas,
+  sampler: B.lightProfileSampler,
 }
 
 /** Where the mask's program reads the clouds' shade. */
@@ -237,6 +252,7 @@ export const SHADOW_MASK_TYPE_SLOTS = {
   shadowMaskRect: 2,
 } as const
 
+/** The mask's program in `format`. */
 const shadowMaskProgram = (format: AtlasFormat) =>
   wgslProgram(
     `${wgslConsts({ PAGE_TEMPORAL: PAGE_LIGHTING.temporal, QUADS: SHADOW_QUADS, QUAD_ROW: CARD_TILE_SIZE / 2 })}
@@ -251,7 +267,7 @@ var<workgroup> sharedTraces:array<u32,${SHADOW_TEXELS}>;
 var<workgroup> traceCount:atomic<u32>;
 var<workgroup> traceBase:u32;
 /** The ray of light \`rank\`, \`standalone\` or not, at the texel \`i\` of the light tile \`lightTile\`: nothing of it where no light reaches the
- *  texel, else its function (the atlas's, then, for a light the atlas holds no slot of, the scratch's) and the clouds' shade. */
+ *  texel, else its function (the atlas's, then, for a light the atlas holds no slot of, the scratch's), the clouds' shade and its profile's multiplier (\`lightProfileOf\`), each settling the texel when the factor falls to 0.01 or less. */
 fn lightAttenuation(rank:u32,standalone:bool,lightTile:u32,i:u32,texel:SurfaceTexel)->ShadowRay{
  var ray=ShadowRay(${SHADOW_FORMAT_PARTS[format].none},true);
  if(!texel.valid){return ray;}
@@ -272,8 +288,10 @@ fn lightAttenuation(rank:u32,standalone:bool,lightTile:u32,i:u32,texel:SurfaceTe
   ray.factor*=cloudShadowOnSurface(rank,P);
   ray.complete=!isVisibleToLight(ray.factor);
  }
- // SEAM, the light's IES profile: its multiplier on the factor, settling the texel as the two above do, comes here once the light
- // term offers it for a point that is not a pixel; the program then binds the profiles' atlas beside the light functions'.
+ if(!ray.complete){
+  ray.factor*=lightProfileOf(light,P);
+  ray.complete=!isVisibleToLight(ray.factor);
+ }
  if(!castsShadow(light)){ray.complete=true;}
  return ray;
 }
@@ -353,9 +371,14 @@ fn shadowMaskRect(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:
       hasLightFunctionWgsl,
       lightFunctionReadWgsl(SHADOW_MASK_LIGHT_FUNCTION),
       cloudShadowReadWgsl(SHADOW_MASK_CLOUD_SHADOW),
+      lightProfileOfWgsl(SHADOW_MASK_LIGHT_PROFILE),
       declaredLightWgsl({}, { term: 'bareIrradiance' }),
     ],
   )
 
 export const SHADOW_MASK_PROGRAM_WGSL = shadowMaskProgram('grey')
 export const SHADOW_MASK_COLOURED_PROGRAM_WGSL = shadowMaskProgram('colour')
+
+/** The mask's program in `format`. */
+export const shadowMaskProgramOf = (format: AtlasFormat) =>
+  format === 'colour' ? SHADOW_MASK_COLOURED_PROGRAM_WGSL : SHADOW_MASK_PROGRAM_WGSL

@@ -18,6 +18,7 @@ import { CULL_BINDINGS, CULL_ENTRY } from './cullWgsl.ts'
 import {
   DIRECT_BINDINGS,
   DIRECT_CLOUD_SHADOW,
+  DIRECT_LIGHT_PROFILE,
   DIRECT_ENTRY,
   DIRECT_TRACED_ENTRY,
 } from './directWgsl.ts'
@@ -44,6 +45,7 @@ import {
   LIGHT_TILE_COMPACT_ENTRY,
   LIGHT_TILE_COUNTS_BINDINGS,
 } from './lightTilesWgsl.ts'
+import { lightProfileBindEntries } from '../../lightProfile/profileBindings.ts'
 import type { LightingInputs } from './surfaceLighting.ts'
 import { RADIOSITY_BUILD_BINDINGS } from './radiosityBuildWgsl.ts'
 import { RADIOSITY_FILTER_BINDINGS } from './radiosityFilterWgsl.ts'
@@ -60,6 +62,7 @@ import {
 import {
   SHADOW_MASK_BINDINGS,
   SHADOW_MASK_CLOUD_SHADOW,
+  SHADOW_MASK_LIGHT_PROFILE,
   SHADOW_MASK_TYPE_SLOTS,
 } from './shadowMaskWgsl.ts'
 import {
@@ -278,7 +281,7 @@ function shadowMaskPass(e: Encoding, { kernels, buffers }: TracedShadows) {
   const { counts } = e.lightSlots
   const { physical, factors } = e.atlases
   const { masks: shadowMasks, traces: shadowTraces } = buffers
-  const { cloudShadow, lights, lightFunction } = e.inputs
+  const { cloudShadow, lights, lightFunction, lightProfile } = e.inputs
   const M = SHADOW_MASK_BINDINGS
   const masking = kernels.shadowMask.group(
     [
@@ -297,6 +300,8 @@ function shadowMaskPass(e: Encoding, { kernels, buffers }: TracedShadows) {
       cloudShadow.sampler,
       factors,
       shadowTraces,
+      lightProfile.view,
+      lightProfile.sampler,
     ],
     () => [
       buffer(0, params),
@@ -311,6 +316,7 @@ function shadowMaskPass(e: Encoding, { kernels, buffers }: TracedShadows) {
       ...cloudShadowBindEntries(SHADOW_MASK_CLOUD_SHADOW, cloudShadow),
       buffer(M.factors, factors),
       buffer(M.traces, shadowTraces),
+      ...lightProfileBindEntries(SHADOW_MASK_LIGHT_PROFILE, lightProfile),
     ],
   )
   const slots = LIGHT_TILE_ARGS.slots
@@ -516,6 +522,8 @@ export function directPasses(e: Encoding) {
       shadowMasks,
       factors,
       cardTileOffsets,
+      e.inputs.lightProfile.view,
+      e.inputs.lightProfile.sampler,
     ],
     () => [
       ...common,
@@ -530,6 +538,7 @@ export function directPasses(e: Encoding) {
       buffer(D.masks, shadowMasks),
       buffer(D.factors, factors),
       buffer(D.cardTileOffsets, cardTileOffsets),
+      ...lightProfileBindEntries(DIRECT_LIGHT_PROFILE, e.inputs.lightProfile),
     ],
   )
   const entry = e.traced ? DIRECT_TRACED_ENTRY : DIRECT_ENTRY
