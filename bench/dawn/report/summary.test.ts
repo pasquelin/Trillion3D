@@ -42,7 +42,6 @@ const frame = (gpuMs: number, sample: FrameRecord['sample'] = null): FrameRecord
 const sample = (frameNumber: number, passes: [string, number][]) => ({
   frame: frameNumber,
   totalMs: null,
-  truncated: false,
   passes: passes.map(([name, ownMs]) => ({ name, gpuMs: ownMs + 1, ownMs })),
 })
 

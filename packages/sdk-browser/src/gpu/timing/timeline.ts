@@ -11,7 +11,7 @@ import { PAUSE_MS } from '../../frame/refreshClock.ts'
  *
  * Only an image's immediate predecessor is an end to measure from: between two sampled images
  * farther apart, the images in between ran on the device untimed, and the gap would count their
- * work as idle. An image that did not resolve whole — truncated, or a pair it could not read —
+ * work as idle. An image that did not resolve whole — a pair it could not read —
  * leaves no end, and the next image then publishes no idle rather than one measured against an
  * end that is not the image's last.
  */

@@ -7,8 +7,8 @@ import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
 import { materialTableWgsl } from '../../materials/table/materialWgsl.ts'
 import { wpoGraphWgsl } from '../shader/wpoGraphWgsl.ts'
 import { TESS_BINDINGS, TESS_DECLARATIONS as D } from './bindings.ts'
-import { ARG_END, ARG_OCCLUDED, ARG_START, OCCLUSION_MAIN } from './contract.ts'
-import { QUEUE_WGSL } from './queueWgsl.ts'
+import { ARG_END, ARG_START } from './contract.ts'
+import { QUEUE_WGSL, occludePatchText } from './queueWgsl.ts'
 import { PATCH_SHAPE_WGSL } from './shapeWgsl.ts'
 import { patchSightWgsl, SIGHT_GONE, SIGHT_HIDDEN } from './sightWgsl.ts'
 import { MAIN_VIEW_WGSL } from './viewWgsl.ts'
@@ -29,14 +29,7 @@ ${D.tess}
 ${D.pyramid}
 ${D.levels}
 ${D.occluded}
-/** Keeps patch \`p\` for the post pass: written where the buffer has room, counted where it has none. */
-fn occludePatch(p:vec4u){
- let slot=atomicAdd(&tess[tu.args+${ARG_OCCLUDED}u],1u);
- if(slot<tu.maxOccluded){
-  let at=slot*4u;
-  occluded[at]=p.x;occluded[at+1u]=p.y;occluded[at+2u]=p.z;occluded[at+3u]=p.w;
- }
-}
+${occludePatchText('let at=slot*4u;occluded[at]=p.x;occluded[at+1u]=p.y;occluded[at+2u]=p.z;occluded[at+3u]=p.w;')}
 @compute @workgroup_size(WORKGROUP_THREADS) fn tessSplit(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let slot=tw(tu.args+${ARG_START}u)+flatIndex(id,n,WORKGROUP_THREADS);
  if(slot>=tw(tu.args+${ARG_END}u)){return;}
@@ -48,10 +41,10 @@ fn occludePatch(p:vec4u){
  let sight=patchSight(shape.box,page.world);
  if(sight==${SIGHT_GONE}u){return;}
  if(sight==${SIGHT_HIDDEN}u){
-  if(tu.occlusion==${OCCLUSION_MAIN}u){occludePatch(piece);}
+  occludePatch(piece);
   return;
  }
- settlePatch(piece,page,rec,shape,mainView(),false);
+ settlePatch(piece,page,rec,shape,mainView(),0u);
 }`
 
 /** The splitting's program, made for the project switch when `clipping`: its entry point

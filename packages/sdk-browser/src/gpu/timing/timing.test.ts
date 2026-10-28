@@ -3,10 +3,7 @@ import { PART_ALIGN } from './encoder.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createGpuTiming } from './timing.ts'
-import { QUERY_COUNT } from './queries.ts'
-import { QUERY_SET_SIZE } from './querySetSize.ts'
 import { READBACKS } from './encoder.ts'
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 
 test('an image spanning two encoders yields one sample whose passes carry their own duration in submission order', async () => {
   const f = timedDevice(),
@@ -44,7 +41,6 @@ test('an image spanning two encoders yields one sample whose passes carry their 
   assert.equal(samples.length, 1)
   assert.equal(samples[0].frame, 1)
   assert.equal(samples[0].submission, 7)
-  assert.equal(samples[0].truncated, false)
   assert.deepEqual(samples[0].passes, [
     { name: 'selection', gpuMs: 2, ownMs: 2, beginMs: 0, endMs: 2 },
     { name: 'lighting', gpuMs: 3, ownMs: 3, beginMs: 3, endMs: 6 },
@@ -63,7 +59,7 @@ test('an image spanning two encoders yields one sample whose passes carry their 
   timer.dispose()
   assert.equal(
     f.destroyed.length,
-    ceilDiv(QUERY_COUNT, QUERY_SET_SIZE) + 1 + READBACKS,
+    1 + 1 + READBACKS,
     'the sets, the resolve buffer and the readbacks',
   )
 })
@@ -143,11 +139,9 @@ test('an unsubmitted part, a busy readback and a failed mapping each leave the t
   assert.equal(f.passDescriptors.at(-1)!.timestampWrites, undefined)
   await timer.flush()
   assert.equal(samples[0].totalMs, null)
-  assert.equal(samples[0].truncated, true)
   assert.match(String(samples[0].error), /MAP_FAILED/)
   assert.equal(timer.supported, false)
   const stats = timer.stats()
-  assert.equal(stats.unresolvedParts, 1)
   assert.equal(stats.droppedSamples, 1)
   assert.equal(stats.skippedFrames.busy, 1)
   timer.dispose()

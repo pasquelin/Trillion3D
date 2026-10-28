@@ -25,7 +25,7 @@
  * marks (level 0), 3 the kept stale rects (`VSM_KEPT_RECTS_WIDTH` a row) — sampled textures, read by
  * load: the cull's eight storage buffers are spent.
  */
-import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, type WgslDecl } from '../../../../../../math/src/wgsl/decl.ts'
 import { VSM_BOX_VIEW_WGSL, VSM_CASTER_BOX_CULL_WGSL } from '../invalidation/boxCullWgsl.ts'
 import {
   VSM_CONSTANTS_WGSL,
@@ -43,21 +43,32 @@ const VSM_OCCLUSION_GROUP = 2
  * (`VSM_OCCLUSION_GROUP`): what the cull's tests (`VSM_OCCLUSION_TEST_WGSL`) and the cache
  * invalidation's (`../invalidation/castInvalidationWgsl.ts`) share.
  */
-export const VSM_OCCLUSION_PAGES_WGSL = wgslBlock(
-  'VSM_OCCLUSION_PAGES_WGSL',
-  [
-    VSM_CONSTANTS_WGSL,
-    VSM_HANDLE_WGSL,
-    VSM_PAGE_ADDRESS_WGSL,
-    VSM_TABLE_ORIGIN_WGSL,
-    VSM_STALE_RECT_INDEX_WGSL,
-    VSM_BOX_VIEW_WGSL,
-  ],
-  /* wgsl */ `
-@group(${VSM_OCCLUSION_GROUP}) @binding(0) var occlusionPyramid:texture_2d_array<f32>;
-@group(${VSM_OCCLUSION_GROUP}) @binding(1) var occlusionTable:texture_2d<u32>;
-@group(${VSM_OCCLUSION_GROUP}) @binding(2) var occlusionMarks:texture_2d<u32>;
-@group(${VSM_OCCLUSION_GROUP}) @binding(3) var occlusionRects:texture_2d<u32>;
+const pagesDeclarations = [
+  VSM_CONSTANTS_WGSL,
+  VSM_HANDLE_WGSL,
+  VSM_PAGE_ADDRESS_WGSL,
+  VSM_TABLE_ORIGIN_WGSL,
+  VSM_STALE_RECT_INDEX_WGSL,
+  VSM_BOX_VIEW_WGSL,
+]
+const pagesOfGroup = new Map<number, WgslDecl>()
+/** The pyramid read at one page's place, over the occlusion group bound at group `group`: the cull's own (`VSM_OCCLUSION_GROUP`) or, for a
+ *  program that already holds that group, another (the patches' tessellation, `tessellation/shadowSightWgsl.ts`). */
+function vsmOcclusionPagesWgsl(group: number) {
+  let block = pagesOfGroup.get(group)
+  if (!block)
+    pagesOfGroup.set(
+      group,
+      (block = wgslBlock(
+        group === VSM_OCCLUSION_GROUP
+          ? 'VSM_OCCLUSION_PAGES_WGSL'
+          : `VSM_OCCLUSION_PAGES_WGSL_${group}`,
+        pagesDeclarations,
+        /* wgsl */ `
+@group(${group}) @binding(0) var occlusionPyramid:texture_2d_array<f32>;
+@group(${group}) @binding(1) var occlusionTable:texture_2d<u32>;
+@group(${group}) @binding(2) var occlusionMarks:texture_2d<u32>;
+@group(${group}) @binding(3) var occlusionRects:texture_2d<u32>;
 /** A box's rect on a map's mip: its pixels (inclusive), its texels at pyramid level \`level\`, its
  *  depth. */
 struct VsmScreenRect{pixels:vec4i,texels:vec4i,level:i32,depth:f32,}
@@ -108,29 +119,26 @@ fn vsmPageVisibleHzb(h:VsmHandle,mipLevel:u32,r:VsmScreenRect,x:u32,y:u32,unmapp
  return vsmPyramidVisible(t,r.level,r.depth,select(0u,vsm.hzbStaticLayer,staticLayer));
 }
 `,
-)
+      )),
+    )
+  return block
+}
+export const VSM_OCCLUSION_PAGES_WGSL = vsmOcclusionPagesWgsl(VSM_OCCLUSION_GROUP)
 
-export const VSM_OCCLUSION_TEST_WGSL = wgslBlock(
-  'VSM_OCCLUSION_TEST_WGSL',
-  [VSM_OCCLUSION_PAGES_WGSL, VSM_PROJECTION_DATA_WGSL, VSM_CASTER_BOX_CULL_WGSL],
-  /* wgsl */ `
-/** Clips a pixel rect to the uncached page rect bounds of a map's mip, its static or dynamic
- *  layer's (\`vsmStaleRects\`, which the module's host declares); \`both\`: to the union of the two. */
-fn vsmClipToStaleRect(pixels:vec4i,h:VsmHandle,mipLevel:u32,staticLayer:bool,both:bool)->vec4i{
- var rect=vsmStaleRects[vsmStaleRectIndex(h.id,mipLevel,staticLayer)];
- if(both){
-  let other=vsmStaleRects[vsmStaleRectIndex(h.id,mipLevel,!staticLayer)];
-  rect=vec4u(min(rect.xy,other.xy),max(rect.zw,other.zw));
- }
- let bounds=vec4i(vec4u(rect.xy<<vec2u(VSM_LOG2_PAGE),(rect.zw<<vec2u(VSM_LOG2_PAGE))+vec2u(VSM_PAGE_TEXELS-1u)));
- return vec4i(max(pixels.xy,bounds.xy),min(pixels.zw,bounds.zw));
-}
-/** The pixels box cull \`cull\` covers of map \`h\`'s mip \`mip\` (\`vsmRectPixels\`), clipped to a layer's stale rect
- *  (\`vsmClipToStaleRect\`). */
-fn vsmStalePixels(cull:VsmBoxInView,h:VsmHandle,mipLevel:u32,staticLayer:bool,both:bool)->vec4i{
- let texels=i32(VSM_LEVEL0_TEXELS>>mipLevel);
- return vsmClipToStaleRect(vsmRectPixels(vec4i(0,0,texels,texels),cull),h,mipLevel,staticLayer,both);
-}
+const hiddenOfGroup = new Map<number, WgslDecl>()
+/** The tests of a box against the pyramid that need no stale rect: the first cull's (`vsmHiddenBefore`) and the second's (`vsmHiddenNow`), over the
+ *  occlusion group at `group` (`vsmOcclusionPagesWgsl`). */
+export function vsmOcclusionHiddenWgsl(group: number) {
+  let block = hiddenOfGroup.get(group)
+  if (!block)
+    hiddenOfGroup.set(
+      group,
+      (block = wgslBlock(
+        group === VSM_OCCLUSION_GROUP
+          ? 'VSM_OCCLUSION_HIDDEN_WGSL'
+          : `VSM_OCCLUSION_HIDDEN_WGSL_${group}`,
+        [vsmOcclusionPagesWgsl(group), VSM_PROJECTION_DATA_WGSL, VSM_CASTER_BOX_CULL_WGSL],
+        /* wgsl */ `
 /** The kept stale rect of a (map, mip, layer). */
 fn vsmKeptRect(id:u32,mipLevel:u32,staticLayer:bool)->vec4u{
  let index=vsmStaleRectIndex(id,mipLevel,staticLayer);
@@ -187,6 +195,34 @@ fn vsmHiddenNow(h:VsmHandle,mipLevel:u32,cull:VsmBoxInView,levelTexels:i32,clipp
  var rect=vsmScreenRect(vec4i(0,0,levelTexels,levelTexels),cull);
  rect.pixels=clipped;
  return !vsmPagesVisible(h,mipLevel,rect,markMask,staticLayer);
+}
+`,
+      )),
+    )
+  return block
+}
+
+export const VSM_OCCLUSION_TEST_WGSL = wgslBlock(
+  'VSM_OCCLUSION_TEST_WGSL',
+  [vsmOcclusionHiddenWgsl(VSM_OCCLUSION_GROUP), VSM_PROJECTION_DATA_WGSL, VSM_CASTER_BOX_CULL_WGSL],
+  /* wgsl */ `
+
+/** Clips a pixel rect to the uncached page rect bounds of a map's mip, its static or dynamic
+ *  layer's (\`vsmStaleRects\`, which the module's host declares); \`both\`: to the union of the two. */
+fn vsmClipToStaleRect(pixels:vec4i,h:VsmHandle,mipLevel:u32,staticLayer:bool,both:bool)->vec4i{
+ var rect=vsmStaleRects[vsmStaleRectIndex(h.id,mipLevel,staticLayer)];
+ if(both){
+  let other=vsmStaleRects[vsmStaleRectIndex(h.id,mipLevel,!staticLayer)];
+  rect=vec4u(min(rect.xy,other.xy),max(rect.zw,other.zw));
+ }
+ let bounds=vec4i(vec4u(rect.xy<<vec2u(VSM_LOG2_PAGE),(rect.zw<<vec2u(VSM_LOG2_PAGE))+vec2u(VSM_PAGE_TEXELS-1u)));
+ return vec4i(max(pixels.xy,bounds.xy),min(pixels.zw,bounds.zw));
+}
+/** The pixels box cull \`cull\` covers of map \`h\`'s mip \`mip\` (\`vsmRectPixels\`), clipped to a layer's stale rect
+ *  (\`vsmClipToStaleRect\`). */
+fn vsmStalePixels(cull:VsmBoxInView,h:VsmHandle,mipLevel:u32,staticLayer:bool,both:bool)->vec4i{
+ let texels=i32(VSM_LEVEL0_TEXELS>>mipLevel);
+ return vsmClipToStaleRect(vsmRectPixels(vec4i(0,0,texels,texels),cull),h,mipLevel,staticLayer,both);
 }
 `,
 )

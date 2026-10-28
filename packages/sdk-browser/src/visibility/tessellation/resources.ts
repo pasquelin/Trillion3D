@@ -104,7 +104,7 @@ export function createTessellationResources(device: GPUDevice, asked: Tessellati
   const tess = device.createBuffer({
     label: 'Trillion3D tessellation',
     size: layout.words * 4,
-    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   })
   device.queue.writeBuffer(tess, 0, table.offsets)
   device.queue.writeBuffer(tess, TABLE_DATA_WORD * 4, table.data)
@@ -119,6 +119,9 @@ export function createTessellationResources(device: GPUDevice, asked: Tessellati
   let recordsVersion = -1
   return {
     capacity,
+    /** The capacities that fit the device when the queue and the visible list are asked for `candidate` and `visible` patches (`fitCapacity`). */
+    roomFor: (candidate: number, visible: number) =>
+      fitCapacity(limit, tableWords, { candidate, visible, records: capacity.records }),
     layout,
     tess,
     dispatch,

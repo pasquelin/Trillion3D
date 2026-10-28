@@ -2,8 +2,6 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { timedDevice } from './imageTimer.fixture.ts'
 import { createGpuTiming } from './timing.ts'
-import { QUERY_COUNT, TIMED_PASSES } from './queries.ts'
-import { VSM_TIMED_PASSES } from './vsmPasses.ts'
 import { VSM_PASS_PREFIX } from '../../diagnostic/stage/passLabels.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createVsmResources } from '../../lighting/shadows/vsm/resources.ts'
@@ -14,39 +12,109 @@ import { keepOcclusionTables } from '../../lighting/shadows/vsm/occlusion/occlus
 import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import type { GpuTimingSample } from './types.ts'
 
-// The virtual shadow maps' frame: its passes (`vsmPasses.ts`). The frame of the most view passes it
-// is timed over is timed whole, so its shadow milliseconds are published; one past the
-// image's passes is truncated.
-const frameOf = async (vsmPasses: number) => {
-  const f = timedDevice(),
-    samples: any[] = []
-  const timer = createGpuTiming(f.device, { onSample: (sample) => void samples.push(sample) })
-  const selection = timer.createEncoder(1)
-  selection.beginComputePass({ label: 'selection' }).end()
-  selection.finish()
-  const frame = timer.createEncoder(1)
-  const pass = (label: string) => frame.beginComputePass({ label }).end()
-  for (let k = 0; k < vsmPasses; k++) pass(`${VSM_PASS_PREFIX}pass`)
-  for (let k = 0; k < 200; k++) pass('lighting')
-  frame.finish()
-  const values = new BigUint64Array(f.buffers[1].getMappedRange())
-  for (let k = 0; k < QUERY_COUNT; k++) values[k] = BigInt(k + 1) * 1000n
-  timer.submitted(frame, { frame: 1 })
-  await timer.flush()
-  timer.dispose()
-  return samples[0]
+/** Fills, in each readback the image copied into, the timestamps its parts resolved: the one at index `k` is `(k + 1)` µs. */
+const fillReadbacks = (f: ReturnType<typeof timedDevice>) => {
+  for (const { to, fromOffset, toOffset, size } of f.copies) {
+    const values = new BigUint64Array(to.getMappedRange(toOffset, size))
+    for (let j = 0; j < values.length; j++) values[j] = BigInt(fromOffset / 8 + j + 1) * 1000n
+  }
 }
 
-test('a frame of the most virtual shadow passes is timed whole', async () => {
-  const sample = await frameOf(VSM_TIMED_PASSES)
-  assert.equal(sample.truncated, false, 'every pass timed')
-  assert.equal(sample.passes.length, 1 + VSM_TIMED_PASSES + 200)
-  assert.ok(sample.passes.length <= TIMED_PASSES)
+/** One image of `submissions` command encoders of `passes` passes each, timed, closed with its last. */
+function imageOf(submissions: number, passes: number, vsmPasses = 0) {
+  const f = timedDevice(),
+    samples: any[] = []
+  let sets = 0
+  const makeSet = f.device.createQuerySet.bind(f.device)
+  f.device.createQuerySet = (descriptor) => (sets++, makeSet(descriptor))
+  const timer = createGpuTiming(f.device, {
+    sampleEveryFrames: 1,
+    onSample: (sample) => void samples.push(sample),
+  })
+  const image = (frame: number) => {
+    f.copies.length = 0
+    let last!: GPUCommandEncoder
+    for (let part = 0; part < submissions; part++) {
+      last = timer.createEncoder(frame)
+      for (let k = 0; k < passes; k++) last.beginComputePass({ label: 'lighting' }).end()
+      if (part === 0)
+        for (let k = 0; k < vsmPasses; k++)
+          last.beginComputePass({ label: `${VSM_PASS_PREFIX}pass` }).end()
+      last.finish()
+    }
+    return last
+  }
+  return { f, timer, samples, image, sets: () => sets }
+}
+
+// Every submission of a sampled image is a part and every pass is timed, however many there are within what the timer holds: the image is timed whole.
+test('ten submissions in an image make one whole sample, with the time it took', async () => {
+  const { f, timer, samples, image } = imageOf(10, 3)
+  const last = image(1)
+  fillReadbacks(f)
+  timer.submitted(last, { frame: 1 })
+  await timer.flush()
+  assert.equal(samples.length, 1)
+  assert.equal(samples[0].passes.length, 30, 'every pass timed')
+  assert.notEqual(samples[0].submittedMs, null)
+  assert.notEqual(samples[0].frameMs, null)
+  assert.equal(samples[0].frameMsReason, null)
+  assert.equal(samples[0].submissions.length, 10, 'every submission a part')
+  timer.dispose()
 })
 
-test('a frame past the passes an image is timed over is flagged truncated', async () => {
-  const sample = await frameOf(TIMED_PASSES)
-  assert.equal(sample.truncated, true)
+test('a frame of the most virtual shadow passes beside hundreds of others is timed whole', async () => {
+  const { f, timer, samples, image } = imageOf(1, 200, 300)
+  const last = image(1)
+  fillReadbacks(f)
+  timer.submitted(last, { frame: 1 })
+  await timer.flush()
+  assert.equal(samples[0].passes.length, 500)
+  assert.notEqual(samples[0].submittedMs, null)
+  timer.dispose()
+})
+
+test('the timer grows between images: the image that outgrew it is not timed, the ones after are whole, and nothing is made again', async () => {
+  const { f, timer, samples, image, sets } = imageOf(1, 3000)
+  assert.equal(sets(), 0, 'nothing made before the first image')
+  const read = async (frame: number, filled: boolean) => {
+    const last = image(frame)
+    // The ring's buffers hold the timestamps the images resolved; the others are read as the device left them, still whole as passes.
+    if (filled) fillReadbacks(f)
+    timer.submitted(last, { frame })
+    await timer.flush()
+  }
+  await read(1, false)
+  assert.equal(samples.length, 0, 'the image that outgrew the timer is not timed')
+  assert.equal(timer.stats().skippedFrames.overflow, 1, 'and is counted')
+  // The growth is validated under error scopes, then taken by the images that follow.
+  await new Promise((done) => setTimeout(done, 0))
+  assert.equal(sets(), 2, 'the first set, then the one the growth was made with')
+  assert.equal(timer.stats().queryCount, 8192)
+  await read(3, true)
+  assert.equal(samples[0].passes.length, 3000, 'the next image is whole')
+  assert.notEqual(samples[0].submittedMs, null)
+  await read(5, false)
+  const [setsMade, buffersMade] = [sets(), f.buffers.length]
+  await read(7, false)
+  await read(9, false)
+  assert.equal(sets(), setsMade, 'no query set made for the images that follow')
+  assert.equal(f.buffers.length, buffersMade, 'no buffer made for the images that follow')
+  timer.dispose()
+})
+
+test('a growth the device refuses leaves the timer as it was: the image is not timed, nothing is taken', async () => {
+  const { f, timer, samples, image, sets } = imageOf(1, 3000)
+  // The error of an allocation comes back through the scope it was made under, not as a throw.
+  f.device.popErrorScope = async () => ({ message: 'out of memory' }) as GPUError
+  const last = image(1)
+  timer.submitted(last, { frame: 1 })
+  await timer.flush()
+  await new Promise((done) => setTimeout(done, 0))
+  assert.equal(samples.length, 0)
+  assert.equal(timer.stats().queryCount, 4096, 'the capacity it had')
+  assert.ok(sets() >= 1)
+  timer.dispose()
 })
 
 test('the raster at the most view passes is timed whole, as the passes are sized for', async () => {
@@ -76,12 +144,11 @@ test('the raster at the most view passes is timed whole, as the passes are sized
   const encoded = f.computePasses.length + f.passes.length
   assert.deepEqual([stats.passes, encoded], [VSM_MAX_VIEW_PASSES, 2 * VSM_MAX_VIEW_PASSES])
   const values = new BigUint64Array(f.buffers[1].getMappedRange())
-  for (let k = 0; k < QUERY_COUNT; k++) values[k] = BigInt(k + 1) * 1000n
+  for (let k = 0; k < values.length; k++) values[k] = BigInt(k + 1) * 1000n
   timer.submitted(encoder, { frame: 1 })
   await timer.flush()
   timer.dispose()
-  assert.equal(samples[0].truncated, false, 'every pass timed')
-  assert.equal(samples[0].passes.length, encoded)
+  assert.equal(samples[0].passes.length, encoded, 'every pass timed')
 })
 
 // With the occlusion culling and the previous frame's pyramid and tables kept, a view pass draws what
@@ -155,6 +222,4 @@ test('the occlusion’s two culls a view pass: cull, raster, pyramid, second cul
     ...['vsmRenderArgsSecond', 'vsmRenderCullPost', 'vsmRenderCullSecond'],
     ...['vsmRenderArgsBin', 'vsmRenderBin'],
   ])
-  // The view passes' passes and the last build fit what the timer reads.
-  assert.ok(7 * VSM_MAX_VIEW_PASSES + 1 <= VSM_TIMED_PASSES)
 })

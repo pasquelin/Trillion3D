@@ -114,3 +114,38 @@ test('a chained ring maps each copy in its caller’s chain, in order; a refusal
   assert.ok(errors[0] instanceof ReadbackRefused)
   assert.equal(ring.held(), 0, 'every buffer back')
 })
+
+test('a chained ring that maps only the range a read needs reads that range, the buffer held larger; a larger take meanwhile remakes a free buffer, never the one in flight', async () => {
+  const { device, buffers, destroyed } = fakeDevice()
+  const seen: number[] = []
+  let chain: Promise<unknown> = Promise.resolve()
+  const ring = createReadbackRing<{ used: number }>(
+    device,
+    {
+      label: 'r',
+      bytes: 64,
+      count: 2,
+      chain: (read) => void (chain = chain.then(read)),
+      used: (tag) => tag.used,
+    },
+    (_mapped, _buffer, tag) => void seen.push(tag.used),
+  )
+  const a = ring.take({ used: 16 })!
+  ring.submitted(a)
+  // The first read is in flight in its chain; a take of a larger size is made on the other buffer.
+  const b = ring.take({ used: 8 }, 128)!
+  assert.notEqual(a, b)
+  ring.submitted(b)
+  await chain
+  await settled()
+  assert.deepEqual(
+    seen,
+    [16, 8],
+    'both read, each over its own mapped range (a read of the whole buffer is an `OperationError` on the device)',
+  )
+  assert.equal(
+    destroyed.includes(buffers[0] as never),
+    false,
+    'the buffer that was in flight is not destroyed',
+  )
+})

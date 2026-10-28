@@ -25,20 +25,17 @@ export const passOwnMs = (pass: GpuPassTiming) =>
  * GPU duration of a sample by pass group, in one walk, `classify` naming each pass's group or none
  * (the pass is left out): the passes' own shares (`passOwnMs`), so the groups together never pass
  * the time the timed passes cover. `null` for a group whose one pass has no usable duration: a
- * partial sum would pass for a measurement. A truncated or missing sample yields no group, for the
+ * partial sum would pass for a measurement. A missing sample yields no group, for the
  * same reason.
  */
 export function gpuTotalsBy<Group extends string | number>(
   sample: GpuPassTimings | null | undefined,
   classify: (name: string) => Group | undefined,
 ) {
-  return !sample || sample.truncated
-    ? new Map<Group, number | null>()
-    : passTotals(sample.passes, classify)
+  return !sample ? new Map<Group, number | null>() : passTotals(sample.passes, classify)
 }
 
-/** `gpuTotalsBy` over `passes` whatever the sample's truncation: what the GPU log prints beside
- *  its "(truncated)". */
+/** `gpuTotalsBy` over `passes` alone: what the GPU log prints. */
 export function passTotals<Group extends string | number>(
   passes: readonly GpuPassTiming[],
   classify: (name: string) => Group | undefined,
@@ -83,7 +80,7 @@ export function addGpuPasses(sample: GpuPassTimings | null | undefined, add: Sta
 }
 
 /**
- * GPU duration of a sample's "Bounce" stage, or `null`: a missing stage, a truncated sample or a device
+ * GPU duration of a sample's "Bounce" stage, or `null`: a missing stage, a missing sample or a device
  * without timestamps yield `null`.
  */
 export function bounceGpuMs(sample: GpuPassTimings | null | undefined) {

@@ -62,7 +62,11 @@ import type { VsmLayout } from '../layout.ts'
 import { NO_MASKS, maskKnowsPixel, type MaskSet } from '../../../../materials/graph/maskProgram.ts'
 import { NO_WPO, type WpoSet } from '../../../../materials/graph/wpoProgram.ts'
 import { wpoGraphWgsl } from '../../../../visibility/shader/wpoGraphWgsl.ts'
-import { VSM_RENDER_RECORD_WGSL, VSM_RENDER_WINDOW_PAGES } from './renderParamsWgsl.ts'
+import {
+  VSM_RENDER_RECORD_WGSL,
+  VSM_RENDER_WINDOW_PAGES,
+  VSM_RENDER_WINDOW_PAGES_SOFTWARE,
+} from './renderParamsWgsl.ts'
 
 /** Group 1 of the raster: projection data (vertex) at 1, the pool (fragment, atomic) from 2, the
  *  page table (fragment) after it, the uniforms (both stages) last. */
@@ -111,9 +115,9 @@ fn vsmRenderMapPixel(clip:vec4f,mip:u32)->vec2f{
 }`,
 )
 
-/** What a vertex stage hands the depth fragment (`vsmRenderFs`), the tiers' and the tessellated
- *  patches' (`../tessellation/shadowRasterWgsl.ts`) alike, the position a dropped corner takes, the
- *  placing of a clip position on a record's window and the window as the fragment reads it. */
+/** What a vertex stage hands the depth fragment (`vsmRenderFs`), the tiers' and the voxels' alike,
+ *  the position a dropped corner takes, the placing of a clip position on a record's window and the
+ *  window as the fragment reads it. */
 export const VSM_RENDER_OUT_WGSL = wgslBlock(
   'VSM_RENDER_OUT_WGSL',
   [VSM_CONSTANTS_WGSL, VSM_RENDER_RECORD_WGSL, VSM_RENDER_WINDOW_WGSL],
@@ -156,18 +160,29 @@ fn vsmRenderBeats(texel:vec2u,slice:u32,depth:u32)->bool{return depth>vsmPoolLoa
 `,
 )
 
+/** The pool address a page that is not one to draw takes: a window's table of origins holds it there. */
+export const VSM_RENDER_NO_PAGE_WGSL = wgslBlock(
+  'VSM_RENDER_NO_PAGE_WGSL',
+  [],
+  'const VSM_RENDER_NO_PAGE:u32=0xFFFFFFFFu;',
+)
+
 /** Where a page of a record's window lies in the pool: the hardware fragment's and the software raster's
  *  (`renderSoftwareWgsl.ts`) one lookup. */
 export const VSM_RENDER_PAGE_ORIGIN_WGSL = wgslBlock(
   'VSM_RENDER_PAGE_ORIGIN_WGSL',
-  [VSM_CONSTANTS_WGSL, VSM_PAGE_ADDRESS_WGSL],
-  `const VSM_RENDER_NO_PAGE:u32=0xFFFFFFFFu;
-/** The pool address of page \`local\` of the window whose first page is the page table's index \`first\`
+  [VSM_CONSTANTS_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_RENDER_NO_PAGE_WGSL],
+  `/** The pool address of page \`local\` of the window whose first page is the page table's index \`first\`
  *  (the bin put it in the record's \`w\`), a row of the table apart: its physical address, x | y << 16,
  *  read from its page table word; \`VSM_RENDER_NO_PAGE\` where it is not one to draw at its level. */
 fn vsmRenderPageOrigin(first:u32,local:vec2u)->u32{
  let entry=vsmUnpackTableEntry(vsmPageTableLoad(first+local.y*vsm.pageTableSize.x+local.x));
  return select(VSM_RENDER_NO_PAGE,entry.physicalAddress.x|(entry.physicalAddress.y<<16u),entry.thisLevelDrawable);
+}
+/** The same for slot \`slot\` of the record's software window (\`vsmRenderWindowHas\`: one in the record's rect). */
+fn vsmRenderWindowOrigin(r:vec4u,slot:u32)->u32{
+ let side=${VSM_RENDER_WINDOW_PAGES_SOFTWARE}u;
+ return vsmRenderPageOrigin(r.w,vec2u(slot%side,slot/side));
 }
 `,
 )

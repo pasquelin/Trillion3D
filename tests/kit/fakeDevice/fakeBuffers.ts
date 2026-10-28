@@ -40,8 +40,7 @@ export const boundWords = (entries: readonly BoundBuffer[], binding: number) =>
 /**
  * The buffers of `fakeDevice()`, which map as on a real device: their bytes are the mapped range;
  * mapping a destroyed buffer is a validation error on the device (`OperationError`, counted by
- * `destroyedMaps`); a mapping the destruction cuts short rejects with `AbortError`; unmapping does
- * nothing. Every mapping settles with `mapping`; `failMap` refuses every one but the explicit
+ * `destroyedMaps`); a mapping the destruction cuts short rejects with `AbortError`; unmapping ends the mapped range. A mapped range is the one asked (`mapAsync(mode, offset, size)`): bytes asked of `getMappedRange` outside it, while it is mapped, are an `OperationError`, as on a real device. Every mapping settles with `mapping`; `failMap` refuses every one but the explicit
  * capture's. A destroyed buffer is the one `destroyed` lists.
  */
 export function fakeBuffers(
@@ -52,13 +51,15 @@ export function fakeBuffers(
   let destroyedMaps = 0
   const gone = (buffer: FakeBuffer) => destroyed.includes(buffer)
   const createBuffer = ({ size, usage, label }: GPUBufferDescriptor) => {
+    /** The range the last mapping asked, none while never mapped. */
+    let mapped: [number, number] | undefined
     const buffer: FakeBuffer = {
       label: untag(label),
       size,
       usage,
       data: new Uint8Array(size),
       destroy: () => void destroyed.push(buffer),
-      mapAsync: async () => {
+      mapAsync: async (_mode?: number, offset = 0, size?: number) => {
         if (gone(buffer)) {
           destroyedMaps++
           throw new DOMException('destroyed', 'OperationError')
@@ -66,9 +67,17 @@ export function fakeBuffers(
         if (failMap && buffer.label !== 'Trillion3D explicit capture') throw new Error('MAP_FAILED')
         await mapping
         if (gone(buffer)) throw new DOMException('destroyed while mapping', 'AbortError')
+        // Mapped once the mapping lands: until then the buffer is read whole, as the fake's writers before a flush do.
+        mapped = [offset, offset + (size ?? buffer.size - offset)]
       },
-      getMappedRange: () => buffer.data.buffer as ArrayBuffer,
-      unmap() {},
+      getMappedRange: (offset = 0, size?: number) => {
+        // A buffer never mapped is read whole, as the fake's other readers do.
+        if (mapped && (offset < mapped[0] || offset + (size ?? buffer.size - offset) > mapped[1]))
+          throw new DOMException('range outside the mapped range', 'OperationError')
+        return buffer.data.buffer as ArrayBuffer
+      },
+      // Unmapped, a buffer is read whole again, as the fake's other readers do.
+      unmap: () => void (mapped = undefined),
     }
     buffers.push(buffer)
     return buffer

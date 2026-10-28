@@ -100,8 +100,9 @@ var<workgroup> groupRow:u32;
 const NONE:u32=0xffffffffu;
 `
 
-/** The rect and scanline rasters of one triangle. */
-const TRIANGLE_RASTERS_TEXT = `/** Rasters the triangle \`t\` row by row over its box. */
+/** The rect and scanline rasters of one triangle, which the dicing of the shadow maps' patches
+ *  (`../../lighting/shadows/vsm/tessellation/shadowDiceWgsl.ts`) calls too. */
+export const TRIANGLE_RASTERS_TEXT = `/** Rasters the triangle \`t\` row by row over its box. */
 fn rasterRect(t:Tri,mode:u32){
  var cy=t.c;
  var y=t.minPixel.y;

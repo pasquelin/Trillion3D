@@ -1,15 +1,7 @@
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
-import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
-import {
-  edgeFactors,
-  patchBarycentrics,
-  patternOf,
-  quarterRateDepth,
-  sortedFactors,
-  unpackCorner,
-} from './patchWgsl.ts'
+import { patchBarycentrics, patternOf, sortedFactors, unpackCorner } from './patchWgsl.ts'
 import { domainPoint, fadeLine, setDensity, uvDerivative } from './domainWgsl.ts'
-import { TESS_VIEW } from './viewWgsl.ts'
+import { CORNER_FACTORS_WGSL, TESS_VIEW, WORLD_SCALE_WGSL } from './viewWgsl.ts'
 
 /** The height of the displacement at \`uv\`, read at the footprint \`step\`: the height map's — this
  *  default — unless the program lists the graph's height in its place (\`graphHeightWgsl\`), which is a
@@ -38,10 +30,9 @@ export const DICE_PATCH_WGSL = wgslBlock(
   [
     TESS_VIEW,
     DICE_HEIGHT_MAP,
-    worldMatrix3,
     unpackCorner,
-    edgeFactors,
-    quarterRateDepth,
+    CORNER_FACTORS_WGSL,
+    WORLD_SCALE_WGSL,
     sortedFactors,
     patternOf,
     patchBarycentrics,
@@ -54,12 +45,8 @@ export const DICE_PATCH_WGSL = wgslBlock(
 fn dicePatch(page:PageInfo,rec:DisplacementRecord,piece:vec4u,view:TessView,p:mat3x3f,nrm:mat3x3f,uv:mat3x2f)->DicePatch{
  let world=page.world;
  let parent=mat3x3f(unpackCorner(piece.y),unpackCorner(piece.z),unpackCorner(piece.w));
- let c0=(world*vec4f(p*parent[0],1.0)).xyz;let c1=(world*vec4f(p*parent[1],1.0)).xyz;let c2=(world*vec4f(p*parent[2],1.0)).xyz;
- let depth=vec3f(dot(view.forward,c0-view.eye),dot(view.forward,c1-view.eye),dot(view.forward,c2-view.eye));
- let axes=worldMatrix3(world);
- let scale=sqrt(max(dot(axes[0],axes[0]),max(dot(axes[1],axes[1]),dot(axes[2],axes[2]))));
- let far=quarterRateDepth(max(-rec.bounds.x,rec.bounds.y),scale,view.edgesPerUnit,rec.bounds.z*tu.edgesPerPixel);
- let sorted=sortedFactors(edgeFactors(mat3x3f(c0,c1,c2),depth,view.near,view.perspective,view.edgesPerUnit,tu.piecesPerEdge,far));
+ let scale=worldScale(world);
+ let sorted=sortedFactors(cornerFactors(world,p*parent,view,farDepth(rec,scale,view)));
  let pattern=patternAt(patternOf(sorted.factors,sorted.flip));
  let ordered=mat3x3f(parent[sorted.corners.x],parent[sorted.corners.y],parent[sorted.corners.z]);
  let fade=fadeLine(rec.scale,rec.bounds,scale,view.edgesPerUnit,tu.edgesPerPixel,view.perspective);

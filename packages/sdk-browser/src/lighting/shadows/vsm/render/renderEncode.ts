@@ -329,7 +329,7 @@ export function renderGroups(
 
 /** What the raster's first pass descends: the shadow views' descent (`../traversal/`), its cut's
  *  levels and queue 0, and the frame's lights and the views they list at most. */
-export interface VsmRasterDescent {
+interface VsmRasterDescent {
   descent: VsmDescent
   info: VsmDescentScene['info']
   lights: number
@@ -459,7 +459,8 @@ function encodeBin(
 }
 
 /** The software half (`renderSoftwareWgsl.ts`) in a compute pass of its own, after the hardware raster
- *  pass that drew the records beside it: a group a record the bin sorted first (`encodeSoftware`). It
+ *  pass that drew the records beside it: a group a record the bin sorted first (`encodeSoftware`), then the
+ *  patches of the displaced surfaces the tessellation listed, diced and rastered the same way (`tessellation`). It
  *  writes the pool as the raster pass before it does, by an atomic max: the order of the two is free,
  *  and both are done before the occlusion's pyramid reads what they drew. */
 function encodeSoftwarePass(
@@ -470,9 +471,12 @@ function encodeSoftwarePass(
   args: GPUBuffer,
   offset: readonly number[],
   pageCompute: GPUBindGroup,
+  post: boolean,
+  tessellation?: VsmShadowTessellation,
 ) {
   const pass = encoder.beginComputePass(label)
   encodeSoftware(pass, ctx, tables, args, offset, pageCompute)
+  tessellation?.dice(pass, post, pageCompute)
   pass.end()
 }
 
@@ -548,8 +552,8 @@ const RASTER: GPURenderPassDescriptor = {
 }
 
 /** One view pass's raster: one drawIndirect a tier of `tiers` named by `drawn`, of its sorted
- *  records, into the window-sized dummy `target`, then the patches of the records the tessellation
- *  took, if it runs. */
+ *  records, into the window-sized dummy `target`. The records the tessellation took are left undrawn:
+ *  their patches are rastered in software (`encodeSoftwarePass`). */
 function encodeRaster(
   encoder: GPUCommandEncoder,
   label: string,
@@ -558,7 +562,6 @@ function encodeRaster(
   pageGroup: GPUBindGroup,
   raster1: GPUBindGroup,
   args: GPUBuffer,
-  tessellation?: VsmShadowTessellation,
 ) {
   RASTER.label = label
   rasterDepth.view = target
@@ -571,8 +574,6 @@ function encodeRaster(
     raster.setPipeline(tier)
     raster.drawIndirect(args, (VSM_RENDER_ARGS_DRAW + 4 * t) * 4)
   }
-  // The patches of the displaced surfaces' records, which the tiers left undrawn.
-  tessellation?.draw(raster)
   raster.end()
 }
 
@@ -653,25 +654,18 @@ export function vsmEncodeRaster(
   const culls = renderCulls(ctx, !!throttle)
   const tiers = [ctx.raster.tiers, vsmRenderTiersDrawn(scene.tiers)] as const
   const tessellation = scene.tessellation
+  // The patches are judged by the pyramid the cull judges the casters by, where the frame keeps one.
+  if (twoPass) tessellation?.sight()
   const pageCompute = scene.pageCompute?.group
   // The views the software raster reads, laid where it draws a record and binds no projection data.
   const lay =
     pageCompute && (scene.hardwareEdge ?? 0) > 0 && vsmViewsLaid(ctx.device) ? mostMaps : 0
   const raster = (label: string) =>
-    encodeRaster(
-      encoder,
-      label,
-      tiers,
-      ctx.target,
-      scene.pageGroup,
-      groups.tables.raster1,
-      args,
-      tessellation,
-    )
+    encodeRaster(encoder, label, tiers, ctx.target, scene.pageGroup, groups.tables.raster1, args)
   for (let p = 0; p < passes; p++) {
     const each = ctx.passes.pass(p)
     if (p) clearPassCounts(encoder, counts)
-    tessellation?.begin(encoder)
+    tessellation?.begin(encoder, false)
     const pass = encoder.beginComputePass(each.cull)
     if (!p) {
       const sight = mainSight(ctx, groups.tables, twoPass)
@@ -679,13 +673,29 @@ export function vsmEncodeRaster(
       scene.decode(pass, RASTER_PASS_MAIN)
     }
     encodeViewPass(pass, ctx, groups, args, each.offset, lights, twoPass, culls, lay)
-    // The records the pass listed are cut into patches, to be drawn by its raster pass.
-    tessellation?.compute(pass, groups.lists, each.offset)
+    // The records the pass listed are cut into patches, to be rastered by the software half's pass.
+    tessellation?.compute(
+      pass,
+      false,
+      groups.lists,
+      each.offset,
+      mainSight(ctx, groups.tables, twoPass),
+    )
     pass.end()
     raster(each.raster)
     // The software half after the hardware raster, over the same sorted records.
     if (pageCompute)
-      encodeSoftwarePass(encoder, each.software, ctx, groups.tables, args, each.offset, pageCompute)
+      encodeSoftwarePass(
+        encoder,
+        each.software,
+        ctx,
+        groups.tables,
+        args,
+        each.offset,
+        pageCompute,
+        false,
+        tessellation,
+      )
     if (twoPass)
       encodeSecondHalf(encoder, ctx, groups, args, each, occlusion!, {
         ...{ pageCompute, tessellation, raster, culls },
@@ -724,14 +734,14 @@ function encodeSecondHalf(
   work: SecondHalfWork,
 ) {
   prepareVsmPyramid(encoder, occlusion.res, occlusion.ctx, occlusion.fullUpdate)
-  work.tessellation?.begin(encoder)
+  work.tessellation?.begin(encoder, true)
   // The build and the second cull follow one another: one compute pass, but on a frame timed per pass.
   const steps = secondRun.begin(encoder)
   encodeVsmPyramid(steps, occlusion.res, occlusion.ctx)
   const second = steps.pass(each.second)
   encodePostCasters(second, ctx, groups, work, each.offset)
   encodeSecondCull(second, ctx, groups, args, each.offset, work.culls)
-  work.tessellation?.compute(second, groups.lists, each.offset)
+  work.tessellation?.compute(second, true, groups.lists, each.offset, groups.tables.occlusion![1])
   steps.end()
   work.raster(each.rasterSecond)
   if (work.pageCompute) {
@@ -744,6 +754,8 @@ function encodeSecondHalf(
       args,
       each.offset,
       work.pageCompute,
+      true,
+      work.tessellation,
     )
   }
 }

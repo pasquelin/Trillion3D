@@ -126,6 +126,6 @@ test('a depth wins the pool only where it is greater than the word held, in the 
 test('a masked row is tested against the pool before its cutout in either raster', () => {
   const fragment = functionsOf(vsmRenderRasterWgsl(LAYOUT), ['vsmRenderFs'])
   assert.ok(fragment.indexOf('vsmRenderBeats(') < fragment.indexOf('maskKeep('))
-  const pixel = functionsOf(vsmRenderSoftwareWgsl(LAYOUT), ['writePixel'])
+  const pixel = functionsOf(vsmRenderSoftwareWgsl(LAYOUT), ['pixelKeeps'])
   assert.ok(pixel.indexOf('vsmRenderBeats(') < pixel.indexOf('triCutout'))
 })

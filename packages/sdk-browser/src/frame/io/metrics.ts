@@ -129,6 +129,8 @@ function frameMetricsOf(rt: WebgpuPagesRuntime) {
     gpuFrameMs: timing.lastGpuFrameMs,
     gpuHostGapMs: timing.lastGpuHostGapMs,
     gpuIdleMs: timing.lastGpuIdleMs,
+    gpuTimer: timing.gpuTiming?.stats() ?? null,
+    tessellationLoss: vis.gpuRaster?.tessellation?.losses.stats() ?? null,
     gpuDeviceLost: run.lostCause ?? null,
     vramBytes: null,
     ...ledgerMetricsOf(gpu),

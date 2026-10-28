@@ -40,7 +40,7 @@ export const passKey = (name: string) => name.replace(/ \d+$/, ' *').replace(/^T
 /** The engine's timing samples of `frames`, each once: a sample is read again until the next. */
 function samplesOf(frames: readonly FrameRecord[]) {
   const seen = new Map<number, NonNullable<FrameRecord['sample']>>()
-  for (const { sample } of frames) if (sample && !sample.truncated) seen.set(sample.frame, sample)
+  for (const { sample } of frames) if (sample) seen.set(sample.frame, sample)
   return [...seen.values()]
 }
 

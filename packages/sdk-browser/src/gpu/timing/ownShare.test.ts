@@ -14,7 +14,7 @@ test('overlapping passes keep their spans and get each its own share of the imag
   const entries = names.map((name, i) => ({ slot: i * 2, name, part: 0 }))
   // 1 → 46, 11 → 51 and 13 → 53 ms: three spans that overlap; the last pair is invalid.
   const values = new BigUint64Array([ms(1), ms(46), ms(11), ms(51), ms(13), ms(53), 0n, ms(9)])
-  const { sample } = summarizeTimestamps(entries, values, false, () => false)
+  const { sample } = summarizeTimestamps(entries, values, () => false)
   assert.deepEqual(
     sample.passes.map((pass) => [pass.gpuMs, 'ownMs' in pass ? pass.ownMs : undefined]),
     [
@@ -30,7 +30,7 @@ test('each timed pass is placed on its image’s timeline, from the image’s ea
   const names = ['water composite', 'temporal antialiasing', 'composition', 'unmeasured']
   const entries = names.map((name, i) => ({ slot: i * 2, name, part: 0 }))
   const values = new BigUint64Array([ms(1), ms(46), ms(11), ms(51), ms(13), ms(53), 0n, ms(9)])
-  const { sample } = summarizeTimestamps(entries, values, false, () => false)
+  const { sample } = summarizeTimestamps(entries, values, () => false)
   assert.deepEqual(
     sample.passes.map((pass) => [pass.beginMs, pass.endMs]),
     [
@@ -47,7 +47,7 @@ test('the window of the passes a predicate picks: first beginning to last end, g
   const entries = names.map((name, i) => ({ slot: i * 2, name, part: 0 }))
   // a 1 → 3, other 4 → 5, b 6 → 9 ms; the last pair is unwritten.
   const values = new BigUint64Array([ms(1), ms(3), ms(4), ms(5), ms(6), ms(9), 0n, 0n])
-  const { sample } = summarizeTimestamps(entries, values, false, () => false)
+  const { sample } = summarizeTimestamps(entries, values, () => false)
   assert.equal(
     passWindowMs(sample, (name) => name === 'a' || name === 'b'),
     8,
@@ -71,12 +71,6 @@ test('the window of the passes a predicate picks: first beginning to last end, g
     passWindowMs(null, () => true),
     null,
     'no sample',
-  )
-  const truncated = summarizeTimestamps(entries, values, true, () => false).sample
-  assert.equal(
-    passWindowMs(truncated, (name) => name === 'a'),
-    null,
-    'a truncated sample',
   )
 })
 

@@ -94,7 +94,6 @@ export async function run(factory: EngineFactory, options: WaterCostOptions) {
       if (fresh) {
         for (const pass of sample.passes) observedPassNames.add(pass.name)
         if (
-          sample.truncated ||
           sample.error ||
           typeof metrics.gpuFrameMs !== 'number' ||
           typeof metrics.gpuHostGapMs !== 'number'
@@ -107,7 +106,6 @@ export async function run(factory: EngineFactory, options: WaterCostOptions) {
       }
       if (
         fresh &&
-        !sample.truncated &&
         !sample.error &&
         typeof metrics.gpuFrameMs === 'number' &&
         typeof metrics.gpuHostGapMs === 'number'

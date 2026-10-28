@@ -11,7 +11,6 @@ const sample = (
 ): GpuPassTimings => ({
   frame: 7,
   totalMs: null,
-  truncated: false,
   passes: passes.map(([name, gpuMs]) => ({ name, gpuMs })),
   ...extra,
 })
@@ -68,11 +67,7 @@ test('order changes nothing: a pass without a duration voids its block even when
   assert.equal(totals.visibilityMs, null)
 })
 
-test('a truncated or missing sample yields no block', () => {
-  const truncated = gpuPassBlockTotals(
-    sample([['Trillion3D visibility primary', 1.148]], { truncated: true }),
-  )
-  assert.deepEqual(truncated, { visibilityMs: null, materialsMs: null, otherMs: null })
+test('a missing sample yields no block', () => {
   assert.deepEqual(gpuPassBlockTotals(null), {
     visibilityMs: null,
     materialsMs: null,
@@ -93,7 +88,6 @@ test('one block read alone adds its passes’ shares and is none where the sampl
   ]
   assert.equal(passBlockMs(sample(passes), 'visibility')?.toFixed(1), '1.5')
   assert.equal(passBlockMs(sample(passes), 'materials'), null, 'a block no pass ran: no zero')
-  assert.equal(passBlockMs(sample(passes, { truncated: true }), 'visibility'), null)
   assert.equal(passBlockMs(sample([['Trillion3D HiZ', null], ...passes]), 'visibility'), null)
   assert.equal(passBlockMs(null, 'visibility'), null)
 })

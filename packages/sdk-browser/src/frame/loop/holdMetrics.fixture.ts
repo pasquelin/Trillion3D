@@ -30,7 +30,7 @@ export function heldFrame() {
     blendFrustumRejected: 11,
   })
   const timing = rt.timing as WebgpuTimingState & { lastGpuPassMs: GpuPassTimings }
-  timing.lastGpuPassMs = { frame: 4, totalMs: 9, passes: [], truncated: false }
+  timing.lastGpuPassMs = { frame: 4, totalMs: 9, passes: [] }
   Object.assign(timing, { lastGpuFrameMs: 9, lastGpuHostGapMs: 2, lastSubmitMs: 8 })
   timing.profiler.row.fill(7)
   timing.cpuSample = { version: 1 }

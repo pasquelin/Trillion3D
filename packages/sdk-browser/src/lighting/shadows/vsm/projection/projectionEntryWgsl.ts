@@ -16,7 +16,7 @@ import type { VsmInputType } from '../inputType.ts'
 
 /** The tail of every kernel's pixel, valid at the depth `deviceZ`: its view depth, its point, its screen
  *  ray's length and its noise. */
-const PIXEL_TAIL_WGSL = /* wgsl */ ` p.sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmView.depthFromDeviceZ);
+const PIXEL_TAIL = /* wgsl */ ` p.sceneDepth=vsmViewDepthOfDeviceZ(deviceZ,vsmView.depthFromDeviceZ);
  let svPosition=vec4f(vec2f(p.pos)+0.5,deviceZ,1.0);
  p.shifted=vsmPixelToShifted(svPosition);
  p.screenRayWorld=(vsmView.screenRayScale.xy*(vsm.screenRayLength*p.sceneDepth)+vsmView.screenRayScale.zw).y;
@@ -45,7 +45,7 @@ fn vsmPixelOf(tile:vec2u,groupIndex:u32)->VsmPixel{
  p.deviceZ=deviceZ;
  p.info=vsmSurfaceOf(coord,p.inRect,textureLoad(vsmNormalRough,coord,0).xyz);
  if(!p.info.valid){return p;}
-${PIXEL_TAIL_WGSL}`,
+${PIXEL_TAIL}`,
   )
 
 /** The pixel of a group of the whole view's rect: the suns' and the one-pass local lights' kernels'. */
@@ -60,7 +60,7 @@ export const VSM_PROJECTION_PIXEL_OF_WGSL = vsmPixelOfWgsl(
  *  strand shades nothing); it reads no surface: no thin transmission (`opacity` −1, the reference's gate
  *  of its hair input), no subsurface, no coat, not a first-person one, its receiver plane facing the
  *  light (`hair`, which the slope of the trace reads, as the reference turns a hair's normal to the
- *  light). Its tail is the surfaces' pixel's (`PIXEL_TAIL_WGSL`). */
+ *  light). Its tail is the surfaces' pixel's (`PIXEL_TAIL`). */
 export const VSM_STRANDS_PIXEL_OF_WGSL = wgslBlock(
   'VSM_STRANDS_PIXEL_OF_WGSL',
   [zOrderDecode, hairTilePixel],
@@ -78,7 +78,7 @@ fn vsmPixelOf(rank:u32,groupIndex:u32)->VsmPixel{
  p.info.hair=true;
  p.info.opacity=-1.0;
  if(!p.info.valid){return p;}
-${PIXEL_TAIL_WGSL}
+${PIXEL_TAIL}
 /** A strand's receiver for the light \`light\`: the pixel's point moved toward the light by the normal
  *  bias, the light's direction standing for the normal a strand has none of (the reference's light vector
  *  for its hair input), light by light; no screen segment. */

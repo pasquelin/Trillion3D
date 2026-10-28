@@ -8,9 +8,16 @@
  * end (`sample.ts`, `setOwnShares`), so a timestamp before that end can be a new one.
  */
 export function createSlotMemory(size: number) {
-  const held = new BigUint64Array(size)
+  let held = new BigUint64Array(size)
   let latest = -Infinity
   return {
+    /** Room for `size` slots: the memory grows with the timer, the slots it held kept. */
+    ensure(size: number) {
+      if (size <= held.length) return
+      const grown = new BigUint64Array(Math.max(size, 2 * held.length))
+      grown.set(held)
+      held = grown
+    },
     /**
      * The reader of image `frame`'s timestamps: whether the one at a slot is the one it held, which
      * no pass of this image wrote; it then holds this image's. An image read after a later one

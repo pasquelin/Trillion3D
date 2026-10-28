@@ -123,15 +123,16 @@ export const normalAtlasWgsl = (binding: number) =>
  * it, so two variants never share a name. The host shader declares `uvs`, the colour pool and its
  * page table.
  */
-export const maskKeepWgsl = (maskAlpha: WgslDecl, masks: MaskSet = NO_MASKS) => {
+export const maskKeepWgsl = (maskAlpha: WgslDecl, masks: MaskSet = NO_MASKS, dices = false) => {
   const graphs = masks.programs.length > 0,
     dither = masks.noise !== undefined
   const key = masksKey(masks)
-  const name = `maskKeepWgsl(${maskAlpha.name}${key ? `, ${key}` : ''})`
+  const name = `maskKeepWgsl(${maskAlpha.name}${key ? `, ${key}` : ''}${dices ? ', dicing' : ''})`
   const deps = [maskAlpha, LINE_DASH_WGSL, materialTableWgsl(VIS_BINDINGS.material)]
   if (graphs) deps.push(maskGraphWgsl(masks))
-  // A graph that displaces is read where the dicing reads a height (`diceHeight`).
-  if (masks.programs.some((program) => program.displaces)) deps.push(graphHeightWgsl)
+  // A graph that displaces is read where the dicing reads a height (`diceHeight`): in the modules that dice (`dices`) alone, the
+  // rasters that only cut by the mask holding no displacement record to read it by.
+  if (dices && masks.programs.some((program) => program.displaces)) deps.push(graphHeightWgsl)
   if (dither) deps.push(maskDitherWgsl(masks))
   return wgslBlock(name, deps, maskKeepText(graphs, dither))
 }

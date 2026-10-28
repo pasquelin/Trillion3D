@@ -10,11 +10,12 @@ import type { EngineVsm } from './engineVsm.ts'
 import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { readRasterSetting } from '../../../../../../sdk-core/src/contracts/rasterOptions.ts'
 import { casterDrawDistance } from './vsmFarShadow.ts'
+import { shadowSelectionPixelError } from './shadowLodScale.ts'
 import { encodeCasterDecode, type CasterFeed } from '../../casters/casterFeed.ts'
 
 /** What the casters are drawn from (`WebgpuPagesRuntime.lights`, the camera's cut), every one
  *  present. */
-export interface VsmRasterCasters {
+interface VsmRasterCasters {
   cut: GpuSelection
   tables: CutTables
   feed: CasterFeed
@@ -66,17 +67,8 @@ export function vsmRasterScene(
     rasters: rt.vis.rasters,
     tiers: plan.tiers,
     tessellation,
-    // The shadows' level of detail: the cut's pixels per edge times two to the shadows' bias
-    // (`shadowGeometryLodBias`), over the streaming quality scale
-    // (`../../../../geometry/residency/poolPressure.ts`) — coarser shadows where residency is under
-    // pressure, as the main view.
-    camera: {
-      eye: cam.eye,
-      view: cam.view,
-      threshold:
-        (rt.run.gate.pixelError * 2 ** readShadowSetting(rt, 'shadowGeometryLodBias')) /
-        rt.services.residency.qualityScale,
-    },
+    // The shadows' level of detail: the cut's tolerance over `shadowLodScale`.
+    camera: { eye: cam.eye, view: cam.view, threshold: shadowSelectionPixelError(rt) },
     world: castersWorld(rt, cut, tables),
     // The draw distances the objects name: an object out of its own casts nothing.
     drawDistance: casterDrawDistance(rt, cut),

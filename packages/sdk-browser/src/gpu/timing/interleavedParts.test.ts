@@ -31,7 +31,6 @@ test('a part encoded and submitted while another is open is timed beside it, in 
   timing.submitted(image, {})
   await timing.flush()
   const [sample] = samples
-  assert.equal(sample.truncated, false)
   assert.deepEqual(
     sample.passes.map((pass) => [pass.name, pass.ownMs]),
     [

@@ -15,7 +15,7 @@ export type GpuPassBlockTotals = {
 /**
  * GPU duration of one `block` in a sample: its passes' own shares added, by the rule every group of
  * passes is added by (`gpuTotalsBy`, `../../diagnostic/stage/mapping.ts`, which also says which pass
- * is in which block). `null` for a missing or truncated sample, for a block whose pass has no usable
+ * is in which block). `null` for a missing sample, for a block whose pass has no usable
  * duration — a partial sum would pass for a measurement — and for a block the frame never ran — a
  * zero would read as "measured at zero".
  */

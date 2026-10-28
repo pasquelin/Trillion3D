@@ -2,6 +2,7 @@ import { readTessellationSetting } from '../../../../sdk-core/src/contracts/tess
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { WebgpuTileStreamer } from '../../materials/virtual/streamer/streamer.ts'
 import type { TessellationInput } from './input.ts'
+import { withGrowth } from './growth.ts'
 import { recordRoom, type TessellationCapacity } from './uniform.ts'
 import { warmDisplacements } from './warm.ts'
 import { cutPyramid, previousPyramid } from '../../frame/render/pyramidSources.ts'
@@ -21,13 +22,14 @@ export function tessellationAsked(rt: WebgpuPagesRuntime) {
   asked.candidate = readTessellationSetting(rt, 'tessellationMaxCandidatePatches')
   asked.visible = readTessellationSetting(rt, 'tessellationMaxVisiblePatches')
   asked.records = recordRoom(rt.vis.materialTable.displaced.ints.length)
-  return asked
+  // What the session grew to on a loss is the floor of the next instance (`growth.ts`): the image after the reading asks it.
+  return withGrowth(rt.gpu.device, asked)
 }
 
 /** What the image gives the raster, held from one image to the next and rewritten at each. */
 const input: TessellationInput = {
   displaced: { ints: new Uint32Array(0), version: 0 },
-  view: { projection: 1, height: 1, threshold: 1 },
+  view: { projection: 1, height: 1, threshold: 1, lodScale: 1 },
   settings: { tessellationDicingRate: 2, tessellationMaxPatchesPerGroup: 5 },
   occlusion: {
     previous: undefined,

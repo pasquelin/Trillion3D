@@ -104,7 +104,6 @@ const ETIQUETTES = [
 const reading = (passes: number): GpuPassTimings => ({
   frame: 0,
   totalMs: null,
-  truncated: false,
   passes: Array.from({ length: passes }, (_, i) => {
     const gpuMs = alea() < 0.1 ? null : alea() * 2
     const ownMs = gpuMs !== null && alea() < 0.5 ? alea() * gpuMs : undefined
@@ -118,9 +117,6 @@ const reading = (passes: number): GpuPassTimings => ({
 const releves = (n: number, passes: number): GpuPassTimings[] =>
   Array.from({ length: n }, () => reading(passes))
 
-const truncatedSample: (GpuPassTimings | null)[] = [
-  { frame: 0, totalMs: null, truncated: true, passes: [] },
-]
 const sansEchantillon: (GpuPassTimings | null)[] = [null]
 
 const measureGpu = await measure({
@@ -128,7 +124,6 @@ const measureGpu = await measure({
   fichier: 'packages/sdk-browser/src/diagnostic/stage/mapping.ts',
   cas: [
     { name: '200 samples of 22 passes', input: releves(200, 22), size: 200 * 22 },
-    { name: 'truncated sample', input: truncatedSample, size: 1 },
     { name: 'no sample', input: sansEchantillon, size: 1 },
   ],
   calculation: depose(byName(addGpuPasses)),
@@ -155,7 +150,6 @@ await stress({
       input: {
         frame: 0,
         totalMs: null,
-        truncated: false,
         passes: [{ name: 'Trillion3D raster binning', gpuMs: NaN }],
       },
     },

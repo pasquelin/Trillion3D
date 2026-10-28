@@ -14,7 +14,7 @@ export type PlacedPassTiming = GpuPassTiming & {
 }
 
 /** Why an image has no `frameMs` (`GpuTimingSample`). */
-export type FrameMsReason = 'truncated' | 'no-valid-pair' | 'failed'
+export type FrameMsReason = 'no-valid-pair' | 'failed'
 /** Timed passes by the state their timestamp pair read in: usable, unwritten or unreadable. */
 export type TimingPairs = { valid: number; unwritten: number; invalid: number }
 
@@ -32,8 +32,7 @@ export type TimingPairs = { valid: number; unwritten: number; invalid: number }
  * make. `submittedMs` is the GPU time proper: the time the per-submission spans cover, an overlap
  * of two counted once, without the host gap a span between two submissions of the same image would
  * otherwise carry. For an image that submits once it is `frameMs`. Both are null together, and
- * `frameMsReason` says why: `truncated` (a pass went untimed, so the span would miss its end),
- * `no-valid-pair` (every pair unwritten or invalid), `failed` (the readback did).
+ * `frameMsReason` says why: `no-valid-pair` (every pair unwritten or invalid), `failed` (the readback did).
  *
  * `idleBetweenMs` is the gap neither holds: the device's idle from the last timestamp of
  * the image numbered `frame − 1` to the first of this one, so an image that submits once — whose
@@ -41,7 +40,7 @@ export type TimingPairs = { valid: number; unwritten: number; invalid: number }
  * between neighbours only: the image after one sampled at the cadence is sampled too, and when the
  * previous SAMPLED image is not `frame − 1` (a stride, a busy readback, a held frame between them)
  * it is `null`, never the gap to the older one, whose span holds the untimed images' work. Also
- * `null` when either image is not whole (truncated, an invalid timestamp), when the timeline went
+ * `null` when either image is not whole (an invalid timestamp), when the timeline went
  * backwards, and past a pause (`PAUSE_MS`, `../../frame/refreshClock.ts`). Untimed GPU work between the two
  * images — uploads and copies outside a timed pass — counts in it.
  */

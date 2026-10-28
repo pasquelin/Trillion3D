@@ -1,4 +1,5 @@
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
+import { wgslBlock, wgslVariants } from '../../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
 import { SUBGROUP_ALL_WGSL } from '../../../../gpu/core/subgroups.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
@@ -56,12 +57,17 @@ export const vsmRenderBinSpecs = (marks: boolean) =>
 
 /** The marks a record's window was matched by (`vsmRecordMarkWanted`, `vsmRecordMarkPrimary`): the
  *  mask the cull matched its pages by, which a page's marks satisfy (`vsmRecordMarksMatch`). */
-const binMarksText = (prefiltered: boolean) => /* wgsl */ `
-fn vsmRecordMarkMask(r:vec4u)->u32{
+export const binMarksWgsl = wgslVariants((prefiltered: boolean) =>
+  wgslBlock(
+    prefiltered ? 'VSM_BIN_MARKS_PREFILTERED_WGSL' : 'VSM_BIN_MARKS_WGSL',
+    [VSM_CONSTANTS_WGSL, VSM_RENDER_RECORD_WGSL],
+    /* wgsl */ `fn vsmRecordMarkMask(r:vec4u)->u32{
  var mask=select(select(VSM_PAGE_DYNAMIC_STALE,VSM_PAGE_STATIC_STALE,vsmRecordStatic(r)!=0u),VSM_PAGE_WANTED,vsmRecordMarkWanted(r));
  ${prefiltered ? 'if(vsmRecordMarkPrimary(r)){mask|=VSM_PAGE_PRIMARY;}' : ''}
  return mask;
-}`
+}`,
+  ),
+)
 
 /** A record's place among its bin's: the bin of each lane of the group, its place the bin's cursor
  *  advanced by the lanes before it that hold the same bin. `valid` is the lane's holding a record;
@@ -108,7 +114,7 @@ const binHelpersText = (
 @group(1) @binding(1) var<storage,read_write> counts:array<atomic<u32>>;
 @group(1) @binding(2) var<storage,read> records:array<vec4u>;
 @group(1) @binding(3) var<storage,read_write> sorted:array<vec4u>;
-${marks ? '' : binMarksText(prefiltered)}${subgroups ? BIN_PLACE_SUBGROUPS : BIN_PLACE_WORKGROUP}
+${subgroups ? BIN_PLACE_SUBGROUPS : BIN_PLACE_WORKGROUP}
 /** The view of map \`map\` of the pass laid in the sorted list for the software raster
  *  (\`vsmSoftwareViewAt\`), a record at a time. */
 fn vsmLayView(map:u32){
@@ -178,6 +184,7 @@ ${binHelpersText(layout.prefilteredDistant, subgroups, marks)}${binKernelText(ma
       ...(marks
         ? []
         : [
+            binMarksWgsl(layout.prefilteredDistant),
             VSM_PAGE_LOOKUP_WGSL,
             VSM_PAGE_MARKS_GATHER_WGSL,
             vsmBoxCullBlock(layout.prefilteredDistant),

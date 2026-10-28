@@ -59,7 +59,7 @@ test('an image whose previous SAMPLED image is not the one before it publishes n
 
 test('a predecessor not timed whole leaves no end to measure from', () => {
   const timeline = createTimeline()
-  // A truncated image or an invalid timestamp resolves no span (`summarizeTimestamps`).
+  // An invalid timestamp resolves no span (`summarizeTimestamps`).
   assert.equal(timeline.read(1, null), null)
   assert.equal(timeline.read(2, span(5, 6)), null)
   assert.equal(timeline.read(3, span(7, 9)), 1)

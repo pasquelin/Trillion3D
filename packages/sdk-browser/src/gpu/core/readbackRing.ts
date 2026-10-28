@@ -31,6 +31,8 @@ export function unlessRefused(error: unknown) {
 
 interface Staging<T> {
   buffer: GPUBuffer
+  /** The bytes from its start a chained read mapped, none while the whole buffer is: the range its mapped bytes are asked for by. */
+  range?: number
   /** What the frame that took the buffer says of its copy, given back to `read`. */
   tag: T
   /** The mapping's callbacks, made once with the buffer: a frame allocates no closure. */
@@ -70,6 +72,8 @@ type RingOptions<T> = {
   count: number
   eager?: boolean
   chain?: (read: () => Promise<void>, tag: T) => void
+  /** With `chain`, the bytes of a buffer its read needs from its start, given its tag: only that range is mapped (the whole buffer by default). */
+  used?: (tag: T) => number
 }
 
 /** What a ring's mappings share: whether it is destroyed, and the mappings in flight. */
@@ -104,7 +108,8 @@ function createStagingPool<T>(
       mapped() {
         if (state.destroyed) return landed()
         try {
-          read(buffer.getMappedRange(), buffer, staging.tag)
+          // A mapping of a range is read over that range: asking the whole buffer of it is an `OperationError`.
+          read(buffer.getMappedRange(0, staging.range), buffer, staging.tag)
         } finally {
           buffer.unmap()
           free.push(staging)
@@ -138,10 +143,16 @@ function createStagingPool<T>(
 }
 
 /** The chained read of `staging`: mapped behind the caller's work, read, given back. */
-async function mapThenRead<T>(state: RingState, landed: () => void, staging: Staging<T>) {
+async function mapThenRead<T>(
+  state: RingState,
+  landed: () => void,
+  staging: Staging<T>,
+  used?: (tag: T) => number,
+) {
   if (state.destroyed) return landed()
   try {
-    await mapStaging(staging.buffer)
+    staging.range = used?.(staging.tag)
+    await mapStaging(staging.buffer, 0, staging.range)
   } catch (cause) {
     staging.failed()
     throw new ReadbackRefused('READBACK_MAP_REFUSED', { cause })
@@ -177,7 +188,7 @@ export function createReadbackRing<T = number>(
   const { chain } = options
   const map = (staging: Staging<T>) => {
     state.flying++
-    if (chain) chain(() => mapThenRead(state, landed, staging), staging.tag)
+    if (chain) chain(() => mapThenRead(state, landed, staging, options.used), staging.tag)
     else staging.buffer.mapAsync(mapRead()).then(staging.mapped, staging.failed)
   }
   const back = (staging: Staging<T>) => void (state.destroyed || free.push(staging))

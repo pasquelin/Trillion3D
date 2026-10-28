@@ -1,3 +1,4 @@
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
@@ -36,29 +37,39 @@ const PLAN = `@compute @workgroup_size(1) fn tessPlan(){
 }`
 
 /**
- * THE DICING'S ARGUMENTS, one thread once the levels are down: the workgroups of the dicing,
- * one for each `patchesPerGroup` of the patches the visible list was asked for, held to its
- * capacity, in rows (`groupGrid`).
+ * THE DICING'S ARGUMENTS (`diceArgs`), once the levels are down: the workgroups of the dicing at dispatch word `word`,
+ * one for each `patchesPerGroup` of the patches the visible list whose counter is `counter` was asked for, held to its
+ * capacity, in rows (`groupGrid`). The program declares `tu`, `tess` and `dispatch`.
  */
-const VISIBLE_ARGS = `@compute @workgroup_size(1) fn tessVisibleArgs(){
- let visible=min(tw(tu.args+${ARG_VISIBLE}u),tu.maxVisible);
+export const DICE_ARGS_WGSL = wgslBlock(
+  'DICE_ARGS_WGSL',
+  [TESS_STATE_WGSL, GROUP_GRID_WGSL, ceilDivWgsl],
+  `fn diceArgs(counter:u32,word:u32){
+ let visible=min(tw(tu.args+counter),tu.maxVisible);
  let grid=groupGrid(ceilDiv(visible,tu.patchesPerGroup));
- dispatch[tu.dispatch+${DISPATCH_DICE}u]=grid.x;
- dispatch[tu.dispatch+${DISPATCH_DICE + 1}u]=grid.y;
- dispatch[tu.dispatch+${DISPATCH_DICE + 2}u]=1u;
-}`
+ dispatch[tu.dispatch+word]=grid.x;
+ dispatch[tu.dispatch+word+1u]=grid.y;
+ dispatch[tu.dispatch+word+2u]=1u;
+}`,
+)
+const VISIBLE_ARGS = `@compute @workgroup_size(1) fn tessVisibleArgs(){diceArgs(${ARG_VISIBLE}u,${DISPATCH_DICE}u);}`
 
 /**
- * THE RESUME'S ARGUMENTS, one thread before the post pass takes up what the main pass's occlusion test
- * hid: the workgroups of `tessResume`, one for each `WORKGROUP_THREADS` of the patches the main pass
+ * THE RESUME'S ARGUMENTS (`resumeDispatch`), before the post pass takes up what the main pass's occlusion test
+ * hid: the workgroups of the resume, one for each `WORKGROUP_THREADS` of the patches the main pass
  * kept, held to the buffer's capacity (`groupGrid`).
  */
-const RESUME_ARGS = `@compute @workgroup_size(1) fn tessResumeArgs(){
+export const RESUME_ARGS_WGSL = wgslBlock(
+  'RESUME_ARGS_WGSL',
+  [TESS_STATE_WGSL, GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL, ceilDivWgsl],
+  `fn resumeDispatch(){
  let grid=groupGrid(ceilDiv(min(tw(tu.mainArgs+${ARG_OCCLUDED}u),tu.maxOccluded),WORKGROUP_THREADS));
  dispatch[tu.dispatch+${DISPATCH_RESUME}u]=grid.x;
  dispatch[tu.dispatch+${DISPATCH_RESUME + 1}u]=grid.y;
  dispatch[tu.dispatch+${DISPATCH_RESUME + 2}u]=1u;
-}`
+}`,
+)
+const RESUME_ARGS = `@compute @workgroup_size(1) fn tessResumeArgs(){resumeDispatch();}`
 
 const PROGRAM = `${D.tessUniform}
 ${D.tess}
@@ -76,4 +87,6 @@ export const planSource = () =>
     GROUP_GRID_WGSL,
     WORKGROUP_THREADS_WGSL,
     ceilDivWgsl,
+    DICE_ARGS_WGSL,
+    RESUME_ARGS_WGSL,
   ])

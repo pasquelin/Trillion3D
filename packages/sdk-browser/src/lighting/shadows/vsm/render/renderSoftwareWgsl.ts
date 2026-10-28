@@ -44,7 +44,6 @@
  * ninth buffer (6 where merged).
  */
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
-import { wgslFn } from '../../../../../../math/src/wgsl/decl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
 import { VIS_BINDINGS } from '../../../../gpu/bind/bindLayout.ts'
 import {
@@ -60,7 +59,7 @@ import {
   maskKeepWgsl,
 } from '../../../../visibility/shader/pageWgsl.ts'
 import { wpoGraphWgsl } from '../../../../visibility/shader/wpoGraphWgsl.ts'
-import { FLAG_BACK, FLAG_MASK } from '../../../../visibility/types.ts'
+import { FLAG_MASK } from '../../../../visibility/types.ts'
 import {
   colorSampleWgsl,
   maskAlphaWgsl,
@@ -76,26 +75,26 @@ import { type VsmBindingSpec, vsmBindingsWgsl } from '../resources.ts'
 import type { VsmLayout } from '../layout.ts'
 import { VSM_CASTER_PROJECTION_WGSL } from './renderCasterWgsl.ts'
 import {
-  VSM_RENDER_DEPTH_WGSL,
-  VSM_RENDER_PAGE_ORIGIN_WGSL,
-  VSM_RENDER_WINDOW_WGSL,
-} from './renderRasterWgsl.ts'
+  VSM_SOFTWARE_PLACE_WGSL,
+  VSM_SOFTWARE_WINDOW_FRAME,
+  vsmSoftwarePixelText,
+} from './windowRasterWgsl.ts'
+import { VSM_RENDER_DEPTH_WGSL, VSM_RENDER_PAGE_ORIGIN_WGSL } from './renderRasterWgsl.ts'
 import {
   VSM_RENDER_PARAMS_WGSL,
   VSM_RENDER_RECORD_WGSL,
   VSM_RENDER_SOFTWARE_VIEW_RECORDS,
   VSM_RENDER_SOFTWARE_VIEWS_WGSL,
-  VSM_RENDER_WINDOW_PAGES_SOFTWARE,
 } from './renderParamsWgsl.ts'
 
 /** Group 1's VSM resources: the page table, the one pool slice the entry writes, the uniforms. */
-export const VSM_RENDER_SOFTWARE_SPECS: readonly VsmBindingSpec[] = [
+const VSM_RENDER_SOFTWARE_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'pageTable', binding: 1 },
   { resource: 'pagePool', binding: 2, slices: 1, access: 'atomic' },
   { resource: 'uniforms', binding: 3 },
 ]
 /** And the projection data, where the device grants the ninth storage buffer (`vsmViewsLaid` false). */
-export const VSM_RENDER_SOFTWARE_PROJECTION_SPEC: VsmBindingSpec = {
+const VSM_RENDER_SOFTWARE_PROJECTION_SPEC: VsmBindingSpec = {
   resource: 'projectionData',
   binding: 5,
 }
@@ -126,13 +125,6 @@ export const vsmSoftwareSpecs = (native: boolean, merged = false): readonly VsmB
 export const VSM_RENDER_SOFTWARE_ENTRY = 'vsmRenderSoftware'
 export const VSM_RENDER_SOFTWARE_STATIC_ENTRY = 'vsmRenderSoftwareStatic'
 
-/** The frame the setup rasters on: the window. */
-const WINDOW_FRAME = wgslFn(
-  'rasterViewport',
-  [],
-  `fn rasterViewport()->vec2f{return vec2f(${VSM_RENDER_WINDOW_PAGES_SOFTWARE * VSM_PAGE_TEXELS}.0);}`,
-)
-
 /** The shadow raster's target of the one cluster kernel (`ClusterRasterTarget`), `wpo` naming
  *  whether the module holds the offsets' graph (whose threshold the map sets). */
 const shadowClusterTarget = (wpo: boolean, merged: boolean): ClusterRasterTarget => ({
@@ -152,11 +144,9 @@ const shadowClusterTarget = (wpo: boolean, merged: boolean): ClusterRasterTarget
   itemOwn: `swRaw=vsmSoftwareView(vsmRecordMap(swGroup));${
     wpo ? '\n wpoThreshold=swRaw.wpoThreshold;' : ''
   }
- let extent=vsmRecordLastPage(swGroup)-vsmRecordFirstPage(swGroup);
  for(var i=lane;i<SW_SLOTS;i+=WORKGROUP_THREADS){
-  let local=vec2u(i%SW_SIDE,i/SW_SIDE);
   var origin=VSM_RENDER_NO_PAGE;
-  if(all(local<=extent)){origin=vsmRenderPageOrigin(swGroup.w,local);}
+  if(vsmRenderWindowHas(swGroup,i)){origin=vsmRenderWindowOrigin(swGroup,i);}
   swPool[i]=origin;
  }`,
   frame: 'let det=select(1.0,-1.0,vsmRecordSwapped(swGroup));',
@@ -172,9 +162,6 @@ const shadowClusterTarget = (wpo: boolean, merged: boolean): ClusterRasterTarget
 @compute @workgroup_size(WORKGROUP_THREADS) fn ${VSM_RENDER_SOFTWARE_STATIC_ENTRY}(@builtin(workgroup_id) g:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){clusterGroup(g,lane,n,1u);}`
   }`,
 })
-
-/** The slots of the group's table of page origins: the window's pages, `SW_SIDE` a side. */
-const SW_SIDE = VSM_RENDER_WINDOW_PAGES_SOFTWARE
 
 /** The view of map \`map\` the corners are placed by, as the fields of its projection record that
  *  \`vsmRenderShifted\` and \`vsmRenderClip\` read: the record itself where the stage binds the projection
@@ -195,59 +182,37 @@ ${PAGE_BINDING.pages}
 ${materialDeclarations()}
 @group(1) @binding(0) var<storage,read> vsmSoftwareRecords:array<vec4u>;
 @group(1) @binding(4) var<uniform> params:VsmRenderParams;
-const SW_SIDE:u32=${SW_SIDE}u;
-const SW_SLOTS:u32=${SW_SIDE * SW_SIDE}u;
 /** The records of a layer (\`mode\`: 0 the dynamic layer's, 1 the static layer's): their count, and
  *  the place of the layer's record \`at\` among the sorted ones, the static layer's after the dynamic. */
 fn vsmSoftwareCount(mode:u32)->u32{return vsmSoftwareRecords[params.recordCapacity][mode];}
 fn vsmSoftwareAt(at:u32,mode:u32)->u32{return select(0u,vsmSoftwareRecords[params.recordCapacity].x,mode==1u)+at;}
-/** The record the group rasters (read by its first lane), its map's view for each lane, and the pool
- *  origin of each page of the window, \`SW_SIDE\` a side — the page's physical address, x | y << 16 —
- *  or \`VSM_RENDER_NO_PAGE\` where it is not one to draw or past the record's rect: the group's page
- *  table cache. */
-var<workgroup> swGroup:vec4u;
-var<workgroup> swPool:array<u32,SW_SLOTS>;
-var<private> swRaw:VsmProjectionRecord;
 ${softwareViewText(native)}
 /** Corner \`v\`'s clip position on the record's page, as the hardware raster's vertex places it. */
-fn vsmSoftwareClip(page:PageInfo,h:ClusterHeader,v:u32)->vec4f{
- let shifted=vsmRenderShifted(swRaw,vsmRenderWorld(page,h,v));
- return vsmRenderWindowAt(vsmRenderClip(swRaw,shifted),swGroup,${VSM_RENDER_WINDOW_PAGES_SOFTWARE}u);
-}
-/** The sides the setup reads of a row: its back-side flag left out, as the record's swapped bit
- *  holds it with the placement's mirroring (\`vsmRenderSwapped\`), a two-sided row's kept. */
-fn vsmSoftwareSides(page:PageInfo)->PageInfo{var p=page;p.flags&=~${FLAG_BACK}u;return p;}`
+fn vsmSoftwareClip(page:PageInfo,h:ClusterHeader,v:u32)->vec4f{return vsmSoftwarePlace(vsmRenderWorld(page,h,v));}`
+
+/** The casters' cutout of a masked row at a covered pixel (`pixelKeeps`): judged at the pixel, by the
+ *  corners' coordinate (`triCutout`), for a depth that can win only. */
+const softwareCutout = (
+  masks: MaskSet,
+) => /* wgsl */ `fn pixelKeeps(t:Tri,pixel:vec2i,c:vec3f,texel:vec2u,slice:u32,depth:u32)->bool{
+ let page=pages[t.row];
+ if((page.flags&${FLAG_MASK}u)==0u){return true;}
+ if(!vsmRenderBeats(texel,slice,depth)){return false;}
+ let cut=triCutout(t,c);
+ return ${
+   maskKnowsPixel(masks)
+     ? `maskKeepAt(page,cut.at.xy,1.0,cut.ddx,cut.ddy,vec2f(vsmRecordFirstPage(swGroup)*${VSM_PAGE_TEXELS}u+vec2u(pixel))+vec2f(0.5))`
+     : 'maskKeep(page,cut.at.xy,1.0,cut.ddx,cut.ddy)'
+ };
+}`
 
 const softwarePixelAndKernels = (
   masks: MaskSet,
   wpo: WpoSet,
   subgroups: boolean,
   merged: boolean,
-) => /* wgsl */ `
-/** A covered pixel of the record's window: on a page of it that is one to draw, kept by a masked row's
- *  cutout, its depth joins the texel of its layer's slice — the bound one, or where merged the dynamic or
- *  the static one by the record — by \`atomicMax\` (\`vsmRenderJoin\`'s rule). A masked row evaluates its
- *  cutout only for a depth that can win (\`vsmRenderBeats\`). */
-fn writePixel(t:Tri,pixel:vec2i,c:vec3f,mode:u32){
- if(pixel.x>t.maxPixel.x||pixel.y>t.maxPixel.y){return;}
- let local=vec2u(pixel)>>vec2u(VSM_LOG2_PAGE);
- let origin=swPool[local.y*SW_SIDE+local.x];
- if(origin==VSM_RENDER_NO_PAGE){return;}
- let texel=vec2u(origin&0xFFFFu,origin>>16u)*VSM_PAGE_TEXELS+(vec2u(pixel)&vec2u(VSM_PAGE_TEXEL_MASK));
- let page=pages[t.row];
- let slice=${merged ? 'select(0u,vsm.staticSlice,vsmRecordStatic(swGroup)!=0u)' : '0u'};
- let depth=vsmRenderDepth(t.depth.x+t.depth.y*c.y+t.depth.z*c.z);
- if((page.flags&${FLAG_MASK}u)!=0u){
-  if(!vsmRenderBeats(texel,slice,depth)){return;}
-  let cut=triCutout(t,c);
-  if(!${
-    maskKnowsPixel(masks)
-      ? `maskKeepAt(page,cut.at.xy,1.0,cut.ddx,cut.ddy,vec2f(vsmRecordFirstPage(swGroup)*${VSM_PAGE_TEXELS}u+vec2u(pixel))+vec2f(0.5))`
-      : 'maskKeep(page,cut.at.xy,1.0,cut.ddx,cut.ddy)'
-  }){return;}
- }
- vsmPoolAtomicMax(texel,slice,depth);
-}
+) => /* wgsl */ `${softwareCutout(masks)}
+${vsmSoftwarePixelText(merged)}
 ${clusterRasterKernels(subgroups, shadowClusterTarget(wpo.programs.length > 0, merged))}`
 
 /** The software raster of the shadow maps (above), `subgroups` the device's subgroup operations
@@ -268,12 +233,12 @@ export const vsmRenderSoftwareWgsl = (
 ${softwareDeclarations(native)}${softwarePixelAndKernels(masks, wpo, subgroups, merged)}
 `,
     [
-      WINDOW_FRAME,
+      VSM_SOFTWARE_WINDOW_FRAME,
       RASTER_TRI_WGSL,
       PAGE_INFO_WGSL,
       PAGE_GEOMETRY_WGSL,
       VSM_CASTER_PROJECTION_WGSL,
-      VSM_RENDER_WINDOW_WGSL,
+      VSM_SOFTWARE_PLACE_WGSL,
       VSM_RENDER_DEPTH_WGSL,
       VSM_RENDER_PAGE_ORIGIN_WGSL,
       VSM_RENDER_RECORD_WGSL,

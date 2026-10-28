@@ -106,10 +106,11 @@ test('a frame that tessellates seeds, splits six levels and dices in both modes 
       ['tessDice1', post + dice],
     ],
   )
-  // The pass's state is cleared before its seeding, and nothing else of the buffer.
-  const states = f.clears.filter((c) => c.buffer.label === 'Trillion3D tessellation')
+  // The pass's state is cleared before its seeding, and nothing else of the buffer but the losses the sampled image reads, once.
+  const cleared = f.clears.filter((c) => c.buffer.label === 'Trillion3D tessellation')
+  const states = cleared.filter((c) => c.size === PASS_ARG_WORDS * 4)
   assert.equal(states.length, 2)
-  assert.ok(states.every((c) => c.size === PASS_ARG_WORDS * 4))
+  assert.equal(cleared.length - states.length, 1, 'the losses, cleared as they are read')
 })
 
 test('the held tessellation is kept while its capacity stands, made again when it moves, given back with none', () => {

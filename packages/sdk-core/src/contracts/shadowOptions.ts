@@ -26,6 +26,11 @@ import {
  * job names them, no cache key holds them, and none moves a page: they restage nothing.
  */
 
+/** The stops either way the shadows' geometry level-of-detail bias may be set (`shadowGeometryLodBias`): two to the bias is a factor of the
+ *  tolerance the shaders read as an f32, which stays finite and normal at this size with room for the streaming quality scale (down to a
+ *  tenth) and any tolerance a view asks. A bias of this size draws the coarsest cluster or the finest one whatever the exact number. */
+export const SHADOW_GEOMETRY_LOD_BIAS_LIMIT = 100
+
 /** The settings of the shadows by field, each with the reference's default:
  *  `shadowDistanceScale`, 1, from 0 to 2 — the factor on every sun's shadow distance; 0 gives the
  *  culling nothing to test against, so it culls nothing —, `farShadowCulling`, on — whether a sun has
@@ -40,7 +45,7 @@ import {
  *  device, `vsmViewsPerPass` in
  *  `packages/sdk-browser/src/lighting/shadows/vsm/render/renderViewPasses.ts`) are drawn in several
  *  passes, each light whole in one, or, off, every light in one pass: the pages are the same either
- *  way —, the level of detail the shadow maps take of the clusters: `shadowGeometryLodBias`, 1 —
+ *  way —, the level of detail the shadow maps take of the clusters: `shadowGeometryLodBias`, 1, within `SHADOW_GEOMETRY_LOD_BIAS_LIMIT` stops either way —
  *  each map's view selects its own clusters, at the error the cut allows times two to this bias over
  *  the streaming's quality scale, in the map's pixels: 0 the cut's own error, higher coarser —, the occlusion culling of the shadow
  *  maps' casters: `shadowOcclusionCulling`, on — whether the raster culls the casters hidden in a
@@ -61,9 +66,11 @@ export const SHADOW_RULES = /* @__PURE__ */ (() =>
     number('shadowOverlapScale', 1, [0, 2]),
     flag('shadowFarField', true),
     flag('shadowMultipassViews', true),
-    // No bound but the one the shaders need: 2 to the bias, a factor of the threshold they read as
-    // an f32, finite and normal.
-    number('shadowGeometryLodBias', 1, [-126, 127]),
+    // No bound but the one the shaders need (`SHADOW_GEOMETRY_LOD_BIAS_LIMIT`).
+    number('shadowGeometryLodBias', 1, [
+      -SHADOW_GEOMETRY_LOD_BIAS_LIMIT,
+      SHADOW_GEOMETRY_LOD_BIAS_LIMIT,
+    ]),
     flag('shadowOcclusionCulling', true),
     flag('shadowDynamicHzb', false),
     flag('shadowOcclusionFullUpdate', false),

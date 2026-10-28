@@ -8,11 +8,11 @@ import {
 import { timingReadbacks } from './closeImage.ts'
 import { failedSample } from './sample.ts'
 import { destroyTimingResources, type TimingState } from './timingState.ts'
-import { PARTS, QUERY_COUNT } from './queries.ts'
+import { QUERY_SET_SIZE } from './querySetSize.ts'
 
 /** The encoder of one submission of image `frame`: the device's own when the image is not sampled
- *  (disposed, unsupported, off the cadence, readbacks busy, no more parts), the instrumented one
- *  when it is. Opens the image on its first submission. */
+ *  (disposed, unsupported, off the cadence, readbacks busy), the instrumented one when it is: every
+ *  submission of a sampled image is a part, however many the image has. Opens the image on its first submission. */
 export function createTimedEncoder(state: TimingState, frame: number): GPUCommandEncoder {
   const encoder = state.device.createCommandEncoder()
   if (state.disposed) {
@@ -27,13 +27,8 @@ export function createTimedEncoder(state: TimingState, frame: number): GPUComman
   if (state.active && state.active.frame !== frame) dropActive(state)
   if (!state.active && !openImage(state, frame)) return encoder
   const image = state.active!
-  if (image.parts.size >= PARTS) {
-    image.truncated = true
-    state.skippedFrames.parts++
-    return encoder
-  }
   const part: TimingPart = { at: [], names: [], order: -1, resolved: false }
-  const wrapper = instrumentTimingEncoder(encoder, part, image, state.resources!, QUERY_COUNT)
+  const wrapper = instrumentTimingEncoder(encoder, part, image, state.resources!, state.device)
   image.parts.set(wrapper, part)
   return wrapper
 }
@@ -47,28 +42,38 @@ function openImage(state: TimingState, frame: number) {
     state.skippedFrames.interval++
     return false
   }
-  if (readsInFlight(state) >= (second ? READBACKS : 1)) {
+  // A cadence of every image reads as many at once as the neighbours' do.
+  if (readsInFlight(state) >= (second || state.every() <= 1 ? READBACKS : 1)) {
     state.tally.droppedSamples++
     state.skippedFrames.busy++
     return false
   }
-  const tag: TimedRead = { frame, entries: [], truncated: false, used: 0, metadata: {} }
+  const tag: TimedRead = { frame, entries: [], used: 0, metadata: {} }
   let read: GPUBuffer | undefined
   try {
     state.resources ??= {
-      ...createTimingQueries(state.device, QUERY_COUNT),
-      readbacks: timingReadbacks(state, QUERY_COUNT * 8),
+      ...createTimingQueries(state.device, QUERY_SET_SIZE),
+      readbacks: timingReadbacks(state, QUERY_SET_SIZE * 8),
     }
-    read = state.resources.readbacks.take(tag)
+    read = state.resources.readbacks.take(tag, state.resources.capacity * 8)
     // A buffer free that the device does not make, or cannot map: no image is ever read back.
     if (!read) throw new Error('GPU_TIMING_READBACK_REFUSED')
   } catch (error) {
     state.enabled = false
     destroyTimingResources(state)
-    state.emit(failedSample(frame, false, String(error)))
+    state.emit(failedSample(frame, String(error)))
     return false
   }
-  state.active = { frame, parts: new Map(), truncated: false, cursor: 0, finished: 0, read, tag }
+  state.active = {
+    frame,
+    before: state.lastFrame,
+    parts: new Map(),
+    cursor: 0,
+    finished: 0,
+    read,
+    limit: read.size / 8,
+    tag,
+  }
   if (!second) state.lastFrame = frame
   state.tally.sampledFrames++
   return true
@@ -78,10 +83,19 @@ function openImage(state: TimingState, frame: number) {
 export const readsInFlight = (state: TimingState) =>
   (state.resources?.readbacks.held() ?? 0) - (state.active ? 1 : 0)
 
-/** The open image is dropped, its readback given back unread. */
-export function dropActive(state: TimingState) {
+/** The open image is dropped, its readback given back unread, the buffers it grew given up. With `unused`, the image was opened for nothing
+ *  (it had nothing to submit): it leaves no trace, the cadence and the dropped samples as they were. */
+export function dropActive(state: TimingState, unused = false) {
   if (!state.active) return
+  const { before } = state.active
   state.resources?.readbacks.dropped(state.active.read)
   state.active = undefined
+  if (unused) {
+    state.tally.sampledFrames--
+    state.lastFrame = before
+    return
+  }
+  // The image gave no time: the next one is asked for it, not the cadence's next.
+  state.lastFrame = -Infinity
   state.tally.droppedSamples++
 }

@@ -12,19 +12,24 @@ import {
   DISPATCH_DICE,
   DISPATCH_RESUME,
   DISPATCH_SPLIT,
+  LOSS_WORDS,
   MAX_SPLIT_LEVELS,
   OCCLUSION_MAIN,
   OCCLUSION_NONE,
   OCCLUSION_POST,
   PASS_DISPATCH_WORDS,
+  dispatchOffset,
 } from './contract.ts'
 import { createTessellationGroups, type PassPyramid } from './groups.ts'
 import { createTessellationPrograms } from './programs.ts'
+import { growCapacity } from './growth.ts'
+import { createTessellationLosses } from './losses.ts'
 import { createTessellationResources } from './resources.ts'
 import type { TessellationOcclusion } from './input.ts'
 import type { TessellationResources } from './resources.ts'
 import {
   TESS_CHAIN_SHADOW,
+  TESS_CHAIN_SHADOW_POST,
   TESS_UNIFORM,
   writeTessellationUniform,
   type TessellationCapacity,
@@ -43,8 +48,8 @@ const RESUME_DISPATCHES = 2
 /** What a pass that tests no previous pyramid writes for its matrix. */
 const ZERO_MATRIX = new Float32Array(16)
 const NO_VIEW = [0, 0]
-/** The shadow maps' chain tests no pyramid: each map judges a patch by its own page. */
-const NO_SIGHT = {
+/** A chain that tests no pyramid: the cut in one pass, and the shadow maps' chain of a frame with no kept pyramid (`shadowSide`). */
+export const NO_SIGHT = {
   mode: OCCLUSION_NONE,
   prevViewProj: ZERO_MATRIX,
   depthMap: NO_VIEW,
@@ -79,7 +84,7 @@ function encodeDice(
   if (!dice) return
   compute.setBindGroup(0, groups.of('dice', pass, input))
   compute.setPipeline(dice)
-  compute.dispatchWorkgroupsIndirect(dispatch, (pass * PASS_DISPATCH_WORDS + DISPATCH_DICE) * 4)
+  compute.dispatchWorkgroupsIndirect(dispatch, dispatchOffset(pass, DISPATCH_DICE))
 }
 
 /** The seeding of `pass` — a workgroup a cluster of the raster's list of tessellated clusters, which
@@ -96,7 +101,7 @@ function encodeLevels(
   pass: RasterPass,
   resume: boolean,
 ) {
-  const split = (pass * PASS_DISPATCH_WORDS + DISPATCH_SPLIT) * 4
+  const split = dispatchOffset(pass, DISPATCH_SPLIT)
   const run = (program: 'plan' | 'split', pipeline: GPUComputePipeline) => {
     compute.setBindGroup(0, groups.of(program, pass, input))
     compute.setPipeline(pipeline)
@@ -117,7 +122,7 @@ function encodeLevels(
     compute.dispatchWorkgroups(1)
     compute.setBindGroup(0, groups.of('seed', pass, input))
     compute.setPipeline(resuming)
-    compute.dispatchWorkgroupsIndirect(dispatch, (pass * PASS_DISPATCH_WORDS + DISPATCH_RESUME) * 4)
+    compute.dispatchWorkgroupsIndirect(dispatch, dispatchOffset(pass, DISPATCH_RESUME))
   }
   for (let level = 0; level < MAX_SPLIT_LEVELS; level++) {
     run('plan', plan)
@@ -145,10 +150,13 @@ function uniformWriter(device: GPUDevice, resources: TessellationResources) {
       args: layout.args[chain]!,
       queue: layout.queue,
       visible: layout.visible[chain]!,
-      visibleTwoSided: layout.visibleTwoSided[chain]!,
+      occluded: layout.occluded,
+      windows: layout.windows,
       dispatch: chain * PASS_DISPATCH_WORDS,
       disp: layout.disp,
       list: chain < RASTER_PASSES.length ? headerWord(chain as RasterPass) : 0,
+      lost: layout.lost + chain * LOSS_WORDS,
+      layered: chain >= RASTER_PASSES.length,
     }
     writeTessellationUniform(floats, ints, view, settings, capacity, regions, sight)
     device.queue.writeBuffer(resources.uniforms[chain]!, 0, floats)
@@ -183,23 +191,52 @@ function passSight(
 
 /**
  * What the shadow maps' chain shares with the cut's (`../../lighting/shadows/vsm/tessellation/`): the
- * buffers it runs in. Its uniform is written once an image, with the displaced surfaces' records
- * (`prepare`: the image's threshold, the settings), and its state cleared before each chunk of
- * casters (`clear`); the cut's passes have dealt with their lists by then.
+ * buffers it runs in. Its two chains' uniforms — the main pass's and the post pass's, as the cut's two
+ * passes — are written once an image, with the displaced surfaces' records (`prepare`: the image's threshold,
+ * the settings and the shadow maps' level-of-detail scale), and again where the raster keeps a pyramid
+ * to test the patches against (`sight`: the main pass tests the previous frame's and keeps the patches it
+ * hides, the post pass this frame's and takes them up again); the state of a chain is cleared before each
+ * chunk of casters (`clear`); the cut's passes have dealt with their lists by then.
  */
 function shadowSide(resources: TessellationResources, write: ReturnType<typeof uniformWriter>) {
+  let given: { view: TessellationView; settings: TessellationSettings } | undefined
+  /** The image gave its numbers (`prepare`) and no chain has written its uniforms from them yet: they are written when the first chain begins, or with the sight. */
+  let unwritten = false
+  /** The sight of a shadow chain testing `mode` of the pyramid. */
+  const sightOf = (mode: number): TessellationSight => ({
+    ...NO_SIGHT,
+    mode,
+    maxOccluded: resources.capacity.visible,
+    mainArgs: resources.layout.args[TESS_CHAIN_SHADOW]!,
+  })
+  const writeBoth = (main: TessellationSight, post: TessellationSight) => {
+    write(TESS_CHAIN_SHADOW, given!.view, given!.settings, main)
+    write(TESS_CHAIN_SHADOW_POST, given!.view, given!.settings, post)
+  }
   return {
     resources,
     prepare(
       displaced: Pick<DisplacementRecords, 'ints' | 'version'>,
       settings: TessellationSettings,
       threshold: number,
+      lodScale: number,
     ) {
       resources.follow(displaced)
-      write(TESS_CHAIN_SHADOW, { projection: 0, height: 0, threshold }, settings, NO_SIGHT)
+      given = { view: { projection: 0, height: 0, threshold, lodScale }, settings }
+      unwritten = true
     },
-    clear(encoder: GPUCommandEncoder) {
-      const [offset, size] = resources.argsRange(TESS_CHAIN_SHADOW)
+    /** The frame keeps a pyramid to test against: the main pass's chain tests the previous frame's, the post pass's this frame's. */
+    sight() {
+      writeBoth(sightOf(OCCLUSION_MAIN), sightOf(OCCLUSION_POST))
+      unwritten = false
+    },
+    clear(encoder: GPUCommandEncoder, post: boolean) {
+      // A frame that keeps no pyramid writes its uniforms here, once, as the chains begin.
+      if (unwritten) {
+        writeBoth(NO_SIGHT, NO_SIGHT)
+        unwritten = false
+      }
+      const [offset, size] = resources.argsRange(post ? TESS_CHAIN_SHADOW_POST : TESS_CHAIN_SHADOW)
       encoder.clearBuffer(resources.tess, offset, size)
     },
   }
@@ -238,6 +275,9 @@ export function createTessellation(
     pyramids,
   })
   const write = uniformWriter(device, resources)
+  const losses = createTessellationLosses(device, resources, (sample) =>
+    growCapacity(device, resources, sample),
+  )
   /** The frame's input, held from `begin` for the dicing of the same image. */
   let current: GpuRasterInput
   return {
@@ -246,6 +286,7 @@ export function createTessellation(
     ask: () => programs.ask(),
     begin(encoder: GPUCommandEncoder, input: GpuRasterInput, pass: RasterPass) {
       current = input
+      if (pass === RASTER_PASS_MAIN) losses.begin(encoder)
       const { displaced, view, settings, occlusion } = input.tessellation!
       resources.follow(displaced)
       const sight = passSight(pass, occlusion, resources, pyramids[pass]!)
@@ -271,7 +312,10 @@ export function createTessellation(
     encodeDice: (compute: GPUComputePassEncoder, pass: RasterPass, mode: number) =>
       encodeDice(compute, programs, groups, resources.dispatch, current, pass, mode),
     shadow: shadowSide(resources, write),
+    /** The patches it lost (`losses.ts`). */
+    losses,
     dispose() {
+      losses.dispose()
       resources.dispose()
     },
   }

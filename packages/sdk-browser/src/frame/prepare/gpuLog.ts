@@ -73,7 +73,6 @@ export function createGpuLog(device: GPUDevice) {
         (own.has(VSM_PROJECTION_PASS)
           ? ` projection ${x}x${y} groups = ${x * side}x${y * side} = ${x * y * side * side} px`
           : ' no projection') +
-        (sample.truncated ? ' (truncated)' : '') +
         ' |' +
         [...own].map(([name, value]) => ` ${name} ${ms(value)}`).join(''),
     )

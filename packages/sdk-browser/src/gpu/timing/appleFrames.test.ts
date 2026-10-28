@@ -149,34 +149,33 @@ test('a pair of two stale timestamps is unwritten, one stale or reversed is inva
   const entries = [0, 2, 4, 6].map((slot) => ({ slot, name: 'pass', part: 0 }))
   const values = new BigUint64Array([5, 9, 7, 9, 9, 8, 3, 6].map((ms) => BigInt(ms) * MS))
   // Slots 0 to 2 hold what they read: both of the first pair, and the second pair's beginning.
-  const { sample, span } = summarizeTimestamps(entries, values, false, (slot) => slot <= 2)
+  const { sample, span } = summarizeTimestamps(entries, values, (slot) => slot <= 2)
   assert.deepEqual(sample.pairs, { valid: 1, unwritten: 1, invalid: 2 })
   assert.equal(sample.frameMs, 3)
   assert.equal(sample.frameMsReason, null)
   assert.equal(span, null, 'a pass that ran has no time: no end to measure the next idle from')
   // A skipped pass ran nothing: the passes that ran hold the image's two ends.
   const ran = [entries[0], entries[3]]
-  const skipped = summarizeTimestamps(ran, values.fill(0n, 0, 2), false, () => false)
+  const skipped = summarizeTimestamps(ran, values.fill(0n, 0, 2), () => false)
   assert.deepEqual(skipped.sample.pairs, { valid: 1, unwritten: 1, invalid: 0 })
   assert.deepEqual(skipped.span, { beginNs: 3n * MS, endNs: 6n * MS })
 })
 
-test('a truncated image has no span whatever its pairs, and says so', async () => {
+test('a part never finished times nothing and leaves the span of the parts that were', async () => {
   const { f, timing, samples } = timer()
   const first = timing.createEncoder(1)
   first.beginComputePass({ label: 'a' }).end()
   const second = timing.createEncoder(1)
   second.beginComputePass({ label: 'b' }).end()
-  // The first encoder is never finished: its pass is never resolved, so the image's end is unknown.
+  // The first encoder is never finished: its pass is never resolved, and times nothing.
   second.finish()
   const values = new BigUint64Array(f.buffers[1].getMappedRange())
   values.set([1n * MS, 3n * MS], 0)
   values.set([4n * MS, 7n * MS], PART_ALIGN)
   timing.submitted(second, {})
   await timing.flush()
-  assert.equal(samples[0].truncated, true)
-  assert.equal(samples[0].frameMs, null)
-  assert.equal(samples[0].frameMsReason, 'truncated')
+  assert.equal(samples[0].frameMs, 3)
+  assert.equal(samples[0].frameMsReason, null)
   assert.deepEqual(samples[0].pairs, { valid: 1, unwritten: 0, invalid: 0 })
   timing.dispose()
 })

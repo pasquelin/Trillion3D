@@ -49,6 +49,8 @@ export const UNMEASURED: FrameMetrics = {
   gpuFrameMs: null,
   gpuHostGapMs: null,
   gpuIdleMs: null, // device idle between two images (#1451)
+  gpuTimer: null,
+  tessellationLoss: null,
   gpuDeviceLost: null,
   uncoveredTriangles: null,
   drawnTriangles: null,

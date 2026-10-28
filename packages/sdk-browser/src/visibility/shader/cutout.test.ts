@@ -226,7 +226,7 @@ test('every raster holds the graph masks it is made with, and none holds them ot
     'RASTER_MASKED',
     'TESSELLATION_DICE_MASKED',
     'VSM_RENDER_RASTER_MASKED',
-    'VSM_TESSELLATION_VERTEX_MASKED_GRAPH',
+    'VSM_TESSELLATION_DICE_MASKED_GRAPH',
   ]
   for (const name of names) {
     const text = ENGINE_SHADERS[name]!
@@ -249,7 +249,7 @@ test('every raster holds the graph masks it is made with, and none holds them ot
     'VSM_RENDER_RASTER_MASKED',
   ])
     assert.match(ENGINE_SHADERS[name]!, dithered, name)
-  for (const name of ['TESSELLATION_DICE_MASKED', 'VSM_TESSELLATION_VERTEX_MASKED_GRAPH'])
+  for (const name of ['TESSELLATION_DICE_MASKED', 'VSM_TESSELLATION_DICE_MASKED_GRAPH'])
     assert.match(ENGINE_SHADERS[name]!, plain, name)
   assert.ok(
     ENGINE_SHADERS.VIS_MASKED!.includes('maskKeepAt(page,in.tc.xy,in.tc.z,gx,gy,in.position.xy)'),
@@ -271,14 +271,14 @@ test('every raster holds the graph masks it is made with, and none holds them ot
   // use it are not drawn.
   assert.match(
     ENGINE_SHADERS.TESSELLATION_DICE_MASKED!,
-    /let kept=!masked\|\|dicedKept\([^\n]*\n\s*usable\[v\]=select\(0u,1u,kept&&clip\.w>0\.0&&sub\.z<=1\.0\);/,
+    /let kept=!masked\|\|dicedKept\([^\n]*\n\s*usable\[v\]=select\(0u,1u,kept&&\(item\.near!=0u\|\|\(clip\.w>0\.0&&sub\.z<=1\.0\)\)\);/,
   )
   for (const name of [
     'VIS_SHADER',
     'RASTER',
     'TESSELLATION_DICE',
     'VSM_RENDER_RASTER',
-    'VSM_TESSELLATION_VERTEX_MASKED',
+    'VSM_TESSELLATION_DICE',
   ])
     assert.doesNotMatch(ENGINE_SHADERS[name]!, /maskGraph|maskKeepAt/, name)
   // The camera's passes read a texture at the render pixel's footprint, the shadows' at no offset.

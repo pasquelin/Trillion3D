@@ -42,6 +42,8 @@ export const ENGINE_METRIC_KEYS = [
   'gpuFrameMs',
   'gpuHostGapMs',
   'gpuIdleMs',
+  'gpuTimer',
+  'tessellationLoss',
   'gpuDeviceLost',
   'vramBytes',
   'gpuAllocatedBytes',

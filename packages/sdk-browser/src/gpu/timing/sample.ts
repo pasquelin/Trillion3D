@@ -23,11 +23,7 @@ export function createSampleEmitter(onSample: (sample: GpuTimingSample) => void)
 
 /** The sample of an image whose timing failed: every duration null, the reason named. One shape
  *  for the two ways it fails, so a field added to the sample cannot reach one and miss the other. */
-export const failedSample = (
-  frame: number,
-  truncated: boolean,
-  error: string,
-): GpuTimingSample => ({
+export const failedSample = (frame: number, error: string): GpuTimingSample => ({
   frame,
   totalMs: null,
   frameMs: null,
@@ -37,27 +33,18 @@ export const failedSample = (
   hostGapMs: null,
   idleBetweenMs: null,
   passes: [],
-  truncated,
   error,
 })
 
-export function timingEntries(parts: Iterable<TimingPart>, initialTruncated: boolean) {
-  let truncated = initialTruncated
-  let unresolvedParts = 0
+export function timingEntries(parts: Iterable<TimingPart>) {
   const entries: TimingEntry[] = []
-  // The queue's order: the parts as the image submitted them, each one's passes as encoded.
+  // The queue's order: the parts as the image submitted them, each one's passes as encoded. A part never finished timed nothing.
   for (const part of [...parts].sort((a, b) => a.order - b.order)) {
-    if (!part.resolved) {
-      if (part.names.length) {
-        truncated = true
-        unresolvedParts++
-      }
-      continue
-    }
+    if (!part.resolved) continue
     for (let i = 0; i < part.names.length; i++)
       entries.push({ slot: part.at[i], name: part.names[i], part: part.order })
   }
-  return { entries, truncated, unresolvedParts }
+  return entries
 }
 
 export type TimingEntry = { slot: number; name: string; part: number }
@@ -91,16 +78,10 @@ const coveredMs = (spans: ImageSpan[]) =>
  * held at the last read: the driver skipped the pass), `invalid` when only one is, or the end
  * precedes the beginning, and valid otherwise. The span is the earliest beginning to the latest end
  * of the valid pairs alone: passes without one add nothing to it and never void it, and it is null
- * only for a truncated image — a pass went untimed, so its last end is unknown — or one with no
- * valid pair at all. A pass whose pair is invalid may lie outside it, so the span is then a lower
+ * only for an image with no valid pair at all. A pass whose pair is invalid may lie outside it, so the span is then a lower
  * bound, and the `span` returned for the idle to the next image (whole or none) is null.
  */
-export function summarizeTimestamps(
-  entries: TimingEntry[],
-  values: BigUint64Array,
-  truncated: boolean,
-  stale: Stale,
-) {
+export function summarizeTimestamps(entries: TimingEntry[], values: BigUint64Array, stale: Stale) {
   const pairs: TimingPairs = { valid: 0, unwritten: 0, invalid: 0 }
   // The enclosing span of the image, and of each submission inside it, come from these same
   // timestamps: the earliest beginning to the latest end. Passes the device overlaps are covered
@@ -109,29 +90,25 @@ export function summarizeTimestamps(
   const timed: TimedPass[] = []
   const passes = readPasses(entries, values, stale, { pairs, submissionSpans, timed })
   setOwnShares(timed)
-  const total =
-    truncated || passes.some((pass) => pass.gpuMs === null)
-      ? null
-      : passes.reduce((sum, pass) => sum + pass.gpuMs!, 0)
+  const total = passes.some((pass) => pass.gpuMs === null)
+    ? null
+    : passes.reduce((sum, pass) => sum + pass.gpuMs!, 0)
   const spans = [...submissionSpans.values()],
     image = envelope(spans),
-    // A truncated image's last timed pass is not its last: its span is no span of the image.
-    whole = truncated ? null : image,
-    frameMsReason: FrameMsReason | null = truncated ? 'truncated' : image ? null : 'no-valid-pair',
-    frameMs = whole && nanosecondsToMs(Number(whole.endNs - whole.beginNs))
+    frameMsReason: FrameMsReason | null = image ? null : 'no-valid-pair',
+    frameMs = image && nanosecondsToMs(Number(image.endNs - image.beginNs))
   if (image) placePasses(timed, image.beginNs)
   const submissions = submissionsOf(submissionSpans)
   // A submission is one contiguous GPU execution, so the image's GPU time is what the submission
   // spans cover — not `frameMs`, which also holds the host time between two submissions. Two
   // submissions the device overlaps cover their overlap once: never a sum of the spans, which would
   // pass `frameMs` and leave a negative host gap.
-  const submittedMs = whole && coveredMs(spans)
+  const submittedMs = image && coveredMs(spans)
   const hostGapMs = frameMs === null || submittedMs === null ? null : frameMs - submittedMs
-  // The image's two ends on the device timeline, whole or none: a truncated image's last timed
-  // pass is not its last, a pass whose pair cannot be read may be, and the idle to the next image
-  // would count the untimed rest (#1451). A skipped pass ran nothing: the passes that ran hold
+  // The image's two ends on the device timeline, whole or none: a pass whose pair cannot be read may be the last, and the idle to the
+  // next image would count the untimed rest (#1451). A skipped pass ran nothing: the passes that ran hold
   // the image's two ends.
-  const span = pairs.invalid > 0 ? null : whole
+  const span = pairs.invalid > 0 ? null : image
   return {
     sample: {
       totalMs: total,
@@ -142,7 +119,6 @@ export function summarizeTimestamps(
       hostGapMs,
       submissions,
       passes,
-      truncated,
     },
     span,
   }

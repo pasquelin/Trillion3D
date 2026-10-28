@@ -70,16 +70,15 @@ test('the device once, then a line every 60 images: passes, sizes, the dispatch'
   assert.match(lines[3], /^\[T3D-GPU\] frame 133 /)
 })
 
-test('the timed scale, an untimed instance as -, a truncated image and no projection said', () => {
+test('the timed scale, an untimed instance as - and no projection said', () => {
   const [, line] = logged('?trillion3dGpuLog=1', [5], {
     renderScale: 0.5,
-    truncated: true,
     passes: [
       { name: 'taa', gpuMs: 1 },
       { name: 'taa', gpuMs: null },
     ],
   })
-  assert.match(line, / timed at scale 0\.500 no projection \(truncated\) \| taa -$/)
+  assert.match(line, / timed at scale 0\.500 no projection \| taa -$/)
 })
 
 test('an image with no GPU time says why, with its pairs by state', () => {

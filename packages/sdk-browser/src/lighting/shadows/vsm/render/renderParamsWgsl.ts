@@ -7,6 +7,7 @@ import { LIGHTING_CHANNELS_WGSL } from '../../../lightingChannelsWgsl.ts'
 import { VSM_OVERFLOW_WGSL } from '../overflowWgsl.ts'
 import { VSM_PROJECTION_RECORD_WGSL } from '../projection/projectionDataWgsl.ts'
 import { vsmNinthStorage } from '../resources.ts'
+import { WINDOW_PAGE_SIDE } from '../../../../visibility/tessellation/contract.ts'
 import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
 
 /** THE SHADOW RASTER'S PARAMETERS AND INDIRECT ARGUMENTS (`renderCullWgsl.ts`): its view pass's
@@ -77,7 +78,7 @@ export const vsmRenderTiersDrawn = ({ twoSided, voxels }: CompiledTiers) =>
  *  the software raster's (`NANITE_VSM_PAGE_TABLE_CACHE_DIM`, 8, the page table entries its group
  *  keeps in its own memory, `renderSoftwareWgsl.ts`). */
 export const VSM_RENDER_WINDOW_PAGES = 4
-export const VSM_RENDER_WINDOW_PAGES_SOFTWARE = 8
+export const VSM_RENDER_WINDOW_PAGES_SOFTWARE = WINDOW_PAGE_SIDE
 /** Words of a view pass's indirect arguments: the cull's 3; the bin's 3, a thread a record
  *  (`vsmRenderBin`); then a draw of 4 a tier; then the software raster's 3 a layer, a group a record
  *  of the layer (the dynamic layer's, then the static layer's), and 3 for both layers at once, a group
@@ -244,8 +245,7 @@ const VSM_RENDER_CAND_DEFORMING:u32=2u;
 const VSM_RENDER_CAND_FLIPPED:u32=4u;
 /** Bit 5: the row is a displaced surface the frame tessellates (\`tessellatedFlags\`) while a kind of
  *  light's maps take it so (\`params.tessellated\`): its records are cut into patches and not drawn as
- *  its triangles, a masked one too: its cutout is judged at the patches' vertices or, where the
- *  vertex stage cannot bind the colour atlas, by the fragment (\`vsmTessellatedVertexWgsl\`). */
+ *  its triangles, a masked one too: its cutout is judged at the patches' vertices (\`vsmTessDiceWgsl\`). */
 const VSM_RENDER_CAND_TESSELLATED:u32=32u;
 /** Bit 6: the group finer than the cluster is resident (the cut rule's \`childResident\`). */
 const VSM_RENDER_CAND_CHILD_RESIDENT:u32=64u;
@@ -389,14 +389,12 @@ export const vsmCullMarks = (device: Pick<GPUDevice, 'limits'>) =>
  *  high part with the offsets' threshold, then its low part. One pair writes and reads them, as the
  *  fields of the projection record that the corners are placed by. */
 export const VSM_RENDER_SOFTWARE_VIEW_RECORDS = 6
-export const VSM_RENDER_SOFTWARE_VIEWS_WGSL = wgslBlock(
-  'VSM_RENDER_SOFTWARE_VIEWS_WGSL',
-  [VSM_RENDER_PARAMS_WGSL, VSM_PROJECTION_RECORD_WGSL],
+/** The words of a view (`vsmPackView`, `vsmUnpackView`): what the pass's sorted list lays and what a window of the
+ *  tessellation's `tess` buffer holds of its map's view (`WINDOW_VIEW_WORDS`). */
+export const VSM_VIEW_WORDS_WGSL = wgslBlock(
+  'VSM_VIEW_WORDS_WGSL',
+  [VSM_PROJECTION_RECORD_WGSL],
   `${wgslConsts({ VSM_RENDER_SOFTWARE_VIEW_RECORDS })}
-/** The place in the sorted list of map \`map\`'s view: past the records and the counts' word. */
-fn vsmSoftwareViewAt(map:u32)->u32{
- return params.recordCapacity+1u+(map-params.viewFirst)*VSM_RENDER_SOFTWARE_VIEW_RECORDS;
-}
 /** The words of the view of a map's record, as the list holds them. */
 fn vsmPackView(raw:VsmProjectionRecord)->array<vec4u,${VSM_RENDER_SOFTWARE_VIEW_RECORDS}>{
  let m=raw.shiftedToMapUv;
@@ -413,6 +411,14 @@ fn vsmUnpackView(view:array<vec4u,${VSM_RENDER_SOFTWARE_VIEW_RECORDS}>)->VsmProj
  raw.wpoThreshold=high.w;
  raw.originShiftLow=bitcast<vec4f>(view[5]).xyz;
  return raw;
+}`,
+)
+export const VSM_RENDER_SOFTWARE_VIEWS_WGSL = wgslBlock(
+  'VSM_RENDER_SOFTWARE_VIEWS_WGSL',
+  [VSM_RENDER_PARAMS_WGSL, VSM_VIEW_WORDS_WGSL],
+  `/** The place in the sorted list of map \`map\`'s view: past the records and the counts' word. */
+fn vsmSoftwareViewAt(map:u32)->u32{
+ return params.recordCapacity+1u+(map-params.viewFirst)*VSM_RENDER_SOFTWARE_VIEW_RECORDS;
 }`,
 )
 
@@ -453,6 +459,11 @@ fn vsmRecordExtent(r:vec4u)->u32{
  return e.x|(e.y<<8u);
 }
 fn vsmExtentPages(extent:u32)->vec2u{return vec2u(extent&0xFFu,extent>>8u);}
+/** Whether slot \`slot\` of the software raster's window (\`${VSM_RENDER_WINDOW_PAGES_SOFTWARE}\` pages a side, row by row) lies in the record's rect. */
+fn vsmRenderWindowHas(r:vec4u,slot:u32)->bool{
+ let side=${VSM_RENDER_WINDOW_PAGES_SOFTWARE}u;
+ return all(vec2u(slot%side,slot/side)<=vsmRecordLastPage(r)-vsmRecordFirstPage(r));
+}
 /** Whether the cull matched the window's pages by the wanted mark (a cache state that turned), and by
  *  the primary request mark too (a caster in a prefiltered level's inner band): the rest of the mask
  *  is the layer's stale mark (\`renderBinWgsl.ts\`). */

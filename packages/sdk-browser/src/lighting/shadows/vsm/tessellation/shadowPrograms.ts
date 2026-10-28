@@ -2,39 +2,39 @@ import { NO_RASTERS, type GraphRasters } from '../../../../materials/graph/graph
 import { COMPUTE, computeBufferEntry } from '../../../../gpu/core/computeBindings.ts'
 import { preparedComputeStage } from '../../../../gpu/core/computeStages.ts'
 import { groupWidth, groupWidthConstants } from '../../../../gpu/dispatch/grid.ts'
-import { preparedPipeline } from '../../../deferred/fullscreen.ts'
 import {
   tessLayoutEntries,
   type TessProgram,
 } from '../../../../visibility/tessellation/bindings.ts'
 import { planSource } from '../../../../visibility/tessellation/planWgsl.ts'
 import { vsmBindGroupLayoutEntries } from '../resources.ts'
+import { vsmOcclusionEntries } from '../occlusion/occlusionPass.ts'
 import type { VsmLayout } from '../layout.ts'
 import { vsmRenderParamsEntry } from '../render/renderParams.ts'
-import { VSM_RENDER_TARGET_FORMAT, vsmRenderRasterWgsl } from '../render/renderRasterWgsl.ts'
-import {
-  VSM_TESS_PROJECTION_SPECS,
-  vsmTessArgsSource,
-  vsmTessSeedSource,
-  vsmTessSplitSource,
-} from './shadowKernelsWgsl.ts'
-import { vsmTessellatedVertexWgsl } from './shadowRasterWgsl.ts'
+import { VSM_TESS_PROJECTION_SPECS, vsmTessArgsSource, vsmTessSource } from './shadowKernelsWgsl.ts'
+import { DICE_LAYERS, VSM_TESS_DICE_SPECS, vsmTessDiceWgsl } from './shadowDiceWgsl.ts'
+import { VSM_WINDOW_SPECS, vsmWindowFillSource } from './shadowWindowWgsl.ts'
+import { shadowPageComputeLayout } from '../../casters/pageGroup.ts'
 import { shadowMasks } from '../../../../visibility/shader/maskSets.ts'
-import { patchVertexWpo, shadowSplitWpo } from '../../../../visibility/shader/wpoSets.ts'
-import { vsmMaskedPatches } from './maskedPatches.ts'
+import { patchWpo, shadowSplitWpo } from '../../../../visibility/shader/wpoSets.ts'
 
 /** The bind group layouts of the programs: the tessellation's group of each, by the name
- *  `TESS_PROGRAMS` gives it — the vertex stage's with the colour atlas where `raster` says
- *  masked —, the view pass's lists (parameters at a dynamic offset, counters and sorted records) and the maps'
- *  projections. */
-function shadowLayouts(device: GPUDevice, layout: VsmLayout, raster: TessProgram) {
-  const group = (program: TessProgram, visibility?: number) =>
-    device.createBindGroupLayout({ entries: tessLayoutEntries(program, visibility) })
+ *  `TESS_PROGRAMS` gives it, the view pass's lists (parameters at a dynamic offset, counters and sorted records), the maps'
+ *  projections, the occlusion's pyramid and kept tables (the cull's own group, `vsmOcclusionEntries`), the maps'
+ *  projections, page table and uniforms the windows are filled from, and the pool's slice and uniforms the dicing writes. */
+function shadowLayouts(device: GPUDevice) {
+  const group = (program: TessProgram) =>
+    device.createBindGroupLayout({ entries: tessLayoutEntries(program) })
+  const specs = (label: string, list: Parameters<typeof vsmBindGroupLayoutEntries>[0]) =>
+    device.createBindGroupLayout({
+      label: `Trillion3D shadow tessellation ${label}`,
+      entries: vsmBindGroupLayoutEntries(list, COMPUTE),
+    })
   return {
-    shadowSeed: group('shadowSeed'),
     shadowSplit: group('shadowSplit'),
+    shadowDice: group('shadowDice'),
+    shadowWindow: group('shadowWindow'),
     plan: group('plan'),
-    [raster]: group(raster, GPUShaderStage.VERTEX),
     lists: device.createBindGroupLayout({
       label: 'Trillion3D shadow tessellation lists',
       entries: [
@@ -43,44 +43,14 @@ function shadowLayouts(device: GPUDevice, layout: VsmLayout, raster: TessProgram
         computeBufferEntry(2, 'read-only-storage', COMPUTE),
       ],
     }),
-    projections: device.createBindGroupLayout({
-      label: 'Trillion3D shadow tessellation projections',
-      entries: vsmBindGroupLayoutEntries(VSM_TESS_PROJECTION_SPECS, COMPUTE),
+    projections: specs('projections', VSM_TESS_PROJECTION_SPECS),
+    windows: specs('windows', VSM_WINDOW_SPECS),
+    pool: specs('pool', VSM_TESS_DICE_SPECS),
+    occlusion: device.createBindGroupLayout({
+      label: 'Trillion3D shadow tessellation occlusion',
+      entries: vsmOcclusionEntries(),
     }),
   }
-}
-
-/** The render pipeline that draws the patches of the one-sided rows, or of the two-sided rows
- *  (`twoSided`): `modules`' vertex stage dices them, its fragment is the casters' depth fragment,
- *  over the groups `layouts` (the page group, the raster's, the tessellation's). */
-function rasterPipeline(
-  device: GPUDevice,
-  layouts: GPUBindGroupLayout[],
-  modules: { vertex: GPUShaderModule; fragment: GPUShaderModule },
-  twoSided: boolean,
-) {
-  return preparedPipeline(device, {
-    label: `Trillion3D shadow tessellation raster${twoSided ? ' two-sided' : ''}`,
-    layout: device.createPipelineLayout({ bindGroupLayouts: layouts }),
-    vertex: {
-      module: modules.vertex,
-      entryPoint: 'vsmTessellatedVs',
-      constants: { VSM_TESS_TWO_SIDED: twoSided ? 1 : 0 },
-    },
-    fragment: { module: modules.fragment, entryPoint: 'vsmRenderFs', targets: [] },
-    // A one-sided row's triangles face the light as the casters' do (`vsmRenderSwapped`); a
-    // two-sided row's cull none, as the casters' two-sided tiers.
-    primitive: {
-      topology: 'triangle-list',
-      frontFace: 'ccw',
-      cullMode: twoSided ? 'none' : 'back',
-    },
-    depthStencil: {
-      format: VSM_RENDER_TARGET_FORMAT,
-      depthWriteEnabled: false,
-      depthCompare: 'always',
-    },
-  })
 }
 
 /** A compute stage of the shadow maps' tessellation over the bind groups `groups`, asked now, off the
@@ -101,74 +71,75 @@ const shadowStage = (
     `shadow tessellation ${entryPoint}`,
   )
 
+/** The compiled pipelines of the chain, by name; `dice` one for each of `DICE_LAYERS`. */
+export type ShadowPipelines = Record<
+  'seedArgs' | 'seed' | 'resume' | 'plan' | 'split' | 'shadowArgs' | 'windowFill',
+  GPUComputePipeline
+> & { dice: GPUComputePipeline[] }
+
 /**
- * THE SHADOW MAPS' TESSELLATION PIPELINES (`shadowKernelsWgsl.ts`, `shadowRasterWgsl.ts`), made once
- * a raster context — its device, its set's layout, its page group —: the seeding over a view pass's
- * records, the splitting, the arguments' kernels, the levels' plan (the image's, in a module of its
- * own here), and the render pipeline that dices the visible patches in its vertex stage, the casters'
- * depth fragment after it (a draw for the one-sided rows, the back faces culled, and one for the
- * two-sided rows, none, compiled where a two-sided surface exists). Each compute program binds the tessellation's own group 0
- * (`TESS_PROGRAMS`), the view pass's lists in group 1 — one layout for all: parameters at a dynamic
- * offset, counters and records — and, for the splitting, the maps' projections in group 2. Every pipeline is
- * compiled off the frame (`ask`): until all are ready the casters draw the flat triangles they are
+ * THE SHADOW MAPS' TESSELLATION PIPELINES (`shadowKernelsWgsl.ts`, `shadowWindowWgsl.ts`, `shadowDiceWgsl.ts`), made once
+ * a raster context — its device, its set's layout —: the seeding over a view pass's
+ * records, the splitting, the post pass's resume of the patches the main pass hid (and its arguments), the arguments' kernels,
+ * the levels' plan (the image's, in a module of its own here), the kernel that fills the windows the seeding opened and the
+ * software raster that dices the visible patches into the pool, an entry point for each layer of the pool. Each compute program
+ * binds the tessellation's own group 0 (`TESS_PROGRAMS`), the view pass's lists in group 1 — one layout for all: parameters at a dynamic
+ * offset, counters and records — and, for the seeding, the resume and the splitting, the maps' projections in group 2 and the occlusion's
+ * pyramid in group 3; the dicing binds the shadow page group's compute twin (`shadowPageComputeLayout`), the tessellation's group and
+ * the pool's. Every pipeline is compiled off the frame (`ask`): until all are ready the casters draw the flat triangles they are
  * made of and the pages so drawn are not kept as cached (`vsmShadowTessellation`).
  */
 export function createShadowPrograms(
   device: GPUDevice,
   layout: VsmLayout,
-  pageLayout: GPUBindGroupLayout,
-  raster1: GPUBindGroupLayout,
   held: GraphRasters = NO_RASTERS,
 ) {
-  const vertexCut = vsmMaskedPatches(device)
-  const rasterProgram: TessProgram = vertexCut ? 'shadowRasterMasked' : 'shadowRaster'
-  // The session's graph masks cut the patches as they cut the casters; the vertex stage sees no
-  // blue noise, a patch's vertex being no pixel: the cut there is plain.
+  // The session's graph masks cut the patches as they cut the casters; a patch's vertex being no
+  // pixel, the cut there has no blue noise: it is plain.
   const masks = shadowMasks(held, false)
-  const layouts = shadowLayouts(device, layout, rasterProgram)
+  const layouts = shadowLayouts(device)
   const rows = groupWidthConstants(groupWidth(device.limits))
   const module = (name: string, code: string) =>
     device.createShaderModule({ label: `Trillion3D shadow tessellation ${name}`, code })
   const stage = shadowStage.bind(null, device)
   const args = module('arguments', vsmTessArgsSource())
   const { lists } = layouts
+  const planModule = module('plan', planSource())
+  const tessModule = module('patches', vsmTessSource(layout, shadowSplitWpo(held)))
+  const windowModule = module('windows', vsmWindowFillSource(layout))
+  const diceModule = module('dice', vsmTessDiceWgsl(layout, masks, patchWpo(held)))
+  const splitGroups = [layouts.shadowSplit, lists, layouts.projections, layouts.occlusion]
+  const diceGroups = [shadowPageComputeLayout(device), layouts.shadowDice, layouts.pool]
   const stages = {
     seedArgs: stage([layouts.plan, lists], args, 'vsmTessSeedArgs', rows),
-    seed: stage([layouts.shadowSeed, lists], module('seed', vsmTessSeedSource()), 'vsmTessSeed'),
-    plan: stage([layouts.plan], module('plan', planSource()), 'tessPlan', rows),
-    split: stage(
-      [layouts.shadowSplit, lists, layouts.projections],
-      module('split', vsmTessSplitSource(layout, shadowSplitWpo(held))),
-      'vsmTessSplit',
-    ),
-    drawArgs: stage([layouts.plan, lists], args, 'vsmTessDrawArgs', rows),
+    seed: stage(splitGroups, tessModule, 'vsmTessSeed'),
+    resume: stage(splitGroups, tessModule, 'vsmTessResume'),
+    plan: stage([layouts.plan], planModule, 'tessPlan', rows),
+    split: stage(splitGroups, tessModule, 'vsmTessSplit'),
+    shadowArgs: stage([layouts.plan], args, 'vsmTessShadowArgs', rows),
+    windowFill: stage([layouts.shadowWindow, layouts.windows], windowModule, 'vsmTessWindowFill'),
   }
-  const modules = {
-    vertex: module(
-      'vertex',
-      vsmTessellatedVertexWgsl(layout, vertexCut, masks, patchVertexWpo(held, vertexCut)),
-    ),
-    fragment: module('fragment', vsmRenderRasterWgsl(layout, masks)),
-  }
-  const rasterLayouts = [pageLayout, raster1, layouts[rasterProgram]]
-  const raster = rasterPipeline(device, rasterLayouts, modules, false)
-  const rasterTwoSided = rasterPipeline(device, rasterLayouts, modules, true)
-  const core = [...Object.values(stages), raster]
+  const dice = DICE_LAYERS.map(({ entry }) => stage(diceGroups, diceModule, entry))
+  const all = [...Object.values(stages), ...dice]
+  /** The pipelines, once all are compiled: the same objects for as long as the programs stand. */
+  let pipelines: ShadowPipelines | undefined
   return {
     layouts,
-    ...stages,
-    /** The draws of the patches, the one-sided rows' and the two-sided rows'. */
-    raster,
-    rasterTwoSided,
-    /** The tessellation's group the vertex stage reads, and whether it also cuts a masked row out. */
-    rasterProgram,
-    vertexCut,
-    /** Asks the pipelines the frame needs off the thread — the two-sided rows' draw only where the
-     *  table holds a two-sided surface (`twoSided`) —; whether they are all compiled. */
-    ask(twoSided: boolean) {
-      const needed = twoSided ? [...core, rasterTwoSided] : core
-      for (const pipeline of needed) pipeline.ask()
-      return needed.every((pipeline) => pipeline.ready)
+    /** Asks the pipelines the frame needs off the thread; whether they are all compiled. */
+    ask() {
+      for (const pipeline of all) pipeline.ask()
+      if (!all.every((pipeline) => pipeline.ready)) return false
+      pipelines ??= {
+        ...(Object.fromEntries(
+          Object.entries(stages).map(([name, stage]) => [name, stage.get()]),
+        ) as Omit<ShadowPipelines, 'dice'>),
+        dice: dice.map((stage) => stage.get()!),
+      }
+      return true
+    },
+    /** The compiled pipelines: the dicing's one for each of `DICE_LAYERS`. Read after `ask` answered true. */
+    get pipelines() {
+      return pipelines!
     },
   }
 }

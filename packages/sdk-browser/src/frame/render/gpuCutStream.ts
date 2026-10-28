@@ -3,6 +3,7 @@ import { pumpResidentTiles } from '../prepare/lightResources.ts'
 import { warmWorldActors } from '../prepare/hlodWarm.ts'
 import { followTexturePressure, growWebgpuRootRegion } from '../io/memory.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { createImagePart, sampleSubmitted } from './encoder.ts'
 
 /** The cut of the drawn view: the main one, or the view's own beside it on the same tables
  *  (`../../geometry/dag/aside.ts`), made at its first image. None for a scene without a cluster. */
@@ -72,6 +73,11 @@ export function dispatchCut(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) 
  * every image and the cut stays stuck on it, camera still, even once the missing bytes have
  * arrived. The selection is sent in a command buffer of its own; no draw pass goes with it.
  *
+ * The send is the image's one submission, timed as any image's is (`createImagePart`, `sampleSubmitted`): a frame the initial
+ * load draws as this has a duration, as the reference's profiler gives every frame its bounds. The roots' pass that precedes the cut is a part of
+ * the same image (the encoder is held as the frame's while the cut encodes), and an image with nothing to send is opened for nothing:
+ * dropped without a trace (`cancelUnused`).
+ *
  * Returns false when the send fails, said here once per lost send: the image is skipped, and a
  * view drawn aside drops its cut (`gpuCut.ts`); only `device.lost` declares the device lost.
  */
@@ -79,12 +85,21 @@ export function dispatchWaitingSelection(rt: WebgpuPagesRuntime) {
   const { run, gpu } = rt
   try {
     // Its own command buffer, sent only when the cut encoded something into it.
-    const encoder = gpu.device!.createCommandEncoder()
-    const settle = cutOf(rt)!.dispatch(run.selectionUniforms, encoder)
+    const encoder = createImagePart(rt, gpu.device!)
+    // Held as the frame's while the cut encodes, so that the roots' pass it writes first joins this image (`rootPasses.ts`).
+    rt.timing.frameEncoder = encoder
+    const cut = cutOf(rt)!
+    let settle: ReturnType<typeof cut.dispatch>
+    try {
+      settle = cut.dispatch(run.selectionUniforms, encoder)
+    } finally {
+      rt.timing.frameEncoder = undefined
+    }
     if (settle) {
       gpu.device!.queue.submit([encoder.finish()])
+      sampleSubmitted(rt, encoder, ...gpu.targetSize)
       settle(true)
-    }
+    } else rt.timing.gpuTiming?.cancelUnused()
     return true
   } catch (error) {
     rt.diag.diagnosticFailure('gpu-selection-dispatch-failed', error)

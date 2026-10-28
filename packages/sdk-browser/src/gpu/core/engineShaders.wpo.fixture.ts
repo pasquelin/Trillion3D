@@ -13,7 +13,7 @@ import {
   blendWpo,
   diceWpo,
   shadeWpo,
-  patchVertexWpo,
+  patchWpo,
   shadowSplitWpo,
   shadowWpo,
   tessellationWpo,
@@ -26,8 +26,8 @@ import { NO_MASKS } from '../../materials/graph/maskProgram.ts'
 import { seedSource } from '../../visibility/tessellation/seedWgsl.ts'
 import { splitSource } from '../../visibility/tessellation/splitWgsl.ts'
 import { diceSource } from '../../visibility/tessellation/diceWgsl.ts'
-import { vsmTessSplitSource } from '../../lighting/shadows/vsm/tessellation/shadowKernelsWgsl.ts'
-import { vsmTessellatedVertexWgsl } from '../../lighting/shadows/vsm/tessellation/shadowRasterWgsl.ts'
+import { vsmTessSource } from '../../lighting/shadows/vsm/tessellation/shadowKernelsWgsl.ts'
+import { vsmTessDiceWgsl } from '../../lighting/shadows/vsm/tessellation/shadowDiceWgsl.ts'
 import { velocityWpo } from '../../post/taa/velocityWpo.ts'
 import { velocityShader } from '../../post/taa/nearestVelocityWgsl.ts'
 import { surfaceVelocityShader } from '../../post/taa/surfaceVelocityWgsl.ts'
@@ -153,8 +153,7 @@ function texturedWpoShaders(): Record<string, string> {
 }
 
 /** The tessellation's modules over the offsets of `rasters`, named `name`: the image's seeding, splitting
- *  and dicing, the shadow maps' splitting (offsets that read no texture alone, so none for `textured` ones) and their vertex stage,
- *  which cuts a masked row out where the device grants it the room for the colour atlas. */
+ *  and dicing, the shadow maps' splitting and their dicing (offsets that read no texture alone, so none for `textured` ones). */
 function tessellationShaders(
   rasters: GraphRasters,
   layout: ReturnType<typeof vsmLayout>,
@@ -165,24 +164,13 @@ function tessellationShaders(
     [`TESSELLATION_SEED_${name}`]: seedSource(tessellationWpo(rasters)),
     [`TESSELLATION_SPLIT_${name}`]: splitSource(false, tessellationWpo(rasters)),
     [`TESSELLATION_DICE_${name}`]: diceSource(NO_MASKS, diceWpo(rasters)),
-    // Offsets that read a texture reach neither the shadow maps' splitting nor the vertex stage that
-    // cuts nothing out: their stages have no room for the colour atlas.
+    // Offsets that read a texture reach neither the shadow maps' splitting, whose stage has no room for the colour atlas,
+    // nor their dicing, which places the corners as the splitting judged them.
     ...(textured
       ? {}
       : {
-          [`VSM_TESSELLATION_SPLIT_${name}`]: vsmTessSplitSource(layout, shadowSplitWpo(rasters)),
-          [`VSM_TESSELLATION_VERTEX_${name}`]: vsmTessellatedVertexWgsl(
-            layout,
-            false,
-            undefined,
-            patchVertexWpo(rasters, false),
-          ),
+          [`VSM_TESSELLATION_${name}`]: vsmTessSource(layout, shadowSplitWpo(rasters)),
+          [`VSM_TESSELLATION_DICE_${name}`]: vsmTessDiceWgsl(layout, undefined, patchWpo(rasters)),
         }),
-    [`VSM_TESSELLATION_VERTEX_MASKED_${name}`]: vsmTessellatedVertexWgsl(
-      layout,
-      true,
-      undefined,
-      patchVertexWpo(rasters, true),
-    ),
   }
 }

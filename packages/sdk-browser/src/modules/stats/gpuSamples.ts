@@ -49,8 +49,7 @@ function shadowTimes(metrics: FrameMetrics) {
 
 /**
  * The GPU samples of the last second, and the stage and pass lists they are seen under. A sample is
- * filed only when the device handed a new, whole one: with a device image time, spans that are not
- * truncated. The lists are sticky since the start, in first-seen order (stages in the GPU tab's
+ * filed only when the device handed a new, whole one: with a device image time. The lists are sticky since the start, in first-seen order (stages in the GPU tab's
  * order, the unclassified last), so the rows do not come and go with the window. `shadows` files
  * the shadow counters' times beside the passes.
  */
@@ -70,7 +69,7 @@ export function gpuSamples(shadows: boolean) {
       gpuFrame = timings.frame
       // The spans overlap: their total is no image time, so without a device image time nothing is filed.
       const frameMs = metrics.gpuFrameMs
-      if (timings.truncated || frameMs == null) return
+      if (frameMs == null) return
       const { passes, grew } = classifyPasses(timings, stages)
       if (grew) {
         gpuStages = [

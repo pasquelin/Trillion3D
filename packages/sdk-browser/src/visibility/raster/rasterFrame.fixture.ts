@@ -44,7 +44,7 @@ export function rasterOf(tessellating: boolean, clipping = false, wide = false) 
     ...(tessellating && {
       tessellation: {
         displaced: { ints: new Uint32Array(24), version: 1 },
-        view: { projection: 1.7, height: 64, threshold: 1 },
+        view: { projection: 1.7, height: 64, threshold: 1, lodScale: 1 },
         settings: { tessellationDicingRate: 2, tessellationMaxPatchesPerGroup: 5 },
         // A cut in one pass: no previous pyramid, nothing the patches are tested against.
         occlusion: {

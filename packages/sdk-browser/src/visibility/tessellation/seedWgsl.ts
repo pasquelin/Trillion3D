@@ -1,5 +1,4 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
-import { worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { PAGE_INFO_STRUCT_WGSL, VIS_UNIFORMS_WGSL } from '../shader/pageWgsl.ts'
 import { PAGE_POINTS_WGSL } from '../shader/pageGeometryWgsl.ts'
@@ -8,9 +7,10 @@ import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
 import { materialTableWgsl } from '../../materials/table/materialWgsl.ts'
 import { wpoGraphWgsl } from '../shader/wpoGraphWgsl.ts'
 import { TESS_DECLARATIONS as D } from './bindings.ts'
-import { ARG_OCCLUDED, BARYCENTRIC_ONE, SEED_SPLIT_LIMIT } from './contract.ts'
-import { CHILDREN_WGSL, QUEUE_WGSL } from './queueWgsl.ts'
-import { edgeFactors, quarterRateDepth, coarseFactors } from './patchWgsl.ts'
+import { BARYCENTRIC_ONE, SEED_SPLIT_LIMIT } from './contract.ts'
+import { CHILDREN_WGSL, QUEUE_WGSL, resumeKernelText } from './queueWgsl.ts'
+import { coarseFactors, seededWhole } from './patchWgsl.ts'
+import { CORNER_FACTORS_WGSL, MAIN_VIEW_WGSL, WORLD_SCALE_WGSL } from './viewWgsl.ts'
 import { TESSELLATED_FLAGS_WGSL } from './rowWgsl.ts'
 import { LIST_TESS_AT, LIST_TESS_COUNT } from '../raster/contract.ts'
 
@@ -19,7 +19,7 @@ import { LIST_TESS_AT, LIST_TESS_COUNT } from '../raster/contract.ts'
  * (`LIST_TESS_COUNT`, `../raster/contract.ts`), in the compute pass of the pass's binning: the cut
  * left the clusters whose surface the frame tessellates to it (`VIS_TAG_TESSELLATED`,
  * `../../geometry/dag/shader/visibleWgsl.ts`), which the bins listed. Each triangle of a cluster is
- * measured — the factors of its three edges (`edgeFactors`), from the world
+ * measured — the factors of its three edges (`cornerFactors`), from the world
  * positions of its corners, the depth of the nearer end and the view's scale — and handed to the
  * splitting queue: whole where no edge asks for more than `SEED_SPLIT_LIMIT` pieces, else already
  * cut once, by the pattern of its factors over `TABLE_SIZE` held to that limit (`queueChildren`),
@@ -40,19 +40,15 @@ ${D.occludedRead}
  if(!tessellatedFlags(page)){return;}
  let h=pageHeaderFor(page,false);
  let rec=displacementOf(page);
- let axes=worldMatrix3(page.world);
- let scale=sqrt(max(dot(axes[0],axes[0]),max(dot(axes[1],axes[1]),dot(axes[2],axes[2]))));
- let far=quarterRateDepth(max(-rec.bounds.x,rec.bounds.y),scale,tu.edgesPerUnit,rec.bounds.z*tu.edgesPerPixel);
- let perspective=uni.perspective>0.0;
+ let view=mainView();
+ let far=farDepth(rec,worldScale(page.world),view);
  let whole=mat3x3f(vec3f(1.0,0.0,0.0),vec3f(0.0,1.0,0.0),vec3f(0.0,0.0,1.0));
  let triangles=page.indexCount/3u;
  for(var t=lane;t<triangles;t+=WORKGROUP_THREADS){
   let p=pageTrianglePositions(page,h,pageTriangle(page,h,t));
-  let w0=(page.world*vec4f(p[0],1.0)).xyz;let w1=(page.world*vec4f(p[1],1.0)).xyz;let w2=(page.world*vec4f(p[2],1.0)).xyz;
-  let depth=vec3f(dot(uni.forward,w0-uni.eye),dot(uni.forward,w1-uni.eye),dot(uni.forward,w2-uni.eye));
-  let f=edgeFactors(mat3x3f(w0,w1,w2),depth,uni.near,perspective,tu.edgesPerUnit,tu.piecesPerEdge,far);
+  let f=cornerFactors(page.world,p,view,far);
   let id=page.packedBase|visTriangle(t);
-  if(max(f.x,max(f.y,f.z))<=${SEED_SPLIT_LIMIT}.0){queuePatch(vec4u(id,${BARYCENTRIC_ONE}u,${BARYCENTRIC_ONE}u<<16u,0u));}
+  if(seededWhole(f)){queuePatch(vec4u(id,${BARYCENTRIC_ONE}u,${BARYCENTRIC_ONE}u<<16u,0u));}
   else{queueChildren(id,whole,min(coarseFactors(f),vec3f(${SEED_SPLIT_LIMIT}.0)),false);}
  }
 }`
@@ -63,12 +59,10 @@ ${D.occludedRead}
  * queued as the seeding queues a triangle, to be split and judged again against this image's
  * pyramid.
  */
-const RESUME = `@compute @workgroup_size(WORKGROUP_THREADS) fn tessResume(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
- let slot=flatIndex(id,n,WORKGROUP_THREADS);
- if(slot>=min(tw(tu.mainArgs+${ARG_OCCLUDED}u),tu.maxOccluded)){return;}
- let at=slot*4u;
- queuePatch(vec4u(occluded[at],occluded[at+1u],occluded[at+2u],occluded[at+3u]));
-}`
+const RESUME = resumeKernelText(
+  'tessResume',
+  'vec4u(occluded[slot*4u],occluded[slot*4u+1u],occluded[slot*4u+2u],occluded[slot*4u+3u])',
+)
 
 /** The seeding's program: its entry points `tessSeed` and `tessResume`. With `wpo`, a triangle is
  *  measured where its surface's offset puts its corners. */
@@ -82,10 +76,11 @@ export const seedSource = (wpo: WpoSet = NO_WPO) =>
     TESSELLATED_FLAGS_WGSL,
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
-    worldMatrix3,
     visTriangle,
-    edgeFactors,
-    quarterRateDepth,
+    MAIN_VIEW_WGSL,
+    CORNER_FACTORS_WGSL,
+    WORLD_SCALE_WGSL,
     coarseFactors,
+    seededWhole,
     ...(wpo.programs.length ? [materialTableWgsl(wpo.table), wpoGraphWgsl(wpo)] : []),
   ])

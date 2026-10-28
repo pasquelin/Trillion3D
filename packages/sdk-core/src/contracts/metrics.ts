@@ -12,14 +12,12 @@ export interface GpuPassTiming {
 }
 /**
  * GPU durations of one image, pass by pass, as the device reported them. `totalMs` sums the listed
- * passes and nothing else: never added to a `cpu*` field, null once a pass is unmeasured or the list
- * truncated. `frame` names the image described, behind the current one: readback never blocks one.
+ * passes and nothing else: never added to a `cpu*` field, null once a pass is unmeasured. `frame` names the image described, behind the current one: readback never blocks one.
  */
 export interface GpuPassTimings {
   /** The image described. */ frame: number
   /** Sum of the passes. */ totalMs: number | null
   /** Each pass. */ passes: GpuPassTiming[]
-  /** Whether passes were left out. */ truncated: boolean
   /** Why timing failed. */ error?: string
 }
 /**
@@ -31,10 +29,53 @@ export interface GpuPassTimings {
  * NOT in here; `gpuHostGapMs` carries it alone. Only the passes with a valid timestamp pair make the
  * spans: a pass the driver skipped wrote none (`unwritten-timestamps`) and one whose pair cannot be
  * read (`invalid-timestamps`) has none, and neither voids the passes that ran; the second may lie
- * outside the spans, which are then a lower bound (`gpuPassMs.passes` names it). Null when the list
- * was truncated, when no pass of the image has a valid pair, or when no timestamp query exists.
+ * outside the spans, which are then a lower bound (`gpuPassMs.passes` names it). Null when no pass of the image has a valid pair, or when no timestamp query exists.
  */
 export type GpuFrameMs = number | null
+
+/** The patches the displaced surfaces' tessellation lost (`FrameMetrics.tessellationLoss`), since the device opened, as the samples that came back counted them. */
+export interface TessellationLoss {
+  /** Patches the splitting queue had no room for (`tessellationMaxCandidatePatches`). */
+  queue: number
+  /** Patches a visible list had no room for (`tessellationMaxVisiblePatches`). */
+  visible: number
+  /** Shadow-map windows past the room of the shadow chain, whose patches are not drawn. */
+  windows: number
+  /** Patches the occlusion test hid that the buffer keeping them for the post pass had no room for: not drawn by the post pass. */
+  occluded: number
+}
+
+/** What the GPU timer counts of the images it was asked to measure (`FrameMetrics.gpuTimer`), since the device opened. */
+export interface GpuTimerStats {
+  /** Whether the device times at all. */ supported: boolean
+  /** Why it does not (`timestamp-query-unavailable`, `disposed`), null while it does. */
+  reason: string | null
+  /** Images between two measures (1 measures every image; a neighbour of a measured image is read beside it). */
+  sampleEveryFrames: number
+  /** Images opened for a measure; those whose readback came back; those given up unread. */
+  sampledFrames: number
+  completedSamples: number
+  droppedSamples: number
+  /** Pairs of timestamps that could not be read, and pairs no pass wrote (a pass the driver skipped), over every measure. */
+  invalidSamples: number
+  unwrittenPairs: number
+  /** Images not measured, by cause: the device has no timer, the cadence, a readback still in flight, the timer disposed, an image with more
+   *  passes than the timer can hold timestamps for. */
+  skippedFrames: {
+    unsupported: number
+    interval: number
+    busy: number
+    disposed: number
+    /** Frames held on an answer still in flight (a pipeline compiling, a target not granted): nothing was drawn. */
+    answering: number
+    overflow: number
+  }
+  /** Readbacks submitted and not yet read, and the timestamps the timer holds. */
+  pending: number
+  /** Readbacks in flight at most. */
+  maxPending: number
+  queryCount: number
+}
 /** What one frame cost and held: times, triangles, pages, memory. */ export interface FrameMetrics
   extends ShadowFrameMetrics, TextureFrameMetrics, GpuMemoryFrameMetrics {
   /** Time between two frames, ms: from the rAF timestamp of the frame drawn before this one to its
@@ -149,6 +190,10 @@ export type GpuFrameMs = number | null
    *  or one whose timestamps could not be read; a pass the driver skipped does not count), past a
    *  pause, and without `timestamp-query`. */
   gpuIdleMs?: number | null
+  /** What the GPU timer counted of the images it measured, and of those it left out, by cause; null without `timestamp-query`. */
+  gpuTimer?: GpuTimerStats | null
+  /** The patches the tessellation had no room for, sampled one image in fifteen; zero is the only healthy value. Null before a sample came back, and without tessellation. */
+  tessellationLoss?: TessellationLoss | null
   /** Why the GPU device was lost; null while it holds. */ gpuDeviceLost?: string | null
   /** Triangles of clusters the published cut names but the frame cannot draw — no resident page and no
    *  covering ancestor. A real hole in the image: zero is the only healthy value. Null when a backend

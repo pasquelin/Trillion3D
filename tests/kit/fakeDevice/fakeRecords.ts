@@ -11,8 +11,8 @@ export type FakeBuffer = {
   size: number
   usage: number
   data: Uint8Array
-  mapAsync(): Promise<void>
-  getMappedRange(): ArrayBuffer
+  mapAsync(mode?: number, offset?: number, size?: number): Promise<void>
+  getMappedRange(offset?: number, size?: number): ArrayBuffer
   unmap(): void
   destroy(): void
 }

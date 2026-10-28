@@ -9,8 +9,8 @@ import { SURFACE_COLOUR_PASS, LIGHT_TILES_PASS, VSM_PASS_PREFIX } from './passLa
 /** A pass of the virtual shadow maps: timed with the Shadows stage by its family's prefix. */
 const VSM_PASS = `${VSM_PASS_PREFIX}pass`
 
-function sample(passes: GpuPassTimings['passes'], truncated = false): GpuPassTimings {
-  return { frame: 1, totalMs: null, truncated, passes }
+function sample(passes: GpuPassTimings['passes']): GpuPassTimings {
+  return { frame: 1, totalMs: null, passes }
 }
 
 function collect(s: GpuPassTimings | null | undefined) {
@@ -58,8 +58,7 @@ test('an unmeasured pass invalidates the whole stage, never a partial sum', () =
   assert.deepEqual(alreadyInvalid, [])
 })
 
-test('a truncated or missing sample deposits no stage', () => {
-  assert.deepEqual(collect(sample([{ name: 'Trillion3D HiZ', gpuMs: 4 }], true)), [])
+test('a missing sample deposits no stage', () => {
   assert.deepEqual(collect(null), [])
   assert.deepEqual(collect(undefined), [])
 })

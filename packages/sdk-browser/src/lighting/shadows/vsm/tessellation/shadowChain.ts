@@ -1,20 +1,29 @@
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { vsmBufferGroup } from '../passKit.ts'
-import { vsmBindGroupEntries, type VsmResources } from '../resources.ts'
+import {
+  vsmBindGroupEntries,
+  vsmFrameSetHeld,
+  vsmPerFrameSet,
+  type VsmResources,
+} from '../resources.ts'
 import {
   createTessellationGroups,
   type TessInput,
 } from '../../../../visibility/tessellation/groups.ts'
 import {
-  DISPATCH_DRAW,
-  DISPATCH_DRAW_TWO_SIDED,
+  DISPATCH_RESUME,
   DISPATCH_SEED,
   DISPATCH_SPLIT,
+  DISPATCH_WINDOWS,
   MAX_SPLIT_LEVELS,
-  PASS_DISPATCH_WORDS,
+  dispatchOffset,
 } from '../../../../visibility/tessellation/contract.ts'
-import { TESS_CHAIN_SHADOW } from '../../../../visibility/tessellation/uniform.ts'
+import {
+  TESS_CHAIN_SHADOW,
+  TESS_CHAIN_SHADOW_POST,
+} from '../../../../visibility/tessellation/uniform.ts'
 import { readTessellationSetting } from '../../../../../../sdk-core/src/contracts/tessellationOptions.ts'
+import { shadowLodScale } from '../frame/shadowLodScale.ts'
 import { tessellationWanted } from '../../../../visibility/tessellation/wanted.ts'
 import {
   VSM_RENDER_TESSELLATE_DIRECTIONAL,
@@ -24,26 +33,39 @@ import { vsmRenderContext, type VsmRenderContext } from '../render/renderPipes.t
 import type { Tessellation } from '../../../../visibility/tessellation/tessellation.ts'
 import { createShadowPrograms, type ShadowPrograms } from './shadowPrograms.ts'
 import { VSM_TESS_PROJECTION_SPECS } from './shadowKernelsWgsl.ts'
+import { DICE_LAYERS, VSM_TESS_DICE_POOL_BINDING, VSM_TESS_DICE_SPECS } from './shadowDiceWgsl.ts'
+import { VSM_WINDOW_SPECS } from './shadowWindowWgsl.ts'
 
 /**
  * THE SHADOW MAPS' TESSELLATION OF A FRAME (`VsmShadowTessellation`), as the view passes of the
  * raster (`../render/renderEncode.ts`) drive it: a displaced surface's records are cut into patches, which
- * are diced and drawn in place of its triangles. It exists while the image tessellates
+ * are diced and rastered in software, in place of its triangles. It exists while the image tessellates
  * (`tessellationWanted`), a kind of light asks it (`tessellationShadowsDirectional`,
  * `tessellationShadowsLocal`) and every pipeline is compiled; otherwise the surface casts as the flat
  * triangles it is made of, the first frames on included.
  * - `kinds`: the kinds of light whose maps take it (`VSM_RENDER_TESSELLATE_*`);
- * - `begin`, before a view pass's compute pass: the chain's state cleared;
- * - `compute`, in it, once the pass's records are binned: the seeding, the six levels of splitting
- *   and the draw's arguments, over the pass's lists;
- * - `draw`, in the pass's raster pass, groups 0 and 1 set: the patches, an indirect draw for the
- *   one-sided rows and, where the table holds a two-sided surface, one for the two-sided rows.
+ * - `sight`, once a frame that keeps the previous frame's pyramid begins its view passes: the chains test the patches against it;
+ * - `begin`, before a view pass's compute pass, or before the post pass of a view pass the pyramid is built over (`post`):
+ *   the chain's state cleared — the main pass's, which holds the patches its occlusion test hid, kept through the post pass —;
+ * - `compute`, in the pass, once its records are binned: the seeding, the six levels of splitting, the dicing's
+ *   arguments and the fill of the windows the seeding opened, over the pass's lists, under the occlusion group `occlusion` (the previous
+ *   frame's pyramid for the main pass, this frame's for the post pass, which first takes up the patches the main pass hid);
+ * - `dice`, in a compute pass after the pass's raster, `pageCompute` the shadow page group's compute twin: the patches the
+ *   chain listed visible, diced and rastered into the pool, a dispatch for the dynamic layer's and, where the maps keep a
+ *   static layer, one for the static layer's.
  */
 export interface VsmShadowTessellation {
   readonly kinds: number
-  begin(encoder: GPUCommandEncoder): void
-  compute(pass: GPUComputePassEncoder, lists: PassLists, offset: readonly number[]): void
-  draw(pass: GPURenderPassEncoder): void
+  sight(): void
+  begin(encoder: GPUCommandEncoder, post: boolean): void
+  compute(
+    pass: GPUComputePassEncoder,
+    post: boolean,
+    lists: PassLists,
+    offset: readonly number[],
+    occlusion: GPUBindGroup,
+  ): void
+  dice(pass: GPUComputePassEncoder, post: boolean, pageCompute: GPUBindGroup): void
 }
 
 /** What a view pass's records are read from: its parameters' window, its counters and its records
@@ -119,107 +141,118 @@ function listsGroups(device: GPUDevice, programs: ShadowPrograms) {
   }
 }
 
-/** The group over the maps' projections, made again when the frame set's buffer moved. */
-function projectionGroups(device: GPUDevice, programs: ShadowPrograms) {
-  const held: { buffer?: GPUBuffer; group?: GPUBindGroup } = {}
-  return (res: VsmResources) => {
-    if (!held.group || held.buffer !== res.current.projectionData) {
-      held.buffer = res.current.projectionData
-      held.group = device.createBindGroup({
-        layout: programs.layouts.projections,
-        entries: vsmBindGroupEntries(res, VSM_TESS_PROJECTION_SPECS),
-      })
-    }
-    return held.group
-  }
+/** The groups over the frame set the chain binds: the maps' projections and uniforms (the seeding, the resume
+ *  and the splitting), the projections, page table and uniforms (the fill of the windows) and, for each layer
+ *  of the pool, its slice and the uniforms (the dicing). Made for each of the two sets that take turns, again only when one moved
+ *  (`vsmPerFrameSet`). */
+function frameGroups(device: GPUDevice, programs: ShadowPrograms) {
+  const { layouts } = programs
+  const group = (layout: GPUBindGroupLayout, entries: GPUBindGroupEntry[]) =>
+    device.createBindGroup({ layout, entries })
+  const held = vsmFrameSetHeld<{
+    projections: GPUBindGroup
+    windows: GPUBindGroup
+    pools: GPUBindGroup[]
+  }>()
+  const make = (res: VsmResources) => ({
+    projections: group(layouts.projections, vsmBindGroupEntries(res, VSM_TESS_PROJECTION_SPECS)),
+    windows: group(layouts.windows, vsmBindGroupEntries(res, VSM_WINDOW_SPECS)),
+    // The static layer's slice is bound where the maps keep their pages from frame to frame.
+    pools: DICE_LAYERS.slice(0, res.layout.cacheEnabled ? DICE_LAYERS.length : 1).map((_, layer) =>
+      group(layouts.pool, [
+        { binding: VSM_TESS_DICE_POOL_BINDING, resource: { buffer: res.pagePool[layer]! } },
+        ...vsmBindGroupEntries(res, VSM_TESS_DICE_SPECS.slice(1)),
+      ]),
+    ),
+  })
+  return (res: VsmResources) => vsmPerFrameSet(held, res, make, undefined, res.pagePool)
 }
 
 /** What a frame sets of the chain: the instance whose buffers it runs in, the groups over them, the
- *  geometry and the maps' projections, and the kinds of light that take it. */
+ *  geometry and the groups over the frame set (`frameGroups`), and the kinds of light that take it. */
 type ChainFrame = {
   shadow: Tessellation['shadow']
   groups: ReturnType<typeof createTessellationGroups>
   input: TessInput
-  projections: GPUBindGroup
+  frame: ReturnType<ReturnType<typeof frameGroups>>
   kinds: number
-  /** Whether the table holds a two-sided surface: the draw of its rows' patches is made. */
-  twoSided: boolean
 }
 
-/** The seeding over the pass's records, the six levels of splitting and the draw's arguments, in
- *  `pass`, over the pass's lists group `lists` at the parameters' `offset`. */
+/** The chain a pass runs in: the main pass's, or the post pass's. */
+const chainOf = (post: boolean) => (post ? TESS_CHAIN_SHADOW_POST : TESS_CHAIN_SHADOW)
+
+/** The seeding over the pass's records, in the post pass the resume of the patches the main pass hid, the six levels of splitting, the
+ *  dicing's arguments and the fill of the windows, in `pass`, over the pass's lists group `lists` at the parameters' `offset`, under the
+ *  occlusion group `occlusion`. */
 function encodeChain(
   pass: GPUComputePassEncoder,
   programs: ShadowPrograms,
-  { shadow, groups, input, projections }: ChainFrame,
+  { shadow, groups, input, frame }: ChainFrame,
+  post: boolean,
   lists: GPUBindGroup,
   offset: readonly number[],
+  occlusion: GPUBindGroup,
 ) {
   const { dispatch } = shadow.resources
-  const at = (word: number) => (TESS_CHAIN_SHADOW * PASS_DISPATCH_WORDS + word) * 4
-  const [seedArgs, seed, plan, split, drawArgs] = [
-    programs.seedArgs,
-    programs.seed,
-    programs.plan,
-    programs.split,
-    programs.drawArgs,
-  ].map((stage) => stage.get())
-  // The chain runs whole or not at all: each step reads what the one before wrote.
-  if (!seedArgs || !seed || !plan || !split || !drawArgs) return
-  const planned = groups.of('plan', TESS_CHAIN_SHADOW, input)
-  const launch = (pipeline: GPUComputePipeline) => {
-    pass.setPipeline(pipeline)
-    pass.setBindGroup(0, planned)
-    pass.setBindGroup(1, lists, offset)
-    pass.dispatchWorkgroups(1)
-  }
-  launch(seedArgs)
-  pass.setPipeline(seed)
-  pass.setBindGroup(0, groups.of('shadowSeed', TESS_CHAIN_SHADOW, input))
+  const chain = chainOf(post)
+  const { seedArgs, seed, plan, split, shadowArgs, windowFill, resume } = programs.pipelines
+  const planned = groups.of('plan', chain, input)
+  const splitGroup = groups.of('shadowSplit', chain, input)
+  // The lists, the maps' projections and the occlusion are the same for every kernel of the chain: set once, only group 0 changes.
   pass.setBindGroup(1, lists, offset)
-  pass.dispatchWorkgroupsIndirect(dispatch, at(DISPATCH_SEED))
-  const splitGroup = groups.of('shadowSplit', TESS_CHAIN_SHADOW, input)
+  pass.setBindGroup(2, frame.projections)
+  pass.setBindGroup(3, occlusion)
+  pass.setPipeline(seedArgs)
+  pass.setBindGroup(0, planned)
+  pass.dispatchWorkgroups(1)
+  pass.setPipeline(seed)
+  pass.setBindGroup(0, splitGroup)
+  pass.dispatchWorkgroupsIndirect(dispatch, dispatchOffset(chain, DISPATCH_SEED))
+  if (post) {
+    pass.setPipeline(resume)
+    pass.setBindGroup(0, splitGroup)
+    pass.dispatchWorkgroupsIndirect(dispatch, dispatchOffset(chain, DISPATCH_RESUME))
+  }
   for (let level = 0; level < MAX_SPLIT_LEVELS; level++) {
-    pass.setPipeline(plan)
-    pass.setBindGroup(0, planned)
-    pass.dispatchWorkgroups(1)
+    launchPlan(pass, plan, planned)
     pass.setPipeline(split)
     pass.setBindGroup(0, splitGroup)
-    pass.setBindGroup(1, lists, offset)
-    pass.setBindGroup(2, projections)
-    pass.dispatchWorkgroupsIndirect(dispatch, at(DISPATCH_SPLIT))
+    pass.dispatchWorkgroupsIndirect(dispatch, dispatchOffset(chain, DISPATCH_SPLIT))
   }
-  launch(drawArgs)
+  launchPlan(pass, shadowArgs, planned)
+  pass.setPipeline(windowFill)
+  pass.setBindGroup(0, groups.of('shadowWindow', chain, input))
+  pass.setBindGroup(1, frame.windows)
+  pass.dispatchWorkgroupsIndirect(dispatch, dispatchOffset(chain, DISPATCH_WINDOWS))
+}
+
+/** A one-thread kernel over the chain's state alone, over the group `planned`. */
+function launchPlan(
+  pass: GPUComputePassEncoder,
+  pipeline: GPUComputePipeline,
+  planned: GPUBindGroup,
+) {
+  pass.setPipeline(pipeline)
+  pass.setBindGroup(0, planned)
+  pass.dispatchWorkgroups(1)
 }
 
 /** The chain of a raster context: its pipelines, made the first time a frame asks, the groups it
  *  binds, kept while what they name stands, and what the frame set (`bind`). */
 function createShadowChain(ctx: VsmRenderContext) {
-  const programs = createShadowPrograms(
-    ctx.device,
-    ctx.layout,
-    ctx.pageLayout,
-    ctx.raster.layout1,
-    ctx.held,
-  )
+  const programs = createShadowPrograms(ctx.device, ctx.layout, ctx.held)
   const listsGroup = listsGroups(ctx.device, programs),
-    projectionGroup = projectionGroups(ctx.device, programs)
-  let frame: ChainFrame
+    frameOf = frameGroups(ctx.device, programs)
+  let current: ChainFrame
   const chain: VsmShadowTessellation & {
     programs: ShadowPrograms
-    bind(
-      shadow: Tessellation['shadow'],
-      input: TessInput,
-      res: VsmResources,
-      kinds: number,
-      twoSided: boolean,
-    ): void
+    bind(shadow: Tessellation['shadow'], input: TessInput, res: VsmResources, kinds: number): void
   } = {
     get kinds() {
-      return frame.kinds
+      return current.kinds
     },
     programs,
-    bind(shadow, input, res, kinds, twoSided) {
+    bind(shadow, input, res, kinds) {
       let groups = groupsOf.get(shadow.resources)
       if (!groups)
         groupsOf.set(
@@ -228,21 +261,34 @@ function createShadowChain(ctx: VsmRenderContext) {
             resources: shadow.resources,
           })),
         )
-      frame = { shadow, groups, input, projections: projectionGroup(res), kinds, twoSided }
+      current = {
+        shadow,
+        groups,
+        input,
+        frame: frameOf(res),
+        kinds,
+      }
     },
-    begin: (encoder) => frame.shadow.clear(encoder),
-    compute: (pass, lists, offset) => encodeChain(pass, programs, frame, listsGroup(lists), offset),
-    draw(pass) {
-      const { shadow, groups, input, twoSided } = frame
-      const [oneSidedPipe, twoSidedPipe] = [programs.raster.get(), programs.rasterTwoSided.get()]
-      if (!oneSidedPipe || (twoSided && !twoSidedPipe)) return
-      const at = (word: number) => (TESS_CHAIN_SHADOW * PASS_DISPATCH_WORDS + word) * 4
-      pass.setPipeline(oneSidedPipe)
-      pass.setBindGroup(2, groups.of(programs.rasterProgram, TESS_CHAIN_SHADOW, input))
-      pass.drawIndirect(shadow.resources.dispatch, at(DISPATCH_DRAW))
-      if (!twoSided) return
-      pass.setPipeline(twoSidedPipe!)
-      pass.drawIndirect(shadow.resources.dispatch, at(DISPATCH_DRAW_TWO_SIDED))
+    sight: () => current.shadow.sight(),
+    begin: (encoder, post) => current.shadow.clear(encoder, post),
+    compute: (pass, post, lists, offset, occlusion) =>
+      encodeChain(pass, programs, current, post, listsGroup(lists), offset, occlusion),
+    dice(pass, post, pageCompute) {
+      const { shadow, groups, input, frame } = current
+      const which = chainOf(post)
+      pass.setBindGroup(0, pageCompute)
+      pass.setBindGroup(1, groups.of('shadowDice', which, input))
+      // Each layer's patches lie in a list of their own, the arguments of its dispatch the chain's.
+      DICE_LAYERS.forEach(({ dispatchWord }, layer) => {
+        const pool = frame.pools[layer]
+        if (!pool) return
+        pass.setPipeline(programs.pipelines.dice[layer]!)
+        pass.setBindGroup(2, pool)
+        pass.dispatchWorkgroupsIndirect(
+          shadow.resources.dispatch,
+          dispatchOffset(which, dispatchWord),
+        )
+      })
     },
   }
   return chain
@@ -270,8 +316,7 @@ export function vsmShadowTessellation(
   const ctx = vsmRenderContext(vsm.res, device, pageLayout, rt.vis.rasters)
   let chain = chains.get(ctx)
   if (!chain) chains.set(ctx, (chain = createShadowChain(ctx)))
-  const twoSided = rt.vis.materialTable.twoSided
-  if (!chain.programs.ask(twoSided)) {
+  if (!chain.programs.ask()) {
     vsm.renderedPlan = undefined
     return undefined
   }
@@ -283,7 +328,8 @@ export function vsmShadowTessellation(
       tessellationMaxPatchesPerGroup: readTessellationSetting(rt, 'tessellationMaxPatchesPerGroup'),
     },
     rt.run.selectionUniforms.pixelError,
+    shadowLodScale(rt),
   )
-  chain.bind(shadow, input, vsm.res, kinds, twoSided)
+  chain.bind(shadow, input, vsm.res, kinds)
   return chain
 }

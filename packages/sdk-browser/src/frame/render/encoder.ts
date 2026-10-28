@@ -54,6 +54,7 @@ function settleFrameSelection(timing: WebgpuPagesCore['timing'], submitted: bool
  *  (`../../lighting/reflections/census.ts`) and the shadow pages. */
 function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
   rt.vis.voxelSteps?.submitted()
+  rt.vis.gpuRaster?.tessellation?.losses.submitted()
   rt.blendState.expand?.submitted()
   if (published) rt.vis.textures?.feedback.submitted()
   rt.lights.tiles?.submitted()
@@ -107,7 +108,7 @@ function traceSubmit(rt: WebgpuPagesCore, width: number, height: number) {
 }
 
 /** The timing of the image, handed over once its commands are submitted, if it is sampled. */
-function sampleSubmitted(
+export function sampleSubmitted(
   rt: WebgpuPagesCore,
   encoder: GPUCommandEncoder,
   width: number,

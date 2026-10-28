@@ -32,10 +32,10 @@ import { vsmRenderSoftwareWgsl } from '../../lighting/shadows/vsm/render/renderS
 import { vsmDescentWgsl } from '../../lighting/shadows/vsm/traversal/traversalWgsl.ts'
 import {
   vsmTessArgsSource,
-  vsmTessSeedSource,
-  vsmTessSplitSource,
+  vsmTessSource,
 } from '../../lighting/shadows/vsm/tessellation/shadowKernelsWgsl.ts'
-import { vsmTessellatedVertexWgsl } from '../../lighting/shadows/vsm/tessellation/shadowRasterWgsl.ts'
+import { vsmTessDiceWgsl } from '../../lighting/shadows/vsm/tessellation/shadowDiceWgsl.ts'
+import { vsmWindowFillSource } from '../../lighting/shadows/vsm/tessellation/shadowWindowWgsl.ts'
 import { vsmPerLightProjectionWgsl } from '../../lighting/shadows/vsm/projection/perLightProjectionWgsl.ts'
 import { vsmPruneLightGridWgsl } from '../../lighting/shadows/vsm/projection/lightGridWgsl.ts'
 import { vsmLayout } from '../../lighting/shadows/vsm/layout.ts'
@@ -140,18 +140,13 @@ export function vsmVariants() {
     // top kernel from level 4.
     VSM_OCCLUSION_BUILD_FIVE: vsmBuildPyramidWgsl(layout, 5),
     VSM_OCCLUSION_TOP_FIVE: vsmBuildPyramidTopWgsl(layout, 5),
-    // The displaced surfaces' patches in the shadow maps: the chain over a view pass's records, then
-    // the vertex stage that dices them.
-    VSM_TESSELLATION_SEED: vsmTessSeedSource(),
-    VSM_TESSELLATION_SPLIT: vsmTessSplitSource(layout),
+    // The displaced surfaces' patches in the shadow maps: the chain over a view pass's records, the
+    // fill of their windows, then the software raster that dices them.
+    VSM_TESSELLATION: vsmTessSource(layout),
     VSM_TESSELLATION_ARGS: vsmTessArgsSource(),
-    VSM_TESSELLATION_VERTEX: vsmTessellatedVertexWgsl(layout),
-    VSM_TESSELLATION_VERTEX_MASKED: vsmTessellatedVertexWgsl(layout, true),
-    VSM_TESSELLATION_VERTEX_MASKED_GRAPH: vsmTessellatedVertexWgsl(
-      layout,
-      true,
-      maskGraphSets().shadowVertex,
-    ),
+    VSM_TESSELLATION_WINDOWS: vsmWindowFillSource(layout),
+    VSM_TESSELLATION_DICE: vsmTessDiceWgsl(layout),
+    VSM_TESSELLATION_DICE_MASKED_GRAPH: vsmTessDiceWgsl(layout, maskGraphSets().shadowVertex),
     CAST_DIFF_WGSL,
   }
   // The projection's two passes: the suns', and the local lights' for each format of its mask.

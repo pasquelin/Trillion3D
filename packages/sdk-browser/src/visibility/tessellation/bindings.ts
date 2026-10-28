@@ -73,19 +73,12 @@ export const TESS_DECLARATIONS = {
 
 /** The tessellation's programs: each its own module, bind group layout and pipelines — the cut's four,
  *  then the shadow maps' (`../../lighting/shadows/vsm/tessellation/`): the seeding over the pairs of
- *  a chunk, its splitting, and the vertex stage that dices the visible patches. */
+ *  a chunk, its splitting, and the software raster that dices the visible patches. */
 export type TessProgram =
-  | 'seed'
-  | 'plan'
-  | 'split'
-  | 'dice'
-  | 'shadowSeed'
-  | 'shadowSplit'
-  | 'shadowRaster'
-  | 'shadowRasterMasked'
+  'seed' | 'plan' | 'split' | 'dice' | 'shadowSplit' | 'shadowDice' | 'shadowWindow'
 /** A resource of a program's group, by the name `TESS_BINDINGS` gives it — the patches the main pass
  *  hid twice, as the splitting writes them and as the seeding reads them, and the `tess` buffer
- *  twice, as the kernels write it and as a vertex stage reads it. */
+ *  twice, as the kernels write it and as the shadow maps' dicing reads it. */
 export type TessBinding = keyof typeof TESS_BINDINGS | 'occludedRead' | 'tessRead'
 
 /** What each of the tessellation's programs binds, in its own layout: a program binds the least it
@@ -147,13 +140,10 @@ export const TESS_PROGRAMS: Record<TessProgram, readonly TessBinding[]> = {
     'work',
     'frame',
   ],
-  // The shadow maps' programs read the pairs of the chunk and the projections in groups of their
-  // own; here is what they bind of the tessellation. The vertex stage binds, besides the page
-  // group's four storage buffers and the pairs' and the projections', two: `tess` and the data
-  // atlas's page table — the eight any device holds.
-  shadowSeed: ['indices', 'positions', 'pages', 'tessUniform', 'tess'],
-  // The shadow maps' splitting reads the offsets that read no texture alone: its stage already binds
-  // eight storage buffers with the UVs, the colour atlas's page table would be a ninth.
+  // The shadow maps' programs read the records and the projections in groups of their own; here is
+  // what they bind of the tessellation.
+  // The shadow maps' seeding and splitting share this one layout. They read no texture: with the UVs
+  // they already bind eight storage buffers, and the colour atlas's page table would be a ninth.
   shadowSplit: [
     'indices',
     'positions',
@@ -165,10 +155,12 @@ export const TESS_PROGRAMS: Record<TessProgram, readonly TessBinding[]> = {
     'material',
     'frame',
   ],
-  shadowRaster: ['tessUniform', 'tessRead', 'data', 'sampler'],
-  // With the colour atlas, which a masked row's cutout reads: a ninth storage buffer in the vertex
-  // stage, on a device that grants it (`vsmMaskedPatches`).
-  shadowRasterMasked: ['tessUniform', 'tessRead', 'data', 'color', 'sampler'],
+  // The shadow maps' dicing binds, beside the page group's five storage buffers (`shadowPageComputeLayout`)
+  // and the pool's slice, `tess` and the data atlas's page table: the eight any device holds. The records,
+  // the maps' projections and the page table are read from the windows in `tess` (`WINDOW_WORDS`).
+  shadowDice: ['tessUniform', 'tessRead', 'data'],
+  // The fill of the shadow maps' windows is launched from the `dispatch` buffer: it binds the state alone, never that buffer.
+  shadowWindow: ['tessUniform', 'tess'],
 }
 
 const buffer = (binding: number, type: GPUBufferBindingType) => [computeBufferEntry(binding, type)]

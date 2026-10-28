@@ -3,6 +3,7 @@ import {
   BARYCENTRIC_ONE,
   PATTERN_FLIP,
   TABLE_DATA_WORD,
+  SEED_SPLIT_LIMIT,
   TABLE_STRIDE,
   TABLE_SIZE,
 } from './contract.ts'
@@ -53,16 +54,32 @@ export const patchBarycentrics = wgslFn(
  * is allowed (the cut's), times `piecesPerEdge`, the pixels an edge is allowed over the dicing rate;
  * a quarter of that where the edge lies farther than `lowDistance` (above 0), past which the
  * displacement has faded. `world` holds the three corners in the world, `depth` their depths.
+ *
+ * An edge in front of the near plane at both ends is counted whole over the depth of its nearer end, as above. One that crosses the near plane or lies
+ * behind it (`nearer` short of `near`) is counted otherwise, in a perspective view: the reference counts its whole length over the near plane's depth, so that
+ * a patch behind the plane, which nothing of is drawn, asks for as many pieces as its length over that depth and is cut again and again until the queue is
+ * full and patches are lost; this is a deliberate departure from it. The edge counted is the part in front of the plane the dicing keeps (`diceNear`), the corners
+ * being those of the undisplaced surface, which the displacement moves by `reach` at most along the depth: the plane is taken `reach` nearer the eye for
+ * them, an edge wholly behind it is cut in nothing (0, which the pattern rounds to one piece), and the depth it is measured at is no less than `near +
+ * reach` — a surface displaced through the near plane has points of every depth down to it, whose projection grows without bound.
  */
 export const edgeFactors = wgslFn(
   'edgeFactors',
   [],
-  `fn edgeFactors(world:mat3x3f,depth:vec3f,near:f32,perspective:bool,edgesPerUnit:f32,piecesPerEdge:f32,lowDistance:f32)->vec3f{
+  `fn edgeFactors(world:mat3x3f,depth:vec3f,near:f32,perspective:bool,edgesPerUnit:f32,piecesPerEdge:f32,lowDistance:f32,reach:f32)->vec3f{
  var f=vec3f(0.0);var far=vec3f(1.0);
  for(var i=0u;i<3u;i++){
   let next=(i+1u)%3u;
-  let scale=select(1.0,max(min(depth[i],depth[next]),near),perspective);
-  f[i]=length(world[i]-world[next])/scale;
+  let nearer=min(depth[i],depth[next]);let farther=max(depth[i],depth[next]);
+  let behind=perspective&&nearer<near;
+  var scale=select(1.0,max(nearer,near),perspective);
+  var shown=length(world[i]-world[next]);
+  if(behind){
+   let plane=near-reach;
+   scale=max(nearer,near+reach);
+   if(nearer<plane){shown*=select(0.0,(farther-plane)/(farther-nearer),farther>plane);}
+  }
+  f[i]=shown/scale;
   if(perspective&&lowDistance>0.0&&scale>lowDistance){far[i]=0.25;}
  }
  return f*edgesPerUnit*piecesPerEdge*far;
@@ -78,6 +95,14 @@ export const quarterRateDepth = wgslFn(
  if(fadeOut==0.0){return 0.0;}
  return (absMax*scale*edgesPerUnit)/fadeOut;
 }`,
+)
+
+/** Whether a triangle whose edge factors are `f` is seeded whole: none asks for more than
+ *  `SEED_SPLIT_LIMIT` pieces (the cut's seeding and the shadow maps' share the rule). */
+export const seededWhole = wgslFn(
+  'seededWhole',
+  [],
+  `fn seededWhole(f:vec3f)->bool{return max(f.x,max(f.y,f.z))<=${SEED_SPLIT_LIMIT}.0;}`,
 )
 
 /** The factors a triangle that is too large is first cut by: a fourteenth, which one pattern of the

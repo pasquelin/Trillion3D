@@ -14,7 +14,12 @@ import {
   type LightShadowOptions,
 } from './lightShadowOptions.ts'
 import { presetShadows } from './shadowOptions.fixture.ts'
-import { readShadowSetting, SHADOW_PRESET_LEVELS, SHADOW_RULES } from './shadowOptions.ts'
+import {
+  readShadowSetting,
+  SHADOW_GEOMETRY_LOD_BIAS_LIMIT,
+  SHADOW_PRESET_LEVELS,
+  SHADOW_RULES,
+} from './shadowOptions.ts'
 
 /** The shadow maps' own settings at their defaults, the reference's fourth row. */
 const SHADOW_MAP_DEFAULTS = {
@@ -259,10 +264,11 @@ test('the shadow maps’ settings refuse what they cannot take, in words', () =>
   refuses('shadowResolutionLodBiasLocal', 17, /from -16 to 16/)
   for (const quality of [6, -1]) refuses('shadowQuality', quality, /from 0 to 5/)
   refuses('shadowQuality', 2.5, /whole/)
-  for (const bias of [128, -127, Infinity])
-    refuses('shadowGeometryLodBias' as never, bias, /from -126 to 127/)
+  const limit = SHADOW_GEOMETRY_LOD_BIAS_LIMIT
+  for (const bias of [limit + 1, -limit - 1, Infinity])
+    refuses('shadowGeometryLodBias' as never, bias, new RegExp(`from -${limit} to ${limit}`))
   // The ends are taken; 17 rays, one more than a mask lane holds, is refused above; the quality's
-  // (0 turns every shadow off); a bias of 20 (its one bound: 2 to it a finite, normal f32 factor).
+  // (0 turns every shadow off); a bias of 20 (within its one bound, `SHADOW_GEOMETRY_LOD_BIAS_LIMIT`).
   assert.equal(resolveSetting(SHADOW_RULES.shadowRayCountLocal, 16), 16)
   assert.equal(resolveSetting(SHADOW_RULES.shadowResolutionLodBiasDirectional, -16), -16)
   assert.equal(resolveSetting(SHADOW_RULES.shadowMaxDistantUpdatePerFrame, -1), -1, 'all of them')

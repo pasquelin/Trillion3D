@@ -10,8 +10,9 @@ import assert from 'node:assert/strict'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
-import { Mat } from '../../../materials/texture/shaderRunMatrix.fixture.ts'
+import { Mat, Mat3 } from '../../../materials/texture/shaderRunMatrix.fixture.ts'
 import { VSM_TESS_VIEW_WGSL } from './tessellation/shadowViewWgsl.ts'
+import { CORNER_FACTORS_WGSL } from '../../../visibility/tessellation/viewWgsl.ts'
 import { VsmCacheManager } from './cacheManager.ts'
 import { PROJECTION, VIEW } from './clipmap.fixture.ts'
 import { addVsmLocalLightShadow, vsmLocalViewData } from './localLight.ts'
@@ -121,11 +122,19 @@ test('a spot of no depth range (its range rounds to 0.001 m) takes a finite proj
 const TESS_VIEW = wgslBlock('tessView', [VSM_TESS_VIEW_WGSL], '')
 const tessView = shaderRun<{
   vsmTessView(raw: object, mip: number): Record<string, unknown>
-  vsmTessOnWindow(box: object, world: Mat, raw: object, record: number[]): boolean
-}>(TESS_VIEW, ['vsmTessView', 'vsmTessOnWindow'], {
+  vsmPatchRecordOf(raw: object, record: number[]): object
+  vsmPatchBox(box: object, world: Mat, rec: object): object
+  vsmTessOnWindow(placed: object, rec: object): boolean
+}>(TESS_VIEW, ['vsmTessView', 'vsmPatchRecordOf', 'vsmPatchBox', 'vsmTessOnWindow'], {
   ...wgslConstants(TESS_VIEW),
-  tu: { edgesPerPixel: 0.5 },
+  tu: { edgesPerPixel: 0.5, lodScale: 1 },
 })
+/** Whether the box, placed by `world` on the map of `raw`, reaches the window `record` draws. */
+const onWindow = (box: object, world: Mat, raw: object, record: number[]) =>
+  tessView.vsmTessOnWindow(
+    tessView.vsmPatchBox(box, world, tessView.vsmPatchRecordOf(raw, record)),
+    tessView.vsmPatchRecordOf(raw, record),
+  )
 const dot3 = (a: number[], b: number[]) => a[0]! * b[0]! + a[1]! * b[1]! + a[2]! * b[2]!
 
 /** The record of a spot's map the shader reads, from the host's projection data. */
@@ -175,6 +184,61 @@ test('a map’s view measures depth from its light along its axis, from its near
   assert.ok(Math.abs(mip1.edgesPerUnit - wide / 2) < 1e-2 * wide)
 })
 
+// The edge factors of a patch in that view, by the engine's own functions (`farDepth`, `cornerFactors`) over the record a displaced surface gives.
+const FACTORS = wgslBlock(
+  'shadowFactors',
+  [VSM_TESS_VIEW_WGSL, CORNER_FACTORS_WGSL],
+  'struct DisplacementRecord{scale:vec4f,bounds:vec4f,map:vec4u,density:vec4f,densityHigh:vec4f,}',
+)
+const factorsRun = shaderRun<{
+  vsmTessView(raw: object, mip: number): Record<string, unknown>
+  farDepth(rec: object, scale: number, view: object): object
+  cornerFactors(world: Mat, corner: Mat3, view: object, far: object): number[]
+}>(FACTORS, ['vsmTessView', 'farDepth', 'cornerFactors'], {
+  ...wgslConstants(FACTORS),
+  tu: { edgesPerPixel: 0.5, lodScale: 1, piecesPerEdge: 0.5 },
+})
+
+test('a patch of a displaced surface at the depth of the spot’s light has finite factors, none for a flat one', () => {
+  const raw = spotRecord()
+  const view = factorsRun.vsmTessView(raw, 0) as { near: number; edgesPerUnit: number }
+  const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
+  const record = (min: number, max: number) => ({
+    scale: [1, 0, 0, 0],
+    bounds: [min, max, 0, 0],
+    map: [0, 0, 0, 0],
+    density: [0, 0, 0, 0],
+    densityHigh: [0, 0, 0, 0],
+  })
+  // Corners as columns, in the light's own plane (depth 0, behind the near plane) and two metres below it.
+  const patch = (y: number) =>
+    new Mat3([
+      [0, y, -20],
+      [0.5, y, -20],
+      [0, y, -19.5],
+    ])
+  const factors = (y: number, min: number, max: number) => {
+    const far = factorsRun.farDepth(record(min, max), 1, view)
+    return factorsRun.cornerFactors(identity, patch(y), view, far)
+  }
+  // Displaced by up to 0.3 m, the surface at the light's depth reaches the near plane: each edge asks for pieces, but a finite number, at most its
+  // length over `near + reach` of the view's pixels.
+  const displaced = factors(3, -0.3, 0.3)
+  const most = (0.5 * view.edgesPerUnit * 0.5) / (view.near + 0.3)
+  assert.ok(
+    displaced.every((f) => Number.isFinite(f) && f > 0 && f <= Math.SQRT2 * most * 1.0001),
+    `${displaced}`,
+  )
+  // Flat, nothing of it lies in front of the plane: no piece asked for.
+  assert.deepEqual(factors(3, 0, 0), [0, 0, 0])
+  // Two metres below, the plain rule: length over depth, in the view's pixels.
+  const plain = factors(1, 0, 0)
+  assert.ok(
+    Math.abs(plain[0]! - (0.5 * view.edgesPerUnit * 0.5) / 2) < 1e-3 * plain[0]!,
+    `${plain}`,
+  )
+})
+
 test('a patch is on the window its record draws only where its box reaches those pages of the map', () => {
   const raw = spotRecord()
   const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
@@ -187,20 +251,16 @@ test('a patch is on the window its record draws only where its box reaches those
     (page | (page << 8) | (last << 16) | (last << 24)) >>> 0,
     1,
   ]
-  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(64)), true, 'the centre page')
-  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(63)), true, 'the one before it')
-  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(0)), false, 'a corner of the map')
-  assert.equal(
-    tessView.vsmTessOnWindow(box, identity, raw, pair(60, 0, 63)),
-    true,
-    'a window to it',
-  )
-  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(56, 0, 59)), false, 'one before')
-  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(127)), false, 'the other corner')
+  assert.equal(onWindow(box, identity, raw, pair(64)), true, 'the centre page')
+  assert.equal(onWindow(box, identity, raw, pair(63)), true, 'the one before it')
+  assert.equal(onWindow(box, identity, raw, pair(0)), false, 'a corner of the map')
+  assert.equal(onWindow(box, identity, raw, pair(60, 0, 63)), true, 'a window to it')
+  assert.equal(onWindow(box, identity, raw, pair(56, 0, 59)), false, 'one before')
+  assert.equal(onWindow(box, identity, raw, pair(127)), false, 'the other corner')
   // At the next mip the map is half as wide: the same point lies on a page half as far.
-  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(32, 1)), true)
-  assert.equal(tessView.vsmTessOnWindow(box, identity, raw, pair(64, 1)), false)
+  assert.equal(onWindow(box, identity, raw, pair(32, 1)), true)
+  assert.equal(onWindow(box, identity, raw, pair(64, 1)), false)
   // A box beside the cone, past its edge, reaches no page of the map.
   const away = { lo: [40, 0.95, -20.05], hi: [40.1, 1.05, -19.95] }
-  assert.equal(tessView.vsmTessOnWindow(away, identity, raw, pair(64)), false)
+  assert.equal(onWindow(away, identity, raw, pair(64)), false)
 })

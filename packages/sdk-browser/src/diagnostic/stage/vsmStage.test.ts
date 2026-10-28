@@ -7,7 +7,6 @@ import type { GpuPassTimings } from '../../../../sdk-core/src/contracts/metrics.
 const sample = (passes: GpuPassTimings['passes']): GpuPassTimings => ({
   frame: 1,
   totalMs: null,
-  truncated: false,
   passes,
 })
 

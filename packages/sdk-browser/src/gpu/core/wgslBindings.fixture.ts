@@ -15,6 +15,13 @@ export function wgslBufferBindings(shader: string) {
   }).sort((a, b) => a.binding - b.binding)
 }
 
+/** The binding numbers a WGSL text declares in `group`, whatever they bind, ascending. */
+export const wgslBindingNumbers = (shader: string, group = 0) =>
+  Array.from(
+    shader.matchAll(new RegExp(`@group\\(${group}\\)\\s*@binding\\((\\d+)\\)`, 'g')),
+    (m) => Number(m[1]),
+  ).sort((a, b) => a - b)
+
 /** The same pairs, read from the layout entries. Every entry must be a compute-stage buffer. */
 export const entryBufferBindings = (entries: GPUBindGroupLayoutEntry[]) =>
   entries.map(({ binding, visibility, buffer }) => ({

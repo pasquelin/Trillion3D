@@ -24,7 +24,6 @@ function noteSample(timing: WebgpuView['timing'], sample: GpuTimingSample) {
     frame: sample.frame,
     totalMs: sample.totalMs,
     passes: sample.passes,
-    truncated: sample.truncated,
     ...(sample.error ? { error: sample.error } : {}),
   }
   timing.lastGpuFrameMs = sample.submittedMs
@@ -112,8 +111,6 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
     reason: gpuTiming.supported ? null : 'timestamp-query-unavailable',
     method: 'timestamp-query',
     sampleEveryFrames: timingStats.sampleEveryFrames,
-    maxPasses: timingStats.maxPasses,
-    maxParts: timingStats.maxParts,
     maxPending: timingStats.maxPending,
     queryCount: timingStats.queryCount,
     scope: 'selection-and-render-passes',

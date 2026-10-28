@@ -267,6 +267,32 @@ function tick() {
 tick()
 ```
 
+`metrics.gpuFrameMs` is the GPU time of the last image the device timed, and stays at that reading
+until the next one; `metrics.gpuTimer` says how the timer is doing: whether the device times at all
+(`supported`, false without `timestamp-query`), every how many images it measures
+(`sampleEveryFrames`), the images it opened for a measure and those whose readback came back
+(`sampledFrames`, `completedSamples`), those given up unread (`droppedSamples`), the images it left
+out by cause (`skippedFrames`: `unsupported`, `interval`, `busy`, `disposed`, `answering` — frames held on a pipeline still compiling or a target not granted, which drew nothing —, `overflow`), the readbacks in flight
+(`pending`) and the timestamps it holds (`queryCount`, which grows once for an image that needs
+more). It is `null` without `timestamp-query`.
+
+```js
+world.onFrame(({ metrics }) => {
+  const timer = metrics.gpuTimer
+  if (timer && timer.completedSamples === 0) console.log('no GPU time yet, skipped:', timer.skippedFrames)
+  else console.log(metrics.gpuFrameMs, 'ms on the GPU')
+})
+```
+
+`metrics.tessellationLoss` counts what the tessellation of displaced surfaces had no room for, since the device opened, as the samples (one image in fifteen, read without waiting) counted it: `queue`, the patches its splitting queue could not hold (`tessellationMaxCandidatePatches`), `visible`, those a visible list could not hold (`tessellationMaxVisiblePatches`), `windows`, the shadow-map windows past the room of the shadow chain, whose patches are not drawn, and `occluded`, the patches the occlusion test hid that the buffer keeping them for the post pass had no room for. Zero in each is the only healthy value; a count that grows is a hole in a displaced surface or in its shadow. It is `null` before a sample came back, and without a displaced surface.
+
+```js
+world.onFrame(({ metrics }) => {
+  const lost = metrics.tessellationLoss
+  if (lost && (lost.queue || lost.visible || lost.windows || lost.occluded)) console.warn('tessellation lost patches:', lost)
+})
+```
+
 `world.beforeFrame(hook)` runs `hook({ delta, time })` ahead of each drawn frame, after the
 physics drew its bodies at that frame's time and the scene's clips advanced; `world.onFrame(hook)`
 runs after the frame was drawn. A camera that follows something that moves — a chase camera behind

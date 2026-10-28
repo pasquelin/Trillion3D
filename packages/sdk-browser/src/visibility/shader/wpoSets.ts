@@ -91,12 +91,12 @@ export const shadowSplitWpo = (rasters: GraphRasters) =>
  *  corners as the seeding and the splitting place. */
 export const diceWpo = (rasters: GraphRasters) => offsetsOn(rasters.offsets, TESS_WHERE)
 
-/** The offsets the shadow maps' vertex stage of the patches holds: those of the shadow raster, the
- *  colour atlas it declares only where it cuts a masked row out (`vertexCut`), so that an offset that
- *  reads a texture is held there alone. */
-export const patchVertexWpo = (rasters: GraphRasters, vertexCut: boolean) =>
+/** The offsets the shadow maps' dicing of the patches holds (`../../lighting/shadows/vsm/tessellation/shadowDiceWgsl.ts`), at the page
+ *  group's numbers: the very offsets their seeding and splitting place the corners by (`shadowSplitWpo`, those that read no texture), so
+ *  that a patch is drawn where it was judged. */
+export const patchWpo = (rasters: GraphRasters) =>
   offsetsOn(
-    vertexCut ? rasters.offsets : rasters.offsets.filter((program) => !program.uses.textures),
+    rasters.offsets.filter((program) => !program.uses.textures),
     VIS_WHERE,
     FINEST_SAMPLE,
   )

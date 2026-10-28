@@ -121,7 +121,7 @@ try {
             errors.push(...reading.errors)
             if (reading.waterPassMismatches)
               errors.push('Water pass presence differs from requested control')
-            if (reading.invalidSamples) errors.push('Invalid or truncated GPU timestamp samples')
+            if (reading.invalidSamples) errors.push('Invalid GPU timestamp samples')
             if (reading.samples.length < 30) errors.push('At least 30 valid GPU samples required')
             if (!reading.gpuEnvelopeMs) errors.push('No valid enclosing GPU frame samples')
             if (!reading.gpuFrameMs) errors.push('No valid GPU frame samples')

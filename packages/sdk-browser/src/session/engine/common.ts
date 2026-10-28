@@ -73,8 +73,8 @@ export const WEBGPU_REQUIRED_LIMITS = {
   maxStorageBufferBindingSize: Infinity,
   maxBufferSize: Infinity,
   maxStorageBuffersPerShaderStage: Infinity,
-  // The vertex stage's own count, where the browser has one: the shadow maps' masked patches bind
-  // nine in it (`../../lighting/shadows/vsm/tessellation/maskedPatches.ts`, `vsmMaskedPatches`).
+  // The vertex stage's own count, where the browser has one: the vertex stages that read the colour atlas
+  // bind ten in it (`../../gpu/core/vertexTextures.ts`, `grantsVertexTextures`).
   maxStorageBuffersInVertexStage: Infinity,
   maxColorAttachmentBytesPerSample: Infinity,
   // The virtual shadow maps (`../../lighting/shadows/vsm/`): workgroup votes and page lists, mask storage textures.

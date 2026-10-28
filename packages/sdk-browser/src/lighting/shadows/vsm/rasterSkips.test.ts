@@ -63,7 +63,7 @@ test('a masked caster’s dither is read at the map’s virtual pixel, whatever 
   )
   // The software raster gives the page's first texel plus the pixel’s offset, at its centre.
   assert.ok(
-    functionsOf(vsmRenderSoftwareWgsl(LAYOUT, masks), ['writePixel']).includes(
+    functionsOf(vsmRenderSoftwareWgsl(LAYOUT, masks), ['pixelKeeps']).includes(
       'maskKeepAt(page,cut.at.xy,1.0,cut.ddx,cut.ddy,vec2f(vsmRecordFirstPage(swGroup)*128u+vec2u(pixel))+vec2f(0.5))',
     ),
   )
@@ -224,7 +224,7 @@ test('a displaced surface’s records are marked from its candidate to the raste
     [1 << 23, 0, 1 << 22].map((y) => vsmRecordTessellated([0, y, 0, 0])),
     [true, false, false],
   )
-  // An opaque row is marked, a masked one too: the patches cut it out (`vsmTessellatedVertexWgsl`).
+  // An opaque row is marked, a masked one too: the patches cut it out (`vsmTessDiceWgsl`).
   const mark = 'params.tessellated!=0u&&tessellatedFlags(page)'
   const candidates = vsmRenderCandidatesWgsl()
   assert.ok(candidates.includes(`${mark};`) && !candidates.includes(`${FLAG_MASK}u)==0u`))

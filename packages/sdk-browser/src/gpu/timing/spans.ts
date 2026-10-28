@@ -42,14 +42,14 @@ export function placePasses(timed: TimedPass[], origin: bigint) {
 /**
  * The window of the passes of `sample` that `picked` names, ms: from the earliest beginning to the
  * latest end of them, the passes between and the gaps among them included. 0 when none ran, null
- * for a missing or truncated sample, or when a picked pass has no usable pair: a window over some
+ * for a missing sample, or when a picked pass has no usable pair: a window over some
  * of its passes would pass for a measurement (the rule of `gpuTotalsBy`).
  */
 export function passWindowMs(
-  sample: Pick<GpuTimingSample, 'passes' | 'truncated'> | null | undefined,
+  sample: Pick<GpuTimingSample, 'passes'> | null | undefined,
   picked: (name: string) => boolean,
 ) {
-  if (!sample || sample.truncated) return null
+  if (!sample) return null
   let begin = Infinity,
     end = -Infinity
   for (const pass of sample.passes) {

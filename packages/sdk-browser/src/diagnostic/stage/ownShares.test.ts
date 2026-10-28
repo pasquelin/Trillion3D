@@ -24,7 +24,7 @@ test('overlapping spans count once: no stage, shadow stage or block total passes
   ]
   const entries = timed.map(([name], i) => ({ slot: i * 2, name, part: 0 }))
   const values = new BigUint64Array(timed.flatMap(([, begin, end]) => [ms(begin), ms(end)]))
-  const s = { frame: 1, ...summarizeTimestamps(entries, values, false, () => false).sample }
+  const s = { frame: 1, ...summarizeTimestamps(entries, values, () => false).sample }
   const image = s.frameMs!
   assert.equal(image, 36)
   const spans = s.passes.reduce((sum, pass) => sum + pass.gpuMs!, 0)
