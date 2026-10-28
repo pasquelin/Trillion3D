@@ -24,6 +24,18 @@ export const WIDE_SUN: SceneLight = {
 const RECEIVER_Z = 0.2
 const CAMERA_Z = 1
 
+/** The blended receiver. Only the forward lighting reads the shadow maps, and a material made in code is
+ *  lit from the translucency volume by default, so it names the forward one. */
+export const blendReceiverSurface = () =>
+  G.standardSurface({
+    color: 0xbbbbbb,
+    roughness: 0.8,
+    transparent: true,
+    opacity: 1,
+    side: G.DOUBLE_SIDE,
+    translucencyLighting: 'forward',
+  })
+
 export function penumbraScene(receiver: Receiver, { open = false, half = 2 } = {}) {
   const builder = batisseur()
   const add = (z: number, x: number, sx: number, sy: number, s: PageSurface, pass: string) => {
@@ -38,20 +50,7 @@ export function penumbraScene(receiver: Receiver, { open = false, half = 2 } = {
   if (!open) for (let x = -4.5; x <= 4.5; x += 0.3) add(3, x, 0.05, 8, grey(), 'exact-clusters')
   if (receiver === 'opaque') add(RECEIVER_Z, 0, half, half, grey(), 'exact-clusters')
   if (receiver === 'blend')
-    add(
-      RECEIVER_Z,
-      0,
-      half,
-      half,
-      G.standardSurface({
-        color: 0xbbbbbb,
-        roughness: 0.8,
-        transparent: true,
-        opacity: 1,
-        side: G.DOUBLE_SIDE,
-      }),
-      'clustered-blend',
-    )
+    add(RECEIVER_Z, 0, half, half, blendReceiverSurface(), 'clustered-blend')
   return builder.fini()
 }
 
