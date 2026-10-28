@@ -10,13 +10,13 @@ import {
   VSM_DIRTY_SLICES,
   VSM_KEPT_RECTS_WIDTH,
   VSM_MIPS,
+  VSM_PAGE_LISTS,
   VSM_PAGE_TEXELS,
   VSM_PYRAMID_MIPS,
   VSM_POOL_SLICES,
   VSM_PROJECTION_RECORD_BYTES,
   VSM_UNIFORMS_BYTES,
 } from './constants.ts'
-import { POOL_SORT_WORDS, poolScratchWords } from '../../../gpu/sort/sortWords.ts'
 import { alignUp, ceilDiv, floorPow2, mipSize } from '../../../../../math/src/scalar/integers.ts'
 import type { VsmFrameBuffers } from './resources.ts'
 import type { VsmLayout } from './layout.ts'
@@ -55,13 +55,15 @@ export function frameBufferSizes(layout: VsmLayout): Record<keyof VsmFrameBuffer
     staleRects: layout.pageRectCount * 32,
     mappedRects: layout.pageRectCount * 16,
     projectionData: layout.mapSlots * VSM_PROJECTION_RECORD_BYTES,
+    // The page lists, each the pool's pages and a count (`freePagesWgsl.ts`).
+    freePages: VSM_PAGE_LISTS * (layout.poolPages + 1) * 4,
   }
 }
 
 /** The buffers made once for both frames and sized by the pool: their names and the bytes asked
  *  for each. */
 type VsmSetBuffer =
-  'poolPageInfo' | 'rasterMarks' | 'stats' | 'feedback' | 'pagesToClear' | 'clearArgs' | 'freePages'
+  'poolPageInfo' | 'rasterMarks' | 'stats' | 'feedback' | 'pagesToClear' | 'clearArgs'
 
 export function setBufferSizes(layout: VsmLayout): Record<VsmSetBuffer, number> {
   const maxPages = layout.poolPages
@@ -72,9 +74,6 @@ export function setBufferSizes(layout: VsmLayout): Record<VsmSetBuffer, number> 
     feedback: FEEDBACK_MESSAGE_BYTES,
     pagesToClear: (2 * maxPages + 1) * 4,
     clearArgs: 16,
-    // The pool sort's words, the free pages' count, their shortfall and the pages, then the sort's
-    // scratch, the whole pool a burst (`freePages`).
-    freePages: (POOL_SORT_WORDS + 2 + maxPages + poolScratchWords(maxPages, maxPages)) * 4,
   }
 }
 

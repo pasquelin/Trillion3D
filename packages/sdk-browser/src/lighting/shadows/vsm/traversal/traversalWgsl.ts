@@ -7,7 +7,7 @@
  * shadow views' own is how a view tests a node.
  *
  * A VIEW is a map of a light and a mip of it that has a page to draw (`vsmDescentViews`: its stale
- * rect is not empty, `vsmRenderMapMips`), as the reference's packed views are one a map and mip. Queue
+ * rect is not empty, `vsmRenderMapMips`), as the raster's views are (`render/renderViewsWgsl.ts`). Queue
  * 0 holds every view's roots — a placement's, or the placement tree's top nodes and the members
  * drawn whatever the view — and each level tests an entry's children against its view:
  * - in the view's map (`outsideFrustum`, `vsmDescentInMap`): a local light's range first, on the
@@ -218,7 +218,7 @@ fn heldHere(view:u32)->bool{
  return map>=params.viewFirst&&map<params.viewFirst+params.viewCount;
 }
 /** The box of shifted world centre \`high\` + \`low\` and world half axes \`axes\` in map space \`pd\`'s:
- *  its centre, its half axes and its box cull as the cull takes a cluster's (\`vsmRenderCullView\`), with
+ *  its centre, its half axes and its box cull as the cull takes a cluster's (\`vsmRenderCullViews\`), with
  *  the map's shifted-to-clip matrix it is taken by. */`
 
 const descentViewsText = /* wgsl */ `
@@ -238,7 +238,7 @@ fn vsmDescentBox(pd:VsmProjectionData,high:vec4f,low:vec3f,axes:array<vec3f,3>)-
 }
 /** Whether map \`pd\` holds the box of shifted world centre \`high\` + \`low\` and half axes \`axes\`: a
  *  local light's range on the box, then the map's box cull, the cull's own (\`vsmRenderCullCandidate\`,
- *  \`vsmRenderCullView\`), on the box. */
+ *  \`vsmRenderCullViews\`), on the box. */
 fn vsmDescentInMap(pd:VsmProjectionData,high:vec4f,low:vec3f,axes:array<vec3f,3>)->bool{
  return vsmDescentBoxInMap(pd,vsmDescentBox(pd,high,low,axes));
 }
@@ -321,7 +321,7 @@ fn vsmDescentNotDrawn(w:u32,h:VsmHandle,pd:VsmProjectionData,box:VsmDescentBox)-
  *  entry in layer \`layer\`, as the cull asks a caster's: the dynamic layer within the map's dynamic
  *  depth range, and a page of the layer to draw under the box (its fine pages taken too) over a
  *  receiver of the cover where the map keeps one and the layer is not the static one
- *  (\`vsmRenderCullView\`'s \`useCover\`). */
+ *  (\`vsmRenderCullViews\`'s \`useCover\`). */
 fn vsmDescentDraws(h:VsmHandle,pd:VsmProjectionData,box:VsmDescentBox,layer:VsmCasterLayer)->bool{
  if(!vsmCasterInDepthRange(layer,box.cull,pd)){return false;}
  let mip=descentMip();

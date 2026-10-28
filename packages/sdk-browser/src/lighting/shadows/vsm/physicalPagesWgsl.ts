@@ -8,9 +8,10 @@ import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
  * dispatcher (`perPageDispatch.ts`) for the per-page kernels.
  *
  * Invariants of the kernels (WebGPU has no wave operations and at most 256 threads per group):
- * - The free pages are the pool sort's queue (`freePagesWgsl.ts`), in the pool rank's order: the
- *   grant's pop and the page-to-process emit use one atomic per thread, so the pages a grant takes
- *   are the queue's head whatever the thread order; only which request takes which varies.
+ * - The free pages are the available list of the pool's page lists (`freePagesWgsl.ts`): the pages
+ *   at the end of last frame's order, then the empty pages. The grant's pop uses one atomic per
+ *   thread, so the pages a grant takes are the list's end whatever the thread order; only which
+ *   request takes which varies.
  * - The indirect args of the 16-tiles-per-page kernels are (16, pages, 1), not (16·pages, 1, 1), so
  *   2·PoolPages·16 groups never exceed maxComputeWorkgroupsPerDimension (65535). The kernel
  *   rebuilds the 1D group index as wid.y·16 + wid.x: the same tiles, the same pixels.
@@ -33,8 +34,7 @@ import { VSM_PREFILTERED_WGSL, prefilteredDeps } from './prefilteredWgsl.ts'
 import { type VsmBindingSpec, vsmBindingsWgsl } from './resources.ts'
 import { vsmPerPageDispatchWgsl } from './perPageDispatch.ts'
 import { VSM_PER_PAGE_DISPATCH_WGSL, VSM_PER_PAGE_GROUP_XY } from './markingWgsl.ts'
-import { VSM_FREE_PAGES_WGSL, VSM_POOL_SORT_WGSL } from './freePagesWgsl.ts'
-import { POOL_SORT_STAGES } from '../../../gpu/sort/sort.ts'
+import { VSM_FREE_PAGES_WGSL, VSM_PAGE_LISTS_WGSL } from './freePagesWgsl.ts'
 import type { VsmLayout } from './layout.ts'
 import { type WgslDecl, wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
@@ -44,14 +44,15 @@ export const VSM_PM_GROUP_RESOURCES = 0
 export const VSM_PM_GROUP_PARAMS = 1
 export const VSM_PM_GROUP_PER_PAGE = 2
 /** Byte size of `VsmPmParams`; its slots lie the device's `uniformStride` apart. */
-export const VSM_PM_PARAMS_BYTES = 20
+export const VSM_PM_PARAMS_BYTES = 28
 
 /**
  * Loose parameters of the physical page kernels (update, address remap, ...): the next-map entries
  * this frame holds, whether last frame's pages are kept, whether a free page is taken by the age of
  * its last request (`shadowCacheAllocateViaLru`) and whether a page is cleared whole whatever it
  * holds (`shadowForceFullPageClears`) and whether the invalidations the pages carry are skipped
- * (`shadowCacheDebugSkipDynamicPageInvalidation`) (offsets 0, 4, 8, 12 and 16).
+ * (`shadowCacheDebugSkipDynamicPageInvalidation`) (offsets 0, 4, 8, 12 and 16), and the page lists an
+ * append copies from and to (`appendFrom`, `appendTo`, offsets 20 and 24: the slot of each append).
  */
 const VSM_PM_PARAMS_WGSL = wgslBlock(
   'VSM_PM_PARAMS_WGSL',
@@ -63,6 +64,8 @@ struct VsmPmParams{
  lruAllocation:u32,
  fullClears:u32,
  skipDynamicInvalidation:u32,
+ appendFrom:u32,
+ appendTo:u32,
 }
 @group(${VSM_PM_GROUP_PARAMS}) @binding(0) var<uniform> vsmPm:VsmPmParams;
 `,
@@ -215,120 +218,156 @@ fn vsmCarryPages(@builtin(global_invocation_id) index:vec3u){
 const requestMaskOf = (prefiltered: boolean) =>
   prefiltered ? 'VSM_PAGE_AUX_MASK' : 'VSM_PAGE_FINE'
 
-const keepPagesFirstText = (
-  requestMask: string,
-) => /* wgsl */ `@compute @workgroup_size(VSM_GROUP_WIDTH)
-fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
- if(index.x>=vsm.poolPages){return;}
- let poolIndex=index.x;
- var nextMeta=0u;
- if(vsmPm.hasPrevFrame!=0u){
-  let prevInfo=vsmPoolPageInfo[poolIndex];
-  let mipLevel=prevInfo.mipLevel;
-  if(prevInfo.flags!=0u){
-   let handle=vsmHandleFromId(prevInfo.mapId);
-   let pageAddress=prevInfo.pageAddress;
-   // Whether this frame's marking asked for the page again.
-   let entryAt=vsmTableEntryOf(handle,mipLevel,pageAddress);
-   let entryIndex=vsmTableIndex(entryAt.tableXY);
-   let flagsIndex=vsmPageMarkIndex(entryAt.tableXY,0u);
-   let requestWord=vsmPageRequestsLoad(entryIndex);
-   let wantedNow=requestWord!=0u;
-   let wantedAge=i32(vsm.frameStamp-prevInfo.lastWantedStamp);
-   // A page of an unseen light stays whatever its age, until another map takes it.
-   let projection=vsmProjectionOf(handle);
-   if(wantedNow||projection.lightUnseen||wantedAge<=i32(vsm.pageKeepFrames)){
-    // The page keeps its map id and address: the slot already holds them.
-    let prevMeta=prevInfo.flags;
-    if(!wantedNow||projection.lightUnseen){
-     // Not drawn this frame: the page keeps its words, stale bits included, marked unseen.
-     nextMeta=prevMeta|VSM_META_UNSEEN;
-     // Wanted, fine as it was drawn: the invalidation finds it — a fine caster's box too —, so a
-     // caster that moves while nobody asks the page is not missed when it is asked again at the
-     // same detail and served from the cache; the raster does not draw it.
-     vsmPageMarksStore(flagsIndex,VSM_PAGE_WANTED|(prevMeta&VSM_PAGE_FINE));
-    }else{
-     var nextMarks=VSM_PAGE_WANTED;
-     let requestFine=requestWord&${requestMask};
-     // A map of one page (a distant light's) takes no invalidation: its pages are refreshed in turn.
-     let singlePage=projection.distant;
-     let staticStale=(prevMeta&VSM_META_STATIC_STALE)!=0u&&!singlePage;
-     // A coarse page of a map whose coarse pages keep their dynamic layer is drawn again for its
-     // static layer alone, both layers then.
-     let keepDynamic=requestFine==0u&&projection.coarseDynamicCached;
-     let skipDynamic=singlePage||(keepDynamic&&!staticStale);
-     var keepDeferred=false;
-     // The debug switch skips the whole block: the invalidations the page holds are not applied,
-     // and a deferred one keeps its mark.
-     let skipInvalidation=vsmPm.skipDynamicInvalidation!=0u;
-     let stale=!skipInvalidation&&staticStale;
-     let dynamicHeld=skipDynamic||skipInvalidation;
-     if(stale){
-      nextMarks|=VSM_PAGE_ANY_STALE;
-     }else if(!dynamicHeld){
-      if((prevMeta&VSM_META_DYNAMIC_STALE)!=0u){
-       nextMarks|=VSM_PAGE_DYNAMIC_STALE;
-      }`
-
-const keepPagesSecondText = (requestMask: string) => /* wgsl */ `
-     }
-     // An invalidation that waits (a cluster drawn coarser for want of its finer level) is carried
-     // out within the frame's budget, both layers; over it, the page keeps the mark and tries again.
-     if((prevMeta&VSM_META_DEFERRED)!=0u){
-      if(dynamicHeld){
-       keepDeferred=true;
-      }else if(vsm.deferredBudget<0){
-       nextMarks|=VSM_PAGE_ANY_STALE;
-      }else if(vsm.deferredBudget>0&&atomicAdd(&vsmRasterMarks[vsm.poolPages*VSM_DIRTY_SLICES],1u)<u32(vsm.deferredBudget)){
-       nextMarks|=VSM_PAGE_ANY_STALE;
-      }else{
-       keepDeferred=true;
-      }
-     }
-     // A page drawn for the covered receivers alone may miss a caster: its dynamic layer is
-     // drawn again each frame, but for a page whose dynamic invalidations are held.
-     if(!dynamicHeld&&projection.useCover){
-      nextMarks|=VSM_PAGE_DYNAMIC_STALE;
-     }
-     // Requested: stamped wanted now, so the pool's sort never lists it (\`poolSlotRank\`).
-     vsmCount(VSM_COUNT_WANTED);
-     vsmPoolPageInfo[poolIndex].lastWantedStamp=vsm.frameStamp;
-     // A page asked fine where it was held coarse, or the reverse, is drawn again whole.
-     if(requestFine!=(prevMeta&${requestMask})){
-      nextMarks|=VSM_PAGE_STATIC_STALE|VSM_PAGE_DYNAMIC_STALE;
-     }
-     if((nextMarks&VSM_PAGE_STATIC_STALE)==0u){vsmCount(VSM_COUNT_STATIC_KEPT);}
-     if((nextMarks&VSM_PAGE_DYNAMIC_STALE)==0u){vsmCount(VSM_COUNT_DYNAMIC_KEPT);}
-     nextMarks|=requestFine;
-     let viewBits=select(0u,VSM_META_VIEW_UNCACHED,projection.uncached);
-     nextMeta=nextMarks|viewBits;
-     // The cleared bits carry over.
-     nextMeta|=prevMeta&VSM_META_ANY_CLEARED;
-     nextMeta|=select(0u,VSM_META_DEFERRED,keepDeferred);
-     let drawsNow=(nextMarks&VSM_PAGE_ANY_STALE)!=0u;
-     // A page an offset is allowed on, cached whole: its dynamic layer is marked stale so that the
-     // raster's cull considers it (an offset that starts to move invalidates it), but it is neither
-     // cleared nor drawn: its entry is not drawable and its words say nothing is stale.
-     // (The debug switch does not skip it: it is no invalidation, and the reference keeps it, by the same single-page and coarse rule.)
-     if(!skipDynamic&&(prevMeta&VSM_META_FORCE_CACHED)!=0u){
-      nextMarks|=VSM_PAGE_DYNAMIC_STALE;
-      vsmCount(VSM_COUNT_WPO_CONSIDERED);
-     }
-     // The page's entry (cleared again where a new map takes the page).
-     vsmPageTableStore(entryIndex,vsmPackTableEntry(vsmPoolPageOf(poolIndex),drawsNow));
-     vsmPageMarksStore(flagsIndex,nextMarks);
-    }
-   }
+/** The keep rule's invalidations: what a requested page holds of them, as the marks it is drawn
+ *  with, and whether a deferred one keeps its mark. */
+const keepInvalidationText = (requestMask: string) => /* wgsl */ `
+const PM_REQUEST_MASK:u32=${requestMask};
+/** A page whose dynamic invalidations are held: one of a map of one page (a distant light's), which
+ *  takes none (its pages are refreshed in turn), or a coarse page of a map whose coarse pages keep
+ *  their dynamic layer, drawn again for its static layer alone, both layers then. */
+fn pmSkipDynamic(prevMeta:u32,requestFine:u32,projection:VsmProjectionData)->bool{
+ let staticStale=(prevMeta&VSM_META_STATIC_STALE)!=0u&&!projection.distant;
+ let keepDynamic=requestFine==0u&&projection.coarseDynamicCached;
+ return projection.distant||(keepDynamic&&!staticStale);
+}
+fn pmKeepInvalidated(prevMeta:u32,requestFine:u32,projection:VsmProjectionData)->vec2u{
+ let staticStale=(prevMeta&VSM_META_STATIC_STALE)!=0u&&!projection.distant;
+ // The debug switch skips the whole block: the invalidations the page holds are not applied, and a
+ // deferred one keeps its mark.
+ let skipInvalidation=vsmPm.skipDynamicInvalidation!=0u;
+ let dynamicHeld=pmSkipDynamic(prevMeta,requestFine,projection)||skipInvalidation;
+ var marks=VSM_PAGE_WANTED;
+ var keepDeferred=false;
+ if(!skipInvalidation&&staticStale){
+  marks|=VSM_PAGE_ANY_STALE;
+ }else if(!dynamicHeld&&(prevMeta&VSM_META_DYNAMIC_STALE)!=0u){
+  marks|=VSM_PAGE_DYNAMIC_STALE;
+ }
+ // An invalidation that waits (a cluster drawn coarser for want of its finer level) is carried
+ // out within the frame's budget, both layers; over it, the page keeps the mark and tries again.
+ if((prevMeta&VSM_META_DEFERRED)!=0u){
+  if(dynamicHeld){
+   keepDeferred=true;
+  }else if(vsm.deferredBudget<0){
+   marks|=VSM_PAGE_ANY_STALE;
+  }else if(vsm.deferredBudget>0&&atomicAdd(&vsmRasterMarks[vsm.poolPages*VSM_DIRTY_SLICES],1u)<u32(vsm.deferredBudget)){
+   marks|=VSM_PAGE_ANY_STALE;
+  }else{
+   keepDeferred=true;
   }
  }
- // A page left with no word is empty: the pool sort lists it first.
- if(nextMeta==0u){vsmCount(VSM_COUNT_EMPTY_PAGES);}
- vsmPoolPageInfo[poolIndex].flags=nextMeta;
-}`
+ // A page drawn for the covered receivers alone may miss a caster: its dynamic layer is
+ // drawn again each frame, but for a page whose dynamic invalidations are held.
+ if(!dynamicHeld&&projection.useCover){
+  marks|=VSM_PAGE_DYNAMIC_STALE;
+ }
+ return vec2u(marks,select(0u,1u,keepDeferred));
+}
+`
 
-/** The keep rule, a thread a pool page: a page this frame wants keeps its words and is stamped
- *  wanted now; one unwanted for `shadowCacheMaxPageAgeSinceLastRequest`, its light seen, is emptied; any other
- *  keeps its cached words. The free pages' order is the pool sort's (`freePagesWgsl.ts`). */
+/** The keep rule for a page this frame wants: stamped, listed as requested, its marks and words
+ *  settled. */
+const keepRequestedText = /* wgsl */ `
+fn pmKeepRequested(poolIndex:u32,prevMeta:u32,requestWord:u32,at:vec2u,projection:VsmProjectionData)->u32{
+ let entryIndex=vsmTableIndex(at);
+ let requestFine=requestWord&PM_REQUEST_MASK;
+ let invalidated=pmKeepInvalidated(prevMeta,requestFine,projection);
+ var nextMarks=invalidated.x;
+ // Requested: stamped wanted now, out of the LRU list and into the requested one.
+ vsmCount(VSM_COUNT_WANTED);
+ pmPush(PM_LIST_REQUESTED,poolIndex);
+ vsmPoolPageInfo[poolIndex].lastWantedStamp=vsm.frameStamp;
+ // A page asked fine where it was held coarse, or the reverse, is drawn again whole.
+ if(requestFine!=(prevMeta&PM_REQUEST_MASK)){
+  nextMarks|=VSM_PAGE_STATIC_STALE|VSM_PAGE_DYNAMIC_STALE;
+ }
+ if((nextMarks&VSM_PAGE_STATIC_STALE)==0u){vsmCount(VSM_COUNT_STATIC_KEPT);}
+ if((nextMarks&VSM_PAGE_DYNAMIC_STALE)==0u){vsmCount(VSM_COUNT_DYNAMIC_KEPT);}
+ nextMarks|=requestFine;
+ let viewBits=select(0u,VSM_META_VIEW_UNCACHED,projection.uncached);
+ // The cleared bits carry over.
+ var nextMeta=nextMarks|viewBits|(prevMeta&VSM_META_ANY_CLEARED);
+ nextMeta|=select(0u,VSM_META_DEFERRED,invalidated.y!=0u);
+ let drawsNow=(nextMarks&VSM_PAGE_ANY_STALE)!=0u;
+ // A page an offset is allowed on, cached whole: its dynamic layer is marked stale so that the
+ // raster's cull considers it (an offset that starts to move invalidates it), but it is neither
+ // cleared nor drawn: its entry is not drawable and its words say nothing is stale.
+ // (The debug switch does not skip it: it is no invalidation, and the reference keeps it, by the same single-page and coarse rule.)
+ if(!pmSkipDynamic(prevMeta,requestFine,projection)&&(prevMeta&VSM_META_FORCE_CACHED)!=0u){
+  nextMarks|=VSM_PAGE_DYNAMIC_STALE;
+  vsmCount(VSM_COUNT_WPO_CONSIDERED);
+ }
+ // The page's entry (cleared again where a new map takes the page).
+ vsmPageTableStore(entryIndex,vsmPackTableEntry(vsmPoolPageOf(poolIndex),drawsNow));
+ vsmPageMarksStore(vsmPageMarkIndex(at,0u),nextMarks);
+ return nextMeta;
+}
+`
+
+/** The keep rule of one page and the kernel over the order of the pages: a page not asked keeps its
+ *  words, or is emptied past its age. */
+const keepPageText = /* wgsl */ `
+/** A page not drawn this frame keeps its words, stale bits included, marked unseen. */
+fn pmKeepUnseen(prevMeta:u32,at:vec2u)->u32{
+ // Wanted, fine as it was drawn: the invalidation finds it — a fine caster's box too —, so a
+ // caster that moves while nobody asks the page is not missed when it is asked again at the
+ // same detail and served from the cache; the raster does not draw it.
+ vsmPageMarksStore(vsmPageMarkIndex(at,0u),VSM_PAGE_WANTED|(prevMeta&VSM_PAGE_FINE));
+ return prevMeta|VSM_META_UNSEEN;
+}
+/** The words page \`poolIndex\` is left with, and whether this frame asked it (1): no word when it is
+ *  empty or unwanted past its age. */
+fn pmKeepPage(poolIndex:u32)->vec2u{
+ let prevInfo=vsmPoolPageInfo[poolIndex];
+ if(prevInfo.flags==0u){return vec2u(0u,0u);}
+ let handle=vsmHandleFromId(prevInfo.mapId);
+ // Whether this frame's marking asked for the page again.
+ let at=vsmTableEntryOf(handle,prevInfo.mipLevel,prevInfo.pageAddress).tableXY;
+ let requestWord=vsmPageRequestsLoad(vsmTableIndex(at));
+ let wantedNow=requestWord!=0u;
+ let wantedAge=i32(vsm.frameStamp-prevInfo.lastWantedStamp);
+ // A page of an unseen light stays whatever its age, until another map takes it.
+ let projection=vsmProjectionOf(handle);
+ if(!(wantedNow||projection.lightUnseen||wantedAge<=i32(vsm.pageKeepFrames))){return vec2u(0u,0u);}
+ // The page keeps its map id and address: the slot already holds them.
+ if(!wantedNow||projection.lightUnseen){return vec2u(pmKeepUnseen(prevInfo.flags,at),0u);}
+ return vec2u(pmKeepRequested(poolIndex,prevInfo.flags,requestWord,at,projection),1u);
+}
+@compute @workgroup_size(VSM_GROUP_WIDTH)
+fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
+ if(index.x>=vsm.poolPages){return;}
+ // The page of this entry of last frame's order (the requested list), or the pool's own without one.
+ // That order is whole only if every pass of the lists ran last frame (its count is the pool's):
+ // a partial one would give a page to two entries, so the frame starts again from the pool's own order,
+ // every page emptied, as the first frame does.
+ let listIndex=index.x;
+ var poolIndex=listIndex;
+ var prevFrame=vsmPm.hasPrevFrame!=0u;
+ if(prevFrame&&vsmPm.lruAllocation!=0u){
+  prevFrame=vsmPrevFreePages[pmListAt(PM_LIST_REQUESTED,vsm.poolPages)]==vsm.poolPages;
+  if(prevFrame){poolIndex=vsmPrevFreePages[pmListAt(PM_LIST_REQUESTED,listIndex)];}
+ }
+ var kept=vec2u(0u,0u);
+ if(prevFrame){kept=pmKeepPage(poolIndex);}
+ var removed=kept.y!=0u;
+ // A page left with no word is empty: it leaves the LRU list for the empty one, which joins the
+ // available pages at their end, taken first.
+ if(kept.x==0u){
+  vsmCount(VSM_COUNT_EMPTY_PAGES);
+  pmPush(PM_LIST_EMPTY,poolIndex);
+  removed=true;
+ }
+ vsmPoolPageInfo[poolIndex].flags=kept.x;
+ // The LRU list in its order, what left it marked.
+ pmListSet(PM_LIST_LRU,listIndex,select(poolIndex,PM_NONE,removed));
+}
+`
+
+/** The keep rule, a thread an entry of last frame's order of the pool's pages (the pool's own
+ *  without `lruAllocation`): a page this frame wants keeps its words, is stamped wanted now and goes
+ *  to the requested list; one unwanted for `shadowCacheMaxPageAgeSinceLastRequest`, its light seen,
+ *  is emptied and goes to the empty list; any other keeps its cached words and its place in the LRU
+ *  list (`freePagesWgsl.ts`). */
 function keepPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
   const specs = withStats(
     [
@@ -340,15 +379,19 @@ function keepPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
       { resource: 'projectionData', binding: 5 },
       // The deferred invalidations' count of the frame, after the raster marks' slices.
       { resource: 'rasterMarks', binding: 6, access: 'atomic' },
+      // The page lists this frame builds, and last frame's requested list: its order.
+      { resource: 'freePages', binding: 7, access: 'atomic' },
+      { resource: 'freePages', binding: 8, prev: true },
     ],
     o.stats,
-    7,
+    9,
   )
   const requestMask = requestMaskOf(layout.prefilteredDistant)
   const body = wgslBlock(
     'keepPages',
     [
       STAT_WGSL,
+      VSM_FREE_PAGES_WGSL,
       ...prefilteredDeps(layout.prefilteredDistant),
       VSM_CONSTANTS_WGSL,
       VSM_HANDLE_WGSL,
@@ -357,27 +400,27 @@ function keepPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
       VSM_PROJECTION_DATA_READ_WGSL,
     ],
     `
-${keepPagesFirstText(requestMask)}${keepPagesSecondText(requestMask)}
+${keepInvalidationText(requestMask)}${keepRequestedText}${keepPageText}
 `,
   )
   return vsmPmKernel(layout, 'KeepPages', specs, body, { stats: !!o.stats })
 }
 
-/** The pool sort's three stages over the shadow pool (`freePagesWgsl.ts`), one module: the free
- *  pages in the pool rank's order, after the keep rule. */
-function poolSort(layout: VsmLayout) {
+/** The page lists' passes (`freePagesWgsl.ts`), one module, a kernel each entry: the lists reset
+ *  before the keep rule, the LRU list packed after it, and the append of one list to another (the
+ *  empty pages, then the available ones at the frame's end), a copy and its counts. */
+function pageLists(layout: VsmLayout) {
   const specs: VsmBindingSpec[] = [
     { resource: 'uniforms', binding: 0 },
-    { resource: 'poolPageInfo', binding: 1 },
-    { resource: 'projectionData', binding: 2 },
-    { resource: 'freePages', binding: 3, access: 'atomic' },
+    { resource: 'freePages', binding: 1, access: 'atomic' },
   ]
-  return Object.fromEntries(
-    POOL_SORT_STAGES.map((entryPoint) => [
-      entryPoint,
-      vsmPmKernel(layout, entryPoint, specs, VSM_POOL_SORT_WGSL, { entryPoint }),
-    ]),
-  ) as Record<(typeof POOL_SORT_STAGES)[number], VsmPmKernel>
+  const kernel = (label: string) => vsmPmKernel(layout, label, specs, VSM_PAGE_LISTS_WGSL)
+  return {
+    initPageLists: kernel('InitPageLists'),
+    packAvailable: kernel('PackAvailable'),
+    appendCopy: kernel('AppendCopy'),
+    appendCounts: kernel('AppendCounts'),
+  }
 }
 
 const grantPageText = (
@@ -392,14 +435,15 @@ const grantPageText = (
  let pageMarks=vsmPageMarksLoad(flagsIndex)&VSM_PAGE_MARK_MASK;
  if(pageMarks!=0u){return;}
  vsmCount(VSM_COUNT_WANTED);
- // The pool sort's head: an empty page first, then the one wanted longest ago.
- let poolIndex=pmPop();
+ // The available list's end: an empty page first, then the one left unrequested longest.
+ let poolIndex=pmPop(PM_LIST_AVAILABLE);
  if(poolIndex<0i){
   // No free page: the request stays unmapped.
   return;
  }
  vsmCount(VSM_COUNT_GRANTED);
  let poolSlot=u32(poolIndex);
+ pmPush(PM_LIST_REQUESTED,poolSlot);
  let poolPageXY=vsmPoolPageOf(poolSlot);
  // The map that held this pool page loses its entry first.
  let prevInfo=vsmPoolPageInfo[poolSlot];
@@ -813,7 +857,7 @@ export function vsmPhysicalPageKernels(layout: VsmLayout, options: VsmPmKernelOp
   return {
     carryPages: carryPages(layout),
     keepPages: keepPages(layout, options),
-    ...poolSort(layout),
+    ...pageLists(layout),
     grantPages: grantPages(layout, options),
     resetClearArgs: resetClearArgs(layout),
     listClears: listClears(layout, options),

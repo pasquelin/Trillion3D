@@ -31,23 +31,23 @@ import { LIGHTING_CHANNELS_WGSL } from '../../../lightingChannelsWgsl.ts'
 
 /**
  * THE SHADOW RASTER'S CULL: every caster the candidates list (`renderCandidatesWgsl.ts`) against
- * every map view of the view pass, in one dispatch, as the reference's cluster cull runs over every
- * view of a pass. The page overlap and page cache it reads
+ * every map of the view pass, in one dispatch. The page overlap and page cache it reads
  * live in `renderOverlapWgsl.ts`, the box cull in `../invalidation/boxCullWgsl.ts`, the bin that
  * follows in `renderBinWgsl.ts`.
  *
- * A thread a (caster, listed light): the lighting channels the two share (a caster in none of the
+ * A thread a (caster, listed map): the lighting channels the two share (a caster in none of the
  * light's casts none into its maps), the light's culling volume — a local light's range sphere, a
- * sun's far-shadow distance — once, then each of the light's listed maps (`vsmRenderCullView`): the
- * caster's layer, the map's frustum (the box frustum test with the dynamic depth cull range), then
- * each mip the map draws, a view of its own: the level of detail the view takes of the caster
+ * sun's far-shadow distance — then the map's listed mip views (`vsmRenderCullViews`): the caster's
+ * layer, and the map's frustum (the box frustum test with the dynamic depth cull range) once for all its
+ * views, then,
+ * for each mip, a view of its own: the level of detail the view takes of the caster
  * (`vsmRenderLodAt`), its page rect clipped to the layer's stale rect, its overlap with a page to
  * draw (page-mark pyramid and receiver cover), and the rect walked by windows of
  * `VSM_RENDER_WINDOW_PAGES` pages a side (`VSM_RENDER_WINDOW_PAGES_SOFTWARE` for the software raster): each page whose flags
  * hold the caster's stale layer joins the window, and a window with one such page at least is
  * emitted, one record, its rect clipped to them. Where the device binds the page table and the raster
  * marks in the cull (`vsmCullMarks`), each page that joins a window is marked drawn there, as the
- * reference's cull marks a page it keeps, and the rect is clipped to the pages that are ones to draw at
+ * cull marks a page it keeps, and the rect is clipped to the pages that are ones to draw at
  * their level; otherwise the bin that follows marks the pages of the record's rect (`renderBinWgsl.ts`).
  * The raster draws the record's rect in the pages to draw (`vsmRenderPoolTexel`).
  *
@@ -65,8 +65,8 @@ import { LIGHTING_CHANNELS_WGSL } from '../../../lightingChannelsWgsl.ts'
  *
  * Bounds: a world sphere and a world box per caster. The map's frustum, the light's range, the depth
  * range, the page rect and the previous image's occlusion test all cull the box (its centre and three
- * half axes; the previous image's under the placement's previous pose), as the reference's cluster
- * cull does; the level of detail and the raster choice measure the sphere, and the instance's ball
+ * half axes; the previous image's under the placement's previous pose); the level of detail and the
+ * raster choice measure the sphere, and the instance's ball
  * (\`inst\`) is the object's, judged whole.
  */
 /** Group 0 of `vsmRenderCull` (VSM resources of the current frame). */
@@ -119,8 +119,7 @@ fn vsmMarkDrawnPage(page:VsmTableEntry,markBits:u32){
 `,
 )
 
-/** The edge scale and the error comparison of a map's mip view, as the reference's cluster cull and
- *  the camera's cut make them (`edgeScalesAt`, `errorShows`): multiplied out, no division. The cull's
+/** The edge scale and the error comparison of a map's mip view, as the camera's cut makes them (`edgeScalesAt`, `errorShows`): multiplied out, no division. The cull's
  *  level of detail and raster choice and the shadow views' descent's (`../traversal/traversalWgsl.ts`). */
 export const VSM_RENDER_EDGE_SCALE_WGSL = wgslBlock(
   'VSM_RENDER_EDGE_SCALE_WGSL',
@@ -142,7 +141,7 @@ fn vsmRenderEdgeScale(centre:vec3f,radius:f32,toClip:mat4x4f,viewToClip:mat4x4f,
 }
 /** Whether an error \`error\` shows at edge scale \`scale\` of a view whose pixels per unit at depth one
  *  are \`focal\`, at the shadows' threshold: \`scale · t <= focal · error\`, the threshold multiplied
- *  out, a zero error never (the camera's \`errorShows\`, the reference's cluster cull). */
+ *  out, a zero error never (the camera's \`errorShows\`). */
 fn vsmRenderErrorShows(scale:f32,error:f32,focal:f32)->bool{
  return error>0.0&&scale*params.threshold<=focal*error;
 }
@@ -167,8 +166,8 @@ fn vsmCasterMarkMask(layer:VsmCasterLayer,cull:VsmBoxInView,pd:VsmProjectionData
 }`
 
 /**
- * The layer a caster draws into in a map, the reference's cache-as-static decision made for it (the cull's,
- * \`vsmRenderCullView\`, and the shadow views' descent's, \`../traversal/traversalWgsl.ts\`): the static layer where the map
+ * The layer a caster draws into in a map, the cache-as-static decision made for it (the cull's,
+ * \`vsmRenderCullViews\`, and the shadow views' descent's, \`../traversal/traversalWgsl.ts\`): the static layer where the map
  * is cached and the caster is neither dynamic (\`dynamicCaster\`) nor cached as dynamic in the map's view (\`viewBits\` bit
  * \`viewSlot\`), else the dynamic one; one in the static layer whose cache state turned this frame (bit 16 + \`viewSlot\`)
  * draws into every wanted page. With the marks of the pages it draws into, and the two tests the layer
@@ -248,7 +247,7 @@ fn vsmRenderSwapped(m:mat4x4f,ortho:bool,flags:u32)->bool{
  *  (\`drawsCompared\`) on its group's error and its parent's, shown or not at the edge scales of their
  *  balls in the view (\`ownScale\`, \`parentScale\`: \`vsmRenderEdgeScale\`, the same for every mip) and the
  *  mip's pixels per unit \`focal\`, held to the shadows' threshold — each shadow view takes the cut it
- *  sees, as the reference's views each select their clusters. The verdict: not drawn, drawn at its own
+ *  sees. The verdict: not drawn, drawn at its own
  *  level of detail, or drawn though its error is over the threshold because the finer level is not
  *  resident — a level of detail behind what the view asks. */
 fn vsmRenderLodAt(cand:VsmRenderCandidate,ownScale:f32,parentScale:f32,focal:f32)->u32{
@@ -260,12 +259,12 @@ fn vsmRenderLodAt(cand:VsmRenderCandidate,ownScale:f32,parentScale:f32,focal:f32
 /** A place of the list, for a record to draw or one held back: false past its capacity, the place
  *  counted all the same (the frame's peak, \`vsmRenderArgsBin\`). */
 fn vsmRenderTake()->bool{return atomicAdd(&counts[VSM_RENDER_COUNT_TAKEN],1u)<params.recordCapacity;}
-/** A mip view the first cull holds back: candidate \`k\`, its view's
- *  place \`viewIndex\`, mip \`mipLevel\`, from the end of the list. */
-fn vsmRenderHold(k:u32,viewIndex:u32,mipLevel:u32,directional:bool){
+/** A mip view the first cull holds back: candidate \`k\`, its mip view's place \`viewIndex\` (the
+ *  views' pass lists a view a map and a mip), from the end of the list. */
+fn vsmRenderHold(k:u32,viewIndex:u32){
  if(!vsmRenderTake()){return;}
  let held=atomicAdd(&counts[VSM_RENDER_COUNT_HELD],1u);
- records[params.recordCapacity-1u-held]=vec4u(k,viewIndex,mipLevel|select(0u,1u<<8u,directional),0u);
+ records[params.recordCapacity-1u-held]=vec4u(k,viewIndex,0u,0u);
 }`
 
 /** In the throttled program, a record counts once, for the map and the raster it is drawn by: the
@@ -294,8 +293,7 @@ const cullSoftwareEmitText = (throttled: boolean, marks: boolean) => /* wgsl */ 
 /** Whether a caster is the software raster's in a map's mip view: its longest edge spans no more than \`params.hardwareEdge\` pixels at the nearest point of
  *  its level of detail's sphere — of its whole sphere where its vertices move —, \`scale\` the edge scale
  *  of that sphere in the view (\`vsmRenderEdgeScale\`) and \`focal\` the mip's pixels per unit: the hardware
- *  raster's where \`scale · hardwareEdge < edge · focal\`, multiplied out as the reference's cluster cull
- *  has it —, its box crosses neither the near nor the far plane (\`cull\`), and it is neither
+ *  raster's where \`scale · hardwareEdge < edge · focal\`, multiplied out —, its box crosses neither the near nor the far plane (\`cull\`), and it is neither
  *  tessellated nor a voxel row, which the hardware raster alone draws; none while the software raster
  *  is off (\`hardwareEdge\` 0) or the edge unknown. */
 fn vsmRenderSoftware(cand:VsmRenderCandidate,scale:f32,focal:f32,cull:VsmBoxInView,tessellated:bool)->bool{
@@ -340,16 +338,18 @@ fn vsmRenderEmit(row:u32,word:u32,bin:u32,h:VsmHandle,mipLevel:u32,pagesRect:vec
 
 const cullViewHeadText = (prefiltered: boolean) => /* wgsl */ `
 /**
- * One caster (candidate \`k\`) against one listed map of a light that holds it (\`vsmRenderCull\`), the
- * map at \`viewIndex\` in \`views\`: the map's layer, its frustum, then per mip its level of detail,
- * its page rect and its records — with the occlusion's first cull (\`kind\`), held back where the
- * previous frame's pyramid hides it; its second culls the mip \`onlyMip\` alone, its level of detail
- * as the first chose it, and leaves out what this frame's pyramid hides.
+ * One caster (candidate \`k\`) against the mip views of one map of a light that holds it
+ * (\`vsmRenderCull\`): \`viewCount\` views from \`firstView\` in \`views\`, all of one map (the views' pass
+ * lists a map's mip views one after the other, \`vsmRenderViews\`). The map's layer and its frustum
+ * once, then for each mip its level of detail, its page rect and its records — with the occlusion's
+ * first cull (\`kind\`), held back where the previous frame's pyramid hides it; its second culls one
+ * view, its level of detail as the first chose it, and leaves out what this frame's pyramid hides.
  */
-fn vsmRenderCullView(cand:VsmRenderCandidate,k:u32,viewIndex:u32,directional:bool,kind:u32,onlyMip:u32){
- let view=views[viewIndex];
- let h=vsmHandleFromId(view.x);
+fn vsmRenderCullViews(cand:VsmRenderCandidate,k:u32,firstView:u32,viewCount:u32,mapLayers:u32,kind:u32){
+ let mapId=views[firstView].x;
+ let h=vsmHandleFromId(mapId);
  let pd=vsmProjectionOf(h);
+ let directional=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
  let nearClip=!directional;
  let viewToClip=pd.lightViewToClip;
  let isOrtho=viewToClip[3][3]>=1.0;
@@ -372,8 +372,10 @@ fn vsmRenderCullView(cand:VsmRenderCandidate,k:u32,viewIndex:u32,directional:boo
  let transitioned=layer.transitioned;
  // The receiver cover and the mark mask depend on the cache state.
  let useCover=vsmCasterUsesCover(layer,pd);${markMaskOf(prefiltered).head}
- // A view with no stale page of the caster's layer draws nothing of it (\`vsmRenderViews\`).
- if((view.w&select(1u,2u,staticLayer))==0u){return;}`
+ let layerBit=select(1u,2u,staticLayer);
+ // A map none of whose views has a page to draw in the caster's layer is left out, but for a caster that
+ // changed its cache state: it redraws the stale pages of both layers.
+ if((mapLayers&layerBit)==0u&&!transitioned){return;}`
 
 /** The bit of the record's word that says the window's pages were matched by the primary request mark
  *  too (`vsmRecordMarkPrimary`): a caster in the inner band of a prefiltered level; none otherwise. */
@@ -397,18 +399,17 @@ const cullViewFrustumText = (prefiltered: boolean) => /* wgsl */ `
  let tessellated=(cand.flags&VSM_RENDER_CAND_TESSELLATED)!=0u&&(params.tessellated&tessKind)!=0u;
  let tier=vsmRenderTierOf(cand.corners);
  // A clipmap level (directional) has no near clip: bit 20, \`vsmRecordNoNearClip\`.
- let word=view.x|select(0u,1u<<20u,directional)|select(0u,1u<<21u,staticLayer)
+ let word=mapId|select(0u,1u<<20u,directional)|select(0u,1u<<21u,staticLayer)
   |select(0u,1u<<22u,vsmRenderSwapped(pd.shiftedToMapUv,isOrtho,cand.flags))
   |select(0u,1u<<23u,tessellated)|select(0u,1u<<28u,invalidates)|select(0u,1u<<29u,offsetMarked)
   |select(0u,1u<<19u,transitioned)${markPrimaryText(prefiltered)};
- // The view's level of detail: the projection's scale in pixels a unit at depth one, its near plane.
- // The map's mips from its finest on: its table holds no finer one (\`vsmTableLevelOrigin\`).
+ // The lens: the near plane and the kind of view, the map's own; each mip view carries its level of
+ // detail's scale (\`focal\`, pixels a unit at depth one).
  let lens=vsmViewLens(viewToClip,pd.finestMip);
- let mips=min(view.y,VSM_MIPS);
  // The edge scales of the balls the level of detail and the raster choice measure, once for all the
- // mips and at the first that reaches them (a mip with no page to draw asks none): only the pixels per
- // unit change with the mip. The raster's is the level of detail's ball, the whole sphere where the
- // vertices move; the parent's is the level of detail's alone.
+ // mips and at the first that reaches them (a mip with no page to draw asks none). The raster's is the
+ // level of detail's ball, the whole sphere where the vertices move; the parent's is the level of
+ // detail's alone.
  var scaled=false;
  var ownScale=0.0;
  var rasterScale=0.0;
@@ -423,16 +424,21 @@ const cullViewFrustumText = (prefiltered: boolean) => /* wgsl */ `
  // One radius for the object, the map's full resolution whatever the mip drawn (the instance cull's).
  let fineObject=vsmIsFineCaster(staticLayer,vsmClipRadius(isOrtho,cand.inst.w,objectCentre,viewToClip)*f32(VSM_LEVEL0_TEXELS));`
 
-const cullViewMipsText = (prefiltered: boolean) => /* wgsl */ `
- // The second cull takes its one mip alone; the others, every mip from the finest.
+const cullViewMipText = (prefiltered: boolean) => /* wgsl */ `
+ // The second cull keeps the level of detail the first chose.
  let second=kind==VSM_RENDER_CULL_SECOND;
  // The previous image drew the caster's box under the placement's previous pose (\`prevShift\`, the half
  // axes of \`vsmCandPrevAxes\`), the map's reach grown the same; projected under the map's previous view
  // once for all the mips, at the first that tests it.
  var prevProjected=false;
  var prevCull:VsmBoxInView;
- for(var mipLevel=select(pd.finestMip,onlyMip,second);mipLevel<select(mips,onlyMip+1u,second);mipLevel++){
-  let focal=lens.focal*exp2(-f32(mipLevel-pd.finestMip));
+ for(var i=0u;i<viewCount;i++){
+  let view=views[firstView+i];
+  // A mip with no stale page of the caster's layer draws nothing of it, but for a caster that changed
+  // its cache state: it redraws the stale pages of both layers.
+  if((view.z&layerBit)==0u&&!transitioned){continue;}
+  let mipLevel=view.y;
+  let focal=bitcast<f32>(view.w);
   let levelTexels=i32(VSM_LEVEL0_TEXELS>>mipLevel);
   let pixels=vsmStalePixels(cull,h,mipLevel,staticLayer,transitioned);
   // The object first, by the pages it overlaps (the fine ones alone for a fine object), then the cluster.
@@ -466,7 +472,7 @@ const cullViewMipsText = (prefiltered: boolean) => /* wgsl */ `
     prevProjected=true;
    }
    if(vsmHiddenBefore(pd,prevCull,mipLevel,levelTexels,staticLayer)){
-    vsmRenderHold(k,viewIndex,mipLevel,directional);
+    vsmRenderHold(k,firstView+i);
     continue;
    }
   }
@@ -479,27 +485,27 @@ const cullViewMipsText = (prefiltered: boolean) => /* wgsl */ `
 }`
 
 const cullCandidateText = /* wgsl */ `
-/** A caster against every listed map of its light (the first cull's, the post cull's or the cull
+/** A caster against the listed mip views of one map of its light (the first cull's, the post cull's or the cull
  *  with no test); the post cull's casters are those found since the descent's post pass opened. */
 fn vsmRenderCullCandidate(wid:vec3u,nwg:vec3u,lane:u32,kind:u32){
  let first=select(0u,atomicLoad(&counts[VSM_RENDER_COUNT_CAST_FIRST]),kind==VSM_RENDER_CULL_POST);
  let k=first+flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lane;
- if(k>=atomicLoad(&counts[0])||wid.z>=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.lightCount)){return;}
+ if(k>=atomicLoad(&counts[0])||wid.z>=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.viewCount)){return;}
  let cand=candidates[k];
  let listing=views[wid.z];
  // A caster that shares no lighting channel with the light casts none into its maps.
  if(!vsmCandSharesChannel(cand.flags,listing.w)){return;}
  let pd=vsmProjectionOf(vsmHandleFromId(listing.z));
- let directional=(listing.w&VSM_RENDER_VIEW_DIRECTIONAL)!=0u;
+ let directional=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
  // The objects that stand for a first-person one are drawn into the suns' first-person clipmaps and into
  // no other map, which hold every other object but them.
  if(((cand.flags&VSM_RENDER_CAND_WORLD_SPACE)!=0u)!=pd.firstPerson){return;}
  // Local views enable distance cull and near clip.
  let center=vsmShiftedCentre(cand.c.xyz,cand.l,pd);
- // Range-based culling distance = the light's radius: its culling volume, one for all its maps (they
- // share the light's origin and range), tested on the caster's box.
+ // Range-based culling distance = the light's radius: its culling volume, the same for all its maps
+ // (they share the light's origin and range) and tested for each map's thread, on the caster's box.
  if(!directional&&vsmCasterPastRange(center,cand.a0,cand.a1,cand.a2,pd.lightRange)){return;}
- for(var run=0u;run<listing.y;run++){vsmRenderCullView(cand,k,params.lightCount+listing.x+run,directional,kind,0u);}
+ vsmRenderCullViews(cand,k,params.viewCount+listing.x,listing.y,listing.w&VSM_RENDER_VIEW_LAYERS_MASK,kind);
 }
 @compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderCull(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  vsmRenderCullCandidate(wid,nwg,lane,VSM_RENDER_CULL_ALL);
@@ -511,26 +517,26 @@ fn vsmRenderCullCandidate(wid:vec3u,nwg:vec3u,lane:u32,kind:u32){
  vsmRenderCullCandidate(wid,nwg,lane,VSM_RENDER_CULL_POST);
 }
 /** The second cull, a thread a record the first held back: its light's culling volume again,
- *  then its view and mip (\`vsmRenderCullView\`). */
+ *  then its view and mip (\`vsmRenderCullViews\`). */
 @compute @workgroup_size(WORKGROUP_THREADS) fn vsmRenderCullSecond(@builtin(workgroup_id) wid:vec3u,@builtin(num_workgroups) nwg:vec3u,@builtin(local_invocation_index) lane:u32){
  let i=flatIndex(wid,nwg,1u)*WORKGROUP_THREADS+lane;
  if(i>=atomicLoad(&counts[VSM_RENDER_COUNT_HELD])){return;}
  let held=records[params.recordCapacity-1u-i];
  let cand=candidates[held.x];
- let directional=(held.z&(1u<<8u))!=0u;
  let pd=vsmProjectionOf(vsmHandleFromId(views[held.y].x));
+ let directional=pd.lightKind==LIGHT_KIND_DIRECTIONAL;
  let center=vsmShiftedCentre(cand.c.xyz,cand.l,pd);
  if(!directional&&vsmCasterPastRange(center,cand.a0,cand.a1,cand.a2,pd.lightRange)){return;}
- vsmRenderCullView(cand,held.x,held.y,directional,VSM_RENDER_CULL_SECOND,held.z&0xFFu);
+ vsmRenderCullViews(cand,held.x,held.y,1u,views[held.y].z,VSM_RENDER_CULL_SECOND);
 }`
 
 /**
  * `vsmRenderCull` and `vsmRenderCullFirst`: group 0 = `vsmRenderCullSpecs(marks)`; group 1: 0 params
- * (uniform, dynamic), 1 views (vec4u: the listed lights' groups — run start, run length, first listed
- * map, flags —, then, from `params.lightCount`, their runs of listed maps — id, mip count, flags,
- * stale layers —, `vsmRenderViews`), 2 candidates, 3 counters (rw atomic), 4 records (rw). Dispatch:
- * x and y over the candidates (64 each), z = listed light (group) index. `vsmRenderCullSecond`: the
- * same groups, a thread a record held back (x and y). `vsmRenderCullPost`: over the candidates from
+ * (uniform, dynamic), 1 views (vec4u: the listed maps' groups — run start, run length, map id, the
+ * stale layers of its views together and the light's channels —, then, from `params.viewCount`, their runs of mip views — map id, mip, stale
+ * layers, level of detail's scale —, `vsmRenderViews`), 2 candidates, 3 counters (rw atomic), 4
+ * records (rw). Dispatch: x and y over the candidates (64 each), z = listed map (group) index.
+ * `vsmRenderCullSecond`: a thread a record held back (x and y). `vsmRenderCullPost`: over the candidates from
  * `VSM_RENDER_COUNT_CAST_FIRST`. The occlusion's three read group 2 (`VSM_OCCLUSION_GROUP`): the
  * pyramid and the kept tables — the previous frame's in the first, this frame's in the second and
  * the post cull.
@@ -540,8 +546,7 @@ fn vsmRenderCullCandidate(wid:vec3u,nwg:vec3u,lane:u32,kind:u32){
  * deforms << 28 | marks primary << 31 (the marks the window's pages were matched by);
  * z the window's first page x | y << 8 and its last page x << 16 | y << 24 (pages of the mip,
  * inclusive); w none (the bin puts the page table there).
- * A record held back, from the list's end: x the candidate, y its view's place in `views`, z the
- * mip | directional << 8.
+ * A record held back, from the list's end: x the candidate, y its mip view's place in `views`.
  *
  * `marks`: the cull marks the pages it emits drawn (`vsmCullMarks`).
  *
@@ -558,7 +563,7 @@ fn vsmRenderCullCandidate(wid:vec3u,nwg:vec3u,lane:u32,kind:u32){
 export const vsmRenderCullWgsl = (layout: VsmLayout, throttled = false, marks = false) =>
   wgslProgram(
     /* wgsl */ `
-${cullBindingsText}${cullSoftwareEmitText(throttled, marks)}${cullViewHeadText(layout.prefilteredDistant)}${cullViewFrustumText(layout.prefilteredDistant)}${cullViewMipsText(layout.prefilteredDistant)}${cullCandidateText}
+${cullBindingsText}${cullSoftwareEmitText(throttled, marks)}${cullViewHeadText(layout.prefilteredDistant)}${cullViewFrustumText(layout.prefilteredDistant)}${cullViewMipText(layout.prefilteredDistant)}${cullCandidateText}
 `,
     [
       ...(throttled ? [VSM_FEEDBACK_WGSL] : []),

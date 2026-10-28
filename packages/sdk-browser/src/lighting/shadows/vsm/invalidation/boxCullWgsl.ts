@@ -11,7 +11,7 @@ import { prefilteredDeps } from '../prefilteredWgsl.ts'
  *  whatever the distance says, or the map's level (`wpoThreshold`) is not past the square of the
  *  distance the object stops at (`disableSq`, 0 for never). The map then grows the bounds of the
  *  placement by the offset's reach and caches the placement as dynamic there: the cull's
- *  (`vsmRenderCullView`), the shadow views' descent's and the invalidation's
+ *  (`vsmRenderCullViews`), the shadow views' descent's and the invalidation's
  *  (`vsmOffsetAllowed`). */
 export const VSM_OFFSET_GROWS_WGSL = wgslFn(
   'vsmOffsetGrows',

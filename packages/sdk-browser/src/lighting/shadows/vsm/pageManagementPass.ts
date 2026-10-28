@@ -29,7 +29,6 @@ import {
 import { type VsmResources, vsmBindGroupLayoutEntries } from './resources.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../../../session/memory/pools.ts'
 import type { VsmLayout } from './layout.ts'
-import type { PoolSortStage } from '../../../gpu/sort/sort.ts'
 
 /** Options of the page management passes. */
 interface VsmPageManagementOptions {
@@ -58,8 +57,12 @@ export interface VsmPageManagementFrame {
 }
 
 export const SLOT_MAIN = 0
-export const SLOT_ADDRESSES = 1
-const SLOT_COUNT = 2
+/** The two appends of the page lists: the empty pages to the available ones, the available pages
+ *  left to the requested ones (`appendFrom`, `appendTo`). */
+export const SLOT_APPEND_EMPTY = 1
+export const SLOT_APPEND_AVAILABLE = 2
+export const SLOT_ADDRESSES = 3
+const SLOT_COUNT = 4
 /** Cleared indirect arguments: one 4-word set (`VSM_CLEAR_ARGS_EMPTY`). */
 const ARGS_INIT_BYTES = 16
 
@@ -82,9 +85,6 @@ export interface VsmPageManagementContext {
   device: GPUDevice
   stats: boolean
   pipes: Record<KernelName, Pipe>
-  /** The pool sort's stage pipelines among `pipes`, read where bound — compiled by then
-   *  (`VsmComputePipe`) —, its stages' group 0 bound as `poolCount`'s. */
-  poolSort: (stage: PoolSortStage) => GPUComputePipeline | undefined
   params: GPUBuffer
   /** The slots of `params`: their stride, offsets and words. */
   slots: UniformSlots
@@ -191,7 +191,6 @@ export function vsmPageManagementContext(
     device,
     stats,
     pipes,
-    poolSort: (stage) => pipes[stage].pipe.pipeline,
     params,
     slots,
     paramsU32: new Uint32Array(slots.bytes / 4),

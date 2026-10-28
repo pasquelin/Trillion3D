@@ -59,6 +59,7 @@ export function bytesBeside(
     vsmRenderParamSlots(device.limits),
     views.passes,
     views.mostMaps,
+    views.mostMips,
     lightCount,
     rt.layout.clusters.candidateCount,
     INITIAL_VISIBLE,

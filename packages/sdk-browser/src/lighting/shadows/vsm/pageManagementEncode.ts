@@ -22,6 +22,7 @@
 import {
   VSM_GROUP_WIDTH,
   VSM_LEVEL0_PAGES,
+  VSM_PAGE_LIST,
   VSM_PAGE_TABLE_BLOCK_HEIGHT,
   VSM_PROJECTION_RECORD_BYTES,
 } from './constants.ts'
@@ -42,12 +43,12 @@ import type { ComputeRun } from '../../../gpu/core/lazyComputePass.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { writeChangedSlots } from '../../../gpu/core/writeChanged.ts'
 import { VSM_PASS_PREFIX } from '../../../diagnostic/stage/passLabels.ts'
-import { encodePoolSort } from '../../../gpu/sort/sort.ts'
 import { keepOcclusionFrame } from './occlusion/occlusionPass.ts'
 import { keepVsmThrottle } from './throttle.ts'
-import { groupWidth } from '../../../gpu/dispatch/grid.ts'
 import {
   SLOT_ADDRESSES,
+  SLOT_APPEND_AVAILABLE,
+  SLOT_APPEND_EMPTY,
   SLOT_MAIN,
   vsmPageManagementContext,
   type KernelName,
@@ -75,6 +76,12 @@ function group0(ctx: VsmPageManagementContext, res: VsmResources, pipe: Pipe) {
   return g
 }
 
+/** The lists the appends' slots copy from and to. */
+const APPENDS: Record<number, readonly [number, number]> = {
+  [SLOT_APPEND_EMPTY]: [VSM_PAGE_LIST.empty, VSM_PAGE_LIST.available],
+  [SLOT_APPEND_AVAILABLE]: [VSM_PAGE_LIST.available, VSM_PAGE_LIST.requested],
+}
+
 /** Writes slots [first, end) only: each encoder owns its slots, so encoders sharing a submit never
  *  clobber each other. The cache is valid when the previous frame was kept (`keepVsmFrame`). */
 function writeParams(
@@ -94,6 +101,9 @@ function writeParams(
     u[b + 2] = lruAllocation ? 1 : 0
     u[b + 3] = fullClears ? 1 : 0
     u[b + 4] = skipDynamicInvalidation ? 1 : 0
+    const [from, to] = APPENDS[s] ?? [0, 0]
+    u[b + 5] = from
+    u[b + 6] = to
   }
   // What changed of the slots' structs, in one write: never the padding, never more writes than
   // the whole slots sent.
@@ -159,10 +169,9 @@ export function encodeVsmPageCarry(
 }
 
 /**
- * Builds the page allocations of the frame. A page marked and not held takes the free page the pool
- * rank puts first (`freePagesWgsl.ts`): an empty page, then the one wanted longest ago, pages of one
- * age in pool order; a page this frame's marking asked for keeps its physical page and is never
- * taken.
+ * Builds the page allocations of the frame. A page marked and not held takes the last of the
+ * available pages (`freePagesWgsl.ts`): an empty page, then the one left unrequested longest; a page
+ * this frame's marking asked for keeps its physical page and is never taken.
  */
 export function encodeVsmPageMapping(
   steps: ComputeRun,
@@ -176,11 +185,13 @@ export function encodeVsmPageMapping(
   const pass = steps.pass(MAPPING_PASS)
   // The requests of the sun's levels passed on to the coarser levels, for the prefiltered distant shadow.
   if (res.filterable?.active) runPerPage(ctx, res, pass, 'propagateFilterable', true)
-  // Update cached or newly invalidated pages against the new requests.
+  // The page lists reset, then the cached or newly invalidated pages updated against the new
+  // requests: the pages asked or emptied leave the LRU list.
+  run(ctx, res, pass, 'initPageLists', SLOT_MAIN, 1)
   run(ctx, res, pass, 'keepPages', SLOT_MAIN)
-  // The free pages in the pool rank's order: the stages share `poolCount`'s group 0.
-  bind(ctx, res, pass, 'poolCount', SLOT_MAIN)
-  encodePoolSort(pass, ctx.poolSort, res.layout.poolPages, groupWidth(ctx.device.limits))
+  // The pages left in the LRU list packed into the available ones, the empty pages after them.
+  run(ctx, res, pass, 'packAvailable', SLOT_MAIN, 1)
+  appendPages(ctx, res, pass, SLOT_APPEND_EMPTY)
   runPerPage(ctx, res, pass, 'grantPages')
   run(ctx, res, pass, 'pageFlagPyramid', SLOT_MAIN)
   runPerPage(ctx, res, pass, 'fillCoarserFallbacks')
@@ -191,6 +202,20 @@ export function encodeVsmPageMapping(
     pass.dispatchWorkgroupsIndirect(res.clearArgs, 0)
   // The feedback: the free pages left.
   run(ctx, res, pass, 'poolFeedback', SLOT_MAIN, 1)
+  // The pages left, after the feedback counts them, join the requested ones: next frame's order.
+  appendPages(ctx, res, pass, SLOT_APPEND_AVAILABLE)
+}
+
+/** Appends one page list to another: the entries copied by a thread each, then, in a dispatch of its
+ *  own, the counts. */
+function appendPages(
+  ctx: VsmPageManagementContext,
+  res: VsmResources,
+  pass: GPUComputePassEncoder,
+  slot: number,
+) {
+  run(ctx, res, pass, 'appendCopy', slot)
+  run(ctx, res, pass, 'appendCounts', slot, 1)
 }
 
 /** The clears' indirect dispatch arguments set to their empty form, 1D, (16, pages, 1), before the

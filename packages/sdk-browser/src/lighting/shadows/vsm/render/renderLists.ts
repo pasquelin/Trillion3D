@@ -36,7 +36,8 @@ const LIST_FLOOR = 256
 export const vsmSortedExtraRecords = (maps: number, laid: boolean) =>
   1 + (laid ? VSM_RENDER_SOFTWARE_VIEW_RECORDS * maps : 0)
 
-/** The sizes of the lists of a frame of `passes` view passes, of at most `mostMaps` maps each, for
+/** The sizes of the lists of a frame of `passes` view passes, of at most `mostMaps` maps and `mostMips`
+ *  mip views each, for
  *  `lights` lights, `casters` candidates and `records` records a pass, the parameters' slots
  *  `slots` apart, the counters followed by `feedbackWords` words of the compute throttle's counts
  *  (`vsmFeedbackWords`, none by default): rewritten in place in `into`. `laid`: the sorted list holds
@@ -46,6 +47,7 @@ export function vsmListSizes(
   slots: UniformSlots,
   passes: number,
   mostMaps: number,
+  mostMips: number,
   lights: number,
   casters: number,
   records: number,
@@ -53,8 +55,8 @@ export function vsmListSizes(
   laid = false,
 ) {
   into.params = passes * slots.stride
-  // A group a light and a view a map, four words a view.
-  into.views = 4 * (lights + mostMaps) * 4
+  // A group a map and a view a map and a mip, four words each.
+  into.views = 4 * (mostMaps + mostMips) * 4
   into.lights = lights * VSM_RENDER_LIGHT_BYTES
   into.candidates = casters * VSM_RENDER_CANDIDATE_BYTES
   into.counts = vsmCountWords(feedbackWords) * 4
@@ -123,6 +125,7 @@ export function vsmRenderFloorBytes(
   slots: UniformSlots,
   passes: number,
   mostMaps: number,
+  mostMips: number,
   lights: number,
   casters: number,
   records: number,
@@ -134,6 +137,7 @@ export function vsmRenderFloorBytes(
     slots,
     passes,
     mostMaps,
+    mostMips,
     lights,
     casters,
     records,

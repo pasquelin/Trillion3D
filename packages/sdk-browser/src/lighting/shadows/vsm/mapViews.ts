@@ -28,7 +28,7 @@ export const vsmMapsOf = (kind: LightKind, sunLevels = VSM_DEFAULT_SUN_LEVELS) =
 
 /** The mips the raster draws of one map of a light of `kind`: a clipmap level's one, a local map's
  *  every mip. */
-const vsmMapViewMips = (kind: LightKind) => (kind === 'directional' ? 1 : VSM_MIPS)
+export const vsmMapViewMips = (kind: LightKind) => (kind === 'directional' ? 1 : VSM_MIPS)
 
 /** A light as the raster's views count it: its kind and, once the frame's maps are set up, its map
  *  count and its first map's id. */

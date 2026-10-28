@@ -37,7 +37,7 @@ const kernelTexts = () =>
 function assertParamsStruct(text: string) {
   const { size, offsets } = wgslStructLayout(text, 'VsmPmParams')
   assert.equal(size, VSM_PM_PARAMS_BYTES)
-  assert.deepEqual(Object.values(offsets), [0, 4, 8, 12, 16])
+  assert.deepEqual(Object.values(offsets), [0, 4, 8, 12, 16, 20, 24])
 }
 
 /** The words each slot's write holds beyond word `words`, from the writes to the parameter buffer
@@ -54,8 +54,8 @@ function assertWithinWords(
     })
 }
 
-test('VSM_PM_PARAMS_BYTES is the size of the struct the kernels read: 20', () => {
-  assert.equal(VSM_PM_PARAMS_BYTES, 20)
+test('VSM_PM_PARAMS_BYTES is the size of the struct the kernels read: 28', () => {
+  assert.equal(VSM_PM_PARAMS_BYTES, 28)
   const texts = kernelTexts()
   assert.ok(texts.length > 0)
   for (const text of texts) assertParamsStruct(text)
@@ -133,7 +133,7 @@ async function encodeAll(alignment = 256) {
 /** The parameter buffer's writes over the three encoders, the cache valid and not. */
 const parameterWrites = async () => (await encodeAll()).writes
 
-test('the writes to the parameter slots stay within the struct’s 5 words', async () => {
+test('the writes to the parameter slots stay within the struct’s 7 words', async () => {
   const writes = await parameterWrites()
   assert.ok(writes.length >= 8, 'every slot is written, cache valid and not')
   assert.ok(
@@ -146,18 +146,18 @@ test('the writes to the parameter slots stay within the struct’s 5 words', asy
 test('a device aligning at 512 lays the parameter and per-page slots 512 bytes apart', async () => {
   const { fake, bound, writes } = await encodeAll(512)
   const size = (label: string) => fake.buffers.find((b) => b.label === label)!.size
-  assert.equal(size('vsm.pm.params'), 2 * 512)
+  assert.equal(size('vsm.pm.params'), 4 * 512)
   assert.equal(size('vsm.pm.perPage'), VSM_PER_PAGE_BIN_COUNT * 512)
   // What the ledger counts for the context is what it made.
   const made = ['vsm.pm.params', 'vsm.pm.perPage', 'vsm.pm.argsInit'].map(size)
   assert.equal(vsmPmContextBytes(fake.device.limits), made[0] + made[1] + made[2])
   const sorted = (values: Iterable<number | undefined>) =>
     [...new Set(values)].sort((a, b) => a! - b!)
-  // The two parameter slots, each written at its own 512-byte step.
-  assert.deepEqual(sorted(writes.map((w) => w.offset)), [0, 512])
+  // The mapping's slots from the first, the addresses' slot at its own 512-byte step.
+  assert.deepEqual(sorted(writes.map((w) => w.offset)), [0, 3 * 512])
   assertWithinWords(writes, VSM_PM_PARAMS_BYTES / 4, 128)
   const at = (group: number) => sorted(bound.filter((b) => b.group === group).map((b) => b.offset))
-  assert.deepEqual(at(VSM_PM_GROUP_PARAMS), [0, 512])
+  assert.deepEqual(at(VSM_PM_GROUP_PARAMS), [0, 512, 1024, 1536])
   assert.deepEqual(at(VSM_PM_GROUP_PER_PAGE), [0, 512, 1024, 1536])
 })
 
@@ -169,12 +169,12 @@ test('at 256 bytes a call writes its parameter slot once, as the whole slot went
 })
 
 test('the guard fails when a word beyond the struct is written', async () => {
-  // Each slot's 5 words — a write sends only those that changed —, spilled 1 word past them.
+  // Each slot's 7 words — a write sends only those that changed —, spilled 1 word past them.
   const spilled = (await parameterWrites()).map(({ offset }) => {
     const slot = offset & ~255
-    return { offset: slot, words: [7, 1, 1, 0, 0, 0, 1] }
+    return { offset: slot, words: [7, 1, 1, 0, 0, 0, 0, 0, 1] }
   })
-  assert.throws(() => assertWithinWords(spilled, 5), /word 6 of a slot holds 1/)
+  assert.throws(() => assertWithinWords(spilled, 7), /word 8 of a slot holds 1/)
 })
 
 test('the slots carry the page allocation, the clears and the invalidations the frame asks', () => {
@@ -190,9 +190,12 @@ test('the slots carry the page allocation, the clears and the invalidations the 
     return Array.from(res.pageManagement!.paramsU32.subarray(0, VSM_PM_PARAMS_BYTES / 4))
   }
   const on = { lruAllocation: true, fullClears: false, skipDynamicInvalidation: false }
-  assert.deepEqual(slotOf(on).slice(2), [1, 0, 0])
-  assert.deepEqual(slotOf({ ...on, lruAllocation: false, fullClears: true }).slice(2), [0, 1, 0])
-  assert.deepEqual(slotOf({ ...on, skipDynamicInvalidation: true }).slice(2), [1, 0, 1])
+  assert.deepEqual(slotOf(on).slice(2), [1, 0, 0, 0, 0])
+  assert.deepEqual(
+    slotOf({ ...on, lruAllocation: false, fullClears: true }).slice(2),
+    [0, 1, 0, 0, 0],
+  )
+  assert.deepEqual(slotOf({ ...on, skipDynamicInvalidation: true }).slice(2), [1, 0, 1, 0, 0])
 })
 
 // The frame data extraction: a frame with maps becomes the previous one; a frame with none leaves it in

@@ -5,6 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { FLOAT32_MAX } from '../../../../../math/src/constants.ts'
+import { f32Bits } from '../../../../../math/src/float/bits.ts'
 import { wgslConstants } from '../../../materials/texture/shaderRule.fixture.ts'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { Mat } from '../../../materials/texture/shaderRunMatrix.fixture.ts'
@@ -136,12 +137,13 @@ test('a page marked from the view is wanted and fine, and with the feature prima
   assert.deepEqual(pageFlags(ON), [W | FINE | PRIMARY])
 })
 
-/** `vsmRenderCullView` over one caster of the map `pd`, the box cull standing in: the masks it asks
+/** `vsmRenderCullViews` over one caster of the map `pd`, the box cull standing in: the masks it asks
  *  of the pages, and the mask the occlusion's second cull is given. */
 function viewMasks(pd: object, box: { clipLow: number[]; clipHigh: number[] }) {
   const identity = new Mat([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1])
   const map = {
     ...{ uncached: true, useCover: false, finestMip: 0, viewSlot: 0, wpoThreshold: 0 },
+    lightKind: C.LIGHT_KIND_DIRECTIONAL! + 1,
     ...{ lightViewToClip: identity, shiftedToMapUv: identity, ...pd },
     ...{ originShiftHigh: [0, 0, 0], originShiftLow: [0, 0, 0] },
   }
@@ -149,14 +151,14 @@ function viewMasks(pd: object, box: { clipLow: number[]; clipHigh: number[] }) {
   const asked: number[] = [],
     emitted: number[] = [],
     hidden: number[] = []
-  const run = shaderRun<{ vsmRenderCullView(...a: unknown[]): void }>(
+  const run = shaderRun<{ vsmRenderCullViews(...a: unknown[]): void }>(
     CULL_ON,
-    ['vsmRenderCullView'],
+    ['vsmRenderCullViews'],
     {
       ...C,
       params: {},
       vsm: { lodDeltaInvalidates: 0 },
-      views: [[7, 1, 0, 3]],
+      views: [[7, 0, 3, f32Bits(1)]],
       vsmHandleFromId: (id: number) => ({ id }),
       vsmProjectionOf: () => map,
       vsmShiftedToClip: (m: Mat) => m,
@@ -185,7 +187,7 @@ function viewMasks(pd: object, box: { clipLow: number[]; clipHigh: number[] }) {
     ...{ tail0: [1, 1, 1, 1], tail1: [0, 0, 0, 1], tail2: [0, 0, 0, 1] },
     ...{ a0: [1, 0, 0], a1: [0, 1, 0], a2: [0, 0, 1] },
   }
-  run.vsmRenderCullView(caster, 5, 0, false, C.VSM_RENDER_CULL_SECOND, 0)
+  run.vsmRenderCullViews(caster, 5, 0, 1, 3, C.VSM_RENDER_CULL_SECOND)
   return { asked: [...new Set(asked)], emitted, hidden }
 }
 

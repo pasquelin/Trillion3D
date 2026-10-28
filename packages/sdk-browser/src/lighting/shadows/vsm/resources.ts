@@ -65,6 +65,9 @@ export interface VsmFrameBuffers {
   staleRects: GPUBuffer
   mappedRects: GPUBuffer
   projectionData: GPUBuffer
+  /** The page lists (`freePagesWgsl.ts`): the frame builds its own and reads the requested list of
+   *  the previous frame's (`prev`), the order its pages are taken in. A table growth carries it. */
+  freePages: GPUBuffer
 }
 
 /**
@@ -120,9 +123,6 @@ export interface VsmResources {
   pagesToClear: GPUBuffer
   /** Indirect dispatch args: 1D, in the clears' (16, pages, 1) form. */
   clearArgs: GPUBuffer
-  /** The pool sort's `POOL_SORT_WORDS` counts and places, zero at creation, then the count of
-   *  free pages and the pages, the next one to take last (`freePagesWgsl.ts`). */
-  freePages: GPUBuffer
   /** Whether the cache data is available: prev buffers hold a frame extracted with caching on
    *  (`keepVsmFrame`). */
   prevFrameKept: boolean
@@ -297,7 +297,6 @@ export function createVsmResources(device: GPUDevice, options: VsmResourceOption
     perPageIds,
     pagesToClear: buffer('pagesToClear', once.pagesToClear),
     clearArgs: buffer('clearArgs', once.clearArgs, indirect),
-    freePages: buffer('freePages', once.freePages),
     prevFrameKept: false,
     filterable: history && createFilterable(device, layout, history, buffer),
     swapFrames() {
@@ -326,6 +325,7 @@ const CARRIED_MEMBERS = [
   'pageRequests',
   'mappedRects',
   'projectionData',
+  'freePages',
 ] as const
 
 /**
@@ -451,6 +451,7 @@ const FRAME_RESOURCES = new Set<VsmBindingResource>([
   'staleRects',
   'mappedRects',
   'projectionData',
+  'freePages',
 ])
 
 /** Resources read through `<name>Load(index)` (2D tables and flat u32 arrays). */

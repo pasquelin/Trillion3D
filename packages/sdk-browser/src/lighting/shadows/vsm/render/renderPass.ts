@@ -221,7 +221,7 @@ export function encodeVsmRender(
   // The views' bound: every map of the frame's lights, in the view passes their maps fill; the GPU
   // lists those with pages to draw.
   const limit = vsmViewsPerPass(device.limits, scene.multipassViews)
-  const { list: passes, maps, mostMaps } = vsmViewPasses(frame.lights, limit)
+  const { list: passes, maps, mostMaps, mostMips } = vsmViewPasses(frame.lights, limit)
   if (maps === 0 || scene.packedPages <= 0) return
   // The lists are sized for one caster at least, the slot of the candidates' parameters held; the
   // room itself is the scene's.
@@ -229,7 +229,7 @@ export function encodeVsmRender(
     empty = room <= 0
   const ctx = vsmRenderContext(res, device, scene.pageLayout, scene.rasters)
   const { throttle } = frame
-  const sized = sizeLists(ctx, res, scene, frame, { passes, mostMaps })
+  const sized = sizeLists(ctx, res, scene, frame, { passes, mostMaps, mostMips })
   if (!sized) return { passes: 0, records: 0, roomLimited: true, empty: false }
   const { records, roomLimited, descentSizes } = sized
   const bound = bindFrame(ctx, res, scene, frame, { room, records, passes, descentSizes })
@@ -272,7 +272,8 @@ function occlusionOf(res: VsmResources, device: GPUDevice, scene: VsmRenderScene
   )
 }
 
-/** The frame's lists sized — the view `passes`, at most `mostMaps` maps in one — for the records
+/** The frame's lists sized — the view `passes`, at most `mostMaps` maps and `mostMips` mip views in
+ *  one — for the records
  *  the frames asked, or as held where the budget's room refuses their growth (`recordsWithinRoom`),
  *  with the descent's sizes; none where not even that fits. */
 function sizeLists(
@@ -280,7 +281,11 @@ function sizeLists(
   res: VsmResources,
   scene: VsmRenderScene,
   frame: VsmRenderFrame,
-  { passes, mostMaps }: { passes: readonly Pick<VsmViewPass, 'mips'>[]; mostMaps: number },
+  {
+    passes,
+    mostMaps,
+    mostMips,
+  }: { passes: readonly Pick<VsmViewPass, 'mips'>[]; mostMaps: number; mostMips: number },
 ) {
   const lights = frame.lights.length
   const sized = (records: number) =>
@@ -289,6 +294,7 @@ function sizeLists(
       ctx.slots,
       passes.length,
       mostMaps,
+      mostMips,
       lights,
       Math.max(1, scene.rowCount),
       records,

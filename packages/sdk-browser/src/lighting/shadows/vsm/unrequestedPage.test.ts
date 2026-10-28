@@ -15,13 +15,21 @@ const { code } = vsmPhysicalPageKernels(
 const K = wgslConstants(code)
 
 /** The rule run on a pool of one page whose words are `flags` and whose last request was `age` frames ago, nobody asking it now:
- *  what it stores in the page's marks, and the words it is left with. */
+ *  what it stores in the page's marks, the words it is left with, and the page lists it leaves: the
+ *  LRU list's entry (the page, or `K.PM_NONE` once it left) and the empty list's pages. */
 function keptUnrequested(flags: number, age: number) {
   const marks: number[] = []
+  // The page lists of a pool of one page: four lists of one entry and a count; last frame's
+  // requested list holds page 0, whole (its count is the pool's).
+  const lists = new Array<number>(8).fill(0)
+  const previous = new Array<number>(8).fill(0)
+  previous[K.PM_LIST_REQUESTED! * 2 + 1] = 1
   const pool = [{ flags, mapId: 1, pageAddress: [0, 0], mipLevel: 0, lastWantedStamp: 100 - age }]
   shaderRun<{ vsmKeepPages: (index: { x: number }) => void }>(code, ['vsmKeepPages'], {
     vsm: { poolPages: 1, frameStamp: 100, pageKeepFrames: 10, deferredBudget: 0 },
-    vsmPm: { hasPrevFrame: 1, skipDynamicInvalidation: 0 },
+    vsmPm: { hasPrevFrame: 1, lruAllocation: 1, skipDynamicInvalidation: 0 },
+    vsmFreePages: lists,
+    vsmPrevFreePages: previous,
     vsmPoolPageInfo: pool,
     vsmHandleFromId: () => ({ id: 1 }),
     vsmTableEntryOf: () => ({ tableXY: [0, 0] }),
@@ -35,7 +43,15 @@ function keptUnrequested(flags: number, age: number) {
     vsmPoolPageOf: () => 0,
     vsmCount: () => {},
   }).vsmKeepPages({ x: 0 })
-  return { marks, flags: pool[0].flags }
+  const emptyAt = K.PM_LIST_EMPTY * 2,
+    emptyCount = lists[emptyAt + 1]
+  return {
+    marks,
+    flags: pool[0].flags,
+    lru: lists[K.PM_LIST_LRU * 2],
+    emptyCount,
+    empty: lists.slice(emptyAt, emptyAt + emptyCount),
+  }
 }
 
 test('an unrequested page held within its age is stored wanted and fine as it was drawn, its words kept and marked unseen', () => {
@@ -43,6 +59,8 @@ test('an unrequested page held within its age is stored wanted and fine as it wa
   const kept = keptUnrequested(drawn, 3)
   assert.deepEqual(kept.marks, [K.VSM_PAGE_WANTED | K.VSM_PAGE_FINE])
   assert.equal(kept.flags, (drawn | K.VSM_META_UNSEEN) >>> 0, 'its words, stale bits included')
+  assert.equal(kept.lru, 0, 'it keeps its place in the LRU list')
+  assert.equal(kept.emptyCount, 0)
 })
 
 test('an unrequested page drawn coarse is stored wanted alone: no fine flag is made up', () => {
@@ -54,4 +72,6 @@ test('a page unrequested for longer than the pool keeps pages is emptied: no mar
   const kept = keptUnrequested(K.VSM_PAGE_FINE, 11)
   assert.deepEqual(kept.marks, [])
   assert.equal(kept.flags, 0)
+  assert.equal(kept.lru, K.PM_NONE, 'it left the LRU list')
+  assert.deepEqual(kept.empty, [0], 'for the empty list')
 })

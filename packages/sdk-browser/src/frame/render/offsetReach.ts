@@ -38,7 +38,7 @@ import { noteDeformed } from './movedGeometry.ts'
  * in `RootOffsets` for the rows (`PageInfo.wpo` and the words beside it) and, for the shadow raster,
  * in the placements' mobility words (`MOBILITY_OFFSET_SILENT`, `MOBILITY_OFFSET_KEEPS_CACHE`) and
  * their distances: the raster's cull decides, per map and per cluster, which pages an evaluated
- * offset invalidates (`vsmRenderCullView`). Only the object that asks `always` is declared to the
+ * offset invalidates (`vsmRenderCullViews`). Only the object that asks `always` is declared to the
  * shadow scheduler (`noteDeformed`) every image, whatever it wears.
  */
 interface RootFacts {

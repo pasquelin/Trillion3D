@@ -100,7 +100,6 @@ const SCREEN_RAY_TEXT = /* wgsl */ `
   }`
 
 const traceLightSetupText = (
-  screenRay: boolean,
   lone: boolean,
 ) => /* wgsl */ `fn vsmTraceLight(light:VsmProjectionLight,pixel:VsmPixel,receiver:VsmReceiver,participating:bool)->VsmTraceResult{
  let P=receiver.P;
@@ -132,7 +131,11 @@ const traceLightSetupText = (
  var uvDepthSlope=vec2f(0.0);
  var biasCap=0.0;
  var lightReach=0.0;
- var startOffset=pixel.screenRayWorld;
+ var startOffset=pixel.screenRayWorld;`
+
+/** The rest of the light's setup for a receiver that is traced: the screen segment, the one tap of a
+ *  local light, then the ray's reach, its disk, its slopes and its dither. */
+const traceLightTracedText = (screenRay: boolean) => /* wgsl */ `
  if(traced){${screenRay ? SCREEN_RAY_TEXT : ''}
   // The reference samples a local light with no ray once, at the ray start, with the receiver plane's optimal
   // bias. A lane that tapped holds its result and does not march; it still reaches every vote of the group.
@@ -266,6 +269,6 @@ export const vsmTraceWgsl = ({
       ...(lone && subgroups ? [SUBGROUP_ALL_WGSL] : []),
     ],
     `/** 'participating' = the lane takes part in the group's votes and traces. */
-${traceLightSetupText(input !== 'strands', lone)}${traceLightRaysText(lone, subgroups)}
+${traceLightSetupText(lone)}${traceLightTracedText(input !== 'strands')}${traceLightRaysText(lone, subgroups)}
 `,
   )

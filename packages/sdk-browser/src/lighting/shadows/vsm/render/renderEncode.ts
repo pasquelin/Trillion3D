@@ -2,7 +2,7 @@
  * THE RASTER ENCODED (`renderPass.ts`): its groups — over the scene's rows and the lists, made again
  * when one of them moved, and over the VSM tables once a frame set —, then the candidates and, for
  * each view pass (`renderViewPasses.ts`), one compute pass — its views, its cull over every caster
- * and every listed map, the bin — and one raster pass, a draw a tier: the reference's one cull and
+ * and every listed mip view, the bin — and one raster pass, a draw a tier: one cull and
  * one raster over every view of a pass. With the occlusion
  * culling and a previous frame to test against, the cull is its first, and the pass goes on:
  * the pyramid built over what it drew (`encodeVsmPyramid`), a

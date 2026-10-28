@@ -1,10 +1,10 @@
 /**
  * THE RASTER'S VIEW PASSES (`renderPass.ts`): the frame's lights, taken in the order of their map ids,
  * grouped into the passes that each list and cull their own views over the caster rows. A view of
- * the raster is a map — its mips are looped inside the cull —, and the cull runs a thread row per
- * listed light on the z axis of one dispatch (`vsmRenderViews`, `vsmRenderCull`): a pass lists at
- * most as many lights as a dispatch has rows, `maxComputeWorkgroupsPerDimension` (65 535 on any
- * device), and so at most that many maps — a light holds one at least —; the ids the records pack
+ * the raster is a map and a mip (`vsmRenderViews`), and the cull runs a thread row per
+ * listed map on the z axis of one dispatch (`vsmRenderViews`, `vsmRenderCull`): a pass lists at
+ * most as many maps as a dispatch has rows, `maxComputeWorkgroupsPerDimension` (65 535 on any
+ * device) — a light holds one at least, so a pass holds at most that many lights too —; the ids the records pack
  * are `VSM_RECORD_MAP_ID_BITS` wide, which no frame passes (`layout.mapSlots`). The limit
  * counts maps, which bound the lights from above and are what the ids number. A light is
  * never split: when the next one would take the pass past what a dispatch carries, the pass closes

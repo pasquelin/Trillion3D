@@ -228,7 +228,7 @@ test('a displaced surface’s records are marked from its candidate to the raste
   const mark = 'params.tessellated!=0u&&tessellatedFlags(page)'
   const candidates = vsmRenderCandidatesWgsl()
   assert.ok(candidates.includes(`${mark};`) && !candidates.includes(`${FLAG_MASK}u)==0u`))
-  const cull = functionsOf(CULL, ['vsmRenderCullView'])
+  const cull = functionsOf(CULL, ['vsmRenderCullViews'])
   for (const text of [
     'select(VSM_RENDER_TESSELLATE_LOCAL,VSM_RENDER_TESSELLATE_DIRECTIONAL,directional)',
     // The kind of light's bit: `tessKind`, `kind` being the cull's own now (the occlusion's culls).

@@ -88,14 +88,14 @@ export const VSM_RENDER_ARGS_DRAW = 6
 export const VSM_RENDER_ARGS_SOFTWARE = VSM_RENDER_ARGS_DRAW + 4 * VSM_RENDER_TIERS
 export const VSM_RENDER_ARGS_SOFTWARE_STATIC = VSM_RENDER_ARGS_SOFTWARE + 3
 export const VSM_RENDER_ARGS_SOFTWARE_ALL = VSM_RENDER_ARGS_SOFTWARE_STATIC + 3
-/** And the post cull's: a thread a caster the descent's post pass found, a listed light a z. */
+/** And the post cull's: a thread a caster the descent's post pass found, a listed map a z. */
 export const VSM_RENDER_ARGS_POST = VSM_RENDER_ARGS_SOFTWARE_ALL + 3
 export const VSM_RENDER_ARGS_WORDS = VSM_RENDER_ARGS_POST + 3
 /** Counter words: [0] the candidates; [1] the pages the shadow views' descent listed within its
  *  room, which the casters' kernel runs over, [2] the first of them the running pass of the descent
  *  listed (none in the main pass), [3] the casters found before the descent's post pass; then the
- *  view pass's own, cleared before each pass from `VSM_RENDER_COUNT_PASS`: [4] the lights the GPU
- *  listed — those with a page to draw —, [5] the maps listed in their runs (`renderViewsWgsl.ts`),
+ *  view pass's own, cleared before each pass from `VSM_RENDER_COUNT_PASS`: [4] the maps the GPU
+ *  listed — those with a page to draw —, a group each, [5] the mip views listed in the groups' runs (`renderViewsWgsl.ts`),
  *  [6] the records the cull stored to be drawn, [7] the places it asked of the list — the records
  *  to draw and those it holds back, past the capacity too —, [8] the records the occlusion's first
  *  cull held back, stored from the list's end (`vsmRenderHold`), and each bin's records and cursor
@@ -138,9 +138,10 @@ export const VSM_FEEDBACK_WGSL = wgslBlock(
     VSM_RENDER_FEEDBACK: VSM_RENDER_COUNT_WORDS,
   }),
 )
-/** Map view flag: directional (clipmap level, 1 mip, no near clip). */
-const VSM_RENDER_VIEW_DIRECTIONAL = 1
-/** From this bit, a listed light's group carries the light's lighting channels, as a mask
+/** The bits of a listed map's group that hold the stale layers of all its mips together (bit 0 the dynamic
+ *  layer's, bit 1 the static's): the cull leaves the map out for a caster of a layer none has. */
+const VSM_RENDER_VIEW_LAYERS_MASK = 3
+/** From this bit, a listed map's group carries its light's lighting channels, as a mask
  *  (\`vsmRenderViews\`): the cull leaves out a caster that shares none (\`VSM_RENDER_CAND_CHANNELS_SHIFT\`). */
 const VSM_RENDER_VIEW_CHANNELS_SHIFT = 4
 /** The cull's four kinds: with no occlusion test, the occlusion's first cull against the previous
@@ -168,8 +169,9 @@ export const VSM_RENDER_TESSELLATE_LOCAL = 2
  * bit 1 those of the instances of an instanced mesh, 0 when none does; `filterBase`, the
  * word of the bits the main view's filter holds (`vsmRenderFilteredOut`) its candidates read in their
  * group 1, zero for a view that filters none. A slot belongs to one view pass
- * (`renderViewPasses.ts`): `viewFirst` and `viewCount` are the ids of its maps; `lightCount`, the
- * lights of the frame (`vsmRenderViews`: its table, and where the views' runs begin in its list);
+ * (`renderViewPasses.ts`): `viewFirst` and `viewCount` are the ids of its maps (`vsmRenderViews`: the groups, a map each at most,
+ * are listed in the first `viewCount` places of its list, and the mip views begin after them); `lightCount`, the
+ * lights of the frame (its table);
  * `recordCapacity`, the records its list holds; `tessellated`, the kinds of light whose maps take a
  * displaced surface's tessellated shape (`VSM_RENDER_TESSELLATE_*`), zero for none;
  *
@@ -288,8 +290,8 @@ const VSM_RENDER_LOD_NOT_DRAWN:u32=0u;
 const VSM_RENDER_LOD_OWN:u32=1u;
 const VSM_RENDER_LOD_BEHIND:u32=2u;
 ${wgslConsts({
-  VSM_RENDER_VIEW_DIRECTIONAL,
   VSM_RENDER_VIEW_CHANNELS_SHIFT,
+  VSM_RENDER_VIEW_LAYERS_MASK,
   VSM_RENDER_COUNT_LISTED,
   VSM_RENDER_COUNT_LISTED_FIRST,
   VSM_RENDER_COUNT_CAST_FIRST,
@@ -474,16 +476,16 @@ fn vsmRenderArgsGrid(word:u32,groups:u32,z:u32){
  args[word]=g.x;args[word+1u]=g.y;args[word+2u]=z;
 }
 /** The cull's dispatch, once the candidates and the pass's lights are known: a thread a candidate
- *  over x and y, a listed light a z. */
+ *  over x and y, a listed map a z. */
 @compute @workgroup_size(1) fn vsmRenderArgsCull(){
  let n=atomicLoad(&counts[0]);
- let lights=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.lightCount);
- vsmRenderArgsGrid(${VSM_RENDER_ARGS_CULL}u,ceilDiv(n,WORKGROUP_THREADS),select(0u,lights,n>0u));
+ let groups=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.viewCount);
+ vsmRenderArgsGrid(${VSM_RENDER_ARGS_CULL}u,ceilDiv(n,WORKGROUP_THREADS),select(0u,groups,n>0u));
 }
 /** The occlusion's second cull, once the first's records are binned and drawn: a thread a record the
  *  first held back; the list's places start again beside those, the tiers empty. And the post cull,
  *  a thread a caster the descent's post pass found since (\`VSM_RENDER_COUNT_CAST_FIRST\`), over every
- *  listed light. */
+ *  listed map. */
 @compute @workgroup_size(1) fn vsmRenderArgsSecond(){
  let held=atomicLoad(&counts[VSM_RENDER_COUNT_HELD]);
  atomicStore(&counts[VSM_RENDER_COUNT_TAKEN],held);
@@ -492,8 +494,8 @@ fn vsmRenderArgsGrid(word:u32,groups:u32,z:u32){
  vsmRenderArgsGrid(${VSM_RENDER_ARGS_CULL}u,ceilDiv(held,WORKGROUP_THREADS),1u);
  let casters=atomicLoad(&counts[0]);
  let found=select(0u,casters-atomicLoad(&counts[VSM_RENDER_COUNT_CAST_FIRST]),casters>atomicLoad(&counts[VSM_RENDER_COUNT_CAST_FIRST]));
- let lights=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.lightCount);
- vsmRenderArgsGrid(${VSM_RENDER_ARGS_POST}u,ceilDiv(found,WORKGROUP_THREADS),select(0u,lights,found>0u));
+ let groups=min(atomicLoad(&counts[VSM_RENDER_COUNT_VIEWS]),params.viewCount);
+ vsmRenderArgsGrid(${VSM_RENDER_ARGS_POST}u,ceilDiv(found,WORKGROUP_THREADS),select(0u,groups,found>0u));
 }
 /** Once the cull ran: the reserve of the bins — the software raster's records first, the dynamic
  *  layer's then the static layer's, then each tier's cursor at its first place, after the lower

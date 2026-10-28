@@ -30,14 +30,14 @@ test('a caster in none of the light’s lighting channels is left out of its map
       counts: [1, 0, 0, 0, 1],
       candidates: [cand],
       views,
-      params: { lightCount: 1 },
+      params: { viewCount: 1 },
       atomicLoad: (p: { get: () => number }) => p.get(),
       vsmHandleFromId: (id: number) => ({ id }),
       vsmProjectionOf: () => ({
         ...{ firstPerson: false, lightRange: 1e9 },
         ...{ originShiftHigh: [0, 0, 0], originShiftLow: [0, 0, 0] },
       }),
-      vsmRenderCullView: (...args: unknown[]) => called.push(args),
+      vsmRenderCullViews: (...args: unknown[]) => called.push(args),
     })
     vsmRenderCullCandidate([0, 0, 0], [1, 1, 1], 0, C.VSM_RENDER_CULL_ALL)
     return called.length

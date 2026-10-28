@@ -176,6 +176,11 @@ export const VSM_GROUP_WIDTH = 256
 /** Pixels a side of a projection group: 8, a power of two. */
 export const VSM_PROJECTION_GROUP_SIZE = 8
 
+/** The persistent lists of physical pages (`freePagesWgsl.ts`) and their index in the buffer: the
+ *  pool in last frame's order, the pages to take from, the pages left with no word, the pages asked. */
+export const VSM_PAGE_LIST = { lru: 0, available: 1, empty: 2, requested: 3 } as const
+export const VSM_PAGE_LISTS = Object.keys(VSM_PAGE_LIST).length
+
 /** Pool array slices: 0 dynamic, 1 static (with caching). */
 export const VSM_POOL_SLICES = 2
 

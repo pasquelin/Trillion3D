@@ -78,8 +78,8 @@ export function renderViewBound(lights: readonly VsmFrameLight[], limit: number)
       casting[count++] = { kind, count: kind === 'directional' ? sunLevelsOf(entry) : undefined }
     }
   casting.length = count
-  const { list, mostMaps } = vsmViewPasses(casting, limit)
-  return { lights: count, raster: { mostMaps, passes: list.length } }
+  const { list, mostMaps, mostMips } = vsmViewPasses(casting, limit)
+  return { lights: count, raster: { mostMaps, mostMips, passes: list.length } }
 }
 
 /** The clipmap maps the frame's suns take at most, the receiver cover's size: those of `least`

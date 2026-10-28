@@ -111,7 +111,7 @@ export interface VsmProjectionDataValues {
   /** The place of the map's view among the views drawn (`VsmCacheManager.viewSlotOf`): the bit of
    *  the instances' per-view cache state (`../../casters/castDiffWgsl.ts`) it reads. */
   viewSlot: number
-  /** The clip depths a non-static caster must reach to be drawn into the map (`vsmRenderCullView`):
+  /** The clip depths a non-static caster must reach to be drawn into the map (`vsmRenderCullViews`):
    *  its far end past x, its near end short of y. A clipmap level cut tightly takes x just short of
    *  the end of the range its level shows (`dynamicCullNear`); every other map takes 0 and the
    *  largest float. */

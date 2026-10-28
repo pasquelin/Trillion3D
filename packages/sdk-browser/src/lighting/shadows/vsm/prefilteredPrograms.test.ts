@@ -105,20 +105,14 @@ test('the page marks’ pyramid, the keep and the grant carry the request bits',
   ])
   // A page whose request bits differ from those it holds is drawn again whole.
   const keep = changed(off.keepPages, on.keepPages)
-  assert.deepEqual(
-    keep.removed,
-    SORTED([
-      'let requestFine=requestWord&VSM_PAGE_FINE;',
-      'if(requestFine!=(prevMeta&VSM_PAGE_FINE)){',
-    ]),
-  )
-  assert.deepEqual(
-    keep.added,
-    SORTED([
-      'let requestFine=requestWord&VSM_PAGE_AUX_MASK;',
-      'if(requestFine!=(prevMeta&VSM_PAGE_AUX_MASK)){',
-    ]),
-  )
+  // The keep rule reads the request bits through one const (`PM_REQUEST_MASK`), which is all that
+  // differs; the rule that takes and compares them is in both programs.
+  assert.deepEqual(keep.removed, ['const PM_REQUEST_MASK:u32=VSM_PAGE_FINE;'])
+  assert.deepEqual(keep.added, ['const PM_REQUEST_MASK:u32=VSM_PAGE_AUX_MASK;'])
+  for (const code of [off.keepPages, on.keepPages]) {
+    assert.ok(code.includes('let requestFine=requestWord&PM_REQUEST_MASK;'))
+    assert.ok(code.includes('if(requestFine!=(prevMeta&PM_REQUEST_MASK)){'))
+  }
   const grant = changed(off.grantPages, on.grantPages)
   assert.deepEqual(
     grant.removed,
