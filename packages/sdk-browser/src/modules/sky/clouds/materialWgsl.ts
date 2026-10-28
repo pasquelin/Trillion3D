@@ -208,11 +208,14 @@ fn cloudSiteAt(world:vec3f)->CloudSite{
  let scale=m.typePatternScale;
  l.gx=cloudLayoutGrad(cloudDdx);
  l.gy=cloudLayoutGrad(cloudDdy);
+ // The fourth channel, the storm's, weighs nothing without storm (\`mix\` by a storm amount of 0): not read then, its zero stands.
+ var stormChannel=0.0;
+ if(m.storm.x!=0.0){stormChannel=textureSampleGrad(layoutPattern,cloudSampler,patternXY*scale.w,l.gx*scale.w,l.gy*scale.w).a;}
  l.pattern=vec4f(
   textureSampleGrad(layoutPattern,cloudSampler,patternXY*scale.x,l.gx*scale.x,l.gy*scale.x).r,
   textureSampleGrad(layoutPattern,cloudSampler,patternXY*scale.y,l.gx*scale.y,l.gy*scale.y).g,
   textureSampleGrad(layoutPattern,cloudSampler,patternXY*scale.z,l.gx*scale.z,l.gy*scale.z).b,
-  textureSampleGrad(layoutPattern,cloudSampler,patternXY*scale.w,l.gx*scale.w,l.gy*scale.w).a);
+  stormChannel);
  return l;
 }
 /** The coverage of the plain cloud types at the layout: the greatest of their weighted channels. */
@@ -244,7 +247,9 @@ fn cloudMaterialAt(altitude:f32,cameraRelative:vec3f,time:f32,l:CloudSite)->Clou
   textureSampleLevel(heightProfile,cloudSampler,vec2f(altitude,pattern.x),0.0).r,
   textureSampleLevel(heightProfile,cloudSampler,vec2f(altitude,pattern.y),0.0).g,
   textureSampleLevel(heightProfile,cloudSampler,vec2f(altitude,pattern.z),0.0).b);
- let stormProfile=m.typeWeights.w*textureSampleLevel(heightProfile,cloudSampler,vec2f(altitude,pattern.w),0.0).a;
+ // Without storm the plain profile stands (\`mix\` by 0): the storm's is not read.
+ var stormProfile=0.0;
+ if(storm!=0.0){stormProfile=m.typeWeights.w*textureSampleLevel(heightProfile,cloudSampler,vec2f(altitude,pattern.w),0.0).a;}
  let profileLess=mix(max(max(profile.x,profile.y),profile.z),stormProfile,storm)-0.5;
  let drift=cloudDrift;
  let erosionAt=m.erosionNoise.xyz*place+m.erosionNoise.w*drift;
@@ -262,8 +267,12 @@ fn cloudMaterialAt(altitude:f32,cameraRelative:vec3f,time:f32,l:CloudSite)->Clou
   erosion=erosion*modulation+m.noiseStrength.z*(m.coverageDensity.y+detail.z-m.noiseBias.z);
  }
  let density=vec4f(cloudConservativeDensity(l),mix(coverage,pattern.w,storm),profileLess,erosion);
- let mask=textureSampleGrad(globalMask,cloudSampler,maskXY,l.gx,l.gy).rgb;
- let masked=dot(m.maskTypeWeights.xyz,mask*m.typeWeights.xyz)*m.maskTypeWeights.w*0.01;
+ // A mask that weighs no type adds nothing (its sum is 0, as the default [0, 0, 0, 1] has it): not read then.
+ var masked=0.0;
+ if(any(m.maskTypeWeights.xyz!=vec3f(0.0))){
+  let mask=textureSampleGrad(globalMask,cloudSampler,maskXY,l.gx,l.gy).rgb;
+  masked=dot(m.maskTypeWeights.xyz,mask*m.typeWeights.xyz)*m.maskTypeWeights.w*0.01;
+ }
  let perUnit=mix(m.coverageDensity.z,m.coverageDensity.z+CLOUD_STORM_DENSITY*storm,storm);
  let perMetre=(masked+density.y*(density.z+density.w))*perUnit;
  let inside=select(0.0,1.0,abs(altitude-0.5)<=0.5-CLOUD_EDGE_CUT);
