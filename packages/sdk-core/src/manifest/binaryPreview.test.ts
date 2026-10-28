@@ -186,7 +186,7 @@ test('a descriptor naming a pixel file beside a filled column is refused', () =>
 })
 test('a pixel file of the wrong length leaves every preview without a level written', () => {
   const { slim, buffer, pixels } = encodeExternal([preview(0, 8, 8, 1), preview(1, 8, 8, 2)])
-  for (const file of [pixels.subarray(0, pixels.length - 4), new Uint8Array(pixels.length + 4)]) {
+  for (const file of [pixels.slice(0, pixels.length - 4), new Uint8Array(pixels.length + 4)]) {
     const entries = decodeManifestBinary(slim, buffer).texturePreviews!
     assert.throws(() => fillTexturePreviewLevels(entries, file), /pixel file is too/)
     assert.ok(entries.every((entry) => entry.levels.every((level) => level.length === 0)))
