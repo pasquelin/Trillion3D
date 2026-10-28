@@ -232,7 +232,13 @@ const spot = (z: number, direction: [number, number, number], degrees: number): 
 const near = (actual: number, wanted: number) => Math.abs(actual - wanted) < 1e-9
 
 test('a point and a rectangle are measured by the ball of their range', () => {
-  const rect: SceneLight = { ...lamp(-5, 7), kind: 'rect', direction: [0, 0, 1] }
+  const rect: SceneLight = {
+    ...lamp(-5, 7),
+    kind: 'rect',
+    direction: [0, 0, 1],
+    right: [1, 0, 0],
+    size: [1, 1],
+  }
   for (const light of [lamp(-5, 7), rect]) assert.ok(close(laneOf(light, 'drawShare'), 0.03 / 7))
 })
 

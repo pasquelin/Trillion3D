@@ -15,7 +15,7 @@ import {
   PLACEMENT_NO_CONTACT_SHADOW,
   PLACEMENT_VELOCITY,
 } from '../dag/info/placementInfoLayout.ts'
-import { objectOffsetRow } from '../rows/page/offsetRow.ts'
+import { OBJECT_VIEW_BITS, objectOffsetRow } from '../rows/page/offsetRow.ts'
 import { offsetSwitchesOf } from '../../../../sdk-core/src/world/object/offsetSwitches.ts'
 import { object } from '../../../../sdk-core/src/world/object/index.ts'
 import { geometry } from '../../../../sdk-core/src/world/geometry/index.ts'
@@ -95,7 +95,8 @@ test('what the views alone read of an object never reaches its placement’s rec
   seen.ownerNoSee = true
   seen.onlyOwnerSee = true
   const row = objectOffsetRow(seen, [0, 0, 0])
-  assert.equal(row.bits, 0, 'the object’s word holds none of them')
+  // The object's word carries them (the roots' views read them there: `viewHidden`), and nothing else.
+  assert.equal(row.bits, OBJECT_VIEW_BITS, 'the object’s word holds them alone')
   const [word] = switchesOf([row])
   assert.equal(word, PLACEMENT_EVALUATE | PLACEMENT_VELOCITY, 'the placement’s holds none')
 })

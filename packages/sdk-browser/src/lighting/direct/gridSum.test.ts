@@ -30,6 +30,7 @@ import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { NEAR, camera, pixelPoint, type Vec3 } from '../tiles/tileCamera.fixture.ts'
 import { directLightingWgsl } from './lightLoop.fixture.ts'
+import { testLight } from './testLight.fixture.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -48,15 +49,13 @@ const NAMES = ['sliceLighting']
 const K = wgslConstants(PROGRAMS[0])
 
 /** A lamp's record as the contract writes it: a point, or a spot looking down. */
-const record = ({ centre, radius, spot }: Lamp, rank: number) => ({
-  positionRange: [...centre, radius],
-  colorIntensity: [1, 0.8 + (rank % 5) / 10, 0.6, 3 + (rank % 7)],
-  directionCone: [0, -1, 0, spot ? 0.7 : -1],
-  params: [kindLane(spot ? K.KIND_SPOT : 0), -1, 0, spot ? 0.9 : 0],
-  shape: [0, 0, 1, 1],
-  capsule: [0, 0, 0, 0],
-  traits: [0, 0, 0, 0],
-})
+const record = ({ centre, radius, spot }: Lamp, rank: number) =>
+  testLight({
+    positionRange: [...centre, radius],
+    colorIntensity: [1, 0.8 + (rank % 5) / 10, 0.6, 3 + (rank % 7)],
+    directionCone: [0, -1, 0, spot ? 0.7 : -1],
+    params: [kindLane(spot ? K.KIND_SPOT : 0), -1, 0, spot ? 0.9 : 0],
+  })
 
 /** What a program's light term reads besides the lights: no thin transmission, a lamp with no shadow
  *  slot (the shipped read answers one), the air's transmittance toward a light read per point: none. */

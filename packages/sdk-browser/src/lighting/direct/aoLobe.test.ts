@@ -21,6 +21,7 @@ import {
 } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from './lightLoop.fixture.ts'
+import { testLight } from './testLight.fixture.ts'
 import { kindLane } from '../../../../sdk-core/src/scene/light/lanes.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 
@@ -36,20 +37,20 @@ const lamps = (casts: boolean, slot: number, bits: number, shares: number[]) =>
     [1, -3, 0.5],
     [-2, -2, 1],
     [0.5, -4, -2],
-  ].map(([x, y, z]) => ({
-    positionRange: [x, y, z, 20],
-    colorIntensity: [1, 0.8, 0.6, 30],
-    directionCone: [0, -1, 0, -2],
-    params: [
-      kindLane((casts ? LIGHT_FLAG.castsShadow : 0) + (bits << LIGHT_SHADOWED_SHIFT)),
-      slot,
-      0,
-      0,
-    ],
-    shape: [0, 0, ...shares],
-    capsule: [0, 0, 0, 0],
-    contactGi: [0, 1, 0, 1],
-  }))
+  ].map(([x, y, z]) =>
+    testLight({
+      positionRange: [x, y, z, 20],
+      colorIntensity: [1, 0.8, 0.6, 30],
+      directionCone: [0, -1, 0, -2],
+      params: [
+        kindLane((casts ? LIGHT_FLAG.castsShadow : 0) + (bits << LIGHT_SHADOWED_SHIFT)),
+        slot,
+        0,
+        0,
+      ],
+      shape: [0, 0, ...shares],
+    }),
+  )
 
 const SHADOWED = wgslModule(
   directLightingWgsl({ unshadowed: false, rectless: true, lobeless: true }),

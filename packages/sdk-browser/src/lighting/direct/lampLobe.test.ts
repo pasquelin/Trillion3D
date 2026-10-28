@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { F32_SCOPE } from '../shaderRunF32.fixture.ts'
 import { NO_SHADING_MODEL } from './shadingModelScope.fixture.ts'
+import { testLight } from './testLight.fixture.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { LOBES_LIGHTING_WGSL } from './lobesWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts'
@@ -89,12 +90,11 @@ test('a lamp too small to see lights as the point does: the same lobe, the skew 
       Math.fround(alpha * fdot(lobes.B, V)),
       Math.max(fdot(N, V), 1e-4),
     ])
-    const light = {
+    // A source of no size: no tube, and the full weight of the rough diffuse (`sourceTermOf`) a point has.
+    const light = testLight({
       positionRange: L.map((x) => x * 3),
-      params: [0, 0, 0, 0],
       shape: [1e-6, 0, 1, 1],
-      capsule: [0, 0, 0, 0],
-    }
+    })
     const lamp = run.capsuleLamp(light.positionRange, [0, 0, 0], 1e-6, N, 1, 1e-4, true)
     const energy = u(1, 10)
     const sized = run.lampLight(surface, N, V, light, [0, 0, 0], lamp, energy),
@@ -136,7 +136,7 @@ test('a sphere widens the highlight and keeps its energy; the soft radius and a 
 
 test('a tube lights from the nearest point of it to the reflection', () => {
   const look = (halfX: number, view: number[]) =>
-    area.capsuleLook([0, 0, 2], [halfX, 0, 0], 0, 0, Z, view)
+    area.capsuleLook([0, 0, 2], [halfX, 0, 0], 0, 0, 1, Z, view)
   // The reflection of the view meets the tube: the highlight comes from that point, along the ray.
   const view = unitF32([-0.25, 0, 0.97]),
     R = [0.25 / Math.hypot(0.25, 0.97), 0, 0.97 / Math.hypot(0.25, 0.97)]
@@ -145,7 +145,7 @@ test('a tube lights from the nearest point of it to the reflection', () => {
   near(look(1, unitF32([-0.8, 0, 0.6])).toward, unitF32([1, 0, 2]), 1e-5)
   // Along the tube's line: finite, the tube's start.
   assert.ok(look(1, unitF32([-1, 0, 0.0001])).toward.every(Number.isFinite))
-  const atLamp = area.capsuleLook([0, 0, 0], [0, 0, 0], 0.5, 0.1, Z, VIEW)
+  const atLamp = area.capsuleLook([0, 0, 0], [0, 0, 0], 0.5, 0.1, 1, Z, VIEW)
   assert.equal(atLamp.reach, 0, 'at the lamp: no source seen')
   near(area.lineClosest([-1, 2, 0], [2, 0, 0], unitF32([0.25, 1, 0])), [0.5, 2, 0], 1e-5)
   assert.ok(area.lineClosest([-1, 2, 0], [2, 0, 0], [1, 0, 0]).every(Number.isFinite))
@@ -157,13 +157,11 @@ function near(got: number[], want: number[], tolerance: number) {
 test('a sun lights with its disk: the half vector moves toward the normal, the peak of a polished surface drops by the sphere’s energy, a rough one barely changes', () => {
   // A sun of the default disk (0.5357°, half of it as a radius), kind 2, along the mirror direction of a polished metal.
   const radius = (0.5357 * Math.PI) / 360
-  const sun = {
-    positionRange: [0, 0, 0, 0],
+  const sun = testLight({
     params: [kindLane(2), 0, 0, 0],
     shape: [radius, 0, 1, 1],
-    capsule: [0, 0, 0, 0],
     traits: [0, 0, Math.sin(radius), 0],
-  }
+  })
   const lamp = (toward: number[], capsule: boolean) => ({
     toward,
     centre: toward,

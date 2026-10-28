@@ -1,3 +1,4 @@
+import { createViewHidden } from '../frame/render/viewHidden.ts'
 import { createDeformationFrame } from './frame.ts'
 import { createWebgpuLightState } from '../frame/backend/state/lights.ts'
 import type { Matrix4 } from '../../../sdk-core/src/world/math/matrix4.ts'
@@ -47,6 +48,8 @@ export function deformationRuntime(
       selectionRoots,
       clusters: { placementInfo: { mark: (rank: number) => marked.push(rank) } },
       rootIndex: { revision: 0 },
+      // What the views of a root's owner see of it (`followOffsets` writes it): the session's own list.
+      viewHidden: createViewHidden(),
     },
     run: {
       movedWorlds: createChangedRuns(),

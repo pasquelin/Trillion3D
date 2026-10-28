@@ -16,6 +16,7 @@ import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { MODEL_FLAG } from '../../materials/surface/surfaceModelWord.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from './lightLoop.fixture.ts'
+import { testLight } from './testLight.fixture.ts'
 import { lerp } from '../../../../math/src/scalar/reals.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { lcgRandom } from '../../../../math/src/sequence/random.ts'
@@ -48,15 +49,14 @@ test('the skipped thin transmission and back-facing lobes keep every sum, bit fo
       for (let round = 0; round < 150; round++) {
         const count = 1 + Math.floor(u(0, 12))
         const P = [u(-5, 5), u(-1, 3), u(-5, 5)]
-        const items = [...Array(count).keys()].map((rank) => ({
-          positionRange: [P[0] + u(-4, 4), P[1] + u(-4, 4), P[2] + u(-4, 4), u(0.1, 8)],
-          colorIntensity: [u(0, 1), u(0, 1), u(0, 1), u(0, 20)],
-          directionCone: [0, -1, 0, rank % 3 ? -1 : 0.7],
-          params: [kindLane(rank % 3 ? 0 : K.KIND_SPOT), -1, 0, rank % 3 ? 0 : 0.9],
-          shape: [0, 0, 1, 1],
-          capsule: [0, 0, 0, 0],
-          traits: [0, 0, 0, 0],
-        }))
+        const items = [...Array(count).keys()].map((rank) =>
+          testLight({
+            positionRange: [P[0] + u(-4, 4), P[1] + u(-4, 4), P[2] + u(-4, 4), u(0.1, 8)],
+            colorIntensity: [u(0, 1), u(0, 1), u(0, 1), u(0, 20)],
+            directionCone: [0, -1, 0, rank % 3 ? -1 : 0.7],
+            params: [kindLane(rank % 3 ? 0 : K.KIND_SPOT), -1, 0, rank % 3 ? 0 : 0.9],
+          }),
+        )
         const n = [u(-1, 1), u(-1, 1), u(-1, 1)],
           N = n.map((v) => v / (Math.hypot(...n) || 1))
         const thin = [

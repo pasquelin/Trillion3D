@@ -11,6 +11,7 @@ import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { MODEL_FLAG } from '../../materials/surface/surfaceModelWord.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { directLightingWgsl } from './lightLoop.fixture.ts'
+import { testLight } from './testLight.fixture.ts'
 import { kindLane } from '../../../../sdk-core/src/scene/light/lanes.fixture.ts'
 
 type V = number[]
@@ -70,7 +71,7 @@ function rectLit(o: {
   )
   const K = wgslConstants(shipped)
   const reads: unknown[][] = []
-  const rect = {
+  const rect = testLight({
     positionRange: [0, 3, 0, 20],
     colorIntensity: [1, 1, 1, 4],
     directionCone: [0, -1, 0, -2],
@@ -83,7 +84,7 @@ function rectLit(o: {
     ],
     shape: [o.halfWidth ?? 1, 0, 0, 0.5],
     capsule: [0, 0, ...(o.shares ?? [1, 1])],
-  }
+  })
   const scope = {
     ...F32_SCOPE,
     ...K,

@@ -9,14 +9,17 @@ import { between, io, noBudget, opened, world } from './cells.fixture.ts'
 import { createPlacementWrites, type CellFrame, type Placement } from './follow.ts'
 import { createTouchedRows, placedMesh } from './rows.ts'
 import type { Object3D } from '../../../../sdk-core/src/world/object/object3d.ts'
-import { SHADOW_MAPLESS_ROOT, SHADOWLESS_ROOT } from '../../visibility/shader/castingMark.ts'
+import { holdPrimitiveGroup } from '../../visibility/shader/castingMark.ts'
+import { CASTING_CASES, castingTitleSuffix } from '../../visibility/shader/castingCases.fixture.ts'
 
-for (const { flag, on, bit } of [
-  { flag: 'castShadow', on: false, bit: SHADOWLESS_ROOT },
-  { flag: 'castsShadowMaps', on: false, bit: SHADOW_MAPLESS_ROOT },
-] as const)
-  test(`a cell's rows cast as their host mesh says, and follow its ${flag} once changed`, async () => {
+for (const { flag, on, bit, grouped } of CASTING_CASES)
+  test(`a cell's rows cast as their host mesh says, and follow its ${flag} once changed${castingTitleSuffix(grouped)}`, async () => {
     const [plain, set] = [0, 1].map(() => object.mesh(geometry.box(1, 1, 1)))
+    if (grouped) {
+      const model = object.group()
+      holdPrimitiveGroup(model)
+      model.add(plain, set)
+    }
     set[flag] = on
     const { cells, links, bytes } = world(0, null, [plain, set])
     await opened(cells, bytes, false, between)

@@ -12,6 +12,8 @@ import { LOBES_LIGHTING_WGSL } from './lobesWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from './lightWgsl.ts'
 import { wgslConstants } from '../../materials/texture/shaderRule.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
+import { LIGHT_FIELD, baseOf } from '../../../../sdk-core/src/scene/light/fields.ts'
 import { unitF32 } from '../../../../math/src/vector/unitF32.fixture.ts'
 
 type Fn<R = number[]> = (...args: unknown[]) => R
@@ -119,8 +121,24 @@ test('a source of size takes less of it: 1 for none, 0.5 at 10 cm, none from 20 
   const area = run(true)
   const N = [0, 0, 1],
     V = unitF32([0.6, 0, 0.8])
-  const micro = (radius: number, halfLength: number) =>
-    area.capsuleLook([0, 0, 2], [halfLength, 0, 0], radius, 0, N, V).micro
+  // The weight is written with the light (`LIGHT_FIELD.sourceTerm`, from its radius and its length) and handed to the look.
+  const micro = (radius: number, halfLength: number) => {
+    const store = createSceneLightStore()
+    store.add({
+      id: 'lamp',
+      kind: 'point',
+      position: [0, 0, 0],
+      color: [1, 1, 1],
+      intensity: 1,
+      range: 10,
+      castsShadow: false,
+      // A source of no size declares none: the contract refuses a radius or a length of 0.
+      ...(radius > 0 && { emitterRadius: radius }),
+      ...(halfLength > 0 && { emitterLength: 2 * halfLength }), // the declared length is the whole tube's
+    })
+    const weight = store.packed[baseOf(store.slotOf('lamp')) + LIGHT_FIELD.sourceTerm]
+    return area.capsuleLook([0, 0, 2], [halfLength, 0, 0], radius, 0, weight, N, V).micro
+  }
   assert.equal(micro(0, 0), 1)
   near([micro(0.1, 0)], [0.5], 'a sphere of 10 cm')
   near([micro(0, 0.05)], [0.5], 'a tube of 10 cm')
