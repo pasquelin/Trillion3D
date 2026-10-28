@@ -149,10 +149,12 @@ export const HIZ_DEPTH_LAYERS = 2
 export const HIZ_FOLD_WGSL = wgslBlock(
   'HIZ_FOLD_WGSL',
   [],
-  `fn hizFold(depth:texture_2d_array<f32>,p:vec2i,front:bool)->f32{
+  `/** The fold of an opaque depth and a front one: reverse-Z, the nearer is the larger. */
+fn hizFoldOf(opaque:f32,front:f32)->f32{return max(opaque,front);}
+fn hizFold(depth:texture_2d_array<f32>,p:vec2i,front:bool)->f32{
  let opaque=textureLoad(depth,p,${HIZ_OPAQUE_LAYER},0).r;
  if(!front){return opaque;}
- return max(opaque,textureLoad(depth,p,${HIZ_FRONT_LAYER},0).r);
+ return hizFoldOf(opaque,textureLoad(depth,p,${HIZ_FRONT_LAYER},0).r);
 }
 fn hizFoldOver(depth:texture_2d_array<f32>,p:vec2i,front:bool)->bool{
  if(!front){return false;}
@@ -183,7 +185,8 @@ export const HIZ_LEVELS_STRUCT_WGSL = wgslBlock('HIZ_LEVELS_STRUCT_WGSL', [], HI
  * it); `hizCellFarthest` and `hizCellNearest` a cell of a level from 1 up, its farthest depth of the
  * finished image and its nearest, each its own read, in the pyramid built for `hizTrace` `'planes'`
  * (`hizTracePlanes`); `hizCellCullFarthest` a cell's farthest depth of the opaque image alone, the
- * culling layer's — the farthest of the reference's pyramid, built in every mode. All clamp the cell
+ * culling layer's — the farthest of the reference's pyramid, built in every mode; `hizCellFurthest` the farthest the reference's walk reads: the finished
+ * depth's where the pyramid is built with the planes, else the culling layer's, the same depth. All clamp the cell
  * to the level: the last texel of a level covers the image's edge.
  */
 export const hizDepthWgsl = (group: number, binding: number) =>
@@ -214,5 +217,9 @@ fn hizCellStep(cell:vec2i,level:i32)->u32{
 }
 fn hizCellNearest(cell:vec2i,level:i32)->f32{return hizNearest(hizLevels.level[level].x+hizCellStep(cell,level));}
 fn hizCellFarthest(cell:vec2i,level:i32)->f32{return hizWholeFarthest(hizLevels.level[level].w+hizCellStep(cell,level));}
-fn hizCellCullFarthest(cell:vec2i,level:i32)->f32{return hizCullFarthest(hizLevels.level[level].x-hizLevels.count.z+hizCellStep(cell,level));}`,
+fn hizCellCullFarthest(cell:vec2i,level:i32)->f32{return hizCullFarthest(hizLevels.level[level].x-hizLevels.count.z+hizCellStep(cell,level));}
+fn hizCellFurthest(cell:vec2i,level:i32)->f32{
+ if(hizTracePlanes()){return hizCellFarthest(cell,level);}
+ return hizCellCullFarthest(cell,level);
+}`,
   )
