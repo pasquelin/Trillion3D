@@ -28,11 +28,13 @@ import {
 import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { sunShadowMask } from '../../lighting/distanceField/shadow/state.ts'
 import { skyOcclusionRead } from '../../lighting/distanceField/ao/state.ts'
+import { skyOcclusionPlanned } from '../render/encodeSkyOcclusion.ts'
 import { lobesHeld, rowsWearLobes } from './lobesTarget.ts'
 import { castsContactShadows } from '../../lighting/contactShadow/frame.ts'
 import { wantsContractLighting } from './lit.ts'
 import { tracesFrontLayer } from '../../lighting/reflections/settings.ts'
 import { readSingleLayerWaterSetting } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
+import { readScreenProbeSetting } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { waterTraces } from '../../blend/water/waterReflection.ts'
 import { waterSeparates } from '../../blend/water/waterTargets.ts'
 import { track } from '../../lighting/deferred/compileLedger.ts'
@@ -124,6 +126,7 @@ export const blendContext = (rt: WebgpuPagesRuntime) => {
     rasters: rt.vis.rasters,
     frontLayer: tracesFrontLayer(rt.context),
     waterReflects: waterTraces(rt),
+    radianceMark: readScreenProbeSetting(rt, 'screenProbeTranslucencyReflectionsRadianceCache'),
     waterSeparate: waterSeparates(rt),
     waterSunTrace: readSingleLayerWaterSetting(rt, 'singleLayerWaterShadersSupportVsmFiltering'),
   }
@@ -191,10 +194,50 @@ export function askLobedPrograms(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const { deferred } = rt.gpu
   // The fog pass is asked now, the frames waiting for its compile, not at the first image it lays fog on.
   deferred?.askFog()
-  if (deferred && rowsWearLobes(rt)) track(device, deferred.awaited(FULL_CONTRACT), true)
+  if (deferred && rowsWearLobes(rt))
+    track(device, deferred.awaited(FULL_CONTRACT), true, 'lobed lit program')
 }
 
 const contractResources: DirectLightResources = {}
+
+/** The program-key fields of the lit image: the lists' width and the cuts of the light code, written into `into`. */
+function litKeyInto(rt: WebgpuPagesRuntime, into: DirectLightResources, active: boolean) {
+  const { lights } = rt
+  // The narrow resolve reads the narrow pass's lists (#849); a scene with no declared shadow, or
+  // no rectangle, resolves without that code (#1249, #1369): all read off stable state.
+  if (active) {
+    // Lobe code while the targets hold the lobes of a surface that carries one (`physicalLobes.ts`).
+    const shadowed = shadowsOn(rt) && (!!lights.pageLayout || !!lights.vsm)
+    contractKey(
+      lights.store,
+      shadowed,
+      lobedFor('opaque', rt),
+      contactFor('opaque', rt),
+      channelledFor('opaque', rt),
+      ambientCubemapOn(rt),
+      into,
+    )
+    into.narrow &&= !!lights.tiles
+  } else Object.assign(into, FULL_CONTRACT)
+}
+
+const pickResources: DirectLightResources = {}
+/** The occlusion the image will read, named for the pick alone: the key reads whether one is named, never its buffers, which the encoding writes. */
+const PLANNED_OCCLUSION = {} as NonNullable<DirectLightResources['skyShadowing']>
+
+/**
+ * What picks the lit program of the image (`bind`, `../../lighting/deferred/deferred.ts`) and nothing else: the key's cuts, the
+ * lists' width, whether the probes' grid and the sky light's occlusion are named. A pure read, a scratch object of its own: the
+ * frame entry that warms the program the image will bind resolves none of the resources `directLightResources` hands the passes.
+ */
+export function pickKeyOf(rt: WebgpuPagesRuntime) {
+  const active = wantsContractLighting(rt),
+    lit = active && rt.views.active.overrides.lighting
+  litKeyInto(rt, pickResources, active)
+  pickResources.bounceGrid = lit && rt.bounce.wanted ? rt.bounce.probes?.uniform : undefined
+  pickResources.skyShadowing = lit && skyOcclusionPlanned(rt) ? PLANNED_OCCLUSION : undefined
+  return pickResources
+}
 
 /** The shadow resources the deferred pass reads, none where the lighting is not the contract's. */
 function shadowResources(rt: WebgpuPagesRuntime, active: boolean) {
@@ -279,22 +322,7 @@ export function directLightResources(rt: WebgpuPagesRuntime) {
   // cleared of its lights.
   contractResources.suns = lit ? lights.store.suns : 0
   contractResources.locals = lit ? lights.store.locals : 0
-  // The narrow resolve reads the narrow pass's lists (#849); a scene with no declared shadow, or
-  // no rectangle, resolves without that code (#1249, #1369): all read off stable state.
-  if (active) {
-    // Lobe code while the targets hold the lobes of a surface that carries one (`physicalLobes.ts`).
-    const shadowed = shadowsOn(rt) && (!!lights.pageLayout || !!lights.vsm)
-    contractKey(
-      lights.store,
-      shadowed,
-      lobedFor('opaque', rt),
-      contactFor('opaque', rt),
-      channelledFor('opaque', rt),
-      ambientCubemapOn(rt),
-      contractResources,
-    )
-    contractResources.narrow &&= !!lights.tiles
-  } else Object.assign(contractResources, FULL_CONTRACT)
+  litKeyInto(rt, contractResources, active)
   shadowResources(rt, active)
   bounceResources(rt, lit)
   skyResources(rt, active)

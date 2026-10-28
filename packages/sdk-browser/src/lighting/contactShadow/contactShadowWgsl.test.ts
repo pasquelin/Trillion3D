@@ -9,6 +9,7 @@ import { declaredLightingSplitWgsl } from '../direct/declaredLightingWgsl.ts'
 import { FULL_CONTRACT } from '../deferred/contractCuts.ts'
 import { DEFAULT_TRANSLUCENT_SCENE, blendShader, translucentLitKey } from '../../blend/shader.ts'
 import { SET_CONTACT_ASKED } from '../../blend/contactSceneWgsl.ts'
+import { TRI_MATERIAL_SHIFT } from '../../blend/vertexReadsWgsl.ts'
 import { MATERIAL_FLAG } from '../../materials/table/materialLayout.ts'
 import { transmitWgsl } from '../../blend/transmission/transmitWgsl.ts'
 import { waterWgsl } from '../../blend/water/waterStageWgsl.ts'
@@ -209,7 +210,7 @@ test('a hit casts a contact shadow unless its object lets the rays through or it
   assert.equal(takes(wearing(PIXEL_MODEL.eye) | NO_CONTACT_SHADOW_SURFACE_FLAG), OTHER)
 })
 
-test('the blend module holds the contact shadows only where a surface of the scene asks, and its fragments read the ask from the material record', () => {
+test('the blend module holds the contact shadows only where a surface of the scene asks, and its fragments read the ask from the material flags of the triangle word', () => {
   const plain = blendShader({})
   for (const left of ['fn contactShadow(', 'contactAsked', 'contactFlags', 'contactSceneDepth'])
     assert.ok(!plain.includes(left), `without a surface that asks: ${left}`)
@@ -224,14 +225,16 @@ test('the blend module holds the contact shadows only where a surface of the sce
     1 - 0.7 * 0.5,
     'a thin sheet keeps its share of the hit',
   )
-  // The flags are those of the record of the material rank the fragment's `words.z` names.
-  const record = [MATERIAL_FLAG.contactShadows, MATERIAL_FLAG.fogPerPixel, 0]
+  // The flags are those the vertex stage put in the triangle word (`words.x`, above `TRI_MATERIAL_SHIFT`), from the item's material record.
+  const triangles = [MATERIAL_FLAG.contactShadows, MATERIAL_FLAG.fogPerPixel, 0].map(
+    (flag) => flag << TRI_MATERIAL_SHIFT,
+  )
   const { contactShadowsAsked } = shaderRun<{ contactShadowsAsked: (input: object) => boolean }>(
     asking,
     ['contactShadowsAsked'],
-    { materialAt: (rank: number) => ({ flags: record[rank] }) },
+    {},
   )
-  const fragment = (rank: number) => ({ words: [0, 0, rank] })
+  const fragment = (rank: number) => ({ words: [triangles[rank], 0, 0] })
   assert.equal(contactShadowsAsked(fragment(0)), true)
   assert.equal(contactShadowsAsked(fragment(1)), false, 'another flag of the record')
   assert.equal(contactShadowsAsked(fragment(2)), false)

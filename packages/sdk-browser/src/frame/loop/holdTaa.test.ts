@@ -9,7 +9,9 @@ import { taaConverged } from '../../post/taa/landing.ts'
 import { historySampleLaws } from '../../post/taa/historyWgsl.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
-import { settledRt } from './hold.fixture.ts'
+import { noiseFrame } from '../render/noiseFrame.ts'
+import { lightingPhase } from '../../lighting/surfaceCache/lighting/phase.ts'
+import { drawFinalImage, settledRt } from './hold.fixture.ts'
 
 installGpuGlobals()
 
@@ -72,6 +74,7 @@ test('a quiet view whose history is whole is held on the image it last drew, unt
   const { rt, frame } = heldRuntime()
   const { device } = fakeDevice()
   accumulate(frame, 22)
+  drawFinalImage(rt, device)
   const drawn = rt.run.imageRevision
   assert.equal(holdWebgpuFrame(rt, device), true, 'held: nothing encoded, the image redisplayed')
   assert.equal(rt.run.frameHeld, true)
@@ -87,6 +90,7 @@ test('a view that does not accumulate holds its quiet frame', () => {
   const { rt } = heldRuntime()
   const { device } = fakeDevice()
   rt.run.diagnostic = 'wireframe'
+  drawFinalImage(rt, device)
   assert.equal(holdWebgpuFrame(rt, device), true)
 })
 
@@ -110,14 +114,31 @@ test('a view without accumulation turns the lighting noise on each image drawn, 
     }
   }
   settle()
+  // The establishment ends on its final image, which turns the noise like any image drawn, and meets the canonical lighting phase.
+  drawFinalImage(rt, device, () =>
+    assert.equal(lightingPhase(rt), 0, 'the final image: phase zero'),
+  )
   assert.equal(holdWebgpuFrame(rt, device), true)
-  assert.equal(stochasticPhase(frame), 0, 'held: no image drawn, the noise as it was')
+  assert.equal(
+    stochasticPhase(frame),
+    1,
+    'held: no image drawn after the final one, the noise as it was',
+  )
   for (let image = 1; image <= 3; image++) {
     rt.run.gate.resourcesChanged()
     assert.equal(holdWebgpuFrame(rt, device), false)
-    assert.equal(stochasticPhase(frame), image, 'drawn: the next phase')
+    assert.equal(stochasticPhase(frame), 2 * image, 'drawn: the next phase')
+    assert.equal(lightingPhase(rt), noiseFrame(rt), 'one clock: the lighting reads the noise’s')
+    assert.equal(lightingPhase(rt), 0, 'an isolated change counts from itself')
     settle()
+    drawFinalImage(rt, device, () =>
+      assert.equal(lightingPhase(rt), 0, 'the final image: phase zero'),
+    )
     assert.equal(holdWebgpuFrame(rt, device), true)
-    assert.equal(stochasticPhase(frame), image, 'held again: the phase of the image shown')
+    assert.equal(
+      stochasticPhase(frame),
+      2 * image + 1,
+      'held again: the phase of the final image shown',
+    )
   }
 })

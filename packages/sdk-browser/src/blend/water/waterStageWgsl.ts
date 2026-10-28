@@ -114,7 +114,7 @@ const WATER_GRAPH_VOLUME_WGSL = ` if((g.graph.flags&${GRAPH_FLAG.water}u)!=0u){s
 
 /** The lit section of the water's fragment: the lights, the ambient light and the volume. */
 const waterLitWgsl = (o: StageOptions, sunTraced: boolean) => `  surfaceModel=modelFlag(flags);
-  ${stagePrologue(o, '  ')}${o.marks ? `\n  ${translucentMarksFrom('flags')}` : ''}${sunTraced ? '\n  shadowSkipSun=water.filters.x!=0u;' : ''}
+  ${stagePrologue(o, '  ', 'water')}${o.marks ? `\n  ${translucentMarksFrom('flags')}` : ''}${sunTraced ? '\n  shadowSkipSun=water.filters.x!=0u;' : ''}
   ${o.graphs ? 'surfaceSpecular=s.specular;' : ''}
   let f0=surfaceF0(s.rgb,s.metal);
   var lit=declaredLightingSplit(s.rgb,s.metal,s.rough,s.N,V,in.view,in.position.xy,in.position.z);
@@ -236,8 +236,8 @@ const waterStage = (o: StageOptions, sunTraced: boolean) =>
  * The water stage of the blend module of `key` (`../shader.ts`): `fsWater`, the water's fragment
  * (`waterStage`), on the lights split as the transmissive layers' are, and the surface read as theirs
  * (`stageSurface`). Only a scene with single-layer water holds it; the module's text is otherwise
- * what it was. The water casts no contact shadow ray of its own, it is no translucent blend mode in the reference, and
- * asks for none: its material's contact flag is off (`asksContact`), so its asked ray never marches for it while its lights are
+ * what it was. The water casts no contact shadow ray of its own, it is no translucent blend mode in the reference: its prologue is the
+ * water's (`stagePrologue`), which sets no ask (`asksContact`), so its ray never marches, while its lights are
  * the module's (`scene`, as the transmissive stages' are, one text of the split term's functions in a module that holds
  * both); where the scene holds contact shadows, the water's light block holds the code.
  */

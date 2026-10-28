@@ -14,7 +14,7 @@ export function createTileCounters() {
   return {
     uploadedBytes: 0,
     served: 0,
-    /** The tiles the last pass left pending (`leave`): the sum of `missing`. */
+    /** The tiles the last pass left pending, waiting for their bytes or deferred to the next pass (`leave`). */
     pending: 0,
     /** Those of `pending` at the coarsest tile level of their texture: what the cache's cards read (`coarseMissing`), and what its light waits for. */
     pendingCoarse: 0,
@@ -24,17 +24,19 @@ export function createTileCounters() {
     missingAverage: 0,
     bytesLastFrame: 0,
     scratches: 0,
+    /** The passes in a row that served no tile and left none pending. */
+    quiet: 0,
+    /** Whether the image asks every pixel of its feedback and the view waits for the answer: a tile was served or left pending in the last `images` passes (`verifyImages`). */
+    verifying(images: number) {
+      return this.quiet < images
+    },
     /** True when the last pass had tiles to serve. */
     worked: false,
-    /** The tiles the last pass left pending, counted by texture, a slot of each atlas: waiting for their bytes, or deferred to the next pass
-     *  (`leave`). `pending` is their sum. Held flat, grown with the slots met, never made again per pass. */
-    missing: { color: new Uint32Array(0), data: new Uint32Array(0) },
-    /** The same count, of the tiles at the coarsest tile level of their texture alone. */
+    /** The tiles the last pass left pending at the coarsest tile level of their texture, counted by texture, a slot of each atlas: waiting for their bytes, or deferred
+     *  to the next pass (`leave`). `pendingCoarse` is their sum. Held flat, grown with the slots met, never made again per pass. */
     missingCoarse: { color: new Uint32Array(0), data: new Uint32Array(0) },
     /** A pass begins: no tile is pending yet. */
     clearMissing() {
-      this.missing.color.fill(0)
-      this.missing.data.fill(0)
       this.missingCoarse.color.fill(0)
       this.missingCoarse.data.fill(0)
       this.pending = 0
@@ -42,8 +44,6 @@ export function createTileCounters() {
     },
     /** A tile of texture `slot` of the atlas of `kind` is left pending, `coarse` where it is at the coarsest tile level of its texture: the one place a pending tile is counted. */
     leave(kind: 'color' | 'data', slot: number, coarse: boolean) {
-      const held = (this.missing[kind] = resized(this.missing[kind], slot + 1))
-      held[slot]++
       this.pending++
       if (!coarse) return
       const heldCoarse = (this.missingCoarse[kind] = resized(this.missingCoarse[kind], slot + 1))

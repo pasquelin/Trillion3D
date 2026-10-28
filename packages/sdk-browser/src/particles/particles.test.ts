@@ -6,7 +6,7 @@ import { setImmediate as tick } from 'node:timers/promises'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { written } from '../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from '../frame/loop/hold.ts'
-import { settledRt } from '../frame/loop/hold.fixture.ts'
+import { drawFinalImage, settledRt } from '../frame/loop/hold.fixture.ts'
 import {
   PARTICLE_FLOATS,
   ParticlePool,
@@ -90,6 +90,7 @@ test("WebGPU: a still frame is held until one of the world's pools moves", () =>
     rt.run.frame++
     keepWebgpuFrame(rt)
   }
+  drawFinalImage(rt, device)
   assert.equal(holdWebgpuFrame(rt, device), true, 'still, and no pool: held')
   const idle = new ParticlePool({ capacity: 8 })
   Object.assign(rt.context, { particles: [idle] })

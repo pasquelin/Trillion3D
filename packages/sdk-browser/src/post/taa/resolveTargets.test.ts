@@ -75,7 +75,11 @@ test('every update is a compute dispatch after the analysis, and the pass draws 
   const byDefault = await updatePasses()
   // One update since a debug view's as-is pixels are composed after the temporal pass (three
   // kinds read the flags or a share).
-  assert.deepEqual(byDefault.compiled, ['TAA_UPDATE false true plain'])
+  // Both updates a history can run (with and without the half-size image) are compiled with the pass.
+  assert.deepEqual(byDefault.compiled, [
+    'TAA_UPDATE false true plain',
+    'TAA_UPDATE false false plain',
+  ])
   assert.equal(byDefault.drawn, 0, 'no render pass: the anti-aliaser and the update dispatch')
   // Each frame: the analysis's compute passes, one per step it times (the dilated velocity, the
   // reprojection, the thin geometry detection, the rejection with its flicker measure and its merge,

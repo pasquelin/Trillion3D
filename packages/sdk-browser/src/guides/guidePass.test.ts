@@ -8,7 +8,7 @@ import { createWebgpuGuidePass } from './guidePass.ts'
 import { fakeDevice } from '../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from '../frame/loop/hold.ts'
 import { unsettledMask } from '../frame/loop/unsettled.ts'
-import { settledRt } from '../frame/loop/hold.fixture.ts'
+import { drawFinalImage, settledRt } from '../frame/loop/hold.fixture.ts'
 import { GUIDE_UNIFORM_FLOATS, writeGuideView } from './guideShaders.ts'
 import {
   askGuidePass,
@@ -167,10 +167,12 @@ test('a guide changed on a held image releases it, and leaves the accumulation s
     keepWebgpuFrame(rt)
   }
   const device = {} as GPUDevice
+  drawFinalImage(rt, device)
   assert.equal(holdWebgpuFrame(rt, device), true, 'no guide yet: the image is held')
   guides.lines({ positions: [0, 0, 0, 1, 0, 0] })
   assert.equal(unsettledMask(rt), 0, 'a guide moves nothing temporal accumulation reads')
   assert.equal(holdWebgpuFrame(rt, device), false, 'the next image draws the guide')
   guidesShown(rt as never)
+  drawFinalImage(rt, device)
   assert.equal(holdWebgpuFrame(rt, device), true, 'drawn once, held again')
 })

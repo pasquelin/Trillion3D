@@ -38,6 +38,23 @@ test('the lit program starts compiling with prepare, before the first frame asks
   assert.equal(lighting.usesContract, true, 'the first frame is lit')
 })
 
+test('the per-light path waits for the program the image will bind, never for the one lent while it compiles', async () => {
+  const { device } = fakeDevice()
+  const lighting = await createDeferredLighting(device, undefined, {
+    precompile: true,
+    bounce: false,
+    key: { ...FULL_CONTRACT, narrow: true },
+  })
+  await lighting.litReady
+  const lights = {} as GPUBuffer
+  const later = { lights, narrow: true, rectless: true, localless: true, lobeless: true }
+  assert.equal(lighting.awaited(later), undefined, 'a ready program would light the image')
+  const compiling = lighting.askPerLight(later)
+  assert.ok(compiling, 'the per-light path still waits for the exact program to compile')
+  await compiling
+  assert.equal(lighting.askPerLight(later), undefined, 'compiled: its pipelines are asked')
+})
+
 test('an unshadowed program that fails holds the frame on its shadowed twin, never unlit', async () => {
   const { device } = fakeDevice()
   let release!: () => void

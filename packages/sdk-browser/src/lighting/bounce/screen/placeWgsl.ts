@@ -3,6 +3,7 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
 import { spProbeWord, spSurface, spWeights } from './probesWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../../../gpu/core/laneScanWgsl.ts'
 import { spVectors } from './vectorsWgsl.ts'
 
 /** The placement group's bindings: the image's normals and flags beside its depth (the reflection group's),
@@ -56,7 +57,7 @@ fn spWriteProbe(index:u32,pix:vec2u){
 /**
  * THE UNIFORM PROBES: every tile of the image takes a probe on a pixel of its own that turns every frame
  * (`placeUniform`): its surface — the world point, the normal, the depth — written in the atlas; the same thread
- * empties its tile's mask and count, and the first the count of adaptive probes, which the next steps fill. `probeArgs`,
+ * empties its tile's mask and kept ranks, and the first the count of adaptive probes, which `adaptiveNumber` sets. `probeArgs`,
  * once the adaptive probes are placed, writes the arguments the kernels over the probes in use are dispatched by: the
  * atlas's rows that hold one, and the trace texels over them in groups of 8 × 8.
  */
@@ -90,13 +91,14 @@ fn probeArgs(){
  * for each tile, `SP_SAMPLES` pixels of it and marks, in a word of the tile's, those whose four uniform probes weigh under
  * the minimum (`spInterpolation`: the surface at a plane the probes' planes are not), and `adaptiveSpawn` keeps each marked
  * sample unless a sample of a lower rank, in its own tile or its neighbours', already covers it (`spAdaptiveWeight`),
- * numbering the survivors in the atlas after the uniform probes and listing them in their tile, up to the most the atlas
+ * marking the survivors by rank in their tile; `adaptiveNumber` then numbers them after the uniform probes in the order of the tiles
+ * and of the ranks, and `adaptiveWrite` writes each at its number and lists it at its rank in its tile, up to the most the atlas
  * holds. A uniform probe is the surface at its pixel: its record is the same whether it is written or read again here
  * (`spCornerProbe`), so the weights need no read of the atlas.
  */
 const PLACE_ADAPTIVE = wgslBlock(
   'PLACE_ADAPTIVE',
-  [PLACE_DECLARATIONS],
+  [PLACE_DECLARATIONS, LANE_SCAN_WGSL],
   `/** A thread a sample of a tile: its tile, its rank among the tile's samples. */
 struct SpSample{tile:vec2u,rank:u32,valid:bool,}
 fn spSampleOf(id:vec2u)->SpSample{
@@ -135,6 +137,9 @@ fn spCovered(pix:vec2u,rank:u32,s:SpSurface,depth:f32)->bool{
  }
  return false;
 }
+/** Kept probes are numbered in the fixed order of the tiles then of the ranks, never in the order the threads arrive. Numbering by arrival (a counter shared by the group for the number in the group, a second for the group's base, a third for the rank in the tile) gives one
+ *  scene, from one image to the next, other numbers, other tile lists, other probes kept past the atlas's capacity and other winners for the ties between a tile's probes. Here \`adaptiveSpawn\` only marks the ranks kept,
+ *  \`adaptiveNumber\` gives each tile its first number by a prefix sum, \`adaptiveWrite\` the number of each rank: two images of the same inputs number alike, and the first probes in that order are those kept when the atlas runs short. */
 @compute @workgroup_size(8,8)
 fn adaptiveSpawn(@builtin(global_invocation_id) id:vec3u){
  let at=spSampleOf(id.xy);
@@ -144,11 +149,29 @@ fn adaptiveSpawn(@builtin(global_invocation_id) id:vec3u){
  let pix=spAdaptivePixel(at.tile,at.rank);
  let s=spSurfaceAt(pix);
  if(spCovered(pix,at.rank,s,spDepthOf(s.P))){return;}
- let adaptive=atomicAdd(&counts[0],1u);
+ // Kept, not yet numbered: the numbers follow the order of the tiles then of the ranks (\`adaptiveNumber\`), never the order the threads of this dispatch reach this line in.
+ atomicOr(&header[tileIndex],1u<<at.rank);
+}
+/** The number of the first adaptive probe of each tile: the probes kept by the tiles before it, in the tiles' order, left in the tile's word of the mask, which nothing reads any more; the total in the count. One workgroup. */
+@compute @workgroup_size(WORKGROUP_THREADS)
+fn adaptiveNumber(@builtin(local_invocation_index) lane:u32){
+ let tiles=sp.grid.x*sp.grid.y;
+ let span=laneRun(lane,tiles);
+ ${laneRunOffsets('tile', 'span', 'lane', '0u+', 'countOneBits(atomicLoad(&header[tile]))', 'atomicStore(&mask[tile],cursor)')}
+ if(lane==0u){atomicStore(&counts[0],laneSums[WORKGROUP_THREADS-1u]);}
+}
+/** Writes each kept probe at its number: the tile's first plus the kept probes of a lower rank in it. The list of a tile holds the number of the probe of each rank; the numbers from \`sp.grid.w\` up fit no row of the atlas and are read as none. */
+@compute @workgroup_size(8,8)
+fn adaptiveWrite(@builtin(global_invocation_id) id:vec3u){
+ let at=spSampleOf(id.xy);
+ if(!at.valid){return;}
+ let tileIndex=at.tile.y*sp.grid.x+at.tile.x;
+ let kept=atomicLoad(&header[tileIndex]);
+ if((kept&(1u<<at.rank))==0u){return;}
+ let adaptive=atomicLoad(&mask[tileIndex])+countOneBits(kept&((1u<<at.rank)-1u));
+ indices[tileIndex*SP_SAMPLES+at.rank]=adaptive;
  if(adaptive>=sp.grid.w){return;}
- let slot=atomicAdd(&header[tileIndex],1u);
- if(slot<SP_SAMPLES){indices[tileIndex*SP_SAMPLES+slot]=adaptive;}
- spWriteProbe(sp.counts.y+adaptive,pix);
+ spWriteProbe(sp.counts.y+adaptive,spAdaptivePixel(at.tile,at.rank));
 }`,
 )
 

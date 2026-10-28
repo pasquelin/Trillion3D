@@ -80,13 +80,23 @@ const image: DfaoImage = {
   velocity: false,
 }
 
+/**
+ * Whether the image will draw the sky occlusion, decided at the frame's entry from what the encoding decides on (`encodeSkyOcclusion`): the gate holds, no bounce lights the pixels and
+ * the sources stand (the depth pyramid and the normals the frame has, the lit view). The one source of the lit program's key for the occlusion
+ * (`pickKeyOf`): the program the frame asks at its entry is the one the encoding binds, whatever the state the image before left.
+ */
+export function skyOcclusionPlanned(rt: WebgpuPagesRuntime) {
+  if (rt.bounce.wanted || !skyOcclusionGate(rt, false)) return false
+  return !!sourcesOf(rt, false)
+}
+
 /** What the frame gives the occlusion that it draws from: the depth pyramid this image built, the surfaces' normals,
  *  the vectors of motion the velocity stage measured; none while the frame lacks the first two. */
-function sourcesOf(rt: WebgpuPagesRuntime) {
+function sourcesOf(rt: WebgpuPagesRuntime, drawn = true) {
   const { gpu, vis, run } = rt
   const depth = vis.gpuHiz?.depth()
   const normals = gpu.surfaces?.views()[1]
-  if (!gpu.device || !depth || !normals || !run.depthDrawn) return undefined
+  if (!gpu.device || !depth || !normals || (drawn && !run.depthDrawn)) return undefined
   if (!wantsContractLighting(rt) || !drawsLit(run.diagnostic)) return undefined
   const { velocity } = gpu
   const vectors = velocity?.active && velocity.measured ? velocity.vectors : undefined

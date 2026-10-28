@@ -70,7 +70,7 @@ function dispatchOver(
 }
 
 /** The placement: the uniform probes, then the adaptive ones — the samples a tile's uniform probes do not
- *  cover marked, each kept unless a sample of a lower rank covers it (`placeWgsl.ts`) —, then the arguments of the kernels over the
+ *  cover marked, each kept unless a sample of a lower rank covers it, then numbered in the order of the tiles and of the ranks (`placeWgsl.ts`) —, then the arguments of the kernels over the
  *  probes in use, then what the pixels ask of the probes' rays (`screenData`). */
 function placeProbes(pass: GPUComputePassEncoder, run: CastRun) {
   const { geometry: g } = run.resources
@@ -81,6 +81,8 @@ function placeProbes(pass: GPUComputePassEncoder, run: CastRun) {
     const [x, y] = adaptiveWorkgroups(g)
     dispatch(pass, pipelines.adaptiveMark, place, x, y)
     dispatch(pass, pipelines.adaptiveSpawn, place, x, y)
+    dispatch(pass, pipelines.adaptiveNumber, place, 1, 1)
+    dispatch(pass, pipelines.adaptiveWrite, place, x, y)
   }
   dispatch(pass, pipelines.probeArgs, place, 1, 1)
   dispatchOver(

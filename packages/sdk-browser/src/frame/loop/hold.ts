@@ -7,8 +7,9 @@ import { frameTargetsAwaited } from '../prepare/targetGrant.ts'
 import { asidePending, swapAsideTargets } from '../prepare/targetsAside.ts'
 import { freshDisplay } from '../io/displayRead.ts'
 import { deviceAnswering, noteHold } from './deviceAnswer.ts'
-import { unsettledMask } from './unsettled.ts'
+import { NOISE_PHASE, unsettledMask } from './unsettled.ts'
 import { traceDrawnFrame, traceHeldOnAnswer } from './holdTrace.ts'
+import { beginNoiseImage } from '../render/noiseFrame.ts'
 import { drawsEveryImage } from './everyImage.ts'
 /**
  * What a held frame actually did, published as such.
@@ -71,6 +72,20 @@ function presentHeld(rt: WebgpuPagesRuntime, device: GPUDevice, awaited: boolean
 }
 
 /**
+ * Whether this image is held: the view stands (`gate.held`), nothing is unsettled, nothing draws it every image (read only then), and it is not the final image of its
+ * establishment (`beginNoiseImage`), which is drawn once more, at the canonical phase of the noise, before the view is held on it.
+ */
+export function holdDecision(rt: WebgpuPagesRuntime) {
+  const { run } = rt
+  let unsettled = unsettledMask(rt, run.frame)
+  const established = run.gate.held() && unsettled === 0
+  const every = established && drawsEveryImage(rt)
+  const final = beginNoiseImage(rt, established && !every)
+  if (final) unsettled |= NOISE_PHASE
+  return { unsettled, quiet: established && !every && !final }
+}
+
+/**
  * A frame whose targets the device has not granted (`targetGrant.ts`) would be drawn without
  * them, an incomplete image (#483): it is held instead, showing the previous image or nothing yet,
  * and `pendingWebgpuFrame` asks the next frame once the device answered. So is a lit frame whose
@@ -90,12 +105,11 @@ export function holdWebgpuFrame(rt: WebgpuPagesRuntime, device: GPUDevice) {
     awaited = frameTargetsAwaited(rt),
     answered = !deviceAnswering(rt)
   if ((answered && !awaited) || rt.capture.capturing) {
-    const unsettled = unsettledMask(rt, run.frame)
-    const quiet = run.gate.held() && unsettled === 0
+    const { unsettled, quiet } = holdDecision(rt)
     // Targets the device granted aside enter here, before anything is drawn: this frame is drawn
     // into them, never held on a display colour they never had. Its stillness is the scene's.
     const swapped = !awaited && answered && swapAsideTargets(rt, device)
-    if (swapped || !quiet || drawsEveryImage(rt)) {
+    if (swapped || !quiet) {
       if (rt.diag.traceEnabled) traceDrawnFrame(rt, unsettled, swapped)
       // Only an image that is drawn enters the accumulation: a held one leaves it as is (#26).
       beginTaaFrame(rt, run.gate.cam)

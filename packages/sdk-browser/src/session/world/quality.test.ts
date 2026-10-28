@@ -147,29 +147,22 @@ const benchmark = (kept: HardwareBenchmarkResult | null, ran = result(30)) => {
 }
 const settle = () => new Promise((resolve) => setTimeout(resolve, 0))
 
-test('a named preset runs nothing; the default, auto, with nothing kept runs once, at idle, and draws it', async () => {
-  const idle = (globalThis as { requestIdleCallback?: unknown }).requestIdleCallback
-  ;(globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = (run: () => void) =>
-    setTimeout(run, 0)
-  try {
-    for (const options of [{ preset: 'fine' as const }, undefined, { preset: 'auto' as const }]) {
-      const source = benchmark(null, result(30))
-      const { quality: q } = quality(options, 'auto', source)
-      assert.equal(source.runs, 0, 'never in the creating call')
-      await settle()
-      await settle()
-      const named = options?.preset === 'fine'
-      assert.equal(source.runs, named ? 0 : 1, JSON.stringify(options))
-      assert.equal(q.get('edgeSmoothing'), named ? 'fine' : 'balanced')
-    }
-    const kept = benchmark(result(30))
-    quality(undefined, 'auto', kept)
-    await settle()
-    await settle()
-    assert.equal(kept.runs, 0, 'a result kept for the adapter is read, not measured again')
-  } finally {
-    ;(globalThis as { requestIdleCallback?: unknown }).requestIdleCallback = idle
+test('a named preset runs nothing; the default, auto, with nothing kept runs once before the first image and draws it', async () => {
+  for (const options of [{ preset: 'fine' as const }, undefined, { preset: 'auto' as const }]) {
+    const source = benchmark(null, result(30))
+    const { quality: q, decided } = quality(options, 'auto', source)
+    assert.equal(source.runs, 0, 'never in the creating call')
+    const named = options?.preset === 'fine'
+    // The world opens its first session once the quality is decided: the first image is drawn at the final level.
+    await decided()
+    assert.equal(source.runs, named ? 0 : 1, JSON.stringify(options))
+    assert.equal(q.get('edgeSmoothing'), named ? 'fine' : 'balanced')
   }
+  const kept = benchmark(result(30))
+  const { quality: q, decided } = quality(undefined, 'auto', kept)
+  await decided()
+  assert.equal(kept.runs, 0, 'a result kept for the adapter is read, not measured again')
+  assert.equal(q.get('edgeSmoothing'), 'balanced', 'and drawn before the first image')
 })
 
 test('auto, named, draws the levels kept for this adapter, the resolution left to the display', async () => {

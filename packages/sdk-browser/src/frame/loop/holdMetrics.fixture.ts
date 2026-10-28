@@ -1,6 +1,7 @@
 // The settled engine (`settledRt`), its last complete frame drawn: what the held-frame metric tests
 // read.
-import { settledRt } from './hold.fixture.ts'
+import { drawFinalImage, settledRt } from './hold.fixture.ts'
+import { keepWebgpuFrame } from './hold.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import type { WebgpuTimingState } from '../backend/state/timing.ts'
@@ -12,10 +13,8 @@ import type { GpuPassTimings } from '../../../../sdk-core/src/contracts/metrics.
 export function heldFrame() {
   const rt = settledRt(),
     { run, gpu } = rt
-  run.gate.hold.keep(run.gate.revisions)
-  run.gate.hold.keep(run.gate.revisions)
   Object.assign(run, {
-    frame: 5,
+    frame: 4,
     desired: [],
     imageRevision: 3,
     gpuDrawCalls: 42,
@@ -43,6 +42,11 @@ export function heldFrame() {
   Object.assign(rt.services, { residencySets: { keepCount: 0 } })
   Object.assign(rt.lights, { memory: { bias: 0, events: [] } })
   Object.assign(rt.blendState, { visibleBlend: [] })
+  // Two identical frames arm the hold.
+  keepWebgpuFrame(rt as WebgpuPagesRuntime)
+  keepWebgpuFrame(rt as WebgpuPagesRuntime)
   const { device } = fakeDevice()
+  // The establishment ended on its final image: the image number is 5, the frames that follow are held.
+  drawFinalImage(rt as WebgpuPagesRuntime, device)
   return { rt: rt as WebgpuPagesRuntime, run, timing, device }
 }

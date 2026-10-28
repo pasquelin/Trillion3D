@@ -62,3 +62,32 @@ test('the first lit frame creates no shadow pipeline at once: prepare compiled t
     disposeQuadRun(backend, fixture)
   }
 })
+
+test('a sun with shadows added after the opening finds the shadow pipelines compiled: a scene with no light is laid out for one sun', async () => {
+  installGpuGlobals()
+  const gpu = fakeDevice({ ...BACKEND, limits: SHADOW_LIMITS })
+  const sceneLights = createSceneLightStore()
+  const { fixture, backend } = quadBackend(gpu.device, { sceneLights })
+  const made = { sync: [] as string[], async: [] as string[] }
+  const device = gpu.device as GPUDevice
+  const compute = device.createComputePipeline.bind(device),
+    render = device.createRenderPipeline.bind(device)
+  device.createComputePipeline = (d) => (made.sync.push(nameOf(d)), compute(d))
+  device.createRenderPipeline = (d) => (made.sync.push(nameOf(d)), render(d))
+  device.createComputePipelineAsync = async (d) => (made.async.push(nameOf(d)), compute(d))
+  device.createRenderPipelineAsync = async (d) => (made.async.push(nameOf(d)), render(d))
+  const shadow = (names: string[]) => names.filter((name) => name.startsWith('vsm.'))
+  try {
+    await backend.prepare()
+    assert.ok(shadow(made.async).length >= 20, 'prepare compiled them with no light in the scene')
+    made.sync.length = made.async.length = 0
+    sceneLights.add(SUN)
+    backend.render(camera())
+    await backend.flush()
+    assert.ok(backend.metrics().shadowVsmLights, 'the frame shadowed its sun')
+    assert.deepEqual(shadow(made.sync), [], 'the frame creates none at once')
+    assert.deepEqual(shadow(made.async), [], 'nor any off the thread')
+  } finally {
+    disposeQuadRun(backend, fixture)
+  }
+})

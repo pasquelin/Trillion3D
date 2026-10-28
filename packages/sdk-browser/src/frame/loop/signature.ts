@@ -3,6 +3,14 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 /** Number of values in the frame signature; see `sampleWebgpuFrame`. */
 export const HOLD_SIGNATURE_VALUES = 14
 
+/** Where the counters a held frame rewrites (`recordHeldFrameWork`) stand in the signature. */
+export const SIGNATURE_SLOT = {
+  submittedTriangles: 8,
+  gpuDrawCalls: 11,
+  blendDrawCalls: 12,
+  blendSubmittedTriangles: 13,
+} as const
+
 /**
  * What decides the pixels of a frame, in fourteen numbers: the clusters' records, the cut — its pages,
  * its triangles, its level — and the transparent draws it feeds.
@@ -27,10 +35,10 @@ export function sampleWebgpuFrame(rt: WebgpuPagesRuntime, into: Float64Array) {
   into[5] = run.pageArrayEpoch
   into[6] = run.visible
   into[7] = run.selectedTriangles
-  into[8] = run.submittedTriangles
+  into[SIGNATURE_SLOT.submittedTriangles] = run.submittedTriangles
   into[9] = run.frustumRejected
   into[10] = run.lodLevel
-  into[11] = run.gpuDrawCalls
-  into[12] = run.blendDrawCalls
-  into[13] = run.blendSubmittedTriangles
+  into[SIGNATURE_SLOT.gpuDrawCalls] = run.gpuDrawCalls
+  into[SIGNATURE_SLOT.blendDrawCalls] = run.blendDrawCalls
+  into[SIGNATURE_SLOT.blendSubmittedTriangles] = run.blendSubmittedTriangles
 }

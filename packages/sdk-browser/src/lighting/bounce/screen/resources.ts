@@ -150,8 +150,8 @@ export function createScreenProbeResources(
     disocclusion: storage('disocclusion', maxProbes),
     moving: storage('probe moving', maxProbes),
     mask: storage('placement mask', tilesX * tilesY),
-    header: storage('tile counts', tilesX * tilesY),
-    indices: storage('tile lists', tilesX * tilesY * samplesX * samplesY),
+    header: storage('tile kept ranks', tilesX * tilesY),
+    indices: storage('tile probe numbers', tilesX * tilesY * samplesX * samplesY),
     counts: storage('adaptive count', 1),
     args: a.buffer('arguments', SCREEN_PROBE_ARGS.words, 'args'),
     // The lists of the integration's tiles, one for each mode, and their arguments: a word each where the tiles are not classified.

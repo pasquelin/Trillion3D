@@ -5,9 +5,8 @@ import type { TranslucentMarkSettings } from '../../../sdk-core/src/bounce/scree
 import { installGpuGlobals } from '../../../../tests/kit/fakeDevice/globals.ts'
 import { checkStageLimits } from '../../../../tests/kit/fakeDevice/limitRules.ts'
 import { blendLayoutEntries } from '../gpu/bind/blendBindEntries.ts'
-import { radianceMarker } from '../frame/render/encodeBlend.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
-import { drawRadianceMark } from './radianceMark.ts'
+import { drawRadianceMark, radianceMarker } from './radianceMark.ts'
 import { BLEND_BINDINGS } from '../gpu/bind/bindLayout.ts'
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import {

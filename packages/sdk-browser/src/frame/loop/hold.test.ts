@@ -15,7 +15,13 @@ import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import type { DirectLightResources } from '../../lighting/deferred/program.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
-import { deferredLightingHarness, settledRt, surface, view } from './hold.fixture.ts'
+import {
+  deferredLightingHarness,
+  drawFinalImage,
+  settledRt,
+  surface,
+  view,
+} from './hold.fixture.ts'
 import { directLightResources } from '../prepare/contractLight.ts'
 import { heldCompiles, track } from '../../lighting/deferred/compileLedger.ts'
 import { advanceImageNumber } from './imageNumber.ts'
@@ -60,6 +66,7 @@ test('GEO-02: the contract program that finishes compiling breaks the held frame
   assert.equal(lighting.usesContract, true, 'contract draws the frame after arrival')
   assert.equal(rt.run.frame, frameTenue + 1)
   keepWebgpuFrame(rt)
+  drawFinalImage(rt, h.device)
   assert.equal(holdWebgpuFrame(rt, h.device), true, 'the contract frame is held once remade')
 })
 
@@ -127,10 +134,14 @@ test('a frame held on a compile in flight names what it waits for', async () => 
   track(h.device, new Promise<void>((resolve) => (arrives = resolve)), true, 'lit program')
   assert.equal(holdWebgpuFrame(rt, h.device), true, 'held on the answer')
   assert.deepEqual(heldCompiles(h.device), ['lit program'])
-  assert.equal(heldOnAnswer(h.device), 'pipelines', 'the answer the frame was held on, named')
+  assert.equal(
+    heldOnAnswer(h.device),
+    'pipelines: lit program',
+    'the answer the frame was held on, and the pipeline named',
+  )
   assert.deepEqual(
     [lastHold(h.device)?.drawn, lastHold(h.device)?.reason, lastHold(h.device)?.heldEmpty],
-    [false, 'pipelines', true],
+    [false, 'pipelines: lit program', true],
     'said as the frame that entered',
   )
   arrives()
@@ -143,7 +154,7 @@ test('a frame held on a compile in flight names what it waits for', async () => 
   assert.deepEqual(
     Object.entries(lastHold(h.device)!.byReason).map(([reason, { count }]) => [reason, count]),
     [
-      ['pipelines', 1],
+      ['pipelines: lit program', 1],
       ['drawn', 1],
     ],
     'every frame that entered, counted by what was done with it',

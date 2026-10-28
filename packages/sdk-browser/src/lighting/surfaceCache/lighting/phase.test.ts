@@ -3,20 +3,23 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { readFileSync } from 'node:fs'
 import { lightingPhase } from './phase.ts'
+import { noiseFrame } from '../../../frame/render/noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 
-const world = (sample: number, begunSample?: number) =>
+/** A world with a temporal state of its own (rank `sample`) at image `frame`, its light begun at `begunAt` or not yet. */
+const world = (frame: number, sample: number, begunAt?: number) =>
   ({
-    run: { frame: sample },
+    run: { frame },
     lights: { buffer: {}, store: { unlit: false } },
     gpu: { temporal: { frame: { stochasticSample: sample } } },
-    surfaceCache: begunSample === undefined ? { lighting: {} } : { lighting: { begunSample } },
+    surfaceCache: { lighting: begunAt === undefined ? {} : { begunAt } },
   }) as unknown as WebgpuPagesRuntime
 
-test('the phase is the rank itself before the light begins, and counts from its start after', () => {
-  assert.equal(lightingPhase(world(7)), 7)
-  assert.equal(lightingPhase(world(12, 10)), 2)
-  assert.equal(lightingPhase(world(9, 10)), 0, 'never below zero')
+test('the phase is the noise’s clock: zero before the light begins, the images since its start after, whatever the view’s own rank', () => {
+  assert.equal(lightingPhase(world(7, 7)), 0, 'the light will begin: zero meanwhile')
+  assert.equal(lightingPhase(world(12, 12, 10)), 2)
+  assert.equal(lightingPhase(world(12, 500, 10)), 2, 'the view’s rank is its own')
+  assert.equal(lightingPhase(world(9, 9, 10)), 0, 'never below zero')
   assert.equal(
     lightingPhase({ gpu: {}, run: { frame: 0 } } as unknown as WebgpuPagesRuntime),
     0,
@@ -24,14 +27,15 @@ test('the phase is the rank itself before the light begins, and counts from its 
   )
 })
 
-test('a rank below the start (the temporal state made again) re-anchors the start: the phase begins again from zero and goes on', () => {
-  const rt = world(40, 40)
+test('a temporal state made again leaves the phase where it is: one clock for the image', () => {
+  const rt = world(40, 40, 40)
   assert.equal(lightingPhase(rt), 0)
   const temporal = rt.gpu.temporal!.frame
   temporal.stochasticSample = 3
   assert.equal(lightingPhase(rt), 0, 'the state restarted at a lower rank')
-  temporal.stochasticSample = 5
-  assert.equal(lightingPhase(rt), 2, 'and counts from there')
+  rt.run.frame = 42
+  assert.equal(lightingPhase(rt), 2, 'and the phase goes on with the images')
+  assert.equal(lightingPhase(rt), noiseFrame(rt), 'the shading reads the same clock')
 })
 
 test('a view with no temporal state takes the noise’s clock: its phase moves with the images', () => {
@@ -40,7 +44,7 @@ test('a view with no temporal state takes the noise’s clock: its phase moves w
       run: { frame },
       lights: { buffer: {}, store: { unlit: false } },
       gpu: {},
-      surfaceCache: { lighting: { begunAt: 10, begunSample: 0 } },
+      surfaceCache: { lighting: { begunAt: 10 } },
     }) as unknown as WebgpuPagesRuntime
   assert.deepEqual([at(10), at(11), at(15)].map(lightingPhase), [0, 1, 5])
 })

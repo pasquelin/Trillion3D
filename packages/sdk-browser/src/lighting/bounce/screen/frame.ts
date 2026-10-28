@@ -1,3 +1,4 @@
+import { imagesSinceChange } from '../../../frame/render/noiseFrame.ts'
 import { skyLightReadOf } from '../../../frame/render/skyLightState.ts'
 import { sameValues } from '../../../../../math/src/matrix/matrixElements.ts'
 import { invertMatrix4 } from '../../../../../math/src/matrix/matrix4Inverse.ts'
@@ -484,11 +485,17 @@ export function askScreenProbes(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /** Whether the view's screen probes still build their history: the last image cast them, the history is temporal, and fewer
- *  images were cast than the frames it holds at most — a quiet view is drawn again till then, not held on a history of one image. */
+ *  images were cast than the frames it holds at most — a quiet view is drawn again till then, not held on a history of one image —,
+ *  or fewer than those have passed since the view last changed (a texture tile landed, a light moved): the history follows the change
+ *  by blending, it does not restart, and has taken it in only after the frames it holds. */
 export function screenProbesSettling(rt: WebgpuPagesRuntime) {
   const view = rt.gpu.screenProbes,
     store = rt.bounce.screen
   if (!view?.indirect || !store) return false
   const settings = store.read(rt.context)
-  return settings.values.screenProbeTemporal && view.frame < settings.maxFramesAccumulated
+  return (
+    settings.values.screenProbeTemporal &&
+    (view.frame < settings.maxFramesAccumulated ||
+      imagesSinceChange(rt.run) < settings.maxFramesAccumulated)
+  )
 }

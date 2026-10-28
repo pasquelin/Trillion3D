@@ -4,6 +4,7 @@ import type { ViewCamera } from '../../camera/world.ts'
 import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
 import { holdWebgpuFrame } from '../loop/hold.ts'
+import { beginNoiseImage } from './noiseFrame.ts'
 import { advanceImageNumber } from '../loop/imageNumber.ts'
 import { followFirstImage } from '../loop/firstImage.ts'
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts'
@@ -49,6 +50,7 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: ViewCamera, as
   let held = false
   if (rt.feedbackAB?.force && !frameTargetsAwaited(rt) && !deviceAnswering(rt)) {
     // Replay the settled TAA sample and history while forcing the real GPU passes.
+    beginNoiseImage(rt, false)
     beginTaaFrame(rt, run.gate.cam)
     run.frameHeld = false
   } else held = holdWebgpuFrame(rt, gpuDevice)

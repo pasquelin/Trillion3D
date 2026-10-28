@@ -13,7 +13,7 @@ import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from '../../../frame/loop/hold.ts'
-import { settledRt } from '../../../frame/loop/hold.fixture.ts'
+import { drawFinalImage, settledRt } from '../../../frame/loop/hold.fixture.ts'
 import * as G from '../../../scene/host/graph/graph.fixture.ts'
 
 installGpuGlobals()
@@ -144,6 +144,7 @@ test('a filter changed on a held image releases it, and the image draws it', asy
     keepWebgpuFrame(rt)
   }
   await follow(textures)
+  drawFinalImage(rt, device)
   assert.equal(holdWebgpuFrame(rt, device), true, 'nothing moved: the image is held')
   colour.magFilter = 'nearest'
   await follow(textures)

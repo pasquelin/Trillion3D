@@ -25,7 +25,7 @@ import {
   releaseTranslucencyCache,
   restartTranslucencyCache,
 } from '../../lighting/translucencyGi/cache.ts'
-import { radianceMarker } from './encodeBlend.ts'
+import { radianceMarker } from '../../blend/radianceMark.ts'
 import { translucencyGiMarkers } from '../../lighting/translucencyGi/marker.ts'
 import { planVsmFrame } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
 import { encodeVsmFrame } from '../../lighting/shadows/vsm/frame/vsmEncode.ts'

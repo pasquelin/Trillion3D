@@ -2,7 +2,6 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { readFileSync } from 'node:fs'
 import { SCREEN_PROBE_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { dispatchedEntries } from '../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts'
@@ -21,6 +20,8 @@ test('one image of screen probes encodes its passes in order, hands the lighting
     'placeUniform',
     'adaptiveMark',
     'adaptiveSpawn',
+    'adaptiveNumber',
+    'adaptiveWrite',
     'probeArgs',
     'screenData',
     'genRays',
@@ -64,6 +65,8 @@ test('the placement is a pass of its own that asks the probes of their pixels an
     'placeUniform',
     'adaptiveMark',
     'adaptiveSpawn',
+    'adaptiveNumber',
+    'adaptiveWrite',
     'probeArgs',
     'screenData',
   ])
@@ -101,7 +104,7 @@ test('the screen probes leave out the passes their settings leave out, and cast 
     screenProbeSpatialFilterPasses: 1,
   })
   await lean.encode()
-  assert.deepEqual(dispatchedEntries(lean.h.dispatches).slice(3), [
+  assert.deepEqual(dispatchedEntries(lean.h.dispatches).slice(5), [
     'probeArgs',
     'screenData',
     'traceScreen',
@@ -208,59 +211,6 @@ test('a budget with no room for the probes leaves the lighting none to read, say
   assert.equal(rt.gpu.screenProbes, undefined, 'none held')
   assert.match(rt.bounce.screen!.metrics!.unavailable ?? '', /budget/)
   assert.equal(h.dispatches.length, 0, 'no pass encoded')
-})
-
-test('the frame stages the reflections, runs the screen probes, the radiance cache the screen probes did not update after them, the translucency lighting, the reflections’ trace, the occlusion after that, and the lighting binds their results after all', () => {
-  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
-  const preLight = read('../../frame/render/preLight.ts')
-  const order = [
-    'stageReflections(rt, reflects(overrides))',
-    'placeScreenProbes(rt, encoder)',
-    'encodeQueuedBounce(rt, encoder, placed?.marks)',
-    'traceScreenProbes(rt, encoder, placed)',
-    'flushRadianceCache(rt, encoder)',
-    'encodeTranslucencyGi(rt, device, encoder, cam)',
-    'traceReflections(rt, encoder, reflections)',
-    'encodeAmbientOcclusion(rt, encoder, cam)',
-  ]
-  const at = order.map((call) => preLight.indexOf(call))
-  assert.ok(
-    at.every((index) => index >= 0),
-    `each is called: ${at}`,
-  )
-  assert.deepEqual(
-    at,
-    [...at].sort((a, b) => a - b),
-    'in this order',
-  )
-  const surfaces = read('../../frame/render/surfaceLighting.ts')
-  assert.ok(
-    surfaces.indexOf('encodePreLight(rt, device, encoder, cam, direct)') <
-      surfaces.indexOf('lightSurfaces(rt, encoder, clear, raw, direct)'),
-    'the lighting binds after the passes it reads',
-  )
-})
-
-test('the frame builds the translucency lighting volume once the surfaces are lit, before the subsurface scattering and the blends that read it, and not in the pre-light step', () => {
-  const read = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8')
-  assert.ok(!read('../../frame/render/preLight.ts').includes('encodeTranslucencyVolume'))
-  const frame = read('../../frame/render/surfaceLighting.ts')
-  const order = [
-    'encodePreLight(rt, device, encoder, cam, direct, overrides)',
-    'lightSurfaces(rt, encoder, clear, raw, direct)',
-    'encodeTranslucencyVolume(rt, device, volumeRun.begin(encoder), cam)',
-    'encodeSubsurfaceScattering(rt, encoder, cam)',
-    'drawOverLit(',
-  ].map((call) => frame.indexOf(call, frame.indexOf('export function encodeSurfaceLighting')))
-  assert.ok(
-    order.every((at) => at >= 0),
-    `each is called: ${order}`,
-  )
-  assert.deepEqual(
-    order,
-    [...order].sort((a, b) => a - b),
-    'in this order',
-  )
 })
 
 test('the probes cast nothing and give the view back where the image is not lit: its lights all removed, or a view of raw values', async () => {

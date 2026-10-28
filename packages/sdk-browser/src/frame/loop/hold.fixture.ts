@@ -1,8 +1,11 @@
+import assert from 'node:assert/strict'
+import { pipelineLabel } from '../../lighting/deferred/compileLedger.ts'
+import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { NO_RASTERS } from '../../materials/graph/graphRasters.ts'
 import type { GuideSet } from '../../guides/guideSet.ts'
 import { createScaleControl } from '../scale/scaleControl.ts'
 import { createFrameGateCore } from '../gate/gateCore.ts'
-import { HOLD_SIGNATURE_VALUES } from './signature.ts'
+import { HOLD_SIGNATURE_VALUES, SIGNATURE_SLOT } from './signature.ts'
 import { createWebgpuTimingState } from '../backend/state/timing.ts'
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -130,6 +133,28 @@ export function settledRt() {
   return rt as unknown as WebgpuPagesRuntime & typeof rt
 }
 
+/** The counters a held frame rewrites, in the signature's own names. */
+const COUNTERS = Object.keys(SIGNATURE_SLOT) as (keyof typeof SIGNATURE_SLOT)[]
+
+/**
+ * The final image of an establishment: everything is established and the view still, and the frame entry draws one image more, at the canonical phase of the noise (`finalNoiseImage`), before it
+ * holds. Asked once, it checks that this image is drawn, lets the test encode it (`draw`), and plays its end as the frame entry does (the image number advances, the frame is kept); the holds that follow are the view's.
+ */
+export function drawFinalImage(rt: WebgpuPagesRuntime, device: GPUDevice, draw = () => {}) {
+  assert.equal(
+    holdWebgpuFrame(rt, device),
+    false,
+    'established: the final image is drawn before the hold',
+  )
+  assert.equal(rt.run.frameHeld, false)
+  // The image draws what the frames before it drew (a held frame wrote its own counters, which the signature would read as another image).
+  const { sample } = rt.run.gate.hold
+  for (const counter of COUNTERS) rt.run[counter] = sample[SIGNATURE_SLOT[counter]]
+  draw()
+  rt.run.frame++
+  keepWebgpuFrame(rt)
+}
+
 /**
  * A device whose `createRenderPipelineAsync` distinguishes the variant by the module name (set by
  * `createCheckedShaderModule` via `${label}_LIGHTING` / `${label}_COMPOSE`): UNLIT resolves at
@@ -145,7 +170,7 @@ export function deferredLightingHarness() {
   const { device } = fakeDevice()
   const compile = device.createRenderPipelineAsync
   device.createRenderPipelineAsync = async (descriptor) => {
-    const label = descriptor.fragment?.module.label ?? ''
+    const label = pipelineLabel(descriptor)
     if (label.startsWith('DIRECT') || label.startsWith('BOUNCE')) await gate
     return compile.call(device, descriptor)
   }

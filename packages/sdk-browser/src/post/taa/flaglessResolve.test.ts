@@ -56,6 +56,8 @@ test('every frame dispatches the one update, which reads no flag, and compiles n
     await preparedPass()
   assert.deepEqual(compiled, [
     'TAA_UPDATE false true plain',
+    // Asked with the pass, as every permutation of a global shader is: the history of a larger size, which writes no half-size image, compiles nothing when it is made.
+    'TAA_UPDATE false false plain',
     'TAA_VELOCITY',
     'TAA_REPROJECT',
     'TAA_REJECT_SHADING',
@@ -70,14 +72,13 @@ test('every frame dispatches the one update, which reads no flag, and compiles n
   assert.deepEqual(
     asked.slice(compiled.length),
     [
-      'TAA_UPDATE false false plain',
       'TAA_resolveHistory',
       'TAA_resolveHistory',
       'TAA_resolveLayers',
       'TAA_REPROJECT',
       'TAA_REJECT_SHADING',
     ],
-    'the targets ask the update of a larger history, which writes no half-size image, its resolve — both colour passes and the layers — and the reprojection and the shading rejection of a history that resurrects (the resurrected guide and field were folded into them)',
+    'the targets ask the resolve — both colour passes and the layers — and the reprojection and the shading rejection of a history that resurrects (the resurrected guide and field were folded into them)',
   )
   const encoder = device.createCommandEncoder()
   temporal.encode(encoder, { ...inputs, responsive: view() }, [4, 2], taaSlices())

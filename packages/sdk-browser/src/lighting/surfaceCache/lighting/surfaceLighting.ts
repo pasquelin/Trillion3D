@@ -162,8 +162,6 @@ export interface SurfaceLightingState {
   /** Whether the light has begun: its inputs were ready once (`lightInputsReady`), and the image number it began at (`noiseFrame`). */
   begun: boolean
   begunAt?: number
-  /** The view's stochastic rank (`stochasticPhase`) at that image: the phases that follow the light count from it (`lightingPhase`). */
-  begunSample?: number
   /** The feedback clock (`SurfaceCache.feedbackFrame`) at that image: the places the rays write their feedback in the tile count from it. */
   begunFeedback?: number
   epoch: number

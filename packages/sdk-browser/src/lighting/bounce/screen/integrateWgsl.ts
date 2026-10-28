@@ -63,8 +63,13 @@ struct SpBest{place:vec2u,weight:vec2f,found:bool,}
 fn spAdaptiveCorner(tile:vec2u,pixel:vec2u,s:SpSurface,depth:f32,weight:f32)->SpBest{
  var best=SpBest(tile,vec2f(weight,0.0),false);
  let at=tile.y*sp.grid.x+tile.x;
- for(var listed=0u;listed<min(header[at],SP_SAMPLES);listed++){
-  let probeIndex=sp.counts.y+indices[at*SP_SAMPLES+listed];
+ var listed=header[at];
+ while(listed!=0u){
+  let rank=firstTrailingBit(listed);
+  listed&=listed-1u;
+  let number=indices[at*SP_SAMPLES+rank];
+  if(number>=sp.grid.w){continue;}
+  let probeIndex=sp.counts.y+number;
   let place=spAtlasOf(probeIndex);
   let word=probePixels[probeIndex];
   let found=spAdaptiveWeight(pixel,s.P,s.N,depth,s.foliage,vec2u(word&0xffffu,word>>16u),spReadProbe(place).P);

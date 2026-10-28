@@ -1,4 +1,5 @@
 import { loadUnpaged } from '../../gpu/core/positions.ts'
+import { askGlobalPasses } from './globalPasses.ts'
 import { prepareDeformationCompute, prepareDeformationGeometry } from '../../deformation/prepare.ts'
 import { prepareWebgpuBlend } from '../../blend/prepare.ts'
 import { createTransparentTable } from '../../blend/transparent/table.ts'
@@ -117,6 +118,7 @@ export async function finishPreparation(
   askFramePipelines(rt)
   await step('direct lights', () => prepareDirectLights(rt, gpuDevice))
   await step('shadow pipelines', () => prepareShadowPipelines(rt, gpuDevice))
+  await step('global passes', () => askGlobalPasses(rt, gpuDevice))
   await prepareGpuCut(rt, gpuDevice, step)
   // The passes beside the cut, asked once it is adopted: compiled behind it, awaited at the end.
   askFramePipelines(rt)

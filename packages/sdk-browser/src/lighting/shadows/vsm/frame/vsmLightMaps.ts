@@ -32,8 +32,15 @@ export const wholeTableRows = (maps: number) => alignUp(maps, VSM_TABLES_PER_ROW
  *  follow the lights near its eye, and the plan grows the tables to them in the same frame
  *  (`planVirtualShadowFrame`, `grow`). */
 export function fullMapsFor(lights: readonly VsmFrameLight[]) {
-  return wholeTableRows(2 * sunMapsFor(lights, 0) + 16)
+  return fullMapsOfSuns(sunMapsFor(lights, 0))
 }
+
+/** The page-table blocks of a set whose suns take `sunMaps` clipmap maps in all (`fullMapsFor`). */
+const fullMapsOfSuns = (sunMaps: number) => wholeTableRows(2 * sunMaps + 16)
+
+/** The options of the set a scene with no casting light yet is first granted when its page adds one sun of `sunLevels` clipmap levels: the layout its pipelines are compiled for (`vsmReserveSetLayout`). */
+export const reserveSetOptions = (asked: VsmAsked, sunLevels: number) =>
+  engineVsmOptions(fullMapsOfSuns(sunLevels), Math.max(VSM_DEFAULT_SUN_LEVELS, sunLevels), asked)
 
 /** The frame's lights it shadows (`vsmShadowed`). */
 export function castingCount(lights: readonly VsmFrameLight[]) {

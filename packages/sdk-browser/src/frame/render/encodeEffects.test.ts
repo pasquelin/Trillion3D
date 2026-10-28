@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { effect } from '../../../../sdk-core/src/world/effect/index.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from '../loop/hold.ts'
+import { drawFinalImage } from '../loop/hold.fixture.ts'
 import { unsettledMask } from '../loop/unsettled.ts'
 import { encodeEffects } from './encodeEffects.ts'
 import { pendingWebgpuFrame } from '../loop/interactiveFrame.ts'
@@ -22,14 +23,25 @@ import { convolutionArriving } from '../../post/effects/bloom/convolution/convol
 import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { askEffectPrograms } from '../../post/effects/stagePlan.ts'
 
+/** A complete frame encoding the chain. */
+function drawImage(rt: ReturnType<typeof drawing>, device: GPUDevice) {
+  rt.run.gpuDrawCalls = 2 // what a frame counts from, before its passes
+  encodeEffects(rt, device, encoder, input, framed(rt, device), rt.gpu.displaySize)
+}
+
 /** Two identical complete frames, each encoding the chain: what arms the hold. */
-function drawTwice(rt: ReturnType<typeof drawing>, device: GPUDevice) {
+function armTwice(rt: ReturnType<typeof drawing>, device: GPUDevice) {
   for (let i = 0; i < 2; i++) {
-    rt.run.gpuDrawCalls = 2 // what a frame counts from, before its passes
-    encodeEffects(rt, device, encoder, input, framed(rt, device), rt.gpu.displaySize)
+    drawImage(rt, device)
     rt.run.frame++
     keepWebgpuFrame(rt)
   }
+}
+
+/** The hold armed, then the establishment's final image, which encodes the chain too. */
+function drawTwice(rt: ReturnType<typeof drawing>, device: GPUDevice) {
+  armTwice(rt, device)
+  drawFinalImage(rt, device, () => drawImage(rt, device))
 }
 
 test('a held frame with a chain does no work; a change of the chain draws it again', async () => {
@@ -40,7 +52,7 @@ test('a held frame with a chain does no work; a change of the chain draws it aga
   chain.add(bloom)
   encodeEffects(rt, device, encoder, input, framed(rt, device), rt.gpu.displaySize)
   await rt.gpu.effects!.settled()
-  drawTwice(rt, device)
+  armTwice(rt, device)
   // The last bloom's glow is the composition's: it reads the image the levels read.
   const composed = encodeEffects(rt, device, encoder, input, framed(rt, device), rt.gpu.displaySize)
   assert.equal(composed?.color, input.color, 'composition reads the image the chain read')
@@ -128,7 +140,7 @@ test('compiling programs keep the frame from being held, the accumulation still'
   const rt = drawing(chain)
   const { revisions } = rt.run.gate,
     resources = revisions.resources
-  drawTwice(rt, device)
+  armTwice(rt, device)
   assert.equal(rt.gpu.effects!.loading, true)
   assert.equal(unsettledMask(rt), 0, 'compiling moves nothing the accumulation reads')
   assert.equal(holdWebgpuFrame(rt, device), false, 'the image lacks the chain it will have')

@@ -54,7 +54,13 @@ export function worldRuntimeOf(parts: RuntimeNeeds) {
     // The device granted, and the models asked for meanwhile in the scene (`loader.ts`).
     ready: async () => {
       await device.pending
-      for (let base = parts.loading(); base; base = parts.loading()) await base
+      // The first session opens once the quality is decided — the benchmark of an `auto` world runs here, never while frames are drawn — and the models are loaded, the two at once.
+      await Promise.all([
+        switches.decided(),
+        (async () => {
+          for (let base = parts.loading(); base; base = parts.loading()) await base
+        })(),
+      ])
     },
     scene,
     camera: () => state.camera,

@@ -11,6 +11,7 @@ import {
 import type { HizDepth } from '../visibility/hiz/gpu/types.ts'
 import { RADIANCE_MARK_PASS } from '../diagnostic/stage/passLabels.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
+import type { TranslucentMarker } from '../lighting/bounce/pool/pool.ts'
 import { drawBlendRuns } from './draw.ts'
 import { blendEntries } from './identity.ts'
 import { RADIANCE_MARK_DEPTH_BINDING, RADIANCE_MARK_GROUP } from './radianceMarkWgsl.ts'
@@ -139,4 +140,27 @@ export function drawRadianceMark(
   pass.end()
   run.gpuDrawCalls += encoded
   return encoded
+}
+
+/** The marks of the translucent surfaces a runtime's pool runs, and the device each was made for. */
+const markers = new WeakMap<WebgpuPagesRuntime, { device: GPUDevice; marker: TranslucentMarker }>()
+
+/** The translucent surfaces' mark of the radiance cache for the pool (`MarkSurface.translucent`): the image's transparents drawn through the
+ *  mark stage, on a group of its own that names no light (`drawRadianceMark`). None unless `prepared`: the transparents were prepared this image
+ *  (`prepareBlend`). */
+export function radianceMarker(rt: WebgpuPagesRuntime, device: GPUDevice, prepared: boolean) {
+  if (!prepared) return undefined
+  let held = markers.get(rt)
+  if (held?.device !== device)
+    markers.set(
+      rt,
+      (held = {
+        device,
+        marker: {
+          mark: (encoder, grid, marks, settings) =>
+            void drawRadianceMark(rt, device, encoder, grid, marks, settings),
+        },
+      }),
+    )
+  return held.marker
 }

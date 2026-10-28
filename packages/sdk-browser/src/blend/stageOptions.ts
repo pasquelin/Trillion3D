@@ -65,12 +65,17 @@ const SET_SHADING = [
 const SET_SURFACE_CHANNELS = 'surfaceChannels=blendChannelsOf(in);'
 
 /** The statements every lit stage runs before it lights a layer, `indent` deep: the rough diffuse's switch, the ask of the
- *  contact shadows' ray where the lights hold the ray (`SET_CONTACT_ASKED`; a surface whose material asks not, water among them,
- *  casts none), and the item's lighting channels where the lights test them. */
-export const stagePrologue = ({ lit }: StageOptions, indent: string) =>
+ *  contact shadows' ray where the lights hold the ray (`SET_CONTACT_ASKED`), and the item's lighting channels where the lights test
+ *  them. The ask is set only by a stage whose surface can ask: the single-layer water's (`stage` `'water'`) never does (`asksContact`), so its
+ *  ray never marches, though its lights hold the code. */
+export const stagePrologue = (
+  { lit }: StageOptions,
+  indent: string,
+  stage: 'blend' | 'water' = 'blend',
+) =>
   [
     ...SET_SHADING,
-    ...(lit.contactless ? [] : [SET_CONTACT_ASKED]),
+    ...(lit.contactless || stage === 'water' ? [] : [SET_CONTACT_ASKED]),
     ...(lit.channelless ? [] : [SET_SURFACE_CHANNELS]),
   ].join(`\n${indent}`)
 

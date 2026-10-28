@@ -14,7 +14,6 @@ import { lightProfileStandIn } from '../../lightProfile/profileStandIn.ts'
 import { cloudShadowStandIn } from '../../atmosphere/cloudShadowStandIn.ts'
 import type { CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
 import { fieldSettingsOf, surfaceHitReads } from '../frame.ts'
-import { stochasticPhase } from '../../../post/taa/frameState.ts'
 import { noiseFrame } from '../../../frame/render/noiseFrame.ts'
 import {
   createSurfaceLighting,
@@ -51,7 +50,6 @@ export function beginLighting(rt: WebgpuPagesRuntime, lighting: SurfaceLightingS
   if (!lighting.begun && lightInputsReady(rt)) {
     lighting.begun = true
     lighting.begunAt = rt.run.frame
-    lighting.begunSample = stochasticPhase(rt.gpu.temporal?.frame)
     lighting.begunFeedback = rt.surfaceCache?.cache?.feedbackFrame ?? 0
   }
   return lighting.begun

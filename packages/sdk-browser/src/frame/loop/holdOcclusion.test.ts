@@ -8,7 +8,7 @@ import { unsettledMask, unsettledReasons } from './unsettled.ts'
 import { settlingImages } from '../../lighting/ao/horizon/frame.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
-import { settledRt } from './hold.fixture.ts'
+import { drawFinalImage, settledRt } from './hold.fixture.ts'
 
 installGpuGlobals()
 
@@ -44,6 +44,7 @@ test('a quiet view with the anti-aliasing off is not held until its occlusion hi
   assert.equal(holdWebgpuFrame(rt, device), false, 'one image short')
   state.history.images = 22
   assert.equal(unsettledMask(rt), 0)
+  drawFinalImage(rt, device)
   assert.equal(holdWebgpuFrame(rt, device), true, 'the images it needs: held')
 })
 

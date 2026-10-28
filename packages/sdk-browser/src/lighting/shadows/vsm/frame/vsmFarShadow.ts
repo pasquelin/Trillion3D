@@ -43,7 +43,8 @@ const watches = new WeakMap<object, ReturnType<typeof settingsWatch<typeof SHADO
  * view's quality (a host sets them in the context, read live), so a change of any of them - the
  * gate that turns every shadow on or off, the pool, the traces - is a change of the view, and the
  * revision that names it moves where it is read (`viewReplaced`): a frame held on the settings
- * of the one before would never plan the set the new ones ask. The first reading moves it once.
+ * of the one before would never plan the set the new ones ask. The first reading moves it once. The maps' cache follows what its pages hold
+ * on its own (`followCacheContent`).
  */
 export function followShadowSettings(rt: WebgpuPagesRuntime) {
   let watch = watches.get(rt)

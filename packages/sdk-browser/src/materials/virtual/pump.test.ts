@@ -5,6 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTilePump } from './pump.ts'
 import { createTileCounters } from './counters.ts'
+import { verifyImages } from './convergeRules.ts'
 import { createFrameBudget } from '../../geometry/integration/frameBudget.ts'
 import type { TileRequest } from './requests.ts'
 import { texturesPending } from '../../lighting/surfaceCache/capture/objectTextures.ts'
@@ -231,4 +232,30 @@ test('a surface’s textures are listed once while it is not written', () => {
   surface.version = 2
   texturesPending(counters, slots, surface)
   assert.equal(reads, 2, 'listed again once the surface was written')
+})
+
+test('the pose is verified after the last tile: every pixel is asked, and the view waits, for a whole round of the jitter after a tile served or left pending', () => {
+  const { pump, counters } = pumpOf(40)
+  for (const phases of [1, 11]) {
+    const images = verifyImages(phases)
+    assert.equal(
+      images,
+      Math.max(phases, 2) + 1,
+      'the barrier’s round, and the feedback’s image of lag',
+    )
+    counters.quiet = 0
+    for (let quiet = 0; quiet < images; quiet++) {
+      assert.equal(
+        counters.verifying(images),
+        true,
+        `${quiet} pass(es) asked nothing: the round is not whole`,
+      )
+      counters.quiet++
+    }
+    assert.equal(counters.verifying(images), false, 'every pixel heard to ask nothing more')
+  }
+  pump(1)
+  assert.equal(counters.verifying(verifyImages(1)), true, '32 landed, 8 left pending')
+  pump(2)
+  assert.equal(counters.quiet, 0, 'the last eight landed')
 })

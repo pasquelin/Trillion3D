@@ -3,6 +3,8 @@ import { viewProj } from '../../frame/backend/helpers.ts'
 import { slotCount } from '../bins/contract.ts'
 import type { WebgpuVisState } from '../../frame/backend/state/vis.ts'
 import { noiseFrame } from '../../frame/render/noiseFrame.ts'
+import { verifyImages } from '../../materials/virtual/convergeRules.ts'
+import { taaPhaseCount } from '../../post/taa/frame.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import {
@@ -154,8 +156,11 @@ function writeShadeUniform(
   shadeUniPacked[SHADE.mipBias] = mipBias
   const shadeInts = wordViews(shadeUniPacked.buffer, shadeUniPacked.byteOffset).u
   shadeInts[SHADE.pageCount] = tableRows
-  // Texture image-feedback phase: one pixel in 256 speaks, all of them during a convergence.
-  shadeInts[SHADE.feedback] = vis.textures?.feedback.phaseWord(run.textureConverging) ?? 0
+  // Texture image-feedback phase: one pixel in 256 speaks, all of them during a convergence and while the last tiles served are verified (`verifying`).
+  shadeInts[SHADE.feedback] =
+    vis.textures?.feedback.phaseWord(
+      run.textureConverging || vis.textures.counters.verifying(verifyImages(taaPhaseCount(rt))),
+    ) ?? 0
   // The depth material's ramp: white at the near plane, black at the far one.
   const { near, far, perspective } = run.gate.cam
   writeDepthRamp(shadeUniPacked, SHADE.depthRamp, near, far, perspective)

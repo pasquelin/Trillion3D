@@ -18,6 +18,7 @@ import {
   engineVsmOptions,
   fullMapsFor,
   renderViewBound,
+  reserveSetOptions,
   vsmAsked,
 } from './vsmLightMaps.ts'
 import { engineVsmSideBytes, type EngineVsm } from './engineVsm.ts'
@@ -83,6 +84,11 @@ export function bytesBeside(
  *  want at every physical page the view asks (`vsmAsked`). */
 export const vsmFirstSetLayout = (rt: WebgpuPagesRuntime, lights: readonly VsmFrameLight[]) =>
   vsmLayout(engineVsmOptions(fullMapsFor(lights), sunMapsFor(lights), vsmAsked(rt)))
+
+/** The layout of the first set of a scene with no casting light yet, laid out for the one sun its page adds (`reserveSetOptions`): the shadow maps' pipelines are compiled for it at the
+ *  opening. */
+export const vsmReserveSetLayout = (rt: WebgpuPagesRuntime, sunLevels: number) =>
+  vsmLayout(reserveSetOptions(vsmAsked(rt), sunLevels))
 
 /** Bytes the first set of `lights` takes as the first lit frame asks it (`grantEngineVsm`, from
  *  `planVsmFrame`) — the maps they want at every physical page — with what the frame makes beside

@@ -44,6 +44,9 @@ test('drawing another view every frame never resets the main view’s hold, nor 
   for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate)
   await frame()
   await frame()
+  // The establishment ends on its final image, drawn before the hold.
+  frames = 0
+  while (!(await frame())) assert.ok(frames++ < 8, 'the main view holds again')
   const made = textures.length
   for (let i = 0; i < 3; i++) assert.equal(await frame(), true, 'and stays held')
   assert.equal(textures.length, made, 'no view is sized again: no pyramid, no target is made')

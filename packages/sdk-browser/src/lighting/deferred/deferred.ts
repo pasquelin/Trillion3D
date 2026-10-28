@@ -19,6 +19,10 @@ import { HDR_COMPOSITION_PASS, HDR_PRESENT_PASS } from '../../diagnostic/stage/p
 /** Whether these resources light with the bounce program. */
 const bounceOf = ({ bounceGrid }: DirectLightResources) => !!bounceGrid
 
+/** The key of the lit program a frame bound to `direct` asks: whether it bounces, the lists' width and the cuts of its light code. */
+const keyOf = (direct: DirectLightResources) =>
+  [bounceOf(direct), !!direct.narrow, cutsIn(direct)] as const
+
 type DeferredView = ReturnType<typeof createDeferredView>
 type ContractVariants = ReturnType<typeof createContractVariants>
 
@@ -237,8 +241,17 @@ function lightingOf({ view, placeholders, tone, variants, statics, litReady }: L
     settle: () => variants.settle(),
     /** What a frame lit with these resources waits for: the lit program's compile while no ready
      *  one can light it, else nothing (`contractVariants.ts`). */
-    awaited: (direct: DirectLightResources) =>
-      variants.awaited(bounceOf(direct), !!direct.narrow, cutsIn(direct)),
+    awaited: (direct: DirectLightResources) => variants.awaited(...keyOf(direct)),
+    /** Asks the per-light path's pipelines (`PerLightProgram.ready`) of the program a frame lit with these resources will bind, once it
+     *  is compiled: their compile holds the frames, so that no image is drawn without the lights they draw (and
+     *  advances no history) while they compile. Returns the compile of that program while it is pending: the frames wait for it too. */
+    askPerLight: (direct: DirectLightResources) => {
+      // The program the image will bind once compiled, never the one lent while it compiles: what the frame waits for follows the lights'
+      // configuration, not which compile happened to land first. The compile pending, else the per-light pipelines asked (their ask holds the frames).
+      const exact = variants.exact(...keyOf(direct), !!direct.skyShadowing)
+      if (!exact.program) return exact.pending
+      exact.program.perLightReady()
+    },
     /** Asks for the fog pass, made at the first lit image: its compile holds the frames. */
     askFog: () => statics.askFog(),
     /** Draws the lit image's light (`lightPass`). */
@@ -299,14 +312,7 @@ function programBind(
   ) => {
     // A program still compiling lends the frame the best one ready (`contractVariants.ts`).
     state.active =
-      (wantsContract &&
-        variants.pick(
-          bounceOf(direct),
-          !!direct.narrow,
-          cutsIn(direct),
-          onFailure,
-          !!direct.skyShadowing,
-        )) ||
+      (wantsContract && variants.pick(...keyOf(direct), onFailure, !!direct.skyShadowing)) ||
       undefined
     state.surface = surface
     state.depth = depth

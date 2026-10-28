@@ -2,6 +2,7 @@ import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import { grantPending } from '../../gpu/core/errorScope.ts'
 import {
   framesOf,
+  heldCompiles,
   pipelinesCompiling,
   pipelinesSettled,
 } from '../../lighting/deferred/compileLedger.ts'
@@ -14,7 +15,7 @@ import { heldTargetGrant } from '../backend/state/gpu.ts'
  *  (the held frame asks it every frame), and the promise it settles with, `undefined` once given. */
 type Answer = {
   /** What a trace of a held frame calls it (`heldOnAnswer`). */
-  name: string
+  name: string | ((rt: WebgpuPagesRuntime) => string)
   pending: (rt: WebgpuPagesRuntime) => boolean
   answer: (rt: WebgpuPagesRuntime) => Promise<unknown> | undefined
 }
@@ -32,7 +33,8 @@ const ANSWERS: readonly Answer[] = [
   answerOf('targets in flight', (rt) => grantPending(heldTargetGrant(rt.gpu))),
   answerOf('lit program', litProgramPending),
   {
-    name: 'pipelines',
+    // Each pipeline waited for by its name (`pipelineLabel`), never the word alone.
+    name: (rt) => `pipelines: ${heldCompiles(rt.gpu.device).join(', ')}`,
     pending: (rt) => pipelinesCompiling(rt.gpu.device),
     answer: (rt) => pipelinesSettled(rt.gpu.device, true),
   },
@@ -67,7 +69,10 @@ export function deviceAnswering(rt: WebgpuPagesRuntime) {
   const device = rt.gpu.device
   if (refusalOf(rt)) return noted(device, 'device refusal')
   for (let at = 0; at < ANSWERS.length; at++)
-    if (ANSWERS[at].pending(rt)) return noted(device, ANSWERS[at].name)
+    if (ANSWERS[at].pending(rt)) {
+      const { name } = ANSWERS[at]
+      return noted(device, typeof name === 'string' ? name : name(rt))
+    }
   return noted(device, undefined)
 }
 

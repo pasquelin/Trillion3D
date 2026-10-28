@@ -207,6 +207,8 @@ const castSources = (shape: KernelShape, width: number) => {
       'probeArgs',
       'adaptiveMark',
       'adaptiveSpawn',
+      'adaptiveNumber',
+      'adaptiveWrite',
     ),
     screenData: sourceOf(
       `${samples}`,
@@ -328,7 +330,14 @@ export interface Kernel<E extends string> {
 
 /** The kernels over the probes, compiled. */
 export interface CastKernels {
-  place: Kernel<'placeUniform' | 'probeArgs' | 'adaptiveMark' | 'adaptiveSpawn'>
+  place: Kernel<
+    | 'placeUniform'
+    | 'probeArgs'
+    | 'adaptiveMark'
+    | 'adaptiveSpawn'
+    | 'adaptiveNumber'
+    | 'adaptiveWrite'
+  >
   screenData: Kernel<'screenData'>
   rays: Kernel<'genRays'>
   traceScreen: Kernel<'traceScreen'>

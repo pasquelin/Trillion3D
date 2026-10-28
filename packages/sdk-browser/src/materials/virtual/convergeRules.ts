@@ -28,3 +28,10 @@ export const texturesConverged = (
  *  stales are drawn again within the barrier; or shadows unsettled. */
 export const drainsAgain = (seen: unknown, now: unknown, unsettled: () => boolean) =>
   seen !== now || unsettled()
+
+/**
+ * The passes after the last tile served or left pending that ask every pixel and that the view waits through (`counters.verifying`): one pixel in 256 speaks on an ordinary image and
+ * a request wavers with the jitter, so a view that stopped asking after a few images may only have been unheard. The rule of the barrier (`texturesConverged`) holds on the live loop: a
+ * whole round of the cycle's `phases`, two images at least for the rows, and one more for the feedback that comes back an image later; the same in every world whatever its phase.
+ */
+export const verifyImages = (phases: number) => Math.max(phases, ROWS_HEARD) + 1

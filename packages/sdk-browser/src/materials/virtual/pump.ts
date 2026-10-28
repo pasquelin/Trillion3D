@@ -121,6 +121,7 @@ export const createTilePump =
     p.flushAll()
     requests.defer(index)
     counters.served += served
+    counters.quiet = served || counters.pending ? 0 : counters.quiet + 1
     counters.deferred = requests.deferred
     counters.bytesLastFrame = bytes
     // What follows the landed colour tiles is the pass's cost too: timed before the clock stops.

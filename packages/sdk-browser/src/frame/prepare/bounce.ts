@@ -37,30 +37,34 @@ export function setWebgpuBounce(rt: WebgpuPagesRuntime, on: boolean) {
   rt.run.gate.resourcesChanged()
 }
 
+/** Why the bounce cannot be rigged yet, or null: the host switched it off, the lamps are not in their buffer, the deferred lighting is not made. */
+function missingInput(rt: WebgpuPagesRuntime) {
+  if (!rt.bounce.wanted) return BOUNCE_OFF
+  if (!rt.lights.buffer) return 'the declared-light buffer is unavailable'
+  if (!rt.gpu.deferred) return 'the deferred lighting is unavailable'
+  return null
+}
+
 /**
- * Rigs bouncing light, at the first image that carries a declared lamp.
- *
- * Nothing is made before: a scene without a lamp has nothing to bounce. The probes' pool is allocated over the extent of the
- * placements, its levels following the eye (LC1); the rays march the global distance field, and no triangle of the scene is
- * loaded or posed for them.
- *
- * Everything is optional: a device that refuses the pass or a host that does not want it keep a correct image and a declared
- * missing capability. Nothing is dropped in silence.
+ * Rigs bouncing light at the first image that carries a declared lamp, and records why when it cannot (`missingInput`). Nothing is made before: a scene without a lamp has
+ * nothing to bounce. Everything is optional: a device that refuses the pass or a host that does not want it keep a correct image and a declared missing capability.
  */
 export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { bounce, lights } = rt
+  const { bounce } = rt
   if (bounce.probes || bounce.pending || bounce.reason) return
-  if (!bounce.wanted) bounce.reason = BOUNCE_OFF
-  else if (!lights.buffer) bounce.reason = 'the declared-light buffer is unavailable'
-  else if (!rt.gpu.deferred) bounce.reason = 'the deferred lighting is unavailable'
-  if (bounce.reason) {
-    publish(rt)
-    return
-  }
+  const missing = missingInput(rt)
+  if (!missing) return rig(rt, device)
+  bounce.reason = missing
+  publish(rt)
+}
+
+/** The probes' pool, allocated over the extent of the placements, its levels following the eye; the rays march the global distance field. */
+function rig(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { bounce, lights } = rt
   // The placements' extent is the cut's: rigged at the first image that has one.
   const selection = rt.run.gpuSelection
   if (!selection) return
-  bounce.pending = createGpuBounceProbes(
+  const rigging = createGpuBounceProbes(
     device,
     selection.placementBoxes().extent,
     { boxes: () => selection.placementBoxes() },
@@ -70,6 +74,7 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
     .then((probes) => {
       if (rt.gpu.device !== device) {
         probes.dispose()
+        forget()
         return
       }
       bounce.probes = probes
@@ -78,11 +83,28 @@ export function ensureBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
       publish(rt)
     })
     .catch((error: unknown) => {
-      if (rt.gpu.device !== device) return
+      if (rt.gpu.device !== device) return forget()
       bounce.reason = `bounce unavailable: ${String(error)}`
       rt.diag.diagnosticFailure('bounce-unavailable', error)
       publish(rt)
     })
+  /** The rigging made for a device that is gone leaves no trace: the next entry rigs again on the device it finds. */
+  const forget = () => {
+    if (bounce.pending === rigging) bounce.pending = undefined
+  }
+  // The images go on while it is made: the bounce shows once the probes land, which is a resource change, and the view is held after (`unsettled`: `bounceProbes`).
+  bounce.pending = rigging
+}
+
+/**
+ * At a frame's entry, the bounce rigged as soon as its inputs exist: a lamp in the light buffer on the GPU, the deferred lighting, the cut. Asked before the image that carries
+ * the lamp is encoded, so that no image is drawn while the probes are made. It records no refusal: what is missing now arrives with a later image.
+ */
+export function askBounce(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const { bounce, lights } = rt
+  if (lights.store.unlit || !lights.store.count) return
+  if (bounce.probes || bounce.pending || bounce.reason || missingInput(rt)) return
+  rig(rt, device)
 }
 
 /** What the bounce actually obtained: placements, grid, budget. Never an estimate. */

@@ -6,6 +6,8 @@ import { screenProbesSettling } from '../../lighting/bounce/screen/frame.ts'
 import { reflectionsPending } from '../../lighting/reflections/gpu.ts'
 import { translucencyVolumeSettling } from '../../lighting/translucency/frame.ts'
 import { translucencyGiSettling } from '../../lighting/translucencyGi/frame.ts'
+import { verifyImages } from '../../materials/virtual/convergeRules.ts'
+import { taaPhaseCount } from '../../post/taa/frame.ts'
 import { exposureMoving } from '../../post/exposure/frame.ts'
 import { finishMoving } from '../../post/finish/frame.ts'
 
@@ -37,13 +39,16 @@ const REASONS = [
   'screenProbes',
   'occlusion',
   'casterSettling',
+  'noisePhase',
 ] as const
 const BIT = Object.fromEntries(REASONS.map((reason, index) => [reason, 1 << index])) as Record<
   (typeof REASONS)[number],
   number
 >
 export const TEXTURES_PENDING = BIT.texturesPending,
-  SHADOWS_PENDING = BIT.shadowsPending
+  SHADOWS_PENDING = BIT.shadowsPending,
+  /** The final image of an establishment, drawn at the canonical phase of the noise before the view is held (`finalNoiseImage`). */
+  NOISE_PHASE = BIT.noisePhase
 /** The bits that say the view has not loaded what its scene holds yet: the root cover, the cut's
  *  readback and the clusters' records (`viewLoading`). The finer pages the cut asks past the roots stream
  *  in after, image by image, as they would once shown. */
@@ -75,8 +80,13 @@ function loadMask(rt: WebgpuPagesRuntime) {
   if (!services.bootstrapState.ready) mask |= BIT.bootstrap
   if (services.residency.busy) mask |= BIT.residencyBusy
   if (services.clustersOwed()) mask |= BIT.clustersOwed
-  // Pending tiles must render on arrival, and settle must read what the pose requests.
-  if (vis.textures?.counters.pending || run.textureConverging) mask |= BIT.texturesPending
+  // Pending tiles must render on arrival, and settle must read what the pose requests: every pixel heard to ask nothing more after the last tile (`verifying`).
+  if (
+    vis.textures?.counters.pending ||
+    vis.textures?.counters.verifying(verifyImages(taaPhaseCount(rt))) ||
+    run.textureConverging
+  )
+    mask |= BIT.texturesPending
   // A shadow page stale and read, a request report on its way: each must find a frame
   // (`shadowsUnsettled`).
   if (shadowsUnsettled(lights)) mask |= BIT.shadowsPending

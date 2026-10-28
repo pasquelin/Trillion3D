@@ -43,8 +43,13 @@ const asking: EffectPass[] = []
  *  compile (`KIND_RULES[kind].ask`): nothing for a view whose image the finishing leaves as it is, nor
  *  for a chain whose passes draw nothing. */
 export function askEffectPrograms(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  if (finishWanted(rt)) askChainPrograms(rt, device)
+}
+
+/** The programs of the chain's passes that draw, lit or not yet (`askGlobalPasses`). */
+export function askChainPrograms(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const chain = rt.context.effects
-  if (!chain || !finishWanted(rt)) return
+  if (!chain) return
   for (const pass of rt.gpu.kindSettings.drawn(chain.passes, rt.context, asking))
     (
       KIND_RULES[pass.kind].ask as

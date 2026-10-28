@@ -42,7 +42,8 @@ import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 // The object's holdout bit joined the triangle word (`TRI_HOLDOUT_SHIFT`).
 // The view joined the translucency global illumination volume's grid and slices' law (`giGrid`, `giZ`).
 // The vertex stage no longer leaves an item of another pass out (`otherPass`, the view's `translucencyPass` and the item's are gone): each draw expands its own items alone (`expand/expansionViews.ts`).
-const VERTEX = 'cb30846adb070ab9fa93689bbbd0a1ea2957858ef121ecf62c42fb7d70560fda'
+// Retaken for the vertex stage's triangle word: the item's lighting channels and the material's facts it carries for the fragment (`TRI_LIGHTING_CHANNELS_SHIFT`, `TRI_MATERIAL_SHIFT`).
+const VERTEX = '668aebbcfb8c69b6161f4f1f887f46dc205e5cde9fa5180a577d5100ee501c0f'
 // Retaken when the blend module took that vertex, the per-material responsiveness it writes for
 // the temporal pass where its material asks one, and the stored tangents' frame in a
 // module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
@@ -132,7 +133,8 @@ const VERTEX = 'cb30846adb070ab9fa93689bbbd0a1ea2957858ef121ecf62c42fb7d70560fda
 // The fragment took the lighting program a pipeline constant (`BLEND_LIGHTING`, `blendLightsOf`), the unlit one closing the lit path, and the vertex stage lost `otherPass`.
 // The reflection lobe lost its probe bands and long axis (`reflectionLobeOf`), the environment alone standing for the probes' field.
 // The standard material's Fresnel took the specular grazing value (`slabF90`, `fresnelSchlick(f0,f90,cosine)`) and the split sum its F90 (`math/src/wgsl/lighting.ts`); retaken for the sixth cut (`contactless`, always set in a blend program) and the occlusion that left the diffuse and toon models of a shadowed light.
-const BLEND = '925a6372855b433bdd623804a34f8de55327f1fe3d1cf5a8275ede7f9403f56e'
+// Retaken when the light terms' documentation and cache irradiance dependencies were reworded in the text (`lightTermsWgsl`) and the shadow factor became a declared block (`shadowFactorWgsl`).
+const BLEND = 'a7a0b924c1b3ae83bf8950178161aa83b68199242223092281196dc7f5033c05'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

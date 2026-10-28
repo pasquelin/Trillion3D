@@ -84,6 +84,11 @@ export function createLitVariants<P>(
       ]
       return Promise.all(started).then(() => {})
     },
+    /** The asked program itself, compiling it: its `program` once compiled (its stand-in's where it failed), its `pending` compile
+     *  before; never the one lent in its place. */
+    exact(bounce: boolean, narrow: boolean, set: number) {
+      return table.ask(bounce, narrow, set)
+    },
     /** The compile a frame asking for this program must wait for: none while a ready program
      *  lends itself; once it failed, its twin's; once both failed, none (the unlit view). */
     awaited(bounce: boolean, narrow: boolean, set: number) {
@@ -244,6 +249,14 @@ export function createContractVariants(
         if (program) return program
       }
       return plain.pick(bounce, narrow, set, onFailure)
+    },
+    /** The program of this set itself (`createLitVariants`), in the table `pick` reads first: the occlusion's with `skyShadowing` and no bounce. */
+    exact(bounce: boolean, narrow: boolean, set: number, skyShadowing = false) {
+      return (skyShadowing && !bounce ? (shadowed ??= tableOf(true)) : plain).exact(
+        bounce,
+        narrow,
+        set,
+      )
     },
     settle: () => Promise.all([plain.settle(), shadowed?.settle()]).then(() => {}),
     release() {

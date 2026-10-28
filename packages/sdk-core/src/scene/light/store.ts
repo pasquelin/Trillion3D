@@ -102,6 +102,7 @@ function layoutReaders(table: LightTable) {
 /** The environment, the held lights and the view a reader asks about. */
 function lightReaders(table: LightTable) {
   const { suns, records, indexOf, ids } = table
+  const unlitAsked = () => table.view === 'unlit'
   return {
     /** The scene's environment. */
     get environment() {
@@ -121,13 +122,19 @@ function lightReaders(table: LightTable) {
       return table.view
     },
     /**
+     * True when the host has asked the unlit view itself: the raw-albedo view whatever the scene holds. The one source of `unlit`.
+     */
+    get unlitAsked() {
+      return unlitAsked()
+    },
+    /**
      * True when the image must come out as raw albedo, with no light. This is the default
      * behaviour as long as no light is declared: a scene without a source has nothing to light, and a
      * black image would help no geometry bench. As soon as a light exists, real lighting
-     * takes over — unless the host has explicitly asked for the diagnostic view.
+     * takes over — unless the host has explicitly asked for the diagnostic view (`unlitAsked`).
      */
     get unlit() {
-      return table.view === 'unlit' || (table.view === 'auto' && ids.length === 0)
+      return unlitAsked() || (table.view === 'auto' && ids.length === 0)
     },
     /** The held record, the store's own: engines read it on the frame path and copy nothing.
      *  Not for the host — the public API hands out `cloneSceneLight` copies. */

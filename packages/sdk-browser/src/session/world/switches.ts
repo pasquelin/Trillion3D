@@ -63,7 +63,9 @@ type Held = ReturnType<typeof heldSwitches>
 type WorldBase = {
   held: Held
   settings: WorldSettings
-  quality: ReturnType<typeof createWorldQuality>
+  quality: ReturnType<typeof createWorldQuality>['quality']
+  /** Settled once the quality is decided (`createWorldQuality`): the world's first session opens after it. */
+  decided(): Promise<void>
   apply(opened: MeasuredWorld, given: MeasuredWorldOptions): void
   guides: Guides
   dispose(): void
@@ -243,13 +245,20 @@ export function worldSwitches(
   const scale = qualityScale(options, held, runtime, invalidate, frames, ask)
   const stop = new AbortController()
   const made = benchmark?.(stop.signal)
-  const quality = createWorldQuality(settings, scale, options.quality, QUALITY_LEVELS, made)
+  const { quality, decided } = createWorldQuality(
+    settings,
+    scale,
+    options.quality,
+    QUALITY_LEVELS,
+    made,
+  )
   watchSettings(settings, runtime, invalidate)
   for (const family of Object.values(families)) family.watch(() => runtime().explorer, invalidate)
   const base: WorldBase = {
     held,
     settings,
     quality,
+    decided,
     apply(opened, given) {
       applyHeld(held, families, opened, given)
     },

@@ -36,7 +36,7 @@ export interface WorldQualityOptions {
   /** Every group at the level of this name, or `'auto'`: each group at the level the hardware
    *  benchmark kept for this machine's adapter gives it (`max` until one is
    *  known); the resolution stays the page's, or the display's default. Where none is kept for the
-   *  adapter, `'auto'` runs the benchmark once, when the page is idle, and keeps it; a run the page
+   *  adapter, `'auto'` runs the benchmark once, before the first image, and keeps it; a run the page
    *  asks is `world.quality.benchmark()`. @defaultValue 'auto' */
   preset?: QualityPreset | 'auto'
   /** Groups the page sets to a level of their own, over the preset. */
@@ -202,7 +202,7 @@ function presetAccessors(
  * `page` layer, which no preset overwrites. `scale` reads and writes the render scale the page asks,
  * and gives the last frame's metrics, which hold the size it was drawn at. Under `'auto'` the groups
  * take the levels of the hardware benchmark's result (`qualityHardware.ts`) ; the resolution stays the
- * page's or the display's default; with none kept, one run is made at idle (`qualityHardware.ts`).
+ * page's or the display's default; with none kept, one run is made before the first image (`qualityHardware.ts`, `createWorldQuality`).
  */
 export function createWorldQuality(
   settings: WorldSettings,
@@ -235,5 +235,7 @@ export function createWorldQuality(
   writePreset()
   for (const [group, level] of Object.entries(options.groups ?? {}))
     quality.set(group as QualityGroup, level)
-  return quality
+  /** `decided` is settled once the quality is decided: under `'auto'`, the kept benchmark result read or the one run made; at once under a named preset. The world opens its first
+   *  session after it, so that no image is drawn at a quality the benchmark then changes. */
+  return { quality, decided: hardware.settled }
 }

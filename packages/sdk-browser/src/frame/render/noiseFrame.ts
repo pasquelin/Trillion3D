@@ -1,46 +1,68 @@
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /**
- * THE NOISE'S CLOCK: the image number the noise of an image is indexed by — the blue noise's frame, the shading's, the finish's grain, the clouds', the
- * atmosphere's, the fog's and the sky occlusion's temporal index, the lighting's phase of a view with no temporal state (`lightingPhase`).
- *
- * Not `run.frame`, the count of images since the opening, which a world that drew one more image while its programs compiled, or that moved a hundred images before it
- * stopped, does not share with one that did not. Two anchors, the later of which counts:
- * - the surface cache's light start (`SurfaceLightingState.begunAt`), zero before it — the view is not held meanwhile — where the light can begin at all;
- * - the last image on which the view changed (`viewMoved`: a camera, content, light or pose revision moved), once it stands still: the images of its establishment that follow
- *   are the same in a world that moved and in one that was set there, and the image it is held on, the last one drawn, meets the same noise (the dither at rest stays
- *   where it is). On an image that changes, the clock is the image number from the light's start (or the opening): it turns with the view, as it must.
+ * THE NOISE'S CLOCK: the image number the per-image noise is indexed by (blue noise, grain, dither, clouds, atmosphere, fog, probes), counted from one anchor instead of
+ * the image number since the opening, so that two worlds that reach the same view by other histories meet the same noise on the image they hold.
+ * The anchor is the latest of the surface cache's light start, the view's last change (a motion keeps it at the opening: the noise turns with the view) and the final image
+ * of its establishment, drawn at zero. The clock is advanced once an image, by the hold's decision (`beginNoiseImage`); `noiseFrame` only reads it.
  */
 export function noiseFrame(rt: Pick<WebgpuPagesRuntime, 'run' | 'surfaceCache' | 'lights'>) {
-  const { run } = rt
+  const start = lightStart(rt)
+  // The light has not begun: zero while it will (the view is not held meanwhile).
+  if (start === undefined) return 0
+  const anchor = rt.run.gate?.hold?.noise?.anchor ?? 0
+  return Math.max(0, rt.run.frame - Math.max(start, anchor))
+}
+
+/** The image the surface cache's light began on: zero with no cache or no light to begin, `undefined` while it can begin and has not. */
+function lightStart(rt: Pick<WebgpuPagesRuntime, 'surfaceCache' | 'lights'>) {
   const cache = rt.surfaceCache
-  let start = 0
-  if (cache) {
-    const begunAt = cache.lighting?.begunAt
-    // The light has not begun: zero while it will (the view is not held meanwhile), the image number where it never can — no light to light, so no latch to close.
-    if (begunAt === undefined && lightCanBegin(rt)) return 0
-    start = begunAt ?? 0
-  }
-  const view = viewMoved(run)
-  return Math.max(0, run.frame - (view.moving ? start : Math.max(start, view.lastMoved)))
+  if (!cache) return 0
+  const begunAt = cache.lighting?.begunAt
+  return begunAt === undefined && lightCanBegin(rt) ? undefined : (begunAt ?? 0)
 }
 
-/** Per runtime: the image its clock was last asked on, whether the view changed on it, and the last image it changed on. */
-const views = new WeakMap<object, { image: number; moving: boolean; lastMoved: number }>()
-
-/** Whether the view changed on this image (a revision moved since the frame the gate kept), asked once an image; a change moves the last image it changed on. */
-function viewMoved(run: WebgpuPagesRuntime['run']) {
-  let state = views.get(run)
-  if (!state) views.set(run, (state = { image: -1, moving: false, lastMoved: 0 }))
-  if (state.image !== run.frame) {
-    state.image = run.frame
-    // The view changed on this image when a revision (scene, view, resources) moved since the frame the gate kept (`FrameHold.same`, `frame/revisions.ts`): not whether the hold
-    // stands, which takes two identical frames after the change (`stable`) and so says "moving" on the last image drawn before the hold. A runtime with no gate, or a gate with no witness yet (a stub, a session before its first frame is kept), changes on every image.
-    state.moving = !run.gate?.hold?.same(run.gate.revisions)
-    if (state.moving) state.lastMoved = run.frame
+/**
+ * Advances the view's clock for the image about to be drawn or held, once; `quiet` says the view stands with everything else established. Returns whether this image is the
+ * final one: the first quiet image since the last change jumps the anchor to itself (noise zero), is drawn, and the view is held on it. An image drawn after it ends it.
+ */
+export function beginNoiseImage(
+  rt: Pick<WebgpuPagesRuntime, 'run' | 'surfaceCache' | 'lights'>,
+  quiet: boolean,
+) {
+  const { run } = rt
+  const { hold } = run.gate
+  const clock = hold.noise
+  // Changed: a revision moved since the frame the gate kept, or one moved while that frame was drawn (a tile landed), which leaves the witness unstable; counted once.
+  const changed = !hold.same(run.gate.revisions) || (hold.stable === false && !clock.changed)
+  const moving = changed && clock.changed
+  // A motion keeps the anchor at the opening; the first image still counts from the last one that changed.
+  if (changed) clock.anchor = moving ? 0 : run.frame
+  else if (clock.changed) clock.anchor = run.frame - 1
+  clock.changed = changed
+  if (changed) {
+    clock.changedAt = run.frame
+    return (clock.final = false)
   }
-  return state
+  const start = lightStart(rt)
+  if (!quiet || start === undefined) {
+    if (clock.anchor < run.frame) clock.final = false
+    return false
+  }
+  // A final image drawn before the light began is not the final one: the light's start moves no revision.
+  if (!clock.final || clock.anchor < start) {
+    clock.anchor = run.frame
+    clock.final = true
+  }
+  return clock.anchor === run.frame
 }
+
+/** The images drawn since the view last changed (a revision moved, in or between images): what a temporal history has had to follow the change; unbounded for a view that never changed. */
+export const imagesSinceChange = (run: WebgpuPagesRuntime['run']) =>
+  run.frame - (run.gate?.hold?.noise?.changedAt ?? -Infinity)
+
+/** What the clock holds of the view, for a proof that prints it. */
+export const noiseAnchors = (run: WebgpuPagesRuntime['run']) => run.gate.hold.noise
 
 /** Whether the surface cache's light can begin in this session: it lights the scene's lights from their buffer, and a store with no lit light has none. */
 const lightCanBegin = ({ lights }: Pick<WebgpuPagesRuntime, 'lights'>) =>

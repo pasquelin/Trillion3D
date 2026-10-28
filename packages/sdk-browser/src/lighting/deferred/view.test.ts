@@ -145,7 +145,7 @@ test('the occlusion keeps its bind groups for the resources a view meets, two in
   assert.equal(made(), first + 3)
 })
 
-test('a lit frame draws its passes in order: classification, then one render pass of the colour, the sun, the local lights and the indirect light, each light draw once for each class of tile', async () => {
+test('a lit frame draws its passes in order: classification, then one render pass of the colour, the indirect light, the sun and the local lights, each light draw once for each class of tile', async () => {
   const h = gpuHarness(),
     lighting = await createDeferredLighting(h.device, undefined, {
       precompile: true,
@@ -170,7 +170,7 @@ test('a lit frame draws its passes in order: classification, then one render pas
   assert.equal(made, 1 + 3 * 3, 'the colour draw, and the three light draws over three classes')
   assert.deepEqual(
     h.draws.slice(-9).map(({ pipeline }) => (pipeline as { label?: string }).label),
-    ['SUN', 'LOCAL', 'INDIRECT'].flatMap((pass) =>
+    ['INDIRECT', 'SUN', 'LOCAL'].flatMap((pass) =>
       ['SIMPLE', 'SINGLE', 'COMPLEX'].map((tileClass) => `DIRECT_${pass}_${tileClass}`),
     ),
   )

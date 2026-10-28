@@ -54,7 +54,12 @@ export const exposureMeasured = (rt: Pick<WebgpuPagesRuntime, 'lights' | 'contex
  *  until they landed (`../../frame/loop/framePipelines.ts`): the measure of the view's method,
  *  where the view's exposure is measured and lit. */
 export function askExposure(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  if (wantsContractLighting(rt) && exposureMeasured(rt))
+  if (wantsContractLighting(rt)) askMeter(rt, device)
+}
+
+/** The meter's programs, where the view's exposure is measured, lit or not yet (`askGlobalPasses`). */
+export function askMeter(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  if (exposureMeasured(rt))
     askExposurePrograms(device, exposureSettings(rt).exposureMethod === 'basic')
 }
 

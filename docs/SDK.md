@@ -2093,11 +2093,11 @@ above it: each group writes the reference's fifth-row values for the settings th
 page sets holds over any preset.
 
 **The hardware benchmark.** `world.quality.benchmark(options)`
-runs the benchmark, keeps its result in the origin's local storage (when the page grants it) for this GPU
+runs the benchmark, keeps its result in the origin's local storage (in the page's memory where it grants none) for this GPU
 adapter, and draws it: the preset becomes `auto`. A world under `auto` (the default, or `quality: { preset: 'auto' }`, or set
-to it later) draws the result kept for its adapter when there is one; where none is kept it draws `max`,
-runs the benchmark once when the page is idle (never inside a frame), keeps the result for the adapter and
-draws it. A page that names a preset runs nothing. A
+to it later) draws the result kept for its adapter when there is one; where none is kept it runs the benchmark once
+when the world opens, before its first image (never inside a frame), keeps the result for the adapter and
+draws every image at it. A page that names a preset runs nothing. A
 result kept for another adapter, or by an older engine, is not read. The run first waits for the world's
 device to finish its work; the processor tests run in a worker (where the page refuses it they are left out
 and `cpuIndex` is `null`, which no level reads), the graphics tests on a WebGPU device of their own; a frame
@@ -2134,7 +2134,7 @@ base work, a few seconds of the device's work), `cpuMultiplier` and `gpuMultipli
 indices).
 
 ```js
-const world = createWorld('viewer') // auto: the result kept, else one run at idle, max until then
+const world = createWorld('viewer') // auto: the result kept, else one run before the first image
 const found = await world.quality.benchmark() // measured now, kept for this adapter, drawn
 console.log(found.groups) // { viewDistance: 'fine', edgeSmoothing: 'max', … }
 world.quality.preset = 'max' // the page's preset wins

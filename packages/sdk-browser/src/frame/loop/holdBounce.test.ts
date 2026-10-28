@@ -50,6 +50,27 @@ test('screen probes still building their history keep the frame drawn, a whole o
   assert.equal(unsettledMask(rt), 0, 'an image that cast no probe leaves nothing to wait for')
 })
 
+test('screen probes follow a change by blending: a view changed (a tile landed) is drawn till the frames the history holds have passed since', () => {
+  const rt = settledRt()
+  type Screen = NonNullable<typeof rt.bounce.screen>
+  type View = NonNullable<typeof rt.gpu.screenProbes>
+  rt.bounce.screen = {
+    read: () => ({ values: { screenProbeTemporal: true }, maxFramesAccumulated: 10 }),
+  } as unknown as Screen
+  rt.gpu.screenProbes = { indirect: {}, frame: 500 } as unknown as View
+  assert.equal(unsettledMask(rt), 0, 'a view that never changed, its history whole')
+  rt.run.frame = 261
+  rt.run.gate.hold.noise.changedAt = 261
+  rt.run.frame = 265
+  assert.deepEqual(
+    unsettledReasons(unsettledMask(rt)),
+    ['screenProbes'],
+    'four images after the change',
+  )
+  rt.run.frame = 271
+  assert.equal(unsettledMask(rt), 0, 'the history has taken the change in')
+})
+
 test('a caster that moved keeps the frame drawn until the frames without a move have turned it static', () => {
   const rt = settledRt()
   const mobility = createShadowMobility()

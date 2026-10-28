@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import { test } from 'node:test'
 import type { HardwareBenchmarkResult } from '../../../../sdk-core/src/runtime/hardwareBenchmark.ts'
 import { runHardwareBenchmark } from './hardwareBenchmark.ts'
-import { worldBenchmark } from './benchmarkSource.ts'
+import { createPageStore, worldBenchmark } from './benchmarkSource.ts'
 import { worldSwitches } from './switches.ts'
 import type { MeasuredWorld } from '../explorer.ts'
 
@@ -161,4 +161,25 @@ test('the benchmark writes no scale: the display’s default stays, a page’s s
   assert.equal(later.held.renderScale, 0.5, 'a scale written since holds too')
   later.dispose()
   assert.equal(signal?.aborted, true)
+})
+
+test('two worlds of a page measure once: the result is kept in the process where the page has no local storage', async () => {
+  const device = { ...fakeDevice(), queue: { onSubmittedWorkDone: async () => {} } }
+  let measured = 0
+  // The page's store with a memory of its own: no other test meets this result.
+  const pageStore = createPageStore()
+  const load = async () => async () => (measured++, { result: kept, adapter: 'v|a|process|x' })
+  const adapterInfo = { ...INFO, device: 'process' }
+  const world = () =>
+    worldBenchmark(
+      { pending: Promise.resolve(), gpuDevice: { ...device, adapterInfo } as unknown as GPUDevice },
+      pageStore,
+      load,
+    )(new AbortController().signal)
+  const first = world()
+  assert.equal(await first.saved(), null, 'nothing kept yet')
+  await first.run()
+  const second = world()
+  assert.deepEqual(await second.saved(), kept, 'the second world reads what the first kept')
+  assert.equal(measured, 1, 'one benchmark for the two worlds')
 })

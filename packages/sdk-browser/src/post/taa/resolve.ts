@@ -120,9 +120,9 @@ function fallbackOf(device: GPUDevice, { execution, formats }: UpdateState) {
  * The pass's history updates (`taaResolveShader`, one program for every render scale and history
  * size, the display's size its ratio one), compute stages over the history in the formats the device
  * stores to (`historyFormatsOf`), as `execution` runs them (`waveOps.ts`). The one that writes the
- * half-size image — a history of the display's size — is compiled at preparation; the one without
- * it — a history larger than the display, whose resolve writes it — is asked when the history is
- * made (`ask`). An update with the display
+ * half-size image — a history of the display's size — and the one without
+ * it — a history larger than the display, whose resolve writes it — are asked at preparation, as every permutation of a
+ * global shader is, so that the history made later (`ask`) compiles nothing. An update with the display
  * layers (`layers.ts`) — two more storage textures, which a frame without a filtering blend never
  * pays — and one of another execution — a setting changed — compile off the frame when first asked,
  * the update of `initial` (or, for the layers, none) standing in meanwhile; where the device refuses
@@ -153,6 +153,10 @@ export async function createTaaResolves(device: GPUDevice, initial: TaaExecution
       Object.assign(state, fallback)
     }
   }
+  // Both updates a history can run — the display's size writes the half-size image, a larger one's resolve writes it —, asked now with the pass, as every permutation of a global
+  // shader is: the history made later compiles nothing (`ask` finds them held).
+  for (const half of halfFits ? [true, false] : [false])
+    updates.variant(false, half, state.execution)
   /**
    * The update as `run` executes it, with the display layers when `filtered` and the half-size
    * image when `half` (`fits`): the one of `execution` where `run`'s is not compiled yet; none for

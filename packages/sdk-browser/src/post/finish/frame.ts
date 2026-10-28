@@ -13,8 +13,9 @@ import {
   settingsDiffer,
 } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { readTemporalSetting } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
-import { wantsContractLighting } from '../../frame/prepare/lit.ts'
+import { beautyImage, wantsContractLighting } from '../../frame/prepare/lit.ts'
 import { wanted } from './wanted.ts'
+import { noiseFrame } from '../../frame/render/noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { EXPOSURE_AT, exposureMeasured, exposureSettings } from '../exposure/frame.ts'
 import { localExposureOn } from '../exposure/meterParams.ts'
@@ -63,7 +64,12 @@ export function composesFinish(rt: WebgpuPagesRuntime) {
  *  landed (`../../frame/loop/framePipelines.ts`). */
 export function askFinish(rt: WebgpuPagesRuntime, device: GPUDevice) {
   askToneTable(rt, device)
-  if (wanted(rt) && localExposureOn(exposureSettings(rt))) askLocalPrograms(device)
+  if (wanted(rt)) askLocalExposure(rt, device)
+}
+
+/** The local exposure's programs once its settings ask for it, on the beauty image, lit or not yet (`askGlobalPasses`). */
+export function askLocalExposure(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  if (beautyImage(rt) && localExposureOn(exposureSettings(rt))) askLocalPrograms(device)
 }
 
 /** Whether the finishing's film grain is drawn: its pattern follows the image's number, so a view
@@ -199,7 +205,7 @@ export function finishedGroup(
   written.size = post.scene.imageSize
   written.lens = post.lens
   written.grain = grain
-  written.frame = rt.run.frame
+  written.frame = noiseFrame(rt)
   finish.write(written)
   return finish.groupFor(post.local, blend?.glow, grain, blend?.mask)
 }

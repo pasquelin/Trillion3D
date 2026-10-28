@@ -4,7 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
-import { settledRt } from './hold.fixture.ts'
+import { drawFinalImage, settledRt } from './hold.fixture.ts'
 import { createGpuPresenter } from '../../gpu/core/presentation.ts'
 import { captureImage } from '../io/hostApi.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -30,11 +30,12 @@ async function presented() {
   const presenter = createGpuPresenter(device, canvas)
   await pipelinesSettled(device)
   Object.assign(rt.gpu, { device, presenter, displayTexture: image })
-  // Two identical frames arm the hold.
+  // Two identical frames arm the hold, and the establishment ends on its final image.
   for (let i = 0; i < 2; i++) {
     rt.run.frame++
     keepWebgpuFrame(rt)
   }
+  drawFinalImage(rt, device)
   presenter.present(device.createCommandEncoder(), image, 4, 4)
   rt.run.imageRevision = 1
   counts.encoders = counts.taken = 0

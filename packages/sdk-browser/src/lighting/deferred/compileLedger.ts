@@ -41,6 +41,17 @@ export function takeRefusals(device: GPUDevice) {
 /** The name of a compile tracked under none. */
 export const UNNAMED = 'unnamed'
 
+/** The name a pipeline is tracked under: its descriptor's own label, else the label of the module it compiles (fragment, vertex or compute stage), else `UNNAMED`. */
+export function pipelineLabel(descriptor: object) {
+  const { label, fragment, vertex, compute } = descriptor as {
+    label?: string
+    fragment?: { module: { label?: string } }
+    vertex?: { module: { label?: string } }
+    compute?: { module: { label?: string } }
+  }
+  return label || fragment?.module.label || vertex?.module.label || compute?.module.label || UNNAMED
+}
+
 /** `compile`, in flight on `device` until it settles; its frames wait for it once `held` — a program
  *  a frame needs that no ready one stands in for, as a lobed surface's lobe code
  *  (`../../frame/prepare/contractLight.ts`). `label` names it in a trace of what the frames wait for

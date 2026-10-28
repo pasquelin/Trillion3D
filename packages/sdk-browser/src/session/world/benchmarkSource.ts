@@ -30,14 +30,40 @@ type ResultStore = Pick<Storage, 'getItem' | 'setItem'>
  *  with it (`keptRecord`). */
 const STORE = 'trillion3d.hardwareBenchmark'
 
-/** The page's local storage, `null` where it has none or refuses it. */
-function pageStore(): ResultStore | null {
-  try {
-    return globalThis.localStorage ?? null
-  } catch {
-    return null
+/**
+ * The store of a page's results: what the page keeps in memory — the same source for every world of the page — and, where it has one, in its local storage, which survives the
+ * visit. A result is read from the local storage when it holds one, else from the memory; a local storage that is absent, refuses or is full (a private window, a quota)
+ * leaves the memory, so a second world never measures again. `createPageStore` makes one with a memory of its own, which a test isolates.
+ */
+export function createPageStore(): () => ResultStore {
+  const memory = new Map<string, string>()
+  const store: ResultStore = {
+    getItem(key) {
+      try {
+        const kept = globalThis.localStorage?.getItem(key)
+        if (kept != null) return kept
+      } catch {
+        /* No local storage to read: the memory answers. */
+      }
+      return memory.get(key) ?? null
+    },
+    setItem(key, value) {
+      memory.set(key, value)
+      try {
+        globalThis.localStorage?.setItem(key, value)
+      } catch {
+        /* Kept in memory alone: the next visit measures again. */
+      }
+    },
   }
+  return () => store
 }
+
+/** The page's own store, shared by its worlds. */
+const pageStore = createPageStore()
+
+/** The runs in flight, by adapter: shared by every world of the page. */
+const measuring = new Map<string, Promise<HardwareBenchmarkResult>>()
 
 /** The run, from its own family (`families.benchmark`): a page that never asks downloads none. */
 const loadRun = () => families.benchmark.load().then((module) => module.runHardwareBenchmark)
@@ -46,8 +72,7 @@ const loadRun = () => families.benchmark.load().then((module) => module.runHardw
  * The page's benchmark for a world drawing on `device` (`undefined` while none is granted), stopped
  * by `signal` when the world is disposed. `saved` reads the result kept for the device's adapter;
  * `run` waits for the device's work to finish — the reference flushes its renderer first —, runs the
- * benchmark (one run at a time) and keeps its result for that adapter. A store the page refuses keeps
- * nothing.
+ * benchmark (one run at a time) and keeps its result for that adapter (`createPageStore`). A store the caller hands in and refuses keeps nothing.
  */
 function pageBenchmark(
   device: () => Promise<GPUDevice | undefined>,
@@ -55,7 +80,6 @@ function pageBenchmark(
   store: () => ResultStore | null = pageStore,
   load = loadRun,
 ): QualityBenchmark {
-  let running: Promise<HardwareBenchmarkResult> | null = null
   const run = async (options?: HardwareBenchmarkOptions) => {
     await (await device())?.queue.onSubmittedWorkDone()
     const { result, adapter } = await (await load())(options, signal)
@@ -81,8 +105,15 @@ function pageBenchmark(
         return null
       }
     },
-    run(options) {
-      running ??= run(options).finally(() => (running = null))
+    async run(options) {
+      // One run at a time for an adapter, whichever world asks: a second world meets the first one's.
+      const drawing = await device()
+      const key = (drawing && gpuCapsOf(drawing).adapter) || ''
+      let running = measuring.get(key)
+      if (!running) {
+        running = run(options).finally(() => measuring.delete(key))
+        measuring.set(key, running)
+      }
       return running
     },
   }

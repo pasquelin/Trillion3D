@@ -11,7 +11,9 @@ import { askBlendReach } from '../../blend/askReach.ts'
 import { askEntryCorners } from '../../blend/transparent/entryCorners.ts'
 import { wantsEmissiveAo } from '../prepare/emissiveAoLayer.ts'
 import { askLobedPrograms } from '../prepare/contractLight.ts'
+import { askPerLightLights } from '../../lighting/shadows/vsm/frame/vsmAskProjection.ts'
 import { wantsContractLighting } from '../prepare/lit.ts'
+import { askBounce } from '../prepare/bounce.ts'
 import { askAtmosphere } from '../render/encodeAtmosphere.ts'
 import { askFogVolume } from '../render/encodeFogVolume.ts'
 import { askTranslucencyVolume } from '../../lighting/translucency/frame.ts'
@@ -68,6 +70,7 @@ function askShadeClasses(rt: WebgpuPagesRuntime, device: GPUDevice) {
     vis.writesEmissiveAo = true
     asked.set(census, layered)
   } else if (retaken || asked.get(census) !== classes) {
+    // The classes of an object that joined were compiled before it did (`placement/append/classGate.ts`); one asked here is a class a material changed into since.
     for (const key of census.keys) classes.of(key).ask()
     asked.set(census, classes)
   }
@@ -86,7 +89,7 @@ function askBlueNoise(rt: WebgpuPagesRuntime, device: GPUDevice) {
   if ((!wantsContractLighting(rt) && !rt.vis.materialTable.dithers) || blueNoiseRefused(device))
     return
   if (blueNoiseNow(device) || blueNoiseRefused(device)) return
-  track(device, blueNoiseTextures(device), true)
+  track(device, blueNoiseTextures(device), true, 'blue noise')
 }
 
 /**
@@ -97,7 +100,7 @@ function askBlueNoise(rt: WebgpuPagesRuntime, device: GPUDevice) {
  * entries' pass once a transparent table is made, the kernels
  * composing placements once a parent links placements, the roots' boxes and the tree's leaves — these
  * five once the session's cut is adopted, never queued ahead of its compiles —, the
- * lobe code of a lobed surface (`askLobedPrograms`), the transparent pass's responsiveness,
+ * lobe code of a lobed surface (`askLobedPrograms`), the bounce's probes once a lamp is on the GPU (`askBounce`), the per-light path's projection and lit pipelines (`askPerLightLights`), the transparent pass's responsiveness,
  * refraction, display-filter and holdout pipelines (`askBlendReach`), the atmosphere's passes once the scene
  * declares one (`askAtmosphere`), the fog's volume once the scene turns it on
  * (`askFogVolume`), the translucency lighting volume's once a blended surface is lit from it
@@ -208,8 +211,11 @@ function askAll(rt: WebgpuPagesRuntime) {
     askEntryCorners(rt, device)
     askComposedPlacements(rt, device)
     askRootPasses(rt, device)
+    // The per-light path's pipelines (`askPerLightLights`), beside the cut's: asked once the cut is adopted too.
+    askPerLightLights(rt, device)
   }
   askLobedPrograms(rt, device)
+  askBounce(rt, device)
   askBlendReach(rt)
   askAtmosphere(rt, device)
   askFogVolume(rt, device)

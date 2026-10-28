@@ -4,6 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { holdWebgpuFrame } from './hold.ts'
 import { metricsOf } from '../io/metrics.ts'
+import { drawFinalImage } from './hold.fixture.ts'
 import { heldFrame } from './holdMetrics.fixture.ts'
 import { VSM_PASS_PREFIX } from '../../diagnostic/stage/passLabels.ts'
 import { VSM_PROJECTION_PASS } from '../../lighting/shadows/vsm/projection/projectionPipelines.ts'
@@ -17,6 +18,7 @@ test('a cut page waiting for its bytes forbids holding the frame', () => {
   assert.equal(holdWebgpuFrame(rt, device), false, 'a pending page can still open a hole')
   assert.equal(rt.run.frameHeld, false)
   pending.count = 0
+  drawFinalImage(rt, device)
   assert.equal(holdWebgpuFrame(rt, device), true)
 })
 

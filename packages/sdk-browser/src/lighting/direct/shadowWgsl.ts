@@ -114,8 +114,7 @@ const blendShadowWgsl = (options: BlendShadowOptions) => {
   const reads = localAny ? [sun, local] : [sun]
   const label = `directShadowWgsl(${vsmBindingsLabel(vsm)}, ${vsmTraceBindingsLabel(trace)}, ${kinds}, ${quality > 0}, ${localShadows}${materialsLabel(materials)})`
   if (!kinds) {
-    const unshadowed = shadowFactorWgsl('\n return 1.0;', asked)
-    return wgslBlock(label, [VSM_NO_PIXEL_WGSL], unshadowed)
+    return wgslBlock(label, [VSM_NO_PIXEL_WGSL, shadowFactorWgsl('\n return 1.0;', asked)], '')
   }
   const traces = reads.some((read) => read !== 'false')
   const samples = reads.some((read) => read !== 'true')
@@ -126,8 +125,9 @@ const blendShadowWgsl = (options: BlendShadowOptions) => {
       vsmConsumerWgsl(vsm),
       ...(traces ? [vsmFragmentTraceWgsl(vsm.pool, trace, kinds)] : []),
       ...(samples ? [vsmFragmentSampleWgsl(vsm.pool, trace.view, kinds, 0, !traces)] : []),
+      shadowFactorWgsl(blendReadWgsl(sun, local, localAny, localShadows), asked),
     ],
-    shadowFactorWgsl(blendReadWgsl(sun, local, localAny, localShadows), asked),
+    '',
   )
 }
 
@@ -141,14 +141,15 @@ const blendShadowWgsl = (options: BlendShadowOptions) => {
 const perLightShadowWgsl = ({ mask }: PerLightShadowOptions) =>
   wgslBlock(
     `directShadowWgsl(perLight ${mask})`,
-    [],
+    [
+      shadowFactorWgsl(`
+ let encoded=textureLoad(vsmPerLightMask,vsmMaskPixel,perLight.layer,0).z;
+ return encoded*encoded;`),
+    ],
     `@group(0) @binding(${mask}) var vsmPerLightMask:texture_2d_array<f32>;
 /** The resolve's pixel: the mask is read there. */
 var<private> vsmMaskPixel:vec2i=vec2i(-1);
-fn vsmMaskAt(coord:vec2i){vsmMaskPixel=coord;}
-${shadowFactorWgsl(`
- let encoded=textureLoad(vsmPerLightMask,vsmMaskPixel,perLight.layer,0).z;
- return encoded*encoded;`)}`,
+fn vsmMaskAt(coord:vec2i){vsmMaskPixel=coord;}`,
   )
 
 /** The shadow read of an opaque lit pass: the trace the projection stored in the frame's masks. */
@@ -165,32 +166,37 @@ const maskShadowWgsl = ({ sun, local, farMask, fallback }: MaskShadowOptions) =>
             vsmSampleMapLocalWgsl(forwardPool(fallback.vsm.pool)),
           ]
         : []),
-    ],
-    shadowFactorWgsl(`
+      shadowFactorWgsl(`
  if(shadowSliceIsSun(slice)){return vsmSunFactor(shadowSliceRecord(slice));}${
    local === undefined ? '\n return 1.0;' : '\n return vsmLocalFactor(slice,P);'
  }`),
+    ],
+    '',
   )
 
 /** \`shadowFactor\` reading a shadowed light's share through \`read\`; with \`marks\`, the fragment's
  *  surface's marks (\`translucentShadowBits\`) its stage sets from its flags. */
-const shadowFactorWgsl = (
-  read: string,
-  marks = false,
-) => `/** Set by a pass that reads the sun's shadow apart (the water's separated sun, multiplied by its trace
+const shadowFactorWgsl = (read: string, marks = false) =>
+  // One name for every variant: a program holds one `shadowFactor`, and two variants listed together are refused by the assembler
+  // as a name declared twice with different texts, not written twice into the module.
+  wgslBlock(
+    'shadowFactorWgsl',
+    [],
+    `/** Set by a pass that reads the sun's shadow apart (the water's separated sun, multiplied by its trace
  *  afterwards): the sun then reads as unshadowed here. */
 var<private> shadowSkipSun:bool=false;${
-  marks
-    ? `
+      marks
+        ? `
 /** The marks of how the fragment's surface reads shadows past the project's switches
  *  (\`TRANSLUCENT_SHADOW_MARK\`), set by its stage from its item's flags. */
 var<private> translucentShadowBits:u32=0u;`
-    : ''
-}
+        : ''
+    }
 fn shadowFactor(slice:i32,light:DirectLight,P:vec3f,N:vec3f,facing:bool)->f32{
  if(slice<0){return 1.0;}
  if(!facing){return 0.0;}${read}
-}`
+}`,
+  )
 
 /**
  * How a translucent surface reads a light's shadow: the project's two switches, read once when the

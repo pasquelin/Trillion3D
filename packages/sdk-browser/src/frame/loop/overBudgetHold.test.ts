@@ -9,7 +9,7 @@ import { admitGpuCut } from '../render/gpuCutAdmission.ts'
 import { scene } from '../../geometry/residency/sets.fixture.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { unsettledMask, unsettledReasons } from './unsettled.ts'
-import { settledRt } from './hold.fixture.ts'
+import { drawFinalImage, settledRt } from './hold.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 
 /** The residency path of one GPU-cut image, in the engine's order: publication, admission, the
@@ -72,5 +72,7 @@ test('a cut larger than the page pool settles and holds on a still camera', () =
     rt.run.frame++
     keepWebgpuFrame(rt)
   }
-  assert.equal(holdWebgpuFrame(rt, fakeDevice().device), true, 'the still image is held')
+  const { device } = fakeDevice()
+  drawFinalImage(rt, device)
+  assert.equal(holdWebgpuFrame(rt, device), true, 'the still image is held')
 })

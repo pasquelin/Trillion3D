@@ -88,7 +88,7 @@ const LAMP_BIAS:f32=${wgslF32(LIGHT_SETTINGS.lampDistanceBias)};
  *  greatest draw distance (\`lightTraits\`, \`lightReachWgsl.ts\`: the lanes a shader reads each have their accessor; the draw range's are the CPU's).
  *  A light's kind word (\`params.x\`) holds whole numbers in the float's bits, read through \`kindWord\` alone: its kind and flags, its lighting
  *  channels, its shadowed value, its profile, whether the view leaves it out and the index of its light function
- *  (\`isKind\`, \`lightFlagged\`, \`lightUndrawn\`, \`lightChannelsOf\`, \`shadowBitsOf\`). */
+ *  (\`isKind\`, \`lightFlagged\`, \`lightUndrawn\`, \`shadowBitsOf\`, and the accessor of the channels in \`lightReachWgsl.ts\`). */
 struct DirectLight{positionRange:vec4f,colorIntensity:vec4f,directionCone:vec4f,params:vec4f,shape:vec4f,capsule:vec4f,contactGi:vec4f,traits:vec4f,}
 /** The count, the rank plus one of the directional light the forward readers take (\`forwardRank\`,
  *  0 for none; \`SceneLightStore.forwardDirectionalSlot\`) and two reserved words; the environment's irradiance: nine spherical-harmonic coefficients

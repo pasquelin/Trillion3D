@@ -46,9 +46,5 @@ export function quality(
     ask: (next: RenderScale) => void (asked = next),
     drawn: () => frame.last,
   }
-  return {
-    settings,
-    frame,
-    quality: createWorldQuality(settings, scale, options, LEVELS, benchmark),
-  }
+  return { settings, frame, ...createWorldQuality(settings, scale, options, LEVELS, benchmark) }
 }

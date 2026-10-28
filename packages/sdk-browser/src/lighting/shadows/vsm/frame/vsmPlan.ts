@@ -22,6 +22,7 @@ import { settingsRevision } from '../../../../../../sdk-core/src/contracts/setti
 import { createViewFingerprint } from '../../../../frame/view/viewFingerprint.ts'
 import { assignChannels, heldVsm } from './vsmPlanSteps.ts'
 import { sunCascadesOf, vsmFirstPersonActive, vsmMapSettings } from './vsmFarShadow.ts'
+import { followCacheContent } from './cacheContent.ts'
 import { shadowsOn, tracesTranslucent } from './vsmGates.ts'
 import { vsmSunLevels, type VsmMapSettings } from '../mapSettings.ts'
 import { dropEngineVsmCache, releaseEngineVsm, unshadowLights, vsmCountersOn } from './engineVsm.ts'
@@ -58,7 +59,7 @@ import {
 import { grantEngineVsm } from './vsmGrant.ts'
 import { followDepthOfField } from './vsmDof.ts'
 import { growEngineVsm } from './vsmRegrow.ts'
-import { vsmFirstSetLayout } from './vsmBeside.ts'
+import { vsmFirstSetLayout, vsmReserveSetLayout } from './vsmBeside.ts'
 import { lightDrawViewOf, type LightDrawView } from '../../../lightDrawRange.ts'
 import { castDiffStages, followRoots, prepareCastDiff } from '../../casters/castDiff.ts'
 import { prepareCasterDecode } from '../../casters/casterFeed.ts'
@@ -195,12 +196,30 @@ export function castingLights(rt: WebgpuPagesRuntime) {
  * compute pipe of the passes (`vsmComputePipe`), the raster's render pipeline on the shadow page
  * group, the projection's opaque pipelines, the diff of the instances' boxes (`prepareCastDiff`) and the decode of the casters (`prepareCasterDecode`). That frame compiles
  * none of them unless the budget grants a smaller pool, or other lights a larger set. Nothing while
- * no light casts.
+ * no light casts (`prepareReserveVsmPipelines`).
  */
 export function prepareVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  if (!castingLights(rt)) return []
+  return compileVsmPipelines(rt, device, vsmFirstSetLayout(rt, frameLights(rt, 'reserve')))
+}
+
+/**
+ * The same pipelines for a scene with no casting light yet, where the shadows are on: laid out for the one sun its page adds (`vsmReserveSetLayout`), since they depend on the set's
+ * layout and on no particular lamp. The first frame of that sun compiles none unless its first set is two suns or more, local lights alone, or a pool the budget grants smaller.
+ */
+export function prepareReserveVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  if (castingLights(rt) || !shadowsOn(rt)) return []
+  return compileVsmPipelines(
+    rt,
+    device,
+    vsmReserveSetLayout(rt, vsmSunLevels(vsmMapSettings(rt).shadows)),
+  )
+}
+
+/** The compiles of every shadow pipeline over `layout`, none without the shadow page group. */
+function compileVsmPipelines(rt: WebgpuPagesRuntime, device: GPUDevice, layout: VsmLayout) {
   const pageLayout = rt.lights.pageLayout
-  if (!castingLights(rt) || !pageLayout) return []
-  const layout = vsmFirstSetLayout(rt, frameLights(rt, 'reserve'))
+  if (!pageLayout) return []
   return [
     ...framePipelines(rt, device, layout, pageLayout, false).map((stage) => stage.prepare()),
     ...(vsmThrottled(vsmMapSettings(rt).shadows)
@@ -511,6 +530,8 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
     unshadowLights(store)
     return false
   }
+  // What a cached page holds moved (a setting of the pages, the tessellation's capacity, the scale of the level of detail): the cache is emptied here, before any page of this frame is marked or kept.
+  followCacheContent(rt)
   // The passes' pipelines compiled, or no plan: the cache advances only for a frame that runs.
   let tiers = framePipelinesCompiled(rt, device, vsm.res.layout)
   if (!tiers) {

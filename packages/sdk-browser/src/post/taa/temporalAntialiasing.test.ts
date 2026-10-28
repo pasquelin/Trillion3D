@@ -35,8 +35,13 @@ test('each history is a colour and its validity, stored together and counted', a
         [TAA_BINDINGS.validityOut, 'rgba8unorm'],
         [TAA_BINDINGS.halfOut, 'rgba16float'],
       ],
+      // The history of a larger size, whose resolve writes the half-size image: no image of the display's half size to store. Both are programs of the pass; no texture is made by asking one.
+      [
+        [TAA_BINDINGS.historyOut, 'rgba16float'],
+        [TAA_BINDINGS.validityOut, 'rgba8unorm'],
+      ],
     ],
-    'the one update stores the colour, the validity and the half-size image',
+    'the updates store the colour and the validity, and the half-size image where the history is the display’s size',
   )
   temporal.resize(taaShape(8, 4), 8, 4)
   // First the 1×1 zero a frame without responsiveness reads and the 1×1 of no translucency, then the four frames of the history
