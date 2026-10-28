@@ -59,6 +59,21 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const [world] = await runPage(options.file, options.engine.root, page.scripts)
   if (!world) throw new Error(`BENCH_PAGE: ${options.name} made no world`)
   if (options.scale !== 'page') world.renderScale = Number(options.scale)
+  // The quality the page runs at. Under 'auto' a browser runs the hardware benchmark before the first image where none is kept for the
+  // adapter; the bench does the same, so it measures the levels the machine is given, and says them.
+  type Hardware = { groups?: unknown; gpu?: unknown } | null
+  const quality = (
+    world as unknown as {
+      quality?: { preset?: unknown; hardware?: Hardware; benchmark?: () => Promise<Hardware> }
+    }
+  ).quality
+  const found =
+    quality?.preset === 'auto' && !quality.hardware && quality.benchmark
+      ? await quality.benchmark()
+      : (quality?.hardware ?? null)
+  console.error(
+    `[bench] quality: preset ${JSON.stringify(quality?.preset)}, benchmark ${JSON.stringify(found ? { groups: found.groups, gpu: found.gpu } : null)}`,
+  )
   const clock = createClock()
   const rig = { browser, gpu, world }
   // The device is the engine's own, asked when its session opens: frames run until it submits.
