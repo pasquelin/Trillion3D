@@ -251,6 +251,8 @@ export function createCardPlacements(cards: readonly MeshCards[]) {
      */
     rankOf: (id: number, roots: readonly TrackedRoot[]) =>
       rankOfRoot(state.ids.get(id)?.root, roots),
+    /** The root placement `id` follows, none for a number that names none. */
+    rootOf: (id: number): CardRoot | undefined => state.ids.get(id)?.root,
     /**
      * Brings the cache's placements level with `roots` — the cut's, the HLOD cells' stand-ins joined to
      * them while the cut draws the cells' actors (`MeshFieldScene.roots`) —; `epoch` changes when the

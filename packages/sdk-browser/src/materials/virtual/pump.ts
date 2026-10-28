@@ -27,6 +27,39 @@ type PumpParts = {
  *  millisecond budgets being the host's ceilings above it. */
 const MAX_TILES_PER_PASS = 32
 
+/** Whether the tile `key` is at the coarsest tile level of its texture, the last below its tail: the level a card reads before the finer tiles come. */
+const atCoarsestLevel = (atlas: TileRequest['atlas'], key: TileRequest['key']) =>
+  key.level >= atlas.textures[key.slot].layout.tail - 1
+
+/** What the source says of a request; a source that fails serves nothing and is no longer waited for: the coarse level holds, and the view is not kept from being still
+ *  (nor an object from its cards, `texturesPending`) by a tile that will not come. */
+function serveOrRefuse(
+  p: PumpParts,
+  request: TileRequest,
+  at: number,
+  open: () => GPUCommandEncoder,
+): ReturnType<PumpParts['sources']['serve']> {
+  try {
+    return p.sources.serve(request.atlas, request.key, at, open)
+  } catch (error) {
+    p.onFailure('texture-tile-failed', error)
+    return 'refused'
+  }
+}
+
+/** Requests `from` to `to` of `list` are pending: those not resident (a resident tile is pending for no one). */
+function leavePending(
+  counters: PumpParts['counters'],
+  list: readonly TileRequest[],
+  from: number,
+  to: number,
+) {
+  for (let left = from; left < to; left++) {
+    const { atlas, key } = list[left]
+    if (!atlas.resides(key)) counters.leave(atlas.kind, key.slot, atCoarsestLevel(atlas, key))
+  }
+}
+
 /**
  * One pass: requested tiles — the feedback's in weight order, then those asked beside it
  * (`requests.ts`, `ask`) —, served until the tile count, the byte or the millisecond budget (the
@@ -43,7 +76,6 @@ export const createTilePump =
     clock.stage(p.budgetMs)
     if (!unbounded) p.residency.follow(requests.coverageOf)
     let served = 0,
-      waiting = 0,
       bytes = 0,
       stop = false,
       colorLanded = false,
@@ -53,22 +85,18 @@ export const createTilePump =
     const wanted = requests.take(frame),
       at = requests.frame
     counters.worked = wanted.to > wanted.from || requests.askedCount > 0
+    counters.clearMissing()
     /** One request served, unless it resides: counted, the budgets read after it. */
     const serve = (request: TileRequest) => {
       const { atlas, key } = request
       if (atlas.resides(key)) return
       const evicted = atlas.evictions
-      let verdict: ReturnType<typeof sources.serve> = 'waiting'
-      try {
-        verdict = sources.serve(request.atlas, request.key, at, open)
-      } catch (error) {
-        p.onFailure('texture-tile-failed', error)
-      }
+      const verdict = serveOrRefuse(p, request, at, open)
       // A place given up or taken changed the atlas's page table, whether or not the write after it
       // landed: the colour that follows it is told all the same.
       if (atlas === p.color && (atlas.evictions !== evicted || atlas.resides(key)))
         colorLanded = true
-      if (verdict === 'waiting') waiting++
+      if (verdict === 'waiting') counters.leave(atlas.kind, key.slot, atCoarsestLevel(atlas, key))
       else if (verdict === 'served') {
         served++
         bytes += request.atlas.poolOf(request.key.slot).tileBytes
@@ -77,20 +105,23 @@ export const createTilePump =
           !unbounded && (served >= MAX_TILES_PER_PASS || bytes >= p.budgetBytes || !clock.admits())
       }
     }
-    let index = wanted.from
-    for (; index < wanted.to && !stop; index++) serve(wanted.list[index])
+    /** Requests `from` to `to` of `list` served while the budgets allow; those they left are pending too (`leave`): offered again next
+     *  image, they keep the view drawing. Returns the first one left. */
+    const serveFrom = (list: readonly TileRequest[], from: number, to: number) => {
+      let at = from
+      for (; at < to && !stop; at++) serve(list[at])
+      leavePending(counters, list, at, to)
+      return at
+    }
     // What the image shows first; then what a switch to come waits on, asked again next image.
-    let k = 0
-    for (; k < requests.askedCount && !stop; k++) serve(requests.asked[k])
-    // Those the budget left are pending too: asked again next image, they keep the view drawing.
-    const askedLeft = requests.askedCount - k
+    const index = serveFrom(wanted.list, wanted.from, wanted.to)
+    serveFrom(requests.asked, 0, requests.askedCount)
     requests.clearAsked()
     sources.endPass(encoder, at)
     p.flushAll()
     requests.defer(index)
     counters.served += served
     counters.deferred = requests.deferred
-    counters.pending = waiting + requests.deferred + askedLeft
     counters.bytesLastFrame = bytes
     // What follows the landed colour tiles is the pass's cost too: timed before the clock stops.
     if (colorLanded) p.onColorChanged()
