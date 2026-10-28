@@ -9,6 +9,7 @@ import { hookAfter, type Proto } from '../page/hook.ts'
 import { installDissect, readSpec } from '../passes/dissectHooks.ts'
 import { installWorkHooks } from '../passes/passWorkHooks.ts'
 import { profiledAdapter } from '../report/profiles.ts'
+import { guardLayouts } from './layoutGuard.ts'
 
 /** What one frame asked of the GPU: passes (timed or not), copies, bytes written, objects made
  *  (render bundles recorded included). */
@@ -45,6 +46,7 @@ export function installDawn(): GPU {
   Object.assign(globalThis, globals)
   writeBitmap(GPUQueue.prototype)
   guardMaps(GPUBuffer.prototype)
+  guardLayouts(GPUDevice.prototype as unknown as Proto)
   // A browser rounds GPU timestamps against timing attacks; a bench reads them whole.
   const gpu = create(['disable-dawn-features=timestamp_quantization'])
   Object.defineProperty(globalThis.navigator, 'gpu', { value: gpu, configurable: true })
