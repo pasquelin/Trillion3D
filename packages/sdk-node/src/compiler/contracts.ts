@@ -14,6 +14,7 @@ import type {
 } from '../../../sdk-core/src/contracts/partitionOptions.ts'
 import type { MeshBuildOption } from '../../../sdk-core/src/contracts/meshBuildOptions.ts'
 import type { HairEndingPointOption } from '../../../sdk-core/src/contracts/hairEndingPointOptions.ts'
+import type { HairGroupsOption } from '../../../sdk-core/src/contracts/hairGroupsOptions.ts'
 import type { LightmapBakeOption } from '../../../sdk-core/src/contracts/lightmapBakeAbi.ts'
 import type { ObjectSettingsOption } from '../../../sdk-core/src/contracts/objectOptions.ts'
 import type { DagWarning } from '../../../sdk-core/src/contracts/dag.ts'
@@ -212,6 +213,12 @@ export interface CompilerEvent {
    *  strip of triangles drawn from the points keeps the last segment (`resolveHairEndingPoint`).
    *  @defaultValue true; a job that gives the point keeps its cache key */
   hairEndingPoint?: HairEndingPointOption
+  /** The settings of the groups of a hair groom, by group number (the whole numbers its curves are cut
+   *  into groups by): each group may set `stableRasterization` (the group does not alias, and may look
+   *  thicker) and `scatterSceneLighting` (short hair takes the light of the surface under it, as skin
+   *  does); a setting left out follows the project's, as does a group not named (`resolveHairGroups`).
+   *  @defaultValue none: every group follows the project; the cache key unchanged */
+  hairGroups?: HairGroupsOption
   /** Stops the job when aborted. */ signal?: AbortSignal
   /** Called on each event. */
   onProgress?: (event: CompilerEvent & Partial<PreparationProgress>) => void
@@ -291,6 +298,7 @@ export interface BatchJob extends Pick<
   | 'objectSettings'
   | 'lightmapBake'
   | 'hairEndingPoint'
+  | 'hairGroups'
 > {
   /** Its name. */ id?: string
   /** The source file. */ source: string
