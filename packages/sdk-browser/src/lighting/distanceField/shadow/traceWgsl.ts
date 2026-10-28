@@ -2,7 +2,8 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { pixelToNdc } from '../../../../../math/src/wgsl/projection.ts'
 import { hizDepthWgsl } from '../../../visibility/hiz/gpu/pyramidTexture.ts'
-import { SUBSURFACE_FLAG } from '../../../materials/surface/subsurface.ts'
+import { isSubsurfaceModel } from '../../../materials/surface/subsurface.ts'
+import { PIXEL_MODEL, pixelModelOf } from '../../../materials/surface/pixelModel.ts'
 import { subsurfaceDensity } from '../../subsurfaceDensity.ts'
 import { meshFieldWgsl } from '../meshFieldWgsl.ts'
 import { DFSH_COMMON_WGSL } from './commonWgsl.ts'
@@ -96,14 +97,22 @@ fn dfshTraceObject(object:u32,rayStart:vec3f,rayEnd:vec3f,tanAngle:f32,visibilit
  * `distanceFieldShadowSubsampleDepth`, farther than the cascade's nearest depth, and the top left
  * nearer than its farthest), the pixel's position, the ray's two ends — started off the surface by
  * 2 centimetres and the share of the depth (`trace.y`), as long as the light's trace distance —, the
- * density of the light a thin transmitting pixel lets through (`dfshDensityOf`: from the opacity in
- * the alpha of the thin transmission's target, only where the quality has the transmission
- * (`trace.w`); negative for a pixel that lets none) and the store of the visibility with the depth it
+ * density of the light a transmitting pixel lets through (`dfshDensityOf`: negative for a pixel that
+ * lets none, where the quality has no transmission (`trace.w`) or the pixel is no thin sheet nor of a
+ * subsurface, skin, profile, hair or eye model; else from the opacity in the alpha of the thin
+ * transmission's target, a hair's being none) and the store of the visibility with the depth it
  * was traced at into the light's rows of the half-resolution result.
  */
 export const DFSH_TRACE_PIXEL_WGSL = wgslBlock(
   'DFSH_TRACE_PIXEL_WGSL',
-  [DFSH_COMMON_WGSL, hizDepthWgsl(0, B.depth), pixelToNdc, subsurfaceDensity],
+  [
+    DFSH_COMMON_WGSL,
+    hizDepthWgsl(0, B.depth),
+    pixelToNdc,
+    subsurfaceDensity,
+    isSubsurfaceModel,
+    pixelModelOf,
+  ],
   `
 @group(0) @binding(${B.half}) var halfFactors:texture_storage_2d<${DFSH_HALF_FORMAT},write>;
 @group(0) @binding(${B.flags}) var surfaceFlags:texture_2d<u32>;
@@ -113,6 +122,7 @@ fn dfshCellsOf()->vec2u{
  let down=dfsh.view.z;
  return (dfsh.view.xy+vec2u(down-1u))/down;
 }
+// The depth and the ray's start position come from the same texel, the top left of the block.
 fn dfshBlockOf(cell:vec2u)->DfshBlock{
  let down=dfsh.view.z;
  let top=vec2i(cell*down);
@@ -139,8 +149,10 @@ fn dfshRayEnd(position:vec3f)->vec3f{
  return position+dfsh.light.xyz*dfsh.trace.x;
 }
 fn dfshDensityOf(top:vec2i)->f32{
- let thin=(textureLoad(surfaceFlags,top,0).r&${SUBSURFACE_FLAG}u)!=0u&&dfsh.trace.w>0.0;
- return select(-1.0,subsurfaceDensity(textureLoad(subsurfaceColor,top,0).a),thin);
+ let flags=textureLoad(surfaceFlags,top,0).r;
+ if(dfsh.trace.w<=0.0||!isSubsurfaceModel(flags)){return -1.0;}
+ if(pixelModelOf(flags)==${PIXEL_MODEL.hair}u){return 0.0;}
+ return subsurfaceDensity(textureLoad(subsurfaceColor,top,0).a);
 }
 fn dfshStore(cell:vec2u,size:vec2u,visibility:f32,depth:f32){
  textureStore(halfFactors,vec2u(cell.x,dfsh.view.w*size.y+cell.y),vec4f(visibility,depth,0.0,0.0));

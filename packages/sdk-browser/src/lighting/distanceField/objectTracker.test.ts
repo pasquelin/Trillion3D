@@ -55,3 +55,15 @@ test('a root whose mark changes has its placement polled again and written with 
   assert.equal(seen.flags(), F.visible | F.virtualized)
   assert.deepEqual(seen.tracker.takeUpload(), [0], 'its record is written again')
 })
+
+test('a hidden root still casts, a parked one casts none, and a hidden root that is then parked is written again', () => {
+  const seen = tracked()
+  seen.root.hidden = true
+  seen.tracker.sync(seen.roots, () => false, 0, 1e9)
+  assert.equal(seen.flags(), F.castShadow | F.virtualized, 'hidden: still casts')
+  seen.tracker.takeUpload()
+  seen.root.parked = true
+  seen.tracker.sync(seen.roots, () => false, 0, 1e9)
+  assert.equal(seen.flags(), F.virtualized, 'parked: casts none')
+  assert.deepEqual(seen.tracker.takeUpload(), [0], 'its record is written again')
+})

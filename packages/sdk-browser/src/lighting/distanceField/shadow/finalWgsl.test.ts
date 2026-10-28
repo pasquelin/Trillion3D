@@ -18,12 +18,13 @@ function takes(flags: number) {
   return dfshCasts(flags)
 }
 
-test('a mesh is shadowed by the cascade where it casts, is shown and is no cluster geometry: none the engine draws is', () => {
+test('a mesh is shadowed by the cascade where it casts and is no cluster geometry, shown or hidden: none the engine draws is', () => {
   const casts = F.castShadow | F.visible
   assert.equal(takes(casts), true, 'a mesh that is no cluster geometry')
   assert.equal(takes(casts | F.virtualized), false, 'the shadow maps draw clusters at any distance')
   assert.equal(takes(F.visible), false, 'casts none')
-  assert.equal(takes(F.castShadow), false, 'hidden')
+  assert.equal(takes(F.castShadow), true, 'hidden, it still casts')
+  assert.equal(takes(F.castShadow | F.virtualized), false, 'hidden clusters are drawn by the maps')
   assert.equal(takes(F.oftenMoving | F.emissive), false)
 })
 

@@ -5,6 +5,8 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { builtins } from '../../../materials/texture/shaderRunBuiltins.fixture.ts'
+import { PIXEL_MODEL, PIXEL_MODEL_SHIFT } from '../../../materials/surface/pixelModel.ts'
+import { SUBSURFACE_FLAG } from '../../../materials/surface/subsurface.ts'
 import { DFSH_SCATTER_WGSL } from './scatterWgsl.ts'
 import { DFSH_TRACE_WGSL } from './traceWgsl.ts'
 
@@ -94,6 +96,19 @@ test('a thin surface of a density of 0 lets all the light through but the steps 
   const none = traced(64, false, 0, 0)(0, 0.0047)
   assert.ok(none > 0.5, `the sphere stops nothing: ${none}`)
   assert.ok(none >= traced(64, false, 0, 0.001)(0, 0.0047), 'more light than a density above 0')
+})
+
+test('a thin sheet and a pixel of a subsurface, skin, profile, hair or eye model transmit, a plain surface does not', () => {
+  const { isSubsurfaceModel } = shaderRun<{ isSubsurfaceModel: (flags: number) => boolean }>(
+    DFSH_TRACE_WGSL,
+    ['isSubsurfaceModel'],
+    {},
+  )
+  const model = (id: number) => id << PIXEL_MODEL_SHIFT
+  for (const id of Object.values(PIXEL_MODEL))
+    assert.equal(isSubsurfaceModel(model(id)), true, `model ${id}`)
+  assert.equal(isSubsurfaceModel(SUBSURFACE_FLAG), true, 'a thin sheet')
+  assert.equal(isSubsurfaceModel(0), false, 'a plain surface')
 })
 
 /** The tiles of a grid of side `side` a mesh with the box of half-size `half` centimetres at `at`

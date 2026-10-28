@@ -23,7 +23,6 @@ export const DFSH_COMMON_WGSL = wgslBlock(
     DFSH_SUBSAMPLE_DEPTH: DFSH_FLAG.subsampleDepth,
     DFSH_COMPACT_TILES: DFSH_FLAG.compactTiles,
     FLAG_CAST_SHADOW: OBJECT_FLAGS.castShadow,
-    FLAG_VISIBLE: OBJECT_FLAGS.visible,
     FLAG_VIRTUALIZED: OBJECT_FLAGS.virtualized,
     DF_MAX_MIPS: DISTANCE_FIELD_MIPS,
   })}

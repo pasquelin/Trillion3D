@@ -88,6 +88,7 @@ function poll(
     if (
       (root.worldAt ?? 0) === entry.version &&
       rootVisible(root) === entry.visible &&
+      !!root.parked === entry.parked &&
       (root.mark ?? 0) === entry.mark &&
       mv === entry.moving
     )
@@ -140,7 +141,7 @@ export function createObjectTracker(
         field: entry.field,
         asset: entry.asset,
         instance: entry.root.standsFor ?? entry.rank,
-        flags: flagsOf(entry.visible, entry.moving, entry.mark),
+        flags: flagsOf(entry.visible, entry.parked, entry.moving, entry.mark),
         drawDistance: entry.root.drawDistance,
       }
     },

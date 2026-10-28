@@ -4,14 +4,15 @@ import { DFSH_COMMON_WGSL } from './commonWgsl.ts'
 import { DFSH_BINDING as B, DFSH_CULL_GROUP, DFSH_OFFSET_GROUP } from './layout.ts'
 
 /**
- * THE MESHES CULLED TO THE CASCADE (`dfshCull`), a thread a mesh of the scene: those that cast a
- * shadow, are shown, are no cluster geometry (`dfshCasts`: a sun's shadow maps draw the clusters at any
- * distance, so the cascade, which only ever serves a sun that has maps, would shadow them twice —
- * every mesh the engine draws is made of clusters, so the list is empty and the passes after it run on
- * nothing), whose bounding sphere meets the hull of the cascade (`dfshHullTouches`: no plane puts it
- * wholly outside), and that are drawn at their distance from the eye (the squared distance over
- * `drawDistance2.x` if it is above 0.0001, under `.y` likewise), are listed, a place each by an
- * atomic add. The draw's arguments (the vertex count of the cube, the meshes listed, zeros) are
+ * THE MESHES CULLED TO THE CASCADE (`dfshCull`), a thread a mesh of the scene. A mesh is listed if it
+ * casts a shadow, shown or hidden. It is listed if it is no cluster geometry (`dfshCasts`): a sun's
+ * shadow maps draw the clusters at any distance, so the cascade would shadow them twice. Every mesh
+ * the engine draws is made of clusters, so the list is empty and the passes after it run on nothing.
+ * A sun without virtual shadow maps would trace the cluster meshes too (the pass's rule); none exists
+ * today. It is listed if its bounding sphere meets the hull of the cascade (`dfshHullTouches`: no
+ * plane puts it wholly outside). It is listed if it is drawn at its distance from the eye (the
+ * squared distance over `drawDistance2.x` if that is above 0.0001, under `.y` likewise). A place each
+ * by an atomic add. The draw's arguments (the vertex count of the cube, the meshes listed, zeros) are
  * cleared to zero by the host before the pass; the first thread sets the vertex count.
  */
 export const DFSH_CULL_WGSL = wgslProgram(
@@ -25,7 +26,7 @@ fn dfshHullTouches(centre:vec3f,radius:f32)->bool{
  return true;
 }
 fn dfshCasts(flags:u32)->bool{
- return (flags&FLAG_CAST_SHADOW)!=0u&&(flags&FLAG_VISIBLE)!=0u&&(flags&FLAG_VIRTUALIZED)==0u;
+ return (flags&FLAG_CAST_SHADOW)!=0u&&(flags&FLAG_VIRTUALIZED)==0u;
 }
 @compute @workgroup_size(${DFSH_CULL_GROUP})
 fn dfshCull(@builtin(global_invocation_id) id:vec3u){

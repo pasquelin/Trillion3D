@@ -35,7 +35,7 @@ test('the shadow raster takes every cluster caster whatever its mark, and the ca
   for (let combination = 0; combination < 1 << BITS.length; combination++) {
     const mark = BITS.reduce((bits, bit, k) => bits | ((combination >> k) & 1 ? bit : 0), 0)
     // The cascade: the placement is made of clusters, whatever its mark, and is left out.
-    assert.equal(dfshCasts(flagsOf(true, false, mark)), false, `cascade, mark ${mark}`)
+    assert.equal(dfshCasts(flagsOf(true, false, false, mark)), false, `cascade, mark ${mark}`)
     combinations++
   }
   assert.equal(combinations, 16)

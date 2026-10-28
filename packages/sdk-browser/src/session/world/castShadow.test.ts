@@ -147,12 +147,12 @@ test('a root whose primitive leaves the shadow maps is no raster caster, and kee
   assert.equal(castFlagsOf(root) & MOBILITY_SHADOWLESS, MOBILITY_SHADOWLESS, 'the raster skips it')
   assert.equal(castFlagsOf({ mark: 0 }) & MOBILITY_SHADOWLESS, 0)
   assert.equal(
-    flagsOf(true, false, root.mark) & OBJECT_FLAGS.castShadow,
+    flagsOf(true, false, false, root.mark) & OBJECT_FLAGS.castShadow,
     OBJECT_FLAGS.castShadow,
     'the distance field still casts it',
   )
   assert.equal(
-    flagsOf(true, false, SHADOWLESS_ROOT) & OBJECT_FLAGS.castShadow,
+    flagsOf(true, false, false, SHADOWLESS_ROOT) & OBJECT_FLAGS.castShadow,
     0,
     'castShadow does not',
   )
@@ -172,7 +172,7 @@ test('a mesh whose every primitive leaves the shadow maps casts none into them, 
   // The whole mesh casts none: no primitive is left in the distance field either.
   assert.deepEqual(marks(), [SHADOWLESS_ROOT, SHADOWLESS_ROOT])
   assert.deepEqual(words(), [MOBILITY_SHADOWLESS, MOBILITY_SHADOWLESS], 'every primitive: none')
-  assert.equal(flagsOf(true, false, nodeCasting(glass)) & OBJECT_FLAGS.castShadow, 0)
+  assert.equal(flagsOf(true, false, false, nodeCasting(glass)) & OBJECT_FLAGS.castShadow, 0)
   frame.castsShadowMaps = true
   assert.deepEqual(
     words(),

@@ -1,21 +1,18 @@
 import { normalizeVector3OrZero } from '../../../../math/src/vector/vector.ts'
 import { LIGHT_SETTINGS } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { DFSH_MAX_LIGHTS } from '../../lighting/distanceField/shadow/layout.ts'
-import type { DfshLight } from '../../lighting/distanceField/shadow/params.ts'
+import type { SunShadowState } from '../../lighting/distanceField/shadow/state.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
-/** The suns the cascade is traced for, rewritten by each image (`sunsOf`). */
-export const lights: DfshLight[] = []
-
-const direction: [number, number, number] = [0, 0, 0]
-
 /**
- * The suns of the frame whose distance-field cascade is traced, into `lights`: the first four of
+ * The suns of the frame whose distance-field cascade is traced, into the `suns` of `state`: the first four of
  * the frame's shadowed lights, each by the channel of its shadow maps (`vsmPlanSteps.ts`, its lane
  * of the mask), that have a cascade (`sunCascades`).
  */
-export function sunsOf(rt: WebgpuPagesRuntime) {
+export function sunsOf(rt: WebgpuPagesRuntime, state: SunShadowState) {
+  const lights = state.suns
   lights.length = 0
+  const direction: [number, number, number] = [0, 0, 0]
   const plan = rt.lights.vsm?.plan
   if (!plan) return lights
   for (let lane = 0; lane < Math.min(plan.projected.length, DFSH_MAX_LIGHTS); lane++) {

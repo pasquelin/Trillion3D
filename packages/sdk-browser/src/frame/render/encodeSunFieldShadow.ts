@@ -20,7 +20,7 @@ import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { wantsContractLighting } from '../prepare/lit.ts'
-import { lights, sunsOf } from './sunFieldLights.ts'
+import { sunsOf } from './sunFieldLights.ts'
 
 /** The camera of the image, rewritten by each image. */
 const image: DfshImage = {
@@ -43,6 +43,7 @@ const settings: DfshSettings = {
   scatterTiles: true,
   compactTiles: true,
   subsampleDepth: false,
+  transmission: true,
   snapTexels: 2040,
 }
 
@@ -117,18 +118,20 @@ function traceSunFieldShadow(
   state: SunShadowState,
   at?: (depth: HizDepth) => HizDepth,
 ) {
+  // Over the water's depth (`at`) the flags and the transmission are those of the opaque surface under it.
   state.mask = undefined
   const drawn = gate(rt)
   if (drawn) {
     settingsOf(rt, drawn.device.limits.maxTextureDimension2D)
-    sunsOf(rt)
+    settings.transmission = !at
+    sunsOf(rt, state)
   }
-  if (!drawn || !lights.length) return releaseSunShadow(state)
+  if (!drawn || !state.suns.length) return releaseSunShadow(state)
   describe(rt, cam)
   state.mask = encodeSunFieldShadows(state.dfsh, drawn.device, encoder, {
     image,
     settings,
-    lights,
+    lights: state.suns,
     sources: {
       depth: at ? at(drawn.depth) : drawn.depth,
       flags: drawn.flags,

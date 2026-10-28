@@ -159,7 +159,7 @@ export const DFSH_CUBE = [
 /**
  * The bindings, one table for every pass, so a resource has one number: a pass binds the ones it
  * names (`layouts.ts`). The depth pyramid takes three, from `depth`; the meshes' fields seven, from
- * `objects` (`meshFieldWgsl`); `flags` is the surfaces' flags, whose thin-subsurface bit the trace reads,
+ * `objects` (`meshFieldWgsl`); `flags` is the surfaces' flags, whose thin-subsurface bit and shading model the trace reads,
  * and `subsurface` the thin transmission's target, whose alpha is that pixel's opacity.
  */
 export const DFSH_BINDING = {

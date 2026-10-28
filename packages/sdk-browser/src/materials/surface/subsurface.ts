@@ -1,13 +1,25 @@
+import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { DEFERRED_BINDINGS } from '../../lighting/deferred/bindings.ts'
 import { someRowSurface } from '../../geometry/pages/rowSurfaces.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { loadOnlyTarget } from '../../gpu/core/loadOnlyTarget.ts'
 import type { VisMaterial } from '../../visibility/materialType.ts'
 import { SURFACE_COLOURS_FORMAT } from './surfaceOutputs.ts'
-import { holdsPixelModels } from './pixelModel.ts'
+import { holdsPixelModels, isPixelModel, pixelModelOf } from './pixelModel.ts'
 
 /** Independent diffuse transmission, disabled by black and restricted to thin double-sided matter. */
 export const SUBSURFACE_FLAG = 32
+/** Whether a pixel of surface flags `flags` is of a subsurface model: a thin transmitting sheet
+ *  (`SUBSURFACE_FLAG`) or a pixel of one of the shading models it carries (`PIXEL_MODEL`: subsurface,
+ *  preintegrated skin, subsurface profile, hair, eye). The one rule the shadows share: the virtual maps
+ *  cull no back face of such a pixel, and the distance-field cascade lets light through it. */
+export const isSubsurfaceModel = wgslFn(
+  'isSubsurfaceModel',
+  [pixelModelOf, isPixelModel],
+  `fn isSubsurfaceModel(flags:u32)->bool{
+ return (flags&${SUBSURFACE_FLAG}u)!=0u||isPixelModel(pixelModelOf(flags));
+}`,
+)
 /** The thin transmission colour's format, written by the shade pass and loaded by the lighting: a
  *  layer of the surfaces' colours (`SurfaceBuffer.colours`). */
 export const SUBSURFACE_FORMAT: GPUTextureFormat = SURFACE_COLOURS_FORMAT

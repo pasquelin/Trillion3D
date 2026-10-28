@@ -39,6 +39,8 @@ export interface TrackedObject {
   readonly asset: number
   version: number
   visible: boolean
+  /** Whether the root is parked, as the record last took it (a parked root casts none). */
+  parked: boolean
   moving: boolean
   /** The root's mark as the record last took it. */
   mark: number
@@ -128,6 +130,7 @@ export function addObject(
     asset: table.atlas.reference(field),
     version: root.worldAt ?? 0,
     visible: rootVisible(root),
+    parked: !!root.parked,
     mark: root.mark ?? 0,
     world: Float64Array.from({ length: 16 }, (_, k) => root.world.elements[k]),
   }
@@ -141,14 +144,14 @@ export function addObject(
 function noteChange(
   table: ObjectTable,
   entry: TrackedObject,
-  { box, visible, moving }: { box: Float64Array; visible: boolean; moving: boolean },
+  { box, visible, parked, moving }: Pick<TrackedObject, 'box' | 'visible' | 'parked' | 'moving'>,
 ) {
   const flipped = entry.moving !== moving
   // Any change of world or box names its regions, none rounded away: a slow turn's steps, each under
   // a tolerance, would otherwise leave the old poses in the field.
   const moved =
     !sameElements(entry.world, entry.root.world.elements) || !sameRange(entry.box, box, 6)
-  if (!(flipped || moved || entry.visible !== visible)) return
+  if (!(flipped || moved || entry.visible !== visible || entry.parked !== parked)) return
   const both = holding(entry.box, box)
   const caches = flipped ? [CACHE_STATIC, CACHE_FULL] : [cacheOf(moving)]
   if (!moved || both.near) note(table, caches, moved ? both.box : box)
@@ -169,10 +172,19 @@ export function updateObject(
   const box = measure(entry.root, entry.field, state.maxRadius)
   if (!box) return false
   const visible = rootVisible(entry.root)
-  noteChange(table, entry, { box, visible, moving })
+  const parked = !!entry.root.parked
+  noteChange(table, entry, { box, visible, parked, moving })
   entry.world.set(Array.from({ length: 16 }, (_, k) => entry.root.world.elements[k]))
   const mark = entry.root.mark ?? 0
-  Object.assign(entry, { rank, version: entry.root.worldAt ?? 0, visible, moving, box, mark })
+  Object.assign(entry, {
+    rank,
+    version: entry.root.worldAt ?? 0,
+    visible,
+    parked,
+    moving,
+    box,
+    mark,
+  })
   entry.key = keyOf(entry.field, entry.root)
   table.upload.add(at)
   return true

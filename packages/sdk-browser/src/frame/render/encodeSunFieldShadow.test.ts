@@ -74,8 +74,8 @@ const cam = {
 } as unknown as EngineCamera
 
 test('the cascade is traced for the suns that have one, by the channel of their shadow maps', () => {
-  const { rt } = runtime([sun(undefined, 'moon'), sun(CASCADE)])
-  const lights = [...sunsOf(rt)]
+  const { rt, state } = runtime([sun(undefined, 'moon'), sun(CASCADE)])
+  const lights = sunsOf(rt, state)
   assert.equal(lights.length, 1)
   assert.equal(lights[0].lane, 1, 'the second light of the plan: its lane')
   const [x, y, z] = lights[0].toLight
@@ -89,12 +89,14 @@ test('the cascade is traced for the suns that have one, by the channel of their 
   assert.equal(lights[0].cascade, CASCADE)
   // Past the fourth light of the plan there is no lane.
   const crowd = runtime([...Array(4)].map(() => sun(undefined)).concat(sun(CASCADE)))
-  assert.equal(sunsOf(crowd.rt).length, 0)
+  assert.equal(sunsOf(crowd.rt, crowd.state).length, 0)
 })
 
 test('a sun asking for hard shadows (angularRadius 0) is traced as hard, one the store does not hold gets the default disk', () => {
-  const radius = (angularRadius: number | null) =>
-    sunsOf(runtime([sun(CASCADE)], { angularRadius }).rt)[0].angularRadius
+  const radius = (angularRadius: number | null) => {
+    const { rt, state } = runtime([sun(CASCADE)], { angularRadius })
+    return sunsOf(rt, state)[0].angularRadius
+  }
   assert.equal(radius(0), 0, 'the maps trace a point; so does the cascade')
   assert.equal(radius(0.004), 0.004)
   assert.equal(radius(null), LIGHT_SETTINGS.sunAngularRadius)

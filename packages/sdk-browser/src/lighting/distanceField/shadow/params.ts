@@ -55,7 +55,8 @@ export interface DfshLight {
  *  whether it is traced at the display's resolution, the side of a tile (metres), the factor on a
  *  two-sided mesh's bias, the meshes a tile has room for, whether the meshes reach the pixels by the
  *  grid of tiles (else each group of texels culls its own), whether the tiles' lists lie one after
- *  the other, whether a texel is reached by the depth at its top left alone, and the texels across
+ *  the other, whether a texel is reached by the depth at its top left alone, whether the pixels of a thin sheet or
+ * a subsurface model let light through (off over the water's depth, whose surface is no such pixel), and the texels across
  *  the shadow space whose grid its origin snaps to (`snapTexelsOf`). */
 export interface DfshSettings {
   quality: number
@@ -66,6 +67,7 @@ export interface DfshSettings {
   scatterTiles: boolean
   compactTiles: boolean
   subsampleDepth: boolean
+  transmission: boolean
   snapTexels: number
 }
 
@@ -218,7 +220,7 @@ export function writeDfshParams(
     light.traceDistance * CM,
     light.rayStartOffset,
     DFSH_STEPS[quality],
-    quality >= 3 ? 1 : 0,
+    quality >= 3 && settings.transmission ? 1 : 0,
   )
   const { cascade } = light
   putVec4(
