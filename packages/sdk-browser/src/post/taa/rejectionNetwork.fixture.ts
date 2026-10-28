@@ -66,11 +66,11 @@ export const operatorsOf = <T = Operators>(
     laneRow: row,
     workgroupBarrier: () => {},
     workgroupUniformLoad: (pointer: { get(): Texel }) => pointer.get(),
-    // The structures and the alias the text declares by name, all empty at the start.
+    // The structures and the alias the text declares by name (of any width), all empty at the start.
     $zero: (type: string) =>
-      type === 'Box'
+      type.startsWith('Box')
         ? { lo: [], hi: [] }
-        : type === 'Statistics'
+        : type.startsWith('Statistics')
           ? { box: { lo: [], hi: [] }, blurred: [], variation: [] }
           : [],
     ...scope,

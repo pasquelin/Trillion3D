@@ -27,8 +27,8 @@ const THIN_GEOMETRY_GRADIENT = 0.00007
 
 /** The inputs of the measure: the luma and its history, held onto each other and blurred. */
 const inputsText = (t: RejectionTypes) => {
-  const { F, V4, cast } = t
-  return ` var lumas:Px;var prev:array<${V4},${LANE_ROWS}>;var modification:array<${F},${LANE_ROWS}>;var still:array<${F},${LANE_ROWS}>;
+  const { F, V2, V3, V4, cast } = t
+  return ` var lumas:PxW2;var prev:array<${V4},${LANE_ROWS}>;var modification:array<${F},${LANE_ROWS}>;var still:array<${F},${LANE_ROWS}>;
  for(var r=0;r<${LANE_ROWS};r++){
   let c=pixel[r];
   let scene=opaque[r]*scale;
@@ -39,47 +39,47 @@ const inputsText = (t: RejectionTypes) => {
   modification[r]=${cast(F, `max(max(max(0.0,abs(inputLuma-measureLuma(scene))-${wgslF32(LUMA_STEP_ERROR)}),change),1.0-layers[r].a)`)};
   prev[r]=${cast(V4, 'textureLoad(flicker,c,0)')};
   still[r]=${cast(F, '1.0-f32(textureLoad(marks,c,0).b)/255.0')};
-  lumas[r]=${V4}(${cast(F, 'inputLuma')},prev[r].x*prev[r].x,0.0,0.0);
+  lumas[r]=${V2}(${cast(F, 'inputLuma')},prev[r].x*prev[r].x);
  }
  // The input and the history each held onto the other, then blurred with the luma's modification.
- var swapped:Px;
- for(var r=0;r<${LANE_ROWS};r++){swapped[r]=lumas[r].yxzw;}
- let around=boxAndPlus3x3(lumas);
+ var swapped:PxW2;
+ for(var r=0;r<${LANE_ROWS};r++){swapped[r]=lumas[r].yx;}
+ let around=boxAndPlus3x3W2(lumas);
  let plus=around.plus;
- let crossed=annihilateToGuide(lumas,swapped,around.box);
- var held:Px;
- for(var r=0;r<${LANE_ROWS};r++){held[r]=${V4}(crossed[r].x,modification[r],crossed[r].y,0.0);}
- let filtered=blur3x3(held);
- var withHeld:Px;
- for(var r=0;r<${LANE_ROWS};r++){withHeld[r]=${V4}(filtered[r].x,held[r].x,filtered[r].z,0.0);}
- let box=minMax3x3(withHeld);
+ let crossed=annihilateToGuideW2(lumas,swapped,around.box);
+ var held:PxW3;
+ for(var r=0;r<${LANE_ROWS};r++){held[r]=${V3}(crossed[r].x,modification[r],crossed[r].y);}
+ let filtered=blur3x3W3(held);
+ var withHeld:PxW3;
+ for(var r=0;r<${LANE_ROWS};r++){withHeld[r]=${V3}(filtered[r].x,held[r].x,filtered[r].z);}
+ let box=minMax3x3W3(withHeld);
  var lo:array<${F},${LANE_ROWS}>;var hi:array<${F},${LANE_ROWS}>;var weight:array<${F},${LANE_ROWS}>;
  for(var r=0;r<${LANE_ROWS};r++){lo[r]=box.lo[r].x;hi[r]=box.hi[r].x;weight[r]=select(0.0,relax[r],relaxing&&relax[r]>${wgslF32(1 / THIN_MASK_BITS.most)});}`
 }
 
 /** The measure's box, relaxed by the thin geometry, and the energy past it. */
-const boxText = ({ F, V4 }: RejectionTypes) => ` if(relaxing){
-  var kept:Px;
+const boxText = ({ F, V2 }: RejectionTypes) => ` if(relaxing){
+  var kept:PxW1;
   for(var r=0;r<${LANE_ROWS};r++){
    lo[r]=lerpOf(lo[r],box.lo[r].z,weight[r]);hi[r]=lerpOf(hi[r],box.hi[r].z,weight[r]);
-   kept[r]=${V4}(clamp(filtered[r].z,lo[r],hi[r]),0.0,0.0,0.0);
+   kept[r]=clamp(filtered[r].z,lo[r],hi[r]);
   }
-  let keptBox=minMax3x3(kept);
-  for(var r=0;r<${LANE_ROWS};r++){if(weight[r]>0.0){lo[r]=keptBox.lo[r].x;hi[r]=keptBox.hi[r].x;}}
+  let keptBox=minMax3x3W1(kept);
+  for(var r=0;r<${LANE_ROWS};r++){if(weight[r]>0.0){lo[r]=keptBox.lo[r];hi[r]=keptBox.hi[r];}}
  }
  // In the responsive mode the clamp error follows the blur of the lesser total variation of the input's change and of the input. The mode is the
  // uniform's, so the branch is taken by the whole workgroup together, the network's barriers inside it.
  var variation:array<${F},${LANE_ROWS}>;
  if(shadingResponsive()){
-  var pair:Px;
-  for(var r=0;r<${LANE_ROWS};r++){pair[r]=${V4}(abs(lumas[r].x-crossed[r].x),crossed[r].x,0.0,0.0);}
-  let total=totalVariation3x3(pair);
-  var least:Px;
-  for(var r=0;r<${LANE_ROWS};r++){least[r]=${V4}(min(abs(total[r].x),abs(total[r].y)),0.0,0.0,0.0);}
-  let blurred=blur3x3(least);
-  for(var r=0;r<${LANE_ROWS};r++){variation[r]=blurred[r].x;}
+  var pair:PxW2;
+  for(var r=0;r<${LANE_ROWS};r++){pair[r]=${V2}(abs(lumas[r].x-crossed[r].x),crossed[r].x);}
+  let total=totalVariation3x3W2(pair);
+  var least:PxW1;
+  for(var r=0;r<${LANE_ROWS};r++){least[r]=min(abs(total[r].x),abs(total[r].y));}
+  let blurred=blur3x3W1(least);
+  for(var r=0;r<${LANE_ROWS};r++){variation[r]=blurred[r];}
  }
- var energy:Px;var delta:array<${F},${LANE_ROWS}>;
+ var energy:PxW2;var delta:array<${F},${LANE_ROWS}>;
  for(var r=0;r<${LANE_ROWS};r++){
   let boxSize=box.hi[r].y-box.lo[r].y;
   let clampError=max(max(Q,variation[r]),boxSize*${wgslF32(FILTERING_WEIGHT * 0.25)})+Q;
@@ -87,17 +87,17 @@ const boxText = ({ F, V4 }: RejectionTypes) => ` if(relaxing){
   let clamped=clamp(past,lo[r]-clampError,hi[r]+clampError);
   delta[r]=max(abs(filtered[r].x-past),boxSize*${wgslF32(FILTERING_WEIGHT)}+Q*${wgslF32(2 * FILTERING_WEIGHT)});
   let e=abs(clamped-past);
-  energy[r]=${V4}(e,saturate(1.0-max(e,0.0)*(1.0/delta[r])),0.0,0.0);
+  energy[r]=${V2}(e,saturate(1.0-max(e,0.0)*(1.0/delta[r])));
  }
- let spread=minMax3x3(median3x3(energy));`
+ let spread=minMax3x3W2(median3x3W2(energy));`
 
 /** The history update replayed on the luma, what of its gradient is a flicker, and the outputs: the
  *  flicker history of the texels the workgroup writes, and the error and count of every texel of
  *  its tile. */
-const replayText = ({ F, V4, rcp, cast }: RejectionTypes) => {
+const replayText = ({ F, V2, V4, rcp, cast }: RejectionTypes) => {
   const G = wgslF32(FLICKER_GHOSTING)
   return ` // The history update replayed on the luma, and what of its gradient is a flicker.
- var swing:Px;var history:array<${F},${LANE_ROWS}>;var gradient:array<${F},${LANE_ROWS}>;var prevGradient:array<${F},${LANE_ROWS}>;
+ var swing:PxW2;var history:array<${F},${LANE_ROWS}>;var gradient:array<${F},${LANE_ROWS}>;var prevGradient:array<${F},${LANE_ROWS}>;
  var flickered:array<${F},${LANE_ROWS}>;var thinRegion:array<bool,${LANE_ROWS}>;
  for(var r=0;r<${LANE_ROWS};r++){
   let clampBlend=spread.lo[r].y;
@@ -119,9 +119,9 @@ const replayText = ({ F, V4, rcp, cast }: RejectionTypes) => {
   }
   flickered[r]=select(${F}(1.0),${F}(0.0),g*pg>0.0||within||view.params.x!=0.0);
   gradient[r]=g;prevGradient[r]=pg;
-  swing[r]=${V4}(min(abs(pg),abs(g))*flickered[r],flickered[r],0.0,0.0);
+  swing[r]=${V2}(min(abs(pg),abs(g))*flickered[r],flickered[r]);
  }
- let spreadSwing=max3x3(max3x3(swing));
+ let spreadSwing=max3x3W2(max3x3W2(swing));
  var out:Flicker;
  for(var r=0;r<${LANE_ROWS};r++){
   var newGradient=prevGradient[r]*${wgslF32(FLICKER_GHOSTING - 1)}*(flickered[r]-1.0)+gradient[r];
@@ -170,7 +170,7 @@ export const flickerMeasureWgsl = (t: RejectionTypes, wave?: Wave) => {
     `FLICKER_MEASURE${S}_WGSL`,
     [
       ...networkOf(t, wave),
-      annihilateWgsl(t, wave),
+      ...annihilateWgsl(t, wave),
       colorSpacesWgsl(t),
       safeRcp,
       TAA_VIEW_WGSL,

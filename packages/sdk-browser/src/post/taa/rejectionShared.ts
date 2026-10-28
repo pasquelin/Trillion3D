@@ -4,7 +4,7 @@ import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { TAA_VIEW_WGSL } from './bindingsWgsl.ts'
 import { DISPLAY_STEP_ERROR, type Precision } from './colorSpaceWgsl.ts'
-import { LANE_ROWS, networkOf } from './rejectionNetworkWgsl.ts'
+import { type Channels, LANE_ROWS, networkOf, widthSuffix } from './rejectionNetworkWgsl.ts'
 import type { Wave } from './waveOps.ts'
 
 /** The display's step error `Q`, which the shading rejection and the flicker measure (`flickerMeasureWgsl.ts`) widen their clamps by. */
@@ -54,18 +54,29 @@ fn shadingResponsive()->bool{return view.rates.z>0.0;}`,
 
 /** The filtering weight of the binomial 3×3's centre: `1 / (1 + 4·½ + 4·¼)`. */
 export const FILTERING_WEIGHT = 1 / (1 + 4 * 0.5 + 4 * 0.25)
-/** Each of two values held in the 3×3 box of the other. */
-const annihilateText = () => `/** \`v\` held in the box \`b\`. */
-fn heldIn(v:Px,b:Box)->Px{
- var o:Px;
+/** Each of two values of `n` channels held in the 3×3 box of the other. */
+const annihilateText = (n: Channels) => {
+  const w = widthSuffix(n)
+  return `/** \`v\` held in the box \`b\`. */
+fn heldIn${w}(v:Px${w},b:Box${w})->Px${w}{
+ var o:Px${w};
  for(var r=0;r<${LANE_ROWS};r++){o[r]=clamp(v[r],b.lo[r],b.hi[r]);}
  return o;
 }
 /** \`toClamp\` held in the 3×3 box of \`guide\` held in the 3×3 box of \`toClamp\` (\`own\`, its 3×3 box): each
  *  brought onto the other where they overlap. */
-fn annihilateToGuide(toClamp:Px,guide:Px,own:Box)->Px{return heldIn(toClamp,minMax3x3(heldIn(guide,own)));}`
+fn annihilateToGuide${w}(toClamp:Px${w},guide:Px${w},own:Box${w})->Px${w}{return heldIn${w}(toClamp,minMax3x3${w}(heldIn${w}(guide,own)));}`
+}
+
+/** The widths the values held in each other's box have: a colour (three channels), the flicker luma
+ *  and its history (two). */
+const ANNIHILATE_WIDTHS = [3, 2] as const
 
 /** The values held in each other's box, which the shading rejection and the flicker measure
  *  (`flickerMeasureWgsl.ts`) both bring onto each other. */
-export const annihilateWgsl = (p: Precision, wave?: Wave) =>
-  wgslBlock(`REJECT_SHADING_ANNIHILATE${p.S}_WGSL`, networkOf(p, wave), annihilateText())
+export const annihilateWgsl = (p: Precision, wave?: Wave) => {
+  const network = networkOf(p, wave)
+  return ANNIHILATE_WIDTHS.map((n) =>
+    wgslBlock(`REJECT_SHADING_ANNIHILATE${n}${p.S}_WGSL`, network, annihilateText(n)),
+  )
+}

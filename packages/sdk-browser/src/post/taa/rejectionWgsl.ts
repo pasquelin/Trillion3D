@@ -112,35 +112,35 @@ fn minOf(v:${V3})->${F}{return min(min(v.x,v.y),v.z);}
  *  the energy past it against the larger of the filtered difference and the box's size,
  *  the least of the channels; its 3×3 median, then the maximum of the energy and the minimum of the
  *  raw rejection, the clamp's lift. */
-fn measureRejection(input:Px,heldInput:Px,heldHistory:Px,cellError:array<${F},${LANE_ROWS}>,relax:array<${F},${LANE_ROWS}>,relaxing:bool,flickerOn:bool)->Measured{
- let filteredHistory=blur3x3(heldHistory);
- var gap:Px;
+fn measureRejection(input:PxW3,heldInput:PxW3,heldHistory:PxW3,cellError:array<${F},${LANE_ROWS}>,relax:array<${F},${LANE_ROWS}>,relaxing:bool,flickerOn:bool)->Measured{
+ let filteredHistory=blur3x3W3(heldHistory);
+ var gap:PxW3;
  for(var r=0;r<${LANE_ROWS};r++){gap[r]=abs(input[r]-heldInput[r]);}
- let heldPair=statisticsAndVariation(heldInput,gap);
+ let heldPair=statisticsAndVariationW3(heldInput,gap);
  let heldStats=heldPair.first;let gapVariation=heldPair.second;
  let heldBox=heldStats.box;let filteredInput=heldStats.blurred;
- var least:Px;
+ var least:PxW3;
  for(var r=0;r<${LANE_ROWS};r++){least[r]=min(abs(gapVariation[r]),abs(heldStats.variation[r]));}
- let leastPair=blurAndMinMax(least,filteredInput);
+ let leastPair=blurAndMinMaxW3(least,filteredInput);
  let leastBlurred=leastPair.first;var box=leastPair.second;
  var boxSize:array<${V3},${LANE_ROWS}>;var clampError:array<${V3},${LANE_ROWS}>;
  for(var r=0;r<${LANE_ROWS};r++){
-  boxSize[r]=heldBox.hi[r].rgb-heldBox.lo[r].rgb;
-  clampError[r]=max(max(${V3}(Q),leastBlurred[r].rgb),boxSize[r]*${wgslF32(FILTERING_WEIGHT * 0.25)})+Q;
+  boxSize[r]=heldBox.hi[r]-heldBox.lo[r];
+  clampError[r]=max(max(${V3}(Q),leastBlurred[r]),boxSize[r]*${wgslF32(FILTERING_WEIGHT * 0.25)})+Q;
  }`
 
 /** The box moved toward the filtered history's own where the thin geometry relaxes it. */
-const measureRelaxText = ({ F, V4 }: Precision) => ` if(relaxing){
+const measureRelaxText = ({ F }: Precision) => ` if(relaxing){
   var weight:array<${F},${LANE_ROWS}>;
   for(var r=0;r<${LANE_ROWS};r++){weight[r]=select(0.0,relax[r],relax[r]>${wgslF32(1 / THIN_MASK_BITS.most)});}
-  let historyBox=minMax3x3(filteredHistory);
-  for(var r=0;r<${LANE_ROWS};r++){box.lo[r]=${V4}(lerp3(box.lo[r].rgb,historyBox.lo[r].rgb,weight[r]),0.0);}
-  var held:Px;
+  let historyBox=minMax3x3W3(filteredHistory);
+  for(var r=0;r<${LANE_ROWS};r++){box.lo[r]=lerp3(box.lo[r],historyBox.lo[r],weight[r]);}
+  var held:PxW3;
   for(var r=0;r<${LANE_ROWS};r++){
-   box.hi[r]=${V4}(lerp3(box.hi[r].rgb,historyBox.hi[r].rgb,weight[r]),0.0);
-   held[r]=${V4}(clamp(filteredHistory[r].rgb,box.lo[r].rgb,box.hi[r].rgb),0.0);
+   box.hi[r]=lerp3(box.hi[r],historyBox.hi[r],weight[r]);
+   held[r]=clamp(filteredHistory[r],box.lo[r],box.hi[r]);
   }
-  let heldRelaxed=minMax3x3(held);
+  let heldRelaxed=minMax3x3W3(held);
   for(var r=0;r<${LANE_ROWS};r++){if(weight[r]>0.0){box.lo[r]=heldRelaxed.lo[r];box.hi[r]=heldRelaxed.hi[r];}}
  }`
 
@@ -150,8 +150,8 @@ const measureEnergyText = (p: Precision) => {
   const rcp = rcpOf(p)
   return ` var energy:Px;var delta:array<${V3},${LANE_ROWS}>;var m:Measured;
  for(var r=0;r<${LANE_ROWS};r++){
-  let history=filteredHistory[r].rgb;
-  let lo=box.lo[r].rgb-clampError[r];let hi=box.hi[r].rgb+clampError[r];
+  let history=filteredHistory[r];
+  let lo=box.lo[r]-clampError[r];let hi=box.hi[r]+clampError[r];
   let plainClamped=clamp(history,lo,hi);
   var clamped=plainClamped;
   let size=boxSize[r]*${wgslF32(FILTERING_WEIGHT)}+${wgslF32(2 * FILTERING_WEIGHT)}*Q;
@@ -162,13 +162,17 @@ const measureEnergyText = (p: Precision) => {
    let past=abs(clamped-history);
    widened=max(size,past*${rcp}(past.x+past.y+past.z)*(${wgslF32(FILTERING_WEIGHT * LUMA_TO_CHANNEL)}*cellError[r]));
   }
-  let difference=abs(filteredInput[r].rgb-history);
+  let difference=abs(filteredInput[r]-history);
   delta[r]=max(difference,widened);
   let e=abs(clamped-history);
   let raw=minOf(saturate(${V3}(1.0)-e*(${V3}(1.0)/delta[r])));
   energy[r]=${V4}(e,raw);
-  m.raw[r]=raw;
-  m.plain[r]=minOf(saturate(${V3}(1.0)-abs(plainClamped-history)*(${V3}(1.0)/max(difference,size))));
+  // The rejection's stages an analysis view shows (\`analysisView\`): the view is the uniform's, so
+  // the whole workgroup skips them together, and nothing else reads them.
+  if(analysisShown()){
+   m.raw[r]=raw;
+   m.plain[r]=minOf(saturate(${V3}(1.0)-abs(plainClamped-history)*(${V3}(1.0)/max(difference,size))));
+  }
  }
  let spread=minMax3x3(median3x3(energy));
  for(var r=0;r<${LANE_ROWS};r++){
@@ -180,8 +184,8 @@ const measureEnergyText = (p: Precision) => {
 }
 
 /** What the shading rejection measures of a frame's history against the image
- *  (`measureRejection`): the rejection, the clamp's lift, and for the analysis view of the
- *  rejection the rejection without the flicker error's widening and the raw one. */
+ *  (`measureRejection`): the rejection, the clamp's lift, and, only while an analysis view is shown
+ *  (`analysisShown`), the rejection without the flicker error's widening and the raw one. */
 const measureText = (p: Precision) =>
   `\n${[measureHeadText(p), measureRelaxText(p), measureEnergyText(p)].join('\n')}`
 const measureWgsl = (p: Precision, wave?: Wave) =>
@@ -189,8 +193,9 @@ const measureWgsl = (p: Precision, wave?: Wave) =>
     `REJECT_SHADING_MEASURE${p.S}_WGSL`,
     [
       ...networkOf(p, wave),
-      annihilateWgsl(p, wave),
+      ...annihilateWgsl(p, wave),
       DISPLAY_STEP_ERROR_WGSL,
+      FLICKER_GATES_WGSL,
       p.S ? colorSpacesWgsl(p) : safeRcp,
     ],
     measureText(p),
@@ -311,7 +316,8 @@ const loadText = (colorFormat: GPUTextureFormat, lumaForm: StorageForm) => {
 ${lumaStoreText(lumaForm)}
    }
   }
- }`
+ }
+ // @cut load keep: if(f32(composed[0].x)+f32(composed[1].y)+f32(composed[2].z)+f32(composed[3].x)+f32(layers[0].w)+f32(word[0])+f32(word[1])+f32(word[2])+f32(word[3])<-1e30){occluders[0]=1u;}`
 }
 
 /** The thin geometry's relaxation, where the detection runs and some texel has one. */
@@ -331,7 +337,8 @@ const relaxationText = ({
  *  thin geometry's relaxation only where `thinAntiFlickers`; the rejection after it takes it whole. */
 const flickerReadText = () => ` var flick:Flicker;
  if(flickerMeasured()){flick=measureFlicker(pixel,place,writes,word,opaque,composed,layers,relax,relaxing&&thinAntiFlickers(),scale);}
- let cellError=flick.error;`
+ let cellError=flick.error;
+ // @cut flicker keep: if(f32(cellError[0])+f32(cellError[1])+f32(cellError[2])+f32(cellError[3])<-1e30){occluders[0]=2u;}`
 
 /** The histories and the rejection's input in the measurement space, and the texels the
  *  resurrected frame is closer to. */
@@ -351,59 +358,63 @@ const historiesText = ({
   blurIn[r]=${cast(V4, 'select(layers[r],vec4f(composed[r],0.0),isAnimated(word[r]))')};
  }
  let blurred=blur3x3(blurIn);
- var input:array<${V3},${LANE_ROWS}>;var exposedInput:Px;var exposedHistory:Px;
+ var input:array<${V3},${LANE_ROWS}>;var exposedInput:PxW3;var exposedHistory:PxW3;
  for(var r=0;r<${LANE_ROWS};r++){
   let sharp=${cast(V3, 'select(opaque[r],vec3f(0.0),isAnimated(word[r]))')};
   input[r]=min(sharp*blurred[r].a+blurred[r].rgb,${V3}(${bounded('most')}));
-  exposedInput[r]=${V4}(linearToMeasure${S}(input[r]*${cast(F, 'scale')}),0.0);
-  exposedHistory[r]=${V4}(guide[r].rgb*guide[r].rgb,0.0);
+  exposedInput[r]=linearToMeasure${S}(input[r]*${cast(F, 'scale')});
+  exposedHistory[r]=guide[r].rgb*guide[r].rgb;
  }
  var closer:array<bool,${LANE_ROWS}>;
  if(resurrecting){
-  var gap:Px;
+  var gap:PxW1;
   for(var r=0;r<${LANE_ROWS};r++){
-   let ei=exposedInput[r].rgb;let past=other[r].rgb*other[r].rgb;
-   let d=abs(ei-exposedHistory[r].rgb)-abs(ei-past);
-   gap[r]=${V4}(d.x+d.y+d.z);
+   let ei=exposedInput[r];let past=other[r].rgb*other[r].rgb;
+   let d=abs(ei-exposedHistory[r])-abs(ei-past);
+   gap[r]=d.x+d.y+d.z;
   }
-  let total=sum3x3(gap);
-  var counts:Px;
-  for(var r=0;r<${LANE_ROWS};r++){counts[r]=${V4}(select(${F}(0.0),${F}(1.0),total[r].x>${wgslF32(CLOSER_SUM)}));}
-  let count=sum3x3(counts);
+  let total=sum3x3W1(gap);
+  var counts:PxW1;
+  for(var r=0;r<${LANE_ROWS};r++){counts[r]=select(${F}(0.0),${F}(1.0),total[r]>${wgslF32(CLOSER_SUM)});}
+  let count=sum3x3W1(counts);
   for(var r=0;r<${LANE_ROWS};r++){
-   closer[r]=count[r].x>${wgslF32(CLOSER_MORE_THAN)}&&(word[r]&${REPROJECT_BITS.resurrectionOffScreen}u)==0u&&!asksRestart(word[r]);
+   closer[r]=count[r]>${wgslF32(CLOSER_MORE_THAN)}&&(word[r]&${REPROJECT_BITS.resurrectionOffScreen}u)==0u&&!asksRestart(word[r]);
   }
- }`
+ }
+ // @cut histories keep: if(f32(exposedInput[0].x)+f32(exposedInput[1].y)+f32(exposedHistory[2].z)+f32(exposedHistory[3].x)+f32(blurIn[0].w)+select(0.0,1.0,closer[0])+select(0.0,1.0,closer[3])<-1e30){occluders[0]=3u;}`
 
 /** The rejection of the last image's history. */
 const holdText = ({
   cast,
 }: RejectionTypes) => ` // The input held to the history held in its box, the history held to the input.
- let boxes=minMaxPair(exposedInput,exposedHistory);
+ let boxes=minMaxPairW3(exposedInput,exposedHistory);
  let inputBox=boxes.first;
  var visible:array<bool,${LANE_ROWS}>;
  for(var r=0;r<${LANE_ROWS};r++){
-  visible[r]=luma601(${cast('vec3f', 'inputBox.hi[r].rgb-inputBox.lo[r].rgb')})>${SPATIAL_ANTI_ALIASER_MIN_LUMINANCE};
+  visible[r]=luma601(${cast('vec3f', 'inputBox.hi[r]-inputBox.lo[r]')})>${SPATIAL_ANTI_ALIASER_MIN_LUMINANCE};
  }
- let heldHistory=heldIn(exposedHistory,inputBox);
- let heldBoxes=minMaxPair(heldHistory,heldIn(exposedInput,boxes.second));
- let heldInput=heldIn(exposedInput,heldBoxes.first);
- let historyHeld=heldIn(exposedHistory,heldBoxes.second);
+ // @cut box1 keep: if(f32(inputBox.hi[0].x)+f32(inputBox.lo[1].y)+f32(inputBox.hi[2].z)+f32(inputBox.lo[3].x)+select(0.0,1.0,visible[0])+select(0.0,1.0,visible[3])<-1e30){occluders[0]=4u;}
+ let heldHistory=heldInW3(exposedHistory,inputBox);
+ let heldBoxes=minMaxPairW3(heldHistory,heldInW3(exposedInput,boxes.second));
+ let heldInput=heldInW3(exposedInput,heldBoxes.first);
+ let historyHeld=heldInW3(exposedHistory,heldBoxes.second);
+ // @cut box2 keep: if(f32(heldInput[0].x)+f32(historyHeld[1].y)+f32(heldInput[2].z)+f32(historyHeld[3].x)<-1e30){occluders[0]=5u;}
  let flickerOn=flickerRejects();
  let measured=measureRejection(exposedInput,heldInput,historyHeld,cellError,relax,relaxing,flickerOn);
  var blend=measured.blend;var clampBlend=measured.clampBlend;
+ // @cut measure keep: if(f32(blend[0])+f32(blend[1])+f32(blend[2])+f32(blend[3])+f32(clampBlend[0])+f32(clampBlend[3])<-1e30){occluders[0]=6u;}
  var resurrect:array<bool,${LANE_ROWS}>;`
 
 /** The resurrected frame's rejection, measured where some texel of the workgroup is closer. */
-const resurrectText = ({ F, V4 }: RejectionTypes) => ` if(resurrecting){
+const resurrectText = ({ F }: RejectionTypes) => ` if(resurrecting){
   var worth=false;
   for(var r=0;r<${LANE_ROWS};r++){worth=worth||(closer[r]&&blend[r]<${wgslF32(NOT_GOOD_ENOUGH)}&&inner[r]);}
   if(anyThread(worth)){
-   var exposedOther:Px;
-   for(var r=0;r<${LANE_ROWS};r++){exposedOther[r]=${V4}(other[r].rgb*other[r].rgb,0.0);}
-   let otherBoxes=minMaxPair(exposedOther,heldIn(exposedOther,inputBox));
-   let otherInput=heldIn(exposedInput,otherBoxes.second);
-   let otherHistory=annihilateToGuide(exposedOther,exposedInput,otherBoxes.first);
+   var exposedOther:PxW3;
+   for(var r=0;r<${LANE_ROWS};r++){exposedOther[r]=other[r].rgb*other[r].rgb;}
+   let otherBoxes=minMaxPairW3(exposedOther,heldInW3(exposedOther,inputBox));
+   let otherInput=heldInW3(exposedInput,otherBoxes.second);
+   let otherHistory=annihilateToGuideW3(exposedOther,exposedInput,otherBoxes.first);
    var none:array<${F},${LANE_ROWS}>;
    let fromOther=measureRejection(exposedInput,otherInput,otherHistory,none,none,false,flickerOn);
    for(var r=0;r<${LANE_ROWS};r++){
@@ -411,19 +422,21 @@ const resurrectText = ({ F, V4 }: RejectionTypes) => ` if(resurrecting){
     if(resurrect[r]){blend[r]=fromOther.blend[r];clampBlend[r]=fromOther.clampBlend[r];}
    }
   }
- }`
+ }
+ // @cut resurrect keep: if(f32(blend[0])+f32(blend[1])+f32(blend[2])+f32(blend[3])+f32(clampBlend[0])+f32(clampBlend[3])+select(0.0,1.0,resurrect[0])<-1e30){occluders[0]=7u;}`
 
 /** The history each pixel keeps and the outputs: shading history, field, rejection words, occluders. */
 const outputsText = (
   { F, V3, V4, S, cast }: RejectionTypes,
   guideFormat: GPUTextureFormat,
 ) => ` // The history each pixel keeps, its edges' 3×3 minimum, and the outputs.
- var keptEdge:Px;
+ var keptEdge:PxW1;
  for(var r=0;r<${LANE_ROWS};r++){
   if(resurrect[r]){guide[r]=other[r];}
-  keptEdge[r]=${V4}(guide[r].a);
+  keptEdge[r]=guide[r].a;
  }
- let historyEdge=min3x3(keptEdge);
+ let historyEdge=min3x3W1(keptEdge);
+ // @cut edge keep: if(f32(historyEdge[0])+f32(historyEdge[1])+f32(historyEdge[2])+f32(historyEdge[3])+f32(guide[0].x)+f32(guide[3].y)<-1e30){occluders[0]=8u;}
  for(var r=0;r<${LANE_ROWS};r++){
   if(!writes[r]){continue;}
   let g=place[r];
@@ -444,7 +457,7 @@ const outputsText = (
   let updated=linearToPerceptual${S}(removePerception${S}(ei*taken-eh*(taken-1.0),1.0));
   let dither=${cast(F, 'frameRandom(vec2i(laneX,laneRow+r),u32(view.jitter.w)).x')};
   textureStore(guideOut,g,vec4f(${cast(V4, `ditherUnorm${S}(updated,dither,${wgslF32(quantizationError(guideFormat))}),${cast(F, 'edge')}`)}));
-  let lift=select(min(clampBlend[r],min(${cast(F, 'edge')},historyEdge[r].x)),0.0,reset);
+  let lift=select(min(clampBlend[r],min(${cast(F, 'edge')},historyEdge[r])),0.0,reset);
   let raise=select(clampBlend[r],0.0,reset);
   let antiAlias=view.quality.y>0.0&&visible[r]&&(blend[r]<0.25||reset);
   let bits=select(${REJECTION_BITS.kept}u,0u,restarted)|select(0u,${REJECTION_BITS.resurrected}u,resurrect[r]);

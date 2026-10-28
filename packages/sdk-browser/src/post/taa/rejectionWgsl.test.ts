@@ -17,12 +17,15 @@ import { flickerMeasureWgsl } from './flickerMeasureWgsl.ts'
 import { rejectShadingShader } from './rejectionWgsl.ts'
 import { rejectionTypes } from './rejectionTypes.ts'
 import { DISPLAY_STEP_ERROR_WGSL, FLICKER_GATES_WGSL } from './rejectionShared.ts'
+import { LANE_ROWS } from './rejectionNetworkWgsl.ts'
+import { FIRST_ANALYSIS_VIEW } from './rejectionShared.ts'
 import {
   LANES,
   overTile,
   operatorsOf,
   PROGRAM,
   texelAt,
+  tileOf,
   TILE,
   wrapped,
 } from './rejectionNetwork.fixture.ts'
@@ -50,7 +53,7 @@ test('a texel whose material asks a restart is restarted as a disoccluded one is
   )
   assert.match(
     wgslSource(rejectShadingShader('rgba8unorm', 'rgba16float')),
-    /closer\[r\]=count\[r\]\.x>[^;]*&&!asksRestart\(word\[r\]\);/,
+    /closer\[r\]=count\[r\]>[^;]*&&!asksRestart\(word\[r\]\);/,
   )
 })
 
@@ -175,7 +178,7 @@ test('the LDR luma a texel writes is the byte the anti-aliaser reads, the other 
 test('the rejection widens its clamp by the blur of the lesser total variation in both modes; the mode is the flicker measure’s alone', () => {
   const text = wgslSource(rejectShadingShader('rgba8unorm', 'rgba16float'))
   // The shading rejection (the reference's `MeasureRejection`) takes the total variation term whatever the mode.
-  assert.match(text, /clampError\[r\]=max\(max\(vec3f\(Q\),leastBlurred\[r\]\.rgb\),boxSize\[r\]\*/)
+  assert.match(text, /clampError\[r\]=max\(max\(vec3f\(Q\),leastBlurred\[r\]\),boxSize\[r\]\*/)
   assert.doesNotMatch(text, /select\(vec3f\(0\.0\),leastBlurred/)
   assert.match(text, /relaxing,flickerOn\);/)
   assert.equal(text.match(/,flickerOn\)/g)?.length, 2)
@@ -203,4 +206,54 @@ test('the flicker measure lists what it reads that the rejection’s bindings do
   // The program holds the display step error once, for the rejection and the measure both.
   const text = wgslSource(rejectShadingShader('rgba8unorm', 'rgba16float'))
   assert.equal(text.match(/const Q=/g)?.length, 1)
+})
+
+test('the rejection’s analysis stages are worked out only while a view shows them, and nothing else of the measure depends on it', () => {
+  const column = (seed: number) =>
+    Array.from({ length: LANE_ROWS }, (_, r) => texelAt(seed + r, 3 * seed + r).slice(0, 3))
+  const measure = (shown: boolean, x: number, row: number) => {
+    const { measureRejection } = operatorsOf<{
+      measureRejection: (
+        input: number[][],
+        heldInput: number[][],
+        heldHistory: number[][],
+        cellError: number[],
+        relax: number[],
+        relaxing: boolean,
+        flickerOn: boolean,
+      ) => { blend: number[]; clampBlend: number[]; plain: number[]; raw: number[] }
+    }>(tileOf(), x, row, PROGRAM, ['measureRejection'], {
+      view: { params: [0, 0, 0, shown ? FIRST_ANALYSIS_VIEW : 0] },
+      // The structures the measure declares, empty at the start (the fixture's own, and `Measured`).
+      $zero: (type: string) =>
+        type === 'Measured'
+          ? { blend: [], clampBlend: [], plain: [], raw: [] }
+          : type.startsWith('Box')
+            ? { lo: [], hi: [] }
+            : type.startsWith('Statistics')
+              ? { box: { lo: [], hi: [] }, blurred: [], variation: [] }
+              : [],
+    })
+    return measureRejection(
+      column(x),
+      column(x + 7),
+      column(x + 13),
+      [0.01, 0.02, 0.03, 0.04],
+      [0, 0.5, 0, 1],
+      x % 2 === 0,
+      x % 3 === 0,
+    )
+  }
+  for (const { x, row } of LANES.slice(0, 40)) {
+    const on = measure(true, x, row),
+      off = measure(false, x, row)
+    // Bit for bit: the rejection and the clamp's lift are the same whatever the view.
+    assert.deepEqual(off.blend, on.blend, `blend at ${x}, ${row}`)
+    assert.deepEqual(off.clampBlend, on.clampBlend, `clamp blend at ${x}, ${row}`)
+    assert.deepEqual([off.plain.length, off.raw.length], [0, 0], 'not worked out')
+    assert.ok(
+      on.raw.some((value) => value > 0) || on.plain.some((value) => value > 0),
+      'worked out',
+    )
+  }
 })
