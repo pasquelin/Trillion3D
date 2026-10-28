@@ -8,6 +8,17 @@ import { hizDepthWgsl } from './pyramidTexture.ts'
  *  centimetres, as the walk's reference counts: the world's unit is the metre. */
 const DEPTH_FLOOR_CENTIMETRES = 1e-5
 
+/** The share of the step `d` from \`o\` that stays within the rectangle of \`size\`, one at the most: where a march ends at the border of the image (a pure function of its arguments). */
+export const SCREEN_MARCH_END_WGSL = wgslBlock(
+  'SCREEN_MARCH_END_WGSL',
+  [],
+  `fn screenMarchEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
+ let toward=select(-o,size-o,d>vec2f(0.0));
+ let t=select(vec2f(1.0),toward/d,abs(d)>vec2f(1e-6));
+ return min(min(t.x,t.y),1.0);
+}`,
+)
+
 /**
  * WHAT THE SCREEN MARCHES SHARE (`screenMarch`): the hit they return (`ScreenHit`), the end of a
  * ray, and the geometry of a surface's thickness, over the depth pyramid
@@ -38,7 +49,7 @@ const DEPTH_FLOOR_CENTIMETRES = 1e-5
 export const SCREEN_MARCH_BASE_WGSL = (group: number, binding: number) =>
   wgslBlock(
     `SCREEN_MARCH_BASE_WGSL(${group}, ${binding})`,
-    [hizDepthWgsl(group, binding), slabPerspective],
+    [hizDepthWgsl(group, binding), slabPerspective, SCREEN_MARCH_END_WGSL],
     `const SCREEN_DEPTH_FLOOR:f32=${wgslF32(DEPTH_FLOOR_CENTIMETRES / CENTIMETRES_PER_METRE)};
 struct ScreenHit{t:f32,plane:vec3f,pixel:vec2f,front:bool,steps:u32,above:f32,}
 fn screenMarchMissed(steps:u32,above:f32)->ScreenHit{
@@ -54,9 +65,5 @@ fn screenRelativeBack(z:f32,relative:f32,slab:vec4f)->f32{
  let orthographic=z-relative*max(slab.y-z,slab.z/slab.x*SCREEN_DEPTH_FLOOR);
  return select(orthographic,perspective,slabPerspective(slab));
 }
-fn screenMarchEnd(o:vec2f,d:vec2f,size:vec2f)->f32{
- let toward=select(-o,size-o,d>vec2f(0.0));
- let t=select(vec2f(1.0),toward/d,abs(d)>vec2f(1e-6));
- return min(min(t.x,t.y),1.0);
-}`,
+`,
   )

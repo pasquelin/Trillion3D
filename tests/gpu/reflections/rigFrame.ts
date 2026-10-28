@@ -14,7 +14,7 @@ export type RigFrame = {
   viewProjection: Float64Array
   eye: readonly [number, number, number]
   depth: Float32Array<ArrayBuffer>
-  flags: Uint8Array<ArrayBuffer>
+  flags: Uint32Array<ArrayBuffer>
   normals: Float32Array
   base: Float32Array
   radiance: Float32Array
@@ -44,7 +44,7 @@ export function rigFrameOf(
     viewProjection,
     eye,
     depth: new Float32Array(pixels),
-    flags: new Uint8Array(pixels),
+    flags: new Uint32Array(pixels),
     normals: new Float32Array(pixels * 4),
     base: new Float32Array(pixels * 4),
     radiance: new Float32Array(pixels * 4),

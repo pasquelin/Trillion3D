@@ -20,6 +20,7 @@ import {
   surfaceVelocityShader,
 } from './surfaceVelocityWgsl.ts'
 import { TEXEL_TILE, VECTOR_FORMAT } from './velocityWgsl.ts'
+import { uniformBuffer } from '../../gpu/core/uniformBlock.ts'
 
 const PASS: GPUComputePassDescriptor = { label: VELOCITY_PASS }
 
@@ -68,6 +69,25 @@ function makeProgram(device: GPUDevice, wpo: WpoSet) {
       },
     ],
   })
+  // The hair strands' velocity patch: the stage's group, then a group of the nearest strand's depth.
+  const hairLayout = device.createBindGroupLayout({
+    label: `${VELOCITY_PASS} hair`,
+    entries: [
+      {
+        binding: 1,
+        visibility: GPUShaderStage.COMPUTE,
+        texture: { sampleType: 'unfilterable-float' },
+      },
+    ],
+  })
+  const hair = preparedComputeStage(
+    device,
+    device.createPipelineLayout({ bindGroupLayouts: [layout, hairLayout] }),
+    module,
+    'hairVelocity',
+    undefined,
+    VELOCITY_PASS,
+  )
   const water = preparedComputeStage(
     device,
     device.createPipelineLayout({ bindGroupLayouts: [layout, waterLayout] }),
@@ -76,7 +96,15 @@ function makeProgram(device: GPUDevice, wpo: WpoSet) {
     undefined,
     VELOCITY_PASS,
   )
-  return { layout, flat: stage(), displaced: stage({ DISPLACED: 1 }), water, waterLayout }
+  return {
+    layout,
+    flat: stage(),
+    displaced: stage({ DISPLACED: 1 }),
+    water,
+    waterLayout,
+    hair,
+    hairLayout,
+  }
 }
 
 /** Asks the stage's program of `device` — the one for images that draw displaced surfaces where
@@ -84,16 +112,13 @@ function makeProgram(device: GPUDevice, wpo: WpoSet) {
 export const askVelocityProgram = (device: GPUDevice, displaced: boolean, wpo = NO_WPO) => {
   const programs = velocityProgram(device, wpo)
   programs.water.ask()
+  programs.hair.ask()
   return (displaced ? programs.displaced : programs.flat).ask()
 }
 
 /** The uniform the stage reads (`TAA_VIEW`). */
 const viewUniform = (device: GPUDevice) =>
-  device.createBuffer({
-    label: 'Trillion3D velocity view v1',
-    size: TAA_VIEW_BYTES,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  uniformBuffer(device, 'Trillion3D velocity view v1', TAA_VIEW_BYTES)
 
 /** The vectors target: a word a render texel, written by the stage and read by the passes. */
 const vectorTarget = (device: GPUDevice) =>
@@ -123,8 +148,8 @@ function nameVelocityInputs(next: unknown[], inputs: VelocityInputs, view: unkno
   next[17] = inputs.previous
 }
 
-/** The water's pass over the `last` render grid: the stage's `group`, then the water depth's. */
-function dispatchWater(
+/** A patch pass (the water's, the hair strands') over the `last` render grid: the stage's `group`, then the patch's own. */
+function dispatchPatch(
   steps: ComputeRun,
   pipeline: GPUComputePipeline | undefined,
   group: GPUBindGroup,
@@ -147,11 +172,16 @@ function velocityPass(
   uniform: GPUBuffer,
   wpo: WpoSet,
 ) {
-  const { layout, flat, displaced, water, waterLayout } = velocityProgram(device, wpo)
+  const { layout, flat, displaced, water, waterLayout, hair, hairLayout } = velocityProgram(
+    device,
+    wpo,
+  )
   const identity = createWebgpuBindIdentity()
   let group: GPUBindGroup | undefined, last: readonly number[] | undefined
   // The water depth's group, kept for the view it names: made again where the depth moved.
   let depthGroup: GPUBindGroup | undefined, depthOver: GPUTextureView | undefined
+  // The strands' depth group, kept the same way.
+  let hairGroup: GPUBindGroup | undefined, hairOver: GPUTextureView | undefined
   return {
     encode(
       encoder: GPUCommandEncoder,
@@ -190,13 +220,28 @@ function velocityPass(
         })
         depthOver = waterDepth
       }
-      dispatchWater(steps, water.get(), group, depthGroup, last)
+      dispatchPatch(steps, water.get(), group, depthGroup, last)
+    },
+    /** The vectors of the texels the hair strands cover (their nearest depth `hairDepth` nearer than the stage's own),
+     *  rewritten as the camera's alone at the strand's depth, flagged as a pixel that moves by itself. None before the
+     *  stage ran this image. */
+    encodeHair(steps: ComputeRun, hairDepth: GPUTextureView) {
+      if (!group || !last) return
+      if (hairOver !== hairDepth || !hairGroup) {
+        hairGroup = device.createBindGroup({
+          layout: hairLayout,
+          entries: [{ binding: 1, resource: hairDepth }],
+        })
+        hairOver = hairDepth
+      }
+      dispatchPatch(steps, hair.get(), group, hairGroup, last)
     },
     /** The group names the target no more. */
     forget() {
       group = undefined
       last = undefined
       depthGroup = depthOver = undefined
+      hairGroup = hairOver = undefined
       identity.clear()
     },
   }
@@ -267,6 +312,8 @@ export function createVelocity(device: GPUDevice, wpo: WpoSet = NO_WPO) {
     encode: pass.encode,
     /** Rewrites the vectors of the texels the single-layer water covers (`velocityPass`). */
     encodeWater: pass.encodeWater,
+    /** Rewrites the vectors of the texels the hair strands cover (`velocityPass`). */
+    encodeHair: pass.encodeHair,
     /** Gives the target back, which no pass reads. */
     release,
     dispose() {

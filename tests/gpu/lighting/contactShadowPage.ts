@@ -13,6 +13,7 @@
  */
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
+import { NO_CONTACT_SHADOW_VIEW } from '../../../packages/sdk-core/src/scene/light/contactShadowView.ts'
 import {
   createSceneLightContractBuffer,
   uploadSceneLights,
@@ -238,6 +239,7 @@ export async function run(cases: ContactCase[]) {
     })
     const [length, casting, nonCasting, metres] = c.override ?? [-1, -1, -1, false]
     store.setContactShadowView({
+      ...NO_CONTACT_SHADOW_VIEW,
       contactShadows: c.switchedOff !== true,
       contactShadowOverrideLength: length,
       contactShadowOverrideLengthInWorldSpace: metres,
