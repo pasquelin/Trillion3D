@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { SCREEN_MARCH_BASE_WGSL } from './screenMarchBase.ts'
+import { screenMarchLanesWgsl, type MarchLanes } from './screenMarchLanes.ts'
 
 /** The distance, in texels of the level it is taken at, past a cell boundary the walk puts a ray
  *  (`screenPlaneTime`). */
@@ -9,6 +10,44 @@ const REFERENCE_OFFSET = 0.005
  *  tile's depth over `REFERENCE_RAMP` of the march (`screenMarchReference`, `full` false). */
 const REFERENCE_START_SCALE = 0.99
 const REFERENCE_RAMP = 10
+
+/** One iteration of the walk, once its ray is known to be above its depth and walking. */
+const WALK_STEP = `  let tile=screenTileDepth(ray.xy,mip,top)*select(mix(REFERENCE_START_SCALE,1.0,saturate(time*REFERENCE_RAMP)),1.0,full);
+  var zTime=1.0;
+  if(dir.z<0.0){zTime=(tile-o.z)/dir.z;}
+  let edge=min(screenPlaneTime(ray.xy,o.xy,mip,inv,ahead),zTime);
+  let above=ray.z>tile;
+  let skipped=above&&edge!=zTime;
+  if(skipped){lastAbove=edge;}
+  if(above){time=edge;}
+  ray=o+dir*min(time,1.0);
+  mip+=select(-1,1,skipped);
+  k++;`
+
+/** The loop of the walk by how it counts its lanes (`screenMarchLanes.ts`). Native: the lanes that reach the loop's condition vote, and a ray
+ *  gives up when no more than `occupancy` lanes of the subgroup are left. Polyfill: while `occupancy` is above zero every thread of the workgroup
+ *  goes round the same rounds (`screenMarchRound`; a thread with no ray calls the walk with an end of zero), a thread walking only while it has not given up. */
+const walkLoop = (lanes: MarchLanes) => {
+  const plain = (extra: string) => ` for(var j=0u;j<cap;j++){
+  if(mip<base||time>=1.0${extra}){break;}
+${WALK_STEP}
+ }`
+  if (lanes === 'none') return plain('')
+  if (lanes === 'native') return plain('||!screenMarchHolds(occupancy)')
+  return ` if(occupancy>0u){
+  var going=true;
+  for(var j=0u;j<cap;j++){
+   let walking=going&&mip>=base&&time<1.0;
+   if(screenMarchRound(walking)){break;}
+   going=going&&!(walking&&screenMarchLeft()<=occupancy);
+   if(walking&&going){
+${WALK_STEP}
+   }
+  }
+ }else{
+${plain('')}
+ }`
+}
 
 /**
  * THE REFERENCE WALK OF THE PYRAMID (`screenMarchReference`): the closest depth of the opaque image
@@ -43,10 +82,15 @@ const REFERENCE_RAMP = 10
  * pixels, as the reference's half-resolution mip 0 does, and the mip −1 is the depth image
  * (`hizFrontDepth`, the level 0 the pyramid is built from). A mip past the last reads the last.
  */
-export const SCREEN_MARCH_REFERENCE_WGSL = (group: number, binding: number) =>
+export const SCREEN_MARCH_REFERENCE_WGSL = (
+  group: number,
+  binding: number,
+  lanes: MarchLanes = 'none',
+  threads?: number,
+) =>
   wgslBlock(
-    `SCREEN_MARCH_REFERENCE_WGSL(${group}, ${binding})`,
-    [SCREEN_MARCH_BASE_WGSL(group, binding)],
+    `SCREEN_MARCH_REFERENCE_WGSL(${group}, ${binding}, ${lanes}${threads === undefined ? '' : `, ${threads}`})`,
+    [SCREEN_MARCH_BASE_WGSL(group, binding), ...screenMarchLanesWgsl(lanes, threads)],
     `const REFERENCE_OFFSET:f32=${wgslF32(REFERENCE_OFFSET)};
 const REFERENCE_START_SCALE:f32=${wgslF32(REFERENCE_START_SCALE)};
 const REFERENCE_RAMP:f32=${wgslF32(REFERENCE_RAMP)};
@@ -62,7 +106,7 @@ fn screenPlaneTime(p:vec2f,start:vec2f,mip:i32,inv:vec2f,ahead:vec2<bool>)->f32{
  let times=(plane-start)*inv;
  return min(times.x,times.y);
 }
-fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,full:bool)->ScreenHit{
+fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32,full:bool${lanes === 'none' ? '' : ',occupancy:u32'})->ScreenHit{
  let levels=hizLevelCount();
  if(levels<2){return screenMarchMissed(0u,0.0);}
  let dir=d*end;
@@ -77,25 +121,12 @@ fn screenMarchReference(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32
  var mip=base;
  var lastAbove=0.0;
  var k=0u;
- for(var j=0u;j<cap;j++){
-  if(mip<base||time>=1.0){break;}
-  let tile=screenTileDepth(ray.xy,mip,top)*select(mix(REFERENCE_START_SCALE,1.0,saturate(time*REFERENCE_RAMP)),1.0,full);
-  var zTime=1.0;
-  if(dir.z<0.0){zTime=(tile-o.z)/dir.z;}
-  let edge=min(screenPlaneTime(ray.xy,o.xy,mip,inv,ahead),zTime);
-  let above=ray.z>tile;
-  let skipped=above&&edge!=zTime;
-  if(skipped){lastAbove=edge;}
-  if(above){time=edge;}
-  ray=o+dir*min(time,1.0);
-  mip+=select(-1,1,skipped);
-  k++;
- }
+${walkLoop(lanes)}
  if(mip>=base||time>=1.0){return screenMarchMissed(k,select(min(time,1.0),0.0,stepped)*end);}
  let tile=screenTileDepth(ray.xy,base,top);
  if(ray.z<=screenRelativeBack(tile,thickness,slab)){return screenMarchMissed(k,lastAbove*end);}
  let texel=exp2(f32(base+1));
  let centre=(floor(ray.xy/texel)+vec2f(0.5))*texel;
- return ScreenHit(time*end,vec3f(tile,0.0,0.0),centre,hizFrontOver(vec2i(floor(ray.xy))),k,0.0);
+ return ScreenHit(time*end,vec3f(tile,0.0,0.0),centre,hizFrontOver(vec2i(floor(ray.xy))),k,lastAbove*end);
 }`,
   )
