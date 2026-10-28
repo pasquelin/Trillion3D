@@ -4,13 +4,11 @@
 //! BC is the STORED family: the levels above the tail are written in it, and a
 //! device that samples no BC block decodes it to RGBA8 (the engine's
 //! `texture/blockDecode.ts`); ASTC and ETC2 are cooked beside it on demand
-//! (`--textures-format=`). Every family is kept only where its read-back passes
-//! the gate (`quality.rs`): a BC7 chain whose fast read-back fails it is encoded
-//! again whole with the slow search (`Effort`), each block keeping its slow
-//! encoding unless its fast one reads back better on every bar. A chain that
-//! still misses them is left out of ASTC and ETC2;
-//! the stored BC chain is kept whatever it measures, the report giving its
-//! figures. What the sidecar and the level files carry is what the gate kept.
+//! (`--textures-format=`). Every block is encoded once: BC7 with the basic search
+//! (`bc7_settings`), every other codec its one way. A chain whose read-back misses
+//! the gate (`quality.rs`) is left out of ASTC and ETC2; the stored BC chain is
+//! kept whatever it measures, the report giving its figures. What the sidecar
+//! and the level files carry is what the gate kept.
 //!
 //! A family writes two layouts: RGBA (BC7 — every mode searched by
 //! `block_compression` —, ASTC colour endpoint mode 12, ETC2 RGBA8) for colour
@@ -120,68 +118,11 @@ impl BlockFormat {
     }
 }
 
-/// How far an encoder searches each block, the same sixteen bytes a block either way: `Fast`
-/// first, then the ladder's upper rung for a chain whose fast read-back fails the gate
-/// (`quality::slow_chain`) — `Slow` for a source texture, `Basic` for an image the compiler draws
-/// itself (`Ladder`). Only BC7 RGBA has a search to widen — every mode, more refinement
-/// (`BC7Settings::*_slow`, `*_basic`) —; every other codec encodes one way, and is tried once.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Effort {
-    Fast,
-    Basic,
-    Slow,
-}
-impl Effort {
-    pub const ALL: [Effort; 3] = [Effort::Fast, Effort::Basic, Effort::Slow];
-    pub fn name(self) -> &'static str {
-        match self {
-            Self::Fast => "fast",
-            Self::Basic => "basic",
-            Self::Slow => "slow",
-        }
-    }
-    pub fn named(name: &str) -> Option<Self> {
-        Self::ALL.into_iter().find(|effort| effort.name() == name)
-    }
-    /// The efforts a chain is tried at in `format` and `layout` on `ladder`, the fastest first.
-    pub fn ladder(format: BlockFormat, layout: Layout, ladder: Ladder) -> &'static [Effort] {
-        match (format, layout, ladder) {
-            (BlockFormat::Bc7, Layout::Rgba, Ladder::Full) => &[Self::Fast, Self::Slow],
-            (BlockFormat::Bc7, Layout::Rgba, Ladder::Light) => &[Self::Fast, Self::Basic],
-            _ => &[Self::Fast],
-        }
-    }
-    /// The ladder of `format` and `layout` spelled with each rung's encoder settings — BC7's,
-    /// opaque then alpha (`bc7_settings`) —, the upper rung named as keeping a block's better
-    /// encoding of the two: a chain's key holds it (`GateSheet::key`), so a ladder, a rule or a
-    /// setting that changes never reads a level file another one wrote. Within one ladder the
-    /// rung a chain settles on follows from its texels and its sheet alone.
-    pub fn spelling(format: BlockFormat, layout: Layout, ladder: Ladder) -> String {
-        let rung = |effort: Effort| match (format, layout) {
-            (BlockFormat::Bc7, Layout::Rgba) => format!(
-                "{}={:?}/{:?}",
-                effort.name(),
-                bc7_settings(true, effort),
-                bc7_settings(false, effort)
-            ),
-            _ => effort.name().to_string(),
-        };
-        let rungs: Vec<String> = Self::ladder(format, layout, ladder)
-            .iter()
-            .map(|&e| rung(e))
-            .collect();
-        let rungs = rungs.join(",best-of-fast ");
-        format!("{}:{rungs}", format.file_name(layout))
-    }
-}
-
-/// Which upper rung a chain may climb to: `Full` the slow search, for a source texture; `Light`
-/// the basic one, for an HLOD atlas — a far stand-in the compiler draws itself, its upper pass
-/// made lighter: fewer refinements, mode 2 skipped.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum Ladder {
-    Full,
-    Light,
+/// The encoder settings, spelled: BC7's, opaque then alpha (`bc7_settings`) — every other codec
+/// has none. A chain's key holds them (`GateSheet::key`), so a setting that changes never reads a
+/// level file another one wrote.
+pub fn encoding() -> String {
+    format!("bc7:{:?}/{:?}", bc7_settings(true), bc7_settings(false))
 }
 
 /// Compressed bytes of a `width` × `height` level in `layout`: the one 4 × 4 block surface count
@@ -195,17 +136,16 @@ pub fn level_block_bytes(width: u32, height: u32) -> usize {
     layout_block_bytes(width, height, Layout::Rgba)
 }
 
-/// Compresses one block in BC7 by `block_compression`, at `effort`: a block whose every alpha is
-/// 255 is searched in the opaque modes, faster and as exact; any other in the alpha ones. The
-/// texels are bytes held as floats (`fit::block_texels`, edge repeated), given back exactly.
-fn bc7_block(texels: &fit::Texels, effort: Effort) -> [u8; 16] {
+/// Compresses one block in BC7 by `block_compression`: a block whose every alpha is 255 is
+/// searched in the opaque modes, faster and as exact; any other in the alpha ones. The texels are
+/// bytes held as floats (`fit::block_texels`, edge repeated), given back exactly.
+fn bc7_block(texels: &fit::Texels) -> [u8; 16] {
     use block_compression::{encode::compress_rgba8, CompressionVariant};
     let rgba: [u8; 64] = std::array::from_fn(|i| texels[i / 4][i % 4] as u8);
     let opaque = texels.iter().all(|texel| texel[3] == 255.0);
-    let settings = bc7_settings(opaque, effort);
     let mut block = [0u8; 16];
     compress_rgba8(
-        CompressionVariant::BC7(settings),
+        CompressionVariant::BC7(bc7_settings(opaque)),
         &rgba,
         &mut block,
         4,
@@ -215,29 +155,26 @@ fn bc7_block(texels: &fit::Texels, effort: Effort) -> [u8; 16] {
     block
 }
 
-/// The BC7 encoder's settings for an opaque block or not, at `effort`.
-fn bc7_settings(opaque: bool, effort: Effort) -> block_compression::BC7Settings {
+/// The BC7 encoder's settings for an opaque block or not: the basic search, every mode tried, two
+/// refinements.
+fn bc7_settings(opaque: bool) -> block_compression::BC7Settings {
     use block_compression::BC7Settings;
-    match (opaque, effort) {
-        (true, Effort::Fast) => BC7Settings::opaque_very_fast(),
-        (true, Effort::Basic) => BC7Settings::opaque_basic(),
-        (true, Effort::Slow) => BC7Settings::opaque_slow(),
-        (false, Effort::Fast) => BC7Settings::alpha_fast(),
-        (false, Effort::Basic) => BC7Settings::alpha_basic(),
-        (false, Effort::Slow) => BC7Settings::alpha_slow(),
+    if opaque {
+        BC7Settings::opaque_basic()
+    } else {
+        BC7Settings::alpha_basic()
     }
 }
 
 /// Compresses one block — sixteen texels, edge repeated (`fit::block_texels`) — in one family and
-/// layout, at `effort`: the one block encoder of a chain (`quality.rs`).
+/// layout: the one block encoder of a chain (`quality.rs`).
 pub(super) fn encode_block(
     texels: &fit::Texels,
     format: BlockFormat,
     layout: Layout,
-    effort: Effort,
 ) -> [u8; BLOCK_BYTES] {
     match (format, layout) {
-        (BlockFormat::Bc7, Layout::Rgba) => bc7_block(texels, effort),
+        (BlockFormat::Bc7, Layout::Rgba) => bc7_block(texels),
         (BlockFormat::Astc, Layout::Rgba) => astc::encode(texels, fit::segment(texels)),
         (BlockFormat::Bc7, Layout::TwoChannel) => bc5::encode(texels),
         (BlockFormat::Astc, Layout::TwoChannel) => astc_la::encode(texels),
@@ -253,9 +190,9 @@ pub(super) fn encode_block(
     }
 }
 
-/// Compresses one RGBA8 level in one family and layout, every block at `effort`: the codecs
-/// proved alone, block by block (`encode_block`) — a chain is cooked by `quality::encode_chain`.
-/// Blocks are written in place, block rows in parallel on the caller's pool.
+/// Compresses one RGBA8 level in one family and layout: the codecs proved alone, block by block
+/// (`encode_block`) — a chain is cooked by `quality::encode_chain`. Blocks are written in place,
+/// block rows in parallel on the caller's pool.
 #[cfg(test)]
 pub fn encode_level(
     rgba: &[u8],
@@ -263,7 +200,6 @@ pub fn encode_level(
     height: u32,
     format: BlockFormat,
     layout: Layout,
-    effort: Effort,
 ) -> Vec<u8> {
     use rayon::prelude::*;
     debug_assert_eq!(rgba.len(), width as usize * height as usize * 4);
@@ -278,7 +214,7 @@ pub fn encode_level(
         .for_each(|(by, out)| {
             for (bx, out) in out.as_chunks_mut::<BLOCK_BYTES>().0.iter_mut().enumerate() {
                 let texels = fit::block_texels(rgba, width, height, bx as u32, by as u32);
-                *out = encode_block(&texels, format, layout, effort);
+                *out = encode_block(&texels, format, layout);
             }
         });
     out

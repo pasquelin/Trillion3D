@@ -10,11 +10,10 @@
 //! —, and the report names it with its figures.
 //! The blocks alike their neighbours live in `alike`.
 use super::super::cut::{keeps, Cut};
-use super::decode::decode_block;
-use super::{BlockFormat, Effort, Layout, BLOCK_BYTES};
+use super::{BlockFormat, Layout};
 use rayon::prelude::*;
 mod alike;
-use alike::{encode_alike, inside_rows, inside_tally, sided, texel_bytes};
+use alike::{encode_alike, sided};
 
 /// Peak signal-to-noise ratio, in decibels over the whole chain, under which a
 /// texture is not block-compressed: at 48 dB the root-mean-square error is one
@@ -140,96 +139,24 @@ fn flipped(source: u8, back: u8, cutoffs: &[Cut]) -> bool {
     cutoffs.iter().any(|&c| keeps(source, c) != keeps(back, c))
 }
 
-/// Encodes every level of a chain in `codec` — one family and layout — at `effort`, and measures
-/// the read-back of each: the blocks, level by level, and the measure. `sizes` gives each level's
-/// dimensions in chain order. `Fast` is the fast chain (`fast_chain`); an upper rung the chain
-/// searched at it on top of the fast one (`slow_chain`), what a chain whose fast read-back failed
-/// the gate is cooked as.
+/// Encodes every level of a chain in `codec` — one family and layout —, a block whose read-back
+/// flips a texel across one of `cutoffs` searched again (`sided`), and measures each level's
+/// read-back, dropped once measured: the blocks, level by level, and the measure. `sizes` gives
+/// each level's dimensions in chain order.
 pub fn encode_chain(
     levels: &[impl AsRef<[u8]>],
     sizes: &[(u32, u32)],
     codec: (BlockFormat, Layout),
-    effort: Effort,
     channels: Channels,
     cutoffs: &[Cut],
-) -> (Vec<Vec<u8>>, Measure) {
-    let fast = fast_chain(levels, sizes, codec, channels, cutoffs);
-    match effort {
-        Effort::Fast => fast,
-        upper => slow_chain(levels, sizes, codec, (&fast.0, upper), channels, cutoffs),
-    }
-}
-
-/// Every block of the chain searched fast, one whose read-back flips a texel across one of
-/// `cutoffs` searched again (`sided`): the blocks, level by level, and the measure.
-pub fn fast_chain(
-    levels: &[impl AsRef<[u8]>],
-    sizes: &[(u32, u32)],
-    codec: (BlockFormat, Layout),
-    channels: Channels,
-    cutoffs: &[Cut],
-) -> (Vec<Vec<u8>>, Measure) {
-    measured(levels, sizes, channels, cutoffs, |_, pixels, size| {
-        encode_alike(pixels, size, |_, texels, inside| {
-            sided(texels, codec, Effort::Fast, cutoffs, inside)
-        })
-    })
-}
-
-/// The chain searched at `upper` (`Slow`, `Basic`), on top of its fast blocks `fast`
-/// (`fast_chain`): each block keeps its upper encoding (`sided`) unless its fast one reads back
-/// better inside the level on one of the gate's figures — squared error, largest gap, flips — and
-/// no worse on the others; a block whose fast read-back is its source texel for texel is kept
-/// fast, unsearched — no search does better. Every block reads back at least as close as the chain
-/// searched at `upper` throughout would hold it, so the chain measures at least as well.
-pub fn slow_chain(
-    levels: &[impl AsRef<[u8]>],
-    sizes: &[(u32, u32)],
-    codec @ (format, layout): (BlockFormat, Layout),
-    (fast, upper): (&[Vec<u8>], Effort),
-    channels: Channels,
-    cutoffs: &[Cut],
-) -> (Vec<Vec<u8>>, Measure) {
-    measured(levels, sizes, channels, cutoffs, |level, pixels, size| {
-        encode_alike(pixels, size, |block, texels, inside| {
-            let kept = fast[level][block * BLOCK_BYTES..]
-                .first_chunk::<BLOCK_BYTES>()
-                .copied()
-                .expect("fast block");
-            let source = texel_bytes(texels);
-            let back = decode_block(&kept, format, layout);
-            if inside_rows(inside).all(|row| source[row.clone()] == back[row]) {
-                return (kept, back);
-            }
-            let slow = sided(texels, codec, upper, cutoffs, inside);
-            let [f, s] =
-                [&back, &slow.1].map(|b| inside_tally(&source, b, inside, channels, cutoffs));
-            let no_worse =
-                f.squared <= s.squared && f.max_delta <= s.max_delta && f.flips <= s.flips;
-            let better = f.squared < s.squared || f.max_delta < s.max_delta || f.flips < s.flips;
-            if no_worse && better {
-                (kept, back)
-            } else {
-                slow
-            }
-        })
-    })
-}
-
-/// Each level of the chain encoded by `encode` — its rank, its texels and its size — into its
-/// blocks and their read-back, the read-back measured against the level and dropped.
-fn measured(
-    levels: &[impl AsRef<[u8]>],
-    sizes: &[(u32, u32)],
-    channels: Channels,
-    cutoffs: &[Cut],
-    encode: impl Fn(usize, &[u8], (u32, u32)) -> (Vec<u8>, Vec<u8>),
 ) -> (Vec<Vec<u8>>, Measure) {
     let mut measure = Measure::default();
     let mut blocks = Vec::with_capacity(levels.len());
-    for (level, (pixels, &size)) in levels.iter().zip(sizes).enumerate() {
+    for (pixels, &size) in levels.iter().zip(sizes) {
         let pixels = pixels.as_ref();
-        let (encoded, decoded) = encode(level, pixels, size);
+        let (encoded, decoded) = encode_alike(pixels, size, |texels, inside| {
+            sided(texels, codec, cutoffs, inside)
+        });
         measure.add_level(pixels, &decoded, channels, cutoffs);
         blocks.push(encoded);
     }

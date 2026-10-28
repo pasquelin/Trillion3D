@@ -1,24 +1,24 @@
 //! The chain the quality gate decides: its RGBA8 levels encoded in every family the job asks for,
 //! kept where they read back within the bars, the stored family's always (`gate.rs`).
 use super::{Baked, Source};
-use crate::texture::blocks::{BlockFormat, Ladder, Layout, FAMILIES};
+use crate::texture::blocks::{BlockFormat, Layout, FAMILIES};
 use crate::texture::collect::AtlasTexture;
 use crate::texture::gate::{cook_chain, Cooked, GateSheet};
 use crate::texture::reduce::{self, AtlasKind};
 use rayon::prelude::*;
 
 /// The chain of `readers` in the atlas of `kind`, its sheet from the textures that read it
-/// (`GateSheet::of`, a `layout` their setting names winning over theirs), its BC7 climbing `ladder`.
+/// (`GateSheet::of`, a `layout` their setting names winning over theirs).
 pub(super) fn cook(
     source: &Source<'_>,
     kind: AtlasKind,
     readers: &[&AtlasTexture],
-    (ladder, layout): (Ladder, Option<Layout>),
+    layout: Option<Layout>,
 ) -> std::result::Result<Baked, &'static str> {
     let (o, size) = (source.o, source.size);
     let levels = source.chain(kind);
     let pixels = reduce::tail(&levels, source.first_level);
-    let sheet = GateSheet::of(readers, ladder, layout);
+    let sheet = GateSheet::of(readers, layout);
     let key = sheet.key(source.sha256);
     let mut layouts: [Option<Layout>; FAMILIES] = [None; FAMILIES];
     let mut blocks: [Vec<u8>; FAMILIES] = Default::default();

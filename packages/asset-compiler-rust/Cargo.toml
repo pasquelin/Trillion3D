@@ -103,6 +103,11 @@ pollster = "=1.0.1"
 # Lokathor/bytemuck). Pinned: the version the lock already carries.
 bytemuck = "=1.25.2"
 
+# On ARM, SHA-256 runs in software unless `asm` turns on the processor's SHA instructions (six times
+# faster, same digests); on x86 the crate already finds them at run time.
+[target.'cfg(target_arch = "aarch64")'.dependencies]
+sha2 = { version = "0.10", features = ["asm"] }
+
 # The reader of the reference values the compiler's mirrored packings are tested against.
 [dev-dependencies]
 trillion3d-math = { path = "../math/rust", features = ["golden"] }

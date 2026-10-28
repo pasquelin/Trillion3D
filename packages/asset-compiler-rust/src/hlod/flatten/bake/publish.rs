@@ -1,15 +1,14 @@
 //! The flattened materials published as every material of the scene is: each atlas image read by
 //! a texture of its own, its mip chain cooked by the one texture bake
 //! (`texture::bake::cook_decoded`) — the levels the engine streams, the tail the manifest
-//! carries —, its BC7 upper pass the lighter one (`Ladder::Light`), and a glTF material naming
-//! them, so the scene tables declare it and the engine builds its surface as any other's
-//! (`host/prepared/materials.ts`). An image whose every chain is whole needs no source: its record
-//! names the one-pixel stand-in the engine decodes in place of a baked image (`texture/skip.ts`),
-//! and no PNG is written; one whose chain lacks a level is a PNG beside `source.gltf`, the source
-//! the engine reads instead.
+//! carries —, and a glTF material naming them, so the scene tables declare it and the engine
+//! builds its surface as any other's (`host/prepared/materials.ts`). An image whose every chain is
+//! whole needs no source: its record names the one-pixel stand-in the engine decodes in place of a
+//! baked image (`texture/skip.ts`), and no PNG is written; one whose chain lacks a level is a PNG
+//! beside `source.gltf`, the source the engine reads instead.
 use super::{Atlas, Coverage, MASK_CUTOFF, METALLIC, ROUGHNESS};
 use crate::texture::collect::AtlasTexture;
-use crate::texture::{AtlasKind, Ladder, PreviewSource, TexturePreview};
+use crate::texture::{AtlasKind, PreviewSource, TexturePreview};
 use crate::{Options, Result};
 use image::ImageEncoder;
 use serde_json::{json, Value};
@@ -167,7 +166,7 @@ fn cooked(
     let baked = crate::texture::bake::cook_decoded(
         o,
         (&decoded, &[], None, &sha256, PreviewSource::Uri),
-        (0, Ladder::Light),
+        0,
         &[role.reader(reading)],
     )
     .map_err(|reason| crate::CompilerError::new("HLOD_ATLAS", reason))?;

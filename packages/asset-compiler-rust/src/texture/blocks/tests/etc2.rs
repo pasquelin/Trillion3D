@@ -6,14 +6,7 @@ use super::{constant, decode, photo, psnr};
 use crate::texture::blocks::*;
 
 fn two_channels(rgba: &[u8], width: u32, height: u32) -> Vec<u8> {
-    let level = encode_level(
-        rgba,
-        width,
-        height,
-        BlockFormat::Etc2,
-        Layout::TwoChannel,
-        Effort::Fast,
-    );
+    let level = encode_level(rgba, width, height, BlockFormat::Etc2, Layout::TwoChannel);
     assert_eq!(level.len(), level_block_bytes(width, height));
     crate::texture::blocks::decode::decode_level(
         &level,
@@ -26,14 +19,7 @@ fn two_channels(rgba: &[u8], width: u32, height: u32) -> Vec<u8> {
 }
 
 fn rgba(source: &[u8], width: u32, height: u32) -> Vec<u8> {
-    let level = encode_level(
-        source,
-        width,
-        height,
-        BlockFormat::Etc2,
-        Layout::Rgba,
-        Effort::Fast,
-    );
+    let level = encode_level(source, width, height, BlockFormat::Etc2, Layout::Rgba);
     assert_eq!(level.len(), level_block_bytes(width, height));
     decode(&level, width, height, BlockFormat::Etc2)
 }

@@ -408,11 +408,10 @@ Every atlas texture's mip chain: the tail in the head's column file, then one bl
 above it. BC is the stored family: the level files are written in it (`bc7` RGBA, `bc5` for a
 normal map's two channels); ASTC and ETC2/EAC (`etc2`, `eac-rg`) are written beside it on demand
 (`--textures-format`, default `bc7`; a family name cooks BC and it, `all` every family), kept
-only where the quality gate passes. BC is never gated: a BC7 chain whose fast read-back fails is
-encoded again with the encoder's slow search (`blocks.rs:Effort`) — an HLOD atlas with its
-basic search, lighter (`blocks.rs:Ladder`), under a key of its own — and kept, same weight, its
-figures in the report. A block whose read-back flips a texel across an alpha cutoff is encoded
-again (`blocks/quality.rs:keep_sides`). A level file opens on a head of one little-endian `u32` per
+only where the quality gate passes. BC is never gated: a BC7 chain is encoded once with the
+encoder's basic search, every mode tried (`blocks.rs:bc7_settings`), and kept, its figures in the
+report. A block whose read-back flips a texel across an alpha cutoff is encoded again
+(`blocks/quality/alike.rs:sided`). A level file opens on a head of one little-endian `u32` per
 tile record — where its compressed bytes end, counted from the head's end —, then each record (the
 tile's blocks and gutter) raw DEFLATE alone: one Range reads the head, one a tile, and the browser
 inflates it (`DecompressionStream`). The runtime takes the first family the device's features allow

@@ -5,14 +5,7 @@ use super::{constant, psnr};
 use crate::texture::blocks::*;
 
 fn decoded(rgba: &[u8], width: u32, height: u32, format: BlockFormat) -> Vec<u8> {
-    let level = encode_level(
-        rgba,
-        width,
-        height,
-        format,
-        Layout::TwoChannel,
-        Effort::Fast,
-    );
+    let level = encode_level(rgba, width, height, format, Layout::TwoChannel);
     assert_eq!(level.len(), level_block_bytes(width, height));
     crate::texture::blocks::decode::decode_level(&level, width, height, format, Layout::TwoChannel)
         .expect("decodable")
@@ -51,7 +44,8 @@ fn flat_two_channel_blocks_decode_exactly() {
 }
 
 // Behaviour: on a normal map whose channels vary independently, the two-channel
-// layout reads back far above one RGBA segment (BC7 mode 6, ASTC CEM 12): BC5's
+// layout reads back well above one RGBA block (BC7's basic search, every mode;
+// ASTC CEM 12) — BC7 at 45.4 dB, BC5 at 49.9 —: BC5's
 // eight rungs per channel above the gate, the ASTC block's five quint rungs —
 // the most its 128 bits hold beside four eight-bit endpoints — two decibels
 // under it, which is why an ASTC normal map more often stays lossless. Odd
@@ -80,7 +74,7 @@ fn independent_channels_read_back_above_the_gate_on_two_ladders() {
             );
         }
         let source = normals(64, 64);
-        let one = encode_level(&source, 64, 64, format, Layout::Rgba, Effort::Fast);
+        let one = encode_level(&source, 64, 64, format, Layout::Rgba);
         let one = psnr(
             &crate::texture::blocks::decode::decode_level(&one, 64, 64, format, Layout::Rgba)
                 .expect("decodable"),
@@ -88,7 +82,7 @@ fn independent_channels_read_back_above_the_gate_on_two_ladders() {
         );
         let two = psnr(&decoded(&source, 64, 64, format), &source);
         assert!(
-            two > one + 6.0,
+            two > one + 4.0,
             "{format:?}: RGBA {one:.1} dB, two channels {two:.1} dB"
         );
     }

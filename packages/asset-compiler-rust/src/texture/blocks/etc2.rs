@@ -56,14 +56,16 @@ pub(super) fn gap(a: Rgb, b: Rgb) -> i32 {
 /// A half at base `colour`: the table whose modifiers err least, its error, and
 /// each member's two-bit index (high bit the sign, low bit the large modifier).
 fn half(texels: &Texels, members: &[usize; 8], colour: Rgb) -> (i32, u32, [u8; 8]) {
+    let targets = members.map(|member| rgb(&texels[member]));
     let mut best = (i32::MAX, 0u32, [0u8; 8]);
-    for (table, [small, large]) in MODIFIERS.iter().enumerate() {
+    for (table, &[small, large]) in MODIFIERS.iter().enumerate() {
+        let candidates =
+            [small, large, -small, -large].map(|m| colour.map(|c| (c + m).clamp(0, 255)));
         let (mut error, mut picks) = (0, [0u8; 8]);
-        for (k, &member) in members.iter().enumerate() {
-            let target = rgb(&texels[member]);
-            let (index, cost) = [*small, *large, -small, -large]
+        for (k, &target) in targets.iter().enumerate() {
+            let (index, cost) = candidates
                 .iter()
-                .map(|m| gap(target, colour.map(|c| (c + m).clamp(0, 255))))
+                .map(|&candidate| gap(target, candidate))
                 .enumerate()
                 .min_by_key(|&(_, cost)| cost)
                 .expect("four modifiers");

@@ -33,7 +33,7 @@ fn a_kept_verdict_is_read_back_and_a_verdict_without_its_files_is_not() {
     // The same chain under a verdict forged as refused: followed, no encode, no tail in ETC2.
     fs::write(
         &verdict,
-        br#"{"squared":1e9,"samples":1,"maxDelta":200,"maskFlips":0,"effort":"fast"}"#,
+        br#"{"squared":1e9,"samples":1,"maxDelta":200,"maskFlips":0}"#,
     )
     .unwrap();
     let (previews, report) = stage();
@@ -42,7 +42,7 @@ fn a_kept_verdict_is_read_back_and_a_verdict_without_its_files_is_not() {
     // A kept verdict whose level file is gone: cooked anew, the file and the tail are back.
     fs::write(
         &verdict,
-        br#"{"squared":0.0,"samples":1,"maxDelta":0,"maskFlips":0,"effort":"fast"}"#,
+        br#"{"squared":0.0,"samples":1,"maxDelta":0,"maskFlips":0}"#,
     )
     .unwrap();
     let level = native.join(level_path(

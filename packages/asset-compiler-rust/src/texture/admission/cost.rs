@@ -31,13 +31,13 @@ pub(super) fn estimate(
         }
     }
     // One atlas chain at a time: source + its mips below level 0, then each family cooking it
-    // holds its fast block chain and the slow one built on it (`quality::slow_chain`), one level's
-    // RGBA read-back, the level's alike-block table — a digest and a rank a block, at most one
-    // block's bytes and a half (`quality::first_alike`) — and a level's file — its deflated
-    // records, at most its blocks, held twice while assembled. The stored family cooks alone
-    // first; the other families then cook side by side (`bake.rs`); no family, no block chain.
+    // holds its block chain (`quality::encode_chain`), one level's RGBA read-back, the level's
+    // alike-block table — a digest and a rank a block, at most one block's bytes and a half
+    // (`quality::first_alike`) — and a level's file — its deflated records, at most its blocks,
+    // held twice while assembled. The stored family cooks alone first; the other families then
+    // cook side by side (`bake.rs`); no family, no block chain.
     // Two temporary tails coexist with clones.
-    let family = blocks.saturating_mul(6).saturating_add(rgba);
+    let family = blocks.saturating_mul(5).saturating_add(rgba);
     let cooking = match families {
         0 => 0,
         _ => families.saturating_sub(1).max(1),

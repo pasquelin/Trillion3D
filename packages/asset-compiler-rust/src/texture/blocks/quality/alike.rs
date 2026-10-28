@@ -1,8 +1,8 @@
 //! Blocks alike their neighbours: the inside of an image, its first alike blocks, their encoding.
 use super::super::super::cut::Cut;
 use super::super::decode::decode_block;
-use super::super::{blocks_of, encode_block, fit, BlockFormat, Effort, Layout, BLOCK_BYTES};
-use super::{flipped, Channels, Tally};
+use super::super::{blocks_of, encode_block, fit, BlockFormat, Layout, BLOCK_BYTES};
+use super::flipped;
 use rayon::prelude::*;
 
 /// The part of block (`bx`, `by`) inside a `width` × `height` level: its columns and its rows,
@@ -14,31 +14,9 @@ fn inside_of((width, height): (u32, u32), bx: usize, by: usize) -> (usize, usize
     )
 }
 
-/// The byte ranges of a block's sixteen RGBA8 texels, row-major, its `inside` part covers: one a
-/// row.
-pub(super) fn inside_rows(
-    (across, down): (usize, usize),
-) -> impl Iterator<Item = std::ops::Range<usize>> {
-    (0..down).map(move |y| y * 16..y * 16 + across * 4)
-}
-
 /// A block's texels as RGBA8 bytes, row-major: the floats `fit::block_texels` holds are bytes.
-pub(super) fn texel_bytes(texels: &fit::Texels) -> [u8; 64] {
+fn texel_bytes(texels: &fit::Texels) -> [u8; 64] {
     std::array::from_fn(|i| texels[i / 4][i % 4] as u8)
-}
-
-/// The tally of a block's read-back `back` against its `source` texels, on the part `inside` the
-/// level only: what the block adds to the level's measure.
-pub(super) fn inside_tally(
-    source: &[u8; 64],
-    back: &[u8; 64],
-    inside: (usize, usize),
-    channels: Channels,
-    cutoffs: &[Cut],
-) -> Tally {
-    inside_rows(inside)
-        .map(|row| Tally::of(&source[row.clone()], &back[row], channels, cutoffs))
-        .fold(Tally::default(), Tally::merge)
 }
 
 /// For each block of a level, the first block with the same sixteen texels — the edge repeated
@@ -78,15 +56,15 @@ fn first_alike(pixels: &[u8], size @ (width, height): (u32, u32)) -> Vec<u32> {
         .collect()
 }
 
-/// One level encoded block by block by `search` — the block's rank, its texels and its part inside
-/// the level, to its bytes and its read-back —, each set of alike blocks searched once
+/// One level encoded block by block by `search` — the block's texels and its part inside the
+/// level, to its bytes and its read-back —, each set of alike blocks searched once
 /// (`first_alike`): its blocks, and their read-back. Block rows are searched side by side on the
 /// caller's pool, each beside the four rows of read-back it writes; the blocks alike an earlier
 /// one then copy its bytes and its read-back. No buffer a block: the level's own two.
 pub(super) fn encode_alike(
     pixels: &[u8],
     size @ (width, height): (u32, u32),
-    search: impl Fn(usize, &fit::Texels, (usize, usize)) -> ([u8; BLOCK_BYTES], [u8; 64]) + Sync,
+    search: impl Fn(&fit::Texels, (usize, usize)) -> ([u8; BLOCK_BYTES], [u8; 64]) + Sync,
 ) -> (Vec<u8>, Vec<u8>) {
     let alike = first_alike(pixels, size);
     let (across, down) = blocks_of(width, height);
@@ -112,7 +90,7 @@ pub(super) fn encode_alike(
                     continue;
                 }
                 let texels = fit::block_texels(pixels, width, height, bx as u32, by as u32);
-                let (kept, back) = search(rank, &texels, inside_of(size, bx, by));
+                let (kept, back) = search(&texels, inside_of(size, bx, by));
                 *block = kept;
                 put_block(rows, width, bx, &back);
             }
@@ -153,7 +131,7 @@ fn put_block(rows: &mut [u8], width: u32, bx: usize, back: &[u8; 64]) {
 /// Rounds a block that flips a texel is encoded again at most (`sided`).
 const SIDE_ROUNDS: usize = 3;
 
-/// One block of `texels` in `codec` at `effort`, and its read-back. What a cut reads of a texel is
+/// One block of `texels` in `codec`, and its read-back. What a cut reads of a texel is
 /// its side, and an encoder minimises squared error: an alpha one step under a cutoff can come
 /// back one step over it — a 4-bit BC7 weight between 0 and 255 lands on 119 or 135, never 127 —,
 /// a hole that closes. A block whose read-back flips a texel `inside` the level across one of
@@ -164,11 +142,10 @@ const SIDE_ROUNDS: usize = 3;
 pub(super) fn sided(
     texels: &fit::Texels,
     (format, layout): (BlockFormat, Layout),
-    effort: Effort,
     cutoffs: &[Cut],
     inside: (usize, usize),
 ) -> ([u8; BLOCK_BYTES], [u8; 64]) {
-    let mut block = encode_block(texels, format, layout, effort);
+    let mut block = encode_block(texels, format, layout);
     let mut back = decode_block(&block, format, layout);
     if cutoffs.is_empty() {
         return (block, back);
@@ -187,7 +164,7 @@ pub(super) fn sided(
             let error = f32::from(back[t * 4 + 3]) - f32::from(source[t * 4 + 3]);
             nudged[t][3] = (nudged[t][3] - error).clamp(0.0, 255.0);
         }
-        let again = encode_block(&nudged, format, layout, effort);
+        let again = encode_block(&nudged, format, layout);
         let again_back = decode_block(&again, format, layout);
         let flips = count(&again_back);
         if flips < best {

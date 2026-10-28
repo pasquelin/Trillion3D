@@ -18,7 +18,7 @@
           "bytes": 48,
           "format": "bc7",
           "layout": 1,
-          "sha256": "809903edf11339203fc812cba1d3f797a417a40fea5105b85c94a91bc93b96aa"
+          "sha256": "4e585569589ec9df8622fab7c6d9016b96b21f4c81ea907215c3af42f4962eca"
         },
         {
           "bytes": 0,
@@ -81,7 +81,7 @@
       "pixelBytes": 44,
       "pixelOffset": 0,
       "sourceKind": 0,
-      "sourceSha256": "62882cb662f3efe89f2bd4590f4d32e021e12173f71cf1a82df027ca1c89b487",
+      "sourceSha256": "df11a32623d3a8e9f05380afc3557b2cdcc85e1a09a4a1538034cc7da6ab6d53",
       "sourceView": 4294967295,
       "texture": 0,
       "width": 4
@@ -97,9 +97,9 @@
     "encoded": {
       "bc7": {
         "keptPsnrDb": {
-          "median": 58.54,
-          "min": 58.54,
-          "p10": 58.54
+          "median": 60.31,
+          "min": 60.31,
+          "p10": 60.31
         },
         "lossless": 0,
         "rgba": 1,

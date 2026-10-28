@@ -46,19 +46,12 @@ fn levels_above_the_tail_are_written_once_per_atlas_in_the_stored_blocks() {
         (AtlasKind::Color, &previews[0], [true, true, true, false]),
         (AtlasKind::Data, &previews[1], [true, false, false, false]),
     ] {
-        // The level files are the chain encoder's: fast, or slow when the fast chain fails.
+        // The level files are the chain encoder's.
         let chain = crate::texture::reduce::chain(&source, &[], kind);
         let sizes: Vec<(u32, u32)> = preview_level_sizes(256, 256).collect();
         let codec = (BlockFormat::Bc7, Layout::Rgba);
-        let (fast, measure) =
-            crate::texture::blocks::quality::fast_chain(&chain, &sizes, codec, channels, &[]);
-        let encoded = if measure.passes() {
-            fast
-        } else {
-            let upper = (fast.as_slice(), crate::texture::blocks::Effort::Slow);
-            crate::texture::blocks::quality::slow_chain(&chain, &sizes, codec, upper, channels, &[])
-                .0
-        };
+        let (encoded, _) =
+            crate::texture::blocks::quality::encode_chain(&chain, &sizes, codec, channels, &[]);
         for level in 0..2u32 {
             let (w, h) = preview_level_size(256, 256, level);
             let encoded = &encoded[level as usize];

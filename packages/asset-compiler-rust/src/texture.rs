@@ -64,7 +64,7 @@ pub use levels::*;
 /// word, and every family cooked by default. Version 8 stores every level in BC, no PNG: BC7
 /// searched in every mode, a chain under the bar left to its source image, each tile record of a
 /// block level file deflated behind a head of record ends (`tile_records`). Version 9 encodes each
-/// BC7 block whose fast read-back misses the gate's bars again with the slow search (`Effort`), and
+/// BC7 block whose fast read-back misses the gate's bars again with the slow search, and
 /// keys a chain's folder by its source and the sheet that decides its bytes (`GateSheet::key`):
 /// two readings of one image under other channels or cuts never share a file. Version 10 moves
 /// the BC7 bytes of most blocks: the vendored encoder's axis search starts from the covariance's
@@ -77,10 +77,13 @@ pub use levels::*;
 /// `rgba16f` tile records of texels. The texture's compression setting (`setting.rs`) adds the
 /// layout words 3 and 4 — BC6H blocks of a half-float chain (an `hdr` entry then names a block
 /// layout and carries its tail in the stored family's column) and BC4 blocks of eight bytes — as
-/// new chains under names of their own: no existing byte moves, no increment.
+/// new chains under names of their own: no existing byte moves, no increment. BC7 encoded once with
+/// the basic search, in place of the fast one and the slow one after it, moves the BC7 bytes under
+/// chain keys of their own, the encoder's settings in them (`blocks::encoding`): no file another
+/// encoding wrote is read, no increment.
 pub const TEXTURE_PREVIEW_VERSION: u32 = 12;
 pub use bake::write::{level_path, texture_version_dir, LEVEL_WRITE_FAILED, TEXTURE_DIR};
-pub use blocks::{BlockFormat, Ladder, Layout, FAMILIES};
+pub use blocks::{BlockFormat, Layout, FAMILIES};
 pub(crate) use curves::{linear_table, linear_to_srgb, srgb_table};
 pub use reduce::AtlasKind;
 /// Baked level template path, relative to `native/`; `bake::write::level_path`

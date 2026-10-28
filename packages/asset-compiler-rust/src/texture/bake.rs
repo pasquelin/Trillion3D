@@ -3,7 +3,7 @@ mod gated;
 mod half;
 mod single;
 pub(crate) mod write;
-use super::blocks::{Ladder, Layout, FAMILIES};
+use super::blocks::{Layout, FAMILIES};
 use super::collect::AtlasTexture;
 use super::gate::Gate;
 use super::reduce::AtlasKind;
@@ -79,7 +79,7 @@ pub(super) fn one_image(
                 &sha256,
                 provenance,
             ),
-            (image_index, Ladder::Full),
+            image_index,
             &routed,
         ),
         DecodedImage::RgbaF32 {
@@ -109,20 +109,19 @@ pub(super) fn one_image(
 /// rounded from when the file stores them, its bytes' fingerprint `sha256`, read from
 /// `provenance` — for every (texture, atlas) of `readers`, one chain per kind, each cooked in every
 /// family the job asks for and its levels above the tail written under the chain's key
-/// (`GateSheet::key`), its BC7 chains climbing `ladder`: the one bake of a source image
-/// (`Ladder::Full`) and of an image the compiler draws itself (the HLOD atlases, `hlod/flatten`,
-/// `Ladder::Light`), whose textures carry the default setting.
+/// (`GateSheet::key`): the one bake of a source image and of an image the compiler draws itself
+/// (the HLOD atlases, `hlod/flatten`), whose textures carry the default setting.
 pub(crate) fn cook_decoded(
     o: &Options,
     source: DecodedSource<'_>,
-    ids: (usize, Ladder),
+    image_index: usize,
     readers: &[AtlasTexture],
 ) -> std::result::Result<Baked, &'static str> {
     let routed: Vec<_> = readers
         .iter()
         .map(|reader| (reader, Route::Gated(None)))
         .collect();
-    cook_routed(o, source, ids, &routed)
+    cook_routed(o, source, image_index, &routed)
 }
 
 /// What every chain of one decoded image shares: the image, its fingerprint, where it was read
@@ -180,7 +179,7 @@ impl Source<'_> {
 fn cook_routed(
     o: &Options,
     (decoded, stored, wide, sha256, provenance): DecodedSource<'_>,
-    (image_index, ladder): (usize, Ladder),
+    image_index: usize,
     readers: &[(&AtlasTexture, Route)],
 ) -> std::result::Result<Baked, &'static str> {
     let size = (decoded.width(), decoded.height());
@@ -219,7 +218,7 @@ fn cook_routed(
     let mut floats = None;
     for ((kind, route), of_kind) in chains {
         let part = match route {
-            Route::Gated(layout) => gated::cook(&source, kind, &of_kind, (ladder, layout))?,
+            Route::Gated(layout) => gated::cook(&source, kind, &of_kind, layout)?,
             Route::OneChannel => single::cook_one_channel(&source, kind, &of_kind)?,
             Route::Gray => single::cook_channel(&source, kind, &of_kind, Layout::Gray)?,
             Route::Displacement => {
