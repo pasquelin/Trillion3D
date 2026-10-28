@@ -21,8 +21,12 @@ export const HIZ_WITH_TRACE = 'HIZ_WITH_TRACE'
 export const HIZ_UNIFORM_VAR = 'hizUni'
 /** The pixels a plane's slopes reach on each side (`surfaceSlopeOf`: two neighbours), and the side
  *  of the full build's depth tile: a workgroup's pixels and that border. */
-const HIZ_PLANE_REACH = 2
-const HIZ_DEPTH_TILE = 2 * HIZ_BUILD_SIDE + 2 * HIZ_PLANE_REACH
+export const HIZ_PLANE_REACH = 2
+/** The texels the tile holds behind the workgroup's first pixel: the reach, and one more, for the last
+ *  square of an odd level starts one texel back (`hizSquareStart`), so that its plane reaches one texel
+ *  further behind the workgroup than any other. */
+export const HIZ_TILE_BEHIND = HIZ_PLANE_REACH + 1
+export const HIZ_DEPTH_TILE = 2 * HIZ_BUILD_SIDE + HIZ_TILE_BEHIND + HIZ_PLANE_REACH
 
 /**
  * Where the build reads the opaque depth of a pixel (`hizOpaqueAt`), the depth the trace layers
@@ -63,7 +67,7 @@ ${HIZ_UNI.wgsl}
 ${source.bindings}@group(0) @binding(2) var<uniform> ${HIZ_UNIFORM_VAR}:Uni;
 var<workgroup> hizTile:array<vec3f,${HIZ_BUILD_SIDE ** 2}>;
 /** The folded depth of the full build's first pass over the workgroup's pixels and the border of
- *  two its planes reach (\`hizPlaneCorners\`), each texel loaded once; \`hizDepthOrigin\` the pixel
+ *  two its planes reach, and one more behind (\`HIZ_TILE_BEHIND\`, \`hizPlaneCorners\`), each texel loaded once; \`hizDepthOrigin\` the pixel
  *  of its first texel. */
 var<workgroup> hizDepthTile:array<f32,${HIZ_DEPTH_TILE ** 2}>;
 var<private> hizDepthOrigin:vec2i;
@@ -101,7 +105,7 @@ fn hizFrontAt(q:vec2i)->f32{return hizFrontOf(q,hizOpaqueAt(q));}
 /** Loads the folded depth of the workgroup \`wg\`'s tile, clamped to the drawn size, each thread a
  *  share of its texels: the nine texels a plane reads, of four pixels a thread, come from it. */
 fn hizLoadDepthTile(wg:vec2u,thread:u32){
- hizDepthOrigin=vec2i(wg*${2 * HIZ_BUILD_SIDE}u)-vec2i(${HIZ_PLANE_REACH});
+ hizDepthOrigin=vec2i(wg*${2 * HIZ_BUILD_SIDE}u)-vec2i(${HIZ_TILE_BEHIND});
  let last=vec2i(vec2u(hizUni.b,hizUni.c))-vec2i(1);
  for(var k=thread;k<${HIZ_DEPTH_TILE ** 2}u;k+=${HIZ_BUILD_SIDE ** 2}u){
   let q=hizDepthOrigin+vec2i(i32(k%${HIZ_DEPTH_TILE}u),i32(k/${HIZ_DEPTH_TILE}u));

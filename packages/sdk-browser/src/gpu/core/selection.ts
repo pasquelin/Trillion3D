@@ -53,7 +53,7 @@ export type SelectionResult = {
   truncated?: boolean
   /** What the cut asked of its lists, the most one pass asked of each: past a cap, it drew what
    *  fit (`../../geometry/dag/lists/listFeedback.ts`). With the drawn list alone. */
-  peaks?: CutListCaps & { level: number }
+  peaks?: CutListCaps
 }
 /** The totals a cut's readback gives the image's metrics: counted by the GPU where the verdict is given. */
 export type CutTotals = Pick<

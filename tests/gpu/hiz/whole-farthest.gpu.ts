@@ -1,6 +1,7 @@
-// The nearest build writes the farthest bound of the FINISHED depth into its own layer, from level
-// 1, beside the nearest layer, and leaves the culling layer — the occluders' depth, which the
-// partition and the transparent test read — exactly as the occluders' build left it
+// The occluders' build leaves the culling layer as the occluders' pyramid; the nearest (full) build
+// then writes the farthest bound of the FINISHED depth into its own layer, from level 1, beside the
+// nearest layer, and the culling layer as the finished depth's pyramid — the reference's one build
+// reduces the furthest and the closest depth of the scene depth together
 // (`wholeFarthestPage.ts`).
 import test from 'node:test'
 import assert from 'node:assert/strict'

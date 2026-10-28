@@ -40,7 +40,7 @@ const WGSL_OWN = new Set([
     'sign sin smoothstep sqrt step storageBarrier subgroupAdd subgroupAll subgroupAny subgroupBallot subgroupBroadcastFirst ' +
     'subgroupElect subgroupExclusiveAdd subgroupMax subgroupMin subgroupShuffle subgroupShuffleXor tan tanh textureDimensions textureGather textureGatherCompare ' +
     'textureLoad textureNumLayers textureNumLevels textureSample textureSampleBias textureSampleCompare ' +
-    'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureBarrier textureStore transpose ' +
+    'textureSampleCompareLevel textureSampleGrad textureSampleLevel textureStore transpose ' +
     'trunc unpack2x16float unpack2x16snorm unpack2x16unorm unpack4x8snorm unpack4x8unorm workgroupBarrier workgroupUniformLoad'
   ).split(/\s+/),
 ])

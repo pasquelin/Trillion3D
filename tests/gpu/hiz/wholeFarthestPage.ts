@@ -1,8 +1,12 @@
 // The depth pyramid's two slices on the machine's device (`hiz/gpu/shader.ts`): the occluders'
 // depth built by `encodePyramid`, then a finished depth, nearer where more was drawn, by
-// `encodeFull`. The pyramid texture is read back whole and compared with the oracle's
-// reductions (`sdk-core/src/hiz/oracles.fixture.ts`), bit for bit; the finished depth's farthest
-// layer reduces the far corner of each pixel's plane, not its depth.
+// `encodeFull`. The pyramid texture is read back whole after each build and compared with the
+// oracle's reductions (`sdk-core/src/hiz/oracles.fixture.ts`), bit for bit: after the occluders'
+// build the culling layer is the occluders' pyramid; after the full build it is the FINISHED
+// depth's — the reference reduces its furthest and its closest depth of the scene depth in the one
+// build, the furthest then being the finished depth's, not the pre-pass's —, and the finished
+// depth's farthest layer reduces the far corner of each pixel's plane, not its depth. A texel that
+// differs is named by its level and place.
 import { fromF32Bits } from '../../../packages/math/src/float/bits.ts'
 import { fromHalf, toHalf } from '../../../packages/math/src/float/half.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
@@ -26,6 +30,13 @@ import { readTexture } from '../../kit/device/computeReadback.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 export type WholeFarthestCase = { width: number; height: number; seed: number }
+
+/** The pyramid's levels from 1 up: level 0 is the depth texture itself, which the pyramid texture does not
+ *  hold (`packWholeFarthest`). */
+const upperLevels = (packed: ReturnType<typeof packHizPyramid>) => {
+  packed.data.fill(0, 0, packed.offsets[1] ?? packed.data.length)
+  return packed.data
+}
 
 const rowsOf = (depth: Float32Array, width: number, height: number) =>
   Array.from({ length: height }, (_, y) => Array.from(depth.subarray(y * width, (y + 1) * width)))
@@ -104,30 +115,61 @@ export async function testWholeFarthest(cases: WholeFarthestCase[]) {
       pass.end()
       device.queue.submit([encoder.finish()])
     }
+    const size = pyramidBytes(width, height),
+      { texels } = size
+    const label = `${width}×${height}`
+    const bits = (packed: Float32Array) => new Uint32Array(packed.buffer)
+    const layersOf = async () => {
+      const layers = []
+      for (let layer = 0; layer < 2; layer++)
+        layers.push(await readLayer(device, pyramid.pyramid, layer, size))
+      return layers
+    }
+    /** The texels of `got` that differ from `want`, named by their level and place. */
+    const differ = (
+      what: string,
+      got: Uint32Array,
+      want: Uint32Array,
+      same: (a: number, b: number) => boolean = (a, b) => a === b,
+    ) => {
+      const wrong: number[] = []
+      for (let i = 0; i < texels; i++) if (!same(got[i], want[i])) wrong.push(i)
+      if (!wrong.length) return
+      const place = (i: number) => {
+        const level = size.offsets.findLastIndex((offset) => offset <= i)
+        const [w] = size.sizes[level]
+        const at = i - size.offsets[level]
+        return `level ${level} (${at % w}, ${Math.floor(at / w)})`
+      }
+      mismatches.push(
+        `${label}: ${wrong.length} ${what}, first ${wrong
+          .slice(0, 6)
+          .map((i) => `${place(i)} ${got[i].toString(16)} for ${want[i].toString(16)}`)
+          .join('; ')}`,
+      )
+    }
     draw(occluders, (open) => hiz.encodePyramid(open))
+    const built = await layersOf()
+    differ(
+      "culling texels differ from the occluders' pyramid",
+      hizPackedFrom(built, HIZ_CULL_FARTHEST, size),
+      bits(upperLevels(packHizPyramid(rowsOf(occluders, width, height)))),
+    )
     // The finished depth's farthest layer is the planes' build's (`hizTrace` `'planes'`).
     hiz.planes(true)
     draw(finished, (open) => hiz.encodeFull(open))
-    const size = pyramidBytes(width, height),
-      { texels } = size
-    const layers = []
-    for (let layer = 0; layer < 2; layer++)
-      layers.push(await readLayer(device, pyramid.pyramid, layer, size))
-    const cull = hizPackedFrom(layers, HIZ_CULL_FARTHEST, size)
-    const whole = hizPackedFrom(layers, HIZ_WHOLE_FARTHEST, size)
-    const bits = (packed: Float32Array) => new Uint32Array(packed.buffer)
-    const expectCull = bits(packHizPyramid(rowsOf(occluders, width, height)).data)
-    const expectWhole = bits(
-      packWholeFarthest(rowsOf(farthestCorners(finished, width, height), width, height)).data,
+    const layers = await layersOf()
+    differ(
+      "culling texels differ from the finished depth's pyramid",
+      hizPackedFrom(layers, HIZ_CULL_FARTHEST, size),
+      bits(upperLevels(packHizPyramid(rowsOf(finished, width, height)))),
     )
-    const label = `${width}×${height}`
-    let wrong = 0
-    for (let i = 0; i < texels; i++) if (cull[i] !== expectCull[i]) wrong++
-    if (wrong)
-      mismatches.push(`${label}: ${wrong} culling texels differ from the occluders' pyramid`)
-    wrong = 0
-    for (let i = 0; i < texels; i++) if (!sameCorner(whole[i], expectWhole[i])) wrong++
-    if (wrong) mismatches.push(`${label}: ${wrong} texels differ from the finished depth's pyramid`)
+    differ(
+      "texels differ from the finished depth's planes pyramid",
+      hizPackedFrom(layers, HIZ_WHOLE_FARTHEST, size),
+      bits(packWholeFarthest(rowsOf(farthestCorners(finished, width, height), width, height)).data),
+      sameCorner,
+    )
     hiz.dispose()
   }
   const { court: adapter } = await gpu.fermer()
