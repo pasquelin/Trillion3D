@@ -1,3 +1,4 @@
+import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import { previewLevelSize } from '../../../../../sdk-core/src/texture/previewLevels.ts'
 // The tile pass stops copying once its millisecond budget is spent and defers the rest to the
 // next pass, most looked-at first; a barrier lifts the budget; the worst budgeted pass is kept.
@@ -10,6 +11,9 @@ import { tileLayout } from '../../texture/tiles.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { createPageCache } from '../../../geometry/streaming/pageCache.ts'
 import { tileLevelBytes, type TextureLevelRequest } from '../../texture/levelReader.ts'
+
+/** The filtering the streamer is opened with: one object, as the session's getter keeps it. */
+const FILTERING = { ceiling: MAX_ANISOTROPY, taps: true }
 import { tileRecord } from '../../texture/tileRecords.ts'
 
 /** Milliseconds each fake copy costs on the test's own clock — the budget is read on it — and
@@ -87,6 +91,7 @@ function streamer(budgetMs: number) {
     budgetMs,
     clock: createFrameBudget(Infinity, { now }),
     onFailure: (phase, error) => assert.fail(`${phase}: ${String(error)}`),
+    filtering: () => FILTERING,
     onColorChanged: follow,
   })
   textures.prepare()

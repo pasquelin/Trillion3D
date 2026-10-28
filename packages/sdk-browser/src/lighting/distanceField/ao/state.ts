@@ -1,3 +1,4 @@
+import { NEVER_SEEN } from '../../../frame/backend/state/previousCamera.ts'
 import {
   NO_SKY_LIGHT_OCCLUSION,
   type SkyLightOcclusionUse,
@@ -32,7 +33,7 @@ export interface SkyOcclusionRead {
 /** A state with nothing drawn. */
 export const createSkyOcclusionState = (): SkyOcclusionState => ({
   dfao: createDfaoState(),
-  seen: 0,
+  seen: NEVER_SEEN,
   revision: undefined,
   read: undefined,
   dfaoRead: new Float32Array(DFAO_READ_WORDS),
@@ -43,7 +44,7 @@ export const createSkyOcclusionState = (): SkyOcclusionState => ({
 export function releaseSkyOcclusion(state: SkyOcclusionState) {
   state.dfao.view?.dispose()
   state.dfao.view = undefined
-  state.seen = 0
+  state.seen = NEVER_SEEN
   state.read = undefined
   state.use = NO_SKY_LIGHT_OCCLUSION
 }

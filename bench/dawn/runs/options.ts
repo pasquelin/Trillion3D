@@ -26,6 +26,7 @@ export const OPTIONS = {
   'no-capture': { type: 'boolean', default: false },
   dissect: { type: 'string' },
   ab: { type: 'string' },
+  'ab-images': { type: 'boolean', default: false },
   'ab-b': { type: 'string' },
   rounds: { type: 'string', default: '6' },
   least: { type: 'string', default: String(DEFAULT_LEAST_MS) },
@@ -57,6 +58,10 @@ export function benchOptions(args = process.argv.slice(2)) {
     throw new Error('usage: node bench/dawn/run.ts <page> --ab <checkout A> <checkout B>')
   const rounds = Number(values.rounds)
   const least = Number(values.least)
+  if (values['ab-images'] && !values.ab)
+    throw new Error('usage: --ab-images goes with --ab <checkout A> <checkout B>')
+  if (values['ab-images'] && values['no-capture'])
+    throw new Error('BENCH_AB: --ab-images takes images: --no-capture asks for none')
   if (values.ab && values.dissect)
     throw new Error('usage: --dissect and --ab are two runs, one at a time')
   if (values.ab && (!Number.isInteger(rounds) || rounds < 2))
@@ -67,7 +72,7 @@ export function benchOptions(args = process.argv.slice(2)) {
   const page = positionals[0] ?? scenario.page
   if (!page || positionals.length > 1)
     throw new Error(
-      'usage: node bench/dawn/run.ts <page> [--scenario orbit|drive|still|world|<file>] …',
+      'usage: node bench/dawn/run.ts <page> [--scenario orbit|drive|still|world|parity:<path>|parity:all|<file>] …',
     )
   // An A/B or a dissect measures through its children, which refuse a dirty checkout themselves.
   const engine = engineRoot(values.engine, values.dirty || Boolean(values.ab || values.dissect))
@@ -85,7 +90,9 @@ export function benchOptions(args = process.argv.slice(2)) {
     repeat: Math.max(1, Number(values.repeat)),
     profileName: values.profile,
     profile,
-    display: values.display ? { width, height, ratio: Number(ratio) } : profile.display,
+    display: values.display
+      ? { width, height, ratio: Number(ratio) }
+      : (scenario.display ?? profile.display),
     featuresOff: values['features-off'].split(',').filter(Boolean),
     scale: values.scale,
     cpuProfile: values['cpu-profile'],
@@ -98,6 +105,7 @@ export function benchOptions(args = process.argv.slice(2)) {
     dirtyOk: values.dirty,
     dissect: values.dissect,
     ab: values.ab && values['ab-b'] ? ([values.ab, values['ab-b']] as [string, string]) : undefined,
+    abImages: values['ab-images'],
     rounds,
     least,
     scenarioArg: values.scenario,

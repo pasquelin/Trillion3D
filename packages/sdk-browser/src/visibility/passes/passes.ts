@@ -23,22 +23,27 @@ const visibilitySteps = new ComputeRun()
 const buildsTraceLayers = (rt: WebgpuPagesRuntime) =>
   !!rt.gpu.reflection && !readHizSetting(rt, 'hizFoldTransparents')
 
-/** The pyramid built from the depth in level 0, in a compute pass of its own: its culling layer, with
- *  its trace layers in the same dispatches where `full`. */
-function encodePyramid(rt: WebgpuPagesRuntime, steps: ComputeRun, full: boolean) {
+/** The pyramid built from the depth in the visibility buffer, which its first pass writes into level
+ *  0, in a compute pass of its own: its culling layer, with its trace layers in the same dispatches
+ *  where `full`. */
+function encodePyramid(
+  rt: WebgpuPagesRuntime,
+  steps: ComputeRun,
+  full: boolean,
+  source: VisibilityRasterStages['depthSource'],
+) {
   const hiz = prepared(rt.vis, 'gpuHiz')
   if (full) hiz.planes(readHizSetting(rt, 'hizTrace') === 'planes')
   const open = hizPass.begin(steps)
-  if (full) hiz.encodeFull(open)
-  else hiz.encodePyramid(open)
+  hiz.encodeFromWork(open, source, full)
   hizPass.end()
   rt.run.hizPyramidFresh = true
 }
 
 /**
  * The visibility buffer, in the order of the cut's two-pass occlusion: the main pass's clusters —
- * hardware slots, then the software raster's — and the pyramid's level zero from them
- * (`raster.occluders`); the pyramid built from that depth; the cut's post pass, which judges against
+ * hardware slots, then the software raster's (`raster.occluders`); the pyramid built from that
+ * buffer, its level zero written with it; the cut's post pass, which judges against
  * it what the previous image's pyramid hid (`GpuSelection.encodePost`); the post pass's clusters
  * (`raster.rest`) and the pyramid built again from the whole depth, which the next image's main
  * pass reads, its trace layers (`buildsTraceLayers`) in the same dispatches; then the image closed (`raster.close`): the identifiers the software raster still has
@@ -57,12 +62,12 @@ export function encodeWebgpuVisibilityPasses(
   const full = buildsTraceLayers(rt)
   // A cut in one pass leaves no post pass: this build is the only one, from the whole depth.
   const single = !twoPassOf(run.selectionUniforms)
-  // The software depth, its export and the pyramid follow one another: one compute pass, but on a
+  // The software depth and the pyramid follow one another: one compute pass, but on a
   // frame timed per pass.
   const steps = visibilitySteps.begin(encoder)
   raster.occluders(encoder, steps)
   rt.run.hizPyramidFresh = false
-  encodePyramid(rt, steps, full && single)
+  encodePyramid(rt, steps, full && single, raster.depthSource)
   steps.end()
   // The drawn view's cut, the main one or its own aside (`../../geometry/dag/aside.ts`).
   const post = !!cutOf(rt)?.encodePost(encoder, cutPyramid(rt))
@@ -72,10 +77,10 @@ export function encodeWebgpuVisibilityPasses(
   if (withRest) {
     visibilitySteps.begin(encoder)
     raster.rest(encoder, visibilitySteps)
-    encodePyramid(rt, visibilitySteps, full)
+    encodePyramid(rt, visibilitySteps, full, raster.depthSource)
     visibilitySteps.end()
   } else if (full && !single) {
-    encodePyramid(rt, visibilitySteps.begin(encoder), true)
+    encodePyramid(rt, visibilitySteps.begin(encoder), true, raster.depthSource)
     visibilitySteps.end()
   }
   // The pyramid holds the image's whole depth — but where the post pass's clusters were left out —:

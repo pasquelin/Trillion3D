@@ -12,6 +12,11 @@ import type { TileKey } from '../page/pageTable.ts'
 import { atlasKeyOf } from '../ids.ts'
 import { MAX_LEVELS } from '../../texture/tiles.ts'
 
+/** The filtering the headers are written under: the most reads a texture's anisotropy takes
+ *  (`virtualTextureMaxAnisotropy`, a power of two) and whether they are taps along the footprint
+ *  (`virtualTextureAnisotropicFiltering`) or one read at the level the elongation moves. */
+export type StreamedFiltering = { readonly ceiling: number; readonly taps: boolean }
+
 /** What the streamer is opened with. */
 export type TileStreamerOptions = {
   device: GPUDevice
@@ -33,6 +38,9 @@ export type TileStreamerOptions = {
   /** Said when colour tiles arrived in a pump, a colour texture's sampling moved, or the pool was
    *  resized: the resources the image reads changed. */
   onColorChanged: () => void
+  /** How the streamed textures are read (`StreamedFiltering`), read each image: every header is
+   *  written again when it moves. */
+  filtering: () => StreamedFiltering
 }
 
 /** The colour and data atlases of a streamer; `clock` is read when the feedback reduction stamps. */
@@ -84,12 +92,13 @@ export function createSamplingFollow(
   atlases: readonly [WebgpuTileAtlas, WebgpuTileAtlas],
   sources: ReturnType<typeof createTileSources>,
   onColorChanged: TileStreamerOptions['onColorChanged'],
+  filtering: TileStreamerOptions['filtering'],
 ) {
   const [color, data] = atlases
   const flushAll = () => atlases.forEach((atlas) => atlas.flush(device))
   // The texture records written since the last render; closed at `destroy`.
   const journal = textureJournals.open()
-  const followHeaders = samplingHeaders(color, data, journal)
+  const followHeaders = samplingHeaders(color, data, journal, filtering)
   return {
     flushAll,
     followHeaders,

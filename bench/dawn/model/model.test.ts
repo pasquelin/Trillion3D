@@ -17,6 +17,11 @@ import {
   cutResources,
   witnessEncoder,
 } from '../../../packages/sdk-browser/src/geometry/dag/encode.fixture.ts'
+import {
+  REFLECTION_GRID_TEXEL_BYTES,
+  REFLECTION_HISTORY_TEXEL_BYTES,
+  REFLECTION_RAY_BYTES,
+} from '../../../packages/sdk-browser/src/lighting/reflections/grids.ts'
 import { REPOSITORY_ROOT } from '../../../scripts/git/repository-files.ts'
 import { countTaaFetches } from '../../runner/counts/taaFetchCount.ts'
 import { TAA_DISPLAY_BYTES, TAA_RENDER_BYTES } from '../../runner/counts/taaPassBytes.ts'
@@ -112,13 +117,17 @@ test('the passes count their shipped constants', () => {
   const trace = pass('reflection trace')
   const marched = (reflecting: number) => trace.work({ ...frame, reflecting }).texels!
   assert.equal((marched(1) - marched(0)) / frame.P, (4 + 16 * 3 + 3) / TRACE_SHARE)
-  // It writes its fresh texel (rg32uint, 8) and its ray's textures (the word and the depth, r32uint 4 each, the direction rgba16float, 8)
-  // and the last pass the reflection target's three layers of rgba16float, 24.
+  // It writes its fresh grid texel (rg32uint, 8) and its ray's layers (the depth, the direction's
+  // first two halves, its third half with the cone angle: REFLECTION_RAY_BYTES)
   const written = (reflecting: number) => trace.work({ ...frame, reflecting }).bytes!
-  assert.equal((written(1) - written(0)) / frame.P, (8 + 16) / TRACE_SHARE)
+  const perTexel = (REFLECTION_GRID_TEXEL_BYTES + REFLECTION_RAY_BYTES) / TRACE_SHARE
+  assert.equal((written(1) - written(0)) / frame.P, perTexel)
+  // The denoise writes a resolved grid texel (8) and a history texel (rgba32uint, 16), then the last pass the
+  // reflection target's two layers of rgba16float, 8 each: 16.
   const denoise = pass('reflection denoise')
   const stored = (reflecting: number) => denoise.work({ ...frame, reflecting }).bytes!
-  assert.equal((stored(1) - stored(0)) / frame.P, (8 + 16) / TRACE_SHARE + 24)
+  const kept = (REFLECTION_GRID_TEXEL_BYTES + REFLECTION_HISTORY_TEXEL_BYTES) / TRACE_SHARE
+  assert.equal((stored(1) - stored(0)) / frame.P, kept + 16)
 })
 
 const report = {

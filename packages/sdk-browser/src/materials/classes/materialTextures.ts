@@ -8,6 +8,21 @@ import {
   SURFACE_MAP_FIELDS,
 } from '../../visibility/materialType.ts'
 import { hasPhysicalLobes } from '../surface/physicalLobes.ts'
+import { noteStacks, type SiblingSets, type StackedMap } from '../virtual/stacks.ts'
+
+/** The maps of a surface that lie in the atlases (`mapLayer`, `dataLayer`): what its stacks are made of. */
+export function stackedMapsOf(
+  mat: PageSurface,
+  mapLayer: ReadonlyMap<Texture, number>,
+  dataLayer: ReadonlyMap<Texture, number>,
+) {
+  const stacked: StackedMap[] = []
+  forEachMaterialTexture(mat, (texture, kind, map) => {
+    const slot = (kind === 'color' ? mapLayer : dataLayer).get(texture)
+    if (map && slot !== undefined) stacked.push({ texture, kind, slot })
+  })
+  return stacked
+}
 
 /** Store a texture in an atlas if it is not already there, and return the slot it occupies.
  *  Slot 0 is the fill texel, so the first stored texture takes slot 1. */
@@ -29,20 +44,22 @@ type MaterialTextureKind = 'color' | 'data'
  * the textures a graph reads (through the colour atlas, `../graph/nodesTexture.ts`), the anisotropic, clear-coat and cloth maps of a surface
  * that carries a lobe (`physicalWgsl.ts`; the sheen colour is a colour), and the height map of a displaced surface
  * (`../../visibility/tessellation/`). The one list of them: the census of the atlases' slots and the cache's wait for textures both read it.
- * `visit` returning true stops the walk, which then returns true.
+ * `visit` returning true stops the walk, which then returns true; `map` says the texture is one of the surface's own maps, read at its
+ * coordinates, not a graph's or a height map.
  */
 export function forEachMaterialTexture(
   mat: PageSurface,
-  visit: (texture: Texture, kind: MaterialTextureKind) => boolean | void,
+  visit: (texture: Texture, kind: MaterialTextureKind, map: boolean) => boolean | void,
 ): boolean {
-  const stops = (texture: Texture | undefined, kind: MaterialTextureKind) =>
-    !!texture && visit(texture, kind) === true
+  const stops = (texture: Texture | undefined, kind: MaterialTextureKind, map = false) =>
+    !!texture && visit(texture, kind, map) === true
   for (const field of SURFACE_MAP_FIELDS)
-    if (stops(mat[field], SURFACE_COLOUR_MAPS.has(field) ? 'color' : 'data')) return true
+    if (stops(mat[field], SURFACE_COLOUR_MAPS.has(field) ? 'color' : 'data', true)) return true
   for (const texture of mat.graph?.readTextures() ?? []) if (stops(texture, 'color')) return true
   if (hasPhysicalLobes(mat))
     for (const field of PHYSICAL_MAP_FIELDS)
-      if (stops(mat[field], PHYSICAL_COLOUR_MAP_FIELDS.has(field) ? 'color' : 'data')) return true
+      if (stops(mat[field], PHYSICAL_COLOUR_MAP_FIELDS.has(field) ? 'color' : 'data', true))
+        return true
   return !!mat.displacement && stops(mat.displacementMap, 'data')
 }
 
@@ -70,5 +87,10 @@ export function collectWebgpuMaterialTextures(
   }
   for (const rec of allPages) collect(rec.material)
   for (const copy of blendCopies) collect(copy.surface)
-  return { maps, dataMaps }
+  // The stacks of each material, in the slots the census gave: the siblings of every texture.
+  const siblings: SiblingSets = { color: [], data: [] }
+  for (const mat of visited) {
+    noteStacks(siblings, stackedMapsOf(mat, mapLayer, dataLayer))
+  }
+  return { maps, dataMaps, siblings }
 }

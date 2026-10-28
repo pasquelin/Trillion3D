@@ -155,7 +155,7 @@ export const STILL_MOTION_WGSL = wgslBlock(
   'STILL_MOTION_WGSL',
   [TAA_VIEW_WGSL, CAMERA_MOTION_WGSL],
   `
-fn cameraMotion(p:vec2i,z:f32)->vec2f{
+fn stillMotion(p:vec2i,z:f32)->vec2f{
  let v=cameraOnlyMotion(screenOfTexel(p),z);
  return select(v,v*z,view.radius.w!=0.0);
 }`,
@@ -182,7 +182,7 @@ fn nearestOffset(pixel:vec2i)->vec2i{
 }
 fn cornerMotion(pixel:vec2i,nearest:vec2i)->vec3f{
  let z=textureLoad(depthTexture,nearest,0);
- let still=cameraMotion(pixel,z);
+ let still=stillMotion(pixel,z);
  let word=textureLoad(vectors,nearest,0).r;
  var v=select(still,decodeVector(word),hasOwnMotion(word));
  if(mb.knobs.w!=0.0){v=v-still;}
@@ -200,7 +200,7 @@ fn cornerMotion(pixel:vec2i,nearest:vec2i)->vec3f{
  *   the farthest;
  * - the motion is that of the surface at the corner texel (`cornerMotion`), read from the velocity
  *   stage's word there where that surface moves by itself (`hasOwnMotion`); a surface that does not
- *   move by itself has the motion the camera gives the texel, at the corner's depth (`cameraMotion`:
+ *   move by itself has the motion the camera gives the texel, at the corner's depth (`stillMotion`:
  *   under an orthographic projection, held down by the depth). The velocity stage's word is read as
  *   it is, never dilated: the pass takes the corner's by its own rule. The camera's motion is taken
  *   out where the blur is to follow what moves in the scene alone (`knobs.w`), the texel's own, by

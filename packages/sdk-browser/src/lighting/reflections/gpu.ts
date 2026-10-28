@@ -1,3 +1,4 @@
+import { NEVER_SEEN } from '../../frame/backend/state/previousCamera.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { createProgramGroups } from '../../gpu/bind/programGroups.ts'
 import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
@@ -105,6 +106,25 @@ function reflectionImageState() {
   }
 }
 
+/** What the reflections keep of the images they staged: the depth image, the lit image's frame, the cut revision, the turn and the count. */
+function reflectionImageCounters(depthView: GPUTextureView) {
+  return {
+    /** The opaque depth of the image the trace last ran on, written after it (`past.ts`), and that image's rank
+     *  (`ReflectionFrame.image`; `NEVER_SEEN` for none): the depth of the lit image held, where the two are the same image. */
+    depthView,
+    depthImage: NEVER_SEEN,
+    /** The number of the engine's image (`WebgpuRun.frame`) the lit image held was drawn at, and the view's explicit cut revision the last
+     *  image saw (`ReflectionFrame.historyCut`). */
+    litFrame: NEVER_SEEN,
+    revision: undefined as number | undefined,
+    /** The reflections' turn (`ReflectionView.temporal`), advanced every image
+     *  (`stageReflectionImage`). */
+    turn: 0,
+    /** How many images the reflections staged (\`ReflectionFrame.image\`). */
+    images: 0,
+  }
+}
+
 /**
  * A view's reflection at `width × height`: the target the last pass writes, its last lit image
  * (`lit`, which holds what it was drawn with: the next image reprojects its hits with its
@@ -141,20 +161,8 @@ export function createScreenReflection(
     },
     /** The resolved pixels both surfaces resolve into in turn (`resolveWgsl.ts`). */
     resolvedView: resolved.createView(),
-    /** The opaque depth of the image the trace last ran on, written after it (`past.ts`), and that image's rank
-     *  (`ReflectionFrame.image`; 0 for none): the depth of the lit image held, where the two are the same image. */
-    depthView: depth.createView(),
-    depthImage: 0,
-    /** The number of the engine's image (`WebgpuRun.frame`) the lit image held was drawn at, and the view's explicit cut revision the last
-     *  image saw (`ReflectionFrame.historyCut`). */
-    litFrame: 0,
-    revision: undefined as number | undefined,
     uniform,
-    /** The reflections' turn (`ReflectionView.temporal`), advanced every image
-     *  (`stageReflectionImage`). */
-    turn: 0,
-    /** How many images the reflections staged (\`ReflectionFrame.image\`). */
-    images: 0,
+    ...reflectionImageCounters(depth.createView()),
     /** The transparents' front layer (`frontLayer.ts`): a texel of each target without blends. */
     front,
     writeView: createReflectionViewWriter(device, uniform),

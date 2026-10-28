@@ -41,11 +41,13 @@ export function encodeHizPyramid(
   buildPipeline: GPUComputePipeline,
   passes: HizBuildPass[],
   slots: number[][],
+  first: { width: number; height: number } = passes[0],
 ) {
   pass.setPipeline(buildPipeline)
   for (let i = 0; i < passes.length; i++) {
+    const { width, height } = i === 0 ? first : passes[i]
     pass.setBindGroup(0, bindGroup, slots[i])
-    pass.dispatchWorkgroups(ceilDiv(passes[i].width, TILE), ceilDiv(passes[i].height, TILE))
+    pass.dispatchWorkgroups(ceilDiv(width, TILE), ceilDiv(height, TILE))
   }
 }
 
@@ -92,6 +94,8 @@ export type Pyramid = HizPyramid & {
   drawn: ReturnType<typeof pyramidLayout>
   /** Its bind group (`bindHiz`). */
   group?: GPUBindGroup
+  /** Its bind group of the image's own build (`bindWork`). */
+  workGroup?: GPUBindGroup
   /** What its readers of the whole depth bind (`GpuHiz.depth`), made at the first ask. */
   depth?: HizDepth
 }

@@ -1,4 +1,5 @@
 import { NO_INDEX } from '../../../../math/src/constants.ts'
+import { readTextureFilteringSetting } from '../../../../sdk-core/src/contracts/textureFilteringOptions.ts'
 import type { CloudPart } from '../../../../sdk-core/src/modules/sky/clouds.ts'
 import { skyAtQuality, type ResolvedSky } from '../../../../sdk-core/src/modules/sky/descriptor.ts'
 import type { SkyQualityValues } from '../../../../sdk-core/src/modules/sky/quality.ts'
@@ -176,9 +177,14 @@ function followClouds(
   state: SkyState,
   clouds: CloudPart,
 ) {
-  state.material ??= createCloudMaterialGpu(device, (error) =>
-    rt.diag.diagnosticFailure('cloud-material-failed', error),
+  const anisotropy = readTextureFilteringSetting(rt, 'textureMaxAnisotropy')
+  state.material ??= createCloudMaterialGpu(
+    device,
+    (error) => rt.diag.diagnosticFailure('cloud-material-failed', error),
+    anisotropy,
   )
+  // A new ceiling makes the sampler again: the capture over the old bindings is made again.
+  if (state.material.setAnisotropy(anisotropy)) state.capture = undefined
   if (state.part !== clouds) {
     state.material.update(clouds.material)
     state.part = clouds

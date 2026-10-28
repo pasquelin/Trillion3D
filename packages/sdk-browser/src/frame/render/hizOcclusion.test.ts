@@ -12,6 +12,7 @@ import {
   preparedOccluderRun,
 } from '../backend/testOccluder.fixture.ts'
 import type { Engine } from '../../session/engine/types.ts'
+import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { DEFAULT_SCOPE } from '../../../../sdk-core/src/contracts/base.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { graphDraws } from '../../geometry/selection/drawSource.ts'
@@ -94,6 +95,16 @@ test("a visibility pass the device fails is the image's failure, said once: no o
   material.dispose()
 })
 
+/** What the image just drawn built: the number advances once the image's passes have encoded, and what is built for an image is read at its own number. */
+const builtOfLastImage = (rt: WebgpuPagesRuntime) => {
+  rt.run.frame--
+  try {
+    return builtPrime(rt)
+  } finally {
+    rt.run.frame++
+  }
+}
+
 /** The quad drawn twice with the primed pyramid's settings `options`, its mesh a far-field object
  *  when `farField`; one more image, its cut's uniforms and what the primed draw's cut was given
  *  recorded. */
@@ -120,7 +131,7 @@ test('a view primes nothing by default: no target, no kernel, no draw, the cut t
   const { rt, gpu, labelled, uniforms } = await primed({})
   assert.equal(labelled('Trillion3D primed depth').length, 0)
   assert.ok(!gpu.computePipelines.some((p) => (p as { label?: string }).label?.includes('primed')))
-  assert.equal(builtPrime(rt), undefined)
+  assert.equal(builtOfLastImage(rt), undefined)
   assert.deepEqual(Array.from(uniforms.prevSize!), [32, 32], 'the previous image’s size')
 })
 
@@ -137,8 +148,8 @@ test('a primed pyramid is built before the cut’s main pass: a depth of the ima
     })
     const [depth] = labelled('Trillion3D primed depth')
     assert.deepEqual([depth.width, depth.height], [side, side], `bias ${bias}`)
-    const built = builtPrime(rt)!
-    assert.ok(built && built.frame === rt.run.frame, 'built for this image')
+    const built = builtOfLastImage(rt)!
+    assert.ok(built && built.frame === rt.run.frame - 1, 'built for this image')
     assert.deepEqual(built.size, [side, side])
     // The cut tests it as the pyramid of the image before, at the matrix and the depth map of this
     // image — drawn from this very view —, in the pixels the primed draw has.
@@ -147,7 +158,9 @@ test('a primed pyramid is built before the cut’s main pass: a depth of the ima
     assert.deepEqual(Array.from(uniforms.prevViewProj!), Array.from(uniforms.viewProj))
     assert.deepEqual(Array.from(uniforms.prevDepthMap!), Array.from(uniforms.depthMap))
     // The tessellation's patches read the same pyramid, not the image before's.
+    rt.run.frame--
     assert.equal(previousPyramid(rt)?.view, built.view)
+    rt.run.frame++
   }
 })
 
@@ -186,11 +199,11 @@ test('a primed draw of the far-field objects alone is made only while one is fla
   // No placement flagged: nothing is made, drawn or bound; flagged, the view primes.
   const none = await primed({ hizPrime: 'always' })
   assert.equal(none.labelled('Trillion3D primed depth').length, 0)
-  assert.equal(builtPrime(none.rt), undefined)
+  assert.equal(builtOfLastImage(none.rt), undefined)
   assert.equal(farFieldOf(none.rt).count, 0)
   const flagged = await primed({ hizPrime: 'always' }, true)
   assert.equal(flagged.labelled('Trillion3D primed depth').length, 1)
-  assert.ok(builtPrime(flagged.rt))
+  assert.ok(builtOfLastImage(flagged.rt))
   const far = farFieldOf(flagged.rt)
   assert.equal(far.count, 1)
   // The cut leaves out the placements that are not far-field ones: its one placement is kept.
@@ -200,16 +213,16 @@ test('a primed draw of the far-field objects alone is made only while one is fla
 
 test('the primed pyramid stands in only while the view has none of the image before when the setting says so', async () => {
   const { rt } = await primed({ hizPrime: 'whenMissing', hizPrimeFarFieldOnly: false })
-  assert.equal(builtPrime(rt), undefined, 'a pyramid stands: nothing is primed')
+  assert.equal(builtOfLastImage(rt), undefined, 'a pyramid stands: nothing is primed')
   // A view without one — its first image, a resize — primes.
   pyramidSources.delete(rt.views.active)
   renderWebgpuPages(rt, camera())
   await flushWebgpuPages(rt)
-  assert.ok(builtPrime(rt), 'no pyramid of the image before: primed')
+  assert.ok(builtOfLastImage(rt), 'no pyramid of the image before: primed')
   // It stands again once that image built its own.
   renderWebgpuPages(rt, camera())
   await flushWebgpuPages(rt)
-  assert.equal(builtPrime(rt), undefined)
+  assert.equal(builtOfLastImage(rt), undefined)
 })
 
 test('a primed draw that fails is said and the image is cut without it', async () => {
@@ -220,7 +233,7 @@ test('a primed draw that fails is said and the image is cut without it', async (
   }
   renderWebgpuPages(rt, camera())
   await flushWebgpuPages(rt)
-  assert.equal(builtPrime(rt), undefined)
+  assert.equal(builtOfLastImage(rt), undefined)
   assert.ok(events.some((event) => event.phase === 'hiz-prime-failed'))
   assert.equal((rt.run.selectionUniforms.occlusion ?? 0) & 1, 1, 'the previous image’s pyramid')
 })

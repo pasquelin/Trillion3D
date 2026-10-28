@@ -65,6 +65,7 @@ function openImage(state: TimingState, frame: number) {
     return false
   }
   state.active = {
+    apart: state.apart(),
     frame,
     before: state.lastFrame,
     parts: new Map(),

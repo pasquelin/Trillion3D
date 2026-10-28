@@ -24,7 +24,10 @@ export const SURFACE_VELOCITY_BINDINGS = { ...VELOCITY_INPUT_BINDINGS, vectors: 
  * nearer than the surface the texel shows (`group(1)`: the depth of the other of the two, the scene's before the water
  * or the water's, the nearer being the water's), the texel's vector is the camera's
  * alone at the water's depth, its flags none — the water's own velocity, which it writes where the reference's
- * water pass writes its velocity (`singleLayerWaterVelocityOutputPass`).
+ * water pass writes its velocity (`singleLayerWaterVelocityOutputPass`). `hairVelocity` is its third: where the nearest hair
+ * strand (`group(1)`: its depth, 0 for none, reverse-Z) is nearer than the surface the texel shows, the texel's vector is the
+ * camera's alone at the strand's depth, flagged as the pixel of a surface that moves by itself (`PIXEL_ANIMATED`: a strand's
+ * pixel is not one its history follows), as the reference writes the closest strand's velocity (`AddHairVelocityPass`).
  */
 export const surfaceVelocityShader = (wpo: WpoSet = NO_WPO) =>
   wgslProgram(
@@ -38,7 +41,7 @@ fn surfaceVelocity(@builtin(global_invocation_id) gid:vec3u){
  let motion=surfaceMotion(screenOfTexel(p),textureLoad(depth,p,0),id,moves);
  let page=pageOf(id);
  let flags=select(0u,${PIXEL_ANIMATED}u,page.animated>0.0)|page.responsive;
- textureStore(vectorOut,p,vec4u(encodeOwnVector(motion.velocity.xy,moves),withDepthStep(flags,motion.velocity.z),0u,0u));
+ textureStore(vectorOut,p,vec4u(encodeOwnVector(motion.xy,moves),withDepthStep(flags,motion.z),0u,0u));
 }
 @group(1) @binding(0) var waterDepth:texture_depth_2d;
 @compute @workgroup_size(${TEXEL_TILE},${TEXEL_TILE})
@@ -49,6 +52,16 @@ fn waterVelocity(@builtin(global_invocation_id) gid:vec3u){
  let own=textureLoad(depth,p,0);
  if(other==own){return;}
  textureStore(vectorOut,p,vec4u(encodeOwnVector(cameraOnlyMotion(screenOfTexel(p),max(other,own)),false),0u,0u,0u));
+}
+@group(1) @binding(1) var hairDepth:texture_2d<f32>;
+@compute @workgroup_size(${TEXEL_TILE},${TEXEL_TILE})
+fn hairVelocity(@builtin(global_invocation_id) gid:vec3u){
+ let p=vec2i(gid.xy);
+ if(any(p>=vec2i(view.render.xy))){return;}
+ let strand=textureLoad(hairDepth,p,0).x;
+ if(!(strand>textureLoad(depth,p,0))){return;}
+ let motion=cameraMotion(screenOfTexel(p),strand);
+ textureStore(vectorOut,p,vec4u(encodeOwnVector(motion.xy,true),withDepthStep(${PIXEL_ANIMATED}u,motion.z),0u,0u));
 }`,
     [PAGE_OF_WGSL, SURFACE_MOTION_WGSL, ...(wpo.programs.length ? [wpoGraphWgsl(wpo)] : [])],
   )

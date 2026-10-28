@@ -1,3 +1,4 @@
+import { readShadingSetting } from '../../../../sdk-core/src/contracts/shadingOptions.ts'
 import { createGpuTiming } from '../../gpu/timing/timing.ts'
 import { addGpuPasses, bounceGpuMs } from '../../diagnostic/stage/mapping.ts'
 import { passBlockMs } from '../../gpu/core/passBlocks.ts'
@@ -70,6 +71,9 @@ function feedScale(rt: WebgpuPagesRuntime, sample: GpuTimingSample) {
   )
 }
 
+/** Whether a sampled image times each step apart (`gpuTimingDetail`). */
+const detailApart = (rt: WebgpuPagesRuntime) => () => readShadingSetting(rt, 'gpuTimingDetail')
+
 /** Starts the per-pass GPU timer and reports whether the device can measure at all. */
 export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   const { timing, diag } = rt
@@ -77,6 +81,7 @@ export function prepareGpuTiming(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
   timing.logFrame = gpuLog.frame
   const gpuTiming = createGpuTiming(gpuDevice, {
     sampleEveryFrames: sampleEvery(rt),
+    apart: detailApart(rt),
     onSample: (sample) => {
       const main = viewGroup(rt, rt.views.main, 'timing')
       noteSample(main, sample)
@@ -126,6 +131,7 @@ export function createViewGpuTiming(rt: WebgpuPagesRuntime, device: GPUDevice, v
   if (!rt.timing.gpuTiming?.supported) return undefined
   return createGpuTiming(device, {
     sampleEveryFrames: sampleEvery(rt),
+    apart: detailApart(rt),
     onSample: (sample) => noteSample(viewGroup(rt, view, 'timing'), sample),
   })
 }

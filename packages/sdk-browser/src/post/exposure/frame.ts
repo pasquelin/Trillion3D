@@ -1,5 +1,8 @@
 import { environmentExposure } from '../../../../sdk-core/src/scene/core/environment.ts'
-import { exposureCurveTable } from '../../../../sdk-core/src/contracts/exposureCurveTable.ts'
+import {
+  exposureCurveScaleTable,
+  exposureCurveTable,
+} from '../../../../sdk-core/src/contracts/exposureCurveTable.ts'
 import {
   EXPOSURE_RULES,
   cachedPreExposure,
@@ -11,6 +14,10 @@ import type { SceneChain } from '../filters/sceneChain.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { VIEW_LAYOUT } from '../../lighting/deferred/worldAtWgsl.ts'
 import { showsRaw } from '../../visibility/shader/shadeMode.ts'
+import {
+  EXPOSURE_CURVE_SAMPLES,
+  resolveExposureCurve,
+} from '../../../../sdk-core/src/contracts/exposureCurve.ts'
 import { createExposureMeter } from './meter.ts'
 import { askExposurePrograms, exposureProgramsReady } from './meterPrograms.ts'
 import type { PreExposure } from './pre.ts'
@@ -38,6 +45,51 @@ export const cachedLightingPreExposureOf = (rt: Pick<WebgpuPagesRuntime, 'contex
  *  the same array while the option is the same object. */
 export const exposureCurveOf = (rt: Pick<WebgpuPagesRuntime, 'context'>) =>
   exposureCurveTable(rt.context.exposureCurve)
+
+/** The tables the meter reads, joined (compensation, then the highlights' and the shadows' contrast scale), by the view's context:
+ *  the parts they were made from, and the array, made again when any part is another. */
+const joined = new WeakMap<
+  object,
+  {
+    parts: Float32Array[]
+    table: Float32Array
+    curved: boolean
+    contrast: [Float32Array, Float32Array]
+  }
+>()
+
+/** The view's three curve tables as the meter's uniform holds them: the same array while no curve option is replaced. */
+function exposureCurvesOf(rt: Pick<WebgpuPagesRuntime, 'context'>) {
+  const { context } = rt
+  const parts = [
+    exposureCurveTable(context.exposureCurve),
+    exposureCurveScaleTable(context.localExposureHighlightContrastCurve),
+    exposureCurveScaleTable(context.localExposureShadowContrastCurve),
+  ]
+  let held = joined.get(context)
+  if (!held || parts.some((part, k) => part !== held!.parts[k])) {
+    const table = new Float32Array(parts.length * EXPOSURE_CURVE_SAMPLES)
+    parts.forEach((part, k) => table.set(part, k * EXPOSURE_CURVE_SAMPLES))
+    const curved = [
+      context.localExposureHighlightContrastCurve,
+      context.localExposureShadowContrastCurve,
+    ].some((option) => resolveExposureCurve(option) !== null)
+    joined.set(context, (held = { parts, table, curved, contrast: [parts[1], parts[2]] }))
+  }
+  return held.table
+}
+
+/** The view's two contrast curve tables, highlights then shadows, for an exposure the engine holds (`manualExposure`). */
+export function contrastTablesOf(rt: Pick<WebgpuPagesRuntime, 'context'>) {
+  exposureCurvesOf(rt)
+  return joined.get(rt.context)!.contrast
+}
+
+/** Whether the view sets a local exposure contrast curve: the local exposure then runs whatever the contrasts (`localExposureOn`). */
+export function localCurvesSet(rt: Pick<WebgpuPagesRuntime, 'context'>) {
+  exposureCurvesOf(rt)
+  return joined.get(rt.context)!.curved
+}
 
 /** The metering mask the page set, none where it set none. */
 const meterMaskOf = (rt: Pick<WebgpuPagesRuntime, 'context'>) =>
@@ -79,7 +131,7 @@ const clockOf = (rt: WebgpuPagesRuntime) => rt.run.graphClocks.time
 export function exposureMoving(rt: WebgpuPagesRuntime) {
   const meter = rt.gpu.exposure
   if (!meter || !wantsContractLighting(rt) || showsRaw(rt.run.diagnostic)) return false
-  return meter.moving || meter.changed(exposureSettings(rt), exposureCurveOf(rt), meterMaskOf(rt))
+  return meter.moving || meter.changed(exposureSettings(rt), exposureCurvesOf(rt), meterMaskOf(rt))
 }
 
 /**
@@ -113,7 +165,8 @@ export function encodeExposure(
   meterInput.scene = scene
   meterInput.size = size
   meterInput.settings = settings
-  meterInput.curve = exposureCurveOf(rt)
+  meterInput.curve = exposureCurvesOf(rt)
+  meterInput.curved = localCurvesSet(rt)
   meterInput.cut = rt.run.gate.temporalRevision
   meterInput.preExposure = pre.now
   meterInput.clock = clockOf(rt)

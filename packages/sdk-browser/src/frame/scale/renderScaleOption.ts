@@ -1,4 +1,5 @@
-import { clamp, snap } from '../../../../math/src/scalar/reals.ts'
+import { alignUp } from '../../../../math/src/scalar/integers.ts'
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { displayResolutionFraction } from './displayResolutionFraction.ts'
 /**
  * The render scale a page asks: the fraction of the display, per axis, the image is drawn at before
@@ -42,7 +43,21 @@ export function renderScaleBounds(
   return { auto: false, min: fixed, max: fixed }
 }
 
-/** One display axis drawn at `scale`: the axis itself at 1, otherwise a multiple of eight, so a
- *  scale never lands on an odd size. */
+/** The multiple the render targets' sides are made at, the one a feature that reads whole tiles of
+ *  its image assumes. */
+const TARGET_ALIGNMENT = 8
+
+/** The rounding error a product of a scale and an axis may carry, which `Math.ceil` must not
+ *  count as a pixel (0.7 × 2080 is 1456 whole). */
+const PRODUCT_EPSILON = 1e-9
+
+/** One display axis drawn at `scale`, the view's own: exactly that fraction of it rounded up, so a
+ *  view is never empty, and the axis itself at 1. It is not aligned: only the targets are
+ *  (`renderAllocation`), the passes work on the view. */
 export const renderExtent = (display: number, scale: number) =>
-  scale >= 1 ? display : clamp(snap(scale * display, 8), 8, display)
+  scale >= 1 ? display : clamp(Math.ceil(scale * display - PRODUCT_EPSILON), 1, display)
+
+/** One display axis of the render targets that draw `renderExtent` in their corner: that extent
+ *  rounded up to a multiple of eight, at most the display's own. */
+export const renderAllocation = (display: number, scale: number) =>
+  Math.min(display, alignUp(renderExtent(display, scale), TARGET_ALIGNMENT))

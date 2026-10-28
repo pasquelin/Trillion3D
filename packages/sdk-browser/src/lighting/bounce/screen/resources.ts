@@ -86,7 +86,11 @@ function probeTextures(a: ResourceAllocator, g: ScreenProbeGeometry, settings: P
 /** The settings that shape the textures of the pixels. */
 type PixelSettings = Pick<
   ScreenProbeSettings,
-  'occlusionDownsample' | 'integrateDownsample' | 'bentNormal' | 'tileClassification'
+  | 'occlusionDownsample'
+  | 'integrateDownsample'
+  | 'bentNormal'
+  | 'tileClassification'
+  | 'shortRangeGi'
 >
 
 /** The textures of the pixels: the history's words, the shading and the depth it was found at, what the integration leaves for the temporal pass (the light, the
@@ -119,6 +123,18 @@ function pixelTextures(
       'occlusion',
       [ceilDiv(width, downsample), ceilDiv(height, downsample)],
       settings.bentNormal ? F.bentOcclusion : F.occlusion,
+    ),
+    shortRangeGi: a.texture(
+      'short-range global illumination',
+      settings.shortRangeGi ? [ceilDiv(width, downsample), ceilDiv(height, downsample)] : [1, 1],
+      F.shortRangeGi,
+    ),
+    shortRangeGiHistory: pair((side) =>
+      a.texture(
+        `short-range global illumination history ${side}`,
+        settings.shortRangeGi ? [width, height] : [1, 1],
+        F.shortRangeGi,
+      ),
     ),
   }
 }

@@ -11,7 +11,7 @@ import {
   FILTERING_WEIGHT,
   FLICKER_GATES_WGSL,
 } from './rejectionShared.ts'
-import { REPROJECTED_WORD_WGSL } from './reprojectWgsl.ts'
+import { REPROJECTED_FLAGS_WGSL } from './reprojectWgsl.ts'
 import type { RejectionTypes } from './rejectionTypes.ts'
 import { THIN_MASK_BITS } from './thinGeometryWgsl.ts'
 import type { Wave } from './waveOps.ts'
@@ -175,7 +175,7 @@ export const flickerMeasureWgsl = (t: RejectionTypes, wave?: Wave) => {
       safeRcp,
       TAA_VIEW_WGSL,
       FLICKER_GATES_WGSL,
-      REPROJECTED_WORD_WGSL,
+      REPROJECTED_FLAGS_WGSL,
       DISPLAY_STEP_ERROR_WGSL,
     ],
     `struct Flicker{error:array<${F},${LANE_ROWS}>,count:array<${F},${LANE_ROWS}>}

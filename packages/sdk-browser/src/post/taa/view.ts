@@ -53,8 +53,9 @@ function writeGrid(into: Float32Array, at: number, grid: ArrayLike<number>) {
 
 /**
  * The header `TAA_REPROJECT_WGSL` reads (`prevViewProj`, `invViewProj`, `viewport`), floats 0 to 35
- * of `into`: `previous` and the inverse of `current`, both anchored at `eye`, then `grid`. The
- * temporal pass's uniform starts with it.
+ * of `into`: `previous` and the inverse of `current`, both anchored at `eye`, then `grid`; and, at
+ * the end of the uniform, the inverse of `previous` (`prevInvViewProj`). The temporal pass's
+ * uniform starts with the header.
  */
 function writeReprojection(
   into: Float32Array,
@@ -64,6 +65,7 @@ function writeReprojection(
   grid: readonly number[],
 ) {
   matrixAtRenderOrigin(into, previous, eye, T.prevViewProj)
+  into.set(inverseAtRenderOrigin(anchored, anchored, previous, eye), T.prevInvViewProj)
   into.set(inverseAtRenderOrigin(anchored, anchored, current, eye), T.invViewProj)
   writeGrid(into, T.viewport, grid)
 }

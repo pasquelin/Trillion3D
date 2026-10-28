@@ -13,7 +13,7 @@ import { TAA_BINDINGS } from './bindingsWgsl.ts'
  *  group binds and their layout declares, and its inputs. */
 async function preparedPass() {
   // A frame timed per pass: each step of the analysis, the update and the resolve a pass of its own.
-  const { device, computePipelines, computePasses } = fakeDevice({ timed: true })
+  const { device, computePipelines, computePasses } = fakeDevice({ timed: true, timedApart: true })
   const modules = () => computePipelines.map(({ compute }) => compute.module.label)
   const temporal = await createTemporalAntialiasing(device, createVelocity(device))
   const compiled = modules()

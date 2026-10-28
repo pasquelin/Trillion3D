@@ -1,3 +1,4 @@
+import { NEVER_SEEN } from '../../../frame/backend/state/previousCamera.ts'
 // A light shaft chain's history reprojects by the view's camera of the image before (`beginCamera`) where the image it was
 // drawn for is that one; a chain that skipped an image since reads no camera, and starts again, as after a cut.
 import test from 'node:test'
@@ -22,11 +23,11 @@ const cameraOf = (image: number, scale: number) => {
 
 test('the history of a chain keeps the number of the image it was drawn for, and loses it with its images', () => {
   const history = createLightShaftHistory({} as GPUDevice)
-  assert.equal(history.seen, 0)
+  assert.equal(history.seen, NEVER_SEEN)
   history.commit(SIZES, 1, 7)
   assert.deepEqual([history.valid, history.seen], [true, 7])
   history.drop()
-  assert.deepEqual([history.valid, history.seen], [false, 0])
+  assert.deepEqual([history.valid, history.seen], [false, NEVER_SEEN])
 })
 
 test('the temporal pass reads the camera of the image before where the history is of that image, and cuts over one it skipped', () => {

@@ -114,10 +114,10 @@ test('a view without accumulation turns the lighting noise on each image drawn, 
     }
   }
   settle()
-  // The establishment ends on its final image, which turns the noise like any image drawn, and meets the canonical lighting phase.
-  drawFinalImage(rt, device, () =>
-    assert.equal(lightingPhase(rt), 0, 'the final image: phase zero'),
-  )
+  // No temporal pass, no cycle of the noise to go through: the establishment ends on one final image, which turns the noise like any image drawn and meets the canonical phase.
+  const phaseZero = (final: boolean) =>
+    final && assert.equal(lightingPhase(rt), 0, 'the final image: phase zero')
+  assert.equal(drawFinalImage(rt, device, phaseZero), 1)
   assert.equal(holdWebgpuFrame(rt, device), true)
   assert.equal(
     stochasticPhase(frame),
@@ -129,11 +129,13 @@ test('a view without accumulation turns the lighting noise on each image drawn, 
     assert.equal(holdWebgpuFrame(rt, device), false)
     assert.equal(stochasticPhase(frame), 2 * image, 'drawn: the next phase')
     assert.equal(lightingPhase(rt), noiseFrame(rt), 'one clock: the lighting reads the noise’s')
-    assert.equal(lightingPhase(rt), 0, 'an isolated change counts from itself')
-    settle()
-    drawFinalImage(rt, device, () =>
-      assert.equal(lightingPhase(rt), 0, 'the final image: phase zero'),
+    assert.equal(
+      lightingPhase(rt),
+      0,
+      'an isolated change counts from itself: no temporal pass, no cycle of the noise to keep unbroken',
     )
+    settle()
+    assert.equal(drawFinalImage(rt, device, phaseZero), 1)
     assert.equal(holdWebgpuFrame(rt, device), true)
     assert.equal(
       stochasticPhase(frame),

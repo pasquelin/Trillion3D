@@ -22,8 +22,12 @@ test('the temporal shaders assemble each fragment once, on the shared page recor
     assert.equal(occurrences(TAA_SHADER, fragment), 1, fragment)
   assert.match(TAA_SHADER, /@compute @workgroup_size\(64\)\nfn resolve\(/)
   assert.doesNotMatch(TAA_SHADER, /@vertex|@fragment/, 'a dispatch over the history, no draw')
+  // The stage finds the object's motion; the analysis only reads the vector the stage wrote.
   for (const fragment of ['fn placementOf(', 'fn pointBefore(', 'fn encodeVector('])
-    assert.equal(occurrences(VELOCITY_SHADER, fragment), 1, fragment)
+    assert.equal(occurrences(SURFACE_VELOCITY_WGSL, fragment), 1, fragment)
+  assert.equal(occurrences(VELOCITY_SHADER, 'fn decodeVector('), 1)
+  for (const fragment of ['fn placementOf(', 'fn pointBefore('])
+    assert.equal(occurrences(VELOCITY_SHADER, fragment), 0, fragment)
   // The record carries placement at the word the row writes: that is how the texel finds its
   // object's motion matrix.
   const fields = wgslSource(PAGE_INFO_STRUCT_WGSL)
@@ -43,15 +47,12 @@ test('the temporal shaders assemble each fragment once, on the shared page recor
     'the motion clamp speed',
   )
   assert.match(
-    VELOCITY_SHADER,
+    SURFACE_VELOCITY_WGSL,
     /fn placementOf\(id:u32\)->u32\{return pages\[visPageIndex\(id\)\]\.placement;\}/,
   )
-  // The placement's motion is its two poses' (`placementMotion`), read from the cut's records and
-  // the kept poses since the velocity keeps no motion buffer of its own.
-  assert.match(
-    VELOCITY_SHADER,
-    /if\(placementMoved\(w\)\)\{position=placementMotion\(w\)\*position;\}/,
-  )
+  // The nearest pass reads the vector the stage wrote; it computes no placement motion itself.
+  for (const gone of ['placementMoved', 'placementMotion', 'texelMotion', 'drawsMotion'])
+    assert.equal(occurrences(VELOCITY_SHADER, gone), 0, gone)
 })
 
 test('shader bindings are those of the layout, and the uniform has the declared size', () => {
@@ -70,12 +71,13 @@ test('shader bindings are those of the layout, and the uniform has the declared 
   // (`quality`, `preExposure`, which holds the flicker rates too) —, then the history's laws and scale, the resurrection's terms and
   // grid (`history`, `fraction`, `resurrection`, `resurrectGrid`), the thin geometry detection's
   // thresholds (`thin`, `thinFade`) and the matrix to the frame a pixel is resurrected from: no
-  // filter weights, the window is evaluated where it is read. Last, the eye in doubles, at which the
-  // velocity takes a placement's two poses since it reads them from the cut (`placementMotion`).
-  assert.equal(TAA_VIEW_BYTES, 3 * 64 + 19 * 16 + 2 * 16)
+  // filter weights, the window is evaluated where it is read. Then the eye in doubles, at which the
+  // velocity stage takes a placement's two poses (`placementMotion`), and last the inverse of the
+  // matrix to the last view (`prevInvViewProj`), a fourth matrix.
+  assert.equal(TAA_VIEW_BYTES, 4 * 64 + 19 * 16 + 2 * 16)
   assert.match(
     TAA_SHADER,
-    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,render:vec4f,jitter:vec4f,eye:vec4f,parallax:vec4f,rates:vec4f,depth:vec4f,radius:vec4f,prevRender:vec4f,analysisGrid:vec4f,quality:vec4f,preExposure:vec4f,history:vec4f,fraction:vec4f,resurrection:vec4f,resurrectGrid:vec4f,thin:vec4f,thinFade:vec4f,toResurrection:mat4x4f,exactEye:array<vec4u,2>,\}/,
+    /struct TaaView\{prevViewProj:mat4x4f,invViewProj:mat4x4f,viewport:vec4f,params:vec4f,render:vec4f,jitter:vec4f,eye:vec4f,parallax:vec4f,rates:vec4f,depth:vec4f,radius:vec4f,prevRender:vec4f,analysisGrid:vec4f,quality:vec4f,preExposure:vec4f,history:vec4f,fraction:vec4f,resurrection:vec4f,resurrectGrid:vec4f,thin:vec4f,thinFade:vec4f,toResurrection:mat4x4f,exactEye:array<vec4u,2>,prevInvViewProj:mat4x4f,\}/,
   )
   assert.doesNotMatch(TAA_SHADER, /view\.weights/)
 })
@@ -85,13 +87,15 @@ test('the background, at zero depth, reprojects as a direction and not as a poin
   // infinite far plane — the product by the inverse yields a point at infinity, and the
   // reprojection follows it without dividing before the previous matrix.
   assert.match(VELOCITY_SHADER, /transformHomogeneousPoint\(view\.invViewProj,vec3f\(screen,z\)\)/)
-  // Neither record nor matrix is read until a placement has moved.
+  // The nearest pass reads the velocity as the stage wrote it, one texel, and measures a static
+  // surface by the camera's alone: no record, no pose matrix.
+  assert.match(VELOCITY_SHADER, /fn velocityAt\(p:vec2i,at:vec2i,z:f32\)->vec4f\{/)
+  assert.match(VELOCITY_SHADER, /return vec4f\(cameraMotion\(screenOfTexel\(p\),z\),0\.0\);/)
+  // A point behind the last view is off its screen.
   assert.match(
     VELOCITY_SHADER,
-    /if\(view\.params\.z!=0\.0&&!\(id==0u\)\)\{\n {2}let w=placementOf\(id\);\n {2}if\(placementMoved\(w\)\)\{position=placementMotion\(w\)\*position;\}/,
+    /if\(prev\.w<=0\.0\)\{return vec3f\(screen\+vec2f\(4\.0\),0\.0\);\}/,
   )
-  // A point behind the last view is off its screen.
-  assert.match(VELOCITY_SHADER, /if\(prev\.w<=0\.0\)\{return TaaMotion\(/)
 })
 
 // The history's metadata is its validity alone: the as-is pixels of a debug view are composed
@@ -117,7 +121,7 @@ test("the velocity stage writes each texel's own vector alone; the analysis dila
   const surface = SURFACE_VELOCITY_WGSL
   assert.match(
     surface,
-    /vectorOut,p,vec4u\(encodeOwnVector\(motion\.velocity\.xy,moves\),/,
+    /vectorOut,p,vec4u\(encodeOwnVector\(motion\.xy,moves\),/,
     'the surface at the texel, flagged where it moves by itself',
   )
   // No neighbour is read by the stage, none of the analysis's outputs written; the page record is read
@@ -134,20 +138,17 @@ test("the velocity stage writes each texel's own vector alone; the analysis dila
   assert.equal(occurrences(surface, 'pageOf(id)'), 1, 'the record is read once')
   assert.match(
     surface,
-    /vec4u\(encodeOwnVector\(motion\.velocity\.xy,moves\),withDepthStep\(flags,motion\.velocity\.z\),0u,0u\)/,
+    /vec4u\(encodeOwnVector\(motion\.xy,moves\),withDepthStep\(flags,motion\.z\),0u,0u\)/,
   )
-  // The motion of a surface is one text for both: the analysis finds the closest surface by its
-  // 3×3 and measures it, once, and leaves the vector to the stage and the dilation to the reprojection.
-  for (const text of [VELOCITY_SHADER, surface]) {
-    assert.equal(occurrences(text, 'fn surfaceMotion('), 1)
-    assert.equal(occurrences(text, 'fn drawsMotion('), 1)
-  }
+  // The motion of a surface is the stage's alone: the analysis finds the closest surface by its
+  // 3×3 and reads the vector the stage wrote, and leaves the dilation to the reprojection.
+  assert.equal(occurrences(surface, 'fn surfaceMotion('), 1)
+  assert.equal(occurrences(surface, 'fn drawsMotion('), 1)
   assert.equal(occurrences(VELOCITY_SHADER, 'fn nearestSurface('), 1)
   assert.match(VELOCITY_SHADER, /let nearest=surface\.motion;/)
   assert.doesNotMatch(VELOCITY_SHADER, /vectorOut/)
   // The inputs sit at the same bindings, the vector after them.
-  const inputs = Object.keys(VELOCITY_INPUT_BINDINGS) as (keyof typeof VELOCITY_INPUT_BINDINGS)[]
-  for (const name of inputs)
+  for (const name of ['view', 'depth'] as const)
     assert.equal(SURFACE_VELOCITY_BINDINGS[name], VELOCITY_BINDINGS[name], name)
   // The layout names each of them once: the normal atlas a displaced texel's prism is solved with too.
   assert.deepEqual(

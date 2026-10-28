@@ -7,6 +7,7 @@ import {
   HIZ_FOLD_WGSL,
   HIZ_FORMAT,
   HIZ_NEAREST,
+  HIZ_FRONT_LAYER,
   HIZ_OPAQUE_LAYER,
   HIZ_TEXEL_WGSL,
   HIZ_WHOLE_FARTHEST,
@@ -16,17 +17,50 @@ import {
  *  kept, the finished depth's farthest — in the same dispatches as the culling layer
  *  (`createHizPipelines`). */
 export const HIZ_WITH_TRACE = 'HIZ_WITH_TRACE'
+/** The name of the build's uniform in the shader: its emulations bind it by this name. */
+export const HIZ_UNIFORM_VAR = 'hizUni'
 /** The pixels a plane's slopes reach on each side (`surfaceSlopeOf`: two neighbours), and the side
  *  of the full build's depth tile: a workgroup's pixels and that border. */
 const HIZ_PLANE_REACH = 2
 const HIZ_DEPTH_TILE = 2 * HIZ_BUILD_SIDE + 2 * HIZ_PLANE_REACH
 
+/**
+ * Where the build reads the opaque depth of a pixel (`hizOpaqueAt`), the depth the trace layers
+ * fold the front layer into (`hizFrontAt`), and what it does with the opaque depth it read
+ * (`hizStoreOpaque`, called once a texel by the first pass): its bindings, the functions over them
+ * and the declarations they need. The level-0 texture is the one source the pyramid's other builds
+ * read; the visibility buffer (`workDepthSource.ts`) is the image's own, whose build writes level 0
+ * as it reads.
+ */
+export type HizDepthSource = {
+  readonly bindings: string
+  readonly reads: string
+  readonly decls: readonly WgslDecl[]
+}
+
+/** Level 0 read in place: both layers as one array texture, nothing written. */
+const HIZ_TEXTURE_SOURCE: HizDepthSource = {
+  bindings: `@group(0) @binding(1) var level0:texture_2d_array<f32>;
+`,
+  reads: `fn hizOpaqueAt(q:vec2i)->f32{return textureLoad(level0,q,${HIZ_OPAQUE_LAYER},0).r;}
+/** The trace layers' depth at \`q\` whose opaque depth is \`opaque\`: the nearest transparent
+ *  surface's (level 0's second layer, a depth a pixel, zero for none) folded in where this image wrote
+ *  it (\`hizUni.front\`). A pixel without one reads the opaque depth, bit for bit. */
+fn hizFrontOf(q:vec2i,opaque:f32)->f32{
+ if(hizUni.front==0u){return opaque;}
+ return hizFoldOf(opaque,textureLoad(level0,q,${HIZ_FRONT_LAYER},0).r);
+}
+fn hizStoreOpaque(q:vec2i,z:f32){}
+fn hizClearBeyond(x:u32,y:u32){}
+`,
+  decls: [],
+}
+
 /** The build's override, uniform, bindings and workgroup memory. */
-const HIZ_BUILD_BINDINGS_TEXT = `override ${HIZ_WITH_TRACE}:bool=false;
+const HIZ_BUILD_BINDINGS_TEXT = (source: HizDepthSource) => `override ${HIZ_WITH_TRACE}:bool=false;
 ${HIZ_UNI.wgsl}
 @group(0) @binding(0) var hizPyramid:texture_storage_2d_array<${HIZ_FORMAT},read_write>;
-@group(0) @binding(1) var level0:texture_2d_array<f32>;
-@group(0) @binding(2) var<uniform> uni:Uni;
+${source.bindings}@group(0) @binding(2) var<uniform> ${HIZ_UNIFORM_VAR}:Uni;
 var<workgroup> hizTile:array<vec3f,${HIZ_BUILD_SIDE ** 2}>;
 /** The folded depth of the full build's first pass over the workgroup's pixels and the border of
  *  two its planes reach (\`hizPlaneCorners\`), each texel loaded once; \`hizDepthOrigin\` the pixel
@@ -38,13 +72,13 @@ var<private> hizDepthOrigin:vec2i;
 /** The build's reads and writes of the pyramid's words and bounds. */
 const HIZ_BUILD_ACCESS_TEXT = `/** The index in \`layer\`'s bound of the cell at the index \`i\` the passes name (the culling layer's
  *  routing, \`hizRoute\`): a coarser level's cells lie after those of the layers before it. */
-fn hizIn(i:u32,layer:u32)->u32{return select(i,i+layer*uni.upper,(i&HIZ_UPPER)!=0u);}
+fn hizIn(i:u32,layer:u32)->u32{return select(i,i+layer*hizUni.upper,(i&HIZ_UPPER)!=0u);}
 /** The word at index \`i\` of \`layer\`, as a depth; one written there. */
 fn hizLoad(i:u32,layer:u32)->f32{let j=hizIn(i,layer);return bitcast<f32>(textureLoad(hizPyramid,hizTexel(j),hizSlice(j)).r);}
 fn hizPut(i:u32,layer:u32,word:u32){let j=hizIn(i,layer);textureStore(hizPyramid,hizTexel(j),hizSlice(j),vec4u(word,0u,0u,0u));}
-/** Whether the build keeps the planes (\`uni.planes\`): else the nearest layer is the closest depth at
+/** Whether the build keeps the planes (\`hizUni.planes\`): else the nearest layer is the closest depth at
  *  each pixel's centre and the finished depth's farthest layer is left unwritten. */
-fn hizKeepsPlanes()->bool{return ${HIZ_WITH_TRACE}&&uni.planes!=0u;}
+fn hizKeepsPlanes()->bool{return ${HIZ_WITH_TRACE}&&hizUni.planes!=0u;}
 /** The triple of bounds at packed index \`i\`: the culling farthest, the nearest, and the finished
  *  depth's farthest (each zero where the build does not write it). */
 fn hizLoadBound(i:u32)->vec3f{
@@ -61,19 +95,14 @@ fn hizPutBound(i:u32,bound:vec3f){
 }
 `
 
-/** The trace layers' folded depth: its front depth, its workgroup tile. */
-const HIZ_BUILD_DEPTH_TEXT = `/** The depth of the trace layers at \`q\`: the opaque depth, or the nearest transparent surface's
- *  (level 0's second layer, a depth a pixel, zero for none) where this image wrote it
- *  (\`uni.front\`) and it lies in front: reverse-Z, the larger. A pixel without one reads the opaque
- *  depth, bit for bit. */
-fn hizFrontAt(q:vec2i)->f32{
- return hizFold(level0,q,uni.front!=0u);
-}
+/** The trace layers' folded depth: its workgroup tile (`hizFrontAt`, from the depth source). */
+const HIZ_BUILD_DEPTH_TEXT = `/** The trace layers' depth at \`q\`: the folded depth of the source (\`hizFrontOf\`). */
+fn hizFrontAt(q:vec2i)->f32{return hizFrontOf(q,hizOpaqueAt(q));}
 /** Loads the folded depth of the workgroup \`wg\`'s tile, clamped to the drawn size, each thread a
  *  share of its texels: the nine texels a plane reads, of four pixels a thread, come from it. */
 fn hizLoadDepthTile(wg:vec2u,thread:u32){
  hizDepthOrigin=vec2i(wg*${2 * HIZ_BUILD_SIDE}u)-vec2i(${HIZ_PLANE_REACH});
- let last=vec2i(vec2u(uni.b,uni.c))-vec2i(1);
+ let last=vec2i(vec2u(hizUni.b,hizUni.c))-vec2i(1);
  for(var k=thread;k<${HIZ_DEPTH_TILE ** 2}u;k+=${HIZ_BUILD_SIDE ** 2}u){
   let q=hizDepthOrigin+vec2i(i32(k%${HIZ_DEPTH_TILE}u),i32(k/${HIZ_DEPTH_TILE}u));
   hizDepthTile[k]=hizFrontAt(clamp(q,vec2i(0),last));
@@ -104,20 +133,23 @@ fn hizPlaneCorners(i:u32,q:vec2i,z:f32)->vec2f{
  return vec2f(z+half,max(z-half,0.0));
 }
 /** A texel of the pass's source level at \`at\`, its triple of bounds: when the source sits at offset
- *  zero, the level-0 texture read in place — nothing of it is copied; the opaque depth for the
+ *  zero, the depth source read in place (\`HizDepthSource\`: level 0, or the visibility buffer, which
+ *  then writes level 0 as it reads it) — nothing of it is copied; the opaque depth for the
  *  culling farthest, the folded depth or its plane's corners for the trace layers, the plane's
  *  slopes written into the nearest layer beside it —; else the level the previous pass wrote. */
 fn hizSource(at:u32,x:u32,y:u32)->vec3f{
- let i=at+y*uni.b+x;
- if(uni.a!=0u){return hizLoadBound(i);}
+ let i=at+y*hizUni.b+x;
+ if(hizUni.a!=0u){return hizLoadBound(i);}
  let q=vec2i(i32(x),i32(y));
- let cull=hizLevel0(textureLoad(level0,q,${HIZ_OPAQUE_LAYER},0).r);
+ let opaque=hizOpaqueAt(q);
+ hizStoreOpaque(q,opaque);
+ let cull=hizLevel0(opaque);
  if(!${HIZ_WITH_TRACE}){return vec3f(cull,0.0,0.0);}
  if(hizKeepsPlanes()){
   let corners=hizPlaneCorners(i,q,hizDepthAt(q));
   return vec3f(cull,corners.x,corners.y);
  }
- return vec3f(cull,hizFrontAt(q),0.0);
+ return vec3f(cull,hizFrontOf(q,opaque),0.0);
 }
 /** The bounds of two triples: reverse-Z, the farthest is the MINIMUM, the nearest the MAXIMUM; the
  *  first and the last of a triple are always farthest. */
@@ -146,27 +178,28 @@ fn hizBound4(v00:vec3f,v10:vec3f,v01:vec3f,v11:vec3f,dx:u32,dy:u32)->vec3f{
 /** The kernel: a pass's levels through workgroup memory. */
 const HIZ_BUILD_KERNEL_TEXT = `@compute @workgroup_size(${HIZ_BUILD_SIDE}, ${HIZ_BUILD_SIDE})
 fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:vec3u){
- // uni: a the source level's index, b × c its size, d the levels this pass writes (dst), upper the
+ // hizUni: a the source level's index, b × c its size, d the levels this pass writes (dst), upper the
  // texels of the coarser levels of one bound (\`hizIn\`).
- let at=uni.a;
- let x=wg.x*${HIZ_BUILD_SIDE}u+lid.x;let y=wg.y*${HIZ_BUILD_SIDE}u+lid.y;let x0=hizSquareStart(x,uni.b,at==0u);let y0=hizSquareStart(y,uni.c,at==0u);
+ let at=hizUni.a;
+ let x=wg.x*${HIZ_BUILD_SIDE}u+lid.x;let y=wg.y*${HIZ_BUILD_SIDE}u+lid.y;let x0=hizSquareStart(x,hizUni.b,at==0u);let y0=hizSquareStart(y,hizUni.c,at==0u);
  if(hizKeepsPlanes()&&at==0u){
   hizLoadDepthTile(wg.xy,lid.y*${HIZ_BUILD_SIDE}u+lid.x);
   workgroupBarrier();
  }
+ if(at==0u){hizClearBeyond(x,y);}
  var bound=vec3f(0.0);
- if(x*2u<uni.b&&y*2u<uni.c){
-  let dx=select(0u,1u,x0+1u<uni.b);let dy=select(0u,1u,y0+1u<uni.c);
+ if(x*2u<hizUni.b&&y*2u<hizUni.c){
+  let dx=select(0u,1u,x0+1u<hizUni.b);let dy=select(0u,1u,y0+1u<hizUni.c);
   bound=hizBound4(hizSource(at,x0,y0),hizSource(at,x0+dx,y0),hizSource(at,x0,y0+dy),hizSource(at,x0+dx,y0+dy),dx,dy);
-  if(uni.d>0u){hizPutBound(uni.dst[0].x+y*uni.dst[0].y+x,bound);}
+  if(hizUni.d>0u){hizPutBound(hizUni.dst[0].x+y*hizUni.dst[0].y+x,bound);}
  }
  hizTile[lid.y*${HIZ_BUILD_SIDE}u+lid.x]=bound;
  // Each further level halves the threads at work; the one the tile holds is read, then replaced.
  var side=${HIZ_BUILD_SIDE}u;
- for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){
+ for(var k=1u;k<min(hizUni.d,${HIZ_PASS_LEVELS}u);k++){
   side=side>>1u;
   workgroupBarrier();
-  let src=uni.dst[k-1u];let dst=uni.dst[k];
+  let src=hizUni.dst[k-1u];let dst=hizUni.dst[k];
   let tx=wg.x*side+lid.x;let ty=wg.y*side+lid.y;
   let live=lid.x<side&&lid.y<side&&tx<dst.y&&ty<dst.z;
   if(live){
@@ -214,9 +247,9 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
  *    (`encodeFull`), for the
  *    readers of the whole depth (`hizDepthWgsl`): a cell's two bounds, its plane at a pixel. Both
  *    reduce the depth with the nearest transparent surface's folded in (level 0's second layer,
- *    `Pyramid.frontView`) where the setting `hizFoldTransparents` asks for it (`uni.front`, off
+ *    `Pyramid.frontView`) where the setting `hizFoldTransparents` asks for it (`hizUni.front`, off
  *    by default): the one pyramid then holds every surface a ray can meet.
- *  - the setting `hizTrace` `'reference'`, the default (`uni.planes` zero, `GpuHiz.planes`), builds
+ *  - the setting `hizTrace` `'reference'`, the default (`hizUni.planes` zero, `GpuHiz.planes`), builds
  *    the NEAREST layer another way: its level 1 and up the closest — the MAXIMUM — of the depths of
  *    the pixels' centres under a texel, no slope, no corner, and the whole-depth farthest layer
  *    left unwritten and unread: the closest pyramid the reference's walk reads
@@ -239,16 +272,16 @@ fn buildHiz(@builtin(workgroup_id) wg:vec3u,@builtin(local_invocation_id) lid:ve
  * (the planes' slopes are the only level-0 words it writes).
  *
  * The level-0 depth is read through `hizLevel0`, declared by `level0`: the image's own build reads it as
- * the image wrote it (`HIZ_LEVEL0_WGSL`), the primed pyramid's pushes it away (`primedWgsl.ts`).
+ * the image wrote it (`HIZ_IMAGE_LEVEL0`), the primed pyramid's pushes it away (`primedWgsl.ts`).
  */
-export const hizBuildShader = (level0: WgslDecl) =>
+export const hizBuildShader = (level0: WgslDecl, source: HizDepthSource = HIZ_TEXTURE_SOURCE) =>
   wgslProgram(
-    `${HIZ_BUILD_BINDINGS_TEXT}${HIZ_BUILD_ACCESS_TEXT}${HIZ_BUILD_DEPTH_TEXT}${HIZ_BUILD_BOUNDS_TEXT}${HIZ_BUILD_KERNEL_TEXT}`,
-    [HIZ_TEXEL_WGSL, HIZ_FOLD_WGSL, surfaceSlopeOf, level0],
+    `${HIZ_BUILD_BINDINGS_TEXT(source)}${HIZ_BUILD_ACCESS_TEXT}${source.reads}${HIZ_BUILD_DEPTH_TEXT}${HIZ_BUILD_BOUNDS_TEXT}${HIZ_BUILD_KERNEL_TEXT}`,
+    [HIZ_TEXEL_WGSL, HIZ_FOLD_WGSL, surfaceSlopeOf, level0, ...source.decls],
   )
 
 /** The image's own level-0 depth, as the image wrote it. */
-const HIZ_LEVEL0_WGSL = wgslFn('hizLevel0', [], 'fn hizLevel0(z:f32)->f32{return z;}')
+export const HIZ_IMAGE_LEVEL0 = wgslFn('hizLevel0', [], 'fn hizLevel0(z:f32)->f32{return z;}')
 
 /** The build of the image's own pyramid, which no setting changes. */
-export const HIZ_SHADER = /* @__PURE__ */ hizBuildShader(HIZ_LEVEL0_WGSL)
+export const HIZ_SHADER = /* @__PURE__ */ hizBuildShader(HIZ_IMAGE_LEVEL0)

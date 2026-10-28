@@ -1,5 +1,4 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
 import { INVERSE_TWO_PI } from '../../../../math/src/wgsl/constants.ts'
 import {
   FUSED_FLATTEN_SLOTS,
@@ -10,7 +9,6 @@ import {
   flattenReduction,
 } from '../effects/motionBlur/flattenWgsl.ts'
 import { FLATTEN_TILE, type BlurVariant } from '../effects/motionBlur/motionBlurLayout.ts'
-import { wpoGraphWgsl } from '../../visibility/shader/wpoGraphWgsl.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { ndcToPixel } from '../../../../math/src/wgsl/projection.ts'
 import { safeRcp } from '../../../../math/src/wgsl/reals.ts'
@@ -31,12 +29,13 @@ import { MARKED_RESPONSIVE_WGSL } from '../../visibility/types.ts'
 
 /** The quantisation of a scattered occluder's bilinear weight: a tap of no 63rd scatters none. */
 const SCATTER_WEIGHT_STEPS = 63
-/** The nearest velocity pass's bindings: its inputs (`VELOCITY_INPUT_BINDINGS`), then its outputs,
+/** The nearest velocity pass's bindings: its pass uniform and depth (`VELOCITY_INPUT_BINDINGS`), then its outputs,
  *  and the velocity stage's vectors it dilates (`vectors`, read for the neighbourhood's motion and
  *  the pixel's flags), the responsiveness the layers over the pixel carry (`responsive`), the
  *  reprojection field's words it writes (`jacobian`, `boundary`). */
 export const VELOCITY_BINDINGS = {
-  ...VELOCITY_INPUT_BINDINGS,
+  view: VELOCITY_INPUT_BINDINGS.view,
+  depth: VELOCITY_INPUT_BINDINGS.depth,
   closest: 10,
   marks: 11,
   occluders: 12,
@@ -177,11 +176,23 @@ fn reprojectionBoundary(p:vec2i,own:vec2f,dilated:vec2f,z:array<f32,9>)->vec2f{
  let onEdge=vec2f(0.5)+sideF*(0.5-edgeDistance);
  return dot(corner-onEdge,direction)*direction;
 }
-fn isMoving(p:vec2i,zc:f32,closestZ:f32,nearest:TaaMotion,animated:bool)->f32{
+fn isMoving(p:vec2i,zc:f32,closestZ:f32,nearest:vec4f,animated:bool)->f32{
  if(animated){return 1.0;}
- let radius=pixelRadiusAt(sceneDepthOf(closestZ))*2.0;
- var moving=saturate(nearest.shift/max(radius,1e-30)-1.0);
- let here=transformHomogeneousPoint(view.invViewProj,vec3f(screenOfTexel(p),zc));
+ let screen=screenOfTexel(p);
+ var moving=0.0;
+ // The world distance the closest surface's point moved by itself: where it stood in the last image,
+ // read back from its velocity through the last view, against where it stands. A surface the camera
+ // alone carries moved by none — its vector may be the off-screen one — and a point at infinity has
+ // no distance.
+ if(nearest.w!=0.0){
+  let radius=pixelRadiusAt(sceneDepthOf(closestZ))*2.0;
+  let nowHere=transformHomogeneousPoint(view.invViewProj,vec3f(screen,closestZ));
+  let was=transformHomogeneousPoint(view.prevInvViewProj,vec3f(screen-nearest.xy,closestZ-nearest.z));
+  if(nowHere.w!=0.0&&was.w!=0.0){
+   moving=saturate(length(perspectiveDivide(nowHere)-perspectiveDivide(was))/max(radius,1e-30)-1.0);
+  }
+ }
+ let here=transformHomogeneousPoint(view.invViewProj,vec3f(screen,zc));
  let seen=view.prevViewProj*here;
  let turned=seen+view.parallax*here.w;
  if(seen.w>0.0&&turned.w>0.0){
@@ -250,16 +261,16 @@ const velocitySurfaceText = ({ inImage }: VelocityText) => ` let surface=nearest
  let zc=surface.depths[4];
  let tookNeighbour=any(surface.offset!=vec2i(0));
  // The edge is read only where the texel took a neighbour's velocity (the offset bit): there, how
- // far that velocity lies from the texel's own; elsewhere none, and its own is not computed.
+ // far that velocity lies from the texel's own; elsewhere none, and its own is not read.
  var edge=1.0;
- var ownVelocity=nearest.velocity.xy;
+ var ownVelocity=nearest.xy;
  if(tookNeighbour){
-  let own=texelMotion(p,p,zc,surface.id);
-  ownVelocity=own.velocity.xy;
-  let delta=abs(pixelVelocity(nearest.velocity.xy-own.velocity.xy));
+  let own=velocityAt(p,p,zc);
+  ownVelocity=own.xy;
+  let delta=abs(pixelVelocity(nearest.xy-own.xy));
   edge=saturate(1.1-dot(delta,vec2f(1.1)));
  }
- let prevClosestZ=surface.closestZ-nearest.velocity.z;
+ let prevClosestZ=surface.closestZ-nearest.z;
  // The pixel's flags: its surface's, with the responsiveness of the layers over it.
  let flags=textureLoad(vectors,p,0).g|markedResponsive(textureLoad(responsive,p,0).r);
  let animated=(flags&${PIXEL_ANIMATED}u)!=0u;
@@ -284,7 +295,7 @@ const velocityFieldText = ({ inImage }: VelocityText) => ` if(view.fraction.w!=0
   let field=reprojectionJacobian(depths,motion);
   depthError=field.error;
   ${inImage('textureStore(jacobianOut,p,vec4u(encodeReprojectionJacobian(field.jacobian.j0,field.jacobian.j1),0u,0u,0u));')}
-  ${inImage('textureStore(boundaryOut,p,vec4u(encodeReprojectionBoundary(surface.offset,reprojectionBoundary(p,ownVelocity,nearest.velocity.xy,depths)),0u,0u,0u));')}
+  ${inImage('textureStore(boundaryOut,p,vec4u(encodeReprojectionBoundary(surface.offset,reprojectionBoundary(p,ownVelocity,nearest.xy,depths)),0u,0u,0u));')}
  }`
 
 /** The marks, the occluder scattered where it stood, and where the blur is fused, its flattened motion. */
@@ -292,11 +303,11 @@ const velocityStoreText = ({
   fused,
   inImage,
 }: VelocityText) => ` ${inImage('textureStore(marksOut,p,vec4u(u32(round(edge*127.0))|offsetBit,encodeDepthError(prevClosestZ,depthError),u32(round(moving*255.0)),offsetCode));')}
- ${inImage('scatterOccluder(screenOfTexel(p),nearest.velocity.xy,prevClosestZ);')}${
+ ${inImage('scatterOccluder(screenOfTexel(p),nearest.xy,prevClosestZ);')}${
    fused
      ? `
- var blurMotion=nearest.velocity.xy;
- if(mb.knobs.w!=0.0){blurMotion=blurMotion-cameraMotion(p,surface.closestZ);}
+ var blurMotion=nearest.xy;
+ if(mb.knobs.w!=0.0){blurMotion=blurMotion-stillMotion(p,surface.closestZ);}
  if(view.params.x!=0.0){blurMotion=vec2f(0.0);}
  var polar=toPolar(blurMotion*mb.scale.xy);
  polar.x=min(polar.x,mb.scale.z);
@@ -314,7 +325,8 @@ const velocityStoreText = ({
  *   (`reprojectionJacobian`);
  * - the reprojection edge, `1.1 − 1.1 · |Δv|₁` of the closest surface's velocity and, where the
  *   texel took a neighbour's, its own, in render pixels, one where it took none;
- * - how far the texel moves for the flicker measure (`isMoving`): its surface point's world motion
+ * - how far the texel moves for the flicker measure (`isMoving`): the closest surface's own motion —
+ *   where its dilated velocity puts the point in the last image, read back through the last view —
  *   past a pixel's diameter at its depth, and the camera's parallax at the texel past half the
  *   limit (`view.rates.x`); a pixel animation moves it in full — the flags of the texel's pixel
  *   are its vector's second word, the velocity stage's (`surfaceVelocityWgsl.ts`), with the
@@ -335,10 +347,10 @@ const velocityStoreText = ({
  *   closest surface taken out where the blur follows what moves in the scene alone, none in a view
  *   cut —, scaled to the blur's pixels, flattened with the depth of the closest surface and
  *   reduced to the tile's range, the blur's own flattening pass left out.
- * Two reprojections per render texel where it takes a neighbour's velocity; with the field, nine
- * more and nine loads of the vectors.
+ * One load of the vectors for the velocity (a reprojection where the surface is static, two where the
+ * texel took a neighbour's); with the field, nine more and nine loads of the vectors.
  */
-export const velocityShader = (wpo: WpoSet = NO_WPO, fused?: BlurVariant) => {
+export const velocityShader = (fused?: BlurVariant) => {
   const text: VelocityText = {
     tile: fused ? FLATTEN_TILE : TEXEL_TILE,
     fused,
@@ -366,7 +378,6 @@ export const velocityShader = (wpo: WpoSet = NO_WPO, fused?: BlurVariant) => {
             INVERSE_TWO_PI,
           ]
         : []),
-      ...(wpo.programs.length ? [wpoGraphWgsl(wpo)] : []),
     ],
   )
 }

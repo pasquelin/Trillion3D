@@ -136,11 +136,9 @@ ${o.graphs ? WATER_GRAPH_VOLUME_WGSL : ''}  let volume=waterVolume(in,surfaceDep
  }
 `
 
-/** The fog, the surface the composite reads, and the entry `fsWater`. */
-const waterFragmentTailWgsl = (
-  shade: CloudVertexText,
-) => ` // Seen through the fog; the unlit view keeps what it emits.
- if(!unlit&&!held&&!(${fogFreeFlag('flags')})){rgb=fogged(rgb,in.view,uni.eye.xyz,in.position.xy);${shade.apply}}
+/** The cloud shade, the surface the composite reads, and the entry `fsWater`. The water is laid unfogged: the fog is laid over the image after the water, as the sequence of the sky and the fog has it (`encodeAfterWater`). */
+const waterFragmentTailWgsl = (shade: CloudVertexText) => ` // The unlit view keeps what it emits.
+ if(!unlit&&!held&&!(${fogFreeFlag('flags')})){${shade.apply}}
  // What the composite reads of the water: its surface, and that there is water (specular alpha). Only the surface colour is held
  // to the greatest emission; the separated sun and the reflection are written whole, as they are added. The water
  // is an opaque surface of the image: its alpha, the share of the background it leaves visible, is 0 — 1 and
@@ -159,7 +157,7 @@ const waterCompositeWgsl = (
 ) => `// The reflection composite (\`fsWaterComposite\`), drawn over the water's tiles or the whole target: the
 // reflection of the water's surface — its normal, roughness and reflectance as the shading wrote
 // them —, weighed on its reflectance (\`surfaceReflection\`), faded in over the first 50 cm of water
-// above the scene (to hide the triangles at the shore), dimmed by the fog, added over the water, with the separated sun. A
+// above the scene (to hide the triangles at the shore), added over the water, with the separated sun. A
 // pixel that is no water, or whose scene without the water is not behind it, draws nothing.
 @fragment fn fsWaterComposite(@builtin(position) position:vec4f)->@location(0) vec4f{
  let size=uni.viewport;
@@ -176,10 +174,9 @@ const waterCompositeWgsl = (
  let delta=(behind.depth-surfaceDepth)*WATER_CM;
  if(delta<=0.0){discard;}
  let reflection=waterReflection(specular.rgb,surface.w,normalize(surface.xyz),V,P,vec4f(position.xy,z,1.0));
- let fog=fogOver(P,uni.eye.xyz,position.xy).a;
  // The separated sun, multiplied by its distance-field shadow and its shadow-map trace at the water's depth.
- let sun=textureLoad(waterSun,at,0).rgb*(waterFarFactor(at)*${sunTraced ? 'waterTraceFactor(P,normalize(surface.xyz))' : '1.0'}*fog);
- return vec4f(preExposed(reflection*(saturate(delta*0.02)*fog))+sun,1.0);
+ let sun=textureLoad(waterSun,at,0).rgb*(waterFarFactor(at)*${sunTraced ? 'waterTraceFactor(P,normalize(surface.xyz))' : '1.0'});
+ return vec4f(preExposed(reflection*saturate(delta*0.02))+sun,1.0);
 }
 `
 
@@ -199,7 +196,7 @@ const waterDepthWgsl = (
  * scene (no blend: the scene behind is read from its copy, `waterVolume`): the surface lit by the
  * declared lights as a physical surface (its diffuse share under the coverage the base material has
  * over the water, `s.alpha`, its specular share whole), its ambient light and emission, the volume
- * (`waterVolume`, over the visibility the coverage leaves) and the fog over all; and writes the surface
+ * (`waterVolume`, over the visibility the coverage leaves) over all; and writes the surface
  * the reflection composite reads (`WaterOut`). The reflection is no part of it: no image-based light of the
  * water is added here, the composite adds it (`fsWaterComposite`) from the transparents' front
  * layer (`surfaceReflection`: the traced radiance where the water is the front surface of its pixel,

@@ -39,7 +39,7 @@ export function takeRefusals(device: GPUDevice) {
 }
 
 /** The name of a compile tracked under none. */
-export const UNNAMED = 'unnamed'
+const UNNAMED = 'unnamed'
 
 /** The name a pipeline is tracked under: its descriptor's own label, else the label of the module it compiles (fragment, vertex or compute stage), else `UNNAMED`. */
 export function pipelineLabel(descriptor: object) {

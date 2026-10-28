@@ -56,8 +56,8 @@ fn deformedPrevious(id:u32,position:vec4f)->vec4f{
  * (`placementMoved`) — after its deformation moved it
  * back; the background, at zero depth (reversed, infinite far plane), is a direction and goes back
  * as it is, which keeps the silhouette stable when the camera turns. `id` is the identifier of the
- * texel, read once for its identity, its motion and its deformation. The nearest velocity pass
- * reprojects it (`velocityWgsl.ts`).
+ * texel, read once for its identity, its motion and its deformation. The velocity stage reprojects
+ * it (`surfaceVelocityWgsl.ts`).
  *
  * A displaced surface's texel stands off the triangle its identifier names: the micro-triangle
  * that won it lies where the displacement put it. Its motion is that of the point of the flat

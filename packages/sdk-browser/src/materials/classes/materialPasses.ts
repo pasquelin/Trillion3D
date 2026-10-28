@@ -3,7 +3,7 @@ import { followEmissiveAo } from '../../frame/prepare/emissiveAoLayer.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { presentClassKeys } from '../../gpu/core/presentClasses.ts'
 import { readsTime } from '../graph/surfaceClasses.ts'
-import { isTimed } from '../../gpu/core/timedEncoder.ts'
+import { isTimedApart } from '../../gpu/core/timedEncoder.ts'
 import {
   MATERIAL_BINS_PASS,
   MATERIAL_COMPUTE_PASS,
@@ -104,7 +104,7 @@ export function encodeMaterialPasses(rt: WebgpuPagesRuntime, encoder: GPUCommand
   encoder.beginRenderPass(SURFACES).end()
   const pass = materialPass.begin(encoder)
   if (keys.length) {
-    const apart = readShadingSetting(rt, 'gpuTimingDetail') && isTimed(encoder)
+    const apart = isTimedApart(encoder)
     bins.assign(keys, shadeBinningQuads(readShadingSetting(rt, 'shadeBinningMode')))
     bins.layFor(width, height)
     const feedback = vis.writesFeedback ? gpu.feedbackView : undefined

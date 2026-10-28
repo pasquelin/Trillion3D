@@ -16,7 +16,10 @@ import {
   type PassCommands,
 } from './fakeRenderPass.ts'
 import { copyTexels } from './fakeResources.ts'
-import { TIMED_ENCODER } from '../../../packages/sdk-browser/src/gpu/core/timedEncoder.ts'
+import {
+  TIMED_APART,
+  TIMED_ENCODER,
+} from '../../../packages/sdk-browser/src/gpu/core/timedEncoder.ts'
 
 /** What the encoders of one device record, in the order they were encoded. */
 export type EncoderRecords = {
@@ -54,8 +57,12 @@ export function createFakeCommandEncoderFactory(
     failVisPass = false,
     deferred = false,
     timed = false,
+    timedApart = false,
     kernel,
-  }: Pick<FakeDeviceOptions, 'packed' | 'failVisPass' | 'deferred' | 'timed' | 'kernel'>,
+  }: Pick<
+    FakeDeviceOptions,
+    'packed' | 'failVisPass' | 'deferred' | 'timed' | 'timedApart' | 'kernel'
+  >,
 ) {
   const { passDescriptors, commands, dispatches, copies, textureCopies } = records
   let computeBind: ComputeBind | undefined,
@@ -68,6 +75,7 @@ export function createFakeCommandEncoderFactory(
     const act = (op: () => void) => (deferred ? void ops.push(op) : op())
     return {
       [TIMED_ENCODER]: timed,
+      [TIMED_APART]: timedApart,
       beginRenderPass: (desc?: GPURenderPassDescriptor) => {
         if (visPassFails && desc?.label === 'Trillion3D visibility primary') {
           visPassFails = false

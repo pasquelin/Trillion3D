@@ -49,7 +49,8 @@ export async function configureExplorer(session: ExplorerSession, inputs: Inputs
       sourceGltfUrl: new URL(SCENE_FILE, base).href,
     },
   })
-  // The most detail: every texture read with the device's whole anisotropy (`MAX_ANISOTROPY`).
+  // The most detail: every texture asks the device's whole anisotropy (`MAX_ANISOTROPY`), which the
+  // texture filtering's ceilings (`textureFilteringOptions.ts`) then hold to the quality level's.
   if (options.detail === 'maximum') {
     for (const { declaration } of draws)
       for (const material of Array.isArray(declaration) ? declaration : [declaration])

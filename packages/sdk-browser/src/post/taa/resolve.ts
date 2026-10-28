@@ -6,11 +6,6 @@ import { historyFormatsOf, refusePackedFormats, type HistoryFormats } from './hi
 import { GUARANTEED_STORAGE_TEXTURES } from './storageForms.ts'
 import { taaExecutionOf, updateTile, type TaaExecution } from './waveOps.ts'
 
-/** The usage of a target the temporal pass stores to by a compute pass and reads: its history and
- *  its anti-aliaser's offsets. */
-export const storedTargetUsage = () =>
-  GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
-
 /** The storage textures a history update binds at most: the colour and the validity it stores to,
  *  the display layers', the half-size image's. */
 const storageTextures = (filtered: boolean, half: boolean) =>

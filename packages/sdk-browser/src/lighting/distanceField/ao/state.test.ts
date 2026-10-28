@@ -3,18 +3,22 @@
 // skipped one starts again.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { cameraSeen, NO_CAMERA } from '../../../frame/backend/state/previousCamera.ts'
+import { cameraSeen, NEVER_SEEN, NO_CAMERA } from '../../../frame/backend/state/previousCamera.ts'
 import { createSkyOcclusionState, releaseSkyOcclusion } from './state.ts'
 
 test('the occlusion’s history has no image before its first draw and none after it is given back', () => {
   const state = createSkyOcclusionState()
   assert.equal('previous' in state, false, 'no camera of its own')
-  assert.equal(state.seen, 0)
+  assert.equal(state.seen, NEVER_SEEN)
   assert.equal(
     cameraSeen(NO_CAMERA, state.seen),
     undefined,
     'no image, no camera: the first image is a cut',
   )
+  // The first image is number 0: a history drawn at it is seen, not new.
+  state.seen = 0
+  const first = { viewProjection: new Float64Array(16), eye: new Float64Array(3), image: 0 }
+  assert.equal(cameraSeen(first, state.seen), first, 'the image 0 is a real image')
   state.seen = 12
   const before = { viewProjection: new Float64Array(16), eye: new Float64Array(3), image: 12 }
   assert.equal(cameraSeen(before, state.seen), before, 'the image it drew is the one before')
@@ -22,6 +26,6 @@ test('the occlusion’s history has no image before its first draw and none afte
   assert.equal(cameraSeen(before, state.seen), undefined, 'an image skipped since: it starts again')
   state.read = { bent: {} as GPUBuffer, params: {} as GPUBuffer }
   releaseSkyOcclusion(state)
-  assert.equal(state.seen, 0, 'given back, the next image starts without a history')
+  assert.equal(state.seen, NEVER_SEEN, 'given back, the next image starts without a history')
   assert.equal(state.read, undefined, 'and the lit pass reads nothing of it')
 })

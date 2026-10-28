@@ -1,10 +1,13 @@
 // One write among ten thousand textures visits one slot: the headers follow the records written
 // since the last render (`samplingHeaders`), never a walk of every slot.
+import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { samplingHeaders } from './samplingHeaders.ts'
 import type { WebgpuTileAtlas } from '../atlas/atlasTypes.ts'
 import { Texture } from '../../../../../sdk-core/src/world/texture/texture.ts'
+
+const FILTERING = { ceiling: MAX_ANISOTROPY, taps: true }
 import { textureJournals } from '../../../../../sdk-core/src/texture/writes.ts'
 
 /** An atlas of `records`, after its fill slot, counting the headers it is asked to write. */
@@ -26,7 +29,7 @@ test('one write among ten thousand textures visits one slot', () => {
   const colour = atlas(records),
     data = atlas([])
   const journal = textureJournals.open()
-  const follow = samplingHeaders(colour.atlas, data.atlas, journal)
+  const follow = samplingHeaders(colour.atlas, data.atlas, journal, () => FILTERING)
   follow(true)
   assert.equal(colour.set.length, 10_000, 'the first follow writes every header once')
   colour.set.length = 0

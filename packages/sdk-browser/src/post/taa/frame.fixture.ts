@@ -125,11 +125,6 @@ export function runtime() {
     ready: () => true,
     /** The frames each image encoded in (`planFrame`). */
     slices: [] as FrameSlices[],
-    /** The images that asked for the analysis's displaced pipeline (`askVelocity`). */
-    askedDisplaced: 0,
-    askDisplaced() {
-      this.askedDisplaced++
-    },
     encode(_encoder: unknown, inputs: unknown, _render: unknown, slices: FrameSlices) {
       encoded.push(inputs)
       this.slices.push(slices)

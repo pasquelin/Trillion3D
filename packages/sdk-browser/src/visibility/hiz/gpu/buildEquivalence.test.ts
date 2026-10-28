@@ -1,6 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { HIZ_SHADER } from './shader.ts'
+import { HIZ_IMAGE_LEVEL0, HIZ_SHADER, hizBuildShader } from './shader.ts'
+import { hizWorkSource } from './workDepthSource.ts'
 import { HIZ_BUILD_SIDE, HIZ_MAX_LEVELS, HIZ_PASS_LEVELS, hizBuildPasses } from './uniforms.ts'
 import { buildAfter, buildBefore } from './buildTranscripts.fixture.ts'
 import { layout, type Scene } from './buildScene.fixture.ts'
@@ -113,12 +114,12 @@ test('the shipped build is one kernel over workgroup memory, copying nothing of 
   const build = HIZ_SHADER.slice(HIZ_SHADER.indexOf('fn hizSource'))
   for (const line of [
     'select(cell*2u,min(cell*2u,max(size,2u)-2u),fromDepth)',
-    'let x0=hizSquareStart(x,uni.b,at==0u);let y0=hizSquareStart(y,uni.c,at==0u);',
-    'if(uni.a!=0u){return hizLoadBound(i);}',
+    'let x0=hizSquareStart(x,hizUni.b,at==0u);let y0=hizSquareStart(y,hizUni.c,at==0u);',
+    'if(hizUni.a!=0u){return hizLoadBound(i);}',
     'return vec3f(cull,corners.x,corners.y);',
-    'return vec3f(cull,hizFrontAt(q),0.0);',
-    'if(uni.d>0u){hizPutBound(uni.dst[0].x+y*uni.dst[0].y+x,bound);}',
-    `for(var k=1u;k<min(uni.d,${HIZ_PASS_LEVELS}u);k++){`,
+    'return vec3f(cull,hizFrontOf(q,opaque),0.0);',
+    'if(hizUni.d>0u){hizPutBound(hizUni.dst[0].x+y*hizUni.dst[0].y+x,bound);}',
+    `for(var k=1u;k<min(hizUni.d,${HIZ_PASS_LEVELS}u);k++){`,
     `bound=hizBound4(hizTile[i],hizTile[i+dx],hizTile[i+dy*${HIZ_BUILD_SIDE}u],hizTile[i+dy*${HIZ_BUILD_SIDE}u+dx],dx,dy);`,
     'hizPutBound(dst.x+ty*dst.y+tx,bound);',
     'return vec3f(min(a.x,b.x),max(a.y,b.y),min(a.z,b.z));',
@@ -137,8 +138,17 @@ test('the shipped build is one kernel over workgroup memory, copying nothing of 
   )
   // The culling layer is the opaque depth alone: a transparent surface in front must never hide
   // what lies behind it from the occlusion test, the partition's cull or the transparent test.
-  // The image's own build reads it as the image wrote it (`hizLevel0`), and writes no copy of it.
-  assert.match(build, /let cull=hizLevel0\(textureLoad\(level0,q,0,0\)\.r\);/)
+  // The image's own build reads it as the image wrote it (`hizLevel0`), and writes no copy of it
+  // into the pyramid: the opaque depth is read once (`hizOpaqueAt`, level 0's first layer here,
+  // the visibility buffer in `workDepthSource.ts`) and is the cull's alone.
+  assert.match(
+    build,
+    /let opaque=hizOpaqueAt\(q\);\s*hizStoreOpaque\(q,opaque\);\s*let cull=hizLevel0\(opaque\);/,
+  )
+  assert.match(
+    HIZ_SHADER,
+    /fn hizOpaqueAt\(q:vec2i\)->f32\{return textureLoad\(level0,q,0,0\)\.r;\}/,
+  )
   assert.doesNotMatch(
     HIZ_SHADER,
     /hizPut\(i,\d+u,bitcast<u32>\(depth\)\)/,
@@ -147,8 +157,8 @@ test('the shipped build is one kernel over workgroup memory, copying nothing of 
   assert.match(HIZ_SHADER, /fn hizLevel0\(z:f32\)->f32\{return z;\}/)
   assert.equal(
     HIZ_SHADER.match(/hizFrontAt\(/g)?.length,
-    3,
-    'its definition, the depth tile of the planes and the closest depth of the centres: no other',
+    2,
+    'its definition and the depth tile of the planes: the first pass reads each depth once (hizFrontOf)',
   )
 })
 
@@ -177,4 +187,32 @@ test("the first level gathers the image's last two texels at an odd edge, as the
     [...after.cull.subarray(offsets[1], offsets[1] + 2)],
     [Math.fround(0.1), Math.fround(0.1)],
   )
+})
+
+test('the image build over the visibility buffer is the same kernel, its depth read there and written into level 0', () => {
+  const last = 'hizPutBound(dst.x+ty*dst.y+tx,bound);'
+  // From the tile's loader to the last write of the kernel: the text both builds share.
+  const kernel = (code: string) =>
+    code.slice(code.indexOf('fn hizLoadDepthTile'), code.lastIndexOf(last) + last.length)
+  for (const wide of [true, false]) {
+    const work = hizBuildShader(HIZ_IMAGE_LEVEL0, hizWorkSource(wide))
+    assert.equal(kernel(work), kernel(HIZ_SHADER), `wide ${wide}: the kernel`)
+    assert.ok(kernel(HIZ_SHADER).length > 1000)
+    // The buffer's depth, the background past the viewport, and level 0 written with what was read.
+    assert.match(work, /fn hizStoreOpaque\(q:vec2i,z:f32\)\{textureStore\(level0Out,q,/)
+    assert.match(work, /p\.x>=u32\(uni\.viewport\.x\)\|\|p\.y>=u32\(uni\.viewport\.y\)/)
+    assert.doesNotMatch(work, /textureLoad\(level0,/)
+    // One read of the buffer's depth and one fold, shared with the export and the texture build.
+    assert.equal(work.match(/fn depthAt\(/g)?.length, 1)
+    assert.equal(work.match(/max\(opaque,/g)?.length, 1, 'the fold is hizFoldOf alone')
+    // Level 0 past the drawn size is the background, written by the first pass.
+    assert.match(
+      work,
+      /fn hizClearBeyond\(x:u32,y:u32\)\{\s*let size=textureDimensions\(level0Out\)/,
+    )
+    assert.equal(/work\[pixelOffset\(p\)\]\.y/.test(work), wide)
+    assert.equal(/var hwDepth:texture_depth_2d/.test(work), !wide)
+  }
+  // The texture build reads level 0 and writes nothing there.
+  assert.match(HIZ_SHADER, /fn hizStoreOpaque\(q:vec2i,z:f32\)\{\}/)
 })

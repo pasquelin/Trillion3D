@@ -1,4 +1,4 @@
-import { HIZ_WITH_TRACE, HIZ_SHADER } from './shader.ts'
+import { HIZ_IMAGE_LEVEL0, HIZ_WITH_TRACE, HIZ_SHADER, hizBuildShader } from './shader.ts'
 import { HIZ_PRIMED_BINDING, HIZ_PRIMED_BYTES, HIZ_PRIMED_SHADER } from './primedWgsl.ts'
 import { hizBindEntries } from './bindEntries.ts'
 import { buildComputeStage, preparedComputeStage } from '../../../gpu/core/computeStages.ts'
@@ -7,6 +7,8 @@ import { validated } from '../../../gpu/core/errorScope.ts'
 import { shaderFailed } from '../../../gpu/core/shaderModule.ts'
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { HIZ_SLOT_WORDS } from './uniforms.ts'
+import { hasWideAtomics } from '../../../gpu/core/wideAtomics.ts'
+import { hizWorkEntries, hizWorkSource, hizWorkSourceEntries } from './workDepthSource.ts'
 
 /**
  * The Hi-Z kernels — the culling layer's build and the full build with the trace layers, one kernel specialized (`HIZ_WITH_TRACE`) —
@@ -53,3 +55,29 @@ export const hizPrimedPipeline = oncePerDevice((device) => {
   )
   return { layout, stage }
 })
+
+/**
+ * The image's own build, over the visibility buffer (`workDepthSource.ts`): the culling layer's
+ * kernel and the full one with the trace layers, on a layout of two groups — the pyramid's and the
+ * buffer's —, compiled once a device with the device's own source (the 64-bit word or not). The
+ * pyramid's other builds (the primed one, the one after the transparents' front pass) read level 0
+ * and keep the kernels above.
+ */
+export const createHizWorkPipelines = oncePerDevice((device) =>
+  validated(device, async () => {
+    const wide = hasWideAtomics(device)
+    const layout = device.createBindGroupLayout({ entries: hizWorkEntries(HIZ_SLOT_WORDS * 4) })
+    const sourceLayout = device.createBindGroupLayout({ entries: hizWorkSourceEntries(wide) })
+    const module = device.createShaderModule({
+      code: hizBuildShader(HIZ_IMAGE_LEVEL0, hizWorkSource(wide)),
+    })
+    if (await shaderFailed(module)) return undefined
+    const stage = (constants?: Record<string, number>) =>
+      buildComputeStage(device, [layout, sourceLayout], module, 'buildHiz', constants)
+    const [buildPipeline, fullPipeline] = await Promise.all([
+      stage(),
+      stage({ [HIZ_WITH_TRACE]: 1 }),
+    ])
+    return { layout, sourceLayout, buildPipeline, fullPipeline }
+  }),
+)

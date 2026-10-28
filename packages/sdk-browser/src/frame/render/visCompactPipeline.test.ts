@@ -54,7 +54,7 @@ test('GPU Hi-Z builds the pyramid after the main pass, whose depth the buffer ex
   backend.render(cam)
   // On this device, without the 64-bit atomic maximum, each pass's hardware slots draw once into
   // the identifiers target and the scene's depth, the hardware depth test keeping the nearest; the
-  // pyramid is built once the main pass's software depth is down and the buffer exported.
+  // pyramid is built, from the buffer, once the main pass's software depth is down.
   const visPasses = passes.filter(
     (pass) =>
       pass.label === 'Trillion3D visibility primary' ||
@@ -67,8 +67,8 @@ test('GPU Hi-Z builds the pyramid after the main pass, whose depth the buffer ex
   }
   const at = (entry: string) => dispatchedEntries(dispatches).indexOf(entry)
   assert.ok(at(rasterEntry(MODE_DEPTH)) >= 0)
-  assert.ok(at('exportDepth') > at(rasterEntry(MODE_DEPTH)))
-  assert.ok(at('buildHiz') > at('exportDepth'))
+  assert.equal(at('exportDepth'), -1)
+  assert.ok(at('buildHiz') > at(rasterEntry(MODE_DEPTH)))
   assert.deepEqual(backend.selectedPageIds().sort(), cpu.shown.map((page) => page.url).sort())
   assertOccluderImage(backend, cpu.shown, collected.roots, cam, viewport)
   indirectDraws(draws)

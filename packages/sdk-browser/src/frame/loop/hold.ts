@@ -10,6 +10,7 @@ import { deviceAnswering, noteHold } from './deviceAnswer.ts'
 import { NOISE_PHASE, unsettledMask } from './unsettled.ts'
 import { traceDrawnFrame, traceHeldOnAnswer } from './holdTrace.ts'
 import { beginNoiseImage } from '../render/noiseFrame.ts'
+import { taaRuns } from '../backend/state/renderScale.ts'
 import { drawsEveryImage } from './everyImage.ts'
 /**
  * What a held frame actually did, published as such.
@@ -75,14 +76,15 @@ function presentHeld(rt: WebgpuPagesRuntime, device: GPUDevice, awaited: boolean
  * Whether this image is held: the view stands (`gate.held`), nothing is unsettled, nothing draws it every image (read only then), and it is not the final image of its
  * establishment (`beginNoiseImage`), which is drawn once more, at the canonical phase of the noise, before the view is held on it.
  */
-export function holdDecision(rt: WebgpuPagesRuntime) {
+function holdDecision(rt: WebgpuPagesRuntime) {
   const { run } = rt
   let unsettled = unsettledMask(rt, run.frame)
   const established = run.gate.held() && unsettled === 0
   const every = established && drawsEveryImage(rt)
-  const final = beginNoiseImage(rt, established && !every)
+  const final = beginNoiseImage(rt, established && !every, taaRuns(rt))
   if (final) unsettled |= NOISE_PHASE
-  return { unsettled, quiet: established && !every && !final }
+  // A change of the clock itself (the light began, the temporal pass turned on) draws an image although the gate stands.
+  return { unsettled, quiet: established && !every && !final && !run.gate.hold.noise.changed }
 }
 
 /**

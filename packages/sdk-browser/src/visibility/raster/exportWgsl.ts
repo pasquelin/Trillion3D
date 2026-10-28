@@ -7,6 +7,7 @@ import { SHADING_MASK_WGSL, shadeBinsWgsl } from '../shader/shadeBinsWgsl.ts'
 import { visPageIndex, visRowIn } from '../visWords.ts'
 import { WIDE_ATOMIC_WGSL } from '../../gpu/core/wideAtomics.ts'
 import { pixelCount, pixelOffset } from './pixelWgsl.ts'
+import { workDepthWgsl } from './workDepthWgsl.ts'
 
 /** The export's bindings in its group 0, binding after binding: the visibility buffer, the view's
  *  uniform, the pyramid's level zero and the identifiers it writes, then — on a device without the
@@ -28,7 +29,7 @@ export const EXPORT_BINDINGS = {
  *  and the identifiers (`exportIds`). */
 export const EXPORT_DEPTH = 'exportDepth',
   EXPORT_IDS = 'exportIds'
-/** The entry point of the fragment stage that writes the scene's depth (`DEPTH_EXPORT_SHADER`). */
+/** The entry point of the fragment stage that writes the scene's depth (`depthExportShader`). */
 export const EXPORT_SCENE_DEPTH = 'exportSceneDepth'
 
 /**
@@ -55,7 +56,7 @@ export const EXPORT_SCENE_DEPTH = 'exportSceneDepth'
  * only valid from other textures of the same format", § 26.1.2.2; both at
  * https://www.w3.org/TR/webgpu/) — "can be written in a render pass using a fragment shader that
  * outputs depth values via the frag_depth output" — so the attachment is the one output of a
- * render pass of its own, `DEPTH_EXPORT_SHADER`, reading the level zero this pass wrote.
+ * render pass of its own, `depthExportShader`, reading the visibility buffer (the 64-bit word) or level zero.
  */
 export const exportSource = (wide: boolean) =>
   wgslProgram(
@@ -67,15 +68,10 @@ export const exportSource = (wide: boolean) =>
 @group(0) @binding(${EXPORT_BINDINGS.mask}) var mask:texture_storage_2d<r32uint,write>;
 ${
   wide
-    ? `/** The pixel's pair: its depth and its identifier. */
-fn depthAt(p:vec2u)->f32{return bitcast<f32>(work[pixelOffset(p)].y);}
+    ? `/** The pixel's pair: its depth (\`depthAt\`, \`workDepthWgsl\`) and its identifier. */
 fn idAt(p:vec2u)->u32{return work[pixelOffset(p)].x;}`
     : `@group(0) @binding(${EXPORT_BINDINGS.hwDepth}) var hwDepth:texture_depth_2d;
 @group(0) @binding(${EXPORT_BINDINGS.hwIds}) var hwIds:texture_2d<u32>;
-/** The nearer of the software raster's depth key (the buffer's first plane) and the hardware's. */
-fn depthAt(p:vec2u)->f32{
- return max(bitcast<f32>(work[pixelOffset(p)]),textureLoad(hwDepth,vec2i(p),0));
-}
 /** The identifier of the nearer raster, the greater between two rasters at the same depth. */
 fn idAt(p:vec2u)->u32{
  let at=pixelOffset(p);
@@ -117,19 +113,32 @@ fn shadingMaskOf(id:u32)->u32{
       visRowIn,
       visPageIndex,
       pixelOffset,
+      workDepthWgsl(wide),
       ...(wide ? [WIDE_ATOMIC_WGSL] : [pixelCount]),
     ],
   )
 
 /**
- * The scene's depth attachment, written from the level zero the export wrote: a full-screen
- * triangle whose fragment takes the depth there as its own, the background's `DEPTH_CLEAR` where
- * nothing was drawn. The pass clears the attachment first; it is the only pass of the image that
- * writes the depth for everything after it.
+ * The scene's depth attachment, written by a full-screen triangle over the viewport, the
+ * background's `DEPTH_CLEAR` where nothing was drawn; the pass clears the attachment first, and is
+ * the only pass of the image that writes the depth for everything after it. With the 64-bit word
+ * (`wide`) a fragment takes the depth from the visibility buffer itself, the pair's second word,
+ * as the export of a visibility buffer into the scene's depth does. Without it the depth of the
+ * two rasters is merged by the export's compute pass, and the fragment takes it from level zero
+ * the image's builds of the pyramid wrote: the hardware raster's depth is this attachment, which a
+ * fragment of its own pass cannot read.
  */
-export const DEPTH_EXPORT_SHADER = wgslProgram(
-  `@group(0) @binding(0) var level0:texture_2d<f32>;
+export const depthExportShader = (wide: boolean) =>
+  wgslProgram(
+    wide
+      ? `@group(0) @binding(0) var<storage,read> work:array<vec2<u32>>;
+@group(0) @binding(1) var<uniform> uni:Uniforms;
+struct SceneDepth{@builtin(frag_depth) depth:f32,}
+@fragment fn ${EXPORT_SCENE_DEPTH}(@builtin(position) pos:vec4f)->SceneDepth{
+ return SceneDepth(depthAt(vec2u(pos.xy)));
+}`
+      : `@group(0) @binding(0) var level0:texture_2d<f32>;
 struct SceneDepth{@builtin(frag_depth) depth:f32,}
 @fragment fn ${EXPORT_SCENE_DEPTH}(@builtin(position) pos:vec4f)->SceneDepth{return SceneDepth(textureLoad(level0,vec2i(pos.xy),0).r);}`,
-  [FULLSCREEN_VERTEX],
-)
+    [FULLSCREEN_VERTEX, ...(wide ? [VIS_UNIFORMS_WGSL, workDepthWgsl(true)] : [])],
+  )

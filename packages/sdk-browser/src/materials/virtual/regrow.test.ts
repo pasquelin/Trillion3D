@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { createWebgpuTilePageTable, PAGE_HEADER_WORDS } from './page/pageTable.ts'
+import { createWebgpuTilePageTable, PAGE_HEADER_WORDS, siblingsAt } from './page/pageTable.ts'
 import { regrownPageTable } from './regrow.ts'
 import { packEntry, tileLayout } from '../texture/tiles.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -59,4 +59,19 @@ test('reusing a dropped slot with another layout preserves later slots and their
   assert.equal(next.entryOf(key), packEntry(place, 1))
   assert.deepEqual(next.tileOf(next.feedbackIndexOf(key)), key)
   assert.equal(next.entryOf({ slot: 1, level: 0, tx: 0, ty: 0 }), 0)
+})
+
+test('a table regrown keeps the siblings each texture listed, at their new place', () => {
+  const { device } = fakeDevice()
+  const layouts = [tileLayout(1, 1), tileLayout(512, 512), tileLayout(512, 512)]
+  const old = createWebgpuTilePageTable(device, layouts, { kind: 'color', feedbackOffset: 0 })
+  old.setSiblings(1, [2])
+  old.setSiblings(2, [1])
+  const table = regrownPageTable(device, old, [...layouts, tileLayout(512, 512)], {
+    kind: 'color',
+    feedbackOffset: 0,
+  })
+  assert.equal(table.words[siblingsAt(table.words, 1)], 2)
+  assert.equal(table.words[siblingsAt(table.words, 2)], 1)
+  assert.equal(table.words[siblingsAt(table.words, 3)], 0, 'the texture appended lists none')
 })

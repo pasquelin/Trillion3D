@@ -1,6 +1,7 @@
+import { entryOf } from '../../../../math/src/sequence/counts.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import { createWebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
-import { velocityAtlasBound, velocityInputResources, type TaaInputs } from './inputs.ts'
+import type { TaaInputs } from './inputs.ts'
 import type { AnalysisLayouts } from './analysisLayouts.ts'
 import type { AnalysisTargetViews } from './analysisTargets.ts'
 import type { FrameSlices } from './historyFrames.ts'
@@ -12,26 +13,8 @@ import { SPATIAL_AA_BINDINGS } from './spatialAntiAliasingWgsl.ts'
 import { FUSED_FLATTEN_SLOTS } from '../effects/motionBlur/flattenWgsl.ts'
 import type { FusedFlatten } from '../effects/motionBlur/motionBlurLayout.ts'
 
-/** What the analysis reads of the frame (`TaaInputs`), in its groups' identity order; the colour
- *  atlas's bound views and page table after them (`velocityAtlasBound`). */
-const ANALYSIS_INPUTS = [
-  'current',
-  'depth',
-  'ids',
-  'pages',
-  'worlds',
-  'previous',
-  'vectors',
-  'pool',
-  'positions',
-  'uvs',
-  'normals',
-  'material',
-  'frame',
-  'sampler',
-  'translucency',
-  'responsive',
-] as const
+/** What the analysis reads of the frame (`TaaInputs`), in its groups' identity order. */
+const ANALYSIS_INPUTS = ['current', 'depth', 'vectors', 'translucency', 'responsive'] as const
 
 /** What a group is made of: the device, the layouts and the uniform and sampler its groups name. */
 type Context = {
@@ -41,11 +24,12 @@ type Context = {
   sampler: GPUSampler
 }
 
-/** What the nearest velocity names: the frame's surfaces, the velocity stage's vectors, the
+/** What the nearest velocity names: the depth, the velocity stage's vectors, the
  *  responsiveness of the layers over each pixel and the targets. */
 const velocityEntries = ({ uniform }: Context, inputs: TaaInputs, t: AnalysisTargetViews) =>
   namedEntries(VELOCITY_BINDINGS, {
-    ...velocityInputResources(inputs, uniform),
+    view: { buffer: uniform },
+    depth: inputs.depth,
     closest: t.closest,
     marks: t.marks,
     occluders: { buffer: t.occluders },
@@ -222,13 +206,6 @@ const antiAliasGroup = ({ device, layouts, uniform }: Context, t: AnalysisTarget
 const REPROJECT_AT = 1,
   REJECT_SHADING_AT = 4
 
-/** The group `map` holds for `key`, made by `make` the first time. */
-function memo(map: Map<number, GPUBindGroup>, key: number, make: () => GPUBindGroup) {
-  let group = map.get(key)
-  if (!group) map.set(key, (group = make()))
-  return group
-}
-
 /** The groups of a new identity of the inputs: those that do not depend on the frames' slots, the
  *  others left to `of` (`REPROJECT_AT`, `REJECT_SHADING_AT`). */
 function heldGroupsOf(context: Context, inputs: TaaInputs, t: AnalysisTargetViews): HeldGroups {
@@ -292,21 +269,17 @@ export function createAnalysisGroups(
     of(inputs: TaaInputs, t: AnalysisTargetViews, slices: FrameSlices) {
       const { next } = identity
       for (let i = 0; i < ANALYSIS_INPUTS.length; i++) next[i] = inputs[ANALYSIS_INPUTS[i]]
-      // The colour atlas's views and page table the groups bind, never the atlas object a resize of
-      // its pool keeps (`velocityAtlasBound`).
-      const atlas = velocityAtlasBound(inputs)
-      for (let k = 0; k < atlas.length; k++) next[ANALYSIS_INPUTS.length + k] = atlas[k]
       const moved = identity.moved()
       let kept = held[identity.slot]
       if (moved || !kept) held[identity.slot] = kept = heldGroupsOf(context, inputs, t)
       const { groups } = kept
       const frames = t.guides.length
-      groups[REPROJECT_AT] = memo(
+      groups[REPROJECT_AT] = entryOf(
         kept.reproject,
         slices.previous * frames + slices.resurrection,
         () => reprojectGroup(context, inputs, t, slices.previous, slices.resurrection),
       )
-      groups[REJECT_SHADING_AT] = memo(kept.rejectShading, slices.current, () =>
+      groups[REJECT_SHADING_AT] = entryOf(kept.rejectShading, slices.current, () =>
         rejectShadingGroup(context, inputs, t, slices.current),
       )
       return groups

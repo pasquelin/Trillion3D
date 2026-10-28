@@ -1,4 +1,8 @@
-import { NO_CAMERA, type CameraImage } from '../../frame/backend/state/previousCamera.ts'
+import {
+  NEVER_SEEN,
+  NO_CAMERA,
+  type CameraImage,
+} from '../../frame/backend/state/previousCamera.ts'
 import { TAA_SAMPLES } from './jitter.ts'
 import { createFrameRing, planFrame, type FrameRing, type FrameSlices } from './historyFrames.ts'
 
@@ -59,8 +63,8 @@ export interface TaaFrameState {
   /** True when the current image accumulates: rendered with jitter, resolved by the pass. */
   active: boolean
   /** Whether this image draws the surfaces that name a displacement tessellated
-   *  (`tessellationWanted`), decided once by the velocity stage (`encodeVelocity`): the velocity passes then run their displaced
-   *  pipelines, which solve a displaced texel's flat point (`DISPLACED`, `deformWgsl.ts`). */
+   *  (`tessellationWanted`), decided once by the velocity stage (`encodeVelocity`): the velocity stage then runs its displaced
+   *  pipeline, which solves a displaced texel's flat point (`DISPLACED`, `deformWgsl.ts`). */
   tessellated: boolean
 }
 
@@ -73,7 +77,7 @@ export function createTaaFrameState(): TaaFrameState {
     jitter: new Float64Array(2),
     jitterGrid: new Float64Array(2),
     viewProjection: new Float64Array(16),
-    seen: 0,
+    seen: NEVER_SEEN,
     before: NO_CAMERA,
     previousRender: new Float64Array(2),
     hasHistory: false,
@@ -98,5 +102,11 @@ export const stochasticPhase = (taa: TaaFrameState | undefined) => taa?.stochast
 
 /** Slots of the resolve's stochastic pattern (`writeTaaView`): the accumulated image's own rank
  *  modulo them. */
-const STOCHASTIC_SLOTS = 8
+export const STOCHASTIC_SLOTS = 8
 export const stochasticSlot = (taa: TaaFrameState) => taa.stochasticSample % STOCHASTIC_SLOTS
+
+/** Whether the view's temporal pass runs: the one test of it (`taaPhaseCount`, the noise's cycle). */
+export const temporalActive = (taa: TaaFrameState | undefined) => !!taa?.active
+
+/** The images of the noise an accumulation goes through before a phase it met comes back: the slots of its stochastic pattern; none for a view that accumulates nothing. */
+export const stochasticCycle = (accumulating: boolean) => (accumulating ? STOCHASTIC_SLOTS : 0)

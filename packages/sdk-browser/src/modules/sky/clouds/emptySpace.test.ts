@@ -21,7 +21,7 @@ import {
 } from './traceExtraLayout.ts'
 import { cloudTraceProgram } from './traceWgsl.ts'
 import { cloudSteps, encodeTrace } from './viewFrame.ts'
-import { TIMED_ENCODER } from '../../../gpu/core/timedEncoder.ts'
+import { TIMED_APART, TIMED_ENCODER } from '../../../gpu/core/timedEncoder.ts'
 import { createCloudViewGpu } from './viewTargets.ts'
 import { cloudProgramsReady } from './viewResolve.ts'
 import type { CloudViewFrame } from './viewGroups.ts'
@@ -156,8 +156,9 @@ function traced(key: CloudTraceKey) {
     queue: { writeBuffer() {} },
   } as unknown as GPUDevice
   const encoder = {
-    // A frame timed per pass: the empty space and the trace are a pass each.
+    // A frame timed with the detail asked: the empty space and the trace are a pass each, the table written before the tracing reads it.
     [TIMED_ENCODER]: true,
+    [TIMED_APART]: true,
     beginComputePass: ({ label }: { label: string }) => {
       const pass = { label, groups: {} as Record<number, unknown>, pipeline: undefined as unknown }
       passes.push(pass)

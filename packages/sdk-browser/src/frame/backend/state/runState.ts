@@ -138,6 +138,7 @@ function runLoop(): Pick<
   | 'shading'
   | 'frameHeld'
   | 'heldEmpty'
+  | 'hold'
   | 'imageWithheld'
   | 'initialLoad'
   | 'streamingBlocks'
@@ -157,6 +158,7 @@ function runLoop(): Pick<
     shading: new Float64Array(SHADING.length),
     frameHeld: false,
     heldEmpty: false,
+    hold: { heldOn: undefined, last: undefined },
     // No image is shown before the view has loaded (`../../loop/firstImage.ts`).
     imageWithheld: true,
     initialLoad: true,

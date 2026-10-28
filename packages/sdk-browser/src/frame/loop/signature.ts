@@ -4,7 +4,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 export const HOLD_SIGNATURE_VALUES = 14
 
 /** Where the counters a held frame rewrites (`recordHeldFrameWork`) stand in the signature. */
-export const SIGNATURE_SLOT = {
+const SIGNATURE_SLOT = {
   submittedTriangles: 8,
   gpuDrawCalls: 11,
   blendDrawCalls: 12,

@@ -38,9 +38,116 @@ export type FrameRecord = {
 /** The parts of a bench run the frames use. */
 export type FrameRig = { browser: BenchBrowser; gpu: BenchGpu; world: World }
 
-/** The clock and frame number the frames run on, carried from one call to the next. */
-export const createClock = () => ({ time: 1000, frame: 0 })
+/** The clock and frame number the frames run on, carried from one call to the next. A `frozen` clock gives the page the same
+ *  timestamp at every frame: the world's time stands still while its pages load, so that a play starts the animations, the
+ *  clip and the exposure from the same instant whatever the loading took. */
+export const createClock = () => ({ time: 1000, frame: 0, frozen: false, step: REFRESH_MS })
 export type BenchClock = ReturnType<typeof createClock>
+
+/** Moves the clock on by its step — a display interval unless a scenario sets another, ms —, unless it is frozen; the frame number counts either way. */
+export function tickClock(clock: BenchClock) {
+  if (!clock.frozen) clock.time += clock.step
+  clock.frame++
+}
+
+/** The engine counters that say the pages are still arriving: the geometry pages loaded and the texture tiles served, which only grow. */
+const LOADING_COUNTERS = ['pageLoads', 'textureTilesServed'] as const
+/** The pages in flight: while any is, the loading is not over, whatever the counters did. */
+const IN_FLIGHT = 'pagesLoading'
+
+/** One number of the metrics, or the named failure of a bench whose engine does not report it. */
+function loadingMetric(metrics: Record<string, unknown> | null | undefined, key: string) {
+  const value = metrics?.[key]
+  if (typeof value !== 'number')
+    throw new Error(
+      `BENCH_LOADING: the engine's metrics carry no number ${key}, so the loading cannot be told over`,
+    )
+  return value
+}
+
+/**
+ * Says when the loading is over: no page in flight and the counters of `LOADING_COUNTERS` not moved for `quiet` images in a row — the texture tiles left out once
+ * `texturesIgnored` (their discovery by the feedback trickles on in a still view: a tile a few pixels read is found late, none is evicted). `push` takes the metrics of
+ * each image drawn and answers whether the loading is over; a metric the engine does not report fails the bench by name.
+ */
+export function createLoadingTracker(quiet: number) {
+  let geometry = '',
+    tiles = 0,
+    flying = 0,
+    still = 0,
+    stillGeometry = 0
+  return {
+    push(metrics: Record<string, unknown> | null | undefined, texturesIgnored = false) {
+      const [pages, served] = LOADING_COUNTERS.map((key) => loadingMetric(metrics, key))
+      flying = loadingMetric(metrics, IN_FLIGHT)
+      const now = `${LOADING_COUNTERS[0]} ${pages}`
+      stillGeometry = now === geometry && !flying ? stillGeometry + 1 : 0
+      still = stillGeometry && served === tiles ? still + 1 : 0
+      geometry = now
+      tiles = served
+      return (texturesIgnored ? stillGeometry : still) >= quiet
+    },
+    /** The texture tiles served by the last image. */
+    get tiles() {
+      return tiles
+    },
+    /** The counters of the last image, named: what a loading that never ends was still doing. */
+    get last() {
+      return `${geometry}, ${LOADING_COUNTERS[1]} ${tiles}, ${IN_FLIGHT} ${flying}`
+    },
+  }
+}
+
+/** Every so many images of a loading, the bench prints its counters: a loading that never ends shows what still moves. */
+const LOADING_REPORT_IMAGES = 120
+/** The images in a row with nothing arriving that end the loading. */
+const LOADING_QUIET_IMAGES = 60
+
+/** After so long the texture tiles still arriving no longer hold the loading: the geometry alone does. */
+const LOADING_TEXTURES_MS = 30_000
+
+/**
+ * Draws frames at a frozen clock until the loading is over (`createLoadingTracker`; past `LOADING_TEXTURES_MS` the texture tiles no longer count, said with their
+ * rate), `timeoutMs` at most, then thaws the clock: the world's time starts at zero for the play, the same after every loading. Throws when the geometry pages keep
+ * arriving past the time.
+ */
+export async function settleLoading(rig: FrameRig, clock: BenchClock, timeoutMs: number) {
+  const tracker = createLoadingTracker(LOADING_QUIET_IMAGES)
+  const start = performance.now()
+  let over = false,
+    images = 0,
+    texturesIgnored = false,
+    tilesAtGrace = 0,
+    imageAtGrace = 0
+  const off = rig.world.onFrame(({ metrics }) => {
+    over = tracker.push(metrics as unknown as Record<string, unknown>, texturesIgnored)
+  })
+  try {
+    while (!over) {
+      if (performance.now() - start > timeoutMs)
+        throw new Error(
+          `BENCH_LOADING: pages still arriving after ${(timeoutMs / 1000).toFixed(0)} s (${tracker.last})`,
+        )
+      if (!texturesIgnored && performance.now() - start > LOADING_TEXTURES_MS) {
+        texturesIgnored = true
+        tilesAtGrace = tracker.tiles
+        imageAtGrace = images
+      }
+      await runFrames(rig, clock, 1)
+      if (++images % LOADING_REPORT_IMAGES === 0)
+        console.error(`[bench] loading, image ${images}: ${tracker.last}`)
+    }
+    if (texturesIgnored) {
+      const tiles = tracker.tiles - tilesAtGrace
+      console.error(
+        `[bench] loading over on the geometry; texture tiles still arriving: ${tiles} in ${images - imageAtGrace} images`,
+      )
+    }
+  } finally {
+    off()
+    clock.frozen = false
+  }
+}
 
 const turn = () => new Promise((done) => setImmediate(done))
 
@@ -120,8 +227,7 @@ export async function runFrames(
       record.sample = image.sample
       record.counters = image.drew ? image.counters : {}
       records.push(record)
-      clock.time += REFRESH_MS
-      clock.frame++
+      tickClock(clock)
       await turn()
     }
     await close()

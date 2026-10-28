@@ -39,7 +39,13 @@ export function createWebgpuTileStreamer(options: TileStreamerOptions) {
   const requests = createTileRequests({ feedback, color, data, counters })
   const atlases: [typeof color, typeof data] = [color, data]
   const published = createTilePublish(device, feedback, atlases)
-  const follow = createSamplingFollow(device, atlases, sources, options.onColorChanged)
+  const follow = createSamplingFollow(
+    device,
+    atlases,
+    sources,
+    options.onColorChanged,
+    options.filtering,
+  )
   return {
     color,
     data,

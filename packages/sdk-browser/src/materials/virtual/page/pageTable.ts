@@ -25,10 +25,24 @@ import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
  * levels]`, ten words per texture (`width | height << 16`, first tail level under the texture's
  * residency bias — the level offset its reads add while the pools are oversubscribed, in sixteenths
  * of a level (`setSlotBias`) —, last level under the sampling word, tail place under the pool tap, UV
- * transform — `texture/sampling.ts`), sixteen per texture (each streamed level's first word), the entries. A flush sends the words that changed
- * (`pageUploads.ts`).
+ * transform — `texture/sampling.ts`), sixteen per texture (each streamed level's first word), `SIBLING_CAP` per texture (its siblings,
+ * below), the entries. A flush sends the words that changed (`pageUploads.ts`).
+ *
+ * A texture's siblings are the textures of its stacks: the maps of a material read at the same coordinates, addressing and aspect
+ * (`../stacks.ts`), whose tile at the same place of the image a pixel that reads this texture's tile reads too, at the level its size
+ * puts it at. Each is a word — its slot, the log2 of the size ratio, the data atlas's bit when it lies there (`SIBLING_DATA`) —, the
+ * list ended by a zero (the fill, slot 0, is nobody's sibling): the stamp extends to their tiles (`../stampWgsl.ts`).
  */
 export const PAGE_HEADER_WORDS = 4
+/** The siblings a texture lists at most, and the bit of a sibling's word that names a texture of the data atlas. */
+export const SIBLING_CAP = 8
+export const SIBLING_DATA = 0x80000000
+/** The fields of a sibling's word: its slot, then the log2 of the ratio of the listing texture's size to its own, from `SIBLING_BIAS_ORIGIN` below
+ *  (so a word is never zero, the list's end), then the atlas bit. */
+export const SIBLING_SLOT_MASK = 0xffffff,
+  SIBLING_BIAS_SHIFT = 24,
+  SIBLING_BIAS_MASK = 0x1f,
+  SIBLING_BIAS_ORIGIN = 16
 /** Where a slot's residency bias lies in its first tail level's word, and how many steps it counts to a level. */
 export const SLOT_BIAS_SHIFT = 8,
   SLOT_BIAS_STEPS = 16
@@ -57,8 +71,15 @@ export type WebgpuTilePageTable = {
   /** The tail's place, and the tap every tile of the texture — this one included — is read by. */
   setTail(slot: number, place: TilePlace, tap: number): void
   setTile(key: TileKey, place: TilePlace): void
-  /** Filter word, addressing and UV transform (`samplingWords`); true when a word moved. */
-  setSampling(slot: number, texture: Texture): boolean
+  /** Filter word, addressing and UV transform (`samplingWords`), the anisotropy held to `ceiling`;
+   *  true when a word moved. */
+  setSampling(slot: number, texture: Texture, ceiling?: number, taps?: boolean): boolean
+  /** The siblings of texture `slot` (`SIBLING_CAP` of them at most, each a slot, plus `SIBLING_DATA` in the data atlas); true when a word moved. */
+  setSiblings(slot: number, siblings: readonly number[]): boolean
+  /** The siblings of texture `slot` joined by `words` (`mergeSiblings`); true when a word moved. */
+  joinSiblings(slot: number, words: readonly number[]): boolean
+  /** No texture lists the sibling `ref` (`siblingRef`) any more. */
+  dropSibling(ref: number): void
   /** The level offset every read of texture `slot` adds to its level, from the next flush. */
   setSlotBias(slot: number, levels: number): void
   clearTile(key: TileKey): void
@@ -83,7 +104,7 @@ type Table = {
 function pageTable(layouts: TileLayout[], feedbackOffset: number): Table {
   const slots = layouts.length
   const levelsAt = PAGE_HEADER_WORDS + slots * PAGE_SLOT_WORDS,
-    entriesAt = levelsAt + slots * MAX_LEVELS
+    entriesAt = levelsAt + slots * (MAX_LEVELS + SIBLING_CAP)
   const bases: number[] = []
   let entries = 0
   for (const layout of layouts) {
@@ -108,6 +129,53 @@ function pageTable(layouts: TileLayout[], feedbackOffset: number): Table {
       words[levelsAt + slot * MAX_LEVELS + level] = entriesAt + bases[slot] + layout.offsets[level]
   }
   return { layouts, words, bases, entries, entriesAt, uploads: createPageUploads() }
+}
+
+/** The first word of texture `slot`'s siblings: the lists lie between the levels' words and the entries. */
+export const siblingsAt = (words: Uint32Array, slot: number) =>
+  words[2] - words[1] * SIBLING_CAP + slot * SIBLING_CAP
+
+/** The reference to a map of `kind` at `slot`: its slot, plus the data atlas's bit. */
+export const siblingRef = (kind: 'color' | 'data', slot: number) =>
+  (kind === 'data' ? slot | SIBLING_DATA : slot) >>> 0
+
+/** The reference a sibling's word names (its slot and atlas, not its bias). */
+const refOf = (word: number) => (word & (SIBLING_DATA | SIBLING_SLOT_MASK)) >>> 0
+
+/** The word a sibling is listed by: its reference and the bias of the listing texture's size to its own. */
+export const siblingWord = (ref: number, bias: number) =>
+  (refOf(ref) | ((bias + SIBLING_BIAS_ORIGIN) << SIBLING_BIAS_SHIFT)) >>> 0
+
+/** A list with `added` joined to it: a sibling already listed is replaced by its new word; the cap cuts the last. */
+export function mergeSiblings(list: readonly number[], added: readonly number[]) {
+  const merged = list.filter((word) => !added.some((add) => refOf(add) === refOf(word)))
+  return [...merged, ...added].slice(0, SIBLING_CAP)
+}
+
+/** The words of texture `slot`'s list, to its zero end. */
+export function siblingList(words: Uint32Array, slot: number) {
+  const at = siblingsAt(words, slot),
+    list: number[] = []
+  while (list.length < SIBLING_CAP && words[at + list.length]) list.push(words[at + list.length])
+  return list
+}
+
+/** The siblings of texture `slot`, as the stamp reads them; true when a word moved. */
+function setSiblings(table: Table, slot: number, siblings: readonly number[]) {
+  const at = siblingsAt(table.words, slot)
+  let moved = false
+  for (let i = 0; i < SIBLING_CAP; i++)
+    moved = write(table, at + i, (siblings[i] ?? 0) >>> 0) || moved
+  return moved
+}
+
+/** Every list without the sibling `ref`: a texture left its slot, and a texture that takes it is another's. */
+function dropSibling(table: Table, ref: number) {
+  for (let slot = 0; slot < table.words[1]; slot++) {
+    const list = siblingList(table.words, slot),
+      kept = list.filter((word) => refOf(word) !== ref)
+    if (kept.length !== list.length) setSiblings(table, slot, kept)
+  }
 }
 
 /** The index of the word of the tile (`slot`, `level`, `tx`, `ty`), unchecked. */
@@ -157,9 +225,15 @@ function tileAt({ layouts, bases }: Table, entry: number, into: TileKey): TileKe
 }
 
 /** Filter word, addressing and UV transform of texture `slot`; true when a word moved. */
-function setSampling(table: Table, slot: number, texture: Texture) {
+function setSampling(
+  table: Table,
+  slot: number,
+  texture: Texture,
+  ceiling?: number,
+  taps?: boolean,
+) {
   const at = slotHeader(slot),
-    sampling = samplingWords(texture)
+    sampling = samplingWords(texture, ceiling, taps)
   let moved = write(
     table,
     at + SLOT_FILTER_WORD,
@@ -241,7 +315,11 @@ export function createWebgpuTilePageTable(
     setTail(slot, place, tap) {
       write(table, slotHeader(slot) + SLOT_TAIL_WORD, packPlace(place) | (tap << 24))
     },
-    setSampling: (slot, texture) => setSampling(table, slot, texture),
+    setSampling: (slot, texture, ceiling, taps) => setSampling(table, slot, texture, ceiling, taps),
+    setSiblings: (slot, siblings) => setSiblings(table, slot, siblings),
+    joinSiblings: (slot, words) =>
+      setSiblings(table, slot, mergeSiblings(siblingList(table.words, slot), words)),
+    dropSibling: (ref) => dropSibling(table, ref),
     setSlotBias(slot, levels) {
       write(
         table,

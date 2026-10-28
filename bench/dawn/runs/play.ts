@@ -7,14 +7,38 @@ import { installGpu } from '../machine/device.ts'
 import { dissectModules, dissectSpec } from '../passes/dissectHooks.ts'
 import { installBrowser } from '../page/dom.ts'
 import { machineFor } from '../machine/machine.ts'
-import { createClock, runFrames, warmUp } from '../capture/frames.ts'
+import { REFRESH_MS, createClock, runFrames, settleLoading, warmUp } from '../capture/frames.ts'
 import { gpuBusy } from '../machine/gpuBusy.ts'
 import type { BenchOptions } from './options.ts'
 import { pageAddress, readPage, runPage } from '../page/page.ts'
 import { createPlayer } from './scenario.ts'
+import { runTrack } from './trackFrames.ts'
 import { benchPasses } from '../passes/benchPasses.ts'
 import { timerDoubts } from '../report/trust.ts'
 import { countsPerFrame, passTimes, roundNumbers, spread } from '../report/summary.ts'
+
+/** Why the world's session did not open or ended, as the engine names it: its code, its message and the cause beneath it (a device destroyed is the effect, this the reason). */
+export function worldFailure(world: object) {
+  const error = (world as { error?: unknown }).error as
+    | {
+        code?: string
+        message?: string
+        details?: { cause?: unknown }
+        cause?: unknown
+        stack?: string
+      }
+    | null
+    | undefined
+  if (!error) return 'BENCH_WORLD: the world reports no error'
+  const cause = (error.details?.cause ?? error.cause) as
+    { stack?: string; message?: string } | undefined
+  return [
+    `BENCH_WORLD: ${error.code ?? 'ERROR'} ${error.message ?? ''}`.trim(),
+    cause ? `cause: ${(cause.stack ?? cause.message ?? String(cause)).slice(0, 1500)}` : '',
+  ]
+    .filter(Boolean)
+    .join('\n')
+}
 
 /** Plays `options.scenario` once; `stem` names its images. Resolves to the play's numbers. */
 export async function playScenario(options: BenchOptions, stem: string) {
@@ -41,7 +65,9 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const deadline = performance.now() + options.timeoutS * 500
   while (!gpu.held.device) {
     if (performance.now() > deadline)
-      throw new Error('BENCH_DEVICE: the engine submitted nothing to a GPU device')
+      throw new Error(
+        `BENCH_DEVICE: the engine submitted nothing to a GPU device\n${worldFailure(world)}`,
+      )
     browser.frame(clock.time)
     await new Promise((done) => setTimeout(done, 1))
   }
@@ -58,10 +84,14 @@ export async function playScenario(options: BenchOptions, stem: string) {
     if (closing) return // the bench's own dispose
     // A lost device draws nothing more: the run stops rather than measure an empty queue.
     console.error(`BENCH_DEVICE_LOST: ${lost.reason} ${lost.message.slice(0, 400)}`)
+    if ((world as { error?: unknown }).error) console.error(worldFailure(world))
     process.exit(4)
   })
   const calibration = await createCalibration(gpu, device)
+  // The world's time stands still until its pages have arrived: every play starts its clip, its vehicles, its sun and its exposure from the same instant.
+  clock.frozen = true
   await warmUp(rig, clock, options.timeoutS * 500, 8)
+  await settleLoading(rig, clock, options.timeoutS * 500)
   await runFrames(rig, clock, options.warm)
   const machine = await machineFor(
     gpu,
@@ -84,19 +114,38 @@ export async function playScenario(options: BenchOptions, stem: string) {
   const segments = []
   for (const segment of scenario.segments) {
     player.begin(segment)
-    const frames = await runFrames(rig, clock, segment.frames, (i) => player.step(segment, i))
-    player.end(segment)
-    const texture = (browser.canvases[0].getContext('webgpu') as { current: GPUTexture | null })
-      .current
-    const image =
-      captures && segment.capture && texture
-        ? await captureCanvas(
-            gpu,
-            device,
-            texture,
-            `${stem}-${segment.name.replace(/\W+/g, '-')}.png`,
-          )
+    const { track } = segment
+    const slug = segment.name.replace(/\W+/g, '-')
+    // The canvas's image now, under `name`; none where the segment is not captured.
+    const shoot = async (name: string) => {
+      const current = (browser.canvases[0].getContext('webgpu') as { current: GPUTexture | null })
+        .current
+      return captures && segment.capture && current
+        ? await captureCanvas(gpu, device, current, `${stem}-${name}.png`)
         : null
+    }
+    // A parity path is drawn at its own rate, and its captures are taken among its frames.
+    clock.step = track ? 1000 / track.fps : REFRESH_MS
+    const played = track
+      ? await runTrack(
+          rig,
+          clock,
+          captures && segment.capture ? track : { ...track, shots: [] },
+          (i) => player.step(segment, i),
+          (i) => shoot(`${slug}-f${String(i).padStart(5, '0')}`),
+        )
+      : null
+    const frames =
+      played?.frames ??
+      (await runFrames(rig, clock, segment.frames, (i) => player.step(segment, i)))
+    player.end(segment)
+    const shots = (played?.shots ?? []).filter((shot) => shot !== null)
+    // A capture the path asked for and the canvas could not give is no silent gap in the comparison.
+    if (track && captures && segment.capture && shots.length !== track.shots.length)
+      throw new Error(
+        `BENCH_PARITY: ${segment.name}: ${shots.length} of ${track.shots.length} captures taken`,
+      )
+    const image = track ? (shots[0] ?? null) : await shoot(slug)
     const numbers = roundNumbers(frames)
     const bench = benchPasses(frames)
     segments.push({
@@ -112,6 +161,8 @@ export async function playScenario(options: BenchOptions, stem: string) {
       }),
       counts: countsPerFrame(frames),
       image,
+      shots: shots.map((shot) => shot.path),
+      taaFormats: { ...gpu.held.formats },
     })
     for (let i = 0; i < 3; i++) unit.push(await calibration.time())
   }
@@ -134,6 +185,7 @@ export async function playScenario(options: BenchOptions, stem: string) {
       dirty: options.engine.dirty.length,
       date: new Date().toISOString(),
       gpu: gpu.held.adapter,
+      features: { adapter: gpu.held.adapterFeatures, device: [...device.features].sort() },
       node: process.version,
       profile: options.profileName,
       featuresOff: options.featuresOff,

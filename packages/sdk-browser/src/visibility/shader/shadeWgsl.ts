@@ -4,6 +4,8 @@ import { SHADE_DECL_WGSL, shadeDeclWgsl } from './shadeDeclWgsl.ts'
 import { unitOrZero } from '../../../../math/src/wgsl/inverseTranspose.ts'
 import { edgeFunction, perspectiveBarycentric } from '../../../../math/src/wgsl/barycentric.ts'
 import { faceNormal } from '../../../../math/src/wgsl/geometry.ts'
+import { TILE_NOISE_WGSL } from '../../materials/texture/samplingFootprint.ts'
+import { interleavedGradientNoise } from '../../../../math/src/wgsl/sampling.ts'
 import { unitToSigned3 } from '../../../../math/src/wgsl/reals.ts'
 import { cofactor3, worldMatrix3 } from '../../../../math/src/wgsl/matrix.ts'
 import { VOXEL_HIT_WGSL } from './voxelHitWgsl.ts'
@@ -76,6 +78,9 @@ const SURFACE_HEAD = (
  *  its entry (\`shadeEntryWgsl.ts\`), marked with its page's marks (\`withPageMarks\`); the surface itself
  *  (\`shadePageSurface\`) has its factors and maps from its record (\`materialAt\`). */
 fn shadeSurface(pos:vec4f,id:u32)->SurfaceOut{
+ // The level a one-read texture takes is moved by a noise of the pixel and the image
+ // (\`tileNoise\`, \`samplingFootprint.ts\`).
+ tileNoise=interleavedGradientNoise(pos.xy,f32(uni.frameIndex&7u));
  let pageIndex=visPageIndex(id);
  shadeSelectRow(pageIndex);
  let page=pages[pageIndex];
@@ -294,6 +299,8 @@ export const shadeShader = ({
     ...(voxel ? [VOXEL_HIT_WGSL, VOXEL_SURFACE_WGSL, VOXEL_STEPS_WGSL, cofactor3] : []),
     ...(displaced ? [DISPLACED_PIXEL_WGSL] : []),
     unitOrZero,
+    interleavedGradientNoise,
+    TILE_NOISE_WGSL,
     edgeFunction,
     perspectiveBarycentric,
     faceNormal,

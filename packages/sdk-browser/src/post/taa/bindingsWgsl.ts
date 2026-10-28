@@ -104,6 +104,7 @@ export const TAA_VIEW = fieldLayout('TaaView', [
   ['thinFade', 'vec4f'],
   ['toResurrection', 'mat4x4f'],
   ['exactEye', 'array<vec4u,2>'],
+  ['prevInvViewProj', 'mat4x4f'],
 ] as const)
 export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
 
@@ -167,6 +168,9 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  * - `exactEye`: the eye in doubles, two words a coordinate, as the cut's view holds it
  *   (`packDoubles`): the velocity takes a placement's pose at it, now and as the last drawn frame
  *   drew it (`placementMotion`, `nearestSurfaceWgsl.ts`).
+ * - `prevInvViewProj`: the inverse of `prevViewProj`, reported to this frame's eye as it is: it
+ *   unprojects where the last image saw a point, which the moving mask measures the point's own
+ *   motion by (`isMoving`, `nearestVelocityWgsl.ts`).
  */
 export const TAA_VIEW_WGSL = wgslBlock('TAA_VIEW_WGSL', [], TAA_VIEW.wgsl)
 

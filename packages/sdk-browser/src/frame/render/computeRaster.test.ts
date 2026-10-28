@@ -26,8 +26,8 @@ import {
 // Every image bins its clusters for the two rasters and writes one visibility buffer: the main
 // pass's decode and bins first, then its depth — hardware slots, software clusters —, the post pass's
 // when the cut runs one, then, on a device without the 64-bit atomic maximum, the software
-// identifiers; the pyramid's level zero after each pass's depth and the closed image are exports of
-// the buffer (`export.ts`), the scene's depth a full-screen draw from the level zero.
+// identifiers; the pyramid's builds read the buffer and write level zero as they go, the closed
+// image is an export of the buffer (`export.ts`), the scene's depth a full-screen draw from it.
 test('every image bins its clusters, writes each pass’s depth, then the identifiers', async () => {
   installGpuGlobals()
   const fixture = quadScene()
@@ -42,13 +42,13 @@ test('every image bins its clusters, writes each pass’s depth, then the identi
     ids = at(rasterEntry(MODE_ID))
   assert.ok(bins >= 0 && depth > bins && ids > depth)
   assert.ok(draws.some((draw) => draw.indirect))
-  // Level zero is exported once a pass, the image closed once; the scene's depth is the one
-  // full-screen draw.
+  // No pass exports the depth into level zero: the pyramid's builds do it as they read the buffer.
+  // The image closed is the one export; the scene's depth is the one full-screen draw.
   const exports = dispatchedEntries(dispatches).filter(
     (entry) => entry === 'exportDepth' || entry === 'exportIds',
   )
-  assert.equal(exports.at(-1), 'exportIds')
-  assert.ok(exports.length >= 2 && exports.slice(0, -1).every((entry) => entry === 'exportDepth'))
+  assert.deepEqual(exports, ['exportIds'])
+  assert.ok(at('buildHiz') > depth)
   const sceneDepth = draws
     .filter((draw) => draw.entryPoint === 'fullscreen')
     .map((draw) => draw.pipeline.fragment?.entryPoint)
@@ -82,7 +82,6 @@ test('a frame that tessellates seeds, splits six levels and dices in both modes 
     ...seeding,
     rasterEntry(MODE_DEPTH),
     'tessDice0',
-    'exportDepth',
     ...seeding,
     rasterEntry(MODE_ID),
     rasterEntry(MODE_ID),

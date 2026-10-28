@@ -121,18 +121,16 @@ function rasterEncoders(
       pass: RasterPass,
       steps: BinningSteps,
     ) => encodeBinning(r, encoder, input, pass, steps),
-    /** The software depth of `pass`'s list, after its hardware slots', then the depth both rasters
-     *  wrote so far into the pyramid's level zero: steps of the run `steps`. Returns the number of
-     *  compute dispatches encoded. */
-    encodeDepth(steps: ComputeRun, pass: RasterPass, input: GpuRasterInput) {
-      const dispatches = encodeMode(
-        r,
-        steps,
-        pass === RASTER_PASS_MAIN ? MAIN_ONLY : POST_ONLY,
-        MODE_DEPTH,
-      )
+    /** The software depth of `pass`'s list, after its hardware slots': steps of the run `steps`.
+     *  Returns the number of compute dispatches encoded. */
+    encodeDepth: (steps: ComputeRun, pass: RasterPass) =>
+      encodeMode(r, steps, pass === RASTER_PASS_MAIN ? MAIN_ONLY : POST_ONLY, MODE_DEPTH),
+    /** The depth both rasters wrote so far, exported into the pyramid's level zero in a dispatch of
+     *  its own: for a build that reads level zero (the primed pyramid's); the image's own build
+     *  reads the buffer itself (`GpuHiz.encodeFromWork`). Returns the dispatches encoded. */
+    exportDepth(steps: ComputeRun, input: GpuRasterInput) {
       r.exported.encodeDepth(steps, input)
-      return dispatches + 1
+      return 1
     },
     /** Keeps the tessellation of the displaced surfaces as `asked` says — its capacity, none where
      *  the image tessellates nothing: made, its pipelines asked off the frame, made again when the
@@ -192,6 +190,8 @@ function rasterApi(r: Raster, { width, height, rasters, clipping, hardware }: Ra
     hardwareGroup: bindings.hardware,
     /** The identifiers the hardware raster draws on a device without the 64-bit word. */
     hardwareIds: hardware?.view,
+    /** The visibility buffer both rasters write. */
+    work,
     /** The lists the bins write and the rasters read (`./contract.ts`). */
     get lists() {
       return r.lists

@@ -1,6 +1,7 @@
 // The persistent-view base. A view drawn beside the main one every frame keeps its own hold,
 // Hi-Z pyramid, target grant, anti-aliasing history and effect chain: the main view's hold is never
 // reset by it, and once both are sized neither asks the device anything.
+import { HOLD_WITHIN } from '../loop/hold.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
@@ -38,7 +39,7 @@ test('drawing another view every frame never resets the main view’s hold, nor 
     return held
   }
   let frames = 0
-  while (!(await frame())) assert.ok(frames++ < 8, 'the main view holds')
+  while (!(await frame())) assert.ok(frames++ < HOLD_WITHIN, 'the main view holds')
   // The side view's own pass is rigged in the background meanwhile: its targets come once, the
   // image after the visibility raster its targets span is compiled (`ensureGpuRaster`).
   for (let turn = 0; turn < 5; turn++) await new Promise(setImmediate)
@@ -46,7 +47,7 @@ test('drawing another view every frame never resets the main view’s hold, nor 
   await frame()
   // The establishment ends on its final image, drawn before the hold.
   frames = 0
-  while (!(await frame())) assert.ok(frames++ < 8, 'the main view holds again')
+  while (!(await frame())) assert.ok(frames++ < HOLD_WITHIN, 'the main view holds again')
   const made = textures.length
   for (let i = 0; i < 3; i++) assert.equal(await frame(), true, 'and stays held')
   assert.equal(textures.length, made, 'no view is sized again: no pyramid, no target is made')

@@ -9,7 +9,6 @@ import {
 } from '../../diagnostic/stage/passLabels.ts'
 import { buildComputeStage, preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import type { AnalysisLayouts } from './analysisLayouts.ts'
-import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
 import { TEXEL_TILE } from './velocityWgsl.ts'
 import { FLATTEN_TILE, type BlurVariant } from '../effects/motionBlur/motionBlurLayout.ts'
 import { velocityShader } from './nearestVelocityWgsl.ts'
@@ -267,19 +266,10 @@ function compileMeasures(
 }
 
 /**
- * The stages made at the first ask only, off the modules of the dispatches: the nearest velocity a
- * scene that draws displaced surfaces runs (`DISPLACED`, `deformWgsl.ts`), and the reprojection and
+ * The stages made at the first ask only, off the modules of the dispatches: the reprojection and
  * the shading rejection of a history that resurrects (`RESURRECTION`).
  */
 async function twinStages(device: GPUDevice, layouts: AnalysisLayouts, modules: TwinModules) {
-  const displaced = preparedOn(
-    device,
-    layouts.velocity,
-    await modules.velocity,
-    'nearestVelocity',
-    { DISPLACED: 1 },
-    'TAA_VELOCITY',
-  )
   const resurrecting = (layout: GPUBindGroupLayout, module: GPUShaderModule, entryPoint: string) =>
     preparedOn(device, layout, module, entryPoint, { RESURRECTION: 1 }, module.label)
   const rejecting = async (module: Promise<GPUShaderModule> | undefined) => {
@@ -296,25 +286,26 @@ async function twinStages(device: GPUDevice, layouts: AnalysisLayouts, modules: 
       waveHalf: await rejecting(waveHalf),
     },
   }
-  return { displaced, resurrected }
+  return { resurrected }
 }
 
 /** The nearest velocity that also flattens the motion of a blur of a variant: its own module, made
- *  at the first ask, with its displaced twin, off the frame. */
-function fusedStagesOf(device: GPUDevice, layouts: AnalysisLayouts, wpo: WpoSet) {
-  const fused = new Map<string, { flat: PreparedStage; displaced: PreparedStage }>()
+ *  at the first ask, off the frame. */
+function fusedStagesOf(device: GPUDevice, layouts: AnalysisLayouts) {
+  const fused = new Map<string, PreparedStage>()
   return (variant: BlurVariant) => {
     const key = `${variant.directions} ${variant.flat}`
     let held = fused.get(key)
     if (!held) {
       const module = device.createShaderModule({
         label: `TAA_VELOCITY ${key}`,
-        code: velocityShader(wpo, variant),
+        code: velocityShader(variant),
       })
       const layout = layouts.fusedVelocity(variant)
-      const stage = (constants?: Record<string, number>) =>
-        preparedOn(device, layout, module, 'nearestVelocity', constants, 'TAA_VELOCITY')
-      fused.set(key, (held = { flat: stage(), displaced: stage({ DISPLACED: 1 }) }))
+      fused.set(
+        key,
+        (held = preparedOn(device, layout, module, 'nearestVelocity', undefined, 'TAA_VELOCITY')),
+      )
     }
     return held
   }
@@ -324,7 +315,6 @@ function fusedStagesOf(device: GPUDevice, layouts: AnalysisLayouts, wpo: WpoSet)
 async function computePipelines(
   device: GPUDevice,
   layouts: AnalysisLayouts,
-  wpo: WpoSet,
   formats: AnalysisFormats,
 ) {
   const { guide, color, mask, luma } = formats
@@ -333,7 +323,7 @@ async function computePipelines(
   // choice of it (`taaExecutionOf`, `waveOps.ts`): the one a device that runs it has.
   const wave = rejectionWaveOf(taaExecutionOf(device, true, REJECT_SHADING_TILE, false).wave)
   const modules: TwinModules = {
-    velocity: createCheckedShaderModule(device, velocityShader(wpo), 'TAA_VELOCITY'),
+    velocity: createCheckedShaderModule(device, velocityShader(), 'TAA_VELOCITY'),
     reproject: createCheckedShaderModule(device, reprojectShader(guide), 'TAA_REPROJECT'),
     reject: shaderFamily(
       device,
@@ -350,7 +340,7 @@ async function computePipelines(
     compileDispatches(device, layouts, formats, modules, half),
     compileMeasures(device, layouts, formats),
   ])
-  const { displaced, resurrected } = await twinStages(device, layouts, modules)
+  const { resurrected } = await twinStages(device, layouts, modules)
   return {
     pipelines: {
       nearest: built(velocity),
@@ -363,10 +353,9 @@ async function computePipelines(
     measures: { luma: built(measureLuma), coverage: built(measureCoverage) },
     resurrected,
     antiAliasHalf: antiAliasHalf && built(antiAliasHalf),
-    displaced,
     /** The nearest velocity's stages that also flatten the motion of a blur of `variant`, made at
      *  the first ask. */
-    fused: fusedStagesOf(device, layouts, wpo),
+    fused: fusedStagesOf(device, layouts),
     /** Asks the programs of a history that resurrects, compiled off the thread. */
     askResurrection: () => {
       resurrected.reproject.ask()
@@ -425,8 +414,7 @@ function dispatchStages({
  * The analysis's programs: its dispatches' compute pipelines (`stages`), in the order of their
  * `DISPATCHES`, each with the reprojection's and the shading rejection's of a history that
  * resurrects (asked only by one) and the 16-bit twins of the shading rejection (its resurrecting
- * one too), of the flicker measure and the anti-aliaser where the device grants 16-bit shader floats; the nearest velocity's pipeline for an image that draws displaced surfaces
- * (`displaced`, asked only by one); the reprojection and the shading rejection store the shading
+ * one too), of the flicker measure and the anti-aliaser where the device grants 16-bit shader floats; the reprojection and the shading rejection store the shading
  * histories in `formats.guide`, the shading rejection the scene colour in `formats.color`; the
  * spatial anti-aliaser's, last, stores to a target of `formats.antiAlias`.
  */
@@ -434,15 +422,13 @@ export async function createAnalysisPipelines(
   device: GPUDevice,
   layouts: AnalysisLayouts,
   formats: AnalysisFormats,
-  wpo: WpoSet = NO_WPO,
 ) {
-  const compiled = await computePipelines(device, layouts, wpo, formats)
-  const { measures, displaced, fused, askResurrection } = compiled
+  const compiled = await computePipelines(device, layouts, formats)
+  const { measures, fused, askResurrection } = compiled
   return {
     stages: dispatchStages(compiled),
     /** The measures taken before the translucency, encoded apart (`TaaAnalysis.measure`). */
     measures,
-    displaced,
     fused,
     askResurrection,
   }

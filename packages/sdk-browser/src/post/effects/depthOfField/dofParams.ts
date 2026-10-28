@@ -194,7 +194,8 @@ export const dilateStep = (multiplier: number): DofStepInput => ({
 export function reduceStep(plan: DofPlan, inputMip: number): DofStepInput {
   const [px, py] = plan.pre
   const level = 2 ** inputMip
-  const quarter = [Math.floor(px / 2), Math.floor(py / 2)]
+  // The region of the quarter-size copy the setup writes: the rounded-up half of the setup's size.
+  const quarter = [ceilDiv(px, 2), ceilDiv(py, 2)]
   return {
     a: [
       (quarter[0] - 0.5) / (px - 0.5),

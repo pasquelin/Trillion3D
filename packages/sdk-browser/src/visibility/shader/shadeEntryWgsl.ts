@@ -29,7 +29,9 @@ fn probeBits(a:vec4f)->u32{return bitcast<u32>(a.x+a.y+a.z+a.w);}
  if(!shadesPixel(at)){return;}
  let id=textureLoad(vis,vec2i(at.xy),0).r;
  if(SHADE_STAGE==1u){shadeSink(at.xy,id^at.z);return;}
+ // @cut pixel keep: shadeSink(at.xy,id^at.z);
  let surface=shadeSurface(vec4f(vec2f(at.xy)+0.5,0.0,1.0),id);
+ // @cut surface keep: shadeSink(at.xy,probeBits(surface.baseMetal)^probeBits(surface.normalRough)^probeBits(surface.emissiveAo)^surface.flags^surface.request^bitcast<u32>(thinOut.x+thinOut.y+thinOut.z+thinOpacity));
  if(SHADE_STAGE!=0u){
   shadeSink(at.xy,select(shadeProbe,probeBits(surface.baseMetal)^probeBits(surface.normalRough)^probeBits(surface.emissiveAo)^surface.flags^surface.request^bitcast<u32>(thinOut.x+thinOut.y+thinOut.z+thinOpacity),SHADE_STAGE==5u));
   return;

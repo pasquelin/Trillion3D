@@ -13,7 +13,7 @@ import { lightProfileResources } from '../../lightProfile/frame.ts'
 import { lightProfileStandIn } from '../../lightProfile/profileStandIn.ts'
 import { cloudShadowStandIn } from '../../atmosphere/cloudShadowStandIn.ts'
 import type { CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
-import { fieldSettingsOf, surfaceHitReads } from '../frame.ts'
+import { fieldSettingsOf, reachOf, surfaceHitReads } from '../frame.ts'
 import { noiseFrame } from '../../../frame/render/noiseFrame.ts'
 import {
   createSurfaceLighting,
@@ -21,7 +21,7 @@ import {
   settleImages,
   type SurfaceLightingState,
 } from './surfaceLighting.ts'
-import { lightInputsReady } from '../../lightInputsReady.ts'
+import { beginLighting } from './beginLighting.ts'
 
 /**
  * THE SURFACE CACHE'S LIGHTING IN THE FRAME: after the image's update of the cache (`../frame.ts`), the lights in their buffer
@@ -40,19 +40,6 @@ interface SurfaceLightingFrame {
   readonly sky: SkyLightReadSet
   readonly cloudShadow: CloudShadowSet
   readonly lightFunction: GPUTextureView
-}
-
-/**
- * Whether the lighting has begun. It does not begin before its inputs: with the shadows unlanded or the textures coarse, what it lit — and its radiosity remembered over many images —
- * would keep a residue of the instant they came. The frame stays drawn meanwhile (the cache is busy); begun, it follows the inputs as they change.
- */
-export function beginLighting(rt: WebgpuPagesRuntime, lighting: SurfaceLightingState) {
-  if (!lighting.begun && lightInputsReady(rt)) {
-    lighting.begun = true
-    lighting.begunAt = rt.run.frame
-    lighting.begunFeedback = rt.surfaceCache?.cache?.feedbackFrame ?? 0
-  }
-  return lighting.begun
 }
 
 /** Lights the surface cache for this image on `encoder`. */
@@ -97,6 +84,7 @@ export function lightSurfaceCache(
       feedback: state.feedback.buffer,
       direction: cameraForward<[number, number, number]>([0, 0, 0], frame.cam.world),
       transportEpoch: lights.store.transportEpoch,
+      meshReach: reachOf(rt, state) + state.settings.surfaceCacheCardCaptureMargin,
       probes: radianceCacheTraced(rt) || screenProbesTraced(rt) || reflectionsTraced(rt),
       image: {
         noiseFrame: noiseFrame(rt),

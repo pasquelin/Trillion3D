@@ -1,4 +1,13 @@
-import { isTimed } from './timedEncoder.ts'
+import { isTimed, TIMED_APART } from './timedEncoder.ts'
+import { gpuPassBlockOf, gpuPassStageOf } from '../../diagnostic/stage/mapping.ts'
+
+/** Whether two pass labels are in the same stage and block of the profile. */
+const sameRow = (a: string | undefined, b: string | undefined) => {
+  if (a === b) return true
+  const stage = a && gpuPassStageOf(a)
+  // A label the profile does not name is its own row: two of them are two rows.
+  return !!stage && stage === (b && gpuPassStageOf(b)) && gpuPassBlockOf(a!) === gpuPassBlockOf(b!)
+}
 
 /** What a module dispatches into: a compute pass opened when the module asks for it. */
 export type OpenPass = { readonly pass: GPUComputePassEncoder }
@@ -51,8 +60,7 @@ export class LazyComputePass implements OpenPass {
 /**
  * A run of compute passes that follow one another on an encoder, with no render pass or copy
  * between them: one pass, a dispatch after the other — the storage barriers between dispatches are
- * the device's —, except on a frame sampled for the GPU timing (`isTimed`), where each `pass` call
- * begins a pass of its own so each keeps its label and its timestamps. Held by its call site for
+ * the device's —, on a sampled frame as on any other (`isTimedApart`: the detail asks a pass for each step). Held by its call site for
  * the session; `begin` the run on the frame's encoder, ask `pass` with the descriptor of each
  * step (a constant: nothing is allocated per frame), take the encoder from `apart` for a command
  * that is no dispatch, `end` the run before anything else is encoded on the encoder.
@@ -60,20 +68,29 @@ export class LazyComputePass implements OpenPass {
 export class ComputeRun {
   private encoder: GPUCommandEncoder | undefined
   private timed = false
+  private sampled = false
   private open: GPUComputePassEncoder | undefined
+  private openLabel: string | undefined
 
   begin(encoder: GPUCommandEncoder) {
     this.encoder = encoder
-    this.timed = isTimed(encoder)
+    this.sampled = isTimed(encoder)
+    this.timed = this.sampled && (encoder as { [TIMED_APART]?: boolean })[TIMED_APART] === true
     this.open = undefined
     return this
   }
 
-  /** The pass to dispatch the step `descriptor` names into: the run's open one, or its own when timed. */
+  /** The pass to dispatch the step `descriptor` names into: the run's open one, or its own when each step is timed apart. */
   pass(descriptor: GPUComputePassDescriptor) {
-    if (this.timed) this.open?.end()
-    return (this.open =
-      this.timed || !this.open ? this.encoder!.beginComputePass(descriptor) : this.open)
+    // On a frame sampled for the timing, a step of another stage or block of the profile is a pass of its own: a pass is timed as one and its time goes to its first step's label. An unsampled frame keeps its passes.
+    const apart =
+      this.timed || (this.sampled && this.open && !sameRow(this.openLabel, descriptor.label))
+    if (apart) this.open?.end()
+    if (apart || !this.open) {
+      this.open = this.encoder!.beginComputePass(descriptor)
+      this.openLabel = descriptor.label
+    }
+    return this.open
   }
 
   /** The encoder, for a command that is not a dispatch (a copy, a clear, a render pass): the open

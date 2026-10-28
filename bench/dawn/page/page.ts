@@ -53,15 +53,32 @@ export function pageAddress(file: string, search: string) {
 }
 
 /** The page's `../runtime/engine.js`: the checkout's engine, whose `createWorld` also hands the
- *  bench each world the page makes. */
+ *  bench each world the page makes, and `animation.createMixer` each mixer (`benchMixers`). */
 const engineModule = (engine: string) => `export * from '${engine}';
-import { createWorld as engineWorld } from '${engine}';
+import { createWorld as engineWorld, animation as engineAnimation } from '${engine}';
 export function createWorld(...args) {
   const world = engineWorld(...args);
   (globalThis.benchWorlds ??= []).push(world);
   return world;
 }
+export const animation = {
+  ...engineAnimation,
+  createMixer(...args) {
+    const mixer = engineAnimation.createMixer(...args);
+    (globalThis.benchMixers ??= []).push(mixer);
+    return mixer;
+  },
+};
 `
+
+/** A mixer as the parity paths use it: the root it animates and the action of a clip. */
+export type BenchMixer = {
+  root: { animations?: unknown[] }
+  clipAction(clip: unknown): { stop(): { seek(time: number): unknown } }
+}
+
+/** The mixers the page made (`engineModule`). */
+export const benchMixers = () => (globalThis as { benchMixers?: BenchMixer[] }).benchMixers ?? []
 
 /** The scale laws' page, the one that builds their world at run time. */
 const LAWS_PAGE = join('bench', 'dawn', 'laws', 'world.html')

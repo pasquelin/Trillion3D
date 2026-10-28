@@ -50,3 +50,10 @@ test('the flag that takes no image is carried without eating the next token', ()
     '40',
   ])
 })
+
+test('the A/B images flag is the parent’s: no child takes it', () => {
+  assert.deepEqual(childArgs(['page', '--ab', 'A', 'B', '--ab-images', '--warm', '40']), [
+    '--warm',
+    '40',
+  ])
+})

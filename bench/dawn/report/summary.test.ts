@@ -62,6 +62,8 @@ test('a spread reads the median, the 95th percentile and the extremes, ignoring 
 test('a pass’s batches are one pass, and the engine’s prefix is left out', () => {
   assert.equal(passKey('vsm.render.raster 12'), 'vsm.render.raster *')
   assert.equal(passKey('Trillion3D temporal antialiasing'), 'temporal antialiasing')
+  // A material class's shading keeps its key: one row a class.
+  assert.equal(passKey('Trillion3D material shading 7'), 'material shading 7')
 })
 
 test('passes are timed once per sampled image, by their own time, absent ones as zero', () => {

@@ -9,7 +9,7 @@ import {
   type FrameSize,
 } from './renderScale.ts'
 import { displayResolutionFraction } from '../../scale/displayResolutionFraction.ts'
-import { renderExtent, type RenderScale } from '../../scale/renderScaleOption.ts'
+import { renderAllocation, renderExtent, type RenderScale } from '../../scale/renderScaleOption.ts'
 // The controller's instant drop sets the scale drawn; the rules tested hold under either.
 import { lowered, refreshControl } from '../../scale/scaleFit.fixture.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
@@ -48,12 +48,19 @@ function runtime(scale: RenderScale | undefined, allocated = DISPLAY, apart = tr
 
 const sizeOf = (rt: WebgpuPagesRuntime) => ({ ...frameSizeOf(rt, {} as FrameSize) })
 
-test('a render axis is the display at native size, else a multiple of eight', () => {
+test('a render axis is the exact fraction of the display, its targets a multiple of eight', () => {
   assert.equal(renderExtent(1117, 1), 1117, 'native size keeps an odd axis as it is')
   assert.equal(renderExtent(3456, 0.5), 1728)
-  assert.equal(renderExtent(2234, 0.5), 1120)
-  assert.equal(renderExtent(3456, 0.67), 2312)
-  assert.equal(renderExtent(12, 0.5), 8, 'never below eight')
+  assert.equal(renderExtent(2294, 0.5), 1147, 'the view is exact, never snapped')
+  assert.equal(renderExtent(2234, 0.5), 1117)
+  assert.equal(renderExtent(3456, 0.67), 2316, 'rounded up')
+  assert.equal(renderExtent(1, 0.5), 1, 'never empty')
+  assert.equal(renderAllocation(2294, 0.5), 1152, 'the targets round the view up to eight')
+  assert.equal(renderAllocation(2234, 0.5), 1120)
+  assert.equal(renderAllocation(3456, 0.67), 2320)
+  assert.equal(renderAllocation(2294, 1), 2294, 'native size keeps its axis')
+  assert.equal(renderAllocation(12, 0.5), 8)
+  assert.equal(renderAllocation(2294, 0.999), 2294, 'never past the display')
 })
 
 // The targets start at the bounds' maximum, the display colour apart; absent or `'auto'`, the
@@ -62,8 +69,8 @@ test('the targets start at the maximum, apart from the display wherever a scale 
   const native = { width: 3456, height: 2234, renderWidth: 3456, renderHeight: 2234 }
   const atDefault = {
     ...native,
-    renderWidth: renderExtent(3456, DEFAULT),
-    renderHeight: renderExtent(2234, DEFAULT),
+    renderWidth: renderAllocation(3456, DEFAULT),
+    renderHeight: renderAllocation(2234, DEFAULT),
     apart: true,
   }
   assert.deepEqual(sizeOf(runtime('auto').rt), atDefault)
@@ -72,7 +79,7 @@ test('the targets start at the maximum, apart from the display wherever a scale 
   assert.deepEqual(sizeOf(runtime({ min: 0.6, max: 0.8 }).rt), {
     ...native,
     renderWidth: 2768,
-    renderHeight: 1784,
+    renderHeight: 1792,
     apart: true,
   })
   assert.deepEqual(sizeOf(runtime(0.5).rt), {
@@ -135,7 +142,7 @@ test('without the temporal resolve, the targets are made at the bounds maximum, 
     off(auto)
     assert.deepEqual(
       [sizeOf(auto).renderWidth, sizeOf(auto).apart],
-      [renderExtent(3456, DEFAULT), true],
+      [renderAllocation(3456, DEFAULT), true],
     )
   }
 })
@@ -168,7 +175,7 @@ test('the scale read back is the size drawn; one the targets hold smaller is not
   assert.equal(control.wanted(), 0.8)
   assert.equal(control.capMemory('3456x2234'), true)
   assert.equal(control.wanted(), 0.675, 'the controller asks no more than the targets hold')
-  rt.gpu.allocatedSize = [renderExtent(3456, 0.675), renderExtent(2234, 0.675)]
+  rt.gpu.allocatedSize = [renderAllocation(3456, 0.675), renderAllocation(2234, 0.675)]
   drawFrameAt(rt, control.wanted(), true)
   assert.deepEqual([control.drawn, control.steered], [0.675, true], 'drawn whole, measured')
   for (let frame = 4; frame < 16; frame++) control.tick((frame * 1000) / 120)
@@ -196,26 +203,31 @@ test('the targets are made at the bounds maximum whatever the controller draws i
   assert.equal(control.wanted(), 0.5, 'a 40 ms frame drops to the minimum')
   assert.deepEqual(sizeOf(rt), full, 'nothing to remake')
   const bounded = runtime({ min: 0.5, max: 0.8 }).rt
-  assert.deepEqual(sizeOf(bounded), { ...full, renderWidth: 2768, renderHeight: 1784 })
+  assert.deepEqual(sizeOf(bounded), { ...full, renderWidth: 2768, renderHeight: 1792 })
 })
 
 test('a scale change within the targets draws in them in place, the Hi-Z pyramid over the same size', () => {
   const { rt, extents, control } = runtime('auto')
   drawFrameAt(rt, 0.5)
-  assert.deepEqual(rt.gpu.targetSize, [1728, 1120])
+  assert.deepEqual(rt.gpu.targetSize, [1728, 1117], 'the view is the exact fraction')
   assert.deepEqual(rt.gpu.allocatedSize, DISPLAY, 'nothing remade')
   assert.equal(control.drawn, 0.5, 'the read-back is the scale drawn')
   drawFrameAt(rt, 1)
   assert.deepEqual(rt.gpu.targetSize, DISPLAY)
   assert.equal(control.drawn, 1)
-  assert.deepEqual(extents, [[1728, 1120], DISPLAY])
+  assert.deepEqual(extents, [[1728, 1117], DISPLAY])
 })
 
 test('a fixed scale is honoured, and targets without a display apart draw whole', () => {
-  const fixed = runtime(0.6, [2072, 1344]).rt
+  const fixed = runtime(0.6, [2080, 1344]).rt
   drawFrameAt(fixed, fixed.views.active.scale.wanted())
-  assert.deepEqual(fixed.gpu.targetSize, [2072, 1344])
+  assert.deepEqual(fixed.gpu.targetSize, [2074, 1341], 'exact in targets made a multiple of eight')
   assert.equal(fixed.views.active.scale.drawn, 0.6)
+  // Targets that cannot hold the exact view (2072 < 2074): the view is what they hold, read back as that share.
+  const short = runtime(0.6, [2072, 1344]).rt
+  drawFrameAt(short, short.views.active.scale.wanted())
+  assert.deepEqual(short.gpu.targetSize, [2072, 1341])
+  assert.equal(short.views.active.scale.drawn, 2072 / 3456)
   const whole = runtime('auto', DISPLAY, false).rt
   drawFrameAt(whole, 0.5)
   assert.deepEqual(whole.gpu.targetSize, DISPLAY, 'no display colour to reconstruct into')

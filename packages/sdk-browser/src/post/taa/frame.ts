@@ -11,7 +11,7 @@ import { shownTranslucency } from '../../blend/translucency.ts'
 import { drawFrameAt, scalesTargets, taaRuns } from '../../frame/backend/state/renderScale.ts'
 import { dropTaaHistory } from './landing.ts'
 import type { MeasuredScene } from './analysis.ts'
-import type { TaaFrameState } from './frameState.ts'
+import { temporalActive, type TaaFrameState } from './frameState.ts'
 import type { TaaInputs } from './inputs.ts'
 import { followVelocity, keepImage, readVelocityInputs } from './velocityFrame.ts'
 import { taaViewCode } from '../../visibility/shader/shadeMode.ts'
@@ -358,4 +358,4 @@ export function encodeTaaPass(
 
 /** Jitter phases of the view's cycle: one without temporal accumulation. */
 export const taaPhaseCount = (rt: WebgpuPagesRuntime) =>
-  rt.gpu.temporal?.frame.active ? rt.gpu.temporal.frame.phases : 1
+  temporalActive(rt.gpu.temporal?.frame) ? rt.gpu.temporal!.frame.phases : 1

@@ -4,11 +4,15 @@ import { HIZ_SLOT_WORDS, HIZ_UNI } from './uniforms.ts'
 import { HIZ_LEVELS_FRONT_WORD, HIZ_LEVELS_PLANES_WORD } from './levelsUniform.ts'
 import type { UniformSlots } from '../../../session/memory/pools.ts'
 import { writeChangedSlots } from '../../../gpu/core/writeChanged.ts'
-import type { createHizPipelines } from './pipelines.ts'
+import type { createHizPipelines, createHizWorkPipelines } from './pipelines.ts'
+import type { HizWorkSource } from './workDepthSource.ts'
+import { VIS_UNIFORM_BYTES } from '../../../gpu/bind/bindLayout.ts'
+import type { WebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
 import type { GpuHiz } from './types.ts'
 import { sequentialEntries } from '../../../gpu/core/computeBindings.ts'
 
 export type HizPipelines = NonNullable<Awaited<ReturnType<typeof createHizPipelines>>>
+export type HizWorkPipelines = NonNullable<Awaited<ReturnType<typeof createHizWorkPipelines>>>
 
 /** What the Hi-Z's methods share (`factory.ts`, here): its kernels, its buffers, and the
  *  drawn view's pyramid `at` and its bind group. */
@@ -29,6 +33,10 @@ export type HizState = HizPipelines & {
   /** The drawn view's pyramid; another view keeps its own while this one is drawn (`swap`). */
   at: Pyramid | undefined
   bindGroup: GPUBindGroup | undefined
+  /** The image's own build over the visibility buffer (`encodeFromWork`): its kernels, and the group
+   *  of the buffer's resources with the identity that tells when one moved. */
+  work: HizWorkPipelines
+  source: { identity: WebgpuBindIdentity; group: GPUBindGroup | undefined }
 }
 
 /** The drawn pyramid's bind group, made with the pyramid, never per swap: its own views and the
@@ -126,4 +134,33 @@ export function hizPlanes(h: HizState, wanted: boolean) {
   if (h.disposed || !at || at.planes === wanted) return
   at.planes = wanted
   sendHizBuild(h, at)
+}
+
+/** The image's own build's groups: the drawn pyramid's (made with it) and the visibility buffer's
+ *  (made again when one of its resources moved), the second bound; returns the first. */
+export function bindWork(h: HizState, at: Pyramid, source: HizWorkSource) {
+  const { source: held } = h
+  const next = held.identity.next
+  next[0] = source.work
+  next[1] = source.uniform
+  next[2] = source.hardwareDepth
+  next.length = 3
+  if (held.identity.moved() || !held.group)
+    held.group = h.device.createBindGroup({
+      layout: h.work.sourceLayout,
+      entries: sequentialEntries([
+        { buffer: source.work },
+        { buffer: source.uniform, size: VIS_UNIFORM_BYTES },
+        ...(source.hardwareDepth ? [source.hardwareDepth] : []),
+      ]),
+    })
+  return (at.workGroup ??= h.device.createBindGroup({
+    layout: h.work.layout,
+    entries: sequentialEntries([
+      at.pyramidView,
+      at.level0View,
+      { buffer: h.uniforms, size: HIZ_SLOT_WORDS * 4 },
+      at.frontView,
+    ]),
+  }))
 }

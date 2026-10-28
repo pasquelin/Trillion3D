@@ -66,46 +66,42 @@ export function deviceAnswer(rt: WebgpuPagesRuntime, justEntered = false) {
 /** Whether `deviceAnswer` has an answer in flight (`ANSWERS`, or the device's refusal), read
  *  without allocating: the held frame asks it every frame. */
 export function deviceAnswering(rt: WebgpuPagesRuntime) {
-  const device = rt.gpu.device
-  if (refusalOf(rt)) return noted(device, 'device refusal')
+  if (refusalOf(rt)) return noted(rt, 'device refusal')
   for (let at = 0; at < ANSWERS.length; at++)
     if (ANSWERS[at].pending(rt)) {
       const { name } = ANSWERS[at]
-      return noted(device, typeof name === 'string' ? name : name(rt))
+      return noted(rt, typeof name === 'string' ? name : name(rt))
     }
-  return noted(device, undefined)
+  return noted(rt, undefined)
 }
 
-/** What each device's frames were last held on (`deviceAnswering`), none once it answered: read by a trace of why frames were held. Written without allocating. */
-const heldOn = new WeakMap<GPUDevice, string | undefined>()
-function noted(device: GPUDevice | undefined, name: string | undefined) {
-  if (device) heldOn.set(device, name)
+function noted(rt: WebgpuPagesRuntime, name: string | undefined) {
+  rt.run.hold.heldOn = name
   return name !== undefined
 }
 
-/** The answer `device`'s frames were last held on, none when the last frame asked had its answers. A frame held with none was held on the targets' refused size, waiting to ask it again (`frameTargetsAwaited`). */
-export const heldOnAnswer = (device: GPUDevice | undefined) => device && heldOn.get(device)
-
-/** What the last frame that entered did on a device, for a trace of why frames were drawn or held (`noteHold`); one record a device, written in place. */
-export type HoldRecord = {
-  drawn: boolean
-  frameHeld: boolean
-  heldEmpty: boolean
-  /** `drawn`, `still` (nothing moved: the previous image shown), the answer held on (`deviceAnswering`), or the targets' grant: in flight, or refused and waiting to be asked again. */
-  reason: string
-  /** For a refused grant, the frame (counted in frames entered) it is asked again at, else 0. */
-  retryAt: number
-  entered: number
-  /** Every frame that entered since the device opened, by `reason`: how many, the frame entered first and last, and how many of them reported a still image (`frameHeld`)
-   *  or no image at all (`heldEmpty`). The page sees only the frames it was told of; these are all. */
-  byReason: Record<
-    string,
-    { count: number; first: number; last: number; frameHeld: number; heldEmpty: number }
-  >
+/** What a view keeps of its frames' holds, for a trace of why frames were drawn or held (`noteHold`): the answer the last frame was held on, none once it answered (`deviceAnswering`; a frame held with none was held on the targets' refused size, waiting to ask it again, `frameTargetsAwaited`), and the last frame's record, written in place. */
+export type HoldLog = {
+  heldOn: string | undefined
+  last:
+    | {
+        drawn: boolean
+        frameHeld: boolean
+        heldEmpty: boolean
+        /** `drawn`, `still` (nothing moved: the previous image shown), the answer held on (`deviceAnswering`), or the targets' grant: in flight, or refused and waiting to be asked again. */
+        reason: string
+        /** For a refused grant, the frame (counted in frames entered) it is asked again at, else 0. */
+        retryAt: number
+        entered: number
+        /** Every frame that entered since the device opened, by `reason`: how many, the frame entered first and last, and how many of them reported a still image (`frameHeld`)
+         *  or no image at all (`heldEmpty`). The page sees only the frames it was told of; these are all. */
+        byReason: Record<
+          string,
+          { count: number; first: number; last: number; frameHeld: number; heldEmpty: number }
+        >
+      }
+    | undefined
 }
-const records = new WeakMap<GPUDevice, HoldRecord>()
-/** The device `noteHold` last wrote on: the session's handle (`claimGpuDevice`), the one every ledger is keyed by, which is not the device the world holds. A page reads the ledgers through it. */
-let lastDevice: GPUDevice | undefined
 
 /** What the frame that entered did, written in place; `answered` and `awaited` as `holdWebgpuFrame` read them. */
 export function noteHold(
@@ -116,21 +112,16 @@ export function noteHold(
 ) {
   const device = rt.gpu.device
   if (!device) return
-  let record = records.get(device)
-  if (!record)
-    records.set(
-      device,
-      (record = {
-        drawn: false,
-        frameHeld: false,
-        heldEmpty: false,
-        reason: '',
-        retryAt: 0,
-        entered: 0,
-        byReason: {},
-      }),
-    )
-  lastDevice = device
+  const log = rt.run.hold
+  const record = (log.last ??= {
+    drawn: false,
+    frameHeld: false,
+    heldEmpty: false,
+    reason: '',
+    retryAt: 0,
+    entered: 0,
+    byReason: {},
+  })
   const grant = heldTargetGrant(rt.gpu)
   record.drawn = drawn
   record.frameHeld = rt.run.frameHeld
@@ -140,7 +131,7 @@ export function noteHold(
   record.reason = drawn
     ? 'drawn'
     : !answered
-      ? (heldOnAnswer(device) ?? 'device refusal')
+      ? (log.heldOn ?? 'device refusal')
       : awaited
         ? grant && !grant.settled
           ? 'targets in flight'
@@ -158,9 +149,3 @@ export function noteHold(
   if (record.frameHeld) total.frameHeld++
   if (record.heldEmpty) total.heldEmpty++
 }
-
-/** The last frame that entered on `device`, as `noteHold` wrote it. */
-export const lastHold = (device: GPUDevice | undefined) => device && records.get(device)
-
-/** The session handle the ledgers of the frames entered last are keyed by (`noteHold`). */
-export const holdDevice = () => lastDevice

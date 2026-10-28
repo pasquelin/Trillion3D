@@ -1,3 +1,4 @@
+import { NEVER_SEEN } from '../../frame/backend/state/previousCamera.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
@@ -139,7 +140,7 @@ function createTargets(
     params,
     paramWords,
     paramInts: new Uint32Array(paramWords.buffer),
-    depthAheadFor: 0,
+    depthAheadFor: NEVER_SEEN,
     written: false,
     separate: false,
     masked: false,

@@ -69,11 +69,17 @@ export function installGpu(profile: {
     /** Resolves to it once the engine first submits to it. */
     ready: Promise<GPUDevice>
     adapter: string
+    /** The features the hardware's adapter offers, sorted. */
+    adapterFeatures: string[]
+    /** The formats of the engine's temporal textures, by label without its index, as last made. */
+    formats: Record<string, string>
   } = {
     devices: [],
     device: null,
     ready: new Promise((resolve) => (found = resolve)),
     adapter: '',
+    adapterFeatures: [],
+    formats: {},
   }
   const add = (key: keyof Counts, value = 1) => void (quietNow || (counts[key] += value))
   /** Runs `work`, the bench's own commands (its calibration, timer, captures): no frame counts them. */
@@ -147,7 +153,12 @@ export function installGpu(profile: {
     'createBuffer',
     (a) => (add('buffersMade'), add('bufferBytesMade', (a[0] as GPUBufferDescriptor).size)),
   )
-  counted(device, 'createTexture', () => add('texturesMade'))
+  counted(device, 'createTexture', (a) => {
+    add('texturesMade')
+    const { label, format } = a[0] as GPUTextureDescriptor
+    if (!quietNow && label?.startsWith('Trillion3D TAA '))
+      held.formats[label.replace(/ \d+$/, '')] = format
+  })
   counted(device, 'createBindGroup', () => add('bindGroupsMade'))
   // A render bundle is recorded on the frame its inputs moved, replayed by the others.
   counted(device, 'createRenderBundleEncoder', () => add('bundlesMade'))
@@ -163,6 +174,7 @@ export function installGpu(profile: {
     const adapter = await requestAdapter(options)
     if (!adapter) return adapter
     held.adapter = adapter.info.description || `${adapter.info.vendor} ${adapter.info.architecture}`
+    held.adapterFeatures = [...adapter.features].sort()
     return profiledAdapter(adapter, profile.limits, profile.featuresOff, (device) =>
       held.devices.push(device),
     )

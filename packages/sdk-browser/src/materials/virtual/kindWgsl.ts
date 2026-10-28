@@ -1,6 +1,6 @@
 import { WRAP_COORD_WGSL } from '../../visibility/wrapModes.ts'
 import { PAGE_FILTER_SHIFT, SLOT_BIAS_SHIFT, SLOT_BIAS_STEPS } from './page/pageTable.ts'
-import { SAMPLE_WRAP_SHIFT } from '../texture/sampling.ts'
+import { SAMPLE_SLOT_MASK, SAMPLE_WRAP_SHIFT } from '../texture/sampling.ts'
 import { SAMPLING_WGSL } from './sampling/samplingWgsl.ts'
 import { type WgslDecl, wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { bilinear4 } from '../../../../math/src/wgsl/sampling.ts'
@@ -32,7 +32,7 @@ export const levelMix = (head: string, lod: string, read: (level: string) => str
 const tileSlotText = (k: string) => `fn ${k}Slot(slot:u32)->TileSlot{
  let h=PAGE_HEADER+slot*PAGE_SLOT;
  let first=${k}Pages[h+1u];let last=${k}Pages[h+2u];let tail=${k}Pages[h+3u];let word=last>>${PAGE_FILTER_SHIFT}u;
- return TileSlot(sizeOf(${k}Pages[h]),first&0xffu,last&0xffu,${k}Pages[3]+slot*PAGE_LEVELS,tail&0xffffffu,tail>>24u,word&${(1 << SAMPLE_WRAP_SHIFT) - 1}u,word>>${SAMPLE_WRAP_SHIFT}u,f32((first>>${SLOT_BIAS_SHIFT}u)&0xffu)/${SLOT_BIAS_STEPS}.0);
+ return TileSlot(sizeOf(${k}Pages[h]),first&0xffu,last&0xffu,${k}Pages[3]+slot*PAGE_LEVELS,tail&0xffffffu,tail>>24u,word&${SAMPLE_SLOT_MASK}u,(word>>${SAMPLE_WRAP_SHIFT}u)&15u,f32((first>>${SLOT_BIAS_SHIFT}u)&0xffu)/${SLOT_BIAS_STEPS}.0);
 }
 `
 
@@ -74,17 +74,14 @@ fn ${k}Place(s:TileSlot,uv:vec2f,level:u32,word:u32,nearest:bool)->TileTap{
   let origin=placeOrigin(s.tailWord)+vec2f(tailOffset(res-s.tail),0.0);
   return poolTap(origin,rtexel,placeLayer(s.tailWord));
  }
- let res=(word>>24u)&0x7fu;
+ let res=tileEntryLevel(word);
  let rtexel=pickTexel(levelTexel(uv,levelSize(s.size,res)),nearest);
  let local=rtexel-floor(rtexel/TEXEL_TILE)*TEXEL_TILE;
  return poolTap(placeOrigin(word),local,placeLayer(word));
 }
-fn ${k}Fetch(s:TileSlot,uv:vec2f,level:u32,finest:bool,nearest:bool)->vec4f{
+fn ${k}Fetch(s:TileSlot,uv:vec2f,level:u32,nearest:bool)->vec4f{
  var word=0u;
- if(level<s.tail){
-  word=${k}Pages[${k}Entry(s,uv,level)];
-  if(finest&&word==0u){word=${k}Pages[${k}Entry(s,uv,0u)];}
- }
+ if(level<s.tail){word=${k}Pages[${k}Entry(s,uv,level)];}
  return ${k}Tap(s.tap,${k}Place(s,uv,level,word,nearest));
 }
 `
@@ -96,21 +93,21 @@ const tileLevelText = (
  *  fetch off a seam; on the seam of a repeating period — half a texel of THIS level from either
  *  edge, wider the coarser the level —, the four fetches the sampler's rule mixes, the last texel
  *  and the first, by their weights at this level. A nearest read takes the texel the fold named. */
-fn ${k}Level(s:TileSlot,uv:vec2f,level:u32,finest:bool,nearest:bool)->vec4f{
- if(!wrapRepete(s.wrap)){return ${k}Fetch(s,wrapReplie(uv,s.wrap),level,finest,nearest);}
+fn ${k}Level(s:TileSlot,uv:vec2f,level:u32,nearest:bool)->vec4f{
+ if(!wrapRepete(s.wrap)){return ${k}Fetch(s,wrapReplie(uv,s.wrap),level,nearest);}
  let t=wrapUv(uv,s.wrap,levelSize(s.size,level));
- if(!t.couture||nearest){return ${k}Fetch(s,t.proche,level,finest,nearest);}
- let s00=${k}Fetch(s,t.proche,level,finest,nearest);
- let s10=${k}Fetch(s,vec2f(t.loin.x,t.proche.y),level,finest,nearest);
- let s01=${k}Fetch(s,vec2f(t.proche.x,t.loin.y),level,finest,nearest);
- let s11=${k}Fetch(s,t.loin,level,finest,nearest);
+ if(!t.couture||nearest){return ${k}Fetch(s,t.proche,level,nearest);}
+ let s00=${k}Fetch(s,t.proche,level,nearest);
+ let s10=${k}Fetch(s,vec2f(t.loin.x,t.proche.y),level,nearest);
+ let s01=${k}Fetch(s,vec2f(t.proche.x,t.loin.y),level,nearest);
+ let s11=${k}Fetch(s,t.loin,level,nearest);
  return bilinear4(s00,s10,s01,s11,t.poids);
 }
 /** Filtered read: the two levels the footprint straddles, mixed by their share. */
 ${levelMix(
-  `fn ${k}Blend(s:TileSlot,uv:vec2f,lod:f32,nearest:bool,finest:bool)->vec4f`,
+  `fn ${k}Blend(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->vec4f`,
   'lod',
-  (level) => `${k}Level(s,uv,${level},finest,nearest)`,
+  (level) => `${k}Level(s,uv,${level},nearest)`,
 )}`
 
 /**

@@ -98,38 +98,35 @@ const VELOCITY_INPUTS_WGSL = wgslBlock(
 /**
  * The motion of a surface point, in the pass uniform's view (`view`): `lastScreenMotion` takes the
  * point `before` — where the last image had a point that is at `screen` and depth `z` in this one,
- * relative to this eye — to the last view: its device position less the last one, its depth step,
- * and `shift`, how far the point moved by itself; a point behind the last view left no trace in
- * the last image and is put off its screen. `cameraOnlyMotion` is the same for a point that did not
- * move by itself: the motion the camera's alone gives.
+ * relative to this eye — to the last view: its device position less the last one and its depth
+ * step; a point behind the last view left no trace in the last image and is put off its screen.
+ * `cameraMotion` is the same for a point that did not move by itself: the motion the camera's
+ * alone gives, `cameraOnlyMotion` its device vector.
  */
 export const CAMERA_MOTION_WGSL = wgslBlock(
   'CAMERA_MOTION_WGSL',
   [perspectiveDivide, transformHomogeneousPoint],
   `
-struct TaaMotion{velocity:vec3f,shift:f32}
-fn lastScreenMotion(screen:vec2f,z:f32,before:vec4f,shift:f32)->TaaMotion{
+fn lastScreenMotion(screen:vec2f,z:f32,before:vec4f)->vec3f{
  let prev=view.prevViewProj*before;
- if(prev.w<=0.0){return TaaMotion(vec3f(screen+vec2f(4.0),0.0),shift);}
+ if(prev.w<=0.0){return vec3f(screen+vec2f(4.0),0.0);}
  let p=perspectiveDivide(prev);
- return TaaMotion(vec3f(screen-p.xy,z-p.z),shift);
+ return vec3f(screen-p.xy,z-p.z);
 }
-fn cameraOnlyMotion(screen:vec2f,z:f32)->vec2f{
+fn cameraMotion(screen:vec2f,z:f32)->vec3f{
  let here=transformHomogeneousPoint(view.invViewProj,vec3f(screen,z));
- return lastScreenMotion(screen,z,here,0.0).velocity.xy;
-}`,
+ return lastScreenMotion(screen,z,here);
+}
+fn cameraOnlyMotion(screen:vec2f,z:f32)->vec2f{return cameraMotion(screen,z).xy;}`,
 )
 
 /**
- * What a velocity pass measures a surface point by, declared once for every pass that reads the
- * frame's surfaces (`VELOCITY_INPUT_BINDINGS`):
+ * What the velocity stage measures a surface point by (`VELOCITY_INPUT_BINDINGS`):
  * - `drawsMotion`: whether the surface at identifier `id` moves by itself — a placement whose pose
  *   moved since the last drawn frame (`placementMoved`), a deformed geometry, a surface whose offset
  *   is a motion —, whatever its size on the screen, as the visibility buffer's surfaces are measured;
  * - `surfaceMotion`: the motion of the surface point a texel shows, `moves` saying whether its own
- *   motion carries it back (`pointBefore`) before the camera's does; `texelMotion`: that of texel
- *   `p`'s surface, taken at texel `q` — the one it was found at — where it moves by itself, else
- *   at `p`'s own centre and depth, so the camera's motion alone moves it.
+ *   motion carries it back (`pointBefore`) before the camera's does.
  */
 export const SURFACE_MOTION_WGSL = wgslBlock(
   'SURFACE_MOTION_WGSL',
@@ -152,18 +149,24 @@ export const SURFACE_MOTION_WGSL = wgslBlock(
  }
  return moves;
 }
-fn surfaceMotion(screen:vec2f,z:f32,id:u32,moves:bool)->TaaMotion{
- let here=transformHomogeneousPoint(view.invViewProj,vec3f(screen,z));
- var before=here;
- if(moves){before=pointBefore(here,id);}
- var shift=0.0;
- if(here.w!=0.0&&before.w!=0.0){shift=length(perspectiveDivide(before)-perspectiveDivide(here));}
- return lastScreenMotion(screen,z,before,shift);
-}
-fn texelMotion(p:vec2i,q:vec2i,z:f32,id:u32)->TaaMotion{
- let moves=drawsMotion(id);
- return surfaceMotion(screenOfTexel(select(p,q,moves)),z,id,moves);
+fn surfaceMotion(screen:vec2f,z:f32,id:u32,moves:bool)->vec3f{
+ var before=transformHomogeneousPoint(view.invViewProj,vec3f(screen,z));
+ if(moves){before=pointBefore(before,id);}
+ return lastScreenMotion(screen,z,before);
 }`,
+)
+
+/**
+ * What the nearest velocity reads of the frame: the pass uniform and the depth. The velocity is the
+ * stage's, read as a texel (`vectors`).
+ */
+const NEAREST_INPUTS_WGSL = wgslBlock(
+  'NEAREST_INPUTS_WGSL',
+  [TAA_VIEW_WGSL],
+  `
+@group(0) @binding(${VELOCITY_INPUT_BINDINGS.view}) var<uniform> view:TaaView;
+@group(0) @binding(${VELOCITY_INPUT_BINDINGS.depth}) var depth:texture_depth_2d;
+`,
 )
 
 /**
@@ -174,15 +177,21 @@ fn texelMotion(p:vec2i,q:vec2i,z:f32,id:u32)->TaaMotion{
  *   difference and than the texel's pixel depth error (`pixelDeviceZError`) —: on a flat surface the
  *   texel keeps its own velocity, on a depth edge it takes the foreground's. The depth and its
  *   offset are packed in one word, the offset in the low four bits, so one maximum picks both;
- * - the closest surface's motion (`texelMotion`).
- * 9 depth loads, one identifier load — two where the texel takes a neighbour's velocity — and one
- * reprojection.
+ * - the velocity of the texel `at` (`velocityAt`), as the velocity stage wrote it: the vector and
+ *   depth step of its own motion, with `w` 1, where its word says it moves by itself, else the camera's alone at
+ *   the depth `z` and the centre of texel `p`, which a neighbour's static surface is dilated to.
+ * 9 depth loads and one vector load, one reprojection where the surface is static.
  */
 export const NEAREST_SURFACE_WGSL = wgslBlock(
   'NEAREST_SURFACE_WGSL',
-  [SURFACE_MOTION_WGSL, DEPTH_WGSL, TILE_CLAMP_WGSL],
+  [NEAREST_INPUTS_WGSL, CAMERA_MOTION_WGSL, REPROJECTION_VECTOR_WGSL, DEPTH_WGSL, TILE_CLAMP_WGSL],
   `fn packDepthOffset(o:vec2i,z:f32)->u32{return ((bitcast<u32>(z)<<2u)&~0xfu)|u32(1+o.x)|(u32(1+o.y)<<2u);}
-struct NearestSurface{depths:array<f32,9>,closestZ:f32,offset:vec2i,id:u32,motion:TaaMotion}
+fn velocityAt(p:vec2i,at:vec2i,z:f32)->vec4f{
+ let word=textureLoad(vectors,at,0);
+ if(hasOwnMotion(word.r)){return vec4f(decodeVector(word.r),depthStepOf(word.g),1.0);}
+ return vec4f(cameraMotion(screenOfTexel(p),z),0.0);
+}
+struct NearestSurface{depths:array<f32,9>,closestZ:f32,offset:vec2i,motion:vec4f}
 fn nearestSurface(p:vec2i)->NearestSurface{
  var z:array<f32,9>;
  for(var k=0;k<9;k++){z[k]=textureLoad(depth,clampTexel(p+vec2i(k%3-1,k/3-1)),0);}
@@ -199,11 +208,6 @@ fn nearestSurface(p:vec2i)->NearestSurface{
  }
  let closestZ=bitcast<f32>((packed&~0xfu)>>2u);
  let offset=vec2i(i32(packed&3u),i32((packed>>2u)&3u))-vec2i(1);
- let id=textureLoad(ids,p,0).r;
- // The closest neighbour's identifier, a second load only where the texel took a neighbour's.
- let q=clampTexel(p+offset);
- var nearId=id;
- if(any(q!=p)){nearId=textureLoad(ids,q,0).r;}
- return NearestSurface(z,closestZ,offset,id,texelMotion(p,q,closestZ,nearId));
+ return NearestSurface(z,closestZ,offset,velocityAt(p,clampTexel(p+offset),closestZ));
 }`,
 )

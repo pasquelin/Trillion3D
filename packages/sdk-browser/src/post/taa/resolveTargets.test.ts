@@ -25,7 +25,10 @@ import {
 /** The passes two frames begin — the second updating display layers, once its twin has compiled —,
  *  the updates compiled at preparation, and whether each target stores. */
 async function updatePasses(timed = true) {
-  const { device, computePipelines, textures, passes, computePasses } = fakeDevice({ timed })
+  const { device, computePipelines, textures, passes, computePasses } = fakeDevice({
+    timed,
+    timedApart: timed,
+  })
   const temporal = await createTemporalAntialiasing(device, createVelocity(device))
   const compiled = computePipelines
     .filter(({ compute }) => compute.entryPoint === 'resolve')
@@ -128,7 +131,7 @@ test('a frame not timed per pass encodes the analysis, the update and the resolv
 // change what they measure: the frame encodes them there (`measureBeforeTranslucency`), apart from
 // the analysis.
 test('the measures before the translucency are passes of their own, the coverage where the detection runs', async () => {
-  const { device, computePasses } = fakeDevice({ timed: true })
+  const { device, computePasses } = fakeDevice({ timed: true, timedApart: true })
   const temporal = await createTemporalAntialiasing(device, createVelocity(device))
   const view = () => ({}) as GPUTextureView
   const visibility = { ids: view(), pages: {} as GPUBuffer, flags: view(), range: 3 }

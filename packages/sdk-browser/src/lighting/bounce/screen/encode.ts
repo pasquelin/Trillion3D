@@ -6,6 +6,7 @@ import { REFLECTION_GROUP } from '../../reflections/viewLayout.ts'
 import type { ScreenProbeGroups } from './groups.ts'
 import type { CastKernels, ScreenProbeKernels } from './kernels.ts'
 import type { ScreenProbeResources } from './resources.ts'
+import type { ScreenProbeGeometry } from './screenProbeLayout.ts'
 import { CLASSIFIED_POINTS } from './integratePassWgsl.ts'
 import {
   INTEGRATE_TILE_SIDE,
@@ -14,6 +15,8 @@ import {
   gatherMipSide,
   integrateArgsAt,
 } from './screenProbeLayout.ts'
+import type { MeshStageRun } from './meshStage.ts'
+import { TRACE_MESH_GROUP } from './traceMeshWgsl.ts'
 import type { TracedSceneGroups } from './traceGroups.ts'
 import { TRACE_TRACED_SCENE } from './traceTracedWgsl.ts'
 
@@ -31,12 +34,16 @@ export interface ScreenProbeRun {
   cache?: Pick<RadianceCache, 'encode'>
   /** The scene stage that casts the rays through the scene's triangles, where this image has it (`tracedSceneOf`): none, the rays are marched. */
   traced?: TracedSceneGroups
+  /** The meshes' fields stage (`meshStageOf`), where this image traces them for the probes the scene stage marches through the global field: dispatched before it. */
+  meshes?: MeshStageRun
+  /** A stage a pass of the frame adds once the rays are traced and filtered (`ScreenProbeStage`), where its kernel is compiled: dispatched over the scene stage's group 0. */
+  stage?: { pipeline: GPUComputePipeline; encode(pass: GPUComputePassEncoder): void }
 }
 
-/** What the passes over the probes are made of: the run of a level that casts them, its kernels and groups over the probes. */
+/** What the passes over the probes are made of: the run, its kernels and groups over the probes. */
 export type CastRun = Omit<ScreenProbeRun, 'kernels' | 'groups'> & {
   kernels: CastKernels
-  groups: NonNullable<ScreenProbeGroups['cast']>
+  groups: ScreenProbeGroups['cast']
 }
 
 /** The bytes at which the arguments of the kernels over the probes in use and over their texels start. */
@@ -108,7 +115,7 @@ function chooseRays(pass: GPUComputePassEncoder, run: CastRun) {
  *  then the radiance cache's answer to the rays it left (`traceFar`, over the march's group). The scene stages read the part of the reflection group
  *  that is theirs (`run.sceneReflection`), set before them and the whole group set back after, for the kernels that follow. */
 function traceScene(pass: GPUComputePassEncoder, run: CastRun) {
-  const { groups, kernels, resources, traced } = run
+  const { groups, kernels, resources, traced, meshes } = run
   const { sceneRays } = resources
   pass.setBindGroup(REFLECTION_GROUP, run.sceneReflection)
   if (traced) {
@@ -118,9 +125,23 @@ function traceScene(pass: GPUComputePassEncoder, run: CastRun) {
     pass.dispatchWorkgroupsIndirect(sceneRays, 0)
     dispatchOver(pass, kernels.traceScene.pipelines.traceFar, groups.traceScene, sceneRays, 0)
   } else {
+    if (meshes) {
+      pass.setPipeline(meshes.pipeline)
+      pass.setBindGroup(0, groups.traceScene)
+      pass.setBindGroup(TRACE_MESH_GROUP, meshes.group)
+      pass.dispatchWorkgroupsIndirect(sceneRays, 0)
+    }
     dispatchOver(pass, kernels.traceScene.pipelines.traceScene, groups.traceScene, sceneRays, 0)
   }
   pass.setBindGroup(REFLECTION_GROUP, run.reflection)
+}
+
+/** The stage a pass of the frame added, over the scene stage's group 0 and the whole reflection group the pass holds. */
+function addedStage(pass: GPUComputePassEncoder, run: ScreenProbeRun, cast: CastRun) {
+  if (!run.stage) return
+  pass.setPipeline(run.stage.pipeline)
+  pass.setBindGroup(0, cast.groups.traceScene)
+  run.stage.encode(pass)
 }
 
 /** The levels of the gathered radiance with their border: the finest level's border fixed up from the filtered radiance, then, where the gather holds
@@ -161,17 +182,13 @@ function traceAndFilter(pass: GPUComputePassEncoder, run: CastRun) {
   gatherLevels(pass, run)
 }
 
-/** The integration of the probes the pixels read, where the level casts them: where the tiles are classified, the tiles of cells (pixels, or one in each two by two block where the integration is downsampled) classified
+/** The integration of the probes the pixels read: where the tiles are classified, the tiles of cells (pixels, or one in each two by two block where the integration is downsampled) classified
  *  by the most complete mode their pixels need (a tile with no lit pixel cleared), then the integration of the tiles of each mode, dispatched over the workgroups the classification counted;
  *  else one integration over every cell. */
-function integratePixels(
-  pass: GPUComputePassEncoder,
-  run: ScreenProbeRun,
-  cast: CastRun | undefined,
-) {
+function integratePixels(pass: GPUComputePassEncoder, run: ScreenProbeRun, cast: CastRun) {
   const { geometry: g, tileArgs } = run.resources
   const { tile, integrate } = run.groups
-  if (!cast || !integrate) return
+  if (!integrate) return
   const { tile: classify, integrate: modes, integrateEvery } = cast.kernels
   const reduction = run.settings.integrateDownsample
   const cells = [
@@ -190,24 +207,54 @@ function integratePixels(
   }
 }
 
-/** The pixels: the short-range occlusion is searched, the probes they read integrated — where the level casts them — the texel each reads of that integration picked where it is downsampled, and the temporal pass blends
+/** The short-range occlusion's pass over an image of the geometry `g`, a thread a texel of the image over `downsample`. */
+function dispatchOcclusion(
+  pass: GPUComputePassEncoder,
+  pipeline: GPUComputePipeline,
+  group: GPUBindGroup,
+  g: Pick<ScreenProbeGeometry, 'width' | 'height'>,
+  downsample: number,
+) {
+  dispatch(
+    pass,
+    pipeline,
+    group,
+    ceilDiv(ceilDiv(g.width, downsample), 8),
+    ceilDiv(ceilDiv(g.height, downsample), 8),
+  )
+}
+
+/** The short-range occlusion alone, in a compute pass of its own with the reflection group `reflection` set: the irradiance field's (`encodeFieldOcclusion`). */
+export function encodeOcclusionOnly(
+  encoder: GPUCommandEncoder,
+  reflection: GPUBindGroup,
+  pipeline: GPUComputePipeline,
+  group: GPUBindGroup,
+  g: Pick<ScreenProbeGeometry, 'width' | 'height'>,
+  downsample: number,
+) {
+  const pass = encoder.beginComputePass({ label: SCREEN_PROBE_PASS })
+  pass.setBindGroup(REFLECTION_GROUP, reflection)
+  dispatchOcclusion(pass, pipeline, group, g, downsample)
+  pass.end()
+}
+
+/** The pixels: the short-range occlusion is searched, the probes they read integrated, the texel each reads of that integration picked where it is downsampled, and the temporal pass blends
  *  the light with its history, writing what the lighting reads. */
-function shadePixels(pass: GPUComputePassEncoder, run: ScreenProbeRun, cast: CastRun | undefined) {
+function shadePixels(pass: GPUComputePassEncoder, run: ScreenProbeRun, cast: CastRun) {
   const { geometry: g } = run.resources
   const { groups, kernels, settings } = run
   const image = [ceilDiv(g.width, 8), ceilDiv(g.height, 8)] as const
-  if (settings.occlusion) {
-    const d = settings.occlusionDownsample
-    dispatch(
+  if (settings.occlusion)
+    dispatchOcclusion(
       pass,
       kernels.occlusion.pipelines.occlusion,
       groups.occlusion,
-      ceilDiv(ceilDiv(g.width, d), 8),
-      ceilDiv(ceilDiv(g.height, d), 8),
+      g,
+      settings.occlusionDownsample,
     )
-  }
   integratePixels(pass, run, cast)
-  if (cast?.kernels.stochastic && run.groups.stochastic)
+  if (cast.kernels.stochastic && run.groups.stochastic)
     dispatch(
       pass,
       cast.kernels.stochastic.pipelines.stochasticOffsets,
@@ -224,22 +271,20 @@ function beginPass(encoder: GPUCommandEncoder, run: ScreenProbeRun) {
   return pass
 }
 
-/** The run of a level that casts probes, or none where it casts none: made once an image, at its placement. */
-function castOf(run: ScreenProbeRun): CastRun | undefined {
-  const { cast: kernels } = run.kernels,
-    { cast: groups } = run.groups
-  return kernels && groups ? { ...run, kernels, groups } : undefined
-}
+/** The run over the probes: made once an image, at its placement. */
+const castOf = (run: ScreenProbeRun): CastRun => ({
+  ...run,
+  kernels: run.kernels.cast,
+  groups: run.groups.cast,
+})
 
 /**
  * THE FIRST HALF OF AN IMAGE OF THE SCREEN PROBES, in a compute pass of its own: the list of the rays the screen leaves emptied, then
- * the placement and what the pixels ask of the probes' rays. Nothing is encoded for a level that casts no probe; the answer is the run of the probes placed, none where the level
- * casts none, which `encodeProbeTrace` takes. What follows the placement — the probe pool's marks of the cells the probes stand in,
+ * the placement and what the pixels ask of the probes' rays. The answer is the run of the probes placed, which `encodeProbeTrace` takes. What follows the placement — the probe pool's marks of the cells the probes stand in,
  * in passes of its own — is encoded between the two.
  */
 export function encodeProbePlacement(encoder: GPUCommandEncoder, run: ScreenProbeRun) {
   const cast = castOf(run)
-  if (!cast) return undefined
   encoder.copyBufferToBuffer(run.resources.listHead, 0, run.resources.sceneRays, 0, 16)
   const pass = beginPass(encoder, run)
   placeProbes(pass, cast)
@@ -248,22 +293,16 @@ export function encodeProbePlacement(encoder: GPUCommandEncoder, run: ScreenProb
 }
 
 /**
- * THE SECOND HALF OF AN IMAGE OF THE SCREEN PROBES, in a compute pass of its own: the choice of the rays, the trace, the filter — the
- * levels that cast probes —, the short-range occlusion, the integration of the probes the pixels read (over the tiles it lists) and the temporal pass, which blends it. The reflection group — the depth
+ * THE SECOND HALF OF AN IMAGE OF THE SCREEN PROBES, in a compute pass of its own: the choice of the rays, the trace, the filter, the short-range occlusion, the integration of the probes the pixels read (over the tiles it lists) and the temporal pass, which blends it. The reflection group — the depth
  * pyramid, the last lit image, the lighting's view — is group 1 of every kernel. The kernels over the probes are dispatched over the
  * atlas's rows that hold one (`probeArgs`), the scene's over the rays listed. The result is the history of this image's turn
  * (`ScreenProbeResources.history`), which the lighting reads. `cast` is the run of the probes the placement answered.
  */
-export function encodeProbeTrace(
-  encoder: GPUCommandEncoder,
-  run: ScreenProbeRun,
-  cast: CastRun | undefined,
-) {
+export function encodeProbeTrace(encoder: GPUCommandEncoder, run: ScreenProbeRun, cast: CastRun) {
   const pass = beginPass(encoder, run)
-  if (cast) {
-    chooseRays(pass, cast)
-    traceAndFilter(pass, cast)
-  }
+  chooseRays(pass, cast)
+  traceAndFilter(pass, cast)
+  addedStage(pass, run, cast)
   shadePixels(pass, run, cast)
   pass.end()
 }

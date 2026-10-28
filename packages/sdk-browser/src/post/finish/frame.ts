@@ -17,11 +17,18 @@ import { beautyImage, wantsContractLighting } from '../../frame/prepare/lit.ts'
 import { wanted } from './wanted.ts'
 import { noiseFrame } from '../../frame/render/noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { EXPOSURE_AT, exposureMeasured, exposureSettings } from '../exposure/frame.ts'
+import {
+  EXPOSURE_AT,
+  exposureMeasured,
+  exposureSettings,
+  localCurvesSet,
+} from '../exposure/frame.ts'
+import { createExposureMeter } from '../exposure/meter.ts'
+import { preExposureOf } from '../exposure/pre.ts'
 import { localExposureOn } from '../exposure/meterParams.ts'
 import type { FusedBlend } from '../effects/webgpuKinds.ts'
 import type { SceneChain } from '../filters/sceneChain.ts'
-import { createFinish, GREY_BYTE, type PostFrame } from './finish.ts'
+import { createFinish, GREY_BYTE, SCALES_BYTE, type PostFrame } from './finish.ts'
 import { grainOn } from './filmParams.ts'
 import { lensOf, type FinishInput } from './finishParams.ts'
 import { askLocalPrograms, localProgramsReady } from './local.ts'
@@ -69,7 +76,8 @@ export function askFinish(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /** The local exposure's programs once its settings ask for it, on the beauty image, lit or not yet (`askGlobalPasses`). */
 export function askLocalExposure(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  if (beautyImage(rt) && localExposureOn(exposureSettings(rt))) askLocalPrograms(device)
+  if (beautyImage(rt) && localExposureOn(exposureSettings(rt), localCurvesSet(rt)))
+    askLocalPrograms(device)
 }
 
 /** Whether the finishing's film grain is drawn: its pattern follows the image's number, so a view
@@ -121,7 +129,22 @@ export function beginFinishScene(
   if (!exposureMeasured(rt) && !wanted(rt)) return undefined
   const finish = (gpu.finish ??= createFinish(device))
   const wide = readTemporalSetting(rt, 'temporalDownsampleQuality') === 'high'
-  finish.scene.begin(encoder, image, size[0], size[1], half, wide)
+  // The basic exposure method's setup goes into the chain as the reference's does, so that one chain serves every reader.
+  const settings = exposureSettings(rt)
+  const basic = exposureMeasured(rt) && settings.exposureMethod === 'basic'
+  const meter = basic ? (gpu.exposure ??= createExposureMeter(device)) : undefined
+  finish.scene.begin(encoder, image, size[0], size[1], half, wide, meter?.logLuma)
+  // The local exposure's grid and blurred luminance are drawn here, before the exposure is metered: they read the chain, never the exposure.
+  finish.localDrawn =
+    wanted(rt) && localExposureOn(settings, localCurvesSet(rt)) && localProgramsReady(device)
+  if (finish.localDrawn)
+    finish.local.encode(
+      encoder,
+      finish.scene,
+      settings.localExposureBlurSize,
+      settings.localExposureBlurBlend > 0,
+      blurSettings(rt),
+    )
   return finish.scene
 }
 
@@ -150,17 +173,12 @@ export function encodeFinish(
   Object.assign(finish.usedFilm, filmSettings(rt))
   Object.assign(finish.usedBlur, blurSettings(rt))
   written.settings = settings
+  written.preExposure = preExposureOf(rt).now
   finish.copyExposure(encoder, gpu.deferred.uniform, EXPOSURE_AT)
   gpu.exposure?.copyGrey(encoder, finish.uniform, GREY_BYTE)
-  const local = localExposureOn(settings) && localProgramsReady(device)
-  if (local)
-    finish.local.encode(
-      encoder,
-      finish.scene,
-      settings.localExposureBlurSize,
-      settings.localExposureBlurBlend > 0,
-      finish.usedBlur,
-    )
+  gpu.exposure?.copyScales(encoder, finish.uniform, SCALES_BYTE)
+  const local = finish.localDrawn
+  finish.localDrawn = false
   shared.scene = scene
   shared.uniform = finish.uniform
   shared.bare = finish.bare

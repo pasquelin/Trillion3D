@@ -15,8 +15,9 @@ import { engineRoot } from '../page/engineRoot.ts'
 import { ms, percent } from './reportText.ts'
 import { table } from '../../core/table.ts'
 
-/** One play of `root`'s engine on `page`: its numbers. */
-function play(options: BenchOptions, page: string, root: string, out: string, tag: string) {
+/** One play of `root`'s engine on `page`: its numbers. A verdict reads times, so no image is taken, none left behind
+ *  — unless `report` names where the play's images go (`abImages`). */
+function play(options: BenchOptions, page: string, root: string, report: string, images = false) {
   return playChild(
     [
       page,
@@ -25,11 +26,10 @@ function play(options: BenchOptions, page: string, root: string, out: string, ta
       '--engine',
       root,
       ...childArgs(process.argv.slice(2)),
-      // A verdict reads times: no image is taken, none left behind.
-      '--no-capture',
+      ...(images ? [] : ['--no-capture']),
     ],
     {},
-    join(out, `${stamp()}-ab-${tag}.json`),
+    report,
     `BENCH_AB: a play of ${root}`,
     options.timeoutS,
   )
@@ -84,7 +84,12 @@ export async function abTest(
       console.error(`ab: round ${round + 1}/${rounds}, ${side.toUpperCase()}`)
       try {
         plays[side].push(
-          await play(options, page, side === 'a' ? a : b, out, `${side}${round + 1}`),
+          await play(
+            options,
+            page,
+            side === 'a' ? a : b,
+            join(out, `${stamp()}-ab-${side}${round + 1}.json`),
+          ),
         )
       } catch (error) {
         stopped = `round ${round + 1} stopped: ${(error as Error).message}`
@@ -143,4 +148,52 @@ function abText(
     ),
     '',
   ].join('\n')
+}
+
+/**
+ * `--ab-images`: one play of each engine, its images kept — the same scenario, the clock frozen while the
+ * pages load (`settleLoading`) and the same frames asked for on both sides, so the two sides' images
+ * are the same views, to the extent the engines are deterministic (a noise or a dither the two seed alike) — in `<dir>/a` and `<dir>/b`, under the same names. The pairs are read by
+ * `.mesure/chef/abImages.ts`. The frame times of the two plays are listed, one play each: a gain
+ * is read by the rounds (`abTest`), not by these.
+ */
+export async function abImages(options: BenchOptions, sides: [string, string]) {
+  if (options.noCapture || options.cpuProfile)
+    throw new Error('BENCH_AB: --ab-images takes images: not with --no-capture or --cpu-profile')
+  if (!options.scenario.segments.some((segment) => segment.capture))
+    throw new Error(`BENCH_AB: the scenario ${options.scenario.name} captures no segment`)
+  const [a, b] = sides.map((side) => engineRoot(side, options.dirtyOk).root)
+  const dir = join(measureOutput('bench-gpu'), `${stamp()}-ab-images-${options.name}`)
+  const plays = new Map<string, BenchPlay>()
+  for (const [side, root] of [
+    ['a', a],
+    ['b', b],
+  ] as const) {
+    mkdirSync(join(dir, side), { recursive: true })
+    console.error(`ab-images: ${side.toUpperCase()}`)
+    // The images are named after the report: `play-<segment>.png` in the side's folder, the same on both.
+    const done = await play(options, options.file, root, join(dir, side, 'play.json'), true)
+    plays.set(side, done)
+  }
+  const rows = plays.get('a')!.segments.map((segment) => {
+    const other = plays.get('b')!.segments.find((s) => s.name === segment.name)
+    return [
+      segment.name,
+      ms(segment.numbers.gpuMs?.median ?? Number.NaN),
+      ms(other?.numbers.gpuMs?.median ?? Number.NaN),
+    ]
+  })
+  const text = [
+    `# A/B images — ${options.name}, scenario ${options.scenario.name}`,
+    '',
+    `A: ${a}`,
+    `B: ${b}`,
+    '',
+    table(['segment', 'A ms', 'B ms'], rows),
+    '',
+    `Images: ${dir}/a and ${dir}/b. Compare: node .mesure/chef/abImages.ts ${dir}/a ${dir}/b`,
+    '',
+  ].join('\n')
+  writeFileSync(`${dir}/ab-images.md`, text)
+  return { dir, text }
 }

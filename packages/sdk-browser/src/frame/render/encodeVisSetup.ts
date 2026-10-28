@@ -1,4 +1,5 @@
 import type { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
+import type { HizWorkSource } from '../../visibility/hiz/gpu/workDepthSource.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { surfaceColorAttachments } from '../prepare/attachments.ts'
 import { createGpuRaster } from '../../visibility/raster/raster.ts'
@@ -132,11 +133,11 @@ function rasterStages(
   size: WebgpuPagesRuntime['gpu']['targetSize'],
 ) {
   const { run } = rt
+  const depthSource = {} as HizWorkSource
   return {
     occluders(encoder: GPUCommandEncoder, steps: ComputeRun) {
       encodeHardwareRaster(rt, device, encoder, VISIBILITY_PRIMARY_PASS, false)
-      // The pyramid's level zero is exported from the buffer after each pass's depth: one dispatch.
-      run.gpuComputeDispatches += raster.encodeDepth(steps, RASTER_PASS_MAIN, input)
+      run.gpuComputeDispatches += raster.encodeDepth(steps, RASTER_PASS_MAIN)
     },
     rest(encoder: GPUCommandEncoder, steps: ComputeRun) {
       // Called once the cut's post pass returned: its clusters are in the list. Their decode and
@@ -148,7 +149,20 @@ function rasterStages(
         binningSteps(rt, RASTER_PASS_POST),
       )
       encodeHardwareRaster(rt, device, encoder, VISIBILITY_SECONDARY_PASS, true)
-      run.gpuComputeDispatches += raster.encodeDepth(steps, RASTER_PASS_POST, input)
+      run.gpuComputeDispatches += raster.encodeDepth(steps, RASTER_PASS_POST)
+    },
+    /** The depth so far, exported into the pyramid's level zero, for the primed pyramid's build,
+     *  which reads it there. */
+    exportDepth(steps: ComputeRun) {
+      run.gpuComputeDispatches += raster.exportDepth(steps, input)
+    },
+    /** What the image's own build of the pyramid reads of the buffer (`GpuHiz.encodeFromWork`), read
+     *  as the pass encodes. */
+    get depthSource() {
+      depthSource.work = raster.work
+      depthSource.uniform = input.uniform
+      depthSource.hardwareDepth = raster.wide ? undefined : input.depthView
+      return depthSource
     },
     close(encoder: GPUCommandEncoder, post: boolean) {
       run.gpuComputeDispatches += raster.encodeClose(encoder, input, size, post)
@@ -163,10 +177,9 @@ function rasterStages(
  * to interleave with the cut's two passes (`../../visibility/passes/passes.ts`): each runs the
  * hardware raster's slots, then the software raster's clusters, into the one visibility buffer
  * (`visWriteWgsl`) —
- * - `occluders`: the main pass's depth, the clusters the cut listed before its post pass, then
- *   the pyramid's level zero from it (the export);
- * - `rest`: once the cut's post pass listed its own, their decode and binning, their depth, then
- *   level zero again from the whole depth;
+ * - `occluders`: the main pass's depth, the clusters the cut listed before its post pass;
+ * - `rest`: once the cut's post pass listed its own, their decode and binning, their depth;
+ *   the pyramid's builds read the buffer (`depthSource`) and write level zero as they go;
  * - `close(post)`: on a device without the 64-bit atomic maximum, the software identifiers of
  *   everything drawn — the post pass's too when `post` —, once every depth is down; then the
  *   export of the buffer into the identifiers and the scene's depth.

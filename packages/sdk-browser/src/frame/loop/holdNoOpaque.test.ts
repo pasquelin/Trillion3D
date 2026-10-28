@@ -5,7 +5,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { unsettledMask, unsettledReasons } from './unsettled.ts'
-import { settledRt } from './hold.fixture.ts'
+import { HOLD_WITHIN, settledRt } from './hold.fixture.ts'
 import { installGpuGlobals } from '../../../../../tests/kit/fakeDevice/globals.ts'
 import { camera, flushedGpuScene, quadScene } from '../backend/testScenes.fixture.ts'
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
@@ -27,7 +27,7 @@ test('a view without a packed opaque page owes no occluder history', () => {
 /** Renders the still view as a host does, frame after frame; the index of the first held one. A
  *  few frames to settle the cut. */
 async function firstHeld(backend: Awaited<ReturnType<typeof flushedGpuScene>>['backend']) {
-  for (let frame = 0; frame < 8; frame++) {
+  for (let frame = 0; frame < HOLD_WITHIN; frame++) {
     backend.render(camera())
     await backend.flush()
     if (backend.metrics().frameHeld) return frame

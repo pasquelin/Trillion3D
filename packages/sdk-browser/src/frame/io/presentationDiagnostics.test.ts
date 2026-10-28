@@ -98,9 +98,10 @@ test('trace diagnostics retain one bounded snapshot for every rendered frame', a
     // nothing to converge and yields nothing.
     const frames = events.filter((event) => event.phase === 'frame')
     assert.equal(frames.length, 2)
+    // The first image drawn is number 0 (the number moves after the image encodes); consecutive.
     assert.deepEqual(
       frames.map((event) => event.context.frame),
-      [1, 2],
+      [0, 1],
     )
     assert.ok(frames.every((event) => typeof event.context.submission === 'number'))
     assert.ok(

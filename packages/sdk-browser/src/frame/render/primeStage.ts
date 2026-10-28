@@ -115,6 +115,7 @@ function encodeDepth(rt: WebgpuPagesRuntime, draw: PrimeDraw, encoder: GPUComman
   // per pass.
   const steps = primeSteps.begin(encoder)
   stages.occluders(encoder, steps)
+  stages.exportDepth(steps)
   const hiz = prepared(vis, 'gpuHiz')
   hiz.extent(gpu.targetSize[0], gpu.targetSize[1])
   const built = hiz.encodePrimed(pyramidPass.begin(steps), {

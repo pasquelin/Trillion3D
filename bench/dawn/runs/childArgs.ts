@@ -19,8 +19,8 @@ const PARENT = new Set([
   '--child-report',
   '--repeat',
 ])
-/** Flags the parent keeps to itself: the machine is measured once, not by every child. */
-const ALONE = new Set(['--recalibrate'])
+/** Flags the parent keeps to itself: the machine is measured once, not by every child, and the mode of the run is the parent's. */
+const ALONE = new Set(['--recalibrate', '--ab-images'])
 
 /** `args` (the run's own, page included) less what the parent decides. */
 export function childArgs(args: readonly string[]) {

@@ -106,6 +106,7 @@ function slotMethods(a: AtlasState) {
       a.textures[slot] = texture
       try {
         relayout(a, a.pages.words[0], slot)
+        a.pages.setSiblings(slot, texture.siblings ?? [])
       } catch (error) {
         if (previous) a.textures[slot] = previous
         else a.textures.pop()
@@ -228,6 +229,9 @@ export function createWebgpuTileAtlas(device: GPUDevice, options: AtlasOptions):
     refused: 0,
   }
   slotUse.layout(lanePoolsOf(a))
+  textures.forEach((texture, slot) => {
+    a.pages.setSiblings(slot, texture.siblings ?? [])
+  })
   const tails = createTailPins({
     textures,
     encoding,

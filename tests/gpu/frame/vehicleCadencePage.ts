@@ -16,6 +16,41 @@ import { length3 } from '../../../packages/math/src/vector/vector.ts'
 import { measurementSdk, proofCanvas } from '../../kit/device/renderHarness.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { catchDevice, playDisplay, REFRESH } from './playedDisplay.ts'
+// The engine's own source modules: the same instances the measured world runs, so the ledger of compiles in flight is the world's.
+import {
+  heldOnAnswer,
+  lastHold,
+} from '../../../packages/sdk-browser/src/frame/loop/deviceAnswer.fixture.ts'
+import { heldCompiles } from '../../../packages/sdk-browser/src/lighting/deferred/compileLedger.ts'
+import {
+  unsettledMask,
+  unsettledReasons,
+} from '../../../packages/sdk-browser/src/frame/loop/unsettled.ts'
+import { families } from '../../../packages/sdk-browser/src/session/host/families.ts'
+import {
+  createWebgpuPagesRuntime,
+  type WebgpuPagesRuntime,
+} from '../../../packages/sdk-browser/src/frame/backend/runtime.ts'
+import { revisionCalls, traceRevisions } from '../world/resourceTrace.ts'
+
+// Diagnostic, removable: the runtime of the world (the renderer family hands the session a factory that makes it), traced for who moves its resources' revision and read for the
+// reasons a view is unsettled.
+let runtime: WebgpuPagesRuntime | undefined
+const family = families.webgpu
+const familyGet = family.get.bind(family)
+family.get = () => {
+  const code = familyGet()
+  return (
+    code && {
+      ...code,
+      webgpuPagesEngine: ((context: never) => {
+        runtime = createWebgpuPagesRuntime(context)
+        traceRevisions(runtime.run)
+        return code.webgpuPagesEngine(context, runtime)
+      }) as typeof code.webgpuPagesEngine,
+    }
+  )
+}
 
 /** The images the display queues at most. */
 const QUEUED = 2
@@ -47,6 +82,8 @@ export type CadenceReading = {
   refreshes: number
   speed: number
   timestampQuery: boolean
+  /** The engine's timer as the last frame reported it (`metrics.gpuTimer`: what it counted, what it skipped and why) the last error a sample carried (`metrics.gpuPassMs`) and the names of the compiles the frames waited for (`waitedFor`), said by a failure that reads no time. */
+  timer: unknown
 }
 
 /** The terrain's height at `x, z`: gentle rolls a car drives over. */
@@ -107,14 +144,62 @@ export function run({ seconds, pixelRatio }: { seconds: number; pixelRatio: numb
         world.camera.lookAt(body.position)
         world.invalidate()
       })
+      /** The device the engine's ledgers are keyed by: the session's handle, not the world's device, none before a frame entered. */
+      const engineDevice = () => runtime?.gpu.device ?? undefined
       const frames: CadenceFrame[] = []
       /** The frame the last refresh drew, if it drew one. */
       const last: { frame?: Omit<CadenceFrame, 'shown' | 'gpu' | 'answer'> } = {}
       let timer: number | null = null
+      let timerStats: unknown = null
+      let timerError: unknown = null
+      /** The names of the compiles the frames waited for, over the whole run (`heldCompiles`): what the frames held on an answer (`skippedFrames.answering`) waited for. */
+      const waitedFor = new Set<string>()
+      /** Each wait, by name: the refresh it was first seen at, and the one it was last seen at (the frames the page was told of), with how many frames saw it. */
+      const waits = new Map<string, { from: number; to: number; frames: number }>()
+      /** The render sizes the frames reported: a size that steps down says the budget refused the targets. */
+      const sizes = new Set<string>()
+      /** The frames the page was told of (`world.onFrame`), by what the engine did with each (`lastHold`): how many, the refreshes of the page between which, and the frames
+       *  entered a refused grant is asked again at. */
+      const told = new Map<
+        string,
+        { count: number; firstRefresh: number; lastRefresh: number; retryAt: number[] }
+      >()
       let k = 0
       const forward = sdk.math.vector3()
       world.onFrame(({ delta, metrics }) => {
         timer = metrics.gpuFrameMs ?? timer
+        timerStats = metrics.gpuTimer
+        timerError = metrics.gpuPassMs?.error ?? timerError
+        const engine = engineDevice()
+        if (engine) {
+          for (const name of heldCompiles(engine)) waitedFor.add(`compile: ${name}`)
+          const answer = heldOnAnswer(runtime)
+          if (answer) waitedFor.add(`answer: ${answer}`)
+          for (const name of [
+            ...heldCompiles(engine).map((n) => `compile: ${n}`),
+            ...(answer ? [`answer: ${answer}`] : []),
+          ]) {
+            const wait = waits.get(name) ?? { from: k, to: k, frames: 0 }
+            wait.to = k
+            wait.frames++
+            waits.set(name, wait)
+          }
+        }
+        sizes.add(`${metrics.renderWidth}x${metrics.renderHeight}`)
+        const hold = lastHold(runtime)
+        if (hold) {
+          const names = hold.reason === 'drawn' ? [] : [...heldCompiles(engine!)]
+          const unsettled =
+            hold.reason === 'drawn' || !runtime ? [] : unsettledReasons(unsettledMask(runtime))
+          const key = `${hold.reason} | frameHeld ${hold.frameHeld} | heldEmpty ${hold.heldEmpty}${
+            names.length ? ` | compiles ${names.join(', ')}` : ''
+          }${unsettled.length ? ` | unsettled ${unsettled.join(', ')}` : ''}`
+          const seen = told.get(key) ?? { count: 0, firstRefresh: k, lastRefresh: k, retryAt: [] }
+          seen.count++
+          seen.lastRefresh = k
+          if (hold.retryAt && !seen.retryAt.includes(hold.retryAt)) seen.retryAt.push(hold.retryAt)
+          told.set(key, seen)
+        }
         const { position } = body,
           eye = world.camera.position
         world.camera.getWorldDirection(forward)
@@ -161,6 +246,16 @@ export function run({ seconds, pixelRatio }: { seconds: number; pixelRatio: numb
       result.refreshes = refreshes
       result.speed = car.speed
       result.timestampQuery = !!caught.device?.features.has('timestamp-query')
+      result.timer = {
+        stats: timerStats,
+        lastError: timerError,
+        waitedFor: [...waitedFor],
+        sizes: [...sizes],
+        told: Object.fromEntries(told),
+        waits: Object.fromEntries(waits),
+        entered: lastHold(runtime)?.byReason ?? 'no frame entered',
+        revisions: runtime ? revisionCalls(runtime.run) : [],
+      }
     } finally {
       world.dispose()
       display.restore()

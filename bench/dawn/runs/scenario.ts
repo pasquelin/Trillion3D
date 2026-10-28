@@ -4,6 +4,14 @@
 import { lerp } from '../../../packages/math/src/scalar/reals.ts'
 import type { World } from '../../../packages/sdk-browser/src/session/world/world.ts'
 import { WORLD_SCENARIO } from './worldScenario.ts'
+import { CUTS_SCENARIO } from './cutsScenario.ts'
+import {
+  pageClipAction,
+  parityScenario,
+  poseParity,
+  type ClipAction,
+  type ParityTrack,
+} from './parityScenario.ts'
 import type { BenchBrowser } from '../page/dom.ts'
 import { TAU } from '../../../packages/math/src/constants.ts'
 import { readJson } from '../../../scripts/git/repository-files.ts'
@@ -36,8 +44,19 @@ export type Segment = {
   wheel?: { deltaY: number; every?: number }
   camera?: { from: Pose; to?: Pose }
   events?: RecordedEvent[]
+  /** Settings the world takes as the segment begins, each by the name of its public accessor (`world.shadows = …`); `null` inside one gives that setting back to the preset. */
+  world?: Record<string, unknown>
+  /** A path of the parity file: the camera and the clip's time of each image, posed from its rows (`parityScenario.ts`). */
+  track?: ParityTrack
 }
-export type Scenario = { name: string; page?: string; warm?: number; segments: Segment[] }
+export type Scenario = {
+  name: string
+  page?: string
+  warm?: number
+  /** The display the scenario is meant for, unless the run names one. */
+  display?: { width: number; height: number; ratio: number }
+  segments: Segment[]
+}
 
 /** The measurer's gesture of Chrome (`__m`): a drag swinging ±150 px, two swings per 8 s. */
 const ORBIT = { swing: 150, cycle: 960 }
@@ -52,6 +71,7 @@ const SCENARIOS: Record<string, Scenario> = {
     ],
   },
   world: WORLD_SCENARIO,
+  cuts: CUTS_SCENARIO,
   still: { name: 'still', segments: [{ name: 'still', frames: 360, capture: true }] },
   drive: {
     name: 'drive',
@@ -67,10 +87,28 @@ const SCENARIOS: Record<string, Scenario> = {
 /** The scenario `name` means: a built-in one, or a JSON file. */
 export function readScenario(name: string): Scenario {
   if (SCENARIOS[name]) return SCENARIOS[name]
+  if (name.startsWith('parity:')) return parityScenario(name.slice('parity:'.length))
   const scenario = readJson(name) as Scenario
   if (!Array.isArray(scenario.segments) || !scenario.segments.every((s) => s.frames > 0))
     throw new Error(`BENCH_SCENARIO: ${name} names no segments of frames`)
   return scenario
+}
+
+/** Whether `name` is a setting the world takes: an accessor with a setter, on the world or up its prototype chain
+ *  but not past it (`Object.prototype` has the setter of `__proto__`, which is no setting). */
+function hasSetter(world: object, name: string) {
+  for (let at: object | null = world; at && at !== Object.prototype; at = Object.getPrototypeOf(at))
+    if (Object.hasOwn(at, name)) return Boolean(Object.getOwnPropertyDescriptor(at, name)?.set)
+  return false
+}
+
+/** Writes the settings a segment names into the world, each through its public accessor: a name that has no setter is a named failure. */
+export function applyWorldSettings(world: object, segment: Pick<Segment, 'world'>) {
+  for (const [name, value] of Object.entries(segment.world ?? {})) {
+    if (!hasSetter(world, name))
+      throw new Error(`BENCH_SCENARIO: the world has no setting ${name} to write`)
+    ;(world as Record<string, unknown>)[name] = value
+  }
 }
 
 /** Plays segments on the page: `begin`, then `step(i)` before each of its frames, then `end`. */
@@ -117,8 +155,16 @@ export function createPlayer(browser: BenchBrowser, world: World) {
       )
     else pointer(event.type, [event.x ?? 0.5, event.y ?? 0.5], event.buttons ?? 0)
   }
+  // The page's clip, found when a parity path first needs it.
+  let clip: ClipAction | undefined
+  const clipAction = () => (clip ??= pageClipAction())
   return {
     begin(segment: Segment) {
+      applyWorldSettings(world, segment)
+      if (segment.track) {
+        world.camera.near = segment.track.near
+        world.camera.far = segment.track.far
+      }
       for (const code of segment.hold ?? []) key('keydown', code)
       if (segment.orbit) pointer('pointerdown', orbitAt(segment, 0), 1)
       if (segment.drag) pointer('pointerdown', segment.drag.from, 1)
@@ -132,6 +178,7 @@ export function createPlayer(browser: BenchBrowser, world: World) {
       }
       if (segment.wheel && i % (segment.wheel.every ?? 4) === 0)
         replay({ frame: i, type: 'wheel', deltaY: segment.wheel.deltaY })
+      if (segment.track) poseParity(world, clipAction(), segment.track, i)
       if (segment.camera) {
         const { from, to = from } = segment.camera
         pose({

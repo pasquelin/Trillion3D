@@ -64,8 +64,8 @@ test('where no global illumination is on, the occlusion draws its passes in orde
 
 test('with the bounce on, at any level of the screen probes, the occlusion draws nothing and holds nothing; asked, and their own off, it draws over their light', async () => {
   // The bounce on is the global illumination on: the probes' own short-range occlusion is the one there, at the level `off` of the
-  // screen probes too, and at the lowest that lights, which reads the world's probes.
-  for (const screenProbes of ['high', 'off', 'low']) {
+  // screen probes too.
+  for (const screenProbes of ['high', 'off']) {
     const probes = await occlusionRuntime({ screenProbes }, true),
       textures = probes.h.textures.length
     encodeAmbientOcclusion(probes.rt, probes.h.encoder, probes.camera)

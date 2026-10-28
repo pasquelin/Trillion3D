@@ -1,6 +1,10 @@
 import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
-import { cameraSeen, previousCameraOf } from '../../../../frame/backend/state/previousCamera.ts'
+import {
+  cameraSeen,
+  NEVER_SEEN,
+  previousCameraOf,
+} from '../../../../frame/backend/state/previousCamera.ts'
 import { frontStamp } from '../../../reflections/frontLayer.ts'
 import { vsmMapSettings } from './vsmFarShadow.ts'
 import { marksSunPages, tracesTranslucent } from './vsmGates.ts'
@@ -16,7 +20,7 @@ export interface VsmFrontSeen {
 }
 
 /** A marking that has run for no image. */
-export const newFrontSeen = (): VsmFrontSeen => ({ image: 0, width: 0, height: 0 })
+export const newFrontSeen = (): VsmFrontSeen => ({ image: NEVER_SEEN, width: 0, height: 0 })
 
 /** The new front layer, its matrix and size made once. */
 export const newMarkingFront = (): VsmMarkingFront => ({
@@ -45,7 +49,7 @@ export const viewMarkingOf = (rt: WebgpuPagesRuntime) => viewMarking(vsmMapSetti
  * pipelines are made for, whether or not this image marks a sun's pages.
  */
 export const marksWater = (rt: WebgpuPagesRuntime) =>
-  viewMarkingOf(rt) !== 'none' && waterDepthPrepassWanted(rt)
+  viewMarkingOf(rt) !== 'none' && viewMarkingOf(rt) !== 'dense' && waterDepthPrepassWanted(rt)
 
 /** Whether the water's depth is to be drawn before this image's marking: a sun's pages are marked
  *  (`marksSunPages`) at the water's surface (`marksWater`). */
@@ -63,7 +67,7 @@ export const drawsFrontBeforeMarking = (rt: WebgpuPagesRuntime) =>
   marksSunPages(rt) &&
   viewMarkingOf(rt) === 'pixels' &&
   tracesTranslucent(rt) &&
-  !historyCamera(rt, rt.lights.vsm?.frameScratch?.frontSeen.image ?? 0)
+  !historyCamera(rt, rt.lights.vsm?.frameScratch?.frontSeen.image ?? NEVER_SEEN)
 
 /**
  * THE TRANSLUCENT FRONT LAYER THE PAGE MARKING READS, where the project traces the translucent

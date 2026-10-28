@@ -38,10 +38,11 @@ test('PAGE_INFO_STRUCT_WGSL declares struct PageInfo only once in every shader t
     SMALL_SHADER,
     SHADE_SHADER,
     VIS_SHADER,
-    // The temporal resolve's page reader: its velocity pass (`../../post/taa/velocityWgsl.ts`).
-    TAA_VELOCITY: ENGINE_SHADERS.TAA_VELOCITY,
+    // The temporal pass's page reader: the velocity stage (`../../post/taa/surfaceVelocityWgsl.ts`).
     SURFACE_VELOCITY_WGSL: ENGINE_SHADERS.SURFACE_VELOCITY_WGSL,
   })
+  // The analysis's nearest velocity reads the vector the stage wrote and no page record.
+  assert.equal(occurrences(ENGINE_SHADERS.TAA_VELOCITY, PAGE_INFO_STRUCT_WGSL.text), 0)
 })
 
 test('edgeFunction declares fn edgeFunction only once in shading', () => {

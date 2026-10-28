@@ -12,6 +12,7 @@ export type TimingState = {
   device: GPUDevice
   /** Frames between two samples, read at every frame so a caller may change it. */
   every: () => number
+  apart: () => boolean
   emit: ReturnType<typeof createSampleEmitter>
   enabled: boolean
   disposed: boolean
@@ -52,10 +53,12 @@ export function createTimingState(
   device: GPUDevice,
   asked: number | (() => number) | undefined,
   onSample: (sample: GpuTimingSample) => void,
+  apart: () => boolean = () => false,
 ): TimingState {
   return {
     device,
     every: () => Math.max(1, Math.floor((typeof asked === 'function' ? asked() : asked) ?? 60)),
+    apart,
     emit: createSampleEmitter(onSample),
     enabled: gpuCapsOf(device).timestamp,
     disposed: false,

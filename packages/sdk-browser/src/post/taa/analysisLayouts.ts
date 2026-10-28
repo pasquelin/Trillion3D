@@ -5,7 +5,6 @@ import {
   computeTextureEntry,
   computeUniformEntry,
 } from '../../gpu/core/computeBindings.ts'
-import { velocityInputEntries } from './inputs.ts'
 import { FUSED_FLATTEN_SLOTS } from '../effects/motionBlur/flattenWgsl.ts'
 import {
   FLAT_FORMS,
@@ -39,11 +38,12 @@ type LayoutOf = (entries: GPUBindGroupLayoutEntry[]) => GPUBindGroupLayout
 const readOnly = (binding: number) =>
   computeBufferEntry(binding, 'read-only-storage', GPUShaderStage.COMPUTE)
 
-/** The entries of the nearest velocity's layout: what it reads of the frame, the velocity stage and
+/** The entries of the nearest velocity's layout: the pass uniform and depth, the velocity stage's vectors and
  *  the responsiveness of the layers over each pixel, and the closest depth, the marks, the occluders
  *  and the reprojection field's words it writes. */
 const velocityEntries = (): GPUBindGroupLayoutEntry[] => [
-  ...velocityInputEntries(),
+  computeUniformEntry(VELOCITY_BINDINGS.view),
+  computeTextureEntry(VELOCITY_BINDINGS.depth, 'depth'),
   computeStorageTextureEntry(VELOCITY_BINDINGS.closest, CLOSEST_FORMAT),
   computeStorageTextureEntry(VELOCITY_BINDINGS.marks, MARKS_FORMAT),
   computeBufferEntry(VELOCITY_BINDINGS.occluders, 'storage', GPUShaderStage.COMPUTE),

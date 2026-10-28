@@ -80,8 +80,8 @@ export const dispatchOffset = (chain: number, word: number) =>
  * kernel after the levels fills the rest; a main pass's windows stay through the post pass, which opens its own after
  * them, as the patches the main pass hid name them.
  */
-export const WINDOW_RECORD_WORDS = 4,
-  WINDOW_VIEW_AT = WINDOW_RECORD_WORDS,
+const WINDOW_RECORD_WORDS = 4
+export const WINDOW_VIEW_AT = WINDOW_RECORD_WORDS,
   WINDOW_VIEW_RECORDS = 6,
   WINDOW_LENS_WORDS = 4,
   WINDOW_VIEW_WORDS = WINDOW_VIEW_RECORDS * 4 + WINDOW_LENS_WORDS,
@@ -92,7 +92,7 @@ export const WINDOW_RECORD_WORDS = 4,
   WINDOW_WORDS = WINDOW_POOL_AT + WINDOW_PAGE_SLOTS
 /** The windows a chain may open, for a queue of `maxCandidate` patches: one for each `WINDOW_PATCHES`
  *  of them, at least one. */
-export const WINDOW_PATCHES = 64
+const WINDOW_PATCHES = 64
 export const windowCapacity = (maxCandidate: number) =>
   Math.max(1, Math.ceil(maxCandidate / WINDOW_PATCHES))
 /** Which pyramid a pass's occlusion test of the patches reads: none, the previous image's — the main

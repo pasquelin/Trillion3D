@@ -7,6 +7,7 @@ import {
   gpuPassStageOf,
   passOwnMs,
 } from '../../../packages/sdk-browser/src/diagnostic/stage/mapping.ts'
+import { MATERIAL_SHADING_PASS_PREFIX } from '../../../packages/sdk-browser/src/diagnostic/stage/passLabels.ts'
 import { COUNTS, type Counts } from '../machine/device.ts'
 import type { FrameRecord } from '../capture/frames.ts'
 import { WATCHED } from '../page/watched.ts'
@@ -34,8 +35,14 @@ export function spread(values: readonly number[]) {
 }
 export type Spread = NonNullable<ReturnType<typeof spread>>
 
-/** A pass's label without the numbers that tell its batches apart: `vsm.raster 12` → `vsm.raster *`. */
-export const passKey = (name: string) => name.replace(/ \d+$/, ' *').replace(/^Trillion3D /, '')
+/** A pass's label without the numbers that tell its batches apart: `vsm.raster 12` → `vsm.raster *`.
+ *  The shading of a material class (`gpuTimingDetail`) ends with the class's key, which tells the
+ *  classes apart, not batches: it stays, one row a class. */
+export const passKey = (name: string) =>
+  (name.startsWith(MATERIAL_SHADING_PASS_PREFIX) ? name : name.replace(/ \d+$/, ' *')).replace(
+    /^Trillion3D /,
+    '',
+  )
 
 /** The engine's timing samples of `frames`, each once: a sample is read again until the next. */
 function samplesOf(frames: readonly FrameRecord[]) {

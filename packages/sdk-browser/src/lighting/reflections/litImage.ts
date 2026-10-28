@@ -4,6 +4,7 @@
  * references traded, nothing copied (`adoptLitImage`) —, and what it was drawn with (`HeldImage`). It
  * is read as it is, one texel at its level 0 (`reflectionImage`); no filtered level is built.
  */
+import { NEVER_SEEN } from '../../frame/backend/state/previousCamera.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
 import { HDR_FORMAT, hdrTargetDescriptor } from '../../scene/targetFormats.ts'
@@ -23,9 +24,9 @@ export type HeldImage = {
 }
 
 /** Whether the vectors image \`image\` drew — its surfaces' motion since the image before — reach
- *  back to the image \`held\` keeps: it is the image just before. */
+ *  back to the image \`held\` keeps: it is the image just before (a held image that was given no number is none: the first image drawn is number 0). */
 export const vectorsReach = (held: HeldImage, image: number) =>
-  held.valid && held.image === image - 1
+  held.valid && held.image !== NEVER_SEEN && held.image === image - 1
 
 /** Bytes of the other HDR target of a view at `width × height`: the frame's own is counted with the
  *  frame's targets (`frameTargetBytes`). */
@@ -50,7 +51,7 @@ export function createLitImage(device: GPUDevice, width: number, height: number)
       size: [0, 0],
       preExposure: 1,
       jitter: [0, 0],
-      image: -1,
+      image: NEVER_SEEN,
     } as HeldImage,
   }
 }
@@ -75,7 +76,7 @@ export function holdLitImage(
   size: readonly [number, number],
   preExposure = 1,
   jitter: readonly [number, number] = [0, 0],
-  image = -1,
+  image = NEVER_SEEN,
 ) {
   const { held } = lit
   held.valid = true

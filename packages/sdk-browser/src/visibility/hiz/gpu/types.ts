@@ -1,4 +1,5 @@
 import type { OpenPass } from '../../../gpu/core/lazyComputePass.ts'
+import type { HizWorkSource } from './workDepthSource.ts'
 
 export type GpuHiz = {
   width: number
@@ -12,6 +13,10 @@ export type GpuHiz = {
    *  and each cell's nearest, and the finished depth's farthest —, once level 0 holds the whole
    *  depth, as dispatches of the open compute pass. */
   encodeFull(open: OpenPass): void
+  /** The image's own build — the culling layer's, with the trace layers where `full` — straight
+   *  from the visibility buffer `source`: its first pass reads each pixel's depth there and writes
+   *  level 0 with it, so no export of the buffer precedes it. */
+  encodeFromWork(open: OpenPass, source: HizWorkSource, full: boolean): void
   /** The build of the drawn pyramid's culling layer with the push `push` of its level 0, for the
    *  primed pyramid (`hizPrime`): false when its kernel is not compiled yet. */
   encodePrimed(open: OpenPass, push: HizPrimedPush): boolean

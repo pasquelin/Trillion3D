@@ -1,19 +1,23 @@
 import { allocPyramid, encodeHizPyramid, type Pyramid } from './pyramid.ts'
 import { hizUniformSlots } from './uniforms.ts'
 import { HIZ_LEVELS } from './pyramidTexture.ts'
-import { createHizPipelines } from './pipelines.ts'
+import { createHizPipelines, createHizWorkPipelines } from './pipelines.ts'
+import { createWebgpuBindIdentity } from '../../../gpu/bind/bindIdentity.ts'
+import type { HizWorkSource } from './workDepthSource.ts'
 import { encodePrimedLayer } from './primed.ts'
 import { destroyAll } from '../../../gpu/core/errorScope.ts'
 import type { GpuHiz } from './types.ts'
 import type { OpenPass } from '../../../gpu/core/lazyComputePass.ts'
 import {
   bindHiz,
+  bindWork,
   hizExtent,
   hizFront,
   hizPlanes,
   hizResize,
   installHiz,
   type HizPipelines,
+  type HizWorkPipelines,
   type HizState,
 } from './hizOps.ts'
 
@@ -31,9 +35,12 @@ export async function createGpuHiz(
   const buffers: GPUBuffer[] = []
   let h: HizState | undefined
   try {
-    const pipelines = await createHizPipelines(device)
-    if (!pipelines) return undefined
-    h = hizState(device, pipelines, buffers)
+    const [pipelines, work] = await Promise.all([
+      createHizPipelines(device),
+      createHizWorkPipelines(device),
+    ])
+    if (!pipelines || !work) return undefined
+    h = hizState(device, pipelines, work, buffers)
     const first = (h.at = allocPyramid(device, h.level0Usage, width, height, h.slots))
     const gpu = hizApi(h, first)
     installHiz(h, gpu, first)
@@ -45,7 +52,12 @@ export async function createGpuHiz(
 }
 
 /** The Hi-Z's buffers, made before its first pyramid. */
-function hizState(device: GPUDevice, pipelines: HizPipelines, buffers: GPUBuffer[]): HizState {
+function hizState(
+  device: GPUDevice,
+  pipelines: HizPipelines,
+  work: HizWorkPipelines,
+  buffers: GPUBuffer[],
+): HizState {
   // The deepest pyramid's build passes, at the device's alignment.
   const slots = hizUniformSlots(device.limits)
   const uniforms = device.createBuffer({
@@ -81,6 +93,8 @@ function hizState(device: GPUDevice, pipelines: HizPipelines, buffers: GPUBuffer
     disposed: false,
     at: undefined,
     bindGroup: undefined,
+    work,
+    source: { identity: createWebgpuBindIdentity(), group: undefined },
   }
 }
 
@@ -90,6 +104,25 @@ function encodeLayer(h: HizState, open: OpenPass, pipeline: GPUComputePipeline) 
   const { at, bindGroup } = h
   if (h.disposed || !bindGroup || !at) return
   encodeHizPyramid(open.pass, bindGroup, pipeline, at.drawn.passes, at.drawn.slots)
+}
+
+/** The image's own build, over the visibility buffer `source`, in the open compute pass. */
+function encodeFromWork(h: HizState, open: OpenPass, source: HizWorkSource, full: boolean) {
+  bindHiz(h)
+  const { at } = h
+  if (h.disposed || !at) throw new Error('HIZ_BUILD_UNAVAILABLE')
+  const group = bindWork(h, at, source)
+  open.pass.setBindGroup(1, h.source.group)
+  const { fullPipeline, buildPipeline } = h.work
+  // The first pass runs over the whole of level 0: it writes the background past the drawn size.
+  encodeHizPyramid(
+    open.pass,
+    group,
+    full ? fullPipeline : buildPipeline,
+    at.drawn.passes,
+    at.drawn.slots,
+    at,
+  )
 }
 
 /** The Hi-Z's face (`GpuHiz`), over `h`, its first pyramid `first` in place. */
@@ -102,6 +135,7 @@ function hizApi(h: HizState, first: Pyramid): GpuHiz {
     // Every layer it builds, four mips per dispatch (`buildHiz`), in the frame's compute pass.
     encodePyramid: (open) => encodeLayer(h, open, h.buildPipeline),
     encodeFull: (open) => encodeLayer(h, open, h.fullPipeline),
+    encodeFromWork: (open, source, full) => encodeFromWork(h, open, source, full),
     encodePrimed: (open, push) => encodePrimedLayer(h, open, push),
     levelTable: h.levelTable,
     extent: (drawnWidth, drawnHeight) => hizExtent(h, drawnWidth, drawnHeight),

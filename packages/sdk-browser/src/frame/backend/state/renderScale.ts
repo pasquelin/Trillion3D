@@ -1,5 +1,9 @@
 import { upscaleMipBias } from '../../../post/taa/jitter.ts'
-import { renderExtent, type RenderScaleBounds } from '../../scale/renderScaleOption.ts'
+import {
+  renderAllocation,
+  renderExtent,
+  type RenderScaleBounds,
+} from '../../scale/renderScaleOption.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 import { drawsLit } from '../../../visibility/shader/shadeMode.ts'
 import { taaWanted } from './gpu.ts'
@@ -83,8 +87,8 @@ export function frameSizeOf(rt: WebgpuPagesRuntime, into: FrameSize, full = fals
     scale = !bounds ? 1 : full ? bounds.max : rt.views.active.scale.allocated(viewKey(rt))
   into.width = Math.max(1, w)
   into.height = Math.max(1, h)
-  into.renderWidth = renderExtent(into.width, scale)
-  into.renderHeight = renderExtent(into.height, scale)
+  into.renderWidth = renderAllocation(into.width, scale)
+  into.renderHeight = renderAllocation(into.height, scale)
   into.apart = !!bounds
   return into
 }
@@ -103,7 +107,8 @@ export const displayApart = (gpu: WebgpuPagesRuntime['gpu']) =>
 
 /**
  * Draws this image at `scale` in the targets in place, made at the bounds' maximum (`frameSizeOf`):
- * the image is drawn in their top-left `targetSize`. Where the display colour is not apart, the
+ * the image is drawn in their top-left `targetSize`, the view's exact size (`renderExtent`), the targets
+ * themselves aligned (`renderAllocation`). Where the display colour is not apart, the
  * targets' whole size. The Hi-Z pyramid is built over it (`GpuHiz.extent`); the last image's still
  * stands for the cut's next main pass, read in that image's pixels through the levels it was built
  * with (`../../render/cutPyramid.ts`). `views.active.scale.drawn`

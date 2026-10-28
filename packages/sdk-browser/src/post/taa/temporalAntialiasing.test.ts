@@ -176,8 +176,9 @@ function pipelinesSet(encoder: GPUCommandEncoder, entryPoint: string) {
 }
 
 // One module serves the scene with no displaced surface and the one with some: the pipeline that
-// solves the flat points (`DISPLACED`) is the image's, never made for a scene that draws none.
-test("the velocity stage and the analysis's nearest velocity run the displaced pipeline for an image that draws displaced surfaces", async () => {
+// solves the flat points (`DISPLACED`) is the image's, never made for a scene that draws none. The
+// analysis's nearest velocity reads the stage's vector and has no such pipeline.
+test("the velocity stage runs the displaced pipeline for an image that draws displaced surfaces, the analysis's nearest velocity never", async () => {
   const { device, computePipelines } = fakeDevice()
   const velocity = createVelocity(device)
   const temporal = await createTemporalAntialiasing(device, velocity)
@@ -205,11 +206,11 @@ test("the velocity stage and the analysis's nearest velocity run the displaced p
     const constants = tessellated ? { DISPLACED: 1 } : undefined
     assert.deepEqual(
       [nearest, own].map((seen) => seen.map((pipeline) => pipeline.constants)),
-      [[constants], [constants]],
+      [[undefined], [constants]],
       `tessellated ${tessellated}`,
     )
   }
-  assert.equal(made('nearestVelocity'), 2)
+  assert.equal(made('nearestVelocity'), 1)
   assert.equal(made('surfaceVelocity'), 2)
   temporal.dispose()
 })

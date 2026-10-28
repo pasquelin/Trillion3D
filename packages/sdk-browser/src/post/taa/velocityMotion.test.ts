@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import { flattenShader } from '../effects/motionBlur/flattenWgsl.ts'
 import { reprojectShader } from './reprojectWgsl.ts'
 import { SURFACE_VELOCITY_WGSL } from './surfaceVelocityWgsl.ts'
+import { velocityShader } from './nearestVelocityWgsl.ts'
 import { IDENTITY_MATRIX4, multiplyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
@@ -154,8 +155,8 @@ test('a placement whose pose moved is measured by its motion, whatever its size;
     poses.before.pose = before
     const run = shaderRun<{
       drawsMotion: (id: number) => boolean
-      texelMotion: (p: number[], q: number[], z: number, id: number) => { velocity: number[] }
-    }>(SURFACE_VELOCITY_WGSL, ['drawsMotion', 'texelMotion'], {
+      surfaceMotion: (screen: number[], z: number, id: number, moves: boolean) => number[]
+    }>(SURFACE_VELOCITY_WGSL, ['drawsMotion', 'surfaceMotion'], {
       view: {
         eye: [0, 0, 0, 0],
         radius: [0, 0, 1, 0],
@@ -175,9 +176,83 @@ test('a placement whose pose moved is measured by its motion, whatever its size;
     })
     const moves = before === moved
     assert.equal(run.drawsMotion(1), moves)
-    const [vx] = run.texelMotion([4, 4], [4, 4], 0.5, 1).velocity
+    const [vx] = run.surfaceMotion([0.25, 0.25], 0.5, 1, run.drawsMotion(1))
     assert.equal(Math.abs(vx) > 1e-6, moves, 'a moving object is measured by its motion')
   }
+})
+
+// The analysis reads the vector the stage wrote (a texel, 16 bits per axis and a half-float depth
+// step) where it once measured the surface again from the poses. The two differ by the codec's
+// quantization alone, which is the reference's too (it reads the encoded velocity texel, not the
+// exact one): a code is `1/65535` of the range `g = sqrt(2|v|)` is stored over, scaled by `0.499/2`,
+// so a vector is off by at most one and a half code (the lowest bit holds the own-motion flag),
+// `1.5 · g / (65535 · 0.2495)`; the depth step is a half float, off by at most `2^-10` of itself
+// (plus `2^-25` below its normal range). A static, a moved, a deformed and a displaced-by-offset
+// surface all go through the same codec; the pose set covers each size of vector.
+test('the velocity read from the stage differs from the exact one by one and a half code at most', () => {
+  const stage = { encodeOwnVector, decodeVector, withDepthStep, depthStepOf }
+  const exact = [
+    { name: 'static', v: [-0.1, 0], dz: 0 },
+    { name: 'still pixel', v: [0, 0], dz: 0 },
+    { name: 'moved', v: [0.0123, -0.3071], dz: 0.00042 },
+    { name: 'deformed', v: [-0.5, 0.25], dz: -0.01 },
+    { name: 'offset', v: [1.2e-4, -3e-5], dz: 1e-6 },
+    { name: 'fast', v: [1.4, -0.9], dz: 0.2 },
+  ]
+  for (const { name, v, dz } of exact) {
+    const word = stage.encodeOwnVector(v, true)
+    const got = stage.decodeVector(word)
+    // The step travels in the pixel's flags word, apart from the vector's.
+    const step = stage.depthStepOf(stage.withDepthStep(0, dz))
+    for (let axis = 0; axis < 2; axis++) {
+      const bound = (1.5 * Math.sqrt(2 * Math.abs(v[axis]))) / (65535 * 0.2495) + 1e-7
+      assert.ok(
+        Math.abs(got[axis] - v[axis]) <= bound,
+        `${name} axis ${axis}: ${got[axis]} for ${v[axis]}`,
+      )
+    }
+    assert.ok(Math.abs(step - dz) <= Math.abs(dz) * 2 ** -10 + 2 ** -25, `${name} depth step`)
+  }
+})
+
+// How far the closest surface moved by itself is measured in the world, between where it stands and
+// where its vector says it stood (the last view's inverse); the texel's current pixel position
+// takes the closest neighbour's vector, at the closest depth. A surface the camera alone carries
+// moved by none, whatever its vector holds — the off-screen one of a point that was behind the last
+// view included —, and a point at infinity (no depth, w = 0, current or past) has no distance.
+test('a surface the camera alone carries is not moving, nor is a point at infinity; one that moves by itself is', () => {
+  const identity = builtins.mat4x4f(...IDENTITY_MATRIX4)
+  // w = z: a point at zero depth is a direction.
+  const atInfinity = builtins.mat4x4f(1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 0, 0)
+  const run = (
+    nearest: number[],
+    { zc = 0.5, closestZ = 0.5, now = identity, before = identity } = {},
+  ) =>
+    shaderRun<{
+      isMoving: (p: Vec, zc: number, z: number, n: number[], animated: boolean) => number
+    }>(velocityShader(), ['isMoving'], {
+      view: {
+        render: [8, 8, 1 / 8, 1 / 8],
+        // Depth 1/z, a pixel radius of a thousandth of it.
+        depth: [0, 1, 1, 0],
+        radius: [0.001, 0, 1, 0],
+        parallax: [0, 0, 0, 0],
+        rates: [0, 0, 0, 0],
+        prevViewProj: identity,
+        invViewProj: now,
+        prevInvViewProj: before,
+      },
+    }).isMoving([3, 3], zc, closestZ, nearest, false)
+  // The off-screen vector a point behind the last view gets, on a surface that does not move.
+  assert.equal(run([4, 4, 0, 0]), 0)
+  // A vector of the camera's alone, however long.
+  assert.equal(run([0.5, 0, 0, 0]), 0)
+  // A surface that moved by half the screen is moving; one that moved by a tenth of a pixel is not.
+  assert.equal(run([0.5, 0, 0, 1]), 1)
+  assert.equal(run([1e-4, 0, 0, 1]), 0)
+  // No division where the point now, or the point it stood at, is at infinity: not moving.
+  assert.equal(run([0.5, 0, 0, 1], { zc: 0, closestZ: 0, now: atInfinity }), 0)
+  assert.equal(run([0.5, 0, 0.5, 1], { before: atInfinity }), 0)
 })
 
 // The velocity takes a placement's motion from its two poses in the cut's tables (`placementMotion`)

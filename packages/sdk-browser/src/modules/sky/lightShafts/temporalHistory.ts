@@ -1,3 +1,4 @@
+import { NEVER_SEEN } from '../../../frame/backend/state/previousCamera.ts'
 import { retire } from '../../../gpu/core/frameRetire.ts'
 import { textureBytesOf } from '../../../gpu/core/textureBytes.ts'
 import type { Size } from '../clouds/reconstructLayout.ts'
@@ -35,8 +36,8 @@ function historyState() {
     /** The exposure scale the held image was stored at: the ratio of the next image's to it is what
      *  the held colour is multiplied by when it is read. */
     exposure: 1,
-    /** The number of the image the held image was drawn for, 0 for none. */
-    seen: 0,
+    /** The number of the image the held image was drawn for, `NEVER_SEEN` for none. */
+    seen: NEVER_SEEN,
   }
 }
 
@@ -113,7 +114,7 @@ export function createLightShaftHistory(device: GPUDevice) {
       views.length = 0
       held = 0
       history.valid = false
-      history.seen = 0
+      history.seen = NEVER_SEEN
     },
   }
   return history

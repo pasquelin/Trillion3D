@@ -43,7 +43,13 @@ export const SAMPLE_MAG_NEAREST = 1,
    *  repeating texture at the default filters keeps the default read. */
   SAMPLE_WRAP_SHIFT = 8,
   /** The filter bits: a texture whose bits are all zero takes the default read. */
-  SAMPLE_FILTER_MASK = (1 << SAMPLE_WRAP_SHIFT) - 1
+  SAMPLE_FILTER_MASK = (1 << SAMPLE_WRAP_SHIFT) - 1,
+  /** Above the addressing nibble, outside the zero test too: the texture is read once, at the level
+   *  the elongation moves, not with anisotropic taps (`virtualTextureAnisotropicFiltering` off,
+   *  `samplingFootprint.ts`). */
+  SAMPLE_ONE_READ = 1 << (SAMPLE_WRAP_SHIFT + 4),
+  /** The bits of the word a `TileSlot` carries as its filter: the filter bits and the one read. */
+  SAMPLE_SLOT_MASK = SAMPLE_FILTER_MASK | SAMPLE_ONE_READ
 
 /** Header words of a texture's UV transform: the affine 2 × 3 part. */
 export const TRANSFORM_WORDS = 6
@@ -66,17 +72,23 @@ const scratch = new Uint32Array(1 + TRANSFORM_WORDS),
 /**
  * A texture's filter word with its addressing nibble, then its transform's six floats as their
  * bits, in an array the next call overwrites. Anisotropy follows `grantedAnisotropy`, clamped to
- * WebGPU's ceiling.
+ * `ceiling`: the setting `virtualTextureMaxAnisotropy` for a texture of the pools, WebGPU's by
+ * default; `taps` false sets `SAMPLE_ONE_READ`.
  */
-export function samplingWords(texture: Texture): Uint32Array {
-  const anisotropy = Math.round(grantedAnisotropy(texture, MAX_ANISOTROPY))
+export function samplingWords(
+  texture: Texture,
+  ceiling = MAX_ANISOTROPY,
+  taps = true,
+): Uint32Array {
+  const anisotropy = Math.round(grantedAnisotropy(texture, ceiling))
   const m = texture.transform
   scratch[0] =
     (texture.magFilter === 'nearest' ? SAMPLE_MAG_NEAREST : 0) |
     MIN_BITS[texture.minFilter] |
     ((anisotropy - 1) << SAMPLE_ANISOTROPY_SHIFT) |
     (uvTransformed(m) ? SAMPLE_TRANSFORMED : 0) |
-    (wrapNibble(texture) << SAMPLE_WRAP_SHIFT)
+    (wrapNibble(texture) << SAMPLE_WRAP_SHIFT) |
+    (taps ? 0 : SAMPLE_ONE_READ)
   for (let i = 0; i < TRANSFORM_WORDS; i++) scratchFloats[1 + i] = m[AFFINE[i]]
   return scratch
 }

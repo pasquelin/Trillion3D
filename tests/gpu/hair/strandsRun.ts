@@ -14,7 +14,7 @@ import {
   HAIR_BOUNDS_FLOATS,
   HAIR_MIN_VOXEL_SIZE,
 } from '../../../packages/sdk-browser/src/hair/boundsPass.ts'
-import { HAIR_TANGENT_BYTES } from '../../../packages/sdk-browser/src/hair/groupResources.ts'
+import { HAIR_TANGENT_BYTES } from '../../../packages/sdk-browser/src/hair/tangentBytes.ts'
 import type { HairFrameInputs } from '../../../packages/sdk-browser/src/hair/inputs.ts'
 import {
   createHairScene,

@@ -9,12 +9,20 @@ import {
 import { settingsWatch } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { cameraSeen, previousCameraOf } from '../../frame/backend/state/previousCamera.ts'
+import {
+  cameraSeen,
+  NEVER_SEEN,
+  previousCameraOf,
+} from '../../frame/backend/state/previousCamera.ts'
 import { wantsContractLighting } from '../../frame/prepare/lit.ts'
 import { ledgerRoom } from '../../gpu/core/deviceLedger.ts'
 import { lightingPhase } from '../surfaceCache/lighting/phase.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
-import { readScreenProbeSetting } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import {
+  readScreenProbeSetting,
+  readShortRangeOcclusion,
+} from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { encodeHairSkyAo } from '../../hair/skyAoPass.ts'
 import { discMethod } from './discFrame.ts'
 import {
   createHorizonHistory,
@@ -107,7 +115,7 @@ function createAmbientOcclusion(): AmbientOcclusion {
       history.view = undefined
       history.valid = false
       history.images = 0
-      history.seen = 0
+      history.seen = NEVER_SEEN
     },
   }
   return state
@@ -133,7 +141,7 @@ export function ambientOcclusionSettling(rt: WebgpuPagesRuntime) {
  */
 function indirectLight(rt: WebgpuPagesRuntime, into: IndirectLightState) {
   into.bounce = rt.bounce.wanted
-  into.shortRange = readScreenProbeSetting(rt, 'screenProbeShortRangeOcclusion')
+  into.shortRange = readShortRangeOcclusion(rt)
   return into
 }
 
@@ -229,6 +237,12 @@ export function encodeAmbientOcclusion(
   state.refusal = view ? undefined : { spec, bytes: aoViewBytes(spec) }
   if (!view) return drawNone(state, deferred)
   state.output = method.draw(encoder, view, inputs, imageOf(rt, cam, method.extent, state))
+  // The strands darken the surfaces about them (`hairSkyAO`): the occlusion the lighting reads is the least of the two.
+  const drawn = view.spec.textures.find(({ name }) => name === 'ao')
+  if (drawn && state.output)
+    state.output =
+      encodeHairSkyAo(rt, inputs.device, encoder, state.output, drawn.size, inputs.normals) ??
+      state.output
   applyOf(rt, state, mode)
   deferred.setAmbientOcclusion(state.code, state.amount)
 }

@@ -60,7 +60,7 @@ export function rasterOf(tessellating: boolean, clipping = false, wide = false) 
   const frame = () => {
     raster.encodeBinning(encoder, input, RASTER_PASS_MAIN, NO_STEPS)
     const steps = new ComputeRun().begin(encoder)
-    raster.encodeDepth(steps, RASTER_PASS_MAIN, input)
+    raster.encodeDepth(steps, RASTER_PASS_MAIN)
     steps.end()
     raster.encodeBinning(encoder, input, RASTER_PASS_POST, NO_STEPS)
     raster.encodeClose(encoder, input, [64, 64], true)

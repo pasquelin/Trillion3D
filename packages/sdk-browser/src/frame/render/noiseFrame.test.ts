@@ -3,7 +3,9 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { beginNoiseImage, noiseFrame } from './noiseFrame.ts'
+import { isFinalImage } from './finalImage.ts'
 import { createFrameHold } from '../revisions.ts'
+import { createTaaFrameState, STOCHASTIC_SLOTS } from '../../post/taa/frameState.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 const world = (frame: number, lighting?: { begunAt?: number } | null, lit = true) =>
@@ -48,15 +50,25 @@ const session = (
   const revisions = { scene: 0, view: 0, resources: 0 }
   const hold = createFrameHold(1)
   const run = { frame: 0, gate: { revisions, hold } }
-  const rt = { run, surfaceCache: undefined, lights: undefined } as unknown as WebgpuPagesRuntime
+  const taa = createTaaFrameState(),
+    mode = { accumulating: true }
+  const gpu = { temporal: { frame: taa } }
+  const rt = {
+    run,
+    gpu,
+    surfaceCache: undefined,
+    lights: undefined,
+  } as unknown as WebgpuPagesRuntime
   return {
     rt,
+    mode,
     image(frame: number, quiet = false, drawn = true) {
       run.frame = frame
       if (moves(frame)) revisions.scene++
-      const final = beginNoiseImage(rt, quiet)
+      const final = beginNoiseImage(rt, quiet, mode.accumulating)
       const phase = noiseFrame(rt)
       if (drawn) {
+        taa.stochasticSample++
         if (during(frame)) revisions.resources++
         hold.keep(revisions)
       }
@@ -67,37 +79,44 @@ const session = (
 const phasesOf = (world: ReturnType<typeof session>, from: number, to: number) =>
   Array.from({ length: to - from + 1 }, (_, k) => world.image(from + k).phase)
 
-test('the noise turns with every image while the view moves, and counts the images of its establishment once it stands: a world that moved a hundred images and one set there meet the same noise at their hold', () => {
+test('the noise turns with every image while the view moves, and counts from the last change once the view has been calm for a cycle: a world that moved a hundred images and one set there meet the same noise at their hold', () => {
   const moved = session((frame) => frame <= 100),
     posed = session((frame) => frame <= 1)
-  assert.deepEqual(phasesOf(moved, 1, 3), [1, 2, 3], 'moving: the clock advances at each image')
-  assert.equal(
-    phasesOf(moved, 4, 105).at(-1),
-    5,
-    'five images of establishment after the last move',
+  assert.deepEqual(
+    phasesOf(moved, 1, 3),
+    [0, 1, 2],
+    'moving: the clock advances at each image from the start of the burst',
   )
+  const afterMove = phasesOf(moved, 4, 100 + STOCHASTIC_SLOTS + 5)
   assert.equal(
-    phasesOf(posed, 1, 6).at(-1),
-    5,
-    'the same five, for a world that never moved after its opening',
+    afterMove[100 + STOCHASTIC_SLOTS - 1 - 4],
+    100 + STOCHASTIC_SLOTS - 2,
+    'within the cycle after the last change: no break, still counted from the burst’s start',
+  )
+  assert.equal(afterMove.at(-1), STOCHASTIC_SLOTS + 5, 'past it, counted from the last change')
+  assert.equal(
+    phasesOf(posed, 1, 1 + STOCHASTIC_SLOTS + 5).at(-1),
+    STOCHASTIC_SLOTS + 5,
+    'the same, for a world that never moved after its opening',
   )
 })
 
-test('a view that moves again restarts its count from the move', () => {
-  const world = session((frame) => frame === 10 || frame <= 1)
-  assert.equal(phasesOf(world, 1, 12).at(-1), 2, 'two images since the move at 10')
+test('a view that changes every other image meets every phase of the cycle and never a short one', () => {
+  const world = session((frame) => frame % 2 === 0)
+  const phases = phasesOf(world, 1, 40)
+  assert.deepEqual(
+    phases,
+    Array.from({ length: 40 }, (_, k) => k),
+    'the index advances at every image, calm or not',
+  )
+  assert.equal(new Set(phases.map((phase) => phase % STOCHASTIC_SLOTS)).size, STOCHASTIC_SLOTS)
 })
 
-test('one change alone is no motion: the image it falls on counts from the change, whatever the images before it', () => {
+test('a change followed by a calm cycle counts from itself, whatever the images before it', () => {
   const early = session((frame) => frame <= 1 || frame === 10),
     late = session((frame) => frame <= 1 || frame === 50)
-  assert.equal(phasesOf(early, 1, 10).at(-1), 0, 'the change at 10 starts a count')
-  assert.equal(
-    phasesOf(late, 1, 50).at(-1),
-    0,
-    'the change at 50 starts the same count, though the world is older',
-  )
-  assert.equal(phasesOf(late, 51, 51).at(-1), 1)
+  assert.equal(phasesOf(early, 1, 10 + STOCHASTIC_SLOTS + 3).at(-1), STOCHASTIC_SLOTS + 3)
+  assert.equal(phasesOf(late, 1, 50 + STOCHASTIC_SLOTS + 3).at(-1), STOCHASTIC_SLOTS + 3)
 })
 
 test('established at phase 37: one image is drawn at zero, then the view is held', () => {
@@ -118,41 +137,47 @@ test('established at phase 37: one image is drawn at zero, then the view is held
 test('two worlds of different histories hold the same phase', () => {
   const quick = session((frame) => frame <= 1),
     slow = session((frame) => frame <= 90)
-  phasesOf(quick, 1, 5)
+  phasesOf(quick, 1, 10)
   phasesOf(slow, 1, 120)
-  assert.deepEqual(quick.image(6, true), { final: true, phase: 0 })
+  assert.deepEqual(quick.image(11, true), { final: true, phase: 0 })
   assert.deepEqual(slow.image(121, true), { final: true, phase: 0 })
 })
 
-test('a change after the final image starts a new establishment, and the image that changes asks nothing', () => {
-  const world = session((frame) => frame === 1 || frame === 10)
-  phasesOf(world, 1, 5)
-  assert.equal(world.image(6, true).final, true)
-  assert.equal(world.image(9, true).final, false)
+test('a change after the final image starts a new establishment: its images are drawn within the cycle, and it ends on a new final image', () => {
+  const world = session((frame) => frame === 1 || frame === 30)
+  phasesOf(world, 1, 9)
+  assert.deepEqual(world.image(10, true), { final: true, phase: 0 })
+  assert.equal(world.image(29, true, false).final, false)
   assert.deepEqual(
-    world.image(10, true),
+    world.image(30, true),
     { final: false, phase: 0 },
-    'the image that changes asks nothing',
+    'the image that changes asks nothing, and counts from itself',
   )
   assert.deepEqual(
-    world.image(11, true),
+    world.image(31, true),
+    { final: true, phase: 1 },
+    'drawn for the clock, within the cycle: no break',
+  )
+  for (let frame = 32; frame < 30 + STOCHASTIC_SLOTS; frame++) world.image(frame, true)
+  assert.deepEqual(
+    world.image(30 + STOCHASTIC_SLOTS, true),
     { final: true, phase: 0 },
-    'its establishment ends on a new final image',
+    'a new final image',
   )
 })
 
 test('a term unsettled again after the final image: the establishment that follows jumps again', () => {
   const world = session((frame) => frame <= 1)
-  phasesOf(world, 1, 5)
-  assert.deepEqual(world.image(6, true), { final: true, phase: 0 })
-  assert.equal(world.image(7).final, false, 'drawn again, not as a final image')
-  assert.equal(world.image(8).final, false)
+  phasesOf(world, 1, 9)
+  assert.deepEqual(world.image(10, true), { final: true, phase: 0 })
+  assert.equal(world.image(11).final, false, 'drawn again, not as a final image')
+  assert.equal(world.image(12).final, false)
   assert.deepEqual(
-    world.image(9, true),
+    world.image(13, true),
     { final: true, phase: 0 },
     'the next establishment ends on its own final image',
   )
-  assert.equal(world.image(10, true, false).final, false)
+  assert.equal(world.image(14, true, false).final, false)
 })
 
 test('a final image drawn before the light began is not the final one: the establishment that follows jumps again, and the held image meets zero', () => {
@@ -162,23 +187,26 @@ test('a final image drawn before the light began is not the final one: the estab
     surfaceCache: { lighting },
     lights: { buffer: {}, store: { unlit: false } },
   })
-  world.image(1)
-  // Established, but the light that can begin has not: no final image yet, the clock waits at zero.
+  // A cycle of images over, established, but the light that can begin has not: no final image yet, the clock waits at zero.
+  phasesOf(world, 1, 9)
   assert.deepEqual(world.image(10, true), { final: false, phase: 0 })
   lighting.begunAt = 50
+  // The light beginning is a change: its establishment goes through a cycle of the noise, then ends on the final image.
+  assert.deepEqual(world.image(60, true), { final: false, phase: 0 })
+  for (let frame = 61; frame < 60 + STOCHASTIC_SLOTS; frame++) world.image(frame, true)
   assert.deepEqual(
-    world.image(60, true),
+    world.image(60 + STOCHASTIC_SLOTS, true),
     { final: true, phase: 0 },
     'after the light began: the final image',
   )
   assert.deepEqual(
-    world.image(61, true, false),
+    world.image(61 + STOCHASTIC_SLOTS, true, false),
     { final: false, phase: 1 },
     'then the view is held',
   )
   // A light that begins after an image that was final for the rest: the next establishment jumps again.
-  lighting.begunAt = 65
-  assert.deepEqual(world.image(70, true), { final: true, phase: 0 })
+  lighting.begunAt = 90
+  assert.deepEqual(world.image(100, true), { final: true, phase: 0 })
 })
 
 test('a change made while an image was drawn is a change: the clock counts the establishment from the image after it, in every world', () => {
@@ -206,16 +234,82 @@ test('each view has its own establishment: a side view drawn between two images 
   const main = session()
   const gate = main.rt.run.gate as { hold: ReturnType<typeof createFrameHold> }
   const mainHold = gate.hold
-  phasesOf(main, 1, 5)
+  phasesOf(main, 1, 9)
   assert.equal(main.image(10, true).final, true, 'the main view’s final image')
   // The side view is drawn: its own witness is the gate’s meanwhile, and it draws every image (not quiet).
   gate.hold = createFrameHold(1)
   main.rt.run.frame = 11
-  assert.equal(beginNoiseImage(main.rt, false), false)
+  assert.equal(beginNoiseImage(main.rt, false, true), false)
   gate.hold = mainHold
   assert.equal(
     main.image(12, true, false).final,
     false,
     'the main view is held: its final image stands',
   )
+})
+
+test('a view with no temporal pass has no cycle to go through: its final image follows its last change at once', () => {
+  const world = session((frame) => frame <= 1)
+  world.mode.accumulating = false
+  phasesOf(world, 1, 2)
+  assert.deepEqual(world.image(3, true), { final: true, phase: 0 })
+  assert.equal(world.image(4, true, false).final, false)
+})
+
+test('the temporal pass turning on is a change of the noise: its cycle counts from it', () => {
+  const world = session((frame) => frame <= 1)
+  world.mode.accumulating = false
+  phasesOf(world, 1, 20)
+  assert.deepEqual(
+    world.image(21, true),
+    { final: true, phase: 0 },
+    'no cycle without a temporal pass',
+  )
+  world.mode.accumulating = true
+  assert.deepEqual(
+    world.image(22, true),
+    { final: false, phase: 0 },
+    'the image it turns on asks nothing',
+  )
+  for (let frame = 23; frame < 22 + STOCHASTIC_SLOTS; frame++) {
+    world.image(frame, true)
+    assert.equal(
+      isFinalImage(world.rt.run),
+      false,
+      'drawn within the cycle, not as the final image',
+    )
+  }
+  assert.deepEqual(world.image(22 + STOCHASTIC_SLOTS, true), { final: true, phase: 0 })
+})
+
+test('an isolated change counts from itself, whatever the images before it', () => {
+  const early = session((frame) => frame <= 1 || frame === 20),
+    late = session((frame) => frame <= 1 || frame === 80)
+  assert.equal(phasesOf(early, 1, 20).at(-1), 0)
+  assert.equal(phasesOf(late, 1, 80).at(-1), 0)
+})
+
+test('a term unsettled again after the final image continues the index from it, without a jump', () => {
+  const world = session((frame) => frame <= 1)
+  phasesOf(world, 1, STOCHASTIC_SLOTS + 1)
+  assert.deepEqual(world.image(STOCHASTIC_SLOTS + 2, true), { final: true, phase: 0 })
+  assert.deepEqual(world.image(STOCHASTIC_SLOTS + 3), { final: false, phase: 1 })
+  assert.deepEqual(world.image(STOCHASTIC_SLOTS + 4), { final: false, phase: 2 })
+})
+
+test('the light beginning drops the temporal history, accumulated on a noise frozen at zero, and is a change', () => {
+  const lighting: { begunAt?: number } = {}
+  const world = session()
+  Object.assign(world.rt, {
+    surfaceCache: { lighting },
+    lights: { buffer: {}, store: { unlit: false } },
+  })
+  const taa = world.rt.gpu.temporal!.frame
+  phasesOf(world, 1, 20)
+  taa.hasHistory = true
+  taa.accumulated = 22
+  lighting.begunAt = 20
+  const next = world.image(21, true)
+  assert.equal(taa.hasHistory, false, 'the history starts again')
+  assert.equal(next.final, false, 'a change: no final image on it')
 })

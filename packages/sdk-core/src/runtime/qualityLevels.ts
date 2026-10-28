@@ -19,6 +19,7 @@ import { FILM_PRESET_LEVELS } from '../contracts/filmOptions.ts'
 import { MOTION_BLUR_PRESET_LEVELS } from '../contracts/motionBlurOptions.ts'
 import { REFLECTION_PRESET_LEVELS } from '../contracts/reflectionLevels.ts'
 import { SHADOW_PRESET_LEVELS } from '../contracts/shadowOptions.ts'
+import { TEXTURE_FILTERING_PRESET_LEVELS } from '../contracts/textureFilteringOptions.ts'
 import { SUBSURFACE_SCATTERING_PRESET_LEVELS } from '../contracts/subsurfaceScatteringOptions.ts'
 import { TRANSLUCENCY_GI_PRESET_LEVELS } from '../contracts/translucencyGiOptions.ts'
 import { TRANSLUCENCY_VOLUME_PRESET_LEVELS } from '../contracts/translucencyVolumeOptions.ts'
@@ -198,6 +199,15 @@ export const QUALITY_LEVELS: QualityLevels = {
       ...REFLECTION_PRESET_LEVELS.cinematic,
       ...TRANSLUCENCY_GI_PRESET_LEVELS.cinematic,
     },
+  },
+  // The textures' levels write the anisotropy ceilings (`TEXTURE_FILTERING_PRESET_LEVELS`): the
+  // reference's texture quality rows 0 to 2; its top and cinematic rows hold the defaults.
+  textures: {
+    smooth: TEXTURE_FILTERING_PRESET_LEVELS.smooth,
+    balanced: TEXTURE_FILTERING_PRESET_LEVELS.balanced,
+    fine: TEXTURE_FILTERING_PRESET_LEVELS.fine,
+    max: {},
+    cinematic: TEXTURE_FILTERING_PRESET_LEVELS.cinematic,
   },
 }
 

@@ -158,19 +158,17 @@ test("the frame's tessellation picks the velocity stage's program and the pass's
   assert.deepEqual(velocity.drawn, [false, true, false], 'the setting off draws them flat')
 })
 
-test('an image that draws displaced surfaces asks the velocity programs that solve their flat points, any other asks none', () => {
-  const { rt, device, computePipelines, temporal } = runtime()
+test('an image that draws displaced surfaces asks the velocity program that solves their flat points, any other asks none', () => {
+  const { rt, device, computePipelines } = runtime()
   const stages = () =>
     computePipelines
       .filter(({ compute }) => compute.entryPoint === 'surfaceVelocity')
       .map(({ compute }) => compute.constants)
   askVelocity(rt, device)
   assert.deepEqual(stages(), [undefined], 'the flat program only')
-  assert.equal(temporal.askedDisplaced, 0)
   Object.assign(rt.vis.materialTable.displaced, { count: 1 })
   askVelocity(rt, device)
   assert.deepEqual(stages(), [undefined, { DISPLACED: 1 }], 'the same module, the displaced stage')
-  assert.equal(temporal.askedDisplaced, 1, 'and the analysis asks its own')
 })
 
 test('where an offset moves vertices, the velocity places a pixel on them now and before, over the records and the frame it reads', () => {
@@ -185,14 +183,15 @@ test('where an offset moves vertices, the velocity places a pixel on them now an
     Object.values(VELOCITY_INPUT_BINDINGS).sort((a, b) => a - b),
     'the records and the frame are in the layout whatever the session holds: a program that joins later is a module',
   )
-  for (const text of [surfaceVelocityShader(offsets), velocityShader(offsets)]) {
-    assert.match(text, /let word=materialGraphWord\(page\.material\);/)
-    assert.match(text, /@binding\(13\) var materialTable/)
-    assert.match(text, /@binding\(14\) var<uniform> graphFrame/)
-    // A row whose offset is a motion is measured as one that moves, and reprojected by the vertices
-    // of the image before, the placement's motion taking the object back.
-    assert.match(text, /\(page\.wpo&2u\)!=0u/)
-    assert.match(text, /pagePreviousPosition\(page,h,corners\.x,before\)/)
-  }
+  // The stage alone reads the graph: the analysis's nearest velocity reads its vectors.
+  assert.doesNotMatch(velocityShader(), /materialGraphWord|@binding\(13\)/)
+  const text = surfaceVelocityShader(offsets)
+  assert.match(text, /let word=materialGraphWord\(page\.material\);/)
+  assert.match(text, /@binding\(13\) var materialTable/)
+  assert.match(text, /@binding\(14\) var<uniform> graphFrame/)
+  // A row whose offset is a motion is measured as one that moves, and reprojected by the vertices
+  // of the image before, the placement's motion taking the object back.
+  assert.match(text, /\(page\.wpo&2u\)!=0u/)
+  assert.match(text, /pagePreviousPosition\(page,h,corners\.x,before\)/)
   assert.doesNotMatch(SURFACE_VELOCITY_WGSL, /materialGraphWord|@binding\(13\)/)
 })

@@ -13,16 +13,13 @@ import { createHeightProfile } from './profile.ts'
  * They are made by compute passes, not read from any file.
  */
 
-/** The most samples along the footprint's long side a texture read takes: 4, the default of the
- *  texture group's filter (an anisotropic filter of the world group). */
-const CLOUD_MAX_ANISOTROPY = 4
-
 /** The one sampler the material reads every cloud texture through: repeating on u, v and w, the
- *  world group's anisotropic filter (a linear filter, the level between two levels blended), its
+ *  world group's anisotropic filter (a linear filter, the level between two levels blended), taking
+ *  at most `maxAnisotropy` samples along the footprint's long side (`textureMaxAnisotropy`), its
  *  level range open. The reads that name a level (the noise, the profile, the lightning volume's
  *  fill) take it as it is; the pattern, the mask and the lightning volume's core take the level of the
  *  screen footprint of the ray's sample (`cloudMaterialAt`). */
-export const CLOUD_SAMPLER: GPUSamplerDescriptor = {
+export const cloudSampler = (maxAnisotropy: number): GPUSamplerDescriptor => ({
   label: 'Trillion3D cloud textures',
   magFilter: 'linear',
   minFilter: 'linear',
@@ -30,8 +27,8 @@ export const CLOUD_SAMPLER: GPUSamplerDescriptor = {
   addressModeU: 'repeat',
   addressModeV: 'repeat',
   addressModeW: 'repeat',
-  maxAnisotropy: CLOUD_MAX_ANISOTROPY,
-}
+  maxAnisotropy,
+})
 
 /** The five textures, generated; the caller releases them with `destroy`. */
 export async function createCloudTextures(device: GPUDevice) {

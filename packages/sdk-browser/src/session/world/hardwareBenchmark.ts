@@ -101,20 +101,23 @@ async function measureGraphics(workScale: number, device: GPUDevice, signal?: Ab
 }
 
 /**
- * Runs the hardware benchmark — the processor tests in a worker, then the graphics tests on a device
- * of their own, given back after — and answers its result with the adapter it measured. `signal`
- * stops it: the worker and the device are given back and the run is refused.
+ * Runs the hardware benchmark — the processor tests in a worker, then the graphics tests on the device
+ * of the world that asks (`shared`, the one its session draws with, the benchmark running on the same
+ * device as the frames, never destroying it), else on a device of their own, given back after — and
+ * answers its result with the adapter it measured. `signal` stops it: the worker and the device it
+ * made are given back and the run is refused.
  */
 export async function runHardwareBenchmark(
   options: HardwareBenchmarkOptions = {},
   signal?: AbortSignal,
   needs: BenchmarkNeeds = PAGE_NEEDS,
+  shared?: GPUDevice,
 ): Promise<{ result: HardwareBenchmarkResult; adapter: string | undefined }> {
   const { workScale = BENCHMARK_WORK_SCALE, cpuMultiplier = 1, gpuMultiplier = 1 } = options
   checkBenchmarkOptions(workScale, cpuMultiplier, gpuMultiplier)
   const processor = await measureProcessor(workScale, needs.worker, signal)
   signal?.throwIfAborted()
-  const device = await needs.device()
+  const device = shared ?? (await needs.device())
   try {
     signal?.throwIfAborted()
     const graphics = await measureGraphics(workScale, device, signal)
@@ -130,6 +133,6 @@ export async function runHardwareBenchmark(
     }
     return { result, adapter: gpuCapsOf(device).adapter }
   } finally {
-    device.destroy()
+    if (!shared) device.destroy()
   }
 }

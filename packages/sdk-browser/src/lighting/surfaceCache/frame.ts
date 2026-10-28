@@ -22,7 +22,6 @@ import {
   type CardView,
 } from '../../../../sdk-core/src/lighting/surfaceCache/cardViews.ts'
 import type { CapturePage } from '../../../../sdk-core/src/lighting/surfaceCache/captures.ts'
-import { updateFrameFrozen } from '../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
 import {
   addStreamingViewOrigins,
   createViewOriginHold,
@@ -31,10 +30,7 @@ import {
   type ViewOriginHold,
 } from '../../../../sdk-core/src/lighting/surfaceCache/requests.ts'
 import { confirmPages } from '../../../../sdk-core/src/lighting/surfaceCache/virtualSurface.ts'
-import {
-  advanceFrame,
-  updateSurfaceCache,
-} from '../../../../sdk-core/src/lighting/surfaceCache/update.ts'
+import { updateSurfaceCache } from '../../../../sdk-core/src/lighting/surfaceCache/update.ts'
 import {
   createSurfaceCache,
   type SurfaceCache,
@@ -51,6 +47,9 @@ import { createNoFieldRead } from '../distanceField/view.ts'
 import { screenProbeSettingsOf } from '../bounce/screen/settingsOf.ts'
 import { createHitCards } from '../reflections/hitCards.ts'
 import { ensureSurfaceAtlases, type SurfaceAtlases } from './atlases.ts'
+import { surfaceCacheLightOf, surfaceCacheLightWanted } from './light.ts'
+import { periodicResetDue } from './periodicReset.ts'
+import { closeImage, metricsOf } from './closeImage.ts'
 import { cardShadingBytes, createCardShading, type CardShading } from './capture/shade.ts'
 import type { CardRaster } from './capture/raster.ts'
 import { texturesPending } from './capture/objectTextures.ts'
@@ -130,6 +129,9 @@ export interface SurfaceCacheFrameState {
   readonly originHold: ViewOriginHold
   /** Whether this image updated the cache: the lighting (`lighting/frame.ts`) follows it. */
   updated: boolean
+  /** Whether `surfaceCacheReset` and `surfaceCacheForceEvictHiResPages` were on in the last image: each acts once when it is turned on. */
+  resetHeld: boolean
+  evictHeld: boolean
   /** The lighting's own state (`lighting/surfaceLighting.ts`), made when it first lights. */
   lighting?: SurfaceLightingState
 }
@@ -175,6 +177,8 @@ function createState(rt: WebgpuPagesRuntime, device: GPUDevice): SurfaceCacheFra
     field: {} as GlobalDistanceFieldSettings,
     originHold: createViewOriginHold(),
     updated: false,
+    resetHeld: false,
+    evictHeld: false,
   }
 }
 
@@ -213,16 +217,18 @@ const hitStandIns = oncePerDevice((device: GPUDevice) => ({
 /**
  * What a pass whose rays read the cache's light at their hits binds (`lighting/surfaceCache/hitWgsl.ts`): the global field they are
  * marched through and the cache's tables and layers with the field's object grid, one set a session — the cache's own, the stand-ins
- * of a hit where the cache is not made or the session has no cards, the reads of an empty field where the scene has none.
+ * of a hit where the cache is not made, is made in another format than `light` — the format the pass's programs read the final light in, the cache's own
+ * by default — or the session has no cards, the reads of an empty field where the scene has none.
  */
 export function surfaceHitReads(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   into?: SurfaceHitReads,
+  light = surfaceCacheLightOf(rt, device),
 ): SurfaceHitReads {
   const standIns = hitStandIns(device)
   const field = rt.distanceFields?.scene ?? standIns.field
-  const hit = (rt.surfaceCache?.hit ?? standIns.hit).resources(rt)
+  const hit = (rt.surfaceCache?.hit ?? standIns.hit).resources(rt, light)
   if (!into) return { field, hit }
   into.field = field
   into.hit = hit
@@ -277,8 +283,11 @@ export const fieldSettingsOf = (rt: WebgpuPagesRuntime, state: SurfaceCacheFrame
   resolveSettingsInto(GLOBAL_DISTANCE_FIELD_RULES, rt.context, state.field)
 
 /** The distance the cards are kept to, in centimetres: the outermost clipmap of the global distance
- *  field's half side, or its view distance where it makes none. */
-function reachOf(rt: WebgpuPagesRuntime, state: SurfaceCacheFrameState) {
+ *  field's half side, or its view distance where it makes none; where the scene has acceleration structures and the rays through them
+ *  are culled (`rayTracingCulling` over 0), the culling radius (`rayTracingCullingRadius`) in its place. */
+export function reachOf(rt: WebgpuPagesRuntime, state: SurfaceCacheFrameState) {
+  if (rt.context.rayTracing && state.settings.rayTracingCulling > 0)
+    return state.settings.rayTracingCullingRadius
   const settings = fieldSettingsOf(rt, state)
   const clipmaps = numClipmaps(settings)
   return clipmaps > 0
@@ -346,6 +355,9 @@ function drawCards(
     viewRows: atlases.viewRows,
     ids: atlases.capture.ids,
     depth: atlases.capture.depth,
+    albedo: atlases.capture.albedo,
+    normal: atlases.capture.normal,
+    emissive: atlases.capture.emissive,
   }
   return toDraw.length ? raster.draw(encoder, targets, toDraw, cardViews) : undefined
 }
@@ -410,37 +422,6 @@ function capture(
   }
 }
 
-/** The account of the last image. */
-function metricsOf(
-  state: SurfaceCacheFrameState,
-  account: Pick<SurfaceCacheFrameMetrics, 'captured' | 'copied' | 'refreshed' | 'waiting'>,
-  heldBack = 0,
-): SurfaceCacheFrameMetrics {
-  const { cache, atlases, shading, tables } = state
-  const pagesTotal = cache.allocator.pagesX * cache.allocator.pagesY
-  return {
-    atlasSide: atlases?.side ?? 0,
-    captureSide: atlases?.captureSide ?? 0,
-    bytes: (atlases?.bytes ?? 0) + (shading?.bytes ?? 0) + tables.bytes,
-    placements: state.placements.count,
-    meshCards: cache.meshCards.length,
-    cards: cache.cards.length,
-    pagesUsed: pagesTotal - cache.allocator.freePages,
-    pagesTotal,
-    ...account,
-    // The pages asked again, and the refusals of an object held back for its textures (`texturesPending`).
-    waiting: account.waiting + heldBack,
-    meshCardsToAdd: cache.stats.meshCardsToAdd,
-    lockedCardsToUpdate: cache.stats.lockedCardsToUpdate,
-    hiResPagesToAdd: cache.stats.hiResPagesToAdd,
-    desiredTexels: cache.stats.desiredTexels,
-    raster: !state.raster.failure,
-    why: state.why,
-    compressed: atlases?.compressed ?? false,
-    compressionWhy: state.compressionWhy,
-  }
-}
-
 /** Gives back what the cache holds on the GPU, and its place in the scene: the next image that asks
  *  makes them again. */
 function release(state: SurfaceCacheFrameState) {
@@ -483,6 +464,7 @@ function ensureGpu(rt: WebgpuPagesRuntime, device: GPUDevice, state: SurfaceCach
     captureSide,
     compressed,
     views,
+    surfaceCacheLightWanted(rt, device),
     extra,
   )
   if (!made.atlases) {
@@ -498,14 +480,18 @@ function ensureGpu(rt: WebgpuPagesRuntime, device: GPUDevice, state: SurfaceCach
     state.shading = undefined
     state.refused = false
   }
-  // The kernels are for one kind of atlas: an atlas made the other kind brings new ones.
-  if (state.kernels && state.kernels.compressed !== made.atlases.compressed) {
+  // The kernels are for one kind of atlas and one format of its light: an atlas made the other kind brings new ones.
+  if (
+    state.kernels &&
+    (state.kernels.compressed !== made.atlases.compressed ||
+      state.kernels.light !== made.atlases.light)
+  ) {
     state.kernels.dispose()
     state.kernels = undefined
   }
   if (!state.refused) {
     state.shading ??= createCardShading(rt, device, captureSide)
-    state.kernels ??= createCaptureKernels(device, made.atlases.compressed)
+    state.kernels ??= createCaptureKernels(device, made.atlases.compressed, made.atlases.light)
   }
   return true
 }
@@ -546,31 +532,6 @@ export function encodeSurfaceCache(
   }
 }
 
-/** What closes an image: why the capture or the raster could not be made, if they could not; whether
- *  the cache still waits for work; the clock; the image's metrics from its `account`. */
-export function closeImage(
-  state: SurfaceCacheFrameState,
-  account: Parameters<typeof metricsOf>[1],
-  heldBack: number,
-) {
-  const { cache, raster } = state
-  if (state.shading?.failure)
-    state.why = `the capture's shading could not be made: ${String(state.shading.failure)}`
-  else if (raster.failure)
-    state.why = `the cards' raster could not be made: ${String(raster.failure)}`
-  // The requests the image left; the refresh of the pages captured longest ago goes on whatever the view
-  // does, and keeps nothing unheld: it leaves the light of its pages (`CapturePage.refresh`).
-  const { meshCardsToAdd, lockedCardsToUpdate, hiResPagesToAdd } = cache.stats
-  // Work left: cards to add or update, pages asked again, or an object held back for its textures — which land between two images and are
-  // captured by the next, so the frame must not be held before it.
-  state.busy =
-    meshCardsToAdd + lockedCardsToUpdate + hiResPagesToAdd > 0 || account.waiting + heldBack > 0
-  // A frozen cache or update frame keeps the clock where it is (`surfaceCacheFreeze`, `surfaceCacheFreezeUpdateFrame`).
-  if (!updateFrameFrozen(state.settings)) advanceFrame(cache)
-  state.updated = true
-  state.metrics = metricsOf(state, account, heldBack)
-}
-
 /** The eyes of an image, centimetres: the main view's origin (the camera's eye moved ahead by the global distance field's velocity
  *  offset, held where it stopped while `surfaceCacheUpdateViewOrigin` is off), then the eyes of the views drawn beside the main one
  *  that have drawn, which are streaming views: each kept only if it lies `surfaceCacheViewOriginDistanceThreshold` or more from the eyes held, two at most
@@ -604,6 +565,19 @@ function eyesOf(rt: WebgpuPagesRuntime, cam: EngineCamera, state: SurfaceCacheFr
   return origins
 }
 
+/** What the debugging settings ask of this image: the cache reset (a setting turned on, or an image that is a multiple of the period) and the forced eviction of the optional pages, each once as it is turned on. */
+function debugRequests(rt: WebgpuPagesRuntime, state: SurfaceCacheFrameState) {
+  const { surfaceCacheReset, surfaceCacheResetEveryNthFrame, surfaceCacheForceEvictHiResPages } =
+    state.settings
+  const reset =
+    (surfaceCacheReset && !state.resetHeld) ||
+    periodicResetDue(rt.run.frame, surfaceCacheResetEveryNthFrame)
+  const forceEvictHiResPages = surfaceCacheForceEvictHiResPages && !state.evictHeld
+  state.resetHeld = surfaceCacheReset
+  state.evictHeld = surfaceCacheForceEvictHiResPages
+  return { reset, forceEvictHiResPages }
+}
+
 /** One image's work of the cache: `encodeSurfaceCache` after it knows the cache is asked for. */
 function updateImage(
   rt: WebgpuPagesRuntime,
@@ -635,11 +609,16 @@ function updateImage(
   const colorBoost = 1 / state.settings.surfaceCacheDiffuseColorBoost
   state.tables.update(cache, preExposure, colorBoost, encoder)
   const gate = captureGate(rt, state)
+  const { reset, forceEvictHiResPages } = debugRequests(rt, state)
   const work = updateSurfaceCache(cache, state.settings, {
     origins: eyes,
     orthographic: cam.perspective === 0,
     clipmapExtent: reachOf(rt, state),
     compressed: atlases.compressed,
+    light: atlases.light,
+    preExposure,
+    reset,
+    forceEvictHiResPages,
     ready: gate.ready,
     feedback: state.feedback.take(),
   })

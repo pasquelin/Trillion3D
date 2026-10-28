@@ -183,3 +183,19 @@ test('two worlds of a page measure once: the result is kept in the process where
   assert.deepEqual(await second.saved(), kept, 'the second world reads what the first kept')
   assert.equal(measured, 1, 'one benchmark for the two worlds')
 })
+
+test('on the world’s own device the benchmark makes none and destroys none', async () => {
+  const shared = fakeDevice()
+  const asked = {
+    worker: () => fakeWorker(1) as unknown as Worker,
+    device: async () => assert.fail('no device of its own') as never,
+  }
+  const { adapter } = await runHardwareBenchmark(
+    {},
+    undefined,
+    asked,
+    shared as unknown as GPUDevice,
+  )
+  assert.equal(adapter, 'v|a|d|x')
+  assert.ok(!shared.destroyed, 'the session still draws with it')
+})

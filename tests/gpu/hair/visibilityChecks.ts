@@ -30,11 +30,13 @@ import {
 import {
   HAIR_DEFAULT_MATERIAL,
   HAIR_FLAG,
+} from '../../../packages/sdk-browser/src/hair/materialMath.ts'
+import {
   hairUnitByte,
   unpackHairDepth,
   unpackHairSample,
-} from '../../../packages/sdk-browser/src/hair/materialMath.ts'
-import { HAIR_DEPTH_BIAS } from '../../../packages/sdk-browser/src/hair/gbufferWgsl.ts'
+} from '../../../packages/sdk-browser/src/hair/materialMath.fixture.ts'
+import { HAIR_DEPTH_BIAS } from '../../../packages/sdk-browser/src/hair/depthBias.ts'
 import { UNLIT_FLAG } from '../../../packages/sdk-browser/src/materials/surface/surfaceModelWord.ts'
 import {
   FULL_COVERAGE,
@@ -184,7 +186,7 @@ const inTiles = (listed: Set<string>, x: number, y: number) =>
   listed.has(`${Math.floor(x / HAIR_TILE_SIZE)},${Math.floor(y / HAIR_TILE_SIZE)}`)
 
 /** The tiles of each list, as sets of `x,y`. */
-export function tileSets(read: Readbacks) {
+function tileSets(read: Readbacks) {
   return Array.from({ length: HAIR_TILE_LISTS }, (_, list) => {
     const words = Array.from(
       { length: read.tileCounts[list]! },

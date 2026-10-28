@@ -5,7 +5,12 @@ import assert from 'node:assert/strict'
 import { near } from '../../../../math/src/float/near.fixture.ts'
 import { wgslSource } from '../../../../math/src/wgsl/source.fixture.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { REPROJECT_BITS, REPROJECTED_WORD_WGSL, reprojectShader } from './reprojectWgsl.ts'
+import {
+  REPROJECT_BITS,
+  REPROJECTED_FLAGS_WGSL,
+  REPROJECTED_WORD_WGSL,
+  reprojectShader,
+} from './reprojectWgsl.ts'
 import { TAA_VIEW_WGSL } from './bindingsWgsl.ts'
 import { FULL_PRECISION } from './colorSpaceWgsl.ts'
 import { flickerMeasureWgsl } from './flickerMeasureWgsl.ts'
@@ -182,16 +187,19 @@ test('the rejection widens its clamp by the blur of the lesser total variation i
   assert.match(text, /let clampError=max\(max\(Q,variation\[r\]\),boxSize\*/)
 })
 
-test('the flicker measure lists what it reads that the rejection’s bindings do not declare: the view, the gates, the reprojection word, the display step error', () => {
+test('the flicker measure lists what it reads that the rejection’s bindings do not declare: the view, the gates, the reprojection word’s flags, the display step error', () => {
   const measure = flickerMeasureWgsl(rejectionTypes(FULL_PRECISION))
   const listed = new Set(measure.deps.map((dep) => dep.name))
   for (const dep of [
     TAA_VIEW_WGSL,
     FLICKER_GATES_WGSL,
-    REPROJECTED_WORD_WGSL,
+    REPROJECTED_FLAGS_WGSL,
     DISPLAY_STEP_ERROR_WGSL,
   ])
     assert.ok(listed.has(dep.name), dep.name)
+  // It is handed the word, never reads the reprojection itself: no fetch of its own.
+  assert.ok(!listed.has(REPROJECTED_WORD_WGSL.name))
+  assert.doesNotMatch(measure.text, /textureLoad\(reprojected/)
   // The program holds the display step error once, for the rejection and the measure both.
   const text = wgslSource(rejectShadingShader('rgba8unorm', 'rgba16float'))
   assert.equal(text.match(/const Q=/g)?.length, 1)

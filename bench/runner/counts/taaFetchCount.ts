@@ -46,16 +46,14 @@ const perRejectTexel = (fetches: number) =>
  * included, whether its entry reaches them or not.
  */
 export const TAA_PASS_FETCHES = {
-  // 9 depths, its identifier, the flags of its pixel (the velocity stage's second word) and the
-  // responsiveness the layers over it carry; a second
-  // identifier where it takes a neighbour's velocity, none on a flat surface; the displacement
-  // atlas's normals of a displaced pixel's flat point (`normalAt`), none on an undisplaced surface;
-  // the boundary's depth browse only where the texel's vector differs from its dilated one.
-  // On the field's levels (`reprojectionField`), the 3×3's vectors besides. Where the image moved a
-  // placement, a texel of it reads its two poses, now and as the last drawn frame drew them
-  // (`placementMotion`: the world table's matrix and translation accessors of each of the two poses, four sites; the poses are placements' worlds, no instance accessor reads a table), none in
-  // a still image.
-  velocity: { perTexel: 10 + 1 + 1, field: 9, sites: 13 },
+  // 9 depths, the velocity word of the texel it takes the nearest surface's from (the velocity
+  // stage's vector, read where that surface moves by itself, the camera's alone computed else), the
+  // flags of its pixel (the stage's second word) and the responsiveness the layers over it carry; a
+  // second vector where it takes a neighbour's velocity, none on a flat surface; the boundary's
+  // depth browse only where the texel's vector differs from its dilated one. On the field's levels
+  // (`reprojectionField`), the 3×3's vectors besides. The pass reads no page record, no placement's
+  // pose and no displacement atlas: the stage measured them (its text holds 7 sites, not 13).
+  velocity: { perTexel: 9 + 1 + 1 + 1, field: 9, sites: 7 },
   // The marks, the closest word, its dilated vector (`dilatedVector`: its offset's code in the marks
   // and the vector it names; the closest surface's depth only where that vector is the camera's
   // alone), the shading history's five Catmull-Rom taps (`bicubicRead`'s site besides), the flicker

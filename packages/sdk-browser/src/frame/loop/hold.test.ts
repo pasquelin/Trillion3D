@@ -10,7 +10,7 @@
 // reads.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { heldOnAnswer, lastHold } from './deviceAnswer.ts'
+import { heldOnAnswer, lastHold } from './deviceAnswer.fixture.ts'
 import { holdWebgpuFrame, keepWebgpuFrame } from './hold.ts'
 import { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import type { DirectLightResources } from '../../lighting/deferred/program.ts'
@@ -135,12 +135,12 @@ test('a frame held on a compile in flight names what it waits for', async () => 
   assert.equal(holdWebgpuFrame(rt, h.device), true, 'held on the answer')
   assert.deepEqual(heldCompiles(h.device), ['lit program'])
   assert.equal(
-    heldOnAnswer(h.device),
+    heldOnAnswer(rt),
     'pipelines: lit program',
     'the answer the frame was held on, and the pipeline named',
   )
   assert.deepEqual(
-    [lastHold(h.device)?.drawn, lastHold(h.device)?.reason, lastHold(h.device)?.heldEmpty],
+    [lastHold(rt)?.drawn, lastHold(rt)?.reason, lastHold(rt)?.heldEmpty],
     [false, 'pipelines: lit program', true],
     'said as the frame that entered',
   )
@@ -149,14 +149,38 @@ test('a frame held on a compile in flight names what it waits for', async () => 
   await Promise.resolve()
   assert.deepEqual(heldCompiles(h.device), [])
   assert.equal(holdWebgpuFrame(rt, h.device), false, 'drawn once it answered')
-  assert.equal(heldOnAnswer(h.device), undefined, 'and held on none')
-  assert.deepEqual([lastHold(h.device)?.drawn, lastHold(h.device)?.reason], [true, 'drawn'])
+  assert.equal(heldOnAnswer(rt), undefined, 'and held on none')
+  assert.deepEqual([lastHold(rt)?.drawn, lastHold(rt)?.reason], [true, 'drawn'])
   assert.deepEqual(
-    Object.entries(lastHold(h.device)!.byReason).map(([reason, { count }]) => [reason, count]),
+    Object.entries(lastHold(rt)!.byReason).map(([reason, { count }]) => [reason, count]),
     [
       ['pipelines: lit program', 1],
       ['drawn', 1],
     ],
     'every frame that entered, counted by what was done with it',
   )
+})
+
+test('the light beginning is a change of the noise’s clock: the image is drawn although the gate stands, and the establishment goes on to its final image', () => {
+  const { device } = deferredLightingHarness()
+  const rt = settledRt()
+  const lighting: { begunAt?: number } = {}
+  Object.assign(rt, { surfaceCache: { lighting } })
+  for (let i = 0; i < 2; i++) {
+    rt.run.frame++
+    keepWebgpuFrame(rt)
+  }
+  assert.equal(holdWebgpuFrame(rt, device), false, 'the light has not begun: drawn')
+  rt.run.frame++
+  keepWebgpuFrame(rt)
+  lighting.begunAt = rt.run.frame
+  assert.equal(
+    holdWebgpuFrame(rt, device),
+    false,
+    'it began: a change, drawn though nothing else moved',
+  )
+  rt.run.frame++
+  keepWebgpuFrame(rt)
+  drawFinalImage(rt, device)
+  assert.equal(holdWebgpuFrame(rt, device), true, 'established: held')
 })

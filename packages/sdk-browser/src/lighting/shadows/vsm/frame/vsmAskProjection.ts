@@ -1,11 +1,10 @@
-import { readShadowSetting } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { pickKeyOf } from '../../../../frame/prepare/contractLight.ts'
 import { wantsContractLighting } from '../../../../frame/prepare/lit.ts'
 import { track } from '../../../deferred/compileLedger.ts'
 import { perLightPipelinesOf } from '../projection/perLightPipelines.ts'
 import { pipelinesFor } from '../projection/projectionPipelines.ts'
-import { shadowsOn } from './vsmGates.ts'
+import { shadowsOn, shadowsOnePass } from './vsmGates.ts'
 
 /**
  * At a frame's entry, what the per-light path (`shadowOnePassProjection` false) needs for a shadowed local light, asked off the frame
@@ -21,7 +20,7 @@ export function askPerLightLights(rt: WebgpuPagesRuntime, device: GPUDevice) {
     !wantsContractLighting(rt) ||
     !shadowsOn(rt) ||
     !rt.lights.store.shadowedLocals ||
-    readShadowSetting(rt, 'shadowOnePassProjection')
+    shadowsOnePass(rt)
   )
     return
   perLightPipelinesOf(pipelinesFor(device, res.layout)).projection.ask()

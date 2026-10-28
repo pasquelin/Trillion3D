@@ -16,7 +16,7 @@ export const TILE_BURST = 1024
 export const TILE_PROTECTED = 16
 
 /** The ranks a tile pool tells apart: `TILE_TIERS` tiers (levels) in each of `TILE_AGES` age steps. */
-export const TILE_TIERS = 32
+const TILE_TIERS = 32
 const TILE_AGES = POOL_RANKS / TILE_TIERS
 
 /** Slot `j`'s rank (the tests run this text over a stubbed `poolSlotAge` and `poolSlotTier`): `POOL_RANKS` while its age is under

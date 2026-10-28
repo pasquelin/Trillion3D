@@ -3,7 +3,7 @@
 // the Hi-Z oracle's reductions.
 import { f32Bits } from '../../../../math/src/float/bits.ts'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
-import { HIZ_SHADER, HIZ_WITH_TRACE } from '../../visibility/hiz/gpu/shader.ts'
+import { HIZ_SHADER, HIZ_UNIFORM_VAR, HIZ_WITH_TRACE } from '../../visibility/hiz/gpu/shader.ts'
 import { pyramidBytes } from '../../visibility/hiz/gpu/oracle.ts'
 import { HIZ_BUILD_SIDE, HIZ_MAX_LEVELS } from '../../visibility/hiz/gpu/uniforms.ts'
 import {
@@ -38,6 +38,7 @@ export const HIZ_DEPTH_READERS = [
   'hizCellNearest',
   'hizCellFarthest',
   'hizCellCullFarthest',
+  'hizCellFurthest',
   'hizLevelCount',
   'hizTracePlanes',
   'hizCullFarthest',
@@ -121,7 +122,14 @@ export function depthField(
     {
       [HIZ_WITH_TRACE]: true,
       // This image wrote the front layer: zero where no transparent surface lies.
-      uni: { a: 0, b: width, c: height, upper, front: 1, planes: planes ? 1 : 0 },
+      [HIZ_UNIFORM_VAR]: {
+        a: 0,
+        b: width,
+        c: height,
+        upper,
+        front: 1,
+        planes: planes ? 1 : 0,
+      },
       level0,
       // Level 0's two layers: the opaque depth, then the nearest transparent surface's.
       textureLoad: (_: object, p: number[], layer: number) => [

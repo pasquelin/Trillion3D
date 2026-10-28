@@ -10,9 +10,15 @@ export function createGpuTiming(
     /** Frames between two samples; a function is read at every frame, so a caller may change it. */
     sampleEveryFrames?: number | (() => number)
     onSample: (sample: GpuTimingSample) => void
+    apart?: () => boolean
   },
 ) {
-  const state = createTimingState(device, options.sampleEveryFrames, options.onSample)
+  const state = createTimingState(
+    device,
+    options.sampleEveryFrames,
+    options.onSample,
+    options.apart,
+  )
   const timing = {
     get supported() {
       return state.enabled && !state.disposed

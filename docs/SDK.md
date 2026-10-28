@@ -279,7 +279,8 @@ more). It is `null` without `timestamp-query`.
 ```js
 world.onFrame(({ metrics }) => {
   const timer = metrics.gpuTimer
-  if (timer && timer.completedSamples === 0) console.log('no GPU time yet, skipped:', timer.skippedFrames)
+  if (timer && timer.completedSamples === 0)
+    console.log('no GPU time yet, skipped:', timer.skippedFrames)
   else console.log(metrics.gpuFrameMs, 'ms on the GPU')
 })
 ```
@@ -289,7 +290,8 @@ world.onFrame(({ metrics }) => {
 ```js
 world.onFrame(({ metrics }) => {
   const lost = metrics.tessellationLoss
-  if (lost && (lost.queue || lost.visible || lost.windows || lost.occluded)) console.warn('tessellation lost patches:', lost)
+  if (lost && (lost.queue || lost.visible || lost.windows || lost.occluded))
+    console.warn('tessellation lost patches:', lost)
 })
 ```
 
@@ -696,7 +698,7 @@ world.distanceFieldOcclusion = { distanceFieldOcclusionQuality: null } // back t
 `world.surfaceCache` holds the settings of the surface cache, an option of `createWorld` too: the atlas that keeps the
 captured surface of the meshes' cards (flat boxes along a mesh's faces, built by the compiler), which the rays that
 leave the screen will read where they hit a mesh. Each setting is the reference's of that meaning, with its default, the
-row of the screen probes' level `ultra` (the default; `cinematic` holds the same); the levels `high` and `low` hold another
+row of the screen probes' level `ultra` (the default; `cinematic` holds the same); the level `high` holds another
 row of the atlas's side, the cards' density and resolutions, the lights a tile, the lighting's update factors and the radiosity's
 probes (`SURFACE_CACHE_LEVEL_ROWS`), which a setting you name overrides; lengths are in centimetres. The atlas: `surfaceCacheAtlasSize` (`4096`, texels a side, cut into pages of 128) and
 `surfaceCacheResolution` (`1`, from 0.5: a factor on the pages along a side, held between 1 and 64, and on the cards'
@@ -740,7 +742,11 @@ mask of the tile's texels (the light function and the clouds' shade, then whethe
 texel the mask leaves open; `surfaceCacheDirectLightingHardwareRayTracingShadowRayBias` (`1` cm off the texel, three where it grazes
 the light), `…EndBias` (`1` cm: a lamp's ray stops short of it), `…AdaptiveShadowTracing` (`true`: a tile that every texel saw a light
 at, or none did, at its last update traces one texel of each quad of four, a different one each update), `…ForceTwoSided` (`false`:
-the front faces of a primitive that is not two-sided are culled; `true` takes all as two-sided) and
+the front faces of a primitive that is not two-sided are culled; `true` takes all as two-sided), `surfaceCacheDirectLightingStochastic` (`false`, experimental, with the shadows traced: each texel is lit by
+`surfaceCacheDirectLightingStochasticSamplePerTexel` (`1`, up to 4, 3 taken as 4) lights picked among those of its tile with a chance proportional to `log2(1 + luminance)`, a light under
+`surfaceCacheDirectLightingStochasticMinWeight` (`0.001`) never picked, and only the picked ones traced; `…StochasticTemporal` (`true`) blends the result over at most
+`…StochasticTemporalMaxFramesAccumulated` (`12`) images, the history held within `…StochasticTemporalNeighborhoodClampScale` (`2`) standard deviations of the texel's 5 × 5 neighbours; example:
+`world.surfaceCache = { surfaceCacheDirectLightingStochastic: true, surfaceCacheDirectLightingStochasticSamplePerTexel: 2 }`) and
 `surfaceCacheHardwareRayTracingMaxIterations` (`8192` triangles a ray may test; a ray that stopped counts as blocked). The radiosity, `surfaceCacheRadiosity` (`true`), `surfaceCacheRadiosityProbeSpacing` (`4`, texels, a power of two up to 8),
 `surfaceCacheRadiosityHemisphereProbeResolution` (`4`, up to 16), `surfaceCacheRadiositySpatialFilterProbes` (`true`) with its
 `…KernelSize` (`1`: 0 none, 1 four neighbours, 2 thirteen), `surfaceCacheRadiosityProbePlaneWeighting` (`true`) with its
@@ -881,12 +887,15 @@ side of a face in texels (a power of two from 16 to 1024) and the six faces' lin
 a cube of another form is refused by name at the opening). It is a second source of the indirect light, beside the environment's and
 the sky light's: a surface's diffuse colour is lit by the cube read along its normal at the mip where the cube is convolved by the
 whole hemisphere, and its specular reflectance by the cube read along its reflection at the mip its roughness picks, weighed by the
-same environment BRDF as the other sources, so the coat, the cloth's fuzz and a thin surface's back take it as they take the
+same energy terms as the other sources, so the coat, the cloth's fuzz and a thin surface's back take it as they take the
 others'. Its settings are `ambientCubemapTintRed`, `ambientCubemapTintGreen` and `ambientCubemapTintBlue` (`1` each, from 0), the
 tint, and `ambientCubemapIntensity` (`1`, from 0), the scale that multiplies it; a colour that is black draws nothing, and an image
-that sets no cube, or a black one, compiles no code for it and binds no texture. The cube's mip chain is filtered by angle a few
-rows an image and uploaded once; the images drawn meanwhile are drawn again and light nothing from the cube. The translucent surfaces
-take no light from it. An agent sets the settings through `trillion3d_set_ambient_cubemap`.
+that sets no cube, or a black one, compiles no code for it and binds no texture. The cube's mip chain is filtered by angle on the GPU,
+once for a cube, over the images a budget of texels an image allows (a cube of 16 texels a face in one image, a cube of 1024 in some
+tens); the images drawn meanwhile are drawn again and light nothing from the cube. The cube can be changed or taken away while the
+world runs: `explorer.setAmbientCubemapCube(cube)` replaces it (its chain is filtered again, the old one freed), `explorer.setAmbientCubemapCube(null)`
+takes the light away, and a cube of another form is refused by name. The translucent surfaces take no light from it. An agent sets the
+settings through `trillion3d_set_ambient_cubemap`.
 
 ```js
 const world = createWorld({
@@ -896,6 +905,8 @@ const world = createWorld({
 })
 world.ambientCubemap = { ambientCubemapTintBlue: 1.5 } // bluer, from the next frame
 world.ambientCubemap = { ambientCubemapIntensity: 0 } // off: no code, no texture
+explorer.setAmbientCubemapCube({ size: 16, texels: new Float32Array(6 * 16 * 16 * 3).fill(0.1) }) // another cube, filtered from the next images
+explorer.setAmbientCubemapCube(null) // no cube: the light goes, the texture is freed
 ```
 
 `world.shading` holds the material pass's settings, each an option of `createWorld` too:
@@ -979,6 +990,32 @@ explorer.setExposureCurve({
   after: 'linear',
 })
 explorer.setExposureCurve(null) // no compensation
+```
+
+The local exposure's contrast curves, `localExposureHighlightContrastCurve` and
+`localExposureShadowContrastCurve` (options of `createWorld` and of the explorer;
+`explorer.setLocalExposureHighlightContrastCurve(curve)` and
+`explorer.setLocalExposureShadowContrastCurve(curve)` change them, `null` or `false` gives them
+back), take the same keys `[ev, scale]` as the compensation curve, but the value of a key is a scale
+the highlights' or the shadows' contrast (`localExposureHighlightContrast`,
+`localExposureShadowContrast`) is multiplied by, read at the EV100 of the frame's mean luminance as
+the compensation curve is. A curve set makes the local exposure run whatever the contrasts. None by
+default: the contrasts are used as they are.
+
+```js
+const world = createWorld('viewer', {
+  localExposureHighlightContrastCurve: [
+    [0, 1],
+    [8, 0.5], // a bright scene gets half the highlight contrast
+  ],
+})
+explorer.setLocalExposureShadowContrastCurve({
+  keys: [
+    [-2, 1.5],
+    [6, 1],
+  ],
+})
+explorer.setLocalExposureShadowContrastCurve(null) // back to the setting alone
 ```
 
 ```js
@@ -1213,6 +1250,40 @@ Dispose in the page's teardown, **not right after startup**: `world.dispose()` r
 controls, observers, queued frames and abort listeners and closes the engine, keeping the canvas.
 `createJob` wraps `scene.load(url, { signal, onProgress })` for cancellation and an observable
 status.
+
+`world.textureFiltering` holds the settings of the anisotropic filtering, each an option of
+`createWorld` too: the most reads a texture takes along the longer axis of its footprint. A texture
+that asks for less (`Texture.anisotropy`, 8 for a new one; the `maximum` detail asks 16) keeps its
+own; one that asks for more is held to the ceiling. A write names the settings it changes, `null`
+one's default; a value of another kind is refused by name. They are render settings of the textures
+group: the quality presets write them (below), the page's value holds over a preset, and a write
+applies from the next image.
+
+| Setting                              | Takes                                                                                                                                                                                                                                                                                                                                                                                                                               | Default |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------- |
+| `textureMaxAnisotropy`               | A whole number from 1 to 16: the ceiling of the sampler the clouds' textures, the only ones not streamed by tile, are read through; `1` turns their anisotropic filtering off                                                                                                                                                                                                                                                       | `8`     |
+| `virtualTextureMaxAnisotropy`        | A whole number from 1 to 16, held to the power of two at or below it: the ceiling of the reads and of the tile requests of every map of a material; a lower one reads fewer taps                                                                                                                                                                                                                                                    | `8`     |
+| `virtualTextureAnisotropicFiltering` | `true` / `false`: `false` reads a streamed texture ONCE per sample, at the level of the footprint's longer axis moved toward the shorter by the elongation (up to the ceiling's logarithm), picked among the two levels it straddles by a per-pixel, per-image noise, the tiles asked being that level's; `true` takes as many taps along the footprint as the elongation asks, up to the ceiling. The same at every quality preset | `false` |
+
+| Quality preset                | `smooth` | `balanced` | `fine` | `max` | `cinematic` |
+| ----------------------------- | -------- | ---------- | ------ | ----- | ----------- |
+| `textureMaxAnisotropy`        | `1`      | `2`        | `4`    | `8`   | `8`         |
+| `virtualTextureMaxAnisotropy` | `4`      | `4`        | `8`    | `8`   | `8`         |
+
+The streamed textures' ceiling bounds what a pixel asks to stream as much as what it reads: a surface
+seen at a grazing angle is read at a coarser level when the ceiling is low, and asks for fewer
+tiles. The headers of the textures are written again when it moves; the clouds' textures' sampler is
+made again.
+
+```js
+const world = createWorld('viewer', { virtualTextureMaxAnisotropy: 4 })
+world.textureFiltering = { virtualTextureMaxAnisotropy: 16 } // sharper at a slant, from the next image
+world.textureFiltering = { textureMaxAnisotropy: 1 } // the clouds' textures read isotropic
+world.textureFiltering = { virtualTextureAnisotropicFiltering: true } // taps along the footprint, as many as the elongation asks
+world.textureFiltering = { virtualTextureMaxAnisotropy: null, textureMaxAnisotropy: null } // defaults
+```
+
+The explorer's tool `trillion3d_set_texture_filtering` writes one setting at a time (`field`, `value`).
 
 ### Camera controllers
 
@@ -2910,15 +2981,18 @@ const sun = light.directional({ intensity: 6, softAngle: 2 }) // a broader highl
 
 A point or a spot takes a light profile, the shape of the light a lamp gives as a photometric file measured it (an IES file the
 compiler turned into a profile, a lamp of an imported scene that names one has it already): `iesProfile` is the profile's id,
-`useIesBrightness` (default `false`) makes the light's intensity the profile's brightness (its greatest candela) times
-`iesBrightnessScale` (default `1`, from 0) in place of `intensity`, written in the light's unit. The colour of the light is
+`useIesBrightness` (default `false`) makes the light's intensity the profile's brightness (its greatest candela, `iesBrightness`:
+a finite number above 0 that the compiler writes with the profile, and only beside `iesProfile`) times
+`iesBrightnessScale` (default `1`, from 0) in place of `intensity`, written in the light's unit; a light that carries no
+`iesBrightness` keeps its `intensity`. The colour of the light is
 multiplied, for each direction it leaves in, by the profile's share of its greatest candela there, so a profiled light lights nothing
 a profile says it does not. The profile is read in the light's own frame: its vertical axis is the `direction` of the light, its 0
 degree vertical angle (the nadir) straight ahead along the way the light shines, and its horizontal angles run round that axis, laid out from
 `emitterAxis`, the light's own up, which is also the axis of its tube where it has an `emitterLength`. A light that names a profile
 therefore needs both a `direction` and an `emitterAxis`, and the axis may not be parallel to the direction
-(`INVALID_SCENE_LIGHT`); a sun or a rect refuses the profile's fields. At most 32 profiles are held at once; a light whose profile is
-not among them, or not loaded yet, lights as a lamp with none. A scene with no profiled light compiles no profile code and binds no
+(`INVALID_SCENE_LIGHT`); a sun or a rect refuses the profile's fields. The profiles are held in one atlas (`world.lightProfile`, below)
+of at most `lightProfileAtlasMaxProfiles` (32) of them at once; a light whose profile is not among them, or not loaded yet, lights as a
+lamp with none. A scene with no profiled light compiles no profile code and binds no
 atlas. The translucent surfaces do not read the profile: they are lit as by a lamp with none.
 
 ```js
@@ -2932,6 +3006,18 @@ world.addLight({
   useIesBrightness: true, // the intensity is the profile's greatest candela...
   iesBrightnessScale: 0.5, // ...times 0.5
 })
+```
+
+`world.lightProfile` holds the settings of the profiles' atlas, each an option of `createWorld` too, with the reference's default:
+`lightProfileAtlasResolution` (`256`, from 16 to 4096: the texels a side of a slice; a profile of another side is resampled to it, bilinear,
+when it is written) and `lightProfileAtlasMaxProfiles` (`32`, from 1 to 32: the most profiles the atlas holds). The atlas is made with
+the slices the lights ask (one per distinct profile, up to that most) and no more, made again, with every profile written into it
+again, when more are asked than it was made with or a setting moves, and handed back when no light names a profile any more. An
+agent sets them through `trillion3d_set_light_profile`.
+
+```js
+world.lightProfile = { lightProfileAtlasResolution: 128 } // lighter slices, a softer profile
+world.lightProfile = { lightProfileAtlasMaxProfiles: 8 } // at most 8 profiles; a ninth lights as a lamp with none
 ```
 
 `transmission` (default `false`) makes a light shine through the subsurface-profile surfaces it shadows (their
@@ -3266,6 +3352,7 @@ maps (the angle is held between 0.001 and 5 degrees in the cascade). Its setting
 
 | View option                         | Default              | Meaning                                                                                                                                                                                        |
 | ----------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `distanceFieldShadowing`            | `true`               | whether a sun may have a distance-field shadow cascade at all: the master switch of the feature; off, none is drawn                                                                            |
 | `distanceFieldShadowQuality`        | `3` (0 to 3)         | the steps of a ray: 0 none, 1 twenty, 2 thirty-two, 3 sixty-four (at 3 alone, a thin transmitting surface keeps the light that survives the thickness it has gone through, by its own opacity) |
 | `distanceFieldShadowFullResolution` | `false`              | traced at the display's resolution, else at half of it and upsampled keeping the depth edges                                                                                                   |
 | `distanceFieldShadowTileSize`       | `2` m                | the side of the tiles across the light the meshes are listed in                                                                                                                                |
@@ -3384,13 +3471,19 @@ eye model half a centimetre toward every light, one of the hair model a fifth of
 depth under a light that casts no shadow. The view's settings are shadow settings, options of `createWorld` too, and
 no quality level writes them:
 
-| View option                                | Default | Meaning                                                                                                                                                                              |
-| ------------------------------------------ | ------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| `contactShadows`                           | `true`  | whether the lights cast their rays; off, the lights cast none (the eye and hair models still cast theirs, and so do the surfaces of a material with `contactShadows`)                |
-| `contactShadowOverrideLength`              | `-1`    | a length that replaces every light's own when it is 0 or more (`0` turns the lights' off); below 0, none                                                                             |
-| `contactShadowOverrideLengthInWorldSpace`  | `false` | whether that length is in metres                                                                                                                                                     |
-| `contactShadowOverrideCastingIntensity`    | `-1`    | the intensity every light's shadow has at a surface that casts, when it is 0 or more (any number; the effective intensity is held to 1, above which the reference lights negatively) |
-| `contactShadowOverrideNonCastingIntensity` | `-1`    | the same at a surface that does not                                                                                                                                                  |
+| View option                                | Default | Meaning                                                                                                                                                                                      |
+| ------------------------------------------ | ------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `contactShadows`                           | `true`  | whether the lights cast their rays; off, the lights cast none (the eye and hair models still cast theirs, and so do the surfaces of a material with `contactShadows`)                        |
+| `contactShadowOverrideLength`              | `-1`    | a length that replaces every light's own when it is 0 or more (`0` turns the lights' off); below 0, none                                                                                     |
+| `contactShadowOverrideLengthInWorldSpace`  | `false` | whether that length is in metres                                                                                                                                                             |
+| `contactShadowOverrideCastingIntensity`    | `-1`    | the intensity every light's shadow has at a surface that casts, when it is 0 or more (any number; the effective intensity is held to 1, above which the reference lights negatively)         |
+| `contactShadowOverrideNonCastingIntensity` | `-1`    | the same at a surface that does not                                                                                                                                                          |
+| `contactShadowMethod`                      | `0`     | how the lights' rays are cast: `0` the short ray every lit pixel casts, `1` the Bend screen-space shadow, a texture made before the lighting                                                 |
+| `contactShadowBendSurfaceThickness`        | `0.005` | the thickness a pixel's surface is taken to have when a Bend ray meets it (share of the depth left to the far plane); method `1` only                                                        |
+| `contactShadowBendMaxLights`               | `8`     | how many lights the Bend march serves in an image (1 to 16), suns first then the nearest local lights; the others cast the short ray; one texture of the image's size (4 bytes a pixel) each |
+| `contactShadowIntensityMode`               | `0`     | the Bend shadow's intensity: `0` by the hit surface's `castContactShadow`, `1` by depth (fade below), `2` the casting intensity everywhere                                                   |
+| `contactShadowIntensityFadeStart`          | `1600`  | the depth in centimetres where the Bend shadow begins to fade from the non-casting intensity to the casting one (mode `1`)                                                                   |
+| `contactShadowIntensityFadeLength`         | `800`   | the length of that fade, in centimetres (mode `1`)                                                                                                                                           |
 
 ```js
 // A lamp whose shadow holds the books down on the shelf: a ray of a fiftieth of the screen's height, on a light that casts.
@@ -3575,6 +3668,7 @@ reference's, each an option of `createWorld` too, held over the quality preset, 
 | `translucencyVolumeAdaptToPerspective`   | The cascades are sized by the camera's own field of view and aspect, not a field of 45 degrees and a square view               | `false` |
 | `translucencyVolumeMinFov`               | Degrees: the least field of view the cascades follow while the setting above is on                                             | `45`    |
 | `translucencyVolumeFovSnap`              | Degrees: the field is rounded up to a multiple of it, which makes the volume jump in steps as the field animates               | `10`    |
+| `translucencyVolumeMarkVoxels`           | Only the cells the surfaces read (8 per fetch, dilated by a cell) are marked, lit and filtered                                 | `false` |
 
 The quality presets write the cells' count and the blur: `smooth` 24 cells and no blur, `balanced` 32 and no blur, `fine`
 and `cinematic` nothing. A volume of the default size holds 16 MiB of textures (two half-float textures of the light as
@@ -3592,6 +3686,7 @@ world.translucencyVolume = {
   translucencyVolumeHistoryWeight: 0.8,
 } // blend with the image before
 world.translucencyVolume = { translucencyVolumeDim: null } // given back to the preset
+world.translucencyVolume = { translucencyVolumeMarkVoxels: true } // light only the cells the surfaces read
 world.translucencyVolume = { translucencyVolume: false } // off: no pass, no texture, no byte
 ```
 
@@ -3679,34 +3774,35 @@ The settings are the reference's `r.Water.SingleLayer.*`, each an option of `cre
 (`packages/sdk-core/src/contracts/singleLayerWaterOptions.ts`); a value a setting does not take is refused. Distances are
 metres, where the reference's are centimetres:
 
-| Field                                                | Meaning                                                                                                                                                                                                                                                      | Default          |
-| ---------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
-| `singleLayerWater`                                   | Whether the water is drawn                                                                                                                                                                                                                                   | `true`           |
-| `singleLayerWaterReflection`                         | The reflection: `'enabled'` (the front layer's trace), `'disabled'`, `'captures'` (the captures and the sky) or `'screenSpace'` (the screen march and the captures, no scene ray)                                                                            | `'enabled'`      |
-| `singleLayerWaterReflectionDownsample`               | Times fewer pixels a side (1 or 2) the water's reflections are traced at                                                                                                                                                                                     | `1`              |
-| `singleLayerWaterReflectionCheckerboard`             | With a downsample of 2, blocks of two pixels across and one down                                                                                                                                                                                             | `false`          |
-| `singleLayerWaterReflectionReconstruction`           | A pixel rebuilds its reflection from the rays round it                                                                                                                                                                                                       | `false`          |
-| `singleLayerWaterReflectionDenoising`                | The temporal and the bilateral denoising of the water's reflections                                                                                                                                                                                          | `false`          |
-| `singleLayerWaterReflectionTemporal`                 | The temporal denoising of the `'screenSpace'` technique                                                                                                                                                                                                      | `true`           |
-| `singleLayerWaterTiledComposite`                     | The reflection composite draws the 8 by 8 tiles that hold water, not the whole target                                                                                                                                                                        | `true`           |
-| `singleLayerWaterTiledSceneColorCopy`                | The scene's colour is copied for those tiles alone (with the refraction culling on and the copy not downsampled)                                                                                                                                             | `true`           |
-| `singleLayerWaterWaveOps`                            | The tiles are listed with subgroup operations where the device grants them                                                                                                                                                                                   | `true`           |
-| `singleLayerWaterDepthPrepass`                       | The water's depth is drawn first (the tiles and the refraction mask need it)                                                                                                                                                                                 | `true`           |
-| `singleLayerWaterOptimizedClear`                     | The scene's depth is copied over the view alone, not the whole texture                                                                                                                                                                                       | `true`           |
-| `singleLayerWaterVelocityOutputPass`                 | When the water writes its velocity: `'depthPrepass'` (right after its depth), `'basePass'` (with its shading) or `'none'`                                                                                                                                    | `'depthPrepass'` |
-| `singleLayerWaterShadersSupportDistanceFieldShadow`  | The programs keep the sun apart from the rest of the water's light, to lay the sun's distance-field shadow over it; read when the session opens                                                                                                              | `true`           |
-| `singleLayerWaterDistanceFieldShadow`                | The sun's light on the water is multiplied by the sun's distance-field shadow traced at the water's depth (needs the setting above and meshes with fields)                                                                                                   | `true`           |
-| `singleLayerWaterShadersSupportVsmFiltering`         | The programs hold the full trace of the sun's shadow for the water; read when the session opens                                                                                                                                                              | `false`          |
-| `singleLayerWaterVsmFiltering`                       | The sun's shadow on the water is the full trace the opaque surfaces get, not one sample: the shading reads the sun unshadowed (`shadowSkipSun`) and the composite multiplies the separated sun by the trace at the water's surface (needs the setting above) | `false`          |
-| `singleLayerWaterCloudShadow`                        | The clouds shade the sun that lights the water's volume                                                                                                                                                                                                      | `false`          |
-| `singleLayerWaterRefractionDownsample`               | Times fewer pixels a side (1 or 2) the copy of the scene the water refracts is made at                                                                                                                                                                       | `1`              |
-| `singleLayerWaterRefractionCulling`                  | Skip the refraction where it shows little (the three cullings below)                                                                                                                                                                                         | `false`          |
-| `singleLayerWaterRefractionDistanceCulling`          | Metres from the camera past which the refraction is skipped; 0 none                                                                                                                                                                                          | `0`              |
-| `singleLayerWaterRefractionDistanceCullingFadeRange` | Metres over which it fades out before that distance                                                                                                                                                                                                          | `4`              |
-| `singleLayerWaterRefractionFresnelCulling`           | Fresnel reflectance above which the refraction is skipped; 0 none                                                                                                                                                                                            | `0`              |
-| `singleLayerWaterRefractionFresnelCullingFadeRange`  | The Fresnel range over which it fades out                                                                                                                                                                                                                    | `0.2`            |
-| `singleLayerWaterRefractionDepthCulling`             | Metres of water depth below which the refraction is skipped; 0 none                                                                                                                                                                                          | `0`              |
-| `singleLayerWaterRefractionDepthCullingFadeRange`    | Metres of depth over which it fades out                                                                                                                                                                                                                      | `1`              |
+| Field                                                 | Meaning                                                                                                                                                                                                                                                      | Default          |
+| ----------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ | ---------------- |
+| `singleLayerWater`                                    | Whether the water is drawn                                                                                                                                                                                                                                   | `true`           |
+| `singleLayerWaterReflection`                          | The reflection: `'enabled'` (the front layer's trace), `'disabled'`, `'captures'` (the captures and the sky) or `'screenSpace'` (the screen march and the captures, no scene ray)                                                                            | `'enabled'`      |
+| `singleLayerWaterReflectionDownsample`                | Times fewer pixels a side (1 or 2) the water's reflections are traced at                                                                                                                                                                                     | `1`              |
+| `singleLayerWaterReflectionCheckerboard`              | With a downsample of 2, blocks of two pixels across and one down                                                                                                                                                                                             | `false`          |
+| `singleLayerWaterReflectionReconstruction`            | A pixel rebuilds its reflection from the rays round it                                                                                                                                                                                                       | `false`          |
+| `singleLayerWaterReflectionDenoising`                 | The temporal and the bilateral denoising of the water's reflections                                                                                                                                                                                          | `false`          |
+| `singleLayerWaterReflectionTemporal`                  | The temporal denoising of the `'screenSpace'` technique                                                                                                                                                                                                      | `true`           |
+| `singleLayerWaterUnderwaterFogWhenCameraIsAboveWater` | The height fog is also laid on the scene seen through the water, at the depth of what lies behind it, with the camera above the water                                                                                                                        | `false`          |
+| `singleLayerWaterTiledComposite`                      | The reflection composite draws the 8 by 8 tiles that hold water, not the whole target                                                                                                                                                                        | `true`           |
+| `singleLayerWaterTiledSceneColorCopy`                 | The scene's colour is copied for those tiles alone (with the refraction culling on and the copy not downsampled)                                                                                                                                             | `true`           |
+| `singleLayerWaterWaveOps`                             | The tiles are listed with subgroup operations where the device grants them                                                                                                                                                                                   | `true`           |
+| `singleLayerWaterDepthPrepass`                        | The water's depth is drawn first (the tiles and the refraction mask need it)                                                                                                                                                                                 | `true`           |
+| `singleLayerWaterOptimizedClear`                      | The scene's depth is copied over the view alone, not the whole texture                                                                                                                                                                                       | `true`           |
+| `singleLayerWaterVelocityOutputPass`                  | When the water writes its velocity: `'depthPrepass'` (right after its depth), `'basePass'` (with its shading) or `'none'`                                                                                                                                    | `'depthPrepass'` |
+| `singleLayerWaterShadersSupportDistanceFieldShadow`   | The programs keep the sun apart from the rest of the water's light, to lay the sun's distance-field shadow over it; read when the session opens                                                                                                              | `true`           |
+| `singleLayerWaterDistanceFieldShadow`                 | The sun's light on the water is multiplied by the sun's distance-field shadow traced at the water's depth (needs the setting above and meshes with fields)                                                                                                   | `true`           |
+| `singleLayerWaterShadersSupportVsmFiltering`          | The programs hold the full trace of the sun's shadow for the water; read when the session opens                                                                                                                                                              | `false`          |
+| `singleLayerWaterVsmFiltering`                        | The sun's shadow on the water is the full trace the opaque surfaces get, not one sample: the shading reads the sun unshadowed (`shadowSkipSun`) and the composite multiplies the separated sun by the trace at the water's surface (needs the setting above) | `false`          |
+| `singleLayerWaterCloudShadow`                         | The clouds shade the sun that lights the water's volume                                                                                                                                                                                                      | `false`          |
+| `singleLayerWaterRefractionDownsample`                | Times fewer pixels a side (1 or 2) the copy of the scene the water refracts is made at                                                                                                                                                                       | `1`              |
+| `singleLayerWaterRefractionCulling`                   | Skip the refraction where it shows little (the three cullings below)                                                                                                                                                                                         | `false`          |
+| `singleLayerWaterRefractionDistanceCulling`           | Metres from the camera past which the refraction is skipped; 0 none                                                                                                                                                                                          | `0`              |
+| `singleLayerWaterRefractionDistanceCullingFadeRange`  | Metres over which it fades out before that distance                                                                                                                                                                                                          | `4`              |
+| `singleLayerWaterRefractionFresnelCulling`            | Fresnel reflectance above which the refraction is skipped; 0 none                                                                                                                                                                                            | `0`              |
+| `singleLayerWaterRefractionFresnelCullingFadeRange`   | The Fresnel range over which it fades out                                                                                                                                                                                                                    | `0.2`            |
+| `singleLayerWaterRefractionDepthCulling`              | Metres of water depth below which the refraction is skipped; 0 none                                                                                                                                                                                          | `0`              |
+| `singleLayerWaterRefractionDepthCullingFadeRange`     | Metres of depth over which it fades out                                                                                                                                                                                                                      | `1`              |
 
 The water writes its velocity as the reference's water pass does: the vectors of the texels it covers become the camera's motion at
 the water's depth and their visibility identifiers are cleared, so that the temporal pass and the motion blur read a surface that

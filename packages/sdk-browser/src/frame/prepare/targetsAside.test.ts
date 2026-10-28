@@ -11,7 +11,7 @@ import { prepareWebgpuBackend } from './prepare.ts'
 import { renderWebgpuPages } from '../render/render.ts'
 import { flushWebgpuPages } from '../render/flush.ts'
 import { disposeWebgpuPages } from '../io/metrics.ts'
-import { renderExtent } from '../scale/renderScaleOption.ts'
+import { renderAllocation } from '../scale/renderScaleOption.ts'
 import { refusing } from './refusing.fixture.ts'
 import { frameTargetsAwaited } from './targetGrant.ts'
 import { installGpuDeviceLedger } from '../../gpu/core/deviceLedger.ts'
@@ -24,7 +24,7 @@ installGpuGlobals()
 const HDR = 'Trillion3D HDR lighting',
   HISTORY = 'Trillion3D TAA history'
 const DISPLAY: [number, number] = [3456, 2234],
-  ASKED = renderExtent(DISPLAY[0], 0.75)
+  ASKED = renderAllocation(DISPLAY[0], 0.75)
 
 /** The quad at dynamic resolution on the display, its targets first made at the display's size (a
  *  maximum of 1: the default fraction of so dense a display is about half), on a device that
@@ -94,7 +94,7 @@ test('a scale change with targets in place is made aside: never held, old ones f
     assert.equal(modes[0], 'aside', "the view's one grant record, asked aside")
     assert.equal(s.rt.gpu.targetGrant, undefined, 'gone once swapped in')
     assert.equal(drawnIn[0], DISPLAY[0], 'the frames draw in the targets in place meanwhile')
-    assert.deepEqual(s.rt.gpu.allocatedSize, [ASKED, renderExtent(DISPLAY[1], 0.75)])
+    assert.deepEqual(s.rt.gpu.allocatedSize, [ASKED, renderAllocation(DISPLAY[1], 0.75)])
     assert.ok(
       oldSet.every((target) => s.gpu.destroyed.includes(target)),
       'freed once swapped out',

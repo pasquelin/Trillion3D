@@ -1,8 +1,11 @@
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../runtime.ts'
 
+/** The image number of a history that was never drawn (`cameraSeen`): not an image number, which starts at 0. */
+export const NEVER_SEEN = -1
+
 /** A camera as an image drew it: its view-projection without jitter, its eye, and the number of the image (`WebgpuRun.frame`)
- *  that drew with it; 0 for none. */
+ *  that drew with it; `NEVER_SEEN` for none. */
 export interface CameraImage {
   readonly viewProjection: Float64Array
   readonly eye: Float64Array
@@ -13,7 +16,7 @@ export interface CameraImage {
 export const NO_CAMERA: CameraImage = Object.freeze({
   viewProjection: new Float64Array(16),
   eye: new Float64Array(3),
-  image: 0,
+  image: NEVER_SEEN,
 })
 
 const newImage = (image: number): CameraImage => ({
@@ -41,12 +44,13 @@ const pairs = new WeakMap<object, CameraPair>()
  */
 export function beginCamera(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   let pair = pairs.get(rt.views.active)
-  if (!pair) pairs.set(rt.views.active, (pair = { now: newImage(-1), before: newImage(0) }))
+  if (!pair)
+    pairs.set(rt.views.active, (pair = { now: newImage(NEVER_SEEN), before: newImage(NEVER_SEEN) }))
   const { now, before } = pair
   if (now.image === rt.run.frame) return
   before.viewProjection.set(now.viewProjection)
   before.eye.set(now.eye)
-  before.image = Math.max(now.image, 0)
+  before.image = now.image
   now.viewProjection.set(cam.viewProjection)
   now.eye.set(cam.eye)
   now.image = rt.run.frame
@@ -57,6 +61,6 @@ export const previousCameraOf = (rt: Pick<WebgpuPagesRuntime, 'views'>): CameraI
   pairs.get(rt.views.active)?.before ?? NO_CAMERA
 
 /** `before` where it is the camera of the image `seen`, a history's last: `undefined` for a history that holds none
- *  (`seen` 0) or one that skipped an image since. */
+ *  (`seen` `NEVER_SEEN`) or one that skipped an image since. */
 export const cameraSeen = (before: CameraImage, seen: number) =>
-  seen > 0 && before.image === seen ? before : undefined
+  seen !== NEVER_SEEN && before.image === seen ? before : undefined

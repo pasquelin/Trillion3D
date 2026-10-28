@@ -30,4 +30,7 @@ export type TileTexture = {
   tap: number
   source: TileSource
   texture?: Texture
+  /** The slots of its siblings (`page/pageTable.ts`): the maps of a material read at its coordinates and of its size, in the colour
+   *  atlas by slot or in the data atlas by slot plus `SIBLING_DATA`. */
+  siblings?: readonly number[]
 }

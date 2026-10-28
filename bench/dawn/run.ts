@@ -4,7 +4,7 @@
 //     [--switch trillion3dXOld=1]… [--scale 0.5|page] [--profile desktop|mobile]
 //     [--display 4112x2294@2] [--features-off subgroups,shader-f16] [--cpu-profile] [--warm 120]
 //     [--engine <checkout, e.g. .worktrees/831-serve>] [--dirty] [--recalibrate] [--dissect <pass label> [--dissect-segment <name>]]
-//     [--ab <checkout A> <checkout B> [--rounds 6] [--least 0.05]]
+//     [--ab <checkout A> <checkout B> [--rounds 6] [--least 0.05] | --ab-images]
 // <page>: a bench scene's name (`an-open-world-of-every-cost`), a path, or a validation page's prefix (`v06`) with
 // TRILLION3D_VALIDATION_DIR set; a scenario file may name its page. One bench at a time on the
 // machine (`runs/lock.ts`). The report, JSON and Markdown, lands in `.mesure/out/bench-gpu/`.
@@ -13,7 +13,7 @@ import { join } from 'node:path'
 import { measureOutput } from '../core/paths.ts'
 import { runChild } from './runs/child.ts'
 import { LOCK_OWNER, takeBenchLock } from './runs/lock.ts'
-import { abTest } from './report/ab.ts'
+import { abImages, abTest } from './report/ab.ts'
 import { dissect } from './passes/dissect.ts'
 import { buildInsights } from './report/insights.ts'
 import { mergePlays } from './report/merge.ts'
@@ -46,6 +46,13 @@ if (options.dissect) {
   const { stem, text } = await dissect(options, options.dissect, options.dissectSegment)
   console.log(text)
   console.log(`report: ${stem}.md`)
+  process.exit(0)
+}
+
+if (options.ab && options.abImages) {
+  const { dir, text } = await abImages(options, options.ab)
+  console.log(text)
+  console.log(`images: ${dir}`)
   process.exit(0)
 }
 

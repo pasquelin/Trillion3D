@@ -1,5 +1,6 @@
 import { TAA_VIEW_BYTES } from './bindingsWgsl.ts'
-import { createTaaResolves, storedTargetUsage } from './resolve.ts'
+import { createTaaResolves } from './resolve.ts'
+import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { createTaaHistoryTargets } from './historyTargets.ts'
 import type { TaaInputs } from './inputs.ts'
 import type { Velocity } from './velocity.ts'
@@ -12,18 +13,14 @@ import { createShapeMemo, isUpscaled, sameShape, type HistoryShape } from './his
 import { createFrameRing, type FrameSlices } from './historyFrames.ts'
 import { postSamplers } from '../../gpu/core/postSamplers.ts'
 import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
-import type { WpoSet } from '../../materials/graph/wpoProgram.ts'
 import { createStandIns } from './frameStandIns.ts'
 import { chainReady } from '../../lighting/deferred/fullscreen.ts'
 import { defaultExecution, type TaaExecution } from './waveOps.ts'
+import { uniformBuffer } from '../../gpu/core/uniformBlock.ts'
 
 /** The view's uniform and the sampler every group of the pass names. */
 function createViewResources(device: GPUDevice) {
-  const uniform = device.createBuffer({
-    label: 'Trillion3D TAA view v1',
-    size: TAA_VIEW_BYTES,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  const uniform = uniformBuffer(device, 'Trillion3D TAA view v1', TAA_VIEW_BYTES)
   // Bilinear and clamped: the histories' reads and the anti-aliaser's luma reads, which must not
   // wrap across the image's edge.
   const sampler = postSamplers(device).clamped
@@ -83,14 +80,13 @@ async function createTargets(
   device: GPUDevice,
   sampler: GPUSampler,
   uniform: GPUBuffer,
-  wpo: WpoSet,
   frame: Velocity['frame'],
   execution: TaaExecution,
   packed: boolean,
 ) {
   const resolves = await createTaaResolves(device, execution, packed)
-  const filterHistory = createTaaFilterHistory(device, storedTargetUsage())
-  const analysis = await createTaaAnalysis(device, sampler, uniform, wpo, packed)
+  const filterHistory = createTaaFilterHistory(device, loadOnlyUsage())
+  const analysis = await createTaaAnalysis(device, sampler, uniform, packed)
   const history = createTaaHistoryTargets(device)
   const resolve = createHistoryResolve(device, uniform)
   const update = createHistoryUpdate(device, {
@@ -148,7 +144,6 @@ async function createTargets(
  */
 function createTaaEncoding(
   { analysis, update, history }: Pick<Targets, 'analysis' | 'update' | 'history'>,
-  velocity: Velocity,
   execution: TaaExecution,
   standIns: { responsive: GPUTextureView; translucency: GPUTextureView },
 ) {
@@ -168,16 +163,7 @@ function createTaaEncoding(
     inputs.translucency ??= standIns.translucency
     inputs.responsive ??= standIns.responsive
     steps.begin(encoder)
-    analysis.encode(
-      steps,
-      inputs,
-      render,
-      orthographic,
-      slices,
-      work,
-      velocity.frame.tessellated,
-      run,
-    )
+    analysis.encode(steps, inputs, render, orthographic, slices, work, run)
     const output = update.encode(steps, inputs, slices, half, run)
     steps.end()
     return output
@@ -240,12 +226,10 @@ function passMembers(
       run: TaaExecution = execution,
     ) =>
       chainReady(
-        ...analysis.stages(work, velocity.frame.tessellated, slices.resurrects, run),
+        ...analysis.stages(work, slices.resurrects, run),
         ...update.stages(inputs, half, run),
       ),
-    encode: createTaaEncoding({ analysis, update, history }, velocity, execution, standIns),
-    /** Asks the analysis's pipeline of an image that draws displaced surfaces (`askVelocity`). */
-    askDisplaced: analysis.askDisplaced,
+    encode: createTaaEncoding({ analysis, update, history }, execution, standIns),
     /** Releases the targets with the frame targets, history gone, until the next `resize`. */
     release: targets.drop,
   }
@@ -271,15 +255,7 @@ export async function createTemporalAntialiasing(
   packed = true,
 ) {
   const { uniform, sampler } = createViewResources(device)
-  const targets = await createTargets(
-    device,
-    sampler,
-    uniform,
-    velocity.wpo,
-    velocity.frame,
-    execution,
-    packed,
-  )
+  const targets = await createTargets(device, sampler, uniform, velocity.frame, execution, packed)
   const standIns = createStandIns(device)
   return {
     ...passMembers(device, velocity, execution, packed, targets, uniform, standIns),

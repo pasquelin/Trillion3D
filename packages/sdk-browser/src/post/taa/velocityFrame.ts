@@ -3,11 +3,12 @@ import { sameMatrixBits } from '../../../../math/src/matrix/matrixElements.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { WebgpuGpuState } from '../../frame/backend/state/gpu.ts'
-import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
+import { bounceLitImage } from '../../lighting/bounce/screen/cast.ts'
 import { tessellationWanted } from '../../visibility/tessellation/wanted.ts'
 import { motionWanted } from '../effects/stagePlan.ts'
 import {
   cameraSeen,
+  NEVER_SEEN,
   NO_CAMERA,
   previousCameraOf,
 } from '../../frame/backend/state/previousCamera.ts'
@@ -28,8 +29,8 @@ import type { WpoSet } from '../../materials/graph/wpoProgram.ts'
  */
 
 /** Whether a pass other than the temporal pass reads this image's vectors: the motion blur or the
- *  screen probes (`screenProbesCast`). */
-const readsVelocity = (rt: WebgpuPagesRuntime) => motionWanted(rt) || screenProbesCast(rt)
+ *  bounce's lit image (`bounceLitImage`: the screen probes, the temporal filter's vectors). */
+const readsVelocity = (rt: WebgpuPagesRuntime) => motionWanted(rt) || bounceLitImage(rt)
 
 /** The view's velocity stage, made at the first ask. */
 export const velocityOf = (
@@ -40,14 +41,11 @@ export const velocityOf = (
 
 /** Asks the stage's program, off the frame, once a pass reads the vectors — the temporal pass, once
  *  rigged, or another —: the frame is held on it, never compiling it. An image that draws displaced
- *  surfaces (`tessellationWanted`) asks the programs that solve their flat points, the temporal
- *  pass's analysis' included; any other asks none of them. */
+ *  surfaces (`tessellationWanted`) asks the program that solves their flat points; any other asks
+ *  none of it. */
 export function askVelocity(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  const { temporal } = rt.gpu,
-    tessellated = tessellationWanted(rt)
-  if (temporal || readsVelocity(rt))
-    askVelocityProgram(device, tessellated, velocityWpo(rt.vis.rasters))
-  if (temporal && tessellated) temporal.askDisplaced()
+  if (rt.gpu.temporal || readsVelocity(rt))
+    askVelocityProgram(device, tessellationWanted(rt), velocityWpo(rt.vis.rasters))
 }
 
 /**
@@ -83,7 +81,7 @@ const imageStill = (
   rt.run.gate.revisions.resources === state.resourcesSeen &&
   !moved &&
   !rt.vis.deformationCompute &&
-  state.before.image > 0 &&
+  state.before.image !== NEVER_SEEN &&
   sameMatrixBits(state.before.viewProjection, cam.viewProjection)
 
 /** Keeps this image, drawn on the `render` grid, as the one the next is measured against: the
@@ -159,7 +157,7 @@ export function encodeVelocity(
   // The history's camera: the view's, kept once, where the history's image is the one before. A history that skipped an image
   // holds a camera no one kept, and starts again, as after a cut.
   state.before = cameraSeen(previousCameraOf(rt), state.seen) ?? NO_CAMERA
-  if (state.hasHistory && !state.before.image) dropTaaHistory(state)
+  if (state.hasHistory && state.before.image === NEVER_SEEN) dropTaaHistory(state)
   velocity.ensure(...gpu.allocatedSize)
   const scan = state.sceneSeen !== rt.run.gate.revisions.scene
   // The placements' motion is measured from the scene's kept poses (`../../geometry/dag/previousPoses.ts`),

@@ -70,20 +70,31 @@ export const REPROJECT_BITS = {
 } as const
 
 /**
- * The reprojection's word of render texel `c` as the later passes read it, through their binding
- * `reprojected`, read once (`reprojectedWord`): whether the texel is a pixel animation, whether
- * its history restarts (off the last screen, disoccluded or asked to by its material), whether its
- * material asks it to (it is then never resurrected), and its reprojection edge.
+ * What the reprojection's word of a render texel says, for the passes that are handed the word:
+ * whether the texel is a pixel animation (`isAnimated`), whether its history restarts (off the
+ * last screen, disoccluded or asked to by its material: `isRestarted`), whether its material asks
+ * it to (`asksRestart`: it is then never resurrected), and its reprojection edge
+ * (`reprojectionEdge`).
  */
-export const REPROJECTED_WORD_WGSL = wgslBlock(
-  'REPROJECTED_WORD_WGSL',
+export const REPROJECTED_FLAGS_WGSL = wgslBlock(
+  'REPROJECTED_FLAGS_WGSL',
   [],
   `
-fn reprojectedWord(c:vec2i)->u32{return textureLoad(reprojected,c,0).r;}
 fn isAnimated(word:u32)->bool{return (word&${REPROJECT_BITS.animated}u)!=0u;}
 fn asksRestart(word:u32)->bool{return (word&${REPROJECT_BITS.restarts}u)!=0u;}
 fn isRestarted(word:u32)->bool{return (word&${REPROJECT_BITS.offScreen | REPROJECT_BITS.disoccluded | REPROJECT_BITS.restarts}u)!=0u;}
 fn reprojectionEdge(word:u32)->f32{return f32((word>>8u)&0xffu)/255.0;}`,
+)
+
+/**
+ * The reprojection's word of render texel `c` as the later passes read it, through their binding
+ * `reprojected`, read once (`reprojectedWord`), and what it says (`REPROJECTED_FLAGS_WGSL`).
+ */
+export const REPROJECTED_WORD_WGSL = wgslBlock(
+  'REPROJECTED_WORD_WGSL',
+  [REPROJECTED_FLAGS_WGSL],
+  `
+fn reprojectedWord(c:vec2i)->u32{return textureLoad(reprojected,c,0).r;}`,
 )
 
 /** The reprojection's bindings, in the guide's format `guideFormat`, and its specialisation switch. */

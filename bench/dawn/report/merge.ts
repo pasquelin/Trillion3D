@@ -75,6 +75,10 @@ function mergeSegment(plays: readonly BenchPlay[], name: string) {
     doubts: [...new Set(of.flatMap((segment) => segment.doubts))],
     counts: mid.counts,
     images,
+    /** The first play's captures along a path (a parity path), each under its image's number. */
+    shots: of[0].shots ?? [],
+    /** The formats of the engine's temporal textures as the middle play's segment left them. */
+    taaFormats: mid.taaFormats ?? {},
     sameImages,
   }
 }

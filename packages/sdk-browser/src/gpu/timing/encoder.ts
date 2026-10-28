@@ -2,10 +2,10 @@ import { QUERY_SET_SIZE } from './querySetSize.ts'
 import { alignUp } from '../../../../math/src/scalar/integers.ts'
 import type { ReadbackRing } from '../core/readbackRing.ts'
 import type { TimingEntry } from './sample.ts'
-import { TIMED_ENCODER } from '../core/timedEncoder.ts'
+import { TIMED_APART, TIMED_ENCODER } from '../core/timedEncoder.ts'
 
 /** A part's first query: its resolve lands at a 256-byte offset, 32 timestamps. */
-export const PART_ALIGN = 32
+const PART_ALIGN = 32
 
 /** Readbacks in flight at most: a sampled image's, and the next image's, read beside it so the
  *  idle between the two is measured (`timeline.ts`). */
@@ -67,6 +67,8 @@ export type TimingPart = { at: number[]; names: string[]; order: number; resolve
 /** The image's timestamps: the next free one, the part that took the last, the parts finished so
  *  far, the ring buffer its parts copy into (`read`, from timestamp 0, `limit` timestamps), and what it says of the image (`tag`). */
 export type TimingImage = {
+  /** Whether the image times each step of a compute run apart (`TIMED_APART`), asked once when it opens. */
+  apart: boolean
   cursor: number
   /** Set when the image needed more timestamps than the timer holds: it is not timed (`closeTimedImage`). */
   overflowed?: boolean
@@ -78,7 +80,7 @@ export type TimingImage = {
 }
 
 /** The most timestamps a timer grows to: sixteen sets. An image that needs more is not timed (`TimingImage.overflowed`). */
-export const MAX_QUERIES = 16 * QUERY_SET_SIZE
+const MAX_QUERIES = 16 * QUERY_SET_SIZE
 
 /**
  * Asks the timer to hold `need` timestamps: it doubles — more sets, a larger resolve buffer — until it does. The allocations are
@@ -219,6 +221,7 @@ export function instrumentTimingEncoder(
   return new Proxy(encoder, {
     get(target, key) {
       if (key === TIMED_ENCODER) return true
+      if (key === TIMED_APART) return image.apart
       if (key === 'beginRenderPass')
         return (descriptor = {} as GPURenderPassDescriptor) =>
           target.beginRenderPass(timedDescriptor(descriptor, key, part, image, resources, device))

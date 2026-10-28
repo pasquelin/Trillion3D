@@ -81,8 +81,10 @@ function pageBenchmark(
   load = loadRun,
 ): QualityBenchmark {
   const run = async (options?: HardwareBenchmarkOptions) => {
-    await (await device())?.queue.onSubmittedWorkDone()
-    const { result, adapter } = await (await load())(options, signal)
+    const drawing = await device()
+    await drawing?.queue.onSubmittedWorkDone()
+    // On the device the world draws with, as the reference's benchmark runs on its renderer's: no device of its own to make and give back.
+    const { result, adapter } = await (await load())(options, signal, undefined, drawing)
     // An adapter the device does not state is kept for none: it could be any other one (`GpuCaps.adapter`).
     if (adapter === undefined) return result
     try {

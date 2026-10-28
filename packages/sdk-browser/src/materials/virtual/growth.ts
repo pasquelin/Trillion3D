@@ -3,6 +3,7 @@ import type { WebgpuTileAtlas } from './atlas/atlasTypes.ts'
 import type { WebgpuTileFeedback } from './feedback.ts'
 import type { createTileSources } from './sources/sources.ts'
 import type { TileTexture } from './tileTexture.ts'
+import { siblingRef } from './page/pageTable.ts'
 
 /**
  * What changes the streamer's size in session: its lane pools, drawn again for another budget,
@@ -36,8 +37,19 @@ export function createTileGrowth(
       const atlas = kind === 'color' ? color : data
       sources.release(atlas, slot)
       atlas.release(slot)
+      // No stack lists the slot any more, and it lists none: a texture that takes it is another's.
+      color.pages.dropSibling(siblingRef(kind, slot))
+      data.pages.dropSibling(siblingRef(kind, slot))
+      atlas.pages.setSiblings(slot, [])
       parts.resetRequests()
       followHeaders(true)
+    },
+    /** The stacks of textures (`stacks.ts`) joined by `words`: the siblings their tables list, a
+     *  sibling already listed replaced; the tables sent once. */
+    stack(joins: readonly { kind: 'color' | 'data'; slot: number; words: readonly number[] }[]) {
+      for (const { kind, slot, words } of joins)
+        (kind === 'color' ? color : data).pages.joinSiblings(slot, words)
+      flushAll()
     },
     /** Lane pools whose layers change are replaced, tiles kept; returns the evicted tiles. */
     resize(layers: AtlasLanes) {

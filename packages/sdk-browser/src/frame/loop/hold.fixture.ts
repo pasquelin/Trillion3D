@@ -5,7 +5,9 @@ import { NO_RASTERS } from '../../materials/graph/graphRasters.ts'
 import type { GuideSet } from '../../guides/guideSet.ts'
 import { createScaleControl } from '../scale/scaleControl.ts'
 import { createFrameGateCore } from '../gate/gateCore.ts'
-import { HOLD_SIGNATURE_VALUES, SIGNATURE_SLOT } from './signature.ts'
+import { HOLD_SIGNATURE_VALUES, sampleWebgpuFrame } from './signature.ts'
+import { STOCHASTIC_SLOTS } from '../../post/taa/frameState.ts'
+import { isFinalImage } from '../render/finalImage.ts'
 import { createWebgpuTimingState } from '../backend/state/timing.ts'
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -35,6 +37,7 @@ export function settledRt() {
     frame: 0,
     frameHeld: false,
     heldEmpty: false,
+    hold: { heldOn: undefined, last: undefined },
     imageRevision: 0,
     // Fields read by `sampleWebgpuFrame`: constant from frame to frame so `keep()` judges two
     // consecutive frames identical.
@@ -133,26 +136,65 @@ export function settledRt() {
   return rt as unknown as WebgpuPagesRuntime & typeof rt
 }
 
-/** The counters a held frame rewrites, in the signature's own names. */
-const COUNTERS = Object.keys(SIGNATURE_SLOT) as (keyof typeof SIGNATURE_SLOT)[]
+/** The images a view is given to hold: those of its establishment, a cycle of the noise after its last change, and the final image. */
+export const HOLD_WITHIN = 8 + STOCHASTIC_SLOTS + 1
+
+/** The counters a held frame rewrites (`recordHeldFrameWork`), in the signature's own names. */
+const COUNTERS = [
+  'submittedTriangles',
+  'gpuDrawCalls',
+  'blendDrawCalls',
+  'blendSubmittedTriangles',
+] as const
+
+/** The slot of the signature each of `COUNTERS` stands in, read off a sample of the signature's own function over distinct counters: the one place the layout is written stays the signature's. */
+const SIGNATURE_SLOT = (() => {
+  const run = Object.fromEntries(COUNTERS.map((counter, k) => [counter, 1000 + k]))
+  const probe = {
+    run: { gpuSelection: undefined, ...run },
+    layout: { packedPages: [], clusters: { infoEpoch: 0, touchRevision: () => 0 } },
+  } as unknown as Parameters<typeof sampleWebgpuFrame>[0]
+  const into = new Float64Array(HOLD_SIGNATURE_VALUES)
+  sampleWebgpuFrame(probe, into)
+  return Object.fromEntries(
+    COUNTERS.map((counter, k) => {
+      const slot = into.indexOf(1000 + k)
+      assert.ok(slot >= 0, `${counter} stands in the signature`)
+      return [counter, slot]
+    }),
+  ) as Record<(typeof COUNTERS)[number], number>
+})()
 
 /**
- * The final image of an establishment: everything is established and the view still, and the frame entry draws one image more, at the canonical phase of the noise (`finalNoiseImage`), before it
- * holds. Asked once, it checks that this image is drawn, lets the test encode it (`draw`), and plays its end as the frame entry does (the image number advances, the frame is kept); the holds that follow are the view's.
+ * The images an establishment draws once everything else is established, the last of them the final one at the canonical phase of the noise (`isFinalImage`): each is checked to be drawn,
+ * lets the test encode it (`draw`, told whether it is the final one) and plays its end as the frame entry does (the image number advances, the frame is kept); the holds that follow
+ * are the view's. Returns the images drawn: at most a cycle of the noise and the final image.
  */
-export function drawFinalImage(rt: WebgpuPagesRuntime, device: GPUDevice, draw = () => {}) {
-  assert.equal(
-    holdWebgpuFrame(rt, device),
-    false,
-    'established: the final image is drawn before the hold',
-  )
-  assert.equal(rt.run.frameHeld, false)
-  // The image draws what the frames before it drew (a held frame wrote its own counters, which the signature would read as another image).
-  const { sample } = rt.run.gate.hold
-  for (const counter of COUNTERS) rt.run[counter] = sample[SIGNATURE_SLOT[counter]]
-  draw()
-  rt.run.frame++
-  keepWebgpuFrame(rt)
+export function drawFinalImage(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  draw: (final: boolean) => void = () => {},
+) {
+  let drawn = 0,
+    final = false
+  while (!final) {
+    assert.ok(drawn <= STOCHASTIC_SLOTS, 'the final image comes within a cycle of the noise')
+    assert.equal(
+      holdWebgpuFrame(rt, device),
+      false,
+      'established: the image is drawn before the hold',
+    )
+    assert.equal(rt.run.frameHeld, false)
+    // The image draws what the frames before it drew (a held frame wrote its own counters, which the signature would read as another image).
+    const { sample } = rt.run.gate.hold
+    for (const counter of COUNTERS) rt.run[counter] = sample[SIGNATURE_SLOT[counter]]
+    final = isFinalImage(rt.run)
+    draw(final)
+    rt.run.frame++
+    keepWebgpuFrame(rt)
+    drawn++
+  }
+  return drawn
 }
 
 /**

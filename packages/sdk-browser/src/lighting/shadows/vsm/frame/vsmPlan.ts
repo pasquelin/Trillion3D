@@ -25,10 +25,15 @@ import { sunCascadesOf, vsmFirstPersonActive, vsmMapSettings } from './vsmFarSha
 import { followCacheContent } from './cacheContent.ts'
 import { shadowsOn, tracesTranslucent } from './vsmGates.ts'
 import { vsmSunLevels, type VsmMapSettings } from '../mapSettings.ts'
-import { dropEngineVsmCache, releaseEngineVsm, unshadowLights, vsmCountersOn } from './engineVsm.ts'
-import { wholeTableRows } from './vsmLightMaps.ts'
+import {
+  dropEngineVsmCache,
+  releaseEngineVsm,
+  unshadowLights,
+  vsmCountersOn,
+  type EngineVsm,
+} from './engineVsm.ts'
+import { mapSlotsFor, wholeTableRows } from './vsmLightMaps.ts'
 import { VSM_OVERFLOW_MAP_SLOTS } from '../constants.ts'
-import { nextPow2 } from '../../../../../../math/src/scalar/integers.ts'
 import { vsmCastMaps } from '../invalidation/castInvalidation.ts'
 import { vsmCastPipes } from '../invalidation/castStale.ts'
 import { vsmMarkingPipes } from '../markingPass.ts'
@@ -441,6 +446,8 @@ export function projectionLight(
       direction,
       // A sun without its own disk takes the engine's published one.
       sourceRadius: Math.sin(light.angularRadius ?? LIGHT_SETTINGS.sunAngularRadius),
+      shadowBias: light.shadowBias,
+      shadowSlopeBias: light.shadowSlopeBias,
     }
   // A shadowed point, spot or rectangle holds its position and range, a spot its cone
   // (`validateSceneLight`), the outer one the lighting lights it by (`spotConesOf`).
@@ -450,6 +457,8 @@ export function projectionLight(
     position: light.position!,
     radius: light.range!,
     sourceRadius: sourceRadiusOf(light),
+    shadowBias: light.shadowBias,
+    shadowSlopeBias: light.shadowSlopeBias,
   }
   return light.kind === 'spot'
     ? { ...local, type: 'spot', coneAngle: spotConesOf(light)[1] }
@@ -516,6 +525,75 @@ function planMaps(
   )
 }
 
+/** The frame's maps past what an id or the slots name: the frame is dropped, its lights cast none, and the set is grown or granted again (`planVsmFrame`). */
+function handleMapOverflow(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  list: ReturnType<typeof frameLights>,
+  vsm: EngineVsm,
+  plan: ReturnType<typeof planMaps>,
+  slotsShort: boolean,
+) {
+  const { state } = vsm
+  const { store } = rt.lights
+  state.cache.dropFrame()
+  // More maps than an id can name (`VSM_RECORD_MAP_COUNT`): no set holds them, so no set is made
+  // for them again each frame; the overflow is said once (the log keeps each kind once) and the
+  // frame casts none.
+  if (plan.exhausted) {
+    unshadowLights(store)
+    return
+  }
+  // Maps past the slots: the slots grow in place, the pages and their cache kept.
+  if (
+    slotsShort &&
+    growEngineVsm(
+      device,
+      list,
+      vsm,
+      vsm.res.layout.fullMapCapacity,
+      mapSlotsFor(plan.projectionCount),
+    )
+  ) {
+    unshadowLights(store)
+    return
+  }
+  // Past the room to grow them: the slots the maps asked kept, twice the block room next frame
+  // when the blocks overflowed, the cache restarts, at the pages the budget granted.
+  const { fullMapCapacity, poolPages } = vsm.res.layout
+  const blocksShort = !slotsShort || plan.tableBlocks > fullMapCapacity
+  grantEngineVsm(
+    rt,
+    device,
+    list,
+    blocksShort ? wholeTableRows(2 * fullMapCapacity + 1) : fullMapCapacity,
+    poolPages,
+    0,
+    mapSlotsFor(plan.projectionCount),
+  )
+  unshadowLights(store)
+}
+
+/** The lights, the set and the pipelines the frame plans over; none, the lights unshadowed, where the set is not held or a pipeline compiles. */
+function readyVsm(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
+  const { store } = rt.lights
+  const list = frameLights(rt, 'plan', cam)
+  const vsm = heldVsm(rt, device, list)
+  if (!vsm) {
+    unshadowLights(store)
+    return undefined
+  }
+  // What a cached page holds moved (a setting of the pages, the tessellation's capacity, the scale of the level of detail): the cache is emptied here, before any page of this frame is marked or kept.
+  followCacheContent(rt)
+  // The passes' pipelines compiled, or no plan: the cache advances only for a frame that runs.
+  const tiers = framePipelinesCompiled(rt, device, vsm.res.layout)
+  if (!tiers) {
+    unshadowLights(store)
+    return undefined
+  }
+  return { list, vsm, tiers }
+}
+
 /**
  * Plans the frame's virtual shadow maps on the CPU and gives every shadowed light its mask
  * channel; called before the light buffer goes up. Returns false when the frame has none.
@@ -524,20 +602,10 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   if (!shadowsOn(rt)) return planNoShadows(rt)
   const { lights } = rt,
     { store } = lights
-  const list = frameLights(rt, 'plan', cam)
-  const vsm = heldVsm(rt, device, list)
-  if (!vsm) {
-    unshadowLights(store)
-    return false
-  }
-  // What a cached page holds moved (a setting of the pages, the tessellation's capacity, the scale of the level of detail): the cache is emptied here, before any page of this frame is marked or kept.
-  followCacheContent(rt)
-  // The passes' pipelines compiled, or no plan: the cache advances only for a frame that runs.
-  let tiers = framePipelinesCompiled(rt, device, vsm.res.layout)
-  if (!tiers) {
-    unshadowLights(store)
-    return false
-  }
+  const ready = readyVsm(rt, device, cam)
+  if (!ready) return false
+  const { list, vsm } = ready
+  let { tiers } = ready
   const { state } = vsm
   state.maps = vsmMapSettings(rt)
   followDepthOfField(rt, cam, state.maps.shadows.shadowMaxDofResolutionBias, state.maps.dof)
@@ -560,53 +628,19 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
   const plan = planMaps(rt, device, cam, list, vsm)
   // The tables grown in place made the passes' pipelines anew: the frame waits for them too.
   if (vsm.res.layout !== planned) {
-    tiers = framePipelinesCompiled(rt, device, vsm.res.layout)
-    if (!tiers) {
+    const grown = framePipelinesCompiled(rt, device, vsm.res.layout)
+    if (!grown) {
       // The frame is dropped, its plan not committed: the entries keep the ids the GPU holds.
       state.cache.dropFrame()
       unshadowLights(store)
       return false
     }
+    tiers = grown
   }
   const slotsShort = plan.projectionCount > vsm.res.layout.mapSlots
   if (slotsShort) vsm.overflow.note(VSM_OVERFLOW_MAP_SLOTS, performance.now())
   if (plan.overflow) {
-    state.cache.dropFrame()
-    // More maps than an id can name (`VSM_RECORD_MAP_COUNT`): no set holds them, so no set is made
-    // for them again each frame; the overflow is said once (the log keeps each kind once) and the
-    // frame casts none.
-    if (plan.exhausted) {
-      unshadowLights(store)
-      return false
-    }
-    // Maps past the slots: the slots grow in place, the pages and their cache kept.
-    if (
-      slotsShort &&
-      growEngineVsm(
-        device,
-        list,
-        vsm,
-        vsm.res.layout.fullMapCapacity,
-        nextPow2(plan.projectionCount),
-      )
-    ) {
-      unshadowLights(store)
-      return false
-    }
-    // Past the room to grow them: the slots the maps asked kept, twice the block room next frame
-    // when the blocks overflowed, the cache restarts, at the pages the budget granted.
-    const { fullMapCapacity, poolPages } = vsm.res.layout
-    const blocksShort = !slotsShort || plan.tableBlocks > fullMapCapacity
-    grantEngineVsm(
-      rt,
-      device,
-      list,
-      blocksShort ? wholeTableRows(2 * fullMapCapacity + 1) : fullMapCapacity,
-      poolPages,
-      0,
-      nextPow2(plan.projectionCount),
-    )
-    unshadowLights(store)
+    handleMapOverflow(rt, device, list, vsm, plan, slotsShort)
     return false
   }
   commitVirtualShadowFrame(state, plan)

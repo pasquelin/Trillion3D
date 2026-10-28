@@ -2,12 +2,15 @@
 // since the last render visited, before the hold verdict, then the headers written where a word
 // moved, whichever pass reads the texture —, and a moved texture is signalled as a landed
 // tile is, so a held image is released.
+import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createWebgpuTileStreamer } from './streamer.ts'
 import { createFrameBudget } from '../../../geometry/integration/frameBudget.ts'
 import { poolEncoding } from '../../texture/blockFormats.ts'
 import { tileLayout } from '../../texture/tiles.ts'
+import { SAMPLE_ANISOTROPY_SHIFT, SAMPLE_ONE_READ } from '../../texture/sampling.ts'
+import { PAGE_FILTER_SHIFT, SLOT_FILTER_WORD, slotHeader } from '../page/pageTable.ts'
 import { installGpuGlobals } from '../../../../../../tests/kit/fakeDevice/globals.ts'
 import { BACKEND } from '../../../../../../tests/kit/fakeDevice/fakeRecords.ts'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
@@ -17,6 +20,10 @@ import { drawFinalImage, settledRt } from '../../../frame/loop/hold.fixture.ts'
 import * as G from '../../../scene/host/graph/graph.fixture.ts'
 
 installGpuGlobals()
+
+/** The filtering a streamer is opened with: one object, as the session's getter keeps it. */
+const FILTERING = { ceiling: MAX_ANISOTROPY, taps: true }
+const DEFAULT_FILTERING = () => FILTERING
 
 /** A host texture at the default read — its filter word zero: linear, mipped, one tap. */
 const host = () => {
@@ -29,7 +36,12 @@ const host = () => {
 
 /** A streamer over one colour and one data texture, both whole in their tail; counts the page
  *  table writes and the signals. */
-function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
+function streamer(
+  colours: Texture[],
+  data: Texture,
+  onColour = () => {},
+  filtering = DEFAULT_FILTERING,
+) {
   const signalled = { count: 0 }
   const { device, writes } = fakeDevice(BACKEND)
   const blocks = { bc7: [], astc: [], etc2: [] }
@@ -51,6 +63,7 @@ function streamer(colours: Texture[], data: Texture, onColour = () => {}) {
     budgetMs: Number.MAX_SAFE_INTEGER,
     clock: createFrameBudget(Infinity),
     onFailure: (phase, error) => assert.fail(`${phase}: ${String(error)}`),
+    filtering,
     onColorChanged: () => {
       signalled.count++
       onColour()
@@ -170,5 +183,78 @@ test('a still image reads no record and walks no slot', async () => {
   await follow(textures)
   assert.ok(reads > 0, 'a written record is read at the next image')
   assert.equal(writes(), opened, 'and nothing moved: nothing written')
+  textures.destroy()
+})
+
+/** The anisotropy a texture's header of the colour atlas holds: the reads its sampling word allows. */
+const grantedReads = (textures: { color: { pages: { words: Uint32Array } } }, slot: number) => {
+  const word = textures.color.pages.words[slotHeader(slot) + SLOT_FILTER_WORD] >>> PAGE_FILTER_SHIFT
+  return ((word >>> SAMPLE_ANISOTROPY_SHIFT) & 15) + 1
+}
+
+/** A filtering the test moves: the same object until it is set, as the session's getter keeps it. */
+function movable(ceiling: number, taps = true) {
+  let held = { ceiling, taps }
+  return {
+    get: () => held,
+    set: (next: Partial<typeof held>) => (held = { ...held, ...next }),
+  }
+}
+
+test('a header holds the texture’s anisotropy under the ceiling, and a moved ceiling writes it again', async () => {
+  const colour = host()
+  colour.anisotropy = 16
+  const filtering = movable(8)
+  const { textures, writes, signalled } = streamer([colour], host(), undefined, filtering.get)
+  assert.equal(grantedReads(textures, 1), 8, 'a texture asking 16 is held to the ceiling')
+  const opened = writes()
+  await follow(textures)
+  assert.equal(writes(), opened, 'the same ceiling: nothing written')
+  filtering.set({ ceiling: 4 })
+  assert.equal(await follow(textures), false, 'a filter rule moved, not switched')
+  assert.equal(grantedReads(textures, 1), 4)
+  assert.equal(writes(), opened + 1)
+  assert.equal(signalled.count, 1, 'signalled as a landed tile is')
+  await follow(textures)
+  assert.equal(writes(), opened + 1, 'written once')
+  filtering.set({ ceiling: 16 })
+  await follow(textures)
+  assert.equal(grantedReads(textures, 1), 16, 'raised: the texture’s own again')
+  textures.destroy()
+})
+
+test('a texture that asks less keeps its own anisotropy under any ceiling', async () => {
+  const colour = host()
+  colour.anisotropy = 2
+  const { textures } = streamer([colour], host(), undefined, movable(8).get)
+  assert.equal(grantedReads(textures, 1), 2)
+  textures.destroy()
+})
+
+test('a ceiling of one leaves the texture one tap: its filter rule is the default read', async () => {
+  const colour = host()
+  colour.anisotropy = 16
+  const filtering = movable(8)
+  const { textures } = streamer([colour], host(), undefined, filtering.get)
+  filtering.set({ ceiling: 1 })
+  assert.equal(await follow(textures), true, 'the word is zero: the pages change resolve class')
+  assert.equal(grantedReads(textures, 1), 1)
+  textures.destroy()
+})
+
+test('the one read switch writes every header again, and the word carries it', async () => {
+  const colour = host()
+  const filtering = movable(8, true)
+  const { textures, writes } = streamer([colour], host(), undefined, filtering.get)
+  const word = () =>
+    textures.color.pages.words[slotHeader(1) + SLOT_FILTER_WORD] >>> PAGE_FILTER_SHIFT
+  assert.equal(word() & SAMPLE_ONE_READ, 0, 'taps on: the read as before')
+  const opened = writes()
+  filtering.set({ taps: false })
+  assert.equal(await follow(textures), true, 'a page read once is read through the filter rule')
+  assert.equal(word() & SAMPLE_ONE_READ, SAMPLE_ONE_READ)
+  assert.equal(writes(), opened + 2, 'one send per atlas')
+  await follow(textures)
+  assert.equal(writes(), opened + 2, 'written once')
   textures.destroy()
 })

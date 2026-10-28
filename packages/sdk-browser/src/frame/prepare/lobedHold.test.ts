@@ -35,6 +35,8 @@ const runtime = (parts: {
   ({
     context: {},
     lights: { store: { unlit: false } },
+    // No bounce asked: `askLobedPrograms` reads `bounce.wanted` to compile the bounce's lit program beside the probes' rigging.
+    bounce: { wanted: false },
     gpu: { deferred: parts.deferred },
     vis: { blendPipelines: parts.blendPipelines },
     layout: { clusters: parts.clusters ?? clustersOf(false) },

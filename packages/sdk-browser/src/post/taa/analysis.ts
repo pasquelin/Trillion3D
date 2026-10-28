@@ -3,7 +3,6 @@ import { FULL_ANALYSIS, type AnalysisWork } from './levels.ts'
 import type { TaaInputs } from './inputs.ts'
 import { createAnalysisGroups } from './analysisGroups.ts'
 import { createAnalysisLayouts, fusedVelocityFits } from './analysisLayouts.ts'
-import { NO_WPO, type WpoSet } from '../../materials/graph/wpoProgram.ts'
 import { DISPATCHES, FUSED_TILE, createAnalysisPipelines, variantOf } from './analysisPipelines.ts'
 import type { FrameSlices } from './historyFrames.ts'
 import type { TaaExecution } from './waveOps.ts'
@@ -22,6 +21,7 @@ import {
   TAA_MEASURE_THIN_COVERAGE_PASS,
 } from '../../diagnostic/stage/passLabels.ts'
 import type { AnalysisLayouts } from './analysisLayouts.ts'
+import { uniformBuffer } from '../../gpu/core/uniformBlock.ts'
 
 /** The analysis's pipelines (`createAnalysisPipelines`). */
 type Pipelines = Awaited<ReturnType<typeof createAnalysisPipelines>>
@@ -31,15 +31,13 @@ type AnalysisTargets = ReturnType<typeof createAnalysisTargets>
 /** The nearest velocity's pipeline and group when it flattens the motion blur's motion too. */
 type FusedDispatch = { pipeline: GPUComputePipeline; group: GPUBindGroup }
 /** The dispatches of `DISPATCHES` the `work` runs, each with its place `at` among them — its
- *  group's among the groups of an image (`createAnalysisGroups`) — and its program: the nearest
- *  velocity of an image that draws displaced surfaces where `tessellated`, otherwise the one of
+ *  group's among the groups of an image (`createAnalysisGroups`) — and its program: the one of
  *  `stages` for a history that `resurrects` where it does, as `run` executes it (`variantOf`): the 16-bit ones of
  *  the shading rejection and the anti-aliaser where it asks them and the device has them, the
  *  rejection's wave ones where the wave is the tile's width. */
 function* stagesOf(
-  { stages, displaced }: Pipelines,
+  { stages }: Pipelines,
   work: AnalysisWork,
-  tessellated: boolean,
   resurrects: boolean,
   run: TaaExecution,
 ) {
@@ -48,8 +46,7 @@ function* stagesOf(
     const { name } = dispatch
     if ((name === 'thin' || name === 'relaxation') && !work.thin) continue
     if (name === 'antiAlias' && !work.antiAlias) continue
-    const varied = stages[at][Number(resurrects)][variant]
-    yield { at, dispatch, stage: name === 'nearest' && tessellated ? displaced : varied }
+    yield { at, dispatch, stage: stages[at][Number(resurrects)][variant] }
   }
 }
 
@@ -62,12 +59,11 @@ function dispatchAnalysis(
   set: GPUBindGroup[],
   render: readonly [number, number],
   work: AnalysisWork,
-  tessellated: boolean,
   resurrects: boolean,
   run: TaaExecution,
   fused?: FusedDispatch,
 ) {
-  for (const { at, dispatch, stage } of stagesOf(programs, work, tessellated, resurrects, run)) {
+  for (const { at, dispatch, stage } of stagesOf(programs, work, resurrects, run)) {
     const { name, pass: descriptor, tile } = dispatch
     const pipeline = fused && name === 'nearest' ? fused.pipeline : stage.get()
     if (!pipeline) continue
@@ -189,11 +185,7 @@ function encodeMeasures(
  * turns.
  */
 function createMeasures(device: GPUDevice, layouts: AnalysisLayouts, pipelines: MeasurePipelines) {
-  const uniform = device.createBuffer({
-    label: 'Trillion3D TAA measures view',
-    size: MEASURE_VIEW_BYTES,
-    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-  })
+  const uniform = uniformBuffer(device, 'Trillion3D TAA measures view', MEASURE_VIEW_BYTES)
   const words = new Float32Array(MEASURE_VIEW_BYTES / 4)
   const identity = createWebgpuBindIdentity(2)
   const held: ({ luma: GPUBindGroup; coverage: GPUBindGroup } | undefined)[] = []
@@ -245,13 +237,10 @@ function fusedDispatch(
   groups: AnalysisGroups,
   inputs: TaaInputs,
   t: AnalysisTargetViews,
-  tessellated: boolean,
 ): FusedDispatch | undefined {
   const { flatten } = inputs
   if (!flatten || !fusedVelocityFits(device.limits, flatten.variant)) return undefined
-  const stages = programs.fused(flatten.variant)
-  const stage = tessellated ? stages.displaced : stages.flat
-  const pipeline = stage.get()
+  const pipeline = programs.fused(flatten.variant).get()
   if (!pipeline) return undefined
   flatten.written = true
   return { pipeline, group: groups.fused(inputs, t, flatten) }
@@ -260,8 +249,7 @@ function fusedDispatch(
 /**
  * The encoding of the analysis of the frame's `inputs` over the `render` size, drawn through an
  * `orthographic` projection or not: each dispatch in its compute pass, the anti-aliaser's last —
- * the `work` the level runs (`AnalysisWork`), the nearest velocity solving the flat points of
- * displaced texels where `tessellated` (`TaaFrameState.tessellated`). The flicker measure, inside the
+ * the `work` the level runs (`AnalysisWork`). The flicker measure, inside the
  * shading rejection, runs where the level rejects by it or an analysis view is shown
  * (`view.quality.x`, `view.params.w`); elsewhere the flicker history waits unwritten — an image
  * running it again drops the history (`encodeTaaPass`); the thin geometry detection is left out
@@ -286,16 +274,15 @@ function createAnalysisEncoding(
     orthographic: boolean,
     slices: FrameSlices,
     work: AnalysisWork = FULL_ANALYSIS,
-    tessellated = false,
     run: TaaExecution,
   ) => {
     const t = targets.views
     if ((orthographic ? 2 : 1) > t.occluderSlices) targets.addOccluderSlice(t)
     // The groups first: the nearest velocity's that flattens the blur's motion follows their inputs.
     const set = groups.of(inputs, t, slices)
-    const fused = fusedDispatch(device, programs, groups, inputs, t, tessellated)
+    const fused = fusedDispatch(device, programs, groups, inputs, t)
     const { resurrects } = slices
-    dispatchAnalysis(steps, programs, set, render, work, tessellated, resurrects, run, fused)
+    dispatchAnalysis(steps, programs, set, render, work, resurrects, run, fused)
   }
 }
 
@@ -346,12 +333,11 @@ export async function createTaaAnalysis(
   device: GPUDevice,
   sampler: GPUSampler,
   uniform: GPUBuffer,
-  wpo: WpoSet = NO_WPO,
   packed = true,
 ) {
   const formats = historyFormatsOf(device.features, packed, device.limits)
   const layouts = createAnalysisLayouts(device, formats)
-  const programs = await createAnalysisPipelines(device, layouts, formats, wpo)
+  const programs = await createAnalysisPipelines(device, layouts, formats)
   const groups = createAnalysisGroups(device, layouts, uniform, sampler)
   const measures = createMeasures(device, layouts, programs.measures)
   const targets = createAnalysisTargets(device, () => {
@@ -383,12 +369,10 @@ export async function createTaaAnalysis(
       targets.allocate(w, h, shape)
       if (shape.sequence.storage > 1) programs.askResurrection()
     },
-    /** Asks, off the thread, the nearest velocity of an image that draws displaced surfaces. */
-    askDisplaced: () => programs.displaced.ask(),
     /** The programs the analysis of `work` runs for an image (`stagesOf`): the chain's, each step
      *  reading what the one before wrote. */
-    stages: (work: AnalysisWork, tessellated: boolean, resurrects: boolean, run: TaaExecution) =>
-      Array.from(stagesOf(programs, work, tessellated, resurrects, run), ({ stage }) => stage),
+    stages: (work: AnalysisWork, resurrects: boolean, run: TaaExecution) =>
+      Array.from(stagesOf(programs, work, resurrects, run), ({ stage }) => stage),
     /** Encodes the measures taken before the translucency is composed onto `image` (`measures`). */
     measure: createMeasureEncoding(targets, measures),
     encode: createAnalysisEncoding(device, programs, groups, targets),

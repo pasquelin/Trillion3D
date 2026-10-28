@@ -5,6 +5,7 @@ import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
 import { holdWebgpuFrame } from '../loop/hold.ts'
 import { beginNoiseImage } from './noiseFrame.ts'
+import { taaRuns } from '../backend/state/renderScale.ts'
 import { advanceImageNumber } from '../loop/imageNumber.ts'
 import { followFirstImage } from '../loop/firstImage.ts'
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts'
@@ -50,21 +51,22 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: ViewCamera, as
   let held = false
   if (rt.feedbackAB?.force && !frameTargetsAwaited(rt) && !deviceAnswering(rt)) {
     // Replay the settled TAA sample and history while forcing the real GPU passes.
-    beginNoiseImage(rt, false)
+    beginNoiseImage(rt, false, taaRuns(rt))
     beginTaaFrame(rt, run.gate.cam)
     run.frameHeld = false
   } else held = holdWebgpuFrame(rt, gpuDevice)
-  if (!held) {
+  // The frame's number moves once, whatever happens, after the passes have encoded: every pass of an image reads the number its hold's decision took.
+  try {
+    if (held) return
     // Drawn: the next frame keeps the poses this one draws at.
     run.gpuSelection?.posesDrawn()
     drawFrameInputs(rt, gpuDevice, pixelError, cam)
+    const cpuStart = cpuNow()
+    resetFrameCounters(rt)
+    renderGpuCut(rt, cam, pixelError, cpuStart)
+  } finally {
+    advanceImageNumber(run, held)
   }
-  // The frame's number, after the inputs a drawn frame brings up (the deformation reads the one before) and once for either outcome.
-  advanceImageNumber(run, held)
-  if (held) return
-  const cpuStart = cpuNow()
-  resetFrameCounters(rt)
-  renderGpuCut(rt, cam, pixelError, cpuStart)
 }
 
 /** The image's entry: the session checked, the grown placements joined, the scale paced and the

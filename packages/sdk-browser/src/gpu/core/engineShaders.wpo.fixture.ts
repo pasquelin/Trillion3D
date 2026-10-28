@@ -29,7 +29,6 @@ import { diceSource } from '../../visibility/tessellation/diceWgsl.ts'
 import { vsmTessSource } from '../../lighting/shadows/vsm/tessellation/shadowKernelsWgsl.ts'
 import { vsmTessDiceWgsl } from '../../lighting/shadows/vsm/tessellation/shadowDiceWgsl.ts'
 import { velocityWpo } from '../../post/taa/velocityWpo.ts'
-import { velocityShader } from '../../post/taa/nearestVelocityWgsl.ts'
 import { surfaceVelocityShader } from '../../post/taa/surfaceVelocityWgsl.ts'
 
 /**
@@ -103,7 +102,6 @@ export function wpoShaders(): Record<string, string> {
     BLEND_WPO_LOBELESS: blendShader({ lobeless: true }, { graphs: [blend], offsets }),
     FRONT_STAGE_WPO: blendFrontShader(2, undefined, [blend], offsets),
     FRONT_STAGE_WPO_DEPTH: blendFrontShader(0, undefined, [blend], offsets),
-    TAA_VELOCITY_WPO: velocityShader(velocityWpo(rasters)),
     TAA_SURFACE_VELOCITY_WPO: surfaceVelocityShader(velocityWpo(rasters)),
     ...tessellationShaders(rasters, layout, 'WPO'),
     ...texturedWpoShaders(),
@@ -147,7 +145,6 @@ function texturedWpoShaders(): Record<string, string> {
     VIS_VOXEL_WPO_TEXTURED: visVoxelShader(undefined, voxelWpo(rasters)),
     VSM_RENDER_VOXEL_WPO_TEXTURED: vsmRenderVoxelWgsl(layout, voxelWpo(rasters)),
     BLEND_WPO_TEXTURED: blendShader({}, { graphs: [blend], offsets: blendWpo(rasters, [blend]) }),
-    TAA_VELOCITY_WPO_TEXTURED: velocityShader(velocityWpo(rasters)),
     ...tessellationShaders(rasters, layout, 'WPO_TEXTURED', true),
   }
 }

@@ -54,7 +54,16 @@ export function createFrameHold(values: number) {
   return {
     sample,
     /** What the view's noise clock keeps from one image to the next (`frame/render/noiseFrame.ts`). */
-    noise: { changed: true, anchor: 0, final: false, changedAt: -Infinity },
+    noise: {
+      changed: true,
+      lit: true,
+      accumulating: false,
+      anchor: 0,
+      final: false,
+      changedAt: -Infinity,
+      sampleAt: 0,
+      calmAt: -Infinity,
+    },
     /** True when the revisions have not moved since the retained frame. */
     same,
     /** True when the last two retained frames produced exactly the same work. */

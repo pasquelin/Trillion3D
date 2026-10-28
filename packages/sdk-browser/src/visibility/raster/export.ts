@@ -2,7 +2,7 @@ import type { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { drawFullscreenTriangle } from '../../gpu/shader/fullscreenTriangle.ts'
 import type { GpuRasterInput } from './types.ts'
 import {
-  DEPTH_EXPORT_SHADER,
+  depthExportShader,
   EXPORT_BINDINGS,
   EXPORT_DEPTH,
   EXPORT_IDS,
@@ -120,12 +120,12 @@ const RESOLVE_PASS: GPUComputePassDescriptor = { label: RASTER_RESOLVE_PASS }
  * The bins are assigned before the image submits (`../../materials/classes/shadeBins.ts`), so the
  * head this pass reads is the one the image's kernels and shading use.
  *
- * `encodeDepth` serves between the two halves of the image: the pyramid needs the occluders' depth
- * before any identifier is chosen, so it writes level zero alone. `encodeClose` closes the image:
- * the identifiers and the shading masks the surface passes classify by and, in a render pass of
- * its own, the scene's depth attachment from the level zero the last `encodeDepth` wrote (which
- * the identifiers do not change). `wide` is the device with the 64-bit word; without it the
- * hardware raster's depth and identifiers (`hardware`) merge into what the buffer holds.
+ * `encodeDepth` writes level zero alone, for a build of a pyramid that reads it there (the primed
+ * one's); the image's own builds read the buffer (`../hiz/gpu/workDepthSource.ts`). `encodeClose`
+ * closes the image: the identifiers and the shading masks the surface passes classify by and, in a
+ * render pass of its own, the scene's depth attachment (`depthExportShader`). `wide` is the
+ * device with the 64-bit word; without it the hardware raster's depth and identifiers
+ * (`hardware`) merge into what the buffer holds.
  */
 export function createRasterExport(
   device: GPUDevice,
@@ -178,11 +178,18 @@ export function createRasterExport(
       const compute = steps.pass(RESOLVE_PASS)
       compute.setBindGroup(0, grouped(input))
       dispatchExport(compute, z.ids, width, height)
-      depthIdentity.next[0] = input.hizView
+      // With the 64-bit word the scene's depth is the buffer's, else level zero's.
+      depthIdentity.next[0] = wide ? work : input.hizView
+      depthIdentity.next[1] = wide ? input.uniform : undefined
       if (depthIdentity.moved())
         depthGroup = device.createBindGroup({
           layout: z.depthLayout,
-          entries: sequentialEntries([input.hizView]),
+          entries: wide
+            ? sequentialEntries([
+                { buffer: work },
+                { buffer: input.uniform, size: VIS_UNIFORM_BYTES },
+              ])
+            : sequentialEntries([input.hizView]),
         })
       if (depthFor !== input.depthView) {
         depthFor = input.depthView
@@ -222,12 +229,17 @@ function exportPipelines(device: GPUDevice, wide: boolean) {
   const module = device.createShaderModule({ code: exportSource(wide) })
   const stage = (entry: string) => preparedComputeStage(device, pipelineLayout, module, entry).ask()
   const depthLayout = device.createBindGroupLayout({
-    entries: [computeTextureEntry(0, 'unfilterable-float', '2d', GPUShaderStage.FRAGMENT)],
+    entries: wide
+      ? [
+          computeBufferEntry(0, 'read-only-storage', GPUShaderStage.FRAGMENT),
+          computeUniformEntry(1, { minBindingSize: VIS_UNIFORM_BYTES }, GPUShaderStage.FRAGMENT),
+        ]
+      : [computeTextureEntry(0, 'unfilterable-float', '2d', GPUShaderStage.FRAGMENT)],
   })
   const sceneDepth = preparedPipeline(device, {
     ...fullscreenDescriptor(
       device,
-      device.createShaderModule({ code: DEPTH_EXPORT_SHADER }),
+      device.createShaderModule({ code: depthExportShader(wide) }),
       depthLayout,
       EXPORT_SCENE_DEPTH,
       [],

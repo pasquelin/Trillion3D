@@ -8,7 +8,11 @@ import { settingsWatch } from '../../../../sdk-core/src/contracts/settingRules.t
 import type { SubsurfaceProfile } from '../../../../sdk-core/src/lighting/subsurfaceProfile/profile.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { cameraSeen, previousCameraOf } from '../../frame/backend/state/previousCamera.ts'
+import {
+  cameraSeen,
+  NEVER_SEEN,
+  previousCameraOf,
+} from '../../frame/backend/state/previousCamera.ts'
 import { wantsContractLighting } from '../../frame/prepare/lit.ts'
 import { ledgerRoom } from '../../gpu/core/deviceLedger.ts'
 import type { Velocity } from '../../post/taa/velocity.ts'
@@ -89,7 +93,7 @@ function createSubsurfaceScattering(): SubsurfaceScattering {
     plan: undefined,
     written: 0,
     valid: false,
-    seen: 0,
+    seen: NEVER_SEEN,
     revision: -1,
     refusal: undefined,
     why: undefined,

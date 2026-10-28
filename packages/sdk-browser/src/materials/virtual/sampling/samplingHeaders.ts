@@ -1,13 +1,15 @@
 import type { Texture } from '../../../../../sdk-core/src/texture/contract.ts'
 import type { WebgpuTileAtlas } from '../atlas/atlasTypes.ts'
 import { PAGE_FILTER_SHIFT, SLOT_FILTER_WORD, slotHeader } from '../page/pageTable.ts'
-import { SAMPLE_FILTER_MASK } from '../../texture/sampling.ts'
+import type { StreamedFiltering } from '../streamer/streamerParts.ts'
+import { SAMPLE_SLOT_MASK } from '../../texture/sampling.ts'
 
-/** True when the texture at `slot` of a page table has a filter word: it is read through its
- *  filter rule. Slot 0, the fill texel, never has one. */
+/** True when the texture at `slot` of a page table has a filter word, or is read once
+ *  (`SAMPLE_ONE_READ`, the default of `virtualTextureAnisotropicFiltering`: the reference's rule is
+ *  every streamed texture's, anisotropy 1 included): it is read through its filter rule. Slot 0, the fill texel, never has one. */
 export function slotSampled({ words }: { readonly words: Uint32Array }, slot: number) {
   const word = words[slotHeader(slot) + SLOT_FILTER_WORD]
-  return ((word >>> PAGE_FILTER_SHIFT) & SAMPLE_FILTER_MASK) !== 0
+  return ((word >>> PAGE_FILTER_SHIFT) & SAMPLE_SLOT_MASK) !== 0
 }
 
 /** Copies a slot's texels again into the places it holds; false when it could not. */
@@ -45,7 +47,11 @@ function createHolds() {
 
 /** The headers of one atlas's textures: the visit of a slot, and the pass over the slots a force or
  *  the journal names. */
-function atlasHeaders(atlas: WebgpuTileAtlas, journal: ReadonlySet<Texture>) {
+function atlasHeaders(
+  atlas: WebgpuTileAtlas,
+  journal: ReadonlySet<Texture>,
+  filtering: () => StreamedFiltering,
+) {
   const { textures } = atlas
   /** `sampling + placement` of each slot's record when its header was written: both monotonic;
    *  none yet for a slot appended after open. */
@@ -72,11 +78,18 @@ function atlasHeaders(atlas: WebgpuTileAtlas, journal: ReadonlySet<Texture>) {
     seen[slot] = revision
     const { pages } = atlas
     const was = slotSampled(pages, slot)
-    if (!pages.setSampling(slot, texture)) return result
+    const { ceiling, taps } = filtering()
+    if (!pages.setSampling(slot, texture, ceiling, taps)) return result
     return result | HEADERS_WRITTEN | (was === slotSampled(pages, slot) ? 0 : HEADERS_SWITCHED)
   }
-  return (force: boolean, copies?: TileCopies) => {
+  return (force: boolean, copies?: TileCopies, all = false) => {
     let result = 0
+    // The ceiling moved: every live slot's header is written again under it.
+    if (all) {
+      for (let slot = 0; slot < textures.length; slot++)
+        if (textures[slot].texture) result |= visit(slot, true, copies)
+      return result
+    }
     // A regrown table copied existing headers. Only a new/reused slot was just uploaded;
     // pending picture and filter changes on its neighbours still belong to the next frame.
     if (force) {
@@ -107,19 +120,29 @@ function atlasHeaders(atlas: WebgpuTileAtlas, journal: ReadonlySet<Texture>) {
  * last written at. `force` visits every slot not seen yet: the first time, and each slot a growth
  * appended. The result is a mask of `HEADERS_WRITTEN` and `HEADERS_SWITCHED`. The same visit hands `copies` each host-image slot
  * whose picture moved since — a new version of its record —, for its places in the pool to be
- * copied again; one copied counts as a written header.
+ * copied again; one copied counts as a written header. `filtering` is what the headers are written
+ * under, read each image: the anisotropy ceiling (`virtualTextureMaxAnisotropy`) and whether the
+ * reads take taps (`virtualTextureAnisotropicFiltering`); when either moves, every header is written
+ * again, once.
  */
 export function samplingHeaders(
   color: WebgpuTileAtlas,
   data: WebgpuTileAtlas,
   journal: ReadonlySet<Texture> & { clear(): void },
+  filtering: () => StreamedFiltering,
 ) {
-  const colour = atlasHeaders(color, journal),
-    other = atlasHeaders(data, journal)
+  const colour = atlasHeaders(color, journal, filtering),
+    other = atlasHeaders(data, journal, filtering)
+  let held = filtering()
   return (force: boolean, copies?: TileCopies) => {
     let result = 0
-    if (force || journal.size) {
-      result = colour(force, copies) | other(force, copies)
+    // A moved ceiling (`virtualTextureMaxAnisotropy`) or switch (`virtualTextureAnisotropicFiltering`)
+    // writes every header again, once.
+    const now = filtering()
+    const all = now !== held
+    held = now
+    if (force || all || journal.size) {
+      result = colour(force, copies, all) | other(force, copies, all)
       if (!force) journal.clear()
     }
     return result
