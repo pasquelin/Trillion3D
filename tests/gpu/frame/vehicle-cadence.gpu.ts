@@ -52,7 +52,7 @@ for (const pixelRatio of [1, 3])
     const frames = under.filter((frame) => frame.timer !== null)
     assert.ok(
       frames.length > 120,
-      `'timestamp-query' granted, yet the engine's GPU timer read ${frames.length} of the ${under.length} frames under way`,
+      `'timestamp-query' granted, yet the engine's GPU timer read ${frames.length} of the ${under.length} frames under way: ${JSON.stringify(result.timer)}`,
     )
     assert.ok(result.speed! > 5, `driven: ${result.speed} m/s`)
     // Steady: one interval between the images shown.
@@ -76,7 +76,7 @@ for (const pixelRatio of [1, 3])
     )
     assert.ok(
       kept >= STEADY * intervals.length,
-      `steady at ${mode}: ${kept} of ${intervals.length}`,
+      `steady at ${mode}: ${kept} of ${intervals.length}: ${JSON.stringify(result.timer)}`,
     )
     // Smooth: the world steps by the time each image is shown, to the display's grid.
     let matched = 0

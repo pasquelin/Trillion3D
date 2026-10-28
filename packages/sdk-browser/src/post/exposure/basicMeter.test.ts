@@ -58,6 +58,38 @@ test('the setup places a texel’s colour as a log luminance over the histogram�
   within(scaledLog([0.3, 0.6, 0.9, 1]), placed(0.6), 1e-6, 'the mean of the channels')
 })
 
+test('the setup keeps the quarter-size level’s colour and puts the placed value in its alpha', () => {
+  const settings = settingsOf({ exposureMethod: 'basic' })
+  const meter = meterOf(uniformOf(settings, { size: SIZE }))
+  const stored: number[][] = []
+  const colour = [0.4, 0.2, 0.1, 0.7]
+  const { basicSetup, scaledLog } = shaderRun<{
+    basicSetup: (at: number[]) => void
+    scaledLog: (colour: number[]) => number
+  }>(BASIC_SETUP_WGSL, ['basicSetup', 'scaledLog'], {
+    meter,
+    quarter: 'quarter',
+    logged: 'logged',
+    textureDimensions: () => [4, 4],
+    textureLoad: () => colour,
+    textureStore: (_: string, __: number[], value: number[]) => stored.push(value),
+  })
+  basicSetup([1, 2, 0])
+  assert.deepEqual(stored, [[0.4, 0.2, 0.1, scaledLog(colour)]])
+})
+
+test('one chain serves the basic method and the readers of the colour: its last level’s alpha is the grid a chain of its own gave', () => {
+  const settings = settingsOf({ exposureMethod: 'basic' })
+  const image = pictureOf(SIZE[0], SIZE[1], ramp)
+  const shared = gridOf(settings, image)
+  const own = gridOf(settings, image, false)
+  assert.deepEqual([shared.width, shared.height], [own.width, own.height])
+  for (let k = 3; k < shared.data.length; k += 4) assert.equal(shared.data[k], own.data[k])
+  // The colour of the last level is the image's, not 0: the readers of the chain see it.
+  assert.ok(shared.data.some((v, k) => k % 4 !== 3 && v > 0))
+  assert.ok(own.data.every((v, k) => k % 4 === 3 || v === 0))
+})
+
 /** The update over the measure's words for `grid` under `settings`, jumping to its target: the
  *  exposure buffer it leaves. */
 function updated(settings: ExposureValues, grid: Picture, mask?: Mask) {
@@ -146,13 +178,13 @@ test('the grid’s texels in the darkest bucket weigh the black bucket’s share
   assert.ok(mean < 0 && mean > -10)
 })
 
-test('the histogram reads the metering mask once for each 2 × 2 quad of half pixels, at the first, none where no mask is bound', () => {
+test('the histogram reads the metering mask for each half pixel at its centre, none where no mask is bound', () => {
   const read = (masked: boolean, at: number[]) => {
     const meter = meterOf(uniformOf(settingsOf(), { size: [200, 100], masked }))
     const seen: number[][] = []
-    const { quadWeight } = shaderRun<{ quadWeight: (x: number, row: number) => number }>(
+    const { texelWeight } = shaderRun<{ texelWeight: (x: number, row: number) => number }>(
       MEASURE_WGSL,
-      ['quadWeight'],
+      ['texelWeight'],
       {
         meter,
         meterMask: 'mask',
@@ -163,11 +195,11 @@ test('the histogram reads the metering mask once for each 2 × 2 quad of half pi
         ),
       },
     )
-    return { weight: quadWeight(at[0], at[1]), seen }
+    return { weight: texelWeight(at[0], at[1]), seen }
   }
   assert.deepEqual(read(false, [3, 5]), { weight: 1, seen: [] })
-  // The half-resolution image is 100 × 50: the quad of (3, 5) starts at (2, 4), of (2, 4) as well.
-  assert.deepEqual(read(true, [3, 5]), { weight: 0.25, seen: [[2 / 100, 4 / 50]] })
-  assert.deepEqual(read(true, [2, 4]).seen, [[2 / 100, 4 / 50]])
-  assert.deepEqual(read(true, [4, 4]).seen, [[4 / 100, 4 / 50]], 'the next quad')
+  // The half-resolution image is 100 × 50: the texel (3, 5) is read at its centre, and so is its neighbour.
+  assert.deepEqual(read(true, [3, 5]), { weight: 0.25, seen: [[3.5 / 100, 5.5 / 50]] })
+  assert.deepEqual(read(true, [2, 4]).seen, [[2.5 / 100, 4.5 / 50]])
+  assert.deepEqual(read(true, [99, 49]).seen, [[99.5 / 100, 49.5 / 50]], 'the last column and row')
 })

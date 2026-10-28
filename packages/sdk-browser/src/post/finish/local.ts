@@ -17,13 +17,18 @@ import { fullscreenDraw } from '../filters/fullscreenDraw.ts'
 import type { SceneChain } from '../filters/sceneChain.ts'
 import { createLayer } from '../filters/sizedImage.ts'
 import { BLURRED_LEVEL, FINISH_BYTES, GRID_DEPTH, GRID_TILE, finishLayout } from './finishLayout.ts'
-import { GRID_WGSL, LOG_LIGHT_WGSL } from './localWgsl.ts'
+import { gridWgsl, LOG_LIGHT_WGSL, type GridFormat } from './localWgsl.ts'
+import { hasFloat32Filterable } from '../../gpu/core/float32Filterable.ts'
 
 /**
  * The local exposure's programs once a device, prepared off the thread: the grid, and the pass
  * that writes a level's log luminance for the blur (`localWgsl.ts`).
  */
+const gridFormatOf = (device: GPUDevice): GridFormat =>
+  hasFloat32Filterable(device.features) ? 'rg32float' : 'rgba16float'
+
 const localPrograms = oncePerDevice((device: GPUDevice) => {
+  const gridFormat = gridFormatOf(device)
   const compute = GPUShaderStage.COMPUTE,
     fragment = GPUShaderStage.FRAGMENT
   const lightLabel = `${LOCAL_EXPOSURE_PASS} log light`,
@@ -33,7 +38,7 @@ const localPrograms = oncePerDevice((device: GPUDevice) => {
     entries: [
       computeTextureEntry(0, 'unfilterable-float', '2d', compute),
       computeUniformEntry(1, { minBindingSize: FINISH_BYTES }, compute),
-      computeStorageTextureEntry(2, 'rgba16float', 'write-only', '3d', compute),
+      computeStorageTextureEntry(2, gridFormat, 'write-only', '3d', compute),
     ],
   })
   const lightLayout = device.createBindGroupLayout({
@@ -42,12 +47,13 @@ const localPrograms = oncePerDevice((device: GPUDevice) => {
   })
   const lightModule = device.createShaderModule({ label: lightLabel, code: LOG_LIGHT_WGSL })
   return {
+    gridFormat,
     gridLayout,
     lightLayout,
     grid: preparedComputeStage(
       device,
       device.createPipelineLayout({ bindGroupLayouts: [gridLayout] }),
-      device.createShaderModule({ label: gridLabel, code: GRID_WGSL }),
+      device.createShaderModule({ label: gridLabel, code: gridWgsl(gridFormat) }),
       'grid',
       undefined,
       gridLabel,
@@ -90,13 +96,15 @@ export function localProgramsReady(device: GPUDevice) {
 }
 
 /** The grid's texture over `tilesX × tilesY` tiles: `GRID_DEPTH` bands deep. */
-const gridTexture = (width: number, height: number): GPUTextureDescriptor => ({
-  label: LOCAL_EXPOSURE_PASS,
-  size: { width, height, depthOrArrayLayers: GRID_DEPTH },
-  dimension: '3d',
-  format: 'rgba16float',
-  usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
-})
+const gridTexture =
+  (format: GridFormat) =>
+  (width: number, height: number): GPUTextureDescriptor => ({
+    label: LOCAL_EXPOSURE_PASS,
+    size: { width, height, depthOrArrayLayers: GRID_DEPTH },
+    dimension: '3d',
+    format,
+    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+  })
 
 /** The texture of the log luminance, one channel, `width × height` texels. */
 const lightTexture = (width: number, height: number): GPUTextureDescriptor => ({
@@ -110,7 +118,7 @@ type LocalPrograms = ReturnType<typeof localPrograms>
 
 /** The bilateral grid of the half-size image: a kept layer, and the pass that draws it. */
 function createGridPass(device: GPUDevice, uniform: GPUBuffer, programs: LocalPrograms) {
-  const layer = createLayer(device, gridTexture, '3d')
+  const layer = createLayer(device, gridTexture(programs.gridFormat), '3d')
   const computing = { label: `${LOCAL_EXPOSURE_PASS} grid` }
   const group = (first: GPUTextureView, grid: GPUTextureView) =>
     device.createBindGroup({
@@ -184,7 +192,7 @@ function createBlurredLight(device: GPUDevice, programs: LocalPrograms, bare: GP
 /**
  * THE LOCAL EXPOSURE'S TWO BASE LAYERS, built from the scene's chain (`../filters/sceneChain.ts`):
  * the bilateral grid of the half-size image — a 3D image of one tile of `GRID_TILE` pixels a texel
- * across and `GRID_DEPTH` bands of log luminance deep (`GRID_WGSL`) —, and the blurred log
+ * across and `GRID_DEPTH` bands of log luminance deep (`gridWgsl`) —, and the blurred log
  * luminance of the chain's fifth level: its log2 luminance in one channel, Gaussian-blurred over
  * `percent` of its width, mirrored at its edges. `uniform` is the finishing's, which holds how a
  * luminance is read; `bare` the finishing's group with nothing in the slots the passes write.
@@ -215,8 +223,8 @@ export function createLocalExposure(device: GPUDevice, uniform: GPUBuffer, bare:
     /**
      * Draws the layers of the frame's image into the chain `scene` was begun with: the grid, and
      * with `percent` of a blur above 0 the log luminance of the fifth level and its blur, sized as
-     * the view's Gaussian blur settings `look` say. They read the finishing's uniform, whose
-     * exposure the frame copied in.
+     * the view's Gaussian blur settings `look` say. They read the finishing's uniform words the
+     * CPU wrote (the luminance weights, the histogram's scale, the pre-exposure), never the exposure the GPU copies in after.
      */
     encode(
       encoder: GPUCommandEncoder,

@@ -12,6 +12,9 @@ import { filterPrograms } from './filterPrograms.ts'
 import { fullscreenDraw } from './fullscreenDraw.ts'
 import { HALF_IMAGE_FORMAT, halfSize } from './levelSizes.ts'
 
+/** The level the log luminance is put in the alpha of: the quarter-size one. */
+export const LOG_LUMA_LEVEL = 1
+
 /** The scene's half-size image and its levels (`createSceneChain`). */
 export type SceneChain = ReturnType<typeof createSceneChain>
 
@@ -74,11 +77,22 @@ type ChainState = {
   asked: number
   drawn: number
   halved: [number, number]
+  logLuma?: LogLuma
+  /** Whether the chain went on from the log luminance's image this frame. */
+  logged: boolean
   encoder?: GPUCommandEncoder
   input?: GPUTextureView
   half?: GPUTextureView
   wide: boolean
 }
+
+/** The pass that turns the quarter-size level into the same image with the log luminance of each texel in its alpha (the basic
+ *  exposure method's setup): the image, none while the pass is not compiled. */
+export type LogLuma = (
+  encoder: GPUCommandEncoder,
+  quarter: GPUTextureView,
+  size: readonly number[],
+) => GPUTextureView | undefined
 
 /** Frees the half-size image and the levels. */
 function releaseChain(
@@ -88,6 +102,8 @@ function releaseChain(
 ) {
   half.release()
   chain.dispose()
+  state.logLuma = undefined
+  state.logged = false
   state.asked = 1
 }
 
@@ -108,7 +124,18 @@ function drawLevels(
     if (!state.half) half.encode(encoder, input, width, height, state.wide)
     state.drawn = 1
   }
-  chain.encode(encoder, (state.half ?? half.view)!, count, state.drawn)
+  const first = (state.half ?? half.view)!
+  if (state.logLuma && state.drawn <= LOG_LUMA_LEVEL && count > LOG_LUMA_LEVEL) {
+    // The chain goes on from the setup's image, as the reference's does (the log luminance in the alpha of its second level).
+    chain.encode(encoder, first, LOG_LUMA_LEVEL + 1, state.drawn)
+    const logged = state.logLuma(encoder, chain.view(LOG_LUMA_LEVEL)!, chain.size(LOG_LUMA_LEVEL))
+    if (logged) {
+      chain.stand(LOG_LUMA_LEVEL, logged)
+      state.logged = true
+    }
+    state.drawn = LOG_LUMA_LEVEL + 1
+  }
+  chain.encode(encoder, first, count, state.drawn)
   state.drawn = count
 }
 
@@ -117,13 +144,20 @@ function drawLevels(
  * its pixels — by the pass that last wrote it, else `createHalfImage` — and then a chain of ever
  * smaller levels (`createDownsampleChain`).
  * The local exposure reads the half-size image and the fifth level, the bloom the half-size image
- * and, where it needs no setup, all six. `begin` takes the frame's image; `need` draws the levels a
+ * and, where it needs no setup, all six, the basic exposure method the last (its log luminance in the alpha). `begin` takes the frame's image; `need` draws the levels a
  * reader asks for, each once however many ask, so the readers share every pass.
  */
 export function createSceneChain(device: GPUDevice) {
   const chain = createDownsampleChain(device, DOWNSAMPLE_PASS)
   const half = createHalfImage(device)
-  const state: ChainState = { sized: [0, 0], asked: 1, drawn: 0, halved: [0, 0], wide: false }
+  const state: ChainState = {
+    sized: [0, 0],
+    asked: 1,
+    drawn: 0,
+    halved: [0, 0],
+    wide: false,
+    logged: false,
+  }
   const release = () => releaseChain(state, half, chain)
   return {
     /** The image of level `at`: 0 the half-size image, then each half of the one before. */
@@ -133,6 +167,10 @@ export function createSceneChain(device: GPUDevice) {
     /** Bytes of the half-size image and the levels made. */
     get bytes() {
       return half.bytes + chain.bytes
+    },
+    /** Whether the chain went on from the log luminance's image (`begin`'s `logLuma`) this frame. */
+    get logged() {
+      return state.logged
     },
     /** The size, width then height, of the image the last `begin` took. */
     get imageSize(): readonly number[] {
@@ -149,6 +187,7 @@ export function createSceneChain(device: GPUDevice) {
       height: number,
       made?: GPUTextureView,
       wide = false,
+      logLuma?: LogLuma,
     ) {
       if (state.sized[0] !== width || state.sized[1] !== height) {
         release()
@@ -158,6 +197,9 @@ export function createSceneChain(device: GPUDevice) {
       state.input = input
       state.half = made
       state.wide = wide
+      state.logLuma = logLuma
+      state.logged = false
+      chain.unstand()
       state.drawn = 0
     },
     /** Draws the levels up to `count − 1` not drawn yet this frame, the half-size image first:

@@ -16,7 +16,7 @@ export const heightAt = (v: number) => 0.5 + 0.5 * Math.sin(2 * Math.PI * SHEET.
  * up). The plane's second texture axis `v` runs from -side/2 to side/2 along its local y, which the rotation about x turns into -z, so that
  * `v = 0.5 - z / side`: the height is `SHEET.height + (heightAt(v) - 0.5) * SHEET.magnitude`.
  */
-export const sheetHeightAt = (z: number) =>
+const sheetHeightAt = (z: number) =>
   SHEET.height + (heightAt(0.5 - z / SHEET.side) - 0.5) * SHEET.magnitude
 
 /** Whether the segment from the spot (over the floor's middle, `SHEET.height` up) to the floor point `(x, z)` crosses the displaced sheet. */

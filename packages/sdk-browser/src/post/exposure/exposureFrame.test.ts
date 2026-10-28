@@ -12,7 +12,7 @@ import { takeGraphClocks, newGraphClocks } from '../../materials/graph/clocks.ts
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { SceneChain } from '../filters/sceneChain.ts'
 import { EXPOSURE_AT, encodeExposure } from './frame.ts'
-import { METER_PARAMS, SHOWN_AT } from './meterLayout.ts'
+import { EXPOSURE_BYTES, METER_PARAMS, SCALES_AT, SHOWN_AT } from './meterLayout.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { filterPrograms } from '../filters/filterPrograms.ts'
 import { askExposurePrograms, meterPrograms } from './meterPrograms.ts'
@@ -75,7 +75,7 @@ function metersOf(buffers: { size: number; data: Uint8Array }[]) {
   }
   return {
     uniform: () => words(METER_PARAMS.words * 4),
-    exposure: () => words(32),
+    exposure: () => words(EXPOSURE_BYTES),
   }
 }
 
@@ -162,6 +162,29 @@ test('a held exposure is written into the exposure buffer each image and a switc
   within(meters.exposure()[0], 2 / 960, 1e-9, 'the update starts from the held exposure')
 })
 
+test('a manual exposure reads the local exposure’s contrast curves at its mean', async () => {
+  const { device, buffers } = await readyDevice()
+  const settings = { localExposureMiddleGreyBias: 0 }
+  const rt = viewOf(device, { settings })
+  Object.assign(rt.context, {
+    exposureMethod: 'manual',
+    localExposureHighlightContrastCurve: [[0, 0.5]],
+    localExposureShadowContrastCurve: [[0, 2]],
+  })
+  image(rt, device, 0)
+  const scales = metersOf(buffers).exposure()
+  within(scales[SCALES_AT / 4], 0.5, 1e-6, 'the highlights’ scale')
+  within(scales[SCALES_AT / 4 + 1], 2, 1e-6, 'the shadows’ scale')
+})
+
+test('a fixed exposure keeps no average luminance: the contrast curves are not read', async () => {
+  const { device, buffers } = await readyDevice()
+  const rt = viewOf(device, { exposure: 0.25 })
+  Object.assign(rt.context, { localExposureHighlightContrastCurve: [[0, 0.5]] })
+  image(rt, device, 0)
+  assert.equal(metersOf(buffers).exposure()[SCALES_AT / 4], 1)
+})
+
 test('a fixed exposure is the number itself in the buffer, its grey the local bias’s alone', async () => {
   const { device, buffers } = await readyDevice()
   const rt = viewOf(device, { exposure: 0.25, settings: { localExposureMiddleGreyBias: 1 } })
@@ -176,7 +199,7 @@ test('a fixed exposure is the number itself in the buffer, its grey the local bi
 test('a held exposure that does not change does no work on the GPU: no write, no copy to the readback, no mapping; the meter knows it at once', async () => {
   const { device, buffers, writes, copies } = await readyDevice()
   const rt = viewOf(device, { exposure: 0.25 })
-  const exposure = () => buffers.find((buffer) => buffer.size === 32)!
+  const exposure = () => buffers.find((buffer) => buffer.size === EXPOSURE_BYTES)!
   const staged = () =>
     copies.filter(({ to }) => String((to as { label?: string }).label).includes('readback'))
   const writesTo = (buffer: object) => writes.filter((write) => write.buffer === buffer)
@@ -233,7 +256,7 @@ test('the pre-exposure of the image before is kept once, on the pre-exposure: th
 test('a measuring image rewrites the exposure buffer: the held exposure after it is written again, though its words are what they were', async () => {
   const { device, buffers, writes } = await readyDevice()
   const rt = viewOf(device, { exposure: 'auto' })
-  const exposure = (): object => buffers.find((buffer) => buffer.size === 32)!
+  const exposure = (): object => buffers.find((buffer) => buffer.size === EXPOSURE_BYTES)!
   const writesTo = () => writes.filter((write) => write.buffer === exposure())
   Object.assign(rt.context, { exposureMethod: 'manual' })
   image(rt, device, 0)
@@ -256,11 +279,12 @@ test('leaving the basic method forgets the groups over its grid: none holds its 
   const rt = viewOf(device)
   const measureGroups = () =>
     bindGroups.filter(({ layout }) => layout === meterPrograms(device).measureLayout).length
-  // The scene's chain the basic method draws its grid from: the quarter-size level, 512 × 256.
+  // The scene's chain the basic method reads its grid from: its last level, the setup's alpha averaged down.
   const scene = {
     need: () => undefined,
     view: () => ({}) as GPUTextureView,
     size: () => [512, 256],
+    logged: true,
   } as unknown as SceneChain
   // The histogram reads the chain's half-size image: the same one, one group.
   const half = {} as GPUTextureView

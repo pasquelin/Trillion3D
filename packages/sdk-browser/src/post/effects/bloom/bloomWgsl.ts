@@ -19,7 +19,7 @@ export const BLOOM_SETUP_BYTES = BLOOM_SETUP.words * 4
  * local exposure applied — the grid read at the pixel's corner, the finishing's group 1 —, then,
  * past a threshold above −1, scaled by how far its exposed luminance clears it, over two:
  * `saturate((luminance · exposure − threshold) / 2)`. What the bloom blurs is what the image will
- * show, not the radiance it was drawn at.
+ * show, not the radiance it was drawn at. Its alpha is none: the glow carries no coverage.
  */
 export const BLOOM_SETUP_WGSL = wgslProgram(
   `
@@ -32,7 +32,7 @@ ${BLOOM_SETUP.wgsl}
  if(setup.layers!=0.0){c=vec4f(c.rgb*localGainOf(c,floor(pixel.xy)*setup.outTexel),c.a);}
  var amount=1.0;
  if(setup.threshold>-1.0){amount=saturate((luminance(c.rgb)*finish.look.y-setup.threshold)*0.5);}
- return c*amount;
+ return vec4f(c.rgb*amount,0.0);
 }`,
   [FINISH_WGSL, luminance, FULLSCREEN_VERTEX],
 )

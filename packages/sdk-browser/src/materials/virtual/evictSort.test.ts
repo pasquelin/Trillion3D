@@ -9,9 +9,12 @@ import { pipelinesSettled } from '../../lighting/deferred/compileLedger.ts'
 import { losslessAtlas } from './losslessAtlas.fixture.ts'
 import { fakeDevice } from '../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { words } from '../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
-import { TILE_PROTECTED, TILE_TIERS } from './evictSortWgsl.ts'
+import { TILE_PROTECTED } from './evictSortWgsl.ts'
 import { POOL_RANKS } from '../../gpu/sort/rank.ts'
 import { poolRank } from '../../../../../tests/kit/fakeDevice/fakeTileEvict.ts'
+
+/** The tiers (levels) of each age step of the pool's rank (a contract of the eviction order's layout). */
+const TILE_TIERS = 32
 
 test('a queue that still holds victims and saw nothing move is not cut again', async () => {
   const { device } = fakeDevice()

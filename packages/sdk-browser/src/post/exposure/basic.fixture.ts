@@ -47,9 +47,10 @@ function down(p: Picture, size: number, first: number) {
 export const SIZE: [number, number] = [512, 256]
 
 /** The grid the measure ends on, as the shipped setup and the levels' definition make it: the
- *  image at half size and again at the quarter, each texel placed by `scaledLog`, then four levels
- *  of 4 × 4 means of the placed values. */
-export function gridOf(settings: ExposureValues, image: Picture) {
+ *  image at half size and again at the quarter, each texel placed by `scaledLog` in the alpha of the
+ *  quarter-size level, whose colour stays (the chain goes on from that image), then four levels
+ *  of 4 × 4 means. `keepColour` false leaves the colour 0, as a grid of its own would. */
+export function gridOf(settings: ExposureValues, image: Picture, keepColour = true) {
   const meter = meterOf(uniformOf(settings, { size: SIZE }))
   const { scaledLog } = shaderRun<{ scaledLog: (colour: number[]) => number }>(
     BASIC_SETUP_WGSL,
@@ -58,9 +59,7 @@ export function gridOf(settings: ExposureValues, image: Picture) {
   )
   const quarter = down(down(image, 2, 0), 4, -1)
   let level = pictureOf(quarter.width, quarter.height, (x, y) => [
-    0,
-    0,
-    0,
+    ...(keepColour ? texel(quarter, x, y).slice(0, 3) : [0, 0, 0]),
     scaledLog(texel(quarter, x, y)),
   ])
   for (let stage = 0; stage < 4; stage++) level = down(level, 4, -1)

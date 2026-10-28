@@ -13,7 +13,7 @@ import {
   writeHeld,
   type MeterInput,
 } from './meterRun.ts'
-import { GREY_AT, LOCAL_AT, READBACK_BYTES, SHOWN_AT } from './meterLayout.ts'
+import { GREY_AT, LOCAL_AT, READBACK_BYTES, SCALES_AT, SHOWN_AT } from './meterLayout.ts'
 
 /** Exposures that can be in flight back to the CPU at once: one an image, never a wait. */
 const IN_FLIGHT = 3
@@ -114,6 +114,7 @@ function createMeterUpdate(
       writeHeld(device, buffers.exposure, held, input.preExposure, run)
       show(encoder, view, at)
     },
+    logLuma: measure.logLuma,
     dispose: measure.dispose,
   }
 }
@@ -139,7 +140,7 @@ function createMeterUpdate(
 export function createExposureMeter(device: GPUDevice) {
   const buffers = createMeterBuffers(device)
   const { read, ring } = createMeterReadback(device)
-  const { run, encode, hold, dispose } = createMeterUpdate(device, buffers, ring, read)
+  const { run, encode, hold, dispose, logLuma } = createMeterUpdate(device, buffers, ring, read)
   return {
     /** The exposure the last readback brought, 0 until one has. */
     get last() {
@@ -183,6 +184,13 @@ export function createExposureMeter(device: GPUDevice) {
     copyGrey(encoder: GPUCommandEncoder, into: GPUBuffer, at: number) {
       encoder.copyBufferToBuffer(buffers.exposure, GREY_AT, into, at, 4)
     },
+    /** Copies the scales the local exposure's contrast curves give at the frame's mean — the highlights' then the shadows' —
+     *  `at` bytes into `into`: the finishing's uniform. */
+    copyScales(encoder: GPUCommandEncoder, into: GPUBuffer, at: number) {
+      encoder.copyBufferToBuffer(buffers.exposure, SCALES_AT, into, at, 8)
+    },
+    /** The basic method's setup for the scene's chain (`SceneChain.begin`). */
+    logLuma,
     /** After the image's submit: its copy maps. */
     submitted: () => ring.submitted(),
     dispose() {

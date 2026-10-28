@@ -24,6 +24,8 @@ export type FinishInput = FilmInput & {
   dirt?: readonly number[]
   /** The lens' principal point (`lensOf`). */
   lens: readonly number[]
+  /** The pre-exposure the image's light is held multiplied by (`preExposureOf`); 1 by default. */
+  preExposure?: number
 }
 
 /** The lens of a view drawn whole: its centre at the image's, its scale the image's. */
@@ -60,7 +62,7 @@ const gridScale = (pixels: number) => pixels / GRID_TILE / ceilDiv(pixels, GRID_
  * GPU's to copy in (`finishFrame`): written as 1 here, so a buffer written again holds the same
  * words frame after frame. The log2 of the middle grey the local exposure pulls toward, the first
  * word of `base`, is the GPU's to copy in too, from the exposure buffer (`ExposureMeter.copyGrey`):
- * 0 here. The film's words follow (`writeFilmParams`), the vignette's among them.
+ * 0 here; so are the scales of the local exposure's contrast curves (the last two words of `pre`), 1 here. The film's words follow (`writeFilmParams`), the vignette's among them.
  */
 export function writeFinishParams(words: Float32Array, input: FinishInput) {
   const { settings, size } = input
@@ -86,6 +88,8 @@ export function writeFinishParams(words: Float32Array, input: FinishInput) {
   words[AT.grid + 3] = settings.localExposureShadowThreshold
   words[AT.reach] = reachOf(settings.localExposureHighlightThresholdStrength)
   words[AT.reach + 1] = reachOf(settings.localExposureShadowThresholdStrength)
+  const pre = input.preExposure ?? 1
+  putVec4(words, AT.pre, pre, 1 / pre, 1, 1)
   putVec4(words, AT.lens, input.lens[0], input.lens[1], input.lens[2], input.lens[3])
   writeFilmParams(words, input)
 }

@@ -24,8 +24,7 @@ const GREY = wgslF32(EXPOSURE_MIDDLE_GREY)
  * luminance, no lower than the histogram's lowest, is placed by its logarithm between two buckets,
  * the weight shared by how near each lies; the darkest bucket's weight is scaled (the pixels of no
  * light), and both are scaled by the metering mask (`maskWeight`, 1 where no mask is bound), read
- * once for each 2 × 2 quad of texels, at the quad's first one (`quadWeight`); a quad that is not
- * whole (the last column or row of an odd image) is left out. The lanes count their
+ * for each texel at its centre (`texelWeight`); every texel counts, the last column and row of an odd image too. The lanes count their
  * pixels in the workgroup's own buckets, then each lane adds its bucket into the buffer's, the carry out of the low word into the high one. The
  * program holds the basic measure's entry as well (`basicWgsl.ts`), which shares its bindings and
  * reads the grid's last level in place of the image.
@@ -43,16 +42,15 @@ fn maskWeight(uv:vec2f)->f32{
  if(meter.image.w==0.0){return 1.0;}
  return textureSampleLevel(meterMask,meterSampler,uv,0.0).x;
 }
-fn quadWeight(x:u32,row:u32)->f32{
- return maskWeight(vec2f(vec2u(x&~1u,row&~1u))/vec2f(meter.size.zw));
+fn texelWeight(x:u32,row:u32)->f32{
+ return maskWeight((vec2f(vec2u(x,row))+vec2f(0.5))/vec2f(meter.size.zw));
 }
 @compute @workgroup_size(${METER_LANES})
 fn measure(@builtin(workgroup_id) rowAt:vec3u,@builtin(local_invocation_index) lane:u32){
  atomicStore(&counts[lane],0u);
  workgroupBarrier();
  for(var x=lane;x<meter.size.z;x+=${METER_LANES}u){
-  if((x|1u)>=meter.size.z||(rowAt.x|1u)>=meter.size.w){continue;}
-  let screen=quadWeight(x,rowAt.x);
+  let screen=texelWeight(x,rowAt.x);
   let light=meterLight(textureLoad(image,vec2i(i32(x),i32(rowAt.x)),0),meter.weights.xyz,meter.image.x,meter.weights.w);
   let place=saturate(log2(light)*meter.histogram.x+meter.histogram.y)*${wgslF32(LAST)};
   let low=min(u32(place),${LAST}u);
@@ -83,7 +81,9 @@ fn measure(@builtin(workgroup_id) rowAt:vec3u,@builtin(local_invocation_index) l
  * exposure's gain takes over the histogram (1 where it does not run; the mean of the logarithms of
  * the gain at each bucket's luminance, weighted by the bucket) — the factor the next image's
  * pre-exposure carries. The bias is multiplied by the compensation curve's factor at the frame's
- * mean (`curveFactor`; 1 without a curve), and the log2 of the middle grey the local exposure
+ * mean (`curveFactor`; 1 without a curve), the scales the local exposure's contrast curves give at it
+ * (`curveScale`, left in the third `vec4f`; the contrast the local mean is taken with is multiplied by them),
+ * and the log2 of the middle grey the local exposure
  * pulls toward — 0.18 times the bias, the curve's factor and two to the local bias — is left too,
  * which the finishing copies. A pixel-less histogram asks the lowest mean; a share of the low and
  * the high alike gives a mean of 1, the reference's.
@@ -98,7 +98,7 @@ export const ADAPT_WGSL = wgslProgram(
 ${METER_PARAMS.wgsl}
 @group(0) @binding(0) var<uniform> meter:MeterParams;
 @group(0) @binding(1) var<storage,read> histogram:array<u32,${METER_WORDS}>;
-@group(0) @binding(2) var<storage,read_write> exposure:array<vec4f,2>;
+@group(0) @binding(2) var<storage,read_write> exposure:array<vec4f,3>;
 fn weightOf(i:u32)->f32{
  return f32(histogram[i*2u+1u])*${CARRY}+f32(histogram[i*2u])*${wgslF32(1 / WEIGHT_ONE)};
 }
@@ -144,27 +144,27 @@ fn basicMean()->f32{
  for(var lane=0u;lane<${BASIC_LANES}u;lane++){sum=sum+laneSum(lane).xy;}
  return exp2(gridLog(sum.x/max(sum.y,1e-10)));
 }
-fn basicLocal(scale:f32,grey:f32)->f32{
+fn basicLocal(scale:f32,grey:f32,contrast:vec2f)->f32{
  var logSum=0.0;
  var total=0.0;
  for(var lane=0u;lane<${BASIC_LANES}u;lane++){
   let sums=laneSum(lane);
   if(sums.w>0.0){
    let base=gridLog(sums.z/sums.w)+log2(scale);
-   logSum=logSum+(localLog(base,grey,meter.local.yz,meter.edges.xy,meter.edges.zw)-base)*sums.w;
+   logSum=logSum+(localLog(base,grey,contrast,meter.edges.xy,meter.edges.zw)-base)*sums.w;
    total=total+sums.w;
   }
  }
  return exp2(logSum/max(0.0001,total));
 }
-fn averageLocal(scale:f32,grey:f32)->f32{
+fn averageLocal(scale:f32,grey:f32,contrast:vec2f)->f32{
  var logSum=0.0;
  var total=0.0;
  for(var i=0u;i<${BUCKETS}u;i++){
   let weight=weightOf(i);
   let logLuminance=(f32(i)/${wgslF32(LAST)}-meter.histogram.y)/meter.histogram.x;
   let base=logLuminance+log2(scale);
-  logSum=logSum+(localLog(base,grey,meter.local.yz,meter.edges.xy,meter.edges.zw)-base)*weight;
+  logSum=logSum+(localLog(base,grey,contrast,meter.edges.xy,meter.edges.zw)-base)*weight;
   total=total+weight;
  }
  return exp2(logSum/max(0.0001,total));
@@ -189,10 +189,14 @@ fn adapt(){
  exposure[0]=vec4f(next,bias/max(0.0001,goal),mean,bias);
  let grey=meter.local.x+log2(bias);
  var localMean=1.0;
+ // The contrast curves' scales, read at the frame's mean as the compensation curve is (\`curveFactor\`).
+ let scales=vec2f(curveScale(1u,mean,meter.image.y),curveScale(2u,mean,meter.image.y));
  if(meter.local.w!=0.0){
-  if(basic){localMean=basicLocal(next,grey);}else{localMean=averageLocal(next,grey);}
+  let contrast=meter.local.yz*scales;
+  if(basic){localMean=basicLocal(next,grey,contrast);}else{localMean=averageLocal(next,grey,contrast);}
  }
  exposure[1]=vec4f(next*meter.image.x,localMean,grey,0.0);
+ exposure[2]=vec4f(scales,0.0,0.0);
 }`,
   [LOCAL_LOG_WGSL, curveWgsl(3)],
 )

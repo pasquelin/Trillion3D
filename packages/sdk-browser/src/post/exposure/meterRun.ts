@@ -6,13 +6,13 @@ import {
 } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 import { settingsDiffer } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import type { SceneChain } from '../filters/sceneChain.ts'
-import { METER_PARAMS, SHOWN_AT } from './meterLayout.ts'
+import { METER_PARAMS, SCALES_AT, SHOWN_AT } from './meterLayout.ts'
 import { writeMeterParams, type MeterUniform } from './meterParams.ts'
 
 /** What an image hands the meter, rewritten by each image: the image and the scene's chain begun
  *  on it (`SceneChain`: the basic method's grid is drawn from its levels, none for a method that draws
  *  none), the image's size in
- *  pixels, the exposure's settings, the table of the compensation curve (`exposureCurveTable`), the
+ *  pixels, the exposure's settings, the tables of the curves (`exposureCurvesOf`: the compensation's and the two contrast curves'), the
  *  view's camera cut (a change of it jumps the exposure to its target), the pre-exposure the image
  *  holds its light multiplied by, the world's time in seconds at the image (`clock`: the
  *  adaptation moves by its difference between two images) and the metering mask, none where the
@@ -27,6 +27,8 @@ export type MeterInput = {
   preExposure: number
   clock: number
   mask: ExposureMeterMaskImage | undefined
+  /** Whether a local exposure contrast curve is set. */
+  curved?: boolean
 }
 
 /** What the meter remembers of the images it saw, measured or held: the cut and the clock of the
@@ -95,6 +97,7 @@ export function meterWriter(device: Pick<GPUDevice, 'queue'>, uniform: GPUBuffer
     written.jumps = first || input.cut !== run.seen
     written.preExposure = input.preExposure
     written.masked = input.mask !== undefined
+    written.curved = input.curved
     writeMeterParams(words, ints, written)
     noteImage(run, input)
     // The update this image runs rewrites the exposure buffer: what a held exposure wrote is no longer in it.
@@ -104,8 +107,8 @@ export function meterWriter(device: Pick<GPUDevice, 'queue'>, uniform: GPUBuffer
   }
 }
 
-/** The words of the exposure buffer a held exposure writes: two `vec4f`. */
-const HELD_WORDS = 8
+/** The words of the exposure buffer a held exposure writes: three `vec4f`, the third its contrast curves' scales. */
+const HELD_WORDS = 12
 /** The words of the image about to be compared with what the buffer holds. */
 const next = new Float32Array(HELD_WORDS)
 
@@ -126,6 +129,7 @@ export function writeHeld(
 ) {
   next.set([held.exposure, held.exposure, held.mean, held.compensation])
   next.set([held.exposure / preExposure, 1, held.grey, 0], SHOWN_AT / 4)
+  next.set([held.scales[0], held.scales[1], 0, 0], SCALES_AT / 4)
   let first = HELD_WORDS,
     last = -1
   for (let k = 0; k < HELD_WORDS; k++)

@@ -98,11 +98,14 @@ export function createDownsampleChain(device: GPUDevice, label: string) {
   let levels: Level[] = [],
     sizes: [number, number][] = [],
     bytes = 0
+  // An image standing for a level: the chain goes on from it, and it is the level readers see.
+  const standing: (GPUTextureView | undefined)[] = []
   const release = () => {
     for (const level of levels) if (level) retireLevel(device, level)
     levels = []
     sizes = []
     bytes = 0
+    standing.length = 0
   }
   return {
     /** Bytes of the levels made. */
@@ -111,8 +114,17 @@ export function createDownsampleChain(device: GPUDevice, label: string) {
     },
     /** The size of level `at`: that of level 0 halved `at` times. */
     size: (at: number) => sizes[at],
-    /** The image of level `at`, from 1; level 0 is the caller's. */
-    view: (at: number) => levels[at]?.view,
+    /** The image of level `at`, from 1 (the one standing for it, `stand`); level 0 is the caller's. */
+    view: (at: number) => standing[at] ?? levels[at]?.view,
+    /** Makes `view`, an image of the size of level `at` (a copy of it with something added), the level `at`
+     *  for the levels under it and for the readers, until `unstand`. */
+    stand(at: number, view: GPUTextureView) {
+      standing[at] = view
+    },
+    /** Forgets the images standing for levels: the next frame draws its own. */
+    unstand() {
+      standing.length = 0
+    },
     /**
      * Makes the levels 1 to `count − 1` under a level 0 of `width × height` texels, those it holds
      * kept while the size holds: a larger count adds levels, a new size makes them all again.
@@ -135,7 +147,7 @@ export function createDownsampleChain(device: GPUDevice, label: string) {
       const pipeline = programs.pipeline('halveWide', HDR_FORMAT).get()
       for (let at = from; at < count && levels[at]; at++) {
         const level = levels[at],
-          above = at === 1 ? first : levels[at - 1].view
+          above = at === 1 ? first : (standing[at - 1] ?? levels[at - 1].view)
         if (level.above !== above) {
           level.above = above
           level.group = downsampleGroup(device, programs, above, level.uniform)

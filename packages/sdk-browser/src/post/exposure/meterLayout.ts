@@ -12,7 +12,8 @@ import { EXPOSURE_HISTOGRAM_BUCKETS } from '../../../../sdk-core/src/contracts/e
  * is two `vec4f`: the exposure, the one the mean asks for, the mean luminance, the bias's
  * multiplier (the curve's factor in it); then the exposure over the pre-exposure the image was
  * written with, in `x`, the local exposure's mean over the histogram, in `y` (1 where it does not
- * run), and the log2 of the middle grey it pulls toward, in `z`.
+ * run), and the log2 of the middle grey it pulls toward, in `z`; and a third `vec4f`: the scales the local exposure's
+ * contrast curves give at the mean, the highlights' in `x` and the shadows' in `y` (1 without a curve).
  */
 
 /** The weight of one pixel in a bucket, in fixed point: 2^19, so a row of up to 8192 pixels fits a
@@ -24,7 +25,7 @@ export const METER_LANES = EXPOSURE_HISTOGRAM_BUCKETS
 const HISTOGRAM_WORDS = 2 * EXPOSURE_HISTOGRAM_BUCKETS
 /** Bytes of the exposure the pass leaves, which the readback copies and the composition's view
  *  takes its scale from. */
-export const EXPOSURE_BYTES = 32
+export const EXPOSURE_BYTES = 48
 /** Bytes the readback brings to the CPU: the exposure, the one the mean asks, and the local
  *  exposure's mean. */
 export const READBACK_BYTES = 12
@@ -37,6 +38,10 @@ export const LOCAL_AT = SHOWN_AT + 4
 /** The byte of the exposure buffer where the log2 of the middle grey the local exposure pulls
  *  toward sits: the one the update derived its mean from, which the finishing copies. */
 export const GREY_AT = SHOWN_AT + 8
+/** The byte of the exposure buffer where the two contrast curves' scales sit, which the finishing copies. */
+export const SCALES_AT = SHOWN_AT + 16
+/** The tables the curves' uniform holds, one after the other: the compensation's, the highlights' contrast scale, the shadows'. */
+export const EXPOSURE_CURVE_TABLES = 3
 
 /** Lanes of the basic measure's one workgroup along a side: a square of them, each summing a
  *  share of the grid's texels. */

@@ -63,7 +63,7 @@ export const GLOWED_PIXEL_WGSL = wgslFn(
  * before the curve, the colour fringe on the way in and the dither on the way out. Every effect
  * the settings leave off is skipped by a test of one uniform word — the same for every pixel of
  * the draw —, so a pixel does none of its work and reads none of its textures.
- * - `lightLog` is the log2 of a colour's luminance, read as the exposure reads it.
+ * - `lightLog` is the log2 of a colour's luminance, read as the exposure reads it: the colour times the reciprocal of the pre-exposure.
  * - `baseLog` the base layer's log luminance at `uv`, exposure applied: the bilateral grid's
  *   cell — the grid's trilinear read at the pixel's own luminance, the mean of the log luminance
  *   of the pixels near it and as bright —, mixed with the blurred luminance; where the grid holds
@@ -107,18 +107,19 @@ ${FINISH.wgsl}
 @group(1) @binding(5) var grainImage:texture_2d<f32>;
 @group(1) @binding(6) var grainSampler:sampler;
 @group(1) @binding(7) var dirtImage:texture_2d<f32>;
-fn lightLog(c:vec3f)->f32{return log2(max(dot(c,finish.weights.xyz),finish.weights.w));}
+fn lightLog(c:vec3f)->f32{return log2(max(dot(c,finish.weights.xyz)*finish.pre.y,finish.weights.w));}
+fn exposureLog()->f32{return log2(finish.look.y*finish.pre.x);}
 fn baseLog(logLight:f32,uv:vec2f)->f32{
  let depth=((logLight*finish.histogram.x+finish.histogram.y)*${GRID_DEPTH - 1}.0+0.5)/${GRID_DEPTH}.0;
  let cell=textureSampleLevel(grid,finishSampler,vec3f(uv*finish.grid.xy,depth),0.0).xy;
  let blurred=textureSampleLevel(blurredLog,finishSampler,uv,0.0).x;
  let bilateral=select(cell.x/cell.y,blurred,cell.y<finish.histogram.w);
- return mix(bilateral,blurred,finish.histogram.z)+log2(finish.look.y);
+ return mix(bilateral,blurred,finish.histogram.z)+exposureLog();
 }
 fn localGain(logLight:f32,uv:vec2f)->f32{
- let logExposed=logLight+log2(finish.look.y);
+ let logExposed=logLight+exposureLog();
  let base=baseLog(logLight,uv);
- let placed=localLog(base,finish.base.x,finish.base.yz,finish.grid.zw,finish.reach.xy);
+ let placed=localLog(base,finish.base.x,finish.base.yz*finish.pre.zw,finish.grid.zw,finish.reach.xy);
  return exp2(placed+(logExposed-base)*finish.base.w-logExposed);
 }
 fn localGainOf(source:vec4f,uv:vec2f)->f32{

@@ -63,17 +63,22 @@ export function histogramIn(bucket: number, pixels = 1000) {
 export const startingExposure = () => [
   [1, 1, 1, 1],
   [1, 1, Math.log2(0.18), 0],
+  [1, 1, 0, 0],
 ]
 
-/** Runs the update program over `uniform`, `histogram` and the compensation curve `table`, on
+/** Runs the update program over `uniform`, `histogram` and the compensation curve `table` and, in `scales`, the highlights' and the shadows' contrast curves', on
  *  `exposure`, which it writes. */
 export function update(
   uniform: ReturnType<typeof uniformOf>,
   histogram: number[],
   exposure: number[][],
   table: ArrayLike<number> = NO_CURVE,
+  scales: readonly [ArrayLike<number>, ArrayLike<number>] = [NO_CURVE, NO_CURVE],
 ) {
-  const curve = Array.from({ length: 16 }, (_, i) => [0, 1, 2, 3].map((k) => table[4 * i + k]))
+  // The compensation's table, then the two contrast curves'.
+  const curve = Array.from({ length: 48 }, (_, i) =>
+    [0, 1, 2, 3].map((k) => (i < 16 ? table[4 * i + k] : scales[i < 32 ? 0 : 1][4 * (i % 16) + k])),
+  )
   shaderRun<{ adapt: () => void }>(ADAPT_WGSL, ['adapt'], {
     meter: meterOf(uniform),
     histogram,

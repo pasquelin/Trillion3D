@@ -49,6 +49,10 @@ export const GRID_EMPTY = 0.001 / 64
  * - `lens`: the lens' principal point, the offset of its centre and the scale of its space from
  *   the image's, on each axis (0, 0, 1, 1 for a view drawn whole): the dirt mask is read in the
  *   lens' space (`dirtUv`).
+ * - `pre`: the pre-exposure the image's light is multiplied by and its reciprocal: the grid and the base layer read the scene's
+ *   luminance as it is, the colour times the reciprocal, and add the exposure as it is, the `look` exposure times the pre-exposure;
+ *   then the scales the local exposure's contrast curves give at the frame's mean, highlights and shadows — copied on the GPU from
+ *   the exposure buffer, 1 where there is no curve —, which multiply the contrast in `base`;
  * `screen`'s third word is the vignette's shape, 0 the cosine-fourth law, 1 the oval, its fourth
  * 1 where the vignette's colour is not black. A film effect that is off is a 0 or a 1 the shader
  * tests once, a uniform branch: the pixel does none of its work.
@@ -73,6 +77,7 @@ export const FINISH = fieldLayout('Finish', [
   ['keep', 'vec4f'],
   ['dirt', 'vec4f'],
   ['lens', 'vec4f'],
+  ['pre', 'vec4f'],
 ] as const)
 /** Bytes of the finishing's uniform. */
 export const FINISH_BYTES = FINISH.words * 4

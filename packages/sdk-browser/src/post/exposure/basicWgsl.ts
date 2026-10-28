@@ -21,8 +21,9 @@ export const SETUP_GROUP = 8
  * level of the scene's chain after the half-size image — read texel by texel, each texel's colour
  * read by the meter (`meterLight`, no lower than `BASIC_LUMINANCE_MIN`), its log2 held between −10
  * and 20 stops and placed over the histogram's range by its scale and bias (`scaledLog`), into the
- * alpha of a texel of the same place; the rest of the texel is 0. The grid the measure sums is the
- * levels under it, each the mean of the 4 × 4 texels around the one above.
+ * alpha of a texel of the same place, the colour kept as it is: the chain goes on from this image,
+ * so that the levels under it carry the placed value in their alpha and their colour for the
+ * other readers. The grid the measure sums is the chain's last level, the 4 × 4 mean of the one above each time.
  */
 export const BASIC_SETUP_WGSL = wgslProgram(
   `
@@ -37,7 +38,8 @@ fn scaledLog(colour:vec4f)->f32{
 @compute @workgroup_size(${SETUP_GROUP},${SETUP_GROUP})
 fn basicSetup(@builtin(global_invocation_id) at:vec3u){
  if(any(at.xy>=textureDimensions(quarter))){return;}
- textureStore(logged,vec2i(at.xy),vec4f(0.0,0.0,0.0,scaledLog(textureLoad(quarter,vec2i(at.xy),0))));
+ let colour=textureLoad(quarter,vec2i(at.xy),0);
+ textureStore(logged,vec2i(at.xy),vec4f(colour.rgb,scaledLog(colour)));
 }`,
   [METER_LIGHT_WGSL],
 )

@@ -117,8 +117,25 @@ async function openScene(canvas: HTMLCanvasElement) {
   world.camera.position.set(1.2, 3.3, 8.6)
   world.camera.lookAt(0, 1.1, 0)
   world.camera.updateMatrixWorld(true)
+  // `world.ready` is the device: the first session opens after the quality is decided (the benchmark of an `auto` world) and the models are loaded, and a frame drawn before draws nothing and
+  // steps no clip. The motion starts once the session stands, so that its frames are the ones that move the lamp.
+  for (let opened = false, i = 0; !opened; i++) {
+    if (i >= OPENING_FRAMES)
+      throw new Error(`the world drew nothing after ${OPENING_FRAMES} frames`)
+    world.render()
+    await animationFrame()
+    try {
+      sessionOf(world)
+      opened = true
+    } catch {
+      /* not drawing yet */
+    }
+  }
   return { world, hero }
 }
+
+/** The most frames a world is given to open its session. */
+const OPENING_FRAMES = 1200
 
 const frame = async (world: World) => {
   await animationFrame()

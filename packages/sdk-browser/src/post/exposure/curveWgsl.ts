@@ -5,15 +5,17 @@ import {
   EXPOSURE_CURVE_MIN_EV,
   EXPOSURE_CURVE_SAMPLES,
 } from '../../../../sdk-core/src/contracts/exposureCurve.ts'
+import { EXPOSURE_CURVE_TABLES } from './meterLayout.ts'
 import { EXPOSURE_MIDDLE_GREY } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
 
-/** The table's uniform: its samples packed four to a `vec4f`. */
-const EXPOSURE_CURVE_VECTORS = EXPOSURE_CURVE_SAMPLES / 4
+/** The tables' uniform: their samples packed four to a `vec4f`. */
+const EXPOSURE_CURVE_VECTORS = (EXPOSURE_CURVE_TABLES * EXPOSURE_CURVE_SAMPLES) / 4
 const LAST = EXPOSURE_CURVE_SAMPLES - 1
 
 /**
- * The curve's read for the exposure's adapt program: declares the table (`exposureCurveTable`) as
- * the uniform `curve` at `binding` of group 0, and `curveFactor(mean, saturation)`, the factor the
+ * The curves' read for the exposure's adapt program: declares the tables (`exposureCurveTable`, then the two contrast curves'
+ * `exposureCurveScaleTable`) as the uniform `curve` at `binding` of group 0, `curveScale(table, mean, saturation)`, the
+ * scale a contrast curve (table 1 or 2) gives at the frame's mean (1 for a mean of 0 or less), and `curveFactor(mean, saturation)`, the factor the
  * exposure's bias is multiplied by for a scene of mean luminance `mean`, the EV100s read from the
  * saturation luminance `saturation` (`exposureSaturationLuminance`). The scene's EV100 is
  * `log2(mean · 0.18⁻¹ / saturation)` (with a saturation of 1, a luminance of 1 is EV100 0), its
@@ -27,12 +29,14 @@ export const curveWgsl = (binding: number) =>
     `EXPOSURE_CURVE_${binding}`,
     [],
     `@group(0) @binding(${binding}) var<uniform> curve:array<vec4f,${EXPOSURE_CURVE_VECTORS}>;
-fn curveSample(i:u32)->f32{return curve[i/4u][i%4u];}
-fn curveFactor(mean:f32,saturation:f32)->f32{
+fn curveSample(table:u32,i:u32)->f32{let k=table*${EXPOSURE_CURVE_SAMPLES}u+i;return curve[k/4u][k%4u];}
+fn curveAt(table:u32,mean:f32,saturation:f32)->f32{
  let ev=log2(mean/${wgslF32(EXPOSURE_MIDDLE_GREY)}/saturation);
  let at=select(clamp((ev-(${wgslF32(EXPOSURE_CURVE_MIN_EV)}))*${wgslF32(LAST / (EXPOSURE_CURVE_MAX_EV - EXPOSURE_CURVE_MIN_EV))},0.0,${wgslF32(LAST)}),0.0,mean<=0.0);
  let below=u32(floor(at));
  let above=min(below+1u,${LAST}u);
- return mix(curveSample(below),curveSample(above),at-floor(at));
-}`,
+ return mix(curveSample(table,below),curveSample(table,above),at-floor(at));
+}
+fn curveFactor(mean:f32,saturation:f32)->f32{return curveAt(0u,mean,saturation);}
+fn curveScale(table:u32,mean:f32,saturation:f32)->f32{return select(1.0,curveAt(table,mean,saturation),mean>0.0);}`,
   )

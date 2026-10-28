@@ -8,7 +8,7 @@ import {
 } from '../../../../sdk-core/src/contracts/exposureManual.ts'
 import type { DepthOfField } from '../../../../sdk-core/src/world/effect/depthOfField.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
-import { exposureCurveOf, exposureMeasured, exposureSettings } from './frame.ts'
+import { contrastTablesOf, exposureCurveOf, exposureMeasured, exposureSettings } from './frame.ts'
 
 /** What the CPU reads of the runtime for the exposure: the scene's lights and their environment,
  *  the settings, the effect chain. */
@@ -37,6 +37,6 @@ export function heldExposureOf(rt: ExposureReads): HeldExposure | undefined {
   const exposure = environmentExposure(rt.lights.store?.environment)
   const settings = exposureSettings(rt)
   return exposure === 'auto'
-    ? manualExposure(settings, exposureCurveOf(rt), lensApertureOf(rt), held)
+    ? manualExposure(settings, exposureCurveOf(rt), lensApertureOf(rt), held, contrastTablesOf(rt))
     : fixedExposure(exposure, settings, held)
 }

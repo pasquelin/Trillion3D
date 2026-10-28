@@ -9,7 +9,10 @@ import {
   exposureSaturationLuminance,
   type ExposureValues,
 } from '../../../../sdk-core/src/contracts/exposureOptions.ts'
-import { exposureCurveTable } from '../../../../sdk-core/src/contracts/exposureCurveTable.ts'
+import {
+  exposureCurveScaleTable,
+  exposureCurveTable,
+} from '../../../../sdk-core/src/contracts/exposureCurveTable.ts'
 import {
   AT,
   bucketLuminance,
@@ -147,4 +150,22 @@ test('the local exposure’s grey leaves the meter with the curve’s factor in 
   // Without a curve it is the bias's alone: what the CPU knows of the grey.
   const flat = update(uniformOf(settings, { jumps: true }), histogramIn(20), startingExposure())
   within(flat[1][2], Math.log2(EXPOSURE_MIDDLE_GREY * 2 * 2 ** -1), 1e-6, 'no curve')
+})
+
+test('the contrast curves’ scales leave the meter in the third word beside the exposure, 1 without a curve', () => {
+  const settings = settingsOf({ localExposureHighlightContrast: 0.5 })
+  const run = (scales?: Parameters<typeof update>[4]) =>
+    update(
+      uniformOf(settings, { jumps: true }),
+      histogramIn(20),
+      startingExposure(),
+      undefined,
+      scales,
+    )
+  const flat = run()
+  assert.deepEqual([flat[2][0], flat[2][1]], [1, 1], 'no curve')
+  const half = exposureCurveScaleTable([[0, 0.5]])
+  const curved = run([half, exposureCurveScaleTable(undefined)])
+  within(curved[2][0], 0.5, 1e-6, 'the highlights’ scale')
+  assert.equal(curved[2][1], 1)
 })

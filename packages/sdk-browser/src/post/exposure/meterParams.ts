@@ -21,9 +21,10 @@ const SHARPEST = 1e30
 
 const moved = (value: number) => Math.abs(value - 1) > NEARLY
 
-/** Whether the settings ask the local exposure to run: a contrast, or the detail, not 1. At 1 for
- *  all three the layers put every pixel back where it was. */
-export const localExposureOn = (settings: ExposureValues) =>
+/** Whether the settings ask the local exposure to run: a contrast, or the detail, not 1, or a contrast curve
+ *  (`curved`: a curve set, whatever it gives). At 1 for all three and with no curve the layers put every pixel back where it was. */
+export const localExposureOn = (settings: ExposureValues, curved = false) =>
+  curved ||
   moved(settings.localExposureHighlightContrast) ||
   moved(settings.localExposureShadowContrast) ||
   moved(settings.localExposureDetailStrength)
@@ -83,6 +84,8 @@ export type MeterUniform = {
   jumps: boolean
   preExposure: number
   masked: boolean
+  /** Whether a local exposure contrast curve is set (`localExposureOn`); none by default. */
+  curved?: boolean
 }
 
 /**
@@ -93,7 +96,7 @@ export type MeterUniform = {
  * lowest at least one under the highest.
  */
 export function writeMeterParams(words: Float32Array, ints: Uint32Array, uniform: MeterUniform) {
-  const { settings, size, seconds, jumps, preExposure, masked } = uniform
+  const { settings, size, seconds, jumps, preExposure, masked, curved } = uniform
   const reading = luminanceReading(settings)
   const saturation = exposureSaturationLuminance(settings.exposureLensAttenuation)
   const high = settings.exposureHighPercent / 100
@@ -135,7 +138,7 @@ export function writeMeterParams(words: Float32Array, ints: Uint32Array, uniform
   words[AT.local] = Math.log2(EXPOSURE_MIDDLE_GREY) + settings.localExposureMiddleGreyBias
   words[AT.local + 1] = settings.localExposureHighlightContrast
   words[AT.local + 2] = settings.localExposureShadowContrast
-  words[AT.local + 3] = localExposureOn(settings) ? 1 : 0
+  words[AT.local + 3] = localExposureOn(settings, curved) ? 1 : 0
   words[AT.edges] = settings.localExposureHighlightThreshold
   words[AT.edges + 1] = settings.localExposureShadowThreshold
   words[AT.edges + 2] = reachOf(settings.localExposureHighlightThresholdStrength)

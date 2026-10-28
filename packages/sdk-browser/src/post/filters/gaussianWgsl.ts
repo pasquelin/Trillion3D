@@ -34,7 +34,8 @@ export const BLUR_BYTES = BLUR_PARAMS.words * 4
  * image and scaled by how far inside it was, which is what a border colour of zero gives, or at
  * the point the edge mirrors it to. The image fills `scale` of its texture's width, so every read
  * is first brought into the image, to its outermost texel centres: the texels of the texture
- * beyond it were never written, and the sampler must not blend with them.
+ * beyond it were never written, and the sampler must not blend with them. The image added is read bilinearly with the same
+ * edge: at zero, a border colour of zero fades it within half a texel of its edge (`addedTexel`).
  */
 export const GAUSSIAN_WGSL = wgslProgram(
   `
@@ -56,6 +57,14 @@ fn fetch(uv:vec2f)->vec4f{
  let inside=saturate(vec2f(1.0)-abs(at-uv)/blur.inTexel);
  return textureSampleLevel(image,reader,at*blur.scale,0.0)*(inside.x*inside.y);
 }
+/** The added image at \`uv\`: where the edge is zero, a bilinear read past the added image's edge blends with the zero beyond it, so a read
+ *  within half a texel of the edge keeps \`0.5 + distance\` of the edge texel, per axis (the sampler here clamps to the edge). */
+fn addedTexel(uv:vec2f)->vec4f{
+ let added=textureSampleLevel(extra,reader,uv,0.0);
+ if(blur.edge!=${BLUR_EDGES.zero}.0){return added;}
+ let kept=saturate(vec2f(0.5)+min(uv,vec2f(1.0)-uv)*vec2f(textureDimensions(extra)));
+ return added*(kept.x*kept.y);
+}
 @fragment fn blurTaps(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  let uv=pixel.xy*blur.outTexel;
  var sum=vec4f(0.0);
@@ -63,7 +72,7 @@ fn fetch(uv:vec2f)->vec4f{
   let tap=blur.taps[i];
   sum+=fetch(uv+blur.axis*tap.x)*vec4f(tap.yzw,(tap.y+tap.z+tap.w)/3.0);
  }
- if(blur.plus!=0.0){sum+=textureSampleLevel(extra,reader,uv,0.0);}
+ if(blur.plus!=0.0){sum+=addedTexel(uv);}
  return sum;
 }`,
   [FULLSCREEN_VERTEX],

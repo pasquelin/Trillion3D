@@ -211,17 +211,22 @@ function setup(c: number[], threshold: number, layers: number, exposure: number,
   return fragment(BLOOM_SETUP_WGSL, 'bloomSetup', scope)
 }
 
-test('the setup applies the local exposure read at the pixel’s corner, then the threshold', () => {
+test('the setup applies the local exposure read at the pixel’s corner, then the threshold, and leaves no alpha', () => {
   const pixel = [1, 2, 4, 0.5]
-  assert.deepEqual(setup(pixel, -1, 0, 0.5), pixel, 'no layers, no threshold: the image as it is')
-  // The gain multiplies the colour, never the coverage.
-  assert.deepEqual(setup(pixel, -1, 1, 0.5), [3, 6, 12, 0.5])
+  assert.deepEqual(
+    setup(pixel, -1, 0, 0.5),
+    [1, 2, 4, 0],
+    'no layers, no threshold: the colour as it is, no alpha',
+  )
+  // The gain multiplies the colour.
+  assert.deepEqual(setup(pixel, -1, 1, 0.5), [3, 6, 12, 0])
   // Past the threshold the pixel counts by how far its exposed luminance — the working-space
   // luminance, times the exposure — clears it, over two.
   const luminance = 0.2126390059 + 2 * 0.7151686788 + 4 * 0.0721923154
   const amount = Math.min(Math.max((luminance * 0.5 - 0.5) * 0.5, 0), 1)
   const out = setup(pixel, 0.5, 0, 0.5)
-  pixel.forEach((value, i) => assert.ok(Math.abs(out[i] - value * amount) < 1e-9))
+  pixel.slice(0, 3).forEach((value, i) => assert.ok(Math.abs(out[i] - value * amount) < 1e-9))
+  assert.equal(out[3], 0)
   assert.deepEqual(setup(pixel, 100, 0, 0.5), [0, 0, 0, 0], 'a pixel under it glows none')
 })
 
@@ -297,4 +302,27 @@ test('the convolution’s input applies the local exposure; its first pass boost
   // A transform's module is made for its line: 4 values a thread holds, and the factors by its stride.
   assert.ok(fftShader(1024).includes('const MAX_LINE=1024u;'))
   assert.ok(fftShader(256).includes('const MAX_LINE=256u;') && fftShader(256) !== fftShader(1024))
+})
+
+test('the image added to a blur fades within half a texel of its edge where the edge is zero, as a border colour of zero does, and is read plain otherwise', () => {
+  const added = (edge: keyof typeof BLUR_EDGES, u: number) => {
+    const { addedTexel } = shaderRun<{ addedTexel: (uv: number[]) => number[] }>(
+      GAUSSIAN_WGSL,
+      ['addedTexel'],
+      {
+        blur: { edge: BLUR_EDGES[edge] },
+        extra: 'extra',
+        reader: 'reader',
+        textureDimensions: () => [10, 10],
+        textureSampleLevel: () => [1, 1, 1, 1],
+      },
+    )
+    return addedTexel([u, 0.5])[0]
+  }
+  // At the edge a bilinear read is half the edge texel and half the zero beyond; half a texel inside it is the texel; the other axis is mid-image.
+  assert.ok(Math.abs(added('zero', 0) - 0.5) < 1e-9)
+  assert.ok(Math.abs(added('zero', 0.025) - 0.75) < 1e-9)
+  assert.equal(added('zero', 0.05), 1)
+  assert.equal(added('zero', 1), 0.5)
+  assert.equal(added('clamp', 0), 1)
 })

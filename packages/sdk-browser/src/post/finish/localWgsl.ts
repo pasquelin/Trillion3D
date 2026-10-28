@@ -11,6 +11,9 @@ const PAIR = 2
  *  thread's 64 pixels fill to 2^15 at the most. */
 const FIXED = 512
 
+/** The grid's texel format: two floats where the device filters single floats, else four halves. */
+export type GridFormat = 'rg32float' | 'rgba16float'
+
 /**
  * THE BILATERAL GRID OF THE LOCAL EXPOSURE, one workgroup a tile of `GRID_TILE` × `GRID_TILE`
  * half-size pixels. Each of its 64 threads reads the pixels of its own 8 × 8 block — a block read
@@ -20,14 +23,16 @@ const FIXED = 512
  * in the histogram times that weight. A thread sums in fixed point, a word holding both, in
  * columns of its own; the first 32 threads then add each band's columns up and store
  * the band's sum of log luminance and its sum of weights, each a 64th, in the grid's cell of the
- * tile at that depth: halves a `rgba16float` holds, whose ratio the finishing reads.
+ * tile at that depth: the two floats a `rg32float` holds where the device filters single floats (`float32-filterable`), else halves
+ * a `rgba16float` holds, whose ratio the finishing reads.
  */
-export const GRID_WGSL = wgslProgram(
-  `
+export const gridWgsl = (format: GridFormat) =>
+  wgslProgram(
+    `
 ${FINISH.wgsl}
 @group(0) @binding(0) var scene:texture_2d<f32>;
 @group(0) @binding(1) var<uniform> finish:Finish;
-@group(0) @binding(2) var cells:texture_storage_3d<rgba16float,write>;
+@group(0) @binding(2) var cells:texture_storage_3d<${format},write>;
 var<workgroup> bands:array<u32,${GRID_DEPTH * LANES * LANES}>;
 fn packed(weight:f32,placed:f32)->u32{
  return ((u32(weight*${FIXED}.0)&0xffffu)<<16u)|(u32(max(placed,0.0)*${FIXED}.0)&0xffffu);
@@ -42,7 +47,7 @@ fn grid(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id) at:vec3u
    if(all(quad<size-vec2u(1u))){
     for(var q=0u;q<4u;q++){
      let pixel=textureLoad(scene,vec2i(quad+vec2u(q&1u,q>>1u)),0);
-     let light=max(dot(pixel.rgb,finish.weights.xyz),finish.weights.w);
+     let light=max(dot(pixel.rgb,finish.weights.xyz)*finish.pre.y,finish.weights.w);
      let stop=log2(light)*finish.histogram.x+finish.histogram.y;
      let place=saturate(stop)*${GRID_DEPTH - 1}.0;
      let low=min(u32(place),${GRID_DEPTH - 1}u);
@@ -70,8 +75,8 @@ fn grid(@builtin(workgroup_id) tile:vec3u,@builtin(local_invocation_id) at:vec3u
   textureStore(cells,vec3u(tile.xy,lane),vec4f(logs/${GRID_TILE}.0,weights/${GRID_TILE}.0,0.0,0.0));
  }
 }`,
-  [],
-)
+    [],
+  )
 
 /**
  * The log2 luminance of a level of the scene's chain, one texel a pixel, as the exposure reads
