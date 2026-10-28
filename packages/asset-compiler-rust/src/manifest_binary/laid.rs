@@ -20,6 +20,9 @@ impl Encoded {
     ) -> Result<Laid> {
         let mut own: Vec<Column> = (0..COLUMNS).map(|_| Column::default()).collect();
         preview::encode_previews(previews, &mut own)?;
+        // The pixel column leaves the sidecar for a file of its own (`Laid::pixels`): its words
+        // keep their offsets, now counted in that file, and the column stays empty here.
+        let pixels = std::mem::take(&mut own[TEXTURE_PREVIEW_PIXELS].bytes);
         let (start, end) = (self.starts[range.start], self.starts[range.end]);
         let lengths: [usize; COLUMNS] =
             std::array::from_fn(|c| end[c] - start[c] + own[c].bytes.len());
@@ -33,6 +36,7 @@ impl Encoded {
         u32::try_from(total).map_err(|_| MANIFEST.bad("Manifest binary exceeds four gigabytes"))?;
         Ok(Laid {
             own,
+            pixels,
             start,
             end,
             lengths,
@@ -64,10 +68,13 @@ impl Encoded {
     }
 }
 
-/// A page's columns placed (`Encoded::laid`): the previews' encoded, where the range's start and
-/// end in each shared column, each column's length and offset, and the sidecar's bytes.
+/// A page's columns placed (`Encoded::laid`): the previews' encoded, the previews' pixel column
+/// taken out of them, where the range's start and end in each shared column, each column's length
+/// and offset, and the sidecar's bytes.
 pub(super) struct Laid {
     pub(super) own: Vec<Column>,
+    /// The pixel column's bytes, entry after entry: the previews' pixel file.
+    pub(super) pixels: Vec<u8>,
     pub(super) start: [usize; COLUMNS],
     pub(super) end: [usize; COLUMNS],
     pub(super) lengths: [usize; COLUMNS],

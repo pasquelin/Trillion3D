@@ -54,6 +54,11 @@ export async function prepareWebgpuTextures(
   const textureStarted = cpuNow()
   const catalogues = textureCatalogues(rt, gpuDevice, census)
   const { choice, encoding, color, data } = catalogues
+  // The previews' RGBA8 tails lying in their own file load beside the reductions below, and are
+  // awaited before the grant, whose streamer pins the tails.
+  const tailLevels = rt.context.textureCaches.ensureLevels(encoding, rt.signal)
+  // Its failure surfaces at the await below; until then it is not an unhandled rejection.
+  tailLevels.catch(() => {})
   // What the atlases holding a host texture reduce its mips with — the turn of its raw texels
   // their first step —, compiled off the thread beside the pools' grant, before the tails below
   // are reduced (`../../materials/texture/mips.ts`); a scene of cooked chains alone reduces nothing on
@@ -73,6 +78,7 @@ export async function prepareWebgpuTextures(
   // allocated at the full request outside any scope: the material pipeline then drops. A budget
   // `setMemoryBudgets` records while the device answers is the later word (`grantedLatest`).
   const atFloors = (budgetBytes: number) => poolFor(budgetBytes, floors)
+  await tailLevels
   const granted = await grantedLatest({
     budget: () => rt.setup.texturePoolBudget,
     draw: (asked) => ({ asked, pool: atFloors(asked) }),

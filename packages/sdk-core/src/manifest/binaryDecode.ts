@@ -134,9 +134,11 @@ export function decodeManifestBinary(
     return result
   })
   const { binary: _descriptor, primitives: _slimPrimitives, geometryFiles: _files, ...top } = slim
+  const file = slim.binary.texturePreviewPixels
   return {
     ...top,
     primitives,
-    texturePreviews: decodeTexturePreviews(previews),
+    texturePreviews: decodeTexturePreviews({ ...previews, externalPixelBytes: file?.bytes }),
+    ...(file && { texturePreviewPixels: file }),
   } as ClusterManifest
 }

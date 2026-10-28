@@ -13,6 +13,8 @@ pub(super) struct GoldenRun {
     /// The sidecar of the mesh page, and the head's: the texture previews.
     pub binary: Vec<u8>,
     pub previews: Vec<u8>,
+    /// The previews' pixel file, beside the head's sidecar: what its pixel column holds.
+    pub pixels: Vec<u8>,
     /// What compilation published along the way: a driver's step is proven in its report.
     pub reports: Vec<Value>,
     /// Throwaway cache: a driver's intermediate scene and products published by the compiler.
@@ -44,13 +46,16 @@ pub(super) fn compile_golden(dir: &Path, name: &str) -> GoldenRun {
 /// it is given.
 pub(super) fn compile_golden_source(source: &Path, name: &str) -> GoldenRun {
     let (result, reports, options, root) = compiled(source, name);
-    let paged = paged(&options.key_directory(result["key"].as_str().expect("key")));
+    let directory = options.key_directory(result["key"].as_str().expect("key"));
+    let paged = paged(&directory);
     let [previews, binary] = <[Vec<u8>; 2]>::try_from(paged.sidecars).expect("head and one mesh");
+    let pixels = pixel_file(&directory, &paged.manifest);
     GoldenRun {
         result,
         slim: paged.manifest,
         binary,
         previews,
+        pixels,
         reports,
         cache: options.cache.clone(),
         root,

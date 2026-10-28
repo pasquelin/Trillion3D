@@ -30,13 +30,14 @@
     "skipped": {},
     "version": 12
   },
-  "rule": "A float texture fails no compilation and is never cut down to eight bits: its chain is kept in floating point and held in the half-float atlas — the tail in the sidecar's pixel column, eight bytes a texel, held by no block family; the levels above the tail, when the image is wider than the tail, as rgba16f files — and no gate or block codec touches it.",
+  "rule": "A float texture fails no compilation and is never cut down to eight bits: its chain is kept in floating point and held in the half-float atlas — the tail in the previews' pixel file, eight bytes a texel, held by no block family; the levels above the tail, when the image is wider than the tail, as rgba16f files — and no gate or block codec touches it.",
   "scene": {
     "formatVersion": 11,
-    "manifestBinaryVersion": 21,
+    "manifestBinaryVersion": 22,
     "primitives": 1,
     "selectedTriangles": 2,
-    "sidecarSha256": "ff6b991bf8f81a6e8f59849698fe58090dd046505092e89af94feb3f5c2c4687",
-    "texturePreviewBytes": 88
+    "sidecarSha256": "3870c7ca91633febd9ccd7ae246e906aec48c447418c3516bd2a5f9e3f2f3de7",
+    "texturePreviewBytes": 0,
+    "texturePreviewPixels": 88
   }
 }

@@ -2,6 +2,9 @@ import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
 import type { TexturePreview } from '../../../../sdk-core/src/texture/previewContracts.ts'
 import { previewAtlasOf } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
+import { fillTexturePreviewLevels } from '../../../../sdk-core/src/manifest/binaryPreview.ts'
+import { fetchVerified } from '../../geometry/cluster/pages.ts'
+import type { PoolEncoding } from './blockFormats.ts'
 import type { PageCache } from '../../geometry/streaming/pageCache.ts'
 import {
   createTextureLevelReader,
@@ -14,7 +17,7 @@ import {
  *  files are read against. */
 export type TextureCache = {
   ranks: ReadonlyMap<Texture, number>
-  metadata: Pick<ClusterManifest, 'textures' | 'key' | 'texturePreviews'>
+  metadata: Pick<ClusterManifest, 'textures' | 'key' | 'texturePreviews' | 'texturePreviewPixels'>
   base: string
 }
 
@@ -53,6 +56,12 @@ export function createTextureCaches(
     ranks: TextureCache['ranks']
     chainAt: ReturnType<typeof previewsByAtlas>
     read: TextureLevelReader | undefined
+    /** The cache's manifest — its previews, and the file their RGBA8 tails lie in when not in the
+     *  sidecar — and the folder that file is read against. */
+    metadata: TextureCache['metadata']
+    base: string
+    /** The file's one read, shared by every caller; none until a session needs a tail from it. */
+    loading?: Promise<void>
   }[] = []
   const previews: TexturePreview[] = []
   return {
@@ -68,8 +77,29 @@ export function createTextureCaches(
           ranks: added.ranks,
           chainAt: previewsByAtlas(entries),
           read: createTextureLevelReader(added.metadata, added.base, cache, signal, retries),
+          metadata: added.metadata,
+          base: added.base,
         })
       }
+    },
+    /** Loads the RGBA8 tails of each cache keeping them in a file of their own, once, when a preview
+     *  of it has a tail `encoding` pins from them (`PoolEncoding.readsLevels`): a session sampling
+     *  blocks reads none. Awaited before any tail is pinned; the other caches' tails are whole. */
+    async ensureLevels(encoding: PoolEncoding, loadSignal = signal) {
+      await Promise.all(
+        cooks.map((cook) => {
+          const { texturePreviews: entries = [], texturePreviewPixels: file } = cook.metadata
+          if (!file || !entries.some((p) => encoding.readsLevels(p, encoding.laneOf(p)))) return
+          // A failed read or fill leaves nothing loaded: a later call tries again.
+          cook.loading ??= fetchVerified(new URL(file.url, cook.base).href, file, loadSignal)
+            .then((buffer) => fillTexturePreviewLevels(entries, new Uint8Array(buffer)))
+            .catch((error: unknown) => {
+              cook.loading = undefined
+              throw error
+            })
+          return cook.loading
+        }),
+      )
     },
     /** The chain `texture` has in `atlas`, in the cache whose scene built it; none for a texture
      *  no cache ranks, or one its cache baked no chain of. */

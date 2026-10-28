@@ -55,6 +55,8 @@ async function appendNow(
   if (!pools || !streamer || !device || run.lost)
     throw new EngineError('UNSUPPORTED_SCENE_UPDATE', 'no texture atlas is open to take it', {})
   const { encoding } = pools
+  // The previews' RGBA8 tails lying in their own file, loaded before the entry pins its tail.
+  await rt.context.textureCaches.ensureLevels(encoding, rt.signal)
   // Its chain, in the cache whose scene built it — a joined model's own —: the levels it baked.
   const atlasRank = kind === 'color' ? PREVIEW_ATLAS_COLOR : PREVIEW_ATLAS_DATA
   const chain = () => rt.context.textureCaches.chainOf(texture, atlasRank)

@@ -34,12 +34,15 @@ pub(in crate::tests) fn source_texturee() -> (PathBuf, Options, PathBuf) {
 }
 
 /// Compiles and returns the key exposed to the consumer with the fingerprint of
-/// the binary sidecar written under that key: this pair must move together, or not at all.
+/// the binary sidecars written under that key and the previews' pixel file beside them: this pair
+/// must move together, or not at all.
 fn key_and_sidecar(options: &Options) -> (String, String) {
     let result = compile(options, |_| {}).expect("compile");
     let key = result["key"].as_str().expect("key").to_string();
     let directory = options.cache.join("native").join(&options.scope).join(&key);
-    (key, hash(&paged(&directory).sidecars.concat()))
+    let paged = paged(&directory);
+    let pixels = pixel_file(&directory, &paged.manifest);
+    (key, hash(&[paged.sidecars.concat(), pixels].concat()))
 }
 
 // Behaviour: a linked image that changes changes the exposed key; the same image

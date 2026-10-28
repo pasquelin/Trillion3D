@@ -50,9 +50,10 @@ same bytes.
 
 `manifest-page-<sha256>.bin`: per-cluster numbers as typed-array columns, mapped, not parsed.
 
-- Version: `MANIFEST_BINARY_VERSION` 21, 27 columns in `COLUMN_NAMES` order, with the
+- Version: `MANIFEST_BINARY_VERSION` 22 (21 still read), 27 columns in `COLUMN_NAMES` order, with the
   `texturePreviewBc7`, `texturePreviewAstc` and `texturePreviewEtc2` block columns
-  (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`). 20 keeps every column: the pages are
+  (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`). 22 empties the head's pixel column: the
+  previews' RGBA8 tails are their own file ([Textures](#textures)). 20 keeps every column: the pages are
   the `WGP3` format 12, which carries up to eight texture sets ([Pages](#pages)). 19 widens a geometry page's record,
   the `geometryU32` column, from five words to seven — its bytes on disk, vertex count, index count,
   flags and decoded bytes, then the bytes it takes in the pool once installed and its offset in its
@@ -417,6 +418,16 @@ tile's blocks and gutter) raw DEFLATE alone: one Range reads the head, one a til
 inflates it (`DecompressionStream`). The runtime takes the first family the device's features allow
 (`browser/materials/texture/blockFormats.ts:chooseBlockFormat`); a device with none reads the BC files and
 decodes them to RGBA8 (`browser/materials/texture/blockDecode.ts`).
+The tails' RGBA8 texels are a file of their own beside the head page, `preview-pixels-<sha256>.bin`:
+the bytes of the sidecar's pixel column, entry after entry, each entry's offset word counted in it;
+the head's sidecar keeps that column empty (`binary.texturePreviewBytes` 0) and names the file in
+`binary.texturePreviewPixels` (`url`, `bytes`, `sha256`), listed in `files`
+(`rust/compiler/pages/manifest.rs`), since `MANIFEST_BINARY_VERSION` 22. A session reads it only when
+one of its lanes pins tails made from those texels — the lossless lane, no block family, a channel pool
+of R8, R16 or R32 texels, half-floats held in 32 bits or without BC6H blocks
+(`browser/materials/texture/poolTail.ts:tailReadsLevels`, `textureCaches.ts:ensureLevels`): a device
+sampling BC never downloads it (sponza: 1 485 476 of the head sidecar's 1 867 504 bytes). The reader
+still takes version 21, whose sidecar holds the column inline.
 Mip levels: the mean of the four texels of each channel (`rust/texture/reduce.rs`), the colours in
 linear light for the colour atlas, alpha as it is; the levels a DDS stores are kept and the rest
 reduced from the last. A 16-bit PNG is reduced from its 16-bit samples, in `f32`, each level rounded
@@ -426,7 +437,7 @@ engine builds the mips of a host texture the same way, the mean of the four texe
 
 A texture whose file stores floating point (OpenEXR, Radiance HDR) read as a base colour or an
 emissive map is chained in `f32` and held in half-float RGBA, the atlas of word 2 (`hdr`,
-`rust/texture/hdr.rs`): the sidecar's pixel column holds its tail at eight bytes a texel, no block
+`rust/texture/hdr.rs`): the previews' pixel file holds its tail at eight bytes a texel, no block
 family holds it (all three layout words are `lossless`), and the levels above the tail are
 `hdr-<level>.rgba16f` files, tile records of half-float texels cut as the block files are
 (`levels.rs:tile_records`, `HALF_CELL`). A value past the half-float range holds at its largest

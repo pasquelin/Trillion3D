@@ -1,3 +1,4 @@
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { PREVIEW_STORED_FORMAT } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import { previewLevelSize } from '../../../../sdk-core/src/texture/previewLevels.ts'
 import { convertTexels, cropTexels, decodeFloatLevel, type TexelKind } from './floatTexels.ts'
@@ -28,23 +29,60 @@ function exactTail(
   })
 }
 
-/** The tail of the channel pool (`two-channel` with a one-channel content). */
+/** The tail of the channel pool (`two-channel` with a one-channel content) once `tailSource` chose
+ *  `source`: the R8 and float pools take the channel of the RGBA8 tail (grey and displacement chains
+ *  hold it in R there), a chain kept in floats its exact squares. */
 function channelTail(
-  block: PoolSettings['block'],
-  channelPool: Exclude<ChannelPool, 'two'>,
+  source: Exclude<TailSource, 'blocks' | 'white'>,
+  channelPool: Exclude<ChannelPool, 'two' | 'bc4'>,
   tail: TailBytes & Partial<ChainLayouts>,
   geometry: { width: number; height: number; tail: number },
 ): readonly Uint8Array[] {
-  const kept = tail.layouts?.[PREVIEW_STORED_FORMAT]
   const floatKind = channelPool === 'r32' ? 'r32' : 'r16'
-  if (kept === 'single-float') return exactTail(tail, geometry, 'r32f', floatKind)
-  if (kept === 'half-single') return exactTail(tail, geometry, 'r16f', floatKind)
-  // The R8 and float pools take the channel of the RGBA8 tail (grey and displacement chains
-  // hold it in R there); the BC4 pool the chain's own blocks, or white for the fill.
-  if (channelPool === 'bc4')
-    return kept === 'one-channel' && block ? tail.blocks[block] : [WHITE_BC4]
+  if (source === 'exact')
+    return exactTail(
+      tail,
+      geometry,
+      tail.layouts?.[PREVIEW_STORED_FORMAT] === 'single-float' ? 'r32f' : 'r16f',
+      floatKind,
+    )
   const reds = tail.levels.map(redOf)
   return channelPool === 'r8' ? reds : reds.map((red) => convertTexels(red, 'r8', channelPool))
+}
+
+/** Where a lane's tail is read from: the RGBA8 `levels`, the pool's block `blocks`, a chain's
+ *  `exact` float squares, or the `white` fill of a BC4 pool with no one-channel chain. */
+type TailSource = 'levels' | 'blocks' | 'exact' | 'white'
+
+/** The source `poolTail` reads for `lane`: one decision, shared with `tailReadsLevels`. */
+function tailSource(
+  { block, hdrBlocks, channelPool, hdr32 }: PoolSettings,
+  tail: Partial<ChainLayouts>,
+  lane: PoolLane,
+): TailSource {
+  const kept = tail.layouts?.[PREVIEW_STORED_FORMAT]
+  if (lane === 'hdr') {
+    if (kept === 'float32') return 'exact'
+    return !hdr32 && hdrBlocks && block ? 'blocks' : 'levels'
+  }
+  if (lane === 'two-channel' && channelPool !== 'two') {
+    if (kept === 'single-float' || kept === 'half-single') return 'exact'
+    if (channelPool === 'bc4') return kept === 'one-channel' && block ? 'blocks' : 'white'
+    return 'levels'
+  }
+  return lane === 'lossless' || !block ? 'levels' : 'blocks'
+}
+
+/** Whether `poolTail` takes `tail.levels` — the RGBA8 tail — for `lane`: the half-float lane's texels
+ *  when unpacked from them or when its pool is not BC6H blocks (a `float32` chain has its own), the
+ *  channel pool's R8 and float texels (not BC4, not a chain kept in floats), the lossless lane or a
+ *  session without blocks. A cache keeping them in their own file loads them only where this holds. */
+export function tailReadsLevels(
+  settings: PoolSettings,
+  tail: Partial<ChainLayouts>,
+  lane: PoolLane,
+): boolean {
+  return tailSource(settings, tail, lane) === 'levels'
 }
 
 /** Which of a tail's encodings a lane's pool pins, unpacked into the pool's kind where it is floats.
@@ -55,15 +93,20 @@ export function poolTail(
   lane: PoolLane,
   geometry: { width: number; height: number; tail: number },
 ): readonly Uint8Array[] {
-  const { block, hdrBlocks, channelPool, hdr32 } = settings
+  const { block, channelPool, hdr32 } = settings
+  const source = tailSource(settings, tail, lane)
+  if (source === 'white') return [WHITE_BC4]
+  if (source === 'blocks') return tail.blocks[block!]
+  // A tail whose pixels lie in their own file is read only once loaded (`TextureCaches.ensureLevels`).
+  if (source === 'levels' && tail.levels.some((level) => !level.length))
+    throw new EngineError('INVALID_CACHE', "a texture preview's pixels were not loaded", {})
   if (lane === 'hdr') {
-    if (tail.layouts?.[PREVIEW_STORED_FORMAT] === 'float32')
-      return exactTail(tail, geometry, 'rgba32f', hdr32 ? 'rgba32' : 'rgba16')
-    if (hdr32) return tail.levels.map((level) => convertTexels(level, 'rgba16', 'rgba32'))
-    return hdrBlocks && block ? tail.blocks[block] : tail.levels
+    if (source === 'exact') return exactTail(tail, geometry, 'rgba32f', hdr32 ? 'rgba32' : 'rgba16')
+    return hdr32
+      ? tail.levels.map((level) => convertTexels(level, 'rgba16', 'rgba32'))
+      : tail.levels
   }
   if (lane === 'two-channel' && channelPool !== 'two')
-    return channelTail(block, channelPool, tail, geometry)
-  if (lane === 'lossless' || !block) return tail.levels
-  return tail.blocks[block]
+    return channelTail(source, channelPool as Exclude<ChannelPool, 'two' | 'bc4'>, tail, geometry)
+  return tail.levels
 }

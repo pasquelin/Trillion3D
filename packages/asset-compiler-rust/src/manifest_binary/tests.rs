@@ -4,12 +4,17 @@ use super::*;
 /// Splits a finished manifest into the small JSON and the columns, as one page over every
 /// primitive.
 pub(super) fn split(m: &Value, pv: &[TexturePreview]) -> Result<(Value, Vec<u8>)> {
+    split_pixels(m, pv).map(|(slim, bytes, _)| (slim, bytes))
+}
+/// `split`, with the previews' pixel file: the bytes the sidecar's pixel column no longer holds.
+pub(super) fn split_pixels(m: &Value, pv: &[TexturePreview]) -> Result<(Value, Vec<u8>, Vec<u8>)> {
     let mut top = m.as_object().cloned().unwrap_or_default();
     let primitives = top.remove("primitives").unwrap_or_default();
     let primitives = primitives.as_array().map_or(&[][..], Vec::as_slice);
     let files = top.get("geometryFiles").and_then(Value::as_array);
     let encoded = Encoded::new(primitives, files.map_or(0, Vec::len))?;
-    encoded.page(&top, 0..primitives.len(), pv, true)
+    let page = encoded.page(&top, 0..primitives.len(), pv, true)?;
+    Ok((page.json, page.sidecar, page.pixels))
 }
 /// The bytes of column `index` of a finished sidecar.
 pub(super) fn column(bytes: &[u8], index: usize) -> &[u8] {

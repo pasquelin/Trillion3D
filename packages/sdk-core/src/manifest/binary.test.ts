@@ -1,7 +1,7 @@
 import { BINARY, sha, manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { assertManifestBinary } from './binaryTypes.ts'
+import { assertManifestBinary, INLINE_PIXELS_VERSION } from './binaryTypes.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
 import { MANIFEST_BINARY_MAGIC, MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
 
@@ -22,7 +22,10 @@ test('a manifest survives the binary columns unchanged, field by field', () => {
   slim.binary.sha256 = sha('f')
   const header = new Uint32Array(binary.buffer, binary.byteOffset, 4)
   assert.equal(header[0], MANIFEST_BINARY_MAGIC, 'the file names its own format')
-  assert.equal(header[1], MANIFEST_BINARY_VERSION)
+  // The pixels inline are the last version that held them; without any, the current one.
+  const pixels = source.texturePreviews?.some((preview) => preview.levels.some((l) => l.length))
+  assert.equal(header[1], pixels ? INLINE_PIXELS_VERSION : MANIFEST_BINARY_VERSION)
+  assert.equal(slim.binary.version, header[1], 'the descriptor names the version the file opens on')
   assert.equal(slim.binary.bytes, binary.byteLength)
   // The small JSON keeps what a reader parses and loses what it maps.
   const text = JSON.stringify(slim)

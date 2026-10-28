@@ -1,10 +1,11 @@
 //! The manifest as a page tree: `clusters.json` is a root of fixed size — the fields that
 //! name the product, the slot of its head page and `FAN_OUT` slots of mesh pages, in the layout of
 //! the cell index and read by its pager (`partition/pages.rs`). The head page holds every other field and
-//! the previews' sidecar; a mesh page, slim primitives and their sidecar, cut under `PAGE_BYTES`.
-//! Files are named by content.
+//! the previews' sidecar and, beside it, the file of their pixel tails (`PIXELS_PREFIX`), which a
+//! device sampling block-compressed textures never reads; a mesh page, slim primitives and their
+//! sidecar, cut under `PAGE_BYTES`. Files are named by content.
 use crate::compiler::tables::partition::pages::*;
-use crate::manifest_binary::{Encoded, MANIFEST_BINARY_VERSION};
+use crate::manifest_binary::{Encoded, Page, MANIFEST_BINARY_VERSION};
 use crate::texture::TexturePreview;
 use crate::*;
 use serde_json::Map;
@@ -28,18 +29,50 @@ pub(crate) fn sidecar_file(sha256: &str) -> String {
     format!("{}{sha256}.bin", MANIFEST_PAGES.prefix)
 }
 
+/// The name of the head's pixel file, before the fingerprint: not `MANIFEST_PAGES.prefix`, so
+/// the pruning of the sidecars in `write_manifest` keeps it apart from them.
+const PIXELS_PREFIX: &str = "preview-pixels-";
+
+/// The file of the previews' pixels whose fingerprint is `sha256`.
+pub(crate) fn pixels_file(sha256: &str) -> String {
+    format!("{PIXELS_PREFIX}{sha256}.bin")
+}
+
 /// The page of the `encoded` primitives in `range` under `top` and `previews`, naming its sidecar:
-/// written in `directory` when one is given, its fingerprint returned; else only measured, under a
-/// fingerprint of zeros.
+/// written in `directory` when one is given, its fingerprint returned with the name of the pixel
+/// file written beside it, if any; else only measured, under a fingerprint of zeros.
 fn columned(
     top: &Map<String, Value>,
     (encoded, range): (&Encoded, Range<usize>),
     previews: &[TexturePreview],
     directory: Option<&Path>,
-) -> Result<(Value, String)> {
-    let (mut page, bytes) = encoded.page(top, range, previews, directory.is_some())?;
-    let sha256 = seal(&mut page, &bytes, directory)?;
-    Ok((page, sha256))
+) -> Result<(Value, String, Option<String>)> {
+    let Page {
+        mut json,
+        sidecar,
+        pixels,
+    } = encoded.page(top, range, previews, directory.is_some())?;
+    let sha256 = seal(&mut json, &sidecar, directory)?;
+    let mut pixel_file = None;
+    if let (Some(directory), false) = (directory, pixels.is_empty()) {
+        pixel_file = Some(seal_pixels(&mut json, &pixels, directory)?);
+    }
+    Ok((json, sha256, pixel_file))
+}
+
+/// Writes the previews' `pixels` in `directory` as a file of their own and names it in `page`:
+/// in `binary.texturePreviewPixels`, and among the `files` the cache proves whole before it
+/// reuses a folder (`reuse_proof.rs`). The bytes are those the sidecar's pixel column used to
+/// hold, entry after entry; the words of each entry count their offsets in this file. Returns
+/// its name.
+fn seal_pixels(page: &mut Value, pixels: &[u8], directory: &Path) -> Result<String> {
+    let sha256 = hash(pixels);
+    let name = pixels_file(&sha256);
+    let product = product_of(directory, &name, pixels, &sha256)?;
+    page["binary"]["texturePreviewPixels"] =
+        json!({"url": name, "bytes": product.bytes, "sha256": product.sha256});
+    page["files"][&name] = json!({"sha256": product.sha256, "bytes": product.bytes});
+    Ok(name)
 }
 
 /// Names in `page` its sidecar of `bytes`, written in `directory` when one is given, its
@@ -79,7 +112,7 @@ pub(crate) fn write_manifest(
     }
     // The head lists no primitive: no bundle to name a geometry container.
     let none = Encoded::new(&[], 0)?;
-    let (mut head, sha256) = columned(&top, (&none, 0..0), previews, Some(directory))?;
+    let (mut head, sha256, pixels) = columned(&top, (&none, 0..0), previews, Some(directory))?;
     head["version"] = json!(MANIFEST_PAGES.version);
     let slot = write_page(&MANIFEST_PAGES, directory, &head, &[])?;
     let mut kept = mesh.kept.clone();
@@ -91,6 +124,13 @@ pub(crate) fn write_manifest(
     for entry in fs::read_dir(directory)? {
         let path = entry?.path();
         let name = path.file_name().unwrap_or_default().to_string_lossy();
+        // The pixel files too: the one this head names stays, an older head's goes.
+        if name.starts_with(PIXELS_PREFIX) {
+            if Some(&*name) != pixels.as_deref() {
+                fs::remove_file(&path)?;
+            }
+            continue;
+        }
         let Some(named) = name.strip_prefix(MANIFEST_PAGES.prefix) else {
             continue;
         };

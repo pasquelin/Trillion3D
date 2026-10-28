@@ -1,3 +1,4 @@
+use super::split_pixels;
 use crate::manifest_binary::*;
 use crate::texture::{preview_block_bytes, AtlasKind, Layout, PreviewSource};
 
@@ -47,7 +48,7 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         lossless_astc(2, 64, 64, 7),
         preview(3, 8, 8, 222),
     ];
-    let (_, bytes) = split(&json!({"primitives": []}), &previews).expect("split");
+    let (slim, bytes, pixels) = split_pixels(&json!({"primitives": []}), &previews).expect("split");
     let word = |at: usize| super::word(&bytes, at);
     let column = |index: usize| {
         let at = (MANIFEST_BINARY_HEADER_WORDS + index * 2) * 4;
@@ -55,7 +56,11 @@ fn texture_previews_round_trip_through_the_binary_columns() {
     };
     let (words_off, words_len) = column(TEXTURE_PREVIEW_U32);
     let (sha_off, _) = column(TEXTURE_PREVIEW_SHA);
-    let (pixels_off, _) = column(TEXTURE_PREVIEW_PIXELS);
+    // The pixel column is empty in the sidecar: its bytes are the pixel file, entry after entry.
+    assert_eq!(column(TEXTURE_PREVIEW_PIXELS).1, 0);
+    assert_eq!(slim["binary"]["texturePreviewBytes"], json!(0));
+    let column_bytes: Vec<u8> = previews.iter().flat_map(|p| p.pixels.clone()).collect();
+    assert_eq!(pixels, column_bytes);
     assert_eq!(words_len, previews.len() * PREVIEW_WORDS * 4);
     let mut offset = 0usize;
     for (entry, source) in previews.iter().enumerate() {
@@ -86,12 +91,10 @@ fn texture_previews_round_trip_through_the_binary_columns() {
         let (start, length) = (word(base + 32) as usize, word(base + 36) as usize);
         assert_eq!(start, offset);
         assert_eq!(length, source.pixels.len());
-        assert_eq!(
-            &bytes[pixels_off + start..pixels_off + start + length],
-            source.pixels.as_slice()
-        );
+        assert_eq!(&pixels[start..start + length], source.pixels.as_slice());
         offset += length;
     }
+    assert_eq!(offset, pixels.len());
     // The block columns follow the same order, one contiguous range per entry that has a
     // layout in the family, nothing for a lossless one, every family.
     for (format, index) in TEXTURE_PREVIEW_BLOCKS.iter().enumerate() {

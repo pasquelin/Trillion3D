@@ -53,16 +53,22 @@ pub(in crate::tests) fn previews_digest(run: &GoldenRun) -> Value {
     };
     let (words_at, words_len) = column(TEXTURE_PREVIEW_U32);
     let (sha_at, _) = column(TEXTURE_PREVIEW_SHA);
-    let (pixels_at, _) = column(TEXTURE_PREVIEW_PIXELS);
+    // The pixel column is empty here: its bytes are the pixel file, offsets counted in it.
+    assert_eq!(column(TEXTURE_PREVIEW_PIXELS).1, 0);
+    assert_eq!(
+        run.slim["binary"]["texturePreviewPixels"]["bytes"]
+            .as_u64()
+            .unwrap_or(0),
+        run.pixels.len() as u64
+    );
     let mut blocks_at = TEXTURE_PREVIEW_BLOCKS.map(|(_, index)| column(index).0);
     let previews: Vec<Value> = (0..words_len / (PREVIEW_WORDS * 4))
         .map(|entry| {
             let base = words_at + entry * PREVIEW_WORDS * 4;
             let sha = &bytes[sha_at + entry * 64..sha_at + entry * 64 + 64];
             let mut digest = entry_digest(
-                bytes,
+                &run.pixels,
                 base,
-                pixels_at,
                 std::str::from_utf8(sha).expect("sha"),
                 word,
             );
@@ -90,6 +96,7 @@ pub(in crate::tests) fn previews_digest(run: &GoldenRun) -> Value {
       "binary": {
         "texturePreviews": run.slim["binary"]["texturePreviews"],
         "texturePreviewBytes": run.slim["binary"]["texturePreviewBytes"],
+        "texturePreviewPixels": run.slim["binary"]["texturePreviewPixels"]["bytes"].as_u64().unwrap_or(0),
         "texturePreviewBc7Bytes": run.slim["binary"]["texturePreviewBc7Bytes"],
         "texturePreviewAstcBytes": run.slim["binary"]["texturePreviewAstcBytes"],
         "texturePreviewEtc2Bytes": run.slim["binary"]["texturePreviewEtc2Bytes"],
@@ -101,21 +108,15 @@ pub(in crate::tests) fn previews_digest(run: &GoldenRun) -> Value {
 /// One entry: the twelve numbers it declares, the digest of its source image, and
 /// the sequence of its levels sliced at the dimensions `preview_level_size`
 /// re-reduces — never at those announced.
-fn entry_digest(
-    bytes: &[u8],
-    base: usize,
-    pixels_at: usize,
-    sha256: &str,
-    word: impl Fn(usize) -> u32,
-) -> Value {
+fn entry_digest(pixels: &[u8], base: usize, sha256: &str, word: impl Fn(usize) -> u32) -> Value {
     let (width, height) = (word(base + 8), word(base + 12));
     let first = word(base + 24);
-    let mut at = pixels_at + word(base + 32) as usize;
+    let mut at = word(base + 32) as usize;
     let mut levels = Vec::new();
     for level in first..first + word(base + 28) {
         let (w, h) = crate::texture::preview_level_size(width, height, level);
         let end = at + (w as usize) * (h as usize) * 4;
-        levels.push(level_digest(level, w, h, &bytes[at..end]));
+        levels.push(level_digest(level, w, h, &pixels[at..end]));
         at = end;
     }
     json!({

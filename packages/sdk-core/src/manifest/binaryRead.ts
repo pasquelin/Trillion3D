@@ -12,7 +12,12 @@ import {
   MANIFEST_BINARY_VERSION,
 } from '../contracts/writtenFormats.ts'
 import { columnElements, type Counts } from './binaryLayout.ts'
-import { assertManifestBinary, type SlimClusterManifest } from './binaryTypes.ts'
+import {
+  assertManifestBinary,
+  INLINE_PIXELS_VERSION,
+  readsManifestBinaryVersion,
+  type SlimClusterManifest,
+} from './binaryTypes.ts'
 
 /** Checks the header of the binary against this version and returns it. */
 function readHeader(buffer: ArrayBuffer) {
@@ -25,10 +30,10 @@ function readHeader(buffer: ArrayBuffer) {
     throw new EngineError('INVALID_CACHE', 'Manifest binary has no WGMB signature', {
       magic: header[0],
     })
-  if (header[1] !== MANIFEST_BINARY_VERSION)
+  if (!readsManifestBinaryVersion(header[1]))
     throw new EngineError(
       'UNSUPPORTED_FORMAT',
-      `Expected manifest binary version ${MANIFEST_BINARY_VERSION}, received ${header[1]}`,
+      `Expected manifest binary version ${MANIFEST_BINARY_VERSION} or ${INLINE_PIXELS_VERSION}, received ${header[1]}`,
       { version: header[1] },
     )
   if (header[2] !== COLUMN_NAMES.length)

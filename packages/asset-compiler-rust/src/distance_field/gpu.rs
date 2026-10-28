@@ -33,7 +33,11 @@
 //! double precision (`remeasure`); every other one took the steps the CPU takes, so its byte is the
 //! CPU's. The proof is the comparison of both builds, byte for byte (`gpu/tests.rs`).
 //!
-//! One GPU gives the same values for the same voxels every run, whatever the threads.
+//! A device may drop invocations and raise no error: measured on an Apple GPU, a long batch of
+//! sponza lost whole SIMD groups now and then — 0.1 to 4 % of the field's bytes wrong, other ones
+//! each run. Each batch's values start all ones (`Batches::mark_unwritten`), which no voxel the
+//! kernel measures holds: a dropped one is doubtful and measured on the CPU, so the field is the
+//! CPU's whatever the device dropped, every run.
 use super::brick::{quantise, Brick, Frame, BRICK_VOXELS};
 use super::build::cell;
 use super::grid::MipGrid;
@@ -190,6 +194,7 @@ pub(super) fn measure(
         let size = (size_of::<Item>() as u64, size_of::<Value>() as u64);
         let pipeline = &passes.pipelines[0];
         let mut batches = Batches::new(device, pipeline, size, bind, (vec![uploaded], &cancelled))?;
+        batches.mark_unwritten();
         let total = touched.len() * BRICK_VOXELS;
         let mut voxels: Vec<u8> = Vec::with_capacity(total);
         let mut next = 0;
@@ -223,7 +228,9 @@ pub(super) fn measure(
                 let at = voxels.len();
                 let grid = &mips[touched[at / BRICK_VOXELS].0];
                 let distance = f64::from(f32::from_bits(distance));
-                let settled = count & DOUBTFUL == 0;
+                // A voxel the device dropped kept its all-ones value (`mark_unwritten`): its count
+                // holds `DOUBTFUL`, its distance is no number; either sends it to the CPU whole.
+                let settled = count & DOUBTFUL == 0 && distance.is_finite();
                 if !settled || near_a_step(grid, distance, doubt) {
                     doubtful.push((at, settled.then_some(distance)));
                 }

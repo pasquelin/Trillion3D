@@ -35,6 +35,7 @@ fn float_digest(run: &GoldenRun) -> Value {
         "primitives": run.result["primitives"].as_array().expect("primitives").len(),
         "selectedTriangles": run.result["selectedTriangles"],
         "texturePreviewBytes": run.slim["binary"]["texturePreviewBytes"],
+        "texturePreviewPixels": run.slim["binary"]["texturePreviewPixels"]["bytes"],
       },
     })
 }

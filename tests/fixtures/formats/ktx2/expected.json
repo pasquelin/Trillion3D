@@ -2,13 +2,14 @@
   "binary": {
     "texturePreviewAstcBytes": 0,
     "texturePreviewBc7Bytes": 5904,
-    "texturePreviewBytes": 23292,
+    "texturePreviewBytes": 0,
     "texturePreviewEtc2Bytes": 0,
+    "texturePreviewPixels": 23292,
     "texturePreviews": 3
   },
   "case": "Three quads, three opaque materials, one KTX 2.0 texture each: an uncompressed 4 × 4 R8G8B8A8 sRGB level, a 16 × 16 UASTC LDR 4 × 4 payload, and a 256 × 256 ETC1S payload under BasisLZ supercompression.",
   "formatVersion": 11,
-  "manifestBinaryVersion": 21,
+  "manifestBinaryVersion": 22,
   "previews": [
     {
       "atlas": 0,

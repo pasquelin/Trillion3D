@@ -32,6 +32,9 @@ type PreviewColumns = {
   previewWords: Uint32Array
   previewShaText: string
   previewPixels: Uint8Array<ArrayBuffer>
+  /** Bytes of the pixel column when it lies in its own file (`fillTexturePreviewLevels`): the
+   *  sidecar's column is then empty and each entry's `levels` are zero-length views. */
+  externalPixelBytes?: number
   /** The block-compressed tails, one column per format, entries contiguous in order. */
   previewBlocks: Record<TextureBlockFormat, Uint8Array<ArrayBuffer>>
 }
@@ -60,6 +63,22 @@ function slices(column: Uint8Array<ArrayBuffer>, at: number, lengths: readonly n
 
 type PreviewGeometry = ReturnType<typeof previewGeometry>
 
+/** Byte length of each RGBA level of a chain of `atlas` and source size, in the pixel column. */
+function rgbaLengths({ atlas, width, height }: Pick<TexturePreview, 'atlas' | 'width' | 'height'>) {
+  const texelBytes = previewTexelBytes(atlas)
+  return levelLengths(previewGeometry(width, height, texelBytes), texelBytes).rgba
+}
+
+/** Refuses a pixel file (`file` bytes) that is not as long as its entries imply (`expected`). */
+function checkFileLength(file: number, expected: number) {
+  if (file !== expected)
+    throw new EngineError(
+      'INVALID_CACHE',
+      `A texture preview pixel file is too ${file < expected ? 'short' : 'long'}`,
+      { file, expected },
+    )
+}
+
 /** Refuses level geometry that is not the one the entry's dimensions imply. */
 function checkLevelGeometry(
   entry: number,
@@ -79,7 +98,7 @@ function checkLevelGeometry(
     )
 }
 
-/** Refuses a pixel range that does not follow the previous entry's or runs past the column. */
+/** Refuses a pixel range that does not follow the previous entry's or runs past the column (`column` bytes). */
 function checkPixelRange(
   entry: number,
   offset: number,
@@ -171,10 +190,20 @@ function readBlocks(
  * be the one those dimensions imply, and the byte ranges must follow one another without a gap or
  * an overlap — so one entry can never be read as another's. The block columns write no range:
  * each kept entry's follows the previous one's at the length its dimensions imply, a lossless
- * entry has none, and a column that ends before or after the last entry is refused whole.
+ * entry has none, and a column that ends before or after the last entry is refused whole. A cache
+ * whose pixel column lies in its own file declares its size (`externalPixelBytes`): the ranges are
+ * checked against it, the levels are counted but hold no byte until `fillTexturePreviewLevels`.
  */
 export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[] {
   const { count, previewWords, previewShaText, previewPixels, previewBlocks } = columns
+  const external = columns.externalPixelBytes !== undefined
+  if (external && previewPixels.length > 0)
+    throw new EngineError(
+      'INVALID_CACHE',
+      'A texture preview pixel file leaves the sidecar column filled',
+      { column: previewPixels.length },
+    )
+  const pixelColumn = columns.externalPixelBytes ?? previewPixels.length
   const previews: TexturePreview[] = new Array(count)
   let previous = -1,
     consumed = 0
@@ -201,10 +230,12 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
     }
     const offset = previewWords[base + PREVIEW_PIXEL_OFFSET]
     checkLevelGeometry(entry, { width, height }, declared, expected)
-    checkPixelRange(entry, offset, consumed, declared.pixelBytes, previewPixels.length)
-    const lengths = levelLengths(expected, texelBytes)
-    const pixels = slices(previewPixels, offset, lengths.rgba)
-    consumed = pixels.end
+    checkPixelRange(entry, offset, consumed, declared.pixelBytes, pixelColumn)
+    const rgba = rgbaLengths({ atlas, width, height })
+    const levels = external
+      ? rgba.map(() => new Uint8Array(0))
+      : slices(previewPixels, offset, rgba).views
+    consumed = offset + sum(rgba)
     const { layouts, blocks } = readBlocks(entry, previewWords, base, atlas, {
       previewBlocks,
       blocksAt,
@@ -224,11 +255,32 @@ export function decodeTexturePreviews(columns: PreviewColumns): TexturePreview[]
       atlas,
       firstLevel,
       bakedLevels,
-      levels: pixels.views,
+      levels,
       layouts,
       blocks,
     }
   }
   checkBlockColumnsConsumed(blocksAt, previewBlocks)
+  if (external) checkFileLength(pixelColumn, consumed)
   return previews
+}
+
+/**
+ * Gives `previews` — all of one cache, in entry order, decoded with `externalPixelBytes` — their RGBA8
+ * levels, views of `pixels`, the file the pixel column lies in: each entry's follow the previous one's
+ * at the lengths its dimensions imply, as `decodeTexturePreviews` checked them.
+ */
+export function fillTexturePreviewLevels(
+  previews: readonly TexturePreview[],
+  pixels: Uint8Array<ArrayBuffer>,
+) {
+  // The file's length is proved against every entry before any preview's levels is written.
+  const lengths = previews.map(rgbaLengths)
+  checkFileLength(pixels.length, sum(lengths.map(sum)))
+  let at = 0
+  previews.forEach((preview, rank) => {
+    const sliced = slices(pixels, at, lengths[rank])
+    sliced.views.forEach((view, level) => (preview.levels[level] = view))
+    at = sliced.end
+  })
 }

@@ -73,7 +73,7 @@ pub(crate) fn write_mesh_pages(
     let top = Map::new();
     let kept = RefCell::new(BTreeSet::new());
     let leaf = |range: Range<usize>, measured: Option<Value>| match measured {
-        None => columned(&top, (&encoded, range), &[], None).map(|(page, _)| page),
+        None => columned(&top, (&encoded, range), &[], None).map(|(page, ..)| page),
         Some(mut page) => {
             let bytes = encoded.bytes(range, &[])?;
             kept.borrow_mut()

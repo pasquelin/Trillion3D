@@ -15,7 +15,7 @@ import { formatTexelCost } from '../../gpu/core/textureBytes.ts'
 import { BLOCK_FEATURES, gpuCapsOfFeatures } from '../../gpu/core/gpuCaps.ts'
 import type { TexelKind } from './floatTexels.ts'
 import { HDR_FORMAT } from '../../scene/targetFormats.ts'
-import { poolTail, WHITE_BC4 } from './poolTail.ts'
+import { poolTail, tailReadsLevels, WHITE_BC4 } from './poolTail.ts'
 
 /**
  * Which block family a session's pools take, and everything that follows from it.
@@ -145,6 +145,8 @@ export type PoolEncoding = {
    *  family's in the lossless one, which decodes them to RGBA8, the half-float texels in the
    *  half-float one. */
   levelFormat(lane: PoolLane, chain: ChainLayouts): ReturnType<typeof textureLevelFormat>
+  /** Whether the tail `tailOf` pins for `chain` in `lane` is its RGBA8 levels (`tailReadsLevels`). */
+  readsLevels(chain: ChainLayouts, lane: PoolLane): boolean
   tailOf(
     tail: TailBytes & Partial<ChainLayouts>,
     lane: PoolLane,
@@ -359,6 +361,7 @@ export function poolEncoding(
     texelsOf: (lane) => laneTexels(settings, lane),
     texelBytes: (lane) => formatTexelCost(formatOf('data', lane)),
     levelFormat: (lane, chain) => laneLevelFormat(settings, lane, chain),
+    readsLevels: (chain, lane) => tailReadsLevels(settings, chain, lane),
     tailOf: (tail, lane, geometry) => poolTail(settings, tail, lane, geometry),
     tapOf: (lane, layout) => laneTap(settings, lane, layout),
     fillLane: block ? 'rgba' : 'lossless',

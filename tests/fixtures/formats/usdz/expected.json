@@ -17,11 +17,11 @@
   "rule": "A container changes nothing of the scene it packs: the package is extracted under the cache and the scene that comes out is exactly that of the same layer read outside the package. The root layer is the first entry of the package, never a layer sought among the others: those are resources. A badly laid-out package or one that does not open on a USD layer is refused by its code, never half-extracted.",
   "scene": {
     "formatVersion": 12,
-    "manifestBinaryVersion": 21,
+    "manifestBinaryVersion": 22,
     "primitives": 3,
     "selectedNodes": 3,
     "selectedTriangles": 36,
-    "sidecarSha256": "de6e13d8d811b2548aae19278d9d348de08a775867f435b30b3182d5e60adef6",
+    "sidecarSha256": "803e3fcc36dbd5b81861bcdc7f15f536c75720454abffe4ed0ae88a1a7ef1126",
     "sourceTriangles": 36,
     "totalNodes": 3
   },

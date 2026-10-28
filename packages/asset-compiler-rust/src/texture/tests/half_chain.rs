@@ -84,7 +84,7 @@ fn a_level_is_reduced_in_float_not_from_the_half_floats_stored() {
 }
 
 // Behaviour: a floating image read as a base colour is baked in the half-float atlas: its tail in
-// the sidecar's pixel column, held by no block family, and the levels above the tail as
+// the previews' pixel file, held by no block family, and the levels above the tail as
 // `rgba16f` files of tile records of half-float texels, shared by every texture that reads the
 // image.
 #[test]

@@ -47,7 +47,7 @@ impl AtlasKind {
             _ => None,
         }
     }
-    /// Bytes of one texel of the atlas's chain as the sidecar's pixel column holds it: four
+    /// Bytes of one texel of the atlas's chain as the previews' pixel file holds it: four
     /// 8-bit channels, or four half-floats.
     pub fn texel_bytes(self) -> usize {
         match self {

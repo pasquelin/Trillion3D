@@ -95,6 +95,14 @@ const PAGE_COLUMN_WIDTHS: [(usize, usize); 8] = [
     (PAGE_DEPTH_LAYER, 4),
 ];
 
+/// A manifest page: its small JSON, its sidecar's bytes and the bytes of the previews' pixel file
+/// (`Encoded::page`); the sidecar and the pixels are empty when the page was only measured.
+pub struct Page {
+    pub json: Value,
+    pub sidecar: Vec<u8>,
+    pub pixels: Vec<u8>,
+}
+
 /// The columns of `primitives` encoded once — each one's slim record, and where its bytes start
 /// in each column —: the page over any range of them is cut from these, never encoded again.
 pub struct Encoded {
@@ -151,25 +159,27 @@ impl Encoded {
     }
 
     /// The small JSON — `top`, the slim primitives of `range` and the descriptor — and, when
-    /// `written`, the columns of those primitives and of `previews` (`bytes`); else only measured,
-    /// no byte laid. The descriptor carries an empty `sha256`: only the caller, holding the
-    /// finished bytes, can hash them. `previews` are encoded once either way.
+    /// `written`, the columns of those primitives and of `previews` (`bytes`) and the previews'
+    /// pixel column, which is no column of `bytes` but a file of its own (`pixels`); else only
+    /// measured, no byte laid. The descriptor carries an empty `sha256`: only the caller, holding
+    /// the finished bytes, can hash them. `previews` are encoded once either way.
     pub fn page(
         &self,
         top: &Map<String, Value>,
         range: std::ops::Range<usize>,
         previews: &[TexturePreview],
         written: bool,
-    ) -> Result<(Value, Vec<u8>)> {
+    ) -> Result<Page> {
         let laid = self.laid(range.clone(), previews)?;
-        let bytes = if written {
-            self.write(&laid)
+        let (bytes, pixels) = if written {
+            (self.write(&laid), laid.pixels)
         } else {
-            Vec::new()
+            (Vec::new(), Vec::new())
         };
         // The pixel and block columns have no fixed stride: their total lengths enter the small
         // JSON, without which a reader would not know how many bytes a column must be before
         // reading it.
+        // `texturePreviewBytes` stays the pixel column's length in THIS sidecar: 0 now.
         let lengths = laid.lengths;
         let preview_bytes = lengths[TEXTURE_PREVIEW_PIXELS];
         let [bc7_bytes, astc_bytes, etc2_bytes] = TEXTURE_PREVIEW_BLOCKS.map(|c| lengths[c]);
@@ -179,6 +189,10 @@ impl Encoded {
   "texturePreviews":previews.len(),
   "texturePreviewBytes":preview_bytes,"texturePreviewBc7Bytes":bc7_bytes,"texturePreviewAstcBytes":astc_bytes,
   "texturePreviewEtc2Bytes":etc2_bytes}));
-        Ok((Value::Object(slim), bytes))
+        Ok(Page {
+            json: Value::Object(slim),
+            sidecar: bytes,
+            pixels,
+        })
     }
 }

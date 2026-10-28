@@ -36,13 +36,18 @@ export type ColumnView = <T>(
 
 /**
  * Writes the three preview columns of an encoder that hands out views by column name, refusing
- * anything the reader above would refuse.
+ * anything the reader above would refuse. The pixel column is written to `pixelsOut` instead when
+ * given (the column in its own file).
  */
-export function encodePreviewColumns(previews: readonly TexturePreview[], view: ColumnView) {
+export function encodePreviewColumns(
+  previews: readonly TexturePreview[],
+  view: ColumnView,
+  pixelsOut?: Uint8Array,
+) {
   const bytes = (name: format.ColumnName) => view(name, (b, o, n) => new Uint8Array(b, o, n))
   const words = view('texturePreviewU32', (b, o, n) => new Uint32Array(b, o, n))
   const sha = bytes('texturePreviewSha')
-  const pixels = bytes('texturePreviewPixels')
+  const pixels = pixelsOut ?? bytes('texturePreviewPixels')
   const columns = {
     bc7: bytes('texturePreviewBc7'),
     astc: bytes('texturePreviewAstc'),

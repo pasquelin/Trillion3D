@@ -20,6 +20,15 @@ pub(super) fn fixture_named(gltf_name: &str, bin_name: &str) -> (PathBuf, Option
 pub(super) fn paged(directory: &Path) -> crate::compiler::pages::manifest::Paged {
     crate::compiler::pages::manifest::read_manifest_at(directory).expect("the manifest's pages")
 }
+/// The bytes of the previews' pixel file the head of `manifest` names in `directory`; none when it
+/// names none.
+pub(super) fn pixel_file(directory: &Path, manifest: &Value) -> Vec<u8> {
+    manifest["binary"]["texturePreviewPixels"]["url"]
+        .as_str()
+        .map_or_else(Vec::new, |url| {
+            fs::read(directory.join(url)).expect("the previews' pixel file")
+        })
+}
 /// A number of the JSON record `value`.
 fn number(value: &Value, key: &str) -> usize {
     value[key].as_u64().expect(key) as usize

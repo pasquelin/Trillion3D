@@ -53,8 +53,8 @@ fn identical_fingerprint_reuses_the_folder_without_rebuilding() {
     );
     // source.gltf, source.bin, lights.json, scene-tables.json, physics.json, voxels.bin,
     // distanceFields.bin, meshCards.bin and rayTracing.bin: a mesh builds its field, its cards and
-    // its tree for the rays unless told not to.
-    assert_eq!(report["files"], 9, "every product recorded: {report}");
+    // its tree for the rays unless told not to; and the head's preview-pixels file.
+    assert_eq!(report["files"], 10, "every product recorded: {report}");
     assert!(
         second["metrics"]["clusterHierarchyPagesMs"].is_null(),
         "no DAG built"

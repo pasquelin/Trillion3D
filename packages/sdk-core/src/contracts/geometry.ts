@@ -162,6 +162,10 @@ export interface ClusterManifest {
   /** One entry per decoded (texture, atlas), sorted by texture then by atlas; empty without a
    *  decodable image. */
   texturePreviews?: TexturePreview[]
+  /** The file holding the previews' RGBA8 tails when they are not in the head's sidecar: their
+   *  `levels` then come from `fetchVerified` of it, only for a session that reads them. Absent
+   *  from a cache that keeps them inline. */
+  texturePreviewPixels?: { url: string; bytes: number; sha256: string }
   /** Template for baked levels, relative to manifest: {sha} the chain's fingerprint — its source
    *  image digest and the channels and cuts that decide its bytes —,
    *  {kind} the atlas name (PREVIEW_ATLAS_NAMES), {level} the level rank. Absent from a

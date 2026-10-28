@@ -13,25 +13,37 @@ import type {
   SlimPrimitive,
 } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts'
 import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
+import { INLINE_PIXELS_VERSION } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts'
 
 /** Splits a manifest into its JSON and mapped columns, its bundles lying in `geometryFiles`; the
- *  caller hashes the bytes for `sha256`. */
+ *  caller hashes the bytes for `sha256`. With `pixelsUrl` the previews' pixel column lies in its own
+ *  file, returned as `pixels` (its `sha256` for the caller to fill), and the sidecar's column is empty.
+ *  `version` is the format it writes: by default the current one, or the inline-pixels one for a
+ *  sidecar that holds previews' pixels. */
 export function encodeManifestBinary(
   manifest: ClusterManifest,
   {
     geometryFiles,
+    pixelsUrl,
+    version,
     ...descriptor
   }: Pick<ManifestBinaryDescriptor, 'url'> & {
     geometryFiles: GeometryFile[]
+    pixelsUrl?: string
+    version?: number
   },
-): { manifest: SlimClusterManifest; binary: Uint8Array } {
+): { manifest: SlimClusterManifest; binary: Uint8Array; pixels?: Uint8Array } {
   const counts = countManifest(manifest)
+  const pixelBytes = counts.previewBytes
+  const pixels = pixelsUrl ? new Uint8Array(pixelBytes) : undefined
+  if (pixels) counts.previewBytes = 0
+  version ??= counts.previewBytes > 0 ? INLINE_PIXELS_VERSION : written.MANIFEST_BINARY_VERSION
   const { ranges, bytes } = manifestBinaryRanges(counts)
   const buffer = new ArrayBuffer(bytes)
   const headerWords = written.MANIFEST_BINARY_HEADER_WORDS
   const header = new Uint32Array(buffer, 0, headerWords + format.COLUMN_NAMES.length * 2)
   header[0] = written.MANIFEST_BINARY_MAGIC
-  header[1] = written.MANIFEST_BINARY_VERSION
+  header[1] = version
   header[2] = format.COLUMN_NAMES.length
   format.COLUMN_NAMES.forEach((name, index) => {
     header[headerWords + index * 2] = ranges[name].offset
@@ -58,7 +70,7 @@ export function encodeManifestBinary(
   const words32 = (b: ArrayBuffer, o: number, n: number) => new Uint32Array(b, o, n)
   const dependencyCount = view('bundleDependencyCount', words32),
     dependencyList = view('bundleDependency', words32)
-  encodePreviewColumns(manifest.texturePreviews ?? [], view)
+  encodePreviewColumns(manifest.texturePreviews ?? [], view, pixels)
   let page = 0,
     node = 0,
     group = 0,
@@ -120,7 +132,7 @@ export function encodeManifestBinary(
       geometryFiles,
       binary: {
         ...descriptor,
-        version: written.MANIFEST_BINARY_VERSION,
+        version,
         sha256: '',
         bytes,
         texturePreviews: counts.previews,
@@ -128,9 +140,14 @@ export function encodeManifestBinary(
         texturePreviewBc7Bytes: counts.previewBlockBytes.bc7,
         texturePreviewAstcBytes: counts.previewBlockBytes.astc,
         texturePreviewEtc2Bytes: counts.previewBlockBytes.etc2,
+        ...(pixelsUrl &&
+          pixelBytes > 0 && {
+            texturePreviewPixels: { url: pixelsUrl, bytes: pixelBytes, sha256: '' },
+          }),
       },
       primitives,
     } as SlimClusterManifest,
     binary: new Uint8Array(buffer),
+    ...(pixels && { pixels }),
   }
 }

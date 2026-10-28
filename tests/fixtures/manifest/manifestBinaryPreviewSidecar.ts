@@ -1,6 +1,7 @@
 // The preview tests' sidecar bench: a manifest of previews encoded, its preview words reachable on
 // the finished buffer, and the refusal a lying sidecar must meet.
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { BINARY, sha } from './manifestBinary.ts'
 import { decodeManifestBinary } from '../../../packages/sdk-core/src/manifest/binaryDecode.ts'
 import { encodeManifestBinary } from './manifestBinaryEncode.ts'
@@ -26,9 +27,12 @@ function manifestWith(previews: TexturePreview[]): ClusterManifest {
     texturePreviews: previews,
   } as ClusterManifest
 }
-/** `previews` encoded into a slim manifest and its sidecar buffer. */
-export function encode(previews: TexturePreview[]) {
-  const { manifest: slim, binary } = encodeManifestBinary(manifestWith(previews), BINARY)
+/** `previews` encoded into a slim manifest and its sidecar buffer, at `version` when given. */
+export function encode(previews: TexturePreview[], version?: number) {
+  const { manifest: slim, binary } = encodeManifestBinary(manifestWith(previews), {
+    ...BINARY,
+    version,
+  })
   slim.binary.sha256 = sha('f')
   // `encodeManifestBinary` always backs the view with a plain `ArrayBuffer`; `.buffer` types as
   // the wider `ArrayBufferLike`.
@@ -37,6 +41,27 @@ export function encode(previews: TexturePreview[]) {
     binary.byteOffset + binary.byteLength,
   ) as ArrayBuffer
   return { slim, buffer }
+}
+/** `previews` encoded with the pixel column in its own file: the slim manifest naming it (its
+ *  fingerprint filled), the sidecar buffer with an empty column, and the file's bytes. */
+export function encodeExternal(previews: TexturePreview[], version?: number) {
+  const {
+    manifest: slim,
+    binary,
+    pixels,
+  } = encodeManifestBinary(manifestWith(previews), {
+    ...BINARY,
+    version,
+    pixelsUrl: 'preview-pixels.bin',
+  })
+  slim.binary.sha256 = sha('f')
+  const file = slim.binary.texturePreviewPixels
+  if (file) file.sha256 = createHash('sha256').update(pixels!).digest('hex')
+  const buffer = binary.buffer.slice(
+    binary.byteOffset,
+    binary.byteOffset + binary.byteLength,
+  ) as ArrayBuffer
+  return { slim, buffer, pixels: pixels! }
 }
 /** The `texturePreviewU32` words of entry `entry`, on the finished buffer: the only way to
  *  build a sidecar whose geometry or byte range lies without going through the encoder, which

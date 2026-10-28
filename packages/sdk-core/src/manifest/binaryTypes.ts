@@ -2,6 +2,15 @@ import { EngineError } from '../contracts/cache.ts'
 import type { Primitive, ClusterManifest } from '../contracts/geometry.ts'
 import { MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
 
+/** The last manifest binary version holding the texture previews' pixels in the head sidecar; later
+ *  versions keep them in their own file (`texturePreviewPixels`), the sidecar's column empty. */
+export const INLINE_PIXELS_VERSION = 21
+
+/** Whether this build reads a manifest binary of `version`: the current one and the inline-pixels one. */
+export function readsManifestBinaryVersion(version: unknown) {
+  return version === MANIFEST_BINARY_VERSION || version === INLINE_PIXELS_VERSION
+}
+
 /** Where the binary sits, and the counts its columns are read by. */
 export interface ManifestBinaryDescriptor {
   /** Format version. */
@@ -22,6 +31,9 @@ export interface ManifestBinaryDescriptor {
   texturePreviewAstcBytes: number
   /** Bytes of the ETC2 block column. */
   texturePreviewEtc2Bytes: number
+  /** The file holding the pixel column's bytes when they are not in this sidecar, whose
+   *  `texturePreviewBytes` is then 0; absent from a cache that keeps them inline. */
+  texturePreviewPixels?: ClusterManifest['texturePreviewPixels']
 }
 /** A primitive's culling tree, counted instead of listed. */
 export interface SlimCulling {
@@ -105,10 +117,10 @@ export function assertManifestBinary(binary: unknown): asserts binary is Manifes
   if (!binary || typeof binary !== 'object' || Array.isArray(binary))
     throw new EngineError('UNSUPPORTED_FORMAT', 'Manifest binary descriptor is not an object', {})
   const descriptor = binary as Partial<ManifestBinaryDescriptor>
-  if (descriptor.version !== MANIFEST_BINARY_VERSION)
+  if (!readsManifestBinaryVersion(descriptor.version))
     throw new EngineError(
       'UNSUPPORTED_FORMAT',
-      `Expected manifest binary version ${MANIFEST_BINARY_VERSION}, received ${String(descriptor.version)}`,
+      `Expected manifest binary version ${MANIFEST_BINARY_VERSION} or ${INLINE_PIXELS_VERSION}, received ${String(descriptor.version)}`,
       { version: descriptor.version ?? null, expected: MANIFEST_BINARY_VERSION },
     )
   for (const key of ['url', 'sha256'] as const)
@@ -123,4 +135,32 @@ export function assertManifestBinary(binary: unknown): asserts binary is Manifes
         [key]: value ?? null,
       })
   }
+  const file = descriptor.texturePreviewPixels
+  // An inline-pixels cache has no pixel file; any later one holds none of the column in its sidecar.
+  if (descriptor.version === INLINE_PIXELS_VERSION && file !== undefined)
+    throw new EngineError(
+      'INVALID_CACHE',
+      `Manifest binary version ${INLINE_PIXELS_VERSION} keeps its previews' pixels inline`,
+      { version: descriptor.version },
+    )
+  if (descriptor.version !== INLINE_PIXELS_VERSION && descriptor.texturePreviewBytes !== 0)
+    throw new EngineError(
+      'INVALID_CACHE',
+      `Manifest binary version ${String(descriptor.version)} keeps no preview pixel in its sidecar`,
+      { version: descriptor.version, texturePreviewBytes: descriptor.texturePreviewBytes },
+    )
+  if (file === undefined) return
+  if (
+    !file ||
+    typeof file !== 'object' ||
+    typeof file.url !== 'string' ||
+    !file.url ||
+    !Number.isSafeInteger(file.bytes) ||
+    file.bytes <= 0 ||
+    typeof file.sha256 !== 'string' ||
+    !/^[0-9a-f]{64}$/.test(file.sha256)
+  )
+    throw new EngineError('UNSUPPORTED_FORMAT', 'Manifest binary descriptor has a bad pixel file', {
+      texturePreviewPixels: file ?? null,
+    })
 }

@@ -18,6 +18,7 @@ fn compare_products(first: &GoldenRun, second: &GoldenRun) {
         compiled_identity(second, json!({}))
     );
     assert_eq!(first.previews, second.previews, "material previews");
+    assert_eq!(first.pixels, second.pixels, "material previews' pixels");
     assert!(first.result["sourceTriangles"].as_u64().unwrap() > 0);
 }
 fn archived(source: &Path) -> PathBuf {

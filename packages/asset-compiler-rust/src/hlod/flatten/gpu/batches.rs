@@ -70,6 +70,9 @@ pub(crate) struct Batches<'a> {
     slots: [Option<Slot>; 2],
     pace: Pace,
     paced: bool,
+    /// Bytes all ones, as many as the largest batch's results, written over each batch's results
+    /// before it runs when the pass asked (`mark_unwritten`); none otherwise.
+    unwritten: Vec<u8>,
     cancelled: &'a AtomicBool,
 }
 
@@ -102,8 +105,17 @@ impl<'a> Batches<'a> {
             slots: [None, None],
             pace: Pace(WORKGROUP * 64),
             paced: false,
+            unwritten: Vec::new(),
             cancelled,
         })
+    }
+
+    /// Every batch's results set to all ones before it runs: an invocation the device drops
+    /// leaves its result so, where the pass can tell it from any it writes. Measured on an Apple
+    /// GPU: a long batch lost whole SIMD groups of invocations now and then, no error raised, and
+    /// their results kept what the slot's batch before had written.
+    pub(crate) fn mark_unwritten(&mut self) {
+        self.unwritten = vec![u8::MAX; (BATCH as u64 * self.bytes.1) as usize];
     }
 
     /// The buffers of slot `at` for `count` invocations, made anew — for the next power of two,
@@ -150,6 +162,10 @@ impl<'a> Batches<'a> {
         let (sent, bytes) = (Instant::now(), count as u64 * self.bytes.1);
         let reading = scoped(device, || {
             device.queue().write_buffer(&slot.buffers[0], 0, items);
+            if !self.unwritten.is_empty() {
+                let ones = &self.unwritten[..bytes as usize];
+                device.queue().write_buffer(&slot.buffers[1], 0, ones);
+            }
             let group = &slot.group;
             if paced {
                 device.send(pipeline, group, params, count, pace, cancelled)?;

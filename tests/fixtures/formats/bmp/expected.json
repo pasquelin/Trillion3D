@@ -2,13 +2,14 @@
   "binary": {
     "texturePreviewAstcBytes": 0,
     "texturePreviewBc7Bytes": 48,
-    "texturePreviewBytes": 44,
+    "texturePreviewBytes": 0,
     "texturePreviewEtc2Bytes": 0,
+    "texturePreviewPixels": 44,
     "texturePreviews": 1
   },
   "case": "A quad whose base colour is true-colour-24-bottom-up.bmp, a 4 × 2 24-bit true-colour BMP stored bottom-up, compiled by the common harness.",
   "formatVersion": 11,
-  "manifestBinaryVersion": 21,
+  "manifestBinaryVersion": 22,
   "previews": [
     {
       "atlas": 0,

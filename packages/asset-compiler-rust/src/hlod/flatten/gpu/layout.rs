@@ -12,9 +12,11 @@ pub(crate) const BATCH: usize = 1 << 20;
 /// A storage buffer the CPU fills.
 pub(crate) const FILLED: wgpu::BufferUsages =
     wgpu::BufferUsages::STORAGE.union(wgpu::BufferUsages::COPY_DST);
-/// A storage buffer the passes write and the CPU reads back.
-pub(crate) const WRITTEN: wgpu::BufferUsages =
-    wgpu::BufferUsages::STORAGE.union(wgpu::BufferUsages::COPY_SRC);
+/// A storage buffer the passes write and the CPU reads back, which the queue may fill beforehand
+/// (`Batches::mark_unwritten`).
+pub(crate) const WRITTEN: wgpu::BufferUsages = wgpu::BufferUsages::STORAGE
+    .union(wgpu::BufferUsages::COPY_SRC)
+    .union(wgpu::BufferUsages::COPY_DST);
 /// A buffer the CPU maps to read what was copied into it.
 pub(crate) const READ_BACK: wgpu::BufferUsages =
     wgpu::BufferUsages::MAP_READ.union(wgpu::BufferUsages::COPY_DST);

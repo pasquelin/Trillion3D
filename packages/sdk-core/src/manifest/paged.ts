@@ -7,13 +7,18 @@ import type { ClusterManifest, Primitive } from '../contracts/geometry.ts'
 import { named, readLeaves, type PageKind, type TablePage } from '../scene/core/tablePages.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
 import { MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
-import { assertManifestBinary, type SlimClusterManifest } from './binaryTypes.ts'
+import {
+  assertManifestBinary,
+  INLINE_PIXELS_VERSION,
+  type SlimClusterManifest,
+} from './binaryTypes.ts'
 import { ownBuffer } from '../runtime/ownBuffer.ts'
 
 /** The manifest's pages: a mesh page lists its slim primitives. */
 const MANIFEST_PAGES: PageKind = {
   prefix: 'manifest-page-',
   version: MANIFEST_BINARY_VERSION,
+  alsoVersion: INLINE_PIXELS_VERSION,
   records: 'primitives',
   unsupported: 'UNSUPPORTED_FORMAT',
   invalid: 'INVALID_CACHE',

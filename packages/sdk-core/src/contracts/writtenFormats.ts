@@ -83,8 +83,11 @@
  * resident page's stream offsets (`RESIDENT_TABLE_WORDS`, 15 words) the shaders read the streams
  * by: a version-20 cache names a size too small by it, which the install pass would refuse page by
  * page, so a reader refuses the file whole and the compiler cooks it again.
+ * Version 22 keeps every column; the head's pixel column is empty: the previews' RGBA8 tails are
+ * their own file (`preview-pixels-<sha>.bin`, the head's `binary.texturePreviewPixels`), which a
+ * session reads only when a lane pins them. The runtime still reads 21, whose column holds them.
  */
-export const MANIFEST_BINARY_VERSION = 21
+export const MANIFEST_BINARY_VERSION = 22
 
 /**
  * 'W','G','M','B' read as a little-endian u32.
