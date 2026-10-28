@@ -23,6 +23,25 @@ pub(super) const MIP_RECORDS: usize = 2;
 /// The bit of a voxel's second word set when one of its steps came within the doubt of deciding
 /// otherwise than double precision would (`field.wgsl`): the voxel is measured again on the CPU.
 pub(super) const DOUBTFUL: u32 = 1 << 31;
+/// Where the echo of the point a voxel's invocation read sits in its second word: above its count
+/// of back faces, eight bits — fewer than 256 rays are cast (`gpu.rs` refuses more) —, under
+/// `DOUBTFUL`.
+pub(super) const ECHO_SHIFT: u32 = 8;
+/// The echo's bits once shifted down.
+pub(super) const ECHO_MASK: u32 = (DOUBTFUL >> ECHO_SHIFT) - 1;
+
+/// The echo of the point `item` — its four floats' bits mixed —, as the kernel forms it from the
+/// point it read (`field.wgsl`, `second`): the host compares it with the point it sent, so a value
+/// measured at another point, or written at another voxel's place, is never taken.
+pub(super) fn echo(item: [f32; 4]) -> u32 {
+    let [x, y, z, w] = item.map(f32::to_bits);
+    let mixed = x.wrapping_mul(0x9E37_79B1)
+        ^ y.wrapping_mul(0x85EB_CA77)
+        ^ z.wrapping_mul(0xC2B2_AE3D)
+        ^ w.wrapping_mul(0x27D4_EB2F);
+    (mixed ^ (mixed >> 15)) & ECHO_MASK
+}
+
 /// The doubt, as a share of the largest coordinate the kernel rounds about the scene's origin — a
 /// triangle's corner or a mip's volume corner (`pack::doubt`): some thirty times the rounding of a
 /// position in single precision and of the products the kernel forms of them, so a step that
@@ -40,6 +59,8 @@ pub(super) fn prelude() -> String {
         ("BOX_NODE_RECORDS", BOX_NODE_RECORDS),
         ("TRIANGLE_RECORDS", TRIANGLE_RECORDS),
         ("DOUBTFUL", DOUBTFUL as usize),
+        ("ECHO_SHIFT", ECHO_SHIFT as usize),
+        ("ECHO_MASK", ECHO_MASK as usize),
     ];
     let mut out = wgsl_constants(&constants);
     out += &format!("const PULLBACK: f32 = {:?};\n", PULLBACK as f32);

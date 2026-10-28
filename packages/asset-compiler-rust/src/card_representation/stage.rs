@@ -14,7 +14,6 @@ use crate::compiler::cache::storage::{product, Product};
 use crate::distance_field::{source_meshes, DistanceFieldSettings, Owner, Placed, Scene};
 use crate::plugins::scene::cancel;
 use crate::support::derived::Derived;
-use crate::texture::TexturePreview;
 use crate::Result;
 use rayon::prelude::*;
 use serde_json::{json, Value};
@@ -25,13 +24,12 @@ use std::sync::Arc;
 type Vec3 = [f64; 3];
 use std::sync::atomic::AtomicBool;
 
-/// What the stage reads: the scene, its previews, its meshes' map, how each source mesh's cards are
+/// What the stage reads: the scene, its meshes' map, how each source mesh's cards are
 /// built (its build's) and the distance fields already built, whose boxes the cards of the meshes
 /// that have a field are fitted in.
 pub(crate) struct CardInputs<'a> {
     pub g: &'a Value,
     pub bin: &'a [u8],
-    pub previews: &'a [TexturePreview],
     pub mesh_map: &'a BTreeMap<usize, usize>,
     pub settings: &'a [CardSettings],
     /// How each source mesh's field is built: whether its triangles count two-sided is the cards'
@@ -83,7 +81,7 @@ pub(crate) fn build_mesh_cards(inputs: &CardInputs<'_>) -> Result<Vec<PlacedCard
         .collect();
     // Each mesh's key, and the box its cards are fitted in: a mesh met again — the same triangles,
     // materials, box and settings — has the cards of its first meeting, built once.
-    let read = (inputs.g, inputs.bin, inputs.previews);
+    let read = (inputs.g, inputs.bin);
     let keyed: Vec<MeshKey> = asked
         .par_iter()
         .map(|&(compiled, source)| -> Result<MeshKey> {

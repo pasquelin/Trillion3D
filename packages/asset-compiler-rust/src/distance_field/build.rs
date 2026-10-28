@@ -8,7 +8,9 @@ use super::grid::{Grid, MipGrid};
 use super::samples::directions;
 use super::scene::Scene;
 use super::DistanceFieldSettings;
+use crate::plugins::scene::cancel;
 use rayon::prelude::*;
+use std::sync::atomic::AtomicBool;
 
 /// What a cell of the indirection table holds when its brick is not stored.
 pub(super) const NO_BRICK: u32 = u32::MAX;
@@ -66,13 +68,21 @@ pub(super) fn grids(scene: &Scene, settings: &DistanceFieldSettings) -> (Grid, V
 }
 
 /// Every brick of every mip of `scene`, cell after cell, measured along `rays` on the CPU, in
-/// parallel.
-pub(super) fn on_cpu(scene: &Scene, mips: &[MipGrid], rays: &[[f64; 3]]) -> Vec<Vec<Brick>> {
+/// parallel; the compilation's refusal once `cancelled` is raised.
+pub(super) fn on_cpu(
+    scene: &Scene,
+    mips: &[MipGrid],
+    rays: &[[f64; 3]],
+    cancelled: &AtomicBool,
+) -> crate::Result<Vec<Vec<Brick>>> {
     (mips.iter())
         .map(|mip| {
             (0..mip.cells())
                 .into_par_iter()
-                .map(|rank| brick(scene, mip, rays, cell(rank, mip.bricks)))
+                .map(|rank| {
+                    cancel::check(cancelled)?;
+                    Ok(brick(scene, mip, rays, cell(rank, mip.bricks)))
+                })
                 .collect()
         })
         .collect()
@@ -118,17 +128,27 @@ pub(super) fn assemble(
 
 /// The field of `scene` at the grid its box and `settings` give: its voxels measured on the GPU,
 /// or on the CPU when the GPU cannot (no adapter, a scene past one binding, a failed batch) — the
-/// same field, byte for byte (`gpu.rs`), the reason told when it is the CPU's.
-pub(super) fn build(scene: &Scene, settings: &DistanceFieldSettings) -> Field {
+/// same field, byte for byte (`gpu.rs`), the reason told when it is the CPU's. Raising
+/// `cancelled` stops either and refuses the field as the compilation's cancel.
+pub(super) fn build(
+    scene: &Scene,
+    settings: &DistanceFieldSettings,
+    cancelled: &AtomicBool,
+) -> crate::Result<Field> {
     let (grid, mips) = grids(scene, settings);
     let rays = directions();
-    let (measured, reason, remeasured) = match gpu::measure(scene, &mips, &rays) {
+    let (measured, reason, remeasured) = match gpu::measure(scene, &mips, &rays, cancelled) {
         Ok((measured, remeasured)) => (measured, None, remeasured),
-        Err(refused) => (on_cpu(scene, &mips, &rays), Some(refused.to_string()), 0),
+        Err(refused) if refused.code == crate::CANCELLED => return Err(refused),
+        Err(refused) => (
+            on_cpu(scene, &mips, &rays, cancelled)?,
+            Some(refused.to_string()),
+            0,
+        ),
     };
-    Field {
+    Ok(Field {
         on_cpu: reason,
         remeasured,
         ..assemble((&grid, &mips), measured, scene.mostly_two_sided)
-    }
+    })
 }

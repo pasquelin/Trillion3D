@@ -93,9 +93,11 @@ pub(crate) fn actors_field(
         return None;
     }
     let scene = actors_scene(parts, settings.as_if_two_sided, false)?;
+    // A cell's field is built with the world's actors, which take no cancel token: never raised.
+    let never = std::sync::atomic::AtomicBool::new(false);
     Some(Placed {
         owner: Owner::HlodCell(cell as u32),
-        field: build(&scene, settings),
+        field: build(&scene, settings, &never).expect("a token never raised refuses nothing"),
     })
 }
 

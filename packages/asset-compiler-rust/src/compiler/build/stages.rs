@@ -14,6 +14,7 @@ use crate::hlod::chain::SourceCover;
 use crate::proxy::placement::Placement;
 use crate::support::perf::{JobPhases, Phase, Timer};
 use crate::texture::TexturePreview;
+mod beside;
 
 /// What the job's first stages leave to the rest: the workers it runs on, its buffer plan, where its
 /// source binary was copied, and the clock of its phases.
@@ -163,8 +164,8 @@ pub(super) fn finish_compile(
     };
     let coplanar = stage_depth_layers(&scene, &mut written.primitives, progress)?;
     let (source, source_gltf) = write_source_scene(source_inputs(job, &built))?;
-    let stage = texture_stage(job, &built);
-    let (mut previews, preview_report) = stage_textures(&built.pool, &stage, progress)?;
+    let ((mut previews, preview_report), distance) =
+        beside::textures_and_fields(job, &built, progress)?;
     let products = products_of(job, (&built, &written), (&scene, &source, &previews));
     let hair = crate::hair_strands::HairInputs {
         carried: job.strands,
@@ -177,7 +178,15 @@ pub(super) fn finish_compile(
     // The groom is built beside the products over the geometry, on the job's workers.
     let (staged, groom) = built.pool.install(|| {
         rayon::join(
-            || stage_products(&products, covers, (source_bin, source_gltf), progress),
+            || {
+                stage_products(
+                    &products,
+                    distance,
+                    covers,
+                    (source_bin, source_gltf),
+                    progress,
+                )
+            },
             || crate::hair_strands::write_hair_strands(&hair, &built.directory, progress),
         )
     });
@@ -222,20 +231,6 @@ fn source_inputs<'a>(job: &Job<'a>, built: &'a Built) -> SourceSceneInputs<'a> {
         directory: &built.directory,
         output_views: &built.output_views,
         offset: built.offset,
-    }
-}
-
-/// What the texture previews are staged from.
-fn texture_stage<'a>(job: &Job<'a>, built: &'a Built) -> TextureStage<'a> {
-    TextureStage {
-        o: job.o,
-        reserved_bytes: built.plan.estimated_working_bytes,
-        g: &job.loaded.g,
-        bin: job.bin,
-        image_root: job.image_root,
-        used_materials: &job.images.used_materials,
-        image_shas: &job.images.shas,
-        view_map: &built.plan.view_map,
     }
 }
 

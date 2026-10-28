@@ -23,7 +23,7 @@ pub(crate) mod layout;
 mod open;
 pub(crate) mod pack;
 mod submit;
-pub(crate) use batches::{held_bytes, Batches};
+pub(crate) use batches::{held_bytes, unwritten_bytes, Batches};
 pub(crate) use layout::{Passes, Source};
 pub(crate) use submit::{scoped, Pace, Reading};
 

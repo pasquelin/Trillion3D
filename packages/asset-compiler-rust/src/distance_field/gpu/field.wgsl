@@ -224,6 +224,15 @@ fn first_hit(origin: vec3f, ray: vec3f, doubt: f32) -> Hit {
     return best;
 }
 
+// A voxel's second word: the back faces its rays met, the echo of the point it read — its four
+// floats' bits mixed, as `layout.rs:echo` mixes them —, `DOUBTFUL` when a step was doubtful.
+fn second(point: vec4f, back: u32, doubtful: bool) -> u32 {
+    let b = bitcast<vec4u>(point);
+    let mixed = (b.x * 0x9E3779B1u) ^ (b.y * 0x85EBCA77u) ^ (b.z * 0xC2B2AE3Du) ^ (b.w * 0x27D4EB2Fu);
+    let echo = (mixed ^ (mixed >> 15u)) & ECHO_MASK;
+    return back | (echo << ECHO_SHIFT) | select(0u, DOUBTFUL, doubtful);
+}
+
 // A voxel's value: the signed distance to the surface held to the trace distance, and the back
 // faces its rays met, `DOUBTFUL` set when a step came within the doubt of deciding otherwise. The point is the voxel's position, its mip in the fourth float.
 @compute @workgroup_size(WORKGROUP)
@@ -232,10 +241,11 @@ fn field(@builtin(global_invocation_id) id: vec3u) {
         return;
     }
     let at = params.first + id.x;
-    let p = points[at].xyz;
+    let point = points[at];
+    let p = point.xyz;
     let head = scene[0];
     let rays = scene[1];
-    let mip = rays.z + u32(points[at].w) * MIP_RECORDS;
+    let mip = rays.z + u32(point.w) * MIP_RECORDS;
     let trace = f4(mip).w;
     let doubt = bitcast<f32>(rays.w);
     // The nearest triangle looked for a doubt past the trace distance: one that near it is the
@@ -245,7 +255,7 @@ fn field(@builtin(global_invocation_id) id: vec3u) {
     let nearest = sqrt(nearest2);
     let edge = abs(nearest - trace) < doubt && nearest2 < reach * reach;
     if !(nearest < trace) {
-        values[at] = vec2u(bitcast<u32>(trace), select(0u, DOUBTFUL, edge));
+        values[at] = vec2u(bitcast<u32>(trace), second(point, 0u, edge));
         return;
     }
     let volume_low = f4(mip).xyz;
@@ -287,10 +297,10 @@ fn field(@builtin(global_invocation_id) id: vec3u) {
         if facing > 0.0 && one_sided {
             back = back + 1u;
             if back >= head.w {
-                values[at] = vec2u(bitcast<u32>(-nearest), back | select(0u, DOUBTFUL, doubtful));
+                values[at] = vec2u(bitcast<u32>(-nearest), second(point, back, doubtful));
                 return;
             }
         }
     }
-    values[at] = vec2u(bitcast<u32>(nearest), back | select(0u, DOUBTFUL, doubtful));
+    values[at] = vec2u(bitcast<u32>(nearest), second(point, back, doubtful));
 }

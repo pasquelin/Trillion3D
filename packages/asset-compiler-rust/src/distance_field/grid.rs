@@ -2,8 +2,8 @@
 //! mip, the band it stores and how a point of the mesh's volume finds its voxel. Lengths are the
 //! reference's units (centimetres).
 use super::abi::{
-    DISTANCE_FIELD_BAND_VOXELS, DISTANCE_FIELD_MAX_INDIRECTION, DISTANCE_FIELD_OBJECT_BORDER,
-    DISTANCE_FIELD_UNIQUE_BRICK,
+    DISTANCE_FIELD_BAND_VOXELS, DISTANCE_FIELD_MAX_INDIRECTION, DISTANCE_FIELD_MIPS,
+    DISTANCE_FIELD_OBJECT_BORDER, DISTANCE_FIELD_UNIQUE_BRICK,
 };
 use super::DistanceFieldSettings;
 
@@ -68,6 +68,41 @@ fn mip0_bricks(size: Vec3, settings: &DistanceFieldSettings) -> [usize; 3] {
     let most = most_bricks(settings) as i64;
     let per_unit = settings.density * settings.scale;
     size.map(|s| round(s * per_unit / unique).clamp(1, most) as usize)
+}
+
+/// The voxels the mips of a field at `settings` hold at most: of a mesh whose box is `bounds`
+/// (centimetres), each mip's bricks whole and one more along every axis — a box read in another
+/// precision may round a side to the next brick —, one-sided or two-sided, whichever holds more;
+/// of any mesh, each mip's most bricks along every axis (`most_bricks`, halved a mip), when its box
+/// is not known.
+pub(super) fn bound_voxels(
+    bounds: Option<(Vec3, Vec3)>,
+    settings: &DistanceFieldSettings,
+) -> usize {
+    let bricks = |grid: Grid| -> usize {
+        (0..DISTANCE_FIELD_MIPS)
+            .map(|mip| {
+                grid.mip(mip)
+                    .bricks
+                    .iter()
+                    .map(|b| b + 1)
+                    .product::<usize>()
+            })
+            .sum()
+    };
+    let most = most_bricks(settings);
+    let any = (0..DISTANCE_FIELD_MIPS)
+        .map(|mip| most.div_ceil(1 << mip).pow(3))
+        .sum();
+    let held = match bounds {
+        Some((low, high)) => [false, true]
+            .map(|two_sided| bricks(Grid::of(low, high, settings, two_sided)))
+            .into_iter()
+            .max()
+            .unwrap_or(any),
+        None => any,
+    };
+    held * super::brick::BRICK_VOXELS
 }
 
 /// `a / b` rounded to the nearest whole number, for `b` positive.

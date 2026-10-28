@@ -3,7 +3,7 @@
 use super::Products;
 use crate::card_representation::{build_mesh_cards, CardInputs, PlacedCards};
 use crate::compiler::primitive::compiled::DepthLayerScene;
-use crate::distance_field::{build_mesh_fields, DistanceFieldInputs, Placed};
+use crate::distance_field::Placed;
 use crate::volumetric_lightmap::bake::SceneInputs;
 use crate::volumetric_lightmap::{stage_volumetric_lightmap, LightmapInputs};
 use crate::voxel::{stage_voxels, VoxelInputs, VoxelSettings};
@@ -13,11 +13,12 @@ use crate::*;
 type MeshProducts = ((Product, Value), Vec<Placed>, Vec<PlacedCards>);
 
 /// The voxels of the source meshes, each sampled as its build says (`MeshBuild::voxels`): the file
-/// and the manifest's section; the distance fields of the meshes whose build asks for one, and the
-/// cards of those that keep some, which the HLOD cells' join once the world's actors are built, and
-/// all are written together.
+/// and the manifest's section; the meshes' distance fields, built beside the textures
+/// (`stages.rs`), and the cards of those that keep some, which the HLOD cells' join once the
+/// world's actors are built, and all are written together.
 fn stage_mesh_products(
     inputs: &Products<'_>,
+    distance: Vec<Placed>,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<MeshProducts> {
     let Products {
@@ -48,19 +49,10 @@ fn stage_mesh_products(
         .iter()
         .map(|build| build.distance_field)
         .collect();
-    let fields = DistanceFieldInputs {
-        g,
-        bin,
-        previews: texture_previews,
-        mesh_map,
-        settings: &field_settings,
-    };
-    let distance = pool.install(|| build_mesh_fields(&fields))?;
     let card_settings: Vec<_> = mesh_builds.iter().map(|build| build.cards).collect();
     let cards = CardInputs {
         g,
         bin,
-        previews: texture_previews,
         mesh_map,
         settings: &card_settings,
         fields: &field_settings,
@@ -135,9 +127,10 @@ pub(super) struct Geometry {
 /// The geometry's products staged, in the order of the module doc.
 pub(super) fn stage_geometry(
     inputs: &Products<'_>,
+    distance: Vec<Placed>,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Geometry> {
-    let ((voxel_file, voxels), distance, cards) = stage_mesh_products(inputs, progress)?;
+    let ((voxel_file, voxels), distance, cards) = stage_mesh_products(inputs, distance, progress)?;
     let (lights, profile_files, lightmap_file, volumetric_lightmap) =
         stage_lighting(inputs, progress)?;
     Ok(Geometry {

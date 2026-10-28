@@ -6,7 +6,6 @@
 use super::abi::DISTANCE_FIELD_UNITS_PER_METRE;
 use crate::compiler::primitive::triangles::mesh_primitives;
 use crate::hlod::flatten::bake::tree::Tree;
-use crate::texture::TexturePreview;
 use crate::trace::surface::Traceable;
 use crate::Result;
 use serde_json::Value;
@@ -65,13 +64,15 @@ fn double_sided(g: &Value, id: Option<u64>) -> bool {
 impl Scene {
     /// Mesh `mesh` of `g` as a scene, none when it has no triangle to query. `as_if_two_sided`
     /// marks every triangle two-sided; `blended` keeps the triangles of a blended material, which
-    /// a distance field leaves out.
+    /// a distance field leaves out. No texel is read: a scene is its triangles and which of them a
+    /// blended material draws, its alpha mode (`Surface::blend`), so it never waits for the
+    /// textures.
     pub(crate) fn read(
-        (g, bin, previews): (&Value, &[u8], &[TexturePreview]),
+        (g, bin): (&Value, &[u8]),
         mesh: usize,
         (as_if_two_sided, blended): (bool, bool),
     ) -> Result<Option<Self>> {
-        let traceable = Traceable::read(g, bin, mesh, previews)?;
+        let traceable = Traceable::read(g, bin, mesh, &[])?;
         let count = traceable.world.tags.len();
         let mut flags = vec![false; count];
         for (index, primitive) in mesh_primitives(g, mesh)? {

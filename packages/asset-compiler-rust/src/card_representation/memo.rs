@@ -8,7 +8,6 @@ use super::cards::Card;
 use super::CardSettings;
 use crate::compiler::cache::digest::hash;
 use crate::compiler::primitive::triangles::mesh_primitives;
-use crate::texture::TexturePreview;
 use crate::trace::surface::Traceable;
 use crate::Result;
 use serde_json::Value;
@@ -29,11 +28,11 @@ const BUILD_PATH: &str = "cpu-f64";
 /// The key of the cards of mesh `mesh` of the scene `read`, fitted in `bounds` as `settings` say,
 /// every triangle two-sided when `as_if_two_sided`; `bounds` none when they are the triangles' own.
 pub(super) fn key(
-    (g, bin, previews): (&Value, &[u8], &[TexturePreview]),
+    (g, bin): (&Value, &[u8]),
     mesh: usize,
     (settings, as_if_two_sided, bounds): (&CardSettings, bool, Option<(Vec3, Vec3)>),
 ) -> Result<String> {
-    let traceable = Traceable::read(g, bin, mesh, previews)?;
+    let traceable = Traceable::read(g, bin, mesh, &[])?;
     let mut bytes = Vec::new();
     for text in [BUILD_PATH, crate::implementation_hash()] {
         bytes.extend((text.len() as u64).to_le_bytes());

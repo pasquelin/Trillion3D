@@ -44,11 +44,17 @@ use super::grid::MipGrid;
 use super::scene::Scene;
 use crate::hlod::flatten::gpu::layout::FILLED;
 use crate::hlod::flatten::gpu::pack::local;
-use crate::hlod::flatten::gpu::{device, failed, scoped, Batches, Program, Source};
-use layout::DOUBTFUL;
+use crate::hlod::flatten::gpu::{
+    device, failed, held_bytes, scoped, unwritten_bytes, Batches, Program, Source,
+};
+use crate::plugins::scene::cancel;
+use layout::{echo, DOUBTFUL, ECHO_MASK, ECHO_SHIFT};
 use rayon::prelude::*;
+use std::cell::RefCell;
+use std::collections::VecDeque;
 use std::sync::atomic::AtomicBool;
 use std::sync::Mutex;
+use trillion3d_page_codec::proxy::PROXY_LEAF_TRIANGLES;
 mod layout;
 mod pack;
 #[cfg(test)]
@@ -58,6 +64,22 @@ mod tests;
 /// distance's bits and the count of back faces its rays met.
 type Item = [f32; 4];
 type Value = [u32; 2];
+
+/// Bytes a triangle takes packed for the device (`pack.rs`): its records, and its share of the
+/// boxed nodes — at most two a half-full leaf.
+pub(super) const PACKED_TRIANGLE_BYTES: usize = layout::TRIANGLE_RECORDS * 16
+    + (2 * layout::BOX_NODE_RECORDS * 16).div_ceil(PROXY_LEAF_TRIANGLES / 2);
+
+/// Bytes a voxel takes measured: its byte, its brick's copy, and its entry when doubtful.
+pub(super) const VOXEL_BYTES: usize = 2 + size_of::<Doubtful>();
+
+/// What `measure` holds on the device for a mesh of `voxels` voxels at most: its two slots — the
+/// items, the results and their read-back (`held_bytes`) — and the all-ones results
+/// (`unwritten_bytes`), in the host's memory on a device that shares it.
+pub(super) fn batch_bytes(voxels: usize) -> usize {
+    let size = (size_of::<Item>(), size_of::<Value>());
+    held_bytes(size, voxels).saturating_add(unwritten_bytes(size.1, voxels))
+}
 
 /// The device runs one mesh's voxels at a time: its buffers are a batch's worth, not a mesh's.
 static ONE_MESH: Mutex<()> = Mutex::new(());
@@ -130,9 +152,11 @@ fn remeasure(
     (mips, rays): (&[MipGrid], &[[f64; 3]]),
     touched: &[(usize, usize)],
     (doubtful, voxels): (&[Doubtful], &mut [u8]),
-) {
+    cancelled: &AtomicBool,
+) -> crate::Result<()> {
     let measured: Vec<u8> = (doubtful.par_iter())
         .map(|&(at, settled)| {
+            cancel::check(cancelled)?;
             let (mip, rank) = touched[at / BRICK_VOXELS];
             let grid = &mips[mip];
             let position = Frame::of(grid, cell(rank, grid.bricks)).voxel(at % BRICK_VOXELS);
@@ -143,25 +167,33 @@ fn remeasure(
                 Some(_) => trace,
                 None => scene.signed_distance(position, trace, (rays, grid.volume())),
             };
-            quantise(grid, distance)
+            Ok(quantise(grid, distance))
         })
-        .collect();
+        .collect::<crate::Result<_>>()?;
     for (&(at, _), byte) in doubtful.iter().zip(measured) {
         voxels[at] = byte;
     }
+    Ok(())
 }
 
 /// Every brick of every mip of `scene`, cell after cell, measured along `rays` on the GPU, and how
 /// many of their voxels were doubtful and measured again on the CPU; an error when the GPU cannot
-/// (see the module's text).
+/// (see the module's text), or the compilation's refusal once `cancelled` is raised.
 pub(super) fn measure(
     scene: &Scene,
     mips: &[MipGrid],
     rays: &[[f64; 3]],
+    cancelled: &AtomicBool,
 ) -> crate::Result<(Vec<Vec<Brick>>, usize)> {
     let touched = touched(scene, mips);
     if touched.is_empty() {
         return Ok((bricks(mips, &touched, &[]), 0));
+    }
+    if rays.len() >= 1 << ECHO_SHIFT {
+        return Err(failed(format!(
+            "{} rays leave no room for a voxel's echo",
+            rays.len()
+        )));
     }
     let device = device()?;
     let passes = device.passes(Program::DistanceField, source)?;
@@ -185,7 +217,6 @@ pub(super) fn measure(
             device.queue().write_buffer(&buffer, 0, bytes);
             Ok(buffer)
         })?;
-        let cancelled = AtomicBool::new(false);
         let layout = &passes.layout;
         let bound = uploaded.clone();
         let bind = move |params: &wgpu::Buffer, items: &wgpu::Buffer, results: &wgpu::Buffer| {
@@ -193,7 +224,7 @@ pub(super) fn measure(
         };
         let size = (size_of::<Item>() as u64, size_of::<Value>() as u64);
         let pipeline = &passes.pipelines[0];
-        let mut batches = Batches::new(device, pipeline, size, bind, (vec![uploaded], &cancelled))?;
+        let mut batches = Batches::new(device, pipeline, size, bind, (vec![uploaded], cancelled))?;
         batches.mark_unwritten();
         let total = touched.len() * BRICK_VOXELS;
         let mut voxels: Vec<u8> = Vec::with_capacity(total);
@@ -211,6 +242,8 @@ pub(super) fn measure(
             )
         };
         let mut held: Option<(usize, usize, Frame)> = None;
+        // The echo of every point sent and not yet landed, in order (`layout::echo`).
+        let echoes = RefCell::new(VecDeque::new());
         let mut fill = |items: &mut Vec<Item>, count: usize| {
             for voxel in next..next + count {
                 let brick = voxel / BRICK_VOXELS;
@@ -219,7 +252,9 @@ pub(super) fn measure(
                 }
                 let (_, mip, frame) = held.as_ref().expect("the voxel's brick is held");
                 let [x, y, z] = local(frame.voxel(voxel % BRICK_VOXELS), origin);
-                items.push([x, y, z, *mip as f32]);
+                let item = [x, y, z, *mip as f32];
+                echoes.borrow_mut().push_back(echo(item));
+                items.push(item);
             }
             next += count;
         };
@@ -228,9 +263,12 @@ pub(super) fn measure(
                 let at = voxels.len();
                 let grid = &mips[touched[at / BRICK_VOXELS].0];
                 let distance = f64::from(f32::from_bits(distance));
+                let sent = echoes.borrow_mut().pop_front();
                 // A voxel the device dropped kept its all-ones value (`mark_unwritten`): its count
-                // holds `DOUBTFUL`, its distance is no number; either sends it to the CPU whole.
-                let settled = count & DOUBTFUL == 0 && distance.is_finite();
+                // holds `DOUBTFUL`, its distance is no number; one measured at another point, or
+                // written at another's place, echoes another point. Each goes to the CPU whole.
+                let echoed = Some((count >> ECHO_SHIFT) & ECHO_MASK) == sent;
+                let settled = count & DOUBTFUL == 0 && distance.is_finite() && echoed;
                 if !settled || near_a_step(grid, distance, doubt) {
                     doubtful.push((at, settled.then_some(distance)));
                 }
@@ -240,6 +278,12 @@ pub(super) fn measure(
         batches.run(total, &mut fill, &mut land)?;
         voxels
     };
-    remeasure(scene, (mips, rays), &touched, (&doubtful, &mut voxels));
+    remeasure(
+        scene,
+        (mips, rays),
+        &touched,
+        (&doubtful, &mut voxels),
+        cancelled,
+    )?;
     Ok((bricks(mips, &touched, &voxels), doubtful.len()))
 }

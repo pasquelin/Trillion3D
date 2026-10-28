@@ -143,9 +143,11 @@ pub(super) struct Products<'a> {
 }
 
 /// Stages the products of `inputs` past its geometry: the source binary and scene, already
-/// written, are listed after the tables; `covers` are the roots the primitives handed on.
+/// written, are listed after the tables; `covers` are the roots the primitives handed on;
+/// `distance` the meshes' fields, built beside the textures.
 pub(super) fn stage_products(
     inputs: &Products<'_>,
+    distance: Vec<Placed>,
     covers: Vec<SourceCover>,
     (source_bin, source_gltf): (Product, Product),
     progress: &(impl Fn(Value) + Sync),
@@ -159,7 +161,7 @@ pub(super) fn stage_products(
         geometry_files,
         ..
     } = *inputs;
-    let mut geometry = stage_geometry(inputs, progress)?;
+    let mut geometry = stage_geometry(inputs, distance, progress)?;
     let paged = write_mesh_pages(primitives, geometry_files.len(), directory)?;
     // Every mesh's field and cards stay in memory until the world's cells add theirs to the same
     // files: what the tables' stage (the world's HLOD build above all) is admitted with is the

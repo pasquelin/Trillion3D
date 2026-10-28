@@ -43,6 +43,12 @@ pub(crate) fn held_bytes(bytes: (usize, usize), samples: usize) -> usize {
     usize::try_from(both).unwrap_or(usize::MAX)
 }
 
+/// The all-ones bytes a pass that asks for them (`Batches::mark_unwritten`) holds for `samples`
+/// invocations, a result taking `result` bytes: one slot's results.
+pub(crate) fn unwritten_bytes(result: usize, samples: usize) -> usize {
+    usize::try_from(slot_bytes((0, result as u64), samples)[1]).unwrap_or(usize::MAX)
+}
+
 /// A batch on the device: its slot, its invocations, its results' read-back asked for, and when it
 /// was sent.
 struct Flight {
@@ -70,9 +76,9 @@ pub(crate) struct Batches<'a> {
     slots: [Option<Slot>; 2],
     pace: Pace,
     paced: bool,
-    /// Bytes all ones, as many as the largest batch's results, written over each batch's results
+    /// Bytes all ones, as many as the largest slot's results, written over each batch's results
     /// before it runs when the pass asked (`mark_unwritten`); none otherwise.
-    unwritten: Vec<u8>,
+    unwritten: Option<Vec<u8>>,
     cancelled: &'a AtomicBool,
 }
 
@@ -105,7 +111,7 @@ impl<'a> Batches<'a> {
             slots: [None, None],
             pace: Pace(WORKGROUP * 64),
             paced: false,
-            unwritten: Vec::new(),
+            unwritten: None,
             cancelled,
         })
     }
@@ -116,7 +122,7 @@ impl<'a> Batches<'a> {
     /// then, no error raised, and their results kept what the slot's batch before had written; the
     /// nearest pass, batches as long, lost none. The cause is not found.
     pub(crate) fn mark_unwritten(&mut self) {
-        self.unwritten = vec![u8::MAX; (BATCH as u64 * self.bytes.1) as usize];
+        self.unwritten = Some(Vec::new());
     }
 
     /// The buffers of slot `at` for `count` invocations, made anew — for the next power of two,
@@ -141,6 +147,9 @@ impl<'a> Batches<'a> {
             device.buffer("results read-back", read_back, READ_BACK)?,
         ];
         let group = (self.bind)(&self.params, &buffers[0], &buffers[1]);
+        if let Some(ones) = &mut self.unwritten {
+            ones.resize(ones.len().max(results as usize), u8::MAX);
+        }
         self.slots[at] = Some(Slot {
             count,
             buffers,
@@ -163,9 +172,10 @@ impl<'a> Batches<'a> {
         let (sent, bytes) = (Instant::now(), count as u64 * self.bytes.1);
         let reading = scoped(device, || {
             device.queue().write_buffer(&slot.buffers[0], 0, items);
-            if !self.unwritten.is_empty() {
-                let ones = &self.unwritten[..bytes as usize];
-                device.queue().write_buffer(&slot.buffers[1], 0, ones);
+            if let Some(ones) = &self.unwritten {
+                device
+                    .queue()
+                    .write_buffer(&slot.buffers[1], 0, &ones[..bytes as usize]);
             }
             let group = &slot.group;
             if paced {

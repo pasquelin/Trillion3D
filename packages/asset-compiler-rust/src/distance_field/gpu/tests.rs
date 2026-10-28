@@ -121,8 +121,10 @@ fn both_ways(triangles: &[[Point; 3]], two_sided: bool) -> Option<(Field, Field,
     let (grid, mips) = grids(&scene, &DistanceFieldSettings::default());
     let rays = directions();
     let placed = (&grid, mips.as_slice());
-    let cpu = assemble(placed, on_cpu(&scene, &mips, &rays), scene.mostly_two_sided);
-    let (measured, remeasured) = measure(&scene, &mips, &rays).expect("the GPU to measure");
+    let never = std::sync::atomic::AtomicBool::new(false);
+    let on_cpu = on_cpu(&scene, &mips, &rays, &never).expect("never cancelled");
+    let cpu = assemble(placed, on_cpu, scene.mostly_two_sided);
+    let (measured, remeasured) = measure(&scene, &mips, &rays, &never).expect("the GPU to measure");
     let gpu = assemble(placed, measured, scene.mostly_two_sided);
     Some((cpu, gpu, remeasured))
 }

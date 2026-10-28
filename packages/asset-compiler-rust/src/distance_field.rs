@@ -55,5 +55,5 @@ pub(crate) use samples::hemisphere;
 pub(crate) use scene::Scene;
 pub(crate) use settings::DistanceFieldSettings;
 pub(crate) use stage::{
-    build_mesh_fields, source_meshes, write_distance_fields, DistanceFieldInputs,
+    build_mesh_fields, source_meshes, working_bytes, write_distance_fields, DistanceFieldInputs,
 };
