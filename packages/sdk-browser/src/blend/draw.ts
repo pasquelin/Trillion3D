@@ -65,7 +65,8 @@ export function litBlendPipelines(
     lights = key ?? directLightResources(rt),
     lobed = rt.blendState.lobed
   const pipelines = blendPipelines!.lit(lights, lobed)
-  if (!pipelines) track(device, blendPipelines!.litAwaited(lights, lobed), true)
+  if (!pipelines)
+    track(device, blendPipelines!.litAwaited(lights, lobed), true, 'blend lit program')
   return pipelines
 }
 

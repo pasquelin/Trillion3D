@@ -33,7 +33,8 @@
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import type { ActorWarmth } from '../../geometry/dag/worlds/worldWarm.ts'
 import type { Texture } from '../../../../sdk-core/src/texture/contract.ts'
-import { PHYSICAL_MAP_FIELDS, SURFACE_MAP_FIELDS } from '../../visibility/materialType.ts'
+import { forEachMaterialTexture } from '../../materials/classes/materialTextures.ts'
+import type { PageSurface } from '../../geometry/pages/surface.ts'
 import { placementWorld } from '../../placement/rows/rows.ts'
 import { BOX_VALUES, boxTransform } from '../../../../math/src/geometry/box.ts'
 import { frustumExcludesBox } from '../../../../math/src/geometry/frustum/box.ts'
@@ -47,11 +48,6 @@ import {
 /** The nearest distance, metres, the pixels a warming actor covers are measured from: a
  *  centimetre. */
 const NEAREST = 0.01
-/** The maps of a surface the colour atlas holds; every other is the data atlas's
- *  (`../../materials/classes/materialTextures.ts`). */
-const COLOR_FIELDS: ReadonlySet<string> = new Set(['map', 'emissiveMap', 'subsurfaceMap'])
-/** Every map a surface may wear, as the material census reads them. */
-const MAP_FIELDS = [...SURFACE_MAP_FIELDS, ...PHYSICAL_MAP_FIELDS]
 /** The bundles past an actor's root page whose pages its warm-up asks: its first, the coarsest. */
 const PREFETCH_BUNDLES = 16
 
@@ -94,19 +90,22 @@ function materialsOfCells(dag: Dag) {
   return materials
 }
 
+/** The textures a surface wears and the atlas each is read through: the one census of the engine (`forEachMaterialTexture`), the sheen colour among the colours. */
+export function actorMaps(surface: PageSurface): readonly ActorMap[] {
+  const found: ActorMap[] = []
+  forEachMaterialTexture(surface, (texture, kind) => void found.push({ kind, texture }))
+  return found
+}
+
 /** Each material's maps, read once its surface is worn. */
 function createMaps(hold: Hold) {
-  const mapsOf = new Map<number, ActorMap[]>()
+  const mapsOf = new Map<number, readonly ActorMap[]>()
   return (material: number): readonly ActorMap[] => {
     const known = mapsOf.get(material)
     if (known) return known
-    const surface = hold.surfaces[material] as unknown as Record<string, Texture | undefined>
+    const surface = hold.surfaces[material] as unknown as PageSurface | undefined
     if (!surface) return NO_MAPS
-    const found: ActorMap[] = []
-    for (const field of MAP_FIELDS) {
-      const texture = surface[field]
-      if (texture) found.push({ kind: COLOR_FIELDS.has(field) ? 'color' : 'data', texture })
-    }
+    const found = actorMaps(surface)
     mapsOf.set(material, found)
     return found
   }

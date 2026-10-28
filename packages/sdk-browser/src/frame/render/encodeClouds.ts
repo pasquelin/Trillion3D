@@ -24,6 +24,7 @@ import { measureBeforeTranslucency } from '../../post/taa/frame.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { litImageShown } from '../prepare/contractLight.ts'
 import { viewProj } from '../backend/helpers.ts'
+import { noiseFrame } from './noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { airRequests, airShapeOfRuntime, atmosphereDeclared } from './airState.ts'
 import { writeAirlessFrame } from './airlessFrame.ts'
@@ -120,7 +121,7 @@ function imageOf(
   const image: CloudTraceImage = {
     inverseView: invertMatrix4(inverse, cam.viewProjection),
     view: { width: gpu.targetSize[0], height: gpu.targetSize[1] },
-    frameIndex: rt.run.frame,
+    frameIndex: noiseFrame(rt),
     time,
     airPresent: !airless,
     lightScales: [

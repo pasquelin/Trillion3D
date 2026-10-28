@@ -62,7 +62,7 @@ fn combine(list:u32,group:vec3u,n:vec3u,at:vec3u){
  let indirect=select(vec3f(0.0),unpackLight(textureLoad(indirectAtlas,texel,0).x),lgFlag(FLAG_RADIOSITY));
  let emission=${compressed ? 'textureLoad(emissiveAtlas,texel,0).xyz' : 'unpackLight(textureLoad(emissiveAtlas,texel,0).x)'};
  let light=finiteLight((direct+indirect)*albedo*INVERSE_PI+emission);
- let noise=f32(rand3dPcg16(vec3i(texel.x,texel.y,i32(lp.frame%8u)+2)).x)/65536.0;
+ let noise=f32(rand3dPcg16(vec3i(texel.x,texel.y,i32(lp.noiseFrame%8u)+2)).x)/65536.0;
  textureStore(outFinal,texel,vec4u(packLight(ditherLight(light,noise)),0u,0u,0u));
 }
 @compute @workgroup_size(8,8,1)

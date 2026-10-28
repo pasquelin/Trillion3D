@@ -10,6 +10,7 @@ import { newFogStaticLight } from '../../lighting/fog/staticLight.ts'
 import { lightFunctionResources } from '../../lighting/lightFunction/frame.ts'
 import { opaquePyramidOf } from '../../lighting/reflections/frame.ts'
 import { vsmOrStandIns } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
+import { noiseFrame } from './noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { viewProj } from '../backend/helpers.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
@@ -150,7 +151,7 @@ export function fogInputsOf(
   inputs.sunRank = lights.store.forwardDirectionalSlot
   lightCells[0] = direct[1]
   lightCells[1] = direct[2]
-  inputs.frameIndex = rt.run.frame
+  inputs.frameIndex = noiseFrame(rt)
   inputs.medium = fog.medium
   inputs.settings = fog.settings
   inputs.cubemap = fog.cubemap

@@ -12,6 +12,16 @@ type Reached = {
   holdout: boolean
 }
 
+/** What a set of items and settings reaches: the first scope of a program, or the one a layer about to join widens it by (`BlendModePipelines.prepare`). */
+export type ReachedBy = {
+  variants: readonly number[]
+  responsive: boolean
+  refracts: boolean
+  chromatic: boolean
+  filtered: boolean
+  holdout?: boolean
+}
+
 /**
  * The set of pipeline variants the scene's current materials and settings reach, which only
  * grows. Prepare compiles that set off the frame; a variant, a responsiveness, a display filter or a
@@ -19,14 +29,7 @@ type Reached = {
  * that listens (`onChange`), at a frame's entry (`askBlendReach`) with the frames waiting for it. A
  * draw that gets there before the compile lands skips the one pipeline it lacks.
  */
-export function createReach(first: {
-  variants: readonly number[]
-  responsive: boolean
-  refracts: boolean
-  chromatic: boolean
-  filtered: boolean
-  holdout?: boolean
-}) {
+export function createReach(first: ReachedBy) {
   const state: Reached = {
     variants: new Set(first.variants),
     responsive: first.responsive,
@@ -36,6 +39,8 @@ export function createReach(first: {
     holdout: first.holdout ?? false,
   }
   const changes = createListeners<[]>()
+  /** The size of the set the programs were last told of. */
+  let told = 0
   const size = () =>
     state.variants.size +
     +state.responsive +
@@ -43,19 +48,23 @@ export function createReach(first: {
     +state.chromatic +
     +state.filtered +
     +state.holdout
+  told = size()
   return {
     state,
     onChange: (listener: () => Promise<unknown>) =>
       void changes.subscribe(() => void listener().catch(() => undefined)),
-    /** Widens the set by what a frame or a change of the plan now asks for. */
-    reach(next: {
-      variants?: readonly number[]
-      responsive?: boolean
-      refracts?: boolean
-      chromatic?: boolean
-      filtered?: boolean
-      holdout?: boolean
-    }) {
+    /** Widens the set by what a frame or a change of the plan now asks for. `quiet`: the programs are not told (`announce` tells them), for a widening whose compile the caller awaits itself. */
+    reach(
+      next: {
+        variants?: readonly number[]
+        responsive?: boolean
+        refracts?: boolean
+        chromatic?: boolean
+        filtered?: boolean
+        holdout?: boolean
+      },
+      quiet = false,
+    ) {
       const before = size()
       if (next.variants) for (const variant of next.variants) state.variants.add(variant)
       if (next.responsive) state.responsive = true
@@ -63,7 +72,14 @@ export function createReach(first: {
       if (next.chromatic) state.chromatic = true
       if (next.filtered) state.filtered = true
       if (next.holdout) state.holdout = true
-      if (size() === before) return
+      if (quiet || size() === before) return
+      told = size()
+      changes.emit()
+    },
+    /** Tells the programs of a quiet widening once its compile landed: the other programs of the set compile what it reached. */
+    announce() {
+      if (size() === told) return
+      told = size()
       changes.emit()
     },
   }

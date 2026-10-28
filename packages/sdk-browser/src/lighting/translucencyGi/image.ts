@@ -2,6 +2,7 @@ import type { TranslucencyGiValues } from '../../../../sdk-core/src/contracts/tr
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { lightingPhase } from '../surfaceCache/lighting/phase.ts'
 import { skyLightReadOf } from '../../frame/render/skyLightState.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
 import { reflectionGroup, reflectionLightView } from '../reflections/group.ts'
@@ -37,7 +38,7 @@ export function imageOf(rt: WebgpuPagesRuntime, cam: EngineCamera, history: bool
   IMAGE.height = rt.gpu.targetSize[1]
   IMAGE.near = cam.near
   IMAGE.preExposure = preExposureOf(rt).now
-  IMAGE.frame = rt.run.frame
+  IMAGE.frame = lightingPhase(rt)
   IMAGE.history = history
   IMAGE.eye = cam.eye
   IMAGE.viewProjection = cam.viewProjectionRelative

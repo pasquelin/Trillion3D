@@ -11,7 +11,7 @@ import { encodeExposure, exposureSettings } from '../../post/exposure/frame.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
 import { beginFinishScene, encodeFinish, finishedGroup } from '../../post/finish/frame.ts'
 import { encodeToneTable } from '../../post/finish/toneFrame.ts'
-import { stochasticPhase } from '../../post/taa/frameState.ts'
+import { lightingPhase } from '../../lighting/surfaceCache/lighting/phase.ts'
 import {
   composedImage,
   encodeEffects,
@@ -167,7 +167,7 @@ function lightSurfaces(
   )
   // The jitter the raster drew this image with: the shadow level reads it.
   const taa = gpu.temporal?.frame
-  deferred.setJitter(taa?.active ? taa.jitter : null, stochasticPhase(taa))
+  deferred.setJitter(taa?.active ? taa.jitter : null, lightingPhase(rt))
   const bounced = rt.lights.store.lightingView === 'bounce' && deferred.bouncing
   deferred.setLightView(bounced ? BOUNCE_LIGHT_VIEW : lightViewCode(run.diagnostic))
   deferred.setModelSwitches(run.shading[SHADING.switches] | subsurfaceSwitches(rt))

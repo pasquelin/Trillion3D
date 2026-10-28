@@ -10,7 +10,7 @@
 // compiles in flight are held in `compileLedger.ts`.
 
 import { madeChecked } from '../../gpu/core/errorScope.ts'
-import { framesOf, refuse, track } from './compileLedger.ts'
+import { UNNAMED, framesOf, refuse, track } from './compileLedger.ts'
 
 /** The frames a refused compile waits before a use asks it again (a device or a settings change
  *  makes new pipelines, which are asked at once). */
@@ -69,6 +69,7 @@ function prepared<D, P>(
     compiling: Promise<void> | undefined,
     refused = false,
     refusedAt = 0
+  const label = (descriptor as { label?: string }).label ?? UNNAMED
   const pipeline: PreparedPipeline<P> = {
     // One compile in flight, every asker sharing it; a build that throws at once — a device
     // without the stage — is a refused compile too.
@@ -80,18 +81,18 @@ function prepared<D, P>(
           (error: unknown) => {
             compiling = undefined
             // Said once: a retry that is refused again is the same refusal.
-            if (!refused) refuse(device, (descriptor as { label?: string }).label ?? 'unnamed')
+            if (!refused) refuse(device, label)
             refused = true
             refusedAt = framesOf(device)
             throw error
           },
         )
-        track(device, compiling, false)
+        track(device, compiling, false, label)
       }
       return compiling
     },
     ask() {
-      if (made === undefined && !refused) track(device, pipeline.prepare(), true)
+      if (made === undefined && !refused) track(device, pipeline.prepare(), true, label)
       return pipeline
     },
     get ready() {

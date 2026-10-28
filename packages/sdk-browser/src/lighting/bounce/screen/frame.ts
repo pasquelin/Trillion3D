@@ -20,8 +20,9 @@ import { rayFogReadOf } from '../../reflections/rayFog.ts'
 import { demandSurfaceCache, surfaceHitReads } from '../../surfaceCache/frame.ts'
 import { sceneRaysOf, type SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import type { MarkProbes } from '../pool/pool.ts'
-import { stochasticPhase } from '../../../post/taa/frameState.ts'
+import { lightingPhase } from '../../surfaceCache/lighting/phase.ts'
 import { castsThroughTriangles, screenProbesCast } from './cast.ts'
+import { followHistory, probeInputsReady } from './historyReady.ts'
 import {
   encodeProbePlacement,
   encodeProbeTrace,
@@ -200,7 +201,12 @@ function leaveToSkyLight(rt: WebgpuPagesRuntime, settings: ScreenProbeSettings) 
 }
 
 /** The result handed to the lighting, and the view moved on to its next image. */
-function handOver(needed: Needed, state: ScreenProbeView, settings: ScreenProbeSettings) {
+function handOver(
+  needed: Needed,
+  state: ScreenProbeView,
+  settings: ScreenProbeSettings,
+  ready: boolean,
+) {
   tellLighting(
     needed.deferred,
     settings,
@@ -214,9 +220,8 @@ function handOver(needed: Needed, state: ScreenProbeView, settings: ScreenProbeS
   )
   state.indirect = state.resources.history[state.turn]
   state.viewProjection.set(needed.reflection.frame.viewProjection)
-  state.history = true
   state.turn = (1 - state.turn) as 0 | 1
-  state.frame++
+  followHistory(state, ready)
 }
 
 /** An image of probes placed and not yet traced: what its trace and its hand-over to the lighting read. */
@@ -249,8 +254,7 @@ function writeImageParameters(
 ) {
   const { held } = reflection.lit
   const cacheViews = rt.bounce.probes?.cache.views
-  const taa = rt.gpu.temporal?.frame,
-    phase = stochasticPhase(taa)
+  const phase = lightingPhase(rt)
   invertMatrix4(state.previousInverse, held.viewProjection)
   state.write(geometry, settings, {
     frame: phase,
@@ -440,7 +444,7 @@ export function traceScreenProbes(
   if (!placed) return
   const { store, needed, state, settings, run, cast, geometry, read } = placed
   encodeProbeTrace(encoder, run, cast)
-  handOver(needed, state, settings)
+  handOver(needed, state, settings, probeInputsReady(rt))
   store.metrics = metricsOf(
     settings,
     geometry,

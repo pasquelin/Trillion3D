@@ -12,7 +12,7 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { cameraSeen, previousCameraOf } from '../../frame/backend/state/previousCamera.ts'
 import { wantsContractLighting } from '../../frame/prepare/lit.ts'
 import { ledgerRoom } from '../../gpu/core/deviceLedger.ts'
-import { stochasticPhase } from '../../post/taa/frameState.ts'
+import { lightingPhase } from '../surfaceCache/lighting/phase.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { readScreenProbeSetting } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import { discMethod } from './discFrame.ts'
@@ -246,7 +246,7 @@ function imageOf(
   image.projection = cam.projection
   image.world = cam.world
   image.perspective = cam.perspective > 0.5
-  image.noiseIndex = stochasticPhase(rt.gpu.temporal?.frame)
+  image.noiseIndex = lightingPhase(rt)
   image.frame = rt.run.frame
   image.viewProjection = cam.viewProjection
   image.accumulates = !!rt.gpu.temporal?.frame.active

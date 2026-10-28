@@ -87,6 +87,40 @@ test('a frame that gets there before the compile skips the pipeline, never makes
   assert.equal(calls.render, 0, 'once')
 })
 
+test('the pipelines of the modes a layer brings are compiled before it joins, with no frame waiting, and the frames find them made when the scene reaches them', async () => {
+  const mount = mountDevice()
+  const { blendPipelines } = await createWebgpuBlendPipelines(mount.device, [item('normal')])
+  const calls = watch(mount.device)
+  const before = mount.renderPipelines.length
+  const variants = [variantOfBlend('multiply', 'unlit')]
+  const next = { variants, responsive: false, refracts: false, chromatic: false, filtered: true }
+  const compiling = blendPipelines.prepare(next)
+  assert.equal(
+    pipelinesCompiling(mount.device),
+    false,
+    'the frames wait for none: the layer is not in the scene',
+  )
+  await compiling
+  assert.ok(mount.renderPipelines.length > before, 'the modes’ pipelines were compiled')
+  const made = mount.renderPipelines.length
+  // The scene reaches them at a frame's entry: nothing is left to compile, so no frame is held.
+  blendPipelines.reach(next)
+  await settled()
+  assert.equal(
+    pipelinesCompiling(mount.device),
+    false,
+    'a filtering layer holds no frame at the change of scope',
+  )
+  assert.equal(
+    mount.renderPipelines.length,
+    made,
+    'nothing compiled twice, the routed modes included',
+  )
+  for (const cull of [0, 1, 2])
+    assert.ok(blendPipelines.at(first('multiply') + cull, false), 'found made')
+  assert.equal(calls.render, 0, 'no frame made one')
+})
+
 test('the project switch picks the transparents’ text once: none of the plane’s code without it, every pipeline’s with it, one set', async () => {
   const made = async (clipping?: Clipping) => {
     const mount = mountDevice()

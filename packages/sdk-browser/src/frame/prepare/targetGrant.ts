@@ -1,5 +1,6 @@
 import { grantPending, startGrant } from '../../gpu/core/errorScope.ts'
 import { throwIfStopped } from '../io/lost.ts'
+import { framesOf } from '../../lighting/deferred/compileLedger.ts'
 import { releaseTargets, targetsFit } from './targets.ts'
 import { frameExtraBytes, frameTargetAllocation } from './targetAllocation.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -18,6 +19,10 @@ import { grantHiz, grantTargets, refuseTargets } from './targetDevice.ts'
 import { stopped } from '../io/lost.ts'
 import { asideTargets, asksAside, makeTargetsAside } from './targetsAside.ts'
 import { dropAside, type HeldTargets } from './targetsSet.ts'
+
+/** The frames that entered, the clock a refused grant waits its retry on: a frame held on the grant draws no image and moves no image number (`run.frame`), so the wait
+ *  counts the entries, which every frame makes (`tickCompiles`). */
+const framesEntered = (rt: WebgpuPagesRuntime) => framesOf(rt.gpu.device!)
 
 /** True while no frame can be drawn: its targets are asked of the device the held way, or were
  *  refused at this size. The frame is then held (`holdWebgpuFrame`), and nothing is presented. */
@@ -45,7 +50,7 @@ function stepDownAfterRefusal(
   view: WebgpuView,
   error?: unknown,
 ) {
-  const at = rt.views.active.scale.memoryRefused(viewKey(rt), rt.run.frame)
+  const at = rt.views.active.scale.memoryRefused(viewKey(rt), framesEntered(rt))
   if (
     !memoryRefusal(error) ||
     !scalesTargets(rt) ||
@@ -94,8 +99,8 @@ function grantBlocks(
  * released, the frames held until the device answers.
  */
 export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, held = false) {
-  const { gpu, run } = rt
-  rt.views.active.scale.liftMemoryCap(run.frame)
+  const { gpu } = rt
+  rt.views.active.scale.liftMemoryCap(framesEntered(rt))
   const size = frameSizeOf(rt, wanted),
     { width, height } = size
   const fit = targetsFit(rt, size),
@@ -118,7 +123,7 @@ export function requestFrameTargets(rt: WebgpuPagesRuntime, device: GPUDevice, h
   // Made aside, the grant went above: one asked the held way is left, if any.
   const pending = heldTargetGrant(gpu)
   // A size refused is asked again after its wait (`memoryRefused`): never every frame, never never.
-  if (pending && grantBlocks(pending, size, run.frame)) return pending.done
+  if (pending && grantBlocks(pending, size, framesEntered(rt))) return pending.done
   const view = rt.views.active,
     // Granted, the record goes; refused, the size steps down, unless the session stopped.
     settle = (asked: HeldTargets) => (made: boolean) =>

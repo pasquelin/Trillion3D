@@ -22,7 +22,6 @@ export interface SubsurfaceImage {
   /** The view-projection of the image before, none where there is none. */
   before: Float64Array | undefined
   frame: number
-  checkerPhase: number
   /** The projection's jitter in pixels of the drawn view, none zero. */
   jitter: [number, number]
   vectors: boolean
@@ -68,7 +67,7 @@ export function writeSubsurfaceParams(
     at.words,
     image.frame >>> 0,
     image.frame & 7,
-    image.checkerPhase,
+    image.frame,
     image.tiles[0] * image.tiles[1],
   )
   putVec4(words, at.tiles, image.tiles[0], image.tiles[1], image.mips, +neighborValidation)

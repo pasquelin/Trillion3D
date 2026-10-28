@@ -176,6 +176,8 @@ function frustumPlanes(
 /** What an image gives the lighting beside the settings. */
 export interface LightingImage {
   readonly frame: number
+  /** The noise's clock (`noiseFrame`): the dither of the cache's output turns on it, never on the update clock `frame`. */
+  readonly noiseFrame: number
   readonly pages: number
   /** The eye, in metres, and the view's world-to-clip matrix. */
   readonly eye: ArrayLike<number>
@@ -288,6 +290,7 @@ export function writeLightingParams(
   words.fill(0)
   words[at.atlasSide] = shape.side
   words[at.frame] = image.frame
+  words[at.noiseFrame] = image.noiseFrame
   words[at.pages] = image.pages
   words[at.flags] = flags
   words[at.directTiles] = litTiles(settings, shape.directTiles)

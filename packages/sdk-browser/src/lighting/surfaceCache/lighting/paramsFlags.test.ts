@@ -42,6 +42,7 @@ test("an image's parameters carry the settings: the flags, the pre-exposed ray l
   const words = new Uint32Array(LIGHTING_PARAMS.words)
   writeLightingParams(words, shape, settings, {
     frame: 9,
+    noiseFrame: 0,
     pages: 12,
     eye: [1, 2, 3],
     viewProjection: viewProjection([1, 2, 3]),

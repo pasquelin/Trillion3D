@@ -76,8 +76,10 @@ function dispatchClasses(
  * or by quad as the `shadeBinningMode` setting asks (`shadeBinningQuads`); and each class of the
  * image's clusters shades the pixels of its bin alone — each decoding and transforming its own
  * triangle —, one indirect dispatch a class, storing them in the surfaces. Each
- * class was compiled before this image: the scene's at preparation, one a material changed into
- * since at the frame entry that held the image on it (`../../frame/loop/framePipelines.ts`).
+ * class was compiled before this image: the scene's at preparation, an object's before it joins the
+ * session (`../../placement/append/classGate.ts`), one a material changed into since at the frame
+ * entry, which holds the image for it (`../../frame/loop/framePipelines.ts`). `dispatchClasses`
+ * skips a class that is not: one whose compile the device refused, its surfaces left unshaded.
  * On a frame sampled for the GPU timing with `gpuTimingDetail` set, the bins are one pass and each
  * class's shading a pass of its own, so each is timed apart; the image is the same.
  */

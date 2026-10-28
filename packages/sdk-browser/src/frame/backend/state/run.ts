@@ -122,6 +122,8 @@ export interface WebgpuRunState extends WebgpuBudgetState {
   /** True when the current image was held and nothing more will be drawn unasked: no CPU step
    *  was executed, and no device answer in flight asks another — targets refused included. */
   frameHeld: boolean
+  /** True when the frame held drew no image — a device answer in flight, targets not granted (`holdWebgpuFrame`): it is no image of the view's number (`../../loop/imageNumber.ts`), whatever it says of `frameHeld`. */
+  heldEmpty: boolean
   /** True while every image is drawn and none is presented (`../../loop/firstImage.ts`), every
    *  view's: until the main view has loaded once (`initialLoad`), and while a partition's load
    *  blocks on slow streaming (`streamingBlocks`). */

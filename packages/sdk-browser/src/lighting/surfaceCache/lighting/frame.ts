@@ -14,7 +14,15 @@ import { lightProfileStandIn } from '../../lightProfile/profileStandIn.ts'
 import { cloudShadowStandIn } from '../../atmosphere/cloudShadowStandIn.ts'
 import type { CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
 import { fieldSettingsOf, surfaceHitReads } from '../frame.ts'
-import { createSurfaceLighting, encodeLighting, settleImages } from './surfaceLighting.ts'
+import { stochasticPhase } from '../../../post/taa/frameState.ts'
+import { noiseFrame } from '../../../frame/render/noiseFrame.ts'
+import {
+  createSurfaceLighting,
+  encodeLighting,
+  settleImages,
+  type SurfaceLightingState,
+} from './surfaceLighting.ts'
+import { lightInputsReady } from '../../lightInputsReady.ts'
 
 /**
  * THE SURFACE CACHE'S LIGHTING IN THE FRAME: after the image's update of the cache (`../frame.ts`), the lights in their buffer
@@ -35,6 +43,20 @@ interface SurfaceLightingFrame {
   readonly lightFunction: GPUTextureView
 }
 
+/**
+ * Whether the lighting has begun. It does not begin before its inputs: with the shadows unlanded or the textures coarse, what it lit — and its radiosity remembered over many images —
+ * would keep a residue of the instant they came. The frame stays drawn meanwhile (the cache is busy); begun, it follows the inputs as they change.
+ */
+export function beginLighting(rt: WebgpuPagesRuntime, lighting: SurfaceLightingState) {
+  if (!lighting.begun && lightInputsReady(rt)) {
+    lighting.begun = true
+    lighting.begunAt = rt.run.frame
+    lighting.begunSample = stochasticPhase(rt.gpu.temporal?.frame)
+    lighting.begunFeedback = rt.surfaceCache?.cache?.feedbackFrame ?? 0
+  }
+  return lighting.begun
+}
+
 /** Lights the surface cache for this image on `encoder`. */
 export function lightSurfaceCache(
   rt: WebgpuPagesRuntime,
@@ -48,11 +70,14 @@ export function lightSurfaceCache(
   if (rt.views.active !== rt.views.main || !state?.updated || !state.atlases || !lights.buffer)
     return
   const lighting = (state.lighting ??= createSurfaceLighting())
-  const field = fieldSettingsOf(rt, state)
-  // Pages that were captured or copied this image have no light yet: the lighting settles from there. A
-  // refresh rewrites the surface of a page and leaves its light.
+  // Pages that were captured or copied this image have no light yet: the lighting settles from there (whether or not it lights this image).
   if (state.metrics && state.metrics.captured + state.metrics.copied > 0)
     lighting.settle = settleImages(state.settings)
+  if (!beginLighting(rt, lighting)) {
+    state.busy = true
+    return
+  }
+  const field = fieldSettingsOf(rt, state)
   const outcome = encodeLighting(
     lighting,
     rt,
@@ -76,6 +101,7 @@ export function lightSurfaceCache(
       transportEpoch: lights.store.transportEpoch,
       probes: radianceCacheTraced(rt) || screenProbesTraced(rt) || reflectionsTraced(rt),
       image: {
+        noiseFrame: noiseFrame(rt),
         eye: frame.cam.eye,
         viewProjection: frame.viewProjection,
         preExposure: cachedLightingPreExposureOf(rt),

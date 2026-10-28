@@ -42,6 +42,8 @@ export interface ScreenProbeView {
   viewProjection: Float64Array
   /** Whether the last image left a history to read. */
   history: boolean
+  /** Whether the history has begun: the view cast an image with its inputs ready (`followHistory`); it is not dropped after. */
+  begun: boolean
   /** The inverse of the view-projection the last lit image was drawn with, rewritten each image. */
   previousInverse: Float64Array
   /** The geometry of the image drawn in the targets, at the tile they were made with: remade where the drawn size moved. */
@@ -116,6 +118,7 @@ function makeView(
     frame: 0,
     viewProjection: new Float64Array(16),
     history: false,
+    begun: false,
     previousInverse: new Float64Array(16),
     indirect: undefined,
     bytes,

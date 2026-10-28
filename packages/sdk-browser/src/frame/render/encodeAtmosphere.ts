@@ -15,6 +15,7 @@ import { cloudShadowOf } from './encodeCloudShadow.ts'
 import { litImageShown } from '../prepare/contractLight.ts'
 import { holdoutOn } from '../prepare/alphaHoldout.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { noiseFrame } from './noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /** What the image tells the air's passes, its frame included, rewritten each image: nothing is
@@ -88,7 +89,7 @@ export function encodeAtmosphere(
   const capture = requests.capturePosition && { position: requests.capturePosition }
   writeAirFrame(inputs.frame, cam, air, viewProj, inverseViewProj, width, height, {
     capture,
-    frameIndex: rt.run.frame,
+    frameIndex: noiseFrame(rt),
     preExposure: preExposureOf(rt).now,
   })
   inputs.frame[FRAME_LAYOUT.at.hidden] = air.inMainView ? 0 : 1

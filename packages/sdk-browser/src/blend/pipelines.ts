@@ -31,7 +31,7 @@ import {
 } from './plan/planCull.ts'
 import { createRoutedPipelines } from './routedPipelines.ts'
 import { track } from '../lighting/deferred/compileLedger.ts'
-import { createReach, type Reach } from './reach.ts'
+import { createReach, type Reach, type ReachedBy } from './reach.ts'
 import { filtersDisplay } from './equations.ts'
 import { blendCatchUp } from './blendCatchUp.ts'
 import { families } from '../session/host/families.ts'
@@ -168,13 +168,13 @@ export const coversTranslucentShadow = (
  *  draws on it under a diagnostic), every variant an item declares (`declaredBlendVariants`), the responsiveness pass
  *  when it is drawn now, the distortion when an item refracts, the display layers when a mode filters. A change compiles its own, off the frame.
  *  No item, no blend program (#1362). */
-function reachOf(
+export function reachedBy(
   items: readonly BlendedSurface[],
   responsive: boolean,
   variant: DiagnosticGpuVariant | undefined,
-) {
+): ReachedBy {
   const declared = declaredBlendVariants(items)
-  return createReach({
+  return {
     variants: declared,
     responsive,
     refracts: items.some((item) => item.surface.refracts),
@@ -185,8 +185,14 @@ function reachOf(
     holdout: declared.some(
       (declaredVariant) => variantBlending(declaredVariant) === 'alphaHoldout',
     ),
-  })
+  }
 }
+
+const reachOf = (
+  items: readonly BlendedSurface[],
+  responsive: boolean,
+  variant: DiagnosticGpuVariant | undefined,
+) => createReach(reachedBy(items, responsive, variant))
 
 /** What the pipelines of a pass are built with beside its items. */
 export interface BlendPipelineOptions {
@@ -516,7 +522,7 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
   reach.onChange(() => {
     blendsCatchUp.ask()
     const compiling = Promise.all(others())
-    track(device, compiling, true)
+    track(device, compiling, true, 'blend mode programs')
     return compiling
   })
   await Promise.all([blendsCatchUp.prepare(), ...others()])
@@ -533,6 +539,12 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
     front: setup.front,
     radianceMark: setup.radianceMark,
     reach: reach.reach,
+    prepare: (next) => {
+      // The scope a layer about to join widens this program's by, taken without telling the programs (the frames wait for none): everything it reaches is compiled here,
+      // the routed modes, the display program, the holdout, the responsive, the transmission, the double passes and the water included.
+      reach.reach(next, true)
+      return Promise.all([blendsCatchUp.prepare(), ...others()]).finally(reach.announce)
+    },
     lit: (frame, lobed) => setup.programs().pick(frame, lobed)?.pipelines,
     litAwaited: (frame, lobed) => setup.programs().awaited(frame, lobed),
     responsive: responsiveOf(transmission, responsiveBlends),

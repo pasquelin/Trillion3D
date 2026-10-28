@@ -137,6 +137,7 @@ function runLoop(): Pick<
   | 'graphClocks'
   | 'shading'
   | 'frameHeld'
+  | 'heldEmpty'
   | 'imageWithheld'
   | 'initialLoad'
   | 'streamingBlocks'
@@ -155,6 +156,7 @@ function runLoop(): Pick<
     graphClocks: newGraphClocks(),
     shading: new Float64Array(SHADING.length),
     frameHeld: false,
+    heldEmpty: false,
     // No image is shown before the view has loaded (`../../loop/firstImage.ts`).
     imageWithheld: true,
     initialLoad: true,

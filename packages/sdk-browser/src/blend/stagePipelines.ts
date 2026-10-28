@@ -13,6 +13,7 @@ import { blendModeConstant } from '../materials/surface/materialBlending.ts'
 import { feedbackConstants } from '../materials/virtual/requestWgsl.ts'
 import { blendTargets } from './blendTargets.ts'
 import type { BlendGpuItem } from './state.ts'
+import type { ReachedBy } from './reach.ts'
 import type { ContractKey } from '../lighting/deferred/contractCuts.ts'
 import type { TranslucentMaterialShadow } from '../lighting/direct/shadowWgsl.ts'
 import { DEPTH_FORMAT } from '../scene/targetFormats.ts'
@@ -248,6 +249,9 @@ export interface BlendModePipelines extends RankedPipelines {
    *  or not (`createForwardVariants`); none while the program that serves it compiles: the pass is
    *  skipped, the frame held for it (`litAwaited`). */
   lit(key: Partial<ContractKey>, lobed: boolean): BlendModePipelines | undefined
+  /** Widens the scope this program is made for by `next` and compiles what it reaches, off the frame and with no frame waiting (`blendCatchUp.prepare`). A layer
+   *  joining the session has it all before it does (`prepareBlendGrowth`). */
+  prepare(next: ReachedBy): Promise<unknown>
   /** The compile a frame of `key` waits for while no ready program serves it, asked now. */
   litAwaited(key: Partial<ContractKey>, lobed: boolean): Promise<unknown> | undefined
   /** Starts the compile of what a change of the scene or of a setting now reaches (`reach.ts`). */

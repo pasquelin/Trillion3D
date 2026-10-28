@@ -34,6 +34,7 @@ import { buildBlendPipelines } from '../frame/prepare/visibilitySteps.ts'
 import { prepareWebgpuBlend } from './prepare.ts'
 import { graphProgramsOf } from './graphWgsl.ts'
 import {
+  reachedBy,
   cloudFogOf,
   fogVertexOf,
   coversTranslucentShadow,
@@ -43,6 +44,11 @@ import { contactShadowsOf, translucencyVolumeOf } from '../materials/surface/ble
 import { readSingleLayerWaterSetting } from '../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import { composeItems } from '../placement/compose/gpuCompose.ts'
 import { mountBlendResources, prepareBlendKernels } from './resources.ts'
+import { lobedSurface } from './items.ts'
+import { activeResponsive } from '../frame/prepare/responsiveTarget.ts'
+import { keyFor } from '../frame/prepare/contractLight.ts'
+import { wantsContractLighting } from '../frame/prepare/lit.ts'
+import { FULL_CONTRACT } from '../lighting/deferred/contractCuts.ts'
 
 /** Why the transparent pass cannot take a surface where the session stands, said by name; none
  *  when it can. */
@@ -170,6 +176,26 @@ function mountTransparent(rt: WebgpuPagesRuntime, device: GPUDevice) {
 }
 
 /**
+ * THE ENTRY OF A LAYER: the copies do not join the pass before the programs that draw them are compiled, as a render proxy is not created while its pipeline states precache.
+ * The lights' key the frame will light them with is read as `askBlendReach` reads it, their lobes from their surfaces (`lobedSurface`); the program of that key is made, then
+ * it is widened by the scope the copies bring (`reachedBy`, their modes and what they need: the display layers, the holdout, the responsiveness, the transmission) and
+ * everything that scope reaches is compiled with no frame waiting (`BlendModePipelines.prepare`). The frames then find it made when the scene's reach widens (`reach`).
+ */
+async function layersCompiled(rt: WebgpuPagesRuntime, copies: readonly BlendCopy[]) {
+  const { blendPipelines } = rt.vis
+  if (!blendPipelines) return
+  const lobed = rt.blendState.lobed || copies.some((copy) => lobedSurface(copy.surface)),
+    key = wantsContractLighting(rt) ? keyFor('blend', rt) : FULL_CONTRACT
+  await blendPipelines.litAwaited(key, lobed)
+  const program = blendPipelines.lit(key, lobed)
+  const items = itemsOf(rt, copies)
+  if (program) {
+    const widened = reachedBy(items, !!activeResponsive(rt), rt.context.diagnosticGpuVariant)
+    await program.prepare(widened)
+  }
+}
+
+/**
  * What the copies need compiled before they join: the vertices of their pages no quantized page
  * covers (`loadUnpaged`), the kernels of the transparent pass, the compaction and the occlusion
  * test. False when the device refuses a kernel, the source then being refused (the next opening is
@@ -193,6 +219,8 @@ export async function prepareBlendGrowth(
   )
     return false
   if (copies.length && !(await grantGraphs(rt, device, copies))) return false
+  // The layers' programs are compiled before they join: the frames wait for none of them.
+  if (copies.length) await layersCompiled(rt, copies).catch(() => undefined)
   if (!copies.length || rt.blendState.compaction?.encode) return true
   return mountTransparent(rt, device)
 }

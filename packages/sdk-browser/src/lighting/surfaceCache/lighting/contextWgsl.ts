@@ -6,7 +6,15 @@ import { zOrderDecode } from '../../../../../math/src/wgsl/integer.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { FEEDBACK_AT } from '../feedbackLayout.ts'
 import { lightingCommonWgsl } from './commonWgsl.ts'
-import { CONTEXT_HEADER_WORDS, PAGE_ARGS_SLOT_WORDS, PAGE_LIGHTING } from './layout.ts'
+import { LANE_SCAN_WGSL, laneRunOffsets } from '../../../gpu/core/laneScanWgsl.ts'
+import {
+  CONTEXT_HEADER_WORDS,
+  CUT_BLOCKS,
+  CUT_CHUNK,
+  CUT_NONE,
+  PAGE_ARGS_SLOT_WORDS,
+  PAGE_LIGHTING,
+} from './layout.ts'
 
 /**
  * THE UPDATE CONTEXT: which tiles of which pages the image lights, chosen on the GPU from the pages' own records
@@ -19,6 +27,10 @@ import { CONTEXT_HEADER_WORDS, PAGE_ARGS_SLOT_WORDS, PAGE_LIGHTING } from './lay
  *   the frustum's planes, or four where the rays read the page at its finest level within the last two images (the
  *   feedback, `FLAG_FEEDBACK`), whatever the rest gave —, a page never lit having waited 2048 images;
  * - `contextSelect` takes the bucket whose tiles bring the sum to the update's budget, and the tiles of it that fit;
+ * - `contextCut`, one workgroup, finds the cut among the pages of the bucket the budget ends in: those pages are taken in the order of their index, as many as the
+ *   tiles left allow (the reference gives them out in the order the threads arrive in, which no two runs share: bug of the reference corrected, its lighting
+ *   shader's lines 271-277). `contextHistogram` counts the tiles by block of indices and bucket; the cut reads the blocks, keeps the one the tiles left run out in and
+ *   walks its pages, which it works the priority of out again, to name the first that does not fit;
  * - `contextList`, a thread a page, lists the page where its bucket is under the cut, or in it while its
  *   bucket's tiles fit, and the list keeps to the budget — the page's tiles are added to the update's count, so every
  *   page that did not fit leaves the budget closed to the pages after it —; a page listed is lit this
@@ -49,6 +61,9 @@ const PAGE_STATE = wgslConsts({
   FEEDBACK_HI_RES: FEEDBACK_AT.lastUsedHiRes,
   SPLICE_GROUPS_PER_PAGE,
   PAGE_ARGS_SLOT: PAGE_ARGS_SLOT_WORDS,
+  CUT_BLOCKS,
+  CUT_CHUNK,
+  CUT_NONE,
 })
 
 /** The writer of a slot of dispatch arguments in the context's header, for a program that holds the context as atomics. */
@@ -65,6 +80,7 @@ export const CONTEXT_ENTRIES = [
   'contextClear',
   'contextHistogram',
   'contextSelect',
+  'contextCut',
   'contextList',
   'contextPageArgs',
   'contextArgs',
@@ -76,6 +92,9 @@ export const CONTEXT_TRACES_BINDING = 3
 export const CONTEXT_FEEDBACK_BINDING = 4
 /** The binding of the page-splice dispatch arguments, written. */
 export const CONTEXT_PAGE_ARGS_BINDING = 5
+
+/** What the cut's walk does at a page: the first page whose running total passes the tiles left is the cut (the least index, `atomicMin`). */
+const CUT_AT_PAGE = 'if(taken>0u&&cursor+taken>left){atomicMin(&cutAt,first+start+g);}'
 
 export const CONTEXT_WGSL = wgslProgram(
   `${PAGE_STATE}
@@ -133,6 +152,19 @@ fn priorityBucket(last:u32,speed:f32)->u32{
  let waited=select(lp.frame-last,NEVER_LIT_FRAMES,last==0u);
  return u32(f32(BUCKETS-1u)-clamp(log2(max(4.0*f32(waited)*speed,1.0)),0.0,f32(BUCKETS-1u)));
 }
+/** The bucket \`page\` is listed at in update \`c\`: its priority, a page taken as never lit where the indirect update has no valid history. */
+fn listedBucket(page:u32,c:u32,speed:f32)->u32{
+ var last=scPageW(page,PAGE_LAST_UPDATE+c);
+ if(c==1u&&!lgFlag(FLAG_HISTORY_VALID)){last=0u;}
+ return priorityBucket(last,speed);
+}
+/** The bits a page index is shifted right by to give its block: the least that makes \`CUT_BLOCKS\` blocks hold every page. */
+fn cutShift()->u32{
+ var shift=0u;
+ let per=ceilDiv(lp.pages,CUT_BLOCKS);
+ while((1u<<shift)<per){shift++;}
+ return shift;
+}
 @compute @workgroup_size(${WORKGROUP_THREADS})
 fn contextHistogram(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) n:vec3u){
  let page=id.x+id.y*n.x*${WORKGROUP_THREADS}u;
@@ -140,8 +172,13 @@ fn contextHistogram(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgro
  let tiles=pageTilesOf(page);
  if(tiles==0u){return;}
  let speed=updateSpeed(page,pageView(page));
+ let block=page>>cutShift();
  for(var c=0u;c<2u;c++){
-  atomicAdd(&ctx[CTX_HISTOGRAM+c*BUCKETS+priorityBucket(scPageW(page,PAGE_LAST_UPDATE+c),speed)],tiles);
+  // One rule of bucket for the histogram, the cut and the listing: the bucket the page is listed at.
+  let bucket=listedBucket(page,c,speed);
+  atomicAdd(&ctx[CTX_HISTOGRAM+c*BUCKETS+bucket],tiles);
+  // The tiles by block of indices as well, for the cut (\`contextCut\`).
+  atomicAdd(&ctx[CTX_BLOCK_HISTOGRAM+(c*CUT_BLOCKS+block)*BUCKETS+bucket],tiles);
  }
 }
 @compute @workgroup_size(2)
@@ -156,14 +193,59 @@ fn contextSelect(@builtin(local_invocation_index) c:u32){
  atomicStore(&ctx[CTX_MAX_BUCKET+c*2u],bucket);
  atomicStore(&ctx[CTX_MAX_BUCKET+c*2u+1u],inBucket);
 }
+var<workgroup> cutAt:atomic<u32>;
+var<workgroup> cutBlock:u32;
+var<workgroup> cutBase:u32;
+var<workgroup> chunkTiles:array<u32,CUT_CHUNK>;
+/** The tiles \`page\` has in the bucket \`limit\` of update \`c\`, none for a page that is not mapped, has no tile or is listed at another bucket. */
+fn limitTiles(page:u32,c:u32,limit:u32)->u32{
+ if(page>=lp.pages||!pageMapped(page)){return 0u;}
+ let tiles=pageTilesOf(page);
+ if(tiles==0u){return 0u;}
+ return select(0u,tiles,listedBucket(page,c,updateSpeed(page,pageView(page)))==limit);
+}
+@compute @workgroup_size(${WORKGROUP_THREADS})
+fn contextCut(@builtin(local_invocation_index) lane:u32){
+ let shift=cutShift();
+ let chunks=ceilDiv(1u<<shift,CUT_CHUNK);
+ for(var c=0u;c<2u;c++){
+  let limit=atomicLoad(&ctx[CTX_MAX_BUCKET+c*2u]);
+  let left=atomicLoad(&ctx[CTX_MAX_BUCKET+c*2u+1u]);
+  if(lane==0u){
+   atomicStore(&cutAt,CUT_NONE);
+   cutBlock=CUT_BLOCKS;
+   cutBase=0u;
+   var before=0u;
+   for(var b=0u;b<CUT_BLOCKS&&limit<BUCKETS;b++){
+    let here=atomicLoad(&ctx[CTX_BLOCK_HISTOGRAM+(c*CUT_BLOCKS+b)*BUCKETS+limit]);
+    if(before+here>left){cutBlock=b;cutBase=before;break;}
+    before+=here;
+   }
+  }
+  workgroupBarrier();
+  // The pages of the block the tiles left run out in, a chunk of them at a time: each lane works the tiles of its run out once, the scan gives a run what the pages before it hold,
+  // and the first page whose running total passes the tiles left is the cut. Every lane runs the scan, whatever the block (a chunk of no page adds nothing).
+  let first=cutBlock<<shift;
+  let size=select(0u,1u<<shift,cutBlock<CUT_BLOCKS);
+  for(var chunk=0u;chunk<chunks;chunk++){
+   let start=chunk*CUT_CHUNK;
+   let span=laneRun(lane,select(0u,min(CUT_CHUNK,size-min(start,size)),start<size));
+   for(var g=span.x;g<span.y;g++){chunkTiles[g]=limitTiles(first+start+g,c,limit);}
+   ${laneRunOffsets('g', 'span', 'lane', 'cutBase+', 'chunkTiles[g]', CUT_AT_PAGE)}
+   workgroupBarrier();
+   if(lane==0u){cutBase+=laneSums[WORKGROUP_THREADS-1u];}
+   workgroupBarrier();
+  }
+  if(lane==0u){atomicStore(&ctx[CTX_CUT+c],atomicLoad(&cutAt));}
+  workgroupBarrier();
+ }
+}
 /** Lists \`page\` in the pages of update \`c\` where its bucket and the budgets allow it. */
 fn tryList(page:u32,c:u32,bucket:u32,tiles:u32)->bool{
  let maxTiles=select(lp.indirectTiles,lp.directTiles,c==LG_LIST_DIRECT);
- var update=bucket<=atomicLoad(&ctx[CTX_MAX_BUCKET+c*2u]);
- if(update&&bucket==atomicLoad(&ctx[CTX_MAX_BUCKET+c*2u])){
-  let before=atomicAdd(&ctx[CTX_ALLOCATED+c*2u+1u],tiles);
-  update=before+tiles<=atomicLoad(&ctx[CTX_MAX_BUCKET+c*2u+1u]);
- }
+ // The pages of the bucket the budget ends in are taken in the order of their index, up to the cut (\`contextCut\`), never in the order the threads arrive in.
+ let limit=atomicLoad(&ctx[CTX_MAX_BUCKET+c*2u]);
+ let update=bucket<limit||(bucket==limit&&page<atomicLoad(&ctx[CTX_CUT+c]));
  if(!update){return false;}
  let base=atomicAdd(&ctx[CTX_ALLOCATED+c*2u],tiles);
  if(base+tiles>maxTiles){return false;}
@@ -215,6 +297,7 @@ fn contextArgs(){
       context: { binding: 2, access: 'atomic' },
     }),
     ARGS_WRITER_WGSL,
+    LANE_SCAN_WGSL,
   ],
 )
 

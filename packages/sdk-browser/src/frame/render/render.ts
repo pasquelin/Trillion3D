@@ -4,6 +4,7 @@ import type { ViewCamera } from '../../camera/world.ts'
 import { renderGpuCut } from './gpuCut.ts'
 import { uploadWorlds } from './worldUpload.ts'
 import { holdWebgpuFrame } from '../loop/hold.ts'
+import { advanceImageNumber } from '../loop/imageNumber.ts'
 import { followFirstImage } from '../loop/firstImage.ts'
 import { frameTargetsAwaited, requestFrameTargets } from '../prepare/targetGrant.ts'
 import { deviceAnswering } from '../loop/deviceAnswer.ts'
@@ -16,7 +17,7 @@ import { followFeedback } from '../prepare/feedbackVariant.ts'
 import { followModelSwitches } from '../prepare/lobesTarget.ts'
 import { followContactShadows } from '../../lighting/contactShadow/frame.ts'
 import { beginTaaFrame } from '../../post/taa/frame.ts'
-import { stochasticPhase } from '../../post/taa/frameState.ts'
+import { lightingPhase } from '../../lighting/surfaceCache/lighting/phase.ts'
 import { frameStart } from '../scheduling.ts'
 import { askFramePipelines } from '../loop/framePipelines.ts'
 import { adoptGrownCut } from '../../placement/webgpuGrownCut.ts'
@@ -45,14 +46,20 @@ export function renderWebgpuPages(rt: WebgpuPagesRuntime, camera: ViewCamera, as
   // Neither the scene, nor the view, nor the resources have moved, and nothing is in flight: the
   // previous image is this one. No CPU step is run below.
   // A frame the device still answers for (targets, shadow pool) is held even when forced.
+  let held = false
   if (rt.feedbackAB?.force && !frameTargetsAwaited(rt) && !deviceAnswering(rt)) {
     // Replay the settled TAA sample and history while forcing the real GPU passes.
     beginTaaFrame(rt, run.gate.cam)
     run.frameHeld = false
-  } else if (holdWebgpuFrame(rt, gpuDevice)) return
-  // Drawn: the next frame keeps the poses this one draws at.
-  run.gpuSelection?.posesDrawn()
-  drawFrameInputs(rt, gpuDevice, pixelError, cam)
+  } else held = holdWebgpuFrame(rt, gpuDevice)
+  if (!held) {
+    // Drawn: the next frame keeps the poses this one draws at.
+    run.gpuSelection?.posesDrawn()
+    drawFrameInputs(rt, gpuDevice, pixelError, cam)
+  }
+  // The frame's number, after the inputs a drawn frame brings up (the deformation reads the one before) and once for either outcome.
+  advanceImageNumber(run, held)
+  if (held) return
   const cpuStart = cpuNow()
   resetFrameCounters(rt)
   renderGpuCut(rt, cam, pixelError, cpuStart)
@@ -157,13 +164,13 @@ function drawFrameInputs(
 
 /** The image's counters, zeroed before its cut, and the clocks its graphs read, taken once and given
  *  to the masks that read them. */
-function resetFrameCounters({ run, context, vis, gpu }: WebgpuPagesRuntime) {
+function resetFrameCounters(rt: WebgpuPagesRuntime) {
+  const { run, context, vis, gpu } = rt
   run.overBudget = false
   run.submittedTriangles = 0
   run.blendPagedTriangles = 0
   run.blendSubmittedTriangles = 0
   run.blendDrawCalls = 0
-  run.frame++
   takeGraphClocks(run.graphClocks, context.worldClock)
   // The masks that read a clock, and the offsets that move vertices, read the clocks and the camera
   // from the graph frame every raster binds (`graphFrameWgsl.ts`).
@@ -173,7 +180,7 @@ function resetFrameCounters({ run, context, vis, gpu }: WebgpuPagesRuntime) {
     run.graphClocks,
     run.gate.cam.eye,
     !!device && !!blueNoiseMade(device),
-    stochasticPhase(gpu.temporal?.frame),
+    lightingPhase(rt),
   )
   run.feedbackWritten = false
   run.hizPyramidFresh = false

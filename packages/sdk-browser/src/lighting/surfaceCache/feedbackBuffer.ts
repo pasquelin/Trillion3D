@@ -216,13 +216,13 @@ function createFeedbackBuffer(device: GPUDevice) {
     /** The buffer for an image of `elements` tiles and a page table of `pages` records: kept while it is what the image
      *  asks, else made again (the last-read part begins again), and its header written: the count at zero, the parts' places,
      *  the tile and where in it the rays write, the cache's clock. */
-    begin(elements: number, pages: number, cache: SurfaceCache, tile: number) {
+    begin(elements: number, pages: number, cache: SurfaceCache, tile: number, from: number) {
       const words = feedbackWords(elements, pages)
       if (!held || held.elements !== elements || held.words.pages < words.pages) {
         if (held) retire(device, held.buffer)
         held = { buffer: storage(device, 'buffer', words.words), elements, words }
       }
-      const [jitterX, jitterY] = feedbackTileJitter(cache.feedbackFrame, tile)
+      const [jitterX, jitterY] = feedbackTileJitter(Math.max(0, cache.feedbackFrame - from), tile)
       header.fill(0)
       header[FEEDBACK_AT.elements] = held.words.elements
       header[FEEDBACK_AT.lastUsedHiRes] = held.words.lastUsedHiRes
@@ -264,15 +264,16 @@ export function createSurfaceFeedback(device: GPUDevice) {
     },
     /** Makes the feedback of an image of `size` pixels ready for `cache`: its buffer, the table of its compaction, its
      *  header; none where the cache's feedback is off or the kernels are not compiled. The copy of the image before, now
-     *  submitted, maps. */
-    begin(cache: SurfaceCache, size: readonly [number, number]) {
+     *  submitted, maps. The tile's place counts the feedback clock from `from`, the image the surface cache's light began at (`begunFeedback`): two worlds
+     *  of one scene meet the same places from there. */
+    begin(cache: SurfaceCache, size: readonly [number, number], from = 0) {
       ring.submitted()
       const { settings } = cache
       active = feedbackAllocated(settings) && compaction.ready && ring.available()
       if (!active) return undefined
       const tile = feedbackTileSize(settings)
       const elements = Math.max(1, feedbackBufferSize(size[0], size[1], tile))
-      const now = rays.begin(elements, cache.pages.length, cache, tile)
+      const now = rays.begin(elements, cache.pages.length, cache, tile, from)
       compaction.ensure(now.buffer, feedbackUniqueElements(settings))
       return now.buffer
     },

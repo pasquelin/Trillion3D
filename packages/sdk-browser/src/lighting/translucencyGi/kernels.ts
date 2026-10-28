@@ -167,7 +167,7 @@ export function translucencyGiKernels(device: GPUDevice, format: GPUTextureForma
     },
     (error: unknown) => void (held.reason = String(error)),
   )
-  track(device, compile, false)
+  track(device, compile, false, 'translucency volume kernels')
   return undefined
 }
 

@@ -16,7 +16,7 @@ import {
   shadowPageComputeLayout,
   shadowPageGroup,
 } from '../../casters/pageGroup.ts'
-import { stochasticPhase } from '../../../../post/taa/frameState.ts'
+import { lightingPhase } from '../../../surfaceCache/lighting/phase.ts'
 import { shadowEpoch } from '../../../../frame/backend/state/shadowEpoch.ts'
 import { shadowsUnsettled } from '../../../../frame/backend/state/lights.ts'
 import { lightGridCulled } from '../../../tiles/cullView.ts'
@@ -173,7 +173,7 @@ function projectionContext(
   context.camera.view = cam.view
   context.camera.projection = projection
   context.camera.perspective = cam.perspective === 1
-  context.frameIndex = stochasticPhase(gpu.temporal?.frame)
+  context.frameIndex = lightingPhase(rt)
   context.trace = vsmMapSettings(rt).shadows
   writeVsmProjectionFrame(vsm.res, context)
   scratch.projecting = true

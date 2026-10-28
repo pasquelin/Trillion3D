@@ -34,6 +34,7 @@ const clustersOf = (shadingModel?: string) => {
 const runtime = (context: object, store = createSceneLightStore(), model?: string) =>
   ({
     context,
+    run: { frame: 0 },
     lights: { store },
     // The thin target holds the pixel models' data once a resident surface of a model asked for it.
     gpu: { surfaces: { hasSubsurface: !!model } },

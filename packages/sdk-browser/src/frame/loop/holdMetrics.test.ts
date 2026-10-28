@@ -47,5 +47,9 @@ test('metrics of the redisplayed cut do not move', () => {
   assert.deepEqual([selectedTriangles, frustumRejected, lodLevel], [123456, 29987, 2])
   assert.equal(metrics.drawCalls, 1)
   assert.equal(metrics.submittedTriangles, 0)
-  assert.equal(run.frame, 6, 'a frame was produced')
+  assert.equal(
+    run.frame,
+    5,
+    'the image number is the frame entry’s to advance (`advanceImageNumber`), not the hold’s',
+  )
 })

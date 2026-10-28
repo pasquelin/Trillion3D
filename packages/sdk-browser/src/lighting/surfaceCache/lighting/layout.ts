@@ -1,6 +1,7 @@
 import { nextPow2 } from '../../../../../math/src/scalar/integers.ts'
 import { fieldLayout, vec4Array } from '../../../gpu/core/fieldLayout.ts'
 import { CARD_TILE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
+import { PRIORITY_HISTOGRAM_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/lightingMath.ts'
 import { CARD_PAGE_WORDS } from '../../../../../sdk-core/src/lighting/surfaceCache/pageRecords.ts'
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
 
@@ -11,14 +12,17 @@ import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
  *
  * THE CONTEXT BUFFER. Header words first: for each of the two updates (`LIGHTING_CONTEXTS`, the direct light and the
  * radiosity) a histogram of the tiles each priority bucket holds, the cut (the last bucket listed and the tiles of it that
- * fit), the tiles given out and the tiles given out in the cut's bucket — a page counts its tiles whether or not
- * it fits, as the cut asks —, the pages listed and the tiles listed (the tiles the pages are cut into); the radiosity's
+ * fit; the cut's bucket is cut by index, `contextCut`, from the tiles of each block of pages by bucket and the cut it names), the tiles given out (two words an
+ * update, the first alone is used), the pages listed and the tiles listed (the tiles the pages are cut into); the radiosity's
  * tiles and the arguments of the dispatches that follow the lists, `args`, four words each: a group a tile of the direct and
  * of the indirect list, the radiosity's traces and its probes (a thread each) and a group of 64 shadow traces. The lists
  * come after the header: the tiles of each update, a tile one word — its page in the low 24 bits, its tile along x and y in four bits each —, the
  * radiosity's tiles — the page in 22 bits, then 5 bits each of the probe's tile along x and y — and the pages of each
  * update, a page one word.
  */
+
+/** The blocks of page indices the cut is looked for in: a block holds `2 ** shift` pages, the shift the least that makes `CUT_BLOCKS` blocks hold every page. */
+export const CUT_BLOCKS = 64
 
 /** The words of the header and where each part begins. */
 export const CONTEXT_AT = {
@@ -29,7 +33,17 @@ export const CONTEXT_AT = {
   radiosityTiles: 42,
   pagesListed: 44,
   args: 48,
+  /** The tiles of the pages by block of indices and priority bucket, for each update (`CUT_BLOCKS` blocks of `PRIORITY_HISTOGRAM_SIZE` buckets: `contextHistogram`
+   *  writes them, `contextCut` reads them), then the cut of each update. */
+  blockHistogram: 80,
+  cut: 80 + 2 * CUT_BLOCKS * PRIORITY_HISTOGRAM_SIZE,
 } as const
+
+/** The pages of a block `contextCut` works at once: its lanes keep their tiles in workgroup memory. */
+export const CUT_CHUNK = 2048
+
+/** No cut: every page of the bucket the budget ends in fits. */
+export const CUT_NONE = 0xffffffff
 
 /** The dispatch arguments of the header, in slots of 4 words from `CONTEXT_AT.args`: a group a tile of each list (the
  *  direct list's also the shadow masks'), the radiosity's traces and its probes (a thread each) and a group of 64
@@ -48,7 +62,7 @@ export const PAGE_ARGS_SLOT_WORDS = 4
 export const PAGE_ARGS_WORDS = 2 * PAGE_ARGS_SLOT_WORDS
 
 /** The words of the header: what a clear of the context writes. */
-export const CONTEXT_HEADER_WORDS = 80
+export const CONTEXT_HEADER_WORDS = 80 + 2 * CUT_BLOCKS * PRIORITY_HISTOGRAM_SIZE + 4
 
 /** Where the lists begin and the words the buffer holds, for lists of the given capacities in tiles. A listed page has
  *  at least a tile, so each page list holds no more pages than its update has tiles. */
@@ -216,6 +230,7 @@ export const SELF_INTERSECTION = { cull: 0, retrace: 1, skip: 2 } as const
 export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
   ['atlasSide', 'u32'],
   ['frame', 'u32'],
+  ['noiseFrame', 'u32'],
   ['pages', 'u32'],
   ['flags', 'u32'],
   ['directTiles', 'u32'],

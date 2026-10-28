@@ -13,6 +13,7 @@ import {
   type CloudShadowRun,
 } from '../../modules/sky/clouds/shadowRun.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { noiseFrame } from './noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { writeAirlessFrame } from './airlessFrame.ts'
 import { atmosphereDeclared } from './airState.ts'
@@ -154,7 +155,7 @@ export function encodeCloudShadow(
     ],
     planetRadiusKm: over.radiusKm,
     time: source.time(),
-    frameIndex: rt.run.frame,
+    frameIndex: noiseFrame(rt),
     material: source.material,
     air: { buffer: lights.buffer, frame: over.frame },
     keepsState: rt.views.active === rt.views.main,

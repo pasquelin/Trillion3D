@@ -58,7 +58,7 @@ export function writeHorizonParams(
     image.view[1] * image.projection[0],
     2 / (radius * radius),
   )
-  putNoise(out, at.angles, horizon.angles, horizon.pauseJitter ? 0 : image.frame)
+  putNoise(out, at.angles, horizon.angles, horizon.pauseJitter ? 0 : image.noiseIndex)
   const delta = Math.PI / horizon.angles
   putVec4(out, at.delta, Math.sin(delta), Math.cos(delta), horizon.blend, +frame.vectors)
   putVec4(

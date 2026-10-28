@@ -23,6 +23,7 @@ const IDENTITY = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
  *  no history lost, no feedback — what `image` names in place. */
 export const lightingImage = (image: Partial<LightingImage> = {}): LightingImage => ({
   frame: 1,
+  noiseFrame: 0,
   pages: 1,
   eye: [0, 0, 0],
   viewProjection: IDENTITY,

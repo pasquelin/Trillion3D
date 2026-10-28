@@ -2,6 +2,7 @@ import { visUniformLayout } from '../../gpu/bind/bindLayout.ts'
 import { viewProj } from '../../frame/backend/helpers.ts'
 import { slotCount } from '../bins/contract.ts'
 import type { WebgpuVisState } from '../../frame/backend/state/vis.ts'
+import { noiseFrame } from '../../frame/render/noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import {
@@ -166,7 +167,7 @@ function writeShadeUniform(
   shadeUniPacked.set(cam.eye, SHADE.eye)
   shadeUniPacked[SHADE.time] = run.graphClocks.time
   shadeUniPacked[SHADE.realTime] = run.graphClocks.realTime
-  shadeInts[SHADE.frameIndex] = run.frame
+  shadeInts[SHADE.frameIndex] = noiseFrame(rt)
   // The eye's iris and the clear coat: whether the pass leaves them a normal of their own (the lighting reads the same settings).
   // The words are kept: a setting that turns since moves the scene (`followModelSwitches`, `../../frame/prepare/lobesTarget.ts`).
   const { shading } = run

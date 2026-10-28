@@ -3,6 +3,7 @@ import { airlessAirOf, type AirlessAir } from '../../lighting/atmosphere/airless
 import { airlessPlanet, FRAME_FLOATS, writeAirFrame } from '../../lighting/atmosphere/frame.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import { viewProj } from '../backend/helpers.ts'
+import { noiseFrame } from './noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 
 /**
@@ -33,7 +34,7 @@ export function writeAirlessFrame(
   const [width, height] = rt.gpu.targetSize
   invertMatrix4(inverse, viewProj)
   writeAirFrame(frame, cam, airlessPlanet(planetRadiusKm), viewProj, inverse, width, height, {
-    frameIndex: rt.run.frame,
+    frameIndex: noiseFrame(rt),
   })
   device.queue.writeBuffer(air.frame, 0, frame)
   return air

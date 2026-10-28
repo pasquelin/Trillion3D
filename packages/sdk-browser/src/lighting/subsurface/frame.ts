@@ -12,7 +12,7 @@ import { cameraSeen, previousCameraOf } from '../../frame/backend/state/previous
 import { wantsContractLighting } from '../../frame/prepare/lit.ts'
 import { ledgerRoom } from '../../gpu/core/deviceLedger.ts'
 import type { Velocity } from '../../post/taa/velocity.ts'
-import { stochasticPhase } from '../../post/taa/frameState.ts'
+import { lightingPhase } from '../surfaceCache/lighting/phase.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { encodeKernels, drawRecombine } from './encode.ts'
 import { subsurfaceGroups, historyState, type SubsurfaceNeeded } from './groups.ts'
@@ -199,7 +199,6 @@ const image: SubsurfaceImage = {
   viewProjection: [],
   before: undefined,
   frame: 0,
-  checkerPhase: 0,
   jitter: [0, 0],
   vectors: false,
   historyValid: false,
@@ -313,8 +312,7 @@ function fillImage(
   image.viewProjection = cam.viewProjection
   const before = cameraSeen(previousCameraOf(rt), state.seen)
   image.before = before?.viewProjection
-  image.frame = run.frame
-  image.checkerPhase = stochasticPhase(taa)
+  image.frame = lightingPhase(rt)
   image.jitter[0] = taa?.active ? taa.jitter[0] : 0
   image.jitter[1] = taa?.active ? taa.jitter[1] : 0
   image.vectors = !!gpu.velocity && hasMeasuredVectors(gpu.velocity)

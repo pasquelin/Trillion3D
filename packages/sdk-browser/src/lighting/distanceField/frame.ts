@@ -48,6 +48,14 @@ export interface DistanceFieldFrameState {
 
 const origin: [number, number, number] = [0, 0, 0]
 
+/** The longest step, seconds, one image's field update counts for: frames held on a compile or a grant draw nothing, so the wait before the next drawn image is not the scene's time
+ *  (the reference counts the world's own delta, which a paused render does not stop: its state would depend on how long a compile took; a view's state here does not). */
+const LONGEST_STEP = 0.1
+
+/** Seconds from `before` to `now` (ms), at most `LONGEST_STEP`. */
+export const imageStep = (now: number, before: number) =>
+  Math.min(LONGEST_STEP, Math.max(0, (now - before) / 1000))
+
 /** The state of `rt`, made at the first image of a session whose cache has distance fields. */
 function stateOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const fields = rt.context.distanceFields
@@ -75,7 +83,7 @@ export function encodeDistanceFields(
   const state = stateOf(rt, device)
   if (!state) return
   const now = performance.now()
-  const delta = Math.max(0, (now - state.time) / 1000)
+  const delta = imageStep(now, state.time)
   state.time = now
   resolveSettingsInto(GLOBAL_DISTANCE_FIELD_RULES, rt.context, state.settings)
   // Rays marched through the field (the reflections' scene stage, and the passes that read the surface cache: the

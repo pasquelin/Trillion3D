@@ -16,6 +16,7 @@ import type { DistanceFieldScene } from '../../lighting/distanceField/scene.ts'
 import { NO_SKY_LIGHT_OCCLUSION } from '../../modules/sky/skyLight/read.ts'
 import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
+import { noiseFrame } from './noiseFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { cameraSeen, previousCameraOf, type CameraImage } from '../backend/state/previousCamera.ts'
 import { wantsContractLighting } from '../prepare/lit.ts'
@@ -110,7 +111,7 @@ function describe(
   image.far = cam.far
   image.perspective = cam.perspective > 0.5
   image.frame = rt.run.frame
-  image.temporalIndex = rt.run.frame & 3
+  image.temporalIndex = noiseFrame(rt) & 3
   image.velocity = velocity
   return image
 }

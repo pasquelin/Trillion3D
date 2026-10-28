@@ -215,6 +215,8 @@ export function contextPasses(e: Encoding) {
   single(e, kernel.pipeline('contextClear'), group)
   dispatch(e, kernel.pipeline('contextHistogram'), group, e.pages)
   single(e, kernel.pipeline('contextSelect'), group)
+  // The cut among the pages of the bucket the budget ends in, by index (`contextCut`).
+  single(e, kernel.pipeline('contextCut'), group)
   dispatch(e, kernel.pipeline('contextList'), group, e.pages)
   single(e, kernel.pipeline('contextPageArgs'), group)
   for (const [entry, update] of [

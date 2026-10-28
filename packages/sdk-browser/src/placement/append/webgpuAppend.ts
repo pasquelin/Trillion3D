@@ -29,6 +29,7 @@ import { appendWebgpuTexture } from '../../frame/io/appendTexture.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { joinGrownRoots } from '../growth/webgpuGrowth.ts'
 import { primitivePages } from '../../scene/manifestPageIndex.ts'
+import { objectClassesCompiled } from './classGate.ts'
 import {
   catalogueRefusal,
   growCatalogue,
@@ -83,6 +84,9 @@ export async function joinCatalogued(
   into: Collected,
   copies: readonly BlendCopy[],
 ) {
+  // The object enters the scene once the pipelines of its classes are compiled, the image's and the cards' (`classGate.ts`): none of the tables knows it before.
+  await objectClassesCompiled(rt, into.allPages)
+  if (closed(rt)) return CLOSED
   const { grown, cover } = growCatalogue(rt, into)
   if (!(await growWebgpuPagePool(rt, grown))) return 'the device refused the size of the page pool'
   if (closed(rt)) return CLOSED

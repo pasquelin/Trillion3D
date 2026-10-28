@@ -212,7 +212,7 @@ export function remakeTemporalFormats(rt: WebgpuPagesRuntime, temporal: object) 
       if (!isCancelled(rt.signal)) dropTemporalAntialiasing(rt, error)
     })
     .finally(() => remaking.delete(temporal))
-  track(device, remake, true)
+  track(device, remake, true, 'temporal antialiasing remake')
 }
 
 /** The pass leaves the session: capabilities dropped, cause named, image without the pass. */

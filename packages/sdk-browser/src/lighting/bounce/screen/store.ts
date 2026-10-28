@@ -200,5 +200,5 @@ function startKernels(
     },
     (error: unknown) => refuse(String(error)),
   )
-  track(device, compile, false)
+  track(device, compile, false, 'screen probe kernels')
 }

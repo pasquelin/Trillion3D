@@ -37,5 +37,5 @@ export function askBlendReach(rt: WebgpuPagesRuntime) {
   // The key the frame will draw with, read off the lights (`keyFor`): unlit images draw with the
   // program of every code path.
   const key = wantsContractLighting(rt) ? keyFor('blend', rt) : FULL_CONTRACT
-  track(device, vis.blendPipelines.litAwaited(key, blendState.lobed), true)
+  track(device, vis.blendPipelines.litAwaited(key, blendState.lobed), true, 'blend lit program')
 }

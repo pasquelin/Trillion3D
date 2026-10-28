@@ -1,6 +1,7 @@
 import { skyLightReadOf } from '../../frame/render/skyLightState.ts'
 import { wantsContractLighting } from '../../frame/prepare/lit.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { noiseFrame } from '../../frame/render/noiseFrame.ts'
 import { frontStamp } from './frontLayer.ts'
 import { firstPersonBoundsOf } from './firstPersonBounds.ts'
 import type { ScreenReflection } from './gpu.ts'
@@ -51,7 +52,7 @@ function writeFrame(
     { frame } = reflection
   frame.size = gpu.targetSize
   frame.depthDrawn = run.depthDrawn
-  frame.frameIndex = run.frame
+  frame.frameIndex = noiseFrame(rt)
   frame.eye = run.gate.cam.eye
   frame.preExposure = preExposureOf(rt).now
   frame.firstPerson = firstPersonBoundsOf(rt, firstPerson)
@@ -134,7 +135,7 @@ function bindTraceInputs(
   const cache = settings.marchesField ? readableCache(rt) : undefined
   if (settings.marchesField) demandSurfaceCache(rt)
   const writes = rt.views.active === rt.views.main ? cache : undefined
-  writes?.feedback.begin(writes.cache, gpu.targetSize)
+  writes?.feedback.begin(writes.cache, gpu.targetSize, rt.surfaceCache?.lighting?.begunFeedback)
   inputs.hit = surfaceHitReads(rt, reflection.device).hit
   // The vectors are this image's motion since the image before: read only against that image's history.
   const reach = vectorsReach(reflection.lit.held, reflection.frame.image ?? 0)

@@ -31,6 +31,7 @@ export function settledRt() {
     deferredDrops: new Set<string>(),
     frame: 0,
     frameHeld: false,
+    heldEmpty: false,
     imageRevision: 0,
     // Fields read by `sampleWebgpuFrame`: constant from frame to frame so `keep()` judges two
     // consecutive frames identical.

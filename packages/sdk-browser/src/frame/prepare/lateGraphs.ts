@@ -40,7 +40,7 @@ export function followGraphRasters(rt: WebgpuPagesRuntime, device: GPUDevice, ce
   if (!vis.rasterRebuild) {
     const rebuild = rebuildRasters(rt, device, held).finally(() => (vis.rasterRebuild = undefined))
     vis.rasterRebuild = rebuild
-    track(device, rebuild, true)
+    track(device, rebuild, true, 'material graph rebuild')
   }
 }
 
