@@ -10,26 +10,27 @@ import {
 } from './exposureCurve.ts'
 import { exposureCurveAt } from './exposureCurveEval.ts'
 
-/** The factor of an empty table's sample: none, `2^0`. */
+/** The factor of an empty table's sample: none, `2^0` for the compensation, 1 for a scale. */
 const NO_COMPENSATION = 1
+
+/** What a table keeps of the curve's value `v` at a key: the compensation's factor `2^v`, held as a 16-bit float, or the value itself. */
+type Sample = (v: number) => number
+const compensation: Sample = (v) => halfRound(2 ** v)
+const scale: Sample = (v) => v
 
 /**
  * The curve baked into its table, `EXPOSURE_CURVE_SAMPLES` factors by EV100 from
  * `EXPOSURE_CURVE_MIN_EV` to `EXPOSURE_CURVE_MAX_EV`, the first and the last sample at the ends:
- * sample `i` is `2^compensation` at `min + i · (max - min) / (samples - 1)`, held as a 16-bit
- * float. No curve bakes a table of ones. Written into `out` when given (its first
- * `EXPOSURE_CURVE_SAMPLES` words), else a new array.
+ * sample `i` is `sample(curve there)` at `min + i · (max - min) / (samples - 1)`. No curve bakes a table of ones.
  */
-function bakeExposureCurve(
-  curve: ExposureCurve,
-  out: Float32Array = new Float32Array(EXPOSURE_CURVE_SAMPLES),
-) {
+function bakeExposureCurve(curve: ExposureCurve, sample: Sample) {
+  const out = new Float32Array(EXPOSURE_CURVE_SAMPLES)
   const delta = (EXPOSURE_CURVE_MAX_EV - EXPOSURE_CURVE_MIN_EV) / (EXPOSURE_CURVE_SAMPLES - 1)
   for (let i = 0; i < EXPOSURE_CURVE_SAMPLES; i++)
     out[i] =
       curve === null
         ? NO_COMPENSATION
-        : halfRound(2 ** exposureCurveAt(curve, EXPOSURE_CURVE_MIN_EV + delta * i))
+        : sample(exposureCurveAt(curve, EXPOSURE_CURVE_MIN_EV + delta * i))
   return out
 }
 
@@ -45,9 +46,20 @@ export function exposureCurveFactor(table: ArrayLike<number>, ev: number) {
 }
 
 /** The table of no curve: ones. */
-const NO_CURVE_TABLE = /* @__PURE__ */ bakeExposureCurve(null)
-/** The table baked from each curve option a host gave, by the option object itself. */
-const tables = new WeakMap<object, Float32Array>()
+const NO_CURVE_TABLE = /* @__PURE__ */ bakeExposureCurve(null, compensation)
+
+/** A kind of table: how a curve's value is kept, and the tables baked from each curve option a host gave, by the option object itself. */
+const kind = (sample: Sample) => ({ sample, tables: new WeakMap<object, Float32Array>() })
+const COMPENSATION = /* @__PURE__ */ kind(compensation)
+const SCALE = /* @__PURE__ */ kind(scale)
+
+function tableOf(of: ReturnType<typeof kind>, option: ExposureCurveOption | undefined) {
+  if (!option) return NO_CURVE_TABLE
+  let table = of.tables.get(option)
+  if (!table)
+    of.tables.set(option, (table = bakeExposureCurve(resolveExposureCurve(option), of.sample)))
+  return table
+}
 
 /**
  * The table of the curve a host wrote (`ExposureCurveOption`), baked once for each option object:
@@ -57,9 +69,12 @@ const tables = new WeakMap<object, Float32Array>()
  * caller does not write it.
  * @throws TypeError naming what a curve takes when the option is not one (`resolveExposureCurve`).
  */
-export function exposureCurveTable(option: ExposureCurveOption | undefined) {
-  if (!option) return NO_CURVE_TABLE
-  let table = tables.get(option)
-  if (!table) tables.set(option, (table = bakeExposureCurve(resolveExposureCurve(option))))
-  return table
-}
+export const exposureCurveTable = (option: ExposureCurveOption | undefined) =>
+  tableOf(COMPENSATION, option)
+
+/**
+ * The table of a curve whose values are scales, not stops (the local exposure's contrast curves): the value
+ * itself at each sample, ones for none. Baked and shared as `exposureCurveTable` is.
+ */
+export const exposureCurveScaleTable = (option: ExposureCurveOption | undefined) =>
+  tableOf(SCALE, option)

@@ -35,6 +35,9 @@ export const EXPOSURE_BYTE = (FINISH.at.look + 1) * 4
 /** The byte that holds the log2 of the middle grey the local exposure pulls toward, copied on the
  *  GPU from the exposure buffer (`ExposureMeter.copyGrey`). */
 export const GREY_BYTE = FINISH.at.base * 4
+/** The bytes that hold the scales the local exposure's contrast curves give at the frame's mean, highlights then shadows, copied on the
+ *  GPU from the exposure buffer (`ExposureMeter.copyScales`): the last two words of `pre`. */
+export const SCALES_BYTE = (FINISH.at.pre + 2) * 4
 
 /** A view's display finishing (`createFinish`). */
 export type Finish = ReturnType<typeof createFinish>
@@ -136,6 +139,8 @@ export function createFinish(device: GPUDevice) {
     usedFilm,
     /** The Gaussian blur settings the last image's blurs were drawn with. */
     usedBlur: {} as GaussianBlurValues,
+    /** Whether this image drew the local exposure's layers (`beginFinishScene`, before the exposure is metered). */
+    localDrawn: false,
     /** Bytes of the scene's chain, the local exposure's layers and the grain's texture. */
     get bytes() {
       return scene.bytes + local.bytes + groups.bytes

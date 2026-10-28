@@ -140,6 +140,9 @@ export function placeOf(index: number): TilePlace {
  * says the entry is served; zero says "nothing streamed here, read the tail".
  */
 const ENTRY_SERVED = 0x80000000
+/** Where the level sits in a table word, and its mask: the shader reads it as `tileEntryLevel`. */
+export const ENTRY_LEVEL_SHIFT = 24
+export const ENTRY_LEVEL_MASK = 0x7f
 export const packEntry = (place: TilePlace, level: number) =>
-  (ENTRY_SERVED | packPlace(place) | (level << 24)) >>> 0
-export const entryLevel = (word: number) => (word >>> 24) & 0x7f
+  (ENTRY_SERVED | packPlace(place) | (level << ENTRY_LEVEL_SHIFT)) >>> 0
+export const entryLevel = (word: number) => (word >>> ENTRY_LEVEL_SHIFT) & ENTRY_LEVEL_MASK
