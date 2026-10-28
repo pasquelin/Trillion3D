@@ -1,5 +1,6 @@
 import { retire } from '../../../gpu/core/frameRetire.ts'
 import { madeBytesOf } from '../../../gpu/core/textureBytes.ts'
+import { loadOnlyUsage } from '../../../gpu/core/loadOnlyTarget.ts'
 import { MOTION_BLUR_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { createList } from '../../../gpu/dispatch/list.ts'
 import { HALF_IMAGE_FORMAT, halfSize } from '../../filters/levelSizes.ts'
@@ -40,9 +41,6 @@ const fail = (): never => {
 /** Whether `a` and `b` name the same size. */
 const same = (a: readonly number[], b: readonly number[]) => a[0] === b[0] && a[1] === b[1]
 
-/** The usage of an image a pass writes and another reads. */
-const storedAndRead = () => GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
-
 /** The `at`-th of the `list`, made by `make` at the first ask. */
 const slot = <T>(list: (T | undefined)[], at: number, make: () => T): T => (list[at] ??= make())
 
@@ -67,18 +65,18 @@ function makeHeld(
   { directions, flat }: BlurVariant,
 ): Made {
   const tiles = [flattenTiles(grid[0]), flattenTiles(grid[1])]
-  const spread = storedAndRead() | GPUTextureUsage.RENDER_ATTACHMENT
+  const spread = loadOnlyUsage() | GPUTextureUsage.RENDER_ATTACHMENT
   const seconds =
     directions > 1
       ? {
-          secondsA: imageOf(device, 'second tiles', tiles, TILE_FORMAT, storedAndRead()),
-          secondsB: imageOf(device, 'spread second tiles', tiles, TILE_FORMAT, storedAndRead()),
+          secondsA: imageOf(device, 'second tiles', tiles, TILE_FORMAT, loadOnlyUsage()),
+          secondsB: imageOf(device, 'spread second tiles', tiles, TILE_FORMAT, loadOnlyUsage()),
         }
       : {}
   return {
     ...seconds,
-    flat: imageOf(device, 'flat', grid, FLAT_FORMS[flat].format, storedAndRead()),
-    tilesA: imageOf(device, 'tiles', tiles, TILE_FORMAT, storedAndRead()),
+    flat: imageOf(device, 'flat', grid, FLAT_FORMS[flat].format, loadOnlyUsage()),
+    tilesA: imageOf(device, 'tiles', tiles, TILE_FORMAT, loadOnlyUsage()),
     tilesB: imageOf(device, 'spread tiles', tiles, TILE_FORMAT, spread),
     depth: imageOf(
       device,
@@ -221,7 +219,7 @@ export function createMotionBlurTargets(device: GPUDevice) {
      *  the blurs of a chain, taking turns, 2 for the image a second pass of one reads. */
     output(at: number): Image {
       return slot(store.images, at, () =>
-        imageOf(device, `image ${at}`, store.size, OUTPUT_FORMAT, storedAndRead()),
+        imageOf(device, `image ${at}`, store.size, OUTPUT_FORMAT, loadOnlyUsage()),
       )
     },
     /** The half-size image the filter writes beside the `at`-th blurred image (0 or 1), made at the
@@ -233,7 +231,7 @@ export function createMotionBlurTargets(device: GPUDevice) {
           `half ${at}`,
           halfSize(store.size[0], store.size[1]),
           HALF_IMAGE_FORMAT,
-          storedAndRead(),
+          loadOnlyUsage(),
         ),
       )
     },

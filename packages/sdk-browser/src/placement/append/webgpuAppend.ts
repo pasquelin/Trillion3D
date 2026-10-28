@@ -23,8 +23,7 @@ import { pagesBlend } from '../../geometry/selection/collectBlend.ts'
 import type { BlendCopy } from '../../geometry/cluster/blendCopyContract.ts'
 import type { DrawSource } from '../../geometry/selection/drawSource.ts'
 import { sourceSurface, type PageSurface } from '../../geometry/pages/surface.ts'
-import { PHYSICAL_MAP_FIELDS } from '../../visibility/materialType.ts'
-import { hasPhysicalLobes } from '../../materials/surface/physicalLobes.ts'
+import { forEachMaterialTexture } from '../../materials/classes/materialTextures.ts'
 import { appendWebgpuTexture } from '../../frame/io/appendTexture.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { joinGrownRoots } from '../growth/webgpuGrowth.ts'
@@ -41,23 +40,12 @@ import { blendRefusal, prepareBlendGrowth } from '../../blend/growth.ts'
 import { prepareDeformationGrowth } from '../../deformation/growth.ts'
 import { byRenderOrder, pagedBlendCopiesOf } from '../../frame/prepare/setupCatalogue.ts'
 
-/** The textures `surface` reads, colour then data, as the open's census takes them
- *  (`collectWebgpuMaterialTextures`). */
-function texturesOf(surface: PageSurface) {
-  const color = [surface.map, surface.emissiveMap, surface.subsurfaceMap]
-  const data = [surface.roughnessMap, surface.metalnessMap, surface.normalMap, surface.aoMap]
-  if (hasPhysicalLobes(surface)) for (const field of PHYSICAL_MAP_FIELDS) data.push(surface[field])
-  if (surface.displacement) data.push(surface.displacementMap)
-  return [
-    ...color.map((texture) => [texture, 'color'] as const),
-    ...data.map((texture) => [texture, 'data'] as const),
-  ].filter((entry): entry is readonly [Texture, 'color' | 'data'] => !!entry[0])
-}
-
 /** `surface`'s textures taken into the atlas: each reads its own cache's chain where it has one
  *  (`appendWebgpuTexture`). */
 export async function appendSurfaceTextures(rt: WebgpuPagesRuntime, surface: PageSurface) {
-  for (const [texture, kind] of texturesOf(surface)) await appendWebgpuTexture(rt, texture, kind)
+  const textures: [Texture, 'color' | 'data'][] = []
+  forEachMaterialTexture(surface, (texture, kind) => void textures.push([texture, kind]))
+  for (const [texture, kind] of textures) await appendWebgpuTexture(rt, texture, kind)
 }
 
 /** Why content cannot join, said by name; the session is the owner's still, nothing of it lost. */

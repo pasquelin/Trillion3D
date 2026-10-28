@@ -38,5 +38,6 @@ export function loadOnlyTarget(
   }
 }
 
-/** The usage of a texture a load-only target binds, read only where it is written as storage. */
+/** The usage of a texture a compute pass writes as storage and a later pass reads: the one a load-only target binds,
+ *  read only where it is written as storage. */
 export const loadOnlyUsage = () => GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING

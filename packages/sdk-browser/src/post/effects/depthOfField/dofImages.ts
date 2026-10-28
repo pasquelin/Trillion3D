@@ -1,5 +1,6 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { madeBytesOf } from '../../../gpu/core/textureBytes.ts'
+import { loadOnlyUsage } from '../../../gpu/core/loadOnlyTarget.ts'
 import { imageOf as sizedImageOf, type Image, type MippedImage } from '../../filters/sizedImage.ts'
 import { DEPTH_OF_FIELD_PASS } from '../../../diagnostic/stage/passLabels.ts'
 import { GATHER_QUALITY, scattersOver, type Layer } from './dofConvolutions.ts'
@@ -34,10 +35,8 @@ interface LayerImages {
   readonly filtered?: { readonly color: Image; readonly alpha: Image }
 }
 
-/** The usage of an image a compute pass writes and a pass reads. */
-const written = () => GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
 /** The usage of an image a compute pass writes, a pass reads and sprites are drawn into. */
-const drawn = () => written() | GPUTextureUsage.RENDER_ATTACHMENT
+const drawn = () => loadOnlyUsage() | GPUTextureUsage.RENDER_ATTACHMENT
 
 /** An image of `label` of `size`, `format` and `usage`, of `mips` levels, labelled as the pass's. */
 const imageOf = (
@@ -45,7 +44,7 @@ const imageOf = (
   label: string,
   size: readonly number[],
   format: GPUTextureFormat,
-  usage = written(),
+  usage = loadOnlyUsage(),
   mips = 1,
 ) => sizedImageOf(device, `${DEPTH_OF_FIELD_PASS} ${label}`, size, format, usage, mips)
 
@@ -136,7 +135,7 @@ export function makeImages(device: GPUDevice, plan: DofPlan): DofImages {
   for (const { layer, postfilter } of plan.convolutions)
     layers[layer] = layerImages(device, layer, size, postfilter, layer !== 'slight')
   const reduced = (name: string, format: GPUTextureFormat) =>
-    imageOf(device, name, plan.reduced, format, written(), plan.mips)
+    imageOf(device, name, plan.reduced, format, loadOnlyUsage(), plan.mips)
   return {
     setup: {
       color: imageOf(device, 'setup colour', plan.divisor === 2 ? size : small, COLOR_FORMAT),

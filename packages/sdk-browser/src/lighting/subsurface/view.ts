@@ -1,6 +1,7 @@
 import { ledgerAdmitted } from '../../gpu/core/deviceLedger.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { textureBytesOf } from '../../gpu/core/textureBytes.ts'
+import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { createWebgpuBindIdentity, type WebgpuBindIdentity } from '../../gpu/bind/bindIdentity.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { SUBSURFACE_PASS } from '../../diagnostic/stage/passLabels.ts'
@@ -50,8 +51,6 @@ export interface SubsurfaceView {
   dispose(): void
 }
 
-const STORED = () => GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
-
 /** The textures of `spec`, asked of `make` (name, size, format, usage, mips). */
 function texturesOf(
   spec: SubsurfaceViewSpec,
@@ -64,7 +63,8 @@ function texturesOf(
   ) => GPUTexture,
 ): SubsurfaceTextures {
   const { sub } = spec
-  const stored = (name: string, mips = 1) => make(name, sub, SSS_COLOUR_FORMAT, STORED(), mips)
+  const stored = (name: string, mips = 1) =>
+    make(name, sub, SSS_COLOUR_FORMAT, loadOnlyUsage(), mips)
   const recombined = make(
     'recombined',
     spec.scene,
@@ -73,7 +73,7 @@ function texturesOf(
   )
   const setup = stored('setup', spec.mips)
   const history = spec.history ? ([stored('history 0'), stored('history 1')] as const) : undefined
-  const ids = spec.ids ? make('ids', sub, SSS_IDS_FORMAT(spec.tier1), STORED()) : undefined
+  const ids = spec.ids ? make('ids', sub, SSS_IDS_FORMAT(spec.tier1), loadOnlyUsage()) : undefined
   return {
     setup: setup.createView(),
     setupMips: Array.from({ length: spec.mips }, (_, level) =>

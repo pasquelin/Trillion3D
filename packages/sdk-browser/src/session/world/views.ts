@@ -76,6 +76,8 @@ type ViewRecord = {
   /** The camera of the session the handle was made in, the view's copied onto it. */
   host: ViewCamera | undefined
   size: [number, number]
+  /** The world's canvas buffer size a rectangle view was last measured over. */
+  measuredOver: [number, number]
   /** The display frame it was last drawn at, ms; `-Infinity` before. */
   drawnAt: number
   hooks: Set<(info: ViewFrameInfo) => void>
@@ -115,8 +117,10 @@ function measure({ world }: ViewsState, record: ViewRecord) {
     record.handle?.resize(...record.size)
     return undefined
   }
-  const { canvas } = world,
-    sx = canvas.width / Math.max(1, canvas.clientWidth),
+  const { canvas } = world
+  record.measuredOver[0] = canvas.width
+  record.measuredOver[1] = canvas.height
+  const sx = canvas.width / Math.max(1, canvas.clientWidth),
     sy = canvas.height / Math.max(1, canvas.clientHeight),
     { x, y, width, height } = record.viewport
   const rect = { x: x * sx, y: y * sy, width: width * sx, height: height * sy }
@@ -171,6 +175,7 @@ function newViewRecord({ world, adopt }: ViewsState, options: ViewOptions): View
     handle: undefined,
     host: undefined,
     size: [1, 1],
+    measuredOver: [0, 0],
     drawnAt: -Infinity,
     hooks: new Set(),
     info: undefined,
@@ -280,13 +285,21 @@ function viewSettings({ world, records }: ViewsState, record: ViewRecord) {
 const worldView = (state: ViewsState, record: ViewRecord): WorldView =>
   joined(viewPlacement(state, record), viewSettings(state, record))
 
+/** Whether `canvas`'s buffer is no longer the `size` it was measured at. */
+const resized = (canvas: HTMLCanvasElement, size: readonly [number, number]) =>
+  canvas.width !== size[0] || canvas.height !== size[1]
+
 /** Draws every view due in the frame under way, after its main image (`createDrawFrame`). */
-function drawDue({ records, drawn, drawnRecords }: ViewsState) {
+function drawDue(state: ViewsState) {
+  const { records, drawn, drawnRecords } = state
   drawn.length = drawnRecords.length = 0
   const now = frameStart()
   for (let index = 0; index < records.length; index++) {
     const record = records[index]
     if (!record.handle || !record.host || !due(record, now)) continue
+    // A view over a rectangle of the world's canvas follows that canvas's size, which no observer
+    // of its own watches: measured again before it is drawn once that size moved.
+    if (record.viewport && resized(state.world.canvas, record.measuredOver)) measure(state, record)
     copyWorldCamera(record.camera, record.host, record.size[0] / record.size[1])
     const metrics = record.handle.render(record.host, index)
     const info = (record.info ??= { delta: 0, metrics })

@@ -1,5 +1,6 @@
 import { AIR_BINDING } from '../../../lighting/atmosphere/binding.ts'
 import { uniformBuffer } from '../../../gpu/core/uniformBlock.ts'
+import { loadOnlyUsage } from '../../../gpu/core/loadOnlyTarget.ts'
 import { cloudShadowDispatch, type createCloudShadowPasses } from './shadow.ts'
 import { createCloudShadowHistory, type CloudShadowHistory } from './shadowHistory.ts'
 import {
@@ -47,9 +48,6 @@ export interface CloudShadowTraceInput {
 }
 
 type Passes = ReturnType<typeof createCloudShadowPasses>
-
-/** The usage of a map: written by a compute pass, read by the next and by the lookups. */
-export const mapUsage = () => GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
 
 /** The view of a texture of the slot, made once. */
 export function viewOf(slot: Pick<CloudShadowSlot, 'views'>, texture: GPUTexture) {
@@ -212,7 +210,7 @@ export function createCloudShadowSlots(device: GPUDevice) {
       if (held?.key === key) return held
       release(k)
       const texture = (label: string, size: Size) =>
-        device.createTexture({ label, size, format: CLOUD_SHADOW_FORMAT, usage: mapUsage() })
+        device.createTexture({ label, size, format: CLOUD_SHADOW_FORMAT, usage: loadOnlyUsage() })
       const textures = sizes.map((size, i) => texture(`Trillion3D cloud shadow ${k}.${i}`, size))
       const whole = filtered
         ? [textures[1], texture(`Trillion3D cloud shadow ${k}.past`, sizes[1])]

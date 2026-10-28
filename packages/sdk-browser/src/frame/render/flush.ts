@@ -46,46 +46,65 @@ function reportProgress(rt: WebgpuPagesRuntime) {
   })
 }
 
+/** The settled image read back, one read per revision: whoever asks while the current image's read
+ *  is under way waits for it. Kept for the revision it was read at. */
+export function readbackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
+  const { run, gpu, capture, signal } = rt
+  if (capture.capturePending && capture.pendingRevision === run.imageRevision)
+    return capture.capturePending
+  freshDisplay(rt)
+  const revision = run.imageRevision,
+    [width, height] = gpu.displaySize,
+    texture = gpu.displayTexture!
+  const pending = readGpuImage(gpuDevice, texture, width, height, signal)
+    .then((pixels) => {
+      if (run.lost || revision !== run.imageRevision) return pixels
+      capture.capturedPixels = pixels
+      capture.capturedRevision = revision
+      return pixels
+    })
+    .finally(() => {
+      if (capture.capturePending === pending) capture.capturePending = undefined
+    })
+  capture.capturePending = pending
+  capture.pendingRevision = revision
+  return pending
+}
+
+/** The colours of the first image read back, said once. */
+function logFirstReadback(
+  rt: WebgpuPagesRuntime,
+  pixels: Uint8Array,
+  width: number,
+  height: number,
+) {
+  const { run, diag } = rt
+  run.outputDiagnosticLogged = true
+  const colors = outputColorDiagnostic(pixels, width, height, run.clearColor, 'bottom-left')
+  diag.engineDiagnostic('first-readback', 'First explicit readback of the WebGPU target', {
+    width,
+    height,
+    origin: 'bottom-left',
+    ...colors,
+  })
+  diag.engineDiagnostic('presentation-capture', 'Explicit capture of the WebGPU render', {
+    width,
+    height,
+    origin: 'bottom-left',
+    imageRevision: run.imageRevision,
+    surface: 'webgpu-color-target',
+    ...colors,
+  })
+}
+
 /** Reads the settled image back once per submission, logging the first readback's colours. */
 async function readBackImage(rt: WebgpuPagesRuntime, gpuDevice: GPUDevice) {
-  const { run, gpu, capture, diag, context } = rt,
-    { clearColor } = run
-  if (!capture.capturePending) {
-    freshDisplay(rt)
-    const revision = run.imageRevision,
-      [width, height] = gpu.displaySize,
-      texture = gpu.displayTexture!
-    capture.capturePending = readGpuImage(gpuDevice, texture, width, height, context.signal)
-      .then((pixels) => {
-        if (run.lost || revision !== run.imageRevision) return
-        capture.capturedPixels = pixels
-        capture.capturedRevision = revision
-        if (run.outputDiagnosticLogged) return
-        run.outputDiagnosticLogged = true
-        const colors = outputColorDiagnostic(pixels, width, height, clearColor, 'bottom-left')
-        diag.engineDiagnostic('first-readback', 'First explicit readback of the WebGPU target', {
-          width,
-          height,
-          origin: 'bottom-left',
-          ...colors,
-        })
-        diag.engineDiagnostic('presentation-capture', 'Explicit capture of the WebGPU render', {
-          width,
-          height,
-          origin: 'bottom-left',
-          imageRevision: revision,
-          surface: 'webgpu-color-target',
-          ...colors,
-        })
-      })
-      .finally(() => {
-        capture.capturePending = undefined
-      })
-  }
-  await capture.capturePending
+  const { run, gpu, capture, diag } = rt
+  const pixels = await readbackImage(rt, gpuDevice)
   if (run.lost) throw new Error('WEBGPU_LOST')
   if (capture.capturedRevision !== run.imageRevision)
     throw new Error('CAPTURE_CHANGED_DURING_FLUSH')
+  if (!run.outputDiagnosticLogged) logFirstReadback(rt, pixels, ...gpu.displaySize)
   if (capture.captureStreamingDeferrals && !capture.captureDeferralLogged) {
     capture.captureDeferralLogged = true
     diag.engineDiagnostic(

@@ -1,8 +1,7 @@
 import { environmentExposure } from '../../../../sdk-core/src/scene/core/environment.ts'
-import { readGpuImage } from '../../gpu/core/readback.ts'
 import type { VisPage } from '../../visibility/types.ts'
 import { renderWebgpuPages } from '../render/render.ts'
-import { freshDisplay } from './displayRead.ts'
+import { readbackImage } from '../render/flush.ts'
 import { frameTargetsAwaited } from '../prepare/targetGrant.ts'
 import { defaultEngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -56,9 +55,9 @@ export function syncResident(rt: WebgpuPagesRuntime) {
 
 /**
  * The current image, bottom row first: the one the last flush read back when it is still current,
- * else the display texture copied into a mapped buffer (`readGpuImage`) — awaited, never the
- * canvas, never a present, and no frame waits for it: the copy is queued behind the image's own
- * work and any later frame behind the copy.
+ * else the display texture copied into a mapped buffer (`readbackImage`, one read at a time) —
+ * awaited, never the canvas, never a present, and no frame waits for it: the copy is queued behind
+ * the image's own work and any later frame behind the copy.
  */
 export async function captureImage(rt: WebgpuPagesRuntime) {
   const { run, gpu, capture } = rt,
@@ -72,15 +71,9 @@ export async function captureImage(rt: WebgpuPagesRuntime) {
   const busy = capture.capturing || frameTargetsAwaited(rt)
   if (!gpuDevice || !gpu.displayTexture || !run.lastCamera || busy)
     throw new Error('CAPTURE_NOT_READY: render before capture')
-  freshDisplay(rt)
-  const revision = run.imageRevision
-  const pixels = await readGpuImage(gpuDevice, gpu.displayTexture, ...gpu.displaySize, rt.signal)
-  if (run.lost) throw new Error('WEBGPU_LOST')
   // A frame submitted meanwhile is queued after the copy: the pixels are this revision's still.
-  if (revision === run.imageRevision) {
-    capture.capturedPixels = pixels
-    capture.capturedRevision = revision
-  }
+  const pixels = await readbackImage(rt, gpuDevice)
+  if (run.lost) throw new Error('WEBGPU_LOST')
   return pixels
 }
 

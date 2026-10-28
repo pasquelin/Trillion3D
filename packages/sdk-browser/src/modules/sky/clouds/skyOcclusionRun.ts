@@ -2,10 +2,10 @@ import type { ComputeRun } from '../../../gpu/core/lazyComputePass.ts'
 import type { CloudSkyOcclusionLight } from '../../../../../sdk-core/src/modules/sky/cloudSkyOcclusion.ts'
 import type { CloudSkyMapFrame } from '../../../lighting/atmosphere/cloudShadowRead.ts'
 import { uniformBuffer } from '../../../gpu/core/uniformBlock.ts'
+import { loadOnlyUsage } from '../../../gpu/core/loadOnlyTarget.ts'
 import { cloudShadowDispatch } from './shadow.ts'
 import { CLOUD_SHADOW_FORMAT, CLOUD_SHADOW_LAYOUT, type CloudShadowImage } from './shadowLayout.ts'
 import {
-  mapUsage,
   viewOf,
   type CloudShadowTraceInput,
   type CloudShadowTraceSlot,
@@ -82,7 +82,7 @@ function slotFor(device: GPUDevice, state: RunState, side: number, filtered: boo
       label: `Trillion3D cloud sky occlusion ${label}`,
       size: { width: side, height: side },
       format: CLOUD_SHADOW_FORMAT,
-      usage: mapUsage(),
+      usage: loadOnlyUsage(),
     })
   return (state.slot = {
     key,

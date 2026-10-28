@@ -115,6 +115,7 @@ function readLight(saved: NonNullable<SavedNode['light']>, version: number) {
     ...saved.shafts,
     ...saved.cloudShadows,
     ...saved.contactShadows,
+    ...saved.shadows,
   })
 }
 

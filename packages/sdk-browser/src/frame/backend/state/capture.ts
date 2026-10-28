@@ -10,7 +10,9 @@ export interface WebgpuCaptureState {
   surfaceRenderAllowed: boolean
   capturedRevision: number
   capturedPixels: Uint8Array | undefined
-  capturePending: Promise<void> | undefined
+  capturePending: Promise<Uint8Array> | undefined
+  /** The image revision the pending read was started at. */
+  pendingRevision: number
   captureStreamingDeferrals: number
   captureDeferralLogged: boolean
 }
@@ -30,6 +32,7 @@ export function createWebgpuCaptureState(): WebgpuCaptureState {
     capturedRevision: -1,
     capturedPixels: undefined,
     capturePending: undefined,
+    pendingRevision: -1,
     captureStreamingDeferrals: 0,
     captureDeferralLogged: false,
   }
