@@ -68,6 +68,8 @@ export const BLEND_RESPONSIVE_PASS = 'Trillion3D blend responsiveness'
  *  layers drawn into it, and its visibility laid back over the lit image's alpha. */
 export const HOLDOUT_START_PASS = 'Trillion3D alpha holdout start'
 export const BLEND_HOLDOUT_PASS = 'Trillion3D blend alpha holdout'
+/** The translucent surfaces' mark of the radiance cache (`../../blend/radianceMark.ts`). */
+export const RADIANCE_MARK_PASS = 'Trillion3D translucent radiance mark'
 export const HOLDOUT_APPLY_PASS = 'Trillion3D alpha holdout apply'
 /** The layers that multiply the scene, drawn on the modulation target, and the composition of the
  *  translucency onto the image (`../../blend/translucency.ts`). */
@@ -304,6 +306,7 @@ export const ENGINE_PASSES = [
   definePass({ label: BLEND_RESPONSIVE_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: HOLDOUT_START_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: BLEND_HOLDOUT_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: RADIANCE_MARK_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: HOLDOUT_APPLY_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSLUCENCY_MODULATION_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSLUCENCY_COMPOSE_PASS, stage: 'transparents', block: 'other' }),

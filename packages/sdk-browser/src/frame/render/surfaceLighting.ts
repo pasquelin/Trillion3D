@@ -340,7 +340,7 @@ export function encodeSurfaceLighting(
   // What the sun's page marking reads of the transparents, in the lights (`encodeDirectLights`): the
   // water's depth, and the front layer where no image before left one.
   encodeMarkedLayers(rt, device, encoder, blendRuns)
-  const air = encodeDirectLights(rt, device, encoder, cam, viewProj, inverseViewProj)
+  const air = encodeDirectLights(rt, device, encoder, cam, viewProj, inverseViewProj, blendRuns)
   const direct = directTiles()
   // The local fog volumes of the view in the light buffer just pushed, and the buffer of their lists,
   // made before any group binds the fog's resources.

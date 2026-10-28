@@ -17,7 +17,7 @@ import { followSubsurfaceProfiles } from '../../lighting/subsurface/litRows.ts'
 import { ensureBounce, syncBouncePlacements } from '../prepare/bounce.ts'
 import { followGlobalLighting } from '../prepare/globalLighting.ts'
 import type { QueuedBounce } from '../backend/state/bounce.ts'
-import { createMarkSurface, type MarkProbes } from '../../lighting/bounce/pool/pool.ts'
+import { createMarkSurface, NO_MARKERS, type MarkProbes } from '../../lighting/bounce/pool/pool.ts'
 import { screenProbesCast } from '../../lighting/bounce/screen/cast.ts'
 import { lastCastProbes } from '../../lighting/bounce/screen/frame.ts'
 import {
@@ -25,6 +25,7 @@ import {
   releaseTranslucencyCache,
   restartTranslucencyCache,
 } from '../../lighting/translucencyGi/cache.ts'
+import { radianceMarker } from './encodeBlend.ts'
 import { translucencyGiMarkers } from '../../lighting/translucencyGi/marker.ts'
 import { planVsmFrame } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
 import { encodeVsmFrame } from '../../lighting/shadows/vsm/frame/vsmEncode.ts'
@@ -87,16 +88,19 @@ let orthographic = false
 const drawn = createMarkSurface()
 
 /** The surfaces the image drew — depth, the view's uniform and its size — and the screen probes it cast, for the marks of the cells it
- *  reads (`lighting/bounce/pool/pool.ts`); none when no opaque surface was drawn: nothing to mark. */
-function drawnSurface(rt: WebgpuPagesRuntime) {
+ *  reads (`lighting/bounce/pool/pool.ts`); with no opaque surface drawn nothing of those, only the translucent surfaces' mark where the image
+ *  prepared transparents, which needs no opaque depth; none where there is nothing to mark. */
+function drawnSurface(rt: WebgpuPagesRuntime, device: GPUDevice, prepared: boolean) {
   const { gpu, run } = rt
-  if (!run.depthDrawn || !gpu.depthView || !gpu.deferred) return undefined
-  drawn.depth = gpu.depthView
-  drawn.view = gpu.deferred.uniform
+  const opaque = run.depthDrawn && !!gpu.depthView && !!gpu.deferred
+  drawn.translucent = radianceMarker(rt, device, prepared)
+  if (!opaque && !drawn.translucent) return undefined
+  drawn.depth = opaque ? gpu.depthView : undefined
+  drawn.view = opaque ? gpu.deferred!.uniform : undefined
   drawn.size[0] = gpu.targetSize[0]
   drawn.size[1] = gpu.targetSize[1]
-  drawn.probes = lastCastProbes(gpu.screenProbes)
-  drawn.markers = translucencyGiMarkers(rt, 'shared')
+  drawn.probes = opaque ? lastCastProbes(gpu.screenProbes) : undefined
+  drawn.markers = opaque ? translucencyGiMarkers(rt, 'shared') : NO_MARKERS
   return drawn
 }
 
@@ -181,7 +185,7 @@ function ensureLightGrid(rt: WebgpuPagesRuntime) {
  * surface cache's lighting, which reads the air, bounce, then
  * the parameters deferred resolve will reread. A scene with no declared light launches neither
  * shadows nor lists: it pays nothing, and the unlit view outputs its raw albedo. Returns whether the
- * atmosphere was encoded.
+ * atmosphere was encoded. `prepared`: the transparents were prepared this image (`prepareBlend`), which the radiance cache's mark draws.
  */
 export function encodeDirectLights(
   rt: WebgpuPagesRuntime,
@@ -190,6 +194,7 @@ export function encodeDirectLights(
   cam: EngineCamera,
   viewProjection: ArrayLike<number>,
   inverseViewProjection: ArrayLike<number>,
+  prepared: boolean,
 ) {
   const { lights } = rt,
     { store } = lights
@@ -235,7 +240,7 @@ export function encodeDirectLights(
   const air = encodeAir(rt, device, encoder, cam, viewProjection, inverseViewProjection)
   // The light of the cards' texels, which the rays of the bounce and of the reflections read, brought up to date by the lights just pushed.
   lightSurfaceCards(rt, device, encoder, cam, viewProjection)
-  encodeBounce(rt, device, encoder, cam)
+  encodeBounce(rt, device, encoder, cam, prepared)
   // Kept bounce resources follow the placements even while bounce is toggled off.
   syncBouncePlacements(rt)
   if (listed) postListSizes(rt, active)
@@ -311,6 +316,7 @@ function encodeBounce(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
+  prepared: boolean,
 ) {
   const { bounce, lights } = rt
   // A light exists: that is the signal that rigs the bounce, once.
@@ -350,7 +356,7 @@ function encodeBounce(
   const queued: QueuedBounce = {
     reads: surfaceHitReads(rt, device),
     rays: sceneRaysOf(rt.surfaceCache?.lighting, rt.run.frame),
-    surface: drawnSurface(rt),
+    surface: drawnSurface(rt, device, prepared),
   }
   // An image that casts screen probes marks the cells its own probes stand in: the pass waits for their placement, and the radiance
   // cache's update that follows it fills every cell they read before they read it (`encodeQueuedBounce`, in the pre-light step).

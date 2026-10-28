@@ -7,6 +7,8 @@ import { encodeTransparentInstances } from '../../blend/transparent/draw.ts'
 import { encodeDistortion } from '../../blend/distortion.ts'
 import { encodeWater, encodeWaterDepth } from '../../blend/water/waterPass.ts'
 import { encodeFrontPass } from '../../blend/frontPass.ts'
+import { drawRadianceMark } from '../../blend/radianceMark.ts'
+import type { TranslucentMarker } from '../../lighting/bounce/pool/pool.ts'
 import {
   drawsFrontBeforeMarking,
   drawsWaterBeforeMarking,
@@ -127,6 +129,29 @@ export function encodeMarkedLayers(
   rt.timing.transparentPrepareMs += msSince(cpuStart)
   if (water) countBlendDraws(rt, encodeWaterDepth(rt, device, encoder, contract))
   if (front) encodeFrontPass(rt, device, encoder)
+}
+
+/** The marks of the translucent surfaces a runtime's pool runs, and the device each was made for. */
+const markers = new WeakMap<WebgpuPagesRuntime, { device: GPUDevice; marker: TranslucentMarker }>()
+
+/** The translucent surfaces' mark of the radiance cache for the pool (`MarkSurface.translucent`): the image's transparents drawn through the
+ *  mark stage, on a group of its own that names no light (`drawRadianceMark`). None unless `prepared`: the transparents were prepared this image
+ *  (`prepareBlend`). */
+export function radianceMarker(rt: WebgpuPagesRuntime, device: GPUDevice, prepared: boolean) {
+  if (!prepared) return undefined
+  let held = markers.get(rt)
+  if (held?.device !== device)
+    markers.set(
+      rt,
+      (held = {
+        device,
+        marker: {
+          mark: (encoder, grid, marks, settings) =>
+            void drawRadianceMark(rt, device, encoder, grid, marks, settings),
+        },
+      }),
+    )
+  return held.marker
 }
 
 /**

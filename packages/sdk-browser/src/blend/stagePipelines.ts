@@ -214,6 +214,8 @@ export interface BlendModePipelines extends RankedPipelines {
   /** The front stage's of what a front pass writes (`FrontOutputs`), one set each, every program's
    *  the same (`frontPass.ts`). */
   front(outputs: FrontOutputs): FrontStagePipelines
+  /** The radiance mark stage's, every program's the same (`radianceMark.ts`). */
+  readonly radianceMark: FrontStagePipelines
   /** What the program draws its transmissive items with, none in a scene that transmits nothing
    *  or under a diagnostic variant (`TransmitPipelines`). */
   readonly transmission?: TransmitPipelines
@@ -285,6 +287,10 @@ export function stageDescriptors(
   fragment: GPUFragmentState,
   depthWrite: boolean,
   groups: readonly GPUBindGroupLayout[],
+  depth: Pick<GPUDepthStencilState, 'format' | 'depthCompare'> = {
+    format: DEPTH_FORMAT,
+    depthCompare: DEPTH_COMPARE_OR_EQUAL,
+  },
 ): GPURenderPipelineDescriptor[] {
   const pipelineLayout = pipelineLayoutOf(device, [layout, ...groups])
   return CULL_MODES.map((cullMode) => ({
@@ -292,11 +298,7 @@ export function stageDescriptors(
     vertex: { module, entryPoint: 'vs' },
     fragment,
     primitive: { topology: 'triangle-list', cullMode, frontFace: 'ccw' },
-    depthStencil: {
-      format: DEPTH_FORMAT,
-      depthWriteEnabled: depthWrite,
-      depthCompare: DEPTH_COMPARE_OR_EQUAL,
-    },
+    depthStencil: { ...depth, depthWriteEnabled: depthWrite },
   }))
 }
 

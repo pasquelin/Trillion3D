@@ -96,7 +96,7 @@ export function drawBlendRuns(
   device: GPUDevice,
   pass: GPURenderPassEncoder,
   pipelines: RankedPipelines,
-  { filter, reflected = true, nearFirst = false, water, view = 0 }: BlendRuns = {},
+  { filter, reflected = true, nearFirst = false, water, view = 0, group }: BlendRuns = {},
 ) {
   const { blendState } = rt,
     args = blendState.argsBuffer!
@@ -105,10 +105,9 @@ export function drawBlendRuns(
   if (reflected) bindForwardReflection(pass, rt, skyLightReadOf(rt))
   if (filter) pass.setBindGroup(DISPLAY_MASK_GROUP, filter.maskGroup)
   // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
-  const group = sharedBlendGroup(rt, device)
   // Nothing is offset per item: the record is read at the rank the vertex index carries, so the
   // group is set once for the whole list.
-  pass.setBindGroup(0, group)
+  pass.setBindGroup(0, group ?? sharedBlendGroup(rt, device))
   let boundPipeline = -1,
     bound: GPURenderPipeline | undefined,
     encoded = 0
@@ -153,6 +152,8 @@ export type BlendRuns = {
   water?: 'only' | 'with'
   /** The expansion's view the slots are drawn from (`expand/expansionViews.ts`): 0, the default, every layer. */
   view?: number
+  /** The first group the runs are drawn with: the blend group of the image (`sharedBlendGroup`) unless a pass draws them on a layout of its own. */
+  group?: GPUBindGroup
 }
 
 /**

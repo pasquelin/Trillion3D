@@ -8,6 +8,7 @@ import { DAG_SELECTION_SHADER } from '../../geometry/dag/shader/selectionShader.
 import { HIZ_SHADER } from '../../visibility/hiz/gpu/shader.ts'
 import { reflectionTraceShader } from '../../lighting/reflections/trace/trace.ts'
 import { blendFrontShader } from '../../blend/frontStageWgsl.ts'
+import { blendRadianceMarkShader } from '../../blend/radianceMarkWgsl.ts'
 import {
   SHADE_BINS_SHADER,
   SHADE_BINS_SUBGROUP_SHADERS,
@@ -124,6 +125,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   FRONT_STAGE_DEPTH: blendFrontShader(0),
   FRONT_STAGE_REFLECTING: blendFrontShader(1),
   FRONT_STAGE_LOBED: blendFrontShader(2),
+  // The translucent surfaces' radiance mark (`blend/radianceMarkStage.ts`).
+  BLEND_RADIANCE_MARK: blendRadianceMarkShader(),
   SHADE_BINS_SHADER,
   SHADE_BINS_SUBGROUP_SHADER: SHADE_BINS_SUBGROUP_SHADERS[64],
   SHADE_BINS_SUBGROUP_32_SHADER: SHADE_BINS_SUBGROUP_SHADERS[32],

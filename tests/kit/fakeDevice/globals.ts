@@ -29,10 +29,13 @@ export function indirectDraws(draws: readonly FakeDraw[]) {
 }
 
 /** The transparent passes' draws of an image — the blends', the transmissive layers' — on the blend vertex stage,
- *  the front pass's left out: it draws every run once more, for the transparents' front alone
- *  (`src/blend/frontPass.ts`). */
+ *  the front pass's and the radiance mark's left out: they draw every run once more, for the transparents' front alone
+ *  (`src/blend/frontPass.ts`) and for the cells the radiance cache reads (`src/blend/radianceMark.ts`). */
 export const transparentDraws = (draws: readonly FakeDraw[]) =>
-  draws.filter((draw) => draw.entryPoint === 'vs' && draw.fragment !== 'fsFront')
+  draws.filter(
+    (draw) =>
+      draw.entryPoint === 'vs' && !['fsFront', 'fsRadianceMark'].includes(draw.fragment ?? ''),
+  )
 
 /** WebGPU's error classes, one each for the whole process: an error made before a later install is
  *  still an instance of the class the engine tests it against. */

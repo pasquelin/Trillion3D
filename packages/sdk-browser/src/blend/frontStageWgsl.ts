@@ -32,6 +32,18 @@ import { FACING_MATERIAL_MASK } from './facing.ts'
 import { WORDS } from './vertexReadsWgsl.ts'
 import { BLEND_LOBELESS_WGSL, BLEND_PHYSICAL_RECORD_WGSL } from './physicalWgsl.ts'
 
+/** Whether a blend fragment is kept, shared by the front stage and the radiance mark stage: the line's dash, and a thin layer always,
+ *  else the blend's own test (`blendKeeps`: its alpha past the cutout, not a facing discarded). `base` is the base map's sample.
+ *  `blendKeeps` is a function of the surface text the stage holds (`stageSurface`), not a declaration of its own, so it is not a dependency
+ *  here: every module that holds this block holds that text. */
+export const BLEND_FRAGMENT_KEPT_WGSL = wgslBlock(
+  'BLEND_FRAGMENT_KEPT_WGSL',
+  [LINE_DASH_WGSL],
+  `fn blendFragmentKept(in:VSOut,base:vec4f,thin:bool,front:bool)->bool{
+ return (thin||blendKeeps(in,base,front))&&lineDash(in.uv.x,in.alphaAo.zw);
+}`,
+)
+
 /** How far behind its surface a covering fragment writes its depth into the Hi-Z front layer: a ray leaving
  *  the surface never meets its own pixel's depth. */
 const FRONT_BEHIND = 1 - 1 / 1024
@@ -76,7 +88,7 @@ const frontStageWgsl = (outputs: FrontOutputs, graphs: readonly SurfaceProgram[]
       pixelModelFlag,
       pixelModelOf,
       translucencyMedium,
-      LINE_DASH_WGSL,
+      BLEND_FRAGMENT_KEPT_WGSL,
       REFLECTION_CONSTANTS_WGSL,
       ...(lobes ? [BLEND_PHYSICAL_RECORD_WGSL] : [BLEND_LOBELESS_WGSL]),
     ],
@@ -91,7 +103,7 @@ fn frontReflects(flags:u32)->bool{return blendLit(flags)&&surfaceReflects(modelF
  let thin=materialAt(in.${WORDS.material}&${FACING_MATERIAL_MASK}u).transmission>0.0;
  let covers=thin||blendAlpha(in,base)>=REFLECTION_FRONT_COVERAGE${waterOf(graphs) ? `||(g.graph.flags&${GRAPH_FLAG.water}u)!=0u` : ''};
  let reflects=${reflects ? `frontReflects(${graphs.length ? 'blendGraphFlags(in.ids.y,g.graph)' : 'in.ids.y'})` : 'false'};
- if(!(thin||blendKeeps(in,base,front))||!lineDash(in.uv.x,in.alphaAo.zw)||!(covers||reflects)){discard;return FrontOut(${fragmentZeros(written)});}
+ if(!blendFragmentKept(in,base,thin,front)||!(covers||reflects)){discard;return FrontOut(${fragmentZeros(written)});}
  let depth=vec4f(select(0.0,in.position.z*FRONT_BEHIND,covers),0.0,0.0,0.0);
 ${
   reflects

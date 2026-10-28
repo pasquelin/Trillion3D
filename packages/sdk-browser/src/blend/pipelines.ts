@@ -48,6 +48,7 @@ import { RESPONSIVE_TARGET } from './responsive.ts'
 import { HOLDOUT_TARGET } from './holdout.ts'
 import { blendModeConstant } from '../materials/surface/materialBlending.ts'
 import { createFrontStages, prepareFrontStage } from './frontStage.ts'
+import { createRadianceMarkStage, prepareRadianceMarkStage } from './radianceMarkStage.ts'
 import { createDualPasses } from './dualPasses.ts'
 import { waterWgsl } from './water/waterStageWgsl.ts'
 import { createWaterPipelines } from './water/waterPipelines.ts'
@@ -83,6 +84,8 @@ type BlendProgramSetup = {
   programs: () => ForwardVariants<BlendProgram>
   /** The front stages every program draws its front pass with (`createFrontStages`). */
   front: ReturnType<typeof createFrontStages>
+  /** The stage that marks the radiance cache's cells the transparents read (`createRadianceMarkStage`). */
+  radianceMark: ReturnType<typeof createRadianceMarkStage>
   /** The first program's transmissive pipelines of each lobe choice, lobed then lobeless: what
    *  the others take their unlit stages from (`createTransmitPipelines`). */
   transmitted: (TransmitPipelines | undefined)[]
@@ -224,6 +227,9 @@ export interface BlendPipelineOptions {
   /** Whether the programs keep the water's sun apart from the rest of its light (the separated sun,
    *  `singleLayerWaterShadersSupportDistanceFieldShadow` or `…VsmFiltering`, read when the session opens). */
   waterSeparate?: boolean
+  /** Whether the settings mark the radiance cache from the translucent surfaces (`screenProbeTranslucencyReflectionsRadianceCache`): the mark stage
+   *  (`radianceMarkStage.ts`) is then compiled with the scene, else at the first frame that asks it. */
+  radianceMark?: boolean
 }
 
 /** Builds the forward-material pipelines for transparent draws, the transmissive stages of a
@@ -238,7 +244,13 @@ export async function createWebgpuBlendPipelines(
   responsive = false,
   options: BlendPipelineOptions = {},
 ) {
-  const { lit, holdsTransmission, frontLayer = false, waterReflects = false } = options
+  const {
+    lit,
+    holdsTransmission,
+    frontLayer = false,
+    waterReflects = false,
+    radianceMark = false,
+  } = options
   // The forward materials' layout, which the feedback-free diagnostic pipelines share: the
   // group's table (`blendLayoutEntries`), the view uniform at its size.
   const blendBindGroupLayout =
@@ -269,6 +281,7 @@ export async function createWebgpuBlendPipelines(
     options,
   )
   const programs = await createForwardVariants((key) => blendProgram(setup, key), lit)
+  await prepareRadianceMarkStage(setup.radianceMark, items, radianceMark)
   await prepareFrontStage(
     setup.front,
     items,
@@ -310,6 +323,7 @@ function blendProgramSetup(
     waterSeparate,
     offsets,
     front: createFrontStages(base.device, base.layout, clipping, graphs, offsets),
+    radianceMark: createRadianceMarkStage(base.device, clipping, graphs, offsets),
     transmitted: [],
     clipping,
     localFog,
@@ -517,6 +531,7 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
     dualPasses,
     water,
     front: setup.front,
+    radianceMark: setup.radianceMark,
     reach: reach.reach,
     lit: (frame, lobed) => setup.programs().pick(frame, lobed)?.pipelines,
     litAwaited: (frame, lobed) => setup.programs().awaited(frame, lobed),

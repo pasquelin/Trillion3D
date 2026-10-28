@@ -19,6 +19,27 @@ export function frontStageOf(items: readonly BlendedSurface[]): FrontOutputs {
   return items.some((item) => hasLightingLobes(item.surface)) ? 2 : 1
 }
 
+/** A stage's three culls behind one envelope (`FrontStagePipelines`): `describe` is called once, at the first ask or prepare, and each
+ *  descriptor is made a prepared pipeline; a rank picks its cull's. Nothing is described nor compiled before. */
+export function stageOfCulls(
+  device: GPUDevice,
+  describe: () => GPURenderPipelineDescriptor[],
+): FrontStagePipelines {
+  let culls: PreparedPipeline<GPURenderPipeline>[] | undefined
+  const made = () =>
+    (culls ??= describe().map((descriptor) => preparedPipeline(device, descriptor)))
+  return {
+    get ready() {
+      return !!culls && culls.every((cull) => cull.ready)
+    },
+    ask() {
+      for (const cull of made()) cull.ask()
+    },
+    prepare: () => Promise.all(made().map((cull) => cull.prepare())),
+    at: (rank) => made()[cullOf(rank)].get(),
+  }
+}
+
 /**
  * The front stages of a device's blend layout, one set of three culls for each `FrontOutputs`, its
  * module of its own (`blendFrontShader`): what every blend program's front pass draws with, whatever its
@@ -38,10 +59,8 @@ export function createFrontStages(
   offsets: WpoSet = NO_WPO,
 ) {
   const sets: FrontStagePipelines[] = []
-  const setOf = (outputs: FrontOutputs): FrontStagePipelines => {
-    let culls: PreparedPipeline<GPURenderPipeline>[] | undefined
-    const made = () => {
-      if (culls) return culls
+  const setOf = (outputs: FrontOutputs): FrontStagePipelines =>
+    stageOfCulls(device, () => {
       const module = device.createShaderModule({
         label: 'Trillion3D front stage',
         code: blendFrontShader(outputs, clipping, graphs, offsets),
@@ -51,21 +70,8 @@ export function createFrontStages(
         entryPoint: 'fsFront',
         targets: fragmentTargets(FRONT_OUTPUTS[outputs]),
       }
-      return (culls = stageDescriptors(device, module, layout, fragment, true, []).map(
-        (descriptor) => preparedPipeline(device, descriptor),
-      ))
-    }
-    return {
-      get ready() {
-        return !!culls && culls.every((cull) => cull.ready)
-      },
-      ask() {
-        for (const cull of made()) cull.ask()
-      },
-      prepare: () => Promise.all(made().map((cull) => cull.prepare())),
-      at: (rank) => made()[cullOf(rank)].get(),
-    }
-  }
+      return stageDescriptors(device, module, layout, fragment, true, [])
+    })
   return (outputs: FrontOutputs) => (sets[outputs] ??= setOf(outputs))
 }
 
