@@ -30,13 +30,14 @@ const FLOOR: Block = {
   mirror: true,
 }
 const WALL: Block = { box: { low: [-14, 0, -16], high: [14, 12, -15.8] }, color: [0.9, 0.35, 0.1] }
-/** The poles, one pixel wide at 10.5 m, and the fences, four, in a row across the view. */
+/** The poles, one pixel wide at 10.5 m, and the fences, four, in a row across the view: enough of them that the rays passing
+ *  behind one, inside the vignette's margin (`pointOnScreen`), are more than a hundred. */
 const THIN_COLOR: Record<string, Vec3> = { pole: [0.1, 0.9, 0.2], fence: [0.9, 0.9, 0.1] }
-const POLES: Block[] = [2, 4, 6].map((x) => ({
+const POLES: Block[] = [2, 4, 6, 3, 5].map((x) => ({
   box: { low: [x - PIXEL / 2, 0, -6 - PIXEL / 2], high: [x + PIXEL / 2, 3, -6 + PIXEL / 2] },
   color: THIN_COLOR.pole,
 }))
-const FENCES: Block[] = [-3, -5, -7].map((x) => ({
+const FENCES: Block[] = [-3, -5, -7, -4, -6].map((x) => ({
   box: { low: [x - 2 * PIXEL, 0, -6 - 2 * PIXEL], high: [x + 2 * PIXEL, 3, -6 + 2 * PIXEL] },
   color: THIN_COLOR.fence,
 }))

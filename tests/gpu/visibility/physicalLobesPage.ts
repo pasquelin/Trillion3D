@@ -64,7 +64,11 @@ export async function plane(
   }: PlaneOptions = {},
 ) {
   const builder = batisseur()
-  const shown = blend ? { ...surface, transparent: true, opacity: 0.6 } : surface
+  // A material made in code is lit from the translucency volume by default (a medium: no highlight, no
+  // lobe); the blend pass lights lobes light by light, so the blended plane names the forward lighting.
+  const shown = blend
+    ? { ...surface, transparent: true, opacity: 0.6, translucencyLighting: 'forward' }
+    : surface
   const pass = blend ? 'clustered-blend' : 'exact-clusters'
   builder.place(G.physicalSurface(shown), pass, 1.2, [0, 0, 0], {}, geometry)
   const scene = builder.fini()
