@@ -50,7 +50,14 @@ import { SPATIAL_ENTRY, spatialWgsl } from './spatialWgsl.ts'
 import { TEMPORAL_ENTRY, temporalWgsl } from './temporalWgsl.ts'
 import { SHADING_ENTRY, shadingWgsl } from './shadingWgsl.ts'
 import { SCREEN_TRACE_ENTRY, screenTraceWgsl } from './screenTraceWgsl.ts'
-import { HASH_ENTRY, hashWgsl } from './hashWgsl.ts'
+import { CLEAR_RESOLVED_ENTRY, clearResolvedWgsl } from './clearResolvedWgsl.ts'
+import {
+  FILTER_HASH_ENTRY,
+  filterHashWgsl,
+  HASH_ENTRY,
+  hashFilterOn,
+  hashWgsl,
+} from './hashWgsl.ts'
 import {
   SAMPLED_GROUP,
   guideAt,
@@ -314,6 +321,7 @@ function makeResources(device: GPUDevice, g: SampledGeometry, lights: number) {
       48,
       GPUBufferUsage.INDIRECT,
     ),
+    hashRaw: storageBuffer(device, 'Trillion3D sampled raw hash', guideWords(g, 0) * 4),
     guides: [
       storageBuffer(device, 'Trillion3D sampled guide 0', guideBytes),
       storageBuffer(device, 'Trillion3D sampled guide 1', guideBytes),
@@ -340,6 +348,7 @@ function makeResources(device: GPUDevice, g: SampledGeometry, lights: number) {
         resources.compactData,
         resources.compactCount,
         resources.compactArgs,
+        resources.hashRaw,
         ...resources.guides,
         ...resources.histories,
         resources.params,
@@ -375,11 +384,23 @@ function tileLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGrou
     hash: layout([
       computeBufferEntry(B.params, 'uniform'),
       computeTextureEntry(B.samples, 'uint'),
+      computeBufferEntry(B.hashRaw, 'storage'),
+    ]),
+    filterHash: layout([
+      computeBufferEntry(B.params, 'uniform'),
+      computeBufferEntry(B.hashRaw, 'read-only-storage'),
       computeBufferEntry(B.guideCurrent, 'storage'),
     ]),
     compactArgs: layout([
       computeBufferEntry(B.compactCount, 'read-only-storage'),
       computeBufferEntry(B.compactArgs, 'storage'),
+    ]),
+    clearResolved: layout([
+      computeBufferEntry(B.params, 'uniform'),
+      computeBufferEntry(B.tileAllocator, 'read-only-storage'),
+      computeBufferEntry(B.tileData, 'read-only-storage'),
+      computeStorageTextureEntry(B.resolvedDiffuse, 'rgba16float', 'write-only'),
+      computeStorageTextureEntry(B.resolvedSpecular, 'rgba16float', 'write-only'),
     ]),
     clear: layout([
       computeBufferEntry(B.params, 'uniform'),
@@ -616,6 +637,15 @@ function createTileStages(device: GPUDevice, layouts: Layouts, stage: StageMaker
         HASH_ENTRY,
         'Trillion3D sampled hash',
       ),
+      filterHash: stage(
+        layouts.filterHash,
+        device.createShaderModule({
+          label: 'Trillion3D sampled hash filter',
+          code: filterHashWgsl(),
+        }),
+        FILTER_HASH_ENTRY,
+        'Trillion3D sampled hash filter',
+      ),
     },
     compacts: [0, 1, 2].map((slot) => ({
       list: stage(layouts.compact, compactModule, COMPACT_ENTRY, 'Trillion3D sampled compact', {
@@ -629,6 +659,16 @@ function createTileStages(device: GPUDevice, layouts: Layouts, stage: StageMaker
         { SLOT: slot },
       ),
     })),
+    clearResolved: stage(
+      layouts.clearResolved,
+      device.createShaderModule({
+        label: 'Trillion3D sampled clear resolved',
+        code: clearResolvedWgsl(),
+      }),
+      CLEAR_RESOLVED_ENTRY,
+      'Trillion3D sampled clear resolved',
+      { TILE_MODE: SAMPLED_TILE.empty },
+    ),
     clears: stage(
       layouts.clear,
       device.createShaderModule({ label: 'Trillion3D sampled clear', code: clearSamplesWgsl() }),
@@ -788,7 +828,9 @@ function createGroups(device: GPUDevice, layouts: Layouts) {
     argsView: createPassGroup(device, layouts.args),
     argsDown: createPassGroup(device, layouts.args),
     hash: createPassGroup(device, layouts.hash),
+    filterHash: createPassGroup(device, layouts.filterHash),
     clear: createPassGroup(device, layouts.clear),
+    clearResolved: createPassGroup(device, layouts.clearResolved),
     trace: createPassGroup(device, layouts.trace),
     compact: createPassGroup(device, layouts.compact),
     compactArgs: [0, 1, 2].map(() => createPassGroup(device, layouts.compactArgs)),
@@ -924,6 +966,8 @@ interface EncodeContext {
   r: Resources
   current: GPUBuffer
   history: GPUBuffer
+  /** Whether the tiles' hashes are joined with their neighbours' (`hashFilterOn`): the hash pass then writes the raw hash, else the guide itself. */
+  hashFilter: boolean
   colours: GPUTextureView
   words: GPUTextureView
   vectors: GPUTextureView
@@ -1246,15 +1290,43 @@ function traceField(c: EncodeContext, t: Compaction, field: GlobalFieldRead) {
 
 /** The hash of what each tile saw, then every pixel of the tiles of each mode lit by the lights its samples drew, resolved for the filters. */
 function encodeShading(c: EncodeContext) {
-  const { pass, run, inputs, g, r, current, family } = c
-  const { fixed } = c.stages
+  const { pass, run, inputs, g, r, current, family, hashFilter } = c
+  const { fixed, clearResolved } = c.stages
   const { groups } = c
-  const hashGroup = groups.hash.get([r.params, r.samplesView, current], () => [
+  const hashTarget = hashFilter ? r.hashRaw : current
+  const hashGroup = groups.hash.get([r.params, r.samplesView, hashTarget], () => [
     { binding: B.params, resource: { buffer: r.params } },
     { binding: B.samples, resource: r.samplesView },
-    { binding: B.guideCurrent, resource: { buffer: current } },
+    { binding: B.hashRaw, resource: { buffer: hashTarget } },
   ])
   run(fixed.hash, hashGroup, g.tiles[0], g.tiles[1])
+  if (hashFilter) {
+    const filterGroup = groups.filterHash.get([r.params, r.hashRaw, current], () => [
+      { binding: B.params, resource: { buffer: r.params } },
+      { binding: B.hashRaw, resource: { buffer: r.hashRaw } },
+      { binding: B.guideCurrent, resource: { buffer: current } },
+    ])
+    run(
+      fixed.filterHash,
+      filterGroup,
+      ceilDiv(g.tiles[0], SAMPLED_GROUP),
+      ceilDiv(g.tiles[1], SAMPLED_GROUP),
+    )
+  }
+  // The empty tiles, which the shading below never visits, are marked invalid so they do not keep the last image's light.
+  const clearResolvedGroup = groups.clearResolved.get(
+    [r.params, r.allocator, r.data, r.resolvedDiffuseView, r.resolvedSpecularView],
+    () => [
+      { binding: B.params, resource: { buffer: r.params } },
+      { binding: B.tileAllocator, resource: { buffer: r.allocator } },
+      { binding: B.tileData, resource: { buffer: r.data } },
+      { binding: B.resolvedDiffuse, resource: r.resolvedDiffuseView },
+      { binding: B.resolvedSpecular, resource: r.resolvedSpecularView },
+    ],
+  )
+  pass.setPipeline(clearResolved.get()!)
+  pass.setBindGroup(0, clearResolvedGroup)
+  pass.dispatchWorkgroupsIndirect(r.args, tileArgsAt(SAMPLED_TILE.empty))
   // Every pixel of the tiles of each mode, lit by the lights its samples drew, resolved for the filters.
   for (const { mode, tileClass } of SAMPLING_MODES) {
     const shadeGroup = family.shadingGroups
@@ -1564,6 +1636,7 @@ function encodeImage(
     r,
     current,
     history,
+    hashFilter: hashFilterOn(settings),
     colours,
     words,
     vectors,

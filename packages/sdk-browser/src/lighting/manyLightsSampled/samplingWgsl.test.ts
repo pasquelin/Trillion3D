@@ -4,7 +4,8 @@ import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { FULL_CONTRACT } from '../deferred/contractCuts.ts'
 import { TILE_CLASS, TILE_CLASSES } from '../deferred/tileClass.ts'
 import { CLEAR_ENTRY, SAMPLE_ENTRY, clearSamplesWgsl, samplingWgsl } from './samplingWgsl.ts'
-import { HASH_ENTRY, hashWgsl } from './hashWgsl.ts'
+import { CLEAR_RESOLVED_ENTRY, clearResolvedWgsl } from './clearResolvedWgsl.ts'
+import { FILTER_HASH_ENTRY, filterHashWgsl, HASH_ENTRY, hashWgsl } from './hashWgsl.ts'
 
 test('the sampling assembles for every class of tile, with and without rectangle lights', () => {
   for (const tileClass of TILE_CLASSES)
@@ -28,6 +29,9 @@ test('the clearing and the hash entries assemble', () => {
   assert.ok(clearSamplesWgsl().includes(`fn ${CLEAR_ENTRY}(`))
   const hash = hashWgsl()
   assert.ok(hash.includes(`fn ${HASH_ENTRY}(`))
+  assert.ok(clearResolvedWgsl().includes(`fn ${CLEAR_RESOLVED_ENTRY}(`))
+  const filter = filterHashWgsl()
+  assert.ok(filter.includes(`fn ${FILTER_HASH_ENTRY}(`))
 })
 
 test('the WGSL texts this system writes hold no backtick of their own', async () => {

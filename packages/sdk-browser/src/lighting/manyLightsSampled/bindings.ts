@@ -20,6 +20,8 @@ export const SAMPLED_BINDINGS = {
   /** The guide of the last image (visible sets, hidden sets, light power ratios) and the one this image writes. */
   guideHistory: 130,
   guideCurrent: 131,
+  /** The hash of what each tile saw before the neighbouring tiles' are joined to it (read by the filter of the sets). */
+  hashRaw: 162,
   /** The blue noise. */
   blue: 132,
   /** The surfaces' motion vectors of the image (two words a texel). */

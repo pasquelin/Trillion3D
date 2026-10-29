@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { SAMPLED_LIGHTS_RULES } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
 import { resolveSettings } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { sampledGeometry } from './layout.ts'
+import { hashFilterOn } from './hashWgsl.ts'
 import { SAMPLED_PARAMS_WORDS, directionalRatio, writeSampledParams } from './paramsWgsl.ts'
 
 test('the uniform holds the geometry, the switches and the weights at the words its struct declares', () => {
@@ -66,4 +67,15 @@ test('the directional lights’ ratio is fraction over its complement, none at 1
   assert.equal(directionalRatio(0.5), 1)
   assert.equal(directionalRatio(0.75), 3)
   assert.equal(directionalRatio(1), 0)
+})
+
+test('the tiles’ hashes are joined only while the history guides the draw and the filter is on', () => {
+  const on = (guide: boolean, filter: boolean) =>
+    hashFilterOn(
+      resolveSettings(SAMPLED_LIGHTS_RULES, {
+        sampledLightsGuideByHistory: guide,
+        sampledLightsGuideByHistoryFilter: filter,
+      }),
+    )
+  assert.deepEqual([on(true, true), on(true, false), on(false, true)], [true, false, false])
 })

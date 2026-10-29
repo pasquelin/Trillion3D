@@ -60,6 +60,7 @@ import {
  *   over time and the relative distance past which an earlier image is discarded;
  * - `sampledLightsTemporalMinFrames` (4), `sampledLightsTemporalMaxFrames` (12) and `sampledLightsTemporalClampScale` (1): the history's least length after a miss,
  *   its longest, and how permissive the neighbourhood clamp is (higher: more ghosting, less noise);
+ * - `sampledLightsGuideByHistoryFilter` (on): whether the sets of the lights each tile saw and did not see are joined with the four neighbouring tiles' before they guide the next image;
  * - `sampledLightsPowerDelta` (on) and `sampledLightsPowerDeltaLightFunctions` (off): whether the change of each light's power since the image before drives the draw, so that a light just
  *   turned on counts as visible at once, and whether the light function is in that power (evaluated once, at the light's place);
  * - `sampledLightsSpatial` (on), `sampledLightsSpatialDepthWeight` (10000), `sampledLightsSpatialRadius` (8 px), `sampledLightsSpatialSamples` (4),
@@ -93,6 +94,7 @@ export const SAMPLED_LIGHTS_RULES = /* @__PURE__ */ (() =>
     nonNegativeSetting('sampledLightsMinSampleWeight', 0.001),
     nonNegativeSetting('sampledLightsAttenuationFalloff', 0.18),
     flag('sampledLightsGuideByHistory', true),
+    flag('sampledLightsGuideByHistoryFilter', true),
     number('sampledLightsHiddenWeight', 0.1, [0, 1]),
     number('sampledLightsHiddenWeightOnHistoryMiss', 0.4, [0, 1]),
     number('sampledLightsDirectionalFraction', 0.5, [0, 1]),

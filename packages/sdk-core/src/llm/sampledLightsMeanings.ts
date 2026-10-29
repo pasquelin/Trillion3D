@@ -26,6 +26,8 @@ export const SAMPLED_LIGHTS_MEANINGS: Readonly<Record<SampledLightsField, string
     'The base colour luminance the early light culling assumes (0.18, the default); higher culls less (the least light weighed is the least sample weight over it), 0 culls nothing early.',
   sampledLightsGuideByHistory:
     'Whether a light that was hidden in the last image is drawn less often (true, the default), which lessens noise where a bright light is shadowed.',
+  sampledLightsGuideByHistoryFilter:
+    "Whether each tile's sets of seen and hidden lights are joined with its four neighbours' before they guide the next image (true, the default), which spreads what is known of a light to the tiles beside it; needs sampledLightsGuideByHistory.",
   sampledLightsHiddenWeight:
     'The share, from 0 to 1 (0.1, the default), of its weight in the draw that a light hidden in the last image keeps.',
   sampledLightsHiddenWeightOnHistoryMiss:

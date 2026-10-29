@@ -4152,3 +4152,11 @@ scene's load: no mixer moves it ([ENGINE.md](ENGINE.md#animation-banks)).
 The GPU deforms vertices before culling and drawing
 ([ENGINE.md](ENGINE.md#gpu-deformation)). `metrics.gpuDeformationMs` is the
 latest measured WebGPU deformation time, `null` without a timestamp sample.
+
+## Sampled lighting: guide filter
+`sampledLightsGuideByHistoryFilter` (`true`) joins the sets of lights each 8-pixel tile saw and did not see with its four neighbours' before they guide the next image of the sampled lighting; it works only while `sampledLightsGuideByHistory` is on.
+
+```js
+// Sampled lighting where each tile guides the draw by its own lights alone.
+const world = createWorld('viewer', { sampledLights: true, sampledLightsGuideByHistoryFilter: false })
+```
