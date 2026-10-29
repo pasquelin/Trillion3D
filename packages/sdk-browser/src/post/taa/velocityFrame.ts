@@ -65,6 +65,16 @@ export function followVelocity(rt: WebgpuPagesRuntime, taa: boolean) {
   velocity.measured = false
 }
 
+/** Whether a deformation may have moved this image's vertices: a placement whose record moved (`DeformationFrame.moving`,
+ *  what the hold's `deforming` reads), or any bank's track, whose roots the GPU moves. A deformed placement at rest is as
+ *  still as any other. */
+function deformationMoving({ vis }: WebgpuPagesRuntime) {
+  const deformation = vis.deformation
+  if (!vis.deformationCompute || !deformation) return false
+  if (deformation.tracks.count > 0) return true
+  return deformation.frame.moving.includes(1)
+}
+
 /** Whether the image shows what the last one did: its history kept, the scene, the resources, the
  *  placements and the deformations as they were, and the camera where it stood. A still image adds
  *  to the count the temporal pass's convergence is told by, and has no motion to blur; any motion
@@ -80,7 +90,7 @@ const imageStill = (
   !scan &&
   rt.run.gate.revisions.resources === state.resourcesSeen &&
   !moved &&
-  !rt.vis.deformationCompute &&
+  !deformationMoving(rt) &&
   state.before.image !== NEVER_SEEN &&
   sameMatrixBits(state.before.viewProjection, cam.viewProjection)
 

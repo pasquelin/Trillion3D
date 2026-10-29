@@ -3,6 +3,7 @@ import { historySamples } from './historyWgsl.ts'
 import { TEMPORAL_DEFAULTS } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 import { dropFrames } from './historyFrames.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { imagesToForget } from '../../lighting/bounce/screen/historyReady.ts'
 
 /** The history describes no image the view can still show — a view cut, new targets, the pass
  *  switched: dropped, and the jitter back to phase zero, so the new history starts on the
@@ -32,7 +33,31 @@ export function taaConverged(
   maxSamples = TEMPORAL_DEFAULTS.temporalHistorySampleCount,
 ) {
   if (!frame.hasHistory || frame.sample !== 0) return false
-  const samples = historySamples(frame.historyScale, maxSamples)
+  return (
+    frame.accumulated >=
+    historyImages(frame, render, display, historySamples(frame.historyScale, maxSamples))
+  )
+}
+
+/** The images a history that followed a change takes to forget the view before it, under one display
+ *  step, as the other histories do (`imagesToForget`). A view held sooner keeps a residue of the view
+ *  before, which a world opened on the view does not have. */
+export const taaForgettingImages = (
+  frame: TaaFrameState,
+  render: number,
+  display: number,
+  maxSamples = TEMPORAL_DEFAULTS.temporalHistorySampleCount,
+) =>
+  historyImages(
+    frame,
+    render,
+    display,
+    imagesToForget(historySamples(frame.historyScale, maxSamples)),
+  )
+
+/** The images, in whole cycles of the jitter's phases, that blend `hits` samples into a history pixel:
+ *  a cycle reaches it `phases` times, fewer where the history is finer than the render. */
+function historyImages(frame: TaaFrameState, render: number, display: number, hits: number) {
   const perCycle = frame.phases * Math.min(1, (render / (display * frame.historyScale)) ** 2)
-  return frame.accumulated >= frame.phases * ceilDiv(samples, perCycle)
+  return frame.phases * ceilDiv(hits, perCycle)
 }

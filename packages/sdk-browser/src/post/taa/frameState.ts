@@ -14,6 +14,9 @@ export interface TaaFrameState {
    *  drawn, at its entry (`beginTaaFrame`), whether it accumulates or not. A held image and a capture drawn aside with no pass
    *  of its own leave it as it is. */
   stochasticSample: number
+  /** The noise clock's index for the image being drawn (`noiseFrame`, set at its entry by `beginTaaFrame`): what the resolve's own
+   *  dither and noise turn with, so that the final image of an establishment meets the same pattern whatever the images drawn before. */
+  noise: number
   /** Jitter phases of the frame's render-to-display ratio (`upscalePhases`): eleven at native size. */
   phases: number
   /** This image's jitter, in the pixels it is drawn in. */
@@ -73,6 +76,7 @@ export function createTaaFrameState(): TaaFrameState {
   return {
     sample: 0,
     stochasticSample: 0,
+    noise: 0,
     phases: TAA_SAMPLES,
     jitter: new Float64Array(2),
     jitterGrid: new Float64Array(2),
@@ -100,10 +104,10 @@ export function createTaaFrameState(): TaaFrameState {
  *  or not, so a view without the temporal accumulation meets a new noise at each image. */
 export const stochasticPhase = (taa: TaaFrameState | undefined) => taa?.stochasticSample ?? 0
 
-/** Slots of the resolve's stochastic pattern (`writeTaaView`): the accumulated image's own rank
+/** Slots of the resolve's stochastic pattern (`writeTaaView`): the image's noise index (`noise`)
  *  modulo them. */
 export const STOCHASTIC_SLOTS = 8
-export const stochasticSlot = (taa: TaaFrameState) => taa.stochasticSample % STOCHASTIC_SLOTS
+export const stochasticSlot = (taa: TaaFrameState) => taa.noise % STOCHASTIC_SLOTS
 
 /** Whether the view's temporal pass runs: the one test of it (`taaPhaseCount`, the noise's cycle). */
 export const temporalActive = (taa: TaaFrameState | undefined) => !!taa?.active

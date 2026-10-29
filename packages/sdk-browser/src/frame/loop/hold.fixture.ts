@@ -8,6 +8,7 @@ import { createFrameGateCore } from '../gate/gateCore.ts'
 import { HOLD_SIGNATURE_VALUES, sampleWebgpuFrame } from './signature.ts'
 import { STOCHASTIC_SLOTS } from '../../post/taa/frameState.ts'
 import { isFinalImage } from '../render/finalImage.ts'
+import { createImageScratch } from '../backend/state/gpu.ts'
 import { createWebgpuTimingState } from '../backend/state/timing.ts'
 import type { createDeferredLighting } from '../../lighting/deferred/deferred.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -18,6 +19,7 @@ import type { EffectChain } from '../../../../sdk-core/src/world/effect/chain.ts
 import { NO_OVERRIDES } from '../backend/state/viewOverrides.ts'
 import { createPresentClasses } from '../../gpu/core/presentClasses.ts'
 import { createRootOffsets } from '../render/rootOffsets.ts'
+import { taaForgettingImages } from '../../post/taa/landing.ts'
 
 /**
  * An `rt` reduced to the strict necessary read by `frameSettled`/`holdWebgpuFrame`/`keepWebgpuFrame`:
@@ -125,6 +127,7 @@ export function settledRt() {
       effectsRevision: 0,
       kindSettings: createKindSettings(),
       guideRevision: 0,
+      images: createImageScratch(),
     },
     // No effect chain and no guides unless a test gives them (`world.effects`, `world.guides`).
     context: {} as { effects?: EffectChain; guides?: GuideSet },
@@ -177,8 +180,16 @@ export function drawFinalImage(
 ) {
   let drawn = 0,
     final = false
+  // A temporal history that followed a change is drawn on till it has forgotten the view before it (`taaForgettingImages`), then a cycle of the noise.
+  const temporal = rt.gpu.temporal?.frame,
+    forgetting = temporal
+      ? taaForgettingImages(temporal, rt.gpu.targetSize[0], rt.gpu.displaySize[0])
+      : 0
   while (!final) {
-    assert.ok(drawn <= STOCHASTIC_SLOTS, 'the final image comes within a cycle of the noise')
+    assert.ok(
+      drawn <= forgetting + STOCHASTIC_SLOTS,
+      'the final image comes within the history’s forgetting and a cycle of the noise',
+    )
     assert.equal(
       holdWebgpuFrame(rt, device),
       false,

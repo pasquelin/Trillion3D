@@ -291,7 +291,7 @@ export function writeTaaView(
   writeGrid(packed, T.render, render)
   packed[T.jitter] = state.jitter[0]
   packed[T.jitter + 1] = state.jitter[1]
-  packed[T.jitter + 2] = state.stochasticSample
+  packed[T.jitter + 2] = state.noise
   packed[T.jitter + 3] = stochasticSlot(state)
   packed.set(cam.eye, T.eye)
   packed[T.eye + 3] = deformed ? 1 : 0

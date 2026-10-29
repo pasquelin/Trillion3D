@@ -33,7 +33,9 @@ export async function frame(world: World) {
   world.camera.position.set(0, 6, 9)
   world.camera.lookAt(0, 0, 0)
   world.camera.updateMatrixWorld(true)
-  const held = await settleBy(sessionOf(world).gpuDevice, () => {
+  // The session opens on the first frames: its device is read once a frame has been drawn.
+  const device = () => (lastFrameOf(world) ? sessionOf(world).gpuDevice : undefined)
+  const held = await settleBy(device, () => {
     world.render()
     return lastFrameOf(world)
   })
@@ -82,6 +84,14 @@ export async function changed(world: World, before: string) {
 /** What a case adds to a world: meshes at once, models once they are loaded. */
 type Content = (world: World) => void | Promise<void>
 
+/** How far apart the images two worlds hold lie, channel by channel (`gaps`), and their sizes: what
+ *  `appendCases` bounds by `ONE_STEP`. */
+export async function apartOf(grown: World, opened: World) {
+  const grownPixels = new Uint8Array(await sessionOf(grown).capture()),
+    openedPixels = new Uint8Array(await sessionOf(opened).capture())
+  return { ...gaps(grownPixels, openedPixels), sizes: [grownPixels.length, openedPixels.length] }
+}
+
 /** A world opened on `held`, then `added` joining it while it runs, against a world opened on
  *  both — their models loaded in one burst, one session opened on them all —: the images, how far
  *  apart the two settled images lie channel by channel (`gaps`), and the sessions the first was
@@ -100,12 +110,7 @@ export async function joined(held: Content, added: Content) {
       await reference.world.ready
       await Promise.all([held(reference.world), added(reference.world)])
       const opened = await changed(reference.world, '')
-      const grownPixels = new Uint8Array(await sessionOf(grown.world).capture()),
-        openedPixels = new Uint8Array(await sessionOf(reference.world).capture())
-      const apart = {
-        ...gaps(grownPixels, openedPixels),
-        sizes: [grownPixels.length, openedPixels.length],
-      }
+      const apart = await apartOf(grown.world, reference.world)
       return {
         before,
         after,

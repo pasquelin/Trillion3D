@@ -8,7 +8,7 @@ import { geometry } from '../../../packages/sdk-core/src/world/geometry/index.ts
 import { material } from '../../../packages/sdk-core/src/world/material/index.ts'
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
-import { changed, open, type World } from '../world/appendProof.ts'
+import { apartOf, changed, open, type World } from '../world/appendProof.ts'
 
 const crate = geometry.box(0.8, 0.8, 0.8)
 const ball = geometry.sphere(0.5, 64, 48)
@@ -75,8 +75,13 @@ async function moved(from: Pose, to: Pose, shadows = false, grid?: [number, numb
     try {
       await reference.world.ready
       scene(reference.world, to, shadows, grid)
-      const opened = await changed(reference.world, '')
-      return { before, after, opened, sessions: [sessions, grown.world.diagnostic.sessions] }
+      await changed(reference.world, '')
+      return {
+        before,
+        after,
+        apart: await apartOf(grown.world, reference.world),
+        sessions: [sessions, grown.world.diagnostic.sessions],
+      }
     } finally {
       reference.close()
     }

@@ -146,8 +146,8 @@ function encodeImageChain(
   let composed = effects
   const finish = finishedGroup(rt, post, effects?.glow)
   // The image the passes before the temporal pass made, where nothing else carries it to the composition.
-  if (!composed && lit !== gpu.hdrView) composed = composedImage(lit)
-  if (finish) composed = composedImage(composed?.color ?? lit, composed?.glow, finish)
+  if (!composed && lit !== gpu.hdrView) composed = composedImage(gpu, lit)
+  if (finish) composed = composedImage(gpu, composed?.color ?? lit, composed?.glow, finish)
   return { accumulated, composed }
 }
 

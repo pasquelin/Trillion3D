@@ -69,7 +69,7 @@ test('the uniform carries the parallax, the flicker rates, the blend factor and 
     eye: new Float64Array([1, 2, 3]),
     image: 1,
   }
-  state.stochasticSample = 13
+  state.noise = 13
   const projection = new Float64Array(16)
   projection[0] = 2
   projection[11] = -1

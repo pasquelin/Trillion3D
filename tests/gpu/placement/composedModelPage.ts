@@ -4,7 +4,7 @@
 // the model already there. The models are generated and compiled: a dense sphere cooked with levels
 // of detail (the stretch of its placement decides what it draws), a skinned tube whose bones stand
 // in its graph, a crowd cut in cells; none is a file of the site.
-import { changed, open, type World } from '../world/appendProof.ts'
+import { apartOf, changed, open, type World } from '../world/appendProof.ts'
 import { crowdModel } from '../world/generatedModels.ts'
 import { skinnedModel } from '../world/generatedSkin.ts'
 import { sphereModel } from '../world/generatedShapes.ts'
@@ -40,20 +40,21 @@ async function moved(url: () => string, poses: readonly Pose[], bend?: number) {
     if (bend !== undefined) model.getObjectByName('knee')!.rotation.z = 0
     let before = await changed(grown.world, '')
     const sessions = grown.world.diagnostic.sessions
-    let after = before
     for (const [k, pose] of poses.slice(1).entries()) {
       at(pose, model)
       if (bend !== undefined && k === poses.length - 2)
         model.getObjectByName('knee')!.rotation.z = bend
-      after = await changed(grown.world, before)
-      before = after
+      before = await changed(grown.world, before)
     }
     const reference = open()
     try {
       await reference.world.ready
       await place(reference.world, poses.at(-1)!)
-      const opened = await changed(reference.world, '')
-      return { after, opened, sessions: [sessions, grown.world.diagnostic.sessions] }
+      await changed(reference.world, '')
+      return {
+        apart: await apartOf(grown.world, reference.world),
+        sessions: [sessions, grown.world.diagnostic.sessions],
+      }
     } finally {
       reference.close()
     }

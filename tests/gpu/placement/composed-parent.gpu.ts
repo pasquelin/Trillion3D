@@ -4,6 +4,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
+import { assertApart, type Apart } from '../world/appendCases.ts'
 import {
   runPageProof,
   assertSoundProof,
@@ -11,9 +12,9 @@ import {
 } from '../../kit/device/enginePageProof.ts'
 
 interface Result extends PageProofResult {
+  apart?: Apart
   before?: string
   after?: string
-  opened?: string
   sessions?: number[]
 }
 
@@ -34,5 +35,5 @@ for (const [name, method] of [
     assertSoundProof(result)
     assert.notEqual(result.after, result.before, 'the rig moved')
     assert.deepEqual(result.sessions, [1, 1], 'one session')
-    assert.equal(result.after, result.opened, 'the image is the fresh open’s')
+    assertApart(result.apart)
   })

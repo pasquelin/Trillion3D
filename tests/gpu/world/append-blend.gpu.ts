@@ -1,19 +1,8 @@
 // #1521: blended and transmissive geometries added to a world's scene while its session runs join
 // the session in place (`append/webgpuAppend.ts`, `src/blend/growth.ts`): the session is not
 // opened again, and its settled image is the image of a world opened on all of them within ONE 8-bit
-// step per channel, no pixel farther. Not bit for bit: the reflections read the previous lit image
-// (`litImage.ts`), so the image a session settles on is the fixed point of a feedback —
-// the lit image reflected into the next one. The session that joins content starts that series from
-// the image it held, the fresh open from its first; both converge to the same reflected image, and
-// what is left between them is the second-order feedback of the lit image into the next
-// reflections — the reflectance times the history's 1/12 share (`reflectionMaxFramesAccumulated`) of a
-// difference itself under a step: it may tip a channel's 8-bit rounding, never by a whole step more.
-// One step is that rounding; a pixel farther is a defect of the join. The proofs whose path has no
-// such feedback keep the bit-for-bit comparison (`appendCases` without a step).
-import { appendCases } from './appendCases.ts'
-
-/** The largest 8-bit step a channel of the joined session's image lies from the fresh open's. */
-const ONE_STEP = 1
+// step per channel, no pixel farther (`ONE_STEP`, whose rounding `appendCases.ts` explains).
+import { appendCases, ONE_STEP } from './appendCases.ts'
 
 appendCases(
   'appendBlendPage.ts',

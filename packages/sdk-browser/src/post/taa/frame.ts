@@ -10,6 +10,7 @@ import { writtenFilter } from '../../blend/display/displayFilter.ts'
 import { shownTranslucency } from '../../blend/translucency.ts'
 import { drawFrameAt, scalesTargets, taaRuns } from '../../frame/backend/state/renderScale.ts'
 import { dropTaaHistory } from './landing.ts'
+import { noiseFrame } from '../../frame/render/noiseFrame.ts'
 import type { MeasuredScene } from './analysis.ts'
 import { temporalActive, type TaaFrameState } from './frameState.ts'
 import type { TaaInputs } from './inputs.ts'
@@ -124,6 +125,8 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   // A session that freezes its temporal sequences leaves the sample where it is.
   if (temporal && (active || !rt.capture.capturing) && rt.context.freezeTemporalSequences !== true)
     temporal.frame.stochasticSample++
+  // The resolve's own noise follows the noise clock, as the lighting's does: the final image of an establishment is drawn at zero.
+  if (temporal) temporal.frame.noise = noiseFrame(rt)
   if (!temporal || !active) {
     // No temporal upscaler: the dynamic scale still steers a beauty image, which the composition
     // upscales spatially; a capture or a diagnostic view is drawn at the bounds' maximum.

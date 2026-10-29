@@ -65,8 +65,11 @@ export function updateWebgpuDeformation(rt: WebgpuPagesRuntime, cam: EngineCamer
   const moved = deformation.update(rt.run.frame)
   for (let i = 0; i < roots.length; i++) {
     const entry = deformation.entryOf(i)
-    if (frame.bases[entry] && !deformation.tracks.plays(i))
-      followReach(rt, i, frame.reach[entry], frame.dirty[entry] === 1)
+    if (!frame.bases[entry] || deformation.tracks.plays(i)) continue
+    followReach(rt, i, frame.reach[entry], frame.dirty[entry] === 1)
+    // A record that moved invalidates the root's shadows as a move does: cached as dynamic, static
+    // again once it has not moved for the frames a move settles in.
+    if (frame.moving[entry] === 1) rt.lights.mobility.invalidate(i)
   }
   playTracks(rt, deformation, cam)
   updateWavePages(rt, deformation)

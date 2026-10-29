@@ -10,25 +10,30 @@ import {
   assertSoundProof,
   type PageProofResult,
 } from '../../kit/device/enginePageProof.ts'
-import { appendCases } from './appendCases.ts'
+import { appendCases, ONE_STEP } from './appendCases.ts'
 
-appendCases('appendDeformPage.ts', 'appendDeform', [
-  ['a skinned geometry in a session that moves nothing', 'runSkinnedFirst'],
-  ['a skinned geometry in a session that moves skinned meshes', 'runSkinned'],
-  ['more skinned meshes of a batch the session holds', 'runSkinnedRows'],
-  ['a morphed geometry in a session that moves nothing', 'runMorphFirst'],
-  ['morphed meshes, then more of them', 'runMorph'],
-  ['a mesh the waves carry in a session that moves nothing', 'runWavedFirst'],
-  ['more meshes the waves carry, and another sheet', 'runWavedRows'],
-  ['a translucent mesh the waves carry', 'runWavedBlended'],
-  ['more translucent meshes the waves carry than the rows hold', 'runWavedBlendedRows'],
-  ['a geometry read as floats', 'runFloats'],
-  ['float geometries with vertex colours', 'runColours'],
-  ['a float geometry with colours in a session that reads none', 'runColoursFirst'],
-  ['float geometries with a second UV set', 'runSecondUv'],
-  ['colours, a second UV set, then more rows', 'runColoursAndSecondUv'],
-  ['a skinned, a morphed, a waved and a float geometry, one after the other', 'runAll'],
-])
+appendCases(
+  'appendDeformPage.ts',
+  'appendDeform',
+  [
+    ['a skinned geometry in a session that moves nothing', 'runSkinnedFirst'],
+    ['a skinned geometry in a session that moves skinned meshes', 'runSkinned'],
+    ['more skinned meshes of a batch the session holds', 'runSkinnedRows'],
+    ['a morphed geometry in a session that moves nothing', 'runMorphFirst'],
+    ['morphed meshes, then more of them', 'runMorph'],
+    ['a mesh the waves carry in a session that moves nothing', 'runWavedFirst'],
+    ['more meshes the waves carry, and another sheet', 'runWavedRows'],
+    ['a translucent mesh the waves carry', 'runWavedBlended'],
+    ['more translucent meshes the waves carry than the rows hold', 'runWavedBlendedRows'],
+    ['a geometry read as floats', 'runFloats'],
+    ['float geometries with vertex colours', 'runColours'],
+    ['a float geometry with colours in a session that reads none', 'runColoursFirst'],
+    ['float geometries with a second UV set', 'runSecondUv'],
+    ['colours, a second UV set, then more rows', 'runColoursAndSecondUv'],
+    ['a skinned, a morphed, a waved and a float geometry, one after the other', 'runAll'],
+  ],
+  ONE_STEP,
+)
 
 interface PosesResult extends PageProofResult {
   opened: string[]

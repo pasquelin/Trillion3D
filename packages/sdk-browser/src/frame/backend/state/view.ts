@@ -83,6 +83,8 @@ export const VIEW_GPU_KEYS = [
   // The reading of the effect kinds' settings, one per view (`createKindSettings`): what moved since
   // the image before is the view's own.
   'kindSettings',
+  // The images the passes after the lighting hand on, which `canvasOnly` keeps: the view's own.
+  'images',
   // The velocity stage, the screen probes and the ambient occlusion, whose histories follow the
   // camera of the view that drew them.
   'velocity',

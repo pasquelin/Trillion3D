@@ -192,6 +192,14 @@ export function createScreenReflection(
 }
 export type ScreenReflection = ReturnType<typeof createScreenReflection>
 
+/** The image the reflections last reflected shows a scene that is no more: content joined it. The view holds no lit image of itself again, so the next image traces
+ *  nothing and starts the denoiser's history from its own resolve, as a scene opened with that content draws its first, and the images that follow are the same bits as a
+ *  fresh open's, whatever the scene was before — a history that blends the old scene in settles on rounded values that depend on where it began. */
+export function forgetReflectedImage(reflection: ScreenReflection | undefined) {
+  if (!reflection) return
+  reflection.lit.held.valid = false
+}
+
 /**
  * Whether the view's reflections still wait for their first image: the view holds no lit image of
  * itself yet, so no image traced on it reflects the screen. Past it the reflections

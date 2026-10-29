@@ -13,7 +13,8 @@ import { skyCubemapsPending } from '../render/encodeCloudsSky.ts'
 import { finishAnimated } from '../../post/finish/frame.ts'
 import { blendGraphsAnimated } from '../../blend/graphWgsl.ts'
 import { taaRuns } from '../backend/state/renderScale.ts'
-import { taaConverged } from '../../post/taa/landing.ts'
+import { taaConverged, taaForgettingImages } from '../../post/taa/landing.ts'
+import { imagesSinceChange } from '../render/noiseFrame.ts'
 import { readTemporalSetting } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 
 /**
@@ -54,12 +55,15 @@ function taaConverging(rt: WebgpuPagesRuntime) {
   const frame = rt.gpu.temporal?.frame
   if (!taaRuns(rt) || !frame) return false
   if (rt.context.drawConverged === true) return true
-  return !taaConverged(
-    frame,
-    rt.gpu.targetSize[0],
-    rt.gpu.displaySize[0],
-    readTemporalSetting(rt, 'temporalHistorySampleCount'),
-  )
+  // The noise's final image is drawn on a converged history only (`beginNoiseImage`), and moves the jitter on: the view is held
+  // on it, until a change clears it.
+  if (rt.run.gate?.hold?.noise?.final) return false
+  const render = rt.gpu.targetSize[0],
+    display = rt.gpu.displaySize[0],
+    most = readTemporalSetting(rt, 'temporalHistorySampleCount')
+  // A history that followed a change forgets the view before it first, as the other histories do.
+  if (imagesSinceChange(rt.run) < taaForgettingImages(frame, render, display, most)) return true
+  return !taaConverged(frame, render, display, most)
 }
 
 /**

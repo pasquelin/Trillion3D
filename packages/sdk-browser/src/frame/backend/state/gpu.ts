@@ -3,6 +3,7 @@ import type { GpuPageCache } from '../../../geometry/pages/pool/pages.ts'
 import type { createGpuPresenter } from '../../../gpu/core/presentation.ts'
 import type { ComposeSource, createDeferredLighting } from '../../../lighting/deferred/deferred.ts'
 import type { ComposedImage } from '../../../lighting/deferred/program.ts'
+import type { OverlayFrame } from '../../../post/effects/webgpuKinds.ts'
 import type { SurfaceBuffer } from '../../../materials/surface/surfaceBuffer.ts'
 import type { Responsive } from '../../../blend/responsive.ts'
 import type { DisplayFilter } from '../../../blend/display/displayFilter.ts'
@@ -43,6 +44,16 @@ interface CanvasOnly {
   source: ComposeSource
 }
 
+/** The images the passes after the lighting hand on, each rewritten by every image of the view: an image
+ *  allocates none. They name the view's own textures, so they are the view's, never a module's — a
+ *  second world, or view, would write its views into the ones the first keeps (`canvasOnly`). */
+export interface ImageScratch {
+  composed: ComposedImage
+  resolved: ComposedImage & { half?: GPUTextureView }
+  late: ComposedImage & { half?: GPUTextureView }
+  overlay: OverlayFrame
+}
+
 export interface WebgpuGpuState {
   /** The session's handle on the device (`gpu/core/deviceOwners.ts`), from `prepare`: everything
    *  the session creates goes through it, so that the labels name the session. */
@@ -64,6 +75,8 @@ export interface WebgpuGpuState {
    *  (`../../io/displayRead.ts`). Undefined where the display texture holds the image; it goes
    *  with the targets it names. */
   canvasOnly: CanvasOnly | undefined
+  /** The images the passes after the lighting hand on (`ImageScratch`). */
+  images: ImageScratch
   /** What transparents ask of virtual textures, one tile rank per pixel: a target, never a fragment-
    *  stage write, which would cost early-z reject. */
   feedbackTexture: GPUTexture | undefined
@@ -190,6 +203,14 @@ export interface TransmissionBackdrop {
 export const taaWanted = (gpu: Pick<WebgpuGpuState, 'temporalLevel'>) =>
   isTaaLevelOn(gpu.temporalLevel)
 
+/** A view's image scratch, its images not yet drawn. */
+export const createImageScratch = (): ImageScratch => ({
+  composed: { color: undefined as unknown as GPUTextureView },
+  resolved: {} as ImageScratch['resolved'],
+  late: {} as ImageScratch['late'],
+  overlay: {} as OverlayFrame,
+})
+
 export function createWebgpuGpuState(viewport: readonly [number, number]): WebgpuGpuState {
   return {
     device: undefined,
@@ -203,6 +224,7 @@ export function createWebgpuGpuState(viewport: readonly [number, number]): Webgp
     displayTexture: undefined,
     displayView: undefined,
     canvasOnly: undefined,
+    images: createImageScratch(),
     feedbackTexture: undefined,
     feedbackView: undefined,
     backdrop: undefined,

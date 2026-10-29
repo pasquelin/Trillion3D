@@ -14,8 +14,9 @@ import { measurementSdk, proofCanvas } from '../../kit/device/renderHarness.ts'
 
 /** Frames a pose gets to be held before the proof gives up on it: the surface cache's light
  *  settles over `settleImages` images after its last capture (255 at the defaults), its captures
- *  confirmed a few images after they are drawn. */
-const SETTLE_FRAMES = 320
+ *  confirmed a few images after they are drawn — twice when its light begins again after the first
+ *  captures (a transmissive surface the translucency lighting reaches late), so two countdowns. */
+const SETTLE_FRAMES = 640
 
 /** The measurement SDK as a URL, for the bench helpers that import it themselves. */
 export const SDK_URL = pathToFileURL(
@@ -31,9 +32,9 @@ export async function settle(world: MeasuredWorld, pose?: CameraPose) {
   return settleBy(world.gpuDevice, () => world.render(pose))
 }
 
-/** `settle` for a world that draws by its own `render` (`createWorld`): `draw` makes one frame and answers its metrics, `device` is the one whose compiles are waited for, `holds` the frames held in a row the image waits for. */
+/** `settle` for a world that draws by its own `render` (`createWorld`): `draw` makes one frame and answers its metrics, `device` is the one whose compiles are waited for — or how to read it after each frame, for a world whose session opens on its first frames —, `holds` the frames held in a row the image waits for. */
 export async function settleBy<M extends { frameHeld?: boolean | null }>(
-  device: GPUDevice | undefined,
+  device: GPUDevice | undefined | (() => GPUDevice | undefined),
   draw: () => M | null,
   holds = 1,
 ): Promise<M | null> {
@@ -45,7 +46,7 @@ export async function settleBy<M extends { frameHeld?: boolean | null }>(
     if (metrics && held >= holds) return { ...metrics }
     // A frame drawn while the preparation still compiles pipelines is no frame of the budget:
     // the budget counts the frames of the prepared engine.
-    const compiling = pipelinesSettled(device)
+    const compiling = pipelinesSettled(typeof device === 'function' ? device() : device)
     if (compiling) await compiling
     else i++
   }

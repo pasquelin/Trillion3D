@@ -1,6 +1,6 @@
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import type { AccumulatedImage, ComposedImage } from '../../lighting/deferred/program.ts'
-import type { OverlayFrame } from '../../post/effects/webgpuKinds.ts'
+import type { ImageScratch, WebgpuGpuState } from '../backend/state/gpu.ts'
 import type { PostFrame } from '../../post/finish/finish.ts'
 import type { EffectPass } from '../../../../sdk-core/src/world/effect/chain.ts'
 import { composesFinish } from '../../post/finish/frame.ts'
@@ -17,15 +17,14 @@ import { applyPendingHoldout } from '../../blend/draw.ts'
 /** The passes of a stage that draw, rewritten by each image: an image allocates none. */
 const drawing: EffectPass[] = []
 
-/** The image composition reads, kept from frame to frame: an image allocates none. */
-const composed: ComposedImage = {
-  color: undefined as unknown as GPUTextureView,
-}
+/** The image composition reads, kept in the view's scratch from frame to frame: an image allocates none. */
 export function composedImage(
+  gpu: Pick<WebgpuGpuState, 'images'>,
   color: GPUTextureView,
   glow?: ComposedImage['glow'],
   finish?: ComposedImage['finish'],
 ) {
+  const composed = gpu.images.composed
   composed.color = color
   composed.glow = glow
   composed.finish = finish
@@ -41,10 +40,7 @@ const NO_PASSES: readonly EffectPass[] = []
  *  half-size image written beside the colour where a pass wrote one (`WebgpuResolveKind.half`,
  *  `AccumulatedImage.half`), which the scene's chain reads in place of the pass that draws it
  *  (`../../post/filters/sceneChain.ts`). */
-export type ResolvedImage = ComposedImage & { half?: GPUTextureView }
-const resolvedImage = {} as ResolvedImage
-/** The image the late layers are composed into, as the passes after read it. */
-const lateImage = {} as ResolvedImage
+type ResolvedImage = ImageScratch['resolved']
 
 /**
  * The passes of `stage` on `input`, from the motion the velocity stage measured for this image
@@ -128,9 +124,10 @@ export function encodeResolvedEffects(
   const size = accumulated ? rt.gpu.displaySize : rt.gpu.targetSize
   const color = composeLateImage(rt, device, encoder, scene, size)
   if (!color) return resolved
-  lateImage.color = color
-  lateImage.half = undefined
-  return lateImage
+  const { late } = rt.gpu.images
+  late.color = color
+  late.half = undefined
+  return late
 }
 
 /** The passes on the resolved image: `accumulated` itself where none draws. */
@@ -146,9 +143,10 @@ function drawResolved(
   if (!input || !rt.gpu.depthView || !effectsShown(rt)) return accumulated
   const color = drawStage(rt, device, encoder, cam, 'after-resolve', input, !!accumulated)
   if (!color) return accumulated
-  resolvedImage.color = color
-  resolvedImage.half = rt.gpu.effects?.stage('after-resolve').half
-  return resolvedImage
+  const { resolved } = rt.gpu.images
+  resolved.color = color
+  resolved.half = rt.gpu.effects?.stage('after-resolve').half
+  return resolved
 }
 
 /**
@@ -200,11 +198,8 @@ export function encodeEffects(
   run.gpuDrawCalls += effects.draws
   const { blend } = effects
   if (output === input && !blend) return accumulated
-  return composedImage(output, blend)
+  return composedImage(gpu, output, blend)
 }
-
-/** What the overlays read of the frame, kept from frame to frame: an image allocates none. */
-const overlayFrame = {} as OverlayFrame
 
 /**
  * The world's passes after tone mapping, drawn over the composed display image and the canvas it
@@ -229,6 +224,7 @@ export function encodeOverlayEffects(
     return 0
   }
   if (!beautyImage(rt)) return 0
+  const overlayFrame = gpu.images.overlay
   if (!gpu.displayView || !vis.visView || !vis.pageTable) return 0
   // Idle passes alone, before any pass made the chain: nothing to make for them.
   const toDraw = gpu.kindSettings.drawn(passes, rt.context, drawing)

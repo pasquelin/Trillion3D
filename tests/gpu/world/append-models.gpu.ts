@@ -11,17 +11,22 @@ import {
   assertSoundProof,
   type PageProofResult,
 } from '../../kit/device/enginePageProof.ts'
-import { appendCases } from './appendCases.ts'
+import { appendCases, ONE_STEP } from './appendCases.ts'
 
-appendCases('appendModelsPage.ts', 'appendModels', [
-  ['a second model', 'run'],
-  ['a model with coplanar layers the session has no slots for', 'runLayers'],
-  ['two models, one after the other', 'runTwo'],
-  ['a model in a session that draws meshes alone', 'runFirst'],
-  ['a model a stream unit holds', 'runSmall'],
-  ['a model cut in cells, beside a model', 'runPartitioned'],
-  ['a model cut in cells, in a session that draws meshes alone', 'runPartitionedFirst'],
-])
+appendCases(
+  'appendModelsPage.ts',
+  'appendModels',
+  [
+    ['a second model', 'run'],
+    ['a model with coplanar layers the session has no slots for', 'runLayers'],
+    ['two models, one after the other', 'runTwo'],
+    ['a model in a session that draws meshes alone', 'runFirst'],
+    ['a model a stream unit holds', 'runSmall'],
+    ['a model cut in cells, beside a model', 'runPartitioned'],
+    ['a model cut in cells, in a session that draws meshes alone', 'runPartitionedFirst'],
+  ],
+  ONE_STEP,
+)
 
 interface RemovedResult extends PageProofResult {
   full?: string

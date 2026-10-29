@@ -56,7 +56,12 @@ function sourceOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
           count,
         )
     },
-    rests: (rank) => rt.vis.deformation?.tracks.named(rank) === -1,
+    // A banked root resting under its screen size, or another deformed root the cache no longer holds
+    // moving: its record has not moved for the frames a move settles in (`invalidate`, `settle`).
+    rests: (rank) => {
+      const named = rt.vis.deformation?.tracks.named(rank)
+      return named === undefined ? !lights.mobility.moves(rank) : named === -1
+    },
     castFlags: (rank) => {
       const root = selectionRoots[rank],
         offsets = rt.vis.rootOffsets.rowOf(rank)
