@@ -57,7 +57,7 @@ const TILE_COLORS_WGSL = Array.from({ length: SAMPLED_TILE_MODES }, (_, mode) =>
   return `vec3f(${r},${g},${b})`
 }).join(',')
 
-const CODE = `struct Tiles{scale:vec2f,tilePixels:f32,stride:u32,empty:u32,pad0:u32,pad1:u32,pad2:u32}
+export const TILE_OVERLAY_WGSL = `struct Tiles{scale:vec2f,tilePixels:f32,stride:u32,empty:u32,pad0:u32,pad1:u32,pad2:u32}
 @group(0) @binding(0) var<uniform> tiles:Tiles;
 @group(0) @binding(1) var<storage,read> counts:array<u32>;
 @group(0) @binding(2) var<storage,read> lists:array<u32>;
@@ -91,7 +91,10 @@ const BLOCK_WORDS = 8
 
 /** The overlay's pipeline and block, made when the view first shows. */
 export function createTileOverlay(device: GPUDevice) {
-  const module = device.createShaderModule({ label: 'Trillion3D sampled tile overlay', code: CODE })
+  const module = device.createShaderModule({
+    label: 'Trillion3D sampled tile overlay',
+    code: TILE_OVERLAY_WGSL,
+  })
   const pipeline = preparedPipeline(device, {
     label: 'Trillion3D sampled tile overlay',
     layout: 'auto',

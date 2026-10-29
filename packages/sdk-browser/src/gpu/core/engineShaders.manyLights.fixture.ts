@@ -3,7 +3,10 @@
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { FULL_CONTRACT } from '../../lighting/deferred/contractCuts.ts'
 import { TILE_CLASSES } from '../../lighting/deferred/tileClass.ts'
-import { hashWgsl } from '../../lighting/manyLightsSampled/hashWgsl.ts'
+import { clearResolvedWgsl } from '../../lighting/manyLightsSampled/clearResolvedWgsl.ts'
+import { filterHashWgsl, hashWgsl } from '../../lighting/manyLightsSampled/hashWgsl.ts'
+import { TILE_OVERLAY_WGSL } from '../../lighting/manyLightsSampled/debug/tileOverlay.ts'
+import { VISUALIZE_WGSL } from '../../lighting/manyLightsSampled/debug/visualizeWgsl.ts'
 import { clearSamplesWgsl, samplingWgsl } from '../../lighting/manyLightsSampled/samplingWgsl.ts'
 import { compactArgsWgsl, compactWgsl } from '../../lighting/manyLightsSampled/compactWgsl.ts'
 import { softwareTraceWgsl } from '../../lighting/manyLightsSampled/softwareTraceWgsl.ts'
@@ -38,6 +41,10 @@ export const SAMPLED_LIGHTS_SHADERS: Record<string, string> = {
   SAMPLED_TILE_ARGS: tileArgsWgsl(),
   SAMPLED_CLEAR: clearSamplesWgsl(),
   SAMPLED_HASH: hashWgsl(),
+  SAMPLED_FILTER_HASH: filterHashWgsl(),
+  SAMPLED_CLEAR_RESOLVED: clearResolvedWgsl(),
+  SAMPLED_TILE_OVERLAY: TILE_OVERLAY_WGSL,
+  SAMPLED_VISUALIZE: VISUALIZE_WGSL,
   SAMPLED_SCREEN_TRACE: screenTraceWgsl(),
   SAMPLED_SOFTWARE_TRACE: softwareTraceWgsl(),
   SAMPLED_MAP_TRACE: vsmTraceSamplesWgsl(),

@@ -12,7 +12,7 @@ import { waterTileVertexWgsl } from './waterTileWgsl.ts'
  * shading wrote is multiplied by it, and the composite then adds the shadowed sun. The pixels of a tile that
  * hold no water hold a black sun and stay black.
  */
-const SUN_SHADOW_WGSL = wgslBlock(
+export const SUN_SHADOW_WGSL = wgslBlock(
   'WATER_SUN_SHADOW_WGSL',
   [WATER_MATH_WGSL, waterTileVertexWgsl(0, S.tiles)],
   `@group(0) @binding(${S.params}) var<uniform> water:WaterParams;

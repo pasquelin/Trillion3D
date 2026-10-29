@@ -1,8 +1,22 @@
 // The light functions', occlusion, distance fields' and primed pyramid's WGSL texts of `ENGINE_SHADERS`.
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
+import { sssDebugPixelWgsl } from '../../lighting/subsurface/debugPixel.ts'
+import { SSS_VISUALIZE_WGSL } from '../../lighting/subsurface/visualizeWgsl.ts'
+import { imageProgram } from '../../lighting/bounce/reservoirGather/imageWgsl.ts'
+import { resampleProgram } from '../../lighting/bounce/reservoirGather/resampleWgsl.ts'
+import {
+  FIELD_OFFSETS_PROGRAM,
+  GBUFFER_OFFSETS_PROGRAM,
+} from '../../lighting/bounce/irradianceField/offsetsWgsl.ts'
+import { MARK_HAIR_SHADER } from '../../lighting/bounce/pool/poolMarkHairWgsl.ts'
 import { EYE_MARK_SHADER } from '../../lighting/surfaceCache/sceneDebug/eyeMarker.ts'
 import { radianceProbeListWgsl } from '../../lighting/surfaceCache/sceneDebug/radianceProbesWgsl.ts'
+import { DISTANCE_FIELD_KERNEL_WGSL } from '../../../../sdk-core/src/lighting/distanceFieldKernel.ts'
+import {
+  CAPTURE_COPY_CODE,
+  CAPTURE_DIFFUSE_CODE,
+} from '../../lighting/reflectionCapture/captureWgsl.ts'
 import { VOLUMETRIC_LIGHT_WGSL } from '../../lighting/deferred/volumetricLightWgsl.ts'
 import { lightFunctionRenderWgsl } from '../../lighting/lightFunction/renderWgsl.ts'
 import { graphSlotWgsl, graphSlotOf } from '../../lighting/lightFunction/graphSlot.ts'
@@ -144,8 +158,19 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   SSS_COMPUTE: sssComputeProgram(SSS_SHAPE, false),
   SSS_ARGS: sssArgsProgram(SSS_SHAPE),
   SSS_RASTER: sssRasterProgram(SSS_SHAPE),
+  SSS_DEBUG_PIXEL: sssDebugPixelWgsl(SSS_SHAPE),
+  SSS_VISUALIZE: SSS_VISUALIZE_WGSL,
+  // The reservoirs' resampling and pixels, the field's probe offsets, the marks of the eye and of the strands, the probes' list of the scene view.
+  RESERVOIR_RESAMPLE: resampleProgram(),
+  RESERVOIR_IMAGE: imageProgram(),
+  FIELD_OFFSETS_BY_PIXELS: GBUFFER_OFFSETS_PROGRAM,
+  FIELD_OFFSETS_BY_FIELD: FIELD_OFFSETS_PROGRAM,
+  BOUNCE_MARK_HAIR: MARK_HAIR_SHADER,
   BOUNCE_MARK_EYE: EYE_MARK_SHADER,
   RADIANCE_PROBE_LIST: radianceProbeListWgsl,
+  DISTANCE_FIELD_VOXEL_KERNEL: DISTANCE_FIELD_KERNEL_WGSL,
+  REFLECTION_CAPTURE_COPY: CAPTURE_COPY_CODE,
+  REFLECTION_CAPTURE_DIFFUSE: CAPTURE_DIFFUSE_CODE,
   // The light functions' atlas slot, in each format (`../../lighting/lightFunction/`).
   LIGHT_FUNCTION_SLOT_GREY: lightFunctionRenderWgsl(128, 'grey', false),
   LIGHT_FUNCTION_SLOT_COLOUR: lightFunctionRenderWgsl(128, 'colour', false),

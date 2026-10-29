@@ -46,6 +46,8 @@ import { SAMPLED_LIGHTS_SHADERS } from './engineShaders.manyLights.fixture.ts'
 import { SCREEN_SPACE_TRACING_SHADERS } from './engineShaders.screenSpaceTracing.fixture.ts'
 import { BLEND_SHADER } from './shaderTexts.fixture.ts'
 import { waterCopyShader, waterMaskShader } from '../../blend/water/waterPassWgsl.ts'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { SUN_SHADOW_WGSL } from '../../blend/water/waterSunShadow.ts'
 import { waterTileKernels } from '../../blend/water/waterTileWgsl.ts'
 import { cacheFilterProgram } from '../../lighting/bounce/cache/cacheFilterWgsl.ts'
 import { cacheFixupProgram } from '../../lighting/bounce/cache/cacheFixupWgsl.ts'
@@ -225,6 +227,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   BLEND_SHADER,
   WATER_COPY: waterCopyShader(),
   WATER_MASK: waterMaskShader(),
+  WATER_SUN_SHADOW: wgslModule(SUN_SHADOW_WGSL),
   WATER_TILES: waterTileKernels(false),
   WATER_TILES_WAVED: waterTileKernels(true),
   DISPLAY_FILTER_SHADER,

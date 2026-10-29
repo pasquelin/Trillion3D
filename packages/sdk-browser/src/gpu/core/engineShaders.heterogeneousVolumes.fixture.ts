@@ -7,6 +7,7 @@ import {
   compositeProgram,
   liveShadingProgram,
 } from '../../lighting/heterogeneousVolumes/liveShadingProgram.ts'
+import { HV_PRESHADING_MIPS_WGSL } from '../../lighting/heterogeneousVolumes/preshadingMips.ts'
 import { PACK_WGSL } from '../../lighting/heterogeneousVolumes/beerShadowMapPackWgsl.ts'
 import { SV_ALLOCATE_SPARSE_VOXELS_WGSL } from '../../lighting/heterogeneousVolumes/sparseVoxels/allocateSparseVoxelsWgsl.ts'
 import { SV_ALLOCATE_TO_REFINE_WGSL } from '../../lighting/heterogeneousVolumes/sparseVoxels/allocateToRefineWgsl.ts'
@@ -64,6 +65,7 @@ export const HETEROGENEOUS_VOLUME_SHADERS: Record<string, string> = {
   HETEROGENEOUS_VOLUME_AVSM_BUILD: liveShadingProgram(compiled, 'rgba16float', false, 'avsm'),
   HETEROGENEOUS_VOLUME_COMPOSE: compositeProgram(),
   HETEROGENEOUS_VOLUME_BEER_PACK: PACK_WGSL,
+  HETEROGENEOUS_VOLUME_PRESHADING_MIPS: HV_PRESHADING_MIPS_WGSL,
   HETEROGENEOUS_VOLUME_GRID_CLEAR: VG_CLEAR_TOP_LEVEL_WGSL,
   HETEROGENEOUS_VOLUME_GRID_VOXEL_SIZE: VG_TOP_LEVEL_VOXEL_SIZE_WGSL,
   HETEROGENEOUS_VOLUME_GRID_MARK_FRUSTUM: VG_MARK_FRUSTUM_GRID_WGSL,

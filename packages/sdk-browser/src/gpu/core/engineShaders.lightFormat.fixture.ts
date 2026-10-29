@@ -36,6 +36,8 @@ import {
   resampleLightingProgramOf,
   resampleProgramOf,
 } from '../../lighting/surfaceCache/copyWgsl.ts'
+import { reservoirTraceProgram } from '../../lighting/bounce/reservoirGather/traceWgsl.ts'
+import { radianceCacheProgram } from '../../lighting/reflections/radianceCache/wgsl.ts'
 import { sceneVisualizeWgsl } from '../../lighting/surfaceCache/sceneDebug/sceneVisualizeWgsl.ts'
 import { radianceProbeDrawWgsl } from '../../lighting/surfaceCache/sceneDebug/radianceProbesWgsl.ts'
 import type { LightAtlasFormat } from './lightAtlasFormat.ts'
@@ -48,6 +50,8 @@ const EVERY_FORMAT: readonly LightAtlasFormat[] = [WORD_LIGHT_FORMAT, ...FORMATS
 
 export const LIGHT_FORMAT_SHADERS: Record<string, string> = Object.fromEntries([
   ...EVERY_FORMAT.flatMap((format) => [
+    [`RESERVOIR_TRACE_${format}`, reservoirTraceProgram(format)],
+    [`RADIANCE_CACHE_${format}`, radianceCacheProgram(format)],
     [`SCENE_VISUALIZE_${format}`, sceneVisualizeWgsl(format)],
     [`RADIANCE_PROBE_DRAW_${format}`, radianceProbeDrawWgsl(format)],
   ]),

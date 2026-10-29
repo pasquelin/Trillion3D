@@ -33,7 +33,7 @@ export const PIXEL_FIELDS = {
  * specular parts (`sssReconstruct`), its profile, its base colour and tint, the scattered image's light there (the colour over its alpha), the lighting mixed with it
  * by the tint (the fade is one at full resolution) and the final colour the recombine writes. The lit image is bound as `texA` and the scattered one as `texB`.
  */
-const kernelWgsl = (shape: SubsurfaceShape) =>
+export const sssDebugPixelWgsl = (shape: SubsurfaceShape) =>
   wgslProgram(
     `${sssShapeHeader(shape)}
 @group(1) @binding(0) var texA:texture_2d<f32>;
@@ -90,7 +90,7 @@ const kernels = oncePerDevice((device: GPUDevice) => {
         layout,
         device.createShaderModule({
           label: `${SUBSURFACE_PASS} debug pixel`,
-          code: kernelWgsl(shape),
+          code: sssDebugPixelWgsl(shape),
         }),
         'sssDebugPixelMain',
         undefined,
@@ -105,7 +105,7 @@ const kernels = oncePerDevice((device: GPUDevice) => {
 export type FoundPixel = Float32Array
 
 /**
- * The reading of one pixel of the subsurface pass's image (`kernelWgsl`): the kernel runs before the recombine, the buffer it fills is copied and mapped
+ * The reading of one pixel of the subsurface pass's image (`sssDebugPixelWgsl`): the kernel runs before the recombine, the buffer it fills is copied and mapped
  * without a wait, and the last reading to come back is kept (`found`, the zeros before any). Made when the option is first on.
  */
 export function createSubsurfaceDebugPixel(device: GPUDevice) {

@@ -83,6 +83,8 @@ test('a reserved word is found as a local, a parameter or a member, never in a c
  *  generator's text is on the list for one layout, and every generator they import must be. */
 const HANDED_IN = new Set([
   'gpu/core/shaderModule.ts',
+  'diagnostic/screenPass.ts',
+  'lighting/bounce/reservoirGather/kernels.ts',
   'gpu/sort/sortKit.ts',
   'gpu/core/computeStages.ts',
   'modules/sky/clouds/generation.ts',
@@ -158,7 +160,7 @@ test('the list holds the text of every call that compiles a module', () => {
       continue
     }
     const calls =
-      /createCheckedShaderModule\(\s*\w+,\s*([^,]+),|createShaderModule\(\{[^}]*?\bcode:([^}]*)\}/g
+      /createCheckedShaderModule\(\s*\w+,\s*([^,]+),|createShaderModule\(\{(?:[^{}]|\$\{[^}]*\})*?\bcode:([^}]*)\}/g
     const read = [...text.matchAll(calls)]
     // A call in a form the pattern does not read is reported, never skipped.
     if (read.length !== text.split(/create(?:Checked)?ShaderModule\(/).length - 1)
