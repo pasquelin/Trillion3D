@@ -98,7 +98,7 @@ const fieldGatherDeclarations = (light: LightAtlasFormat) => `${wgslConsts({ FIE
 const FIELD_MIN_WEIGHT:f32=${MIN_WEIGHT};
 ${FIELD_SLOT_CONSTS}`
 
-/** The reads of the probes' maps: the irradiance and the occlusion along a direction, the radiance along a direction at a level of detail. */
+/** The reads of the probes' final maps: the radiance along a direction at a level of detail. */
 export const fieldMapReads = (
   light: LightAtlasFormat,
 ) => `/** The texel of the atlas of squares 'side' texels a side whose square the slot 'slot' is, at the unit coordinates 'uv' of the map inside its border, read bilinearly. */
@@ -106,25 +106,6 @@ fn fieldMapTexel(slot:u32,uv:vec2f,res:u32,at:u32)->vec2i{
  let side=res+2u*FIELD_MAP_BORDER;
  let q=uv*f32(res)+vec2f(f32(FIELD_MAP_BORDER))-vec2f(0.5);
  return vec2i(cacheTileOf(slot,side))+vec2i(floor(q))+vec2i(i32(at&1u),i32(at>>1u));
-}
-fn fieldIrradiance(slot:u32,direction:vec3f)->vec3f{
- let res=u32(field[0].x);
- let uv=equalAreaEncode(direction);
- let q=uv*f32(res)-vec2f(0.5);
- var taps=array<vec3f,4>();
- for(var i=0u;i<4u;i++){taps[i]=textureLoad(irradianceAtlas,fieldMapTexel(slot,uv,res,i),0).rgb;}
- return bilinear3(taps[0],taps[1],taps[2],taps[3],fract(q))*bounce.reach.w;
-}
-fn fieldOcclusion(slot:u32,direction:vec3f)->vec2f{
- let res=u32(field[0].y);
- let uv=equalAreaEncode(direction);
- let q=uv*f32(res)-vec2f(0.5);
- let f=fract(q);
- let a=textureLoad(occlusionAtlas,fieldMapTexel(slot,uv,res,0u),0).rg;
- let b=textureLoad(occlusionAtlas,fieldMapTexel(slot,uv,res,1u),0).rg;
- let c=textureLoad(occlusionAtlas,fieldMapTexel(slot,uv,res,2u),0).rg;
- let d=textureLoad(occlusionAtlas,fieldMapTexel(slot,uv,res,3u),0).rg;
- return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
 }
 /** The radiance of the probe in 'slot' along 'direction', at the level of detail 'mip' of its final map, bilinear, the two levels it lies between mixed. */
 fn fieldRadianceLevel(slot:u32,uv:vec2f,res:u32,level:u32,border:u32)->vec3f{
@@ -145,6 +126,29 @@ fn fieldRadiance(slot:u32,direction:vec3f,mip:f32)->vec3f{
  let high=min(low+1u,levels-1u);
  if(high==low||fract(mip)==0.0){return near;}
  return mix(near,fieldRadianceLevel(slot,uv,res,high,border),fract(mip));
+}`
+
+/** The read of a probe's irradiance map along a direction, over the `irradianceAtlas` the program declares. */
+export const FIELD_IRRADIANCE_READ = `fn fieldIrradiance(slot:u32,direction:vec3f)->vec3f{
+ let res=u32(field[0].x);
+ let uv=equalAreaEncode(direction);
+ let q=uv*f32(res)-vec2f(0.5);
+ var taps=array<vec3f,4>();
+ for(var i=0u;i<4u;i++){taps[i]=textureLoad(irradianceAtlas,fieldMapTexel(slot,uv,res,i),0).rgb;}
+ return bilinear3(taps[0],taps[1],taps[2],taps[3],fract(q))*bounce.reach.w;
+}`
+
+/** The read of a probe's occlusion map along a direction, over the `occlusionAtlas` the program declares. */
+export const FIELD_OCCLUSION_READ = `fn fieldOcclusion(slot:u32,direction:vec3f)->vec2f{
+ let res=u32(field[0].y);
+ let uv=equalAreaEncode(direction);
+ let q=uv*f32(res)-vec2f(0.5);
+ let f=fract(q);
+ let a=textureLoad(occlusionAtlas,fieldMapTexel(slot,uv,res,0u),0).rg;
+ let b=textureLoad(occlusionAtlas,fieldMapTexel(slot,uv,res,1u),0).rg;
+ let c=textureLoad(occlusionAtlas,fieldMapTexel(slot,uv,res,2u),0).rg;
+ let d=textureLoad(occlusionAtlas,fieldMapTexel(slot,uv,res,3u),0).rg;
+ return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
 }`
 
 /** The constants of the pool's slots the field's programs read: the words of a slot, the frame it was last read, its offset, the adaptive probes of a cell and the precision of the misses. */
@@ -296,6 +300,8 @@ export const fieldGatherProgram = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) 
     [
       fieldGatherDeclarations(light),
       fieldMapReads(light),
+      FIELD_IRRADIANCE_READ,
+      FIELD_OCCLUSION_READ,
       FIELD_PROBE_WGSL,
       FIELD_GATHER_KERNEL_WGSL,
     ].join('\n'),

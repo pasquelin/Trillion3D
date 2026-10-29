@@ -10,11 +10,14 @@ import {
 import { CACHE_WORDS_WGSL } from '../../bounce/cache/cacheWordsWgsl.ts'
 import { bounceBindingsWgsl } from '../../bounce/gridWgsl.ts'
 import {
+  FIELD_IRRADIANCE_READ,
   FIELD_SLOT_CONSTS,
   FIELD_SLOT_SHIFT_WGSL,
   fieldMapReads,
 } from '../../bounce/irradianceField/gatherWgsl.ts'
 import { FIELD_MAP_BORDER } from '../../bounce/irradianceField/mapsWgsl.ts'
+import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
+import { skyLightReadWgsl } from '../../../modules/sky/skyLight/read.ts'
 import { visualizeTonemapWgsl } from './visualizeTonemap.ts'
 
 /**
@@ -43,6 +46,15 @@ export const RADIANCE_PROBE_BINDINGS = {
 } as const
 const B = RADIANCE_PROBE_BINDINGS
 
+/** Where the draw reads the sky light, after the colour's four bindings: the radiance cache's sky share resolved to the sky along the normal (`skyProbeRadiance`). */
+export const RADIANCE_PROBE_SKY_LIGHT = {
+  group: 0,
+  cube: B.tone + 4,
+  sampler: B.tone + 5,
+  harmonics: B.tone + 6,
+  params: B.tone + 7,
+} as const
+
 /** Words of the view's uniform: the view-projection, then the level, what it shows, its flags and the adaptive probes a cell may hold, then the size of the sphere over the cell and the display's size. */
 export const RADIANCE_PROBE_VIEW_WORDS = 24
 /** The flags of a view: the maps are the irradiance field's, the sky's share is kept. */
@@ -53,6 +65,22 @@ const CUBE = [
   0, 2, 6, 0, 6, 4, 1, 5, 7, 1, 7, 3, 0, 4, 5, 0, 5, 1, 2, 3, 7, 2, 7, 6, 0, 1, 3, 0, 3, 2, 4, 6, 7,
   4, 7, 5,
 ]
+
+/** The share of the rays of a probe that left the scene along a direction, over the sky atlas `skyAtlas` and the maps' parameters `field` the program declares. */
+export const RADIANCE_PROBE_SKY_SHARE = `// The share of the rays of the probe in 'slot' that left the scene along 'direction': the sky's map, bilinear, over the border of the final maps.
+fn visSky(slot:u32,direction:vec3f)->f32{
+ let res=u32(field[1].z);
+ let border=1u<<(u32(field[1].w)-1u);
+ let tile=cacheTileOf(slot,res+2u*border);
+ let q=equalAreaEncode(direction)*f32(res)+vec2f(f32(border)-0.5);
+ let base=vec2i(tile)+vec2i(floor(q));
+ let f=q-floor(q);
+ let a=textureLoad(skyAtlas,base,0).r;
+ let b=textureLoad(skyAtlas,base+vec2i(1,0),0).r;
+ let c=textureLoad(skyAtlas,base+vec2i(0,1),0).r;
+ let d=textureLoad(skyAtlas,base+vec2i(1,1),0).r;
+ return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
+}`
 
 const declarations = (list: 'read' | 'write') => `${FIELD_SLOT_CONSTS}
 struct Vis{viewProj:mat4x4f,pick:vec4u,scale:vec4f}
@@ -106,20 +134,8 @@ ${declarations('read')}
 @group(0) @binding(${B.sky}) var skyAtlas:texture_2d<f32>;
 @group(0) @binding(${B.depth}) var sceneDepth:texture_depth_2d;
 ${fieldMapReads(light)}
-// The share of the rays of the probe in 'slot' that left the scene along 'direction': the sky's map, bilinear, over the border of the final maps.
-fn visSky(slot:u32,direction:vec3f)->f32{
- let res=u32(field[1].z);
- let border=1u<<(u32(field[1].w)-1u);
- let tile=cacheTileOf(slot,res+2u*border);
- let q=equalAreaEncode(direction)*f32(res)+vec2f(f32(border)-0.5);
- let base=vec2i(tile)+vec2i(floor(q));
- let f=q-floor(q);
- let a=textureLoad(skyAtlas,base,0).r;
- let b=textureLoad(skyAtlas,base+vec2i(1,0),0).r;
- let c=textureLoad(skyAtlas,base+vec2i(0,1),0).r;
- let d=textureLoad(skyAtlas,base+vec2i(1,1),0).r;
- return mix(mix(a,b,f.x),mix(c,d,f.x),f.y);
-}
+${FIELD_IRRADIANCE_READ}
+${RADIANCE_PROBE_SKY_SHARE}
 var<private> CUBE=array<u32,${RADIANCE_PROBE_VERTICES}>(${CUBE.map((corner) => `${corner}u`).join(',')});
 struct Out{
  @builtin(position) position:vec4f,
@@ -179,7 +195,12 @@ struct Out{
    if(probeValid[slot]==0u){lighting=vec3f(1.0,0.0,0.0);}
    if(in.rank>0u){lighting=vec3f(0.0,1.0,1.0);}
   }else{
+   // The share of the probe's rays that left the scene is filled in with the sky along the normal.
    lighting=fieldRadiance(slot,normal,0.0);
+   if((vis.pick.z&${RADIANCE_PROBE_FLAG.sky}u)!=0u){
+    let leaving=visSky(slot,normal);
+    if(leaving>0.0&&skyLit()){lighting=mix(lighting,skyProbeRadiance(normal),leaving);}
+   }
   }
  }
  return vec4f(saturate(visualizeTonemap(lighting,true)),1.0);
@@ -191,5 +212,7 @@ struct Out{
       bilinear3,
       ...lightReadDeps(light),
       visualizeTonemapWgsl(B.tone),
+      skyLightReadWgsl(RADIANCE_PROBE_SKY_LIGHT),
+      SKY_READ_WGSL,
     ],
   )

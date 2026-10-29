@@ -36,13 +36,22 @@ import {
   resampleLightingProgramOf,
   resampleProgramOf,
 } from '../../lighting/surfaceCache/copyWgsl.ts'
+import { sceneVisualizeWgsl } from '../../lighting/surfaceCache/sceneDebug/sceneVisualizeWgsl.ts'
+import { radianceProbeDrawWgsl } from '../../lighting/surfaceCache/sceneDebug/radianceProbesWgsl.ts'
 import type { LightAtlasFormat } from './lightAtlasFormat.ts'
 import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
 
 const FORMATS: readonly LightAtlasFormat[] = ['rg11b10ufloat', 'rgba16float', 'rgba32float']
 
-export const LIGHT_FORMAT_SHADERS: Record<string, string> = Object.fromEntries(
-  FORMATS.flatMap((format) => [
+/** The passes whose text depends on the format, taken in the word format too, which the list holds for none of them. */
+const EVERY_FORMAT: readonly LightAtlasFormat[] = [WORD_LIGHT_FORMAT, ...FORMATS]
+
+export const LIGHT_FORMAT_SHADERS: Record<string, string> = Object.fromEntries([
+  ...EVERY_FORMAT.flatMap((format) => [
+    [`SCENE_VISUALIZE_${format}`, sceneVisualizeWgsl(format)],
+    [`RADIANCE_PROBE_DRAW_${format}`, radianceProbeDrawWgsl(format)],
+  ]),
+  ...FORMATS.flatMap((format) => [
     [`CACHE_FILTER_${format}`, cacheFilterProgram(format)],
     [`CACHE_FIXUP_${format}`, cacheFixupProgram(format)],
     [`FIELD_IRRADIANCE_MAPS_${format}`, irradianceProgram(8, format)],
@@ -75,4 +84,4 @@ export const LIGHT_FORMAT_SHADERS: Record<string, string> = Object.fromEntries(
     [`SURFACE_CACHE_RADIOSITY_FILTER_${format}`, radiosityFilterProgramOf(format)],
     [`SURFACE_CACHE_RADIOSITY_INTEGRATE_${format}`, radiosityIntegrateProgramOf(format)],
   ]),
-)
+])

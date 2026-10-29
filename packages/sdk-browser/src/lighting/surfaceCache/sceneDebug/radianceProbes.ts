@@ -13,6 +13,11 @@ import { DISPLAY_FORMAT } from '../../../scene/targetFormats.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { atlasEntry } from '../../bounce/atlas.ts'
 import { indirectSourceOf } from '../../bounce/screen/cast.ts'
+import { skyLightReadOf } from '../../../frame/render/skyLightState.ts'
+import {
+  skyLightReadBindEntries,
+  skyLightReadLayoutEntries,
+} from '../../../modules/sky/skyLight/read.ts'
 import { screenProbeSettingsOf } from '../../bounce/screen/settingsOf.ts'
 import { POOL_ADAPTIVE } from '../../bounce/pool/poolLayout.ts'
 import { runLineKernel } from './gpuLines.ts'
@@ -21,6 +26,7 @@ import { visualizeTonemapBindings } from './visualizeTonemap.ts'
 import {
   RADIANCE_PROBE_BINDINGS as B,
   RADIANCE_PROBE_FLAG,
+  RADIANCE_PROBE_SKY_LIGHT,
   RADIANCE_PROBE_VIEW_WORDS,
   radianceProbeDrawWgsl,
   radianceProbeListWgsl,
@@ -41,7 +47,7 @@ interface LevelBuffers {
 }
 
 /** What the probes drawn are made of: the levels' uniform, the cell table, the maps and the pool's buffers. */
-interface ProbeSource {
+export interface ProbeSource {
   probes: NonNullable<WebgpuPagesRuntime['bounce']['probes']>
   light: LightAtlasFormat
   final: GPUTextureView
@@ -53,7 +59,8 @@ interface ProbeSource {
   resolution: readonly [number, number, number]
 }
 
-function sourceOf(rt: WebgpuPagesRuntime): ProbeSource | undefined {
+/** The probes the indirect light reads, none where the world has none. */
+export function probeSourceOf(rt: WebgpuPagesRuntime): ProbeSource | undefined {
   const field = rt.bounce.irradianceField
   const settings = screenProbeSettingsOf(rt)
   const fieldProbes = indirectSourceOf(rt) === 'field' ? field : undefined
@@ -101,6 +108,7 @@ const kernels = oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) =>
       computeTextureEntry(B.depth, 'depth', '2d', 2),
       computeBufferEntry(B.tone, 'uniform', 2),
       ...toneReadEntries(B.tone + 1, 2),
+      ...skyLightReadLayoutEntries(RADIANCE_PROBE_SKY_LIGHT, 2),
     ],
   })
   const list = device.createShaderModule({ label: `${LABEL} list`, code: radianceProbeListWgsl })
@@ -193,7 +201,7 @@ export function createRadianceProbes(device: GPUDevice) {
       viewProjection: ArrayLike<number>,
       view: ProbeDebug,
     ) {
-      const source = sourceOf(rt)
+      const source = probeSourceOf(rt)
       const depth = rt.gpu.depthView
       const tone = visualizeTonemapBindings(rt)
       if (!source || !depth || !tone) return false
@@ -254,6 +262,7 @@ export function createRadianceProbes(device: GPUDevice) {
               { binding: B.sky, resource: source.sky },
               { binding: B.depth, resource: depth },
               ...tone.resources.map((resource, at) => ({ binding: B.tone + at, resource })),
+              ...skyLightReadBindEntries(RADIANCE_PROBE_SKY_LIGHT, skyLightReadOf(rt)),
             ],
           }),
         )

@@ -18,3 +18,13 @@ test('the fragment cuts the sphere out of the cube and colours it as the irradia
   assert.match(code, /if\(in\.rank>0u\)\{lighting=vec3f\(0\.0,1\.0,1\.0\);\}/)
   assert.match(code, /var lighting=vec3f\(0\.0,1000\.0,0\.0\);/)
 })
+
+test('the radiance variant fills the share of the rays that left the scene with the sky along the normal', () => {
+  const code = radianceProbeDrawWgsl('rgba16float')
+  assert.match(code, /lighting=fieldRadiance\(slot,normal,0\.0\);/)
+  assert.match(
+    code,
+    /if\(leaving>0\.0&&skyLit\(\)\)\{lighting=mix\(lighting,skyProbeRadiance\(normal\),leaving\);\}/,
+  )
+  assert.doesNotMatch(code, /occlusionAtlas/)
+})

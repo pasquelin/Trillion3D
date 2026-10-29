@@ -172,6 +172,10 @@ const PLACEMENT_AND_OCCLUSION_RULES = /* @__PURE__ */ (() =>
     integer('radianceCacheVisualize', 0, [0, 2]),
     number('radianceCacheVisualizeRadiusScale', 1, [0, 100]),
     integer('radianceCacheVisualizeClipmapIndex', -1, [-1, BOUNCE_MAX_LEVELS - 1]),
+    flag('visualizeSceneTraceRadianceCache', false),
+    flag('visualizeHiResSurface', true),
+    number('visualizeMinTraceDistance', 0, [0, 1000]),
+    number('visualizeMaxTraceDistance', 100000, [0.01, 1048576]),
     integer('debugCursorX', -1, [-1, 16384]),
     integer('debugCursorY', -1, [-1, 16384]),
     // These name the level's row by a negative value (`namedOr`): the reference's cvars of the same names, its scalability rows being the levels.

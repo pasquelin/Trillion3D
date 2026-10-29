@@ -27,6 +27,10 @@ export type ProbeDebugValues = Pick<
   | 'radianceCacheVisualize'
   | 'radianceCacheVisualizeRadiusScale'
   | 'radianceCacheVisualizeClipmapIndex'
+  | 'visualizeSceneTraceRadianceCache'
+  | 'visualizeHiResSurface'
+  | 'visualizeMinTraceDistance'
+  | 'visualizeMaxTraceDistance'
   | 'debugCursorX'
   | 'debugCursorY'
 >
@@ -48,6 +52,14 @@ export interface ProbeDebug {
   radianceProbes: 0 | 1 | 2
   radianceProbeRadius: number
   radianceProbeLevel: number
+  /** The scene traced from the camera over the image (the mode alone shows it): whether the probes cover the near trace's end, whether the finest pages are read, and the trace's first and last distances in centimetres. */
+  sceneVisualization: boolean
+  sceneTraceRadianceCache: boolean
+  sceneHiRes: boolean
+  sceneMinTrace: number
+  sceneMaxTrace: number
+  /** Whether the scene view's light goes through the composition's table (`visualizeToneMap`). */
+  sceneToneMap: boolean
   /** The cursor in the display's pixels, none where a coordinate is negative. */
   cursor: readonly [number, number]
 }
@@ -76,6 +88,12 @@ export const probeDebugOf = (values: ProbeDebugValues, mode: DiagnosticMode): Pr
       : (values.radianceCacheVisualize as ProbeDebug['radianceProbes']),
   radianceProbeRadius: values.radianceCacheVisualizeRadiusScale * RADIANCE_PROBE_RADIUS,
   radianceProbeLevel: values.radianceCacheVisualizeClipmapIndex,
+  sceneVisualization: mode === 'scene-visualization',
+  sceneTraceRadianceCache: values.visualizeSceneTraceRadianceCache,
+  sceneHiRes: values.visualizeHiResSurface,
+  sceneMinTrace: values.visualizeMinTraceDistance,
+  sceneMaxTrace: values.visualizeMaxTraceDistance,
+  sceneToneMap: values.visualizeToneMap,
   cursor: [values.debugCursorX, values.debugCursorY],
 })
 
@@ -87,7 +105,8 @@ export const probeDebugShown = (view: ProbeDebug) =>
   view.placement > 0 ||
   view.traces ||
   view.reflectionTraces ||
-  view.radianceProbes > 0
+  view.radianceProbes > 0 ||
+  view.sceneVisualization
 
 /** The words the probes' readback holds: the count of adaptive probes, then the integration's tile buffer from the arguments of each mode to its counts. */
 export const PROBE_COUNTER_WORDS = 1 + INTEGRATE_TILE_COUNTS_AT + INTEGRATE_TILE_MODE_COUNT

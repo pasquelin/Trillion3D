@@ -1,6 +1,8 @@
 // The light functions', occlusion, distance fields' and primed pyramid's WGSL texts of `ENGINE_SHADERS`.
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
+import { EYE_MARK_SHADER } from '../../lighting/surfaceCache/sceneDebug/eyeMarker.ts'
+import { radianceProbeListWgsl } from '../../lighting/surfaceCache/sceneDebug/radianceProbesWgsl.ts'
 import { VOLUMETRIC_LIGHT_WGSL } from '../../lighting/deferred/volumetricLightWgsl.ts'
 import { lightFunctionRenderWgsl } from '../../lighting/lightFunction/renderWgsl.ts'
 import { graphSlotWgsl, graphSlotOf } from '../../lighting/lightFunction/graphSlot.ts'
@@ -142,6 +144,8 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   SSS_COMPUTE: sssComputeProgram(SSS_SHAPE, false),
   SSS_ARGS: sssArgsProgram(SSS_SHAPE),
   SSS_RASTER: sssRasterProgram(SSS_SHAPE),
+  BOUNCE_MARK_EYE: EYE_MARK_SHADER,
+  RADIANCE_PROBE_LIST: radianceProbeListWgsl,
   // The light functions' atlas slot, in each format (`../../lighting/lightFunction/`).
   LIGHT_FUNCTION_SLOT_GREY: lightFunctionRenderWgsl(128, 'grey', false),
   LIGHT_FUNCTION_SLOT_COLOUR: lightFunctionRenderWgsl(128, 'colour', false),

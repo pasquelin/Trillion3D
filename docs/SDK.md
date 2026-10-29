@@ -4564,6 +4564,7 @@ The screen probes and the world's probes have tables of their own, drawn the sam
 | `screen-probe-traces` | `screenProbeGatherVisualizeTraces` | `false` | the rays of the screen probe nearest to the cursor (to the middle of the image where none is set): a line from the probe along each ray, as long as the distance it reached, coloured by the radiance it brought back seen through the table the image is composed with (the colour grade and the display curve at the image's exposure); a ray that ended within 1 cm of its probe is drawn red and 5 cm long. `screenProbeGatherVisualizeTracesFreeze` (`false`) keeps the rays as they were at the last image that updated them so the camera can move round them; `visualizeUseShaderPrintForTraces` (`true`) set to `false` draws the lines against the opaque depth, a ray behind a surface hidden by it, and always through the composition's table; `visualizeToneMap` (`true`) set to `false` colours the lines drawn over everything by the display's transfer alone; `debugCursorX` and `debugCursorY` (`-1`, none) set the cursor in display pixels |
 | `reflection-traces` | `reflectionVisualizeTraces` | `false` | the reflection ray of the pixel under the cursor (`debugCursorX`, `debugCursorY`; nothing where none is set): a line from the surface along the ray, as long as the distance it reached, in the radiance it brought back as it is, a yellow cross of 2 cm at its end, and the grid texel, the distance and the radiance as text, read back from the GPU a few images late; needs the reflections to have traced an image |
 | `radiance-cache-probes` | `radianceCacheVisualize` | `0` | a sphere at every probe of the world's probes, hidden by the surfaces in front of it: coloured by the irradiance it holds along its surface at an albedo of 0.3 (a probe inside a surface red, one moved off the surfaces tinted green, an adaptive one cyan) where the irradiance field is the indirect light, by its radiance otherwise; `radianceCacheVisualize: 2` colours it by the share of its rays that left the scene; `radianceCacheVisualizeRadiusScale` (`1`) scales the spheres (5% of the cell at one); `radianceCacheVisualizeClipmapIndex` (`-1`, all) draws one level, the finest 0 |
+| `scene-visualization` | none (the mode only) | - | the scene traced from the camera pixel by pixel through the global distance field, lit by what the surface cache holds at the hit and by the sky where the ray leaves the scene, replacing the image; `visualizeSceneTraceRadianceCache` (`false`) ends the trace where the world's probes cover the eye and reads their light past it (their spheres' light, interpolated between the eight probes round the eye), and marks the probes round the eye so that they exist; `visualizeHiResSurface` (`true`) reads the finest page of the cache; `visualizeMinTraceDistance` (`0`, read as `0.01` at least) and `visualizeMaxTraceDistance` (`100000`) bound the trace in centimetres; `visualizeToneMap` (`true`) picks the colour curve |
 
 The scene table also writes `AddOps` and `RemoveOps`: the count of the placements that wanted mesh cards or lost them in the image, then the ids of the first seven.
 
@@ -4616,6 +4617,15 @@ const world = createWorld('viewer', {
   radianceCacheVisualizeRadiusScale: 2,
   radianceCacheVisualizeClipmapIndex: 0,
 })
+```
+
+```js
+// The scene traced from the camera, the far field read from the world's probes.
+const world = createWorld('viewer', {
+  visualizeSceneTraceRadianceCache: true,
+  visualizeMaxTraceDistance: 20000,
+})
+world.diagnostic.mode = 'scene-visualization'
 ```
 
 ```js

@@ -43,6 +43,7 @@ import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { prepareTranslucencyVolumeMarks } from '../../lighting/translucency/frame.ts'
 import { translucencyGiMarkers } from '../../lighting/translucencyGi/marker.ts'
 import { hairMarker } from '../../lighting/bounce/pool/hairMarker.ts'
+import { eyeMarker } from '../../lighting/surfaceCache/sceneDebug/eyeMarker.ts'
 import { planVsmFrame } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
 import { encodeVsmFrame } from '../../lighting/shadows/vsm/frame/vsmEncode.ts'
 import { lightGridCull } from '../../lighting/tiles/cullView.ts'
@@ -107,17 +108,18 @@ const drawn = createMarkSurface()
 /** What a runtime keeps for the marks of the cells its lit passes read: the strands' marker and the list of the image's markers, made once. */
 interface Marking {
   readonly hair: PoolMarker
+  readonly eye: PoolMarker
   readonly list: PoolMarker[]
 }
 const markings = new WeakMap<WebgpuPagesRuntime, Marking>()
 
-/** The marks of the cells the image's lit passes read: the translucency volume's (while it marks), the strands' (while the hair reads the probes). */
+/** The marks of the cells the image's lit passes read: the translucency volume's (while it marks), the strands' and the eye's (while the scene view reads the probes). */
 function markersOf(rt: WebgpuPagesRuntime): readonly PoolMarker[] {
   let held = markings.get(rt)
-  if (!held) markings.set(rt, (held = { hair: hairMarker(rt), list: [] }))
+  if (!held) markings.set(rt, (held = { hair: hairMarker(rt), eye: eyeMarker(rt), list: [] }))
   const { list } = held
   list.length = 0
-  list.push(...translucencyGiMarkers(rt, 'shared'), held.hair)
+  list.push(...translucencyGiMarkers(rt, 'shared'), held.hair, held.eye)
   return list
 }
 

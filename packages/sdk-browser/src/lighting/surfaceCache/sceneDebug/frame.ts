@@ -11,6 +11,7 @@ import {
 } from '../../bounce/screen/screenProbeLayout.ts'
 import { drawProbeLines, type ProbeLineState } from './probeLines.ts'
 import { createRadianceProbes, type RadianceProbes } from './radianceProbes.ts'
+import { createSceneVisualize, type SceneVisualize } from './sceneVisualize.ts'
 import { directLightCounts, directLightingStatsLines } from './directLightingStats.ts'
 import {
   PROBE_COUNTER_WORDS,
@@ -50,6 +51,8 @@ interface DebugState extends ProbeLineState {
   readonly reader: ReturnType<typeof createGpuPeriodicReadback>
   /** The spheres at the world's probes, made at the first image the view is shown. */
   spheres?: RadianceProbes
+  /** The scene seen from the camera, made at the first image the view is shown. */
+  scene?: SceneVisualize
   /** The screen probes' counters, read back like the header while a probe view asks: made at the first image that does. */
   probes?: {
     readonly words: Uint32Array<ArrayBuffer>
@@ -86,6 +89,7 @@ export function disposeSceneDebug(rt: WebgpuPagesRuntime) {
   state?.traces?.dispose()
   state?.reflection?.dispose()
   state?.spheres?.dispose()
+  state?.scene?.dispose()
   states.delete(rt)
 }
 
@@ -275,6 +279,14 @@ export function encodeSceneDebug(
   if (!(cacheShown || probeDebugShown(probeView)) || !gpu.displayView) return disposeSceneDebug(rt)
   const state = stateOf(rt, device)
   state.text.begin(cam)
+  // The scene replaces the image, so it is drawn first and the other views lie over it.
+  if (probeView.sceneVisualization) {
+    state.scene ??= createSceneVisualize(device)
+    state.scene.encode(rt, encoder, gpu.displayView, gpu.displaySize, probeView)
+  } else if (state.scene) {
+    state.scene.dispose()
+    state.scene = undefined
+  }
   const next = cacheShown ? drawCacheViews(rt, encoder, state, cacheView) : 0
   const after = drawProbeViews(rt, device, encoder, state, probeView, next)
   const appended = drawProbeLines(rt, device, encoder, state, probeView)

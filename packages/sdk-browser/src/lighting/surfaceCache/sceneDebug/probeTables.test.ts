@@ -24,6 +24,10 @@ const values = (changes: Partial<Parameters<typeof probeDebugOf>[0]> = {}) => ({
   radianceCacheVisualize: 0,
   radianceCacheVisualizeRadiusScale: 1,
   radianceCacheVisualizeClipmapIndex: -1,
+  visualizeSceneTraceRadianceCache: false,
+  visualizeHiResSurface: true,
+  visualizeMinTraceDistance: 0,
+  visualizeMaxTraceDistance: 100000,
   debugCursorX: -1,
   debugCursorY: -1,
   ...changes,
@@ -44,6 +48,12 @@ test('a probe view shows when its setting is on or its mode is chosen, and none 
     radianceProbes: 0,
     radianceProbeRadius: 0.05,
     radianceProbeLevel: -1,
+    sceneVisualization: false,
+    sceneTraceRadianceCache: false,
+    sceneHiRes: true,
+    sceneMinTrace: 0,
+    sceneMaxTrace: 100000,
+    sceneToneMap: true,
     cursor: [-1, -1],
   })
   assert.equal(probeDebugOf(values(), 'radiance-cache-stats').radianceCacheStats, true)
@@ -51,6 +61,7 @@ test('a probe view shows when its setting is on or its mode is chosen, and none 
   assert.equal(probeDebugOf(values(), 'reflection-traces').reflectionTraces, true)
   assert.equal(probeDebugOf(values(), 'radiance-cache-probes').radianceProbes, 1)
   assert.equal(probeDebugOf(values({ radianceCacheVisualize: 2 }), 'beauty').radianceProbes, 2)
+  assert.equal(probeDebugShown(probeDebugOf(values(), 'scene-visualization')), true)
   assert.equal(
     probeDebugOf(values({ screenProbeGatherVisualizeTraces: true }), 'beauty').traces,
     true,

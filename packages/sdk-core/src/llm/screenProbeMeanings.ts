@@ -80,6 +80,14 @@ const FILTER_MEANINGS = /* @__PURE__ */ (() =>
       'The size of the spheres radianceCacheVisualize draws, as a multiple of 5% of the cell of the level they belong to (1 by default).',
     radianceCacheVisualizeClipmapIndex:
       "The level of the world's probes radianceCacheVisualize draws, the finest 0; -1 (the default) draws them all at once.",
+    visualizeSceneTraceRadianceCache:
+      "Whether the 'scene-visualization' view ends its trace where the world's probes cover the eye and reads their light past it (true), or traces the whole distance (false, the default); the probes round the eye are marked for it while it is on.",
+    visualizeHiResSurface:
+      "Whether the 'scene-visualization' view reads the finest page of the surface cache at a hit (true, the default) or the coarse pages that are always resident.",
+    visualizeMinTraceDistance:
+      "The distance, in centimetres, the 'scene-visualization' view starts its trace at (0 by default).",
+    visualizeMaxTraceDistance:
+      "The longest trace, in centimetres, of the 'scene-visualization' view (100000 by default).",
     debugCursorX:
       "The column of the display's pixels the debug views read as the cursor, -1 (the default) for none: the views that follow the cursor take the middle of the image for the screen probes' rays and draw nothing for the reflection rays.",
     debugCursorY:
