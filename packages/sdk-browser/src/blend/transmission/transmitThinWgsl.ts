@@ -42,6 +42,9 @@ fn thinLayer(in:VSOut,k:TransmitIn)->Thin{
  let cut=select(0.0,1.0,masked&&k.mapAlpha>=0.333);
  var top=(1.0-cut)*max(1.0-t,max(metal,clamp(s.rough,0.0,1.0)));
  var tint=mix(s.rgb*t,vec3f(1.0),cut);
+ // The volume's absorption over the layer's thickness, its constant per channel, volumeAttenuation: the
+ // transmittance the layer keeps at its thickness, as its colour does; the slant below lengthens the path.
+ tint=tint*exp2(m.attenuation*m.thickness);
  var coverage=1.0;
 ${layer ? ` if((k.g.graph.flags&${GRAPH_FLAG.layer}u)!=0u){top=clamp(s.alpha,0.0,1.0);tint=k.g.graph.layer;coverage=k.g.graph.coverage;}` : ''}
  // Thin translucency: N·V of either side; the colour absorbed over a path of rcp(N·V), the
