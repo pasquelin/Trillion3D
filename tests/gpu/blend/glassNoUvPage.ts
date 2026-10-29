@@ -60,6 +60,9 @@ async function read(kind: Glass, together: boolean) {
   const { world, close } = open()
   try {
     await world.ready
+    // The coverage is a threshold on the colours: an automatic exposure, converged to a few
+    // thousandths of a stop apart in two worlds, moves pixels across it.
+    world.exposure = 1
     row(world, geometry.box(0.9, 0.9, 0.9), opaque, -1)
     if (together) await addGlass(world, kind)
     const before = await changed(world, '')

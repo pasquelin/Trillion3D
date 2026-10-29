@@ -35,7 +35,7 @@ import {
   fieldOcclusionSettings,
   fieldSearchesOcclusion,
 } from './occlusionOnly.ts'
-import { followHistory, probeInputsReady } from './historyReady.ts'
+import { followHistory, imagesToForget, probeInputsReady } from './historyReady.ts'
 import {
   encodeProbePlacement,
   encodeProbeTrace,
@@ -682,8 +682,9 @@ export function askScreenProbes(rt: WebgpuPagesRuntime, device: GPUDevice) {
 
 /** Whether the view's screen probes still build their history: the last image cast them, the history is temporal, and fewer
  *  images were cast than the frames it holds at most — a quiet view is drawn again till then, not held on a history of one image —,
- *  or fewer than those have passed since the view last changed (a texture tile landed, a light moved): the history follows the change
- *  by blending, it does not restart, and has taken it in only after the frames it holds. */
+ *  or fewer than it takes the history to forget a change have passed since the view last changed (a texture tile landed, a light moved, a
+ *  surface joined): the history follows the change by blending, it does not restart, and has taken it in only once the old light's share is
+ *  under a display step (`imagesToForget`). */
 export function screenProbesSettling(rt: WebgpuPagesRuntime) {
   const view = rt.gpu.screenProbes,
     store = rt.bounce.screen
@@ -692,6 +693,6 @@ export function screenProbesSettling(rt: WebgpuPagesRuntime) {
   return (
     settings.values.screenProbeTemporal &&
     (view.frame < settings.maxFramesAccumulated ||
-      imagesSinceChange(rt.run) < settings.maxFramesAccumulated)
+      imagesSinceChange(rt.run) < imagesToForget(settings.maxFramesAccumulated))
   )
 }

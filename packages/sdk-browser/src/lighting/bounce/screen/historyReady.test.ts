@@ -2,7 +2,7 @@
 // a moving camera never settles it — so that two worlds of one scene, whose inputs came at other instants, end on the same history.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { followHistory, probeInputsReady } from './historyReady.ts'
+import { followHistory, imagesToForget, probeInputsReady } from './historyReady.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 
 const world = (over: { pending?: number; begun?: boolean; converging?: boolean } = {}) =>
@@ -57,4 +57,12 @@ test('the history begins at the image its inputs are ready, and is not dropped a
     { history: true, frame: 3, begun: true },
     'begun, a lost input drops nothing: the light changes, it is not unlit',
   )
+})
+
+test('a history forgets a change to under a display step after the images this counts', () => {
+  for (const most of [1, 4, 10, 30]) {
+    const n = imagesToForget(most)
+    assert.ok((most / (most + 1)) ** n <= 1 / 256, `${most}: ${n} images`)
+    assert.ok((most / (most + 1)) ** (n - 1) > 1 / 256, `${most}: ${n - 1} images are too few`)
+  }
 })

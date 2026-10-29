@@ -29,3 +29,14 @@ export function followHistory(
   view.history = view.begun
   view.frame = view.begun ? view.frame + 1 : 0
 }
+
+/**
+ * The images a history of `most` frames takes to forget a change to what a display tells apart: an exponential
+ * average of `most + 1` frames (`accumulationShare`) keeps the share `most / (most + 1)` of what it held at each
+ * image, so after `most` images it still holds more than a third of the old light — a view held there shows the
+ * old light's residue, which two worlds that reached the same view by other histories do not share — and it is
+ * under one display step of the range (1/256) after this many.
+ */
+export function imagesToForget(most: number) {
+  return Math.ceil(Math.log(256) / Math.log(1 + 1 / most))
+}
