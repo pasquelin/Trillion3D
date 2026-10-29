@@ -7,6 +7,8 @@ export const TRANSLUCENCY_GI_MEANINGS: Readonly<Record<TranslucencyGiField, stri
     'Whether the translucency global illumination volume is made each image: a grid of cells fitted to the view whose indirect light see-through surfaces (blend, water, transmission) read with one fetch. true by default. Off, no pass runs and those surfaces take the sky light irradiance alone.',
   translucencyGiTraceFromVolume:
     'Whether each cell marches the global distance field before it reads the radiance cache; true by default. Off, the cells read the cache alone, which is cheaper and sees no near geometry.',
+  translucencyGiHardwareRayTracing:
+    "Whether the cones of the cells are cast through the scene's triangles (where the scene has acceleration structures, once the program is compiled) instead of marched through the global distance field; true by default. Used only with translucencyGiTraceFromVolume: the ray leaves the cell's point to the reach the radiance cache is trusted from, the translucent primitives passed, and the light of a hit is the surface cache's, read at its point from the cards of the placement it met with surfaceCacheHardwareRayTracingSurfaceCacheSamplingDepthBias; a ray that hits nothing keeps the radiance cache's light and the sky.",
   translucencyGiRadianceCache:
     "Whether the cells read a radiance cache for the light the march leaves; true by default. Off, what the march misses is the sky. The cache is one of the volume's own unless translucencyGiShareRadianceCacheWithOpaque is on.",
   translucencyGiShareRadianceCacheWithOpaque:

@@ -1,18 +1,16 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
-import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import type { WgslDecl } from '../../../../../math/src/wgsl/decl.ts'
 import { packLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import {
   lightStoreDeps,
   lightTexelPlain,
-  WORD_LIGHT_FORMAT,
   type LightAtlasFormat,
 } from '../../../gpu/core/lightAtlasFormat.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { skyLightReadWgsl, type SkyLightBindings } from '../../../modules/sky/skyLight/read.ts'
 import { SKY_READ_WGSL } from '../../atmosphere/skyReadWgsl.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
-import { sceneTraceWgsl } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
+import { sceneTraceAvoidWgsl } from '../../rays/sceneTrace/avoidWgsl.ts'
 import { surfaceHitCardsWgsl, surfaceHitWgsl } from '../hitWgsl.ts'
 import { SURFACE_CACHE_LAYER_AT as L } from '../sampleWgsl.ts'
 import {
@@ -21,7 +19,6 @@ import {
   READ_LIBRARY_LAYERS_WGSL,
   surfaceTexelWgsl,
 } from './commonWgsl.ts'
-import { SELF_INTERSECTION } from './layout.ts'
 import { radiosityCommonWgsl, radiosityRayWgsl } from './radiosityCommonWgsl.ts'
 
 /**
@@ -193,36 +190,15 @@ export const radiosityTraceProgramOf = (light: LightAtlasFormat) =>
     ],
   )
 
-const TRACED_CONSTS = wgslConsts({
-  RAD_AVOID_CULL: SELF_INTERSECTION.cull,
-  RAD_AVOID_RETRACE: SELF_INTERSECTION.retrace,
-  RAD_AVOID_SKIP: SELF_INTERSECTION.skip,
-})
-
 /** The radiance the texel sees along `dir`, through the scene's triangles. */
-const TRACED_RADIANCE = `${TRACED_CONSTS}
+const TRACED_RADIANCE = `
 @group(0) @binding(${TB.hits}) var outHits:texture_storage_2d<r32float,write>;
 var<private> rayHitDistance:f32;
 fn rayRadiance(texel:RadTexel,dir:vec3f)->vec3f{
  let start=texel.position+texel.normal*lp.radiosityNormalBias;
  let origin=(start-lp.camera.xyz)/CM_PER_M;
  let reach=lp.maxTrace/CM_PER_M;
- var flags=ST_SKIP_TRANSLUCENT;
- if(lp.selfIntersections==RAD_AVOID_CULL){flags|=ST_CULL_BACK;}
- if(lp.selfIntersections>=RAD_AVOID_SKIP){flags|=ST_SKIP_NEAR;}
- var tMin=lp.radiosityRayBias/CM_PER_M;
- var hit:StHit;
- // A retrace: a first hit on the geometry the ray starts on is traced again from past it (a hair past a two-sided hit, 0.01 cm), once.
- for(var trace=0u;trace<2u;trace++){
-  hit=stTrace(StRay(origin,dir,tMin,reach,flags));
-  if(lp.selfIntersections!=RAD_AVOID_RETRACE||!hit.hit||trace==1u){break;}
-  var past=-1.0;
-  if(hit.twoSided){
-   if(hit.distance<stParams.skipTwoSidedDistance){past=hit.distance+0.01/CM_PER_M;}
-  }else if(!hit.frontFace&&hit.distance<stParams.skipBackFaceDistance){past=stParams.skipBackFaceDistance;}
-  if(past<=0.0){break;}
-  tMin=past;
- }
+ let hit=stTraceAvoiding(origin,dir,lp.radiosityRayBias/CM_PER_M,reach,lp.selfIntersections);
  // A trace that stopped before its walk was whole and met nothing is a black hit; one that met a surface is a hit with no light.
  if(!hit.hit){return select(skyProbeRadiance(dir),vec3f(0.0),!stComplete);}
  let hitCm=hit.distance*CM_PER_M;
@@ -241,5 +217,5 @@ export const radiosityTracedProgramOf = (light: LightAtlasFormat) =>
     ...sharedDeclarations(TB, light),
     CM_PER_M_WGSL,
     surfaceHitCardsWgsl({ group: 0, cards: TB.tables, instances: TB.instances }, light),
-    sceneTraceWgsl(RADIOSITY_TRACED_SCENE.group, RADIOSITY_TRACED_SCENE.first),
+    sceneTraceAvoidWgsl(RADIOSITY_TRACED_SCENE.group, RADIOSITY_TRACED_SCENE.first),
   ])

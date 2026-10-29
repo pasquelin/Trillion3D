@@ -6,8 +6,9 @@ import { cachedLightingPreExposureOf } from '../../../post/exposure/frame.ts'
 import { preExposureOf } from '../../../post/exposure/pre.ts'
 import type { SkyLightReadSet } from '../../../modules/sky/skyLight/read.ts'
 import { radianceCacheTraced } from '../../bounce/cache/cacheFrame.ts'
-import { screenProbesTraced } from '../../bounce/screen/cast.ts'
+import { occlusionTraced, reservoirsTraced, screenProbesTraced } from '../../bounce/screen/cast.ts'
 import { screenProbeSettingsOf } from '../../bounce/screen/settingsOf.ts'
+import { translucencyGiTraced } from '../../translucencyGi/frame.ts'
 import { reflectionsTraced } from '../../reflections/hardware.ts'
 import { hardwareRayTracing, surfaceCacheRaysOf } from '../../rays/hardwareRayTracing.ts'
 import { pathTracingOn } from '../../pathTracing/enabled.ts'
@@ -17,12 +18,7 @@ import { cloudShadowStandIn } from '../../atmosphere/cloudShadowStandIn.ts'
 import type { CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
 import { fieldSettingsOf, keptStreamingView, reachOf, surfaceHitReads } from '../frame.ts'
 import { noiseFrame } from '../../../frame/render/noiseFrame.ts'
-import {
-  createSurfaceLighting,
-  encodeLighting,
-  settleImages,
-  type SurfaceLightingState,
-} from './surfaceLighting.ts'
+import { createSurfaceLighting, encodeLighting, settleImages } from './surfaceLighting.ts'
 import { beginLighting } from './beginLighting.ts'
 
 /**
@@ -87,11 +83,16 @@ export function lightSurfaceCache(
       direction: cameraForward<[number, number, number]>([0, 0, 0], frame.cam.world),
       transportEpoch: lights.store.transportEpoch,
       meshReach: reachOf(rt, state) + state.settings.surfaceCacheCardCaptureMargin,
-      // The path tracer casts every ray of its view through the scene's triangles, whatever the device's hardware.
+      // The path tracer casts every ray of its view through the scene's triangles, whatever the device's hardware; so do the reservoirs, once the setting chose them over the probes.
       probes:
         pathTracingOn(rt) ||
+        reservoirsTraced(rt) ||
         (hardwareRayTracing() &&
-          (radianceCacheTraced(rt) || screenProbesTraced(rt) || reflectionsTraced(rt))),
+          (radianceCacheTraced(rt) ||
+            screenProbesTraced(rt) ||
+            occlusionTraced(rt) ||
+            reflectionsTraced(rt) ||
+            translucencyGiTraced(rt, device, frame.cam))),
       image: {
         noiseFrame: noiseFrame(rt),
         eye: frame.cam.eye,

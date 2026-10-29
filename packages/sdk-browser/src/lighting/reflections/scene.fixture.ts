@@ -192,6 +192,7 @@ const REFLECTION_NAMES = [
   'ndcToPixel',
   'ndcToUv',
   'reflectionDone',
+  'reflectionFar',
   'reflectionReach',
   'reflectionRaySpan',
   'reflectionRayDistance',

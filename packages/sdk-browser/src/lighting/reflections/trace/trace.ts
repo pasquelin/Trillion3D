@@ -17,6 +17,7 @@ import { REFLECTION_RESOLVE_WGSL } from '../resolveWgsl.ts'
 import { REFLECTION_BILATERAL_WGSL } from '../bilateralWgsl.ts'
 import { REFLECTION_SAMPLE_WGSL } from '../sampleWgsl.ts'
 import { REFLECTION_SURFACES_WGSL } from '../surfacesWgsl.ts'
+import { REFLECTION_STORED_RAY_WGSL } from '../storedRayWgsl.ts'
 import { reflectionCensusWgsl } from '../censusWgsl.ts'
 import { REFLECTION_GROUP, reflectionLightViewWgsl } from '../viewLayout.ts'
 import { REFLECTION_LOBE_RAYS_WGSL } from '../weight.ts'
@@ -24,6 +25,8 @@ import { REFLECTION_CLASSIFY_WGSL } from '../tiles.ts'
 import { reflectionStagesWgsl } from '../wgsl.ts'
 import { reflectionSceneTraceWgsl } from '../sceneTrace.ts'
 import { reflectionSceneTraceHardwareWgsl } from '../sceneTraceHardware.ts'
+import type { SceneCompaction } from '../../bounce/screen/traceWgsl.ts'
+import { REFLECTION_MESH_ANSWERED, reflectionMeshesWgsl } from './meshesWgsl.ts'
 import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { isFirstPerson } from '../../../materials/surface/surfaceModel.ts'
 import type { MarchLanes } from '../../../visibility/hiz/gpu/screenMarchLanes.ts'
@@ -54,9 +57,9 @@ var<workgroup> pendingBase:u32;
 /** The two numbers a texel's ray is drawn from: the blue noise at the grid texel \`g\` and the image's turn. */
 fn reflectionSampleAt(g:vec2u)->vec2f{return blueNoiseVec2(g,reflectionView.temporal.x);}
 /** The ray the pixel \`own\` casts, drawn from \`u\`: the lobe it traces sampled (\`reflectionTopRay\`, through its top layer's
- *  roughness), a mirror's — a roughness under a thousandth — its reflection about its normal, no draw. */
+ *  roughness, about the normal of that top layer), a mirror's — a roughness under a thousandth — its reflection about it, no draw. */
 fn reflectionCastRay(own:ReflectingPixel,u:vec2f)->ReflectionLobeRay{
- var ray=reflectionTopRay(own.N,own.V,own.top,u);
+ var ray=reflectionTopRay(own.topN,own.V,own.top,u);
  if(own.top<0.001){ray.R=reflect(-own.V,own.topN);}
  return ray;
 }
@@ -65,14 +68,6 @@ fn reflectionCastRay(own:ReflectingPixel,u:vec2f)->ReflectionLobeRay{
 fn reflectionCastCone(own:ReflectingPixel,ray:ReflectionLobeRay)->f32{
  if(own.top<0.001){return REFLECTION_MIN_CONE;}
  return reflectionRayCone(own.topN,own.V,ray.axis.xyz,vec2f(ray.along,ray.alpha),ray.R);
-}
-/** The ray of grid texel \`texel\` as the ray generation stored it, read as the storage it is written through: the lobe ray of its direction (unit again, the
- *  halves holding it to a thousandth, and read through the thin lobe \`lobeAlpha(0.0)\`, the only part of the lobe a stage reads), its cone angle and
- *  whether its pixel is a first-person object's. */
-struct ReflectionStoredRay{ray:ReflectionLobeRay,cone:f32,firstPerson:bool,}
-fn reflectionStoredRay(texel:vec2i)->ReflectionStoredRay{
- let r=reflectionRayOf(textureLoad(surfaceRays,texel,REFLECTION_RAY_DIRECTION).r,textureLoad(surfaceRays,texel,REFLECTION_RAY_CONE).r);
- return ReflectionStoredRay(ReflectionLobeRay(normalize(r.xyz),vec4f(0.0,0.0,0.0,lobeAlpha(0.0)),0.0,0.0),abs(r.w),r.w<0.0);
 }
 ${statistics ? COUNTING : ''}`
 
@@ -93,6 +88,8 @@ fn generateTexel(g:vec2u,layer:u32){
   textureStore(surfaceRays,texel,REFLECTION_RAY_DIRECTION,vec4u(words.x,0u,0u,0u));
   textureStore(surfaceRays,texel,REFLECTION_RAY_CONE,vec4u(words.y,0u,0u,0u));
   textureStore(surfaceRays,texel,REFLECTION_RAY_DEPTH,vec4u(bitcast<u32>(own.z),0u,0u,0u));
+  // The ray goes as far as the view's longest ray until the radiance cache shortens it (cacheLimits).
+  textureStore(surfaceRays,texel,REFLECTION_RAY_DISTANCE,vec4u(0u));
  }else{
   textureStore(surfaceRays,texel,REFLECTION_RAY_DEPTH,vec4u(bitcast<u32>(-surfaceDepthAt(layer,coord)),0u,0u,0u));
  }
@@ -193,19 +190,23 @@ const traceScreenWgsl = (statistics: boolean, lanes: MarchLanes) =>
 const traceSceneWgsl = (
   statistics: boolean,
   hardware: boolean,
-) => `/** The ray the screen stage missed, \`missed\`: the ray the ray generation stored for its texel, marched through the scene from where the
+) => `/** The ray the screen stage missed, missed: the ray the ray generation stored for its texel, from the pixel's point and the normal of its top layer (the coat's where it
+ *  carries one, which the normal bias of the ray through the scene's triangles follows), marched through the scene from where the
  *  screen stopped knowing it, and its texel's fresh radiance written whole. Its cone angle, which dithers the march's step, is the
  *  inverse of its pdf. A pixel of a first-person object (the stored cone's sign) casts a ray that does not meet the stand-ins of
- *  first-person objects (\`ST_MEET_WORLD_SPACE\`). */
+ *  first-person objects (ST_MEET_WORLD_SPACE). A ray the meshes' fields stage answered whole (REFLECTION_MESH_ANSWERED) is left. */
 fn traceSceneRay(missed:vec2u){
+ ${hardware ? '' : `if(missed.y==${REFLECTION_MESH_ANSWERED}){return;}`}
  let g=vec2u(missed.x&0xffffu,missed.x>>16u);
  let texel=vec2i(g);
  let coord=vec2i(reflectionPickedPixel(g));
  let own=reflectingPixelAt(REFLECTION_LAYER,coord,surfaceFlagsAt(coord));
  // The ray the ray generation stored, read as the storage the screen stage reads it through.
  let stored=reflectionStoredRay(texel);
- let b=reflectionSceneStage(own.P,own.N,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson);
+ let b=reflectionSceneStage(own.P,own.topN,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson);
  textureStore(traceOut,texel,freshPack(${hardware ? 'makeFinite3(b.radiance)' : 'b.radiance'},b.distance));
+ // A ray that reads the radiance cache and met nothing within its distance is left to cacheReads: its distance kept as it was with its lowest bit set.
+ if(reflectionCached&&!b.hit){textureStore(surfaceRays,texel,REFLECTION_RAY_DISTANCE,vec4u(bitcast<u32>(-reflectionFar())|1u,0u,0u,0u));}
  ${statistics ? 'countScene();' : ''}
 }
 /** One thread a ray the screen stage missed (\`pendingIn\`); the workgroup's tally flushed after its
@@ -243,7 +244,8 @@ fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroup
  *    blue noise read at its texel and the image's turn (`reflectionSampleAt`, `../sampleWgsl.ts`). It writes the ray's direction and its cone angle (the
  *    inverse of its pdf, at least `REFLECTION_MIN_CONE`, negative for a pixel of a first-person object) and the picked pixel's depth beside them, negated where the pixel
  *    casts none (`../grids.ts`): the one place a ray is drawn, the stages after it read it. The distance a ray goes is the view's longest ray
- *    (`ReflectionView.march.w`), whatever the pixel's roughness: the reflections reuse no radiance cache that would shorten it.
+ *    (`ReflectionView.march.w`), unless the project reads the radiance cache for the rough reflections (`reflectionRadianceCache`): the kernel `cacheLimits` then
+ *    shortens the rays of the pixels the cache covers (`radianceCache/wgsl.ts`) before the screen stage, and `cacheReads` gives the ones that met nothing the cache's light after the scene stage.
  * 1. SCREEN (`traceScreen`): a grid texel casts its stored ray (`reflectionStoredRay`) from its picked pixel where that one traces
  *    (a positive depth), none where it does not, marched on the screen exactly (the
  *    chain's first stage, `../wgsl.ts`: the Hi-Z march, `../../../visibility/hiz/gpu/screenMarch.ts`, read in the last lit
@@ -256,6 +258,9 @@ fn traceScene(@builtin(global_invocation_id) thread:vec3u,@builtin(num_workgroup
  *    knowing the ray, the light of the surface it meets read in the surface cache's final lighting (`../sceneTrace.ts`,
  *    `../../surfaceCache/hitWgsl.ts`, never lit light by light), then, where its march left the scene, the screen's far trace and the
  *    environment, else the environment as well, the fresh texel written whole.
+ * 1″. MESHES (`meshes.ts`, `meshesWgsl.ts`), where the project traces the meshes' fields (`meshDistanceFieldTrace`, `reflectionMeshDistanceFieldTrace`; the opaque surface alone): before the scene stage, the rays the screen
+ *    missed near the camera are listed (`compactReflectionMeshes`) and marched through the meshes of their cell of the view's grid (`traceReflectionMeshes`); a hit the fade lets through is the ray's whole answer
+ *    (the scene stage then leaves it), a ray that is not answered goes on to the scene stage from where this one left it.
  * 2. RESOLVE (`../resolveWgsl.ts`): every pixel of a resolve tile upsamples the rays of the four texels
  *    around it and averages them with its neighbours', each weighed by its BRDF over its pdf on the
  *    pixel's own lobe, over a radius that grows with the pixel's roughness.
@@ -325,6 +330,7 @@ export const reflectionTraceShader = (
   hardware = false,
   lanes: MarchLanes = 'none',
   light: LightAtlasFormat = WORD_LIGHT_FORMAT,
+  meshes?: SceneCompaction,
 ) =>
   wgslProgram(
     [
@@ -333,6 +339,7 @@ export const reflectionTraceShader = (
       traceSceneWgsl(statistics, hardware),
     ].join('\n'),
     [
+      ...(meshes ? reflectionMeshesWgsl(meshes) : []),
       // The lights' struct its group declares: what a lobe's weight and a ray's fog read of them.
       directLightWgsl(),
       ...(hardware ? [makeFinite3] : []),
@@ -352,6 +359,7 @@ export const reflectionTraceShader = (
       ),
       REFLECTION_LOBE_RAYS_WGSL,
       REFLECTION_SURFACES_WGSL,
+      REFLECTION_STORED_RAY_WGSL,
       REFLECTION_TILES_WGSL,
       REFLECTION_TEXEL_WGSL,
       REFLECTION_SAMPLE_WGSL,

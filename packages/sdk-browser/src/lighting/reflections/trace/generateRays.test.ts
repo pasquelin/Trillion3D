@@ -53,8 +53,9 @@ test('a texel whose picked pixel traces keeps its ray, direction and cone angle 
       [[2, 3], 1],
       [[2, 3], 2],
       [[2, 3], 0],
+      [[2, 3], 3],
     ],
-    'the direction, the third half with the cone angle, the depth',
+    'the direction, the third half with the cone angle, the depth, the distance',
   )
   const ray = run.reflectionRayOf(stores[0].value[0], stores[1].value[0])
   for (const [got, want] of [
@@ -66,6 +67,11 @@ test('a texel whose picked pixel traces keeps its ray, direction and cone angle 
     assert.ok(Math.abs(got - want) < 1e-3, `${got} is ${want}`)
   assert.equal(floatOf(stores[2].value[0]), 0.25, 'the depth of the pixel the ray leaves')
   assert.ok(run.reflectionRayTraces(floatOf(stores[2].value[0])))
+  assert.equal(
+    stores[3].value[0],
+    0,
+    'the ray goes as far as the view’s longest ray until the radiance cache shortens it',
+  )
 })
 
 test('the sign of the cone angle tells a pixel of a first-person object, and the ray’s pdf, its inverse, ignores it', () => {

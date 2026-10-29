@@ -70,9 +70,12 @@ const DOWNSAMPLE_RANGE = [4, 64] as const
 /** The least and the most the occluders in front of a horizon weigh by (`screenProbeOcclusionForegroundPower`). */
 const FOREGROUND_POWER_RANGE = [0.1, 10] as const
 
-/** The ways the indirect light of the opaque surfaces is gathered (`finalGatherMethod`): by screen probes, the default, or by an irradiance field — the world's probes placed round the pixels, their irradiance
- *  and occlusion precomputed, interpolated to the pixels. */
-const FINAL_GATHER_METHODS = ['screenProbes', 'irradianceField'] as const
+/** The ways the indirect light of the opaque surfaces is gathered (`finalGatherMethod`): by screen probes, the default, by an irradiance field — the world's probes placed round the pixels, their irradiance
+ *  and occlusion precomputed, interpolated to the pixels —, or by reservoirs: one ray a tile of pixels, its hit kept in a reservoir that is resampled in time and in space, then upsampled to the pixels. */
+const FINAL_GATHER_METHODS = ['screenProbes', 'irradianceField', 'reservoirs'] as const
+
+/** The ways the pixels read the downsampled reservoirs (`reservoirGatherUpsampleMethod`): a jittered bilinear read that falls back to the unjittered one, a spiral of reservoirs, or the nearest reservoir alone. */
+const RESERVOIR_UPSAMPLE_METHODS = ['jitteredBilinear', 'spiral', 'passthrough'] as const
 
 /** A way of gathering the indirect light (`FINAL_GATHER_METHODS`). */
 type FinalGatherMethod = (typeof FINAL_GATHER_METHODS)[number]
@@ -275,6 +278,8 @@ const RADIANCE_CACHE_RULES = /* @__PURE__ */ (() =>
     flag('screenProbeHardwareRayTracing', true),
     nonNegative('screenProbeHardwareRayTracingBias', 0.001),
     nonNegative('screenProbeHardwareRayTracingNormalBias', 0.001),
+    flag('screenProbeShortRangeAOHardwareRayTracing', false),
+    nonNegative('screenProbeShortRangeAOHardwareRayTracingNormalBias', 0.001),
     nonNegative('screenProbeHardwareRayTracingHairBias', 0.02),
     flag('screenProbeSkipFoliageHits', true),
     flag('screenProbeSkipHairHits', false),
@@ -318,6 +323,39 @@ const IRRADIANCE_FIELD_RULES = /* @__PURE__ */ (() =>
     number('irradianceFieldMaxRoughnessToEvaluateRoughSpecular', 0.8, ANY_NUMBER),
   ] as const)()
 
+/** The reservoir gather's settings (`finalGatherMethod` 'reservoirs'): the reference's reservoir gather variables, with their defaults; distances in metres where it has centimetres. */
+const RESERVOIR_GATHER_RULES = /* @__PURE__ */ (() =>
+  [
+    integer('reservoirGatherDownsampleFactor', 2, [1, 8]),
+    integer('reservoirGatherFixedJitterIndex', -1, [-1, INT32_RANGE[1]]),
+    flag('reservoirGatherTemporalResampling', true),
+    integer('reservoirGatherValidateTemporalReservoirsEveryNFrames', 0, [0, INT32_RANGE[1]]),
+    flag('reservoirGatherTemporalResamplingResetHistory', false),
+    flag('reservoirGatherSpatialResampling', true),
+    integer('reservoirGatherSpatialResamplingNumPasses', 2, [0, 16]),
+    integer('reservoirGatherSpatialResamplingNumSamples', 4, [0, 64]),
+    nonNegative('reservoirGatherSpatialResamplingKernelRadius', 0.05),
+    number('reservoirGatherResamplingAngleThreshold', 25, [0, 180]),
+    nonNegative('reservoirGatherResamplingDepthErrorThreshold', 0.01),
+    nonNegative('reservoirGatherSpatialResamplingOcclusionScreenTraceDistance', 0.2),
+    nonNegative('reservoirGatherMaxRayIntensity', 100),
+    choice('reservoirGatherUpsampleMethod', 'spiral', RESERVOIR_UPSAMPLE_METHODS),
+    nonNegative('reservoirGatherUpsampleKernelSize', 3),
+    integer('reservoirGatherUpsampleNumSamples', 16, [1, 64]),
+    flag('reservoirGatherTemporal', true),
+    flag('reservoirGatherClearHistoryEveryFrame', false),
+    nonNegative('reservoirGatherTemporalDistanceThreshold', 0.005),
+    positive('reservoirGatherTemporalMaxFramesAccumulated', 10),
+    flag('reservoirGatherBilateralFilter', true),
+    nonNegative('reservoirGatherBilateralFilterSpatialKernelRadius', 0.002),
+    integer('reservoirGatherBilateralFilterNumSamples', 8, [1, 16]),
+    nonNegative('reservoirGatherBilateralFilterDepthWeightScale', 10000),
+    positive('reservoirGatherBilateralFilterNormalAngleThresholdScale', 0.2),
+    nonNegative('reservoirGatherBilateralFilterStrongBlurVarianceThreshold', 0.5),
+    flag('reservoirGatherShortRangeAO', true),
+    number('reservoirGatherShortRangeAOMaxScreenTraceFraction', 0.02, [0, 1]),
+  ] as const)()
+
 /** The screen probes' settings by field, each with its default; `'ultra'` the level. */
 export const SCREEN_PROBE_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -325,6 +363,7 @@ export const SCREEN_PROBE_RULES = /* @__PURE__ */ (() =>
     ...TRACE_AND_CACHE_RULES,
     ...RADIANCE_CACHE_RULES,
     ...IRRADIANCE_FIELD_RULES,
+    ...RESERVOIR_GATHER_RULES,
   ] as const))()
 /** The screen probes setting `field` of a runtime's context (`contextReader`): its default where the
  *  context holds none. */
@@ -370,6 +409,11 @@ export type ScreenProbeSettings = LevelKnobs & {
   bentNormal: boolean
   /** The rays a pixel casts for its short-range occlusion where the horizon search is off (`screenProbeOcclusionHorizonSearch`), none else. */
   occlusionRays: number
+  /** Whether the short-range occlusion is cast through the scene's triangles in place of the horizon search or the screen's rays (`screenProbeShortRangeAOHardwareRayTracing`, with the occlusion searched),
+   *  the rays a pixel casts then (four, eight from a quality of 2, sixteen from 6) and how far off its surface along its normal, in metres, each starts. */
+  occlusionTriangles: boolean
+  occlusionTriangleRays: number
+  occlusionTriangleBias: number
   /** The way the indirect light is gathered, and, for the irradiance field, its shape (`irradianceField*`): the cache of probes round the pixels, the maps of each probe, and how the pixels read them. */
   finalGather: FinalGatherMethod
   irradianceField: IrradianceFieldSettings
@@ -617,14 +661,10 @@ function irradianceFieldOf(values: ScreenProbeValues): IrradianceFieldSettings {
 }
 
 /** The rays the occlusion casts without the horizon search: four, eight from a quality of 2, sixteen from 6. */
+const pixelRaysOf = (values: ScreenProbeValues) =>
+  values.screenProbeQuality >= 6 ? 16 : values.screenProbeQuality >= 2 ? 8 : 4
 const occlusionRaysOf = (values: ScreenProbeValues) =>
-  values.screenProbeOcclusionHorizonSearch
-    ? 0
-    : values.screenProbeQuality >= 6
-      ? 16
-      : values.screenProbeQuality >= 2
-        ? 8
-        : 4
+  values.screenProbeOcclusionHorizonSearch ? 0 : pixelRaysOf(values)
 
 /** The settings' switches and numbers that are read off the values alone (the level's row, whether the level casts and the occlusion is searched). */
 function switchesOf(
@@ -647,6 +687,9 @@ function switchesOf(
       !values.screenProbeOcclusionVisibilityBitmask &&
       occlusion,
     occlusionRays: occlusionRaysOf(values),
+    occlusionTriangles: values.screenProbeShortRangeAOHardwareRayTracing && occlusion,
+    occlusionTriangleRays: pixelRaysOf(values),
+    occlusionTriangleBias: values.screenProbeShortRangeAOHardwareRayTracingNormalBias,
     occlusionFoliageStrength: namedOr(
       values.screenProbeOcclusionFoliageStrength,
       knobs.occlusionFoliageStrength,

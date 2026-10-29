@@ -26,6 +26,7 @@ import {
   type TranslucencyGiGridInto,
 } from './layout.ts'
 import { clearVolumeView } from '../../gpu/core/standIns.ts'
+import { trianglesStageOf } from './trianglesStage.ts'
 import { createGiResources, giSampler, giveBack, resourcesKey } from './resources.ts'
 import { idleExpired } from '../bounce/probes/hold.ts'
 import {
@@ -56,6 +57,27 @@ export function askTranslucencyGi(rt: WebgpuPagesRuntime, device: GPUDevice) {
     {
       reason,
     },
+  )
+}
+
+/** Whether this image wants the scene trace made for the volume's cones (`LightingInputs.probes`): the volume is made, its cones are cast through the
+ *  scene's triangles where it can (`translucencyGiHardwareRayTracing`, with the march of the cells on) and the frame holds what the volume needs — a
+ *  perspective camera, a grid that fits the device, its four kernels compiled. The lighting then keeps the scene trace for the image (`sceneRaysOf`),
+ *  as it does for the screen probes and the radiance cache. */
+export function translucencyGiTraced(rt: WebgpuPagesRuntime, device: GPUDevice, cam: EngineCamera) {
+  const v = translucencyGiSettings(rt)
+  if (
+    !v.translucencyGiHardwareRayTracing ||
+    !v.translucencyGiTraceFromVolume ||
+    !wanted(rt, v) ||
+    cam.perspective !== 1
+  )
+    return false
+  const format = translucencyGiConeFormat(device.features, translucencyGiFormatSetting(rt, v))
+  const light = translucencyCacheLight(rt, device, v)
+  return (
+    !!translucencyGiKernels(device, format, light) &&
+    !!fittedGrid(rt, device, v, cam, v.translucencyGiTracingResolution)
   )
 }
 
@@ -211,7 +233,7 @@ function fittedGrid(
 }
 
 /** How this image reads the radiance cache (`READ`, `CACHE_READ`), and the history it keeps: whether the volume of the last image is the
- *  history of this one, the law of its slices and the world's temporal revision unmoved. */
+ *  history of this one, the law of its slices, the way the cones are traced (`traced`: through the scene's triangles or the field) and the world's temporal revision unmoved. */
 function settleHistory(
   rt: WebgpuPagesRuntime,
   held: TranslucencyGiState,
@@ -220,12 +242,13 @@ function settleHistory(
   cam: EngineCamera,
   cached: boolean,
   shared: boolean,
+  traced: boolean,
 ) {
   READ.cached = cached
   // Only the world's cache is read and marked coarser than the cascade that covers a cell: the volume's own has no bias.
   READ.bias = cached && shared ? v.translucencyGiRadianceCacheClipmapBias : 0
   cacheReadOf(CACHE_READ, rt, v)
-  lawOf(LAW, grid, v.translucencyGiTracingResolution, cam.near, v, READ.bias)
+  lawOf(LAW, grid, v.translucencyGiTracingResolution, cam.near, v, traced, READ.bias)
   const sameHistory = sameLaw(held.law, LAW, LAW_HISTORY_WORDS)
   if (!sameLaw(held.law, LAW, LAW_WORDS)) held.law.set(LAW)
   const cut = rt.run.gate.temporalRevision !== held.revision
@@ -264,11 +287,12 @@ export function encodeTranslucencyGi(
   held.idle = 0
   const cached = probes !== undefined && !!translucencyCacheProbes(rt, v)?.cache.views
   const shared = v.translucencyGiShareRadianceCacheWithOpaque
-  const history = settleHistory(rt, held, grid, v, cam, cached, shared)
-  const image = imageOf(rt, cam, history)
+  const triangles = trianglesStageOf(rt, device, held, v, coneFormat, light)
+  const history = settleHistory(rt, held, grid, v, cam, cached, shared, !!triangles)
+  const image = imageOf(rt, cam, history, triangles?.rays)
   writeGiFrame(device, held, grid, v, image, READ)
   const pass = encoder.beginComputePass(PASS)
-  encodeGiPasses(device, pass, held, kernels, grid, v, held.inputs, group)
+  encodeGiPasses(device, pass, held, kernels, grid, v, held.inputs, group, triangles)
   pass.end()
   publish(held, grid, v, image, history, marksOf(cached, shared))
 }

@@ -6,6 +6,7 @@ import { HDR_FORMAT } from '../../scene/targetFormats.ts'
 import { REFLECTION_CENSUS_BYTES, createReflectionCensus } from './census.ts'
 import { createFrontLayer, frontLayerBytes } from './frontLayer.ts'
 import { createLitImage, litImageBytes } from './litImage.ts'
+import { newMeshStageState } from '../bounce/screen/meshStage.ts'
 import { createTraceGroups, type TraceInputs } from './trace/traceGroups.ts'
 import {
   REFLECTION_DEPTH_FORMAT,
@@ -42,7 +43,7 @@ export function reflectionBytes(
     REFLECTION_TARGET.bytes(width, height, true) +
     litImageBytes(width, height) +
     frontLayerBytes(width, height, blends) +
-    gridBytes(width, height) +
+    gridBytes(width, height, true) +
     resolvedBytes(width, height) +
     depthBytes(width, height) +
     REFLECTION_VIEW_BYTES +
@@ -156,7 +157,7 @@ export function createScreenReflection(
     lit,
     /** The opaque surface's grids (`grids.ts`), made when first read, by the first image that traces. */
     get grids() {
-      grids ??= createReflectionGrids(device, 'Trillion3D reflection grid', [width, height])
+      grids ??= createReflectionGrids(device, 'Trillion3D reflection grid', [width, height], true)
       return grids
     },
     /** The resolved pixels both surfaces resolve into in turn (`resolveWgsl.ts`). */
@@ -169,6 +170,8 @@ export function createScreenReflection(
     /** The trace's bind groups, every kernel's, kept while their inputs stay
      *  (`encodeReflectionTrace`). */
     trace: createTraceGroups(device),
+    /** What the meshes' fields stage keeps between two images: the grid's resources and the groups made over them (`trace/meshes.ts`). */
+    meshes: newMeshStageState(),
     /** The counters the trace's rays add to, read back a few images late (`census.ts`). */
     census,
     /** The reflections' settings of the context, resolved once while none moves (`settings.ts`). */

@@ -55,7 +55,7 @@ const C = TRACE_GI_BINDINGS.at
  * it lacks (a negative `gi.depth.x` asks none). The point's pixel is the cell's own point of the image (`giCellUv`, the point lies on the ray through it)
  * shifted by the jitter the depth was drawn with (`reflectionView.jitter`): no matrix, so no large term far from the origin.
  */
-const GI_TRACE_POINT_WGSL = wgslBlock(
+export const GI_TRACE_POINT_WGSL = wgslBlock(
   'GI_TRACE_POINT_WGSL',
   [],
   `fn giTracePoint(cell:vec3u)->vec3f{
@@ -79,7 +79,7 @@ const GI_TRACE_POINT_WGSL = wgslBlock(
  * read through, the maps' side and their levels of detail, `sp.cache`) and flags (the cache is read, the sky is kept apart from its light, `sp.mode.z`)
  * the ones of the cache the volume reads, which is its own and not the world's unless shared (`gi.cache`, `gi.spatial.w`).
  */
-const GI_PARAMS_WGSL = wgslBlock(
+export const GI_PARAMS_WGSL = wgslBlock(
   'GI_PARAMS_WGSL',
   [],
   `fn giParams(){
@@ -89,6 +89,13 @@ const GI_PARAMS_WGSL = wgslBlock(
  let flags=select(0u,SP_FLAG_CACHE,cached)|select(0u,SP_FLAG_CACHE_SKY,cached&&gi.cache.w!=0.0);
  sp.mode.z=(sp.mode.z&~(SP_FLAG_CACHE|SP_FLAG_CACHE_SKY))|flags;
 }`,
+)
+
+/** The blue noise of a cell's column and the turn of the image (`giCellNoise`): the jitter of its cones within their texels. */
+export const GI_CELL_NOISE_WGSL = wgslBlock(
+  'GI_CELL_NOISE_WGSL',
+  [],
+  `fn giCellNoise(cell:vec3u)->vec2f{return blueNoiseVec2(cell.xy,u32(max(gi.jitter.w,0.0)));}`,
 )
 
 /**
@@ -147,14 +154,13 @@ fn giCone(d:vec3f)->vec3f{
 const giSharedWgsl = (light: LightAtlasFormat) =>
   wgslBlock(
     `GI_SHARED_WGSL(${light})`,
-    [giConeWgsl(light)],
+    [giConeWgsl(light), GI_CELL_NOISE_WGSL],
     `const GI_SLOTS:u32=${TRANSLUCENCY_GI_SLOT_SIDE * TRANSLUCENCY_GI_SLOT_SIDE}u;
 var<workgroup> giSeen:array<u32,GI_SLOTS>;
 var<workgroup> giNoise:array<vec2f,GI_SLOTS>;
 var<workgroup> giStartOf:array<vec3f,GI_SLOTS>;
 var<workgroup> giReachOf:array<f32,GI_SLOTS>;
 var<workgroup> giCacheOf:array<CacheGathered,GI_SLOTS>;
-fn giCellNoise(cell:vec3u)->vec2f{return blueNoiseVec2(cell.xy,u32(max(gi.jitter.w,0.0)));}
 fn giCellStore(slot:u32){
  giStartOf[slot]=giOrigin;
  giReachOf[slot]=giReach;

@@ -61,6 +61,9 @@ import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
  *  - `firstPerson`, the sphere that holds the stand-ins of the first-person objects (`firstPersonBounds.ts`): its centre in the world (`xyz`) and its
  *    radius (`w`), none when it is 0; `firstPersonMinimum`, the metres at least a ray the screen missed is handed to the scene trace at when it meets that
  *    sphere (`reflectionClipFirstPerson`, `firstPerson.ts`);
+ *  - `cache`, for the rough reflections that read the radiance cache (`cacheLimits`, `cacheReads`, `radianceCache/wgsl.ts`): the roughness it is read from (`x`) and
+ *    the one the rays are shortest at (`y`), the width of the noise added to a roughness (`z`), the scale of the sphere a probe is read through (`w`);
+ *    `cacheTrace`: the metres a ray goes at the first roughness (`x`) and at the second (`y`), and whether the probes are drawn stochastically (`z`);
  *  - `jitter`, the device offset the temporal anti-aliasing shifts `viewProj` by (`xy`) and the one it shifted
  *    `radianceViewProj` by (`zw`): what the surfaces' vectors, drawn without it, are compared after.
  */
@@ -90,6 +93,8 @@ const LAYOUT = fieldLayout('ReflectionView', [
   ['jitter', 'vec4f'],
   ['firstPerson', 'vec4f'],
   ['firstPersonMinimum', 'f32'],
+  ['cache', 'vec4f'],
+  ['cacheTrace', 'vec4f'],
 ] as const)
 
 /** Each field's first word in the view. */
@@ -148,7 +153,15 @@ const reflectionViewWgsl = (group: number) =>
 // pipeline (frontLayer.ts); the forward programs leave it at 0.
 override REFLECTION_LAYER:u32=0u;
 fn reflectionBlock()->vec2u{return select(reflectionView.grid.zw,reflectionView.front.yz,REFLECTION_LAYER==1u);}
-fn reflectionDone(bit:u32)->bool{return (select(reflectionView.scene.z,reflectionView.scene.w,REFLECTION_LAYER==1u)&bit)!=0u;}`,
+fn reflectionDone(bit:u32)->bool{return (select(reflectionView.scene.z,reflectionView.scene.w,REFLECTION_LAYER==1u)&bit)!=0u;}
+/** The furthest the ray in hand goes in metres, none (zero) where the view's longest ray holds, and whether it reads the radiance cache where it
+ *  meets nothing within it (reflectionStoredRay sets both from the ray's texel: the cache's shortening of a rough reflection's ray, radianceCacheWgsl.ts);
+ *  reflectionFar the distance the stages hold their march to. */
+var<private> reflectionLimit:f32;
+var<private> reflectionCached:bool;
+fn reflectionFar()->f32{
+ return select(reflectionView.march.w,min(reflectionLimit,reflectionView.march.w),reflectionLimit>0.0);
+}`,
   )
 
 /** The reflection's resources of the trace, in bind group `group`: the view (`reflectionViewWgsl`), the

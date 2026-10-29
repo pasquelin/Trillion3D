@@ -128,6 +128,7 @@ function stages(options: {
         firstPersonMinimum: standIns?.minimum ?? 0.04,
       },
       reflectionDone: () => true,
+      reflectionFar: () => 100,
       reflectionRayBias: () => 0,
       reflectionOriginOnScreen: () => onScreen,
       reflectionRayLobe: (lobe: { R: Vec3 }) => ({ R: lobe.R }),

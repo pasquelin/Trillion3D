@@ -118,7 +118,7 @@ const FILTER_MEANINGS_REST = /* @__PURE__ */ (() =>
     screenProbeShortRangeGIHistoryDepthTestRelativeThickness:
       "The relative depth thickness within which the last image's depth must agree with a sample's expected depth for the sample to give light (0.0005 by default).",
     finalGatherMethod:
-      "How the indirect light of the opaque surfaces is gathered: 'screenProbes' (the default), probes placed on the screen that trace the screen and the scene, filtered in space and time, or 'irradianceField', the world's probes placed round the pixels, their irradiance and occlusion precomputed, interpolated to the pixels: quicker, lower quality. The irradianceField* settings shape the field.",
+      "How the indirect light of the opaque surfaces is gathered: 'screenProbes' (the default), probes placed on the screen that trace the screen and the scene, filtered in space and time, or 'irradianceField', the world's probes placed round the pixels, their irradiance and occlusion precomputed, interpolated to the pixels: quicker, lower quality, or 'reservoirs', one ray a tile of pixels through the scene's triangles whose hit is kept in a reservoir resampled in time and space and upsampled to the pixels: needs the scene traces and their hardware ray tracing. The irradianceField* settings shape the field, the reservoirGather* settings the reservoirs.",
     irradianceFieldNumClipmaps:
       'The levels of probes of the irradiance field, from 1 (4 by default); each is wider than the one before by irradianceFieldClipmapDistributionBase.',
     irradianceFieldClipmapWorldExtent:
@@ -325,6 +325,10 @@ const RADIANCE_CACHE_MEANINGS_REST = /* @__PURE__ */ (() =>
       "Metres: the nearest along its direction a screen probe's ray through the scene's triangles starts (0.001 by default, a tenth of a centimetre); used only with screenProbeHardwareRayTracing.",
     screenProbeHardwareRayTracingNormalBias:
       "Metres: how far off its surface, along the probe's normal, a screen probe's ray through the scene's triangles starts (0.001 by default); used only with screenProbeHardwareRayTracing.",
+    screenProbeShortRangeAOHardwareRayTracing:
+      "Whether the short-range occlusion (and its bent normal) is cast through the scene's triangles, where the scene has acceleration structures and once the program is compiled, in place of the horizon search or the screen's rays (false by default): a pixel casts four rays, eight from a screen probe quality of 2, sixteen from 6, cosine distributed over its hemisphere as far as two tiles of pixels of the image's width at its depth, the first hit of any opaque surface blocking one; the short-range global illumination is then not gathered.",
+    screenProbeShortRangeAOHardwareRayTracingNormalBias:
+      "Metres: how far off its surface, along the pixel's normal, a ray of the short-range occlusion through the scene's triangles starts (0.001 by default, a tenth of a centimetre); used only with screenProbeShortRangeAOHardwareRayTracing.",
     screenProbeHardwareRayTracingHairBias:
       "Metres: the nearest along its direction a ray through the scene's triangles starts from a hair pixel (0.02 by default), where the triangles heavily mismatch the surface drawn; used only with screenProbeHardwareRayTracing.",
     screenProbeThicknessScaleWithoutField:
@@ -358,6 +362,67 @@ const FOLIAGE_MEANINGS = /* @__PURE__ */ (() =>
       "The same roughness for the pixels of a thin double-sided sheet that transmits light (a leaf, a curtain). Negative, the default, is the row of the reflections' level (reflectionQuality): 0.4 at high, 0.8 at ultra and cinematic and where the reflections are off.",
   }) satisfies Partial<Record<ScreenProbeField, string>>)()
 
+/** The reservoir gather (`finalGatherMethod` 'reservoirs'). */
+const RESERVOIR_MEANINGS = /* @__PURE__ */ (() =>
+  ({
+    reservoirGatherDownsampleFactor:
+      'The reduction from the image at which a ray is traced and a reservoir made and resampled, from 1 to 8 (2 by default): the main cost of the reservoir gather.',
+    reservoirGatherFixedJitterIndex:
+      'When 0 or more, the frame index every random number of the reservoir gather is drawn with, to debug (-1 by default: the image number).',
+    reservoirGatherTemporalResampling:
+      'Whether each reservoir is merged with the reservoirs of the last image round where its surface stood (true by default).',
+    reservoirGatherValidateTemporalReservoirsEveryNFrames:
+      "Every this many images (0, the default, never) the last image's reservoirs are validated: their rays are traced again, and a reservoir whose hit moved is dropped, one whose light changed is weighed down. Quicker to follow a change of the lighting, noisier.",
+    reservoirGatherTemporalResamplingResetHistory:
+      'Whether the reservoirs of the last image are discarded, once, at the image it is turned on (false by default).',
+    reservoirGatherSpatialResampling:
+      'Whether each reservoir is merged with the reservoirs round it (true by default).',
+    reservoirGatherSpatialResamplingNumPasses:
+      'The passes of the spatial resampling, 0 to 16 (2 by default).',
+    reservoirGatherSpatialResamplingNumSamples:
+      'The neighbours each reservoir takes in a spatial pass (4 by default).',
+    reservoirGatherSpatialResamplingKernelRadius:
+      "The radius of the spatial resampling, as a fraction of the reservoir view's width (0.05 by default).",
+    reservoirGatherResamplingAngleThreshold:
+      'The largest angle in degrees between the normals of two reservoirs that are merged (25 by default).',
+    reservoirGatherResamplingDepthErrorThreshold:
+      'The largest relative depth difference between two reservoirs that are merged (0.01 by default).',
+    reservoirGatherSpatialResamplingOcclusionScreenTraceDistance:
+      "The length, as a fraction of the screen, of the screen trace that checks the hit of a neighbour's reservoir is not hidden from the pixel before it is merged (0.2 by default); 0 checks nothing.",
+    reservoirGatherMaxRayIntensity:
+      'The most light a ray brings back, in the pre-exposed units of the image (100 by default); a brighter one is scaled down to it, which keeps fireflies away.',
+    reservoirGatherUpsampleMethod:
+      "How a pixel reads the reservoirs: 'spiral' (the default) takes samples along a spiral of them, 'jitteredBilinear' a bilinear read at a jittered place that falls back to the unjittered one, 'passthrough' the nearest reservoir alone (for debugging; it computes no variance, so the bilateral filter blurs only the disocclusions the accumulation finds).",
+    reservoirGatherUpsampleKernelSize:
+      'The radius of the upsampling, in reservoir texels (3 by default).',
+    reservoirGatherUpsampleNumSamples:
+      "The reservoirs the 'spiral' upsampling takes, from 1 (16 by default).",
+    reservoirGatherTemporal:
+      "Whether the pixels' light is accumulated over the images (true by default).",
+    reservoirGatherClearHistoryEveryFrame:
+      "Whether the pixels' accumulated light is discarded at every image, for debugging (false by default).",
+    reservoirGatherTemporalDistanceThreshold:
+      "The relative depth difference past which the last image's light is not taken for the pixel's (0.005 by default): lower follows moving objects closely, higher flickers less.",
+    reservoirGatherTemporalMaxFramesAccumulated:
+      "The images a pixel's light accumulates over at most (10 by default, scaled by the global illumination update speed): lower follows a change of the lighting faster, higher is steadier.",
+    reservoirGatherBilateralFilter:
+      'Whether a bilateral filter blurs the accumulated light where it is still noisy, the last step of the reservoir gather (true by default).',
+    reservoirGatherBilateralFilterSpatialKernelRadius:
+      "The radius of the bilateral filter, as a fraction of the view's width (0.002 by default).",
+    reservoirGatherBilateralFilterNumSamples:
+      'The samples the bilateral filter takes, 1 to 16 (8 by default; twice as many where the pixel is very noisy).',
+    reservoirGatherBilateralFilterDepthWeightScale:
+      "The scale of the filter's weight on the distance of a sample's surface from the pixel's plane (10000 by default).",
+    reservoirGatherBilateralFilterNormalAngleThresholdScale:
+      'The scale of the angle between two normals at which the filter stops weighing a sample (0.2 by default).',
+    reservoirGatherBilateralFilterStrongBlurVarianceThreshold:
+      'The variance of the upsampled light above which a pixel is blurred twice as wide (0.5 by default).',
+    reservoirGatherShortRangeAO:
+      'Whether the reservoir gather adds a short-range, full-resolution occlusion (the contact shadows its spatial filtering lacks) to its light (true by default; it needs the short-range occlusion screenProbeShortRangeOcclusion on, and follows its reduction and strength).',
+    reservoirGatherShortRangeAOMaxScreenTraceFraction:
+      'The reach of that short-range occlusion, as a fraction of the screen width, 0 to 1 (0.02 by default).',
+  }) satisfies Partial<Record<ScreenProbeField, string>>)()
+
 /** What each setting of the screen probes means (`../bounce/screenProbeOptions.ts`); they apply where the
  *  bounce is on and the scene has a lit surface. The defaults and the ranges are the schema's own. */
 export const SCREEN_PROBE_MEANINGS: Readonly<Record<ScreenProbeField, string>> =
@@ -370,4 +435,5 @@ export const SCREEN_PROBE_MEANINGS: Readonly<Record<ScreenProbeField, string>> =
     ...RADIANCE_CACHE_AND_FOLIAGE_MEANINGS,
     ...RADIANCE_CACHE_MEANINGS_REST,
     ...FOLIAGE_MEANINGS,
+    ...RESERVOIR_MEANINGS,
   }))()

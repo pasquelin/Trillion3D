@@ -3821,6 +3821,7 @@ off, a surface takes the sky light irradiance alone. Settings (`packages/sdk-cor
 | -------------------------------------------------------- | -------------------------------------------------------------------- | ------- |
 | `translucencyGi`                                         | Whether the volume is made                                           | `true`  |
 | `translucencyGiTraceFromVolume`                          | The cells march the distance field before reading the cache          | `true`  |
+| `translucencyGiHardwareRayTracing`                       | With the march on, cast the cones through the scene's triangles      | `true`  |
 | `translucencyGiRadianceCache`                            | The cells read the radiance cache                                    | `true`  |
 | `translucencyGiRadianceCacheClipmapBias`                 | Cascades coarser than the covering one for reads and marks           | `3`     |
 | `translucencyGiGridPixelSize`                            | Pixels a side of a cell                                              | `32`    |
@@ -3844,6 +3845,7 @@ off, a surface takes the sky light irradiance alone. Settings (`packages/sdk-cor
 const world = createWorld('viewer', { translucencyGiGridPixelSize: 16 }) // finer cells
 world.translucencyGi = { translucencyGiEndDistance: 150 } // a deeper grid, from the next frame
 world.translucencyGi = { translucencyGiTemporalHistoryWeight: null } // given back to its default
+world.translucencyGi = { translucencyGiHardwareRayTracing: false } // keep marching the distance field
 world.translucencyGi = { translucencyGi: false } // off: no pass, no texture
 ```
 
@@ -4557,6 +4559,29 @@ const world = createWorld('viewer', {
 world.diagnostic.mode = 'screen-probe-tile-stats' // or by mode: the integration's tiles
 ```
 
+### Reflections that read the radiance cache
+
+`reflectionRadianceCache` (`false`) makes the rough reflections read the screen probes' radiance cache (`screenProbeRadianceCache`, on by default) instead of tracing their whole ray. A pixel whose roughness, plus a blue noise `reflectionRadianceCacheRoughnessFadeLength` wide (`0.05`), passes `reflectionRadianceCacheMinRoughness` (`0.2`), and whose point the cache covers with all eight probes round it, casts a ray shortened from `reflectionRadianceCacheMaxTraceDistance` (`5000` cm) at that roughness to `reflectionRadianceCacheMinTraceDistance` (`1000` cm) at `reflectionRadianceCacheMaxRoughness` (`0.35`), never under the distance the cache asks to be traced before it is read, never over the view's longest ray. A shortened ray that meets nothing within its distance takes the light the cache holds along it from its point, through the cone of its angle, with the sky light's leaking, the height fog and the ceiling of a ray; the far screen trace of the opaque rays is off while the cache is read. `reflectionRadianceCacheStochasticInterpolation` (`true`) reads one probe of the eight, drawn by the interpolation weights at one half, `false` the eight weighed; `reflectionRadianceCacheReprojectionRadiusScale` (`10`, from 1 to 100000) scales the sphere round each probe the direction is corrected through. Run-time settings, read again at each image; nothing is traced differently where the cache is not made (the setting off, the probes cast none, the program still compiling).
+
+```js
+const world = createWorld('viewer')
+world.reflections = { reflectionRadianceCache: true } // rough reflections read the cache past a short ray
+world.reflections = { reflectionRadianceCacheMaxTraceDistance: 2000, reflectionRadianceCacheMinTraceDistance: 500 } // shorter rays, centimetres
+world.reflections = { reflectionRadianceCacheStochasticInterpolation: false } // the eight probes, weighed
+world.reflections = { reflectionRadianceCache: null } // back to the default, off
+```
+
+### Short-range occlusion through the scene's triangles
+
+`screenProbeShortRangeAOHardwareRayTracing` (`false`) casts the screen probes' short-range occlusion, and its bent normal, through the scene's triangles in place of the horizon search or the screen's rays, where the scene has acceleration structures and the program is compiled: a pixel casts four rays (eight from a `screenProbeQuality` of 2, sixteen from 6), cosine distributed over its hemisphere, from its point moved `screenProbeShortRangeAOHardwareRayTracingNormalBias` metres (`0.001`) along its normal, as far as two tiles of pixels of the image's width at its depth; the first hit of an opaque surface blocks a ray, and the amount is the share left open. The short-range global illumination (`screenProbeShortRangeGI`) is not gathered while it runs. Run-time settings.
+
+```js
+const world = createWorld('viewer')
+world.indirectLight = { screenProbeShortRangeAOHardwareRayTracing: true } // contact shadows from the scene's triangles
+world.indirectLight = { screenProbeShortRangeAOHardwareRayTracingNormalBias: 0.002 } // start the rays 2 mm off the surface
+world.indirectLight = { screenProbeShortRangeAOHardwareRayTracing: null } // back to the horizon search
+```
+
 ```js
 // The reflection ray of the pixel under the point (640, 360) of the display.
 const world = createWorld('viewer', {
@@ -4603,6 +4628,21 @@ const world = createWorld('viewer', {
   surfaceCache: { surfaceCacheLightingStats: 1, surfaceCacheVisualizePrimitiveGroups: true },
 })
 world.diagnostic.mode = 'surface-cache-scene-stats' // or by mode: the counts of the scene
+```
+
+## Reservoir gather of the indirect light
+`finalGatherMethod: 'reservoirs'` gathers the indirect light of the opaque surfaces by reservoirs instead of screen probes. One ray a tile of pixels (`reservoirGatherDownsampleFactor`, 2 by default) is cast through the scene's triangles in a uniform direction of the hemisphere and lit by the surface cache where it hits; its hit is kept in a reservoir, merged with the reservoirs of the last image round where the surface stood (`reservoirGatherTemporalResampling`), then with those round it in space (`reservoirGatherSpatialResampling`, `reservoirGatherSpatialResamplingNumPasses` passes of `reservoirGatherSpatialResamplingNumSamples` neighbours), upsampled to the pixels (`reservoirGatherUpsampleMethod`: `'spiral'`, `'jitteredBilinear'` or `'passthrough'`), accumulated over the images (`reservoirGatherTemporal`, `reservoirGatherTemporalMaxFramesAccumulated`) and blurred where it is still noisy (`reservoirGatherBilateralFilter`). It needs the scene traces (`screenProbeSceneTraces` with `screenProbeHardwareRayTracing`, both on by default); without them the screen probes gather, as they do when the level casts no probes. The rays walk the scene's triangles in a compute stage whatever the device's hardware, so the choice costs what that walk costs. A short-range, full-resolution occlusion (the contact shadows the spatial filtering lacks) is added to the gathered light (`reservoirGatherShortRangeAO`, on by default; its reach is `reservoirGatherShortRangeAOMaxScreenTraceFraction` of the screen width, 0.02 by default). It is the screen probes' occlusion pass, so it follows their switch (`screenProbeShortRangeOcclusion`), reduction (`screenProbeShortRangeAODownsampleFactor`) and strength (`screenProbeOcclusionIntensity`). Turning the temporal resampling's reset on (`reservoirGatherTemporalResamplingResetHistory`) discards the reservoirs of the last image once, at the image it turns on. When the reservoirs of the chosen reduction do not fit the device's largest storage buffer (a 4K image at the default 2), the reduction is raised until they do. Every setting is read again at each image and its default is the reference's.
+
+```js
+// Reservoirs gather the indirect light: a ray every third pixel, one spatial pass, validated every eight images to follow a change of the lighting faster, with a wider contact occlusion.
+const world = createWorld('viewer', {
+  finalGatherMethod: 'reservoirs',
+  reservoirGatherShortRangeAOMaxScreenTraceFraction: 0.03,
+  reservoirGatherDownsampleFactor: 3,
+  reservoirGatherSpatialResamplingNumPasses: 1,
+  reservoirGatherValidateTemporalReservoirsEveryNFrames: 8,
+  reservoirGatherUpsampleMethod: 'jitteredBilinear',
+})
 ```
 
 ## Sampled lighting: debug views

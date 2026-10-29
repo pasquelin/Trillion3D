@@ -75,6 +75,14 @@ import {
  * surface within `reflectionDistantScreenDepthThreshold` (2) of the slope of the ray hit, before the
  * environment answers; `reflectionDistantScreenTraces` turns it off.
  *
+ * THE RADIANCE CACHE (`reflectionRadianceCache`, false): the screen probes' radiance cache (`screenProbeRadianceCache`) read for the rough
+ * reflections. A pixel rougher than `reflectionRadianceCacheMinRoughness` (0.2, blue noise of `reflectionRadianceCacheRoughnessFadeLength` (0.05)
+ * added to its roughness) whose point the cache covers casts a ray shortened from `reflectionRadianceCacheMaxTraceDistance` (5000 cm) at that
+ * roughness to `reflectionRadianceCacheMinTraceDistance` (1000 cm) at `reflectionRadianceCacheMaxRoughness` (0.35), never under the nearest the cache
+ * asks to be traced; a ray of those that meets nothing in that distance takes the light the cache holds along it instead of going on to the far
+ * trace and the environment (`reflectionRadianceCacheStochasticInterpolation`, true: one probe of the eight, drawn by the interpolation weights, as
+ * the reference does; false: the eight, weighed), read through a sphere round each probe scaled by `reflectionRadianceCacheReprojectionRadiusScale` (10).
+ *
  * THE SCENE THROUGH ITS TRIANGLES (`reflectionHardwareRayTracing`, on): where the scene has acceleration structures, the rays the screen missed go through the scene's triangles (`../lighting/rays/sceneTrace/`) instead of
  * being marched through the field: from `reflectionHardwareRayTracingBias` (0.1 cm) along the ray, or from where the screen
  * stopped knowing it less `hardwareRayTracingPullbackBias` (the screen probes' shared one, 8 cm), off the surface by `reflectionHardwareRayTracingNormalBias`
@@ -150,6 +158,14 @@ export const REFLECTION_RULES = /* @__PURE__ */ (() =>
     positive('reflectionDistantScreenDistance', 2000, METRES_NOTE),
     positive('reflectionDistantScreenDepthThreshold', 2),
     number('reflectionDistantScreenOffsetBias', 0, ANY_NUMBER),
+    flag('reflectionRadianceCache', false),
+    flag('reflectionRadianceCacheStochasticInterpolation', true),
+    number('reflectionRadianceCacheMinRoughness', 0.2, [0, 1]),
+    number('reflectionRadianceCacheMaxRoughness', 0.35, [0, 1]),
+    nonNegative('reflectionRadianceCacheMinTraceDistance', 1000, CENTIMETRES_NOTE),
+    nonNegative('reflectionRadianceCacheMaxTraceDistance', 5000, CENTIMETRES_NOTE),
+    number('reflectionRadianceCacheRoughnessFadeLength', 0.05, [0, 1]),
+    number('reflectionRadianceCacheReprojectionRadiusScale', 10, [1, 100000]),
     integer('reflectionSampleSceneColor', 1, [0, 2]),
     positive('reflectionSampleSceneColorDepthThickness', 0.01),
     number('reflectionSampleSceneColorNormalThreshold', 85, [0, 180]),
@@ -266,6 +282,17 @@ export interface ReflectionSettings {
   /** The least distance, in metres, at which a ray the screen missed is handed to the scene trace where it meets the sphere that holds the
    *  stand-ins of the first-person objects. */
   firstPersonMinimumHitDistance: number
+  /** The radiance cache the rough reflections read (`reflectionRadianceCache` with the screen probes' cache on): the roughness the rays begin to be shortened
+   *  at and the one they are shortest at, the roughness noise's width, the longest and the shortest a shortened ray goes in metres (the shortest held to the
+   *  longest, the longest to the view's longest ray), whether the probes are drawn stochastically, and the scale of the sphere they are read through. */
+  radianceCache: boolean
+  radianceCacheStochastic: boolean
+  radianceCacheMinRoughness: number
+  radianceCacheMaxRoughness: number
+  radianceCacheFade: number
+  radianceCacheMaxDistance: number
+  radianceCacheMinDistance: number
+  radianceCacheRadiusScale: number
   /** The metres a ray leaves a surface by at least, and the far trace's length. */
   surfaceBias: number
   distantDistance: number
@@ -433,13 +460,15 @@ export function resolveReflections(
 function marchOf(values: ReflectionValues, probes: ScreenProbeSettings) {
   const screenTraces = values.reflectionScreenTraces
   const sample = values.reflectionSampleSceneColor
+  const cache = radianceCacheOf(values, probes)
   return {
     screenSteps: values.reflectionScreenSteps,
     screenMinimumOccupancy: values.reflectionScreenMinimumOccupancy,
     distantSteps: values.reflectionDistantScreenSteps,
     screenTraces,
     sceneTraces: probes.values.screenProbeSceneTraces,
-    distantTraces: values.reflectionDistantScreenTraces && screenTraces,
+    // The opaque surface's rays read the cache instead of the far trace.
+    distantTraces: values.reflectionDistantScreenTraces && screenTraces && !cache.radianceCache,
     sampleSceneColor: sample === 2 || (sample === 1 && screenTraces),
     heightFog: values.reflectionHeightFog,
     hiResSurface: values.reflectionHiResSurface,
@@ -458,11 +487,35 @@ function marchOf(values: ReflectionValues, probes: ScreenProbeSettings) {
     historyDepthThickness: values.reflectionHistoryDepthTestRelativeThickness,
     distantTolerance: values.reflectionDistantScreenDepthThreshold,
     distantOffsetBias: values.reflectionDistantScreenOffsetBias,
+    ...cache,
     traceDistance: probes.values.screenProbeMaxTraceDistance,
     maxRayIntensity: values.reflectionMaxRayIntensity,
     sampleDepthThickness: values.reflectionSampleSceneColorDepthThickness,
     sampleFacing: Math.cos(values.reflectionSampleSceneColorNormalThreshold * DEG2RAD),
     fogSkyDistance: values.reflectionMinDistanceForFoggingSky,
+  }
+}
+
+/** The radiance cache the rough reflections read, the reference's holds on its numbers: the roughness it ends at not under the one it begins at, the
+ *  longest ray not past the view's longest, the shortest not past the longest. */
+function radianceCacheOf(values: ReflectionValues, probes: ScreenProbeSettings) {
+  const least = values.reflectionRadianceCacheMinRoughness
+  const longest = Math.min(
+    values.reflectionRadianceCacheMaxTraceDistance / CENTIMETRES_PER_METRE,
+    probes.values.screenProbeMaxTraceDistance,
+  )
+  return {
+    radianceCache: values.reflectionRadianceCache && probes.radianceCache,
+    radianceCacheStochastic: values.reflectionRadianceCacheStochasticInterpolation,
+    radianceCacheMinRoughness: least,
+    radianceCacheMaxRoughness: Math.max(values.reflectionRadianceCacheMaxRoughness, least),
+    radianceCacheFade: values.reflectionRadianceCacheRoughnessFadeLength,
+    radianceCacheMaxDistance: longest,
+    radianceCacheMinDistance: Math.min(
+      values.reflectionRadianceCacheMinTraceDistance / CENTIMETRES_PER_METRE,
+      longest,
+    ),
+    radianceCacheRadiusScale: values.reflectionRadianceCacheReprojectionRadiusScale,
   }
 }
 

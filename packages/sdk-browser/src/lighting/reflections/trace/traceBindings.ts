@@ -54,7 +54,7 @@ export const REFLECTION_LAYER_WGSL = wgslBlock('REFLECTION_LAYER_WGSL', [], '')
  * which a screen hit is told from a surface the last image did not show there by, and the kernel that keeps this image's, `depthKeep`), the
  * lists the classification fills (`../tiles.ts`: `tracingOut`, `clearTracingOut`, `resolveOut`,
  * `clearOut` as it fills them, `tiles` as a kernel runs over one), and the rays the screen stage missed
- * (`pendingOut`, `pendingIn`), which the scene stage runs over; the blue noise the ray generation draws a ray's direction from (`blue`, read as a
+ * (`pendingOut`, `pendingIn`), which the scene stage runs over and the meshes' fields stage (`pendingMesh`, the same list, bound to write the answers it gives) runs over before it; the blue noise the ray generation draws a ray's direction from (`blue`, read as a
  * read-only storage texture: no sampled texture of the stage's sixteen spent on it); the counters both ray stages add to (`census`, `../censusWgsl.ts`). The scene stage alone reads the fog's own cubemap and the sampler it is read through (`fogCubemap`, `fogSampler`), which tint the height fog laid over a ray.
  * The opaque last pass writes the reflection target the resolve reads, the front one the radiance the
  * forward fragments read.
@@ -94,6 +94,7 @@ export const REFLECTION_TRACE_BINDINGS = {
   blue: 57,
   fogCubemap: 59,
   fogSampler: 60,
+  pendingMesh: 61,
 } as const
 
 const B = REFLECTION_TRACE_BINDINGS
@@ -228,6 +229,13 @@ function rayLayouts(layout: LayoutOf, statistics: boolean, light: LightAtlasForm
         storageEntry(B.traceOut),
         computeBufferEntry(B.pendingIn, 'read-only-storage'),
       ],
+      rays(),
+      false,
+    ),
+    // The meshes' fields stage (`meshes.ts`) over the rays the screen missed: the first compaction reads their list (it is the dispatch's indirect arguments: read alone) and the rays; the trace reads what a hit reads, the fog and the lights, writes the fresh grid and the list.
+    meshCompact: layout([computeBufferEntry(B.pendingMesh, 'read-only-storage')], rays(), false),
+    meshTrace: layout(
+      [...scene(light), storageEntry(B.traceOut), computeBufferEntry(B.pendingMesh, 'storage')],
       rays(),
       false,
     ),

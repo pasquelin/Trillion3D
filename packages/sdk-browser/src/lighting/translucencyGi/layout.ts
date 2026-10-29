@@ -29,6 +29,7 @@ import { hasTextureFormatsTier1 } from '../../gpu/core/textureFormatsTier.ts'
  * the history's weight, whether the history holds, the image's rank, the cascades the radiance cache is read coarser by; `spatial` the
  * cells either side of the filter, the Gaussian's two factors, whether the radiance cache is read; `cache` how the cache read is shaped (the
  * radius scale of the sphere a map is read through, the maps' side, their levels of detail, whether the sky is kept apart from their light);
+ * `rays` the depth bias a hit's cards are read with, the nearest hit that brings light and the way a ray avoids the geometry it starts on, of the cones cast through the scene's triangles;
  * `previous` the image before's
  * view-projection set at its eye (`viewProjectionRelative`) and `eyeMoved` the eye of this image minus that one's (taken in double precision, so that a
  * place found relative to this eye is carried to the image before's without a large term), `inverse` this image's inverse (of the view-projection
@@ -103,6 +104,7 @@ export const TRANSLUCENCY_GI_FRAME = fieldLayout('TranslucencyGiFrame', [
   ['temporal', 'vec4f'],
   ['spatial', 'vec4f'],
   ['cache', 'vec4f'],
+  ['rays', 'vec4f'],
   ['previous', 'mat4x4f'],
   ['eyeMoved', 'vec4f'],
   ['inverse', 'mat4x4f'],

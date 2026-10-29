@@ -19,7 +19,12 @@ import { followSubsurfaceProfiles } from '../../lighting/subsurface/litRows.ts'
 import { ensureBounce, syncBouncePlacements } from '../prepare/bounce.ts'
 import { followGlobalLighting } from '../prepare/globalLighting.ts'
 import type { QueuedBounce } from '../backend/state/bounce.ts'
-import { createMarkSurface, NO_MARKERS, type MarkProbes } from '../../lighting/bounce/pool/pool.ts'
+import {
+  createMarkSurface,
+  NO_MARKERS,
+  type MarkProbes,
+  type PoolMarker,
+} from '../../lighting/bounce/pool/pool.ts'
 import {
   encodeIrradianceField,
   releaseIrradianceField,
@@ -37,6 +42,7 @@ import { marksVolumeVoxels } from '../../blend/radianceMarkSetting.ts'
 import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { prepareTranslucencyVolumeMarks } from '../../lighting/translucency/frame.ts'
 import { translucencyGiMarkers } from '../../lighting/translucencyGi/marker.ts'
+import { hairMarker } from '../../lighting/bounce/pool/hairMarker.ts'
 import { planVsmFrame } from '../../lighting/shadows/vsm/frame/vsmPlan.ts'
 import { encodeVsmFrame } from '../../lighting/shadows/vsm/frame/vsmEncode.ts'
 import { lightGridCull } from '../../lighting/tiles/cullView.ts'
@@ -98,6 +104,22 @@ const viewForward = new Float64Array(3)
 let orthographic = false
 /** What the image drew, for the probes' marks, refilled each image. */
 const drawn = createMarkSurface()
+/** What a runtime keeps for the marks of the cells its lit passes read: the strands' marker and the list of the image's markers, made once. */
+interface Marking {
+  readonly hair: PoolMarker
+  readonly list: PoolMarker[]
+}
+const markings = new WeakMap<WebgpuPagesRuntime, Marking>()
+
+/** The marks of the cells the image's lit passes read: the translucency volume's (while it marks), the strands' (while the hair reads the probes). */
+function markersOf(rt: WebgpuPagesRuntime): readonly PoolMarker[] {
+  let held = markings.get(rt)
+  if (!held) markings.set(rt, (held = { hair: hairMarker(rt), list: [] }))
+  const { list } = held
+  list.length = 0
+  list.push(...translucencyGiMarkers(rt, 'shared'), held.hair)
+  return list
+}
 
 /** The surfaces the image drew — depth, the view's uniform and its size — and the screen probes it cast, for the marks of the cells it
  *  reads (`lighting/bounce/pool/pool.ts`); with no opaque surface drawn nothing of those, only the translucent surfaces' mark where the image
@@ -112,7 +134,7 @@ function drawnSurface(rt: WebgpuPagesRuntime, device: GPUDevice, prepared: boole
   drawn.size[0] = gpu.targetSize[0]
   drawn.size[1] = gpu.targetSize[1]
   drawn.probes = opaque ? lastCastProbes(gpu.screenProbes) : undefined
-  drawn.markers = opaque ? translucencyGiMarkers(rt, 'shared') : NO_MARKERS
+  drawn.markers = opaque ? markersOf(rt) : NO_MARKERS
   return drawn
 }
 

@@ -10,6 +10,9 @@ import { REFLECTION_SIDE } from '../constants.ts'
 import { resetListIn } from '../../../gpu/dispatch/list.ts'
 import { REFLECTION_GROUP } from '../viewLayout.ts'
 import { classifyGroups } from '../tiles.ts'
+import type { MeshStageRun } from '../../bounce/screen/meshStage.ts'
+import { TRACE_MESH_GROUP, TRACE_MESH_LIST } from '../../bounce/screen/traceMeshWgsl.ts'
+import type { RadianceCacheStage } from '../radianceCache/stage.ts'
 import { REFLECTION_HARDWARE_SCENE } from './traceBindings.ts'
 import { hardwareTraceGroups } from './traceHardwareGroups.ts'
 import {
@@ -148,6 +151,27 @@ function resetHeads(
   }
 }
 
+/** The stage's two dispatches in the scene pass, before the scene stage: the first compaction over the list of the rays the screen missed, then the trace over the list it made. Group 1 is set (the reflection group). */
+function dispatchReflectionMeshes(
+  pass: GPUComputePassEncoder,
+  groups: Record<'meshCompact' | 'meshTrace', readonly GPUBindGroup[]>,
+  parity: number,
+  meshes: MeshStageRun,
+  lists: { pending: GPUBuffer; meshRays?: GPUBuffer },
+) {
+  if (!lists.meshRays) return
+  for (const [stage, texels, over] of [
+    [meshes.compact, groups.meshCompact, lists.pending],
+    [meshes.trace, groups.meshTrace, lists.meshRays],
+  ] as const) {
+    pass.setPipeline(stage.pipeline)
+    pass.setBindGroup(0, texels[parity])
+    pass.setBindGroup(TRACE_MESH_GROUP, stage.group)
+    pass.setBindGroup(TRACE_MESH_LIST, stage.list)
+    pass.dispatchWorkgroupsIndirect(over, 0)
+  }
+}
+
 /**
  * The reflections of the pixels of `size` in the trace's three passes on `encoder` (`PASSES`), each
  * opened, filled and ended in turn (`trace.ts`): for the opaque surface — and, with `front`, the image's
@@ -161,7 +185,9 @@ function resetHeads(
  * the front one's resolve reads the neighbours' rays. The clear of the unused tracing tiles runs only where a resolve reads
  * a texel of another tile: a surface reconstructing, or tracing for blocks larger than one pixel. With `hardware` and the scene
  * trace of the image (`inputs.rays`) the scene stage is the program that casts its rays through the scene's triangles
- * (`../sceneTraceHardware.ts`), over its own groups (`traceHardwareGroups.ts`). The history's parity turns every call.
+ * (`../sceneTraceHardware.ts`), over its own groups (`traceHardwareGroups.ts`). With `meshes` (`meshes.ts`) the opaque surface's scene pass starts with the meshes' fields stage over the
+ * rays the screen missed. With `cache` (`../radianceCache/stage.ts`) the opaque surface's rays are shortened before the screen stage and the ones that met nothing
+ * within their distance read the radiance cache after the scene stage. The history's parity turns every call.
  */
 export function encodeReflectionTrace(
   encoder: GPUCommandEncoder,
@@ -175,6 +201,8 @@ export function encodeReflectionTrace(
   reconstruct: readonly [boolean, boolean],
   front: boolean,
   hardware?: HardwareStage,
+  meshes?: MeshStageRun,
+  cache?: RadianceCacheStage,
 ) {
   const groups = traceGroups(reflection, stages, stages.layouts, inputs)
   const traced =
@@ -202,6 +230,9 @@ export function encodeReflectionTrace(
       for (const kernel of kernels) {
         if (kernel === 'clearTracing' && !readsNeighbours(side, block, frontBlock, reconstruct))
           continue
+        if (kernel === 'screen' && side === 'opaque') cache?.limits(pass, grids.tracing)
+        if (kernel === 'scene' && side === 'opaque' && meshes)
+          dispatchReflectionMeshes(pass, groups.opaque, parity, meshes, reflection.grids)
         if (kernel === 'scene' && traced) {
           pass.setPipeline(traced.stage.pipeline(side === 'opaque' ? 0 : 1))
           pass.setBindGroup(0, traced.groups[side])
@@ -213,6 +244,8 @@ export function encodeReflectionTrace(
         pass.setBindGroup(0, groups[side][kernel][parity])
         pass.dispatchWorkgroupsIndirect(grids[LISTS[kernel]], 0)
       }
+      // The rays that met nothing within the distance the cache shortened them to, given the cache's light (`../radianceCache/wgsl.ts`).
+      if (label === REFLECTION_SCENE_PASS && side === 'opaque') cache?.reads(pass, grids.tracing)
     }
     // The opaque depth of this image, kept after every kernel that reads the last image's, for the next image's hits.
     if (label === REFLECTION_DENOISE_PASS) {

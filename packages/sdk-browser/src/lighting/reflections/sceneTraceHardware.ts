@@ -18,7 +18,7 @@ import { REFLECTION_HARDWARE_SCENE, REFLECTION_HIT_BINDINGS } from './trace/trac
  *
  * THE RAY starts at the surface `P` moved along its normal `N` by `ReflectionView.hardware.y` as far as the ray leans on it
  * (`saturate(N·R)`). It runs from where the screen stopped knowing it (`begin`), `hardware.x` at least, to the longest ray
- * (`ReflectionView.march.w`), `hardware.x` at least; where it has something to trace, its start is pulled back by `hardware.z`, never before
+ * (`reflectionFar`), `hardware.x` at least; where it has something to trace, its start is pulled back by `hardware.z`, never before
  * `hardware.x`. The translucent primitives are passed and the back faces of the primitives that are not two-sided are culled; a ray meets the stand-ins of first-person
  * objects (`ST_MEET_WORLD_SPACE`) unless it is cast from a first-person pixel (`firstPerson`), so that a mesh does not meet its other copy.
  *
@@ -69,7 +69,7 @@ fn reflectionHardwareHit(origin:vec3f,R:vec3f,hit:StHit,coord:vec2u,cone:f32)->R
 fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,begin:f32,coord:vec2u,cone:f32,firstPerson:bool)->ReflectionSceneTrace{
  reflectionWork=0u;
  let bias=reflectionView.hardware.x;
- let far=max(reflectionView.march.w,bias);
+ let far=max(reflectionFar(),bias);
  var start=max(begin,bias);
  // A ray that reached the end of the longest ray goes whole to what lies past the scene.
  var answer=RadianceAnswer(vec3f(0.0),false,far);

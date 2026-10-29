@@ -1,3 +1,4 @@
+import { screenProbeSettingsOf } from './settingsOf.ts'
 import { castsProbes } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import {
   readScreenProbeSetting,
@@ -19,20 +20,27 @@ const levelDraws = (rt: WebgpuPagesRuntime) =>
 /** The screen-space tracing's settings, read by the stamped reader into this one object. */
 const tracing = resolveSettings(SCREEN_SPACE_TRACING_RULES, {})
 
-/** What gathers the pixels' indirect light: the screen probes (the default), the irradiance field (`finalGatherMethod`) or the screen's own indirect light (`globalIlluminationMethod`). */
-export type IndirectSource = 'probes' | 'field' | 'screen'
+/** What gathers the pixels' indirect light: the screen probes (the default), the irradiance field or the reservoirs (`finalGatherMethod`) or the screen's own indirect light (`globalIlluminationMethod`). */
+export type IndirectSource = 'probes' | 'field' | 'reservoirs' | 'screen'
 
 /**
  * The one reading of what gathers the opaque pixels' indirect light this image: the screen's own light where the global illumination method says so and its level is above 0 (it replaces
- * the radiance cache's whole gather, as the reference's global illumination method does), else the irradiance field where the final gather method says so and the level casts, else the screen probes. The
- * rules of the other two read it, so that one source alone writes the lighting's words (`writeIndirectWords`).
+ * the radiance cache's whole gather, as the reference's global illumination method does), else the irradiance field where the final gather method says so and the level casts, else the reservoirs where it says so,
+ * the level casts and the rays are cast through the scene's triangles (`castsThroughTriangles`: the reference's reservoir gather exists only with hardware ray tracing, and falls back to the screen probes without), else the screen probes. The
+ * rules of the other three read it, so that one source alone writes the lighting's words (`writeIndirectWords`).
  */
 export function indirectSourceOf(rt: WebgpuPagesRuntime): IndirectSource {
   resolveSettingsStamped(SCREEN_SPACE_TRACING_RULES, rt.context, tracing)
   if (tracing.globalIlluminationMethod === 'screen' && tracing.screenGiLevel > 0) return 'screen'
-  return readScreenProbeSetting(rt, 'finalGatherMethod') === 'irradianceField' &&
-    castsProbes(readScreenProbeSetting(rt, 'screenProbes'))
-    ? 'field'
+  if (!castsProbes(readScreenProbeSetting(rt, 'screenProbes'))) return 'probes'
+  const method = readScreenProbeSetting(rt, 'finalGatherMethod')
+  if (method === 'irradianceField') return 'field'
+  return method === 'reservoirs' &&
+    castsThroughTriangles({
+      screenProbeSceneTraces: readScreenProbeSetting(rt, 'screenProbeSceneTraces'),
+      screenProbeHardwareRayTracing: readScreenProbeSetting(rt, 'screenProbeHardwareRayTracing'),
+    })
+    ? 'reservoirs'
     : 'probes'
 }
 
@@ -84,3 +92,17 @@ export const screenProbesTraced = (rt: WebgpuPagesRuntime) =>
     screenProbeSceneTraces: readScreenProbeSetting(rt, 'screenProbeSceneTraces'),
     screenProbeHardwareRayTracing: readScreenProbeSetting(rt, 'screenProbeHardwareRayTracing'),
   })
+
+/**
+ * Whether the short-range occlusion of this image's screen probes is cast through the scene's triangles (`screenProbeShortRangeAOHardwareRayTracing`): the image
+ * casts probes and the setting is on. The lighting keeps the scene trace for it (`sceneRaysOf`) as it does for the probes' rays (`screenProbesTraced`).
+ */
+export const occlusionTraced = (rt: WebgpuPagesRuntime) =>
+  screenProbesCast(rt) && screenProbeSettingsOf(rt).occlusionTriangles
+
+/**
+ * Whether the reservoirs gather this image's pixels (`indirectSourceOf`) and the bounce lights the image: the rays of their reservoirs are cast through the scene's triangles, so the lighting keeps the scene trace
+ * (`sceneRaysOf`) for them as it does for the screen probes (`screenProbesTraced`).
+ */
+export const reservoirsTraced = (rt: WebgpuPagesRuntime) =>
+  bounceLitImage(rt) && indirectSourceOf(rt) === 'reservoirs'

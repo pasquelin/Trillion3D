@@ -18,7 +18,8 @@ import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
  *   and every later kernel reads: the depth of the pixel the texel casts from this image, an `f32`'s bits, negative where the texel
  *   casts none (the clear of an unused tracing tile writes -1), which the resolve reads in place of the neighbour's surface; then the
  *   ray's direction, two halves in a word and the third beside the cone angle in the next — the cone angle the inverse of the ray's pdf,
- *   negative for a pixel of a first-person object —, which the stages trace and the resolve weighs a neighbour's ray on the pixel's own lobe by.
+ *   negative for a pixel of a first-person object —, which the stages trace and the resolve weighs a neighbour's ray on the pixel's own lobe by; then
+ *   the furthest the ray goes in metres, an `f32`'s bits, zero for the view's longest ray, negative where it reads the radiance cache past it.
  * - THE HISTORY, a texel a pixel in `REFLECTION_HISTORY_FORMAT`: two that take turns as the one the temporal accumulation reads and the
  *   one it writes (`history`, ping-ponged so no kernel reads what it writes). The resolved pixels the
  *   accumulation reads are the view's, one for both surfaces,
@@ -36,8 +37,8 @@ export const REFLECTION_GRID_FORMAT: GPUTextureFormat = 'rg32uint'
  *  stages that read the ray bind it as the one storage texture they read and write, none of the sampled textures a stage holds
  *  being left for it (and a half-float texture reads as storage only where the device grants the tier-1 formats). */
 export const REFLECTION_RAY_FORMAT: GPUTextureFormat = 'r32uint'
-/** The layers of the ray texture: the depth, the direction's first two halves, its third half with the cone angle. */
-const REFLECTION_RAY_LAYERS = 3
+/** The layers of the ray texture: the depth, the direction's first two halves, its third half with the cone angle, the furthest the ray goes. */
+const REFLECTION_RAY_LAYERS = 4
 /** A history texel (`historyPack`): its radiance and depth, its luminance's second moment and its
  *  count, four words. */
 export const REFLECTION_HISTORY_FORMAT: GPUTextureFormat = 'rgba32uint'
@@ -69,7 +70,7 @@ const tilesOf = (width: number, height: number) =>
 /** Bytes of one texel of the grids (`REFLECTION_GRID_FORMAT`). */
 export const REFLECTION_GRID_TEXEL_BYTES = texelBytesOf(REFLECTION_GRID_FORMAT)
 
-/** Bytes of the texture a ray is written in, a texel each: the traced pixel's depth, the direction and the cone angle (`REFLECTION_RAY_LAYERS`
+/** Bytes of the texture a ray is written in, a texel each: the traced pixel's depth, the direction, the cone angle and the furthest the ray goes (`REFLECTION_RAY_LAYERS`
  *  layers of `REFLECTION_RAY_FORMAT`). */
 export const REFLECTION_RAY_BYTES = REFLECTION_RAY_LAYERS * texelBytesOf(REFLECTION_RAY_FORMAT)
 
@@ -82,15 +83,16 @@ export const resolvedBytes = (width: number, height: number) =>
 
 /** Bytes of a surface's textures over targets of `width × height` pixels: the grid's 8 + 3 · 4 = 20
  *  a texel, a pixel's, the history's 2 · 16 = 32 a pixel, the four tile lists, the list of the rays the screen
- *  missed, 8 a texel at most. */
-export const gridBytes = (width: number, height: number) => {
+ *  missed, 8 a texel at most, and with `meshes` the list of the rays the meshes' fields stage traces, 4 a texel at most. */
+export const gridBytes = (width: number, height: number, meshes = false) => {
   const [w, h] = gridExtent(width, height)
   return (
     w * h * (REFLECTION_GRID_TEXEL_BYTES + REFLECTION_RAY_BYTES) +
     2 * width * height * REFLECTION_HISTORY_TEXEL_BYTES +
     2 * listBytes(tilesOf(w, h), 1) +
     2 * listBytes(tilesOf(width, height), 1) +
-    listBytes(w * h, REFLECTION_PENDING_WORDS)
+    listBytes(w * h, REFLECTION_PENDING_WORDS) +
+    (meshes ? listBytes(w * h, 1) : 0)
   )
 }
 
@@ -110,8 +112,13 @@ export const createKernelTexture = (
   })
 
 /** A surface's textures and lists over targets of `pixels`, each written by one kernel and read by the
- *  next. */
-export function createReflectionGrids(device: GPUDevice, label: string, pixels: [number, number]) {
+ *  next. `meshes` for the surface the meshes' fields stage traces (the opaque one): the list of its rays is made for it alone. */
+export function createReflectionGrids(
+  device: GPUDevice,
+  label: string,
+  pixels: [number, number],
+  meshes = false,
+) {
   const size = gridExtent(pixels[0], pixels[1])
   const textures = [
     createKernelTexture(device, label, size, REFLECTION_GRID_FORMAT),
@@ -135,6 +142,8 @@ export function createReflectionGrids(device: GPUDevice, label: string, pixels: 
     clear: list('clear tiles', tilesOf(pixels[0], pixels[1])),
     /** The rays the screen missed, listed every image (`trace/trace.ts`). */
     pending: list('rays missed', size[0] * size[1], REFLECTION_PENDING_WORDS),
+    /** The rays of `pending` the meshes' fields stage traces, the rank of each in it (`trace/meshes.ts`); only where `meshes`. */
+    ...(meshes ? { meshRays: list('rays near the meshes', size[0] * size[1]) } : {}),
   }
   return {
     textures,

@@ -19,6 +19,8 @@ import type { TranslucencyGiKernels } from './kernels.ts'
 import { markerOf } from './marker.ts'
 import { giSampler, type GiResources } from './resources.ts'
 import { traceGroupOf, type GiTraceInputs } from './traceGroup.ts'
+import type { trianglesBinder, TrianglesStage } from './trianglesStage.ts'
+import type { SceneRays } from '../surfaceCache/lighting/surfaceLighting.ts'
 
 /** What a view keeps of the volume between two images: its resources at the size of the grid, the turn the two volumes take, whether the
  *  volume of the image before is a history to read and what it was made at, and what the surfaces read of this image's. */
@@ -49,6 +51,8 @@ export interface TranslucencyGiState {
   groups?: { filter: GPUBindGroup[]; integrate: GPUBindGroup[]; filtered: boolean }
   readonly trace: ReturnType<typeof createWebgpuBindIdentity>
   traceGroup?: GPUBindGroup
+  /** The binder of the groups of the cones' cast through the scene's triangles (`trianglesStage.ts`), made with the first. */
+  triangles?: ReturnType<typeof trianglesBinder>
   readonly bytes: number
   /** Which pool the last image made the volume mark its cells' probes in: the world's (a shared cache), the volume's own, or none (it reads no
    *  radiance cache). */
@@ -99,15 +103,17 @@ export interface GiImage {
   eye: ArrayLike<number>
   viewProjection: ArrayLike<number>
   inverse: ArrayLike<number>
+  /** The numbers of the scene trace the cones are cast through the scene's triangles with, none where they are marched through the distance field. */
+  rays?: Pick<SceneRays, 'depthBias' | 'minHitDistance' | 'selfIntersections'>
 }
 
 /** The numbers the history and the marks of an image depend on (`lawOf`, `frame.ts`), in `TranslucencyGiState.law`: the grid's cells
- *  (3) and the shift of its cell's side, the slices' law (3), the near plane and the cones a cell side — the history's —, then the
+ *  (3) and the shift of its cell's side, the slices' law (3), the near plane and the cones a cell side — the history's — and whether the cones are cast through the scene's triangles, then the
  *  marks' — the cascades the radiance cache is read coarser by (none where it is not read, nor in the volume's own cache) and whether the
  *  point of a cell turns. */
-export const LAW_WORDS = 11
+export const LAW_WORDS = 12
 /** The words of the law the history holds at: the volume's textures and the places of its cells. */
-export const LAW_HISTORY_WORDS = 9
+export const LAW_HISTORY_WORDS = 10
 
 const FRAME_IMAGE = new ArrayBuffer(TRANSLUCENCY_GI_FRAME.words * 4)
 const FRAME_VIEWS = wordViews(FRAME_IMAGE)
@@ -160,7 +166,15 @@ function writeGiFrameTrace(
     v.translucencyGiGridCenterOffsetFromDepthBuffer,
     v.translucencyGiOffsetThresholdToAcceptDepthBufferOffset,
     translucencyGiFootprintLevel(grid.shift),
-    v.translucencyGiTraceFromVolume ? 1 : 0,
+    v.translucencyGiTraceFromVolume && !image.rays ? 1 : 0,
+  )
+  put(
+    f,
+    at.rays,
+    image.rays?.depthBias ?? 0,
+    image.rays?.minHitDistance ?? 0,
+    image.rays?.selfIntersections ?? 0,
+    0,
   )
 }
 
@@ -267,8 +281,8 @@ function fixedGroups(
 /** The three axes of the filter, in order. */
 const FILTER_AXES = ['filterX', 'filterY', 'filterZ'] as const
 
-/** The passes of an image in `pass`: the trace of the cells' cones, the filter's axes where it is on, the integration into the volume of
- *  this image's turn; `reflection` is group 1 of the trace and the integration. */
+/** The passes of an image in `pass`: the trace of the cells' cones, then, where `triangles`, their cast through the scene's triangles over it, the
+ *  filter's axes where it is on, the integration into the volume of this image's turn; `reflection` is group 1 of the trace and the integration. */
 export function encodeGiPasses(
   device: GPUDevice,
   pass: GPUComputePassEncoder,
@@ -278,6 +292,7 @@ export function encodeGiPasses(
   v: TranslucencyGiValues,
   trace: GiTraceInputs,
   reflection: GPUBindGroup,
+  triangles?: TrianglesStage,
 ) {
   const tracing = v.translucencyGiTracingResolution
   const filtered = v.translucencyGiSpatialFilter
@@ -289,6 +304,12 @@ export function encodeGiPasses(
   pass.setPipeline(kernels.trace.pipelines.traceCones)
   pass.setBindGroup(0, traceGroupOf(device, state, kernels, trace))
   pass.dispatchWorkgroups(coneX, coneY, grid.z)
+  if (triangles) {
+    pass.setPipeline(triangles.pipeline)
+    pass.setBindGroup(0, triangles.groups[0])
+    pass.setBindGroup(2, triangles.groups[1])
+    pass.dispatchWorkgroups(coneX, coneY, grid.z)
+  }
   if (state.groups?.filtered !== filtered)
     state.groups = fixedGroups(device, state.resources!, kernels, filtered)
   const groups = state.groups!

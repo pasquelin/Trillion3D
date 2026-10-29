@@ -89,8 +89,10 @@ test('the traced trace marches no field: nothing of the global distance field is
 test('the traced ray starts off its texel along the normal alone, from the bias along the ray, ignoring the translucent', () => {
   const T = RADIOSITY_TRACED_WGSL
   assert.match(T, /let start=texel\.position\+texel\.normal\*lp\.radiosityNormalBias;/)
-  assert.match(T, /var tMin=lp\.radiosityRayBias\/CM_PER_M;/)
-  assert.match(T, /hit=stTrace\(StRay\(origin,dir,tMin,reach,flags\)\);/)
+  assert.match(
+    T,
+    /let hit=stTraceAvoiding\(origin,dir,lp\.radiosityRayBias\/CM_PER_M,reach,lp\.selfIntersections\);/,
+  )
   assert.equal(T.match(/stTrace\(/g)?.length, 2, 'one call site beside the definition')
   assert.match(T, /var flags=ST_SKIP_TRANSLUCENT;/)
   // The shadow rule is the library's; the radiosity's ray never asks it.
@@ -102,28 +104,25 @@ test('the self-intersection modes are the reference’s: 0 culls the back faces,
   assert.deepEqual(SELF_INTERSECTION, { cull: 0, retrace: 1, skip: 2 })
   const T = RADIOSITY_TRACED_WGSL
   for (const [name, value] of [
-    ['RAD_AVOID_CULL', 0],
-    ['RAD_AVOID_RETRACE', 1],
-    ['RAD_AVOID_SKIP', 2],
+    ['ST_AVOID_CULL', 0],
+    ['ST_AVOID_RETRACE', 1],
+    ['ST_AVOID_SKIP', 2],
   ] as const)
     assert.match(T, new RegExp(`const ${name}:u32=${value}u;`))
-  assert.match(T, /if\(lp\.selfIntersections==RAD_AVOID_CULL\)\{flags\|=ST_CULL_BACK;\}/)
+  assert.match(T, /if\(avoid==ST_AVOID_CULL\)\{flags\|=ST_CULL_BACK;\}/)
   // 3, the best the traversal allows, is the skip of an inline traversal.
-  assert.match(T, /if\(lp\.selfIntersections>=RAD_AVOID_SKIP\)\{flags\|=ST_SKIP_NEAR;\}/)
+  assert.match(T, /if\(avoid>=ST_AVOID_SKIP\)\{flags\|=ST_SKIP_NEAR;\}/)
   // The retrace: from past a two-sided hit nearer than its distance (a hair beyond it) or a back face nearer than its own (at it).
+  assert.match(T, /if\(avoid!=ST_AVOID_RETRACE\|\|!hit\.hit\|\|trace==1u\)\{break;\}/)
   assert.match(
     T,
-    /if\(lp\.selfIntersections!=RAD_AVOID_RETRACE\|\|!hit\.hit\|\|trace==1u\)\{break;\}/,
-  )
-  assert.match(
-    T,
-    /hit\.distance<stParams\.skipTwoSidedDistance\)\{past=hit\.distance\+0\.01\/CM_PER_M;\}/,
+    /hit\.distance<stParams\.skipTwoSidedDistance\)\{past=hit\.distance\+0\.01\/100\.0;\}/,
   )
   assert.match(
     T,
     /!hit\.frontFace&&hit\.distance<stParams\.skipBackFaceDistance\)\{past=stParams\.skipBackFaceDistance;\}/,
   )
-  assert.match(T, /if\(past<=0\.0\)\{break;\}\n  tMin=past;/)
+  assert.match(T, /if\(past<=0\.0\)\{break;\}\n {2}tMin=past;/)
 })
 
 test('the hit is read as the reference reads it: a stopped trace that met nothing is black, a whole one that met nothing reads the sky, a hit of a stopped trace is a hit with no light, a near or back-face hit brings nothing', () => {
@@ -192,11 +191,7 @@ test('the traced radiosity culls the back faces only where the self intersection
   // The reference sets the culling flags only in the mode that avoids nothing (LumenHardwareRayTracingCommon.ush:343 and :460).
   const culls = RADIOSITY_TRACED_WGSL.match(/\|=ST_CULL_BACK/g) ?? []
   assert.equal(culls.length, 1)
-  assert.ok(
-    RADIOSITY_TRACED_WGSL.includes(
-      'if(lp.selfIntersections==RAD_AVOID_CULL){flags|=ST_CULL_BACK;}',
-    ),
-  )
+  assert.ok(RADIOSITY_TRACED_WGSL.includes('if(avoid==ST_AVOID_CULL){flags|=ST_CULL_BACK;}'))
   // A back face of a one-sided primitive that is hit anyway brings no light (the reference ends that path at :1054).
   assert.ok(RADIOSITY_TRACED_WGSL.includes('(!hit.frontFace&&!hit.twoSided)){return vec3f(0.0);}'))
 })

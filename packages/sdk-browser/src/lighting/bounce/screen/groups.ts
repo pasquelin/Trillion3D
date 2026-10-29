@@ -7,6 +7,7 @@ import { PLACE_BINDINGS } from './placeWgsl.ts'
 import type { ScreenProbeResources } from './resources.ts'
 import { SCREEN_DATA_BINDINGS } from './screenDataWgsl.ts'
 import { filterGroups, pixelGroups, traceGroups } from './traceGroups.ts'
+import { occlusionTrianglesBinder } from './occlusionTriangles.ts'
 
 /** The bind groups of every kernel for one parity of the history's turn about. */
 export type ScreenProbeGroups = ReturnType<typeof createGroups>
@@ -107,6 +108,8 @@ function createGroups(
   const { cast } = kernels
   return {
     ...pixelGroups(parts, kernels),
+    /** The binder of the groups of the short-range occlusion cast through the scene's triangles (`occlusionTrianglesStageOf`). */
+    occlusionTriangles: occlusionTrianglesBinder(parts),
     /** The groups of the kernels over the probes. */
     cast: {
       ...placeGroups(parts, cast),

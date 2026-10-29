@@ -102,7 +102,7 @@ function putLane(
   staged[at + 3] = w
 }
 
-/** The float lanes of what a ray may spend and do (`reach` to `hardware`), `t` the trace's settings. */
+/** The float lanes of what a ray may spend and do (`reach` to `cacheTrace`), `t` the trace's settings. */
 function putTraceLanes(
   staged: Float32Array,
   t: ReflectionSettings,
@@ -142,6 +142,20 @@ function putTraceLanes(
     t.skylightLeakAlbedo,
   )
   put('hardware', t.hardwareBias, t.hardwareNormalBias, t.hardwarePullbackBias, cardDepthBias)
+  put(
+    'cache',
+    t.radianceCacheMinRoughness,
+    t.radianceCacheMaxRoughness,
+    t.radianceCacheFade,
+    t.radianceCacheRadiusScale,
+  )
+  put(
+    'cacheTrace',
+    t.radianceCacheMaxDistance,
+    t.radianceCacheMinDistance,
+    t.radianceCacheStochastic ? 1 : 0,
+    0,
+  )
 }
 
 /**

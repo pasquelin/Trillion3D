@@ -25,7 +25,7 @@ import { REFLECTION_RAY_FORMAT } from './grids.ts'
  * of a group stand for four rows and four columns. `reflectionPickedPixel`: the pixel a grid texel stands for this image — its
  * block's jitter pixel, held to the viewport, a block cut by the viewport's edge still standing for a pixel inside it —, which the ray
  * generation (`generateRays`, `trace/trace.ts`) casts from and the resolve finds again. The texel's ray is `surfaceRays`'s texels
- * (`REFLECTION_RAY_DEPTH`, `REFLECTION_RAY_DIRECTION`, `REFLECTION_RAY_CONE`), which the ray generation writes as storage and every
+ * (`REFLECTION_RAY_DEPTH`, `REFLECTION_RAY_DIRECTION`, `REFLECTION_RAY_CONE`, `REFLECTION_RAY_DISTANCE`), which the ray generation writes as storage and every
  * kernel after it reads, the resolve sampled (`surfaceRaysRead`): the depth of the picked pixel, negative where the texel casts no ray
  * (`reflectionRayTraces`), and the ray's direction and its cone angle, the inverse of its pdf, negative for a pixel of a first-person
  * object (`reflectionRayAt`, `reflectionRayStored`, `reflectionPdfOfCone`).
@@ -55,10 +55,12 @@ export const REFLECTION_SURFACES_WGSL = wgslBlock(
 @group(0) @binding(${B.rays}) var surfaceRays:texture_storage_2d_array<${REFLECTION_RAY_FORMAT},read_write>;
 @group(0) @binding(${B.raysRead}) var surfaceRaysRead:texture_2d_array<u32>;
 /** The layers of the ray texture (\`REFLECTION_RAY_LAYERS\`): the depth of the pixel the texel casts from, an \`f32\`'s bits, then the ray's
- *  direction (two halves) and its third half with the cone angle. */
+ *  direction (two halves) and its third half with the cone angle, then the furthest the ray goes in metres, an f32's bits, zero for the view's longest
+ *  ray, negative where the ray reads the radiance cache beyond it (reflectionStoredRay). */
 const REFLECTION_RAY_DEPTH:i32=0;
 const REFLECTION_RAY_DIRECTION:i32=1;
 const REFLECTION_RAY_CONE:i32=2;
+const REFLECTION_RAY_DISTANCE:i32=3;
 /** The depth a tracing tile's clear leaves in the texels it empties: a negative one, no ray. */
 const REFLECTION_NO_RAY_DEPTH:f32=-1.0;
 fn surfaceFlagsAt(coord:vec2i)->u32{return textureLoad(surfaceFlags,coord,0).r;}

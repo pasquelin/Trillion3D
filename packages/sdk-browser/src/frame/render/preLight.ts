@@ -9,6 +9,10 @@ import { drawHeldVolumeMarks } from '../../blend/radianceMark.ts'
 import { flushRadianceCache } from '../../lighting/bounce/cache/cacheFrame.ts'
 import { encodeFieldPixels } from '../../lighting/bounce/irradianceField/cache.ts'
 import { indirectSourceOf } from '../../lighting/bounce/screen/cast.ts'
+import {
+  encodeReservoirGather,
+  idleReservoirGather,
+} from '../../lighting/bounce/reservoirGather/frame.ts'
 import { writeIndirectWords } from '../../lighting/bounce/screen/indirectWords.ts'
 import { cachedLightingPreExposureOf } from '../../post/exposure/frame.ts'
 import { placeScreenProbes, traceScreenProbes } from '../../lighting/bounce/screen/frame.ts'
@@ -103,7 +107,7 @@ export function encodePreLight(
 }
 
 /**
- * The pixels' indirect light where the screen probes gather none (`indirectSourceOf`): the irradiance field's gather over the maps just made, or the screen's own indirect light traced
+ * The pixels' indirect light where the screen probes gather none (`indirectSourceOf`): the irradiance field's gather over the maps just made, the reservoirs' gather, or the screen's own indirect light traced
  * from the last lit image, each written by the one writer of the lighting's words (`writeIndirectWords`) — never both, never with the probes' own.
  */
 function encodeIndirectWords(
@@ -113,6 +117,8 @@ function encodeIndirectWords(
   cam: EngineCamera,
 ) {
   const source = indirectSourceOf(rt)
+  if (source === 'reservoirs') return encodeReservoirGather(rt, device, encoder)
+  idleReservoirGather(rt)
   if (source === 'field') return encodeFieldPixels(rt, device, encoder)
   if (source !== 'screen' || !screenIndirectAsked(rt, true)) return
   const out = encodeScreenSpaceIndirect(rt, device, encoder, cam)

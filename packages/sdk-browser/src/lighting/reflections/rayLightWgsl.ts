@@ -73,15 +73,21 @@ fn reflectionHeld(at:vec3f,N:vec3f,noise:f32)->vec4f{
  return vec4f(reflectionLitAt(reflectionPastTexel(past)),weight);
 }`
 
+/** The sky light's diffuse light at the normal N that leaks onto a hit whatever hides it (reflectionSkylightLeak, ReflectionView.leak, none by default). */
+export const REFLECTION_SKYLIGHT_LEAK_WGSL = wgslBlock(
+  'REFLECTION_SKYLIGHT_LEAK_WGSL',
+  [SKY_DIFFUSE_READ_WGSL],
+  `fn reflectionSkylightLeak(N:vec3f)->vec3f{
+ let leak=reflectionView.leak.xyz*reflectionView.leak.w;
+ if(all(leak<=vec3f(0.0))||!skyLit()){return vec3f(0.0);}
+ return skyLightDiffuse(N)*leak;
+}`,
+)
+
 /** What a hit shows (`reflectionSeenAt`), with the sky light leaking onto it (`reflectionSkylightLeak`) and the cone it is read with
  *  (`reflectionHitSpread`). */
 const REFLECTION_RAY_SEEN_WGSL = `/** The point a ray's radiance is read from, the surface it leaves (\`reflectionSeenAt\`). */
 var<private> reflectionOrigin:vec3f;
-fn reflectionSkylightLeak(N:vec3f)->vec3f{
- let leak=reflectionView.leak.xyz*reflectionView.leak.w;
- if(all(leak<=vec3f(0.0))||!skyLit()){return vec3f(0.0);}
- return skyLightDiffuse(N)*leak;
-}
 fn reflectionSeenAt(radiance:vec3f,at:vec3f,N:vec3f,coord:vec2u)->vec3f{
  let noise=reflectionEdgeNoise(coord);
  let held=reflectionHeld(at,N,noise);
@@ -129,7 +135,7 @@ export const reflectionRayLightWgsl = (group: number, stored = false) =>
       REFLECTION_LINEAR_DEPTH_WGSL,
       makeFinite3,
       reflectionPastWgsl(group, stored),
-      SKY_DIFFUSE_READ_WGSL,
+      REFLECTION_SKYLIGHT_LEAK_WGSL,
       clipToFramebuffer,
       interleavedGradientNoise,
       // The sky light that lights the fog is read on the cube the reflection group already binds (`skyLightReadWgsl`); the fog's own cubemap, which tints it while the sky

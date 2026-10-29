@@ -84,25 +84,35 @@ export const SP_RAY_CONE = wgslBlock(
 }`,
 )
 
+/** The ray a thread of a list stands for (`spListedRays`). */
+const SP_LISTED = wgslBlock(
+  'SP_LISTED',
+  [],
+  'struct SpListed{ok:bool,at:vec2u,atlas:vec2u,probe:SpProbe,}',
+)
+
 /**
- * THE LIST OF THE RAYS THE SCREEN LEFT, at `binding` of group 0, as a scene stage is dispatched over it: `spListed` is the ray a thread
- * stands for, its texel (the entry), its probe's atlas coordinate and record, `ok` false for a thread past the list or whose probe stands
- * on no lit surface. A program that names it declares the probes' records (`spProbeRecords`) and `SP_TRACE`.
+ * A LIST OF RAYS as a stage is dispatched over it, a `list` (the rays the screen left, `sceneRays`, at `binding` of group 0; the scene stage's, the meshes' stage's before it
+ * reads the first compaction's, `meshRays`, `TRACE_MESH_LIST`): the function of its name (`spListed` for the rays the screen left) is the ray a thread stands for, its texel (the entry), its probe's atlas coordinate and
+ * record, `ok` false for a thread past the list or whose probe stands on no lit surface. A program that names it declares the probes' records (`spProbeRecords`) and `SP_TRACE`.
  */
-export const spListedRays = (binding: number) =>
+export const spListedRays = (
+  binding: number,
+  list = { name: 'sceneRays', group: 0, fn: 'spListed' },
+) =>
   wgslBlock(
-    `spListedRays(${binding})`,
+    `spListedRays(${binding}, ${list.name}, ${list.group}, ${list.fn})`,
     [
-      listWgsl({ name: 'sceneRays', group: 0, binding, entry: 'u32', append: false }),
+      listWgsl({ name: list.name, group: list.group, binding, entry: 'u32', append: false }),
       FLAT_INDEX_WGSL,
       WORKGROUP_THREADS_WGSL,
+      SP_LISTED,
     ],
-    `struct SpListed{ok:bool,at:vec2u,atlas:vec2u,probe:SpProbe,}
-fn spListed(id:vec3u,groups:vec3u)->SpListed{
+    `fn ${list.fn}(id:vec3u,groups:vec3u)->SpListed{
  var out=SpListed(false,vec2u(0u),vec2u(0u),SpProbe(vec3f(0.0),0.0,vec3f(0.0),0.0,false,false));
  let rank=flatIndex(id,groups,WORKGROUP_THREADS);
- if(rank>=sceneRays.count){return out;}
- let entry=sceneRays.entries[rank];
+ if(rank>=${list.name}.count){return out;}
+ let entry=${list.name}.entries[rank];
  out.at=vec2u(entry&0xffffu,entry>>16u);
  out.atlas=out.at/SP_TRACE;
  out.probe=spReadProbe(out.atlas);

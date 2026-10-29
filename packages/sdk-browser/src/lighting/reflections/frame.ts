@@ -22,6 +22,8 @@ import {
 } from '../../frame/backend/state/previousCamera.ts'
 import { demandSurfaceCache, surfaceHitReads } from '../surfaceCache/frame.ts'
 import { encodeReflectionTrace } from './trace/traceEncode.ts'
+import { reflectionMeshesOf } from './trace/meshes.ts'
+import { radianceCacheStage } from './radianceCache/stage.ts'
 import { screenProbeVectors } from '../bounce/screen/vectorSource.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { reflects } from '../../frame/backend/state/viewOverrides.ts'
@@ -236,6 +238,18 @@ export function traceReflections(
   reflection.inputs.rays = hardware?.rays
   // The rays count this image's alone: the counters emptied before the trace, copied after it.
   reflection.census.clear(encoder)
+  // The meshes' fields stage of the opaque rays (`trace/meshes.ts`): none while the trace is off or the scene stage casts through triangles.
+  const meshes = reflectionMeshesOf(
+    rt,
+    reflection.device,
+    encoder,
+    reflection.meshes,
+    stages,
+    settings,
+    !!hardware,
+    reflection.frame.viewProjection,
+    reflection.grids.meshRays,
+  )
   encodeReflectionTrace(
     encoder,
     reflection,
@@ -248,6 +262,8 @@ export function traceReflections(
     [settings.reconstruction, settings.frontReconstruction],
     !!reflection.frame.front,
     hardware?.stage,
+    meshes,
+    radianceCacheStage(rt, reflection, reflection.inputs, settings),
   )
   reflection.depthImage = reflection.frame.image ?? NEVER_SEEN
   reflection.census.copy(encoder, rt.run.frame, !hardware)

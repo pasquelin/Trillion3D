@@ -33,13 +33,19 @@ const IMAGE: GiImage = {
   viewProjection: new Float64Array(16),
   inverse: new Float64Array(16),
 }
-export function imageOf(rt: WebgpuPagesRuntime, cam: EngineCamera, history: boolean) {
+export function imageOf(
+  rt: WebgpuPagesRuntime,
+  cam: EngineCamera,
+  history: boolean,
+  rays?: GiImage['rays'],
+) {
   IMAGE.width = rt.gpu.targetSize[0]
   IMAGE.height = rt.gpu.targetSize[1]
   IMAGE.near = cam.near
   IMAGE.preExposure = preExposureOf(rt).now
   IMAGE.frame = lightingPhase(rt)
   IMAGE.history = history
+  IMAGE.rays = rays
   IMAGE.eye = cam.eye
   IMAGE.viewProjection = cam.viewProjectionRelative
   invertMatrix4(IMAGE.inverse as Float64Array, cam.viewProjectionRelative)
@@ -53,6 +59,7 @@ export function lawOf(
   tracing: number,
   near: number,
   v: TranslucencyGiValues,
+  traced: boolean,
   bias: number,
 ) {
   out[0] = grid.x
@@ -64,8 +71,9 @@ export function lawOf(
   out[6] = grid.zScale
   out[7] = near
   out[8] = tracing
-  out[9] = bias
-  out[10] = v.translucencyGiTemporalJitter ? 1 : 0
+  out[9] = traced ? 1 : 0
+  out[10] = bias
+  out[11] = v.translucencyGiTemporalJitter ? 1 : 0
 }
 
 /** Whether the first `count` words of two laws are the same. */

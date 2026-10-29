@@ -22,7 +22,7 @@ test('the scene stage is cast from the grid texel like the screen stage, and onl
   for (const program of [field, hardware])
     assert.ok(
       program.includes(
-        'reflectionSceneStage(own.P,own.N,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson)',
+        'reflectionSceneStage(own.P,own.topN,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson)',
       ),
     )
   assert.ok(field.includes('freshPack(b.radiance,b.distance)'))

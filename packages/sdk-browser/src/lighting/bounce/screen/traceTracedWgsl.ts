@@ -9,10 +9,10 @@ import {
   SCENE_HIT_VELOCITY_WGSL,
   sceneHitVelocityEntry,
 } from '../../rays/sceneTrace/sceneHitVelocityWgsl.ts'
-import { sceneTraceLayoutEntries, sceneTraceWgsl } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
+import { sceneTraceAvoidWgsl } from '../../rays/sceneTrace/avoidWgsl.ts'
+import { sceneTraceLayoutEntries } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
 import { surfaceHitCardsLayoutEntries } from '../../surfaceCache/hitWgsl.ts'
 import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
-import { SELF_INTERSECTION } from '../../surfaceCache/lighting/layout.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
 import { tracedHitLightWgsl } from '../tracedHitWgsl.ts'
 import { spCommon, spParams } from './commonWgsl.ts'
@@ -89,13 +89,8 @@ export const traceTracedSceneEntries = () => sceneTraceLayoutEntries(TRACE_TRACE
 
 const T = TRACE_TRACED_BINDINGS.at
 
-/** The text of the traced ray: its constants, its start off the surface and the ray itself. */
-const SP_TRACED_RAY_TEXT = `${wgslConsts({
-  SP_AVOID_CULL: SELF_INTERSECTION.cull,
-  SP_AVOID_RETRACE: SELF_INTERSECTION.retrace,
-  SP_AVOID_SKIP: SELF_INTERSECTION.skip,
-})}
-struct SpTraced{radiance:vec3f,distance:f32,hit:bool,speed:f32,}
+/** The text of the traced ray: its start off the surface and the ray itself. */
+const SP_TRACED_RAY_TEXT = `struct SpTraced{radiance:vec3f,distance:f32,hit:bool,speed:f32,}
 /** Where the ray \`d\` of \`probe\` starts: off the surface along its normal (turned toward the ray on a probe with backface diffuse light) by the normal bias. */
 fn spTracedStart(probe:SpProbe,d:vec3f)->vec3f{
  var normal=probe.N;
@@ -113,22 +108,8 @@ fn spTracedRay(probe:SpProbe,d:vec3f,missed:f32,reach:f32,side:f32)->SpTraced{
  // The pull-back is applied only to a ray that did not reach its end, so that it is not traced again.
  tMin=max(tMin-sp.traced.w,rayBias);
  let origin=spTracedStart(probe,d);
- let avoid=u32(sp.tracedHit.z);
- var flags=ST_SKIP_TRANSLUCENT;
- if(avoid==SP_AVOID_CULL){flags|=ST_CULL_BACK;}
- if(avoid>=SP_AVOID_SKIP){flags|=ST_SKIP_NEAR;}
- var hit:StHit;
- // A retrace: a first hit on the geometry the ray starts on is traced again from past it (a hair past a two-sided hit, 0.01 cm), once.
- for(var trace=0u;trace<2u;trace++){
-  hit=stTrace(StRay(origin-view.display.yzw,d,tMin,tMax,flags));
-  if(avoid!=SP_AVOID_RETRACE||!hit.hit||trace==1u){break;}
-  var past=-1.0;
-  if(hit.twoSided){
-   if(hit.distance<stParams.skipTwoSidedDistance){past=hit.distance+0.01/f32(BOUNCE_CM);}
-  }else if(!hit.frontFace&&hit.distance<stParams.skipBackFaceDistance){past=stParams.skipBackFaceDistance;}
-  if(past<=0.0){break;}
-  tMin=past;
- }
+ // Avoids the geometry the ray starts on as the setting says (stTraceAvoiding).
+ let hit=stTraceAvoiding(origin-view.display.yzw,d,tMin,tMax,u32(sp.tracedHit.z));
  // A trace that stopped before its walk was whole and held no hit is a black hit at the ray's end; one that held a hit keeps its light.
  if(!hit.hit){
   out.hit=!stComplete;
@@ -148,7 +129,7 @@ const spTracedRayWgsl = (light: LightAtlasFormat) =>
   wgslBlock(
     `SP_TRACED_RAY(${light})`,
     [
-      sceneTraceWgsl(TRACE_TRACED_SCENE.group, TRACE_TRACED_SCENE.first),
+      sceneTraceAvoidWgsl(TRACE_TRACED_SCENE.group, TRACE_TRACED_SCENE.first),
       SCENE_HIT_VELOCITY_WGSL,
       tracedHitLightWgsl(TRACE_TRACED_HIT, TRACE_TRACED_SCENE, light),
     ],

@@ -61,6 +61,7 @@ fn testWork()->u32{return reflectionWork;}`,
       reflectionView: { hardware, march: [0, 0, 0, longest], scene: [0, 0, flags, 0] },
       reflectionDone: (bit: number) =>
         (flags & bit) !== 0 || bit === REFLECTION_COUNTS.REFLECTION_HI_RES_SURFACE,
+      reflectionFar: () => longest,
       reflectionFate: 0,
       reflectionWork: 0,
       reflectionOrigin: [0, 0, 0],

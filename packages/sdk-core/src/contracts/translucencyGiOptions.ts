@@ -40,6 +40,8 @@ const TRANSLUCENCY_GI_LIGHTING_DATA_FORMATS = ['global', 'r11g11b10', 'rgba16', 
  *  `translucencyGi`, on — the volume is made at all; off, a surface reads the sky light's irradiance alone;
  *  `translucencyGiTraceFromVolume`, on — the cells march the global distance field before they read the radiance cache; off, they read the
  *  cache alone;
+ *  `translucencyGiHardwareRayTracing`, on — with `translucencyGiTraceFromVolume`, the cones are cast through the scene's triangles (where the
+ *  scene has acceleration structures) in place of the march of the distance field;
  *  `translucencyGiRadianceCache`, on — the cells read a radiance cache for what the march leaves;
  *  `translucencyGiShareRadianceCacheWithOpaque`, off — that cache is the world's probes' (the screen probes') instead of one of the volume's own,
  *  which costs less and gives less control over the probes' spacing;
@@ -77,6 +79,7 @@ export const TRANSLUCENCY_GI_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     flag('translucencyGi', true),
     flag('translucencyGiTraceFromVolume', true),
+    flag('translucencyGiHardwareRayTracing', true),
     flag('translucencyGiRadianceCache', true),
     flag('translucencyGiShareRadianceCacheWithOpaque', false),
     count('translucencyGiRadianceCacheClipmapBias', 3, 0),

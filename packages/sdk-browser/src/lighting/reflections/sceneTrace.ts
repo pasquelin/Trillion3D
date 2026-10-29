@@ -64,7 +64,7 @@ const STAGE_WGSL = `fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,
  reflectionWork=0u;
  if(gdfView.clipmaps==0u){return none;}
  let bias=reflectionView.reach.x;
- let far=reflectionView.march.w;
+ let far=reflectionFar();
  let reach=far-bias;
  // A ray the screen followed to the longest ray has nothing left to march: it leaves the scene, as a march that met nothing.
  if(reach<=max(begin-bias,0.0)){reflectionFate=REFLECTION_FATE_BOUND;return ReflectionSceneTrace(none.answer,true);}
@@ -93,7 +93,7 @@ const STAGE_WGSL = `fn reflectionSceneTrace(P:vec3f,N:vec3f,lobe:ReflectionLobe,
  * the lit image where it agrees with the depth (`reflectionSeenAt`, `rayLightWgsl.ts`). One ray a call, cast this
  * image, kept nowhere, by the trace's scene stage alone (`trace/trace.ts`), over its own group's field and cache
  * (`REFLECTION_FIELD_WGSL`, `REFLECTION_SURFACE_HIT_WGSL`). The ray leaves the surface along itself by `surfaceBias`; it goes no
- * further than the longest ray (`ReflectionView.march.w`).
+ * further than the longest ray (`reflectionFar`).
  *
  * THE MARCH (`reflectionMarch`) begins where the screen stopped knowing the ray (`begin`, the distance the screen stage stored for it,
  * `reflectionTraceDistance`), less four half voxels of the

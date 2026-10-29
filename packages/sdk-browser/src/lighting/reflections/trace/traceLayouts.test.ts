@@ -91,7 +91,7 @@ test('the ray generation alone draws a ray’s direction, from the blue noise at
 test('a mirror casts its reflection about its normal, and the roughness a ray is drawn at is the smooth-biased one', () => {
   const program = reflectionTraceShader(false)
   assert.ok(program.includes('if(own.top<0.001){ray.R=reflect(-own.V,own.topN);}'))
-  assert.ok(program.includes('reflectionTopRay(own.N,own.V,own.top,u)'))
+  assert.ok(program.includes('reflectionTopRay(own.topN,own.V,own.top,u)'))
   assert.ok(
     program.includes('return r*x*x*(3.0-2.0*x);'),
     'the smoothstep of the roughness up to the bias',
@@ -222,7 +222,7 @@ test('a screen hit is final and a miss is listed with the distance it reached: n
   )
   assert.ok(
     program.includes(
-      'reflectionSceneStage(own.P,own.N,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson)',
+      'reflectionSceneStage(own.P,own.topN,stored.ray,bitcast<f32>(missed.y),g,stored.cone,stored.firstPerson)',
     ),
   )
   for (const gone of ['partialOut', 'partialIn', 'reflectionChain', 'reflectionTake', 'confidence'])

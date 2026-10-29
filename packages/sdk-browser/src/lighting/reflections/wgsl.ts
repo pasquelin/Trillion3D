@@ -71,7 +71,7 @@ fn reflectionScreenNone()->ReflectionScreenCast{
 fn reflectionScreenBegin(P:vec3f,N:vec3f,lobe:ReflectionLobeRay)->ReflectionScreenCast{
  let bias=reflectionRayBias(P,N);
  let live=reflectionDone(REFLECTION_SCREEN_TRACES)&&reflectionView.traced.x!=0u&&reflectionOriginOnScreen(P,N,bias);
- return ReflectionScreenCast(reflectionRaySpan(P,N,reflectionRayLobe(lobe),bias,0.0,reflectionView.march.w),bias,live);
+ return ReflectionScreenCast(reflectionRaySpan(P,N,reflectionRayLobe(lobe),bias,0.0,reflectionFar()),bias,live);
 }
 /** The end of the screen stage of a ray, \`marched\` the march of its cast: a hit, which is final, or a miss, whose distance is where the screen stopped
  *  knowing the ray, lengthened by \`REFLECTION_MISS_OFFSET\`, held to the longest ray and handed off no further than the first-person stand-ins' sphere
@@ -80,8 +80,8 @@ fn reflectionScreenEnd(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,aimed:ReflectionSc
  var ended=ReflectionEnd(vec3f(0.0),false,0.0);
  if(!aimed.live){return ended;}
  let seen=reflectionSeen(P,N,reflectionRayLobe(lobe),aimed.ray,aimed.bias,marched,coord);
- if(seen.answer.hit){return ReflectionEnd(seen.answer.color,true,min(seen.answer.distance,reflectionView.march.w));}
- ended.distance=reflectionClipFirstPerson(P,lobe.R,min(seen.left+REFLECTION_MISS_OFFSET,reflectionView.march.w));
+ if(seen.answer.hit){return ReflectionEnd(seen.answer.color,true,min(seen.answer.distance,reflectionFar()));}
+ ended.distance=reflectionClipFirstPerson(P,lobe.R,min(seen.left+REFLECTION_MISS_OFFSET,reflectionFar()));
  return ended;
 }`
 
@@ -98,9 +98,9 @@ fn reflectionSceneStage(P:vec3f,N:vec3f,lobe:ReflectionLobeRay,begin:f32,coord:v
    return ReflectionEnd(reflectionClampRay(far.color+reflectionSkylightLeak(vec3f(0.0))),true,reflectionView.march.w);
   }
   let sky=reflectionFogged(reflectionEnvironment(lobe.R,0.0)+reflectionSkylightLeak(vec3f(0.0)),P,lobe.R*max(reflectionView.light.w,reflectionView.march.w));
-  return ReflectionEnd(reflectionClampRay(sky),false,reflectionView.march.w);
+  return ReflectionEnd(reflectionClampRay(sky),false,reflectionFar());
  }
- return ReflectionEnd(reflectionField(reflectionRayLobe(lobe)),false,reflectionView.march.w);
+ return ReflectionEnd(reflectionField(reflectionRayLobe(lobe)),false,reflectionFar());
 }`
 
 /**

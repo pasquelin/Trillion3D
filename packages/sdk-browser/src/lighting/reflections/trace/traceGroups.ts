@@ -62,7 +62,7 @@ type Named = Partial<Record<keyof typeof REFLECTION_TRACE_BINDINGS, GPUBindingRe
 
 /** A surface's groups, the classification's and each kernel's, for each parity of the history's turn
  *  about. */
-type SurfaceGroups = Record<Kernel | 'classify', GPUBindGroup[]>
+type SurfaceGroups = Record<Kernel | 'classify' | 'meshCompact' | 'meshTrace', GPUBindGroup[]>
 
 /** A view's trace groups, none made yet, and the parity of its history's turn about. */
 export const createTraceGroups = (device: GPUDevice) => ({
@@ -181,6 +181,15 @@ function tracingGroups(kit: SurfaceKit, sceneEntries: GPUBindGroupEntry[]) {
         sceneEntries,
       ),
     ),
+    // The meshes' fields stage (`meshes.ts`): the list of the rays the screen missed, bound to write, and what its trace writes and reads.
+    meshCompact: shared(group(layouts.meshCompact, { rays, pendingMesh: list(grids.pending) })),
+    meshTrace: shared(
+      group(
+        layouts.meshTrace,
+        { lights: scene.lights, rays, traceOut: grids.fresh, pendingMesh: list(grids.pending) },
+        sceneEntries,
+      ),
+    ),
   }
 }
 
@@ -192,7 +201,7 @@ function resolvingGroups(
   vectors: GPUTextureView,
   last: { bilateral: GPUBindGroupLayout; clear: GPUBindGroupLayout; out: Named },
 ) {
-  const { layouts, scene, grids, resolved, field, group } = kit
+  const { layouts, grids, resolved, field, group } = kit
   const { history } = grids
   const resolve = list(grids.resolve)
   return {

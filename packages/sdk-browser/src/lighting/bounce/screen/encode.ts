@@ -16,9 +16,11 @@ import {
   integrateArgsAt,
 } from './screenProbeLayout.ts'
 import type { MeshStageRun } from './meshStage.ts'
-import { TRACE_MESH_GROUP } from './traceMeshWgsl.ts'
+import { TRACE_MESH_GROUP, TRACE_MESH_LIST } from './traceMeshWgsl.ts'
 import type { TracedSceneGroups } from './traceGroups.ts'
 import { TRACE_TRACED_SCENE } from './traceTracedWgsl.ts'
+import type { OcclusionTrianglesStage } from './occlusionTriangles.ts'
+import { OCCLUSION_TRIANGLES_SCENE } from './occlusionTrianglesWgsl.ts'
 
 /** What a frame's dispatches are made of. */
 export interface ScreenProbeRun {
@@ -34,6 +36,8 @@ export interface ScreenProbeRun {
   cache?: Pick<RadianceCache, 'encode' | 'clearLobes'>
   /** The scene stage that casts the rays through the scene's triangles, where this image has it (`tracedSceneOf`): none, the rays are marched. */
   traced?: TracedSceneGroups
+  /** The short-range occlusion cast through the scene's triangles, where this image has it (`occlusionTrianglesStageOf`): it takes the place of the occlusion's pass of the horizon search. */
+  occlusionTriangles?: OcclusionTrianglesStage
   /** The meshes' fields stage (`meshStageOf`), where this image traces them for the probes the scene stage marches through the global field: dispatched before it. */
   meshes?: MeshStageRun
   /** A stage a pass of the frame adds once the rays are traced and filtered (`ScreenProbeStage`), where its kernel is compiled: dispatched over the scene stage's group 0. */
@@ -113,6 +117,21 @@ function chooseRays(pass: GPUComputePassEncoder, run: CastRun) {
     dispatchOver(pass, kernels.rays.pipelines.genRays, groups.rays, resources.args, PROBES_AT)
 }
 
+/** The meshes' fields stage: the first compaction over the list of the rays the screen left, then the trace over the list it made. */
+function traceMeshes(pass: GPUComputePassEncoder, run: CastRun, meshes: MeshStageRun) {
+  const { groups, resources } = run
+  pass.setBindGroup(0, groups.traceScene)
+  for (const [stage, rays] of [
+    [meshes.compact, resources.sceneRays],
+    [meshes.trace, resources.meshRays],
+  ] as const) {
+    pass.setPipeline(stage.pipeline)
+    pass.setBindGroup(TRACE_MESH_GROUP, stage.group)
+    pass.setBindGroup(TRACE_MESH_LIST, stage.list)
+    pass.dispatchWorkgroupsIndirect(rays, 0)
+  }
+}
+
 /** The scene's stage over the list of the rays the screen left: the march through the global distance field, the radiance cache answering
  *  the rays it leaves; or, where the image casts them through the scene's triangles (`run.traced`), that trace — group 2 the scene trace — and
  *  then the radiance cache's answer to the rays it left (`traceFar`, over the march's group). The scene stages read the part of the reflection group
@@ -128,12 +147,7 @@ function traceScene(pass: GPUComputePassEncoder, run: CastRun) {
     pass.dispatchWorkgroupsIndirect(sceneRays, 0)
     dispatchOver(pass, kernels.traceScene.pipelines.traceFar, groups.traceScene, sceneRays, 0)
   } else {
-    if (meshes) {
-      pass.setPipeline(meshes.pipeline)
-      pass.setBindGroup(0, groups.traceScene)
-      pass.setBindGroup(TRACE_MESH_GROUP, meshes.group)
-      pass.dispatchWorkgroupsIndirect(sceneRays, 0)
-    }
+    if (meshes) traceMeshes(pass, run, meshes)
     dispatchOver(pass, kernels.traceScene.pipelines.traceScene, groups.traceScene, sceneRays, 0)
   }
   pass.setBindGroup(REFLECTION_GROUP, run.reflection)
@@ -248,7 +262,17 @@ function shadePixels(pass: GPUComputePassEncoder, run: ScreenProbeRun, cast: Cas
   const { geometry: g } = run.resources
   const { groups, kernels, settings } = run
   const image = [ceilDiv(g.width, 8), ceilDiv(g.height, 8)] as const
-  if (settings.occlusion)
+  const triangles = run.occlusionTriangles
+  if (triangles) {
+    pass.setBindGroup(OCCLUSION_TRIANGLES_SCENE.group, triangles.groups[1])
+    dispatchOcclusion(
+      pass,
+      triangles.pipeline,
+      triangles.groups[0],
+      g,
+      settings.occlusionDownsample,
+    )
+  } else if (settings.occlusion)
     dispatchOcclusion(
       pass,
       kernels.occlusion.pipelines.occlusion,
@@ -281,6 +305,15 @@ const castOf = (run: ScreenProbeRun): CastRun => ({
   groups: run.groups.cast,
 })
 
+/** The lists of the rays the screen leaves and of those the meshes' stage traces, each emptied by a copy of the head `listHead` holds. */
+export function resetRayLists(
+  encoder: Pick<GPUCommandEncoder, 'copyBufferToBuffer'>,
+  resources: Pick<ScreenProbeResources, 'listHead' | 'sceneRays' | 'meshRays'>,
+) {
+  for (const list of [resources.sceneRays, resources.meshRays])
+    encoder.copyBufferToBuffer(resources.listHead, 0, list, 0, 16)
+}
+
 /**
  * THE FIRST HALF OF AN IMAGE OF THE SCREEN PROBES, in a compute pass of its own: the list of the rays the screen leaves emptied, then
  * the placement and what the pixels ask of the probes' rays. The answer is the run of the probes placed, which `encodeProbeTrace` takes. What follows the placement — the probe pool's marks of the cells the probes stand in,
@@ -288,7 +321,7 @@ const castOf = (run: ScreenProbeRun): CastRun => ({
  */
 export function encodeProbePlacement(encoder: GPUCommandEncoder, run: ScreenProbeRun) {
   const cast = castOf(run)
-  encoder.copyBufferToBuffer(run.resources.listHead, 0, run.resources.sceneRays, 0, 16)
+  resetRayLists(encoder, run.resources)
   const pass = beginPass(encoder, run)
   placeProbes(pass, cast)
   pass.end()

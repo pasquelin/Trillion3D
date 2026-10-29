@@ -28,12 +28,15 @@ import { castsThroughTriangles, screenProbesCast, screenProbesCut } from './cast
 import { namedEntries } from '../../../gpu/core/computeBindings.ts'
 import { encodeOcclusionOnly } from './encode.ts'
 import { OCCLUSION_BINDINGS } from './occlusionWgsl.ts'
+import { occlusionTrianglesStageOf } from './occlusionTriangles.ts'
 import {
   ensureFieldOcclusion,
   type FieldOcclusion,
   fieldOcclusionGeometry,
   fieldOcclusionSettings,
   fieldSearchesOcclusion,
+  reservoirOcclusionSettings,
+  reservoirSearchesOcclusion,
 } from './occlusionOnly.ts'
 import { followHistory, imagesToForget, probeInputsReady } from './historyReady.ts'
 import {
@@ -387,6 +390,7 @@ function runOf(
   bound: ScreenProbeRun['groups'],
   traced: ReturnType<typeof tracedSceneOf>,
   meshes: ScreenProbeRun['meshes'],
+  occlusionTriangles: ScreenProbeRun['occlusionTriangles'],
 ): ScreenProbeRun {
   const { device, reflection, depth, lightView } = needed
   return {
@@ -398,6 +402,7 @@ function runOf(
     settings,
     cache: rt.bounce.probes?.cache,
     traced: traced?.traced,
+    occlusionTriangles,
     meshes,
     stage: stageOf(rt, store, device, settings, kernels),
   }
@@ -452,7 +457,24 @@ function placeProbes(
     reflection.settings(rt.context, waterFrontOf(rt)),
     traced?.rays,
   )
-  const run = runOf(rt, store, state, kernels, settings, needed, bound, traced, meshes)
+  const occlusionTriangles = occlusionTrianglesStageOf(
+    rt,
+    device,
+    settings,
+    bound.occlusionTriangles,
+  )
+  const run = runOf(
+    rt,
+    store,
+    state,
+    kernels,
+    settings,
+    needed,
+    bound,
+    traced,
+    meshes,
+    occlusionTriangles,
+  )
   // The turn the records are marked from is this image's: the hand-over, after the trace, moves it on.
   const cast = encodeProbePlacement(encoder, run)
   return {
@@ -498,14 +520,17 @@ function fieldOcclusionGroup(
 }
 
 /**
- * THE FIELD'S SHORT-RANGE OCCLUSION of this image (`irradianceFieldShortRangeAORadius`, the reference's `ComputeScreenSpaceShortRangeAO` run for the field with a reach of twice the radius in pixels): the
- * screen probes' occlusion pass alone, over the tile the radius names, no probe cast and no temporal blend (the field's gather has none). Answers the amount it wrote and the pixels a texel stands for, none
- * while the pass compiles, the frame lacks the surfaces or the field searches none.
+ * THE SHORT-RANGE OCCLUSION of this image for a gather that casts no probes, over the settings `settingsOf` makes of the probes' (none where the gather searches none): the screen probes' occlusion pass alone, no probe cast and no temporal blend.
+ * Answers the amount it wrote and the pixels a texel stands for, none while the pass compiles or the frame lacks the surfaces.
  */
-export function encodeFieldOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) {
+function encodeTileOcclusion(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  settingsOf: (base: ScreenProbeSettings, width: number) => ScreenProbeSettings | undefined,
+) {
   const store = (rt.bounce.screen ??= createScreenProbeStore())
-  const base = store.read(rt.context)
-  if (!fieldSearchesOcclusion(base)) {
+  const settings = settingsOf(store.read(rt.context), rt.gpu.targetSize[0])
+  if (!settings) {
     store.fieldOcclusion?.dispose()
     store.fieldOcclusion = undefined
     return undefined
@@ -513,7 +538,6 @@ export function encodeFieldOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommand
   const needed = neededOf(rt)
   if (!needed) return undefined
   const { device, reflection, depth, lightView, surfaces, noise } = needed
-  const settings = fieldOcclusionSettings(base)
   const kernel = store.occlusionFor(device, settings)
   if (!kernel) return undefined
   const size = rt.gpu.targetSize
@@ -551,6 +575,18 @@ export function encodeFieldOcclusion(rt: WebgpuPagesRuntime, encoder: GPUCommand
   )
   return { view: run.view, reduction: settings.occlusionDownsample, bent: settings.bentNormal }
 }
+
+/** THE FIELD'S SHORT-RANGE OCCLUSION (`irradianceFieldShortRangeAORadius`, the reference's `ComputeScreenSpaceShortRangeAO` run for the field with a reach of twice the radius in pixels), over the tile the radius names. */
+export const encodeFieldOcclusion = (rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) =>
+  encodeTileOcclusion(rt, encoder, (base) =>
+    fieldSearchesOcclusion(base) ? fieldOcclusionSettings(base) : undefined,
+  )
+
+/** THE RESERVOIR GATHER'S SHORT-RANGE OCCLUSION (`reservoirGatherShortRangeAO`, the same pass with a reach of `reservoirGatherShortRangeAOMaxScreenTraceFraction` of the view's width). */
+export const encodeReservoirOcclusion = (rt: WebgpuPagesRuntime, encoder: GPUCommandEncoder) =>
+  encodeTileOcclusion(rt, encoder, (base, width) =>
+    reservoirSearchesOcclusion(base, width) ? reservoirOcclusionSettings(base, width) : undefined,
+  )
 
 /** The stage a pass of the frame added (`rt.bounce.stage`) with its kernel, where it is compiled and the radiance cache is there to read. */
 function stageOf(

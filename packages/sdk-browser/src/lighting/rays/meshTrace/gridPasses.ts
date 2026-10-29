@@ -378,6 +378,30 @@ function encodeGridPasses(
   return true
 }
 
+/** What a view keeps of its grid: the resources, and the lists the last encode made with the encoder and the inputs it was made for (`encodeMeshGrid`). */
+export interface MeshGridHeld {
+  view: MeshGridView | undefined
+  why: string | undefined
+  encoded?: {
+    encoder: GPUCommandEncoder
+    settings: MeshDistanceFieldTraceSettings
+    key: number[]
+    lists: MeshGridLists
+  }
+}
+
+/** The numbers a cull depends on besides the scene's meshes and the settings of the view: the same view and image give the same lists. */
+const gridKey = ({ image, objects, endDistance, traceDistance, sceneDetail }: MeshGridInputs) => [
+  ...image.view,
+  ...Array.from(image.viewProjection),
+  image.frame,
+  objects.count,
+  objects.generation,
+  endDistance,
+  traceDistance,
+  sceneDetail,
+]
+
 /**
  * THE MESHES CULLED TO THE VIEW'S GRID, encoded: the buffers cleared, the meshes culled to the view, scattered by the draw of
  * their bounding spheres to the cells they reach, the runs of the cells allocated, the meshes compacted into them. Returns
@@ -387,11 +411,20 @@ function encodeGridPasses(
 export function encodeMeshGrid(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
-  held: { view: MeshGridView | undefined; why: string | undefined },
+  held: MeshGridHeld,
   inputs: MeshGridInputs,
 ): MeshGridLists | undefined {
   const { objects, image, settings } = inputs
   if (objects.count === 0) return undefined
+  // One cull per view and image: the stage that comes second (the screen probes' and the reflections') reads the lists the first encoded.
+  const key = gridKey(inputs)
+  if (
+    held.encoded?.encoder === encoder &&
+    held.encoded.settings === settings &&
+    sameValues(held.encoded.key, key)
+  )
+    return held.encoded.lists
+  held.encoded = undefined
   const programs = meshGridPrograms(device)
   if (!meshGridProgramsReady(programs)) return undefined
   const shape = meshGridShape(
@@ -437,5 +470,7 @@ export function encodeMeshGrid(
     encoder.clearBuffer(buffer)
   const groups = groupsOf(device, programs, view, inputs)
   if (!encodeGridPasses(encoder, programs, groups, view, shape, objects.count)) return undefined
-  return { params: view.params, cells: view.cells, indices: view.indices, shape }
+  const lists = { params: view.params, cells: view.cells, indices: view.indices, shape }
+  held.encoded = { encoder, settings, key, lists }
+  return lists
 }

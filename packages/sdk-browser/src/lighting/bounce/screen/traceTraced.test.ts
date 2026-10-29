@@ -129,9 +129,12 @@ test('the ray starts as the reference starts it: off the surface along the norma
     assert.ok(found > at, `${step} follows the step before it`)
     at = found
   }
-  assert.match(ray, /hit=stTrace\(StRay\(origin-view\.display\.yzw,d,tMin,tMax,flags\)\);/)
-  assert.equal(ray.match(/stTrace\(/g)?.length, 1, 'one call site')
-  assert.match(ray, /var flags=ST_SKIP_TRANSLUCENT;/)
+  assert.match(
+    ray,
+    /let hit=stTraceAvoiding\(origin-view\.display\.yzw,d,tMin,tMax,u32\(sp\.tracedHit\.z\)\);/,
+  )
+  assert.doesNotMatch(ray, /stTrace\(/, 'the one avoiding trace is the shared helper')
+  assert.match(PROGRAM, /var flags=ST_SKIP_TRANSLUCENT;/)
   assert.doesNotMatch(ray, /ST_SHADOW/)
 })
 
@@ -158,17 +161,17 @@ test('the ray starts off the surface along its normal by the normal bias, the no
 test('the self-intersection modes are the reference’s: 0 culls the back faces, 1 traces again once, 2 passes the near hits', () => {
   assert.deepEqual(SELF_INTERSECTION, { cull: 0, retrace: 1, skip: 2 })
   for (const [name, value] of [
-    ['SP_AVOID_CULL', 0],
-    ['SP_AVOID_RETRACE', 1],
-    ['SP_AVOID_SKIP', 2],
+    ['ST_AVOID_CULL', 0],
+    ['ST_AVOID_RETRACE', 1],
+    ['ST_AVOID_SKIP', 2],
   ] as const)
     assert.match(PROGRAM, new RegExp(`const ${name}:u32=${value}u;`))
-  assert.match(PROGRAM, /if\(avoid==SP_AVOID_CULL\)\{flags\|=ST_CULL_BACK;\}/)
-  assert.match(PROGRAM, /if\(avoid>=SP_AVOID_SKIP\)\{flags\|=ST_SKIP_NEAR;\}/)
-  assert.match(PROGRAM, /if\(avoid!=SP_AVOID_RETRACE\|\|!hit\.hit\|\|trace==1u\)\{break;\}/)
+  assert.match(PROGRAM, /if\(avoid==ST_AVOID_CULL\)\{flags\|=ST_CULL_BACK;\}/)
+  assert.match(PROGRAM, /if\(avoid>=ST_AVOID_SKIP\)\{flags\|=ST_SKIP_NEAR;\}/)
+  assert.match(PROGRAM, /if\(avoid!=ST_AVOID_RETRACE\|\|!hit\.hit\|\|trace==1u\)\{break;\}/)
   assert.match(
     PROGRAM,
-    /hit\.distance<stParams\.skipTwoSidedDistance\)\{past=hit\.distance\+0\.01\/f32\(BOUNCE_CM\);\}/,
+    /hit\.distance<stParams\.skipTwoSidedDistance\)\{past=hit\.distance\+0\.01\/100\.0;\}/,
   )
   assert.match(
     PROGRAM,
