@@ -57,7 +57,13 @@ test('a run covers a window of the image and starts at a layer of the mask', () 
   const upsample = selfShadowProgram(SELF_SHADOW_ENTRIES.upsample, 'none')
   assert.ok(upsample.includes('gid.xy+params.window.zw'))
   assert.ok(upsample.includes('layer+i32(params.layers.x)'))
-  assert.ok(selfShadowProgram(SELF_SHADOW_ENTRIES.downsample, 'none').includes('let id=gid;'))
+  assert.ok(!selfShadowProgram(SELF_SHADOW_ENTRIES.downsample, 'none').includes('let id=gid;'))
+  // Every kernel stops at the window's far end, so that a group that overshoots it writes nothing.
+  assert.ok(upsample.includes('any(id.xy>=params.ends.zw)'))
+  assert.ok(
+    selfShadowProgram(SELF_SHADOW_ENTRIES.blur, 'none').includes('any(id.xy>=params.ends.xy)'),
+  )
+  assert.ok(trace.includes('any(id>=params.ends.xy)') && trace.includes('any(id>=params.ends.zw)'))
 })
 
 test('the point of a pixel is found only for a pixel that traces', () => {

@@ -8,11 +8,8 @@ import { CAPSULE_BLENDS } from '../../capsuleShadows/frame.ts'
 import { firstPersonBoundsOf } from '../../reflections/firstPersonBounds.ts'
 import type { VsmProjectionLight } from '../vsm/projection/projectionPass.ts'
 import { lightAffectsSphere } from './affects.ts'
-import {
-  runSelfShadow,
-  selfShadowRecords as records,
-  type SelfShadowRect,
-} from './selfShadowKit.ts'
+import { runSelfShadow, selfShadowRecords as records } from './selfShadowKit.ts'
+import type { SelfShadowRect } from './selfShadowWindow.ts'
 import {
   SELF_SHADOW_MAX_LIGHTS,
   SELF_SHADOW_MERGE_BINDINGS as M,

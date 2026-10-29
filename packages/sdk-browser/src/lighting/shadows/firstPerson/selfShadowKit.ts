@@ -14,6 +14,7 @@ import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { arrayView } from '../../../gpu/core/textureViews.ts'
 import { reflectionGroup, reflectionLightView } from '../../reflections/group.ts'
 import { reflectionLayout } from '../../reflections/reflectionPipelines.ts'
+import { selfShadowWindows, type SelfShadowRect } from './selfShadowWindow.ts'
 import {
   SELF_SHADOW_BINDINGS as B,
   SELF_SHADOW_ENTRIES,
@@ -29,12 +30,9 @@ type SelfShadowEntry = (typeof SELF_SHADOW_ENTRIES)[keyof typeof SELF_SHADOW_ENT
 const DOWNSAMPLE_MODE = [1, 0, 2] as const
 
 /** The words of the uniform: the sizes, the counts, the trace's numbers and a record a light. */
-const PARAM_WORDS = 20 + 4 * SELF_SHADOW_MAX_LIGHTS
-/** The word of the uniform the lights' records begin at: after the sizes, the counts, the trace's numbers, the window and the layer base. */
-const LIGHTS_AT = 20
-/** The low-resolution texels the trace and the filter run beyond the window's rim, so that the filter and the upsample find the texels they read traced: the upsample reads the
- *  texel round a pixel and the filter the ring round each of them. */
-const WINDOW_MARGIN = 2
+const PARAM_WORDS = 24 + 4 * SELF_SHADOW_MAX_LIGHTS
+/** The word of the uniform the lights' records begin at: after the sizes, the counts, the trace's numbers, the window, its ends and the layer base. */
+const LIGHTS_AT = 24
 /** The least a depth threshold may be, as the reference's: the weights divide by it. */
 const SMALL_NUMBER = 1e-8
 
@@ -61,8 +59,7 @@ const kitOf = oncePerDevice((device: GPUDevice) => {
     layout,
     uniforms: { frame: -1, used: 0, buffers: [] as GPUBuffer[] },
     /** What the encoder's first run downsampled: the later runs of it (other lights, other windows) read it as it is. */
-    downsampled: undefined as
-      { encoder: GPUCommandEncoder; normals: GPUTextureView; grid: GPUTextureView[] } | undefined,
+    downsampled: undefined as { encoder: WeakRef<GPUCommandEncoder>; key: unknown[] } | undefined,
     words: new ArrayBuffer(PARAM_WORDS * 4),
     stage(entry: SelfShadowEntry, polyfill: boolean, failed: (error: unknown) => void) {
       const key = `${entry}|${polyfill}`
@@ -150,6 +147,7 @@ function writeParams(
   lights: Float32Array,
   count: number,
   window: readonly [number, number, number, number],
+  ends: SelfShadowRect,
   layerBase: number,
 ) {
   const words = new Uint32Array(kit.words),
@@ -174,16 +172,14 @@ function writeParams(
     8,
   )
   words.set(window, 12)
+  words.set(ends, 20)
   words.set([layerBase], 16)
   floats.set(lights.subarray(0, 4 * count), LIGHTS_AT)
   device.queue.writeBuffer(buffer, 0, kit.words)
 }
 
-/** The records of the lights of one run (`runSelfShadow`), filled by the callers, which run one at a time. */
+/** The records of the lights of one run (`runSelfShadow`), filled by the callers and copied to the run's uniform before it returns: runs never overlap. */
 export const selfShadowRecords = new Float32Array(4 * SELF_SHADOW_MAX_LIGHTS)
-
-/** A rectangle of the drawn image: first column and row, one past the last. */
-export type SelfShadowRect = readonly [number, number, number, number]
 
 /**
  * THE KERNELS OF THE FIRST-PERSON SELF SHADOW (`selfShadowWgsl.ts`) run over `count` lights (`SELF_SHADOW_MAX_LIGHTS` at most; a caller with more runs them in turns), a layer each, their records
@@ -213,10 +209,11 @@ export function runSelfShadow(
   const lightBuffer = rt.lights.buffer
   if (!device || !hiz || !lightView || !lightBuffer || !rt.gpu.reflection || !job.count)
     return false
-  const count = job.count
+  const count = Math.min(job.count, SELF_SHADOW_MAX_LIGHTS)
   const kit = kitOf(device),
     size = rt.gpu.targetSize,
-    raw = settings.shadowFirstPersonSelfShadowRawFullResolution
+    raw = settings.shadowFirstPersonSelfShadowRawFullResolution,
+    mode = settings.shadowFirstPersonSelfShadowDownsampleCheckerboardMode
   const polyfill = settings.shadowFirstPersonSelfShadowMinimumHzbTraceOccupancy > 0
   const failed = (error: unknown) =>
     rt.diag.engineDiagnostic('first-person-self-shadow', String(error), {})
@@ -228,13 +225,7 @@ export function runSelfShadow(
   const allocated = rt.gpu.allocatedSize
   const lowSize = [ceilDiv(size[0], 2), ceilDiv(size[1], 2)] as const
   const grid = texturesFor(device, [ceilDiv(allocated[0], 2), ceilDiv(allocated[1], 2)], count)
-  const [x0, y0, x1, y1] = job.rect ?? [0, 0, size[0], size[1]]
-  const low = [
-    Math.max(0, (x0 >> 1) - WINDOW_MARGIN),
-    Math.max(0, (y0 >> 1) - WINDOW_MARGIN),
-    Math.min(lowSize[0], ceilDiv(x1, 2) + WINDOW_MARGIN),
-    Math.min(lowSize[1], ceilDiv(y1, 2) + WINDOW_MARGIN),
-  ] as const
+  const { low, full } = selfShadowWindows(job.rect ?? [0, 0, size[0], size[1]], lowSize)
   const params = uniformFor(kit, device, rt.run.frame)
   kit.uniforms.used++
   writeParams(
@@ -245,7 +236,8 @@ export function runSelfShadow(
     size,
     job.lights,
     count,
-    [low[0], low[1], x0, y0],
+    [low[0], low[1], full[0], full[1]],
+    [low[2], low[3], full[2], full[3]],
     job.layerBase ?? 0,
   )
   const group = device.createBindGroup({
@@ -272,13 +264,15 @@ export function runSelfShadow(
     pass.setPipeline(pipeline)
     pass.dispatchWorkgroups(x, y, z)
   }
-  const fullGroups = groups(x1 - x0, y1 - y0)
+  const fullGroups = groups(full[2] - full[0], full[3] - full[1])
   if (raw) run(trace, fullGroups, count)
   else {
+    // What the downsample reads and writes, and the encoder it was encoded in: a later run of that encoder reads it as it is.
+    const key = [views[1], views[3], hiz, grid, lowSize[0], lowSize[1], rt.run.frame, mode]
     const held = kit.downsampled
-    if (held?.encoder !== encoder || held.normals !== views[1] || held.grid !== grid) {
+    if (held?.encoder.deref() !== encoder || held.key.some((value, k) => value !== key[k])) {
       run(downsample!, groups(...lowSize), 1)
-      kit.downsampled = { encoder, normals: views[1]!, grid }
+      kit.downsampled = { encoder: new WeakRef(encoder), key }
     }
     const lowGroups = groups(low[2] - low[0], low[3] - low[1])
     run(trace, lowGroups, count)

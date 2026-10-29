@@ -81,6 +81,7 @@ const PARAMS_WGSL = wgslBlock(
  trace:vec4f,
  window:vec4u,
  layers:vec4u,
+ ends:vec4u,
  lights:array<vec4f,${SELF_SHADOW_MAX_LIGHTS}>,
 }
 @group(0) @binding(${B.params}) var<uniform> params:SelfShadow;
@@ -98,8 +99,7 @@ fn selfLow(p:vec2u)->bool{return all(p<params.sizes.zw);}`,
 
 const DOWNSAMPLE_WGSL = `
 @compute @workgroup_size(${SELF_SHADOW_GROUP},${SELF_SHADOW_GROUP},1)
-fn ${SELF_SHADOW_ENTRIES.downsample}(@builtin(global_invocation_id) gid:vec3u){
- let id=gid;
+fn ${SELF_SHADOW_ENTRIES.downsample}(@builtin(global_invocation_id) id:vec3u){
  if(!selfLow(id.xy)){return;}
  let last=params.sizes.xy-vec2u(1u);
  var minZ=0.0;var maxZ=0.0;var minAt=vec2u(0u);var maxAt=vec2u(0u);
@@ -135,12 +135,12 @@ const TRACE_WGSL = (lanes: MarchLanes) => `
 struct SelfInputs{pixel:vec2u,z:f32,n:vec3f,ok:bool,}
 fn selfInputs(id:vec2u)->SelfInputs{
  if(params.counts.y!=0u){
-  if(any(id>=params.sizes.xy)){return SelfInputs(id,0.0,vec3f(0.0),false);}
+  if(any(id>=params.ends.zw)){return SelfInputs(id,0.0,vec3f(0.0),false);}
   let z=hizOpaqueDepth(vec2i(id));
   let ok=z!=0.0&&selfFirstPerson(vec2i(id));
   return SelfInputs(id,z,normalize(textureLoad(normals,vec2i(id),0).xyz),ok);
  }
- if(!selfLow(id)){return SelfInputs(id,0.0,vec3f(0.0),false);}
+ if(!selfLow(id)||any(id>=params.ends.xy)){return SelfInputs(id,0.0,vec3f(0.0),false);}
  let z=textureLoad(downDepth,id).x;
  let word=textureLoad(downInputs,id).x;
  let oct=vec2f(f32(word&255u),f32((word>>8u)&255u))/255.0*2.0-vec2f(1.0);
@@ -163,22 +163,22 @@ fn ${SELF_SHADOW_ENTRIES.trace}(@builtin(global_invocation_id) gid:vec3u,@builti
  if(inputs.ok){
   let P=worldAt(full,inputs.z);
   if(!local||lightReaches(rank,P)){
-  let corner=worldAt(full+vec2f(0.5),inputs.z);
-  let origin=P+abs(dot(corner-P,inputs.n))*2.0*inputs.n;
-  let A=reflectionView.viewProj*vec4f(origin,1.0);
-  if(all(abs(A.xy)<=vec2f(A.w))){
-   // A sun's ray goes on to the trace distance, a local light's ends at the light.
-   var toLight=vec3f(0.0);
-   if(local){toLight=directLights.items[rank].positionRange.xyz-origin;}
-   let lightDistance=length(toLight);
-   let dir=select(normalize(light.xyz),toLight/max(lightDistance,1e-4),local);
-   let toward=reflectionView.viewProj*vec4f(dir,0.0);
-   let ends=select(select(1e30,0.99*(reflectionView.slab.y-A.z)/toward.z,toward.z>0.0),select(1e30,-0.99*A.w/toward.w,toward.w<0.0),slabPerspective(reflectionView.slab));
-   let span=min(min(params.trace.x,select(1e27,lightDistance,local)),ends);
-   S0=clipToFramebuffer(A,size);
-   delta=clipToFramebuffer(A+toward*span,size)-S0;
-   end=screenMarchEnd(S0.xy,delta.xy,size);
-   pixels=select(REFLECTION_THICKNESS,params.trace.z/reflectionView.slab.x,slabPerspective(reflectionView.slab));
+   let corner=worldAt(full+vec2f(0.5),inputs.z);
+   let origin=P+abs(dot(corner-P,inputs.n))*2.0*inputs.n;
+   let A=reflectionView.viewProj*vec4f(origin,1.0);
+   if(all(abs(A.xy)<=vec2f(A.w))){
+    // A sun's ray goes on to the trace distance, a local light's ends at the light.
+    var toLight=vec3f(0.0);
+    if(local){toLight=directLights.items[rank].positionRange.xyz-origin;}
+    let lightDistance=length(toLight);
+    let dir=select(normalize(light.xyz),toLight/max(lightDistance,1e-4),local);
+    let toward=reflectionView.viewProj*vec4f(dir,0.0);
+    let ends=select(select(1e30,0.99*(reflectionView.slab.y-A.z)/toward.z,toward.z>0.0),select(1e30,-0.99*A.w/toward.w,toward.w<0.0),slabPerspective(reflectionView.slab));
+    let span=min(min(params.trace.x,select(1e27,lightDistance,local)),ends);
+    S0=clipToFramebuffer(A,size);
+    delta=clipToFramebuffer(A+toward*span,size)-S0;
+    end=screenMarchEnd(S0.xy,delta.xy,size);
+    pixels=select(REFLECTION_THICKNESS,params.trace.z/reflectionView.slab.x,slabPerspective(reflectionView.slab));
   }
   }
  }
@@ -216,7 +216,7 @@ fn blurIn(p:vec2i,layer:i32)->BlurIn{
 @compute @workgroup_size(${SELF_SHADOW_GROUP},${SELF_SHADOW_GROUP},1)
 fn ${SELF_SHADOW_ENTRIES.blur}(@builtin(global_invocation_id) gid:vec3u){
  let id=vec3u(gid.xy+params.window.xy,gid.z);
- if(!selfLow(id.xy)){return;}
+ if(!selfLow(id.xy)||any(id.xy>=params.ends.xy)){return;}
  let layer=i32(id.z);
  let p=vec2i(id.xy);
  let centre=blurIn(p,layer);
@@ -240,7 +240,7 @@ const UPSAMPLE_WGSL = `
 @compute @workgroup_size(${SELF_SHADOW_GROUP},${SELF_SHADOW_GROUP},1)
 fn ${SELF_SHADOW_ENTRIES.upsample}(@builtin(global_invocation_id) gid:vec3u){
  let id=vec3u(gid.xy+params.window.zw,gid.z);
- if(any(id.xy>=params.sizes.xy)||!selfFirstPerson(vec2i(id.xy))){return;}
+ if(any(id.xy>=params.ends.zw)||!selfFirstPerson(vec2i(id.xy))){return;}
  let layer=i32(id.z);
  let low=vec2f(id.xy)*0.5+vec2f(0.25);
  let base=vec2i(floor(low-vec2f(0.5)));
