@@ -122,7 +122,7 @@ mod tests {
     /// The record of the one field `placed`, as the file lays it: its first word, its flags and
     /// the low corner of its box, metres.
     fn record(placed: &Placed) -> (u32, u32, [f32; 3]) {
-        let file = encode(std::slice::from_ref(placed));
+        let (file, _) = encode(std::slice::from_ref(placed));
         let word = |at: usize| u32::from_le_bytes(file[at..at + 4].try_into().expect("a word"));
         let head = super::super::abi::DISTANCE_FIELD_HEAD_BYTES;
         let low = [8, 12, 16].map(|k| f32::from_bits(word(head + k)));
@@ -146,7 +146,7 @@ mod tests {
         let (cell, flags, low) = record(&placed);
         assert_eq!((cell, flags), (7, DISTANCE_FIELD_FLAG_HLOD_CELL));
         assert!((low[0] - 100.0).abs() < 0.01, "{low:?}");
-        let section = report(&[placed], 0);
+        let section = report(&[placed], 0, Vec::new());
         assert_eq!(section["meshes"][0]["mesh"], 7);
         assert_eq!(section["meshes"][0]["hlodCell"], true);
         // Two-sided faces say so beside the cell.

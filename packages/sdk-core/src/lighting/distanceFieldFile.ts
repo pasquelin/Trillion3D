@@ -14,6 +14,7 @@ import {
   DISTANCE_FIELD_MESH_BYTES,
   DISTANCE_FIELD_MIPS,
   DISTANCE_FIELD_MIP_BYTES,
+  DISTANCE_FIELD_PARTS_VERSION,
   DISTANCE_FIELD_VERSION,
 } from '../contracts/distanceFieldAbi.ts'
 
@@ -79,13 +80,17 @@ const refuse: SidecarRefusal = sidecarRefusal('distance fields')
 
 const VOXELS = DISTANCE_FIELD_BRICK ** 3
 
+/** The formats this engine reads: the one whose mips follow the records in the file, then the one
+ *  whose mips are objects of their own. */
+const DISTANCE_FIELD_VERSIONS = [DISTANCE_FIELD_PARTS_VERSION, DISTANCE_FIELD_VERSION] as const
+
 /**
  * The manifest's `distanceFields` section, or undefined when the cache has none (a scene whose
  * meshes build no field writes neither the section nor the file); a section of another version
  * throws `UNSUPPORTED_FORMAT`, one that names no file `INVALID_CACHE`.
  */
 export const assertDistanceFieldSection = (section: unknown) =>
-  assertSidecarSection(section, DISTANCE_FIELD_VERSION, 'distance fields')
+  assertSidecarSection(section, DISTANCE_FIELD_VERSIONS, 'distance fields')
 
 /** A mip's indirection table and its stored bricks. */
 export interface DistanceFieldMipData {
@@ -95,10 +100,11 @@ export interface DistanceFieldMipData {
   readonly bricks: Uint8Array
 }
 
-/** A file read by parts: its size, and the reader of the bytes of the mip of rank `rank` in the
+/** A file read by parts: its size — none where each mip's data is an object of its own, which a
+ *  record names from its first byte —, and the reader of the bytes of the mip of rank `rank` in the
  *  records' order (a mesh's mips finest first), `length` bytes from `offset`. */
 export interface DistanceFieldParts {
-  readonly fileBytes: number
+  readonly fileBytes?: number
   readonly read: (rank: number, offset: number, length: number) => Promise<ArrayBuffer>
 }
 
@@ -132,8 +138,9 @@ function readMip(
   const length = word(13)
   if (length !== cells * 4 + brickCount * VOXELS)
     refuse('a mip whose data is not its table and bricks')
-  if (offset % 4 !== 0 || offset + length > (parts?.fileBytes ?? bytes.byteLength))
-    refuse('a mip past the end of the file')
+  const end = parts ? parts.fileBytes : bytes.byteLength
+  if (offset % 4 !== 0 || (end === undefined ? offset !== 0 : offset + length > end))
+    refuse('a mip past the end of its data')
   const head = {
     indirectionSize: size,
     distanceScale: real(3),
@@ -163,12 +170,17 @@ export function parseDistanceFields(
   bytes: Uint8Array,
   parts?: DistanceFieldParts,
 ): MeshDistanceField[] {
-  checkSidecarHead(bytes, {
+  const version = checkSidecarHead(bytes, {
     magic: DISTANCE_FIELD_MAGIC,
-    version: DISTANCE_FIELD_VERSION,
+    version: DISTANCE_FIELD_VERSIONS,
     headBytes: DISTANCE_FIELD_HEAD_BYTES,
     what: 'distance fields',
   })
+  // A file whose mips are objects of their own is read only by them, one whose mips follow its
+  // records never so.
+  const objects = parts !== undefined && parts.fileBytes === undefined
+  if (objects !== (version === DISTANCE_FIELD_VERSION))
+    refuse(`a file of version ${version} read ${objects ? 'by objects' : 'whole or by ranges'}`)
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const count = view.getUint32(8, true)
   if (DISTANCE_FIELD_HEAD_BYTES + count * DISTANCE_FIELD_MESH_BYTES > bytes.byteLength)

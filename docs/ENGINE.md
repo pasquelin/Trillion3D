@@ -2322,9 +2322,9 @@ bind-group cache, one set for each of the resources the view has met.
 A mesh whose `meshBuild` sets `distanceField` (true by default, as in the reference's gameplay templates; the settings are in
 [COMPILER.md](COMPILER.md#distance-fields)) gets a signed distance field: bricks of 8 × 8 × 8 bytes around its
 surface, 7 voxels of each its own and the eighth the trilinear filter's, a voxel the distance to the surface in
-the band of four voxels either side, three mips, the coarsest always loaded. The compiler writes every mesh's in
-`distanceFields.bin` (`asset-compiler-rust/src/distance_field/`), named by the manifest's `distanceFields`
-section; `sdk-core/src/lighting/distanceFieldFile.ts` reads it (`parseDistanceFields`: per compiled mesh, or HLOD cell, its box,
+the band of four voxels either side, three mips, the coarsest always loaded. The compiler writes every mesh's records in
+`distanceFields.bin` (`asset-compiler-rust/src/distance_field/`) and each mip's data in an object of its own, both
+named by the manifest's `distanceFields` section; `sdk-core/src/lighting/distanceFieldFile.ts` reads it (`parseDistanceFields`: per compiled mesh, or HLOD cell, its box,
 and per mip the indirection table, the bricks, the distance scale and bias, the volume-to-virtual-coordinate
 scale and add).
 

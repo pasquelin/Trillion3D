@@ -187,7 +187,7 @@ pub(super) fn stage_products(
     geometry.distance.extend(world.fields);
     geometry.cards.extend(world.cards);
     let (distance_file, distance_fields) = pool
-        .install(|| write_distance_fields(&geometry.distance, directory, progress))?
+        .install(|| write_distance_fields(&geometry.distance, directory, inputs.scene.o, progress))?
         .unzip();
     let (cards_file, mesh_cards) = pool
         .install(|| write_mesh_cards(&geometry.cards, directory, progress))?

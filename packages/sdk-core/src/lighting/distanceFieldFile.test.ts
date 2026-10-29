@@ -10,6 +10,7 @@ import {
   DISTANCE_FIELD_MESH_BYTES,
   DISTANCE_FIELD_MIPS,
   DISTANCE_FIELD_MIP_BYTES,
+  DISTANCE_FIELD_PARTS_VERSION,
   DISTANCE_FIELD_VERSION,
 } from '../contracts/distanceFieldAbi.ts'
 import { parseDistanceFields } from './distanceFieldFile.ts'
@@ -17,13 +18,13 @@ import { parseDistanceFields } from './distanceFieldFile.ts'
 /** What a cell of an indirection table holds when its brick is not stored. */
 const NO_DISTANCE_BRICK = 0xffffffff
 
-/** A file of the records `(mesh or cell, flags, low corner)`, each of three mips of one empty
- *  brick cell, as the compiler lays it out (`distance_field/encode.rs`). */
+/** A file of version 2 of the records `(mesh or cell, flags, low corner)`, each of three mips of
+ *  one empty brick cell, its mips' data after its records. */
 function fileOf(records: readonly [number, number, number][]) {
   const head = DISTANCE_FIELD_HEAD_BYTES + records.length * DISTANCE_FIELD_MESH_BYTES
   const bytes = new Uint8Array(head + records.length * DISTANCE_FIELD_MIPS * 4)
   const view = new DataView(bytes.buffer)
-  ;[DISTANCE_FIELD_MAGIC, DISTANCE_FIELD_VERSION, records.length, 0].forEach((word, k) =>
+  ;[DISTANCE_FIELD_MAGIC, DISTANCE_FIELD_PARTS_VERSION, records.length, 0].forEach((word, k) =>
     view.setUint32(k * 4, word, true),
   )
   records.forEach(([owner, flags, low], k) => {
@@ -103,4 +104,39 @@ test('a file read by parts holds no table or bricks: each mip reads its own byte
       }),
     /past the end/,
   )
+})
+
+test('a file whose mips are objects of their own names each from its first byte, and reads it when asked', async () => {
+  const flat = fileOf([[4, 0, -1]])
+  const head = DISTANCE_FIELD_HEAD_BYTES + DISTANCE_FIELD_MESH_BYTES
+  const file = flat.slice(0, head)
+  const view = new DataView(file.buffer)
+  view.setUint32(4, DISTANCE_FIELD_VERSION, true)
+  const offsetAt = (m: number) => DISTANCE_FIELD_HEAD_BYTES + 32 + m * DISTANCE_FIELD_MIP_BYTES + 48
+  for (let m = 0; m < DISTANCE_FIELD_MIPS; m++) view.setUint32(offsetAt(m), 0, true)
+  const asked: number[] = []
+  const object = Uint32Array.of(NO_DISTANCE_BRICK).buffer
+  const fields = parseDistanceFields(file, {
+    read: async (rank) => (asked.push(rank), object.slice(0)),
+  })
+  const data = await fields[0].mips[1].read!()
+  assert.deepEqual([...data.indirection], [NO_DISTANCE_BRICK])
+  assert.deepEqual(asked, [1], 'the mip of rank 1, nothing else')
+  // A record naming its mip past the first byte of its object is refused.
+  view.setUint32(offsetAt(2), 4, true)
+  assert.throws(
+    () => parseDistanceFields(file, { read: async () => object }),
+    /past the end of its data/,
+  )
+})
+
+test('a file of version 3 is read by its objects alone, one of version 2 never so', () => {
+  const head = DISTANCE_FIELD_HEAD_BYTES + DISTANCE_FIELD_MESH_BYTES
+  const v2 = fileOf([[4, 0, -1]])
+  const v3 = v2.slice(0, head)
+  new DataView(v3.buffer).setUint32(4, DISTANCE_FIELD_VERSION, true)
+  const read = async () => new ArrayBuffer(4)
+  assert.throws(() => parseDistanceFields(v3), /version 3 read whole or by ranges/)
+  assert.throws(() => parseDistanceFields(v3, { fileBytes: head, read }), /version 3 read whole/)
+  assert.throws(() => parseDistanceFields(v2, { read }), /version 2 read by objects/)
 })

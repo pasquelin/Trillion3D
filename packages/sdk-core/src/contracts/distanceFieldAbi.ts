@@ -57,9 +57,14 @@ export const DISTANCE_FIELD_FILE = 'distanceFields.bin'
 /** The first four bytes of `distanceFields.bin`: `T3DF` read as a little-endian `u32`. */
 export const DISTANCE_FIELD_MAGIC = 0x46443354
 /** Format of `distanceFields.bin` and of the manifest's `distanceFields` section
- *  (`asset-compiler-rust/src/distance_field/encode.rs` lays it out). Version 2: a record's flags
- *  say whether it is an HLOD cell's field (`DISTANCE_FIELD_FLAG_HLOD_CELL`). */
-export const DISTANCE_FIELD_VERSION = 2
+ *  (`asset-compiler-rust/src/distance_field/encode.rs` lays it out). Version 3: the file is its
+ *  head and records, and each mip's data is an object of its own, which the section names in
+ *  record order (`mips`, a mesh's finest first) and a record from its first byte. */
+export const DISTANCE_FIELD_VERSION = 3
+/** The format before, which the engine still reads: the mips' data follow the records in the file,
+ *  read by ranges (`baseBytes`, `baseSha256`, `mipSha256` in the section), or the file whole. A
+ *  record's flags say whether it is an HLOD cell's field (`DISTANCE_FIELD_FLAG_HLOD_CELL`). */
+export const DISTANCE_FIELD_PARTS_VERSION = 2
 /** The bytes of the file's head: the magic, the version, the mesh count and a reserved word. */
 export const DISTANCE_FIELD_HEAD_BYTES = 16
 /** The bytes of a mesh's record: its compiled mesh (or, an HLOD cell's field, the cell) and its
@@ -76,7 +81,8 @@ export const DISTANCE_FIELD_FLAG_TWO_SIDED = 1
 export const DISTANCE_FIELD_FLAG_HLOD_CELL = 2
 /** The bytes of a mip's record: its three indirection sides, its distance scale and bias, its
  *  volume-to-virtual-UV scale and add (three `f32` each), the bricks it holds, and where its data
- *  starts in the file and how long it is. The data is the indirection table (one `u32` a brick
+ *  starts — in its own object, its first byte; in the file of version 2, the byte of the file — and
+ *  how long it is. The data is the indirection table (one `u32` a brick
  *  cell, `0xffffffff` where the cell holds none), then the bricks, 512 bytes each. */
 export const DISTANCE_FIELD_MIP_BYTES = 56
 

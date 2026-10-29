@@ -23,8 +23,9 @@
 //! from the actors' own level-0 triangles in the world's space, at the settings of the scene's
 //! meshes (`actors.rs`).
 //!
-//! `distanceFields.bin` (`encode.rs`) holds every field: its box, its mips' placement in the
-//! volume and their data. The manifest's `distanceFields` section names it.
+//! `distanceFields.bin` (`encode.rs`) holds every field: its box and its mips' placement in the
+//! volume; each mip's data is a cache object of its own. The manifest's `distanceFields` section
+//! names the file and those objects.
 pub(crate) mod abi;
 mod actors;
 mod brick;

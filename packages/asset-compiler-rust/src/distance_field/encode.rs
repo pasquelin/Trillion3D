@@ -7,10 +7,11 @@
 //! metres (six `f32`; the world's space for an HLOD cell's), then one
 //! record per mip, finest first (`DISTANCE_FIELD_MIP_BYTES`): the bricks along each axis (three
 //! `u32`), the distance scale and bias, the volume-to-virtual-UV scale and add (three `f32` each),
-//! the bricks stored, and where the mip's data starts in the file and how long it is (`u32`).
-//! After the records, each mesh's mips' data, coarsest first so that the mip always loaded leads:
-//! the indirection table (a `u32` per cell, `0xffffffff` where no brick is stored) and the stored
-//! bricks, 512 bytes each.
+//! the bricks stored, and where the mip's data starts in its object — its first byte, zero — and
+//! how long it is (`u32`). The file ends with the records: each mip's data is an object of its own
+//! (`write_distance_fields`), read whole when the atlas takes the mip in and sent compressed like
+//! every object: the indirection table (a `u32` per cell, `0xffffffff` where no brick is stored)
+//! and the stored bricks, 512 bytes each.
 use super::abi::{
     DISTANCE_FIELD_FILE, DISTANCE_FIELD_FLAG_HLOD_CELL, DISTANCE_FIELD_FLAG_TWO_SIDED,
     DISTANCE_FIELD_HEAD_BYTES, DISTANCE_FIELD_MAGIC, DISTANCE_FIELD_MESH_BYTES,
@@ -78,11 +79,13 @@ fn mip_data(mip: &Mip) -> Vec<u8> {
     data
 }
 
-/// The file holding `fields`.
-pub(super) fn encode(fields: &[Placed]) -> Vec<u8> {
+/// The file holding `fields` — its head and records — and each mip's data, in record order (a
+/// mesh's mips finest first): each an object of its own, which its record names from its first
+/// byte.
+pub(super) fn encode(fields: &[Placed]) -> (Vec<u8>, Vec<Vec<u8>>) {
     let records = DISTANCE_FIELD_HEAD_BYTES + fields.len() * DISTANCE_FIELD_MESH_BYTES;
     let mut head = Vec::with_capacity(records);
-    let mut data: Vec<u8> = Vec::new();
+    let mut data = Vec::with_capacity(fields.len() * DISTANCE_FIELD_MIPS);
     words(
         &mut head,
         [
@@ -102,14 +105,10 @@ pub(super) fn encode(fields: &[Placed]) -> Vec<u8> {
             &mut head,
             metres(field.low).into_iter().chain(metres(field.high)),
         );
-        // Coarsest first in the data, finest first in the records.
-        let mut at = vec![(0u32, 0u32); field.mips.len()];
-        for (index, mip) in field.mips.iter().enumerate().rev() {
+        for mip in &field.mips {
             let bytes = mip_data(mip);
-            at[index] = ((records + data.len()) as u32, bytes.len() as u32);
-            data.extend(bytes);
-        }
-        for (mip, (offset, length)) in field.mips.iter().zip(at) {
+            let length = bytes.len() as u32;
+            data.push(bytes);
             words(&mut head, mip.bricks.map(|b| b as u32));
             floats(
                 &mut head,
@@ -118,16 +117,16 @@ pub(super) fn encode(fields: &[Placed]) -> Vec<u8> {
                     .chain(mip.uv_scale)
                     .chain(mip.uv_add),
             );
-            words(&mut head, [mip.stored() as u32, offset, length]);
+            words(&mut head, [mip.stored() as u32, 0, length]);
         }
     }
     debug_assert_eq!(head.len(), records);
-    head.extend(data);
-    head
+    (head, data)
 }
 
-/// The manifest's `distanceFields` section: the file's layout and totals, and every mesh's mips.
-pub(super) fn report(fields: &[Placed], bytes: usize) -> Value {
+/// The manifest's `distanceFields` section: the file's layout and totals, every mesh's mips, and
+/// the objects holding the mips' data in record order (`mips`, the descriptors `objects` lists).
+pub(super) fn report(fields: &[Placed], bytes: usize, objects: Vec<Value>) -> Value {
     let mesh = |placed: &Placed| {
         let mips: Vec<Value> = (placed.field.mips.iter())
             .map(|m| json!({"bricks": m.bricks, "stored": m.stored()}))
@@ -147,34 +146,5 @@ pub(super) fn report(fields: &[Placed], bytes: usize) -> Value {
     json!({"version": DISTANCE_FIELD_VERSION, "file": DISTANCE_FIELD_FILE, "bytes": bytes,
         "headBytes": DISTANCE_FIELD_HEAD_BYTES, "meshBytes": DISTANCE_FIELD_MESH_BYTES,
         "mipBytes": DISTANCE_FIELD_MIP_BYTES, "bricks": stored,
-        "meshes": fields.iter().map(mesh).collect::<Vec<_>>()})
-}
-
-/// Where a mesh's first mip record starts in its record: after its owner, flags and box.
-const FIRST_MIP_AT: usize = 8 + 24;
-/// Where a mip's data starts and how long it is, in the mip's record (two words).
-const DATA_AT: usize = 12 * 4;
-
-/// Adds to `section` the parts the file is read by: `baseBytes`, the head and the records, read
-/// first and whole, `baseSha256` their SHA-256, and `mipSha256`, the SHA-256 of each mip's data —
-/// its table and bricks, which are read alone by a Range — in record order, a mesh's mips finest
-/// first. A file is read whole where its section lacks them.
-pub(super) fn add_parts(section: &mut Value, file: &[u8]) {
-    let word = |at: usize| u32::from_le_bytes([file[at], file[at + 1], file[at + 2], file[at + 3]]);
-    let count = word(8) as usize;
-    let base = DISTANCE_FIELD_HEAD_BYTES + count * DISTANCE_FIELD_MESH_BYTES;
-    let mips: Vec<String> = (0..count * DISTANCE_FIELD_MIPS)
-        .map(|rank| {
-            let (mesh, mip) = (rank / DISTANCE_FIELD_MIPS, rank % DISTANCE_FIELD_MIPS);
-            let record = DISTANCE_FIELD_HEAD_BYTES
-                + mesh * DISTANCE_FIELD_MESH_BYTES
-                + FIRST_MIP_AT
-                + mip * DISTANCE_FIELD_MIP_BYTES;
-            let (offset, length) = (word(record + DATA_AT), word(record + DATA_AT + 4));
-            crate::hash(&file[offset as usize..(offset + length) as usize])
-        })
-        .collect();
-    section["baseBytes"] = json!(base);
-    section["baseSha256"] = json!(crate::hash(&file[..base]));
-    section["mipSha256"] = json!(mips);
+        "meshes": fields.iter().map(mesh).collect::<Vec<_>>(), "mips": objects})
 }

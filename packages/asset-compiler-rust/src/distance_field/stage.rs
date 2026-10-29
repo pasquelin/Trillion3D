@@ -7,10 +7,11 @@
 use super::abi::DISTANCE_FIELD_FILE;
 use super::abi::DISTANCE_FIELD_UNITS_PER_METRE;
 use super::build::build;
-use super::encode::{add_parts, encode, report, Owner, Placed};
+use super::encode::{encode, report, Owner, Placed};
 use super::grid::bound_voxels;
 use super::scene::Scene;
 use super::DistanceFieldSettings;
+use crate::compiler::cache::storage::store_descriptor;
 use crate::compiler::cache::storage::{product, Product};
 use crate::compiler::primitive::triangles::mesh_primitives;
 use crate::trace::surface::mesh::Corners;
@@ -161,21 +162,25 @@ pub(crate) fn build_mesh_fields(inputs: &DistanceFieldInputs<'_>) -> Result<Vec<
     Ok(built.into_iter().flatten().collect())
 }
 
-/// Writes `fields` as `distanceFields.bin` in `directory`; returns its product and the manifest's
-/// `distanceFields` section, none when there is no field.
+/// Writes `fields` as `distanceFields.bin` in `directory`, each mip's data an object of the cache
+/// `o` (`store_descriptor`); returns its product and the manifest's `distanceFields` section,
+/// which names those objects, none when there is no field.
 pub(crate) fn write_distance_fields(
     fields: &[Placed],
     directory: &Path,
+    o: &crate::Options,
     progress: &(impl Fn(Value) + Sync),
 ) -> Result<Option<(Product, Value)>> {
     if fields.is_empty() {
         return Ok(None);
     }
     let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::DistanceFields);
-    let bytes = encode(fields);
+    let (bytes, mips) = encode(fields);
     let written = product(directory, DISTANCE_FIELD_FILE, &bytes)?;
-    let mut section = report(fields, bytes.len());
-    add_parts(&mut section, &bytes);
+    let objects = (mips.par_iter())
+        .map(|data| Ok(store_descriptor(o, data)?.0))
+        .collect::<Result<Vec<_>>>()?;
+    let section = report(fields, bytes.len(), objects);
     let on_cpu: Vec<&str> = (fields.iter())
         .filter_map(|placed| placed.field.on_cpu.as_deref())
         .collect();
