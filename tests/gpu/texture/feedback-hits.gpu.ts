@@ -9,6 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
+import { FEEDBACK_STRIDE } from '../../../packages/sdk-browser/src/materials/virtual/feedback.ts'
 
 type Page = typeof import('./feedbackHitsPage.ts')
 
@@ -52,7 +53,8 @@ test('every pixel asked: each tile is listed once with the pixels that named it,
 
 test('the pixels of the phase alone speak on an ordinary image', async () => {
   const { run } = await page()
-  const [width, height] = [32, 16]
+  // Eight squares by four: thirty-two pixels speak.
+  const [width, height] = [8 * FEEDBACK_STRIDE, 4 * FEEDBACK_STRIDE]
   const requests = target(width, height, (n) => 1 + (n % 5))
   const { errors, listed } = await runOnDawn(run, {
     entries: 8,
@@ -63,8 +65,11 @@ test('the pixels of the phase alone speak on an ordinary image', async () => {
     images: 1,
   })
   assert.deepEqual(errors, [])
-  // Phase 0: the pixel (4x, 4y) of each square of four.
-  const spoken = requests.filter((_, n) => (n % width) % 4 === 0 && Math.floor(n / width) % 4 === 0)
+  // Phase 0: the first pixel of each `FEEDBACK_STRIDE` square.
+  const spoken = requests.filter(
+    (_, n) => (n % width) % FEEDBACK_STRIDE === 0 && Math.floor(n / width) % FEEDBACK_STRIDE === 0,
+  )
+  assert.equal(spoken.length, 32)
   assert.deepEqual(
     new Map(listed[0].ranks.map((rank, at) => [rank, listed[0].weights[at]])),
     weights(spoken),

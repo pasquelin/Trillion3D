@@ -34,6 +34,11 @@ export async function image(
  *  temporal accumulation holds its image earlier. */
 const SETTLE_FRAMES = 64
 
+/** The `limit` a proof comparing images to the bit gives `untilHeld`: the histories forget a change
+ *  in about sixty images each (`imagesToForget`, `forgettingImages`), after as many changes as the
+ *  view's loading and its moves make. */
+export const HELD_WITHIN = 400
+
 /** Renders until the image is settled: held — nothing changing —, or `limit` drawn (`SETTLE_FRAMES`
  *  by default), for a view that draws every image and never holds. Returns the image before the
  *  last, the settled one, the count rendered before it, and whether the engine held it (`held`): a

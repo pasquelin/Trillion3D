@@ -9,7 +9,7 @@ import type { Geometry } from '../../../packages/sdk-core/src/world/geometry/geo
 import { HALF_PI } from '../../../packages/math/src/constants.ts'
 import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
-import { colorAt, untilHeld } from '../../kit/device/sceneImageProof.ts'
+import { colorAt, HELD_WITHIN, untilHeld } from '../../kit/device/sceneImageProof.ts'
 import {
   VIEWPORT,
   batisseur,
@@ -21,9 +21,6 @@ import { compilePages } from './compiledPages.ts'
 import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 
 const camera = cameraFace()
-/** The images a plane may take to be held: the histories forget a change in about sixty images each
- *  (`imagesToForget`, `forgettingImages`), after as many changes as the view's loading makes. */
-const HELD_WITHIN = 400
 /** A one-texel data map of `rgba` (0–255), linear, as a glTF stores its data maps. */
 export const texel = (...rgba: number[]) => G.dataTexture(new Uint8Array(rgba), 1, 1)
 
@@ -40,24 +37,25 @@ export type PlaneOptions = {
   sceneLights?: ReturnType<typeof createSceneLightStore>
 }
 
-/** The lamp between the plane and the eye: its mirror highlight at the plane's centre. The image is
- *  read at a fixed exposure of one: the automatic exposure follows the image's own brightness, so a
- *  highlight would dim the base the proofs compare it to, and two images of one surface would differ
- *  by where the adaptation stood when each was held. */
-function centreLamp() {
+/** Lamps between the plane and the eye at `xs` along it: each draws its mirror highlight there. The
+ *  image is read at a fixed exposure of one: the automatic exposure follows the image's own
+ *  brightness, so a highlight would dim the base the proofs compare it to, and two images of one
+ *  surface would differ by where the adaptation stood when each was held. */
+export function lampsAt(...xs: number[]) {
   const sceneLights = createSceneLightStore()
   sceneLights.setEnvironment({ exposure: 1 })
-  sceneLights.add({
-    id: 'lamp',
-    kind: 'point',
-    position: [0, 0, 1.2],
-    color: [1, 1, 1],
-    // In candelas: at a fixed exposure no adaptation lifts a unitless lamp (16/10000 cd a unit, lightUnits.ts).
-    intensity: 2,
-    intensityUnits: 'candelas',
-    range: 20,
-    castsShadow: false,
-  })
+  for (const x of xs)
+    sceneLights.add({
+      id: `lamp ${x}`,
+      kind: 'point',
+      position: [x, 0, 1.2],
+      color: [1, 1, 1],
+      // In candelas: at a fixed exposure no adaptation lifts a unitless lamp (16/10000 cd a unit, lightUnits.ts).
+      intensity: 2,
+      intensityUnits: 'candelas',
+      range: 20,
+      castsShadow: false,
+    })
   return sceneLights
 }
 
@@ -72,7 +70,7 @@ export async function plane(
     clearCoatNormal = false,
     geometry = G.planeGeometry(2.4, 2.4),
     compiled = false,
-    sceneLights = centreLamp(),
+    sceneLights = lampsAt(0),
   }: PlaneOptions = {},
 ) {
   const builder = batisseur()

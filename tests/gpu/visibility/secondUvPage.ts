@@ -6,9 +6,8 @@
 // set at the tail of the normal atlas, `uv1Tail.ts`) or through quantized pages that store it
 // (`compiledPages.ts`), drawn opaque or blended.
 import * as G from '../../../packages/sdk-browser/src/scene/host/graph/graph.fixture.ts'
-import { createSceneLightStore } from '../../../packages/sdk-core/src/scene/light/store.ts'
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
-import { level, MATTE, plane, type PlaneOptions } from './physicalLobesPage.ts'
+import { lampsAt, level, MATTE, plane, type PlaneOptions } from './physicalLobesPage.ts'
 
 /** Where each lamp's mirror highlight lands: the plane's point between the eye (z 3) and a lamp
  *  (x ±0.6, z 1.2), on the texel each side of a two-texel map. */
@@ -36,17 +35,7 @@ export type SideReading = { left: number; right: number }
 /** Each case's held image read each side. */
 export const secondUv = () =>
   runOnDevice<{ readings: Record<string, SideReading> }>(async (device, events, result) => {
-    const lamps = createSceneLightStore()
-    for (const x of [-0.6, 0.6])
-      lamps.add({
-        id: `lamp ${x}`,
-        kind: 'point',
-        position: [x, 0, 1.2],
-        color: [1, 1, 1],
-        intensity: 2,
-        range: 20,
-        castsShadow: false,
-      })
+    const lamps = lampsAt(-0.6, 0.6)
     const cases: Record<string, [number, PlaneOptions]> = {
       first: [0, {}],
       floats: [1, {}],

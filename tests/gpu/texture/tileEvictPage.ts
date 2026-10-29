@@ -7,6 +7,7 @@ import { createTilePublish } from '../../../packages/sdk-browser/src/materials/v
 import { stampedPlace } from '../../../packages/sdk-browser/src/materials/virtual/stamp.fixture.ts'
 import { poolEncoding } from '../../../packages/sdk-browser/src/materials/texture/blockFormats.ts'
 import { tileLayout } from '../../../packages/sdk-browser/src/materials/texture/tiles.ts'
+import { pipelinesSettled } from '../../../packages/sdk-browser/src/lighting/deferred/compileLedger.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 /** A target of `width × height` pixels: the first `read` ask a level-0 tile each, the others the
@@ -39,6 +40,9 @@ export async function run(kase: TileEvictCase) {
   const data = atlas('data', 0, color.pages.entries, 1)
   const feedback = createWebgpuTileFeedback(device, color.pages.entries + data.pages.entries)
   const published = createTilePublish(device, feedback, [color, data])
+  // The reduction and the sort compile off the frame, and an image publishes nothing meanwhile
+  // (`publish.ts`): the images here begin once they have.
+  await pipelinesSettled(device)
   for (const each of [color, data]) each.pinTails(device.queue, () => {})
   const level0 = (i: number) => ({ slot: 0, level: 0, tx: i % 32, ty: Math.floor(i / 32) })
   const ancestor = { slot: 0, level: 1, tx: 0, ty: 0 },
@@ -68,6 +72,8 @@ export async function run(kase: TileEvictCase) {
     feedback.submitted()
     await feedback.settled()
   }
+  if (published.clock !== 1 + kase.frames)
+    throw new Error(`${published.clock - 1} of ${kase.frames} images published`)
   // What the pixels read, by the stamp's own mirror on the table the GPU read.
   const kept = new Set<number>()
   for (let n = 0; n < width * height; n++)
