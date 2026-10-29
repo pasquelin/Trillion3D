@@ -11,10 +11,26 @@ import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
 import { math } from '../../../packages/sdk-core/src/world/math/index.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
+import { settleBy } from '../world/proofWorld.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 import { luminance } from '../../../packages/math/src/color/luminance.fixture.ts'
 
-const SETTLE_FRAMES = 90
+/** The most frames a world is given to open its session: it opens once the quality is decided and the models are loaded, and a frame drawn before draws nothing. */
+const OPENING_FRAMES = 1200
+
+/** The device of the world's session, once the first frames have opened it. */
+async function openedDevice(world: ReturnType<typeof createWorld>) {
+  for (let i = 0; i < OPENING_FRAMES; i++) {
+    world.render()
+    await animationFrame()
+    try {
+      return sessionOf(world).gpuDevice
+    } catch {
+      /* not drawing yet */
+    }
+  }
+  throw new Error(`the world drew nothing after ${OPENING_FRAMES} frames`)
+}
 
 /** How a case draws the light's shadow. */
 type Case = {
@@ -35,7 +51,7 @@ type Timeline = {
 }
 
 /** One image of the scene in a fresh world (the floor, a box, a point spot above it) and the timeline that led to it. */
-async function image({ castShadow, shadowOnePassProjection, without }: Case) {
+async function image({ castShadow, shadowOnePassProjection, without }: Case, label: string) {
   const canvas = document.createElement('canvas')
   canvas.style.cssText = 'width:320px;height:180px;display:block'
   document.body.append(canvas)
@@ -80,18 +96,26 @@ async function image({ castShadow, shadowOnePassProjection, without }: Case) {
     world.camera.position.set(1.5, 4.2, 7.5)
     world.camera.lookAt(0, 0.3, 0)
     world.camera.updateMatrixWorld(true)
+    // The view held, by the proofs' own wait (`settleBy`): a world read at a fixed count of calls can be read before its programs are compiled and its shadow maps drawn.
     let drawn = 0,
-      lastDrawn = -1
+      lastDrawn = -1,
+      call = 0
     const held: number[] = []
-    for (let i = 0; i < SETTLE_FRAMES; i++) {
-      await animationFrame()
+    const holding = await settleBy(await openedDevice(world), () => {
       world.render()
-      if (lastFrameOf(world)?.frameHeld) held.push(i)
+      const metrics = lastFrameOf(world)
+      if (metrics?.frameHeld) held.push(call)
       else {
         drawn++
-        lastDrawn = i
+        lastDrawn = call
       }
-    }
+      call++
+      return metrics
+    })
+    if (!holding)
+      throw new Error(
+        `the view did not hold within the proofs' settle budget: ${JSON.stringify({ world: label, calls: call, drawn, held: held.length, lastDrawn, castShadow, shadowOnePassProjection, without })}`,
+      )
     await world.awaitPages()
     const timeline: Timeline = {
       drawn,
@@ -238,35 +262,50 @@ const EFFECTS: Record<string, Record<string, unknown>> = {
  *  histories (occlusion, screen probes) then hold a different number of them. */
 async function differingWithout(without: Record<string, unknown>) {
   const options = { castShadow: true, shadowOnePassProjection: true, without }
-  await image(options)
-  const [a, b] = [await image(options), await image(options)]
+  await image(options, 'withoutEffect')
+  const [a, b] = [await image(options, 'withoutEffect'), await image(options, 'withoutEffect')]
   return compareImages(a.pixels, b.pixels, { alpha: false }).differentPixels
 }
 
 export async function run(): Promise<Reading> {
-  const { pixels: open, timeline: openTimeline } = await image({
-    castShadow: false,
-    shadowOnePassProjection: true,
-  })
-  const { pixels: onePass, timeline: onePassTimeline } = await image({
-    castShadow: true,
-    shadowOnePassProjection: true,
-  })
-  const { pixels: perLight, timeline: perLightTimeline } = await image({
-    castShadow: true,
-    shadowOnePassProjection: false,
-  })
+  const { pixels: open, timeline: openTimeline } = await image(
+    {
+      castShadow: false,
+      shadowOnePassProjection: true,
+    },
+    'open',
+  )
+  const { pixels: onePass, timeline: onePassTimeline } = await image(
+    {
+      castShadow: true,
+      shadowOnePassProjection: true,
+    },
+    'onePass',
+  )
+  const { pixels: perLight, timeline: perLightTimeline } = await image(
+    {
+      castShadow: true,
+      shadowOnePassProjection: false,
+    },
+    'perLight',
+  )
   const { differentPixels, maxChannelError } = compareImages(onePass, perLight, { alpha: false })
-  const { pixels: warm, timeline: warmTimeline } = await image({
-    castShadow: true,
-    shadowOnePassProjection: false,
-  })
+  const { pixels: warm, timeline: warmTimeline } = await image(
+    {
+      castShadow: true,
+      shadowOnePassProjection: false,
+    },
+    'warmPerLight',
+  )
   const warmAgainstOnePass = compareImages(onePass, warm, { alpha: false })
   const warmAgainstFirst = compareImages(perLight, warm, { alpha: false })
-  const { pixels: again, timeline: againTimeline } = await image({
-    castShadow: true,
-    shadowOnePassProjection: true,
-  })
+  const { pixels: again, timeline: againTimeline } = await image(
+    {
+      castShadow: true,
+      shadowOnePassProjection: true,
+    },
+    'again',
+  )
   const same = compareImages(onePass, again, { alpha: false })
   const withoutEffect: Reading['withoutEffect'] = {}
   for (const [name, settings] of Object.entries(EFFECTS))
