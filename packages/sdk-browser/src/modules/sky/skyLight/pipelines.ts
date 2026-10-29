@@ -18,6 +18,7 @@ import {
   SKY_FACE_AIR_SHADOWED,
   fogFaceProgram,
   skyFaceProgram,
+  skyViewCapture,
 } from './faceWgsl.ts'
 import { FILTER_ENTRIES, FILTER_CODE } from './filterWgsl.ts'
 import { IRRADIANCE_CODE, IRRADIANCE_ENTRIES } from './irradianceWgsl.ts'
@@ -54,6 +55,7 @@ type Asked = ReturnType<typeof askedPipelines>
 function skyLightLayouts(device: GPUDevice, shape: AirShape) {
   const layout = (entries: GPUBindGroupLayoutEntry[]) => device.createBindGroupLayout({ entries })
   return {
+    skyView: layout(airLayoutEntries(skyViewCapture(shape).bindings, COMPUTE, shape)),
     skyAir: layout(airLayoutEntries(SKY_FACE_AIR, FRAGMENT, shape)),
     skyAirShadowed: layout(airLayoutEntries(SKY_FACE_AIR_SHADOWED, FRAGMENT, shape)),
     fogAir: layout(airLayoutEntries(FOG_FACE_AIR, FRAGMENT, shape)),
@@ -124,9 +126,14 @@ function faceDraws(
   }
 }
 
-/** The mips' downsample, the roughness filter and the harmonics' two sums, the filtered cube's and
- *  the captured cube's. */
-function filterStages(device: GPUDevice, compute: Asked['compute'], layouts: SkyLightLayouts) {
+/** The sky table the faces are drawn from, the mips' downsample, the roughness filter and the
+ *  harmonics' two sums, the filtered cube's and the captured cube's. */
+function filterStages(
+  device: GPUDevice,
+  compute: Asked['compute'],
+  layouts: SkyLightLayouts,
+  shape: AirShape,
+) {
   const filterModule = device.createShaderModule({
     label: 'Trillion3D sky light filter',
     code: FILTER_CODE,
@@ -136,6 +143,15 @@ function filterStages(device: GPUDevice, compute: Asked['compute'], layouts: Sky
     code: IRRADIANCE_CODE,
   })
   return {
+    skyView: compute(
+      device.createShaderModule({
+        label: 'Trillion3D sky light sky table',
+        code: skyViewCapture(shape).code,
+      }),
+      layouts.skyView,
+      'skyViewMain',
+      'Trillion3D sky light sky table',
+    ),
     downsample: compute(
       filterModule,
       layouts.filter,
@@ -165,7 +181,8 @@ function filterStages(device: GPUDevice, compute: Asked['compute'], layouts: Sky
 
 /**
  * THE CAPTURE'S LAYOUTS AND PIPELINES, asked at once, off the frame (`PreparedPipeline.ask`): the
- * three face draws, the mips' downsample and the filter, and the harmonics' two sums, the air's
+ * sky table the sky of the faces reads, the three face draws, the mips' downsample and the filter,
+ * and the harmonics' two sums, the air's
  * programs written for `shape`; the clouds' tracing (the clouds part's own, `createCloudTracePass`) is asked
  * when first wanted, one for each key the capture traces with (`cloudTrace`). The cube is read by a
  * sampler that takes the nearest texel and the nearest level, which the face composition's cloud
@@ -198,7 +215,7 @@ export function createSkyLightPipelines(
     ),
     pipelines: {
       ...faceDraws(device, draw, layouts, shape),
-      ...filterStages(device, compute, layouts),
+      ...filterStages(device, compute, layouts, shape),
     },
     /** The clouds' tracing of the key `key`, asked when first wanted: the faces draw no cloud until
      *  it is compiled. */

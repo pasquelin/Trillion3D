@@ -57,6 +57,8 @@ function createBlocks(device: GPUDevice) {
   return {
     face: block('Trillion3D sky light faces', CUBE_FACES),
     frame: block('Trillion3D sky light cloud frames', CUBE_FACES),
+    /** The frame the sky table is built and read in: one for the capture, whatever the face. */
+    skyFrame: block('Trillion3D sky light sky table frame', 1),
     trace: block('Trillion3D sky light cloud traces', CUBE_FACES),
     filter: block('Trillion3D sky light filter blocks', FILTER_SLOTS),
     irradiance: block('Trillion3D sky light harmonics block', 1),
@@ -64,6 +66,17 @@ function createBlocks(device: GPUDevice) {
      *  one's. */
     copy: block('Trillion3D sky light cubemap copies', 2 * CUBE_FACES),
   }
+}
+
+/** The sky table the faces' sky is read from, of the size the quality settings give the sky's
+ *  own: written by the table's builder, then sampled by the faces. */
+function createSkyView(device: GPUDevice, { skyView }: SkyLightPipelines['shape']) {
+  return device.createTexture({
+    label: 'Trillion3D sky light sky table',
+    size: { width: skyView.width, height: skyView.height },
+    format: 'rgba16float',
+    usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+  })
 }
 
 /** The textures of a face's clouds: the traced colour and depth at `cloudSide`, and the depth
@@ -178,6 +191,7 @@ export function createSkyLightTargets(
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.UNIFORM,
   })
   const blocks = createBlocks(device)
+  const skyView = createSkyView(device, pipelines.shape)
   const clouds = createCloudImages(device, cloudSide)
   const cloudViews = {
     colour: clouds.colour.createView(),
@@ -204,6 +218,9 @@ export function createSkyLightTargets(
     blocks,
     cloudViews,
     groups,
+    /** The sky table of the capture, and its view. */
+    skyView,
+    skyViewView: skyView.createView(),
     /** The views the harmonics are summed from, a cube each. */
     filteredCubes,
     /** The view the lighting reads the filtered cubes through: both, as a cube array. */
@@ -211,7 +228,8 @@ export function createSkyLightTargets(
     /** Face `face` of the captured cube, mip 0, as a colour target. */
     faceTargets: cubeFaceTargets(captured),
     destroy() {
-      for (const texture of [captured, filtered, ...Object.values(clouds)]) texture.destroy()
+      for (const texture of [captured, filtered, skyView, ...Object.values(clouds)])
+        texture.destroy()
       for (const buffer of [harmonics, ...Object.values(blocks)]) buffer.destroy()
     },
   }

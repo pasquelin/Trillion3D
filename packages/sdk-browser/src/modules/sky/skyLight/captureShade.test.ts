@@ -5,6 +5,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { fakeDevice } from '../../../../../../tests/kit/fakeDevice/fakeDevice.ts'
 import { AIR_BINDING } from '../../../lighting/atmosphere/binding.ts'
+import { FRAME_FLOATS } from '../../../lighting/atmosphere/frame.ts'
 import { cloudShadowStandIn } from '../../../lighting/atmosphere/cloudShadowStandIn.ts'
 import { DEFAULT_AIR_SHAPE } from '../../../lighting/atmosphere/shape.ts'
 import { groupsFor, type FaceHolds } from './captureGroups.ts'
@@ -29,7 +30,16 @@ function setUp(shadowFromOpaque: boolean) {
   const buffer = (usage: number) => device.createBuffer({ size: BLOCK_STRIDE * 6, usage })
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const UNIFORM = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-  const targets = { blocks: { face: buffer(UNIFORM) } } as unknown as SkyLightTargets
+  const targets = {
+    blocks: { face: buffer(UNIFORM), skyFrame: buffer(UNIFORM) },
+    skyViewView: device
+      .createTexture({
+        size: { width: 4, height: 4 },
+        format: 'rgba16float',
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+      })
+      .createView(),
+  } as unknown as SkyLightTargets
   const air = {
     buffer: buffer(STORAGE),
     transmittance: texture(),
@@ -54,7 +64,7 @@ function setUp(shadowFromOpaque: boolean) {
   const holds: FaceHolds = { traceGroups: [] }
   const groups = (shade?: ReturnType<typeof cloudShadowStandIn>) =>
     groupsFor(device, made, holds, targets, input(shade))
-  return { kit, holds, groups, texture }
+  return { kit, holds, groups, texture, targets }
 }
 
 const entryAt = (group: GPUBindGroup | undefined, binding: number) =>
@@ -93,5 +103,20 @@ test('the sky shaded by the opaque scene binds the same shade', () => {
   assert.equal(entryAt(holds.skyGroup, AIR_BINDING.cloudSkyAO)?.resource, shade.ao)
   const made = kit.bindGroups.length
   groups({ ...shade, ao: texture() })
-  assert.equal(kit.bindGroups.length - made, 2, 'both groups are made again over the new map')
+  assert.equal(
+    kit.bindGroups.length - made,
+    3,
+    'the sky table’s group and both sky groups are made again over the new map',
+  )
+})
+
+test('the sky table is built and read in the capture’s one frame', () => {
+  const { holds, groups, targets } = setUp(false)
+  groups()
+  const frame = { buffer: targets.blocks.skyFrame, size: FRAME_FLOATS * 4 }
+  assert.deepEqual(entryAt(holds.skyViewGroup, AIR_BINDING.frame)?.resource, frame)
+  assert.deepEqual(entryAt(holds.skyGroup, AIR_BINDING.frame)?.resource, frame)
+  // The builder writes the table the faces sample.
+  assert.equal(entryAt(holds.skyViewGroup, AIR_BINDING.table)?.resource, targets.skyViewView)
+  assert.equal(entryAt(holds.skyGroup, AIR_BINDING.skyView)?.resource, targets.skyViewView)
 })

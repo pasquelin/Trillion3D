@@ -20,6 +20,7 @@ import type { SkyLightPipelines } from './pipelines.ts'
 import type { SkyLightTargets } from './targets.ts'
 
 const PASS: GPUComputePassDescriptor = { label: 'Trillion3D sky light clouds' }
+const SKY_TABLE_PASS: GPUComputePassDescriptor = { label: 'Trillion3D sky light sky table' }
 
 /**
  * THE CAPTURE'S FACES: the sky and the distant fog drawn into the faces of the cube by render
@@ -180,9 +181,11 @@ const shadowedSky = (made: SkyLightPipelines, input: SkyLightInputs) =>
     : undefined
 
 /** Whether the sky the faces draw is compiled: a capture draws no face with the unshaded sky in
- *  place of the shaded one, which would move its slices on over a wrong cube. */
+ *  place of the shaded one, nor from a sky table not built yet, which would move its slices on over
+ *  a wrong cube. */
 export const skyCompiled = (made: SkyLightPipelines, input: SkyLightInputs) =>
-  shadowedSky(made, input)?.ready ?? true
+  (shadowedSky(made, input)?.ready ?? true) &&
+  (!made.shape.skyView.fast || made.pipelines.skyView.ready)
 
 /** The render pass of face `face`: the sky, the fog over it, then the clouds laid over. */
 function facePass(
@@ -227,6 +230,39 @@ function facePass(
   pass.end()
 }
 
+/** The sky table the sky of the faces reads, built from the capture's place in a frame that does not
+ *  turn with the face (the first face's camera: any one would do, the faces read the table in the
+ *  frame it is built in), before the faces are drawn. None where the quality settings ask for no
+ *  table (`skyView.fast`). */
+function buildSkyTable(
+  device: GPUDevice,
+  made: SkyLightPipelines,
+  holds: FaceHolds,
+  encoder: GPUCommandEncoder,
+  t: SkyLightTargets,
+  input: SkyLightInputs,
+) {
+  const { skyView } = made.shape
+  const pipeline = skyView.fast ? made.pipelines.skyView.get() : undefined
+  if (!pipeline || !input.air) return
+  const camera = faceCamera(0, input.position)
+  writeAirFrame(
+    frameFloats,
+    { eye: input.position, world: camera.world, perspective: 1 },
+    input.air.resolved,
+    camera.viewProj,
+    camera.inverseViewProj,
+    1,
+    1,
+  )
+  writeBlock(device, t.blocks.skyFrame, 0, frameFloats)
+  const pass = encoder.beginComputePass(SKY_TABLE_PASS)
+  pass.setPipeline(pipeline)
+  pass.setBindGroup(0, holds.skyViewGroup)
+  pass.dispatchWorkgroups(workgroupCount(skyView.width, 8), workgroupCount(skyView.height, 8), 1)
+  pass.end()
+}
+
 /** The sky (`withSky`) and the clouds (`withClouds`) of faces `first` to `end`. */
 function drawFaces(
   device: GPUDevice,
@@ -243,6 +279,7 @@ function drawFaces(
   const work = faceWork(withSky, withClouds, input)
   if (!work.atmosphereDrawn && !work.composing && !work.clearing) return
   groupsFor(device, made, holds, t, input)
+  if (work.atmosphereDrawn) buildSkyTable(device, made, holds, encoder, t, input)
   const traced = withClouds ? capturedClouds(input) : undefined
   for (let face = first; face < end; face++) {
     writeFace(device, t, face, input, !!traced)

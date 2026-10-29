@@ -16,7 +16,7 @@ import { CLOUD_TRACE_LAYOUT, cloudTraceEntries } from '../clouds/traceLayout.ts'
 import { CLOUD_TRACE_AIR } from '../clouds/traceWgsl.ts'
 import { capturedClouds, type CapturedClouds } from './captureClouds.ts'
 import { sameHeld, type Held, type SkyLightInputs } from './captureInputs.ts'
-import { FACE_LAYOUT, SKY_FACE_AIR, SKY_FACE_AIR_SHADOWED } from './faceWgsl.ts'
+import { FACE_LAYOUT, SKY_FACE_AIR, SKY_FACE_AIR_SHADOWED, skyViewCapture } from './faceWgsl.ts'
 import { BLOCK_STRIDE, CUBE_FACES } from './layout.ts'
 import type { SkyLightPipelines } from './pipelines.ts'
 import type { SkyLightTargets } from './targets.ts'
@@ -25,6 +25,7 @@ import type { SkyLightTargets } from './targets.ts'
  *  were made of change. */
 export interface FaceHolds {
   faceGroup?: { for: SkyLightTargets; group: GPUBindGroup }
+  skyViewGroup?: GPUBindGroup
   skyHeld?: Held
   skyGroup?: GPUBindGroup
   shadowedHeld?: Held
@@ -46,38 +47,53 @@ function skyAndFogGroups(
   device: GPUDevice,
   { layouts, shape }: SkyLightPipelines,
   holds: FaceHolds,
+  t: SkyLightTargets,
   input: SkyLightInputs,
 ) {
   const { fog } = input
   const air = input.atmosphere ? input.air : undefined
   const shade = input.clouds?.cloudShadow ?? cloudShadowStandIn(device)
   const shadeHeld = [shade.block, shade.maps[0], shade.maps[1], shade.ao]
-  const skyKey = air && [air.buffer, air.transmittance, air.multiScatter, air.sampler, ...shadeHeld]
-  if (air && skyKey && !sameHeld(holds.skyHeld, skyKey)) {
+  const skyKey = air && [
+    air.buffer,
+    air.transmittance,
+    air.multiScatter,
+    air.sampler,
+    ...shadeHeld,
+    t.blocks.skyFrame,
+    t.skyViewView,
+  ]
+  const resources = air && {
+    air: { buffer: air.buffer },
+    transmittance: air.transmittance,
+    multiScatter: air.multiScatter,
+    sampler: air.sampler,
+    frame: { buffer: t.blocks.skyFrame, size: FRAME_FLOATS * 4 },
+    skyView: t.skyViewView,
+    ...cloudShadeResources(shade),
+  }
+  if (air && resources && skyKey && !sameHeld(holds.skyHeld, skyKey)) {
     holds.skyHeld = skyKey
+    holds.skyViewGroup = device.createBindGroup({
+      layout: layouts.skyView,
+      entries: airBindEntries(skyViewCapture(shape).bindings, shape, {
+        ...resources,
+        table: t.skyViewView,
+      }),
+    })
     holds.skyGroup = device.createBindGroup({
       layout: layouts.skyAir,
-      entries: airBindEntries(SKY_FACE_AIR, shape, {
-        air: { buffer: air.buffer },
-        transmittance: air.transmittance,
-        multiScatter: air.multiScatter,
-        sampler: air.sampler,
-        ...cloudShadeResources(shade),
-      }),
+      entries: airBindEntries(SKY_FACE_AIR, shape, resources),
     })
   }
   const maps = input.part.quality.skyLightShadowFromOpaque ? air?.maps : undefined
   const shadowedKey = skyKey && maps && [...skyKey, ...Object.values(maps)]
-  if (air && maps && shadowedKey && !sameHeld(holds.shadowedHeld, shadowedKey)) {
+  if (resources && maps && shadowedKey && !sameHeld(holds.shadowedHeld, shadowedKey)) {
     holds.shadowedHeld = shadowedKey
     holds.shadowedGroup = device.createBindGroup({
       layout: layouts.skyAirShadowed,
       entries: airBindEntries(SKY_FACE_AIR_SHADOWED, shape, {
-        air: { buffer: air.buffer },
-        transmittance: air.transmittance,
-        multiScatter: air.multiScatter,
-        sampler: air.sampler,
-        ...cloudShadeResources(shade),
+        ...resources,
         ...shadowMapResources(maps),
       }),
     })
@@ -151,7 +167,7 @@ export function groupsFor(
         entries: [{ binding: 0, resource: { buffer: t.blocks.face, size: FACE_LAYOUT.words * 4 } }],
       }),
     }
-  skyAndFogGroups(device, made, holds, input)
+  skyAndFogGroups(device, made, holds, t, input)
   const traced = capturedClouds(input)
   if (!traced || !input.fog) return
   const { air, clouds, key } = traced

@@ -139,6 +139,20 @@ fn skyViewUv(hitsGround:bool,dirTable:vec3f,height:f32)->vec2f{
 }
 `
 
+/** The sky table read along a direction of the scene: whether a ray from the eye at `height` reads it
+ *  (the quality settings ask for a table, and the eye stands inside the air, with a hair of room at the
+ *  top so that an eye at the top still reads it and the march starts from a ray that does enter), and
+ *  the table's texel along `dir`: the light scattered into the ray, its grey transmittance in the alpha.
+ *  The program declares `skyViewTable`, `tableSampler` and the frame. */
+export const SKY_VIEW_READ = `${SKY_VIEW_COORDINATES}
+const SKY_TABLE_EDGE:f32=1.00000155763;
+fn skyViewInside(height:f32)->bool{return SKY_FAST&&height<topRadius()*SKY_TABLE_EDGE;}
+fn skyViewScattered(dir:vec3f,height:f32)->vec4f{
+ let dirTable=eyeToTable(dir);
+ let hitsGround=raySphereNearest(vec3f(0.0,0.0,height),dirTable,vec3f(0.0),bottomRadius())>=0.0;
+ return textureSampleLevel(skyViewTable,tableSampler,skyViewUv(hitsGround,dirTable,height),0.0);
+}`
+
 /** The scene's metres of a point of the sky table's frame (up the table's z): the table's axes put
  *  the point back in the planet's (`planetToScene`). */
 const SKY_VIEW_TO_SCENE = `${PLANET_TO_SCENE}
@@ -146,8 +160,10 @@ fn airToScene(p:vec3f)->vec3f{
  return planetToScene(frame.forward.xyz*p.x+frame.left.xyz*p.y+frame.up.xyz*p.z);
 }`
 
-/** The sky table's builder: one thread a texel, every image. */
-export const skyViewProgram = (shape: AirShape) =>
+/** The sky table's builder: one thread a texel, every image. The opaque scene's shadows shade the
+ *  march where `shadowed` (the shape's, unless given: the sky light's capture builds its table
+ *  unshaded). */
+export const skyViewProgram = (shape: AirShape, shadowed = shape.shadows) =>
   airProgram(
     {
       air: 'read',
@@ -155,7 +171,7 @@ export const skyViewProgram = (shape: AirShape) =>
       transmittance: true,
       multiScatter: true,
       frame: true,
-      shadow: shape.shadows,
+      shadow: shadowed,
       cloudShadow: true,
     },
     `${SKY_VIEW_COORDINATES}${SKY_VIEW_TO_SCENE}

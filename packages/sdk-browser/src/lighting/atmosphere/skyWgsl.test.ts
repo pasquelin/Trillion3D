@@ -191,7 +191,7 @@ test('the place of a capture is held over the ground, not under the top of the a
 })
 
 test('the sky the sky light captures is held to what the view’s sky is held to, no more', () => {
-  const skyFaceAt = (preExposure: number) =>
+  const skyFaceAt = (preExposure: number, height = TOP_RADIUS * 2) =>
     shaderRun<{ skyFaceMain: (pixel: number[]) => number[] }>(
       skyFaceProgram(DEFAULT_AIR_SHAPE).code,
       ['skyFaceMain'],
@@ -204,6 +204,8 @@ test('the sky the sky light captures is held to what the view’s sky is held to
         airSuns: () => ({ count: 1, list: [] }),
         atmo: () => [1, 1, 1, 1],
         face: { eye: [0, 0, 0, 0], size: [0, 0, 0, preExposure] },
+        // Above the air the sky table is not read: the face marches.
+        frame: { camera: [0, 0, 0, height] },
         moveToTopAtmosphere: (start: number[]) => [...start, 1],
         integrateAir: () => ({ radiance: [1e6, 40000, 10] }),
       },
@@ -212,4 +214,29 @@ test('the sky the sky light captures is held to what the view’s sky is held to
   assert.deepEqual(skyFaceAt(1)([0, 0, 0, 0]), [SKY_MAX_RADIANCE, SKY_MAX_RADIANCE, 10, 1])
   // The radiance is multiplied by the capture's pre-exposure first and held after it.
   assert.deepEqual(skyFaceAt(0.25)([0, 0, 0, 0]), [SKY_MAX_RADIANCE, 10000, 2.5, 1])
+})
+
+test('the sky of a face inside the air is read from the sky table built in the capture’s frame', () => {
+  const read: number[][] = []
+  const face = shaderRun<{ skyFaceMain: (pixel: number[]) => number[] }>(
+    skyFaceProgram(DEFAULT_AIR_SHAPE).code,
+    ['skyFaceMain'],
+    {
+      pixelDirection: () => [0, 1, 0],
+      cubeToScene: (dir: number[]) => dir,
+      bottomRadius: () => 6360,
+      topRadius: () => TOP_RADIUS,
+      atmo: () => [2, 2, 2, 2],
+      face: { eye: [0, 0, 0, 0], size: [0, 0, 0, 0.5] },
+      frame: { camera: [0, 0, 0, 6360.5] },
+      skyViewScattered: (dir: number[], height: number) => (
+        read.push([...dir, height]),
+        [3, 4, 5, 0.1]
+      ),
+      integrateAir: () => assert.fail('the table is read, nothing is marched'),
+    },
+  ).skyFaceMain
+  // The table's light times the sky factor times the pre-exposure; the table's alpha is not written.
+  assert.deepEqual(face([0, 0, 0, 0]), [3, 4, 5, 1])
+  assert.deepEqual(read, [[0, 1, 0, 6360.5]])
 })

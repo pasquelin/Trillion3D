@@ -8,7 +8,7 @@ import { AIR_TO_SCENE } from './hazeWgsl.ts'
 import { airProgram } from './programs.ts'
 import type { AirShape } from './shape.ts'
 import { SKY_MAX_RADIANCE } from './layout.ts'
-import { SKY_VIEW_COORDINATES } from './tablesWgsl.ts'
+import { SKY_VIEW_READ } from './tablesWgsl.ts'
 
 /** The sky's functions: the disks of the lights, and the march of a sky pixel. */
 const SKY_FUNCTIONS = `/** The disks of the air's lights seen along \`dir\` from \`p\`, a ray that misses the planet: for each
@@ -88,14 +88,11 @@ export const skyProgram = (shape: AirShape) =>
       frame: true,
       flags: true,
     },
-    `${SKY_VIEW_COORDINATES}${AIR_TO_SCENE}
+    `${SKY_VIEW_READ}${AIR_TO_SCENE}
 /** The largest radiance written (\`SKY_MAX_RADIANCE\`). */
 const MAX_RADIANCE:f32=${SKY_MAX_RADIANCE}.0;
 /** The largest luminance of a light's disk, per channel. */
 const MAX_DISK:f32=64000.0;
-/** The eye's height over the top of the air, as a ratio, under which the sky table holds: a hair over
- *  one, so that an eye at the top still reads it and the march starts from a ray that does enter. */
-const SKY_TABLE_EDGE:f32=1.00000155763;
 ${SKY_FUNCTIONS}
 @fragment fn skyMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{
  if((textureLoad(flags,vec2i(pixel.xy),0).r&${SURFACE_MODEL_MASK}u)!=0u){discard;}
@@ -104,10 +101,8 @@ ${SKY_FUNCTIONS}
  let height=ray.height;
  if(frame.hidden.x!=0.0){return vec4f(0.0,0.0,0.0,1.0);}
  var scattered:vec4f;
- if(SKY_FAST&&height<topRadius()*SKY_TABLE_EDGE){
-  let dirTable=eyeToTable(dir);
-  let hitsGround=raySphereNearest(vec3f(0.0,0.0,height),dirTable,vec3f(0.0),bottomRadius())>=0.0;
-  scattered=textureSampleLevel(skyViewTable,tableSampler,skyViewUv(hitsGround,dirTable,height),0.0);
+ if(skyViewInside(height)){
+  scattered=skyViewScattered(dir,height);
  }else{
   scattered=marchedSky(ray.origin,dir,blueNoiseScalar(vec2u(pixel.xy),frame.index.x));
  }

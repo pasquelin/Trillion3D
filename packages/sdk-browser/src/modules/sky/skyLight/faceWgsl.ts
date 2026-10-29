@@ -7,8 +7,10 @@ import {
   AIR_FOG_BINDINGS,
 } from '../../../lighting/atmosphere/programs.ts'
 import { GROUND_SKY_RADIANCE, groundSkyMarch } from '../../../lighting/atmosphere/captureWgsl.ts'
+import { SKY_VIEW_READ, skyViewProgram } from '../../../lighting/atmosphere/tablesWgsl.ts'
 import { preExposedWgsl } from '../../../post/exposure/preWgsl.ts'
 import { AIR_TO_SCENE, SCENE_TO_PLANET } from '../../../lighting/atmosphere/hazeWgsl.ts'
+import { ATMOSPHERE_SLOT } from '../../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { SKY_MAX_RADIANCE } from '../../../lighting/atmosphere/layout.ts'
 import type { AirShape } from '../../../lighting/atmosphere/shape.ts'
 import { fogBlockOf } from '../../../lighting/fog/readWgsl.ts'
@@ -21,13 +23,17 @@ import { SKY_CUBE_WGSL } from './cubeWgsl.ts'
  * the pre-exposure the face is written multiplied by (`size`), and the lower hemisphere's colour and
  * coverage (`lower`), with whether it is applied and whether the clouds are.
  *
- * - `skyFaceMain` writes the air's sky along the pixel's direction, no blending: the march that
- *   draws the sky (`groundSkyMarch`), from the capture's place in the planet's frame, no sun disk,
- *   multiplied by the pre-exposure and then held under what the cube's format keeps; each
- *   step of the march reads the shade the clouds cast on the air's lights and the sky occlusion
- *   that dims the first light's multiple scattering (`CloudShadowSet`, the maps of the image, the
- *   stand-in that shades nothing where the scene has no clouds), as the haze's cells do; shadowed
- *   (`skyLightShadowFromOpaque`), it reads the shade of the opaque scene as well.
+ * - `skyFaceMain` writes the air's sky along the pixel's direction, no blending, no sun disk,
+ *   multiplied by the pre-exposure and then held under what the cube's format keeps. It reads the
+ *   sky table the capture builds first, in a frame of its own that does not turn with the face
+ *   (`skyViewProgram`, the table the sky of a view is drawn from), where the
+ *   quality settings ask for a table and the capture stands inside the air; else it marches the
+ *   sky (`groundSkyMarch`) from the capture's place in the planet's frame. Each step of that
+ *   march reads the shade the clouds cast on the air's lights and the sky occlusion that dims the
+ *   first light's multiple scattering (`CloudShadowSet`, the maps of the image, the stand-in that
+ *   shades nothing where the scene has no clouds), as the haze's cells do; shadowed
+ *   (`skyLightShadowFromOpaque`), it reads the shade of the opaque scene as well. The table is
+ *   built unshaded.
  * - `fogFaceMain` lays the distant height fog over it: the fog seen along an endless ray from the
  *   capture's position (`fogBeyond`; no volume is bound, the capture holds no volumetric fog), its
  *   light, multiplied by the pre-exposure, added and what is under it multiplied by what the fog
@@ -72,12 +78,14 @@ const FACE_PRE_EXPOSED = preExposedWgsl('face.size.w')
  *  lower than an eye is (`sceneToPlanet`). */
 const LIGHT_PLACE = 'sceneToPlanet(face.eye.xyz)'
 
-/** What the sky draw binds of the air: the light buffer and the two tables the march reads, and the
- *  clouds' shade. */
+/** What the sky draw binds of the air: the light buffer and the two tables the march reads, the sky
+ *  table and the frame it was built in, and the clouds' shade. */
 export const SKY_FACE_AIR: AirBindings = {
   air: 'read',
   transmittance: true,
   multiScatter: true,
+  skyView: true,
+  frame: true,
   cloudShadow: true,
 }
 /** The same with the virtual shadow maps the air's lights shade the march with (`skyLightShadowFromOpaque`):
@@ -88,13 +96,22 @@ export const SKY_FACE_AIR_SHADOWED: AirBindings = { ...SKY_FACE_AIR, shadow: tru
  *  fog's resources. */
 export const FOG_FACE_AIR: AirBindings = { air: 'read', fog: true }
 
+/** The sky table the faces read: the sky of a view's own program, built unshaded. */
+export const skyViewCapture = (shape: AirShape) => skyViewProgram(shape, false)
+
 export const skyFaceProgram = (shape: AirShape, shadowed = false) =>
   airProgram(
     shadowed ? SKY_FACE_AIR_SHADOWED : SKY_FACE_AIR,
-    `${FACE_BLOCK}${AIR_TO_SCENE}${SCENE_TO_PLANET}
+    `${FACE_BLOCK}${SKY_VIEW_READ}${AIR_TO_SCENE}${SCENE_TO_PLANET}
 @fragment fn skyFaceMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{
- let dir=cubeToScene(pixelDirection(pixel));${groundSkyMarch(LIGHT_PLACE)}
- return vec4f(min(preExposed(${GROUND_SKY_RADIANCE}),vec3f(${SKY_MAX_RADIANCE}.0)),1.0);
+ let dir=cubeToScene(pixelDirection(pixel));
+ var radiance:vec3f;
+ if(skyViewInside(frame.camera.w)){
+  radiance=skyViewScattered(dir,frame.camera.w).rgb*atmo(${ATMOSPHERE_SLOT.skyFactor}u).xyz;
+ }else{${groundSkyMarch(LIGHT_PLACE)}
+  radiance=${GROUND_SKY_RADIANCE};
+ }
+ return vec4f(min(preExposed(radiance),vec3f(${SKY_MAX_RADIANCE}.0)),1.0);
 }`,
     [SKY_CUBE_WGSL, FACE_PRE_EXPOSED, FULLSCREEN_VERTEX],
     shape,
