@@ -24,6 +24,13 @@ export interface SampledVolumeBinding {
   params: GPUBuffer
   samplesWrite: GPUTextureView
   samplesRead: GPUTextureView
+  /** The marks of the samples whose ray is to be traced, the list of those samples, its length and the arguments of the dispatch over it (`volumeTraceWgsl.ts`). */
+  rays: GPUTextureView
+  compactData: GPUBuffer
+  compactCount: GPUBuffer
+  compactArgs: GPUBuffer
+  /** The samples' texture size along each axis. */
+  sampleSize: readonly [number, number, number]
   hashHistory: GPUBuffer
   hashCurrent: GPUBuffer
   ratios: GPUBuffer
@@ -112,19 +119,38 @@ function createGridResources(
   down: readonly [number, number, number],
   tiles: readonly [number, number, number],
 ) {
-  const samples = device.createTexture({
-    label: 'Trillion3D sampled volume samples',
-    size: [down[0] * shape.per[0], down[1] * shape.per[1], down[2] * shape.per[2]],
-    dimension: '3d',
-    format: 'r32uint',
-    usage: GPUTextureUsage.STORAGE_BINDING,
-  })
+  const sampleSize = [
+    down[0] * shape.per[0],
+    down[1] * shape.per[1],
+    down[2] * shape.per[2],
+  ] as const
+  const storage3d = (label: string) =>
+    device.createTexture({
+      label,
+      size: [...sampleSize],
+      dimension: '3d',
+      format: 'r32uint',
+      usage: GPUTextureUsage.STORAGE_BINDING,
+    })
+  const samples = storage3d('Trillion3D sampled volume samples')
+  const rays = storage3d('Trillion3D sampled volume rays')
+  const storage = (label: string, size: number, usage = 0) =>
+    device.createBuffer({ label, size, usage: GPUBufferUsage.STORAGE | usage })
   const hashBytes = tiles[0] * tiles[1] * tiles[2] * VOLUME_HASH_WORDS * 4
   return {
     key,
     samples,
+    rays,
+    sampleSize,
     writeView: samples.createView({ dimension: '3d' }),
     readView: samples.createView({ dimension: '3d' }),
+    raysView: rays.createView({ dimension: '3d' }),
+    compactData: storage(
+      'Trillion3D sampled volume trace list',
+      sampleSize[0] * sampleSize[1] * sampleSize[2] * 4,
+    ),
+    compactCount: storage('Trillion3D sampled volume trace count', 16),
+    compactArgs: storage('Trillion3D sampled volume trace args', 16, GPUBufferUsage.INDIRECT),
     hash: [0, 1].map((i) =>
       device.createBuffer({
         label: `Trillion3D sampled volume hash ${i}`,
@@ -269,6 +295,10 @@ function createDomain(device: GPUDevice, domain: 0 | 1) {
     binding = undefined
     if (!made) return
     retire(device, made.samples)
+    retire(device, made.rays)
+    retire(device, made.compactData)
+    retire(device, made.compactCount)
+    retire(device, made.compactArgs)
     for (const buffer of made.hash) retire(device, buffer)
     made = undefined
   }
@@ -299,6 +329,11 @@ function createDomain(device: GPUDevice, domain: 0 | 1) {
         params,
         samplesWrite: made.writeView,
         samplesRead: made.readView,
+        rays: made.raysView,
+        compactData: made.compactData,
+        compactCount: made.compactCount,
+        compactArgs: made.compactArgs,
+        sampleSize: made.sampleSize,
         hashHistory: made.hash[turn ^ 1]!,
         hashCurrent: made.hash[turn]!,
         ratios: input.ratios ?? standIn,

@@ -3,20 +3,39 @@ import assert from 'node:assert/strict'
 import { injectProgram } from '../translucency/injectWgsl.ts'
 import { FOG_PROGRAMS } from '../fog/programs.ts'
 import { FOG_PROGRAM_BINDINGS } from '../fog/bindings.ts'
-import { volumeHashText, volumeSampleText } from './volumeText.ts'
+import { volumeHashText, volumeSampleText, volumeTraceText } from './volumeText.ts'
+import {
+  VOLUME_COMPACT_ARGS_ENTRY,
+  VOLUME_COMPACT_ENTRY,
+  VOLUME_COMPACT_RESET_ENTRY,
+  VOLUME_TRACE_ENTRY,
+  volumeCompactArgsText,
+  volumeCompactResetText,
+  volumeCompactText,
+} from './volumeTraceWgsl.ts'
 import { VOLUME_HASH_ENTRY, VOLUME_PARAMS_WORDS, VOLUME_SAMPLE_ENTRY } from './volumeWgsl.ts'
 
 test('the sampled lighting’s volume is sampled and hashed apart from the fog, and read by the fog’s scatter and the translucency volume', () => {
-  const sample = volumeSampleText({ field: false, pyramid: false })
-  const sky = volumeSampleText({ field: true, pyramid: true })
+  const sample = volumeSampleText(false)
+  const sky = volumeSampleText(true)
   assert.ok(sample.includes(`fn ${VOLUME_SAMPLE_ENTRY}(`))
   assert.ok(
-    sky.includes('gdfTrace(') &&
-      sky.includes('fn fogFurthestOver(') &&
-      sky.includes('hizOpaqueDepth('),
-    'the field’s ray and the pyramid are in the variant that binds them',
+    sky.includes('fn fogFurthestOver(') && sky.includes('hizOpaqueDepth('),
+    'the pyramid is in the variant that binds it',
   )
-  assert.ok(!sample.includes('gdfTrace(') && !sample.includes('hizOpaqueDepth('), 'and only there')
+  assert.ok(!sample.includes('hizOpaqueDepth('), 'and only there')
+  assert.ok(
+    !sample.includes('gdfTrace(') && !sky.includes('gdfTrace('),
+    'the sampling traces nothing: it marks the samples whose ray is traced',
+  )
+  const trace = volumeTraceText()
+  assert.ok(
+    trace.includes(`fn ${VOLUME_TRACE_ENTRY}(`) && trace.includes('gdfTrace('),
+    'the field’s ray is traced over the listed samples',
+  )
+  assert.ok(volumeCompactResetText().includes(`fn ${VOLUME_COMPACT_RESET_ENTRY}(`))
+  assert.ok(volumeCompactText().includes(`fn ${VOLUME_COMPACT_ENTRY}(`))
+  assert.ok(volumeCompactArgsText().includes(`fn ${VOLUME_COMPACT_ARGS_ENTRY}(`))
   assert.ok(
     !sample.includes('frame.') && !sample.includes('shadowFactor('),
     'the fog’s frame and the shadow maps are not read: the sampling needs no fog',

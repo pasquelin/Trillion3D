@@ -6,8 +6,9 @@
  *   cells of the translucency volume's two cascades. A fog voxel found hidden behind the surfaces (the depth pyramid) is left with no samples. Else the lights of its cell of the light grid, and the
  *   sun where the directional lights join, are offered to a stratified sampler by the luminance of their light at the voxel's point (unshadowed; the larger of the fog's and the translucency's
  *   where the two share the samples), a light hidden in the image before drawn less (the guide: the tile's visible set of the image before, found through the point's reprojection, and the
- *   ratio of the light's power since); each sample keeps one light by a weighted reservoir. Identical neighbours are merged, and each kept light that casts a shadow is traced from the voxel's point
+ *   ratio of the light's power since); each sample keeps one light by a weighted reservoir. Identical neighbours are merged, and each kept light that casts a shadow is marked to be traced from the voxel's point
  *   through the global distance field, toward the point of the light the sample picks.
+ * - `volumeCompactMain` and `volumeTraceMain` (`volumeTraceWgsl.ts`): the marked samples listed, then traced through the global distance field.
  * - `volumeHashMain`: one thread a tile of 4 by 4 by 2 voxels, the lights its samples drew, visible or hidden, as the two sets the next image draws by.
  * - `mlVolumeLight` and the translucency injection read them (`ML_SETS_WGSL`).
  */
@@ -27,7 +28,6 @@ import { globalDistanceFieldReadWgsl } from '../distanceField/globalReadWgsl.ts'
 import { globalDistanceFieldTraceWgsl } from '../distanceField/globalTraceWgsl.ts'
 import { VOLUME_LAMP_WGSL } from '../direct/lampSeenWgsl.ts'
 import { lightStrengthWgsl } from '../direct/lightStrengthWgsl.ts'
-import { LIGHT_TRACE_WGSL } from './lightTraceWgsl.ts'
 import {
   NO_LIGHT_INDEX,
   addLightSample,
@@ -82,7 +82,7 @@ const ML_PARAMS_WGSL = wgslBlock(
 )
 
 /** The grid's place in the world: the point of a cell, the cell of a point, the voxel a downsampled voxel draws at. */
-const ML_GRID_WGSL = wgslBlock(
+export const ML_GRID_WGSL = wgslBlock(
   'ML_GRID_WGSL',
   [ML_PARAMS_WGSL, unprojectPoint, ndcToUv, uvToNdc, logSliceOfDepth, depthOfLogSlice, rand4dPcg32],
   `fn mlDepthAtSlice(slice:f32)->f32{return depthOfLogSlice(slice,mlp.sliceMap.xyz);}
@@ -121,7 +121,7 @@ fn mlRandom(c:vec3u,salt:u32)->vec3f{
 fn mlSampleCoord(d:vec3u,i:u32)->vec3u{return d*mlp.samples.xyz+vec3u(i%mlp.samples.x,i/mlp.samples.x,0u);}`,
 )
 
-/** The distance field's ray from 'P' toward 'goal' (metres), dithered by the voxel 'cell'; the program declares the field's six bindings. */
+/** The distance field's ray from 'P' toward 'goal' (metres), dithered by the voxel 'cell'; the trace program declares the field's six bindings. */
 export const ML_WORLD_BLOCKED_WGSL = (field: number) =>
   wgslBlock(
     `ML_WORLD_BLOCKED_WGSL(${field})`,
@@ -139,13 +139,6 @@ export const ML_WORLD_BLOCKED_WGSL = (field: number) =>
 }`,
   )
 
-/** The sampling's world trace of a program that binds no distance field: nothing blocks. */
-export const ML_NO_WORLD_BLOCKED_WGSL = wgslBlock(
-  'ML_NO_WORLD_BLOCKED_WGSL',
-  [],
-  `fn mlWorldBlocked(P:vec3f,goal:vec3f,cell:vec3u)->bool{return false;}`,
-)
-
 /** The sampling's cull of a program that binds no depth pyramid: no voxel is found hidden. */
 export const ML_NO_PYRAMID_WGSL = wgslBlock(
   'ML_NO_PYRAMID_WGSL',
@@ -153,13 +146,12 @@ export const ML_NO_PYRAMID_WGSL = wgslBlock(
   `fn fogFurthestOver(uv:vec4f,view:vec2f)->f32{return 0.0;}`,
 )
 
-/** The sampling and tracing of the voxels (`volumeSampleMain`); the program declares 'mlSamplesOut', the history's sets 'mlHashHistory' and the ratios 'mlRatios', the light grid's lists
- *  'tileLights', the light functions' read, 'mlWorldBlocked' and the depth pyramid's 'fogFurthestOver'. */
+/** The sampling and tracing of the voxels (`volumeSampleMain`); the program declares 'mlSamplesOut', the marks of the rays 'mlRaysOut', the history's sets 'mlHashHistory' and the ratios 'mlRatios', the light grid's lists
+ *  'tileLights', the light functions' read and the depth pyramid's 'fogFurthestOver'. */
 export const ML_SAMPLE_WGSL = wgslBlock(
   'ML_SAMPLE_WGSL',
   [
     ML_GRID_WGSL,
-    LIGHT_TRACE_WGSL,
     VOLUME_LAMP_WGSL,
     hgPhase,
     lightStrengthWgsl('mlp.misc.w'),
@@ -226,7 +218,10 @@ fn mlOffer(s:ptr<function,LightSampler>,rank:u32,P:vec3f,toEye:vec3f,bias:f32,vi
  addLightSample(s,weight,rank,visibleBefore,!sun,mlp.samples.w,mlp.more.x,mlp.more.y);
 }
 fn mlClear(d:vec3u){
- for(var i=0u;i<mlp.samples.w;i++){textureStore(mlSamplesOut,vec3i(mlSampleCoord(d,i)),vec4u(${NO_LIGHT_INDEX}u|0x8000u,0u,0u,0u));}
+ for(var i=0u;i<mlp.samples.w;i++){
+  textureStore(mlSamplesOut,vec3i(mlSampleCoord(d,i)),vec4u(${NO_LIGHT_INDEX}u|0x8000u,0u,0u,0u));
+  textureStore(mlRaysOut,vec3i(mlSampleCoord(d,i)),vec4u(0u));
+ }
 }
 @compute @workgroup_size(4,4,4)
 fn ${VOLUME_SAMPLE_ENTRY}(@builtin(global_invocation_id) d:vec3u){
@@ -278,6 +273,7 @@ fn ${VOLUME_SAMPLE_ENTRY}(@builtin(global_invocation_id) d:vec3u){
   var weight=candidateWeight(drawn);
   var visible=true;
   var casts=false;
+  var traced=false;
   if(rank!=${NO_LIGHT_INDEX}u){
    let light=directLights.items[rank];
    weight=draw.weightSum/weight;
@@ -293,13 +289,13 @@ fn ${VOLUME_SAMPLE_ENTRY}(@builtin(global_invocation_id) d:vec3u){
    }
    // The fog traces the lights that shadow it (and, where it shares its samples, the ones that shadow the translucency volume); the translucency volume those that cast a shadow.
    if(castsShadow(light)&&(translucency||casts||mlp.flags3.x!=0u)&&!merged&&mlp.flags.z!=0u){
-    // The distance field's ray toward the point of the light the sample's place picks (the reference traces the volume's samples through the field or the hardware alone).
-    let segment=lightSampleTrace(rank,P,mlRandom(d,1u+i).xy);
-    if(mlWorldBlocked(P,P+segment.xyz*min(segment.w,1.0e5),d)){visible=false;}
+    // The ray toward the point of the light the sample's place picks is traced afterwards (volumeTraceMain), over the samples marked here.
+    traced=true;
    }
   }
   let guided=select(candidateVisible(drawn),true,mlp.flags.x==0u);
   textureStore(mlSamplesOut,vec3i(mlSampleCoord(d,i)),vec4u(packLightSample(rank,weight,visible,guided,casts),0u,0u,0u));
+  textureStore(mlRaysOut,vec3i(mlSampleCoord(d,i)),vec4u(select(0u,1u,traced),0u,0u,0u));
  }
 }`,
 )

@@ -23,6 +23,12 @@ export const ML_BINDING = {
   hashOut: 84,
   /** The ratios of the lights' power since the image before (`lightPower.ts`), read by the sampling. */
   ratios: 85,
+  /** The marks of the samples whose ray is to be traced (written by the sampling, read by the compaction), the list of those samples, its length and the arguments of the dispatch over it. */
+  raysOut: 86,
+  raysIn: 87,
+  compactData: 88,
+  compactCount: 89,
+  compactArgs: 90,
 } as const
 
 /** Where the sampling binds the clouds' shade (the block, the two maps and the sampler they are read through), which weighs the sun it holds by the clouds above the voxel. */
