@@ -99,6 +99,7 @@ export type DiagnosticMode =
   | 'reflection-traces'
   | 'radiance-cache-probes'
   | 'scene-visualization'
+  | 'material-properties'
   | HeterogeneousVolumeGridView
 /** Whether a view mode is available here, and why not. */
 export interface DiagnosticCapability {
@@ -177,7 +178,8 @@ export interface DiagnosticCapability {
  *  @property screen-probe-traces - The rays of the screen probe nearest to the cursor, over the image.
  *  @property reflection-traces - The reflection ray of the pixel under the cursor, over the image.
  *  @property radiance-cache-probes - A sphere at every probe of the world's probes, coloured by the light it holds, over the image.
- *  @property scene-visualization - The scene seen from the camera through the surface cache's light, over the image. */
+ *  @property scene-visualization - The scene seen from the camera through the surface cache's light, over the image.
+ *  @property material-properties - The material of the pixel under the cursor, as a table of text over the image. */
 export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability>
 /**
  * The view modes a world can show instead of the normal image, each with whether it is available.
@@ -285,6 +287,7 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  * @property screen-probe-traces - Over the image, the rays of the screen probe nearest to the cursor (to the middle of the image where none is set) as lines as long as the distance each reached, in the colour of the radiance it brought back, as `screenProbeGatherVisualizeTraces` draws them.
  * @property reflection-traces - Over the image, the reflection ray of the pixel under the cursor (`debugCursorX`, `debugCursorY`; nothing where none is set) as a line as long as the distance it reached, in the radiance it brought back, with a yellow cross at its end and the grid texel, the distance and the radiance as text, as `reflectionVisualizeTraces` draws it.
  * @property radiance-cache-probes - Over the image, a sphere at every probe of the world’s probes, coloured by the irradiance it holds along its surface at an albedo of 0.3 (a probe inside a surface red, one moved off the surfaces tinted green, an adaptive one cyan), or by its radiance where the radiance cache is the indirect light, hidden by the surfaces in front of it, as `radianceCacheVisualize` draws it.
+ * @property material-properties - Over the image, a table of the material of the pixel under the cursor (`debugCursorX`, `debugCursorY`; the middle of the image where none is set): the material mode and its closure count, the ambient occlusion and top roughness, then the closure's diffuse and specular colours, roughness, anisotropy, clear coat, cloth and emission, read back from the GPU a few images late.
  * @property scene-visualization - Over the image, the scene traced from the camera through the global distance field and lit by what the surface cache holds at the hit, the sky where the ray leaves the scene; `visualizeSceneTraceRadianceCache` ends the trace at the world’s probes’ coverage and reads their light past it, `visualizeToneMap` picks the colour curve, `visualizeMinTraceDistance` and `visualizeMaxTraceDistance` bound the trace (centimetres).
  */
 export const DIAGNOSTICS: DiagnosticCapabilities = {
@@ -660,6 +663,11 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     available: true,
     reason:
       'The scene traced from the camera and lit by what the surface cache holds at the hit, over the image; needs the surface cache',
+  },
+  'material-properties': {
+    available: true,
+    reason:
+      'The material of the pixel under the cursor (debugCursorX, debugCursorY), a table of text over the image; needs the lit surfaces',
   },
   'screen-probe-tile-stats': {
     available: true,

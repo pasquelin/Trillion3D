@@ -47,6 +47,7 @@ test('a probe view shows when its setting is on or its mode is chosen, and none 
     tracesDepthTested: false,
     tracesTonemapped: true,
     reflectionTraces: false,
+    materialProperties: false,
     radianceProbes: 0,
     radianceProbeRadius: 0.05,
     radianceProbeLevel: -1,
@@ -63,6 +64,8 @@ test('a probe view shows when its setting is on or its mode is chosen, and none 
   assert.equal(probeDebugOf(values(), 'radiance-cache-stats').radianceCacheStats, true)
   assert.equal(probeDebugOf(values(), 'screen-probe-traces').traces, true)
   assert.equal(probeDebugOf(values(), 'reflection-traces').reflectionTraces, true)
+  assert.equal(probeDebugOf(values(), 'material-properties').materialProperties, true)
+  assert.equal(probeDebugOf(values(), 'beauty').materialProperties, false)
   assert.equal(probeDebugOf(values(), 'radiance-cache-probes').radianceProbes, 1)
   assert.equal(probeDebugOf(values({ radianceCacheVisualize: 2 }), 'beauty').radianceProbes, 2)
   assert.equal(probeDebugShown(probeDebugOf(values(), 'scene-visualization')), true)

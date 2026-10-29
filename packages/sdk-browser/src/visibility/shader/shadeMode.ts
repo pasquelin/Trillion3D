@@ -98,6 +98,7 @@ const LIT_VIEWS = {
   'reflection-traces': { light: 0, chain: true },
   'radiance-cache-probes': { light: 0, chain: true },
   'scene-visualization': { light: 0, chain: true },
+  'material-properties': { light: 0, chain: true },
   'heterogeneous-volumes-dda-marching': { light: 0, chain: true },
   'heterogeneous-volumes-sample-marching': { light: 0, chain: true },
   'heterogeneous-volumes-sample-majorant': { light: 0, chain: true },

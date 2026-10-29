@@ -10,6 +10,7 @@ import {
   integrateTileGrid,
 } from '../../bounce/screen/screenProbeLayout.ts'
 import { drawProbeLines, type ProbeLineState } from './probeLines.ts'
+import { createMaterialProperties, type MaterialProperties } from './materialProperties.ts'
 import { createRadianceProbes, type RadianceProbes } from './radianceProbes.ts'
 import { createSceneVisualize, type SceneLabel, type SceneVisualize } from './sceneVisualize.ts'
 import { directLightCounts, directLightingStatsLines } from './directLightingStats.ts'
@@ -53,6 +54,8 @@ interface DebugState extends ProbeLineState {
   spheres?: RadianceProbes
   /** The scene seen from the camera, made at the first image the view is shown. */
   scene?: SceneVisualize
+  /** The material of the pixel under the cursor, made at the first image the view is shown. */
+  material?: MaterialProperties
   /** The screen probes' counters, read back like the header while a probe view asks: made at the first image that does. */
   probes?: {
     readonly words: Uint32Array<ArrayBuffer>
@@ -90,6 +93,7 @@ export function disposeSceneDebug(rt: WebgpuPagesRuntime) {
   state?.reflection?.dispose()
   state?.spheres?.dispose()
   state?.scene?.dispose()
+  state?.material?.dispose()
   states.delete(rt)
 }
 
@@ -99,6 +103,7 @@ export function sceneDebugSubmitted(rt: object) {
   state?.reader.submitted()
   state?.probes?.reader.submitted()
   state?.reflection?.submitted()
+  state?.material?.submitted()
 }
 
 /** Writes the lines of a table `across` the display (a fraction of its width) from its tenth down, one under the other, starting at line `firstLine`, and returns the line after the last. */
@@ -291,7 +296,17 @@ export function encodeSceneDebug(
   const next = cacheShown ? drawCacheViews(rt, encoder, state, cacheView) : 0
   const after = drawProbeViews(rt, device, encoder, state, probeView, next)
   const appended = drawProbeLines(rt, device, encoder, state, probeView)
-  if (state.reflection) writeTable(state, gpu.displaySize, state.reflection.text(), after)
+  const reflected = state.reflection
+    ? writeTable(state, gpu.displaySize, state.reflection.text(), after)
+    : after
+  if (probeView.materialProperties) {
+    state.material ??= createMaterialProperties(device)
+    if (state.material.encode(rt, encoder, probeView.cursor, gpu.displaySize))
+      writeTable(state, gpu.displaySize, state.material.text(), reflected)
+  } else if (state.material) {
+    state.material.dispose()
+    state.material = undefined
+  }
   if (probeView.radianceProbes) {
     state.spheres ??= createRadianceProbes(device)
     state.spheres.encode(

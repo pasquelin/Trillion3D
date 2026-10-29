@@ -12,6 +12,7 @@ import {
 } from '../../lighting/bounce/irradianceField/offsetsWgsl.ts'
 import { MARK_HAIR_SHADER } from '../../lighting/bounce/pool/poolMarkHairWgsl.ts'
 import { EYE_MARK_SHADER } from '../../lighting/surfaceCache/sceneDebug/eyeMarker.ts'
+import { materialPropertiesWgsl } from '../../lighting/surfaceCache/sceneDebug/materialProperties.ts'
 import { radianceProbeListWgsl } from '../../lighting/surfaceCache/sceneDebug/radianceProbesWgsl.ts'
 import { DISTANCE_FIELD_KERNEL_WGSL } from '../../../../sdk-core/src/lighting/distanceFieldKernel.ts'
 import {
@@ -169,6 +170,7 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   BOUNCE_MARK_HAIR: MARK_HAIR_SHADER,
   BOUNCE_MARK_EYE: EYE_MARK_SHADER,
   RADIANCE_PROBE_LIST: radianceProbeListWgsl,
+  MATERIAL_PROPERTIES: materialPropertiesWgsl,
   DISTANCE_FIELD_VOXEL_KERNEL: DISTANCE_FIELD_KERNEL_WGSL,
   REFLECTION_CAPTURE_COPY: CAPTURE_COPY_CODE,
   REFLECTION_CAPTURE_DIFFUSE: CAPTURE_DIFFUSE_CODE,

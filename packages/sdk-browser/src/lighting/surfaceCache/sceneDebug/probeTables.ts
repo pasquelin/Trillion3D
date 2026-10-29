@@ -51,6 +51,8 @@ export interface ProbeDebug {
   tracesTonemapped: boolean
   /** The reflection ray of the pixel under the cursor. */
   reflectionTraces: boolean
+  /** The table of the material of the pixel under the cursor (the mode alone shows it). */
+  materialProperties: boolean
   /** The spheres at the world's probes: what they show (0 none, 1 the light, 2 the share of rays that left the scene), their size as a multiple of 5% of the cell, and the one level drawn (negative: all). */
   radianceProbes: 0 | 1 | 2
   radianceProbeRadius: number
@@ -96,6 +98,7 @@ export const probeDebugOf = (values: ProbeDebugValues, mode: DiagnosticMode): Pr
   tracesDepthTested: !values.visualizeUseShaderPrintForTraces,
   tracesTonemapped: !values.visualizeUseShaderPrintForTraces || values.visualizeToneMap,
   reflectionTraces: values.reflectionVisualizeTraces || mode === 'reflection-traces',
+  materialProperties: mode === 'material-properties',
   radianceProbes:
     mode === 'radiance-cache-probes'
       ? 1
@@ -123,6 +126,7 @@ export const probeDebugShown = (view: ProbeDebug) =>
   view.placement > 0 ||
   view.traces ||
   view.reflectionTraces ||
+  view.materialProperties ||
   view.radianceProbes > 0 ||
   view.sceneVisualization
 
