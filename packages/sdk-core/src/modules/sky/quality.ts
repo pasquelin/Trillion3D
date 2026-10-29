@@ -116,12 +116,14 @@ const CLOUD_SHADOW_RULES = /* @__PURE__ */ (() =>
     number('cloudShadowMapLightRotationCutDegrees', 10, ANY_NUMBER),
     number('cloudShadowMapSnapKm', 20, ANY_NUMBER),
     flag('cloudShadowMapSnapToPixelGrid', true),
+    flag('cloudShadowMapDebug', false),
     number('cloudShadowMapLightDistanceOverrideKm', 0, ANY_NUMBER),
     flag('cloudSkyAO', true),
     integer('cloudSkyAOResolutionMax', 2048, INT32),
     integer('cloudSkyAOTraceSamples', 10, INT32),
     flag('cloudSkyAOFiltering', true),
     number('cloudSkyAOSnapKm', 20, ANY_NUMBER),
+    flag('cloudSkyAODebug', false),
   ] as const))()
 
 /** The clouds: the empty-space table, the traced size, the reprojection and the late fog. */
@@ -218,13 +220,16 @@ const CLOUD_TARGET_RULES = /* @__PURE__ */ (() =>
  *   `cloudShadowMapSnapKm` (20): the length, in kilometres, the map's position is snapped to so it
  *   does not flicker; `cloudShadowMapSnapToPixelGrid` (on): the map's origin is snapped to its
  *   texels; `cloudShadowMapLightDistanceOverrideKm` (0): above 0, the distance of the light from
- *   the ground, in kilometres;
+ *   the ground, in kilometres; `cloudShadowMapDebug` (off): the first light's map is drawn over the
+ *   image, its frustum in orange and a quad for each texel holding cloud, with the map's sample count
+ *   in text;
  * - `cloudSkyAO` (on): the clouds' sky occlusion map is built, for a sky light that asks for it
  *   (`cloudAmbientOcclusion`), and the air's marches dim the first light's multiple scattering by
  *   it; `cloudSkyAOResolutionMax` (2048): the largest side of its map; `cloudSkyAOTraceSamples`
  *   (10): the samples that find the ground's occlusion; `cloudSkyAOFiltering` (on): the map is
  *   dilated and smoothed, integrated over the hemisphere above each texel; `cloudSkyAOSnapKm` (20): the length, in
- *   kilometres, its position is snapped to;
+ *   kilometres, its position is snapped to; `cloudSkyAODebug` (off): the map is drawn over the image,
+ *   its frustum in blue and a quad for each texel holding cloud;
  * - `cloudEmptySpaceSkipping` (off): a table of where the clouds start, built each image before the
  *   tracing, lets the rays begin their march there (never in a reflection). The built-in material
  *   leaves the table's input unconnected, and an unconnected input says "matter is there" in every

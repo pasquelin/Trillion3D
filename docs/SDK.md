@@ -525,6 +525,19 @@ world.hiz = { hizFullResDepth: false, lightGridHizCull: false } // half-resoluti
 world.hiz = { lightGridLinkedLists: false, lightGridMaxCulledLightsPerCell: 64 } // 64 words of its own a cell
 ```
 
+`lightGridDebug` (`0`, off) draws the light grid over the image: `1` colours each cell from blue (no light) to
+red (`lightGridDebugMaxThreshold` lights, `8` by default, from 1 to 1024) by the number of lights in the cell of
+each pixel's depth, `2` by the greatest number over the slices of its column but the last (the last slice's
+culling is too wide to mean much), `3` over all of them; the count is written in the middle of each cell and the
+borders are drawn in grey. `lightGridDebugSlice` (`-1`) above `-1` shows the one slice of that index (read no
+higher than the last) whatever the view. It needs lit lights in the scene.
+
+```js
+world.hiz = { lightGridDebug: 1 } // the lights in the cell of each pixel
+world.hiz = { lightGridDebug: 3, lightGridDebugMaxThreshold: 16 } // the greatest count of a column, red at 16
+world.hiz = { lightGridDebug: 1, lightGridDebugSlice: 12 } // only the twelfth slice
+```
+
 `hizPrime` (`'off'`) builds, before a view's cut tests anything, a primed pyramid from a small,
 coarse draw of the objects that set `farField` (`object.farField = true`, `false` by default; a saved
 scene keeps it when `true`), for the cut's main pass to test against: `'whenMissing'` for an image
@@ -2205,7 +2218,7 @@ part's: where a scene is made to hold more, the last shown lights it, the others
 
 **Cloud ambient occlusion.** Under thick clouds the sky's multiple scattering (the light the air scatters more than once, which lights the sky and the haze from every side) fades out. The sky light part asks for it with five fields: `cloudAmbientOcclusion` (default `false`: nothing is built), `cloudAmbientOcclusionStrength` (default 1, at least 0: how much light the clouds block), `cloudAmbientOcclusionExtentKm` (default 150, at least 1: the radius round the camera the map covers), `cloudAmbientOcclusionMapResolutionScale` (default 1, at least 0.25: the factor on a map of 512 texels a side) and `cloudAmbientOcclusionApertureScale` (default 0.05, from 0 to 1: the cone round the vertical over which the occlusion is integrated, 0 one direction and a sharp occlusion, 1 the whole hemisphere and a blurry one). A map is built from above along the planet's vertical, round the point under the camera, and the air reads it wherever it marches the sky: the sky, the haze over the distance, the haze marched on the opaque surfaces and on the clouds, and the sky light's own capture; it dims the multiple scattering of the air's first light there (the second light's is not dimmed). It does not dim the sky light's own diffuse and specular light on the surfaces: the capture is of the sky as the air makes it, the occlusion is in the air.
 
-The sky quality settings that shape the map are `cloudSkyAO` (default on: the switch of the pass), `cloudSkyAOResolutionMax` (2048: the largest side), `cloudSkyAOTraceSamples` (10: the samples a ray of the map takes through the layer), `cloudSkyAOFiltering` (on: the map is dilated and smoothed, integrated over the hemisphere above each texel) and `cloudSkyAOSnapKm` (20: the length, in kilometres, its position is snapped to, so that it does not flicker; 0 or less is read as 0.1 m, the map then following every step of the camera). No quality level writes any of them. The map is made only while a clouds part is followed and the sky light asks; a scene with no clouds, or whose sky light leaves the flag off, pays nothing.
+The sky quality settings that shape the map are `cloudSkyAO` (default on: the switch of the pass), `cloudSkyAOResolutionMax` (2048: the largest side), `cloudSkyAOTraceSamples` (10: the samples a ray of the map takes through the layer), `cloudSkyAOFiltering` (on: the map is dilated and smoothed, integrated over the hemisphere above each texel) and `cloudSkyAOSnapKm` (20: the length, in kilometres, its position is snapped to, so that it does not flicker; 0 or less is read as 0.1 m, the map then following every step of the camera). No quality level writes any of them. The map is made only while a clouds part is followed and the sky light asks; a scene with no clouds, or whose sky light leaves the flag off, pays nothing. `cloudSkyAODebug` (off) draws the map over the image: its frustum in blue and a quad for each texel that holds cloud; `cloudShadowMapDebug` (off) does the same for the first light's cloud shadow map, its frustum in orange, with the map's sample count written over the image.
 
 ```js
 world.scene.sky = {
@@ -2217,6 +2230,7 @@ world.scene.sky = {
 world.skyQuality = { cloudSkyAOResolutionMax: 1024, cloudSkyAOFiltering: false } // a smaller, unfiltered map
 world.skyQuality = { cloudSkyAO: false } // the pass off, whatever the sky light asks
 world.skyQuality = { cloudSkyAOSnapKm: 5 } // the map's place snapped to 5 km
+world.skyQuality = { cloudSkyAODebug: true } // the sky occlusion map drawn over the image
 ```
 
 The sun's light shafts are the light's own: `shaftOcclusion` is on for the sun and off for any other

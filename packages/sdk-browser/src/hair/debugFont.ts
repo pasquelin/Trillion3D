@@ -53,7 +53,19 @@ const GLYPHS: Readonly<Record<string, readonly string[]>> = {
 }
 
 /** Cells a glyph is wide and tall, and the cells from one character to the next and one row of text to the next. */
-const FONT_CELLS = { width: 3, height: 5, advance: 4, line: 7 } as const
+export const FONT_CELLS = { width: 3, height: 5, advance: 4, line: 7 } as const
+
+/** The glyphs of the digits 0 to 9, a word each for a shader to draw them from: bit `row * 3 + cell` set where the glyph is lit. */
+export const DIGIT_GLYPH_BITS: readonly number[] = Array.from({ length: 10 }, (_, digit) =>
+  GLYPHS[String(digit)]!.reduce(
+    (bits, cells, row) =>
+      [...cells].reduce(
+        (word, mark, cell) => (mark === '#' ? word | (1 << (row * 3 + cell)) : word),
+        bits,
+      ),
+    0,
+  ),
+)
 
 /** The segments of the glyph of `char` as runs of lit cells: for each, the row and the first and last cell. */
 function runsOf(char: string) {

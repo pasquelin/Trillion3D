@@ -138,8 +138,13 @@ export class DebugLines {
 
   /** The edges of the volume of the clip box between the depths `near` and `far`, seen through `viewProjection` (clip from the world). */
   frustum(viewProjection: ArrayLike<number>, near: number, far: number, color: number) {
-    const { inverse, corners } = this
-    invertMatrix4(inverse, viewProjection)
+    invertMatrix4(this.inverse, viewProjection)
+    this.frustumFrom(this.inverse, near, far, color)
+  }
+
+  /** The same edges, from the matrix `inverse` that takes clip space back to the world. */
+  frustumFrom(inverse: ArrayLike<number>, near: number, far: number, color: number) {
+    const { corners } = this
     for (let corner = 0; corner < 8; corner++) {
       const x = corner & 1 ? 1 : -1,
         y = corner & 2 ? 1 : -1,

@@ -89,6 +89,9 @@ export function setCloudShadowSource(
   }
 }
 
+/** What the clouds of `rt` give the maps, none while they give none. */
+export const cloudShadowSourceOf = (rt: WebgpuPagesRuntime) => states.get(rt)?.source
+
 /** The shade the clouds cast this image, none while no map is built. */
 export const cloudShadowOf = (rt: WebgpuPagesRuntime) => states.get(rt)?.set
 

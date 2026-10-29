@@ -44,6 +44,8 @@ import { encodeSubsurfaceDebug } from '../../lighting/subsurface/visualize.ts'
 import { encodeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
 import { encodeShadowCasterBounds } from '../../lighting/shadows/vsm/debug/casterBounds.ts'
 import { encodeClipmapStats } from '../../lighting/shadows/vsm/debug/clipmapStats.ts'
+import { encodeLightGridDebug } from '../../lighting/tiles/debug/gridDebug.ts'
+import { encodeCloudShadowDebug } from './encodeCloudShadowDebug.ts'
 import { encodeClusterStats } from '../../lighting/shadows/vsm/debug/clusterStats.ts'
 import { encodeClipmapVirtualSpace } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
 import { encodeVsmVisualizeView } from '../../lighting/shadows/vsm/debug/visualizeView.ts'
@@ -315,6 +317,10 @@ function composeImage(
   encodeVsmVisualizeView(rt, device, encoder, cam)
   encodeClipmapStats(rt, device, encoder, cam)
   encodeClusterStats(rt, device, encoder, cam)
+  // The clouds' shadow and sky occlusion maps, over the image when asked.
+  encodeCloudShadowDebug(rt, device, encoder, cam)
+  // The light grid's cells, over the image when asked.
+  encodeLightGridDebug(rt, device, encoder)
   // The global distance field's page statistics, over the image when asked.
   encodeGlobalFieldStats(rt, device, encoder, cam)
   // The rectangle lights' atlas, drawn over the image when asked.

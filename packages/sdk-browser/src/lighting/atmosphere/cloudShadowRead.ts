@@ -69,6 +69,8 @@ export interface CloudShadowSet {
   readonly sampler: GPUSampler
   readonly block: GPUBuffer
   readonly frames?: readonly [CloudShadowMapFrame | undefined, CloudShadowMapFrame | undefined]
+  /** What the sky occlusion map tells the lookups, where it is built. */
+  readonly skyFrame?: CloudSkyMapFrame
   readonly camera?: ArrayLike<number>
 }
 
@@ -76,15 +78,26 @@ export interface CloudShadowSet {
 export interface CloudShadowMapFrame {
   /** The matrix from centimetres from the camera to clip space, column-major. */
   readonly clipFromCamera: ArrayLike<number>
+  /** The matrix back from clip space to centimetres from the camera, column-major. */
+  readonly cameraFromClip: ArrayLike<number>
+  /** The direction of the map's rays, from the light, on the scene's axes. */
+  readonly rayDirection: readonly [number, number, number]
+  /** The samples of a ray of the map. */
+  readonly samples: number
+  /** The side of the map the lookups read, in texels. */
+  readonly side: number
   readonly farDepthKm: number
   /** The weights on the surfaces and the fog, and on the air. */
   readonly surfaceStrength: number
   readonly airStrength: number
 }
 
-/** What the sky occlusion map tells the lookups: its matrix and the depth of its far plane. It has
+/** What the sky occlusion map tells the lookups: its matrices, its rays' direction, its side and the depth of its far plane. It has
  *  no weight of its own: the map holds it. */
-export type CloudSkyMapFrame = Pick<CloudShadowMapFrame, 'clipFromCamera' | 'farDepthKm'>
+export type CloudSkyMapFrame = Pick<
+  CloudShadowMapFrame,
+  'clipFromCamera' | 'cameraFromClip' | 'rayDirection' | 'side' | 'farDepthKm'
+>
 
 /** The block into `out` (`CLOUD_SHADOW_BLOCK.words` floats) for the maps of the air's two lights
  *  (`undefined`: no map, a strength of 0), the camera at `camera`, scene metres, and the sky

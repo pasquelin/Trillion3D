@@ -139,6 +139,10 @@ function encodeLight(
   const last = temporal.filtered && spatial === 0 ? slot.whole[slot.current] : slot.textures.at(-1)!
   return {
     clipFromCamera: frame.clipFromCamera,
+    cameraFromClip: frame.cameraFromClip,
+    rayDirection: frame.rayDirection,
+    samples: frame.samples,
+    side: last.width,
     farDepthKm: frame.farDepthKm,
     surfaceStrength: light.light.cloudShadowOnSurfaceStrength,
     airStrength: light.light.cloudShadowOnAtmosphereStrength,
@@ -178,6 +182,7 @@ export function encodeCloudShadows(
   return {
     maps: [maps[0]?.final ?? none, maps[1]?.final ?? none],
     ao: sky?.view ?? none,
+    skyFrame: sky?.frame,
     sampler: parts.lookup,
     block: parts.block.buffer,
     frames,

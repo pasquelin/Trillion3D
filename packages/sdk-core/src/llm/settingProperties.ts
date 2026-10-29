@@ -308,6 +308,12 @@ const HIZ_MEANINGS: Readonly<Record<Exclude<HizField, HizPrimeField | HzbOcclusi
       'Whether the light grid makes the lists of its cells from chains of links taken from one shared pool: each light a cell takes asks the next link of the pool, the chains are then written out as contiguous lists in light order, and the number of lights per cell is no longer limited, only the pool as a whole (true, the default). false gives each cell its own share of the pool, lightGridMaxCulledLightsPerCell words, and keeps its first lights up to it.',
     lightGridMaxCulledLightsPerCell:
       "The light entries the view's light grid holds for each of its cells (32 by default, from 1 to 1024): the grid's pool is its cells times this. With lightGridLinkedLists on, that is a limit on the whole grid: the lights are put in the cells as they come, and those asked once the pool is used up are dropped, so a cell keeps the lights it got, in light order; with it off, each cell keeps its own first lights up to this number. The lights dropped neither light nor shadow their pixels; the engine says so once on the console, as the count it needed rises. It does nothing to the bounce's world grid.",
+    lightGridDebug:
+      'Which view of the light grid is drawn over the image, a whole number from 0 to 3: 0 off (the default), 1 the number of lights in the grid cell of each pixel depth, 2 the greatest number over the slices of the cell column but the last, 3 over all the slices; each cell in a heat colour from blue to red with its count written, its borders in grey.',
+    lightGridDebugMaxThreshold:
+      'The number of lights drawn red by the light grid view (lightGridDebug), a whole number from 1 to 1024; 8 by default.',
+    lightGridDebugSlice:
+      'The one depth slice of the light grid that its view (lightGridDebug) shows, a whole number from 0 to 1023, read no higher than the last slice; -1, the default, shows the slice of each pixel depth or the greatest count over the slices.',
   }
 
 /** What the volumetric lightmap's setting means (`../contracts/volumetricLightmapOptions.ts`). */
@@ -544,6 +550,10 @@ const SKY_QUALITY_MEANINGS: Readonly<
     'Samples taken to find the ground occlusion of the clouds sky occlusion, a whole number.',
   cloudSkyAOFiltering:
     'Whether the clouds sky occlusion map is dilated and smoothed: integrated over the hemisphere above each texel.',
+  cloudShadowMapDebug:
+    "Whether the clouds shadow map of the first light is drawn over the image: its frustum in orange, a quad for each texel holding cloud, and the map's sample count in text.",
+  cloudSkyAODebug:
+    'Whether the clouds sky occlusion map is drawn over the image: its frustum in blue and a quad for each texel holding cloud.',
   cloudSkyAOSnapKm:
     "Length in kilometres the clouds sky occlusion map's position is snapped to so it does not flicker; 0 or less breaks the map's position.",
   cloudEmptySpaceSkipping:

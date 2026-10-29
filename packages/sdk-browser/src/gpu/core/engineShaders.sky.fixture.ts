@@ -1,6 +1,7 @@
 // The sky module's WGSL texts of `ENGINE_SHADERS`: the clouds' generators, march, view programs and
 // composition, the sky light's faces, copies and filters, the atmosphere's tables, haze and sky in each
 // shape the quality settings make of them, and the light shafts.
+import { CLOUD_SHADOW_DEBUG_WGSL } from '../../modules/sky/clouds/shadowDebugWgsl.ts'
 import { emptySpaceProgram } from '../../modules/sky/clouds/emptySpaceWgsl.ts'
 import { LIGHTNING_CODE } from '../../modules/sky/clouds/lightningWgsl.ts'
 import { cloudHazeProgram } from '../../modules/sky/clouds/traceHazeProgram.ts'
@@ -176,4 +177,6 @@ export const SKY_SHADERS: Record<string, string> = {
   // The light shafts' passes and their temporal filter (`../../modules/sky/lightShafts/`).
   lightShaftProgram,
   lightShaftTemporalProgram,
+  // The clouds' shadow and sky occlusion maps drawn over the image.
+  CLOUD_SHADOW_DEBUG_WGSL,
 }

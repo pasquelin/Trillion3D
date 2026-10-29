@@ -60,7 +60,9 @@ const MAX_CULLED_LIGHTS_PER_CELL: readonly [number, number] = [1, 1024]
  *  farthest depth of their column of the image; `lightGridLinkedLists`, on — whether the cells'
  *  lists are made from chains of links taken from one pool, else each cell has its share of it;
  *  `lightGridMaxCulledLightsPerCell`, 32 — the light entries the view's light grid holds per cell, the
- *  pool being its cells times this, the lights asked past it dropped; `hizPrime`, `'off'` — when the primed pyramid is built
+ *  pool being its cells times this, the lights asked past it dropped; `lightGridDebug`, 0 — the view over the image of the lights in each cell of the grid: 0 off,
+ *  1 the count in the cell of each pixel's depth, 2 the greatest count of the slices but the last, 3 of all of them —, `lightGridDebugMaxThreshold`, 8 — the count drawn red —,
+ *  `lightGridDebugSlice`, -1 — above -1, the one slice the view shows; `hizPrime`, `'off'` — when the primed pyramid is built
  *  —; `hizPrimeSizeBias`, 2 — the primed draw is the image's size shifted right by one more than this —;
  *  `hizPrimeDepthBias`, 1.5 — metres its depth is pushed away from the eye by —; `hizPrimeErrorScale`,
  *  32 — the factor on the cut's pixel error, so the clusters drawn are that much coarser —;
@@ -81,6 +83,9 @@ export const HIZ_RULES = /* @__PURE__ */ (() =>
     flag('lightGridHizCull', true),
     flag('lightGridLinkedLists', true),
     integer('lightGridMaxCulledLightsPerCell', 32, MAX_CULLED_LIGHTS_PER_CELL),
+    integer('lightGridDebug', 0, [0, 3]),
+    integer('lightGridDebugMaxThreshold', 8, [1, 1024]),
+    integer('lightGridDebugSlice', -1, [-1, 1023]),
     choice('hizPrime', 'off', HIZ_PRIMES),
     integer('hizPrimeSizeBias', 2, PRIME_SIZE_BIASES),
     number('hizPrimeDepthBias', 1.5, ANY),

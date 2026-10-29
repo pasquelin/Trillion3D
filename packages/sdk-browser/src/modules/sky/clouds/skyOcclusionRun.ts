@@ -167,7 +167,13 @@ export function createSkyOcclusionRun(
       }
       return {
         view: viewOf(held, held.textures[held.textures.length - 1]),
-        frame: { clipFromCamera: frame.clipFromCamera, farDepthKm: frame.farDepthKm },
+        frame: {
+          clipFromCamera: frame.clipFromCamera,
+          cameraFromClip: frame.cameraFromClip,
+          rayDirection: frame.rayDirection,
+          side,
+          farDepthKm: frame.farDepthKm,
+        },
       }
     },
     release: () => releaseSlot(state),

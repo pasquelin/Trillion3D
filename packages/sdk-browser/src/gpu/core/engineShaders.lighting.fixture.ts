@@ -1,6 +1,7 @@
 // The light functions', occlusion, distance fields' and primed pyramid's WGSL texts of `ENGINE_SHADERS`.
 import { material } from '../../../../sdk-core/src/world/material/index.ts'
 import { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
+import { LIGHT_GRID_DEBUG_WGSL } from '../../lighting/tiles/debug/gridDebugWgsl.ts'
 import { sssDebugPixelWgsl } from '../../lighting/subsurface/debugPixel.ts'
 import { SSS_VISUALIZE_WGSL } from '../../lighting/subsurface/visualizeWgsl.ts'
 import { imageProgram } from '../../lighting/bounce/reservoirGather/imageWgsl.ts'
@@ -214,4 +215,5 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   AMBIENT_CUBEMAP_FILTER: cubeFilterShader(),
   // The primed depth pyramid's kernel (`../../visibility/hiz/gpu/pipelines.ts`).
   HIZ_PRIMED_SHADER,
+  LIGHT_GRID_DEBUG_WGSL,
 }
