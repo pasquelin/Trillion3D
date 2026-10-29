@@ -14,7 +14,7 @@ import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
  * triangles in its own space, which the cut judges the software raster by, lies in a buffer of its
  * own, one f32 a record (`CLUSTER_EDGE_BYTES`), zero until measured: a cluster of an unmeasured
  * edge goes to the hardware raster, which draws any. The others are the page-table words of the same name (`../../../visibility/pageInfo.ts`)
- * that no placement decides: `wpo` and `wpoMost` are the surface's own, before its object's.
+ * that no placement decides: `wpo` and `wpoMost` are the surface's own, before its object's. `displacementReach` is the greatest distance the surface's displacement moves a point, in the geometry's own units, and `displacementFadeOut` the on-screen size in pixels under which the displacement has faded out wholly: zero where the surface is not displaced, never fades, or is masked (a masked surface is never drawn as its base triangles on that account). The shadow maps' raster reads both to draw the base triangles of a surface whose displacement is gone (`vsmRenderFallsBack`).
  */
 export const CLUSTER_INFO = fieldLayout('ClusterInfo', [
   ['flags', 'u32'],
@@ -28,6 +28,8 @@ export const CLUSTER_INFO = fieldLayout('ClusterInfo', [
   ['diagnosticWord', 'u32'],
   ['wpo', 'u32'],
   ['wpoMost', 'f32'],
+  ['displacementReach', 'f32'],
+  ['displacementFadeOut', 'f32'],
 ] as const)
 
 /** Words of a record, and its bytes. */

@@ -21,7 +21,7 @@ export function displacementRange({
 }
 
 /** The greatest distance a point moves, whichever way: what grows a bound that must hold it. */
-function displacementReach(range: { min: number; max: number }) {
+export function displacementReach(range: { min: number; max: number }) {
   return Math.max(-range.min, range.max)
 }
 

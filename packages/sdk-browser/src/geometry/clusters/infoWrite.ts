@@ -9,7 +9,17 @@ import {
   type MaterialLayers,
 } from '../rows/page/pageRowMaterial.ts'
 import { rowFlags } from '../rows/surfaceRow.ts'
-import { assertVisibilityPageTriangles, FLAG_DISTANCE_FIELD } from '../../visibility/types.ts'
+import {
+  assertVisibilityPageTriangles,
+  FLAG_DISTANCE_FIELD,
+  FLAG_MASK,
+} from '../../visibility/types.ts'
+import { displacementProgramOf } from '../../materials/graph/displacementProgram.ts'
+import {
+  displacementRange,
+  displacementReach,
+  fadeOutPixels,
+} from '../../visibility/tessellation/numbers.ts'
 import { shownAsIs } from '../../materials/surface/surfaceModel.ts'
 import { surfaceEmitsOrOccludes } from '../../materials/surface/surfaceEmission.ts'
 import { rowIndexCount } from '../rows/page/pageRow.ts'
@@ -83,6 +93,16 @@ export function createInfoWriter(resources: InfoResources) {
     // The surface's own offset words, before its object's (`../../geometry/rows/page/offsetRow.ts`).
     words[at.wpo] = surface.row.wpo
     floats[at.wpoMost] = surface.row.wpoMost
+    // A displaced surface's reach and the size under which its displacement is gone; none for a masked one, which stays tessellated whatever the size
+    // (`fadeOutPixels`, as the shadow maps' fallback to the base triangles reads them).
+    const displaced =
+      mat.displacement && (mat.displacementMap || displacementProgramOf(mat))
+        ? mat.displacement
+        : undefined
+    if (displaced && (maps.flags & FLAG_MASK) === 0) {
+      floats[at.displacementReach] = displacementReach(displacementRange(displaced))
+      floats[at.displacementFadeOut] = fadeOutPixels(displaced)
+    }
     written.classKey = maps.classKey
     return written
   }
