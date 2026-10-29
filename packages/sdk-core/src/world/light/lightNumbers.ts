@@ -143,7 +143,7 @@ export function defineReadonly(proto: Light, getters: Record<string, (light: Lig
     })
 }
 
-/** A number or a flag a light setting holds. */
+/** A number or a flag a light setting holds (`ruledLightSettings` also holds the name of a choice, as the rule gives it). */
 type Scalar = number | boolean
 
 /**

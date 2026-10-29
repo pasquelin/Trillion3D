@@ -3644,6 +3644,30 @@ world.shadows = { contactShadowOverrideLength: null }
 world.shadows = { contactShadows: false }
 ```
 
+**Ray-traced shadows.** A light's shadow found by casting rays from each pixel to a point of the light through the scene's triangles, instead of reading the shadow maps. They need the scene's triangles (the ray-tracing file); without them the options below are accepted and every light keeps its shadow maps. View options (shadow settings, options of `createWorld` too, no quality level writes them):
+
+| View option                                          | Default | Meaning |
+| ---------------------------------------------------- | ------- | ------- |
+| `rayTracedShadows`                                   | `false` | the lights that follow the view (`castRayTracedShadow: 'useProjectSetting'`, a light's default) cast by rays |
+| `rayTracedShadowsDirectionalLights` / `PointLights` / `SpotLights` / `RectLights` | `true` | which kinds of light may cast by rays at all |
+| `rayTracedShadowsSamplesPerPixel`                    | `-1`    | rays a pixel casts to each light; `-1` leaves it to the light's `rayTracedShadowSamplesPerPixel` (1) |
+| `rayTracedShadowsNormalBias`                         | `0.1`   | centimetres, at least 0.01: the most a ray's start moves along the normal |
+| `rayTracedShadowsAvoidSelfIntersectionTraceDistance` | `1`     | centimetres: the short first ray that leaves the pixel's own surface; `0` casts none |
+| `rayTracedShadowsTwoSidedGeometry`                   | `true`  | geometry casts from both faces |
+| `rayTracedShadowsAcceptFirstHit`                     | `true`  | a ray ends at the first primitive it meets |
+
+Each light names its own, as properties (also parameters of the light tool and fields of a saved scene), every kind of light's: `castRayTracedShadow` (`'useProjectSetting'`; `'disabled'` never, `'enabled'` always) and `rayTracedShadowSamplesPerPixel` (`1`, from 1). The rays go to a point of the light drawn by the solid angle it covers (a sun's disk, a lamp's sphere, a rectangle's face); the lighting keeps the scene trace for them whatever the device's hardware.
+
+```js
+// One light always casts by rays, with four rays a pixel, whatever the view says.
+const light = world.addLight({ kind: 'spot', castRayTracedShadow: 'enabled', rayTracedShadowSamplesPerPixel: 4 })
+```
+
+```js
+// Every light casts its shadow by rays, two rays a pixel; the sun keeps its maps.
+const world = await createWorld({ rayTracedShadows: true, rayTracedShadowsSamplesPerPixel: 2, rayTracedShadowsDirectionalLights: false })
+```
+
 Two more options say what the rays meet and what they shade, one of an object and one of a material:
 
 - **`castContactShadow`** (boolean, `true`), a property of every object, saved with the world: whether the object stops the

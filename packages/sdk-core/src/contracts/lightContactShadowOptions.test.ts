@@ -12,6 +12,8 @@ test('a light casts no contact shadow by default, and the shadow it casts is who
     contactShadowCastingIntensity: 1,
     contactShadowNonCastingIntensity: 0,
     indirectLightingIntensity: 1,
+    castRayTracedShadow: 'useProjectSetting',
+    rayTracedShadowSamplesPerPixel: 1,
   })
   assert.equal(resolveLightContactShadow({ contactShadowLength: 0.02 }).contactShadowLength, 0.02)
   assert.equal(
@@ -34,5 +36,24 @@ test('a negative length, an intensity outside 0 to 1 and a negative indirect fac
   assert.equal(
     resolveLightContactShadow({ indirectLightingIntensity: 0 }).indirectLightingIntensity,
     0,
+  )
+})
+
+test('a light follows the view for its ray traced shadow, casts one ray a pixel, and refuses a choice or a count it does not take', () => {
+  assert.equal(
+    resolveLightContactShadow({ castRayTracedShadow: 'enabled' }).castRayTracedShadow,
+    'enabled',
+  )
+  assert.equal(
+    resolveLightContactShadow({ rayTracedShadowSamplesPerPixel: 4 }).rayTracedShadowSamplesPerPixel,
+    4,
+  )
+  assert.throws(
+    () => resolveLightContactShadow({ castRayTracedShadow: 'always' }),
+    /castRayTracedShadow/,
+  )
+  assert.throws(
+    () => resolveLightContactShadow({ rayTracedShadowSamplesPerPixel: 0 }),
+    /rayTracedShadowSamplesPerPixel/,
   )
 })

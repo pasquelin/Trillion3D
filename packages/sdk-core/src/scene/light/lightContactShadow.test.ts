@@ -212,6 +212,8 @@ test('a light that names none shares the one frozen defaults, and a copy keeps w
     contactShadowCastingIntensity: 1,
     contactShadowNonCastingIntensity: 0,
     indirectLightingIntensity: 1,
+    castRayTracedShadow: 'useProjectSetting',
+    rayTracedShadowSamplesPerPixel: 1,
   })
   assert.equal(cloneSceneLight({ ...LAMP, contactShadowLength: 0.1 }).contactShadowLength, 0.1)
 })

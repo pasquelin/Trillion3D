@@ -16,6 +16,10 @@ const LIGHT_CONTACT_SHADOW_MEANINGS: Readonly<Record<LightContactShadowField, st
     'How dark the contact shadow is, from 0 (the default, none) to 1 (whole), where its ray meets a surface that does not cast contact shadows: an eye.',
   indirectLightingIntensity:
     "The factor on the light this light gives the scene's indirect lighting, from 0; 1, the default, leaves it as the light's colour and intensity make it, 0 gives the indirect lighting none.",
+  castRayTracedShadow:
+    "Whether this light's shadow is found by rays through the scene's triangles instead of its shadow maps: 'disabled' never, 'useProjectSetting' (the default) where the view's rayTracedShadows is on, 'enabled' always. Only a device that traces rays through the scene's triangles takes it (hardwareRayTracing), and only the kinds of light the view allows.",
+  rayTracedShadowSamplesPerPixel:
+    "The rays each pixel casts to this light when its shadow is ray traced, from 1 (the default); more rays soften the penumbra of a light with a size and cost as many traces. The view's rayTracedShadowsSamplesPerPixel overrides it from 0.",
 }
 
 /** The light tool's parameter of each contact shadow setting of a light, from its rule: its kind,

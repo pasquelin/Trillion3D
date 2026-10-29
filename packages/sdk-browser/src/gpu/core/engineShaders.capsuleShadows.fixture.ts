@@ -1,5 +1,5 @@
 // The capsule shadows' WGSL texts of `ENGINE_SHADERS`: the shadow pass of each mode (the indirect one also over the meshes' distance-field
-// casters), the upsample draw with and without the second, ambient occlusion target, the pass that derives the light directions and the merge of the first-person self shadow into the masks.
+// casters), the upsample draw with and without the second, ambient occlusion target, the pass that derives the light directions and the merge of the first-person self shadow into the masks, and the ray traced shadow's kernel and its merge.
 import {
   capsuleShadowShader,
   type CapsuleMode,
@@ -7,6 +7,10 @@ import {
 import { capsuleHooks } from '../../lighting/capsuleShadows/hooks.ts'
 import { lightDirectionShader } from '../../lighting/capsuleShadows/lightDirectionWgsl.ts'
 import { selfShadowMergeProgram } from '../../lighting/shadows/firstPerson/selfShadowWgsl.ts'
+import {
+  rayTracedMergeProgram,
+  rayTracedProgram,
+} from '../../lighting/shadows/rayTraced/rayTracedWgsl.ts'
 import {
   capsuleComposeShader,
   capsuleUpsampleShader,
@@ -30,4 +34,6 @@ export const CAPSULE_SHADOW_SHADERS: Record<string, string> = {
   CAPSULE_LIGHT_DIRECTION: lightDirectionShader(true),
   CAPSULE_LIGHT_DIRECTION_SKY: lightDirectionShader(false),
   SELF_SHADOW_MERGE: selfShadowMergeProgram(),
+  RAY_TRACED_SHADOW: rayTracedProgram(),
+  RAY_TRACED_MERGE: rayTracedMergeProgram(),
 }

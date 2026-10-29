@@ -1,3 +1,5 @@
+import type { CastRayTracedShadow } from '../../contracts/rayTracedShadowOptions.ts'
+
 /** The contact shadow fields of a scene light (`SceneLight`), every kind's, and its indirect lighting
  *  factor, which the light's record holds beside them; their names, kinds, ranges and defaults are
  *  the rules' (`LIGHT_CONTACT_SHADOW_RULES`, `../../contracts/lightContactShadowOptions.ts`). */
@@ -12,4 +14,8 @@ export interface SceneLightContactShadow {
   contactShadowNonCastingIntensity?: number
   /** See `LIGHT_CONTACT_SHADOW_RULES`. */
   indirectLightingIntensity?: number
+  /** See `LIGHT_CONTACT_SHADOW_RULES`. */
+  castRayTracedShadow?: CastRayTracedShadow
+  /** See `LIGHT_CONTACT_SHADOW_RULES`. */
+  rayTracedShadowSamplesPerPixel?: number
 }

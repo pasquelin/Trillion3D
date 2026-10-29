@@ -22,6 +22,14 @@ import {
   perLightSelfShadow,
   selfShadowLights,
 } from './vsmSelfShadow.ts'
+import {
+  encodeOnePassLocalRayTraced,
+  encodeRayTracedSuns,
+  perLightRayTraced,
+  rayTracedPlan,
+  releaseRayTraced,
+  type RayTracedPlan,
+} from './vsmRayTraced.ts'
 import { sunCount, VSM_PROJECTION_MAX_PASS_LIGHTS } from '../projection/projectionView.ts'
 import {
   capsuleCastsDirect,
@@ -274,6 +282,8 @@ function takePerLightPath(
   mask: VsmPerLightMask,
   hairShadow: GPUTextureView | undefined,
   selfShadow: GPUTextureView[] | undefined,
+  traced: RayTracedPlan | undefined,
+  views: GPUTextureView[],
 ) {
   const { rt, device, vsm, plan, cam } = frame
   perLightRanks.length = context.lights.length
@@ -291,8 +301,11 @@ function takePerLightPath(
       readShadowSetting(rt, 'shadowForcePerLightMaskClear') ||
       !readShadowSetting(rt, 'shadowVirtualEnable'),
     afterMask: afterBoth(
-      capsuleLightMask(rt, cam),
-      selfShadow && perLightSelfShadow(frame, context.lights, selfShadow),
+      afterBoth(
+        capsuleLightMask(rt, cam),
+        selfShadow && perLightSelfShadow(frame, context.lights, selfShadow),
+      ),
+      traced?.locals ? perLightRayTraced(frame, context.lights, traced, views) : undefined,
     ),
     hairShadow,
   })
@@ -344,6 +357,8 @@ function fillTarget(
   onePass: boolean,
   hairShadow: GPUTextureView | undefined,
   selfShadow: GPUTextureView[] | undefined,
+  traced: RayTracedPlan | undefined,
+  views: GPUTextureView[],
 ) {
   const { rt, cam } = frame
   const target = scratch.target
@@ -362,12 +377,14 @@ function fillTarget(
           steps.apart(),
           context.lights,
           sunCount(context.lights),
-          !!selfShadow,
+          !!selfShadow || !!traced?.locals,
         )
       : undefined
   target.capsule = layers?.array
   if (layers && selfShadow)
     encodeOnePassLocalSelfShadow(frame, steps.apart(), context.lights, layers.each, selfShadow)
+  if (layers && traced?.locals)
+    encodeOnePassLocalRayTraced(frame, steps.apart(), traced, context.lights, layers.each, views)
   return target
 }
 
@@ -435,9 +452,21 @@ function encodeVsmProjection(
   // The lights that give the first-person pixels a self shadow: their masks are projected again, not held.
   const selfShadow = selfShadowLights(rt, vsm.state.maps.shadows, context.lights)
   const selfLocals = selfShadow.locals ? views : undefined
+  // The lights that cast their shadow by rays: their masks are traced again each image, not held.
+  const traced = rayTracedPlan(frame, vsm.state.maps.shadows, context.lights)
+  if (!traced) releaseRayTraced(device)
   const perLight =
     !onePass && mask.perLight
-      ? takePerLightPath(frame, context, source, mask.perLight, hairShadow, selfLocals)
+      ? takePerLightPath(
+          frame,
+          context,
+          source,
+          mask.perLight,
+          hairShadow,
+          selfLocals,
+          traced,
+          views,
+        )
       : undefined
   writeProjectionHold(frame, context, source, onePass, maxLights, gridWords)
   // What the pass writes and the light grid of a new buffer run it again.
@@ -456,6 +485,7 @@ function encodeVsmProjection(
     !hairShadow &&
     !selfShadow.suns &&
     !selfShadow.locals &&
+    !traced &&
     !context.visualize
   // The per-light path is held with the projection: its lights are traced again where it is not.
   if (!standing) perLight?.markStale()
@@ -472,6 +502,8 @@ function encodeVsmProjection(
     onePass,
     hairShadow,
     selfLocals,
+    traced,
+    views,
   )
   const hairMasks = encodeVsmHairProjection(steps, vsm.res, context, source, target, hair)
   if (standing) return hairMasks ? 1 : 0
@@ -486,6 +518,16 @@ function encodeVsmProjection(
       steps.apart(),
       vsm.state.maps.shadows,
       context.lights,
+      suns,
+      mask.sunsView,
+      views,
+    )
+  if (traced?.suns)
+    encodeRayTracedSuns(
+      frame,
+      steps.apart(),
+      vsm.state.maps.shadows,
+      traced,
       suns,
       mask.sunsView,
       views,

@@ -1,14 +1,15 @@
 import type { CapsuleShadowField } from '../contracts/capsuleShadowOptions.ts'
 import type { ContactShadowField } from '../contracts/contactShadowOptions.ts'
+import type { RayTracedShadowField } from '../contracts/rayTracedShadowOptions.ts'
 import type { ShadowField } from '../contracts/shadowOptions.ts'
 import type { ShadowViewField } from './shadowViewMeanings.ts'
 
 /** The settings of the view that shape a sun's shadows by distance (`../contracts/shadowOptions.ts`,
  *  `../contracts/sunShadowOptions.ts`): the rest are the maps' (`shadowViewMeanings.ts`) and the
- *  contact shadows' (`contactShadowMeanings.ts`) and the capsule shadows' (`capsuleShadowMeanings.ts`). */
+ *  contact shadows' (`contactShadowMeanings.ts`) the capsule shadows' (`capsuleShadowMeanings.ts`) and the ray-traced shadows' (`rayTracedShadowMeanings.ts`). */
 type ShadowSunField = Exclude<
   ShadowField,
-  ShadowViewField | ContactShadowField | CapsuleShadowField
+  ShadowViewField | ContactShadowField | CapsuleShadowField | RayTracedShadowField
 >
 
 /** What each of them means. */

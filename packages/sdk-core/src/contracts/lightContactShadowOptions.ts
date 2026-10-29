@@ -1,6 +1,10 @@
 import { fieldsOf, refusal } from './nameMatch.ts'
+import { CAST_RAY_TRACED_SHADOW_CHOICES } from './rayTracedShadowOptions.ts'
 import {
+  choiceSetting as choice,
   flagSetting as flag,
+  INT32_MAX,
+  integerSetting as integer,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
   resolveSettings,
@@ -28,7 +32,12 @@ import {
  *   not;
  * - `indirectLightingIntensity` (1, from 0): the factor on the light the light gives the scene's
  *   indirect lighting; the light's record holds it beside the contact shadows' numbers
- *   (`LIGHT_FIELD.contactGi`).
+ *   (`LIGHT_FIELD.contactGi`);
+ * - `castRayTracedShadow` (`'useProjectSetting'`): whether the light's shadow is found by rays through the scene's triangles instead of its
+ *   shadow maps (`rayTracedShadowOptions.ts`): `'disabled'` never, `'useProjectSetting'` where the view's `rayTracedShadows` is on,
+ *   `'enabled'` always (where the device traces and the kind of light is allowed);
+ * - `rayTracedShadowSamplesPerPixel` (1, from 1): the rays a pixel casts to this light when it is ray traced (the view's
+ *   `rayTracedShadowsSamplesPerPixel` overrides it from 0).
  */
 export const LIGHT_CONTACT_SHADOW_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -37,6 +46,8 @@ export const LIGHT_CONTACT_SHADOW_RULES = /* @__PURE__ */ (() =>
     number('contactShadowCastingIntensity', 1, [0, 1]),
     number('contactShadowNonCastingIntensity', 0, [0, 1]),
     nonNegative('indirectLightingIntensity', 1),
+    choice('castRayTracedShadow', 'useProjectSetting', CAST_RAY_TRACED_SHADOW_CHOICES),
+    integer('rayTracedShadowSamplesPerPixel', 1, [1, INT32_MAX]),
   ] as const))()
 
 /** The field of one contact shadow setting of a light. */

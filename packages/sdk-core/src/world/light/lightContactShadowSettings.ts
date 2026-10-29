@@ -1,3 +1,4 @@
+import type { CastRayTracedShadow } from '../../contracts/rayTracedShadowOptions.ts'
 import { LIGHT_CONTACT_SHADOW_RULES } from '../../contracts/lightContactShadowOptions.ts'
 import { ruledLightSettings } from './lightNumbers.ts'
 
@@ -9,6 +10,8 @@ export interface LightContactShadowParameters {
   contactShadowCastingIntensity?: number
   contactShadowNonCastingIntensity?: number
   indirectLightingIntensity?: number
+  castRayTracedShadow?: CastRayTracedShadow
+  rayTracedShadowSamplesPerPixel?: number
 }
 
 declare module './light.ts' {
@@ -23,6 +26,10 @@ declare module './light.ts' {
     contactShadowNonCastingIntensity: number
     /** See `LIGHT_CONTACT_SHADOW_RULES`. */
     indirectLightingIntensity: number
+    /** See `LIGHT_CONTACT_SHADOW_RULES`. */
+    castRayTracedShadow: CastRayTracedShadow
+    /** See `LIGHT_CONTACT_SHADOW_RULES`. */
+    rayTracedShadowSamplesPerPixel: number
   }
 }
 

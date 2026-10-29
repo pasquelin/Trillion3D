@@ -155,6 +155,15 @@ const CAPSULE_SHADOW_DEFAULTS = {
   capsuleIndirectSelfShadowingIntensity: 0.8,
 }
 
+/** The view's ray-traced shadow settings at their defaults. */
+const RAY_TRACED_SHADOW_DEFAULTS = {
+  ...{ rayTracedShadows: false, rayTracedShadowsDirectionalLights: true },
+  ...{ rayTracedShadowsPointLights: true, rayTracedShadowsSpotLights: true },
+  ...{ rayTracedShadowsRectLights: true, rayTracedShadowsSamplesPerPixel: -1 },
+  ...{ rayTracedShadowsNormalBias: 0.1, rayTracedShadowsAvoidSelfIntersectionTraceDistance: 1 },
+  ...{ rayTracedShadowsTwoSidedGeometry: true, rayTracedShadowsAcceptFirstHit: true },
+}
+
 test('the shadow settings read by their rules, a light’s own beside them', () => {
   assert.deepEqual(resolveSettings(SHADOW_RULES, {}), {
     ...{ shadowDistanceScale: 1, farShadowCulling: true },
@@ -162,6 +171,7 @@ test('the shadow settings read by their rules, a light’s own beside them', () 
     ...{ shadowMultipassViews: true, ...SUN_SHADOW_DEFAULTS, ...SHADOW_MAP_DEFAULTS },
     ...CONTACT_SHADOW_DEFAULTS,
     ...CAPSULE_SHADOW_DEFAULTS,
+    ...RAY_TRACED_SHADOW_DEFAULTS,
     ...{
       shadowGeometryLodBias: 1,
       shadowOcclusionCulling: true,
