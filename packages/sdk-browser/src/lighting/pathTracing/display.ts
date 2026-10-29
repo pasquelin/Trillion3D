@@ -8,6 +8,8 @@ export interface PathTracingDisplay {
   readonly baseExposure: number
   readonly preExposure: number
   readonly image: 0 | 1
+  /** The denoised radiance the display shows in place of the accumulation's, none without one. */
+  readonly shown?: GPUTexture
 }
 
 /**
@@ -59,7 +61,7 @@ export function drawPathTracingDisplay(
     layout: pipelines.displayLayout,
     entries: [
       { binding: 0, resource: { buffer: gpu.display } },
-      { binding: 1, resource: images.radiance.createView() },
+      { binding: 1, resource: (display.shown ?? images.radiance).createView() },
       { binding: 2, resource: images.variance.createView() },
       { binding: 3, resource: { buffer: gpu.varianceDims } },
       { binding: 4, resource: images.depth.createView() },

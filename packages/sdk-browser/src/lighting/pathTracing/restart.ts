@@ -86,8 +86,8 @@ export function restartReason(
 }
 
 /** What the tracer holds of the image before: the sample it is at, the images made in all (`frameIndex`, not reset by a restart: the random sequence goes on with it), the denoiser's
- *  mode when it last ran, and whether a denoised image of this size is held. */
-export interface PathTracingCounters extends PathTracingProgress {
+ *  mode when it last ran, (whether a denoised image is held is the denoiser's own state). */
+export interface PathTracingCounters extends Omit<PathTracingProgress, 'hasHistory'> {
   frameIndex: number
 }
 
@@ -96,7 +96,6 @@ export const restarted = (counters: PathTracingCounters): PathTracingCounters =>
   iteration: 0,
   frameIndex: counters.frameIndex,
   lastDenoiserMode: counters.lastDenoiserMode,
-  hasHistory: false,
 })
 
 /** The counters after an image: a sample traced counts one, in the sample and in the frame index; the denoiser's mode is the one it ran at. */
@@ -109,6 +108,5 @@ export function advanced(
     iteration: counters.iteration + (traced ? 1 : 0),
     frameIndex: counters.frameIndex + (traced ? 1 : 0),
     lastDenoiserMode: denoiserMode,
-    hasHistory: counters.hasHistory,
   }
 }

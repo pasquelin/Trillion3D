@@ -4466,9 +4466,26 @@ const world = createWorld('viewer', { hairStrands: true, hairVisibilityCoverageM
 | `pathTracingWiperMode` | `false` | path tracer drawn right of the cursor only |
 | `pathTracingDenoiser` | `true` | denoise at the last sample |
 | `pathTracingDenoiserNormalSpace` | `0` | `0` world, `1` camera-space normals for the denoiser |
-| `pathTracingSpatialDenoiser` | `true` | the denoiser's spatial stage |
+| `pathTracingSpatialDenoiser` | `true` | the denoiser's spatial stage (edge-aware, guided by albedo, normals and variance) |
 | `pathTracingTemporalDenoiser` | `false` | the temporal stage, which needs an earlier denoised image |
 | `pathTracingTemporalDenoiserMode` | `1` | `0` and `1` at the last sample, `2` at every image |
+| `pathTracingDenoiserVarianceType` | `1` | prepass variance: `0` per colour channel, `1` luminance, albedo and normal length |
+| `pathTracingDenoiserOutputVarianceTexture` | `false` | always write the variance image |
+| `pathTracingDenoiserRankedLuminanceVariance` | `false` | rank the channels before taking the luminance for the variance |
+| `pathTracingTemporalDenoiserVisualizeMotionVector` | `false` | draw the motion found over the image |
+| `pathTracingTemporalDenoiserSubPixelOffset` | `true` | refine the motion under a pixel |
+| `pathTracingTemporalDenoiserKappa` | `-1` | fall-off of the history weight (`-1` from `DeltaE`) |
+| `pathTracingTemporalDenoiserEta` | `1` | error under which the history keeps its full weight (`-1` one just-noticeable difference) |
+| `pathTracingTemporalDenoiserDeltaE` | `5` | colour difference at which the history weight reaches zero |
+| `pathTracingTemporalDenoiserDeltaEHighFrequency` | `2.1` | per-pixel colour difference from which the history is cut |
+| `pathTracingTemporalDenoiserAlpha` | `1` | weight of the history in the average |
+| `pathTracingTemporalDenoiserSource` | `0` | motion estimated on `0` denoised radiance, `1` normals, `2` albedo, `3` raw radiance, else a fusion of variances |
+| `pathTracingTemporalDenoiserSubPixelOffsetStartMip` | `8` | coarsest pyramid level with a sub-pixel estimate |
+| `pathTracingTemporalDenoiserMotionOperation` | `1` | `1` subtracts the motion of the image against itself |
+| `pathTracingTemporalDenoiserVisualizeWarp` | `0` | `1` the warped history, `2` with the weights |
+| `pathTracingTemporalDenoiserDistanceMetrics` | `2` | `0` luminance, `1` colour distance, `2` CIE 2000 difference |
+| `pathTracingTemporalDenoiserTotalVariation` | `true` | less history where the error varies a lot |
+| `pathTracingTemporalDenoiserPatchCount` | `1` | patches merged in the temporal blend (`1` to `16`) |
 | `pathTracingMISMode` | `2` | `0` material samples alone, `1` light samples alone, `2` both weighed against each other |
 | `pathTracingMISCompensation` | `true` | the sky's importance sampling leaves out what the material's samples find (needs mode `2`) |
 | `pathTracingMaxPathIntensity` | `24` | brightest a path off the camera's ray adds (`1` to `65504`) |
@@ -4484,7 +4501,7 @@ const world = createWorld('viewer', { hairStrands: true, hairVisibilityCoverageM
 | `pathTracingLightGridMaxCount` | `128` | most lights a cell keeps (`1` to `256`) |
 | `pathTracingLightGridAxis` | `-1` | axis the lights are projected along, `-1` the best |
 
-Current limits: a hit's material is read back from the lit image where the surface shows, else from the surface cache's cards; there are no glass, subsurface, cloth or hair lobes, no capsule lights, light profiles, light functions or rectangle light textures; the denoiser settings are accepted but the denoiser is not built yet (the image shown is the raw accumulation); the atmosphere and the clouds are not traced.
+Current limits: a hit's material is read back from the lit image where the surface shows, else from the surface cache's cards; there are no glass, subsurface, cloth or hair lobes, no capsule lights, light profiles, light functions or rectangle light textures; the spatial stage is the engine's own edge-aware filter (the reference's is an external neural plug-in, not shipped); the atmosphere and the clouds are not traced.
 
 ```js
 // A path-traced view of 256 samples, 8 bounces, adaptive sampling on.
@@ -4497,6 +4514,17 @@ const world = createWorld('viewer', {
   // Sample the lights alone (no material samples), the camera seeing every light.
   pathTracingMISMode: 1,
   pathTracingVisibleLights: 1,
+})
+```
+
+```js
+// The temporal denoiser at every image, history cut sooner, the motion drawn.
+const world = createWorld('viewer', {
+  pathTracing: true,
+  pathTracingTemporalDenoiser: true,
+  pathTracingTemporalDenoiserMode: 2,
+  pathTracingTemporalDenoiserDeltaE: 2,
+  pathTracingTemporalDenoiserVisualizeMotionVector: true,
 })
 ```
 
@@ -4638,7 +4666,6 @@ The screen probes and the world's probes have tables of their own, drawn the sam
 | `reflection-traces` | `reflectionVisualizeTraces` | `false` | the reflection ray of the pixel under the cursor (`debugCursorX`, `debugCursorY`; nothing where none is set): a line from the surface along the ray, as long as the distance it reached, in the radiance it brought back as it is, a yellow cross of 2 cm at its end, and the grid texel, the distance and the radiance as text, read back from the GPU a few images late; needs the reflections to have traced an image |
 | `radiance-cache-probes` | `radianceCacheVisualize` | `0` | a sphere at every probe of the world's probes, hidden by the surfaces in front of it: coloured by the irradiance it holds along its surface at an albedo of 0.3 (a probe inside a surface red, one moved off the surfaces tinted green, an adaptive one cyan) where the irradiance field is the indirect light, by its radiance otherwise; `radianceCacheVisualize: 2` colours it by the share of its rays that left the scene; `radianceCacheVisualizeRadiusScale` (`1`) scales the spheres (5% of the cell at one); `radianceCacheVisualizeClipmapIndex` (`-1`, all) draws one level, the finest 0 |
 | `scene-visualization` | none (the mode only) | - | the scene traced from the camera pixel by pixel through the global distance field, lit by what the surface cache holds at the hit and by the sky where the ray leaves the scene, replacing the image; `visualizeSceneTraceRadianceCache` (`false`) ends the trace where the world's probes cover the eye and reads their light past it (their spheres' light, interpolated between the eight probes round the eye), and marks the probes round the eye so that they exist; `visualizeHiResSurface` (`true`) reads the finest page of the cache; `visualizeMinTraceDistance` (`0`, read as `0.01` at least) and `visualizeMaxTraceDistance` (`100000`) bound the trace in centimetres; `visualizeToneMap` (`true`) picks the colour curve. `visualizeMode` (`0`) shows the scene view by itself with the number of one of its modes (3 the scene, which the diagnostic mode shows; 1 the overview of the geometry normals, the reflection view and the coverage in three labelled tiles; 4 the reflection view, traced as far as the reflections trace; 5 the coverage, pink where a mesh has cards but none covers the point and yellow where it has none; 6 the geometry normals; 8 the albedo; 9 the normals; 10 the emission; 11 the card weights; 12 the direct light; 13 the indirect light; 16 and 17 the images since each page's direct and indirect light were updated; 18 and 19 the last use of the pages; 20 the number of lights each tile tracks the shadow factor of; 21 the sharing of the cards; 24 the radiosity images accumulated); under an orthographic camera every ray runs along the view's direction from its own pixel, and the height fog (`reflectionHeightFog`, `reflectionMinDistanceForFoggingSky`) is laid over the light. `visualizeSurfaceCacheFeedback` (`false`) lets the view write the cache's feedback so that the modes 18 and 19 show the last use of the pages |
-| `material-properties` | none (the mode only) | - | the material of the pixel under the cursor (`debugCursorX`, `debugCursorY`; the middle of the image where none is set) as a table of text, read back from the GPU a few images late: the pixel, the `Closure Count` and `Material Mode` (None, Unlit, Physical, Diffuse, Toon, Shadow catcher or Debug view, with the pixel's shading model — Subsurface, Preintegrated skin, Subsurface profile, Hair, Eye — and ` - Legacy Clear Coat` or ` - Legacy Cloth` where the surface wears one), the `AO` (the occlusion the surface carries) and `TopRoughness` (the clear coat's where there is one), then the closure: its type (`Slab`, `Hair`, `Eye`, `Unlit`), `BasisType` (`Normal`, or `Nor+Tan` where the surface is anisotropic) and normal, `Diffuse` (the base colour times one minus the metalness), `F0` (the specular colour at normal incidence) and the `Specular`, `Roughness`, `Anisotropy` and its direction, the `Clear coat` (weight, roughness, normal), the `Fuzz` of a cloth (colour, weight) and the `Emissive` colour; a field the surface does not carry is not printed; needs the lit surfaces |
 
 The scene table also writes `AddOps` and `RemoveOps`: the count of the placements that wanted mesh cards or lost them in the image, then the ids of the first seven.
 
@@ -4700,12 +4727,6 @@ const world = createWorld('viewer', {
   visualizeMaxTraceDistance: 20000,
 })
 world.diagnostic.mode = 'scene-visualization'
-```
-
-```js
-// The material of the pixel at (640, 360): base colour, metalness, roughness, clear coat, anisotropy, cloth and emission, as text over the image.
-const world = createWorld('viewer', { debugCursorX: 640, debugCursorY: 360 })
-world.diagnostic.mode = 'material-properties'
 ```
 
 ```js

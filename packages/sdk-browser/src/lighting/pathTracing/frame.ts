@@ -45,6 +45,17 @@ import {
   type PathTracingRun,
 } from './restart.ts'
 import { writeLights } from './tables.ts'
+import { denoisePipelinesOf } from './denoisePipelines.ts'
+import { drawDenoiseViews } from './drawDenoiseViews.ts'
+import {
+  denoiseGpuOf,
+  denoiseNeedsOf,
+  encodeDenoise,
+  forgetDenoiseHistory,
+  newDenoiseState,
+  releaseDenoise,
+  type DenoiseState,
+} from './encodeDenoise.ts'
 
 /** What the path tracer keeps of a runtime between images. */
 interface PathTracingState {
@@ -70,6 +81,8 @@ interface PathTracingState {
   /** The rounds a bounce takes after its own, as the scene's surfaces ask (`HitPlacements.passRounds`). */
   passRounds: number
   resolve?: GPUBindGroupEntry[]
+  /** The denoiser's resources and history. */
+  denoise: DenoiseState
 }
 
 const states = new WeakMap<WebgpuPagesRuntime, PathTracingState>()
@@ -82,12 +95,13 @@ function stateOf(rt: WebgpuPagesRuntime): PathTracingState {
       (state = {
         gpuKey: '',
         bytes: 0,
-        counters: { iteration: 0, frameIndex: 0, lastDenoiserMode: 1, hasHistory: false },
+        counters: { iteration: 0, frameIndex: 0, lastDenoiserMode: 1 },
         lightCount: 0,
         accumulating: false,
         latest: undefined,
         classes: new Set(),
         passRounds: 0,
+        denoise: newDenoiseState(),
       }),
     )
   return state
@@ -110,7 +124,9 @@ export function pathTracingAccumulating(rt: WebgpuPagesRuntime) {
 
 /** Lets the path tracer's resources go: the view is no more drawn by it. */
 export function releasePathTracing(rt: WebgpuPagesRuntime) {
-  states.get(rt)?.gpu?.destroy()
+  const held = states.get(rt)
+  held?.gpu?.destroy()
+  if (held) releaseDenoise(held.denoise)
   states.delete(rt)
 }
 
@@ -242,13 +258,26 @@ export function preparePathTracing(
       state.gpuKey = room.key
     }
     state.run = runOf(inputs)
+    // The denoised history outlives a restart only where the temporal denoiser is set to run at every image, and not a change of the view's size or resources.
+    const keepHistory =
+      settings.pathTracingTemporalDenoiserMode === 2 && reason !== 'resources' && reason !== 'size'
+    if (!keepHistory) forgetDenoiseHistory(state.denoise)
     state.counters = restarted(state.counters)
     state.latest = undefined
   }
   const gpu = state.gpu!
   const run = state.run!
   const counters = state.counters
-  const frame = planPathTracingFrame(settings, counters, size)
+  const denoiser =
+    settings.pathTracingDenoiser && chainReady(...denoisePipelinesOf(device).all)
+      ? denoiseGpuOf(device, state.denoise, size, denoiseNeedsOf(settings))
+      : undefined
+  const planned = denoiser ? settings : { ...settings, pathTracingDenoiser: false }
+  const frame = planPathTracingFrame(
+    planned,
+    { ...counters, hasHistory: state.denoise.last !== undefined },
+    size,
+  )
   if (state.groupsDevice !== device) {
     state.groups = createPathTracingGroups()
     state.groupsDevice = device
@@ -306,18 +335,46 @@ export function preparePathTracing(
     encodeErrorMips(device, encoder, pipelines, gpu, image)
   if (frame.stages.includes('normalSpace'))
     encodeNormalSpace(device, encoder, pipelines, gpu, image, cam.world)
+  const denoised = denoiser
+    ? encodeDenoise({
+        device,
+        encoder,
+        pipelines: denoisePipelinesOf(device),
+        gpu,
+        dgpu: denoiser,
+        state: state.denoise,
+        settings,
+        frame,
+        iteration: counters.iteration,
+        image,
+        exposure: preExposureOf(rt).now / run.baseExposure,
+      })
+    : undefined
   // The display counts the sample just traced itself (its shader adds one to the sample it is given), as the reference passes the index before it moves.
   const display = {
     iteration: counters.iteration,
     baseExposure: run.baseExposure,
     preExposure: preExposureOf(rt).now,
     image,
+    shown: denoised?.shown,
   }
-  state.counters = advanced(counters, traced !== undefined, settings.pathTracingDenoiser ? 1 : 0)
+  state.counters = advanced(counters, traced !== undefined, planned.pathTracingDenoiser ? 1 : 0)
   state.accumulating = frame.needsMoreRays || frame.denoise
   return {
     wiper: settings.pathTracingWiperMode,
-    draw: (target, depth) =>
-      drawPathTracingDisplay(device, encoder, pipelines, gpu, settings, display, target, depth),
+    draw: (target, depth) => {
+      drawPathTracingDisplay(device, encoder, pipelines, gpu, settings, display, target, depth)
+      if (denoised?.views && denoiser)
+        drawDenoiseViews(
+          device,
+          encoder,
+          denoisePipelinesOf(device),
+          denoiser,
+          settings,
+          denoised.views,
+          display.preExposure / display.baseExposure,
+          target,
+        )
+    },
   }
 }

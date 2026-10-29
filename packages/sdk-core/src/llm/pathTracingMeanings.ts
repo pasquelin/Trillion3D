@@ -29,9 +29,43 @@ export const PATH_TRACING_MEANINGS: Readonly<Record<PathTracingField, string>> =
   pathTracingDenoiserNormalSpace:
     'The space the normals the denoiser reads are in: 0, the default, the world’s; 1 the camera’s, for which a pass converts them before the denoiser reads them.',
   pathTracingSpatialDenoiser:
-    'Whether the denoiser’s spatial stage runs (true, the default). It is the built-in stage, which passes the radiance on as it is.',
+    'Whether the denoiser’s spatial stage runs (true, the default): the radiance filtered, edge-aware, guided by the albedo, the normals and the per-pixel variance of the prepass.',
   pathTracingTemporalDenoiser:
     'Whether the denoiser’s temporal stage runs (false, the default): it estimates the motion between the last denoised image and this one, finds where the history can be trusted, and blends it in. It needs an earlier denoised image of the same size.',
+  pathTracingDenoiserVarianceType:
+    'Which variance the denoiser’s prepass keeps per pixel: 0 one per colour channel of the radiance, 1 (the default) one for the luminance, one for the albedo and the length of the mean normal (a short mean normal means normals that disagree), and the alpha.',
+  pathTracingDenoiserOutputVarianceTexture:
+    'Whether the variance image (the standard error of the mean) is always written (false, the default: only when the spatial stage or a feature fusion needs it).',
+  pathTracingDenoiserRankedLuminanceVariance:
+    'Whether the luminance used for the variance ranks the channels first (false, the default): better in dim, high-variance light such as dawn or dusk.',
+  pathTracingTemporalDenoiserVisualizeMotionVector:
+    'Whether the motion the temporal stage found is drawn over the image (false, the default): a colour wheel by direction and length, with arrows on a grid.',
+  pathTracingTemporalDenoiserSubPixelOffset:
+    'Whether the motion is refined under a pixel by a quadratic fit (true, the default).',
+  pathTracingTemporalDenoiserKappa:
+    'How fast the history weight falls with the matching error (-1, the default, derives it from pathTracingTemporalDenoiserDeltaE).',
+  pathTracingTemporalDenoiserEta:
+    'The matching error under which the history keeps its full weight (1 by default; -1 takes the error of one just-noticeable colour difference).',
+  pathTracingTemporalDenoiserDeltaE:
+    'The CIE colour difference at which the low-frequency history weight reaches zero (5 by default; 1 is barely visible, 10 visible at a glance). Used when Kappa is -1.',
+  pathTracingTemporalDenoiserDeltaEHighFrequency:
+    'The per-pixel CIE colour difference between the warped history and the new image from which the history weight is cut (2.1 by default, at least 1).',
+  pathTracingTemporalDenoiserAlpha:
+    'The weight of the history in the exponential average (1 by default).',
+  pathTracingTemporalDenoiserSource:
+    'What the motion is estimated on: 0 (the default) the last denoised radiance against the new image, 1 the normals, 2 the albedo, 3 the raw radiance, any other value a fusion of the variances.',
+  pathTracingTemporalDenoiserSubPixelOffsetStartMip:
+    'The coarsest level of the 7-level pyramid from which the sub-pixel motion is estimated (8 by default: every level).',
+  pathTracingTemporalDenoiserMotionOperation:
+    '0 uses the motion estimated as it is; 1 (the default) subtracts the motion estimated of the image against itself, which removes the bias of the sub-pixel fit.',
+  pathTracingTemporalDenoiserVisualizeWarp:
+    '0 (the default) none; 1 draws the history warped by the motion; 2 the same with the weights.',
+  pathTracingTemporalDenoiserDistanceMetrics:
+    'How two pixels are compared to find the motion: 0 their luminance, 1 their colour distance, 2 (the default) the CIE 2000 colour difference.',
+  pathTracingTemporalDenoiserTotalVariation:
+    'Whether less history is used where the matching error varies a lot in a neighbourhood (true, the default).',
+  pathTracingTemporalDenoiserPatchCount:
+    'How many similar patches are merged by a bilateral weight in the temporal blend (1 by default, up to 16).',
   pathTracingTemporalDenoiserMode:
     'When the denoiser runs: 0 or 1 (the default) once, at the last sample, as in offline rendering; 2 at every image, to see it work while the image accumulates. To never denoise, turn pathTracingDenoiser off.',
   pathTracingMISMode:

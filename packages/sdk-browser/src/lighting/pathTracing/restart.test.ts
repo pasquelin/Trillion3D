@@ -59,18 +59,16 @@ test('the denoiser, the bar and the wiper do not restart; the exposure does only
 })
 
 test('a restart resets the sample and keeps the frame index; a traced image counts one in both', () => {
-  const counters = { iteration: 7, frameIndex: 40, lastDenoiserMode: 1, hasHistory: true }
+  const counters = { iteration: 7, frameIndex: 40, lastDenoiserMode: 1 }
   assert.deepEqual(restarted(counters), {
     iteration: 0,
     frameIndex: 40,
     lastDenoiserMode: 1,
-    hasHistory: false,
   })
   assert.deepEqual(advanced(counters, true, 0), {
     iteration: 8,
     frameIndex: 41,
     lastDenoiserMode: 0,
-    hasHistory: true,
   })
   assert.equal(advanced(counters, false, 1).iteration, 7)
 })

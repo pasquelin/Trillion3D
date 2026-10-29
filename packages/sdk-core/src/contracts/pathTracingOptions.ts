@@ -53,9 +53,17 @@ import {
  *
  * Current limits: a hit's material is read back from the lit image where the surface shows, else from the surface cache's cards (no per-hit
  * material evaluation yet); no glass, subsurface, cloth or hair lobes; no capsule lights, light profiles, light functions or rectangle light textures;
- * the denoiser settings (`pathTracingDenoiser`, `pathTracingSpatialDenoiser`, `pathTracingTemporalDenoiser`, `pathTracingTemporalDenoiserMode`,
- * `pathTracingDenoiserNormalSpace`) are read but the denoiser is not built, so the image shown is the raw accumulation; the atmosphere and
- * the clouds are not traced.
+ * the atmosphere and the clouds are not traced.
+ *
+ * The denoiser: a prepass keeps each pixel's running mean and variance (`pathTracingDenoiserVarianceType` 0 a variance per colour channel, 1 one
+ * for the luminance, the albedo and the normals' length; `pathTracingDenoiserRankedLuminanceVariance` ranks the channels first;
+ * `pathTracingDenoiserOutputVarianceTexture` always writes the variance image); the spatial stage filters the radiance guided by the albedo,
+ * the normals and that variance; the temporal stage estimates the motion between the last denoised image and this one on a pyramid of 7 levels
+ * (`...TemporalDenoiserDistanceMetrics` 0 luminance, 1 colour, 2 CIE 2000 difference; `...SubPixelOffset`, `...SubPixelOffsetStartMip`,
+ * `...MotionOperation`, `...TotalVariation`, `...PatchCount`), then blends the warped history in (`...Kappa`, `...Eta`, `...DeltaE`,
+ * `...DeltaEHighFrequency`, `...Alpha`; Kappa and Eta at -1 are derived from DeltaE); `...Source` picks what the motion is estimated on
+ * (0 the denoised radiance, 1 normals, 2 albedo, 3 raw radiance, else a fusion of the variances); `...VisualizeMotionVector` and
+ * `...VisualizeWarp` (1 the warped history, 2 the weights and the warp) draw the motion on the image.
  */
 export const PATH_TRACING_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -76,6 +84,23 @@ export const PATH_TRACING_RULES = /* @__PURE__ */ (() =>
     flag('pathTracingSpatialDenoiser', true),
     flag('pathTracingTemporalDenoiser', false),
     integer('pathTracingTemporalDenoiserMode', 1, [0, 2]),
+    integer('pathTracingDenoiserVarianceType', 1, [0, 1]),
+    flag('pathTracingDenoiserOutputVarianceTexture', false),
+    flag('pathTracingDenoiserRankedLuminanceVariance', false),
+    flag('pathTracingTemporalDenoiserVisualizeMotionVector', false),
+    flag('pathTracingTemporalDenoiserSubPixelOffset', true),
+    number('pathTracingTemporalDenoiserKappa', -1, [-1, 1e6]),
+    number('pathTracingTemporalDenoiserEta', 1, [-1, 1e6]),
+    number('pathTracingTemporalDenoiserDeltaE', 5, [0, 1e6]),
+    number('pathTracingTemporalDenoiserDeltaEHighFrequency', 2.1, [0, 1e6]),
+    number('pathTracingTemporalDenoiserAlpha', 1, [0, 1e6]),
+    integer('pathTracingTemporalDenoiserSource', 0, INT32_RANGE),
+    integer('pathTracingTemporalDenoiserSubPixelOffsetStartMip', 8, [0, 64]),
+    integer('pathTracingTemporalDenoiserMotionOperation', 1, [0, 1]),
+    integer('pathTracingTemporalDenoiserVisualizeWarp', 0, [0, 2]),
+    integer('pathTracingTemporalDenoiserDistanceMetrics', 2, [0, 2]),
+    flag('pathTracingTemporalDenoiserTotalVariation', true),
+    integer('pathTracingTemporalDenoiserPatchCount', 1, [1, 16]),
     integer('pathTracingMISMode', 2, [0, 2]),
     flag('pathTracingMISCompensation', true),
     number('pathTracingMaxPathIntensity', 24, [1, 65504]),
