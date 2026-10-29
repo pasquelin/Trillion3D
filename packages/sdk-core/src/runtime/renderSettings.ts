@@ -44,8 +44,11 @@ export type ChoiceSettingEntry = EntryBase & {
   default: string
   choices: readonly string[]
 }
+/** A text of the table: any string. */
+export type TextSettingEntry = EntryBase & { kind: 'text'; default: string }
 /** One setting of the table: its kind, its default — an engine constant — and its bounds. */
-export type RenderSettingEntry = FlagSettingEntry | NumberSettingEntry | ChoiceSettingEntry
+export type RenderSettingEntry =
+  FlagSettingEntry | NumberSettingEntry | ChoiceSettingEntry | TextSettingEntry
 
 /** A setting's value: a switch, a number, or one of its choices. */
 export type RenderSettingValue = boolean | number | string
@@ -54,7 +57,9 @@ type ValueOf<E extends RenderSettingEntry> = E extends { kind: 'flag' }
   ? boolean
   : E extends { kind: 'choice'; choices: readonly (infer C)[] }
     ? C
-    : number
+    : E extends { kind: 'text' }
+      ? string
+      : number
 
 /** Who wrote a value, weakest first after the default: the loaded scene's manifest, a preset, the
  *  page, the editor. */

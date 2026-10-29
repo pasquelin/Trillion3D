@@ -3453,13 +3453,25 @@ world.shadows = { shadowShowClipmapStats: 0 } // the first sun's clipmap: alloca
 world.shadows = { shadowShowClipmapStats: -1 } // off
 ```
 
-`shadowVisualizeLayout` (`0`), `shadowVisualizeCachedPagesOnly` (`false`) and `shadowVisualizeLight` (`-1`) shape the virtual shadow map views above (`virtual-shadow-map-shadow-factor` and the eight others, which draw what the last ray of each pixel read). The layout is `0` over the whole image (in grey), `1` in a thumbnail of a third of the image's width and height at its upper left, `2` over its left half. `shadowVisualizeCachedPagesOnly` makes the cached-page view show the kept pages for every light and hide the others. `shadowVisualizeLight` is the rank of the one light to show, in the frame's order of shadowed lights (the suns first), alone and in full colour; `-1` shows every light, a quarter of each colour added. The views need the one-pass projection of the local lights (`shadowOnePassProjection`, on by default) to show them.
+### Clusters table
+
+`shadowShowStats` (`''`, none) names the sections of the virtual shadow maps' statistics written over the image: `'all'` or `'1'` every section, `'basic'` the basic ones, else section names separated by commas, case ignored. The `clusters` section lists, at the lower left, every shadow map that drew clusters: its id, its light's name and the clusters it drew (the hardware and software raster's, summed); a map stays listed for 180 images after its last cluster. The clusters are counted by the raster while the section is shown, and read a few images late.
+
+```js
+world.shadows = { shadowShowStats: 'clusters' } // the clusters each shadow map draws
+world.shadows = { shadowShowStats: 'all' }
+world.shadows = { shadowShowStats: null } // off
+```
+
+The shadow casters view (`virtual-shadow-map-shadow-casters`) paints each pixel in the colour of its placement's class, shaded by the angle of its face to the view, with the boxes of the invalidating placements over it.
+
+`shadowVisualizeLayout` (`0`), `shadowVisualizeCachedPagesOnly` (`false`) and `shadowVisualizeLightName` (`''`) shape the virtual shadow map views above (`virtual-shadow-map-shadow-factor` and the eight others, which draw what the last ray of each pixel read). The layout is `0` over the whole image (in grey), `1` in a thumbnail of a third of the image's width and height at its upper left, `2` over its left half. `shadowVisualizeCachedPagesOnly` makes the cached-page view show the kept pages for every light and hide the others. `shadowVisualizeLightName` is the name of the one light to show, alone and in full colour: the light whose name is exactly that, else the first whose name contains it; the empty string (the default), or a name no light bears, shows every light, a quarter of each colour added. The local lights are shown with the one-pass projection (`shadowOnePassProjection`, on by default) and without it.
 
 ```js
 await engine.setDiagnostic('virtual-shadow-map-cached-page')
 world.shadows = { shadowVisualizeLayout: 2 } // the view over the left half of the image
-world.shadows = { shadowVisualizeLight: 0, shadowVisualizeCachedPagesOnly: true } // the first light's kept pages
-world.shadows = { shadowVisualizeLayout: null, shadowVisualizeLight: null } // back to the defaults
+world.shadows = { shadowVisualizeLightName: 'Lamp', shadowVisualizeCachedPagesOnly: true } // the kept pages of the light named Lamp
+world.shadows = { shadowVisualizeLayout: null, shadowVisualizeLightName: null } // back to the defaults
 ```
 
 The quality levels (the `shadows` group) write the four that shape the distance and its edge, the shadow
@@ -3924,34 +3936,6 @@ layer's trace — the engine's reflection of the nearest transparent surface, tr
 surface's reflectance, faded in over the first 50 cm of water above the scene, always traced for the water whatever
 `reflectionFrontLayer` says (at every level that traces reflections). The water's depth becomes the scene's: fog,
 particles and the transparents drawn after are hidden behind it.
-
-#### Traced translucency
-
-Options of the reflections (`packages/sdk-core/src/contracts/tracedTranslucencyOptions.ts`), each with the reference's default.
-`translucencyType: 'rayTraced'` (or `rayTracedTranslucency: 'on'`) draws the see-through surfaces with rays cast through the scene's
-triangles, a primary path from the eye through up to `translucencyMaxPrimaryHitEvents` (4) surfaces and off each a secondary path of up to
-`translucencyMaxSecondaryHitEvents` (2) more, ended when its throughput falls under `rayTracedTranslucencyPathThroughputThreshold` (0.001);
-`translucencyRefraction` bends the rays through surfaces of an index of refraction above one (and keeps the rays one a pixel);
-`rayTracedTranslucencyForceOpaque`, `rayTracedTranslucencySampleTranslucentReflectionInReflections` (true), `rayTracedTranslucencyDownsampleFactor` (1)
-and `rayTracedTranslucencyMaxRayIntensity` (1000, in the display's white) complete it.
-
-```js
-const world = await createWorld({
-  reflections: {
-    translucencyType: 'rayTraced',
-    translucencyRefraction: true,
-    translucencyMaxPrimaryHitEvents: 6,
-  },
-})
-world.reflections = { rayTracedTranslucencyMaxRayIntensity: 200 } // changed from the next frame
-```
-
-The traced translucency runs where the scene is traced through its triangles and the image has a transparent front layer: one ray a pixel the layer covers (a block of
-`rayTracedTranslucencyDownsampleFactor` pixels a side casting one) is cast from the eye to just short of the opaque depth, the radiance, the throughput and the
-background it lets show are resolved and accumulated over the images (the reflections' history length and clamp), and the lit image is multiplied by the throughput and
-the radiance laid over it. The raster draws of the transparents are then left out (particles are still drawn); until the kernels are compiled, or where the image
-has no front layer, the raster draws them as before. A hit's material is the constants of the surface its placement wears; its light is the surface cache's where the
-placement has cards, plus the sky light's irradiance on the diffuse colour of a translucent surface.
 
 ```js
 const g = material.graph('surface')
@@ -4733,7 +4717,7 @@ The sampled lighting (`sampledLights`) and the subsurface scattering have views 
 | --- | --- |
 | `virtual-shadow-map-shadow-casters` | over the image, the edges of the box of every placement the shadows keep as invalidating or that may, in the colour of its class (red a static one that deforms, purple a dynamic one that moves or deforms, blue a dynamic one whose offset may invalidate), with the legend of the classes at the lower left; the green, cyan and grey classes draw no box |
 | `virtual-shadow-map-clipmap-virtual-space` | over the image in grey, a square that shows the pages the first sun's shadow clipmap has mapped, level by level from the finest to the coarsest, each in the colour of its address and level, zoomed so that the finest level's pages fill it; needs shadows (`await engine.setDiagnostic('virtual-shadow-map-clipmap-virtual-space')`) |
-| `virtual-shadow-map-shadow-factor` | over the image in grey, the share of each light that reaches the surface: yellow lit, dark blue in shadow, the lights added (the one light `shadowVisualizeLight` names, alone); the legend at the lower left; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-shadow-factor')`) |
+| `virtual-shadow-map-shadow-factor` | over the image in grey, the share of each light that reaches the surface: yellow lit, dark blue in shadow, the lights added (the one light `shadowVisualizeLightName` names, alone); the legend at the lower left; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-shadow-factor')`) |
 | `virtual-shadow-map-clipmap-or-mip` | over the image in grey, one colour a level: the clipmap level a sun reads at the pixel, or the mip level a local light reads, mixed with the share of light; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-clipmap-or-mip')`) |
 | `virtual-shadow-map-virtual-page` | over the image in grey, the virtual page the last ray of the pixel read, in the colour of its address mixed with the colour of its level and the share of light; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-virtual-page')`) |
 | `virtual-shadow-map-cached-page` | over the image in grey, the state of the page the pixel reads: green kept from the last image (shown for one light, or for all with `shadowVisualizeCachedPagesOnly`), red both layers drawn again, blue the dynamic layer alone, yellow-green kept by force; with the legend; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-cached-page')`) |

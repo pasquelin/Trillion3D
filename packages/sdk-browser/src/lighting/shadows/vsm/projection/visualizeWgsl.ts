@@ -2,7 +2,7 @@
  * THE VIRTUAL SHADOW MAP VIEWS' PROJECTION (`visualizePass.ts`): the two kernels that draw, for each pixel, what its lights' last rays read, in the colour the chosen view gives it. They are the
  * suns' and the local lights' projection (`projectionWgsl.ts`) run again with a trace that keeps the page its last ray read (`vsmSeen`, `../trace/traceRayWgsl.ts`), and write a colour
  * where the projection writes a share: the suns' kernel writes the sum of the suns, the local lights' kernel reads it and adds the local lights', in the order of the lights. A light
- * the view chooses (`shadowVisualizeLight`) is drawn alone and in full colour; else every light adds a quarter of its colour to the pixel's. The views of the pages read the page's
+ * the view chooses (`shadowVisualizeLightName`) is drawn alone and in full colour; else every light adds a quarter of its colour to the pixel's. The views of the pages read the page's
  * state in the pool's page record (`vsmPoolPageInfo`).
  *
  * The state words of a page are ours for the reference's: a layer to draw again is a page mark (`VSM_PAGE_DYNAMIC_STALE`, `VSM_PAGE_STATIC_STALE`), a page kept by force
@@ -248,6 +248,25 @@ ${LOCALS_LANE_LIGHT}
 }
 `
 
+/** The local lights' kernel of the views where the lights are projected one by one (`perLightPass.ts`): the suns' sum (`vsmVizIn`) and the colour of every local light of the frame, in the order of their records, each over the pixels it reaches. */
+const allLocalsEntry = /* wgsl */ `
+${GROUP_SIZE}
+fn vsmVisualizeLocals(@builtin(workgroup_id) groupId:vec3u,@builtin(local_invocation_index) groupIndex:u32){
+ vsmLaneInit(groupIndex);
+ let pixel=vsmPixelOf(groupId.xy,groupIndex);
+ var colour=vec4f(0.0);
+ if(pixel.inRect){colour=textureLoad(vsmVizIn,pixel.pos,0);}
+ let receiver=vsmReceiverOf(pixel,pixel.info.valid);
+ for(var k=vsmView.sunCount;k<vsmView.lightCount;k++){
+  let inLight=vsmLightParticipates(k,pixel.info,pixel.shifted);
+  vsmSeen.map=NO_INDEX;
+  let r=vsmSubsurfaceShadow(vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight),pixel.info);
+  colour=vsmVisualizeOutput(k,r,colour,false);
+ }
+ if(pixel.inRect){textureStore(vsmVizOut,pixel.pos,colour);}
+}
+`
+
 /** The views' colour target, written by both kernels. */
 const OUTPUT_BINDING = `@group(1) @binding(${VSM_PROJECTION_BINDING.visualizeOut}) var vsmVizOut:texture_storage_2d<rgba16float,write>;`
 
@@ -275,8 +294,8 @@ export function vsmVisualizeSunsWgsl(layout: VsmLayout, subgroups = false) {
 }
 
 /**
- * The local lights' kernel of the views for the pool `layout`: `vsmVisualizeLocals` adds the colours of the lights of each pixel's cell to the suns'. The cell is read in the shadowed
- * lights' grid, as the strands' projection reads it: the eight storage buffers of a stage hold the tables, the lights and that grid alone.
+ * The local lights' kernel of the views for the pool `layout`, where the frame projects them in one pass: `vsmVisualizeLocals` adds the colours of the lights of each pixel's cell to the suns'.
+ * The cell is read in the shadowed lights' grid, as the strands' projection reads it: the eight storage buffers of a stage hold the tables, the lights and that grid alone.
  */
 export function vsmVisualizeLocalsWgsl(layout: VsmLayout, subgroups = false) {
   return wgslProgram(
@@ -306,6 +325,30 @@ export function vsmVisualizeLocalsWgsl(layout: VsmLayout, subgroups = false) {
       pixelCellWgsl(),
       SHADOW_SLICE_WGSL,
       VSM_LIGHT_GRID_WGSL,
+    ],
+  )
+}
+
+/** The local lights' kernel of the views for the pool `layout`, where the frame projects them one by one: `vsmVisualizeLocals` adds the colour of every local light to the suns', with no grid. */
+export function vsmVisualizePerLightWgsl(layout: VsmLayout, subgroups = false) {
+  return wgslProgram(
+    [
+      PROJECTION_VIEW,
+      BINDINGS_WGSL,
+      OUTPUT_BINDING,
+      `@group(1) @binding(${VSM_PROJECTION_BINDING.visualizeIn}) var vsmVizIn:texture_2d<f32>;`,
+      vsmProjectionVoteWgsl(subgroups),
+      VSM_PROJECTION_PIXEL_WGSL,
+      VSM_PROJECTION_OPAQUE_WGSL,
+      vsmProjectionRegionWgsl('gbuffer'),
+      VSM_PROJECTION_SUBSURFACE_WGSL,
+      allLocalsEntry,
+    ].join('\n'),
+    [
+      ...projectionCommon(layout, VSM_PROJECTION_PIXEL_OF_WGSL, VSM_VISUALIZE_VSM_SPECS),
+      ...traceDeps(layout, VSM_TRACE_KINDS_LOCAL, 'gbuffer', true, VSM_VISUALIZE_VSM_SPECS),
+      VSM_VISUALIZE_OUTPUT_WGSL,
+      ...(subgroups ? [SUBGROUP_ALL_WGSL] : []),
     ],
   )
 }

@@ -8,23 +8,31 @@ import { assertProgramAssembles } from '../../../../gpu/core/wgslNames.fixture.t
 import { vsmLayout } from '../layout.ts'
 import { cachedPageLegend, viewTitle } from '../debug/visualizeView.ts'
 import { vsmLocalsProjectionWgsl, vsmSunsProjectionWgsl } from './projectionWgsl.ts'
-import { vsmVisualizeRequest } from './visualizePass.ts'
+import { visualizedLight, vsmVisualizeRequest } from './visualizePass.ts'
 import { vsmIntToColor, vsmVirtualPageColor } from '../debug/pageColorWgsl.ts'
 import {
   modeConstant,
   VSM_VISUALIZE_OUTPUT_WGSL,
   VSM_VISUALIZE_RAY_COLOR_WGSL,
   vsmVisualizeLocalsWgsl,
+  vsmVisualizePerLightWgsl,
   vsmVisualizeSunsWgsl,
 } from './visualizeWgsl.ts'
 
 const LAYOUT = vsmLayout({ coverMode: 'suns', fullMapCapacity: 127, sunMapCapacity: 35 })
 const SUNS = vsmVisualizeSunsWgsl(LAYOUT)
 const LOCALS = vsmVisualizeLocalsWgsl(LAYOUT)
+const PER_LIGHT = vsmVisualizePerLightWgsl(LAYOUT)
 
 test('the views’ kernels are programs a device takes, and name no word of the engine’s rules out', () => {
   assertProgramAssembles(SUNS, 'vsmVisualizeSuns', 'the suns’ kernel')
   assertProgramAssembles(LOCALS, 'vsmVisualizeLocals', 'the local lights’ kernel')
+  assertProgramAssembles(PER_LIGHT, 'vsmVisualizeLocals', 'the per-light kernel')
+  assertProgramAssembles(
+    vsmVisualizePerLightWgsl(LAYOUT, true),
+    'vsmVisualizeLocals',
+    'the per-light kernel with subgroups',
+  )
   assertProgramAssembles(vsmVisualizeSunsWgsl(LAYOUT, true), 'vsmVisualizeSuns', 'with subgroups')
   assertProgramAssembles(
     vsmVisualizeLocalsWgsl(LAYOUT, true),
@@ -58,6 +66,15 @@ test('the suns’ kernel adds the suns in the order of their records, and the lo
   // The tables of the stage: the page records join, the counters and the lights’ tile lists go.
   assert.match(SUNS, /vsmPoolPageInfo/)
   assert.doesNotMatch(SUNS + LOCALS, /vsmStats|tileLights/)
+})
+
+test('the per-light kernel adds every local light of the frame to the suns’ sum, with no light grid', () => {
+  const each = functionsOf(PER_LIGHT, ['vsmVisualizeLocals'])
+  assert.match(each, /colour=textureLoad\(vsmVizIn,pixel\.pos,0\);/)
+  assert.match(each, /for\(var k=vsmView\.sunCount;k<vsmView\.lightCount;k\+\+\)\{/)
+  assert.match(each, /vsmLightParticipates\(k,pixel\.info,pixel\.shifted\)/)
+  assert.match(each, /colour=vsmVisualizeOutput\(k,r,colour,false\);/)
+  assert.doesNotMatch(PER_LIGHT, /vsmLightGrid|directLights|vsmShadowedList/)
 })
 
 test('each mode id is one bit, and a constant of the output function', () => {
@@ -117,19 +134,36 @@ test('the trace keeps its last ray’s page only for the views; the projection�
 })
 
 test('the request: a view’s mode id with the settings that shape it, none for another mode', () => {
-  const settings = { shadowVisualizeLight: -1, shadowVisualizeCachedPagesOnly: false }
-  assert.deepEqual(vsmVisualizeRequest('virtual-shadow-map-cached-page', settings), {
+  const settings = { shadowVisualizeLightName: '', shadowVisualizeCachedPagesOnly: false }
+  const lights = [{ id: 'sun' }, { id: 'lamp.left' }, { id: 'lamp.right' }]
+  assert.deepEqual(vsmVisualizeRequest('virtual-shadow-map-cached-page', settings, lights), {
     mode: 8,
     light: -1,
     cachedOnly: false,
   })
   assert.deepEqual(
-    vsmVisualizeRequest('virtual-shadow-map-ray-count', { ...settings, shadowVisualizeLight: 2 }),
+    vsmVisualizeRequest(
+      'virtual-shadow-map-ray-count',
+      { ...settings, shadowVisualizeLightName: 'lamp.right' },
+      lights,
+    ),
     { mode: 16, light: 2, cachedOnly: false },
   )
-  assert.equal(vsmVisualizeRequest('virtual-shadow-map-clipmap-virtual-space', settings), undefined)
-  assert.equal(vsmVisualizeRequest('shadows', settings), undefined)
-  assert.equal(vsmVisualizeRequest(undefined, settings), undefined)
+  assert.equal(
+    vsmVisualizeRequest('virtual-shadow-map-clipmap-virtual-space', settings, lights),
+    undefined,
+  )
+  assert.equal(vsmVisualizeRequest('shadows', settings, lights), undefined)
+  assert.equal(vsmVisualizeRequest(undefined, settings, lights), undefined)
+})
+
+test('the light name: exact before partial, the first of its kind, every light for none or a stranger', () => {
+  const lights = [{ id: 'lamp.left' }, { id: 'lamp' }, { id: 'lamp.right' }]
+  assert.equal(visualizedLight(lights, ''), -1)
+  assert.equal(visualizedLight(lights, 'lamp'), 1)
+  assert.equal(visualizedLight(lights, 'right'), 2)
+  assert.equal(visualizedLight(lights, 'lamp.'), 0)
+  assert.equal(visualizedLight(lights, 'moon'), -1)
 })
 
 test('the legends: the views’ titles, and the cached-page entries by light and by the kept-pages setting', () => {

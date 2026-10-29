@@ -23,6 +23,7 @@ import { VSM_PROJECTION_RECORD_BYTES } from './constants.ts'
 import type { VsmFrame } from './frame/vsmProject.ts'
 import { STORAGE } from './render/renderLists.ts'
 import { vsmFeedbackWords } from './render/renderParamsWgsl.ts'
+import { showsClusterStats } from './debug/clusterStats.ts'
 import { vsmFrameParity, vsmFrameSetHeld, vsmPerFrameSet } from './resources.ts'
 import type { VsmPerFrameSet, VsmResources } from './resources.ts'
 import {
@@ -39,6 +40,10 @@ import {
 /** Whether the settings ask the throttle: a time budget or a load budget above 0. */
 export const vsmThrottled = (shadows: ShadowValues) =>
   shadows.shadowDynamicResolutionTimeBudgetMs > 0 || shadows.shadowDynamicResolutionLoadBudget > 0
+
+/** Whether the settings show the clusters each map draws (`shadowShowStats`): the throttle's buffers then count them, its kernels running only when it is asked. */
+export const vsmCountsClusters = (shadows: ShadowValues) =>
+  showsClusterStats(shadows.shadowShowStats)
 
 const LABEL = `${VSM_PASS_PREFIX}throttle`
 
@@ -327,7 +332,10 @@ export function encodeVsmThrottle(pass: GPUComputePassEncoder, frame: VsmFrame) 
   held.active = true
   const throttleWords = vsmThrottleWords(held.mapSlots)
   clearWords(pass, frame, held, held.groups.clearThrottle, clearThrottleGroup, throttleWords)
-  if (held.prevKept) {
+  // Counting the clusters alone (`vsmCountsClusters`) leaves the biases as they are.
+  const { shadows } = vsm.state.maps
+  const countsOnly = vsmCountsClusters(shadows) && !vsmThrottled(shadows)
+  if (held.prevKept && !countsOnly) {
     writeParameters(frame, held)
     // Every previous id is a thread; thread 0 also writes the totals, so one workgroup at least.
     pass.setPipeline(held.pipelines.process)

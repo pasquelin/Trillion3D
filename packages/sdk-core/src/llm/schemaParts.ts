@@ -52,6 +52,7 @@ export const choiceSchema = (
 export const ruleSchema = (rule: SettingRule, description: string): JsonSchemaProperty => {
   if (rule.kind === 'flag') return flag(description)
   if (rule.kind === 'choice') return choiceSchema(rule, description)
+  if (rule.kind === 'text') return { type: 'string', description }
   if (rule.kind === 'vector')
     return {
       type: 'array',

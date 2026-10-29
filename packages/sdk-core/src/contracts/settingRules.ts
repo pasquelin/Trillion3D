@@ -63,6 +63,7 @@ export type SettingRule =
       readonly choices: readonly string[]
     }
   | { readonly kind: 'vector'; readonly field: string; readonly default: readonly number[] }
+  | { readonly kind: 'text'; readonly field: string; readonly default: string }
 /** Settings by a name: the one their reader gives them, or their field. */
 export type SettingRules = Readonly<Record<string, SettingRule>>
 /** The values of `T`'s settings, by the names `T` gives them, every one named. */
@@ -176,6 +177,10 @@ export const choiceSetting = <F extends string, const C extends readonly string[
 export const vectorSetting = <F extends string>(field: F, value: readonly number[]) =>
   ({ kind: 'vector', field, default: Object.freeze([...value]) }) as const
 
+/** A text of field `field` and default `value`: any string, a name to match (empty: none named). */
+export const textSetting = <F extends string>(field: F, value: string) =>
+  ({ kind: 'text', field, default: value }) as const
+
 /** The rules `rules` list, by their field. */
 export const rulesOf = <const T extends readonly SettingRule[]>(rules: T) =>
   Object.fromEntries(rules.map((rule) => [rule.field, rule])) as {
@@ -194,6 +199,7 @@ export function settingTakes(rule: SettingRule) {
   if (rule.kind === 'flag') return 'true or false'
   if (rule.kind === 'choice')
     return `one of ${rule.choices.map((name) => `'${name}'`).join(', ')}${isLevelRule(rule) ? ', true or false' : ''}`
+  if (rule.kind === 'text') return 'a string'
   if (rule.kind === 'vector') return `an array of ${rule.default.length} finite numbers`
   return (
     rule.takes ??
@@ -239,10 +245,11 @@ export function resolveNamed(
 }
 
 /** Whether `value` is one `rule` takes: a switch a boolean, a number a finite one in its range,
- *  whole when it is, a choice one of its names. */
+ *  whole when it is, a choice one of its names, a text any string. */
 export function settingFits(rule: SettingRule, value: unknown) {
   if (rule.kind === 'flag') return typeof value === 'boolean'
   if (rule.kind === 'choice') return typeof value === 'string' && rule.choices.includes(value)
+  if (rule.kind === 'text') return typeof value === 'string'
   if (rule.kind === 'vector')
     return (
       Array.isArray(value) && value.length === rule.default.length && value.every(isFiniteNumber)

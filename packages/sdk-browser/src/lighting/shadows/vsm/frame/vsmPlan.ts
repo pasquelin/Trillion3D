@@ -48,7 +48,7 @@ import {
   vsmSoftwarePipes,
 } from '../render/renderPipes.ts'
 import { vsmDescentPipes } from '../traversal/traversalPass.ts'
-import { vsmThrottled, vsmThrottleStages } from '../throttle.ts'
+import { vsmCountsClusters, vsmThrottled, vsmThrottleStages } from '../throttle.ts'
 import type { VsmLayout } from '../layout.ts'
 import {
   vsmRenderTiersDrawn,
@@ -288,7 +288,7 @@ function throttleOn(
   layout: VsmLayout,
   maps: VsmMapSettings,
 ) {
-  if (!vsmThrottled(maps.shadows)) return false
+  if (!vsmThrottled(maps.shadows) && !vsmCountsClusters(maps.shadows)) return false
   const now = {
     translucent: tracesTranslucent(rt),
     froxels: viewMarkingOf(rt) === 'froxels',

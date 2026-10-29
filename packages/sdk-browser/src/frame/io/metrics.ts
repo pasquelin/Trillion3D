@@ -8,6 +8,7 @@ import { releaseRectLightAtlas } from '../../lighting/rectLightAtlas/frame.ts'
 import { disposeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
 import { disposeShadowCasterBounds } from '../../lighting/shadows/vsm/debug/casterBounds.ts'
 import { disposeClipmapStats } from '../../lighting/shadows/vsm/debug/clipmapStats.ts'
+import { disposeClusterStats } from '../../lighting/shadows/vsm/debug/clusterStats.ts'
 import { disposeClipmapVirtualSpace } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
 import { disposeVsmVisualizeView } from '../../lighting/shadows/vsm/debug/visualizeView.ts'
 import { releaseAmbientCubemap } from '../../lighting/deferred/ambientCubemapFrame.ts'
@@ -249,6 +250,7 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   disposeClipmapVirtualSpace(rt)
   disposeVsmVisualizeView(rt)
   disposeClipmapStats(rt)
+  disposeClusterStats(rt)
   releaseAmbientCubemap(rt)
   rt.lights.buffer?.destroy()
 }

@@ -261,7 +261,7 @@ function projectionContext(
   context.classic = shadows.shadowVirtualEnable
     ? undefined
     : classicOf(rt, cam, plan, shadows, device.limits.maxTextureDimension2D)
-  context.visualize = vsmVisualizeRequest(rt.run.diagnostic, shadows)
+  context.visualize = vsmVisualizeRequest(rt.run.diagnostic, shadows, plan.projected)
   writeVsmProjectionFrame(vsm.res, context)
   scratch.projecting = true
   return context

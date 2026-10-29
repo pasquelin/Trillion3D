@@ -251,9 +251,11 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
   shadowVisualizeLayout:
     "Where the virtual shadow map views (the diagnostic modes 'virtual-shadow-map-shadow-factor', '…-clipmap-or-mip', '…-virtual-page', '…-cached-page', '…-ray-count', '…-general-debug', '…-dirty-page', '…-gpu-invalidated-page' and '…-merged-page') are drawn: 0 (the default) over the whole image, 1 in a thumbnail of a third of the image's width and height at its upper left, 2 over the left half of the image, the right half the image in grey.",
   shadowVisualizeCachedPagesOnly:
-    'Whether the cached-page view shows the pages kept from the last image for every light and hides the others (false, the default: the pages to draw again are shown, the kept ones only for the one light chosen by shadowVisualizeLight).',
-  shadowVisualizeLight:
-    "Which light the virtual shadow map views show: -1 (the default) all the lights that cast, their colours added; 0 and above the light of that rank in the frame's order of shadowed lights (the suns first), shown alone and with the full colours.",
+    'Whether the cached-page view shows the pages kept from the last image for every light and hides the others (false, the default: the pages to draw again are shown, the kept ones only for the one light named by shadowVisualizeLightName).',
+  shadowVisualizeLightName:
+    'Which light the virtual shadow map views show, by its name: the empty string (the default) all the lights that cast, their colours added; else the light whose name is exactly that, or, failing one, the first whose name contains it, shown alone and with the full colours. A name no light bears shows all the lights.',
+  shadowShowStats:
+    "Which sections of the virtual shadow maps' statistics are written over the image: the empty string (the default) none; 'all' or '1' every section; 'basic' the basic ones; else section names separated by commas, case ignored. The 'clusters' section lists at the lower left, for each map that drew clusters, its id, its light and its clusters, a map staying listed 180 images after its last; the counts arrive a few images late.",
   shadowShowClipmapStats:
     "The index (0 for the first, -1 the default: off) of the sun's shadow clipmap whose statistics are written over the image: for each level the rect of pages it has allocated, its width, height and area, and the total area. Read only with shadowVirtualEnable on; the figures arrive a few images late.",
   shadowCsmCaching:

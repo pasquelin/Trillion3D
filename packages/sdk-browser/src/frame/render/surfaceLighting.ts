@@ -43,6 +43,7 @@ import { encodeSubsurfaceDebug } from '../../lighting/subsurface/visualize.ts'
 import { encodeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
 import { encodeShadowCasterBounds } from '../../lighting/shadows/vsm/debug/casterBounds.ts'
 import { encodeClipmapStats } from '../../lighting/shadows/vsm/debug/clipmapStats.ts'
+import { encodeClusterStats } from '../../lighting/shadows/vsm/debug/clusterStats.ts'
 import { encodeClipmapVirtualSpace } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
 import { encodeVsmVisualizeView } from '../../lighting/shadows/vsm/debug/visualizeView.ts'
 import { encodeSceneDebug } from '../../lighting/surfaceCache/sceneDebug/frame.ts'
@@ -312,6 +313,7 @@ function composeImage(
   encodeClipmapVirtualSpace(rt, device, encoder)
   encodeVsmVisualizeView(rt, device, encoder, cam)
   encodeClipmapStats(rt, device, encoder, cam)
+  encodeClusterStats(rt, device, encoder, cam)
   // The rectangle lights' atlas, drawn over the image when asked.
   encodeRectLightAtlasDebug(rt, device, encoder, cam)
   // The surface cache's tables and boxes, over the image too.

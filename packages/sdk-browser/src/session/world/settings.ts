@@ -22,6 +22,7 @@ import {
   type NumberSettingEntry,
   type QualityGroup,
   type RenderSettingEntry,
+  type TextSettingEntry,
 } from '../../../../sdk-core/src/runtime/renderSettings.ts'
 
 /** Who may write a setting: by default anyone. */
@@ -37,13 +38,16 @@ type RuleEntry<V> = V extends boolean
   ? FlagSettingEntry
   : V extends number
     ? NumberSettingEntry
-    : Omit<ChoiceSettingEntry, 'default' | 'choices'> & { default: V; choices: readonly V[] }
+    : string extends V
+      ? TextSettingEntry
+      : Omit<ChoiceSettingEntry, 'default' | 'choices'> & { default: V; choices: readonly V[] }
 /** The entry of one setting of a contract's rules (`RegistryRule`), of the quality group `quality`
  *  (the view distance's by default): its kind, default and range or names the rule's. A number `above` its range's start lies from
  *  the smallest number past it. */
 function ruleEntry(rule: RegistryRule, quality: QualityGroup = 'viewDistance') {
   const group = base(quality)
   if (rule.kind === 'flag') return { kind: rule.kind, default: rule.default, ...group }
+  if (rule.kind === 'text') return { kind: rule.kind, default: rule.default, ...group }
   if (rule.kind === 'choice')
     return { kind: rule.kind, default: rule.default, choices: rule.choices, ...group }
   const range = rule.above ? ([Number.MIN_VALUE, rule.range[1]] as const) : rule.range

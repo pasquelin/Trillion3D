@@ -620,6 +620,10 @@ export function ruleProperties<F extends string>(
       properties[field] = { type: 'boolean', default: rule.default, description }
       continue
     }
+    if (rule.kind === 'text') {
+      properties[field] = { type: 'string', default: rule.default, description }
+      continue
+    }
     if (rule.kind === 'vector') {
       properties[field] = ruleSchema(rule, description)
       continue

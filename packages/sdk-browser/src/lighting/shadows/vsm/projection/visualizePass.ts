@@ -41,6 +41,7 @@ import {
   VSM_VISUALIZE_PARAM_WORDS,
   VSM_VISUALIZE_VSM_SPECS,
   vsmVisualizeLocalsWgsl,
+  vsmVisualizePerLightWgsl,
   vsmVisualizeSunsWgsl,
 } from './visualizeWgsl.ts'
 
@@ -53,22 +54,30 @@ const VIEW_FORMAT: GPUTextureFormat = 'rgba16float'
 export interface VsmVisualizeRequest {
   /** The mode id (`VIRTUAL_SHADOW_MAP_VIEWS`). */
   mode: number
-  /** The record of the one light shown (`shadowVisualizeLight`), −1 for every light. */
+  /** The record of the one light shown (`shadowVisualizeLightName`), −1 for every light. */
   light: number
   /** The kept pages only (`shadowVisualizeCachedPagesOnly`). */
   cachedOnly: boolean
 }
 
-/** The request of the diagnostic `diagnostic` under the shadow settings `settings`; none while another view or none is on. */
+/** The record, among the frame's `lights`, of the light the name `name` picks: the first whose name is exactly it, else the first whose name contains it; −1 (every light) for the empty name or a name no light bears. */
+export function visualizedLight(lights: readonly { readonly id: string }[], name: string) {
+  if (!name) return -1
+  const exact = lights.findIndex((light) => light.id === name)
+  return exact >= 0 ? exact : lights.findIndex((light) => light.id.includes(name))
+}
+
+/** The request of the diagnostic `diagnostic` under the shadow settings `settings`, the frame's `lights` named by id; none while another view or none is on. */
 export function vsmVisualizeRequest(
   diagnostic: DiagnosticMode | undefined,
-  settings: { shadowVisualizeLight: number; shadowVisualizeCachedPagesOnly: boolean },
+  settings: { shadowVisualizeLightName: string; shadowVisualizeCachedPagesOnly: boolean },
+  lights: readonly { readonly id: string }[],
 ): VsmVisualizeRequest | undefined {
   const mode = diagnostic && (VIRTUAL_SHADOW_MAP_VIEWS as Record<string, number>)[diagnostic]
   return mode
     ? {
         mode,
-        light: settings.shadowVisualizeLight,
+        light: visualizedLight(lights, settings.shadowVisualizeLightName),
         cachedOnly: settings.shadowVisualizeCachedPagesOnly,
       }
     : undefined
@@ -79,9 +88,14 @@ interface VisualizePipelines {
   vsmLayout: GPUBindGroupLayout
   sunsLayout: GPUBindGroupLayout
   localsLayout: GPUBindGroupLayout
+  perLightLayout: GPUBindGroupLayout
   suns: PreparedPipeline<GPUComputePipeline>
   locals?: PreparedPipeline<GPUComputePipeline>
+  perLight?: PreparedPipeline<GPUComputePipeline>
 }
+
+/** How the frame's local lights are shown: from the one-pass projection's grid (`grid`), or one by one (`each`, the per-light path); none without a local light. */
+type VisualizeLocals = 'grid' | 'each' | undefined
 
 /** The bindings of the suns' kernel: the projection's shared ones, the view's words and its colour target. */
 const sunsEntries = () => [
@@ -90,10 +104,15 @@ const sunsEntries = () => [
   computeStorageTextureEntry(VSM_PROJECTION_BINDING.visualizeOut, VIEW_FORMAT, 'write-only'),
 ]
 
-/** The bindings of the local lights' kernel: the suns' and the suns' colour, the engine's deferred view, the lights and the shadowed lights' grid. */
-const localsEntries = () => [
+/** The bindings of the per-light kernel: the suns' and the suns' colour. */
+const perLightEntries = () => [
   ...sunsEntries(),
   computeTextureEntry(VSM_PROJECTION_BINDING.visualizeIn, 'unfilterable-float'),
+]
+
+/** The bindings of the local lights' kernel: the per-light kernel's, the engine's deferred view, the lights and the shadowed lights' grid. */
+const localsEntries = () => [
+  ...perLightEntries(),
   computeUniformEntry(VSM_PROJECTION_BINDING.deferredView),
   computeBufferEntry(VSM_PROJECTION_BINDING.directLights, 'read-only-storage'),
   computeBufferEntry(VSM_PROJECTION_BINDING.lightGrid, 'read-only-storage'),
@@ -115,11 +134,11 @@ function pipelineOf(
 
 const pipelines = oncePerDevice(() => new WeakMap<VsmLayout, VisualizePipelines>())
 
-/** The kernels for the pool `layout` of `device`, the local lights' compiled at the first ask. */
-function pipelinesFor(device: GPUDevice, layout: VsmLayout, locals: boolean) {
+/** The kernels for the pool `layout` of `device`, the local lights' (`locals`) compiled at the first ask. */
+function pipelinesFor(device: GPUDevice, layout: VsmLayout, locals: VisualizeLocals) {
   const byLayout = pipelines(device)
   let made = byLayout.get(layout)
-  if (made?.locals || (made && !locals)) return made
+  if (made && (!locals || (locals === 'grid' ? made.locals : made.perLight))) return made
   const subgroups = hasSubgroupsOf(device, VSM_PROJECTION_HALF_LANES)
   const tag = nativeOrPolyfill(gpuCapsOf(device), 'subgroups').tag
   if (!made) {
@@ -140,6 +159,10 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, locals: boolean) {
           label: 'vsm.visualize.locals',
           entries: localsEntries(),
         }),
+        perLightLayout: device.createBindGroupLayout({
+          label: 'vsm.visualize.perLight',
+          entries: perLightEntries(),
+        }),
         suns: pipelineOf(
           device,
           vsmLayout,
@@ -153,7 +176,7 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, locals: boolean) {
       }),
     )
   }
-  if (locals)
+  if (locals === 'grid')
     made.locals = pipelineOf(
       device,
       made.vsmLayout,
@@ -161,6 +184,17 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, locals: boolean) {
       device.createShaderModule({
         label: `vsm.visualize.locals (${tag})`,
         code: vsmVisualizeLocalsWgsl(layout, subgroups),
+      }),
+      'vsmVisualizeLocals',
+    )
+  else if (locals === 'each')
+    made.perLight = pipelineOf(
+      device,
+      made.vsmLayout,
+      made.perLightLayout,
+      device.createShaderModule({
+        label: `vsm.visualize.perLight (${tag})`,
+        code: vsmVisualizePerLightWgsl(layout, subgroups),
       }),
       'vsmVisualizeLocals',
     )
@@ -199,8 +233,8 @@ function stateOf(device: GPUDevice, held: VsmProjectionState, width: number, hei
 }
 
 /**
- * Draws the view `request` of the frame's lights: the suns' kernel into a colour target of the size of the projection's targets, then, where the frame projects local lights in one pass
- * (`projectsLocals`), the local lights' kernel on top of it; what the screen pass draws is left in `vsmVisualizeStateOf(res).result`. Nothing is encoded while a pipeline compiles.
+ * Draws the view `request` of the frame's lights: the suns' kernel into a colour target of the size of the projection's targets, then, where the frame has local lights, the local lights' kernel on top of
+ * it — from the one-pass projection's grid (`projectsLocals`), else light by light as the per-light path projects them; what the screen pass draws is left in `vsmVisualizeStateOf(res).result`. Nothing is encoded while a pipeline compiles.
  */
 export function encodeVsmVisualize(
   steps: ComputeRun,
@@ -212,11 +246,15 @@ export function encodeVsmVisualize(
 ) {
   const { device, width, height } = frame
   const projection = vsmProjectionReserve(device, res)
-  const withLocals = projectsLocals(frame.lights, source, target)
-  const p = pipelinesFor(device, res.layout, withLocals)
+  const locals: VisualizeLocals = projectsLocals(frame.lights, source, target)
+    ? 'grid'
+    : frame.lights.length > 0 && frame.lights[frame.lights.length - 1].type !== 'directional'
+      ? 'each'
+      : undefined
+  const p = pipelinesFor(device, res.layout, locals)
   // What an earlier view drew is not this one's: nothing is shown until this frame's kernels ran.
   if (projection.visualize) projection.visualize.result = undefined
-  if (!chainReady(p.suns, withLocals ? p.locals : undefined)) return
+  if (!chainReady(p.suns, locals === 'grid' ? p.locals : locals && p.perLight)) return
   const state = stateOf(device, projection, width, height)
   device.queue.writeBuffer(
     state.params,
@@ -257,21 +295,24 @@ export function encodeVsmVisualize(
   const groups = [vsmProjectionGroups(width), vsmProjectionGroups(height), 1] as const
   pass.dispatchWorkgroups(...groups)
   let shown = state.suns!
-  if (withLocals) {
-    pass.setPipeline(p.locals!.get()!)
+  if (locals) {
+    const grid = locals === 'grid'
+    pass.setPipeline((grid ? p.locals : p.perLight)!.get()!)
     pass.setBindGroup(
       1,
       device.createBindGroup({
-        label: 'vsm.visualize.locals',
-        layout: p.localsLayout,
+        label: `vsm.visualize.${grid ? 'locals' : 'perLight'}`,
+        layout: grid ? p.localsLayout : p.perLightLayout,
         entries: [
           ...namedEntries(VSM_PROJECTION_BINDING, {
             ...shared,
             visualizeIn: state.suns!.createView(),
             visualizeOut: state.locals!.createView(),
-            deferredView: { buffer: source.deferredView! },
-            directLights: { buffer: source.directLights! },
-            lightGrid: { buffer: target.lightGrid! },
+            ...(grid && {
+              deferredView: { buffer: source.deferredView! },
+              directLights: { buffer: source.directLights! },
+              lightGrid: { buffer: target.lightGrid! },
+            }),
           }),
           ...hiz,
         ],

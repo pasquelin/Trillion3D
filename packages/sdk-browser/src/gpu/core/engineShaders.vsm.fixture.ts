@@ -3,6 +3,7 @@ import { vsmAtlasRasterWgsl } from '../../lighting/shadows/classic/atlas/atlasRa
 import { clipmapVirtualSpaceWgsl } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
 import {
   vsmVisualizeLocalsWgsl,
+  vsmVisualizePerLightWgsl,
   vsmVisualizeSunsWgsl,
 } from '../../lighting/shadows/vsm/projection/visualizeWgsl.ts'
 import { maskGraphSets } from './engineShaders.mask.fixture.ts'
@@ -189,6 +190,7 @@ export function vsmVariants() {
   variants.VSM_CLIPMAP_VIRTUAL_SPACE = clipmapVirtualSpaceWgsl(layout)
   variants.VSM_VISUALIZE_SUNS = vsmVisualizeSunsWgsl(layout)
   variants.VSM_VISUALIZE_LOCALS = vsmVisualizeLocalsWgsl(layout)
+  variants.VSM_VISUALIZE_PER_LIGHT = vsmVisualizePerLightWgsl(layout)
   variants.VSM_PROJECTION_SUNS_CLASSIC = vsmSunsProjectionWgsl(classic)
   variants.VSM_PROJECTION_LOCALS_CLASSIC = vsmLocalsProjectionWgsl(classic, 'rg32uint')
   // The same, under the shadow the hair strands cast on the surfaces (the `hair` cut).

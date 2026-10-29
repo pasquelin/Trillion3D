@@ -1,4 +1,4 @@
-// The display's helpers (`ptPerceptualError`, `ptTurbo`, `ptFinite`) and the error chain's reads, run in JavaScript from the shipped text.
+// The display's helpers (`ptPerceptualError`, `colorMapTurbo`, `ptFinite`) and the error chain's reads, run in JavaScript from the shipped text.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -19,15 +19,15 @@ test('the perceptual error is the error times the slope of the filmic curve', ()
 })
 
 test('the rainbow ramps from dark blue to dark red and holds its ends', () => {
-  const { ptTurbo } = shaderRun<{ ptTurbo: (t: number) => number[] }>(
+  const { colorMapTurbo } = shaderRun<{ colorMapTurbo: (t: number) => number[] }>(
     PT_DISPLAY_WGSL,
-    ['ptTurbo'],
+    ['colorMapTurbo'],
     {},
   )
-  assert.deepEqual(ptTurbo(-3), ptTurbo(0))
-  assert.deepEqual(ptTurbo(7), ptTurbo(1))
-  assert.ok(ptTurbo(0)[2] > ptTurbo(0)[0])
-  assert.ok(ptTurbo(1)[0] > ptTurbo(1)[2])
+  assert.deepEqual(colorMapTurbo(-3), colorMapTurbo(0))
+  assert.deepEqual(colorMapTurbo(7), colorMapTurbo(1))
+  assert.ok(colorMapTurbo(0)[2] > colorMapTurbo(0)[0])
+  assert.ok(colorMapTurbo(1)[0] > colorMapTurbo(1)[2])
 })
 
 test('a pixel with a component past half precision is held to its largest finite value', () => {

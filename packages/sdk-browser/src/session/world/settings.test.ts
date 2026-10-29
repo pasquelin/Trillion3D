@@ -181,6 +181,7 @@ test('every default is the constant the engine reads today, and a fresh registry
 test('every default lies within its own bounds', () => {
   for (const [name, entry] of Object.entries(WORLD_SETTINGS)) {
     if (entry.kind === 'flag') assert.equal(typeof entry.default, 'boolean', name)
+    else if (entry.kind === 'text') assert.equal(typeof entry.default, 'string', name)
     else if (entry.kind === 'choice')
       assert.ok(
         entry.choices.some((choice) => choice === entry.default),

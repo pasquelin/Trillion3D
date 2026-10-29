@@ -120,8 +120,8 @@ export const VSM_RENDER_COUNT_WORDS = VSM_RENDER_TIER_CURSOR + VSM_RENDER_BINS
  *  (`vsmFeedbackWords`); the frame copies them out whole. */
 const VSM_FEEDBACK_HW = 0
 const VSM_FEEDBACK_SW = 1
-const VSM_FEEDBACK_HEADER_WORDS = 2
-const VSM_FEEDBACK_ENTRY_WORDS = 2
+export const VSM_FEEDBACK_HEADER_WORDS = 2
+export const VSM_FEEDBACK_ENTRY_WORDS = 2
 /** The words of the counts of `mapSlots` map slots. */
 export const vsmFeedbackWords = (mapSlots: number) =>
   VSM_FEEDBACK_HEADER_WORDS + VSM_FEEDBACK_ENTRY_WORDS * mapSlots

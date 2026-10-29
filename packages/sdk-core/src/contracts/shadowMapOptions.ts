@@ -7,6 +7,7 @@ import {
   nonNegativeSetting as nonNegative,
   numberSetting as number,
   positiveSetting as positive,
+  textSetting as text,
 } from './settingRules.ts'
 
 /** The most rays a light traces. */
@@ -142,9 +143,10 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
     nonNegative('shadowSpotLightSlopeScaleDepthBias', 3),
     nonNegative('shadowMaxSlopeScaleDepthBias', 1),
     integer('shadowShowClipmapStats', -1, [-1, INT32_RANGE[1]]),
+    text('shadowShowStats', ''),
     integer('shadowVisualizeLayout', 0, [0, 2]),
     flag('shadowVisualizeCachedPagesOnly', false),
-    integer('shadowVisualizeLight', -1, [-1, INT32_RANGE[1]]),
+    text('shadowVisualizeLightName', ''),
     flag('shadowCsmCaching', false),
     number('shadowCsmScrollingOverlapAreaThrottle', 0.75, [0, 1]),
     integer('shadowMaxCsmScrollingStaticSubjects', 5, [0, INT32_RANGE[1]]),
@@ -296,9 +298,10 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowSpotLightSlopeScaleDepthBias` | 3 | |
  * | `shadowMaxSlopeScaleDepthBias` | 1 | |
  * | `shadowShowClipmapStats` | -1 | |
+ * | `shadowShowStats` | `''` | |
  * | `shadowVisualizeLayout` | 0 | |
  * | `shadowVisualizeCachedPagesOnly` | false | |
- * | `shadowVisualizeLight` | -1 | |
+ * | `shadowVisualizeLightName` | `''` | |
  * | `shadowCsmCaching` | false | |
  * | `shadowCsmScrollingOverlapAreaThrottle` | 0.75 | |
  * | `shadowMaxCsmScrollingStaticSubjects` | 5 | |

@@ -3,6 +3,7 @@ import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { createTextOverlay, TEXT_LINE } from '../../../../diagnostic/textOverlay.ts'
 import { debugColor } from '../../../../hair/debugLines.ts'
 import { rootWorldBox } from '../../../../geometry/selection/rootWorld.ts'
+import { encodeShadowCasterColor } from './casterColor.ts'
 import { shadowRootAt, shadowRootCount } from '../../casters/shadowRoots.ts'
 import {
   MOBILITY_DEFORMS,
@@ -63,7 +64,7 @@ export function disposeShadowCasterBounds(rt: object) {
 
 /**
  * THE SHADOW CASTERS VIEW (`virtual-shadow-map-shadow-casters`), over the display image: the box of every placement the shadows keep as invalidating or that may (`casterClass`), in the colour of its class,
- * with the legend of the classes. The boxes are drawn as edges over the image, whatever lies before them.
+ * with the legend of the classes, over the image painted in the classes' colours (`casterColor.ts`). The boxes are drawn as edges over the image, whatever lies before them.
  */
 export function encodeShadowCasterBounds(
   rt: WebgpuPagesRuntime,
@@ -74,6 +75,8 @@ export function encodeShadowCasterBounds(
   const { gpu } = rt
   if (rt.run.diagnostic !== SHADOW_CASTERS_VIEW || !gpu.displayView)
     return disposeShadowCasterBounds(rt)
+  // The false colour of the placements' classes first, the boxes over it.
+  encodeShadowCasterColor(rt, device, encoder)
   let overlay = overlays.get(rt)
   if (!overlay) overlays.set(rt, (overlay = createTextOverlay(device)))
   overlay.begin(cam)
