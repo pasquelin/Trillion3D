@@ -1,5 +1,6 @@
 import type { AmbientOcclusionOptions } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import type { AmbientCubemapSettings } from '../../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
+import type { ReflectionCaptureOptions } from '../../../../sdk-core/src/contracts/reflectionCaptureOptions.ts'
 import type { BloomSettings } from '../../../../sdk-core/src/contracts/bloomRules.ts'
 import type { ColorGradingSettings } from '../../../../sdk-core/src/contracts/colorGradingOptions.ts'
 import type { DepthOfFieldSettings } from '../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
@@ -12,6 +13,7 @@ import type { SurfaceCacheOptions } from '../../../../sdk-core/src/contracts/sur
 import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import type { LightFunctionOptions } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import type { LightProfileOptions } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
+import type { RectLightAtlasOptions } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
 import type { ReflectionOptions } from '../../../../sdk-core/src/contracts/reflectionOptions.ts'
 import type { ScreenProbeOptions } from '../../../../sdk-core/src/bounce/screenProbeOptions.ts'
@@ -98,6 +100,14 @@ export interface WorldImageSettings {
    *  back to it, one left out stays —; one a setting does not take is refused. */
   get lightProfile(): FamilyValues<'lightProfile'>
   set lightProfile(options: LightProfileOptions)
+  /** The rectangle lights' source-texture atlas settings, each by its field (`WorldOptions`), resolved over the page and the quality
+   *  preset: `rectLightAtlasMaxResolution` (4096) — the largest side of the atlas —, `rectLightAtlasFilterQuality` (0, a box; 1, a Gaussian),
+   *  `rectLightAtlasMaxTextureRatio` (2), `rectLightAtlasFormat` (0, 11/11/10 bits; 1, 16-bit floats), `sampledLightsTexturedRectLights` (true), and the debug and repack switches (`rectLightAtlasDebug`, `rectLightAtlasDebugMipLevel`,
+   *  `rectLightAtlasForceUpdate`, `rectLightAtlasResetOnChange`, `rectLightAtlasClear`, `rectLightAtlasDebugClear`, all off).
+   *  Written, the settings named apply from the next frame over the preset — one `null` gives it back to it, one left out stays —;
+   *  one a setting does not take is refused. */
+  get rectLightAtlas(): FamilyValues<'rectLightAtlas'>
+  set rectLightAtlas(options: RectLightAtlasOptions)
   /** The volumetric lightmap's setting, by its field (`WorldOptions`), resolved over the page and
    *  the quality preset: `volumetricLightmap`, whether the precomputed light is read, on by
    *  default. Written, the setting named applies from the next frame over the preset — `null`
@@ -222,6 +232,11 @@ export interface WorldImageSettings {
    *  from the next frame — one `null` gives it back to its default, one left out stays —; one a setting does not take is refused. */
   get ambientCubemap(): FamilyValues<'ambientCubemap'>
   set ambientCubemap(options: AmbientCubemapSettings)
+  /** The reflection captures' settings, each by its field (`WorldOptions`), resolved over the page: `reflectionCaptures` (true), `reflectionCaptureResolution` (128),
+   *  `reflectionCaptureSupersample` (1), `reflectionCaptureNearPlane` (0.05 m), `reflectionCaptureLightFunctions` (false), `reflectionCaptureDiffuse` (false) and
+   *  `reflectionCaptureDiffuseReference` (true). Written, the settings named apply from the next frame; one a setting does not take is refused. */
+  get reflectionCapture(): FamilyValues<'reflectionCapture'>
+  set reflectionCapture(options: ReflectionCaptureOptions)
   /** The screen-space subsurface scattering's settings, each by its field (`WorldOptions`), resolved over the page and the quality
    *  preset: `subsurfaceScattering`, the master switch, `subsurfaceScale` (the scale of every profile's radius, 0 off),
    *  `subsurfaceHalfResolution` and `subsurfaceHalfResolutionSeparable`, `subsurfaceRecombineQuality`, `subsurfaceFilter`,

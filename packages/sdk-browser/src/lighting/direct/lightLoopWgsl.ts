@@ -279,7 +279,7 @@ const rectBranch = (
   var transmitted=vec3f(0.0);${
     cut.thin
       ? `
-  if(thinSurface()){transmitted=thinSubsurface*(thinTransmission(N,V,centre)*rectWindowed(r)*lightStrength(light))*light.colorIntensity.rgb;}`
+  if(thinSurface()){transmitted=thinSubsurface*(thinTransmission(N,V,centre)*rectWindowed(r)*lightStrength(light))*light.colorIntensity.rgb*rectColour(r,centre);}`
       : ''
   }${rectModelTerm(models)}${models ? `\n  ${hairOnly('transmitted*share.y*transmissionGiven')}\n  ${nested(scattered('surfaceGiven', 'transmissionGiven', 'profileRectLight(light,r,shading,N,V,rough)'))}` : ''}
   let t=rectLightSplit(light,r,shading,rgb,metal,rough,N,V);${

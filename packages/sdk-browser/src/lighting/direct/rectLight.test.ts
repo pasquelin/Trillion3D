@@ -4,6 +4,7 @@
 // (`../shaderRunF32.fixture.ts`) against the clipped polygon's integral in f64 (each edge cut at the
 // horizon, then the edges' sum of angles), itself checked against a Monte Carlo integral over the rectangle.
 // Its integral with no normal (`rectFormOf`, what a medium reads of it) is the projected solid angle.
+import { testLight } from './testLight.fixture.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { LTC_SIZE, ltcTable } from '../../../../sdk-core/src/lighting/ltcTable.ts'
@@ -79,7 +80,11 @@ function light(distance: number, size: number, origin = 0) {
   const U = unit(cross(n as V3, sphere())).map((x) => Math.fround(x * size * (0.3 + random())))
   const h = Math.fround(size * (0.3 + random()))
   const W = F32_SCOPE.normalize(F32_SCOPE.cross(U, n)).map((x) => Math.fround(x * h))
-  const record = { positionRange: [...C, 1e30], directionCone: [...n, 0], shape: [...U, h] }
+  const record = testLight({
+    positionRange: [...C, 1e30],
+    directionCone: [...n, 0],
+    shape: [...U, h],
+  })
   const corners = [-1, 1, 1, -1].map((u, i) =>
     [0, 1, 2].map((k) => C[k] - P[k] + u * U[k] + (i < 2 ? -1 : 1) * W[k]),
   )

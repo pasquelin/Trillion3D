@@ -17,6 +17,7 @@ import { validateLightFunction } from './lightFunction.ts'
 import { validateLightSettings } from './validateSettings.ts'
 import { validateLightShadow } from './lightShadow.ts'
 import { refuseLightProfile, validateLightProfile } from './lightProfile.ts'
+import { refuseSourceTexture, validateSourceTexture } from './lightSourceTexture.ts'
 import { LIGHT_UNITS } from './lightUnits.ts'
 import { readsUnits, sourceAreaOf } from './fields.ts'
 import { HALF_PI } from '../../../../math/src/constants.ts'
@@ -220,6 +221,7 @@ function validateDirectional(light: SceneLight, validated: SceneLight): SceneLig
   for (const field of LAMP_ONLY)
     unused(light, field, 'does not exist for a directional light: it has no position')
   refuseLightProfile(light)
+  refuseSourceTexture(light)
   validated.direction = requiredDirection(
     light.direction,
     id,
@@ -279,12 +281,14 @@ export function validateSceneLight(light: SceneLight): SceneLight {
   if (light.kind === 'spot') {
     validated.direction = requiredDirection(light.direction, id, 'a spot requires a direction')
     validated.outerConeAngle = outerConeAngle(light.outerConeAngle, id)
+    refuseSourceTexture(light)
     if (light.innerConeAngle !== undefined)
       validated.innerConeAngle = innerConeAngle(light.innerConeAngle, id)
     validateLightProfile(light, validated)
     return validated
   }
   for (const field of SPOT_ONLY) unused(light, field, 'exists only for a spot')
+  refuseSourceTexture(light)
   if (light.direction !== undefined) validated.direction = direction(light.direction, id)
   validateLightProfile(light, validated)
   return validated
@@ -313,5 +317,6 @@ function validateRect(light: SceneLight, validated: SceneLight): SceneLight {
   )
     throw new EngineError('INVALID_SCENE_LIGHT', `${id}: size expects two sides > 0`, { size })
   validated.size = [size[0], size[1]]
+  validateSourceTexture(light, validated)
   return validated
 }

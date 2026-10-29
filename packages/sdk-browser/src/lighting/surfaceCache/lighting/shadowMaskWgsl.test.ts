@@ -7,7 +7,7 @@ import { wgslBufferBindings } from '../../../gpu/core/wgslBindings.fixture.ts'
 import { tracedShadowWords } from './layout.ts'
 import { SHADOW_MASK_BINDINGS, SHADOW_MASK_ENTRIES, shadowMaskProgramOf } from './shadowMaskWgsl.ts'
 import { directProgramOf } from './directWgsl.ts'
-import { lightFunctionPassWgsl } from './lightFunctionPassWgsl.ts'
+import { standaloneMaskMaterial } from './standaloneMaskWgsl.ts'
 import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
 const SHADOW_MASK_PROGRAM_WGSL = shadowMaskProgramOf('grey')
@@ -83,10 +83,10 @@ test('its buffers are bound where the kernel lays them: the parameters, then the
 })
 
 test('the masks and the traces are sized by the light tiles: 16 words a tile (32 in the coloured format), one word a trace for each texel of each, at least a thousand', () => {
-  assert.equal(tracedShadowWords(100, 'grey', false).masks, 1600)
-  assert.equal(tracedShadowWords(100, 'colour', false).masks, 3200)
-  assert.equal(tracedShadowWords(100, 'grey', false).traces, 1 + 64 * 100)
-  assert.equal(tracedShadowWords(1, 'grey', false).traces, 1 + 1024)
+  assert.equal(tracedShadowWords(100, 'grey').masks, 1600)
+  assert.equal(tracedShadowWords(100, 'colour').masks, 3200)
+  assert.equal(tracedShadowWords(100, 'grey').traces, 1 + 64 * 100)
+  assert.equal(tracedShadowWords(1, 'grey').traces, 1 + 1024)
 })
 
 test('the direct light reads a texel’s factor as the format keeps it and multiplies the light’s irradiance by all of it: a colour tints the texel', () => {
@@ -120,16 +120,16 @@ test('a light is multiplied by its profile once, by the mask: the direct light t
       /if\(!ray\.complete\)\{\s*ray\.factor\*=lightProfileOf\(light,P\);\s*ray\.complete=!isVisibleToLight\(ray\.factor\);/,
     )
   }
-  // The direct entry takes the term with no profile, the mask's factor holding it, and the share a standalone light's function leaves in the scratch
-  // (`lightFunctionPassWgsl.ts`) holds none.
+  // The direct entry takes the term with no profile, the mask's factor holding it, and the share a standalone light's material gives
+  // (`standaloneMaskWgsl.ts`) holds none.
   const entry = DIRECT_WGSL.slice(DIRECT_WGSL.indexOf('fn directShade('))
   assert.match(entry, /declaredBareIrradiance\(rank,/)
   assert.doesNotMatch(entry, /lightProfileOf|declaredIrradiance\(/)
   const bare = DIRECT_WGSL.slice(DIRECT_WGSL.indexOf('fn declaredBareIrradiance('))
   assert.doesNotMatch(bare.slice(0, bare.indexOf('\n}')), /lightProfileOf/)
   assert.doesNotMatch(
-    lightFunctionPassWgsl({ mapped: false }),
+    standaloneMaskMaterial({ mapped: false }).text,
     /lightProfileOf/,
-    'the scratch share holds no profile',
+    'the material’s share holds no profile',
   )
 })

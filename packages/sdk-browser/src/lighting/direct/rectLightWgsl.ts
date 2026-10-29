@@ -4,12 +4,25 @@ import { SURFACE_MODEL_LIGHT_WGSL } from '../../materials/surface/surfaceModel.t
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { LTC_SIZE } from '../../../../sdk-core/src/lighting/ltcTable.ts'
 import { INVERSE_PI, INVERSE_TWO_PI, PI } from '../../../../math/src/wgsl/constants.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
 import { horizonWrap, ndotvClamped, splitSumTerm } from '../../../../math/src/wgsl/lighting.ts'
 import { tangentSide } from '../../../../math/src/wgsl/basis.ts'
 import { faceNormal, vectorRejection } from '../../../../math/src/wgsl/geometry.ts'
 import { bilinear4 } from '../../../../math/src/wgsl/sampling.ts'
 import { isKind, rangeWindow } from './lightReachWgsl.ts'
+
+/**
+ * The colour a rectangle's picture gives where a ray along \`L\` from the point meets the face of the rectangle with corners \`a\`, \`b\` (across), \`d\`
+ * (down) relative to the point and atlas slot \`slot\` (x, y, width, height in texels; a width of 0 for none): white for a rectangle with no picture,
+ * and for a program that binds no atlas, which keeps this default. A program that binds the atlas lists its own
+ * (\`rectSourceWgsl\`, \`../rectLightAtlas/readWgsl.ts\`), which replaces it.
+ */
+export const RECT_SOURCE_DEFAULT = wgslFn(
+  'rectSourceAt',
+  [],
+  'fn rectSourceAt(slot:vec4f,a:vec3f,b:vec3f,d:vec3f,L:vec3f)->vec3f{return vec3f(1.0);}',
+  { weak: true },
+)
 
 /**
  * A RECTANGULAR LIGHT, one-sided: a Lambertian rectangle of uniform radiance L, centred on
@@ -43,7 +56,7 @@ import { isKind, rangeWindow } from './lightReachWgsl.ts'
  */
 export const RECT_LIGHT_WGSL = wgslBlock(
   'RECT_LIGHT_WGSL',
-  [INVERSE_PI, INVERSE_TWO_PI, faceNormal, horizonWrap, rangeWindow, isKind],
+  [INVERSE_PI, INVERSE_TWO_PI, faceNormal, horizonWrap, rangeWindow, isKind, RECT_SOURCE_DEFAULT],
   `
 const KIND_RECT:u32=${LIGHT_KIND.rect}u;
 fn isRect(light:DirectLight)->bool{return isKind(light,KIND_RECT);}
@@ -89,12 +102,16 @@ fn polygonFormFactor(a:vec3f,b:vec3f,c:vec3f,d:vec3f,up:vec3f)->vec4f{
 /** The rectangle's corners relative to P, and its range window there, of a rectangle the light term
  *  let through (\`lightReaches\`: in range, P before its face). The centre is taken relative to P
  *  first: a corner then rounds at the light's distance, not at its world position's. */
-struct RectView{a:vec3f,b:vec3f,c:vec3f,d:vec3f,window:f32,}
+struct RectView{a:vec3f,b:vec3f,c:vec3f,d:vec3f,window:f32,slot:vec4f,}
+/** Where a rectangle's picture is in the atlas: the origin and the size in texels (\`LIGHT_FIELD.rectAtlasOriginX\`), a width of 0 for none. */
+fn rectSlotOf(light:DirectLight)->vec4f{return vec4f(light.capsule.x,light.capsule.y,light.params.w,light.traits.w);}
+/** The colour of the rectangle's picture along \`L\`, the way the point sees the rectangle \`r\`: white for none. */
+fn rectColour(r:RectView,L:vec3f)->vec3f{return rectSourceAt(r.slot,r.a,r.b,r.d,L);}
 fn rectView(light:DirectLight,P:vec3f)->RectView{
  let o=light.positionRange.xyz-P;let n=light.directionCone.xyz;
  let U=light.shape.xyz;let W=normalize(cross(U,n))*light.shape.w;
  let window=rangeWindow(length(o),light.positionRange.w);
- return RectView(o-U-W,o+U-W,o+U+W,o-U+W,window);
+ return RectView(o-U-W,o+U-W,o+U+W,o-U+W,window,rectSlotOf(light));
 }
 /** Direction of the vector form factor and the rectangle's irradiance per unit radiance at P
  *  for the normal N: half the length of its whole vector form factor, times the cosine of N with
@@ -174,12 +191,21 @@ fn pixelRectFrame(N:vec3f,V:vec3f,rough:f32)->RectFrame{
  if(!rectFrameHeld){rectFrameKept=rectFrameOf(N,V,rough);rectFrameHeld=true;}
  return rectFrameKept;
 }
+/** A direction of the lobe's frame, back in the world: the frame's axes times M, the inverse of the matrix \`ltcCorner\` applies. */
+fn ltcWorld(d:vec3f,f:RectFrame)->vec3f{
+ let m=f.m;let det=m.x*m.w-m.y*m.z;
+ let x=(m.w*d.x-m.y*d.z)/det;let z=(m.x*d.z-m.z*d.x)/det;
+ return f.T1*x+f.T2*d.y+f.N*z;
+}
 /** The rectangle's fitted specular lobe in the frame \`f\`, of reflectance \`f0\`, per unit radiance
  *  and before its range window: the polygon of its view \`r\` moved by M⁻¹, integrated, weighed by
- *  the lobe's magnitude and Fresnel share. */
+ *  the lobe's magnitude and Fresnel share, and by the colour of the rectangle's picture where the
+ *  lobe's mean direction meets it (white for none). */
 fn rectLtc(r:RectView,f:RectFrame,f0:vec3f)->vec3f{
- let lobe=polygonFormFactor(ltcCorner(r.a,f.T1,f.T2,f.N,f.m),ltcCorner(r.b,f.T1,f.T2,f.N,f.m),ltcCorner(r.c,f.T1,f.T2,f.N,f.m),ltcCorner(r.d,f.T1,f.T2,f.N,f.m),vec3f(0.0,0.0,1.0)).w;
- return splitSumTerm(f0,f.split)*lobe;
+ let lobe=polygonFormFactor(ltcCorner(r.a,f.T1,f.T2,f.N,f.m),ltcCorner(r.b,f.T1,f.T2,f.N,f.m),ltcCorner(r.c,f.T1,f.T2,f.N,f.m),ltcCorner(r.d,f.T1,f.T2,f.N,f.m),vec3f(0.0,0.0,1.0));
+ var picture=vec3f(1.0);
+ if(r.slot.z>0.0&&lobe.w>0.0){picture=rectColour(r,ltcWorld(lobe.xyz,f));}
+ return splitSumTerm(f0,f.split)*lobe.w*picture;
 }`,
 )
 
@@ -201,24 +227,26 @@ fn rectLightSplit(light:DirectLight,r:RectView,s:LobeSurface,rgb:vec3f,metal:f32
  let incident=rectIrradianceOf(r,N);
  let intensity=lightStrength(light);
  let E=intensity*incident.w;
+ // The picture's colour where the rectangle's mean direction meets it: what the diffuse light, the toon bands and the cloth's fuzz are multiplied by.
+ var picture=vec3f(1.0);
+ if(r.slot.z>0.0&&incident.w>0.0){picture=rectColour(r,incident.xyz);}
  if(surfaceModel==${MODEL_FLAG.diffuse}u||surfaceModel==${MODEL_FLAG.toon}u){
   if(incident.w<=0.0){return mat2x3f(vec3f(0.0),vec3f(0.0));}
   // E already carries the cosine: the diffuse model takes it whole, at a unit N·L.
-  if(surfaceModel==${MODEL_FLAG.diffuse}u){return mat2x3f(modelLight(rgb,metal,N,N,E)*tint,vec3f(0.0));}
+  if(surfaceModel==${MODEL_FLAG.diffuse}u){return mat2x3f(modelLight(rgb,metal,N,N,E)*tint*picture,vec3f(0.0));}
   // Toon bands the cosine toward the form factor, on the irradiance of a face turned to it:
   // bounded by π, as a lamp's energy is by its falloff.
   let facing=intensity*PI*polygonFormFactor(r.a,r.b,r.c,r.d,incident.xyz).w*r.window;
-  return mat2x3f(modelLight(rgb,metal,N,incident.xyz,facing)*tint,vec3f(0.0));
+  return mat2x3f(modelLight(rgb,metal,N,incident.xyz,facing)*tint*picture,vec3f(0.0));
  }
  // A pixel under a clear coat is lit by the coat model whole (\`coatedRect\`): the coat lights from its own normal,
  // whatever the base's face.
  if(hasCoat()){
   let coated=coatedRect(light,r,incident,s,N,V,rough);
-  return mat2x3f(coated[0]*tint,coated[1]*tint);
+  return mat2x3f(coated[0]*tint*picture,coated[1]*tint);
  }
  if(incident.w<=0.0){return mat2x3f(vec3f(0.0),vec3f(0.0));}
- let parts=rectCloth(mat2x3f(s.diffuse*E,rectBase(r,N,V,s.f0,rough)*intensity*r.window),r,N,intensity);
+ let parts=rectCloth(mat2x3f(s.diffuse*E*picture,rectBase(r,N,V,s.f0,rough)*intensity*r.window),r,N,intensity,picture);
  return mat2x3f(parts[0]*tint,parts[1]*tint);
-}
-`,
+}`,
 )

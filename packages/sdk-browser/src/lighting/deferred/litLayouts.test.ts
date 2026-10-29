@@ -74,13 +74,22 @@ test('the indirect pass binds what its text reads, under every feature', () => {
         for (const skyShadowing of bounce ? [false] : [false, true])
           for (const capsule of [false, true]) {
             const cubed = !key.cubeless
-            const text = indirectPassWgsl({ bounce, skyShadowing, cubed, capsule, tileClass })
+            const captured = !key.captureless
+            const text = indirectPassWgsl({
+              bounce,
+              skyShadowing,
+              cubed,
+              capsule,
+              captured,
+              tileClass,
+            })
             const entries = indirectLayoutEntries({
               bounce,
               skyShadowing,
               lobes: !key.lobeless,
               cubed,
               capsule,
+              captured,
             })
             problems.push(
               ...layoutProblems(wgslModule(text as never), [entries]).map(

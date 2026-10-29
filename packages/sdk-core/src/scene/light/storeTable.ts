@@ -12,10 +12,15 @@ import {
 } from './contracts.ts'
 import { type SceneEnvironment, validateSceneEnvironment } from '../core/environment.ts'
 import { sameSceneLight } from './equal.ts'
+import { sameSourceTexture } from './lightSourceTexture.ts'
 import {
   LIGHT_FIELD,
+  NO_RECT_ATLAS_SLOT,
   baseOf,
   kindWordOf,
+  rectAtlasSlotAt,
+  writeRectAtlasSlot,
+  type RectAtlasSlot,
   writeContactGi,
   writeDrawRange,
   writeLightFields,
@@ -68,6 +73,9 @@ export interface LightTable extends LightLanes {
   /** Rises when a light that names a profile is added or removed, or a light's profile changes: what the profile
    *  atlas's sync (`lighting/lightProfile/profileSync.ts`) waits on, so that it scans the lights only then. */
   profileEpoch: number
+  /** Rises when a rect that names a source texture is added or removed, or a rect's texture changes: what the rectangle atlas's
+   *  sync (`lighting/rectLightAtlas/frame.ts`) waits on. */
+  rectAtlasEpoch: number
 }
 
 /** Twice the room, content kept: N lights cost log N copies. */
@@ -110,6 +118,10 @@ const profileLaneAt = (table: LightTable, slot: number) =>
 export const lightProfileSliceOf = (table: LightTable, slot: number) =>
   profileSliceOf(profileLaneAt(table, slot))
 
+/** The slot of a rect's picture in the atlas, held in its lanes; the width 0 for none. */
+export const rectAtlasSlotOf = (table: LightTable, slot: number) =>
+  rectAtlasSlotAt(table.packed, baseOf(slot))
+
 /** 1 where a light names a light function. */
 const wears = (light: SceneLight | undefined) => (light?.lightFunction === undefined ? 0 : 1)
 
@@ -125,7 +137,7 @@ function writeKind(
   table.words[baseOf(slot) + LIGHT_FIELD.kind] = kindWordOf(light, table.shadowView, index, lane)
 }
 
-/** Fields declared by the host, and the light function index and profile lane the slot holds (`index`, `lane`). The shadow
+/** Fields declared by the host, and the light function index, profile lane and atlas slot the slot holds (`index`, `lane`, `atlas`). The shadow
  *  slice is not one: the scheduler sets it, and a write keeps it. */
 function writeSlot(
   table: LightTable,
@@ -133,8 +145,9 @@ function writeSlot(
   light: SceneLight,
   index = lightFunctionOf(table, slot),
   lane = profileLaneAt(table, slot),
+  atlas: RectAtlasSlot = rectAtlasSlotOf(table, slot),
 ) {
-  writeLightFields(table, baseOf(slot), light, index, lane)
+  writeLightFields(table, baseOf(slot), light, index, lane, atlas)
   writeDrawRange(table.draw, slot, light, table.rangeView)
 }
 
@@ -164,6 +177,7 @@ export function createLightTable(): LightTable {
     shadowView,
     rangeView: { ...NO_LIGHT_RANGE_VIEW },
     profileEpoch: 0,
+    rectAtlasEpoch: 0,
   }
   growTable(table)
   table.suns = createSunBlocks({
@@ -198,7 +212,8 @@ export function addLight(table: LightTable, light: SceneLight) {
   table.ranks.take(validated.id)
   table.kinds.tally(validated, 1)
   table.revision[slot]++
-  writeSlot(table, slot, validated)
+  if (validated.sourceTexture !== undefined) table.rectAtlasEpoch++
+  writeSlot(table, slot, validated, 0, 0, NO_RECT_ATLAS_SLOT)
   // A new slot is zero in the buffer; without a slice, the published value is −1.
   writeSlice(table, slot, -1)
   table.header[0] = table.ids.length
@@ -252,7 +267,19 @@ export function setLight(table: LightTable, id: string, patch: Partial<Omit<Scen
   // Another profile has no slice until the atlas gives it one.
   const renamed = merged.iesProfile !== current.iesProfile
   if (renamed) table.profileEpoch++
-  writeSlot(table, slot, merged, undefined, renamed ? 0 : undefined)
+  // Another picture, or another share of it, has no slot until the atlas gives it one; nor has another kind of light, whose lanes
+  // held something else.
+  const retextured = !sameSourceTexture(merged, current)
+  const reshaped = retextured || merged.kind !== current.kind
+  if (retextured) table.rectAtlasEpoch++
+  writeSlot(
+    table,
+    slot,
+    merged,
+    undefined,
+    renamed ? 0 : undefined,
+    reshaped ? NO_RECT_ATLAS_SLOT : undefined,
+  )
   table.suns.changed(current, merged)
   table.epoch++
 }
@@ -275,12 +302,14 @@ export function removeLight(table: LightTable, id: string) {
       records.get(movedId)!,
       lightFunctionOf(table, last),
       profileLaneAt(table, last),
+      rectAtlasSlotOf(table, last),
     )
     writeSlice(table, slot, sliceOf(table, last))
   }
   const removed = records.get(id)!
   table.wearing -= wears(removed)
   if (removed.iesProfile !== undefined) table.profileEpoch++
+  if (removed.sourceTexture !== undefined) table.rectAtlasEpoch++
   ids.length = last
   indexOf.delete(id)
   table.kinds.tally(removed, -1)
@@ -390,6 +419,22 @@ export function assignLightProfile(table: LightTable, slot: number, slice: numbe
 export function assignSlice(table: LightTable, slot: number, slice: number) {
   if (sliceOf(table, slot) === slice) return
   writeSlice(table, slot, slice)
+  table.epoch++
+  table.notTransport++
+}
+
+/** Records the slot of the picture a rect names in the atlas (`NO_RECT_ATLAS_SLOT` for none) in its lanes, as `assignLightProfile` does
+ *  its profile's slice: nothing else of the light moves. */
+export function assignRectAtlasSlot(table: LightTable, slot: number, atlas: RectAtlasSlot) {
+  const held = rectAtlasSlotOf(table, slot)
+  if (
+    held.x === atlas.x &&
+    held.y === atlas.y &&
+    held.width === atlas.width &&
+    held.height === atlas.height
+  )
+    return
+  writeRectAtlasSlot(table.packed, baseOf(slot), atlas)
   table.epoch++
   table.notTransport++
 }

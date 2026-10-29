@@ -8,7 +8,7 @@ import { lightProfileMultiplierWgsl } from './lightProfileText.ts'
 import { type LightProfileBindings, lightProfileBindingsLabel } from './lightProfileText.ts'
 
 /** The profile lane of a light (`LIGHT_PROFILE_SHIFT`, `LIGHT_PROFILE_BITS` bits of its kind word): the atlas slice plus one, 0 for none. */
-const LIGHT_PROFILE_LANE_WGSL = wgslBlock(
+export const LIGHT_PROFILE_LANE_WGSL = wgslBlock(
   'LIGHT_PROFILE_LANE_WGSL',
   [kindWord],
   `fn lightProfileLane(light:DirectLight)->u32{

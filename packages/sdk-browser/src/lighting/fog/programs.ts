@@ -7,6 +7,7 @@ import { TILE_SLICE_WGSL } from '../direct/lightingWgsl.ts'
 import { skyLightDiffuseWgsl } from '../../modules/sky/skyLight/read.ts'
 import { cloudShadowReadWgsl } from '../atmosphere/cloudShadowRead.ts'
 import { lightFunctionReadWgsl } from '../lightFunction/readWgsl.ts'
+import { rectSourceWgsl } from '../rectLightAtlas/readWgsl.ts'
 import { volumetricLightmapWgsl } from '../volumetricLightmap/sampleWgsl.ts'
 import {
   FOG_BINDING,
@@ -106,6 +107,9 @@ const CLOUD_SHADOW = cloudShadowReadWgsl({
   samplerName: 'fogSampler',
 })
 
+/** The rectangle lights' pictures the scatter's local lights tint their light by. */
+const RECT_SOURCE = rectSourceWgsl({ group: 0, atlas: b.rectAtlas, sampler: b.rectSampler })
+
 /** The sky light the scatter's sky is read through: its harmonics. */
 const SKY_LIGHT = skyLightDiffuseWgsl({ group: 0, harmonics: b.skyHarmonics, params: b.skyParams })
 
@@ -124,6 +128,7 @@ const scatterProgram = (
     FOG_FRAME_STRUCT_WGSL,
     scatterFog(local),
     LIGHT_FUNCTION,
+    RECT_SOURCE,
     CLOUD_SHADOW,
     SKY_LIGHT,
     visibility,

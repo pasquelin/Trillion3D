@@ -194,7 +194,7 @@ const lightOf = (rank: number, standalone = false) =>
   (rank | (standalone ? TILE_LIGHT_STANDALONE : 0)) >>> 0
 /** A culled light tile's second word: the light, its place among the tile's and its kind (0 for a sun or a light apart from the atlas). */
 const culledWord = (light: number, place: number, kind: number) =>
-  (light | (place << 14) | (kind << 19)) >>> 0
+  (light | (place << 14) | (kind << 22)) >>> 0
 
 test('the compaction puts each light tile in the run of its slot, and in the list of its tile at the place the cull picked it, with the place it took', () => {
   // Two tiles of the update's list. Tile 0 keeps a point light (rank 5), a sun (rank 0) and a light apart from the atlas (rank 2);

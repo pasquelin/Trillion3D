@@ -10,6 +10,7 @@ import { toHalf } from '../../../math/src/float/half.ts'
 import { resolveFogCubemap } from '../../../sdk-core/src/scene/core/fogCubemap.ts'
 import { installGpuDeviceLedger } from '../gpu/core/deviceLedger.ts'
 import { FOG_VOLUME_FRAME_AT } from './fog/layout.ts'
+import { rectAtlasStandIn } from './rectLightAtlas/bindings.ts'
 import { createFogVolumeGpu, type FogVolumeInputs } from './fog/gpu.ts'
 import { createFogStandIns } from './fog/read.ts'
 import { createFogCubemap } from './fog/cubemapGpu.ts'
@@ -50,6 +51,7 @@ function volumeInput(
     cloudShadow: cloudShadowStandIn(gpu.device),
     sky: skyLightStandIn(gpu.device),
     lightFunction: createLightFunctionStandIns(gpu.device).read,
+    rectAtlas: rectAtlasStandIn(gpu.device),
     vsm: {
       pageTable: buffer(),
       projectionData: buffer(),

@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
@@ -11,9 +12,10 @@ import {
   type LightFunctionBindings,
 } from '../../lightFunction/readWgsl.ts'
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
-import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
+import { type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import { lightProfileOfWgsl } from '../../lightProfile/lightProfileWgsl.ts'
 import { type LightProfileBindings } from '../../lightProfile/lightProfileText.ts'
+import { rectBindingsOf, rectSourceWgsl } from '../../rectLightAtlas/readWgsl.ts'
 import {
   CM_PER_M_WGSL,
   lightingCommonWgsl,
@@ -22,6 +24,9 @@ import {
   VIEW_EXPOSURE,
 } from './commonWgsl.ts'
 import { directTexelWgsl, storeDirectWgsl } from './directTileWgsl.ts'
+import { lightTileCountsWgsl } from './lightTilesWgsl.ts'
+import { tileLightAppendWgsl, TILE_LIGHT_REACH_WGSL } from './tileLightsWgsl.ts'
+import { SHADOW_TEXELS, TILE_LIGHT_RANK_BITS } from './layout.ts'
 import { LIGHT_CENTRE_FACING_WGSL, shadowMaskBlockOf } from './shadowMaskWgsl.ts'
 
 /**
@@ -68,16 +73,20 @@ fn sampleWeight(packed:u32)->f32{return unpack2x16float(packed>>16u).x;}`,
 export const STOCHASTIC_GENERATE_BINDINGS = {
   tables: 1,
   context: 2,
-  depth: 3,
-  normal: 4,
-  cardTileLights: 5,
-  cardTileOffsets: 6,
-  lights: 7,
-  samples: 8,
-  lightFunction: 9,
-  lightProfileAtlas: 10,
-  lightProfileSampler: 11,
-  noise: 12,
+  counts: 3,
+  depth: 4,
+  normal: 5,
+  culled: 6,
+  cardTileOffsets: 7,
+  lights: 8,
+  standalone: 9,
+  samples: 10,
+  lightFunction: 11,
+  lightProfileAtlas: 12,
+  lightProfileSampler: 13,
+  noise: 14,
+  rectAtlas: 15,
+  rectAtlasSampler: 16,
 } as const
 const G = STOCHASTIC_GENERATE_BINDINGS
 
@@ -90,13 +99,27 @@ export const STOCHASTIC_GENERATE_LIGHT_PROFILE: LightProfileBindings = {
   group: 0,
   atlas: G.lightProfileAtlas,
   sampler: G.lightProfileSampler,
+  rectAtlas: G.rectAtlas,
+  rectSampler: G.rectAtlasSampler,
 }
 
 export const STOCHASTIC_GENERATE_ENTRY = 'stochasticGenerate'
 
+/** The words of the masks of the lights a tile's workgroup keeps: a bit a light rank. */
+const LIGHT_MASK_WORDS = 2 ** TILE_LIGHT_RANK_BITS / 32
+
+/** The most lights the texels of a tile pick, each of its texels one a sample: the room of the tile's list of picks, so that no pick is left out. */
+const MAX_TILE_PICKS = SHADOW_TEXELS * MAX_SAMPLES
+
+/** The generation of the samples and of the light tiles of the lights they pick. */
 export const STOCHASTIC_GENERATE_WGSL = wgslProgram(
-  `@group(0) @binding(${G.lights}) var<storage,read> directLights:DirectLights;
+  `${wgslConsts({ LIGHT_MASK_WORDS })}
+@group(0) @binding(${G.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${G.samples}) var<storage,read_write> sampleData:array<vec4u>;
+var<workgroup> candidateMask:array<atomic<u32>,LIGHT_MASK_WORDS>;
+var<workgroup> pickedMask:array<atomic<u32>,LIGHT_MASK_WORDS>;
+var<workgroup> pickedCount:u32;
+const NO_RANK:u32=0xffffffffu;
 struct LightTarget{pdf:vec3f,diffuse:vec3f,weight:f32}
 /** What light \`rank\` gives the texel: its irradiance times its factor on the indirect lighting (\`diffuse\`), and that with its profile and the atlas's function (\`pdf\`),
  *  weighed by \`log2(1+luminance)\`; nothing where it gives none or does not face the texel. */
@@ -118,49 +141,91 @@ fn lightTarget(rank:u32,standalone:bool,texel:SurfaceTexel)->LightTarget{
  return t;
 }
 @compute @workgroup_size(8,8,1)
-fn ${STOCHASTIC_GENERATE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_id) at:vec3u){
+fn ${STOCHASTIC_GENERATE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_id) at:vec3u,@builtin(local_invocation_index) lane:u32){
  let tile=flatGroup(group,n);
  if(tile>=ctxListed(LG_LIST_DIRECT)){return;}
- let head=directTexel(tile,at.xy);
- let samples=lp.stochasticSamples;
+ let packed=ctxTile(LG_LIST_DIRECT,tile);
+ let page=tilePage(packed);
+ let coord=tileCoordOf(packed);
+ let texel=surfaceTexel(page,coord*LG_TILE+at.xy);
  let texelIndex=at.x+at.y*LG_TILE;
- var weightSum=0.0;
- var pdfSum=vec3f(0.0);
- var light=array<u32,${MAX_SAMPLES}>(NO_LIGHT,NO_LIGHT,NO_LIGHT,NO_LIGHT);
+ let samples=lp.stochasticSamples;
+ let lightCount=min(directLights.count,LIGHT_MASK_WORDS*32u);
+ let words=(lightCount+31u)/32u;
+ for(var w=lane;w<words;w+=${WORKGROUP_THREADS}u){
+  atomicStore(&candidateMask[w],0u);
+  atomicStore(&pickedMask[w],0u);
+ }
+ workgroupBarrier();
+ // The lights that reach the tile, a light a lane: the tile's box over the card's whole depth.
+ let box=tileBox(page,coord,vec2f(0.0,1.0));
+ for(var rank=lane;rank<lightCount;rank+=${WORKGROUP_THREADS}u){
+  if(tileLightReached(directLights.items[rank],box)){atomicOr(&candidateMask[rank/32u],1u<<(rank%32u));}
+ }
+ workgroupBarrier();
+ // The lights each texel picks, a texel a lane, walking the candidates by rank.
+ var rankOf=array<u32,${MAX_SAMPLES}>(NO_RANK,NO_RANK,NO_RANK,NO_RANK);
  var weight=array<f32,${MAX_SAMPLES}>();
  var diffuse=array<vec3f,${MAX_SAMPLES}>();
  var random=array<f32,${MAX_SAMPLES}>();
- if(head.texel.valid){
-  let base=blueNoiseScalar(head.coord*LG_TILE+at.xy,lp.noiseFrame);
+ var weightSum=0.0;
+ var pdfSum=vec3f(0.0);
+ if(texel.valid){
+  let base=blueNoiseScalar(coord*LG_TILE+at.xy,lp.noiseFrame);
   for(var s=0u;s<samples;s++){random[s]=(base+f32(s))/f32(samples);}
-  for(var k=0u;k<head.lights;k++){
-   let listed=tileLightWord(head,k);
-   let picked=lightTarget(tileLightRank(listed),tileLightStandalone(listed),head.texel);
-   if(picked.weight>lp.stochasticMinWeight){
-    let tau=weightSum/(weightSum+picked.weight);
-    weightSum+=picked.weight;
-    pdfSum+=picked.pdf;
-    for(var s=0u;s<samples;s++){
-     if(random[s]<tau){
-      random[s]/=tau;
-     }else{
-      random[s]=(random[s]-tau)/(1.0-tau);
-      light[s]=k;
-      weight[s]=picked.weight;
-      diffuse[s]=picked.diffuse;
+  for(var w=0u;w<words;w++){
+   var bits=atomicLoad(&candidateMask[w]);
+   while(bits!=0u){
+    let rank=w*32u+firstTrailingBit(bits);
+    bits&=bits-1u;
+    let picked=lightTarget(rank,standaloneLight(rank),texel);
+    if(picked.weight>lp.stochasticMinWeight){
+     let tau=weightSum/(weightSum+picked.weight);
+     weightSum+=picked.weight;
+     pdfSum+=picked.pdf;
+     for(var s=0u;s<samples;s++){
+      if(random[s]<tau){
+       random[s]/=tau;
+      }else{
+       random[s]=(random[s]-tau)/(1.0-tau);
+       rankOf[s]=rank;
+       weight[s]=picked.weight;
+       diffuse[s]=picked.diffuse;
+      }
+      random[s]=clamp(random[s],0.0,0.9999);
      }
-     random[s]=clamp(random[s],0.0,0.9999);
     }
    }
   }
+  for(var s=0u;s<samples;s++){
+   if(rankOf[s]!=NO_RANK){atomicOr(&pickedMask[rankOf[s]/32u],1u<<(rankOf[s]%32u));}
+  }
  }
+ workgroupBarrier();
+ // The lights picked, the unique lights of the tile in order of rank, appended as its light tiles.
+ if(lane==0u){
+  var wanted=0u;
+  for(var w=0u;w<words;w++){
+   var bits=atomicLoad(&pickedMask[w]);
+   while(bits!=0u){
+    let rank=w*32u+firstTrailingBit(bits);
+    bits&=bits-1u;
+    tilePicks[wanted]=(lightKind(directLights.items[rank],standaloneLight(rank))<<14u)|rank;
+    wanted++;
+   }
+  }
+  pickedCount=appendTileLights(tile,wanted);
+ }
+ workgroupBarrier();
+ // Each sample names its light by its place among the tile's, a light the list of light tiles had no room for picked by none.
  for(var s=0u;s<samples;s++){
   var packed=packSample(NO_LIGHT,false,true,0.0);
   var given=vec3f(0.0);
-  if(light[s]!=NO_LIGHT){
-   let rank=tileLightRank(tileLightWord(head,light[s]));
-   packed=packSample(light[s],true,!castsShadow(directLights.items[rank]),weightSum/(f32(samples)*weight[s]));
-   given=diffuse[s];
+  for(var k=0u;k<pickedCount;k++){
+   if(rankOf[s]!=NO_RANK&&(tilePicks[k]&0x3fffu)==rankOf[s]){
+    packed=packSample(k,true,!castsShadow(directLights.items[rankOf[s]]),weightSum/(f32(samples)*weight[s]));
+    given=diffuse[s];
+   }
   }
   sampleData[sampleSlot(tile,texelIndex,s)]=vec4u(bitcast<vec3u>(given),packed);
  }
@@ -168,8 +233,13 @@ fn ${STOCHASTIC_GENERATE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_
 }`,
   [
     lightingCommonWgsl({ tables: G.tables, context: { binding: G.context, access: 'read' } }),
+    lightTileCountsWgsl(G.counts, 'atomic'),
     surfaceTexelWgsl(lightingLayersWgsl(G.depth, G.normal)),
-    directTexelWgsl(G),
+    tileLightAppendWgsl(
+      { culled: G.culled, cardTileOffsets: G.cardTileOffsets, standalone: G.standalone },
+      MAX_TILE_PICKS,
+    ),
+    TILE_LIGHT_REACH_WGSL,
     SAMPLE_WGSL,
     blueNoiseWgsl(0, G.noise),
     CM_PER_M_WGSL,
@@ -179,6 +249,7 @@ fn ${STOCHASTIC_GENERATE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_
     hasLightFunctionWgsl,
     lightFunctionReadWgsl(STOCHASTIC_GENERATE_LIGHT_FUNCTION),
     lightProfileOfWgsl(STOCHASTIC_GENERATE_LIGHT_PROFILE),
+    rectSourceWgsl(rectBindingsOf(STOCHASTIC_GENERATE_LIGHT_PROFILE)),
     declaredLightWgsl({}, { term: 'bareIrradiance' }),
   ],
 )

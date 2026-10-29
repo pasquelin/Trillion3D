@@ -8,7 +8,7 @@ import type { SceneEnvironment } from '../core/environment.ts'
 import type { ContactShadowView } from './contactShadowView.ts'
 import type { LightShadowView } from './shadowedBits.ts'
 import type { LightRangeView } from './drawRange.ts'
-import { LIGHT_FIELD, baseOf } from './fields.ts'
+import { LIGHT_FIELD, baseOf, type RectAtlasSlot } from './fields.ts'
 import { createSunBlocks } from './sunBlocks.ts'
 import { joined } from '../../runtime/joined.ts'
 import {
@@ -16,10 +16,12 @@ import {
   assignDrawn,
   assignLightFunction,
   assignLightProfile,
+  assignRectAtlasSlot,
   assignSlice,
   createLightTable,
   lightFunctionOf,
   lightProfileSliceOf,
+  rectAtlasSlotOf,
   removeLight,
   setLight,
   setTableAir,
@@ -72,6 +74,12 @@ function layoutReaders(table: LightTable) {
     /** Bumped when a light that names a profile is added or removed, or a light's profile changes: the profile atlas follows it. */
     get profileEpoch() {
       return table.profileEpoch
+    },
+    /** The slot of a rect's picture in the source texture atlas, in texels; the width 0 for none. */
+    rectAtlasSlotOf: (slot: number) => rectAtlasSlotOf(table, slot),
+    /** Bumped when a rect that names a source texture is added or removed, or a rect's texture changes: the rectangle atlas follows it. */
+    get rectAtlasEpoch() {
+      return table.rectAtlasEpoch
     },
     /** Lights that wear a light function material. */
     get lightFunctionCount() {
@@ -180,6 +188,8 @@ function writers(table: LightTable) {
     assignDrawn: (slot: number, drawn: boolean) => assignDrawn(table, slot, drawn),
     assignLightFunction: (slot: number, index: number) => assignLightFunction(table, slot, index),
     assignLightProfile: (slot: number, slice: number) => assignLightProfile(table, slot, slice),
+    assignRectAtlasSlot: (slot: number, atlas: RectAtlasSlot) =>
+      assignRectAtlasSlot(table, slot, atlas),
     assignSlice: (slot: number, slice: number) => assignSlice(table, slot, slice),
   }
 }

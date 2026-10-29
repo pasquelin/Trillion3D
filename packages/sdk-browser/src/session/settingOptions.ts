@@ -13,6 +13,7 @@ import type { TemporalOptions } from '../../../sdk-core/src/contracts/temporalOp
 import type { HizOptions } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import type { LightFunctionOptions } from '../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import type { LightProfileOptions } from '../../../sdk-core/src/contracts/lightProfileOptions.ts'
+import type { RectLightAtlasOptions } from '../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import type { VolumetricLightmapOptions } from '../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
 import type { DistanceFieldOcclusionOptions } from '../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import type { GlobalDistanceFieldOptions } from '../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
@@ -26,6 +27,7 @@ import type { FilmSettings } from '../../../sdk-core/src/contracts/filmOptions.t
 import type { ColorGradingSettings } from '../../../sdk-core/src/contracts/colorGradingOptions.ts'
 import type { AmbientOcclusionOptions } from '../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import type { AmbientCubemapOptions } from '../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
+import type { ReflectionCaptureOptions } from '../../../sdk-core/src/contracts/reflectionCaptureOptions.ts'
 import type { SkyQualityOptions } from '../../../sdk-core/src/modules/sky/quality.ts'
 import type { ScreenProbeOptions } from '../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { ReflectionOptions } from '../../../sdk-core/src/contracts/reflectionOptions.ts'
@@ -66,6 +68,7 @@ export interface SettingOptions
     HizOptions,
     LightFunctionOptions,
     LightProfileOptions,
+    RectLightAtlasOptions,
     VolumetricLightmapOptions,
     GlobalDistanceFieldOptions,
     SurfaceCacheOptions,
@@ -94,6 +97,7 @@ export interface SettingOptions
     MeshDistanceFieldTraceOptions,
     AmbientOcclusionOptions,
     AmbientCubemapOptions,
+    ReflectionCaptureOptions,
     SkyQualityOptions,
     RasterOptions,
     StreamingOptions {}

@@ -19,6 +19,7 @@ import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
+import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
 import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
@@ -47,6 +48,7 @@ import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptio
 import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_CUBEMAP_RULES } from '../contracts/ambientCubemapOptions.ts'
+import { REFLECTION_CAPTURE_RULES } from '../contracts/reflectionCaptureOptions.ts'
 import { SKY_QUALITY_RULES } from '../modules/sky/quality.ts'
 
 /** A tool that writes the run-time settings of the rules by field `rules`, each as the explorer's
@@ -457,6 +459,11 @@ const SHADING_SETTING_TOOLS: Trillion3dTool[] = [
     LIGHT_PROFILE_RULES,
   ),
   /* @__PURE__ */ settingTool(
+    'trillion3d_set_rect_light_atlas',
+    "Changes from the next frame the atlas of the pictures mapped on the rectangle lights (their source textures): the largest side of the atlas, how its mip levels are filtered, its texel format, how a picture's proportions are held, whether the sampled lights read the pictures, and the atlas's debug view. The atlas is made with the pictures the lights name.",
+    RECT_LIGHT_ATLAS_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
     'trillion3d_set_volumetric_lightmap',
     "Changes from the next frame whether the precomputed indirect light of the scene (its volumetric lightmap) is read, by the fog's static term and by the lighting of movable objects; on by default. Off, every read answers black.",
     VOLUMETRIC_LIGHTMAP_RULES,
@@ -603,6 +610,11 @@ const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_ambient_cubemap',
     'Changes from the next frame the ambient cubemap: a light the image adds to every lit surface from a cube the page gave, its diffuse colour times the cube read along the normal and its specular reflectance times the cube read along the reflection, at the mip its roughness picks. Its colour (the tint, a linear colour of three channels, and the intensity that multiplies it; a black colour draws nothing). It is off without a cube.',
     AMBIENT_CUBEMAP_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_reflection_capture',
+    "Changes from the next frame how the scene's reflection captures are made and read: whether they light the surfaces, the side of their cubes, the supersampling and near plane of their faces, whether light functions show in them, and whether their small mips hold the diffuse light the surfaces take in place of the sky light's (exhaustive convolution or harmonics).",
+    REFLECTION_CAPTURE_RULES,
   ),
 ]
 

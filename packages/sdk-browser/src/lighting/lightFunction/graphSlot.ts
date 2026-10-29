@@ -59,7 +59,7 @@ function compiledSlotOf(
 /** The graph of `material`, compiled for the atlas: a fragment program, whose texture reads take the screen's derivatives. */
 export const graphSlotOf = (material: Material) => compiledSlotOf(material, 'atlas', 'screen')
 
-/** The graph of `material`, compiled for the pass that evaluates it at a point apart from the atlas (`lightFunctionPassWgsl.ts`):
+/** The graph of `material`, compiled for the pass that evaluates it at a point apart from the atlas (`standaloneMaskWgsl.ts`):
  *  a compute program, whose texture reads find their footprint at the points beside (`mgNeighbour`). */
 const graphStandaloneOf = (material: Material) =>
   compiledSlotOf(material, 'standalone', 'neighbours')

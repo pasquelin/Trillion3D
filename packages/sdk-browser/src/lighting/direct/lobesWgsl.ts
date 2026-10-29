@@ -198,7 +198,7 @@ export const LOBES_RECT_WGSL = wgslBlock(
 fn rectBase(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{
  if(!hasSkew()){return rectLtc(r,pixelRectFrame(N,V,rough),f0);}
  let T=lobes.T;let k=lobes.ab/lobes.at-1.0;
- let s=RectView(r.a+k*T*dot(T,r.a),r.b+k*T*dot(T,r.b),r.c+k*T*dot(T,r.c),r.d+k*T*dot(T,r.d),r.window);
+ let s=RectView(r.a+k*T*dot(T,r.a),r.b+k*T*dot(T,r.b),r.c+k*T*dot(T,r.c),r.d+k*T*dot(T,r.d),r.window,r.slot);
  return rectLtc(s,pixelRectFrame(N,normalize(V+k*T*dot(T,V)),rough),f0);
 }
 var<private> coatFrameHeld:bool=false;
@@ -209,11 +209,11 @@ fn coatRectFrame(V:vec3f)->RectFrame{
 }
 /** A rectangle's diffuse (column 0) and specular (column 1) light \`parts\`, before its colour, under a cloth's fuzz: what they keep of
  *  it (\`sheenKeep\`) and, in the specular's, the fuzz lobe's light of the rectangle (\`sheenRect\`) of the light's \`intensity\`, its
- *  range window and the cloth amount. A pixel that is no cloth keeps them. */
-fn rectCloth(parts:mat2x3f,r:RectView,N:vec3f,intensity:f32)->mat2x3f{
+ *  range window and the cloth amount, times the rectangle's \`picture\` colour. A pixel that is no cloth keeps them. */
+fn rectCloth(parts:mat2x3f,r:RectView,N:vec3f,intensity:f32,picture:vec3f)->mat2x3f{
  if(!hasCloth()){return parts;}
  let keep=sheenKeep(lobes.sheen,lobes.cloth);
- let fuzz=lobes.fuzz*(lobes.cloth*intensity*r.window*sheenRect(lobes.sheen,N,r));
+ let fuzz=lobes.fuzz*(lobes.cloth*intensity*r.window*sheenRect(lobes.sheen,N,r))*picture;
  return mat2x3f(parts[0]*keep,parts[1]*keep+fuzz);
 }
 /** A rectangle's light on the base under the coat (\`coatedLight\`): its diffuse (column 0) and specular (column 1) of the
@@ -269,7 +269,7 @@ export const LOBELESS_RECT_WGSL = wgslBlock(
   'LOBELESS_RECT_WGSL',
   [RECT_SURFACE_LIGHT_WGSL],
   `fn rectBase(r:RectView,N:vec3f,V:vec3f,f0:vec3f,rough:f32)->vec3f{return rectLtc(r,pixelRectFrame(N,V,rough),f0);}
-fn rectCloth(parts:mat2x3f,r:RectView,N:vec3f,intensity:f32)->mat2x3f{return parts;}
+fn rectCloth(parts:mat2x3f,r:RectView,N:vec3f,intensity:f32,picture:vec3f)->mat2x3f{return parts;}
 fn coatedRect(light:DirectLight,r:RectView,incident:vec4f,s:LobeSurface,N:vec3f,V:vec3f,rough:f32)->mat2x3f{return mat2x3f();}`,
 )
 

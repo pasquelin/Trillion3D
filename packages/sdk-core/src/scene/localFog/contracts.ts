@@ -3,11 +3,11 @@ import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import {
   IDENTITY_MATRIX,
   checkMatrix,
+  columnLength,
   volumeRefusal,
   type VolumeRefusal,
 } from '../volume/objectFields.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
-import { length3 } from '../../../../math/src/vector/vector.ts'
 
 /**
  * A LOCAL FOG VOLUME (`SceneLocalFogVolume`): a sphere of fog placed in the scene, the way a light is
@@ -124,10 +124,6 @@ function colour(id: string, name: string, value: unknown, most: number): LinearR
     refuse(id, `${name} expects three finite numbers`)
   return value.map((c) => clamp(c, 0, most)) as unknown as LinearRgb
 }
-
-/** The length of a column of `matrix`. */
-const columnLength = (matrix: readonly number[], at: number) =>
-  length3(matrix[at], matrix[at + 1], matrix[at + 2])
 
 /**
  * The local fog volume `volume` declares with every field set and held to its range (the ranges the

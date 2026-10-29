@@ -1,3 +1,5 @@
+import { reflectionCaptureBindEntries } from '../reflectionCapture/compositeWgsl.ts'
+import { reflectionCaptureReadOf } from '../reflectionCapture/captureRead.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { createCheckedShaderModule } from '../../gpu/core/shaderModule.ts'
@@ -13,6 +15,7 @@ import {
   DEFERRED_BINDINGS,
   DEFERRED_CLOUD_SHADOW_BINDINGS,
   DEFERRED_LIGHT_PROFILE_BINDINGS,
+  DEFERRED_CAPTURE_BINDINGS,
   DEFERRED_SKY_LIGHT_BINDINGS,
 } from './bindings.ts'
 import type { ContractKey } from './contractCuts.ts'
@@ -102,6 +105,7 @@ export async function createLitProgram(
   const lobes = !key.lobeless,
     profiled = !key.profileless,
     cubed = !key.cubeless,
+    captured = !key.captureless,
     contact = !key.contactless,
     sampled = !!key.sampled,
     volume = !!key.volumeShadow
@@ -112,6 +116,7 @@ export async function createLitProgram(
     lobes,
     profiled,
     cubed,
+    captured,
     contact,
     sampled,
     volume,
@@ -137,6 +142,7 @@ export async function createLitProgram(
     lobes,
     profiled,
     cubed,
+    captured,
     contact,
     sampled,
     volume,
@@ -168,19 +174,31 @@ function litLayouts(
     lobes: boolean
     profiled: boolean
     cubed: boolean
+    captured: boolean
     contact: boolean
     sampled: boolean
     volume: boolean
   },
 ) {
-  const { bounce, skyShadowing, capsule, lobes, profiled, cubed, contact, sampled, volume } = f
+  const {
+    bounce,
+    skyShadowing,
+    capsule,
+    lobes,
+    profiled,
+    cubed,
+    captured,
+    contact,
+    sampled,
+    volume,
+  } = f
   return {
     sun: device.createBindGroupLayout({ entries: sunLayoutEntries(lobes, contact, volume) }),
     local: device.createBindGroupLayout({
       entries: localLayoutEntries(lobes, profiled, contact, sampled, volume),
     }),
     indirect: device.createBindGroupLayout({
-      entries: indirectLayoutEntries({ bounce, skyShadowing, lobes, cubed, capsule }),
+      entries: indirectLayoutEntries({ bounce, skyShadowing, lobes, cubed, capsule, captured }),
     }),
     hair: device.createBindGroupLayout({
       entries: hairLayoutEntries(lobes, profiled, contact, sampled, volume),
@@ -284,7 +302,14 @@ async function litPasses(device: GPUDevice, sources: LitSources, layouts: LitLay
       device,
       classes,
       (c) =>
-        indirectPassWgsl({ bounce, skyShadowing, cubed: !key.cubeless, capsule, tileClass: c }),
+        indirectPassWgsl({
+          bounce,
+          skyShadowing,
+          cubed: !key.cubeless,
+          captured: !key.captureless,
+          capsule,
+          tileClass: c,
+        }),
       'indirectMain',
       layouts.indirect,
       `${label}_INDIRECT`,
@@ -323,6 +348,8 @@ interface LitState {
   readonly profiled: boolean
   /** Whether the program reads the ambient cubemap: it binds the cube (`ContractKey.cubeless`). */
   readonly cubed: boolean
+  /** Whether the program reads the reflection captures: it binds their cube array and records (`ContractKey.captureless`). */
+  readonly captured: boolean
   /** Whether the passes of lights hold contact shadow code (`ContractKey.contactless`): they bind the screen-space shadows' array and its layers' ranks. */
   readonly contact: boolean
   /** Whether the local lights' pass adds the light the sampled lighting left (`ContractKey.sampled`): it binds that light's texture. */
@@ -460,7 +487,7 @@ function nameResources(
   localNamed.push(surface, depth, lights, tileList, r.tiles, r.mask, r.sunMask)
   localNamed.push(r.lightFunction, r.lightGrid, r.occlusion)
   // The atlas's view changes only when its texture is made: the group follows it.
-  if (p.profiled) localNamed.push(r.lightProfile.view)
+  if (p.profiled) localNamed.push(r.lightProfile.view, r.lightProfile.rectView)
   if (p.contact) localNamed.push(r.contactBend.view, r.contactBend.ranks)
   if (p.sampled) localNamed.push(r.sampledLight)
   if (p.volume) localNamed.push(r.volumeShadowMaps)
@@ -479,6 +506,10 @@ function nameResources(
   if (p.skyShadowing) indirectNamed.push(shadowing.bent, shadowing.params)
   if (p.capsule) indirectNamed.push(r.capsuleIndirect)
   if (p.cubed) indirectNamed.push(r.cube.view, r.cube.colour)
+  if (p.captured) {
+    const set = reflectionCaptureReadOf(p.device)
+    indirectNamed.push(set.cube, set.block)
+  }
 }
 
 /** The three groups of a frame, made again only when a resource of one was replaced. */
@@ -565,7 +596,7 @@ function perLightGroup(
   named.push(pixel.colours, pixel.emissiveAo, pixel.words, pixel.depth, pixel.subsurface)
   named.push(pixel.lobes, lights, tileList, r.lightFunction, perLight.mask, perLight.records)
   named.push(r.occlusion)
-  if (p.profiled) named.push(r.lightProfile.view)
+  if (p.profiled) named.push(r.lightProfile.view, r.lightProfile.rectView)
   if (p.contact) named.push(r.contactBend.view, r.contactBend.ranks)
   if (p.volume) named.push(r.volumeShadowMaps)
   return p.groups.perLight.get(named, () => [
@@ -639,7 +670,7 @@ function localEntries(
 }
 
 function indirectEntries(p: LitState, { pixel }: SharedBindings, r: Resolved) {
-  const { bounce, skyShadowing, cubed, capsule } = p
+  const { bounce, skyShadowing, cubed, capsule, captured } = p
   const { shadowing } = r
   return [
     ...namedEntries(DEFERRED_BINDINGS, {
@@ -660,6 +691,9 @@ function indirectEntries(p: LitState, { pixel }: SharedBindings, r: Resolved) {
       }),
     }),
     ...skyLightReadBindEntries(DEFERRED_SKY_LIGHT_BINDINGS, r.sky),
+    ...(captured
+      ? reflectionCaptureBindEntries(DEFERRED_CAPTURE_BINDINGS, reflectionCaptureReadOf(p.device))
+      : []),
   ]
 }
 

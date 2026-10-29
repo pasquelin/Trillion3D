@@ -23,6 +23,7 @@ import {
   type LitPass,
 } from '../../lighting/deferred/contractCuts.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { reflectionCapturesMade } from '../render/reflectionCaptureState.ts'
 import { skyLightReadOf } from '../render/skyLightState.ts'
 import { cloudShadowOf } from '../render/encodeCloudShadow.ts'
 import {
@@ -167,8 +168,11 @@ function contractKey(
   key.lobeless = !lobedFor(pass, rt)
   key.contactless = !contactFor(pass, rt)
   key.channelless = !channelledFor(pass, rt)
-  key.profileless = store.profiled === 0
+  // The profile atlas's programs also bind the rectangle lights' pictures (`LightProfileBindings.rectAtlas`).
+  key.profileless = store.profiled === 0 && store.sourceTextured === 0
   key.cubeless = !(pass === 'opaque' && ambientCubemapOn(rt))
+  // The opaque passes read the reflection captures while any is made.
+  key.captureless = !(pass === 'opaque' && reflectionCapturesMade(rt))
   // The opaque passes read the shadows the heterogeneous volumes cast while the scene has volumes that cast them.
   key.volumeShadow = pass === 'opaque' && volumeShadowsOn(rt)
   // The sampled lighting lights the local lights (and the suns, if it is asked to) of the opaque passes once it is lighting them (`sampledLightsKey`).

@@ -37,8 +37,8 @@ import {
  * darken it by their shadow map (`volumetricFogLocalShadows`), and the functions of light multiply
  * the colour of the sun and, where `lightFunctionFog` is set, of each local light
  * (`./lightFunctionOptions.ts`). Of the systems those engines keep around the volume,
- * three are the engine's not: a texture on a rectangle's face, the injection of lights the GPU
- * traces rays for, and the screen-space blur of the fog; no setting stands for any of them. The same
+ * two are the engine's not: the injection of lights the GPU
+ * traces rays for, and the screen-space blur of the fog; no setting stands for either. The same
  * of the local fog volumes' culling: its run on a queue of its own — the pass runs with the frame's
  * others — and the debug view of each tile's count of volumes; no setting stands for either.
  */
@@ -105,6 +105,8 @@ export const VOLUMETRIC_FOG_FILTERS = ['trilinear', 'bicubic', 'tricubic'] as co
  *  `volumetricFogLocalShadows`, on — a point, spot or rectangle light whose shadow darkens the fog (its
  *  `shadowsFog`) reads its shadow map in the volume; off, every local light lights it whole, the sun
  *  keeping its own;
+ *  `volumetricFogRectLightTexture`, off — a rectangle light that names a picture (`SceneLight.sourceTexture`) tints its light in the
+ *  volume by the picture's colour where the ray from the cell meets the face;
  *  `localFogVolumeSupport`, on — the project switch of the local fog volumes (`../scene/localFog/contracts.ts`),
  *  read once when the session opens (changing it later changes nothing): off, no program holds any of
  *  their code, and no pass, buffer or block is made for them; the objects can still be declared;
@@ -157,6 +159,7 @@ export const VOLUMETRIC_FOG_RULES = /* @__PURE__ */ (() =>
     number('volumetricFogEdgeFade', 0, ANY_NUMBER),
     number('volumetricFogReadJitter', 0, ANY_NUMBER),
     flag('volumetricFogLocalShadows', true),
+    flag('volumetricFogRectLightTexture', false),
     flag('localFogVolumeSupport', true),
     flag('localFogVolumes', true),
     flag('localFogVolumeInVolume', true),

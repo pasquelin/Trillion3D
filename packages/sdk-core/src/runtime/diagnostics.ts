@@ -56,6 +56,7 @@ export type DiagnosticMode =
   | 'sampled-lights-shadow-casters'
   | 'sampled-lights-shadow-caster-quality'
   | 'subsurface-profiles'
+  | 'rect-light-atlas'
   | HeterogeneousVolumeGridView
 /** Whether a view mode is available here, and why not. */
 export interface DiagnosticCapability {
@@ -104,7 +105,8 @@ export interface DiagnosticCapability {
  *  @property sampled-lights-overview - The shadow casters and their quality of the sampled lighting side by side.
  *  @property sampled-lights-shadow-casters - The surfaces the sampled lighting’s rays meet, one colour each.
  *  @property sampled-lights-shadow-caster-quality - Where the traced surfaces lie off the drawn ones.
- *  @property subsurface-profiles - The subsurface profile of each pixel as a coloured, lettered map. */
+ *  @property subsurface-profiles - The subsurface profile of each pixel as a coloured, lettered map.
+ *  @property rect-light-atlas - The atlas of the pictures mapped on the rectangle lights, its slots and its figures, over the image. */
 export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability>
 /**
  * The view modes a world can show instead of the normal image, each with whether it is available.
@@ -185,6 +187,7 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  * @property sampled-lights-shadow-casters - The surface the shadow rays of the sampled lighting meet from the eye at each pixel, one colour per object, lit by a fixed light, the sky where nothing is hit.
  * @property sampled-lights-shadow-caster-quality - Where the surface the shadow rays meet lies behind the drawn one by more than `sampledLightsVisualizeShadowCasterMissingDistance` (orange to red, a caster missing) or in front of it by more than `…PoorDistance` (blue, mismatching).
  * @property subsurface-profiles - The subsurface profile of each pixel over the middle of the image, one colour and one character per profile (the default skin buff, then red, green, blue, magenta, cyan, yellow; 100 dark green, 255 white), faded where the scattering is narrower than a pixel, with the title and the list of profiles.
+ * @property rect-light-atlas - Over the image, the atlas of the pictures the rectangle lights name, drawn small at the chosen mip level (`rectLightAtlasDebugMipLevel`) with a green border round each slot in use, a red one round the horizon lines of the packing and a yellow one round the free rectangles, and its figures as text (resolution, mip levels, occupancy, pictures, source mip bias, format, the switches); the same as `rectLightAtlasDebug` shows.
  */
 export const DIAGNOSTICS: DiagnosticCapabilities = {
   beauty: { available: true, reason: 'glTF materials' },
@@ -414,5 +417,10 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     available: true,
     reason:
       'The profile of each subsurface pixel over the middle of the image, one colour and one character per profile, faded where the scattering is narrower than a pixel, with the title and the profile list; needs subsurfaceScattering',
+  },
+  'rect-light-atlas': {
+    available: true,
+    reason:
+      'The atlas of the rectangle lights’ pictures over the image, with its slots, horizon lines, free rectangles and figures; needs a rectangle that names a sourceTexture',
   },
 }

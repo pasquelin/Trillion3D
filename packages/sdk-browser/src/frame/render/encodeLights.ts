@@ -48,6 +48,7 @@ import {
   lightFunctionRevision,
 } from '../../lighting/lightFunction/frame.ts'
 import { encodeLightProfiles } from '../../lighting/lightProfile/frame.ts'
+import { encodeRectLightAtlas } from '../../lighting/rectLightAtlas/frame.ts'
 import { encodeDistanceFields } from '../../lighting/distanceField/frame.ts'
 import {
   demandSurfaceCache,
@@ -203,7 +204,7 @@ function ensureLightGrid(rt: WebgpuPagesRuntime) {
 
 /**
  * The lights' side of an image up to its per-tile light lists, lit views only: the light functions' indices are in the kind words
- * before the buffer goes up, the light profiles' slices likewise, the virtual shadow maps' CPU plan (`../../lighting/shadows/vsm/frame/`)
+ * before the buffer goes up, the light profiles' slices likewise, the places of the rectangle lights' pictures in their atlas likewise, the virtual shadow maps' CPU plan (`../../lighting/shadows/vsm/frame/`)
  * gives every shadowed light its projection record before the light buffer goes up, the buffer goes to the GPU before the per-tile lists
  * (the blend pass reads it directly, without tiles, and must stay lit even on a device that could not fit the lists), the lights
  * this view draws are written once into their kind words (the light lists and the walks of every light read the bit), then the
@@ -220,6 +221,7 @@ function encodeLightLists(
     { store } = lights
   encodeLightFunctions(rt, device, encoder, cam)
   encodeLightProfiles(rt, device)
+  encodeRectLightAtlas(rt, device, encoder)
   planVsmFrame(rt, device, cam)
   uploadSceneLights(device, lights)
   drawLights(

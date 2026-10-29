@@ -11,6 +11,7 @@ import { reflectionGroup, reflectionLightView } from '../reflections/group.ts'
 import { skyLightReadOf } from '../../frame/render/skyLightState.ts'
 import { SHADOW_RULES } from '../../../../sdk-core/src/contracts/shadowOptions.ts'
 import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { readRectLightAtlasSetting } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import { surfaceHitReads } from '../surfaceCache/frame.ts'
 import { blueNoiseNow } from '../../gpu/noise/blueNoiseTextures.ts'
 import { CUTS, FULL_CONTRACT, type ContractKey } from '../deferred/contractCuts.ts'
@@ -132,6 +133,7 @@ function sampledInputs(
       sunRanks: direct.sunRanks ?? placeholders.sunRanks,
       lightFunction: direct.lightFunction ?? placeholders.lightFunction,
       lightProfile: direct.lightProfile ?? placeholders.lightProfile,
+      texturedRects: readRectLightAtlasSetting(rt, 'sampledLightsTexturedRectLights'),
       noise: noise.view,
       reflection,
       vsm: direct.vsm,

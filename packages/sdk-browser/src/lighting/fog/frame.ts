@@ -27,6 +27,8 @@ export const FOG_VOLUME_FLAG = {
   localShadows: 32,
   /** The fog is made to match the volume (`fogMatchesVolume`): the glow follows the density. */
   matches: 64,
+  /** A rectangle light that names a picture tints its light in the volume by it (`volumetricFogRectLightTexture`). */
+  rectTexture: 128,
 } as const
 
 /** What one image tells the volume about its camera: the matrices as column-major arrays — the
@@ -201,6 +203,7 @@ function writeMedium(out: Float32Array, image: FogVolumeImage) {
     (medium.useFogColors ? FOG_VOLUME_FLAG.fogColors : 0) |
     (image.voxels ? FOG_VOLUME_FLAG.voxels : 0) |
     (settings.volumetricFogLocalShadows ? FOG_VOLUME_FLAG.localShadows : 0) |
+    (settings.volumetricFogRectLightTexture ? FOG_VOLUME_FLAG.rectTexture : 0) |
     (settings.fogMatchesVolume ? FOG_VOLUME_FLAG.matches : 0)
   const { anisotropy: g, densityScale, fadeInRate } = medium
   put(out, at.medium, g, densityScale, fadeInRate, flags)

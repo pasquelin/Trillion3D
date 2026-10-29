@@ -108,6 +108,10 @@ test('the frame: the grid, the depth numbers of the engine’s projection, the h
   const unshadowed = { ...img.settings, volumetricFogLocalShadows: false }
   const whole = writeFogVolumeFrame(newFogVolumeFrame(), { ...img, settings: unshadowed })
   assert.equal(whole[at.medium + 3], glow | skipHidden | usesHistory)
+  // The rectangle lights' pictures tint the volume's light only where the setting says so (off by default).
+  const textured = { ...img.settings, volumetricFogRectLightTexture: true }
+  const tinted = writeFogVolumeFrame(newFogVolumeFrame(), { ...img, settings: textured })
+  assert.equal(tinted[at.medium + 3], flags | FOG_VOLUME_FLAG.rectTexture)
   // No history, no blend; a previous image with the same grid, the setting's weight; reprojection off, none.
   assert.equal(field(at.blend)[0], 0)
   const previous = previousOf(cam, 160, 90)

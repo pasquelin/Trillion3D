@@ -41,7 +41,7 @@ import { RESOLVED_INVALID } from './clearResolvedWgsl.ts'
 import { SAMPLED_PARAMS_WGSL } from './paramsWgsl.ts'
 import {
   JITTER_WGSL,
-  SAMPLING_BINDINGS,
+  samplingBindingsOf,
   TILES_BINDING_WGSL,
   sampledClassOf,
 } from './samplingWgsl.ts'
@@ -126,9 +126,18 @@ const STOCHASTIC_DOWN_WGSL = wgslBlock(
 const SHADING_PART_3 = `}`
 
 /** The pieces a shading program is made of, by what the contract's cut keeps. */
-function shadingParts(key: ContractKey, lights: ContractKey, cut: ReturnType<typeof litCutOf>) {
+function shadingParts(
+  key: ContractKey,
+  lights: ContractKey,
+  cut: ReturnType<typeof litCutOf>,
+  textured: boolean,
+) {
   return [
-    lightingBase(SAMPLING_BINDINGS, lights, { narrow: key.narrow, environment: false, cut }),
+    lightingBase(samplingBindingsOf(textured), lights, {
+      narrow: key.narrow,
+      environment: false,
+      cut,
+    }),
     declaredLightWgsl(lights, { term: 'split', cut, airTint: false }),
     pixelCellWgsl(),
     LIT_PIXEL_WGSL,
@@ -237,15 +246,20 @@ ${
 ${cut.thin ? '   thinSubsurface=subsurfaceBefore;\n' : ''}${SHADING_PART_5}${SHADING_PART_3}`
 }
 
-export function shadingWgsl(key: ContractKey, tileClass: TileClass, rect: boolean) {
+export function shadingWgsl(
+  key: ContractKey,
+  tileClass: TileClass,
+  rect: boolean,
+  textured = true,
+) {
   const { lights, cut } = sampledClassOf(key, tileClass, rect)
   const statements = litPixelStatements(cut).replace(
     '{discard;}',
     `{textureStore(resolvedDiffuse,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));textureStore(resolvedSpecular,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));return;}`,
   )
   return wgslBlock(
-    `shadingWgsl(${tileClass}, ${rect}, ${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow})`,
-    shadingParts(key, lights, cut),
+    `shadingWgsl(${tileClass}, ${rect}, ${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow}${textured ? '' : ', plain rectangles'})`,
+    shadingParts(key, lights, cut, textured),
     shadingText(cut, statements),
   )
 }

@@ -35,7 +35,6 @@ export const lightingImage = (image: Partial<LightingImage> = {}): LightingImage
   historyLost: false,
   feedback: false,
   tracedRadiosity: false,
-  scratchAt: 0,
   exposure: 1,
   ...image,
 })

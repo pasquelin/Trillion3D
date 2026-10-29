@@ -74,6 +74,18 @@ export const SAMPLING_BINDINGS: LightingBindings = {
   lightFunction: DEFERRED_LIGHT_FUNCTION_BINDINGS,
   lightProfile: DEFERRED_LIGHT_PROFILE_BINDINGS,
 }
+/** The same for a sampling that reads no picture of the rectangle lights (`sampledLightsTexturedRectLights` off): a rectangle is plain. */
+const PLAIN_RECT_BINDINGS: LightingBindings = {
+  lightFunction: DEFERRED_LIGHT_FUNCTION_BINDINGS,
+  lightProfile: {
+    group: DEFERRED_LIGHT_PROFILE_BINDINGS.group,
+    atlas: DEFERRED_LIGHT_PROFILE_BINDINGS.atlas,
+    sampler: DEFERRED_LIGHT_PROFILE_BINDINGS.sampler,
+  },
+}
+/** What the sampling and the shading read of the light functions, the light profiles and, where `textured`, the rectangle lights' pictures. */
+export const samplingBindingsOf = (textured: boolean) =>
+  textured ? SAMPLING_BINDINGS : PLAIN_RECT_BINDINGS
 
 export const TILES_BINDING_WGSL = wgslBlock(
   'SAMPLING_TILES_BINDING_WGSL',
@@ -229,9 +241,18 @@ const SAMPLING_PART_1 = `  textureStore(samples,vec2i(coord),vec4u(packLightSamp
 }`
 
 /** The pieces a sampling program is made of, by what the contract's cut keeps. */
-function samplingParts(key: ContractKey, lights: ContractKey, cut: ReturnType<typeof litCutOf>) {
+function samplingParts(
+  key: ContractKey,
+  lights: ContractKey,
+  cut: ReturnType<typeof litCutOf>,
+  textured: boolean,
+) {
   return [
-    lightingBase(SAMPLING_BINDINGS, lights, { narrow: key.narrow, environment: false, cut }),
+    lightingBase(samplingBindingsOf(textured), lights, {
+      narrow: key.narrow,
+      environment: false,
+      cut,
+    }),
     pixelCellWgsl(),
     LIT_PIXEL_WGSL,
     ...(cut.channels ? [LIT_CHANNELS_WGSL] : []),
@@ -357,14 +378,20 @@ export function sampledClassOf(key: ContractKey, tileClass: TileClass, rect: boo
   return { lights, cut: litCutOf(tileClass, lights) }
 }
 
-export function samplingWgsl(key: ContractKey, tileClass: TileClass, rect: boolean, front = false) {
+export function samplingWgsl(
+  key: ContractKey,
+  tileClass: TileClass,
+  rect: boolean,
+  front = false,
+  textured = true,
+) {
   const { lights, cut } = sampledClassOf(key, tileClass, rect)
   const statements = litPixelStatements(cut).replace('{discard;}', '{writeEmpty(down);return;}')
   const twoSided = cut.thin ? 'thinSurface()' : 'false'
   const transmits = cut.thin ? `(surfaceFlag&${SUBSURFACE_FLAG}u)!=0u` : 'false'
   return wgslBlock(
-    `samplingWgsl(${tileClass}, ${rect}, ${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow}${front ? ', front layer' : ''})`,
-    samplingParts(key, lights, cut),
+    `samplingWgsl(${tileClass}, ${rect}, ${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow}${front ? ', front layer' : ''}${textured ? '' : ', plain rectangles'})`,
+    samplingParts(key, lights, cut, textured),
     samplingText(front, statements, twoSided, transmits),
   )
 }

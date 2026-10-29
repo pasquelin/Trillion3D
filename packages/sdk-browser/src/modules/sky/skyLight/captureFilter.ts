@@ -8,7 +8,7 @@ import {
   irradianceMip,
 } from './layout.ts'
 import { writeBlock } from './captureInputs.ts'
-import type { SkyLightPipelines } from './pipelines.ts'
+import type { cubeFilterStages } from './cubeFilterPipelines.ts'
 import type { SkyLightTargets } from './targets.ts'
 
 /**
@@ -17,21 +17,32 @@ import type { SkyLightTargets } from './targets.ts'
  * filter (a captured scene's, a specified cubemap's). Each dispatch reads a block of the filter
  * buffer at a slot of its own, `slot` counting them in a frame (`beginFrame`).
  */
+/** What the mips and the filter read of a capture's targets: the cube's side and mips, the block of the filter and the bind groups of the
+ *  passes — the downsample of each mip, the convolve of each filtered cube (`w`) and mip — which the sky light's targets and a reflection
+ *  capture's array both make. */
+export type FilterTargets = Pick<SkyLightTargets, 'width' | 'mips'> & {
+  readonly blocks: Pick<SkyLightTargets['blocks'], 'filter'>
+  readonly groups: {
+    readonly downsample: readonly (GPUBindGroup | undefined)[]
+    readonly convolve: readonly (readonly GPUBindGroup[])[]
+  }
+}
+
+/** The four stages of the cube's passes (`cubeFilterStages`). */
+export type FilterPipelines = ReturnType<typeof cubeFilterStages>
+
 export interface FilterStage {
   readonly device: GPUDevice
   /** The stages that follow one another, one compute pass but on a frame timed per pass: begun on
    *  the frame's encoder by the caller (`encodeRealTime`, `finishCapture`). */
   readonly steps: ComputeRun
-  readonly pipelines: SkyLightPipelines['pipelines']
+  readonly pipelines: FilterPipelines
   /** The next free slot of the filter blocks. */
   slot: number
   readonly words: Uint32Array
 }
 
-export const createFilterStage = (
-  device: GPUDevice,
-  pipelines: SkyLightPipelines['pipelines'],
-): FilterStage => ({
+export const createFilterStage = (device: GPUDevice, pipelines: FilterPipelines): FilterStage => ({
   device,
   steps: new ComputeRun(),
   pipelines,
@@ -44,7 +55,7 @@ const FILTER_PASS: GPUComputePassDescriptor = { label: 'Trillion3D sky light fil
 const HARMONICS_PASS: GPUComputePassDescriptor = { label: 'Trillion3D sky light harmonics' }
 
 /** A filtering block's slot, written: `mip`, the cube's mips, the first face. */
-function filterSlot(stage: FilterStage, t: SkyLightTargets, mip: number, faceFirst: number) {
+function filterSlot(stage: FilterStage, t: FilterTargets, mip: number, faceFirst: number) {
   stage.words.set([mip, t.mips, faceFirst, 0])
   const at = stage.slot++ * BLOCK_STRIDE
   writeBlock(stage.device, t.blocks.filter, at, stage.words)
@@ -54,7 +65,7 @@ function filterSlot(stage: FilterStage, t: SkyLightTargets, mip: number, faceFir
 /** Mips `1` to the last, each from the one above, by `pipeline` over `groups[mip]`. */
 function downsampleMips(
   stage: FilterStage,
-  t: SkyLightTargets,
+  t: FilterTargets,
   pipeline: GPUComputePipeline | undefined,
   groups: readonly (GPUBindGroup | undefined)[],
 ) {
@@ -69,14 +80,14 @@ function downsampleMips(
 }
 
 /** Mips `1` to the last of the captured cube, each from the one above. */
-export const mipChain = (stage: FilterStage, t: SkyLightTargets) =>
+export const mipChain = (stage: FilterStage, t: FilterTargets) =>
   downsampleMips(stage, t, stage.pipelines.downsample.get(), t.groups.downsample)
 
 /** Mips `mipFirst` to `mipLast` of filtered cube `w`, faces `faceFirst` for `faceCount`. */
 export function filter(
   stage: FilterStage,
-  t: SkyLightTargets,
-  w: 0 | 1,
+  t: FilterTargets,
+  w: number,
   mipFirst: number,
   mipLast: number,
   faceFirst: number,

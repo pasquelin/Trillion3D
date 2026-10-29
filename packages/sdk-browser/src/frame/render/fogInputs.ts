@@ -8,6 +8,8 @@ import type { FogVolumeInputs, Scratch } from '../../lighting/fog/gpu.ts'
 import { fillFogStaticLight } from '../../lighting/fog/staticFrame.ts'
 import { newFogStaticLight } from '../../lighting/fog/staticLight.ts'
 import { lightFunctionResources } from '../../lighting/lightFunction/frame.ts'
+import { rectAtlasStandIn } from '../../lighting/rectLightAtlas/bindings.ts'
+import { rectAtlasResources } from '../../lighting/rectLightAtlas/frame.ts'
 import { opaquePyramidOf } from '../../lighting/reflections/frame.ts'
 import { vsmOrStandIns } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import { sampledVolumeFog } from '../../lighting/manyLightsSampled/volumeFrame.ts'
@@ -66,6 +68,7 @@ const inputs: Scratch<FogVolumeInputs> = {
   localTiles: undefined,
   cubemap: undefined,
   lightFunction: undefined,
+  rectAtlas: undefined,
   cloudShadow: undefined,
   sky: undefined,
   translucencyGi: undefined,
@@ -162,6 +165,7 @@ export function fogInputsOf(
   inputs.exposure = pre.exposure
   inputs.lightFunction =
     lightFunctionResources(rt, 'lightFunctionFog') ?? placeholders.lightFunction
+  inputs.rectAtlas = rectAtlasResources(rt) ?? rectAtlasStandIn(device)
   inputs.cloudShadow = cloudShadowOf(rt) ?? cloudShadowStandIn(device)
   inputs.sky = skyLightReadOf(rt)
   fillFogStaticLight(inputs as FogVolumeInputs, rt, device, fog.medium)
@@ -182,6 +186,7 @@ export function clearFogInputs() {
     inputs.cubemap =
     inputs.field =
     inputs.lightFunction =
+    inputs.rectAtlas =
     inputs.cloudShadow =
     inputs.sky =
     inputs.lightmap =

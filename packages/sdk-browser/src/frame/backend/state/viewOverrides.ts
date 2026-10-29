@@ -44,13 +44,14 @@ export interface ViewOverrides {
   readonly readLit?: LitReader
 }
 
-/** What reads the lit image of a view: its encoder, the image's view (level 0 of the HDR target)
- *  and the size drawn in it, of the target allocated. */
+/** What reads the lit image of a view: its encoder, the image's view (level 0 of the HDR target),
+ *  the size drawn in it, of the target allocated, and the view's depth. */
 type LitReader = (
   encoder: GPUCommandEncoder,
   lit: GPUTextureView,
   drawn: readonly number[],
   allocated: readonly number[],
+  depth: GPUTextureView | undefined,
 ) => void
 
 /** The overrides of a view that overrides nothing. */

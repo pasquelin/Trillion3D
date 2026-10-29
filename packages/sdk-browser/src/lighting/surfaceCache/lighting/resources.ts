@@ -28,8 +28,7 @@ import { STOCHASTIC_FRAMES_FORMAT, STOCHASTIC_RESOLVED_FORMAT } from './stochast
  *
  * THE TRACED SHADOWS' BUFFERS are a set of their own (`ensureTracedShadows`): the masks of the lights of the tiles and the shadow
  * traces they list. They are made when the shadows are traced, keyed by the
- * light tiles, the format of the masks and whether the light functions the atlas holds no slot of have their scratch after the
- * masks (`tracedShadowWords`), and given back when they are not traced: turning the traced path on or off remakes
+ * light tiles and the format of the masks (`tracedShadowWords`), and given back when they are not traced: turning the traced path on or off remakes
  * none of the lighting's memory, and the radiosity keeps its history.
  */
 
@@ -109,15 +108,9 @@ export function ensureLighting(
   )
 }
 
-/** The buffers of the traced shadows for `lightTiles` light tiles, their masks in `format`, with room for the scratch of the light
- *  functions where `scratch`, asked of `allocator`. */
-function allocateTraced(
-  allocator: ResourceAllocator,
-  lightTiles: number,
-  format: AtlasFormat,
-  scratch: boolean,
-) {
-  const words = tracedShadowWords(lightTiles, format, scratch)
+/** The buffers of the traced shadows for `lightTiles` light tiles, their masks in `format`, asked of `allocator`. */
+function allocateTraced(allocator: ResourceAllocator, lightTiles: number, format: AtlasFormat) {
+  const words = tracedShadowWords(lightTiles, format)
   return {
     masks: allocator.buffer('shadow masks', words.masks, 'storage'),
     traces: allocator.buffer('shadow traces', words.traces, 'storage'),
@@ -128,8 +121,8 @@ function allocateTraced(
 export type TracedShadowBuffers = ReturnType<typeof allocateTraced> & HeldSet
 
 /**
- * The traced shadows' buffers for `lightTiles` light tiles (a tile of the direct list's, a light of it), their masks in `format`
- * and with the scratch of the light functions where `scratch`: `held` where they are for that, else made, `held` given back —
+ * The traced shadows' buffers for `lightTiles` light tiles (a tile of the direct list's, a light of it), their masks in `format`:
+ * `held` where they are for that, else made, `held` given back —
  * where the device's budget leaves room; none where it does not, with the reason.
  */
 export function ensureTracedShadows(
@@ -137,54 +130,47 @@ export function ensureTracedShadows(
   device: GPUDevice,
   lightTiles: number,
   format: AtlasFormat,
-  scratch: boolean,
 ) {
   return ensureSet(
     held,
     device,
     {
-      key: [lightTiles, format, scratch],
+      key: [lightTiles, format],
       what: 'the traced shadows',
       label: `${SURFACE_CACHE_ATLAS_LABEL} traced shadows`,
     },
-    (allocator) => allocateTraced(allocator, lightTiles, format, scratch),
+    (allocator) => allocateTraced(allocator, lightTiles, format),
   )
 }
 
-/** The masks of the shadows traced through the distance fields for `lightTiles` light tiles, in `format`, with room for the scratch of the light functions where `scratch`, asked of `allocator`: no trace is listed, so no list of them is made. */
+/** The masks of the shadows traced through the distance fields for `lightTiles` light tiles, in `format`, asked of `allocator`: no trace is listed, so no list of them is made. */
 const allocateFieldMasks = (
   allocator: ResourceAllocator,
   lightTiles: number,
   format: AtlasFormat,
-  scratch: boolean,
 ) => ({
-  masks: allocator.buffer(
-    'shadow masks',
-    tracedShadowWords(lightTiles, format, scratch).masks,
-    'storage',
-  ),
+  masks: allocator.buffer('shadow masks', tracedShadowWords(lightTiles, format).masks, 'storage'),
 })
 
 /** The masks of the shadows traced through the distance fields. */
 export type FieldShadowMasks = ReturnType<typeof allocateFieldMasks> & HeldSet
 
-/** The masks of `lightTiles` light tiles in `format`, with the scratch where `scratch`: `held` where they are for that, else made, `held` given back. */
+/** The masks of `lightTiles` light tiles in `format`: `held` where they are for that, else made, `held` given back. */
 export function ensureFieldShadowMasks(
   held: FieldShadowMasks | undefined,
   device: GPUDevice,
   lightTiles: number,
   format: AtlasFormat,
-  scratch: boolean,
 ) {
   return ensureSet(
     held,
     device,
     {
-      key: [lightTiles, format, scratch],
+      key: [lightTiles, format],
       what: 'the shadow masks',
       label: `${SURFACE_CACHE_ATLAS_LABEL} shadow masks`,
     },
-    (allocator) => allocateFieldMasks(allocator, lightTiles, format, scratch),
+    (allocator) => allocateFieldMasks(allocator, lightTiles, format),
   )
 }
 

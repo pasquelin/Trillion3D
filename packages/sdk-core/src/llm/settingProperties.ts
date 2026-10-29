@@ -73,6 +73,8 @@ import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOpti
 import { HETEROGENEOUS_VOLUME_MEANINGS } from './heterogeneousVolumeMeanings.ts'
 import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
 import { SAMPLED_LIGHTS_MEANINGS } from './sampledLightsMeanings.ts'
+import { RECT_LIGHT_ATLAS_MEANINGS } from './rectLightAtlasMeanings.ts'
+import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_VOLUME_MEANINGS } from './translucencyVolumeMeanings.ts'
 import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
@@ -92,6 +94,8 @@ import { SURFACE_CACHE_MEANINGS } from './surfaceCacheMeanings.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_OCCLUSION_MEANINGS } from './ambientOcclusionMeanings.ts'
 import { AMBIENT_CUBEMAP_RULES } from '../contracts/ambientCubemapOptions.ts'
+import { REFLECTION_CAPTURE_RULES } from '../contracts/reflectionCaptureOptions.ts'
+import { REFLECTION_CAPTURE_MEANINGS } from './reflectionCaptureMeanings.ts'
 import { AMBIENT_CUBEMAP_MEANINGS } from './ambientCubemapMeanings.ts'
 import { choiceSchema } from './schemaParts.ts'
 import { STREAMING_RULES } from '../contracts/streamingOptions.ts'
@@ -668,6 +672,7 @@ export const settingRuleProperties = () => ({
   }),
   ...ruleProperties(LIGHT_FUNCTION_RULES, LIGHT_FUNCTION_MEANINGS),
   ...ruleProperties(LIGHT_PROFILE_RULES, LIGHT_PROFILE_MEANINGS),
+  ...ruleProperties(RECT_LIGHT_ATLAS_RULES, RECT_LIGHT_ATLAS_MEANINGS),
   ...ruleProperties(VOLUMETRIC_LIGHTMAP_RULES, VOLUMETRIC_LIGHTMAP_MEANINGS),
   ...ruleProperties(GLOBAL_DISTANCE_FIELD_RULES, GLOBAL_DISTANCE_FIELD_MEANINGS),
   ...ruleProperties(DISTANCE_FIELD_OCCLUSION_RULES, DISTANCE_FIELD_OCCLUSION_MEANINGS),
@@ -701,5 +706,6 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(SURFACE_CACHE_RULES, SURFACE_CACHE_MEANINGS),
   ...ruleProperties(AMBIENT_OCCLUSION_RULES, AMBIENT_OCCLUSION_MEANINGS),
   ...ruleProperties(AMBIENT_CUBEMAP_RULES, AMBIENT_CUBEMAP_MEANINGS),
+  ...ruleProperties(REFLECTION_CAPTURE_RULES, REFLECTION_CAPTURE_MEANINGS),
   ...skyQualityProperties(),
 })

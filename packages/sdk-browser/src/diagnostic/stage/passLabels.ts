@@ -17,6 +17,14 @@ export const TREE_LEAVES_PASS = 'Trillion3D placement tree leaves'
 export const TREE_REFIT_PASS = 'Trillion3D placement tree refit'
 /** The light functions' atlas render pass (`../../lighting/lightFunction/atlas.ts`). */
 export const LIGHT_FUNCTION_ATLAS_PASS = 'Trillion3D light function atlas'
+/** The passes of the rectangle lights' source-texture atlas (`../../lighting/rectLightAtlas/`): a picture drawn into it, a slot moved
+ *  to a new atlas, a level filtered, the atlas cleared, and the debug view made and drawn over the image. */
+export const RECT_ATLAS_ADD_PASS = 'Trillion3D rect light atlas add'
+export const RECT_ATLAS_COPY_PASS = 'Trillion3D rect light atlas copy'
+export const RECT_ATLAS_FILTER_PASS = 'Trillion3D rect light atlas filter'
+export const RECT_ATLAS_CLEAR_PASS = 'Trillion3D rect light atlas clear'
+export const RECT_ATLAS_DEBUG_PASS = 'Trillion3D rect light atlas debug'
+export const RECT_ATLAS_BLIT_PASS = 'Trillion3D rect light atlas blit'
 /** The DAG selection's compute pass (`../../geometry/dag/`), and the pass that measures the longest
  *  edge of the clusters whose records were written since the last cut
  *  (`../../geometry/dag/info/measure.ts`). */
@@ -343,6 +351,12 @@ export const ENGINE_PASSES = [
   definePass({ label: SURFACE_COLOUR_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: HEIGHT_FOG_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: LIGHT_FUNCTION_ATLAS_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: RECT_ATLAS_ADD_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: RECT_ATLAS_COPY_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: RECT_ATLAS_FILTER_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: RECT_ATLAS_CLEAR_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: RECT_ATLAS_DEBUG_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: RECT_ATLAS_BLIT_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: VOLUMETRIC_LIGHT_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: FOG_VOLUME_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: TRANSLUCENCY_VOLUME_PASS, stage: 'lighting', block: 'other' }),

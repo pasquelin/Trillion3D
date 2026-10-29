@@ -8,6 +8,7 @@ import {
 import { hizDepthEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { globalReadLayoutEntries } from '../distanceField/view.ts'
 import { lightFunctionLayoutEntry } from '../lightFunction/bindings.ts'
+import { rectAtlasLayoutEntries } from '../rectLightAtlas/bindings.ts'
 import { volumetricLightmapLayoutEntries } from '../volumetricLightmap/textures.ts'
 import {
   FOG_BINDING,
@@ -18,6 +19,11 @@ import {
 } from './bindings.ts'
 import { FOG_STATIC_FORMAT } from './layout.ts'
 import { FOG_VOLUME_FORMAT } from './read.ts'
+
+const rectEntries = rectAtlasLayoutEntries({
+  atlas: FOG_BINDING.rectAtlas,
+  sampler: FOG_BINDING.rectSampler,
+})
 
 /** The layout entry of each binding of the volume's programs, by name; the pyramid's three
  *  (`hizDepthEntries`) are made where a program names it. */
@@ -87,6 +93,8 @@ const ENTRY: Record<
   graphPages: computeBufferEntry(FOG_BINDING.graphPages, 'read-only-storage'),
   graphSampler: computeSamplerEntry(FOG_BINDING.graphSampler),
   localTiles: computeBufferEntry(FOG_BINDING.localTiles, 'read-only-storage'),
+  rectAtlas: rectEntries[0],
+  rectSampler: rectEntries[1],
   mlParams: computeUniformEntry(FOG_BINDING.mlParams),
   mlSamplesIn: computeStorageTextureEntry(FOG_BINDING.mlSamplesIn, 'r32uint', 'read-only', '3d'),
 }

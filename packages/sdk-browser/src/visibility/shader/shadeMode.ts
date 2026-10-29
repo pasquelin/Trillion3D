@@ -71,6 +71,7 @@ const LIT_VIEWS = {
   'sampled-lights-shadow-casters': { light: 0, chain: true },
   'sampled-lights-shadow-caster-quality': { light: 0, chain: true },
   'subsurface-profiles': { light: 0, chain: true },
+  'rect-light-atlas': { light: 0, chain: true },
   'heterogeneous-volumes-dda-marching': { light: 0, chain: true },
   'heterogeneous-volumes-sample-marching': { light: 0, chain: true },
   'heterogeneous-volumes-sample-majorant': { light: 0, chain: true },

@@ -58,11 +58,15 @@ test('a light is kept for a card whose object shares one of its lighting channel
   }
 })
 
-test('the channel test is the first of the weight of a light, and the card reads its channels from its flags word', () => {
+test('the channel test is the first of the reach of a light and the reach the first of its weight, and the card reads its channels from its flags word', () => {
   const text = wgslSource(cullWgsl(4))
   assert.match(
     text,
-    /fn tileLightWeight\(rank:u32,light:DirectLight,b:TileBox\)->f32 \{\n if\(\(b\.card\.channels&lightChannelsOf\(light\)\)==0u\)\{return -1\.0;\}\n/,
+    /fn tileLightReached\(light:DirectLight,b:TileBox\)->bool \{\n if\(\(b\.card\.channels&lightChannelsOf\(light\)\)==0u\)\{return false;\}\n/,
+  )
+  assert.match(
+    text,
+    /fn tileLightWeight\(rank:u32,light:DirectLight,b:TileBox\)->f32 \{\n if\(!tileLightReached\(light,b\)\)\{return -1\.0;\}\n/,
   )
   assert.match(text, /c\.channels=storedToChannels\(c\.flags>>SC_CARD_CHANNELS_SHIFT\);/)
 })

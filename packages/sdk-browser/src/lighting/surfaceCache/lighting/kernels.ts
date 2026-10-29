@@ -396,22 +396,27 @@ const maskKernelsOf = {
 }
 const maskKernels = (device: GPUDevice, format: AtlasFormat) => maskKernelsOf[format](device)
 
-function makeMaskKernels(device: GPUDevice, format: AtlasFormat) {
+/** The bindings of the mask's program, whatever light it makes the masks of: the light tiles' tables, counters, layers and masks, the light functions, the clouds' shade, the factors, the traces and the light profiles. */
+export function shadowMaskLayoutEntries() {
   const M = SHADOW_MASK_BINDINGS
+  return [
+    ...fieldTileEntries(),
+    lightFunctionLayoutEntry(M.lightFunction),
+    ...cloudShadowLayoutEntries(SHADOW_MASK_CLOUD_SHADOW, COMPUTE),
+    computeBufferEntry(M.factors, ro),
+    computeBufferEntry(M.traces, 'storage'),
+    ...lightProfileLayoutEntries(SHADOW_MASK_LIGHT_PROFILE, COMPUTE),
+  ]
+}
+
+function makeMaskKernels(device: GPUDevice, format: AtlasFormat) {
   return {
     shadowMask: createKernel(
       device,
       'shadow masks',
       shadowMaskProgramOf(format),
       SHADOW_MASK_ENTRIES,
-      [
-        ...fieldTileEntries(),
-        lightFunctionLayoutEntry(M.lightFunction),
-        ...cloudShadowLayoutEntries(SHADOW_MASK_CLOUD_SHADOW, COMPUTE),
-        computeBufferEntry(M.factors, ro),
-        computeBufferEntry(M.traces, 'storage'),
-        ...lightProfileLayoutEntries(SHADOW_MASK_LIGHT_PROFILE, COMPUTE),
-      ],
+      shadowMaskLayoutEntries(),
     ),
     shadowArgs: shadowArgsKernel(device),
   }
@@ -601,7 +606,8 @@ export function shapedKernels(
 
 const unfilterable = (binding: number) => sampled(binding, 'unfilterable-float')
 
-function stochasticGenerateKernel(device: GPUDevice) {
+/** The generation of the samples: it picks the lights of the tiles itself, so it writes the light tiles the cull writes. */
+const stochasticGenerateKernel = oncePerDevice((device: GPUDevice) => {
   const G = STOCHASTIC_GENERATE_BINDINGS
   return createKernel(
     device,
@@ -611,17 +617,19 @@ function stochasticGenerateKernel(device: GPUDevice) {
     [
       computeBufferEntry(G.tables, ro),
       computeBufferEntry(G.context, ro),
+      computeBufferEntry(G.counts, 'storage'),
       ...depthAndNormal(G.depth, G.normal),
-      computeBufferEntry(G.cardTileLights, ro),
-      computeBufferEntry(G.cardTileOffsets, ro),
+      computeBufferEntry(G.culled, 'storage'),
+      computeBufferEntry(G.cardTileOffsets, 'storage'),
       computeBufferEntry(G.lights, ro),
+      computeBufferEntry(G.standalone, ro),
       computeBufferEntry(G.samples, 'storage'),
       lightFunctionLayoutEntry(G.lightFunction),
       ...lightProfileLayoutEntries(STOCHASTIC_GENERATE_LIGHT_PROFILE, COMPUTE),
       noise(G.noise),
     ],
   )
-}
+})
 
 function stochasticCompactKernel(device: GPUDevice, format: AtlasFormat) {
   const C = STOCHASTIC_COMPACT_BINDINGS
@@ -688,7 +696,6 @@ function stochasticTemporalKernel(device: GPUDevice, light: LightAtlasFormat) {
 
 function stochasticKernelsFor(device: GPUDevice, format: AtlasFormat, light: LightAtlasFormat) {
   return {
-    generate: stochasticGenerateKernel(device),
     compact: stochasticCompactKernel(device, format),
     shade: stochasticShadeKernel(device, format, light),
     temporal: stochasticTemporalKernel(device, light),
@@ -709,4 +716,7 @@ export const stochasticKernels = (
   device: GPUDevice,
   format: AtlasFormat,
   light: LightAtlasFormat,
-) => stochasticKernelsOf[format](device, light)
+) => ({
+  ...stochasticKernelsOf[format](device, light),
+  generate: stochasticGenerateKernel(device),
+})

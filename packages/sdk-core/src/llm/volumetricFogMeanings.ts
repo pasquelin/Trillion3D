@@ -33,6 +33,8 @@ export const VOLUMETRIC_FOG_MEANINGS: Readonly<Record<VolumetricFogField, string
     'From 0, the one pass of each voxelised object that is kept, to see where the passes lie (a pass is volumetricFogVoxelizationSlicesPerPass slices from the nearest one the object reaches); -1 keeps them all.',
   volumetricFogLocalShadows:
     'Whether a point, spot or rectangle light whose shadow darkens the fog (shadowsFog) reads its shadow map in the volume, so that a shaft of it stops at what blocks it; on by default. Off, every local light lights the volume whole, which is cheaper; the sun keeps its own shadow.',
+  volumetricFogRectLightTexture:
+    "Whether a rectangle light that names a picture (sourceTexture) tints its light in the fog's volume by the picture's colour where the ray from the cell meets its face, at the level the rectangle's solid angle asks; off by default, where the rectangle lights the volume with its plain colour.",
   volumetricFogEdgeFade:
     "Where above 0, the edge of a spot's cone and of a rectangle's plane fade over this many cells of the fog's volume, so that they flicker less; 1 is a good start. 0, the default, fades nothing.",
   volumetricFogReadJitter:

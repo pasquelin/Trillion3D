@@ -15,6 +15,8 @@ import {
 import { settingsWritten, settingWriter } from '../../../sdk-core/src/contracts/settingRules.ts'
 import { SETTING_FAMILIES, type FamilyName } from '../../../sdk-core/src/runtime/settingFamilies.ts'
 import { familyWriters } from './familyWriters.ts'
+import type { HostImage } from '../../../sdk-core/src/contracts/hostImage.ts'
+import { createRectLightImages } from '../lighting/rectLightAtlas/images.ts'
 
 type Inputs = { check: () => void; context: EngineContext }
 
@@ -73,6 +75,12 @@ export interface ExplorerRuleApi {
    *  is measured; `undefined` or `null` gives back none. One that is not a picture is refused;
    *  read by the next image's meter. */
   setExposureMeterMask(image?: ExposureMeterMaskImage | null): void
+  /** Registers the picture `id` for the rectangle lights that name it (`SceneLight.sourceTexture`, `rectLightAtlasOptions.ts`): an `ImageBitmap`
+   *  or any image the engine can copy to a texture, drawn into the atlas from the next image; `null` forgets it, and the lights that named it light
+   *  as plain rectangles. Another image under the same id replaces it. @throws TypeError for an image with no width or height. */
+  setRectLightTexture(id: string, image: HostImage | null): void
+  /** The picture `id` changed in place (a canvas drawn into, a video frame): it is drawn into the atlas again at the next image. */
+  refreshRectLightTexture(id: string): void
   /** Writes the temporal pass's setting `field` (`temporalOptions.ts`): whether it looks for
    *  geometry thinner than a pixel; read by the next image's pass. */
   setTemporal: FamilyWriter<'temporal'>
@@ -87,6 +95,9 @@ export interface ExplorerRuleApi {
   /** Writes the light profiles' atlas setting `field` (`lightProfileOptions.ts`): the texels a side of a
    *  slice and the most profiles it holds; read by the next image. */
   setLightProfile: FamilyWriter<'lightProfile'>
+  /** Writes the rectangle lights' source-texture atlas setting `field` (`rectLightAtlasOptions.ts`): the atlas's largest side, its filter,
+   *  its format, the pictures' proportions, which passes read the pictures, and the debug switches; read by the next image. */
+  setRectLightAtlas: FamilyWriter<'rectLightAtlas'>
   /** Writes the volumetric lightmap's setting `field` (`volumetricLightmapOptions.ts`): whether the
    *  precomputed light is read; read by the next image. */
   setVolumetricLightmap: FamilyWriter<'volumetricLightmap'>
@@ -156,6 +167,9 @@ export interface ExplorerRuleApi {
    *  channels, and the intensity that multiplies it; read by the next image's indirect light. The cube itself is a world option
    *  (`ambientCubemap`), given at the opening and changed by `setAmbientCubemapCube`. */
   setAmbientCubemap: FamilyWriter<'ambientCubemap'>
+  /** Writes the reflection captures' setting `field` (`reflectionCaptureOptions.ts`): whether they light the surfaces, the side of their cubes, the
+   *  supersampling and near plane of their faces, the light functions, and the diffuse light of their small mips. */
+  setReflectionCapture: FamilyWriter<'reflectionCapture'>
   /** Writes the ambient cubemap's cube (`ambientCubemapOptions.ts`): `{ size, texels }`, the side of a face in texels (a power of two from
    *  16 to 1024) and the six faces' linear colours; `undefined` or `null` takes the light away. One that is not a cube is refused; the
    *  next image filters the new cube's mip chain over the images it takes (the images drawn meanwhile are drawn again and light nothing
@@ -248,6 +262,17 @@ export function createExplorerRuleApi({ check, context }: Inputs): ExplorerRuleA
       exposureCurveScaleTable(option)
       check()
       context.localExposureShadowContrastCurve = option
+      settingsWritten()
+    },
+    setRectLightTexture(id, image) {
+      check()
+      const images = (context.rectLightImages ??= createRectLightImages())
+      images.set(id, image)
+      settingsWritten()
+    },
+    refreshRectLightTexture(id) {
+      check()
+      context.rectLightImages?.refresh(id)
       settingsWritten()
     },
     setExposureMeterMask(image) {

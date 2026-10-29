@@ -34,7 +34,7 @@ export function finishUncomposed(
 ) {
   const { gpu } = rt
   composeLateOnto(rt, gpu.device!, encoder, [gpu.hdrView!])
-  overrides.readLit?.(encoder, gpu.hdrView!, gpu.targetSize, gpu.allocatedSize)
+  overrides.readLit?.(encoder, gpu.hdrView!, gpu.targetSize, gpu.allocatedSize, gpu.depthView)
   if (filter) filter.active = false
   finishVsmFrame(rt, encoder)
   adoptLitImage(gpu)

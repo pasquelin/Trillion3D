@@ -25,7 +25,10 @@ export const irradianceTerm = (rectless = false, given = true, profiled = true) 
      ? punctualIrradiance(given)
      : `
  if(isRect(light)){
-  lit=light.colorIntensity.rgb*lightStrength(light)*rectIrradiance(light,P,N).w*sharesOf(light).x;
+  let r=rectView(light,P);
+  let incident=rectIrradianceOf(r,N);
+  lit=light.colorIntensity.rgb*lightStrength(light)*incident.w*sharesOf(light).x;
+  if(incident.w>0.0){lit*=rectColour(r,incident.xyz);}
  }else{${punctualIrradiance(given)}
  }`
  }

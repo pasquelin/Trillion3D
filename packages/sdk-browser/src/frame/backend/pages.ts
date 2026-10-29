@@ -6,6 +6,7 @@ import { webgpuAudits } from '../io/audits.ts'
 import { dropTaaHistory } from '../../post/taa/landing.ts'
 import { followFrameDifference } from '../render/frameDifference.ts'
 import { applySkyToRuntime } from '../render/encodeCloudsSky.ts'
+import { reflectionCaptureHosts } from '../render/reflectionCaptureState.ts'
 import {
   backendHostApi,
   backendSetters,
@@ -61,5 +62,7 @@ export const webgpuPagesEngine = ((context, rt = createWebgpuPagesRuntime(contex
     ...webgpuAudits(rt),
     dispose: () => disposeSession(rt, session),
   }
+  // The engine draws the scene aside for the reflection captures too (`captureHdrViews`).
+  reflectionCaptureHosts.set(rt, backend)
   return backend
 }) satisfies EngineFactory

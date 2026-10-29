@@ -41,7 +41,8 @@ import { ML_SHADE_WGSL } from '../manyLightsSampled/volumeWgsl.ts'
  * distance, or along its tube (`lampSeen`), the squared distance a cell's radius (scaled,
  * `frame.tune.w`) longer, so that no cell spikes near the light — a square centimetre at least,
  * `LAMP_BIAS` —, and the window of its range, the cone of a spot; a rectangle by its form factor
- * with no normal (`rectFormOf`). A local light whose `shadowsFog` is set and that holds a shadow
+ * with no normal (`rectFormOf`), times the colour of its picture where the cell sees it (`fogRectPicture`, `rectSourceAt`) while the setting
+ * `volumetricFogRectLightTexture` is on (`FOG_VOLUME_FLAG.rectTexture`). A local light whose `shadowsFog` is set and that holds a shadow
  * slot is shadowed by one sample of its map at the cell's point, as the sun is, while the setting
  * `volumetricFogLocalShadows` is on (`FOG_VOLUME_FLAG.localShadows`). The edge of a spot's
  * cone and of a rectangle's plane fade over a number of cells (`frame.blend.z`, none by default), so
@@ -90,6 +91,14 @@ fn fogSpotFade(light:DirectLight,P:vec3f,fade:f32)->f32{
  let across=length(offset-light.directionCone.xyz*along);
  return saturate((along*sinFromCosUnclamped(cosine)/cosine-across)/fade);
 }
+/** The colour of a rectangle's picture where the point sees it, white for a rectangle with none: read along the mean direction of the
+ *  rectangle's light (the direction of its form factor with no normal, \`rectIrradianceOf\`) and by the solid angle it covers. */
+fn fogRectPicture(light:DirectLight,P:vec3f)->vec3f{
+ let r=rectView(light,P);
+ let toward=rectIrradianceOf(r,vec3f(0.0)).xyz;
+ if(dot(toward,toward)<=0.0){return vec3f(1.0);}
+ return rectColour(r,toward);
+}
 /** One local light's light at \`P\`, \`biasSquared\` the squared distance its inverse square is taken
  *  at longer than the real one, in the way of the cell's size, \`fade\` the distance over which the edge
  *  of its cone or of its plane fades (0 none): its colour times its share, its attenuation as a medium
@@ -104,7 +113,9 @@ ${REACH('vec3f(0.0)')}
   else if(isSpot(light)){seen.w*=fogSpotFade(light,P,fade);}
  }
  if(seen.w>0.0&&${sampled ? 'shadowed&&' : ''}shadowsFog(light)&&(u32(frame.medium.w)&${FOG_VOLUME_FLAG.localShadows}u)!=0u){seen.w*=shadowFactor(i32(light.params.y),light,P,vec3f(0.0),true);}
- return light.colorIntensity.rgb*lightFunctionFogLocalOf(light,P)*(lightStrength(light)*light.params.z)*(seen.w*hgPhase(frame.medium.x,dot(seen.xyz,toEye)));
+ var colour=light.colorIntensity.rgb*lightFunctionFogLocalOf(light,P);
+ if(seen.w>0.0&&isRect(light)&&(u32(frame.medium.w)&${FOG_VOLUME_FLAG.rectTexture}u)!=0u){colour*=fogRectPicture(light,P);}
+ return colour*(lightStrength(light)*light.params.z)*(seen.w*hgPhase(frame.medium.x,dot(seen.xyz,toEye)));
 }`,
   )
 

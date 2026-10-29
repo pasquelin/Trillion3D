@@ -17,6 +17,22 @@ export const volumeRefusal =
     throw new EngineError(code, `${noun} ${String(id)}: ${message}`, { id })
   }
 
+/** The length of the column of `matrix` that begins at `at`: 0, 4 or 8 for an axis. */
+export const columnLength = (matrix: readonly number[], at: number) =>
+  Math.hypot(matrix[at], matrix[at + 1], matrix[at + 2])
+
+/** A finite number, else refused by `name`. */
+export function finiteNumber(
+  refuse: VolumeRefusal,
+  id: string,
+  name: string,
+  value: unknown,
+): number {
+  if (typeof value !== 'number' || !Number.isFinite(value))
+    refuse(id, `${name} expects a finite number`)
+  return value
+}
+
 /** Refuses a `matrix` that is not sixteen finite numbers, in a list or a typed array. */
 export function checkMatrix(refuse: VolumeRefusal, id: string, matrix: readonly number[]) {
   const list = Array.isArray(matrix) || ArrayBuffer.isView(matrix)

@@ -119,12 +119,28 @@ export const DEFERRED_BINDINGS = {
   /** The shadows the heterogeneous volumes cast, one read-only storage buffer of words (`beerShadowMapPack.ts`): the opaque lit passes' of a
    *  scene whose volumes cast shadows (`ContractKey.volumeShadow`), a one-word stand-in where the image built none. */
   volumeShadow: 82,
+  /** The rectangle lights' pictures (`DEFERRED_LIGHT_PROFILE_BINDINGS`): the atlas and its trilinear sampler, bound beside the light profiles' (`ContractKey.profileless`). */
+  rectAtlas: 83,
+  rectAtlasSampler: 84,
+  /** The reflection captures' cube array, its sampler and the block of their records (`../reflectionCapture/compositeWgsl.ts`): the opaque indirect pass's when
+   *  captures are made (`ContractKey.captureless`). */
+  captureCube: 85,
+  captureSampler: 86,
+  captureBlock: 87,
 } as const
 
 /** Where the programs that hold contact shadow code bind the screen-space shadows' array and the ranks of its layers (`contactBendWgsl`). */
 export const DEFERRED_CONTACT_BEND_BINDINGS = {
   array: DEFERRED_BINDINGS.contactBend,
   ranks: DEFERRED_BINDINGS.contactBendRanks,
+} as const
+
+/** Where the indirect pass binds the reflection captures' resources, in group 0 (`reflectionCapturesWgsl`). */
+export const DEFERRED_CAPTURE_BINDINGS = {
+  group: 0,
+  cube: DEFERRED_BINDINGS.captureCube,
+  sampler: DEFERRED_BINDINGS.captureSampler,
+  block: DEFERRED_BINDINGS.captureBlock,
 } as const
 
 /** Where the contract programs bind the sky light's resources, in group 0 (`skyLightReadWgsl`). */
@@ -158,6 +174,8 @@ export const DEFERRED_LIGHT_PROFILE_BINDINGS = {
   group: 0,
   atlas: DEFERRED_BINDINGS.lightProfileAtlas,
   sampler: DEFERRED_BINDINGS.lightProfileSampler,
+  rectAtlas: DEFERRED_BINDINGS.rectAtlas,
+  rectSampler: DEFERRED_BINDINGS.rectAtlasSampler,
 } as const
 
 /** Where the contract programs bind the fog's resources, in group 0 (`fogResourcesWgsl`). */

@@ -1,6 +1,7 @@
 import { ANIMATION_RULES } from '../contracts/animationOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_CUBEMAP_RULES } from '../contracts/ambientCubemapOptions.ts'
+import { REFLECTION_CAPTURE_RULES } from '../contracts/reflectionCaptureOptions.ts'
 import { BLOOM_RULES } from '../contracts/bloomRules.ts'
 import { COLOR_GRADING_RULES } from '../contracts/colorGradingOptions.ts'
 import { CUT_RULES } from '../contracts/cutOptions.ts'
@@ -16,6 +17,7 @@ import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOpti
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
+import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { REFLECTION_RULES } from '../contracts/reflectionOptions.ts'
@@ -99,6 +101,7 @@ export const SETTING_FAMILIES = {
   hiz: { rules: HIZ_RULES, group: 'viewDistance', world: 'image' },
   lightFunction: { rules: LIGHT_FUNCTION_RULES, group: 'viewDistance', world: 'image' },
   lightProfile: { rules: LIGHT_PROFILE_RULES, group: 'shadows', world: 'image' },
+  rectLightAtlas: { rules: RECT_LIGHT_ATLAS_RULES, group: 'shadows', world: 'image' },
   volumetricLightmap: { rules: VOLUMETRIC_LIGHTMAP_RULES, group: 'viewDistance', world: 'image' },
   globalDistanceField: {
     rules: GLOBAL_DISTANCE_FIELD_RULES,
@@ -143,6 +146,7 @@ export const SETTING_FAMILIES = {
   colorGrading: { rules: COLOR_GRADING_RULES, group: 'imageEffects', world: 'image' },
   ambientOcclusion: { rules: AMBIENT_OCCLUSION_RULES, group: 'imageEffects', world: 'image' },
   ambientCubemap: { rules: AMBIENT_CUBEMAP_RULES, group: 'indirectLight', world: 'image' },
+  reflectionCapture: { rules: REFLECTION_CAPTURE_RULES, group: 'indirectLight', world: 'image' },
   skyQuality: {
     rules: SKY_QUALITY_RULES,
     group: null,

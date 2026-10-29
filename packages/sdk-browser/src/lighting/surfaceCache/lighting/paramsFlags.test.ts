@@ -54,13 +54,11 @@ test("an image's parameters carry the settings: the flags, the pre-exposed ray l
     historyLost: false,
     feedback: true,
     tracedRadiosity: false,
-    scratchAt: 4096,
     exposure: 0.75,
   })
   const floats = new Float32Array(words.buffer)
   const at = LIGHTING_PARAMS.at
   assert.equal(words[at.frame], 9)
-  assert.equal(words[at.scratchAt], 4096)
   assert.equal(floats[at.exposure], 0.75)
   assert.equal(words[at.pages], 12)
   assert.equal(words[at.spacingShift], 2)

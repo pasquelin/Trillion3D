@@ -143,7 +143,8 @@ fn profileRectLight(light:DirectLight,r:RectView,s:LobeSurface,N:vec3f,V:vec3f,r
  let form=rectFormOf(r)*r.window;
  let cosine=select(0.0,incident.w/form,form>0.0);
  let VoH=profileVoH(dot(V,incident.xyz));
- let diffuse=profileDiffuse(s,rough,cosine,VoH,0.0)*(intensity*incident.w)*tint;
+ let picture=select(vec3f(1.0),rectColour(r,incident.xyz),r.slot.z>0.0);
+ let diffuse=profileDiffuse(s,rough,cosine,VoH,0.0)*(intensity*incident.w)*tint*picture;
  let specular=mix(rectLtc(r,profileFrame0,s.f0),rectLtc(r,profileFrame1,s.f0),lobes.z)*(intensity*r.window)*tint;
  return mat2x3f(diffuse,specular);
 }`,

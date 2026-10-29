@@ -39,6 +39,7 @@ import { encodeHairLighting } from '../../hair/lighting.ts'
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { encodeHairDebug } from '../../hair/debugView.ts'
 import { encodeSubsurfaceDebug } from '../../lighting/subsurface/visualize.ts'
+import { encodeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
 import { encodeSampledDebug } from '../../lighting/manyLightsSampled/debug/frame.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import {
@@ -299,6 +300,8 @@ function composeImage(
   // The sampled lighting's debug views, over the image too.
   encodeSampledDebug(rt, device, encoder, cam)
   encodeSubsurfaceDebug(rt, device, encoder, cam)
+  // The rectangle lights' atlas, drawn over the image when asked.
+  encodeRectLightAtlasDebug(rt, device, encoder, cam)
   // The transparents read this frame's maps: the frame's buffers swap only now.
   finishVsmFrame(rt, encoder)
   // Every pass of the image that reads or writes the HDR target is encoded: the lit image becomes

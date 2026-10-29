@@ -4,6 +4,7 @@ import type { SceneLightCloudShadow } from './lightCloudShadowFields.ts'
 import type { SceneLightContactShadow } from './lightContactShadowFields.ts'
 import type { SceneLightLamp } from './lightLampFields.ts'
 import type { SceneLightProfile } from './lightProfileFields.ts'
+import type { SceneLightSourceTexture } from './lightSourceTexture.ts'
 import type { LightUnits } from './lightUnits.ts'
 import {
   LIGHTING_CHANNEL_COUNT,
@@ -47,7 +48,8 @@ export interface SceneLight
     SceneLightContactShadow,
     SceneLightLamp,
     SceneLightProfile,
-    SceneLightShadow {
+    SceneLightShadow,
+    SceneLightSourceTexture {
   /** The light's name. */ id: string
   /** Point, spot, sun or rectangle. */ kind: 'point' | 'spot' | 'directional' | 'rect'
   /** Point and spot only: the point the light comes from, in metres. */

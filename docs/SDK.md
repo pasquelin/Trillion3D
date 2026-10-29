@@ -936,6 +936,33 @@ explorer.setAmbientCubemapCube({ size: 16, texels: new Float32Array(6 * 16 * 16 
 explorer.setAmbientCubemapCube(null) // no cube: the light goes, the texture is freed
 ```
 
+`reflectionCapture` holds the settings of the scene's reflection captures. A capture is an object of the scene
+(`explorer.addReflectionCapture`): a place the scene is drawn from through the six faces of a cube, which the surfaces around it read as
+the light that comes from far away. Its fields are `id` (unique), `shape` (`'sphere'`, the default, or `'box'`), `matrix` (sixteen numbers,
+column-major, metres: the translation is the centre, and for a box the lengths of the columns are its half extents and their directions its axes),
+`influenceRadius` (a sphere's radius, `30` m by default, at least `0.08`), `boxTransitionDistance` (`1` m by default: how far inside its faces a box's
+cube fades out), `brightness` (`1`, from 0: the factor its light is multiplied by) and `captureOffset` (`[0, 0, 0]`: where the scene is drawn from, relative to the centre).
+Inside its shape the cube is read as if the scene it holds were the shape itself (the reflection ray is intersected with the sphere or the box, so a reflection
+moves with the viewer), faded toward the shape's edge; where captures overlap the smallest is read first and lets through what it does not cover,
+the sky light taking the rest. They light the rough reflection of the opaque surfaces — the share of a lobe that neither the screen nor the scene's rays answer —, composited over the sky light's. Where the reflection ray of the scene is
+answered, the capture adds nothing. A capture is drawn between two images, one at a time, and again when its place moves or one of the face settings
+changes; `explorer.recaptureReflectionCaptures()` asks them all again. The settings, all run-time: `reflectionCaptures` (`true`; off, none is made or read),
+`reflectionCaptureResolution` (`128`, from 16 to 1024, the power of two at or below it), `reflectionCaptureSupersample` (`1`, from 1 to 8),
+`reflectionCaptureNearPlane` (`0.05` m), `reflectionCaptureLightFunctions` (`false`), `reflectionCaptureDiffuse` (`false`: the cube's four smallest mips
+(1, 2, 4 and 8 texels) hold the capture's diffuse light and the opaque surfaces take their diffuse light from the captures where they reach, in place of the sky light's)
+and `reflectionCaptureDiffuseReference` (`true`: that diffuse light is the exhaustive convolution of the cube; `false`, it is evaluated from nine harmonics summed from the cube).
+The diffuse light is the mean radiance weighted by the cosine in both ways. The captures hold the sky past the sky light's distance threshold, where a sky light that is not static shines.
+The translucent surfaces and the strands take no light from the captures. An agent sets the settings through `trillion3d_set_reflection_capture`.
+
+```js
+explorer.addReflectionCapture({ id: 'hall', matrix: [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 4, 1.5, -2, 1], influenceRadius: 12 }) // a sphere
+explorer.addReflectionCapture({ id: 'room', shape: 'box', matrix: [5, 0, 0, 0, 0, 3, 0, 0, 0, 0, 4, 0, 0, 3, 0, 1], boxTransitionDistance: 2, brightness: 1.5 }) // 10 x 6 x 8 m
+explorer.setReflectionCaptureObject('hall', { brightness: 0.8 }) // the records change, no new capture
+explorer.setReflectionCapture('reflectionCaptureResolution', 256) // every cube is made again
+world.reflectionCapture = { reflectionCaptureDiffuse: true } // the diffuse light of the captures, from the next images
+explorer.removeReflectionCapture('hall')
+```
+
 `world.shading` holds the material pass's settings, each an option of `createWorld` too:
 `gpuTimingDetail` (`false`, the default: the material pass is one timed pass; `true`: a frame sampled for the GPU timing times its shading bins and each material class's shading as passes of their own, `Trillion3D material bins` and `Trillion3D material shading <class key>` in `gpuPassMs.passes`, the image the same),
 `gpuShadeStage` (`0`, the default: the whole shading kernel; `1` to `5`: a diagnostic that stops each class's shading after its binned pixel, its triangle's header and indices, its vertex fetch and transform, its interpolation and derivatives, its material and surface, writing no surface — the image is not the scene's —, each class compiled again; with `gpuTimingDetail`, the difference of two stages' `Trillion3D material shading <class key>` times is the stage's cost),
@@ -3047,6 +3074,53 @@ world.lightProfile = { lightProfileAtlasResolution: 128 } // lighter slices, a s
 world.lightProfile = { lightProfileAtlasMaxProfiles: 8 } // at most 8 profiles; a ninth lights as a lamp with none
 ```
 
+### Rectangle lights' pictures
+
+A `rect` light may name a picture mapped on its face, which its colour is multiplied by wherever it lights (a window, a screen, a gobo):
+`sourceTexture` (the id the picture was registered under), `sourceTextureScale` (`[1, 1]`, each from above 0 to 1: the share of the picture
+shown) and `sourceTextureOffset` (`[0, 0]`, each from 0 to 1: where the share starts). Seen from the front of the light, the picture runs left
+to right along `right` and its top edge lies toward `cross(direction, right)`. Any other kind refuses the three fields; a scale or an offset
+without a `sourceTexture` is refused (`INVALID_SCENE_LIGHT`). The host registers the picture, an `ImageBitmap` or any image the engine can copy
+to a texture, with `world.setRectLightTexture(id, image)` (`null` forgets it; a light whose picture is not registered lights as a plain
+rectangle) and says it changed in place with `world.refreshRectLightTexture(id)`. The pictures of all the lights are kept in one square
+atlas, a slot each (a picture named by several lights, with the same share, is one slot), packed without overlap with the holes of the
+freed slots reused first, with a chain of mip levels the lighting reads by the solid angle the rectangle covers. The diffuse light, the
+specular lobe (also under a clear coat, a cloth's fuzz or a subsurface profile), the thin surfaces' transmission, the cards of the surface cache and
+the sampled lighting read the picture; the volumetric fog tints the light of the rectangle by it while `volumetricFogRectLightTexture` (`false` by
+default, a setting of the volumetric fog, `world.volumetricFog…`) is on: each cell reads the picture along the mean direction of the rectangle's light
+(the direction of its form factor with no normal), at the level the solid angle it covers asks; the translucent surfaces (the blends) and the
+translucency lighting volume light the rectangle plain, and the reflections' and the bounce's rays take the light of the surface cache, which holds the picture.
+
+`world.rectLightAtlas` holds the settings of the atlas, each an option of `createWorld` too, with the reference's default:
+`rectLightAtlasMaxResolution` (`4096`, from 64 to 16384: the most texels a side; past it the pictures are packed a mip level smaller until they
+fit), `rectLightAtlasFilterQuality` (`0` a box of 2 by 2 texels, `1` a Gaussian approximation), `rectLightAtlasMaxTextureRatio` (`2`, from 1 to 16:
+the most a picture may be wider than high, or higher than wide, before its short side is stretched), `rectLightAtlasFormat` (`0` 11, 11 and 10 bits,
+faster, the hue may shift, kept as 16-bit floats on a device that cannot draw into it; `1` four 16-bit floats),
+`sampledLightsTexturedRectLights` (`true`), and the switches `rectLightAtlasForceUpdate`,
+`rectLightAtlasResetOnChange`, `rectLightAtlasClear`, `rectLightAtlasDebugClear` (magenta in a new atlas), `rectLightAtlasDebug` and
+`rectLightAtlasDebugMipLevel` (the debug view, below), all off or 0.
+
+```js
+world.setRectLightTexture('window', await createImageBitmap(blob))
+world.addLight({
+  id: 'window-light',
+  kind: 'rect',
+  position: [0, 2.5, 0],
+  direction: [0, -1, 0],
+  right: [1, 0, 0],
+  size: [2, 1],
+  range: 12,
+  intensity: 8,
+  sourceTexture: 'window', // the picture registered above
+  sourceTextureScale: [0.5, 1], // the left half of it
+  sourceTextureOffset: [0, 0],
+})
+world.rectLightAtlas = { rectLightAtlasMaxResolution: 2048, rectLightAtlasFilterQuality: 1 }
+world.rectLightAtlas = { rectLightAtlasDebug: true } // draws the atlas over the image
+world.volumetricFogRectLightTexture = true // the fog's cells tint a rectangle's light by its picture
+```
+
+
 `transmission` (default `false`) makes a light shine through the subsurface-profile surfaces it shadows (their
 transmission: the light that crosses the thickness behind the lit side, ears, fingers, wax). It acts on a light
 that is `movable` and casts a shadow, and on no other: a stationary or static light has its shadow baked or held
@@ -4386,6 +4460,7 @@ The sampled lighting (`sampledLights`) and the subsurface scattering have views 
 
 | Mode | What it shows |
 | --- | --- |
+| `rect-light-atlas` | over the image, the atlas of the rectangle lights' pictures drawn small at the mip level `rectLightAtlasDebugMipLevel`, a green border round each slot in use, red round the packing's horizon lines, yellow round the free rectangles, and the figures as text (the same as `rectLightAtlasDebug`) |
 | `sampled-lights-overview` | the shadow caster views side by side, in tiles with rounded corners, over the image |
 | `sampled-lights-shadow-casters` | the surface under each pixel in grey, with the label `Shadow Casters, Materials:0, FarField:0, HairVoxels:0` (the traces are made through the distance field, which has no scene of its own to colour) |
 | `sampled-lights-shadow-caster-quality` | the same, with the label that names red a missing caster and blue a mismatching one |

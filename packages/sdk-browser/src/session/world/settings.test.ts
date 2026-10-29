@@ -50,9 +50,11 @@ import { MESH_DISTANCE_FIELD_TRACE_RULES } from '../../../../sdk-core/src/contra
 import { SCREEN_SPACE_TRACING_RULES } from '../../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_CUBEMAP_RULES } from '../../../../sdk-core/src/contracts/ambientCubemapOptions.ts'
+import { REFLECTION_CAPTURE_RULES } from '../../../../sdk-core/src/contracts/reflectionCaptureOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import { SAMPLED_LIGHTS_RULES } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
+import { RECT_LIGHT_ATLAS_RULES } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import { SURFACE_CACHE_RULES } from '../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
@@ -145,10 +147,12 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(AMBIENT_OCCLUSION_RULES, {}),
   // The ambient cubemap: a white tint at an intensity of 1, the cube none.
   ...resolveSettings(AMBIENT_CUBEMAP_RULES, {}),
+  ...resolveSettings(REFLECTION_CAPTURE_RULES, {}),
   // The light functions: the reference's atlas defaults, the translucent layers off.
   ...resolveSettings(LIGHT_FUNCTION_RULES, {}),
   // The light profiles' atlas: the reference's 256 texels a slice and 32 profiles.
   ...resolveSettings(LIGHT_PROFILE_RULES, {}),
+  ...resolveSettings(RECT_LIGHT_ATLAS_RULES, {}),
   // The sampled lights: each its contract's default.
   ...resolveSettings(SAMPLED_LIGHTS_RULES, {}),
   // The global distance field: the reference's clipmaps, update rhythm and atlas budgets.

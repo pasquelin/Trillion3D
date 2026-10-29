@@ -85,6 +85,9 @@ export const FOG_BINDING = {
   localTiles: 66,
   /** The global distance field's six bindings (`globalDistanceFieldReadWgsl`) from this one, read by the sky scatter. */
   field: 70,
+  /** The rectangle lights' atlas and its sampler (`rectSourceWgsl`), read by the scatter's local lights. */
+  rectAtlas: 76,
+  rectSampler: 77,
   /** The sampled lighting's volume (`manyLightsSampled/volumeBindings.ts`), read by the scatter: its uniform and its samples. */
   mlParams: ML_BINDING.params,
   mlSamplesIn: ML_BINDING.samplesIn,
@@ -121,6 +124,8 @@ const SCATTER_BINDINGS = {
   translucencyGi: true,
   staticIn: true,
   localTiles: true,
+  rectAtlas: true,
+  rectSampler: true,
 } as const
 
 /** The bindings of the programs. */

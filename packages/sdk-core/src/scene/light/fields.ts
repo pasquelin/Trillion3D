@@ -97,7 +97,39 @@ export const LIGHT_FIELD = {
   /** In `z`: for a directional light the sine of its angular radius, which its disk is lit by; for a point or a spot the weight of its
    *  rough diffuse, 1 for a source of no size fading to 0 as its radius or its length reaches `ROUGH_DIFFUSE_FADE_METRES`; 0 for a rect. */
   sourceTerm: 30,
+  /** A rect's source texture slot in the atlas, in texels: its origin across and down (`capsule.xy`, the lanes of a tube's axis a rect has none of), then its width (`params.w`,
+   *  a spot's inner cone a rect has none of) and its height (`traits.w`, free); exact whole numbers as floats, the width 0 for a rect with no picture in the atlas. */
+  rectAtlasOriginX: 20,
+  rectAtlasOriginY: 21,
+  rectAtlasWidth: 15,
+  rectAtlasHeight: 31,
 } as const
+
+/** A rect's slot in the source texture atlas, in texels: its origin and its size. */
+export interface RectAtlasSlot {
+  readonly x: number
+  readonly y: number
+  readonly width: number
+  readonly height: number
+}
+/** The slot of a rect with no picture in the atlas (the width 0 says it). */
+export const NO_RECT_ATLAS_SLOT: RectAtlasSlot = { x: 0, y: 0, width: 0, height: 0 }
+
+/** The atlas slot lanes of the light at `base`. */
+export const rectAtlasSlotAt = (packed: Float32Array, base: number): RectAtlasSlot => ({
+  x: packed[base + LIGHT_FIELD.rectAtlasOriginX],
+  y: packed[base + LIGHT_FIELD.rectAtlasOriginY],
+  width: packed[base + LIGHT_FIELD.rectAtlasWidth],
+  height: packed[base + LIGHT_FIELD.rectAtlasHeight],
+})
+
+/** Writes the atlas slot lanes of the light at `base`. */
+export function writeRectAtlasSlot(packed: Float32Array, base: number, slot: RectAtlasSlot) {
+  packed[base + LIGHT_FIELD.rectAtlasOriginX] = slot.x
+  packed[base + LIGHT_FIELD.rectAtlasOriginY] = slot.y
+  packed[base + LIGHT_FIELD.rectAtlasWidth] = slot.width
+  packed[base + LIGHT_FIELD.rectAtlasHeight] = slot.height
+}
 /** A point tests no cone, and a spot of no inner cone no inner bound: this cosine never bounds. */
 export const NO_CONE = -2
 
@@ -396,7 +428,7 @@ export function writeDrawRange(
 
 /**
  * Writes the fields a host declares for one light at `base`, its kind word with the `functionIndex` of its light
- * function and the `profile` lane of its profile (`kindWordOf`; the atlases give them, not the host). The shadow slice is not one: the
+ * function and the `profile` lane of its profile (`kindWordOf`; the atlases give them, not the host), and, for a rect, its `atlas` slot. The shadow slice is not one: the
  * scheduler sets it. A directional has neither position nor range: its two fields stay zero,
  * and the shader never reads them — it branches on the kind first.
  */
@@ -406,6 +438,7 @@ export function writeLightFields(
   light: SceneLight,
   functionIndex = 0,
   profile = 0,
+  atlas: RectAtlasSlot = NO_RECT_ATLAS_SLOT,
 ) {
   const { packed } = into
   writeVector(packed, base + LIGHT_FIELD.position, light.position ?? [0, 0, 0])
@@ -443,6 +476,9 @@ export function writeLightFields(
   packed[at] = diffuseShareOf(light)
   packed[at + 1] = specularShareOf(light)
   packed[base + LIGHT_FIELD.exposureBlend] = inverseExposureBlendOf(light)
+  // The slot lanes lie over lanes the other kinds use, but for the height's, free: a rect's are its slot.
+  if (light.kind === 'rect') writeRectAtlasSlot(packed, base, atlas)
+  else packed[base + LIGHT_FIELD.rectAtlasHeight] = 0
   writeContactGi(packed, base, light, into.contactView)
 }
 

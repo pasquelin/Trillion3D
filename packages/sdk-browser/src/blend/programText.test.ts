@@ -146,7 +146,7 @@ const VERTEX = '9143a8cd283204cfe1cce9e0207d21ba57c9e44961624c10e84c89f109c129d2
 // loops' sine through `sinFromCosUnclamped`. The proofs of the blend on the GPU did not pass before this lot either.
 // Retaken for c9's fourth deduplication sweep (29/10): the held layers' read (`loadHeld`) and the packed tables' reads
 // (`packedTableWgsl`) declared once: the same operations.
-const BLEND = '22d168f9ea04d9db2d64e02df753ab27b0b211871c5ddb0ba6397c325b96775f'
+const BLEND = 'f05c807a17135865b5dfe746ca329654aef20d1d96c49620e715548dd7fdfba5'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

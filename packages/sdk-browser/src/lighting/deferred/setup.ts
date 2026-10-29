@@ -19,6 +19,7 @@ import { DFAO_READ_WORDS } from '../distanceField/ao/readWgsl.ts'
 import { createNoFieldRead } from '../distanceField/view.ts'
 import { createLightFunctionStandIns } from '../lightFunction/standIns.ts'
 import { postSamplers } from '../../gpu/core/postSamplers.ts'
+import { rectAtlasStandIn } from '../rectLightAtlas/bindings.ts'
 import { BLUE_NOISE_FORMAT } from '../../gpu/noise/blueNoiseTextures.ts'
 import { SURFACE_WORDS_FORMAT } from '../../materials/surface/surfaceOutputs.ts'
 
@@ -218,7 +219,12 @@ function createLightInputStandIns(device: GPUDevice) {
         view: ambientCube.createView({ dimension: 'cube' }),
         colour: ambientCubeColour,
       },
-      lightProfile: { view: arrayView(lightProfile), sampler: postSamplers(device).clamped },
+      lightProfile: {
+        view: arrayView(lightProfile),
+        sampler: postSamplers(device).clamped,
+        rectView: rectAtlasStandIn(device).view,
+        rectSampler: rectAtlasStandIn(device).sampler,
+      },
       contactBend: { view: arrayView(contactBend), ranks: contactBendRanks },
       volumeShadowMaps,
     },

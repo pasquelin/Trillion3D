@@ -13,6 +13,8 @@ import {
   LIGHT_TILE_ARGS,
   LIGHT_TILE_ARGS_WORDS,
   LIGHT_TILE_COUNTS,
+  TILE_LIGHT_PLACE_BITS,
+  TILE_LIGHT_RANK_BITS,
 } from './layout.ts'
 
 /**
@@ -31,7 +33,7 @@ import {
  *   and its light's word — and in the list of its own tile, at the place the cull picked it (the light's word and the place of
  *   the compacted tile, which the shadow masks and the direct light share).
  *
- * The shadow masks (`shadowMaskWgsl.ts`) and the light functions apart from the atlas (`lightFunctionPassWgsl.ts`) run over a slot's
+ * The shadow masks (`shadowMaskWgsl.ts`) and the light functions apart from the atlas (`standaloneMaskWgsl.ts`) run over a slot's
  * light tiles by its arguments; the direct light (`directWgsl.ts`) over a tile's own.
  *
  * `lightTilesClear`, `lightTilesOffsets`, `lightTilesArgs` and `lightTilesClearCompacted` bind the counters (1) and the arguments (2);
@@ -74,9 +76,9 @@ const LIGHT_TILE_CONSTS = wgslBlock(
     LT_ARGS_LIGHTS: LIGHT_TILE_ARGS.lights,
     LT_ARGS_SLOTS: LIGHT_TILE_ARGS.slots,
     LT_ARGS_WORDS: LIGHT_TILE_ARGS_WORDS,
-    LT_CULLED_INDEX_SHIFT: 14,
-    LT_CULLED_INDEX_MASK: 31,
-    LT_CULLED_TYPE_SHIFT: 19,
+    LT_CULLED_INDEX_SHIFT: TILE_LIGHT_RANK_BITS,
+    LT_CULLED_INDEX_MASK: 2 ** TILE_LIGHT_PLACE_BITS - 1,
+    LT_CULLED_TYPE_SHIFT: TILE_LIGHT_RANK_BITS + TILE_LIGHT_PLACE_BITS,
   }),
 )
 

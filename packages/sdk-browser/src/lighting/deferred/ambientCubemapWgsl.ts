@@ -45,7 +45,7 @@ const cubemapMipFromRoughness = wgslFn(
 
 /** The direction a reflection is read along: the reflection `R` of the normal `N`, drawn toward the normal as the roughness
  *  widens the lobe, by `(1 - a)(√(1 - a) + a)` with `a` the roughness squared. */
-const offSpecularPeakDirection = wgslFn(
+export const offSpecularPeakDirection = wgslFn(
   'offSpecularPeakDirection',
   [],
   `fn offSpecularPeakDirection(N:vec3f,R:vec3f,roughness:f32)->vec3f{

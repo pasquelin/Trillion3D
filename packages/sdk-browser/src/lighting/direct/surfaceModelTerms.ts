@@ -55,7 +55,7 @@ export const rectModelTerm = (models: boolean) =>
   models
     ? `
   if(pixelModel!=0u){
-   transmitted+=modelTransmission(rgb,rough,N,V,centre,centre,saturate(dot(N,centre)),0.0,terms,true,transmitsLight(light),ao)*(rectWindowed(r)*lightStrength(light))*light.colorIntensity.rgb;
+   transmitted+=modelTransmission(rgb,rough,N,V,centre,centre,saturate(dot(N,centre)),0.0,terms,true,transmitsLight(light),ao)*(rectWindowed(r)*lightStrength(light))*light.colorIntensity.rgb*rectColour(r,centre);
   }`
     : ''
 

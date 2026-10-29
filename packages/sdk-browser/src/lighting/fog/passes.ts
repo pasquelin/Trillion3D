@@ -6,6 +6,7 @@ import type { CloudShadowSet } from '../atmosphere/cloudShadowRead.ts'
 import { hizDepthBindEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../visibility/hiz/gpu/types.ts'
 import type { GlobalFieldRead } from '../distanceField/view.ts'
+import type { RectAtlasResources } from '../rectLightAtlas/bindings.ts'
 import type { VolumetricLightmapGpu } from '../volumetricLightmap/gpu.ts'
 import { FOG_BINDING } from './bindings.ts'
 import type { FogGrid } from './layout.ts'
@@ -48,6 +49,8 @@ export interface FogPassInputs {
   cubemap?: GPUTextureView
   /** The light functions' atlas and its table, or the stand-in that answers none. */
   lightFunction: GPUTextureView
+  /** The rectangle lights' atlas and its sampler, or the stand-in that holds no picture. */
+  rectAtlas: RectAtlasResources
   /** The shade the clouds cast on the sun, or the stand-in that casts none. */
   cloudShadow: CloudShadowSet
   /** The sky light's harmonics and uniform, or the stand-in that gives none. */
@@ -146,6 +149,8 @@ function scatterEntries(context: FogPassContext, input: FogPassInputs, textures:
     shadowPool: { buffer: vsm.pool },
     shadowView: { buffer: vsm.view },
     lightFunction: input.lightFunction,
+    rectAtlas: input.rectAtlas.view,
+    rectSampler: input.rectAtlas.sampler,
     cloudShadow: { buffer: input.cloudShadow.block },
     cloudShadowMap0: input.cloudShadow.maps[0],
     cloudShadowMap1: input.cloudShadow.maps[1],
@@ -282,6 +287,8 @@ function encodeScatter(
   next[24] = input.translucencyGi?.fogView
   next[25] = volume?.params
   next[26] = volume?.samplesRead
+  next[27] = input.rectAtlas.view
+  next[28] = input.rectAtlas.sampler
   pass.setPipeline(pipeline)
   pass.setBindGroup(
     0,

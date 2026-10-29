@@ -25,6 +25,7 @@ import type { RayTracing } from '../../../sdk-core/src/lighting/rayTracingFile.t
 import { createSceneLightStore } from '../../../sdk-core/src/scene/light/store.ts'
 import { createSceneFogVolumeStore } from '../../../sdk-core/src/scene/volume/store.ts'
 import { createSceneLocalFogStore } from '../../../sdk-core/src/scene/localFog/store.ts'
+import { createSceneReflectionCaptureStore } from '../../../sdk-core/src/scene/reflectionCapture/store.ts'
 import { createSceneHeterogeneousVolumeStore } from '../../../sdk-core/src/scene/heterogeneousVolume/store.ts'
 import { sparseVolumesReader } from '../lighting/heterogeneousVolumes/sparseVolumeLoad.ts'
 import { dagWarningsDiagnostic } from '../../../sdk-core/src/contracts/dagWarnings.ts'
@@ -87,6 +88,7 @@ async function sessionLights(session: ExplorerSession, base: string) {
     importedLightIds,
     sceneVolumes: createSceneFogVolumeStore(),
     sceneLocalFog: createSceneLocalFogStore(),
+    sceneReflectionCapture: createSceneReflectionCaptureStore(),
     sceneHeterogeneousVolumes: createSceneHeterogeneousVolumeStore(),
   }
 }

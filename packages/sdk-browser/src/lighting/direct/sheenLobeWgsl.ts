@@ -124,7 +124,7 @@ export const SHEEN_RECT_WGSL = wgslBlock(
   [SHEEN_VIEW_WGSL, sheenCorner, RECT_LIGHT_WGSL, INVERSE_PI],
   `
 fn sheenRect(v:SheenView,N:vec3f,r:RectView)->f32{
- let moved=RectView(sheenCorner(v,N,r.a),sheenCorner(v,N,r.b),sheenCorner(v,N,r.c),sheenCorner(v,N,r.d),1.0);
+ let moved=RectView(sheenCorner(v,N,r.a),sheenCorner(v,N,r.b),sheenCorner(v,N,r.c),sheenCorner(v,N,r.d),1.0,vec4f(0.0));
  return v.albedo*INVERSE_PI*rectIrradianceOf(moved,vec3f(0.0,0.0,1.0)).w;
 }`,
 )

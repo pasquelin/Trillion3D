@@ -1,4 +1,5 @@
 import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
+import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -43,6 +44,7 @@ import { SURFACE_CACHE_RULES } from '../contracts/surfaceCacheOptions.ts'
 import { RASTER_RULES } from '../contracts/rasterOptions.ts'
 import { AMBIENT_OCCLUSION_RULES } from '../contracts/ambientOcclusionOptions.ts'
 import { AMBIENT_CUBEMAP_RULES } from '../contracts/ambientCubemapOptions.ts'
+import { REFLECTION_CAPTURE_RULES } from '../contracts/reflectionCaptureOptions.ts'
 import { TESSELLATION_RULES } from '../contracts/tessellationOptions.ts'
 import { TEXTURE_FILTERING_RULES } from '../contracts/textureFilteringOptions.ts'
 import { DEPTH_OF_FIELD_RULES } from '../contracts/depthOfFieldRules.ts'
@@ -51,7 +53,7 @@ import { SKY_QUALITY_RULES } from '../modules/sky/quality.ts'
 import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
 import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOptions.ts'
 
-const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
+const validate = new Ajv({ allErrors: true }).compile(EXPLORER_OPTIONS_SCHEMA)
 const explorer = { manifestUrl: '/assets/model/manifest.json' }
 
 test('explorer arguments accept a complete host request and keep host extensions', () => {
@@ -109,7 +111,10 @@ test('explorer arguments name every choice the engine takes and refuse the rest'
 
 test('an explorer request naming only its manifest is completed with the engine defaults', () => {
   const request: Record<string, unknown> = { ...explorer }
-  assert.equal(new Ajv({ useDefaults: true }).compile(EXPLORER_OPTIONS_SCHEMA)(request), true)
+  assert.equal(
+    new Ajv({ allErrors: true, useDefaults: true }).compile(EXPLORER_OPTIONS_SCHEMA)(request),
+    true,
+  )
   assert.equal(request.geometryPoolBytes, DEFAULT_GEOMETRY_POOL_BUDGET)
   assert.equal(request.texturePoolBytes, DEFAULT_TEXTURE_POOL_BUDGET)
   assert.equal(request.maxTextureUploadMsPerFrame, DEFAULT_TEXTURE_UPLOAD_MS)
@@ -134,6 +139,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...HIZ_RULES,
     ...LIGHT_FUNCTION_RULES,
     ...LIGHT_PROFILE_RULES,
+    ...RECT_LIGHT_ATLAS_RULES,
     ...GLOBAL_DISTANCE_FIELD_RULES,
     ...DISTANCE_FIELD_OCCLUSION_RULES,
     ...VOLUMETRIC_LIGHTMAP_RULES,
@@ -159,6 +165,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...SURFACE_CACHE_RULES,
     ...AMBIENT_OCCLUSION_RULES,
     ...AMBIENT_CUBEMAP_RULES,
+    ...REFLECTION_CAPTURE_RULES,
     ...TESSELLATION_RULES,
     ...TEXTURE_FILTERING_RULES,
     ...DEPTH_OF_FIELD_RULES,

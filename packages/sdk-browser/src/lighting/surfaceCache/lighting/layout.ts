@@ -167,30 +167,23 @@ export const SHADOW_TRACE = {
 export const SHADOW_FACTOR_TILE_WORDS = 8
 
 /**
- * THE LIGHT FUNCTIONS THAT HOLD NO SLOT OF THE ATLAS, which the cache evaluates apart (`lightFunctionPassWgsl.ts`): a light
+ * THE LIGHT FUNCTIONS THAT HOLD NO SLOT OF THE ATLAS, which the masks evaluate in their own program (`standaloneMaskWgsl.ts`): a light
  * that wears one the atlas does not hold (the atlas is off, or the cache is not among its readers, or a limit left the light
  * out) is marked in the word that names it in its tile's list, the top bit, over the rank in its low `TILE_LIGHT_RANK_BITS`.
- * The function of such a light is evaluated at each texel of the tiles that keep it, before the masks, into the scratch: a half
- * float a texel, two to a word, `STANDALONE_SCRATCH_WORDS` words a light tile, after the masks of the light tiles in the same
- * buffer (`standaloneScratchAt` words in).
+ * The masks of the tiles that keep such a light are made by the program of its material, a dispatch over its slot, and the
+ * program of every other light leaves them alone.
  */
 export const TILE_LIGHT_RANK_BITS = 14
+/** The bits a light's place among its tile's lights takes in a culled light tile's word, after the rank: 8, the most a tile's texels pick (64 texels of 4 samples). */
+export const TILE_LIGHT_PLACE_BITS = 8
 export const TILE_LIGHT_STANDALONE = 2 ** 31
-export const STANDALONE_SCRATCH_WORDS = SHADOW_TEXELS / 2
-/** The word of a buffer of masks, in `format`, for `lightTiles` light tiles, where the scratch of the light functions begins. */
-export const standaloneScratchAt = (lightTiles: number, format: AtlasFormat) =>
-  lightTiles * shadowMaskOf(format).tileWords
-/** The words of the scratch of `lightTiles` light tiles. */
-export const standaloneScratchWords = (lightTiles: number) => lightTiles * STANDALONE_SCRATCH_WORDS
 
 /** The words of each buffer the shadows keep for `lightTiles` light tiles (a tile of the direct list's, a
  *  light of its), their masks in `format`: what they are made at and what the device must hold. The masks are
- *  `shadowMaskOf(format).tileWords` a light tile, the scratch of the light functions after them where an image
- *  has any (`scratch`); the traces are one word for each texel of each, at least `SHADOW_TRACE.least`, after the
- *  count. */
-export const tracedShadowWords = (lightTiles: number, format: AtlasFormat, scratch: boolean) => ({
-  masks:
-    standaloneScratchAt(lightTiles, format) + (scratch ? standaloneScratchWords(lightTiles) : 0),
+ *  `shadowMaskOf(format).tileWords` a light tile; the traces are one word for each texel of each, at least
+ *  `SHADOW_TRACE.least`, after the count. */
+export const tracedShadowWords = (lightTiles: number, format: AtlasFormat) => ({
+  masks: lightTiles * shadowMaskOf(format).tileWords,
   traces: 1 + Math.max(SHADOW_TEXELS * lightTiles, SHADOW_TRACE.least),
 })
 /** The words of the factor atlas of a physical atlas of `side` texels. */
@@ -228,7 +221,7 @@ export const SELF_INTERSECTION = { cull: 0, retrace: 1, skip: 2 } as const
 /** The parameters of an image's lighting passes: the atlas and the pages, the update clock, the lists' places and
  *  capacities, the eye, the frustum (five planes, outward, in centimetres from the eye) and, for a second view whose cards
  *  the cache keeps (`otherEye`, in centimetres, its fourth word 1 where there is one, and its `otherFrustum`), the exposure the lights are strengthened
- *  under, where the scratch of the light functions begins in the masks' buffer, the direct light's numbers and the
+ *  under, the direct light's numbers and the
  *  radiosity's, those of its rays through the scene's triangles among them (the biases, how far a hit is read from the cards and
  *  how near it lights nothing, in centimetres, and the way the ray avoids self-intersections). */
 export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
@@ -268,7 +261,6 @@ export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
   ['cardMinDistance', 'f32'],
   ['selfIntersections', 'u32'],
   ['probeOcclusionStrength', 'f32'],
-  ['scratchAt', 'u32'],
   ['exposure', 'f32'],
   ['stochasticSamples', 'u32'],
   ['stochasticMinWeight', 'f32'],

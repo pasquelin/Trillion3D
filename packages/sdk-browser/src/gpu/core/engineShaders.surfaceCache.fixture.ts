@@ -45,7 +45,7 @@ import {
   FIELD_SHADOW_MESH_WGSL,
   FIELD_SHADOW_WGSL,
 } from '../../lighting/surfaceCache/lighting/fieldShadowWgsl.ts'
-import { lightFunctionPassWgsl } from '../../lighting/surfaceCache/lighting/lightFunctionPassWgsl.ts'
+import { standaloneMaskWgsl } from '../../lighting/surfaceCache/lighting/standaloneMaskWgsl.ts'
 import { RADIOSITY_BUILD_WGSL } from '../../lighting/surfaceCache/lighting/radiosityBuildWgsl.ts'
 import { radiosityFilterProgramOf } from '../../lighting/surfaceCache/lighting/radiosityFilterWgsl.ts'
 import { radiosityIntegrateProgramOf } from '../../lighting/surfaceCache/lighting/radiosityIntegrateWgsl.ts'
@@ -105,8 +105,8 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   SURFACE_CACHE_SPLICE_WGSL: SPLICE_WGSL,
   SURFACE_CACHE_DIRECT_WGSL: directProgramOf('grey', WORD_LIGHT_FORMAT),
   SURFACE_CACHE_DIRECT_COLOURED_WGSL: directProgramOf('colour', WORD_LIGHT_FORMAT),
-  SURFACE_CACHE_LIGHT_FUNCTION_PASS_WGSL: lightFunctionPassWgsl({ mapped: false }),
-  SURFACE_CACHE_LIGHT_FUNCTION_PASS_MAPPED_WGSL: lightFunctionPassWgsl({ mapped: true }),
+  SURFACE_CACHE_SHADOW_MASK_STANDALONE_WGSL: standaloneMaskWgsl({ mapped: false }, 'grey'),
+  SURFACE_CACHE_SHADOW_MASK_STANDALONE_MAPPED_WGSL: standaloneMaskWgsl({ mapped: true }, 'colour'),
   SURFACE_CACHE_SHADOW_MASK_WGSL: shadowMaskProgramOf('grey'),
   SURFACE_CACHE_SHADOW_MASK_COLOURED_WGSL: shadowMaskProgramOf('colour'),
   SURFACE_CACHE_SHADOW_ARGS_WGSL: SHADOW_ARGS_WGSL,

@@ -40,6 +40,7 @@ import { BLEND_SHADERS } from './engineShaders.blend.fixture.ts'
 import { HAIR_SHADERS } from './engineShaders.hair.fixture.ts'
 import { HETEROGENEOUS_VOLUME_SHADERS } from './engineShaders.heterogeneousVolumes.fixture.ts'
 import { CAPSULE_SHADOW_SHADERS } from './engineShaders.capsuleShadows.fixture.ts'
+import { RECT_LIGHT_ATLAS_SHADERS } from './engineShaders.rectLightAtlas.fixture.ts'
 import { SAMPLED_LIGHTS_SHADERS } from './engineShaders.manyLights.fixture.ts'
 import { SCREEN_SPACE_TRACING_SHADERS } from './engineShaders.screenSpaceTracing.fixture.ts'
 import { BLEND_SHADER } from './shaderTexts.fixture.ts'
@@ -230,6 +231,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...HAIR_SHADERS,
   ...HETEROGENEOUS_VOLUME_SHADERS,
   ...CAPSULE_SHADOW_SHADERS,
+  ...RECT_LIGHT_ATLAS_SHADERS,
   ...SAMPLED_LIGHTS_SHADERS,
   ...SCREEN_SPACE_TRACING_SHADERS,
   BLEND_EXPAND_SHADER,

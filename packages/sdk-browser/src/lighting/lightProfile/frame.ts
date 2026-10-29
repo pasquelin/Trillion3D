@@ -2,6 +2,9 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { readLightProfileSetting } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
 import { createLightProfileAtlas, type LightProfileAtlas } from './profileAtlas.ts'
 import type { LightProfileResources } from './profileBindings.ts'
+import { lightProfileStandIn } from './profileStandIn.ts'
+import { rectAtlasStandIn } from '../rectLightAtlas/bindings.ts'
+import { rectAtlasResources } from '../rectLightAtlas/frame.ts'
 import {
   createLightProfileRegistry,
   createLightProfileSync,
@@ -80,12 +83,24 @@ export const lightProfilesWaiting = (rt: Rt) => {
   )
 }
 
-/** What a program that reads the light profiles binds, or none where the scene names no profile. */
+/** What a program that reads the light profiles binds, or none where the scene names no profile and no rectangle holds a picture in the atlas. */
 export function lightProfileResources(rt: Rt): LightProfileResources | undefined {
   const frame = rt.lights.lightProfile
-  return frame && rt.lights.store.profiled > 0
+  const { store } = rt.lights
+  const rect = rectAtlasResources(rt)
+  const profiled = !!frame && store.profiled > 0
+  if (!profiled && !rect) return undefined
+  const device = rt.gpu.device!
+  const profiles = profiled
     ? { view: frame.atlas.view, sampler: frame.atlas.sampler }
-    : undefined
+    : lightProfileStandIn(device)
+  const pictures = rect ?? rectAtlasStandIn(device)
+  return {
+    view: profiles.view,
+    sampler: profiles.sampler,
+    rectView: pictures.view,
+    rectSampler: pictures.sampler,
+  }
 }
 
 /** Hands the atlas to the retire list: the session's end. */

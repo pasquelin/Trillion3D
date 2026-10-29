@@ -66,7 +66,7 @@ function skyLightCaptureOverrides(part: SkyLightPart): ViewOverrides {
  * (`cubeToScene`); its right is the one a camera has, the face's reversed — a cube's faces are laid
  * as seen from outside, a camera sees them from inside —, which the copy turns back.
  */
-function faceViewCamera(face: number, eye: readonly number[], near: number): ViewCamera {
+export function faceViewCamera(face: number, eye: readonly number[], near: number): ViewCamera {
   const forward = cubeToScene(FACES[face].forward),
     up = cubeToScene(FACES[face].up),
     right = cross(forward, up)

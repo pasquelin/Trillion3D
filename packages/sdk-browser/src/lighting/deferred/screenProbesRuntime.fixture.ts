@@ -40,6 +40,8 @@ export async function probesRuntime(options: Record<string, unknown> = {}) {
     run: { depthDrawn: true, diagnostic: 'beauty', frame: 0, gate: { temporalRevision: 0 } },
     bounce: { wanted: true, probes: undefined },
     setup: { viewport: [64, 64] },
+    // A cut with no root: the surface cache finds neither compiled nor run-time cards.
+    layout: { selectionRoots: [] },
     timing: createWebgpuTimingState(),
     context: options,
   } as unknown as WebgpuPagesRuntime

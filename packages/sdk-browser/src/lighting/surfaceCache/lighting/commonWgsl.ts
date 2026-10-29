@@ -11,7 +11,6 @@ import {
   LIGHT_TILE_WORDS,
   LIGHTING_FLAG,
   LIGHTING_PARAMS,
-  STANDALONE_SCRATCH_WORDS,
   TILE_LIGHT_RANK_BITS,
   TILE_LIGHT_STANDALONE,
 } from './layout.ts'
@@ -83,7 +82,6 @@ const CONSTANTS = wgslConsts({
   CARD_TILE_OFFSET_WORDS,
   TILE_LIGHT_RANK_MASK: 2 ** TILE_LIGHT_RANK_BITS - 1,
   TILE_LIGHT_STANDALONE,
-  SCRATCH_TILE_WORDS: STANDALONE_SCRATCH_WORDS,
 })
 
 const TILES_WGSL = wgslBlock(
@@ -106,10 +104,6 @@ fn pageMin(page:u32)->vec2u{
 /** The rank of the light a word of a light tile names, and whether it is one the atlas of the light functions holds no slot of. */
 fn tileLightRank(word:u32)->u32{return word&TILE_LIGHT_RANK_MASK;}
 fn tileLightStandalone(word:u32)->bool{return (word&TILE_LIGHT_STANDALONE)!=0u;}
-/** The word of the scratch of the light functions (\`scratchAt\` words into the masks' buffer) that holds the texel \`i\` of the compacted light
- *  tile \`lightTile\`, and the factor that texel holds of it. */
-fn scratchWordOf(lightTile:u32,i:u32)->u32{return lp.scratchAt+lightTile*SCRATCH_TILE_WORDS+i/2u;}
-fn scratchFactorIn(word:u32,i:u32)->f32{return unpack2x16float(word)[i&1u];}
 /** The card's coordinates of the centre of the texel \`coord\` of a page. */
 fn texelCardUv(page:u32,coord:vec2u)->vec2f{
  return vec2f(scPageF(page,4u),scPageF(page,5u))+vec2f(scPageF(page,12u),scPageF(page,13u))*(vec2f(coord)+vec2f(0.5));

@@ -12,7 +12,8 @@ type KindTallies = Record<
   | 'rects'
   | 'contacts'
   | 'channelled'
-  | 'profiled',
+  | 'profiled'
+  | 'sourceTextured',
   number
 >
 
@@ -48,6 +49,10 @@ const kindCounts = (n: KindTallies) => ({
   get profiled() {
     return n.profiled
   },
+  /** The rectangles that name a source texture (`SceneLight.sourceTexture`): the programs bind the rectangle atlas only past 0. */
+  get sourceTextured() {
+    return n.sourceTextured
+  },
 })
 
 /**
@@ -66,6 +71,7 @@ export function createLightKinds(view: ContactShadowView, shadows: LightShadowVi
     contacts: 0,
     channelled: 0,
     profiled: 0,
+    sourceTextured: 0,
   }
   return {
     counts: kindCounts(n),
@@ -81,6 +87,7 @@ export function createLightKinds(view: ContactShadowView, shadows: LightShadowVi
       if (castsContactShadow(light, view, shadows)) n.contacts += by
       if (lightingChannelMaskOf(light) !== DEFAULT_LIGHTING_CHANNELS_MASK) n.channelled += by
       if (light.iesProfile !== undefined) n.profiled += by
+      if (light.sourceTexture !== undefined) n.sourceTextured += by
     },
     /** `contacts` again, over `lights`, after the view's settings moved. */
     recountContacts(lights: Iterable<SceneLight>) {

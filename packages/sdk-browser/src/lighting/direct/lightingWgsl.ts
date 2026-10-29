@@ -36,6 +36,7 @@ import {
 } from '../lightFunction/readWgsl.ts'
 import { fogBindingsLabel, type FogResourceBindings } from '../fog/readWgsl.ts'
 import { lightProfileOfWgsl, NO_LIGHT_PROFILE_WGSL } from '../lightProfile/lightProfileWgsl.ts'
+import { rectBindingsOf, rectSourceWgsl } from '../rectLightAtlas/readWgsl.ts'
 import {
   lightProfileBindingsLabel,
   type LightProfileBindings,
@@ -318,6 +319,10 @@ export const lightingBase = (
               ? lightProfileOfWgsl(bindings.lightProfile)
               : NO_LIGHT_PROFILE_WGSL,
           ]),
+      // The pictures of the rectangle lights are read where the program binds their atlas (the profiles'), else a rectangle is plain.
+      ...(!key.rectless && !key.profileless && bindings.lightProfile?.rectAtlas !== undefined
+        ? [rectSourceWgsl(rectBindingsOf(bindings.lightProfile))]
+        : []),
       declaredLightWgsl(key, { cut, airTint, rays, bend: bindings.contactBend }),
       ...(slices ? [TILE_SLICE_WGSL, sliceLightingWgsl('surface', cut?.models ?? true)] : []),
       THIN_SURFACE_WGSL,

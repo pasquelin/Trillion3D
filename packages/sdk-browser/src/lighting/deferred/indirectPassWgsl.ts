@@ -7,7 +7,7 @@
  * holds what its pixels need (`CLASS_CUTS`).
  */
 import { PI } from '../../../../math/src/wgsl/constants.ts'
-import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, type WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { lambertDiffuse } from '../../../../math/src/wgsl/lighting.ts'
 import { skyLightReadWgsl } from '../../modules/sky/skyLight/read.ts'
 import { skyLightOcclusionWgsl } from '../../modules/sky/skyLight/occlusionWgsl.ts'
@@ -27,15 +27,19 @@ import {
 } from '../direct/lobesWgsl.ts'
 import { reflectionLobeWgsl } from '../lobeAxisWgsl.ts'
 import {
-  RESOLVED_INDIRECT_WGSL,
+  NO_LOCAL_LIGHT_WGSL,
+  reflectionResolveWgsl,
   reflectionWeighWgsl,
-  resolvedReflectionOccludedWgsl,
-  resolvedReflectionWgsl,
 } from '../reflections/weight.ts'
+import { capturedLocalLightWgsl } from '../reflectionCapture/localLightWgsl.ts'
 import { STANDARD_LIGHTING_WGSL } from '../standardLighting.ts'
 import { ambientCubemapWgsl } from './ambientCubemapWgsl.ts'
 import { AMBIENT_OCCLUSION_READ_WGSL, AMBIENT_OCCLUSION_STATEMENT } from './ambientOcclusionWgsl.ts'
-import { DEFERRED_BINDINGS, DEFERRED_SKY_LIGHT_BINDINGS } from './bindings.ts'
+import {
+  DEFERRED_BINDINGS,
+  DEFERRED_CAPTURE_BINDINGS,
+  DEFERRED_SKY_LIGHT_BINDINGS,
+} from './bindings.ts'
 import {
   CLASS_CUTS,
   LIT_PIXEL_WGSL,
@@ -88,20 +92,21 @@ fn environmentSky(N:vec3f)->vec3f{return skyIrradiance(N);}`,
  * scene's own environment, which keeps its occlusion, and the specular occlusion of the sky's
  * reflection (`skyLightSpecularOcclusion`).
  */
-const SKY_SHADOWING_WGSL = wgslBlock(
-  'SKY_SHADOWING_WGSL',
-  [
-    lambertDiffuse,
-    PI,
-    dfaoReadWgsl(0, DEFERRED_BINDINGS.dfaoBent, DEFERRED_BINDINGS.dfaoRead),
-    skyLightOcclusionWgsl(DEFERRED_SKY_LIGHT_BINDINGS),
-    resolvedReflectionOccludedWgsl,
-  ],
-  `fn environmentLightingOccluded(rgb:vec3f,metal:f32,N:vec3f,ao:f32,sky:SkyVisibility)->vec3f{
+const skyShadowingWgsl = (resolvedReflectionOccludedWgsl: WgslDecl) =>
+  wgslBlock(
+    `SKY_SHADOWING_WGSL(${resolvedReflectionOccludedWgsl.name})`,
+    [
+      lambertDiffuse,
+      PI,
+      dfaoReadWgsl(0, DEFERRED_BINDINGS.dfaoBent, DEFERRED_BINDINGS.dfaoRead),
+      skyLightOcclusionWgsl(DEFERRED_SKY_LIGHT_BINDINGS),
+      resolvedReflectionOccludedWgsl,
+    ],
+    `fn environmentLightingOccluded(rgb:vec3f,metal:f32,N:vec3f,ao:f32,sky:SkyVisibility)->vec3f{
  let d=clothDiffuse(rgb,metal);
  return lambertDiffuse(d.rgb,d.w,environmentIrradiance(N),ao)+lambertDiffuse(d.rgb,d.w,PI*skyLightDiffuseOccluded(sky),1.0);
 }`,
-)
+  )
 /**
  * THE INDIRECT CAPSULE SHADOWS, the variant of the pass that holds their code (`capsule`): the factor the capsules of the objects that cast them let the
  * indirect light through at a pixel, read once (`capsuleIndirectAt`) and multiplied into the bounce, the environment's light and the reflection — the indirect
@@ -173,7 +178,11 @@ export function indirectModules(
   cubed: boolean,
   cut: LitPixelCut,
   capsule = false,
+  captured = false,
 ) {
+  const resolve = reflectionResolveWgsl(
+    captured ? capturedLocalLightWgsl(DEFERRED_CAPTURE_BINDINGS) : NO_LOCAL_LIGHT_WGSL,
+  )
   return [
     STANDARD_LIGHTING_WGSL,
     LIGHTS_BINDING_WGSL,
@@ -191,9 +200,9 @@ export function indirectModules(
     ENVIRONMENT_LIGHTING_WGSL,
     VOLUMETRIC_LIGHT_READ_WGSL,
     ...(bounce
-      ? [BOUNCE_APPLY_WGSL, RESOLVED_INDIRECT_WGSL]
-      : [NO_BOUNCE_WGSL, resolvedReflectionWgsl]),
-    ...(skyShadowing ? [SKY_SHADOWING_WGSL] : []),
+      ? [BOUNCE_APPLY_WGSL, resolve.RESOLVED_INDIRECT_WGSL]
+      : [NO_BOUNCE_WGSL, resolve.resolvedReflectionWgsl]),
+    ...(skyShadowing ? [skyShadowingWgsl(resolve.resolvedReflectionOccludedWgsl)] : []),
     ...(capsule ? [CAPSULE_INDIRECT_WGSL] : []),
     ...(cubed ? [ambientCubemapWgsl(cut.lobes)] : []),
     AMBIENT_OCCLUSION_READ_WGSL,
@@ -210,19 +219,26 @@ function indirectMainWgsl(
   cubed: boolean,
   cut: LitPixelCut,
   capsule: boolean,
+  captured: boolean,
 ) {
   const terms = bounce
     ? INDIRECT_TERMS.bounce
     : skyShadowing
       ? INDIRECT_TERMS.skyShadowed
       : INDIRECT_TERMS.direct
-  const environment = skyShadowing
+  const sky = skyShadowing
     ? 'environmentLightingOccluded(albedo,base.a,N,occlusion.sky,skyVis)'
     : 'environmentLighting(albedo,base.a,N,occlusion.sky)'
+  const environment = captured ? `capturedAmbient(${sky},albedo,base.a,N,occlusion.both)` : sky
   const lightmap = 'volumetricLightmapLighting(coord,albedo,base.a,occlusion.sky)'
   const reflection = cubed ? '(indirect[1]+cube[1])' : 'indirect[1]'
   return `
 @fragment fn indirectMain(@builtin(position) pixel:vec4f)->@location(0) vec4f{${litPixelStatements(cut)}${
+    captured
+      ? `
+ capturePoint=P;`
+      : ''
+  }${
     bounce
       ? `
  if(lightView==4u){return vec4f(bounceIrradiance(coord,N,P,view.lightParams.w),0.0);}
@@ -261,7 +277,8 @@ function indirectMainWgsl(
  * its view of the irradiance alone, `lightView` 4, shows the bounce as the harness measures it);
  * with `skyShadowing`, the sky light under the distance fields' occlusion — the bounce program has
  * none, its probes carry the sky; with `cubed`, the ambient cubemap's diffuse and specular light
- * (`ambientCubemapWgsl.ts`), added to the environment's and to the reflection. A view of the lit image shows one term in its place: 1 the
+ * (`ambientCubemapWgsl.ts`), added to the environment's and to the reflection; with `captured`, the reflection captures laid over the sky in the rough light of the
+ * reflection and, with their diffuse light on, in the environment's diffuse light (`reflectionCapture/localLightWgsl.ts`). A view of the lit image shows one term in its place: 1 the
  * reflection alone.
  */
 export function indirectPassWgsl({
@@ -269,20 +286,22 @@ export function indirectPassWgsl({
   skyShadowing,
   cubed = false,
   capsule = false,
+  captured = false,
   tileClass,
 }: {
   bounce: boolean
   skyShadowing: boolean
   cubed?: boolean
   capsule?: boolean
+  captured?: boolean
   tileClass: TileClass
 }) {
   if (bounce && skyShadowing) throw new Error('the bounce program has no sky shadowing')
   // No light's term tests a pixel's lighting channels here: it unpacks none.
   const cut = { ...CLASS_CUTS[tileClass], channels: false }
   return wgslBlock(
-    `indirectPassWgsl(${bounce}, ${skyShadowing}, ${tileClass}${cubed ? ', cube' : ''}${capsule ? ', capsule' : ''})`,
-    indirectModules(bounce, skyShadowing, cubed, cut, capsule),
-    indirectMainWgsl(bounce, skyShadowing, cubed, cut, capsule),
+    `indirectPassWgsl(${bounce}, ${skyShadowing}, ${tileClass}${cubed ? ', cube' : ''}${capsule ? ', capsule' : ''}${captured ? ', captures' : ''})`,
+    indirectModules(bounce, skyShadowing, cubed, cut, capsule, captured),
+    indirectMainWgsl(bounce, skyShadowing, cubed, cut, capsule, captured),
   )
 }

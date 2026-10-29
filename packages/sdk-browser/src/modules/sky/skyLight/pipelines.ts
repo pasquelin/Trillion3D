@@ -1,7 +1,5 @@
 import {
-  computeBufferEntry,
   computeSamplerEntry,
-  computeStorageTextureEntry,
   computeTextureEntry,
   computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
@@ -20,8 +18,7 @@ import {
   skyFaceProgram,
   skyViewCapture,
 } from './faceWgsl.ts'
-import { FILTER_ENTRIES, FILTER_CODE } from './filterWgsl.ts'
-import { IRRADIANCE_CODE, IRRADIANCE_ENTRIES } from './irradianceWgsl.ts'
+import { cubeFilterLayouts, cubeFilterStages } from './cubeFilterPipelines.ts'
 import { askedPipelines } from './askedPipelines.ts'
 import { SKY_LIGHT_CUBE_FORMAT } from './layout.ts'
 import { KEEP_ALPHA, LIGHT_THROUGH } from '../../../materials/surface/materialBlending.ts'
@@ -70,18 +67,7 @@ function skyLightLayouts(device: GPUDevice, shape: AirShape) {
       computeTextureEntry(0, 'float', '2d', FRAGMENT),
       computeSamplerEntry(1, 'filtering', FRAGMENT),
     ]),
-    filter: layout([
-      computeUniformEntry(0, { hasDynamicOffset: true, minBindingSize: 16 }),
-      computeTextureEntry(1, 'float', 'cube'),
-      computeSamplerEntry(2, 'non-filtering'),
-      computeStorageTextureEntry(3, SKY_LIGHT_CUBE_FORMAT, 'write-only', '2d-array'),
-    ]),
-    irradiance: layout([
-      computeUniformEntry(0, { minBindingSize: 4 }),
-      computeTextureEntry(1, 'float', 'cube'),
-      computeSamplerEntry(2, 'filtering'),
-      computeBufferEntry(3, 'storage', COMPUTE),
-    ]),
+    ...cubeFilterLayouts(device),
   }
 }
 
@@ -134,14 +120,6 @@ function filterStages(
   layouts: SkyLightLayouts,
   shape: AirShape,
 ) {
-  const filterModule = device.createShaderModule({
-    label: 'Trillion3D sky light filter',
-    code: FILTER_CODE,
-  })
-  const irradianceModule = device.createShaderModule({
-    label: 'Trillion3D sky light harmonics',
-    code: IRRADIANCE_CODE,
-  })
   return {
     skyView: compute(
       device.createShaderModule({
@@ -152,30 +130,7 @@ function filterStages(
       'skyViewMain',
       'Trillion3D sky light sky table',
     ),
-    downsample: compute(
-      filterModule,
-      layouts.filter,
-      FILTER_ENTRIES.downsample,
-      'Trillion3D sky light mips',
-    ),
-    convolve: compute(
-      filterModule,
-      layouts.filter,
-      FILTER_ENTRIES.convolve,
-      'Trillion3D sky light filter',
-    ),
-    irradiance: compute(
-      irradianceModule,
-      layouts.irradiance,
-      IRRADIANCE_ENTRIES.filtered,
-      'Trillion3D sky light harmonics',
-    ),
-    capturedIrradiance: compute(
-      irradianceModule,
-      layouts.irradiance,
-      IRRADIANCE_ENTRIES.captured,
-      'Trillion3D sky light captured harmonics',
-    ),
+    ...cubeFilterStages(device, compute, layouts),
   }
 }
 

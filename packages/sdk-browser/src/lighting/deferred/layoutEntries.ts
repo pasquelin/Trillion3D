@@ -1,6 +1,8 @@
+import { reflectionCaptureLayoutEntries } from '../reflectionCapture/compositeWgsl.ts'
 import {
   DEFERRED_BINDINGS,
   DEFERRED_CLOUD_SHADOW_BINDINGS,
+  DEFERRED_CAPTURE_BINDINGS,
   DEFERRED_SKY_LIGHT_BINDINGS,
 } from './bindings.ts'
 import { cloudShadowLayoutEntries } from '../atmosphere/cloudShadowRead.ts'
@@ -156,6 +158,8 @@ const profileEntries = (profiled: boolean): GPUBindGroupLayoutEntry[] =>
         {
           atlas: DEFERRED_BINDINGS.lightProfileAtlas,
           sampler: DEFERRED_BINDINGS.lightProfileSampler,
+          rectAtlas: DEFERRED_BINDINGS.rectAtlas,
+          rectSampler: DEFERRED_BINDINGS.rectAtlasSampler,
         },
         fragment,
       )
@@ -249,12 +253,14 @@ export const indirectLayoutEntries = ({
   lobes,
   cubed = false,
   capsule = false,
+  captured = false,
 }: {
   bounce: boolean
   skyShadowing: boolean
   lobes: boolean
   cubed?: boolean
   capsule?: boolean
+  captured?: boolean
 }): GPUBindGroupLayoutEntry[] => [
   ...pixelEntries(),
   ...tileEntries(),
@@ -285,6 +291,7 @@ export const indirectLayoutEntries = ({
     ? [computeBufferEntry(DEFERRED_BINDINGS.capsuleIndirect, 'read-only-storage', fragment)]
     : []),
   ...cubemapEntries(cubed),
+  ...(captured ? reflectionCaptureLayoutEntries(DEFERRED_CAPTURE_BINDINGS, fragment) : []),
   ...surfaceTargets(lobes),
 ]
 

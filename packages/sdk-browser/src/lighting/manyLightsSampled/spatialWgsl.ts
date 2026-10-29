@@ -54,6 +54,7 @@ const SPATIAL_KEY: ContractKey = {
   channelless: true,
   profileless: true,
   cubeless: true,
+  captureless: true,
 }
 
 const SPATIAL_B_PART_1 = `

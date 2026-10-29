@@ -39,7 +39,7 @@ export type BufferLimits = Pick<GPUSupportedLimits, 'maxStorageBufferBindingSize
 /**
  * Whether every buffer of the rays through the scene's triangles fits a binding and a buffer of `limits`: the scene trace's
  * nodes, triangles and table of placements (`scene`, `sceneTraceWords`), and where the shadows are traced (`lightTiles`
- * light tiles, none where only the radiosity is) their masks in `format` — with the scratch of the light functions where `scratch` —,
+ * light tiles, none where only the radiosity is) their masks in `format`,
  * traces and light tiles (`tracedShadowWords`, the sizes they are made at).
  */
 export function tracedRaysFit(
@@ -47,11 +47,9 @@ export function tracedRaysFit(
   lightTiles: number,
   scene: SceneTraceWords,
   format: AtlasFormat,
-  scratch: boolean,
 ) {
   const most = storageBufferCap(limits)
-  const shadows =
-    lightTiles > 0 ? Object.values(tracedShadowWords(lightTiles, format, scratch)) : []
+  const shadows = lightTiles > 0 ? Object.values(tracedShadowWords(lightTiles, format)) : []
   return [...shadows, ...Object.values(scene)].every((words) => words * 4 <= most)
 }
 
@@ -206,9 +204,6 @@ export interface LightingImage {
   readonly feedback: boolean
   /** Whether the image's radiosity rays go through the scene's triangles, which write the distances the probes' occlusion reads. */
   readonly tracedRadiosity: boolean
-  /** The word of the buffer the passes read the masks from where the scratch of the light functions begins (`standaloneScratchAt`):
-   *  after the masks. */
-  readonly scratchAt: number
   /** Whether the image's shadows are traced through the distance fields: the masks list no trace, and none answers a quad of four texels, the adaptive tracing being the scene's triangles'. */
   readonly fieldShadows?: boolean
   /** The exposure of the view the lights are strengthened under (`lightStrength`): the last image's, as the CPU knows it. */
@@ -415,7 +410,6 @@ export function writeLightingParams(
   words.fill(0)
   writeLightingLayout(views, shape, settings, image)
   writeLightingRadiosity(views, shape, settings, image)
-  words[at.scratchAt] = image.scratchAt
   floats[at.exposure] = image.exposure
   words[at.stochasticSamples] = stochasticSamplesOf(settings)
   floats[at.stochasticMinWeight] = settings.surfaceCacheDirectLightingStochasticMinWeight

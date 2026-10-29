@@ -1,16 +1,19 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { LIGHT_PROFILE_COORDINATES_WGSL } from './lightProfileCoordinates.ts'
 
-/** Where a program binds the profile atlas (a `texture_2d_array<f32>`) and its sampler. */
+/** Where a program binds the profile atlas (a `texture_2d_array<f32>`) and its sampler, and, where it reads the pictures of the rectangle lights
+ *  (`../rectLightAtlas/readWgsl.ts`), the rectangle atlas and its sampler beside them: a program that binds the one binds the other. */
 export interface LightProfileBindings {
   readonly group: number
   readonly atlas: number
   readonly sampler: number
+  readonly rectAtlas?: number
+  readonly rectSampler?: number
 }
 
 /** The bindings as a block name reads them. */
 export const lightProfileBindingsLabel = (b: LightProfileBindings) =>
-  `${b.group}, ${b.atlas}, ${b.sampler}`
+  `${b.group}, ${b.atlas}, ${b.sampler}${b.rectAtlas === undefined ? '' : `, rect ${b.rectAtlas}, ${b.rectSampler}`}`
 
 /**
  * The share of a light that leaves toward the point `P`: the profile of atlas slice `slice` read at

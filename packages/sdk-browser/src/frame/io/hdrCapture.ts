@@ -20,13 +20,14 @@ export interface HdrViewsJob {
   readonly overrides: ViewOverrides
   /** Encodes what takes the lit image of camera `at` — linear HDR, level 0 of the HDR target, no
    *  exposure, no effect, no tone curve — to its place: `drawn` is the size drawn in it, of the
-   *  target `allocated`. Called by every image drawn, the last one standing. */
+   *  target `allocated`; `depth` the view's depth (the reversed infinite projection's device depth). Called by every image drawn, the last one standing. */
   copy(
     encoder: GPUCommandEncoder,
     lit: GPUTextureView,
     drawn: readonly number[],
     allocated: readonly number[],
     at: number,
+    depth: GPUTextureView | undefined,
   ): void
 }
 
@@ -53,9 +54,9 @@ export async function captureHdrViews(rt: WebgpuPagesRuntime, job: HdrViewsJob) 
           if (Number.isFinite(camera.far)) camera.far = Math.max(main.far, camera.near * 2)
           rt.views.active.overrides = {
             ...job.overrides,
-            readLit: (encoder, lit, drawn, allocated) => {
+            readLit: (encoder, lit, drawn, allocated, depth) => {
               taken = true
-              job.copy(encoder, lit, drawn, allocated, at)
+              job.copy(encoder, lit, drawn, allocated, at, depth)
             },
           }
           await renderForCapture(rt, camera, 1)

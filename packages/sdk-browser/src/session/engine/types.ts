@@ -13,12 +13,14 @@ import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distan
 import type { MeshCards } from '../../../../sdk-core/src/lighting/meshCardsFile.ts'
 import type { HairStrandsReader } from '../../hair/strandsLoad.ts'
 import type { LightProfileReader } from '../../lighting/lightProfile/profileFile.ts'
+import type { RectLightImages } from '../../lighting/rectLightAtlas/images.ts'
 import type { RayTracing } from '../../../../sdk-core/src/lighting/rayTracingFile.ts'
 import type { VolumetricLightmapData } from '../../../../sdk-core/src/lighting/volumetricLightmapFile.ts'
 import type { ReadLightmap } from '../../lighting/volumetricLightmap/fileLoad.ts'
 import type { SceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneFogVolumeStore } from '../../../../sdk-core/src/scene/volume/store.ts'
 import type { SceneLocalFogStore } from '../../../../sdk-core/src/scene/localFog/store.ts'
+import type { SceneReflectionCaptureStore } from '../../../../sdk-core/src/scene/reflectionCapture/store.ts'
 import type { SceneHeterogeneousVolumeStore } from '../../../../sdk-core/src/scene/heterogeneousVolume/store.ts'
 import type { SparseVolumesReader } from '../../lighting/heterogeneousVolumes/sparseVolumeLoad.ts'
 import type { StageProfile } from '../../../../sdk-core/src/runtime/stageProfile.ts'
@@ -315,6 +317,9 @@ export interface EngineContext extends SettingOptions {
   /** The reader of the cache's light profiles (`light-profile-*.bin`), called for each profile a light names that is not yet held
    *  (`../../lighting/lightProfile/frame.ts`); none where the session has no cache to read them from. */
   lightProfileFile?: LightProfileReader
+  /** The pictures the host registered for the rectangle lights (`world.setRectLightTexture`), read by the atlas
+   *  (`../../lighting/rectLightAtlas/frame.ts`); made at the first registration. */
+  rectLightImages?: RectLightImages
   /** The primitives' acceleration structures (`rayTracing.bin`), none for a cache whose primitives built none. */
   rayTracing?: RayTracing
   /** The scene's volumetric lightmap (`volumetric-lightmap.bin`), none for a cache whose job baked none. */
@@ -323,6 +328,7 @@ export interface EngineContext extends SettingOptions {
   readVolumetricLightmapCell?: ReadLightmap['readCell']
   sceneVolumes?: SceneFogVolumeStore // the objects voxelised into the fog's volume, shared likewise
   sceneLocalFog?: SceneLocalFogStore // the local fog volumes, shared likewise
+  sceneReflectionCapture?: SceneReflectionCaptureStore // the reflection captures, shared likewise
   sceneHeterogeneousVolumes?: SceneHeterogeneousVolumeStore // the heterogeneous volumes, shared likewise
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
   /** Bounced light, on by default (`false` turns it off). */

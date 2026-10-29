@@ -27,6 +27,9 @@ export type ContractKey = {
   /** The image sets no ambient cubemap: no cube read in the indirect pass, no cube, sampler or colour bound
    *  (`ambientCubemapWgsl.ts`). The opaque lit passes' alone: a translucent program's key leaves the cube out. */
   cubeless: boolean
+  /** The image makes no reflection capture: no capture read in the indirect pass, no cube array, sampler nor records bound (`reflectionCapture/localLightWgsl.ts`).
+   *  The opaque lit passes' alone. Left out, the code is kept. */
+  captureless?: boolean
   /** The sampled lighting lights the local lights (`manyLightsSampled`): the local lights' pass adds the light it left (`sampledLight`) in place of walking the lights,
    *  and no light is lit one by one. Left out, false. Kept by the twin, and by every program that serves a frame of this cut. */
   sampled?: boolean
@@ -58,6 +61,7 @@ export const CUTS: readonly Cut[] = [
   'sampled',
   'sampledSun',
   'volumeShadow',
+  'captureless',
 ]
 export const CUT_COUNT = CUTS.length
 /** The bit of cut `name` in a set, read off `CUTS`'s order. */
@@ -93,6 +97,7 @@ export const FULL_CONTRACT: Readonly<ContractKey> = {
   channelless: false,
   profileless: false,
   cubeless: false,
+  captureless: false,
   sampled: false,
   sampledSun: false,
   volumeShadow: false,

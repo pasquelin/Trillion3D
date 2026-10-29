@@ -35,6 +35,7 @@ import { sameLightCloudShadow } from './lightCloudShadow.ts'
 import { sameLightShadow } from './lightShadow.ts'
 import { sameLightContactShadow } from './lightContactShadow.ts'
 import { sameLightProfile } from './lightProfile.ts'
+import { sameSourceTexture } from './lightSourceTexture.ts'
 
 /** Two optional contract vectors: both absent, or identical component by component. */
 const sameVector = (a: readonly number[] | undefined, b: readonly number[] | undefined) =>
@@ -65,7 +66,13 @@ function sameColourAndAir(a: SceneLight, b: SceneLight) {
  * not either: they move no shadow page (`sameLightContactShadow`, `setContactShadow`).
  */
 export function sameSceneLight(a: SceneLight, b: SceneLight) {
-  return sameStrength(a, b) && sameAirAndFunction(a, b) && sameShape(a, b) && sameLightProfile(a, b)
+  return (
+    sameStrength(a, b) &&
+    sameAirAndFunction(a, b) &&
+    sameShape(a, b) &&
+    sameLightProfile(a, b) &&
+    sameSourceTexture(a, b)
+  )
 }
 
 /** Two lights that are the same in everything a record holds, their contact shadows included: what a writer

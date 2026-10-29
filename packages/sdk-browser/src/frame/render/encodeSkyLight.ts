@@ -13,6 +13,7 @@ import { skyOcclusionUse } from '../../lighting/distanceField/ao/state.ts'
 import { airRequests, airShapeOfRuntime, atmosphereDeclared } from './airState.ts'
 import { previousMapsOf } from './encodeAtmosphere.ts'
 import { shownHeightFogOf } from './encodeFogVolume.ts'
+import { reflectionCapturesSubmitted } from './encodeReflectionCapture.ts'
 import { capturePreExposure } from './skyLightFog.ts'
 import { skyLightStateOf, type SkyLightState } from './skyLightState.ts'
 
@@ -161,6 +162,7 @@ export function encodeSkyCapture(
  *  (`SkyLightCapture.captureScene`), never from a capture's own image. */
 export function skyLightSubmitted(rt: WebgpuPagesRuntime) {
   if (!makesCapture(rt)) return
+  reflectionCapturesSubmitted(rt)
   const state = skyLightStateOf(rt),
     input = inputsOf(rt, state),
     capture = state.capture,

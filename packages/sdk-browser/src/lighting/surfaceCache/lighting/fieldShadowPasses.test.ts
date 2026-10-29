@@ -3,14 +3,14 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { wgslBindingNumbers } from '../../../gpu/core/wgslBindings.fixture.ts'
-import { LIGHT_TILE_ARGS, LIGHT_TILE_ARGS_WORDS } from './layout.ts'
+import { BATCHABLE_LIGHT_TYPES, LIGHT_TILE_ARGS, LIGHT_TILE_ARGS_WORDS } from './layout.ts'
 import {
   FIELD_SHADOW_ENTRIES,
   FIELD_SHADOW_MESH_ENTRY,
   FIELD_SHADOW_MESH_WGSL,
   FIELD_SHADOW_WGSL,
 } from './fieldShadowWgsl.ts'
-import { SHADOW_MASK_ENTRIES } from './shadowMaskWgsl.ts'
+import { SHADOW_MASK_ENTRIES, SHADOW_MASK_STANDALONE_ENTRY } from './shadowMaskWgsl.ts'
 import { shadowPasses, type Encoding, type FieldShadows } from './passes.ts'
 
 interface Bound {
@@ -28,14 +28,15 @@ const kernelNamed = (name: string, record: Bound[]) => ({
   pipeline: (entry: string) => ({ entry }) as unknown as GPUComputePipeline,
 })
 
-function run(mesh: boolean) {
+function run(mesh: boolean, standalone: { slot: number; offset: number }[] = []) {
   const record: Bound[] = []
   const calls: string[] = []
   const buffer = (label: string) => ({ label }) as unknown as GPUBuffer
   const view = (label: string) => ({ label }) as unknown as GPUTextureView
   const pass = {
     setPipeline: (p: { entry: string }) => calls.push(`pipeline ${p.entry}`),
-    setBindGroup: (at: number, group: { name: string }) => calls.push(`group ${at} ${group.name}`),
+    setBindGroup: (at: number, group: { name: string }, offsets?: number[]) =>
+      calls.push(`group ${at} ${group.name}${offsets ? ` @${offsets}` : ''}`),
     dispatchWorkgroupsIndirect: (b: GPUBuffer, offset: number) =>
       calls.push(`indirect ${(b as unknown as { label: string }).label} ${offset}`),
   }
@@ -70,13 +71,24 @@ function run(mesh: boolean) {
       lights: buffer('lights'),
       lightFunction: view('lf'),
       cloudShadow: { block: buffer('cloud'), maps: [view('c0'), view('c1')], sampler: {} },
-      lightProfile: { view: view('profile'), sampler: {} },
+      lightProfile: { view: view('profile'), sampler: {}, rectView: view('rect'), rectSampler: {} },
       field: {
         readGeneration: 0,
         readEntries: (first: number) => [0, 1, 2, 3, 4, 5].map((k) => ({ binding: first + k })),
       },
     },
     field: shadows,
+    standalone: {
+      passes: standalone.map(({ slot, offset }) => ({
+        slot,
+        offset,
+        bytes: 112,
+        maps: [],
+        kernel: kernelNamed('light', record),
+      })),
+      flags: buffer('flags'),
+      given: buffer('given'),
+    },
   } as unknown as Encoding
   shadowPasses(e)
   return { calls, record }
@@ -128,4 +140,26 @@ test('each group binds where its program declares its buffers', () => {
     declared(FIELD_SHADOW_MESH_WGSL),
   )
   assert.ok(record.some((k) => k.name === 'mesh' && k.group === 1))
+})
+
+test('the masks of a light apart from the atlas are made by its material’s program before the others, over the tiles of its slot, its block bound at its offset in group 1', () => {
+  const { calls, record } = run(false, [
+    { slot: 5, offset: 0 },
+    { slot: 9, offset: 256 },
+  ])
+  assert.deepEqual(pipelines(calls).slice(0, 6), [
+    SHADOW_MASK_STANDALONE_ENTRY,
+    SHADOW_MASK_STANDALONE_ENTRY,
+    ...SHADOW_MASK_ENTRIES,
+  ])
+  const entry = (slot: number) => LIGHT_TILE_ARGS.slots + BATCHABLE_LIGHT_TYPES + slot
+  assert.deepEqual(
+    indirects(calls).slice(0, 2),
+    [5, 9].map((slot) => `indirect lightArgs ${word(entry(slot))}`),
+  )
+  const first = calls.indexOf(`pipeline ${SHADOW_MASK_STANDALONE_ENTRY}`)
+  assert.deepEqual(calls.slice(first + 1, first + 3), ['group 0 light', 'group 1 light @0'])
+  assert.ok(calls.includes('group 1 light @256'))
+  const given = record.filter((k) => k.name === 'light' && k.group === 1)
+  assert.deepEqual(given[0].bindings, [0], 'the block is binding 0 of group 1')
 })

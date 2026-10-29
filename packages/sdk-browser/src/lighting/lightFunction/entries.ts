@@ -87,7 +87,7 @@ export const STANDALONE_LIGHT_BYTES = 96
 
 /**
  * Writes the block of `light`, whose rank in the light buffer is `rank`, for the pass that evaluates its function apart from the
- * atlas (`lightFunctionPassWgsl.ts`), at `base` bytes of `out`: the four rows of the matrix that takes a world point to the
+ * atlas (`standaloneMaskWgsl.ts`), at `base` bytes of `out`: the four rows of the matrix that takes a world point to the
  * light's axes (as the table's entries hold it), then the tangent of a spot's outer cone (1 for any other light, which uses none),
  * the fade distance and the disabled brightness, then the rank and the light's kind rank (`LIGHT_KIND`), as 16 bytes of words.
  */

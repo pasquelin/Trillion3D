@@ -16,7 +16,7 @@ const isValue = (text: string) => {
 
 test('the prompt names only options and tools that exist, with values the options accept', () => {
   assert.equal(getTrillion3dLlmPrompt(), TRILLION3D_SYSTEM_PROMPT)
-  const validate = new Ajv().compile(EXPLORER_OPTIONS_SCHEMA)
+  const validate = new Ajv({ allErrors: true }).compile(EXPLORER_OPTIONS_SCHEMA)
   const tools = new Set(TRILLION3D_RUNTIME_TOOLS.map((tool) => tool.name))
   // Each code span is an option (`pixelError`), an option set to a value (`pixelError = 0`), a
   // bare value (`false`) or a tool name.

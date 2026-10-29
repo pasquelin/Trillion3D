@@ -132,6 +132,8 @@ export interface SampledLightsInputs {
   sunRanks: GPUBuffer
   lightFunction: GPUTextureView
   lightProfile?: LightProfileResources
+  /** Whether the rectangle lights' pictures are read (`sampledLightsTexturedRectLights`); else a rectangle is plain. */
+  texturedRects: boolean
   /** The blue noise (`gpu/noise/blueNoiseTextures.ts`). */
   noise: GPUTextureView
   /** The surfaces' motion vectors of the image (`screenProbeVectors`), none where the stage measured none: the surfaces are taken as still. */
@@ -567,6 +569,8 @@ function samplingLayout(
         : lightProfileLayoutEntries({
             atlas: D.lightProfileAtlas,
             sampler: D.lightProfileSampler,
+            rectAtlas: D.rectAtlas,
+            rectSampler: D.rectAtlasSampler,
           })),
       computeBufferEntry(B.params, 'uniform'),
       ...(shading
@@ -883,8 +887,8 @@ function createSamplingCache(device: GPUDevice, stage: StageMaker, front: boolea
   }
   return {
     releaseGroups,
-    samplingFor(key: ContractKey): SamplingFamily {
-      const label = `${variantLabel(key)}`
+    samplingFor(key: ContractKey, textured: boolean): SamplingFamily {
+      const label = `${variantLabel(key)}${textured ? '' : ' plain rectangles'}`
       if (sampling?.label === label) return sampling
       releaseGroups()
       const classLayouts = new Map<TileClass, GPUBindGroupLayout>()
@@ -904,7 +908,7 @@ function createSamplingCache(device: GPUDevice, stage: StageMaker, front: boolea
             shadingLayout,
             device.createShaderModule({
               label: 'Trillion3D sampled shading',
-              code: wgslModule(shadingWgsl(key, tileClass, rect)),
+              code: wgslModule(shadingWgsl(key, tileClass, rect, textured)),
             }),
             SHADING_ENTRY,
             `Trillion3D sampled shading ${mode}`,
@@ -915,7 +919,7 @@ function createSamplingCache(device: GPUDevice, stage: StageMaker, front: boolea
         if (!layout) classLayouts.set(tileClass, (layout = samplingLayout(device, key, tileClass)))
         const module = device.createShaderModule({
           label: 'Trillion3D sampled lights',
-          code: wgslModule(samplingWgsl(key, tileClass, rect, front)),
+          code: wgslModule(samplingWgsl(key, tileClass, rect, front, textured)),
         })
         stages.set(
           mode,
@@ -1022,7 +1026,13 @@ const pixelEntries = (c: EncodeContext): GPUBindGroupEntry[] => {
 /** The light grid, the suns' ranks, the light functions and, where the key has them, the light profiles: what the sampling and the shading read. */
 const lightGridKeys = (c: EncodeContext) => {
   const { inputs } = c
-  return [inputs.tiles, inputs.sunRanks, inputs.lightFunction, inputs.lightProfile?.view]
+  return [
+    inputs.tiles,
+    inputs.sunRanks,
+    inputs.lightFunction,
+    inputs.lightProfile?.view,
+    inputs.lightProfile?.rectView,
+  ]
 }
 const lightGridEntries = (c: EncodeContext): GPUBindGroupEntry[] => {
   const { inputs, key } = c
@@ -1034,6 +1044,8 @@ const lightGridEntries = (c: EncodeContext): GPUBindGroupEntry[] => {
       ? [
           { binding: D.lightProfileAtlas, resource: inputs.lightProfile.view },
           { binding: D.lightProfileSampler, resource: inputs.lightProfile.sampler },
+          { binding: D.rectAtlas, resource: inputs.lightProfile.rectView },
+          { binding: D.rectAtlasSampler, resource: inputs.lightProfile.rectSampler },
         ]
       : []),
   ]
@@ -1637,7 +1649,7 @@ function encodeImage(
     sampledSamplesForInput(settings, input),
   )
   const geometryKey = `${g.view}|${g.downsample}|${g.samplesPerPixel}|${inputs.lightCount}`
-  const family = k.cache.samplingFor(key)
+  const family = k.cache.samplingFor(key, inputs.texturedRects)
   // The screen trace gates itself on its setting (the uniform); the software trace needs the field.
   const tracing = !!inputs.reflection
   const mapTrace =
