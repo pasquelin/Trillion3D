@@ -40,6 +40,8 @@ import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
 import { encodeHairDebug } from '../../hair/debugView.ts'
 import { encodeSubsurfaceDebug } from '../../lighting/subsurface/visualize.ts'
 import { encodeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
+import { encodeShadowCasterBounds } from '../../lighting/shadows/vsm/debug/casterBounds.ts'
+import { encodeClipmapVirtualSpace } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
 import { encodeSceneDebug } from '../../lighting/surfaceCache/sceneDebug/frame.ts'
 import { encodeSampledDebug } from '../../lighting/manyLightsSampled/debug/frame.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
@@ -301,6 +303,9 @@ function composeImage(
   // The sampled lighting's debug views, over the image too.
   encodeSampledDebug(rt, device, encoder, cam)
   encodeSubsurfaceDebug(rt, device, encoder, cam)
+  // The virtual shadow maps' shadow caster boxes, over the image when asked.
+  encodeShadowCasterBounds(rt, device, encoder, cam)
+  encodeClipmapVirtualSpace(rt, device, encoder)
   // The rectangle lights' atlas, drawn over the image when asked.
   encodeRectLightAtlasDebug(rt, device, encoder, cam)
   // The surface cache's tables and boxes, over the image too.

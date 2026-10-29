@@ -22,6 +22,7 @@ import {
   WATER_NORMALS_FORMAT,
   WATER_PARAMS_WORDS,
   WATER_REFLECTION_CODE,
+  WATER_SHADOW_BINDINGS as H,
   WATER_TILE_BINDINGS as T,
   WATER_TILE_PIXELS,
 } from './waterLayout.ts'
@@ -73,6 +74,8 @@ export interface WaterTargets {
   tileMask: GPUBuffer
   tileList: GPUBuffer
   tileArgs: GPUBuffer
+  tileDispatch: GPUBuffer
+  tileCount: GPUBuffer
   params: GPUBuffer
   paramWords: Float32Array<ArrayBuffer>
   paramInts: Uint32Array<ArrayBuffer>
@@ -87,6 +90,8 @@ export interface WaterTargets {
   /** The group of the shading, and of the composite. */
   shadeGroup: GPUBindGroup
   composite?: GPUBindGroup
+  /** The group of the sun's shadow draw, on the mask it was made for. */
+  sunShadow?: { mask: GPUTextureView; group: GPUBindGroup }
   /** The groups of the copy, the mask, the tiles' kernels and the identifiers' kernel, made on the views of the scene's
    *  colour and depth they read (and again when those move). */
   scene?: {
@@ -95,6 +100,8 @@ export interface WaterTargets {
     copy: GPUBindGroup
     mask: GPUBindGroup
     kernels: GPUBindGroup
+    /** The same kernels with the two depths swapped, for the list made once the water is shaded into the scene's depth. */
+    shaded: GPUBindGroup
     ids?: { view: GPUTextureView; group: GPUBindGroup }
   }
 }
@@ -116,7 +123,11 @@ function createTargets(
   const textures = waterTextures(device, width, height, factor, depth, separate)
   const tilesAcross = ceilDiv(width, WATER_TILE_PIXELS),
     tilesDown = ceilDiv(height, WATER_TILE_PIXELS)
-  const { tileMask, tileList, tileArgs } = waterTileBuffers(device, tilesAcross, tilesDown)
+  const { tileMask, tileList, tileArgs, tileDispatch, tileCount } = waterTileBuffers(
+    device,
+    tilesAcross,
+    tilesDown,
+  )
   const params = device.createBuffer({
     label: 'Trillion3D water view',
     size: WATER_PARAMS_WORDS * 4,
@@ -135,6 +146,8 @@ function createTargets(
     tileMask,
     tileList,
     tileArgs,
+    tileDispatch,
+    tileCount,
     params,
     paramWords,
     paramInts: new Uint32Array(paramWords.buffer),
@@ -181,7 +194,14 @@ const freeTargets = (targets: WaterTargets, free: (resource: { destroy(): void }
   for (const resource of [sceneColor, sceneDepth, waterDepth, mask, normals, specular])
     free(resource)
   if (sun) free(sun)
-  for (const resource of [targets.tileMask, targets.tileList, targets.tileArgs, targets.params])
+  for (const resource of [
+    targets.tileMask,
+    targets.tileList,
+    targets.tileArgs,
+    targets.tileDispatch,
+    targets.tileCount,
+    targets.params,
+  ])
     free(resource)
 }
 
@@ -258,6 +278,19 @@ export function waterSceneGroups(
   const { color, mask, kernelLayout } = waterScenePipelines(device)
   const uniform = (binding: number) => ({ binding, resource: { buffer: targets.params } })
   const storage = (binding: number, buffer: GPUBuffer) => ({ binding, resource: { buffer } })
+  const kernels = (water: GPUTextureView, opaque: GPUTextureView) =>
+    device.createBindGroup({
+      layout: kernelLayout,
+      entries: [
+        uniform(T.params),
+        { binding: T.waterDepth, resource: water },
+        { binding: T.opaqueDepth, resource: opaque },
+        storage(T.mask, targets.tileMask),
+        storage(T.list, targets.tileList),
+        storage(T.args, targets.tileArgs),
+        storage(T.dispatch, targets.tileDispatch),
+      ],
+    })
   return (targets.scene = {
     hdr,
     depth,
@@ -280,18 +313,32 @@ export function waterSceneGroups(
         { binding: M.sceneLinear, resource: targets.views.sceneDepth },
       ],
     }),
-    kernels: device.createBindGroup({
-      layout: kernelLayout,
-      entries: [
-        uniform(T.params),
-        { binding: T.waterDepth, resource: targets.views.waterDepth },
-        { binding: T.opaqueDepth, resource: depth },
-        storage(T.mask, targets.tileMask),
-        storage(T.list, targets.tileList),
-        storage(T.args, targets.tileArgs),
-      ],
-    }),
+    kernels: kernels(targets.views.waterDepth, depth),
+    // Without the depth pass the water is in the scene's depth once shaded and the depth copy held back is
+    // the scene without it: the same kernels read the two swapped.
+    shaded: kernels(depth, targets.views.waterDepth),
   })
+}
+
+/** The group of the sun's shadow draw: the water's uniform, the suns' mask `mask` the projection wrote this image and
+ *  the list of tiles (made again when the mask moves). */
+export function waterSunShadowGroup(
+  device: GPUDevice,
+  targets: WaterTargets,
+  mask: GPUTextureView,
+) {
+  const held = targets.sunShadow
+  if (held?.mask === mask) return held.group
+  const group = device.createBindGroup({
+    layout: waterScenePipelines(device).sunShadow.layout,
+    entries: [
+      { binding: H.params, resource: { buffer: targets.params } },
+      { binding: H.mask, resource: mask },
+      { binding: H.tiles, resource: { buffer: targets.tileList } },
+    ],
+  })
+  targets.sunShadow = { mask, group }
+  return group
 }
 
 /** The group of the kernel that clears the identifiers of the pixels the water covers, on the visibility
@@ -361,11 +408,14 @@ function putSettings(targets: WaterTargets, v: WaterSettings, separate: boolean)
   ints[WATER_AT.modes + 1] = masked ? 1 : 0
   ints[WATER_AT.modes + 2] = v.singleLayerWaterCloudShadow ? 1 : 0
   ints[WATER_AT.modes + 3] = targets.factor
-  ints[WATER_AT.filters] =
-    v.singleLayerWaterShadersSupportVsmFiltering && v.singleLayerWaterVsmFiltering ? 1 : 0
   ints[WATER_AT.filters + 1] = separate ? 1 : 0
   return masked
 }
+
+/** Whether the sun's shadow on the water is the projection's (`singleLayerWaterVsmFiltering`, with the programs that
+ *  support it): the sun is kept apart and its tiles known from the water's depth pass. */
+export const waterFiltersSun = (v: WaterSettings) =>
+  v.singleLayerWaterShadersSupportVsmFiltering && v.singleLayerWaterVsmFiltering
 
 /** Whether the water keeps its sun apart this image (the separated sun): the programs hold the term and the
  *  distance-field shadow (support, switch, and a scene whose meshes have fields) or the filtering is on. */
@@ -373,17 +423,18 @@ export const waterSeparated = (v: WaterSettings, distanceFields: boolean) =>
   (v.singleLayerWaterShadersSupportDistanceFieldShadow &&
     v.singleLayerWaterDistanceFieldShadow &&
     distanceFields) ||
-  (v.singleLayerWaterShadersSupportVsmFiltering && v.singleLayerWaterVsmFiltering)
+  waterFiltersSun(v)
 
 /** Writes the water's view uniform for this image (`WaterParams`): the inverse of the render matrix and
  *  its last row, the eye, the copy's size and safe range and the tiles' counts, each image, and the words the
- *  settings give it when they moved. Returns whether the refraction mask is made this image. */
+ *  settings give it when they moved, and the forward sun's layer of the projection's mask (`sunLayer`). Returns whether the refraction mask is made this image. */
 export function writeWaterParams(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   targets: WaterTargets,
   v: WaterSettings,
   separate: boolean,
+  sunLayer: number,
 ) {
   const { paramWords: words, paramInts: ints } = targets
   words.set(invertMatrix4(invertTo, viewProj), WATER_AT.inverseViewProjection)
@@ -406,6 +457,9 @@ export function writeWaterParams(
   ints[WATER_AT.tiles + 1] = targets.tilesDown
   ints[WATER_AT.tiles + 2] = targets.width
   ints[WATER_AT.tiles + 3] = targets.height
+  // The sun's shadow is the projection's where the image projects the forward sun (`sunLayer`, its layer of the mask; −1 none).
+  ints[WATER_AT.filters] = sunLayer >= 0 ? 1 : 0
+  ints[WATER_AT.filters + 2] = Math.max(sunLayer, 0)
   // The settings' words are written once, then when a setting or the separation moved.
   if (targets.watch.moved || !targets.written || targets.separate !== separate) {
     targets.masked = putSettings(targets, v, separate)

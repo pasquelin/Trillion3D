@@ -63,10 +63,10 @@ test('`work` holds no word per page: the binding holds the list of visible clust
   // the lists of `flags` are in a record table, past it if they must.
   const pages = dag()
   const rows = cameraCutBuffers(pages).rows
-  // 376 bytes: the two masks of the blended clusters, sixteen blocks of two words each, the twenty-
+  // 380 bytes: the two masks of the blended clusters, sixteen blocks of two words each, the twenty-
   // nine frame counters — the lists' group counts among them —, then the word of the filter's bits
-  // that the one placement takes (a bit a placement).
-  assert.equal(rows.work.size, 376, `\`work\` is ${rows.work.size} bytes for a thousand pages`)
+  // that the one placement takes (a bit a placement), and the word of the shadows' casters' behind it.
+  assert.equal(rows.work.size, 380, `\`work\` is ${rows.work.size} bytes for a thousand pages`)
   const largest = Math.max(...Object.values(rows).map((row) => row.size))
   assert.equal(dagDeviceRefusal({ maxStorageBufferBindingSize: largest }, pages), undefined)
   assert.equal(

@@ -45,7 +45,8 @@ export const waterViews = (textures: ReturnType<typeof waterTextures>) => ({
   sun: textures.sun?.createView(),
 })
 
-/** The tiles' buffers: a bit a tile, the list and the indirect draw's arguments (six vertices a tile). */
+/** The tiles' buffers: a bit a tile, the list, the indirect draw's arguments (six vertices a tile), the arguments of
+ *  the indirect dispatch a workgroup a listed tile (`csWaterDispatch`) and the count of the list as a uniform. */
 export function waterTileBuffers(device: GPUDevice, tilesAcross: number, tilesDown: number) {
   const buffer = (label: string, bytes: number, usage: number) =>
     device.createBuffer({ label: `Trillion3D water ${label}`, size: Math.max(bytes, 16), usage })
@@ -59,9 +60,14 @@ export function waterTileBuffers(device: GPUDevice, tilesAcross: number, tilesDo
   const tileArgs = buffer(
     'tile arguments',
     16,
-    GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT | GPUBufferUsage.COPY_DST,
+    GPUBufferUsage.STORAGE |
+      GPUBufferUsage.INDIRECT |
+      GPUBufferUsage.COPY_DST |
+      GPUBufferUsage.COPY_SRC,
   )
   // The draw of a tile is six vertices; the instance count is the list's, counted each image.
   device.queue.writeBuffer(tileArgs, 0, new Uint32Array([6, 0, 0, 0]))
-  return { tileMask, tileList, tileArgs }
+  const tileDispatch = buffer('tile dispatch', 12, GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT)
+  const tileCount = buffer('tile count', 4, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST)
+  return { tileMask, tileList, tileArgs, tileDispatch, tileCount }
 }

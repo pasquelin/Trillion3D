@@ -150,6 +150,39 @@ export function vsmDefaultProjectionData(): VsmProjectionDataValues {
   }
 }
 
+/**
+ * Makes `to` another map over the geometry of `from` (a clipmap level): its matrices, vectors, flags and clip ranges, a clipmap of this one level (`levelsLeft` 1). What the
+ * frame gives each map of its own, the page table's place, the occlusion view's history and the view slot, stays as it was.
+ */
+export function copyVsmProjectionGeometry(
+  to: VsmProjectionDataValues,
+  from: VsmProjectionDataValues,
+) {
+  to.lightViewToClip.set(from.lightViewToClip)
+  to.shiftedToClip.set(from.shiftedToClip)
+  to.shiftedToMapUv.set(from.shiftedToMapUv)
+  to.planesToMapUv.set(from.planesToMapUv)
+  for (let k = 0; k < 3; k++) {
+    to.lightDirection[k] = from.lightDirection[k]
+    to.originShift[k] = from.originShift[k]
+    to.clipmapOrigin[k] = from.clipmapOrigin[k]
+  }
+  to.cornerSteps[0] = from.cornerSteps[0]
+  to.cornerSteps[1] = from.cornerSteps[1]
+  to.dynamicDepthCullRange[0] = from.dynamicDepthCullRange[0]
+  to.dynamicDepthCullRange[1] = from.dynamicDepthCullRange[1]
+  to.lightKind = from.lightKind
+  to.lightRange = from.lightRange
+  to.levelBias = from.levelBias
+  to.emitterSize = from.emitterSize
+  to.mapLevel = from.mapLevel
+  to.levelsLeft = 1
+  to.flags = from.flags
+  to.ditherTexels = from.ditherTexels
+  to.finestMip = from.finestMip
+  to.wpoThreshold = from.wpoThreshold
+}
+
 /** Writes record `index` (the VSM id) of the projection data buffer image `out`. */
 export function writeVsmProjectionData(
   out: ArrayBuffer,

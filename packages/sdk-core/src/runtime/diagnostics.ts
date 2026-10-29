@@ -61,6 +61,8 @@ export type DiagnosticMode =
   | 'sampled-lights-complexity-volume'
   | 'sampled-lights-complexity-translucency-volume'
   | 'subsurface-profiles'
+  | 'virtual-shadow-map-shadow-casters'
+  | 'virtual-shadow-map-clipmap-virtual-space'
   | 'rect-light-atlas'
   | 'surface-cache-direct-stats'
   | 'surface-cache-indirect-stats'
@@ -124,6 +126,8 @@ export interface DiagnosticCapability {
  *  @property sampled-lights-complexity-volume - The lights of the fog cell under the cursor, sorted by weight.
  *  @property sampled-lights-complexity-translucency-volume - The lights of the translucency lighting volume cell under the cursor, sorted by weight.
  *  @property subsurface-profiles - The subsurface profile of each pixel as a coloured, lettered map.
+ *  @property virtual-shadow-map-shadow-casters - The box of every placement whose casters invalidate the shadow pages, in the colour of its class, with the legend.
+ *  @property virtual-shadow-map-clipmap-virtual-space - The first sun's shadow clipmap in the virtual space of its levels, over the image in grey.
  *  @property rect-light-atlas - The atlas of the pictures mapped on the rectangle lights, its slots and its figures, over the image.
  *  @property surface-cache-direct-stats - The table of the direct light update of the surface cache over the image: its priority histogram, its budget and the pages and tiles it lights.
  *  @property surface-cache-indirect-stats - The table of the indirect light update of the surface cache over the image.
@@ -216,6 +220,8 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  *   The light complexity view of one input (`sampledLightsVisualizeLightComplexity` 1 to 5): for the pixel under the debug cursor (`sampledLightsDebugCursorX` / `…Y`) or the fog cell on its ray, the lights of its cell with their share of the sampling weight,
  *   whether they were seen in the image before, their kind and name, each drawn as a line and a symbol from the pixel, the one under the mouse in orange; the first three also paint a heat map of the cost of sampling every pixel (`sampledLightsVisualizeLightComplexityMaxCost`).
  * @property subsurface-profiles - The subsurface profile of each pixel over the middle of the image, one colour and one character per profile (the default skin buff, then red, green, blue, magenta, cyan, yellow; 100 dark green, 255 white), faded where the scattering is narrower than a pixel, with the title and the list of profiles.
+ * @property virtual-shadow-map-shadow-casters - Over the image, the edges of the box of every placement the shadows keep as invalidating or that may (green static and still, red static and deforming, cyan dynamic and still, purple dynamic and moving or deforming, blue dynamic whose offset may invalidate, grey casting none), whatever lies before them, with the legend of the classes at the lower left.
+ * @property virtual-shadow-map-clipmap-virtual-space - Over the image in grey, a square that shows the pages the first sun's clipmap has mapped, level by level from the finest to the coarsest, each in the colour of its address and level, zoomed so that the finest level's pages fill it; needs shadows.
  * @property rect-light-atlas - Over the image, the atlas of the pictures the rectangle lights name, drawn small at the chosen mip level (`rectLightAtlasDebugMipLevel`) with a green border round each slot in use, a red one round the horizon lines of the packing and a yellow one round the free rectangles, and its figures as text (resolution, mip levels, occupancy, pictures, source mip bias, format, the switches); the same as `rectLightAtlasDebug` shows.
  * @property surface-cache-direct-stats - Over the image, the table of the surface cache’s direct light update as `surfaceCacheLightingStats` 1 writes it: the tiles of each of the 16 priority buckets, the bucket the budget ends in and its tiles, the pages and the tiles the image lights; read back from the GPU a few images late.
  * @property surface-cache-indirect-stats - Over the image, the same table for the surface cache’s indirect light update (`surfaceCacheLightingStats` 2).
@@ -479,6 +485,16 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     available: true,
     reason:
       'The profile of each subsurface pixel over the middle of the image, one colour and one character per profile, faded where the scattering is narrower than a pixel, with the title and the profile list; needs subsurfaceScattering',
+  },
+  'virtual-shadow-map-shadow-casters': {
+    available: true,
+    reason:
+      'The box of every placement whose casters invalidate the shadow pages, in the colour of its class, with the legend; needs shadows',
+  },
+  'virtual-shadow-map-clipmap-virtual-space': {
+    available: true,
+    reason:
+      "The first sun's shadow clipmap in the virtual space of its levels, over the image in grey; needs shadows and virtual shadow maps",
   },
   'rect-light-atlas': {
     available: true,

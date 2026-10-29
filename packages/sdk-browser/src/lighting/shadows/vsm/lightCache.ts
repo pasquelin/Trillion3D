@@ -88,6 +88,12 @@ export class VsmMapCache {
     c.levelPageOrigin[1] = levelPageOrigin[1]
   }
 
+  /** The level's pages are not carried to the next frame: it is drawn anew (a classic cascade whose cache is drawn again). */
+  dropPages() {
+    this.nextMaps.flags = 0
+    this.nextMaps.pageShift[0] = this.nextMaps.pageShift[1] = 0
+  }
+
   /** Update for local lights and inactive lights. */
   update(perLight: VsmLightCache) {
     moveOcclusionView(this.occlusionView)

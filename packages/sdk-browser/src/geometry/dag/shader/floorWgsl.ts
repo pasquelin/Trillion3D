@@ -70,8 +70,8 @@ export const FRAME_COUNTERS = 29
  * billion. Behind them the frame counters (`COUNTER`); each list read indirectly
  * keeps its dispatch argument's x then y among them (`openSlice`), which the arming kernel copies
  * to the argument (`armWgsl.ts`). Behind them the filter's bits, one a placement of the
- * `worldCount` the cut holds (`viewFilterWgsl.ts`): none for a layout made without placements, a
- * bench's.
+ * `worldCount` the cut holds (`viewFilterWgsl.ts`), then as many for the shadows' casters: none
+ * for a layout made without placements, a bench's.
  */
 export function dagWorkLayout(blockCount: number, worldCount = 0) {
   const mask = blockCount * BLOCK_MASK_WORDS,
@@ -92,7 +92,10 @@ export function dagWorkLayout(blockCount: number, worldCount = 0) {
     /** The view's filter, a bit a placement, behind the counters: written by the host before
      *  a cut whose view filters (`../viewFilterRegion.ts`), read by `filteredOut`. */
     filter: base + FRAME_COUNTERS,
-    words: base + FRAME_COUNTERS + ceilDiv(worldCount, 32),
+    /** Behind it the bits the shadows' casters follow — the view's filter but for the roots its
+     *  occlusion test hides —, held for the sun's casters beside the cut (`../viewFilterRegion.ts`). */
+    casters: base + FRAME_COUNTERS + ceilDiv(worldCount, 32),
+    words: base + FRAME_COUNTERS + 2 * ceilDiv(worldCount, 32),
   }
 }
 

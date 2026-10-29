@@ -28,6 +28,7 @@ import type { VsmLightCache } from './lightCache.ts'
 import type { VsmMapIds } from './mapIds.ts'
 import type { VsmFrameState } from './frameState.ts'
 import type { VsmFrameLight, VsmLightAllocation } from './frameSetup.ts'
+import { cascadeMapCount } from './frame/vsmDense.ts'
 
 // The frame's suns and their clipmaps, its local lights and their setups, side by side.
 const suns: SceneLight[] = []
@@ -86,6 +87,7 @@ function setupDirectionalLights(
           direction: light.direction,
           cascades,
           movable: mobilityOf(light) === 'movable',
+          cascadeMaps: cascadeMapCount(light, state.maps.shadows, camera.perspective),
         },
         shadow: shadowOfLight(light),
       },

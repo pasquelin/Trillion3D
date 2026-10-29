@@ -42,10 +42,14 @@ const SW_SLOTS:u32=${VSM_SOFTWARE_SLOTS}u;
 var<workgroup> swGroup:vec4u;
 var<workgroup> swPool:array<u32,SW_SLOTS>;
 var<private> swRaw:VsmProjectionRecord;
-fn vsmSoftwarePlace(world:vec3f)->vec4f{
+/** A world point's clip position on the window, its clip depth moved toward the light by 'depthLift' (the draw bias times the depth the map spans per unit of distance) over its clip w. */
+fn vsmSoftwarePlaceLifted(world:vec3f,depthLift:f32)->vec4f{
  let shifted=vsmRenderShifted(swRaw,world);
- return vsmRenderWindowAt(vsmRenderClip(swRaw,shifted),swGroup,${VSM_RENDER_WINDOW_PAGES_SOFTWARE}u);
+ var clip=vsmRenderClip(swRaw,shifted);
+ clip.z-=select(0.0,depthLift/clip.w,clip.w>0.0);
+ return vsmRenderWindowAt(clip,swGroup,${VSM_RENDER_WINDOW_PAGES_SOFTWARE}u);
 }
+fn vsmSoftwarePlace(world:vec3f)->vec4f{return vsmSoftwarePlaceLifted(world,0.0);}
 /** The sides the setup reads of a row: its back-side flag left out, as the record's swapped bit
  *  holds it with the placement's mirroring (\`vsmRenderSwapped\`), a two-sided row's kept. */
 fn vsmSoftwareSides(page:PageInfo)->PageInfo{var p=page;p.flags&=~${FLAG_BACK}u;return p;}`,

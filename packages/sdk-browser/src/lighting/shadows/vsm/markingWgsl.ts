@@ -48,6 +48,7 @@ import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslFn, wgslVariants } from '../../../../../math/src/wgsl/decl.ts'
 import { ceilDivWgsl } from '../../../../../math/src/wgsl/integer.ts'
 import { clipToFramebuffer, perspectiveDivide } from '../../../../../math/src/wgsl/projection.ts'
+import { ATLAS_MAP_WORDS } from '../classic/atlas/atlasPlan.ts'
 import { HIZ_FRONT_LAYER } from '../../../visibility/hiz/gpu/pyramidTexture.ts'
 
 /** The level below which a sun's marks never go: none (a first-person pixel's marks are clamped to
@@ -463,6 +464,8 @@ export const vsmDenseMarkingWgsl = (layout: VsmLayout) =>
   wgslProgram(
     `struct VsmDenseEntry{centre:vec3f,radius:f32,mapId:u32,mip:u32,kind:u32,spare:u32,}
 @group(1) @binding(0) var<storage,read> vsmDense:array<VsmDenseEntry>;
+/** The atlas buffer: ${ATLAS_MAP_WORDS} words a map, the first four the union of the page rects its entries ask (the complement of the first page's x and y, the last page's x and y; zero where no entry asks), the rest the map's tile. */
+@group(1) @binding(1) var<storage,read_write> vsmAtlasRects:array<atomic<u32>>;
 @group(0) @binding(4) var<uniform> vsmMarking:VsmMarkingParams;
 @compute @workgroup_size(${64}) fn vsmMarkDense(@builtin(global_invocation_id) id:vec3u){
  let entry=vsmDense[id.y];
@@ -489,6 +492,14 @@ export const vsmDenseMarkingWgsl = (layout: VsmLayout) =>
   size=min(high,vec2i(i32(VSM_LEVEL0_PAGES)-1))-origin+vec2i(1);
  }
  if(any(size<=vec2i(0))){return;}
+ if(id.x==0u){
+  let rect=entry.mapId*${ATLAS_MAP_WORDS}u;
+  let last=origin+size-vec2i(1);
+  atomicMax(&vsmAtlasRects[rect],~u32(origin.x));
+  atomicMax(&vsmAtlasRects[rect+1u],~u32(origin.y));
+  atomicMax(&vsmAtlasRects[rect+2u],u32(last.x));
+  atomicMax(&vsmAtlasRects[rect+3u],u32(last.y));
+ }
  let total=u32(size.x*size.y);
  for(var k=id.x;k<total;k+=${VSM_DENSE_THREADS}u){
   let cell=vsmTableEntryOf(handle,mip,vec2u(origin)+vec2u(k%u32(size.x),k/u32(size.x)));

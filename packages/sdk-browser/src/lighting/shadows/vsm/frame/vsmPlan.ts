@@ -24,6 +24,7 @@ import { createViewFingerprint } from '../../../../frame/view/viewFingerprint.ts
 import { assignChannels, heldVsm } from './vsmPlanSteps.ts'
 import { sunCascadesOf, vsmFirstPersonActive, vsmMapSettings } from './vsmFarShadow.ts'
 import { followCacheContent } from './cacheContent.ts'
+import { applyCascades } from './vsmCascadeCache.ts'
 import { shadowsOn, tracesTranslucent } from './vsmGates.ts'
 import { vsmSunLevels, type VsmMapSettings } from '../mapSettings.ts'
 import {
@@ -644,6 +645,7 @@ export function planVsmFrame(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Eng
     handleMapOverflow(rt, device, list, vsm, plan, slotsShort)
     return false
   }
+  applyCascades(rt, cam, plan, state.maps.shadows, device.limits.maxTextureDimension2D)
   commitVirtualShadowFrame(state, plan)
   vsm.plan = { ...plan, tiers, throttleReady: throttleOn(rt, device, vsm.res.layout, state.maps) }
   vsm.pendingBoxes = boxes

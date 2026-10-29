@@ -1,7 +1,7 @@
 import { type WgslDecl, wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { perspectiveDivide } from '../../../../../math/src/wgsl/projection.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
-import { VSM_CONSTANTS_WGSL, VSM_LEVEL0_TEXELS, VSM_UNIT_PER_CM } from '../vsm/constants.ts'
+import { VSM_CONSTANTS_WGSL, VSM_UNIT_PER_CM } from '../vsm/constants.ts'
 import { vsmTraceRayWgsl } from '../vsm/trace/traceRayWgsl.ts'
 import { CLASSIC_PCF_WGSL } from './pcfWgsl.ts'
 import { BIAS_FACTOR_MAX, CLASSIC_SUN_SLOTS } from './classicView.ts'
@@ -51,10 +51,6 @@ fn classicAccumulated(exponent:f32,index:u32,count:u32)->f32{
  }
  return taken/total;
 }
-/** The slope of a surface whose normal makes the cosine \`nol\` with the light's axis, held to \`maxSlope\` (\`ShadowDepthVertexShader.usf:97-107\`). */
-fn classicSlope(nol:f32,maxSlope:f32)->f32{
- return clamp(select(maxSlope,sqrt(saturate(1.0-nol*nol))/nol,nol>0.0),0.0,maxSlope);
-}
 /** The light's own factors on the constant bias (x) and the slope bias (y), unpacked from the word the source's size gives way to in a classic view (\`classicBiasWord\`). */
 fn classicUserBias(light:VsmProjectionLight)->vec2f{
  return unpack2x16unorm(bitcast<u32>(light.sourceRadius))*${BIAS_FACTOR_MAX}.0;
@@ -71,17 +67,14 @@ fn classicSun(light:VsmProjectionLight,P:vec3f,n:vec3f,axis:vec3f)->f32{
  }
  if(slot==CLASSIC_SUN_SLOTS){return 1.0;}
  let sun=vsmView.classic[2u*slot];
- let more=vsmView.classic[2u*slot+1u];
  let bias=vsmView.classic[16];
  let near=vsmView.classic[19].x;
- let maxSlope=vsmView.classic[19].y;
  let user=classicUserBias(light);
  let count=min(u32(sun.w),CLASSIC_MAX_CASCADES);
  let depth=dot(vsmView.viewForward,P-vsmView.shiftedEye);
  let tanX=1.0/vsmView.viewToClip[0][0];
  let tanY=1.0/vsmView.viewToClip[1][1];
  let nol=saturate(dot(n,axis));
- let slope=classicSlope(abs(dot(n,axis)),maxSlope);
  let base=vsmHandleFromId(u32(light.mapId));
  var visible=1.0;
  for(var k=0u;k<count;k++){
@@ -93,25 +86,21 @@ fn classicSun(light:VsmProjectionLight,P:vec3f,n:vec3f,axis:vec3f)->f32{
   let plane=select(split,split-fade,last);
   if(depth<low){break;}
   if(depth>=high){continue;}
-  // The sphere that bounds the cascade's slice of the view, and the level it is drawn in.
+  // The sphere that bounds the cascade's slice of the view.
   let span=high-low;
   let farDiagonal=(tanX*high)*(tanX*high)+(tanY*high)*(tanY*high);
   let nearDiagonal=(tanX*low)*(tanX*low)+(tanY*low)*(tanY*low);
   let centre=clamp(high-((nearDiagonal-farDiagonal)/(2.0*span)+span*0.5),low,high);
   let radius=max(sqrt(max(farDiagonal+(high-centre)*(high-centre),nearDiagonal+(centre-low)*(centre-low))),CLASSIC_UNIT_PER_CM);
-  let absolute=ceil(log2(radius/CLASSIC_UNIT_PER_CM*${VSM_LEVEL0_TEXELS / 2}.0/bias.w));
-  let levels=vsmProjectionOf(base).levelsLeft;
-  let level=clamp(i32(absolute-more.y),0,max(levels-1,0));
-  let h=vsmHandleOffset(base,level);
+  // The cascade's own map: one past the clipmap's levels for each cascade, the order the cascades are made in.
+  let h=vsmHandleOffset(base,vsmProjectionOf(base).levelsLeft+i32(k));
   var placed:VsmLightMap;
   vsmLightMapOn(&placed,h,P);
-  // The constant bias and the ramp are the settings' times a texel of the sphere; the slope adds its share of the bias (the range of the cascade's depth cancels).
+  // The ramp is the setting's times a texel of the sphere (the depth bias itself is the casters', taken off their depth where they are drawn, atlas/drawBias.ts).
   let ramp=bias.x*(radius/bias.w)*user.x;
-  let biasWorld=ramp*(1.0+bias.y*user.y*slope);
   let scale=vsmMapDepthScale(placed);
   let transition=classicReceiverTransitionScale(scale/max(ramp,0.00001),bias.z,nol);
-  let receiver=placed.mapPoint.z+biasWorld*scale;
-  let shadow=classicFiltered(h,true,0u,placed.mapPoint.xy,receiver,transition);
+  let shadow=classicFiltered(h,true,0u,placed.mapPoint.xy,placed.mapPoint.z,transition);
   visible=min(visible,mix(1.0,shadow,classicCascadeBlend(depth,plane,high-plane)));
  }
  return visible;
@@ -188,7 +177,6 @@ const classicSpotText =
   () => `/** The shadow of the spot light \`light\` at the receiver \`P\`, \`dist\` from it: the 5 by 5 window of its map's finest resident mip. */
 fn classicSpot(light:VsmProjectionLight,P:vec3f,n:vec3f,axis:vec3f,dist:f32)->f32{
  let params=vsmView.classic[18];
- let maxSlope=vsmView.classic[19].y;
  let user=classicUserBias(light);
  let h=vsmHandleFromId(u32(light.mapId));
  var placed:VsmLightMap;
@@ -196,18 +184,13 @@ fn classicSpot(light:VsmProjectionLight,P:vec3f,n:vec3f,axis:vec3f,dist:f32)->f3
  let pd=vsmProjectionOf(h);
  let ndc=perspectiveDivide(placed.mapPoint);
  let mip=classicResidentMip(h,pd.finestMip,ndc.xy);
- let texels=f32(vsmTexelsAtLevel(mip));
  let nol=saturate(dot(n,axis));
- // The slope is that of the surface against the cone's axis, as the depth pass reads it (the light's direction points to the light).
- let slope=classicSlope(abs(dot(n,light.direction)),maxSlope);
  let perDistance=vsmDepthPerDistance(pd,dist*dist);
  let near=0.1*CLASSIC_UNIT_PER_CM;
- // Both biases are the reference's, over the spot's depth range (its range less the near plane), which cancels from the depth bias.
- let depthWorld=params.x*512.0/texels*CLASSIC_UNIT_PER_CM*2.0*user.x*(1.0+params.y*user.y*slope);
+ // The ramp is the reference's, over the spot's depth range (its range less the near plane); the depth bias is the casters' (atlas/drawBias.ts).
  let ramp=(light.radius-near)*2.0*user.x/max(params.z,0.0001);
- let receiver=ndc.z+depthWorld*perDistance;
  let transition=classicReceiverTransitionScale(perDistance/max(ramp,0.00001),params.w,nol);
- return classicFiltered(h,false,mip,ndc.xy,receiver,transition);
+ return classicFiltered(h,false,mip,ndc.xy,ndc.z,transition);
 }
 /** The classic shadow of a light at a receiver, 1 where it is lit. */
 fn vsmClassicShadow(light:VsmProjectionLight,P:vec3f,n:vec3f,axis:vec3f,dist:f32,directional:bool)->f32{
@@ -221,8 +204,8 @@ fn vsmClassicShadow(light:VsmProjectionLight,P:vec3f,n:vec3f,axis:vec3f,dist:f32
  * THE CLASSIC SHADOW OF ONE LIGHT AT ONE RECEIVER (`shadowVirtualEnable` off), in place of the soft rays' trace (`vsmTraceWgsl`, `classic`): the filter of
  * `pcf.ts` over the dense maps the dense marking asked (`vsmMarkDense`), the view's words `vsmView.classic` (`classicView.ts`) saying how.
  *
- * - A SUN is drawn in cascades by the view's depth: the splits, the fade and the sphere that bounds each are `cascadeSplits.ts`' in the shader, the clipmap level its
- *   sphere takes the one `denseEntries.ts` asked pages of. A receiver in two cascades — a cascade is drawn past its split by its fade — takes the least of their shadows, each
+ * - A SUN is drawn in cascades by the view's depth: the splits, the fade and the sphere that bounds each are `cascadeSplits.ts`' in the shader, the map of its
+ *   own (`vsmClipmapCascadeMap`) the one `denseEntries.ts` asked pages of. A receiver in two cascades — a cascade is drawn past its split by its fade — takes the least of their shadows, each
  *   brought back toward light by its weight (`classicCascadeBlend`); past the last cascade it is lit. An orthographic view has no cascade.
  * - A LOCAL LIGHT reads its map (a cube face, or the spot's) at the finest mip the dense marking made resident at the receiver.
  *

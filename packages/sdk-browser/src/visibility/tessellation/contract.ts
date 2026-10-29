@@ -75,7 +75,7 @@ export const dispatchOffset = (chain: number, word: number) =>
  * neither the pass's records, nor the maps' projections, nor the page table (the eight storage
  * buffers every device holds), reads them there: the record's four words (`WINDOW_RECORD_WORDS`), the view of
  * its map (`WINDOW_VIEW_WORDS`: the `WINDOW_VIEW_RECORDS` vectors `vsmPackView` lays, then the `WINDOW_LENS_WORDS` of the lens of the record's mip: focal length,
- * near plane, whether perspective) and the pool address of each page of its window (`WINDOW_PAGE_SLOTS`, a square
+ * near plane, whether perspective), the map's draw bias (`WINDOW_BIAS_WORDS`: its constant, slope factor and slope limit with the depth the map spans per unit of distance, then the light's axis) and the pool address of each page of its window (`WINDOW_PAGE_SLOTS`, a square
  * of `WINDOW_PAGE_SIDE` pages a side, the software raster's window, `VSM_RENDER_NO_PAGE` where a page is not one to draw). The seeding opens it and writes the record, the
  * kernel after the levels fills the rest; a main pass's windows stay through the post pass, which opens its own after
  * them, as the patches the main pass hid name them.
@@ -86,7 +86,9 @@ export const WINDOW_VIEW_AT = WINDOW_RECORD_WORDS,
   WINDOW_LENS_WORDS = 4,
   WINDOW_VIEW_WORDS = WINDOW_VIEW_RECORDS * 4 + WINDOW_LENS_WORDS,
   WINDOW_LENS_AT = WINDOW_VIEW_AT + WINDOW_VIEW_RECORDS * 4,
-  WINDOW_POOL_AT = WINDOW_VIEW_AT + WINDOW_VIEW_WORDS,
+  WINDOW_BIAS_AT = WINDOW_VIEW_AT + WINDOW_VIEW_WORDS,
+  WINDOW_BIAS_WORDS = 8,
+  WINDOW_POOL_AT = WINDOW_BIAS_AT + WINDOW_BIAS_WORDS,
   WINDOW_PAGE_SIDE = 8,
   WINDOW_PAGE_SLOTS = WINDOW_PAGE_SIDE * WINDOW_PAGE_SIDE,
   WINDOW_WORDS = WINDOW_POOL_AT + WINDOW_PAGE_SLOTS

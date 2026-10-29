@@ -12,6 +12,7 @@ import { readRasterSetting } from '../../../../../../sdk-core/src/contracts/rast
 import { casterDrawDistance } from './vsmFarShadow.ts'
 import { shadowSelectionPixelError } from './shadowLodScale.ts'
 import { encodeCasterDecode, type CasterFeed } from '../../casters/casterFeed.ts'
+import { castersFilter } from '../../../../frame/render/cutViewSet.ts'
 
 /** What the casters are drawn from (`WebgpuPagesRuntime.lights`, the camera's cut), every one
  *  present. */
@@ -92,8 +93,8 @@ function castersWorld(
     // The poses the previous image drew: the occlusion's first cull tests a caster there.
     previous: cut.previous,
     links: cut.cellStates?.links,
-    // The main view's filter: a hidden object casts nothing into its shadows.
-    filter: cut.holdFilter(rt.run.selectionUniforms.filter),
+    // The main view's filter: a hidden object casts nothing into its shadows, one its occlusion test hides still does.
+    filter: cut.holdFilter(castersFilter(rt.run.selectionUniforms)),
   }
 }
 
@@ -103,10 +104,12 @@ function rasterSettings(rt: WebgpuPagesRuntime) {
   return {
     // The camera's rule picks each cluster's raster in each map's view: past this edge in the map's
     // pixels the hardware raster's, every
-    // cluster the hardware's with the software raster off.
-    hardwareEdge: readRasterSetting(rt, 'softwareRaster')
-      ? readRasterSetting(rt, 'hardwareRasterEdgePixels')
-      : 0,
+    // cluster the hardware's with the software raster off, and in a classic frame, whose casters are all drawn
+    // by the hardware raster into the atlas with their depth bias (`atlas/drawBias.ts`).
+    hardwareEdge:
+      readRasterSetting(rt, 'softwareRaster') && readShadowSetting(rt, 'shadowVirtualEnable')
+        ? readRasterSetting(rt, 'hardwareRasterEdgePixels')
+        : 0,
     // The lights whose views pass a pass's limit are drawn in several passes (`vsmViewPasses`).
     multipassViews: readShadowSetting(rt, 'shadowMultipassViews'),
     // The occlusion pyramid built over every held page, or over the pages drawn.

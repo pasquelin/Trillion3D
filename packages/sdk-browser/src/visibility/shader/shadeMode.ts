@@ -73,6 +73,8 @@ const LIT_VIEWS = {
   'sampled-lights-complexity-opaque': { light: 0, chain: true },
   'sampled-lights-complexity-front-layer': { light: 0, chain: true },
   'subsurface-profiles': { light: 0, chain: true },
+  'virtual-shadow-map-shadow-casters': { light: 0, chain: true },
+  'virtual-shadow-map-clipmap-virtual-space': { light: 0, chain: true },
   'rect-light-atlas': { light: 0, chain: true },
   'surface-cache-direct-stats': { light: 0, chain: true },
   'surface-cache-indirect-stats': { light: 0, chain: true },

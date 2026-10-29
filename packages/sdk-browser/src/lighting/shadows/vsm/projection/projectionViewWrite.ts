@@ -134,6 +134,7 @@ function writeViewHeader(view: ViewWords, inputs: ViewInputs, count: number, sun
       classic.suns,
       classic.settings,
       classic.nearCentimetres,
+      classic.cascadeResolution,
     )
 }
 

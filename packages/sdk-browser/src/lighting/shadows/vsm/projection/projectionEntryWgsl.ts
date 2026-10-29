@@ -4,8 +4,9 @@
  * group; and the local lights', one pass in which every pixel traces the lights of its own cell of the
  * light grid and packs their shares in its mask, the votes over the lanes that are active. Each is a
  * function of the input type (`../inputType.ts`), as the reference's one shader is: the pixel of a group
- * of the view's tiles (the surfaces'), or of a tile of the list of all the tiles with strands (the
- * strands', `VSM_STRANDS_PIXEL_OF_WGSL`); it reads the projection's shapes, which its module declares.
+ * of the view's tiles (the surfaces'), of a tile of the list of all the tiles with strands (the
+ * strands', `VSM_STRANDS_PIXEL_OF_WGSL`) or of a tile of the list of the tiles that hold water (the
+ * water's, `VSM_WATER_PIXEL_OF_WGSL`); it reads the projection's shapes, which its module declares.
  */
 import { VSM_PROJECTION_GROUP_SIZE } from '../constants.ts'
 import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
@@ -94,6 +95,32 @@ fn vsmStrandReceiverOf(pixel:VsmPixel,light:VsmProjectionLight,participating:boo
 }`,
 )
 
+/** The pixel `groupIndex` (Z-order) of the tile of rank `rank` of the list of the tiles that hold water, inside
+ *  the view's rect: the kernels' first step for the input `water`. The pixel is the water's surface where its
+ *  normal was written (the shading writes none elsewhere), at the water's depth; it reads no thin transmission
+ *  nor coat, and is no first-person one. Its tail is the surfaces' pixel's (`PIXEL_TAIL`). */
+export const VSM_WATER_PIXEL_OF_WGSL = wgslBlock(
+  'VSM_WATER_PIXEL_OF_WGSL',
+  [zOrderDecode],
+  /* wgsl */ `
+fn vsmPixelOf(rank:u32,groupIndex:u32)->VsmPixel{
+ let rect=vsmView.projectionRect;
+ var p:VsmPixel;
+ let listed=rank<vsmWaterCount.x;
+ let packed=vsmWaterTiles[select(0u,rank,listed)];
+ p.pos=vec2u(packed&0xffffu,packed>>16u)*${VSM_PROJECTION_GROUP_SIZE}u+zOrderDecode(groupIndex)+vec2u(rect.xy);
+ p.inRect=listed&&all(p.pos<vec2u(rect.zw));
+ let coord=min(p.pos,vec2u(rect.zw)-1u);
+ let deviceZ=textureLoad(vsmSceneDepth,coord,0);
+ p.deviceZ=deviceZ;
+ let normal=textureLoad(vsmNormalRough,coord,0).xyz;
+ p.info.valid=p.inRect&&deviceZ>0.0&&dot(normal,normal)>0.25;
+ p.info.opacity=-1.0;
+ if(!p.info.valid){return p;}
+ p.info.worldNormal=normalize(normal);
+${PIXEL_TAIL}`,
+)
+
 /** What the kernels' text takes of their input (`../inputType.ts`): the builtin a strands' kernel reads
  *  its rank by, its pixel, and its receiver, once a pixel for a surface (its normal), light by light for a
  *  strand (the light's direction). */
@@ -101,6 +128,12 @@ const KERNEL_INPUT = {
   gbuffer: {
     groups: '',
     pixel: 'vsmPixelOf(groupId.xy,groupIndex)',
+    once: '\n let receiver=vsmReceiverOf(pixel,pixel.info.valid);',
+    each: '',
+  },
+  water: {
+    groups: '@builtin(num_workgroups) groups:vec3u,',
+    pixel: 'vsmPixelOf(flatIndex(groupId,groups,1u),groupIndex)',
     once: '\n let receiver=vsmReceiverOf(pixel,pixel.info.valid);',
     each: '',
   },

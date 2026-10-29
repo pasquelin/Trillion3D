@@ -46,7 +46,11 @@ import {
   type VsmClipmapConfig,
   type VsmMapSettings,
 } from './mapSettings.ts'
-import { vsmShadowMatrices, type VsmProjectionDataValues } from './projection/projectionData.ts'
+import {
+  copyVsmProjectionGeometry,
+  vsmShadowMatrices,
+  type VsmProjectionDataValues,
+} from './projection/projectionData.ts'
 import { VSM_MAP_LEVEL_INDEX_SHIFT, VSM_MAP_PREFILTERED_DISTANT } from './prefilteredConstants.ts'
 import { viewOrigin } from './viewOrigin.ts'
 import type { VsmCacheManager } from './cacheManager.ts'
@@ -147,6 +151,8 @@ interface VsmDirectionalLightInput {
    *  cache (drawn again each frame), its maps flagged (`VSM_MAP_FIRST_PERSON`) for the objects that stand
    *  for a first-person one alone. Its `id` names it apart from the sun's own. */
   firstPerson?: boolean
+  /** The classic cascades the sun is drawn in (`shadowVirtualEnable` off): its entry holds one map more for each, after its levels' (`vsmClipmapCascadeMap`). */
+  cascadeMaps?: number
   /** The light's own shadow settings (`LightShadow`; absent, the defaults): part of the cache key,
    *  as a light that any of them re-creates holds none of its cached pages. */
   shadow?: LightShadow
@@ -159,6 +165,10 @@ interface VsmClipmapLevel {
   /** Snapped level centre, world metres (double); originShift = −worldCentre. */
   worldCentre: [number, number, number]
   cornerFromLast: [number, number]
+  /** The level's cell in the pages' grid, the depth its cache entry was last asked at and the depth radius it holds (centimetres): what a classic cascade's own map is asked the same. */
+  pageCell: [number, number]
+  depthCentre: number
+  depthRadius: number
   /** Square of the distance, metres, past which the level draws no object's offset; 0 where the
    *  rule is off (`vsmWpoThreshold`). */
   wpoThreshold: number
@@ -224,6 +234,9 @@ const heldLevel = (levels: VsmClipmapLevel[], k: number) =>
     viewToClip: new Float64Array(16),
     worldCentre: [0, 0, 0],
     cornerFromLast: [0, 0],
+    pageCell: [0, 0],
+    depthCentre: 0,
+    depthRadius: 0,
     wpoThreshold: 0,
     dynamicCullNear: 0,
     dynamicCullFar: FLOAT32_MAX,
@@ -394,6 +407,10 @@ function buildLevel(
     config.wpoInvalidatesOnScale,
   )
   depthRadius = levelEntry.clipmap.depthRadius
+  level.pageCell[0] = entryCell[0]
+  level.pageCell[1] = entryCell[1]
+  level.depthCentre = eyeInLight[2]
+  level.depthRadius = depthRadius
 
   const cullingEnd = projectLevel(
     clipmap,
@@ -487,7 +504,12 @@ export function createVsmClipmap(
   const levelCount = lastLevel - firstLevel + 1
 
   const shadowType = light.firstPerson ? 1 : 0
-  const cacheEntry = cache.lightEntryFor(light.id, levelCount, camera.viewId ?? '', shadowType)
+  const cacheEntry = cache.lightEntryFor(
+    light.id,
+    levelCount + (light.cascadeMaps ?? 0),
+    camera.viewId ?? '',
+    shadowType,
+  )
   // A clipmap that keeps nothing from one frame to the next is drawn uncached (the first-person
   // one always, and biased as a moving light).
   updateEntry(
@@ -516,6 +538,32 @@ export function createVsmClipmap(
   for (let i = 0; i < levelCount; i++)
     vsmClipmapProjectionData(clipmap, i, cacheEntry.mapCaches[i].projectionData, config)
   return clipmap
+}
+
+/**
+ * Makes map `mapIndex` of the clipmap's entry (one past its levels, `VsmDirectionalLightInput.cascadeMaps`) the map of a classic cascade drawn in level `levelIndex`: the level's
+ * geometry by reference, its own pages, cache state and draw bias, as each cascade has a shadow map of its own. Two cascades of one level are two maps.
+ */
+export function vsmClipmapCascadeMap(
+  clipmap: VsmClipmap,
+  levelIndex: number,
+  mapIndex: number,
+  wpoInvalidates: boolean,
+) {
+  const { cacheEntry } = clipmap
+  const level = clipmap.levels[levelIndex]
+  const map = cacheEntry.mapCaches[mapIndex]
+  copyVsmProjectionGeometry(map.projectionData, cacheEntry.mapCaches[levelIndex].projectionData)
+  map.updateLevel(
+    cacheEntry,
+    level.pageCell,
+    vsmClipmapLevelRadiusCm(clipmap.firstLevel + levelIndex),
+    level.depthCentre,
+    level.depthRadius,
+    level.wpoThreshold,
+    wpoInvalidates,
+  )
+  return map
 }
 
 /**

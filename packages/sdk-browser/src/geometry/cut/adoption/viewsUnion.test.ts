@@ -161,7 +161,7 @@ test('the filter’s bits go up when the region does not hold them, once, and ar
       },
     },
     work: {},
-    workLayout: { filter: 100, words: 102 },
+    workLayout: { filter: 100, casters: 102, words: 104 },
     filterHeld: { bits: undefined as Uint32Array | undefined },
   } as unknown as Parameters<typeof writeViewFilter>[0]
   const mine = new Uint32Array(2),
@@ -179,21 +179,27 @@ test('the filter’s bits go up when the region does not hold them, once, and ar
   assert.deepEqual(writes[3], { offset: 400, bytes: 8 })
 })
 
-test('a reader beside the cut holds a view’s bits where the cut reads them, none for a view without or a cut with no room', () => {
+test('a reader beside the cut holds the casters’ bits behind the cut’s, none for a view without or a cut with no room', () => {
   const writes: number[] = []
   const work = {} as GPUBuffer
   const resources = (words: number) =>
     ({
       device: { queue: { writeBuffer: (_b: unknown, offset: number) => void writes.push(offset) } },
       work,
-      workLayout: { filter: 100, words },
+      workLayout: { filter: 100, casters: 102, words },
       filterHeld: { bits: undefined as Uint32Array | undefined },
-    }) as unknown as Parameters<typeof holdViewFilter>[0]
+      castersHeld: { bits: undefined as Uint32Array | undefined },
+    }) as unknown as Parameters<typeof holdViewFilter>[0] & Parameters<typeof writeViewFilter>[0]
   const bits = new Uint32Array(2),
-    room = resources(102)
+    cut = new Uint32Array(2),
+    room = resources(104)
   assert.equal(holdViewFilter(room, undefined), undefined)
-  assert.deepEqual(holdViewFilter(room, bits), { buffer: work, base: 100 })
-  assert.deepEqual(holdViewFilter(room, bits), { buffer: work, base: 100 })
-  assert.deepEqual(writes, [400], 'sent once')
-  assert.equal(holdViewFilter(resources(100), bits), undefined, 'a cut with no room for them')
+  assert.deepEqual(holdViewFilter(room, bits), { buffer: work, base: 102 })
+  assert.deepEqual(holdViewFilter(room, bits), { buffer: work, base: 102 })
+  assert.deepEqual(writes, [408], 'sent once, behind the cut’s region')
+  // The cut's own filter, written in the same submission, lands in its region and leaves the casters' held.
+  writeViewFilter(room, cut)
+  assert.deepEqual(holdViewFilter(room, bits), { buffer: work, base: 102 })
+  assert.deepEqual(writes, [408, 400], 'each region its own bits')
+  assert.equal(holdViewFilter(resources(102), bits), undefined, 'a cut with no room for them')
 })

@@ -85,6 +85,7 @@ import {
   type VsmClearStep,
 } from './markingWgsl.ts'
 import { DENSE_MAX_ENTRIES } from '../classic/denseEntries.ts'
+import type { AtlasPlan } from '../classic/atlas/atlasPlan.ts'
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { uniformSlotBytes, uniformSlots, type UniformSlots } from '../../../session/memory/pools.ts'
 import { dispatchGrid, dispatchRows } from '../../../gpu/dispatch/grid.ts'
@@ -368,7 +369,12 @@ export interface VsmMarkingFrame {
   settings?: ShadowValues
   /** The pages of the classic shadow maps (`shadowVirtualEnable` off) to ask for, `count` entries of `VSM_DENSE_ENTRY_WORDS` words in `words`
    *  (`denseEntries.ts`); absent, none. */
-  dense?: { readonly words: Uint32Array<ArrayBuffer>; readonly count: number }
+  dense?: {
+    readonly words: Uint32Array<ArrayBuffer>
+    readonly count: number
+    /** The atlas buffer's words a map has (`planAtlas`), written to the buffer each frame. */
+    readonly atlas: AtlasPlan
+  }
   /** Whether the compute throttle runs this frame: the programs that read each map's own bias. */
   throttled?: boolean
   /** Encoded into the pass between the page rects' initialisation and the clear of the page tables: the compute throttle. */
@@ -606,7 +612,7 @@ function pagePipes(device: GPUDevice, layout: VsmLayout, held: HeldPipes, entrie
         'vsmMarkDense',
         [
           [...entries(VSM_COARSE_SPECS), computeUniformEntry(4)],
-          [computeBufferEntry(0, 'read-only-storage')],
+          [computeBufferEntry(0, 'read-only-storage'), computeBufferEntry(1, 'storage')],
         ],
       )),
   }
@@ -692,6 +698,8 @@ export function vsmMarkingPipes(device: GPUDevice, layout: VsmLayout) {
 export interface VsmMarking {
   /** Records the marking's dispatches into `pass` (uniform/id uploads go through the queue). */
   encode(pass: GPUComputePassEncoder, frame: VsmMarkingFrame): void
+  /** The atlas buffer of the classic shadow maps' tiles (`ATLAS_MAP_WORDS` a map), written by the dense marking; none while the maps are virtual or the marking did not run this frame (its pipeline compiling). */
+  atlasBuffer(): GPUBuffer | undefined
   destroy(): void
 }
 
@@ -988,7 +996,7 @@ interface MarkingState {
   /** What the froxel passes take of the frame beside its view, rewritten by each frame. */
   froxelContext: FroxelMarkContext
   /** The classic shadow maps' entries buffer and its group, made when the first frame that has them asks. */
-  dense: { buffer?: GPUBuffer; group?: GPUBindGroup }
+  dense: { buffer?: GPUBuffer; group?: GPUBindGroup; rects?: GPUBuffer; marked?: boolean }
 }
 
 /** Group 0 of `p` over the tables `specs` name and the parameters at `paramsBinding`. */
@@ -1099,26 +1107,50 @@ function markDense(
 ) {
   const entries = frame.dense
   if (!entries || entries.count === 0) return
-  const dense = state.pipes.dense()
-  if (!dense.pipeline) return
   const { device } = state
-  groups.dense ??= state.group(DENSE_LABEL, dense, VSM_COARSE_SPECS, 4)
   const held = state.dense
   held.buffer ??= device.createBuffer({
     label: DENSE_LABEL,
     size: DENSE_MAX_ENTRIES * VSM_DENSE_ENTRY_WORDS * 4,
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
   })
+  // The atlas buffer (`vsmAtlasRects`): the page rects zero before the frame's entries ask, and the tiles the plan placed.
+  const atlasWords = entries.atlas.words
+  if (!held.rects || held.rects.size !== atlasWords.byteLength) {
+    held.rects?.destroy()
+    held.rects = device.createBuffer({
+      label: DENSE_LABEL,
+      size: atlasWords.byteLength,
+      usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    })
+    held.group = undefined
+  }
+  // Written before the pipeline is asked: a frame without the marking still hands the raster this frame's tiles (no rect, so no tile drawn).
+  device.queue.writeBuffer(held.rects, 0, atlasWords)
+  const dense = state.pipes.dense()
+  if (!dense.pipeline) return
+  groups.dense ??= state.group(DENSE_LABEL, dense, VSM_COARSE_SPECS, 4)
   held.group ??= device.createBindGroup({
     label: DENSE_LABEL,
     layout: dense.groups[1],
-    entries: [{ binding: 0, resource: { buffer: held.buffer } }],
+    entries: [
+      { binding: 0, resource: { buffer: held.buffer } },
+      { binding: 1, resource: { buffer: held.rects } },
+    ],
   })
   device.queue.writeBuffer(held.buffer, 0, entries.words, 0, entries.count * VSM_DENSE_ENTRY_WORDS)
   pass.setPipeline(dense.pipeline)
   pass.setBindGroup(0, groups.dense)
   pass.setBindGroup(1, held.group)
   pass.dispatchWorkgroups(VSM_DENSE_GROUPS_ACROSS, entries.count)
+  held.marked = true
+}
+
+/** Frees what the dense marking holds: its entries and the atlas buffer; the next classic frame makes them again. */
+function releaseDense(held: MarkingState['dense']) {
+  held.buffer?.destroy()
+  held.rects?.destroy()
+  held.buffer = held.rects = held.group = undefined
 }
 
 /** The marking's dispatches of `frame` into `pass`. */
@@ -1130,6 +1162,9 @@ function encodeMarking(state: MarkingState, pass: GPUComputePassEncoder, frame: 
   // The froxels' buffers (the water's with the scene's) are held while the marking is from them, a
   // frame without a map included.
   if (marking !== 'froxels') state.froxels.destroy()
+  state.dense.marked = false
+  // The atlas buffer is held while the maps are classic.
+  if (marking !== 'dense') releaseDense(state.dense)
   // No shadow map: nothing to mark.
   if (mapCount === 0) return
   fillMarkingParams(state.paramF32, state.paramU32, frame)
@@ -1220,11 +1255,12 @@ export function createVsmMarking(device: GPUDevice, res: VsmResources): VsmMarki
   }
   return {
     encode: (pass, frame) => encodeMarking(state, pass, frame),
+    atlasBuffer: () => (state.dense.marked ? state.dense.rects : undefined),
     destroy() {
       params.destroy()
       perPage.destroy()
       state.froxels.destroy()
-      state.dense.buffer?.destroy()
+      releaseDense(state.dense)
       // Nothing of the last frame's view held past the marking.
       state.pixelsView.release()
       state.strandsView.release()

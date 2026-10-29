@@ -48,7 +48,12 @@ import {
 import { VSM_RENDER_FIRST_SLOT, VSM_RENDER_PARAMS_BYTES } from './renderParams.ts'
 import { RASTER_PASS_MAIN, RASTER_PASS_POST } from '../../../../visibility/raster/contract.ts'
 import type { VsmListName } from './renderLists.ts'
-import { renderCulls, type VsmRenderContext, type VsmRenderCullPipes } from './renderPipes.ts'
+import {
+  RENDER_LABEL,
+  renderCulls,
+  type VsmRenderContext,
+  type VsmRenderCullPipes,
+} from './renderPipes.ts'
 import type { VsmThrottleState } from '../throttle.ts'
 import type { VsmRenderScene } from './renderPass.ts'
 import {
@@ -59,6 +64,16 @@ import {
   type VsmDescent,
   type VsmDescentScene,
 } from '../traversal/traversalPass.ts'
+import {
+  atlasTiers,
+  beginAtlas,
+  copyOutAtlas,
+  drawAtlas,
+  poolTiers,
+  type AtlasFrame,
+  type AtlasRaster,
+} from '../../classic/atlas/atlasRaster.ts'
+import { ATLAS_RASTER_BINDING } from '../../classic/atlas/atlasTileWgsl.ts'
 import { ComputeRun } from '../../../../gpu/core/lazyComputePass.ts'
 import {
   encodeVsmPyramid,
@@ -284,7 +299,6 @@ function softwareGroup(
  *  draws (`vsmPerFrameSet`). */
 function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
   const { device } = ctx,
-    sorted = ctx.buffers.sorted!,
     params = ctx.groups!.params,
     cached = res.layout.cacheEnabled,
     merged = vsmSoftwareMerged(device)
@@ -301,16 +315,22 @@ function rasterTables(res: VsmResources, ctx: VsmRenderContext): RasterTables {
     views0: group(ctx.views.groups[0], VSM_RENDER_VIEWS_SPECS),
     cull0: group(ctx.cull.groups[0], vsmRenderCullSpecs(vsmCullMarks(device))),
     bin0: group(ctx.bin.groups[0], vsmRenderBinSpecs(vsmCullMarks(device))),
-    raster1: device.createBindGroup({
-      layout: ctx.raster.layout1,
-      entries: [
-        ...sequentialEntries([{ buffer: sorted }]),
-        ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_VERTEX_SPECS),
-        ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_FRAGMENT_SPECS),
-        ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_SHARED_SPECS),
-      ],
-    }),
+    raster1: poolRasterGroup(ctx, res, ctx.noBias),
   }
+}
+
+/** The pool raster's group 1 over the tables of `res.current`, its depth bias read from `bias`: zeros in a frame of virtual shadow maps, the atlas buffer in a classic one. */
+function poolRasterGroup(ctx: VsmRenderContext, res: VsmResources, bias: GPUBuffer) {
+  return ctx.device.createBindGroup({
+    layout: ctx.raster.layout1,
+    entries: [
+      ...sequentialEntries([{ buffer: ctx.buffers.sorted! }]),
+      ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_VERTEX_SPECS),
+      ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_FRAGMENT_SPECS),
+      ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_SHARED_SPECS),
+      { binding: ATLAS_RASTER_BINDING, resource: { buffer: bias } },
+    ],
+  })
 }
 
 /** The raster's groups this frame: those over the scene's rows and the lists made again only when
@@ -718,6 +738,7 @@ export function vsmEncodeRaster(
   empty: boolean,
   descent: VsmRasterDescent & { viewBase: number },
   occlusion?: VsmRasterOcclusion,
+  atlas?: { raster: AtlasRaster; res: VsmResources; frame: AtlasFrame },
 ) {
   const { counts } = groups.lists
   const twoPass = !!occlusion?.twoPass && !!groups.tables.occlusion
@@ -737,8 +758,29 @@ export function vsmEncodeRaster(
   // The views the software raster reads, laid where it draws a record and binds no projection data.
   const lay =
     pageCompute && (scene.hardwareEdge ?? 0) > 0 && vsmViewsLaid(ctx.device) ? mostMaps : 0
-  const raster = (label: string) =>
-    encodeRaster(encoder, label, tiers, ctx.target, scene.pageGroup, groups.tables.raster1, args)
+  // A classic frame's pool raster (the voxel rows, and every row while the atlas pipelines compile) biases its depth by the atlas buffer's words.
+  const biasBuffer = atlas ? atlas.frame.buffer : ctx.noBias
+  const poolBias = atlas ? poolRasterGroup(ctx, atlas.res, biasBuffer) : groups.tables.raster1
+  // The patches' windows read the same words.
+  tessellation?.bias(biasBuffer)
+  const poolRaster = (label: string, drawn: readonly number[]) => {
+    const { pageGroup } = scene
+    encodeRaster(encoder, label, [tiers[0], drawn], ctx.target, pageGroup, poolBias, args)
+  }
+  // A classic frame draws into the atlas, the voxel rows apart in the pool (`beginAtlas`).
+  const atlasPasses =
+    atlas && beginAtlas(encoder, atlas.raster, atlas.res, atlas.frame, ctx.buffers.sorted!)
+  const raster = (label: string) => {
+    if (!atlasPasses) {
+      poolRaster(label, tiers[1])
+      return
+    }
+    drawAtlas(encoder, atlasPasses, label, atlasTiers(tiers[1]), scene.pageGroup, args)
+    // The pyramid of the occlusion is built over the pool after each raster call; else the tiles join it once, after the last.
+    if (twoPass) copyOutAtlas(encoder, atlasPasses, label)
+    const voxels = poolTiers(tiers[1])
+    if (voxels.length) poolRaster(label, voxels)
+  }
   const work: ViewPassWork = {
     ctx,
     groups,
@@ -756,6 +798,7 @@ export function vsmEncodeRaster(
     raster,
   }
   for (let p = 0; p < passes; p++) encodeOneViewPass(encoder, work, p)
+  if (atlasPasses && !twoPass) copyOutAtlas(encoder, atlasPasses, RENDER_LABEL)
 }
 
 const secondRun = new ComputeRun()

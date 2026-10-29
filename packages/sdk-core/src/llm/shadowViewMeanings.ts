@@ -248,6 +248,22 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "The slope-scaled depth bias of a spot light's classic shadow (3, the default). Read only with shadowVirtualEnable off.",
   shadowMaxSlopeScaleDepthBias:
     'The most the slope of a surface to the light adds to the depth bias of a classic shadow, as a number of times its slope bias (1, the default), for every light. Read only with shadowVirtualEnable off.',
+  shadowCsmCaching:
+    "Whether a sun's classic cascades keep their depths from one image to the next, so that a cascade that slides with the view reuses the pages it still covers (false, the default: every cascade is drawn whole each image). Read only with shadowVirtualEnable off.",
+  shadowCsmScrollingOverlapAreaThrottle:
+    "With shadowCsmCaching on, the share (0 to 1, 0.75 the default) of a cascade's cached area that its map must still cover for the cached depths to be reused as they slide with the view; below it the cascade's cache is drawn again. Read only with shadowVirtualEnable off.",
+  shadowMaxCsmScrollingStaticSubjects:
+    'With shadowCsmCaching on, the most static casters (5, the default) that a sliding cascade may have to draw again, in the strip it newly covers, before its cache is drawn again whole. Read only with shadowVirtualEnable off.',
+  shadowCacheWholeScene:
+    "Whether a light's classic shadow keeps the depths of its static casters from one image to the next, so that only the movable casters are drawn again (true, the default). Read only with shadowVirtualEnable off.",
+  shadowMaxPointCacheUpdatesPerFrame:
+    'The most point lights a frame whose classic shadow is drawn again in full because its resolution changed (-1, the default, no limit); the others keep their previous resolution that frame. Read only with shadowVirtualEnable off.',
+  shadowMaxSpotCacheUpdatesPerFrame:
+    'The most spot lights a frame whose classic shadow is drawn again in full because its resolution changed (-1, the default, no limit); the others keep their previous resolution that frame. Read only with shadowVirtualEnable off.',
+  shadowWholeSceneCacheMb:
+    "The memory the static layer of the classic shadow maps' depth atlas may take, in megabytes (150, the default); the dynamic layer is as large, and the atlas is held to the device's texture size. Read only with shadowVirtualEnable off.",
+  shadowCachedCastFromMovable:
+    "Whether movable casters are drawn in the classic shadow of the point and spot lights that keep their static depths (true, the default); false leaves them out of those lights' shadows. Read only with shadowVirtualEnable off.",
   shadowSpotLightTransitionScale:
     'The same as shadowTransitionScale for a spot light (60, the default). Read only with shadowVirtualEnable off.',
   shadowSpotLightReceiverBias:

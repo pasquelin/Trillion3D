@@ -47,7 +47,7 @@ export const cascadeDistance = (sun: SunCascadeSettings, view: ViewCascadeSettin
 /** How many cascades the sun is drawn in: its own count held to the view's, none where the distance is 0. */
 export const cascadeCount = (sun: SunCascadeSettings, view: ViewCascadeSettings) =>
   cascadeDistance(sun, view) > 0
-    ? Math.min(Math.max(0, Math.trunc(sun.cascades)), Math.trunc(view.maxCascades))
+    ? clamp(Math.trunc(sun.cascades), 0, Math.trunc(view.maxCascades))
     : 0
 
 /** Where split `index` lies: 0 is the view's near plane, `count` the end of the last cascade. */
@@ -82,7 +82,7 @@ export function cascadeRange(
   const near = splitDistance(sun, view, index)
   let far = splitDistance(sun, view, index + 1)
   let fadePlane = far
-  let fadeLength = (far - near) * transition
+  const fadeLength = (far - near) * transition
   if (index < count - 1) far += fadeLength
   // The last cascade fades to nothing: its fade plane moves in, its range does not grow.
   else fadePlane -= fadeLength
@@ -102,4 +102,16 @@ export function cascadeSphere(near: number, far: number, tanX: number, tanY: num
   const depth = clamp(far - ((nearDiagonal - farDiagonal) / (2 * length) + length * 0.5), near, far)
   const reach = Math.max(farDiagonal + (far - depth) ** 2, nearDiagonal + (depth - near) ** 2)
   return { depth, radius: Math.max(Math.sqrt(reach), 1) }
+}
+
+/** The bounding sphere of cascade `index` of `sun` seen by `view` (`tanX`, `tanY` the tangents of the view's half fields): its centre's depth along the view axis and its radius. */
+export function cascadeSphereOf(
+  sun: SunCascadeSettings,
+  view: ViewCascadeSettings,
+  index: number,
+  tanX: number,
+  tanY: number,
+) {
+  const range = cascadeRange(sun, view, index)
+  return cascadeSphere(range.near, range.far, tanX, tanY)
 }

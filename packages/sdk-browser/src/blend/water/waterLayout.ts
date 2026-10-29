@@ -43,7 +43,12 @@ export const WATER_TILE_BINDINGS = {
   list: 4,
   args: 5,
   ids: 6,
+  dispatch: 7,
 } as const
+
+/** The bindings of group 0 of the sun shadow's draw over the listed tiles (`waterSunShadow.ts`): the uniform, the
+ *  suns' mask the projection wrote (`vsm/projection/waterSunProjection.ts`) and the list. */
+export const WATER_SHADOW_BINDINGS = { params: 0, mask: 1, tiles: 2 } as const
 
 /** The pixels across a tile of the lists (`waterTileKernels`) and the water's surface targets' formats:
  *  the normal and the roughness in half floats, the reflectance and the water flag in bytes. */
@@ -69,8 +74,9 @@ export const WATER_REFLECTION_CODE = {
  * read (`y`), whether the clouds shade the sun on the water (`z`); `distanceRange`, `fresnelRange` and
  * `depthRange` the refraction culling's, each the two ends of its fade (`x`, `y`; `z` 1 where it is on);
  * `tiles` the tiles across and down the target (`xy`) and its size in pixels (`zw`); `filters` whether the
- * sun's shadow on the water is the full trace (`x`, `singleLayerWaterVsmFiltering`) and whether the sun is kept
- * apart from the rest of the water's light (`y`, the separated sun).
+ * sun's shadow on the water is the projection's (`x`, `singleLayerWaterVsmFiltering`, set for an image that
+ * projects it), whether the sun is kept apart from the rest of the water's light (`y`, the separated sun) and the
+ * layer of the projection's mask the forward sun is (`z`).
  */
 const FIELDS = [
   ['inverseViewProjection', 'mat4x4f'],

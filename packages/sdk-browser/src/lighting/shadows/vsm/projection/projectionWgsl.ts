@@ -31,7 +31,8 @@
  * THE INPUT TYPE (`../inputType.ts`). Both passes are one program each of the pixels they read, as the
  * reference's one shader of its input type: the opaque surfaces of the view's tiles, or the hair strands
  * over the list of all the tiles with strands (an indirect dispatch, `VSM_STRANDS_PIXEL_OF_WGSL`), the
- * strands' own masks written. A strand is spared the back-face cull (`vsmProjectionRegionWgsl`) and the
+ * strands' own masks written, or the single-layer water's surface over the list of the tiles that hold water
+ * (the suns' pass alone, `VSM_WATER_PIXEL_OF_WGSL`). A strand is spared the back-face cull (`vsmProjectionRegionWgsl`) and the
  * screen ray (`VsmTraceHost.input`), reads no thin transmission, and is moved toward each light by the
  * normal bias, the light's direction its normal (`vsmStrandReceiverOf`).
  */
@@ -51,6 +52,7 @@ import { VSM_PROJECTION_SUBSURFACE_WGSL, vsmProjectionRegionWgsl } from './proje
 import {
   VSM_PROJECTION_PIXEL_OF_WGSL,
   VSM_STRANDS_PIXEL_OF_WGSL,
+  VSM_WATER_PIXEL_OF_WGSL,
   vsmLocalsEntryWgsl,
   vsmSunsEntryWgsl,
 } from './projectionEntryWgsl.ts'
@@ -129,8 +131,9 @@ export const VSM_PROJECTION_BINDING = {
   /** The per-light pass alone (`perLightProjectionWgsl.ts`): the light's record (`perLightRecord.ts`), a
    *  uniform read at a dynamic offset. */
   perLight: 16,
-  /** The input `strands` alone (`../inputType.ts`): the tiles' counts, a uniform, and the list of all the
-   *  tiles with strands; the depth of the nearest strand takes the opaque depth's binding (`sceneDepth`). */
+  /** The inputs `strands` and `water` (`../inputType.ts`): the tiles' counts, a uniform, and the list of all the
+   *  tiles with strands or of the tiles that hold water; the depth of the nearest strand or of the water's surface
+   *  takes the opaque depth's binding (`sceneDepth`), the water's normals the normals' (`normalRough`). */
   strandsCounts: 17,
   strandsTiles: 18,
   /** The local lights' pass alone, where a capsule shadow casts (`capsule`): a layer a light of the frame, the share of the light the capsules let through
@@ -172,6 +175,15 @@ if (HAIR_TILE_LISTS > 4 || HAIR_TILE_ALL !== 0)
     'the strands’ projection reads the tiles’ counts as one vec4u, the list of all of them from 0',
   )
 
+/** The pass group's bindings the suns' pass of the input `water` shares: the view, the water's depth and
+ *  normals, the tiles' count and their list. */
+const WATER_BINDINGS_WGSL = /* wgsl */ `
+@group(1) @binding(${VSM_PROJECTION_BINDING.view}) var<uniform> vsmView:VsmProjectionView;
+@group(1) @binding(${VSM_PROJECTION_BINDING.sceneDepth}) var vsmSceneDepth:texture_depth_2d;
+@group(1) @binding(${VSM_PROJECTION_BINDING.normalRough}) var vsmNormalRough:texture_2d<f32>;
+@group(1) @binding(${VSM_PROJECTION_BINDING.strandsCounts}) var<uniform> vsmWaterCount:vec4u;
+@group(1) @binding(${VSM_PROJECTION_BINDING.strandsTiles}) var<storage,read> vsmWaterTiles:array<u32>;`
+
 /** The local lights' pass of the input `strands` reads the cells of the shadowed lights' grid alone, the
  *  view grid's head with them (`lightGridWgsl.ts`): with the tables of group 0, the lights and the tiles'
  *  list, it holds the eight storage buffers a stage is given at least. */
@@ -197,8 +209,19 @@ export const traceDeps = (layout: VsmLayout, kinds: number, input: VsmInputType 
 ]
 
 /** The first step of a pass's kernels over the pixels of `input`. */
-const pixelOfInput = (input: VsmInputType) =>
-  input === 'strands' ? VSM_STRANDS_PIXEL_OF_WGSL : VSM_PROJECTION_PIXEL_OF_WGSL
+const PIXEL_OF_INPUT = {
+  gbuffer: VSM_PROJECTION_PIXEL_OF_WGSL,
+  strands: VSM_STRANDS_PIXEL_OF_WGSL,
+  water: VSM_WATER_PIXEL_OF_WGSL,
+} as const satisfies Record<VsmInputType, WgslDecl>
+const pixelOfInput = (input: VsmInputType) => PIXEL_OF_INPUT[input]
+
+/** The bindings of the suns' pass over the pixels of `input`. */
+const BINDINGS_OF_INPUT = {
+  gbuffer: BINDINGS_WGSL,
+  strands: STRANDS_BINDINGS_WGSL,
+  water: WATER_BINDINGS_WGSL,
+} as const satisfies Record<VsmInputType, string>
 
 export const projectionCommon = (
   layout: VsmLayout,
@@ -229,11 +252,11 @@ export function vsmSunsProjectionWgsl(
   hair = false,
 ) {
   const prefiltered = layout.prefilteredDistant
-  const strands = input === 'strands'
+  const surfaces = input === 'gbuffer'
   return wgslProgram(
     [
       PROJECTION_VIEW,
-      strands ? STRANDS_BINDINGS_WGSL : BINDINGS_WGSL,
+      BINDINGS_OF_INPUT[input],
       `@group(1) @binding(${VSM_PROJECTION_BINDING.mask}) var vsmSunMask:texture_storage_2d_array<${VSM_SUN_MASK_FORMAT},write>;${hair ? HAIR_SHADOW_BINDING_WGSL : ''}`,
       ...(prefiltered
         ? [
@@ -243,7 +266,7 @@ fn vsmFilterableMergedLoad(i:u32)->u32{return vsmFilterableMerged[i];}`,
         : []),
       vsmProjectionVoteWgsl(subgroups),
       VSM_PROJECTION_PIXEL_WGSL,
-      ...(strands ? [] : [VSM_PROJECTION_OPAQUE_WGSL]),
+      ...(surfaces ? [VSM_PROJECTION_OPAQUE_WGSL] : []),
       vsmProjectionRegionWgsl(input),
       VSM_PROJECTION_SUBSURFACE_WGSL,
       vsmSunsEntryWgsl(prefiltered, input, hair),
@@ -252,7 +275,7 @@ fn vsmFilterableMergedLoad(i:u32)->u32{return vsmFilterableMerged[i];}`,
       ...projectionCommon(layout, pixelOfInput(input)),
       ...traceDeps(layout, VSM_TRACE_KINDS_SUN, input),
       ...(subgroups ? [SUBGROUP_ALL_WGSL] : []),
-      ...(strands ? [FLAT_INDEX_WGSL] : []),
+      ...(surfaces ? [] : [FLAT_INDEX_WGSL]),
       ...(prefiltered
         ? [vsmProjectionPrefilteredWgsl(vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout))]
         : []),

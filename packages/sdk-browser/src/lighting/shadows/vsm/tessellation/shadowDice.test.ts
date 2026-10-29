@@ -15,6 +15,8 @@ import {
   VISIBLE_LISTS,
   WINDOW_LENS_AT,
   WINDOW_PAGE_SLOTS,
+  WINDOW_BIAS_AT,
+  WINDOW_BIAS_WORDS,
   WINDOW_POOL_AT,
   WINDOW_VIEW_AT,
   WINDOW_VIEW_RECORDS,
@@ -37,7 +39,12 @@ import {
   VSM_TESS_DICE_TESS_GROUP,
   vsmTessDiceWgsl,
 } from './shadowDiceWgsl.ts'
-import { VSM_WINDOW_SPECS, vsmWindowFillSource } from './shadowWindowWgsl.ts'
+import {
+  VSM_WINDOW_BIAS_BINDING,
+  VSM_WINDOW_BIAS_GROUP,
+  VSM_WINDOW_SPECS,
+  vsmWindowFillSource,
+} from './shadowWindowWgsl.ts'
 
 const DICE = vsmTessDiceWgsl(SUNS_LAYOUT)
 
@@ -76,6 +83,8 @@ test('the dicing declares what it reads in the groups its layouts list, and bind
     wgslBindingNumbers(fill, 1),
     bindings(vsmBindGroupLayoutEntries(VSM_WINDOW_SPECS, 4)),
   )
+  // The fill reads the maps' draw bias from the atlas buffer, a group of its own.
+  assert.deepEqual(wgslBindingNumbers(fill, VSM_WINDOW_BIAS_GROUP), [VSM_WINDOW_BIAS_BINDING])
   assert.ok(
     TESS_PROGRAMS.shadowDice.every((name) => name !== 'sampler'),
     'the sampler is the page group’s',
@@ -226,4 +235,18 @@ test('a micro-triangle is rastered on the texels a CPU reference covers: its pix
       assert.ok(Math.abs(bits - depth) < 1e-3, `${key}: ${bits} against ${depth}`)
     }
   }
+})
+
+test('a patch’s vertex is lifted by the draw bias its window holds, the lift of the pool raster’s own function', () => {
+  const fill = vsmWindowFillSource(SUNS_LAYOUT)
+  // The fill lays the bias words after the lens, from the atlas buffer and the map’s record.
+  assert.match(fill, /vsmDrawBiasOf\(vsmRecordMap\(record\)\)/)
+  assert.match(fill, /vsmDrawDepthPerDistance\(raw\.lightViewToClip\)/)
+  assert.match(
+    DICE,
+    /fn diceClip\([^)]*\)->vec4f\{[^}]*vsmDrawLift\(diceBias\.xyz,normalize\(at\.point\.normal\),diceAxis\)/,
+  )
+  assert.match(DICE, /vsmSoftwarePlaceLifted\(/)
+  assert.equal(WINDOW_BIAS_AT, WINDOW_VIEW_AT + WINDOW_VIEW_WORDS)
+  assert.equal(WINDOW_POOL_AT, WINDOW_BIAS_AT + WINDOW_BIAS_WORDS)
 })

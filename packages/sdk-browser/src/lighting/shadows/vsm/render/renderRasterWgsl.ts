@@ -54,6 +54,7 @@ import {
   SHADOW_TILE_POOL_WGSL,
   materialDeclarations,
 } from '../../../../materials/virtual/wgsl.ts'
+import { DRAW_BIAS_WGSL } from '../../classic/atlas/atlasTileWgsl.ts'
 import { VSM_CONSTANTS_WGSL, VSM_PAGE_TEXELS } from '../constants.ts'
 import { VSM_PAGE_ADDRESS_WGSL } from '../pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from '../projection/projectionDataWgsl.ts'
@@ -219,7 +220,27 @@ fn vsmRenderJoin(window:vec3u,texel:vec2u,depth:u32){
 `,
 )
 
-const renderRasterVertex = (wpo: WpoSet) => /* wgsl */ `${PAGE_BINDING.indices}
+/** How a vertex stage places a record: the window it hands the fragment, the condition (if any) that drops the record whole, and the position of a clip position on the target. */
+export interface RasterPlace {
+  readonly window: string
+  readonly position: string
+  /** The clip position the fragment reads (before the placing), from `rawClip` and what the stage holds (`record`, `raw`, `page`, `h`, `id`, `world`); and the condition under which the stage reads the row's surface (normals, UVs). */
+  readonly clip: string
+  readonly surface: string
+}
+/** The pool's: the record's window of pages, none dropped, the depth bias of its map (`DRAW_BIAS_WGSL`; none in a frame of virtual shadow maps, whose atlas binding holds zeros). */
+export const POOL_PLACE: RasterPlace = {
+  window: 'vsmRenderWindowOf(record)',
+  position: 'vsmRenderRasterPosition(clip,record)',
+  clip: 'vsmAtlasBiasedClip(rawClip,record,raw,page,h,id)',
+  surface: 'pageSurfaceRead(page)||vsmAtlasBiased(record)',
+}
+
+/** The vertex stage of the casters' draw, placing each record as `place` says. */
+export const renderRasterVertex = (
+  wpo: WpoSet,
+  place: RasterPlace = POOL_PLACE,
+) => /* wgsl */ `${PAGE_BINDING.indices}
 ${PAGE_BINDING.positions}
 ${PAGE_BINDING.pages}
 ${materialDeclarations()}
@@ -230,14 +251,14 @@ override VSM_RENDER_CORNERS:u32=96u;
  let record=vsmRenderRecords[vertexIndex/VSM_RENDER_CORNERS];
  let recordCorner=vertexIndex%VSM_RENDER_CORNERS;
  var out:VsmRenderOut;
- out.row=record.x;out.uv=vec2f(0.0);out.window=vsmRenderWindowOf(record);out.clip=vec4f(0.0);
+ out.row=record.x;out.uv=vec2f(0.0);out.window=${place.window};out.clip=vec4f(0.0);
  // A tessellated record's triangles are not drawn: its patches are (\`vsmTessellatedVs\`).
  if(vsmRecordTessellated(record)){out.position=vsmRenderNan();return out;}
  let page=pages[record.x];
  out.masked=page.flags&${FLAG_MASK}u;
  if(recordCorner>=page.indexCount){out.position=vsmRenderNan();return out;}
  let raw=vsmProjectionData[vsmRecordMap(record)];
-${wpo.programs.length ? ' // The map decides whether the offset of an object is drawn in it (`wpoAllowed`).\n wpoThreshold=raw.wpoThreshold;\n' : ''} let h=pageHeaderFor(page,pageSurfaceRead(page));
+${wpo.programs.length ? ' // The map decides whether the offset of an object is drawn in it (`wpoAllowed`).\n wpoThreshold=raw.wpoThreshold;\n' : ''} let h=pageHeaderFor(page,${place.surface});
  let tri=pageTriangle(page,h,recordCorner/3u);
  var corner=recordCorner%3u;
  if(corner!=0u&&vsmRecordSwapped(record)){corner=3u-corner;}
@@ -245,8 +266,9 @@ ${wpo.programs.length ? ' // The map decides whether the offset of an object is 
  let world=vsmRenderWorld(page,h,id);
  // Translated world of the VSM view, then its clip, placed on the record's window.
  let shifted=vsmRenderShifted(raw,world);
- let clip=vsmRenderClip(raw,shifted);
- out.position=vsmRenderRasterPosition(clip,record);out.clip=clip;
+ let rawClip=vsmRenderClip(raw,shifted);
+ let clip=${place.clip};
+ out.position=${place.position};out.clip=clip;
  // The fragment's cutout reads the UV of a masked row alone (\`maskKeep\`).
  if((page.flags&${UV_READ}u)==${UV_READ}u){out.uv=pageMaskUv(page,h,id);}
  return out;
@@ -293,6 +315,7 @@ ${renderRasterVertex(wpo)}${renderRasterFragment(masks)}
       maskKeepWgsl(maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL), masks),
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
+      DRAW_BIAS_WGSL,
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_SHARED_SPECS, layout),

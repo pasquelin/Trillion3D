@@ -6,10 +6,12 @@ import { preparedPipeline, type PreparedPipeline } from '../../lighting/deferred
 import {
   WATER_COPY_BINDINGS as C,
   WATER_MASK_BINDINGS as M,
+  WATER_SHADOW_BINDINGS as H,
   WATER_TILE_BINDINGS as T,
 } from './waterLayout.ts'
 import { waterCopyShader, waterMaskShader } from './waterPassWgsl.ts'
 import { waterTileKernels } from './waterTileWgsl.ts'
+import { sunShadowStage } from './waterSunShadow.ts'
 
 /** The format of the copy's linear depth, of the mask of the refraction and of the separated sun. */
 export const WATER_DEPTH_FORMAT: GPUTextureFormat = 'r32float'
@@ -58,6 +60,19 @@ const maskLayout = (device: GPUDevice) =>
     ],
   })
 
+/** The layout of the group 0 of the sun's shadow draw. */
+const sunShadowLayout = (device: GPUDevice) =>
+  device.createBindGroupLayout({
+    label: 'Trillion3D water sun shadow',
+    entries: [
+      entry(H.params, VERTEX_FRAGMENT, { buffer: { type: 'uniform' } }),
+      entry(H.mask, STAGE.fragment, {
+        texture: { sampleType: 'unfilterable-float', viewDimension: '2d-array' },
+      }),
+      entry(H.tiles, STAGE.vertex, { buffer: { type: 'read-only-storage' } }),
+    ],
+  })
+
 /** The entries every tile kernel binds, then `extra`. */
 const kernelEntries = (...extra: GPUBindGroupLayoutEntry[]) => [
   entry(T.params, STAGE.compute, { buffer: { type: 'uniform' } }),
@@ -73,7 +88,7 @@ const storage = (binding: number) => entry(binding, STAGE.compute, { buffer: { t
 function kernelLayouts(device: GPUDevice) {
   const kernelLayout = device.createBindGroupLayout({
     label: 'Trillion3D water tiles',
-    entries: kernelEntries(storage(T.mask), storage(T.list), storage(T.args)),
+    entries: kernelEntries(storage(T.mask), storage(T.list), storage(T.args), storage(T.dispatch)),
   })
   const idsLayout = device.createBindGroupLayout({
     label: 'Trillion3D water identifiers',
@@ -181,7 +196,7 @@ const kernelStage = (
  * The water pass's own programs, one set a device (`waterScenePipelines`): the copies of the scene without
  * the water — its linear depth, and its colour over the whole target (`color`) or the tiles of the list
  * (`colorTiled`) — and the mask of the refraction (`mask`), each on a group 0 of its own
- * (`waterPassWgsl.ts`); and the tiles' kernels (`marks`, `lists`, the identifiers' `ids`) on theirs
+ * (`waterPassWgsl.ts`); the draw of the sun's shadow over the listed tiles (`sunShadow`, `waterSunShadow.ts`); and the tiles' kernels (`marks`, `lists`, the identifiers' `ids`) on theirs
  * (`waterTileWgsl.ts`), one module for the three, and the list's subgroup variant, compiled when it is first
  * asked (`waved`). The groups are made once.
  */
@@ -191,11 +206,13 @@ export const waterScenePipelines = oncePerDevice((device) => {
   const stages = {
     ...copyStages(device),
     mask: maskStage(device),
+    sunShadow: sunShadowStage(device, sunShadowLayout(device), WATER_SUN_FORMAT),
     kernelLayout,
     idsLayout,
     ids: kernelStage(device, plain, 'csWaterIds', idsLayout),
     marks: kernelStage(device, plain, 'csWaterMark', kernelLayout),
     lists: kernelStage(device, plain, 'csWaterList', kernelLayout),
+    dispatch: kernelStage(device, plain, 'csWaterDispatch', kernelLayout),
   }
   // The subgroup variant of the list, made at its first ask where the device grants subgroups.
   let waved: PreparedPipeline<GPUComputePipeline> | undefined
@@ -207,6 +224,8 @@ export const waterScenePipelines = oncePerDevice((device) => {
     stages.ids,
     stages.marks,
     stages.lists,
+    stages.dispatch,
+    stages.sunShadow.pipeline,
   ]
   return {
     ...stages,

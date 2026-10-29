@@ -6,6 +6,8 @@ import { DEFORMATION_PASS } from '../../deformation/pass.ts'
 import { releaseLightProfiles } from '../../lighting/lightProfile/frame.ts'
 import { releaseRectLightAtlas } from '../../lighting/rectLightAtlas/frame.ts'
 import { disposeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
+import { disposeShadowCasterBounds } from '../../lighting/shadows/vsm/debug/casterBounds.ts'
+import { disposeClipmapVirtualSpace } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
 import { releaseAmbientCubemap } from '../../lighting/deferred/ambientCubemapFrame.ts'
 import { disposeRootWorlds } from '../../placement/roots/rootWorlds.ts'
 import { disposeRootBoxes } from '../../placement/roots/rootBoxes.ts'
@@ -241,6 +243,8 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   releaseLightProfiles(rt)
   releaseRectLightAtlas(rt)
   disposeRectLightAtlasDebug(rt)
+  disposeShadowCasterBounds(rt)
+  disposeClipmapVirtualSpace(rt)
   releaseAmbientCubemap(rt)
   rt.lights.buffer?.destroy()
 }

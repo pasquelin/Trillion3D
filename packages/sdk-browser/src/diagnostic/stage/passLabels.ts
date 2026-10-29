@@ -93,6 +93,7 @@ export const WATER_MASK_PASS = 'Trillion3D water refraction mask'
 export const WATER_PASS = 'Trillion3D water'
 export const WATER_TILES_PASS = 'Trillion3D water tiles'
 export const WATER_VELOCITY_PASS = 'Trillion3D water velocity'
+export const WATER_SUN_SHADOW_PASS = 'Trillion3D water sun shadow'
 export const WATER_COMPOSITE_PASS = 'Trillion3D water composite'
 export const BLEND_ORDER_PASS = 'Trillion3D blend order and expansion'
 export const DISPLAY_MASK_PASS = 'Trillion3D display mask'
@@ -328,6 +329,7 @@ export const ENGINE_PASSES = [
   definePass({ label: WATER_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: WATER_TILES_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: WATER_VELOCITY_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: WATER_SUN_SHADOW_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: WATER_COMPOSITE_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSPARENT_COMPACTION_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSPARENT_OCCLUSION_PASS, stage: 'transparents', block: 'other' }),

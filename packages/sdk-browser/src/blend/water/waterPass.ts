@@ -11,6 +11,8 @@ import {
   encodeRefractionMask,
   encodeSceneDepth,
   encodeShading,
+  encodeShadedTiles,
+  encodeSunShadow,
   encodeTileList,
   handOverDepth,
 } from './waterPassPhases.ts'
@@ -33,6 +35,10 @@ import {
  *  5. the mask of the refraction (`WATER_MASK_PASS`) where a culling asks for it;
  *  6. the water shaded over the scene (`WATER_PASS`, `fsWater`): volume and lights, no blend, its
  *     surface written beside;
+ *  6a. without the depth pass, the tiles listed from the shaded depth (`encodeShadedTiles`) and the water's depth kept;
+ *  6b. the sun's shadow on the water (`WATER_SUN_SHADOW_PASS`), with `singleLayerWaterVsmFiltering`: the shadow maps
+ *     projected onto the water's surface over the listed tiles, then the forward sun's share multiplied into
+ *     the separated sun;
  *  7. the reflection composite (`WATER_COMPOSITE_PASS`, `fsWaterComposite`): the reflection of that
  *     surface added over the water, over the target or the listed tiles, unless the water reflects nothing;
  *  8. the water's depth is the scene's from here on, so that every layer drawn after is hidden by it.
@@ -56,6 +62,8 @@ export function encodeWater(
     encodeFogBehindWater(frame) +
     encodeRefractionMask(frame) +
     encodeShading(frame) +
+    encodeShadedTiles(frame) +
+    encodeSunShadow(frame) +
     encodeComposite(frame)
   handOverDepth(frame)
   return drawn

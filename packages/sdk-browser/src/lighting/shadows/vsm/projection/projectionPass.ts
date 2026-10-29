@@ -70,7 +70,13 @@ export interface VsmProjectionFrame {
   /** The view's rays and steps of a trace (`VsmProjectionView.traceRays`); absent, the defaults'. */
   trace?: VsmTraceCounts
   /** The classic shadows' words (`shadowVirtualEnable` off, `../../classic/classicView.ts`); absent, none. */
-  classic?: { suns: readonly ClassicSun[]; nearCentimetres: number; settings: ClassicSettings }
+  classic?: {
+    suns: readonly ClassicSun[]
+    nearCentimetres: number
+    settings: ClassicSettings
+    /** The resolution the cascades are drawn at (`classic/atlas/atlasPlan.ts` `cascadeResolutionIn`). */
+    cascadeResolution: number
+  }
   /** The lights the passes project, the suns first (≤ `VSM_PROJECTION_MAX_PASS_LIGHTS`). */
   lights: readonly VsmProjectionLight[]
 }

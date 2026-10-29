@@ -85,7 +85,7 @@ export interface EngineVsm {
    *  kept as cached (`finishVirtualShadowFrame`). */
   renderedPlan: VsmFramePlan | undefined
   /** The memory limits already said for these maps, by what they held back. */
-  said: Set<'raster' | 'mask'>
+  said: Set<'raster' | 'mask' | 'atlas'>
   /** The frame a pool drawn short of the full one may ask to grow again at (`vsmGrant.ts`). */
   regrowFrame: number
   /** The pool size the setting asked when the set was made (`vsmAsked`): another size asked makes

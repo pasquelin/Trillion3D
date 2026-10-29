@@ -10,8 +10,7 @@
 import { wgslFn } from '../../../../../math/src/wgsl/decl.ts'
 import { SUBSURFACE_FLAG, isSubsurfaceModel } from '../../../materials/surface/subsurface.ts'
 
-/** Whether a pixel of surface flags `flags` is of a subsurface model (`isSubsurfaceModel`, the rule the
- *  distance-field cascade shares). */
+/** Whether a pixel of surface flags `flags` is of a subsurface model (`isSubsurfaceModel`). */
 export const vsmSubsurfaceModel = wgslFn(
   'vsmSubsurfaceModel',
   [isSubsurfaceModel],

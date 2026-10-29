@@ -204,7 +204,10 @@ function viewClipmapConfig(shadows: ShadowValues) {
   config.wpoDisable = shadows.shadowClipmapWpoDisableDistance
   config.wpoLodBias = shadows.shadowClipmapWpoDisableDistanceLodBias
   config.wpoInvalidatesOnScale = shadows.shadowClipmapWpoDisableDistanceInvalidateOnScaleChange
-  config.forceInvalidate = shadows.shadowForceInvalidateDirectional
+  // Classic cascades are drawn whole each image unless `shadowCsmCaching` keeps them (the pages a sliding cascade still covers are then reused).
+  config.forceInvalidate =
+    shadows.shadowForceInvalidateDirectional ||
+    (!shadows.shadowVirtualEnable && !shadows.shadowCsmCaching)
   config.cullTightly = shadows.shadowClipmapCullDynamicTightly
   config.useCover = shadows.shadowUseReceiverMaskDirectional
   config.orthoEstimateLevels = shadows.shadowOrthoEstimateClipmapLevels

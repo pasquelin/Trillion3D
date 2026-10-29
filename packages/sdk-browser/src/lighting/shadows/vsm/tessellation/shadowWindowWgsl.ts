@@ -6,6 +6,7 @@ import {
   ARG_WINDOWS,
   OCCLUSION_POST,
   WINDOW_LENS_AT,
+  WINDOW_BIAS_AT,
   WINDOW_LENS_WORDS,
   WINDOW_PAGE_SLOTS,
   WINDOW_POOL_AT,
@@ -13,6 +14,7 @@ import {
   WINDOW_WORDS,
 } from '../../../../visibility/tessellation/contract.ts'
 import { TESS_STATE_WGSL, TESS_WORD4_WGSL } from '../../../../visibility/tessellation/queueWgsl.ts'
+import { DRAW_LIFT_WGSL, atlasTileWgsl } from '../../classic/atlas/atlasTileWgsl.ts'
 import { VSM_VIEW_LENS_WGSL } from '../invalidation/boxCullWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from '../projection/projectionDataWgsl.ts'
 import { VSM_RENDER_RECORD_WGSL, VSM_VIEW_WORDS_WGSL } from '../render/renderParamsWgsl.ts'
@@ -47,6 +49,11 @@ export const VSM_WINDOW_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'uniforms', binding: 2 },
 ]
 
+/** The binding of the atlas buffer in group 2 of the fill: the depth bias of the maps the classic atlas draws, zeros in a frame of virtual shadow maps. */
+export const VSM_WINDOW_BIAS_BINDING = 0
+/** The fill's group of the bias: the atlas buffer (`atlasTileWgsl`), read in the compute stage. */
+export const VSM_WINDOW_BIAS_GROUP = 2
+
 /**
  * THE WINDOWS' FILL, a group a window the chain opened (`vsmTessShadowArgs` sizes it) once the levels are
  * down: the record the seeding wrote names its map and its window of pages; the group lays in the window the
@@ -56,7 +63,7 @@ export const VSM_WINDOW_SPECS: readonly VsmBindingSpec[] = [
  * (`shadowDiceWgsl.ts`) reads them there, binding neither the records nor the projections nor the page table.
  *
  * Group 0 the tessellation's (`TESS_PROGRAMS.shadowWindow`: its uniform and `tess`, never the dispatches it is launched from), 1 the maps'
- * (`VSM_WINDOW_SPECS`).
+ * (`VSM_WINDOW_SPECS`), 2 the atlas buffer the bias is read from.
  */
 const FILL = `@compute @workgroup_size(WORKGROUP_THREADS) fn vsmTessWindowFill(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32,@builtin(num_workgroups) n:vec3u){
  let index=flatIndex(group,n,1u);
@@ -74,6 +81,15 @@ const FILL = `@compute @workgroup_size(WORKGROUP_THREADS) fn vsmTessWindowFill(@
   let words=vec4u(bitcast<u32>(lens.focal),bitcast<u32>(lens.near),select(0u,1u,lens.perspective),0u);
   for(var k=0u;k<${WINDOW_LENS_WORDS}u;k++){atomicStore(&tess[at+${WINDOW_LENS_AT}u+k],words[k]);}
  }
+ if(lane==VSM_RENDER_SOFTWARE_VIEW_RECORDS+1u){
+  let bias=vsmDrawBiasOf(vsmRecordMap(record));
+  let words=vec4u(bitcast<u32>(bias.x),bitcast<u32>(bias.y),bitcast<u32>(bias.z),bitcast<u32>(vsmDrawDepthPerDistance(raw.lightViewToClip)));
+  for(var k=0u;k<4u;k++){atomicStore(&tess[at+${WINDOW_BIAS_AT}u+k],words[k]);}
+ }
+ if(lane==VSM_RENDER_SOFTWARE_VIEW_RECORDS+2u){
+  let words=bitcast<vec4u>(vec4f(raw.lightDirection,0.0));
+  for(var k=0u;k<4u;k++){atomicStore(&tess[at+${WINDOW_BIAS_AT}u+4u+k],words[k]);}
+ }
  // Only the slots in the record's rect are written: the dicing takes the others for none (\`vsmRenderWindowHas\`).
  for(var slot=lane;slot<${WINDOW_PAGE_SLOTS}u;slot+=WORKGROUP_THREADS){
   if(vsmRenderWindowHas(record,slot)){atomicStore(&tess[at+${WINDOW_POOL_AT}u+slot],vsmRenderWindowOrigin(record,slot));}
@@ -88,6 +104,8 @@ export const vsmWindowFillSource = (layout: VsmLayout) =>
     VSM_VIEW_WORDS_WGSL,
     VSM_VIEW_LENS_WGSL,
     VSM_PROJECTION_DATA_WGSL,
+    DRAW_LIFT_WGSL,
+    atlasTileWgsl(VSM_WINDOW_BIAS_GROUP, VSM_WINDOW_BIAS_BINDING),
     VSM_CONSTANTS_WGSL,
     VSM_PAGE_ADDRESS_WGSL,
     VSM_RENDER_PAGE_ORIGIN_WGSL,

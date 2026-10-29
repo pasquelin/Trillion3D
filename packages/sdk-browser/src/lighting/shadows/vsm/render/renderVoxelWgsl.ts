@@ -4,6 +4,7 @@ import { PAGE_BINDING, PAGE_INFO_WGSL } from '../../../../visibility/shader/page
 import { VIS_BINDINGS } from '../../../../gpu/bind/bindLayout.ts'
 import { VOXEL_HIT_WGSL } from '../../../../visibility/shader/voxelHitWgsl.ts'
 import { VOXEL_BRICK_CORNERS } from '../../../../../../sdk-core/src/page/voxelPage.ts'
+import { DRAW_BIAS_WGSL } from '../../classic/atlas/atlasTileWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import { VSM_PROJECTION_DATA_WGSL } from '../projection/projectionDataWgsl.ts'
 import { vsmBindingsWgsl } from '../resources.ts'
@@ -35,6 +36,8 @@ struct VsmVoxelOut{
  @location(2) dir:vec3f,
  @location(3) depth:vec4f,
  @location(4) @interpolate(flat) cells:vec3u,
+ /** The depth bias of the box's face, times the depth the map spans per unit of distance (vsmDrawDepthPerDistance): zero where the map has none. */
+ @location(5) @interpolate(flat) bias:f32,
 }
 @vertex fn vsmRenderVs(@builtin(vertex_index) vertexIndex:u32)->VsmVoxelOut{
  let record=vsmRenderRecords[vertexIndex/VSM_RENDER_CORNERS];
@@ -52,6 +55,15 @@ ${wpo.programs.length ? ' wpoThreshold=raw.wpoThreshold;\n' : ''} var corner=rec
  let shift=raw.originShiftHigh+raw.originShiftLow;
  let toShifted=mat4x4f(1.0,0.0,0.0,0.0,0.0,1.0,0.0,0.0,0.0,0.0,1.0,0.0,shift.x,shift.y,shift.z,1.0);
  let cells=page.world*voxelCarry(page,brick)*voxelCells(page,brick);
+ // The slope term takes the normal of the box face this triangle lies on: an axis of the cells, taken to the world by the cofactor of their matrix.
+ let bias=vsmDrawBiasOf(vsmRecordMap(record));
+ if(bias.x>0.0){
+  let first=recordCorner-recordCorner%3u;
+  let p0=voxelBoxPoint(box,voxelBoxVertex(first));
+  let face=normalize(cross(voxelBoxPoint(box,voxelBoxVertex(first+1u))-p0,voxelBoxPoint(box,voxelBoxVertex(first+2u))-p0));
+  let normal=vsmDrawNormal(cells[0].xyz,cells[1].xyz,cells[2].xyz,face);
+  out.bias=vsmDrawDepthPerDistance(raw.lightViewToClip)*vsmDrawLift(bias,normal,raw.lightDirection);
+ }
  let shifted=vsmRenderShifted(raw,(cells*vec4f(o,1.0)).xyz);
  let clip=vsmRenderClip(raw,shifted);
  let r=voxelRay(mask,box,o,raw.shiftedToMapUv*toShifted*cells);
@@ -68,7 +80,9 @@ const voxelFragment = () => /* wgsl */ `
  if(!vsmRenderPoolTexel(in.window,in.position.xy,&texel)){discard;}
  let hit=voxelPixel(in.start,in.dir,in.cells);
  if(!hit.found){discard;}
- vsmRenderJoin(in.window,texel,vsmRenderDepth(voxelDepth(in.depth,hit.t)));
+ // The bias lowers the depth by its per-distance term over the square of the clip w at the hit (as the casters' vertices are lowered, vsmAtlasBiasedClip).
+ let w=in.depth.y+hit.t*in.depth.w;
+ vsmRenderJoin(in.window,texel,vsmRenderDepth(voxelDepth(in.depth,hit.t)-in.bias/(w*w)));
 }`
 
 /**
@@ -78,7 +92,8 @@ const voxelFragment = () => /* wgsl */ `
  * voxel row (`renderPipes.ts`). Its vertex draws a corner of a brick's box, carried by its joint, on
  * the record's window as the raster places every corner, and hands its pixels
  * the light's ray through it (`voxelRay`, the camera's one sequence); its fragment traces it
- * (`voxelPixel`) and joins the first voxel's depth to the pool, which clamps it to [0,1], or nothing;
+ * (`voxelPixel`) and joins the first voxel's depth to the pool, which clamps it to [0,1], or nothing; in a classic frame the depth is lowered by the map's draw bias, the slope
+ * term taken from the normal of the box face drawn (`DRAW_BIAS_WGSL`);
  * a sun level's boxes are given the rasterizer at z = w / 2, as the raster's corners are. A
  * voxel row draws one side of its boxes, no cutout, and reads no page in its fragment. With `wpo`, a
  * brick whose surface wires a `worldPositionOffset` is carried by it where the map's level shows the
@@ -96,6 +111,7 @@ ${voxelVertex(wpo)}${voxelFragment()}
       VSM_CASTER_PROJECTION_WGSL,
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
+      DRAW_BIAS_WGSL,
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_SHARED_SPECS, layout),

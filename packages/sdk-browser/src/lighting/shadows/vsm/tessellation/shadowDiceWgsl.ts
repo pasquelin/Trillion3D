@@ -31,6 +31,7 @@ import {
   DISPATCH_DICE_STATIC,
   NEAR_CUT,
   NEAR_KEEP,
+  WINDOW_BIAS_AT,
   PATCH_WORDS,
   WINDOW_LENS_AT,
   WINDOW_POOL_AT,
@@ -49,6 +50,7 @@ import {
   TESS_READ_PLAIN_WGSL,
 } from '../../../../visibility/tessellation/queueWgsl.ts'
 import { visTriangle } from '../../../../visibility/visWords.ts'
+import { DRAW_LIFT_WGSL } from '../../classic/atlas/atlasTileWgsl.ts'
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import type { VsmLayout } from '../layout.ts'
 import { VSM_CASTER_PROJECTION_WGSL } from '../render/renderCasterWgsl.ts'
@@ -90,11 +92,13 @@ const windowView = Array.from(
  *  layer's from the start of the visible list, the static layer's from its end: `listVisible`). A patch names its record's window in the
  *  `tess` buffer, from which the group takes the record, the map's view and the pool origin of each page, once for as long as
  *  the patches it takes name the same window; a vertex is placed on the record's window as a caster's corner is
- *  (`vsmSoftwarePlace`), a micro-triangle rastered by the casters' box walk (`rasterRect`) into the pool by their pixel
+ *  (`vsmSoftwarePlaceLifted`, by the map's draw bias that its window holds), a micro-triangle rastered by the casters' box walk (`rasterRect`) into the pool by their pixel
  *  write (`writePixel`). The winding of a face is the record's swapped bit; a map with no near clip keeps what lies before its near plane. */
 const shadowTarget = (wpo: boolean): DiceTarget => ({
   functions: `var<private> diceSeen:u32=0xFFFFFFFFu;
 var<private> diceRecord:vec4u;
+var<private> diceBias:vec4f;
+var<private> diceAxis:vec3f;
 var<private> diceView:TessView;
 fn diceCount(mode:u32)->u32{return min(tw(tu.args+listCounter(mode)),tu.maxVisible);}
 fn dicePatchWord(mode:u32,i:u32)->u32{return tu.visible+listSlot(mode,i)*${PATCH_WORDS}u;}
@@ -113,6 +117,8 @@ fn diceOpen(piece:vec4u,lane:u32,mode:u32)->DiceItem{
   swRaw=vsmUnpackView(array<vec4u,VSM_RENDER_SOFTWARE_VIEW_RECORDS>(${windowView}));${
     wpo ? '\n  wpoThreshold=swRaw.wpoThreshold;' : ''
   }
+  diceBias=bitcast<vec4f>(tw4(windowAt+${WINDOW_BIAS_AT}u));
+  diceAxis=bitcast<vec4f>(tw4(windowAt+${WINDOW_BIAS_AT + 4}u)).xyz;
   let lens=tw4(windowAt+${WINDOW_LENS_AT}u);
   diceView=vsmTessViewWith(swRaw,VsmViewLens(bitcast<f32>(lens.x),bitcast<f32>(lens.y),lens.z!=0u));
  }
@@ -120,7 +126,8 @@ fn diceOpen(piece:vec4u,lane:u32,mode:u32)->DiceItem{
 }
 fn diceSides(page:PageInfo)->PageInfo{return vsmSoftwareSides(page);}
 fn diceClip(item:DiceItem,at:DiceVertex,d:DicePatch,rec:DisplacementRecord)->vec4f{
- return vsmSoftwarePlace(at.point.world+at.point.normal*pointDisplacement(at.point,at.height,rec.scale,d.fade,true));
+ let lift=vsmDrawLift(diceBias.xyz,normalize(at.point.normal),diceAxis);
+ return vsmSoftwarePlaceLifted(at.point.world+at.point.normal*pointDisplacement(at.point,at.height,rec.scale,d.fade,true),diceBias.w*lift);
 }
 fn diceDraw(micro:Tri,mode:u32){rasterRect(micro,mode);}`,
   cuts: true,
@@ -180,6 +187,7 @@ ${diceKernelText(shadowTarget(wpo.programs.length > 0))}
       PAGE_UV_OR_FIRST_WGSL,
       VSM_CASTER_PROJECTION_WGSL,
       VSM_SOFTWARE_PLACE_WGSL,
+      DRAW_LIFT_WGSL,
       VSM_RENDER_DEPTH_WGSL,
       VSM_RENDER_NO_PAGE_WGSL,
       VSM_RENDER_RECORD_WGSL,

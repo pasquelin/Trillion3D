@@ -70,6 +70,8 @@ import {
 } from './renderSoftwareWgsl.ts'
 import { shadowPageComputeEntries } from '../../casters/pageGroup.ts'
 import { hasSubgroups } from '../../../../gpu/core/subgroups.ts'
+import type { AtlasRaster } from '../../classic/atlas/atlasRaster.ts'
+import { ATLAS_RASTER_BINDING } from '../../classic/atlas/atlasTileWgsl.ts'
 import type { RasterTables, RenderListGroups } from './renderEncode.ts'
 import type { VsmListName } from './renderLists.ts'
 import { VSM_PASS_PREFIX } from '../../../../diagnostic/stage/passLabels.ts'
@@ -78,7 +80,7 @@ import { VSM_PASS_PREFIX } from '../../../../diagnostic/stage/passLabels.ts'
 export const RENDER_LABEL = `${VSM_PASS_PREFIX}render`
 
 /** The tiers, lowest first, each one's raster pipeline: those before the software bin. */
-const TIERS = Array.from({ length: VSM_RENDER_SOFTWARE_BIN }, (_, t) => t)
+export const TIERS = Array.from({ length: VSM_RENDER_SOFTWARE_BIN }, (_, t) => t)
 
 const storage = (binding: number) => computeBufferEntry(binding, 'storage', COMPUTE)
 const read = (binding: number) => computeBufferEntry(binding, 'read-only-storage', COMPUTE)
@@ -168,7 +170,7 @@ interface RasterSource {
 
 /** `make`'s pipeline, made — and its module with it — only when first prepared, asked or got: a
  *  scene that never holds a voxel row compiles none of its tiers. */
-function madeLater(
+export function madeLater(
   make: () => PreparedPipeline<GPURenderPipeline>,
 ): PreparedPipeline<GPURenderPipeline> {
   let made: PreparedPipeline<GPURenderPipeline> | undefined
@@ -205,6 +207,8 @@ function makeRaster(
         VSM_RENDER_RASTER_SHARED_SPECS,
         GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
       ),
+      // The depth bias of the map's casters: the classic atlas buffer, else zeros (`VsmRenderContext.noBias`).
+      computeBufferEntry(ATLAS_RASTER_BINDING, 'read-only-storage', GPUShaderStage.VERTEX),
     ],
   })
   const module = device.createShaderModule({ label: `${RENDER_LABEL}.raster`, code })
@@ -340,6 +344,10 @@ export interface VsmRenderContext extends VsmRenderKernels {
   }
   target: GPUTextureView
   targetTexture: GPUTexture
+  /** Zeros in the place of the atlas buffer where the pool raster draws a frame of virtual shadow maps: no map has a depth bias there. */
+  noBias: GPUBuffer
+  /** The classic shadow maps' depth atlas, made the first frame that draws them (`atlasRasterOf`). */
+  atlas?: AtlasRaster
   /** Its lists, by name (`vsmEnsureLists`). */
   buffers: Partial<Record<VsmListName, GPUBuffer>>
   /** The view passes' parameter slots (`vsmRenderParamSlots`). */
@@ -389,6 +397,8 @@ function renderPasses(slots: UniformSlots): VsmRenderContext['passes'] {
 export function vsmReleaseContext(ctx: VsmRenderContext) {
   for (const buffer of Object.values(ctx.buffers)) buffer?.destroy()
   ctx.targetTexture.destroy()
+  ctx.noBias.destroy()
+  ctx.atlas?.destroy()
 }
 
 /** The cull family a frame runs: the throttled one where the compute throttle counts, else the
@@ -416,7 +426,11 @@ export function vsmRenderContext(
     return existing
   const layout = res.layout
   // A context made again for the same device keeps its lists; its old target is freed.
-  if (existing?.device === device) existing.targetTexture.destroy()
+  if (existing?.device === device) {
+    existing.targetTexture.destroy()
+    existing.noBias.destroy()
+    existing.atlas?.destroy()
+  }
   const targetTexture = device.createTexture(renderTarget())
   const slots = vsmRenderParamSlots(device.limits)
   const ctx: VsmRenderContext = {
@@ -429,6 +443,11 @@ export function vsmRenderContext(
     software: vsmSoftwarePipes(device, layout, held),
     target: targetTexture.createView(),
     targetTexture,
+    noBias: device.createBuffer({
+      label: `${RENDER_LABEL}.noBias`,
+      size: 16,
+      usage: GPUBufferUsage.STORAGE,
+    }),
     buffers: existing?.device === device ? existing.buffers : {},
     slots,
     passes: renderPasses(slots),

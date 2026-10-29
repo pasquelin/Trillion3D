@@ -4,7 +4,9 @@ import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
 import type { PreparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import type { WaterPipelines } from './waterPipelines.ts'
 import { waterScenePipelines } from './waterSceneStages.ts'
+import { waterSunLayer } from '../../lighting/shadows/vsm/frame/vsmWaterSun.ts'
 import {
+  waterFiltersSun,
   waterSceneGroups,
   waterSeparated,
   waterTargetsOf,
@@ -41,9 +43,12 @@ export interface WaterFrame {
   reflects: boolean
   /** The sun is kept apart from the shading. */
   separated: boolean
+  /** The layer of the projection's mask that holds the forward sun, where the sun's shadow on the water is the projection's
+   *  (`singleLayerWaterVsmFiltering`) and the image projects it; −1 else. */
+  sunLayer: number
   /** The refraction is masked. */
   masked: boolean
-  /** The tiles that hold water are listed, for the colour copy or the composite. */
+  /** The tiles that hold water are listed, for the colour copy, the composite or the sun's shadow. */
   listed: boolean
   /** The colour copy and the composite are drawn over the listed tiles alone. */
   tiledCopy: boolean
@@ -52,18 +57,21 @@ export interface WaterFrame {
   extent: [number, number]
 }
 
-/** Which passes run over the tiles that hold water: they are known from the water's depth, so only with the
- *  depth pass; `copyable` whether the colour copy may be tiled, `composited` whether the composite is drawn. */
+/** Which passes run over the tiles that hold water, listed from the water's depth (before the shading with the
+ *  depth pass, after it without); `copyable` whether the colour copy may be tiled, `composited` whether the composite is drawn,
+ *  `shadowed` whether the sun's shadow is projected over them. */
 function tilingOf(
   settings: WaterSettings,
   prepass: boolean,
   copyable: boolean,
   composited: boolean,
+  shadowed: boolean,
 ) {
   const copiesTiled = settings.singleLayerWaterTiledSceneColorCopy && copyable
   const compositeTiled = settings.singleLayerWaterTiledComposite && composited
-  const listed = prepass && (copiesTiled || compositeTiled)
-  return { listed, tiledCopy: listed && copiesTiled, tiledComposite: listed && compositeTiled }
+  // Without the depth pass the list is made once the water is shaded: the colour copy before it cannot use it.
+  const listed = shadowed || compositeTiled || (prepass && copiesTiled)
+  return { listed, tiledCopy: listed && prepass && copiesTiled, tiledComposite: compositeTiled }
 }
 
 /** The frame of water of this image, or none where the image draws no water or lacks what it needs. */
@@ -82,11 +90,19 @@ export function openWaterFrame(
   // The settings of the image, one reading; the sun kept apart where the programs hold it and a setting asks.
   const settings = targets.watch.read(rt.context)
   const separated = pipelines.separate && !!waterSeparated(settings, !!rt.distanceFields)
-  const masked = writeWaterParams(rt, device, targets, settings, separated)
-  const [width, height] = gpu.targetSize
   const prepass = settings.singleLayerWaterDepthPrepass
+  // The sun's shadow is projected over the listed tiles (from the water's depth, before or after the shading).
+  const sunLayer = separated && waterFiltersSun(settings) ? waterSunLayer(rt, device) : -1
+  const masked = writeWaterParams(rt, device, targets, settings, separated, sunLayer)
+  const [width, height] = gpu.targetSize
   const reflects = settings.singleLayerWaterReflection !== 'disabled'
-  const tiling = tilingOf(settings, prepass, masked && targets.factor === 1, reflects || separated)
+  const tiling = tilingOf(
+    settings,
+    prepass,
+    masked && targets.factor === 1,
+    reflects || separated,
+    sunLayer >= 0,
+  )
   return {
     rt,
     device,
@@ -104,6 +120,7 @@ export function openWaterFrame(
     prepass,
     reflects,
     separated,
+    sunLayer,
     masked,
     ...tiling,
     // The depth is copied over the view alone (`singleLayerWaterOptimizedClear`), else over the whole texture.
@@ -120,7 +137,8 @@ export function waterChain(f: WaterFrame): PreparedPipeline<unknown>[] {
   return [
     stages.depthCopy.pipeline,
     f.tiledCopy ? stages.colorTiled.pipeline : stages.color.pipeline,
-    ...(f.listed ? [stages.marks, stages.lists] : []),
+    ...(f.listed ? [stages.marks, stages.lists, stages.dispatch] : []),
+    ...(f.sunLayer >= 0 ? [stages.sunShadow.pipeline] : []),
     ...(f.masked && f.prepass ? [stages.mask.pipeline] : []),
     ...(f.rt.gpu.velocity?.measured && f.rt.vis.visView ? [stages.ids] : []),
     ...f.pipelines.chain({

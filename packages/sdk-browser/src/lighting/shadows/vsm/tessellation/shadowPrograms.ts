@@ -13,7 +13,11 @@ import type { VsmLayout } from '../layout.ts'
 import { vsmRenderParamsEntry } from '../render/renderParams.ts'
 import { VSM_TESS_PROJECTION_SPECS, vsmTessArgsSource, vsmTessSource } from './shadowKernelsWgsl.ts'
 import { DICE_LAYERS, VSM_TESS_DICE_SPECS, vsmTessDiceWgsl } from './shadowDiceWgsl.ts'
-import { VSM_WINDOW_SPECS, vsmWindowFillSource } from './shadowWindowWgsl.ts'
+import {
+  VSM_WINDOW_BIAS_BINDING,
+  VSM_WINDOW_SPECS,
+  vsmWindowFillSource,
+} from './shadowWindowWgsl.ts'
 import { shadowPageComputeLayout } from '../../casters/pageGroup.ts'
 import { shadowMasks } from '../../../../visibility/shader/maskSets.ts'
 import { patchWpo, shadowSplitWpo } from '../../../../visibility/shader/wpoSets.ts'
@@ -45,6 +49,11 @@ function shadowLayouts(device: GPUDevice) {
     }),
     projections: specs('projections', VSM_TESS_PROJECTION_SPECS),
     windows: specs('windows', VSM_WINDOW_SPECS),
+    // The atlas buffer the windows' draw bias is read from (a frame's own).
+    bias: device.createBindGroupLayout({
+      label: 'Trillion3D shadow tessellation bias',
+      entries: [computeBufferEntry(VSM_WINDOW_BIAS_BINDING, 'read-only-storage', COMPUTE)],
+    }),
     pool: specs('pool', VSM_TESS_DICE_SPECS),
     occlusion: device.createBindGroupLayout({
       label: 'Trillion3D shadow tessellation occlusion',
@@ -117,7 +126,11 @@ export function createShadowPrograms(
     plan: stage([layouts.plan], planModule, 'tessPlan', rows),
     split: stage(splitGroups, tessModule, 'vsmTessSplit'),
     shadowArgs: stage([layouts.plan], args, 'vsmTessShadowArgs', rows),
-    windowFill: stage([layouts.shadowWindow, layouts.windows], windowModule, 'vsmTessWindowFill'),
+    windowFill: stage(
+      [layouts.shadowWindow, layouts.windows, layouts.bias],
+      windowModule,
+      'vsmTessWindowFill',
+    ),
   }
   const dice = DICE_LAYERS.map(({ entry }) => stage(diceGroups, diceModule, entry))
   const all = [...Object.values(stages), ...dice]

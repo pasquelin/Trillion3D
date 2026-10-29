@@ -12,7 +12,7 @@ export const SUBSURFACE_FLAG = 32
 /** Whether a pixel of surface flags `flags` is of a subsurface model: a thin transmitting sheet
  *  (`SUBSURFACE_FLAG`) or a pixel of one of the shading models it carries (`PIXEL_MODEL`: subsurface,
  *  preintegrated skin, subsurface profile, hair, eye). The one rule the shadows share: the virtual maps
- *  cull no back face of such a pixel, and the distance-field cascade lets light through it. */
+ *  cull no back face of such a pixel. */
 export const isSubsurfaceModel = wgslFn(
   'isSubsurfaceModel',
   [pixelModelOf, isPixelModel],

@@ -1,6 +1,6 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { VSM_UNIT_PER_CM } from '../vsm/constants.ts'
+import { VSM_DEFAULT_SHADOWS } from '../vsm/mapSettings.ts'
 import { cascadeSphere } from './cascadeSplits.ts'
 import { DENSE_ENTRY_WORDS, writeDenseEntries } from './denseEntries.ts'
 import { localMip, sunLevelIndex } from './denseLevels.ts'
@@ -38,13 +38,14 @@ test('the entries hold each cascade of a sun and each face of a local light, in 
     words,
     floats,
     [{ firstId: 8192, firstLevel: 6, levelCount: 30 }],
-    [{ firstId: 3, mapCount: 6, resolution: 2048 }],
+    [{ key: 0, spot: false, firstId: 3, mapCount: 6, resolution: 2048 }],
     camera,
     view,
-    2048,
+    VSM_DEFAULT_SHADOWS,
   )
   assert.equal(count, 4 + 6)
-  assert.equal(words[4], 8192 + sunLevelIndex(floats[3]! / VSM_UNIT_PER_CM, 2048, 6, 30))
+  // Each cascade is a map of its own, past the clipmap's 30 levels.
+  for (let k = 0; k < 4; k++) assert.equal(words[k * DENSE_ENTRY_WORDS + 4], 8192 + 30 + k)
   assert.ok(floats[2]! < 0, 'the centre lies ahead of the eye')
   assert.equal(words[4 * DENSE_ENTRY_WORDS + 4], 3)
   assert.equal(words[4 * DENSE_ENTRY_WORDS + 5], 3)
@@ -57,8 +58,62 @@ test('the entries hold each cascade of a sun and each face of a local light, in 
       [],
       { ...camera, perspective: false },
       view,
-      2048,
+      VSM_DEFAULT_SHADOWS,
     ),
     0,
   )
+})
+
+test('every map an entry asks gets a tile: a local face its mip, a cascade the sphere in its level and a page more', () => {
+  const data = new ArrayBuffer(16 * DENSE_ENTRY_WORDS * 4)
+  const tiles = new Map()
+  const camera = { perspective: true, forward: [0, 0, -1], tanX: 1, tanY: 1 }
+  const view = { distanceScale: 1, maxCascades: 10, transitionScale: 1, near: 10 }
+  writeDenseEntries(
+    new Uint32Array(data),
+    new Float32Array(data),
+    [{ firstId: 0, firstLevel: 6, levelCount: 40 }],
+    [{ key: 1, spot: false, firstId: 50, mapCount: 2, resolution: 2048 }],
+    camera,
+    view,
+    VSM_DEFAULT_SHADOWS,
+    tiles,
+  )
+  assert.deepEqual(tiles.get(50), {
+    mapId: 50,
+    mip: 3,
+    side: 2048,
+    noDynamic: undefined,
+    bias: undefined,
+  })
+  assert.ok(tiles.has(51))
+  const cascade = [...tiles.values()].find((t) => t.mapId < 50)
+  assert.ok(cascade && cascade.side % 128 === 0 && cascade.side >= 128)
+})
+
+test('a cascade’s tile carries its draw bias, a spot light’s map its own and a point light’s cube none', () => {
+  const data = new ArrayBuffer(16 * DENSE_ENTRY_WORDS * 4)
+  const tiles = new Map()
+  const camera = { perspective: true, forward: [0, 0, -1], tanX: 1, tanY: 1 }
+  const view = { distanceScale: 1, maxCascades: 10, transitionScale: 1, near: 10 }
+  writeDenseEntries(
+    new Uint32Array(data),
+    new Float32Array(data),
+    [{ firstId: 0, firstLevel: 6, levelCount: 40 }],
+    [
+      { key: 1, spot: true, firstId: 50, mapCount: 1, resolution: 2048 },
+      { key: 2, spot: false, firstId: 60, mapCount: 6, resolution: 2048 },
+    ],
+    camera,
+    view,
+    VSM_DEFAULT_SHADOWS,
+    tiles,
+  )
+  assert.ok(tiles.get(50).bias.constant > 0)
+  assert.equal(tiles.get(60).bias, undefined)
+  const cascades = [...tiles.values()].filter((t) => t.mapId < 50)
+  assert.equal(cascades.length, 4)
+  assert.ok(cascades.every((t) => t.bias.constant > 0 && t.bias.slope > 0))
+  // Each cascade is biased by its own sphere: the farther, the larger.
+  for (let k = 1; k < 4; k++) assert.ok(cascades[k].bias.constant > cascades[k - 1].bias.constant)
 })

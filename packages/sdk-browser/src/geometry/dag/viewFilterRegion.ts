@@ -11,29 +11,30 @@ import { writeDagUniforms } from './uniforms.ts'
  * filter's revision, so a view cut again under the same filter sends nothing, and views that
  * alternate under their own send theirs when their cut runs. A view with none sends nothing and
  * names no region (`filterBase`, `writeDagUniforms`). Bits past the room the region has for the
- * placements the cut holds are not sent.
+ * placements the cut holds are not sent. The shadows' casters keep theirs in the region behind
+ * (`holdViewFilter`).
  */
 export function writeViewFilter(
-  {
-    device,
-    work,
-    workLayout,
-    filterHeld,
-  }: Pick<DagResources, 'device' | 'work' | 'workLayout' | 'filterHeld'>,
+  resources: Pick<DagResources, 'device' | 'work' | 'workLayout' | 'filterHeld'>,
   filter: Uint32Array | undefined,
 ) {
-  if (!filter || filterHeld.bits === filter) return
-  filterHeld.bits = filter
-  const room = workLayout.words - workLayout.filter,
-    words = Math.min(room, filter.length)
-  if (words > 0)
-    device.queue.writeBuffer(
-      work,
-      workLayout.filter * 4,
-      filter.buffer,
-      filter.byteOffset,
-      words * 4,
-    )
+  const { workLayout, filterHeld } = resources
+  writeRegion(resources, filter, workLayout.filter, workLayout.casters, filterHeld)
+}
+
+/** `bits` written into `work` from word `at` up to `end`, unless the region holds them already
+ *  (`held`): those past its room are not sent. */
+function writeRegion(
+  { device, work }: Pick<DagResources, 'device' | 'work'>,
+  bits: Uint32Array | undefined,
+  at: number,
+  end: number,
+  held: { bits: Uint32Array | undefined },
+) {
+  if (!bits || held.bits === bits) return
+  held.bits = bits
+  const words = Math.min(end - at, bits.length)
+  if (words > 0) device.queue.writeBuffer(work, at * 4, bits.buffer, bits.byteOffset, words * 4)
 }
 
 /** View `uniforms`' block put on the GPU for its cut: the uniforms written over the tables as they
@@ -46,17 +47,18 @@ export function writeCutView(resources: DagResources, uniforms: SelectionUniform
 }
 
 /**
- * A view's filter held in `work` for a reader beside the cut — the sun's casters, which leave out
- * what the main view does not draw —: its bits written as for the view's cut (`writeViewFilter`),
- * the buffer and the word they start at returned. None for a view without a filter, or a cut whose
- * `work` holds no room for them.
+ * The casters' bits held in `work` for a reader beside the cut — the sun's casters, which leave out
+ * what the main view does not draw but cast what its occlusion test hides (`castersFilter`) —: in a
+ * region of their own behind the view's filter, so the cut's filter written in the same submission
+ * stays its own; the buffer and the word they start at returned. None for a view without a filter,
+ * or a cut whose `work` holds no room for them.
  */
 export function holdViewFilter(
-  resources: Parameters<typeof writeViewFilter>[0],
+  resources: Pick<DagResources, 'device' | 'work' | 'workLayout' | 'castersHeld'>,
   filter: Uint32Array | undefined,
 ) {
-  const { work, workLayout } = resources
-  if (!filter || workLayout.words <= workLayout.filter) return undefined
-  writeViewFilter(resources, filter)
-  return { buffer: work, base: workLayout.filter }
+  const { work, workLayout, castersHeld } = resources
+  if (!filter || workLayout.words <= workLayout.casters) return undefined
+  writeRegion(resources, filter, workLayout.casters, workLayout.words, castersHeld)
+  return { buffer: work, base: workLayout.casters }
 }

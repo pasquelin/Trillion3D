@@ -7,7 +7,7 @@ const OPACITY_CAP = 0.99
 
 /** The density, per centimetre, of the light a material of `opacity` lets through: `0.05` times the log of
  *  the share it does not stop, the opacity held to 0.99; a declaration the shaders list (`contactShadowWgsl`,
- *  the virtual shadow maps' projection, the sun's distance-field shadow's trace). */
+ *  the virtual shadow maps' projection). */
 export const subsurfaceDensity = wgslFn(
   'subsurfaceDensity',
   [],

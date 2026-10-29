@@ -1,7 +1,12 @@
 import type { ShadowValues } from '../../../../../../sdk-core/src/contracts/shadowOptions.ts'
 import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import { VSM_CM_PER_UNIT } from '../constants.ts'
-import { DEFAULT_SUN_CASCADES, type SunCascadeSettings } from '../../classic/cascadeSplits.ts'
+import {
+  DEFAULT_SUN_CASCADES,
+  cascadeCount,
+  type SunCascadeSettings,
+} from '../../classic/cascadeSplits.ts'
+import { viewCascadesOf } from '../../classic/classicView.ts'
 import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import {
@@ -12,6 +17,17 @@ import {
   type DenseLocal,
   type DenseSun,
 } from '../../classic/denseEntries.ts'
+import {
+  atlasBudget,
+  cascadeResolutionIn,
+  planAtlas,
+  type AtlasMap,
+} from '../../classic/atlas/atlasPlan.ts'
+import {
+  capResolutionChanges,
+  type HeldMips,
+  type HeldWaits,
+} from '../../classic/atlas/resolutionBudget.ts'
 import type { VsmFramePlan } from '../frameSetup.ts'
 import { vsmLocalShadowResolution, type VsmGateView } from '../localGate.ts'
 
@@ -29,8 +45,20 @@ export const sunCascadesOf = (light: SceneLight): SunCascadeSettings => ({
       : light.dynamicShadowDistance * VSM_CM_PER_UNIT,
 })
 
+/** The maps a classic sun's entry holds past its clipmap's levels: one for each cascade its light and the view give it (`vsmClipmapCascadeMap`); none in a virtual frame or an orthographic view, which draws no cascade. */
+export const cascadeMapCount = (light: SceneLight, shadows: ShadowValues, perspective: boolean) =>
+  shadows.shadowVirtualEnable || !perspective
+    ? 0
+    : cascadeCount(sunCascadesOf(light), viewCascadesOf(shadows, 0))
+
 const suns: DenseSun[] = []
 const locals: DenseLocal[] = []
+const tiles = new Map<number, AtlasMap>()
+/** The mip each runtime's local lights drew in last frame (`capResolutionChanges`). */
+const heldMips = new WeakMap<
+  object,
+  { mips: HeldMips; waits: HeldWaits; frame: number; resolved: Map<string | number, number> }
+>()
 const forward = [0, 0, 0]
 const gateView: VsmGateView = { projection: [], eye: [], width: 0, height: 0 }
 
@@ -59,21 +87,27 @@ function collectDenseLanes(
         firstLevel: clipmap.firstLevel,
         levelCount: clipmap.levels.length,
         settings: light && sunCascadesOf(light),
+        user: light && { bias: light.shadowBias, slope: light.shadowSlopeBias },
       })
       continue
     }
     if (!light || !light.position || !light.range) continue
     locals.push({
+      key: lane.id,
+      spot: light.kind === 'spot',
       firstId: lane.firstId,
       mapCount: lane.count,
       resolution: vsmLocalShadowResolution(light, gateView, shadows),
+      noDynamic: !shadows.shadowCachedCastFromMovable,
+      user: { bias: light.shadowBias, slope: light.shadowSlopeBias },
     })
   }
 }
 
 /**
  * THE CLASSIC SHADOW MAPS OF A FRAME (`shadowVirtualEnable` off): the entries of the pages every light draws (`denseEntries.ts`), which the marking asks for in place of the pages
- * the pixels of the view mark. Rewritten in place each frame; undefined while the virtual shadow maps are on, so that such a frame makes nothing of this.
+ * the pixels of the view mark, and the atlas tiles they are drawn in (`atlasPlan.ts`), at most `maxTextureSide` texels a side. Rewritten in place each frame; undefined while the virtual
+ * shadow maps are on, so that such a frame makes nothing of this.
  */
 export function denseOf(
   rt: WebgpuPagesRuntime,
@@ -82,11 +116,36 @@ export function denseOf(
   shadows: ShadowValues,
   width: number,
   height: number,
+  maxTextureSide: number,
 ) {
   if (shadows.shadowVirtualEnable) return undefined
   const store = rt.lights?.store
   if (!store) return undefined
   collectDenseLanes(store, cam, plan, shadows, width, height)
+  let held = heldMips.get(rt)
+  if (!held)
+    heldMips.set(rt, (held = { mips: new Map(), waits: new Map(), frame: -1, resolved: new Map() }))
+  // The cap advances the held mips and waits once a frame: a second call of the frame takes what the first resolved.
+  if (held.frame === rt.run.frame) {
+    for (const light of locals) light.resolution = held.resolved.get(light.key) ?? light.resolution
+  } else {
+    capResolutionChanges(
+      locals,
+      held.mips,
+      shadows.shadowMaxPointCacheUpdatesPerFrame,
+      shadows.shadowMaxSpotCacheUpdatesPerFrame,
+      held.waits,
+    )
+    held.frame = rt.run.frame
+    held.resolved.clear()
+    for (const light of locals) held.resolved.set(light.key, light.resolution)
+  }
+  tiles.clear()
+  const budget = atlasBudget(
+    maxTextureSide,
+    shadows.shadowWholeSceneCacheMb,
+    shadows.shadowCacheWholeScene,
+  )
   // The camera looks down its world matrix's −Z.
   forward[0] = -cam.world[8]!
   forward[1] = -cam.world[9]!
@@ -102,13 +161,11 @@ export function denseOf(
       tanX: 1 / cam.projection[0]!,
       tanY: 1 / cam.projection[5]!,
     },
-    {
-      distanceScale: shadows.shadowDistanceScale,
-      maxCascades: shadows.shadowCsmMaxCascades,
-      transitionScale: shadows.shadowCsmTransitionScale,
-      near: nearInCentimetres(cam.near),
-    },
-    shadows.shadowMaxCsmResolution,
+    viewCascadesOf(shadows, nearInCentimetres(cam.near)),
+    shadows,
+    tiles,
+    cascadeResolutionIn(shadows.shadowMaxCsmResolution, budget.side),
   )
-  return { words, count }
+  const atlas = planAtlas([...tiles.values()], plan.projectionCount, budget.side, budget.pages)
+  return { words, count, atlas }
 }

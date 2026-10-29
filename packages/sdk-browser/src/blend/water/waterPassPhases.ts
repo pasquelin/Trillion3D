@@ -8,15 +8,17 @@ import {
   WATER_DEPTH_PASS,
   WATER_MASK_PASS,
   WATER_PASS,
+  WATER_SUN_SHADOW_PASS,
   WATER_COMPOSITE_PASS,
   WATER_TILES_PASS,
   WATER_VELOCITY_PASS,
 } from '../../diagnostic/stage/passLabels.ts'
+import { encodeWaterSun } from '../../lighting/shadows/vsm/frame/vsmWaterSun.ts'
 import { drawBlendRuns, sharedBlendGroup } from '../draw.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { WATER_GROUP, WATER_TILE_PIXELS } from './waterLayout.ts'
 import type { WaterFrame } from './waterFrame.ts'
-import { waterCompositeGroup, waterIdsGroup } from './waterTargets.ts'
+import { waterCompositeGroup, waterIdsGroup, waterSunShadowGroup } from './waterTargets.ts'
 
 const WATER_VELOCITY_PASS_DESCRIPTOR: GPUComputePassDescriptor = { label: WATER_VELOCITY_PASS }
 const WATER_TILES_PASS_DESCRIPTOR: GPUComputePassDescriptor = { label: WATER_TILES_PASS }
@@ -30,6 +32,7 @@ const colour = (view: GPUTextureView, clear = true): GPURenderPassColorAttachmen
 })
 
 const velocityRun = new ComputeRun()
+const sunShadowRun = new ComputeRun()
 
 /** Copies the scene's depth into the water's depth texture. */
 const copySceneDepth = (f: WaterFrame) =>
@@ -103,19 +106,32 @@ export function encodeSceneDepth(f: WaterFrame) {
   return 1
 }
 
-/** The tiles that hold water, marked then listed. Returns the passes encoded. */
+/** With the depth pass, the tiles that hold water, marked then listed. Returns the passes encoded. */
 export function encodeTileList(f: WaterFrame) {
-  if (!f.listed) return 0
+  return f.listed && f.prepass ? listTiles(f, f.scene.kernels) : 0
+}
+
+/** Without the depth pass, the tiles that hold water, listed once it is shaded (the scene's depth then holds it),
+ *  then the water's depth kept: the sun's shadow and the composite run over that list. Returns the passes encoded. */
+export function encodeShadedTiles(f: WaterFrame) {
+  if (f.prepass) return 0
+  const listed = f.listed ? listTiles(f, f.scene.shaded) : 0
+  copySceneDepth(f)
+  return listed
+}
+
+function listTiles(f: WaterFrame, kernels: GPUBindGroup) {
   const { encoder, targets, stages } = f
   // The subgroup variant, compiled at its first ask: the plain list until it is ready.
   const waved = f.settings.singleLayerWaterWaveOps ? stages.waved() : undefined
   const marks = stages.marks.get(),
     lists = (waved?.ready ? waved : (waved?.ask(), stages.lists)).get()
-  if (!marks || !lists) return 0
+  const dispatchArgs = stages.dispatch.get()
+  if (!marks || !lists || !dispatchArgs) return 0
   encoder.clearBuffer(targets.tileMask)
   encoder.clearBuffer(targets.tileArgs, 4, 4)
   const tiles = encoder.beginComputePass(WATER_TILES_PASS_DESCRIPTOR)
-  tiles.setBindGroup(0, f.scene.kernels)
+  tiles.setBindGroup(0, kernels)
   tiles.setPipeline(marks)
   tiles.dispatchWorkgroups(targets.tilesAcross, targets.tilesDown)
   tiles.setPipeline(lists)
@@ -123,8 +139,11 @@ export function encodeTileList(f: WaterFrame) {
     ceilDiv(targets.tilesAcross, WATER_TILE_PIXELS),
     ceilDiv(targets.tilesDown, WATER_TILE_PIXELS),
   )
+  // The list's count becomes the arguments of the indirect dispatch the passes over the listed tiles run by.
+  tiles.setPipeline(dispatchArgs)
+  tiles.dispatchWorkgroups(1)
   tiles.end()
-  return 2
+  return 3
 }
 
 /** The scene's colour, over the target or over the listed tiles alone. Returns the draws encoded. */
@@ -217,8 +236,40 @@ export function encodeShading(f: WaterFrame) {
   pass.end()
   if (f.settings.singleLayerWaterVelocityOutputPass !== 'none' && !velocityInPrepass(f))
     drawn += encodeVelocity(f)
-  if (!prepass) copySceneDepth(f)
   return drawn
+}
+
+/** The sun's shadow on the water: the suns projected onto its surface over the listed tiles (the projection of the
+ *  shadow maps, input `water`), then the forward sun's share multiplied into the separated sun. Returns the passes
+ *  encoded. */
+export function encodeSunShadow(f: WaterFrame) {
+  if (f.sunLayer < 0) return 0
+  const { rt, encoder, targets } = f
+  const pipeline = f.stages.sunShadow.pipeline.get()
+  const sun = targets.views.sun
+  if (!pipeline || !sun) return 0
+  // The count of the list, read by the projection as a uniform.
+  encoder.copyBufferToBuffer(targets.tileArgs, 4, targets.tileCount, 0, 4)
+  const steps = sunShadowRun.begin(encoder)
+  const mask = encodeWaterSun(rt, steps, {
+    depth: targets.views.waterDepth,
+    normals: targets.views.normals,
+    tiles: targets.tileList,
+    count: targets.tileCount,
+    dispatch: targets.tileDispatch,
+  })
+  steps.end()
+  if (!mask) return 0
+  const pass = encoder.beginRenderPass({
+    label: WATER_SUN_SHADOW_PASS,
+    colorAttachments: [colour(sun, false)],
+  })
+  pass.setViewport(0, 0, f.width, f.height, 0, 1)
+  pass.setPipeline(pipeline)
+  pass.setBindGroup(0, waterSunShadowGroup(f.device, targets, mask))
+  pass.drawIndirect(targets.tileArgs, 0)
+  pass.end()
+  return 2
 }
 
 /** The reflection of the water's surface added over the water, over the target or the listed tiles.

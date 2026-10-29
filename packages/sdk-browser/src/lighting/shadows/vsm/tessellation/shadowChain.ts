@@ -34,7 +34,7 @@ import type { Tessellation } from '../../../../visibility/tessellation/tessellat
 import { createShadowPrograms, type ShadowPrograms } from './shadowPrograms.ts'
 import { VSM_TESS_PROJECTION_SPECS } from './shadowKernelsWgsl.ts'
 import { DICE_LAYERS, VSM_TESS_DICE_POOL_BINDING, VSM_TESS_DICE_SPECS } from './shadowDiceWgsl.ts'
-import { VSM_WINDOW_SPECS } from './shadowWindowWgsl.ts'
+import { VSM_WINDOW_BIAS_BINDING, VSM_WINDOW_SPECS } from './shadowWindowWgsl.ts'
 
 /**
  * THE SHADOW MAPS' TESSELLATION OF A FRAME (`VsmShadowTessellation`), as the view passes of the
@@ -44,6 +44,7 @@ import { VSM_WINDOW_SPECS } from './shadowWindowWgsl.ts'
  * `tessellationShadowsLocal`) and every pipeline is compiled; otherwise the surface casts as the flat
  * triangles it is made of, the first frames on included.
  * - `kinds`: the kinds of light whose maps take it (`VSM_RENDER_TESSELLATE_*`);
+ * - `bias`, once a frame's view passes begin: the buffer the windows' draw bias is read from, the classic atlas's or zeros;
  * - `sight`, once a frame that keeps the previous frame's pyramid begins its view passes: the chains test the patches against it;
  * - `begin`, before a view pass's compute pass, or before the post pass of a view pass the pyramid is built over (`post`):
  *   the chain's state cleared — the main pass's, which holds the patches its occlusion test hid, kept through the post pass —;
@@ -57,6 +58,7 @@ import { VSM_WINDOW_SPECS } from './shadowWindowWgsl.ts'
 export interface VsmShadowTessellation {
   readonly kinds: number
   sight(): void
+  bias(buffer: GPUBuffer): void
   begin(encoder: GPUCommandEncoder, post: boolean): void
   compute(
     pass: GPUComputePassEncoder,
@@ -141,6 +143,23 @@ function listsGroups(device: GPUDevice, programs: ShadowPrograms) {
   }
 }
 
+/** The group over a buffer the windows' draw bias is read from, made once for each buffer. */
+function biasGroupsOf(device: GPUDevice, programs: ShadowPrograms) {
+  const held = new WeakMap<GPUBuffer, GPUBindGroup>()
+  return (buffer: GPUBuffer) => {
+    let group = held.get(buffer)
+    if (!group)
+      held.set(
+        buffer,
+        (group = device.createBindGroup({
+          layout: programs.layouts.bias,
+          entries: [{ binding: VSM_WINDOW_BIAS_BINDING, resource: { buffer } }],
+        })),
+      )
+    return group
+  }
+}
+
 /** The groups over the frame set the chain binds: the maps' projections and uniforms (the seeding, the resume
  *  and the splitting), the projections, page table and uniforms (the fill of the windows) and, for each layer
  *  of the pool, its slice and the uniforms (the dicing). Made for each of the two sets that take turns, again only when one moved
@@ -176,6 +195,8 @@ type ChainFrame = {
   input: TessInput
   frame: ReturnType<ReturnType<typeof frameGroups>>
   kinds: number
+  /** The bind group over the buffer the windows' draw bias is read from (`bias`). */
+  bias?: GPUBindGroup
 }
 
 /** The chain a pass runs in: the main pass's, or the post pass's. */
@@ -188,6 +209,7 @@ function encodeChain(
   pass: GPUComputePassEncoder,
   programs: ShadowPrograms,
   { shadow, groups, input, frame }: ChainFrame,
+  bias: GPUBindGroup,
   post: boolean,
   lists: GPUBindGroup,
   offset: readonly number[],
@@ -223,6 +245,7 @@ function encodeChain(
   pass.setPipeline(windowFill)
   pass.setBindGroup(0, groups.of('shadowWindow', chain, input))
   pass.setBindGroup(1, frame.windows)
+  pass.setBindGroup(2, bias)
   pass.dispatchWorkgroupsIndirect(dispatch, dispatchOffset(chain, DISPATCH_WINDOWS))
 }
 
@@ -243,6 +266,7 @@ function createShadowChain(ctx: VsmRenderContext) {
   const programs = createShadowPrograms(ctx.device, ctx.layout, ctx.held)
   const listsGroup = listsGroups(ctx.device, programs),
     frameOf = frameGroups(ctx.device, programs)
+  const biasGroups = biasGroupsOf(ctx.device, programs)
   let current: ChainFrame
   const chain: VsmShadowTessellation & {
     programs: ShadowPrograms
@@ -269,10 +293,22 @@ function createShadowChain(ctx: VsmRenderContext) {
         kinds,
       }
     },
+    bias(buffer) {
+      current.bias = biasGroups(buffer)
+    },
     sight: () => current.shadow.sight(),
     begin: (encoder, post) => current.shadow.clear(encoder, post),
     compute: (pass, post, lists, offset, occlusion) =>
-      encodeChain(pass, programs, current, post, listsGroup(lists), offset, occlusion),
+      encodeChain(
+        pass,
+        programs,
+        current,
+        current.bias!,
+        post,
+        listsGroup(lists),
+        offset,
+        occlusion,
+      ),
     dice(pass, post, pageCompute) {
       const { shadow, groups, input, frame } = current
       const which = chainOf(post)

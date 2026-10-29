@@ -13,6 +13,10 @@ const filters = new WeakMap<SelectionUniforms, ReturnType<typeof createViewFilte
 /** The bits of each filter the shadows' casters follow: those without the roots the view's occlusion test hides (`createViewFilter().base`). */
 const bases = new WeakMap<SelectionUniforms, Uint32Array | undefined>()
 
+/** The bits the shadows' casters of the view of `uniforms` follow: its filter's but for the roots its occlusion test hides,
+ *  which still cast; none when the view filters nothing. */
+export const castersFilter = (uniforms: SelectionUniforms) => bases.get(uniforms)
+
 /**
  * What a view carries beside its eye, written into its cut's uniforms (`Camera.clipPlane`,
  * `Camera.hidden`, `Camera.showOnly`, `Camera.owner`,

@@ -33,6 +33,15 @@ export interface VsmProjectionState {
   lightGrid?: GPUBuffer
   /** What the per-light path holds (`perLightPass.ts`), made at the first frame that takes it. */
   perLight?: VsmPerLightState
+  /** What the single-layer water's sun projection holds (`waterSunProjection.ts`), made at the first frame that takes it. */
+  water?: VsmWaterProjectionState
+}
+
+/** The single-layer water's sun projection's mask, a layer a sun of the frame at the target's size, and its pass group. */
+interface VsmWaterProjectionState {
+  mask?: GPUTexture
+  view?: GPUTextureView
+  group: HeldGroup
 }
 
 /** What the per-light path holds (`vsmPerLightState`): its records, their group and the frame's lights while the
@@ -56,7 +65,8 @@ interface VsmPerLightState {
 export const vsmProjectionHeldBytes = (res: VsmResources) =>
   (res.projection?.uniform ? VSM_PROJECTION_VIEW_BYTES : 0) +
   (res.projection?.lightGrid?.size ?? 0) +
-  perLightHeldBytes(res.projection?.perLight)
+  perLightHeldBytes(res.projection?.perLight) +
+  waterHeldBytes(res.projection?.water)
 
 /** Bytes the projection of `res` still asks — its view uniform, where it holds none —; of a set not
  *  made yet, all of it. */
@@ -105,7 +115,12 @@ export function releaseVsmProjection(res: VsmResources) {
   state.uniform?.destroy()
   state.lightGrid?.destroy()
   releasePerLight(state.perLight)
+  state.water?.mask?.destroy()
+  state.water = undefined
 }
+
+/** The water's sun projection state of `state`, made at its first ask. */
+export const vsmWaterState = (state: VsmProjectionState) => (state.water ??= { group: heldGroup() })
 
 function projectionState(res: VsmResources) {
   if (res.projection) return res.projection
@@ -122,6 +137,10 @@ function projectionState(res: VsmResources) {
     },
   })
 }
+
+/** Bytes the water's sun mask holds. */
+const waterHeldBytes = (held: VsmWaterProjectionState | undefined) =>
+  held?.mask ? held.mask.width * held.mask.height * held.mask.depthOrArrayLayers * 4 : 0
 
 /** Bytes the per-light path of a projection holds: its records. */
 const perLightHeldBytes = (held: VsmPerLightState | undefined) => held?.records?.size ?? 0

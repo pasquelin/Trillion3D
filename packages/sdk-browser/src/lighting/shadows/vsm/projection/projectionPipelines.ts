@@ -46,8 +46,9 @@ export interface Pipelines extends InputPipelines {
   device: GPUDevice
   vsmLayout: GPUBindGroupLayout
   layout: VsmLayout
-  /** The passes over the hair strands (input `strands`, `../inputType.ts`), made at their first ask. */
+  /** The passes over the hair strands and over the water (inputs `strands` and `water`, `../inputType.ts`), made at their first ask. */
   strands?: InputPipelines
+  water?: InputPipelines
   /** The per-light path's pipelines (`perLightPipelines.ts`), made at the first light that asks. */
   perLight?: PerLightPipelines
   /** The same of the `hair` cut: a pass that reads the strands' shadow on the surfaces. */
@@ -92,13 +93,29 @@ const strandsSharedEntries = (): GPUBindGroupLayoutEntry[] => [
   computeBufferEntry(VSM_PROJECTION_BINDING.strandsTiles, 'read-only-storage'),
 ]
 
+/** The bindings the suns' pass over the single-layer water shares: the view uniform, the water's depth and
+ *  normals, the blue noise, the depth pyramid, the tiles' count (a uniform) and their list. */
+const waterSharedEntries = (): GPUBindGroupLayoutEntry[] => [
+  computeUniformEntry(VSM_PROJECTION_BINDING.view),
+  computeTextureEntry(VSM_PROJECTION_BINDING.sceneDepth, 'depth'),
+  computeTextureEntry(VSM_PROJECTION_BINDING.normalRough, 'unfilterable-float'),
+  computeTextureEntry(VSM_PROJECTION_BINDING.blueNoise, 'unfilterable-float'),
+  ...hizDepthEntries(VSM_PROJECTION_BINDING.hizDepth, COMPUTE),
+  computeUniformEntry(VSM_PROJECTION_BINDING.strandsCounts),
+  computeBufferEntry(VSM_PROJECTION_BINDING.strandsTiles, 'read-only-storage'),
+]
+
 /** The bindings the two passes of `input` share. */
 const sharedEntriesOf = (input: VsmInputType) =>
-  input === 'strands' ? strandsSharedEntries() : sharedEntries()
+  input === 'strands'
+    ? strandsSharedEntries()
+    : input === 'water'
+      ? waterSharedEntries()
+      : sharedEntries()
 
 /** The label of a pass's layout, group and pipeline of `input`: the surfaces' plain, the strands' marked. */
 const inputLabel = (label: string, input: VsmInputType) =>
-  input === 'strands' ? `${label}.strands` : label
+  input === 'gbuffer' ? label : `${label}.${input}`
 
 /** The suns' pass group of `input`: the shared bindings, the suns' mask the pass writes and, where the
  *  set holds the prefiltered distant shadow (`prefiltered`), its merged pool. */
@@ -180,9 +197,9 @@ function makePipelines(device: GPUDevice, layout: VsmLayout): Pipelines {
   return { device, layout, vsmLayout, ...inputPipelines(device, vsmLayout, layout, 'gbuffer') }
 }
 
-/** The passes of `p` for `input`, the strands' made at their first ask. */
+/** The passes of `p` for `input`, the strands' and the water's made at their first ask. */
 export const passesOf = (p: Pipelines, input: VsmInputType): InputPipelines =>
-  input === 'strands' ? (p.strands ??= inputPipelines(p.device, p.vsmLayout, p.layout, input)) : p
+  input === 'gbuffer' ? p : (p[input] ??= inputPipelines(p.device, p.vsmLayout, p.layout, input))
 
 /** The suns' pass of `p` of the `hair` cut over the pixels of `input` (the group layout it is bound by and its pipeline), made at its first ask. */
 export function sunsHairPass(p: Pipelines, input: VsmInputType = 'gbuffer'): LocalsPass {

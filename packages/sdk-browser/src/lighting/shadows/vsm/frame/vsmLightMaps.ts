@@ -136,14 +136,18 @@ export type VsmAsked = {
 }
 
 /** What the settings ask of the frame's set (`shadowMaxPhysicalPages`, `shadowOcclusionCulling`,
- *  `shadowDynamicHzb`, `shadowCache`, `shadowUseReceiverMaskDirectional`, `shadowUseReceiverMaskLocal`,
+ *  `shadowDynamicHzb`, `shadowCache` (`shadowCacheWholeScene` when classic), `shadowUseReceiverMaskDirectional`, `shadowUseReceiverMaskLocal`,
  *  `shadowPrefilteredDistant`): the cover masks are made where either receiver mask is on, every
  *  map's where the local one is. */
 export const vsmAsked = (rt: WebgpuPagesRuntime): VsmAsked => ({
   poolPages: vsmPoolAsked(rt),
   occlusion: readShadowSetting(rt, 'shadowOcclusionCulling'),
   dynamicHzb: readShadowSetting(rt, 'shadowDynamicHzb'),
-  cacheEnabled: readShadowSetting(rt, 'shadowCache'),
+  // The classic maps keep their static depths only while `shadowCacheWholeScene` is on.
+  cacheEnabled:
+    readShadowSetting(rt, 'shadowCache') &&
+    (readShadowSetting(rt, 'shadowVirtualEnable') ||
+      readShadowSetting(rt, 'shadowCacheWholeScene')),
   coverMode: vsmCoverModeOfSettings((key) => readShadowSetting(rt, key)),
   prefilteredDistant: readShadowSetting(rt, 'shadowPrefilteredDistant'),
   classic: !readShadowSetting(rt, 'shadowVirtualEnable'),

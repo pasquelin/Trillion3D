@@ -247,12 +247,12 @@ test('the transmissive stages set the ask before they light, the single-layer wa
   assert.ok(stage(true).includes(SET_CONTACT_ASKED))
   assert.ok(!stage(false).includes(SET_CONTACT_ASKED))
   // The water asks nothing: in a scene of no contact shadows its lights hold no march.
-  const water = wgslModule(waterWgsl({}, undefined, undefined, false, false, scene(false)))
+  const water = wgslModule(waterWgsl({}, undefined, undefined, false, scene(false)))
   assert.ok(!water.includes('fn contactShadow('))
   assert.ok(!water.includes('contactAsked='))
   // In a scene of contact shadows its light block is the transmissive stage’s (one text of the split term’s functions in a
   // module that holds both), whose asked ray never marches for the water: it sets no ask.
-  const beside = wgslModule(waterWgsl({}, undefined, undefined, false, false, scene(true)))
+  const beside = wgslModule(waterWgsl({}, undefined, undefined, false, scene(true)))
   assert.ok(beside.includes('fn contactShadow('))
   assert.ok(!beside.includes('contactAsked='))
 })

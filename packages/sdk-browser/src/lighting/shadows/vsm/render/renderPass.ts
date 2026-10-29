@@ -66,6 +66,7 @@ import {
 import { vsmViewPasses, vsmViewsPerPass, type VsmViewPass } from './renderViewPasses.ts'
 import { renderGroups, vsmEncodeRaster, vsmWorldGroup } from './renderEncode.ts'
 import { VSM_RENDER_COUNT_WORDS, vsmViewsLaid, type CompiledTiers } from './renderParamsWgsl.ts'
+import { createAtlasRaster, type AtlasFrame } from '../../classic/atlas/atlasRaster.ts'
 import { vsmOcclusionContext, vsmTwoPass } from '../occlusion/occlusionPass.ts'
 import {
   prepareVsmDescent,
@@ -168,6 +169,8 @@ export interface VsmRenderFrame {
   lights: readonly VsmBoundLight[]
   /** The compute throttle's buffers where it runs this frame: the cull counts the clusters per map. */
   throttle?: VsmThrottleState
+  /** The classic shadow maps' atlas (`shadowVirtualEnable` off): the casters are drawn into its tiles and joined to the pool, in place of the pool raster. */
+  atlas?: AtlasFrame
 }
 
 /** What one call encoded, for diagnostics. */
@@ -250,6 +253,11 @@ export function encodeVsmRender(
     empty,
     { descent, info: scene.descent.info, lights, views, viewBase: bound.viewBase },
     occlusionOf(res, device, scene),
+    frame.atlas && {
+      raster: (ctx.atlas ??= createAtlasRaster(device, ctx.layout, scene.pageLayout, ctx.held)),
+      res,
+      frame: frame.atlas,
+    },
   )
   // The counts the cull made are the frame's feedback, which the next frame's throttle reads.
   if (throttle)

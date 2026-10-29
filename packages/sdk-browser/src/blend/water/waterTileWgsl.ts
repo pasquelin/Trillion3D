@@ -1,6 +1,7 @@
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { zOrderDecode } from '../../../../math/src/wgsl/integer.ts'
+import { GROUP_GRID_WGSL, indirectArgsWgsl } from '../../gpu/dispatch/grid.ts'
 import { WATER_TILE_BINDINGS as T, WATER_TILE_PIXELS } from './waterLayout.ts'
 import { WATER_MATH_WGSL } from './waterMathWgsl.ts'
 
@@ -16,6 +17,8 @@ import { WATER_MATH_WGSL } from './waterMathWgsl.ts'
  *   half, y in the high half of a word) to `tileList` and counts it in the instance count of the indirect
  *   draw (`args[1]`). The subgroup variant (`singleLayerWaterWaveOps`, where the device grants subgroups) takes one
  *   atomic a subgroup, its lanes writing at the prefix of the used tiles among them; the plain one takes one a tile.
+ * - `csWaterDispatch` (one thread) turns the count into the arguments of an indirect dispatch of one workgroup a
+ *   listed tile (`tileDispatch`, cut in rows past the device's width), for the passes that run over the list.
  * - `csWaterIds` clears the visibility identifier of every pixel the water covers, so that the temporal pass reads
  *   the water's pixel as a surface that does not move by itself (the camera's motion alone, at the water's depth).
  * - `waterTileVertex` draws a tile of the list as two triangles, the instance picking it: the list is bound
@@ -42,7 +45,7 @@ export const waterTileKernels = (waves: boolean) =>
   wgslModule(
     wgslBlock(
       `waterTileKernels(${waves})`,
-      [WATER_MATH_WGSL, zOrderDecode],
+      [WATER_MATH_WGSL, zOrderDecode, GROUP_GRID_WGSL, indirectArgsWgsl('tileDispatch')],
       `${waves ? 'enable subgroups;\ndiagnostic(off,subgroup_uniformity);\n' : ''}@group(0) @binding(${T.params}) var<uniform> water:WaterParams;
 @group(0) @binding(${T.waterDepth}) var waterDepthTexture:texture_depth_2d;
 @group(0) @binding(${T.opaqueDepth}) var opaqueDepth:texture_depth_2d;
@@ -50,6 +53,7 @@ export const waterTileKernels = (waves: boolean) =>
 @group(0) @binding(${T.list}) var<storage,read_write> tileList:array<u32>;
 @group(0) @binding(${T.args}) var<storage,read_write> args:array<atomic<u32>,4>;
 @group(0) @binding(${T.ids}) var visIds:texture_storage_2d<r32uint,write>;
+@group(0) @binding(${T.dispatch}) var<storage,read_write> tileDispatch:array<u32>;
 var<workgroup> holdsWater:atomic<u32>;
 @compute @workgroup_size(${WATER_TILE_PIXELS},${WATER_TILE_PIXELS})
 fn csWaterMark(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) lane:u32){
@@ -62,6 +66,11 @@ fn csWaterMark(@builtin(global_invocation_id) id:vec3u,@builtin(workgroup_id) gr
   let at=group.y*water.tiles.x+group.x;
   atomicOr(&tileMask[at>>5u],1u<<(at&31u));
  }
+}
+@compute @workgroup_size(1)
+fn csWaterDispatch(){
+ let rows=groupGrid(atomicLoad(&args[1]));
+ writeIndirectArgs(0u,rows.x,rows.y,1u);
 }
 @compute @workgroup_size(${WATER_TILE_PIXELS},${WATER_TILE_PIXELS})
 fn csWaterIds(@builtin(global_invocation_id) id:vec3u){

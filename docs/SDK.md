@@ -3420,6 +3420,19 @@ world.shadows = { shadowQuality: null } // back to the default, 5
 world.quality.preset = 'smooth' // the first level: no shadow at all, unless the page set one
 ```
 
+### Classic shadow maps' depth atlas
+
+With `shadowVirtualEnable: false` the lights' classic shadow maps are drawn into a depth atlas (a tile a map, a layer for the movable casters and one for the static casters) and joined to the page pool the readers sample. Eight options set it, with the reference defaults: `shadowCsmCaching` (`false`: a sun's cascades are drawn whole each image; `true` keeps the pages a sliding cascade still covers, until it has slid so far that less than `shadowCsmScrollingOverlapAreaThrottle` of its cached area is covered (`0.75`), or the last slide had to draw more than `shadowMaxCsmScrollingStaticSubjects` static casters again (`5`), and then draws its cache again whole; while the cascades are cached their casters take no slope bias), `shadowCacheWholeScene` (`true`, the static depths are kept from one image to the next), `shadowCachedCastFromMovable` (`true`; `false` leaves the movable casters out of the point and spot lights' shadows), `shadowMaxPointCacheUpdatesPerFrame` and `shadowMaxSpotCacheUpdatesPerFrame` (`-1`, no limit: past the limit a light whose resolution changed keeps its previous resolution that frame) and `shadowWholeSceneCacheMb` (`150`, the memory of every atlas of both layers, counted as 32-bit depth: the maps that do not fit are drawn into the pool without a tile; a sun's cascades never go without: their resolution `shadowMaxCsmResolution` is held to the atlas side less one page, so a cascade the atlas cannot hold is drawn in a coarser clipmap level). The atlas is drawn into only while the maps are classic, and costs nothing otherwise.
+
+```js
+const world = createWorld('viewer', { shadowVirtualEnable: false }) // classic maps, drawn into the atlas
+world.shadows = { shadowCsmCaching: true } // cascades reuse the pages they still cover as they slide
+world.shadows = { shadowCsmScrollingOverlapAreaThrottle: 0.5, shadowMaxCsmScrollingStaticSubjects: 10 } // slide further before the cache is drawn again
+world.shadows = { shadowMaxSpotCacheUpdatesPerFrame: 2 } // at most two spot lights change their resolution a frame
+world.shadows = { shadowCachedCastFromMovable: false } // movable casters leave the point and spot lights' shadows
+world.shadows = { shadowWholeSceneCacheMb: 300 } // a larger atlas: more room for the lights' tiles
+```
+
 The quality levels (the `shadows` group) write the four that shape the distance and its edge, the shadow
 maps' rows and the shadow quality, as the rules' own rows (`SHADOW_PRESET_LEVELS`,
 `packages/sdk-core/src/contracts/shadowOptions.ts`):
@@ -3893,7 +3906,7 @@ metres, where the reference's are centimetres:
 | `singleLayerWaterShadersSupportDistanceFieldShadow`   | The programs keep the sun apart from the rest of the water's light, for the sun's distance-field shadow; read when the session opens                                                                                                                         | `true`           |
 | `singleLayerWaterDistanceFieldShadow`                 | The sun's light on the water is kept apart for the sun's distance-field shadow, which leaves out the meshes made of clusters (all the engine draws; the shadow maps shadow them) (needs the setting above and meshes with fields)                            | `true`           |
 | `singleLayerWaterShadersSupportVsmFiltering`          | The programs hold the full trace of the sun's shadow for the water; read when the session opens                                                                                                                                                              | `false`          |
-| `singleLayerWaterVsmFiltering`                        | The sun's shadow on the water is the full trace the opaque surfaces get, not one sample: the shading reads the sun unshadowed (`shadowSkipSun`) and the composite multiplies the separated sun by the trace at the water's surface (needs the setting above) | `false`          |
+| `singleLayerWaterVsmFiltering`                        | The sun's shadow on the water is the full projection the opaque surfaces get, not one sample: the shading reads the sun unshadowed (`shadowSkipSun`), the shadow maps are projected onto the water's surface over the tiles that hold water, and the separated sun is multiplied by that share before the composite (needs the setting above and `singleLayerWaterDepthPrepass`, which lists the tiles) | `false`          |
 | `singleLayerWaterCloudShadow`                         | The clouds shade the sun that lights the water's volume                                                                                                                                                                                                      | `false`          |
 | `singleLayerWaterRefractionDownsample`                | Times fewer pixels a side (1 or 2) the copy of the scene the water refracts is made at                                                                                                                                                                       | `1`              |
 | `singleLayerWaterRefractionCulling`                   | Skip the refraction where it shows little (the three cullings below)                                                                                                                                                                                         | `false`          |
@@ -4501,6 +4514,8 @@ The sampled lighting (`sampledLights`) and the subsurface scattering have views 
 
 | Mode | What it shows |
 | --- | --- |
+| `virtual-shadow-map-shadow-casters` | over the image, the edges of the box of every placement the shadows keep as invalidating or that may, in the colour of its class (red a static one that deforms, purple a dynamic one that moves or deforms, blue a dynamic one whose offset may invalidate), with the legend of the classes at the lower left; the green, cyan and grey classes draw no box |
+| `virtual-shadow-map-clipmap-virtual-space` | over the image in grey, a square that shows the pages the first sun's shadow clipmap has mapped, level by level from the finest to the coarsest, each in the colour of its address and level, zoomed so that the finest level's pages fill it; needs shadows (`await engine.setDiagnostic('virtual-shadow-map-clipmap-virtual-space')`) |
 | `rect-light-atlas` | over the image, the atlas of the rectangle lights' pictures drawn small at the mip level `rectLightAtlasDebugMipLevel`, a green border round each slot in use, red round the packing's horizon lines, yellow round the free rectangles, and the figures as text (the same as `rectLightAtlasDebug`) |
 | `sampled-lights-overview` | the shadow caster views side by side, in tiles with rounded corners, over the image |
 | `sampled-lights-shadow-casters` | the surface under each pixel in grey, with the label `Shadow Casters, Materials:0, FarField:0, HairVoxels:0` (the traces are made through the distance field, which has no scene of its own to colour) |

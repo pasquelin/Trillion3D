@@ -141,6 +141,14 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
     nonNegative('shadowSpotLightDepthBias', 3),
     nonNegative('shadowSpotLightSlopeScaleDepthBias', 3),
     nonNegative('shadowMaxSlopeScaleDepthBias', 1),
+    flag('shadowCsmCaching', false),
+    number('shadowCsmScrollingOverlapAreaThrottle', 0.75, [0, 1]),
+    integer('shadowMaxCsmScrollingStaticSubjects', 5, [0, INT32_RANGE[1]]),
+    flag('shadowCacheWholeScene', true),
+    integer('shadowMaxPointCacheUpdatesPerFrame', -1, [-1, INT32_RANGE[1]]),
+    integer('shadowMaxSpotCacheUpdatesPerFrame', -1, [-1, INT32_RANGE[1]]),
+    count('shadowWholeSceneCacheMb', 150, 0),
+    flag('shadowCachedCastFromMovable', true),
     nonNegative('shadowSpotLightTransitionScale', 60),
     number('shadowSpotLightReceiverBias', 0.5, [0, 1]),
     flag('shadowPointLightShadows', true),
@@ -283,6 +291,14 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowSpotLightDepthBias` | 3 | |
  * | `shadowSpotLightSlopeScaleDepthBias` | 3 | |
  * | `shadowMaxSlopeScaleDepthBias` | 1 | |
+ * | `shadowCsmCaching` | false | |
+ * | `shadowCsmScrollingOverlapAreaThrottle` | 0.75 | |
+ * | `shadowMaxCsmScrollingStaticSubjects` | 5 | |
+ * | `shadowCacheWholeScene` | true | |
+ * | `shadowMaxPointCacheUpdatesPerFrame` | -1 | |
+ * | `shadowMaxSpotCacheUpdatesPerFrame` | -1 | |
+ * | `shadowWholeSceneCacheMb` | 150 | |
+ * | `shadowCachedCastFromMovable` | true | |
  * | `shadowSpotLightTransitionScale` | 60 | |
  * | `shadowSpotLightReceiverBias` | 0.5 | |
  * | `shadowPointLightShadows` | true | |

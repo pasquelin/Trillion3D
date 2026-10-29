@@ -280,6 +280,7 @@ export function encodeVsmFrame(
     vsm.renderedPlan = plan
     return
   }
+  frame.atlas = atlasFrameOf(vsm, scratch, plan)
   const drawn = rasterLights(plan, scratch.raster)
   // Every light fully cached: no page to draw, no tables to keep, no pyramid to build. The next frame,
   // with no previous tables kept, culls once a view pass.
@@ -292,6 +293,23 @@ export function encodeVsmFrame(
   encodeVsmAfterRaster(tail, res, pmFrame)
   tail.end()
   scratch.held = { frame, views }
+}
+
+/** The classic shadow maps' atlas of the frame: the tiles the dense marking placed in the buffer it wrote; none while the maps are virtual or no tile was placed. */
+function atlasFrameOf(
+  vsm: EngineVsm,
+  scratch: VsmFrameScratch,
+  plan: NonNullable<EngineVsm['plan']>,
+): VsmFrame['atlas'] {
+  const dense = scratch.marking.dense
+  const buffer = vsm.marking.atlasBuffer()
+  if (!dense || !buffer || dense.atlas.placed === 0) return undefined
+  return {
+    plan: dense.atlas,
+    buffer,
+    mapCount: plan.projectionCount,
+    cached: vsm.res.layout.cacheEnabled,
+  }
 }
 
 /** The lights of `plan` the raster draws, in `out`: those not fully cached (`VsmLightCache.isFullyCached`), a
@@ -352,7 +370,7 @@ function fillMarkingView(
   front: ReturnType<typeof markingFrontLayer>,
 ) {
   const { rt, device, cam, projection, vsm } = frame
-  const { lights, gpu } = rt
+  const { gpu } = rt
   const [width, height] = gpu.targetSize
   const view = scratch.markingView
   view.depth = gpu.depthView!
@@ -398,7 +416,7 @@ function encodeVsmMarking(
   perPage: ReturnType<typeof vsmCachePerPageBins>,
   pmFrame: VsmPageManagementFrame,
 ) {
-  const { rt, device, cam, projection, vsm, plan, throttle } = frame
+  const { rt, device, cam, vsm, plan, throttle } = frame
   const { lights, gpu } = rt,
     { res } = vsm
   const [width, height] = gpu.targetSize
@@ -414,7 +432,15 @@ function encodeVsmMarking(
   markingFrame.perspective = cam.perspective === 1
   markingFrame.settings = vsm.state.maps.shadows
   markingFrame.throttled = !!throttle
-  markingFrame.dense = denseOf(rt, cam, plan, vsm.state.maps.shadows, width, height)
+  markingFrame.dense = denseOf(
+    rt,
+    cam,
+    plan,
+    vsm.state.maps.shadows,
+    width,
+    height,
+    device.limits.maxTextureDimension2D,
+  )
   if (lights.buffer && tiles) {
     markingFrame.view = fillMarkingView(
       frame,

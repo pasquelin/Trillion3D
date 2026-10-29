@@ -6,6 +6,7 @@ import {
   VSM_WATER_DEPTH_BINDING,
   vsmPixelPageMarkingWgsl,
 } from './markingWgsl.ts'
+import { frontStamp } from '../../reflections/frontLayer.ts'
 import { markingFrontLayer, newFrontSeen, newMarkingFront } from './frame/vsmFrontLayer.ts'
 import { beginCamera } from '../../../frame/backend/state/previousCamera.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
@@ -132,7 +133,7 @@ test('the marking reads the front layer of the image drawn just before it, and o
     return skipped ? undefined : markingFrontLayer(rt, cam, seen, held)
   }
   const frontPass = (frame: number) =>
-    void ((rt.gpu.reflection!.front as { drawn: number }).drawn = frame)
+    void ((rt.gpu.reflection!.front as { drawn: number }).drawn = frontStamp(frame))
   // The first image has no image before it; its front pass draws.
   assert.equal(image(5, 1), undefined)
   frontPass(5)

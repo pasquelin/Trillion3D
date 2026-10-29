@@ -384,7 +384,6 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey, pictures: b
           setup.graphs,
           setup.reads,
           asksOfItsOwn(setup.translucentShadow.materials!),
-          setup.translucentShadow.materials!.directionalTrace,
           scene,
         )
       : undefined,

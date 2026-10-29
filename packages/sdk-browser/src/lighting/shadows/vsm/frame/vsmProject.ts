@@ -1,4 +1,5 @@
 // The frame's shadow-map raster and projection (`vsmEncode.ts`).
+import type { AtlasFrame } from '../../classic/atlas/atlasRaster.ts'
 import type { ComputeRun } from '../../../../gpu/core/lazyComputePass.ts'
 import { clamp } from '../../../../../../math/src/scalar/reals.ts'
 import type { EngineCamera } from '../../../../camera/engineCamera.ts'
@@ -51,6 +52,10 @@ import type { VsmFrameScratch } from './vsmEncode.ts'
 import type { VsmThrottleState } from '../throttle.ts'
 import { projectionLight } from './vsmPlan.ts'
 import { sunCascadesOf } from './vsmDense.ts'
+import {
+  classicCascadeResolution,
+  type CascadeAtlasSettings,
+} from '../../classic/atlas/atlasPlan.ts'
 import type { ClassicSettings, ClassicSun } from '../../classic/classicView.ts'
 import { nearInCentimetres } from '../../classic/denseEntries.ts'
 import { vsmRasterScene } from './vsmRasterScene.ts'
@@ -82,6 +87,8 @@ export interface VsmFrame {
    *  render-scale controller gave it (`askVsmThrottleStrength`). */
   throttle?: VsmThrottleState
   strength: number
+  /** The classic shadow maps' atlas of the frame (`shadowVirtualEnable` off), set once the marking has placed the tiles. */
+  atlas?: AtlasFrame
 }
 
 /** Says once per set that the GPU budget's room held the shadow raster's records short of the room
@@ -94,6 +101,17 @@ function sayRoomLimited(rt: WebgpuPagesRuntime, vsm: EngineVsm, skipped: boolean
     skipped
       ? 'The GPU budget holds no shadow raster lists this frame: its pages wait'
       : 'The GPU budget holds the shadow raster to fewer records: the pages past them wait',
+    outOfMemoryContext('shadow', null),
+  )
+}
+
+/** Says once per set that the classic shadow maps' atlases are too small for the tile of some maps, which then draw no shadow. */
+function sayAtlasTooSmall(rt: WebgpuPagesRuntime, vsm: EngineVsm, left: number) {
+  if (vsm.said.has('atlas')) return
+  vsm.said.add('atlas')
+  rt.diag.engineDiagnostic(
+    'gpu-out-of-memory',
+    `${left} classic shadow maps are larger than the depth atlas the device or shadowWholeSceneCacheMb allows: they draw no shadow`,
     outOfMemoryContext('shadow', null),
   )
 }
@@ -117,7 +135,7 @@ const recordLimit = (rt: WebgpuPagesRuntime, device: GPUDevice, maps: number) =>
  *  cast, listed and decoded as the casters of this frame, each map view selecting its own level of
  *  detail of them. */
 export function encodeVsmRaster(
-  { rt, device, encoder, cam, vsm, plan, throttle }: VsmFrame,
+  { rt, device, encoder, cam, vsm, plan, throttle, atlas }: VsmFrame,
   lights: readonly VsmBoundLight[],
 ) {
   const { lights: sceneLights, layout, rootWorlds } = rt
@@ -156,7 +174,8 @@ export function encodeVsmRaster(
     { ...casters, pageLayout, pageGroup, pageCompute },
     tessellation,
   )
-  const frame = { device, lights, throttle }
+  if (atlas?.plan.left.length) sayAtlasTooSmall(rt, vsm, atlas.plan.left.length)
+  const frame = { device, lights, throttle, atlas }
   // The streaming reads the shadow views' requests of this set (`vsmShadowRequestCuts`).
   noteVsmRequestSet(rt, vsm.res)
   const stats = encodeVsmRender(encoder, vsm.res, frame, scene)
@@ -170,6 +189,7 @@ const classicSuns: ClassicSun[] = []
 const classicScratch = {
   suns: classicSuns,
   nearCentimetres: 0,
+  cascadeResolution: 0,
   settings: undefined as unknown as ClassicSettings,
 }
 
@@ -178,7 +198,8 @@ function classicOf(
   rt: WebgpuPagesRuntime,
   cam: EngineCamera,
   plan: NonNullable<EngineVsm['plan']>,
-  shadows: ClassicSettings,
+  shadows: ClassicSettings & CascadeAtlasSettings,
+  maxTextureSide: number,
 ) {
   classicSuns.length = 0
   for (const lane of plan.projected) {
@@ -186,11 +207,11 @@ function classicOf(
     const light = rt.lights.store.light(lane.id)
     classicSuns.push({
       mapId: lane.firstId,
-      firstLevel: lane.clipmap.firstLevel,
       cascades: light && sunCascadesOf(light),
     })
   }
   classicScratch.nearCentimetres = nearInCentimetres(cam.near)
+  classicScratch.cascadeResolution = classicCascadeResolution(shadows, maxTextureSide)
   classicScratch.settings = shadows
   return classicScratch
 }
@@ -228,7 +249,9 @@ function projectionContext(
   context.frameIndex = lightingPhase(rt)
   const { shadows } = vsmMapSettings(rt)
   context.trace = shadows
-  context.classic = shadows.shadowVirtualEnable ? undefined : classicOf(rt, cam, plan, shadows)
+  context.classic = shadows.shadowVirtualEnable
+    ? undefined
+    : classicOf(rt, cam, plan, shadows, device.limits.maxTextureDimension2D)
   writeVsmProjectionFrame(vsm.res, context)
   scratch.projecting = true
   return context
@@ -384,7 +407,7 @@ function encodeVsmProjection(
   scratch: VsmFrameScratch,
   views: GPUTextureView[],
 ) {
-  const { rt, device, cam, projection, vsm } = frame
+  const { rt, device, cam, vsm } = frame
   const context = projectionContext(frame, scratch)
   if (!context) return 0
   const { lights, gpu } = rt
