@@ -56,5 +56,7 @@ export function planTotals() {
     water: false,
     /** Bind group ALL items share, by identity slot. */
     sharedGroups: [] as (GPUBindGroup | undefined)[],
+    /** The same group for the display-filtered pipelines, by identity slot, where their layout is another (`blendGroupLayouts`). */
+    filteredGroups: [] as (GPUBindGroup | undefined)[],
   }
 }

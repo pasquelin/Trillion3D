@@ -25,9 +25,10 @@ import { BLEND_BINDINGS } from '../bind/bindLayout.ts'
 import { withinDefaults } from './stageLimits.fixture.ts'
 
 test('the engine asks no more sampled textures a stage than WebGPU guarantees', () => {
+  // Sixteen everywhere; the seventeenth only where the blends read the rectangle lights' pictures (`blend/rectPictures.test.ts`).
   assert.equal(
     WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage,
-    limitOf('maxSampledTexturesPerShaderStage'),
+    limitOf('maxSampledTexturesPerShaderStage') + 1,
   )
 })
 
@@ -166,7 +167,8 @@ test("the blends and the transmissive stages fit WebGPU's default limits", async
     maxStorageBuffersPerShaderStage: 8,
     maxStorageTexturesPerShaderStage: 4,
     maxUniformBuffersPerShaderStage: 9,
-    maxSamplersPerShaderStage: 5,
+    // The rectangle lights' pictures add their trilinear sampler (`BLEND_RECT_BINDINGS`) to the five.
+    maxSamplersPerShaderStage: 6,
   })
   // The vertex stage holds the eight storage buffers too: the geometry's three, the items, the lights, the
   // instances, the spans with the clusters' identity words after them, and the lists of the local fog volumes it

@@ -43,12 +43,15 @@ export function blendEntries(rt: WebgpuPagesRuntime) {
       translucencyGiSampler: () => rt.blendState.lighting?.translucencyGiSampler,
       lightProfileAtlas: () => rt.blendState.lighting?.lightProfileAtlas,
       lightProfileSampler: () => rt.blendState.lighting?.lightProfileSampler,
+      rectAtlas: () => rt.blendState.lighting?.rectAtlas,
+      rectSampler: () => rt.blendState.lighting?.rectSampler,
       volumeCamera: () => rt.blendState.lighting?.volumeCamera,
       cloudShade: () => rt.blendState.lighting?.cloudShade,
       cloudFog: () => rt.blendState.lighting?.cloudFog,
       material: () => rt.vis.materialTable.view,
       frame: () => rt.gpu.device && rt.vis.graphFrame.bufferOn(rt.gpu.device),
     }),
+    true,
   )
 }
 
@@ -62,4 +65,5 @@ export function voidStaleBlendGroups(rt: WebgpuPagesRuntime, lighting: BlendLigh
   if (!identity.entriesMoved(vis.blendBindGroupLayout)) return
   const { slot } = identity
   blendState.sharedGroups[slot] = undefined
+  blendState.filteredGroups[slot] = undefined
 }

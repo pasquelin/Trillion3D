@@ -3088,8 +3088,10 @@ freed slots reused first, with a chain of mip levels the lighting reads by the s
 specular lobe (also under a clear coat, a cloth's fuzz or a subsurface profile), the thin surfaces' transmission, the cards of the surface cache and
 the sampled lighting read the picture; the volumetric fog tints the light of the rectangle by it while `volumetricFogRectLightTexture` (`false` by
 default, a setting of the volumetric fog, `world.volumetricFog…`) is on: each cell reads the picture along the mean direction of the rectangle's light
-(the direction of its form factor with no normal), at the level the solid angle it covers asks; the translucent surfaces (the blends) and the
-translucency lighting volume light the rectangle plain, and the reflections' and the bounce's rays take the light of the surface cache, which holds the picture.
+(the direction of its form factor with no normal), at the level the solid angle it covers asks; the translucent surfaces' forward programs (the blends) read it where the device grants 17 sampled textures a shader stage, which the session
+asks of an adapter that offers them; on an adapter that stops at 16 they light the rectangle plain (declared fallback: the widest blend program, with
+display layers, already binds the sixteen guaranteed); the
+translucency lighting volume lights the rectangle plain, and the reflections' and the bounce's rays take the light of the surface cache, which holds the picture.
 
 `world.rectLightAtlas` holds the settings of the atlas, each an option of `createWorld` too, with the reference's default:
 `rectLightAtlasMaxResolution` (`4096`, from 64 to 16384: the most texels a side; past it the pictures are packed a mip level smaller until they

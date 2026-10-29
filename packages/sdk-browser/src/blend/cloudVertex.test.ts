@@ -148,12 +148,12 @@ test('a scene with such a surface, or a session whose switch reads the shade, bu
   )
   // The fragment stage's real headroom under the sixteen sampled textures WebGPU guarantees a stage: the
   // forward reflection group is the smaller one (`reflectionForwardLayout`), so the worst fragment layout
-  // holds 15 (the light profiles' atlas took the fifteenth,
-  // `BLEND_BINDINGS.lightProfileAtlas`) and the cloud's colour and depth (two more) would leave none: the image is
+  // holds 16 (the light profiles' atlas took the fifteenth, `BLEND_BINDINGS.lightProfileAtlas`, the rect lights'
+  // pictures the sixteenth, `BLEND_RECT_BINDINGS`) and the cloud's colour and depth (two more) would not fit: the image is
   // read per vertex, which keeps the fragment layout the same with or without it; a layout that grows past this
   // headroom fails here before it fails on a device.
   const sampled = without.worst['sampled textures in the Fragment']
-  assert.equal(sampled, 15)
+  assert.equal(sampled, 16)
   assert.ok(sampled <= 16)
   // The vertex stage binds them: two sampled textures, a sampler and a uniform buffer.
   assert.ok(wearing.worst['sampled textures in the Vertex'] <= 16)

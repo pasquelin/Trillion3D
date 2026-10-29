@@ -254,6 +254,16 @@ export const BLEND_LIGHT_PROFILE_BINDINGS = {
   atlas: BLEND_BINDINGS.lightProfileAtlas,
   sampler: BLEND_BINDINGS.lightProfileSampler,
 } as const
+/** Where a transparent's fragment reads the rectangle lights' pictures (`rectSourceWgsl`), in group 0, past the bindings of the table:
+ *  the atlas and its trilinear sampler. They are the seventeenth sampled texture of the widest program's fragment stage, so the
+ *  layout holds them only on a device that grants it (`grantsRectPictures`); else a rectangle is plain. */
+export const BLEND_RECT_BINDINGS = { atlas: 51, sampler: 52 } as const
+/** The profiles' bindings with the rectangle lights' pictures (`BLEND_RECT_BINDINGS`) beside them. */
+export const BLEND_LIGHT_PROFILE_RECT_BINDINGS = {
+  ...BLEND_LIGHT_PROFILE_BINDINGS,
+  rectAtlas: BLEND_RECT_BINDINGS.atlas,
+  rectSampler: BLEND_RECT_BINDINGS.sampler,
+} as const
 /** What a transparent's fragment traces its shadow with (`directShadowWgsl`): the blue noise is a
  *  read-only storage texture, read by load (`loadOnly`). */
 export const BLEND_TRACE_BINDINGS = {

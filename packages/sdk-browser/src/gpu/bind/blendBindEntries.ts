@@ -4,6 +4,7 @@ import {
   BLEND_BINDINGS,
   BLEND_CLOUD_FOG_BINDINGS,
   BLEND_CLOUD_SHADE_BINDINGS,
+  BLEND_RECT_BINDINGS,
   atlasLayoutEntries,
 } from './bindLayout.ts'
 import {
@@ -19,6 +20,7 @@ import { BLUE_NOISE_FORMAT } from '../noise/blueNoiseTextures.ts'
 import { atlasEntries, type AtlasResources } from './bindEntries.ts'
 import { ATLAS_TEXTURE_FORMAT } from '../../lighting/lightFunction/layout.ts'
 import { FRONT_TRACED_LAYOUT } from '../../lighting/reflections/frontLayer.ts'
+import { rectAtlasLayoutEntries } from '../../lighting/rectLightAtlas/bindings.ts'
 import { SURFACE_WORDS_FORMAT } from '../../materials/surface/surfaceOutputs.ts'
 
 /** Lighting shared with the opaque resolve; deferred stand-ins cover resources not ready yet. */
@@ -62,6 +64,10 @@ export type BlendLighting = {
   /** The light profiles' atlas and its sampler (`BLEND_LIGHT_PROFILE_BINDINGS`), or the stand-in a program that reads none binds. */
   lightProfileAtlas: GPUTextureView
   lightProfileSampler: GPUSampler
+  /** The rectangle lights' atlas and its sampler (`BLEND_RECT_BINDINGS`), or the stand-in of no picture: bound where the device grants the
+   *  seventeenth sampled texture (`grantsRectPictures`). */
+  rectAtlas: GPUTextureView
+  rectSampler: GPUSampler
   /** The beer map of the camera and the volumes' radiance in two layers, or the stand-in (`BlendView.volumeCamera` then says none is made). */
   volumeCamera: GPUTextureView
   /** The clouds' shade of the forward directional light, the block and the one map its vertices
@@ -181,10 +187,12 @@ const SINGLES = Object.keys(BLEND_TABLE) as Single[]
 /** The forward materials' layout entries (`../../blend/pipelines.ts`), the view uniform at least
  *  `viewSize` bytes, and the vertex stage's reads of the clouds' shade (`BLEND_CLOUD_SHADE_BINDINGS`)
  *  and of the cloud image (`BLEND_CLOUD_FOG_BINDINGS`) in every layout: the programs that read them
- *  are a scene's or a setting's, which come and go while the layout stays. */
+ *  are a scene's or a setting's, which come and go while the layout stays; and, with `rectPictures` (`grantsRectPictures`), the rectangle
+ *  lights' atlas and its sampler (`BLEND_RECT_BINDINGS`). */
 export function blendLayoutEntries(
   viewSize: number,
   vertexTextures = false,
+  rectPictures = false,
 ): GPUBindGroupLayoutEntry[] {
   const stages = {
     vertex: GPUShaderStage.VERTEX,
@@ -204,6 +212,7 @@ export function blendLayoutEntries(
     }),
     ...atlasLayoutEntries(BLEND_BINDINGS.color, atlas),
     ...atlasLayoutEntries(BLEND_BINDINGS.data),
+    ...(rectPictures ? rectAtlasLayoutEntries(BLEND_RECT_BINDINGS, GPUShaderStage.FRAGMENT) : []),
     ...cloudShadowLayoutEntries(BLEND_CLOUD_SHADE_BINDINGS, GPUShaderStage.VERTEX),
     ...cloudFogLayoutEntries(BLEND_CLOUD_FOG_BINDINGS, GPUShaderStage.VERTEX),
   ]
@@ -232,7 +241,7 @@ const cloudFogEntries = (r: BlendBindResources): GPUBindGroupEntry[] => {
 
 /** The unique entry list of the blend layout, live: each entry reads its resource from `r` when
  *  the group is made. */
-export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
+export function blendBindEntries(r: BlendBindResources, rectPictures = false): GPUBindGroupEntry[] {
   const size = () => r.uniformSize
   return [
     ...SINGLES.map((name) => {
@@ -243,6 +252,12 @@ export function blendBindEntries(r: BlendBindResources): GPUBindGroupEntry[] {
     }),
     ...atlasEntries(BLEND_BINDINGS.color, () => r.textures?.color),
     ...atlasEntries(BLEND_BINDINGS.data, () => r.textures?.data),
+    ...(rectPictures
+      ? [
+          resourceEntry(BLEND_RECT_BINDINGS.atlas, () => r.rectAtlas),
+          resourceEntry(BLEND_RECT_BINDINGS.sampler, () => r.rectSampler),
+        ]
+      : []),
     ...cloudShadeEntries(r),
     ...cloudFogEntries(r),
   ]

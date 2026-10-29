@@ -14,6 +14,7 @@ import {
   BLEND_FOG_BINDINGS,
   BLEND_LIGHT_FUNCTION_BINDINGS,
   BLEND_LIGHT_PROFILE_BINDINGS,
+  BLEND_LIGHT_PROFILE_RECT_BINDINGS,
   BLEND_TRACE_BINDINGS,
   BLEND_VSM_BINDINGS,
 } from '../gpu/bind/bindLayout.ts'
@@ -89,6 +90,7 @@ const blendProgram = (
   translucentShadow: TranslucentShadow = TRANSLUCENT_SHADOW_DEFAULT,
   volume = false,
   sampledFront = false,
+  rectPictures = false,
 ) => {
   const options = stageOptions(
     key,
@@ -104,12 +106,12 @@ const blendProgram = (
     trace: { ...BLEND_TRACE_BINDINGS, subgroups },
     fog: { ...BLEND_FOG_BINDINGS, localFog },
     lightFunction: BLEND_LIGHT_FUNCTION_BINDINGS,
-    lightProfile: BLEND_LIGHT_PROFILE_BINDINGS,
+    lightProfile: rectPictures ? BLEND_LIGHT_PROFILE_RECT_BINDINGS : BLEND_LIGHT_PROFILE_BINDINGS,
     // The clouds' shade, read per vertex (`blendVertexWgsl`), where the program reads the clouds.
     ...(reads.clouds && { cloudShadow: BLEND_CLOUD_SHADE_BINDINGS }),
   }
   return wgslBlock(
-    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''}${graphs ? `, ${graphs.key}` : ''}${options.shade.key}${localFog ? '' : ', no local fog volumes'}${translucentShadowLabel(translucentShadow)}${volume ? ', translucency volume' : ''}${sampledFront ? ', sampled front light' : ''})`,
+    `blendProgram(${variantLabel(key)}, ${subgroups}${clipping ? `, ${clipping}` : ''}${graphs ? `, ${graphs.key}` : ''}${options.shade.key}${localFog ? '' : ', no local fog volumes'}${translucentShadowLabel(translucentShadow)}${volume ? ', translucency volume' : ''}${sampledFront ? ', sampled front light' : ''}${rectPictures ? ', rectangle pictures' : ''})`,
     [
       blendVertexWgsl(stageLobes(options), clipping, options.shade, offsets),
       STANDARD_LIGHTING_WGSL,
@@ -173,6 +175,7 @@ export const blendShader = (
     translucentShadow = TRANSLUCENT_SHADOW_DEFAULT,
     scene = DEFAULT_TRANSLUCENT_SCENE,
     translucencyVolume = false,
+    rectPictures = false,
     water,
   }: {
     stage?: WgslDecl
@@ -192,6 +195,8 @@ export const blendShader = (
     scene?: TranslucentScene
     /** Whether it reads the translucency lighting volume (`translucencyVolumeOf`). */
     translucencyVolume?: boolean
+    /** Whether it reads the rectangle lights' pictures (`grantsRectPictures`); else a rectangle is plain. */
+    rectPictures?: boolean
     /** The single-layer water's stage (`./water/waterStageWgsl.ts`), of a scene that holds some. */
     water?: WgslDecl
   } = {},
@@ -208,6 +213,7 @@ export const blendShader = (
       translucentShadow,
       translucencyVolume,
       !!scene.sampledFront,
+      rectPictures,
     ),
     ...(dual ? [DUAL_SOURCE_WGSL] : []),
     ...clipDirective(clipping),

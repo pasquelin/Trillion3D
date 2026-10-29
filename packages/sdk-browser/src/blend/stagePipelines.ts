@@ -270,6 +270,13 @@ export interface BlendModePipelines extends RankedPipelines {
   readonly holdout: RankedPipelines
 }
 
+/** What the display-filtered pipelines of a program are made on: their group-0 layout (`blendGroupLayouts`) and the module that goes
+ *  with it, asked when one is made. */
+export type FilteredProgram = {
+  readonly layout: GPUBindGroupLayout
+  readonly module: () => GPUShaderModule
+}
+
 /** The groups after the blend's of a stage that reads the reflection (`REFLECTION_GROUP`), the
  *  display mask's last where `mask` is given: what `stageDescriptors` is handed by every stage but
  *  the front's and those with groups of their own. */

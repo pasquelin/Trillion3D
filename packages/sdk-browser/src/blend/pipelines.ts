@@ -1,4 +1,3 @@
-import { grantsVertexTextures } from '../gpu/core/vertexTextures.ts'
 import { NO_RASTERS, type GraphRasters } from '../materials/graph/graphRasters.ts'
 import type { WpoSet } from '../materials/graph/wpoProgram.ts'
 import { blendWpo } from '../visibility/shader/wpoSets.ts'
@@ -6,7 +5,6 @@ import { TRANSLUCENT_RECT_LIGHTS_DEFAULT, blendShader, type TranslucentScene } f
 import type { VertexReads } from './cloudVertexText.ts'
 import type { BlendGpuItem } from './state.ts'
 import { contactShadowsOf, translucencyVolumeOf } from '../materials/surface/blendLightSource.ts'
-import { BLEND_VIEW_SIZE } from './viewLayout.ts'
 import { blendLayoutEntries } from '../gpu/bind/blendBindEntries.ts'
 import {
   declaredBlendVariants,
@@ -17,6 +15,7 @@ import {
   pipelinesByVariant,
   stageDescriptors,
   type BlendModePipelines,
+  type FilteredProgram,
   type TransmitPipelines,
 } from './stagePipelines.ts'
 import {
@@ -29,6 +28,7 @@ import {
   variantOfBlend,
   waterRank,
 } from './plan/planCull.ts'
+import { blendGroupLayouts } from './groupLayouts.ts'
 import { createRoutedPipelines } from './routedPipelines.ts'
 import { track } from '../lighting/deferred/compileLedger.ts'
 import { createReach, type Reach, type ReachedBy } from './reach.ts'
@@ -75,6 +75,8 @@ type TransmissionCode = Awaited<ReturnType<typeof families.transmission.load>>
 type BlendProgramSetup = {
   device: GPUDevice
   layout: GPUBindGroupLayout
+  /** The layout of the display-filtered pipelines and whether they read the rectangle lights' pictures (`blendGroupLayouts`). */
+  filtered: Pick<ReturnType<typeof blendGroupLayouts>, 'filtered' | 'pictures'>
   transmissionCode: TransmissionCode | undefined
   variant: DiagnosticGpuVariant | undefined
   feedback: boolean
@@ -261,11 +263,8 @@ export async function createWebgpuBlendPipelines(
   } = options
   // The forward materials' layout, which the feedback-free diagnostic pipelines share: the
   // group's table (`blendLayoutEntries`), the view uniform at its size.
-  const blendBindGroupLayout =
-    sharedLayout ??
-    device.createBindGroupLayout({
-      entries: blendLayoutEntries(BLEND_VIEW_SIZE, grantsVertexTextures(device)),
-    })
+  const layouts = blendGroupLayouts(device)
+  const blendBindGroupLayout = sharedLayout ?? layouts.full
   // The transmissive stages exist for a scene that transmits, outside any diagnostic variant:
   // under one, a transmissive item draws as one more blend, the same fragment stage measured on
   // all. A session that holds one (`holdsTransmission`) builds them whatever its items: one granted
@@ -279,6 +278,7 @@ export async function createWebgpuBlendPipelines(
     {
       device,
       layout: blendBindGroupLayout,
+      filtered: layouts,
       transmissionCode,
       variant,
       feedback,
@@ -301,7 +301,14 @@ export async function createWebgpuBlendPipelines(
 /** What a pass fixes before its items and options are read (`blendProgramSetup`). */
 type BlendProgramBase = Pick<
   BlendProgramSetup,
-  'device' | 'layout' | 'transmissionCode' | 'variant' | 'feedback' | 'responsive' | 'programs'
+  | 'device'
+  | 'layout'
+  | 'filtered'
+  | 'transmissionCode'
+  | 'variant'
+  | 'feedback'
+  | 'responsive'
+  | 'programs'
 >
 
 /** The setup every program of a pass is compiled with, from the pass's `base`, its `items` and
@@ -345,7 +352,7 @@ function blendProgramSetup(
 
 /** The blend module's text lit with the code `key` leaves in, with the transmissive stages of a
  *  scene that transmits — the dual blend among them where the device grants it. */
-function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
+function blendModuleCode(setup: BlendProgramSetup, key: ContractKey, pictures: boolean) {
   const { transmissionCode, variant, device } = setup
   const dual = !!transmissionCode && dualSource(device)
   const { scene } = setup
@@ -369,6 +376,7 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
     localFog: setup.localFog,
     translucentShadow: setup.translucentShadow,
     translucencyVolume: setup.translucencyVolume,
+    rectPictures: pictures,
     scene,
     water: setup.water
       ? waterWgsl(
@@ -387,13 +395,14 @@ function blendModuleCode(setup: BlendProgramSetup, key: ContractKey) {
 function blendModeSet(
   setup: BlendProgramSetup,
   module: GPUShaderModule,
+  filtered: FilteredProgram,
   selected: ReturnType<typeof blendVariantPipeline>,
 ) {
   const { device, layout, feedback } = setup
   const { writeMask } = selected
   return {
     perVariant: modePipelines(device, module, layout, selected, feedback),
-    routed: createRoutedPipelines(device, module, layout, feedback, (mode) =>
+    routed: createRoutedPipelines(device, module, layout, filtered, feedback, (mode) =>
       blendTargets(mode, writeMask, feedback, true),
     ),
   }
@@ -442,7 +451,12 @@ function holdoutPipelines(device: GPUDevice, module: GPUShaderModule, layout: GP
 /** The transmissive items' pipelines, on the same module (`./transmission/pipelines.ts`): their
  *  unlit stages, the first program's of its lobe choice — the modulation pass's request stage reads the lobes'
  *  maps. */
-function transmissionOf(setup: BlendProgramSetup, module: GPUShaderModule, key: ContractKey) {
+function transmissionOf(
+  setup: BlendProgramSetup,
+  module: GPUShaderModule,
+  filtered: FilteredProgram,
+  key: ContractKey,
+) {
   const { device, layout, feedback, transmissionCode } = setup
   const lobes = +!!key.lobeless
   const transmission = transmissionCode?.createTransmitPipelines(
@@ -451,6 +465,7 @@ function transmissionOf(setup: BlendProgramSetup, module: GPUShaderModule, key: 
     layout,
     feedback,
     dualSource(device),
+    filtered,
     setup.transmitted[lobes],
   )
   setup.transmitted[lobes] ??= transmission
@@ -501,11 +516,24 @@ async function blendProgram(setup: BlendProgramSetup, key: ContractKey): Promise
   // Without a variant, production compiles no diagnostic stage and has no write mask of its own.
   const selected = blendVariantPipeline(variant)
   const label = `BLEND${variantLabel(key)}`
-  const module = device.createShaderModule({ label, code: blendModuleCode(setup, key) })
-  const set = blendModeSet(setup, module, selected)
+  const module = device.createShaderModule({ label, code: blendModuleCode(setup, key, true) })
+  // The display-filtered pipelines' module: this one, or, on a device that grants no seventeenth sampled texture, the one that lights a
+  // rectangle plain, made at their first use.
+  let plain: GPUShaderModule | undefined
+  const filtered = {
+    layout: setup.filtered.filtered,
+    module: () =>
+      setup.filtered.pictures
+        ? module
+        : (plain ??= device.createShaderModule({
+            label: `${label} no rectangle pictures`,
+            code: blendModuleCode(setup, key, false),
+          })),
+  }
+  const set = blendModeSet(setup, module, filtered, selected)
   const responsiveBlends = responsivePipelines(device, module, layout)
   const holdoutBlends = holdoutPipelines(device, module, layout)
-  const transmission = transmissionOf(setup, module, key)
+  const transmission = transmissionOf(setup, module, filtered, key)
   const dualPasses = transmission?.dual
     ? createDualPasses(device, module, layout, selected, feedback, transmission, (...a) =>
         pipelines.at(...a),

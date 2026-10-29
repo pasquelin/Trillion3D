@@ -67,16 +67,16 @@ test("the device asks the adapter's own colour bytes per sample, above or at Web
 
 // Every stage binds at most WebGPU's guaranteed 16 sampled textures (`gpu/core/stageLimits.test.ts`):
 // the device asks no more, from an adapter that offers more as from one that offers the default.
-test('the device asks the sampled textures a stage binds: the guaranteed 16, whatever is offered', async () => {
+test("the device asks the sampled textures a stage binds: 17 where the adapter offers them (the blends read the rectangle lights' pictures), else its 16", async () => {
   const need = WEBGPU_REQUIRED_LIMITS.maxSampledTexturesPerShaderStage
-  assert.equal(need, 16, "the engine binds within WebGPU's default")
-  for (const offered of [48, 16]) {
+  assert.equal(need, 17, "the guaranteed 16 and the blends' pictures")
+  for (const offered of [48, 17, 16]) {
     const { adapter, limitsAsked } = adapterOffering([], {
       maxSampledTexturesPerShaderStage: offered,
       maxTextureDimension2D: 16384,
     })
     await requestExplorerDevice(adapter, [])
-    assert.equal(limitsAsked[0].maxSampledTexturesPerShaderStage, 16)
+    assert.equal(limitsAsked[0].maxSampledTexturesPerShaderStage, Math.min(offered, 17))
     assert.equal(limitsAsked[0].maxTextureDimension2D, 16384, 'an uncapped limit: all offered')
   }
 })

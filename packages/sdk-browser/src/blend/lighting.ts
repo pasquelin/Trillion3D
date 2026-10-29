@@ -61,6 +61,8 @@ export function blendLightResources(
   const profiles = lightProfileResources(rt) ?? lightProfileStandIn(rt.gpu.device!)
   into.lightProfileAtlas = profiles.view
   into.lightProfileSampler = profiles.sampler
+  into.rectAtlas = profiles.rectView
+  into.rectSampler = profiles.rectSampler
   // The heterogeneous volumes' camera map this image made (composited with the translucency), or the stand-in that holds nothing.
   into.volumeCamera = heterogeneousCameraOf(rt.gpu)?.view ?? cameraStandIn(rt.gpu.device!)
   // The clouds' shade and the cloud image the programs that read the clouds read per vertex, or

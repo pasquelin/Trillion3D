@@ -2,7 +2,12 @@ import type { Blending } from '../../../sdk-core/src/world/constants/index.ts'
 import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { displayMaskLayout, MASK_FORMAT } from './display/displayFilter.ts'
 import { displayRoute, filtersDisplay } from './equations.ts'
-import { pipelinesByVariant, reflectedGroups, stageDescriptors } from './stagePipelines.ts'
+import {
+  pipelinesByVariant,
+  reflectedGroups,
+  stageDescriptors,
+  type FilteredProgram,
+} from './stagePipelines.ts'
 import {
   blendingOf,
   cullOf,
@@ -28,18 +33,20 @@ export function createRoutedPipelines(
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
+  display: FilteredProgram,
   feedback: boolean,
   targets: (mode: Blending) => (GPUColorTargetState | null)[],
 ) {
   const constants = feedbackConstants(feedback)
   const filtered = pipelinesByVariant(device, (variant) => {
     const mode = variantBlending(variant)!
+    const filteredModule = display.module()
     return stageDescriptors(
       device,
-      module,
-      layout,
+      filteredModule,
+      display.layout,
       {
-        module,
+        module: filteredModule,
         entryPoint: 'fsFiltered',
         targets: targets(mode),
         constants: {

@@ -1,6 +1,11 @@
 import { feedbackConstants } from '../../materials/virtual/requestWgsl.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
-import { cullPipelines, reflectedGroups, type TransmitPipelines } from '../stagePipelines.ts'
+import {
+  cullPipelines,
+  reflectedGroups,
+  type FilteredProgram,
+  type TransmitPipelines,
+} from '../stagePipelines.ts'
 import { chromaRank, cullOf, refractsRank, transmitsRank } from '../plan/planCull.ts'
 import { displayMaskLayout } from '../display/displayFilter.ts'
 import { layerOnlyTargets, marksTargets, overTargets } from '../blendTargets.ts'
@@ -65,6 +70,7 @@ function transmitStages(
   device: GPUDevice,
   module: GPUShaderModule,
   layout: GPUBindGroupLayout,
+  display: FilteredProgram,
   feedback: boolean,
 ): TransmitStages {
   const culls = (
@@ -72,19 +78,24 @@ function transmitStages(
     targets: (GPUColorTargetState | null)[],
     groups: { mask?: GPUBindGroupLayout; own?: GPUBindGroupLayout[]; route?: boolean } = {},
     constants = feedbackConstants(feedback),
-  ): Culls =>
-    cullPipelines(
+  ): Culls => {
+    // The pipelines that bind the display mask are made on the display-filtered program's module and layout.
+    const on = groups.mask
+      ? { module: display.module(), layout: display.layout }
+      : { module, layout }
+    return cullPipelines(
       device,
-      module,
-      layout,
+      on.module,
+      on.layout,
       {
-        module,
+        module: on.module,
         entryPoint,
         targets,
         constants: groups.route ? { ...constants, DISPLAY_ROUTE: 1 } : constants,
       },
       groups.own ?? reflectedGroups(device, groups.mask),
     )
+  }
   // The fallback by display layers (`+filtered`).
   const plain = lazy(() => culls('fsTransmit', overTargets(feedback, false)))
   const filtered = lazy(() =>
@@ -162,9 +173,10 @@ export function createTransmitPipelines(
   layout: GPUBindGroupLayout,
   feedback: boolean,
   dual: boolean,
+  display: FilteredProgram,
   shared?: TransmitPipelines,
 ): TransmitPipelines {
-  const stages = transmitStages(device, module, layout, feedback)
+  const stages = transmitStages(device, module, layout, display, feedback)
   const { overOf, dualOf, greyOf, modulateOf, distortionOf } = stages
   const over: TransmitPipelines['over'] = {
     at: (rank, filtered = false) => overOf(filtered)[cullOf(rank)].get(),

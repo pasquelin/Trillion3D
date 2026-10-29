@@ -11,6 +11,8 @@ import type { ContractKey } from '../lighting/deferred/contractCuts.ts'
 import { modulatesScene } from '../materials/surface/materialBlending.ts'
 import { noTransmissiveInView } from './expand/expansionFrame.ts'
 import { DISPLAY_MASK_GROUP, type DisplayFilter } from './display/displayFilter.ts'
+import { BLEND_RECT_BINDINGS } from '../gpu/bind/bindLayout.ts'
+import { blendGroupLayouts } from './groupLayouts.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { activeResponsive } from '../frame/prepare/responsiveTarget.ts'
 import { holdoutPassOn } from '../frame/prepare/alphaHoldout.ts'
@@ -53,6 +55,17 @@ function blendBindGroup(rt: WebgpuPagesRuntime, device: GPUDevice) {
   })
 }
 
+/** The same group on the layout of the display-filtered pipelines (`blendGroupLayouts`): without the rectangle lights' pictures where that layout holds none. */
+function filteredBlendGroup(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  const entries = (rt.blendState.identity.entries[0] ??= blendEntries(rt))
+  return device.createBindGroup({
+    layout: blendGroupLayouts(device).filtered,
+    entries: entries.filter(notRectPicture),
+  })
+}
+const notRectPicture = ({ binding }: GPUBindGroupEntry) =>
+  binding !== BLEND_RECT_BINDINGS.atlas && binding !== BLEND_RECT_BINDINGS.sampler
+
 /** The pipelines of the program that lights the layers with the lights' key `key` (resolved when not
  *  given): none while the program that serves it compiles — no layer is drawn with one lacking the
  *  code the lights need —, the frame then held for it, if `askBlendReach` did not already. */
@@ -72,8 +85,10 @@ export function litBlendPipelines(
 
 /** The bind group every item shares in the image (group 0), made once per identity: the one a pass that draws
  *  the blend's programs without its runs — the water's composite — binds. */
-export const sharedBlendGroup = (rt: WebgpuPagesRuntime, device: GPUDevice) =>
-  (rt.blendState.sharedGroups[rt.blendState.identity.slot] ??= blendBindGroup(rt, device))
+export const sharedBlendGroup = (rt: WebgpuPagesRuntime, device: GPUDevice, filtered = false) =>
+  filtered && !blendGroupLayouts(device).pictures
+    ? (rt.blendState.filteredGroups[rt.blendState.identity.slot] ??= filteredBlendGroup(rt, device))
+    : (rt.blendState.sharedGroups[rt.blendState.identity.slot] ??= blendBindGroup(rt, device))
 
 /**
  * Encodes slots `from` to `to` of the pass into an open render pass: one `drawIndirect` per SLOT,
@@ -108,7 +123,7 @@ export function drawBlendRuns(
   // The groups of the identity the frame named (`voidStaleBlendGroups`), not a draw slot.
   // Nothing is offset per item: the record is read at the rank the vertex index carries, so the
   // group is set once for the whole list.
-  pass.setBindGroup(0, group ?? sharedBlendGroup(rt, device))
+  pass.setBindGroup(0, group ?? sharedBlendGroup(rt, device, !!filter))
   let boundPipeline = -1,
     bound: GPURenderPipeline | undefined,
     encoded = 0
@@ -153,7 +168,7 @@ export type BlendRuns = {
   water?: 'only' | 'with'
   /** The expansion's view the slots are drawn from (`expand/expansionViews.ts`): 0, the default, every layer. */
   view?: number
-  /** The first group the runs are drawn with: the blend group of the image (`sharedBlendGroup`) unless a pass draws them on a layout of its own. */
+  /** The first group the runs are drawn with: the blend group of the image (`sharedBlendGroup`) unless a pass draws them on a layout of its own (a pass with a display `filter` draws on the filtered layout's group, `blendGroupLayouts`, and so passes none). */
   group?: GPUBindGroup
 }
 
