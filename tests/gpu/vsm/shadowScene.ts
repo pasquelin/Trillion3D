@@ -6,6 +6,12 @@ import { luminance } from '../../../packages/math/src/color/luminance.fixture.ts
 import { quantileOf } from '../../../packages/math/src/scalar/quantile.ts'
 import { openEngineWorld, proofCanvas } from '../../kit/device/renderHarness.ts'
 import { benchManifest } from '../world/proofWorld.ts'
+import { FIXED_EXPOSURE } from '../frame/facingWorld.ts'
+
+/** The light of a proof whose subject is the shadow pages: a fixed exposure (`FIXED_EXPOSURE`) and no bounced light. The bounce's
+ *  probes accumulate over the images after a move and close their series on statistics read back a few images late, so the first
+ *  still frame and the settled one, or two fresh worlds, differ by an indirect light these proofs do not test. */
+export const SHADOW_PAGES_LIGHT = { ...FIXED_EXPOSURE, bounce: false } as const
 
 /**
  * Opens the bench scene `scene` in a canvas of its own whose images can be read back: this tree's

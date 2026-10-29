@@ -13,9 +13,8 @@ import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
 import { settle } from '../world/proofWorld.ts'
 import { canvasImage } from '../../kit/device/patternImage.ts'
-import { openBenchWorld, shadingGap } from './shadowScene.ts'
-// The subject is not the meter: a fixed exposure, as `facingWorld.ts` says why.
-import { FIXED_EXPOSURE } from '../frame/facingWorld.ts'
+// The subject is the pages: no meter, no bounce (`SHADOW_PAGES_LIGHT`).
+import { openBenchWorld, SHADOW_PAGES_LIGHT, shadingGap } from './shadowScene.ts'
 
 const WIDTH = 1248,
   HEIGHT = 702
@@ -29,7 +28,7 @@ const START = 6,
 async function stopOnTheStreet() {
   const world = await openBenchWorld('facade-7', [WIDTH, HEIGHT], {
     pixelError: PIXEL_ERROR,
-    ...FIXED_EXPOSURE,
+    ...SHADOW_PAGES_LIGHT,
   })
   world.setClearColor(0x2a303c)
   try {
