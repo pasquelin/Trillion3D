@@ -68,6 +68,7 @@ const BIAS_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     integer('shadowOnePassProjectionMaxLightsPerPixel', 16, [1, 32]),
     flag('shadowAllowScreenOverflowMessages', true),
     flag('shadowCache', true),
+    integer('shadowAccumulateStats', 0, INT32_RANGE),
     flag('shadowCacheAllocateViaLru', true),
     flag('shadowCacheWpoPrimitives', false),
     integer('shadowForceInvalidateLocal', 0, [0, 2]),
@@ -200,6 +201,7 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowPageMarkingPixelStrideX` | 2 | |
  * | `shadowPageMarkingPixelStrideY` | 2 | |
  * | `shadowRasterIndirectionMultiplier` | 1.5 | |
+ * | `shadowAccumulateStats` | 0 | |
  * | `shadowNormalBias` | 0.5 | |
  * | `shadowMaxDofResolutionBias` | 1 | |
  * | `shadowScreenRayLength` | 0.015 | |
@@ -422,6 +424,10 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  *
  * `shadowRasterIndirectionMultiplier` is the factor, never read under 1, of the cut's cap of visible clusters
  * (`cutMaxVisibleClusters`) that sizes each of the raster's record lists.
+ *
+ * `shadowAccumulateStats` (0, none) collects the shadow maps' page counters over frames: above 0 it takes that many
+ * frames that hold shadow maps, a negative value goes on until set back to 0; the rows are then reported once as a CSV
+ * (the engine diagnostic `shadow-stats`).
  *
  * `shadowMaxPhysicalPages` is the most pages the pool takes, rounded up to whole rows of 128 pages
  * (the reference's rule): the rows' 512, 512, 2048, 4096 and 8192. A pool slice is one buffer bound whole, 64 KiB a

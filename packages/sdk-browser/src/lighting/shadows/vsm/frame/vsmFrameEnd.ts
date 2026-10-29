@@ -26,6 +26,14 @@ export function finishVsmFrame(rt: WebgpuPagesRuntime, encoder: GPUCommandEncode
       stampVsmStats(vsm.settle, staging, rt.run.frame)
     }
   }
+  // A frame with no map leaves the stats of the frame before: no row of its own.
+  if (hasData)
+    vsm.accumulate.encode(
+      encoder,
+      vsm.res.stats,
+      vsm.state.maps.shadows.shadowAccumulateStats,
+      (csv) => rt.diag.engineDiagnostic('shadow-stats', csv, {}),
+    )
   const rendered = vsm.renderedPlan === plan
   noteVsmFrame(
     vsm.settle,
@@ -58,5 +66,6 @@ export function vsmSubmitted(rt: { lights: { vsm?: EngineVsm } }) {
   if (!vsm) return
   vsm.feedback.afterSubmit()
   vsm.statsReadback.submitted()
+  vsm.accumulate.afterSubmit()
   vsmDescentRequestsSubmitted(vsm.res)
 }

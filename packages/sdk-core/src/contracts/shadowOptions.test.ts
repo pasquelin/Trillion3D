@@ -73,6 +73,7 @@ const SHADOW_MAP_DEFAULTS = {
   },
   ...{ shadowPageMarkingPixelStrideY: 2, shadowNormalBias: 0.5, shadowScreenRayLength: 0.015 },
   shadowRasterIndirectionMultiplier: 1.5,
+  shadowAccumulateStats: 0,
   ...{ shadowCacheInvalidateUseHzb: true, shadowDeferredInvalidationBudget: -1 },
   ...{ shadowCache: true, shadowCacheAllocateViaLru: true, shadowCacheWpoPrimitives: false },
   shadowForceInvalidateLocal: 0,

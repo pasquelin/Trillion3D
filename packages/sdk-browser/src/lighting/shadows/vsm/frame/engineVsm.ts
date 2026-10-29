@@ -16,6 +16,7 @@
  * map; −1 for a light with no virtual shadow map this frame. The maps the lights take are `vsmLightMaps.ts`'s, the mask
  * `vsmMask.ts`'s.
  */
+import { createStatsAccumulator, type VsmStatsAccumulator } from '../statsAccumulate.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { createVsmResources, type VsmResources, vsmNinthStorage } from '../resources.ts'
 import { constructGpuResources } from '../../../../gpu/core/deviceLedger.ts'
@@ -99,6 +100,8 @@ export interface EngineVsm {
   prevSlots: number
   /** Page counters of the stats permutation, read back a few frames late. */
   statsReadback: ReadbackRing
+  /** The stats accumulated over frames (`shadowAccumulateStats`, `../statsAccumulate.ts`). */
+  accumulate: VsmStatsAccumulator
   /** Whether the page management compiles the counters (needs 9 storage buffers a stage). */
   countersOn: boolean
   /** Whether the maps have settled, and their contents' version (`../../../../frame/backend/state/vsmSettle.ts`). */
@@ -186,6 +189,7 @@ export function createEngineVsm(device: GPUDevice, options: VsmResourceOptions):
         { label: 'vsm.engine.statsReadback', bytes: VSM_COUNTERS * 4, count: STATS_READBACKS },
         (mapped, staging) => landVsmStats(settle, staging, readVsmStats(stats, mapped)),
       ),
+      accumulate: createStatsAccumulator(device),
       countersOn: vsmCountersOn(device),
       settle,
       stats,
@@ -208,6 +212,7 @@ export function destroyEngineVsm(vsm: EngineVsm) {
   vsm.directionalIds.destroy()
   destroyMask(vsm.mask)
   vsm.statsReadback.destroy()
+  vsm.accumulate.destroy()
 }
 
 /** Frees the maps `lights` hold and forgets them: the next frame that shadows makes them anew,

@@ -90,6 +90,8 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "Pixels the page marking steps over along the screen's horizontal axis, from 1 to 128 (2, the default): it tests every Nth pixel; higher costs less and may miss a page that few pixels see.",
   shadowPageMarkingPixelStrideY:
     "Pixels the page marking steps over along the screen's vertical axis, from 1 to 128 (2, the default): it tests every Nth pixel; higher costs less and may miss a page that few pixels see.",
+  shadowAccumulateStats:
+    "How many frames the shadow maps' counters are collected over (0, the default: none). Above 0, each of the next that many frames that holds shadow maps adds a row of the page counters (pages requested, kept static and dynamic, cleared, newly granted, empty, left to the offset's cull, overflow flags); a negative value goes on until it is set back to 0. When it ends, the rows are read back once and reported as one CSV text, a line a frame under a header of the counters' names, in the engine diagnostic 'shadow-stats'. The count restarts when the value changes.",
   shadowRasterIndirectionMultiplier:
     'Factor (1.5, the default; read as 1 below it) of cutMaxVisibleClusters that sizes each list of records the shadow raster draws from: a pass past it draws what fits.',
   shadowNormalBias:

@@ -666,6 +666,21 @@ world.shadows = { shadowPrefilteredDistantHistoryBlendFactor: 0.5 } // follow th
 world.shadows = { shadowPrefilteredDistant: null } // back to the default: off
 ```
 
+**The counters over frames.** `shadowAccumulateStats` (0, none) collects the page counters of the shadow maps over
+several frames (`statsAccumulate.ts`). While it is not 0, each frame that holds shadow maps copies the stats buffer
+(pages requested, kept static and dynamic, cleared, newly granted, empty, left to the offset's cull, overflow flags) into
+the next row of a buffer that lives across frames, by one thread (`vsmAccumulateStats`); above 0 it takes that many
+frames then stops, a negative value goes on until it is set back to 0, and a new value restarts the count. At the end
+the rows (at most 524 288) are copied to one readback and reported as a CSV, a header of the counters' names then a
+line a frame, in the engine diagnostic `shadow-stats`. (The reference's count stops one frame short of its value;
+here N frames give N rows.)
+
+```ts
+world.shadows = { shadowAccumulateStats: 600 } // ten seconds at 60 images a second, then the CSV
+world.shadows = { shadowAccumulateStats: -1 } // until set back to 0
+world.shadows = { shadowAccumulateStats: null } // back to the default: none
+```
+
 **The instance's cache state, per view.** The reference keeps, for each primitive view, two bit arrays: cached as dynamic, and
 transitioned this frame. Here a placement has one word of them in the placements' buffer (`rootWords`, second section;
 bits 0-15 the views it is cached as dynamic in, bits 16-31 the views it turned in this frame), a view's slot taken from
