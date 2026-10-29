@@ -3,11 +3,18 @@ import { graphError } from '../../../../sdk-core/src/world/material/graph/valueT
 import { INPUT_HANDLERS } from './nodesInput.ts'
 import { MATH_HANDLERS } from './nodesMath.ts'
 import { NOISE_HANDLERS } from './nodesNoise.ts'
+import { SPARSE_VOLUME_HANDLERS } from './nodesSparseVolume.ts'
 import { TEXTURE_HANDLERS } from './nodesTexture.ts'
 import type { State } from './state.ts'
 import type { Value } from './value.ts'
 
-const HANDLERS = { ...MATH_HANDLERS, ...INPUT_HANDLERS, ...NOISE_HANDLERS, ...TEXTURE_HANDLERS }
+const HANDLERS = {
+  ...MATH_HANDLERS,
+  ...INPUT_HANDLERS,
+  ...NOISE_HANDLERS,
+  ...TEXTURE_HANDLERS,
+  ...SPARSE_VOLUME_HANDLERS,
+}
 
 /** The value of `node` before its output's component mask: the handler of its kind. */
 export function translateNode(state: State, node: GraphNode): Value {

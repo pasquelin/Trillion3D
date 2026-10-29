@@ -2425,6 +2425,22 @@
       "action": "Report it as a compiler bug, with the model if you can share it."
     },
     {
+      "id": "T3D-E107",
+      "code": "INVALID_SPARSE_VOLUME",
+      "level": "error",
+      "message": "A sparse volume could not be built from its .vdb file.",
+      "cause": "The file is not an OpenVDB file, is cut short, names a grid or a component it does not hold, holds no active voxel, or its page table is past the limits of a volume texture; the message names which.",
+      "action": "Check that the file opens in an OpenVDB tool and holds an active density; split a volume whose page table is wider than 2048 pages."
+    },
+    {
+      "id": "T3D-E108",
+      "code": "UNSUPPORTED_VDB",
+      "level": "error",
+      "message": "A .vdb file uses a feature the compiler does not read.",
+      "cause": "The file is of a format version before 222, or holds a transform, a compression or a shared tree the reader does not take; the message names which.",
+      "action": "Re-save the file with a recent OpenVDB, with zip or no compression and no instanced grids."
+    },
+    {
       "id": "T3D-E101",
       "code": "NONFINITE_ATTRIBUTE",
       "level": "error",
