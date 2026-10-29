@@ -79,12 +79,13 @@ interface TableShape {
   readonly cells: number
 }
 
-/** The words of the scene trace's three storage buffers: the file's nodes and triangles, and the table — the file's
+/** The words of the scene trace's storage buffers: the file's nodes and triangles, the attributes of the triangles' corners (at least a vec4, whether the file has them or not), and the table — the file's
  *  records, a word for each placement the table has room for, the cells' words, then a word for each placement again:
  *  whether the image's culling left it out (`SceneTrace.cullPlacements`). */
 export interface SceneTraceWords {
   readonly nodes: number
   readonly triangles: number
+  readonly corners: number
   readonly table: number
 }
 
@@ -131,6 +132,7 @@ export const sceneTraceWords = (
 const tableWords = (file: RayTracing, shape: TableShape): SceneTraceWords => ({
   nodes: file.nodes.length,
   triangles: file.triangles.length,
+  corners: Math.max(file.corners.length, 4),
   table: file.records.length + 2 * shape.placements + shape.instances * shape.cells,
 })
 
@@ -139,6 +141,7 @@ function allocate(allocator: ResourceAllocator, words: SceneTraceWords) {
   return {
     nodes: allocator.buffer('nodes', words.nodes, 'storage'),
     triangles: allocator.buffer('triangles', words.triangles, 'storage'),
+    corners: allocator.buffer('corners', words.corners, 'storage'),
     table: allocator.buffer('table', words.table, 'storage'),
     params: allocator.buffer('parameters', SCENE_TRACE_PARAMS.words, 'uniform'),
   }
@@ -331,10 +334,10 @@ function paramsWriter(
 
 /**
  * THE SCENE TRACE'S RESOURCES ON ONE DEVICE (`sceneTraceWgsl.ts` reads them), asked of the device's budget as the
- * lighting's are (`ensureSceneTrace`): the file's nodes and triangles, uploaded once, and a table buffer — the file's
+ * lighting's are (`ensureSceneTrace`): the file's nodes, triangles and corners' attributes, uploaded once, and a table buffer — the file's
  * records, then the table from a placement to its record, then a word for each HLOD cell: whether the cut draws its actor, and the object a hit on it is told by,
  * then a word for each placement that the image's culling writes (`cullPlacements`) —
- * which `syncPlacements` rewrites when the placements or the cut's draws change. Three storage buffers and one uniform,
+ * which `syncPlacements` rewrites when the placements or the cut's draws change. Four storage buffers and one uniform,
  * whatever the scene's size. Past the upload the resources keep the table of the file's primitives and the file by
  * identity, not its words.
  *
@@ -353,9 +356,10 @@ function makeSceneTrace(
   buffers: ReturnType<typeof allocate>,
   shape: TableShape,
 ) {
-  const { nodes, triangles, table, params } = buffers
+  const { nodes, triangles, corners, table, params } = buffers
   upload(device, nodes, file.nodes)
   upload(device, triangles, file.triangles)
+  upload(device, corners, file.corners)
   upload(device, table, file.records)
   const placed = placementTable(device, file, table, shape),
     write = paramsWriter(device, params, file, {

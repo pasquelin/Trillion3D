@@ -53,6 +53,7 @@ import { AMBIENT_CUBEMAP_RULES } from '../../../../sdk-core/src/contracts/ambien
 import { REFLECTION_CAPTURE_RULES } from '../../../../sdk-core/src/contracts/reflectionCaptureOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import { SAMPLED_LIGHTS_RULES } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
+import { PATH_TRACING_RULES } from '../../../../sdk-core/src/contracts/pathTracingOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
@@ -155,6 +156,7 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(RECT_LIGHT_ATLAS_RULES, {}),
   // The sampled lights: each its contract's default.
   ...resolveSettings(SAMPLED_LIGHTS_RULES, {}),
+  ...resolveSettings(PATH_TRACING_RULES, {}),
   // The global distance field: the reference's clipmaps, update rhythm and atlas budgets.
   ...resolveSettings(GLOBAL_DISTANCE_FIELD_RULES, {}),
   // The surface cache: the reference's atlas, card law, capture budgets and feedback.

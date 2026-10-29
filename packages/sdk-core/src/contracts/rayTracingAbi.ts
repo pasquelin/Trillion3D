@@ -23,13 +23,14 @@ export const RAY_TRACING_MAGIC = 0x54523354
 /** Format of `rayTracing.bin` and of the manifest's `rayTracing` section
  *  (`asset-compiler-rust/src/ray_tracing/encode.rs` lays it out): the triangles name their corners
  *  in a table of the file's vertices (`RAY_TRACING_INDEXED_TRIANGLE_BYTES`). */
-export const RAY_TRACING_VERSION = 4
+export const RAY_TRACING_VERSION = 5
 /** The format before, which the engine still reads: each triangle holds its corners
  *  (`RAY_TRACING_TRIANGLE_BYTES`), and the file has no vertices. */
 export const RAY_TRACING_FLAT_VERSION = 3
 /** The bytes of the file's head: the magic, the version, the record count, the node count, the
- *  triangle count and the vertex count (six `u32`; a zero word in the flat format), then two zero
- *  words. */
+ *  triangle count and the vertex count (six `u32`; a zero word in the flat format), then the count
+ *  of corners the attribute table holds (three a triangle, or zero for a file without it) and a
+ *  zero word. */
 export const RAY_TRACING_HEAD_BYTES = 32
 /** The bytes of a primitive's record: its compiled mesh and its number in the mesh (the two
  *  numbers a cluster root names its primitive by, `ClusterRoot.mesh` and `ClusterRoot.primitive`;
@@ -67,6 +68,13 @@ export const RAY_TRACING_VERTEX_BYTES = 12
  *  (`RAY_TRACING_TRIANGLE_AT`). The reader lays it out as the GPU reads it
  *  (`RAY_TRACING_TRIANGLE_BYTES`), the same bytes. */
 export const RAY_TRACING_INDEXED_TRIANGLE_BYTES = 24
+/** The bytes of a corner's attributes: the texture coordinate (two `f32`), the shading normal
+ *  (octahedral, two `snorm16`) and the vertex colour (four `unorm8`, red first). The table, after the
+ *  file's triangles when its head counts corners, holds three of them for each triangle, in the triangles' order and the corners'
+ *  (`RAY_TRACING_CORNER_AT` names the words); a record without `RAY_TRACING_FLAG_ATTRIBUTES` has them all zero. */
+export const RAY_TRACING_CORNER_BYTES = 16
+/** The words of a corner's attributes, by name. */
+export const RAY_TRACING_CORNER_AT = { uvX: 0, uvY: 1, normal: 2, colour: 3 } as const
 /** The words of a triangle after its nine corner floats, by name (`RAY_TRACING_TRIANGLE_BYTES`). */
 export const RAY_TRACING_TRIANGLE_AT = { cluster: 9, triangle: 10, tag: 11 } as const
 /** The children of a node: the slots of its metas and its masks, in no order the walk reads — it
@@ -117,6 +125,13 @@ export const RAY_TRACING_FLAG_ACTOR = 16
  *  too; a mesh with an opaque primitive has it on none, its translucent primitives being left out
  *  only of the rays that ask. */
 export const RAY_TRACING_FLAG_ALL_TRANSLUCENT = 32
+/** The bit of a record's flags that says the corners of its triangles carry a shading normal (it comes with `RAY_TRACING_FLAG_ATTRIBUTES`): a
+ *  corner's normal code is read only then, so that every direction, the pole's too, is a normal. */
+export const RAY_TRACING_FLAG_NORMALS = 64
+/** The bit of a record's flags that says its triangles carry the attributes of their corners
+ *  (`RAY_TRACING_CORNER_BYTES`): a primitive the compiler cut from a DAG that carried them. The
+ *  HLOD actors' records and the directory's have none. */
+export const RAY_TRACING_FLAG_ATTRIBUTES = 128
 /** The compiled mesh and primitive number the world's records name: none. */
 export const RAY_TRACING_NO_PRIMITIVE = 0xffffffff
 /** The nodes a walk of any tree of the file holds on its stack at most: the compiler gives a tree no

@@ -23,6 +23,7 @@ export const fileOf = (): RayTracing => ({
   records: new Uint32Array([7, 8, 9, 10]),
   nodes: new Uint32Array(8).fill(1),
   triangles: new Uint32Array(12).fill(2),
+  corners: new Uint32Array(0),
   byPrimitive: new Map([[3, new Map([[5, 2]])]]),
   actorCells: 0,
 })

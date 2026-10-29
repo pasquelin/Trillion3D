@@ -25,6 +25,7 @@ test('the table has room for a word for each cell of each instance of the world 
   assert.deepEqual(sceneTraceWords(worldFileOf(), 3, world), {
     nodes: 8,
     triangles: 12,
+    corners: 4,
     table: 4 + 8 + 80,
   })
   assert.deepEqual(

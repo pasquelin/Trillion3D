@@ -17,7 +17,7 @@ fn the_file_holds_a_head_the_records_the_nodes_the_vertices_and_the_triangles() 
         flags: RAY_TRACING_FLAG_MASKED,
         cell: 0,
     };
-    let tree = primitive_tree(&positions, &dag, traced)
+    let tree = primitive_tree(&positions, &[], &dag, traced)
         .expect("a tree")
         .expect("two triangles");
     assert_eq!(tree.node_count(), 1);
@@ -100,7 +100,7 @@ fn written(named: &[(u32, u32, u32)]) -> Vec<u32> {
                 flags,
                 cell: 0,
             };
-            primitive_tree(&positions, &dag, traced)
+            primitive_tree(&positions, &[], &dag, traced)
                 .expect("a tree")
                 .expect("a triangle")
         })

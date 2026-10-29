@@ -54,7 +54,7 @@ function askShadeClasses(rt: WebgpuPagesRuntime, device: GPUDevice) {
   const retaken = census.retake()
   // The classes of the graphs no worn surface needs any more give their keys back.
   if (retaken) {
-    releaseGraphClasses(census.keys)
+    releaseGraphClasses([...census.keys, ...vis.pathTracedClasses])
     classes.prune()
     // A graph that joined the session joins the set its modules hold before its classes are asked.
     followGraphRasters(rt, device, census)

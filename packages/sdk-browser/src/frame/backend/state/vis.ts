@@ -87,6 +87,8 @@ export interface WebgpuVisState {
   /** Set once an opaque row's surface can emit or occlude (`surfaceEmitsOrOccludes`): from then on
    *  the image writes the layer. Never unset, as `asIsShown`. */
   emissiveAoShown: boolean
+  /** The keys of the graph classes the path tracer shades its hits with and the resolve may not hold (a blended surface's graph): kept from release while the tracer places them. */
+  pathTracedClasses: readonly number[]
   gpuHiz: GpuHiz | undefined
   /** The reflection's kernels (`../../../lighting/reflections/gpu.ts`), made with the Hi-Z. */
   reflectionPipelines: ReflectionPipelines | undefined
@@ -185,6 +187,7 @@ export function createWebgpuVisState(): WebgpuVisState {
     writesFeedback: true,
     writesEmissiveAo: true,
     emissiveAoShown: false,
+    pathTracedClasses: [],
     gpuHiz: undefined,
     reflectionPipelines: undefined,
     gpuRaster: undefined,

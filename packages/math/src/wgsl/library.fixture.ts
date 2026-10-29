@@ -3,6 +3,7 @@ import type { WgslDecl } from './decl.ts'
 import * as barycentric from './barycentric.ts'
 import * as basis from './basis.ts'
 import * as color from './color.ts'
+import * as coneSampling from './coneSampling.ts'
 import * as constants from './constants.ts'
 import * as double from './double.ts'
 import * as doubleAffine from './doubleAffine.ts'
@@ -21,6 +22,7 @@ import * as projection from './projection.ts'
 import * as quaternion from './quaternion.ts'
 import * as reals from './reals.ts'
 import * as sampling from './sampling.ts'
+import * as sphericalRect from './sphericalRect.ts'
 
 /** The library's declaration files, by name: a file left out of this list would escape the tests
  *  that sweep the engine's shaders, so one is refused below. */
@@ -28,6 +30,7 @@ const MODULES = {
   barycentric,
   basis,
   color,
+  coneSampling,
   constants,
   double,
   doubleAffine,
@@ -46,6 +49,7 @@ const MODULES = {
   quaternion,
   reals,
   sampling,
+  sphericalRect,
 }
 /** The files that declare nothing: the declaration type, the assembler, its comment reader, the
  *  number writer, the constants writer. */

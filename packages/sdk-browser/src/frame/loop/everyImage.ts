@@ -6,6 +6,7 @@ import { lightFunctionsWaiting } from '../../lighting/lightFunction/frame.ts'
 import { lightProfilesWaiting } from '../../lighting/lightProfile/frame.ts'
 import { ambientCubemapPending } from '../../lighting/deferred/ambientCubemapFrame.ts'
 import { surfaceCacheBusy } from '../../lighting/surfaceCache/frame.ts'
+import { pathTracingAccumulating } from '../../lighting/pathTracing/frame.ts'
 import { hairDebugShown } from '../../hair/debugView.ts'
 import { cloudsMoved } from '../render/encodeClouds.ts'
 import { skyCubemapsPending } from '../render/encodeCloudsSky.ts'
@@ -17,7 +18,8 @@ import { readTemporalSetting } from '../../../../sdk-core/src/contracts/temporal
 
 /**
  * The terms that draw a quiet view again all the same (`holdWebgpuFrame`), each by the name a trace says: guides and effects that
- * may still require drawing this quiet source; a surface cache that has captures left (`surfaceCacheBusy`); a hair debug view (`hairDebugShown`); a surface — opaque or
+ * may still require drawing this quiet source; a surface cache that has captures left (`surfaceCacheBusy`); a path-traced view with samples left to gather
+ * or a denoiser to run (`pathTracingAccumulating`); a hair debug view (`hairDebugShown`); a surface — opaque or
  * translucent — or a fog object whose graph reads the time; a sky light whose cubemap is still being written (`skyCubemapsPending`);
  * an ambient cubemap whose mips are (`ambientCubemapPending`); clouds that drift or have not settled (`cloudsMoved`); and a view
  * whose film grain is drawn: its pattern follows the image's number (`finishAnimated`). The temporal pass running
@@ -27,6 +29,7 @@ const TERMS: readonly (readonly [string, (rt: WebgpuPagesRuntime) => boolean | u
   ['taaConverging', (rt) => taaConverging(rt)],
   ['frameDifference', (rt) => rt.run.diagnostic === 'frame-difference'],
   ['surfaceCache', surfaceCacheBusy],
+  ['pathTracing', pathTracingAccumulating],
   ['guides', guidesMoved],
   ['hairDebug', hairDebugShown],
   ['effects', effectsMoved],

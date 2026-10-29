@@ -3,6 +3,7 @@
 //! shader's traversal has (`wideTraversalWgsl.ts`).
 use super::{soup, wide_of};
 use crate::ray_tracing::abi::{RAY_TRACING_STACK, RAY_TRACING_WIDTH};
+use crate::ray_tracing::attributes::TRIANGLE_ATTRIBUTE_BYTES;
 use crate::ray_tracing::bvh::{build, Item};
 use crate::ray_tracing::cut::CutTriangle;
 use crate::ray_tracing::tree::within_stack;
@@ -88,6 +89,7 @@ fn a_tree_needing_more_is_split_in_halves_or_refused() {
                 cluster: k as u32,
                 triangle: 0,
                 tag: 0,
+                attributes: [0; TRIANGLE_ATTRIBUTE_BYTES],
             })
         })
         .collect();

@@ -3,10 +3,12 @@
 //! (`nodes.rs`), ready for the file (`encode.rs`). No tree needs the walk's stack to hold more than
 //! `RAY_TRACING_STACK` nodes (`within_stack`).
 use super::abi::{
-    RAY_TRACING_FLAG_ACTOR, RAY_TRACING_FLAG_MASKED, RAY_TRACING_FLAG_TRANSLUCENT,
-    RAY_TRACING_FLAG_TWO_SIDED, RAY_TRACING_FLAG_WORLD, RAY_TRACING_NODE_BYTES,
-    RAY_TRACING_NO_PRIMITIVE, RAY_TRACING_STACK, RAY_TRACING_TRIANGLE_BYTES,
+    RAY_TRACING_FLAG_ACTOR, RAY_TRACING_FLAG_ATTRIBUTES, RAY_TRACING_FLAG_MASKED,
+    RAY_TRACING_FLAG_NORMALS, RAY_TRACING_FLAG_TRANSLUCENT, RAY_TRACING_FLAG_TWO_SIDED,
+    RAY_TRACING_FLAG_WORLD, RAY_TRACING_NODE_BYTES, RAY_TRACING_NO_PRIMITIVE, RAY_TRACING_STACK,
+    RAY_TRACING_TRIANGLE_BYTES,
 };
+use super::attributes::TRIANGLE_ATTRIBUTE_BYTES;
 use super::bvh::{build, Binary, Item};
 use super::cut::{cut_of, Cut};
 use super::nodes::{write_node, write_triangle};
@@ -15,6 +17,7 @@ use crate::compiler::materials::AlphaMode;
 use crate::dag::DagCluster;
 use crate::{CompilerError, Result};
 use serde_json::Value;
+use trillion3d_page_codec::encode::Attribute;
 
 /// What names a primitive's tree and says how a ray treats it: the primitive's compiled mesh and
 /// its number in the mesh, the two numbers a placed root names its primitive by, the flags of
@@ -50,7 +53,8 @@ impl Traced {
 }
 
 /// The tree of a primitive: what names it, the error of its cut, the box of its triangles, and the
-/// bytes of its nodes and of its triangles.
+/// bytes of its nodes and of its triangles, then those of its triangles' corners' attributes
+/// (`attributes.rs`) in the same order, none for a tree whose cut carries none.
 pub(crate) struct PrimitiveTree {
     pub(super) traced: Traced,
     pub(super) error: f32,
@@ -58,6 +62,7 @@ pub(crate) struct PrimitiveTree {
     pub(super) high: [f32; 3],
     pub(super) nodes: Vec<u8>,
     pub(super) triangles: Vec<u8>,
+    pub(super) attributes: Vec<u8>,
 }
 
 impl PrimitiveTree {
@@ -82,13 +87,14 @@ pub(crate) fn material_flags(material: Option<&Value>, translucent: bool) -> u32
 }
 
 /// The tree of the primitive `traced` names, whose DAG is `clusters`, over the vertices
-/// `positions`; none when its cut holds no triangle, an error when it is too large (`within_stack`).
+/// `positions` and the attributes `carried`; none when its cut holds no triangle, an error when it is too large (`within_stack`).
 pub(crate) fn primitive_tree(
     positions: &[f32],
+    carried: &[&Attribute],
     clusters: &[DagCluster],
     traced: Traced,
 ) -> Result<Option<PrimitiveTree>> {
-    tree_of(cut_of(positions, clusters)?, traced)
+    tree_of(cut_of(positions, carried, clusters)?, traced)
 }
 
 /// The binary tree over `items` and the wide tree collapsed from it whose walk needs no more than
@@ -131,9 +137,21 @@ pub(super) fn tree_of(cut: Cut, traced: Traced) -> Result<Option<PrimitiveTree>>
         write_node(node, &mut nodes);
     }
     let mut triangles = Vec::with_capacity(wide.triangles.len() * RAY_TRACING_TRIANGLE_BYTES);
+    let mut attributes = Vec::with_capacity(
+        wide.triangles.len() * TRIANGLE_ATTRIBUTE_BYTES * usize::from(cut.attributed),
+    );
     for &item in &wide.triangles {
         write_triangle(&cut.triangles[item], &mut triangles);
+        if cut.attributed {
+            attributes.extend_from_slice(&cut.triangles[item].attributes);
+        }
     }
+    let traced = Traced {
+        flags: traced.flags
+            | RAY_TRACING_FLAG_ATTRIBUTES * u32::from(cut.attributed)
+            | RAY_TRACING_FLAG_NORMALS * u32::from(cut.normalled),
+        ..traced
+    };
     Ok(Some(PrimitiveTree {
         traced,
         error: cut.error,
@@ -141,5 +159,6 @@ pub(super) fn tree_of(cut: Cut, traced: Traced) -> Result<Option<PrimitiveTree>>
         high,
         nodes,
         triangles,
+        attributes,
     }))
 }

@@ -1,11 +1,17 @@
 import {
   RAY_TRACING_FLAG_ALL_TRANSLUCENT,
+  RAY_TRACING_FLAG_ATTRIBUTES,
+  RAY_TRACING_FLAG_NORMALS,
   RAY_TRACING_FLAG_TRANSLUCENT,
   RAY_TRACING_NODE_BYTES,
   RAY_TRACING_RECORD_AT,
   RAY_TRACING_TRIANGLE_BYTES,
 } from '../contracts/rayTracingAbi.ts'
-import { RAY_TRACING_RECORD_WORDS, type RayTracing } from './rayTracingFile.ts'
+import {
+  RAY_TRACING_CORNER_WORDS,
+  RAY_TRACING_RECORD_WORDS,
+  type RayTracing,
+} from './rayTracingFile.ts'
 import type { RayTracingTree } from './rayTracingTree.ts'
 
 /**
@@ -16,7 +22,8 @@ import type { RayTracingTree } from './rayTracingTree.ts'
  * (whose ranks are the file's), and take the ranks of the nodes and the triangles after the file's. A world numbers its meshes once, the compiled
  * models' and the run-time ones' together (`session/world/ranks.ts`), so that no record is named twice; one that is is a `RangeError`, never a record
  * written over another. A run-time mesh is one
- * primitive of a mesh of its own: a translucent one is flagged translucent whole.
+ * primitive of a mesh of its own: a translucent one is flagged translucent whole. Its records carry no corner attributes: the
+ * file's table, if it has one, is extended with zeros for the run-time triangles.
  */
 
 /** A mesh cut at run time and its tree: its mesh and primitive numbers, and the flags of its material (`RAY_TRACING_FLAG_*`, but the whole one). */
@@ -48,6 +55,10 @@ export function withRuntimeTrees(
   const triangles = new Uint32Array(
     own.triangles.length + runtime.reduce((n, { tree }) => n + tree.triangles.length, 0),
   )
+  const corners = new Uint32Array(
+    file?.corners.length ? (triangles.length / TRIANGLE_WORDS) * 3 * RAY_TRACING_CORNER_WORDS : 0,
+  )
+  corners.set(file?.corners ?? [])
   records.set(own.records)
   nodes.set(own.nodes)
   triangles.set(own.triangles)
@@ -70,7 +81,10 @@ export function withRuntimeTrees(
     const translucent = (flags & RAY_TRACING_FLAG_TRANSLUCENT) !== 0
     records[at + A.mesh] = mesh
     records[at + A.primitive] = primitive
-    records[at + A.flags] = flags | (translucent ? RAY_TRACING_FLAG_ALL_TRANSLUCENT : 0)
+    // A run-time mesh carries no corner attributes, whatever flags its caller passes.
+    records[at + A.flags] =
+      (flags & ~(RAY_TRACING_FLAG_ATTRIBUTES | RAY_TRACING_FLAG_NORMALS)) |
+      (translucent ? RAY_TRACING_FLAG_ALL_TRANSLUCENT : 0)
     records[at + A.firstNode] = node
     records[at + A.nodeCount] = tree.nodes.length / NODE_WORDS
     records[at + A.firstTriangle] = triangle
@@ -88,6 +102,7 @@ export function withRuntimeTrees(
     records,
     nodes,
     triangles,
+    corners,
     byPrimitive,
     world: file?.world,
     actorCells: file?.actorCells ?? 0,

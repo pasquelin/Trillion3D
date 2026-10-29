@@ -74,10 +74,10 @@ test('a file whose head, sizes or records do not close is refused', () => {
     () =>
       parseRayTracing(
         fileOf({}, (v) =>
-          v.setUint32(RAY_TRACING_HEAD_BYTES + RAY_TRACING_RECORD_AT.flags * 4, 64, true),
+          v.setUint32(RAY_TRACING_HEAD_BYTES + RAY_TRACING_RECORD_AT.flags * 4, 256, true),
         ),
       ),
-    /flags 64/,
+    /flags 256/,
   )
   assert.throws(
     () =>

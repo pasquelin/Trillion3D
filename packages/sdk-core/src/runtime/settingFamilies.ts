@@ -27,6 +27,7 @@ import { SCREEN_SPACE_TRACING_RULES } from '../contracts/screenSpaceTracingOptio
 import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
+import { PATH_TRACING_RULES } from '../contracts/pathTracingOptions.ts'
 import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
 import type { SettingRule, SettingValues } from '../contracts/settingRules.ts'
 import { SUBSURFACE_SCATTERING_RULES } from '../contracts/subsurfaceScatteringOptions.ts'
@@ -115,6 +116,7 @@ export const SETTING_FAMILIES = {
   },
   shadows: { rules: SHADOW_RULES, group: 'shadows', world: 'image' },
   sampledLights: { rules: SAMPLED_LIGHTS_RULES, group: 'shadows', world: 'image' },
+  pathTracing: { rules: PATH_TRACING_RULES, group: 'indirectLight', world: 'image' },
   indirectLight: { rules: SCREEN_PROBE_RULES, group: 'indirectLight', world: 'image' },
   reflections: { rules: REFLECTION_RULES, group: 'indirectLight', world: 'image' },
   screenSpaceTracing: { rules: SCREEN_SPACE_TRACING_RULES, group: 'indirectLight', world: 'image' },

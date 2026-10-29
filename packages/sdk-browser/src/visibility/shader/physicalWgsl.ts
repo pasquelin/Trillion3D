@@ -31,7 +31,7 @@ export const MAP_CHANNEL_WGSL = wgslFn(
 
 /** The texture sets a channels word names, as a mask: bit `s` set where a map reads set `s`, bit 0
  *  where one reads the first or none is named (an unused slot reads 0). */
-const CHANNEL_SETS_WGSL = wgslFn(
+export const CHANNEL_SETS_WGSL = wgslFn(
   'channelSets',
   [MAP_CHANNEL_WGSL],
   `fn channelSets(channels:u32)->u32{

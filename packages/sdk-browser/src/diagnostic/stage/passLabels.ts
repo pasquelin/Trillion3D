@@ -266,9 +266,11 @@ export const OTHER_PASS_FAMILIES = [
   ),
   // The sky and what it lights: the atmosphere's lookup tables, the sky drawn over the image, the
   // haze on the opaque surfaces, the clouds, the light shafts, the sky light capture and its filters,
-  // the local fog volumes and the rewrite of the surfaces.
+  // the local fog volumes and the rewrite of the surfaces; the path tracer's samples, tables and display
+  // (`../../lighting/pathTracing/`).
   ...family(
     'lighting',
+    'Trillion3D path tracer',
     'Trillion3D air',
     'Trillion3D sky',
     'Trillion3D opaque haze',

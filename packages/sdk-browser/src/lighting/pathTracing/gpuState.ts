@@ -1,0 +1,296 @@
+import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
+import { ceilDiv, nextPow2 } from '../../../../math/src/scalar/integers.ts'
+import { varianceLevels } from './framePlan.ts'
+import { PT_LIGHT_TABLE_WORDS } from './lightTable.ts'
+import { PT_GRID_DATA_WIDTH } from './lightGridWgsl.ts'
+import { PT_LIGHT_FLOATS, PT_LIGHT_MAXIMUM } from './lightRecords.ts'
+import { PT_HIT_BYTES } from './hitRecordWgsl.ts'
+import { PT_HIT_MATERIAL_BYTES } from './hitMaterialWgsl.ts'
+import { PT_STATE_BYTES } from './pathWgsl.ts'
+import {
+  PT_AOV_FORMAT,
+  PT_DEPTH_FORMAT,
+  PT_GRID_FORMAT,
+  PT_RADIANCE_FORMAT,
+  PT_SKY_PDF_FORMAT,
+  PT_SKY_TEXTURE_FORMAT,
+  PT_VARIANCE_FORMAT,
+} from './pipelines.ts'
+import { skyTableMips } from './skyWgsl.ts'
+import { queueWords } from './queueWgsl.ts'
+import { PT_STEPS, PT_VIEW_STRIDE } from './viewWgsl.ts'
+
+/** The accumulated images of one parity of the ping-pong: a sample reads the image before's and writes this one's, and the next reverses them. */
+export interface PathTracingImages {
+  readonly radiance: GPUTexture
+  readonly albedo: GPUTexture
+  readonly normal: GPUTexture
+  /** The error chain: the luminance sum, the sum of its square and the count a pixel, with its mip levels (adaptive sampling's). */
+  readonly variance: GPUTexture
+  /** The first level of the error chain, which the trace reads the samples a pixel has gathered from. */
+  readonly varianceTop: GPUTextureView
+  /** The depth of the camera's hit, as the frame stores it, the nearest of the samples. */
+  readonly depth: GPUTexture
+}
+
+/** The usage of the accumulated images, read where the first view is made: no GPU global is read at load. */
+const storageTexture = () =>
+  GPUTextureUsage.TEXTURE_BINDING |
+  GPUTextureUsage.STORAGE_BINDING |
+  GPUTextureUsage.COPY_SRC |
+  GPUTextureUsage.COPY_DST
+
+/** The side of the tiles a view is traced in: `dispatchSize` (at least 64), less where the paths of a tile would not fit one storage binding (`PT_STATE_BYTES` each), a multiple of 8. */
+export function tileSideOf(device: GPUDevice, dispatchSize: number) {
+  const bytes = Math.min(device.limits.maxStorageBufferBindingSize, device.limits.maxBufferSize)
+  const fit = Math.floor(Math.sqrt(bytes / PT_STATE_BYTES) / 8) * 8
+  return clampLowWins(clamp(dispatchSize, 64, fit), 8, Infinity)
+}
+
+/** The tiles `size` is cut in by `side`, in the order they are traced: the first pixel and the size of each. */
+export function tilesOf(size: readonly [number, number], side: number) {
+  const tiles: [number, number, number, number][] = []
+  for (let y = 0; y < size[1]; y += side)
+    for (let x = 0; x < size[0]; x += side)
+      tiles.push([x, y, Math.min(side, size[0] - x), Math.min(side, size[1] - y)])
+  return tiles
+}
+
+/** The bytes the path tracer asks of the device's budget for a view of `size` traced in tiles of `tile`: the accumulated images (two of each, the variance with its chain), the camera normals,
+ *  the paths' states and queue, the dispatch blocks, the lights, the light grid and its lists, and the sky's tables. */
+export function pathTracingBytes(
+  size: readonly [number, number],
+  tile: number,
+  bounceLevels: number,
+  blockCount: number,
+  gridResolution: number,
+  lightCapacity: number,
+  gridCapacity: number,
+  skySize: number,
+) {
+  const pixels = size[0] * size[1]
+  const chain = Array.from(
+    { length: varianceLevels(size) },
+    (_, level) => (size[0] >> level || 1) * (size[1] >> level || 1),
+  )
+  const images =
+    2 * (16 + 8 + 8 + 4) * pixels + 2 * 16 * chain.reduce((a, b) => a + b, 0) + 8 * pixels
+  const paths = tile * tile
+  const gridCells = gridResolution * gridResolution
+  const lists =
+    Math.max(1, ceilDiv(gridCapacity * 3 * gridCells, PT_GRID_DATA_WIDTH)) * PT_GRID_DATA_WIDTH * 4
+  const sky = skySize * skySize * (16 + 4) + (skySize * skySize * 4) / 3
+  return Math.ceil(
+    images +
+      paths * (PT_STATE_BYTES + PT_HIT_BYTES + PT_HIT_MATERIAL_BYTES) +
+      queueWords(bounceLevels, paths) * 4 +
+      bounceLevels * PT_STEPS * 12 +
+      blockCount * PT_VIEW_STRIDE +
+      (PT_LIGHT_TABLE_WORDS + lightCapacity * PT_LIGHT_FLOATS) * 4 +
+      gridCells * 3 * 4 +
+      lists +
+      sky,
+  )
+}
+
+/** Everything the path tracer keeps on the GPU, made for one view size and set of counts, remade where they change. */
+export class PathTracingGpu {
+  readonly images: readonly [PathTracingImages, PathTracingImages]
+  readonly cameraNormals: GPUTexture
+  readonly states: GPUBuffer
+  /** What each path's ray met this bounce (`PT_HIT_BYTES` a path) and the material the shade of the hits gave it (`PT_HIT_MATERIAL_BYTES`). */
+  readonly hits: GPUBuffer
+  readonly materials: GPUBuffer
+  /** The surfaces the cut's placements wear (`hitPlacements.ts`), made again when it outgrows. */
+  placements: GPUBuffer
+  readonly queue: GPUBuffer
+  /** The arguments of the indirect dispatch over the paths of each bounce (three words each). */
+  readonly args: GPUBuffer
+  readonly blocks: GPUBuffer
+  readonly lights: GPUBuffer
+  readonly gridParams: GPUBuffer
+  readonly grid: GPUTexture
+  readonly gridData: GPUTexture
+  readonly skyTexture: GPUTexture
+  /** The views the finish of a bounce binds, made once so that its groups are. */
+  readonly gridView: GPUTextureView
+  readonly gridDataView: GPUTextureView
+  readonly skyView: GPUTextureView
+  readonly skyPdfView: GPUTextureView
+  readonly skyPdf: GPUTexture
+  readonly skyBuild: GPUBuffer
+  readonly errorLevels: GPUBuffer[]
+  readonly display: GPUBuffer
+  readonly normalView: GPUBuffer
+  readonly varianceDims: GPUBuffer
+  private readonly made: { destroy(): void }[] = []
+
+  readonly device: GPUDevice
+  readonly size: readonly [number, number]
+  readonly tile: number
+  readonly bounceLevels: number
+  readonly blockCount: number
+  readonly gridResolution: number
+  readonly lightCapacity: number
+  readonly gridCapacity: number
+  /** The side of the sky's sampling table and its levels (`skyTableSize`). */
+  readonly skySize: number
+  readonly skyMips: number
+
+  constructor(
+    device: GPUDevice,
+    size: readonly [number, number],
+    tile: number,
+    bounceLevels: number,
+    blockCount: number,
+    gridResolution: number,
+    lightCapacity: number,
+    gridCapacity: number,
+    skySize: number,
+  ) {
+    this.device = device
+    this.size = size
+    this.tile = tile
+    this.bounceLevels = bounceLevels
+    this.blockCount = blockCount
+    this.gridResolution = gridResolution
+    this.lightCapacity = lightCapacity
+    this.gridCapacity = gridCapacity
+    this.skySize = skySize
+    this.skyMips = skyTableMips(skySize)
+    const [width, height] = size
+    const levels = varianceLevels(size)
+    const texture = (label: string, format: GPUTextureFormat, mips = 1, w = width, h = height) => {
+      const made = device.createTexture({
+        label: `Trillion3D path tracer ${label}`,
+        size: [w, h],
+        format,
+        mipLevelCount: mips,
+        usage: storageTexture(),
+      })
+      this.made.push(made)
+      return made
+    }
+    const buffer = (label: string, bytes: number, usage: GPUBufferUsageFlags) => {
+      const made = device.createBuffer({
+        label: `Trillion3D path tracer ${label}`,
+        size: Math.max(16, bytes),
+        usage,
+      })
+      this.made.push(made)
+      return made
+    }
+    const imageSet = (parity: number): PathTracingImages => {
+      const variance = texture(`variance ${parity}`, PT_VARIANCE_FORMAT, levels)
+      return {
+        radiance: texture(`radiance ${parity}`, PT_RADIANCE_FORMAT),
+        albedo: texture(`albedo ${parity}`, PT_AOV_FORMAT),
+        normal: texture(`normal ${parity}`, PT_AOV_FORMAT),
+        variance,
+        varianceTop: variance.createView({ baseMipLevel: 0, mipLevelCount: 1 }),
+        depth: texture(`depth ${parity}`, PT_DEPTH_FORMAT),
+      }
+    }
+    this.images = [imageSet(0), imageSet(1)]
+    this.cameraNormals = texture('camera normals', PT_AOV_FORMAT)
+    const paths = tile * tile
+    this.states = buffer('states', paths * PT_STATE_BYTES, GPUBufferUsage.STORAGE)
+    this.hits = buffer('hits', paths * PT_HIT_BYTES, GPUBufferUsage.STORAGE)
+    this.materials = buffer('hit materials', paths * PT_HIT_MATERIAL_BYTES, GPUBufferUsage.STORAGE)
+    this.placements = buffer('placements', 16, GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST)
+    this.queue = buffer(
+      'queue',
+      queueWords(bounceLevels, paths) * 4,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    )
+    this.args = buffer(
+      'dispatch arguments',
+      bounceLevels * PT_STEPS * 12,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.INDIRECT,
+    )
+    this.blocks = buffer(
+      'dispatch parameters',
+      blockCount * PT_VIEW_STRIDE,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    )
+    this.lights = buffer(
+      'lights',
+      (PT_LIGHT_TABLE_WORDS + lightCapacity * PT_LIGHT_FLOATS) * 4,
+      GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+    )
+    this.gridParams = buffer(
+      'light grid parameters',
+      64,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    )
+    this.grid = this.device.createTexture({
+      label: 'Trillion3D path tracer light grid',
+      size: [gridResolution, gridResolution, 3],
+      format: PT_GRID_FORMAT,
+      usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+    })
+    this.made.push(this.grid)
+    const rows = Math.max(
+      1,
+      ceilDiv(gridCapacity * 3 * gridResolution * gridResolution, PT_GRID_DATA_WIDTH),
+    )
+    this.gridData = texture('light grid lists', PT_GRID_FORMAT, 1, PT_GRID_DATA_WIDTH, rows)
+    this.skyTexture = texture('sky', PT_SKY_TEXTURE_FORMAT, 1, skySize, skySize)
+    this.skyPdf = texture('sky density', PT_SKY_PDF_FORMAT, this.skyMips, skySize, skySize)
+    this.gridView = this.grid.createView({ dimension: '2d-array' })
+    this.gridDataView = this.gridData.createView()
+    this.skyView = this.skyTexture.createView()
+    this.skyPdfView = this.skyPdf.createView()
+    this.skyBuild = buffer(
+      'sky table parameters',
+      256 * (this.skyMips + 1),
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    )
+    this.errorLevels = Array.from({ length: Math.max(levels - 1, 1) }, (_, level) =>
+      buffer(`error level ${level}`, 16, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
+    )
+    this.display = buffer('display', 48, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST)
+    this.normalView = buffer('normal space', 64, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST)
+    this.varianceDims = buffer(
+      'variance sizes',
+      16,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    )
+    device.queue.writeBuffer(this.varianceDims, 0, new Uint32Array([width, height, levels, 0]))
+    this.errorLevels.forEach((level, at) =>
+      device.queue.writeBuffer(
+        level,
+        0,
+        new Int32Array([
+          Math.max(width >> at, 1),
+          Math.max(height >> at, 1),
+          Math.max(width >> (at + 1), 1),
+          Math.max(height >> (at + 1), 1),
+        ]),
+      ),
+    )
+  }
+
+  /** Writes the table of the placements' surfaces, in a buffer of its own where it does not fit the last. */
+  writePlacements(words: Uint32Array<ArrayBuffer>) {
+    if (words.byteLength > this.placements.size) {
+      this.placements.destroy()
+      this.made.splice(this.made.indexOf(this.placements), 1)
+      this.placements = this.device.createBuffer({
+        label: 'Trillion3D path tracer placements',
+        size: nextPow2(words.byteLength),
+        usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST,
+      })
+      this.made.push(this.placements)
+    }
+    this.device.queue.writeBuffer(this.placements, 0, words)
+  }
+
+  destroy() {
+    for (const resource of this.made) resource.destroy()
+    this.made.length = 0
+  }
+}
+
+/** The lights the buffer holds room for: the count asked taken up to the next power of two, at least 4, so that the resources are made again only when the count doubles, as the engine's other pools grow. */
+export const lightRoom = (count: number) => clamp(nextPow2(count), 4, PT_LIGHT_MAXIMUM)

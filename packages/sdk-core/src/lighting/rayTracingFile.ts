@@ -6,7 +6,10 @@ import {
 } from '../contracts/sidecarSection.ts'
 import { wordsOf } from '../runtime/ownBuffer.ts'
 import {
+  RAY_TRACING_CORNER_BYTES,
   RAY_TRACING_FLAG_ALL_TRANSLUCENT,
+  RAY_TRACING_FLAG_ATTRIBUTES,
+  RAY_TRACING_FLAG_NORMALS,
   RAY_TRACING_FLAG_MASKED,
   RAY_TRACING_FLAG_TRANSLUCENT,
   RAY_TRACING_FLAG_ACTOR,
@@ -57,6 +60,8 @@ import {
 export const RAY_TRACING_RECORD_WORDS = RAY_TRACING_RECORD_BYTES / 4
 const RAY_TRACING_NODE_WORDS = RAY_TRACING_NODE_BYTES / 4
 const RAY_TRACING_TRIANGLE_WORDS = RAY_TRACING_TRIANGLE_BYTES / 4
+/** Words of a corner's attributes. */
+export const RAY_TRACING_CORNER_WORDS = RAY_TRACING_CORNER_BYTES / 4
 const RAY_TRACING_VERTEX_WORDS = RAY_TRACING_VERTEX_BYTES / 4
 const RAY_TRACING_INDEXED_TRIANGLE_WORDS = RAY_TRACING_INDEXED_TRIANGLE_BYTES / 4
 /** The formats this engine reads: the flat one, then the one with vertices. */
@@ -70,6 +75,8 @@ export interface RayTracing {
   readonly nodes: Uint32Array
   /** `RAY_TRACING_TRIANGLE_WORDS` words a triangle, every record's one after the other. */
   readonly triangles: Uint32Array
+  /** `RAY_TRACING_CORNER_WORDS` words a corner, three corners a triangle in the triangles' order (`RAY_TRACING_CORNER_AT`): the attributes a hit shades with; empty for a file without them. */
+  readonly corners: Uint32Array
   /** The record of each primitive, by its compiled mesh and its number in the mesh (the two
    *  numbers `ClusterRoot.mesh` and `ClusterRoot.primitive` name it by). */
   readonly byPrimitive: ReadonlyMap<number, ReadonlyMap<number, number>>
@@ -90,7 +97,9 @@ const KNOWN_FLAGS =
   RAY_TRACING_FLAG_TRANSLUCENT |
   RAY_TRACING_FLAG_WORLD |
   RAY_TRACING_FLAG_ACTOR |
-  RAY_TRACING_FLAG_ALL_TRANSLUCENT
+  RAY_TRACING_FLAG_ALL_TRANSLUCENT |
+  RAY_TRACING_FLAG_ATTRIBUTES |
+  RAY_TRACING_FLAG_NORMALS
 
 /**
  * The manifest's `rayTracing` section, or undefined when the cache has none (a scene whose
@@ -129,6 +138,13 @@ function kindOf(records: Uint32Array, r: number): RecordKind {
   if (whole && !translucent) refuse(`record ${r} is translucent whole and not translucent`)
   if (actor && translucent && !whole)
     refuse(`the actor's record ${r} is translucent and not flagged translucent whole`)
+  if ((flags & RAY_TRACING_FLAG_NORMALS) !== 0 && (flags & RAY_TRACING_FLAG_ATTRIBUTES) === 0)
+    refuse(`record ${r} has corner normals and no corner attributes`)
+  if (
+    (directory || actor) &&
+    (flags & (RAY_TRACING_FLAG_ATTRIBUTES | RAY_TRACING_FLAG_NORMALS)) !== 0
+  )
+    refuse(`record ${r} is the world's and carries corner attributes`)
   if (!actor && records[at + RAY_TRACING_RECORD_AT.cell] !== 0)
     refuse(`record ${r} names an HLOD cell and is no actor's`)
   return directory ? 'directory' : actor ? 'actor' : 'primitive'
@@ -232,12 +248,13 @@ function trianglesOf(
   nodesEnd: number,
   count: number,
   vertexCount: number | undefined,
+  cornerCount: number,
 ) {
   const trianglesAt = nodesEnd + (vertexCount ?? 0) * RAY_TRACING_VERTEX_BYTES
   const each =
     vertexCount === undefined ? RAY_TRACING_TRIANGLE_BYTES : RAY_TRACING_INDEXED_TRIANGLE_BYTES
-  if (trianglesAt + count * each !== bytes.byteLength)
-    refuse('not its head, its records, its nodes, its vertices and its triangles')
+  if (trianglesAt + count * each + cornerCount * RAY_TRACING_CORNER_BYTES !== bytes.byteLength)
+    refuse('not its head, its records, its nodes, its vertices, its triangles and its corners')
   const words = wordsOf(bytes, trianglesAt, (count * each) / 4)
   if (vertexCount === undefined) return words
   return cornered(words, wordsOf(bytes, nodesEnd, vertexCount * RAY_TRACING_VERTEX_WORDS), count)
@@ -269,9 +286,12 @@ export function parseRayTracing(bytes: Uint8Array, announced?: number): RayTraci
   const nodeCount = view.getUint32(12, true)
   const triangleCount = view.getUint32(16, true)
   const vertexCount = version === RAY_TRACING_FLAT_VERSION ? undefined : view.getUint32(20, true)
+  const cornerCount = version === RAY_TRACING_FLAT_VERSION ? 0 : view.getUint32(24, true)
+  if (cornerCount !== 0 && cornerCount !== 3 * triangleCount)
+    refuse(`${cornerCount} corners for ${triangleCount} triangles`)
   const nodesAt = RAY_TRACING_HEAD_BYTES + recordCount * RAY_TRACING_RECORD_BYTES
   const nodesEnd = nodesAt + nodeCount * RAY_TRACING_NODE_BYTES
-  const triangles = trianglesOf(bytes, nodesEnd, triangleCount, vertexCount)
+  const triangles = trianglesOf(bytes, nodesEnd, triangleCount, vertexCount, cornerCount)
   const records = wordsOf(bytes, RAY_TRACING_HEAD_BYTES, recordCount * RAY_TRACING_RECORD_WORDS)
   const nodes = wordsOf(bytes, nodesAt, nodeCount * RAY_TRACING_NODE_WORDS)
   const floats = new Float32Array(records.buffer, records.byteOffset, records.length)
@@ -284,6 +304,8 @@ export function parseRayTracing(bytes: Uint8Array, announced?: number): RayTraci
     const at = r * RAY_TRACING_RECORD_WORDS
     const [mesh, primitive] = [records[at + A.mesh], records[at + A.primitive]]
     const kind = kindOf(records, r)
+    if (cornerCount === 0 && (records[at + A.flags] & RAY_TRACING_FLAG_ATTRIBUTES) !== 0)
+      refuse(`record ${r} carries corner attributes and the file has none`)
     if (kind === 'primitive') {
       const meshRecords = byPrimitive.get(mesh) ?? new Map<number, number>()
       if (meshRecords.has(primitive)) refuse(`primitive ${mesh}/${primitive} twice`)
@@ -306,5 +328,7 @@ export function parseRayTracing(bytes: Uint8Array, announced?: number): RayTraci
     refuse("the actors' records are not the ones just before the world's directory")
   if (next.triangle !== triangleCount) refuse('triangles that no record holds')
   const actorCells = world === undefined ? 0 : checkDirectory(records, triangles, world)
-  return { records, nodes, triangles, byPrimitive, world, actorCells }
+  const cornersAt = bytes.byteLength - cornerCount * RAY_TRACING_CORNER_BYTES
+  const corners = wordsOf(bytes, cornersAt, cornerCount * RAY_TRACING_CORNER_WORDS)
+  return { records, nodes, triangles, corners, byPrimitive, world, actorCells }
 }

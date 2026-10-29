@@ -31,6 +31,7 @@ import {
 import { encodeAfterWater, encodeSkyAndClouds } from './encodeClouds.ts'
 import { encodeLightShaftBloom } from '../../modules/sky/lightShafts/frame.ts'
 import { encodePreLight } from './preLight.ts'
+import { preparePathTracing } from '../../lighting/pathTracing/frame.ts'
 import { encodeTranslucencyVolume } from '../../lighting/translucency/frame.ts'
 import { readHeterogeneousVolumeSetting } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import { encodeHeterogeneousVolumes } from '../../lighting/heterogeneousVolumes/liveShadingFrame.ts'
@@ -168,6 +169,7 @@ function lightSurfaces(
   clear: ReturnType<typeof clearValueOf>,
   raw: boolean,
   direct: ArrayLike<number>,
+  draw = true,
 ) {
   const { gpu, run } = rt
   const deferred = gpu.deferred!
@@ -193,7 +195,7 @@ function lightSurfaces(
   encodeSampledLights(rt, encoder, sampledDirect)
   // The nearest translucent layer, written by the transparents' front pass (`encodeFrontPass`), lit by the same lighting with its own histories.
   encodeSampledFront(rt, encoder, sampledDirect)
-  run.gpuDrawCalls += deferred.light(encoder, gpu.hdrView!)
+  if (draw) run.gpuDrawCalls += deferred.light(encoder, gpu.hdrView!)
 }
 
 /** What is drawn over the lit surfaces, in its order: the sky, the fog over the whole image, the haze on the
@@ -391,7 +393,10 @@ export function encodeSurfaceLighting(
   // The shadows the heterogeneous volumes cast, built before any light is applied.
   encodeHeterogeneousVolumes(rt, device, encoder, cam, 'shadows')
   encodePreLight(rt, device, encoder, cam, direct, overrides)
-  lightSurfaces(rt, encoder, clear, raw, direct)
+  // A path-traced view draws its own lit image: the lighting is set up all the same, and drawn first only where the tracer draws beside it (the wiper).
+  const traced = preparePathTracing(rt, device, encoder, cam)
+  lightSurfaces(rt, encoder, clear, raw, direct, !traced || traced.wiper)
+  if (traced && gpu.depthView) traced.draw(gpu.hdrView, gpu.depthView)
   // The hair strands are lit with the lights; they are laid on the image where `hairStrandsComposition` says (`encodeBlend`).
   encodeHairLighting(rt, device, encoder, cam)
   encodeVolumeAndScattering(rt, device, encoder, cam)

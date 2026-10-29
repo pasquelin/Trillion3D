@@ -1041,8 +1041,8 @@ world with HLOD actors, one for each actor and the directory of them
 (`rust/ray_tracing/encode.rs`, read by `sdk-core/src/lighting/rayTracingFile.ts`; the cut is in
 [COMPILER.md](COMPILER.md#ray-tracing)). Words are little-endian; lengths are metres, in the primitive's object
 space, or, for the world's records, in the world's space. The head, 32 bytes: the magic `T3RT`, the version (4),
-the number of records, the number of nodes, the number of triangles, the number of vertices (`u32` each) and two
-zero words. Then a
+the number of records, the number of nodes, the number of triangles, the number of vertices, the number of corners
+whose attributes close the file (three a triangle, or zero) (`u32` each) and a zero word. Then a
 record of 64 bytes, one for each primitive in the order of the manifest's primitives, then the actors' records,
 then the directory's. A record holds, in this order:
 
@@ -1058,7 +1058,10 @@ then the directory's. A record holds, in this order:
 | 15    | zero                                                                                                                                                                             |
 
 The records are followed by the nodes of every record, 80 bytes each, one record after the other, then by the
-vertices, 12 bytes each, then by their triangles, 24 bytes each. A record's nodes are consecutive, its root the first, and the links of a node count from
+vertices, 12 bytes each, then by their triangles, 24 bytes each, then, when the head counts corners, by the attributes of the corners of every
+triangle (`RAY_TRACING_CORNER_BYTES`, 16 bytes a corner, three a triangle in the triangles' order): the texture coordinate
+(two `f32`), the shading normal (octahedral, two `snorm16`, read only in a record with `RAY_TRACING_FLAG_NORMALS`) and the vertex colour (four
+`unorm8`; white for a mesh without one), zero in a record without `RAY_TRACING_FLAG_ATTRIBUTES`. A record's nodes are consecutive, its root the first, and the links of a node count from
 its record's first node and first triangle.
 
 A node has up to eight children, in eight slots. The slots are in the order the compiler opened the children
@@ -1097,6 +1100,8 @@ The record's third word holds flags:
 | 1 (`2`)  | `RAY_TRACING_FLAG_MASKED`      | its material is alpha-masked: a hit must be tested against the material's coverage                    |
 | 2 (`4`)  | `RAY_TRACING_FLAG_TRANSLUCENT` | its material is translucent (blended or transmissive): it is no occluder as opaque is                 |
 | 3 (`8`)  | `RAY_TRACING_FLAG_WORLD`       | the record is the world's directory of the HLOD actors; no other flag is set                          |
+| 6 (`64`) | `RAY_TRACING_FLAG_NORMALS` | its corners' attributes include a shading normal (with `RAY_TRACING_FLAG_ATTRIBUTES`) |
+| 7 (`128`) | `RAY_TRACING_FLAG_ATTRIBUTES` | its triangles' corners carry attributes (the table at the end of the file)                            |
 | 4 (`16`) | `RAY_TRACING_FLAG_ACTOR`       | the record is an HLOD actor's, over its material's flags (bits 0 to 2); word 14 is the cell showing it |
 
 A primitive whose cut holds no triangle has no record; a skinned or morphed primitive has one, at its rest pose,
@@ -1121,7 +1126,7 @@ by (zero for an actor with none, which a hit names `NO_INDEX`, as a miss does).
 The manifest's `rayTracing` section names the file and its size:
 
 ```json
-{ "rayTracing": { "version": 4, "file": "rayTracing.bin", "bytes": 2672 } }
+{ "rayTracing": { "version": 5, "file": "rayTracing.bin", "bytes": 2672 } }
 ```
 
 A scene none of whose primitives nor actors has a triangle in its cut writes neither the file nor the section.

@@ -37,7 +37,7 @@ fn the_error_is_a_share_of_the_size_of_the_finest_clusters() {
     ];
     let expected = FALLBACK_RELATIVE_ERROR * 0.01 * 2f32.sqrt();
     assert!((error_of(&positions, &dag) - expected).abs() < 1e-7);
-    let cut = cut_of(&positions, &dag).expect("a cut");
+    let cut = cut_of(&positions, &[], &dag).expect("a cut");
     assert_eq!(cut.triangles.len(), 2);
     assert_eq!(cut.triangles[1].triangle, 1);
     assert_eq!(cut.triangles[1].corners[1], [1.0, 1.0, 0.0]);

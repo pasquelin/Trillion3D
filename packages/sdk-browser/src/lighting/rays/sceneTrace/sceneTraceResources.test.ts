@@ -14,7 +14,7 @@ import { CULLING, fileOf } from './sceneTraceTable.fixture.ts'
 
 test('the buffers are sized by the file and the placements, the table with room for a power of two of them', () => {
   const file = fileOf()
-  assert.deepEqual(sceneTraceWords(file, 5), { nodes: 8, triangles: 12, table: 4 + 16 })
+  assert.deepEqual(sceneTraceWords(file, 5), { nodes: 8, triangles: 12, corners: 4, table: 4 + 16 })
   assert.deepEqual(sceneTraceWords(file, 8), sceneTraceWords(file, 5))
   assert.equal(sceneTraceWords(file, 9).table, 4 + 32)
   assert.equal(sceneTraceWords(file, 0).table, 4 + 2)
@@ -40,7 +40,7 @@ test('the bytes are the buffers’, counted before they are made', () => {
   const { device } = fakeDevice()
   const file = fileOf()
   const trace = ensureSceneTrace(undefined, device, file, 3).sceneTrace!
-  const made = [trace.nodes, trace.triangles, trace.table, trace.params]
+  const made = [trace.nodes, trace.triangles, trace.corners, trace.table, trace.params]
   assert.equal(
     trace.bytes,
     made.reduce((sum, buffer) => sum + buffer.size, 0),

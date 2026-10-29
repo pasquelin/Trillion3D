@@ -1,6 +1,7 @@
 //! The ray-tracing file's tests share one set of builders: a cluster of the DAG, a soup of
 //! triangles, the wide tree of a soup, and a node decoded back from its bytes.
 use super::abi::RAY_TRACING_NODE_BYTES;
+use super::attributes::TRIANGLE_ATTRIBUTE_BYTES;
 use super::bvh::{build, Item};
 use super::cut::CutTriangle;
 use super::nodes::write_node;
@@ -9,6 +10,7 @@ use crate::dag::DagCluster;
 use crate::support::le::u32_at;
 use crate::tests::random::Xorshift;
 
+mod attributes;
 mod cut;
 mod file;
 mod nodes;
@@ -39,6 +41,7 @@ fn soup(count: usize, seed: u64) -> Vec<CutTriangle> {
                 cluster: (rank / 7) as u32,
                 triangle: (rank % 7) as u32,
                 tag: 0,
+                attributes: [0; TRIANGLE_ATTRIBUTE_BYTES],
             }
         })
         .collect()

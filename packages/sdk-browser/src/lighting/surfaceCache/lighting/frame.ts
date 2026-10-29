@@ -10,6 +10,7 @@ import { screenProbesTraced } from '../../bounce/screen/cast.ts'
 import { screenProbeSettingsOf } from '../../bounce/screen/settingsOf.ts'
 import { reflectionsTraced } from '../../reflections/hardware.ts'
 import { hardwareRayTracing, surfaceCacheRaysOf } from '../../rays/hardwareRayTracing.ts'
+import { pathTracingOn } from '../../pathTracing/enabled.ts'
 import { lightProfileResources } from '../../lightProfile/frame.ts'
 import { lightProfileStandIn } from '../../lightProfile/profileStandIn.ts'
 import { cloudShadowStandIn } from '../../atmosphere/cloudShadowStandIn.ts'
@@ -86,9 +87,11 @@ export function lightSurfaceCache(
       direction: cameraForward<[number, number, number]>([0, 0, 0], frame.cam.world),
       transportEpoch: lights.store.transportEpoch,
       meshReach: reachOf(rt, state) + state.settings.surfaceCacheCardCaptureMargin,
+      // The path tracer casts every ray of its view through the scene's triangles, whatever the device's hardware.
       probes:
-        hardwareRayTracing() &&
-        (radianceCacheTraced(rt) || screenProbesTraced(rt) || reflectionsTraced(rt)),
+        pathTracingOn(rt) ||
+        (hardwareRayTracing() &&
+          (radianceCacheTraced(rt) || screenProbesTraced(rt) || reflectionsTraced(rt))),
       image: {
         noiseFrame: noiseFrame(rt),
         eye: frame.cam.eye,

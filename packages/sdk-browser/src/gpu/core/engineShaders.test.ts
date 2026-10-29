@@ -133,6 +133,7 @@ test('the list holds the text of every call that compiles a module', () => {
     'engineShaders.hair.fixture.ts',
     'engineShaders.heterogeneousVolumes.fixture.ts',
     'engineShaders.capsuleShadows.fixture.ts',
+    'engineShaders.pathTracing.fixture.ts',
     'engineShaders.rectLightAtlas.fixture.ts',
     'engineShaders.manyLights.fixture.ts',
     'engineShaders.screenSpaceTracing.fixture.ts',

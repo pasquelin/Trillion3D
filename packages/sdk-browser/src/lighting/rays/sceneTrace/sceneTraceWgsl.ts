@@ -5,6 +5,7 @@ import {
   faceNormal,
   rayBoxEntry,
   rayInverseDirection,
+  rayTriangleBarycentric,
   rayTriangleDistance,
   transformHalfExtent,
 } from '../../../../../math/src/wgsl/geometry.ts'
@@ -151,6 +152,8 @@ const SCENE_TRACE_FLAGS = {
   skipTranslucent: 16,
   skipNear: 32,
   meetWorldSpace: 64,
+  barycentric: 128,
+  meetTranslucent: 256,
 } as const
 
 const R = RAY_TRACING_RECORD_AT
@@ -190,6 +193,8 @@ const SCENE_TRACE_CONSTS = wgslConsts({
   ST_SKIP_TRANSLUCENT: SCENE_TRACE_FLAGS.skipTranslucent,
   ST_SKIP_NEAR: SCENE_TRACE_FLAGS.skipNear,
   ST_MEET_WORLD_SPACE: SCENE_TRACE_FLAGS.meetWorldSpace,
+  ST_BARYCENTRIC: SCENE_TRACE_FLAGS.barycentric,
+  ST_MEET_TRANSLUCENT: SCENE_TRACE_FLAGS.meetTranslucent,
   ST_WORLD_SPACE_ROOT: WORLD_SPACE_ROOT,
 })
 /** The least exponent a node's scale takes, the compiler's (`RAY_TRACING_MIN_EXPONENT`). */
@@ -201,8 +206,8 @@ ${SCENE_TRACE_SIGNED_CONSTS}
 struct StRay{origin:vec3f,direction:vec3f,tMin:f32,tMax:f32,flags:u32,}
 /** A hit: its distance, the placement it met, its record, its triangle in the file and the object a hit table names its surface by (the
  *  placement, for a placement's; for an HLOD actor's, the object the cut's cell word gives; \`NO_INDEX\` for a miss and for an actor with
- *  none), the normal, the faces. */
-struct StHit{distance:f32,placement:u32,record:u32,triangle:u32,object:u32,normal:vec3f,frontFace:bool,twoSided:bool,hit:bool,}
+ *  none), the normal, the faces, and, for a ray that asks it (ST_BARYCENTRIC), the weights of the triangle's second and third corners at the hit. */
+struct StHit{distance:f32,placement:u32,record:u32,triangle:u32,object:u32,normal:vec3f,bary:vec2f,frontFace:bool,twoSided:bool,hit:bool,}
 /** A node of a primitive's structure: its corner, the size of a quantum along each axis, how far a
  *  rounded box may fall short of the exact one, the children that are nodes, the links, the eight
  *  metas and the children's boxes' bytes, as the file lays them. */
@@ -219,9 +224,9 @@ var<private> stDone:bool;
 var<private> stComplete:bool;
 var<private> stSteps:u32;
 /** Whether the trace in progress leaves out the primitive of the record flags \`flags\`: its mesh is translucent whole (\`ST_ALL_TRANSLUCENT\`),
- *  whatever the ray and the image ask; or it is translucent, the ray asks it (\`ST_SKIP_TRANSLUCENT\`) and the image tests the mesh sections' visibility. */
+ *  whatever the image asks, unless the ray meets translucent geometry (ST_MEET_TRANSLUCENT); or it is translucent, the ray asks it (ST_SKIP_TRANSLUCENT) and the image tests the mesh sections' visibility. */
 fn stSkipsTranslucent(flags:u32)->bool{
- return (flags&ST_ALL_TRANSLUCENT)!=0u||((stRay.flags&ST_SKIP_TRANSLUCENT)!=0u&&stParams.skipsTranslucentSections!=0u&&(flags&ST_TRANSLUCENT)!=0u);
+ return ((flags&ST_ALL_TRANSLUCENT)!=0u&&(stRay.flags&ST_MEET_TRANSLUCENT)==0u)||((stRay.flags&ST_SKIP_TRANSLUCENT)!=0u&&stParams.skipsTranslucentSections!=0u&&(flags&ST_TRANSLUCENT)!=0u);
 }`
 
 /** The reads of a node of the file, of a child's box and of the table's floats, and the step a triangle met costs. */
@@ -305,7 +310,16 @@ fn stTriangle(inst:StInstance,origin:vec3f,direction:vec3f,ti:u32,best:StHit)->S
  // A two-sided primitive's hit under its distance, a one-sided primitive's back face under its own: passed by.
  if((stRay.flags&ST_SKIP_NEAR)!=0u&&select(!front&&t<stParams.skipBackFaceDistance,t<stParams.skipTwoSidedDistance,inst.twoSided)){return best;}
  if((stRay.flags&ST_ANY_HIT)!=0u){stDone=true;}
- return StHit(t,inst.placement,inst.record,ti,inst.object,normal,front,inst.twoSided,true);
+ return StHit(t,inst.placement,inst.record,ti,inst.object,normal,vec2f(0.0),front,inst.twoSided,true);
+}
+/** The weights of the second and third corners of the triangle ti at which the ray in the instance's space meets it: asked once of a placement's winning hit, not of each nearer candidate. */
+fn stBarycentric(origin:vec3f,direction:vec3f,ti:u32)->vec2f{
+ let at=ti*ST_TRIANGLE_VECS;
+ let v0=stTriangles[at];
+ let v1=stTriangles[at+1u];
+ let v2=stTriangles[at+2u];
+ let a=bitcast<vec3f>(v0.xyz);
+ return rayTriangleBarycentric(origin,direction,a,bitcast<vec3f>(vec3u(v0.w,v1.x,v1.y)),bitcast<vec3f>(vec3u(v1.z,v1.w,v2.x)));
 }`
 
 /** The wide traversal of one instance's nodes, `test` the line run on each leaf entry: the nearest hit under `limit`, ended at once by an any-hit ray. */
@@ -315,7 +329,7 @@ function stInstanceWalk(name: string, test: string) {
     params: ',inst:StInstance',
     returns: 'StHit',
     start:
-      'var best=StHit(limit,NO_INDEX,NO_INDEX,NO_INDEX,NO_INDEX,vec3f(0.0),false,false,false);',
+      'var best=StHit(limit,NO_INDEX,NO_INDEX,NO_INDEX,NO_INDEX,vec3f(0.0),vec2f(0.0),false,false,false);',
     empty: '',
     root: 'inst.firstNode',
     steps: 'inst.nodes',
@@ -397,7 +411,10 @@ fn stEnter(w:u32,best:StHit,inverse:vec3f)->StHit{
  var hit:StHit;
  if(world){hit=stDirectory(entry.origin,entry.direction,best.distance,inst);}
  else{hit=stBlas(entry.origin,entry.direction,best.distance,inst);}
- if(hit.hit&&hit.distance<best.distance){return hit;}
+ if(hit.hit&&hit.distance<best.distance){
+  if((stRay.flags&ST_BARYCENTRIC)!=0u){hit.bary=stBarycentric(entry.origin,entry.direction,hit.triangle);}
+  return hit;
+ }
  return best;
 }`
 
@@ -408,7 +425,7 @@ fn stTrace(ray:StRay)->StHit{
  stDone=false;
  stComplete=true;
  stSteps=0u;
- var best=StHit(ray.tMax,NO_INDEX,NO_INDEX,NO_INDEX,NO_INDEX,vec3f(0.0),false,false,false);
+ var best=StHit(ray.tMax,NO_INDEX,NO_INDEX,NO_INDEX,NO_INDEX,vec3f(0.0),vec2f(0.0),false,false,false);
 ${placementTreeCast({
   eyeXY: 'stParams.eyeXY',
   eyeZ: 'stParams.eyeZ',
@@ -452,11 +469,11 @@ ${placementTreeCast({
  * away, unless its primitive is two-sided (`frontFace` as the world turns it); `ST_SHADOW` ignores the
  * placements whose mark says they cast no shadow; `ST_SKIP_TRANSLUCENT` the primitives flagged
  * translucent, where the image tests the mesh sections' visibility (`params.skipsTranslucentSections`; else they are met as opaque ones,
- * but for those of a mesh all of whose primitives are translucent, `ST_ALL_TRANSLUCENT`, which no ray meets); `ST_SKIP_NEAR` passes by, past the ray's `tMin`, a hit on a two-sided primitive nearer than
+ * but for those of a mesh all of whose primitives are translucent, `ST_ALL_TRANSLUCENT`, which only a ray that sets `ST_MEET_TRANSLUCENT` meets, as a path tracer's); `ST_SKIP_NEAR` passes by, past the ray's `tMin`, a hit on a two-sided primitive nearer than
  * `params.skipTwoSidedDistance` and a back face of a one-sided one nearer than `params.skipBackFaceDistance`
  * (the ray goes on to the next hit, as a retrace from past it would find); a ray that does not set `ST_MEET_WORLD_SPACE` passes by the placements whose mark says they stand, in the world, for
  * a first-person object (`WORLD_SPACE_ROOT`): only the rays that ask meet them, and a ray cast from a first-person pixel does not, for it would meet the other copy of its own mesh. An any-hit ray answers `hit`
- * alone: its normal is not turned into the world.
+ * alone: its normal is not turned into the world. `ST_BARYCENTRIC` adds to a hit the weights of its triangle's second and third corners (`StHit.bary`), the point's coordinates in the triangle.
  *
  * Level 1 is the cast of the ray through the placement tree (`placementTreeCast`, as the ray query
  * casts its own), front to back; a packing too small for a tree enters its placements in turn.
@@ -501,6 +518,7 @@ export const sceneTraceWgsl = (group: number, first: number) =>
       rayBoxEntry,
       rayInverseDirection,
       rayTriangleDistance,
+      rayTriangleBarycentric,
       reachUnboundedWgsl,
       pow2FromExponent,
       NO_INDEX,

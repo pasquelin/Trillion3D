@@ -39,7 +39,7 @@ test('it declares the trace, its ray and its hit, and the any-hit flag a shadow 
   )
   assert.match(
     SCENE_TRACE_PROBE,
-    /struct StHit\{distance:f32,placement:u32,record:u32,triangle:u32,object:u32,normal:vec3f,frontFace:bool,twoSided:bool,hit:bool,\}/,
+    /struct StHit\{distance:f32,placement:u32,record:u32,triangle:u32,object:u32,normal:vec3f,bary:vec2f,frontFace:bool,twoSided:bool,hit:bool,\}/,
   )
   assert.match(SCENE_TRACE_PROBE, /const ST_ANY_HIT:u32=1u;/)
 })
@@ -148,7 +148,7 @@ test('a ray’s flags choose what it meets: the first hit, the front faces, the 
   // A mesh translucent whole is left out of every ray; a ray that asks it leaves the other translucent primitives out where the image tests the mesh sections' visibility, and meets them as opaque ones else.
   assert.match(
     SCENE_TRACE_PROBE,
-    /fn stSkipsTranslucent\(flags:u32\)->bool\{\n return \(flags&ST_ALL_TRANSLUCENT\)!=0u\|\|\(\(stRay\.flags&ST_SKIP_TRANSLUCENT\)!=0u&&stParams\.skipsTranslucentSections!=0u&&\(flags&ST_TRANSLUCENT\)!=0u\);/,
+    /fn stSkipsTranslucent\(flags:u32\)->bool\{\n return \(\(flags&ST_ALL_TRANSLUCENT\)!=0u&&\(stRay\.flags&ST_MEET_TRANSLUCENT\)==0u\)\|\|\(\(stRay\.flags&ST_SKIP_TRANSLUCENT\)!=0u&&stParams\.skipsTranslucentSections!=0u&&\(flags&ST_TRANSLUCENT\)!=0u\);/,
   )
   assert.match(SCENE_TRACE_PROBE, /\n if\(stSkipsTranslucent\(flags\)\)\{return best;\}/)
   assert.match(

@@ -75,6 +75,8 @@ import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
 import { SAMPLED_LIGHTS_MEANINGS } from './sampledLightsMeanings.ts'
 import { RECT_LIGHT_ATLAS_MEANINGS } from './rectLightAtlasMeanings.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
+import { PATH_TRACING_RULES } from '../contracts/pathTracingOptions.ts'
+import { PATH_TRACING_MEANINGS } from './pathTracingMeanings.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
 import { TRANSLUCENCY_VOLUME_MEANINGS } from './translucencyVolumeMeanings.ts'
 import { TRANSLUCENCY_GI_RULES } from '../contracts/translucencyGiOptions.ts'
@@ -698,6 +700,7 @@ export const settingRuleProperties = () => ({
   ...ruleProperties(HAIR_STRANDS_RULES, HAIR_STRANDS_MEANINGS),
   ...ruleProperties(HETEROGENEOUS_VOLUME_RULES, HETEROGENEOUS_VOLUME_MEANINGS),
   ...ruleProperties(SAMPLED_LIGHTS_RULES, SAMPLED_LIGHTS_MEANINGS),
+  ...ruleProperties(PATH_TRACING_RULES, PATH_TRACING_MEANINGS),
   ...ruleProperties(SCREEN_PROBE_RULES, SCREEN_PROBE_MEANINGS),
   ...ruleProperties(REFLECTION_RULES, REFLECTION_MEANINGS),
   ...ruleProperties(SCREEN_SPACE_TRACING_RULES, SCREEN_SPACE_TRACING_MEANINGS),

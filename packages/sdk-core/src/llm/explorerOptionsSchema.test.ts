@@ -1,5 +1,6 @@
 import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
+import { PATH_TRACING_RULES } from '../contracts/pathTracingOptions.ts'
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import assert from 'node:assert/strict'
 import test from 'node:test'
@@ -157,6 +158,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...HAIR_STRANDS_RULES,
     ...HETEROGENEOUS_VOLUME_RULES,
     ...SAMPLED_LIGHTS_RULES,
+    ...PATH_TRACING_RULES,
     ...SCREEN_PROBE_RULES,
     ...REFLECTION_RULES,
     ...SCREEN_SPACE_TRACING_RULES,

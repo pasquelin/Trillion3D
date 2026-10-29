@@ -1,7 +1,8 @@
 //! `rayTracing.bin` and the manifest's `rayTracing` section.
 //!
 //! Little-endian: a head (`RAY_TRACING_HEAD_BYTES`) — the magic, the version, the record count, the
-//! node count, the triangle count and the vertex count, and two zero words —, a record per primitive
+//! node count, the triangle count, the vertex count, the count of corners whose attributes close the
+//! file (three a triangle, or zero) and a zero word —, a record per primitive
 //! (`RAY_TRACING_RECORD_BYTES`): its compiled mesh and its number in the mesh, its flags
 //! (`RAY_TRACING_FLAG_*`), the error of its cut in metres (`f32`), the rank of its first node and
 //! how many it has, the rank of its first triangle and how many it has (ranks within the file's
@@ -18,13 +19,16 @@
 //! zero, one named before is written as how far back it lies from the next (`back`), small
 //! numbers that compress well. The reader lays the triangles out again as `nodes.rs` did, the
 //! same bytes. A node names its internal children and its triangles by ranks from the record's
-//! first.
+//! first. When the head counts corners, their attributes (`attributes.rs`) follow the triangles, three
+//! for each in the order of the triangles; a tree that carries none (an HLOD actor's, the directory)
+//! has them zero.
 use super::abi::{
     RAY_TRACING_FILE, RAY_TRACING_FLAG_ALL_TRANSLUCENT, RAY_TRACING_FLAG_TRANSLUCENT,
     RAY_TRACING_HEAD_BYTES, RAY_TRACING_INDEXED_TRIANGLE_BYTES, RAY_TRACING_MAGIC,
     RAY_TRACING_NODE_BYTES, RAY_TRACING_NO_PRIMITIVE, RAY_TRACING_RECORD_BYTES,
     RAY_TRACING_TRIANGLE_BYTES, RAY_TRACING_VERSION, RAY_TRACING_VERTEX_BYTES,
 };
+use super::attributes::TRIANGLE_ATTRIBUTE_BYTES;
 use super::tree::{PrimitiveTree, Traced};
 use super::word::word;
 use crate::Result;
@@ -90,12 +94,15 @@ pub(super) fn encode(trees: &[&PrimitiveTree]) -> Result<Vec<u8>> {
     let nodes: usize = trees.iter().map(|tree| tree.node_count()).sum();
     let triangles: usize = trees.iter().map(|tree| tree.triangle_count()).sum();
     let (vertices, indexed) = indexed(trees, triangles)?;
+    let attributed = trees.iter().any(|tree| !tree.attributes.is_empty());
+    let corners = if attributed { 3 * triangles } else { 0 };
     let mut bytes = Vec::with_capacity(
         RAY_TRACING_HEAD_BYTES
             + trees.len() * RAY_TRACING_RECORD_BYTES
             + nodes * RAY_TRACING_NODE_BYTES
             + vertices.len()
-            + indexed.len(),
+            + indexed.len()
+            + triangles * TRIANGLE_ATTRIBUTE_BYTES * usize::from(attributed),
     );
     let head = [
         RAY_TRACING_MAGIC,
@@ -104,7 +111,7 @@ pub(super) fn encode(trees: &[&PrimitiveTree]) -> Result<Vec<u8>> {
         word(nodes, "nodes")?,
         word(triangles, "triangles")?,
         word(vertices.len() / RAY_TRACING_VERTEX_BYTES, "vertices")?,
-        0,
+        word(corners, "corners")?,
         0,
     ];
     for word in head {
@@ -144,6 +151,17 @@ pub(super) fn encode(trees: &[&PrimitiveTree]) -> Result<Vec<u8>> {
     }
     bytes.extend_from_slice(&vertices);
     bytes.extend_from_slice(&indexed);
+    if attributed {
+        for tree in trees {
+            match tree.attributes.is_empty() {
+                true => bytes.resize(
+                    bytes.len() + tree.triangle_count() * TRIANGLE_ATTRIBUTE_BYTES,
+                    0,
+                ),
+                false => bytes.extend_from_slice(&tree.attributes),
+            }
+        }
+    }
     Ok(bytes)
 }
 

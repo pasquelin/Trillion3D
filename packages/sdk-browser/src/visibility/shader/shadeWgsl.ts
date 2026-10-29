@@ -69,7 +69,13 @@ import {
 
 /** What a module of the resolve is made with: whether it places its pixels on voxels or on displaced
  *  triangles, and the pieces its graph splices (`shadeGraphWgsl.ts`). */
-type ShadeOptions = { voxel: boolean; displaced: boolean; graph?: ShadeGraph }
+export type ShadeOptions = {
+  voxel: boolean
+  displaced: boolean
+  graph?: ShadeGraph
+  /** The expression of the side of the surface a pixel is seen from (`screenFace`): the triangle's winding on the screen, unless the caller knows it (a hit of a ray). */
+  screenFace?: string
+}
 
 /** The surface resolve's head: the triangle, the pixel's weights and its first texture coordinate. */
 const SURFACE_HEAD = (
@@ -112,7 +118,7 @@ ${o.displaced ? DISPLACED_GRADIENTS : ''} }
 `
 
 /** The pixel's other texture sets, its tile request and the reads of its maps (a graph's context first). */
-const SURFACE_READS = (
+export const SURFACE_READS = (
   o: ShadeOptions,
 ) => ` if(SHADE_STAGE==4u){shadeProbe=bitcast<u32>(dot(bary,vec3f(1.0))+select(0.0,dot(uv+ddx+ddy,vec2f(1.0)),HAS_UV)+dot(rgb,vec3f(1.0))+area);return emptySurface();}
  let model=(page.flags>>${MODEL_SHIFT}u)&7u;
@@ -174,11 +180,11 @@ ${o.graph?.diagnostic ?? ''}${o.voxel ? VOXEL_DIAGNOSTIC : ''}  let depth=dot(ba
 `
 
 /** The normal of the pixel, then a graph's outputs where the module has one. */
-const SURFACE_NORMALS = (
+export const SURFACE_NORMALS = (
   o: ShadeOptions,
 ) => ` var metal=ormMetalness(m.metalness,metalSample.z);var rough=ormRoughness(m.roughness,roughSample.y);
 ${o.voxel ? VOXEL_SURFACE : ''} // Original vertices may straddle the near plane; recover the clipped winding.
-  let screenFace=select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0);
+  let screenFace=${o.screenFace ?? 'select(-1.0,1.0,area*c0.w*c1.w*c2.w<0.0)'};
   let world3=worldMatrix3(page.world);
   // Face winding of a singular pose does NOT come from its zero determinant: on a flattened
   // face, the adjugate already put the normal on the side of the transformed-edge cross product,
@@ -227,7 +233,7 @@ ${o.voxel ? VOXEL_NORMAL : ''}  // The clear coat bends its own normal map from 
 ${o.graph?.late ?? ''}`
 
 /** The surface models that show something other than light, the flags and the pixel's surface. */
-const SURFACE_TAIL = (
+export const SURFACE_TAIL = (
   o: ShadeOptions,
 ) => ` // The models that show something other than light leave unlit (\`../../scene/surfaceModel.ts\`):
  // a matcap as an unlit material, seen through the fog; a normal or depth view as-is, never fogged

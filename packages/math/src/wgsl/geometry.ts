@@ -206,6 +206,26 @@ export const rayTriangleDistance = wgslFn(
 }`,
 )
 
+/** The weights of the corners `b` and `c` (`x`, `y`; `a`'s is one less their sum) at which the ray meets the plane of the triangle `a, b, c`:
+ *  the same arithmetic as `rayTriangleDistance`, for a ray known to hit; the three weights stay between zero and one. */
+export const rayTriangleBarycentric = wgslFn(
+  'rayTriangleBarycentric',
+  [],
+  `fn rayTriangleBarycentric(origin:vec3f,direction:vec3f,a:vec3f,b:vec3f,c:vec3f)->vec2f{
+ let edge0=b-a;
+ let edge1=c-a;
+ let perpendicular=cross(direction,edge1);
+ let determinant=dot(edge0,perpendicular);
+ let inverse=1.0/select(determinant,1e-12,abs(determinant)<1e-12);
+ let offset=origin-a;
+ let u=dot(offset,perpendicular)*inverse;
+ let v=dot(direction,cross(offset,edge0))*inverse;
+ let clamped=clamp(vec2f(u,v),vec2f(0.0),vec2f(1.0));
+ // A point past the hypotenuse is brought back along it, so the three weights stay within zero and one.
+ return clamped-vec2f(max(clamped.x+clamped.y-1.0,0.0)*0.5);
+}`,
+)
+
 /** How far along `direction` from `origin` the ray passes within `reach` of the segment `a, b`: the
  *  parameter of its point nearest the segment, or `limit` when it passes farther — or at or under
  *  1e-4, or at or past `limit`, as `rayTriangleDistance`. The segment's point nearest the ray's

@@ -32,15 +32,21 @@ function store({ name, wgsl, target, layer }: SurfaceOutput) {
 }
 
 const b = SHADE_OUTPUT_BINDINGS
+
+/** What the resolve gives a pixel: its surfaces, then the tile rank it asks of virtual textures —
+ *  the feedback target's, which transparents complete and a compute pass reduces into counters. */
+export const SURFACE_OUT_WGSL = wgslBlock(
+  'SURFACE_OUT_WGSL',
+  [],
+  `struct SurfaceOut{${[...SURFACE_OUTPUTS, REQUEST_OUTPUT].map(({ name, wgsl }) => `${name}:${wgsl},`).join('')}}`,
+)
+
 export const SHADE_OUTPUTS_WGSL = wgslBlock(
   'SHADE_OUTPUTS_WGSL',
-  [shadeBinReadWgsl(b.bins)],
+  [shadeBinReadWgsl(b.bins), SURFACE_OUT_WGSL],
   `@group(1) @binding(${b.colours}) var coloursOut:texture_storage_2d_array<${SURFACE_COLOURS_FORMAT},write>;
 @group(1) @binding(${b.words}) var wordsOut:texture_storage_2d_array<${SURFACE_WORDS_FORMAT},write>;
 @group(1) @binding(${b.request}) var requestOut:texture_storage_2d<${REQUEST_OUTPUT.format},write>;
-/** What the resolve gives a pixel: its surfaces, then the tile rank it asks of virtual textures —
- *  the feedback target's, which transparents complete and a compute pass reduces into counters. */
-struct SurfaceOut{${[...SURFACE_OUTPUTS, REQUEST_OUTPUT].map(({ name, wgsl }) => `${name}:${wgsl},`).join('')}}
 /** The colours' layers of the emission and occlusion, then of the thin transmission, this image. */
 fn surfaceLayers()->vec2u{let word=binsWord(SHADE_BIN_LAYERS,0u).x;return vec2u(word&255u,(word>>8u)&255u);}
 /** The surface \`s\` of pixel \`at\` in its targets: a pixel is its class's alone, written once. */

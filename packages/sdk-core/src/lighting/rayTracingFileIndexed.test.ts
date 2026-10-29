@@ -92,7 +92,7 @@ test('a file of another version than its manifest section names, or a section of
   )
   assert.throws(() => parseRayTracing(fileOf(), RAY_TRACING_VERSION), {
     code: 'INVALID_CACHE',
-    message: /a file of version 3, its manifest's section of 4/,
+    message: new RegExp(`a file of version 3, its manifest.s section of ${RAY_TRACING_VERSION}`),
   })
   assert.throws(
     () => assertRayTracingSection({ version: 3.5, file: 'rayTracing.bin', bytes: 10 }),

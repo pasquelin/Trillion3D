@@ -8,6 +8,7 @@
 //! say this frame, cell by cell, so a ray enters only the actors whose cell it draws
 //! (`sceneTraceWgsl.ts`): to find them without trying every actor it walks the directory, a tree
 //! over the actors' boxes whose entries stand where triangles do.
+use super::attributes::TRIANGLE_ATTRIBUTE_BYTES;
 use super::cut::{cut_clusters, error_over, is_finest, triangles_of, Cut, CutTriangle};
 use super::tree::{tree_of, PrimitiveTree, Traced};
 use super::word::word;
@@ -51,11 +52,17 @@ fn actor_tree(
         .filter(|c| is_finest(c));
     let error = error_over(positions, finest);
     let triangles = cut_clusters(ranks.iter().map(|&rank| (rank, &clusters[rank])), error)
-        .flat_map(|cluster| triangles_of(positions, cluster))
+        .flat_map(|cluster| triangles_of((positions, &[]), cluster))
         .collect::<Result<_>>()?;
     let gate = gates[ranks[0]].expect("a gated cluster");
     let cell = word(gate.cell, "HLOD cell rank")?;
-    tree_of(Cut { error, triangles }, Traced::actor(gate.flags, cell))
+    let cut = Cut {
+        error,
+        triangles,
+        attributed: false,
+        normalled: false,
+    };
+    tree_of(cut, Traced::actor(gate.flags, cell))
 }
 
 /// The directory over `actors`: one entry for each, standing where a triangle does — the low and the
@@ -69,11 +76,18 @@ fn directory_of(actors: &[PrimitiveTree]) -> Result<Option<PrimitiveTree>> {
                 cluster: word(rank, "actor rank")?,
                 triangle: 0,
                 tag: actor.traced.cell,
+                attributes: [0; TRIANGLE_ATTRIBUTE_BYTES],
             })
         })
         .collect::<Result<_>>()?;
     let error = actors.iter().map(|actor| actor.error).fold(0.0, f32::max);
-    tree_of(Cut { error, triangles }, Traced::WORLD)
+    let cut = Cut {
+        error,
+        triangles,
+        attributed: false,
+        normalled: false,
+    };
+    tree_of(cut, Traced::WORLD)
 }
 
 /// The trees of the world DAG `clusters`, whose indices lie in `positions`, `gates` naming each

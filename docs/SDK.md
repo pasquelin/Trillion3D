@@ -4355,6 +4355,58 @@ const world = createWorld('viewer', { sampledLights: true, sampledLightsGuideByH
 const world = createWorld('viewer', { hairStrands: true, hairVisibilityCoverageMapping: true })
 ```
 
+## Path tracer and its denoiser
+`pathTracing` (`false`) draws the view with the path tracer, a render mode of its own that traces the scene's triangles bounce after bounce and adds the samples of each image to those of the one before while the view stands still. The other settings are read only when it is on; each default is the reference's.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `pathTracingSamplesPerPixel` | `2048` | samples each pixel gathers before the image stops accumulating |
+| `pathTracingMaxBounces` | `32` | bounces of a path |
+| `pathTracingCompactionDepth` | `6` | the last bounce whose live paths are packed together (under 1 or past the last bounce: every bounce); the bounces after it go on over the last packed list without packing again, as `createScene({ pathTracing: true, pathTracingCompactionDepth: 3 })` does for a scene whose paths mostly end early |
+| `pathTracingIndirectDispatch` | `false` | dispatch each packed bounce over exactly the live paths (the same image; a matter of speed) |
+| `pathTracingDispatchSize` | `2048` | side in pixels of the tiles the image is traced in |
+| `pathTracingExperimental` | `false` | rarely used modes; adaptive sampling needs it |
+| `pathTracingAdaptiveSampling` | `false` | stop tracing pixels whose error is under the threshold |
+| `pathTracingAdaptiveSamplingErrorThreshold` | `0.001` | that error |
+| `pathTracingAdaptiveSamplingVisualize` | `0` | `1` active pixels, `2` sample counts, `3` to `7` error mip levels |
+| `pathTracingProgressDisplay` | `true` | bar of the samples gathered |
+| `pathTracingWiperMode` | `false` | path tracer drawn right of the cursor only |
+| `pathTracingDenoiser` | `true` | denoise at the last sample |
+| `pathTracingDenoiserNormalSpace` | `0` | `0` world, `1` camera-space normals for the denoiser |
+| `pathTracingSpatialDenoiser` | `true` | the denoiser's spatial stage |
+| `pathTracingTemporalDenoiser` | `false` | the temporal stage, which needs an earlier denoised image |
+| `pathTracingTemporalDenoiserMode` | `1` | `0` and `1` at the last sample, `2` at every image |
+| `pathTracingMISMode` | `2` | `0` material samples alone, `1` light samples alone, `2` both weighed against each other |
+| `pathTracingMISCompensation` | `true` | the sky's importance sampling leaves out what the material's samples find (needs mode `2`) |
+| `pathTracingMaxPathIntensity` | `24` | brightest a path off the camera's ray adds (`1` to `65504`) |
+| `pathTracingApproximateCaustics` | `true` | roughen the paths that would make caustic speckles |
+| `pathTracingEnableEmissive` | `true` | emissive surfaces light the scene |
+| `pathTracingBackgroundAlpha` | `0` | alpha of a pixel that meets nothing |
+| `pathTracingSamplerType` | `0` | `0` a sequence for each pixel, `1` one sequence across the image |
+| `pathTracingFrameIndependentTemporalSeed` | `true` | the random sequence goes on across restarts |
+| `pathTracingSkylightCaching` | `true` | keep the sky's sampling tables between images |
+| `pathTracingFilterWidth` | `3` | width of the anti-aliasing filter of the camera's rays (`0` to `64`); `3` is a Gaussian of half a pixel |
+| `pathTracingVisibleLights` | `0` | `0` no light seen by the camera, `1` all, `2` the sky alone |
+| `pathTracingLightGridResolution` | `256` | side of the light culling grid (rounded up to a power of two) |
+| `pathTracingLightGridMaxCount` | `128` | most lights a cell keeps (`1` to `256`) |
+| `pathTracingLightGridAxis` | `-1` | axis the lights are projected along, `-1` the best |
+
+Current limits: a hit's material is read back from the lit image where the surface shows, else from the surface cache's cards; there are no glass, subsurface, cloth or hair lobes, no capsule lights, light profiles, light functions or rectangle light textures; the denoiser settings are accepted but the denoiser is not built yet (the image shown is the raw accumulation); the atmosphere and the clouds are not traced.
+
+```js
+// A path-traced view of 256 samples, 8 bounces, adaptive sampling on.
+const world = createWorld('viewer', {
+  pathTracing: true,
+  pathTracingSamplesPerPixel: 256,
+  pathTracingMaxBounces: 8,
+  pathTracingExperimental: true,
+  pathTracingAdaptiveSampling: true,
+  // Sample the lights alone (no material samples), the camera seeing every light.
+  pathTracingMISMode: 1,
+  pathTracingVisibleLights: 1,
+})
+```
+
 ## Heterogeneous volumes: preshading and level of detail
 `heterogeneousVolumesPreshading` (`false`) bakes a volume's material into three 3D textures (extinction, albedo, emission) before the march, which then reads the textures instead of evaluating the material at each step. `heterogeneousVolumesCLOD` (`true`) makes a volume far from the view coarser: its lighting cache, occlusion and baked grid have fewer voxels and its march steps are longer.
 
