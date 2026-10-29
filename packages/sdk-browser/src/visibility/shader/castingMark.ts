@@ -97,15 +97,20 @@ export const nodeCasting = (node: {
   firstPerson?: boolean
   firstPersonWorldSpaceRepresentation?: boolean
   castHiddenShadow?: boolean
-}) =>
-  // A first-person object casts no dynamic shadow of its own.
-  (node.castShadow && !node.firstPerson && meshCastsIntoMaps(node) ? 0 : SHADOWLESS_ROOT) |
-  (node.castsShadowMaps === false && meshCastsIntoMaps(node) ? SHADOW_MAPLESS_ROOT : 0) |
-  (node.firstPersonWorldSpaceRepresentation ? WORLD_SPACE_ROOT : 0) |
-  // The reference reads the hidden shadow of an object that is no world-space representation alone.
-  (node.castHiddenShadow && !node.firstPersonWorldSpaceRepresentation ? HIDDEN_SHADOW_ROOT : 0) |
-  (node.shadowCacheInvalidation === 'static' ? CACHE_STATIC_ROOT : 0) |
-  (node.mobility === 'movable' ? MOVABLE_ROOT : node.mobility ? IMMOVABLE_ROOT : 0)
+}) => {
+  // Asked once: it scans the node's siblings.
+  const meshCasts = meshCastsIntoMaps(node)
+  return (
+    // A first-person object casts no dynamic shadow of its own.
+    (node.castShadow && !node.firstPerson && meshCasts ? 0 : SHADOWLESS_ROOT) |
+    (node.castsShadowMaps === false && meshCasts ? SHADOW_MAPLESS_ROOT : 0) |
+    (node.firstPersonWorldSpaceRepresentation ? WORLD_SPACE_ROOT : 0) |
+    // The reference reads the hidden shadow of an object that is no world-space representation alone.
+    (node.castHiddenShadow && !node.firstPersonWorldSpaceRepresentation ? HIDDEN_SHADOW_ROOT : 0) |
+    (node.shadowCacheInvalidation === 'static' ? CACHE_STATIC_ROOT : 0) |
+    (node.mobility === 'movable' ? MOVABLE_ROOT : node.mobility ? IMMOVABLE_ROOT : 0)
+  )
+}
 
 /** `mark` with its casting bits set to `casting` (`nodeCasting`), its other bits kept. */
 export const withCasting = (mark: number, casting: number) => (mark & ~CASTING_BITS) | casting

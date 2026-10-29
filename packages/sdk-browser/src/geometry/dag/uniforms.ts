@@ -18,6 +18,7 @@ import {
   sortRanks,
 } from './readoutWords.ts'
 import type { SelectionResult, SelectionUniforms } from '../../gpu/core/selection.ts'
+import { wordsOf } from '../../gpu/core/wordViews.ts'
 import { twoPassOf } from './shader/occlusionWgsl.ts'
 import { CULL_NO_DRAW_DISTANCES } from './shader/viewsWgsl.ts'
 import { viewWord } from './viewLayout.ts'
@@ -63,9 +64,6 @@ export const createDagOutputScratch = (): DagOutputScratch => ({
   peaks: { nodes: 0, candidates: 0, visible: 0 },
 })
 
-/** The unsigned word view of each block written, made once: a cut writes its block every frame. */
-const wordsOf = new WeakMap<Float32Array, Uint32Array>()
-
 /**
  * One view's block of the uniform array (`shader/viewsWgsl.ts`). Every word is written through
  * `viewWord`, the name the kernels read it by, so a field added to `viewLayout.ts` moves the host
@@ -91,7 +89,7 @@ export function writeDagUniforms(
   target[W('pixelScale') + 1] = uniforms.pixelScale[1]
   target[W('pixelError')] = uniforms.pixelError
   target[W('near')] = uniforms.near
-  const ints = wordsView(target)
+  const ints = wordsOf(target)
   ints[W('clusterCount')] = packed.pageCount
   ints[W('nodeCount')] = packed.nodeCount
   ints[W('worldCount')] = packed.worldCount
@@ -112,16 +110,6 @@ export function writeDagUniforms(
   writeListShape(ints, packed, at)
   writeRasterJudgement(target, ints, uniforms.raster)
   writePlacementWords(ints, packed)
-}
-
-/** The unsigned word view of `target`, made once. */
-function wordsView(target: Float32Array) {
-  let ints = wordsOf.get(target)
-  if (!ints) {
-    ints = new Uint32Array(target.buffer, target.byteOffset, target.length)
-    wordsOf.set(target, ints)
-  }
-  return ints
 }
 
 /** The camera's world position, and the eye exact. */

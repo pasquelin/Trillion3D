@@ -1,3 +1,8 @@
+import { sinFromCosUnclamped } from '../../../../../math/src/wgsl/geometry.ts'
+import {
+  AMBIENT_CUBEMAP_FACE_PERM,
+  AMBIENT_CUBEMAP_FACE_SIGN,
+} from '../../../../../sdk-core/src/lighting/ambientCubemapMips.ts'
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { frameAround, outOfFrame } from '../../../../../math/src/wgsl/basis.ts'
@@ -39,15 +44,13 @@ export const SKY_CUBE_WGSL = wgslBlock(
   `
 const MIP_ROUGHEST:f32=${ROUGHEST_LEVEL}.0;
 const MIP_ROUGHNESS_SLOPE:f32=${MIP_ROUGHNESS_SLOPE};
+const FACE_PERM=array<vec3u,6>(${AMBIENT_CUBEMAP_FACE_PERM.map((p) => `vec3u(${p.join(',')})`).join(',')});
+const FACE_SIGN=array<vec3f,6>(${AMBIENT_CUBEMAP_FACE_SIGN.map((p) => `vec3f(${p.map((v) => `${v}.0`).join(',')})`).join(',')});
 fn faceDirection(uv:vec2f,face:u32)->vec3f{
- switch face{
-  case 0u:{return vec3f(1.0,-uv.y,-uv.x);}
-  case 1u:{return vec3f(-1.0,-uv.y,uv.x);}
-  case 2u:{return vec3f(uv.x,1.0,uv.y);}
-  case 3u:{return vec3f(uv.x,-1.0,-uv.y);}
-  case 4u:{return vec3f(uv.x,-uv.y,1.0);}
-  default:{return vec3f(-uv.x,-uv.y,-1.0);}
- }
+ let side=vec3f(uv,1.0);
+ let perm=FACE_PERM[face];
+ let signs=FACE_SIGN[face];
+ return signs*vec3f(side[perm.x],side[perm.y],side[perm.z]);
 }
 fn cubeToScene(c:vec3f)->vec3f{return vec3f(c.x,c.z,-c.y);}
 fn sceneToCube(s:vec3f)->vec3f{return vec3f(s.x,-s.z,s.y);}
@@ -71,7 +74,7 @@ fn roughnessMip(roughness:f32,lastMip:f32)->f32{
  */
 export const SKY_SAMPLING_WGSL = wgslBlock(
   'SKY_SAMPLING_WGSL',
-  [PI, GGX_DISTRIBUTION_WGSL, frameAround, outOfFrame, sampleSphereEven],
+  [PI, GGX_DISTRIBUTION_WGSL, frameAround, outOfFrame, sampleSphereEven, sinFromCosUnclamped],
   `
 /** Point \`index\` of \`count\`: the index over the count, then the index's bits reversed. */
 fn lowDiscrepancy(index:u32,count:u32)->vec2f{
@@ -80,14 +83,14 @@ fn lowDiscrepancy(index:u32,count:u32)->vec2f{
 fn sampleCosineLobe(e:vec2f)->vec3f{
  let phi=2.0*PI*e.x;
  let cosTheta=sqrt(e.y);
- let sinTheta=sqrt(1.0-cosTheta*cosTheta);
+ let sinTheta=sinFromCosUnclamped(cosTheta);
  return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
 }
 /** The half vector of the GGX lobe of squared roughness-alpha \`alpha2\`. */
 fn sampleGgxHalf(e:vec2f,alpha2:f32)->vec3f{
  let phi=2.0*PI*e.x;
  let cosTheta=sqrt((1.0-e.y)/(1.0+(alpha2-1.0)*e.y));
- let sinTheta=sqrt(1.0-cosTheta*cosTheta);
+ let sinTheta=sinFromCosUnclamped(cosTheta);
  return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
 }
 /** The nine harmonics' basis at the unit \`d\`, as two \`vec4f\` and a scalar: terms 0 to 3, 4 to 7, 8. */
