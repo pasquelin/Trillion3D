@@ -126,6 +126,8 @@ export interface StreamCatalogue {
   runtime?: boolean
   /** The tree rays walk over its triangles, made where it was cut (`rayTracingTreeOf`): only on a run-time primitive of faces that does not deform. */
   rayTracing?: import('../lighting/rayTracingTree.ts').RayTracingTree
+  /** Whether the material of a run-time primitive is double-sided: its distance field takes its triangles as two-sided, as a compiled mesh's (`Cut.doubleSided`). */
+  doubleSided?: boolean
   /** A world's dynamic geometry: index pages alone, their vertices read as floats from the
    *  host geometry the engine rewrites in place. */
   dynamic?: boolean

@@ -34,6 +34,7 @@ export function createPageWorkPool(size: number) {
       source: ArrayBuffer,
       name?: string,
       blocks?: PageTaskRequest['blocks'],
+      field?: PageTaskRequest['field'],
     ) =>
       pool.submit(
         {
@@ -42,6 +43,7 @@ export function createPageWorkPool(size: number) {
           source,
           ...(name === undefined ? {} : { name }),
           ...(blocks === undefined ? {} : { blocks }),
+          ...(field === undefined ? {} : { field }),
         },
         [source],
       ),

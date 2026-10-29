@@ -89,6 +89,9 @@ export function servePrimitive(cut: PageCutPayload, kind: DrawnShape, boxes?: Fl
     pages,
     structure: { version: 1, roots: pages.map((page) => page.id), groups: [] },
     culling: sprite ? spriteCulling(cut.culling, sprite) : cut.culling,
+    runtime: true,
+    // Its tree is made with its cut, off the thread that draws (`geometry/work/task.ts`): a primitive with none is not met by a ray.
+    ...(!held && cut.rayTracing && { rayTracing: cut.rayTracing }),
     ...(held && { dynamic: true }),
   }
   return { primitive, urls } satisfies RuntimePrimitive

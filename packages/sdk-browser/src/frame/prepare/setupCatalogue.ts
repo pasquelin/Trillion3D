@@ -4,6 +4,8 @@ import { createBlendCopyRecord } from '../../geometry/cluster/blendCopyRecord.ts
 import type { EngineContext } from '../../session/engine/types.ts'
 import { createWebgpuPageTracking } from '../../geometry/rows/page/pageTracking.ts'
 import { collectClusterPages } from '../../geometry/selection/collect.ts'
+import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
+import { resolveSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { distanceFieldMeshes } from '../../lighting/distanceField/fieldsLoad.ts'
 import { indexPagesByUrl } from '../../geometry/selection/requests.ts'
 import type { WebgpuDiagnostics } from './setup.ts'
@@ -20,6 +22,10 @@ export function setupPages(context: EngineContext, diag: WebgpuDiagnostics) {
   const scene = collectClusterPages(source, draws, metadata, indices, {
     allowMissing: true,
     distanceFieldMeshes: distanceFieldMeshes(context.distanceFields),
+    runtimeDistanceFields: !!resolveSetting(
+      GLOBAL_DISTANCE_FIELD_RULES.runtimeMeshDistanceFields,
+      context.runtimeMeshDistanceFields,
+    ),
   })
   const collected = withWorldRoot(scene, context)
   const { roots, allPages, requests } = collected

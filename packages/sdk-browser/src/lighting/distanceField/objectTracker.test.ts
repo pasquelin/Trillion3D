@@ -92,3 +92,32 @@ test('a hidden root still casts, a parked one casts none, and a hidden root that
   assert.equal(seen.flags(), 0, 'parked: casts none')
   assert.deepEqual(seen.tracker.takeUpload(), [0], 'its record is written again')
 })
+
+test('a root cut at run time is placed as the field built for it, once there is one', () => {
+  const built = { ...field, mesh: -1 } as MeshDistanceField
+  let given: MeshDistanceField | undefined
+  const tracker = createObjectTracker(new Map(), atlas, () => given)
+  const root: Root = { runtime: true, world: { elements: new Float64Array(IDENTITY) } }
+  const roots = [root]
+  tracker.sync(roots, () => false, 0, 1e9)
+  assert.equal(tracker.objects.length, 0, 'none while its field is built')
+  given = built
+  tracker.sync(roots, () => false, 0, 1e9)
+  assert.equal(tracker.objects.length, 0, 'the roots are read again when the epoch moves')
+  tracker.sync(roots, () => false, 1, 1e9)
+  assert.equal(tracker.objects.length, 1)
+  assert.equal(tracker.sourceOf(0).field, built)
+  given = undefined
+  tracker.sync(roots, () => false, 2, 1e9)
+  assert.equal(tracker.objects.length, 0, 'gone when its field is')
+})
+
+test('a compiled mesh keeps its compiled field whatever the run-time resolver says', () => {
+  const tracker = createObjectTracker(
+    new Map([[0, field]]),
+    atlas,
+    () => ({ ...field, mesh: -1 }) as MeshDistanceField,
+  )
+  tracker.sync([{ mesh: 0, world: { elements: new Float64Array(IDENTITY) } }], () => false, 0, 1e9)
+  assert.equal(tracker.sourceOf(0).field, field)
+})

@@ -1,4 +1,5 @@
 import { length3 } from '../../../../math/src/vector/vector.ts'
+import type { RayTracingTree } from '../../../../sdk-core/src/lighting/rayTracingTree.ts'
 import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
 import type { AtlasState } from './atlasState.ts'
 import { sameElements, sameRange } from '../../../../math/src/matrix/matrixElements.ts'
@@ -23,6 +24,12 @@ export interface TrackedRoot {
   readonly field?: MeshDistanceField
   readonly instance?: number
   readonly standsFor?: number
+  /** Whether its primitive was cut at run time (`ClusterRoot.runtime`), and the tree its triangles are walked by: a field is built over them
+   *  where none was compiled (`runtime/runtimeFields.ts`). */
+  readonly runtime?: boolean
+  readonly rayTracing?: RayTracingTree
+  /** Whether the material of such a primitive is double-sided: its triangles are two-sided, as a compiled mesh's are. */
+  readonly doubleSided?: boolean
   readonly world: { readonly elements: ArrayLike<number> }
   readonly worldAt?: number
   readonly parked?: boolean

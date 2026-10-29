@@ -44,6 +44,13 @@ function rootsOf(drawn: Drawn, placed: readonly Placed[], roots: ClusterRoot<Pag
       world,
       mesh: primitive.mesh,
       primitive: primitive.primitive,
+      ...(primitive.runtime
+        ? {
+            runtime: true,
+            rayTracing: primitive.rayTracing,
+            ...(primitive.doubleSided && { doubleSided: true }),
+          }
+        : {}),
       pages,
       // Nodes and their links are the primitive's, shared by all its placements.
       culling: sharedCulling,
@@ -103,6 +110,8 @@ export function createCollector(
     /** The compiled meshes that have a distance field (`distanceFieldMeshes`): their pages carry
      *  `PageRec.distanceField` where their source casts a shadow. */
     distanceFieldMeshes?: ReadonlySet<number>
+    /** Whether a mesh cut at run time that has a tree gets a field built for it (`runtimeMeshDistanceFields`): its pages carry the flag too. */
+    runtimeDistanceFields?: boolean
   } = {},
 ) {
   const worlds = hostWorldPlacements(source)
@@ -129,7 +138,8 @@ export function createCollector(
     const transparent = pagesBlend(primitive, surface)
     const shape = templates.shapeOf(primitive, template)
     const distanceField =
-      !!options.distanceFieldMeshes?.has(primitive.mesh) &&
+      (!!options.distanceFieldMeshes?.has(primitive.mesh) ||
+        (!!options.runtimeDistanceFields && !!primitive.runtime && !!primitive.rayTracing)) &&
       !(draw.casting & (SHADOWLESS_ROOT | NO_DISTANCE_FIELD_ROOT))
     const pages = createPageRecords(
       primitive,

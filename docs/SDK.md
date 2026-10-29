@@ -647,9 +647,16 @@ atlas unread, `globalDistanceFieldNotCoveredMinStepScale` (`4`), the scale of it
 (`100000`), `meshDistanceFieldSurfaceBiasExpand` (`0.25`), `meshDistanceFieldBrickAtlasSize` (`128`, a power
 of two, read when the atlas is made), `meshDistanceFieldBrickAtlasDepth` (`32`), `meshDistanceFieldUploadKiB`
 (`8192`), `meshDistanceFieldBlockBricks` (`16`, read when the atlas is made), `meshDistanceFieldForceMips`
-(`0`: follow the view; 1 to 3 loads that many mips of every mesh) and `meshDistanceFieldReverseAllocation`
-(`false`). A write names the settings it changes, `null` one's default; a value of another kind is refused
-by name. A scene whose meshes built no distance field is not touched.
+(`0`: follow the view; 1 to 3 loads that many mips of every mesh), `meshDistanceFieldReverseAllocation`
+(`false`) and `runtimeMeshDistanceFields` (`false`): a mesh made at run time, which no compiler gave a field, gets
+one built when it appears, on the page's GPU, by the compiler's own program (the same text, the same steps: the
+nearest triangle within the band, the 98 rays across the sphere for the sign; the voxels the device is in doubt of
+are measured again on the CPU, so the field is the compiler's). It is read when the scene's page records are made (a mesh cut at run time is flagged as having a field then) and each image after; set it with the world's other options before the scene opens. It costs the build once for each distinct mesh,
+in chunks short enough for the page's frames to go on, and the rays marched through the field meet the mesh a few
+frames after it appears. A mesh that deforms, one with no ray-tracing tree and one too deep for the program to walk
+get none. The reference builds fields at import only, so the setting is off until a scene asks for it. A write
+names the settings it changes, `null` one's default; a value of another kind is refused by name. A scene whose
+meshes built no distance field, and none asked for them at run time, is not touched.
 
 ```js
 const world = createWorld('viewer', { globalDistanceFieldClipmaps: 5 }) // one more clipmap
@@ -663,6 +670,8 @@ world.globalDistanceField = { globalDistanceFieldFastCameraMode: null } // back 
 world.globalDistanceField = { globalDistanceFieldTraceResolution: 140 }
 // A scene kept to 800 m while rays are marched: the field grows from four clipmaps to six
 world.globalDistanceField = { globalDistanceFieldTraceViewDistance: 80000 }
+// Meshes made at run time (a generated terrain, a procedural prop) take part in the marched rays too
+world.globalDistanceField = { runtimeMeshDistanceFields: true }
 // Cheaper still, a page foliage reaches counted as not covered whole, the coverage atlas unread
 world.globalDistanceField = { globalDistanceFieldSimpleCoverageBasedExpand: true }
 ```

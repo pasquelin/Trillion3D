@@ -36,21 +36,29 @@ export { CACHE_FULL, CACHE_STATIC, type ModifiedBoxes, type TrackedRoot } from '
  * larger than the radius the scene allows, or with a scale under 0.0001, is left out.
  */
 
-/** What the tracker places a root as: the field of its mesh, or the one it stands in for. */
-const wantedOf = (fields: ReadonlyMap<number, MeshDistanceField>, root: TrackedRoot) =>
-  root.field ?? (root.mesh === undefined ? undefined : fields.get(root.mesh))
+/** The field a root cut at run time has, none while it is being built or where it gets none (`runtime/runtimeFields.ts`). */
+export type RuntimeField = (root: TrackedRoot) => MeshDistanceField | undefined
+
+/** What the tracker places a root as: the field of its mesh, or the one it stands in for; for a root cut at run time, the one built for it. */
+const wantedOf = (
+  fields: ReadonlyMap<number, MeshDistanceField>,
+  runtime: RuntimeField | undefined,
+  root: TrackedRoot,
+) =>
+  root.field ??
+  (root.runtime ? runtime?.(root) : root.mesh === undefined ? undefined : fields.get(root.mesh))
 
 /** Reads the roots again as a whole: the placements gone removed, the new ones added. */
 function resync(
   table: ObjectTable,
-  fields: ReadonlyMap<number, MeshDistanceField>,
+  wantedOfRoot: (root: TrackedRoot) => MeshDistanceField | undefined,
   roots: readonly TrackedRoot[],
   moving: (rank: number) => boolean,
   maxRadius: number,
 ) {
   const wanted = new Map<string, { rank: number; root: TrackedRoot; field: MeshDistanceField }>()
   roots.forEach((root, rank) => {
-    const field = wantedOf(fields, root)
+    const field = wantedOfRoot(root)
     const key = field && keyOf(field, root)
     if (key && !wanted.has(key)) wanted.set(key, { rank, root, field: field! })
   })
@@ -99,10 +107,11 @@ function poll(
   return true
 }
 
-/** The tracker of a scene whose meshes' fields are `fields` (by compiled mesh), over `atlas`. */
+/** The tracker of a scene whose meshes' fields are `fields` (by compiled mesh), over `atlas`; `runtime` gives the field of a root cut at run time. */
 export function createObjectTracker(
   fields: ReadonlyMap<number, MeshDistanceField>,
   atlas: AtlasState,
+  runtime?: RuntimeField,
 ) {
   const table = createObjectTable(atlas)
   const { objects } = table
@@ -123,7 +132,7 @@ export function createObjectTracker(
       lastRoots = roots
       lastCount = roots.length
       lastEpoch = epoch
-      resync(table, fields, roots, moving, maxRadius)
+      resync(table, (root) => wantedOf(fields, runtime, root), roots, moving, maxRadius)
     },
     /** The record indices to write, ascending; the set is emptied. */
     takeUpload: () => takeUpload(table),

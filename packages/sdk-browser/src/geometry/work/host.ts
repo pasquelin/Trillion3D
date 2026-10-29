@@ -4,10 +4,15 @@ import { createPageWorkPool } from './pool.ts'
 import { createWorkerLatch } from '../pages/workerLatch.ts'
 import { runPageTask } from './task.ts'
 import { sha256Hex } from '../streaming/sha256Hex.ts'
+import {
+  doubtfulArrays,
+  type Measured,
+} from '../../../../sdk-core/src/lighting/distanceFieldGpu.ts'
 import { ownBuffer } from '../../../../sdk-core/src/runtime/ownBuffer.ts'
 import type {
   PageCutPayload,
   PageTaskBlocks,
+  PageTaskField,
   PageTaskOp,
 } from '../../../../sdk-core/src/page/taskContracts.ts'
 
@@ -52,12 +57,13 @@ export async function patientTask(
   source: Uint8Array,
   name?: string,
   blocks?: PageTaskBlocks,
+  field?: PageTaskField,
 ) {
   const open = pool.open()
   const copy = () => source.slice().buffer as ArrayBuffer
-  const answer = open ? await open.submit(op, copy(), name, blocks) : null
+  const answer = open ? await open.submit(op, copy(), name, blocks, field) : null
   if (answer && !(!answer.ok && answer.code === 'PAGE_TASK_WORKER')) return answer
-  const request = { protocol: PAGE_TASK_PROTOCOL, id: 0, op, name, blocks }
+  const request = { protocol: PAGE_TASK_PROTOCOL, id: 0, op, name, blocks, field }
   return (await runPageTask({ ...request, source: ownBuffer(source) })).answer
 }
 
@@ -76,6 +82,43 @@ export async function cutPagesOffThread(packed: ArrayBuffer): Promise<PageCutPay
   if (!answer.ok || !answer.cut) throw new Error(answer.ok ? 'PAGE_TASK_FAILED' : answer.message)
   return answer.cut
 }
+
+/** The bytes of `view`, not copied. */
+const bytesOf = (view: Float32Array) =>
+  new Uint8Array(view.buffer, view.byteOffset, view.byteLength)
+
+/** The first CPU half of the distance field of a mesh made at run time (`prepareDistanceField`), in a worker where one lives: `positions`
+ *  are its triangles, nine floats each. None for a mesh with no triangle to measure. */
+async function planFieldOffThread(positions: Float32Array, doubleSided: boolean) {
+  const answer = await patientTask('fieldPlan', bytesOf(positions), undefined, undefined, {
+    doubleSided,
+  })
+  if (!answer.ok) throw new Error(answer.message)
+  return answer.fieldPlan ?? undefined
+}
+
+/** The second half (`finishDistanceField`), in a worker where one lives: the voxels the device `measured`, the triangles the plan was made of. */
+async function finishFieldOffThread(
+  mesh: number,
+  positions: Float32Array,
+  doubleSided: boolean,
+  { voxels, doubtful }: Measured,
+) {
+  const { at, settled } = doubtfulArrays(doubtful)
+  const field = {
+    doubleSided,
+    mesh,
+    voxels: voxels.buffer,
+    doubtfulAt: at.buffer,
+    doubtfulSettled: settled.buffer,
+  }
+  const answer = await patientTask('fieldFinish', bytesOf(positions), undefined, undefined, field)
+  if (!answer.ok) throw new Error(answer.message)
+  return answer.distanceField ?? undefined
+}
+
+/** The two CPU halves of a run-time mesh's distance field, in a worker where one lives (`runtimeFields.ts` puts the device between them). */
+export const fieldTasks = { plan: planFieldOffThread, finish: finishFieldOffThread }
 
 /** Pages checked, their cumulative digest time, and the pool's size (0 once it broke, `null`
  *  before it opened). `null` counts when nothing was checked: an unmeasured metric is not a zero. */

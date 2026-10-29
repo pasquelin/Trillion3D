@@ -5,7 +5,12 @@ import { stepAtlas } from './atlasRequests.ts'
 import { createAtlasState } from './atlasState.ts'
 import { createHlodObjects, movingOf, type HlodDraws } from './hlodObjects.ts'
 import { createObjectBuffers } from './objectBuffers.ts'
-import { createObjectTracker, type ModifiedBoxes, type TrackedRoot } from './objectTracker.ts'
+import {
+  createObjectTracker,
+  type ModifiedBoxes,
+  type RuntimeField,
+  type TrackedRoot,
+} from './objectTracker.ts'
 import { sceneBindEntries } from './sceneBindings.ts'
 import { createBudget, createSceneGroup } from './sceneParts.ts'
 import { createStreaming } from './streaming.ts'
@@ -100,18 +105,23 @@ function updateScene(
   }
 }
 
-/** The scene of the meshes' fields, for the meshes of `fields`, read by passes laid out by `sceneLayout`. */
+/** The scene of the meshes' fields, for the meshes of `fields` and those cut at run time that `runtime` gives one, read by passes laid out by `sceneLayout`. */
 export function createMeshFieldScene(
   device: GPUDevice,
   fields: readonly MeshDistanceField[],
   sceneLayout: GPUBindGroupLayout,
+  runtime?: RuntimeField,
 ) {
   const atlas = createAtlasState()
   const meshes = fields.filter((field) => !field.hlodCell)
   const objects = createObjectBuffers(device)
   const scene: SceneParts = {
     atlas,
-    tracker: createObjectTracker(new Map(meshes.map((field) => [field.mesh, field])), atlas),
+    tracker: createObjectTracker(
+      new Map(meshes.map((field) => [field.mesh, field])),
+      atlas,
+      runtime,
+    ),
     hlod: createHlodObjects(fields),
     objects,
     streaming: createStreaming(device, sceneLayout),

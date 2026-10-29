@@ -18,6 +18,7 @@ import prettier from 'prettier'
 import { compilerAbiRust, familyLoadFailedId } from './shared-rules/abi.ts'
 import { displacementBakeAbiRust } from './shared-rules/displacementBake.ts'
 import { distanceFieldAbiRust } from './shared-rules/distanceField.ts'
+import { distanceFieldKernelTs } from './shared-rules/distanceFieldKernel.ts'
 import { writtenFormatsTs } from './shared-rules/formats.ts'
 import { hairStrandsAbiRust } from './shared-rules/hairStrands.ts'
 import { hypotHeader } from './shared-rules/hypot.ts'
@@ -60,6 +61,7 @@ const outputs: Record<string, () => string> = {
   'packages/asset-compiler-rust/src/shared_math/abi.rs': compilerAbiRust,
   'packages/asset-compiler-rust/src/shared_math/abi/meshes.rs': meshAbiRust,
   'packages/asset-compiler-rust/src/distance_field/abi.rs': distanceFieldAbiRust,
+  'packages/sdk-core/src/lighting/distanceFieldKernel.ts': distanceFieldKernelTs,
   'packages/asset-compiler-rust/src/physics_cook/rules.rs': physicsCookRulesRust,
   'packages/asset-compiler-rust/src/card_representation/abi.rs': meshCardsAbiRust,
   'packages/asset-compiler-rust/src/ray_tracing/abi.rs': rayTracingAbiRust,

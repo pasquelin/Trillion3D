@@ -93,6 +93,8 @@ function shapeMesh(s: Shape) {
 /** The world of case `c` on `canvas`; `moved()` carries the moving shapes to where their moves end. */
 export function familyWorld(canvas: HTMLCanvasElement, c: FamilyCase) {
   const world = createWorld(canvas)
+  // The shapes are made at run time: no compiler gave them a distance field, so each is built one.
+  world.globalDistanceField = { runtimeMeshDistanceFields: true }
   world.scene.background = math.color('#000000')
   const { metal, roughness, albedo } = c.floor
   const floor = object.mesh(

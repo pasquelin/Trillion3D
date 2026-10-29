@@ -5,6 +5,7 @@ import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contr
 import { sourceRadiusOf, spotConesOf } from '../../../../../../sdk-core/src/scene/light/fields.ts'
 import type { EngineCamera } from '../../../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
+import { hasDistanceFields } from '../../../distanceField/frame.ts'
 import {
   commitVirtualShadowFrame,
   planVirtualShadowFrame,
@@ -157,7 +158,7 @@ export function frameLights(
   // the entries stand as they were.
   asked.epoch = store.epoch
   asked.settings = settingsRevision(rt.context)
-  asked.fields = !!rt.context.distanceFields?.length
+  asked.fields = hasDistanceFields(rt)
   const read = lightsRead.get(lights)
   if (readStands(read, cam, size)) return lights
   const planes = cam && vsmSeenPlanes(seenPlanes, cam.view, cam.projection, size[0], size[1])

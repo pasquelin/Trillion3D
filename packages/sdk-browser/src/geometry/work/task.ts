@@ -1,4 +1,5 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
+import { rayTracingTreeOf, soupIndices } from '../../../../sdk-core/src/lighting/rayTracingTree.ts'
 import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import {
   PAGE_TASK_PROTOCOL,
@@ -55,7 +56,12 @@ async function runCut(request: PageTaskRequest, started: number) {
   const { cutDrawnTriangles } = await cutting
   const { drawn, faces, blended } = unpackDrawn(request.source)
   const cut = await cutDrawnTriangles(drawn, faces, blended)
+  // Rays meet the triangles of a mesh as they stand at rest: the faces of one that does not deform.
+  const tree =
+    faces && !drawn.deformation ? rayTracingTreeOf(drawn.positions, drawn.indices) : undefined
+  if (tree) cut.rayTracing = tree
   const transfer = cut.pages.flatMap((page) => [page.index, page.geometry])
+  if (tree) transfer.push(tree.nodes.buffer as ArrayBuffer, tree.triangles.buffer as ArrayBuffer)
   return done(request, started, { cut }, transfer)
 }
 
@@ -83,6 +89,39 @@ async function runCellPage(request: PageTaskRequest, started: number) {
   const { readCellPage } = await import('../../../../sdk-core/src/scene/core/tablePartition.ts')
   const cellPage = readCellPage(new Uint8Array(request.source), request.name ?? 'a scene page')
   return done(request, started, { cellPage }, [])
+}
+
+/** The triangles a field task carries, nine floats each, and the indices naming their corners in turn. */
+function fieldTriangles(request: PageTaskRequest) {
+  const positions = new Float32Array(request.source)
+  return { positions, indices: soupIndices(positions) }
+}
+
+/** The first CPU half of the distance field of the triangles `request` carries (`prepareDistanceField`). */
+async function runFieldPlan(request: PageTaskRequest, started: number) {
+  const { prepareDistanceField } =
+    await import('../../../../sdk-core/src/lighting/distanceFieldBuild.ts')
+  const { positions, indices } = fieldTriangles(request)
+  const fieldPlan = prepareDistanceField(positions, indices, request.field) ?? null
+  return done(request, started, { fieldPlan }, fieldPlan ? [fieldPlan.words.buffer] : [])
+}
+
+/** The second half (`finishDistanceField`), the voxels the device measured and the ones it was in doubt of being in `request.field`. */
+async function runFieldFinish(request: PageTaskRequest, started: number) {
+  const { finishDistanceField } =
+    await import('../../../../sdk-core/src/lighting/distanceFieldBuild.ts')
+  const { doubtfulOf } = await import('../../../../sdk-core/src/lighting/distanceFieldGpu.ts')
+  const { positions, indices } = fieldTriangles(request)
+  const { mesh, voxels, doubtfulAt, doubtfulSettled } = request.field!
+  const measured = {
+    voxels: new Uint8Array(voxels!),
+    doubtful: doubtfulOf(new Uint32Array(doubtfulAt!), new Float64Array(doubtfulSettled!)),
+  }
+  const distanceField =
+    finishDistanceField(mesh!, positions, indices, measured, request.field) ?? null
+  const transfer =
+    distanceField?.mips.flatMap((mip) => [mip.indirection.buffer, mip.bricks.buffer]) ?? []
+  return done(request, started, { distanceField }, transfer as ArrayBuffer[])
 }
 
 /** A task's failure: its message, and the code of a named refusal. */
@@ -118,6 +157,8 @@ export async function runPageTask(
     if (request.op === 'cut') return await runCut(request, started)
     if (request.op === 'cells') return await runCells(request, started)
     if (request.op === 'blocks') return await runBlocks(request, started)
+    if (request.op === 'fieldPlan') return await runFieldPlan(request, started)
+    if (request.op === 'fieldFinish') return await runFieldFinish(request, started)
     return await runCellPage(request, started)
   } catch (error) {
     return failed(request, error)

@@ -1,12 +1,16 @@
 import type { CullingHierarchy } from '../contracts/geometry.ts'
+import type { PreparedField } from '../lighting/distanceFieldGpu.ts'
+import type { MeshDistanceField } from '../lighting/distanceFieldFile.ts'
+import type { RayTracingTree } from '../lighting/rayTracingTree.ts'
 import type { readCellPage } from '../scene/core/tablePartition.ts'
 
 /**
- * Off-main-thread page-task contract, version 14: `cut` turns drawn triangles into pages, which
+ * Off-main-thread page-task contract, version 15: `cut` turns drawn triangles into pages, which
  * come back as bytes with their descriptors, in the order of the culling hierarchy that comes back
  * with them (version 10), each with the bytes it takes in the pool once installed (version 13);
  * `cells` reads a partition's cell file into the rows it places, each naming the source node it
- * draws (version 14), `cellPage` a page of its cell index (#575), and `blocks` decodes a texture tile's BC blocks to RGBA8 for a
+ * draws (version 14), `cellPage` a page of its cell index (#575), `fieldPlan` and `fieldFinish` the two CPU halves of a run-time mesh's
+ * distance field, the device measuring the voxels between them (version 15), and `blocks` decodes a texture tile's BC blocks to RGBA8 for a
  * device that samples none (version 11, `texture/blockDecode.ts`). No geometry page is decoded on
  * the CPU: the GPU transcodes it into the pool and reads it in place (#1483), and a fetched
  * page's digest is taken where it lands (`crypto.subtle`, which runs off the main thread already).
@@ -21,7 +25,7 @@ import type { readCellPage } from '../scene/core/tablePartition.ts'
  * synchronous fallback) returns exactly the same values: the contract does not say how the work
  * travels, only what it returns.
  */
-export const PAGE_TASK_PROTOCOL = 14
+export const PAGE_TASK_PROTOCOL = 15
 
 /** `cut`: drawn triangles, packed as five lengths, whether they are faces, whether a blended
  *  material wears them, then five four-byte arrays (`packDrawn`), cut into pages. `cells`:
@@ -29,7 +33,7 @@ export const PAGE_TASK_PROTOCOL = 14
  *  is drawn from its parent's own mesh. `cellPage`: a page
  *  of its cell index, read into the pages it lists or its cells. `blocks`: a tile record's BC7
  *  blocks — BC5 when `blocks.twoChannel` —, decoded to RGBA8. */
-export type PageTaskOp = 'cut' | 'cells' | 'cellPage' | 'blocks'
+export type PageTaskOp = 'cut' | 'cells' | 'cellPage' | 'blocks' | 'fieldPlan' | 'fieldFinish'
 
 /** One page a `cut` wrote: its index and geometry bytes, their digests, and its descriptor. */
 export interface PageCutPage {
@@ -53,6 +57,9 @@ export interface PageCutPayload {
   /** The pages written, in the order of their culling hierarchy. */ pages: PageCutPage[]
   /** Their culling hierarchy, in the manifest's node layout (`page-codec-wasm/src/culling.rs`). */
   culling: CullingHierarchy
+  /** The tree rays walk over the cut's triangles (`rayTracingTreeOf`), made in the same task: only for faces that do not deform, and none
+   *  where its walk would not hold. Its buffers are transferred with the pages'. */
+  rayTracing?: RayTracingTree
 }
 
 /** A message asking a worker to cut pages, or to read a partition's cells. */
@@ -66,6 +73,17 @@ export interface PageTaskRequest {
   name?: string
   /** `blocks`: the surface the blocks cover, in texels, and whether they are BC5. */
   blocks?: PageTaskBlocks
+  /** `fieldPlan`, `fieldFinish`: what the distance field of the triangles in `source` is built with. */
+  field?: PageTaskField
+}
+/** A run-time mesh's distance field (`lighting/distanceFieldBuild.ts`): its triangles are `source`, nine floats each. */
+export type PageTaskField = {
+  /** Whether its material is double-sided: its triangles are two-sided. */ doubleSided: boolean
+  /** `fieldFinish`: the mesh number the field takes. */ mesh?: number
+  /** `fieldFinish`: the voxels the device measured, a byte each. */ voxels?: ArrayBuffer
+  /** `fieldFinish`: the voxels to measure again, their ranks (`u32`) and the distance the device settled (`f64`, NaN for none). */
+  doubtfulAt?: ArrayBuffer
+  doubtfulSettled?: ArrayBuffer
 }
 /** The surface a `blocks` task decodes. */
 export type PageTaskBlocks = {
@@ -113,6 +131,10 @@ export type PageTaskBlocks = {
   cellPage?: ReturnType<typeof readCellPage>
   /** `blocks`: the RGBA8 texels, whole blocks wide (`decodeBcLevel`), transferred. */
   texels?: ArrayBuffer
+  /** `fieldPlan`: what the device is sent and reads the voxels by, none for a mesh with no triangle to measure; its buffer transferred. */
+  fieldPlan?: PreparedField | null
+  /** `fieldFinish`: the field, none for a mesh with no triangle to measure; its buffers transferred. */
+  distanceField?: MeshDistanceField | null
   /** Task time, measured by the executor itself. */
   taskMs: number
 }

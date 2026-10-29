@@ -142,6 +142,12 @@ export type ClusterRoot<T> = {
   packedBase?: number
   /** Compiled mesh number of its primitive (`Primitive.mesh`). */
   mesh?: number
+  /** Whether its primitive was cut at run time (`Primitive.runtime`): it has no compiled cards, the surface cache makes them from its box. */
+  runtime?: boolean
+  /** The tree rays walk over its triangles (`Primitive.rayTracing`), shared by every placement of its primitive. */
+  rayTracing?: import('../../../../sdk-core/src/lighting/rayTracingTree.ts').RayTracingTree
+  /** Whether the material of its run-time primitive is double-sided (`Primitive.doubleSided`). */
+  doubleSided?: boolean
   /** Its number in the mesh (`Primitive.primitive`): with `mesh`, the primitive the root places
    *  (`../../lighting/rays/sceneTrace/sceneTraceResources.ts`). */
   primitive?: number

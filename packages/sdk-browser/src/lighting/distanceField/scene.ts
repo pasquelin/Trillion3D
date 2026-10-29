@@ -3,6 +3,7 @@ import type { GlobalDistanceFieldSettings } from '../../../../sdk-core/src/contr
 import { createGlobalField, type GlobalFieldFrame } from './globalField.ts'
 import { createGlobalPipelines } from './globalPipelines.ts'
 import { createMeshFieldScene, type MeshFieldFrame } from './meshFieldScene.ts'
+import type { RuntimeField } from './objectTracker.ts'
 import { createNoGlobalField, globalReadLayoutEntries } from './view.ts'
 
 /**
@@ -23,10 +24,14 @@ export type DistanceFieldFrame = MeshFieldFrame &
  *  reference world's default for the farthest an occlusion reaches, in centimetres. */
 export const DEFAULT_OCCLUSION_DISTANCE = 600
 
-/** The distance fields of the scene whose meshes' fields are `fields`. */
-export function createDistanceFieldScene(device: GPUDevice, fields: readonly MeshDistanceField[]) {
+/** The distance fields of the scene whose meshes' fields are `fields`, and those `runtime` gives the meshes it cut at run time. */
+export function createDistanceFieldScene(
+  device: GPUDevice,
+  fields: readonly MeshDistanceField[],
+  runtime?: RuntimeField,
+) {
   const pipelines = createGlobalPipelines(device)
-  const meshes = createMeshFieldScene(device, fields, pipelines.layouts.scene)
+  const meshes = createMeshFieldScene(device, fields, pipelines.layouts.scene, runtime)
   const field = createGlobalField(device, pipelines)
   const none = createNoGlobalField(device)
   let occlusionDistance = DEFAULT_OCCLUSION_DISTANCE

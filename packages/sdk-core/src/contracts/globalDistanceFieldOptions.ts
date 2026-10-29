@@ -91,7 +91,11 @@ import {
  * - `meshDistanceFieldForceMips` (0): 1 to 3 loads that many mips of every mesh whatever the view
  *   (the atlas's space still limits them); 0 follows the view;
  * - `meshDistanceFieldReverseAllocation` (false): whether the mips added in a frame take the atlas's
- *   space in the reverse order.
+ *   space in the reverse order;
+ * - `runtimeMeshDistanceFields` (false): whether a mesh made at run time, which no compiler gave a
+ *   field, gets one built where it is made, on the page's device, by the compiler's own program
+ *   (`../lighting/distanceFieldGpu.ts`); the reference builds fields at import only and has no
+ *   such mesh, so this is ours and off until a scene asks for it.
  */
 export const GLOBAL_DISTANCE_FIELD_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -134,6 +138,7 @@ export const GLOBAL_DISTANCE_FIELD_RULES = /* @__PURE__ */ (() =>
     countSetting('meshDistanceFieldBlockBricks', 16, 1),
     integerSetting('meshDistanceFieldForceMips', 0, [0, 3]),
     flagSetting('meshDistanceFieldReverseAllocation', false),
+    flagSetting('runtimeMeshDistanceFields', false),
   ] as const))()
 
 /** The field of one setting of the global distance field. */

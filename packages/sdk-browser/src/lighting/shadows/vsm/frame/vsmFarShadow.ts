@@ -17,6 +17,7 @@ import {
 import { shadowOfLight } from '../../../../../../sdk-core/src/scene/light/lightShadow.ts'
 import type { SceneLight } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
+import { hasDistanceFields } from '../../../distanceField/frame.ts'
 import { breakHeldFrame } from '../../../../frame/backend/state/view.ts'
 import { noDofBias } from '../dofBias.ts'
 import type { VsmMapSettings } from '../mapSettings.ts'
@@ -73,11 +74,6 @@ export const vsmFirstPersonActive = (rt: WebgpuPagesRuntime) =>
 /** What a light that is no sun has of cascades: none. */
 const NO_CASCADES: SunCascades = Object.freeze({ edge: 0 })
 
-/** Whether the scene has distance fields: its cache carries the meshes' (`EngineContext.distanceFields`),
- *  the setting of the build that makes them — the project's, where a distance-field cascade is due. */
-const sceneHasDistanceFields = (rt: Pick<WebgpuPagesRuntime, 'context'>) =>
-  !!rt.context.distanceFields?.length
-
 /**
  * The cascades of the sun `light` seen from a view whose near plane is `near`, under the view's
  * settings `shadows` (`sunCascades`): the edge of its near cascade — 0, none, when the culling is
@@ -85,11 +81,11 @@ const sceneHasDistanceFields = (rt: Pick<WebgpuPagesRuntime, 'context'>) =>
  * far-shadow test reaches the subjects gathered on the CPU alone, none of which is a cluster.
  */
 export const sunCascadesOf = (
-  rt: Pick<WebgpuPagesRuntime, 'context'>,
+  rt: Pick<WebgpuPagesRuntime, 'context' | 'layout' | 'distanceFields'>,
   light: SceneLight,
   near: number,
   shadows: ShadowValues,
 ) =>
   light.kind === 'directional'
-    ? sunCascades(shadowOfLight(light), near, shadows, sceneHasDistanceFields(rt))
+    ? sunCascades(shadowOfLight(light), near, shadows, hasDistanceFields(rt))
     : NO_CASCADES

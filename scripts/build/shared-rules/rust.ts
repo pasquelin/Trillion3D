@@ -27,7 +27,7 @@ function evaluate(text: string, known: ReadonlyMap<string, number>): number {
     .replace(/\s+as\s+\w+/g, '')
     .replace(/0x[0-9a-fA-F_]+/g, (hex) => hex.replaceAll('_', ''))
     .replace(/(?<=\d)_(?=\d)/g, '')
-  const tokens = source.match(/0x[0-9a-fA-F]+|\d+|[A-Za-z_]\w*(?:::[A-Z]+)?|<<|[-+*()]/g) ?? []
+  const tokens = source.match(/0x[0-9a-fA-F]+|\d+|[A-Za-z_]\w*(?:::[A-Z]+)?|<<|>>|[-+*()]/g) ?? []
   let at = 0
   const sum = (): number => {
     let value = product()
@@ -45,9 +45,8 @@ function evaluate(text: string, known: ReadonlyMap<string, number>): number {
   }
   const shift = (): number => {
     let value = atom()
-    while (tokens[at] === '<<') {
-      at++
-      value *= 2 ** atom()
+    while (tokens[at] === '<<' || tokens[at] === '>>') {
+      value = tokens[at++] === '<<' ? value * 2 ** atom() : Math.floor(value / 2 ** atom())
     }
     return value
   }
@@ -104,4 +103,25 @@ export function rustConstants(path: string, known = new Map<string, number>()) {
     }
   }
   return found
+}
+
+/** The text of the constant `name` of the Rust file at `path`, of any visibility, its type and its
+ *  value: for the few a module reads without reading the whole file (`rustConstants` stops at one
+ *  it cannot evaluate). */
+function constantText(path: string, name: string) {
+  const found = new RegExp(`^\\s*pub(?:\\(\\w+\\))? const ${name}: (\\w+) = (.+);$`, 'm').exec(
+    rustSource(path),
+  )
+  if (!found) throw new Error(`${path}: no constant '${name}'`)
+  return found[2]
+}
+
+/** The integer constant `name` of the Rust file at `path`, its names read from `known`. */
+export function rustConstant(path: string, name: string, known: ReadonlyMap<string, number>) {
+  return evaluate(constantText(path, name), known)
+}
+
+/** The float constant `name` of the Rust file at `path`, written as a literal. */
+export function rustFloat(path: string, name: string) {
+  return Number(constantText(path, name).replaceAll('_', ''))
 }

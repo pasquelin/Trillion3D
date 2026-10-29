@@ -15,7 +15,15 @@ export function createWorldRanks() {
   /** The primitive of `cut` at its rank, made the first time it is asked. */
   const primitiveOf = (cut: Cut) => {
     let primitive = primitives.get(cut)
-    if (!primitive) primitives.set(cut, (primitive = { ...cut.runtime.primitive, mesh: next++ }))
+    if (!primitive)
+      primitives.set(
+        cut,
+        (primitive = {
+          ...cut.runtime.primitive,
+          ...(cut.doubleSided && { doubleSided: true }),
+          mesh: next++,
+        }),
+      )
     return primitive
   }
   return {

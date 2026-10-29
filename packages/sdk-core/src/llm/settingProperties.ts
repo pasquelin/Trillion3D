@@ -388,6 +388,8 @@ const FIELD_TRACE_AND_MESH_MEANINGS = /* @__PURE__ */ (() =>
       '1 to 3 loads that many mips of every mesh whatever the view; 0, the default, follows the view.',
     meshDistanceFieldReverseAllocation:
       "Whether the mips added in a frame take the atlas's space in the reverse order; false by default.",
+    runtimeMeshDistanceFields:
+      "Whether a mesh made at run time, which no compiler gave a distance field, gets one built on the page's GPU, by the compiler's own program, a few frames after it appears: the rays marched through the field then meet it. A mesh that deforms, or has no ray-tracing tree, gets none. false by default; it costs the build, once for each distinct mesh.",
   }) satisfies Partial<Record<GlobalDistanceFieldField, string>>)()
 
 /** What each setting of the global distance field means (`../contracts/globalDistanceFieldOptions.ts`). */

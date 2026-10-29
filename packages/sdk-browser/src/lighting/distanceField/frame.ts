@@ -1,6 +1,9 @@
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import type { GlobalDistanceFieldSettings } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
-import { resolveSettingsInto } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import {
+  resolveSetting,
+  resolveSettingsInto,
+} from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { DISTANCE_FIELD_UNITS_PER_METRE } from '../../../../sdk-core/src/contracts/distanceFieldAbi.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -16,6 +19,9 @@ import {
   DEFAULT_OCCLUSION_DISTANCE,
   type DistanceFieldScene,
 } from './scene.ts'
+import { createRuntimeFields, type RuntimeFields } from './runtime/runtimeFields.ts'
+import { createVoxelKernel } from './runtime/voxelKernel.ts'
+import { fieldTasks } from '../../geometry/work/host.ts'
 
 /**
  * THE DISTANCE FIELDS IN THE FRAME. A session whose cache carries the meshes' distance fields
@@ -26,7 +32,8 @@ import {
  * drawn aside updates nothing: the field follows the main camera. The camera's position is taken
  * to the field's unit, the centimetre. The global field is given the occlusion distance the fog's sky visibility and the
  * sky light's occlusion trace to: the sky light's where it is not static, else the scene's default.
- * The sky light's occlusion (`ao/runtime.ts`) keeps its state here too.
+ * The sky light's occlusion (`ao/runtime.ts`) keeps its state here too. With `runtimeMeshDistanceFields`, the meshes the world cut at
+ * run time get a field built for them (`runtime/runtimeFields.ts`), and a session whose cache carries none is given the scene for them.
  */
 
 /** What the frame keeps of the distance fields. */
@@ -41,6 +48,8 @@ export interface DistanceFieldFrameState {
   skyLight: SkyLightPart | undefined
   /** The sky light's distance-field occlusion (`encodeSkyOcclusion`). */
   readonly occlusion: SkyOcclusionState
+  /** The fields built for the meshes cut at run time, made the first time the setting asks for one. */
+  runtime?: RuntimeFields
 }
 
 const origin: [number, number, number] = [0, 0, 0]
@@ -53,18 +62,43 @@ const LONGEST_STEP = 0.1
 export const imageStep = (now: number, before: number) =>
   Math.min(LONGEST_STEP, Math.max(0, (now - before) / 1000))
 
-/** The state of `rt`, made at the first image of a session whose cache has distance fields. */
+/** Whether `runtimeMeshDistanceFields` is on and the cut holds a mesh cut at run time whose triangles are known (`Primitive.rayTracing`). */
+function asksRuntimeFields(rt: Pick<WebgpuPagesRuntime, 'context' | 'layout'>) {
+  const rule = GLOBAL_DISTANCE_FIELD_RULES.runtimeMeshDistanceFields
+  if (!resolveSetting(rule, rt.context.runtimeMeshDistanceFields)) return false
+  // Read until the state exists, then no more: only while the setting is on and nothing runtime is in the cut yet.
+  return rt.layout.selectionRoots.some((root) => root.runtime && root.rayTracing)
+}
+
+/** Whether the scene has distance fields: its cache carries the meshes' (`EngineContext.distanceFields`), or it holds a mesh cut at run time
+ *  that gets one (`runtimeMeshDistanceFields`). The one question every reader of the fields asks before the scene is made, and the scene
+ *  answers after. */
+export const hasDistanceFields = (
+  rt: Pick<WebgpuPagesRuntime, 'context' | 'layout' | 'distanceFields'>,
+) => !!rt.context.distanceFields?.length || !!rt.distanceFields || asksRuntimeFields(rt)
+
+/** The state of `rt`, made at the first image of a session whose cache has distance fields, or that holds a mesh cut at run time that asks for one. */
 function stateOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
+  if (rt.distanceFields) return rt.distanceFields
+  if (!hasDistanceFields(rt)) return undefined
   const fields = rt.context.distanceFields
-  if (!fields?.length) return undefined
-  return (rt.distanceFields ??= {
-    scene: createDistanceFieldScene(device, fields),
+  const state: DistanceFieldFrameState = {
+    scene: createDistanceFieldScene(device, fields ?? [], (root) =>
+      state.settings.runtimeMeshDistanceFields
+        ? (state.runtime ??= createRuntimeFields(
+            (signal) => createVoxelKernel(device, signal),
+            fieldTasks,
+            (error) => rt.diag.diagnosticFailure('runtime-distance-field', error),
+          )).fieldOf(root)
+        : undefined,
+    ),
     settings: {} as GlobalDistanceFieldSettings,
     reflections: createReflectionSettingsReader(),
     time: performance.now(),
     skyLight: undefined,
     occlusion: createSkyOcclusionState(),
-  })
+  }
+  return (rt.distanceFields = state)
 }
 
 /** Encodes the distance fields' update for this image on `encoder`; `part` is the sky light the frame holds, if any. */
@@ -103,7 +137,8 @@ export function encodeDistanceFields(
       roots: rt.layout.selectionRoots,
       world: rt.run.gpuSelection?.world,
       moving: (rank) => rt.lights.mobility.moves(rank),
-      epoch: 0,
+      // A placement cut at run time is read again when a field was built for one, or the setting changed.
+      epoch: (state.runtime?.version ?? 0) * 2 + Number(state.settings.runtimeMeshDistanceFields),
       origin,
       frame: rt.run.frame,
       delta,
@@ -122,6 +157,7 @@ export function distanceFieldsSubmitted(rt: Pick<WebgpuPagesRuntime, 'distanceFi
 /** Frees the distance fields of `rt`. */
 export function disposeDistanceFields(rt: Pick<WebgpuPagesRuntime, 'distanceFields'>) {
   if (rt.distanceFields) releaseSkyOcclusion(rt.distanceFields.occlusion)
+  rt.distanceFields?.runtime?.dispose()
   rt.distanceFields?.scene.dispose()
   rt.distanceFields = undefined
 }
