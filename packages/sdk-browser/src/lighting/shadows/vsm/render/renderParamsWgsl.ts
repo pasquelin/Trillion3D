@@ -6,7 +6,6 @@ import { fieldLayout } from '../../../../gpu/core/fieldLayout.ts'
 import { LIGHTING_CHANNELS_WGSL } from '../../../lightingChannelsWgsl.ts'
 import { VSM_OVERFLOW_WGSL } from '../overflowWgsl.ts'
 import { VSM_PROJECTION_RECORD_WGSL } from '../projection/projectionDataWgsl.ts'
-import { vsmNinthStorage } from '../resources.ts'
 import { WINDOW_PAGE_SIDE } from '../../../../visibility/tessellation/contract.ts'
 import { GROUP_GRID_WGSL, WORKGROUP_THREADS_WGSL } from '../../../../gpu/dispatch/grid.ts'
 
