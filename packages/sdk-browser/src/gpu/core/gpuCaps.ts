@@ -34,6 +34,7 @@ export const FEATURE = {
   textureTier1: featureName('texture-formats-tier1'),
   wideAtomics: featureName('atomic-vec2u-min-max'),
   textureTier2: featureName('texture-formats-tier2'),
+  rg11b10Renderable: featureName('rg11b10ufloat-renderable'),
 }
 
 /** The WebGPU feature that unlocks each block-compressed family. */
@@ -88,6 +89,8 @@ export interface GpuCaps {
   readonly float32Blendable: boolean
   /** The 64-bit atomic maximum (`atomic-vec2u-min-max`). */
   readonly wideAtomics: boolean
+  /** Render targets of the packed 11-11-10 float format (`rg11b10ufloat-renderable`). */
+  readonly rg11b10Renderable: boolean
   /** The storage textures of the packed 8-bit and 11-11-10 formats (`texture-formats-tier1`: 1)
    *  and the read-write ones of the 8-bit formats (`texture-formats-tier2`: 2); 0 with none. */
   readonly textureTier: 0 | 1 | 2
@@ -145,6 +148,7 @@ export function gpuCapsFrom(
     float32Filterable: has(FEATURE.float32Filterable),
     float32Blendable: has(FEATURE.float32Blendable),
     wideAtomics: has(FEATURE.wideAtomics),
+    rg11b10Renderable: has(FEATURE.rg11b10Renderable),
     textureTier,
     blockFormats: Object.freeze({
       bc7: has(BLOCK_FEATURES.bc7),

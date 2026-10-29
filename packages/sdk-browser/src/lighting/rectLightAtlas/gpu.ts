@@ -1,6 +1,8 @@
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { oncePerDevice, oncePerDeviceKey } from '../../gpu/core/oncePerDevice.ts'
 import { postSamplers } from '../../gpu/core/postSamplers.ts'
+import { gpuCapsOf } from '../../gpu/core/gpuCaps.ts'
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { chainReady, preparedComputePipeline, preparedPipeline } from '../deferred/fullscreen.ts'
 import {
   RECT_ATLAS_ADD_PASS,
@@ -37,7 +39,7 @@ const FRAGMENT = 2
 
 /** The texture format the atlas is made in: 11, 11 and 10 bits where the setting asks (0) and the device draws into it, else four 16-bit floats. */
 export const atlasFormatFor = (device: GPUDevice, setting: number): GPUTextureFormat =>
-  setting === 0 && device.features.has('rg11b10ufloat-renderable') ? 'rg11b10ufloat' : 'rgba16float'
+  setting === 0 && gpuCapsOf(device).rg11b10Renderable ? 'rg11b10ufloat' : 'rgba16float'
 
 /** The atlas on the device: its texture, with the size and format it was made with. */
 export interface AtlasTexture {
@@ -208,7 +210,7 @@ export function encodeClear(
           ],
         }),
       )
-      pass.dispatchWorkgroups(Math.ceil(size.x / 8), Math.ceil(size.y / 8))
+      pass.dispatchWorkgroups(ceilDiv(size.x, 8), ceilDiv(size.y, 8))
       pass.end()
       continue
     }
