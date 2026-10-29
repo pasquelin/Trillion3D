@@ -8,7 +8,7 @@ import { hizDepthWgsl } from './pyramidTexture.ts'
  *  centimetres, as the walk's reference counts: the world's unit is the metre. */
 const DEPTH_FLOOR_CENTIMETRES = 1e-5
 
-/** The share of the step `d` from \`o\` that stays within the rectangle of \`size\`, one at the most: where a march ends at the border of the image (a pure function of its arguments). */
+/** The share of the step `d` from 'o' that stays within the rectangle of 'size', one at the most: where a march ends at the border of the image (a pure function of its arguments). */
 export const SCREEN_MARCH_END_WGSL = wgslBlock(
   'SCREEN_MARCH_END_WGSL',
   [],

@@ -7,7 +7,11 @@ import {
   firstPersonSelfShadowOn,
   releaseFirstPersonSelfShadow,
 } from '../../firstPerson/selfShadow.ts'
-import { encodeLocalSelfShadows, type LocalSelfShadow } from '../../firstPerson/selfShadowLocal.ts'
+import {
+  encodeLocalSelfShadows,
+  localLightsReachFirstPerson,
+  type LocalSelfShadow,
+} from '../../firstPerson/selfShadowLocal.ts'
 import type { PerLightInputs } from '../projection/perLightPass.ts'
 import type { VsmProjectionLight } from '../projection/projectionPass.ts'
 import { sunCount } from '../projection/projectionView.ts'
@@ -22,7 +26,11 @@ export function selfShadowLights(
   const suns = sunCount(lights)
   const given = {
     suns: suns > 0 && firstPersonSelfShadowOn(rt, shadows),
-    locals: lights.length > suns && firstPersonLocalSelfShadowOn(rt, shadows),
+    // Only a local light that reaches the first-person objects gets a self shadow: the masks stand held, the capsule layers unmade, where none does.
+    locals:
+      lights.length > suns &&
+      firstPersonLocalSelfShadowOn(rt, shadows) &&
+      localLightsReachFirstPerson(rt, lights, suns),
   }
   if (!given.suns && !given.locals) releaseFirstPersonSelfShadow(rt)
   return given

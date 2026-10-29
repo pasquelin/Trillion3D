@@ -48,3 +48,19 @@ test('the trace reaches a local light by its rank and the merge keeps the first-
   assert.ok(merge.includes(`fn ${SELF_SHADOW_MERGE_ENTRY}(`))
   assert.ok(merge.includes('discard;'))
 })
+
+test('a run covers a window of the image and starts at a layer of the mask', () => {
+  const trace = selfShadowProgram(SELF_SHADOW_ENTRIES.trace, 'none')
+  assert.ok(trace.includes('window:vec4u'))
+  assert.ok(trace.includes('gid.xy+select(params.window.xy,params.window.zw,params.counts.y!=0u)'))
+  assert.ok(trace.includes('layer+i32(params.layers.x)'))
+  const upsample = selfShadowProgram(SELF_SHADOW_ENTRIES.upsample, 'none')
+  assert.ok(upsample.includes('gid.xy+params.window.zw'))
+  assert.ok(upsample.includes('layer+i32(params.layers.x)'))
+  assert.ok(selfShadowProgram(SELF_SHADOW_ENTRIES.downsample, 'none').includes('let id=gid;'))
+})
+
+test('the point of a pixel is found only for a pixel that traces', () => {
+  const trace = selfShadowProgram(SELF_SHADOW_ENTRIES.trace, 'none')
+  assert.ok(trace.indexOf('if(inputs.ok){') < trace.indexOf('let P=worldAt('))
+})

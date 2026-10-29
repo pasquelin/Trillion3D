@@ -8,7 +8,11 @@ import { CAPSULE_BLENDS } from '../../capsuleShadows/frame.ts'
 import { firstPersonBoundsOf } from '../../reflections/firstPersonBounds.ts'
 import type { VsmProjectionLight } from '../vsm/projection/projectionPass.ts'
 import { lightAffectsSphere } from './affects.ts'
-import { runSelfShadow } from './selfShadowKit.ts'
+import {
+  runSelfShadow,
+  selfShadowRecords as records,
+  type SelfShadowRect,
+} from './selfShadowKit.ts'
 import {
   SELF_SHADOW_MAX_LIGHTS,
   SELF_SHADOW_MERGE_BINDINGS as M,
@@ -105,7 +109,6 @@ function localOutFor(device: GPUDevice, size: readonly [number, number], count: 
 }
 
 const bounds = new Float64Array(4)
-const records = new Float32Array(4 * SELF_SHADOW_MAX_LIGHTS)
 const attachment: GPURenderPassColorAttachment = {
   view: undefined as never,
   loadOp: 'load',
@@ -116,11 +119,24 @@ const MERGE_PASS: GPURenderPassDescriptor = {
   colorAttachments: [attachment],
 }
 
+/** Whether any of the local lights `lights` from index `first` reaches the first-person objects' bounds: the lights that take a self shadow (`lightAffectsSphere`). */
+export function localLightsReachFirstPerson(
+  rt: WebgpuPagesRuntime,
+  lights: readonly VsmProjectionLight[],
+  first: number,
+) {
+  if (firstPersonBoundsOf(rt, bounds)[3]! <= 0) return false
+  for (let k = first; k < lights.length; k++)
+    if (lightAffectsSphere(lights[k]!, bounds, bounds[3]!)) return true
+  return false
+}
+
 /**
  * THE FIRST-PERSON SELF SHADOW OF THE LOCAL LIGHTS: for each of `jobs` whose light reaches the first-person objects' bounds (`lightAffectsSphere`; a
- * sun's is traced beside the suns', `encodeFirstPersonSelfShadow`), the kernels (`runSelfShadow`) trace the first-person pixels toward the light, and
- * its layer is taken into the light's mask by the minimum over `scissor` (first column and row, one past the last; the drawn image by default), as the
- * square root the masks keep. `views` are the surfaces' views (the normals at 1, the flags at 3). Nothing for a light that does not reach them.
+ * sun's is traced beside the suns', `encodeFirstPersonSelfShadow`), the kernels (`runSelfShadow`) trace the first-person pixels toward the light, over
+ * `scissor` (first column and row, one past the last; the drawn image by default), and its layer is taken into the light's mask by the minimum over the
+ * same rectangle, as the square root the masks keep. The lights go in runs of `SELF_SHADOW_MAX_LIGHTS`, none left out. `views` are the surfaces' views (the
+ * normals at 1, the flags at 3). Nothing for a light that does not reach them.
  */
 export function encodeLocalSelfShadows(
   rt: WebgpuPagesRuntime,
@@ -128,46 +144,44 @@ export function encodeLocalSelfShadows(
   settings: ShadowValues,
   jobs: readonly LocalSelfShadow[],
   views: readonly GPUTextureView[],
-  scissor?: readonly [number, number, number, number],
+  scissor?: SelfShadowRect,
 ) {
   const { device } = rt.gpu
   if (!device || firstPersonBoundsOf(rt, bounds)[3]! <= 0) return
-  const reached = jobs
-    .filter((job) => lightAffectsSphere(job.light, bounds, bounds[3]!))
-    .slice(0, SELF_SHADOW_MAX_LIGHTS)
-  if (!reached.length) return
-  reached.forEach((job, k) => records.set([job.rank, 0, 0, 1], 4 * k))
-  const out = localOutFor(device, rt.gpu.allocatedSize, reached.length)
-  if (
-    !runSelfShadow(
+  const reached = jobs.filter((job) => lightAffectsSphere(job.light, bounds, bounds[3]!))
+  const [x0, y0, x1, y1] = scissor ?? [0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1]]
+  const { layout } = mergeOf(device)
+  for (let first = 0; first < reached.length; first += SELF_SHADOW_MAX_LIGHTS) {
+    const run = reached.slice(first, first + SELF_SHADOW_MAX_LIGHTS)
+    run.forEach((job, k) => records.set([job.rank, 0, 0, 1], 4 * k))
+    const out = localOutFor(device, rt.gpu.allocatedSize, run.length)
+    const traced = runSelfShadow(
       rt,
       encoder,
       settings,
-      { lights: records, count: reached.length, output: out.storage },
+      { lights: records, count: run.length, output: out.storage, rect: [x0, y0, x1, y1] },
       views,
     )
-  )
-    return
-  const { layout } = mergeOf(device)
-  const [x0, y0, x1, y1] = scissor ?? [0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1]]
-  reached.forEach((job, k) => {
-    const pipeline = mergePipelineOf(device, job.format).get()
-    if (!pipeline) return
-    attachment.view = job.target
-    const pass = encoder.beginRenderPass(MERGE_PASS)
-    pass.setPipeline(pipeline)
-    pass.setBindGroup(
-      0,
-      device.createBindGroup({
-        layout,
-        entries: [
-          { binding: M.shadow, resource: out.layers[k]! },
-          { binding: M.flags, resource: views[3]! },
-        ],
-      }),
-    )
-    pass.setScissorRect(x0, y0, x1 - x0, y1 - y0)
-    pass.draw(3)
-    pass.end()
-  })
+    if (!traced) return
+    run.forEach((job, k) => {
+      const pipeline = mergePipelineOf(device, job.format).get()
+      if (!pipeline) return
+      attachment.view = job.target
+      const pass = encoder.beginRenderPass(MERGE_PASS)
+      pass.setPipeline(pipeline)
+      pass.setBindGroup(
+        0,
+        device.createBindGroup({
+          layout,
+          entries: [
+            { binding: M.shadow, resource: out.layers[k]! },
+            { binding: M.flags, resource: views[3]! },
+          ],
+        }),
+      )
+      pass.setScissorRect(x0, y0, x1 - x0, y1 - y0)
+      pass.draw(3)
+      pass.end()
+    })
+  }
 }

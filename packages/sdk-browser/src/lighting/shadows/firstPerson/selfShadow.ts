@@ -2,7 +2,11 @@ import type { ShadowValues } from '../../../../../sdk-core/src/contracts/shadowO
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { firstPersonBoundsOf } from '../../reflections/firstPersonBounds.ts'
 import type { VsmProjectionLight } from '../vsm/projection/projectionPass.ts'
-import { releaseSelfShadowGrid, runSelfShadow } from './selfShadowKit.ts'
+import {
+  releaseSelfShadowGrid,
+  runSelfShadow,
+  selfShadowRecords as records,
+} from './selfShadowKit.ts'
 import { releaseLocalSelfShadow } from './selfShadowLocal.ts'
 import { SELF_SHADOW_MAX_LIGHTS } from './selfShadowWgsl.ts'
 
@@ -32,11 +36,9 @@ export function releaseFirstPersonSelfShadow(rt: WebgpuPagesRuntime) {
   releaseLocalSelfShadow(device)
 }
 
-const records = new Float32Array(4 * SELF_SHADOW_MAX_LIGHTS)
-
 /**
  * THE FIRST-PERSON SELF SHADOW OF THE SUNS (`selfShadowWgsl.ts`), after the projection has written the suns' mask: the kernels (`runSelfShadow`) run over the
- * suns, each taking its shadow into its layer of `sunMask` by the minimum. `views` are the surfaces' views (the normals at 1, the flags at 3).
+ * suns, each taking its shadow into its layer of `sunMask` by the minimum, a run for each `SELF_SHADOW_MAX_LIGHTS` of them. `views` are the surfaces' views (the normals at 1, the flags at 3).
  */
 export function encodeFirstPersonSelfShadow(
   rt: WebgpuPagesRuntime,
@@ -47,11 +49,19 @@ export function encodeFirstPersonSelfShadow(
   sunMask: GPUTextureView,
   views: readonly GPUTextureView[],
 ) {
-  const count = Math.min(suns, SELF_SHADOW_MAX_LIGHTS)
-  for (let k = 0; k < count; k++) {
-    // The direction toward the sun, and 0: a sun's record.
-    const d = lights[k]!.direction
-    records.set([-d[0]!, -d[1]!, -d[2]!, 0], 4 * k)
+  for (let first = 0; first < suns; first += SELF_SHADOW_MAX_LIGHTS) {
+    const count = Math.min(suns - first, SELF_SHADOW_MAX_LIGHTS)
+    for (let k = 0; k < count; k++) {
+      // The direction toward the sun, and 0: a sun's record.
+      const d = lights[first + k]!.direction
+      records.set([-d[0]!, -d[1]!, -d[2]!, 0], 4 * k)
+    }
+    runSelfShadow(
+      rt,
+      encoder,
+      settings,
+      { lights: records, count, output: sunMask, layerBase: first },
+      views,
+    )
   }
-  runSelfShadow(rt, encoder, settings, { lights: records, count, output: sunMask }, views)
 }

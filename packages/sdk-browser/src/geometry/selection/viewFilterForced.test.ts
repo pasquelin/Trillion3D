@@ -40,3 +40,11 @@ test('occluded roots are bits of the filter, not of its base', () => {
   assert.equal(filter.update(undefined, 70, under, 1, undefined, undefined), undefined)
   assert.equal(filter.base(), undefined)
 })
+
+// Only occluded roots filter: the shadows' casters follow no bits at all.
+test('the base is undefined when only occluded roots filter', () => {
+  const filter = createViewFilter()
+  const bits = filter.update(undefined, 70, () => 0, 1, undefined, [35])!
+  assert.ok((bits[1] >>> 3) & 1)
+  assert.equal(filter.base(), undefined)
+})

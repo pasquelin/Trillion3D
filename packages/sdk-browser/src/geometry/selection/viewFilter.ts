@@ -102,11 +102,15 @@ export function createViewFilter() {
       if (scratch.length < words) scratch = new Uint32Array(words)
       const bits = scratch.subarray(0, words)
       fillBits(bits, set, rootCount, under, ranks, forced)
-      base = base && sameValues(base, bits) ? base : bits.slice()
+      base = bits.some((word) => word !== 0)
+        ? base && sameValues(base, bits)
+          ? base
+          : bits.slice()
+        : undefined
       for (const rank of occluded ?? []) if (rank < rootCount) setBit(bits, rank)
       return (held = held && sameValues(held, bits) ? held : bits.slice())
     },
-    /** The bits of the last `update` without its occluded roots: the same array until they change. */
+    /** The bits of the last `update` without its occluded roots: the same array until they change; none when no root is set but by the occlusion. */
     base: () => base,
   }
 }

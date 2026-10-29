@@ -29,7 +29,12 @@ type SelfShadowEntry = (typeof SELF_SHADOW_ENTRIES)[keyof typeof SELF_SHADOW_ENT
 const DOWNSAMPLE_MODE = [1, 0, 2] as const
 
 /** The words of the uniform: the sizes, the counts, the trace's numbers and a record a light. */
-const PARAM_WORDS = 12 + 4 * SELF_SHADOW_MAX_LIGHTS
+const PARAM_WORDS = 20 + 4 * SELF_SHADOW_MAX_LIGHTS
+/** The word of the uniform the lights' records begin at: after the sizes, the counts, the trace's numbers, the window and the layer base. */
+const LIGHTS_AT = 20
+/** The low-resolution texels the trace and the filter run beyond the window's rim, so that the filter and the upsample find the texels they read traced: the upsample reads the
+ *  texel round a pixel and the filter the ring round each of them. */
+const WINDOW_MARGIN = 2
 /** The least a depth threshold may be, as the reference's: the weights divide by it. */
 const SMALL_NUMBER = 1e-8
 
@@ -55,6 +60,9 @@ const kitOf = oncePerDevice((device: GPUDevice) => {
   return {
     layout,
     uniforms: { frame: -1, used: 0, buffers: [] as GPUBuffer[] },
+    /** What the encoder's first run downsampled: the later runs of it (other lights, other windows) read it as it is. */
+    downsampled: undefined as
+      { encoder: GPUCommandEncoder; normals: GPUTextureView; grid: GPUTextureView[] } | undefined,
     words: new ArrayBuffer(PARAM_WORDS * 4),
     stage(entry: SelfShadowEntry, polyfill: boolean, failed: (error: unknown) => void) {
       const key = `${entry}|${polyfill}`
@@ -141,6 +149,8 @@ function writeParams(
   size: readonly [number, number],
   lights: Float32Array,
   count: number,
+  window: readonly [number, number, number, number],
+  layerBase: number,
 ) {
   const words = new Uint32Array(kit.words),
     floats = new Float32Array(kit.words)
@@ -163,15 +173,24 @@ function writeParams(
     ],
     8,
   )
-  floats.set(lights.subarray(0, 4 * count), 12)
+  words.set(window, 12)
+  words.set([layerBase], 16)
+  floats.set(lights.subarray(0, 4 * count), LIGHTS_AT)
   device.queue.writeBuffer(buffer, 0, kit.words)
 }
 
+/** The records of the lights of one run (`runSelfShadow`), filled by the callers, which run one at a time. */
+export const selfShadowRecords = new Float32Array(4 * SELF_SHADOW_MAX_LIGHTS)
+
+/** A rectangle of the drawn image: first column and row, one past the last. */
+export type SelfShadowRect = readonly [number, number, number, number]
+
 /**
- * THE KERNELS OF THE FIRST-PERSON SELF SHADOW (`selfShadowWgsl.ts`) run over `count` lights (`SELF_SHADOW_MAX_LIGHTS` at most), a layer each, their records
+ * THE KERNELS OF THE FIRST-PERSON SELF SHADOW (`selfShadowWgsl.ts`) run over `count` lights (`SELF_SHADOW_MAX_LIGHTS` at most; a caller with more runs them in turns), a layer each, their records
  * `lights` (four floats a light: a sun's direction toward it and 0, or a local light's rank and 1): the depth and the normal of the first-person pixels at
- * half the resolution (a pass), a trace toward each light, its 3 x 3 filter and its upsample into the light's layer of `output` (a storage array of
- * `r32float`), each a pass over all the lights; at the full resolution (`shadowFirstPersonSelfShadowRawFullResolution`) the trace alone, into `output`.
+ * half the resolution (a pass, made once by an encoder for all its runs), a trace toward each light, its 3 x 3 filter and its upsample into the light's layer
+ * (`layerBase` and up) of `output` (a storage array of `r32float`), each a pass over all the lights, over `rect` (the drawn image by default) and, at the half resolution, the
+ * margin its readers need; at the full resolution (`shadowFirstPersonSelfShadowRawFullResolution`) the trace alone, into `output`.
  * A sun's layer takes the shadow by the minimum, a local light's is written, at the first-person pixels. Nothing while a stage compiles; whether it ran.
  * `views` are the surfaces' views (the normals at 1, the flags at 3).
  */
@@ -179,7 +198,13 @@ export function runSelfShadow(
   rt: WebgpuPagesRuntime,
   encoder: GPUCommandEncoder,
   settings: ShadowValues,
-  job: { lights: Float32Array; count: number; output: GPUTextureView },
+  job: {
+    lights: Float32Array
+    count: number
+    output: GPUTextureView
+    layerBase?: number
+    rect?: SelfShadowRect
+  },
   views: readonly GPUTextureView[],
 ) {
   const { device } = rt.gpu
@@ -188,7 +213,7 @@ export function runSelfShadow(
   const lightBuffer = rt.lights.buffer
   if (!device || !hiz || !lightView || !lightBuffer || !rt.gpu.reflection || !job.count)
     return false
-  const count = Math.min(job.count, SELF_SHADOW_MAX_LIGHTS)
+  const count = job.count
   const kit = kitOf(device),
     size = rt.gpu.targetSize,
     raw = settings.shadowFirstPersonSelfShadowRawFullResolution
@@ -201,10 +226,28 @@ export function runSelfShadow(
   const [downsample, trace, blur, upsample] = stages.map((stage) => stage.get())
   if (!trace || (!raw && !(downsample && blur && upsample))) return false
   const allocated = rt.gpu.allocatedSize
+  const lowSize = [ceilDiv(size[0], 2), ceilDiv(size[1], 2)] as const
   const grid = texturesFor(device, [ceilDiv(allocated[0], 2), ceilDiv(allocated[1], 2)], count)
+  const [x0, y0, x1, y1] = job.rect ?? [0, 0, size[0], size[1]]
+  const low = [
+    Math.max(0, (x0 >> 1) - WINDOW_MARGIN),
+    Math.max(0, (y0 >> 1) - WINDOW_MARGIN),
+    Math.min(lowSize[0], ceilDiv(x1, 2) + WINDOW_MARGIN),
+    Math.min(lowSize[1], ceilDiv(y1, 2) + WINDOW_MARGIN),
+  ] as const
   const params = uniformFor(kit, device, rt.run.frame)
   kit.uniforms.used++
-  writeParams(kit, device, params, settings, size, job.lights, count)
+  writeParams(
+    kit,
+    device,
+    params,
+    settings,
+    size,
+    job.lights,
+    count,
+    [low[0], low[1], x0, y0],
+    job.layerBase ?? 0,
+  )
   const group = device.createBindGroup({
     layout: kit.layout,
     entries: [
@@ -220,9 +263,8 @@ export function runSelfShadow(
     ],
   })
   const reflection = reflectionGroup(rt.gpu.reflection, hiz, lightView, skyLightReadOf(rt))
-  const groups = (extent: readonly [number, number]) =>
-    [ceilDiv(extent[0], SELF_SHADOW_GROUP), ceilDiv(extent[1], SELF_SHADOW_GROUP)] as const
-  const lowGroups = groups([ceilDiv(size[0], 2), ceilDiv(size[1], 2)])
+  const groups = (width: number, height: number) =>
+    [ceilDiv(width, SELF_SHADOW_GROUP), ceilDiv(height, SELF_SHADOW_GROUP)] as const
   const pass = encoder.beginComputePass({ label: 'vsm.firstPersonSelfShadow' })
   pass.setBindGroup(0, group)
   pass.setBindGroup(1, reflection)
@@ -230,12 +272,18 @@ export function runSelfShadow(
     pass.setPipeline(pipeline)
     pass.dispatchWorkgroups(x, y, z)
   }
-  if (raw) run(trace, groups(size), count)
+  const fullGroups = groups(x1 - x0, y1 - y0)
+  if (raw) run(trace, fullGroups, count)
   else {
-    run(downsample!, lowGroups, 1)
+    const held = kit.downsampled
+    if (held?.encoder !== encoder || held.normals !== views[1] || held.grid !== grid) {
+      run(downsample!, groups(...lowSize), 1)
+      kit.downsampled = { encoder, normals: views[1]!, grid }
+    }
+    const lowGroups = groups(low[2] - low[0], low[3] - low[1])
     run(trace, lowGroups, count)
     run(blur!, lowGroups, count)
-    run(upsample!, groups(size), count)
+    run(upsample!, fullGroups, count)
   }
   pass.end()
   return true

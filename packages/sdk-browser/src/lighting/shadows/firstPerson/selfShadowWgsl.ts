@@ -79,6 +79,8 @@ const PARAMS_WGSL = wgslBlock(
  sizes:vec4u,
  counts:vec4u,
  trace:vec4f,
+ window:vec4u,
+ layers:vec4u,
  lights:array<vec4f,${SELF_SHADOW_MAX_LIGHTS}>,
 }
 @group(0) @binding(${B.params}) var<uniform> params:SelfShadow;
@@ -96,7 +98,8 @@ fn selfLow(p:vec2u)->bool{return all(p<params.sizes.zw);}`,
 
 const DOWNSAMPLE_WGSL = `
 @compute @workgroup_size(${SELF_SHADOW_GROUP},${SELF_SHADOW_GROUP},1)
-fn ${SELF_SHADOW_ENTRIES.downsample}(@builtin(global_invocation_id) id:vec3u){
+fn ${SELF_SHADOW_ENTRIES.downsample}(@builtin(global_invocation_id) gid:vec3u){
+ let id=gid;
  if(!selfLow(id.xy)){return;}
  let last=params.sizes.xy-vec2u(1u);
  var minZ=0.0;var maxZ=0.0;var minAt=vec2u(0u);var maxAt=vec2u(0u);
@@ -145,7 +148,8 @@ fn selfInputs(id:vec2u)->SelfInputs{
  return SelfInputs(pixel,z,octDecode(oct),z!=0.0);
 }
 @compute @workgroup_size(${SELF_SHADOW_GROUP},${SELF_SHADOW_GROUP},1)
-fn ${SELF_SHADOW_ENTRIES.trace}(@builtin(global_invocation_id) id:vec3u,@builtin(local_invocation_index) lane:u32){
+fn ${SELF_SHADOW_ENTRIES.trace}(@builtin(global_invocation_id) gid:vec3u,@builtin(local_invocation_index) lane:u32){
+ let id=vec3u(gid.xy+select(params.window.xy,params.window.zw,params.counts.y!=0u),gid.z);
  ${lanes === 'polyfill' ? 'screenMarchLane=lane;' : ''}
  let layer=i32(id.z);
  let inputs=selfInputs(id.xy);
@@ -155,9 +159,10 @@ fn ${SELF_SHADOW_ENTRIES.trace}(@builtin(global_invocation_id) id:vec3u,@builtin
  let rank=u32(light.x);
  var S0=vec3f(0.0);var delta=vec3f(0.0);var end=0.0;var pixels=0.0;
  let full=vec2f(inputs.pixel)+vec2f(0.5);
- let P=worldAt(full,inputs.z);
  // A local light the pixel is out of the reach of leaves it lit, and traces no ray.
- if(inputs.ok&&(!local||lightReaches(rank,P))){
+ if(inputs.ok){
+  let P=worldAt(full,inputs.z);
+  if(!local||lightReaches(rank,P)){
   let corner=worldAt(full+vec2f(0.5),inputs.z);
   let origin=P+abs(dot(corner-P,inputs.n))*2.0*inputs.n;
   let A=reflectionView.viewProj*vec4f(origin,1.0);
@@ -175,6 +180,7 @@ fn ${SELF_SHADOW_ENTRIES.trace}(@builtin(global_invocation_id) id:vec3u,@builtin
    end=screenMarchEnd(S0.xy,delta.xy,size);
    pixels=select(REFLECTION_THICKNESS,params.trace.z/reflectionView.slab.x,slabPerspective(reflectionView.slab));
   }
+  }
  }
  // Every thread of the group takes part in the march, one with no ray with an end of zero.
  let marched=screenMarch(S0,delta,end,pixels,params.trace.z,reflectionView.slab,u32(params.trace.y),true${lanes === 'none' ? '' : ',params.counts.w'});
@@ -186,7 +192,7 @@ fn ${SELF_SHADOW_ENTRIES.trace}(@builtin(global_invocation_id) id:vec3u,@builtin
  if(params.counts.y!=0u){
   // A sun's mask is taken by the minimum, so only a hit writes; a local light's layer holds the shadow of every first-person pixel.
   if(hit||local){
-   textureStore(lightMask,id.xy,layer,vec4f(select(1.0,0.0,hit)));
+   textureStore(lightMask,id.xy,layer+i32(params.layers.x),vec4f(select(1.0,0.0,hit)));
   }
   return;
  }
@@ -208,7 +214,8 @@ fn blurIn(p:vec2i,layer:i32)->BlurIn{
  return BlurIn(z,reflectionLinearOfDevice(z),select(-1.0,packed/${MAX_VALID_HIT},packed!=1.0),select(1.0,0.0,packed!=1.0));
 }
 @compute @workgroup_size(${SELF_SHADOW_GROUP},${SELF_SHADOW_GROUP},1)
-fn ${SELF_SHADOW_ENTRIES.blur}(@builtin(global_invocation_id) id:vec3u){
+fn ${SELF_SHADOW_ENTRIES.blur}(@builtin(global_invocation_id) gid:vec3u){
+ let id=vec3u(gid.xy+params.window.xy,gid.z);
  if(!selfLow(id.xy)){return;}
  let layer=i32(id.z);
  let p=vec2i(id.xy);
@@ -231,7 +238,8 @@ fn ${SELF_SHADOW_ENTRIES.blur}(@builtin(global_invocation_id) id:vec3u){
 
 const UPSAMPLE_WGSL = `
 @compute @workgroup_size(${SELF_SHADOW_GROUP},${SELF_SHADOW_GROUP},1)
-fn ${SELF_SHADOW_ENTRIES.upsample}(@builtin(global_invocation_id) id:vec3u){
+fn ${SELF_SHADOW_ENTRIES.upsample}(@builtin(global_invocation_id) gid:vec3u){
+ let id=vec3u(gid.xy+params.window.zw,gid.z);
  if(any(id.xy>=params.sizes.xy)||!selfFirstPerson(vec2i(id.xy))){return;}
  let layer=i32(id.z);
  let low=vec2f(id.xy)*0.5+vec2f(0.25);
@@ -251,8 +259,9 @@ fn ${SELF_SHADOW_ENTRIES.upsample}(@builtin(global_invocation_id) id:vec3u){
  let sum=dot(total,vec4f(1.0));
  total=select(weights,total/sum,sum>1e-5);
  let shadow=dot(shadows,total);
- let held=textureLoad(lightMask,id.xy,layer).x;
- textureStore(lightMask,id.xy,layer,vec4f(select(min(held,shadow),shadow,params.lights[id.z].w!=0.0),0.0,0.0,0.0));
+ let slot=layer+i32(params.layers.x);
+ let held=textureLoad(lightMask,id.xy,slot).x;
+ textureStore(lightMask,id.xy,slot,vec4f(select(min(held,shadow),shadow,params.lights[id.z].w!=0.0),0.0,0.0,0.0));
 }`
 
 /** The program of the kernel `entry`: the self shadow's textures in group 0 and the reflection's group (the view, the depth pyramid and the lighting's view)
