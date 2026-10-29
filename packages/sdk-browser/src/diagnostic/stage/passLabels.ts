@@ -148,6 +148,11 @@ export const TRANSLUCENCY_VOLUME_PASS = 'Trillion3D translucency volume'
 /** The translucency global illumination volume: the cones of every cell of the view-fitted grid traced, filtered and integrated into the
  *  harmonics the see-through surfaces read their indirect light from (`../../lighting/translucencyGi/gpu.ts`). */
 export const TRANSLUCENCY_GI_PASS = 'Trillion3D translucency global illumination'
+/** The traced translucency: the rays through the see-through surfaces, their denoising, and their composition onto the lit image
+ *  (`../../lighting/reflections/translucency/stage.ts`). */
+export const TRACED_TRANSLUCENCY_TRACE_PASS = 'Trillion3D traced translucency trace'
+export const TRACED_TRANSLUCENCY_DENOISE_PASS = 'Trillion3D traced translucency denoise'
+export const TRACED_TRANSLUCENCY_COMPOSE_PASS = 'Trillion3D traced translucency compose'
 /** The screen-space ambient occlusion's passes — the setups of the coarser resolutions, the searches and the last
  *  one that writes the texture the lighting reads (`../../lighting/ao/frame.ts`). */
 export const AMBIENT_OCCLUSION_PASS = 'Trillion3D ambient occlusion'
@@ -370,6 +375,9 @@ export const ENGINE_PASSES = [
   definePass({ label: FOG_VOLUME_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: TRANSLUCENCY_VOLUME_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: TRANSLUCENCY_GI_PASS, stage: 'lighting', block: 'other' }),
+  definePass({ label: TRACED_TRANSLUCENCY_TRACE_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: TRACED_TRANSLUCENCY_DENOISE_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: TRACED_TRANSLUCENCY_COMPOSE_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: AMBIENT_OCCLUSION_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: SUBSURFACE_PASS, stage: 'lighting', block: 'other' }),
   definePass({ label: RESPONSIVE_CLEAR_PASS, stage: 'antialiasing', block: 'other' }),

@@ -10,6 +10,13 @@ import {
   MESH_GRID_SCATTER_WGSL,
   MESH_GRID_START_OFFSETS_WGSL,
 } from '../../lighting/rays/meshTrace/cullWgsl.ts'
+import {
+  RTT_RESOLVE_ENTRY,
+  RTT_SPATIAL_ENTRY,
+  RTT_TEMPORAL_ENTRY,
+  tracedTranslucencyDenoiseProgram,
+} from '../../lighting/reflections/translucency/denoiseWgsl.ts'
+import { tracedTranslucencyProgram } from '../../lighting/reflections/translucency/traceWgsl.ts'
 import { SCENE_CULL_WGSL } from '../../lighting/rays/sceneTrace/sceneCullWgsl.ts'
 import { SCENE_TRACE_PROBE } from '../../lighting/rays/sceneTrace/sceneTraceProbe.fixture.ts'
 import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
@@ -25,6 +32,11 @@ export const SCENE_TRACE_SHADERS: Record<string, string> = {
   REFLECTION_TRACE_POLYFILL_SHADER: reflectionTraceShader(false, false, 'polyfill'),
   REFLECTION_TRACE_POLYFILL_STATISTICS_SHADER: reflectionTraceShader(true, false, 'polyfill'),
   CACHE_TRACED_PROGRAM,
+  // The traced translucency's trace, over the scene's triangles, and its denoising (`lighting/reflections/translucency/`).
+  TRACED_TRANSLUCENCY_PROGRAM: tracedTranslucencyProgram(WORD_LIGHT_FORMAT),
+  TRACED_TRANSLUCENCY_RESOLVE_PROGRAM: tracedTranslucencyDenoiseProgram(RTT_RESOLVE_ENTRY),
+  TRACED_TRANSLUCENCY_TEMPORAL_PROGRAM: tracedTranslucencyDenoiseProgram(RTT_TEMPORAL_ENTRY),
+  TRACED_TRANSLUCENCY_SPATIAL_PROGRAM: tracedTranslucencyDenoiseProgram(RTT_SPATIAL_ENTRY),
   SCENE_CULL_WGSL,
   // The mesh distance fields' grid of the trace (`lighting/rays/meshTrace/`): the culling, the scatter, the start offsets and the compaction.
   MESH_GRID_CULL_WGSL,

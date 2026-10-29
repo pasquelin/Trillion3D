@@ -9,6 +9,7 @@ import { words } from '../../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
 import { destroyRetired } from '../../../gpu/core/frameRetire.ts'
 import { ensureSceneTrace, sceneTraceWords, type TracedWorld } from './sceneTraceResources.ts'
 import { SCENE_TRACE_PARAMS } from './sceneTraceWgsl.ts'
+import { TRACED_MATERIAL_WORDS } from '../../reflections/translucency/materialWords.ts'
 import {
   CULLING,
   WORLD,
@@ -19,6 +20,9 @@ import {
   worldOf,
 } from './sceneTraceTable.fixture.ts'
 
+/** The words the table holds for each placement it has room for: its record, its culling word and its material. */
+const PLACEMENT_WORDS = 2 + TRACED_MATERIAL_WORDS
+
 test('the table has room for a word for each cell of each instance of the world DAG, when the file has its directory', () => {
   const world = worldOf(40, 2, () => false)
   // Two instances of forty words each, after the four words of records and the placements' room.
@@ -26,17 +30,21 @@ test('the table has room for a word for each cell of each instance of the world 
     nodes: 8,
     triangles: 12,
     corners: 4,
-    table: 4 + 8 + 80,
+    table: 4 + 4 * PLACEMENT_WORDS + 80,
   })
   assert.deepEqual(
     sceneTraceWords(fileOf(), 3, world),
     sceneTraceWords(fileOf(), 3),
     'no directory: none',
   )
-  assert.equal(sceneTraceWords(worldFileOf(), 3).table, 4 + 8, 'no world in the cut: none')
+  assert.equal(
+    sceneTraceWords(worldFileOf(), 3).table,
+    4 + 4 * PLACEMENT_WORDS,
+    'no world in the cut: none',
+  )
   // A third instance rounds to four.
   const three = worldOf(40, 3, () => false)
-  assert.equal(sceneTraceWords(worldFileOf(), 3, three).table, 4 + 8 + 160)
+  assert.equal(sceneTraceWords(worldFileOf(), 3, three).table, 4 + 4 * PLACEMENT_WORDS + 160)
   const { device } = fakeDevice()
   const file = worldFileOf()
   const kept = ensureSceneTrace(undefined, device, file, 3, world).sceneTrace!

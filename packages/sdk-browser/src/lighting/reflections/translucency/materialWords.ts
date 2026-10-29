@@ -1,0 +1,117 @@
+import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { clamp } from '../../../../../math/src/scalar/reals.ts'
+
+/** The words a placement's material takes in the scene trace's table (`sceneTraceResources.ts`): sixteen floats, read by a hit through its placement. */
+export const TRACED_MATERIAL_WORDS = 16
+
+/** The words of a material by name: the diffuse colour (3), the opacity, the emitted light (3), the roughness, the share of the light the medium lets through (3), the index of refraction, the specular colour (3) and the flags. */
+export const TRACED_MATERIAL_AT = {
+  diffuse: 0,
+  opacity: 3,
+  emissive: 4,
+  roughness: 7,
+  through: 8,
+  ior: 11,
+  specular: 12,
+  flags: 15,
+} as const
+
+/** The flags of a material: it is worn (a placement without a surface is opaque grey), it is translucent (blended or transmissive). */
+export const TRACED_MATERIAL_FLAGS = { worn: 1, translucent: 2 } as const
+
+/** What the words take of a surface a placement wears. */
+export interface TracedSurface {
+  readonly baseColor: readonly number[]
+  readonly metalness: number
+  readonly roughness: number
+  readonly emissive: readonly number[]
+  readonly opacity: number
+  readonly transparent?: boolean
+  readonly transmission?: number
+  readonly ior?: number
+  readonly attenuationColor?: readonly number[]
+}
+
+/** The dielectric reflectance at normal incidence (the specular colour of a non-metal). */
+const DIELECTRIC_F0 = 0.04
+
+const clamp01 = (v: number) => clamp(v, 0, 1)
+
+/**
+ * THE MATERIAL WORDS OF A SURFACE, written into `out` at `at` (`TRACED_MATERIAL_WORDS` floats): the diffuse colour (the base colour less its metalness), the specular colour (the dielectric
+ * reflectance mixed to the base colour by the metalness), the roughness, the emitted light, the opacity (the coverage of a blended surface; one for an opaque one), and, for a transmissive one,
+ * the index of refraction and the colour its medium lets through (its attenuation colour times its transmission) — a blended surface lets through what its coverage leaves. A surface the
+ * material graph shades by texture is read at its constants: the hit lighting reads the textures where it lights a hit.
+ */
+export function writeTracedMaterial(
+  out: Float32Array<ArrayBuffer>,
+  at: number,
+  surface: TracedSurface | undefined,
+) {
+  out.fill(0, at, at + TRACED_MATERIAL_WORDS)
+  const A = TRACED_MATERIAL_AT
+  if (!surface) {
+    out.fill(0.5, at + A.diffuse, at + A.diffuse + 3)
+    out.fill(DIELECTRIC_F0, at + A.specular, at + A.specular + 3)
+    out[at + A.opacity] = 1
+    out[at + A.roughness] = 1
+    out[at + A.ior] = 1
+    return
+  }
+  const metal = clamp01(surface.metalness)
+  const transmission = clamp01(surface.transmission ?? 0)
+  const tint = surface.attenuationColor ?? [1, 1, 1]
+  for (let c = 0; c < 3; c++) {
+    const base = surface.baseColor[c]!
+    out[at + A.diffuse + c] = base * (1 - metal)
+    out[at + A.specular + c] = DIELECTRIC_F0 * (1 - metal) + base * metal
+    out[at + A.emissive + c] = surface.emissive[c]!
+    out[at + A.through + c] = transmission * tint[c]!
+  }
+  out[at + A.opacity] = clamp01(surface.opacity)
+  out[at + A.roughness] = clamp01(surface.roughness)
+  out[at + A.ior] = transmission > 0 ? Math.max(surface.ior ?? 1.5, 1) : 1
+  const translucent = !!surface.transparent || transmission > 0
+  new Uint32Array(out.buffer, out.byteOffset, out.length)[at + A.flags] =
+    TRACED_MATERIAL_FLAGS.worn | (translucent ? TRACED_MATERIAL_FLAGS.translucent : 0)
+}
+
+/** The material words of every root, in the order of the cut's roots. */
+export function tracedMaterialsOf(
+  roots: readonly { readonly worn?: { readonly surface: TracedSurface } }[],
+  out: Float32Array<ArrayBuffer> = new Float32Array(
+    Math.max(roots.length, 1) * TRACED_MATERIAL_WORDS,
+  ),
+) {
+  roots.forEach((root, rank) =>
+    writeTracedMaterial(out, rank * TRACED_MATERIAL_WORDS, root.worn?.surface),
+  )
+  return out
+}
+
+/**
+ * A HIT'S MATERIAL (`rttMaterialOf`): the words of the placement a hit met (the table's `stParams.materialWord` on, `TRACED_MATERIAL_WORDS` a placement) read as the path reads them
+ * (`RttMaterial`, `pathWgsl.ts`). A placement's blend mode is translucent where it is blended or transmissive; the rest of the scene is opaque. The text lists the scene trace's
+ * declarations (`stTable`, `stParams`) and the structure of the path, which the program that lists it also lists.
+ */
+export const TRACED_MATERIAL_WGSL = wgslBlock(
+  'TRACED_MATERIAL_WGSL',
+  [],
+  `${wgslConsts({ RTT_MATERIAL_WORDS: TRACED_MATERIAL_WORDS, RTT_FLAG_TRANSLUCENT: TRACED_MATERIAL_FLAGS.translucent })}
+fn rttMaterialFloat3(at:u32)->vec3f{return bitcast<vec3f>(vec3u(stTable[at],stTable[at+1u],stTable[at+2u]));}
+fn rttMaterialOf(placement:u32)->RttMaterial{
+ let at=stParams.materialWord+placement*RTT_MATERIAL_WORDS;
+ var m:RttMaterial;
+ m.diffuse=rttMaterialFloat3(at+${TRACED_MATERIAL_AT.diffuse}u);
+ m.opacity=bitcast<f32>(stTable[at+${TRACED_MATERIAL_AT.opacity}u]);
+ m.emissive=rttMaterialFloat3(at+${TRACED_MATERIAL_AT.emissive}u);
+ m.roughness=bitcast<f32>(stTable[at+${TRACED_MATERIAL_AT.roughness}u]);
+ m.through=rttMaterialFloat3(at+${TRACED_MATERIAL_AT.through}u);
+ m.ior=bitcast<f32>(stTable[at+${TRACED_MATERIAL_AT.ior}u]);
+ m.specular=rttMaterialFloat3(at+${TRACED_MATERIAL_AT.specular}u);
+ m.blend=select(0u,1u,(stTable[at+${TRACED_MATERIAL_AT.flags}u]&RTT_FLAG_TRANSLUCENT)!=0u);
+ m.holdout=false;
+ return m;
+}`,
+)

@@ -20,6 +20,7 @@ import { composeLateOnto, composeTranslucency } from '../../blend/translucencyCo
 import { layerDraws } from '../../blend/translucencyPhase.ts'
 import { effectsShown } from '../../post/effects/stagePlan.ts'
 import { keepsLitImage } from '../../lighting/reflections/frame.ts'
+import { encodeTracedTranslucency } from '../../lighting/reflections/translucency/stage.ts'
 import { blendLightResources } from '../../blend/lighting.ts'
 import { directLightResources, heldDirectLightResources } from '../prepare/contractLight.ts'
 import { holdoutOn } from '../prepare/alphaHoldout.ts'
@@ -243,11 +244,13 @@ export function encodeBlend(
   composeHairStrands(rt, device, encoder, 'beforeTranslucent')
   if (contract)
     countBlendDraws(rt, encodeDistortion(rt, device, encoder, vis.blendPipelines?.transmission))
+  // The see-through surfaces drawn by rays in the lit image, where the image can trace them: the raster draws of the transparents are left out then (particles are still drawn).
+  const traced = encodeTracedTranslucency(rt, device, encoder)
   for (const { at, active, only } of draws) {
     if (!active) continue
     // The late layers draw into their own targets, which the draws read as the translucency target.
     if (at === 2) gpu.translucency = main!.late
-    if (contract) drawBlendPass(rt, device, encoder, contract, blendState.drawViews[at])
+    if (contract && !traced) drawBlendPass(rt, device, encoder, contract, blendState.drawViews[at])
     if (tone) drawParticles(rt, encoder, tone, only || undefined)
     gpu.translucency = main
     if (at === 0) {

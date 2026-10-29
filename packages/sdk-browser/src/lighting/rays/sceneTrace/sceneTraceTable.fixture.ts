@@ -1,5 +1,6 @@
 // The fixtures of the scene trace's resources tests: a ray tracing file, a cut packing a world DAG, the table's words and the culling of the defaults.
 import type { RayTracing } from '../../../../../sdk-core/src/lighting/rayTracingFile.ts'
+import { TRACED_MATERIAL_WORDS } from '../../reflections/translucency/materialWords.ts'
 import { words } from '../../../../../../tests/kit/fakeDevice/fakeBuffers.ts'
 import type { TracedWorld } from './sceneTraceResources.ts'
 import { SCENE_TRACE_CELL_DRAWN, SCENE_TRACE_WORLD_BIT } from './sceneTraceWgsl.ts'
@@ -41,9 +42,12 @@ export const worldOf = (
 
 export const worldFileOf = (): RayTracing => ({ ...fileOf(), world: 1, actorCells: 3 })
 
-/** The words of the table of `trace`. */
-export const tableOf = (trace: { readonly table: GPUBuffer }) =>
-  Array.from(words((trace.table as unknown as { data: Uint8Array }).data))
+/** The words of the table of `trace`, less the placements' material words at its end (`materialWords.test.ts`, the table test below read them). */
+export const tableOf = (trace: { readonly table: GPUBuffer; readonly capacity: number }) =>
+  Array.from(words((trace.table as unknown as { data: Uint8Array }).data)).slice(
+    0,
+    -trace.capacity * TRACED_MATERIAL_WORDS,
+  )
 
 /** A cell's word: drawn, a hit on it told by the rank `object` (none, by default: the rank plus one is zero). */
 export const drawn = (object?: number) =>

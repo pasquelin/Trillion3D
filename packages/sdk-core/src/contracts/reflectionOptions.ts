@@ -22,6 +22,10 @@ import {
   type SettingValues,
 } from './settingRules.ts'
 import {
+  TRACED_TRANSLUCENCY_RULES,
+  type TracedTranslucencyValues,
+} from './tracedTranslucencyOptions.ts'
+import {
   DEFAULT_REFLECTION_LEVEL,
   REFLECTION_LEVEL_KNOBS,
   REFLECTION_LEVELS,
@@ -208,6 +212,7 @@ export const REFLECTION_RULES = /* @__PURE__ */ (() =>
     nonNegative('reflectionSkylightLeakingTintBlue', 1),
     nonNegative('reflectionSkylightLeakingAverageAlbedo', 0.25),
     flag('reflectionStatistics', false),
+    ...TRACED_TRANSLUCENCY_RULES,
   ] as const))()
 /** The field of one setting of the reflections. */
 export type ReflectionField = keyof typeof REFLECTION_RULES
@@ -234,6 +239,8 @@ export interface WaterFrontSettings {
 
 /** What a view's reflection rays are spent on: every number the trace reads, in the tracer's units. */
 export interface ReflectionSettings {
+  /** The traced translucency's settings, resolved (`tracedTranslucencyOptions.ts`). */
+  traced: TracedTranslucencyValues
   /** The level the settings were resolved at, and whether the view traces at all: false at `'off'`. */
   level: ReflectionLevel
   enabled: boolean
@@ -441,6 +448,7 @@ export function resolveReflections(
   const knobs = REFLECTION_LEVEL_KNOBS[enabled ? level : DEFAULT_REFLECTION_LEVEL]
   const density = densityOf(values, knobs)
   return {
+    traced: values,
     level,
     enabled,
     block: density.block,

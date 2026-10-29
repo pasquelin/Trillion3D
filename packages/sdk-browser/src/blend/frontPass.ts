@@ -5,6 +5,7 @@ import { drawBlendRuns, type BlendRuns } from './draw.ts'
 import { waterFrontOf } from './water/waterReflection.ts'
 import { lightsFrontLayer } from '../lighting/manyLightsSampled/frame.ts'
 import { tracesTranslucent } from '../lighting/shadows/vsm/frame/vsmGates.ts'
+import { tracedTranslucencyTraced } from '../lighting/reflections/translucency/stage.ts'
 
 /** The front pass's runs: no reflection read, near to far — the depth it writes rejects early
  *  what lies behind (`BlendRuns`). */
@@ -21,8 +22,8 @@ const FRONT_RUNS: BlendRuns = { reflected: false, nearFirst: true, water: 'with'
  * too — with its lobes where one carries them —, the store's front cells held from then on
  * (`holdFront`). None without transparents or a depth pyramid, and none unless a feature reads the layer it
  * writes: the front layer's reflections (`reflectionFrontLayer`), the depth pyramid's fold of the transparents
- * (`hizFoldTransparents`) or the shadow pages the translucent surfaces mark (`shadowTranslucentQuality` 1,
- * `markingFrontLayer`); a stage still compiling is asked, off the frame, the frames held until it lands.
+ * (`hizFoldTransparents`), the shadow pages the translucent surfaces mark (`shadowTranslucentQuality` 1,
+ * `markingFrontLayer`) or the traced translucency, which casts its rays where the layer covers the opaque depth (`tracedTranslucencyTraced`); a stage still compiling is asked, off the frame, the frames held until it lands.
  * Drawn once an image: before the lights where the marking has no front layer of the image before to
  * read (`drawsFrontBeforeMarking`, `encodeMarkedLayers`), the call after them then draws nothing.
  */
@@ -49,13 +50,19 @@ export function encodeFrontPass(
     !frontLayer &&
     !sampledFront &&
     !readHizSetting(rt, 'hizFoldTransparents') &&
-    !tracesTranslucent(rt)
+    !tracesTranslucent(rt) &&
+    !tracedTranslucencyTraced(rt)
   )
     return
   // The reflecting surface is written only where the trace answers the front layer (`ReflectionSettings.frontLayer`) or the sampled lighting lights it
   // (`sampledLightsFrontLayer`, which also takes its base colour, of every lit model): else the covering depth alone, which the depth pyramid folds in.
+  // The traced translucency's denoiser reads the layer's normal and roughness.
   const outputs: FrontOutputs =
-    blendState.frontLit && sampledFront ? 3 : frontLayer ? blendState.frontOutputs : 0
+    blendState.frontLit && sampledFront
+      ? 3
+      : frontLayer || tracedTranslucencyTraced(rt)
+        ? (Math.max(blendState.frontOutputs, 1) as FrontOutputs)
+        : 0
   const set = vis.blendPipelines.front(outputs)
   if (!set.ready) return set.ask()
   const hizFront = hiz.front(true)

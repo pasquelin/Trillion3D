@@ -40,6 +40,11 @@ import {
   TREE_STEPS,
 } from '../../../geometry/dag/tree/treeWalkWgsl.ts'
 import { PLACEMENT_ENTER_WGSL } from '../rayPlacementWgsl.ts'
+import {
+  TRACED_MATERIAL_AT,
+  TRACED_MATERIAL_FLAGS,
+  TRACED_MATERIAL_WORDS,
+} from '../../reflections/translucency/materialWords.ts'
 import type { SceneTrace } from './sceneTraceResources.ts'
 import { WIDE_TRAVERSAL_WGSL, wideTraversal } from '../wideTraversalWgsl.ts'
 
@@ -71,7 +76,8 @@ const SCENE_TRACE_CELL_OBJECT_MASK = 0x7fffffff
  * culling of the placements (`sceneCullWgsl.ts`, which writes the words of the table at `cullWord`, one for
  * each placement, nonzero for one left out of the image): its mode, its switches (`SCENE_CULL_FLAGS`), the
  * direction the view looks along and the scale of the instances' draw distances, and whether the translucent primitives of a mesh that has
- * an opaque one are left out of the rays that ask it (`ST_SKIP_TRANSLUCENT`; `skipsTranslucentSections`, one by default).
+ * an opaque one are left out of the rays that ask it (`ST_SKIP_TRANSLUCENT`; `skipsTranslucentSections`, one by default), and where in the table the
+ * placements' material words begin (`materialWord`, `TRACED_MATERIAL_WORDS` a placement, which the traced translucency reads a hit's material from).
  */
 export const SCENE_TRACE_PARAMS = fieldLayout('StParams', [
   ['eyeXY', 'vec4u'],
@@ -93,6 +99,7 @@ export const SCENE_TRACE_PARAMS = fieldLayout('StParams', [
   ['viewDirection', 'vec3f'],
   ['viewDistanceScale', 'f32'],
   ['skipsTranslucentSections', 'u32'],
+  ['materialWord', 'u32'],
 ] as const)
 
 /** The parameters' uniform `stParams` at binding `binding` of group `group`: what the trace and the culling pass share. */
@@ -154,6 +161,7 @@ const SCENE_TRACE_FLAGS = {
   meetWorldSpace: 64,
   barycentric: 128,
   meetTranslucent: 256,
+  onlyTranslucent: 512,
 } as const
 
 const R = RAY_TRACING_RECORD_AT
@@ -195,6 +203,10 @@ const SCENE_TRACE_CONSTS = wgslConsts({
   ST_MEET_WORLD_SPACE: SCENE_TRACE_FLAGS.meetWorldSpace,
   ST_BARYCENTRIC: SCENE_TRACE_FLAGS.barycentric,
   ST_MEET_TRANSLUCENT: SCENE_TRACE_FLAGS.meetTranslucent,
+  ST_ONLY_TRANSLUCENT: SCENE_TRACE_FLAGS.onlyTranslucent,
+  ST_MATERIAL_WORDS: TRACED_MATERIAL_WORDS,
+  ST_MATERIAL_FLAGS_AT: TRACED_MATERIAL_AT.flags,
+  ST_MATERIAL_TRANSLUCENT: TRACED_MATERIAL_FLAGS.translucent,
   ST_WORLD_SPACE_ROOT: WORLD_SPACE_ROOT,
 })
 /** The least exponent a node's scale takes, the compiler's (`RAY_TRACING_MIN_EXPONENT`). */
@@ -394,6 +406,8 @@ fn stEnter(w:u32,best:StHit,inverse:vec3f)->StHit{
  if(nodes==0u){return best;}
  let flags=stTable[at+ST_RECORD_FLAGS];
  if(stSkipsTranslucent(flags)){return best;}
+ // A ray that meets only the translucent surfaces passes the placements whose material is not.
+ if((stRay.flags&ST_ONLY_TRANSLUCENT)!=0u&&(stTable[stParams.materialWord+w*ST_MATERIAL_WORDS+ST_MATERIAL_FLAGS_AT]&ST_MATERIAL_TRANSLUCENT)==0u){return best;}
  let entry=placementEnter(w,stParams.eyeXY,stParams.eyeZ,stRay.origin,stRay.direction);
  if(!entry.found||((stRay.flags&ST_SHADOW)!=0u&&(entry.mark&ST_CASTS_NO_SHADOW)!=0u)||((stRay.flags&ST_MEET_WORLD_SPACE)==0u&&(entry.mark&ST_WORLD_SPACE_ROOT)!=0u)){return best;}
  // The world box of the root, grown by the deformation's reach as the tree's leaf is: none past every finite one.

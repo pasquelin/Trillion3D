@@ -8,6 +8,7 @@ import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { ndcToPixel } from '../../../../math/src/wgsl/projection.ts'
 import { surfaceReflects } from '../../materials/surface/surfaceModel.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
+import { REFLECTION_GROUP, reflectionBindingsWgsl } from './viewLayout.ts'
 import { REFLECTION_FRAME_WGSL } from './sampleWgsl.ts'
 import { REFLECTION_TOP_LOBE_WGSL } from './weight.ts'
 import { REFLECTION_GRID_FORMAT } from './grids.ts'
@@ -20,6 +21,17 @@ import {
 } from './trace/traceBindings.ts'
 import { REFLECTION_SURFACES_WGSL } from './surfacesWgsl.ts'
 import { REFLECTION_TEXEL_WGSL } from './texelWgsl.ts'
+
+/** The disc of the reuse (`reflectionReuseSeed`, `reflectionReuseTap`): the seed of a pixel and the `k`-th of `taps` points of its stratified disc, which the
+ *  last pass of the traced translucency filters over as well. */
+export const REFLECTION_DISC_WGSL = wgslBlock(
+  'REFLECTION_DISC_WGSL',
+  [reflectionBindingsWgsl(REFLECTION_GROUP), rand3dPcg16, hammersley16, uniformDiskConcentric],
+  `/** The seed of the disc at pixel \`p\` this image: the hash of the pixel and the frame index modulo eight. */
+fn reflectionReuseSeed(p:vec2i)->vec2u{return rand3dPcg16(vec3i(p,i32(reflectionView.temporal.y))).xy;}
+/** The \`k\`-th of \`taps\` taps of the disc of seed \`seed\`, over a radius of one. */
+fn reflectionReuseTap(k:u32,taps:u32,seed:vec2u)->vec2f{return uniformDiskConcentric(hammersley16(k,taps,seed));}`,
+)
 
 /**
  * THE REUSE'S RULES: the disc a pixel reads its neighbours on, the resolve's and the last pass's
@@ -44,16 +56,10 @@ export const REFLECTION_REUSE_WGSL = wgslBlock(
     REFLECTION_SURFACES_WGSL,
     REFLECTION_CONSTANTS_WGSL,
     REFLECTION_FRAME_WGSL,
+    REFLECTION_DISC_WGSL,
     PI,
-    rand3dPcg16,
-    hammersley16,
-    uniformDiskConcentric,
   ],
-  `/** The seed of the disc at pixel \`p\` this image: the hash of the pixel and the frame index modulo eight. */
-fn reflectionReuseSeed(p:vec2i)->vec2u{return rand3dPcg16(vec3i(p,i32(reflectionView.temporal.y))).xy;}
-/** The \`k\`-th of \`taps\` taps of the disc of seed \`seed\`, over a radius of one. */
-fn reflectionReuseTap(k:u32,taps:u32,seed:vec2u)->vec2f{return uniformDiskConcentric(hammersley16(k,taps,seed));}
-/** The GGX distribution of the half vector \`h\` on the lobe of normal \`N\` laid on the frame \`f\`, its widths \`widths\` along the frame's
+  `/** The GGX distribution of the half vector \`h\` on the lobe of normal \`N\` laid on the frame \`f\`, its widths \`widths\` along the frame's
  *  tangent and across it (round where they are equal). */
 fn reflectionLobeDensity(N:vec3f,f:ReflectionFrame,widths:vec2f,h:vec3f)->f32{
  let a2=widths.x*widths.y;

@@ -7,6 +7,11 @@ import { ensureSet, type HeldSet } from '../../../gpu/core/heldTextures.ts'
 import type { ResourceAllocator } from '../../../gpu/core/resourceAllocator.ts'
 import type { GpuSelection } from '../../../gpu/core/selection.ts'
 import type { DagReadTables } from '../../../geometry/dag/shader/bindings.ts'
+import {
+  TRACED_MATERIAL_WORDS,
+  tracedMaterialsOf,
+  type TracedSurface,
+} from '../../reflections/translucency/materialWords.ts'
 import { createCullGroups, encodeSceneCull } from './sceneCullPass.ts'
 import { SCENE_CULL_FLAGS, SCENE_CULL_MODE } from './sceneCullWgsl.ts'
 import {
@@ -64,6 +69,8 @@ interface TracedRoot {
   readonly standsFor?: number
   readonly instance?: number
   readonly field?: { readonly mesh: number }
+  /** The surface its placement wears: the material words (`TRACED_MATERIAL_WORDS`) are made of it. */
+  readonly worn?: { readonly surface: TracedSurface }
 }
 
 /** What the trace reads of the cut's world DAG: which HLOD actors the cut draws this frame
@@ -81,7 +88,7 @@ interface TableShape {
 
 /** The words of the scene trace's storage buffers: the file's nodes and triangles, the attributes of the triangles' corners (at least a vec4, whether the file has them or not), and the table — the file's
  *  records, a word for each placement the table has room for, the cells' words, then a word for each placement again:
- *  whether the image's culling left it out (`SceneTrace.cullPlacements`). */
+ *  whether the image's culling left it out (`SceneTrace.cullPlacements`), then `TRACED_MATERIAL_WORDS` for each placement: its material. */
 export interface SceneTraceWords {
   readonly nodes: number
   readonly triangles: number
@@ -133,7 +140,10 @@ const tableWords = (file: RayTracing, shape: TableShape): SceneTraceWords => ({
   nodes: file.nodes.length,
   triangles: file.triangles.length,
   corners: Math.max(file.corners.length, 4),
-  table: file.records.length + 2 * shape.placements + shape.instances * shape.cells,
+  table:
+    file.records.length +
+    (2 + TRACED_MATERIAL_WORDS) * shape.placements +
+    shape.instances * shape.cells,
 })
 
 /** The buffers of a scene trace of `words`, asked of `allocator`. */
@@ -233,8 +243,25 @@ function placementTable(device: GPUDevice, file: RayTracing, table: GPUBuffer, s
   const { byPrimitive } = file,
     placementWord = file.records.length,
     cellsWord = placementWord + shape.placements,
-    cullWord = cellsWord + shape.instances * shape.cells
+    cullWord = cellsWord + shape.instances * shape.cells,
+    materialWord = cullWord + shape.placements
   const writeCells = cellWordsWriter(device, table, cellsWord, shape)
+  // The materials are made again each call (a surface may change under the same roots) and written when they differ from the words last written.
+  let materials = new Float32Array(0),
+    writtenMaterials = new Float32Array(0)
+  const writeMaterials = (roots: readonly TracedRoot[]) => {
+    if (roots.length > shape.placements) return
+    if (materials.length !== roots.length * TRACED_MATERIAL_WORDS)
+      materials = new Float32Array(roots.length * TRACED_MATERIAL_WORDS)
+    tracedMaterialsOf(roots, materials)
+    if (
+      writtenMaterials.length === materials.length &&
+      writtenMaterials.every((word, at) => Object.is(word, materials[at]))
+    )
+      return
+    writtenMaterials = materials.slice()
+    device.queue.writeBuffer(table, materialWord * 4, materials)
+  }
   let synced = 0,
     scratch = new Uint32Array(0),
     lastRoots: readonly TracedRoot[] | undefined
@@ -242,6 +269,7 @@ function placementTable(device: GPUDevice, file: RayTracing, table: GPUBuffer, s
     placementWord,
     cellsWord,
     cullWord,
+    materialWord,
     get placements() {
       return synced
     },
@@ -251,6 +279,7 @@ function placementTable(device: GPUDevice, file: RayTracing, table: GPUBuffer, s
       cacheRoots: readonly TracedRoot[] = roots,
     ) {
       writeCells(world, roots, cacheRoots)
+      writeMaterials(roots)
       // The cut's roots only ever grow by appending, each with its mesh and primitive fixed: the list and its length name the table.
       if (roots === lastRoots && roots.length === synced) return
       if (roots.length > shape.placements)
@@ -293,6 +322,7 @@ function paramsWriter(
     readonly placementWord: number
     readonly cellsWord: number
     readonly cullWord: number
+    readonly materialWord: number
     readonly cells: number
   },
 ) {
@@ -325,6 +355,7 @@ function paramsWriter(
     floats.set(culling.direction, P.viewDirection)
     floats[P.viewDistanceScale] = culling.viewDistanceScale
     words[P.skipsTranslucentSections] = view.skipsTranslucentSections ? 1 : 0
+    words[P.materialWord] = where.materialWord
     if (written?.every((word, at) => word === words[at])) return
     written ??= new Uint32Array(words.length)
     written.set(words)
@@ -366,6 +397,7 @@ function makeSceneTrace(
       placementWord: placed.placementWord,
       cellsWord: placed.cellsWord,
       cullWord: placed.cullWord,
+      materialWord: placed.materialWord,
       cells: shape.cells,
     }),
     cullGroups = createCullGroups()

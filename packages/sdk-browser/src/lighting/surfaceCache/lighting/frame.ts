@@ -9,6 +9,7 @@ import { radianceCacheTraced } from '../../bounce/cache/cacheFrame.ts'
 import { occlusionTraced, reservoirsTraced, screenProbesTraced } from '../../bounce/screen/cast.ts'
 import { screenProbeSettingsOf } from '../../bounce/screen/settingsOf.ts'
 import { translucencyGiTraced } from '../../translucencyGi/frame.ts'
+import { tracedTranslucencyTraced } from '../../reflections/translucency/stage.ts'
 import { reflectionsTraced } from '../../reflections/hardware.ts'
 import { hardwareRayTracing, surfaceCacheRaysOf } from '../../rays/hardwareRayTracing.ts'
 import { pathTracingOn } from '../../pathTracing/enabled.ts'
@@ -84,10 +85,11 @@ export function lightSurfaceCache(
       direction: cameraForward<[number, number, number]>([0, 0, 0], frame.cam.world),
       transportEpoch: lights.store.transportEpoch,
       meshReach: reachOf(rt, state) + state.settings.surfaceCacheCardCaptureMargin,
-      // The path tracer casts every ray of its view through the scene's triangles, whatever the device's hardware; so do the reservoirs, once the setting chose them over the probes, and the ray traced shadows of the lights that ask for them.
+      // The path tracer casts every ray of its view through the scene's triangles, whatever the device's hardware; so do the reservoirs, once the setting chose them over the probes, the ray traced shadows of the lights that ask for them, and the traced translucency (its own setting is the whole gate).
       probes:
         pathTracingOn(rt) ||
         reservoirsTraced(rt) ||
+        tracedTranslucencyTraced(rt) ||
         rayTracedShadowsTraced(rt) ||
         (hardwareRayTracing() &&
           (radianceCacheTraced(rt) ||

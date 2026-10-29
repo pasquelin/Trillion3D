@@ -3925,6 +3925,34 @@ surface's reflectance, faded in over the first 50 cm of water above the scene, a
 `reflectionFrontLayer` says (at every level that traces reflections). The water's depth becomes the scene's: fog,
 particles and the transparents drawn after are hidden behind it.
 
+#### Traced translucency
+
+Options of the reflections (`packages/sdk-core/src/contracts/tracedTranslucencyOptions.ts`), each with the reference's default.
+`translucencyType: 'rayTraced'` (or `rayTracedTranslucency: 'on'`) draws the see-through surfaces with rays cast through the scene's
+triangles, a primary path from the eye through up to `translucencyMaxPrimaryHitEvents` (4) surfaces and off each a secondary path of up to
+`translucencyMaxSecondaryHitEvents` (2) more, ended when its throughput falls under `rayTracedTranslucencyPathThroughputThreshold` (0.001);
+`translucencyRefraction` bends the rays through surfaces of an index of refraction above one (and keeps the rays one a pixel);
+`rayTracedTranslucencyForceOpaque`, `rayTracedTranslucencySampleTranslucentReflectionInReflections` (true), `rayTracedTranslucencyDownsampleFactor` (1)
+and `rayTracedTranslucencyMaxRayIntensity` (1000, in the display's white) complete it.
+
+```js
+const world = await createWorld({
+  reflections: {
+    translucencyType: 'rayTraced',
+    translucencyRefraction: true,
+    translucencyMaxPrimaryHitEvents: 6,
+  },
+})
+world.reflections = { rayTracedTranslucencyMaxRayIntensity: 200 } // changed from the next frame
+```
+
+The traced translucency runs where the scene is traced through its triangles and the image has a transparent front layer: one ray a pixel the layer covers (a block of
+`rayTracedTranslucencyDownsampleFactor` pixels a side casting one) is cast from the eye to just short of the opaque depth, the radiance, the throughput and the
+background it lets show are resolved and accumulated over the images (the reflections' history length and clamp), and the lit image is multiplied by the throughput and
+the radiance laid over it. The raster draws of the transparents are then left out (particles are still drawn); until the kernels are compiled, or where the image
+has no front layer, the raster draws them as before. A hit's material is the constants of the surface its placement wears; its light is the surface cache's where the
+placement has cards, plus the sky light's irradiance on the diffuse colour of a translucent surface.
+
 ```js
 const g = material.graph('surface')
 g.output('baseColor', g.constant(0.05, 0.08, 0.1))
