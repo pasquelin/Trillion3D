@@ -32,6 +32,8 @@ export type BlendCopy = {
   placement?: PlacementOf
   /** True while the host hides the source mesh or one of its ancestors (`placement/hidden.ts`). */
   hidden?: boolean
+  /** Its source's rank among the sources, the order the copies are made in: not a sort priority
+   *  (`blend/prepare.ts`). */
   renderOrder: number
   /** The source mesh the copy stands for: none for the world DAG's blended sections
    *  (`ClusterRoot.mixed`). */

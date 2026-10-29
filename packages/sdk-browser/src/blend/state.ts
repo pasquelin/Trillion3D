@@ -38,7 +38,7 @@ export type BlendGpuItem = {
    *  (`refreshBlendScene`): what every lobe switch of the transparent passes is derived from. */
   lobed?: boolean
   surface: PageSurface
-  /** Its translucent sort priority: its copy's `renderOrder`, clamped to a signed 16-bit value,
+  /** Its translucent sort priority: its source node's `renderOrder`, clamped to a signed 16-bit value,
    *  what the sort key stores (`PRIORITY_BIAS`). The lower paints first, whatever its distance (`paintOrder.ts`). */
   priority: number
   matrix: MatrixElements

@@ -44,7 +44,7 @@ function blendItemOf(copy: BlendCopy) {
     transmissive: transmits,
     water: mat.water === true,
     surface: mat,
-    priority: sortPriority(copy.renderOrder),
+    priority: sortPriority(copy.drawSource?.node?.renderOrder ?? 0),
     matrix: copy.matrix,
     placement: copy.placement,
     drawSource: copy.drawSource,
@@ -57,7 +57,9 @@ function blendItemOf(copy: BlendCopy) {
   }
 }
 
-/** A sort priority clamped to a signed 16-bit value, what the sort key stores (`PRIORITY_BIAS`). */
+/** A sort priority clamped to a signed 16-bit value, what the sort key stores (`PRIORITY_BIAS`): the
+ *  author's translucent sort priority of the source node, zero by default — never its rank among the
+ *  sources (`BlendCopy.renderOrder`), which only orders the copies. */
 const sortPriority = (order: number) => clamp(Math.trunc(order), -0x8000, 0x7fff)
 
 /** What a copy's geometry brings to its item's flags, as a page row's block (`GeometryBlock`): the
