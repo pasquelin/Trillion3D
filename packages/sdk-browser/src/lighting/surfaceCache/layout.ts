@@ -20,7 +20,7 @@ import { INDIRECT_FORMAT } from './indirectWords.ts'
  * (64 MiB less at 4096), each a second variant of every kernel that touches a layer, to be taken where measured. `frames` is one word for
  * each tile of 8 × 8 texels, for the radiosity's accumulation.
  *
- * THE COMPRESSED ATLAS (`surfaceCacheCompress` 2, where the device has `texture-compression-bc`). The
+ * THE COMPRESSED ATLAS (`surfaceCacheCompress` 1 or 2, where the device has `texture-compression-bc`). The
  * albedo, the normal and the emission are kept as blocks of 4 × 4 texels, in BC7, BC5 and BC6H
  * (`BLOCK_FORMATS`); the depth and the lights are not. A block-compressed texture is no storage
  * texture, so the capture's encoders write the blocks of the pages of an image into a staging

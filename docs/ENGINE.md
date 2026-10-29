@@ -2552,7 +2552,7 @@ GPU side only while something asks for it each image: a diagnostic view of the a
 (`demandSurfaceCache`). The memory is `surfaceCacheAtlasSize`: 454 MiB at the default 4096 (seven layers of one 32-bit word a
 texel: depth, albedo, normal, emission, and the direct, indirect and final light; one kernel text serves every device, and a
 compressed texture is no storage texture), 117 MiB at 2048, 33 MiB at 1024, each with the capture atlas (5 MiB) and 9 MiB for the
-capture's surfaces. With `surfaceCacheCompress` 2 and a device that has `texture-compression-bc` the albedo, the normal and the
+capture's surfaces. With `surfaceCacheCompress` 1 (the default) or 2 and a device that has `texture-compression-bc` the albedo, the normal and the
 emission are kept in blocks (BC7, BC5, BC6H, a byte a texel): 311 MiB at 4096, 82 MiB at 2048, 25 MiB at 1024; the colour layers
 fall from 192 to 48 MiB at 4096. They are asked of the device's budget as one (`ledgerAdmitted`): where it leaves no room the cache
 is off and `metrics.surfaceCache.why` says so.
@@ -2586,7 +2586,7 @@ profile).
   it; **lights** writes the light they start with: the carried direct and indirect light and accumulation, and as final
   light the captured albedo over π times their sum plus the captured emission — no light at all without
   `surfaceCacheResampleLighting`.
-- **The compressed atlas** (`compress.ts`, `compressWgsl.ts`; `surfaceCacheCompress` 2). WebGPU has no view of a block-compressed
+- **The compressed atlas** (`compress.ts`, `compressWgsl.ts`; `surfaceCacheCompress` 1 and 2). WebGPU has no view of a block-compressed
   texture in another format to write through, so the blocks are made in a storage buffer and copied in. After the copy (which
   then writes the depth alone) a kernel for each layer — BC7 for the albedo, BC5 for the normal's two components, BC6H for the
   emission — encodes the blocks of 4 × 4 texels of every page of the image, a thread to a block, with the dilation applied as
@@ -2654,8 +2654,7 @@ profile).
   texels, 4 lights a tile, update factors 64 and 128, probes every 8 texels and 9 rays; the `balanced` preset a 2048-texel atlas at half the cards' density,
   at most 256 texels, update factors 128 and 128, 9 rays (the reference's medium global illumination, which gathers by the irradiance field); `ultra` and `cinematic` the settings' own defaults; a setting named over
   a row keeps its value.
-- **Not carried over**: the far field, the heightfields, the compression through a view of another format
-  (`surfaceCacheCompress` 1) and by the framebuffer, the merging of the cards of many instances; of the lighting, the adaptive
+- **Not carried over**: the far field, the heightfields, the compression by the framebuffer, the merging of the cards of many instances; of the lighting, the adaptive
   shadow tracing (the reference runs it with hardware ray tracing alone), the probes' occlusion (likewise), and the lighting
   channels. The cards' lights wear the light functions of `lightFunctionBounce`.
 

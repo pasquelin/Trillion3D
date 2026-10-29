@@ -23,19 +23,14 @@ import { BLOCK, BLOCK_LAYERS, CAPTURE_PARAMS, stagingOf } from './layout.ts'
  */
 
 /** Whether the atlas is kept compressed, and why not where it is not: `mode` is
- *  `surfaceCacheCompress`. Mode 0 never compresses; mode 1 writes the atlas through a view of another
- *  format, which a device cannot do on this API, and compresses nothing; mode 2 compresses by copy where
- *  the device has the block formats. */
+ *  `surfaceCacheCompress`. Mode 0 never compresses. Mode 1 writes the atlas through a view of another
+ *  format on a platform that has one; this API has none, so it takes the copy of mode 2 — same blocks,
+ *  same result — and, like it, compresses where the device has the block formats and nowhere else. */
 export function atlasCompression(
   device: Pick<GPUDevice, 'features'>,
   mode: number,
 ): { compressed: boolean; why: string | null } {
   if (mode === 0) return { compressed: false, why: 'surfaceCacheCompress is 0' }
-  if (mode === 1)
-    return {
-      compressed: false,
-      why: 'surfaceCacheCompress 1 writes the atlas through a view of another format, which WebGPU cannot do (2 compresses by copy)',
-    }
   if (!device.features.has(BLOCK_FEATURES.bc7))
     return { compressed: false, why: `the device lacks ${BLOCK_FEATURES.bc7}` }
   return { compressed: true, why: null }

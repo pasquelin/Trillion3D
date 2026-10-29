@@ -39,7 +39,7 @@ export interface SurfaceCacheFrameMetrics {
   why: string | null
   /** Whether the atlas keeps its albedo, normal and emission in blocks (BC7, BC5, BC6H: a quarter of
    *  the bytes of the plain layers, `surfaceCacheCompress`), and, where it does not, why: the setting is
-   *  0 or 1, or the device lacks the block formats. */
+   *  0, or the device lacks the block formats. */
   compressed: boolean
   compressionWhy: string | null
 }

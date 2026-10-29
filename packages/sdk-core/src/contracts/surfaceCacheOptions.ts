@@ -182,9 +182,9 @@ const DEBUG_RULES = /* @__PURE__ */ (() =>
  * `surfaceCacheNumFramesToKeepUnusedPages` (256) images after the last read. `surfaceCacheCompress` (1)
  * keeps the atlas's albedo, normal and emission in block-compressed textures (BC7, BC5, BC6H: a
  * quarter of the bytes of those layers, at the price of the formats' loss): 0 never, 1 by writing the
- * atlas through a view of another format and 2 by writing blocks to a buffer and copying them in. The
- * first is not possible on WebGPU, which has no such view: as on a platform that lacks it, 1 compresses
- * nothing; 2 needs the device's `texture-compression-bc`, and without it compresses nothing either.
+ * atlas through a view of another format and 2 by writing blocks to a buffer and copying them in. WebGPU
+ * has no such view, so 1 takes the copy of 2: the same blocks, wherever the device has
+ * `texture-compression-bc`; without it the atlas stays uncompressed.
  * A change empties the atlas.
  *
  * THE CARDS. A mesh gets cards when its largest face, scaled by its placement, exceeds
