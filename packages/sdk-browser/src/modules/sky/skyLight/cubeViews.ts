@@ -41,7 +41,7 @@ export const cubeOfArray = (texture: GPUTexture, cube: number) =>
 export const wholeCubeArray = (texture: GPUTexture) =>
   texture.createView({ dimension: 'cube-array' })
 
-/** The group of a mip's filtering pass: its block, the cube it reads, the nearest sampler and the
+/** The group of a mip's filtering pass: its block, the cube it reads, its sampler (bilinear for a mip, trilinear for the roughness filter) and the
  *  slices it writes. */
 export const filterBindGroup = (
   device: GPUDevice,

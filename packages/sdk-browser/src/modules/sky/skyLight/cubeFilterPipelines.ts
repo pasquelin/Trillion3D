@@ -22,7 +22,7 @@ export function cubeFilterLayouts(device: GPUDevice) {
     filter: layout([
       computeUniformEntry(0, { hasDynamicOffset: true, minBindingSize: 16 }),
       computeTextureEntry(1, 'float', 'cube'),
-      computeSamplerEntry(2, 'non-filtering'),
+      computeSamplerEntry(2, 'filtering'),
       computeStorageTextureEntry(3, SKY_LIGHT_CUBE_FORMAT, 'write-only', '2d-array'),
     ]),
     irradiance: layout([

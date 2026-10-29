@@ -100,14 +100,14 @@ export function createCaptureTargets(
     size: CUBE_FACES * BLOCK_STRIDE,
     usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
   })
-  const { clamped: bilinear, point: nearest } = postSamplers(device)
-  const filterGroup = (source: GPUTextureView, output: GPUTextureView) =>
+  const { clamped: bilinear, mipped: trilinear } = postSamplers(device)
+  const filterGroup = (source: GPUTextureView, sampler: GPUSampler, output: GPUTextureView) =>
     filterBindGroup(
       device,
       own.cube.layouts.filter,
       { buffer: filterBlock, size: 16 },
       source,
-      nearest,
+      sampler,
       output,
     )
   const range = Array.from({ length: mips }, (_, mip) => mip)
@@ -163,11 +163,11 @@ export function createCaptureTargets(
       downsample: range.map((mip) =>
         mip === 0
           ? undefined
-          : filterGroup(cubeMipView(captured, mip - 1), storageMip(captured, mip)),
+          : filterGroup(cubeMipView(captured, mip - 1), bilinear, storageMip(captured, mip)),
       ),
       /** Mip `m` of capture layer `layer`, from the captured cube. */
       convolve: Array.from({ length: capacity }, (_, layer) =>
-        range.map((mip) => filterGroup(capturedCube, storageMip(filtered, mip, layer))),
+        range.map((mip) => filterGroup(capturedCube, trilinear, storageMip(filtered, mip, layer))),
       ),
       /** The captured cube's harmonics (the sky light's sum, `capturedIrradianceMain`). */
       harmonics: device.createBindGroup({

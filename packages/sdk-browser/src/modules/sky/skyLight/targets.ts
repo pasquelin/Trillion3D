@@ -117,10 +117,10 @@ interface GroupSources {
 function createGroups(device: GPUDevice, pipelines: SkyLightPipelines, over: GroupSources) {
   const { mips, captured, filtered, filteredCubes, blocks, harmonics } = over
   const { layouts } = pipelines
-  const { clamped: bilinear, point: nearest } = postSamplers(device)
+  const { clamped: bilinear, mipped: trilinear, point: nearest } = postSamplers(device)
   const filterBlock = { buffer: blocks.filter, size: 16 }
-  const filterGroup = (source: GPUTextureView, output: GPUTextureView) =>
-    filterBindGroup(device, layouts.filter, filterBlock, source, nearest, output)
+  const filterGroup = (source: GPUTextureView, sampler: GPUSampler, output: GPUTextureView) =>
+    filterBindGroup(device, layouts.filter, filterBlock, source, sampler, output)
   const capturedCube = wholeCube(captured)
   const irradianceGroup = (source: GPUTextureView, sampler: GPUSampler, set: number) =>
     device.createBindGroup({
@@ -153,11 +153,11 @@ function createGroups(device: GPUDevice, pipelines: SkyLightPipelines, over: Gro
     downsample: range.map((mip) =>
       mip === 0
         ? undefined
-        : filterGroup(cubeMipView(captured, mip - 1), storageMip(captured, mip)),
+        : filterGroup(cubeMipView(captured, mip - 1), bilinear, storageMip(captured, mip)),
     ),
     /** Mip `m` of filtered cube `w` from the captured cube. */
     convolve: [0, 1].map((cube) =>
-      range.map((mip) => filterGroup(capturedCube, storageMip(filtered, mip, cube))),
+      range.map((mip) => filterGroup(capturedCube, trilinear, storageMip(filtered, mip, cube))),
     ),
     /** The harmonics set `w` from filtered cube `w`, one texel at a time. */
     irradiance: filteredCubes.map((view, w) => irradianceGroup(view, nearest, w)),

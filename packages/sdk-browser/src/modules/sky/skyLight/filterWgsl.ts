@@ -5,8 +5,8 @@ import { SKY_CUBE_WGSL, SKY_SAMPLING_WGSL } from './cubeWgsl.ts'
 
 /**
  * THE CUBE'S MIPS AND THEIR FILTER, two compute programs over one layout: a block read at a
- * dynamic offset (`FilterBlock`), the cube read through a sampler that takes the nearest texel
- * and the nearest level, and the texture written, one slice a face, at the mip the pass fills. A
+ * dynamic offset (`FilterBlock`), the cube read through a filtering sampler (bilinear for the
+ * mips, trilinear for the roughness filter), and the texture written, one slice a face, at the mip the pass fills. A
  * thread is a texel of a face of that mip, the faces the dispatch's depth.
  *
  * - `downsampleMain` fills a mip from the one above it, the source bound as that one level: the
@@ -26,9 +26,9 @@ const FILTER_BLOCK = `struct FilterBlock{mip:u32,mips:u32,faceFirst:u32,spare:u3
 const FILTER_OWN = `${FILTER_BLOCK}
 @group(0) @binding(0) var<uniform> block:FilterBlock;
 @group(0) @binding(1) var source:texture_cube<f32>;
-@group(0) @binding(2) var nearest:sampler;
+@group(0) @binding(2) var cubeSampler:sampler;
 @group(0) @binding(3) var filtered:texture_storage_2d_array<${SKY_LIGHT_CUBE_FORMAT},write>;
-fn sourceAt(d:vec3f,level:f32)->vec4f{return textureSampleLevel(source,nearest,d,level);}
+fn sourceAt(d:vec3f,level:f32)->vec4f{return textureSampleLevel(source,cubeSampler,d,level);}
 /** A value with no negative and no not-a-number in it. */
 fn finiteAbove(v:vec4f)->vec4f{return -min(-v,vec4f(0.0));}
 @compute @workgroup_size(${FILTER_GROUP_SIDE},${FILTER_GROUP_SIDE},1)
