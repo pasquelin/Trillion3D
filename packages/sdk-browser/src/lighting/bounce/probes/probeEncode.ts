@@ -96,6 +96,7 @@ function queueImage(
 ) {
   if (!now.values.screenProbeRadianceCacheUpdate) return
   if (now.values.screenProbeRadianceCacheForceFullUpdate) {
+    // The maps are sized for `now` before they are cleared (`queued` follows again, with nothing left to change).
     parts.cache.follow(now, inputs.preExposure)
     parts.cache.clear(encoder)
     parts.pool.discard()
