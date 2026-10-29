@@ -9,6 +9,7 @@ import type { LightAtlasFormat } from '../../gpu/core/lightAtlasFormat.ts'
 import { globalDistanceFieldTraceWgsl } from '../distanceField/globalTraceWgsl.ts'
 import { globalObjectGridReadWgsl } from '../distanceField/objectGridWgsl.ts'
 import { globalReadLayoutEntries, type GlobalFieldRead } from '../distanceField/view.ts'
+import { isLayerMode, VISUALIZE_MODE, visualizeLayersOf } from './visualizeModes.ts'
 import {
   SURFACE_CACHE_LAYER_AT as L,
   surfaceCacheReadLayoutEntries,
@@ -53,6 +54,10 @@ export interface SurfaceHitBindings {
   readonly cards: number
   readonly instances: number
   readonly feedback?: boolean
+  /** Whether the emission layer is a float texture (a compressed atlas) or a layer of words of light; read only by the scene view's emission mode. */
+  readonly compressed?: boolean
+  /** The mode of the scene view the hit is made for (`SurfaceCacheRead.visualize`): a layer mode binds the layers it reads (`visualizeLayersOf`) in place of the final light. */
+  readonly visualize?: number
 }
 
 /** The bindings of a program that binds a hit's reads consecutively from `first`: its field, its grid, its cards, its instances. */
@@ -64,14 +69,32 @@ export const surfaceHitBindingsFrom = (group: number, first: number): SurfaceHit
   instances: first + 15,
 })
 
-/** The cards' bindings a hit reads, as offsets of `cards`: the tables, the depth and the final light. */
-const SURFACE_HIT_CARDS_READ = [0, L.depth, L.final] as const
+/** The bindings, as offsets of `cards`, of the layers the scene view's layer mode reads (`visualizeLayersOf`). */
+const SURFACE_HIT_LAYER_AT = {
+  albedo: L.albedo,
+  normal: L.normal,
+  emissive: L.emissive,
+  direct: L.direct,
+  indirect: L.indirect,
+  frames: L.frames,
+  factors: L.factors,
+} as const
+
+/** The offsets of `cards` a hit at `b` binds past its tables and depth: the final light, or a layer mode's layers. */
+const hitReadOf = (b: Pick<SurfaceHitBindings, 'visualize'>) =>
+  isLayerMode(b.visualize)
+    ? visualizeLayersOf(b.visualize).map((layer) => SURFACE_HIT_LAYER_AT[layer])
+    : [L.final]
 
 /** What the library is asked to read at `b`, the final light stored in `light`: the emission, which a compressed atlas keeps as blocks, is no layer a hit reads. */
-const readOf = (b: Pick<SurfaceHitBindings, 'feedback'>, light: LightAtlasFormat) => ({
+const readOf = (
+  b: Pick<SurfaceHitBindings, 'feedback' | 'compressed' | 'visualize'>,
+  light: LightAtlasFormat,
+) => ({
   feedback: !!b.feedback,
-  compressed: false,
+  compressed: b.visualize === VISUALIZE_MODE.emissive && !!b.compressed,
   light,
+  visualize: b.visualize,
 })
 
 /** What a hit reads of the cache, as the bind group binds it: its tables, the depth and final layers, the feedback buffer, the field's
@@ -80,6 +103,15 @@ export interface SurfaceHitResources {
   readonly tables: GPUBuffer
   readonly depth: GPUTextureView
   readonly final: GPUTextureView
+  /** The layers a scene view's hit reads (`SurfaceHitBindings.visualize`): the surface's albedo, normal and emission. */
+  readonly albedo?: GPUTextureView
+  readonly normal?: GPUTextureView
+  readonly emissive?: GPUTextureView
+  /** And the direct and indirect light, the radiosity's frames, the direct light's shadow factors. */
+  readonly direct?: GPUTextureView
+  readonly indirect?: GPUTextureView
+  readonly frames?: GPUTextureView
+  readonly factors?: GPUBuffer
   readonly feedback: GPUBuffer
   readonly grid: GPUBuffer
   readonly instances: GPUBuffer
@@ -95,10 +127,10 @@ export interface SurfaceHitReads {
 /** The layout entries of what a hit reads of the cache at `b`, its final light stored in `light`: its tables, depth and final layers and its feedback buffer where `b` says
  *  (the library's other layers are left out of the stage's layout: it holds nothing of a binding it does not reach), the instances'. */
 export function surfaceHitCardsLayoutEntries(
-  b: Pick<SurfaceHitBindings, 'cards' | 'instances' | 'feedback'>,
+  b: Pick<SurfaceHitBindings, 'cards' | 'instances' | 'feedback' | 'compressed' | 'visualize'>,
   light: LightAtlasFormat,
 ): GPUBindGroupLayoutEntry[] {
-  const read = SURFACE_HIT_CARDS_READ.map((at) => b.cards + at)
+  const read = [0, L.depth, ...hitReadOf(b)].map((at) => b.cards + at)
   if (b.feedback) read.push(b.cards + L.feedback)
   return [
     ...surfaceCacheReadLayoutEntries(b.cards, readOf(b, light)).filter(({ binding }) =>
@@ -120,15 +152,37 @@ export function surfaceHitLayoutEntries(
   ]
 }
 
+/** The resource a hit binds at the layer `at` (an offset of `cards`) from `hit`. */
+function hitLayerOf(hit: SurfaceHitResources, at: number): GPUBindingResource {
+  switch (at) {
+    case L.albedo:
+      return hit.albedo!
+    case L.normal:
+      return hit.normal!
+    case L.emissive:
+      return hit.emissive!
+    case L.direct:
+      return hit.direct!
+    case L.indirect:
+      return hit.indirect!
+    case L.frames:
+      return hit.frames!
+    case L.factors:
+      return { buffer: hit.factors! }
+    default:
+      return hit.final
+  }
+}
+
 /** The bind group entries of what a hit reads of the cache at `b`, over the cache's `hit` resources. */
 export function surfaceHitCardsEntries(
-  b: Pick<SurfaceHitBindings, 'cards' | 'instances' | 'feedback'>,
+  b: Pick<SurfaceHitBindings, 'cards' | 'instances' | 'feedback' | 'visualize'>,
   hit: SurfaceHitResources,
 ): GPUBindGroupEntry[] {
   return [
     { binding: b.cards, resource: { buffer: hit.tables } },
     { binding: b.cards + L.depth, resource: hit.depth },
-    { binding: b.cards + L.final, resource: hit.final },
+    ...hitReadOf(b).map((at) => ({ binding: b.cards + at, resource: hitLayerOf(hit, at) })),
     ...(b.feedback ? [{ binding: b.cards + L.feedback, resource: { buffer: hit.feedback } }] : []),
     { binding: b.instances, resource: { buffer: hit.instances } },
   ]
@@ -151,11 +205,14 @@ export function surfaceHitEntries(
  *  placement of the scene trace's cut) to its placement in the cache, and the cache's read library the placement's mesh cards are
  *  read with (`scPlacementMeshCards`, `scEvaluateMeshCards`), its final light stored in `light`. Nothing of the global field: a hit found without it reads this alone. */
 export function surfaceHitCardsWgsl(
-  b: Pick<SurfaceHitBindings, 'group' | 'cards' | 'instances' | 'feedback'>,
+  b: Pick<
+    SurfaceHitBindings,
+    'group' | 'cards' | 'instances' | 'feedback' | 'compressed' | 'visualize'
+  >,
   light: LightAtlasFormat,
 ) {
   return wgslBlock(
-    `SURFACE_HIT_CARDS_WGSL(${b.group},${b.cards},${b.instances},${!!b.feedback},${light})`,
+    `SURFACE_HIT_CARDS_WGSL(${b.group},${b.cards},${b.instances},${!!b.feedback},${light}${b.visualize ? ',visualize' : ''})`,
     [surfaceCacheSampleWgsl(b.group, b.cards, readOf(b, light)), sinFromCosUnclamped],
     `@group(${b.group}) @binding(${b.instances}) var<storage,read> hitInstances:array<u32>;
 /** The placement of the cache that the object of the grid named \`instance\` is, none for an instance past the table. */
@@ -183,7 +240,7 @@ fn scMeshHit(world:vec3f,face:vec3f,instance:u32,footprint:f32,range:f32,hiRes:b
 /** The hit's read (`scGlobalHit`) over the bindings `b`, its final light stored in `light`, and the march (`gdfTrace`) it follows. */
 export function surfaceHitWgsl(b: SurfaceHitBindings, light: LightAtlasFormat) {
   return wgslBlock(
-    `SURFACE_HIT_WGSL(${b.group},${b.field},${b.grid},${b.cards},${b.instances},${!!b.feedback},${light})`,
+    `SURFACE_HIT_WGSL(${b.group},${b.field},${b.grid},${b.cards},${b.instances},${!!b.feedback},${light}${b.visualize ? ',visualize' : ''})`,
     [
       surfaceHitCardsWgsl(b, light),
       globalDistanceFieldTraceWgsl(b.group, b.field),

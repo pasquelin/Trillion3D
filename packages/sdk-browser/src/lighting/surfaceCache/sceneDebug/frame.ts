@@ -11,7 +11,7 @@ import {
 } from '../../bounce/screen/screenProbeLayout.ts'
 import { drawProbeLines, type ProbeLineState } from './probeLines.ts'
 import { createRadianceProbes, type RadianceProbes } from './radianceProbes.ts'
-import { createSceneVisualize, type SceneVisualize } from './sceneVisualize.ts'
+import { createSceneVisualize, type SceneLabel, type SceneVisualize } from './sceneVisualize.ts'
 import { directLightCounts, directLightingStatsLines } from './directLightingStats.ts'
 import {
   PROBE_COUNTER_WORDS,
@@ -280,9 +280,10 @@ export function encodeSceneDebug(
   const state = stateOf(rt, device)
   state.text.begin(cam)
   // The scene replaces the image, so it is drawn first and the other views lie over it.
+  let sceneLabels: readonly SceneLabel[] = []
   if (probeView.sceneVisualization) {
     state.scene ??= createSceneVisualize(device)
-    state.scene.encode(rt, encoder, gpu.displayView, gpu.displaySize, probeView)
+    sceneLabels = state.scene.encode(rt, encoder, gpu.displayView, gpu.displaySize, probeView)
   } else if (state.scene) {
     state.scene.dispose()
     state.scene = undefined
@@ -305,5 +306,6 @@ export function encodeSceneDebug(
     state.spheres.dispose()
     state.spheres = undefined
   }
+  for (const { text, x, y } of sceneLabels) state.text.lines.text(text, x, y, DEBUG_COLORS.yellow)
   state.text.encode(encoder, gpu.displayView, gpu.displaySize, cam, appended)
 }

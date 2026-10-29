@@ -168,6 +168,8 @@ const PLACEMENT_AND_OCCLUSION_RULES = /* @__PURE__ */ (() =>
     flag('screenProbeGatherVisualizeTracesFreeze', false),
     flag('visualizeUseShaderPrintForTraces', true),
     flag('visualizeToneMap', true),
+    integer('visualizeMode', 0, [0, 24]),
+    flag('visualizeSurfaceCacheFeedback', false),
     flag('reflectionVisualizeTraces', false),
     integer('radianceCacheVisualize', 0, [0, 2]),
     number('radianceCacheVisualizeRadiusScale', 1, [0, 100]),

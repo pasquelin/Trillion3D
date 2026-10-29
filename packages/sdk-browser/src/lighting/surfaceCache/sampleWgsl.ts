@@ -23,6 +23,16 @@ import {
 } from '../../../../sdk-core/src/lighting/surfaceCache/cardRecords.ts'
 import { CARD_PAGE_WORDS } from '../../../../sdk-core/src/lighting/surfaceCache/pageRecords.ts'
 import { FEEDBACK_AT } from './feedbackLayout.ts'
+import { vsmIntToColor } from '../shadows/vsm/debug/pageColorWgsl.ts'
+import { PAGE_LIGHTING } from './lighting/layout.ts'
+import { lightWordsOf } from '../../gpu/core/lightWords.ts'
+import {
+  isLayerMode,
+  VISUALIZE_LAST_USED_MODES,
+  VISUALIZE_MODE,
+  visualizeLayersOf,
+} from './visualizeModes.ts'
+import { indirectWordsWgsl } from './indirectWords.ts'
 import { TABLE_AT, NO_MESH_CARDS, TILE } from './layout.ts'
 
 /**
@@ -99,6 +109,8 @@ export interface SurfaceCacheRead {
   readonly feedback: boolean
   readonly compressed: boolean
   readonly light: LightAtlasFormat
+  /** The mode of the scene view the read is made for (`visualizeModes.ts`): a layer mode shows the layer it names (`visualizeLayersOf`) in place of the final light, which is then no binding of the program; the coverage mode marks the points the mesh cards were met at. */
+  readonly visualize?: number
 }
 
 /** Where the read library binds each atlas layer, and the feedback buffer, past the tables' binding. */
@@ -111,6 +123,8 @@ export const SURFACE_CACHE_LAYER_AT = {
   indirect: 6,
   final: 7,
   feedback: 8,
+  frames: 9,
+  factors: 10,
 } as const
 
 const L = SURFACE_CACHE_LAYER_AT
@@ -131,6 +145,12 @@ export function surfaceCacheReadLayoutEntries(
     computeTextureEntry(first + L.indirect, 'uint'),
     computeTextureEntry(first + L.final, lightAtlasSampleType(read.light)),
     ...(read.feedback ? [computeBufferEntry(first + L.feedback, 'storage')] : []),
+    ...(read.visualize
+      ? [
+          computeTextureEntry(first + L.frames, 'uint'),
+          computeBufferEntry(first + L.factors, 'read-only-storage'),
+        ]
+      : []),
   ]
 }
 
@@ -142,14 +162,25 @@ const recordTables = (group: number, first: number, access: 'read' | 'read_write
 const readBindings = (
   group: number,
   first: number,
-  { feedback, compressed, light }: SurfaceCacheRead,
+  { feedback, compressed, light, visualize }: SurfaceCacheRead,
 ) =>
   `@group(${group}) @binding(${first + L.depth}) var scDepthAtlas:texture_2d<u32>;
 @group(${group}) @binding(${first + L.albedo}) var scAlbedoAtlas:texture_2d<f32>;
 @group(${group}) @binding(${first + L.normal}) var scNormalAtlas:texture_2d<f32>;
 @group(${group}) @binding(${first + L.emissive}) var scEmissiveAtlas:texture_2d<${compressed ? 'f32' : 'u32'}>;
-@group(${group}) @binding(${first + L.final}) var scFinalAtlas:texture_2d<${lightAtlasScalar(light)}>;
-${feedback ? `@group(${group}) @binding(${first + L.feedback}) var<storage,read_write> scFeedback:array<atomic<u32>>;\n` : ''}`
+${isLayerMode(visualize) ? '' : `@group(${group}) @binding(${first + L.final}) var scFinalAtlas:texture_2d<${lightAtlasScalar(light)}>;\n`}${feedback ? `@group(${group}) @binding(${first + L.feedback}) var<storage,read_write> scFeedback:array<atomic<u32>>;\n` : ''}${visualizeBindings(group, first, light, visualize)}`
+
+/** The declarations of the layers the scene view's mode `mode` reads beside the albedo, normal and emission: the direct light, the indirect light's words, the radiosity's frames, the shadow factors. */
+const visualizeBindings = (
+  group: number,
+  first: number,
+  light: LightAtlasFormat,
+  mode?: number,
+) => {
+  if (mode === undefined) return ''
+  const has = (layer: string) => visualizeLayersOf(mode).includes(layer as never)
+  return `${mode === VISUALIZE_MODE.surfaceCache ? 'var<private> scSeenMeshCards:bool;\n' : ''}${has('direct') ? `@group(${group}) @binding(${first + L.direct}) var scDirectAtlas:texture_2d<${lightAtlasScalar(light)}>;\n` : ''}${has('indirect') ? `@group(${group}) @binding(${first + L.indirect}) var scIndirectAtlas:texture_2d<u32>;\n` : ''}${has('frames') ? `@group(${group}) @binding(${first + L.frames}) var scFramesAtlas:texture_2d<u32>;\n` : ''}${has('factors') ? `@group(${group}) @binding(${first + L.factors}) var<storage,read> scFactors:array<u32>;\n` : ''}`
+}
 
 /** A word of the tables, as it is stored and as a float: for a program that declares `surfaceTables`. */
 export const SURFACE_TABLE_WORDS_WGSL = wgslBlock(
@@ -396,8 +427,100 @@ fn scAccumulator()->ScAccum{
 export const lightReaderOf = (light: LightAtlasFormat) =>
   light === WORD_LIGHT_FORMAT ? 'scLight4' : 'scLightFloats4'
 
+/** The tiles of the atlas (8 by 8 texels) drawn over a layer: 0 on a tile's edge, 1 inside (the line two hundredths of a tile wide). */
+const VISUAL_TILE_GRID = `fn scVisualGrid(uv:vec2f)->f32{
+ let g=abs(fract(uv*scAtlasSide()/8.0)*2.0-vec2f(1.0));
+ return select(1.0,0.0,g.x>0.98)*select(1.0,0.0,g.y>0.98);
+}
+`
+
+/** The colour of a page by the frames since its state last changed: white within the frame, red to blue over `span` frames. */
+const VISUAL_AGE = `// A page's colour by the frames since its state last changed: white within the frame, red to blue over span frames.
+fn scVisualAge(last:u32,span:f32)->vec3f{
+ let since=scW(SC_AT_FRAME)-last;
+ return select(mix(vec3f(1.0,0.0,0.0),vec3f(0.0,0.0,1.0),saturate(f32(since)/span)),vec3f(1.0),since<1u);
+}
+`
+
+/** The value the layer of the scene view's mode `mode` gives for a card, as an expression over the card, its index, the sample `s`, the texel base `b`, the weights `w` and `invPre`. */
+function visualValueOf(mode: number, light: LightAtlasFormat, feedback: boolean) {
+  const V = VISUALIZE_MODE
+  const words = lightWordsOf(light)
+  switch (mode) {
+    case V.directLighting:
+      return `${lightReaderOf(light)}(scDirectAtlas,b,w)*invPre`
+    case V.indirectLighting:
+      return words === 1
+        ? 'scLight4(scIndirectAtlas,b,w)*invPre'
+        : `(indirectRead(scIndirectAtlas,scClampTexel(b+vec2i(0,1)))*w.x+indirectRead(scIndirectAtlas,scClampTexel(b+vec2i(1,1)))*w.y+indirectRead(scIndirectAtlas,scClampTexel(b+vec2i(1,0)))*w.z+indirectRead(scIndirectAtlas,scClampTexel(b))*w.w)*invPre`
+    case V.albedo:
+    case V.cardSharingId:
+      return 'scDecodeAlbedo(scAlbedo4(b,w))'
+    case V.normals:
+      return 'scDecodeNormal(card,scNormal4(b,w))*0.5+vec3f(0.5)'
+    case V.emissive:
+      return 'scEmissive4(b,w)*invPre'
+    case V.cardWeights:
+      return 'scCardWeightsColour(index,s.uv)'
+    case V.tileShadowDownsampleFactor:
+      return 'scTileFactorsColour(s.uv)'
+    case V.directLightingUpdates:
+      return `scVisualAge(scPageW(s.page,${PAGE_LIGHTING.lastUpdate}u),8.0)`
+    case V.indirectLightingUpdates:
+      return `scVisualAge(scPageW(s.page,${PAGE_LIGHTING.lastUpdate + 1}u),16.0)`
+    case V.lastUsedPage:
+    case V.lastUsedPageHighRes:
+      return `scVisualAge(${feedback ? `atomicLoad(&scFeedback[atomicLoad(&scFeedback[${FEEDBACK_AT.lastUsedHiRes}u])+s.page])` : '0u'},8.0)`
+    case V.radiosityNumFramesAccumulated:
+      return 'vec3f(f32(textureLoad(scFramesAtlas,vec2i(s.uv*scAtlasSide()/8.0),0).x)/4.0*scVisualGrid(s.uv))'
+    default:
+      throw new Error(`mode ${mode} is no layer mode`)
+  }
+}
+
+/** The helpers the layer of mode `mode` calls, beside the value itself. */
+function visualHelpersOf(mode: number) {
+  const V = VISUALIZE_MODE
+  if (mode === V.cardWeights)
+    return `// The card's colour from its number, darkened along a line round the middle of each tile of 8 texels.
+fn scCardWeightsColour(index:u32,uv:vec2f)->vec3f{
+ var colour=vec3f(f32(index%4u)/3.0,f32((index/4u)%4u)/3.0,0.0);
+ colour.z=saturate(1.0-colour.x-colour.y);
+ let away=abs(fract(uv*scAtlasSide()/8.0)-vec2f(0.5));
+ let edge=saturate(select(vec2f(0.0),(away-vec2f(0.01))/away,away>vec2f(0.01)));
+ let eased=edge*edge*(vec2f(3.0)-2.0*edge);
+ return colour*mix(0.25,1.0,saturate(eased.x*eased.y));
+}
+`
+  if (mode === V.tileShadowDownsampleFactor)
+    return `${VISUAL_TILE_GRID}// The colour of the count of lights the tile tracks the shadow factor of: grey for none.
+fn scTileFactorsColour(uv:vec2f)->vec3f{
+ let tile=vec2u(uv*scAtlasSide()/8.0);
+ let at=8u*(tile.y*(u32(scAtlasSide())/8u)+tile.x);
+ var n=0u;
+ for(var k=0u;k<8u;k++){n+=countOneBits(scFactors[at+k]);}
+ return select(vsmIntToColor(n),vec3f(0.5),n==0u)*scVisualGrid(uv);
+}
+`
+  if (mode === V.radiosityNumFramesAccumulated) return VISUAL_TILE_GRID
+  if (
+    mode === V.directLightingUpdates ||
+    mode === V.indirectLightingUpdates ||
+    VISUALIZE_LAST_USED_MODES.includes(mode)
+  )
+    return VISUAL_AGE
+  return ''
+}
+
+/** The function `scVisualCard`: the layer of the scene view's mode `mode` a card gives in place of its final light (a light times `invPre`, or a debug colour). */
+const visualCardText = (mode: number, light: LightAtlasFormat, feedback: boolean) =>
+  `${visualHelpersOf(mode)}fn scVisualCard(card:ScCard,index:u32,s:ScSample,b:vec2i,w:vec4f,invPre:f32)->vec3f{
+ return ${visualValueOf(mode, light, feedback)};
+}
+`
+
 /** The sample of one card, added to the accumulator, the final light read stored in `light`. */
-const sampleCardText = (light: LightAtlasFormat) => `
+const sampleCardText = (light: LightAtlasFormat, visualize?: number) => `
 /**
  * The sample of card \`cardIndex\` at the point \`meshPos\` of the space of the mesh cards, if the point is
  * in the card's box and the face is turned to the normal (\`axisWeights\`, the squares of its components
@@ -433,7 +556,11 @@ fn scSampleCard(meshPos:vec3f,radius:f32,bias:f32,cardIndex:u32,axisWeights:vec3
  if(!(cardWeight>0.0)){return;}
  weights=weights/sum;
  let invPre=scF(SC_AT_INV_PRE_EXPOSURE);
- (*acc).lit+=${lightReaderOf(light)}(scFinalAtlas,b,weights)*invPre*cardWeight;
+ ${
+   isLayerMode(visualize)
+     ? `(*acc).lit+=scVisualCard(card,cardIndex,s,b,weights,invPre)*cardWeight;`
+     : `(*acc).lit+=${lightReaderOf(light)}(scFinalAtlas,b,weights)*invPre*cardWeight;`
+ }
  (*acc).weightSum+=cardWeight;
  // The single sample that weighs most.
  if(cardWeight>(*acc).maxWeight){(*acc).best=s;(*acc).maxWeight=cardWeight;}
@@ -441,7 +568,7 @@ fn scSampleCard(meshPos:vec3f,radius:f32,bias:f32,cardIndex:u32,axisWeights:vec3
 `
 
 /** The cards of a mesh cards read for a point. */
-const SAMPLE_MESH_CARDS_TEXT = `/**
+const sampleMeshCardsText = (visualize?: number) => `/**
  * The cards of mesh cards \`meshCards\` read for the point \`worldPos\` (centimetres) whose surface faces
  * \`worldNormal\`, added to \`acc\`: the point and the normal carried into the space of the mesh cards;
  * the cards of the faces the normal looks at (\`lookup\`, by direction, one for each axis whose component
@@ -477,7 +604,16 @@ fn scSampleMeshCards(meshCards:u32,worldPos:vec3f,worldNormal:vec3f,radius:f32,b
   scSampleCard(meshPos,radius,bias,m.first+bit,axisWeights,hiRes,acc);
  }
  (*acc).validMeshCards=true;
-}
+${
+  visualize === VISUALIZE_MODE.surfaceCache
+    ? ' scSeenMeshCards=true;\n'
+    : visualize === VISUALIZE_MODE.cardSharingId
+      ? ` // The sharing of cards: a colour of the mesh cards' number, mixed over the light the cards gave (a point no card covers counts as one weight).
+ if((*acc).weightSum<=0.0){(*acc).weightSum=1.0;}
+ (*acc).lit=mix((*acc).lit,vsmIntToColor(meshCards)*(*acc).weightSum,0.9);
+`
+      : ''
+}}
 `
 
 /** The feedback's write, where the program has one, and the hit the read answers with. */
@@ -528,9 +664,10 @@ fn scEvaluateMeshCards(meshCards:u32,worldPos:vec3f,worldNormal:vec3f,radius:f32
 `
 
 /** The cards of a mesh cards read for a point, and the accumulator evaluated. */
-const meshCardReads = (feedback: boolean, light: LightAtlasFormat) =>
-  sampleCardText(light) +
-  SAMPLE_MESH_CARDS_TEXT +
+const meshCardReads = (feedback: boolean, light: LightAtlasFormat, visualize?: number) =>
+  (isLayerMode(visualize) ? visualCardText(visualize, light, feedback) : '') +
+  sampleCardText(light, visualize) +
+  sampleMeshCardsText(visualize) +
   feedbackWriteWgsl(feedback) +
   evaluateWgsl(feedback)
 
@@ -544,10 +681,20 @@ export function surfaceCacheSampleWgsl(
   first: number,
   read: SurfaceCacheRead,
 ): WgslDecl {
-  const { feedback, compressed, light } = read
+  const { feedback, compressed, light, visualize } = read
   return wgslBlock(
-    `SURFACE_CACHE_SAMPLE_WGSL(${group},${first},${feedback},${compressed},${light})`,
-    [unpackLight, surfaceCacheRecordsWgsl(group, first, 'read')],
-    `${readBindings(group, first, read)}${atlasReads(compressed, light)}${sampleReads(feedback)}${meshCardReads(feedback, light)}`,
+    `SURFACE_CACHE_SAMPLE_WGSL(${group},${first},${feedback},${compressed},${light}${visualize === undefined ? '' : `,visualize${visualize}`})`,
+    [
+      unpackLight,
+      ...(visualize === VISUALIZE_MODE.cardSharingId ||
+      visualize === VISUALIZE_MODE.tileShadowDownsampleFactor
+        ? [vsmIntToColor]
+        : []),
+      ...(visualize === VISUALIZE_MODE.indirectLighting && lightWordsOf(light) > 1
+        ? [indirectWordsWgsl(lightWordsOf(light) as 2 | 3)]
+        : []),
+      surfaceCacheRecordsWgsl(group, first, 'read'),
+    ],
+    `${readBindings(group, first, read)}${atlasReads(compressed, light)}${sampleReads(feedback)}${meshCardReads(feedback, light, visualize)}`,
   )
 }

@@ -80,6 +80,10 @@ const FILTER_MEANINGS = /* @__PURE__ */ (() =>
       'The size of the spheres radianceCacheVisualize draws, as a multiple of 5% of the cell of the level they belong to (1 by default).',
     radianceCacheVisualizeClipmapIndex:
       "The level of the world's probes radianceCacheVisualize draws, the finest 0; -1 (the default) draws them all at once.",
+    visualizeMode:
+      "The scene view the image shows, as the number of its mode: 0 (the default) none unless the diagnostic mode 'scene-visualization' is chosen, which shows mode 3; 1 the overview (the geometry normals, the reflection view and the surface cache coverage side by side, tiles of the image), 2 the performance overview (the pixels that trace dedicated reflection rays), 3 the scene, 4 the reflection view (the scene as the reflections trace it, over their longest trace), 5 the surface cache coverage (pink where a mesh has cards but none covers the point, yellow where it has none), 6 the geometry normals, 7 the dedicated reflection rays, 8 the albedo, 9 the normals, 10 the emission, 11 the card weights, 12 the direct light, 13 the indirect light, 16 the direct light updates, 17 the indirect light updates, 18 and 19 the last use of the pages, 20 the tracked shadow factors of the tiles, 21 the card sharing id, 24 the radiosity frames accumulated.",
+    visualizeSurfaceCacheFeedback:
+      "Whether the scene view (visualizeMode) writes the surface cache's feedback requests, which the modes 18 and 19 (the last use of the pages) need to show anything but the oldest colour (false, the default).",
     visualizeSceneTraceRadianceCache:
       "Whether the 'scene-visualization' view ends its trace where the world's probes cover the eye and reads their light past it (true), or traces the whole distance (false, the default); the probes round the eye are marked for it while it is on.",
     visualizeHiResSurface:

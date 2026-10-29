@@ -18,12 +18,32 @@ import { hizDepthWgsl } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { reflectionPastWgsl } from './past.ts'
 import { SKY_DIFFUSE_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
 
-/** The height fog laid over a radiance seen along a vector from a ray's origin (`reflectionFogged`). */
-const REFLECTION_RAY_FOG_WGSL = `fn reflectionFogged(rgb:vec3f,start:vec3f,along:vec3f)->vec3f{
- if(!reflectionDone(REFLECTION_HEIGHT_FOG)||directLights.fog[${FOG_SLOT.color}].w<${FOG_MODE.exponential - 0.5}){return rgb;}
+/** The height fog laid over a radiance seen along a vector from a ray's origin (`heightFogOver`), none where the scene's fog is not a height fog. */
+const HEIGHT_FOG_OVER_WGSL = `fn heightFogOver(rgb:vec3f,start:vec3f,along:vec3f)->vec3f{
+ if(directLights.fog[${FOG_SLOT.color}].w<${FOG_MODE.exponential - 0.5}){return rgb;}
  let over=heightFogAlong(along,start.y,directLights.atmosphere[${ATMOSPHERE_SLOT.planet}].x!=0.0);
  return rgb*over.a+over.rgb;
 }`
+
+/** The height fog laid over a radiance where the reflections' setting allows it (`reflectionFogged`). */
+const REFLECTION_RAY_FOG_WGSL = `fn reflectionFogged(rgb:vec3f,start:vec3f,along:vec3f)->vec3f{
+ if(!reflectionDone(REFLECTION_HEIGHT_FOG)){return rgb;}
+ return heightFogOver(rgb,start,along);
+}`
+
+/**
+ * THE HEIGHT FOG LAID OVER A RADIANCE (`heightFogOver`): the fog module's text and the read of the fog's own cubemap at `cubemap` and its `sampler` of group 0, over the height fog
+ * alone — no local fog volumes' code — lit by the sky light the program binds (`skyLightReadWgsl`). The program that lists it names the lights (`directLights`).
+ */
+export const heightFogOverWgsl = (cubemap: number, sampler: number) =>
+  wgslBlock(
+    `heightFogOverWgsl(${cubemap},${sampler})`,
+    [
+      REFLECTION_CONSTANTS_WGSL,
+      fogBlockOf({ group: 0, cubemap, sampler, localFog: false, skyLight: true }),
+    ],
+    HEIGHT_FOG_OVER_WGSL,
+  )
 
 /**
  * THE HEIGHT FOG A RAY'S RADIANCE IS SEEN THROUGH (`reflectionFogged`): the fog module's text and the read of the fog's own cubemap at `cubemap`
@@ -33,10 +53,7 @@ const REFLECTION_RAY_FOG_WGSL = `fn reflectionFogged(rgb:vec3f,start:vec3f,along
 export const reflectionFogWgsl = (cubemap: number, sampler: number) =>
   wgslBlock(
     `reflectionFogWgsl(${cubemap},${sampler})`,
-    [
-      REFLECTION_CONSTANTS_WGSL,
-      fogBlockOf({ group: 0, cubemap, sampler, localFog: false, skyLight: true }),
-    ],
+    [heightFogOverWgsl(cubemap, sampler)],
     REFLECTION_RAY_FOG_WGSL,
   )
 

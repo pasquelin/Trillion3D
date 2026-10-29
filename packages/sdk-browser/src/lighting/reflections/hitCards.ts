@@ -33,6 +33,12 @@ function createStandIns(device: GPUDevice) {
   const shared = {
     tables: buffer('tables', 64 * WORD),
     depth: view('depth', atlasFormats(false, WORD_LIGHT_FORMAT).depth),
+    albedo: view('albedo', atlasFormats(false, WORD_LIGHT_FORMAT).albedo),
+    normal: view('normal', atlasFormats(false, WORD_LIGHT_FORMAT).normal),
+    emissive: view('emissive', atlasFormats(false, WORD_LIGHT_FORMAT).emissive),
+    indirect: view('indirect', atlasFormats(false, WORD_LIGHT_FORMAT).indirect),
+    frames: view('frames', atlasFormats(false, WORD_LIGHT_FORMAT).frames),
+    factors: buffer('factors', 64 * WORD),
     feedback: buffer('feedback', 64 * WORD),
     grid: buffer('grid', 16),
     instances: buffer('instances', 16),
@@ -43,11 +49,21 @@ function createStandIns(device: GPUDevice) {
     /** The stand-ins whose final light is a texel of `light`. */
     resources(light: LightAtlasFormat): SurfaceHitResources {
       let held = ofLight.get(light)
-      if (!held) ofLight.set(light, (held = { ...shared, final: view('final', light) }))
+      if (!held)
+        ofLight.set(
+          light,
+          (held = { ...shared, final: view('final', light), direct: view('direct', light) }),
+        )
       return held
     },
     dispose() {
-      for (const resource of [shared.tables, shared.feedback, shared.grid, shared.instances])
+      for (const resource of [
+        shared.tables,
+        shared.factors,
+        shared.feedback,
+        shared.grid,
+        shared.instances,
+      ])
         resource.destroy()
     },
   }
@@ -140,6 +156,13 @@ export function createHitCards(device: GPUDevice) {
       current.tables = state.tables.buffer!
       current.depth = physical.depth
       current.final = physical.final
+      current.albedo = physical.albedo
+      current.normal = physical.normal
+      current.emissive = physical.emissive
+      current.direct = physical.direct
+      current.indirect = physical.indirect
+      current.frames = physical.frames
+      current.factors = state.atlases!.factors
       current.feedback = (main && state.feedback.buffer) || stand.shared.feedback
       current.grid = rt.distanceFields?.scene.field.resources?.objectGrid ?? stand.shared.grid
       current.instances = instances.update(rt, state)

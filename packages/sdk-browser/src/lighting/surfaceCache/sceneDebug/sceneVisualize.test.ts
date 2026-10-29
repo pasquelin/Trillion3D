@@ -4,19 +4,19 @@ import { EYE_MARK_SHADER } from './eyeMarker.ts'
 import { sceneVisualizeWgsl } from './sceneVisualizeWgsl.ts'
 
 test('the scene view marches the camera ray through the field, reads the cache at the hit and the sky past it', () => {
-  const code = sceneVisualizeWgsl('rgba16float')
+  const code = sceneVisualizeWgsl('rgba16float', 3)
   assert.match(
     code,
     /let marched=gdfTraceRay\(start,d,scene\.trace\.x,reach,mix\(0\.8,1\.0,noise\),false,false,/,
   )
   assert.match(code, /scGlobalHit\(start,d,marched,spread,false,-1\.0,/)
-  assert.match(code, /else\{lighting=skyProbeRadiance\(d\);\}/)
+  assert.match(code, /else\{seen=skyProbeRadiance\(d\);\}/)
   assert.match(code, /@fragment fn sceneVisualizeFs/)
   assert.doesNotMatch(code, /occlusionAtlas|irradianceAtlas/)
 })
 
 test('where the probes cover the eye the trace ends at their coverage and their eight probes give the far light', () => {
-  const code = sceneVisualizeWgsl('rgba16float')
+  const code = sceneVisualizeWgsl('rgba16float', 3)
   assert.match(code, /cover=cacheCoverage\(eye,0\.5\);/)
   assert.match(code, /reach=min\(reach,cover\.minTrace\*f32\(BOUNCE_CM\)\)/)
   assert.match(code, /for\(var i=0u;i<8u;i\+\+\)\{/)

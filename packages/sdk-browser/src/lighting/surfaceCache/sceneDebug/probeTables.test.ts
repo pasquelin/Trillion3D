@@ -20,6 +20,8 @@ const values = (changes: Partial<Parameters<typeof probeDebugOf>[0]> = {}) => ({
   screenProbeGatherVisualizeTracesFreeze: false,
   visualizeUseShaderPrintForTraces: true,
   visualizeToneMap: true,
+  visualizeMode: 0,
+  visualizeSurfaceCacheFeedback: false,
   reflectionVisualizeTraces: false,
   radianceCacheVisualize: 0,
   radianceCacheVisualizeRadiusScale: 1,
@@ -49,6 +51,8 @@ test('a probe view shows when its setting is on or its mode is chosen, and none 
     radianceProbeRadius: 0.05,
     radianceProbeLevel: -1,
     sceneVisualization: false,
+    sceneMode: 3,
+    sceneSurfaceCacheFeedback: false,
     sceneTraceRadianceCache: false,
     sceneHiRes: true,
     sceneMinTrace: 0,
@@ -62,6 +66,10 @@ test('a probe view shows when its setting is on or its mode is chosen, and none 
   assert.equal(probeDebugOf(values(), 'radiance-cache-probes').radianceProbes, 1)
   assert.equal(probeDebugOf(values({ radianceCacheVisualize: 2 }), 'beauty').radianceProbes, 2)
   assert.equal(probeDebugShown(probeDebugOf(values(), 'scene-visualization')), true)
+  // A mode number shows the scene view without the diagnostic mode; the diagnostic alone shows mode 3.
+  assert.equal(probeDebugOf(values({ visualizeMode: 8 }), 'beauty').sceneVisualization, true)
+  assert.equal(probeDebugOf(values({ visualizeMode: 8 }), 'beauty').sceneMode, 8)
+  assert.equal(probeDebugOf(values(), 'scene-visualization').sceneMode, 3)
   assert.equal(
     probeDebugOf(values({ screenProbeGatherVisualizeTraces: true }), 'beauty').traces,
     true,

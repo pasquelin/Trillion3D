@@ -1,5 +1,6 @@
 import type { ScreenProbeValues } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
 import type { DiagnosticMode } from '../../../../../sdk-core/src/runtime/diagnostics.ts'
+import { VISUALIZE_MODE } from '../visualizeModes.ts'
 import type { PoolStats } from '../../bounce/pool/pool.ts'
 import {
   INTEGRATE_TILE_COUNTS_AT,
@@ -23,6 +24,8 @@ export type ProbeDebugValues = Pick<
   | 'screenProbeGatherVisualizeTracesFreeze'
   | 'visualizeUseShaderPrintForTraces'
   | 'visualizeToneMap'
+  | 'visualizeMode'
+  | 'visualizeSurfaceCacheFeedback'
   | 'reflectionVisualizeTraces'
   | 'radianceCacheVisualize'
   | 'radianceCacheVisualizeRadiusScale'
@@ -54,6 +57,10 @@ export interface ProbeDebug {
   radianceProbeLevel: number
   /** The scene traced from the camera over the image (the mode alone shows it): whether the probes cover the near trace's end, whether the finest pages are read, and the trace's first and last distances in centimetres. */
   sceneVisualization: boolean
+  /** The scene view's mode (`visualizeModes.ts`): the setting's, 3 (the scene) where the diagnostic mode alone asks for the view. */
+  sceneMode: number
+  /** Whether the view writes the surface cache's feedback (the modes that show the pages' last use need it). */
+  sceneSurfaceCacheFeedback: boolean
   sceneTraceRadianceCache: boolean
   sceneHiRes: boolean
   sceneMinTrace: number
@@ -66,6 +73,13 @@ export interface ProbeDebug {
 
 /** The radius of a probe's sphere over its cell's side, at a scale of one. */
 const RADIANCE_PROBE_RADIUS = 0.05
+
+/** Whether `mode` is a mode of the scene view this engine draws (the hardware-only and screen probe history modes are not). */
+const isSceneMode = (mode: number) => (Object.values(VISUALIZE_MODE) as number[]).includes(mode)
+
+/** The mode the scene view draws for the setting `setting`: its own where it is one, else the scene. */
+const sceneModeOf = (setting: number) =>
+  isSceneMode(setting) && setting > 0 ? setting : VISUALIZE_MODE.scene
 
 /** The views to show: each the setting names or the diagnostic mode `mode` names. */
 export const probeDebugOf = (values: ProbeDebugValues, mode: DiagnosticMode): ProbeDebug => ({
@@ -88,7 +102,11 @@ export const probeDebugOf = (values: ProbeDebugValues, mode: DiagnosticMode): Pr
       : (values.radianceCacheVisualize as ProbeDebug['radianceProbes']),
   radianceProbeRadius: values.radianceCacheVisualizeRadiusScale * RADIANCE_PROBE_RADIUS,
   radianceProbeLevel: values.radianceCacheVisualizeClipmapIndex,
-  sceneVisualization: mode === 'scene-visualization',
+  sceneVisualization:
+    mode === 'scene-visualization' ||
+    (values.visualizeMode > 0 && isSceneMode(values.visualizeMode)),
+  sceneMode: sceneModeOf(values.visualizeMode),
+  sceneSurfaceCacheFeedback: values.visualizeSurfaceCacheFeedback,
   sceneTraceRadianceCache: values.visualizeSceneTraceRadianceCache,
   sceneHiRes: values.visualizeHiResSurface,
   sceneMinTrace: values.visualizeMinTraceDistance,

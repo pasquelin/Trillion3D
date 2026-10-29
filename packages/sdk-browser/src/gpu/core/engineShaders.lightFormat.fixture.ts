@@ -40,19 +40,45 @@ import { reservoirTraceProgram } from '../../lighting/bounce/reservoirGather/tra
 import { radianceCacheProgram } from '../../lighting/reflections/radianceCache/wgsl.ts'
 import { sceneVisualizeWgsl } from '../../lighting/surfaceCache/sceneDebug/sceneVisualizeWgsl.ts'
 import { radianceProbeDrawWgsl } from '../../lighting/surfaceCache/sceneDebug/radianceProbesWgsl.ts'
+import {
+  OVERVIEW_TILES,
+  VISUALIZE_MODE,
+  visualizeTracesScene,
+} from '../../lighting/surfaceCache/visualizeModes.ts'
 import type { LightAtlasFormat } from './lightAtlasFormat.ts'
 import { WORD_LIGHT_FORMAT } from './lightAtlasFormat.ts'
+
+/** The modes that trace the scene (`visualizeTracesScene`), the overview modes drawing the tiles of these. */
+const SCENE_MODES = Object.values(VISUALIZE_MODE).filter(
+  (mode) => mode !== VISUALIZE_MODE.none && !(mode in OVERVIEW_TILES) && visualizeTracesScene(mode),
+)
 
 const FORMATS: readonly LightAtlasFormat[] = ['rg11b10ufloat', 'rgba16float', 'rgba32float']
 
 /** The passes whose text depends on the format, taken in the word format too, which the list holds for none of them. */
 const EVERY_FORMAT: readonly LightAtlasFormat[] = [WORD_LIGHT_FORMAT, ...FORMATS]
 
+/** The modes of the scene view taken in a format: every mode in the word format, and those whose text reads the light in the format (the scene, the coverage, the direct and the indirect light) in the others. */
+const sceneModesOf = (format: LightAtlasFormat) =>
+  format === WORD_LIGHT_FORMAT
+    ? SCENE_MODES
+    : SCENE_MODES.filter((mode) =>
+        [
+          VISUALIZE_MODE.scene,
+          VISUALIZE_MODE.surfaceCache,
+          VISUALIZE_MODE.directLighting,
+          VISUALIZE_MODE.indirectLighting,
+        ].includes(mode),
+      )
+
 export const LIGHT_FORMAT_SHADERS: Record<string, string> = Object.fromEntries([
   ...EVERY_FORMAT.flatMap((format) => [
     [`RESERVOIR_TRACE_${format}`, reservoirTraceProgram(format)],
     [`RADIANCE_CACHE_${format}`, radianceCacheProgram(format)],
-    [`SCENE_VISUALIZE_${format}`, sceneVisualizeWgsl(format)],
+    ...sceneModesOf(format).map((mode) => [
+      `SCENE_VISUALIZE_${format}_${mode}`,
+      sceneVisualizeWgsl(format, mode),
+    ]),
     [`RADIANCE_PROBE_DRAW_${format}`, radianceProbeDrawWgsl(format)],
   ]),
   ...FORMATS.flatMap((format) => [
