@@ -8,36 +8,47 @@ import { wgslF32, wgslVec3 } from '../../../../../math/src/wgsl/number.ts'
  * lattice points fall on texels).
  *
  * - G, B and A are weighted sums of three or two octaves of inverted cellular noise (one minus the
- *   squared distance to the nearest feature point, saturated), the grids doubling in cells from one
- *   octave to the next: G over 8, 16 and 32 cells, B over 16, 32 and 64, A over 32 and 64 (two
- *   octaves, as the third would sit at the texel frequency). Each channel is the one before it with
- *   its frequencies doubled.
- * - R is a classic periodic gradient-noise fractal, three octaves from 8 cells, joined to a sum of
- *   three octaves of the cellular noise over 8, 32 and 56 cells by `W + P · (1 − W)`: the gradient
+ *   distance to the nearest feature point, saturated), the grids doubling in cells from one octave
+ *   to the next: G over 4, 8 and 16 cells, B over 8, 16 and 32, A over 16 and 32 (two octaves).
+ *   Each channel is the one before it with its frequencies doubled.
+ * - R is a classic periodic gradient-noise fractal, three octaves from 2 cells, joined to a sum of
+ *   three octaves of the cellular noise over 2, 8 and 14 cells by `W + P · (1 − W)`: the gradient
  *   noise spread between the cellular one and one.
- * - No channel is rescaled. The values stay floats, written to a volume of four half floats
- *   (RGBA16F, as the reference's volume is).
+ * - Each channel is then moved and stretched to the mean and spread of the reference volume's
+ *   (`NOISE_CHANNEL_LEVELS`) and held in [0, 1], as the reference's 8-bit volume holds it.
+ *
+ * The cells, the distance (not its square) and the levels are those of the volume the reference
+ * material reads (its "balanced" Perlin-Worley volume, 128 texels a side), whose generator is not
+ * published: measured on its texels, the radial power spectrum of each channel (cumulative median
+ * at 1, 2, 4 and 9 cycles a tile for R, G, B, A, where the author's public generator gives 4, 4, 8
+ * and 14), its histogram and its mean and standard deviation.
  */
 
 /** Texels a side of the volume. */
 export const NOISE_VOLUME_SIZE = 128
 
-/** The cell count the octaves of each channel are multiples of. */
-const NOISE_BASE_CELLS = 4
-
-/** Per channel R, G, B, A: the multiples of `NOISE_BASE_CELLS` the cellular octaves run at and their
- *  weights. R's sum is the one the gradient noise is spread over; A has two octaves, its third
- *  weight 0. */
+/** Per channel R, G, B, A: the cells a side of the cellular octaves and their weights. R's sum is
+ *  the one the gradient noise is spread over; A has two octaves, its third weight 0. */
 const NOISE_CHANNEL_OCTAVES = [
-  { multiples: [2, 8, 14], weights: [0.625, 0.25, 0.125] },
-  { multiples: [2, 4, 8], weights: [0.625, 0.25, 0.125] },
-  { multiples: [4, 8, 16], weights: [0.625, 0.25, 0.125] },
-  { multiples: [8, 16, 16], weights: [0.75, 0.25, 0] },
+  { cells: [2, 8, 14], weights: [0.625, 0.25, 0.125] },
+  { cells: [4, 8, 16], weights: [0.625, 0.25, 0.125] },
+  { cells: [8, 16, 32], weights: [0.625, 0.25, 0.125] },
+  { cells: [16, 32, 32], weights: [0.75, 0.25, 0] },
+] as const
+
+/** Per channel R, G, B, A: the mean and the standard deviation the generated channel is moved and
+ *  stretched to (the reference volume's, measured on its texels), and the generated channel's own
+ *  (measured on this program's output), so that `v' = (v − own mean) · wanted std / own std + wanted mean`. */
+const NOISE_CHANNEL_LEVELS = [
+  { mean: 0.534, std: 0.145, ownMean: 0.7383, ownStd: 0.0749 },
+  { mean: 0.451, std: 0.178, ownMean: 0.4879, ownStd: 0.1158 },
+  { mean: 0.433, std: 0.182, ownMean: 0.4879, ownStd: 0.1153 },
+  { mean: 0.45, std: 0.175, ownMean: 0.4872, ownStd: 0.134 },
 ] as const
 
 /** The gradient fractal's first octave's cells a side and its octave count; each octave has twice
  *  the cells of the one before and the square of its weight (0.5, 0.25, 0.0625). */
-const GRADIENT_FREQUENCY = 8
+const GRADIENT_FREQUENCY = 2
 const GRADIENT_OCTAVES = 3
 
 /** Texels a thread group covers along each axis. */
@@ -46,7 +57,7 @@ export const NOISE_GROUP = 4
 /** The greatest index a hashed lattice point takes, `x + 57 y + 113 z` with each of x, y, z below
  *  the finest grid's cells: the size of the table of hashed numbers is one more. */
 const NOISE_HASH_TABLE_SIZE =
-  Math.max(...NOISE_CHANNEL_OCTAVES.flatMap((c) => c.multiples)) * NOISE_BASE_CELLS * 171 - 170
+  Math.max(...NOISE_CHANNEL_OCTAVES.flatMap((c) => c.cells)) * 171 - 170
 
 /** The table of hashed numbers of the lattice indices, in single precision as the cells read them:
  *  `fract(sin(n + 1.951) · 43758.5453)` for every whole `n`, each step rounded to a float. A shader's
@@ -68,8 +79,11 @@ const SOURCE = `
 @group(0) @binding(1) var<storage,read> hashTable:array<f32>;
 
 const SIZE:f32=${NOISE_VOLUME_SIZE}.0;
-const CHANNEL_CELLS=array<vec3f,4>(${NOISE_CHANNEL_OCTAVES.map((c) => wgslVec3(c.multiples.map((m) => m * NOISE_BASE_CELLS))).join(',')});
+const CHANNEL_CELLS=array<vec3f,4>(${NOISE_CHANNEL_OCTAVES.map((c) => wgslVec3(c.cells)).join(',')});
 const CHANNEL_WEIGHTS=array<vec3f,4>(${NOISE_CHANNEL_OCTAVES.map((c) => wgslVec3(c.weights)).join(',')});
+// Per channel, the factor and the offset that move the generated value to the reference's levels.
+const CHANNEL_SCALE=vec4f(${NOISE_CHANNEL_LEVELS.map((l) => wgslF32(l.std / l.ownStd)).join(',')});
+const CHANNEL_OFFSET=vec4f(${NOISE_CHANNEL_LEVELS.map((l) => wgslF32(l.mean - (l.ownMean * l.std) / l.ownStd)).join(',')});
 
 // A hashed number in [0, 1) of a whole number: the fraction of a large multiple of a sine, read
 // from the table the host made (noiseHashTable in the host).
@@ -83,8 +97,8 @@ fn featureOffset(cell:vec3i,cells:i32)->f32{
  return hashValue(f32(wrapped.x+57*wrapped.y+113*wrapped.z));
 }
 
-// One minus the squared distance, in cells and at most one, to the nearest feature point of the
-// periodic grid of 'cells' cells a side: the 27 cells around the one holding 'p' are searched.
+// One minus the distance, in cells and at most one, to the nearest feature point of the periodic
+// grid of 'cells' cells a side: the 27 cells around the one holding 'p' are searched.
 fn invertedCells(p:vec3f,cells:f32)->f32{
  let scaled=p*cells;
  let base=vec3i(floor(scaled));
@@ -94,7 +108,7 @@ fn invertedCells(p:vec3f,cells:f32)->f32{
   let d=scaled-vec3f(cell)-vec3f(featureOffset(cell,i32(cells)));
   nearest=min(nearest,dot(d,d));
  }
- return 1.0-clamp(nearest,0.0,1.0);
+ return 1.0-clamp(sqrt(nearest),0.0,1.0);
 }
 
 // The octaves of 'channel' summed by their weights; the third is skipped when its weight is zero.
@@ -177,7 +191,8 @@ fn noiseMain(@builtin(global_invocation_id) id:vec3u){
  let p=vec3f(id)/SIZE;
  let cellular=cellularSum(p,0u);
  let r=cellular+gradientFractal(p)*(1.0-cellular);
- textureStore(volume,id,vec4f(r,cellularSum(p,1u),cellularSum(p,2u),cellularSum(p,3u)));
+ let raw=vec4f(r,cellularSum(p,1u),cellularSum(p,2u),cellularSum(p,3u));
+ textureStore(volume,id,saturate(raw*CHANNEL_SCALE+CHANNEL_OFFSET));
 }
 `
 
