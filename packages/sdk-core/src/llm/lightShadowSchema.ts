@@ -16,15 +16,9 @@ const LIGHT_SHADOW_MEANINGS: Readonly<Record<LightShadowField, string>> = {
   farShadowDistance:
     "Directional only: where its far levels end, in meters; valid while it is more than a meter past the light's shadow distance.",
   distanceFieldShadows:
-    "Directional only: whether the cascade of the distance fields follows its near levels, where the scene's meshes have distance fields and the view's shadowFarField is on: a sun shadow traced against them from the near levels' end to distanceFieldShadowDistance.",
+    "Directional only: whether the cascade of the distance fields follows its near levels, where the scene's meshes have distance fields and the view's shadowFarField is on: it extends the edge of the far-shadow test, from the near levels' end to distanceFieldShadowDistance. The shadow maps take every cluster caster, so no shadow is traced against the fields on the view.",
   distanceFieldShadowDistance:
     "Directional only: where the distance-field cascade ends, in meters, scaled by the view's distanceFieldDistanceScale; by default past the light's shadow distance.",
-  distanceFieldTraceDistance:
-    'Directional only: how far, in meters, a ray of the distance-field cascade goes toward the light; farther raises the cost.',
-  shadowAmount:
-    "Directional only: how dark the shadow of the distance-field cascade is, from 0 (none) to 1 (the default, the whole shadow): the cascade's visibility is faded toward 1 by it. The maps' own shadow is not scaled.",
-  distanceFieldRayStartOffset:
-    "Directional only: the share of a pixel's depth the distance-field cascade's rays start off the surface by, which hides the self-shadowing of coarse distance fields on large meshes.",
 }
 
 /** The light tool's parameter of each shadow setting of a directional light, from its rule: its

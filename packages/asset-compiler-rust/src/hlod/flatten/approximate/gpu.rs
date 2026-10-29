@@ -95,6 +95,7 @@ struct Reading {
 fn source() -> Source {
     let wgsl = [
         layout::prelude().as_str(),
+        include_str!("../gpu/scene_words.wgsl"),
         include_str!("gpu/tree.wgsl"),
         include_str!("gpu/winding.wgsl"),
         include_str!("gpu/nearest.wgsl"),

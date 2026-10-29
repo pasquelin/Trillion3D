@@ -31,13 +31,10 @@ export const INVALID_BRICK_INDEX = 0xffffffff
 export const INDIRECTION_SIDE_BITS = 10
 export const ASSET_MIPS_SHIFT = 30
 
-/** The flags of an object's bounds record. `castShadow` is the object's own (`castShadow`);
- *  `virtualized` says it is made of clusters, which a sun's shadow maps draw (a sun's distance-field
- *  cascade leaves it out: `dfshCasts`). */
+/** The flags of an object's bounds record. `castShadow` is the object's own (`castShadow`). */
 export const OBJECT_FLAGS = {
   oftenMoving: 1,
   castShadow: 2,
-  virtualized: 4,
   emissive: 8,
   visible: 16,
   affectsIndirectLightingHidden: 32,

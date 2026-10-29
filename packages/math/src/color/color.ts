@@ -5,7 +5,7 @@
  */
 
 import type { NumberSink } from '../matrix/matrix4.ts'
-import { wrap, clamp, saturate } from '../scalar/reals.ts'
+import { wrap, saturate } from '../scalar/reals.ts'
 
 /** The transfer curve's constants, which the WGSL twins read (`../wgsl/color.ts`): the decode's and
  *  the encode's thresholds, the slope of the linear part, the power's scale, offset and exponent. */
@@ -70,8 +70,12 @@ export function linearToSrgb(c: number) {
     : SRGB_SCALE * Math.pow(Math.max(c, 0), 1 / SRGB_GAMMA) - SRGB_OFFSET
 }
 
-/** A unit value to its byte: `clamp(Math.round(x · 255), 0, 255)`, the unorm8 encoding. */
-export const unorm8 = (x: number) => clamp(Math.round(x * 255), 0, 255)
+/** A unit value to its byte: `Math.round(x · 255)` held in `[0, 255]`, the unorm8 encoding; NaN
+ *  gives 0, as `unit_to_byte` of `packages/math/rust/src/scalar.rs` does. */
+export const unorm8 = (x: number) => {
+  const b = Math.round(x * 255)
+  return b > 0 ? (b < 255 ? b : 255) : 0
+}
 
 /** A unorm8 byte to its unit value, `b / 255`: exact at 0 and 255, and `unorm8` takes it back. */
 export const fromUnorm8 = (b: number) => b / 255

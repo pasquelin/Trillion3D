@@ -3,7 +3,7 @@
  * that power was measured under, and the ratios the draws of the surfaces and of the volume read (`encode` returns their buffer). Idempotent for an image.
  */
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
+import { askedComputeStage } from '../../gpu/core/computeStages.ts'
 import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { lightFunctionLayoutEntry } from '../lightFunction/bindings.ts'
@@ -125,15 +125,14 @@ function dispatchPower(
 
 export function createLightPower(device: GPUDevice, failed: (error: unknown) => void) {
   const layout = createPowerLayout(device)
-  const stage = preparedComputeStage(
+  const stage = askedComputeStage(
     device,
-    device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    device.createShaderModule({ label: 'Trillion3D sampled light power', code: powerDeltaWgsl() }),
+    [layout],
+    powerDeltaWgsl(),
     POWER_DELTA_ENTRY,
-    undefined,
     'Trillion3D sampled light power',
-  ).ask()
-  stage.prepare().catch(failed)
+    failed,
+  )
   const frame = device.createBuffer({
     label: 'Trillion3D sampled light power frame',
     size: POWER_FRAME_WORDS * 4,

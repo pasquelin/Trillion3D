@@ -11,13 +11,7 @@ import { createVsmFrameState } from './frameState.ts'
 import { planVirtualShadowFrame } from './frameSetup.ts'
 import { createVsmResources } from './resources.ts'
 
-const CASCADES: SunCascades = {
-  edge: 427,
-  distanceField: {
-    ...{ near: 400, far: 512, minDepth: 373, maxDepth: 512 },
-    ...{ fadeOffset: 500, invFadeLength: 1 / 12, nearFadeOffset: 373, invNearFadeLength: 1 / 27 },
-  },
-}
+const CASCADES: SunCascades = { edge: 427 }
 
 test('a sun’s cascades are on the clipmap its plan holds, with the edge of its far-shadow test', () => {
   const { device } = fakeDevice({

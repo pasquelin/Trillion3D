@@ -183,6 +183,7 @@ export function createScreenProbeResources(
       'args',
     ),
     sceneRays: a.buffer('scene rays', listBytes(rays, SCENE_RAY_WORDS) / 4, 'list'),
+    meshRays: a.buffer('mesh rays', listBytes(rays, SCENE_RAY_WORDS) / 4, 'list'),
     listHead: a.buffer('scene rays head', 4, 'head'),
   }
 }

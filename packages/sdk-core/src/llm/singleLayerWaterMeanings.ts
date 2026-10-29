@@ -33,9 +33,9 @@ export const SINGLE_LAYER_WATER_MEANINGS: Readonly<Record<SingleLayerWaterField,
   singleLayerWaterVelocityOutputPass:
     "When the water writes its velocity, the vector the temporal pass and the motion blur read of a pixel: 'depthPrepass' (the default) right after the water's depth is drawn (without the depth pass, with the shading), 'basePass' with the shading, 'none' never, the pixel then moving as the surface behind it. A water pixel moves with the camera alone.",
   singleLayerWaterShadersSupportDistanceFieldShadow:
-    "Whether the water programs keep the sun apart from the rest of the water's light, to lay the sun's distance-field shadow over it; true by default. Read when the session opens.",
+    "Whether the water programs keep the sun apart from the rest of the water's light, for the sun's distance-field shadow; true by default. Read when the session opens.",
   singleLayerWaterDistanceFieldShadow:
-    "Whether the sun's light on the water is multiplied by the sun's distance-field shadow, traced at the water's depth; true by default. Needs singleLayerWaterShadersSupportDistanceFieldShadow and a scene whose meshes have distance fields.",
+    "Whether the sun's light on the water is kept apart for the sun's distance-field shadow, which leaves out the meshes made of clusters (all the engine draws: the shadow maps shadow them); true by default. Needs singleLayerWaterShadersSupportDistanceFieldShadow and a scene whose meshes have distance fields.",
   singleLayerWaterShadersSupportVsmFiltering:
     "Whether the water programs hold the full trace of the sun's shadow that singleLayerWaterVsmFiltering turns on; false by default. Read when the session opens.",
   singleLayerWaterVsmFiltering:

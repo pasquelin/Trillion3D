@@ -11,8 +11,8 @@ import {
   WORLD_SPACE_ROOT,
 } from '../../visibility/shader/castingMark.ts'
 import type { AtlasState } from './atlasState.ts'
-import { cardRootVisible, rootVisible } from './objectTable.ts'
 import { OBJECT_FLAGS as F } from './layout.ts'
+import { cardRootVisible, rootVisible } from './objectTable.ts'
 import { createObjectTracker, type TrackedRoot } from './objectTracker.ts'
 
 const field = {
@@ -35,16 +35,16 @@ function tracked(mark?: number) {
   return { tracker, root, roots, flags: () => tracker.sourceOf(0).flags }
 }
 
-const CASTS = F.castShadow | F.visible | F.virtualized
+const CASTS = F.castShadow | F.visible
 
-test('a placement casts unless its mark says it casts none, and is made of clusters whatever the mark', () => {
+test('a placement casts unless its mark says it casts none', () => {
   assert.equal(tracked().flags(), CASTS, 'a mark of nothing')
   for (const mark of [MARK_BITS.worldRoot, MARK_BITS.movable])
     assert.equal(tracked(mark).flags(), CASTS, `the other bits are the maps’: ${mark}`)
-  assert.equal(tracked(SHADOWLESS_ROOT).flags(), F.visible | F.virtualized, 'casts none')
+  assert.equal(tracked(SHADOWLESS_ROOT).flags(), F.visible, 'casts none')
   assert.equal(
     tracked(WORLD_SPACE_ROOT).flags(),
-    F.visible | F.virtualized,
+    F.visible,
     'casts into the first-person clipmaps alone',
   )
 })
@@ -77,7 +77,7 @@ test('a root whose mark changes has its placement polled again and written with 
   seen.tracker.takeUpload()
   seen.root.mark = SHADOWLESS_ROOT
   seen.tracker.sync(seen.roots, () => false, 0, 1e9)
-  assert.equal(seen.flags(), F.visible | F.virtualized)
+  assert.equal(seen.flags(), F.visible)
   assert.deepEqual(seen.tracker.takeUpload(), [0], 'its record is written again')
 })
 
@@ -85,10 +85,10 @@ test('a hidden root still casts, a parked one casts none, and a hidden root that
   const seen = tracked()
   seen.root.hidden = true
   seen.tracker.sync(seen.roots, () => false, 0, 1e9)
-  assert.equal(seen.flags(), F.castShadow | F.virtualized, 'hidden: still casts')
+  assert.equal(seen.flags(), F.castShadow, 'hidden: still casts')
   seen.tracker.takeUpload()
   seen.root.parked = true
   seen.tracker.sync(seen.roots, () => false, 0, 1e9)
-  assert.equal(seen.flags(), F.virtualized, 'parked: casts none')
+  assert.equal(seen.flags(), 0, 'parked: casts none')
   assert.deepEqual(seen.tracker.takeUpload(), [0], 'its record is written again')
 })

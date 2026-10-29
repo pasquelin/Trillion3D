@@ -21,12 +21,12 @@ import {
   type HeldClouds,
 } from './composeWgsl.ts'
 import {
-  put4,
   RECONSTRUCT_SAMPLER,
   writeSafeBounds,
   type ImageSize,
   type Size,
 } from './reconstructLayout.ts'
+import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
 import { setupOfPlan, type CloudFramePlan } from './reconstruct.ts'
 
 /**
@@ -62,9 +62,9 @@ export function writeComposeView(out: Float32Array, input: ComposeInput, part: C
   const { nearestStartKm } = part.gpu
   const { cloudDisocclusionMaxDistanceKm } = part.quality
   const [toImage, toView] = composeScale(input.setup)
-  put4(out, at.textureSize, texture.width, texture.height, 1 / texture.width, 1 / texture.height)
+  putVec4(out, at.textureSize, texture.width, texture.height, 1 / texture.width, 1 / texture.height)
   writeSafeBounds(out, at.bounds, input.image)
-  put4(
+  putVec4(
     out,
     at.distances,
     nearestStartKm,
@@ -72,7 +72,7 @@ export function writeComposeView(out: Float32Array, input: ComposeInput, part: C
     input.setup.lateFog ? 1 : 0,
     input.frameIndex % 8,
   )
-  put4(out, at.scale, toImage, toView, input.preExposure ?? 1, 0)
+  putVec4(out, at.scale, toImage, toView, input.preExposure ?? 1, 0)
   return out
 }
 

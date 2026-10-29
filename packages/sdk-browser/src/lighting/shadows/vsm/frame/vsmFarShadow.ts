@@ -81,8 +81,7 @@ const sceneHasDistanceFields = (rt: Pick<WebgpuPagesRuntime, 'context'>) =>
 /**
  * The cascades of the sun `light` seen from a view whose near plane is `near`, under the view's
  * settings `shadows` (`sunCascades`): the edge of its near cascade — 0, none, when the culling is
- * off, the light has no near level or it is not a sun — and the planes of its distance-field
- * cascade, where it has one. The shadow maps take every cluster caster, whatever its distance: the
+ * off, the light has no near level or it is not a sun. The shadow maps take every cluster caster, whatever its distance: the
  * far-shadow test reaches the subjects gathered on the CPU alone, none of which is a cluster.
  */
 export const sunCascadesOf = (

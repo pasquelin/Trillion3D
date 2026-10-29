@@ -4,6 +4,7 @@ import { PI } from '../../../../math/src/wgsl/constants.ts'
 import { rand3dPcg16 } from '../../../../math/src/wgsl/sampling.ts'
 import { luminance } from '../../../../math/src/wgsl/color.ts'
 import { SUBSURFACE_OPACITY_THRESHOLD } from '../../../../sdk-core/src/lighting/subsurfaceProfile/profile.ts'
+import { unitNormalOrUp } from '../../../../math/src/wgsl/geometry.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { CENTIMETRES_PER_METRE } from '../../../../sdk-core/src/page/format.ts'
 import { DEPTH_WGSL } from '../../post/taa/depthWgsl.ts'
@@ -37,6 +38,7 @@ export const SSS_COMMON_WGSL = wgslBlock(
     VECTOR_CODEC_WGSL,
     PI,
     rand3dPcg16,
+    unitNormalOrUp,
   ],
   `${SSS_PARAMS.wgsl}
 @group(0) @binding(${SSS_BINDINGS.params}) var<uniform> view:SssParams;
@@ -60,11 +62,8 @@ fn sssProfileAt(p:vec2i)->u32{
  return u32(max(round(textureLoad(dataTex,p,0).x),0.0));
 }
 fn sssOpacityAt(p:vec2i)->f32{return select(0.0,textureLoad(dataTex,p,0).w,sssIsProfile(p));}
-fn sssNormalAt(p:vec2i)->vec3f{
- let n=textureLoad(normalsTex,p,0).xyz;
- let l=length(n);
- return select(vec3f(0.0,0.0,1.0),n/l,l>0.0);
-}
+// Kept: it reads the program's own normals texture, which a shared function cannot take as an argument.
+fn sssNormalAt(p:vec2i)->vec3f{return unitNormalOrUp(textureLoad(normalsTex,p,0).xyz);}
 fn sssDepthAt(p:vec2i)->f32{return sceneDepthOf(hizOpaqueDepth(p))*${CENTIMETRES_PER_METRE}.0;}
 fn sssRow(x:u32,id:u32)->vec4f{return textureLoad(profileTex,vec2i(i32(x),i32(id)),0);}
 fn sssKernel(x:u32,id:u32)->vec4f{return sssRow(x,id)*vec4f(1.0,1.0,1.0,SSS_KERNEL_SIZE);}

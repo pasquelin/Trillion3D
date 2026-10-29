@@ -62,7 +62,7 @@ fn diffuseCompute(@builtin(workgroup_id) group3:vec3u,@builtin(local_invocation_
  let size=vec2i(ssView.size.xy);
  if(rayId==0u){
   let full=fullPosition(lanePixel(group,pixelId));
-  let at=ssClampPixel(vec2i(floor(full)),size);
+  let at=clampToExtent(vec2i(floor(full)),size);
   let surface=ssSurfaceAt(at);
   let z=hizOpaqueDepth(at);
   let traced=surface.valid&&z>0.0;

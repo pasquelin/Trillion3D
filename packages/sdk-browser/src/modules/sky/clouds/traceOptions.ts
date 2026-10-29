@@ -7,7 +7,7 @@ import { NO_INDEX } from '../../../../../math/src/constants.ts'
 import { IDENTITY_MATRIX4 } from '../../../../../math/src/matrix/matrix4.ts'
 import { clamp } from '../../../../../math/src/scalar/reals.ts'
 import type { CloudSetup } from './cloudModes.ts'
-import { put4 } from './reconstructLayout.ts'
+import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
 import type { CLOUD_TRACE_LAYOUT, CloudTraceImage } from './traceLayout.ts'
 
 /** The slices of the empty-space table along the depth (the threads of its group along z) and its
@@ -38,7 +38,7 @@ export function writeCloudTraceOptions(
 ) {
   const hazeInSecondPass = cloudHazeInSecondPass(quality, image.airPresent)
   out.set(image.viewProjection ?? IDENTITY_MATRIX4, at.viewProjection)
-  put4(
+  putVec4(
     words,
     at.options,
     quality.cloudAerialPerspective && image.airPresent && !hazeInSecondPass ? 1 : 0,
@@ -47,9 +47,9 @@ export function writeCloudTraceOptions(
     image.sunShadowChannel ?? NO_INDEX,
   )
   const cells = image.lightGridCells ?? [0, 0]
-  put4(words, at.view, image.view.width, image.view.height, cells[0], cells[1])
+  putVec4(words, at.view, image.view.width, image.view.height, cells[0], cells[1])
   const volumeCm = CM_PER_KM * Math.max(1, quality.cloudEmptySpaceSkippingDepthKm)
-  put4(
+  putVec4(
     out,
     at.empty,
     volumeCm / CLOUD_EMPTY_SPACE_SLICES,
@@ -57,7 +57,7 @@ export function writeCloudTraceOptions(
     quality.cloudEmptySpaceSkippingSliceBias,
     0,
   )
-  put4(
+  putVec4(
     out,
     at.ground,
     settings.groundAlbedo[0],
@@ -65,7 +65,7 @@ export function writeCloudTraceOptions(
     settings.groundAlbedo[2],
     0,
   )
-  put4(
+  putVec4(
     out,
     at.local,
     clamp(quality.cloudLocalLightShadowSamples, 0, 128),

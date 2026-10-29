@@ -64,6 +64,7 @@ const TILE: usize = place("tile");
 fn source() -> Source {
     let wgsl = [
         layout::prelude().as_str(),
+        include_str!("../gpu/scene_words.wgsl"),
         include_str!("gpu/scene.wgsl"),
         include_str!("gpu/capture.wgsl"),
         include_str!("gpu/tile.wgsl"),

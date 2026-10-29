@@ -75,11 +75,3 @@ export function writeWorldToView(
   }
   out[at + 15] = 1
 }
-
-/** Writes the three axes of the eye's frame, right, up and forward, as rows of four numbers (the fourth zero): those of the camera's world matrix `world` (column-major, looking down its `-z`). */
-export function putEyeAxes(out: Float32Array, at: number, world: ArrayLike<number>) {
-  putVec4(out, at, world[0], world[1], world[2])
-  putVec4(out, at + 4, world[4], world[5], world[6])
-  // `0 - x`, not `-x`: a zero component stays +0.
-  putVec4(out, at + 8, 0 - world[8], 0 - world[9], 0 - world[10])
-}

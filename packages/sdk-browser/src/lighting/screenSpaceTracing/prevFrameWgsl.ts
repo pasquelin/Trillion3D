@@ -49,14 +49,14 @@ fn reductionFirstColor(pixel:vec2u)->Reduced{
  var prevScreen=prevClip.xy/prevClip.w;
  let isSky=depth>ssView.sky.x&&ssView.sky.x>0.0;
  let vectorSize=vec2i(textureDimensions(colorVectors));
- let words=textureLoad(colorVectors,ssClampPixel(vec2i(floor(uv*vec2f(vectorSize))),vectorSize),0);
+ let words=textureLoad(colorVectors,clampToExtent(vec2i(floor(uv*vec2f(vectorSize))),vectorSize),0);
  if(hasOwnMotion(words.r)){prevScreen=thisClip.xy-decodeVector(words.r);}
  let frameUV=prevScreen*ssView.previous.xy+ssView.previous.zw;
  let colorSize=vec2f(textureDimensions(colorImage));
  let edge=vec2f(0.5)/colorSize;
  let sampleUV=clamp(frameUV,edge,vec2f(1.0)-edge);
  let depthSize=vec2i(textureDimensions(prevDepth));
- let sampleTexel=ssClampPixel(vec2i(floor(sampleUV*vec2f(depthSize))),depthSize);
+ let sampleTexel=clampToExtent(vec2i(floor(sampleUV*vec2f(depthSize))),depthSize);
  let prevDeviceZ=textureLoad(prevDepth,sampleTexel,0).r;
  let prevWorld=ssView.prevClipToWorld*vec4f(prevScreen,prevDeviceZ,1.0);
  let referenceWorld=ssWorldAt(screen,deviceZ);

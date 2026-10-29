@@ -2,8 +2,7 @@
  * THE DIRECT LIGHT, AS TWO PASSES OVER THE TILES OF THE LIT SURFACES (`tileClass.ts`), added to the
  * lit image:
  * - the sun's pass: the directional lights — every one of the scene's, by their ranks in the light
- *   buffer (`sunRanks`) — on every pixel of the tile, their shadows read in the frame's mask and the
- *   sun's distance-field shadow, their light and the clouds' shade on them;
+ *   buffer (`sunRanks`) — on every pixel of the tile, their shadows read in the frame's mask, their light and the clouds' shade on them;
  * - the local lights' pass: the lights of the pixel's cell of the light grid (`cellSlice`), the
  *   directional ones left to the sun's pass.
  * One light term, `declaredLight`, serves both, and the blend: only the loop around it differs. A
@@ -59,16 +58,14 @@ const SUN_RANKS_BINDING_WGSL = wgslBlock(
   `@group(0) @binding(${DEFERRED_BINDINGS.sunRanks}) var<storage,read> sunRanks:array<u32>;`,
 )
 
-/** What the sun's pass binds for its light terms: the suns' mask, the sun's
- *  distance-field shadow, the light functions and the clouds' shade. */
+/** What the sun's pass binds for its light terms: the suns' mask, the
+ *  light functions and the clouds' shade. */
 const SUN_BINDINGS: LightingBindings = {
   vsmSunMask: CONTRACT_SHADOW_BINDINGS.vsmSunMask,
-  farShadowMask: DEFERRED_BINDINGS.farShadowMask,
   lightFunction: DEFERRED_LIGHT_FUNCTION_BINDINGS,
   cloudShadow: DEFERRED_CLOUD_SHADOW_BINDINGS,
 }
-/** The local lights' pass: no distance-field shadow of the sun, no clouds' shade — the air's lights
- *  are directional. */
+/** The local lights' pass: no clouds' shade — the air's lights are directional. */
 const LOCAL_BINDINGS: LightingBindings = {
   vsmSunMask: CONTRACT_SHADOW_BINDINGS.vsmSunMask,
   vsmMask: CONTRACT_SHADOW_BINDINGS.vsmMask,
@@ -80,7 +77,6 @@ const LOCAL_BINDINGS: LightingBindings = {
  *  shadow as the sun's pass does. */
 const VISIBILITY_BINDINGS: LightingBindings = {
   ...LOCAL_BINDINGS,
-  farShadowMask: DEFERRED_BINDINGS.farShadowMask,
 }
 
 /** The bindings `bindings` with the screen-space contact shadows' array (`contactShadowMethod` 1) where the pass holds contact shadow
@@ -223,7 +219,7 @@ export function sunPassWgsl(key: ContractKey, tileClass: TileClass) {
  * `single` class (the models, no lobe) holds `visibilityMain` besides, which the view of the shadows
  * (`LIT_VIEWS`) draws the tiles of every class with: it sums every light of the cell, the directional
  * ones too, as a shadow catcher reads them (`MODEL_FLAG.shadow`, `CATCHER_SHADOWED`) and shows the
- * share of their light the shadows let through, the sun's distance-field shadow among them, white
+ * share of their light the shadows let through, white
  * where no shadowed light reaches.
  */
 const SAMPLED_LIGHT_BINDING_WGSL = wgslBlock(

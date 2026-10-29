@@ -111,15 +111,10 @@ const SHADOW_MAP_DEFAULTS = {
 /** The view's far-shadow settings at their defaults. */
 const SUN_SHADOW_DEFAULTS = {
   ...{ shadowMaxFarCascades: 10, shadowFarDistanceOverride: 0, distanceFieldDistanceScale: 1 },
-  ...{
-    distanceFieldFarTransitionScale: 1,
-    distanceFieldShadowQuality: 3,
-    distanceFieldShadowing: true,
-  },
-  ...{ distanceFieldShadowFullResolution: false, distanceFieldShadowTileSize: 2 },
-  ...{ distanceFieldShadowTwoSidedBias: 1, distanceFieldShadowObjectsPerTile: 128 },
-  ...{ distanceFieldShadowScatterTiles: true, distanceFieldShadowCompactTiles: true },
-  ...{ distanceFieldShadowSubsampleDepth: false, distanceFieldShadowSnapResolution: 2048 },
+  ...{ distanceFieldShadowQuality: 3, distanceFieldShadowing: true },
+  ...{ distanceFieldShadowTileSize: 2, distanceFieldShadowTwoSidedBias: 1 },
+  ...{ distanceFieldShadowObjectsPerTile: 128, distanceFieldShadowCompactTiles: true },
+  distanceFieldShadowSnapResolution: 2048,
 }
 
 /** The view's contact shadow settings at their defaults: on, no override of the lights' own. */
@@ -163,7 +158,6 @@ test('the shadow settings read by their rules, a light’s own beside them', () 
     ...{ shadowDistance: 400, shadowCascades: 4, shadowCascadeExponent: 3 },
     ...{ shadowCascadeTransition: 0.1, farShadowCascades: 0, farShadowDistance: 3000 },
     ...{ distanceFieldShadows: true, distanceFieldShadowDistance: 512 },
-    ...{ distanceFieldTraceDistance: 100, distanceFieldRayStartOffset: 0.003, shadowAmount: 1 },
   })
   assert.equal(SHADOW_DISTANCE_DEFAULT, 400)
   assert.equal(resolveSetting(SHADOW_RULES.shadowDistanceScale, 2), 2)
@@ -178,15 +172,11 @@ test('the shadow settings read by their rules, a light’s own beside them', () 
   const refuses = (field: keyof typeof SUN_SHADOW_DEFAULTS, value: unknown, words: RegExp) =>
     assert.throws(() => resolveSetting(SHADOW_RULES[field], value as never), words, field)
   refuses('distanceFieldDistanceScale', 0, /from 0.0001 to 10000/)
-  refuses('distanceFieldFarTransitionScale', 1.5, /from 0 to 1/)
   refuses('distanceFieldShadowQuality', 4, /from 0 to 3/)
   refuses('distanceFieldShadowTileSize', 0, /above 0/)
   refuses('shadowMaxFarCascades', -1, /at least 0/)
   refuses('distanceFieldShadowObjectsPerTile', 0, /at least 1/)
-  refuses('distanceFieldShadowFullResolution', 1, /true or false/)
-  refuses('distanceFieldShadowScatterTiles', 0, /true or false/)
   refuses('distanceFieldShadowCompactTiles', 'yes', /true or false/)
-  refuses('distanceFieldShadowSubsampleDepth', 1, /true or false/)
   refuses('distanceFieldShadowSnapResolution', 31, /from 32 to/)
   refuses('distanceFieldShadowSnapResolution', 64.5, /whole/)
   // A light's own: a distance takes true, false and metres; the rest what its rule says.
@@ -199,7 +189,6 @@ test('the shadow settings read by their rules, a light’s own beside them', () 
   for (const bad of [-1, NaN, Infinity, '400', {}])
     assert.throws(() => light({ shadowDistance: bad as never }), /shadowDistance: must be a finite/)
   assert.throws(() => light({ shadowCascades: 1.5 }), /shadowCascades: must be a whole number/)
-  assert.throws(() => light({ distanceFieldTraceDistance: 5 }), /from 10 to 10000/)
   assert.throws(() => light({ shadowCascadeExponent: -1 }), /at least 0/)
   assert.throws(() => resolveLightShadow({ shadowDistanse: 1 }), /no field shadowDistanse/)
   assert.equal(LIGHT_SHADOW_RULES.shadowDistance.distance, true)

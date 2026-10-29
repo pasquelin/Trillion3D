@@ -26,7 +26,6 @@ import { encodeQueuedBounce } from './encodeLights.ts'
 import { encodeLocalFog, encodeLocalFogSky } from './encodeLocalFog.ts'
 import { encodeSkyOcclusion } from './encodeSkyOcclusion.ts'
 import { encodeCapsuleIndirectFactors } from '../../lighting/capsuleShadows/host.ts'
-import { encodeSunFieldShadow, encodeWaterSunFieldShadow } from './encodeSunFieldShadow.ts'
 import { encodeLightShaftOcclusion } from '../../modules/sky/lightShafts/frame.ts'
 import {
   encodeScreenSpaceIndirect,
@@ -79,8 +78,6 @@ export function encodePreLight(
   // The sky light's term in the local fog volumes, which the passes below lay over the surfaces.
   encodeLocalFogSky(rt, device, compute.begin(encoder))
   compute.end()
-  // The same sun's shadow at the water's depth, for the water that keeps its sun apart.
-  encodeWaterSunFieldShadow(rt, encoder, cam)
   // What every surface reflects, and the light the pixels receive from the probes, where the view is lit.
   if (overrides.lighting) encodeIndirectLight(rt, device, encoder, cam, overrides)
   // The fog's volume, built over the light lists and the sun's shadow maps just made, the opaque depth and the global illumination volume
@@ -99,11 +96,7 @@ export function encodePreLight(
   // fog's view block, so after the volume's block is.
   encodeLightShaftOcclusion(rt, device, encoder, cam)
   // The shadow of each direct light, projected per light once the indirect light is composed and just before the light itself is
-  // lit, as the reference does: the sun's shadow past its shadow maps, traced against the
-  // distance fields, which the resolve multiplies the sun's shadow by — before the projection of the same sun's shadow maps
-  // that follows, as the reference projects its distance-field cascade first and its virtual shadow map second, and takes the
-  // least of the two. Nothing before reads either result: the resolve alone does.
-  encodeSunFieldShadow(rt, encoder, cam)
+  // lit, as the reference does. Nothing before reads the result: the resolve alone does.
   const projection = compute.begin(encoder)
   encodeHeldVsmProjection(rt, projection)
   projection.end()

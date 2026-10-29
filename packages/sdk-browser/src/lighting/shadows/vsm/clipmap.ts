@@ -141,9 +141,7 @@ interface VsmDirectionalLightInput {
   direction: ArrayLike<number>
   /** Whether the light is `movable`: only a movable light takes the moving bias (`vsmLightMobility`). */
   movable?: boolean
-  /** The cascades the frame laid for it (`sunCascades`), the distance-field cascade among them: no
-   *  part of the cache key, read each frame by the cascade's passes
-   *  (`lighting/distanceField/shadow/`). */
+  /** The cascades the frame laid for it (`sunCascades`): no part of the cache key. */
   cascades?: SunCascades
   /** Whether this is the sun's first-person clipmap (`shadowFirstPersonClipmap`): its own levels, no
    *  cache (drawn again each frame), its maps flagged (`VSM_MAP_FIRST_PERSON`) for the objects that stand
@@ -194,8 +192,6 @@ function vsmClipmapLevelRadiusCm(absoluteLevel: number) {
 
 /** The shadow settings of a light that names none: every default. */
 const DEFAULT_LIGHT_SHADOW = /* @__PURE__ */ resolveLightShadow({})
-/** The light shadow fields a clipmap's cache key holds: those that shape the maps, not the cascade's shadow amount. */
-const CACHE_FIELDS = /* @__PURE__ */ LIGHT_SHADOW_FIELDS.filter((field) => field !== 'shadowAmount')
 // The frame's scratch: what a clipmap computes before its cache entry is known, or reads once.
 const direction: [number, number, number] = [0, 0, 0],
   cacheKey = { lightDirection: direction, firstLevel: 0, shadow: [] as number[] },
@@ -269,7 +265,8 @@ function updateEntry(
 ) {
   cacheKey.firstLevel = firstLevel
   const own = light.shadow ?? DEFAULT_LIGHT_SHADOW
-  for (let k = 0; k < CACHE_FIELDS.length; k++) cacheKey.shadow[k] = Number(own[CACHE_FIELDS[k]!])
+  for (let k = 0; k < LIGHT_SHADOW_FIELDS.length; k++)
+    cacheKey.shadow[k] = Number(own[LIGHT_SHADOW_FIELDS[k]!])
   cacheEntry.updateClipmap(cacheKey, uncached, useCover)
 }
 

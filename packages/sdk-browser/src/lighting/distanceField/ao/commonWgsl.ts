@@ -1,5 +1,9 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { pixelToNdc, unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
+import {
+  deviceDepthOfView,
+  pixelToNdc,
+  unprojectPoint,
+} from '../../../../../math/src/wgsl/projection.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import {
   AO_DOWNSAMPLE,
@@ -16,7 +20,7 @@ export const DFAO_FAR_CM = 65500
 /**
  * WHAT EVERY PASS OF THE DISTANCE-FIELD OCCLUSION DECLARES: its uniform (`dfao`, `DFAO_PARAMS`), and the geometry
  * they share — the order the steps of a cone are spaced in, the frame a surface's cones are turned into, the place
- * of a cone-grid cell on the screen and in the grid, the depth as a distance in centimetres and back, the
+ * of a cone-grid cell on the screen and in the grid, the device depth of a distance in metres, the
  * distance from a point to a box.
  *
  * A cone-grid cell stands for 4 × 4 cells of the normals and depths grid, itself half the scene's pixels: the cell
@@ -26,7 +30,7 @@ export const DFAO_FAR_CM = 65500
  */
 export const DFAO_COMMON_WGSL = wgslBlock(
   'DFAO_COMMON_WGSL',
-  [pixelToNdc, unprojectPoint],
+  [pixelToNdc, unprojectPoint, deviceDepthOfView],
   `${wgslConsts({
     AO_DOWNSAMPLE,
     CONE_TRACE_DOWNSAMPLE,
@@ -52,16 +56,8 @@ fn dfaoConeDirection(i:u32,n:vec3f,a:DfaoAxes)->vec3f{
  let d=dfao.directions[i].xyz;
  return d.x*a.x+d.y*a.y+d.z*n;
 }
-fn dfaoDepthCm(z:f32)->f32{
- let distance=select(dfao.depth.y+(1.0-z)*dfao.depth.x,dfao.depth.x/max(z,1e-30),dfao.depth.z>0.5);
- return min(distance*100.0,3.4e38);
-}
-fn dfaoDeviceDepth(cm:f32)->f32{
- let distance=cm*0.01;
- return select(1.0-(distance-dfao.depth.y)/dfao.depth.x,dfao.depth.x/max(distance,1e-30),dfao.depth.z>0.5);
-}
 fn dfaoWorldAt(ndc:vec2f,cm:f32)->vec3f{
- return unprojectPoint(dfao.unprojectToWorld,vec3f(ndc,dfaoDeviceDepth(cm)));
+ return unprojectPoint(dfao.unprojectToWorld,vec3f(ndc,deviceDepthOfView(dfao.depth,cm*0.01)));
 }
 fn dfaoCellTexel(coord:vec2u)->vec2i{
  return vec2i(coord*CONE_TRACE_DOWNSAMPLE)+vec2i(dfao.jitter.xy);

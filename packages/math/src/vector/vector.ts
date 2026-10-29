@@ -24,13 +24,13 @@ export function dotScalar3(ax: number, ay: number, az: number, bx: number, by: n
   return ax * bx + ay * by + az * bz
 }
 
-/** The largest of the `Math.hypot` lengths of the three axes (the columns) of the column-major
+/** The largest of the `length3` lengths of the three axes (the columns) of the column-major
  *  matrix read at `at`: the scale a radius is carried by. */
 export function largestAxisScale(m: ArrayLike<number>, at = 0) {
   return Math.max(
-    Math.hypot(m[at], m[at + 1], m[at + 2]),
-    Math.hypot(m[at + 4], m[at + 5], m[at + 6]),
-    Math.hypot(m[at + 8], m[at + 9], m[at + 10]),
+    length3(m[at], m[at + 1], m[at + 2]),
+    length3(m[at + 4], m[at + 5], m[at + 6]),
+    length3(m[at + 8], m[at + 9], m[at + 10]),
   )
 }
 

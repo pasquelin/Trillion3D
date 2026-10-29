@@ -122,6 +122,10 @@ export interface StreamCatalogue {
   /** Its culling tree. */ culling?: CullingHierarchy | null
   /** Its group links. */ structure?: ClusterStructure | null
   /** Its stream bundles. */ streams?: StreamCatalogue | null
+  /** A primitive a world cut at run time: no compiler built its cards or its distance field. */
+  runtime?: boolean
+  /** The tree rays walk over its triangles, made where it was cut (`rayTracingTreeOf`): only on a run-time primitive of faces that does not deform. */
+  rayTracing?: import('../lighting/rayTracingTree.ts').RayTracingTree
   /** A world's dynamic geometry: index pages alone, their vertices read as floats from the
    *  host geometry the engine rewrites in place. */
   dynamic?: boolean

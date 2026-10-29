@@ -46,7 +46,7 @@ import {
   ROOT_PARENT_MARK,
   ROOT_WORD,
 } from '../../geometry/dag/frameTable.ts'
-import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
+import { doubleAsSingle, fromF32 } from '../../../../math/src/wgsl/f32.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { NO_INDEX } from '../../../../math/src/constants.ts'
 
@@ -61,8 +61,6 @@ export const TREE_LEAVES_WGSL = wgslProgram(
 @group(0) @binding(1) var<storage,read> worlds:array<vec2u>;
 @group(0) @binding(2) var<storage,read_write> members:array<vec2u>;
 @group(0) @binding(3) var<storage,read> ranks:array<u32>;
-/** The word of a double \`d\` as a single float. */
-fn single(d:vec2u)->f32{return bitcast<f32>(toF32(d));}
 /** Placement \`w\`'s parent leaf (\`PARENT_LEAF\`) at \`world\`: the ball of the group above its root
  *  carried by the world, its radius by the largest axis scale, its error by the smallest, grown by
  *  the margins; zeros — and no one — when its mark names none or a number is not finite. */
@@ -73,10 +71,10 @@ fn writeParentLeaf(w:u32,world:array<vec2u,16>,mark:u32){
   let record=framesWord(w,${PARENT_WORD}u);
   let ball=bitcast<vec4f>(nodesNode(record,${PARENT_SPHERE >> 2}u));
   let x=fromF32(bitcast<u32>(ball.x));let y=fromF32(bitcast<u32>(ball.y));let z=fromF32(bitcast<u32>(ball.z));
-  let c=vec3f(single(affineAxis(world,0u,x,y,z)),single(affineAxis(world,1u,x,y,z)),single(affineAxis(world,2u,x,y,z)));
-  let la=length(vec3f(single(world[0]),single(world[1]),single(world[2])));
-  let lb=length(vec3f(single(world[4]),single(world[5]),single(world[6])));
-  let lc=length(vec3f(single(world[8]),single(world[9]),single(world[10])));
+  let c=vec3f(doubleAsSingle(affineAxis(world,0u,x,y,z)),doubleAsSingle(affineAxis(world,1u,x,y,z)),doubleAsSingle(affineAxis(world,2u,x,y,z)));
+  let la=length(vec3f(doubleAsSingle(world[0]),doubleAsSingle(world[1]),doubleAsSingle(world[2])));
+  let lb=length(vec3f(doubleAsSingle(world[4]),doubleAsSingle(world[5]),doubleAsSingle(world[6])));
+  let lc=length(vec3f(doubleAsSingle(world[8]),doubleAsSingle(world[9]),doubleAsSingle(world[10])));
   let most=max(la,max(lb,lc));let least=min(la,min(lb,lc));
   let grown=ball.w*most;
   let reach=max(max(abs(c.x),abs(c.y)),abs(c.z))+grown;
@@ -114,7 +112,7 @@ fn writeLeaf(w:u32){
   [
     LISTED_ROOTS_WGSL,
     fromF32,
-    toF32,
+    doubleAsSingle,
     affineAxis,
     markReachWgsl,
     reachUnboundedWgsl,

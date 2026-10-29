@@ -4,7 +4,7 @@ import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { postSamplers } from '../../gpu/core/postSamplers.ts'
-import { standInBuffer, standInTexture } from '../../gpu/core/standIns.ts'
+import { standInTexture } from '../../gpu/core/standIns.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
 import {
   readSingleLayerWaterSetting,
@@ -84,9 +84,9 @@ export interface WaterTargets {
   masked: boolean
   /** The settings this image reads, and whether any moved. */
   watch: ReturnType<typeof settingsWatch<typeof SINGLE_LAYER_WATER_RULES>>
-  /** The group of the shading, and of the composite on the sun's distance-field mask it was made for. */
+  /** The group of the shading, and of the composite. */
   shadeGroup: GPUBindGroup
-  composite?: { mask: GPUBuffer | undefined; group: GPUBindGroup }
+  composite?: GPUBindGroup
   /** The groups of the copy, the mask, the tiles' kernels and the identifiers' kernel, made on the views of the scene's
    *  colour and depth they read (and again when those move). */
   scene?: {
@@ -103,8 +103,6 @@ export interface WaterTargets {
 const standIns = oncePerDevice((device) => ({
   colour: standInTexture(device, 'Trillion3D water stand-in', WATER_NORMALS_FORMAT).createView(),
   depth: standInTexture(device, 'Trillion3D water stand-in depth', DEPTH_FORMAT).createView(),
-  // Read as no mask: a word that says its row length is zero (`waterFarFactor`).
-  mask: standInBuffer(device, 'Trillion3D water stand-in mask', 16, GPUBufferUsage.STORAGE),
 }))
 
 function createTargets(
@@ -146,18 +144,13 @@ function createTargets(
     masked: false,
     watch: settingsWatch(SINGLE_LAYER_WATER_RULES),
   } as WaterTargets
-  targets.shadeGroup = waterGroup(device, targets, false, undefined)
+  targets.shadeGroup = waterGroup(device, targets, false)
   return targets
 }
 
 /** The water group (`WATER_GROUP`) of `targets`: of the shading, whose targets it names by stand-ins, or of the
- *  composite, which reads the water's surface and the separated sun, and the sun's distance-field `mask`. */
-function waterGroup(
-  device: GPUDevice,
-  targets: WaterTargets,
-  surface: boolean,
-  mask: GPUBuffer | undefined,
-) {
+ *  composite, which reads the water's surface and the separated sun. */
+function waterGroup(device: GPUDevice, targets: WaterTargets, surface: boolean) {
   const stand = standIns(device),
     { views } = targets
   return device.createBindGroup({
@@ -174,23 +167,13 @@ function waterGroup(
       { binding: WATER_BINDINGS.waterDepth, resource: surface ? views.waterDepth : stand.depth },
       { binding: WATER_BINDINGS.tiles, resource: { buffer: targets.tileList } },
       { binding: WATER_BINDINGS.sun, resource: (surface && views.sun) || stand.colour },
-      { binding: WATER_BINDINGS.farMask, resource: { buffer: (surface && mask) || stand.mask } },
     ],
   })
 }
 
-/** The group of the composite, made again where the sun's distance-field `mask` moved. */
-export function waterCompositeGroup(
-  device: GPUDevice,
-  targets: WaterTargets,
-  mask: GPUBuffer | undefined,
-) {
-  const held = targets.composite
-  if (held && held.mask === mask) return held.group
-  const group = waterGroup(device, targets, true, mask)
-  targets.composite = { mask, group }
-  return group
-}
+/** The group of the composite, made once for the targets. */
+export const waterCompositeGroup = (device: GPUDevice, targets: WaterTargets) =>
+  (targets.composite ??= waterGroup(device, targets, true))
 
 /** `free` of every texture and buffer of `targets`. */
 const freeTargets = (targets: WaterTargets, free: (resource: { destroy(): void }) => void) => {

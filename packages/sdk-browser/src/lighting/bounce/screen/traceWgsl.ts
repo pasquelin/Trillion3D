@@ -340,11 +340,11 @@ export type SceneCompaction = 'native' | 'polyfill'
  * ordered compaction of the reference's wave-operations path (`ScreenProbeCompactTracesCS`, `WavePrefixCountBits`): the ranks of a subgroup are the prefix count of
  * its lanes that want one, and the subgroups take theirs from the group's count in turn (`native`); the scan, for a device with no subgroups, ranks the
  * threads of the whole group in the order of their lanes (`polyfill`: a Hillis-Steele scan, `SP_TRACE` squared threads, every thread in uniform control flow).
- * `spCompactTotal` is the group's count once every thread has ranked. A kernel that names it declares `SP_TRACE`.
+ * `spCompactTotal` is the group's count once every thread has ranked. The group is `threads` threads (a WGSL expression, `SP_TRACE` squared by default, `WORKGROUP_THREADS` for a kernel over a list).
  */
-const spCompact = (compaction: SceneCompaction) =>
+export const spCompact = (compaction: SceneCompaction, threads = 'SP_TRACE*SP_TRACE') =>
   wgslBlock(
-    `SP_COMPACT(${compaction})`,
+    `SP_COMPACT(${compaction}, ${threads})`,
     [],
     compaction === 'native'
       ? `enable subgroups;
@@ -360,13 +360,13 @@ fn spCompactRank(wants:bool,lane:u32)->u32{
  return subgroupBroadcastFirst(first)+inSubgroup;
 }
 fn spCompactTotal()->u32{return atomicLoad(&compactCount);}`
-      : `var<workgroup> compactScan:array<u32,SP_TRACE*SP_TRACE>;
+      : `var<workgroup> compactScan:array<u32,${threads}>;
 fn spCompactBegin(){}
 fn spCompactRank(wants:bool,lane:u32)->u32{
  let flag=select(0u,1u,wants);
  compactScan[lane]=flag;
  workgroupBarrier();
- for(var step=1u;step<SP_TRACE*SP_TRACE;step=step<<1u){
+ for(var step=1u;step<${threads};step=step<<1u){
   var before=0u;
   if(lane>=step){before=compactScan[lane-step];}
   workgroupBarrier();
@@ -375,7 +375,7 @@ fn spCompactRank(wants:bool,lane:u32)->u32{
  }
  return compactScan[lane]-flag;
 }
-fn spCompactTotal()->u32{return compactScan[SP_TRACE*SP_TRACE-1u];}`,
+fn spCompactTotal()->u32{return compactScan[${threads}-1u];}`,
   )
 
 /**

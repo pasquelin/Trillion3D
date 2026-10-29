@@ -47,9 +47,6 @@ export interface DirectLightResources extends Partial<ContractKey> {
   vsmLightGrid?: GPUBuffer
   /** The suns' mask, a layer a sun (`vsmSunFactor`): bound at `DEFERRED_BINDINGS.vsmSunMask`. */
   vsmSunMask?: GPUTextureView
-  /** The sun's distance-field shadow (`../distanceField/shadow/state.ts`): a byte a lane of the suns
-   *  in a word a pixel, the opaque lit passes'; none where the image drew none. */
-  farShadowMask?: GPUBuffer
   /** The probes' levels' uniform (`../bounce/uniform.ts`): one lifetime, the probes' identity; its presence says the frame is lit with
    *  the bounce program, the reflections read the scene's reach in it. */
   bounceGrid?: GPUBuffer

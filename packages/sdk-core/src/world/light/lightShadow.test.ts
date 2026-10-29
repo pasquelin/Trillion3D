@@ -14,16 +14,11 @@ test('a directional light’s cascades and distance-field cascade are its own se
     [4, 3, 0.1],
   )
   assert.deepEqual([sun.farShadowCascades, sun.farShadowDistance], [0, 3000])
-  assert.deepEqual(
-    [sun.distanceFieldShadows, sun.distanceFieldShadowDistance, sun.distanceFieldTraceDistance],
-    [true, 512, 100],
-  )
-  assert.equal(sun.distanceFieldRayStartOffset, 0.003)
-  assert.equal(sun.shadowAmount, 1)
+  assert.deepEqual([sun.distanceFieldShadows, sun.distanceFieldShadowDistance], [true, 512])
   const named = light.directional({
     ...{ shadowCascades: 2, shadowCascadeExponent: 2, shadowCascadeTransition: 0.2 },
     ...{ farShadowCascades: 1, farShadowDistance: 2000, distanceFieldShadows: false },
-    ...{ distanceFieldShadowDistance: false, distanceFieldTraceDistance: 50 },
+    ...{ distanceFieldShadowDistance: false },
   })
   assert.deepEqual(
     [named.shadowCascades, named.shadowCascadeExponent, named.shadowCascadeTransition],
@@ -31,7 +26,7 @@ test('a directional light’s cascades and distance-field cascade are its own se
   )
   assert.deepEqual([named.farShadowCascades, named.farShadowDistance], [1, 2000])
   assert.deepEqual([named.distanceFieldShadows, named.distanceFieldShadowDistance], [false, 0])
-  assert.equal(named.clone().distanceFieldTraceDistance, 50, 'a clone keeps them')
+  assert.equal(named.clone().farShadowDistance, 2000, 'a clone keeps them')
   const scene = new Group(),
     { link, heard } = countingLink()
   scene._link = link
@@ -41,7 +36,6 @@ test('a directional light’s cascades and distance-field cascade are its own se
   sun.distanceFieldShadows = false
   assert.equal(heard.length, before + 2, 'each write reaches the world at once')
   assert.throws(() => (sun.shadowCascades = 1.5), /shadowCascades: must be a whole number/)
-  assert.throws(() => light.directional({ distanceFieldTraceDistance: 5 }), /from 10 to 10000/)
 })
 
 test('a sun’s cascades reach its record when they differ from the default, and come back; a lamp that is no sun records none', () => {

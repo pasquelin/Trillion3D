@@ -282,9 +282,9 @@ no cluster geometry; no shader of its cluster or virtual-shadow-map culling carr
 draws is made of clusters (`lighting/shadows/casters/casterFeed.ts`), so the maps take each of them at any distance, whether
 its object casts far shadows or not, and nothing is left out by the test: the candidate kernel
 (`vsmRenderCandidates`, `vsm/render/renderCandidatesWgsl.ts`) and the cull (`vsmRenderCull`) read no far-shadow
-distance. The sun's distance-field cascade does not take the far geometry in their place: it traces the meshes that
-are no cluster geometry, and every mesh the engine draws is made of clusters (see "The distance-field cascade"
-below). `farShadowCulling` decides whether a sun has a near edge and the distance-field cascade that follows it; the
+distance. No distance-field shadow takes the far geometry in their place on the view: the maps draw the clusters at
+any distance, and every mesh the engine draws is made of clusters (see "The distance-field cascade" below).
+`farShadowCulling` decides whether a sun has a near edge and the distance-field cascade that follows it; the
 reference's test would act on a caster that is no cluster geometry, of which the engine has none, so it has no switch
 for the test.
 
@@ -295,8 +295,7 @@ settings and the view's: the near levels (the light's `shadowCascades`, 4 by def
 end of the last near level with that overlap (427 m at the defaults, the distance itself from 512 m on). Each map's projection record carries it
 (`farShadowEdge`, 0 for none; a local light's is 0).
 
-**The cache.** A sun's own shadow settings — the ten of the `LIGHT_SHADOW_FIELDS` but `shadowAmount`, which only fades the
-distance-field cascade's shadow: the distance, the cascades and the distance-field cascade's — are part of its clipmap's cache key (`lighting/shadows/vsm/lightCache.ts`): a sun
+**The cache.** A sun's own shadow settings — the eight of the `LIGHT_SHADOW_FIELDS`: the distance, the cascades and the distance-field cascade's — are part of its clipmap's cache key (`lighting/shadows/vsm/lightCache.ts`): a sun
 changed by one has no cached page of the old one, they are drawn again. The edge is not: what the view's
 `shadowDistanceScale`, near levels, overlap and switches make of it each frame reaches the next frame's test, and
 the cached pages are kept.
@@ -447,17 +446,16 @@ dynamic-stale mark that has the casters' cull consider it (nothing is cleared or
 reference leaves it on too: `VirtualShadowMapPhysicalPageManagement.usf` 443, where the switch only clears `bDynamicPageInvalidation`,
 `VirtualShadowMapArray.cpp` 3294, and so the block of 328).
 
-**The distance-field cascade.** The same levels shape the cascade after them: `encodeSunFieldShadow`
-(`frame/render/encodeSunFieldShadow.ts`) traces the sun's shadow against the distance fields of the meshes that
-are no cluster geometry, from the near levels' end to `distanceFieldShadowDistance`, into a mask the lighting
-multiplies the sun's shadow by (`lighting/distanceField/shadow/`). A sun with `angularRadius: 0` is traced hard
-there too (the angle is held between 0.001 and 5 degrees). Which meshes: the reference's rule, not the far-shadow
-test's. The cull (`dfshCull`, `dfshCasts`) takes a mesh that casts, is shown and is no cluster geometry
-(`OBJECT_FLAGS.virtualized`), because a sun with shadow maps draws the clusters into them at any distance and
-the cascade would shadow them twice. Every placement the engine draws is made of clusters, so the list the
-cull makes is empty on every scene — the passes after it (the tiles' scatter, the offsets, the trace, the
-upsample) run on nothing all the same, as the reference runs them — and the cascade shadows nothing today.
-The meshes are tracked beside the cut's
+**The distance-field cascade.** The same levels shape the cascade after them, from the near levels' end to
+`distanceFieldShadowDistance` (`sunCascades`): it moves the far-shadow test's edge, and nothing is traced on the view
+with it. The sun's shadow maps draw every cluster at any distance (`vsmFarShadow.ts`), and every placement the engine
+draws is made of clusters, so a distance-field shadow of the view would shadow nothing: the reference leaves the
+Nanite geometry out of the cascade of a sun that has virtual shadow maps (`DistanceFieldShadowing.cpp` 654-655) and
+the engine has no mesh that is no cluster geometry, so the view has no such pass, mask or setting. The distance fields
+of the meshes shade one thing of the sun: the cards of the surface cache, which the shadow maps do not reach. For each
+sun with shadows, the meshes that cast are listed by tile of a shadow space across the sun over the cube the cards are
+kept in (`lighting/surfaceCache/lighting/meshShadow.ts`), every mesh, the ones made of clusters too, and the cards'
+direct light traces its rays through the tile's meshes. The meshes are tracked beside the cut's
 roots (`lighting/distanceField/objectTracker.ts`): the placements of compiled meshes that have a field, and the
 fields of the world DAG's HLOD cells (`lighting/distanceField/hlodObjects.ts`: a stand-in for each cell and each
 instance of the world DAG, placed only while the cut draws the cell's actor, so the shadow of a merged shell is
@@ -468,45 +466,20 @@ the overlap and the far field are settings (`shadowNearLevels`, `shadowOverlapSc
 `packages/sdk-core/src/contracts/shadowOptions.ts`, `sunShadowOptions.ts`); the growth, the overlap's tenth and the
 512 m are the light's own settings (`packages/sdk-core/src/contracts/lightShadowOptions.ts`).
 
-Its steps, in the reference's order (`lighting/distanceField/shadow/frame.ts`), run in the pre-light step of the
-image (`frame/render/preLight.ts`) right after the depth pyramid and before the projection of the sun's shadow
-maps, as the reference projects its distance-field cascade first and the virtual shadow map second, and the
-lighting takes the least of the two (`vsmSunFactor`). Per sun: the meshes culled to the cascade's hull (the
-hull of the slice of the view and of the silhouette edges extruded along the light, at most 12 planes);
-then, where the meshes are scattered to the grid of tiles across the light (`distanceFieldShadowScatterTiles`,
-on), their boxes drawn onto it once to count the meshes of each tile, the tiles' start offsets summed, and
-drawn again to write the lists — the count and the offsets only where the lists are compacted
-(`distanceFieldShadowCompactTiles`, on; off, each tile has a place of its own, the room over the tiles, and a
-tile past its place loses meshes); or, off, each group of 8 by 8 texels of the trace culls the meshes to its own
-slice of the view in its group memory (`gatherWgsl.ts`: the slice between the nearest and farthest depths of its
-pixels, in two halves of a sphere each, at most 1024 meshes a half). The trace starts a ray from the top left pixel of
-each texel of the half-resolution result, whose block of pixels is reached if the farthest depth of the block is
-past the cascade's nearest (`distanceFieldShadowSubsampleDepth` takes the top left pixel's alone); the upsample
-brings the result back to the view's pixels weighted by their depths and fades it out at the cascade's ends.
+The cards' lists, in the reference's order (`lighting/distanceField/shadow/frame.ts`), run before the surface cache's
+lighting. Per sun: the meshes culled to the volume's hull (the hull of the cube and of the silhouette edges extruded
+along the light, at most 12 planes); then their boxes drawn onto the grid of tiles across the light once to count the
+meshes of each tile, the tiles' start offsets summed, and drawn again to write the lists — the count and the offsets
+only where the lists are compacted (`distanceFieldShadowCompactTiles`, on; off, each tile has a place of its own, the
+room over the tiles, and a tile past its place loses meshes).
 
-**The shadow space.** The cascade's slice of the view is held in a sphere; the space the tiles are cut across is
+**The shadow space.** The cards' cube is held in a sphere; the space the tiles are cut across is
 the sphere's: the light's right and up over the sphere's radius rounded up to a centimetre, the depth toward the
-light over twice the greater of that radius and 5000 centimetres, so a small cascade still sees the meshes (and the
-thin surfaces' thickness) 50 metres either side. The tile grid (a radius over the tile's size and one, at most 256
+light over twice the greater of that radius and 5000 centimetres, so a small volume still sees the meshes 50 metres either side. The tile grid (a radius over the tile's size and one, at most 256
 tiles across, a multiple of 64) and the growth of the boxes read the sphere's own radius, not the rounded one. The
 space's origin is snapped across the light to a grid fixed in the world, 4 texels of a map of
 `distanceFieldShadowSnapResolution` texels (2048, less 4 each side) a step, so the grid moves in steps with the
 camera, not with it.
-
-**The thin transmitting surfaces.** At the quality 3 of the cascade alone (`distanceFieldShadowQuality`), a pixel
-that lets light through (the thin transmission flag) keeps in each step of its ray at least the light that
-survives the thickness the ray has gone in the mesh: `exp(-thickness × density)`, the density its own, taken from
-the opacity in the alpha of the thin transmission's target (`-0.05 × ln(1 - min(opacity, 0.99))`, the density the
-shadow maps' projection and the contact shadows use for the same pixel). The reference reads the profile radius
-scale of the pixel's subsurface as the density in one of its paths, a length where the others use a density
-(compared with the opacity route of its projection pass, which converts the same header's opacity); the engine's
-surface buffers hold no profile radius scale for the thin transmission, only the opacity, and the density follows
-that one.
-
-**The half-resolution result** is two 32-bit floats a texel (`rg32float`): the visibility and the depth it was
-traced at. The reference holds the same two values in 16-bit floats; the wider format is kept on purpose, above the
-reference's — a declared deviation of precision, with no loss to the image (the 16-bit step is 32 centimetres at
-the cascade's depths, which the upsample's depth weights would otherwise be rounded by).
 
 A caster whose object names draw distances it lies outside of (`drawDistance`,
 [ENGINE.md](ENGINE.md#webgpu-page-raster)) is left out by the same kernel, before the far test, from
@@ -564,7 +537,12 @@ light and the view's switch say:
 const lamp = light.spot({ position: [0, 3, 0], castShadow: true, contactShadowLength: 0.03 })
 const world = createWorld('viewer', { contactShadowOverrideCastingIntensity: 0.5 })
 statue.castContactShadow = false // its pixels stop no ray
-const pane = material.meshStandard({ transparent: true, opacity: 0.3, translucencyLighting: 'forward', contactShadows: true })
+const pane = material.meshStandard({
+  transparent: true,
+  opacity: 0.3,
+  translucencyLighting: 'forward',
+  contactShadows: true,
+})
 ```
 
 ## Metrics
@@ -648,24 +626,24 @@ projection in place of a trace where it holds one. Turned on or off, the shadow 
 `VsmAsked.prefilteredDistant`, `VsmLayout.prefilteredDistant`); with it off nothing is made, written or run, and every
 program is the text it was. In order, a frame:
 
-1. *The clipmap.* It keeps no page and cuts its depth at each level's end (`shadowForceInvalidateDirectional` and
+1. _The clipmap._ It keeps no page and cuts its depth at each level's end (`shadowForceInvalidateDirectional` and
    `shadowClipmapCullDynamicTightly` taken as on for it, `vsmClipmapConfig`), and each level's record carries
    `VSM_MAP_PREFILTERED_DISTANT`, its index in the clipmap (flags bits 8 to 15, `vsmClipmapLevelIndex`) and, in
    `dynamicDepthCullRange`, the clip depths of the band it draws into the filtered pages: from where the level before
    ends its band (0 for the first) to the level's own radius less the resolution bias, toward the light (`buildLevel`).
-2. *The requests.* A page the view asks (a pixel, a froxel, a coarse page) carries `VSM_PAGE_PRIMARY` beside its
+2. _The requests._ A page the view asks (a pixel, a froxel, a coarse page) carries `VSM_PAGE_PRIMARY` beside its
    wanted and fine bits. `PropagateFilterableRequests` (`filterablePropagateWgsl.ts`, the first dispatch of
    `encodeVsmPageMapping`, over the suns' per-page bins alone) walks every page of a level that holds a request through
    the coarser levels of its clipmap,
    asking the page that covers it in each `VSM_PAGE_SECONDARY` and fine, with the receiver cover's quarter folded down a
    mip a hop; a hop that changed nothing ends the walk.
-3. *The cull.* A caster of a level is drawn where its box reaches in front of the band's outer end; one wholly inside
+3. _The cull._ A caster of a level is drawn where its box reaches in front of the band's outer end; one wholly inside
    the band's inner end asks the primary request of the pages it draws into, one that crosses it draws into the others
    too (`vsmCasterInDepthRange`, `vsmCasterMarkMask`), and a page matches the mask when it holds one of its stale bits and
    all of its request bits (`vsmMarksMatch`). The shadow views' descent asks the same of a node's box.
-4. *The pages.* A page whose request bits (fine, primary, secondary) differ from those it holds is drawn again whole
+4. _The pages._ A page whose request bits (fine, primary, secondary) differ from those it holds is drawn again whole
    (`keepPages`); a page granted for a secondary request has bit 29 of its page-table entry (`vsmEntrySecondary`).
-5. *The filters.* After the raster, the pages that are held, seen, secondary and of a prefiltered level are listed
+5. _The filters._ After the raster, the pages that are held, seen, secondary and of a prefiltered level are listed
    (`selectMerges`: the separable passes' list, the merge down's, the borders' count, in `filterableArgs` and
    `filterablePages`), and the filter passes run over them (`filterableWgsl.ts`) on byte pools of 130 x 130 texels a pool
    page (`VsmFilterable`: two `separate` pools by the frame's parity, the previous frame's history of the blend
@@ -763,9 +741,6 @@ depth, keeping the pixels whose depth differs from the scene's), with a grid and
 alone: the water takes no shadow from a local light. Its list takes a
 froxel a pixel of the view at most, as the reference's room, held to the device's binding. The froxels are the reference's;
 their order in the list is not (the reference reduces the depth pyramid's first level through a hash).
-
-**The sun's `shadowAmount`** (a light option, 1) fades the shadow of the distance-field cascade toward 1; it is no part of the
-clipmap's cache key.
 
 **The projection is two passes, as the reference's is.** The suns' pass traces every sun of the frame (`vsmProjectSuns`,
 the adaptive ray count voted by the group, a sun's first-person clipmap and a subsurface receiver's transmission merged in) into a

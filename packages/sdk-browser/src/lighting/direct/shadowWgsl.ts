@@ -48,8 +48,7 @@ import {
  * lists rest on.
  *
  * `pass` names the read: `'mask'` for the opaque lit passes, with `sun` the binding of the suns' mask,
- * `local` that of the local lights' mask where the pass walks local lights, and, if given, `farMask` that of the sun's distance-field shadow
- * (`DEFERRED_BINDINGS.farShadowMask`); `'blend'` (the default) for a blend pass, which samples
+ * `local` that of the local lights' mask where the pass walks local lights; `'blend'` (the default) for a blend pass, which samples
  * (`quality` 0) or traces (`quality` past 0) its fragment, its local lights shadowed only with
  * `localShadows`. `trace`, the bindings a blend pass traces with (`BLEND_TRACE_BINDINGS` unless
  * given). The block lists what it calls, the maths library's declarations included.
@@ -156,11 +155,11 @@ fn vsmMaskAt(coord:vec2i){vsmMaskPixel=coord;}`,
   )
 
 /** The shadow read of an opaque lit pass: the trace the projection stored in the frame's masks. */
-const maskShadowWgsl = ({ sun, local, farMask, fallback, volumeShadow }: MaskShadowOptions) =>
+const maskShadowWgsl = ({ sun, local, fallback, volumeShadow }: MaskShadowOptions) =>
   wgslBlock(
-    `directShadowWgsl(${sun}, ${local ?? null}, ${farMask ?? null}${fallback ? `, ${fallback.lightGrid} ${vsmBindingsLabel(fallback.vsm)} ${fallback.view}` : ''}${volumeShadow === undefined ? '' : ` volume ${volumeShadow}`})`,
+    `directShadowWgsl(${sun}, ${local ?? null}${fallback ? `, ${fallback.lightGrid} ${vsmBindingsLabel(fallback.vsm)} ${fallback.view}` : ''}${volumeShadow === undefined ? '' : ` volume ${volumeShadow}`})`,
     [
-      vsmMaskWgsl(sun, local, farMask, fallback?.lightGrid),
+      vsmMaskWgsl(sun, local, fallback?.lightGrid),
       SHADOW_SLICE_WGSL,
       ...(local !== undefined && fallback
         ? [
@@ -309,7 +308,6 @@ type MaskShadowOptions = {
   sun: number
   /** The local lights' mask, where the pass walks local lights. */
   local?: number
-  farMask?: number
   /** Where the shadows the heterogeneous volumes cast are bound (`beerShadowReadWgsl`); left out, none is read. */
   volumeShadow?: number
   /** Where the shadowed lights' grid and the maps a light past the mask's lanes is read from are bound

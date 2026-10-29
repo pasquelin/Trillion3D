@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { viewDepthCmOfDevice } from '../../../../../math/src/wgsl/projection.ts'
 import type { DistanceFieldOcclusionSettings } from '../../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
 import { AO_DOWNSAMPLE } from './cones.ts'
 import type { DfaoImage } from './params.ts'
@@ -45,22 +46,18 @@ export function writeDfaoRead(
 export const dfaoReadWgsl = (group: number, bent: number, params: number) =>
   wgslBlock(
     `dfaoReadWgsl(${group}, ${bent}, ${params})`,
-    [],
+    [viewDepthCmOfDevice],
     `struct DfaoRead{extent:vec4f,limits:vec4f,depth:vec4f,}
 @group(${group}) @binding(${bent}) var<storage,read> dfaoBent:array<vec2u>;
 @group(${group}) @binding(${params}) var<uniform> dfaoRead:DfaoRead;
 struct DfaoUpsampled{bent:vec3f,fade:f32,}
-fn dfaoReadDepthCm(z:f32)->f32{
- let distance=select(dfaoRead.depth.y+(1.0-z)*dfaoRead.depth.x,dfaoRead.depth.x/max(z,1e-30),dfaoRead.depth.z>0.5);
- return min(distance*100.0,3.4e38);
-}
 fn dfaoImageCell(cell:vec2i)->vec4f{
  let at=vec2u(clamp(cell,vec2i(0),vec2i(dfaoRead.extent.zw)-vec2i(1)));
  let word=dfaoBent[at.y*u32(dfaoRead.extent.z)+at.x];
  return vec4f(unpack2x16float(word.x),unpack2x16float(word.y));
 }
 fn dfaoBentNormal(pixel:vec2f,z:f32)->DfaoUpsampled{
- let depthCm=dfaoReadDepthCm(z);
+ let depthCm=viewDepthCmOfDevice(dfaoRead.depth,z);
  let uv=min(pixel/dfaoRead.extent.xy,dfaoRead.limits.xy);
  let low=dfaoRead.extent.zw;
  let origin=floor(uv*low-0.5);

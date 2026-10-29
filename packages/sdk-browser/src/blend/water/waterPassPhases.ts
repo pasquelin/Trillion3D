@@ -235,10 +235,7 @@ export function encodeComposite(f: WaterFrame) {
   pass.setViewport(0, 0, f.width, f.height, 0, 1)
   pass.setBindGroup(0, sharedBlendGroup(rt, device))
   bindForwardReflection(pass, rt, skyLightReadOf(rt))
-  pass.setBindGroup(
-    WATER_GROUP,
-    waterCompositeGroup(device, targets, rt.blendState.waterSun?.state.mask),
-  )
+  pass.setBindGroup(WATER_GROUP, waterCompositeGroup(device, targets))
   pass.setPipeline(pipeline)
   if (f.tiledComposite) pass.drawIndirect(targets.tileArgs, 0)
   else pass.draw(3)

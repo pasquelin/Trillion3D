@@ -245,7 +245,7 @@ test('the sky light’s occlusion this image drew is handed to the resolve, and 
     bounce: {},
     vis: { rootOffsets: createRootOffsets() },
     gpu: {},
-    distanceFields: { occlusion, sunShadow: {} },
+    distanceFields: { occlusion },
   }
   const run = rt as unknown as WebgpuPagesRuntime
   b.store.add({ ...LAMP })

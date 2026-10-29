@@ -1,19 +1,10 @@
-// The sun's distance-field shadow: where its cascade lies, and the uniform that places it.
+// The suns' mesh lists: where a volume lies, and the uniform that places it.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { DEG2RAD } from '../../../../../math/src/constants.ts'
-import { cascadeBounds } from './bounds.ts'
-import {
-  DFSH_CUBE,
-  DFSH_FLAG,
-  DFSH_PARAMS,
-  DFSH_PARAMS_STRIDE,
-  DFSH_STEPS,
-  shadowTileSide,
-} from './layout.ts'
-import { boundsOf, writeDfshParams } from './params.ts'
-import { SETTINGS, SUN, camera, dot, near, placed } from './boundsParams.fixture.ts'
+import { boxBounds } from './bounds.ts'
+import { DFSH_CUBE, DFSH_FLAG, DFSH_PARAMS, DFSH_STEPS, shadowTileSide } from './layout.ts'
+import { SETTINGS, dot, near, placed } from './boundsParams.fixture.ts'
 
 test('the cube a mesh is drawn as has outward faces, each corner on three', () => {
   assert.equal(DFSH_CUBE.length, 36)
@@ -38,22 +29,22 @@ test('the grid of tiles is a radius over the tile and one, held to 256 and round
   assert.equal(shadowTileSide(10, 200), 64)
 })
 
-test('the cascade lies in the slice of the view between its depths: the sphere holds it, the hull is open toward the light', () => {
-  // A sun a little off the vertical: one exactly over a level view leaves the side walls edge-on.
+test('the volume holds the cube: the sphere holds it, the hull is open toward the light', () => {
+  // A sun a little off the vertical: one exactly over a level cube leaves the side walls edge-on.
   const toLight = [0.2, 0.96, 0.19]
   const length = Math.hypot(...toLight)
   const light = toLight.map((x) => x / length)
-  const b = cascadeBounds(camera(), 100, 512, light)
+  const b = boxBounds([0, 0, 0], 100, light)
   assert.ok(b.planeCount >= 4 && b.planeCount <= 12, `${b.planeCount} planes`)
-  // Corners of the slice, centimetres from the eye: at depth d the half widths are 2d across, d up.
-  const slice = [100, 512].flatMap((d) =>
-    [-1, 1].flatMap((x) => [-1, 1].map((y) => [x * 2 * d * 100, y * d * 100, -d * 100])),
-  )
-  for (const c of slice)
-    assert.ok(
-      Math.hypot(c[0] - b.centre[0], c[1] - b.centre[1], c[2] - b.centre[2]) <= b.radius,
-      `a corner is in the sphere`,
-    )
+  // Corners of the cube, centimetres from the eye.
+  for (const x of [-1, 1])
+    for (const y of [-1, 1])
+      for (const z of [-1, 1])
+        assert.ok(
+          Math.hypot(x * 10000 - b.centre[0], y * 10000 - b.centre[1], z * 10000 - b.centre[2]) <=
+            b.radius * (1 + 1e-6),
+          `a corner is in the sphere`,
+        )
   const outside = (p: number[]) => {
     for (let k = 0; k < b.planeCount; k++) {
       const plane = b.planes.subarray(4 * k, 4 * k + 4)
@@ -61,16 +52,11 @@ test('the cascade lies in the slice of the view between its depths: the sphere h
     }
     return false
   }
-  assert.equal(outside([0, 0, -30000]), false, 'the middle of the slice')
-  assert.equal(
-    outside([5000, 30000, -30000]),
-    false,
-    'above it, toward the light: the hull is open there',
-  )
-  assert.equal(outside([0, -60000, -30000]), true, 'below it, under the slice')
-  assert.equal(outside([200000, 0, -30000]), true, 'far to the side')
-  assert.equal(outside([0, 0, -60000]), true, 'past its far end')
-  assert.equal(outside([0, 0, -2000]), true, 'before its near end')
+  const along = (distance: number) => light.map((x) => x * distance)
+  assert.equal(outside([0, 0, 0]), false, 'the middle of the cube')
+  assert.equal(outside(along(30000)), false, 'above it, toward the light: the hull is open there')
+  assert.equal(outside(along(-30000)), true, 'under it, away from the light')
+  assert.equal(outside(b.right.map((x) => x * 200000)), true, 'far to the side')
   // The light's right and up with its direction are an orthonormal frame, right-handed.
   near(dot(b.right, b.up), 0, 'right ⟂ up')
   near(dot(b.right, light), 0, 'right ⟂ light')
@@ -83,30 +69,17 @@ test('the cascade lies in the slice of the view between its depths: the sphere h
   near(dot(across, light), 1, 'right × up is the light’s direction: a right-handed frame')
 })
 
-test('the uniform of a light places the shadow space, the eye, the trace and the grid', () => {
-  const image = camera([1000.5, 3, -2000.25])
-  const bounds = boundsOf(image, SUN)
-  const floats = new Float32Array((2 * DFSH_PARAMS_STRIDE) / 4)
+test('the uniform of a sun places the shadow space, the eye, the trace and the grid', () => {
+  const eye = [1000.5, 3, -2000.25]
+  const { bounds, floats } = placed(eye)
   const words = new Uint32Array(floats.buffer)
-  writeDfshParams(floats, words, 1, { image, light: SUN, bounds, layer: 1 }, SETTINGS, {
-    objects: 99,
-  })
-  const at = (DFSH_PARAMS_STRIDE / 4) as number
-  const field = (name: keyof typeof DFSH_PARAMS.at, k = 0) => at + DFSH_PARAMS.at[name] + k
-  // The unprojection takes a device position and depth to the position from the eye, in centimetres.
+  const field = (name: keyof typeof DFSH_PARAMS.at, k = 0) => DFSH_PARAMS.at[name] + k
   const apply = (m: number, p: number[]) => {
     const h = [0, 1, 2, 3].map((r) =>
       [0, 1, 2, 3].reduce((s, c) => s + floats[m + c * 4 + r] * p[c], 0),
     )
     return [h[0] / h[3], h[1] / h[3], h[2] / h[3]]
   }
-  const depth = 250
-  const along = apply(field('unproject'), [0, 0, image.near / depth, 1])
-  near(along[0], 0, 'on the axis', 1e-3)
-  near(along[2], -depth * 100, 'at the depth, from the eye', 1e-3)
-  const corner = apply(field('unproject'), [1, 1, image.near / depth, 1])
-  near(corner[0], 2 * depth * 100, 'the field is 90 degrees across', 1e-3)
-  near(corner[1], depth * 100, 'and half that across the height', 1e-3)
   // The shadow space: the sphere's centre in the middle of the depth, at most a snap step from the
   // origin across the light, the depth toward the light the greater, over twice the range.
   const step = (2 * 4) / SETTINGS.snapTexels
@@ -115,24 +88,24 @@ test('the uniform of a light places the shadow space, the eye, the trace and the
   near(centre[2], 0.5, 'centre z', 1e-5)
   const range = Math.max(bounds.roundedRadius, 5000)
   const up = apply(field('toShadow'), [
-    ...bounds.centre.map((x, k) => x + SUN.toLight[k] * bounds.radius),
+    ...bounds.centre.map((x, k) => x + [0, 1, 0][k] * bounds.radius),
     1,
   ])
   near(up[2], 0.5 + bounds.radius / (2 * range), 'a radius toward the light', 1e-5)
-  // The eye as a pair of floats, the trace's steps by the quality.
+  // The eye as a pair of floats, the trace's steps by the quality, the bias of a two-sided mesh.
   for (let k = 0; k < 3; k++)
-    near(floats[field('eyeHigh', k)] + floats[field('eyeLow', k)], image.eye[k] * 100, 'eye', 1e-7)
+    near(floats[field('eyeHigh', k)] + floats[field('eyeLow', k)], eye[k] * 100, 'eye', 1e-7)
   assert.equal(floats[field('trace', 2)], DFSH_STEPS[3])
-  assert.equal(floats[field('trace', 3)], 1, 'the quality 3 lets a thin surface transmit')
-  near(floats[field('trace')], 10000, 'trace distance in centimetres')
-  near(floats[field('light', 3)], Math.tan(2 * 0.5357 * DEG2RAD), 'the sun’s tangent', 1e-6)
-  near(floats[field('range')], 73 * 100, 'nearest depth, centimetres')
-  near(floats[field('range', 1)], 512 * 100, 'farthest depth')
+  assert.equal(floats[field('range', 2)], SETTINGS.twoSidedBias)
+  assert.deepEqual(
+    [0, 1, 2].map((k) => floats[field('light', k)]),
+    [0, 1, 0],
+  )
   // The grid of tiles, its room, the meshes, the cube.
   const side = shadowTileSide(bounds.radius, 200)
   assert.equal(words[field('tiles')], side)
   assert.equal(words[field('tiles', 1)], 128 * side * side)
-  assert.equal(words[field('tiles', 2)], 99)
+  assert.equal(words[field('tiles', 2)], 1)
   assert.equal(
     words[field('tiles', 3)],
     128,
@@ -140,7 +113,6 @@ test('the uniform of a light places the shadow space, the eye, the trace and the
   )
   assert.equal(words[field('counts', 1)], 36)
   assert.equal(words[field('counts', 3)], DFSH_FLAG.compactTiles, 'the lists are compacted')
-  assert.deepEqual([...words.subarray(field('view'), field('view') + 4)], [1000, 500, 2, 1])
   near(floats[field('expand')], (1.414 * bounds.radius) / side, 'a tile’s half diagonal')
   // The widest cone across the shadow space: 100 centimetres by the largest scale the matrix gives an
   // axis — for a sun straight up, the greater of 1 over the rounded radius and 1 over twice the range.
@@ -149,37 +121,4 @@ test('the uniform of a light places the shadow space, the eye, the trace and the
     100 * Math.max(1 / bounds.roundedRadius, 1 / (2 * range)),
     'the widest cone across the shadow space',
   )
-  // The view's right, up and forward, from the camera's world matrix looking down its -z.
-  assert.deepEqual(
-    [0, 1, 2].map((k) => floats[field('axes', k)]),
-    [1, 0, 0],
-  )
-  assert.deepEqual(
-    [0, 1, 2].map((k) => floats[field('axes', 4 + k)]),
-    [0, 1, 0],
-  )
-  assert.deepEqual(
-    [0, 1, 2].map((k) => floats[field('axes', 8 + k)]),
-    [0, 0, -1],
-  )
-  // The block of light 0 is another, untouched.
-  assert.equal(floats[0], 0)
-})
-
-test('the tangent of a sun’s disk is held between 0.001 and 5 degrees of its apex angle', () => {
-  const tangent = (angularRadius: number) =>
-    placed([0, 0, 0], { ...SUN, angularRadius }).floats[DFSH_PARAMS.at.light + 3]
-  near(tangent(0.2678 * DEG2RAD), Math.tan(0.5356 * DEG2RAD), 'a sun’s own', 1e-4)
-  near(tangent(0), Math.tan(0.001 * DEG2RAD), 'a point source')
-  near(tangent(1), Math.tan(5 * DEG2RAD), 'a large disk')
-})
-
-test('the thin transmission is on from the quality 3 alone, and only where the pass asks for it', () => {
-  const transmits = (quality: number, transmission = true) =>
-    placed([0, 0, 0], SUN, { ...SETTINGS, quality, transmission }).floats[DFSH_PARAMS.at.trace + 3]
-  assert.deepEqual(
-    [1, 2, 3].map((q) => transmits(q)),
-    [0, 0, 1],
-  )
-  assert.equal(transmits(3, false), 0, 'a pass over the water’s depth has none')
 })

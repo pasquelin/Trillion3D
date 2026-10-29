@@ -3,7 +3,7 @@ import { ensureSet, type HeldSet } from '../gpu/core/heldTextures.ts'
 import { startedComputeStages } from '../gpu/core/computeStages.ts'
 import { wordViews } from '../gpu/core/wordViews.ts'
 import { writeChanged } from '../gpu/core/writeChanged.ts'
-import { sequentialEntries } from '../gpu/core/computeBindings.ts'
+import { computeBufferEntry, sequentialEntries } from '../gpu/core/computeBindings.ts'
 import type { ResourceAllocator } from '../gpu/core/resourceAllocator.ts'
 import type { WebgpuPagesRuntime } from '../frame/backend/runtime.ts'
 import { skyLightReadOf } from '../frame/render/skyLightState.ts'
@@ -70,26 +70,34 @@ interface EnvironmentExtra {
 /** The strands' environment light of a view, kept with it (`HairViewGpu.environment`). */
 export type HairEnvironment = ReturnType<typeof allocateEnvironment> & EnvironmentExtra & HeldSet
 
+const storage = (binding: number) => computeBufferEntry(binding, 'read-only-storage')
+
+/** The strands' nodes (the coordinates, the data, the counter) and the table of the fibre's scattering with the sampler that reads it
+ *  (the binding after the table's), as a kernel of the strands' light reads them: the entries its layout starts with. */
+export const strandNodeEntries = (G: {
+  nodeCoord: number
+  nodeData: number
+  nodeCounter: number
+  lut: number
+}): GPUBindGroupLayoutEntry[] => [
+  storage(G.nodeCoord),
+  storage(G.nodeData),
+  storage(G.nodeCounter),
+  {
+    binding: G.lut,
+    visibility: GPUShaderStage.COMPUTE,
+    texture: { sampleType: 'float', viewDimension: '3d' },
+  },
+  { binding: G.lut + 1, visibility: GPUShaderStage.COMPUTE, sampler: { type: 'filtering' } },
+]
+
 /** The layout of the kernel's own group (group 2) for the integration `mode`. */
 const envLayout = (device: GPUDevice, mode: HairEnvironmentMode) => {
   const G = HAIR_ENV_GROUP
-  const storage = (binding: number): GPUBindGroupLayoutEntry => ({
-    binding,
-    visibility: GPUShaderStage.COMPUTE,
-    buffer: { type: 'read-only-storage' },
-  })
   return device.createBindGroupLayout({
     label: `${HAIR_STRANDS_PASS_PREFIX}environment ${mode}`,
     entries: [
-      storage(G.nodeCoord),
-      storage(G.nodeData),
-      storage(G.nodeCounter),
-      {
-        binding: G.lut,
-        visibility: GPUShaderStage.COMPUTE,
-        texture: { sampleType: 'float', viewDimension: '3d' },
-      },
-      { binding: G.lut + 1, visibility: GPUShaderStage.COMPUTE, sampler: { type: 'filtering' } },
+      ...strandNodeEntries(G),
       { binding: G.params, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
       {
         binding: G.out,
@@ -309,23 +317,10 @@ const staticKernels = new WeakMap<GPUDevice, ReturnType<typeof startedStaticKern
 /** The layout of the static kernel's own group (group 1). */
 const staticLayout = (device: GPUDevice) => {
   const G = HAIR_STATIC_GROUP
-  const storage = (binding: number): GPUBindGroupLayoutEntry => ({
-    binding,
-    visibility: GPUShaderStage.COMPUTE,
-    buffer: { type: 'read-only-storage' },
-  })
   return device.createBindGroupLayout({
     label: `${HAIR_STRANDS_PASS_PREFIX}static light`,
     entries: [
-      storage(G.nodeCoord),
-      storage(G.nodeData),
-      storage(G.nodeCounter),
-      {
-        binding: G.lut,
-        visibility: GPUShaderStage.COMPUTE,
-        texture: { sampleType: 'float', viewDimension: '3d' },
-      },
-      { binding: G.lut + 1, visibility: GPUShaderStage.COMPUTE, sampler: { type: 'filtering' } },
+      ...strandNodeEntries(G),
       { binding: G.params, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
       { binding: G.view, visibility: GPUShaderStage.COMPUTE, buffer: { type: 'uniform' } },
       {

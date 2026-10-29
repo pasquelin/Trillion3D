@@ -27,7 +27,6 @@ export const WATER_COMMON_WGSL = wgslBlock(
 @group(${WATER_GROUP}) @binding(${WATER_BINDINGS.specular}) var waterSpecular:texture_2d<f32>;
 @group(${WATER_GROUP}) @binding(${WATER_BINDINGS.waterDepth}) var waterDepthTexture:texture_depth_2d;
 @group(${WATER_GROUP}) @binding(${WATER_BINDINGS.sun}) var waterSun:texture_2d<f32>;
-@group(${WATER_GROUP}) @binding(${WATER_BINDINGS.farMask}) var<storage,read> waterFarMask:array<u32>;
 struct WaterBehind{depth:f32,weights:vec4f,mask:vec4f,}
 fn waterBehind(uv:vec2f,surfaceDepth:f32,slope:f32)->WaterBehind{
  let at=uv+(0.5/256.0)*water.scene.zw;

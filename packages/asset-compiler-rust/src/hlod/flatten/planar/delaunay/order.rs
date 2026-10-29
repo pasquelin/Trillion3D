@@ -8,7 +8,7 @@
 //!    count's natural logarithm and `log₂ e` — one short of `log₂` itself for counts such as 8, 64
 //!    or 128, whose product falls just below the integer.
 //! 3. From the last round down to the second, the points left are drawn in turn from a fixed
-//!    random stream (`Draws`, seeded with zero for every triangulation): a draw under one half
+//!    random stream (`lcg32_fraction`, seeded with zero for every triangulation): a draw under one half
 //!    swaps the point to the end of the range still undecided, which then shrinks, and the point
 //!    swapped in is drawn next; the range left is the earlier rounds'.
 //! 4. Each non-empty round is distributed to a quadtree over the extent of all the points, in the
@@ -18,24 +18,7 @@ mod tree;
 
 use std::f64::consts::LOG2_E;
 use tree::{QuadTree, Rect};
-
-/// The random stream deciding the rounds: a linear congruential generator on 32 bits, each draw
-/// the high 23 bits of the new state as a single-precision fraction in `[0, 1)`.
-struct Draws {
-    state: u32,
-}
-
-impl Draws {
-    /// The next fraction: the state stepped, its top 23 bits set under the exponent of one, one
-    /// taken off.
-    fn next_fraction(&mut self) -> f32 {
-        self.state = self
-            .state
-            .wrapping_mul(196_314_165)
-            .wrapping_add(907_633_515);
-        f32::from_bits(0x3F80_0000 | (self.state >> 9)) - 1.0
-    }
-}
+use trillion3d_math::sequence::random::lcg32_fraction;
 
 /// The insertion order of the points at `positions` (module doc), at least three of them.
 pub(super) fn insertion_order(positions: &[[f64; 2]]) -> Vec<i32> {
@@ -49,11 +32,11 @@ pub(super) fn insertion_order(positions: &[[f64; 2]]) -> Vec<i32> {
     let mut ends = vec![0; rounds];
     let mut end = count;
     ends[rounds - 1] = end;
-    let mut draws = Draws { state: 0 };
+    let mut draws = 0;
     for round in (1..rounds).rev() {
         let mut index = 0;
         while index < end {
-            if draws.next_fraction() < 0.5 {
+            if lcg32_fraction(&mut draws) < 0.5 {
                 end -= 1;
                 sequence.swap(index, end);
             } else {

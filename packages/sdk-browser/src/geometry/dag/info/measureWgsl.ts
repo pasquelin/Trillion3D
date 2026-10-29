@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { workgroupSumLoop } from '../../../gpu/core/workgroupSumWgsl.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { PAGE_INFO_STRUCT_WGSL } from '../../../visibility/shader/pageWgsl.ts'
 import { PAGE_POINTS_WGSL } from '../../../visibility/shader/pageGeometryWgsl.ts'
@@ -55,10 +56,7 @@ fn measure(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) l
   edge=max(edge,max(dot(a,a),max(dot(b,b),dot(d,d))));
  }
  longest[lane]=edge;
- for(var stride=WORKGROUP_THREADS/2u;stride>0u;stride=stride/2u){
-  workgroupBarrier();
-  if(lane<stride){longest[lane]=max(longest[lane],longest[lane+stride]);}
- }
+ ${workgroupSumLoop('WORKGROUP_THREADS', 'longest[lane]=max(longest[lane],longest[lane+stride]);')}
  if(lane==0u){edges[record]=sqrt(longest[0]);}
 }`,
     [

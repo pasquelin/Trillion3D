@@ -24,21 +24,15 @@ import {
 import { unitOrZero } from '../../../../../../math/src/wgsl/inverseTranspose.ts'
 import { matrixWindingCw } from '../../../../../../math/src/wgsl/matrix.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
-import { wgslBlock } from '../../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../../../math/src/wgsl/consts.ts'
 import { wgslF32 } from '../../../../../../math/src/wgsl/number.ts'
-import { bitIsSet, bitWord, ceilDivWgsl } from '../../../../../../math/src/wgsl/integer.ts'
+import { ceilDivWgsl } from '../../../../../../math/src/wgsl/integer.ts'
 import { dAdd, dSub, splitDouble } from '../../../../../../math/src/wgsl/double.ts'
-import { fromF32, toF32 } from '../../../../../../math/src/wgsl/f32.ts'
+import { doubleAsSingle, fromF32 } from '../../../../../../math/src/wgsl/f32.ts'
 import { recordTextureWgsl } from '../../../../gpu/core/recordTextureWgsl.ts'
 import { COLD_TABLE, CLUSTER_TABLE, FLAG_TABLE } from '../../../../geometry/dag/cut/cutTables.ts'
-import {
-  CLUSTER_LAYOUT,
-  COLD_HAS_BOX,
-  COLD_MAX,
-  COLD_MIN,
-  COLD_WORDS,
-} from '../../../../geometry/dag/layout.ts'
+import { CLUSTER_LAYOUT } from '../../../../geometry/dag/layout.ts'
 import { CLUSTER_NEVER, CLUSTER_TRANSPARENT } from '../../../../geometry/dag/clusterFlags.ts'
 import { CLUSTER_INFO } from '../../../../geometry/dag/info/clusterInfoLayout.ts'
 import {
@@ -46,11 +40,10 @@ import {
   DRAW_INSTANCE_MARK,
   DRAW_FAR_WORD,
   DRAW_NEAR_WORD,
-  INFO_SHIFT_WORD,
-  RECORD_SHIFT_WORD,
   frameTableWgsl,
 } from '../../../../geometry/dag/frameTable.ts'
 import { OUTSIDE_DRAW_DISTANCES_WGSL } from '../../../../geometry/dag/shader/drawDistanceWgsl.ts'
+import { DAG_RECORD_WGSL } from '../../../../geometry/dag/shader/recordWgsl.ts'
 import { worldGateWgsl } from '../../../../geometry/dag/shader/worldGateWgsl.ts'
 import { DAG_MARK_OF_WGSL } from '../../../../geometry/dag/shader/levelWgsl.ts'
 import { worldAtEyeWgsl } from '../../../../geometry/dag/shader/worldPoseWgsl.ts'
@@ -184,7 +177,7 @@ fn casterSphere(w:u32,lo:vec3f,hi:vec3f,reach:f32,high:ptr<function,vec4f>,low:p
  *  descent's (`../traversal/traversalWgsl.ts`). */
 export const VSM_PREV_SHIFT_WGSL = wgslBlock(
   'VSM_PREV_SHIFT_WGSL',
-  [dAdd, dSub, fromF32, toF32, VSM_CASTER_SPHERE_WGSL],
+  [dAdd, dSub, fromF32, doubleAsSingle, VSM_CASTER_SPHERE_WGSL],
   `/** How far the centre of a cluster of box centre \`centre\` moved since the previous image drew
  *  placement \`w\` (its previous local-to-world): the previous pose's
  *  linear part on the centre beside its exact translation, less the sphere's centre (\`high\`,
@@ -197,7 +190,7 @@ fn vsmRenderPrevShift(w:u32,centre:vec3f,high:vec3f,low:vec3f)->vec3f{
  for(var a=0u;a<3u;a++){
   let before=dAdd(fromF32(bitcast<u32>(lc[a])),origin[a]);
   let now=dAdd(fromF32(bitcast<u32>(high[a])),fromF32(bitcast<u32>(low[a])));
-  shift[a]=bitcast<f32>(toF32(dSub(before,now)));
+  shift[a]=doubleAsSingle(dSub(before,now));
  }
  return shift;
 }
@@ -267,6 +260,14 @@ fn vsmRenderFilteredOut(w:u32)->bool{
 }`,
 )
 
+/** The words of the residency bit sets that open the cold table: one for thirty-two of the pages
+ *  the parameters count, in place of the cut's own count (`DAG_RECORD_WGSL`'s default). */
+const CASTER_RESIDENT_WORDS_WGSL = wgslFn(
+  'residentWords',
+  [ceilDivWgsl],
+  'fn residentWords()->u32{return ceilDiv(params.pageCount,32u);}',
+)
+
 /**
  * What a candidates kernel reads — group 0: 0 params (uniform, dynamic), 1 the clusters' records, 2
  * the placements' words, 3 the placements' world boxes, 4 the list of casters it writes, 5 the
@@ -286,14 +287,13 @@ const VSM_RENDER_CASTERS_WGSL = wgslBlock(
     DAG_MARK_OF_WGSL,
     markReachWgsl,
     casterReachWgsl,
-    ceilDivWgsl,
-    bitWord,
-    bitIsSet,
+    DAG_RECORD_WGSL,
+    CASTER_RESIDENT_WORDS_WGSL,
     NO_INDEX,
     dAdd,
     dSub,
     fromF32,
-    toF32,
+    doubleAsSingle,
     splitDouble,
     VSM_CASTER_SPHERE_WGSL,
     VSM_PREV_SHIFT_WGSL,
@@ -314,16 +314,7 @@ ${CLUSTER_LAYOUT.wgsl}
 /** Each cluster record's longest edge (\`GpuSelection.edges\`, the cut's measure): what picks a
  *  cluster's raster in each map's view (\`vsmRenderSoftware\`). */
 @group(0) @binding(7) var<storage,read> edges:array<f32>;
-${wgslConsts({ CASTER_COLD: COLD_WORDS, ROOT_BOX_DOUBLES, CLUSTER_NEVER, CLUSTER_TRANSPARENT, WPO_ROW_ALWAYS })}
-/** The words of the cut's residency bit sets: the cut rule's \`resident(c)\` first, then that of the
- *  finer group (\`../../../../geometry/dag/layout.ts\`). */
-fn casterResidentWords()->u32{return ceilDiv(params.pageCount,32u);}
-fn casterResident(i:u32)->bool{return bitIsSet(coldAt(bitWord(i)),i);}
-fn casterChildResident(i:u32)->bool{return bitIsSet(coldAt(casterResidentWords()+bitWord(i)),i);}
-/** Cold word \`k\` of record \`r\`, read as a float: its box, whether it has one. */
-fn casterCold(r:u32,k:u32)->f32{return bitcast<f32>(coldAt(2u*casterResidentWords()+r*CASTER_COLD+k));}
-fn casterBoxMin(r:u32)->vec3f{return vec3f(casterCold(r,${COLD_MIN}u),casterCold(r,${COLD_MIN + 1}u),casterCold(r,${COLD_MIN + 2}u));}
-fn casterBoxMax(r:u32)->vec3f{return vec3f(casterCold(r,${COLD_MAX}u),casterCold(r,${COLD_MAX + 1}u),casterCold(r,${COLD_MAX + 2}u));}
+${wgslConsts({ ROOT_BOX_DOUBLES, CLUSTER_NEVER, CLUSTER_TRANSPARENT, WPO_ROW_ALWAYS })}
 /** The hot record \`r\`: the cluster's sphere and its parent's, both errors and the flags. */
 fn casterHot(r:u32)->Cluster{
  let a=clustersCluster(r,0u);let b=clustersCluster(r,1u);let c=clustersCluster(r,2u);
@@ -355,8 +346,8 @@ fn vsmRenderObject(w:u32,own:vec4f,reach:f32)->vec4f{
  for(var k=0u;k<6u;k++){nonZero=nonZero||rootBoxes[o+k].x!=0u||rootBoxes[o+k].y!=0u;}
  if(!nonZero){return own;}
  let ex=vec2u(params.eye0.x,params.eye0.y);let ey=vec2u(params.eye0.z,params.eye0.w);let ez=vec2u(params.eye1.x,params.eye1.y);
- let lo=vec3f(bitcast<f32>(toF32(dSub(rootBoxes[o],ex))),bitcast<f32>(toF32(dSub(rootBoxes[o+1u],ey))),bitcast<f32>(toF32(dSub(rootBoxes[o+2u],ez))));
- let hi=vec3f(bitcast<f32>(toF32(dSub(rootBoxes[o+3u],ex))),bitcast<f32>(toF32(dSub(rootBoxes[o+4u],ey))),bitcast<f32>(toF32(dSub(rootBoxes[o+5u],ez))));
+ let lo=vec3f(doubleAsSingle(dSub(rootBoxes[o],ex)),doubleAsSingle(dSub(rootBoxes[o+1u],ey)),doubleAsSingle(dSub(rootBoxes[o+2u],ez)));
+ let hi=vec3f(doubleAsSingle(dSub(rootBoxes[o+3u],ex)),doubleAsSingle(dSub(rootBoxes[o+4u],ey)),doubleAsSingle(dSub(rootBoxes[o+5u],ez)));
  if(!(all(hi>=lo)&&all(abs(lo)<vec3f(FLOAT32_MAX))&&all(abs(hi)<vec3f(FLOAT32_MAX)))){return own;}
  return vec4f((lo+hi)*0.5,length(hi-lo)*0.5+reach);
 }
@@ -372,7 +363,7 @@ fn vsmRenderInstance(w:u32,other:vec4f)->vec4f{
  let radius=rootBoxes[o+10u];
  if(radius.x==0u&&radius.y==0u){return other;}
  let ex=vec2u(params.eye0.x,params.eye0.y);let ey=vec2u(params.eye0.z,params.eye0.w);let ez=vec2u(params.eye1.x,params.eye1.y);
- return vec4f(bitcast<f32>(toF32(dSub(rootBoxes[o+7u],ex))),bitcast<f32>(toF32(dSub(rootBoxes[o+8u],ey))),bitcast<f32>(toF32(dSub(rootBoxes[o+9u],ez))),bitcast<f32>(toF32(radius)));
+ return vec4f(doubleAsSingle(dSub(rootBoxes[o+7u],ex)),doubleAsSingle(dSub(rootBoxes[o+8u],ey)),doubleAsSingle(dSub(rootBoxes[o+9u],ez)),doubleAsSingle(radius));
 }
 /** Whether the object of placement \`w\`, \`delta\` from the main view's eye, is out of the draw
  *  distances it names — its mark's bit, then its two frame words — and casts nothing: a shadow is
@@ -402,10 +393,10 @@ fn vsmRenderEdge(n:u32,flags:u32,stretch:f32)->f32{
 fn vsmRenderCaster(i:u32,w:u32){
  let roots=vsmRootWords(w);
  if((roots.word&${MOBILITY_SHADOWLESS}u)!=0u){return;}
- let r=i+framesWord(w,${RECORD_SHIFT_WORD}u);
+ let r=recordOf(i,w);
  let cluster=casterHot(r);
  if((cluster.flags&(CLUSTER_NEVER|CLUSTER_TRANSPARENT))!=0u){return;}
- let n=i+framesWord(w,${INFO_SHIFT_WORD}u);
+ let n=infoOf(i,w);
  if(n>=arrayLength(&info)){return;}
  let record=info[n];
  if(record.indexCount==0u||(record.flags&${FLAG_SPRITE}u)!=0u){return;}
@@ -413,8 +404,8 @@ fn vsmRenderCaster(i:u32,w:u32){
  // casts all the same.
  if(!worldDraws(i,w)||(vsmRenderFilteredOut(w)&&(roots.word&${MOBILITY_WORLD_SPACE | MOBILITY_HIDDEN_SHADOW}u)==0u)){return;}
  let reach=casterReach(markReach(markOf(w)));
- var lo=casterBoxMin(r);var hi=casterBoxMax(r);
- if(casterCold(r,${COLD_HAS_BOX}u)==0.0){
+ var lo=boxMin(r);var hi=boxMax(r);
+ if(hasBox(r)==0.0){
   lo=cluster.sphere.xyz-vec3f(cluster.sphere.w);
   hi=cluster.sphere.xyz+vec3f(cluster.sphere.w);
  }
@@ -434,7 +425,7 @@ fn vsmRenderCaster(i:u32,w:u32){
  // Vertices that move — a dynamic geometry, a deformation, an offset — are judged for their raster at
  // the sphere around the box grown by their reach, as the camera's cut judges them (\`rasteredInHardware\`).
  let moving=(record.flags&${FLAG_DYNAMIC}u)!=0u||reach>0.0||record.wpo!=0u;
- let extra=select(0u,VSM_RENDER_CAND_TESSELLATED,tessellated)|select(0u,VSM_RENDER_CAND_CHILD_RESIDENT,casterChildResident(i))|select(0u,VSM_RENDER_CAND_MOVING,moving);
+ let extra=select(0u,VSM_RENDER_CAND_TESSELLATED,tessellated)|select(0u,VSM_RENDER_CAND_CHILD_RESIDENT,childResident(i))|select(0u,VSM_RENDER_CAND_MOVING,moving);
  // A surface that wears an offset: its placement evaluates it, or the surface does whatever the placement says.
  let wears=record.wpo!=0u;
  let offsetAlways=wears&&(record.wpo&WPO_ROW_ALWAYS)!=0u;

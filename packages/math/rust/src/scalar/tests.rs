@@ -142,11 +142,11 @@ fn mean_sums_in_order_from_negative_zero_and_divides() {
 }
 
 #[test]
-fn median_in_place_takes_the_upper_middle_rank_and_partitions_around_it() {
+fn median_in_place_takes_the_lower_middle_rank_and_partitions_around_it() {
     let mut values = [5.0, -1.0, 3.0, 9.0, 0.5, 7.0];
-    assert_eq!(median_in_place(&mut values), 5.0);
-    assert!(values[..3].iter().all(|&v| v <= 5.0));
-    assert!(values[4..].iter().all(|&v| v >= 5.0));
+    assert_eq!(median_in_place(&mut values), 3.0);
+    assert!(values[..2].iter().all(|&v| v <= 3.0));
+    assert!(values[3..].iter().all(|&v| v >= 3.0));
     assert_eq!(median_in_place(&mut [2.0]), 2.0);
 }
 
@@ -161,7 +161,7 @@ fn min_median_max_orders_hostile_values_by_total_cmp() {
     let (min, median, max) = min_median_max(&mut [0.0, -0.0]);
     assert_eq!(
         [min, median, max].map(f64::to_bits),
-        [-0.0f64, 0.0, 0.0].map(f64::to_bits)
+        [-0.0f64, -0.0, 0.0].map(f64::to_bits)
     );
 }
 

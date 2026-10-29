@@ -24,13 +24,13 @@ import {
   BOUNDS_FIELD,
   CLOUD_FORMAT,
   cloudSizes,
-  put4,
   writeSafeBounds,
   writeTracingJitter,
   writeViewScale,
   type ImageSize,
   type Size,
 } from './reconstructLayout.ts'
+import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
 import {
   RECONSTRUCT_BINDING,
   RECONSTRUCT_VIEW,
@@ -176,13 +176,13 @@ export function writeReconstructView(out: Float32Array, input: ReconstructInput,
   matrixAtRenderOrigin(out, state.previousViewProjection, eye, at.previousViewProj)
   out.set(inverseAtRenderOrigin(inverse, anchored, input.viewProjection, eye), at.inverseViewProj)
   const { view } = plan.sizes.reconstructed
-  put4(out, at.destination, view.width, view.height, 1 / view.width, 1 / view.height)
-  put4(out, at.offset, plan.offset[0], plan.offset[1], 0, 0)
+  putVec4(out, at.destination, view.width, view.height, 1 / view.width, 1 / view.height)
+  putVec4(out, at.offset, plan.offset[0], plan.offset[1], 0, 0)
   writeTracingJitter(out, at.offset + 2, plan.offset, view, setupOfPlan(plan).mode)
   // The device depth of a point on the view axis at distance `s`: (a·s + b) / (c·s + d).
   depthTermsAhead(projection, out, at.depthTerms)
   const { cloudReprojectionMinDistanceKm, cloudDisocclusionMaxDistanceKm } = part.quality
-  put4(out, at.distances, cloudReprojectionMinDistanceKm, cloudDisocclusionMaxDistanceKm, 0, 0)
+  putVec4(out, at.distances, cloudReprojectionMinDistanceKm, cloudDisocclusionMaxDistanceKm, 0, 0)
   writeSafeBounds(out, at.traced, plan.sizes.traced)
   const past = plan.history
   if (past) writeSafeBounds(out, at.history, past)
@@ -190,8 +190,8 @@ export function writeReconstructView(out: Float32Array, input: ReconstructInput,
   writeViewScale(out, at.uvScales, plan.sizes.traced)
   if (past) writeViewScale(out, at.uvScales + 2, past)
   else out.fill(1, at.uvScales + 2, at.uvScales + 4)
-  put4(out, at.exposure, past ? (input.preExposureRatio ?? 1) : 1, 0, 0, 0)
-  put4(out, at.fog, input.preExposure ?? 1, 1 / composeScale(setupOfPlan(plan))[0], 0, 0)
+  putVec4(out, at.exposure, past ? (input.preExposureRatio ?? 1) : 1, 0, 0, 0)
+  putVec4(out, at.fog, input.preExposure ?? 1, 1 / composeScale(setupOfPlan(plan))[0], 0, 0)
   return out
 }
 

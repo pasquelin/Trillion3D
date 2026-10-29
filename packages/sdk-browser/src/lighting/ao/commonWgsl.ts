@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { unitNormalOrUp } from '../../../../math/src/wgsl/geometry.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { CENTIMETRES_PER_METRE } from '../../../../sdk-core/src/page/format.ts'
 import { DEPTH_WGSL } from '../../post/taa/depthWgsl.ts'
@@ -38,17 +39,16 @@ export const vec2Table = (name: string, rows: readonly (readonly [number, number
  */
 export const AO_SURFACE_WGSL = wgslBlock(
   'AO_SURFACE_WGSL',
-  [hizDepthWgsl(0, AO_BINDINGS.depth), DEPTH_WGSL],
+  [hizDepthWgsl(0, AO_BINDINGS.depth), DEPTH_WGSL, unitNormalOrUp],
   `@group(0) @binding(${AO_BINDINGS.normals}) var normals:texture_2d<f32>;
 fn aoDepthCm(z:f32)->f32{return min(sceneDepthOf(z)*${wgslF32(CENTIMETRES_PER_METRE)},${wgslF32(AO_FAR_CM)});}
 fn aoSceneDepth(pixel:vec2i)->f32{return aoDepthCm(hizOpaqueDepth(pixel));}
 fn aoToView(n:vec3f)->vec3f{
  return normalize(vec3f(dot(n,view.right.xyz),dot(n,view.up.xyz),dot(n,view.forward.xyz)));
 }
+// Kept: it reads the program's own normals texture, which a shared function cannot take as an argument.
 fn aoSurfaceNormal(pixel:vec2i)->vec3f{
- let n=textureLoad(normals,pixel,0).xyz;
- let l=length(n);
- return select(vec3f(0.0,0.0,1.0),n/l,l>0.0);
+ return unitNormalOrUp(textureLoad(normals,pixel,0).xyz);
 }
 fn aoPixelAt(uv:vec2f)->vec2i{return vec2i(floor(uv*view.lens.zw));}
 fn aoViewPos(uv:vec2f,depth:f32)->vec3f{

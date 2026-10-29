@@ -29,6 +29,7 @@ import {
   CARD_NORMAL_WGSL,
   lightReaderOf,
   surfaceCacheRecordsWgsl,
+  SURFACE_TABLE_WORDS_WGSL,
   surfaceCacheSampleWgsl,
 } from './sampleWgsl.ts'
 import { indirectWordsWgsl } from './indirectWords.ts'
@@ -149,7 +150,6 @@ export const RESOLVE_WGSL = wgslProgram(
 const HAZE_F0:f32=${wgslF32(HAZE_F0)};
 const HAZE_F90:f32=${wgslF32(HAZE_F90)};
 const ENERGY_ROWS:f32=${SHADING_ENERGY_SIZE}.0;
-fn tableFloat(i:u32)->f32{return bitcast<f32>(surfaceTables[i]);}
 /** The energy table read along the normal (view cosine 1, the last column, which the clamped sampler takes whole): the
  *  directional albedo of a GGX lobe of roughness r under a Fresnel of one in x, the share weighted by the Fresnel's fifth power in y,
  *  blended between the two rows around r. */
@@ -186,7 +186,7 @@ fn slabTransmittance(colour:vec3f)->vec3f{
 /** The first two axes of card \`card\` in the world. */
 fn cardAxes(card:u32)->mat2x3f{
  let b=surfaceTables[AT_CARDS_AT]+card*CARD_WORDS;
- return mat2x3f(vec3f(tableFloat(b+4u),tableFloat(b+5u),tableFloat(b+6u)),vec3f(tableFloat(b+8u),tableFloat(b+9u),tableFloat(b+10u)));
+ return mat2x3f(vec3f(scF(b+4u),scF(b+5u),scF(b+6u)),vec3f(scF(b+8u),scF(b+9u),scF(b+10u)));
 }
 ${ENTRY(
   'resolvePages',
@@ -251,6 +251,7 @@ ${ENTRY(
 )}`,
   [
     CAPTURE_COMMON,
+    SURFACE_TABLE_WORDS_WGSL,
     packLight,
     specularOfFlags,
     SURFACE_F0_WGSL,

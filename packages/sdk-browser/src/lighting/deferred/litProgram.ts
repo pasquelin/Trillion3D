@@ -388,7 +388,6 @@ function resolveLightInputs(
     mask: direct.vsmMask ?? placeholders.vsmMask,
     lightGrid: direct.vsmLightGrid ?? placeholders.vsmLightGrid,
     sunMask: direct.vsmSunMask ?? placeholders.vsmSunMask,
-    farMask: direct.farShadowMask ?? placeholders.farShadowMask,
     lightFunction: direct.lightFunction ?? placeholders.lightFunction,
     lightProfile: direct.lightProfile ?? placeholders.lightProfile,
     contactBend: direct.contactBend ?? placeholders.contactBend,
@@ -452,14 +451,14 @@ function nameResources(
   const { sun: sunNamed, local: localNamed, indirect: indirectNamed } = p.named
   const { cloudShadow, sky, shadowing } = r
   sunNamed.length = 0
-  sunNamed.push(surface, depth, lights, tileList, r.sunRanks, r.sunMask, r.farMask)
+  sunNamed.push(surface, depth, lights, tileList, r.sunRanks, r.sunMask)
   sunNamed.push(r.lightFunction, cloudShadow.block, cloudShadow.maps[0], cloudShadow.maps[1])
   sunNamed.push(cloudShadow.sampler, r.occlusion)
   if (p.contact) sunNamed.push(r.contactBend.view, r.contactBend.ranks)
   if (p.volume) sunNamed.push(r.volumeShadowMaps)
   localNamed.length = 0
   localNamed.push(surface, depth, lights, tileList, r.tiles, r.mask, r.sunMask)
-  localNamed.push(r.lightFunction, r.farMask, r.lightGrid, r.occlusion)
+  localNamed.push(r.lightFunction, r.lightGrid, r.occlusion)
   // The atlas's view changes only when its texture is made: the group follows it.
   if (p.profiled) localNamed.push(r.lightProfile.view)
   if (p.contact) localNamed.push(r.contactBend.view, r.contactBend.ranks)
@@ -589,7 +588,6 @@ function sunEntries(p: LitState, { pixel, shadows }: SharedBindings, r: Resolved
       ...pixel,
       ...shadows,
       sunRanks: { buffer: r.sunRanks },
-      farShadowMask: { buffer: r.farMask },
       ambientOcclusion: r.occlusion,
     }),
     ...cloudShadowBindEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, r.cloudShadow),
@@ -631,7 +629,6 @@ function localEntries(
       vsmMask: r.mask,
       vsmLightGrid: { buffer: r.lightGrid },
       tiles: { buffer: r.tiles },
-      farShadowMask: { buffer: r.farMask },
       ambientOcclusion: r.occlusion,
     }),
     ...profileEntries(p, r),

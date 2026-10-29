@@ -1,6 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { MATRIX_VALUES } from '../../../../math/src/batch/strides.ts'
-import { toF32 } from '../../../../math/src/wgsl/f32.ts'
+import { doubleAsSingle } from '../../../../math/src/wgsl/f32.ts'
 import { ceilDivWgsl } from '../../../../math/src/wgsl/integer.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
@@ -121,8 +121,8 @@ fn worldOf(w:u32)->mat4x4f{
  var c:array<vec4f,4>;
  for(var k=0u;k<4u;k++){
   c[k]=vec4f(
-   bitcast<f32>(toF32(rootWorlds[at+4u*k])),bitcast<f32>(toF32(rootWorlds[at+4u*k+1u])),
-   bitcast<f32>(toF32(rootWorlds[at+4u*k+2u])),bitcast<f32>(toF32(rootWorlds[at+4u*k+3u])));
+   doubleAsSingle(rootWorlds[at+4u*k]),doubleAsSingle(rootWorlds[at+4u*k+1u]),
+   doubleAsSingle(rootWorlds[at+4u*k+2u]),doubleAsSingle(rootWorlds[at+4u*k+3u]));
  }
  return mat4x4f(c[0],c[1],c[2],c[3]);
 }
@@ -204,7 +204,7 @@ export const decodeSource = () =>
     VISIBLE_LAYOUT_WGSL,
     VIS_WORK_WGSL,
     DIAGNOSTIC_DRAWN_AS_WGSL,
-    toF32,
+    doubleAsSingle,
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,
   ])

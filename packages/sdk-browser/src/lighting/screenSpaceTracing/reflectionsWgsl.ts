@@ -325,6 +325,6 @@ const ssCoatedWgsl = wgslBlock(
 fn ssCoated(flags:u32,pixel:vec2i)->bool{
  if((flags&${PHYSICAL_SURFACE_FLAG}u)==0u){return false;}
  let size=vec2i(textureDimensions(surfaceLobes));
- return packedCoat(textureLoad(surfaceLobes,ssClampPixel(pixel,size),0)).x>0.0;
+ return packedCoat(textureLoad(surfaceLobes,clampToExtent(pixel,size),0)).x>0.0;
 }`,
 )

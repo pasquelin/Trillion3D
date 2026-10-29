@@ -1,5 +1,4 @@
 import { disposeWaterTargets } from '../../blend/water/waterTargets.ts'
-import { disposeWaterSun } from '../../blend/water/waterFold.ts'
 import type { WebgpuRunState } from '../backend/state/run.ts'
 import { disposeEntryCorners } from '../../blend/transparent/entryCorners.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
@@ -89,8 +88,6 @@ export function disposeVis(rt: WebgpuPagesRuntime) {
   rt.blendState.overdraw?.dispose()
   rt.blendState.overdraw = undefined
   disposeWaterTargets(rt.blendState)
-  disposeWaterSun(rt.blendState.waterSun)
-  rt.blendState.waterSun = undefined
   vis.gpuRaster?.dispose()
   vis.gpuRaster = undefined
   dropVisibleTables(rt)

@@ -16,8 +16,8 @@ import { dfshTileTraceWgsl } from '../../distanceField/shadow/traceWgsl.ts'
 /**
  * THE SUNS' SHADOW ON THE CARDS THROUGH THE MESHES' FIELDS, as the direct light's program reads it. For each sun that casts a shadow
  * (at most `DFSH_MAX_LIGHTS`) the meshes the cards' volume reaches are culled to it and listed by tile of the volume's shadow space across
- * it before the lighting (`meshShadow.ts`, with the passes of the sun's cascade for the view); the lists lie one after the other in the
- * bindings of the cascade's own table (`DFSH_BINDING`), with a uniform block a sun, and the program reads them in the bind group `MESH_SHADOW_GROUP`.
+ * it before the lighting (`meshShadow.ts`, with the lists' passes of `../../distanceField/shadow/`); the lists lie one after the other in the
+ * bindings of those passes' table (`DFSH_BINDING`), with a uniform block a sun, and the program reads them in the bind group `MESH_SHADOW_GROUP`.
  *
  * `meshSunVisibility(position, normal, toward)` is the visibility the sun gives a texel, 0 to 1, or -1 where the texel's light
  * is none of those suns: the ray starts off the texel by the mesh bias (`range.w` of the sun's block, centimetres) and three times that where the

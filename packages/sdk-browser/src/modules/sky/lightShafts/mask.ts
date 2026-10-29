@@ -1,5 +1,5 @@
 import { FOG_VIEW_SLOT } from '../../../lighting/fog/viewSlots.ts'
-import { put4 } from '../clouds/reconstructLayout.ts'
+import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
 import { lightShaftBounds, type LightShaftSizes } from './layout.ts'
 
 /** Floats the mask's two slots of the fog's view block hold. */
@@ -17,6 +17,6 @@ export const LIGHT_SHAFT_MASK_BLOCK_AT = FOG_VIEW_SLOT.lightShaftBounds * 16
 export function writeLightShaftMaskSlots(out: Float32Array<ArrayBuffer>, sizes: LightShaftSizes) {
   const { texture } = sizes.scene
   out.set(lightShaftBounds(sizes.shaft), 0)
-  put4(out, 4, texture.width, texture.height, 1 / texture.width, 1 / texture.height)
+  putVec4(out, 4, texture.width, texture.height, 1 / texture.width, 1 / texture.height)
   return out
 }

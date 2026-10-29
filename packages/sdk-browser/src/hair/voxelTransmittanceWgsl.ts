@@ -5,7 +5,11 @@ import { pixelToNdc, transformHomogeneousPoint } from '../../../math/src/wgsl/pr
 import { r2Sequence } from '../../../math/src/wgsl/sampling.ts'
 import { HAIR_MACRO_GROUP_SHIFT } from './materialMath.ts'
 import { HAIR_VIEW_WGSL } from './ribbonWgsl.ts'
-import { HAIR_TRAVERSAL_MAX_DISTANCE, voxelTraversalWgsl } from './voxelTraversalWgsl.ts'
+import {
+  HAIR_PACK_MASK_WGSL,
+  HAIR_TRAVERSAL_MAX_DISTANCE,
+  voxelTraversalWgsl,
+} from './voxelTraversalWgsl.ts'
 import { VOXEL_PARAMS_WGSL } from './voxelWgsl.ts'
 import {
   HAIR_COORD_BITS,
@@ -41,7 +45,7 @@ struct TransmittanceLight{
 const SAMPLES=${supersampled ? HAIR_TRANSMITTANCE_SUPERSAMPLES : 1}u;
 const MAX_DISTANCE=${HAIR_TRAVERSAL_MAX_DISTANCE}.0;`
 
-/** The blue-noise jitter of a ray, and the packing of the mask word. */
+/** The blue-noise jitter of a ray. */
 const JITTER_TEXT = `// A random vector of the pixel's blue noise for the supersample \`sampleIt\` of \`count\`.
 fn voxelJitter(pixel:vec2u,sampleIt:u32,count:u32)->vec3f{
  if(light.jitterMode==0u){return vec3f(0.0);}
@@ -50,8 +54,7 @@ fn voxelJitter(pixel:vec2u,sampleIt:u32,count:u32)->vec3f{
  let a=blueNoiseVec2(pixel+vec2u(r2Sequence(sampleIt)*size),time);
  let b=blueNoiseVec2(pixel+vec2u(r2Sequence(sampleIt+count)*size),time);
  return vec3f(a,b.x);
-}
-fn packMask(hairCount:f32,visibility:f32)->u32{return min(u32(hairCount*1000.0),0x00FFFFFFu)|(min(u32(visibility*255.0),0xFFu)<<24u);}`
+}`
 
 /** The kernel: a sample's hair count and visibility toward the light. */
 const KERNEL_TEXT = `@compute @workgroup_size(${HAIR_NODE_GROUP_SIZE}) fn hairVoxelTransmittance(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) groups:vec3u){
@@ -95,6 +98,7 @@ export const voxelTransmittanceWgsl = (mipmap: boolean, supersampled: boolean) =
   wgslProgram(`${bindingsText(supersampled)}\n${JITTER_TEXT}\n${KERNEL_TEXT}`, [
     VOXEL_PARAMS_WGSL,
     voxelTraversalWgsl(mipmap),
+    HAIR_PACK_MASK_WGSL,
     HAIR_VIEW_WGSL,
     blueNoiseWgsl(0, NOISE_BINDING),
     pixelToNdc,

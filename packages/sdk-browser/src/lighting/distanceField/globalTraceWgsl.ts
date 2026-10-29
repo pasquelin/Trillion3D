@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
-import { rayBoxSpan, rayInverseDirection } from '../../../../math/src/wgsl/geometry.ts'
+import { segmentBoxSpan } from '../../../../math/src/wgsl/geometry.ts'
 import { interleavedGradientNoise } from '../../../../math/src/wgsl/sampling.ts'
 import { globalDistanceFieldReadWgsl } from './globalReadWgsl.ts'
 
@@ -11,7 +11,7 @@ import { globalDistanceFieldReadWgsl } from './globalReadWgsl.ts'
  *
  * THE MARCH. The ray starts at `start + minTrace · dir` in the clipmap that holds that point (`gdfClipmapAt`: the
  * finest whose box holds it by more than a voxel's half). Each clipmap is traversed between where the ray enters its
- * box, drawn in by a voxel's half, and where it leaves it (`gdfLineBoxIntersect`), no earlier than the
+ * box, drawn in by a voxel's half, and where it leaves it (`segmentBoxSpan`), no earlier than the
  * time the clipmap before left off; the next resumes there. In a clipmap, at most `traceSteps` steps: at
  * each, the coarse mip is read at the sample, its distance in the range of the mip; where the sample lies
  * in an allocated page and the mip is under the distance at which the pages take over, the page is read
@@ -65,9 +65,6 @@ fn gdfClipmapAt(p:vec3f)->u32{
  }
  return 0u;
 }
-fn gdfLineBoxIntersect(start:vec3f,end:vec3f,low:vec3f,high:vec3f)->vec2f{
- return saturate(rayBoxSpan(low,high,start,rayInverseDirection(end-start)));
-}
 fn gdfTrace(input:GdfTraceInput)->GdfTraceResult{
  var out=GdfTraceResult(-1.0,0u,0u,0.0);
  let traceNoise=interleavedGradientNoise(input.ditherCoord,input.turn);
@@ -81,7 +78,7 @@ fn gdfTrace(input:GdfTraceInput)->GdfTraceResult{
   let bias=voxelExtent*input.rayBias;
   let span=input.maxTrace-voxelExtent*input.rayEndBias;
   let inner=box.w-voxelExtent;
-  let times=gdfLineBoxIntersect(input.start,input.start+input.dir*span,box.xyz-vec3f(inner),box.xyz+vec3f(inner))*span;
+  let times=segmentBoxSpan(input.start,input.start+input.dir*span,box.xyz-vec3f(inner),box.xyz+vec3f(inner))*span;
   let begin=max(max(times.x,minTime),bias);
   if(begin<times.y){
    minTime=times.y;
@@ -139,7 +136,7 @@ fn gdfClipRayOutside(origin:vec3f,dir:vec3f,span:f32,steps:u32)->GdfClipped{
  var out=GdfClipped(0.0,span);
  let box=gdfView.centerExtent[gdfView.clipmaps-1u];
  let inner=box.w-box.w*gdfView.texel;
- let times=gdfLineBoxIntersect(origin,origin+dir*span,box.xyz-vec3f(inner),box.xyz+vec3f(inner));
+ let times=segmentBoxSpan(origin,origin+dir*span,box.xyz-vec3f(inner),box.xyz+vec3f(inner));
  if(times.x<times.y){
   let leaves=max(times.y+(times.y-1.0)/f32(2u*steps-1u),0.0);
   out.start=leaves*span;
@@ -153,12 +150,7 @@ fn gdfClipRayOutside(origin:vec3f,dir:vec3f,span:f32,steps:u32)->GdfClipped{
 export function globalDistanceFieldTraceWgsl(group: number, first: number) {
   return wgslBlock(
     `GLOBAL_DISTANCE_FIELD_TRACE_WGSL ${group}, ${first}`,
-    [
-      globalDistanceFieldReadWgsl(group, first),
-      interleavedGradientNoise,
-      rayInverseDirection,
-      rayBoxSpan,
-    ],
+    [globalDistanceFieldReadWgsl(group, first), interleavedGradientNoise, segmentBoxSpan],
     GDF_TRACE_TEXT,
   )
 }

@@ -100,7 +100,7 @@ fn denoiseCompute(@builtin(global_invocation_id) id:vec3u){
  let shift=0.5/ratio;
  let center=vec2f(id.xy)+vec2f(shift);
  let full=center*ratio;
- let pixel=ssClampPixel(vec2i(floor(full)),vec2i(ssView.size.xy));
+ let pixel=clampToExtent(vec2i(floor(full)),vec2i(ssView.size.xy));
  let screen=ssScreenOfPixel(full);
  let origin=dnMetaCur(center);
  let incoming=dnLoadSource(vec2i(id.xy));
@@ -109,7 +109,7 @@ fn denoiseCompute(@builtin(global_invocation_id) id:vec3u){
  // Where the texel stood in the last image.
  let prevClip=ssView.clipToPrevClip*vec4f(screen,hizOpaqueDepth(pixel),1.0);
  var back=screen-prevClip.xy/prevClip.w;
- let words=textureLoad(colorVectors,ssClampPixel(pixel,vec2i(textureDimensions(colorVectors))),0);
+ let words=textureLoad(colorVectors,clampToExtent(pixel,vec2i(textureDimensions(colorVectors))),0);
  if(hasOwnMotion(words.r)){back=decodeVector(words.r);}
  let historyUV=(screen-back)*vec2f(0.5,-0.5)+vec2f(0.5);
  let edge=vec2f(0.5)/ssView.size.xy;
@@ -133,7 +133,7 @@ ${history}
  dnRejectTap(origin,center+vec2f(-1.0,0.0),force,&nearby);
  dnRejectTap(origin,center+vec2f(0.0,1.0),force,&nearby);
  dnRejectTap(origin,center+vec2f(0.0,-1.0),force,&nearby);
- let norm=dnRcp(nearby.s.n);
+ let norm=safeRcp(nearby.s.n);
  let m1=dnMul(nearby.s,norm);
  let m2=dnMul(nearby.s2,norm);
  let deviation=dnStd(m1,m2);

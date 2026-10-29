@@ -11,7 +11,6 @@ import {
 import type { SkyLightPart } from '../../../../sdk-core/src/modules/sky/skyLight.ts'
 import { createReflectionSettingsReader } from '../reflections/settings.ts'
 import { createSkyOcclusionState, releaseSkyOcclusion, type SkyOcclusionState } from './ao/state.ts'
-import { createSunShadowState, releaseSunShadow, type SunShadowState } from './shadow/state.ts'
 import {
   createDistanceFieldScene,
   DEFAULT_OCCLUSION_DISTANCE,
@@ -42,8 +41,6 @@ export interface DistanceFieldFrameState {
   skyLight: SkyLightPart | undefined
   /** The sky light's distance-field occlusion (`encodeSkyOcclusion`). */
   readonly occlusion: SkyOcclusionState
-  /** The sun's distance-field shadow (`encodeSunFieldShadow`). */
-  readonly sunShadow: SunShadowState
 }
 
 const origin: [number, number, number] = [0, 0, 0]
@@ -67,7 +64,6 @@ function stateOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
     time: performance.now(),
     skyLight: undefined,
     occlusion: createSkyOcclusionState(),
-    sunShadow: createSunShadowState(),
   })
 }
 
@@ -125,10 +121,7 @@ export function distanceFieldsSubmitted(rt: Pick<WebgpuPagesRuntime, 'distanceFi
 
 /** Frees the distance fields of `rt`. */
 export function disposeDistanceFields(rt: Pick<WebgpuPagesRuntime, 'distanceFields'>) {
-  if (rt.distanceFields) {
-    releaseSkyOcclusion(rt.distanceFields.occlusion)
-    releaseSunShadow(rt.distanceFields.sunShadow)
-  }
+  if (rt.distanceFields) releaseSkyOcclusion(rt.distanceFields.occlusion)
   rt.distanceFields?.scene.dispose()
   rt.distanceFields = undefined
 }

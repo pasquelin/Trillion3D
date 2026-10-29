@@ -16,7 +16,11 @@ import { rand4dPcg32 } from '../../../../math/src/wgsl/sampling.ts'
 import { FLAT_INDEX_WGSL } from '../../gpu/dispatch/grid.ts'
 import { HAIR_MACRO_GROUP_SHIFT } from '../../hair/materialMath.ts'
 import { HAIR_VIEW_WGSL } from '../../hair/ribbonWgsl.ts'
-import { HAIR_TRAVERSAL_MAX_DISTANCE, voxelTraversalWgsl } from '../../hair/voxelTraversalWgsl.ts'
+import {
+  HAIR_PACK_MASK_WGSL,
+  HAIR_TRAVERSAL_MAX_DISTANCE,
+  voxelTraversalWgsl,
+} from '../../hair/voxelTraversalWgsl.ts'
 import { VOXEL_PARAMS_WGSL } from '../../hair/voxelWgsl.ts'
 import {
   HAIR_COORD_BITS,
@@ -200,6 +204,7 @@ ${HEAD}`,
     [
       VOXEL_PARAMS_WGSL,
       voxelTraversalWgsl(mipmap),
+      HAIR_PACK_MASK_WGSL,
       DIRECT_LIGHT_WGSL,
       PARAMS_WGSL,
       SAMPLE_AT_WGSL,
@@ -209,8 +214,7 @@ ${HEAD}`,
       wgslBlock(
         'HAIR_MASK_KERNEL_WGSL',
         [],
-        `fn packMask(hairCount:f32,visibility:f32)->u32{return min(u32(hairCount*1000.0),0x00FFFFFFu)|(min(u32(visibility*255.0),0xFFu)<<24u);}
-@compute @workgroup_size(${HAIR_NODE_GROUP_SIZE}) fn ${HAIR_MASK_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) groups:vec3u){
+        `@compute @workgroup_size(${HAIR_NODE_GROUP_SIZE}) fn ${HAIR_MASK_ENTRY}(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) groups:vec3u){
  let slot=flatIndex(id,groups,${HAIR_NODE_GROUP_SIZE}u);
  if(slot>=hairCounter[${HAIR_NODE_COUNTER_STORED}]){return;}
  let pixel=hairSamplePixel(slot);

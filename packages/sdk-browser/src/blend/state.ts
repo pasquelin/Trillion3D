@@ -23,7 +23,6 @@ import type { Geometry } from '../../../sdk-core/src/world/geometry/geometry.ts'
 import type { GeometryBlock } from '../geometry/rows/page/pageRowMaterial.ts'
 import type { NodeIndex } from '../frame/render/movedNode.ts'
 import type { WaterTargets } from './water/waterTargets.ts'
-import type { WaterSun } from './water/waterFold.ts'
 import type { FrontOutputs } from '../lighting/reflections/frontLayer.ts'
 
 /** A transparent item: one blended root's placement, drawn from its pages cluster by cluster, as
@@ -166,8 +165,6 @@ function translucentState() {
     /** The single-layer water pass's targets, made at the first image that draws it
      *  (`./water/waterTargets.ts`). */
     waterTargets: undefined as WaterTargets | undefined,
-    /** The sun's distance-field shadow traced at the water's depth (`encodeWaterSunFieldShadow`). */
-    waterSun: undefined as WaterSun | undefined,
   }
 }
 

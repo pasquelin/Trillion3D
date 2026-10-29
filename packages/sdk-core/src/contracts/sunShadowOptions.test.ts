@@ -1,5 +1,5 @@
 // The sun's far-shadow settings (`sunShadowOptions.ts`, `sunCascades.ts`): the edge of its far-shadow
-// test and its distance-field cascade. Split from `shadowOptions.test.ts` by subject, as the bound
+// test. Split from `shadowOptions.test.ts` by subject, as the bound
 // on a test file's lines asks.
 import test from 'node:test'
 import assert from 'node:assert/strict'
@@ -72,47 +72,4 @@ test('the far-shadow edge follows the quality levels, the light and the scene’
   near(edgeOf(max, far, false), 427, 'far levels extend the last near one', 0.01)
   assert.equal(edgeOf(max, { ...far, farShadowDistance: 400.5 }, false), 400, 'under a metre past')
   assert.equal(edgeOf({ ...max, shadowMaxFarCascades: 0 }, far, false), 400, 'the view takes none')
-})
-
-test('the distance-field cascade runs from the near levels’ end, fading in and out over their overlap', () => {
-  const max = presetShadows('max')
-  const cascade = (view: ShadowValues, light: LightShadowOptions = {}, distanceFields = true) =>
-    sunCascades(resolveLightShadow(light), 0.05, view, distanceFields).distanceField
-  const field = cascade(max)!
-  // The last near level starts at 13/40 of the span: 130.03 m, its overlap 27 m, the cascade's
-  // own 11.2 m at its far end, where it is the last of all.
-  near(field.near, 400, 'from the near levels’ end', 1e-9)
-  near(field.far, 512, 'to the light’s distance', 1e-9)
-  near(field.minDepth, 400 - 26.997, 'in from the last level’s overlap', 1e-3)
-  near(field.nearFadeOffset, 400 - 26.997, 'fading in from there', 1e-3)
-  near(1 / field.invNearFadeLength, 26.997, 'over its length', 1e-3)
-  near(field.fadeOffset, 512 - 11.2, 'fading out before the far end', 1e-9)
-  near(1 / field.invFadeLength, 11.2, 'over a tenth of its span', 1e-9)
-  assert.equal(field.maxDepth, 512)
-  // A cascade due after it ends later, its fade beyond the distance.
-  const more = cascade(max, { farShadowCascades: 2 })!
-  near(more.far, 512 + 11.2, 'extended by its overlap', 1e-9)
-  near(more.fadeOffset, 512, 'fading out past the distance', 1e-9)
-  // The far transition scale shortens the last fade, 0 takes it away.
-  const half = cascade({ ...max, distanceFieldFarTransitionScale: 0.5 })!
-  near(1 / half.invFadeLength, 5.6, 'half of it', 1e-9)
-  const none = cascade({ ...max, distanceFieldFarTransitionScale: 0 })!
-  assert.deepEqual([none.fadeOffset, none.invFadeLength], [0, 0], 'no fade out')
-  // No near level: it starts at the near plane and has no fade in.
-  const alone = cascade({ ...max, shadowNearLevels: 0 })!
-  assert.deepEqual(
-    [alone.near, alone.minDepth, alone.nearFadeOffset, alone.invNearFadeLength],
-    [0.05, 0.05, -1, 1],
-  )
-  // Where it is not made: the row off, the quality 0, the light's switch off, no distance field, no distance.
-  for (const none of [
-    cascade({ ...max, shadowFarField: false }),
-    cascade({ ...max, distanceFieldShadowQuality: 0 }),
-    cascade({ ...max, distanceFieldShadowing: false }),
-    cascade(max, { distanceFieldShadows: false }),
-    cascade(max, {}, false),
-    cascade(max, { distanceFieldShadowDistance: false }),
-    cascade(max, { distanceFieldShadowDistance: 400 }),
-  ])
-    assert.equal(none, undefined)
 })

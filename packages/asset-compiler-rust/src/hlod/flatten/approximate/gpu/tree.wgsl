@@ -17,10 +17,6 @@ fn result(value: f32, stopped: bool) -> vec2u {
     return vec2u(bitcast<u32>(value), select(0u, 1u, stopped));
 }
 
-fn f4(at: u32) -> vec4f {
-    return bitcast<vec4f>(scene[at]);
-}
-
 // The three corners of the triangle whose first record is `at`.
 struct Triangle {
     a: vec3f,

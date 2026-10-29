@@ -126,21 +126,24 @@ test('the word format writes the text the passes held before the setting existed
   // Re-pinned again, with trace and traced, after the cleanup of 28/10: the shared mesh distance-field read the surface cache's mesh sun pre-pass
   // moved into (`meshShadowWgsl.ts`, `directWgsl.ts`), c9's deduplication (`sinFromCosUnclamped`, `workgroupSumLoop`, `PROBE_PIXEL_BINDINGS`) and
   // the screen probes' pieces moved to leaf modules (`stageShader.ts`, `traceFeatureWgsl.ts`): the word format's own reads are unchanged.
+  // Re-pinned after c9's deduplication of 29/10: the mesh trace's segment-box span, depth and table reads come from their one owner
+  // (`segmentBoxSpan`, `viewDepthCmOfDevice`, `SURFACE_TABLE_WORDS_WGSL`): the same operations, the text laid out in another order.
+  // Re-pinned, with splat and traced, for the range test of the cache trace: a thread whose texel lies past the level's rays traces none and writes none.
   assert.deepEqual(got, {
     fixup: '8fde44d3df6c727f',
     filter: 'de0f20e6874d0db2',
-    trace: '438bd9955088be50',
-    splat: 'c0859e59212b8932',
-    traced: 'd9348b138c3da9bb',
+    trace: '23f68225d76d80dc',
+    splat: '3ce1270be3e4c942',
+    traced: 'd93cbe39e7b05c06',
     irradiance: 'ac61086b6b7a1653',
     occlusion: 'a9050da263e72087',
     gather: '5942bd5aa78d7314',
     rays: 'a5deb63043630217',
-    scene: '33d66503213f7d2c',
-    sceneFog: 'c893fe442e0d5517',
-    mesh: 'ef684aad8c1caa28',
+    scene: '61d6e02303082cb4',
+    sceneFog: 'ed25b61f2454c878',
+    mesh: '43d59aa27b268d47',
     stage: 'ca91f61a34a14ab9',
-    gi: '3ec71206ed6ebaf3',
+    gi: 'faf92552285a274a',
     entries: '9b84e8f4f3413d5d',
     formats: '3407d00e04df59fe',
   })

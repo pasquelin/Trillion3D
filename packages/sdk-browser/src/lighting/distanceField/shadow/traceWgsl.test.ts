@@ -1,22 +1,23 @@
-// The sun's distance-field shadow: a ray through a mesh's field, run on the shipped text with a sphere for
+// The suns' mesh lists: a ray through a mesh's field, run on the shipped text with a sphere for
 // the field, and the mesh's box seen from the light, the tiles it reaches.
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
 import { builtins } from '../../../materials/texture/shaderRunBuiltins.fixture.ts'
-import { PIXEL_MODEL, PIXEL_MODEL_SHIFT } from '../../../materials/surface/pixelModel.ts'
-import { SUBSURFACE_FLAG } from '../../../materials/surface/subsurface.ts'
+import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
 import { DFSH_SCATTER_WGSL } from './scatterWgsl.ts'
-import { DFSH_TRACE_WGSL } from './traceWgsl.ts'
+import { dfshTraceObjectWgsl } from './traceObjectWgsl.ts'
+
+/** The cone of the least radius, 0.4 centimetres, the surface not expanded. */
+const MIN_CONE_RADIUS = 0.4
 
 const len = (v: number[]) => Math.hypot(...v)
 
 /** A mesh whose volume is the cube of half-size 1, a centimetre in the world each hundredth (the box
  *  is 200 centimetres wide), holding a sphere of radius 0.5 volume units (50 centimetres) at its
- *  centre: the field read at a position is its distance to the sphere. `density` is the light a thin
- *  surface lets through by (negative: the surface transmits nothing). */
-function traced(steps: number, two = false, bias = 0, density = -1) {
+ *  centre: the field read at a position is its distance to the sphere. */
+function traced(steps: number, two = false, bias = 0) {
   const object = {
     extent: [1, 1, 1],
     toWorldScale: [100, 100, 100],
@@ -26,16 +27,17 @@ function traced(steps: number, two = false, bias = 0, density = -1) {
     asset: 0,
     volumeScale: 100,
   }
-  const { dfshTraceObject } = shaderRun<{
-    dfshTraceObject: (
+  const { dfshTraceCone } = shaderRun<{
+    dfshTraceCone: (
       o: number,
       start: number[],
       end: number[],
       tan: number,
+      minRadius: number,
+      expandSurface: boolean,
       visibility: number,
-      density: number,
     ) => number
-  }>(DFSH_TRACE_WGSL, ['dfshTraceObject'], {
+  }>(wgslModule(dfshTraceObjectWgsl()), ['dfshTraceCone'], {
     dfsh: { trace: [0, 0, steps, 0], range: [0, 0, 1, 0] },
     loadDfObjectData: () => object,
     dfshWorld: (p: number[]) => p,
@@ -44,7 +46,7 @@ function traced(steps: number, two = false, bias = 0, density = -1) {
     sampleSparseMeshSdf: (p: number[]) => len(p) - 0.5,
   })
   return (x: number, tan: number) =>
-    dfshTraceObject(0, [x, 0, -300], [x, 0, 9700], tan, 1, density) as number
+    dfshTraceCone(0, [x, 0, -300], [x, 0, 9700], tan, MIN_CONE_RADIUS, false, 1) as number
 }
 
 test('a ray through the sphere is shadowed, one beside the box is lit, one grazing it is in the penumbra of its cone', () => {
@@ -77,38 +79,6 @@ test('a two-sided mesh’s surface is expanded along the ray, by its bias over t
   const two = traced(64, true, 0.2)(60, 0)
   assert.ok(one > 0.5, `a one-sided mesh’s field is as it is: ${one}`)
   assert.equal(two, 0, 'a two-sided one’s surface comes out to meet the ray')
-})
-
-test('a thin transmitting surface keeps the light that survives the thickness it has gone in the mesh, never fully shadowed', () => {
-  // Through the sphere's centre the opaque ray is wholly stopped; the thin one keeps, at each step, the
-  // exponential of the minus thickness (the time along the ray, a hundred centimetres a unit) times the density.
-  const density = 0.02
-  const opaque = traced(64)(0, 0.0047)
-  const thin = traced(64, false, 0, density)(0, 0.0047)
-  assert.equal(opaque, 0)
-  assert.ok(thin > 0, `the light is not wholly stopped: ${thin}`)
-  assert.ok(thin < 1, `but it is stopped in part: ${thin}`)
-  assert.ok(traced(64, false, 0, 0.001)(0, 0.0047) > thin, 'a lower density lets more through')
-  assert.equal(traced(64, false, 0, density)(400, 0.0047), 1, 'a ray that misses the box is lit')
-})
-
-test('a thin surface of a density of 0 lets all the light through but the steps it used, as the reference does', () => {
-  const none = traced(64, false, 0, 0)(0, 0.0047)
-  assert.ok(none > 0.5, `the sphere stops nothing: ${none}`)
-  assert.ok(none >= traced(64, false, 0, 0.001)(0, 0.0047), 'more light than a density above 0')
-})
-
-test('a thin sheet and a pixel of a subsurface, skin, profile, hair or eye model transmit, a plain surface does not', () => {
-  const { isSubsurfaceModel } = shaderRun<{ isSubsurfaceModel: (flags: number) => boolean }>(
-    DFSH_TRACE_WGSL,
-    ['isSubsurfaceModel'],
-    {},
-  )
-  const model = (id: number) => id << PIXEL_MODEL_SHIFT
-  for (const id of Object.values(PIXEL_MODEL))
-    assert.equal(isSubsurfaceModel(model(id)), true, `model ${id}`)
-  assert.equal(isSubsurfaceModel(SUBSURFACE_FLAG), true, 'a thin sheet')
-  assert.equal(isSubsurfaceModel(0), false, 'a plain surface')
 })
 
 /** The tiles of a grid of side `side` a mesh with the box of half-size `half` centimetres at `at`

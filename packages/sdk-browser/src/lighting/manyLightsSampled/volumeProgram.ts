@@ -3,7 +3,7 @@
  * global distance field (its rays; without, nothing blocks a light) and the depth pyramid (the fog's voxels hidden behind the surfaces are skipped; without, none is). Its pipelines are asked at the first
  * image that wants them, off the frame; until they are compiled the pass is not recorded, and the readers keep their walk of the lights.
  */
-import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
+import { askedComputeStage } from '../../gpu/core/computeStages.ts'
 import {
   computeBufferEntry,
   computeStorageTextureEntry,
@@ -55,20 +55,11 @@ const programOf = (
   failed: (error: unknown) => void,
   label: string,
   entries: GPUBindGroupLayoutEntry[],
-  module: GPUShaderModule,
+  code: string,
   entryPoint: string,
 ) => {
   const layout = device.createBindGroupLayout({ entries })
-  const pipeline = preparedComputeStage(
-    device,
-    device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    module,
-    entryPoint,
-    undefined,
-    label,
-  ).ask()
-  pipeline.prepare().catch(failed)
-  return { layout, pipeline }
+  return { layout, pipeline: askedComputeStage(device, [layout], code, entryPoint, label, failed) }
 }
 
 /** The programs of a device's volumes, the variants made at their first ask. */
@@ -87,10 +78,7 @@ export function createVolumePrograms(device: GPUDevice, failed: (error: unknown)
             failed,
             `Trillion3D sampled volume sampling ${key}`,
             sampleEntries(variant),
-            device.createShaderModule({
-              label: 'Trillion3D sampled volume sampling ' + key,
-              code: volumeSampleText(variant),
-            }),
+            volumeSampleText(variant),
             VOLUME_SAMPLE_ENTRY,
           )),
         )
@@ -102,10 +90,7 @@ export function createVolumePrograms(device: GPUDevice, failed: (error: unknown)
         failed,
         'Trillion3D sampled volume hash',
         hashEntries(),
-        device.createShaderModule({
-          label: 'Trillion3D sampled volume hash',
-          code: volumeHashText(),
-        }),
+        volumeHashText(),
         VOLUME_HASH_ENTRY,
       ))
     },

@@ -6,7 +6,6 @@
 // is made of.
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import {
-  DEFERRED_BINDINGS,
   DEFERRED_CLOUD_SHADOW_BINDINGS,
   DEFERRED_FOG_BINDINGS,
   DEFERRED_LIGHT_FUNCTION_BINDINGS,
@@ -22,7 +21,6 @@ const WHOLE_BINDINGS: LightingBindings = {
   vsmSunMask: CONTRACT_SHADOW_BINDINGS.vsmSunMask,
   vsmMask: CONTRACT_SHADOW_BINDINGS.vsmMask,
   maskFallback: CONTRACT_SHADOW_BINDINGS.fallback,
-  farShadowMask: DEFERRED_BINDINGS.farShadowMask,
   fog: DEFERRED_FOG_BINDINGS,
   lightFunction: DEFERRED_LIGHT_FUNCTION_BINDINGS,
   cloudShadow: DEFERRED_CLOUD_SHADOW_BINDINGS,

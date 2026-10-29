@@ -1,13 +1,11 @@
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
-import { pixelToNdc } from '../../../math/src/wgsl/projection.ts'
 import { fogOverModules } from '../lighting/fog/fogPassWgsl.ts'
-import { hairTilePixel } from './tilesWgsl.ts'
+import { hairTileQuad } from './tilesWgsl.ts'
 import {
   HAIR_NODE_COUNTER_STORED,
   HAIR_NODE_OFFSET_BITS,
   HAIR_NODE_OFFSET_MASK,
   HAIR_TILE_ALL,
-  HAIR_TILE_SIZE,
 } from './visibilityMath.ts'
 
 /** The bindings of the composition's own group (group 1); group 0 is the fog pass's. */
@@ -36,7 +34,7 @@ const G = HAIR_COMPOSE_GROUP
 export const hairComposeWgsl = (localFog: boolean) =>
   wgslBlock(
     `hairComposeWgsl(${localFog})`,
-    [...fogOverModules(localFog), hairTilePixel, pixelToNdc],
+    [...fogOverModules(localFog), hairTileQuad],
     `struct HairComposeImage{size:vec2u,capacity:u32,pad:u32}
 @group(1) @binding(${G.image}) var<uniform> hairImage:HairComposeImage;
 @group(1) @binding(${G.tiles}) var<storage,read> hairTiles:array<u32>;
@@ -46,9 +44,7 @@ export const hairComposeWgsl = (localFog: boolean) =>
 @group(1) @binding(${G.nodeCounter}) var<storage,read> hairCounter:array<u32>;
 @group(1) @binding(${G.nearestDepth}) var hairNearest:texture_2d<f32>;
 @vertex fn hairComposeVs(@builtin(vertex_index) vertex:u32,@builtin(instance_index) rank:u32)->@builtin(position) vec4f{
- let corner=vec2f(f32(vertex==1u||vertex==4u||vertex==5u),f32(vertex==2u||vertex==3u||vertex==5u));
- let origin=vec2f(hairTilePixel(hairTiles[${HAIR_TILE_ALL}u*hairImage.capacity+rank],vec2u(0u)));
- return vec4f(pixelToNdc(origin+corner*${HAIR_TILE_SIZE}.0,vec2f(hairImage.size)),0.0,1.0);
+ return hairTileQuad(vertex,hairTiles[${HAIR_TILE_ALL}u*hairImage.capacity+rank],hairImage.size);
 }
 @fragment fn hairComposeFs(@builtin(position) position:vec4f)->@location(0) vec4f{
  let pixel=vec2i(position.xy);

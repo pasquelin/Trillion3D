@@ -1,5 +1,9 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
-import { unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
+import {
+  deviceDepthOfView,
+  unprojectPoint,
+  viewDepthCmOfDevice,
+} from '../../../../../math/src/wgsl/projection.ts'
 import { hizDepthWgsl } from '../../../visibility/hiz/gpu/pyramidTexture.ts'
 import { OBJECT_DATA_STRIDE } from '../../distanceField/layout.ts'
 import { meshFieldWgsl } from '../../distanceField/meshFieldWgsl.ts'
@@ -96,7 +100,7 @@ fn msdfCellWorld(coord:vec3u,offset:vec3f)->vec3f{
  let uv=(vec2f(coord.xy)+offset.xy)/vec2f(msdf.grid.xy);
  let ndc=(uv*2.0-vec2f(1.0))*vec2f(1.0,-1.0);
  let depth=msdfSliceDepth(f32(coord.z)+offset.z);
- return unprojectPoint(msdf.unprojectToWorld,vec3f(ndc,msdfDeviceDepth(depth)));
+ return unprojectPoint(msdf.unprojectToWorld,vec3f(ndc,deviceDepthOfView(msdf.depth,depth*0.01)));
 }
 /** The slices the column of the pixel is bounded to: from the nearest depth to the farthest the object and the pixels leave. */
 fn msdfSliceSpan(pixel:vec2u,viewZ:f32,reach:f32)->vec2u{
@@ -105,8 +109,8 @@ fn msdfSliceSpan(pixel:vec2u,viewZ:f32,reach:f32)->vec2u{
  var maxDepth=viewZ+reach;
  let level=min(max(msdf.limits.z,1u),u32(hizLevelCount()-1));
  let cell=vec2i((pixel<<vec2u(msdf.grid.w))>>vec2u(level));
- minDepth=max(minDepth,msdfDepthCm(hizCellNearest(cell,i32(level))));
- maxDepth=min(maxDepth,msdfDepthCm(hizCellCullFarthest(cell,i32(level))));
+ minDepth=max(minDepth,viewDepthCmOfDevice(msdf.depth,hizCellNearest(cell,i32(level))));
+ maxDepth=min(maxDepth,viewDepthCmOfDevice(msdf.depth,hizCellCullFarthest(cell,i32(level))));
  return vec2u(msdfSliceOf(minDepth),msdfSliceOf(maxDepth));
 }
 @fragment
@@ -156,7 +160,14 @@ fn msdfScatterFs(v:ScatterVertex)->@location(0) vec4f{
  }
  return vec4f(0.0);
 }`,
-  [COMMON, meshFieldWgsl(0, B.objects), hizDepthWgsl(0, B.depth), unprojectPoint],
+  [
+    COMMON,
+    meshFieldWgsl(0, B.objects),
+    hizDepthWgsl(0, B.depth),
+    unprojectPoint,
+    deviceDepthOfView,
+    viewDepthCmOfDevice,
+  ],
 )
 
 /**

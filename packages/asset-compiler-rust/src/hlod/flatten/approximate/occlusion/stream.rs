@@ -3,6 +3,8 @@
 //! draw its top 23 bits read as the fraction of a single-precision number in `[1, 2)`, less one —
 //! the same numbers for the same seed on every host.
 
+use trillion3d_math::sequence::random::lcg32_fraction;
+
 /// The stream's state.
 pub(super) struct Stream(u32);
 
@@ -16,11 +18,9 @@ impl Stream {
         Self(seed)
     }
 
-    /// The next number in `[0, 1)`: the state stepped, its top 23 bits the mantissa of a number
-    /// in `[1, 2)`, less one.
+    /// The next number in `[0, 1)` (`lcg32_fraction`).
     pub(super) fn fraction(&mut self) -> f32 {
-        self.0 = self.0.wrapping_mul(196_314_165).wrapping_add(907_633_515);
-        f32::from_bits(0x3F80_0000 | (self.0 >> 9)) - 1.0
+        lcg32_fraction(&mut self.0)
     }
 
     /// A unit direction, uniform on the sphere: points of the cube `[-1, 1]³` drawn one axis after

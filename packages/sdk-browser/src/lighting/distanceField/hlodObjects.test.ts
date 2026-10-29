@@ -61,8 +61,7 @@ test('a world DAG’s root places the fields of the HLOD cells whose actors draw
     tracker.objects.map((entry) => entry.world[12]),
     [0, 50, 50],
   )
-  // The shells cast, and are made of clusters like the world’s own.
-  assert.equal(tracker.sourceOf(1).flags & F.virtualized, F.virtualized)
+  // The shells cast.
   assert.equal(tracker.sourceOf(1).flags & F.castShadow, F.castShadow)
   assert.equal(tracker.sourceOf(1).flags & F.visible, F.visible)
   assert.equal(tracker.sourceOf(1).instance, 1, 'the rank of the root it stands for')

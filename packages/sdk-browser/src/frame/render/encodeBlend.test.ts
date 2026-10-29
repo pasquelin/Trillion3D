@@ -163,12 +163,11 @@ test("the air is encoded before the surface cache's update, from the shadow page
   )
 })
 
-test("the sun's distance-field shadow and the shadow maps' projection are made after the indirect light, just before the lighting", () => {
+test("the shadow maps' projection is made after the indirect light, just before the lighting", () => {
   const source = readFileSync(new URL('./preLight.ts', import.meta.url), 'utf8')
   const order = [
     'encodeIndirectLight(rt, device, encoder, cam, overrides)',
     'encodeLightShaftOcclusion(rt, device, encoder, cam)',
-    'encodeSunFieldShadow(rt, encoder, cam)',
     'encodeHeldVsmProjection(rt, projection)',
   ].map((call) => source.indexOf(call))
   assert.ok(
@@ -178,7 +177,7 @@ test("the sun's distance-field shadow and the shadow maps' projection are made a
   assert.deepEqual(
     order,
     [...order].sort((a, b) => a - b),
-    'in this order: the distance field first, as the projection takes the least of the two',
+    'in this order',
   )
 })
 

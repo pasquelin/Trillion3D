@@ -255,3 +255,33 @@ export function setLink(
   links[at + 2] = f
   return true
 }
+
+/** Whether placement `w` is in no cell and no file (a node always loaded, a placement of the world
+ *  DAG): it draws whatever the words say. */
+export const isUnlinked = ({ links }: PackedWorld, w: number) =>
+  links[w * LINK_WORDS] === NO_INDEX && links[w * LINK_WORDS + 2] === NO_INDEX
+
+/** Whether a placement draws, given its link's cell word `h` (`NO_INDEX` for none, `ACTOR_ROW` set
+ *  for a row of a cell's actor), the word of that cell in its instance — `cellWord`, zero without a
+ *  cell or an instance packed — and the word of its file — `fileWord`, zero without one
+ *  (`CELL_DRAW`). A row of a cell's actor draws while its cell draws that actor; any other while its
+ *  file or its HLOD 0 cell draws its placements. The host's twin of the shaders' `linkDraws`
+ *  (`../shader/worldGateWgsl.ts`). */
+const linkDraws = (h: number, cellWord: number, fileWord: number) =>
+  h !== NO_INDEX && h & ACTOR_ROW
+    ? (cellWord & CELL_DRAW.hlod) !== 0
+    : ((cellWord | fileWord) & CELL_DRAW.placements) !== 0
+
+/** Whether placement `w` draws as its words stand: one in neither cell nor file (`isUnlinked`)
+ *  always does, any other as `linkDraws` has it. The host's twin of the shaders' `!worldCovers`
+ *  (`../shader/worldGateWgsl.ts`). */
+export function placementDraws(world: PackedWorld, w: number) {
+  if (isUnlinked(world, w)) return true
+  const { links, states, files, cells } = world,
+    at = w * LINK_WORDS,
+    h = links[at],
+    k = links[at + 1],
+    f = links[at + 2]
+  const cellWord = h !== NO_INDEX && k !== NO_INDEX ? states[k * cells + (h & ~ACTOR_ROW)] : 0
+  return linkDraws(h, cellWord, f === NO_INDEX ? 0 : files[f])
+}

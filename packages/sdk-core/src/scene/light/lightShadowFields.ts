@@ -26,12 +26,4 @@ export interface SceneLightShadow {
   /** Directional only: the distance, in metres, that cascade ends at, scaled by the view's
    *  `distanceFieldDistanceScale`; absent, 512. */
   distanceFieldShadowDistance?: number
-  /** Directional only: how far, in metres, a ray of that cascade goes, from 10 to 10 000; absent,
-   *  100. */
-  distanceFieldTraceDistance?: number
-  /** Directional only: the share of a pixel's depth its rays of that cascade start off the
-   *  surface by, at least 0; absent, 0.003. */
-  distanceFieldRayStartOffset?: number
-  /** Directional only: how dark the distance-field cascade's shadow is, from 0 to 1; absent, 1. */
-  shadowAmount?: number
 }

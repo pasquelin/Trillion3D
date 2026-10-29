@@ -1,5 +1,6 @@
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { dispatchOn } from '../../gpu/core/computeStages.ts'
+import { loadOnlyUsage } from '../../gpu/core/loadOnlyTarget.ts'
 import { hizDepthBindEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../visibility/hiz/gpu/types.ts'
 import type { ScreenReflectionQuality } from '../../../../sdk-core/src/contracts/screenSpaceTracingOptions.ts'
@@ -49,9 +50,6 @@ export interface ScreenSpaceInputs {
   sampler: GPUSampler
 }
 
-// Read where a texture is made: the usage flags are the device's globals, which a module loaded under Node does not have.
-const sampledStored = () => GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING
-
 const makeTexture = (
   device: GPUDevice,
   label: string,
@@ -71,7 +69,7 @@ const createIndirectTargets = (device: GPUDevice, width: number, height: number,
     reducedWidth,
     reducedHeight,
     HDR,
-    sampledStored(),
+    loadOnlyUsage(),
     REDUCED_COLOR_MIPS,
   )
   const diffuseSize = [ceilDiv(width, ratio), ceilDiv(height, ratio)] as const
@@ -84,7 +82,7 @@ const createIndirectTargets = (device: GPUDevice, width: number, height: number,
     diffuseSize[0],
     diffuseSize[1],
     HDR,
-    sampledStored(),
+    loadOnlyUsage(),
   )
   const occlusion = makeTexture(
     device,
@@ -92,7 +90,7 @@ const createIndirectTargets = (device: GPUDevice, width: number, height: number,
     diffuseSize[0],
     diffuseSize[1],
     'r32float',
-    sampledStored(),
+    loadOnlyUsage(),
   )
   return {
     reduced,
@@ -113,7 +111,7 @@ const createConfusionTarget = (device: GPUDevice, width: number, height: number)
     width,
     height,
     'r32float',
-    sampledStored() | GPUTextureUsage.RENDER_ATTACHMENT,
+    loadOnlyUsage() | GPUTextureUsage.RENDER_ATTACHMENT,
   )
   return { texture: made, view: made.createView() }
 }
@@ -155,17 +153,17 @@ const createReflectionTextures = (
     Math.max(1, ceilDiv(width, 2)),
     Math.max(1, ceilDiv(height, 2)),
     HDR,
-    sampledStored(),
+    loadOnlyUsage(),
   )
   const reflection = texture(
     'Trillion3D screen reflections',
     width,
     height,
     HDR,
-    sampledStored() | GPUTextureUsage.RENDER_ATTACHMENT,
+    loadOnlyUsage() | GPUTextureUsage.RENDER_ATTACHMENT,
   )
   const history = [0, 1].map((turn) =>
-    texture(`Trillion3D screen reflection history ${turn}`, width, height, HDR, sampledStored()),
+    texture(`Trillion3D screen reflection history ${turn}`, width, height, HDR, loadOnlyUsage()),
   )
   const stencil = withStencil
     ? texture(
@@ -455,6 +453,21 @@ const stencilAttachment = (stencilView: GPUTextureView | undefined, load: GPULoa
     },
   }
 
+/** The draw pipeline of the reflections: over the tiles (shown or not), or over the whole view, behind the stencil or not. */
+const reflectionDraw = (
+  pipelines: ReturnType<typeof screenReflectionPipelines>,
+  tiled: boolean,
+  shown: boolean,
+  stenciled: boolean,
+) =>
+  tiled
+    ? shown
+      ? pipelines.tiledShown
+      : pipelines.tiled
+    : stenciled
+      ? pipelines.fullscreenStenciled
+      : pipelines.fullscreen
+
 /** The draws of the reflections: over the whole view (behind the stencil it marks first, where asked) or over the tiles by an indirect draw. */
 function encodeReflectionDraws(
   c: ReflectionPassContext,
@@ -476,13 +489,7 @@ function encodeReflectionDraws(
     ],
   )
   const stenciled = plan.stencil && !tiled && targets.stencilView !== undefined
-  const draw = tiled
-    ? plan.show
-      ? pipelines.tiledShown
-      : pipelines.tiled
-    : stenciled
-      ? pipelines.fullscreenStenciled
-      : pipelines.fullscreen
+  const draw = reflectionDraw(pipelines, tiled, plan.show, stenciled)
   const stencilPass = stenciled ? pipelines.stencil.get() : undefined
   const pipeline = draw.get()
   if (!pipeline || (stenciled && !stencilPass)) return

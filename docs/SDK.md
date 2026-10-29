@@ -709,7 +709,9 @@ orthographic view's own least, `0` takes the plain one), `surfaceCacheSceneDetai
 least resolution) and `surfaceCacheCardCaptureMargin` (`0`, added to the distance of the global distance field's
 outermost clipmap, past which a card is not kept). Which meshes get cards: `surfaceCacheMeshCardsMinSize` (`10`: the area
 a mesh's largest face must exceed is its square, a fifth of that for an emissive mesh) and `surfaceCacheMeshCardsCullFaces`
-(`true`: a card whose face is under that area is left out). What an image does: `surfaceCacheCardCapturesPerFrame` (`300`
+(`true`: a card whose face is under that area is left out). A mesh a world cut at run time, which no compiler gave cards,
+has six axis-aligned cards made from its bounds, thickened by 5 cm, while `runtimeMeshCards` (`true`) is on; off, only the screen
+sees it in a reflection that leaves the screen. What an image does: `surfaceCacheCardCapturesPerFrame` (`300`
 cards captured, the nearest first; the cards of twice as many meshes are added; `0` stops every capture),
 `surfaceCacheRemovesPerFrame` (`512`), `surfaceCacheCardCaptureFactor` (`64`: the atlas's texels over those of the atlas
 the captured pages are drawn in), `surfaceCacheCardCaptureRefreshFraction` (`0.125`: the share spent capturing pages again,
@@ -3247,8 +3249,7 @@ view scales it (`shadowDistanceScale`). It lays the sun's shadow levels and the 
 distance-field cascade begins; it does not leave a caster out of the shadow maps. The reference's
 far-shadow test reaches the subjects it gathers on the CPU, which are no cluster geometry, and every
 caster the engine draws is made of clusters: the shadow maps take each of them at any distance,
-whether its object casts far shadows or not, and the sun's distance-field cascade does not take it in
-their place (it takes the meshes that are no cluster geometry, and the engine draws none).
+whether its object casts far shadows or not; no distance-field shadow takes it in their place on the view.
 
 `farShadowCulling` decides whether the sun has a near edge and the distance-field cascade that follows it. The
 reference's far-shadow test would act on a caster that is no cluster geometry, of which the engine has none: it has
@@ -3258,18 +3259,15 @@ The edge lies a little past the distance: the far end of the last of the sun's n
 with the overlap that level has into the next when another level follows. The levels are the sun's
 own settings, each with the default of a directional light:
 
-| Light option                  | Default  | Meaning                                                                                                                                                                                                                                                     |
-| ----------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `shadowCascades`              | `4`      | the near levels the distance is cut into (at most the view's `shadowNearLevels`)                                                                                                                                                                            |
-| `shadowCascadeExponent`       | `3`      | how many times the span of the level before each takes                                                                                                                                                                                                      |
-| `shadowCascadeTransition`     | `0.1`    | the share of its span a level overlaps into the next                                                                                                                                                                                                        |
-| `farShadowCascades`           | `0`      | far levels between the distance and `farShadowDistance`, while that is more than a metre farther: counted, never drawn (past the near levels the sun's shadow is the distance-field cascade's); a light that has some ends its near levels with the overlap |
-| `farShadowDistance`           | `3000` m | where those levels end                                                                                                                                                                                                                                      |
-| `distanceFieldShadows`        | `true`   | whether the distance-field cascade follows the near levels                                                                                                                                                                                                  |
-| `distanceFieldShadowDistance` | `512` m  | where that cascade ends (`true` the default, `false` none)                                                                                                                                                                                                  |
-| `distanceFieldTraceDistance`  | `100` m  | how far a ray of that cascade goes (10 to 10 000)                                                                                                                                                                                                           |
-| `distanceFieldRayStartOffset` | `0.003`  | the share of a pixel's depth its rays start off the surface by                                                                                                                                                                                              |
-| `shadowAmount`                | `1`      | how dark the distance-field cascade's shadow is, from 0 (none) to 1 (all of it); not part of the shadow maps' cache key                                                                                                                                     |
+| Light option                  | Default  | Meaning                                                                                                                                                                                                                                         |
+| ----------------------------- | -------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `shadowCascades`              | `4`      | the near levels the distance is cut into (at most the view's `shadowNearLevels`)                                                                                                                                                                |
+| `shadowCascadeExponent`       | `3`      | how many times the span of the level before each takes                                                                                                                                                                                          |
+| `shadowCascadeTransition`     | `0.1`    | the share of its span a level overlaps into the next                                                                                                                                                                                            |
+| `farShadowCascades`           | `0`      | far levels between the distance and `farShadowDistance`, while that is more than a metre farther: counted, never drawn (the shadow maps take every cluster caster at any distance); a light that has some ends its near levels with the overlap |
+| `farShadowDistance`           | `3000` m | where those levels end                                                                                                                                                                                                                          |
+| `distanceFieldShadows`        | `true`   | whether the distance-field cascade follows the near levels                                                                                                                                                                                      |
+| `distanceFieldShadowDistance` | `512` m  | where that cascade ends (`true` the default, `false` none)                                                                                                                                                                                      |
 
 The edge at the defaults is 427.0 m (400 m, near plane 0.05 m): the last level starts at 130.03 m and
 overlaps 27 m into the cascade that follows; the distance itself from 512 m on.
@@ -3283,17 +3281,16 @@ sun.distanceFieldShadowDistance = false // no distance-field cascade after the n
 The view's settings sit beside them, each an option of `createWorld` too, resolved over the quality
 preset like the raster's:
 
-| View option                       | Default               | Meaning                                                                                                       |
-| --------------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
-| `shadowDistanceScale`             | `1` (0 to 2)          | the factor on every sun's distance, so `0.5` halves it; `0` leaves the test nothing to cull                   |
-| `farShadowCulling`                | `true`                | whether a sun has a near edge and the distance-field cascade that follows it                                  |
-| `shadowNearLevels`                | `10` (0 to 10)        | the most near levels; `0` leaves no edge: nothing is culled                                                   |
-| `shadowOverlapScale`              | `1` (0 to 2)          | the factor on the overlap                                                                                     |
-| `shadowFarField`                  | `true`                | whether the distance-field cascade follows the near levels, where the scene has distance fields               |
-| `shadowMaxFarCascades`            | `10`                  | the most far levels a light may count (`farShadowCascades`)                                                   |
-| `shadowFarDistanceOverride`       | `0`                   | metres, where far levels end for every light when above 0; no far level is drawn, so it has no visible effect |
-| `distanceFieldDistanceScale`      | `1` (0.0001 to 10000) | the factor on every light's distance-field distance                                                           |
-| `distanceFieldFarTransitionScale` | `1` (0 to 1)          | the factor on the length of the cascade's fade out at its end                                                 |
+| View option                  | Default               | Meaning                                                                                                       |
+| ---------------------------- | --------------------- | ------------------------------------------------------------------------------------------------------------- |
+| `shadowDistanceScale`        | `1` (0 to 2)          | the factor on every sun's distance, so `0.5` halves it; `0` leaves the test nothing to cull                   |
+| `farShadowCulling`           | `true`                | whether a sun has a near edge and the distance-field cascade that follows it                                  |
+| `shadowNearLevels`           | `10` (0 to 10)        | the most near levels; `0` leaves no edge: nothing is culled                                                   |
+| `shadowOverlapScale`         | `1` (0 to 2)          | the factor on the overlap                                                                                     |
+| `shadowFarField`             | `true`                | whether the distance-field cascade follows the near levels, where the scene has distance fields               |
+| `shadowMaxFarCascades`       | `10`                  | the most far levels a light may count (`farShadowCascades`)                                                   |
+| `shadowFarDistanceOverride`  | `0`                   | metres, where far levels end for every light when above 0; no far level is drawn, so it has no visible effect |
+| `distanceFieldDistanceScale` | `1` (0.0001 to 10000) | the factor on every light's distance-field distance                                                           |
 
 A distance-field cascade needs two things besides its row: the sun's `distanceFieldShadows`, and a scene
 whose meshes have distance fields (the mesh build's `distanceField`, on by default). Without fields the
@@ -3342,33 +3339,25 @@ moves the edge the next frame's test reads, and the cached pages are kept.
 
 #### The sun's distance-field shadow
 
-Past the near levels, a sun's shadow is traced against the distance fields of the meshes that are no
-cluster geometry, from the near levels' end to `distanceFieldShadowDistance`, fading in over the last near
-level's overlap and out before the cascade's end. A sun's shadow maps draw clusters at any distance, so the
-cascade leaves them out (the shadow would be doubled); every mesh the engine draws is made of clusters, so the
-cascade traces nothing today: its passes run on empty lists, and the settings below act on nothing visible
-until a mesh that is none of them is drawn. A sun with `angularRadius: 0` casts hard shadows there as in the
-maps (the angle is held between 0.001 and 5 degrees in the cascade). Its settings:
+A sun's shadow maps draw every cluster at any distance, and every mesh the engine draws is made of clusters, so
+the view traces no distance-field shadow of the sun: the cascade past the near levels (from their end to
+`distanceFieldShadowDistance`) moves the far-shadow edge, and shadows nothing by itself. The distance fields of
+the meshes shade the sun where the maps do not reach: the surface cache's cards, whose direct light traces a ray
+through the meshes listed by tile across each sun. These settings act on that list and on the cascade's edge:
 
-| View option                         | Default              | Meaning                                                                                                                                                                                        |
-| ----------------------------------- | -------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `distanceFieldShadowing`            | `true`               | whether a sun may have a distance-field shadow cascade at all: the master switch of the feature; off, none is drawn                                                                            |
-| `distanceFieldShadowQuality`        | `3` (0 to 3)         | the steps of a ray: 0 none, 1 twenty, 2 thirty-two, 3 sixty-four (at 3 alone, a thin transmitting surface keeps the light that survives the thickness it has gone through, by its own opacity) |
-| `distanceFieldShadowFullResolution` | `false`              | traced at the display's resolution, else at half of it and upsampled keeping the depth edges                                                                                                   |
-| `distanceFieldShadowTileSize`       | `2` m                | the side of the tiles across the light the meshes are listed in                                                                                                                                |
-| `distanceFieldShadowTwoSidedBias`   | `1`                  | the factor on the distance a two-sided mesh's surface is expanded by                                                                                                                           |
-| `distanceFieldShadowObjectsPerTile` | `128`                | the meshes a tile has room for on average; a tile past it loses meshes (its shadow flickers)                                                                                                   |
-| `distanceFieldShadowScatterTiles`   | `true`               | the meshes' boxes are drawn onto a grid of tiles across the light and each pixel reads its tile's list; `false`: each group of 8 by 8 texels culls the meshes to its own bounds                |
-| `distanceFieldShadowCompactTiles`   | `true`               | the tiles' lists lie one after the other; `false`: each tile has a place of its own and a tile past it loses meshes (acts with the scatter on)                                                 |
-| `distanceFieldShadowSubsampleDepth` | `false`              | a texel is reached by the depth at its top left alone (less bandwidth; artifacts on edges and holes of a pixel) rather than the farthest depth of its block                                    |
-| `distanceFieldShadowSnapResolution` | `2048` (at least 32) | the texels across the cascade's shadow space the origin's snap grid is cut from (4 texels a step, 4 texels off each side): the tile grid moves in steps with the camera                        |
+| View option                         | Default              | Meaning                                                                                                                                                              |
+| ----------------------------------- | -------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `distanceFieldShadowing`            | `true`               | whether a sun may have a distance-field shadow cascade at all: the master switch of the feature; off, none is drawn                                                  |
+| `distanceFieldShadowQuality`        | `3` (0 to 3)         | the steps of a ray: 0 none, 1 twenty, 2 thirty-two, 3 sixty-four                                                                                                     |
+| `distanceFieldShadowTileSize`       | `2` m                | the side of the tiles across the light the meshes are listed in                                                                                                      |
+| `distanceFieldShadowTwoSidedBias`   | `1`                  | the factor on the distance a two-sided mesh's surface is expanded by                                                                                                 |
+| `distanceFieldShadowObjectsPerTile` | `128`                | the meshes a tile has room for on average; a tile past it loses meshes (its shadow flickers)                                                                         |
+| `distanceFieldShadowCompactTiles`   | `true`               | the tiles' lists lie one after the other; `false`: each tile has a place of its own and a tile past it loses meshes                                                  |
+| `distanceFieldShadowSnapResolution` | `2048` (at least 32) | the texels across the lists' shadow space the origin's snap grid is cut from (4 texels a step, 4 texels off each side): the tile grid moves in steps with the camera |
 
-Its passes run in the pre-light step of an image, before the projection of the sun's shadow maps, as long as
-the scene has a mesh with a distance field and the sun has a cascade; the sun's distance-field and shadow-map
-visibilities are combined by their least in the lighting. A merged shell's field, once the
-cascade traces it, is traced exactly where the shell is drawn: a cell shown instead of its actor, or an actor not
-loaded, casts nothing through it. The cascade is drawn for the first four shadowed lights of a frame (one byte
-each of the mask the lighting reads), for the main view's lit image, and the translucent surfaces do not read it.
+The lists are made before the surface cache's lighting, as long as the scene has a mesh with a distance field and
+a sun casts a shadow, for the first four shadowed lights of a frame. A merged shell's field is listed exactly where
+the shell is drawn: a cell shown instead of its actor, or an actor not loaded, casts nothing through it.
 
 An object that is not to be in that scene sets **`affectDistanceFieldLighting`** (boolean, `true`), a property of every
 object, saved with the world: `false` leaves it out of the distance fields altogether, so that the global field the
@@ -3383,17 +3372,16 @@ sign.affectDistanceFieldLighting = false
 
 ```js
 const world = createWorld('viewer', {
-  distanceFieldShadowQuality: 2, // 32 steps a ray, and no light through a thin surface
-  distanceFieldShadowSubsampleDepth: true, // a texel is reached by the depth at its top left alone
+  distanceFieldShadowQuality: 2, // 32 steps a ray
 })
 world.shadows = { distanceFieldShadowTileSize: 4 } // fewer, larger tiles: cheaper lists, more meshes a tile
-world.shadows = { distanceFieldShadowScatterTiles: false } // each group of texels culls the meshes to itself
+world.shadows = { distanceFieldShadowCompactTiles: false } // each tile has a place of its own in the lists
 ```
 
 An agent sets the same through `trillion3d_set_shadows`, and a light's distance and cascades
 through the fields of `trillion3d_add_light` (`shadowDistance`, `shadowCascades`, `shadowCascadeExponent`,
 `shadowCascadeTransition`, `farShadowCascades`, `farShadowDistance`, `distanceFieldShadows`,
-`distanceFieldShadowDistance`, `distanceFieldTraceDistance`, `distanceFieldRayStartOffset`, `shadowAmount`, with `true` for
+`distanceFieldShadowDistance`, with `true` for
 the default and `false` for none where a distance). How the far casters are left out of the maps:
 [SHADOWS.md](SHADOWS.md#far-casters).
 
@@ -3801,8 +3789,8 @@ metres, where the reference's are centimetres:
 | `singleLayerWaterDepthPrepass`                        | The water's depth is drawn first (the tiles and the refraction mask need it)                                                                                                                                                                                 | `true`           |
 | `singleLayerWaterOptimizedClear`                      | The scene's depth is copied over the view alone, not the whole texture                                                                                                                                                                                       | `true`           |
 | `singleLayerWaterVelocityOutputPass`                  | When the water writes its velocity: `'depthPrepass'` (right after its depth), `'basePass'` (with its shading) or `'none'`                                                                                                                                    | `'depthPrepass'` |
-| `singleLayerWaterShadersSupportDistanceFieldShadow`   | The programs keep the sun apart from the rest of the water's light, to lay the sun's distance-field shadow over it; read when the session opens                                                                                                              | `true`           |
-| `singleLayerWaterDistanceFieldShadow`                 | The sun's light on the water is multiplied by the sun's distance-field shadow traced at the water's depth (needs the setting above and meshes with fields)                                                                                                   | `true`           |
+| `singleLayerWaterShadersSupportDistanceFieldShadow`   | The programs keep the sun apart from the rest of the water's light, for the sun's distance-field shadow; read when the session opens                                                                                                                         | `true`           |
+| `singleLayerWaterDistanceFieldShadow`                 | The sun's light on the water is kept apart for the sun's distance-field shadow, which leaves out the meshes made of clusters (all the engine draws; the shadow maps shadow them) (needs the setting above and meshes with fields)                            | `true`           |
 | `singleLayerWaterShadersSupportVsmFiltering`          | The programs hold the full trace of the sun's shadow for the water; read when the session opens                                                                                                                                                              | `false`          |
 | `singleLayerWaterVsmFiltering`                        | The sun's shadow on the water is the full trace the opaque surfaces get, not one sample: the shading reads the sun unshadowed (`shadowSkipSun`) and the composite multiplies the separated sun by the trace at the water's surface (needs the setting above) | `false`          |
 | `singleLayerWaterCloudShadow`                         | The clouds shade the sun that lights the water's volume                                                                                                                                                                                                      | `false`          |

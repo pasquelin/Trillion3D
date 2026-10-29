@@ -101,7 +101,7 @@ export class VsmMapCache {
 }
 
 /** A clipmap's cache key: a change invalidates. `shadow` is the light's own shadow settings, each
- *  a number, in the order of `LIGHT_SHADOW_FIELDS` but for `shadowAmount` (the distance, the cascades,
+ *  a number, in the order of `LIGHT_SHADOW_FIELDS` (the distance, the cascades,
  *  the distance-field cascade's): a sun re-created by another of them has no cached page of the old one, whatever the
  *  edge, the view's scale or its switches make of it each frame. */
 interface VsmSunCacheKey {

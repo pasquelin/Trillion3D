@@ -182,9 +182,9 @@ export interface HlodLayer {
   /** Whether the mesh of each actor an `approximate`, `merge` or `simplify` layer builds gets a
    *  distance field (a setting of each of the reference's builders): the
    *  compiler builds it from the actor's own triangles in the world's space, at the settings of the
-   *  scene's meshes (`meshBuild`'s `distanceField…`), into `distanceFields.bin`, and the sun's
-   *  distance-field shadow draws it where the actor is drawn — the shadow of the merged levels
-   *  past the last shadow map. `true` by default for an `approximate` layer, `false` for a `merge`
+   *  scene's meshes (`meshBuild`'s `distanceField…`), into `distanceFields.bin`, and the suns'
+   *  mesh lists of the surface cache hold it where the actor is drawn — the shadow of the merged levels
+   *  on the cards. `true` by default for an `approximate` layer, `false` for a `merge`
    *  or `simplify` layer, as the reference's builders default it. An `instanced` layer's objects
    *  draw their own meshes, which have their own fields; a `voxel` layer builds no triangles.
    *  @defaultValue true for `approximate`, false for `merge` and `simplify` */

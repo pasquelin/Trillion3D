@@ -15,7 +15,7 @@ import { wgslDouble } from '../../../../math/src/wgsl/number.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { dAdd, dLess, dMul, dSub, splitDouble } from '../../../../math/src/wgsl/double.ts'
 import { D_HALF } from '../../../../math/src/wgsl/doubleConstants.ts'
-import { fromF32, toF32 } from '../../../../math/src/wgsl/f32.ts'
+import { doubleAsSingle, fromF32 } from '../../../../math/src/wgsl/f32.ts'
 import { affineAxis, dBoxAffine } from '../../../../math/src/wgsl/doubleAffine.ts'
 import { dIsFinite } from '../../../../math/src/wgsl/doubleRound.ts'
 import { dIsNan } from '../../../../math/src/wgsl/doubleWords.ts'
@@ -81,11 +81,21 @@ fn carriedBox(world:array<vec2u,16>,lo:array<vec2u,3>,hi:array<vec2u,3>)->array<
  *  of. The stretch returned. */
 export const WORLD_BOX_WGSL = wgslBlock(
   'WORLD_BOX_WGSL',
-  [CARRIED_BOX_WGSL, STRETCH_DOUBLE_WGSL, affineAxis, dAdd, dSub, dMul, D_HALF, toF32, fromF32],
+  [
+    CARRIED_BOX_WGSL,
+    STRETCH_DOUBLE_WGSL,
+    affineAxis,
+    dAdd,
+    dSub,
+    dMul,
+    D_HALF,
+    doubleAsSingle,
+    fromF32,
+  ],
   `
 /** The f32 length of column \`c\` of \`world\`'s linear part. */
 fn axisScale(world:array<vec2u,16>,c:u32)->f32{
- return length(vec3f(bitcast<f32>(toF32(world[4u*c])),bitcast<f32>(toF32(world[4u*c+1u])),bitcast<f32>(toF32(world[4u*c+2u]))));
+ return length(vec3f(doubleAsSingle(world[4u*c]),doubleAsSingle(world[4u*c+1u]),doubleAsSingle(world[4u*c+2u])));
 }
 fn composeRoot(rank:u32,world:array<vec2u,16>)->vec2u{
  let at=rank*${ROOT_LOCAL_DOUBLES}u;
@@ -100,7 +110,7 @@ fn composeRoot(rank:u32,world:array<vec2u,16>)->vec2u{
   var halfSize=vec3f(0.0);
   for(var a=0u;a<3u;a++){
    mid[a]=dMul(dAdd(lo[a],hi[a]),D_HALF);
-   halfSize[a]=bitcast<f32>(toF32(dMul(dSub(hi[a],lo[a]),D_HALF)));
+   halfSize[a]=doubleAsSingle(dMul(dSub(hi[a],lo[a]),D_HALF));
   }
   for(var a=0u;a<3u;a++){rootBoxes[o+7u+a]=affineAxis(world,a,mid[0],mid[1],mid[2]);}
   rootBoxes[o+10u]=fromF32(bitcast<u32>(length(halfSize*vec3f(axisScale(world,0u),axisScale(world,1u),axisScale(world,2u)))));
@@ -108,7 +118,7 @@ fn composeRoot(rank:u32,world:array<vec2u,16>)->vec2u{
   // in the five doubles after the ball.
   var axes:array<u32,10>;
   for(var c=0u;c<3u;c++){
-   let axisHalf=halfSize[c]*vec3f(bitcast<f32>(toF32(world[4u*c])),bitcast<f32>(toF32(world[4u*c+1u])),bitcast<f32>(toF32(world[4u*c+2u])));
+   let axisHalf=halfSize[c]*vec3f(doubleAsSingle(world[4u*c]),doubleAsSingle(world[4u*c+1u]),doubleAsSingle(world[4u*c+2u]));
    for(var a=0u;a<3u;a++){axes[3u*c+a]=bitcast<u32>(axisHalf[a]);}
   }
   axes[9]=0u;

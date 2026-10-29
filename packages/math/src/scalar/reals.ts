@@ -27,6 +27,14 @@ export const saturate = (x: number) => clamp(x, 0, 1)
 /** The line from `a` to `b` at the unclamped `t`: `a + (b - a) * t`, exact at `t = 0`. */
 export const lerp = (a: number, b: number, t: number) => a + (b - a) * t
 
+/** The cubic Bezier of the four control values at `t`, by repeated `lerp` (de Casteljau's mixing). */
+export function bezier(p0: number, p1: number, p2: number, p3: number, t: number) {
+  const p01 = lerp(p0, p1, t)
+  const p12 = lerp(p1, p2, t)
+  const p23 = lerp(p2, p3, t)
+  return lerp(lerp(p01, p12, t), lerp(p12, p23, t), t)
+}
+
 /** The blend of `a` and `b` at `t` weighted from both ends: `a * (1 - t) + b * t`, exact at `t = 0`
  *  and `t = 1`; another rounding than `lerp`'s, so the two keep apart (`mix` of the Rust crate's
  *  `scalar.rs`). */

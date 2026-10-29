@@ -16,6 +16,16 @@ export const faceNormal = wgslFn(
   'fn faceNormal(p0:vec3f,p1:vec3f,p2:vec3f)->vec3f{return cross(p1-p0,p2-p0);}',
 )
 
+/** A stored normal made unit, the straight-up `(0, 0, 1)` where it holds none (a pixel nothing wrote a normal to: the sky's zero). */
+export const unitNormalOrUp = wgslFn(
+  'unitNormalOrUp',
+  [],
+  `fn unitNormalOrUp(n:vec3f)->vec3f{
+ let l=length(n);
+ return select(vec3f(0.0,0.0,1.0),n/l,l>0.0);
+}`,
+)
+
 /** The part of `v` across the unit normal `N`: `v` without its component along `N`. */
 export const vectorRejection = wgslFn(
   'vectorRejection',
@@ -159,6 +169,15 @@ export const rayBoxSpan = wgslFn(
  let far=max(first,second);
  return vec2f(max(max(near.x,near.y),max(near.z,0.0)),min(min(far.x,far.y),far.z));
 }`,
+)
+
+/** The segment from `start` to `end` against the box `[low, high]`, as the fractions of the segment
+ *  held in it: `rayBoxSpan` along `end - start`, saturated to [0, 1] — a span whose entry is not
+ *  below its exit misses. */
+export const segmentBoxSpan = wgslFn(
+  'segmentBoxSpan',
+  [rayBoxSpan, rayInverseDirection],
+  'fn segmentBoxSpan(start:vec3f,end:vec3f,low:vec3f,high:vec3f)->vec2f{return saturate(rayBoxSpan(low,high,start,rayInverseDirection(end-start)));}',
 )
 
 /** The ray–triangle intersection by the triple products of the edges, two-sided, with no plane

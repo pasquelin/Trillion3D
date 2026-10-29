@@ -16,7 +16,7 @@ test('unorm8 takes back every byte fromUnorm8 gives, and rounds half a byte away
   }
   assert.deepEqual([fromUnorm8(0), fromUnorm8(255)], [0, 1])
   assert.deepEqual([unorm8(-2), unorm8(0.5), unorm8(7)], [0, 128, 255])
-  assert.ok(Number.isNaN(unorm8(NaN)))
+  assert.ok(Object.is(unorm8(NaN), 0) && Object.is(unorm8(-0), 0))
 })
 
 test('unorm8 is the old sRGB byte and the blue-noise byte, bit for bit', () => {

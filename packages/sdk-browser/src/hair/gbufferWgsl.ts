@@ -10,8 +10,7 @@ import {
 } from '../materials/surface/surfaceOutputs.ts'
 import { HAIR_IMAGE_WGSL } from './imageBlock.ts'
 import { HAIR_FLAG } from './materialMath.ts'
-import { pixelToNdc } from '../../../math/src/wgsl/projection.ts'
-import { hairListedPixel, hairTilePixel } from './tilesWgsl.ts'
+import { hairListedPixel, hairTileQuad } from './tilesWgsl.ts'
 import {
   HAIR_NODE_DATA_WORDS,
   HAIR_NODE_OFFSET_BITS,
@@ -105,9 +104,7 @@ export const HAIR_DEPTH_WGSL = wgslProgram(
 @group(0) @binding(3) var<storage,read> nodeData:array<u32>;
 @group(0) @binding(4) var coverage:texture_2d<f32>;
 @vertex fn hairDepthVs(@builtin(vertex_index) vertex:u32,@builtin(instance_index) rank:u32)->@builtin(position) vec4f{
- let corner=vec2f(f32(vertex==1u||vertex==4u||vertex==5u),f32(vertex==2u||vertex==3u||vertex==5u));
- let origin=vec2f(hairTilePixel(tiles[${HAIR_TILE_ALL}u*image.capacity+rank],vec2u(0u)));
- return vec4f(pixelToNdc(origin+corner*${HAIR_TILE_SIZE}.0,vec2f(image.size)),0.0,1.0);
+ return hairTileQuad(vertex,tiles[${HAIR_TILE_ALL}u*image.capacity+rank],image.size);
 }
 @fragment fn hairDepthFs(@builtin(position) position:vec4f)->@builtin(frag_depth) f32{
  let pixel=vec2u(position.xy);
@@ -116,5 +113,5 @@ export const HAIR_DEPTH_WGSL = wgslProgram(
  if(found.scatter){discard;}
  return found.depth-${HAIR_DEPTH_BIAS};
 }`,
-  [HAIR_IMAGE_WGSL, EXTRACT_WGSL, hairTilePixel, pixelToNdc],
+  [HAIR_IMAGE_WGSL, EXTRACT_WGSL, hairTileQuad],
 )

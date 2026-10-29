@@ -159,7 +159,7 @@ export const LIGHTING_SHADERS: Record<string, string> = {
   ...Object.fromEntries(
     Object.entries(DFAO_SHADERS).map(([name, code]) => [`DFAO_${name.toUpperCase()}`, code]),
   ),
-  // The sun's distance-field shadow's passes (`../../lighting/distanceField/shadow/`).
+  // The suns' mesh lists' passes (`../../lighting/distanceField/shadow/`).
   ...Object.fromEntries(
     Object.entries(DFSH_SHADERS).map(([name, code]) => [`DFSH_${name.toUpperCase()}`, code]),
   ),

@@ -1,5 +1,4 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { DISTANCE_FIELD_MIPS } from '../../../../../sdk-core/src/contracts/distanceFieldAbi.ts'
 import { DOUBLE_FLOAT_WGSL } from '../doubleFloatWgsl.ts'
@@ -7,8 +6,7 @@ import { OBJECT_FLAGS } from '../layout.ts'
 import { DFSH_BINDING, DFSH_FLAG, DFSH_PARAMS } from './layout.ts'
 
 /**
- * WHAT EVERY PASS OF THE SUN'S DISTANCE-FIELD SHADOW DECLARES: its uniform (`dfsh`, `DFSH_PARAMS`), the
- * depth as a distance in centimetres, the position of a pixel from the eye, a position's place in the
+ * WHAT EVERY PASS OF THE SUNS' MESH LISTS DECLARES: its uniform (`dfsh`, `DFSH_PARAMS`), a position's place in the
  * shadow space and in the grid of tiles the meshes are listed in (`dfshTileOf`: none outside it, the
  * tile whose rows run down as the draw's do), a mesh's centre from the eye, and the position of a
  * point of a mesh's volume (`dfshObjectPoint`, from the volume-to-world rows of its record). A tile's
@@ -17,20 +15,17 @@ import { DFSH_BINDING, DFSH_FLAG, DFSH_PARAMS } from './layout.ts'
  * (`dfshTileRoom`).
  */
 /**
- * The declarations in the bind group `group` (0 for the cascade's own passes; the cards' direct light reads them from another). With
+ * The declarations in the bind group `group` (0 for the lists' own passes; the cards' direct light reads them from another). With
  * `suns` of 1 or more, the binding holds that many blocks, one a sun, and `dfsh` is a private copy the reader sets to the sun it traces for
  * (`dfshSuns[k]`), so that every function below reads the sun it was set to.
  */
 export const dfshCommonWgsl = (group = 0, suns = 0) =>
   wgslBlock(
     `DFSH_COMMON_WGSL ${group} ${suns}`,
-    [unprojectPoint, DOUBLE_FLOAT_WGSL],
+    [DOUBLE_FLOAT_WGSL],
     `${wgslConsts({
-      DFSH_SUBSAMPLE_DEPTH: DFSH_FLAG.subsampleDepth,
       DFSH_COMPACT_TILES: DFSH_FLAG.compactTiles,
-      DFSH_CLUSTER_MESHES: DFSH_FLAG.clusterMeshes,
       FLAG_CAST_SHADOW: OBJECT_FLAGS.castShadow,
-      FLAG_VIRTUALIZED: OBJECT_FLAGS.virtualized,
       DF_MAX_MIPS: DISTANCE_FIELD_MIPS,
     })}
 ${DFSH_PARAMS.wgsl}
@@ -40,11 +35,6 @@ ${
 var<private> dfsh:DfshParams;`
     : `@group(${group}) @binding(${DFSH_BINDING.params}) var<uniform> dfsh:DfshParams;`
 }
-fn dfshDepthCm(z:f32)->f32{
- let distance=select(dfsh.depth.y+(1.0-z)*dfsh.depth.x,dfsh.depth.x/max(z,1e-30),dfsh.depth.z>0.5);
- return min(distance*100.0,3.4e38);
-}
-fn dfshPosition(ndc:vec2f,z:f32)->vec3f{return unprojectPoint(dfsh.unproject,vec3f(ndc,z));}
 fn dfshShadowSpace(p:vec3f)->vec3f{return (dfsh.toShadow*vec4f(p,1.0)).xyz;}
 fn dfshWorld(p:vec3f)->DfVec3{return DfVec3(dfsh.eyeHigh.xyz,dfsh.eyeLow.xyz+p);}
 fn dfshFromEye(p:DfVec3)->vec3f{return dfAddDemote(p,DfVec3(-dfsh.eyeHigh.xyz,-dfsh.eyeLow.xyz));}

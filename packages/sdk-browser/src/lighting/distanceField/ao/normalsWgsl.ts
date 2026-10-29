@@ -1,4 +1,5 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
+import { viewDepthCmOfDevice } from '../../../../../math/src/wgsl/projection.ts'
 import { hizDepthWgsl } from '../../../visibility/hiz/gpu/pyramidTexture.ts'
 import { DFAO_COMMON_WGSL, DFAO_FAR_CM } from './commonWgsl.ts'
 import { AO_DOWNSAMPLE, TILE_SIZE } from './cones.ts'
@@ -21,9 +22,9 @@ fn dfaoNormals(@builtin(global_invocation_id) id:vec3u){
   return;
  }
  let pixel=vec2i(id.xy)*${AO_DOWNSAMPLE};
- let depth=min(dfaoDepthCm(hizOpaqueDepth(pixel)),${DFAO_FAR_CM}.0);
+ let depth=min(viewDepthCmOfDevice(dfao.depth,hizOpaqueDepth(pixel)),${DFAO_FAR_CM}.0);
  let normal=dfaoSafeNormal(textureLoad(surfaceNormals,pixel,0).xyz);
  textureStore(normalsOut,vec2i(id.xy),vec4f(normal,depth));
 }`,
-  [DFAO_COMMON_WGSL, hizDepthWgsl(0, B.depth)],
+  [DFAO_COMMON_WGSL, hizDepthWgsl(0, B.depth), viewDepthCmOfDevice],
 )

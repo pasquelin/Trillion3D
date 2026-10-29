@@ -1,7 +1,7 @@
 import { Vector2 } from './vector2.ts'
 import { Vector3, readVec3, type Vec3Input } from './vector3.ts'
 import { splineSpan } from '../../../../math/src/scalar/hermite.ts'
-import { clamp, saturate } from '../../../../math/src/scalar/reals.ts'
+import { bezier, clamp, saturate } from '../../../../math/src/scalar/reals.ts'
 import { TAU } from '../../../../math/src/constants.ts'
 import { hypot2 } from '../../../../math/src/float/hypot.ts'
 import { circlePoint } from '../../../../math/src/vector/vector.ts'
@@ -196,11 +196,12 @@ export class Shape {
     const from = this.cursor.clone()
     this.cursor = new Vector2(x, y)
     this.commands.push(
-      sampledAt((t, s) => {
-        const f = (a: number, b: number, c: number, d: number) =>
-          s * s * s * a + 3 * s * s * t * b + 3 * s * t * t * c + t * t * t * d
-        return new Vector2(f(from.x, c1x, c2x, x), f(from.y, c1y, c2y, y))
-      }),
+      // The mixing is exact at its start alone: the piece ends on its end point itself.
+      sampledAt((t) =>
+        t === 1
+          ? new Vector2(x, y)
+          : new Vector2(bezier(from.x, c1x, c2x, x, t), bezier(from.y, c1y, c2y, y, t)),
+      ),
     )
     return this
   }

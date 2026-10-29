@@ -113,7 +113,6 @@ export async function run(scenes: ResolveScene[]) {
     [DEFERRED_BINDINGS.vsmPool, { buffer: placeholders.vsmPool }],
     [DEFERRED_BINDINGS.vsmView, { buffer: placeholders.vsmProjectionView }],
     [DEFERRED_BINDINGS.vsmLightGrid, { buffer: placeholders.vsmLightGrid }],
-    [DEFERRED_BINDINGS.farShadowMask, { buffer: placeholders.farShadowMask }],
     [DEFERRED_BINDINGS.lightFunctionAtlas, placeholders.lightFunction],
     [DEFERRED_BINDINGS.ambientOcclusion, placeholders.ambientOcclusion],
   ])

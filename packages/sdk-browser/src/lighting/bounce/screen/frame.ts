@@ -337,6 +337,7 @@ function meshesOf(
   kernels: NonNullable<ScreenProbeView['kernels']>,
   traced: boolean,
   viewProjection: ArrayLike<number>,
+  rays: GPUBuffer,
 ) {
   const trace = meshTraceSettingsOf(rt)
   if (!wantsMeshStage(trace, settings.values.screenProbeSceneTraces, traced)) return undefined
@@ -348,6 +349,7 @@ function meshesOf(
     store.meshesFor(device, settings, kernels),
     trace,
     viewProjection,
+    rays,
   )
 }
 
@@ -436,6 +438,7 @@ function placeProbes(
     kernels,
     !!traced,
     reflection.frame.viewProjection,
+    state.resources.meshRays,
   )
   const read = { history, screen, velocity, traced: !!traced }
   writeImageParameters(

@@ -4,9 +4,7 @@ import { ONE_PASS_MASK_WGSL, VSM_SUN_MASK_FORMAT } from '../shadows/vsm/projecti
 import { VSM_LIGHT_GRID_WGSL } from '../shadows/vsm/projection/lightGridWgsl.ts'
 import { VSM_SHADOW_FILTER_WGSL } from '../shadows/vsm/trace/shadowFilterWgsl.ts'
 import { wgslBlock, wgslFn } from '../../../../math/src/wgsl/decl.ts'
-import { byteOf } from '../../../../math/src/wgsl/integer.ts'
 import { SHADOW_SLICE_WGSL } from './shadowSlice.ts'
-import { DFSH_MAX_LIGHTS, DFSH_NO_MASK_WORDS } from '../distanceField/shadow/layout.ts'
 import { vsmReceiverTraceWgsl } from '../shadows/vsm/trace/receiverTraceWgsl.ts'
 import { blueNoiseWgsl } from '../../gpu/noise/blueNoiseWgsl.ts'
 import { VSM_PROJECTION_VIEW_STRUCT } from '../shadows/vsm/projection/projectionView.ts'
@@ -110,56 +108,30 @@ fn vsmSampleFactor(channel:u32,P:vec3f)->f32{
 }`,
   )
 
-/** The read of the sun's distance-field shadow at the pixel (`vsmFarFactor`), at `binding`: the byte
- *  of light `channel`'s lane of the word the shadow left there (`distanceField/shadow/finalWgsl.ts`:
- *  after the word of the row's width, a word a pixel), squared (it holds the square root of the
- *  visibility), 1 for a channel that has no lane (past the fourth) and where the image drew none (a
- *  one-word stand-in, or any stand-in a backend pads: its row's width is 0). */
-const vsmFarMaskWgsl = (binding: number) =>
-  wgslBlock(
-    `vsmFarMaskWgsl(${binding})`,
-    [byteOf],
-    `
-@group(0) @binding(${binding}) var<storage,read> vsmFarMask:array<u32>;
-fn vsmFarFactor(channel:u32)->f32{
- if(channel>=${DFSH_MAX_LIGHTS}u||arrayLength(&vsmFarMask)<=${DFSH_NO_MASK_WORDS}u||vsmFarMask[0]==0u){return 1.0;}
- let word=vsmFarMask[1u+u32(vsmMaskPixel.y)*vsmFarMask[0]+u32(vsmMaskPixel.x)];
- let lane=f32(byteOf(word,channel))/255.0;
- return lane*lane;
-}`,
-  )
-
 /** The suns' mask at `binding`: a layer a sun (`r32float`, `VSM_SUN_MASK_FORMAT`), read by load alone: a
  *  read-only storage texture, which spends none of the sixteen sampled textures of the widest program. */
 const SUN_MASK_TYPE = `texture_storage_2d_array<${VSM_SUN_MASK_FORMAT},read>`
 
 /**
  * The read of the projection's masks at the pixel, the lighting passes'. A sun's share is its layer of the
- * suns' mask (`sun`) at the pixel (`vsmSunFactor`), the least of it and the sun's distance-field
- * shadow's (`vsmFarFactor`) with `farMask`, the binding of that shadow. A local light's is its lane of the
+ * suns' mask (`sun`) at the pixel (`vsmSunFactor`). A local light's is its lane of the
  * local lights' mask (`local`, the binding of the texture, a texel a pixel): its four bits among the
  * pixel's, its lane its place among the shadowed lights of the pixel's cell in the shadowed lights'
  * grid (`grid`, `lightGridWgsl.ts`: the order the projection packs them in), over sixteen; a light whose
  * lane is past `shadowOnePassProjectionMaxLightsPerPixel` is read from one sample of its own map
  * (`vsmSampleMapLocal`, the program's `fallback`).
  */
-export const vsmMaskWgsl = (sun: number, local?: number, farMask?: number, grid?: number) =>
+export const vsmMaskWgsl = (sun: number, local?: number, grid?: number) =>
   wgslBlock(
-    `vsmMaskWgsl(${sun}, ${local ?? null}, ${farMask ?? null}, ${grid ?? null})`,
-    [
-      SHADOW_SLICE_WGSL,
-      ...(farMask === undefined ? [] : [vsmFarMaskWgsl(farMask)]),
-      ...(local === undefined ? [] : [VSM_LIGHT_GRID_WGSL, ONE_PASS_MASK_WGSL]),
-    ],
+    `vsmMaskWgsl(${sun}, ${local ?? null}, ${grid ?? null})`,
+    [SHADOW_SLICE_WGSL, ...(local === undefined ? [] : [VSM_LIGHT_GRID_WGSL, ONE_PASS_MASK_WGSL])],
     `
 @group(0) @binding(${sun}) var vsmSunMask:${SUN_MASK_TYPE};
 /** The resolve's pixel: the masks are read there; (−1, −1) in a pass that reads none. */
 var<private> vsmMaskPixel:vec2i=vec2i(-1);
-/** Sun \`layer\`'s share of its shadow at the pixel, the least of it and the sun's distance-field
- *  shadow's in a program that reads one. */
+/** Sun \`layer\`'s share of its shadow at the pixel. */
 fn vsmSunFactor(layer:u32)->f32{
- let share=textureLoad(vsmSunMask,vsmMaskPixel,layer).r;
- return ${farMask === undefined ? 'share' : 'min(share,vsmFarFactor(layer))'};
+ return textureLoad(vsmSunMask,vsmMaskPixel,layer).r;
 }${
       local === undefined
         ? `

@@ -89,6 +89,7 @@ static ONE_MESH: Mutex<()> = Mutex::new(());
 fn source() -> Source {
     let wgsl = [
         layout::prelude().as_str(),
+        include_str!("../hlod/flatten/gpu/scene_words.wgsl"),
         include_str!("../hlod/flatten/approximate/gpu/tree.wgsl"),
         include_str!("gpu/field.wgsl"),
     ]

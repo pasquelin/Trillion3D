@@ -1,5 +1,6 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { dispatchOn } from '../../../gpu/core/computeStages.ts'
+import { loadOnlyUsage } from '../../../gpu/core/loadOnlyTarget.ts'
 import { SCREEN_SPACE_BINDINGS as B } from '../rayCastWgsl.ts'
 import { SCREEN_SPACE_GROUP_SIDE } from '../screenSpaceQuality.ts'
 import { groupFor, inputDeps, inputGroupEntries, type ScreenSpaceInputs } from '../frame.ts'
@@ -19,8 +20,6 @@ import {
 } from './pipelines.ts'
 import type { DenoiseSignal } from './signalWgsl.ts'
 
-/** Read at the call: Node has no WebGPU global at the load of a module. */
-const sampledStored = () => GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING
 /** The bytes between two passes' parameters in the buffer that holds them (a uniform offset's alignment). */
 const PARAMS_STRIDE = 256
 /** The parameters' slots: the reconstruction, the pre-convolutions (at most four), the accumulation. */
@@ -42,13 +41,13 @@ const makeSet = (device: GPUDevice, label: string, width: number, height: number
     label: `Trillion3D screen space denoise ${label} A`,
     size: [width, height],
     format: DENOISE_FORMAT_A,
-    usage: sampledStored(),
+    usage: loadOnlyUsage(),
   })
   const b = device.createTexture({
     label: `Trillion3D screen space denoise ${label} B`,
     size: [width, height],
     format: DENOISE_FORMAT_B,
-    usage: sampledStored(),
+    usage: loadOnlyUsage(),
   })
   return { a: a.createView(), b: b.createView(), textures: [a, b] }
 }
@@ -98,7 +97,7 @@ export function createDenoiseMeta(device: GPUDevice, width: number, height: numb
         label: `Trillion3D screen space denoise kept ${label} ${slot}`,
         size: [width, height],
         format,
-        usage: sampledStored(),
+        usage: loadOnlyUsage(),
       }),
     )
   const depth = make('depth', 'r32float')

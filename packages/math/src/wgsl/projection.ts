@@ -98,3 +98,25 @@ export const depthOfLogSlice = wgslFn(
   [],
   'fn depthOfLogSlice(slice:f32,law:vec3f)->f32{return (exp2(slice/law.z)-law.y)/law.x;}',
 )
+
+/** The distance in metres along the view's axis of a device depth `z`, from the projection's terms `terms` = `(x, y, perspective, 0)`: `x / z` under a perspective (`z` held off zero), `y + (1 − z) · x` under
+ *  an orthographic projection. */
+export const viewDepthOfDevice = wgslFn(
+  'viewDepthOfDevice',
+  [],
+  'fn viewDepthOfDevice(terms:vec4f,z:f32)->f32{return select(terms.y+(1.0-z)*terms.x,terms.x/max(z,1e-30),terms.z>0.5);}',
+)
+
+/** The same distance in centimetres, held short of the largest finite float (a depth of zero is infinitely far). */
+export const viewDepthCmOfDevice = wgslFn(
+  'viewDepthCmOfDevice',
+  [viewDepthOfDevice],
+  'fn viewDepthCmOfDevice(terms:vec4f,z:f32)->f32{return min(viewDepthOfDevice(terms,z)*100.0,3.4e38);}',
+)
+
+/** The device depth of a distance in metres along the view's axis, under the same terms (`viewDepthOfDevice`'s inverse). */
+export const deviceDepthOfView = wgslFn(
+  'deviceDepthOfView',
+  [],
+  'fn deviceDepthOfView(terms:vec4f,distance:f32)->f32{return select(1.0-(distance-terms.y)/terms.x,terms.x/max(distance,1e-30),terms.z>0.5);}',
+)

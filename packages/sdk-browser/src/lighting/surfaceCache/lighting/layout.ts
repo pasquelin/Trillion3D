@@ -226,7 +226,8 @@ export const LIGHTING_FLAG = {
 export const SELF_INTERSECTION = { cull: 0, retrace: 1, skip: 2 } as const
 
 /** The parameters of an image's lighting passes: the atlas and the pages, the update clock, the lists' places and
- *  capacities, the eye, the frustum (five planes, outward, in centimetres from the eye), the exposure the lights are strengthened
+ *  capacities, the eye, the frustum (five planes, outward, in centimetres from the eye) and, for a second view whose cards
+ *  the cache keeps (`otherEye`, in centimetres, its fourth word 1 where there is one, and its `otherFrustum`), the exposure the lights are strengthened
  *  under, where the scratch of the light functions begins in the masks' buffer, the direct light's numbers and the
  *  radiosity's, those of its rays through the scene's triangles among them (the biases, how far a hit is read from the cards and
  *  how near it lights nothing, in centimetres, and the way the ray avoids self-intersections). */
@@ -276,4 +277,6 @@ export const LIGHTING_PARAMS = fieldLayout('LightingParams', [
   ['camera', 'vec4f'],
   ['eye', 'vec4f'],
   ['frustum', vec4Array(5)],
+  ['otherEye', 'vec4f'],
+  ['otherFrustum', vec4Array(5)],
 ] as const)

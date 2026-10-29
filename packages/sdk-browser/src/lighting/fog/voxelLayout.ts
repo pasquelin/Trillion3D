@@ -1,7 +1,7 @@
 import { fieldLayout, putVec4 as put } from '../../gpu/core/fieldLayout.ts'
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
-import { length3 } from '../../../../math/src/vector/vector.ts'
+import { largestAxisScale, length3 } from '../../../../math/src/vector/vector.ts'
 import { wordsOf } from '../../gpu/core/wordViews.ts'
 import type { ResolvedFogVolume } from '../../../../sdk-core/src/scene/volume/contracts.ts'
 
@@ -106,11 +106,6 @@ export function writeVoxelFrame(out: Float32Array, image: VoxelImage) {
   out[at.realTime] = image.realTime
 }
 
-/** The largest scale of the placement's axes: how much it can stretch a length. */
-function largestScale(m: ArrayLike<number>) {
-  return Math.max(length3(m[0], m[1], m[2]), length3(m[4], m[5], m[6]), length3(m[8], m[9], m[10]))
-}
-
 /** Writes `object` as the record `slot` of `out` if it reaches the volume — its sphere closer to the
  *  eye than the fog's distance plus its radius — and its placement can be inverted; whether it was. */
 function writeObject(
@@ -129,7 +124,7 @@ function writeObject(
     mz = lo[2] + half[2]
   for (let r = 0; r < 3; r++)
     centre[r] = m[r] * mx + m[4 + r] * my + m[8 + r] * mz + m[12 + r] - eye[r]
-  const radius = length3(half[0], half[1], half[2]) * largestScale(m)
+  const radius = length3(half[0], half[1], half[2]) * largestAxisScale(m)
   if (length3(centre[0], centre[1], centre[2]) >= farEnd + radius) return false
   copyMatrix4(translated, m)
   for (let r = 0; r < 3; r++) translated[12 + r] = m[12 + r] - eye[r]

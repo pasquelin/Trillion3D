@@ -4,7 +4,6 @@ import {
   distanceSetting as distance,
   flagSetting as flag,
   nonNegativeSetting as nonNegative,
-  numberSetting as number,
   resolveSettings,
   rulesOf,
   type SettingOptions,
@@ -28,12 +27,7 @@ import {
  * - `farShadowCascades` (0) and `farShadowDistance` (3000 metres): the levels between its distance
  *   and this one, valid while the far distance is past the shadow distance by more than a metre;
  * - `distanceFieldShadows` (on): whether the distance-field cascade is made, from the near levels'
- *   end to `distanceFieldShadowDistance` (512 metres), `true` the default, `false` none;
- *   `distanceFieldTraceDistance` (100 metres, from 10 to 10 000): how far a ray of it goes;
- *   `distanceFieldRayStartOffset` (0.003): the share of a pixel's depth its rays start off the
- *   surface by;
- * - `shadowAmount` (1, from 0 to 1): how dark the shadow of the distance-field cascade is, the share
- *   of it that reaches the light's light (0: no shadow from it). Not part of the clipmap's cache key.
+ *   end to `distanceFieldShadowDistance` (512 metres), `true` the default, `false` none.
  */
 export const LIGHT_SHADOW_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -45,9 +39,6 @@ export const LIGHT_SHADOW_RULES = /* @__PURE__ */ (() =>
     distance('farShadowDistance', 3000),
     flag('distanceFieldShadows', true),
     distance('distanceFieldShadowDistance', 512),
-    number('distanceFieldTraceDistance', 100, [10, 10000]),
-    nonNegative('distanceFieldRayStartOffset', 0.003),
-    number('shadowAmount', 1, [0, 1]),
   ] as const))()
 
 /** The field of one shadow setting of a light. */

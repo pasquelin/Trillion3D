@@ -1,5 +1,5 @@
 import type { CloudPart } from '../../../../../sdk-core/src/modules/sky/clouds.ts'
-import { fieldLayout } from '../../../gpu/core/fieldLayout.ts'
+import { fieldLayout, putVec4 } from '../../../gpu/core/fieldLayout.ts'
 import { wordsOf } from '../../../gpu/core/wordViews.ts'
 import { cloudHazeInSecondPass, writeCloudTraceOptions } from './traceOptions.ts'
 import {
@@ -9,7 +9,7 @@ import {
   tracedToView,
   type CloudSetup,
 } from './cloudModes.ts'
-import { put4, writeTracingJitter, type Size } from './reconstructLayout.ts'
+import { writeTracingJitter, type Size } from './reconstructLayout.ts'
 import type { CloudFramePlan } from './reconstruct.ts'
 
 /**
@@ -169,8 +169,8 @@ function writeCloudTraceRay(
   const { traced, reconstructed } = plan.sizes
   const { mode } = setup
   out.set(image.inverseView, at.inverseView)
-  put4(words, at.traced, traced.view.width, traced.view.height, plan.offset[0], plan.offset[1])
-  put4(
+  putVec4(words, at.traced, traced.view.width, traced.view.height, plan.offset[0], plan.offset[1])
+  putVec4(
     words,
     at.sizes,
     image.frameIndex % 8,
@@ -178,9 +178,9 @@ function writeCloudTraceRay(
     Math.floor((image.view.width - 1) / depthSourceDownsample(setup)),
     Math.floor((image.view.height - 1) / depthSourceDownsample(setup)),
   )
-  put4(words, at.mapping, depthScale(setup), tracedToView(setup), 0, 0)
+  putVec4(words, at.mapping, depthScale(setup), tracedToView(setup), 0, 0)
   writeTracingJitter(out, at.jitter, plan.offset, reconstructed.view, mode)
-  put4(
+  putVec4(
     out,
     at.layer,
     settings.baseAltitudeKm,
@@ -188,7 +188,7 @@ function writeCloudTraceRay(
     image.time,
     settings.opaqueBelow,
   )
-  put4(
+  putVec4(
     out,
     at.reach,
     gpu.farthestEntryCm,
@@ -196,7 +196,7 @@ function writeCloudTraceRay(
     gpu.marchLengthCm,
     gpu.marchLengthFrom,
   )
-  put4(
+  putVec4(
     out,
     at.samples,
     gpu.viewSamplesMost,
@@ -204,7 +204,7 @@ function writeCloudTraceRay(
     gpu.shadowRayLengthCm,
     gpu.samplesDistanceInverse,
   )
-  put4(
+  putVec4(
     words,
     at.counts,
     gpu.samplesMin,
@@ -224,7 +224,7 @@ function writeCloudTraceLight(
 ) {
   const { at } = CLOUD_TRACE_LAYOUT
   const hazeInSecondPass = cloudHazeInSecondPass(quality, image.airPresent)
-  put4(
+  putVec4(
     words,
     at.switches,
     setup.lateFog || hazeInSecondPass ? 0 : 1,
@@ -232,7 +232,7 @@ function writeCloudTraceLight(
     quality.cloudDistantSkyLight ? 1 : 0,
     quality.cloudAtmosphericLights ? 1 : 0,
   )
-  put4(
+  putVec4(
     out,
     at.sky,
     settings.planetRadiusKm,
@@ -240,7 +240,7 @@ function writeCloudTraceLight(
     CLOUD_MATERIAL_OUTPUTS_OCCLUSION ? 1 : 0,
     image.preExposure ?? 1,
   )
-  put4(
+  putVec4(
     out,
     at.haze,
     settings.hazeRayleighStartKm,
@@ -248,7 +248,7 @@ function writeCloudTraceLight(
     settings.hazeMieStartKm,
     gpu.hazeMieFadeInverse,
   )
-  put4(
+  putVec4(
     out,
     at.lightScale0,
     image.lightScales[0][0],
@@ -256,7 +256,7 @@ function writeCloudTraceLight(
     image.lightScales[0][2],
     0,
   )
-  put4(
+  putVec4(
     out,
     at.lightScale1,
     image.lightScales[1][0],
@@ -289,7 +289,7 @@ export function writeCloudTrace(
 export function markCloudTraceCapture(words: Uint32Array, part: CloudPart, airPresent: boolean) {
   const { at } = CLOUD_TRACE_LAYOUT
   words[at.switches] = 1
-  put4(
+  putVec4(
     words,
     at.options,
     part.quality.cloudAerialPerspective && airPresent ? 1 : 0,

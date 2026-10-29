@@ -52,10 +52,6 @@ export const DEFERRED_BINDINGS = {
   cloudShadowMap0: 50,
   cloudShadowMap1: 51,
   cloudShadowSampler: 52,
-  /** The sun's distance-field shadow (`../distanceField/shadow/`): the opaque lit passes', a read-only
-   *  storage buffer of words, a byte a lane of the suns, a stand-in where the image drew none
-   *  (`vsmSunFactor`): a buffer, for the lit pass has no sampled texture to spare. */
-  farShadowMask: 53,
   /** The lists of the local fog volumes over each tile of the view (`DEFERRED_FOG_BINDINGS`,
    *  `fogTilesWgsl`, `../fog/localWgsl.ts`): the contract programs', a read-only storage buffer of words. */
   fogLocalTiles: 54,

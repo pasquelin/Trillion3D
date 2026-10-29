@@ -15,7 +15,6 @@ import { SCREEN_PROBE_FORMATS } from '../bounce/screen/screenProbeLayout.ts'
 import { AO_OCCLUSION_FORMAT } from '../ao/layout.ts'
 import { VOLUMETRIC_LIGHT_FORMAT } from './volumetricLightWgsl.ts'
 import { createFogStandIns } from '../fog/read.ts'
-import { DFSH_NO_MASK_WORDS } from '../distanceField/shadow/layout.ts'
 import { DFAO_READ_WORDS } from '../distanceField/ao/readWgsl.ts'
 import { createNoFieldRead } from '../distanceField/view.ts'
 import { createLightFunctionStandIns } from '../lightFunction/standIns.ts'
@@ -322,15 +321,6 @@ function vsmStandInBuffers(device: GPUDevice) {
     VSM_PROJECTION_VIEW_BYTES,
     GPUBufferUsage.UNIFORM,
   )
-  // One word: the resolve tells it from a real mask by its length (`vsmFarFactor`, at most
-  // `DFSH_NO_MASK_WORDS`), and reads no lane of it — a longer stand-in would read as a mask of zeros,
-  // the sun shadowed everywhere.
-  const farShadowMask = standInBuffer(
-    device,
-    'Trillion3D empty sun distance-field shadow',
-    DFSH_NO_MASK_WORDS * 4,
-    GPUBufferUsage.STORAGE,
-  )
   return {
     vsmPageTable,
     vsmProjectionData,
@@ -338,7 +328,6 @@ function vsmStandInBuffers(device: GPUDevice) {
     vsmUniforms,
     vsmPool,
     vsmProjectionView,
-    farShadowMask,
   }
 }
 
@@ -374,15 +363,8 @@ function vsmStandInTextures(device: GPUDevice) {
  *  (lit); the projection's view and blue noise a forward pass traces with
  *  (`vsmTraceFactor`): zeros. */
 function createVsmPlaceholders(device: GPUDevice) {
-  const {
-    vsmPageTable,
-    vsmProjectionData,
-    vsmLightGrid,
-    vsmUniforms,
-    vsmPool,
-    vsmProjectionView,
-    farShadowMask,
-  } = vsmStandInBuffers(device)
+  const { vsmPageTable, vsmProjectionData, vsmLightGrid, vsmUniforms, vsmPool, vsmProjectionView } =
+    vsmStandInBuffers(device)
   const { vsmMask, vsmSunMask, vsmBlueNoise } = vsmStandInTextures(device)
   const textures = [vsmMask, vsmSunMask, vsmBlueNoise]
   return {
@@ -394,7 +376,6 @@ function createVsmPlaceholders(device: GPUDevice) {
       vsmLightGrid,
       vsmMask: vsmMask.createView(),
       vsmSunMask: vsmSunMask.createView({ dimension: '2d-array' }),
-      farShadowMask,
       vsmProjectionView,
       vsmBlueNoise: vsmBlueNoise.createView(),
     },
@@ -406,7 +387,6 @@ function createVsmPlaceholders(device: GPUDevice) {
         vsmUniforms,
         vsmPool,
         vsmProjectionView,
-        farShadowMask,
       ])
         buffer.destroy()
       for (const texture of textures) texture.destroy()

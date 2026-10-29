@@ -3,7 +3,7 @@ import { namedEntries, wholeBuffer } from '../../../gpu/core/computeBindings.ts'
 import type { SurfaceCacheSettings } from '../../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
 import { CENTIMETRES_PER_METRE as CM } from '../../../../../sdk-core/src/page/format.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
-import { dfshSettingsOf } from '../../../frame/render/encodeSunFieldShadow.ts'
+import { vsmMapSettings } from '../../shadows/vsm/frame/vsmFarShadow.ts'
 import { SHADOW_TEXELS } from './layout.ts'
 import { MESH_SUN_VISIBILITY_BINDING } from './meshShadowWgsl.ts'
 import { ledgerAdmitted, type HeldAllocation } from '../../../gpu/core/deviceLedger.ts'
@@ -23,10 +23,9 @@ import {
   DFSH_PARAMS_STRIDE,
 } from '../../distanceField/shadow/layout.ts'
 import {
+  snapTexelsOf,
   tilesOf,
   writeDfshParams,
-  type DfshImage,
-  type DfshLight,
   type DfshSettings,
 } from '../../distanceField/shadow/params.ts'
 import { dfshPrograms, dfshProgramsReady } from '../../distanceField/shadow/pipelines.ts'
@@ -38,9 +37,10 @@ import type { MeshFieldScene } from '../../distanceField/meshFieldScene.ts'
  * THE MESHES' FIELDS THE SUNS' SHADOW ON THE CARDS IS TRACED THROUGH (`meshSunVisibility`, `meshShadowWgsl.ts`), listed before the lighting.
  * For each sun with shadows (the first `DFSH_MAX_LIGHTS`, one pass of lists a directional light as the reference makes), the meshes that
  * cast one are culled to the volume the cards are kept in — a cube round the eye, as far as the cards reach — and the sun, and listed by tile
- * of the volume's shadow space across it: the passes of the sun's cascade for the view (`encodeShadowTiles`, over a shadow space of the
- * volume's bounds), the settings of its tiles those of the view's (`dfshSettingsOf`), every mesh listed, the ones made of clusters too (the
- * shadow maps do not reach the cards). The passes make one sun's lists after the other in the view's buffers, each copied after its pass to
+ * of the volume's shadow space across it (`encodeShadowTiles`, over a shadow space of the volume's bounds), the settings of its tiles
+ * the view's (`dfshSettingsOf`), every mesh listed, the ones made of clusters too: the sun's shadow maps draw the clusters at any distance
+ * but do not reach the cards, so this is the only distance-field shadow of a sun. The passes make one sun's lists after the other in the
+ * view's buffers, each copied after its pass to
  * the place of its sun in the buffers the direct light reads (`ListStore`). Every other light is traced through the global field. None
  * where the option is off, the scene has no mesh with a field, no sun casts a shadow, the programs are not compiled or the memory is
  * refused (`state.dfsh.why`): the image is then lit through the global field.
@@ -73,7 +73,7 @@ interface ListStore extends HeldAllocation {
 
 /** What the host holds of the suns' lists between images. */
 export interface MeshShadowState {
-  /** The cascade passes' resources, one sun's lists at a time. */
+  /** The lists' passes' resources, one sun's lists at a time. */
   readonly dfsh: DfshState
   store: ListStore | undefined
 }
@@ -112,47 +112,24 @@ export function meshShadowWanted(rt: WebgpuPagesRuntime) {
   return !!objects && objects.generation > 0 && objects.count > 0 && sunDirections(rt).length > 0
 }
 
-const IDENTITY = Array.from({ length: 16 }, (_, k) => (k % 5 === 0 ? 1 : 0))
-/** The camera the passes are described to: none, the volume is not seen from one; only the eye is read (the lists are of positions from it). */
-const image: DfshImage = {
-  view: [1, 1],
-  extent: [1, 1],
-  world: IDENTITY,
-  projection: IDENTITY,
-  viewProjection: IDENTITY,
-  eye: [0, 0, 0],
-  near: 0.1,
-  far: 1,
-  perspective: true,
-}
 const settings = {} as DfshSettings
+
+/** The settings of the lists, `quality` to `snapTexels` (`SUN_SHADOW_RULES`), into `into`, on a device whose textures go to `limit` texels across. */
+function dfshSettingsOf(rt: WebgpuPagesRuntime, limit: number, into: DfshSettings) {
+  const { shadows } = vsmMapSettings(rt)
+  into.quality = shadows.distanceFieldShadowQuality
+  into.tileSize = shadows.distanceFieldShadowTileSize
+  into.twoSidedBias = shadows.distanceFieldShadowTwoSidedBias
+  into.perTile = shadows.distanceFieldShadowObjectsPerTile
+  into.compactTiles = shadows.distanceFieldShadowCompactTiles
+  into.snapTexels = snapTexelsOf(shadows.distanceFieldShadowSnapResolution, limit)
+}
+
 const floats = new Float32Array((DFSH_MAX_LIGHTS * DFSH_PARAMS_STRIDE) / 4)
 const words = new Uint32Array(floats.buffer)
 /** The suns' blocks, side by side, as the direct light reads them. */
 const blocks = new Float32Array((DFSH_MAX_LIGHTS * DFSH_PARAMS_BYTES) / 4)
 const blockWords = new Uint32Array(blocks.buffer)
-/** The light: only its direction is read, and the farthest a ray goes, which the program takes from the lighting's own trace. */
-const light: DfshLight = {
-  lane: 0,
-  toLight: [0, 0, 1],
-  angularRadius: 0,
-  cascade: Object.fromEntries(
-    [
-      'near',
-      'far',
-      'minDepth',
-      'maxDepth',
-      'fadeOffset',
-      'invFadeLength',
-      'nearFadeOffset',
-      'invNearFadeLength',
-    ].map((name) => [name, 0]),
-  ) as unknown as DfshLight['cascade'],
-  traceDistance: 0,
-  rayStartOffset: 0,
-  amount: 1,
-}
-
 /** The store of `tiles` × `tiles` tiles and `entries` list entries a sun, the `held` one if it is that, else made (the old one given back), or none where the budget refuses it. */
 function ensureStore(
   state: MeshShadowState,
@@ -215,26 +192,24 @@ function writeSunBlocks(
   entries: number,
   tilesPerSun: number,
 ) {
-  image.eye = eye
   const at = DFSH_PARAMS.at
   blocks.fill(0)
   suns.forEach((toLight, sun) => {
-    light.toLight = toLight
-    writeDfshParams(floats, words, sun, { image, light, bounds: bounds[sun], layer: 0 }, settings, {
+    writeDfshParams(floats, words, sun, { eye, toLight, bounds: bounds[sun] }, settings, {
       objects: objectCount,
     })
     const base = (sun * DFSH_PARAMS_STRIDE) / 4
-    // The mesh bias of the rays, centimetres, in the fourth word of the range (the cascade's depths take the first two).
+    // The mesh bias of the rays, centimetres, in the fourth word of the range.
     floats[base + at.range + 3] = options.surfaceCacheDirectLightingMeshSdfShadowRayBias
     const own = (sun * DFSH_PARAMS_BYTES) / 4
     blocks.set(floats.subarray(base, base + DFSH_PARAMS_BYTES / 4), own)
-    // Where the sun's lists lie in the store (the cascade's passes read neither word): its first tile in `counts.z`, its first entry in `view.x`.
+    // Where the sun's lists lie in the store (the lists' passes read neither word): its first tile in `counts.z`, its first entry in `lists.x`.
     blockWords[own + at.counts + 2] = sun * tilesPerSun
-    blockWords[own + at.view] = sun * entries
+    blockWords[own + at.lists] = sun * entries
   })
 }
 
-/** The suns' lists made for the cascade's tiles, `sides[sun]` tiles a side, copied into the store at the place of each sun. */
+/** The suns' lists made for the volume's tiles, `sides[sun]` tiles a side, copied into the store at the place of each sun. */
 function encodeSunLists(
   encoder: GPUCommandEncoder,
   device: GPUDevice,
@@ -311,22 +286,15 @@ export function encodeMeshShadow(
   if (!objects || suns.length === 0 || objects.generation === 0 || objects.count === 0)
     return undefined
   dfshSettingsOf(rt, device.limits.maxTextureDimension2D, settings)
-  settings.scatterTiles = true
-  settings.clusterMeshes = true
-  settings.transmission = false
   const programs = dfshPrograms(device)
   if (!dfshProgramsReady(programs, settings)) return undefined
   const bounds = suns.map((toLight) => boxBounds([0, 0, 0], volume.reach / CM, toLight))
   const sides = bounds.map((b) => tilesOf(b, settings))
   const held = state.dfsh.view?.shape
   const made = ensureDfshView(state.dfsh.view, device, {
-    extent: [1, 1],
-    view: [1, 1],
     objects: Math.max(held?.objects ?? 0, objectCapacity(objects.count)),
     tiles: Math.max(held?.tiles ?? 0, ...sides),
     perTile: settings.perTile,
-    layers: 1,
-    fullResolution: false,
   })
   state.dfsh.view = made.view
   state.dfsh.why = made.why

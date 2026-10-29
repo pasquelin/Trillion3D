@@ -48,7 +48,7 @@ test("a sun's own shadow settings are part of its cache key: another one draws e
     { shadowCascades: 3 },
     { shadowCascadeExponent: 2 },
     { distanceFieldShadows: false },
-    { distanceFieldTraceDistance: 50 },
+    { distanceFieldShadowDistance: 300 },
   ].entries()) {
     cache.frameStamp = 5 + 2 * k
     sun({ shadowDistance: 0 }).cacheEntry.markRendered(cache.frameStamp)

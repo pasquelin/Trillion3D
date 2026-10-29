@@ -73,7 +73,7 @@ fn convolveMain(@builtin(global_invocation_id) id:vec3u){
  if(roughness>0.99){
   for(var i=0u;i<count;i++){
    let e=lowDiscrepancy(i,count);
-   let l=sampleCosineLobe(e);
+   let l=sampleCosineHemisphere(e);
    let pdf=l.z/PI;
    let sampleAngle=1.0/(f32(count)*pdf);
    let level=0.5*log2(sampleAngle/texelAngle);

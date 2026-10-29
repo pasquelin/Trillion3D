@@ -23,13 +23,11 @@ import { NO_VERTEX_READS, type CloudVertexText, type VertexReads } from '../clou
 import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 import { ENVIRONMENT_BRDF_WGSL } from '../../lighting/direct/environmentBrdfWgsl.ts'
 import { envBrdfF90 } from '../../../../math/src/wgsl/lighting.ts'
-import { byteOf } from '../../../../math/src/wgsl/integer.ts'
-import { DFSH_MAX_LIGHTS, DFSH_NO_MASK_WORDS } from '../../lighting/distanceField/shadow/layout.ts'
 import { WATER_VOLUME_WGSL } from './waterVolumeWgsl.ts'
 import { WATER_REFLECTION_CODE } from './waterLayout.ts'
 
-/** The sun, reflection and far-shadow helpers of the water's shading: the forward sun's light, the
- *  reflection by mode, the split sun and the distance-field factor. */
+/** The sun and reflection helpers of the water's shading: the forward sun's light, the
+ *  reflection by mode and the split sun. */
 const WATER_LIGHT_HELPERS_TEXT = `fn waterSunOf(P:vec3f,N:vec3f)->WaterSun{
  var sun=WaterSun(vec3f(0.0),vec3f(0.0,1.0,0.0),1.0,vec3f(0.0));
  let rank=directLights.forwardRank;
@@ -58,18 +56,6 @@ fn waterSunSplit(rgb:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f)->LightSp
  if(rank==0u){return LightSplit(vec3f(0.0),vec3f(0.0));}
  let shading=clothSurface(lobeSurface(rgb,metal,rough,N,V));lobeView(shading);
  return declaredLightSplit(rank-1u,rgb,metal,rough,N,V,P,shading);
-}
-// The sun's distance-field shadow at pixel \`at\`, traced at the water's depth (\`waterFarMask\`): one where no mask was
-// made or the sun casts none; the least share a lane of the mask keeps, squared, as the lights read it.
-fn waterFarFactor(at:vec2i)->f32{
- let rank=directLights.forwardRank;
- if(rank==0u||arrayLength(&waterFarMask)<=${DFSH_NO_MASK_WORDS}u||waterFarMask[0]==0u){return 1.0;}
- let light=directLights.items[rank-1u];
- if(!castsShadow(light)){return 1.0;}
- let channel=shadowSliceRecord(i32(light.params.y));
- if(channel>=${DFSH_MAX_LIGHTS}u){return 1.0;}
- let lane=f32(byteOf(waterFarMask[1u+u32(at.y)*waterFarMask[0]+u32(at.x)],channel))/255.0;
- return lane*lane;
 }
 `
 
@@ -174,8 +160,8 @@ const waterCompositeWgsl = (
  let delta=(behind.depth-surfaceDepth)*WATER_CM;
  if(delta<=0.0){discard;}
  let reflection=waterReflection(specular.rgb,surface.w,normalize(surface.xyz),V,P,vec4f(position.xy,z,1.0));
- // The separated sun, multiplied by its distance-field shadow and its shadow-map trace at the water's depth.
- let sun=textureLoad(waterSun,at,0).rgb*(waterFarFactor(at)*${sunTraced ? 'waterTraceFactor(P,normalize(surface.xyz))' : '1.0'});
+ // The separated sun, multiplied by its shadow-map trace at the water's depth.
+ let sun=textureLoad(waterSun,at,0).rgb*${sunTraced ? 'waterTraceFactor(P,normalize(surface.xyz))' : '1.0'};
  return vec4f(preExposed(reflection*saturate(delta*0.02))+sun,1.0);
 }
 `
@@ -213,7 +199,6 @@ const waterStage = (o: StageOptions, sunTraced: boolean) =>
       WATER_VOLUME_WGSL,
       ENVIRONMENT_BRDF_WGSL,
       envBrdfF90,
-      byteOf,
       FULLSCREEN_VERTEX,
       SURFACE_F0_WGSL,
       BLEND_TO_EYE_WGSL,

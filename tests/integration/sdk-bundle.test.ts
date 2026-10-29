@@ -33,9 +33,10 @@ test('a maths-only bundle keeps baseline bytes and excludes platform modules', a
   // same code, one minified name a letter longer. The core's 1_373 and the browser's 3_025 since the
   // lighting's new top-level symbols, all dropped from these bundles, push one more name past a letter:
   // every kept module unchanged. The package's 1_362 since one more name past a letter, the same
-  // way: the core's bundle of the same modules keeps its 1_373.
+  // way: the core's bundle of the same modules keeps its 1_373. The package's 1_360 since the 4×4
+  // inverse's cofactors are one routine: fewer top-level names, one name a letter shorter.
   assert.equal(baseline.outputFiles[0].contents.length, 1_373)
-  assert.equal(proposed.outputFiles[0].contents.length, 1_362)
+  assert.equal(proposed.outputFiles[0].contents.length, 1_360)
   assert.equal(browserProposed.outputFiles[0].contents.length, 3_025)
   assert.ok(
     !Object.keys(browserProposed.metafile.inputs).some((path) => path.includes('/sdk-node/')),

@@ -3,7 +3,7 @@
  * (`hair/lighting.ts`), which reads them in place of the walk of the cell's lights.
  */
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
+import { askedComputeStage } from '../../gpu/core/computeStages.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../../diagnostic/stage/passLabels.ts'
 import type { HairNodes } from '../../hair/compactionPass.ts'
@@ -14,6 +14,7 @@ import { noiseFrame } from '../../frame/render/noiseFrame.ts'
 import { directTiles } from '../../frame/render/encodeLights.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
 import { computeBufferEntry, computeUniformEntry } from '../../gpu/core/computeBindings.ts'
+import { strandNodeEntries } from '../../hair/environment.ts'
 import { followSampledLights } from './frame.ts'
 import {
   sampledDownsampleFactor,
@@ -54,20 +55,11 @@ function stageOf(
   failed: (e: unknown) => void,
   label: string,
   entries: GPUBindGroupLayoutEntry[],
-  module: GPUShaderModule,
+  code: string,
   entry: string,
 ) {
   const layout = device.createBindGroupLayout({ entries })
-  const pipeline = preparedComputeStage(
-    device,
-    device.createPipelineLayout({ bindGroupLayouts: [layout] }),
-    module,
-    entry,
-    undefined,
-    label,
-  ).ask()
-  pipeline.prepare().catch(failed)
-  return { layout, pipeline }
+  return { layout, pipeline: askedComputeStage(device, [layout], code, entry, label, failed) }
 }
 
 function deviceOf(rt: WebgpuPagesRuntime, device: GPUDevice): DeviceHair {
@@ -81,25 +73,14 @@ function deviceOf(rt: WebgpuPagesRuntime, device: GPUDevice): DeviceHair {
       failed,
       `${HAIR_STRANDS_PASS_PREFIX}sampled draws`,
       [
-        ro(B.nodeCoord),
-        ro(B.nodeData),
-        ro(B.nodeCounter),
+        ...strandNodeEntries(B),
         computeBufferEntry(B.draws, 'storage'),
         computeUniformEntry(B.view),
         computeUniformEntry(B.params),
         ro(B.lights),
         ro(B.tiles),
-        {
-          binding: B.lut,
-          visibility: GPUShaderStage.COMPUTE,
-          texture: { sampleType: 'float', viewDimension: '3d' },
-        },
-        { binding: B.lut + 1, visibility: GPUShaderStage.COMPUTE, sampler: { type: 'filtering' } },
       ],
-      device.createShaderModule({
-        label: HAIR_STRANDS_PASS_PREFIX + 'sampled draws',
-        code: hairSampleWgsl(),
-      }),
+      hairSampleWgsl(),
       HAIR_SAMPLE_ENTRY,
     ),
     masks: new Map(),
@@ -143,10 +124,7 @@ const maskStage = (
           computeUniformEntry(B.params),
           ro(B.lights),
         ],
-        device.createShaderModule({
-          label: HAIR_STRANDS_PASS_PREFIX + 'sampled masks',
-          code: hairMaskWgsl(mipmap),
-        }),
+        hairMaskWgsl(mipmap),
         HAIR_MASK_ENTRY,
       )),
     )

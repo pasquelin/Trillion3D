@@ -1,4 +1,4 @@
-import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
 import { HAIR_VOXEL_FIX_POINT_SCALE, HAIR_VOXEL_BITS, VOXEL_NODE_WGSL } from './voxelRasterWgsl.ts'
 import { VOXEL_LEVELS_WGSL } from './voxelMipWgsl.ts'
 import { interleavedGradientNoise } from '../../../math/src/wgsl/sampling.ts'
@@ -16,6 +16,13 @@ export const HAIR_VOXEL_JITTER_WGSL = wgslBlock(
  let at=vec2f(pixel);
  return vec3f(interleavedGradientNoise(at,seed),interleavedGradientNoise(at,seed*117.0),interleavedGradientNoise(at,seed*7901.0));
 }`,
+)
+
+/** The mask word of a march: the hair count (thousandths, 24 bits) and the visibility (8 bits, on top) the strands' lighting reads. */
+export const HAIR_PACK_MASK_WGSL = wgslFn(
+  'packMask',
+  [],
+  `fn packMask(hairCount:f32,visibility:f32)->u32{return min(u32(hairCount*1000.0),0x00FFFFFFu)|(min(u32(visibility*255.0),0xFFu)<<24u);}`,
 )
 
 /** The farthest a ray goes in the volume (the reference's 100000 centimetres, in metres). */

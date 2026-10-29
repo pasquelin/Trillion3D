@@ -12,10 +12,6 @@ struct Params {
 @group(0) @binding(3) var<storage, read> texels: array<vec4u>;
 @group(0) @binding(4) var<storage, read_write> results: array<vec4u>;
 
-fn f4(at: u32) -> vec4f {
-    return bitcast<vec4f>(scene[at]);
-}
-
 // The scene's bases: frames, nodes, corners, attributes.
 fn bases() -> vec4u {
     return materials[1];

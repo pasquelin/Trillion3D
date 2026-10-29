@@ -6,6 +6,7 @@ import { HAIR_AABB_PRECISION_SCALE } from './boundsWgsl.ts'
 import { HAIR_DEEP_SHADOW_MAX_SLOTS, HAIR_DEEP_SHADOW_TILE_BINS } from './deepShadowMath.ts'
 import { HAIR_MACRO_GROUP_SHIFT } from './materialMath.ts'
 import { HAIR_RIBBON_WGSL, HAIR_VIEW_WGSL, HAIR_VIEW_WORDS } from './ribbonWgsl.ts'
+import { HAIR_PACK_MASK_WGSL } from './voxelTraversalWgsl.ts'
 import { SEGMENT_VERTICES } from './transmittanceWgsl.ts'
 import {
   HAIR_COORD_BITS,
@@ -383,7 +384,6 @@ struct DeepMaskLight{
 @group(0) @binding(7) var<storage,read> viewInfos:array<DeepViewInfo>;
 @group(0) @binding(8) var frontDepth:texture_depth_2d;
 @group(0) @binding(9) var domLayers:texture_2d<f32>;
-fn packMask(hairCount:f32,visibility:f32)->u32{return min(u32(hairCount*1000.0),0x00FFFFFFu)|(min(u32(visibility*255.0),0xFFu)<<24u);}
 @compute @workgroup_size(${HAIR_NODE_GROUP_SIZE}) fn hairDeepShadowMask(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) groups:vec3u){
  let slot=flatIndex(id,groups,${HAIR_NODE_GROUP_SIZE}u);
  if(slot>=nodeCounter[${HAIR_NODE_COUNTER_STORED}]){return;}
@@ -411,5 +411,12 @@ fn packMask(hairCount:f32,visibility:f32)->u32{return min(u32(hairCount*1000.0),
  else if(light.kernelType==1u){count=sampleBilinear(lightSpace,bias,light.layerDepths);}
  mask[slot]=packMask(count*light.densityScale,1.0);
 }`,
-  [HAIR_VIEW_WGSL, DEEP_SHADOW_FILTER_WGSL, pixelToNdc, transformHomogeneousPoint, FLAT_INDEX_WGSL],
+  [
+    HAIR_VIEW_WGSL,
+    DEEP_SHADOW_FILTER_WGSL,
+    HAIR_PACK_MASK_WGSL,
+    pixelToNdc,
+    transformHomogeneousPoint,
+    FLAT_INDEX_WGSL,
+  ],
 )

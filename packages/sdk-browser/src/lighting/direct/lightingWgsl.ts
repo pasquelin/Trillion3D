@@ -122,9 +122,6 @@ export type LightingBindings = {
   vsmMask?: number
   maskFallback?: VsmMaskReadBindings
   vsm?: VsmConsumerBindings
-  /** Where the sun's distance-field shadow is bound, beside the mask (`vsmFarFactor`); left out, a
-   *  program reads none. */
-  farShadowMask?: number
   /** Where the shadows the heterogeneous volumes cast are bound (`beerShadowReadWgsl`): each shadowed light's share is multiplied by the
    *  transmittance of the volumes toward it; left out, a program reads none. */
   volumeShadow?: number
@@ -155,7 +152,6 @@ export const bindingsLabel = ({
   vsmMask,
   maskFallback,
   vsm,
-  farShadowMask,
   volumeShadow,
   trace,
   fog,
@@ -165,7 +161,7 @@ export const bindingsLabel = ({
   contactBend,
   perLightMask,
 }: LightingBindings) =>
-  `${vsmSunMask ?? null} ${vsmMask ?? null}${maskFallback ? ` + ${maskFallback.lightGrid} ${vsmBindingsLabel(maskFallback.vsm)} ${maskFallback.view}` : ''}, ${vsm ? vsmBindingsLabel(vsm) : null}, ${farShadowMask ?? null}${volumeShadow === undefined ? '' : ` volume ${volumeShadow}`}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fog ? fogBindingsLabel(fog) : null}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow ? `cloud ${cloudShadow.group}:${cloudShadow.block}` : null}${lightProfile ? `, profile ${lightProfileBindingsLabel(lightProfile)}` : ''}${contactBend ? `, contact bend ${contactBend.array} ${contactBend.ranks}` : ''}${perLightMask === undefined ? '' : `, per-light mask ${perLightMask}`}`
+  `${vsmSunMask ?? null} ${vsmMask ?? null}${maskFallback ? ` + ${maskFallback.lightGrid} ${vsmBindingsLabel(maskFallback.vsm)} ${maskFallback.view}` : ''}, ${vsm ? vsmBindingsLabel(vsm) : null}${volumeShadow === undefined ? '' : ` volume ${volumeShadow}`}, ${trace ? vsmTraceBindingsLabel(trace) : null}, ${fog ? fogBindingsLabel(fog) : null}, ${lightFunctionBindingsLabel(lightFunction)}, ${cloudShadow ? `cloud ${cloudShadow.group}:${cloudShadow.block}` : null}${lightProfile ? `, profile ${lightProfileBindingsLabel(lightProfile)}` : ''}${contactBend ? `, contact bend ${contactBend.array} ${contactBend.ranks}` : ''}${perLightMask === undefined ? '' : `, per-light mask ${perLightMask}`}`
 
 /**
  * The state a surface is lit through, and what a program does with the thin two-sided surface:
@@ -257,7 +253,6 @@ const shadowReadOf = (
             pass: 'mask',
             sun: bindings.vsmSunMask,
             local: bindings.vsmMask,
-            farMask: bindings.farShadowMask,
             volumeShadow: bindings.volumeShadow,
             fallback: bindings.maskFallback,
           },

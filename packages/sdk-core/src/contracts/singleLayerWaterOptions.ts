@@ -43,11 +43,13 @@ import {
  * THE SHADOWS. The sun's shadow on the water comes from the shadow maps, read for the water's pixel. The sun's
  * light on the water — its diffuse and specular share and its in-scattering in the volume — is kept apart
  * from the rest (the separated sun) when the distance-field shadow (`singleLayerWaterDistanceFieldShadow`,
- * which needs `singleLayerWaterShadersSupportDistanceFieldShadow`, read when the session opens) or the
- * shadow-map filtering (`singleLayerWaterVsmFiltering`, which needs `singleLayerWaterShadersSupportVsmFiltering`)
- * is on; the composite then lays it over the water multiplied by the sun's distance-field shadow traced at the
- * water's depth, and with the filtering the sun's shadow is the full trace the opaque surfaces get, not one
- * sample. The clouds' shadow on the sun that lights the water's volume is `singleLayerWaterCloudShadow`.
+ * which needs `singleLayerWaterShadersSupportDistanceFieldShadow`, read when the session opens, and a scene whose
+ * meshes have fields) or the shadow-map filtering (`singleLayerWaterVsmFiltering`, which needs
+ * `singleLayerWaterShadersSupportVsmFiltering`) is on; the composite then lays it over the water. The sun's
+ * distance-field shadow leaves out the meshes made of clusters, which the shadow maps draw at any distance, and every
+ * mesh the engine draws is made of them: the separated sun is laid unshadowed by it. With the filtering the sun's
+ * shadow is the full trace the opaque surfaces get, not one sample. The clouds' shadow on the sun that lights the
+ * water's volume is `singleLayerWaterCloudShadow`.
  *
  * THE PASSES. `singleLayerWaterDepthPrepass` draws the water's depth first, `singleLayerWaterTiledComposite`
  * and `singleLayerWaterTiledSceneColorCopy` restrict the reflection composite and the scene copy to the

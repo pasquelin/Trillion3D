@@ -1,27 +1,15 @@
-import {
-  COMPUTE,
-  computeStorageTextureEntry,
-  computeTextureEntry,
-  computeUniformEntry,
-  storageEntries,
-} from '../../../gpu/core/computeBindings.ts'
-import { hizDepthEntries } from '../../../visibility/hiz/gpu/pyramidTexture.ts'
+import { COMPUTE, computeUniformEntry, storageEntries } from '../../../gpu/core/computeBindings.ts'
 import { sceneLayoutEntries, sceneObjectEntries } from '../sceneBindings.ts'
-import {
-  DFSH_BINDING as B,
-  DFSH_FINAL_BYTES,
-  DFSH_HALF_FORMAT,
-  DFSH_PARAMS_BYTES,
-} from './layout.ts'
+import { DFSH_BINDING as B, DFSH_PARAMS_BYTES } from './layout.ts'
 
 /** The stages the scatter's bindings are seen by (`GPUShaderStage`, written in the clear: the entries
  *  are read from Node too). */
 const VERTEX = 1
 const FRAGMENT = 2
 
-type Name = Exclude<keyof typeof B, 'objects' | 'depth' | 'flags' | 'subsurface'>
+type Name = Exclude<keyof typeof B, 'objects'>
 
-/** A light's uniform, read at the offset of its block: one binding, a dynamic offset a light. */
+/** A sun's uniform, read at the offset of its block: one binding, a dynamic offset a sun. */
 const params = (stage = COMPUTE) =>
   computeUniformEntry(
     B.params,
@@ -31,10 +19,9 @@ const params = (stage = COMPUTE) =>
 const { read, write } = storageEntries<Name>(B)
 
 /**
- * THE LAYOUTS OF THE SUN'S SHADOW PROGRAMS' GROUP 0, one per program (`DFSH_PROGRAMS`), each the
+ * THE LAYOUTS OF THE SUNS' MESH LISTS PROGRAMS' GROUP 0, one per program (`DFSH_SHADERS`), each the
  * bindings the program names. The scatter's draw sees the list of meshes from the vertex stage, the
- * meshes' data from both its stages and the tiles' lists from the fragment stage; the gather trace
- * reads the list of the culled meshes and their count in place of the tiles' lists.
+ * meshes' data from both its stages and the tiles' lists from the fragment stage.
  */
 export const DFSH_LAYOUTS = {
   cull: [
@@ -52,34 +39,7 @@ export const DFSH_LAYOUTS = {
     read('tileOffsets', FRAGMENT),
     write('tileData', FRAGMENT),
   ],
-  trace: [
-    params(),
-    ...hizDepthEntries(B.depth, COMPUTE),
-    computeTextureEntry(B.flags, 'uint'),
-    computeTextureEntry(B.subsurface, 'unfilterable-float'),
-    read('tileOffsets'),
-    read('tileCounts'),
-    read('tileData'),
-    computeStorageTextureEntry(B.half, DFSH_HALF_FORMAT),
-    ...sceneObjectEntries(B.objects, true),
-  ],
-  traceGather: [
-    params(),
-    ...hizDepthEntries(B.depth, COMPUTE),
-    computeTextureEntry(B.flags, 'uint'),
-    computeTextureEntry(B.subsurface, 'unfilterable-float'),
-    read('culledObjects'),
-    read('objectArgs'),
-    computeStorageTextureEntry(B.half, DFSH_HALF_FORMAT),
-    ...sceneObjectEntries(B.objects, true),
-  ],
-  final: [
-    ...hizDepthEntries(B.depth, COMPUTE),
-    computeTextureEntry(B.half, 'unfilterable-float'),
-    write('mask'),
-    computeUniformEntry(B.final, { minBindingSize: DFSH_FINAL_BYTES }),
-  ],
 } as const satisfies Record<string, readonly GPUBindGroupLayoutEntry[]>
 
-/** A program of the sun's shadow. */
+/** A program of the suns' mesh lists. */
 export type DfshProgram = keyof typeof DFSH_LAYOUTS

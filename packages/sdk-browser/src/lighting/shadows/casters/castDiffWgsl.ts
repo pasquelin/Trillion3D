@@ -40,7 +40,7 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
-import { toF32 } from '../../../../../math/src/wgsl/f32.ts'
+import { doubleAsSingle } from '../../../../../math/src/wgsl/f32.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../../gpu/dispatch/grid.ts'
 import { MATRIX_VALUES } from '../../../../../math/src/batch/strides.ts'
 import { bitIsSet, bitWord } from '../../../../../math/src/wgsl/integer.ts'
@@ -114,8 +114,6 @@ ${wgslConsts({
 const BOX_SLACK:f32=${wgslF32(BOX_SLACK)};
 const SWEPT_REACHES:f32=${wgslF32(SWEPT_REACHES)};
 struct InstanceBox{centre:vec3f,ax:vec3f,ay:vec3f,az:vec3f,has:bool,}
-/** A bound of a world box, rounded to single precision. */
-fn bound(d:vec2u)->f32{return bitcast<f32>(toF32(d));}
 /** The \`k\`th single of placement \`o\`'s oriented box words (nine singles in the doubles after the ball). */
 fn boxAxis(o:u32,c:u32)->vec3f{
  var v=vec3f(0.0);
@@ -143,10 +141,10 @@ fn instanceBox(r:u32)->InstanceBox{
  var nonZero=false;
  for(var k=0u;k<6u;k++){nonZero=nonZero||rootBoxes[o+k].x!=0u||rootBoxes[o+k].y!=0u;}
  if(!nonZero){return b;}
- let lo=vec3f(bound(rootBoxes[o]),bound(rootBoxes[o+1u]),bound(rootBoxes[o+2u]));
- let hi=vec3f(bound(rootBoxes[o+3u]),bound(rootBoxes[o+4u]),bound(rootBoxes[o+5u]));
+ let lo=vec3f(doubleAsSingle(rootBoxes[o]),doubleAsSingle(rootBoxes[o+1u]),doubleAsSingle(rootBoxes[o+2u]));
+ let hi=vec3f(doubleAsSingle(rootBoxes[o+3u]),doubleAsSingle(rootBoxes[o+4u]),doubleAsSingle(rootBoxes[o+5u]));
  b.has=true;
- let centre=vec3f(bound(rootBoxes[o+7u]),bound(rootBoxes[o+8u]),bound(rootBoxes[o+9u]));
+ let centre=vec3f(doubleAsSingle(rootBoxes[o+7u]),doubleAsSingle(rootBoxes[o+8u]),doubleAsSingle(rootBoxes[o+9u]));
  let ax=boxAxis(o,0u);let ay=boxAxis(o,1u);let az=boxAxis(o,2u);
  let finite=all(lo==lo)&&all(hi==hi)&&all(hi>=lo)&&all(abs(lo)<vec3f(UNBOUNDED_EXTENT))&&all(abs(hi)<vec3f(UNBOUNDED_EXTENT))
   &&all(centre==centre)&&all(abs(centre)<vec3f(UNBOUNDED_EXTENT))
@@ -357,7 +355,7 @@ fn worldDigest(r:u32)->vec2u{
 }
 `,
   [
-    toF32,
+    doubleAsSingle,
     CAST_EMIT_WGSL,
     FLAT_INDEX_WGSL,
     WORKGROUP_THREADS_WGSL,

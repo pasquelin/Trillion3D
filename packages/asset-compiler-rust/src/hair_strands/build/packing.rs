@@ -8,6 +8,7 @@ use crate::hair_strands::abi::{
 };
 use half::f16;
 use rayon::prelude::*;
+use trillion3d_math::sequence::random::lcg32_fraction;
 use trillion3d_math::vector::vecn::{length, sub};
 
 /// The seeds of the curves are whole numbers below this one.
@@ -15,8 +16,6 @@ const SEED_RANGE: f32 = 255.0;
 /// The streams the seeds and the shuffle are drawn from: a linear congruence over 32 bits, whose top
 /// 23 bits make the mantissa of a float from 1 to 2. A group's seeds start from its number, its
 /// curves' shuffle from a number of its own.
-const STREAM_MULTIPLIER: u32 = 196_314_165;
-const STREAM_INCREMENT: u32 = 907_633_515;
 const SHUFFLE_SEED: u32 = 0xdeed_beed;
 /// A root coordinate of exactly 1 is nudged under it, so that it stays on the tile it ends.
 const ROOT_UV_NUDGE: f64 = 1e-5_f32 as f64;
@@ -24,34 +23,21 @@ const ROOT_UV_NUDGE: f64 = 1e-5_f32 as f64;
 const ROOT_UV_STEPS: f64 = 2047.0;
 const ROOT_UV_TILES: f64 = 31.0;
 
-/// A stream of numbers from 0 to 1, seeded: the generator the seeds and the shuffle share.
-struct Stream(u32);
-
-impl Stream {
-    fn fraction(&mut self) -> f32 {
-        self.0 = self
-            .0
-            .wrapping_mul(STREAM_MULTIPLIER)
-            .wrapping_add(STREAM_INCREMENT);
-        f32::from_bits(0x3F80_0000 | (self.0 >> 9)) - 1.0
-    }
-}
-
 /// The seed of each of `curves` curves of group `id`.
 fn seeds(id: i32, curves: usize) -> Vec<u8> {
-    let mut stream = Stream(id as u32);
+    let mut stream = id as u32;
     (0..curves)
-        .map(|_| (stream.fraction() * SEED_RANGE) as i32 as u8)
+        .map(|_| (lcg32_fraction(&mut stream) * SEED_RANGE) as i32 as u8)
         .collect()
 }
 
 /// The order the `curves` curves of a group are shuffled into: the curve each rank takes. Each curve
 /// in turn is swapped with one the stream draws from the whole group.
 fn shuffle(curves: usize) -> Vec<usize> {
-    let mut stream = Stream(SHUFFLE_SEED);
+    let mut stream = SHUFFLE_SEED;
     let mut order: Vec<usize> = (0..curves).collect();
     for at in 0..curves {
-        let other = ((stream.fraction() * curves as f32) as usize).min(curves - 1);
+        let other = ((lcg32_fraction(&mut stream) * curves as f32) as usize).min(curves - 1);
         order.swap(at, other);
     }
     order

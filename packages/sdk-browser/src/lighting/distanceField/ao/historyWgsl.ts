@@ -1,6 +1,6 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
+import { deviceDepthOfView, unprojectPoint } from '../../../../../math/src/wgsl/projection.ts'
 import { VECTOR_CODEC_WGSL } from '../../../post/taa/velocityWgsl.ts'
 import { DFAO_COMMON_WGSL } from './commonWgsl.ts'
 import { TILE_SIZE } from './cones.ts'
@@ -36,7 +36,7 @@ fn dfaoUpsampleOnly(@builtin(global_invocation_id) id:vec3u){
  */
 const HISTORY_PLACE = wgslBlock(
   'DFAO_HISTORY_PLACE_WGSL',
-  [DFAO_COMMON_WGSL, VECTOR_CODEC_WGSL, unprojectPoint],
+  [DFAO_COMMON_WGSL, VECTOR_CODEC_WGSL, unprojectPoint, deviceDepthOfView],
   `@group(0) @binding(${B.vectors}) var surfaceVectors:texture_2d<u32>;
 fn dfaoMotion(texel:vec2u,ndc:vec2f,depth:f32)->vec2f{
  if((dfao.counts.w&${DFAO_FLAG.velocity}u)!=0u){
@@ -44,12 +44,12 @@ fn dfaoMotion(texel:vec2u,ndc:vec2f,depth:f32)->vec2f{
   let word=textureLoad(surfaceVectors,min(vec2i(texel)*2,last),0).r;
   if(hasOwnMotion(word)){return decodeVector(word);}
  }
- let before=dfao.clipToPreviousClip*vec4f(ndc,dfaoDeviceDepth(depth),1.0);
+ let before=dfao.clipToPreviousClip*vec4f(ndc,deviceDepthOfView(dfao.depth,depth*0.01),1.0);
  return ndc-before.xy/before.w;
 }
 fn dfaoHistoryWeight(ndc:vec2f,depth:f32,oldNdc:vec2f,oldDepth:f32)->f32{
  let now=dfaoWorldAt(ndc,depth);
- let before=unprojectPoint(dfao.previousUnproject,vec3f(oldNdc,dfaoDeviceDepth(oldDepth)));
+ let before=unprojectPoint(dfao.previousUnproject,vec3f(oldNdc,deviceDepthOfView(dfao.depth,oldDepth*0.01)));
  return select(1.0,0.0,length(before-now)/depth>dfao.history.y/1000.0);
 }`,
 )

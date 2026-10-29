@@ -14,7 +14,7 @@ import {
   computeTextureEntry,
   COMPUTE,
 } from '../../gpu/core/computeBindings.ts'
-import { preparedComputeStage } from '../../gpu/core/computeStages.ts'
+import { askedComputeStage, preparedComputeStage } from '../../gpu/core/computeStages.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { PHYSICAL_LOBES_TARGET } from '../../materials/surface/physicalLobes.ts'
 import { SUBSURFACE_TARGET } from '../../materials/surface/subsurface.ts'
@@ -646,52 +646,32 @@ function createTraceStages(
   layouts: Layouts,
   stage: StageMaker,
 ) {
-  const asked = (
-    groupLayouts: GPUBindGroupLayout[],
-    module: GPUShaderModule,
-    entry: string,
-    label: string,
-  ): Stage => {
-    const made = preparedComputeStage(
-      device,
-      device.createPipelineLayout({ bindGroupLayouts: groupLayouts }),
-      module,
-      entry,
-      undefined,
-      label,
-    ).ask()
-    made.prepare().catch(failed)
-    return made
-  }
-  const traceStage = asked(
+  const traceStage = askedComputeStage(
+    device,
     [layouts.trace, reflectionLayout(device)],
-    device.createShaderModule({
-      label: 'Trillion3D sampled screen trace',
-      code: screenTraceWgsl(),
-    }),
+    screenTraceWgsl(),
     SCREEN_TRACE_ENTRY,
     'Trillion3D sampled screen trace',
+    failed,
   )
   // The trace through the maps reads them as the virtual maps, or, with the classic shadow maps, by the classic filter.
   const vsmStages = [false, true].map((classic) =>
-    asked(
+    askedComputeStage(
+      device,
       [layouts.vsm, reflectionLayout(device)],
-      device.createShaderModule({
-        label: 'Trillion3D sampled map trace',
-        code: vsmTraceSamplesWgsl(classic),
-      }),
+      vsmTraceSamplesWgsl(classic),
       VSM_TRACE_ENTRY,
       'Trillion3D sampled map trace',
+      failed,
     ),
   )
-  const softwareStage = asked(
+  const softwareStage = askedComputeStage(
+    device,
     [layouts.software, reflectionLayout(device)],
-    device.createShaderModule({
-      label: 'Trillion3D sampled software trace',
-      code: softwareTraceWgsl(),
-    }),
+    softwareTraceWgsl(),
     SOFTWARE_TRACE_ENTRY,
     'Trillion3D sampled software trace',
+    failed,
   )
   // The strands' voxels march of the surfaces' rays (`hairSurfaceTraceWgsl.ts`), its pipeline asked at the first image that has hair to trace.
   let hairTraceStage: Stage | undefined
@@ -715,41 +695,22 @@ function createTraceStages(
 
 /** The pipelines of the temporal and spatial filters, and the sampler the temporal one reads the history by. */
 function createFilterStages(device: GPUDevice, failed: (error: unknown) => void, layouts: Layouts) {
-  const asked = (
-    groupLayouts: GPUBindGroupLayout[],
-    module: GPUShaderModule,
-    entry: string,
-    label: string,
-  ): Stage => {
-    const made = preparedComputeStage(
-      device,
-      device.createPipelineLayout({ bindGroupLayouts: groupLayouts }),
-      module,
-      entry,
-      undefined,
-      label,
-    ).ask()
-    made.prepare().catch(failed)
-    return made
-  }
   return {
-    temporalStage: asked(
+    temporalStage: askedComputeStage(
+      device,
       [layouts.temporal, reflectionLayout(device)],
-      device.createShaderModule({
-        label: 'Trillion3D sampled temporal filter',
-        code: temporalWgsl(),
-      }),
+      temporalWgsl(),
       TEMPORAL_ENTRY,
       'Trillion3D sampled temporal filter',
+      failed,
     ),
-    spatialStage: asked(
+    spatialStage: askedComputeStage(
+      device,
       [layouts.spatial],
-      device.createShaderModule({
-        label: 'Trillion3D sampled spatial filter',
-        code: spatialWgsl(),
-      }),
+      spatialWgsl(),
       SPATIAL_ENTRY,
       'Trillion3D sampled spatial filter',
+      failed,
     ),
     historySampler: device.createSampler({
       magFilter: 'linear',
@@ -972,6 +933,70 @@ interface EncodeContext {
   groups: Kit['groups']
 }
 
+/** The pixel's layers and the lights, as the groups of the sampling, the shading and the spatial filter name them. */
+const pixelKeys = (c: EncodeContext) => {
+  const { inputs, colours, words } = c
+  return [colours, inputs.surface.views()[2], words, inputs.depth, inputs.view, inputs.lights]
+}
+const pixelEntries = (c: EncodeContext): GPUBindGroupEntry[] => {
+  const { inputs, colours, words } = c
+  return [
+    { binding: D.colours, resource: colours },
+    { binding: D.emissiveAo, resource: inputs.surface.views()[2] },
+    { binding: D.words, resource: words },
+    { binding: D.depth, resource: inputs.depth },
+    { binding: D.view, resource: { buffer: inputs.view } },
+    { binding: D.lights, resource: { buffer: inputs.lights } },
+  ]
+}
+
+/** The light grid, the suns' ranks, the light functions and, where the key has them, the light profiles: what the sampling and the shading read. */
+const lightGridKeys = (c: EncodeContext) => {
+  const { inputs } = c
+  return [inputs.tiles, inputs.sunRanks, inputs.lightFunction, inputs.lightProfile?.view]
+}
+const lightGridEntries = (c: EncodeContext): GPUBindGroupEntry[] => {
+  const { inputs, key } = c
+  return [
+    { binding: D.tiles, resource: { buffer: inputs.tiles } },
+    { binding: D.sunRanks, resource: { buffer: inputs.sunRanks } },
+    { binding: D.lightFunctionAtlas, resource: inputs.lightFunction },
+    ...(!key.profileless && inputs.lightProfile
+      ? [
+          { binding: D.lightProfileAtlas, resource: inputs.lightProfile.view },
+          { binding: D.lightProfileSampler, resource: inputs.lightProfile.sampler },
+        ]
+      : []),
+  ]
+}
+
+/** The thin and lobe targets the class reads. */
+const classTargetEntries = (c: EncodeContext, tileClass: TileClass): GPUBindGroupEntry[] => {
+  const { surface } = c.inputs
+  return [
+    ...(CLASS_CUTS[tileClass].thin
+      ? [{ binding: D.subsurface, resource: surface.subsurfaceView }]
+      : []),
+    ...(CLASS_CUTS[tileClass].lobes ? [{ binding: D.lobes, resource: surface.lobesView }] : []),
+  ]
+}
+
+/** The parameters, the samples and rays, and the compaction by kind: what every trace reads of the rays. */
+const rayKeys = (r: Resources) => [
+  r.params,
+  r.samplesView,
+  r.raysView,
+  r.compactData,
+  r.compactCount,
+]
+const rayEntries = (r: Resources): GPUBindGroupEntry[] => [
+  { binding: B.params, resource: { buffer: r.params } },
+  { binding: B.samples, resource: r.samplesView },
+  { binding: B.rays, resource: r.raysView },
+  { binding: B.compactData, resource: { buffer: r.compactData } },
+  { binding: B.compactCount, resource: { buffer: r.compactCount } },
+]
+
 /** The compaction of the rays by their kind, shared by the traces. */
 type Compaction = ReturnType<typeof compactionOf>
 
@@ -1060,22 +1085,14 @@ function encodeTiles(c: EncodeContext) {
 
 /** The draw of the lights of each tile, by mode. */
 function encodeDraws(c: EncodeContext) {
-  const { pass, inputs, r, history, colours, words, vectors, key, family } = c
+  const { pass, inputs, r, history, vectors, family } = c
   for (const { mode, tileClass } of SAMPLING_MODES) {
     const sampleGroup = family.groups
       .get(tileClass)!
       .get(
         [
-          colours,
-          inputs.surface.views()[2],
-          words,
-          inputs.depth,
-          inputs.view,
-          inputs.lights,
-          inputs.tiles,
-          inputs.sunRanks,
-          inputs.lightFunction,
-          inputs.lightProfile?.view,
+          ...pixelKeys(c),
+          ...lightGridKeys(c),
           r.params,
           r.downAllocator,
           r.downData,
@@ -1088,21 +1105,8 @@ function encodeDraws(c: EncodeContext) {
           inputs.surface.lobesView,
         ],
         () => [
-          { binding: D.colours, resource: colours },
-          { binding: D.emissiveAo, resource: inputs.surface.views()[2] },
-          { binding: D.words, resource: words },
-          { binding: D.depth, resource: inputs.depth },
-          { binding: D.view, resource: { buffer: inputs.view } },
-          { binding: D.lights, resource: { buffer: inputs.lights } },
-          { binding: D.tiles, resource: { buffer: inputs.tiles } },
-          { binding: D.sunRanks, resource: { buffer: inputs.sunRanks } },
-          { binding: D.lightFunctionAtlas, resource: inputs.lightFunction },
-          ...(!key.profileless && inputs.lightProfile
-            ? [
-                { binding: D.lightProfileAtlas, resource: inputs.lightProfile.view },
-                { binding: D.lightProfileSampler, resource: inputs.lightProfile.sampler },
-              ]
-            : []),
+          ...pixelEntries(c),
+          ...lightGridEntries(c),
           { binding: B.params, resource: { buffer: r.params } },
           { binding: B.downAllocator, resource: { buffer: r.downAllocator } },
           { binding: B.downData, resource: { buffer: r.downData } },
@@ -1111,12 +1115,7 @@ function encodeDraws(c: EncodeContext) {
           { binding: B.guideHistory, resource: { buffer: history } },
           { binding: B.blue, resource: inputs.noise },
           { binding: B.vectors, resource: vectors },
-          ...(CLASS_CUTS[tileClass].thin
-            ? [{ binding: D.subsurface, resource: inputs.surface.subsurfaceView }]
-            : []),
-          ...(CLASS_CUTS[tileClass].lobes
-            ? [{ binding: D.lobes, resource: inputs.surface.lobesView }]
-            : []),
+          ...classTargetEntries(c, tileClass),
         ],
       )
     pass.setPipeline(family.stages.get(mode)!.get()!)
@@ -1145,11 +1144,7 @@ function traceMaps(c: EncodeContext, t: Compaction) {
       m.pool,
       m.view,
       inputs.noise,
-      r.params,
-      r.samplesView,
-      r.raysView,
-      r.compactData,
-      r.compactCount,
+      ...rayKeys(r),
     ],
     () => [
       { binding: D.colours, resource: colours },
@@ -1160,11 +1155,7 @@ function traceMaps(c: EncodeContext, t: Compaction) {
       { binding: VSM_TRACE_BINDING.pool, resource: { buffer: m.pool } },
       { binding: VSM_TRACE_BINDING.view, resource: { buffer: m.view } },
       { binding: VSM_TRACE_BINDING.noise, resource: inputs.noise },
-      { binding: B.params, resource: { buffer: r.params } },
-      { binding: B.samples, resource: r.samplesView },
-      { binding: B.rays, resource: r.raysView },
-      { binding: B.compactData, resource: { buffer: r.compactData } },
-      { binding: B.compactCount, resource: { buffer: r.compactCount } },
+      ...rayEntries(r),
     ],
   )
   pass.setPipeline(vsmStages[inputs.classicShadows ? 1 : 0]!.get()!)
@@ -1181,18 +1172,11 @@ function traceScreen(c: EncodeContext, t: Compaction) {
   const { lists, compactGroup, argsOver } = t
   run(compacts[0]!.list, compactGroup, lists, ceilDiv(g.sampleView[1], SAMPLED_GROUP))
   run(compacts[0]!.args, argsOver[0]!, 1)
-  const traceGroup = groups.trace.get(
-    [colours, words, r.params, r.samplesView, r.raysView, r.compactData, r.compactCount],
-    () => [
-      { binding: D.colours, resource: colours },
-      { binding: D.words, resource: words },
-      { binding: B.params, resource: { buffer: r.params } },
-      { binding: B.samples, resource: r.samplesView },
-      { binding: B.rays, resource: r.raysView },
-      { binding: B.compactData, resource: { buffer: r.compactData } },
-      { binding: B.compactCount, resource: { buffer: r.compactCount } },
-    ],
-  )
+  const traceGroup = groups.trace.get([colours, words, ...rayKeys(r)], () => [
+    { binding: D.colours, resource: colours },
+    { binding: D.words, resource: words },
+    ...rayEntries(r),
+  ])
   pass.setPipeline(traceStage.get()!)
   pass.setBindGroup(0, traceGroup)
   pass.setBindGroup(1, inputs.reflection)
@@ -1209,22 +1193,10 @@ function traceField(c: EncodeContext, t: Compaction, field: GlobalFieldRead) {
   run(compacts[1]!.list, compactGroup, lists, ceilDiv(g.sampleView[1], SAMPLED_GROUP))
   run(compacts[1]!.args, argsOver[1]!, 1)
   const softwareGroup = groups.software.get(
-    [
-      inputs.lights,
-      r.params,
-      r.samplesView,
-      r.raysView,
-      r.compactData,
-      r.compactCount,
-      field.readGeneration,
-    ],
+    [inputs.lights, ...rayKeys(r), field.readGeneration],
     () => [
       { binding: D.lights, resource: { buffer: inputs.lights } },
-      { binding: B.params, resource: { buffer: r.params } },
-      { binding: B.samples, resource: r.samplesView },
-      { binding: B.rays, resource: r.raysView },
-      { binding: B.compactData, resource: { buffer: r.compactData } },
-      { binding: B.compactCount, resource: { buffer: r.compactCount } },
+      ...rayEntries(r),
       ...field.readEntries(SOFTWARE_FIELD_BINDING),
     ],
   )
@@ -1282,7 +1254,7 @@ function traceField(c: EncodeContext, t: Compaction, field: GlobalFieldRead) {
 
 /** The hash of what each tile saw, then every pixel of the tiles of each mode lit by the lights its samples drew, resolved for the filters. */
 function encodeShading(c: EncodeContext) {
-  const { pass, run, inputs, g, r, current, colours, words, key, family } = c
+  const { pass, run, inputs, g, r, current, family } = c
   const { fixed } = c.stages
   const { groups } = c
   const hashGroup = groups.hash.get([r.params, r.samplesView, current], () => [
@@ -1297,16 +1269,8 @@ function encodeShading(c: EncodeContext) {
       .get(tileClass)!
       .get(
         [
-          colours,
-          inputs.surface.views()[2],
-          words,
-          inputs.depth,
-          inputs.view,
-          inputs.lights,
-          inputs.tiles,
-          inputs.sunRanks,
-          inputs.lightFunction,
-          inputs.lightProfile?.view,
+          ...pixelKeys(c),
+          ...lightGridKeys(c),
           r.params,
           r.allocator,
           r.data,
@@ -1318,21 +1282,8 @@ function encodeShading(c: EncodeContext) {
           inputs.surface.lobesView,
         ],
         () => [
-          { binding: D.colours, resource: colours },
-          { binding: D.emissiveAo, resource: inputs.surface.views()[2] },
-          { binding: D.words, resource: words },
-          { binding: D.depth, resource: inputs.depth },
-          { binding: D.view, resource: { buffer: inputs.view } },
-          { binding: D.lights, resource: { buffer: inputs.lights } },
-          { binding: D.tiles, resource: { buffer: inputs.tiles } },
-          { binding: D.sunRanks, resource: { buffer: inputs.sunRanks } },
-          { binding: D.lightFunctionAtlas, resource: inputs.lightFunction },
-          ...(!key.profileless && inputs.lightProfile
-            ? [
-                { binding: D.lightProfileAtlas, resource: inputs.lightProfile.view },
-                { binding: D.lightProfileSampler, resource: inputs.lightProfile.sampler },
-              ]
-            : []),
+          ...pixelEntries(c),
+          ...lightGridEntries(c),
           { binding: B.params, resource: { buffer: r.params } },
           { binding: B.tileAllocator, resource: { buffer: r.allocator } },
           { binding: B.tileData, resource: { buffer: r.data } },
@@ -1340,12 +1291,7 @@ function encodeShading(c: EncodeContext) {
           { binding: B.resolvedDiffuse, resource: r.resolvedDiffuseView },
           { binding: B.resolvedSpecular, resource: r.resolvedSpecularView },
           { binding: B.blue, resource: inputs.noise },
-          ...(CLASS_CUTS[tileClass].thin
-            ? [{ binding: D.subsurface, resource: inputs.surface.subsurfaceView }]
-            : []),
-          ...(CLASS_CUTS[tileClass].lobes
-            ? [{ binding: D.lobes, resource: inputs.surface.lobesView }]
-            : []),
+          ...classTargetEntries(c, tileClass),
         ],
       )
     pass.setPipeline(family.shading.get(mode)!.get()!)
@@ -1408,12 +1354,7 @@ function encodeDenoise(c: EncodeContext) {
   // The filtered light filtered over the neighbours, its detail put back: the light to add to the lit image.
   const spatialGroup = groups.spatial.get(
     [
-      colours,
-      inputs.surface.views()[2],
-      words,
-      inputs.depth,
-      inputs.view,
-      inputs.lights,
+      ...pixelKeys(c),
       inputs.lightFunction,
       r.params,
       r.resolvedDiffuseView,
@@ -1426,12 +1367,7 @@ function encodeDenoise(c: EncodeContext) {
       inputs.surface.lobesView,
     ],
     () => [
-      { binding: D.colours, resource: colours },
-      { binding: D.emissiveAo, resource: inputs.surface.views()[2] },
-      { binding: D.words, resource: words },
-      { binding: D.depth, resource: inputs.depth },
-      { binding: D.view, resource: { buffer: inputs.view } },
-      { binding: D.lights, resource: { buffer: inputs.lights } },
+      ...pixelEntries(c),
       { binding: D.lightFunctionAtlas, resource: inputs.lightFunction },
       { binding: B.params, resource: { buffer: r.params } },
       { binding: B.resolvedDiffuse, resource: r.resolvedDiffuseView },

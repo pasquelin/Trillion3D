@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { frameAround, intoFrame } from '../../../../../math/src/wgsl/basis.ts'
 import { visibleGgxHalf } from '../../../../../math/src/wgsl/sampling.ts'
+import { safeRcp } from '../../../../../math/src/wgsl/reals.ts'
 import { SCREEN_SPACE_INPUTS_WGSL, SCREEN_SPACE_SURFACE_WGSL } from '../rayCastWgsl.ts'
 import { SCREEN_SPACE_GROUP } from '../screenSpaceView.ts'
 import { DENOISE_BINDINGS as D, DENOISE_PARAMS_WGSL } from './denoiseView.ts'
@@ -24,12 +25,12 @@ export const DENOISE_COMMON_WGSL = wgslBlock(
     frameAround,
     intoFrame,
     visibleGgxHalf,
+    safeRcp,
   ],
   `@group(${SCREEN_SPACE_GROUP}) @binding(${D.params}) var<uniform> dnParams:DenoiseParams;
 @group(${SCREEN_SPACE_GROUP}) @binding(${D.sourceA}) var sourceA:texture_2d<f32>;
 @group(${SCREEN_SPACE_GROUP}) @binding(${D.sourceB}) var sourceB:texture_2d<f32>;
 const DN_MAX_HALF:f32=65504.0;
-fn dnRcp(x:f32)->f32{return select(0.0,1.0/x,x>0.0);}
 fn dnLuma4(c:vec3f)->f32{return c.g*2.0+(c.r+c.b);}
 struct DnSig{n:f32,c:vec4f,m:f32,}
 struct DnLoaded{s:DnSig,conf:f32,}
@@ -38,7 +39,7 @@ fn dnAdd(a:DnSig,b:DnSig)->DnSig{return DnSig(a.n+b.n,a.c+b.c,a.m+b.m);}
 fn dnSq(a:DnSig)->DnSig{return DnSig(a.n*a.n,a.c*a.c,a.m*a.m);}
 /** The sample brought to one: its colour and missed share divided by its weight, the weight one where it had any. */
 fn dnNormalized(a:DnSig)->DnSig{
- var o=dnMul(a,dnRcp(a.n));
+ var o=dnMul(a,safeRcp(a.n));
  o.n=select(0.0,1.0,a.n>0.0);
  return o;
 }
@@ -54,7 +55,7 @@ fn dnOutside(pos:vec2f)->bool{
 /** The surface of a position of the full-resolution image (pixels, a pixel's centre at +0.5). */
 struct DnMeta{P:vec3f,depth:f32,N:vec3f,rough:f32,}
 fn dnMetaAt(full:vec2f)->DnMeta{
- let pixel=ssClampPixel(vec2i(floor(full)),vec2i(ssView.size.xy));
+ let pixel=clampToExtent(vec2i(floor(full)),vec2i(ssView.size.xy));
  let surface=ssSurfaceAt(pixel);
  let z=max(hizOpaqueDepth(pixel),1e-8);
  return DnMeta(ssWorldAt(ssScreenOfPixel(full),z),ssSceneDepth(z),surface.N,surface.roughness);
@@ -111,7 +112,7 @@ fn dnDecodeHistory(a:vec4f,b:vec4f,unit:bool)->DnLoaded{
  return DnLoaded(DnSig(n,a*n,n*(1.0-a.a)),b.g);
 }
 fn dnEncodeA(s:DnSig)->vec4f{
- let c=s.c*dnRcp(s.n);
+ let c=s.c*safeRcp(s.n);
  return vec4f(min(c.rgb,vec3f(DN_MAX_HALF)),c.a);
 }
 fn dnEncodeB(s:DnSig,conf:f32)->vec4f{return vec4f(s.n,conf,0.0,0.0);}
@@ -120,20 +121,20 @@ fn dnKarisInverse(x:f32)->f32{return 4.0/(1.0-x*dnParams.time.y);}
 /** The colour into the space a kernel accumulates in, and back. */
 fn dnToAccum(s:DnSig)->DnSig{
  var o=s;
- let c=s.c*dnRcp(s.n);
+ let c=s.c*safeRcp(s.n);
  o.c=c*dnKarisWeight(dnLuma4(c.rgb))*s.n;
  return o;
 }
 fn dnFromAccum(s:DnSig)->DnSig{
  var o=s;
- let c=s.c*dnRcp(s.n);
+ let c=s.c*safeRcp(s.n);
  o.c=c*dnKarisInverse(dnLuma4(c.rgb))*s.n;
  return o;
 }
 fn dnToLcocg(c:vec3f)->vec3f{
  let y=dot(c,vec3f(1.0,2.0,1.0));
  let yc=vec3f(y,dot(c,vec3f(2.0,0.0,-2.0)),dot(c,vec3f(-1.0,2.0,-1.0)));
- return vec3f(yc.x,yc.yz*dnRcp(yc.x));
+ return vec3f(yc.x,yc.yz*safeRcp(yc.x));
 }
 fn dnFromLcocg(l:vec3f)->vec3f{
  let y=l.x;
@@ -145,13 +146,13 @@ fn dnFromLcocg(l:vec3f)->vec3f{
 /** The colour into the space the history is clamped in (luma, chroma over luma, the alpha kept), and back. */
 fn dnToReject(s:DnSig)->DnSig{
  var o=s;
- let c=s.c*dnRcp(s.n);
- o.c=vec4f(dnToLcocg(c.rgb*dnRcp(c.a)),c.a)*s.n;
+ let c=s.c*safeRcp(s.n);
+ o.c=vec4f(dnToLcocg(c.rgb*safeRcp(c.a)),c.a)*s.n;
  return o;
 }
 fn dnFromReject(s:DnSig)->DnSig{
  var o=s;
- let c=s.c*dnRcp(s.n);
+ let c=s.c*safeRcp(s.n);
  o.c=vec4f(dnFromLcocg(c.rgb)*c.a,c.a)*s.n;
  return o;
 }
@@ -174,8 +175,8 @@ fn dnDecodeHistory(a:vec4f,b:vec4f,unit:bool)->DnLoaded{
  if(unit){n=select(0.0,1.0,b.g>0.0);}
  return DnLoaded(DnSig(n,vec4f(n*a.rgb,0.0),n*b.r),1.0);
 }
-fn dnEncodeA(s:DnSig)->vec4f{return vec4f(min(s.c.rgb*dnRcp(s.n),vec3f(DN_MAX_HALF)),1.0);}
-fn dnEncodeB(s:DnSig,conf:f32)->vec4f{return vec4f(s.m*dnRcp(s.n),saturate(s.n/64.0),0.0,0.0);}
+fn dnEncodeA(s:DnSig)->vec4f{return vec4f(min(s.c.rgb*safeRcp(s.n),vec3f(DN_MAX_HALF)),1.0);}
+fn dnEncodeB(s:DnSig,conf:f32)->vec4f{return vec4f(s.m*safeRcp(s.n),saturate(s.n/64.0),0.0,0.0);}
 fn dnToAccum(s:DnSig)->DnSig{return s;}
 fn dnFromAccum(s:DnSig)->DnSig{return s;}
 fn dnToReject(s:DnSig)->DnSig{return s;}

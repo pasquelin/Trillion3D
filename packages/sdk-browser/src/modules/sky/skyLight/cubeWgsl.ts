@@ -6,7 +6,7 @@ import {
 import { PI } from '../../../../../math/src/wgsl/constants.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { frameAround, outOfFrame } from '../../../../../math/src/wgsl/basis.ts'
-import { sampleSphereEven } from '../../../../../math/src/wgsl/sampling.ts'
+import { sampleCosineHemisphere, sampleSphereEven } from '../../../../../math/src/wgsl/sampling.ts'
 import { GGX_DISTRIBUTION_WGSL } from '../../../lighting/standardLighting.ts'
 import { IRRADIANCE_TERMS } from '../../../../../sdk-core/src/scene/core/irradianceTerms.ts'
 import { MIP_ROUGHNESS_SLOPE, ROUGHEST_LEVEL } from './layout.ts'
@@ -74,17 +74,19 @@ fn roughnessMip(roughness:f32,lastMip:f32)->f32{
  */
 export const SKY_SAMPLING_WGSL = wgslBlock(
   'SKY_SAMPLING_WGSL',
-  [PI, GGX_DISTRIBUTION_WGSL, frameAround, outOfFrame, sampleSphereEven, sinFromCosUnclamped],
+  [
+    PI,
+    GGX_DISTRIBUTION_WGSL,
+    frameAround,
+    outOfFrame,
+    sampleCosineHemisphere,
+    sampleSphereEven,
+    sinFromCosUnclamped,
+  ],
   `
 /** Point \`index\` of \`count\`: the index over the count, then the index's bits reversed. */
 fn lowDiscrepancy(index:u32,count:u32)->vec2f{
  return vec2f(fract(f32(index)/f32(count)),f32(reverseBits(index))*2.3283064365386963e-10);
-}
-fn sampleCosineLobe(e:vec2f)->vec3f{
- let phi=2.0*PI*e.x;
- let cosTheta=sqrt(e.y);
- let sinTheta=sinFromCosUnclamped(cosTheta);
- return vec3f(sinTheta*cos(phi),sinTheta*sin(phi),cosTheta);
 }
 /** The half vector of the GGX lobe of squared roughness-alpha \`alpha2\`. */
 fn sampleGgxHalf(e:vec2f,alpha2:f32)->vec3f{

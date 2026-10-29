@@ -1,6 +1,6 @@
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { toF32 } from '../../../../../math/src/wgsl/f32.ts'
+import { doubleAsSingle } from '../../../../../math/src/wgsl/f32.ts'
 import { rayBoxEntry, rayInverseDirection } from '../../../../../math/src/wgsl/geometry.ts'
 import { NO_INDEX } from '../../../../../math/src/wgsl/constants.ts'
 import { NODE_CHILD_COUNT, NODE_FIRST_CHILD, NODE_KIND } from '../nodeLayout.ts'
@@ -46,7 +46,7 @@ type TreeWalk = {
  *  the slot no placement holds (`NO_INDEX`), with the functions of its cast (`placementTreeCast`). */
 export const PLACEMENT_TREE_WALK_WGSL = wgslBlock(
   'PLACEMENT_TREE_WALK_WGSL',
-  [rayBoxEntry, rayInverseDirection, toF32, NO_INDEX],
+  [rayBoxEntry, rayInverseDirection, doubleAsSingle, NO_INDEX],
   wgslConsts({
     WALK_DEPTH: TREE_DEPTH,
     WALK_LIST,
@@ -230,7 +230,7 @@ type TreeCast = TreeWalk & {
  * with the walk's.
  */
 export const placementTreeCast = (t: TreeCast) => {
-  const eye = `vec3f(bitcast<f32>(toF32(${t.eyeXY}.xy)),bitcast<f32>(toF32(${t.eyeXY}.zw)),bitcast<f32>(toF32(${t.eyeZ})))`
+  const eye = `vec3f(doubleAsSingle(${t.eyeXY}.xy),doubleAsSingle(${t.eyeXY}.zw),doubleAsSingle(${t.eyeZ}))`
   return ` let origin=${t.offset ? `${eye}+${t.offset}` : eye};
  let inverse=rayInverseDirection(${t.direction});
  if(${t.root}==NO_INDEX){

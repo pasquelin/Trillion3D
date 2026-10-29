@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock, wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { pixelToNdc } from '../../../math/src/wgsl/projection.ts'
 import { SUBGROUP_ALL_WGSL } from '../gpu/core/subgroups.ts'
 import { GROUP_GRID_WGSL } from '../gpu/dispatch/grid.ts'
 import { HAIR_IMAGE_WGSL } from './imageBlock.ts'
@@ -26,6 +27,17 @@ export const hairTilePixel = wgslFn(
   'hairTilePixel',
   [],
   `fn hairTilePixel(tile:u32,local:vec2u)->vec2u{return vec2u(tile&${HAIR_COORD_MASK}u,tile>>${HAIR_COORD_BITS}u)*${HAIR_TILE_SIZE}u+local;}`,
+)
+
+/** The clip position of a corner of the tile whose word is `tile`, in an image of `size` pixels: the vertex shader of the quad (two triangles, `HAIR_TILE_VERTICES` vertices) drawn over each tile. */
+export const hairTileQuad = wgslFn(
+  'hairTileQuad',
+  [hairTilePixel, pixelToNdc],
+  `fn hairTileQuad(vertex:u32,tile:u32,size:vec2u)->vec4f{
+ let corner=vec2f(f32(vertex==1u||vertex==4u||vertex==5u),f32(vertex==2u||vertex==3u||vertex==5u));
+ let origin=vec2f(hairTilePixel(tile,vec2u(0u)));
+ return vec4f(pixelToNdc(origin+corner*${HAIR_TILE_SIZE}.0,vec2f(size)),0.0,1.0);
+}`,
 )
 
 /** The pixel `local` of the tile of rank `rank` in the list of all the tiles with strands, and whether

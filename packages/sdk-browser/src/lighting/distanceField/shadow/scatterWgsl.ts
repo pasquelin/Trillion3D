@@ -37,7 +37,7 @@ fn dfshCorner(i:u32)->vec3f{
  * The decision (`dfshTileHit`, a separating-axis test): the mesh's box in the shadow space, its
  * bounds grown by the widest cone radius across the light, must meet the tile's column, which runs
  * from the sphere's far side to far toward the light (z from 0 to 1000: a mesh between the light and
- * the cascade casts onto it), on the three axes of the tile's column; then the column's corners
+ * the cards casts onto them), on the three axes of the tile's column; then the column's corners
  * must not all lie to one side of the box on any of the box's three axes. The count pass (run when the
  * lists are compacted) adds one to the tile; the write pass takes the next place in the tile's run of
  * the lists — from the start offsets, or the tile's own place when they are not compacted

@@ -1,6 +1,6 @@
 import { ceilDiv } from '../../../../../math/src/scalar/integers.ts'
 import { wgslBlock, wgslConst } from '../../../../../math/src/wgsl/decl.ts'
-import type { FieldType } from '../../../gpu/core/fieldLayout.ts'
+import { putVec4, type FieldType } from '../../../gpu/core/fieldLayout.ts'
 import { CLOUD_MODES, type CloudMode, type TargetSize } from './cloudModes.ts'
 
 /**
@@ -55,22 +55,6 @@ export function cloudSizes(allocated: Size, view: Size, mode: CloudMode = CLOUD_
   }
 }
 
-/** Four words into `out` at `at`: the one way every uniform of the clouds' passes is
- *  written, by index, no array made. */
-export function put4(
-  out: Float32Array | Uint32Array,
-  at: number,
-  x: number,
-  y: number,
-  z: number,
-  w: number,
-) {
-  out[at] = x
-  out[at + 1] = y
-  out[at + 2] = z
-  out[at + 3] = w
-}
-
 /** The bounds an image's reads keep to, so that a filtered read never reaches past the part of the
  *  texture the view fills: eight floats, the last texel to load (`coordRect`) and the range of
  *  coordinates to sample (`uvRect`, half a texel and a hundredth in). One field of a uniform
@@ -80,8 +64,8 @@ export const BOUNDS_FIELD: FieldType = { wgsl: 'ImageBounds', words: 8, align: 4
 /** The bounds of `image` into `out` at `at` (`BOUNDS_FIELD`). */
 export function writeSafeBounds(out: Float32Array, at: number, image: ImageSize) {
   const { texture, view } = image
-  put4(out, at, 0, 0, view.width - 1, view.height - 1)
-  put4(
+  putVec4(out, at, 0, 0, view.width - 1, view.height - 1)
+  putVec4(
     out,
     at + 4,
     0.51 / texture.width,

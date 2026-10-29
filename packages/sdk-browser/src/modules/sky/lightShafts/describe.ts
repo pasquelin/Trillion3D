@@ -8,7 +8,7 @@ import {
 } from '../../../gpu/core/computeBindings.ts'
 import { depthTermsAhead } from '../../../post/taa/view.ts'
 import { HDR_FORMAT } from '../../../scene/targetFormats.ts'
-import { put4 } from '../clouds/reconstructLayout.ts'
+import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
 import {
   LIGHT_SHAFT_FORMAT,
   LIGHT_SHAFT_MASK_FORMAT,
@@ -174,8 +174,8 @@ export function writeLightShaftView<T extends Float32Array>(
   const [red, green, blue] = light.shaftBloomTint
   const [depthA, depthB, depthC, depthD] = depthTermsAhead(input.projection)
   out.set(lightShaftBounds(shaft), at.bounds)
-  put4(out, at.aspect, aspect.x, aspect.y, aspect.inverseX, aspect.inverseY)
-  put4(
+  putVec4(out, at.aspect, aspect.x, aspect.y, aspect.inverseX, aspect.inverseY)
+  putVec4(
     out,
     at.light,
     1 / light.shaftOcclusionDepthRange,
@@ -183,8 +183,8 @@ export function writeLightShaftView<T extends Float32Array>(
     1,
     light.shaftOcclusionDarkness,
   )
-  put4(out, at.tint, red, green, blue, light.shaftBloomThreshold)
-  put4(
+  putVec4(out, at.tint, red, green, blue, light.shaftBloomThreshold)
+  putVec4(
     out,
     at.origin,
     (origin.pixel[0] / scene.texture.width) * aspect.inverseX,
@@ -192,10 +192,10 @@ export function writeLightShaftView<T extends Float32Array>(
     light.shaftBloomMaxBrightness,
     exposure,
   )
-  put4(out, at.radial, LIGHT_SHAFT_BLUR_SAMPLES, quality.lightShaftFirstPassDistance, index, 0)
-  put4(out, at.uv, uvX, uvY, 0, 0)
-  put4(out, at.depthTerms, depthA, depthB, depthC, depthD)
-  put4(
+  putVec4(out, at.radial, LIGHT_SHAFT_BLUR_SAMPLES, quality.lightShaftFirstPassDistance, index, 0)
+  putVec4(out, at.uv, uvX, uvY, 0, 0)
+  putVec4(out, at.depthTerms, depthA, depthB, depthC, depthD)
+  putVec4(
     out,
     at.scene,
     scene.texture.width,

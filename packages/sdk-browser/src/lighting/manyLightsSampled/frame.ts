@@ -237,19 +237,23 @@ export function encodeSampledSamples(
   if (samples) earlyFront.set(rt, { frame: madeFront.inputs.frame, samples })
 }
 
+/** The samples a marking marks pages from: their texture and parameters, and the workgroups that cover them. */
+function markingOf({ geometry, samples, params }: SampledSamples) {
+  return {
+    texture: samples,
+    params,
+    workgroups: [
+      Math.ceil(geometry.sampleView[0] / SAMPLED_GROUP),
+      Math.ceil(geometry.sampleView[1] / SAMPLED_GROUP),
+    ] as [number, number],
+  }
+}
+
 /** The samples the shadow maps' marking marks pages from this image, none when the samples phase was not encoded before them. */
 export function sampledMarkingSamples(rt: WebgpuPagesRuntime): VsmMarkingSamples | undefined {
   const held = early.get(rt)
   if (!held || held.frame !== noiseFrame(rt)) return undefined
-  const { geometry } = held.samples
-  return {
-    texture: held.samples.samples,
-    params: held.samples.params,
-    workgroups: [
-      Math.ceil(geometry.sampleView[0] / SAMPLED_GROUP),
-      Math.ceil(geometry.sampleView[1] / SAMPLED_GROUP),
-    ],
-  }
+  return markingOf(held.samples)
 }
 
 /** The nearest translucent layer's samples the marking marks pages from this image, with the layer's depth they stand on; none when its samples phase was not encoded before the marking. */
@@ -259,16 +263,7 @@ export function sampledMarkingFrontSamples(
   const held = earlyFront.get(rt)
   const front = rt.gpu.reflection?.front
   if (!held || !front || held.frame !== noiseFrame(rt)) return undefined
-  const { geometry } = held.samples
-  return {
-    texture: held.samples.samples,
-    params: held.samples.params,
-    workgroups: [
-      Math.ceil(geometry.sampleView[0] / SAMPLED_GROUP),
-      Math.ceil(geometry.sampleView[1] / SAMPLED_GROUP),
-    ],
-    depth: front.views.depth,
-  }
+  return { ...markingOf(held.samples), depth: front.views.depth }
 }
 
 /**

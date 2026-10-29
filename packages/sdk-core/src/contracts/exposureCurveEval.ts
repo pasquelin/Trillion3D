@@ -1,18 +1,10 @@
 import { PI } from '../../../math/src/constants.ts'
-import { lerp } from '../../../math/src/scalar/reals.ts'
+import { bezier, lerp } from '../../../math/src/scalar/reals.ts'
 import { length2 } from '../../../math/src/vector/vector.ts'
 import type { ExposureCurve, ExposureCurveKey } from './exposureCurve.ts'
 
 /** How near zero, or to each other, two roots of the weighted cubic are taken for equal. */
 const SMALL = 1e-8
-
-/** The cubic Bezier of four points at `t`, by repeated mixing. */
-function bezier(p0: number, p1: number, p2: number, p3: number, t: number) {
-  const p01 = lerp(p0, p1, t)
-  const p12 = lerp(p1, p2, t)
-  const p23 = lerp(p2, p3, t)
-  return lerp(lerp(p01, p12, t), lerp(p12, p23, t), t)
-}
 
 const cbrt = (x: number) => (x > 0 ? x ** (1 / 3) : x < 0 ? -((-x) ** (1 / 3)) : 0)
 

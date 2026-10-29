@@ -14,7 +14,7 @@ import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import type { CameraImage } from '../../../frame/backend/state/previousCamera.ts'
 import { quantizationError } from '../../../post/taa/colorSpaceWgsl.ts'
 import { stochasticSlot, type TaaFrameState } from '../../../post/taa/frameState.ts'
-import { put4 } from '../clouds/reconstructLayout.ts'
+import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
 import { LIGHT_SHAFT_SAMPLER } from './describe.ts'
 import { LIGHT_SHAFT_FORMAT, type LightShaftSizes } from './layout.ts'
 import {
@@ -167,8 +167,8 @@ export function writeLightShaftTemporalView<T extends Float32Array>(
   const cut = !history.valid || !state.hasHistory || !before
   out.set(clipToPrevClip(before?.viewProjection ?? camera.viewProjection, camera), T.clipToPrevClip)
   const { width: pw, height: ph } = shaft.view
-  put4(out, T.outputSize, pw, ph, 1 / pw, 1 / ph)
-  put4(
+  putVec4(out, T.outputSize, pw, ph, 1 / pw, 1 / ph)
+  putVec4(
     out,
     T.viewportUv,
     (pw - 0.5 * factor) / pw,
@@ -176,7 +176,7 @@ export function writeLightShaftTemporalView<T extends Float32Array>(
     factor / scene.view.width,
     factor / scene.view.height,
   )
-  put4(
+  putVec4(
     out,
     T.inputUv,
     scene.view.width / factor / shaft.texture.width,
@@ -184,16 +184,16 @@ export function writeLightShaftTemporalView<T extends Float32Array>(
     0,
     0,
   )
-  put4(out, T.inputRect, 0, 0, pw - 1, ph - 1)
+  putVec4(out, T.inputRect, 0, 0, pw - 1, ph - 1)
   const { viewport, buffer } = history
   // The history's screen position to its texture coordinates, over the buffer it was drawn in.
   const halfX = (viewport.width * 0.5) / buffer.width,
     halfY = (viewport.height * 0.5) / buffer.height
-  if (cut) put4(out, T.history, 1, 1, 1, 1)
-  else put4(out, T.history, halfX, (-viewport.height * 0.5) / buffer.height, halfX, halfY)
+  if (cut) putVec4(out, T.history, 1, 1, 1, 1)
+  else putVec4(out, T.history, halfX, (-viewport.height * 0.5) / buffer.height, halfX, halfY)
   const [top, left, centre, right, bottom] = lightShaftTemporalWeights(state.jitter, factor)
-  put4(out, T.plusA, top, left, centre, right)
-  put4(out, T.plusB, bottom, 0, 0, 0)
+  putVec4(out, T.plusA, top, left, centre, right)
+  putVec4(out, T.plusB, bottom, 0, 0, 0)
   out[T.historyMax] = cut ? 0 : 1 - 1 / ceilDiv(viewport.width, factor)
   out[T.historyMax + 1] = cut ? 0 : 1 - 1 / ceilDiv(viewport.height, factor)
   out[T.exposure] = input.frameExposure

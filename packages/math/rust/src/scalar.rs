@@ -157,13 +157,20 @@ pub fn mean(values: impl IntoIterator<Item = f64>) -> f64 {
     sum / count as f64
 }
 
-/// The median of `values` by rank `len / 2` in `total_cmp` order (the upper one of an even count),
-/// found by a partial selection: `values` is left partitioned around it, the lower ranks before it
-/// and the higher after, as a full sort would rank them. Panics when `values` is empty.
+/// The rank of the median of `len` values, the nearest rank at 0.5, `ceil(len / 2) − 1`: the lower
+/// one of an even count, as `quantileOf(values, 0.5)` of `packages/math/src/scalar/quantile.ts`.
+#[inline]
+fn median_rank(len: usize) -> usize {
+    len.saturating_sub(1) / 2
+}
+
+/// The median of `values` by its nearest rank at 0.5 in `total_cmp` order (the lower one of an even
+/// count), found by a partial selection: `values` is left partitioned around it, the lower ranks
+/// before it and the higher after, as a full sort would rank them. Panics when `values` is empty.
 #[inline]
 pub fn median_in_place(values: &mut [f64]) -> f64 {
     *values
-        .select_nth_unstable_by(values.len() / 2, f64::total_cmp)
+        .select_nth_unstable_by(median_rank(values.len()), f64::total_cmp)
         .1
 }
 
@@ -173,7 +180,7 @@ pub fn median_in_place(values: &mut [f64]) -> f64 {
 /// three are bit-identical to a full sort's. Panics when `values` is empty.
 pub fn min_median_max(values: &mut [f64]) -> (f64, f64, f64) {
     let median = median_in_place(values);
-    let (lower, upper) = values.split_at(values.len() / 2);
+    let (lower, upper) = values.split_at(median_rank(values.len()));
     let min = (lower.iter().copied().chain([median]))
         .min_by(f64::total_cmp)
         .unwrap_or(median);

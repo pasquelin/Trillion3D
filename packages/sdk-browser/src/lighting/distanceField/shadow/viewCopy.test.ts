@@ -6,16 +6,12 @@ import { ensureDfshView } from './view.ts'
 
 installGpuGlobals()
 
-test("the lists of a sun's cascade can be copied out: the cards' direct light reads copies of them", () => {
+test("the lists of a sun can be copied out: the cards' direct light reads copies of them", () => {
   const { device } = fakeDevice()
   const { view } = ensureDfshView(undefined, device, {
-    extent: [1, 1],
-    view: [1, 1],
     objects: 4,
     tiles: 4,
     perTile: 8,
-    layers: 1,
-    fullResolution: false,
   })
   assert.ok(view)
   const encoder = device.createCommandEncoder()

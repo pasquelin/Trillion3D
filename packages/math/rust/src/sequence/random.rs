@@ -36,6 +36,15 @@ pub fn lcg32(state: &mut u32) -> u32 {
     *state
 }
 
+/// One step of the 32-bit linear congruential generator `x · 196314165 + 907633515`, wrapping,
+/// as a number in `[0, 1)`: the new state's top 23 bits the mantissa of a number in `[1, 2)`,
+/// less one.
+#[inline]
+pub fn lcg32_fraction(state: &mut u32) -> f32 {
+    *state = state.wrapping_mul(196_314_165).wrapping_add(907_633_515);
+    f32::from_bits(0x3F80_0000 | (*state >> 9)) - 1.0
+}
+
 /// `x` mixed by the SplitMix64 finaliser into `[0, 1)`: its top 53 bits, exact in an `f64` (all
 /// 64 would round up to `1` near `u64::MAX`).
 #[inline]

@@ -1,4 +1,5 @@
 import { wgslFn } from '../../../../math/src/wgsl/decl.ts'
+import { pow2FromExponent } from '../../../../math/src/wgsl/integer.ts'
 
 /**
  * THE UNSIGNED SMALL FLOATS of the 11-11-10 word, which a pass keeps its light in where core WebGPU has no storage
@@ -28,20 +29,14 @@ const packSmallFloat = wgslFn(
 }`,
 )
 
-const powerOfTwo = wgslFn(
-  'powerOfTwo',
-  [],
-  'fn powerOfTwo(exponent:i32)->f32{return bitcast<f32>(u32(exponent+127)<<23u);}',
-)
-
 export const packSmallFloatDown = wgslFn(
   'packSmallFloatDown',
-  [powerOfTwo],
+  [pow2FromExponent],
   `fn packSmallFloatDown(f:f32,mantissa:u32)->u32{
  if(!(f>0.0)){return 0u;}
  let bits=bitcast<u32>(f);let e=bits>>23u;
  let mask=(1u<<mantissa)-1u;
- if(e<113u){return u32(f*powerOfTwo(14+i32(mantissa)));}
+ if(e<113u){return u32(f*pow2FromExponent(14+i32(mantissa)));}
  if(e>142u){return (30u<<mantissa)|mask;}
  return ((e-112u)<<mantissa)|((bits>>(23u-mantissa))&mask);
 }`,

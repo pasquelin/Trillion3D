@@ -54,3 +54,11 @@ export const toF32 = wgslFn(
  return sign|(field<<23u)|(m&0x7fffffu);
 }`,
 )
+
+/** Double `a` rounded to a single (`toF32`), as the float: what a bound or a coordinate kept as a
+ *  double is read by in single precision. */
+export const doubleAsSingle = wgslFn(
+  'doubleAsSingle',
+  [toF32],
+  'fn doubleAsSingle(a:vec2u)->f32{return bitcast<f32>(toF32(a));}',
+)

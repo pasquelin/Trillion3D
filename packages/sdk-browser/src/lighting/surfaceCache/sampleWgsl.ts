@@ -151,11 +151,17 @@ const readBindings = (
 @group(${group}) @binding(${first + L.final}) var scFinalAtlas:texture_2d<${lightAtlasScalar(light)}>;
 ${feedback ? `@group(${group}) @binding(${first + L.feedback}) var<storage,read_write> scFeedback:array<atomic<u32>>;\n` : ''}`
 
-/** The records: a word of the tables, a card, a mesh cards, and what takes a vector from the space
- *  of the mesh cards to a card's. */
+/** A word of the tables, as it is stored and as a float: for a program that declares `surfaceTables`. */
+export const SURFACE_TABLE_WORDS_WGSL = wgslBlock(
+  'SURFACE_TABLE_WORDS_WGSL',
+  [],
+  `fn scW(i:u32)->u32{return surfaceTables[i];}
+fn scF(i:u32)->f32{return bitcast<f32>(surfaceTables[i]);}`,
+)
+
+/** The records: a card, a mesh cards, and what takes a vector from the space of the mesh cards to a
+ *  card's. */
 const RECORD_READS = `
-fn scW(i:u32)->u32{return surfaceTables[i];}
-fn scF(i:u32)->f32{return bitcast<f32>(surfaceTables[i]);}
 fn scAtlasSide()->f32{return f32(surfaceTables[SC_AT_ATLAS_SIDE]);}
 fn scInvAtlasSide()->f32{return scF(SC_AT_INV_ATLAS_SIDE);}
 /** The mesh cards of the placement \`placement\`, SC_NONE where it has none. */
@@ -321,7 +327,7 @@ export const surfaceCacheRecordsWgsl = (
 ): WgslDecl =>
   wgslBlock(
     `SURFACE_CACHE_RECORDS_WGSL(${group},${first},${access})`,
-    [luminance, CARD_NORMAL_WGSL, LIGHTING_CHANNELS_WGSL],
+    [luminance, CARD_NORMAL_WGSL, LIGHTING_CHANNELS_WGSL, SURFACE_TABLE_WORDS_WGSL],
     `${CONSTANTS}\n${recordTables(group, first, access)}${RECORD_READS}${RECORD_DECODES}`,
   )
 

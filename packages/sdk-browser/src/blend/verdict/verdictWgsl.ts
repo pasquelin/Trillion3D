@@ -6,7 +6,7 @@ import { ACTOR_ROW } from '../../geometry/dag/worlds/worldLinks.ts'
 import { linkDrawsWgsl } from '../../geometry/dag/shader/worldGateWgsl.ts'
 import { dSub } from '../../../../math/src/wgsl/double.ts'
 import { dExponent } from '../../../../math/src/wgsl/doubleWords.ts'
-import { toF32 } from '../../../../math/src/wgsl/f32.ts'
+import { doubleAsSingle } from '../../../../math/src/wgsl/f32.ts'
 import { bitMask } from '../../../../math/src/wgsl/integer.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
 import { FLUSH, ROUNDING_GAMMA } from '../../../../math/src/float/guards.ts'
@@ -139,8 +139,8 @@ fn boxExcluded(at:u32)->bool{
   let lo=keyedDouble(at+2u*k);
   let hi=keyedDouble(at+2u*(k+3u));
   if(!boundedDouble(lo)||!boundedDouble(hi)){return false;}
-  box[k]=bitcast<f32>(toF32(dSub(lo,e)));
-  box[k+3u]=bitcast<f32>(toF32(dSub(hi,e)));
+  box[k]=doubleAsSingle(dSub(lo,e));
+  box[k+3u]=doubleAsSingle(dSub(hi,e));
  }
  for(var p=0u;p<6u;p++){
   let sides=frame[FRAME_SIDES+p];
@@ -213,7 +213,7 @@ fn judgeBlendItems(@builtin(local_invocation_id) lid:vec3u,@builtin(workgroup_id
     ),
     dSub,
     dExponent,
-    toF32,
+    doubleAsSingle,
     bitMask,
     linkDrawsWgsl,
     FLAT_INDEX_WGSL,

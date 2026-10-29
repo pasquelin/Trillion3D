@@ -32,19 +32,19 @@ import {
 } from '../../../math/src/wgsl/double.ts'
 import { dIsFinite } from '../../../math/src/wgsl/doubleRound.ts'
 import { dIsZero } from '../../../math/src/wgsl/doubleWords.ts'
-import { fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
+import { doubleAsSingle, fromF32, toF32 } from '../../../math/src/wgsl/f32.ts'
 import { D_HALF, D_ONE, D_TWO, D_ZERO } from '../../../math/src/wgsl/doubleConstants.ts'
 
 /** The largest root of `4t³ − 3t = x`, `x` in [−1, 1], in double precision. */
 const CHEBYSHEV_WGSL = wgslBlock(
   'CHEBYSHEV_WGSL',
-  [dAdd, dSub, dMul, dLess, fromF32, toF32, D_ONE, D_HALF],
+  [dAdd, dSub, dMul, dLess, fromF32, doubleAsSingle, D_ONE, D_HALF],
   `fn chebyshevRoot(x:vec2u)->vec2u{
- let xf=bitcast<f32>(toF32(x));
+ let xf=doubleAsSingle(x);
  if(dLess(x,${wgslDouble(-0.5)})){
   // Near −1 the root is 1/2 + u: 6u² + 4u³ = 1 + x, which the root's flat slope hides from the first form.
   let y=dAdd(D_ONE,x);
-  let yf=max(bitcast<f32>(toF32(y)),0.0);
+  let yf=max(doubleAsSingle(y),0.0);
   var uf=sqrt(yf/6.0);
   if(uf<=0.0){return D_HALF;}
   for(var i=0u;i<8u;i++){uf=uf-(4.0*uf*uf*uf+6.0*uf*uf-yf)/(12.0*uf*(uf+1.0));}

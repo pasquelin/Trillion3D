@@ -74,6 +74,21 @@ fn twins() -> Vec<Twin> {
                 f64s(&q)
             },
         },
+        Twin {
+            file: "quaternion_normalize",
+            name: "rotation_quaternion",
+            about: "writeRotationQuaternion (math matrix4Trs.ts), rotation_quaternion (math/rust matrix/rotation.rs): the largest-of-trace-and-diagonal branch, the four branches and matrices that are not rotations",
+            inputs: "r: 9 f64, the rotation by row (m11, m12, m13, m21, ...)",
+            outputs: "4 f64 (x, y, z, w)",
+            ulps: 0,
+            cases: rotation_cases,
+            compute: |v| {
+                let e = |row: usize, col: usize| v[row * 3 + col].f64();
+                f64s(&crate::matrix::rotation::rotation_quaternion(
+                    [0, 1, 2].map(|col| [0, 1, 2].map(|row| e(row, col))),
+                ))
+            },
+        },
     ];
     twins.extend(crate::golden::scalar::twins());
     twins
@@ -88,6 +103,24 @@ fn normalize_cases() -> Vec<Vec<Value>> {
         cases.push(f64s(&[0.5, -0.5, 0.5, 0.5].map(|c| c * scale)));
     }
     cases
+}
+
+/// One matrix per branch of the quaternion read (trace, then the three diagonal terms), then
+/// matrices that are not rotations, whose terms the read takes as they come.
+fn rotation_cases() -> Vec<Vec<Value>> {
+    const ROWS: [[f64; 9]; 10] = [
+        [1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0],
+        [1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, -1.0],
+        [-1.0, 0.0, 0.0, 0.0, 1.0, 0.0, 0.0, 0.0, -1.0],
+        [-1.0, 0.0, 0.0, 0.0, -1.0, 0.0, 0.0, 0.0, 1.0],
+        [0.0, 0.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1.0, 0.0],
+        [0.0, -1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0, 1.0],
+        [-0.5, 0.5, 0.7, 0.3, -0.2, 0.4, -0.6, 0.1, -0.9],
+        [0.3, -0.8, 0.1, 0.9, -0.1, 0.2, 0.05, 0.6, -0.7],
+        [-0.2, 0.4, 0.6, 0.7, 0.9, -0.3, 0.8, -0.5, -0.4],
+        [-0.7, 0.2, 0.3, 0.1, -0.6, 0.5, -0.4, 0.9, 0.2],
+    ];
+    ROWS.iter().map(|r| f64s(r)).collect()
 }
 
 /// Hostile matrices against each other, a column of negative zeros, then ordinary ones.

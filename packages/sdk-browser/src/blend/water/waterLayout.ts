@@ -23,7 +23,6 @@ export const WATER_BINDINGS = {
   waterDepth: 7,
   tiles: 8,
   sun: 9,
-  farMask: 10,
 } as const
 
 /** The bindings of group 0 of the water pass's own programs, which the WGSL and the layouts both read:

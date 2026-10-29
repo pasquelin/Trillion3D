@@ -12,13 +12,10 @@ const LABEL = 'Trillion3D sun distance-field shadow'
 const COMPUTE = {
   cull: ['cull', 'dfshCull'],
   offsets: ['offsets', 'dfshOffsets'],
-  trace: ['trace', 'dfshTrace'],
-  traceGather: ['gather', 'dfshTraceGather'],
-  final: ['final', 'dfshFinalPass'],
 } as const satisfies Partial<Record<DfshProgram, readonly [keyof typeof DFSH_SHADERS, string]>>
 
 /**
- * THE SUN'S SHADOW PIPELINES, once a device, each prepared off the thread (`PreparedPipeline`): a
+ * THE SUNS' MESH LISTS PIPELINES, once a device, each prepared off the thread (`PreparedPipeline`): a
  * bind-group layout for every program (`DFSH_LAYOUTS`); the compute stages (`COMPUTE`); and the
  * scatter's two draws (the count pass and the write pass) of the meshes' cubes, front faces kept,
  * into a stand-in target that no colour is written to.
@@ -71,24 +68,18 @@ export const dfshPrograms = oncePerDevice((device: GPUDevice) => {
   }
 })
 
-/** The sun's shadow pipelines of a device (`dfshPrograms`). */
+/** The suns' mesh lists pipelines of a device (`dfshPrograms`). */
 export type DfshPrograms = ReturnType<typeof dfshPrograms>
 
-/** Asks every pipeline the image's settings use off the frame, and whether all are compiled: the
+/** Asks every pipeline the settings use off the frame, and whether all are compiled: the
  *  frames wait for them (`PreparedPipeline.ask`), so that none is compiled on the frame that binds
- *  it. The scatter's draws and the start offsets are asked only where the meshes are scattered (the
- *  count and the offsets, where the lists are compacted), the gather trace only where they are not. */
+ *  it. The start offsets and the count draw are asked only where the lists are compacted. */
 export function dfshProgramsReady(
   programs: DfshPrograms,
-  settings: Pick<DfshSettings, 'scatterTiles' | 'compactTiles'>,
+  settings: Pick<DfshSettings, 'compactTiles'>,
 ) {
-  const { cull, offsets, trace, traceGather, final } = programs.compute
-  const scattered = [trace, programs.writeTiles]
-  if (settings.compactTiles) scattered.push(offsets, programs.countTiles)
-  const wanted: { ask(): { readonly ready: boolean } }[] = [
-    cull,
-    final,
-    ...(settings.scatterTiles ? scattered : [traceGather]),
-  ]
+  const { cull, offsets } = programs.compute
+  const wanted: { ask(): { readonly ready: boolean } }[] = [cull, programs.writeTiles]
+  if (settings.compactTiles) wanted.push(offsets, programs.countTiles)
   return wanted.map((pipeline) => pipeline.ask()).every((pipeline) => pipeline.ready)
 }

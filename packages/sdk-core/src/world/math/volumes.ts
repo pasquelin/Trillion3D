@@ -3,7 +3,7 @@ import {
   frustumContainsPoint,
   frustumPlanesFromMatrix,
 } from '../../../../math/src/geometry/frustum/frustum.ts'
-import { triangleCross } from '../../../../math/src/geometry/triangle.ts'
+import { triangleCentroid, triangleCross } from '../../../../math/src/geometry/triangle.ts'
 import { length3 } from '../../../../math/src/vector/vector.ts'
 import { slabCut } from '../../../../math/src/geometry/slab.ts'
 import { Vector3 } from './vector3.ts'
@@ -136,9 +136,8 @@ export class Ray {
 const corners = new Float64Array(9),
   cross = new Float64Array(3)
 
-/** The corners' edge cross product (`triangleCross`), in a module buffer valid until the next
- *  call: the normal by their winding, twice the area long. */
-function crossOf({ a, b, c }: Triangle) {
+/** The triangle's corners, flat, in the module buffer `corners`. */
+function cornersOf({ a, b, c }: Triangle) {
   corners[0] = a.x
   corners[1] = a.y
   corners[2] = a.z
@@ -148,6 +147,12 @@ function crossOf({ a, b, c }: Triangle) {
   corners[6] = c.x
   corners[7] = c.y
   corners[8] = c.z
+}
+
+/** The corners' edge cross product (`triangleCross`), in a module buffer valid until the next
+ *  call: the normal by their winding, twice the area long. */
+function crossOf(triangle: Triangle) {
+  cornersOf(triangle)
   return triangleCross(cross, 0, corners, 0, 3, 6)
 }
 
@@ -185,10 +190,9 @@ export class Triangle {
   }
   /** The middle of the three corners. */
   getMidpoint(out = new Vector3()) {
-    return out
-      .addVectors(this.a, this.b)
-      .add(this.c)
-      .multiplyScalar(1 / 3)
+    cornersOf(this)
+    triangleCentroid(cross, 0, corners, 0, 3, 6)
+    return out.set(cross[0], cross[1], cross[2])
   }
 }
 

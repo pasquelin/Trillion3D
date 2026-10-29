@@ -34,7 +34,6 @@ import {
 } from '../../lighting/shadows/vsm/frame/vsmConsumers.ts'
 import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { marksVolumeVoxels } from '../../blend/radianceMarkSetting.ts'
-import { sunShadowMask } from '../../lighting/distanceField/shadow/state.ts'
 import { skyOcclusionRead } from '../../lighting/distanceField/ao/state.ts'
 import { skyOcclusionPlanned } from '../render/encodeSkyOcclusion.ts'
 import { capsuleIndirectPlanned, capsuleIndirectRead } from '../../lighting/capsuleShadows/host.ts'
@@ -256,7 +255,6 @@ function shadowResources(rt: WebgpuPagesRuntime, active: boolean) {
   contractResources.vsmMask = active ? vsmShadowMask(rt) : undefined
   contractResources.vsmLightGrid = active ? vsmShadowedLightGrid(rt) : undefined
   contractResources.vsmSunMask = active ? vsmSunShadowMask(rt) : undefined
-  contractResources.farShadowMask = active ? sunShadowMask(rt) : undefined
   contractResources.vsm = active ? vsmConsumerResources(rt) : undefined
 }
 

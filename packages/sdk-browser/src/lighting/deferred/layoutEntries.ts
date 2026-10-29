@@ -128,8 +128,8 @@ const contactBendEntries = (contact: boolean): GPUBindGroupLayoutEntry[] =>
 const volumeShadowEntry = (volume: boolean): GPUBindGroupLayoutEntry[] =>
   volume ? [computeBufferEntry(DEFERRED_BINDINGS.volumeShadow, 'read-only-storage', fragment)] : []
 
-/** The sun's pass: the light buffer and the ranks of the directional lights in it, the shadows and the
- *  sun's distance-field shadow, the clouds' shade, and, where the program holds contact shadow code (`contact`), the screen-space
+/** The sun's pass: the light buffer and the ranks of the directional lights in it, the shadows,
+ *  the clouds' shade, and, where the program holds contact shadow code (`contact`), the screen-space
  *  contact shadows. */
 export const sunLayoutEntries = (
   lobes: boolean,
@@ -141,7 +141,6 @@ export const sunLayoutEntries = (
   lightsEntry(),
   computeBufferEntry(DEFERRED_BINDINGS.sunRanks, 'read-only-storage', fragment),
   ...shadowEntries(),
-  computeBufferEntry(DEFERRED_BINDINGS.farShadowMask, 'read-only-storage', fragment),
   ...cloudShadowLayoutEntries(DEFERRED_CLOUD_SHADOW_BINDINGS, fragment),
   occlusionEntry(),
   ...contactBendEntries(contact),
@@ -163,7 +162,7 @@ const profileEntries = (profiled: boolean): GPUBindGroupLayoutEntry[] =>
     : []
 
 /** The local lights' pass: the light buffer and the grid's lists, the shadows, the light profiles where the scene has
- *  any, and the sun's distance-field shadow, which only the view of the shadows reads. */
+ *  any. */
 export const localLayoutEntries = (
   lobes: boolean,
   profiled = false,
@@ -177,7 +176,6 @@ export const localLayoutEntries = (
   computeBufferEntry(DEFERRED_BINDINGS.tiles, 'read-only-storage', fragment),
   ...shadowEntries(),
   ...localMaskEntries(),
-  computeBufferEntry(DEFERRED_BINDINGS.farShadowMask, 'read-only-storage', fragment),
   occlusionEntry(),
   ...profileEntries(profiled),
   ...contactBendEntries(contact),

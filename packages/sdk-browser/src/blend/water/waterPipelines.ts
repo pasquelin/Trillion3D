@@ -60,11 +60,6 @@ export const waterGroupLayout = oncePerDevice((device) =>
         buffer: { type: 'read-only-storage' },
       },
       { binding: WATER_BINDINGS.sun, visibility: STAGE.fragment, texture: { sampleType: 'float' } },
-      {
-        binding: WATER_BINDINGS.farMask,
-        visibility: STAGE.fragment,
-        buffer: { type: 'read-only-storage' },
-      },
     ],
   }),
 )

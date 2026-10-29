@@ -31,3 +31,25 @@ export function triangleCross<T extends NumberSink>(
   )
   return out
 }
+
+/**
+ * The centroid of the triangle, into `out[o..o + 2]`: the corners' mean axis by axis, their sum in
+ * corner order divided by 3. The corners are read at `v[a]`, `v[b]` and `v[c]` (three numbers each),
+ * every one before the first write. `centroid` of `packages/math/rust/src/geometry/triangle.rs`.
+ */
+export function triangleCentroid<T extends NumberSink>(
+  out: T,
+  o: number,
+  v: ArrayLike<number>,
+  a: number,
+  b: number,
+  c: number,
+) {
+  const x = (v[a] + v[b] + v[c]) / 3,
+    y = (v[a + 1] + v[b + 1] + v[c + 1]) / 3,
+    z = (v[a + 2] + v[b + 2] + v[c + 2]) / 3
+  out[o] = x
+  out[o + 1] = y
+  out[o + 2] = z
+  return out
+}

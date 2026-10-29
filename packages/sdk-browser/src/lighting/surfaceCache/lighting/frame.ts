@@ -14,7 +14,7 @@ import { lightProfileResources } from '../../lightProfile/frame.ts'
 import { lightProfileStandIn } from '../../lightProfile/profileStandIn.ts'
 import { cloudShadowStandIn } from '../../atmosphere/cloudShadowStandIn.ts'
 import type { CloudShadowSet } from '../../atmosphere/cloudShadowRead.ts'
-import { fieldSettingsOf, reachOf, surfaceHitReads } from '../frame.ts'
+import { fieldSettingsOf, keptStreamingView, reachOf, surfaceHitReads } from '../frame.ts'
 import { noiseFrame } from '../../../frame/render/noiseFrame.ts'
 import {
   createSurfaceLighting,
@@ -93,6 +93,7 @@ export function lightSurfaceCache(
         noiseFrame: noiseFrame(rt),
         eye: frame.cam.eye,
         viewProjection: frame.viewProjection,
+        other: keptStreamingView(),
         preExposure: cachedLightingPreExposureOf(rt),
         exposure: preExposureOf(rt).exposure,
         viewPreExposure: frame.viewPreExposure,

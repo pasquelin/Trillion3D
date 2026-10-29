@@ -1,4 +1,5 @@
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
+import { viewDepthOfDevice } from '../../../../math/src/wgsl/projection.ts'
 import { hizDepthWgsl } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { CAPSULE_CASTER_SURFACE_FLAG } from '../../materials/surface/surfaceModel.ts'
 import { CAPSULE_BINDINGS } from './layout.ts'
@@ -16,12 +17,12 @@ export interface CapsuleHooks {
 
 /** The hooks over the uniform `terms` names (a vec4f of the depth terms: `CAPSULE_PARAMS.depth`). */
 export const capsuleHooks = (terms: string): CapsuleHooks => ({
-  uses: [hizDepthWgsl(0, CAPSULE_BINDINGS.depth)],
+  uses: [hizDepthWgsl(0, CAPSULE_BINDINGS.depth), viewDepthOfDevice],
   text: `
 @group(0) @binding(${CAPSULE_BINDINGS.flags}) var capsuleFlags:texture_2d<u32>;
 fn capsuleSceneDepth(pixel:vec2i)->f32{
  let z=hizOpaqueDepth(pixel);
- return select(${terms}.y+(1.0-z)*${terms}.x,${terms}.x/max(z,1.0e-30),${terms}.z>0.5);
+ return viewDepthOfDevice(${terms},z);
 }
 fn capsuleCastsIndirect(pixel:vec2i)->bool{
  let size=vec2i(textureDimensions(capsuleFlags));

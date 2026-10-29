@@ -1,5 +1,4 @@
-// The opaque resolve reads the projection's suns' mask (`vsmSunFactor`), the least of it and the sun's
-// distance-field shadow's where the program reads one; a rectangle light's shadow read in the loop.
+// A rectangle light's shadow read in the loop of the opaque resolve.
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
@@ -15,36 +14,6 @@ import { testLight } from './testLight.fixture.ts'
 import { kindLane } from '../../../../sdk-core/src/scene/light/lanes.fixture.ts'
 
 type V = number[]
-
-test('the resolve takes the least of a sun’s shadow maps’ share and the sun’s distance-field shadow’s, a byte a channel of the pixel’s word', () => {
-  const FAR = wgslModule(directShadowWgsl({ pass: 'mask', sun: 25, farMask: 53 }))
-  const read = (channel: number, projected: number, mask: number[]) =>
-    shaderRun<{ vsmSunFactor: (channel: number) => number }>(FAR, ['vsmSunFactor'], {
-      vsmSunMask: 'sun',
-      textureLoad: () => [projected, 0, 0, 0],
-      vsmMaskPixel: [3, 2],
-      vsmFarMask: mask,
-      arrayLength: (reference: { get(): unknown[] }) => reference.get().length,
-    }).vsmSunFactor(channel)
-  // A buffer of an 8-wide image: the stride, then a word a pixel; pixel (3, 2) is the 20th word.
-  const mask = Array.from({ length: 1 + 8 * 4 }, () => 0xffffffff)
-  mask[0] = 8
-  mask[1 + 2 * 8 + 3] = 0x40ff8010
-  const root = (byte: number) => (byte / 255) ** 2
-  assert.ok(Math.abs(read(0, 1, mask) - root(0x10)) < 1e-6, 'channel 0: its byte, squared')
-  assert.ok(Math.abs(read(1, 1, mask) - root(0x80)) < 1e-6, 'channel 1')
-  assert.equal(read(2, 1, mask), 1, 'channel 2: lit by the distance fields')
-  assert.ok(Math.abs(read(3, 1, mask) - root(0x40)) < 1e-6, 'channel 3')
-  assert.equal(read(1, 0.05, mask), 0.05, 'the shadow maps’ share when it is the lesser')
-  assert.equal(read(4, 0.3, mask), 0.3, 'a fifth channel has no lane')
-  // An image that drew none binds a one-word stand-in: nothing is read of it.
-  assert.equal(read(0, 0.6, [0]), 0.6)
-  // A partial share is the projection's own: the reference's mask read holds no dither.
-  assert.equal(read(4, 0.3, mask), 0.3, 'a penumbra, as stored')
-  // A program given no binding for it reads none.
-  const none = wgslModule(directShadowWgsl({ pass: 'mask', sun: 25 }))
-  assert.ok(!none.includes('vsmFarMask'))
-})
 
 /** The private variables of a module the runner leaves undeclared — no initial value —, each
  *  undefined: the loop's own state, found in its text, not listed by hand. */

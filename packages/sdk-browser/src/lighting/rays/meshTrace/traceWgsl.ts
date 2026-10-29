@@ -1,5 +1,5 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { rayBoxSpan, rayInverseDirection } from '../../../../../math/src/wgsl/geometry.ts'
+import { segmentBoxSpan } from '../../../../../math/src/wgsl/geometry.ts'
 import { interleavedGradientNoise } from '../../../../../math/src/wgsl/sampling.ts'
 import { UNIQUE_BRICK } from '../../distanceField/layout.ts'
 import { meshFieldWgsl } from '../../distanceField/meshFieldWgsl.ts'
@@ -21,10 +21,7 @@ const meshTraceDeclarations = (
 @group(${group}) @binding(${first + MESH_TRACE_BINDING.indices}) var<storage,read> msdfIndices:array<u32>;
 struct MsdfRay{start:vec3f,dir:vec3f,minTrace:f32,maxTrace:f32,expandByTime:bool,initialMax:f32,dithered:bool,ditherCoord:vec2f}
 struct MsdfHit{distance:f32,object:u32}
-struct MsdfDerived{normal:vec3f,instance:u32}
-fn msdfLineBox(start:vec3f,end:vec3f,low:vec3f,high:vec3f)->vec2f{
- return saturate(rayBoxSpan(low,high,start,rayInverseDirection(end-start)));
-}`
+struct MsdfDerived{normal:vec3f,instance:u32}`
 
 /** The march of a ray through the field of one mesh. */
 const MESH_TRACE_MARCH_WGSL = `fn msdfTraceMesh(ray:MsdfRay,object:u32,current:MsdfHit)->MsdfHit{
@@ -38,7 +35,7 @@ const MESH_TRACE_MARCH_WGSL = `fn msdfTraceMesh(ray:MsdfRay,object:u32,current:M
  let volumeMax=length(volumeDir);
  let volumeMin=volumeMax*(ray.minTrace/maxTrace);
  volumeDir=volumeDir/volumeMax;
- let span=msdfLineBox(volumeStart,volumeEnd,-data.extent,data.extent)*volumeMax;
+ let span=segmentBoxSpan(volumeStart,volumeEnd,-data.extent,data.extent)*volumeMax;
  let first=max(span.x,volumeMin);
  if(!(first<span.y)){return hit;}
  let asset=dfAssetMip(data.asset,dfAssetMip(data.asset,0u).numMips-1u);
@@ -128,8 +125,7 @@ export const meshTraceWgsl = (group: number, first: number) =>
       meshFieldWgsl(group, first),
       meshGridCommonWgsl(group, first + MESH_TRACE_BINDING.params),
       interleavedGradientNoise,
-      rayInverseDirection,
-      rayBoxSpan,
+      segmentBoxSpan,
     ],
     ['\n' + meshTraceDeclarations(group, first), MESH_TRACE_MARCH_WGSL, MESH_TRACE_CELL_WGSL].join(
       '\n',

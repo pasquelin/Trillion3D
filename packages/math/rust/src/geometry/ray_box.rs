@@ -2,12 +2,16 @@
 //! (`asset-compiler-rust/src/trace/tracer.rs`) and the triangle trees' walks
 //! (`asset-compiler-rust/src/hlod/flatten/bake/tree.rs`) test each tree node with.
 
+/// The least magnitude a divisor may have: `DIVISOR_FLOOR` of `packages/math/src/matrix/singular.ts`,
+/// the same number every shader divisor floors at.
+pub const DIVISOR_FLOOR: f64 = 1e-20;
+
 /// The reciprocal of the direction `ray`, axis by axis; `f64::INFINITY` for a component nearer zero
-/// than `1e-20`, which has none: the ray runs along that axis' slabs (`ray_span`).
+/// than `DIVISOR_FLOOR`, which has none: the ray runs along that axis' slabs (`ray_span`).
 #[inline]
 pub fn inverse(ray: [f64; 3]) -> [f64; 3] {
     ray.map(|d| {
-        if d.abs() < 1e-20 {
+        if d.abs() < DIVISOR_FLOOR {
             f64::INFINITY
         } else {
             1.0 / d

@@ -1,4 +1,5 @@
 import { wgslBlock, wgslVariants } from '../../../../math/src/wgsl/decl.ts'
+import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 import { hizDepthWgsl } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { VECTOR_CODEC_WGSL } from '../../post/taa/velocityWgsl.ts'
 import { LOBE_AXIS_WGSL } from '../lobeAxisWgsl.ts'
@@ -29,7 +30,7 @@ const B = SCREEN_SPACE_BINDINGS
 /** The view, the depth pyramid and the surface the passes read, declared once. */
 export const SCREEN_SPACE_INPUTS_WGSL = wgslBlock(
   'SCREEN_SPACE_INPUTS_WGSL',
-  [SCREEN_SPACE_VIEW_WGSL, hizDepthWgsl(SCREEN_SPACE_GROUP, B.hiz)],
+  [SCREEN_SPACE_VIEW_WGSL, hizDepthWgsl(SCREEN_SPACE_GROUP, B.hiz), clampToExtent],
   `@group(${SCREEN_SPACE_GROUP}) @binding(${B.view}) var<uniform> ssView:ScreenSpaceView;
 @group(${SCREEN_SPACE_GROUP}) @binding(${B.normals}) var surfaceNormals:texture_2d<f32>;
 @group(${SCREEN_SPACE_GROUP}) @binding(${B.flags}) var surfaceFlags:texture_2d<u32>;
@@ -39,7 +40,6 @@ export const SCREEN_SPACE_INPUTS_WGSL = wgslBlock(
 @group(${SCREEN_SPACE_GROUP}) @binding(${B.vectors}) var colorVectors:texture_2d<u32>;
 const SS_PI:f32=3.14159265358979;
 fn ssPerspective()->bool{return ssView.camera.w!=0.0;}
-fn ssClampPixel(p:vec2i,size:vec2i)->vec2i{return clamp(p,vec2i(0),size-vec2i(1));}
 /** The view depth of a device depth z (the projection's inverse). */
 fn ssSceneDepth(z:f32)->f32{
  let d=ssView.depth;
@@ -236,7 +236,7 @@ fn ssReprojectHit(hitUVz:vec3f)->SsReprojected{
  let prevClip=ssView.clipToPrevClip*thisClip;
  var prevScreen=prevClip.xy/prevClip.w;
  let size=vec2i(textureDimensions(colorVectors));
- let words=textureLoad(colorVectors,ssClampPixel(vec2i(floor(hitUVz.xy*vec2f(size))),size),0);
+ let words=textureLoad(colorVectors,clampToExtent(vec2i(floor(hitUVz.xy*vec2f(size))),size),0);
  if(hasOwnMotion(words.r)){prevScreen=thisClip.xy-decodeVector(words.r);}
  if(ssView.tiles.z!=0.0){prevScreen=thisScreen;}
  return SsReprojected(prevScreen*ssView.previous.xy+ssView.previous.zw,min(ssVignette(thisScreen),ssVignette(prevScreen)));
@@ -262,7 +262,7 @@ export const SCREEN_SPACE_SURFACE_WGSL = wgslBlock(
 struct SsSurface{N:vec3f,roughness:f32,flags:u32,valid:bool,}
 fn ssSurfaceAt(p:vec2i)->SsSurface{
  let size=vec2i(textureDimensions(surfaceNormals));
- let c=ssClampPixel(p,size);
+ let c=clampToExtent(p,size);
  let normal=textureLoad(surfaceNormals,c,0);
  let flags=textureLoad(surfaceFlags,c,0).r;
  var roughness=normal.a;

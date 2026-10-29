@@ -22,7 +22,7 @@ const header = (at: number) => `coldAt(links-${LINK_HEADER - at}u)`
  * a cell's actor draws while its cell draws that actor; any other while its file or its HLOD 0
  * cell draws its placements. The descent gates a placement by it (`worldCovers`, the cut's cold
  * words), and the blend pass its items (`../../../blend/verdict/verdictWgsl.ts`, `cellDraws`, the
- * frame's words); the host's twin is `draws` (`../worlds/worldSwitched.ts`).
+ * frame's words); the host's twin is `placementDraws` (`../worlds/worldLinks.ts`).
  */
 export const linkDrawsWgsl = wgslFn(
   'linkDraws',

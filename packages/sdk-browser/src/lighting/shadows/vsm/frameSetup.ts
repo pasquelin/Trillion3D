@@ -38,8 +38,7 @@ export interface VsmFrameLight {
   /** False when the light is culled this frame (`vsmLightSeen`): its cache entry lives on
    *  unreferenced. */
   visible?: boolean
-  /** A sun's cascades this frame, the distance-field cascade's planes among them (`sunCascades`);
-   *  absent for a light that is none. */
+  /** A sun's cascades this frame (`sunCascades`); absent for a light that is none. */
   cascades?: SunCascades
   /** The clipmap levels a sun's maps take at most (`vsmSunLevels`, read of a sun alone); absent,
    *  the defaults'. */
