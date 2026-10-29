@@ -190,6 +190,21 @@ function single(e: Encoding, pipeline: GPUComputePipeline, group: GPUBindGroup) 
   e.pass.dispatchWorkgroups(1)
 }
 
+/** Binds `pipeline`, `group` first with its dynamic `offsets`, then `later`. No offsets are no argument: the browser's
+ *  optimised call takes an absent sequence badly once the function is hot. */
+function bindAll(
+  e: Encoding,
+  pipeline: GPUComputePipeline,
+  group: GPUBindGroup,
+  later: readonly GPUBindGroup[],
+  offsets: readonly number[] | undefined,
+) {
+  e.pass.setPipeline(pipeline)
+  if (offsets) e.pass.setBindGroup(0, group, offsets)
+  else e.pass.setBindGroup(0, group)
+  later.forEach((bound, at) => e.pass.setBindGroup(at + 1, bound))
+}
+
 /** A dispatch whose groups the context's header names in `slot`; `later` are the bind groups after the first. */
 function fromContext(
   e: Encoding,
@@ -199,9 +214,7 @@ function fromContext(
   later: readonly GPUBindGroup[] = [],
   offsets?: readonly number[],
 ) {
-  e.pass.setPipeline(pipeline)
-  e.pass.setBindGroup(0, group, offsets)
-  later.forEach((bound, at) => e.pass.setBindGroup(at + 1, bound))
+  bindAll(e, pipeline, group, later, offsets)
   e.pass.dispatchWorkgroupsIndirect(e.resources.context, (CONTEXT_AT.args + 4 * slot) * 4)
 }
 
@@ -214,9 +227,7 @@ function fromLightTiles(
   offsets?: readonly number[],
   later: readonly GPUBindGroup[] = [],
 ) {
-  e.pass.setPipeline(pipeline)
-  e.pass.setBindGroup(0, group, offsets)
-  later.forEach((bound, at) => e.pass.setBindGroup(at + 1, bound))
+  bindAll(e, pipeline, group, later, offsets)
   e.pass.dispatchWorkgroupsIndirect(e.lightSlots.args, entry * LIGHT_TILE_ARGS_WORDS * 4)
 }
 

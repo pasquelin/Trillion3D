@@ -74,9 +74,10 @@ test('a hit writes its light dithered by the tile’s blue noise and its distanc
   )
   assert.match(entry, /spHitWord\(end,moving\),0u,0u,0u/)
   // A hit moves when the probe's speed and the speed of the placement met differ, over the probe's depth, by more than the setting's share.
+  assert.match(entry, /let moving=spHitMoving\(probe,ray\.speed\);/)
   assert.match(
-    entry,
-    /let moving=abs\(probe\.speed-ray\.speed\)\/max\(probe\.depth,1\.0\)>sp\.motion\.x;/,
+    PROGRAM,
+    /fn spHitMoving\(probe:SpProbe,speed:f32\)->bool\{return abs\(probe\.speed-speed\)\/max\(probe\.depth,1\.0\)>sp\.motion\.x;\}/,
   )
   assert.match(
     PROGRAM,

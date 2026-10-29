@@ -138,7 +138,9 @@ fn spReadProbe(atlas:vec2u)->SpProbe{
  let a=${stored ? 'textureLoad(probeInfo,vec2i(atlas))' : 'textureLoad(probeInfo,vec2i(atlas),0)'};
  let word=textureLoad(probeNormal,vec2i(atlas),0).x;
  return SpProbe(a.xyz,a.w,spProbeNormal(word),spProbeSpeed(word),(word>>31u)!=0u,((word>>16u)&1u)!=0u);
-}`,
+}
+/** Whether what a ray of \`probe\` met moves against it: their speeds differ by more than the setting's share of the probe's depth, a metre at least (\`sp.motion.x\`). */
+fn spHitMoving(probe:SpProbe,speed:f32)->bool{return abs(probe.speed-speed)/max(probe.depth,1.0)>sp.motion.x;}`,
   )
 
 /** The probes' records and `probeCounts` the adaptive probes placed (`spProbeLive`), and the record of a probe placed or an

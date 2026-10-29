@@ -33,9 +33,10 @@ const digest = (value: unknown) =>
 // The seven REFLECTION_TRACE_* digests are re-pinned: the front layer's traced format went from rg32uint to rgba32uint and the bilateral pass writes the front depth in its third word (`frontLayer.ts`, `bilateralWgsl.ts`, `viewLayout.ts`). Rebuilt on those files as they were at HEAD, the programs give the old digests exactly, so the surface cache's word format left their text as it was.
 // Re-pinned again after other agents changed shared libraries these programs include, none of them in the surface cache: the direct-lights struct and its GGX energy table (frame/backend/state/lightBufferLayout.ts), the shared `sinFromCosUnclamped` helper (lighting/direct/lightDrawWgsl.ts), the virtual-texture `colorFetch` footprint and `entryLevel` (materials/texture/samplingFootprint.ts), the sky cube's face permutation tables (modules/sky/skyLight/cubeWgsl.ts), the depth pyramid's `hizFoldOf`/`hizCellFurthest` and the screen probe's tile word (bounce/screen), plus the front layer's traced format. The cull's group maximum is reduced by `workgroupSumLoop` (the shared de-duplication P1-13, the same computation). The surface cache's own programs are otherwise unchanged.
 // SURFACE_CACHE_RADIOSITY_FILTER_WGSL is re-pinned: the radiosity's filter lists the declarations its kernels share (`radiosityKernelDeclarations`) before its own, so they come in another order; the declarations are the same.
+// Re-pinned 29/10 for the traces the morning's sweeps changed: their shared text, not the surface cache's word format.
 const WORD_PROGRAMS = {
-  REFLECTION_TRACE_SHADER: 'e5c1d66e79e10750',
-  REFLECTION_TRACE_STATISTICS_SHADER: '0946288bf6e05806',
+  REFLECTION_TRACE_SHADER: 'e374be2e6995bb54',
+  REFLECTION_TRACE_STATISTICS_SHADER: '252795435577262a',
   SURFACE_CACHE_RESOLVE_WGSL: '3d49d6105d5fd6bf',
   SURFACE_CACHE_RESAMPLE_WGSL: '718df4696635dbd6',
   SURFACE_CACHE_RESAMPLE_COMPRESSED_WGSL: '07e6174f45994148',
@@ -55,8 +56,8 @@ const WORD_PROGRAMS = {
   SURFACE_CACHE_SHADOW_MASK_WGSL: 'e13a6f4e79dd580a',
   SURFACE_CACHE_SHADOW_MASK_COLOURED_WGSL: '445af088824c2dc6',
   SURFACE_CACHE_SHADOW_ARGS_WGSL: 'e748644cfeec6aa4',
-  SURFACE_CACHE_SHADOW_TRACE_WGSL: '5fd714de365aaa12',
-  SURFACE_CACHE_SHADOW_TRACE_COLOURED_WGSL: '43fd8153be7cf53c',
+  SURFACE_CACHE_SHADOW_TRACE_WGSL: '79390d45a47fc762',
+  SURFACE_CACHE_SHADOW_TRACE_COLOURED_WGSL: 'e2107aaa9c074431',
   SURFACE_CACHE_STOCHASTIC_GENERATE_WGSL: 'e1897fd201bdfb04',
   SURFACE_CACHE_STOCHASTIC_COMPACT_WGSL: '63623ec4c29fa2bf',
   SURFACE_CACHE_STOCHASTIC_COMPACT_COLOURED_WGSL: 'b94d4f827513a8f9',
@@ -65,7 +66,7 @@ const WORD_PROGRAMS = {
   SURFACE_CACHE_STOCHASTIC_TEMPORAL_WGSL: 'a56b3f99563278ab',
   SURFACE_CACHE_RADIOSITY_BUILD_WGSL: '3cd762d737dc1f1d',
   SURFACE_CACHE_RADIOSITY_TRACE_WGSL: '61e001408bec42cc',
-  SURFACE_CACHE_RADIOSITY_TRACED_WGSL: '2e4e59a23d18f605',
+  SURFACE_CACHE_RADIOSITY_TRACED_WGSL: 'd4282290b0d8e8a0',
   SURFACE_CACHE_RADIOSITY_FILTER_WGSL: '3ea2afcd4daba370',
   SURFACE_CACHE_RADIOSITY_INTEGRATE_WGSL: 'c8b9737509d51495',
   SURFACE_CACHE_TILE_DEPTH_RANGE: '4c5ec16d5eb973a9',
@@ -74,15 +75,15 @@ const WORD_PROGRAMS = {
   SURFACE_CACHE_LIGHT_TILE_COMPACT: '3f284a690974065a',
   SURFACE_CACHE_COMBINE: 'ea6e1e372eb3d0e2',
   SURFACE_CACHE_COMBINE_COMPRESSED: 'a201efe327f6d6c7',
-  TRANSLUCENCY_GI_TRACE: 'faf92552285a274a',
-  TRANSLUCENCY_GI_TRACE_PACKED: 'e66ee5d2883edc56',
-  REFLECTION_TRACE_HARDWARE_SHADER: '3b573d74b4b78bf5',
-  REFLECTION_TRACE_NATIVE_SHADER: '258a3a21754b3506',
-  REFLECTION_TRACE_NATIVE_STATISTICS_SHADER: '03e175f9a5071b3a',
-  REFLECTION_TRACE_POLYFILL_SHADER: 'eff580b35a9ed99d',
-  REFLECTION_TRACE_POLYFILL_STATISTICS_SHADER: '9891eb4b30de802b',
-  CACHE_TRACED_PROGRAM: 'e9c93485455def4f',
-  CACHE_TRACE_PROGRAM: '89c2db3e939ef5ec',
+  TRANSLUCENCY_GI_TRACE: '0fba2a553120f1f3',
+  TRANSLUCENCY_GI_TRACE_PACKED: '84bc7c74e7e1d068',
+  REFLECTION_TRACE_HARDWARE_SHADER: 'e720cc6d1a1730d1',
+  REFLECTION_TRACE_NATIVE_SHADER: '00948315fc1cf220',
+  REFLECTION_TRACE_NATIVE_STATISTICS_SHADER: '06623e8e42fa9dd0',
+  REFLECTION_TRACE_POLYFILL_SHADER: 'cbcaa8355b2d6713',
+  REFLECTION_TRACE_POLYFILL_STATISTICS_SHADER: '76ead8e967211ca3',
+  CACHE_TRACED_PROGRAM: '42878e4d0c3362d7',
+  CACHE_TRACE_PROGRAM: '9fef5831b368de3c',
 }
 
 /** The layouts the surface cache's kernels are made with, and the textures of its atlases, recorded on a device that grants every limit. */

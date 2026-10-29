@@ -130,23 +130,24 @@ test('the word format writes the text the passes held before the setting existed
   // (`segmentBoxSpan`, `viewDepthCmOfDevice`, `SURFACE_TABLE_WORDS_WGSL`): the same operations, the text laid out in another order.
   // And after the fourth sweep: the screen edge's vignette, the held layers' read and the sky's irradiance guard from their one owner.
   // Re-pinned, with splat and traced, for the range test of the cache trace: a thread whose texel lies past the level's rays traces none and writes none.
+  // Re-pinned after the morning's sweeps of 29/10, which changed these programs' shared text; and for the screen probes' rays, whose noise is drawn at their probe's tile (`spRayNoiseTexel`) and whose hits tell motion by one test (`spHitMoving`).
   assert.deepEqual(got, {
-    fixup: '8fde44d3df6c727f',
-    filter: 'de0f20e6874d0db2',
-    trace: '89c2db3e939ef5ec',
-    splat: 'c0859e59212b8932',
-    traced: 'e9c93485455def4f',
-    irradiance: 'ac61086b6b7a1653',
-    occlusion: 'a9050da263e72087',
-    gather: '5942bd5aa78d7314',
-    rays: 'a5deb63043630217',
-    scene: '61d6e02303082cb4',
-    sceneFog: 'ed25b61f2454c878',
-    mesh: 'd6a327dfe9c7cf4f',
+    fixup: '9bfe3a2ea6d87e7f',
+    filter: '7750a8b19dac1573',
+    trace: '9fef5831b368de3c',
+    splat: 'eb33fad2048864a8',
+    traced: '42878e4d0c3362d7',
+    irradiance: '6910ef3e1b772e26',
+    occlusion: '2d5a1e78d06440ec',
+    gather: '1be6487b7c9b29d2',
+    rays: '25a6c53934d6b973',
+    scene: '422d4ad97d5d4a5f',
+    sceneFog: '4c52d38489909c48',
+    mesh: '57ff885cc2c6b996',
     stage: 'ca91f61a34a14ab9',
-    gi: 'faf92552285a274a',
-    entries: '9b84e8f4f3413d5d',
-    formats: '3407d00e04df59fe',
+    gi: '0fba2a553120f1f3',
+    entries: '943dbb03c60c510b',
+    formats: '1f3697191cf3afc0',
   })
 })
 

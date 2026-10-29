@@ -251,11 +251,13 @@ export function updateMipHierarchy(cache: SurfaceCache, card: Card) {
 /**
  * The captures of the pages `pageIndices` were made: each reads itself from now on, and the pages of the
  * finer mips of its card that read through it follow. A page that is no longer pending, or no longer
- * mapped, is left as it is.
+ * mapped, is left as it is, and so is a page that is no longer held: the image's eviction, after the
+ * capture was planned, can empty its mip, which then leaves (`updateMipHierarchy`).
  */
 export function confirmPages(cache: SurfaceCache, pageIndices: Iterable<number>) {
   const cards = new Set<number>()
   for (const index of pageIndices) {
+    if (!cache.pages.has(index)) continue
     const page = cache.pages.at(index)
     if (!page.pending || !isMapped(page)) continue
     const mip = mipOf(cache.cards.at(page.card), page.resLevel)

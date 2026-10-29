@@ -87,11 +87,11 @@ fn spRayWordAt(at:vec2i)->u32{return textureLoad(rayWords,at).r;}`
 fn spRayWordAt(at:vec2i)->u32{return textureLoad(rayWords,at,0).r;}`
     }
 @group(0) @binding(${pixels}) var<storage,read> probePixels:array<u32>;
-/** The texel the noise of the ray \`t\` of the probe \`index\` is drawn at: the probe's pixel, never its atlas row — the adaptive probes are
- *  numbered in the order the threads reached them, which differs from run to run —, so a view casts the same rays every run. */
+/** The texel the noise of the ray \`t\` of the probe \`index\` is drawn at: the tile the probe stands in (\`spProbeTile\`, from its pixel, never its
+ *  atlas row — the adaptive probes are numbered in the order the threads reached them, which differs from run to run —, so a view casts the same
+ *  rays every run), its rays side by side. */
 fn spRayNoiseTexel(index:u32,t:vec2u)->vec2u{
- let pixel=probePixels[index];
- return vec2u(pixel&0xffffu,pixel>>16u)*SP_TRACE+t;
+ return spProbeTile(index,probePixels[index])*SP_TRACE+t;
 }
 fn spRayDirection(atlas:vec2u,t:vec2u,index:u32)->vec3f{
  var coord=t;
@@ -224,7 +224,7 @@ fn spScreenHit(probe:SpProbe,H:vec3f,hitPoint:vec3f,d:vec3f,noise:f32,seen0:SpSe
  seen.hit=true;
  // The last image holds its light multiplied by the pre-exposure it was lit with: taken out; the sky light that leaks onto the hit joins it.
  seen.radiance=max(makeFinite3(textureLoad(reflectionImage,previous.texel,0).rgb),vec3f(0.0))*reflectionView.radiance.w+spSkyLeak(d,seen.distance);
- seen.moving=abs(probe.speed-previous.speed)/max(probe.depth,1.0)>sp.motion.x;
+ seen.moving=spHitMoving(probe,previous.speed);
  return seen;
 }
 /** The end of the screen stage: what the screen answers of a live ray (\`aimed\`), \`marched\` its march. */

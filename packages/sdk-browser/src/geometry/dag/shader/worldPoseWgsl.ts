@@ -94,11 +94,11 @@ export const PLACEMENT_MOTION_AT_EYE_WGSL = wgslBlock(
 fn placementMotionAtEye(w:u32,e0:vec4u,e1:vec4u)->mat4x4f{
  let now=worldsWorldAtEye(w,e0,e1);
  let before=previousWorldAtEye(w,e0,e1);
+ let identity=mat4x4f(vec4f(1.0,0.0,0.0,0.0),vec4f(0.0,1.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(0.0,0.0,0.0,1.0));
+ // A still placement is told before its inverse is made.
+ if(!(any(now[0]!=before[0])||any(now[1]!=before[1])||any(now[2]!=before[2])||any(now[3]!=before[3]))){return identity;}
  let back=invTranspose3Prep(worldMatrix3(now));
- let still=!(any(now[0]!=before[0])||any(now[1]!=before[1])||any(now[2]!=before[2])||any(now[3]!=before[3]));
- if(!back.regular||still){
-  return mat4x4f(vec4f(1.0,0.0,0.0,0.0),vec4f(0.0,1.0,0.0,0.0),vec4f(0.0,0.0,1.0,0.0),vec4f(0.0,0.0,0.0,1.0));
- }
+ if(!back.regular){return identity;}
  let r0=back.adj[0]*back.scale;let r1=back.adj[1]*back.scale;let r2=back.adj[2]*back.scale;
  let t=now[3].xyz;
  let inverse=mat4x4f(vec4f(r0.x,r1.x,r2.x,0.0),vec4f(r0.y,r1.y,r2.y,0.0),vec4f(r0.z,r1.z,r2.z,0.0),vec4f(-dot(r0,t),-dot(r1,t),-dot(r2,t),1.0));

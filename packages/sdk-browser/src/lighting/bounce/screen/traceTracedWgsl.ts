@@ -205,7 +205,7 @@ fn traceTriangles(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroup
   return;
  }
  let lit=spTracedLit(ray,probe,direction);
- let moving=abs(probe.speed-ray.speed)/max(probe.depth,1.0)>sp.motion.x;
+ let moving=spHitMoving(probe,ray.speed);
  let noise=blueNoiseVec2(spProbeTile(index,own),sp.mode.w).y;
  textureStore(radianceOut,texel,vec4u(packLight(ditherLight(lit,noise)),0u,0u,0u));
  textureStore(hitIo,texel,vec4u(spHitWord(end,moving),0u,0u,0u));
