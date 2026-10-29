@@ -31,6 +31,9 @@ graphify-out
 /scripts/graphify-libelles.test.mjs
 # Local files end
 
+# The light and shadow step tables, assembled by .mesure/tables/verif/assemble.py: kept out of the repository.
+/docs/ETAPES-LUMIERE-OMBRE.md
+
 # Local test assets (see docs/COMPILER.md, "Input formats")
 tests/assets/
 # Compiled from their sources by `pnpm run compile:caches` and the test runners.
