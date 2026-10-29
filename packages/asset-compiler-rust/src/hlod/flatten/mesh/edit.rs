@@ -34,11 +34,11 @@ pub(crate) struct Split {
 impl Mesh {
     /// Triangle `t` taken away (module doc), its corners left bare freed when `free_bare` says so.
     pub(crate) fn remove_triangle(&mut self, t: usize, free_bare: bool) {
-        let (tri, sides) = (self.triangles[t], self.sides[t]);
+        let (tri, sides) = (self.corners(t), self.sides_of(t));
         for e in sides {
             self.replace_face(e, t, NONE);
-            if self.edges[e].faces[0] == NONE {
-                let [a, b] = self.edges[e].ends;
+            if self.faces(e)[0] == NONE {
+                let [a, b] = self.ends(e);
                 self.unlink(a, e);
                 self.unlink(b, e);
                 self.edge_ids.count_down(e, 1);
@@ -71,7 +71,7 @@ impl Mesh {
         }
         let mut ring = Vec::new();
         for e in self.edges_at(v) {
-            for t in self.edges[e].faces {
+            for t in self.faces(e) {
                 if t != NONE && !ring.contains(&t) {
                     ring.push(t);
                 }
@@ -85,9 +85,9 @@ impl Mesh {
     /// corner across it is counted too near the limit of its count (`Ids::crowded`). The new
     /// vertex is listed with the edge's part from the first end, the edge's other end losing it.
     pub(crate) fn split_edge(&mut self, e: usize, t: f64) -> Option<Split> {
-        let [low, high] = self.edges[e].ends;
-        let [t0, t1] = self.edges[e].faces;
-        let [a, b, c] = wound(low, high, self.triangles[t0]);
+        let [low, high] = self.ends(e);
+        let [t0, t1] = self.faces(e);
+        let [a, b, c] = wound(low, high, self.corners(t0));
         if self.vertex_ids.crowded(c) {
             return None;
         }
@@ -103,7 +103,7 @@ impl Mesh {
             let efb = self.add_edge(f, b, [t2, NONE]);
             let efc = self.add_edge(f, c, [t0, t2]);
             self.replace_side(t0, ebc, efc);
-            self.sides[t2] = [efb, ebc, efc];
+            self.sides[t2] = [efb, ebc, efc].map(|e| e as u32);
             self.vertex_ids.count_up(c, 1);
             self.vertex_ids.count_up(f, 2);
             return Some(Split {
@@ -114,7 +114,7 @@ impl Mesh {
                 edges: [efb, efc, NONE],
             });
         }
-        let d = wound(a, b, self.triangles[t1])[2];
+        let d = wound(a, b, self.corners(t1))[2];
         if self.vertex_ids.crowded(d) {
             return None;
         }
@@ -133,8 +133,8 @@ impl Mesh {
         let edf = self.add_edge(d, f, [t1, t3]);
         self.replace_side(t0, ebc, efc);
         self.replace_side(t1, edb, edf);
-        self.sides[t2] = [efb, ebc, efc];
-        self.sides[t3] = [edf, edb, efb];
+        self.sides[t2] = [efb, ebc, efc].map(|e| e as u32);
+        self.sides[t3] = [edf, edb, efb].map(|e| e as u32);
         self.vertex_ids.count_up(c, 1);
         self.vertex_ids.count_up(d, 1);
         self.vertex_ids.count_up(f, 4);

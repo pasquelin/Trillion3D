@@ -30,6 +30,12 @@ pub(crate) fn map3(a: IVec3, f: impl Fn(i32) -> i32) -> IVec3 {
 pub(crate) fn zip3(a: IVec3, b: IVec3, f: impl Fn(i32, i32) -> i32) -> IVec3 {
     [f(a[0], b[0]), f(a[1], b[1]), f(a[2], b[2])]
 }
+/// Grows `found`, the box so far, to hold the box `low`..`high`; the box itself where `found` is none.
+pub(crate) fn widen_box(found: &mut Option<(IVec3, IVec3)>, low: IVec3, high: IVec3) {
+    let (min, max) = found.get_or_insert((low, high));
+    *min = zip3(*min, low, i32::min);
+    *max = zip3(*max, high, i32::max);
+}
 /// The component-wise sum.
 pub(crate) fn add3(a: IVec3, b: IVec3) -> IVec3 {
     zip3(a, b, |x, y| x + y)

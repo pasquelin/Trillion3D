@@ -35,7 +35,7 @@ fn turned_over(base: &Base) -> (Vec<u32>, Vec<u32>) {
     let mut indices = Vec::with_capacity(3 * faces);
     let mut adjacency = Vec::with_capacity(3 * faces);
     for t in 0..faces {
-        let tri = base.mesh.triangles[t];
+        let tri = base.mesh.corners(t);
         indices.extend(TURN.map(|k| tri[k] as u32));
         let across = base.mesh.neighbour_triangles(t);
         adjacency.extend([across[0], across[2], across[1]].map(|n| match n {

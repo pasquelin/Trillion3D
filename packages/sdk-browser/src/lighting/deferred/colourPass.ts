@@ -12,21 +12,9 @@ import {
   UNLIT_SURFACE_ENTRY,
   UNLIT_SURFACE_WGSL,
 } from './colourPassWgsl.ts'
-import { makeFullscreenPipeline } from './fullscreen.ts'
+import { clearedColourTarget, makeFullscreenPipeline } from './fullscreen.ts'
 import { colourLayoutEntries, unlitLayoutEntries } from './layoutEntries.ts'
 import { createPassGroup } from './passGroup.ts'
-
-/** The lit image's target, cleared before the first draw writes every pixel of it. */
-function colourTarget(label: string) {
-  const target: GPURenderPassColorAttachment = {
-    view: undefined as unknown as GPUTextureView,
-    loadOp: 'clear',
-    storeOp: 'store',
-    clearValue: [0, 0, 0, 0],
-  }
-  const descriptor: GPURenderPassDescriptor = { label, colorAttachments: [target] }
-  return { target, descriptor }
-}
 
 /**
  * The lit image's first draw (`surfaceColourMain`, `colourPassWgsl.ts`): one fullscreen triangle that
@@ -46,9 +34,9 @@ export async function createSurfaceColourPass(device: GPUDevice, view: GPUBuffer
     { format: HDR_FORMAT },
   ])
   const group = createPassGroup(device, layout)
-  const { target, descriptor } = colourTarget(SURFACE_COLOUR_PASS)
+  const { target, descriptor } = clearedColourTarget(SURFACE_COLOUR_PASS)
   // The same image's pass begun again, the image kept as it is: after a draw the pass could not hold.
-  const resumed = colourTarget(SURFACE_COLOUR_PASS)
+  const resumed = clearedColourTarget(SURFACE_COLOUR_PASS)
   resumed.target.loadOp = 'load'
   return {
     /** Begins the lit image's render pass on `hdr` again, loaded and stored, its viewport the `width` × `height`
@@ -104,7 +92,7 @@ export async function createUnlitPass(device: GPUDevice, view: GPUBuffer, label:
     { format: HDR_FORMAT },
   ])
   const group = createPassGroup(device, layout)
-  const { target, descriptor } = colourTarget(SURFACE_COLOUR_PASS)
+  const { target, descriptor } = clearedColourTarget(SURFACE_COLOUR_PASS)
   return {
     draw(
       encoder: GPUCommandEncoder,

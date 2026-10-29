@@ -2,7 +2,7 @@
 //! light (`KHR_materials_transmission`) or one drawn alpha-blended —: the layer's `translucency`,
 //! one of `HLOD_TRANSLUCENCIES` (`compilerAbi.ts`), read by `translucency` alone. The layer's JSON
 //! is the cache's identity (`Hlod::named`): a value named changes the key, one left out keeps it.
-use super::fields::{default_rank, level};
+use super::fields::{default_rank, levelled};
 use super::*;
 
 /// How a translucent source shows in a flattened material's images (`translucency`,
@@ -34,5 +34,5 @@ impl Default for HlodTranslucency {
 /// `surfaceOnly`; the default when absent or null; refused otherwise, naming the values.
 pub(super) fn translucency(map: &Map<String, Value>, what: &str) -> Result<HlodTranslucency> {
     let levels = (&HLOD_TRANSLUCENCIES[..], DEFAULT_HLOD_TRANSLUCENCY);
-    Ok(HlodTranslucency::ALL[level(map, "translucency", what, levels)?])
+    levelled(map, "translucency", what, levels, &HlodTranslucency::ALL)
 }

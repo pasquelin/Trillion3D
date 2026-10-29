@@ -153,11 +153,22 @@ pub(super) fn default_rank(words: &[&str], default: &str) -> usize {
     rank(words, default).expect("an option's default is one of its values")
 }
 
+/// The value of `all` at the rank `level` gives for `map` at `key`.
+pub(super) fn levelled<T: Copy>(
+    map: &Map<String, Value>,
+    key: &str,
+    what: &str,
+    levels: (&[&str], &str),
+    all: &[T],
+) -> Result<T> {
+    Ok(all[level(map, key, what, levels)?])
+}
+
 /// The rank among `words` of the value of `map` at `key`, an option of named values whose first
 /// is the one `false` names and `default` the one `true` names (`compilerAbi.ts`): a word of
 /// `words`, `true` or `false`; `default`'s when absent or null; refused otherwise, naming the
 /// values.
-pub(super) fn level(
+fn level(
     map: &Map<String, Value>,
     key: &str,
     what: &str,

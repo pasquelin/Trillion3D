@@ -4,7 +4,7 @@ import {
   ANY_NUMBER,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
-  resolveSettings,
+  resolveSettingsWith,
   rulesOf,
   type SettingOptions,
   type SettingValues,
@@ -107,9 +107,5 @@ function resolveKernel(kernel: BloomKernelImage | null | undefined) {
 export function resolveBloomConvolution(
   options: BloomConvolutionOptions = {},
 ): ResolvedBloomConvolution {
-  const { kernel, ...scalars } = options
-  return Object.freeze({
-    ...resolveSettings(BLOOM_CONVOLUTION_RULES, scalars),
-    kernel: resolveKernel(kernel),
-  })
+  return resolveSettingsWith(BLOOM_CONVOLUTION_RULES, options, 'kernel', resolveKernel)
 }

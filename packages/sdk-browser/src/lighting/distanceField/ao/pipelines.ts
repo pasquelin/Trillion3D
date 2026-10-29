@@ -1,5 +1,6 @@
 import { postSamplers } from '../../../gpu/core/postSamplers.ts'
 import { preparedComputeStage } from '../../../gpu/core/computeStages.ts'
+import { layoutsOf } from '../../../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { standInTexture } from '../../../gpu/core/standIns.ts'
 import { preparedPipelines } from '../../../gpu/core/preparedPipelines.ts'
@@ -52,12 +53,7 @@ function scatterPipeline(device: GPUDevice, layout: GPUPipelineLayout) {
  * that no colour is written to, back faces kept; and the sphere's buffers.
  */
 export const dfaoPrograms = oncePerDevice((device: GPUDevice) => {
-  const layouts = Object.fromEntries(
-    Object.entries(DFAO_LAYOUTS).map(([name, entries]) => [
-      name,
-      device.createBindGroupLayout({ label: `${LABEL} ${name}`, entries: [...entries] }),
-    ]),
-  ) as Record<DfaoProgram, GPUBindGroupLayout>
+  const layouts = layoutsOf(device, LABEL, DFAO_LAYOUTS)
   const pipelineLayout = (program: DfaoProgram) =>
     device.createPipelineLayout({ bindGroupLayouts: [layouts[program]] })
   const stage = (program: DfaoProgram, shader: keyof typeof DFAO_SHADERS, entry: string) => {

@@ -79,9 +79,7 @@ fn build_node(node: usize, uri: &str, root: &Path, file: &mut Vec<u8>) -> Result
     for file in &parsed {
         super::import::validate(&options, &file.grids)?;
         if let Some((low, high)) = super::import::mapped_bounds(&options, &file.grids) {
-            let (min, max) = union.get_or_insert((low, high));
-            *min = zip3(*min, low, i32::min);
-            *max = zip3(*max, high, i32::max);
+            widen_box(&mut union, low, high);
         }
     }
     let (origin, top) =

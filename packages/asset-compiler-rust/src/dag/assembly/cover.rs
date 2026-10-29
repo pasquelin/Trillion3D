@@ -26,16 +26,6 @@ pub(crate) struct RootCover {
     pub sphere: [f64; 4],
 }
 
-/// A cover carried by an instance's matrix: its triangles over the arrays below, its error and ball
-/// in the assembly's space.
-pub(super) struct Carried {
-    pub positions: Vec<f32>,
-    pub carried: Vec<Attribute>,
-    pub indices: Vec<u32>,
-    pub lod_error: f64,
-    pub sphere: [f64; 4],
-}
-
 /// The scale `matrix` puts on a length as the cut measures it (`placedScale`): its shortest axis
 /// for an error, its longest for a radius.
 fn stretch(matrix: &Mat4) -> (f64, f64) {
@@ -117,7 +107,7 @@ impl RootCover {
     /// tangents turned by the axes of the matrix without their scale, and, when the matrix mirrors,
     /// its triangles turned over and its tangents' sign reversed; its error scaled by the shortest
     /// axis, its ball's centre placed and its radius scaled by the longest.
-    pub(super) fn carried_by(&self, matrix: &Mat4) -> Carried {
+    pub(super) fn carried_by(&self, matrix: &Mat4) -> Self {
         let axes = linear_columns(matrix).map(unit_or_itself);
         let mirrors = determinant(matrix) < 0.0;
         let turn = |v: [f64; 3]| -> [f64; 3] {
@@ -156,7 +146,7 @@ impl RootCover {
         let (least, most) = stretch(matrix);
         let [x, y, z, radius] = self.sphere;
         let [x, y, z] = transform_point(matrix, [x, y, z]);
-        Carried {
+        Self {
             positions,
             carried,
             indices,

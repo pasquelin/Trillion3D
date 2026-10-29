@@ -25,6 +25,10 @@ export const computeBufferEntry = (
   visibility = COMPUTE,
 ): GPUBindGroupLayoutEntry => ({ binding, visibility, ...bufferLayout(type) })
 
+/** A storage buffer binding at `binding` in a layout, writable or read-only, seen by the compute stage. */
+export const computeStorageEntry = (binding: number, writable: boolean) =>
+  computeBufferEntry(binding, writable ? 'storage' : 'read-only-storage')
+
 /** The storage buffer entries of a kernel whose bindings are named by `bindings` (name → binding):
  *  `read` a read-only one and `write` a writable one, by shader name, seen by `stage` (the compute
  *  stage by default). */
@@ -134,3 +138,16 @@ export const computeBufferEntries = (types: readonly GPUBufferBindingType[]) =>
  *  `computeBufferEntries` layout. */
 export const bufferEntries = (buffers: readonly GPUBuffer[]) =>
   sequentialEntries(buffers.map((buffer) => ({ buffer })))
+
+/** The bind group layout of each program of `layouts`, named `label` and the program's name. */
+export const layoutsOf = <Name extends string>(
+  device: GPUDevice,
+  label: string,
+  layouts: Record<Name, readonly GPUBindGroupLayoutEntry[]>,
+) =>
+  Object.fromEntries(
+    Object.entries<readonly GPUBindGroupLayoutEntry[]>(layouts).map(([name, entries]) => [
+      name,
+      device.createBindGroupLayout({ label: `${label} ${name}`, entries: [...entries] }),
+    ]),
+  ) as Record<Name, GPUBindGroupLayout>

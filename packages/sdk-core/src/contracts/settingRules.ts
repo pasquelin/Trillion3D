@@ -418,6 +418,22 @@ export function settingsDiffer<T extends SettingRules>(
 export const resolveSettings = <T extends SettingRules>(rules: T, options: FieldOptions<T>) =>
   resolveSettingsInto(rules, options, {} as SettingValues<T>)
 
+/** Every setting of `rules` read from `options` (`resolveSettings`), frozen, with the field `key`
+ *  beside them: `resolve` of what `options` holds under `key`, read after the settings, so a
+ *  setting out of its range is refused before it. */
+export function resolveSettingsWith<T extends SettingRules, K extends string, I, V>(
+  rules: T,
+  options: FieldOptions<T> & { readonly [P in K]?: I },
+  key: K,
+  resolve: (value: I | undefined) => V,
+) {
+  const settings = resolveSettings(rules, options)
+  const value = (options as { readonly [P in K]?: I })[key]
+  return Object.freeze({ ...settings, [key]: resolve(value) }) as Readonly<
+    SettingValues<T> & { [P in K]: V }
+  >
+}
+
 /**
  * The watch of a family's settings a pass keeps beside its own state (`settingsWatch`): `read(options)` reads
  * every setting of `rules` into one object and `moved` then says whether any differs from the last reading

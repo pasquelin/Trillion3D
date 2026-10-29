@@ -23,7 +23,7 @@ impl<'a> Submesh<'a> {
         let mut vertices = Vec::new();
         let triangles: Vec<[usize; 3]> = (island.iter())
             .map(|&t| {
-                base.mesh.triangles[t].map(|v| {
+                base.mesh.corners(t).map(|v| {
                     *local.entry(v).or_insert_with(|| {
                         vertices.push(v);
                         vertices.len() - 1

@@ -1,5 +1,5 @@
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
-import { WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
+import { dispatchCubes, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import {
   heldProgramGroup,
   keptProgramGroup,
@@ -136,5 +136,5 @@ export function encodeVoxels(
     heldProgramGroup(held) ??
       keptProgramGroup(device, program.layout, held, voxelizeEntries(context, voxels, graph)),
   )
-  pass.dispatchWorkgroups(ceilDiv(cells.x, 4), ceilDiv(cells.y, 4), ceilDiv(cells.z, 4))
+  dispatchCubes(pass, cells.x, cells.y, cells.z)
 }

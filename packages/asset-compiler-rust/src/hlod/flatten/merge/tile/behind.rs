@@ -21,7 +21,12 @@ pub(in crate::hlod) struct Behind {
 impl Behind {
     /// What lies behind any texel of `pieces`, the merged mesh's parts, each wearing its material
     /// of `library`.
-    pub(in crate::hlod) fn of(pieces: &[Piece], library: &Library) -> Self {
+    pub(in crate::hlod) fn of<'a>(
+        pieces: impl IntoIterator<Item = Piece<'a>>,
+        library: &Library,
+    ) -> Self {
+        let pieces: Vec<Piece> = pieces.into_iter().collect();
+        let pieces = pieces.as_slice();
         let mut starts = Vec::with_capacity(pieces.len());
         let mut triangles = 0;
         for piece in pieces {

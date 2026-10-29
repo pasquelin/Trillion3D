@@ -10,7 +10,7 @@ use crate::hlod::flatten::approximate::gpu::{part_bytes, split_to_fit, Head, Pas
 use crate::hlod::flatten::bake::tree::Tree;
 use crate::hlod::flatten::gpu::pack::base;
 use std::sync::atomic::AtomicBool;
-use trillion3d_math::geometry::aabb::{aabb_of, centre};
+use trillion3d_math::geometry::aabb::{aabb_of, centre, longest_axis};
 use trillion3d_page_codec::proxy::PROXY_LEAF_TRIANGLES;
 
 /// A mesh on the device, answering the distance to its nearest triangle within a limit.
@@ -50,9 +50,7 @@ fn part_size(count: usize) -> u64 {
 /// Triangles `picked` halved along the longest side of their bounds, by their corners' sums.
 fn halve(mesh: &Mesh, mut picked: Vec<usize>) -> (Vec<usize>, Vec<usize>) {
     let (low, high) = aabb_of(picked.iter().flat_map(|&t| mesh.corners(t)));
-    let axis = (0..3)
-        .max_by(|&a, &b| (high[a] - low[a]).total_cmp(&(high[b] - low[b])))
-        .unwrap_or(0);
+    let axis = longest_axis(low, high);
     let side = |t: &usize| mesh.corners(*t).iter().map(|c| c[axis]).sum::<f64>();
     picked.sort_by(|a, b| side(a).total_cmp(&side(b)));
     let upper = picked.split_off(picked.len() / 2);

@@ -94,6 +94,11 @@ pub(crate) struct Edge {
 }
 
 impl Edge {
+    /// The end of the edge that is not `v`, one of its two.
+    pub(crate) fn other_end(&self, v: u32) -> u32 {
+        other_of(self.verts, v)
+    }
+
     /// The face across the edge from face `f`, one of its two (`NONE` across a boundary).
     pub(crate) fn other_face(&self, f: u32) -> u32 {
         other_of(self.faces, f)

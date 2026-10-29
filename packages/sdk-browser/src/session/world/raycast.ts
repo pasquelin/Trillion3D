@@ -6,7 +6,12 @@ import type { Engine } from '../engine/types.ts'
 import type { Intersection } from '../../api/query/types.ts'
 import { helperRoots } from './helperMark.ts'
 import { drawnAspect } from '../../api/viewportApi.ts'
-import { asksPhysics, physicsRaycast, type PhysicsRaycastOptions } from '../../physics/raycast.ts'
+import {
+  asksPhysics,
+  physicsRaycast,
+  type OverlapShape,
+  type PhysicsRaycastOptions,
+} from '../../physics/raycast.ts'
 import type { PhysicsSession } from '../../physics/session/session.ts'
 
 /** A point of the canvas, in CSS pixels from its top-left corner: `event.offsetX`, `offsetY`. */
@@ -80,10 +85,7 @@ export const createWorldRaycast = (
       at: CanvasPoint | Ray,
       options: {
         exact?: true
-        shape?:
-          | { type: 'sphere'; radius: number }
-          | { type: 'box'; halfExtents: { x: number; y: number; z: number } }
-          | { type: 'capsule'; halfHeight: number; radius: number }
+        shape?: OverlapShape
         maxDistance?: number
         ignore?: Object3D
       },

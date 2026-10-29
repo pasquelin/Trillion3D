@@ -97,6 +97,23 @@ function neighbours(volume: NoiseVolume, options: AnnealingOptions): Neighbours 
   }
 }
 
+/** What a neighbour holding `(uq, vq)` gains in energy if the pixel holds `(un, vn)` instead of
+ *  `(uo, vo)`: the table's entry for each pair's distance, the new pair's less the old one's. */
+function energyGain(
+  table: Float32Array,
+  uo: number,
+  vo: number,
+  un: number,
+  vn: number,
+  uq: number,
+  vq: number,
+) {
+  return (
+    table[((Math.abs(un - uq) + Math.abs(vn - vq)) * TABLE_SCALE + 0.5) | 0] -
+    table[((Math.abs(uo - uq) + Math.abs(vo - vq)) * TABLE_SCALE + 0.5) | 0]
+  )
+}
+
 /**
  * How much more the pixel `pixel` receives, summed over its neighbours but the one named `except`, if it held the vector
  * `(un, vn)` instead of `(uo, vo)`: each neighbour's weight times the difference of the energy of the two pairs, in the neighbour's
@@ -126,10 +143,7 @@ function receivedMore(
       if (q === except) continue
       const uq = cells[2 * q],
         vq = cells[2 * q + 1]
-      sum +=
-        w *
-        (table[((Math.abs(un - uq) + Math.abs(vn - vq)) * TABLE_SCALE + 0.5) | 0] -
-          table[((Math.abs(uo - uq) + Math.abs(vo - vq)) * TABLE_SCALE + 0.5) | 0])
+      sum += w * energyGain(table, uo, vo, un, vn, uq, vq)
     }
   }
   const column = pixel & ((1 << a.zShift) - 1)
@@ -138,10 +152,7 @@ function receivedMore(
     if (q === except) continue
     const uq = cells[2 * q],
       vq = cells[2 * q + 1]
-    sum +=
-      frameWeights[k] *
-      (table[((Math.abs(un - uq) + Math.abs(vn - vq)) * TABLE_SCALE + 0.5) | 0] -
-        table[((Math.abs(uo - uq) + Math.abs(vo - vq)) * TABLE_SCALE + 0.5) | 0])
+    sum += frameWeights[k] * energyGain(table, uo, vo, un, vn, uq, vq)
   }
   return sum
 }

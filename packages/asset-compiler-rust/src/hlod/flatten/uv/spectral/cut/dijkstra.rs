@@ -57,11 +57,7 @@ impl<'a> Chart<'a> {
                     continue;
                 }
                 let edge = &self.edges[e as usize];
-                let other = if edge.verts[0] == v {
-                    edge.verts[1]
-                } else {
-                    edge.verts[0]
-                };
+                let other = edge.other_end(v);
                 if settled[other as usize] {
                     continue;
                 }

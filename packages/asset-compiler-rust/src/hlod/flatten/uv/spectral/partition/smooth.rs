@@ -22,10 +22,7 @@ impl<'a> Chart<'a> {
         for (label, &size) in sizes.iter().enumerate() {
             heap.insert(label as u32, size);
         }
-        let mut groups: Vec<Vec<u32>> = vec![Vec::new(); count];
-        for (f, &label) in face_charts[..self.faces.len()].iter().enumerate() {
-            groups[label as usize].push(f as u32);
-        }
+        let groups = self.faces_by_label(face_charts, count);
         while let Some(label) = heap.pop() {
             for &f in &groups[label as usize] {
                 self.smooth_face(f, face_charts);

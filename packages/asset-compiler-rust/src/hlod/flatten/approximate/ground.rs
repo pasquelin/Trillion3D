@@ -68,7 +68,7 @@ impl Shape {
         }
         let indices = (0..mesh.triangles.len())
             .filter(|&t| mesh.is_triangle(t))
-            .flat_map(|t| mesh.triangles[t].map(|v| rank[v]))
+            .flat_map(|t| mesh.corners(t).map(|v| rank[v]))
             .collect();
         (positions, indices)
     }

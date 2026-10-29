@@ -30,7 +30,7 @@ use crate::hlod::flatten::merge::{
     baked, coordinates, lightmapped, quad, seen_through, shrunk, smeared, uniform, Baked, Behind,
     Image, Part, Read,
 };
-use crate::hlod::flatten::{Library, Piece};
+use crate::hlod::flatten::Library;
 use crate::hlod::options::HlodUvMethod;
 use crate::plugins::scene::cancel::check;
 use std::collections::BTreeMap;
@@ -177,10 +177,8 @@ pub(super) fn flattened(
     }
     // What lies behind the translucent sources seen through: every source, traced once.
     let seen = |m: Option<u64>| kinds[&m].1;
-    let behind = (kinds.values().any(|&(_, seen)| seen)).then(|| {
-        let pieces: Vec<Piece> = parts.iter().map(|p| p.piece()).collect();
-        Behind::of(&pieces, library)
-    });
+    let behind = (kinds.values().any(|&(_, seen)| seen))
+        .then(|| Behind::of(parts.iter().map(|p| p.piece()), library));
     let mut made = Vec::with_capacity(entries.len());
     for (material, object, members) in &entries {
         check(&library.cancelled)?;

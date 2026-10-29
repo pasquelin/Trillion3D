@@ -4,7 +4,7 @@ import {
   integerSetting as integer,
   nonNegativeSetting as nonNegative,
   numberSetting as number,
-  resolveSettings,
+  resolveSettingsWith,
   resolveSetting,
   rulesOf,
   type SettingOptions,
@@ -136,11 +136,7 @@ function resolveMatteBox(flags: readonly MatteBoxFlag[] | undefined) {
  * @throws TypeError naming the field and what it takes when one is out of its range.
  */
 export function resolveDepthOfField(options: DepthOfFieldOptions = {}): ResolvedDepthOfField {
-  const { matteBox, ...scalars } = options
-  return Object.freeze({
-    ...resolveSettings(DEPTH_OF_FIELD_VOLUME_RULES, scalars),
-    matteBox: resolveMatteBox(matteBox),
-  })
+  return resolveSettingsWith(DEPTH_OF_FIELD_VOLUME_RULES, options, 'matteBox', resolveMatteBox)
 }
 
 /** Whether the depth of field draws nothing: it is switched off, or it has neither a focus

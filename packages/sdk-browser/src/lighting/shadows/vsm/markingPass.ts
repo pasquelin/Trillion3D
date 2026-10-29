@@ -437,18 +437,18 @@ const froxelBuildGroups = (water: boolean) => [
 const froxelArgsGroups = () => [
   [computeUniformEntry(0), computeBufferEntry(1, 'storage'), computeBufferEntry(2, 'storage')],
 ]
+/** The layout entries the froxel and pixel marking passes share past their own: the view (3), the lights' buffers (4 to 7) and the marking's parameters (8). */
+const lightsLayout = () => [
+  computeUniformEntry(3),
+  computeBufferEntry(4, 'read-only-storage'),
+  computeBufferEntry(5, 'read-only-storage'),
+  computeBufferEntry(6, 'read-only-storage'),
+  computeBufferEntry(7, 'read-only-storage'),
+  computeUniformEntry(8),
+]
 const froxelMarkGroups = (tables: GPUBindGroupLayoutEntry[]) => [
   tables,
-  [
-    computeUniformEntry(0),
-    computeBufferEntry(1, 'read-only-storage'),
-    computeUniformEntry(3),
-    computeBufferEntry(4, 'read-only-storage'),
-    computeBufferEntry(5, 'read-only-storage'),
-    computeBufferEntry(6, 'read-only-storage'),
-    computeBufferEntry(7, 'read-only-storage'),
-    computeUniformEntry(8),
-  ],
+  [computeUniformEntry(0), computeBufferEntry(1, 'read-only-storage'), ...lightsLayout()],
 ]
 const pixelsGroups = (
   tables: GPUBindGroupLayoutEntry[],
@@ -471,12 +471,7 @@ const pixelsGroups = (
           computeTextureEntry(1, 'unfilterable-float'),
           computeTextureEntry(2, 'uint'),
         ]),
-    computeUniformEntry(3),
-    computeBufferEntry(4, 'read-only-storage'),
-    computeBufferEntry(5, 'read-only-storage'),
-    computeBufferEntry(6, 'read-only-storage'),
-    computeBufferEntry(7, 'read-only-storage'),
-    computeUniformEntry(8),
+    ...lightsLayout(),
     ...(front
       ? [computeTextureEntry(VSM_FRONT_DEPTH_BINDING, 'unfilterable-float', '2d-array')]
       : []),

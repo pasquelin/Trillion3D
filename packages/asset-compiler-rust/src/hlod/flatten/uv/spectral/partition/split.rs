@@ -61,6 +61,16 @@ impl<'a> Chart<'a> {
         }
     }
 
+    /// The distances of every vertex from the two `sources` (two floats per vertex): along the
+    /// surface, and, when the chart has a signal, blended with it.
+    fn distances_from_two(&mut self, sources: &[u32]) -> (Vec<f32>, Option<Vec<f32>>) {
+        let count = self.verts.len();
+        let mut geodesic = vec![0f32; 2 * count];
+        let mut blended = self.has_signal().then(|| vec![0f32; 2 * count]);
+        self.distances_from(sources, blended.as_deref_mut(), Some(&mut geodesic));
+        (geodesic, blended)
+    }
+
     /// The chart split in two on its surface, else in its plane, else face by face.
     pub(crate) fn split_in_space(&mut self) -> crate::Result<()> {
         if self.faces.len() == 1 {
@@ -68,11 +78,8 @@ impl<'a> Chart<'a> {
             return Ok(());
         }
         self.order_split_landmarks();
-        let count = self.verts.len();
-        let mut geodesic = vec![0f32; 2 * count];
-        let mut blended = self.has_signal().then(|| vec![0f32; 2 * count]);
         let sources = self.landmarks[..2].to_vec();
-        self.distances_from(&sources, blended.as_deref_mut(), Some(&mut geodesic));
+        let (geodesic, blended) = self.distances_from_two(&sources);
         let combined = blended.as_deref().unwrap_or(&geodesic);
         let split = self.partition_general(&geodesic, combined, &[0, 1], true)?;
         if split && self.children.len() > 1 {
@@ -95,10 +102,7 @@ impl<'a> Chart<'a> {
             (NONE, _) => (0, 0),
             pair => pair,
         };
-        let count = self.verts.len();
-        let mut geodesic = vec![0f32; 2 * count];
-        let mut blended = self.has_signal().then(|| vec![0f32; 2 * count]);
-        self.distances_from(&[a, b], blended.as_deref_mut(), Some(&mut geodesic));
+        let (geodesic, blended) = self.distances_from_two(&[a, b]);
         let combined = blended.as_deref().unwrap_or(&geodesic);
         self.split_by_distance(combined, &[0, 1])
     }

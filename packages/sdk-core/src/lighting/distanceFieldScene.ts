@@ -1,5 +1,6 @@
 import { DISTANCE_FIELD_UNITS_PER_METRE } from '../contracts/distanceFieldAbi.ts'
 import { DISTANCE_FIELD_KERNEL_PULLBACK } from './distanceFieldKernel.ts'
+import { cross } from '../../../math/src/vector/vectorTuple.ts'
 import { binaryTreeOf } from './rayTracingTree.ts'
 
 /**
@@ -122,9 +123,7 @@ export function sceneOf(
     const [a, b, c] = [0, 1, 2].map((k) => 3 * indices[3 * t + k])
     const e1 = [0, 1, 2].map((k) => centimetres[b + k] - centimetres[a + k])
     const e2 = [0, 1, 2].map((k) => centimetres[c + k] - centimetres[a + k])
-    const nx = e1[1] * e2[2] - e1[2] * e2[1],
-      ny = e1[2] * e2[0] - e1[0] * e2[2],
-      nz = e1[0] * e2[1] - e1[1] * e2[0]
+    const [nx, ny, nz] = cross(e1, e2)
     if (nx * nx + ny * ny + nz * nz >= DEGENERATE_CROSS_SQUARED) kept.push(t)
   }
   if (kept.length === 0) return undefined
@@ -283,9 +282,7 @@ export function sceneOf(
       const t0 = slotHit * 9
       const e1 = [0, 1, 2].map((k) => tri[t0 + 3 + k] - tri[t0 + k])
       const e2 = [0, 1, 2].map((k) => tri[t0 + 6 + k] - tri[t0 + k])
-      const nx = e1[1] * e2[2] - e1[2] * e2[1],
-        ny = e1[2] * e2[0] - e1[0] * e2[2],
-        nz = e1[0] * e2[1] - e1[1] * e2[0]
+      const [nx, ny, nz] = cross(e1, e2)
       return rx * nx + ry * ny + rz * nz > 0
     },
   }

@@ -93,7 +93,8 @@ pub(crate) fn boxed(topology: &Topology) -> Unwrapped {
     let mut named = vec![[u32::MAX; 6]; base.points.len()];
     let mut coordinates: Vec<[f32; 2]> = Vec::new();
     let mut vertex_of = vec![0usize; 3 * base.triangle_count()];
-    for (t, tri) in base.mesh.triangles.iter().enumerate() {
+    for t in 0..base.triangle_count() {
+        let tri = base.mesh.corners(t);
         let (axis, bucket) = planes[t];
         let ([first, second], [flip_first, flip_second]) = PROJECTION[axis];
         let toward = sign(faces.normals[t][axis]) * flip_first;

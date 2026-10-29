@@ -56,6 +56,16 @@ export function dispatchRows(
   pass.dispatchWorkgroups(rowWidth(groups, width), rowsOf(groups, width), z)
 }
 
+/** Dispatches on `pass` enough workgroups of 4 × 4 × 4 threads to cover `x` × `y` × `z` cells. */
+export function dispatchCubes(
+  pass: Pick<GPUComputePassEncoder, 'dispatchWorkgroups'>,
+  x: number,
+  y: number,
+  z: number,
+) {
+  pass.dispatchWorkgroups(ceilDiv(x, 4), ceilDiv(y, 4), ceilDiv(z, 4))
+}
+
 /** The width a device's dispatches run in: its own limit, WebGPU's guaranteed one without it. */
 export const groupWidth = (limits?: { maxComputeWorkgroupsPerDimension?: number }) =>
   limits?.maxComputeWorkgroupsPerDimension ?? DEFAULT_GROUP_WIDTH

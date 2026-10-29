@@ -12,16 +12,6 @@
 use crate::hlod::flatten::uv::spectral::mesh::Chart;
 
 impl<'a> Chart<'a> {
-    /// The other end of edge `edge` from vertex `v`.
-    fn other_end(&self, edge: u32, v: u32) -> u32 {
-        let e = &self.edges[edge as usize];
-        if e.verts[0] == v {
-            e.verts[1]
-        } else {
-            e.verts[0]
-        }
-    }
-
     /// The rank of vertex `v` in face `face`, 3 when absent.
     fn rank_in(&self, face: u32, v: u32) -> usize {
         let corners = self.faces[face as usize].verts;
@@ -88,7 +78,7 @@ impl<'a> Chart<'a> {
             return false;
         };
         let mut current = Some(ring[first]);
-        let mut next = self.other_end(ring[first], v);
+        let mut next = self.edges[ring[first] as usize].other_end(v);
         let face = self.edges[ring[first] as usize].faces[0];
         let k = self.rank_in(face, v);
         if self.faces[face as usize].verts[(k + 1) % 3] != next {
@@ -98,7 +88,7 @@ impl<'a> Chart<'a> {
                 return false;
             };
             current = Some(ring[second]);
-            next = self.other_end(ring[second], v);
+            next = self.edges[ring[second] as usize].other_end(v);
             let face = self.edges[ring[second] as usize].faces[0];
             let m = self.rank_in(face, v);
             if m >= 3 || self.faces[face as usize].verts[(m + 1) % 3] != next {
@@ -135,7 +125,7 @@ impl<'a> Chart<'a> {
         self.verts[v as usize].boundary = false;
         let edge_count = self.verts[v as usize].edges.len();
         let mut current = self.verts[v as usize].edges[0];
-        let mut next = self.other_end(current, v);
+        let mut next = self.edges[current as usize].other_end(v);
         let mut previous: Option<u32> = None;
         self.verts[v as usize].verts.push(next);
         for j in 1..edge_count {

@@ -40,6 +40,15 @@ export const hairTileQuad = wgslFn(
 }`,
 )
 
+/** The vertex shader of the quad drawn over each tile of the list of all the tiles with strands: an instance a tile, `rank` its rank in the list. Its host declares the list's `tiles`. */
+export const hairTileQuadVs = wgslBlock(
+  'hairTileQuadVs',
+  [HAIR_IMAGE_WGSL, hairTileQuad],
+  `@vertex fn hairTileQuadVs(@builtin(vertex_index) vertex:u32,@builtin(instance_index) rank:u32)->@builtin(position) vec4f{
+ return hairTileQuad(vertex,tiles[${HAIR_TILE_ALL}u*image.capacity+rank],image.size);
+}`,
+)
+
 /** The pixel `local` of the tile of rank `rank` in the list of all the tiles with strands, and whether
  *  the tile is listed and the pixel lies in the image: the pixel of a thread of a pass over that list,
  *  a group a tile. Its host declares the lists' `counts` and `tiles`. */

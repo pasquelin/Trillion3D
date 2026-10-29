@@ -76,7 +76,7 @@ pub(crate) struct Unwrapped {
 }
 
 /// An island's triangles' corners and the coordinates of its vertices.
-type IslandMap = (Vec<[usize; 3]>, Vec<[f32; 2]>);
+type IslandMap = (Vec<[u32; 3]>, Vec<[f32; 2]>);
 
 /// `topology` unwrapped at `settings` (module doc).
 pub(crate) fn unwrap(topology: &Topology, settings: &HlodPatches) -> Unwrapped {
@@ -104,7 +104,7 @@ pub(crate) fn unwrap(topology: &Topology, settings: &HlodPatches) -> Unwrapped {
     for (island, (local, uv)) in islands.iter().zip(&mapped) {
         for (&b, tri) in island.iter().zip(local) {
             for k in 0..3 {
-                by_corner[3 * b + k] = uv[tri[k]].map(f64::from);
+                by_corner[3 * b + k] = uv[tri[k] as usize].map(f64::from);
             }
         }
     }

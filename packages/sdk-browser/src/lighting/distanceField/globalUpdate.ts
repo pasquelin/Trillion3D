@@ -6,7 +6,7 @@ import {
   GLOBAL_DISTANCE_FIELD_MIP_PROPAGATION_STEPS as MIP_STEPS,
 } from '../../../../sdk-core/src/lighting/globalDistanceField.ts'
 import type { GlobalDistanceFieldSettings } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
-import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
+import { dispatchCubes, dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { ALLOCATE_ENTRIES } from './allocateWgsl.ts'
 import { ARGS_WORDS, CLIP_BLOCK, CLIP_BLOCK_BYTES } from './clipmapBlock.ts'
 import { writeClipmapBlock, writePackedClipmap, writeUpdateBounds } from './clipmapUniforms.ts'
@@ -140,7 +140,7 @@ function encodeReset(encoder: GPUCommandEncoder, ctx: UpdateContext, offset: num
   pass.setPipeline(stage(ctx, 'fill', MIP_ENTRIES.fill))
   for (const { group, size } of ctx.groups.fill) {
     pass.setBindGroup(0, group)
-    pass.dispatchWorkgroups(ceilDiv(size[0], 4), ceilDiv(size[1], 4), ceilDiv(size[2], 4))
+    dispatchCubes(pass, size[0], size[1], size[2])
   }
   pass.setPipeline(stage(ctx, 'lists', ALLOCATE_ENTRIES.init))
   pass.setBindGroup(0, ctx.groups.lists.updates, [offset])
@@ -267,7 +267,7 @@ function encodeMips(
       pass.setBindGroup(0, step % 2 === 0 ? groups.mip.intoMip : groups.mip.intoTemp, [
         (plan.index * 2 + (step === 0 ? 1 : 0)) * MIP_BLOCK_BYTES,
       ])
-      pass.dispatchWorkgroups(ceilDiv(size, 4), ceilDiv(size, 4), ceilDiv(size, 4))
+      dispatchCubes(pass, size, size, size)
     }
   }
 }

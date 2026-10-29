@@ -13,7 +13,8 @@ use trillion3d_math::vector::vecn::lerp;
 /// degenerate triangles only weighs nothing in its neighbours' smoothing.
 pub(super) fn weighted(mesh: &Submesh) -> Vec<[f64; 3]> {
     let mut sums = vec![[0.0f64; 3]; mesh.vertices.len()];
-    for &tri in &mesh.triangles {
+    for t in 0..mesh.triangles.len() {
+        let tri = mesh.corners(t);
         let corners = tri.map(|v| mesh.point(v));
         // Twice the area long; the halves cancel once made unit.
         let face = triangle_cross(corners[0], corners[2], corners[1]);

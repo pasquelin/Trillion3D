@@ -280,7 +280,7 @@ export function normalizeVector3(v: NumberSink, at = 0) {
 }
 
 /** `(x, y, z)` written to `out[at..at + 2]`. */
-function writeVector3(out: NumberSink, at: number, x: number, y: number, z: number) {
+export function writeVector3(out: NumberSink, at: number, x: number, y: number, z: number) {
   out[at] = x
   out[at + 1] = y
   out[at + 2] = z

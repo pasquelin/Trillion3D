@@ -1,5 +1,5 @@
 import { isAffineMatrix4, type NumberSink } from '../matrix/matrix4.ts'
-import { length3, transformPointRowOf } from '../vector/vector.ts'
+import { length3, transformPointRowOf, writeVector3 } from '../vector/vector.ts'
 
 /**
  * Axis-aligned bounding boxes, stored flat: six floats `minX, minY, minZ, maxX, maxY, maxZ`
@@ -47,13 +47,6 @@ function writeBounds(
   out[o + 3] = maxX
   out[o + 4] = maxY
   out[o + 5] = maxZ
-}
-
-/** Writes one corner `x, y, z` into `out` at `at`. */
-function writeCorner(out: Float64Array, at: number, x: number, y: number, z: number) {
-  out[at] = x
-  out[at + 1] = y
-  out[at + 2] = z
 }
 
 /** True when an upper bound falls below its lower bound. A NaN bound does not make the box empty. */
@@ -347,7 +340,7 @@ function transformCorners(
       hiX = Math.max(hiX, x)
       hiY = Math.max(hiY, y)
       hiZ = Math.max(hiZ, z)
-    } else writeCorner(out, o + i * 3, x, y, z)
+    } else writeVector3(out, o + i * 3, x, y, z)
   }
   if (fold) writeBounds(out, o, loX, loY, loZ, hiX, hiY, hiZ)
 }

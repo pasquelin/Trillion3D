@@ -147,6 +147,15 @@ pub fn longest_side<const N: usize>(low: [f64; N], high: [f64; N]) -> f64 {
     (0..N).fold(0.0f64, |best, axis| best.max(high[axis] - low[axis]))
 }
 
+/// The axis the box is longest on, `high − low` compared by `f64::total_cmp`: the last of equal
+/// sides, axis 0 for a box of no axis.
+#[inline]
+pub fn longest_axis<const N: usize>(low: [f64; N], high: [f64; N]) -> usize {
+    (0..N)
+        .max_by(|&a, &b| (high[a] - low[a]).total_cmp(&(high[b] - low[b])))
+        .unwrap_or(0)
+}
+
 /// The length of the box's diagonal, `vecn::length(high − low)`: the root of its squared sides
 /// summed in axis order.
 #[inline]

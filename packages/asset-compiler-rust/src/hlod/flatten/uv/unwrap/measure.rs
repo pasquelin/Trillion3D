@@ -40,7 +40,7 @@ pub(super) fn metrics(base: &Base, triangles: &[usize]) -> Metrics {
         let area = 0.5 * length(w);
         normal = add(normal, scale(unit_or_itself(w), area));
         surface += area;
-        let [p, q, r] = local.map(|v| uv[v].unwrap_or([f64::MAX; 2]));
+        let [p, q, r] = local.map(|v| uv[v as usize].unwrap_or([f64::MAX; 2]));
         let signed = 0.5 * (perp(p, q) + perp(q, r) + perp(r, p));
         let flat = 0.5 * double_area(p, q, r).abs();
         laid += flat;

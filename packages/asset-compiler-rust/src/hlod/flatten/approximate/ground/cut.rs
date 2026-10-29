@@ -41,7 +41,7 @@ impl Shape {
             .collect();
         for t in 0..self.mesh.triangles.len() {
             let on = |v: usize| signs[v].abs() < ON_PLANE;
-            if self.mesh.is_triangle(t) && self.mesh.triangles[t].iter().all(|&v| on(v)) {
+            if self.mesh.is_triangle(t) && self.mesh.corners(t).iter().all(|&v| on(v)) {
                 self.mesh.remove_triangle(t, true);
             }
         }
@@ -73,7 +73,7 @@ impl Shape {
             if !self.mesh.is_edge(e) || made[e] {
                 continue;
             }
-            let [a, b] = self.mesh.edges[e].ends;
+            let [a, b] = self.mesh.ends(e);
             let (da, db) = (signs[a], signs[b]);
             if on(da) || on(db) {
                 on_plane[e] = on(da) && on(db);
@@ -128,7 +128,7 @@ impl Shape {
                 if e == NONE || !self.mesh.is_edge(e) {
                     continue;
                 }
-                let [keep, remove] = self.mesh.edges[e].ends;
+                let [keep, remove] = self.mesh.ends(e);
                 if distance2(self.points[keep], self.points[remove]) > least {
                     continue;
                 }
@@ -147,7 +147,7 @@ impl Shape {
     /// kept point `1·kept + 0·removed`; whether it was.
     fn collapse(&mut self, keep: usize, remove: usize) -> bool {
         let (kept, removed) = (self.points[keep], self.points[remove]);
-        let collapsed = self.mesh.collapse_edge(keep, remove);
+        let collapsed = self.mesh.collapse_edge(keep, remove).is_ok();
         if collapsed {
             self.points[keep] = weighted_sum([kept, removed], [1.0, 0.0]);
         }

@@ -10,6 +10,18 @@ import { HIZ_SLOT_WORDS } from './uniforms.ts'
 import { hasWideAtomics } from '../../../gpu/core/wideAtomics.ts'
 import { hizWorkEntries, hizWorkSource, hizWorkSourceEntries } from './workDepthSource.ts'
 
+/** The culling layer's build and the full build with the trace layers: the one kernel of `module`
+ *  compiled twice, the second specialized by `HIZ_WITH_TRACE`, on the groups `layouts`. */
+function buildHizKernels(
+  device: GPUDevice,
+  layouts: readonly GPUBindGroupLayout[],
+  module: GPUShaderModule,
+) {
+  const stage = (constants?: Record<string, number>) =>
+    buildComputeStage(device, layouts, module, 'buildHiz', constants)
+  return Promise.all([stage(), stage({ [HIZ_WITH_TRACE]: 1 })])
+}
+
 /**
  * The Hi-Z kernels — the culling layer's build and the full build with the trace layers, one kernel specialized (`HIZ_WITH_TRACE`) —
  * compiled under one device validation scope, once a device: every pyramid of the device shares
@@ -22,12 +34,7 @@ export const createHizPipelines = oncePerDevice((device) =>
     })
     const module = device.createShaderModule({ code: HIZ_SHADER })
     if (await shaderFailed(module)) return undefined
-    const stage = (constants?: Record<string, number>) =>
-      buildComputeStage(device, [layout], module, 'buildHiz', constants)
-    const [buildPipeline, fullPipeline] = await Promise.all([
-      stage(),
-      stage({ [HIZ_WITH_TRACE]: 1 }),
-    ])
+    const [buildPipeline, fullPipeline] = await buildHizKernels(device, [layout], module)
     return { layout, buildPipeline, fullPipeline }
   }),
 )
@@ -72,12 +79,11 @@ export const createHizWorkPipelines = oncePerDevice((device) =>
       code: hizBuildShader(HIZ_IMAGE_LEVEL0, hizWorkSource(wide)),
     })
     if (await shaderFailed(module)) return undefined
-    const stage = (constants?: Record<string, number>) =>
-      buildComputeStage(device, [layout, sourceLayout], module, 'buildHiz', constants)
-    const [buildPipeline, fullPipeline] = await Promise.all([
-      stage(),
-      stage({ [HIZ_WITH_TRACE]: 1 }),
-    ])
+    const [buildPipeline, fullPipeline] = await buildHizKernels(
+      device,
+      [layout, sourceLayout],
+      module,
+    )
     return { layout, sourceLayout, buildPipeline, fullPipeline }
   }),
 )

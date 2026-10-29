@@ -106,6 +106,6 @@ impl Base {
 
     /// Triangle `t`'s corners' points.
     pub(super) fn corners(&self, t: usize) -> [[f64; 3]; 3] {
-        self.mesh.triangles[t].map(|v| self.points[v])
+        self.mesh.corners(t).map(|v| self.points[v])
     }
 }

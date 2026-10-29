@@ -149,9 +149,7 @@ pub(crate) fn mapped_bounds(options: &ImportOptions, grids: &[Grid]) -> Option<(
         .flat_map(|desc| desc.mappings.iter().flatten())
     {
         if let Some((low, high)) = grids[mapping.grid].active_box {
-            let (min, max) = found.get_or_insert((low, high));
-            *min = zip3(*min, low, i32::min);
-            *max = zip3(*max, high, i32::max);
+            widen_box(&mut found, low, high);
         }
     }
     found

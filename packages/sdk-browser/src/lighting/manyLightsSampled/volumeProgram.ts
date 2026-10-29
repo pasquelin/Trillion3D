@@ -15,7 +15,7 @@ import {
   heldProgramGroup,
   keptProgramGroup,
 } from '../../gpu/bind/programGroups.ts'
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { dispatchCubes } from '../../gpu/dispatch/grid.ts'
 import { hizDepthBindEntries, hizDepthEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../visibility/hiz/gpu/types.ts'
 import { globalReadLayoutEntries, type GlobalFieldRead } from '../distanceField/view.ts'
@@ -226,7 +226,7 @@ function encodeVolumeSamples(
       ),
   )
   const [dx, dy, dz] = volume.downSize
-  pass.dispatchWorkgroups(ceilDiv(dx, 4), ceilDiv(dy, 4), ceilDiv(dz, 4))
+  dispatchCubes(pass, dx, dy, dz)
 }
 
 /** The bind group of a pass whose bindings change with the identity of `identity`, kept while they do not. */
@@ -286,7 +286,7 @@ function encodeVolumeTraces(
     ),
   )
   const [sx, sy, sz] = volume.sampleSize
-  pass.dispatchWorkgroups(ceilDiv(sx, 4), ceilDiv(sy, 4), ceilDiv(sz, 4))
+  dispatchCubes(pass, sx, sy, sz)
   const args = programs.compactArgs()
   pass.setPipeline(args.pipeline.get()!)
   pass.setBindGroup(
@@ -360,7 +360,7 @@ function encodeVolumeSets(
       ),
   )
   const [tx, ty, tz] = volume.hashTiles
-  pass.dispatchWorkgroups(ceilDiv(tx, 4), ceilDiv(ty, 4), ceilDiv(tz, 4))
+  dispatchCubes(pass, tx, ty, tz)
 }
 
 /** The voxels of the volume sampled, their rays traced, then the tiles' sets, into `pass`. */

@@ -9,9 +9,10 @@
 //! determinant's `1000 · ε`, the volume constraint's `10⁵` — are set for that scale, and centring
 //! keeps the quadrics' constant terms small.
 //!
-//! The mesh's topology lives in `topology`, its collapses in `collapse`, the quadrics in
-//! `quadrics`, the loop in `run`.
+//! The mesh's topology is the one the other passes edit (`mesh::Mesh`), read in `topology`, its
+//! collapses made by `Mesh::collapse_edge`; the quadrics live in `quadrics`, the loop in `run`.
 use crate::hlod::flatten::bake::tree::Tree;
+use crate::hlod::flatten::mesh::Mesh;
 use crate::hlod::flatten::quadric::{adjugate, outer, times, Plane, Volume};
 // Metres to centimetres, the scale the thresholds are set for.
 use crate::hlod::flatten::units::CENTIMETRES;
@@ -20,12 +21,10 @@ use std::sync::Arc;
 use trillion3d_math::geometry::aabb::{aabb_of_f32, centre};
 use trillion3d_math::heap::{IndexedHeap, LeastRisingOnTie};
 use trillion3d_math::vector::vecn::{add, distance2, dot, scale, sub};
-mod collapse;
 mod quadrics;
 mod run;
 mod topology;
 
-const NONE: u32 = u32::MAX;
 /// The determinant under which a quadric's system counts as singular: `1000 · ε`.
 const SOLVE_THRESHOLD: f64 = 1000.0 * f64::EPSILON;
 /// The triangles past which the fast collapse pass runs first, and the count it stops at.
@@ -92,36 +91,6 @@ impl Quadric {
     }
 }
 
-/// A vertex's edges, held in place up to eight — a closed surface's vertex has six on average —,
-/// on the heap past them: no allocation of its own for almost every vertex.
-type VertexEdges = smallvec::SmallVec<[u32; 8]>;
-
-/// The mesh's topology: vertices with their edges, triangles, edges with their vertices
-/// (lower first) and their one or two triangles.
-struct Mesh {
-    positions: Vec<V3>,
-    vertex_edges: Vec<VertexEdges>,
-    vertex_alive: Vec<bool>,
-    triangles: Vec<[u32; 3]>,
-    triangle_alive: Vec<bool>,
-    edges: Vec<([u32; 2], [u32; 2])>,
-    edge_alive: Vec<bool>,
-    triangle_count: usize,
-}
-
-/// What a collapse did: the triangles removed and the vertices opposite the edge.
-struct Collapsed {
-    removed_tris: [u32; 2],
-    opposing: [u32; 2],
-}
-
-/// Why `Mesh::collapse` refused: the edge's last triangle, or any other reason.
-#[derive(PartialEq)]
-enum Refused {
-    Triangle,
-    Other,
-}
-
 /// The mesh the geometric tolerance is measured against, by closest point, and the tolerance.
 struct Target {
     tree: Tree,
@@ -140,7 +109,9 @@ impl Target {
 
 /// The simplifier's state.
 struct Simplifier {
+    /// The topology, shrunk only: its edges listed in the order they came, its freed ids not kept.
     mesh: Mesh,
+    positions: Vec<V3>,
     tri_quadrics: Vec<Quadric>,
     tri_areas: Vec<f64>,
     vertex_quadrics: Vec<Quadric>,
@@ -160,10 +131,11 @@ struct Simplifier {
 }
 
 impl Simplifier {
-    /// The simplifier of `mesh`, no tolerance.
-    fn new(mesh: Mesh) -> Self {
+    /// The simplifier of the triangles `indices` over `positions`, no tolerance.
+    fn new(positions: Vec<V3>, indices: &[u32]) -> Self {
         Simplifier {
-            mesh,
+            mesh: topology::read(positions.len(), indices),
+            positions,
             tri_quadrics: Vec::new(),
             tri_areas: Vec::new(),
             vertex_quadrics: Vec::new(),
@@ -179,9 +151,9 @@ impl Simplifier {
 
     /// The live triangles' total area, square centimetres.
     fn area(&self) -> f64 {
-        (0..self.mesh.triangles.len() as u32)
-            .filter(|&t| self.mesh.triangle_alive[t as usize])
-            .map(|t| self.mesh.triangle_info(t).1)
+        (0..self.mesh.triangles.len())
+            .filter(|&t| self.mesh.is_triangle(t))
+            .map(|t| self.triangle_info(t).1)
             .sum()
     }
 }
@@ -189,7 +161,7 @@ impl Simplifier {
 /// What a collapse attempt came to, as the passes read it.
 #[derive(PartialEq)]
 enum Outcome {
-    Collapsed(u32, [u32; 2], [u32; 2]),
+    Collapsed(usize, [usize; 2], [usize; 2]),
     IsolatedTriangle,
     Ignored,
 }
@@ -237,7 +209,7 @@ pub(crate) fn simplify(
     drop(positions);
     let (accuracy, deviation) = (accuracy * CENTIMETRES, deviation * CENTIMETRES);
     // The input is held once, in the simplifier's mesh, from here on.
-    let mut simplifier = Simplifier::new(Mesh::new(local, &indices));
+    let mut simplifier = Simplifier::new(local, &indices);
     drop(indices);
     // The first pass's triangle count, and the count past which the fast pass runs first and the
     // one it stops at.
@@ -257,12 +229,12 @@ pub(crate) fn simplify(
             (wanted, past, past)
         }
     };
-    if settings.pre_pass && simplifier.mesh.triangle_count > past {
+    if settings.pre_pass && simplifier.mesh.triangle_count() > past {
         simplifier.fast_collapse(accuracy, 10, down_to);
     }
-    let fast = simplifier.mesh.triangle_count;
+    let fast = simplifier.mesh.triangle_count();
     simplifier.simplify_to(wanted);
-    let first_pass = simplifier.mesh.triangle_count;
+    let first_pass = simplifier.mesh.triangle_count();
     // The tolerance's pass, the deviation measured against a copy of the first pass's mesh.
     if matches!(
         settings.simplification,

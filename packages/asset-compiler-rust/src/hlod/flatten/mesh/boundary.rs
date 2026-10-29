@@ -136,7 +136,7 @@ fn left_turn(
     let unit = |v: [f64; 3]| unit_where(v, |length| length > 0.0).unwrap_or([0.0; 3]);
     let sum = (mesh.triangles_at(at))
         .map(|t| {
-            let [a, b, c] = mesh.triangles[t].map(point);
+            let [a, b, c] = mesh.corners(t).map(point);
             unit(triangle_cross(a, c, b))
         })
         .fold([0.0; 3], add);
@@ -173,7 +173,7 @@ pub(crate) fn plane_angle(from: [f64; 3], to: [f64; 3], normal: [f64; 3]) -> f64
 /// end they share — the first edge's lower end when it is shared, else its higher —, the span's
 /// two ends the first and last edges' other ends; a span of one edge its two ends, lower first.
 fn span_vertices(mesh: &Mesh, edges: &[usize]) -> Vec<usize> {
-    let ends = |e: usize| mesh.edges[e].ends;
+    let ends = |e: usize| mesh.ends(e);
     let first = ends(edges[0]);
     if edges.len() == 1 {
         return first.to_vec();

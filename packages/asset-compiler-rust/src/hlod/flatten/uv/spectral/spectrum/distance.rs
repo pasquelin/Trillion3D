@@ -158,11 +158,7 @@ impl Search<'_> {
             settled[v as usize] = true;
             for &e in &self.verts[v as usize].edges {
                 let edge = self.edges[e as usize];
-                let other = if edge.verts[0] == v {
-                    edge.verts[1]
-                } else {
-                    edge.verts[0]
-                };
+                let other = edge.other_end(v);
                 if !settled[other as usize] {
                     self.relax(&mut found, (v, other, e), &settled, signal);
                 }

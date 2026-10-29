@@ -2,7 +2,7 @@ import { refusal } from './nameMatch.ts'
 import {
   nonNegativeSetting as nonNegative,
   contextReader,
-  resolveSettings,
+  resolveSettingsWith,
   rulesOf,
   type SettingOptions,
   type SettingValues,
@@ -64,11 +64,7 @@ export const readAmbientCubemapSetting = /* @__PURE__ */ contextReader(AMBIENT_C
  *   `size` texels a face (a power of two from 16 to 1024) and `6 · size² · 3` finite linear numbers of at least 0.
  */
 export function resolveAmbientCubemap(options: AmbientCubemapOptions = {}): ResolvedAmbientCubemap {
-  const { ambientCubemap, ...settings } = options
-  return Object.freeze({
-    ...resolveSettings(AMBIENT_CUBEMAP_RULES, settings),
-    ambientCubemap: resolveCube(ambientCubemap),
-  })
+  return resolveSettingsWith(AMBIENT_CUBEMAP_RULES, options, 'ambientCubemap', resolveCube)
 }
 
 /** The cube an option names, none for none: a cube of the sky light's form (`resolveSkyLightCubemap`) whose side is a power of

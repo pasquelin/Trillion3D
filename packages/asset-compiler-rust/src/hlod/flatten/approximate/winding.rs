@@ -9,7 +9,7 @@
 //! stops early. The meshes' fields are built here, side by side; the field is read on the GPU
 //! (`gpu/winding.wgsl`), packed for it in `pack`, in as many parts as one binding needs: the parts'
 //! values are joined as the one walk's sum (`gpu::Pass::join`).
-use trillion3d_math::geometry::aabb::merge_aabb;
+use trillion3d_math::geometry::aabb::{longest_axis, merge_aabb};
 mod affine;
 mod field;
 mod pack;
@@ -72,9 +72,7 @@ fn box_tree(
         return at as u32;
     }
     links.push(Link::Leaf(0..0));
-    let axis = (0..3)
-        .max_by(|&a, &b| (own.1[a] - own.0[a]).total_cmp(&(own.1[b] - own.0[b])))
-        .unwrap_or(0);
+    let axis = longest_axis(own.0, own.1);
     let centre = |r: usize| boxes[r].0[axis] + boxes[r].1[axis];
     ranks.sort_by(|&a, &b| centre(a).total_cmp(&centre(b)));
     let upper = ranks.split_off(ranks.len() / 2);

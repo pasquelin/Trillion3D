@@ -32,7 +32,6 @@
 //! the atlas in `remap`, the atlas's side and the counts a cut holds in `sizing`, the bytes its
 //! making holds in `working`, the emission atlas in `emission`.
 use super::super::bake::appearance::tone;
-use super::super::bake::sources::Piece;
 use super::super::bake::{sized, Emission, Maps};
 use super::super::uv::raster::{EMPTY, SAMPLED};
 use super::super::{step, Atlas, Library, Made, Sides, StageMs, Stages};
@@ -220,10 +219,9 @@ pub(in crate::hlod) fn merged_flat(
     ms[step::UNWRAP] = super::super::millis(started);
     let started = std::time::Instant::now();
     // What lies behind the translucent parts seen through: every part, traced once.
-    let behind = seen.contains(&true).then(|| {
-        let pieces: Vec<Piece> = parts.iter().map(|p| p.piece()).collect();
-        Behind::of(&pieces, library)
-    });
+    let behind = seen
+        .contains(&true)
+        .then(|| Behind::of(parts.iter().map(|p| p.piece()), library));
     let scene = Scene {
         parts: &parts,
         behind,

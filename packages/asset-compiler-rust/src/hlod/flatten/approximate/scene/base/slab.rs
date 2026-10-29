@@ -66,7 +66,7 @@ fn unit_or_zero(v: [f64; 3]) -> [f64; 3] {
 fn direction(mesh: &Mesh, points: &[[f64; 3]], v: usize) -> [f64; 3] {
     let mut sum = [0.0; 3];
     for t in mesh.triangles_at(v) {
-        let triangle = mesh.triangles[t];
+        let triangle = mesh.corners(t);
         let Some(k) = (0..3).find(|&k| triangle[k] == v) else {
             continue;
         };

@@ -2,7 +2,9 @@
 //! counted by what holds it: an id is taken at a count of one, counted up and down as triangles
 //! name it, and freed when its count falls to zero. The freed ids are kept in the order freed,
 //! the last freed the next taken; a new id past the last is made only when none is free. Counts
-//! are sixteen bits wide, their highest value marking a freed id, and wrap as sixteen bits do.
+//! are sixteen bits wide, their highest value marking a freed id, and wrap as sixteen bits do. A
+//! mesh that is only ever shrunk keeps no list of the freed ids (`discarding`); the count of the
+//! ids that stand is kept either way.
 
 /// The count marking a freed id.
 const FREED: u16 = u16::MAX;
@@ -11,22 +13,38 @@ const FREED: u16 = u16::MAX;
 #[derive(Default)]
 pub(super) struct Ids {
     counts: Vec<u16>,
-    free: Vec<usize>,
+    free: Vec<u32>,
+    standing: usize,
+    discard_freed: bool,
 }
 
 impl Ids {
+    /// Ids that list no freed id: every new id is one past the last made.
+    pub(super) fn discarding() -> Self {
+        Ids {
+            discard_freed: true,
+            ..Ids::default()
+        }
+    }
+
     /// A new id at a count of one: the last freed, else one past the last made.
     pub(super) fn take(&mut self) -> usize {
+        self.standing += 1;
         match self.free.pop() {
             Some(id) => {
-                self.counts[id] = 1;
-                id
+                self.counts[id as usize] = 1;
+                id as usize
             }
             None => {
                 self.counts.push(1);
                 self.counts.len() - 1
             }
         }
+    }
+
+    /// How many ids stand: taken and not freed since.
+    pub(super) fn standing(&self) -> usize {
+        self.standing
     }
 
     /// How many ids were ever made, the freed among them.
@@ -64,7 +82,10 @@ impl Ids {
     pub(super) fn count_down(&mut self, id: usize, by: u16) {
         self.counts[id] = self.counts[id].wrapping_sub(by);
         if self.counts[id] == 0 {
-            self.free.push(id);
+            self.standing -= 1;
+            if !self.discard_freed {
+                self.free.push(id as u32);
+            }
             self.counts[id] = FREED;
         }
     }

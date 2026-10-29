@@ -11,7 +11,7 @@ import type { SurfaceBuffer } from '../../materials/surface/surfaceBuffer.ts'
 import { volumetricLightmapLayoutEntries } from '../volumetricLightmap/textures.ts'
 import type { VolumetricLightmapGpu } from '../volumetricLightmap/gpu.ts'
 import { DEFERRED_BINDINGS } from './bindings.ts'
-import { fullscreenDescriptor, preparedPipeline } from './fullscreen.ts'
+import { clearedColourTarget, fullscreenDescriptor, preparedPipeline } from './fullscreen.ts'
 import { createPassGroup } from './passGroup.ts'
 import {
   VOLUMETRIC_LIGHT_ENTRY,
@@ -82,16 +82,7 @@ export function createVolumetricLightPass(
   const layout = device.createBindGroupLayout({ entries: layoutEntries() })
   const pipeline = lightPipeline(device, layout, failed)
   const group = createPassGroup(device, layout)
-  const attachment: GPURenderPassColorAttachment = {
-    view: undefined as unknown as GPUTextureView,
-    loadOp: 'clear',
-    storeOp: 'store',
-    clearValue: [0, 0, 0, 0],
-  }
-  const descriptor: GPURenderPassDescriptor = {
-    label: VOLUMETRIC_LIGHT_PASS,
-    colorAttachments: [attachment],
-  }
+  const { target: attachment, descriptor } = clearedColourTarget(VOLUMETRIC_LIGHT_PASS)
   /** What the group is made of, named again at each draw: allocates nothing. */
   const named: unknown[] = [undefined, undefined, undefined]
   let target: GPUTexture | undefined, targetView: GPUTextureView | undefined

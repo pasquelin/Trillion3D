@@ -190,3 +190,15 @@ export function makeFullscreenPipeline(
     fullscreenDescriptor(device, module, bind, entryPoint, targets),
   )
 }
+
+/** A fullscreen pass's colour target named `label`, cleared before the first draw writes every pixel of it; its view is set at each draw. */
+export function clearedColourTarget(label: string) {
+  const target: GPURenderPassColorAttachment = {
+    view: undefined as unknown as GPUTextureView,
+    loadOp: 'clear',
+    storeOp: 'store',
+    clearValue: [0, 0, 0, 0],
+  }
+  const descriptor: GPURenderPassDescriptor = { label, colorAttachments: [target] }
+  return { target, descriptor }
+}

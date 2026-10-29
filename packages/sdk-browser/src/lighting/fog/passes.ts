@@ -16,6 +16,7 @@ import {
   keptProgramGroup,
 } from '../../gpu/bind/programGroups.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { dispatchCubes } from '../../gpu/dispatch/grid.ts'
 import type { VoxelBuffers } from './voxelGpu.ts'
 import { encodeStatic } from './staticPass.ts'
 import { encodeVoxels, type VoxelGraphPass } from './voxelPasses.ts'
@@ -297,7 +298,7 @@ function encodeScatter(
       ]),
   )
   const { cells } = context
-  pass.dispatchWorkgroups(ceilDiv(cells.x, 4), ceilDiv(cells.y, 4), ceilDiv(cells.z, 4))
+  dispatchCubes(pass, cells.x, cells.y, cells.z)
 }
 
 /** The sum of the cells along each column. */

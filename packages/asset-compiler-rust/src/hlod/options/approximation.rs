@@ -6,7 +6,7 @@
 //! reads, fields of the layer, `sizing::atlas_sizing`). The setting kinds live in `kinds`. The
 //! layer's JSON is the cache's identity (`Hlod::named`): a setting named changes the key, one left
 //! out keeps it.
-use super::fields::{chosen_of, counted, level, maps_with, ranged, set, switch};
+use super::fields::{chosen_of, counted, levelled, maps_with, ranged, set, switch};
 use super::*;
 use crate::compiler::validate::OPTIONS;
 use crate::hlod::flatten::bake::Maps;
@@ -157,7 +157,7 @@ const FINITE: (f64, f64) = (f64::MIN, f64::MAX);
 /// (`emptyTexels`, `HlodEmptyTexels`).
 pub(super) fn empty_texels(map: &Map<String, Value>, what: &str) -> Result<HlodEmptyTexels> {
     let levels = (&HLOD_EMPTY_TEXELS[..], DEFAULT_HLOD_EMPTY_TEXELS);
-    Ok(HlodEmptyTexels::ALL[level(map, "emptyTexels", what, levels)?])
+    levelled(map, "emptyTexels", what, levels, &HlodEmptyTexels::ALL)
 }
 
 /// The approximation settings `entry` names (`what` naming it), every field checked, the others
@@ -264,7 +264,7 @@ pub(super) fn approximation(entry: Option<&Value>, what: &str) -> Result<HlodApp
     );
     read.maps = maps_with(map.get("maps"), what, read.maps, &MAP_FIELDS)?;
     let capping = (&HLOD_BASE_CAPPINGS[..], DEFAULT_HLOD_BASE_CAPPING);
-    read.base.capping = HlodBaseCapping::ALL[level(map, "baseCapping", what, capping)?];
+    read.base.capping = levelled(map, "baseCapping", what, capping, &HlodBaseCapping::ALL)?;
     // Zero for each: the method's own height and thickness (`HlodBase`); a slab rises from the
     // base, never under it.
     set(
@@ -276,7 +276,13 @@ pub(super) fn approximation(entry: Option<&Value>, what: &str) -> Result<HlodApp
         ranged(map, "baseThickness", what, (0.0, f64::MAX))?,
     );
     let clipping = (&HLOD_GROUND_CLIPPINGS[..], DEFAULT_HLOD_GROUND_CLIPPING);
-    read.ground.clipping = HlodGroundClipping::ALL[level(map, "groundClipping", what, clipping)?];
+    read.ground.clipping = levelled(
+        map,
+        "groundClipping",
+        what,
+        clipping,
+        &HlodGroundClipping::ALL,
+    )?;
     set(
         &mut read.ground.height,
         ranged(map, "groundHeight", what, FINITE)?,

@@ -4,6 +4,7 @@ import { CENTIMETRES_PER_METRE } from '../../../../../sdk-core/src/page/format.t
 import type { MeshDistanceFieldTraceSettings } from '../../../../../sdk-core/src/contracts/meshDistanceFieldTraceOptions.ts'
 import {
   computeUniformEntry,
+  layoutsOf,
   namedEntries,
   storageEntries,
   wholeBuffer,
@@ -97,12 +98,7 @@ type Program = keyof typeof LAYOUTS
  * into a stand-in target no colour is written to, back faces kept, and the sphere's buffers.
  */
 const meshGridPrograms = oncePerDevice((device: GPUDevice) => {
-  const layouts = Object.fromEntries(
-    Object.entries(LAYOUTS).map(([name, entries]) => [
-      name,
-      device.createBindGroupLayout({ label: `${LABEL} ${name}`, entries: [...entries] }),
-    ]),
-  ) as Record<Program, GPUBindGroupLayout>
+  const layouts = layoutsOf(device, LABEL, LAYOUTS)
   const pipelineLayout = (program: Program) =>
     device.createPipelineLayout({ bindGroupLayouts: [layouts[program]] })
   const label = (program: Program) => `${LABEL} ${program}`

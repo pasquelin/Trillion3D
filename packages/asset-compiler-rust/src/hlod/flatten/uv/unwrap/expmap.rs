@@ -38,7 +38,7 @@ pub(super) enum Seeding {
 /// the map is whole — seeded off the boundary, every corner reached —, the map an island is turned
 /// to its least box by.
 pub(super) struct Map {
-    pub(super) corners: Vec<[usize; 3]>,
+    pub(super) corners: Vec<[u32; 3]>,
     pub(super) uv: Vec<Option<[f64; 2]>>,
     pub(super) whole: bool,
 }
@@ -100,9 +100,9 @@ fn furthest(mesh: &Submesh, sources: &[usize]) -> Option<usize> {
 fn boundary_vertices(mesh: &Submesh) -> Vec<usize> {
     let mut seen = vec![false; mesh.vertices.len()];
     let mut out = Vec::new();
-    for (e, edge) in mesh.edges.iter().enumerate() {
+    for e in 0..mesh.edges.len() {
         if mesh.is_boundary(e) {
-            for v in edge.ends {
+            for v in mesh.ends(e) {
                 if !std::mem::replace(&mut seen[v], true) {
                     out.push(v);
                 }
@@ -169,7 +169,8 @@ pub(super) fn expmap(base: &Base, island: &[usize], seeding: Seeding) -> Map {
         uv[v] = Some([sum[0] / weight, sum[1] / weight]);
     };
     front(&mesh, (&mut distance, &mut frozen), &mut queue, reach);
-    let whole = seeded && (mesh.triangles.iter()).all(|tri| tri.iter().all(|&v| uv[v].is_some()));
+    let whole = seeded
+        && (0..mesh.triangles.len()).all(|t| mesh.corners(t).iter().all(|&v| uv[v].is_some()));
     Map {
         corners: mesh.mesh.triangles,
         uv,

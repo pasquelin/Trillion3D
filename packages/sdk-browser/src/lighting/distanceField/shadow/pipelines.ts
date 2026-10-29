@@ -3,6 +3,7 @@ import { oncePerDevice } from '../../../gpu/core/oncePerDevice.ts'
 import { tileScatterPipeline } from '../tileScatter.ts'
 import { DFSH_STAND_IN_FORMAT } from './layout.ts'
 import type { DfshSettings } from './params.ts'
+import { layoutsOf } from '../../../gpu/core/computeBindings.ts'
 import { DFSH_LAYOUTS, type DfshProgram } from './layouts.ts'
 import { DFSH_SHADERS } from './shaders.ts'
 
@@ -21,12 +22,7 @@ const COMPUTE = {
  * into a stand-in target that no colour is written to.
  */
 export const dfshPrograms = oncePerDevice((device: GPUDevice) => {
-  const layouts = Object.fromEntries(
-    Object.entries(DFSH_LAYOUTS).map(([name, entries]) => [
-      name,
-      device.createBindGroupLayout({ label: `${LABEL} ${name}`, entries: [...entries] }),
-    ]),
-  ) as Record<DfshProgram, GPUBindGroupLayout>
+  const layouts = layoutsOf(device, LABEL, DFSH_LAYOUTS)
   const pipelineLayout = (program: DfshProgram) =>
     device.createPipelineLayout({ bindGroupLayouts: [layouts[program]] })
   const compute = Object.fromEntries(

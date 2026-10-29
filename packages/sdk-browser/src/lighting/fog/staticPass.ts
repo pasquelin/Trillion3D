@@ -2,7 +2,7 @@ import { namedEntries } from '../../gpu/core/computeBindings.ts'
 import type { VolumetricLightmapGpu } from '../volumetricLightmap/gpu.ts'
 import { FOG_BINDING } from './bindings.ts'
 import { heldProgramGroup, keptProgramGroup } from '../../gpu/bind/programGroups.ts'
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { dispatchCubes } from '../../gpu/dispatch/grid.ts'
 import type { FogPassContext, FogPassInputs } from './passes.ts'
 import type { VolumeTextures } from './resources.ts'
 
@@ -51,5 +51,5 @@ export function encodeStatic(
       ]),
   )
   const { cells } = context
-  pass.dispatchWorkgroups(ceilDiv(cells.x, 4), ceilDiv(cells.y, 4), ceilDiv(cells.z, 4))
+  dispatchCubes(pass, cells.x, cells.y, cells.z)
 }

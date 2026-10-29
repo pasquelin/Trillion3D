@@ -7,6 +7,15 @@
 use crate::hlod::flatten::uv::spectral::mesh::Chart;
 
 impl<'a> Chart<'a> {
+    /// The faces of each of `count` labels of `face_charts`, in face order.
+    pub(super) fn faces_by_label(&self, face_charts: &[u32], count: usize) -> Vec<Vec<u32>> {
+        let mut groups: Vec<Vec<u32>> = vec![Vec::new(); count];
+        for (f, &label) in face_charts[..self.faces.len()].iter().enumerate() {
+            groups[label as usize].push(f as u32);
+        }
+        groups
+    }
+
     /// The children of the face labels `face_charts` among `count` labels; whether every child
     /// is a manifold.
     pub(crate) fn build_sub_charts(
@@ -18,10 +27,7 @@ impl<'a> Chart<'a> {
             return Ok(true);
         }
         self.children.clear();
-        let mut groups: Vec<Vec<u32>> = vec![Vec::new(); count];
-        for (f, &label) in face_charts[..self.faces.len()].iter().enumerate() {
-            groups[label as usize].push(f as u32);
-        }
+        let groups = self.faces_by_label(face_charts, count);
         if groups.iter().any(|g| g.len() == self.faces.len()) {
             return Ok(true);
         }

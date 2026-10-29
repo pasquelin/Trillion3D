@@ -37,6 +37,26 @@ export const preparedComputeStage = (
   label?: string,
 ) => preparedComputePipeline(device, computeStage(layout, module, entryPoint, constants, label))
 
+/** The maker of the stages of one family, labelled `label`: `name`, `module`, `entry` and the layout `entries` give a stage on a
+ *  bind-group layout of its own, prepared off the frame (`preparedComputeStage`), the layout coming with it. */
+export const layoutStagesOf =
+  (device: GPUDevice, label: string) =>
+  (name: string, module: GPUShaderModule, entry: string, entries: GPUBindGroupLayoutEntry[]) => {
+    const layout = device.createBindGroupLayout({ label: `${label} ${name}`, entries })
+    const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
+    return {
+      layout,
+      pipeline: preparedComputeStage(
+        device,
+        pipelineLayout,
+        module,
+        entry,
+        undefined,
+        `${label} ${name}`,
+      ),
+    }
+  }
+
 /** The stage `entry` of `code` on the bind-group layouts `layouts`, group by group, labelled
  *  `label`, asked now, off the frame; `failed` hears a failure to compile. */
 export function askedComputeStage(

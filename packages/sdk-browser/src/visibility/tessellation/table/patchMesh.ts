@@ -190,6 +190,14 @@ export class PatchMesh {
       else edge.t[0] = next
     } else if (edge.t[1] === old) edge.t[1] = next
   }
+  /** Puts vertex `next` in place of vertex `old` in triangle `t`. */
+  replaceTriangleVertex(t: number, old: number, next: number) {
+    this.triangle[t] = this.triangle[t].map((v) => (v === old ? next : v)) as [
+      number,
+      number,
+      number,
+    ]
+  }
   replaceTriangleEdge(t: number, old: number, next: number) {
     const te = this.triangleEdges[t]
     const i = te.indexOf(old)
@@ -236,11 +244,7 @@ export class PatchMesh {
     const f = this.appendVertex(this.position[a].map((x, i) => lerp(x, this.position[b][i], along)))
     const ebc = this.triangleEdgeOf(t0, b, c)
     if (t1 === NONE) {
-      this.triangle[t0] = this.triangle[t0].map((v) => (v === b ? f : v)) as [
-        number,
-        number,
-        number,
-      ]
+      this.replaceTriangleVertex(t0, b, f)
       const t2 = this.newTriangle([f, b, c])
       this.replaceEdgeTriangle(ebc, t0, t2)
       this.replaceEdgeVertex(e, b, f)
@@ -256,12 +260,7 @@ export class PatchMesh {
     }
     const d = this.third(t1, a, b)
     const edb = this.triangleEdgeOf(t1, d, b)
-    for (const tt of [t0, t1])
-      this.triangle[tt] = this.triangle[tt].map((v) => (v === b ? f : v)) as [
-        number,
-        number,
-        number,
-      ]
+    for (const tt of [t0, t1]) this.replaceTriangleVertex(tt, b, f)
     const t2 = this.newTriangle([f, b, c]),
       t3 = this.newTriangle([f, d, b])
     this.replaceEdgeTriangle(ebc, t0, t2)
