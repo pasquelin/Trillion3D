@@ -3,10 +3,9 @@ import { resized } from '../../../../math/src/sequence/resized.ts'
 import { VOLUME_OUTPUT_LIMIT } from '../../../../sdk-core/src/contracts/volumeMaterial.ts'
 import type { ResolvedFogVolume } from '../../../../sdk-core/src/scene/volume/contracts.ts'
 import type { MaterialGraph } from '../../../../sdk-core/src/world/material/graph/api.ts'
-import type { GraphOutput } from '../../../../sdk-core/src/world/material/graph/outputs.ts'
 import type { Texture } from '../../../../sdk-core/src/world/texture/texture.ts'
 import { compileGraph, type CompiledGraph } from '../../materials/graph/compile.ts'
-import { fallbackOf, GRAPH_CONTEXT } from '../../materials/graph/program.ts'
+import { outputCall, GRAPH_CONTEXT } from '../../materials/graph/program.ts'
 import { compileKept, isRefusal } from '../../materials/graph/kept.ts'
 import {
   colorSampleWgsl,
@@ -92,12 +91,6 @@ export function voxelGraphSet(objects: Iterable<ResolvedFogVolume>): VoxelGraphS
   }
 }
 
-/** The code that calls the output `name` of `p` at the cell, or its default. */
-const outputOf = ({ compiled }: VolumeProgram, name: GraphOutput) => {
-  const fn = compiled.functions[name]
-  return fn ? `${fn}(ctx,g)` : fallbackOf(name).code
-}
-
 /** The context of the cell: its world position, the camera, the object's origin and the clock. */
 const CONTEXT = ` var ctx:MgContext;
  ctx.world=position+frame.eye.xyz;ctx.eye=frame.eye.xyz;ctx.origin=object.toWorld[3].xyz+frame.eye.xyz;
@@ -123,9 +116,9 @@ function programWgsl(p: VolumeProgram) {
 fn fogGraph${c.suffix}(object:FogVoxelObject,at:u32,position:vec3f,right:vec3f,below:vec3f)->FogGraphOut{
  let g=fogLoad${c.suffix}(at);
 ${CONTEXT}${neighbours} var out:FogGraphOut;
- out.albedo=saturate(${outputOf(p, 'baseColor')});
- out.extinction=clamp((${outputOf(p, 'subsurfaceColor')}).x,0.0,${VOLUME_OUTPUT_LIMIT}.0);
- out.emissive=clamp(${outputOf(p, 'emissive')},vec3f(0.0),vec3f(${VOLUME_OUTPUT_LIMIT}.0));
+ out.albedo=saturate(${outputCall(p.compiled, 'baseColor', 'g')});
+ out.extinction=clamp((${outputCall(p.compiled, 'subsurfaceColor', 'g')}).x,0.0,${VOLUME_OUTPUT_LIMIT}.0);
+ out.emissive=clamp(${outputCall(p.compiled, 'emissive', 'g')},vec3f(0.0),vec3f(${VOLUME_OUTPUT_LIMIT}.0));
  return out;
 }`
 }

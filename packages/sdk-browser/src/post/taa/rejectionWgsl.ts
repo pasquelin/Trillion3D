@@ -1,4 +1,5 @@
 import { MEASURE_BYTE_WGSL } from './flickerLumaWgsl.ts'
+import { loadHeld } from '../../../../math/src/wgsl/sampling.ts'
 import {
   LANE_ROWS,
   networkOf,
@@ -299,7 +300,7 @@ const loadText = (colorFormat: GPUTextureFormat, lumaForm: StorageForm) => {
   let c=pixel[r];
   word[r]=textureLoad(reprojected,c,0).r;
   let image=textureLoad(current,c,0);let raw=image.rgb;
-  let lay=layersAt(c);
+  let lay=loadHeld(translucency,c);
   layers[r]=lay;opaque[r]=beforeLayers(raw,lay);composed[r]=min(raw,vec3f(most));
   // The scene colour the history update reads, held below the largest scene colour and the largest
   // small float, rounded stochastically to the history's colour format; and, where the level runs the
@@ -574,6 +575,7 @@ export const rejectShadingShader = (
       REPROJECTED_WORD_WGSL,
       RESURRECTION_WGSL,
       TRANSLUCENCY_WGSL,
+      loadHeld,
       measureWgsl(p, wave),
       flickerMeasureWgsl(rejectionTypes(p), wave),
       safeRcp,

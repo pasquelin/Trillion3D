@@ -202,7 +202,7 @@ const REFLECTION_NAMES = [
   'screenBack',
   'worldAt',
   'viewToEye',
-  'reflectionVignette',
+  'screenEdgeVignette',
   'reflectionHitVignette',
   'reflectionEdgeNoise',
   'reflectionThickness',

@@ -42,6 +42,16 @@ export const ndcToPixel = wgslFn(
   'fn ndcToPixel(ndc:vec2f,size:vec2f)->vec2f{return ndcToUv(ndc)*size;}',
 )
 
+/** The weight of a point of device coordinates against the screen's edge: one inside, falling to nothing at it. */
+export const screenEdgeVignette = wgslFn(
+  'screenEdgeVignette',
+  [],
+  `fn screenEdgeVignette(ndc:vec2f)->f32{
+ let v=saturate(abs(ndc)*5.0-vec2f(4.0));
+ return saturate(1.0-dot(v,v));
+}`,
+)
+
 /** The pixel of the clip point `clip` (`ndcToPixel`), its depth beside; on the CPU, `clipPixelX`
  *  and `clipPixelY` (`../projection/clip.ts`). */
 export const clipToFramebuffer = wgslFn(

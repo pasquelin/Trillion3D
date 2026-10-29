@@ -144,7 +144,9 @@ const VERTEX = '9143a8cd283204cfe1cce9e0207d21ba57c9e44961624c10e84c89f109c129d2
 // a blended surface takes through the heterogeneous volumes' camera map (`blendVolumeFog`), the shared shading and declared-term text
 // (`SHADING_TEXT`, `DECLARED_TERM_TEXT`), the front layer's depth carried by its traced radiance (`FRONT_TRACED_FORMAT`), and the direct
 // loops' sine through `sinFromCosUnclamped`. The proofs of the blend on the GPU did not pass before this lot either.
-const BLEND = '992ccde28e8f1b02542a5db9aee77343a785c6e71815572bb47c6e8c2b312245'
+// Retaken for c9's fourth deduplication sweep (29/10): the held layers' read (`loadHeld`) and the packed tables' reads
+// (`packedTableWgsl`) declared once: the same operations.
+const BLEND = '22d168f9ea04d9db2d64e02df753ab27b0b211871c5ddb0ba6397c325b96775f'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

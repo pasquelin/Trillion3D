@@ -161,6 +161,14 @@ impl Collapser {
         }
     }
 
+    /// The vertices of `u`'s ring, then those of `v`'s.
+    fn joint_ring(&self, u: u32, v: u32) -> Ring {
+        self.vertex_ring(u)
+            .into_iter()
+            .chain(self.vertex_ring(v))
+            .collect()
+    }
+
     /// The edges of `e`'s ring, from `e` on.
     fn edge_ring(&self, e: u32) -> Ring {
         let mut ring = Ring::new();

@@ -64,6 +64,21 @@ pub(crate) enum Slot<C, T> {
     Child(Box<C>),
 }
 
+impl<C, T: Copy> Slot<C, T> {
+    /// The tile's value, or what `child` takes from the child.
+    fn value_or(&self, child: impl FnOnce(&C) -> T) -> T {
+        match self {
+            Slot::Tile(v) => *v,
+            Slot::Child(node) => child(node),
+        }
+    }
+}
+
+/// Whether a table of `slots` holds no child.
+fn all_tiles<C, T>(slots: &[Slot<C, T>]) -> bool {
+    slots.iter().all(|s| matches!(s, Slot::Tile(_)))
+}
+
 /// A 16³ table of leaves and tiles.
 #[derive(Clone)]
 pub(crate) struct Lower<T> {
@@ -83,20 +98,14 @@ impl<T: Copy> Lower<T> {
     }
     /// The value of its first and its last voxel, in table order.
     pub(crate) fn first_value(&self) -> T {
-        match &self.slots[0] {
-            Slot::Tile(v) => *v,
-            Slot::Child(leaf) => leaf.values[0],
-        }
+        self.slots[0].value_or(|leaf| leaf.values[0])
     }
     pub(crate) fn last_value(&self) -> T {
-        match &self.slots[self.slots.len() - 1] {
-            Slot::Tile(v) => *v,
-            Slot::Child(leaf) => leaf.values[LEAF_SIZE - 1],
-        }
+        self.slots[self.slots.len() - 1].value_or(|leaf| leaf.values[LEAF_SIZE - 1])
     }
     /// Whether it holds no child.
     pub(crate) fn inactive(&self) -> bool {
-        self.slots.iter().all(|s| matches!(s, Slot::Tile(_)))
+        all_tiles(&self.slots)
     }
 }
 
@@ -106,19 +115,13 @@ impl<T: Copy> Upper<T> {
         Self { slots }
     }
     pub(crate) fn first_value(&self) -> T {
-        match &self.slots[0] {
-            Slot::Tile(v) => *v,
-            Slot::Child(lower) => lower.first_value(),
-        }
+        self.slots[0].value_or(|lower| lower.first_value())
     }
     pub(crate) fn last_value(&self) -> T {
-        match &self.slots[self.slots.len() - 1] {
-            Slot::Tile(v) => *v,
-            Slot::Child(lower) => lower.last_value(),
-        }
+        self.slots[self.slots.len() - 1].value_or(|lower| lower.last_value())
     }
     pub(crate) fn inactive(&self) -> bool {
-        self.slots.iter().all(|s| matches!(s, Slot::Tile(_)))
+        all_tiles(&self.slots)
     }
 }
 

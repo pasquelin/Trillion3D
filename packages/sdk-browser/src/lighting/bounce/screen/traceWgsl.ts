@@ -6,6 +6,7 @@ import {
   clipToFramebuffer,
   ndcToPixel,
   pixelToNdc,
+  screenEdgeVignette,
   slabPerspective,
 } from '../../../../../math/src/wgsl/projection.ts'
 import { interleavedGradientNoise } from '../../../../../math/src/wgsl/sampling.ts'
@@ -112,13 +113,8 @@ fn spRayDirection(atlas:vec2u,t:vec2u,index:u32)->vec3f{
  */
 export const SP_HIT_HISTORY = wgslBlock(
   'SP_HIT_HISTORY',
-  [ndcToPixel, pixelToNdc],
-  `/** The hit's weight against the screen's edge: one inside, falling to nothing at it. */
-fn spVignette(ndc:vec2f)->f32{
- let v=saturate(abs(ndc)*5.0-vec2f(4.0));
- return saturate(1.0-dot(v,v));
-}
-struct SpHistoryHit{texel:vec2i,expected:vec4f,speed:f32,kept:bool,}
+  [ndcToPixel, pixelToNdc, screenEdgeVignette],
+  `struct SpHistoryHit{texel:vec2i,expected:vec4f,speed:f32,kept:bool,}
 fn spHitHistory(H:vec3f,hitPoint:vec3f,noise:f32)->SpHistoryHit{
  var out=SpHistoryHit(vec2i(0),vec4f(0.0),0.0,false);
  let expected=reflectionView.radianceViewProj*vec4f(hitPoint,1.0);
@@ -128,7 +124,7 @@ fn spHitHistory(H:vec3f,hitPoint:vec3f,noise:f32)->SpHistoryHit{
  if(stood.w<=0.0){return out;}
  let last=vec2i(reflectionView.radiance.xy)-vec2i(1);
  let texel=clamp(vec2i(floor(ndcToPixel(motion.ndc,reflectionView.radiance.xy))),vec2i(0),last);
- let vignette=min(spVignette(pixelToNdc(H.xy,view.viewport.xy)),spVignette(motion.ndc));
+ let vignette=min(screenEdgeVignette(pixelToNdc(H.xy,view.viewport.xy)),screenEdgeVignette(motion.ndc));
  return SpHistoryHit(texel,stood,motion.speed,vignette>=noise);
 }`,
 )

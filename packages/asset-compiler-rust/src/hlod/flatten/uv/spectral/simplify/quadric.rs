@@ -12,6 +12,7 @@
 //! taken in double precision and rounded to single.
 use super::{Quadric, Simplifier};
 use crate::hlod::flatten::uv::spectral::util::{root64, unit};
+use trillion3d_math::geometry::aabb::aabb_of_f32;
 use trillion3d_math::vector::vecn::{length, sub};
 
 /// `a − b`, each axis in double precision rounded to single.
@@ -71,19 +72,7 @@ fn error_at(q: &Quadric, p: [f32; 3]) -> f64 {
 impl<'s> Simplifier<'s> {
     /// The diagonal, the quadrics, the vertices' errors and the edges' costs.
     pub(super) fn measure(&mut self) {
-        let mut low = [f32::MAX; 3];
-        let mut high = [-f32::MAX; 3];
-        for v in 0..self.verts.len() as u32 {
-            let p = self.point(v);
-            for j in 0..3 {
-                if low[j] > p[j] {
-                    low[j] = p[j];
-                }
-                if high[j] < p[j] {
-                    high[j] = p[j];
-                }
-            }
-        }
+        let (low, high) = aabb_of_f32((0..self.verts.len() as u32).map(|v| self.point(v)));
         self.diagonal = length(sub(high, low));
         self.plane_quadrics();
         for v in 0..self.verts.len() {

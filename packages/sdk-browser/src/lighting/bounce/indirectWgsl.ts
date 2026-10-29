@@ -11,7 +11,6 @@ export const INDIRECT_WGSL = wgslBlock(
   'INDIRECT_WGSL',
   [SKY_DIFFUSE_READ_WGSL],
   `fn indirectIrradiance(P:vec3f,N:vec3f)->vec3f{
- if(!skyLit()){return vec3f(0.0);}
  return skyIrradiance(N);
 }`,
 )

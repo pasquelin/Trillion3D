@@ -16,7 +16,7 @@
 use super::super::optimum::Optimum;
 use super::super::quadric::{NormalQuadric, PlaneQuadric};
 use super::super::Vertex;
-use super::{Collapser, Ring, LOCKED, MARK};
+use super::{Collapser, LOCKED, MARK};
 use crate::hlod::flatten::simplify::nearest::{normalize, SMALL};
 use smallvec::SmallVec;
 use trillion3d_math::vector::vec3::cross;
@@ -142,11 +142,7 @@ impl Collapser {
             self.mark_vertex(a, MARK, false);
             self.mark_vertex(b, MARK, false);
         }
-        let rings: Ring = self
-            .vertex_ring(u)
-            .into_iter()
-            .chain(self.vertex_ring(v))
-            .collect();
+        let rings = self.joint_ring(u, v);
         for &w in &rings {
             if self.vertex_has(w, MARK) {
                 vertices.push(self.vertices[w as usize]);

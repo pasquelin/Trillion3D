@@ -3,7 +3,7 @@ import { clipToPreviousClip } from '../../../../math/src/matrix/matrix4Motion.ts
 import { copyMatrix4 } from '../../../../math/src/matrix/matrix4.ts'
 import { putVec4 } from '../../gpu/core/fieldLayout.ts'
 import { TAA_VIEW } from '../../post/taa/bindingsWgsl.ts'
-import { writeDepthTerms } from '../../post/taa/view.ts'
+import { putDepthTerms } from '../../post/taa/view.ts'
 import { SUBSURFACE_KERNEL_SIZE } from '../../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
 import { SSS_PARAMS } from './layout.ts'
 
@@ -28,7 +28,6 @@ export interface SubsurfaceImage {
   historyValid: boolean
 }
 
-const TERMS = TAA_VIEW.at
 const scratch = {
   terms: new Float32Array(TAA_VIEW.words),
   current: new Float64Array(16),
@@ -82,9 +81,5 @@ export function writeSubsurfaceParams(
   const { current, inverse, motion, terms } = scratch
   clipToPreviousClip(motion, current, inverse, image.viewProjection, image.before)
   copyMatrix4(out, motion, at.clip)
-  writeDepthTerms(terms, image.projection, image.perspective, image.drawn[0])
-  for (let k = 0; k < 4; k++) {
-    out[at.depth + k] = terms[TERMS.depth + k]
-    out[at.radius + k] = terms[TERMS.radius + k]
-  }
+  putDepthTerms(out, at, terms, image.projection, image.perspective, image.drawn[0])
 }

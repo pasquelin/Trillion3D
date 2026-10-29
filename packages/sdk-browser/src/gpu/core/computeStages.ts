@@ -59,6 +59,20 @@ export function askedComputeStage(
   return stage
 }
 
+/** The stage `entry` of `code` on one bind-group layout made from `entries`, asked as
+ *  `askedComputeStage` asks it; the layout comes with it, for the groups the stage runs over. */
+export function askedComputeProgram(
+  device: GPUDevice,
+  failed: (error: unknown) => void,
+  label: string,
+  entries: GPUBindGroupLayoutEntry[],
+  code: string,
+  entry: string,
+) {
+  const layout = device.createBindGroupLayout({ entries })
+  return { layout, pipeline: askedComputeStage(device, [layout], code, entry, label, failed) }
+}
+
 /** Runs `stage` on `group`, over `x` × `y` workgroups, in the compute pass `pass`: the dispatches of
  *  one job — a transform's three passes, a kernel's preparation — share one pass, each seeing what the
  *  one before wrote; nothing while the stage is not compiled. A group of dynamic offsets binds at

@@ -9,6 +9,8 @@
 //! squares for those rungs. No search over partitions or modes: one segment, one
 //! solve.
 
+use crate::plugins::image::blocks::blocks_of;
+use rayon::prelude::*;
 use trillion3d_math::vector::vecn::{add, dot, length, scale, squared_length, sub};
 
 /// One texel per entry, in reading order, channels R, G, B, A as bytes.
@@ -43,6 +45,33 @@ pub fn block_texels(rgba: &[u8], width: u32, height: u32, bx: u32, by: u32) -> T
         }
     }
     texels
+}
+
+/// The blocks of a `width` × `height` RGBA8 level, `block_bytes` each, row-major: `write` fills
+/// one from its texels (`block_texels`). Written in place, block rows in parallel on the caller's
+/// pool, runs of eight at least, so a small level — the tail, a thumbnail — stays on one thread.
+pub fn encode_blocks(
+    rgba: &[u8],
+    (width, height): (u32, u32),
+    block_bytes: usize,
+    write: impl Fn(&Texels, &mut [u8]) + Sync,
+) -> Vec<u8> {
+    debug_assert_eq!(rgba.len(), width as usize * height as usize * 4);
+    let (across, down) = blocks_of(width, height);
+    let row_bytes = across as usize * block_bytes;
+    let mut out = vec![0u8; row_bytes * down as usize];
+    out.par_chunks_mut(row_bytes)
+        .enumerate()
+        .with_min_len(8)
+        .for_each(|(by, row)| {
+            for (bx, out) in row.chunks_exact_mut(block_bytes).enumerate() {
+                write(
+                    &block_texels(rgba, width, height, bx as u32, by as u32),
+                    out,
+                );
+            }
+        });
+    out
 }
 
 /// Principal axis of the texels around `mean`: eight power iterations on their

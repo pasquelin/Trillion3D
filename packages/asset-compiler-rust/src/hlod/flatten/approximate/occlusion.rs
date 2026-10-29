@@ -1,4 +1,5 @@
 //! Hidden faces and hard normals.
+use super::super::bake::capture::DIRECTIONS;
 use super::super::bake::tree::{points_of, soup, triangle_of, Tree};
 use super::{ADDED_RAYS, TRIANGLE_SAMPLES};
 use rayon::prelude::*;
@@ -49,14 +50,8 @@ pub(super) fn remove_occluded(
             (p[0] - centre[0]).abs() <= half && (p[2] - centre[2]).abs() <= half
         }
     };
-    let mut rays: Vec<[f64; 3]> = vec![
-        [1.0, 0.0, 0.0],
-        [-1.0, 0.0, 0.0],
-        [0.0, 1.0, 0.0],
-        [0.0, -1.0, 0.0],
-        [0.0, 0.0, 1.0],
-        [0.0, 0.0, -1.0],
-    ];
+    // The six axis directions come first in the capture's table.
+    let mut rays: Vec<[f64; 3]> = DIRECTIONS[..6].to_vec();
     // Their own streams, the rays' and the samples': moving one leaves the other where it was.
     let mut stream = Stream::new(RAY_SEED);
     rays.extend((0..ADDED_RAYS).map(|_| stream.direction()));

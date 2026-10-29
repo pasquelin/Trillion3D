@@ -1,6 +1,6 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslF32 } from '../../../../math/src/wgsl/number.ts'
-import { interleavedGradientNoise } from '../../../../math/src/wgsl/sampling.ts'
+import { interleavedGradientNoise, loadHeld } from '../../../../math/src/wgsl/sampling.ts'
 import { TAA_VIEW_WGSL, packedStorageWgsl } from './bindingsWgsl.ts'
 import { DEPTH_WGSL } from './depthWgsl.ts'
 import { REPROJECTED_WORD_WGSL } from './reprojectWgsl.ts'
@@ -131,7 +131,7 @@ fn relaxThinGeometryWeight(@builtin(global_invocation_id) id:vec3u){
  if(any(p>=vec2i(view.render.xy))){return;}
  let detected=textureLoad(thin,p,0);
  var coverage=detected.r;var mask=detected.g;
- let ratio=translucencyRatio(textureLoad(current,p,0).rgb,layersAt(p));
+ let ratio=translucencyRatio(textureLoad(current,p,0).rgb,loadHeld(translucency,p));
  var trim=max(${wgslF32(TRANSLUCENCY_ZERO_RATIO)}-ratio,0.0);
  trim=min(trim*trim*3.33,1.0);
  trim=select(1.0,trim,(mask&${M.clusterHole}u)!=0u||ratio>${wgslF32(TRANSLUCENCY_ZERO_RATIO)});
@@ -141,6 +141,6 @@ fn relaxThinGeometryWeight(@builtin(global_invocation_id) id:vec3u){
  textureStore(maskOut,p,vec4f(f32(mask)/255.0,0.0,0.0,0.0));
  textureStore(historyOut,p,vec4f(f32(coverage)/255.0,0.0,0.0,0.0));
 }`,
-    [...packedStorageWgsl(format), TAA_VIEW_WGSL, TRANSLUCENCY_WGSL],
+    [...packedStorageWgsl(format), TAA_VIEW_WGSL, TRANSLUCENCY_WGSL, loadHeld],
   )
 }

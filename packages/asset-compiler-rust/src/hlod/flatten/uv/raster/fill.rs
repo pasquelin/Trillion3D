@@ -77,7 +77,7 @@ impl<'a> Image<'a> {
 
 /// The eight neighbours of texel `at` of an image `width` by `height`, row by row from the top
 /// left: a fixed order, so the infill's and the dilation's averages are the same on every run.
-fn neighbours8([width, height]: [usize; 2], at: usize) -> impl Iterator<Item = usize> {
+pub(crate) fn neighbours8([width, height]: [usize; 2], at: usize) -> impl Iterator<Item = usize> {
     let (x, y) = ((at % width) as i64, (at / width) as i64);
     const OFFSETS: [(i64, i64); 8] = [
         (-1, -1),

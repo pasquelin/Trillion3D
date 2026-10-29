@@ -20,6 +20,7 @@ use super::hull::{least_box, sorted_ranks, AxisBox};
 use super::mesh::TriMesh;
 use super::raster::{cover_triangle, Bits};
 use super::vector::{bounds2, most, most2, Vec2, AREA_EPSILON};
+use crate::hlod::flatten::uv::raster::neighbours8;
 use rayon::prelude::*;
 use trillion3d_math::vector::vecn::{dot, scale, sub};
 
@@ -160,25 +161,12 @@ impl Stamp {
         let mut grid = EdgeGrid::default();
         grid.reset_to(mesh.border_edges.iter().copied());
         let corners = mesh.uv_corners();
-        const AROUND: [(i32, i32); 8] = [
-            (-1, -1),
-            (0, -1),
-            (1, -1),
-            (-1, 0),
-            (1, 0),
-            (-1, 1),
-            (0, 1),
-            (1, 1),
-        ];
+        let sides = [width as usize, height as usize];
         for y in 0..height {
             for x in 0..width {
                 let covered = plain.get(x, y) || {
-                    let beside = AROUND.iter().any(|&(dx, dy)| {
-                        let (sx, sy) = (x as i32 + dx, y as i32 + dy);
-                        (0..width as i32).contains(&sx)
-                            && (0..height as i32).contains(&sy)
-                            && plain.get(sx as u32, sy as u32)
-                    });
+                    let beside = neighbours8(sides, y as usize * sides[0] + x as usize)
+                        .any(|n| plain.get((n % sides[0]) as u32, (n / sides[0]) as u32));
                     beside && {
                         let centre = [x as f32 + 0.5, y as f32 + 0.5];
                         let square = [

@@ -196,6 +196,25 @@ impl Device {
         encoder
     }
 
+    /// `run` over the chunks of `count` invocations, `size` giving each from the `pace` the one
+    /// before left, the job's cancellation checked before each.
+    fn chunks<P>(
+        count: usize,
+        cancelled: &AtomicBool,
+        mut pace: P,
+        size: impl Fn(&P) -> usize,
+        mut run: impl FnMut(&mut P, usize, usize) -> crate::Result<()>,
+    ) -> crate::Result<()> {
+        let mut first = 0;
+        while first < count {
+            cancel::check(cancelled)?;
+            let chunk = (count - first).min(size(&pace));
+            run(&mut pace, first, chunk)?;
+            first += chunk;
+        }
+        Ok(())
+    }
+
     /// `pass` dispatched over `count` invocations in chunks, each waited for, `pace` sizing each
     /// from the time the one before took.
     pub(crate) fn dispatch(
@@ -207,15 +226,18 @@ impl Device {
         pace: &mut Pace,
         cancelled: &AtomicBool,
     ) -> crate::Result<()> {
-        let mut first = 0;
-        while first < count {
-            cancel::check(cancelled)?;
-            let chunk = (count - first).min(pace.0);
-            let took = self.submit(self.chunk((pass, group, params), first, chunk), cancelled)?;
-            pace.next(chunk, took);
-            first += chunk;
-        }
-        Ok(())
+        Self::chunks(
+            count,
+            cancelled,
+            pace,
+            |pace| pace.0,
+            |pace, first, chunk| {
+                let took =
+                    self.submit(self.chunk((pass, group, params), first, chunk), cancelled)?;
+                pace.next(chunk, took);
+                Ok(())
+            },
+        )
     }
 
     /// `pass` sent over `count` invocations in the chunks `pace` sizes, none waited for: they run
@@ -229,15 +251,17 @@ impl Device {
         pace: &Pace,
         cancelled: &AtomicBool,
     ) -> crate::Result<()> {
-        let mut first = 0;
-        while first < count {
-            cancel::check(cancelled)?;
-            let chunk = (count - first).min(pace.0);
-            let encoder = self.chunk((pass, group, params), first, chunk);
-            self.turned(|| self.queue.submit([encoder.finish()]));
-            first += chunk;
-        }
-        Ok(())
+        Self::chunks(
+            count,
+            cancelled,
+            pace,
+            |pace| pace.0,
+            |_, first, chunk| {
+                let encoder = self.chunk((pass, group, params), first, chunk);
+                self.turned(|| self.queue.submit([encoder.finish()]));
+                Ok(())
+            },
+        )
     }
 }
 

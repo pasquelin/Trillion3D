@@ -12,7 +12,7 @@ use trillion3d_math::geometry::triangle::barycentric_weights;
 use trillion3d_math::vector::vec2::{barycentric, double_area};
 use trillion3d_math::vector::vecn::{dot, length, lerp, sub, weighted_sum};
 mod fill;
-pub(crate) use fill::{dilate, infill, Image, Role, INFILL_HOLE_BYTES};
+pub(crate) use fill::{dilate, infill, neighbours8, Image, Role, INFILL_HOLE_BYTES};
 
 /// The gutter, in texels: wide enough that bilinear filtering and the first mip levels at a
 /// chart's edge read the chart's own colour, not the empty atlas.

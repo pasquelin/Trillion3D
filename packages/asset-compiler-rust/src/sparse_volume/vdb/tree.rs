@@ -22,6 +22,22 @@ pub(crate) struct Leaf {
     pub(crate) values: Vec<f32>,
 }
 
+impl Leaf {
+    /// The active voxels' positions, in the order of their bits.
+    fn active_voxels(&self) -> impl Iterator<Item = IVec3> + '_ {
+        (0..LEAF_VOXELS)
+            .filter(|&bit| is_on(&self.mask, bit))
+            .map(|bit| {
+                let at = entry(bit, LEAF_LOG2);
+                [
+                    self.origin[0] + at[0],
+                    self.origin[1] + at[1],
+                    self.origin[2] + at[2],
+                ]
+            })
+    }
+}
+
 /// An active tile: a cube of voxels, `dim` a side, that has one value.
 pub(crate) struct Tile {
     pub(crate) origin: IVec3,
@@ -200,16 +216,8 @@ fn active_box(grid: &Grid) -> Option<(IVec3, IVec3)> {
     for tile in &grid.tiles {
         cover(tile.origin, tile.origin.map(|x| x + tile.dim));
     }
-    for leaf in &grid.leaves {
-        for bit in (0..LEAF_VOXELS).filter(|&bit| is_on(&leaf.mask, bit)) {
-            let at = entry(bit, LEAF_LOG2);
-            let voxel = [
-                leaf.origin[0] + at[0],
-                leaf.origin[1] + at[1],
-                leaf.origin[2] + at[2],
-            ];
-            cover(voxel, voxel.map(|x| x + 1));
-        }
+    for voxel in grid.leaves.iter().flat_map(Leaf::active_voxels) {
+        cover(voxel, voxel.map(|x| x + 1));
     }
     found
 }
@@ -227,20 +235,12 @@ impl Grid {
         }
         let width = self.components;
         for leaf in &self.leaves {
-            let mut next = 0;
-            for bit in (0..LEAF_VOXELS).filter(|&bit| is_on(&leaf.mask, bit)) {
-                let at = entry(bit, LEAF_LOG2);
-                let voxel = [
-                    leaf.origin[0] + at[0],
-                    leaf.origin[1] + at[1],
-                    leaf.origin[2] + at[2],
-                ];
+            for (next, voxel) in leaf.active_voxels().enumerate() {
                 visit(
                     voxel,
                     voxel.map(|x| x + 1),
                     &leaf.values[next * width..(next + 1) * width],
                 );
-                next += 1;
             }
         }
     }

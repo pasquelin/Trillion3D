@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslFn } from '../../../math/src/wgsl/decl.ts'
+import { loadHeld } from '../../../math/src/wgsl/sampling.ts'
 import { FULLSCREEN_VERTEX } from '../gpu/shader/fullscreenTriangle.ts'
 import { LAYERS_BINDINGS } from './translucencyLayers.ts'
 
@@ -34,13 +35,12 @@ const COMPOSE_TEXT = `
 @group(0) @binding(${LAYERS_BINDINGS.modulation}) var modulation:texture_2d<f32>;
 struct Composed{@location(0) first:vec4f,@location(1) second:vec4f,}
 fn composed(value:vec4f)->Composed{return Composed(value,value);}
-// The modulation target is one texel of white where nothing modulated the scene.
-fn modulationAt(at:vec2i)->vec4f{return textureLoad(modulation,min(at,vec2i(textureDimensions(modulation))-vec2i(1)),0);}
-fn throughAt(at:vec2i)->f32{return saturate(textureLoad(layers,min(at,vec2i(textureDimensions(layers))-vec2i(1)),0).a);}
+// The modulation target is one texel of white where nothing modulated the scene, held to its extent.
+fn throughAt(at:vec2i)->f32{return saturate(loadHeld(layers,at).a);}
 fn visibleThrough(m:vec4f,through:f32)->f32{return select(backgroundVisibility(m.rgb)*through,1.0,m.a>0.5);}
 @fragment fn scale(@builtin(position) pixel:vec4f)->Composed{
  let at=vec2i(pixel.xy);
- let m=modulationAt(at);
+ let m=loadHeld(modulation,at);
  return composed(vec4f(m.rgb,visibleThrough(m,throughAt(at))));
 }
 @fragment fn add(@builtin(position) pixel:vec4f)->Composed{
@@ -48,7 +48,7 @@ fn visibleThrough(m:vec4f,through:f32)->f32{return select(backgroundVisibility(m
  return composed(vec4f(layer.rgb,1.0-saturate(layer.a)));
 }`
 
-const COMPOSE_USES = [FULLSCREEN_VERTEX, backgroundVisibility]
+const COMPOSE_USES = [FULLSCREEN_VERTEX, backgroundVisibility, loadHeld]
 
 /** The composition on a device without dual-source blending: `scale` then `add`. */
 export const COMPOSE_WGSL = wgslProgram(COMPOSE_TEXT, COMPOSE_USES)
@@ -63,7 +63,7 @@ export const COMPOSE_DUAL_WGSL = wgslProgram(
 struct ComposedDual{@location(0) @blend_src(0) light:vec4f,@location(0) @blend_src(1) factor:vec4f,}
 @fragment fn composeDual(@builtin(position) pixel:vec4f)->ComposedDual{
  let at=vec2i(pixel.xy);
- let m=modulationAt(at);
+ let m=loadHeld(modulation,at);
  let through=throughAt(at);
  return ComposedDual(vec4f(textureLoad(layers,at,0).rgb,0.0),vec4f(m.rgb*through,visibleThrough(m,through)));
 }`,

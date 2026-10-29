@@ -23,7 +23,15 @@ import type { LinearRgb } from '../../contracts/material.ts'
 import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
 import { DEG2RAD } from '../../../../math/src/constants.ts'
 import { clamp, isFiniteNumber } from '../../../../math/src/scalar/reals.ts'
-import { booleanOf, colourOf, objectOf, rangedFields, refuse, type FogRange } from './fogChecks.ts'
+import {
+  booleanOf,
+  colourOf,
+  objectOf,
+  rangedFields,
+  rangedObjectOf,
+  refuse,
+  type FogRange,
+} from './fogChecks.ts'
 import { cubemapMipCount, validateFogCubemap } from './fogCubemap.ts'
 import {
   heightFogOf,
@@ -127,10 +135,7 @@ const SKY_LIGHT_RANGES = {
 
 /** The sky light's scattering checked, a copy: its strength ≥ 0, its roughness in [0, 1]. */
 function validateSkyLightScattering(value: unknown, fog: unknown): SceneSkyLightScattering {
-  const scattering = objectOf<SceneSkyLightScattering>(value, 'skyLightScattering', fog)
-  const kept: SceneSkyLightScattering = {}
-  rangedFields(scattering, kept, SKY_LIGHT_RANGES, fog, 'skyLightScattering.')
-  return kept
+  return rangedObjectOf<SceneSkyLightScattering>(value, 'skyLightScattering', SKY_LIGHT_RANGES, fog)
 }
 
 /** A height fog checked, a copy of what it declares: its colours of three numbers ≥ 0, `baseHeight`

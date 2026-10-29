@@ -22,10 +22,7 @@ pub(super) fn cook(
     let key = sheet.key(source.sha256);
     let mut layouts: [Option<Layout>; FAMILIES] = [None; FAMILIES];
     let mut blocks: [Vec<u8>; FAMILIES] = Default::default();
-    let mut baked = Baked {
-        previews: Vec::with_capacity(readers.len()),
-        ..Baked::default()
-    };
+    let mut baked = Baked::default();
     let cook = |format, files| cook_chain(o, (&key, kind), format, &sheet, &levels, size, files);
     // The stored family first, when the job cooks any — it keeps every chain it measures —: a
     // chain whose stored files did not write has no level file, in any family. The others then cook side by side, their
@@ -60,13 +57,11 @@ pub(super) fn cook(
     } else {
         0
     };
-    for reader in readers {
-        baked.previews.push(source.entry(
-            reader.texture,
-            (&key, kind),
-            baked_levels,
-            (&pixels, layouts, &blocks),
-        )?);
-    }
+    baked.previews = source.entries(
+        readers,
+        (&key, kind),
+        baked_levels,
+        (&pixels, layouts, &blocks),
+    )?;
     Ok(baked)
 }

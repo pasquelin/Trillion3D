@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { packedTableWgsl } from './packedTableWgsl.ts'
 import { SHADING_ENERGY_SIZE } from '../../../../sdk-core/src/lighting/shadingEnergy.ts'
 
 /**
@@ -12,19 +13,16 @@ import { SHADING_ENERGY_SIZE } from '../../../../sdk-core/src/lighting/shadingEn
  */
 export const ENERGY_TERMS_WGSL = wgslBlock(
   'ENERGY_TERMS_WGSL',
-  [],
+  [
+    packedTableWgsl(
+      'shadingEnergyTexel',
+      'shadingEnergyPair',
+      'energy',
+      SHADING_ENERGY_SIZE,
+      SHADING_ENERGY_SIZE,
+    ),
+  ],
   `
-fn shadingEnergyTexel(x:i32,y:i32)->vec2f{
- let at=u32(clamp(y,0,${SHADING_ENERGY_SIZE - 1}))*${SHADING_ENERGY_SIZE}u+u32(clamp(x,0,${SHADING_ENERGY_SIZE - 1}));
- return unpack2x16unorm(directLights.energy[at]);
-}
-fn shadingEnergyPair(rough:f32,NdotV:f32)->vec2f{
- let p=vec2f(NdotV,rough)*${SHADING_ENERGY_SIZE}.0-0.5;
- let f=floor(p);
- let t=p-f;
- let x=i32(f.x);let y=i32(f.y);
- return mix(mix(shadingEnergyTexel(x,y),shadingEnergyTexel(x+1,y),t.x),mix(shadingEnergyTexel(x,y+1),shadingEnergyTexel(x+1,y+1),t.x),t.y);
-}
 fn energyTerms(f0:vec3f,f90:f32,rough:f32,NdotV:f32)->vec3f{
  let e=shadingEnergyPair(rough,NdotV);
  let restored=vec3f(1.0)+f0*((1.0-e.x)/e.x);

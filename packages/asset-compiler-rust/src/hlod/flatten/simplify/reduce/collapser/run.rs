@@ -14,7 +14,7 @@
 //! position's bits — or a new one.
 use super::super::chains::{position_key, Chains};
 use super::super::{Soup, Stop};
-use super::{Collapser, Ring, LOCKED, MARK, REMOVED};
+use super::{Collapser, LOCKED, MARK, REMOVED};
 use smallvec::SmallVec;
 
 /// The bucket count of the table the output vertices are found in.
@@ -44,7 +44,7 @@ impl Collapser {
             return;
         }
         let [u, v] = self.edges[top as usize].ends;
-        for w in self.vertex_ring(u).into_iter().chain(self.vertex_ring(v)) {
+        for w in self.joint_ring(u, v) {
             self.gather(w);
         }
         let mut ring: SmallVec<[Option<u32>; 8]> = ring.into_iter().map(Some).collect();
@@ -95,11 +95,7 @@ impl Collapser {
             self.mark_vertex(a, MARK, false);
             self.mark_vertex(b, MARK, false);
         }
-        let rings: Ring = self
-            .vertex_ring(u)
-            .into_iter()
-            .chain(self.vertex_ring(v))
-            .collect();
+        let rings = self.joint_ring(u, v);
         for w in rings {
             if self.vertex_has(w, MARK) {
                 if let Some(vertex) = collapsed.next() {

@@ -28,12 +28,7 @@ const MOST_COMPONENTS: usize = 1152;
 
 /// Where `d` lies against the circle through `a`, `b`, `c`, its sign exact (module doc).
 pub(super) fn in_circle_adaptive(a: [f64; 2], b: [f64; 2], c: [f64; 2], d: [f64; 2]) -> f64 {
-    let ax = a[0] - d[0];
-    let bx = b[0] - d[0];
-    let cx = c[0] - d[0];
-    let ay = a[1] - d[1];
-    let by = b[1] - d[1];
-    let cy = c[1] - d[1];
+    let [[ax, ay], [bx, by], [cx, cy]] = relative([a, b, c], d);
     let bx_cy = bx * cy;
     let cx_by = cx * by;
     let a_norm = ax * ax + ay * ay;
@@ -52,6 +47,11 @@ pub(super) fn in_circle_adaptive(a: [f64; 2], b: [f64; 2], c: [f64; 2], d: [f64;
         return rounded;
     }
     refined([a, b, c], d, magnitudes)
+}
+
+/// The corners `a`, `b`, `c` relative to `d`.
+fn relative(corners: [[f64; 2]; 3], d: [f64; 2]) -> [[f64; 2]; 3] {
+    corners.map(|p| [p[0] - d[0], p[1] - d[1]])
 }
 
 /// A corner of the test relative to `d`: its rounded coordinates and the floats each lost.
@@ -96,12 +96,7 @@ fn lifted(cross: &[f64; 4], x: f64, y: f64) -> ([f64; 32], usize) {
 /// Stages 2 to 5 of the module doc for `corners` (`a`, `b`, `c`) against `d`.
 fn refined(corners: [[f64; 2]; 3], d: [f64; 2], magnitudes: f64) -> f64 {
     let [a, b, c] = corners;
-    let ax = a[0] - d[0];
-    let bx = b[0] - d[0];
-    let cx = c[0] - d[0];
-    let ay = a[1] - d[1];
-    let by = b[1] - d[1];
-    let cy = c[1] - d[1];
+    let [[ax, ay], [bx, by], [cx, cy]] = relative([a, b, c], d);
     // The cross product of the two corners after each one, in corner order.
     let crosses = [
         product_difference(bx, cy, cx, by),

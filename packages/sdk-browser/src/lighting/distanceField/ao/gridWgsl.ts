@@ -1,5 +1,6 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { clampToExtent } from '../../../../../math/src/wgsl/sampling.ts'
 import { DFAO_COMMON_WGSL } from './commonWgsl.ts'
 import { DFAO_BINDING as B } from './layout.ts'
 
@@ -16,10 +17,10 @@ export const CLEAR_GROUP = 256
  */
 export const DFAO_GRID_WGSL = wgslBlock(
   'DFAO_GRID_WGSL',
-  [DFAO_COMMON_WGSL],
+  [DFAO_COMMON_WGSL, clampToExtent],
   `@group(0) @binding(${B.normals}) var gridNormals:texture_2d<f32>;
 fn dfaoGrid(texel:vec2i)->vec4f{
- return textureLoad(gridNormals,clamp(texel,vec2i(0),vec2i(dfao.grid.xy)-vec2i(1)),0);
+ return textureLoad(gridNormals,clampToExtent(texel,vec2i(dfao.grid.xy)),0);
 }`,
 )
 

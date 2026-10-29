@@ -308,28 +308,34 @@ fn stTriangle(inst:StInstance,origin:vec3f,direction:vec3f,ti:u32,best:StHit)->S
  return StHit(t,inst.placement,inst.record,ti,inst.object,normal,front,inst.twoSided,true);
 }`
 
+/** The wide traversal of one instance's nodes, `test` the line run on each leaf entry: the nearest hit under `limit`, ended at once by an any-hit ray. */
+function stInstanceWalk(name: string, test: string) {
+  return wideTraversal({
+    name,
+    params: ',inst:StInstance',
+    returns: 'StHit',
+    start:
+      'var best=StHit(limit,NO_INDEX,NO_INDEX,NO_INDEX,NO_INDEX,vec3f(0.0),false,false,false);',
+    empty: '',
+    root: 'inst.firstNode',
+    steps: 'inst.nodes',
+    box: 'stNodeBox(nd)',
+    child: 'stChild(nd,slot,inst)',
+    children: 'ST_WIDTH',
+    leaf: 'ST_LEAF_TRIANGLES',
+    stack: BLAS_STACK,
+    load: 'var nd=stNodeHead(node);',
+    open: 'nd=stNodeOpen(nd,node);',
+    visit: '',
+    stop: 'if(stDone){break;}',
+    test,
+    overflow: 'stComplete=false;',
+    answer: 'best',
+  })
+}
+
 /** The walk of one primitive's structure, the engine's wide traversal. */
-const ST_BLAS = wideTraversal({
-  name: 'stBlas',
-  params: ',inst:StInstance',
-  returns: 'StHit',
-  start: 'var best=StHit(limit,NO_INDEX,NO_INDEX,NO_INDEX,NO_INDEX,vec3f(0.0),false,false,false);',
-  empty: '',
-  root: 'inst.firstNode',
-  steps: 'inst.nodes',
-  box: 'stNodeBox(nd)',
-  child: 'stChild(nd,slot,inst)',
-  children: 'ST_WIDTH',
-  leaf: 'ST_LEAF_TRIANGLES',
-  stack: BLAS_STACK,
-  load: 'var nd=stNodeHead(node);',
-  open: 'nd=stNodeOpen(nd,node);',
-  visit: '',
-  stop: 'if(stDone){break;}',
-  test: 'best=stTriangle(inst,origin,direction,index,best);',
-  overflow: 'stComplete=false;',
-  answer: 'best',
-})
+const ST_BLAS = stInstanceWalk('stBlas', 'best=stTriangle(inst,origin,direction,index,best);')
 
 /** The actor of an entry of the world's directory, entered as a placement is: the entry (a box where a triangle's corners are,
  *  then the actor's rank among the actors' records, a zero word and its HLOD cell) read, the cell's word asked whether the cut
@@ -353,27 +359,10 @@ fn stActor(dir:StInstance,origin:vec3f,direction:vec3f,ti:u32,best:StHit)->StHit
 }`
 
 /** The walk of the world's directory, the same traversal over a tree of actors' boxes. */
-const ST_DIRECTORY = wideTraversal({
-  name: 'stDirectory',
-  params: ',inst:StInstance',
-  returns: 'StHit',
-  start: 'var best=StHit(limit,NO_INDEX,NO_INDEX,NO_INDEX,NO_INDEX,vec3f(0.0),false,false,false);',
-  empty: '',
-  root: 'inst.firstNode',
-  steps: 'inst.nodes',
-  box: 'stNodeBox(nd)',
-  child: 'stChild(nd,slot,inst)',
-  children: 'ST_WIDTH',
-  leaf: 'ST_LEAF_TRIANGLES',
-  stack: BLAS_STACK,
-  load: 'var nd=stNodeHead(node);',
-  open: 'nd=stNodeOpen(nd,node);',
-  visit: '',
-  stop: 'if(stDone){break;}',
-  test: 'best=stActor(inst,origin,direction,index,best);',
-  overflow: 'stComplete=false;',
-  answer: 'best',
-})
+const ST_DIRECTORY = stInstanceWalk(
+  'stDirectory',
+  'best=stActor(inst,origin,direction,index,best);',
+)
 
 /** One placement entered unless this image's culling left it out, then taken into its primitive's space. */
 const ST_ENTER = `/** The nearer of \`best\` and what the ray meets of placement \`w\`, \`inverse\` the inverse of the ray's direction:

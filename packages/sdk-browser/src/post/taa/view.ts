@@ -78,7 +78,7 @@ function writeReprojection(
  * render pixel's world radius is `1 / (|p₀| · width)` per unit of depth under a perspective, at any
  * depth under an orthographic projection (`radius.w`).
  */
-export function writeDepthTerms(
+function writeDepthTerms(
   into: Float32Array,
   projection: ArrayLike<number>,
   perspective: boolean,
@@ -93,6 +93,23 @@ export function writeDepthTerms(
   into[T.radius + 1] = perspective ? 0 : radius
   into[T.radius + 2] = perspective ? Math.sign(projection[11]) : -Math.sign(projection[10]) || 1
   into[T.radius + 3] = perspective ? 0 : 1
+}
+
+/** `writeDepthTerms` through `terms` (a block of `TAA_VIEW.words`), then the two vectors a pass's
+ *  uniform takes of them, `depth` and `radius`, copied to `out` at the words `at` names. */
+export function putDepthTerms(
+  out: Float32Array,
+  at: { readonly depth: number; readonly radius: number },
+  terms: Float32Array,
+  projection: ArrayLike<number>,
+  perspective: boolean,
+  renderWidth: number,
+) {
+  writeDepthTerms(terms, projection, perspective, renderWidth)
+  for (let k = 0; k < 4; k++) {
+    out[at.depth + k] = terms[T.depth + k]
+    out[at.radius + k] = terms[T.radius + k]
+  }
 }
 
 /** The device depth of a point on the view axis at distance `s`, `(a·s + b) / (c·s + d)`, for the

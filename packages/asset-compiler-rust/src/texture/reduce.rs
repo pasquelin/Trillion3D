@@ -57,6 +57,19 @@ impl AtlasKind {
     }
 }
 
+/// The `(width, height, last level)` of the byte chain of `source` for `kind`'s atlas.
+fn byte_extent<C: std::ops::Deref<Target = [u8]>>(
+    source: &image::ImageBuffer<image::Rgba<u8>, C>,
+    kind: AtlasKind,
+) -> (u32, u32, u32) {
+    debug_assert!(
+        kind != AtlasKind::Hdr,
+        "a half-float chain is `hdr::chain`'s"
+    );
+    let (width, height) = source.dimensions();
+    (width, height, preview_last_level(width, height))
+}
+
 /// The ENTIRE mip chain of a source, level 0 included: `levels[k]` is level `k` in
 /// RGBA8, at `preview_level_size` dimensions, level 0 the source's own texels, borrowed.
 ///
@@ -74,12 +87,7 @@ pub(crate) fn chain<'a, C: std::ops::Deref<Target = [u8]>>(
     stored: &'a [Vec<u8>],
     kind: AtlasKind,
 ) -> Vec<Cow<'a, [u8]>> {
-    debug_assert!(
-        kind != AtlasKind::Hdr,
-        "a half-float chain is `hdr::chain`'s"
-    );
-    let (width, height) = source.dimensions();
-    let last = preview_last_level(width, height);
+    let (width, height, last) = byte_extent(source, kind);
     let mut levels = Vec::with_capacity(last as usize + 1);
     levels.push(Cow::Borrowed(&**source.as_raw()));
     levels.extend(
@@ -108,12 +116,7 @@ pub(crate) fn chain_wide<'a, C: std::ops::Deref<Target = [u8]>>(
     wide: &[u16],
     kind: AtlasKind,
 ) -> Vec<Cow<'a, [u8]>> {
-    debug_assert!(
-        kind != AtlasKind::Hdr,
-        "a half-float chain is `hdr::chain`'s"
-    );
-    let (width, height) = source.dimensions();
-    let last = preview_last_level(width, height);
+    let (width, height, last) = byte_extent(source, kind);
     let table = wide_table(kind);
     let sample = |i: usize| table[i % 4 / 3][wide[i] as usize];
     let mut levels = vec![Cow::Borrowed(&**source.as_raw())];

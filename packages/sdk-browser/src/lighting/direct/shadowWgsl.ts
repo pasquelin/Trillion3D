@@ -314,3 +314,25 @@ type MaskShadowOptions = {
    *  (`local` needs them). */
   fallback?: VsmMaskReadBindings
 }
+
+/** The shadow read of a light at a point of a volume (the fog's, a heterogeneous volume's): one sample of the light's virtual shadow map,
+ *  the sun's or a local light's, from the bindings `at` of the volume's program. */
+export const volumeShadowWgsl = (at: {
+  readonly pageTable: number
+  readonly projectionData: number
+  readonly shadowUniforms: number
+  readonly shadowPool: number
+  readonly shadowView: number
+}) =>
+  directShadowWgsl({
+    vsm: {
+      pageTable: at.pageTable,
+      projectionData: at.projectionData,
+      uniforms: at.shadowUniforms,
+      pool: at.shadowPool,
+    },
+    trace: { view: at.shadowView, noise: 0 },
+    quality: 0,
+    localShadows: true,
+    kinds: VSM_TRACE_KINDS_BOTH,
+  })

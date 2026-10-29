@@ -74,3 +74,16 @@ export function objectOf<T extends object>(value: unknown, name: string, fog: un
   if (!isRecord(value)) refuse(`${name} expects an object`, fog)
   return value as T
 }
+
+/** An object of the fog's declaration holding only numbers that `ranges` names, a copy of them
+ *  within their ranges, else the fog refused by `name`. */
+export function rangedObjectOf<T extends object>(
+  value: unknown,
+  name: string,
+  ranges: Readonly<Record<string, FogRange>>,
+  fog: unknown,
+): T {
+  const out = {} as T
+  rangedFields(objectOf<T>(value, name, fog), out, ranges, fog, `${name}.`)
+  return out
+}

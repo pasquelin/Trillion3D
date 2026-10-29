@@ -5,7 +5,7 @@ import { length3 } from '../../../../math/src/vector/vector.ts'
 import { AO_PARAMS } from './layout.ts'
 import { AO_TARGETS, scaledRect, type AoPass, type AoTarget } from './plan.ts'
 import { TAA_VIEW } from '../../post/taa/bindingsWgsl.ts'
-import { writeDepthTerms } from '../../post/taa/view.ts'
+import { putDepthTerms } from '../../post/taa/view.ts'
 import type { CameraImage } from '../../frame/backend/state/previousCamera.ts'
 import { AO_NOISE_SIDE, AO_TEMPORAL_IMAGES, AO_TEMPORAL_STEP } from './tables.ts'
 
@@ -35,7 +35,6 @@ export interface AoImage {
   accumulates: boolean
 }
 
-const TERMS = TAA_VIEW.at
 /** The words the temporal passes' depth terms are written into, before the two vectors the occlusion takes of them are copied:
  *  one for each method's scratch (`writeAoParams`, `writeHorizonParams`). */
 export const createDepthTerms = () => new Float32Array(TAA_VIEW.words)
@@ -112,11 +111,7 @@ export function putCamera(out: Float32Array, at: CameraWords, image: AoImage, te
   axisOf(out, at.up, image.world, 1, 1)
   // The camera looks down its own -z.
   axisOf(out, at.forward, image.world, 2, -1)
-  writeDepthTerms(terms, image.projection, image.perspective, image.view[0])
-  for (let k = 0; k < 4; k++) {
-    out[at.depth + k] = terms[TERMS.depth + k]
-    out[at.radius + k] = terms[TERMS.radius + k]
-  }
+  putDepthTerms(out, at, terms, image.projection, image.perspective, image.view[0])
 }
 
 /** The words that follow from the image and the pass's place in it: the camera, the rectangles and textures, the noise's

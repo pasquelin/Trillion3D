@@ -1,4 +1,5 @@
 //! A decoded image, its baked chains and its written files.
+mod entries;
 mod gated;
 mod half;
 mod single;
@@ -10,6 +11,8 @@ use super::reduce::AtlasKind;
 use super::setting::{Compression, Route, FLOAT_DATA};
 use super::*;
 use crate::plugins::image::DecodedImage;
+use entries::entries;
+use entries::stored_family;
 use std::borrow::Cow;
 
 /// What a decoded byte image brings to its cook: its pixels, the levels its file stores below
@@ -148,29 +151,27 @@ impl Source<'_> {
         }
     }
 
-    /// The sidecar entry of `texture` for the chain `key` of `kind`, its `pixels` tail, the layouts
-    /// it was kept in and their `blocks`, `baked_levels` of its levels written as files.
-    pub fn entry(
+    /// The sidecar entries of `readers` for the chain `key` of `kind`, its `pixels` tail, the
+    /// layouts it was kept in and their `blocks`, `baked_levels` of its levels written as files.
+    pub fn entries(
         &self,
-        texture: usize,
+        readers: &[&AtlasTexture],
         (key, kind): (&str, AtlasKind),
         baked_levels: u32,
-        (pixels, layouts, blocks): (&[u8], [Option<Layout>; FAMILIES], &[Vec<u8>; FAMILIES]),
-    ) -> std::result::Result<TexturePreview, &'static str> {
-        Ok(TexturePreview {
-            texture: u32::try_from(texture).map_err(|_| "texture-out-of-bounds")?,
-            image: u32::try_from(self.image_index).map_err(|_| "image-out-of-bounds")?,
-            width: self.size.0,
-            height: self.size.1,
-            source: self.provenance,
-            sha256: key.to_string(),
-            kind,
-            first_level: self.first_level,
+        tail: (&[u8], [Option<Layout>; FAMILIES], &[Vec<u8>; FAMILIES]),
+    ) -> std::result::Result<Vec<TexturePreview>, &'static str> {
+        entries(
+            readers,
+            (
+                self.size,
+                self.provenance,
+                self.image_index,
+                self.first_level,
+            ),
+            (key, kind),
             baked_levels,
-            pixels: pixels.to_vec(),
-            layouts,
-            blocks: blocks.clone(),
-        })
+            tail,
+        )
     }
 }
 

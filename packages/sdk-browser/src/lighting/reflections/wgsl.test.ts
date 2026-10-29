@@ -7,42 +7,38 @@ import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { withoutComments } from '../../../../math/src/wgsl/comments.fixture.ts'
 import type { Vec3 } from '../../../../math/src/vector/vectorTuple.ts'
-import { REFLECTION_VIGNETTE_WGSL } from './field.ts'
+import { screenEdgeVignette } from '../../../../math/src/wgsl/projection.ts'
 import { reflectionStagesWgsl } from './wgsl.ts'
 import { origin, ahead } from './rayPoints.fixture.ts'
 
-type Vignette = { reflectionVignette: (ndc: number[]) => number }
-const vignette = shaderRun<Vignette>(
-  wgslModule(REFLECTION_VIGNETTE_WGSL),
-  ['reflectionVignette'],
-  {},
-)
+type Vignette = { screenEdgeVignette: (ndc: number[]) => number }
+const vignette = shaderRun<Vignette>(wgslModule(screenEdgeVignette), ['screenEdgeVignette'], {})
 
 test('the vignette keeps a hit whole inside four fifths of the half extent and falls to nothing at the edge, as 1 - v.v', () => {
-  assert.equal(vignette.reflectionVignette([0, 0]), 1)
-  assert.equal(vignette.reflectionVignette([0.8, -0.8]), 1)
-  assert.equal(vignette.reflectionVignette([1, 0]), 0)
-  assert.equal(vignette.reflectionVignette([-1, 0.3]), 0)
+  assert.equal(vignette.screenEdgeVignette([0, 0]), 1)
+  assert.equal(vignette.screenEdgeVignette([0.8, -0.8]), 1)
+  assert.equal(vignette.screenEdgeVignette([1, 0]), 0)
+  assert.equal(vignette.screenEdgeVignette([-1, 0.3]), 0)
   // One axis past the margin: v = (0.5, 0), 1 - 0.25.
-  assert.ok(Math.abs(vignette.reflectionVignette([0.9, 0]) - 0.75) < 1e-6)
+  assert.ok(Math.abs(vignette.screenEdgeVignette([0.9, 0]) - 0.75) < 1e-6)
   // Both axes: v = (0.5, 0.5), 1 - 0.5.
-  assert.ok(Math.abs(vignette.reflectionVignette([-0.9, 0.9]) - 0.5) < 1e-6)
+  assert.ok(Math.abs(vignette.screenEdgeVignette([-0.9, 0.9]) - 0.5) < 1e-6)
   // Past the edge, none; symmetric; falling from the margin to the edge.
-  assert.equal(vignette.reflectionVignette([3, 0]), 0)
+  assert.equal(vignette.screenEdgeVignette([3, 0]), 0)
   let last = 1
   for (let x = 0.8; x <= 1; x += 0.0125) {
-    const kept = vignette.reflectionVignette([x, 0])
+    const kept = vignette.screenEdgeVignette([x, 0])
     assert.ok(kept <= last + 1e-7, 'no rise')
     last = kept
   }
-  assert.equal(vignette.reflectionVignette([0.95, 0.1]), vignette.reflectionVignette([-0.95, -0.1]))
+  assert.equal(vignette.screenEdgeVignette([0.95, 0.1]), vignette.screenEdgeVignette([-0.95, -0.1]))
 })
 
 test('a screen hit stands against the noise of its pixel at the frame index modulo eight, the smaller vignette of this image and the last; no deterministic fade is left', () => {
   const text = wgslModule(reflectionStagesWgsl(1))
   assert.match(
     text,
-    /fn reflectionHitVignette\(S:vec2f,Q:vec2f\)->f32\{\s*return min\(reflectionVignette\(S\/view\.viewport\.xy\*2\.0-1\.0\),reflectionVignette\(Q\/reflectionView\.radiance\.xy\*2\.0-1\.0\)\);/,
+    /fn reflectionHitVignette\(S:vec2f,Q:vec2f\)->f32\{\s*return min\(screenEdgeVignette\(S\/view\.viewport\.xy\*2\.0-1\.0\),screenEdgeVignette\(Q\/reflectionView\.radiance\.xy\*2\.0-1\.0\)\);/,
   )
   assert.ok(
     text.includes(

@@ -21,6 +21,13 @@ impl Flow {
         }
     }
 
+    /// The `k`th link of node `p` and the node it leads to, when that node is in `tree`, not free.
+    fn kin(&self, p: u32, k: usize, tree: Tree) -> Option<(u32, u32)> {
+        let link = self.nodes[p as usize].links[k];
+        let q = self.links[link as usize].to;
+        (tree != Tree::Free && self.nodes[q as usize].tree == tree).then_some((link, q))
+    }
+
     /// Every orphan given a new parent in its tree, or freed.
     pub(super) fn adopt_orphans(&mut self) {
         while let Some(p) = self.orphans.pop_front() {
@@ -28,11 +35,9 @@ impl Flow {
             let mut adopted: Option<(u32, u32)> = None;
             let mut best_depth = 0;
             for k in 0..self.nodes[p as usize].links.len() {
-                let link = self.nodes[p as usize].links[k];
-                let q = self.links[link as usize].to;
-                if tree == Tree::Free || self.nodes[q as usize].tree != tree {
+                let Some((link, q)) = self.kin(p, k, tree) else {
                     continue;
-                }
+                };
                 let toward_p = if tree == Tree::Source { link ^ 1 } else { link };
                 if self.links[toward_p as usize].residual == 0.0 {
                     continue;
@@ -52,11 +57,9 @@ impl Flow {
                 continue;
             }
             for k in 0..self.nodes[p as usize].links.len() {
-                let link = self.nodes[p as usize].links[k];
-                let q = self.links[link as usize].to;
-                if tree == Tree::Free || self.nodes[q as usize].tree != tree {
+                let Some((link, q)) = self.kin(p, k, tree) else {
                     continue;
-                }
+                };
                 if self.nodes[q as usize].parent == Parent::Node(p) {
                     self.mark_orphan(q);
                 }

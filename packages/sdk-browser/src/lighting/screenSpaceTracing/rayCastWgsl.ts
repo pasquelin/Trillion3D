@@ -1,4 +1,5 @@
 import { wgslBlock, wgslVariants } from '../../../../math/src/wgsl/decl.ts'
+import { screenEdgeVignette } from '../../../../math/src/wgsl/projection.ts'
 import { clampToExtent } from '../../../../math/src/wgsl/sampling.ts'
 import { hizDepthWgsl } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { VECTOR_CODEC_WGSL } from '../../post/taa/velocityWgsl.ts'
@@ -223,12 +224,8 @@ fn ssRayFromView(screen:vec2f,z:f32,viewDir:vec3f)->SsRay{
  */
 export const SCREEN_SPACE_REPROJECT_WGSL = wgslBlock(
   'SCREEN_SPACE_REPROJECT_WGSL',
-  [SCREEN_SPACE_INPUTS_WGSL, VECTOR_CODEC_WGSL],
+  [SCREEN_SPACE_INPUTS_WGSL, VECTOR_CODEC_WGSL, screenEdgeVignette],
   `
-fn ssVignette(p:vec2f)->f32{
- let v=saturate(abs(p)*5.0-vec2f(4.0));
- return saturate(1.0-dot(v,v));
-}
 struct SsReprojected{uv:vec2f,vignette:f32,}
 fn ssReprojectHit(hitUVz:vec3f)->SsReprojected{
  let thisScreen=(hitUVz.xy-vec2f(0.5))*vec2f(2.0,-2.0);
@@ -239,7 +236,7 @@ fn ssReprojectHit(hitUVz:vec3f)->SsReprojected{
  let words=textureLoad(colorVectors,clampToExtent(vec2i(floor(hitUVz.xy*vec2f(size))),size),0);
  if(hasOwnMotion(words.r)){prevScreen=thisClip.xy-decodeVector(words.r);}
  if(ssView.tiles.z!=0.0){prevScreen=thisScreen;}
- return SsReprojected(prevScreen*ssView.previous.xy+ssView.previous.zw,min(ssVignette(thisScreen),ssVignette(prevScreen)));
+ return SsReprojected(prevScreen*ssView.previous.xy+ssView.previous.zw,min(screenEdgeVignette(thisScreen),screenEdgeVignette(prevScreen)));
 }
 fn ssColorAt(uv:vec2f)->vec4f{
  let rgb=textureSampleLevel(colorImage,colorSampler,uv,0.0).rgb;

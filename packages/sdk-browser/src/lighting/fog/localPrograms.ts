@@ -21,6 +21,20 @@ export interface LocalFogDiagnostics {
   diagnosticFailure(phase: string, error: unknown): void
 }
 
+/** The pass of a device, made by `create` at the first image that has a local fog volume; the
+ *  returned function hands it the diagnostics that hear a refusal to compile it. */
+export function localPassOf<P extends { diag: LocalFogDiagnostics | undefined }>(
+  create: (device: GPUDevice) => P,
+) {
+  const made = new WeakMap<GPUDevice, P>()
+  return (device: GPUDevice, diag: LocalFogDiagnostics) => {
+    let pass = made.get(device)
+    if (!pass) made.set(device, (pass = create(device)))
+    pass.diag = diag
+    return pass
+  }
+}
+
 /** Where the sky light's pass binds what it reads and writes: the light buffer's front, and the sky
  *  light's harmonics and uniform. */
 export const LOCAL_SKY_BINDING = { air: 0, harmonics: 1, params: 2 } as const

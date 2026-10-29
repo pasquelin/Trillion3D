@@ -120,6 +120,17 @@ export const fallbackOf = (name: GraphOutput) => {
   return constantOf(spec.type, spec.fallback)
 }
 
+/** The code that calls the output `name` of `compiled` at the context `ctx`, over the graph values `values`, or the output's constant
+ *  where the graph wires none. */
+export const outputCall = (
+  compiled: { readonly functions: Partial<Record<GraphOutput, string>> },
+  name: GraphOutput,
+  values: string,
+) => {
+  const fn = compiled.functions[name]
+  return fn ? `${fn}(ctx,${values})` : fallbackOf(name).code
+}
+
 /** Whether `name` is compiled for `domain` under `reading`: wired and read. The `shadingModel` output is read only where the material
  *  says its model comes from the graph (`modelFromGraph`, "From Material Expression"). */
 export const isCompiled = (

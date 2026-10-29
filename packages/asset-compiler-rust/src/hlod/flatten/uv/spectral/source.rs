@@ -17,6 +17,7 @@ use super::util::canonical_frame;
 use super::ChartQuality;
 use crate::hlod::flatten::uv::extremes::greater;
 use std::cell::Cell;
+use trillion3d_math::geometry::aabb::aabb_of_f32;
 use trillion3d_math::vector::vec3::cross;
 use trillion3d_math::vector::vecn::{length, sub};
 
@@ -127,18 +128,7 @@ impl Source {
 /// The points centred on their bounding box and scaled into the cube, and the scaled box's
 /// diagonal.
 fn scaled(positions: &[[f32; 3]]) -> (Vec<[f32; 3]>, f32) {
-    let mut low = [f32::MAX; 3];
-    let mut high = [-f32::MAX; 3];
-    for p in positions {
-        for j in 0..3 {
-            if low[j] > p[j] {
-                low[j] = p[j];
-            }
-            if high[j] < p[j] {
-                high[j] = p[j];
-            }
-        }
-    }
+    let (low, high) = aabb_of_f32(positions.iter().copied());
     let center = [0, 1, 2].map(|j| (low[j] + high[j]) / 2.0);
     let side = greater(
         high[0] - low[0],

@@ -201,21 +201,7 @@ pub fn encode_level(
     format: BlockFormat,
     layout: Layout,
 ) -> Vec<u8> {
-    use rayon::prelude::*;
-    debug_assert_eq!(rgba.len(), width as usize * height as usize * 4);
-    let (across, down) = blocks_of(width, height);
-    let row_bytes = across as usize * BLOCK_BYTES;
-    let mut out = vec![0u8; row_bytes * down as usize];
-    // Block rows are independent; the pool splits them in runs of eight at
-    // least, so a small level — the tail, a thumbnail — stays on one thread.
-    out.par_chunks_mut(row_bytes)
-        .enumerate()
-        .with_min_len(8)
-        .for_each(|(by, out)| {
-            for (bx, out) in out.as_chunks_mut::<BLOCK_BYTES>().0.iter_mut().enumerate() {
-                let texels = fit::block_texels(rgba, width, height, bx as u32, by as u32);
-                *out = encode_block(&texels, format, layout);
-            }
-        });
-    out
+    fit::encode_blocks(rgba, (width, height), BLOCK_BYTES, |texels, out| {
+        out.copy_from_slice(&encode_block(texels, format, layout));
+    })
 }

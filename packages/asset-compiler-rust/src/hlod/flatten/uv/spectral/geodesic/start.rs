@@ -7,7 +7,7 @@
 //! window of its edges: the window that ends nearest it gives its distance, the least distance
 //! among equally near ones.
 use super::plane::{distance, into_frame_3d};
-use super::{Link, Listed, Window, Windows};
+use super::{Window, Windows};
 use crate::hlod::flatten::uv::extremes::lesser;
 use crate::hlod::flatten::uv::spectral::mesh::NONE;
 
@@ -67,12 +67,7 @@ impl Windows {
 
     /// `window` held and listed on its edge, its ends' distances lowered.
     fn add_window(&mut self, window: Window) {
-        let id = self.hold(window);
-        let edge = &mut self.edges[window.edge as usize];
-        edge.windows.push(Listed {
-            link: Link::Held(id),
-            window,
-        });
+        let edge = self.list(window);
         let other = edge.other_end(window.mark);
         for (v, d) in [(window.mark, window.d0), (other, window.d1)] {
             let vert = &mut self.verts[v as usize];

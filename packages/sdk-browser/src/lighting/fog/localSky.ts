@@ -6,6 +6,7 @@ import { askedComputeStage, dispatchOn } from '../../gpu/core/computeStages.ts'
 import {
   LOCAL_SKY_BINDING as BINDING,
   LOCAL_SKY_PROGRAM,
+  localPassOf,
   type LocalFogDiagnostics,
 } from './localPrograms.ts'
 
@@ -61,14 +62,6 @@ function createLocalSky(device: GPUDevice) {
   return sky
 }
 
-/** The pass of each device. */
-const made = new WeakMap<GPUDevice, ReturnType<typeof createLocalSky>>()
-
 /** The pass of `device`, made at the first image that has a local fog volume; `diag` hears a refusal to
  *  compile it. */
-export function localSkyOf(device: GPUDevice, diag: LocalFogDiagnostics) {
-  let pass = made.get(device)
-  if (!pass) made.set(device, (pass = createLocalSky(device)))
-  pass.diag = diag
-  return pass
-}
+export const localSkyOf = localPassOf(createLocalSky)

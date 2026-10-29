@@ -176,6 +176,13 @@ export const clampToExtent = wgslFn(
   'fn clampToExtent(p:vec2i,size:vec2i)->vec2i{return clamp(p,vec2i(0),size-vec2i(1));}',
 )
 
+/** The texel `p` of the float texture `t` held to its extent (`clampToExtent`): the edge's texel past an edge. */
+export const loadHeld = wgslFn(
+  'loadHeld',
+  [clampToExtent],
+  'fn loadHeld(t:texture_2d<f32>,p:vec2i)->vec4f{return textureLoad(t,clampToExtent(p,vec2i(textureDimensions(t))),0);}',
+)
+
 /**
  * The slope of a surface along one axis of a depth image, in depth per texel, from the depth `z`
  * a texel holds and the two before it and after it (`before`, `after`, then `farBefore`,

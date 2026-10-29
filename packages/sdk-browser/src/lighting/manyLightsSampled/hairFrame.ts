@@ -3,7 +3,7 @@
  * (`hair/lighting.ts`), which reads them in place of the walk of the cell's lights.
  */
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
-import { askedComputeStage } from '../../gpu/core/computeStages.ts'
+import { askedComputeProgram } from '../../gpu/core/computeStages.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../../diagnostic/stage/passLabels.ts'
 import type { HairNodes } from '../../hair/compactionPass.ts'
@@ -42,25 +42,13 @@ export interface SampledHair {
 const ro = (binding: number) => computeBufferEntry(binding, 'read-only-storage')
 
 interface DeviceHair {
-  sample: ReturnType<typeof stageOf>
-  masks: Map<boolean, ReturnType<typeof stageOf>>
+  sample: ReturnType<typeof askedComputeProgram>
+  masks: Map<boolean, ReturnType<typeof askedComputeProgram>>
   params: GPUBuffer
   draws?: GPUBuffer
   capacity: number
 }
 const devices = new WeakMap<GPUDevice, DeviceHair>()
-
-function stageOf(
-  device: GPUDevice,
-  failed: (e: unknown) => void,
-  label: string,
-  entries: GPUBindGroupLayoutEntry[],
-  code: string,
-  entry: string,
-) {
-  const layout = device.createBindGroupLayout({ entries })
-  return { layout, pipeline: askedComputeStage(device, [layout], code, entry, label, failed) }
-}
 
 function deviceOf(rt: WebgpuPagesRuntime, device: GPUDevice): DeviceHair {
   let held = devices.get(device)
@@ -68,7 +56,7 @@ function deviceOf(rt: WebgpuPagesRuntime, device: GPUDevice): DeviceHair {
   const failed = (error: unknown) =>
     rt.diag.diagnosticFailure('sampled-lights-program-failed', error)
   held = {
-    sample: stageOf(
+    sample: askedComputeProgram(
       device,
       failed,
       `${HAIR_STRANDS_PASS_PREFIX}sampled draws`,
@@ -107,7 +95,7 @@ const maskStage = (
       rt.diag.diagnosticFailure('sampled-lights-program-failed', error)
     held.masks.set(
       mipmap,
-      (made = stageOf(
+      (made = askedComputeProgram(
         device,
         failed,
         `${HAIR_STRANDS_PASS_PREFIX}sampled masks`,

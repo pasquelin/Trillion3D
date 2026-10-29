@@ -8,7 +8,7 @@
 //! left with some width is then added, held in the heap, and each window added lowers the distance
 //! of an edge end it reaches within 0.01.
 use super::intersect::Outcome;
-use super::{Link, Listed, Window, Windows};
+use super::{Link, Window, Windows};
 
 /// How near an edge end a window must reach to set that end's distance.
 const REACH: f64 = 0.01;
@@ -67,12 +67,7 @@ impl Windows {
 
     /// `window` held and listed on its edge, the edge ends it reaches lowered.
     fn place(&mut self, window: Window) {
-        let id = self.hold(window);
-        let edge = &mut self.edges[window.edge as usize];
-        edge.windows.push(Listed {
-            link: Link::Held(id),
-            window,
-        });
+        let edge = self.list(window);
         let (length, other) = (edge.length, edge.other_end(window.mark));
         let reached = window.pseudo_distance;
         if window.b0 < REACH {

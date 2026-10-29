@@ -7,7 +7,7 @@
 //! texels are the image's own, rounded to half-float — or, for a texture whose setting is
 //! `hdrCompressed` (`setting.rs`), to BC6H blocks beside the half-float tail (`blocks/bc6h.rs`).
 use super::write::{write_levels, LEVEL_WRITE_FAILED};
-use super::Baked;
+use super::{stored_family, Baked};
 use crate::texture::blocks::{encode_hdr, encode_texels, BlockFormat, Layout};
 use crate::texture::collect::AtlasTexture;
 use crate::texture::hdr::{self, HALF_FILE};
@@ -57,25 +57,13 @@ fn finish(
     (size, provenance, image_index): ((u32, u32), PreviewSource, usize),
     written: Written<'_>,
 ) -> std::result::Result<Baked, &'static str> {
-    let previews = readers
-        .iter()
-        .map(|reader| {
-            Ok(TexturePreview {
-                texture: u32::try_from(reader.texture).map_err(|_| "texture-out-of-bounds")?,
-                image: u32::try_from(image_index).map_err(|_| "image-out-of-bounds")?,
-                width: size.0,
-                height: size.1,
-                source: provenance,
-                sha256: written.key.to_string(),
-                kind: written.kind,
-                first_level: written.levels.0,
-                baked_levels: written.levels.1,
-                pixels: written.pixels.to_vec(),
-                layouts: written.layouts,
-                blocks: written.blocks.clone(),
-            })
-        })
-        .collect::<std::result::Result<_, &'static str>>()?;
+    let previews = super::entries(
+        readers,
+        (size, provenance, image_index, written.levels.0),
+        (written.key, written.kind),
+        written.levels.1,
+        (written.pixels, written.layouts, written.blocks),
+    )?;
     Ok(Baked {
         previews,
         notes: written.notes,
@@ -202,14 +190,14 @@ pub(super) fn cook_exact(
     }
     let baked_levels = written.as_ref().map_or(0, |&count| count);
     // The exact tail is kept only with the files it sits beside, as every layout's.
-    let mut layouts = [None; FAMILIES];
-    let mut tail: [Vec<u8>; FAMILIES] = Default::default();
-    if written.is_ok() {
-        layouts[BlockFormat::STORED.index()] = Some(layout);
-        tail[BlockFormat::STORED.index()] = (first_level as usize..levels.len())
-            .flat_map(blocks_of)
-            .collect();
-    }
+    let (layouts, tail) = stored_family(
+        layout,
+        written.is_ok().then(|| {
+            (first_level as usize..levels.len())
+                .flat_map(blocks_of)
+                .collect()
+        }),
+    );
     let pixels = proxy[first_level as usize..].concat();
     finish(
         readers,
@@ -275,17 +263,17 @@ pub(super) fn cook(
     let baked_levels = written.as_ref().map_or(0, |&count| count);
     let pixels = levels[first_level as usize..].concat();
     // The tail's blocks, kept only with the files they sit beside.
-    let mut layouts = [None; FAMILIES];
-    let mut tail: [Vec<u8>; FAMILIES] = Default::default();
-    if blocks && written.is_ok() {
-        layouts[BlockFormat::STORED.index()] = Some(Layout::Hdr);
-        tail[BlockFormat::STORED.index()] = (first_level as usize..levels.len())
-            .flat_map(|level| {
-                let (w, h) = preview_level_size(width, height, level as u32);
-                encode_hdr(&levels[level], w, h)
-            })
-            .collect();
-    }
+    let (layouts, tail) = stored_family(
+        Layout::Hdr,
+        (blocks && written.is_ok()).then(|| {
+            (first_level as usize..levels.len())
+                .flat_map(|level| {
+                    let (w, h) = preview_level_size(width, height, level as u32);
+                    encode_hdr(&levels[level], w, h)
+                })
+                .collect()
+        }),
+    );
     finish(
         colour,
         ((width, height), provenance, image_index),

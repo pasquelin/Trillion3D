@@ -19,7 +19,7 @@ use trillion3d_math::vector::vecn::{dot, length, scale, sub};
 
 /// The views' directions, up along `z`, in the capture's order: the six axes, the upper corners
 /// (looking down), the lower corners, the upper edges, the side edges.
-const DIRECTIONS: [[f64; 3]; 22] = [
+pub(crate) const DIRECTIONS: [[f64; 3]; 22] = [
     [1.0, 0.0, 0.0],
     [-1.0, 0.0, 0.0],
     [0.0, 1.0, 0.0],

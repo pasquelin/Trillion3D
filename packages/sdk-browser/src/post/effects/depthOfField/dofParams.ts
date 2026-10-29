@@ -4,7 +4,7 @@ import { DEG2RAD } from '../../../../../math/src/constants.ts'
 import type { ResolvedDepthOfField } from '../../../../../sdk-core/src/contracts/depthOfFieldOptions.ts'
 import type { DepthOfFieldValues } from '../../../../../sdk-core/src/contracts/depthOfFieldRules.ts'
 import { TAA_VIEW } from '../../taa/bindingsWgsl.ts'
-import { writeDepthTerms } from '../../taa/view.ts'
+import { putDepthTerms } from '../../taa/view.ts'
 import { METRES_PER_CENTIMETRE } from './cocModel.ts'
 import { circleRatio, errorMultiplierOf, type DofPlan } from './dofPlan.ts'
 import { COC_TILE, DOF_PARAMS, DOF_STEP, SCATTER_GROUP_MARGIN } from './dofLayout.ts'
@@ -12,9 +12,7 @@ import { COC_TILE, DOF_PARAMS, DOF_STEP, SCATTER_GROUP_MARGIN } from './dofLayou
 /** The `x`th word of a field of the uniform. */
 const AT = DOF_PARAMS.at
 const STEP = DOF_STEP.at
-/** The projection's depth terms are written by the temporal passes' writer into a block laid out as
- *  their uniform, and read off it. */
-const TERMS = TAA_VIEW.at
+/** The block the projection's depth terms are written into by the temporal passes' writer, laid out as their uniform. */
 const scratch = new Float32Array(TAA_VIEW.words)
 
 /** What the uniform is written from, refilled at each image. */
@@ -158,11 +156,7 @@ export function writeDofParams(into: Float32Array, ints: Uint32Array, input: Dof
   putVec4(into, AT.optics, coc.sensorWidth, coc.sensorHeight, coc.aperture, coc.lensImageDistance)
   const matte = writeMatteBox(into, volume)
   putVec4(into, AT.barrel, coc.barrelRadius, coc.barrelLength > 0 || matte ? coc.barrelLength : -1)
-  writeDepthTerms(scratch, input.projection, input.perspective, render[0])
-  for (let at = 0; at < 4; at++) {
-    into[AT.depth + at] = scratch[TERMS.depth + at]
-    into[AT.radius + at] = scratch[TERMS.radius + at]
-  }
+  putDepthTerms(into, AT, scratch, input.projection, input.perspective, render[0])
   writeTemporal(into, input)
 }
 

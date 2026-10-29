@@ -1,5 +1,6 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { pixelToNdc } from '../../../../../math/src/wgsl/projection.ts'
+import { clampToExtent } from '../../../../../math/src/wgsl/sampling.ts'
 import { DFAO_COMMON_WGSL } from './commonWgsl.ts'
 import { DFAO_GRID_WGSL } from './gridWgsl.ts'
 import { DFAO_BINDING as B } from './layout.ts'
@@ -15,11 +16,11 @@ import { DFAO_BINDING as B } from './layout.ts'
  */
 export const DFAO_UPSAMPLE_WGSL = wgslBlock(
   'DFAO_UPSAMPLE_WGSL',
-  [DFAO_COMMON_WGSL, DFAO_GRID_WGSL, pixelToNdc],
+  [DFAO_COMMON_WGSL, DFAO_GRID_WGSL, pixelToNdc, clampToExtent],
   `@group(0) @binding(${B.bent}) var coneBent:texture_2d<f32>;
 fn dfaoViewNdc(cells:vec2f)->vec2f{return pixelToNdc(cells,floor(vec2f(dfao.grid.zw)*0.5));}
 fn dfaoConeBent(cell:vec2i)->vec4f{
- return textureLoad(coneBent,clamp(cell,vec2i(0),vec2i(dfao.cones.xy)-vec2i(1)),0);
+ return textureLoad(coneBent,clampToExtent(cell,vec2i(dfao.cones.xy)),0);
 }
 fn dfaoPositionWeight(plane:vec4f,cells:vec2f,depth:f32)->f32{
  let p=dfaoWorldAt(dfaoViewNdc(cells),depth);

@@ -3,21 +3,6 @@ import { REFLECTION_VIEW_WGSL } from './viewLayout.ts'
 import { SKY_READ_WGSL } from '../atmosphere/skyReadWgsl.ts'
 
 /**
- * The vignette, a pure function of its argument.
- *
- * `reflectionVignette`: the chance the screen answers a hit at the screen position `ndc` (-1 to 1 on both axes): 1 inside four fifths of
- * the half extent on both axes, falling to 0 at the edge as 1 − v·v, `v` the excess beyond the four fifths, scaled up to one at the edge.
- */
-export const REFLECTION_VIGNETTE_WGSL = wgslBlock(
-  'REFLECTION_VIGNETTE_WGSL',
-  [],
-  `fn reflectionVignette(ndc:vec2f)->f32{
- let v=saturate(abs(ndc)*5.0-4.0);
- return saturate(1.0-dot(v,v));
-}`,
-)
-
-/**
  * The reflected lobe (`reflectionLobeOf`): the direction `R` at its centre and `rough` the roughness the radiance around the scene is read at.
  */
 export const REFLECTION_LOBE_WGSL = wgslBlock(

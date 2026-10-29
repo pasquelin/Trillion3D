@@ -2,9 +2,8 @@ import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import type { WgslDecl } from '../../../../math/src/wgsl/decl.ts'
 import { hizDepthWgsl } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import { DIRECT_LIGHT_WGSL } from '../direct/lightWgsl.ts'
-import { directShadowWgsl } from '../direct/shadowWgsl.ts'
+import { volumeShadowWgsl } from '../direct/shadowWgsl.ts'
 import { TILE_SLICE_WGSL } from '../direct/lightingWgsl.ts'
-import { VSM_TRACE_KINDS_BOTH } from '../shadows/vsm/trace/traceWgsl.ts'
 import { skyLightDiffuseWgsl } from '../../modules/sky/skyLight/read.ts'
 import { cloudShadowReadWgsl } from '../atmosphere/cloudShadowRead.ts'
 import { lightFunctionReadWgsl } from '../lightFunction/readWgsl.ts'
@@ -67,18 +66,7 @@ const declarations = (bindings: FogBindings) =>
 
 /** A shadowed light's shadow, the sun's or a local light's whose `shadowsFog` is set: one sample of
  *  the light's virtual shadow map at the cell's point. */
-const SHADOW = directShadowWgsl({
-  vsm: {
-    pageTable: b.pageTable,
-    projectionData: b.projectionData,
-    uniforms: b.shadowUniforms,
-    pool: b.shadowPool,
-  },
-  trace: { view: b.shadowView, noise: 0 },
-  quality: 0,
-  localShadows: true,
-  kinds: VSM_TRACE_KINDS_BOTH,
-})
+const SHADOW = volumeShadowWgsl(b)
 
 /** What the fog reads past the light buffer in the scatter: the cubemap, the sampler it and the
  *  volume before are read through, and the lists of the local fog volumes over each tile; without the

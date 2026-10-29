@@ -149,14 +149,20 @@ pub(super) fn unknown_setting(
     ))
 }
 
-/// The settings of `scheme` the grid's `fields` name, each its default when left out; `Err` with
+/// The job's refusal of the grid's setting `name`, read from `field`, that is not `takes`.
+pub(super) fn refusal(field: &str) -> impl Fn(&str, &str, &Value) -> String + '_ {
+    move |name, takes, got| format!("{field}: {name} must be {takes}, got {got}")
+}
+
+/// The settings of `scheme` the grid `read` holds, each its default when left out; `Err` with
 /// the job's refusal for a setting of the other scheme or one that does not read, `field` naming
 /// where the grid was read from.
 pub(super) fn scheme_settings(
-    fields: &Map<String, Value>,
+    read: &Reader<'_>,
     scheme: PartitionScheme,
     field: &str,
 ) -> std::result::Result<(LooseSettings, SquareSettings), String> {
+    let fields = read.map;
     let (foreign, other) = match scheme {
         PartitionScheme::HashSet => (
             &SPATIAL_HASH_GRID_SETTINGS[..],
@@ -173,14 +179,7 @@ pub(super) fn scheme_settings(
             "{field}: {name} is read by {PARTITION_SCHEME_FIELD} {other} alone"
         ));
     }
-    let refuse = |name: &str, takes: &str, got: &Value| {
-        format!("{field}: {name} must be {takes}, got {got}")
-    };
-    let prefix = format!("{field}: ");
-    let read = Reader {
-        map: fields,
-        what: &prefix,
-    };
+    let refuse = refusal(field);
     let flag = |name: &str, fallback: bool| {
         (read.boolean(name).map_err(|refusal| refusal.message))
             .map(|named| named.unwrap_or(fallback))

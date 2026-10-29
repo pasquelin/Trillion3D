@@ -7,7 +7,8 @@ import { FOG_MODE, FOG_SLOT } from '../../../../sdk-core/src/scene/core/fog.ts'
 import { fogBlockOf } from '../fog/readWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from './constantsWgsl.ts'
 import { REFLECTION_TRACE_BINDINGS } from './trace/traceBindings.ts'
-import { REFLECTION_CLAMP_WGSL, REFLECTION_VIGNETTE_WGSL } from './field.ts'
+import { REFLECTION_CLAMP_WGSL } from './field.ts'
+import { screenEdgeVignette } from '../../../../math/src/wgsl/projection.ts'
 import {
   REFLECTION_DEPTH_BINDING,
   REFLECTION_LINEAR_DEPTH_WGSL,
@@ -49,7 +50,7 @@ fn reflectionLitAt(texel:vec2i)->vec3f{
  return max(makeFinite3(textureLoad(reflectionImage,texel,0).rgb),vec3f(0.0))*reflectionView.radiance.w;
 }
 fn reflectionHitVignette(S:vec2f,Q:vec2f)->f32{
- return min(reflectionVignette(S/view.viewport.xy*2.0-1.0),reflectionVignette(Q/reflectionView.radiance.xy*2.0-1.0));
+ return min(screenEdgeVignette(S/view.viewport.xy*2.0-1.0),screenEdgeVignette(Q/reflectionView.radiance.xy*2.0-1.0));
 }
 fn reflectionHeld(at:vec3f,N:vec3f,noise:f32)->vec4f{
  let none=vec4f(0.0);
@@ -104,7 +105,7 @@ fn reflectionHitSpread(cone:f32)->f32{
  * fog; the fog module's one law (`heightFogAlong`), read from the origin's height, its colour tinted by the fog's own cubemap along the ray where it has one and the sky light does not light the fog. `reflectionHeld`: the lit image
  * the view holds, in the units of a ray's radiance (the last image's exposure taken out), where a hit at `at`, its face turned to the ray `N`, agrees with it — the depth the image drew
  * there within `ReflectionView.light.y` of its own, its face looking at the eye within the cosine `light.z` — and, as a
- * weight, the vignette (`reflectionVignette`) of the hit in this image and in the last, the smaller of the two (`reflectionHitVignette`): the chance the hit takes it; zero
+ * weight, the vignette (`screenEdgeVignette`) of the hit in this image and in the last, the smaller of the two (`reflectionHitVignette`): the chance the hit takes it; zero
  * elsewhere. `reflectionEdgeNoise`: the interleaved gradient noise of the pixel `coord` at the frame index modulo eight, which a hit's vignette must reach. `reflectionSkylightLeak`: the sky light's diffuse light at the normal `N` of what a ray reaches — the zero vector for a ray
  * that reaches the sky, whose zero normal gives the cube's constant term — that leaks onto it whatever hides it (`ReflectionView.leak`, none by default). `reflectionSeenAt`: what a surface
  * the march met shows — the light the surface cache's final lighting gives it at `at`, its face `N`, and the leaking, fogged along the
@@ -123,7 +124,7 @@ export const reflectionRayLightWgsl = (group: number, stored = false) =>
       reflectionBindingsWgsl(group),
       hizDepthWgsl(group, REFLECTION_DEPTH_BINDING),
       REFLECTION_CONSTANTS_WGSL,
-      REFLECTION_VIGNETTE_WGSL,
+      screenEdgeVignette,
       REFLECTION_CLAMP_WGSL,
       REFLECTION_LINEAR_DEPTH_WGSL,
       makeFinite3,

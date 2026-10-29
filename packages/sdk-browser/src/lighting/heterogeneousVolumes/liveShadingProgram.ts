@@ -16,9 +16,8 @@ import { lightStrengthWgsl } from '../direct/lightStrengthWgsl.ts'
 import { lightChannelsOf } from '../direct/lightReachWgsl.ts'
 import { tileDeclarations } from '../../materials/virtual/wgsl.ts'
 import { VOLUME_LAMP_WGSL } from '../direct/lampSeenWgsl.ts'
-import { directShadowWgsl } from '../direct/shadowWgsl.ts'
-import { VSM_TRACE_KINDS_BOTH } from '../shadows/vsm/trace/traceWgsl.ts'
-import { fallbackOf } from '../../materials/graph/program.ts'
+import { volumeShadowWgsl } from '../direct/shadowWgsl.ts'
+import { outputCall } from '../../materials/graph/program.ts'
 import type { CompiledGraph } from '../../materials/graph/compile.ts'
 import { VOLUME_OUTPUT_LIMIT } from '../../../../sdk-core/src/contracts/volumeMaterial.ts'
 import { BEER_BUILD_WGSL } from './beerShadowMapWgsl.ts'
@@ -216,24 +215,7 @@ const SVT_SLOTS = wgslBlock(
 )
 
 /** The shadow read of a light at a point: one sample of the light's virtual shadow map, as the fog reads it. */
-const SHADOW = directShadowWgsl({
-  vsm: {
-    pageTable: b.pageTable,
-    projectionData: b.projectionData,
-    uniforms: b.shadowUniforms,
-    pool: b.shadowPool,
-  },
-  trace: { view: b.shadowView, noise: 0 },
-  quality: 0,
-  localShadows: true,
-  kinds: VSM_TRACE_KINDS_BOTH,
-})
-
-/** The output `name` of the compiled graph at a context, or its default where the graph wires none. */
-const outputOf = (c: CompiledGraph, name: 'baseColor' | 'subsurfaceColor' | 'emissive') => {
-  const fn = c.functions[name]
-  return fn ? `${fn}(ctx,hvG)` : fallbackOf(name).code
-}
+const SHADOW = volumeShadowWgsl(b)
 
 /** The volume's graph, and its three outputs at a point (`hvSampleExtinction`, `hvSampleAlbedo`, `hvSampleEmission`). */
 const graphHostText = (c: CompiledGraph) => `
@@ -256,15 +238,15 @@ fn hvContext(world:vec3f)->MgContext{
 }
 fn hvSampleExtinction(local:vec3f,world:vec3f)->vec3f{
  let ctx=hvContext(world);
- return clamp(${outputOf(c, 'subsurfaceColor')}.xyz,vec3f(0.0),vec3f(${VOLUME_OUTPUT_LIMIT}.0));
+ return clamp(${outputCall(c, 'subsurfaceColor', 'hvG')}.xyz,vec3f(0.0),vec3f(${VOLUME_OUTPUT_LIMIT}.0));
 }
 fn hvSampleAlbedo(local:vec3f,world:vec3f)->vec3f{
  let ctx=hvContext(world);
- return saturate(${outputOf(c, 'baseColor')}.xyz);
+ return saturate(${outputCall(c, 'baseColor', 'hvG')}.xyz);
 }
 fn hvSampleEmission(local:vec3f,world:vec3f)->vec3f{
  let ctx=hvContext(world);
- return clamp(${outputOf(c, 'emissive')}.xyz,vec3f(0.0),vec3f(${VOLUME_OUTPUT_LIMIT}.0));
+ return clamp(${outputCall(c, 'emissive', 'hvG')}.xyz,vec3f(0.0),vec3f(${VOLUME_OUTPUT_LIMIT}.0));
 }
 `
 

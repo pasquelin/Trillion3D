@@ -10,6 +10,7 @@ import {
   LOCAL_CULL_BINDING as BINDING,
   LOCAL_CULL_PROGRAM,
   LOCAL_CULL_PYRAMID_PROGRAM,
+  localPassOf,
   type LocalFogDiagnostics,
 } from './localPrograms.ts'
 import type { LocalFogTiling } from './localTiling.ts'
@@ -106,14 +107,6 @@ function createLocalCull(device: GPUDevice) {
   return cull
 }
 
-/** The pass of each device. */
-const made = new WeakMap<GPUDevice, ReturnType<typeof createLocalCull>>()
-
 /** The pass of `device`, made at the first image that has a local fog volume; `diag` hears a refusal to
  *  compile it. */
-export function localCullOf(device: GPUDevice, diag: LocalFogDiagnostics) {
-  let pass = made.get(device)
-  if (!pass) made.set(device, (pass = createLocalCull(device)))
-  pass.diag = diag
-  return pass
-}
+export const localCullOf = localPassOf(createLocalCull)

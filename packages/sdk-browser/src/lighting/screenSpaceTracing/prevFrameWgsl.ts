@@ -66,7 +66,7 @@ fn reductionFirstColor(pixel:vec2u)->Reduced{
  var color=reductionClean(vec4f(rgb*weight,weight));
  if(isSky){color=vec4f(0.0);}
  color=vec4f(color.rgb*ssView.sky.y,color.a);
- color=color*min(ssVignette(screen),ssVignette(prevScreen));
+ color=color*min(screenEdgeVignette(screen),screenEdgeVignette(prevScreen));
  return Reduced(color,depth);
 }`
 

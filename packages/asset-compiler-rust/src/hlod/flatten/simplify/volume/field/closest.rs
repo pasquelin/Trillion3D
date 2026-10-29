@@ -1,15 +1,15 @@
 //! The point of a triangle, or of a polygon, closest to a point, in double precision.
 //!
 //! The triangle's is ported from its documentation, OpenVDB shipping it only as a binary: the
-//! Voronoi regions of Ericson's Real-Time Collision Detection (pp. 136–142), tested in his order
-//! — the region of corner `a`, of corner `b`, of edge `ab`, of corner `c`, of edge `ac`, of edge
-//! `bc`, then the face —, each point as he writes it. Before them, as OpenVDB documents, the
-//! degenerate triangles: three coincident corners give `a`; `a` on `b` gives the closest point of
-//! segment `bc`; `a` or `b` on `c` that of segment `ab`. Two corners coincide when each axis is
+//! math crate's `closest_point` (the Voronoi regions of Ericson's Real-Time Collision Detection,
+//! pp. 136–142, in his order), preceded, as OpenVDB documents, by the degenerate triangles: three
+//! coincident corners give `a`; `a` on `b` gives the closest point of segment `bc`; `a` or `b` on
+//! `c` that of segment `ab`. Two corners coincide when each axis is
 //! within `10⁻⁷` of the other, absolutely or relative to the larger. The barycentric weights the
 //! documented function also returns are left out: no caller reads them, and the point does not
 //! depend on them.
 use super::Polygons;
+use trillion3d_math::geometry::triangle::closest_point;
 use trillion3d_math::scalar::not_above;
 use trillion3d_math::vector::vecn::{add, dot, scale, squared_length, sub};
 
@@ -29,37 +29,7 @@ pub(super) fn on_triangle(a: V3, b: V3, c: V3, p: V3) -> V3 {
     if coincide(a, c) || coincide(b, c) {
         return on_segment(a, b, p);
     }
-    let (ab, ac, ap) = (sub(b, a), sub(c, a), sub(p, a));
-    let (d1, d2) = (dot(ab, ap), dot(ac, ap));
-    if d1 <= 0.0 && d2 <= 0.0 {
-        return a;
-    }
-    let bp = sub(p, b);
-    let (d3, d4) = (dot(ab, bp), dot(ac, bp));
-    if d3 >= 0.0 && d4 <= d3 {
-        return b;
-    }
-    let vc = d1 * d4 - d3 * d2;
-    if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
-        return add(a, scale(ab, d1 / (d1 - d3)));
-    }
-    let cp = sub(p, c);
-    let (d5, d6) = (dot(ab, cp), dot(ac, cp));
-    if d6 >= 0.0 && d5 <= d6 {
-        return c;
-    }
-    let vb = d5 * d2 - d1 * d6;
-    if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
-        return add(a, scale(ac, d2 / (d2 - d6)));
-    }
-    let va = d3 * d6 - d5 * d4;
-    if va <= 0.0 && (d4 - d3) >= 0.0 && (d5 - d6) >= 0.0 {
-        let w = (d4 - d3) / ((d4 - d3) + (d5 - d6));
-        return add(b, scale(sub(c, b), w));
-    }
-    let denom = 1.0 / (va + vb + vc);
-    let (v, w) = (vb * denom, vc * denom);
-    add(add(a, scale(ab, v)), scale(ac, w))
+    closest_point(p, a, b, c)
 }
 
 /// The point of the segment `a, b` closest to `p`: `a` where `p` projects before it, `b` where

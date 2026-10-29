@@ -97,6 +97,19 @@ function groupBinder<A extends unknown[]>(
   }
 }
 
+/** The bindings the filter and the fixup share: the grid, the table and the queue, the raw radiance, and the filtered one with its sky. */
+function filterInputs(wiring: CacheWiring, s: CacheStorage, t: CacheTempStorage) {
+  return {
+    grid: wholeBuffer(wiring.grid),
+    table: wiring.table,
+    queue: wholeBuffer(wiring.queue),
+    params: wholeBuffer(s.params),
+    raw: s.views.raw,
+    filtered: t.views.filtered,
+    filteredSky: t.views.filteredSky,
+  }
+}
+
 /** The filter's group over a storage, the frame's atlases and the blue noise it dithers by: made again only where one of them moved (the noise
  *  is made after the cache, and replaces the stand-in a pass binds until it is). */
 export function cacheFilterBinder(device: GPUDevice, wiring: CacheWiring) {
@@ -110,13 +123,7 @@ export function cacheFilterBinder(device: GPUDevice, wiring: CacheWiring) {
     (kernels, s, t, noise) => ({
       layout: kernels.filter.layout,
       entries: namedEntries(CACHE_FILTER_BINDINGS, {
-        grid: wholeBuffer(wiring.grid),
-        table: wiring.table,
-        queue: wholeBuffer(wiring.queue),
-        params: wholeBuffer(s.params),
-        raw: s.views.raw,
-        filtered: t.views.filtered,
-        filteredSky: t.views.filteredSky,
+        ...filterInputs(wiring, s, t),
         noise,
       }),
     }),
@@ -134,13 +141,7 @@ export function cacheFixupBinder(device: GPUDevice, wiring: CacheWiring) {
     (kernels, s, t) => ({
       layout: kernels.fixup.layout,
       entries: namedEntries(CACHE_FIXUP_BINDINGS, {
-        grid: wholeBuffer(wiring.grid),
-        table: wiring.table,
-        queue: wholeBuffer(wiring.queue),
-        params: wholeBuffer(s.params),
-        raw: s.views.raw,
-        filtered: t.views.filtered,
-        filteredSky: t.views.filteredSky,
+        ...filterInputs(wiring, s, t),
         final0: s.views.levels[0],
         final1: s.views.levels[1],
         final2: s.views.levels[2],

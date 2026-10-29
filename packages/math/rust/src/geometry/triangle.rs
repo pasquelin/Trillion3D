@@ -96,8 +96,9 @@ pub fn barycentric_weights(v: f64, w: f64) -> [f64; 3] {
     [1.0 - v - w, v, w]
 }
 
-/// The point of the triangle `a, b, c` closest to `p`, by its Voronoi regions in turn: a corner,
-/// then an edge (`lerp` along it), else the face, `a + ab·v + ac·w`.
+/// The point of the triangle `a, b, c` closest to `p`, by its Voronoi regions tested in turn
+/// (Ericson, Real-Time Collision Detection, pp. 136–142): corner `a`, corner `b`, edge `ab`,
+/// corner `c`, edge `ac`, edge `bc`, else the face, `a + ab·v + ac·w`.
 pub fn closest_point(p: [f64; 3], a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> [f64; 3] {
     let (ab, ac, ap) = (sub(b, a), sub(c, a), sub(p, a));
     let (d1, d2) = (dot(ab, ap), dot(ac, ap));
@@ -106,25 +107,30 @@ pub fn closest_point(p: [f64; 3], a: [f64; 3], b: [f64; 3], c: [f64; 3]) -> [f64
     }
     let bp = sub(p, b);
     let (d3, d4) = (dot(ab, bp), dot(ac, bp));
+    if d3 >= 0.0 && d4 <= d3 {
+        return b;
+    }
+    let vc = d1 * d4 - d3 * d2;
+    let lerp = crate::vector::vecn::lerp::<f64, 3>;
+    if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
+        return lerp(a, b, d1 / (d1 - d3));
+    }
     let cp = sub(p, c);
     let (d5, d6) = (dot(ab, cp), dot(ac, cp));
-    let (vc, vb, va) = (d1 * d4 - d3 * d2, d5 * d2 - d1 * d6, d3 * d6 - d5 * d4);
-    let lerp = crate::vector::vecn::lerp::<f64, 3>;
-    if d3 >= 0.0 && d4 <= d3 {
-        b
-    } else if d6 >= 0.0 && d5 <= d6 {
-        c
-    } else if vc <= 0.0 && d1 >= 0.0 && d3 <= 0.0 {
-        lerp(a, b, d1 / (d1 - d3))
-    } else if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
-        lerp(a, c, d2 / (d2 - d6))
-    } else if va <= 0.0 && d4 - d3 >= 0.0 && d5 - d6 >= 0.0 {
-        lerp(b, c, (d4 - d3) / ((d4 - d3) + (d5 - d6)))
-    } else {
-        let denom = 1.0 / (va + vb + vc);
-        let (v, w) = (vb * denom, vc * denom);
-        [0, 1, 2].map(|k| a[k] + ab[k] * v + ac[k] * w)
+    if d6 >= 0.0 && d5 <= d6 {
+        return c;
     }
+    let vb = d5 * d2 - d1 * d6;
+    if vb <= 0.0 && d2 >= 0.0 && d6 <= 0.0 {
+        return lerp(a, c, d2 / (d2 - d6));
+    }
+    let va = d3 * d6 - d5 * d4;
+    if va <= 0.0 && d4 - d3 >= 0.0 && d5 - d6 >= 0.0 {
+        return lerp(b, c, (d4 - d3) / ((d4 - d3) + (d5 - d6)));
+    }
+    let denom = 1.0 / (va + vb + vc);
+    let (v, w) = (vb * denom, vc * denom);
+    [0, 1, 2].map(|k| a[k] + ab[k] * v + ac[k] * w)
 }
 
 /// Where the ray `origin + t·ray` meets the triangle `[a, b, c]`, either face, for `near < t <

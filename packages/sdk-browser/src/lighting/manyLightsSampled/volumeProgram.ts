@@ -3,7 +3,7 @@
  * global distance field (its rays; without, nothing blocks a light) and the depth pyramid (the fog's voxels hidden behind the surfaces are skipped; without, none is). Its pipelines are asked at the first
  * image that wants them, off the frame; until they are compiled the pass is not recorded, and the readers keep their walk of the lights.
  */
-import { askedComputeStage } from '../../gpu/core/computeStages.ts'
+import { askedComputeProgram } from '../../gpu/core/computeStages.ts'
 import {
   computeBufferEntry,
   computeStorageTextureEntry,
@@ -50,22 +50,10 @@ const hashEntries = (): GPUBindGroupLayoutEntry[] => [
   computeBufferEntry(B.hashOut, 'storage'),
 ]
 
-const programOf = (
-  device: GPUDevice,
-  failed: (error: unknown) => void,
-  label: string,
-  entries: GPUBindGroupLayoutEntry[],
-  code: string,
-  entryPoint: string,
-) => {
-  const layout = device.createBindGroupLayout({ entries })
-  return { layout, pipeline: askedComputeStage(device, [layout], code, entryPoint, label, failed) }
-}
-
 /** The programs of a device's volumes, the variants made at their first ask. */
 export function createVolumePrograms(device: GPUDevice, failed: (error: unknown) => void) {
-  const samples = new Map<string, ReturnType<typeof programOf>>()
-  let hash: ReturnType<typeof programOf> | undefined
+  const samples = new Map<string, ReturnType<typeof askedComputeProgram>>()
+  let hash: ReturnType<typeof askedComputeProgram> | undefined
   return {
     sample(variant: VolumeVariant) {
       const key = variantKey(variant)
@@ -73,7 +61,7 @@ export function createVolumePrograms(device: GPUDevice, failed: (error: unknown)
       if (!made)
         samples.set(
           key,
-          (made = programOf(
+          (made = askedComputeProgram(
             device,
             failed,
             `Trillion3D sampled volume sampling ${key}`,
@@ -85,7 +73,7 @@ export function createVolumePrograms(device: GPUDevice, failed: (error: unknown)
       return made
     },
     hash() {
-      return (hash ??= programOf(
+      return (hash ??= askedComputeProgram(
         device,
         failed,
         'Trillion3D sampled volume hash',

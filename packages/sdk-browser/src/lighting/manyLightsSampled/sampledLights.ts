@@ -1224,12 +1224,8 @@ function traceField(c: EncodeContext, t: Compaction, field: GlobalFieldRead) {
         set.nodes,
         set.pageIndex,
         set.voxels,
-        r.params,
         hairTraceSettings,
-        r.samplesView,
-        r.raysView,
-        r.compactData,
-        r.compactCount,
+        ...rayKeys(r),
       ],
       () => [
         { binding: D.lights, resource: { buffer: inputs.lights } },
@@ -1237,12 +1233,8 @@ function traceField(c: EncodeContext, t: Compaction, field: GlobalFieldRead) {
         { binding: 1, resource: { buffer: set.nodes } },
         { binding: 2, resource: { buffer: set.pageIndex } },
         { binding: 3, resource: { buffer: set.voxels } },
-        { binding: B.params, resource: { buffer: r.params } },
         { binding: HAIR_SURFACE_TRACE_SETTINGS, resource: { buffer: hairTraceSettings } },
-        { binding: B.samples, resource: r.samplesView },
-        { binding: B.rays, resource: r.raysView },
-        { binding: B.compactData, resource: { buffer: r.compactData } },
-        { binding: B.compactCount, resource: { buffer: r.compactCount } },
+        ...rayEntries(r),
       ],
     )
     pass.setPipeline(hairTrace().get()!)

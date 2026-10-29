@@ -157,6 +157,16 @@ export type VsmProjectionLight = VsmProjectionLightCommon &
       } & VsmProjectionReach)
   )
 
+/** The optional resources a pass's group binds beyond the surfaces of its source. */
+type PassGroupExtras = {
+  capsule?: GPUTextureView
+  hairShadow?: GPUTextureView
+  lightGrid?: GPUBuffer
+  filterableMerged?: GPUBuffer
+  perLight?: GPUBuffer
+  strands?: HairShadowSource
+}
+
 /** The resources a pass's group names, noted in the group's identity: the group is made again when one of them moved. */
 function noteGroupInputs(
   held: HeldGroup,
@@ -164,21 +174,7 @@ function noteGroupInputs(
   hizDepth: HizDepth,
   source: VsmProjectionSource,
   mask: GPUTextureView,
-  {
-    lightGrid,
-    filterableMerged,
-    perLight,
-    strands,
-    capsule,
-    hairShadow,
-  }: {
-    capsule?: GPUTextureView
-    hairShadow?: GPUTextureView
-    lightGrid?: GPUBuffer
-    filterableMerged?: GPUBuffer
-    perLight?: GPUBuffer
-    strands?: HairShadowSource
-  },
+  { lightGrid, filterableMerged, perLight, strands, capsule, hairShadow }: PassGroupExtras,
 ) {
   const { next } = held.identity
   next[0] = groupLayout
@@ -215,21 +211,7 @@ export function passGroupFor(
   hizDepth: HizDepth,
   source: VsmProjectionSource,
   mask: GPUTextureView,
-  {
-    lightGrid,
-    filterableMerged,
-    perLight,
-    strands,
-    capsule,
-    hairShadow,
-  }: {
-    capsule?: GPUTextureView
-    hairShadow?: GPUTextureView
-    lightGrid?: GPUBuffer
-    filterableMerged?: GPUBuffer
-    perLight?: GPUBuffer
-    strands?: HairShadowSource
-  } = {},
+  { lightGrid, filterableMerged, perLight, strands, capsule, hairShadow }: PassGroupExtras = {},
 ) {
   const locals = !!lightGrid
   noteGroupInputs(held, groupLayout, hizDepth, source, mask, {

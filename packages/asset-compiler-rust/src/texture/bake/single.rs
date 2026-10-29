@@ -3,7 +3,7 @@
 //! `displacementmap`), or no block at all (`vectorDisplacementmap`). The setting is the asking:
 //! nothing is measured, the chain is what was asked.
 use super::write::{write_levels, LEVEL_WRITE_FAILED};
-use super::{Baked, Source};
+use super::{stored_family, Baked, Source};
 use crate::texture::blocks::{encode_channel, encode_one_channel, BlockFormat, Layout, FAMILIES};
 use crate::texture::collect::AtlasTexture;
 use crate::texture::reduce::{self, AtlasKind};
@@ -96,27 +96,17 @@ fn cook_blocks(
         })
     };
     let mut baked = Baked::default();
-    let (layouts, blocks, baked_levels) = match written {
-        Ok(count) => {
-            let mut layouts = [None; FAMILIES];
-            layouts[BlockFormat::STORED.index()] = Some(layout);
-            let mut blocks: [Vec<u8>; FAMILIES] = Default::default();
-            blocks[BlockFormat::STORED.index()] = tail;
-            (layouts, blocks, count)
-        }
-        Err(_) => {
-            baked.add_note(LEVEL_WRITE_FAILED);
-            ([None; FAMILIES], Default::default(), 0)
-        }
-    };
-    for reader in readers {
-        baked.previews.push(source.entry(
-            reader.texture,
-            (&key, kind),
-            baked_levels,
-            (&pixels, layouts, &blocks),
-        )?);
+    if written.is_err() {
+        baked.add_note(LEVEL_WRITE_FAILED);
     }
+    let baked_levels = written.as_ref().map_or(0, |&count| count);
+    let (layouts, blocks) = stored_family(layout, written.is_ok().then_some(tail));
+    baked.previews = source.entries(
+        readers,
+        (&key, kind),
+        baked_levels,
+        (&pixels, layouts, &blocks),
+    )?;
     Ok(baked)
 }
 
@@ -146,17 +136,7 @@ fn lossless_pixels(
     pixels: &[u8],
 ) -> std::result::Result<Baked, &'static str> {
     let blocks: [Vec<u8>; FAMILIES] = Default::default();
-    let previews = readers
-        .iter()
-        .map(|reader| {
-            source.entry(
-                reader.texture,
-                (key, kind),
-                0,
-                (pixels, [None; FAMILIES], &blocks),
-            )
-        })
-        .collect::<std::result::Result<_, _>>()?;
+    let previews = source.entries(readers, (key, kind), 0, (pixels, [None; FAMILIES], &blocks))?;
     Ok(Baked {
         previews,
         ..Baked::default()

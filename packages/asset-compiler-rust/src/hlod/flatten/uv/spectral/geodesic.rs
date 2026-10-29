@@ -212,6 +212,17 @@ impl Windows {
         self.verts[v].distance
     }
 
+    /// `window` held and listed on its edge, and that edge.
+    fn list(&mut self, window: Window) -> &Edge {
+        let id = self.hold(window);
+        let edge = &mut self.edges[window.edge as usize];
+        edge.windows.push(Listed {
+            link: Link::Held(id),
+            window,
+        });
+        edge
+    }
+
     /// `window` put in the heap, keyed by its least distance; its entry.
     fn hold(&mut self, window: Window) -> u32 {
         let key = lesser(window.d0, window.d1) + window.pseudo_distance;

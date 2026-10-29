@@ -9,7 +9,7 @@
  * has none still shows where the second has one.
  */
 import { clampSecondLayer } from './fogBounds.ts'
-import { objectOf, rangedFields, type FogRange } from './fogChecks.ts'
+import { rangedObjectOf, type FogRange } from './fogChecks.ts'
 
 /** The second layer of a height fog (`SceneHeightFog.secondLayer`). */
 export interface SceneSecondLayer {
@@ -55,8 +55,5 @@ const SECOND_RANGES = {
 /** A second layer checked, a copy of what it declares: its densities and falloff ≥ 0, its offset
  *  finite. A number past the bounds is not refused: it reads as the bound (`clampSecondLayer`). */
 export function validateSecondLayer(second: unknown, fog: unknown): SceneSecondLayer {
-  const layer = objectOf<SceneSecondLayer>(second, 'secondLayer', fog)
-  const out: SceneSecondLayer = {}
-  rangedFields(layer, out, SECOND_RANGES, fog, 'secondLayer.')
-  return out
+  return rangedObjectOf<SceneSecondLayer>(second, 'secondLayer', SECOND_RANGES, fog)
 }

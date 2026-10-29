@@ -23,7 +23,7 @@ use super::reader::Reader;
 use super::*;
 pub(crate) use settings::SquareSettings;
 pub use settings::StreamBounds;
-use settings::{origin_of, scheme_settings, unknown_setting, LooseSettings};
+use settings::{origin_of, refusal, scheme_settings, unknown_setting, LooseSettings};
 
 mod grids;
 mod settings;
@@ -213,9 +213,7 @@ impl GridSettings {
         scheme: PartitionScheme,
         field: &str,
     ) -> std::result::Result<Self, String> {
-        let refuse = |name: &str, takes: &str, got: &Value| {
-            format!("{field}: {name} must be {takes}, got {got}")
-        };
+        let refuse = refusal(field);
         let prefix = format!("{field}: ");
         let read = Reader {
             map: fields,
@@ -235,7 +233,7 @@ impl GridSettings {
         };
         let block_on_slow_streaming = (read.boolean("blockOnSlowStreaming").map_err(text)?)
             .unwrap_or(DEFAULT_PARTITION_BLOCK_ON_SLOW_STREAMING);
-        let (loose, square) = scheme_settings(fields, scheme, field)?;
+        let (loose, square) = scheme_settings(&read, scheme, field)?;
         Ok(Self {
             cell_size: metres("cellSize", DEFAULT_PARTITION_CELL_SIZE)?,
             loading_range: metres("loadingRange", DEFAULT_PARTITION_LOADING_RANGE)?,

@@ -160,6 +160,18 @@ interface Pass {
   readonly settings: CapsuleShadowSettings
 }
 
+/** The pass `job` draws into `view`, in the next slot of the image's passes. */
+function passOf(
+  state: CapsuleState,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  view: CapsuleView,
+  key: CapsuleProgramKey,
+  { image, sources, data, settings }: Pick<Pass, 'image' | 'sources' | 'data' | 'settings'>,
+): Pass {
+  return { device, encoder, view, slot: state.slot, key, image, sources, data, settings }
+}
+
 /** The view for a pass of `data`, with room for it (the room only grows); none, and the state says why, where the pass cannot be drawn. */
 function ensureView(
   state: CapsuleState,
@@ -344,6 +356,33 @@ export interface CapsuleSunOutput {
 const isSunOutput = (output: CapsuleOutput | CapsuleSunOutput): output is CapsuleSunOutput =>
   'sunMask' in output
 
+/** The upsample parameters of a pass written to its slot of the view (`layer` the sun mask's, where one is composed into); the slot's offsets. */
+function writeUpsample(
+  pass: Pass,
+  grid: ReturnType<typeof capsuleGrid>,
+  rect: {
+    scissor: readonly [number, number, number, number]
+    viewport: readonly [number, number, number, number]
+  },
+  attenuation: boolean,
+  layer?: number,
+) {
+  const { device, view, slot, image, settings } = pass
+  const at = slotOffsets(view, slot)
+  writeUpsampleParams(upsampleFloats, {
+    ...rect,
+    extent: image.extent,
+    downsample: view.shape.downsample,
+    grid,
+    attenuation,
+    selfShadowIntensity: settings.capsuleIndirectSelfShadowingIntensity,
+    layer,
+    depth: capsuleDepthTerms(image),
+  })
+  device.queue.writeBuffer(view.upsampleParams, at.upsampleParams, upsampleFloats)
+  return at
+}
+
 /** The composition of a pass into a layer of a sun's mask, over the pixels of the tiles that met a shape. */
 function compose(
   pass: Pass,
@@ -352,22 +391,16 @@ function compose(
   grid: ReturnType<typeof capsuleGrid>,
   scissor: readonly [number, number, number, number],
 ) {
-  const { device, encoder, view, slot, image, sources, settings } = pass
+  const { device, encoder, view, image, sources } = pass
   const stage = programs.composeSun.get()
   if (!stage) return
-  const at = slotOffsets(view, slot)
-  writeUpsampleParams(upsampleFloats, {
-    scissor,
-    viewport: [0, 0, image.view[0], image.view[1]],
-    extent: image.extent,
-    downsample: view.shape.downsample,
+  const at = writeUpsample(
+    pass,
     grid,
-    attenuation: false,
-    selfShadowIntensity: settings.capsuleIndirectSelfShadowingIntensity,
-    layer: output.layer,
-    depth: capsuleDepthTerms(image),
-  })
-  device.queue.writeBuffer(view.upsampleParams, at.upsampleParams, upsampleFloats)
+    { scissor, viewport: [0, 0, image.view[0], image.view[1]] },
+    false,
+    output.layer,
+  )
   const group = device.createBindGroup({
     label: `${LABEL} compose`,
     layout: programs.composeLayout,
@@ -402,21 +435,10 @@ function upsample(
   },
   attenuation: boolean,
 ) {
-  const { device, encoder, view, slot, image, sources, settings } = pass
+  const { device, encoder, view, slot, sources } = pass
   const stage = programs.upsample({ targets: output.targets }).get()
   if (!stage) return
-  const at = slotOffsets(view, slot)
-  const downsample = view.shape.downsample
-  writeUpsampleParams(upsampleFloats, {
-    ...rect,
-    extent: image.extent,
-    downsample,
-    grid,
-    attenuation,
-    selfShadowIntensity: settings.capsuleIndirectSelfShadowingIntensity,
-    depth: capsuleDepthTerms(image),
-  })
-  device.queue.writeBuffer(view.upsampleParams, at.upsampleParams, upsampleFloats)
+  const at = writeUpsample(pass, grid, rect, attenuation)
   const group = kept(view, `upsample ${slot}`, [sources.depth, sources.flags, view], () =>
     device.createBindGroup({
       label: `${LABEL} upsample`,
@@ -540,17 +562,7 @@ export function encodeCapsuleDirectShadows(
   const downsample = capsuleDownsample(settings.capsuleShadowsFullResolution)
   const view = ensureView(state, device, image, data, downsample, undefined)
   if (!view) return false
-  const pass: Pass = {
-    device,
-    encoder,
-    view,
-    slot: state.slot,
-    key,
-    image,
-    sources,
-    data,
-    settings,
-  }
+  const pass = passOf(state, device, encoder, view, key, job)
   const scissor = job.scissor ?? [0, 0, image.view[0], image.view[1]]
   const grid = capsuleGrid([scissor[2], scissor[3]], downsample, true)
   const program = programs.shadow(key)
@@ -570,6 +582,33 @@ export function encodeCapsuleDirectShadows(
       { scissor, viewport: [0, 0, image.view[0], image.view[1]] },
       true,
     )
+  return true
+}
+
+/** The indirect trace of a pass: its data uploaded, the directions derived where the data asks, the camera's terms run and the shapes traced
+ *  (into `receiver`'s bent normal where one is given, the tile counts cleared before otherwise); false where the directions cannot be derived. */
+function traceIndirect(
+  pass: Pass,
+  programs: ReturnType<typeof capsulePrograms>,
+  layouts: readonly GPUBindGroupLayout[],
+  stage: GPUComputePipeline,
+  scissor: readonly [number, number, number, number],
+  grid: ReturnType<typeof capsuleGrid>,
+  downsample: number,
+  receiver: GPUTextureView | undefined,
+) {
+  upload(pass)
+  const derived = deriveDirections(pass, programs)
+  if (pass.data.derive && !derived) return false
+  runCamera(
+    pass,
+    scissor,
+    undefined,
+    pass.settings.capsuleMaxIndirectOcclusionDistance,
+    downsample,
+    grid,
+  )
+  dispatchShadow(pass, stage, shadowGroups(pass, layouts, derived, receiver), grid, !receiver)
   return true
 }
 
@@ -604,17 +643,7 @@ export function encodeCapsuleIndirectShadows(
   const downsample = capsuleDownsample(settings.capsuleShadowsFullResolution)
   const view = ensureView(state, device, image, data, downsample, undefined)
   if (!view) return false
-  const pass: Pass = {
-    device,
-    encoder,
-    view,
-    slot: state.slot,
-    key,
-    image,
-    sources,
-    data,
-    settings,
-  }
+  const pass = passOf(state, device, encoder, view, key, job)
   const program = programs.shadow(key)
   const stage = program.stage.get()
   if (!stage) return false
@@ -622,18 +651,8 @@ export function encodeCapsuleIndirectShadows(
   const grid = capsuleGrid([scissor[2], scissor[3]], downsample, false)
   if (grid.tilesAcross === 0 || grid.tilesDown === 0) return false
   state.slot++
-  upload(pass)
-  const derived = deriveDirections(pass, programs)
-  if (data.derive && !derived) return false
-  runCamera(
-    pass,
-    scissor,
-    undefined,
-    settings.capsuleMaxIndirectOcclusionDistance,
-    downsample,
-    grid,
-  )
-  dispatchShadow(pass, stage, shadowGroups(pass, program.layouts, derived, undefined), grid, true)
+  if (!traceIndirect(pass, programs, program.layouts, stage, scissor, grid, downsample, undefined))
+    return false
   upsample(pass, programs, output, grid, { scissor, viewport: scissor }, false)
   return true
 }
@@ -676,34 +695,14 @@ export function encodeCapsuleSkyShadows(
     size,
   )
   if (!view?.bent) return undefined
-  const pass: Pass = {
-    device,
-    encoder,
-    view,
-    slot: state.slot,
-    key,
-    image,
-    sources,
-    data,
-    settings,
-  }
+  const pass = passOf(state, device, encoder, view, key, job)
   const program = programs.shadow(key)
   const stage = program.stage.get()
   if (!stage) return undefined
   const scissor = [0, 0, image.view[0], image.view[1]] as const
   const grid = capsuleGrid([scissor[2], scissor[3]], downsample, false)
   state.slot++
-  upload(pass)
-  const derived = deriveDirections(pass, programs)
-  if (data.derive && !derived) return undefined
-  runCamera(
-    pass,
-    scissor,
-    undefined,
-    settings.capsuleMaxIndirectOcclusionDistance,
-    downsample,
-    grid,
-  )
-  dispatchShadow(pass, stage, shadowGroups(pass, program.layouts, derived, receiver), grid, false)
+  if (!traceIndirect(pass, programs, program.layouts, stage, scissor, grid, downsample, receiver))
+    return undefined
   return view.bent.view
 }
