@@ -6,6 +6,10 @@ import {
   PAGE_HEADER_WORDS,
   PAGE_SLOT_WORDS,
   PAGE_TRANSFORM_WORD,
+  SIBLING_CAP,
+  SIBLING_DATA,
+  siblingList,
+  siblingsAt,
   SLOT_BIAS_SHIFT,
   SLOT_BIAS_STEPS,
   slotHeader,
@@ -42,7 +46,11 @@ test('the table lays out headers, levels and entries, and finds a tile from its 
   assert.equal(w[0], 1000)
   assert.equal(w[1], 3)
   assert.equal(w[3], PAGE_HEADER_WORDS + 3 * PAGE_SLOT_WORDS)
-  assert.equal(w[2], w[3] + 3 * MAX_LEVELS)
+  assert.equal(
+    w[2],
+    w[3] + 3 * (MAX_LEVELS + SIBLING_CAP),
+    'the siblings between the levels and the entries',
+  )
   const second = PAGE_HEADER_WORDS + PAGE_SLOT_WORDS
   assert.equal(w[second], 2048 | (1024 << 16))
   assert.equal(w[second + 1], 5, 'queue of 2048×1024: level 5, 64×32')
@@ -207,4 +215,28 @@ test('the residency bias of a texture is in sixteenths of a level above its firs
   assert.equal(words(writes)[0][0], word)
   table.flush(device)
   assert.equal(writes.length, 1, 'nothing moved since')
+})
+
+test('a texture lists its siblings between its levels and the entries; a word that did not move is not sent', () => {
+  const { device } = fakeDevice()
+  const table = createWebgpuTilePageTable(device as unknown as GPUDevice, layouts(), {
+    kind: 'color',
+    feedbackOffset: 0,
+  })
+  const listed = [2, 1 | SIBLING_DATA]
+  assert.equal(table.setSiblings(1, listed), true)
+  const at = siblingsAt(table.words, 1)
+  assert.deepEqual(
+    [...table.words.subarray(at, at + SIBLING_CAP)],
+    [2, (1 | SIBLING_DATA) >>> 0, 0, 0, 0, 0, 0, 0],
+  )
+  assert.equal(table.setSiblings(1, listed), false, 'the same list: nothing moved')
+  assert.equal(table.words[siblingsAt(table.words, 2)], 0, 'the next texture lists none')
+  assert.deepEqual(
+    siblingList(table.words, 1),
+    listed.map((word) => word >>> 0),
+    'read back to its zero end',
+  )
+  table.setSiblings(1, [])
+  assert.equal(table.words[at], 0, 'a list given back ends at its first word')
 })

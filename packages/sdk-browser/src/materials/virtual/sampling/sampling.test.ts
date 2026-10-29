@@ -11,7 +11,7 @@ import {
   samplingWords,
 } from '../../texture/sampling.ts'
 import { atlasReadWgsl, samplingReadWgsl } from '../atlas/atlasReadWgsl.ts'
-import { TILE_POOL_WGSL, maskAlphaWgsl } from '../wgsl.ts'
+import { SHADOW_TILE_POOL_WGSL, TILE_POOL_WGSL, maskAlphaWgsl } from '../wgsl.ts'
 import { MAX_ANISOTROPY } from '../../texture/maxAnisotropy.ts'
 import { wgslSource } from '../../../../../math/src/wgsl/source.fixture.ts'
 import { wgslModule } from '../../../../../math/src/wgsl/assemble.ts'
@@ -21,7 +21,6 @@ const IDENTITY = [1, 0, 0, 0, 1, 0, 0, 0, 1]
 /** The colour's public read, on the camera's pool. */
 const SHADED = atlasReadWgsl('colorSample', 'color', TILE_POOL_WGSL, {
   anisotropic: true,
-  finest: false,
 }).text
 /** The footprint rule (`tileRead`) the camera's pool provides, with the pool's own text. */
 const FOOTPRINT = wgslSource(TILE_POOL_WGSL)
@@ -106,25 +105,34 @@ test('the shadow cutout takes one tap, the camera cutout the colour read and its
     module = wgslModule(maskAlphaWgsl(true)),
     // The shadow cutout's footprint of the one sampling: its read, sampled read and read at a level.
     shadow = functionsOf(module, [
-      'colorSampleFinest',
-      'colorSampleFinestSampled',
-      'colorSampleFinestAt',
+      'colorSampleShadow',
+      'colorSampleShadowSampled',
+      'colorSampleShadowAt',
     ])
   assert.match(shaded, /colorFootprint\(slot,s,uv,ddx,ddy,true\)/)
   assert.match(shaded, /if\(r\.taps>1u\)\{return colorSampleTaps\(s,r\);\}/)
   assert.match(shadow, /colorFootprint\(slot,s,uv,ddx,ddy,false\)/)
   assert.doesNotMatch(shadow, /taps/i)
-  assert.match(shadow, /colorBlend\(s,uv,lod,nearest,true\)/)
+  assert.match(shadow, /colorBlend\(s,uv,lod,nearest\)/)
   // The camera cutout at the render pixel's own footprint: the pool's upscale offset cancelled
   // (`exp2(-uni.mipBias)`), so a hard threshold does not flip with the jitter; the shadow's as is.
-  for (const [finest, read, scale] of [
+  for (const [shadowPass, read, scale] of [
     [false, 'colorSample', '*exp2(-uni.mipBias)'],
-    [true, 'colorSampleFinest', ''],
+    [true, 'colorSampleShadow', ''],
   ] as const)
     assert.equal(
-      maskAlphaWgsl(finest).text,
+      maskAlphaWgsl(shadowPass).text,
       `fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return ${read}(slot,uv,ddx${scale},ddy${scale},sampled).w;}`,
     )
+})
+
+// A shadow read is history-free: the table word of the level it asks, the finest resident ancestor the pool names, else the tail at that level. It never reaches for a finer tile
+// than the one it asks, so two pools that differ by a tile finer than the request give the same value.
+test('no read falls back on a tile finer than the level it asks: the shadow reads as the camera does', () => {
+  const text = wgslSource(maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL))
+  assert.doesNotMatch(text, /Entry\(s,uv,0u\)/, 'no table word of the finest level under the texel')
+  assert.doesNotMatch(text, /finest/i)
+  assert.match(text, /if\(level<s\.tail\)\{word=colorPages\[colorEntry\(s,uv,level\)\];\}/)
 })
 
 /** The shader's own ratio, taps and level lines, run on the CPU — the taps, and how many levels
@@ -185,7 +193,7 @@ test('an anisotropic read is one tap loop per level', () => {
   assert.doesNotMatch(shaded, /foldLine|line\.dir/)
   assert.match(
     line,
-    /if\(w\.couture&&!r\.nearest\)\{sum\+=colorLevel\(s,uv,level,false,false\);continue;\}/,
+    /if\(w\.couture&&!r\.nearest\)\{sum\+=colorLevel\(s,uv,level,false\);continue;\}/,
   )
   assert.match(line, /if\(e!=tile\)\{tile=e;word=colorPages\[base\+e\];\}/)
 })

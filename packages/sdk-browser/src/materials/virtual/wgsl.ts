@@ -25,10 +25,9 @@ import { unitToSigned2 } from '../../../../math/src/wgsl/reals.ts'
  *
  * A missing tile is never invented: the table points at the finest resident ancestor, the tail as
  * last resort, and the read is the same as with the tile — at a coarser level. That is the pool's
- * declared loss, never a fill texel. The shadow pass alone reads `finest`: a tile missing at its
- * level reads the finest resident tile under that texel — the one the camera brought in — never the
- * tail while one is available, so the shadow of a leaf nobody requested at that level stays a leaf
- * and not a 64-texel blotch.
+ * declared loss, never a fill texel. Every pass reads so, the shadow pass included, at the level its
+ * own view asks (its derivatives, no camera bias) and never at a finer one: what the image shows
+ * depends on what its pixels ask, not on which tiles an earlier view left resident.
  *
  * A texture's header — size, tail, last level, tail placement — is read ONCE per sample (`TileSlot`,
  * `TILE_SLOT_WGSL`),
@@ -123,17 +122,17 @@ export const TILE_POOL_WGSL = tilePoolWgsl('uni.mipBias')
 /** The pool read at no level offset: the shadow passes'. */
 export const SHADOW_TILE_POOL_WGSL = tilePoolWgsl('0.0')
 
-/** The camera's footprint (anisotropic taps) and a shadow texel's (one tap at the isotropic level,
- *  the finest fallback), which a reading pass gives the one atlas read (`atlasReadWgsl`). */
-const CAMERA_FOOTPRINT: Footprint = { anisotropic: true, finest: false }
-const SHADOW_FOOTPRINT: Footprint = { anisotropic: false, finest: true }
+/** The camera's footprint (anisotropic taps) and a shadow texel's (one tap at the isotropic level),
+ *  which a reading pass gives the one atlas read (`atlasReadWgsl`). */
+const CAMERA_FOOTPRINT: Footprint = { anisotropic: true }
+const SHADOW_FOOTPRINT: Footprint = { anisotropic: false }
 
 /** THE ONE SAMPLING OF AN ATLAS on the textures of `pool`, its footprint the reading pass's, and
- *  the name of its public read: `${k}Sample` for the camera's, `${k}SampleFinest` for a shadow
+ *  the name of its public read: `${k}Sample` for the camera's, `${k}SampleShadow` for a shadow
  *  texel's, which is not a view at a grazing angle. */
-const atlasSampleWgsl = (k: string, pool: WgslDecl, finest = false) => {
-  const name = finest ? `${k}SampleFinest` : `${k}Sample`
-  return { name, decl: atlasReadWgsl(name, k, pool, finest ? SHADOW_FOOTPRINT : CAMERA_FOOTPRINT) }
+const atlasSampleWgsl = (k: string, pool: WgslDecl, shadow = false) => {
+  const name = shadow ? `${k}SampleShadow` : `${k}Sample`
+  return { name, decl: atlasReadWgsl(name, k, pool, shadow ? SHADOW_FOOTPRINT : CAMERA_FOOTPRINT) }
 }
 
 /** Color-atlas sample: `colorSample(slot, uv, ddx, ddy, sampled)`, on the textures of `pool`. The
@@ -146,19 +145,18 @@ export const COLOR_SAMPLE_WGSL = colorSampleWgsl(TILE_POOL_WGSL)
 
 /**
  * Cutout of a masked material: `maskAlpha(slot, uv, ddx, ddy, sampled)`, the base-map alpha at the
- * derivatives of the pass that reads. The camera raster (`finest` false) reads it with the colour's
+ * derivatives of the pass that reads. The camera raster (`shadow` false) reads it with the colour's
  * taps but at the render pixel's own footprint: `exp2(-uni.mipBias)` on the derivatives cancels the
  * pool's upscale offset, which sharpens a colour the accumulation averages but, under a hard
- * threshold, turns sub-pixel detail into a 0/1 that flips with every jitter. The shadow pass (`finest` true) gives the one
- * sampling its own footprint (`atlasSampleWgsl`): one tap at the isotropic level, under its
- * fallback rule, which a shadow texel's footprint asks. On the textures of
+ * threshold, turns sub-pixel detail into a 0/1 that flips with every jitter. The shadow pass (`shadow` true) gives the one
+ * sampling its own footprint (`atlasSampleWgsl`): one tap at the isotropic level, which a shadow texel's footprint asks. On the textures of
  * `pool`, the camera's unless given.
  */
-export const maskAlphaWgsl = (finest: boolean, pool: WgslDecl = TILE_POOL_WGSL) => {
-  const read = atlasSampleWgsl('color', pool, finest)
-  const scale = finest ? '' : '*exp2(-uni.mipBias)'
+export const maskAlphaWgsl = (shadow: boolean, pool: WgslDecl = TILE_POOL_WGSL) => {
+  const read = atlasSampleWgsl('color', pool, shadow)
+  const scale = shadow ? '' : '*exp2(-uni.mipBias)'
   return wgslBlock(
-    `maskAlphaWgsl(${finest})`,
+    `maskAlphaWgsl(${shadow})`,
     [read.decl],
     `fn maskAlpha(slot:u32,uv:vec2f,ddx:vec2f,ddy:vec2f,sampled:bool)->f32{return ${read.name}(slot,uv,ddx${scale},ddy${scale},sampled).w;}`,
   )

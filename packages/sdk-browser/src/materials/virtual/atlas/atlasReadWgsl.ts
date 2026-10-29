@@ -30,7 +30,7 @@ fn ${k}Footprint(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f,aniso:bool)->T
  *  addressing as \`${k}Level\` brings one: a tap on the seam of a repeating period, unless nearest,
  *  mixes its four texels (\`${k}Level\`); any other reads one texel through its tile's table word,
  *  the level's table base and size taken once for the line and the word read again only where a
- *  tap enters another tile. A camera footprint's line: no finest fallback. */
+ *  tap enters another tile. */
 fn ${k}Line(s:TileSlot,r:TileRead,level:u32)->vec4f{
  let n=r.taps;let lsize=levelSize(s.size,level);let streamed=level<s.tail;
  var base=0u;if(streamed){base=${k}Pages[s.levels+level];}
@@ -40,7 +40,7 @@ fn ${k}Line(s:TileSlot,r:TileRead,level:u32)->vec4f{
   var at=wrapReplie(uv,s.wrap);
   if(wrapRepete(s.wrap)){
    let w=wrapUv(uv,s.wrap,lsize);
-   if(w.couture&&!r.nearest){sum+=${k}Level(s,uv,level,false,false);continue;}
+   if(w.couture&&!r.nearest){sum+=${k}Level(s,uv,level,false);continue;}
    at=w.proche;
   }
   if(streamed){let e=tileEntry(levelTexel(at,lsize),lsize);if(e!=tile){tile=e;word=${k}Pages[base+e];}}
@@ -51,9 +51,8 @@ fn ${k}Line(s:TileSlot,r:TileRead,level:u32)->vec4f{
   )
 
 /** What a reading pass asks of its footprint: the anisotropic taps its elongation asks (the
- *  camera's), and the finest fallback of a level not resident (a shadow texel's, one tap at the
- *  isotropic level). */
-export type Footprint = { readonly anisotropic: boolean; readonly finest: boolean }
+ *  camera's), or one tap at the isotropic level (a shadow texel's). */
+export type Footprint = { readonly anisotropic: boolean }
 
 /**
  * Public atlas read, `name(slot, uv, ddx, ddy, sampled)`, of the footprint `footprint` the pass
@@ -61,7 +60,7 @@ export type Footprint = { readonly anisotropic: boolean; readonly finest: boolea
  * texture's header (`${k}Level`, `../kindWgsl.ts`) — a single fetch off a seam, four mixed on the seam
  * of a repeating period at that level's size, where the sampler's rule would mix the last texel and
  * the first: it is the read that wraps, not the coordinate. `name + 'At'`, written here, is one read
- * at a level of detail (`${k}Blend` under the footprint's fallback), which `name` dispatches.
+ * at a level of detail (`${k}Blend`), which `name` dispatches.
  *
  * `sampled` is the page's or the item's, never the texture's: a class override in the resolve
  * (`HAS_SAMPLING`), which the compiler folds, a flag of the draw elsewhere (`FLAG_SAMPLED`). False,
@@ -75,7 +74,7 @@ export const atlasReadWgsl = (
   name: string,
   k: string,
   pool: WgslDecl,
-  { anisotropic, finest }: Footprint,
+  { anisotropic }: Footprint,
 ) => {
   const at = `${name}At`
   const taps = anisotropic
@@ -83,9 +82,9 @@ export const atlasReadWgsl = (
 `
     : ''
   return wgslBlock(
-    `atlasReadWgsl(${name}, ${k}, ${anisotropic}, ${finest})`,
+    `atlasReadWgsl(${name}, ${k}, ${anisotropic})`,
     [pool, SAMPLING_WGSL, TILE_READ_WGSL, tileKindWgsl(k, pool), samplingReadWgsl(k, pool)],
-    `${taps}fn ${at}(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->vec4f{return ${k}Blend(s,uv,lod,nearest,${finest});}
+    `${taps}fn ${at}(s:TileSlot,uv:vec2f,lod:f32,nearest:bool)->vec4f{return ${k}Blend(s,uv,lod,nearest);}
 fn ${name}Sampled(slot:u32,s:TileSlot,uv:vec2f,ddx:vec2f,ddy:vec2f)->vec4f{
  let r=${k}Footprint(slot,s,uv,ddx,ddy,${anisotropic});
 ${
