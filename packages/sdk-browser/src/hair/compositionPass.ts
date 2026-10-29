@@ -42,22 +42,30 @@ const composeLayout = oncePerDevice((device) => {
   })
 })
 
-const pipelines = new WeakMap<GPUBindGroupLayout, ReturnType<typeof makePipeline>>()
+const pipelines = new WeakMap<GPUBindGroupLayout, Map<boolean, ReturnType<typeof makePipeline>>>()
 
 /** The pipeline that lays the strands on the lit image (`hairComposeWgsl`) over the fog pass's group 0 `fogLayout`: the
- *  strands over what is under them, as much as they cover. Made once for a layout; `get()` gives it, none while it compiles. */
+ *  strands over what is under them, as much as they cover; with `forward`, the colour the forward raster shaded. Made once for a layout and form; `get()` gives it, none while it compiles. */
 export function hairComposePipeline(
   device: GPUDevice,
   fogLayout: GPUBindGroupLayout,
   localFog: boolean,
+  forward = false,
 ) {
-  let made = pipelines.get(fogLayout)
-  if (!made) pipelines.set(fogLayout, (made = makePipeline(device, fogLayout, localFog)))
+  let forms = pipelines.get(fogLayout)
+  if (!forms) pipelines.set(fogLayout, (forms = new Map()))
+  let made = forms.get(forward)
+  if (!made) forms.set(forward, (made = makePipeline(device, fogLayout, localFog, forward)))
   return made
 }
 
-function makePipeline(device: GPUDevice, fogLayout: GPUBindGroupLayout, localFog: boolean) {
-  const name = `${HAIR_STRANDS_PASS_PREFIX}composition`
+function makePipeline(
+  device: GPUDevice,
+  fogLayout: GPUBindGroupLayout,
+  localFog: boolean,
+  forward: boolean,
+) {
+  const name = `${HAIR_STRANDS_PASS_PREFIX}composition${forward ? ' forward' : ''}`
   const module = device.createShaderModule({
     label: name,
     code: wgslModule(hairComposeWgsl(localFog)),
@@ -68,7 +76,7 @@ function makePipeline(device: GPUDevice, fogLayout: GPUBindGroupLayout, localFog
     vertex: { module, entryPoint: 'hairComposeVs' },
     fragment: {
       module,
-      entryPoint: 'hairComposeFs',
+      entryPoint: forward ? 'hairForwardComposeFs' : 'hairComposeFs',
       targets: [
         {
           format: HDR_FORMAT,

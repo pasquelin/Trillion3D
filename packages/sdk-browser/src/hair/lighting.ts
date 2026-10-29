@@ -2,6 +2,7 @@ import { readHairStrandsSetting } from '../../../sdk-core/src/contracts/hairStra
 import { alignUp, ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { ensureSet, type HeldSet } from '../gpu/core/heldTextures.ts'
 import { ComputeRun } from '../gpu/core/lazyComputePass.ts'
+import type { HairVelocityInputs } from '../post/taa/velocity.ts'
 import type { ResourceAllocator } from '../gpu/core/resourceAllocator.ts'
 import { wordViews } from '../gpu/core/wordViews.ts'
 import { writeChanged } from '../gpu/core/writeChanged.ts'
@@ -43,6 +44,8 @@ import type { HairNodes } from './compactionPass.ts'
 import type { HairFrameInputs } from './inputs.ts'
 import type { HairViewGpu } from './viewGpu.ts'
 import { HAIR_COMPOSE_IMAGE_WORDS } from './compositionWgsl.ts'
+import { encodeHairForwardColor } from './forward/forwardVisibility.ts'
+import { encodeHairGbufferOverride } from './gbufferOverridePass.ts'
 import {
   encodeHairComposition,
   hairComposeBinds,
@@ -574,7 +577,7 @@ const PLACES: Record<string, HairCompositionPlace> = {
 /**
  * Lays the lit strands on `gpu.hdrView` where the setting `hairStrandsComposition` puts them, when `at` is that place, the fog
  * along the way to the strands taken in (the fog pass's own code) and the strands' velocity written where the temporal
- * pass will read it. Nothing where the image's strands were not lit (`encodeHairLighting`) or the place is another.
+ * pass will read it, and the strands written into the surfaces (`hairWriteGBufferData`). Nothing where the image's strands were not lit (`encodeHairLighting`) or the place is another.
  */
 export function composeHairStrands(
   rt: WebgpuPagesRuntime,
@@ -587,17 +590,27 @@ export function composeHairStrands(
   const set = view?.lighting
   const record = view?.record
   if (!set?.lit || !record || !gpu.hdrView) return
+  const forward = !!view.inputs.forwardRaster
   if (PLACES[readHairStrandsSetting(rt, 'hairStrandsComposition')] !== at) return
   const fog = gpu.deferred?.fogBinding()
-  const pipeline = fog && hairComposePipeline(device, fog.layout, fog.localFog).get()
+  const pipeline = fog && hairComposePipeline(device, fog.layout, fog.localFog, forward).get()
   if (!fog || !pipeline) return
-  set.lit = false
   const { nodes, targets } = record
-  // The strands' velocity: the camera's alone at the nearest strand's depth.
-  const velocity = gpu.velocity?.measured ? gpu.velocity : undefined
+  // The strands' velocity: the camera's alone at the depth of the samples the setting takes it from.
+  // The forward raster keeps no list of samples a pixel for the velocity to take its pick from: the strands keep the surfaces' velocity.
+  const velocity = gpu.velocity?.measured && !forward ? gpu.velocity : undefined
   if (velocity) {
     const steps = velocityRun.begin(encoder)
-    velocity.encodeHair(steps, targets.hairOnlyDepthView)
+    const strands: HairVelocityInputs = {
+      type: readHairStrandsSetting(rt, 'hairVelocityType'),
+      coverageThreshold: readHairStrandsSetting(rt, 'hairVisibilityWriteVelocityCoverageThreshold'),
+      threshold: readHairStrandsSetting(rt, 'hairVelocityThreshold'),
+      depth: targets.hairOnlyDepthView,
+      coverageMap: targets.coverageView,
+      nodeIndex: targets.nodeIndexView,
+      nodes: nodes.nodeData,
+    }
+    velocity.encodeHair(steps, strands)
     steps.end()
   }
   const size = view.inputs.size
@@ -605,18 +618,23 @@ export function composeHairStrands(
   set.imageWords.u[1] = size[1]
   set.imageWords.u[2] = record.buffers.tiles.capacity
   writeChanged(device, set.image, set.imageWords.u, 0, HAIR_COMPOSE_IMAGE_WORDS)
+  // The light the composition reads: the grid of the points' light, or the colour the forward raster shaded from it.
+  const light = forward ? encodeHairForwardColor(device, encoder, view, set.grid) : set.grid
+  // Lit only once the light is there: a forward raster still compiling leaves the strands to the next call.
+  if (!light) return
+  set.lit = false
   if (
     set.sources?.nodeIndexView !== targets.nodeIndexView ||
     set.sources.coverageView !== targets.coverageView ||
     set.sources.nearestDepth !== targets.hairOnlyDepthView ||
-    set.sources.light !== set.grid
+    set.sources.light !== light
   )
     set.sources = {
       image: set.image,
       nodeIndexView: targets.nodeIndexView,
       coverageView: targets.coverageView,
       nearestDepth: targets.hairOnlyDepthView,
-      light: set.grid,
+      light,
     }
   encodeHairComposition(
     device,
@@ -629,6 +647,14 @@ export function composeHairStrands(
     set.sources,
     gpu.hdrView,
     size,
+  )
+  // The strands written into the surfaces, for the passes that read them next.
+  encodeHairGbufferOverride(
+    device,
+    encoder,
+    view,
+    readHairStrandsSetting(rt, 'hairWriteGBufferData'),
+    gpu.depthView,
   )
 }
 

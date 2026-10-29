@@ -1,0 +1,149 @@
+import { DISPLAY_FORMAT } from '../scene/targetFormats.ts'
+import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
+import { autoKernel } from '../gpu/core/computeStages.ts'
+import { sequentialEntries } from '../gpu/core/computeBindings.ts'
+import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
+import { DEBUG_LINE_FLOATS, type DebugLines } from './debugLines.ts'
+import {
+  DEBUG_GPU_LINES,
+  DEBUG_LINES_DRAW_WGSL,
+  DEBUG_LINES_GPU_WGSL,
+  DEBUG_VIEW_FLOATS,
+} from './debugLinesWgsl.ts'
+
+const LABEL = `${HAIR_STRANDS_PASS_PREFIX}debug lines`
+/** The width of a line in the display's pixels. */
+const LINE_WIDTH = 2
+
+const kernel = (entry: string) => autoKernel(`${LABEL} ${entry}`, DEBUG_LINES_GPU_WGSL, entry)
+const KERNELS = {
+  frusta: kernel('debugFrusta'),
+  macro: kernel('debugMacroBoxes'),
+  nodes: kernel('debugNodeBoxes'),
+} as const
+
+/** The boxes the GPU holds, each with how many there are and the buffer that describes them: the deep shadows' slots (`viewInfos`), the macro groups
+ *  (`aabb`) and the voxel nodes (`nodes`). */
+export interface DebugGpuBoxes {
+  readonly frusta?: { readonly count: number; readonly viewInfos: GPUBuffer }
+  readonly macro?: { readonly count: number; readonly aabb: GPUBuffer }
+  readonly nodes?: { readonly count: number; readonly nodes: GPUBuffer }
+}
+
+/** What the lines pass binds for a kind of box: the buffer of its description, at the binding the kernel reads it from. */
+const BOXES = [
+  ['frusta', 2, (box: { viewInfos: GPUBuffer }) => box.viewInfos],
+  ['macro', 3, (box: { aabb: GPUBuffer }) => box.aabb],
+  ['nodes', 4, (box: { nodes: GPUBuffer }) => box.nodes],
+] as const
+
+/** The buffers of the lines pass: the lines, the viewer's block, and a block of counts for each kind of box. */
+function createLineBuffers(device: GPUDevice) {
+  const make = (label: string, size: number, usage: GPUBufferUsageFlags) =>
+    device.createBuffer({
+      label: `${LABEL} ${label}`,
+      size,
+      usage: usage | GPUBufferUsage.COPY_DST,
+    })
+  return {
+    lines: make('lines', DEBUG_GPU_LINES.end * DEBUG_LINE_FLOATS * 4, GPUBufferUsage.STORAGE),
+    view: make('view', DEBUG_VIEW_FLOATS * 4, GPUBufferUsage.UNIFORM),
+    counts: BOXES.map(() => make('count', 16, GPUBufferUsage.UNIFORM)),
+  }
+}
+
+type LineBuffers = ReturnType<typeof createLineBuffers>
+
+/** Empties the lines the GPU writes and has each kernel of `boxes` write its boxes, in a compute pass each. */
+function encodeGpuBoxes(
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  { lines, counts }: LineBuffers,
+  boxes: DebugGpuBoxes,
+) {
+  const gpuBytes = (DEBUG_GPU_LINES.end - DEBUG_GPU_LINES.frusta) * DEBUG_LINE_FLOATS * 4
+  encoder.clearBuffer(lines, DEBUG_GPU_LINES.frusta * DEBUG_LINE_FLOATS * 4, gpuBytes)
+  BOXES.forEach(([name, binding, bufferOf], at) => {
+    const box = boxes[name]
+    const stage = KERNELS[name](device).get()
+    if (!box || !box.count || !stage) return
+    device.queue.writeBuffer(counts[at]!, 0, new Uint32Array([box.count, 0, 0, 0]))
+    const pass = encoder.beginComputePass({ label: `${LABEL} ${name}` })
+    pass.setPipeline(stage)
+    pass.setBindGroup(
+      0,
+      device.createBindGroup({
+        layout: stage.getBindGroupLayout(0),
+        entries: [
+          { binding: 0, resource: { buffer: counts[at]! } },
+          { binding: 1, resource: { buffer: lines } },
+          { binding, resource: { buffer: bufferOf(box as never) } },
+        ],
+      }),
+    )
+    pass.dispatchWorkgroups(1)
+    pass.end()
+  })
+}
+
+/**
+ * THE LINES OF THE DEBUG VIEWS OVER THE DISPLAY: the host's lines (`DebugLines`) and the boxes the GPU writes (`DebugGpuBoxes`) in one buffer,
+ * drawn as quads of `LINE_WIDTH` pixels with no depth test, over the image. Made when a view is first shown; its pipeline compiles off the frame.
+ */
+export function createDebugLinesGpu(device: GPUDevice) {
+  const module = device.createShaderModule({ label: LABEL, code: DEBUG_LINES_DRAW_WGSL })
+  const pipeline = preparedPipeline(device, {
+    label: LABEL,
+    layout: 'auto',
+    vertex: { module, entryPoint: 'debugLineVs' },
+    fragment: { module, entryPoint: 'debugLineFs', targets: [{ format: DISPLAY_FORMAT }] },
+    primitive: { topology: 'triangle-list', cullMode: 'none' },
+  }).ask()
+  const buffers = createLineBuffers(device)
+  const viewWords = new Float32Array(DEBUG_VIEW_FLOATS)
+  return {
+    /**
+     * Draws over `target` (`size` display pixels) the lines of `drawn` and the boxes of `boxes`, seen through `viewProjection`
+     * (clip from the world relative to the eye).
+     */
+    encode(
+      encoder: GPUCommandEncoder,
+      target: GPUTextureView,
+      size: readonly [number, number],
+      viewProjection: ArrayLike<number>,
+      drawn: DebugLines,
+      boxes: DebugGpuBoxes,
+    ) {
+      const draw = pipeline.get()
+      if (!draw) return
+      viewWords.set(viewProjection)
+      viewWords.set([size[0], size[1], LINE_WIDTH], 16)
+      device.queue.writeBuffer(buffers.view, 0, viewWords)
+      device.queue.writeBuffer(buffers.lines, 0, drawn.data, 0, drawn.count * DEBUG_LINE_FLOATS)
+      encodeGpuBoxes(device, encoder, buffers, boxes)
+      const pass = encoder.beginRenderPass({
+        label: LABEL,
+        colorAttachments: [{ view: target, loadOp: 'load', storeOp: 'store' }],
+      })
+      pass.setPipeline(draw)
+      pass.setBindGroup(
+        0,
+        device.createBindGroup({
+          layout: draw.getBindGroupLayout(0),
+          entries: sequentialEntries([{ buffer: buffers.view }, { buffer: buffers.lines }]),
+        }),
+      )
+      if (drawn.count) pass.draw(6, drawn.count, 0, 0)
+      pass.draw(6, DEBUG_GPU_LINES.end - DEBUG_GPU_LINES.frusta, 0, DEBUG_GPU_LINES.frusta)
+      pass.end()
+    },
+    dispose() {
+      buffers.lines.destroy()
+      buffers.view.destroy()
+      for (const count of buffers.counts) count.destroy()
+    },
+  }
+}
+
+/** The lines pass of the debug views (`createDebugLinesGpu`). */
+export type DebugLinesGpu = ReturnType<typeof createDebugLinesGpu>

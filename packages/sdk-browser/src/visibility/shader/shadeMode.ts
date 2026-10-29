@@ -63,6 +63,23 @@ const LIT_VIEWS = {
   reflections: { light: 1, chain: false },
   shadows: { light: 2, chain: false, raw: true },
   lighting: { light: 3, chain: false },
+  'hair-light-bounds': { light: 0, chain: true },
+  'hair-deep-opacity-maps': { light: 0, chain: true },
+  'hair-macro-group-screen-rect': { light: 0, chain: true },
+  'hair-voxels-density': { light: 0, chain: true },
+  'sampled-lights-overview': { light: 0, chain: true },
+  'sampled-lights-shadow-casters': { light: 0, chain: true },
+  'sampled-lights-shadow-caster-quality': { light: 0, chain: true },
+  'subsurface-profiles': { light: 0, chain: true },
+  'heterogeneous-volumes-dda-marching': { light: 0, chain: true },
+  'heterogeneous-volumes-sample-marching': { light: 0, chain: true },
+  'heterogeneous-volumes-sample-majorant': { light: 0, chain: true },
+  'heterogeneous-volumes-sample-max-majorant': { light: 0, chain: true },
+  'heterogeneous-volumes-sample-majorant-dda': { light: 0, chain: true },
+  'heterogeneous-volumes-delta-tracking': { light: 0, chain: true },
+  'heterogeneous-volumes-ratio-tracking': { light: 0, chain: true },
+  'heterogeneous-volumes-spectral-ratio-tracking': { light: 0, chain: true },
+  'heterogeneous-volumes-tracking-majorant-dda': { light: 0, chain: true },
 } as const satisfies Partial<Record<DiagnosticMode, LitView>>
 
 type LitView = { light: number; chain: boolean; raw?: boolean; taa?: number }

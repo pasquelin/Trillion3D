@@ -8,8 +8,9 @@ import { type VolumeHoldout } from '../../post/volumeHoldout.ts'
 import { vsmOrStandIns } from '../shadows/vsm/frame/vsmConsumers.ts'
 import { HV_BINDING, HV_FOG_BINDINGS, svtBindings } from './liveShadingProgram.ts'
 import { type BeerBind } from './beerShadowMapGpu.ts'
+import { HV_AVSM_PARAMS_BYTES } from './liveShadingAvsmWgsl.ts'
 import { type SparseVolumeFrameGpu } from './sparseVolumeGpu.ts'
-import { type Program, type State } from './liveShadingState.ts'
+import { bufferOf, type Program, type State } from './liveShadingState.ts'
 
 /** What a volume's group binds apart from the buffers and images that change from pass to pass. */
 export interface VolumeGroupInputs {
@@ -31,11 +32,44 @@ export interface VolumeGroupInputs {
   fogRead: NonNullable<ReturnType<typeof fogReadOf>>
 }
 
-type Textures = {
+export type Textures = {
   cache?: GPUTexture
   read?: GPUTexture
   ambient?: GPUTexture
   existence?: GPUTexture
+  /** The baked extinction, albedo and emission the passes read in place of the material. */
+  baked?: readonly [GPUTexture, GPUTexture, GPUTexture]
+  /** The buffer of the hierarchy of boxes the march of a program with boxes walks, and the lists and parameters a program that builds the adaptive map writes. */
+  boxes?: GPUBuffer
+  avsm?: { list: GPUBuffer; params: GPUBuffer }
+}
+
+/** The bindings of the extra buffers of a program's variant: the stand-in where the hierarchy or the adaptive map's lists are not there this image. */
+function variantEntries(c: VolumeGroupInputs, textures: Textures): GPUBindGroupEntry[] {
+  const { program, held, device } = c
+  if (program.variant === 'boxes') {
+    const stand = bufferOf(held, device, 'boxes stand-in', 256, GPUBufferUsage.STORAGE)
+    return [{ binding: HV_BINDING.boxes, resource: { buffer: textures.boxes ?? stand } }]
+  }
+  if (program.variant === 'avsm') {
+    const list =
+      textures.avsm?.list ??
+      bufferOf(held, device, 'avsm list stand-in', 256, GPUBufferUsage.STORAGE)
+    const params =
+      textures.avsm?.params ??
+      bufferOf(
+        held,
+        device,
+        'avsm parameters stand-in',
+        HV_AVSM_PARAMS_BYTES,
+        GPUBufferUsage.UNIFORM,
+      )
+    return [
+      { binding: HV_BINDING.avsmList, resource: { buffer: list } },
+      { binding: HV_BINDING.avsmParams, resource: { buffer: params } },
+    ]
+  }
+  return []
 }
 
 /** The bindings of the lights' shadows (the virtual shadow maps) and the engine's noise: what every pass reads of the scene. */
@@ -94,6 +128,12 @@ function sideEntries(
     { binding: HV_BINDING.taaView, resource: { buffer: velocity?.taaView ?? taaStand } },
     { binding: HV_BINDING.ambient, resource: (textures.ambient ?? held.stand!).createView() },
     { binding: HV_BINDING.existence, resource: (textures.existence ?? held.stand!).createView() },
+    ...[HV_BINDING.bakedExtinction, HV_BINDING.bakedAlbedo, HV_BINDING.bakedEmission].map(
+      (binding, i) => ({
+        binding,
+        resource: (textures.baked?.[i] ?? held.stand!).createView(),
+      }),
+    ),
     ...(holdout ? [{ binding: HV_BINDING.holdout, resource: holdout.view }] : []),
   ]
 }
@@ -135,6 +175,7 @@ export function volumeGroup(
       ...graphEntries(c),
       ...sideEntries(c, beer, textures),
       ...fogReadBindEntries(HV_FOG_BINDINGS, fogRead),
+      ...variantEntries(c, textures),
     ],
   })
 }

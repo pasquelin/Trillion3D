@@ -35,6 +35,9 @@ import { disposeSurfaceCache, surfaceCacheMetrics } from '../../lighting/surface
 import { disposeVolumetricLightmap } from '../../lighting/volumetricLightmap/frame.ts'
 import { disposeSkyModule } from '../render/encodeCloudsSky.ts'
 import { releaseUnlitLights } from '../render/captureLights.ts'
+import { disposeSampledDebug } from '../../lighting/manyLightsSampled/debug/frame.ts'
+import { disposeSubsurfaceDebug } from '../../lighting/subsurface/visualize.ts'
+import { disposeHzbOcclusion } from '../../visibility/hzbOcclusion/hzbOcclusion.ts'
 
 /** Geometry bytes beside the page pool: the float pool's three lists. */
 export function vertexBytesOf(
@@ -212,6 +215,8 @@ function disposeBlend(rt: WebgpuPagesRuntime) {
 function disposeLighting(rt: WebgpuPagesRuntime) {
   const { gpu } = rt
   disposeImagePasses(gpu)
+  disposeSampledDebug(rt)
+  disposeSubsurfaceDebug(rt)
   disposeSkyModule(rt)
   rt.lights.tiles?.dispose()
   releaseEngineVsm(rt.lights)
@@ -226,6 +231,7 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   rt.compose?.gpu?.dispose()
   disposeRootWorlds(rt)
   disposeRootBoxes(rt)
+  disposeHzbOcclusion(rt)
   disposeTreeLeaves(rt)
   releaseUnlitLights(rt)
   releaseLightProfiles(rt)

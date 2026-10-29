@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { SELF_SHADOW_ENTRIES, SELF_SHADOW_MAX_SUNS, selfShadowProgram } from './selfShadowWgsl.ts'
+import { SCREEN_MARCH_WGSL } from '../../../visibility/hiz/gpu/screenMarch.ts'
+import {
+  SELF_SHADOW_ENTRIES,
+  SELF_SHADOW_MAX_LIGHTS,
+  SELF_SHADOW_MERGE_ENTRY,
+  selfShadowMergeProgram,
+  selfShadowProgram,
+} from './selfShadowWgsl.ts'
 
 test('each kernel is a program with its entry and the engine’s march', () => {
   for (const entry of Object.values(SELF_SHADOW_ENTRIES)) {
@@ -18,10 +25,26 @@ test('the march gives up on occupancy only under the polyfill', () => {
   assert.ok(polyfill.includes('params.counts.w'))
 })
 
-test('the uniform holds a direction a sun', () => {
+test('the uniform holds a record a light', () => {
   assert.ok(
     selfShadowProgram(SELF_SHADOW_ENTRIES.upsample, 'none').includes(
-      `suns:array<vec4f,${SELF_SHADOW_MAX_SUNS}>`,
+      `lights:array<vec4f,${SELF_SHADOW_MAX_LIGHTS}>`,
     ),
   )
+})
+
+test('the trace walks the smooth full-resolution depth, and no other march does', () => {
+  const trace = selfShadowProgram(SELF_SHADOW_ENTRIES.trace, 'none')
+  assert.ok(trace.includes('fn screenBilinearDepth('))
+  assert.ok(trace.includes('let zPlane=mip>base;'))
+  assert.ok(!SCREEN_MARCH_WGSL(0, 1).name.includes('smooth'))
+})
+
+test('the trace reaches a local light by its rank and the merge keeps the first-person pixels', () => {
+  const trace = selfShadowProgram(SELF_SHADOW_ENTRIES.trace, 'none')
+  assert.ok(trace.includes('lightReaches(rank,P)'))
+  assert.ok(trace.includes('directLights.items[rank].positionRange'))
+  const merge = selfShadowMergeProgram()
+  assert.ok(merge.includes(`fn ${SELF_SHADOW_MERGE_ENTRY}(`))
+  assert.ok(merge.includes('discard;'))
 })

@@ -15,12 +15,13 @@ import {
   type VelocityInputs,
 } from './inputs.ts'
 import {
+  HAIR_VELOCITY_BINDINGS,
   SURFACE_VELOCITY_BINDINGS,
   SURFACE_VELOCITY_WGSL,
   surfaceVelocityShader,
 } from './surfaceVelocityWgsl.ts'
 import { TEXEL_TILE, VECTOR_FORMAT } from './velocityWgsl.ts'
-import { uniformBuffer } from '../../gpu/core/uniformBlock.ts'
+import { uniformBlock, uniformBuffer } from '../../gpu/core/uniformBlock.ts'
 
 const PASS: GPUComputePassDescriptor = { label: VELOCITY_PASS }
 
@@ -69,25 +70,27 @@ function makeProgram(device: GPUDevice, wpo: WpoSet) {
       },
     ],
   })
-  // The hair strands' velocity patch: the stage's group, then a group of the nearest strand's depth.
+  // The hair strands' velocity patch: the stage's group, then a group of the strands' samples (`surfaceVelocityShader`).
+  const B = HAIR_VELOCITY_BINDINGS
+  const visibility = GPUShaderStage.COMPUTE
   const hairLayout = device.createBindGroupLayout({
     label: `${VELOCITY_PASS} hair`,
     entries: [
-      {
-        binding: 1,
-        visibility: GPUShaderStage.COMPUTE,
-        texture: { sampleType: 'unfilterable-float' },
-      },
+      { binding: B.depth, visibility, texture: { sampleType: 'unfilterable-float' } },
+      { binding: B.rule, visibility, buffer: { type: 'uniform' } },
+      { binding: B.coverage, visibility, texture: { sampleType: 'unfilterable-float' } },
+      { binding: B.nodeIndex, visibility, texture: { sampleType: 'uint' } },
+      { binding: B.nodes, visibility, buffer: { type: 'read-only-storage' } },
     ],
   })
-  const hair = preparedComputeStage(
-    device,
-    device.createPipelineLayout({ bindGroupLayouts: [layout, hairLayout] }),
-    module,
-    'hairVelocity',
-    undefined,
-    VELOCITY_PASS,
-  )
+  const hairPipeline = device.createPipelineLayout({ bindGroupLayouts: [layout, hairLayout] })
+  const hairStage = (entry: string, constants?: Record<string, number>) =>
+    preparedComputeStage(device, hairPipeline, module, entry, constants, VELOCITY_PASS)
+  const hair = {
+    closest: hairStage('hairVelocity'),
+    average: hairStage('hairVelocityOfSamples', { HAIR_VELOCITY_MAX: 0 }),
+    max: hairStage('hairVelocityOfSamples', { HAIR_VELOCITY_MAX: 1 }),
+  }
   const water = preparedComputeStage(
     device,
     device.createPipelineLayout({ bindGroupLayouts: [layout, waterLayout] }),
@@ -112,7 +115,7 @@ function makeProgram(device: GPUDevice, wpo: WpoSet) {
 export const askVelocityProgram = (device: GPUDevice, displaced: boolean, wpo = NO_WPO) => {
   const programs = velocityProgram(device, wpo)
   programs.water.ask()
-  programs.hair.ask()
+  for (const mode of Object.values(programs.hair)) mode.ask()
   return (displaced ? programs.displaced : programs.flat).ask()
 }
 
@@ -148,6 +151,19 @@ function nameVelocityInputs(next: unknown[], inputs: VelocityInputs, view: unkno
   next[17] = inputs.previous
 }
 
+/** What the strands' velocity patch reads (`surfaceVelocityShader`): the nearest strand's depth, the share of a pixel the strands cover, the
+ *  pixels' sample lists and the samples; how a pixel takes its velocity from them (`type`, `hairVelocityType`), the share of coverage from which it
+ *  writes one (`coverageThreshold`) and the velocity, in the reference's pixel unit, above which its history restarts (`threshold`). */
+export interface HairVelocityInputs {
+  readonly type: 'closest' | 'average' | 'max'
+  readonly coverageThreshold: number
+  readonly threshold: number
+  readonly depth: GPUTextureView
+  readonly coverageMap: GPUTextureView
+  readonly nodeIndex: GPUTextureView
+  readonly nodes: GPUBuffer
+}
+
 /** A patch pass (the water's, the hair strands') over the `last` render grid: the stage's `group`, then the patch's own. */
 function dispatchPatch(
   steps: ComputeRun,
@@ -172,16 +188,22 @@ function velocityPass(
   uniform: GPUBuffer,
   wpo: WpoSet,
 ) {
-  const { layout, flat, displaced, water, waterLayout, hair, hairLayout } = velocityProgram(
-    device,
-    wpo,
-  )
+  const {
+    layout,
+    flat,
+    displaced,
+    water,
+    waterLayout,
+    hair: hairPrograms,
+    hairLayout,
+  } = velocityProgram(device, wpo)
   const identity = createWebgpuBindIdentity()
   let group: GPUBindGroup | undefined, last: readonly number[] | undefined
   // The water depth's group, kept for the view it names: made again where the depth moved.
   let depthGroup: GPUBindGroup | undefined, depthOver: GPUTextureView | undefined
-  // The strands' depth group, kept the same way.
-  let hairGroup: GPUBindGroup | undefined, hairOver: GPUTextureView | undefined
+  // The strands' samples group, kept the same way, and the rule it holds.
+  const hairRule = uniformBlock(device, 'Trillion3D hair velocity rule', 16)
+  let hairGroup: GPUBindGroup | undefined, hairOver: HairVelocityInputs | undefined
   return {
     encode(
       encoder: GPUCommandEncoder,
@@ -222,19 +244,34 @@ function velocityPass(
       }
       dispatchPatch(steps, water.get(), group, depthGroup, last)
     },
-    /** The vectors of the texels the hair strands cover (their nearest depth `hairDepth` nearer than the stage's own),
-     *  rewritten as the camera's alone at the strand's depth, flagged as a pixel that moves by itself. None before the
-     *  stage ran this image. */
-    encodeHair(steps: ComputeRun, hairDepth: GPUTextureView) {
+    /** The vectors of the texels the hair strands cover (`hair`: the strands' samples), rewritten as the camera's alone at the depth
+     *  of their nearest sample, the mean of them or the largest (`type`), flagged as a pixel that moves by itself, and as one resolved
+     *  at once where a sample moves faster than `threshold` (`HairVelocityInputs`). None before the stage ran this image. */
+    encodeHair(steps: ComputeRun, hair: HairVelocityInputs) {
       if (!group || !last) return
-      if (hairOver !== hairDepth || !hairGroup) {
+      hairRule.words.f[0] = hair.coverageThreshold
+      hairRule.words.f[1] = hair.threshold / (2 * Math.max(last[0]!, last[1]!))
+      hairRule.send()
+      if (
+        !hairGroup ||
+        hairOver?.depth !== hair.depth ||
+        hairOver.coverageMap !== hair.coverageMap ||
+        hairOver.nodeIndex !== hair.nodeIndex ||
+        hairOver.nodes !== hair.nodes
+      ) {
         hairGroup = device.createBindGroup({
           layout: hairLayout,
-          entries: [{ binding: 1, resource: hairDepth }],
+          entries: [
+            { binding: HAIR_VELOCITY_BINDINGS.depth, resource: hair.depth },
+            { binding: HAIR_VELOCITY_BINDINGS.rule, resource: { buffer: hairRule.buffer } },
+            { binding: HAIR_VELOCITY_BINDINGS.coverage, resource: hair.coverageMap },
+            { binding: HAIR_VELOCITY_BINDINGS.nodeIndex, resource: hair.nodeIndex },
+            { binding: HAIR_VELOCITY_BINDINGS.nodes, resource: { buffer: hair.nodes } },
+          ],
         })
-        hairOver = hairDepth
+        hairOver = hair
       }
-      dispatchPatch(steps, hair.get(), group, hairGroup, last)
+      dispatchPatch(steps, hairPrograms[hair.type].get(), group, hairGroup, last)
     },
     /** The group names the target no more. */
     forget() {

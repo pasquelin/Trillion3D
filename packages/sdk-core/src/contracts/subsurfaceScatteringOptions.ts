@@ -62,7 +62,10 @@ import {
  *   largest diffuse mean free path, 1 the largest mean free path;
  * - `subsurfaceColorTransmittanceDistance` (0.15), 0.05 to 1: the distance, in the normalised units of the
  *   light's travel, at which a subsurface-model surface's colour is the transmittance of the light through it
- *   (the thin subsurface model's transmission takes its hue shift from it).
+ *   (the thin subsurface model's transmission takes its hue shift from it);
+ * - `subsurfaceDebugPixel` (off): the pixel under `sampledLightsDebugCursorX` / `…Y` written on the image, at full
+ *   resolution, with the reconstruction and the recombine of its lighting (the `subsurface-profiles` view draws
+ *   the profile map).
  */
 export const SUBSURFACE_SCATTERING_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -83,6 +86,7 @@ export const SUBSURFACE_SCATTERING_RULES = /* @__PURE__ */ (() =>
     number('subsurfaceSubpixelThreshold', 1, atLeast(0)),
     integer('subsurfaceSamplingChannel', 1, [0, 1]),
     number('subsurfaceColorTransmittanceDistance', 0.15, [0.05, 1]),
+    flag('subsurfaceDebugPixel', false),
   ] as const))()
 /** The field of one setting of the subsurface scattering. */
 export type SubsurfaceScatteringField = keyof typeof SUBSURFACE_SCATTERING_RULES
@@ -153,6 +157,8 @@ export interface SubsurfaceScatteringSettings {
   samplingChannel: number
   /** The distance at which the subsurface model's colour is the light's transmittance. */
   colorTransmittanceDistance: number
+  /** Whether the pixel under the debug cursor is written on the image. */
+  debugPixel: boolean
 }
 
 /** The settings the passes read, from the resolved values. */
@@ -180,6 +186,7 @@ export function resolveSubsurfaceScattering(
     subpixelThreshold: values.subsurfaceSubpixelThreshold,
     samplingChannel: values.subsurfaceSamplingChannel,
     colorTransmittanceDistance: values.subsurfaceColorTransmittanceDistance,
+    debugPixel: values.subsurfaceDebugPixel,
   }
 }
 

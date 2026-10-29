@@ -64,3 +64,18 @@ test('each setting takes what its rule says, and nothing else', () => {
   assert.throws(() => resolveSetting(rules.sampledLightsTransmissionSampleWeight, 1.5), /number/)
   assert.throws(() => resolveSetting(rules.sampledLightsMinSampleWeight, -1), /at least 0/)
 })
+
+test('the debug views are off by default, the distances and the cursor at the reference’s values', () => {
+  const values = resolveSettings(SAMPLED_LIGHTS_RULES, {})
+  assert.equal(values.sampledLightsVisualize, 0)
+  assert.equal(values.sampledLightsVisualizeShadowCasterMissingDistance, 0.5)
+  assert.equal(values.sampledLightsVisualizeShadowCasterPoorDistance, 0.25)
+  assert.equal(values.sampledLightsVisualizeTileClassification, 0)
+  assert.equal(values.sampledLightsDebug, 0)
+  assert.equal(values.sampledLightsDebugTraceStats, false)
+  assert.equal(values.sampledLightsDebugCursorX, -1)
+  assert.equal(values.sampledLightsDebugCursorY, -1)
+  const rules = SAMPLED_LIGHTS_RULES
+  assert.equal(resolveSetting(rules.sampledLightsVisualize, 16), 16)
+  assert.throws(() => resolveSetting(rules.sampledLightsVisualize, 17))
+})

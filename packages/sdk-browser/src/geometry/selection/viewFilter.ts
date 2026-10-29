@@ -8,22 +8,30 @@ import { sameValues } from '../../../../math/src/matrix/matrixElements.ts'
  *  where they end (`../../frame/render/movedNode.ts`, `appendRootsUnder`). */
 export type RootsUnder = (node: Object3D, out: number[], at: number) => number
 
-type Seen = { set?: ViewSet; roots: number; revision: number; forced?: readonly number[] }
+type Seen = {
+  set?: ViewSet
+  roots: number
+  revision: number
+  forced?: readonly number[]
+  occluded?: readonly number[]
+}
 
-/** Whether the filter was last made for this very view set, root count, revision and forced
- *  roots. */
+/** Whether the filter was last made for this very view set, root count, revision, forced
+ *  roots and occluded roots. */
 const sameAsSeen = (
   seen: Seen | undefined,
   set: ViewSet | undefined,
   rootCount: number,
   revision: number,
   forced: readonly number[] | undefined,
+  occluded: readonly number[] | undefined,
 ) =>
   seen !== undefined &&
   seen.set === set &&
   seen.roots === rootCount &&
   seen.revision === revision &&
-  seen.forced === forced
+  seen.forced === forced &&
+  seen.occluded === occluded
 
 /** The bits of the roots the view does not draw, written into `bits` (`rootCount` roots). */
 function fillBits(
@@ -57,7 +65,9 @@ function fillBits(
  *
  * Beside the view's lists, the roots `forced` names — the ones the view does not draw whatever it
  * lists: an object hidden from the view that owns it (`firstPersonWorldSpaceRepresentation`), one that
- * casts its shadow while hidden (`castHiddenShadow`) — are set last, as `hidden` is.
+ * casts its shadow while hidden (`castHiddenShadow`) — are set last, as `hidden` is; then the roots its occlusion test found hidden behind the
+ * depth (`occluded`, `../../visibility/hzbOcclusion/`): the view does not draw them, but nothing else changes for them — `base` answers the bits
+ * without them, which are the ones the shadows' casters follow.
  *
  * `update` answers the array it answered before when the bits did not change, so that the
  * identity of the array is the revision of the filter — the cut in hand stands
@@ -67,6 +77,7 @@ function fillBits(
  */
 export function createViewFilter() {
   let held: Uint32Array | undefined,
+    base: Uint32Array | undefined,
     scratch = new Uint32Array(0),
     seen: Seen | undefined
   const ranks: number[] = []
@@ -77,20 +88,26 @@ export function createViewFilter() {
       under: RootsUnder,
       revision: number,
       forced?: readonly number[],
+      occluded?: readonly number[],
     ) {
       const listed = !!set && (set.hidden.length > 0 || set.showOnly !== null)
-      if (!listed && !forced?.length) {
+      if (!listed && !forced?.length && !occluded?.length) {
         seen = undefined
+        base = undefined
         return (held = undefined)
       }
-      if (sameAsSeen(seen, set, rootCount, revision, forced)) return held
-      seen = { set, roots: rootCount, revision, forced }
+      if (sameAsSeen(seen, set, rootCount, revision, forced, occluded)) return held
+      seen = { set, roots: rootCount, revision, forced, occluded }
       const words = Math.max(1, bitWords(rootCount))
       if (scratch.length < words) scratch = new Uint32Array(words)
       const bits = scratch.subarray(0, words)
       fillBits(bits, set, rootCount, under, ranks, forced)
+      base = base && sameValues(base, bits) ? base : bits.slice()
+      for (const rank of occluded ?? []) if (rank < rootCount) setBit(bits, rank)
       return (held = held && sameValues(held, bits) ? held : bits.slice())
     },
+    /** The bits of the last `update` without its occluded roots: the same array until they change. */
+    base: () => base,
   }
 }
 

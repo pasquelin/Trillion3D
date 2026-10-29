@@ -23,6 +23,8 @@ import { frontStamp } from '../reflections/frontLayer.ts'
 import { SAMPLED_GROUP } from './layout.ts'
 import type { VsmMarkingFrontSamples, VsmMarkingSamples } from '../shadows/vsm/markingPass.ts'
 import { FRONT_MARK } from './frontLightWgsl.ts'
+import { readsSpatialDebug, visualizeViewOf } from './debug/modes.ts'
+import { debugPixelsTexture, rememberSampled } from './debug/state.ts'
 
 /** The view's sampled lighting settings, read by the stamped reader into this one object (an image where no setting was written costs a compare). */
 const settings: SampledLightsSettings = resolveSettings(SAMPLED_LIGHTS_RULES, {})
@@ -149,6 +151,11 @@ function sampledInputs(
       lightCount: rt.lights.store.count,
       power,
       hairVoxels: hairVoxelsOf(rt, values),
+      // The spatial filter writes what the denoiser's debug views read, while one is shown.
+      debugPixels:
+        !target && readsSpatialDebug(visualizeViewOf(values, rt.run.diagnostic))
+          ? debugPixelsTexture(rt, device, width, height)
+          : undefined,
     },
   }
 }
@@ -288,6 +295,7 @@ export function encodeSampledLights(
     made && kitOf(rt, made.device).encode(encoder, made.inputs, done ? 'traces' : 'all')
   lit.set(rt, !!result)
   direct.sampledLight = result?.composite
+  if (result) rememberSampled(rt, rt.run.frame, result)
   return result
 }
 

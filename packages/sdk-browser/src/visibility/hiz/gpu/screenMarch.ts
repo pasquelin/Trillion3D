@@ -27,6 +27,9 @@ import type { MarchLanes } from './screenMarchLanes.ts'
  * for the planes' march, in pixels of footprint, and `relative` for the reference's walk, a share
  * of the surface's depth (`reflectionRelativeDepthThickness` or `screenProbeRelativeDepthThickness`, `screenRelativeThickness`).
  *
+ * `smooth` (off by default; the first-person self shadow's): the reference walk's full-resolution depth is the lower of the pixel's and its bilinear
+ * filter, with no depth plane at the base level (`screenMarchReference`); it needs `full`.
+ *
  * `lanes` (`screenMarchLanes.ts`): the reference walk gives up when no more than `occupancy` lanes of its subgroup are still walking (the call takes
  * that last argument), the reflections' minimum occupancy; `none`, the default, is the walk without that test, which the screen probes read. Under
  * `polyfill` every thread of the workgroup must call `screenMarch`, in uniform control flow, a thread with no ray calling it with `end` zero.
@@ -36,12 +39,13 @@ export const SCREEN_MARCH_WGSL = (
   binding: number,
   lanes: MarchLanes = 'none',
   threads?: number,
+  smooth = false,
 ) =>
   wgslBlock(
-    `SCREEN_MARCH_WGSL(${group}, ${binding}, ${lanes}${threads === undefined ? '' : `, ${threads}`})`,
+    `SCREEN_MARCH_WGSL(${group}, ${binding}, ${lanes}${threads === undefined ? '' : `, ${threads}`}${smooth ? ', smooth' : ''})`,
     [
       SCREEN_MARCH_PLANES_WGSL(group, binding),
-      SCREEN_MARCH_REFERENCE_WGSL(group, binding, lanes, threads),
+      SCREEN_MARCH_REFERENCE_WGSL(group, binding, lanes, threads, smooth),
     ],
     `fn screenMarch(o:vec3f,d:vec3f,end:f32,pixels:f32,relative:f32,slab:vec4f,cap:u32,full:bool${lanes === 'none' ? '' : ',occupancy:u32'})->ScreenHit{
  if(hizTracePlanes()){return screenMarchPlanes(o,d,end,pixels,slab,cap);}

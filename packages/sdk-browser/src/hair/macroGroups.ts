@@ -169,6 +169,9 @@ const widened: BoxSphere = { box: new Float64Array(6), sphere: new Float64Array(
 const scratch: MacroGroup[] = []
 const pool: MacroGroup[] = []
 
+/** The macro groups the last call of `createMacroGroups` made: what the debug views read of the image (valid until the next call). */
+export const lastMacroGroups = (): readonly MacroGroup[] => scratch
+
 /** The order the macro groups are made in. */
 const byRegisteredIndex = (a: MacroMember, b: MacroMember) => a.registeredIndex - b.registeredIndex
 

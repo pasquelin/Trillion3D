@@ -13,7 +13,9 @@ import {
   type HairCompactionFrame,
   type HairNodes,
 } from './compactionPass.ts'
+import { createHairCustomDepth, type HairCustomDepth } from './customDepthPass.ts'
 import { gbufferBinds, gbufferDepthPass } from './gbufferPass.ts'
+import { createRenderCurve, type RenderCurve } from './renderCurve/renderCurvePass.ts'
 import { HAIR_IMAGE_WORDS } from './imageBlock.ts'
 import type { HairFrameInputsWritable } from './inputs.ts'
 import { materialBinds } from './materialPass.ts'
@@ -26,6 +28,8 @@ import {
 } from './deepShadowPass.ts'
 import { createHairVoxelState, type HairVoxelState } from './voxelPass.ts'
 import { rasterBinds, type HairBandBuffers, type HairRasterFrame } from './rasterPass.ts'
+import type { HairBinned } from './binnedRasterPass.ts'
+import type { ForwardResources } from './forward/forwardPass.ts'
 import { HAIR_LARGE_ARGS_WORDS, HAIR_LARGE_WORDS } from './rasterWgsl.ts'
 import { bufferEntries } from '../gpu/core/computeBindings.ts'
 import { boundGroups, type DrawnInstance } from './ribbonBinds.ts'
@@ -160,10 +164,18 @@ export interface HairViewGpu {
   readonly gbufferBinds: ReturnType<typeof gbufferBinds>
   /** The pass that writes the depth of the surfaces under full coverage: its descriptor. */
   readonly depthPass: ReturnType<typeof gbufferDepthPass>
+  /** The depth of the strands that render custom depth. */
+  readonly customDepth: HairCustomDepth
+  /** The curve raster pipeline (`renderCurve`). */
+  readonly renderCurve: RenderCurve
   /** The sets of resources the image holds, made when it asks for more than they hold. */
   targets?: HairImageTargets & HeldSet
   buffers?: HairImageBuffers & HeldSet
   nodes?: HairNodes & HeldSet
+  /** The tiles, lists and counters of the compute raster (`ensureHairBinned`), made when it draws. */
+  binned?: HairBinned & HeldSet
+  /** The forward raster's buffers (`hairVisibilityComputeRasterForward`), made when it first draws. */
+  forward?: ForwardResources & HeldSet
   /** The record of the resources, kept while the sets stay. */
   record?: HairViewRecord
   /** The programs of the image's passes, kept while what picks them stays. */
@@ -214,6 +226,8 @@ function hairViewBytes(state: HairViewGpu) {
     state.targets,
     state.buffers,
     state.nodes,
+    state.forward,
+    state.binned,
     state.voxel.set,
     state.deepShadow.set,
   ])
@@ -233,6 +247,10 @@ function disposeHairView(device: GPUDevice, state: HairViewGpu) {
   state.targets?.dispose()
   state.buffers?.dispose()
   state.nodes?.dispose()
+  state.forward?.dispose()
+  state.binned?.dispose()
+  state.customDepth.dispose()
+  state.renderCurve.dispose()
   state.voxel.dispose()
   state.deepShadow.dispose()
   state.lut?.dispose()
@@ -257,7 +275,14 @@ function disposeHairView(device: GPUDevice, state: HairViewGpu) {
     },
   })
   instances.clear()
-  state.targets = state.buffers = state.nodes = state.visible = state.record = undefined
+  state.targets =
+    state.buffers =
+    state.nodes =
+    state.forward =
+    state.binned =
+    state.visible =
+    state.record =
+      undefined
   state.told.clear()
 }
 
@@ -290,6 +315,8 @@ export function createHairViewGpu(
     materialBinds: materialBinds(viewBlock.buffer, imageBlock.buffer),
     gbufferBinds: gbufferBinds(imageBlock.buffer),
     depthPass: gbufferDepthPass(),
+    customDepth: createHairCustomDepth(device, imageBlock.buffer),
+    renderCurve: createRenderCurve(device),
     voxel: createHairVoxelState(),
     voxelDrawn: [],
     deepShadow: createHairDeepShadowState(),
@@ -323,10 +350,10 @@ export function instanceGpu(
       HAIR_INSTANCE_WORDS * 4,
     )
     const { group } = instance
-    // Nine pipelines take turns with an instance's resources: the transmittance, the raster's two phases
-    // each with its large ribbons, the material, the voxel raster and the deep shadow's two passes.
+    // Seventeen pipelines take turns with an instance's resources: the transmittance, the raster's two phases
+    // each with its lists' passes, its large ribbons and its tiles, the material, the voxel raster, the deep shadow's two passes and the forward raster's cull.
     const groups = boundGroups<GPUBuffer, GPUBuffer, GPUBuffer>(
-      9,
+      17,
       (made, pipeline, points, tangents, uniform) =>
         made.createBindGroup({
           layout: pipeline.getBindGroupLayout(0),
@@ -375,6 +402,8 @@ interface HairImageDemand {
   readonly blendable: boolean
   /** Whether the device's rasterizer writes the samples, which asks for the multisampled targets. */
   readonly hardware: boolean
+  /** Whether the coverage of the pixels comes from the count of the strands (`hairVisibilityCoverageMapping`). */
+  readonly mapped: boolean
   /** The most compacted samples the image may place. */
   readonly needed: number
 }
@@ -425,6 +454,7 @@ const heldFits = (state: HairViewGpu, demand: HairImageDemand, room: number) => 
     targets.key[1] === demand.allocated[1] &&
     targets.key[2] === demand.blendable &&
     targets.key[3] === demand.hardware &&
+    targets.key[4] === demand.mapped &&
     !!buffers &&
     buffers.width >= width &&
     buffers.height >= height &&
@@ -467,14 +497,14 @@ export function ensureHairResources(
 function ensureTargets(
   state: HairViewGpu,
   device: GPUDevice,
-  { allocated, blendable, hardware }: HairImageDemand,
+  { allocated, blendable, hardware, mapped }: HairImageDemand,
 ) {
   const { readback } = state
   const targets = ensureSet(
     state.targets,
     device,
     {
-      key: [allocated[0], allocated[1], blendable, hardware],
+      key: [allocated[0], allocated[1], blendable, hardware, mapped],
       what: 'the textures of the hair strands',
       label: TARGETS_LABEL,
     },
@@ -486,6 +516,7 @@ function ensureTargets(
         blendable,
         readback.textures,
         hardware,
+        mapped,
       ),
     extendHairImageTargets,
   )

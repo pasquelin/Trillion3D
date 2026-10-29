@@ -8,36 +8,38 @@ import {
   SURFACE_COLOURS_FORMAT,
   SURFACE_WORDS_FORMAT,
 } from '../materials/surface/surfaceOutputs.ts'
+import { flagsOfChannels } from '../materials/surface/surfaceChannels.ts'
 import { HAIR_IMAGE_WGSL } from './imageBlock.ts'
 import { HAIR_FLAG } from './materialMath.ts'
-import { hairListedPixel, hairTileQuad } from './tilesWgsl.ts'
+import { hairListedPixel, hairTileQuadVs } from './tilesWgsl.ts'
 import {
   HAIR_NODE_DATA_WORDS,
   HAIR_NODE_OFFSET_BITS,
   HAIR_NODE_OFFSET_MASK,
   HAIR_ONLY_DEPTH_FORMAT,
-  HAIR_TILE_ALL,
   HAIR_TILE_LISTS,
   HAIR_TILE_SIZE,
 } from './visibilityMath.ts'
 import { HAIR_DEPTH_BIAS } from './depthBias.ts'
 
 /** What the passes after the material read of a pixel's samples: the nearest depth (reverse-Z, the
- *  greatest), and whether any of them casts a contact shadow or lights the scene behind it. The host
+ *  greatest), the lighting channels any of them is in (the union of their masks), and whether any of them
+ *  casts a contact shadow or lights the scene behind it. The host
  *  declares `nodeIndex` (the descriptors) and `nodeData` (the materials). */
 const EXTRACT_WGSL = wgslBlock(
   'HAIR_EXTRACT_WGSL',
   [],
-  `struct Extracted{depth:f32,castContact:bool,scatter:bool}
+  `struct Extracted{depth:f32,channels:u32,castContact:bool,scatter:bool}
 fn extractSample(pixel:vec2u)->Extracted{
  let desc=textureLoad(nodeIndex,vec2i(pixel),0).x;
  let first=desc&${HAIR_NODE_OFFSET_MASK}u;
  let count=desc>>${HAIR_NODE_OFFSET_BITS}u;
- var out=Extracted(0.0,false,false);
+ var out=Extracted(0.0,0u,false,false);
  for(var i=0u;i<count;i++){
   let at=(first+i)*${HAIR_NODE_DATA_WORDS}u;
   out.depth=max(out.depth,bitcast<f32>(nodeData[at]));
   let flags=(nodeData[at+4u]>>16u)&0xffu;
+  out.channels=out.channels|((nodeData[at+4u]>>24u)&7u);
   out.castContact=out.castContact||(flags&${HAIR_FLAG.castContactShadow}u)!=0u;
   out.scatter=out.scatter||(flags&${HAIR_FLAG.scatterSceneLight}u)!=0u;
  }
@@ -57,7 +59,8 @@ const TILE_BUILTINS =
  * COVERAGE: a pixel whose coverage is whole (the strands cover it to the threshold) and whose strands
  * do not light the scene behind them loses its surface: its colours are emptied (black, and no
  * emission nor occlusion), its flags say an unlit surface that casts a contact shadow where one of its
- * strands does. The lighting then leaves it to the strands, and the depth of the pixel is the strands'
+ * strands does and that is in the lighting channels of its strands (`flagsOfChannels`: the pass that reads the
+ * surfaces' channels finds the strands'). The lighting then leaves it to the strands, and the depth of the pixel is the strands'
  * (`HAIR_DEPTH_WGSL`).
  */
 export function hairGbufferWgsl(surfaces: boolean) {
@@ -67,7 +70,7 @@ export function hairGbufferWgsl(surfaces: boolean) {
  textureStore(colours,vec2i(pixel),${SURFACE_COLOUR_LAYERS.base},vec4f(0.0));
  textureStore(colours,vec2i(pixel),${SURFACE_COLOUR_LAYERS.normal},vec4f(0.0));
  if(image.emission!=0u){textureStore(colours,vec2i(pixel),image.emission,vec4f(0.0,0.0,0.0,1.0));}
- textureStore(words,vec2i(pixel),0,vec4u(${UNLIT_FLAG}u|select(${NO_CONTACT_SHADOW_SURFACE_FLAG}u,0u,found.castContact),0u,0u,0u));`
+ textureStore(words,vec2i(pixel),0,vec4u(${UNLIT_FLAG}u|select(${NO_CONTACT_SHADOW_SURFACE_FLAG}u,0u,found.castContact)|flagsOfChannels(found.channels),0u,0u,0u));`
     : ''
   return wgslProgram(
     `@group(0) @binding(1) var<storage,read> counts:array<u32,${HAIR_TILE_LISTS}>;
@@ -89,7 +92,13 @@ ${TILE_ENTRY} fn hairGbuffer(${TILE_BUILTINS}){
  let found=extractSample(pixel);
  textureStore(hairOnlyDepth,vec2i(pixel),vec4f(found.depth,0.0,0.0,0.0));${empty}
 }`,
-    [HAIR_IMAGE_WGSL, EXTRACT_WGSL, hairListedPixel, FLAT_INDEX_WGSL],
+    [
+      HAIR_IMAGE_WGSL,
+      EXTRACT_WGSL,
+      hairListedPixel,
+      FLAT_INDEX_WGSL,
+      ...(surfaces ? [flagsOfChannels] : []),
+    ],
   )
 }
 
@@ -103,9 +112,6 @@ export const HAIR_DEPTH_WGSL = wgslProgram(
 @group(0) @binding(2) var nodeIndex:texture_2d<u32>;
 @group(0) @binding(3) var<storage,read> nodeData:array<u32>;
 @group(0) @binding(4) var coverage:texture_2d<f32>;
-@vertex fn hairDepthVs(@builtin(vertex_index) vertex:u32,@builtin(instance_index) rank:u32)->@builtin(position) vec4f{
- return hairTileQuad(vertex,tiles[${HAIR_TILE_ALL}u*image.capacity+rank],image.size);
-}
 @fragment fn hairDepthFs(@builtin(position) position:vec4f)->@builtin(frag_depth) f32{
  let pixel=vec2u(position.xy);
  if(textureLoad(coverage,vec2i(pixel),0).r<1.0){discard;}
@@ -113,5 +119,5 @@ export const HAIR_DEPTH_WGSL = wgslProgram(
  if(found.scatter){discard;}
  return found.depth-${HAIR_DEPTH_BIAS};
 }`,
-  [HAIR_IMAGE_WGSL, EXTRACT_WGSL, hairTileQuad],
+  [HAIR_IMAGE_WGSL, EXTRACT_WGSL, hairTileQuadVs],
 )

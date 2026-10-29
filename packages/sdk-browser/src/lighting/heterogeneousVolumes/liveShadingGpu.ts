@@ -1,4 +1,7 @@
-import { readHeterogeneousVolumeSetting } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
+import {
+  readHeterogeneousVolumeSetting,
+  type HeterogeneousVolumeField,
+} from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import type { ResolvedHeterogeneousVolume } from '../../../../sdk-core/src/scene/heterogeneousVolume/contracts.ts'
 import { packVolume } from './liveShadingPack.ts'
 import { HV_ALL_LIGHTS } from './liveShadingPack.ts'
@@ -11,17 +14,32 @@ import { HV_ALL_LIGHTS } from './liveShadingPack.ts'
  * The voxels of the lighting cache of a volume of `resolution` voxels: the resolution over the
  * downsample factor — the override when it is above 0, else the volume's own (`lightingDownsample`)
  * —, held to 1 up to 1024, 1024 and 512 a side (`GetLightingCacheResolution`,
- * `HeterogeneousVolumes.cpp:889-901`).
+ * `HeterogeneousVolumes.cpp:889-901`); the volume's own factor is made coarser by the level of detail's (`lodFactor`, `volumeLod.ts`), the whole
+ * held to 1/8 or more.
  */
 export function lightingCacheResolution(
   resolution: readonly [number, number, number],
   override: number,
   lightingDownsample: number,
+  lodFactor = 1,
 ): [number, number, number] {
-  const factor = override > 0 ? override : lightingDownsample
+  const factor = Math.max(override > 0 ? override : lightingDownsample * lodFactor, 0.125)
   const held = (side: number, most: number) =>
     Math.min(Math.max(Math.trunc(side / factor), 1), most)
   return [held(resolution[0], 1024), held(resolution[1], 1024), held(resolution[2], 512)]
+}
+
+/** The resolution a volume is baked, lit and occluded at: its own, an axis replaced by the setting where above 0, each held to 1 up to 1024
+ *  (`GetVolumeResolution`, `HeterogeneousVolumes.cpp:594-612`). */
+export function volumeResolutionOf(
+  resolution: readonly [number, number, number],
+  settings: (field: HeterogeneousVolumeField) => number,
+): [number, number, number] {
+  const axes = ['X', 'Y', 'Z'] as const
+  return axes.map((axis, i) => {
+    const set = settings(`heterogeneousVolumesVolumeResolution${axis}`)
+    return Math.min(Math.max(set > 0 ? set : resolution[i], 1), 1024)
+  }) as [number, number, number]
 }
 
 /** The size of the image of the volumes at `factor` times fewer pixels a side (`GetDownsampledResolution`). */
@@ -34,18 +52,39 @@ export const downsampledSize = (size: readonly [number, number], factor: number)
  * 10 bits (four half floats on Metal); a storage texture cannot hold that format here, so it is four
  * half floats everywhere.
  */
-export function createLightingCache(
+function createLightingCache(
   device: GPUDevice,
   resolution: readonly [number, number, number],
   label: string,
+  mips: number,
 ) {
   return device.createTexture({
     label,
     dimension: '3d',
+    mipLevelCount: mips,
     size: [...resolution],
     format: 'rgba16float',
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
   })
+}
+
+/** The lighting cache of `size` held under `prefix` (every key of a role starts with it), made again where the size changed: the others of the prefix destroyed first. */
+export function heldLightingCache(
+  caches: Map<string, GPUTexture>,
+  device: GPUDevice,
+  prefix: string,
+  size: readonly [number, number, number],
+  label: string,
+  mips = 1,
+) {
+  const key = `${prefix}${size.join('x')}:${mips}`
+  let texture = caches.get(key)
+  if (!texture) {
+    for (const [other, old] of caches)
+      if (other.startsWith(prefix)) (old.destroy(), caches.delete(other))
+    caches.set(key, (texture = createLightingCache(device, size, label, mips)))
+  }
+  return texture
 }
 
 /** The image of the volumes: radiance in rgb, the transmittance in alpha. */
@@ -81,6 +120,12 @@ export interface VolumeWordsInputs {
   holdout: boolean
   existence: boolean
   cameraMap: boolean
+  /** Whether the passes read the volume's baked textures in place of its material (`heterogeneousVolumesPreshading`). */
+  baked?: boolean
+  /** Whether the march walks the hierarchy of boxes built over the sparse voxels. */
+  boxes?: boolean
+  /** The factor the level of detail makes the march's steps longer by. */
+  lodFactor?: number
 }
 
 /** The uniform of a volume for the pass of `light`: the last pass applies the emission and the transmittance, a build of a shadow map
@@ -104,11 +149,11 @@ export function volumeWords(c: VolumeWordsInputs, light: number, last: boolean, 
     shadowBiasFactor: volume.shadowBiasFactor,
     step: [
       settings('heterogeneousVolumesStepSize'),
-      volume.stepFactor,
+      volume.stepFactor * (c.lodFactor ?? 1),
       build
         ? settings('heterogeneousVolumesShadowsStepSize')
         : settings('heterogeneousVolumesShadowStepSize'),
-      build ? 1 : volume.shadowStepFactor,
+      build ? 1 : volume.shadowStepFactor * (c.lodFactor ?? 1),
     ],
     limits: [
       settings('heterogeneousVolumesMaxTraceDistance'),
@@ -124,5 +169,8 @@ export function volumeWords(c: VolumeWordsInputs, light: number, last: boolean, 
     holdout: c.holdout,
     existence: c.existence,
     cameraMap: c.cameraMap,
+    baked: c.baked,
+    boxes: c.boxes,
+    bakedMip: settings('heterogeneousVolumesPreshadingMipLevel'),
   })
 }

@@ -1,9 +1,11 @@
 // The live shading's march: the functions it declares, and the reference's constants it keeps.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import { HV_RAY_MARCH_WGSL } from './liveShadingWgsl.ts'
 
-const text = HV_RAY_MARCH_WGSL.text
+// The march with the declarations it lists (the box test is one of them).
+const text = wgslModule(HV_RAY_MARCH_WGSL)
 
 test('the march declares the reference functions, in the reference order of the steps', () => {
   for (const name of [

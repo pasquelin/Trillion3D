@@ -23,3 +23,20 @@ test('forced roots are bits of the filter, though the view lists nothing', () =>
   )
   assert.notEqual(filter.update(undefined, 70, under, 1, [3]), bits, 'a new list of roots')
 })
+
+// The roots the view's occlusion test found hidden are not drawn, but the bits the shadows follow (`base`) are the same.
+test('occluded roots are bits of the filter, not of its base', () => {
+  const filter = createViewFilter()
+  const under = () => 0
+  const bits = filter.update(undefined, 70, under, 1, [3], [35, 69])!
+  const base = filter.base()!
+  assert.equal(base.length, bits.length)
+  for (const rank of [3, 35, 69]) assert.ok((bits[rank >> 5] >>> (rank % 32)) & 1, `${rank}`)
+  assert.ok((base[0] >>> 3) & 1)
+  assert.equal(base[1] >>> 3, 0, 'rank 35 is not in the base')
+  const again = filter.update(undefined, 70, under, 1, [3], [69])!
+  assert.notEqual(again, bits)
+  assert.equal(filter.base(), base, 'the base did not move with the occlusion')
+  assert.equal(filter.update(undefined, 70, under, 1, undefined, undefined), undefined)
+  assert.equal(filter.base(), undefined)
+})

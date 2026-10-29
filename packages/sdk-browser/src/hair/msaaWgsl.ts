@@ -1,11 +1,10 @@
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
-import { FULLSCREEN_XY } from '../gpu/shader/fullscreenTriangle.ts'
 import { visWorkDeclaration, visWriteWgsl } from '../visibility/raster/pixelWgsl.ts'
 import { HAIR_BAND_WGSL, HAIR_IMAGE_WGSL } from './imageBlock.ts'
 import { samplePlane } from './rasterWgsl.ts'
 import { HAIR_RIBBON_WGSL } from './ribbonWgsl.ts'
-import { hairListedPixel } from './tilesWgsl.ts'
+import { hairListedPixel, hairTileQuadVs } from './tilesWgsl.ts'
 import { SEGMENT_VERTICES } from './transmittanceWgsl.ts'
 import {
   HAIR_ID_BITS,
@@ -34,7 +33,7 @@ export const hairMsaaPasses = (samples: HairSampleCount) => Math.ceil(samples / 
  * strand's identifier in each sample it covers and its depth in the sample's depth. The ribbons are
  * the software raster's (the same corners, the same least width); the hardware cuts them to the view
  * in clip space. The depth of the opaque surfaces is first written into every sample of the depth
- * target (`hairFillVs`, `hairFillFs`), so that a strand behind a surface fails the depth test, as one
+ * target (`MSAA_FILL_WGSL`), so that a strand behind a surface fails the depth test, as one
  * in front passes it (the nearer or equal). A segment that is not drawn, or whose ends have no side,
  * is six vertices at one point. `SHIFT_X` and `SHIFT_Y` move the pass by that many pixels (`HAIR_MSAA_SHIFT`).
  */
@@ -60,13 +59,24 @@ struct VsOut{@builtin(position) position:vec4f,@location(0) @interpolate(flat) c
  result.code=(segment&${2 ** HAIR_ID_BITS - 1}u)|((inst.ids.x&${2 ** (32 - HAIR_ID_BITS) - 1}u)<<${HAIR_ID_BITS}u);
  return result;
 }
-@fragment fn hairVisibilityFs(@location(0) @interpolate(flat) code:u32)->@location(0) vec4u{return vec4u(code&0xffffu,code>>16u,1u,0u);}
-@vertex fn hairFillVs(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}
+@fragment fn hairVisibilityFs(@location(0) @interpolate(flat) code:u32)->@location(0) vec4u{return vec4u(code&0xffffu,code>>16u,1u,0u);}`,
+  [HAIR_RIBBON_WGSL],
+)
+
+/**
+ * THE OPAQUE DEPTH INTO THE SAMPLES' DEPTH, drawn over the tiles with strands alone (a quad a tile of the
+ * list of all of them, the arguments the tiles' pass wrote): every sample of a pixel of those tiles takes
+ * the depth of the opaque surface, so that a strand behind it fails the depth test. The tiles with none
+ * are left as the clear made them; the resolve reads no other.
+ */
+export const MSAA_FILL_WGSL = wgslProgram(
+  `@group(0) @binding(1) var<storage,read> tiles:array<u32>;
+@group(0) @binding(2) var sceneDepth:texture_depth_2d;
 struct FillOut{@location(0) vis:vec4u,@builtin(frag_depth) depth:f32}
 @fragment fn hairFillFs(@builtin(position) position:vec4f)->FillOut{
  return FillOut(vec4u(0u),textureLoad(sceneDepth,vec2i(position.xy),0));
 }`,
-  [HAIR_RIBBON_WGSL],
+  [hairTileQuadVs],
 )
 
 /**

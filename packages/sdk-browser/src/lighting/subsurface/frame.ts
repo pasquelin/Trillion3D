@@ -19,7 +19,12 @@ import type { Velocity } from '../../post/taa/velocity.ts'
 import { lightingPhase } from '../surfaceCache/lighting/phase.ts'
 import { drawsLit } from '../../visibility/shader/shadeMode.ts'
 import { encodeKernels, drawRecombine } from './encode.ts'
-import { subsurfaceGroups, historyState, type SubsurfaceNeeded } from './groups.ts'
+import {
+  subsurfaceGroups,
+  historyState,
+  type SubsurfaceGroups,
+  type SubsurfaceNeeded,
+} from './groups.ts'
 import { writeSubsurfaceParams, type SubsurfaceImage } from './params.ts'
 import {
   subOf,
@@ -33,6 +38,9 @@ import type { SubsurfaceShape } from './shape.ts'
 import { createProfileTable, type ProfileTable } from './table.ts'
 import { ensureSubsurfaceView, subsurfaceViewBytes, type SubsurfaceView } from './view.ts'
 import { SSS_PARAMS } from './layout.ts'
+import { createSubsurfaceDebugPixel } from './debugPixel.ts'
+import { SAMPLED_LIGHTS_RULES } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
+import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import { MODEL_SWITCH } from '../../materials/surface/pixelModel.ts'
 import { registeredSubsurfaceProfiles } from './registry.ts'
 
@@ -74,6 +82,10 @@ export interface SubsurfaceScattering {
   refusal: { key: string; bytes: number } | undefined
   why: string | undefined
   drawn: boolean
+  /** The groups of the last image drawn, which the debug views draw over (`visualize.ts`). */
+  groups: SubsurfaceGroups | undefined
+  /** The reading of the pixel under the debug cursor (`subsurfaceDebugPixel`), made when it is first asked. */
+  pixel: ReturnType<typeof createSubsurfaceDebugPixel> | undefined
   readonly words: Float32Array<ArrayBuffer>
   bytes: number
   dispose(): void
@@ -98,12 +110,17 @@ function createSubsurfaceScattering(): SubsurfaceScattering {
     refusal: undefined,
     why: undefined,
     drawn: false,
+    groups: undefined,
+    pixel: undefined,
     words: new Float32Array(new ArrayBuffer(SSS_PARAMS.words * 4)),
     bytes: 0,
     dispose() {
       state.view?.dispose()
       state.table?.destroy()
       state.view = state.table = undefined
+      state.pixel?.dispose()
+      state.pixel = undefined
+      state.groups = undefined
       state.valid = false
       state.bytes = 0
     },
@@ -281,10 +298,32 @@ export function encodeSubsurfaceScattering(
   )
   device.queue.writeBuffer(view.buffers.params, 0, state.words)
   const groups = subsurfaceGroups(view, programs, needed)
+  state.groups = groups
   encoder.clearBuffer(view.buffers.counts)
   encoder.clearBuffer(view.buffers.masks)
   const written = state.valid ? ((1 - state.written) as 0 | 1) : 0
   encodeKernels(encoder, view, groups, pipelines, shape, historyState(state.valid, written), image)
+  if (state.settings.debugPixel && !shape.half) {
+    // The pixel under the debug cursor (the middle of the image where none is set), read before the recombine rewrites the lit image.
+    const cursor = (
+      field: 'sampledLightsDebugCursorX' | 'sampledLightsDebugCursorY',
+      size: number,
+    ) => {
+      const value = readSetting(SAMPLED_LIGHTS_RULES, rt.context, field)
+      return Math.min(value >= 0 ? value : Math.floor(size / 2), size - 1)
+    }
+    const pixel = (state.pixel ??= createSubsurfaceDebugPixel(device))
+    pixel.encode(
+      encoder,
+      run.frame,
+      shape,
+      groups.common,
+      needed.color,
+      view.textures.pass2,
+      cursor('sampledLightsDebugCursorX', gpu.targetSize[0]),
+      cursor('sampledLightsDebugCursorY', gpu.targetSize[1]),
+    )
+  }
   drawRecombine(encoder, view, groups, pipelines, gpu.hdrView!)
   if (!shape.forceSeparable) {
     state.written = written
@@ -346,3 +385,20 @@ function subsurfaceLitState(rt: WebgpuPagesRuntime) {
   const postprocess = !!rt.gpu.surfaces?.hasSubsurface && state.settings.enabled
   return { postprocess, checkerboard: postprocess && subsurfaceCheckerboardOn(state.settings) }
 }
+
+/** What the debug views of the subsurface scattering draw from: the groups of the last image the pass drew, none if it drew none this image, with the profiles and the settings. */
+export function subsurfaceDebugSource(rt: WebgpuPagesRuntime) {
+  const state = rt.gpu.subsurface
+  return state?.drawn && state.groups
+    ? {
+        groups: state.groups,
+        profiles: state.profiles,
+        settings: state.settings,
+        pixel: state.pixel,
+      }
+    : undefined
+}
+
+/** Requests mapping of the pixel reading, once the frame that copied it is submitted. */
+export const subsurfaceDebugSubmitted = (rt: { gpu: WebgpuPagesRuntime['gpu'] }) =>
+  rt.gpu.subsurface?.pixel?.submitted()

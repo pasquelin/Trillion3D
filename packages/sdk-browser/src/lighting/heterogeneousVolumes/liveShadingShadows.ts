@@ -4,11 +4,14 @@ import type { HeterogeneousVolumeField } from '../../../../sdk-core/src/contract
 import {
   boundingSphere,
   HV_SHADOW_BYTES,
+  shadowLightSettingOf,
   shadowLightsOf,
   writeShadowUniforms,
   type BeerBind,
 } from './beerShadowMapGpu.ts'
+import { AVSM_BLOCK_MARK, avsmSettingsOf, packAvsmMaps } from './liveShadingAvsm.ts'
 import { bufferOf, stepImage, type State } from './liveShadingState.ts'
+import { fitAvsmResolution } from './volumetricShadow/avsmBlockPlan.ts'
 
 /** What one image holds for the maps of the volumes' shadows: the lights that have one, the size of their faces, how to reach the
  *  uniform and the images of a light, the count of volumes built into each, and the binding of a pass that builds none. The
@@ -26,9 +29,28 @@ export function shadowSetup(
     | undefined,
   settings: (field: HeterogeneousVolumeField) => number,
   beerFormat: GPUTextureFormat,
+  /** Whether the device can bind the program that builds the adaptive map for every volume placed; else the maps are the Beer maps. */
+  adaptiveFits = true,
 ) {
-  const resolution = settings('heterogeneousVolumesShadowsResolution')
-  const lights = placed ? shadowLightsOf(rt.lights.store) : []
+  // No light has a map to make while the volumes cast no shadows (the grids of the voxel-grid pipeline are still built, `ShouldBuildVoxelGrids`).
+  const lights =
+    placed && settings('heterogeneousVolumesShadows')
+      ? shadowLightsOf(rt.lights.store, (kind) => !!settings(shadowLightSettingOf(kind)))
+      : []
+  // The adaptive maps keep samples a texel: their resolution is halved until their lists and blocks fit the device's largest binding.
+  const adaptive = adaptiveFits && settings('heterogeneousVolumesShadowsType') === 0
+  const requested = settings('heterogeneousVolumesShadowsResolution')
+  // The voxel grids' shadows are lists of samples too, whichever map they are kept in.
+  const listed = adaptive || settings('heterogeneousVolumesShadowsPipeline') === 1
+  const resolution = listed
+    ? fitAvsmResolution(
+        requested,
+        lights.map((light) => light.faces),
+        avsmSettingsOf(settings).maxSampleCount,
+        device.limits.maxStorageBufferBindingSize,
+        2 + Math.max(...lights.map((light) => light.slice), 0),
+      )
+    : requested
   const uniformOf = (rank: number) =>
     bufferOf(
       held,
@@ -44,7 +66,7 @@ export function shadowSetup(
       resolution,
       sphere: boundingSphere(placed),
       near: settings('heterogeneousVolumesShadowsNearClippingDistance'),
-      precision: settings('heterogeneousVolumesShadowsPrecision'),
+      precision: adaptive ? AVSM_BLOCK_MARK : settings('heterogeneousVolumesShadowsPrecision'),
     })
   const stand: BeerBind = {
     uniform: bufferOf(held, device, 'beer map stand-in', HV_SHADOW_BYTES, GPUBufferUsage.UNIFORM),
@@ -59,7 +81,16 @@ export function shadowSetup(
       16,
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     )
-  return { lights, resolution, uniformOf, imageOf, jobOf, built: new Map<number, number>(), stand }
+  return {
+    lights,
+    resolution,
+    adaptive,
+    uniformOf,
+    imageOf,
+    jobOf,
+    built: new Map<number, number>(),
+    stand,
+  }
 }
 
 /** Packs the maps the image built into the buffer the lit passes read (`heterogeneousShadowBufferOf`); none left where there are none. */
@@ -90,5 +121,26 @@ export function packShadowMaps(
     maps: held.maps,
     precision,
     jobOf,
+  })
+}
+
+/** Packs the adaptive maps the image built into the buffer the lit passes read (`packAvsmMaps`); none left where there are none. */
+export function packAdaptiveMaps(
+  held: State,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  shadow: ReturnType<typeof shadowSetup>,
+  settings: (field: HeterogeneousVolumeField) => number,
+) {
+  held.maps = []
+  held.packedMaps = packAvsmMaps({
+    held,
+    device,
+    encoder,
+    settings,
+    resolution: shadow.resolution,
+    lights: shadow.lights,
+    built: shadow.built,
+    uniformOf: shadow.uniformOf,
   })
 }

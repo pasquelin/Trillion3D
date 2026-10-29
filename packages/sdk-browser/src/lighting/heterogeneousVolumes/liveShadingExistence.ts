@@ -1,4 +1,4 @@
-import { createLightingCache } from './liveShadingGpu.ts'
+import { heldLightingCache } from './liveShadingGpu.ts'
 import type { State } from './liveShadingState.ts'
 
 /**
@@ -21,16 +21,8 @@ export function existenceMaskOf(c: {
 }) {
   const { held, device, encoder, size, key } = c
   if (!c.existence || !c.dilate) return undefined
-  const textureOf = (role: string) => {
-    const at = `${role}:${key}:${size.join('x')}`
-    let texture = held.caches.get(at)
-    if (!texture) {
-      for (const [other, old] of held.caches)
-        if (other.startsWith(`${role}:${key}:`)) (old.destroy(), held.caches.delete(other))
-      held.caches.set(at, (texture = createLightingCache(device, size, `${key} ${role}`)))
-    }
-    return texture
-  }
+  const textureOf = (role: string) =>
+    heldLightingCache(held.caches, device, `${role}:${key}:`, size, `${key} ${role}`)
   const raw = textureOf('mask')
   const dilated = textureOf('dilated')
   const groups = [Math.ceil(size[0] / 4), Math.ceil(size[1] / 4), Math.ceil(size[2] / 4)] as const

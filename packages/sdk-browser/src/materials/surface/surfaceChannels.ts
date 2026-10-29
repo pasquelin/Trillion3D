@@ -31,6 +31,13 @@ export const channelsOfFlags = wgslFn(
   `fn channelsOfFlags(flags:u32)->u32{return storedToChannels(flags>>${LIGHTING_CHANNELS_SURFACE_SHIFT}u);}`,
 )
 
+/** The surface flags' bits of a surface in the lighting channels of `mask` (three bits, a channel a bit): `channelsOfFlags` undone. */
+export const flagsOfChannels = wgslFn(
+  'flagsOfChannels',
+  [LIGHTING_CHANNELS_WGSL],
+  `fn flagsOfChannels(mask:u32)->u32{return ((mask^LIGHTING_CHANNELS_DEFAULT)&LIGHTING_CHANNELS_ALL)<<${LIGHTING_CHANNELS_SURFACE_SHIFT}u;}`,
+)
+
 /** The channels of the pixel (or of the translucent surface) being lit: every channel until a program sets them. */
 export const SURFACE_CHANNELS_WGSL = wgslBlock(
   'SURFACE_CHANNELS_WGSL',

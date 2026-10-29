@@ -131,6 +131,10 @@ function occlusionHandle(device: GPUDevice, o: Occlusion) {
     get corners() {
       return o.corners
     },
+    /** The buffer of those bits, for an owner whose entries a kernel marks (`../../visibility/hzbOcclusion/`): cleared before it is. */
+    get unculled() {
+      return o.unculled
+    },
     /** One bit per entry, set where the entry is never culled: filled by the owner, then sent
      *  whole by `uploadUnculled`. */
     get unculledBits() {

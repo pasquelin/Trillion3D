@@ -11,6 +11,7 @@ import {
   HAIR_MSAA_SHIFT,
   HAIR_MSAA_VIS_FORMAT,
   hairMsaaPasses,
+  MSAA_FILL_WGSL,
   MSAA_WGSL,
   msaaResolveWgsl,
 } from './msaaWgsl.ts'
@@ -18,9 +19,14 @@ import { clearSamplesPipeline, type HairBandBuffers } from './rasterPass.ts'
 import { boundGroups, type DrawnInstance } from './ribbonBinds.ts'
 import type { HairTiles } from './tilesPass.ts'
 import { SEGMENT_VERTICES } from './transmittanceWgsl.ts'
-import { HAIR_ALL_TILES_DISPATCH, type HairSampleCount } from './visibilityMath.ts'
+import {
+  HAIR_ALL_TILES_DISPATCH,
+  HAIR_ALL_TILES_DRAW,
+  type HairSampleCount,
+} from './visibilityMath.ts'
 
 const shaderModule = oncePerDevice((device) => device.createShaderModule({ code: MSAA_WGSL }))
+const fillModule = oncePerDevice((device) => device.createShaderModule({ code: MSAA_FILL_WGSL }))
 
 const TRIANGLES: GPUPrimitiveState = { topology: 'triangle-list', cullMode: 'none' }
 const MULTISAMPLE: GPUMultisampleState = { count: HAIR_MSAA_SAMPLES }
@@ -54,13 +60,13 @@ const drawPipelines = oncePerDevice((device) =>
   }),
 )
 
-/** The pipeline that writes the opaque depth into every sample of the depth target. */
+/** The pipeline that writes the opaque depth into every sample of the depth target, over the tiles with strands. */
 const fillPipeline = oncePerDevice((device) => {
-  const module = shaderModule(device)
+  const module = fillModule(device)
   return preparedPipeline(device, {
     label: `${HAIR_STRANDS_PASS_PREFIX}visibility fill opaque depth`,
     layout: 'auto',
-    vertex: { module, entryPoint: 'hairFillVs' },
+    vertex: { module, entryPoint: 'hairTileQuadVs' },
     fragment: { module, entryPoint: 'hairFillFs', targets: [{ format: HAIR_MSAA_VIS_FORMAT }] },
     primitive: TRIANGLES,
     depthStencil: { format: DEPTH_FORMAT, depthWriteEnabled: true, depthCompare: 'always' },
@@ -140,11 +146,17 @@ export function msaaBinds() {
         entries: sequentialEntries([{ buffer: view }]),
       }),
     ),
-    fill: boundGroups<GPUTextureView, undefined, undefined>(1, (device, pipeline, depth) =>
-      device.createBindGroup({
-        layout: pipeline.getBindGroupLayout(1),
-        entries: [{ binding: 1, resource: depth }],
-      }),
+    fill: boundGroups<GPUBuffer, HairTiles, GPUTextureView>(
+      1,
+      (device, pipeline, image, tiles, depth) =>
+        device.createBindGroup({
+          layout: pipeline.getBindGroupLayout(0),
+          entries: [
+            { binding: 0, resource: { buffer: image } },
+            { binding: 1, resource: { buffer: tiles.data } },
+            { binding: 2, resource: depth },
+          ],
+        }),
     ),
   }
 }
@@ -210,10 +222,10 @@ export function encodeHairMsaa(
     render.setScissorRect(rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1])
     render.setPipeline(pipelines.fill)
     render.setBindGroup(
-      1,
-      targets.msaaBinds.fill(device, pipelines.fill, frame.depthView, undefined, undefined),
+      0,
+      targets.msaaBinds.fill(device, pipelines.fill, frame.image, tiles, frame.depthView),
     )
-    render.draw(3)
+    render.drawIndirect(tiles.drawArgs, HAIR_ALL_TILES_DRAW)
     render.setPipeline(draw)
     render.setBindGroup(
       1,

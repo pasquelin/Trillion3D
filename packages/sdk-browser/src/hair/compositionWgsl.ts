@@ -29,7 +29,8 @@ const G = HAIR_COMPOSE_GROUP
  * on, taken through the fog along the way to the nearest strand (`fogOpaque`, the fog pass's own: the height fog, the local
  * volumes, the fog's volume and the haze) and multiplied by the share of the pixel the strands cover. The result is premultiplied
  * (the pipeline blends it with `one` and `1 - alpha`): the image under the strands lets through what they do not cover.
- * Group 0 is the fog pass's, group 1 the strands'.
+ * Group 0 is the fog pass's, group 1 the strands'. The forward raster's form (`hairForwardComposeFs`) reads the colour it shaded (the
+ * strands' light multiplied by their coverage, and the coverage) where the grid is bound, and takes it through the same fog.
  */
 export const hairComposeWgsl = (localFog: boolean) =>
   wgslBlock(
@@ -65,5 +66,15 @@ export const hairComposeWgsl = (localFog: boolean) =>
   over=fogOpaque(worldAt(position.xy,textureLoad(hairNearest,pixel,0).x),view.display.yzw,position.xy);
  }
  return vec4f((light*over.a+preExposed(over.rgb))*min(covered,1.0),min(covered,1.0));
+}
+@fragment fn hairForwardComposeFs(@builtin(position) position:vec4f)->@location(0) vec4f{
+ let pixel=vec2i(position.xy);
+ let shaded=textureLoad(hairLightGrid,pixel,0);
+ if(shaded.a<=0.0){discard;}
+ var over=vec4f(0.0,0.0,0.0,1.0);
+ if(view.views.x==0.0){
+  over=fogOpaque(worldAt(position.xy,textureLoad(hairNearest,pixel,0).x),view.display.yzw,position.xy);
+ }
+ return vec4f(shaded.rgb*over.a+preExposed(over.rgb)*shaded.a,shaded.a);
 }`,
   )

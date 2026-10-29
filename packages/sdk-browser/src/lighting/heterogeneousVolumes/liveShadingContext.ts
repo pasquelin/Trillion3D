@@ -19,10 +19,14 @@ import { vsmOrStandIns } from '../shadows/vsm/frame/vsmConsumers.ts'
 import { publishHeterogeneousCamera } from './cameraMap.ts'
 import { createVolumeImage, downsampledSize } from './liveShadingGpu.ts'
 import { beerFormatOf } from './beerShadowMapGpu.ts'
+import { gridDebugModeOf, usesVoxelGrids } from './voxelGridSettings.ts'
+import { storageBuffersOf } from './liveShadingResources.ts'
 import { shadowSetup } from './liveShadingShadows.ts'
 import {
   type State,
   ensureStandIns,
+  compiledOf,
+  dropHeld,
   placementOf,
   bufferOf,
   release,
@@ -138,6 +142,36 @@ function forgetShadows(rt: WebgpuPagesRuntime, held: State) {
   publishHeterogeneousShadowBuffer(rt.gpu, undefined)
 }
 
+/**
+ * Lets go of what an option that is now off left held: the baked textures and the boxes' hierarchy of the preshading, the voxel grids and the lists of the
+ * shadows, the existence masks. (The occlusion's texture is let go of by its own pass.)
+ */
+function releaseSwitchedOff(held: State, settings: Settings, diagnostic: string) {
+  const grids = usesVoxelGrids(settings) || gridDebugModeOf(diagnostic, settings) !== 0
+  const shadows = !!settings('heterogeneousVolumesShadows')
+  const preshading = !!settings('heterogeneousVolumesPreshading')
+  const masks = !!settings('heterogeneousVolumesUseExistenceMask')
+  const adaptive = settings('heterogeneousVolumesShadowsType') === 0
+  const camera =
+    !!settings('heterogeneousVolumesTranslucency') &&
+    settings('heterogeneousVolumesComposition') === 0
+  const lists = (key: string) => key.startsWith('avsm ')
+  const beerMaps = (key: string) =>
+    /^beer \d/.test(key) || /^beer map (\d|pack)/.test(key) || key === 'beer maps packed'
+  if (!grids) held.voxelGrids = undefined
+  dropHeld(
+    held,
+    (key) =>
+      (!grids && key.startsWith('grid ')) ||
+      (!shadows && (lists(key) || beerMaps(key))) ||
+      (shadows && !adaptive && lists(key)) ||
+      (!camera && key.startsWith('camera beer')) ||
+      (!preshading &&
+        (key.startsWith('bake:') || key.startsWith('min:') || key.includes(' sparse '))) ||
+      (!masks && (key.startsWith('mask:') || key.startsWith('dilated:'))),
+  )
+}
+
 /** The two images of the volumes at the downsampled size, made again where it moved. */
 function ensureTargets(
   held: State,
@@ -159,7 +193,7 @@ function ensureTargets(
   return held.targets
 }
 
-/** The modes the scalability decides: below the highest the fog's in-scattering is the linear approximation and the indirect light the cache's (epic) or none. */
+/** The modes the scalability decides: below the highest the fog's in-scattering is the linear approximation and the indirect light the cache's (level 2) or none. */
 function scalabilityModes(
   settings: Settings,
   scalability: number,
@@ -269,6 +303,36 @@ function sceneInputs(
 }
 
 /**
+ * Whether the shadows may be made as adaptive maps: the program that builds them binds one more storage buffer than the others, which a textured volume
+ * on a device with 8 storage buffers a stage cannot. Where one volume cannot, every map of the image is a Beer map (the setting's fallback), and the
+ * engine's diagnostics say so.
+ */
+function adaptiveFits(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  placed: readonly ReturnType<typeof placementOf>[],
+  settings: Settings,
+) {
+  if (settings('heterogeneousVolumesShadowsType') !== 0) return true
+  const fits = placed.every((item) => {
+    const compiled = compiledOf(item.volume)
+    return (
+      !compiled ||
+      storageBuffersOf(compiled.uses.textures, 'avsm') <=
+        device.limits.maxStorageBuffersPerShaderStage
+    )
+  })
+  if (!fits)
+    rt.diag.diagnosticFailure(
+      'heterogeneous-volume-adaptive-shadows-unavailable',
+      new Error(
+        'the device binds too few storage buffers a stage for the adaptive shadow map of a textured volume: the Beer map is used',
+      ),
+    )
+  return fits
+}
+
+/**
  * The context of one image of the volumes, none where there is nothing to encode: the state, the volumes placed, the camera's numbers (`frameView`),
  * the shadows' set-up, the holdout the volumes that hold out add to (cleared once before the first of them, where the alpha holdout is in effect and
  * the device lets the program bind its fifth storage texture) and, composited with the translucency, the two images of the camera's beer map.
@@ -288,7 +352,10 @@ export function beginFrame(
   const settings: Settings = (field) => readHeterogeneousVolumeSetting(rt, field) as number
   if (shadowed) forgetShadows(rt, held)
   // The maps of the volumes' shadows are made where the setting asks them.
-  if (shadowed && !settings('heterogeneousVolumesShadows')) return undefined
+  // (The voxel grids are built whatever the volumes cast: a diagnostic view of their transmittance reads them.)
+  if (shadowed && !settings('heterogeneousVolumesShadows') && !usesVoxelGrids(settings))
+    return undefined
+  releaseSwitchedOff(held, settings, rt.run.diagnostic)
   const clocks = rt.run.graphClocks ?? { time: 0, realTime: 0 }
   const placed = placedVolumes(
     { held, sparse, values: store.values, eye: cam.eye, clocks },
@@ -325,7 +392,15 @@ export function beginFrame(
     scalability,
     ...scalabilityModes(settings, scalability, gi?.fogView),
     ...sceneInputs(rt, device, held, settings, scalability, shadowed),
-    shadow: shadowSetup(held, device, rt, shadowed ? placed : undefined, settings, beerFormat),
+    shadow: shadowSetup(
+      held,
+      device,
+      rt,
+      shadowed ? placed : undefined,
+      settings,
+      beerFormat,
+      adaptiveFits(rt, device, placed, settings),
+    ),
     placed,
     holdoutTarget,
     useExistence: !!settings('heterogeneousVolumesUseExistenceMask'),

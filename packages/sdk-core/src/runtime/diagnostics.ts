@@ -1,3 +1,17 @@
+/** The diagnostic views of the heterogeneous volumes' voxel grids, each by the debug mode (1 to 9, `heterogeneousVolumesDebug`) that finds the
+ *  transmittance through the grids the way it names: they replace the volumes' image while the grids are built (`heterogeneousVolumesShadowsPipeline` 1). */
+export const HETEROGENEOUS_VOLUME_GRID_VIEWS = {
+  'heterogeneous-volumes-dda-marching': 1,
+  'heterogeneous-volumes-sample-marching': 2,
+  'heterogeneous-volumes-sample-majorant': 3,
+  'heterogeneous-volumes-sample-max-majorant': 4,
+  'heterogeneous-volumes-sample-majorant-dda': 5,
+  'heterogeneous-volumes-delta-tracking': 6,
+  'heterogeneous-volumes-ratio-tracking': 7,
+  'heterogeneous-volumes-spectral-ratio-tracking': 8,
+  'heterogeneous-volumes-tracking-majorant-dda': 9,
+} as const
+export type HeterogeneousVolumeGridView = keyof typeof HETEROGENEOUS_VOLUME_GRID_VIEWS
 /** Availability describes real pipeline outputs, never synthetic overlays. */
 export type DiagnosticMode =
   | 'beauty'
@@ -34,6 +48,15 @@ export type DiagnosticMode =
   | 'surface-cache-cards'
   | 'surface-cache-fill'
   | 'surface-cache-age'
+  | 'hair-light-bounds'
+  | 'hair-deep-opacity-maps'
+  | 'hair-macro-group-screen-rect'
+  | 'hair-voxels-density'
+  | 'sampled-lights-overview'
+  | 'sampled-lights-shadow-casters'
+  | 'sampled-lights-shadow-caster-quality'
+  | 'subsurface-profiles'
+  | HeterogeneousVolumeGridView
 /** Whether a view mode is available here, and why not. */
 export interface DiagnosticCapability {
   /** Whether it can be shown. */
@@ -64,7 +87,24 @@ export interface DiagnosticCapability {
  *  @property surface-cache-depth - The atlas: the depth of each texel in its card's box.
  *  @property surface-cache-cards - The atlas: one colour for each card.
  *  @property surface-cache-fill - The atlas: which texels hold a page, the coarsest levels apart.
- *  @property surface-cache-age - The atlas: how long ago each page was captured. */
+ *  @property surface-cache-age - The atlas: how long ago each page was captured.
+ *  @property hair-light-bounds - The hair strands' deep shadows' settings and bounds over the image.
+ *  @property hair-deep-opacity-maps - A deep shadow's depth and layers over the image.
+ *  @property hair-macro-group-screen-rect - The pixels each macro group of strands covers.
+ *  @property hair-voxels-density - The strands' count along each pixel's ray through the voxels.
+ *  @property heterogeneous-volumes-dda-marching - The transmittance through the ortho and frustum voxel grids, walked cell by cell (DDA) from the camera to the opaque surface.
+ *  @property heterogeneous-volumes-sample-marching - The transmittance through the ortho grid by samples, steps of a voxel along the ray of each pixel.
+ *  @property heterogeneous-volumes-sample-majorant - The transmittance through the ortho grid by samples of the majorant of the cell under each step.
+ *  @property heterogeneous-volumes-sample-max-majorant - The transmittance through the ortho grid by samples of the greatest majorant of the grid.
+ *  @property heterogeneous-volumes-sample-majorant-dda - The transmittance through the ortho grid by samples, the cells of the majorant grid walked in turn.
+ *  @property heterogeneous-volumes-delta-tracking - The transmittance through the ortho grid by spectral weighted delta tracking, one random walk a pixel.
+ *  @property heterogeneous-volumes-ratio-tracking - The transmittance through the ortho grid by ratio tracking, one random walk a pixel.
+ *  @property heterogeneous-volumes-spectral-ratio-tracking - The transmittance through the ortho grid by spectral ratio tracking, one random walk a pixel.
+ *  @property heterogeneous-volumes-tracking-majorant-dda - The transmittance through the ortho grid by delta tracking, the cells of the majorant grid walked in turn.
+ *  @property sampled-lights-overview - The shadow casters and their quality of the sampled lighting side by side.
+ *  @property sampled-lights-shadow-casters - The surfaces the sampled lighting’s rays meet, one colour each.
+ *  @property sampled-lights-shadow-caster-quality - Where the traced surfaces lie off the drawn ones.
+ *  @property subsurface-profiles - The subsurface profile of each pixel as a coloured, lettered map. */
 export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability>
 /**
  * The view modes a world can show instead of the normal image, each with whether it is available.
@@ -126,6 +166,25 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  *   card's coarsest level, always kept, blue where it is a finer page, black where it is free.
  * @property surface-cache-age - The same atlas: the images since each page was captured, white under
  *   one, from red to blue as it ages, black where no page is.
+ * @property hair-light-bounds - Over the image, the settings of the strands (their components, the
+ *   voxelization, the deep shadows' atlas) and, as the settings `hairDeepShadowDebugMacroBounds` and
+ *   `hairDeepShadowDebugShadowBounds` ask, the boxes of the macro groups and the frusta of the deep shadows.
+ * @property hair-deep-opacity-maps - Over the image, the depth and the layers of the deep shadow
+ *   `hairDeepShadowDebugIndex`, side by side, with the same information as the light bounds.
+ * @property hair-macro-group-screen-rect - Over the image, a green frame around the pixels each macro group
+ *   covers and one around all of them.
+ * @property hair-voxels-density - Over the image, the strands' count along the ray of each pixel
+ *   through the voxels, from green to red, or the first page that holds voxels (`hairVoxelDebugDrawPages`).
+ * @property heterogeneous-volumes-dda-marching - Instead of the heterogeneous volumes, the transmittance through their voxel grids, found by walking the
+ *   rays cell by cell, as grey in the alpha and the opacity left in the colour; the grids are built while `heterogeneousVolumesShadowsPipeline` is 1.
+ * @property heterogeneous-volumes-sample-marching, heterogeneous-volumes-sample-majorant, heterogeneous-volumes-sample-max-majorant, heterogeneous-volumes-sample-majorant-dda -
+ *   The same by samples along each ray: steps of a voxel, the majorant of the cell under each step, the greatest majorant of the grid, the cells of the majorant grid in turn.
+ * @property heterogeneous-volumes-delta-tracking, heterogeneous-volumes-ratio-tracking, heterogeneous-volumes-spectral-ratio-tracking, heterogeneous-volumes-tracking-majorant-dda -
+ *   The same by tracking, one random walk a pixel with the grid's greatest majorant as its step (the last walks the majorant grid cell by cell).
+ * @property sampled-lights-overview - Over the image, the shadow casters and the shadow caster quality views side by side in tiles, as the numbered views 2 and 3 show them; the rest of the image as it is.
+ * @property sampled-lights-shadow-casters - The surface the shadow rays of the sampled lighting meet from the eye at each pixel, one colour per object, lit by a fixed light, the sky where nothing is hit.
+ * @property sampled-lights-shadow-caster-quality - Where the surface the shadow rays meet lies behind the drawn one by more than `sampledLightsVisualizeShadowCasterMissingDistance` (orange to red, a caster missing) or in front of it by more than `…PoorDistance` (blue, mismatching).
+ * @property subsurface-profiles - The subsurface profile of each pixel over the middle of the image, one colour and one character per profile (the default skin buff, then red, green, blue, magenta, cyan, yellow; 100 dark green, 255 white), faded where the scattering is narrower than a pixel, with the title and the list of profiles.
  */
 export const DIAGNOSTICS: DiagnosticCapabilities = {
   beauty: { available: true, reason: 'glTF materials' },
@@ -270,5 +329,90 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     available: true,
     reason:
       'The whole atlas, the images since each page was captured: white under one, red to blue as it ages, black where no page is held',
+  },
+  'hair-light-bounds': {
+    available: true,
+    reason:
+      "The strands' components, voxelization and deep shadow atlas listed over the image, with the macro groups' boxes and the deep shadows' frusta the settings ask for; needs hairStrands and a scene that carries strands",
+  },
+  'hair-deep-opacity-maps': {
+    available: true,
+    reason:
+      'The depth and the layers of the deep shadow hairDeepShadowDebugIndex side by side over the image, the layers divided by hairDeepShadowDebugScale; needs a light that casts hair deep shadows',
+  },
+  'hair-macro-group-screen-rect': {
+    available: true,
+    reason:
+      'A green frame around the pixels each macro group of strands covers, and one around all of them; needs hairStrands and a scene that carries strands',
+  },
+  'hair-voxels-density': {
+    available: true,
+    reason:
+      "The strands' count along each pixel's ray through the voxels, green to red, or the first page that holds voxels; needs hairVoxelization",
+  },
+  'heterogeneous-volumes-dda-marching': {
+    available: true,
+    reason:
+      'The transmittance through the ortho and frustum voxel grids, walked cell by cell (DDA) from the camera to the opaque surface; needs a heterogeneous volume and heterogeneousVolumesShadowsPipeline 1',
+  },
+  'heterogeneous-volumes-sample-marching': {
+    available: true,
+    reason:
+      'The transmittance through the ortho grid by samples, steps of a voxel along the ray of each pixel; needs a heterogeneous volume and heterogeneousVolumesShadowsPipeline 1',
+  },
+  'heterogeneous-volumes-sample-majorant': {
+    available: true,
+    reason:
+      'The transmittance through the ortho grid by samples of the majorant of the cell under each step; needs a heterogeneous volume and heterogeneousVolumesShadowsPipeline 1',
+  },
+  'heterogeneous-volumes-sample-max-majorant': {
+    available: true,
+    reason:
+      'The transmittance through the ortho grid by samples of the greatest majorant of the grid; needs a heterogeneous volume and heterogeneousVolumesShadowsPipeline 1',
+  },
+  'heterogeneous-volumes-sample-majorant-dda': {
+    available: true,
+    reason:
+      'The transmittance through the ortho grid by samples, the cells of the majorant grid walked in turn; needs a heterogeneous volume and heterogeneousVolumesShadowsPipeline 1',
+  },
+  'heterogeneous-volumes-delta-tracking': {
+    available: true,
+    reason:
+      'The transmittance through the ortho grid by spectral weighted delta tracking, one random walk a pixel; needs a heterogeneous volume and heterogeneousVolumesShadowsPipeline 1',
+  },
+  'heterogeneous-volumes-ratio-tracking': {
+    available: true,
+    reason:
+      'The transmittance through the ortho grid by ratio tracking, one random walk a pixel; needs a heterogeneous volume and heterogeneousVolumesShadowsPipeline 1',
+  },
+  'heterogeneous-volumes-spectral-ratio-tracking': {
+    available: true,
+    reason:
+      'The transmittance through the ortho grid by spectral ratio tracking, one random walk a pixel; needs a heterogeneous volume and heterogeneousVolumesShadowsPipeline 1',
+  },
+  'heterogeneous-volumes-tracking-majorant-dda': {
+    available: true,
+    reason:
+      'The transmittance through the ortho grid by delta tracking, the cells of the majorant grid walked in turn; needs a heterogeneous volume and heterogeneousVolumesShadowsPipeline 1',
+  },
+  'sampled-lights-overview': {
+    available: true,
+    reason:
+      'The shadow casters view and the quality view side by side, over the normal image; needs sampledLights',
+  },
+  'sampled-lights-shadow-casters': {
+    available: true,
+    reason:
+      'The surface the shadow rays meet at each pixel, one colour per object, lit by a fixed light, the sky where none; needs sampledLights',
+  },
+  'sampled-lights-shadow-caster-quality': {
+    available: true,
+    reason:
+      'Where the surface the rays meet lies behind the drawn one (orange to red, a caster missing) or in front of it (blue, mismatching), by the distances sampledLightsVisualizeShadowCasterMissingDistance and PoorDistance; needs sampledLights',
+  },
+  'subsurface-profiles': {
+    available: true,
+    reason:
+      'The profile of each subsurface pixel over the middle of the image, one colour and one character per profile, faded where the scattering is narrower than a pixel, with the title and the profile list; needs subsurfaceScattering',
   },
 }

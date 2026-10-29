@@ -31,7 +31,8 @@ import {
  * reads the strands' attributes. The coverage is the visibility's share of the pixel's samples the
  * sample holds, or, where the samples of a pixel are sorted by depth (`view.sort`), the share of a pixel
  * the strand's radius covers (`HAIR_COVERAGE_WGSL`, one sample a pixel and no coverage scale: the
- * groom's is 1).
+ * groom's is 1). Where the samples are the strands' control points (`view.sort.y`, the forward raster's), a sample lies on its point: the point's
+ * place is the sample's, `u` is 0, and its coverage is the whole pixel's.
  */
 export const MATERIAL_WGSL = wgslProgram(
   `@group(1) @binding(1) var<storage,read> nodeVis:array<vec2u>;
@@ -50,15 +51,15 @@ fn unitByte(x:f32)->u32{return u32(saturate(x)*255.0);}
  let at=nodeCoord[node];
  let pixel=vec2f(f32(at&${HAIR_COORD_MASK}u),f32(at>>${HAIR_COORD_BITS}u))+vec2f(0.5);
  let h=transformHomogeneousPoint(view.inverseViewProj,vec3f(pixelToNdc(pixel,view.size),depth));
- let world=h.xyz/h.w;
  let first=spineAt(point);
  let second=spineAt(point+1u);
+ let world=select(h.xyz/h.w,first.position,view.sort.y>0.5);
  let along=second.position-first.position;
  let alongSquared=dot(along,along);
  let u=select(0.0,saturate(dot(world-first.position,along)/alongSquared),alongSquared>0.0);
  let tangent=normalize(mix(tangentAt(point),tangentAt(point+1u),u));
  var coverage=vis.x&0xffu;
- if(view.sort.x>0.5){coverage=min(u32(strandCoverage(mix(first.radius,second.radius,u),h.w)*255.0),255u);}
+ if(view.sort.x>0.5&&view.sort.y<0.5){coverage=min(u32(strandCoverage(mix(first.radius,second.radius,u),h.w)*255.0),255u);}
  let t=saturate(tangent*0.5+vec3f(0.5));
  let rgb=sqrt(inst.base.xyz);
  let o=node*${HAIR_NODE_DATA_WORDS}u;

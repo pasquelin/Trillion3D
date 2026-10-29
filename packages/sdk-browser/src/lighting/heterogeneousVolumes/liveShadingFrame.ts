@@ -5,9 +5,10 @@ import { beginFrame, type FrameContext, frameView } from './liveShadingContext.t
 import { composeVolumes } from './liveShadingCompose.ts'
 import { HV_FORMAT } from './liveShadingProgram.ts'
 import { builtShadowMaps } from './beerShadowMapGpu.ts'
-import { packShadowMaps } from './liveShadingShadows.ts'
+import { packAdaptiveMaps, packShadowMaps } from './liveShadingShadows.ts'
 import { encodeVolume } from './liveShadingVolume.ts'
 import { publishHeterogeneousShadowBuffer } from './volumeShadowRead.ts'
+import { encodeVoxelGridPhase } from './voxelGridFrame.ts'
 
 /**
  * THE HETEROGENEOUS VOLUMES IN THE FRAME (`HeterogeneousVolumes.cpp:403-410`). The `shadows` phase builds the maps of the volumes' cast
@@ -20,6 +21,11 @@ import { publishHeterogeneousShadowBuffer } from './volumeShadowRead.ts'
 /** The maps the `shadows` phase built, packed in the buffer the lit passes read (`volumeShadowRead.ts`). */
 function finishShadows(c: FrameContext) {
   const { held, shadow, settings } = c
+  if (shadow.adaptive) {
+    packAdaptiveMaps(held, c.device, c.encoder, shadow, settings)
+    publishHeterogeneousShadowBuffer(c.rt.gpu, held.packedMaps)
+    return
+  }
   held.maps = builtShadowMaps(
     shadow.lights,
     shadow.built,
@@ -74,7 +80,8 @@ export function encodeHeterogeneousVolumes(
 ) {
   const c = beginFrame(rt, device, encoder, cam, phase)
   if (!c) return
-  for (const item of c.placed) encodeVolume(c, item)
+  // The voxel grids take the phase over while the shadows are made through them (the shadows phase) or a debug mode asks (the image phase).
+  if (!encodeVoxelGridPhase(c)) for (const item of c.placed) encodeVolume(c, item)
   if (c.shadowed) return finishShadows(c)
   if (c.first) return
   if (c.cameraMaps) publishCameraMap(c, c.cameraMaps)

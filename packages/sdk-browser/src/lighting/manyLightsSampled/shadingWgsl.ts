@@ -37,6 +37,7 @@ import {
   smoothFalloffMask,
   unpackTile,
 } from './lightSamplerWgsl.ts'
+import { RESOLVED_INVALID } from './clearResolvedWgsl.ts'
 import { SAMPLED_PARAMS_WGSL } from './paramsWgsl.ts'
 import {
   JITTER_WGSL,
@@ -48,9 +49,6 @@ import {
 const B = SAMPLED_BINDINGS
 
 export const SHADING_ENTRY = 'shadeSamplesMain'
-
-/** What a pixel that is no lit surface holds in the resolved textures. */
-const SHADING_INVALID = -1
 
 const SHADING_RESOURCES_WGSL = wgslBlock(
   'SHADING_RESOURCES_WGSL',
@@ -152,7 +150,7 @@ function shadingParts(key: ContractKey, lights: ContractKey, cut: ReturnType<typ
 }
 
 const SHADING_PART_4 = ` let reading=stochasticDown(screen,P,N);
- if(reading.z==0){textureStore(resolvedDiffuse,vec2i(screen),vec4f(${SHADING_INVALID}.0));textureStore(resolvedSpecular,vec2i(screen),vec4f(${SHADING_INVALID}.0));return;}
+ if(reading.z==0){textureStore(resolvedDiffuse,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));textureStore(resolvedSpecular,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));return;}
  let down=vec2u(reading.xy);
  var packed=array<u32,4>(0u,0u,0u,0u);
  for(var i=0u;i<params.count1d;i++){
@@ -243,7 +241,7 @@ export function shadingWgsl(key: ContractKey, tileClass: TileClass, rect: boolea
   const { lights, cut } = sampledClassOf(key, tileClass, rect)
   const statements = litPixelStatements(cut).replace(
     '{discard;}',
-    `{textureStore(resolvedDiffuse,vec2i(screen),vec4f(${SHADING_INVALID}.0));textureStore(resolvedSpecular,vec2i(screen),vec4f(${SHADING_INVALID}.0));return;}`,
+    `{textureStore(resolvedDiffuse,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));textureStore(resolvedSpecular,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));return;}`,
   )
   return wgslBlock(
     `shadingWgsl(${tileClass}, ${rect}, ${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow})`,

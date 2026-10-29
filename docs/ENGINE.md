@@ -659,20 +659,26 @@ world.hiz = { lightGridLinkedLists: false } // each cell keeps its own first lig
 world.hiz = { lightGridMaxCulledLightsPerCell: 64 } // 64 light entries a cell instead of 32
 ```
 
-| Field                             | Meaning                                                                                         | Default       |
-| --------------------------------- | ----------------------------------------------------------------------------------------------- | ------------- |
-| `hizTrace`                        | How the reflections' trace reads the pyramid: `'reference'`, or `'planes'`                      | `'reference'` |
-| `hizFoldTransparents`             | The trace layers hold the nearest transparent surface beside the opaque one                     | `false`       |
-| `hizTransparentTest`              | How a transparent cluster is tested: `'finer'` (16 texels), or `'reference'`                    | `'finer'`     |
-| `hizFullResDepth`                 | The screen probes' walk goes down to the full-resolution depth                                  | `true`        |
-| `lightGridHizCull`                | The light grid leaves empty the cells behind their column's farthest depth                      | `true`        |
-| `lightGridLinkedLists`            | The cells' lists are chains of links from one shared pool; `false`: each cell has its own words | `true`        |
-| `lightGridMaxCulledLightsPerCell` | Light entries the view's light grid holds per cell; past it the lights asked last are dropped   | `32`          |
-| `hizPrime`                        | When a primed pyramid is built: `'off'`, `'whenMissing'` or `'always'`                          | `'off'`       |
-| `hizPrimeSizeBias`                | The primed draw is the image shifted right by `1 + this`, a whole number from 0 to 30           | `2`           |
-| `hizPrimeDepthBias`               | Metres the primed depth is pushed away from the eye by, any number                              | `1.5`         |
-| `hizPrimeErrorScale`              | Factor on the cut's pixel error for the primed draw, any number                                 | `32`          |
-| `hizPrimeFarFieldOnly`            | The primed draw holds the objects that set `farField` alone                                     | `true`        |
+| Field                                 | Meaning                                                                                          | Default       |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------ | ------------- |
+| `hizTrace`                            | How the reflections' trace reads the pyramid: `'reference'`, or `'planes'`                       | `'reference'` |
+| `hizFoldTransparents`                 | The trace layers hold the nearest transparent surface beside the opaque one                      | `false`       |
+| `hizTransparentTest`                  | How a transparent cluster is tested: `'finer'` (16 texels), or `'reference'`                     | `'finer'`     |
+| `hizFullResDepth`                     | The screen probes' walk goes down to the full-resolution depth                                   | `true`        |
+| `lightGridHizCull`                    | The light grid leaves empty the cells behind their column's farthest depth                       | `true`        |
+| `lightGridLinkedLists`                | The cells' lists are chains of links from one shared pool; `false`: each cell has its own words  | `true`        |
+| `lightGridMaxCulledLightsPerCell`     | Light entries the view's light grid holds per cell; past it the lights asked last are dropped    | `32`          |
+| `hizPrime`                            | When a primed pyramid is built: `'off'`, `'whenMissing'` or `'always'`                           | `'off'`       |
+| `hizPrimeSizeBias`                    | The primed draw is the image shifted right by `1 + this`, a whole number from 0 to 30            | `2`           |
+| `hizPrimeDepthBias`                   | Metres the primed depth is pushed away from the eye by, any number                               | `1.5`         |
+| `hizPrimeErrorScale`                  | Factor on the cut's pixel error for the primed draw, any number                                  | `32`          |
+| `hizPrimeFarFieldOnly`                | The primed draw holds the objects that set `farField` alone                                      | `true`        |
+| `hzbOcclusion`                        | The main view leaves out the objects the depth hides: `0` none, `1` the roots' boxes, `2` forced | `0`           |
+| `hzbOcclusionNeverTestDistance`       | Metres from the eye within which no object is tested                                             | `0`           |
+| `hzbOcclusionExpandAmount`            | Metres every tested box is grown by; `hzbOcclusionExpandNewlyAmount` for a newly tested one      | `0`           |
+| `hzbOcclusionExpandScreenSpace`       | Pixels every tested box is grown by; `hzbOcclusionExpandNewlyScreenSpace` for a newly tested one | `0`           |
+| `hzbOcclusionFramesNotTestedToExpand` | Images untested before an object counts as newly tested                                          | `5`           |
+| `hzbOcclusionFramesToExpandNewly`     | Images a newly tested object is grown for                                                        | `2`           |
 
 **The primed pyramid** (`frame/render/primeHiz.ts`). The cut's main pass tests a box against the
 pyramid of the image before; a view with none (its first image, a resize, a cut of the camera) tests

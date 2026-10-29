@@ -450,6 +450,7 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * `shadowFirstPersonSelfShadowRelativeDepthThickness` of its depth), at half the resolution of the image, then filtered with a
  * 3 x 3 blur that hardens at the casters (`shadowFirstPersonSelfShadowBilateralFilterDepthThreshold` scales the depth
  * difference that weighs the samples) and upsampled into the sun's mask by the minimum.
+ * Local lights (`shadowFirstPersonSelfShadowLightTypes` 1 or 2) are traced where they reach the first-person objects, up to their centre.
  * `shadowFirstPersonSelfShadowDownsampleCheckerboardMode` picks the depth the half-resolution pixels keep (0 the closest, 1 the
  * farthest, 2 alternately); `shadowFirstPersonSelfShadowRawFullResolution` traces every pixel, with no filter. The minimum occupancy
  * of the march's lanes is `shadowFirstPersonSelfShadowMinimumHzbTraceOccupancy`.

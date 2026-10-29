@@ -41,6 +41,11 @@ export interface HvVolumeData {
   readonly existence?: boolean
   /** Whether the march writes the beer map of the camera (the volumes are composited with the translucency). */
   readonly cameraMap?: boolean
+  /** Whether the passes read the baked textures (bit 4), and the level they read them at (bits 8 to 15). */
+  readonly baked?: boolean
+  readonly bakedMip?: number
+  /** Whether the march visits only the voxels of the hierarchy of boxes (bit 5). */
+  readonly boxes?: boolean
 }
 /** Writes `data` as the bytes `HvVolume` reads. */
 export function packVolume(data: HvVolumeData, out = new ArrayBuffer(HV_VOLUME_BYTES)) {
@@ -65,6 +70,9 @@ export function packVolume(data: HvVolumeData, out = new ArrayBuffer(HV_VOLUME_B
     (data.ambientOcclusion ? 1 : 0) |
     (data.holdout ? 2 : 0) |
     (data.existence ? 4 : 0) |
-    (data.cameraMap ? 8 : 0)
+    (data.cameraMap ? 8 : 0) |
+    (data.baked ? 16 : 0) |
+    (data.boxes ? 32 : 0) |
+    ((data.bakedMip ?? 0) << 8)
   return out
 }

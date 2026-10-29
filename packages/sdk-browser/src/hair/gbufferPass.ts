@@ -26,7 +26,7 @@ const depthPipeline = oncePerDevice((device) => {
   return preparedPipeline(device, {
     label: `${HAIR_STRANDS_PASS_PREFIX}depth under full coverage`,
     layout: 'auto',
-    vertex: { module, entryPoint: 'hairDepthVs' },
+    vertex: { module, entryPoint: 'hairTileQuadVs' },
     fragment: { module, entryPoint: 'hairDepthFs', targets: [] },
     primitive: { topology: 'triangle-list', cullMode: 'none' },
     // The depth is written wherever the fragment is kept: the strands' is the surface's there.

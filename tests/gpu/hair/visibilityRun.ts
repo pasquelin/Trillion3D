@@ -116,7 +116,7 @@ export async function runHairVisibility(input: {
       { bytesPerRow: WIDTH * 8 },
       [WIDTH, HEIGHT, 1],
     )
-  const flags = hairFlagsOf(false, false, true)
+  const flags = hairFlagsOf(false, false, true, false)
   const depthView = depth.createView()
   // What a frame would hand the passes: the image's inputs, the settings at their defaults.
   const viewProjection = new Float64Array(16)

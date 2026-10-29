@@ -168,8 +168,9 @@ fn hvBeerShadowMain(@builtin(global_invocation_id) id:vec3u){
  * THE READ OF A MAP (BeerShadowMap_SampleTransmittance, HeterogeneousVolumesAdaptiveVolumetricShadowMapSampling.ush:767-888):
  * the transmittance of the volumes between a point and its light. The face is the cube face of the largest axis of the point
  * from the light (a local light) or the one orthographic face (a directional light); the four texels around the point are
- * read and interpolated bilinearly, each by the exponential fit at the point's distance. The program declares
- * beerFetch(s, face, coord) -> vec4f, a texel of the strip of the map s (`beerShadowReadWgsl.ts`).
+ * read and interpolated bilinearly, each at the point's distance. The program declares hvTexelTransmittance(s, face, coord, z) -> f32, the
+ * transmittance of a texel of the map s at the distance z: the exponential fit of the beer map's texel or the adaptive map's samples
+ * (`beerShadowReadWgsl.ts`).
  */
 export const BEER_READ_WGSL = wgslBlock(
   'BEER_READ_WGSL',
@@ -203,10 +204,10 @@ fn hvBeerTransmittance(s:HvShadow,light:DirectLight,P:vec3f)->f32{
  let coord=uv*f32(s.info.z);
  let base=vec2i(coord);
  let w=fract(coord);
- let t00=beerInterpolate(beerFetch(s,face,base),z);
- let t10=beerInterpolate(beerFetch(s,face,base+vec2i(1,0)),z);
- let t01=beerInterpolate(beerFetch(s,face,base+vec2i(0,1)),z);
- let t11=beerInterpolate(beerFetch(s,face,base+vec2i(1,1)),z);
+ let t00=hvTexelTransmittance(s,face,base,z);
+ let t10=hvTexelTransmittance(s,face,base+vec2i(1,0),z);
+ let t01=hvTexelTransmittance(s,face,base+vec2i(0,1),z);
+ let t11=hvTexelTransmittance(s,face,base+vec2i(1,1),z);
  return mix(mix(t00,t10,w.x),mix(t01,t11,w.x),w.y);
 }
 `,

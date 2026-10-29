@@ -18,6 +18,7 @@ import {
   compositeBeerLayoutEntries,
   compositeLayoutEntries,
   compositeProgram,
+  type HvVariant,
   holdoutLayoutEntries,
   liveShadingLayoutEntries,
   liveShadingProgram,
@@ -28,16 +29,26 @@ import { type HeterogeneousShadowMap } from './beerShadowMapGpu.ts'
 import type { PackResources } from './beerShadowMapPack.ts'
 import { type SparseVolumeFrameGpu, uploadSparseVolumeFrame } from './sparseVolumeGpu.ts'
 import { type SparseVolumes } from './sparseVolumeLoad.ts'
+import type { VoxelGrids } from './voxelGridShadows.ts'
+
+/** The pipelines of a program, by the slot they fill. */
+type PipelineSlot = 'cache' | 'march' | 'beer' | 'ao' | 'existence' | 'dilate' | 'bake' | 'avsm'
 
 export interface Program {
   readonly compiled: CompiledGraph
   readonly layout: GPUBindGroupLayout
+  readonly variant: HvVariant
   cache?: GPUComputePipeline
   march?: GPUComputePipeline
   beer?: GPUComputePipeline
   ao?: GPUComputePipeline
   existence?: GPUComputePipeline
   dilate?: GPUComputePipeline
+  bake?: GPUComputePipeline
+  avsm?: GPUComputePipeline
+  /** The module the pipelines are of, and the pass that samples the material at the voxels of a grid (made when a grid is built, `voxelGrid/gridVolume.ts`). */
+  module?: GPUShaderModule
+  raster?: GPUComputePipeline
 }
 
 interface Upload {
@@ -78,6 +89,8 @@ export interface State {
   standVelocity?: GPUTexture
   /** The camera's beer map and the volumes' radiance in two layers (`cameraMap.ts`), at the volumes' size. */
   camera?: { texture: GPUTexture; view: GPUTextureView; size: readonly [number, number] }
+  /** The voxel grids the last shadows phase built (`voxelGridShadows.ts`), for the passes that read them. */
+  voxelGrids?: VoxelGrids
   /** The maps of the lights the last image built (packed by `packShadowMaps`). */
   maps: HeterogeneousShadowMap[]
   /** The maps of the lights packed in one buffer for the passes that apply the lights (`beerShadowMapPack.ts`), none where there is none. */
@@ -151,10 +164,17 @@ export function release(held: State) {
   held.camera = undefined
   held.maps = []
   held.packedMaps = undefined
+  held.voxelGrids = undefined
   held.uploads.clear()
   held.caches.clear()
   held.targets = held.stand = held.standOut = held.standPages = undefined
   held.standBeer = held.standBeerOut = held.standVelocity = undefined
+}
+
+/** Lets go of the held resources whose role (their key) `drops` names: the buffers, the images and the cache textures a switched-off option left. */
+export function dropHeld(held: State, drops: (key: string) => boolean) {
+  for (const group of [held.buffers, held.steps, held.caches] as Map<string, { destroy(): void }>[])
+    for (const [key, resource] of group) if (drops(key)) (resource.destroy(), group.delete(key))
 }
 
 /** The volume's graph compiled for this pass, kept: none where it does not compile or reads what the pass cannot bind. */
@@ -183,8 +203,9 @@ export function programOf(
   compiled: CompiledGraph,
   beer: GPUTextureFormat,
   holdout: boolean,
+  variant: HvVariant = 'plain',
 ): Program {
-  const key = `${compiled.key}:${beer}:${holdout}`
+  const key = `${compiled.key}:${beer}:${holdout}:${variant}`
   let program = held.programs.get(key)
   if (program) return program
   const sparse = sparseSlotsOf(compiled).length
@@ -200,31 +221,38 @@ export function programOf(
         `a heterogeneous volume graph reads ${sparse} sparse volumes, the device lets it read ${allowed}`,
       ),
     )
-    program = { compiled, layout: device.createBindGroupLayout({ entries: [] }) }
+    program = { compiled, variant, layout: device.createBindGroupLayout({ entries: [] }) }
     held.programs.set(key, program)
     return program
   }
   const layout = device.createBindGroupLayout({
-    entries: liveShadingLayoutEntries(sparse, compiled.uses.textures, beer, holdout),
+    entries: liveShadingLayoutEntries(sparse, compiled.uses.textures, beer, holdout, variant),
   })
-  program = { compiled, layout }
+  program = { compiled, variant, layout }
   held.programs.set(key, program)
   const module = device.createShaderModule({
     label: 'Trillion3D heterogeneous volume',
-    code: liveShadingProgram(compiled, beer, holdout),
+    code: liveShadingProgram(compiled, beer, holdout, variant),
   })
   const pipelineLayout = device.createPipelineLayout({ bindGroupLayouts: [layout] })
   const failed = (error: unknown) =>
     rt.diag.diagnosticFailure('heterogeneous-volume-program-failed', error)
   const made = program
-  for (const [slot, entryPoint] of [
-    ['cache', 'hvLightingCacheMain'],
-    ['march', 'hvLiveShadingMain'],
-    ['ao', 'hvAmbientOcclusionMain'],
-    ['beer', 'hvBeerShadowMain'],
-    ['existence', 'hvExistenceMain'],
-    ['dilate', 'hvDilateMain'],
-  ] as const)
+  made.module = module
+  // The program that builds the adaptive map has that one kernel to run; the others, all but that one.
+  const entries: readonly (readonly [PipelineSlot, string])[] =
+    variant === 'avsm'
+      ? [['avsm', 'hvAvsmShadowMain']]
+      : [
+          ['cache', 'hvLightingCacheMain'],
+          ['march', 'hvLiveShadingMain'],
+          ['ao', 'hvAmbientOcclusionMain'],
+          ['beer', 'hvBeerShadowMain'],
+          ['existence', 'hvExistenceMain'],
+          ['dilate', 'hvDilateMain'],
+          ['bake', 'hvBakeMain'],
+        ]
+  for (const [slot, entryPoint] of entries)
     device
       .createComputePipelineAsync({
         label: `Trillion3D heterogeneous volume ${slot}`,

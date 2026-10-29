@@ -75,7 +75,7 @@ export interface PerLightLights {
 }
 
 /** What a frame's per-light lights are made from. */
-interface PerLightInputs {
+export interface PerLightInputs {
   device: GPUDevice
   res: VsmResources
   frame: VsmProjectionFrame

@@ -4,11 +4,14 @@ import { createViewFilter } from '../../geometry/selection/viewFilter.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { appendRootsUnder } from './movedNode.ts'
 import { hiddenFromViews } from './hiddenFromViews.ts'
+import { hzbOccludedRanks } from '../../visibility/hzbOcclusion/occludedRoots.ts'
 import { writeViewClipPlaneAtEye } from './viewClip.ts'
 import { lowestBit } from '../../../../math/src/scalar/bits.ts'
 
 /** The filter of each view, held beside the uniforms of its cut: a view's own object. */
 const filters = new WeakMap<SelectionUniforms, ReturnType<typeof createViewFilter>>()
+/** The bits of each filter the shadows' casters follow: those without the roots the view's occlusion test hides (`createViewFilter().base`). */
+const bases = new WeakMap<SelectionUniforms, Uint32Array | undefined>()
 
 /**
  * What a view carries beside its eye, written into its cut's uniforms (`Camera.clipPlane`,
@@ -32,10 +35,13 @@ export function writeCutViewSet(
   // The roots the view does not draw whatever its lists say, the host's switch on lists apart: those its
   // owner does not see among them.
   const forced = hiddenFromViews(rt, rt.views.active === rt.views.main, owner)
+  // The main view alone is tested against the depth it drew (`hzbOccludedRanks`).
+  const occluded = rt.views.active === rt.views.main ? hzbOccludedRanks(rt) : undefined
   const listed = filtering && (hidden.length > 0 || showOnly !== null)
-  if (!listed && !forced.length && (!filtering || !filter)) {
+  if (!listed && !forced.length && !occluded?.length && (!filtering || !filter)) {
     uniforms.filter = undefined
-    if (before) staleCasters(rt, before, undefined)
+    if (before) staleCasters(rt, bases.get(uniforms), undefined)
+    bases.delete(uniforms)
     return
   }
   if (!filter) filters.set(uniforms, (filter = createViewFilter()))
@@ -46,8 +52,11 @@ export function writeCutViewSet(
     (node, out, at) => appendRootsUnder(layout, node, out, at),
     run.gate.revisions.scene,
     forced,
+    occluded,
   )
-  if (uniforms.filter !== before) staleCasters(rt, before, uniforms.filter)
+  const base = filter.base()
+  if (base !== bases.get(uniforms)) staleCasters(rt, bases.get(uniforms), base)
+  bases.set(uniforms, base)
 }
 
 /**

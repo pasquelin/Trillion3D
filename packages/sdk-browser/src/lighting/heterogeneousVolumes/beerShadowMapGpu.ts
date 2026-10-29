@@ -1,3 +1,4 @@
+import type { HeterogeneousVolumeField } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import { LIGHT_KIND } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { HV_SHADOW_FACES } from './beerShadowMapWgsl.ts'
 
@@ -73,20 +74,39 @@ export interface ShadowLight {
   readonly faces: number
 }
 
-/** The lights of the store that cast a shadow into the fog (the kernel skips the others): a directional light does by default. */
-export function shadowLightsOf(store: {
-  readonly count: number
-  readonly ids: readonly string[]
-  kindOf(slot: number): number
-  sliceOf(slot: number): number
-  light(id: string): { castsShadow?: boolean; shadowsFog?: boolean } | undefined
-}): ShadowLight[] {
+/** The setting that lets each kind of light cast a volumetric shadow (`SupportsShadowForLightType`, `HeterogeneousVolumesVoxelGridPipeline.cpp:557`). */
+export const shadowLightSettingOf = (kind: number): HeterogeneousVolumeField =>
+  kind === LIGHT_KIND.directional
+    ? 'heterogeneousVolumesShadowsLightDirectional'
+    : kind === LIGHT_KIND.point
+      ? 'heterogeneousVolumesShadowsLightPoint'
+      : kind === LIGHT_KIND.spot
+        ? 'heterogeneousVolumesShadowsLightSpot'
+        : 'heterogeneousVolumesShadowsLightRect'
+
+/** The lights of the store that cast a shadow into the fog (the kernel skips the others): a directional light does by default. `kinds` says which kinds of
+ *  light may cast a volumetric shadow (`SupportsShadowForLightType`, the `LIGHT_KIND` of the light). */
+export function shadowLightsOf(
+  store: {
+    readonly count: number
+    readonly ids: readonly string[]
+    kindOf(slot: number): number
+    sliceOf(slot: number): number
+    light(id: string): { castsShadow?: boolean; shadowsFog?: boolean } | undefined
+  },
+  kinds: (kind: number) => boolean = () => true,
+): ShadowLight[] {
   const lights: ShadowLight[] = []
   for (let rank = 0; rank < store.count; rank++) {
     const directional = store.kindOf(rank) === LIGHT_KIND.directional
     const record = store.light(store.ids[rank])
     const slice = store.sliceOf(rank)
-    if (slice >= 0 && record?.castsShadow && (record.shadowsFog ?? directional))
+    if (
+      slice >= 0 &&
+      kinds(store.kindOf(rank)) &&
+      record?.castsShadow &&
+      (record.shadowsFog ?? directional)
+    )
       lights.push({ rank, slice, directional, faces: beerFacesOf(directional) })
   }
   return lights

@@ -543,6 +543,22 @@ world.hiz = { hizPrime: 'always', hizPrimeDepthBias: 3 } // every image, pushed 
 world.hiz = { hizPrime: null } // back to the default, 'off'
 ```
 
+`hzbOcclusion` (`0`) makes the main view leave out the objects the depth it drew hides. At `1` (or `2`, forced) the world box of
+every object is projected each image and walked against the farthest depth of the pyramid, with the walk the transparent clusters are
+tested with under `hizTransparentTest: 'reference'` (the lowest level that holds the box in four texels a side); the verdicts are copied
+for the CPU and come back a few images late, and an object found behind the depth is left out of the next images' cut, in front again
+when a test finds it so. An object with no box, outside the view or within `hzbOcclusionNeverTestDistance` metres (`0`) of the eye is
+never rejected, and the shadow maps never see the verdict. `hzbOcclusionExpandAmount` (`0`) metres and
+`hzbOcclusionExpandScreenSpace` (`0`) pixels grow every tested box, which hides fewer objects and shows fewer of them late;
+`hzbOcclusionExpandNewlyAmount` and `hzbOcclusionExpandNewlyScreenSpace` (`0`) grow, beside them, an object not tested for
+`hzbOcclusionFramesNotTestedToExpand` (`5`) images for the next `hzbOcclusionFramesToExpandNewly` (`2`) images it is tested in.
+
+```js
+const world = createWorld('viewer', { hzbOcclusion: 1 })
+world.hiz = { hzbOcclusionExpandScreenSpace: 8, hzbOcclusionNeverTestDistance: 2 } // grown by 8 pixels, none tested within 2 m
+world.hiz = { hzbOcclusion: null } // back to the default, none
+```
+
 `world.tessellation` holds the settings of the run-time tessellation, each an option of
 `createWorld` too. A write names the settings it changes, `null` one's default; a value of another
 kind is refused by name. They are render settings: the page's value holds over the quality preset (no
@@ -3832,6 +3848,78 @@ world.singleLayerWater = { singleLayerWaterReflection: null } // given back its 
 The explorer takes the same by field (`explorer.setSingleLayerWater('singleLayerWaterReflection', 'captures')`), and an agent
 through `trillion3d_set_single_layer_water`.
 
+### Heterogeneous volumes: voxel grids and the volumetric shadow map
+
+`world.heterogeneousVolumeRendering` holds the settings of the heterogeneous volumes. Besides the live shading, the volumes can be
+shadowed through voxel grids: a grid cut in the view's frustum and an axis-aligned one over the volumes' bounds, each a top level of
+cells holding bottom-level voxels (`heterogeneousVolumesBottomLevelGridResolution`, 1 to 4, 4 by default; an indirection grid of
+`heterogeneousVolumesIndirectionGridResolution`, 4, while `heterogeneousVolumesIndirectionGrid` is on). A grid of the greatest extinction
+of each top-level cell (`heterogeneousVolumesMajorantGrid`, on; `heterogeneousVolumesMajorantGridMax`, off, adds the chain down to one
+cell) and a bitmask of the occupied cells (`heterogeneousVolumesTopLevelBitmask`, off) speed up the tracking. The shadow of a light or of
+the camera is then a list of samples a texel (`heterogeneousVolumesShadowsMaxSampleCount`, 8, kept within
+`heterogeneousVolumesShadowsRelativeErrorThreshold` 0.05 and `...AbsoluteErrorThreshold` 0, compressed while
+`heterogeneousVolumesShadowsUseAvsmCompression` is on). `heterogeneousVolumesShadowsPipeline` picks the way: 0, the default, shades the
+volumes live; 1 builds the grids. Sparse voxels (`heterogeneousVolumesSparseVoxel`, off, with `...GenerationMipBias`, `...PerTileCulling`
+and `...Refinement`) are the cells of a coarse level where a volume has density.
+
+`heterogeneousVolumesShadowsType` picks the map the volumes' cast shadows are kept in: 1, the default, the beer map (the first and last
+place with extinction of each texel and the transmittance at both); 0 the adaptive volumetric shadow map, a list of up to
+`heterogeneousVolumesShadowsMaxSampleCount` samples a texel (each volume's list combined with the volumes' before it, then compressed in
+two levels), read by the lit passes in place of the beer map. A resolution that would not fit the device's storage buffer is halved.
+`heterogeneousVolumesHardwareRayTracing` (off), with `heterogeneousVolumesPreshading` on, makes the march visit only the spans of the
+sparse voxels a ray meets: the voxels (`...SparseVoxelGenerationMipBias`, `...SparseVoxelRefinement`) are cut out of the baked extinction,
+a hierarchy of boxes is built over them and each pixel's ray walks it, front to back, by a compute pass.
+
+```js
+world.heterogeneousVolumeRendering = {
+  heterogeneousVolumesShadows: true,
+  heterogeneousVolumesShadowsType: 0, // adaptive volumetric shadow map
+  heterogeneousVolumesPreshading: true,
+  heterogeneousVolumesHardwareRayTracing: true, // march only the voxels the ray meets
+  heterogeneousVolumesSparseVoxelRefinement: true,
+}
+```
+
+```js
+world.heterogeneousVolumeRendering = {
+  heterogeneousVolumesShadows: true,
+  heterogeneousVolumesShadowsPipeline: 1,
+  heterogeneousVolumesFrustumGridShadingRate: 2, // voxels two pixels wide in the view
+  heterogeneousVolumesMinimumVoxelSizeInFrustum: 0.05, // metres
+  heterogeneousVolumesShadowsMaxSampleCount: 16,
+}
+```
+
+With `heterogeneousVolumesShadowsPipeline` at 1 the grids are built in the shadows phase of every image, whether or not the volumes cast shadows. The volumes are
+rasterized into them: each top-level cell a volume's box meets gets the voxel its distance and `heterogeneousVolumesShadowsShadingRate` (1 pixel in the view,
+`...ShadowsOutOfFrustumShadingRate` 2 out of it) ask, its bottom level and indirection cells are taken from pools sized by
+`heterogeneousVolumesOrthoGridMaxBottomLevelMemoryInMegabytes` (128, `...FrustumGridMaxBottomLevelMemoryInMegabytes` 128 for the frustum grid, which the shadows
+do not build), and the volume's material is evaluated at the voxels. A region of a bottom level whose extinction hardly varies (a relative error under
+`heterogeneousVolumesBottomLevelGridHomogeneousAggregationThreshold`, 0.001, and under four empty voxels) is stored as one voxel while
+`heterogeneousVolumesBottomLevelGridHomogeneousAggregation` is on, the default. A pool that is full leaves the cells that would not fit empty; a bottom level
+of three voxels a side takes two, which the Morton order the cells are found by needs. `heterogeneousVolumesShadowsLightDirectional`, `...Point`, `...Spot`
+and `...Rect`, all on, say which kinds of light cast a volumetric shadow. The map of each light is rendered through the grids, a list of samples a
+texel along the rays of the light's beer map, and kept as that map, or as the adaptive one with `heterogeneousVolumesShadowsType` 0.
+
+`heterogeneousVolumesDebug` (0, off) replaces the image of the volumes by the transmittance through the grids, the opacity left in the alpha and, in the
+colour, what the way of finding it gathers: 1 walks the ortho grid and the frustum grid cell by cell; 2 to 5 follow the ray by samples (steps of a voxel, the majorant of the
+cell under each step, the greatest majorant of the grid, the cells of the majorant grid in turn); 6 to 9 track it with random walks (spectral weighted delta, ratio, spectral ratio,
+the cells of the majorant grid in turn, each by delta tracking), one walk a pixel, so the image is noisy and the temporal pass accumulates it. The views `world.diagnostic.mode`
+takes, `'heterogeneous-volumes-dda-marching'`, `'...-sample-marching'`, `'...-sample-majorant'`, `'...-sample-max-majorant'`, `'...-sample-majorant-dda'`,
+`'...-delta-tracking'`, `'...-ratio-tracking'`, `'...-spectral-ratio-tracking'` and `'...-tracking-majorant-dda'`, are the modes 1 to 9.
+
+```js
+// The shadows traced through the grids, and the grids seen by the walk of a ray through the majorant grid, cell by cell.
+world.heterogeneousVolumeRendering = {
+  heterogeneousVolumesShadows: true,
+  heterogeneousVolumesShadowsPipeline: 1,
+  heterogeneousVolumesOrthoGridMaxBottomLevelMemoryInMegabytes: 256,
+  heterogeneousVolumesShadowsLightPoint: false, // only the sun casts a volumetric shadow
+  heterogeneousVolumesBottomLevelGridHomogeneousAggregationThreshold: 0.01,
+}
+world.diagnostic.mode = 'heterogeneous-volumes-sample-majorant-dda'
+```
+
 ### The scattering of the light under a surface (subsurface profile)
 
 A surface whose material graph picks the subsurface-profile shading model (`shadingModel: 'subsurfaceProfile'`, or a graph's output 5 under `fromMaterialExpression`) lights as a plain one, then the
@@ -4168,4 +4256,188 @@ latest measured WebGPU deformation time, `null` without a timestamp sample.
 ```js
 // Sampled lighting where each tile guides the draw by its own lights alone.
 const world = createWorld('viewer', { sampledLights: true, sampledLightsGuideByHistoryFilter: false })
+```
+
+## Hair strands: coverage mapping
+`hairVisibilityCoverageMapping` (`false`) takes the share of a pixel the strands cover from their count and their mean width, mapped through a table of the coverage of that many strands of that width placed at random, instead of the product of what each strand lets through. The strands are counted in a second pass over the ribbons; the tiles with strands and the coverage of their pixels follow the mapped transmittance. It needs `hairStrands`.
+
+```js
+// Strands whose pixel coverage comes from their count and mean width.
+const world = createWorld('viewer', { hairStrands: true, hairVisibilityCoverageMapping: true })
+```
+
+## Heterogeneous volumes: preshading and level of detail
+`heterogeneousVolumesPreshading` (`false`) bakes a volume's material into three 3D textures (extinction, albedo, emission) before the march, which then reads the textures instead of evaluating the material at each step. `heterogeneousVolumesCLOD` (`true`) makes a volume far from the view coarser: its lighting cache, occlusion and baked grid have fewer voxels and its march steps are longer.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `heterogeneousVolumesPreshadingMipLevel` | `0` | level of the baked textures the march reads; the levels are filtered from the first, which the reference never does |
+| `heterogeneousVolumesPreshadingPixelFormat` | `2` | `0` keeps the red channel alone, `1` to `3` the colour channels |
+| `heterogeneousVolumesPreshadingCLOD` | `1` | baked grid size: `0` the volume's, `1` over the level of detail's factor, `2` the lighting cache's |
+| `heterogeneousVolumesCLODBias` | `0` | above `0` coarser, below `0` sharper |
+| `heterogeneousVolumesVolumeResolutionX` / `Y` / `Z` | `0` | above `0`, replaces that axis of the resolution the bake, the lighting cache and the occlusion use |
+| `heterogeneousVolumesAmbientOcclusionRayCountX` / `Y` | `4` | occlusion rays a side, `1` to `8` |
+
+```js
+// Baked volumes, sharper than the default level of detail, lit at 64 voxels on every axis.
+const world = createWorld('viewer', {
+  heterogeneousVolumesPreshading: true,
+  heterogeneousVolumesCLODBias: -1,
+  heterogeneousVolumesVolumeResolutionX: 64,
+  heterogeneousVolumesVolumeResolutionY: 64,
+  heterogeneousVolumesVolumeResolutionZ: 64,
+})
+```
+
+## Hair strands: compute raster
+`hairVisibilityComputeRaster` (`false`) makes a compute raster write the samples of the strands' visibility in place of the device's rasterizer. It bins the segments of the strands into tiles of the image, then draws each tile with a group of threads. The furthest opaque depth of each tile is found first, so that a segment behind every opaque pixel of a tile is not binned into it. The other settings choose how the segments reach their pixels; each default is the reference's.
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `hairVisibilityNaiveRaster` | `false` | draw the segments a thread a segment, the ribbons that span more than a tile shared by a group of threads, instead of binning them |
+| `hairVisibilityTileCompaction` | `false` | merge the partly filled tiles the binners made in the same cell into full tiles before they are drawn |
+| `hairVisibilityClassification` | `false` | sort the segments first: the small ones go to the tiles (or to the naive raster), the larger ones are drawn a thread a segment |
+| `hairVisibilityComputeRasterTileSize` | `32` | side in pixels of a tile, from `8` to `32`, rounded down to a power of two |
+| `hairVisibilityComputeRasterNumBinners` | `32` | workgroups that bin the segments (`1` to `256`) |
+| `hairVisibilityComputeRasterNumRasterizers` | `256` | workgroups that draw the tiles (`1` to `1024`) |
+| `hairVisibilityComputeRasterNumRasterizersNaive` | `256` | workgroups of the naive raster (`1` to `1024`) |
+| `hairVisibilityNumClassifiers` | `32` | workgroups of the classification (`1` to `256`) |
+| `hairVisibilityComputeRasterMaxTiles` | `65536` | most tiles kept, from `1024` to `262144`; a tile holds 256 segments, and a device whose storage binding holds fewer tiles takes the most it holds; segments past them are not drawn |
+
+```js
+// Strands drawn by the compute raster, its tiles compacted and its segments classified.
+const world = createWorld('viewer', {
+  hairStrands: true,
+  hairVisibilityComputeRaster: true,
+  hairVisibilityTileCompaction: true,
+  hairVisibilityClassification: true,
+})
+```
+
+## Hair strands: velocity
+`hairVelocityType` (`'closest'`) picks the velocity a pixel of strands writes over the surface's, from the velocity of the strands' samples in that pixel: `'closest'` the nearest sample's, `'average'` their mean, `'max'` the largest. `hairVisibilityWriteVelocityCoverageThreshold` (`0`, from 0 to 1) is the share of the pixel the strands must cover to write one; at `0` every pixel with strands does. `hairVelocityThreshold` (`1`, from 0 to 512) is the velocity, in the reference's pixel unit (the screen's -1 to 1 span over twice the larger side of the image), above which any sample of a pixel marks it to be resolved at once by the temporal pass: its history restarts, the pixel is sharper and noisier and does not smear.
+
+```js
+// Strands that write the mean velocity of their samples, only where they cover half a pixel, and resolve at once from a velocity of 3.
+const world = createWorld('viewer', {
+  hairStrands: true,
+  hairVelocityType: 'average',
+  hairVisibilityWriteVelocityCoverageThreshold: 0.5,
+  hairVelocityThreshold: 3,
+})
+```
+
+The surfaces the strands cover wholly are in the lighting channels of those strands (the union of the channels of the pixel's samples), so a pass that reads a surface's channels finds the strands'.
+
+## Hair strands: custom depth
+`hairRenderCustomDepth` (`false`) makes the strands render custom depth: for each pixel with strands, the depth of its first sample is written into a depth target of the view (`gpu.hair.customDepth.view`), which is 0 (reverse-Z, no strand) elsewhere. `hairCustomDepthCoverageThreshold` (`0`, from 0 to 1) is the share of the pixel the strands must cover to write it; at `0` every pixel with strands does, a higher value draws a finer outline.
+
+```js
+// Strands that write their custom depth where they cover at least a quarter of a pixel.
+const world = createWorld('viewer', {
+  hairStrands: true,
+  hairRenderCustomDepth: true,
+  hairCustomDepthCoverageThreshold: 0.25,
+})
+```
+
+## Hair strands: curve raster
+`renderCurve` (`false`, experimental) runs the curve raster pipeline over the strands. The strands are cut into curves of at most 16 points, grouped by position into clusters of 64 curves; each image the pipeline keeps the instances and clusters that lie in the view and in front of the scene's depth (a furthest-depth pyramid of the scene), counts the visible clusters, cuts their curves into segments that it bins into tiles of 32 pixels by the depth of the scene in each tile (`renderCurveRasterNumBinners`, `32`, from 1 to 256, binners each with counts of their own), and compacts the segments of each tile into depth slices, at most 16 groups of 1024 segments, with a piece of raster work per tile. The device has no mesh shader, so only the software path exists: `renderCurveSwRaster` (`true`) runs it, and with it off nothing runs. The raster that draws the compacted segments is not there yet, so the pipeline draws nothing for now. `renderCurveRasterNumRasterizers` (`256`, from 1 to 1024) and `renderCurveRasterMinCoverage` (`0.05`, from 0 to 1, the coverage under which a raster step stops) are for that raster. Images wider than 8192 pixels skip the pipeline.
+
+```js
+// The curve raster with sixteen binners, on its software path.
+const world = createWorld('viewer', {
+  hairStrands: true,
+  renderCurve: true,
+  renderCurveSwRaster: true,
+  renderCurveRasterNumBinners: 16,
+})
+```
+
+## Hair strands: forward raster
+`hairVisibilityComputeRasterForward` (`false`) draws the strands without a visibility buffer. Every control point of the strands in view becomes a sample that is lit once (the material and the lights of the strands run over the points, not over the pixels), then a tiled compute raster shades the segments between the points straight into the image: the segments are cut to the view, binned in tiles of 32 pixels (only the tiles in front of the opaque depth), gathered and ordered by depth, and each tile of 8 pixels takes them front to back, mixing the colours of the lit points along each segment and stopping when its pixels are covered. It takes the place of `hairVisibilityComputeRaster` when both are on, keeps no sample a pixel (`hairVisibilitySamplesPerPixel`, `hairVisibilitySortByDepth`, `hairVisibilityCoverageMapping` do not apply) and needs `hairStrands`. The strands keep the surfaces' velocity, and a point off the image is lit as the nearest pixel of the edge. Its groups are the compute raster's own settings:
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `hairVisibilityComputeRasterNumBinners` | `32` | workgroups that bin the segments into tiles, `1` to `256` |
+| `hairVisibilityComputeRasterNumRasterizers` | `256` | workgroups that shade the tiles, `1` to `1024` |
+| `hairVisibilityComputeRasterMaxTiles` | `65536` | lists of 1024 segments kept, `1024` to `262144`; a device whose storage binding holds fewer takes the most it holds, and the segments past them are not drawn |
+
+```js
+// Strands drawn by the forward raster, with fewer, larger groups for a small image.
+const world = createWorld('viewer', {
+  hairStrands: true,
+  hairVisibilityComputeRasterForward: true,
+  hairVisibilityComputeRasterNumBinners: 16,
+  hairVisibilityComputeRasterNumRasterizers: 128,
+})
+```
+
+## Hair strands: G-buffer write
+`hairWriteGBufferData` (`1`, from 0 to 3) writes the strands into the surfaces once they are laid on the image, for the passes that read the surfaces next (the reflections and the occlusion of the following image, the passes that tell hair pixels apart). `0` writes nothing; `1` a placeholder: the tangent (0, 0, 1) as the normal, no roughness and the hair shading model, no colour; `2` the mean tangent of the pixel's strand samples as the normal and their mean roughness; `3` the whole surface, the mean base colour too, and takes the opaque depth to the nearest strand's. A pixel written is of the hair shading model, which has no specular lobe, so no reflection is traced for it. The strands' specular and backlit share stay in their samples: the surfaces hold no place for them. It needs `hairStrands`.
+
+```js
+// Strands that write their normal, roughness and colour into the surfaces and their depth into the opaque depth.
+const world = createWorld('viewer', { hairStrands: true, hairWriteGBufferData: 3 })
+```
+
+## Sampled lighting: debug views
+The sampled lighting (`sampledLights`) and the subsurface scattering have views that draw over the image, as the other diagnostic views do. They are chosen by `world.diagnostic.mode` or by a setting, and need the effect they show to be on.
+
+| Mode | What it shows |
+| --- | --- |
+| `sampled-lights-overview` | the shadow caster views side by side, in tiles with rounded corners, over the image |
+| `sampled-lights-shadow-casters` | the surface under each pixel in grey, with the label `Shadow Casters, Materials:0, FarField:0, HairVoxels:0` (the traces are made through the distance field, which has no scene of its own to colour) |
+| `sampled-lights-shadow-caster-quality` | the same, with the label that names red a missing caster and blue a mismatching one |
+| `subsurface-profiles` | in the lower right quarter, the whole image's subsurface profile of each pixel: the default skin buff, then red, green, blue, magenta, cyan and yellow, 100 dark green, 255 white, any other mid grey; the profile's number or letter in each cell of eight pixels, all faded where the scattering stays inside a pixel; the title and the list of the profiles are written at the top left |
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `sampledLightsVisualize` | `0` | A numbered view in place of a mode: 1 the overview, 2 the shadow casters, 3 their quality, 4 and 5 the denoiser overviews (4 by 4 tiles of the views below), 6 the shading confidence, 7 the frames accumulated (red invalid, yellow the first), 8 the upsample mask (yellow: no history), 9 and 10 the diffuse and specular demodulation, 11 and 12 the deviation of each light over its mean (red a disocclusion, blue the spatial filter, violet both), 13 and 14 the history's own deviation (blue above the threshold `sampledLightsSpatialHistoryDeviation`), 15 and 16 the clamp of the history (yellow fully rejected). Each view is labelled at its foot. The setting wins over the mode. |
+| `sampledLightsVisualizeShadowCasterMissingDistance` | `0.5` | Metres a traced surface may lie behind the drawn one before it is called missing |
+| `sampledLightsVisualizeShadowCasterPoorDistance` | `0.25` | Metres it may lie in front before it is called mismatching |
+| `sampledLightsVisualizeTileClassification` | `0` | The tiles of the classification over the image: 1 the surfaces' tiles, 2 the downsampled tiles (3 to 6 the hair strands' and the nearest layer's, drawn with their own images); each type in its colour with a count table |
+| `sampledLightsDebug` | `0` | The input the debug prints speak of: 1 the surfaces, 2 the volume, 3 the translucency volume, 4 the hair strands, 5 the nearest layer |
+| `sampledLightsDebugTraceStats` | `false` | With `sampledLightsDebug`, the count of rays each trace method got, written at the right of the image |
+| `sampledLightsDebugCursorX`, `sampledLightsDebugCursorY` | `-1` | The pixel the prints inspect; -1 is the middle of the image |
+| `subsurfaceDebugPixel` | `false` | At full resolution, the lighting of the pixel under the cursor written as a table: its lit colour, the diffuse and specular light rebuilt from it, its profile, base colour, tint and scattered light, and the colour the recombine makes |
+
+```js
+// The frames each pixel's light has accumulated, the tiles of the classification, and the subsurface pixel at the middle.
+const world = createWorld('viewer', {
+  sampledLights: true,
+  sampledLightsVisualize: 7, // the frames accumulated
+  sampledLightsVisualizeTileClassification: 1,
+  sampledLightsDebug: 1,
+  sampledLightsDebugTraceStats: true,
+  subsurfaceDebugPixel: true,
+  sampledLightsDebugCursorX: 960,
+  sampledLightsDebugCursorY: 540,
+})
+world.diagnostic.mode = 'subsurface-profiles'
+```
+
+## Hair strands: debug views
+Four diagnostic views (`world.diagnostic.mode`) draw over the image: `hair-light-bounds` the statistics of the strands (the components of the fibre, the voxelization, the atlas of the deep shadows) and the bounds the settings ask for; `hair-deep-opacity-maps` the same, and the depth and the layers of a deep shadow side by side; `hair-macro-group-screen-rect` a green frame around the pixels each macro group of strands covers, and one around all of them; `hair-voxels-density` the strands' count along the ray of each pixel through the voxels, from blue to red, and the box of each volume. The name of the view is written at the bottom. They need `hairStrands` and a scene that carries strands (the deep shadows a light that casts them, `castHairDeepShadow`).
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `hairCastShadowWhenOutOfViewDebug` | `false` | in every view: the view frustum in blue, the bound of each directional light in purple, the box of each groom out of view in the light's space green where it reaches the frustum and yellow where it does not, and in the world in red |
+| `hairDeepShadowDebugIndex` | `0` | rank of the deep shadow `hair-deep-opacity-maps` draws; it draws nothing past the slots the atlas holds |
+| `hairDeepShadowDebugScale` | `20` | divisor of the layers' values in that view |
+| `hairDeepShadowDebugMacroBounds` | `false` | the box of each macro group, in the views of the bounds and of the deep shadows |
+| `hairDeepShadowDebugShadowBounds` | `false` | the frustum of each deep shadow, in the same views |
+| `hairVoxelDebugTraversal` | `'linear'` | `'linear'` a voxel a step, `'mip'` through the levels of the pages |
+| `hairVoxelDebugDrawVoxels` | `true` | draw the strands' count |
+| `hairVoxelDebugDrawPages` | `false` | draw the first page that holds voxels along the ray instead, its coordinates over 12 as the colour |
+| `hairVoxelDebugForcedMip` | `-1` | from 0 to 8, the level of the pages every step reads; below 0 the step picks it |
+
+```js
+// The voxels of the strands marched through their mip levels, with the macro groups' boxes drawn on the deep shadows view.
+const world = createWorld('viewer', {
+  hairStrands: true,
+  hairVoxelDebugTraversal: 'mip',
+  hairDeepShadowDebugMacroBounds: true,
+})
+world.diagnostic.mode = 'hair-voxels-density'
 ```

@@ -34,19 +34,35 @@ import {
  * to the next (the samples are at the standard multisample positions of that count);
  * `hairVisibilityComputeRaster` picks who writes them: off, the device's own rasterizer draws the
  * ribbons into a four-sample target, a pass for each four samples; on, a compute raster does, whatever
- * the device's own multisample counts;
+ * the device's own multisample counts; `hairVisibilityComputeRasterForward`, off, takes the place of both when on (as the
+ * reference's one setting holds either mode): no sample is kept, every control point of the strands is lit and a
+ * tiled compute raster shades the segments between them into the image (`hairVisibilityComputeRasterNumBinners`
+ * workgroups bin the segments in tiles of 32 pixels, up to `hairVisibilityComputeRasterMaxTiles` tiles of 1024 segments,
+ * and `hairVisibilityComputeRasterNumRasterizers` workgroups shade them);
  * `hairVisibilityMeanSamplesPerPixel` scales the memory kept for them (0 to 1). A pixel counts
  * as fully covered from `hairVisibilityFullCoverageThreshold`;
  * `hairVisibilitySortByDepth` orders the samples of a pixel by depth and gives them their coverage
  * from the ordered transmittance; `hairVisibilityResolutionScaleAware` scales the strands with the
- * resolution scale.
+ * resolution scale;
+ * `hairVelocityType` takes the velocity a pixel of strands writes from the velocity of its samples (the nearest, the default, their mean, or the
+ * largest); `hairVisibilityWriteVelocityCoverageThreshold` is the share of the pixel the strands cover from which it writes one (0, every pixel
+ * with strands), and `hairVelocityThreshold` the velocity, in the reference's pixel unit (a quarter pixel at 1, the default), above which a sample marks its
+ * pixel to be resolved at once by the temporal pass, without its history's smear.
+ * `hairRenderCustomDepth`, off, makes the strands write the depth of their nearest sample into a custom depth target of the view (`hairCustomDepthCoverageThreshold`
+ * is the share of a pixel they must cover to write it: 0, every pixel with strands, the default).
+ * The compute raster draws the segments binned in tiles of `hairVisibilityComputeRasterTileSize` pixels (the furthest opaque depth of each tile is found first,
+ * so that no segment behind a tile is binned; `hairVisibilityComputeRasterNumBinners` workgroups bin, `hairVisibilityComputeRasterNumRasterizers` draw the tiles,
+ * `hairVisibilityTileCompaction` merges the partly filled tiles of a cell before they are drawn); `hairVisibilityNaiveRaster` draws them a thread a segment
+ * instead (`hairVisibilityComputeRasterNumRasterizersNaive` workgroups walk them); `hairVisibilityClassification` first sorts the segments into the small ones,
+ * which the tiles (or the naive raster) draw, and the larger ones, which are drawn a thread a segment (`hairVisibilityNumClassifiers` workgroups sort them).
+ * `hairVisibilityCoverageMapping`, off, takes the share of a pixel the strands cover not from the product of what each strand lets through but
+ * from their count and their mean width, mapped through a table of the coverage of that many strands of that width placed at random.
  * `hairRasterizationScale` scales the least width a strand is drawn with, in the share of a pixel
  * the samples of the visibility leave it (the width that snaps a strand to a sample of its pixel);
  * `hairStableRasterizationScale`, held to 1 at least, is that scale for a groom drawn stable, whose
  * width then does not follow the samples' share. The samples of a pixel are listed by strand: the
- * settings that would merge those whose depth and tangent are close, map the hair count to a coverage,
- * set the distance from which the opaque depth is injected into the hair count, and scale the strands
- * drawn for their velocity, come with the pass that reads them.
+ * settings that would merge those whose depth and tangent are close, set the distance from which the opaque depth is injected into the
+ * hair count, and scale the strands drawn for their velocity, come with the pass that reads them.
  *
  * THE STRANDS' MATERIAL. A strand takes the default strand material's colour and roughness: no
  * material a groom names reads the colours and roughness its file may carry. `hairStableRasterization`
@@ -113,6 +129,20 @@ import {
  *
  * THE SHADOW RAYS. `shadowSmrtSamplesPerRayHair` is the rays a pixel of the strands casts toward a
  * light, held to the number the light casts.
+ *
+ * THE G-BUFFER. `hairWriteGBufferData` writes the strands into the surfaces after they are laid on the image, for the passes that read the
+ * surfaces next: 0 nothing, 1 (the default) a placeholder (the strand's tangent as the normal, the hair shading model), 2 the surface's
+ * normal and roughness from the strands' samples, 3 the whole surface (base colour too) and the depth of the nearest strand.
+ *
+ * THE DEBUG VIEWS. The diagnostic views `hair-light-bounds`, `hair-deep-opacity-maps`, `hair-macro-group-screen-rect` and
+ * `hair-voxels-density` draw over the image. `hairCastShadowWhenOutOfViewDebug` draws, whatever the view, how a directional light's shadow
+ * culls the grooms (the view frustum in blue, the light's bound in purple, each groom's box in the light's space green where it reaches
+ * the frustum and yellow where it does not, and in the world in red). `hairDeepShadowDebugIndex` is the deep shadow drawn by
+ * `hair-deep-opacity-maps` and `hairDeepShadowDebugScale` the divisor of its layers' values; `hairDeepShadowDebugMacroBounds` and
+ * `hairDeepShadowDebugShadowBounds` draw the macro groups' boxes and the deep shadows' frusta in the views of the light bounds and of the
+ * deep shadows. `hair-voxels-density` marches the volume with the linear or the mip traversal (`hairVoxelDebugTraversal`), draws the voxels
+ * (`hairVoxelDebugDrawVoxels`) or the pages that hold some (`hairVoxelDebugDrawPages`), at the level `hairVoxelDebugForcedMip` where it is
+ * 0 or more.
  */
 
 /** How the strands integrate the environment's light, the default first. */
@@ -127,6 +157,10 @@ const COMPOSITIONS = [
   'afterTranslucentBeforeDepthOfField',
 ] as const
 
+/** How the velocity of a pixel is taken from its strands' samples, the default first: that of the nearest sample, the mean of the
+ *  samples', or the largest of them. */
+const VELOCITY_TYPES = ['closest', 'average', 'max'] as const
+
 /** How the voxelization and the march are jittered, the default first. */
 const VOXEL_JITTERS = ['randomized', 'none', 'constant'] as const
 
@@ -140,10 +174,31 @@ const visibilityRules = () =>
     flag('hairVisibilitySortByDepth', false),
     flag('hairVisibilityResolutionScaleAware', true),
     flag('hairVisibilityComputeRaster', false),
+    flag('hairVisibilityComputeRasterForward', false),
+    integer('hairVisibilityComputeRasterNumBinners', 32, [1, 256]),
+    integer('hairVisibilityComputeRasterNumRasterizers', 256, [1, 1024]),
+    integer('hairVisibilityComputeRasterMaxTiles', 65536, [1024, 262144]),
+    flag('hairVisibilityNaiveRaster', false),
+    flag('hairVisibilityTileCompaction', false),
+    flag('hairVisibilityClassification', false),
+    integer('hairVisibilityComputeRasterTileSize', 32, [8, 32]),
+    integer('hairVisibilityNumClassifiers', 32, [1, 256]),
+    integer('hairVisibilityComputeRasterNumRasterizersNaive', 256, [1, 1024]),
+    flag('hairVisibilityCoverageMapping', false),
+    choice('hairVelocityType', 'closest', VELOCITY_TYPES),
+    integer('hairVelocityThreshold', 1, [0, 512]),
+    number('hairVisibilityWriteVelocityCoverageThreshold', 0, [0, 1]),
     flag('hairStableRasterization', false),
     flag('hairScatterSceneLighting', false),
     choice('hairStrandsComposition', 'afterTranslucent', COMPOSITIONS),
     flag('hairCastContactShadow', true),
+    flag('hairRenderCustomDepth', false),
+    flag('renderCurve', false),
+    flag('renderCurveSwRaster', true),
+    integer('renderCurveRasterNumBinners', 32, [1, 256]),
+    integer('renderCurveRasterNumRasterizers', 256, [1, 1024]),
+    number('renderCurveRasterMinCoverage', 0.05, [0, 1]),
+    number('hairCustomDepthCoverageThreshold', 0, [0, 1]),
     nonNegative('hairRasterizationScale', 0.5),
     nonNegative('hairShadowRasterizationScale', 1),
     number('hairStableRasterizationScale', 1, atLeast(1)),
@@ -221,9 +276,27 @@ const lightRules = () =>
     integer('shadowSmrtSamplesPerRayHair', 1, [1, SHADOW_RAY_COUNT_MAX]),
   ] as const
 
+/** How the debug view of the voxels marches the volume, the default first. */
+const VOXEL_DEBUG_TRAVERSALS = ['linear', 'mip'] as const
+
+/** The settings of the G-buffer write and of the debug views. */
+const debugRules = () =>
+  [
+    integer('hairWriteGBufferData', 1, [0, 3]),
+    flag('hairCastShadowWhenOutOfViewDebug', false),
+    count('hairDeepShadowDebugIndex', 0, 0),
+    nonNegative('hairDeepShadowDebugScale', 20),
+    flag('hairDeepShadowDebugMacroBounds', false),
+    flag('hairDeepShadowDebugShadowBounds', false),
+    choice('hairVoxelDebugTraversal', 'linear', VOXEL_DEBUG_TRAVERSALS),
+    flag('hairVoxelDebugDrawVoxels', true),
+    flag('hairVoxelDebugDrawPages', false),
+    integer('hairVoxelDebugForcedMip', -1, [-1, 8]),
+  ] as const
+
 /** The hair strands' run-time settings by field, each with its default. */
 export const HAIR_STRANDS_RULES = /* @__PURE__ */ (() =>
-  rulesOf([...visibilityRules(), ...volumeRules(), ...lightRules()] as const))()
+  rulesOf([...visibilityRules(), ...volumeRules(), ...lightRules(), ...debugRules()] as const))()
 /** The hair strands setting `field` of a runtime's context (`contextReader`): its default where the
  *  context holds none. */
 export const readHairStrandsSetting = /* @__PURE__ */ contextReader(HAIR_STRANDS_RULES)

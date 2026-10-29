@@ -2,8 +2,9 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { HeterogeneousVolumeField } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import type { ResolvedHeterogeneousVolume } from '../../../../sdk-core/src/scene/heterogeneousVolume/contracts.ts'
 import { fogGraphMaps } from '../../frame/render/fogGraphMaps.ts'
-import { createLightingCache, lightingCacheResolution } from './liveShadingGpu.ts'
-import { HV_MAX_SPARSE } from './liveShadingProgram.ts'
+import { heldLightingCache, lightingCacheResolution, volumeResolutionOf } from './liveShadingGpu.ts'
+import { lodFactorOfLevel, type LodValue } from './volumeLod.ts'
+import { HV_MAX_SPARSE, type HvVariant } from './liveShadingProgram.ts'
 import { compiledOf, programOf, uploadOf, bufferOf, type State } from './liveShadingState.ts'
 import { packedUniforms, type SparseVolumeFrameGpu } from './sparseVolumeGpu.ts'
 import type { SparseVolumeEntry, SparseVolumeFrame } from './sparseVolumeFile.ts'
@@ -38,14 +39,7 @@ function lightingCacheOf(
   id: string,
   size: readonly [number, number, number],
 ) {
-  const key = `${id}:${size.join('x')}`
-  let cache = held.caches.get(key)
-  if (!cache) {
-    for (const [other, old] of held.caches)
-      if (other.startsWith(`${id}:`)) (old.destroy(), held.caches.delete(other))
-    held.caches.set(key, (cache = createLightingCache(device, size, `${id} cache`)))
-  }
-  return cache
+  return heldLightingCache(held.caches, device, `${id}:`, size, `${id} cache`)
 }
 
 /** The sparse volumes' slots, in a uniform: the scene node each reads and its packed uniforms. */
@@ -74,6 +68,11 @@ function slotsBufferOf(
   return buffer
 }
 
+/** The storage buffers a program of `variant` binds in a stage (the lights, the shadow maps' page table, projection data and pool, the values, the fog's
+ *  tiles, the colour atlas's pages where the graph reads 2D textures, and the extra buffer of the variant). */
+export const storageBuffersOf = (textured: boolean, variant: HvVariant) =>
+  6 + (textured ? 1 : 0) + (variant === 'plain' ? 0 : 1)
+
 /** The resources of a volume for this image: its program, the sparse volumes its graph reads, its lighting cache, the colour atlas
  *  and the buffers of its values and slots; none where something it needs is not there yet. */
 export function volumeResourcesOf(c: {
@@ -84,21 +83,29 @@ export function volumeResourcesOf(c: {
   placed: { volume: ResolvedHeterogeneousVolume; entry: SparseVolumeEntry; index: number }
   settings: (field: HeterogeneousVolumeField) => number
   beerFormat: GPUTextureFormat
+  /** The volume's level of detail. */
+  lod: LodValue
   /** Whether the program binds the volumes' holdout (`liveShadingProgram`). */
   holdout: boolean
+  /** The program the volume's passes run; where the device cannot bind its extra buffer, the plain one. */
+  variant: HvVariant
 }) {
-  const { held, rt, device, sparse, settings, beerFormat, holdout } = c
+  const { held, rt, device, sparse, settings, beerFormat, holdout, variant } = c
   const { volume, entry, index } = c.placed
   const compiled = compiledOf(volume)
   if (!compiled) return undefined
-  const program = programOf(held, rt, device, compiled, beerFormat, holdout)
-  if (!program.cache || !program.march || !program.beer) return undefined
+  const program = programOf(held, rt, device, compiled, beerFormat, holdout, variant)
+  // The program that builds the adaptive map has that kernel alone; the others, the cache, the march and the beer map's build.
+  if (variant === 'avsm' ? !program.avsm : !program.cache || !program.march || !program.beer)
+    return undefined
   const nodes = compiled.slots.sparseNodes(volume.graph!)
   const slotsGpu = sparseSlotsOf(held, device, sparse, volume, nodes, index)
+  const resolution = volumeResolutionOf(entry.resolution, settings)
   const cacheSize = lightingCacheResolution(
-    entry.resolution,
+    resolution,
     settings('heterogeneousVolumesLightingCacheDownsampleFactor'),
     volume.lightingDownsampleFactor,
+    lodFactorOfLevel(c.lod),
   )
   const cache = lightingCacheOf(held, device, volume.id, cacheSize)
   // The 2D textures the graph reads come from the colour atlas, asked at their full detail; none is drawn before they are there.
@@ -120,10 +127,11 @@ export function volumeResourcesOf(c: {
   const slotsBuffer = slotsBufferOf(held, device, volume.id, nodes, slotsGpu)
   return {
     program,
-    cachePipeline: program.cache,
-    marchPipeline: program.march,
+    cachePipeline: program.cache!,
+    marchPipeline: program.march!,
     aoPipeline: program.ao,
     slotsGpu,
+    resolution,
     cacheSize,
     cache,
     atlas,

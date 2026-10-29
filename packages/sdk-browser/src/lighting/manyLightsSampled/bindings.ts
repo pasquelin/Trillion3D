@@ -47,5 +47,7 @@ export const SAMPLED_BINDINGS = {
   exposureNow: 160,
   /** The spatial filter's output: the light to add to the lit image, demodulation put back. */
   composite: 161,
+  /** The spatial filter's debug output (`spatialDebugWgsl.ts`), written only while a debug view asks. */
+  debugPixels: 163,
   /** The lights' power of the image before (read) and of this one (written), per rank. */
 } as const

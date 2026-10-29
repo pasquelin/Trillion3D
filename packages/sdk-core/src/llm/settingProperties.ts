@@ -39,6 +39,7 @@ import {
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_MEANINGS } from './distanceFieldOcclusionMeanings.ts'
 import { HIZ_PRIME_MEANINGS, type HizPrimeField } from './hizPrimeMeanings.ts'
+import { HZB_OCCLUSION_MEANINGS, type HzbOcclusionField } from './hzbOcclusionMeanings.ts'
 import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
 import { SHADOW_SUN_MEANINGS } from './shadowSunMeanings.ts'
 import { CONTACT_SHADOW_MEANINGS } from './contactShadowMeanings.ts'
@@ -284,22 +285,23 @@ const TEMPORAL_MEANINGS: Readonly<Record<TemporalField, string>> = {
 }
 
 /** What each setting of the depth pyramid means (`../contracts/hizOptions.ts`). */
-const HIZ_MEANINGS: Readonly<Record<Exclude<HizField, HizPrimeField>, string>> = {
-  hizTrace:
-    "How the reflections' screen trace reads the depth pyramid: 'reference' walks the closest depth of the opaque image, each texel at its centre, mip by mip; 'planes' reads each pixel as a plane, half its slopes' sum nearer and farther at its edge, which keeps a hit on a grazing surface that the centre alone passes over.",
-  hizFoldTransparents:
-    "Whether the trace layers of the pyramid hold, beside the opaque depth, the nearest transparent surface of each pixel, so that a ray stops at glass; off by default, the traces read the opaque depth alone. The cut's occlusion never reads it.",
-  hizTransparentTest:
-    "How a transparent cluster is tested against the opaque depth already drawn: 'finer' reads up to sixteen texels a side of a level fine enough to hold its rectangle (the half-resolution mip at the finest) and rejects the clusters wholly behind it; 'reference' reads four texels a side of the lowest level that holds it. Neither rejects a visible cluster; 'finer' rejects more.",
-  hizFullResDepth:
-    "Whether the screen probes' 'reference' screen trace goes down to the full-resolution depth, which is more accurate and adds incoherency to the inner loop (true, the default), or stops at the half-resolution level of the pyramid, a texel there taking the closest depth of its 2 × 2 pixels, a little farther at the start of the ray. The reflections' trace always goes down to the full-resolution depth.",
-  lightGridHizCull:
-    "Whether the light grid leaves empty the cells no pixel can read: those whose nearest face is behind the farthest depth of the opaque image in their 64-pixel column (read from the depth pyramid the image built, with the margin the fog volume reads the lists behind a surface with), and ends every light's run at the cell that holds that depth. true by default; false lists every cell the lights reach.",
-  lightGridLinkedLists:
-    'Whether the light grid makes the lists of its cells from chains of links taken from one shared pool: each light a cell takes asks the next link of the pool, the chains are then written out as contiguous lists in light order, and the number of lights per cell is no longer limited, only the pool as a whole (true, the default). false gives each cell its own share of the pool, lightGridMaxCulledLightsPerCell words, and keeps its first lights up to it.',
-  lightGridMaxCulledLightsPerCell:
-    "The light entries the view's light grid holds for each of its cells (32 by default, from 1 to 1024): the grid's pool is its cells times this. With lightGridLinkedLists on, that is a limit on the whole grid: the lights are put in the cells as they come, and those asked once the pool is used up are dropped, so a cell keeps the lights it got, in light order; with it off, each cell keeps its own first lights up to this number. The lights dropped neither light nor shadow their pixels; the engine says so once on the console, as the count it needed rises. It does nothing to the bounce's world grid.",
-}
+const HIZ_MEANINGS: Readonly<Record<Exclude<HizField, HizPrimeField | HzbOcclusionField>, string>> =
+  {
+    hizTrace:
+      "How the reflections' screen trace reads the depth pyramid: 'reference' walks the closest depth of the opaque image, each texel at its centre, mip by mip; 'planes' reads each pixel as a plane, half its slopes' sum nearer and farther at its edge, which keeps a hit on a grazing surface that the centre alone passes over.",
+    hizFoldTransparents:
+      "Whether the trace layers of the pyramid hold, beside the opaque depth, the nearest transparent surface of each pixel, so that a ray stops at glass; off by default, the traces read the opaque depth alone. The cut's occlusion never reads it.",
+    hizTransparentTest:
+      "How a transparent cluster is tested against the opaque depth already drawn: 'finer' reads up to sixteen texels a side of a level fine enough to hold its rectangle (the half-resolution mip at the finest) and rejects the clusters wholly behind it; 'reference' reads four texels a side of the lowest level that holds it. Neither rejects a visible cluster; 'finer' rejects more.",
+    hizFullResDepth:
+      "Whether the screen probes' 'reference' screen trace goes down to the full-resolution depth, which is more accurate and adds incoherency to the inner loop (true, the default), or stops at the half-resolution level of the pyramid, a texel there taking the closest depth of its 2 × 2 pixels, a little farther at the start of the ray. The reflections' trace always goes down to the full-resolution depth.",
+    lightGridHizCull:
+      "Whether the light grid leaves empty the cells no pixel can read: those whose nearest face is behind the farthest depth of the opaque image in their 64-pixel column (read from the depth pyramid the image built, with the margin the fog volume reads the lists behind a surface with), and ends every light's run at the cell that holds that depth. true by default; false lists every cell the lights reach.",
+    lightGridLinkedLists:
+      'Whether the light grid makes the lists of its cells from chains of links taken from one shared pool: each light a cell takes asks the next link of the pool, the chains are then written out as contiguous lists in light order, and the number of lights per cell is no longer limited, only the pool as a whole (true, the default). false gives each cell its own share of the pool, lightGridMaxCulledLightsPerCell words, and keeps its first lights up to it.',
+    lightGridMaxCulledLightsPerCell:
+      "The light entries the view's light grid holds for each of its cells (32 by default, from 1 to 1024): the grid's pool is its cells times this. With lightGridLinkedLists on, that is a limit on the whole grid: the lights are put in the cells as they come, and those asked once the pool is used up are dropped, so a cell keeps the lights it got, in light order; with it off, each cell keeps its own first lights up to this number. The lights dropped neither light nor shadow their pixels; the engine says so once on the console, as the count it needed rises. It does nothing to the bounce's world grid.",
+  }
 
 /** What the volumetric lightmap's setting means (`../contracts/volumetricLightmapOptions.ts`). */
 const VOLUMETRIC_LIGHTMAP_MEANINGS: Readonly<Record<VolumetricLightmapField, string>> = {
@@ -659,7 +661,11 @@ export const settingRuleProperties = () => ({
   localExposureHighlightContrastCurve: contrastCurveProperty('highlight'),
   localExposureShadowContrastCurve: contrastCurveProperty('shadow'),
   ...ruleProperties(TEMPORAL_RULES, TEMPORAL_MEANINGS),
-  ...ruleProperties(HIZ_RULES, { ...HIZ_MEANINGS, ...HIZ_PRIME_MEANINGS }),
+  ...ruleProperties(HIZ_RULES, {
+    ...HIZ_MEANINGS,
+    ...HIZ_PRIME_MEANINGS,
+    ...HZB_OCCLUSION_MEANINGS,
+  }),
   ...ruleProperties(LIGHT_FUNCTION_RULES, LIGHT_FUNCTION_MEANINGS),
   ...ruleProperties(LIGHT_PROFILE_RULES, LIGHT_PROFILE_MEANINGS),
   ...ruleProperties(VOLUMETRIC_LIGHTMAP_RULES, VOLUMETRIC_LIGHTMAP_MEANINGS),

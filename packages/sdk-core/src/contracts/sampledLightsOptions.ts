@@ -74,6 +74,13 @@ import {
  *   (the voxels' samples are shared, a light weighing by the larger of its two lights and traced for both), and whether it is lit by the sampled lighting at all;
  * - `sampledLightsTranslucencyVolumeDownsample` (2, 1 or 2), `…SamplesPerVoxel` (2), `…MinSampleWeight` (0.1) and `…GuideByHistory` (on): where the translucency volume does not share the fog's samples, the cells
  *   one drawn cell covers along each axis, the samples of a cell, the least a sample weighs and whether a light hidden in the image before is drawn less;
+ * - THE DEBUG VIEWS (diagnostic modes `sampled-lights-…`): `sampledLightsVisualize` (0, 1 to 16) the numbered view shown in place of a named mode — 1 the overview of the
+ *   shadow casters, 2 the shadow casters, 3 their quality, 4 and 5 the denoiser's overviews, 6 to 16 the denoiser's own images, each view named in `docs/SDK.md` —;
+ *   `sampledLightsVisualizeShadowCasterMissingDistance` (0.5 m) and `…PoorDistance` (0.25 m) how far a traced surface may lie from the drawn one before the quality view calls it missing or mismatching;
+ *   `sampledLightsVisualizeTileClassification` (0, 1 to 6) the tiles of the classification drawn over the image — 1 the surfaces' tiles, 2 the downsampled tiles, 3 and 4 the hair strands', 5 and 6 the nearest
+ *   translucent layer's —;
+ *   `sampledLightsDebug` (0, 1 to 5: the surfaces, the volume, the translucency volume, the hair strands, the nearest layer) which input the debug prints speak of, `sampledLightsDebugTraceStats` (off) the
+ *   count of rays each trace method got, and `sampledLightsDebugCursorX` / `…Y` (-1, the middle of the image) the pixel the light list and the prints inspect;
  * - `sampledLightsVolume` (on), `sampledLightsVolumeSamplesPerVoxel` (2) and `sampledLightsVolumeMinSampleWeight` (0.1): whether the local lights lit the volumetric fog's
  *   cells by samples, the samples of a cell (4 or more take 4, less 2) and the least a sample weighs in a cell's light for the lights to be drawn at all. The fog's grid is the volume's
  *   (it has its own cell size, depth law, history and hidden-cell skip).
@@ -157,6 +164,14 @@ export const SAMPLED_LIGHTS_RULES = /* @__PURE__ */ (() =>
     flag('sampledLightsVolume', true),
     countSetting('sampledLightsVolumeSamplesPerVoxel', 2, 1),
     nonNegativeSetting('sampledLightsVolumeMinSampleWeight', 0.1),
+    integer('sampledLightsVisualize', 0, [0, 16]),
+    nonNegativeSetting('sampledLightsVisualizeShadowCasterMissingDistance', 0.5),
+    nonNegativeSetting('sampledLightsVisualizeShadowCasterPoorDistance', 0.25),
+    integer('sampledLightsVisualizeTileClassification', 0, [0, 6]),
+    integer('sampledLightsDebug', 0, [0, 5]),
+    flag('sampledLightsDebugTraceStats', false),
+    integer('sampledLightsDebugCursorX', -1, [-1, 65535]),
+    integer('sampledLightsDebugCursorY', -1, [-1, 65535]),
   ] as const))()
 
 /** The field of one sampled lighting setting of the view. */

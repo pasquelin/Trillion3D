@@ -7,10 +7,23 @@ import {
 } from './compactionPass.ts'
 import { encodeHairDepth, encodeHairGbuffer, gbufferPipelines } from './gbufferPass.ts'
 import { encodeHairMaterial, materialPipelines } from './materialPass.ts'
+import { coverageMapPipelines, encodeCoverageMapping } from './coverageMapPass.ts'
 import { encodeHairDeepShadows } from './deepShadowPass.ts'
 import { encodeHairVoxels } from './voxelPass.ts'
 import { encodeHairMsaa, msaaPipelines } from './msaaPass.ts'
+import { RENDER_CURVE_SEGMENT_BYTES, renderCurveCommon } from './renderCurve/renderCurveMath.ts'
+import { encodeHairForward } from './forward/forwardVisibility.ts'
+import { forwardNodeCount } from './forward/forwardMath.ts'
 import { encodeHairClearSamples, encodeHairRaster, rasterPipelines } from './rasterPass.ts'
+import { ensureHairBinned, sendHairBinnedParams } from './binnedRasterPass.ts'
+import {
+  HAIR_RASTER_DEFAULTS,
+  hairRasterGeometry,
+  hairRasterPlan,
+  hairRasterPlanKey,
+  type HairRasterPlan,
+} from './rasterModes.ts'
+import { storageBufferCap } from '../session/memory/pools.ts'
 import { pixelSizeAtDepth1 } from './scene.ts'
 import type { MacroGroup } from './macroGroups.ts'
 import { clearHairTiles, encodeHairTiles, tilePipelines } from './tilesPass.ts'
@@ -46,11 +59,16 @@ interface HairProgramsCommon {
   readonly blendable: boolean
   readonly sorted: boolean
   readonly patch: boolean
+  readonly mapped: boolean
+  /** What picks the compute raster's passes (`hairRasterPlanKey`). */
+  readonly planKey: string
   readonly transmit: NonNullable<ReturnType<typeof transmittancePipelines>>
   readonly tiles: NonNullable<ReturnType<typeof tilePipelines>>
   readonly compact: NonNullable<ReturnType<typeof compactionPipelines>>
   readonly material: NonNullable<ReturnType<typeof materialPipelines>>
   readonly gbuffer: NonNullable<ReturnType<typeof gbufferPipelines>>
+  /** The count of the strands of a pixel and its map to the transmittance, with `mapped`. */
+  readonly coverageMap?: NonNullable<ReturnType<typeof coverageMapPipelines>>
 }
 
 /** The programs, with the device's rasterizer writing the samples (`msaa`) or a compute raster doing it
@@ -72,8 +90,11 @@ function programsFor(
   sorted: boolean,
   patch: boolean,
   hardware: boolean,
+  mapped: boolean,
+  plan: HairRasterPlan,
 ) {
   const caps = gpuCapsOf(device)
+  const planKey = hairRasterPlanKey(plan)
   const wide = caps.wideAtomics,
     blendable = caps.float32Blendable
   const held = gpu.programs
@@ -84,32 +105,63 @@ function programsFor(
     held.blendable === blendable &&
     held.sorted === sorted &&
     held.patch === patch &&
+    held.mapped === mapped &&
+    held.planKey === planKey &&
     held.hardware === hardware
   )
     return held
   const transmit = transmittancePipelines(device, blendable)
   const tiles = tilePipelines(device)
-  const raster = hardware ? undefined : rasterPipelines(device, samples, wide)
+  const raster = hardware ? undefined : rasterPipelines(device, samples, wide, plan)
   const msaa = hardware ? msaaPipelines(device, samples, wide) : undefined
   const compact = compactionPipelines(device, samples, wide)
   const material = materialPipelines(device, sorted)
   const gbuffer = gbufferPipelines(device, patch)
-  if (!transmit || !tiles || !compact || !material || !gbuffer) return undefined
+  const coverageMap = mapped ? coverageMapPipelines(device) : undefined
+  if (!transmit || !tiles || !compact || !material || !gbuffer || (mapped && !coverageMap))
+    return undefined
   const common = {
     samples,
     wide,
     blendable,
     sorted,
     patch,
+    mapped,
+    planKey,
     transmit,
     tiles,
     compact,
     material,
     gbuffer,
+    coverageMap,
   }
   if (msaa) return (gpu.programs = { ...common, hardware: true, msaa })
   if (raster) return (gpu.programs = { ...common, hardware: false, raster })
   return undefined
+}
+
+/** The resources of the compute raster for this image, kept or made, with the image's parameters written; none where the device refuses them
+ *  (`fail` is told once). */
+function ensureRasterBinned(
+  device: GPUDevice,
+  gpu: HairViewGpu,
+  plan: HairRasterPlan,
+  fail: (error: unknown) => void,
+) {
+  const { inputs, members } = gpu
+  const points = members.reduce((most, { group }) => Math.max(most, group.pointCount), 0)
+  const geometry = hairRasterGeometry(
+    inputs.raster ?? HAIR_RASTER_DEFAULTS,
+    plan,
+    inputs.size,
+    points,
+    storageBufferCap(device.limits),
+  )
+  const { resources, why } = ensureHairBinned(gpu.binned, device, geometry, plan)
+  gpu.binned = resources
+  if (!resources) tellHairOnce(gpu, 'raster', why ?? 'no room for the raster', fail)
+  else sendHairBinnedParams(device, resources, plan, inputs.size)
+  return resources
 }
 
 /**
@@ -151,7 +203,10 @@ function acquire(
     )
     members.length = gpu.macroGroups.length = HAIR_MAX_DRAWN
   }
-  const samples = hairSampleCount(inputs.samplesPerPixel)
+  // The forward raster keeps no sample a pixel (the least count holds the unused bands) and has a sample for each control point.
+  const forward = !!inputs.forwardRaster
+  const samples = forward ? 2 : hairSampleCount(inputs.samplesPerPixel)
+  const plan = hairRasterPlan(inputs.raster ?? HAIR_RASTER_DEFAULTS)
   const mean = hairMeanSampleCount(samples, inputs.meanSamplesPerPixel)
   const programs = programsFor(
     device,
@@ -159,11 +214,19 @@ function acquire(
     samples,
     inputs.sortByDepth,
     !!inputs.surfaces,
-    !!inputs.hardwareRaster,
+    !!inputs.hardwareRaster && !forward,
+    !!inputs.coverageMapping,
+    plan,
   )
   if (!programs) return undefined
+  if (
+    !programs.hardware &&
+    !forward &&
+    !ensureRasterBinned(device, gpu, programs.raster.plan, fail)
+  )
+    return undefined
   for (const member of members) if (!member.group.tangentsWritten) return undefined
-  const asked = hairNodeCapacity(rect, mean)
+  const asked = forward ? forwardNodeCount(members) : hairNodeCapacity(rect, mean)
   if (asked > HAIR_NODE_ROOM_MAX)
     tellHairOnce(
       gpu,
@@ -180,6 +243,7 @@ function acquire(
       samples,
       blendable: programs.blendable,
       hardware: programs.hardware,
+      mapped: programs.mapped,
       needed: Math.min(asked, HAIR_NODE_ROOM_MAX),
     },
     fail,
@@ -214,6 +278,7 @@ function writeViewBlock(gpu: HairViewGpu, record: HairViewRecord) {
     size[0],
     size[1],
     inputs.sortByDepth,
+    !!inputs.forwardRaster,
   )
   gpu.viewBlock.send()
 }
@@ -392,7 +457,7 @@ function encodeVisibilitySamples(
   const { inputs, imageBlock, drawn, rect } = gpu
   const depthView = inputs.depthView!
   if (!programs.hardware) {
-    encodeHairRaster(device, pass, programs.raster, buffers.raster, depthView, drawn)
+    encodeHairRaster(device, pass, programs.raster, buffers.raster, depthView, drawn, gpu.binned!)
     return pass
   }
   pass.end()
@@ -495,6 +560,11 @@ export function encodeHairVisibility(
   // where the tiles say they will be read.
   clearHairTiles(encoder, tiles)
   clearHairNodes(encoder, nodes)
+  if (inputs.forwardRaster) {
+    if (!encodeHairForward(device, encoder, gpu, record, programs, fail)) return undefined
+    gpu.visible = record.view
+    return record.view
+  }
   encodeTransmittance(
     device,
     encoder,
@@ -510,7 +580,47 @@ export function encodeHairVisibility(
     },
     drawn,
   )
+  if (programs.coverageMap && targets.counts)
+    encodeCoverageMapping(
+      device,
+      encoder,
+      programs.coverageMap,
+      targets.mapBinds,
+      targets.counts,
+      {
+        viewBuffer: gpu.viewBlock.buffer,
+        depthView,
+        image: imageBlock.buffer,
+        transmittance: targets.transmittanceView,
+        size: inputs.size,
+        rect,
+        tiles: tileRect,
+      },
+      drawn,
+    )
   encodeSamples(device, encoder, gpu, record, programs)
+  // The curve raster reads the scene's depth before the strands write theirs.
+  if (inputs.renderCurve)
+    gpu.renderCurve.encode(
+      encoder,
+      renderCurveCommon(
+        inputs.size[0],
+        inputs.size[1],
+        inputs.renderCurve.binners,
+        inputs.renderCurve.rasterizers,
+        inputs.renderCurve.minCoverage,
+        storageBufferCap(device.limits) / RENDER_CURVE_SEGMENT_BYTES,
+      ),
+      depthView,
+      {
+        scene: gpu.scene,
+        viewProjection: inputs.viewProjection,
+        projection: inputs.camera.projection,
+        perspective: inputs.camera.perspective !== 0,
+        eye: inputs.camera.eye,
+      },
+    )
+  else gpu.renderCurve.release()
   if (programs.gbuffer.depth) {
     // The surfaces the strands cover wholly were emptied: their depth becomes the strands'.
     gpu.depthPass.depthStencilAttachment.view = depthView
@@ -527,6 +637,17 @@ export function encodeHairVisibility(
     )
     depth.end()
   }
+  if (inputs.customDepthCoverage !== undefined)
+    gpu.customDepth.encode(
+      device,
+      encoder,
+      tiles,
+      nodes,
+      targets,
+      inputs.size,
+      inputs.customDepthCoverage,
+    )
+  else gpu.customDepth.release()
   gpu.visible = record.view
   return record.view
 }

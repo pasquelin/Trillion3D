@@ -38,6 +38,7 @@ import { SAMPLED_BINDINGS } from './bindings.ts'
 import { SAMPLED_GROUP } from './layout.ts'
 import { SAMPLED_PARAMS_WGSL } from './paramsWgsl.ts'
 import { SAMPLING_BINDINGS } from './samplingWgsl.ts'
+import { DEBUG_EMPTY, withDebugPixels } from './spatialDebugWgsl.ts'
 
 const B = SAMPLED_BINDINGS
 const SIDE = SAMPLED_GROUP + 4
@@ -193,18 +194,17 @@ const SPATIAL_B_PART_5 = `     centreMoments+=moments[u32(i32(ly+2u)+oy)*SIDE+u3
    if(params.spatialU.z!=0u){noisy=historyDeviation(lx,ly)>vec2f(params.spatial.w);}
 ${SPATIAL_PART_2}${SPATIAL_PART_3}`
 
-export const spatialWgsl = () => {
+export const spatialWgsl = (debug = false) => {
   const cut = { ...CLASS_CUTS[TILE_CLASS.complex], channels: false }
   const statements = litPixelStatements(cut).replace(
     '{discard;}',
-    '{textureStore(composite,vec2i(screen),vec4f(0.0));return;}',
+    `{${debug ? DEBUG_EMPTY : ''}textureStore(composite,vec2i(screen),vec4f(0.0));return;}`,
   )
-  return wgslProgram(
-    `${SPATIAL_PART_1} let centreDiffuse=textureLoad(filteredDiffuse,vec2i(screen),0);
+  const body = `${SPATIAL_PART_1} let centreDiffuse=textureLoad(filteredDiffuse,vec2i(screen),0);
  let centreSpecular=textureLoad(filteredSpecular,vec2i(screen),0);
  // A pixel that is no lit surface, or that holds no frames, adds nothing.
  if(frames<=0.0||centreDiffuse.a<0.0){
-  textureStore(composite,vec2i(screen),vec4f(0.0));
+  ${debug ? DEBUG_EMPTY : ''}textureStore(composite,vec2i(screen),vec4f(0.0));
   return;
  }
  let pixel=vec4f(vec2f(screen)+vec2f(0.5),0.0,1.0);${statements}
@@ -225,19 +225,18 @@ export const spatialWgsl = () => {
    for(var oy=-2;oy<=2;oy++){
     for(var ox=-2;ox<=2;ox++){
      let w=exp2(-2.0*f32(ox*ox+oy*oy)/9.0);
-${SPATIAL_B_PART_5}`,
-    [
-      lightingBase(SAMPLING_BINDINGS, SPATIAL_KEY, { environment: false, slices: false, cut }),
-      SAMPLED_PARAMS_WGSL,
-      hammersley16,
-      rand3dPcg16,
-      uniformDiskConcentric,
-      LIT_PIXEL_WGSL,
-      SUBSURFACE_BINDING_WGSL,
-      LOBES_TARGET_WGSL,
-      LIGHTS_BINDING_WGSL,
-      DIRECT_LIGHT_WGSL,
-      ENVIRONMENT_BRDF_WGSL,
-    ],
-  )
+${SPATIAL_B_PART_5}`
+  return wgslProgram(debug ? withDebugPixels(body) : body, [
+    lightingBase(SAMPLING_BINDINGS, SPATIAL_KEY, { environment: false, slices: false, cut }),
+    SAMPLED_PARAMS_WGSL,
+    hammersley16,
+    rand3dPcg16,
+    uniformDiskConcentric,
+    LIT_PIXEL_WGSL,
+    SUBSURFACE_BINDING_WGSL,
+    LOBES_TARGET_WGSL,
+    LIGHTS_BINDING_WGSL,
+    DIRECT_LIGHT_WGSL,
+    ENVIRONMENT_BRDF_WGSL,
+  ])
 }

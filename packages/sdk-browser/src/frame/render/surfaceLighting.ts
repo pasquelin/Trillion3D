@@ -37,6 +37,9 @@ import { encodeHeterogeneousVolumes } from '../../lighting/heterogeneousVolumes/
 import { encodeHairStrands } from '../../hair/frame.ts'
 import { encodeHairLighting } from '../../hair/lighting.ts'
 import { encodeWebgpuGuides, guidesShown } from './encodeGuides.ts'
+import { encodeHairDebug } from '../../hair/debugView.ts'
+import { encodeSubsurfaceDebug } from '../../lighting/subsurface/visualize.ts'
+import { encodeSampledDebug } from '../../lighting/manyLightsSampled/debug/frame.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
 import {
   bindBlend,
@@ -291,6 +294,11 @@ function composeImage(
   else if (presentation)
     gpu.presenter!.composed(gpu.displayTexture!, gpu.displaySize[0], gpu.displaySize[1])
   if (guided) encodeWebgpuGuides(rt, encoder, cam)
+  // The hair strands' debug views, over the image and the guides.
+  encodeHairDebug(rt, device, encoder, cam)
+  // The sampled lighting's debug views, over the image too.
+  encodeSampledDebug(rt, device, encoder, cam)
+  encodeSubsurfaceDebug(rt, device, encoder, cam)
   // The transparents read this frame's maps: the frame's buffers swap only now.
   finishVsmFrame(rt, encoder)
   // Every pass of the image that reads or writes the HDR target is encoded: the lit image becomes

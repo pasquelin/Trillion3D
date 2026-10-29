@@ -1,4 +1,5 @@
 import { wgslBlock, wgslStruct } from '../../../../math/src/wgsl/decl.ts'
+import { HV_INTERSECT_AABB } from './intersectAabbWgsl.ts'
 
 /**
  * THE LIVE SHADING OF A HETEROGENEOUS VOLUME: the pipeline the volumes take by default
@@ -83,17 +84,8 @@ const HV_RAY = wgslStruct(
  *  transmittance (hv.flags.x). */
 export const HV_RAY_MARCH_WGSL = wgslBlock(
   'HV_RAY_MARCH_WGSL',
-  [HV_VOLUME, HV_PIXEL_RAY, HV_RAY],
+  [HV_VOLUME, HV_PIXEL_RAY, HV_RAY, HV_INTERSECT_AABB],
   `
-/** The span of the ray inside the box, clamped to [tMin, tMax]: its two ends. */
-fn hvIntersectAabb(origin:vec3f,direction:vec3f,tMin:f32,tMax:f32,boxMin:vec3f,boxMax:vec3f)->vec2f{
- let inverse=1.0/direction;
- let first=(boxMin-origin)*inverse;
- let second=(boxMax-origin)*inverse;
- let near=min(first,second);
- let far=max(first,second);
- return vec2f(max(max(near.x,max(near.y,near.z)),tMin),min(min(far.x,min(far.y,far.z)),tMax));
-}
 /** The step along a local ray: the step size where it is set, else the smallest distance across a
  *  voxel along the ray times the step factor; held at 0.01 or more. */
 fn hvStepSize(direction:vec3f,size:f32,factor:f32)->f32{

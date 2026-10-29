@@ -5,14 +5,29 @@
 // the surfaces, and the shadow maps' marking and projection over the strands.
 import { GROUP_BOUNDS_WGSL, MACRO_BOUNDS_WGSL } from '../../hair/boundsWgsl.ts'
 import { compactWgsl, NODE_ARGS_WGSL } from '../../hair/compactionWgsl.ts'
-import { MSAA_WGSL, msaaResolveWgsl } from '../../hair/msaaWgsl.ts'
+import { MSAA_FILL_WGSL, MSAA_WGSL, msaaResolveWgsl } from '../../hair/msaaWgsl.ts'
 import { clearWgsl, rasterWgsl } from '../../hair/rasterWgsl.ts'
 import {
   DEEP_SHADOW_ALLOCATE_WGSL,
   DEEP_SHADOW_MASK_WGSL,
   DEEP_SHADOW_RASTER_WGSL,
 } from '../../hair/deepShadowWgsl.ts'
+import { FORWARD_BIN_WGSL, FORWARD_DEPTH_GRID_WGSL } from '../../hair/forward/forwardBinWgsl.ts'
+import { FORWARD_CLEAR_WGSL } from '../../hair/forward/forwardClearWgsl.ts'
+import { FORWARD_CULL_WGSL } from '../../hair/forward/forwardCullWgsl.ts'
+import { FORWARD_GATHER_WGSL } from '../../hair/forward/forwardGatherWgsl.ts'
+import { forwardRasterWgsl } from '../../hair/forward/forwardRasterWgsl.ts'
+import { binnedWgsl } from '../../hair/binnedWgsl.ts'
+import { HAIR_CUSTOM_DEPTH_WGSL } from '../../hair/customDepthWgsl.ts'
+import { DEBUG_LINES_DRAW_WGSL, DEBUG_LINES_GPU_WGSL } from '../../hair/debugLinesWgsl.ts'
+import { DEBUG_ATLAS_WGSL, debugVoxelWgsl } from '../../hair/debugPanelsWgsl.ts'
+import {
+  HAIR_DEPTH_OVERRIDE_WGSL,
+  HAIR_GBUFFER_WRITE,
+  hairGbufferOverrideWgsl,
+} from '../../hair/gbufferOverrideWgsl.ts'
 import { hairComposeWgsl } from '../../hair/compositionWgsl.ts'
+import { HAIR_COVERAGE_COUNT_WGSL, HAIR_COVERAGE_MAP_WGSL } from '../../hair/coverageMapWgsl.ts'
 import { hairEnvKernel, hairEnvSkyProgram } from '../../hair/envWgsl.ts'
 import { hairSkyAoWgsl } from '../../hair/skyAoWgsl.ts'
 import { hairStaticLightWgsl } from '../../hair/staticLightWgsl.ts'
@@ -64,6 +79,7 @@ const perCount = () =>
           [`HAIR_CLEAR_SAMPLES_${form}`, clearWgsl(samples, wide)],
           [`HAIR_MSAA_RESOLVE_${form}`, msaaResolveWgsl(samples, wide)],
           [`HAIR_COMPACT_${form}`, compactWgsl(samples, wide)],
+          [`HAIR_BINNED_${form}`, binnedWgsl(samples, wide)],
         ]
       }),
     ),
@@ -110,7 +126,27 @@ export const HAIR_SHADERS: Record<string, string> = {
   HAIR_TRANSMITTANCE: TRANSMITTANCE_WGSL,
   HAIR_TRANSMITTANCE_RESOLVE: RESOLVE_WGSL,
   HAIR_CLEAR_TARGETS: CLEAR_TARGETS_WGSL,
+  HAIR_COVERAGE_COUNT: HAIR_COVERAGE_COUNT_WGSL,
+  HAIR_COVERAGE_MAP: HAIR_COVERAGE_MAP_WGSL,
+  HAIR_FORWARD_CULL: FORWARD_CULL_WGSL,
+  HAIR_FORWARD_DEPTH_GRID: FORWARD_DEPTH_GRID_WGSL,
+  HAIR_FORWARD_BIN: FORWARD_BIN_WGSL,
+  HAIR_FORWARD_GATHER: FORWARD_GATHER_WGSL,
+  HAIR_FORWARD_DEPTH_RASTER: forwardRasterWgsl(false),
+  HAIR_FORWARD_COLOR_RASTER: forwardRasterWgsl(true),
+  HAIR_FORWARD_CLEAR: FORWARD_CLEAR_WGSL,
   HAIR_MSAA: MSAA_WGSL,
+  HAIR_MSAA_FILL: MSAA_FILL_WGSL,
+  HAIR_CUSTOM_DEPTH: HAIR_CUSTOM_DEPTH_WGSL,
+  HAIR_DEBUG_LINES_DRAW: DEBUG_LINES_DRAW_WGSL,
+  HAIR_DEBUG_LINES_GPU: DEBUG_LINES_GPU_WGSL,
+  HAIR_DEBUG_ATLAS: DEBUG_ATLAS_WGSL,
+  HAIR_DEBUG_VOXELS: debugVoxelWgsl(false),
+  HAIR_DEBUG_VOXELS_MIP: debugVoxelWgsl(true),
+  HAIR_DEPTH_OVERRIDE: HAIR_DEPTH_OVERRIDE_WGSL,
+  HAIR_GBUFFER_OVERRIDE_PLACEHOLDER: hairGbufferOverrideWgsl(HAIR_GBUFFER_WRITE.placeholder),
+  HAIR_GBUFFER_OVERRIDE_NORMAL: hairGbufferOverrideWgsl(HAIR_GBUFFER_WRITE.normal),
+  HAIR_GBUFFER_OVERRIDE_FULL: hairGbufferOverrideWgsl(HAIR_GBUFFER_WRITE.full),
   HAIR_LUT: HAIR_LUT_WGSL,
   HAIR_LIGHT: wgslModule(hairLightPassWgsl({ ...FULL_CONTRACT, lobeless: true })),
   HAIR_SKY_AO: hairSkyAoWgsl,

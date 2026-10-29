@@ -3,6 +3,7 @@ import {
   choiceSetting as choice,
   flagSetting as flag,
   integerSetting as integer,
+  nonNegativeSetting as nonNegative,
   numberSetting as number,
   contextReader,
   rulesOf,
@@ -37,6 +38,10 @@ const HIZ_TRANSPARENT_TESTS = ['finer', 'reference'] as const
  *  image. */
 const HIZ_PRIMES = ['whenMissing', 'always', 'off'] as const
 
+/** What tests a root against the depth pyramid to hide it from the view: 0 nothing (the default), 1 the root boxes' test (`hzbOcclusion`), 2 the
+ *  same, forced. */
+const HZB_OCCLUSION_MODES: readonly [number, number] = [0, 2]
+
 /** The shifts the primed draw's size takes: the image's size shifted right by one more than the
  *  bias, so a bias from 0 to 30 — a shift is a whole number of bits of a 32-bit word, and the
  *  reference clamps a lower bias to 0. */
@@ -59,7 +64,12 @@ const MAX_CULLED_LIGHTS_PER_CELL: readonly [number, number] = [1, 1024]
  *  —; `hizPrimeSizeBias`, 2 — the primed draw is the image's size shifted right by one more than this —;
  *  `hizPrimeDepthBias`, 1.5 — metres its depth is pushed away from the eye by —; `hizPrimeErrorScale`,
  *  32 — the factor on the cut's pixel error, so the clusters drawn are that much coarser —;
- *  `hizPrimeFarFieldOnly`, on — whether the primed draw holds the objects that set `farField` alone. */
+ *  `hizPrimeFarFieldOnly`, on — whether the primed draw holds the objects that set `farField` alone —; the root boxes' test against the
+ *  pyramid (`packages/sdk-browser/src/visibility/hzbOcclusion/`): `hzbOcclusion`, 0 — 0 off, 1 on, 2 forced —,
+ *  `hzbOcclusionNeverTestDistance`, 0 — the metres from the eye within which a root is never tested —,
+ *  `hzbOcclusionExpandAmount`, 0 and `hzbOcclusionExpandNewlyAmount`, 0 — the metres a tested box is grown by, every root and a root not tested for a while —,
+ *  `hzbOcclusionExpandScreenSpace`, 0 and `hzbOcclusionExpandNewlyScreenSpace`, 0 — the pixels, the same —,
+ *  `hzbOcclusionFramesNotTestedToExpand`, 5 and `hzbOcclusionFramesToExpandNewly`, 2 — the frames a root is not tested before it is a new one, and the frames it is then grown for. */
 export const HIZ_RULES = /* @__PURE__ */ (() =>
   rulesOf([
     choice('hizTrace', 'reference', HIZ_TRACES),
@@ -74,6 +84,14 @@ export const HIZ_RULES = /* @__PURE__ */ (() =>
     number('hizPrimeDepthBias', 1.5, ANY),
     number('hizPrimeErrorScale', 32, ANY),
     flag('hizPrimeFarFieldOnly', true),
+    integer('hzbOcclusion', 0, HZB_OCCLUSION_MODES),
+    nonNegative('hzbOcclusionNeverTestDistance', 0),
+    nonNegative('hzbOcclusionExpandAmount', 0),
+    nonNegative('hzbOcclusionExpandNewlyAmount', 0),
+    nonNegative('hzbOcclusionExpandScreenSpace', 0),
+    nonNegative('hzbOcclusionExpandNewlyScreenSpace', 0),
+    integer('hzbOcclusionFramesNotTestedToExpand', 5, [0, 1000000]),
+    integer('hzbOcclusionFramesToExpandNewly', 2, [0, 1000000]),
   ] as const))()
 /** The depth pyramid setting `field` of a runtime's context (`contextReader`): its default where the
  *  context holds none. */

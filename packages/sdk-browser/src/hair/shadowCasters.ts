@@ -5,6 +5,7 @@ import { dotVector3, length3 } from '../../../math/src/vector/vector.ts'
 import { frameAround } from '../../../math/src/vector/frame.ts'
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
 import type { BoxSphere } from './boxSphere.ts'
+import { hairCullTrace, recordHairCull } from './debugCull.ts'
 
 /** What the out-of-view test reads of a light that casts. */
 export type HairShadowLight = Pick<
@@ -155,13 +156,21 @@ function sunReaches(held: LightPlan, bounds: BoxSphere, distance: number) {
  *  camera's frustum does not hold. */
 export function hairReachedByLight(bounds: BoxSphere, reach: HairShadowPlan) {
   const { lights, count, distance } = reach
+  // The debug trace asks every sun and keeps what each found (`hairCullTrace`).
+  const tracing = hairCullTrace.on
+  let any = false
   for (let k = 0; k < count; k++) {
     const held = lights[k]!
+    const sun = held.light.kind === 'directional' && !!held.light.direction
     const reached =
       held.light.kind === 'directional'
-        ? !!held.light.direction && sunReaches(held, bounds, distance)
+        ? sun && sunReaches(held, bounds, distance)
         : localReaches(held, bounds)
-    if (reached) return true
+    if (tracing && sun) recordHairCull(k, held.axes, corners, bounds.box, reached)
+    if (reached) {
+      if (!tracing) return true
+      any = true
+    }
   }
-  return false
+  return any
 }

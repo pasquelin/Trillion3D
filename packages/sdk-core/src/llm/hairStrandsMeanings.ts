@@ -14,7 +14,36 @@ const visibilityMeanings = () => ({
   hairVisibilityResolutionScaleAware:
     'Whether the strands are scaled with the resolution scale of the view; true by default.',
   hairVisibilityComputeRaster:
-    'Whether the samples of the visibility are written by a compute raster (every segment a thread, the large ones shared by a group of threads) instead of the device rasterizer drawing the ribbons into a four-sample target, a pass for each four samples; false by default.',
+    'Whether the samples of the visibility are written by a compute raster (the segments binned in tiles of the image, each tile drawn by a group of threads; hairVisibilityNaiveRaster draws a thread a segment instead) instead of the device rasterizer drawing the ribbons into a four-sample target, a pass for each four samples; false by default.',
+  hairVisibilityComputeRasterForward:
+    "Whether the strands are drawn by the forward compute raster instead of the visibility buffer: every control point of the strands is lit once, then a tiled compute raster bins the segments between the points in tiles of 32 pixels, sorts them front to back and shades them, blending the lit points' colours along each segment, straight into the image. It takes the place of hairVisibilityComputeRaster when both are on, keeps no sample a pixel and has no sorted or mapped coverage; false by default.",
+  hairVisibilityComputeRasterNumBinners: `Workgroups that bin the segments of the compute rasters (the visibility's and the forward one) into tiles, from 1 to 256 (${R.hairVisibilityComputeRasterNumBinners.default} by default). More bin faster and spread the segments over more counters.`,
+  hairVisibilityComputeRasterNumRasterizers: `Workgroups that draw or shade the binned tiles of the compute rasters (the visibility's and the forward one), from 1 to 1024 (${R.hairVisibilityComputeRasterNumRasterizers.default} by default); each takes tile after tile until none is left.`,
+  hairVisibilityComputeRasterMaxTiles: `Most tiles the compute rasters keep (1024 segments each for the forward one, 256 for the visibility's), from 1024 to 262144 (${R.hairVisibilityComputeRasterMaxTiles.default} by default); a device whose storage binding holds fewer takes the most it holds. Segments past them are not drawn.`,
+  hairVisibilityNaiveRaster:
+    'Whether the compute raster draws the segments a thread a segment, the ribbons that span more than a tile shared by a group of threads, instead of binning them into tiles first; false by default (the segments are binned). It reads only while hairVisibilityComputeRaster is on.',
+  hairVisibilityTileCompaction:
+    'Whether the tiles the binners made in the same cell of the image, most of them partly filled, are merged into full tiles before they are drawn; false by default. It reads only while the compute raster bins the segments.',
+  hairVisibilityClassification:
+    'Whether the compute raster first sorts the segments into the small ones (the tiles, or with hairVisibilityNaiveRaster the thread-a-segment raster, draw them) and the larger ones (drawn a thread a segment, the largest shared by a group of threads); false by default.',
+  hairVisibilityComputeRasterTileSize: `Side in pixels, from 8 to 32, of the tiles the compute raster bins the segments into (${R.hairVisibilityComputeRasterTileSize.default} by default); rounded down to a power of two.`,
+  hairVisibilityNumClassifiers: `Workgroups that sort the segments of the compute raster's classification, from 1 to 256 (${R.hairVisibilityNumClassifiers.default} by default).`,
+  hairVisibilityComputeRasterNumRasterizersNaive: `Workgroups of the thread-a-segment compute raster, from 1 to 1024 (${R.hairVisibilityComputeRasterNumRasterizersNaive.default} by default); each takes batch after batch of segments until none is left.`,
+  hairVisibilityCoverageMapping:
+    'Whether the share of a pixel the strands cover comes from their count and their mean width, mapped through a table of the coverage of that many strands of that width placed at random, instead of the product of what each strand lets through; false by default. The tiles with strands, their coverage and the view transmittance follow it.',
+  hairVelocityType:
+    "How a pixel of strands takes its velocity from the velocity of its samples (closest, average or max): the nearest sample's, the mean of the samples', or the largest of them; closest by default. The temporal pass and the motion blur read it.",
+  hairVelocityThreshold: `Velocity, from 0 to 512, in the reference\'s pixel unit (a quarter pixel at 1: the unit is one half over the smaller side of the image in the screen\'s -1 to 1 span), above which a sample of strands marks its pixel to be resolved at once by the temporal pass, which keeps no history of it, sharper but noisier (${R.hairVelocityThreshold.default} by default).`,
+  hairVisibilityWriteVelocityCoverageThreshold: `Share of a pixel, from 0 to 1, the strands must cover for the pixel to write the strands\' velocity over the surface\'s; ${R.hairVisibilityWriteVelocityCoverageThreshold.default} by default, every pixel with strands.`,
+  renderCurve:
+    "Whether the curve raster pipeline runs: the strands' curves are cut into segments, binned into tiles of 32 pixels by the depth of the scene in each tile, and compacted into depth slices for a software raster; false by default, experimental. Today the pipeline culls the strands' instances and clusters against the view and the scene's depth, bins their segments into the tiles and compacts each tile's segments into depth slices; the raster that draws them is not there yet.",
+  renderCurveSwRaster: `Whether the curve raster runs its software path, which bins and compacts the segments (${R.renderCurveSwRaster.default} by default); the device has no mesh shader, so there is no hardware path, and with this off the pipeline does nothing. Needs renderCurve.`,
+  renderCurveRasterNumBinners: `Binners the binning pass of the curve raster uses, from 1 to 256: each bins the segments of its own share of the clusters and has its own layers of counts (${R.renderCurveRasterNumBinners.default} by default). Needs renderCurve.`,
+  renderCurveRasterNumRasterizers: `Rasterizers the raster pass of the curve raster uses, from 1 to 1024 (${R.renderCurveRasterNumRasterizers.default} by default). Needs renderCurve.`,
+  renderCurveRasterMinCoverage: `Coverage, from 0 to 1, under which a raster step of the curve raster stops: a pixel that lets through less than this is done (${R.renderCurveRasterMinCoverage.default} by default). Needs renderCurve.`,
+  hairRenderCustomDepth:
+    'Whether the strands render custom depth: the depth of their first sample of a pixel is written into a custom depth target of the view, which stays 0 where there is none; false by default.',
+  hairCustomDepthCoverageThreshold: `Share of a pixel, from 0 to 1, the strands must cover for it to write the custom depth (${R.hairCustomDepthCoverageThreshold.default} by default, every pixel with strands). Needs hairRenderCustomDepth.`,
   hairRasterizationScale: `Scale, from 0, on the least width a strand is drawn with, in the share of a pixel the samples of the visibility buffer leave it: it snaps a strand to the samples of its pixel (${R.hairRasterizationScale.default} by default). Larger strands cover more of a pixel and look thicker and steadier, smaller ones thinner and noisier.`,
   hairStableRasterizationScale: `Scale, from 1, on the least width of a groom drawn stable, whose width does not follow the samples' share of a pixel (${R.hairStableRasterizationScale.default} by default).`,
   hairStableRasterization:
@@ -111,8 +140,28 @@ const lightMeanings = () => ({
   shadowSmrtSamplesPerRayHair: `Rays, a whole number from 1 to 16, that a pixel of the strands casts toward a light through its shadow map (${R.shadowSmrtSamplesPerRayHair.default} by default); never more than the light casts.`,
 })
 
+/** The meanings of the G-buffer write and of the debug views' settings. */
+const debugMeanings = () => ({
+  hairWriteGBufferData: `Whether, and how much of, the strands are written into the surfaces after they are laid on the image, for the passes that read the surfaces next, a whole number from 0 to 3 (${R.hairWriteGBufferData.default} by default): 0 nothing, 1 a placeholder (the strand's tangent as the normal, the hair shading model, no colour), 2 the normal (the mean tangent of the pixel's samples) and the roughness, 3 the whole surface (the mean base colour too) and the depth of the nearest strand.`,
+  hairCastShadowWhenOutOfViewDebug:
+    "Whether the culling of the grooms by a directional light's shadow is drawn over the image, in every view: the view frustum in blue, the light's bound in purple, the box of each groom in the light's space green where it reaches the frustum and yellow where it does not, and in the world in red; false by default.",
+  hairDeepShadowDebugIndex: `Rank, a whole number from 0, of the deep shadow that the diagnostic view hair-deep-opacity-maps draws: its depth and its layers, side by side over the image (${R.hairDeepShadowDebugIndex.default} by default).`,
+  hairDeepShadowDebugScale: `Divisor, from 0, of the layers' values in the view hair-deep-opacity-maps (${R.hairDeepShadowDebugScale.default} by default).`,
+  hairDeepShadowDebugMacroBounds:
+    'Whether the views hair-light-bounds and hair-deep-opacity-maps draw the box of each macro group; false by default.',
+  hairDeepShadowDebugShadowBounds:
+    'Whether the views hair-light-bounds and hair-deep-opacity-maps draw the frustum of each deep shadow; false by default.',
+  hairVoxelDebugTraversal:
+    "How the view hair-voxels-density marches the volume: 'linear' (default) a voxel a step, 'mip' through the levels of the pages.",
+  hairVoxelDebugDrawVoxels:
+    "Whether the view hair-voxels-density draws the strands' count along each pixel's ray, from green to red; true by default.",
+  hairVoxelDebugDrawPages:
+    "Whether the view hair-voxels-density draws the first page that holds voxels along each pixel's ray instead of the count; false by default.",
+  hairVoxelDebugForcedMip: `Level of the pages, a whole number from -1 to 8, that the view hair-voxels-density marches; below 0 (${R.hairVoxelDebugForcedMip.default} by default) the march picks the level by its step.`,
+})
+
 /** What each setting of the hair strands means (`../contracts/hairStrandsOptions.ts`): curves a
  *  scene file carries, drawn as ribbons that face the camera and shadowed by the shadow maps and a
  *  volume of voxels. */
 export const HAIR_STRANDS_MEANINGS: Readonly<Record<HairStrandsField, string>> =
-  /* @__PURE__ */ (() => ({ ...visibilityMeanings(), ...lightMeanings() }))()
+  /* @__PURE__ */ (() => ({ ...visibilityMeanings(), ...lightMeanings(), ...debugMeanings() }))()

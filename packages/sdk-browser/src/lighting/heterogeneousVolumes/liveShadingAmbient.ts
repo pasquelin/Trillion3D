@@ -1,6 +1,6 @@
 import type { HeterogeneousVolumeField } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
-import { createLightingCache } from './liveShadingGpu.ts'
-import type { State } from './liveShadingState.ts'
+import { heldLightingCache } from './liveShadingGpu.ts'
+import { dropHeld, type State } from './liveShadingState.ts'
 
 type Settings = (field: HeterogeneousVolumeField) => number
 
@@ -10,12 +10,14 @@ const ambientOcclusionOn = (settings: Settings, indirectMode: number) =>
   !!settings('heterogeneousVolumesAmbientOcclusion') && indirectMode !== 0
 
 /** The voxels of the occlusion of a volume of `resolution` voxels: the resolution over the downsample factor (at least 1/8), held to
- *  1024 by 1024 by 512 (`GetAmbientOcclusionResolution`, `HeterogeneousVolumesAmbientOcclusionPipeline.cpp:94-106`). */
+ *  1024 by 1024 by 512 (`GetAmbientOcclusionResolution`, `HeterogeneousVolumesAmbientOcclusionPipeline.cpp:94-106`), the factor made coarser by
+ *  the level of detail's. */
 function ambientOcclusionResolution(
   resolution: readonly number[],
   factor: number,
+  lodFactor: number,
 ): [number, number, number] {
-  const by = Math.max(factor, 0.125)
+  const by = Math.max(factor * lodFactor, 0.125)
   return [
     Math.min(Math.max(Math.trunc(resolution[0] / by), 1), 1024),
     Math.min(Math.max(Math.trunc(resolution[1] / by), 1), 1024),
@@ -34,6 +36,7 @@ export function ambientOcclusionOf(c: {
   encoder: GPUCommandEncoder
   pipeline: GPUComputePipeline | undefined
   resolution: readonly number[]
+  lodFactor: number
   id: string
   holdout: boolean
   settings: Settings
@@ -43,26 +46,34 @@ export function ambientOcclusionOf(c: {
   groupOf(words: ArrayLike<number>, texture: GPUTexture, mask: GPUTexture | undefined): GPUBindGroup
 }) {
   const { held, device, settings } = c
-  if (!c.pipeline || c.holdout || !ambientOcclusionOn(settings, c.indirectMode)) return undefined
+  if (!c.pipeline || c.holdout || !ambientOcclusionOn(settings, c.indirectMode)) {
+    // The occlusion is off for this volume: its texture goes with it.
+    dropHeld(held, (key) => key.startsWith(`ao:${c.id}:`))
+    return undefined
+  }
   const size = ambientOcclusionResolution(
     c.resolution,
     settings('heterogeneousVolumesAmbientOcclusionDownsampleFactor'),
+    c.lodFactor,
   )
-  const key = `ao:${c.id}:${size.join('x')}`
-  let texture = held.caches.get(key)
-  if (!texture) {
-    for (const [other, old] of held.caches)
-      if (other.startsWith(`ao:${c.id}:`)) (old.destroy(), held.caches.delete(other))
-    held.caches.set(key, (texture = createLightingCache(device, size, `${c.id} occlusion`)))
-  }
+  const texture = heldLightingCache(held.caches, device, `ao:${c.id}:`, size, `${c.id} occlusion`)
+  // The farthest ray is held to the shadow rays' and the most steps to the march's (`:76`, `:81`).
   const distance = new Uint32Array(
-    new Float32Array([settings('heterogeneousVolumesAmbientOcclusionMaxTraceDistance')]).buffer,
+    new Float32Array([
+      Math.min(
+        settings('heterogeneousVolumesAmbientOcclusionMaxTraceDistance'),
+        settings('heterogeneousVolumesMaxShadowTraceDistance'),
+      ),
+    ]).buffer,
   )[0]
   const words = [
     settings('heterogeneousVolumesAmbientOcclusionRayCountX'),
     settings('heterogeneousVolumesAmbientOcclusionRayCountY'),
     distance,
-    settings('heterogeneousVolumesAmbientOcclusionMaxStepCount'),
+    Math.min(
+      settings('heterogeneousVolumesAmbientOcclusionMaxStepCount'),
+      settings('heterogeneousVolumesMaxStepCount'),
+    ),
     0,
     0,
     0,

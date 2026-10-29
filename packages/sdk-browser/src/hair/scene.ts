@@ -35,6 +35,8 @@ export interface HairInstance extends MacroMember {
 /** The strands of a scene on the GPU: a buffer set for each group, and an instance for each. What
  *  depends on the camera is the view's (`viewGpu.ts`). */
 export interface HairScene {
+  /** The strands as read, which the curve raster cuts into its clusters. */
+  readonly strands: HairStrands
   readonly groups: readonly HairGroupGpu[]
   readonly instances: readonly HairInstance[]
   dispose(): void
@@ -77,6 +79,7 @@ export function createHairScene(
     supportsVoxelization: true,
   }))
   return {
+    strands,
     groups,
     instances,
     // The commands of an image being encoded may still name the buffers.

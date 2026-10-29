@@ -22,6 +22,10 @@ import type { CompiledGraph } from '../../materials/graph/compile.ts'
 import { VOLUME_OUTPUT_LIMIT } from '../../../../sdk-core/src/contracts/volumeMaterial.ts'
 import { BEER_BUILD_WGSL } from './beerShadowMapWgsl.ts'
 import { HV_AMBIENT_OCCLUSION_WGSL } from './ambientOcclusionWgsl.ts'
+import { HV_BAKE_WGSL } from './preshadingBakeWgsl.ts'
+import { HV_GRID_SAMPLE_WGSL } from './gridSampleWgsl.ts'
+import { HV_AVSM_BUILD_WGSL } from './liveShadingAvsmWgsl.ts'
+import { HV_BOX_WALK_WGSL } from './sparseVoxels/boxHierarchyWgsl.ts'
 import { HV_VELOCITY_WGSL } from './liveShadingVelocityWgsl.ts'
 import { VECTOR_FORMAT } from '../../post/taa/velocityWgsl.ts'
 import { VOLUME_HOLDOUT_FORMAT, holdoutAddWgsl } from '../../post/volumeHoldout.ts'
@@ -75,6 +79,12 @@ export const HV_BINDING = {
   ambient: 51,
   holdout: 52,
   existence: 53,
+  bakedExtinction: 54,
+  bakedAlbedo: 55,
+  bakedEmission: 56,
+  boxes: 57,
+  avsmList: 58,
+  avsmParams: 30,
   fogCubemap: 20,
   fogVolume: 21,
   fogSampler: 22,
@@ -82,6 +92,10 @@ export const HV_BINDING = {
   composeIn: 12,
   holdoutIn: 13,
 } as const
+
+/** The program a volume's passes run: the plain one; the one whose march visits only the voxels of a hierarchy of boxes (one more storage buffer, the
+ *  boxes); the one that builds the adaptive volumetric shadow map (one more storage buffer, the lists, and a uniform). */
+export type HvVariant = 'plain' | 'boxes' | 'avsm'
 
 /** The most sparse volume textures one volume graph reads. */
 export const HV_MAX_SPARSE = 4
@@ -94,8 +108,8 @@ export const svtBindings = (k: number) => ({
 })
 
 /** The sampled textures every program binds whatever the graph: the depth, the lighting cache, the image, the beer map, the blue noise,
- *  the translucency volume, the occlusion, the existence mask, the fog's cubemap and volume. */
-const HV_SAMPLED_FIXED = 10
+ *  the translucency volume, the occlusion, the existence mask, the three baked textures, the fog's cubemap and volume. */
+const HV_SAMPLED_FIXED = 13
 
 /** The sparse volumes a graph may read on a device that lets a stage sample `limit` textures: three sampled textures each, and three more
  *  for the colour atlas where the graph reads 2D textures. */
@@ -124,7 +138,7 @@ export const HV_FOG_BINDINGS = {
 
 /** The volume's view of the frame: the camera's matrix and numbers, the view's rectangle, the clocks
  *  and the switches (`packView`, `liveShadingFrame.ts`). */
-const HV_VIEW = wgslBlock(
+export const HV_VIEW = wgslBlock(
   'HV_VIEW',
   [],
   `
@@ -146,7 +160,7 @@ struct HvView{
 )
 
 /** The program declares hvView and hvDepth (the opaque depth). */
-const HV_PIXEL_RAY_READ = wgslBlock(
+export const HV_PIXEL_RAY_READ = wgslBlock(
   'HV_PIXEL_RAY_READ',
   [HV_PIXEL_RAY],
   `
@@ -178,7 +192,20 @@ fn hvPixelRay(viewPixel:vec2f)->HvPixelRay{
 `,
 )
 
-const declarations = (sparse: number, textured: boolean, beer: GPUTextureFormat) => `
+const variantDeclarations = (variant: HvVariant) =>
+  variant === 'boxes'
+    ? `@group(0) @binding(${b.boxes}) var<storage,read> hvBoxes:array<u32>;`
+    : variant === 'avsm'
+      ? `@group(0) @binding(${b.avsmList}) var<storage,read_write> avsmList:array<vec2u>;
+@group(0) @binding(${b.avsmParams}) var<uniform> avsmParams:HvAvsmParams;`
+      : ''
+
+const declarations = (
+  sparse: number,
+  textured: boolean,
+  beer: GPUTextureFormat,
+  variant: HvVariant,
+) => `
 @group(0) @binding(${b.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${b.volume}) var<uniform> hv:HvVolume;
 @group(0) @binding(${b.view}) var<uniform> hvView:HvView;
@@ -198,6 +225,9 @@ const declarations = (sparse: number, textured: boolean, beer: GPUTextureFormat)
 @group(0) @binding(${b.taaView}) var<uniform> hvTaa:TaaView;
 @group(0) @binding(${b.ambient}) var hvAmbient:texture_3d<f32>;
 @group(0) @binding(${b.existence}) var hvExistence:texture_3d<f32>;
+@group(0) @binding(${b.bakedExtinction}) var hvBakedExtinction:texture_3d<f32>;
+@group(0) @binding(${b.bakedAlbedo}) var hvBakedAlbedo:texture_3d<f32>;
+@group(0) @binding(${b.bakedEmission}) var hvBakedEmission:texture_3d<f32>;
 ${Array.from({ length: sparse }, (_, k) => {
   const t = svtBindings(k)
   return `@group(0) @binding(${t.pageTable}) var svtPageTable${k}:texture_3d<u32>;
@@ -205,6 +235,7 @@ ${Array.from({ length: sparse }, (_, k) => {
 @group(0) @binding(${t.tilesB}) var svtTilesB${k}:texture_3d<f32>;`
 }).join('\n')}
 ${textured ? `${tileDeclarations(HV_ATLAS, 'color')}\n@group(0) @binding(${b.atlasSampler}) var mapsSampler:sampler;` : ''}
+${variantDeclarations(variant)}
 `
 
 /** The slots of the sparse volumes a graph reads, in the uniform: the scene node each holds and its two packed words of uniforms. */
@@ -236,15 +267,22 @@ fn hvContext(world:vec3f)->MgContext{
  mgNeighbour[1]=ctx;
  return ctx;
 }
+/** The baked texture read at a point of the volume, at the level the setting names (bits 8 to 15 of hv.light.w): trilinear, clamped
+ *  (the preshading's SampleExtinction, SampleAlbedo and SampleEmission, HeterogeneousVolumesPreshadingUniformBufferUtils.ush:28-56). */
+fn hvBakedAt(local:vec3f)->vec3f{return (local-(hv.boundsOrigin.xyz-hv.boundsExtent.xyz))/(2.0*hv.boundsExtent.xyz);}
+fn hvBakedLevel()->f32{return f32((hv.light.w>>8u)&255u);}
 fn hvSampleExtinction(local:vec3f,world:vec3f)->vec3f{
+ if(hvIsBaked()){return textureSampleLevel(hvBakedExtinction,hvSampler,hvBakedAt(local),hvBakedLevel()).rgb;}
  let ctx=hvContext(world);
  return clamp(${outputCall(c, 'subsurfaceColor', 'hvG')}.xyz,vec3f(0.0),vec3f(${VOLUME_OUTPUT_LIMIT}.0));
 }
 fn hvSampleAlbedo(local:vec3f,world:vec3f)->vec3f{
+ if(hvIsBaked()){return textureSampleLevel(hvBakedAlbedo,hvSampler,hvBakedAt(local),hvBakedLevel()).rgb;}
  let ctx=hvContext(world);
  return saturate(${outputCall(c, 'baseColor', 'hvG')}.xyz);
 }
 fn hvSampleEmission(local:vec3f,world:vec3f)->vec3f{
+ if(hvIsBaked()){return textureSampleLevel(hvBakedEmission,hvSampler,hvBakedAt(local),hvBakedLevel()).rgb;}
  let ctx=hvContext(world);
  return clamp(${outputCall(c, 'emissive', 'hvG')}.xyz,vec3f(0.0),vec3f(${VOLUME_OUTPUT_LIMIT}.0));
 }
@@ -276,13 +314,18 @@ ${Array.from(
 `
 
 /** The switches of the volume's pass and the view's numbers; the holdout is added to only where the program binds one. */
-const switchesHostText = (holdout: boolean) => `
+const switchesHostText = (holdout: boolean, variant: HvVariant) => `
 /** The switches the volume's pass carries in the last word of its uniform (\`packVolume\`): bit 0 an occlusion texture to read, bit 1 a volume that
- *  holds out, bit 2 the existence mask to read, bit 3 the beer map of the camera to write. */
+ *  holds out, bit 2 the existence mask to read, bit 3 the beer map of the camera to write, bit 4 the baked textures to read. */
 fn hvHoldsOut()->bool{return (hv.light.w&2u)!=0u;}
 fn hvUsesExistence()->bool{return (hv.light.w&4u)!=0u;}
 /** Whether the march writes the beer map of the camera (bit 3), which the composition and the translucent layers read. */
 fn hvCameraBeer()->bool{return (hv.light.w&8u)!=0u;}
+/** Whether the volume's three outputs are read from the baked textures (bit 4) in place of its material. */
+fn hvIsBaked()->bool{return (hv.light.w&16u)!=0u;}
+/** Whether the march visits only the voxels of the hierarchy of boxes (bit 5). */
+fn hvUsesBoxes()->bool{return (hv.light.w&32u)!=0u;}
+${variant === 'boxes' ? '' : 'fn hvNextVoxelSpan(origin:vec3f,direction:vec3f,tMin:f32,tMax:f32)->vec2f{return vec2f(0.0,-1.0);}'}
 /** Adds the opacity a step of a volume that holds out gained to its pixel of the holdout, where the image carries one; nothing where it does not. */
 fn hvHoldoutAdd(pixel:vec2u,delta:f32){
 ${holdout ? ' holdoutAdd(vec2i(pixel),delta);' : ' return;'}
@@ -386,7 +429,7 @@ fn hvInscatteringAt(P:vec3f,bias:f32)->vec3f{
  * of a pixel, and the three reads of the sparse volume the graph's nodes call. The fog is not
  * applied through the engine's fog (`hvFog`), and the indirect light is none.
  */
-const hostWgsl = (c: CompiledGraph, sparse: number, holdout: boolean) =>
+const hostWgsl = (c: CompiledGraph, sparse: number, holdout: boolean, variant: HvVariant) =>
   wgslBlock(
     'HV_HOST_WGSL',
     [
@@ -402,11 +445,12 @@ const hostWgsl = (c: CompiledGraph, sparse: number, holdout: boolean) =>
       lightStrengthWgsl('hvView.exposure.w'),
       lightChannelsOf,
       GI_SAMPLE_WGSL,
+      ...(variant === 'boxes' ? [HV_BOX_WALK_WGSL] : []),
     ],
     [
       graphHostText(c),
       sparseHostText(sparse),
-      switchesHostText(holdout),
+      switchesHostText(holdout, variant),
       sceneHostText,
       lightHostText,
     ].join(''),
@@ -422,11 +466,12 @@ export const liveShadingProgram = (
   c: CompiledGraph,
   beer: GPUTextureFormat = 'rgba16float',
   holdout = false,
+  variant: HvVariant = 'plain',
 ) => {
   const sparse = sparseSlotsOf(c).length
   if (sparse > HV_MAX_SPARSE)
     throw new Error(`a heterogeneous volume graph reads at most ${HV_MAX_SPARSE} sparse volumes`)
-  return wgslProgram(`${declarations(sparse, c.uses.textures, beer)}\n`, [
+  return wgslProgram(`${declarations(sparse, c.uses.textures, beer, variant)}\n`, [
     DIRECT_LIGHT_WGSL,
     SHADOW,
     c.wgsl,
@@ -434,11 +479,14 @@ export const liveShadingProgram = (
     blueNoiseWgsl(0, b.blueNoise),
     HV_VIEW,
     ...(holdout ? [holdoutAddWgsl(0, b.holdout)] : []),
-    hostWgsl(c, sparse, holdout),
+    hostWgsl(c, sparse, holdout, variant),
     HV_VELOCITY_WGSL,
     HV_AMBIENT_OCCLUSION_WGSL,
+    HV_BAKE_WGSL,
+    HV_GRID_SAMPLE_WGSL,
     HV_KERNELS_WGSL,
     BEER_BUILD_WGSL,
+    ...(variant === 'avsm' ? [HV_AVSM_BUILD_WGSL] : []),
   ] satisfies WgslDecl[])
 }
 
@@ -528,6 +576,7 @@ export const liveShadingLayoutEntries = (
   textured: boolean,
   beer: GPUTextureFormat,
   holdout = false,
+  variant: HvVariant = 'plain',
 ): GPUBindGroupLayoutEntry[] => [
   computeBufferEntry(b.lights, 'read-only-storage'),
   computeBufferEntry(b.pageTable, 'read-only-storage'),
@@ -562,6 +611,9 @@ export const liveShadingLayoutEntries = (
   computeUniformEntry(b.taaView),
   computeTextureEntry(b.ambient, 'float', '3d'),
   computeTextureEntry(b.existence, 'float', '3d'),
+  computeTextureEntry(b.bakedExtinction, 'float', '3d'),
+  computeTextureEntry(b.bakedAlbedo, 'float', '3d'),
+  computeTextureEntry(b.bakedEmission, 'float', '3d'),
   ...(holdout ? [computeStorageTextureEntry(b.holdout, VOLUME_HOLDOUT_FORMAT, 'read-write')] : []),
   ...(textured
     ? [
@@ -573,4 +625,8 @@ export const liveShadingLayoutEntries = (
       ]
     : []),
   ...fogReadLayoutEntries(HV_FOG_BINDINGS, GPUShaderStage.COMPUTE),
+  ...(variant === 'boxes' ? [computeBufferEntry(b.boxes, 'read-only-storage')] : []),
+  ...(variant === 'avsm'
+    ? [computeBufferEntry(b.avsmList, 'storage'), computeUniformEntry(b.avsmParams)]
+    : []),
 ]

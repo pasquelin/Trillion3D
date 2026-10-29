@@ -58,7 +58,8 @@ fn opaqueVoxelValue()->f32{return f32(${HAIR_VOXEL_BITS.opaqueMask}u)/${HAIR_VOX
 /** The march itself (`mipmap`: the step's width picks the level of the page and grows). */
 const traceText = (
   mipmap: boolean,
-) => `fn traceVoxels(p0:vec3f,p1:vec3f,node:VoxelNode,settings:TraversalSettings)->Traversal{
+  forceable: boolean,
+) => `${forceable ? 'var<private> forcedMip:i32=-1;\n' : ''}fn traceVoxels(p0:vec3f,p1:vec3f,node:VoxelNode,settings:TraversalSettings)->Traversal{
  var trace=initTraversal();
  if(any(node.pages==vec3u(0u))){return trace;}
  let span=lineBoxIntersect(p0,p1,node.lo,node.hi);
@@ -97,7 +98,7 @@ ${
     ? `   countScale=steppingWorldSize/node.size;
    level=min(u32(max(log2(countScale),0.0)),lastLevel);`
     : ''
-}
+}${forceable ? '\n   if(forcedMip>=0){level=min(u32(forcedMip),lastLevel);}' : ''}
    let found=voxelDensity(page,volume-pageCoord*params.pageResolution,level,settings.densityScale*countScale,settings.castShadow,settings.useOpaque);
    trace.hairCount+=found.hairCount;
    trace.visibility=min(trace.visibility,found.visibility);
@@ -119,11 +120,12 @@ ${mipmap ? '  stepScale=min(f32(params.pageResolution),stepScale*settings.steppi
  * up to a page), summed as a hair count, the opaque marks multiplying a visibility. The march stops where
  * the visibility is nil or the count passes `countThreshold`. A step is moved by `random` (in [-1, 1],
  * half the step wide) and the cone `tanConeAngle` widens it. Reads `nodes`, `pageIndex`, `voxels` (its host
- * declares them), `params`.
+ * declares them), `params`. `forceable` adds the module variable `forcedMip`, the level of the pages every step reads where it is
+ * 0 or more (the debug view of the voxels sets it).
  */
-export const voxelTraversalWgsl = (mipmap: boolean) =>
+export const voxelTraversalWgsl = (mipmap: boolean, forceable = false) =>
   wgslBlock(
-    `HAIR_VOXEL_TRAVERSAL_WGSL(${mipmap})`,
+    `HAIR_VOXEL_TRAVERSAL_WGSL(${mipmap}${forceable ? ', forceable' : ''})`,
     [VOXEL_NODE_WGSL, VOXEL_LEVELS_WGSL],
-    `${DENSITY_TEXT}\n${traceText(mipmap)}`,
+    `${DENSITY_TEXT}\n${traceText(mipmap, forceable)}`,
   )

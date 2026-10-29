@@ -37,4 +37,6 @@ export const SUBSURFACE_SCATTERING_MEANINGS: Readonly<Record<SubsurfaceScatterin
     'Which channel of a profile steers the sampled scattering, 0 or 1; 1 by default. 0 is the largest diffuse mean free path, 1 the largest mean free path.',
   subsurfaceColorTransmittanceDistance:
     "The distance, 0.05 to 1 (0.15 by default), at which the subsurface colour of a surface that uses the subsurface shading model is read as the transmittance of the light through it: the nearer, the more the transmitted light shifts its hue toward the colour's own.",
+  subsurfaceDebugPixel:
+    'Whether the pixel under the debug cursor (sampledLightsDebugCursorX and Y, the middle of the image by default) is written on the image, at full resolution only: its coordinate, its reconstructed and recombined lighting and its profile; false by default.',
 }

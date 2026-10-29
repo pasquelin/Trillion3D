@@ -1,4 +1,6 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
+import { sampledDebugSubmitted } from '../../lighting/manyLightsSampled/debug/frame.ts'
+import { subsurfaceDebugSubmitted } from '../../lighting/subsurface/frame.ts'
 import { vsmSubmitted } from '../../lighting/shadows/vsm/frame/vsmFrameEnd.ts'
 import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
 import { destroyRetired } from '../../gpu/core/frameRetire.ts'
@@ -8,6 +10,7 @@ import { composesOffscreen } from '../../diagnostic/gpuVariant.ts'
 import type { WebgpuPagesCore } from '../backend/runtime.ts'
 import { queueSubmits } from '../../gpu/core/sessionHandle.ts'
 import { distanceFieldsSubmitted } from '../../lighting/distanceField/frame.ts'
+import { hzbOcclusionSubmitted } from '../../visibility/hzbOcclusion/hzbOcclusion.ts'
 
 /** A command buffer of the image, timed with its other parts when the image is sampled
  *  (`../../gpu/timing/encoder.ts`), never a capture's. */
@@ -62,6 +65,9 @@ function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
   rt.bounce.translucency?.probes?.submitted()
   rt.gpu.reflection?.census.submitted()
   rt.gpu.exposure?.submitted()
+  sampledDebugSubmitted(rt)
+  subsurfaceDebugSubmitted(rt)
+  hzbOcclusionSubmitted(rt)
   vsmSubmitted(rt)
   distanceFieldsSubmitted(rt)
 }

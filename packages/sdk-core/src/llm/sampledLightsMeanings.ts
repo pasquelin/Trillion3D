@@ -149,4 +149,20 @@ export const SAMPLED_LIGHTS_MEANINGS: Readonly<Record<SampledLightsField, string
     'The samples of a fog cell (2, the default): 4 or more take 4, less 2.',
   sampledLightsVolumeMinSampleWeight:
     'The least a sample weighs in a fog cell’s light, as a share of the cell’s light, for the cell to be lit by samples at all (0.1, the default).',
+  sampledLightsVisualize:
+    'The numbered debug view of the sampled lighting shown in place of the image (0, none, the default): 1 the overview of the shadow casters, 2 the shadow casters, 3 their quality, 4 and 5 the denoiser overviews, 6 the shading confidence, 7 the frames accumulated, 8 the upsample mask, 9 and 10 the diffuse and specular demodulation, 11 and 12 their deviation, 13 and 14 the history’s spatial deviation, 15 and 16 the history clamp. A named diagnostic mode (sampled-lights-…) shows the first three; this number wins over the mode.',
+  sampledLightsVisualizeShadowCasterMissingDistance:
+    'In the shadow caster quality view, how far in metres the surface the rays hit may lie behind the drawn one before it is painted missing (0.5, the default), relaxed at a grazing angle.',
+  sampledLightsVisualizeShadowCasterPoorDistance:
+    'In the shadow caster quality view, how far in metres the surface the rays hit may lie in front of the drawn one before it is painted mismatching (0.25, the default), relaxed at a grazing angle.',
+  sampledLightsVisualizeTileClassification:
+    'The tiles of the classification drawn over the image (0, none, the default): 1 the surfaces’ tiles, 2 the downsampled tiles, 3 and 4 the hair strands’, 5 and 6 the nearest translucent layer’s; each tile type has its colour and a count is written.',
+  sampledLightsDebug:
+    'Which input the sampled lighting’s debug prints speak of (0, none, the default): 1 the surfaces, 2 the volume, 3 the translucency volume, 4 the hair strands, 5 the nearest translucent layer.',
+  sampledLightsDebugTraceStats:
+    'Whether the count of rays each trace method got is written on the image (false, the default); needs sampledLightsDebug.',
+  sampledLightsDebugCursorX:
+    'The pixel column the light list and the prints inspect (-1, the default: the middle of the image).',
+  sampledLightsDebugCursorY:
+    'The pixel row the light list and the prints inspect (-1, the default: the middle of the image).',
 }

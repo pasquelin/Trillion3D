@@ -29,7 +29,7 @@ fn levelVoxelAt(page:u32,level:u32,at:vec3u)->u32{
 }`,
 )
 
-const MORTON = wgslBlock(
+export const MORTON = wgslBlock(
   'HAIR_VOXEL_MORTON_WGSL',
   [],
   `fn mortonCode3(x:u32)->u32{

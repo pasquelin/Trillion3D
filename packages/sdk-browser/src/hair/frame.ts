@@ -14,6 +14,7 @@ import { HAIR_COMPONENT } from './hairBsdfWgsl.ts'
 import { createHairLut, hairLutKey, type HairLutSettings } from './hairLutPass.ts'
 import { deepShadowLights, type HairDeepShadowSettings } from './deepShadowMath.ts'
 import { voxelPageResolution } from './voxelMath.ts'
+import { HAIR_RASTER_DEFAULTS } from './rasterModes.ts'
 import { invertMatrix4 } from '../../../math/src/matrix/matrix4Inverse.ts'
 import { createHairScene, encodeHairScene, planHairView, type HairScene } from './scene.ts'
 import type { HairShadowInputs, HairShadowLight } from './shadowCasters.ts'
@@ -24,6 +25,8 @@ import { hairFlagsOf } from './visibilityBlocks.ts'
 import { createHairViewGpu, type HairViewGpu, type HairVisibilityView } from './viewGpu.ts'
 import { armHairEnvironment } from './environment.ts'
 import { encodeHairVisibility } from './visibility.ts'
+import { armHairCullTrace } from './debugCull.ts'
+import { disposeHairDebug } from './debugView.ts'
 
 /**
  * THE HAIR STRANDS IN THE FRAME. While the strands are on (`hairStrands`) and the cache carries
@@ -331,9 +334,36 @@ function fillInputs(rt: WebgpuPagesRuntime, cam: EngineCamera, inputs: HairFrame
     scatterScene,
     readHairStrandsSetting(rt, 'hairStableRasterization'),
     readHairStrandsSetting(rt, 'hairCastContactShadow'),
+    readHairStrandsSetting(rt, 'hairRenderCustomDepth'),
   )
   inputs.sortByDepth = readHairStrandsSetting(rt, 'hairVisibilitySortByDepth')
   inputs.hardwareRaster = !readHairStrandsSetting(rt, 'hairVisibilityComputeRaster')
+  inputs.forwardRaster = readHairStrandsSetting(rt, 'hairVisibilityComputeRasterForward')
+  inputs.coverageMapping = readHairStrandsSetting(rt, 'hairVisibilityCoverageMapping')
+  const raster = (inputs.raster ??= { ...HAIR_RASTER_DEFAULTS })
+  raster.naive = readHairStrandsSetting(rt, 'hairVisibilityNaiveRaster')
+  raster.tileCompaction = readHairStrandsSetting(rt, 'hairVisibilityTileCompaction')
+  raster.classification = readHairStrandsSetting(rt, 'hairVisibilityClassification')
+  raster.tileSize = readHairStrandsSetting(rt, 'hairVisibilityComputeRasterTileSize')
+  raster.maxTiles = readHairStrandsSetting(rt, 'hairVisibilityComputeRasterMaxTiles')
+  raster.numClassifiers = readHairStrandsSetting(rt, 'hairVisibilityNumClassifiers')
+  raster.numBinners = readHairStrandsSetting(rt, 'hairVisibilityComputeRasterNumBinners')
+  raster.numRasterizers = readHairStrandsSetting(rt, 'hairVisibilityComputeRasterNumRasterizers')
+  raster.numRasterizersNaive = readHairStrandsSetting(
+    rt,
+    'hairVisibilityComputeRasterNumRasterizersNaive',
+  )
+  inputs.renderCurve =
+    readHairStrandsSetting(rt, 'renderCurve') && readHairStrandsSetting(rt, 'renderCurveSwRaster')
+      ? {
+          binners: readHairStrandsSetting(rt, 'renderCurveRasterNumBinners'),
+          rasterizers: readHairStrandsSetting(rt, 'renderCurveRasterNumRasterizers'),
+          minCoverage: readHairStrandsSetting(rt, 'renderCurveRasterMinCoverage'),
+        }
+      : undefined
+  inputs.customDepthCoverage = readHairStrandsSetting(rt, 'hairRenderCustomDepth')
+    ? readHairStrandsSetting(rt, 'hairCustomDepthCoverageThreshold')
+    : undefined
   inputs.fullCoverage = readHairStrandsSetting(rt, 'hairVisibilityFullCoverageThreshold')
   // The strands are lit over the surfaces they cover (`encodeHairLighting`): those wholly under them are emptied.
   const surfaces = rt.lights.store.unlit ? undefined : gpu.surfaces
@@ -378,6 +408,7 @@ export function encodeHairStrands(
   fillInputs(rt, cam, view.inputs)
   ensureHairLut(device, encoder, view)
   const { instances } = state.scene
+  armHairCullTrace(readHairStrandsSetting(rt, 'hairCastShadowWhenOutOfViewDebug'))
   const macroGroups = planHairView(instances, view.bounds.update, view.lists, view.inputs)
   encodeHairScene(device, encoder, state.scene, view.bounds)
   const visible = encodeHairVisibility(device, encoder, view, macroGroups, (error) =>
@@ -415,6 +446,7 @@ export function disposeHairStrands(rt: Pick<WebgpuPagesRuntime, 'hair' | 'gpu' |
   const { views } = rt
   for (const view of [views.main, ...views.persistent]) disposeHairView(viewGpu(rt, view))
   disposeHairView(rt.gpu)
+  disposeHairDebug(rt)
   rt.hair?.scene?.dispose()
   rt.hair = undefined
 }

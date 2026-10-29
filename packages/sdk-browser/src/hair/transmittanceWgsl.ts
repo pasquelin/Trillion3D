@@ -10,6 +10,25 @@ export const SEGMENT_VERTICES = 6
  *  xor this, so that a word of zero is a pixel no strand touched. */
 const ONE_BITS = 0x3f800000
 
+/** The vertex stage of the ribbons the view's transmittance and its coverage count draw: a corner of a segment's quad at the clip position
+ *  the camera-facing ribbon puts it, and the strand's radius for the fragment (`HAIR_COVERAGE_WGSL`'s inputs). */
+export const TRANSMITTANCE_VERTEX = `struct VsOut{@builtin(position) position:vec4f,@location(0) radius:f32}
+@vertex fn hairTransmittanceVs(@builtin(vertex_index) vertex:u32)->VsOut{
+ var result:VsOut;
+ result.position=vec4f(0.0,0.0,0.0,1.0);
+ result.radius=0.0;
+ let segment=vertex/${SEGMENT_VERTICES}u;
+ if(!segmentDrawn(segment)){return result;}
+ let k=vertex%${SEGMENT_VERTICES}u;
+ let tip=cornerTip(k);
+ if(!spineValid(select(segment+1u,segment,tip))){return result;}
+ let spine=spineAt(select(segment,segment+1u,tip));
+ if(!spine.ok){return result;}
+ result.position=cornerClip(spine,cornerRight(k));
+ result.radius=spine.radius;
+ return result;
+}`
+
 /**
  * THE TRANSMITTANCE OF THE VIEW: for each pixel, the product over the strands' fragments in front of
  * the opaque surface of what each lets through, `1 - coverage`, where a fragment's coverage is its
@@ -31,22 +50,7 @@ export const TRANSMITTANCE_WGSL = wgslProgram(
   `@group(1) @binding(1) var sceneDepth:texture_depth_2d;
 @group(1) @binding(2) var<storage,read_write> bits:array<atomic<u32>>;
 const ONE_BITS=${ONE_BITS}u;
-struct VsOut{@builtin(position) position:vec4f,@location(0) radius:f32}
-@vertex fn hairTransmittanceVs(@builtin(vertex_index) vertex:u32)->VsOut{
- var result:VsOut;
- result.position=vec4f(0.0,0.0,0.0,1.0);
- result.radius=0.0;
- let segment=vertex/${SEGMENT_VERTICES}u;
- if(!segmentDrawn(segment)){return result;}
- let k=vertex%${SEGMENT_VERTICES}u;
- let tip=cornerTip(k);
- if(!spineValid(select(segment+1u,segment,tip))){return result;}
- let spine=spineAt(select(segment,segment+1u,tip));
- if(!spine.ok){return result;}
- result.position=cornerClip(spine,cornerRight(k));
- result.radius=spine.radius;
- return result;
-}
+${TRANSMITTANCE_VERTEX}
 @fragment fn hairTransmittanceBlend(@builtin(position) position:vec4f,@location(0) radius:f32)->@location(0) f32{
  return saturate(1.0-strandCoverage(radius,position.w));
 }

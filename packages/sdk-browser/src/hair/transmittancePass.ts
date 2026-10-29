@@ -5,6 +5,7 @@ import { autoKernel } from '../gpu/core/computeStages.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import type { ResourceAllocator } from '../gpu/core/resourceAllocator.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
+import { coverageMapBinds } from './coverageMapPass.ts'
 import { hairMsaaPass, msaaBinds } from './msaaPass.ts'
 import { HAIR_MSAA_SAMPLES, HAIR_MSAA_VIS_FORMAT } from './msaaWgsl.ts'
 import { boundGroups, type DrawnInstance } from './ribbonBinds.ts'
@@ -136,7 +137,8 @@ const ZERO = { r: 0, g: 0, b: 0, a: 0 }
  *  32-bit float blending needs: the transmittance of the strands, a pixel's descriptor of its
  *  compacted samples, the share of the pixel the strands cover, the depth of the nearest strand
  *  (`hairOnlyDepth`, written by the pass after the material) and the product's buffer, a word a pixel,
- *  none with the blend unit. `readback` is the usage a proof that reads them back adds
+ *  none with the blend unit; with `mapped` (`hairVisibilityCoverageMapping`) the count of the strands of a pixel and their summed coverage, two
+ *  words a pixel. `readback` is the usage a proof that reads them back adds
  *  (`HairViewGpu.readback`). */
 export function allocateHairImageTargets(
   allocator: ResourceAllocator,
@@ -145,6 +147,7 @@ export function allocateHairImageTargets(
   blendable: boolean,
   readback: GPUTextureUsageFlags,
   hardware = false,
+  mapped = false,
 ) {
   const written = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING | readback
   // The transmittance and the depth of the nearest strand are the pass's attachments too.
@@ -160,6 +163,7 @@ export function allocateHairImageTargets(
     bits: blendable
       ? undefined
       : allocator.buffer('transmittance product', width * height, 'storage'),
+    counts: mapped ? allocator.buffer('coverage count', width * height * 2, 'storage') : undefined,
     // The four-sample targets of the hardware raster: the strands' depth and identifiers.
     msaaDepth: hardware
       ? allocator.image('msaa depth', [width, height], DEPTH_FORMAT, {
@@ -220,6 +224,7 @@ export function extendHairImageTargets(targets: ReturnType<typeof allocateHairIm
     coverageView: coverage.createView(),
     hairOnlyDepthView,
     binds: transmittanceBinds(),
+    mapBinds: coverageMapBinds(),
     pass: {
       label: `${HAIR_STRANDS_PASS_PREFIX}transmittance`,
       colorAttachments: attachments,

@@ -17,7 +17,17 @@ import {
   HAIR_TILE_SIZE,
   type HairSampleCount,
 } from './visibilityMath.ts'
-import { HAIR_INLINE_PIXELS, HAIR_LARGE_LANES } from './rasterLimits.ts'
+import {
+  HAIR_INLINE_PIXELS,
+  HAIR_LARGE_LANES,
+  HAIR_TILE_GRID_BINDING,
+  HAIR_TILE_LIST_BINDING,
+  HAIR_TILE_META2_BINDING,
+  HAIR_TILE_META_BINDING,
+  HAIR_TILE_PARAMS_BINDING,
+  HAIR_TILE_PRIMS2_BINDING,
+  HAIR_TILE_PRIMS_BINDING,
+} from './rasterLimits.ts'
 
 /** The large ribbons a dispatch lists (the most workgroups a dispatch holds); one past it is drawn by its own
  *  thread, as a ribbon the list has no room for must be. */
@@ -49,7 +59,7 @@ const rasterViewport = wgslFn('rasterViewport', [], 'fn rasterViewport()->vec2f{
  * leaves the view across one plane and comes back across another holds none either. A plane the
  * segment runs along keeps it whole or removes it.
  */
-const hairSpineClip = wgslFn(
+export const hairSpineClip = wgslFn(
   'hairSpineClip',
   [],
   `fn hairSpineClip(h0:vec4f,h1:vec4f)->vec2f{
@@ -68,6 +78,27 @@ const hairSpineClip = wgslFn(
 }`,
 )
 
+/** The bindings of the compute raster's tiles and lists (`binnedRasterPass.ts`): the sizes of the tile grid and of the rasters, the grid of
+ *  tile counters, the tiles with their segments, the compacted ones, and the lists of the classified segments. */
+const TILE_BINDINGS_TEXT = `struct TileParams{size:vec2u,cells:vec2u,shift:u32,tileSize:u32,binners:u32,rasterizers:u32,rasterizersNaive:u32,classifiers:u32,maxTiles:u32,listSize:u32}
+@group(1) @binding(${HAIR_TILE_PARAMS_BINDING}) var<uniform> tp:TileParams;
+@group(1) @binding(${HAIR_TILE_GRID_BINDING}) var<storage,read_write> grid:array<atomic<u32>>;
+@group(1) @binding(${HAIR_TILE_META_BINDING}) var<storage,read_write> tileData:array<atomic<u32>>;
+@group(1) @binding(${HAIR_TILE_PRIMS_BINDING}) var<storage,read_write> prims:array<u32>;
+@group(1) @binding(${HAIR_TILE_LIST_BINDING}) var<storage,read_write> lists:array<atomic<u32>>;
+@group(1) @binding(${HAIR_TILE_META2_BINDING}) var<storage,read_write> tileData2:array<atomic<u32>>;
+@group(1) @binding(${HAIR_TILE_PRIMS2_BINDING}) var<storage,read_write> prims2:array<u32>;
+// The list of the classified segments: the count of the software share, of the hardware share, then the software ones from the first word
+// and the hardware ones from the last of the room, whose size is listSize.
+const LIST_SOFTWARE=0u;
+const LIST_HARDWARE=1u;
+const LIST_ALL=2u;
+override LIST:u32=LIST_ALL;
+fn listedSegment(list:u32,k:u32)->u32{
+ if(list==LIST_HARDWARE){return atomicLoad(&lists[1u+tp.listSize-k]);}
+ return atomicLoad(&lists[2u+k]);
+}`
+
 /** The bindings of the raster, its constants and the sample positions. */
 const rasterBindingsText = (
   samples: HairSampleCount,
@@ -76,16 +107,21 @@ const rasterBindingsText = (
 ) => `@group(1) @binding(1) var sceneDepth:texture_depth_2d;
 ${visWorkDeclaration(wide, 2, 1, 'samples')}
 @group(1) @binding(3) var<uniform> band:HairBand;
-// The large ribbons of the dispatch: the count, then their segments; and the arguments of the dispatch over them.
+${TILE_BINDINGS_TEXT}
+const SAMPLES=${samples}u;
+const SUBPIXEL=${SUBPIXEL_SAMPLES}.0;
+override MODE:u32=${MODE_DEPTH}u;
+// The positions of the samples from the pixel's centre, in steps of the subpixel grid.
+var<private> OFFSETS:array<vec2f,${samples}>=array<vec2f,${samples}>(${offsets.join(',')});
+// The pixels a triangle may reach: the whole image until a kernel narrows it (a tile's window: the first column and row, then the ends).
+var<private> clipBox:vec4u=vec4u(0u,0u,0xffffffffu,0xffffffffu);`
+
+/** The bindings of the large ribbons: the list a dispatch fills, and the arguments of the dispatch that draws them. */
+const LARGE_BINDINGS_TEXT = `// The large ribbons of the dispatch: the count, then their segments; and the arguments of the dispatch over them.
 @group(1) @binding(${HAIR_LARGE_BINDING}) var<storage,read_write> large:array<atomic<u32>,${HAIR_LARGE_WORDS}>;
 @group(1) @binding(${HAIR_LARGE_BINDING + 1}) var<storage,read_write> largeArgs:array<u32,${HAIR_LARGE_ARGS_WORDS}>;
 const LARGE_CAPACITY=${HAIR_LARGE_CAPACITY}u;
-const INLINE_PIXELS=${HAIR_INLINE_PIXELS}.0;
-override MODE:u32=${MODE_DEPTH}u;
-const SAMPLES=${samples}u;
-const SUBPIXEL=${SUBPIXEL_SAMPLES}.0;
-// The positions of the samples from the pixel's centre, in steps of the subpixel grid.
-var<private> OFFSETS:array<vec2f,${samples}>=array<vec2f,${samples}>(${offsets.join(',')});`
+const INLINE_PIXELS=${HAIR_INLINE_PIXELS}.0;`
 
 /** The edge functions of a triangle and the span of its rows. */
 const RASTER_EDGES_TEXT = `// An edge from u to v as a triangle tests it: walked from the lesser of its corners (by x, then y) to
@@ -118,8 +154,8 @@ fn rowSpan(a:vec2f,b:vec2f,c:vec2f,y0:f32,y1:f32)->vec2f{
 }`
 
 /** The fill of a triangle on the subpixel grid. */
-const RASTER_FILL_TEXT = `// The triangle of the corners s0, s1 and s2, on the subpixel grid (\`subpixelOf\`). A thread of \`lanes\` takes the rows
-// \`lane.y\` apart by \`lanes.y\` and, in each, the pixels \`lane.x\` apart by \`lanes.x\`.
+const RASTER_FILL_TEXT = `// The triangle of the corners s0, s1 and s2, on the subpixel grid (subpixelOf). A thread of lanes takes the rows
+// lane.y apart by lanes.y and, in each, the pixels lane.x apart by lanes.x.
 fn fillTriangle(s0:vec4f,s1:vec4f,s2:vec4f,code:u32,lane:vec2u,lanes:vec2u){
  var e01=s0.xy-s1.xy;
  var e12=s1.xy-s2.xy;
@@ -142,15 +178,15 @@ fn fillTriangle(s0:vec4f,s1:vec4f,s2:vec4f,code:u32,lane:vec2u,lanes:vec2u){
  let high=max(a,max(b,c));
  if(high.x<0.0||high.y<0.0||low.x>=size.x||low.y>=size.y){return;}
  // The rows of the band alone: the other bands' dispatches take the rest.
- let rowLo=max(u32(clamp(floor(low.y),0.0,size.y-1.0)),band.first);
- let rowHi=min(u32(clamp(floor(high.y),0.0,size.y-1.0)),band.end-1u);
+ let rowLo=max(max(u32(clamp(floor(low.y),0.0,size.y-1.0)),band.first),clipBox.y);
+ let rowHi=min(min(u32(clamp(floor(high.y),0.0,size.y-1.0)),band.end-1u),clipBox.w-1u);
  if(rowLo>rowHi){return;}
  let ids=MODE==${MODE_ID}u;
  for(var y=rowLo+lane.y;y<=rowHi;y+=lanes.y){
   let span=rowSpan(a,b,c,f32(y),f32(y)+1.0);
   if(span.x>span.y){continue;}
-  let colLo=u32(clamp(floor(span.x),0.0,size.x-1.0));
-  let colHi=u32(clamp(floor(span.y),0.0,size.x-1.0));
+  let colLo=max(u32(clamp(floor(span.x),0.0,size.x-1.0)),clipBox.x);
+  let colHi=min(u32(clamp(floor(span.y),0.0,size.x-1.0)),clipBox.z-1u);
   for(var x=colLo+lane.x;x<=colHi;x+=lanes.x){
    let opaque=textureLoad(sceneDepth,vec2i(i32(x),i32(y)),0);
    let centre=vec2f(f32(x)+0.5,f32(y)+0.5)*SUBPIXEL;
@@ -206,8 +242,24 @@ fn drawRibbon(ribbon:Ribbon,lane:vec2u,lanes:vec2u){
 }`
 
 /** The kernels: the small ribbons by thread, the large ones by workgroup and the dispatch over the listed ones. */
-const RASTER_KERNELS_TEXT = `@compute @workgroup_size(WORKGROUP_THREADS) fn hairRaster(@builtin(global_invocation_id) id:vec3u,@builtin(num_workgroups) groups:vec3u){
- let segment=flatIndex(id,groups,WORKGROUP_THREADS);
+const RASTER_KERNELS_TEXT = `// The naive raster: a fixed number of groups (rasterizersNaive) walk the segments of LIST (the software share, the hardware
+// share, or every segment) a batch of threads at a time, a thread a segment, the way the reference's naive rasterizer walks them.
+@compute @workgroup_size(WORKGROUP_THREADS) fn hairRaster(@builtin(workgroup_id) block:vec3u,@builtin(local_invocation_index) lane:u32){
+ var count=inst.ids.y;
+ if(LIST!=LIST_ALL){count=atomicLoad(&lists[LIST]);}
+ let batches=(count+WORKGROUP_THREADS-1u)/WORKGROUP_THREADS;
+ let loops=(batches+tp.rasterizersNaive-1u)/tp.rasterizersNaive;
+ for(var round=0u;round<loops;round++){
+  let k=(round+block.x*loops)*WORKGROUP_THREADS+lane;
+  if(k<count){
+   var segment=k;
+   if(LIST!=LIST_ALL){segment=listedSegment(LIST,k);}
+   hairRasterSegment(segment);
+  }
+ }
+}
+// A segment's ribbon drawn by this thread or, large, left to the group that follows.
+fn hairRasterSegment(segment:u32){
  let ribbon=ribbonOf(segment);
  if(!ribbon.ok){return;}
  let box=ribbonBox(ribbon.corners);
@@ -270,13 +322,18 @@ const RASTER_KERNELS_TEXT = `@compute @workgroup_size(WORKGROUP_THREADS) fn hair
  * the float's bits, which grow with the depth for a positive float; a sample that holds none has a
  * depth of zero.
  */
-export function rasterWgsl(samples: HairSampleCount, wide: boolean) {
+export const rasterWgsl = (samples: HairSampleCount, wide: boolean) =>
+  rasterModule(samples, wide, RASTER_KERNELS_TEXT)
+
+/** The module of the raster over `samples` samples a pixel: its bindings, the fill of a triangle, the ribbons of the segments, then `kernels`
+ *  (the compute raster's other entries, `binnedWgsl.ts`, share all of it). */
+export function rasterModule(samples: HairSampleCount, wide: boolean, kernels: string) {
   const step = SUBPIXEL_SAMPLES / HAIR_SAMPLE_OFFSET_STEPS
   const offsets = HAIR_SAMPLE_OFFSETS[samples].map(
     ([x, y]) => `vec2f(${wgslF32(x * step)},${wgslF32(y * step)})`,
   )
   return wgslProgram(
-    `${rasterBindingsText(samples, wide, offsets)}\n${RASTER_EDGES_TEXT}\n${RASTER_FILL_TEXT}\n${RASTER_RIBBON_TEXT}\n${RASTER_KERNELS_TEXT}`,
+    `${rasterBindingsText(samples, wide, offsets)}\n${LARGE_BINDINGS_TEXT}\n${RASTER_EDGES_TEXT}\n${RASTER_FILL_TEXT}\n${RASTER_RIBBON_TEXT}\n${kernels}`,
     [
       HAIR_RIBBON_WGSL,
       HAIR_BAND_WGSL,

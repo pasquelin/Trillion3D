@@ -42,21 +42,26 @@ export async function prepareTransparentOcclusion(rt: WebgpuPagesRuntime, device
 }
 
 const noMatrix = new Float64Array(16)
-/** The test's frame, filled every image in the SAME object: `begin` writes it into the uniform and
- *  copies what the audit keeps, so nothing here needs to be new. The anchor is a tuple held the same
- *  way, so the camera pose allocates nothing. */
-const anchor: [number, number, number] = [0, 0, 0]
-const frame: OcclusionFrame = {
+
+/** An occlusion frame whose anchor is written in place. */
+type WritableOcclusionFrame = OcclusionFrame & { anchor: [number, number, number] }
+
+/** An occlusion frame of its own, filled by `fillOcclusionFrame`: the test's frame is one, filled every image in the SAME object — `begin` writes it into
+ *  the uniform and copies what the audit keeps, so nothing here needs to be new —, and so is the frame of the root boxes' test
+ *  (`../../visibility/hzbOcclusion/`). Its anchor is a tuple held the same way, so the camera pose allocates nothing. */
+export const createOcclusionFrame = (): WritableOcclusionFrame => ({
   view: noMatrix,
   viewProj: noMatrix,
-  anchor,
+  anchor: [0, 0, 0],
   near: 0,
   width: 0,
   height: 0,
   layerTop: 0,
   cull: 'follow',
   referenceTest: false,
-}
+})
+/** The transparent clusters' test's frame. */
+const transparentFrame = createOcclusionFrame()
 
 /**
  * The frame the transparent clusters are tested under, at the head of the visibility image
@@ -67,15 +72,25 @@ const frame: OcclusionFrame = {
 export function beginTransparentOcclusion(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   const occlusion = rt.blendState.occlusion
   if (!occlusion) return
+  fillOcclusionFrame(rt, cam, transparentFrame)
+  occlusion.begin(transparentFrame)
+}
+
+/** The image's occlusion frame `frame` filled (see `beginTransparentOcclusion`): the camera's matrices and eye, the target's size, the layer and the cull. */
+export function fillOcclusionFrame(
+  rt: WebgpuPagesRuntime,
+  cam: EngineCamera,
+  frame: WritableOcclusionFrame,
+) {
   frame.view = cam.view
   // The render matrix, temporal-antialiasing jitter included: the pyramid the test reads was
   // rasterised with it, and its margins are to the ulp.
   frame.viewProj = taaRenderMatrix(rt, cam)
   // Projection anchor: the eye in the world. Corners enter the kernel only by their offset from it,
   // which keeps the error bound tight whatever the model size.
-  anchor[0] = cam.eye[0]
-  anchor[1] = cam.eye[1]
-  anchor[2] = cam.eye[2]
+  frame.anchor[0] = cam.eye[0]
+  frame.anchor[1] = cam.eye[1]
+  frame.anchor[2] = cam.eye[2]
   frame.near = cam.near
   frame.width = rt.gpu.targetSize[0]
   frame.height = rt.gpu.targetSize[1]
@@ -85,7 +100,6 @@ export function beginTransparentOcclusion(rt: WebgpuPagesRuntime, cam: EngineCam
   frame.cull = cullStep(rt)
   // The walk of the pyramid (`hizTransparentTest`): the finer level's, or the reference's.
   frame.referenceTest = readHizSetting(rt, 'hizTransparentTest') === 'reference'
-  occlusion.begin(frame)
 }
 
 /**

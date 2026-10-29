@@ -92,11 +92,28 @@ fn hvLiveShadingMain(@builtin(global_invocation_id) id:vec3u){
   return;
  }
  var ray=hvMakeRay(localOrigin,localDirection,span.x,span.y,pixelRay.origin,pixelRay.direction,jitter,hvViewStepSize(localDirection),u32(hv.limits.z),hv.flags.x!=0u,hv.flags.y!=0u);
- let count=hvStepCount(&ray);
  var radiance=vec3f(0.0);
  var transmittance=vec3f(previousTransmittance);
  var atFirst=vec3f(previousTransmittance);
- let scatterT=hvRayMarch(ray,count,&radiance,&transmittance,&atFirst);
+ var scatterT=ray.tMax;
+ if(hvUsesBoxes()){
+  // Only the spans of the voxels the ray meets are marched, nearest first, each from its own start; the ray goes on past a voxel's far end
+  // (RenderSingleScatteringWithPreshadingRGS). Every distance is the local ray's: the reference mixes the local one and the world's.
+  var hit=hvNextVoxelSpan(localOrigin,localDirection,span.x,span.y);
+  while(hit.y>hit.x&&dot(transmittance,vec3f(0.2126,0.7152,0.0722))>0.001){
+   var part=ray;
+   part.tMin=hit.x;
+   part.tMax=hit.y;
+   let partCount=hvStepCount(&part);
+   var partFirst=vec3f(0.0);
+   let found=hvRayMarch(part,partCount,&radiance,&transmittance,&partFirst);
+   if(scatterT==ray.tMax&&found<part.tMax){scatterT=found;atFirst=partFirst;}
+   hit=hvNextVoxelSpan(localOrigin,localDirection,hit.y+max(0.001,abs(hit.y)*0.000001),span.y);
+  }
+ }else{
+  let count=hvStepCount(&ray);
+  scatterT=hvRayMarch(ray,count,&radiance,&transmittance,&atFirst);
+ }
  // A volume that holds out adds no light to the image: it leaves its opacity in the holdout.
  let holdsOut=hvHoldsOut();
  if(holdsOut){radiance=vec3f(0.0);}

@@ -95,6 +95,8 @@ export const TRANSPARENT_FRONT_PASS = 'Trillion3D transparent front'
  *  (`../../gpu/core/transparentOcclusion.ts`). */
 export const TRANSPARENT_COMPACTION_PASS = 'Trillion3D transparent compaction'
 export const TRANSPARENT_OCCLUSION_PASS = 'Trillion3D transparent occlusion'
+/** The root boxes' test against the depth pyramid: the pass that derives their corners (`../../visibility/hzbOcclusion/`); the test itself is the transparent occlusion's. */
+export const HZB_OCCLUSION_PASS = 'Trillion3D hzb occlusion roots'
 /** The particle step and draw, as the GPU timings name them (`passesGpu`). */
 export const PARTICLES_PASS = 'Trillion3D particles'
 export const PARTICLE_DRAW_PASS = 'Trillion3D particle draw'
@@ -321,6 +323,7 @@ export const ENGINE_PASSES = [
   definePass({ label: WATER_COMPOSITE_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSPARENT_COMPACTION_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: TRANSPARENT_OCCLUSION_PASS, stage: 'transparents', block: 'other' }),
+  definePass({ label: HZB_OCCLUSION_PASS, stage: 'hiZ', block: 'visibility' }),
   definePass({ label: BLEND_ORDER_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: DISPLAY_MASK_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: DISPLAY_FILTER_PASS, stage: 'transparents', block: 'other' }),

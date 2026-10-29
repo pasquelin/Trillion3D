@@ -678,8 +678,12 @@ when `shadowFirstPersonSelfShadowMinimumHzbTraceOccupancy` lanes or fewer of its
 shadow lerped from the pixel's own to the filtered by the mean distance to the hit of its neighbours (contact hardening); the
 *upsample* reads the four grid pixels around each first-person pixel and takes the minimum of the sun's mask and the shadow.
 `shadowFirstPersonSelfShadowRawFullResolution` (false) traces every pixel with no filter. `shadowFirstPersonSelfShadowLightTypes`
-(0 the suns, 1 the local lights, 2 all) names the lights; only the suns are taken into their masks so far. It needs the screen
-reflection's trace layers, and the sun masks are projected again each image while it is on.
+(0 the suns, 1 the local lights, 2 all) names the lights. A sun's shadow is taken into its mask by the minimum; a local light's, traced
+only where the light reaches the first-person objects (its range, a spot's cone), goes to its ray's end at the light and is taken, as the
+square root the masks keep, into the light's capsule layer on the one-pass projection or its mask on the per-light path, by the minimum.
+The march walks the full-resolution depth as the lower of the pixel's and its bilinear filter, and meets no depth plane at its base level.
+It needs the screen reflection's trace layers; the masks are projected again each image while it is on, and its textures are let go when
+no light gives a self shadow.
 
 ```ts
 world.shadows = { shadowFirstPersonSelfShadow: true } // the hands and the weapon shadow one another

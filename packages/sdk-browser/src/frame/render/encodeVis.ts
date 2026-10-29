@@ -13,6 +13,7 @@ import {
   visibilityRasterStages,
 } from './encodeVisSetup.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
+import { encodeHzbOcclusion } from '../../visibility/hzbOcclusion/hzbOcclusion.ts'
 
 /** The visibility-buffer image: the decode and the bins of the clusters the cut listed, main and
  *  post raster passes, material surfaces, lighting and presentation, all in the image's command
@@ -55,6 +56,8 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   // Surfaces, one class at a time, and the virtual-texture feedback target where each opaque
   // pixel posts the tile rank it wants — completed by transparents, reduced to counts at submit.
   encodeMaterialPasses(rt, encoder)
+  // The roots tested against the depth just built, their verdicts read a few images later (`hzbOcclusion`).
+  encodeHzbOcclusion(rt, cam, encoder)
   // The voxel trace's counters of a sampled image, copied, then mapped once the image is
   // submitted: no image waits for that readback.
   vis.voxelSteps?.encodeCopy(encoder, run.frame)

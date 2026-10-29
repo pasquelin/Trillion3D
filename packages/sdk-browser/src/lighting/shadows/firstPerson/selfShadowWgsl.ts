@@ -6,6 +6,8 @@ import { isFirstPerson } from '../../../materials/surface/surfaceModel.ts'
 import { SCREEN_MARCH_WGSL } from '../../../visibility/hiz/gpu/screenMarch.ts'
 import { SCREEN_MARCH_END_WGSL } from '../../../visibility/hiz/gpu/screenMarchBase.ts'
 import type { MarchLanes } from '../../../visibility/hiz/gpu/screenMarchLanes.ts'
+import { FULLSCREEN_VERTEX } from '../../../gpu/shader/fullscreenTriangle.ts'
+import { DIRECT_LIGHT_WGSL } from '../../direct/lightWgsl.ts'
 import { REFLECTION_CONSTANTS_WGSL } from '../../reflections/constantsWgsl.ts'
 import {
   REFLECTION_DEPTH_BINDING,
@@ -15,8 +17,8 @@ import {
   reflectionLightViewWgsl,
 } from '../../reflections/viewLayout.ts'
 
-/** The most suns one image gives a self shadow. */
-export const SELF_SHADOW_MAX_SUNS = 8
+/** The most lights (suns, or local lights) one run gives a self shadow: a layer each of the grid. */
+export const SELF_SHADOW_MAX_LIGHTS = 8
 /** The side of a workgroup, in threads. */
 export const SELF_SHADOW_GROUP = 8
 /** The hit distance, in pixels, that the half-resolution trace stores as the longest (`MaxPixelDistance`), and the share of one the longest is stored at. */
@@ -32,7 +34,8 @@ export const SELF_SHADOW_BINDINGS = {
   downDepth: 4,
   raw: 5,
   blurred: 6,
-  sunMask: 7,
+  lightMask: 7,
+  lights: 8,
 } as const
 const B = SELF_SHADOW_BINDINGS
 
@@ -52,12 +55,19 @@ export const SELF_SHADOW_ENTRIES = {
  *   axis, with its offset in the four; a grid pixel with no first-person pixel keeps the far depth (zero) and nothing else.
  * - `selfShadowTrace` (a layer of the grid a sun): from the pixel's point, moved off the surface along its normal by twice the distance to the corner of
  *   its texel measured along the normal, a ray toward the sun marches the depth pyramid (`screenMarch`, the reference's walk over the closest depth
- *   with the surface's thickness a share of its depth). A hit shadows the pixel; the grid keeps the distance, in pixels, from the pixel to the hit,
+ *   with the surface's thickness a share of its depth, its base level the lower of the full-resolution depth and its bilinear filter, with no depth plane there: `smooth`). A hit shadows the pixel; the grid keeps the distance, in pixels, from the pixel to the hit,
  *   as a share of 64 of them under 254/255, and one where nothing was hit. At the full resolution the shadow itself is taken into the sun's mask by the minimum.
  * - `selfShadowBlur`: a 3 x 3 filter weighed by the likeness of the depths, the shadow lerped from the pixel's own to the filtered by the mean hit
  *   distance of the neighbours that were hit (contact hardening).
  * - `selfShadowUpsample`: each first-person pixel of the image reads the four grid pixels around it, weighs them by the bilinear weights and the
- *   likeness of their depth to its own (the grid pixels with no first-person pixel weigh nothing), and takes the minimum of the sun's mask and the shadow.
+ *   likeness of their depth to its own (the grid pixels with no first-person pixel weigh nothing), and takes the minimum of the sun's mask and the shadow;
+ *   a local light's shadow is written into its layer of the mask (`lightMask`) as it is.
+ * - `selfShadowMerge` (a fragment program, the local lights' only): the local light's layer, at the first-person pixels, taken into the light's
+ *   own mask by the minimum (a blend), as the square root the masks keep.
+ *
+ * A layer is a sun, whose record is the direction toward it (`w` 0), or a local light, whose record is its rank in the light buffer (`x`, `w` 1): its
+ * ray goes to the light's centre, ends there, and a pixel the light does not reach (`lightReaches`: its range, a spot's cone, a rectangle's face) is
+ * not traced and stays lit.
  *
  * The depth is the device's, reversed: zero is the far plane. A shadow is a visibility, one for none, kept as it is (the reference stores its square
  * root in eight bits and squares it back to weigh).
@@ -69,7 +79,7 @@ const PARAMS_WGSL = wgslBlock(
  sizes:vec4u,
  counts:vec4u,
  trace:vec4f,
- suns:array<vec4f,${SELF_SHADOW_MAX_SUNS}>,
+ lights:array<vec4f,${SELF_SHADOW_MAX_LIGHTS}>,
 }
 @group(0) @binding(${B.params}) var<uniform> params:SelfShadow;
 @group(0) @binding(${B.normals}) var normals:texture_2d<f32>;
@@ -78,7 +88,8 @@ const PARAMS_WGSL = wgslBlock(
 @group(0) @binding(${B.downDepth}) var downDepth:texture_storage_2d<r32float,read_write>;
 @group(0) @binding(${B.raw}) var rawShadow:texture_storage_2d_array<r32float,read_write>;
 @group(0) @binding(${B.blurred}) var blurred:texture_storage_2d_array<r32float,read_write>;
-@group(0) @binding(${B.sunMask}) var sunMask:texture_storage_2d_array<r32float,read_write>;
+@group(0) @binding(${B.lightMask}) var lightMask:texture_storage_2d_array<r32float,read_write>;
+@group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
 fn selfFirstPerson(pixel:vec2i)->bool{return isFirstPerson(textureLoad(flags,pixel,0).r);}
 fn selfLow(p:vec2u)->bool{return all(p<params.sizes.zw);}`,
 )
@@ -139,18 +150,26 @@ fn ${SELF_SHADOW_ENTRIES.trace}(@builtin(global_invocation_id) id:vec3u,@builtin
  let layer=i32(id.z);
  let inputs=selfInputs(id.xy);
  let size=view.viewport.xy;
- let dir=normalize(params.suns[id.z].xyz);
+ let light=params.lights[id.z];
+ let local=light.w!=0.0;
+ let rank=u32(light.x);
  var S0=vec3f(0.0);var delta=vec3f(0.0);var end=0.0;var pixels=0.0;
  let full=vec2f(inputs.pixel)+vec2f(0.5);
- if(inputs.ok){
-  let P=worldAt(full,inputs.z);
+ let P=worldAt(full,inputs.z);
+ // A local light the pixel is out of the reach of leaves it lit, and traces no ray.
+ if(inputs.ok&&(!local||lightReaches(rank,P))){
   let corner=worldAt(full+vec2f(0.5),inputs.z);
   let origin=P+abs(dot(corner-P,inputs.n))*2.0*inputs.n;
   let A=reflectionView.viewProj*vec4f(origin,1.0);
   if(all(abs(A.xy)<=vec2f(A.w))){
+   // A sun's ray goes on to the trace distance, a local light's ends at the light.
+   var toLight=vec3f(0.0);
+   if(local){toLight=directLights.items[rank].positionRange.xyz-origin;}
+   let lightDistance=length(toLight);
+   let dir=select(normalize(light.xyz),toLight/max(lightDistance,1e-4),local);
    let toward=reflectionView.viewProj*vec4f(dir,0.0);
    let ends=select(select(1e30,0.99*(reflectionView.slab.y-A.z)/toward.z,toward.z>0.0),select(1e30,-0.99*A.w/toward.w,toward.w<0.0),slabPerspective(reflectionView.slab));
-   let span=min(params.trace.x,ends);
+   let span=min(min(params.trace.x,select(1e27,lightDistance,local)),ends);
    S0=clipToFramebuffer(A,size);
    delta=clipToFramebuffer(A+toward*span,size)-S0;
    end=screenMarchEnd(S0.xy,delta.xy,size);
@@ -165,8 +184,9 @@ fn ${SELF_SHADOW_ENTRIES.trace}(@builtin(global_invocation_id) id:vec3u,@builtin
  }
  let hit=end>0.0&&marched.t>=0.0&&marched.plane.x>0.0;
  if(params.counts.y!=0u){
-  if(hit){
-   textureStore(sunMask,id.xy,layer,vec4f(0.0));
+  // A sun's mask is taken by the minimum, so only a hit writes; a local light's layer holds the shadow of every first-person pixel.
+  if(hit||local){
+   textureStore(lightMask,id.xy,layer,vec4f(select(1.0,0.0,hit)));
   }
   return;
  }
@@ -230,8 +250,9 @@ fn ${SELF_SHADOW_ENTRIES.upsample}(@builtin(global_invocation_id) id:vec3u){
  var total=depthWeights*weights;
  let sum=dot(total,vec4f(1.0));
  total=select(weights,total/sum,sum>1e-5);
- let held=textureLoad(sunMask,id.xy,layer).x;
- textureStore(sunMask,id.xy,layer,vec4f(min(held,dot(shadows,total)),0.0,0.0,0.0));
+ let shadow=dot(shadows,total);
+ let held=textureLoad(lightMask,id.xy,layer).x;
+ textureStore(lightMask,id.xy,layer,vec4f(select(min(held,shadow),shadow,params.lights[id.z].w!=0.0),0.0,0.0,0.0));
 }`
 
 /** The program of the kernel `entry`: the self shadow's textures in group 0 and the reflection's group (the view, the depth pyramid and the lighting's view)
@@ -250,6 +271,7 @@ export function selfShadowProgram(
   const kernel = kernels[entry]!
   return wgslProgram(kernel, [
     PARAMS_WGSL,
+    DIRECT_LIGHT_WGSL,
     isFirstPerson,
     octEncode,
     octDecode,
@@ -257,9 +279,36 @@ export function selfShadowProgram(
     reflectionBindingsWgsl(REFLECTION_GROUP),
     reflectionLightViewWgsl(REFLECTION_GROUP),
     REFLECTION_LINEAR_DEPTH_WGSL,
-    SCREEN_MARCH_WGSL(REFLECTION_GROUP, REFLECTION_DEPTH_BINDING, lanes, SELF_SHADOW_GROUP ** 2),
+    SCREEN_MARCH_WGSL(
+      REFLECTION_GROUP,
+      REFLECTION_DEPTH_BINDING,
+      lanes,
+      SELF_SHADOW_GROUP ** 2,
+      true,
+    ),
     SCREEN_MARCH_END_WGSL,
     clipToFramebuffer,
     slabPerspective,
   ])
 }
+
+/** The merge's entry point and the bindings of its group: a local light's layer of the self shadow, and the surfaces' flags. */
+export const SELF_SHADOW_MERGE_ENTRY = 'selfShadowMerge'
+export const SELF_SHADOW_MERGE_BINDINGS = { shadow: 0, flags: 1 } as const
+
+/**
+ * The merge of a local light's self shadow into the light's mask (`selfShadowMerge`, a fragment program over the full-screen triangle): the
+ * first-person pixels write the square root of the shadow, the others nothing; the pipeline's blend takes the minimum of that and the mask
+ * (`CAPSULE_BLENDS.attenuation`), so every other shadow of the light stands.
+ */
+export const selfShadowMergeProgram = () =>
+  wgslProgram(
+    `@group(0) @binding(${SELF_SHADOW_MERGE_BINDINGS.shadow}) var shadowLayer:texture_2d<f32>;
+@group(0) @binding(${SELF_SHADOW_MERGE_BINDINGS.flags}) var surfaceFlags:texture_2d<u32>;
+@fragment fn ${SELF_SHADOW_MERGE_ENTRY}(@builtin(position) at:vec4f)->@location(0) vec4f{
+ let pixel=vec2i(at.xy);
+ if(!isFirstPerson(textureLoad(surfaceFlags,pixel,0).r)){discard;}
+ return vec4f(sqrt(textureLoad(shadowLayer,pixel,0).x));
+}`,
+    [isFirstPerson, FULLSCREEN_VERTEX],
+  )

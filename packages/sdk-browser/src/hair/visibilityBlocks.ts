@@ -20,7 +20,8 @@ export type HairRadii = readonly [number, number, number, number]
 /**
  * Writes a view block (`HAIR_VIEW_WGSL`): `viewProjection` (column-major, the eye at the origin, with
  * the jitter of the image), `forward` and whether the projection is orthographic, the least radii
- * (`radii`), the image's `width` by `height`, whether the samples of a pixel are `sorted` by depth, and
+ * (`radii`), the image's `width` by `height`, whether the samples of a pixel are `sorted` by depth, whether
+ * the samples are the strands' control points themselves (`points`, the forward raster's), and
  * `inverse`, the inverse of the view-projection.
  */
 export function writeHairViewBlock(
@@ -33,6 +34,7 @@ export function writeHairViewBlock(
   width: number,
   height: number,
   sorted: boolean,
+  points = false,
 ) {
   const { f } = words
   for (let i = 0; i < 16; i++) f[i] = viewProjection[i]!
@@ -44,7 +46,7 @@ export function writeHairViewBlock(
   f[24] = width
   f[25] = height
   f[26] = sorted ? 1 : 0
-  f[27] = 0
+  f[27] = points ? 1 : 0
   for (let i = 0; i < 16; i++) f[28 + i] = inverse[i]!
 }
 
@@ -104,12 +106,14 @@ export function writeHairInstanceBlock(
 }
 
 /** The flags every strand of an image carries (`HAIR_FLAG`), from the settings: whether the strands
- *  light the scene behind them, are drawn stable and cast contact shadows. */
+ *  light the scene behind them, are drawn stable, cast contact shadows and render custom depth. */
 export const hairFlagsOf = (
   scatterSceneLight: boolean,
   stableRaster: boolean,
   castContactShadow: boolean,
+  renderCustomDepth: boolean,
 ) =>
   (scatterSceneLight ? HAIR_FLAG.scatterSceneLight : 0) |
   (stableRaster ? HAIR_FLAG.stableRaster : 0) |
-  (castContactShadow ? HAIR_FLAG.castContactShadow : 0)
+  (castContactShadow ? HAIR_FLAG.castContactShadow : 0) |
+  (renderCustomDepth ? HAIR_FLAG.renderCustomDepth : 0)

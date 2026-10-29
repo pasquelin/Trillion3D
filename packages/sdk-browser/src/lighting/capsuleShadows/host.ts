@@ -448,7 +448,8 @@ function layersFor(h: Held, device: GPUDevice, extent: readonly [number, number]
  * THE CAPSULE SHADOWS OF THE LOCAL LIGHTS for the one-pass projection: a layer a light of the frame, cleared to a share of 1 and, for each local light the
  * shapes of the objects that cast a direct shadow reach, traced toward it and taken into its layer (the square root of the share, as the per-light mask
  * keeps it); the projection reads the layer where it packs the light's share (`VsmProjectionTarget.capsule`). None, and no pass or resource, where the
- * settings are off or no object casts.
+ * settings are off or no object casts, unless `forced`: another shadow (the first-person self shadow) takes the layers into its own, which then
+ * stand cleared and drawn by it alone. Returns the layers, as one array view and a view each.
  */
 export function capsuleLocalLayers(
   rt: WebgpuPagesRuntime,
@@ -456,20 +457,23 @@ export function capsuleLocalLayers(
   encoder: GPUCommandEncoder,
   lights: readonly VsmProjectionLight[],
   suns: number,
+  forced = false,
 ) {
   const frame = directFrame(rt, cam)
-  if (!frame || lights.length <= suns) return undefined
+  if ((!frame && !forced) || lights.length <= suns) return undefined
+  const device = frame?.device ?? rt.gpu.device!
   // A light past the layers the device allows reads a share of 1 (the projection checks the layer count).
   const layers = layersFor(
-    frame.h,
-    frame.device,
-    frame.image.extent,
-    Math.min(lights.length, frame.device.limits.maxTextureArrayLayers),
+    frame?.h ?? heldOf(rt),
+    device,
+    frame?.image.extent ?? rt.gpu.allocatedSize,
+    Math.min(lights.length, device.limits.maxTextureArrayLayers),
   )
   for (const view of layers.each) {
     clearLayer.view = view
     encoder.beginRenderPass(CLEAR_LAYER).end()
   }
+  if (!frame) return layers
   const scissor = [0, 0, frame.image.view[0], frame.image.view[1]] as const
   for (let k = suns; k < layers.each.length; k++) {
     const light = lights[k]
@@ -477,7 +481,7 @@ export function capsuleLocalLayers(
     layerTarget.view = layers.each[k]
     encodeLocalShadow(frame, encoder, light, localOutput, scissor)
   }
-  return layers.array
+  return layers
 }
 
 const FACTORS_FORMAT: GPUTextureFormat = 'r8unorm'

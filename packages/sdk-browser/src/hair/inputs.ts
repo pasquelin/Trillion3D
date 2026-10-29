@@ -1,6 +1,7 @@
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import type { HairDeepShadowLight, HairDeepShadowSettings } from './deepShadowMath.ts'
 import type { HairLutSettings } from './hairLutPass.ts'
+import type { HairRasterSettings } from './rasterModes.ts'
 import type { HairShadowInputs } from './shadowCasters.ts'
 
 /** What the passes read of the camera. */
@@ -121,6 +122,20 @@ export interface HairFrameInputs {
   /** Whether the device's rasterizer writes the samples (`hairVisibilityComputeRaster` off, the default);
    *  none or false, a compute raster does. */
   readonly hardwareRaster?: boolean
+  /** Whether the forward raster draws the strands (`hairVisibilityComputeRasterForward`): their control points are lit and a tiled compute raster shades the segments between them into the image; none or false, the visibility buffer does. */
+  readonly forwardRaster?: boolean
+  /** Whether the coverage of the pixels comes from the count of the strands (`hairVisibilityCoverageMapping`). */
+  readonly coverageMapping?: boolean
+  /** The compute raster's settings (`hairVisibilityNaiveRaster`, `hairVisibilityTileCompaction`, `hairVisibilityClassification` and the sizes of its passes); the reference's where none (a proof's), filled in place each image. */
+  readonly raster?: HairRasterSettings
+  /** The coverage from which a pixel writes the custom depth (`hairCustomDepthCoverageThreshold`), none while the strands render none (`hairRenderCustomDepth`). */
+  readonly customDepthCoverage?: number
+  /** The curve raster pipeline's settings (`renderCurve` with `renderCurveSwRaster`, `renderCurveRasterNumBinners`, `renderCurveRasterNumRasterizers`, `renderCurveRasterMinCoverage`), none while it is off. */
+  readonly renderCurve?: {
+    readonly binners: number
+    readonly rasterizers: number
+    readonly minCoverage: number
+  }
   readonly fullCoverage: number
   /** The surfaces' colours and words, which the strands that cover a pixel wholly empty (their storage
    *  views, `SurfaceBuffer.stores`), and the layer of the colours that holds the emission (0 for

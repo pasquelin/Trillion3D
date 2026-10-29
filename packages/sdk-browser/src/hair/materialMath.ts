@@ -12,13 +12,14 @@
  */
 
 /** The bits of a sample's flags: the strands light the light that reaches the scene behind them, are
- *  drawn at the stable width, are traced as geometry, are held out of the image, cast a contact shadow. */
+ *  drawn at the stable width, are traced as geometry, are held out of the image, cast a contact shadow, write the custom depth. */
 export const HAIR_FLAG = {
   scatterSceneLight: 0x1,
   stableRaster: 0x2,
   rayTracedGeometry: 0x4,
   holdout: 0x8,
   castContactShadow: 0x10,
+  renderCustomDepth: 0x20,
 } as const
 
 /** What a group of strands is given where the file gives it none: the default values of the default strand
