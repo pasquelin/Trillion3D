@@ -3531,7 +3531,7 @@ square view unless `translucencyVolumeAdaptToPerspective` takes the camera's own
 cascade reaches are listed on the CPU (`cullLights`: the directional lights in both, a local light by the sphere
 of its range against the cascade's box) into one buffer of light ranks, so that no cell walks a light that cannot reach it.
 (3) The injection (`injectWgsl.ts`) runs a thread a cell of either cascade, the two stacked along the depth of one
-texture, and adds each listed light's colour over π, times its fall-off, times its shadow read at the cell (one sample of the
+texture, adds the ambient cubemap's mean colour (`ambientCubemap`: the cube's last mip times its colour, once the cube's mip chain is whole) to the ambient light of every cell with no harmonic, and adds each listed light's colour over π, times its fall-off, times its shadow read at the cell (one sample of the
 virtual shadow map, as a blended surface's cheap read; a cell the maps hold no page for reads lit), to a two-band
 spherical harmonic: the constant band of each colour and, in the alpha, the sun's share that reached the cell, and
 the three linear terms along the light's direction, kept as the colours' luminance alone (the direction of light

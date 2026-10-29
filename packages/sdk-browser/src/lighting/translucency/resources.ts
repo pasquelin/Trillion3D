@@ -4,6 +4,7 @@ import {
 } from '../atmosphere/cloudShadowRead.ts'
 import {
   computeBufferEntry,
+  computeSamplerEntry,
   computeStorageTextureEntry,
   computeTextureEntry,
   computeUniformEntry,
@@ -65,6 +66,9 @@ const injectEntries = (sampled = false): GPUBindGroupLayoutEntry[] => [
   ...cloudShadowLayoutEntries(INJECT_CLOUD_SHADOW, GPUShaderStage.COMPUTE),
   computeBufferEntry(INJECT_BINDING.marked, READ),
   computeBufferEntry(INJECT_BINDING.markedCount, READ),
+  computeTextureEntry(INJECT_BINDING.ambientCube, 'float', 'cube'),
+  computeSamplerEntry(INJECT_BINDING.ambientCubeSampler),
+  computeUniformEntry(INJECT_BINDING.ambientCubeColour),
   // The sampled lighting's volume: its uniform and its samples.
   ...(sampled
     ? [

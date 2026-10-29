@@ -1,6 +1,8 @@
 import { storageBufferCap } from '../../session/memory/pools.ts'
 import type { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { namedEntries } from '../../gpu/core/computeBindings.ts'
+import { postSamplers } from '../../gpu/core/postSamplers.ts'
+import { ambientCubemapStandIn } from '../deferred/ambientCubemapFrame.ts'
 import { putVec4 } from '../../gpu/core/fieldLayout.ts'
 import { writeChanged } from '../../gpu/core/writeChanged.ts'
 import { TRANSLUCENCY_VOLUME_PASS } from '../../diagnostic/stage/passLabels.ts'
@@ -65,6 +67,8 @@ export interface TranslucencyInputs {
   /** The light functions' atlas and the clouds' shade, or the stand-ins that answer none. */
   readonly lightFunction: GPUTextureView
   readonly cloudShadow: CloudShadowSet
+  /** The ambient cubemap's cube and colour this image (`ambientCubemapReady`), none where it has no light from the cube: the injection adds its mean colour to every cell. */
+  readonly ambientCubemap?: { readonly view: GPUTextureView; readonly colour: GPUBuffer }
   /** The number the light is written multiplied by this image and the image before's. */
   readonly preExposure: number
   readonly previousPreExposure: number
@@ -399,6 +403,9 @@ function nameVolumeResources(
   injectNext[12] = input.cloudShadow.sampler
   injectNext[13] = marks?.list ?? v.resources.listStandIn
   injectNext[14] = marks?.count ?? v.resources.listStandIn
+  const cube = cubeOf(v, input)
+  injectNext[15] = cube.view
+  injectNext[16] = cube.colour
   const temporalNext = v.groups.temporal.identity.next
   temporalNext[0] = textures.injected
   temporalNext[1] = past
@@ -433,6 +440,10 @@ function nameMarkResources(v: VolumeState, marks: VolumeMarks, injected: GPUText
   argsNext[1] = marks.args
 }
 
+/** The ambient cubemap the injection reads this image, the stand-in black cube where the image has none. */
+const cubeOf = (v: VolumeState, input: TranslucencyInputs) =>
+  input.ambientCubemap ?? ambientCubemapStandIn(v.device)
+
 /** The entries of the injection's bind group. */
 function injectEntries(
   v: VolumeState,
@@ -442,6 +453,7 @@ function injectEntries(
 ) {
   const { vsm } = input
   const { marks } = textures
+  const cube = cubeOf(v, input)
   return [
     ...namedEntries(INJECT_BINDING, {
       lights: { buffer: input.lightBuffer },
@@ -456,6 +468,9 @@ function injectEntries(
       lightFunction: input.lightFunction,
       marked: { buffer: marks?.list ?? v.resources.listStandIn },
       markedCount: { buffer: marks?.count ?? v.resources.listStandIn },
+      ambientCube: cube.view,
+      ambientCubeSampler: postSamplers(v.device).clamped,
+      ambientCubeColour: { buffer: cube.colour },
     }),
     ...cloudShadowBindEntries(INJECT_CLOUD_SHADOW, input.cloudShadow),
   ]
@@ -476,7 +491,7 @@ function dispatchVolumePass(
 }
 
 /** The resources the injection names in its bind group's identity, before the sampled lighting's two. */
-const INJECT_BOUND = 15
+const INJECT_BOUND = 17
 
 /** The injection of the volume, over its `x` × `x` × `z` workgroups of `pass`, or over the marked cells alone (`marks`) by the dispatch the
  *  arguments' kernel wrote. */

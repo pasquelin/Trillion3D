@@ -6,6 +6,8 @@ import {
 import type { SkyLightCubemap } from '../../../../sdk-core/src/modules/sky/skyLightCubemap.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { retire } from '../../gpu/core/frameRetire.ts'
+import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
+import { standInBuffer, standInTexture } from '../../gpu/core/standIns.ts'
 import { cubemapPairFit } from '../../modules/sky/skyLight/cubemap.ts'
 import {
   advanceCubeBuild,
@@ -21,7 +23,7 @@ import {
  *
  * The chain is filtered by angle on the GPU (`ambientCubemapBuild.ts`: the sky light's own filter is a convolution by the GGX
  * lobe of a roughness, another kernel), over the images a budget of texels an image allows, and kept while the data is the same; a cube
- * brighter than a half float holds is rescaled and the light given the inverse (`cubemapPairFit`), so nothing is clamped. The cube is
+ * brighter than a half float holds (found on the GPU, `cubePeak`) is rescaled and the light given the inverse (`cubemapPairFit`), so nothing is clamped. The cube is
  * the light's only once the chain is whole: the images drawn meanwhile are drawn again (`ambientCubemapPending`), never held, and light
  * nothing from it.
  */
@@ -54,6 +56,8 @@ export interface AmbientCubemapFrame {
   readonly written: Float32Array<ArrayBuffer>
   /** Whether the chain is still being written. */
   pending: boolean
+  /** The cube and its colour as the last image bound them, none while the image has no light from it (`ambientCubemapResources`). */
+  ready?: { readonly view: GPUTextureView; readonly colour: GPUBuffer }
 }
 
 type Rt = WebgpuPagesRuntime
@@ -106,9 +110,12 @@ export const ambientCubemapOn = (rt: Rt) => follow(rt).on
 /** Whether the chain is still being written: the image drawn meanwhile is drawn again (`holdWebgpuFrame`). */
 export const ambientCubemapPending = (rt: Rt) => rt.lights.ambientCubemap?.pending === true
 
-/** The cube of `data` held, its chain not begun. */
-function open(device: GPUDevice, data: SkyLightCubemap): HeldCube {
-  const fit = cubemapPairFit(data)
+/** The cube of `data` held, its chain not begun, fitted to a half float by `fit`. */
+function open(
+  device: GPUDevice,
+  data: SkyLightCubemap,
+  fit: NonNullable<ReturnType<typeof cubemapPairFit>>,
+): HeldCube {
   return {
     data,
     build: openCubeBuild(device, data, 'Trillion3D ambient cubemap'),
@@ -133,6 +140,7 @@ export function ambientCubemapResources(rt: Rt, lit: boolean) {
   const frame = follow(rt)
   const { device } = rt.gpu
   const cube = frame.cube
+  frame.ready = undefined
   if (!device || !frame.on || !cube) {
     if (device) drop(frame, device)
     frame.pending = false
@@ -145,7 +153,13 @@ export function ambientCubemapResources(rt: Rt, lit: boolean) {
   }
   if (frame.held?.data.texels !== cube.texels || frame.held.data.size !== cube.size) {
     drop(frame, device)
-    frame.held = open(device, cube)
+    // The GPU finds the cube's brightest channel first: the chain is begun once it has returned it.
+    const fit = cubemapPairFit(device, cube)
+    if (!fit) {
+      frame.pending = true
+      return undefined
+    }
+    frame.held = open(device, cube, fit)
   }
   const held = frame.held!
   const whole = advanceCubeBuild(device, held.data, held.build, held.cube)
@@ -165,8 +179,19 @@ export function ambientCubemapResources(rt: Rt, lit: boolean) {
     }
   }
   if (moved) device.queue.writeBuffer(colour, 0, written)
-  return whole ? { view: held.build.view, colour } : undefined
+  return (frame.ready = whole ? { view: held.build.view, colour } : undefined)
 }
+
+/** The cube and the colour the last image bound, none while it had no light from the cube: what the translucency lighting volume injects the cube's mean colour from. */
+export const ambientCubemapReady = (rt: Rt) => rt.lights.ambientCubemap?.ready
+
+/** What a program that reads the cube binds where there is none: a black cube of one texel a face and a black colour. One for the device. */
+export const ambientCubemapStandIn = oncePerDevice((device: GPUDevice) => ({
+  view: standInTexture(device, 'Trillion3D no ambient cubemap', 'rgba16float', {
+    layers: 6,
+  }).createView({ dimension: 'cube' }),
+  colour: standInBuffer(device, 'Trillion3D no ambient cubemap colour', 16, UNIFORM),
+}))
 
 /** Hands the cube and the colour to the retire list: the session's end. */
 export function releaseAmbientCubemap(rt: Rt) {

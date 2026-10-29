@@ -42,6 +42,9 @@ export const INJECT_BINDING = {
   cloudShadowSampler: 13,
   marked: 14,
   markedCount: 15,
+  ambientCube: 16,
+  ambientCubeSampler: 17,
+  ambientCubeColour: 18,
 } as const
 const b = INJECT_BINDING
 
@@ -189,6 +192,10 @@ ${injectWeightText(sampled)} let basis=tvBasis(L);
 fn tvInject(rank:u32,cascade:u32,P:vec3f,border:f32,ambient:ptr<function,vec4f>,directional:ptr<function,vec3f>){
  tvInjectWeighted(rank,cascade,P,border,1.0,0.0,false,ambient,directional);
 }
+/** The ambient cubemap's mean colour: the cube's last mip, a texel, read along a face's axis, times its colour (black where the image has no such cube). */
+fn ambientCubeAverage()->vec3f{
+ return textureSampleLevel(ambientCube,ambientCubeSampler,vec3f(1.0,0.0,0.0),f32(textureNumLevels(ambientCube)-1u)).rgb*ambientCubeColour.rgb;
+}
 /** The light cell \`cell\` of cascade \`cascade\` receives, written into the volume. */
 fn injectCell(cascade:u32,cell:vec3u){
  let dim=tv.mode.x;
@@ -199,6 +206,8 @@ fn injectCell(cascade:u32,cell:vec3u){
  let first=tv.lists[cascade*2u];
  let count=tv.lists[cascade*2u+1u];
  ${injectLoopText(sampled)}
+ // The ambient cubemap adds its mean colour to the ambient light of every cell, no harmonic: its last mip, the cube's one texel, times its colour.
+ ambient+=vec4f(ambientCubeAverage(),0.0);
  // The light is written multiplied by the image's pre-exposure; the alpha, a share, is not.
  textureStore(tvInjected,vec3u(cell.xy,cell.z+tvSlab(cascade,0u)*dim),vec4f(ambient.rgb*tv.weights.x,ambient.a));
  textureStore(tvInjected,vec3u(cell.xy,cell.z+tvSlab(cascade,1u)*dim),vec4f(directional*tv.weights.x,0.0));
@@ -219,6 +228,9 @@ export const injectProgram = (sampled: boolean) =>
 @group(0) @binding(${b.injected}) var tvInjected:texture_storage_3d<${VOLUME_FORMAT},write>;
 @group(0) @binding(${b.marked}) var<storage,read> tvMarked:array<u32>;
 @group(0) @binding(${b.markedCount}) var<storage,read> tvMarkedCount:array<u32>;
+@group(0) @binding(${b.ambientCube}) var ambientCube:texture_cube<f32>;
+@group(0) @binding(${b.ambientCubeSampler}) var ambientCubeSampler:sampler;
+@group(0) @binding(${b.ambientCubeColour}) var<uniform> ambientCubeColour:vec4f;
 `,
     [
       DIRECT_LIGHT_WGSL,

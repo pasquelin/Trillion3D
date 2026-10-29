@@ -14,6 +14,7 @@ import { litImageShown } from '../../frame/prepare/contractLight.ts'
 import { cloudShadowOf } from '../../frame/render/encodeCloudShadow.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
 import { cloudShadowStandIn } from '../atmosphere/cloudShadowStandIn.ts'
+import { ambientCubemapReady } from '../deferred/ambientCubemapFrame.ts'
 import { lightFunctionResources } from '../lightFunction/frame.ts'
 import { vsmConsumerResources, vsmOrStandIns } from '../shadows/vsm/frame/vsmConsumers.ts'
 import type { CascadeView } from './bounds.ts'
@@ -72,6 +73,7 @@ const inputs: {
   vsm: undefined,
   lightFunction: undefined,
   cloudShadow: undefined,
+  ambientCubemap: undefined,
   preExposure: 1,
   previousPreExposure: 1,
   exposure: 1,
@@ -161,6 +163,7 @@ function withVolume<T>(
   inputs.lightFunction =
     lightFunctionResources(rt, 'lightFunctionDeferred') ?? placeholders.lightFunction
   inputs.cloudShadow = cloudShadowOf(rt) ?? cloudShadowStandIn(device)
+  inputs.ambientCubemap = ambientCubemapReady(rt)
   inputs.preExposure = pre.now
   inputs.previousPreExposure = pre.previous
   inputs.exposure = pre.exposure
@@ -177,6 +180,7 @@ function withVolume<T>(
       inputs.vsm =
       inputs.lightFunction =
       inputs.cloudShadow =
+      inputs.ambientCubemap =
       inputs.mlVolume =
       inputs.sampleCells =
         undefined
