@@ -6,57 +6,19 @@
 // fresh worlds with bundles prove the view stable (A/A, 0 px) before the comparison means anything.
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { SUN } from '../../../bench/runner/lighting/lamps.ts'
-import { poseAt, VIEWS } from '../../../bench/runner/trajectory/poses.ts'
-import { runOnDawn } from '../../kit/device/onDawn.ts'
-import { countBundles, withDirectBundles } from '../../kit/device/directBundles.ts'
-import { settle } from '../world/proofWorld.ts'
-import { openBenchWorld } from './shadowScene.ts'
-import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
-
-/** A bundle replays the very commands the pass would encode, at any size: every pass the view runs
- *  — raster, surfaces, shadow pages — runs at this one, and its 57 600 pixels still span the facade
- *  and the shadows the sun cuts into it, at a quarter of the cost of three settled worlds. */
-const SIZE: [number, number] = [320, 180]
-
-/** The street view of the facade under the casting sun on a fresh world, settled and read back,
- *  with the labels of the bundles its frames recorded and how many lists they executed. */
-async function settledView() {
-  const counting = countBundles()
-  const world = await openBenchWorld('facade-7', SIZE)
-  try {
-    world.addLight({ ...SUN, castsShadow: true })
-    await world.awaitPages()
-    const held = !!(await settle(world, poseAt(world.bounds, VIEWS.ground.index)))
-    const pixels = new Uint8Array(await world.capture())
-    const { executed, labels } = counting.counts
-    return { held, pixels, executed, labels: [...labels].sort() }
-  } finally {
-    world.dispose()
-    counting.restore()
-  }
-}
-
-async function bundledAgainstDirect() {
-  const bundled = await settledView(),
-    again = await settledView()
-  const direct = await withDirectBundles(settledView)
-  return {
-    held: [bundled.held, again.held, direct.held],
-    executed: bundled.executed,
-    labels: bundled.labels,
-    stable: compareImages(bundled.pixels, again.pixels).differentPixels,
-    gap: compareImages(bundled.pixels, direct.pixels).differentPixels,
-    pixels: bundled.pixels.length / 4,
-  }
-}
+import { resolve } from 'node:path'
+import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
 
 test(
   'the bundled passes over a casting sun draw the image their commands draw',
   { timeout: 300_000 },
   async () => {
     const errors: string[] = []
-    const reading = await runOnDawn(bundledAgainstDirect, null, errors)
+    const page = (await loadPage(
+      resolve(import.meta.dirname, 'renderBundlesPage.ts'),
+      'renderBundles',
+    )) as typeof import('./renderBundlesPage.ts')
+    const reading = await runOnDawn(page.run, null, errors)
     console.log(JSON.stringify(reading))
     assert.deepEqual(errors, [])
     assert.deepEqual(reading.held, [true, true, true], 'every world settles its view')
