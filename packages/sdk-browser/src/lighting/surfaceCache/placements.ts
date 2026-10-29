@@ -6,7 +6,8 @@ import {
   setPlacement,
 } from '../../../../sdk-core/src/lighting/surfaceCache/placements.ts'
 import type { SurfaceCache } from '../../../../sdk-core/src/lighting/surfaceCache/state.ts'
-import { keyOf, rootVisible } from '../distanceField/objectTable.ts'
+import { cardRootVisible, keyOf } from '../distanceField/objectTable.ts'
+import { hardwareRayTracing } from '../rays/hardwareRayTracing.ts'
 import type { TrackedRoot } from '../distanceField/objectTracker.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 
@@ -174,7 +175,7 @@ function resync(state: PlacementState, cache: SurfaceCache, roots: readonly Card
  *  changed (`channelsOf`, by the placement), its material written. */
 function poll(state: PlacementState, cache: SurfaceCache, channelsOf: (entry: Held) => number) {
   for (const entry of state.held) {
-    const visible = rootVisible(entry.root)
+    const visible = cardRootVisible(entry.root, hardwareRayTracing())
     if (!visible) {
       if (entry.live) {
         removePlacement(cache, entry.id)

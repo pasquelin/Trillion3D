@@ -2,7 +2,11 @@ import { BOX_VALUES } from '../../../../math/src/geometry/box.ts'
 import type { ClusterManifest, Primitive } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { sourceSurface, type PageSurface } from '../pages/surface.ts'
 import { spriteMark } from '../../visibility/shader/spriteWgsl.ts'
-import { SHADOWLESS_ROOT, withCasting } from '../../visibility/shader/castingMark.ts'
+import {
+  NO_DISTANCE_FIELD_ROOT,
+  SHADOWLESS_ROOT,
+  withCasting,
+} from '../../visibility/shader/castingMark.ts'
 import { primitiveFinder } from '../../scene/primitiveLookup.ts'
 import { createPrimitiveTemplates } from './template.ts'
 import { createPageRecords } from './collectRecords.ts'
@@ -125,7 +129,8 @@ export function createCollector(
     const transparent = pagesBlend(primitive, surface)
     const shape = templates.shapeOf(primitive, template)
     const distanceField =
-      !!options.distanceFieldMeshes?.has(primitive.mesh) && !(draw.casting & SHADOWLESS_ROOT)
+      !!options.distanceFieldMeshes?.has(primitive.mesh) &&
+      !(draw.casting & (SHADOWLESS_ROOT | NO_DISTANCE_FIELD_ROOT))
     const pages = createPageRecords(
       primitive,
       template,

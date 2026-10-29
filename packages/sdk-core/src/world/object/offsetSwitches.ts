@@ -47,6 +47,8 @@ import {
  * `../../contracts/filmOptions.ts`): its pixels draw black, lit by nothing, and punch a hole in the alpha.
  * One more, `castContactShadow` (true), says whether the object stops the contact shadow rays the lights
  * cast from the pixels around it (`../../contracts/contactShadowOptions.ts`); `false` lets them through.
+ * `affectDistanceFieldLighting` (true) says whether the object enters the scene of the distance fields — the global field the screen probes march and the distance-field shadows —, where it also needs
+ * a dynamic shadow (`castShadow`) and a field of its mesh; `false` leaves it out of that scene and out of what is traced against it.
  * `castCapsuleDirectShadow` and `castCapsuleIndirectShadow` (false) say whether the object casts the capsule shadows of its
  * `shadowCapsules` (none), spheres and capsules fitted to its bones, from the lights and on the sky and the indirect light
  * (`../../contracts/capsuleShadowOptions.ts`), `capsuleIndirectShadowMinVisibility` (0.1) the share of the indirect light that
@@ -86,6 +88,7 @@ export interface OffsetSwitches {
   castHiddenShadow: boolean
   holdout: boolean
   castContactShadow: boolean
+  affectDistanceFieldLighting: boolean
   castCapsuleDirectShadow: boolean
   castCapsuleIndirectShadow: boolean
   capsuleIndirectShadowMinVisibility: number
@@ -107,6 +110,7 @@ const DEFAULTS: Readonly<OffsetSwitches> = {
   castHiddenShadow: false,
   holdout: false,
   castContactShadow: true,
+  affectDistanceFieldLighting: true,
   castCapsuleDirectShadow: OBJECT_CAPSULE_SHADOW_RULES.castCapsuleDirectShadow.default,
   castCapsuleIndirectShadow: OBJECT_CAPSULE_SHADOW_RULES.castCapsuleIndirectShadow.default,
   capsuleIndirectShadowMinVisibility:
@@ -199,6 +203,11 @@ const SWITCHES = {
   castHiddenShadow: switchRule('castHiddenShadow', isBoolean, 'true or false'),
   holdout: switchRule('holdout', isBoolean, 'true or false'),
   castContactShadow: switchRule('castContactShadow', isBoolean, 'true or false'),
+  affectDistanceFieldLighting: switchRule(
+    'affectDistanceFieldLighting',
+    isBoolean,
+    'true or false',
+  ),
   castCapsuleDirectShadow: switchRule('castCapsuleDirectShadow', isBoolean, 'true or false'),
   castCapsuleIndirectShadow: switchRule('castCapsuleIndirectShadow', isBoolean, 'true or false'),
   capsuleIndirectShadowMinVisibility: switchRule(

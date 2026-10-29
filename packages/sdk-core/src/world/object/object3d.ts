@@ -141,6 +141,9 @@ export class Object3D extends TransformNode {
    *  (`contactShadows`, a light's `contactShadowLength`): `true` by default; `false` lets the rays
    *  through the object's pixels, which then cast no contact shadow, whatever its material. */
   declare castContactShadow: boolean
+  /** Whether the object enters the scene of the distance fields (the global field, the distance-field shadows): `true` by default; `false` leaves it out of both, whatever its mesh holds. It also needs
+   *  a dynamic shadow (`castShadow`) and a distance field of its mesh to be traced. */
+  declare affectDistanceFieldLighting: boolean
   /** Whether the object's `shadowCapsules` cast a soft shadow on the scene from the lights
    *  (`capsuleDirectShadows`); `false` by default. Needs a dynamic shadow. */
   declare castCapsuleDirectShadow: boolean

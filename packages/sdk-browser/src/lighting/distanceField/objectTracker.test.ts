@@ -6,10 +6,12 @@ import assert from 'node:assert/strict'
 import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
 import {
   MARK_BITS,
+  NO_DISTANCE_FIELD_ROOT,
   SHADOWLESS_ROOT,
   WORLD_SPACE_ROOT,
 } from '../../visibility/shader/castingMark.ts'
 import type { AtlasState } from './atlasState.ts'
+import { cardRootVisible, rootVisible } from './objectTable.ts'
 import { OBJECT_FLAGS as F } from './layout.ts'
 import { createObjectTracker, type TrackedRoot } from './objectTracker.ts'
 
@@ -45,6 +47,29 @@ test('a placement casts unless its mark says it casts none, and is made of clust
     F.visible | F.virtualized,
     'casts into the first-person clipmaps alone',
   )
+})
+
+test('a root that leaves the distance fields’ scene is neither shown nor casting, and enters it again with its mark', () => {
+  const seen = tracked(NO_DISTANCE_FIELD_ROOT)
+  assert.equal(seen.flags() & (F.visible | F.castShadow), 0, 'left out of the scene')
+  seen.tracker.takeUpload()
+  seen.root.mark = 0
+  seen.tracker.sync(seen.roots, () => false, 0, 1e9)
+  assert.equal(seen.flags() & (F.visible | F.castShadow), F.visible | F.castShadow, 'back in it')
+  assert.deepEqual(seen.tracker.takeUpload(), [0], 'its record is written again')
+})
+
+test('a root left out of the distance fields’ scene keeps its cards where the rays are traced in hardware', () => {
+  const root = {
+    mesh: 0,
+    world: { elements: new Float64Array(IDENTITY) },
+    mark: NO_DISTANCE_FIELD_ROOT,
+  }
+  assert.deepEqual(
+    [rootVisible(root), cardRootVisible(root, false), cardRootVisible(root, true)],
+    [false, false, true],
+  )
+  assert.equal(cardRootVisible({ ...root, hidden: true }, true), false, 'a hidden root has none')
 })
 
 test('a root whose mark changes has its placement polled again and written with its new flags', () => {

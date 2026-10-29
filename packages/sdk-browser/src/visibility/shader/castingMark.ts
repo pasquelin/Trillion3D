@@ -12,6 +12,7 @@ export const MARK_BITS = {
   shadowless: 4,
   drawDistance: 8,
   worldRoot: 16,
+  noDistanceField: 32,
   rootParent: 256,
   drawInstance: 512,
   cacheStatic: 1024,
@@ -53,9 +54,14 @@ export const IMMOVABLE_ROOT = MARK_BITS.immovable
 /** The bit of a root whose node casts its shadow while it is hidden (`castHiddenShadow`): no view
  *  draws it then, the shadow maps do (`settleRoot`, `hiddenFromViews`). */
 export const HIDDEN_SHADOW_ROOT = MARK_BITS.hiddenShadow
+/** The bit of a root whose node leaves the scene of the distance fields (`affectDistanceFieldLighting` `false`):
+ *  its placement of its mesh's field is not shown and casts nothing, and its pixels carry no distance-field
+ *  mark. */
+export const NO_DISTANCE_FIELD_ROOT = MARK_BITS.noDistanceField
 /** The bits a node's shadow flags set. */
 const CASTING_BITS =
   SHADOWLESS_ROOT |
+  NO_DISTANCE_FIELD_ROOT |
   SHADOW_MAPLESS_ROOT |
   CACHE_STATIC_ROOT |
   WORLD_SPACE_ROOT |
@@ -83,6 +89,7 @@ const meshCastsIntoMaps = (node: {
 
 /** What a node says of its shadows, as the mark's bits: `SHADOWLESS_ROOT` when it casts none (or is a
  *  first-person object, or its mesh casts into no shadow map, the distance fields' too: no primitive of it does),
+ *  `NO_DISTANCE_FIELD_ROOT` when it leaves the distance fields' scene (`affectDistanceFieldLighting` `false`),
  *  `SHADOW_MAPLESS_ROOT` when its surface is left out of the shadow maps alone
  *  (`castsShadowMaps` `false`, another primitive of its mesh casting into them), `WORLD_SPACE_ROOT` when it stands for one, `HIDDEN_SHADOW_ROOT` when
  *  it casts while hidden, `CACHE_STATIC_ROOT` when it says its transform never
@@ -97,6 +104,7 @@ export const nodeCasting = (node: {
   firstPerson?: boolean
   firstPersonWorldSpaceRepresentation?: boolean
   castHiddenShadow?: boolean
+  affectDistanceFieldLighting?: boolean
 }) => {
   // Asked once: it scans the node's siblings.
   const meshCasts = meshCastsIntoMaps(node)
@@ -104,6 +112,7 @@ export const nodeCasting = (node: {
     // A first-person object casts no dynamic shadow of its own.
     (node.castShadow && !node.firstPerson && meshCasts ? 0 : SHADOWLESS_ROOT) |
     (node.castsShadowMaps === false && meshCasts ? SHADOW_MAPLESS_ROOT : 0) |
+    (node.affectDistanceFieldLighting === false ? NO_DISTANCE_FIELD_ROOT : 0) |
     (node.firstPersonWorldSpaceRepresentation ? WORLD_SPACE_ROOT : 0) |
     // The reference reads the hidden shadow of an object that is no world-space representation alone.
     (node.castHiddenShadow && !node.firstPersonWorldSpaceRepresentation ? HIDDEN_SHADOW_ROOT : 0) |

@@ -255,6 +255,28 @@ test('an object that lets the contact shadow rays through is saved with the worl
   )
 })
 
+test('an object that leaves the distance fields’ scene is saved with the world, one that is in it saves nothing of it', async () => {
+  const scene = sceneWithLoads([])
+  const out = object.mesh(geometry.box(1, 1, 1))
+  out.affectDistanceFieldLighting = false
+  scene.add(out, object.mesh(geometry.box(1, 1, 1)))
+  const saved = JSON.parse(JSON.stringify(scene.toJSON()))
+  assert.equal(saved.children[0].affectDistanceFieldLighting, false)
+  assert.equal(
+    'affectDistanceFieldLighting' in saved.children[1],
+    false,
+    'the default is not written',
+  )
+  const again = sceneWithLoads([])
+  await again.fromJSON(saved)
+  assert.deepEqual(
+    again.children.map(
+      (child: { affectDistanceFieldLighting: boolean }) => child.affectDistanceFieldLighting,
+    ),
+    [false, true],
+  )
+})
+
 test('an object’s lighting channels and owner switches, and a light’s channels, are saved with the world, the defaults not written', async () => {
   const scene = sceneWithLoads([])
   const hands = object.mesh(geometry.box(1, 1, 1))

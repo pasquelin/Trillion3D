@@ -38,6 +38,20 @@ test('the contact shadow switch is on by default, a boolean, and copied with the
   assert.equal(other.castContactShadow, true, 'a copy of a default node is on again')
 })
 
+// The switch that takes an object out of the distance fields' scene (`Object3D.affectDistanceFieldLighting`).
+test('the distance-field switch is on by default, a boolean, and copied with the node', () => {
+  const wall = object.mesh(geometry.box(1, 1, 1))
+  assert.equal(wall.affectDistanceFieldLighting, true)
+  assert.throws(() => (wall.affectDistanceFieldLighting = 0 as never), RangeError)
+  assert.equal(wall.affectDistanceFieldLighting, true, 'a refused write changes nothing')
+  wall.affectDistanceFieldLighting = false
+  const other = object.mesh(geometry.box(1, 1, 1))
+  other.copy(wall)
+  assert.equal(other.affectDistanceFieldLighting, false)
+  other.copy(object.mesh(geometry.box(1, 1, 1)))
+  assert.equal(other.affectDistanceFieldLighting, true, 'a copy of a default node is on again')
+})
+
 // The switch beside them that holds an object out of the image's alpha (`Object3D.holdout`).
 test('the holdout switch is off by default, a boolean, and copied with the node', () => {
   const wall = object.mesh(geometry.box(1, 1, 1))

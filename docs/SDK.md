@@ -3370,6 +3370,17 @@ cascade traces it, is traced exactly where the shell is drawn: a cell shown inst
 loaded, casts nothing through it. The cascade is drawn for the first four shadowed lights of a frame (one byte
 each of the mask the lighting reads), for the main view's lit image, and the translucent surfaces do not read it.
 
+An object that is not to be in that scene sets **`affectDistanceFieldLighting`** (boolean, `true`), a property of every
+object, saved with the world: `false` leaves it out of the distance fields altogether, so that the global field the
+screen probes march and the distance-field shadows hold nothing of it, and its pixels carry no mark of having a
+distance field (the screen probes' traces then treat them as thicker, `screenProbeThicknessScaleWithoutField`). An
+object is in the scene only where it also casts a shadow (`castShadow`) and its mesh has a distance field.
+
+```js
+// A decal-thin sign that must not stand in the distance fields: it neither shadows nor blocks the probes' rays.
+sign.affectDistanceFieldLighting = false
+```
+
 ```js
 const world = createWorld('viewer', {
   distanceFieldShadowQuality: 2, // 32 steps a ray, and no light through a thin surface

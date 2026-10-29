@@ -2,6 +2,7 @@ import { length3 } from '../../../../math/src/vector/vector.ts'
 import type { MeshDistanceField } from '../../../../sdk-core/src/lighting/distanceFieldFile.ts'
 import type { AtlasState } from './atlasState.ts'
 import { sameElements, sameRange } from '../../../../math/src/matrix/matrixElements.ts'
+import { NO_DISTANCE_FIELD_ROOT } from '../../visibility/shader/castingMark.ts'
 import { halfExtent, holding } from './objectBoxes.ts'
 import { minimumAxisScale, objectWorldBox } from './objectRecords.ts'
 
@@ -65,8 +66,18 @@ export const keyOf = (placed: Pick<MeshDistanceField, 'mesh' | 'hlodCell'>, root
   return `${owner}${placed.mesh}:${Array.from({ length: 16 }, (_, k) => m[k]).join(',')}`
 }
 
-/** Whether a root is shown: neither parked nor hidden. */
-export const rootVisible = (root: TrackedRoot) => !(root.parked || root.hidden)
+const shown = (root: TrackedRoot) => !(root.parked || root.hidden)
+
+/** Whether a root is shown in the distance fields' scene: neither parked nor hidden, and not left out of it
+ *  (`NO_DISTANCE_FIELD_ROOT`). */
+export const rootVisible = (root: TrackedRoot) =>
+  shown(root) && !((root.mark ?? 0) & NO_DISTANCE_FIELD_ROOT)
+
+/** Whether a root's cards are captured: shown, and, where the rays are marched through the distance fields, in
+ *  their scene; a device that traces its rays in hardware (`hardwareRayTracing`) captures the cards of an object
+ *  whatever it says of the fields. */
+export const cardRootVisible = (root: TrackedRoot, hardware: boolean) =>
+  hardware ? shown(root) : rootVisible(root)
 
 /** The table: its objects, the records to write, the regions changed. */
 export interface ObjectTable {
