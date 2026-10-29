@@ -8,10 +8,20 @@ import { colorAt, sunlitEngine, untilHeld } from '../../kit/device/sceneImagePro
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
+/** An exposure of one: the glass changes what the image's mean asks of the automatic exposure, so
+ *  the tile behind or beside it would be shown at another exposure; the proof reads light, not that. */
+const FIXED_EXPOSURE = { exposure: 1 }
+
 /** The held image of `layout`: its pixels at the centre, and all of them (kept in the page). */
 async function imageOf(device: GPUDevice, events: unknown[], layout: Backdrop) {
   const camera = cameraFace()
-  const { backend, release } = await sunlitEngine(backdropScene(layout), device, events)
+  const { backend, release } = await sunlitEngine(backdropScene(layout), device, events, {
+    environment: FIXED_EXPOSURE,
+    // The local exposure pulls each pixel toward the light around it, so a glass behind a tile
+    // would shift the tile; neutral contrasts leave the tile its own light.
+    localExposureHighlightContrast: 1,
+    localExposureShadowContrast: 1,
+  })
   try {
     const { settled: held, rendered } = await untilHeld(backend, camera)
     const pixels = Uint8Array.from(held ?? rendered ?? [])

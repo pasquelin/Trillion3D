@@ -26,6 +26,15 @@ export async function run() {
   })
   try {
     await world.ready
+    // The background is read as it is drawn: the display chain (automatic exposure, film curve,
+    // vignette) would change it, whatever the ground does.
+    world.exposure = 1
+    world.toneMapping = 'none'
+    world.vignette = 0
+    // The local exposure pulls each pixel toward the light around it (a contrast of 1 is neutral).
+    world.exposureSettings = { localExposureHighlightContrast: 1, localExposureShadowContrast: 1 }
+    // The bloom adds a share of every pixel's light to its neighbours', a flat background included.
+    world.bloom = { bloomQuality: 'off' }
     world.scene.background = math.color(BACKGROUND)
     const sun = light.directional({ intensity: 3, castShadow: true })
     sun.position.set(-3, 8, -2)

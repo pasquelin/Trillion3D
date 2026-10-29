@@ -21,29 +21,40 @@ import { compilePages } from './compiledPages.ts'
 import { mean } from '../../../packages/math/src/scalar/quantile.ts'
 
 const camera = cameraFace()
+/** The images a plane may take to be held: the histories forget a change in about sixty images each
+ *  (`imagesToForget`, `forgettingImages`), after as many changes as the view's loading makes. */
+const HELD_WITHIN = 400
 /** A one-texel data map of `rgba` (0–255), linear, as a glTF stores its data maps. */
 export const texel = (...rgba: number[]) => G.dataTexture(new Uint8Array(rgba), 1, 1)
 
 /** How a proof's plane is drawn: `blend`, a transparent surface the blend pass lights; its
  *  `geometry`; `compiled`, read from quantized geometry pages (`compiledPages.ts`); its
- *  `sceneLights`, one lamp before its centre by default; `trace`, the engine's traces on. */
+ *  `sceneLights`, one lamp before its centre by default; `trace`, the engine's traces on;
+ *  `clearCoatNormal`, the coat keeping a normal of its own (the shading setting, off by default). */
 export type PlaneOptions = {
   blend?: boolean
   trace?: boolean
+  clearCoatNormal?: boolean
   geometry?: Geometry
   compiled?: boolean
   sceneLights?: ReturnType<typeof createSceneLightStore>
 }
 
-/** The lamp between the plane and the eye: its mirror highlight at the plane's centre. */
+/** The lamp between the plane and the eye: its mirror highlight at the plane's centre. The image is
+ *  read at a fixed exposure of one: the automatic exposure follows the image's own brightness, so a
+ *  highlight would dim the base the proofs compare it to, and two images of one surface would differ
+ *  by where the adaptation stood when each was held. */
 function centreLamp() {
   const sceneLights = createSceneLightStore()
+  sceneLights.setEnvironment({ exposure: 1 })
   sceneLights.add({
     id: 'lamp',
     kind: 'point',
     position: [0, 0, 1.2],
     color: [1, 1, 1],
-    intensity: 4,
+    // In candelas: at a fixed exposure no adaptation lifts a unitless lamp (16/10000 cd a unit, lightUnits.ts).
+    intensity: 2,
+    intensityUnits: 'candelas',
     range: 20,
     castsShadow: false,
   })
@@ -58,6 +69,7 @@ export async function plane(
   {
     blend = false,
     trace = false,
+    clearCoatNormal = false,
     geometry = G.planeGeometry(2.4, 2.4),
     compiled = false,
     sceneLights = centreLamp(),
@@ -75,12 +87,20 @@ export async function plane(
   const readGeometryPage = compiled ? compilePages(scene) : undefined
   const { backend, canvas } = engine(scene, device, (event) => void events.push(event), {
     sceneLights,
+    clearCoatNormal,
+    // The local exposure's neutral contrasts: it pulls each pixel toward the light around it.
+    localExposureHighlightContrast: 1,
+    localExposureShadowContrast: 1,
     ...(readGeometryPage && { readGeometryPage }),
     ...(trace && { diagnosticDetail: 'trace' as const }),
   })
   try {
     await backend.prepare()
-    return (await untilHeld(backend, camera)).settled
+    const { settled, held, count } = await untilHeld(backend, camera, undefined, HELD_WITHIN)
+    // An image cut off before the engine held it depends on when the view's last change fell: two
+    // images of one surface would differ by that, not by the surface.
+    if (!held) throw new Error(`the plane was not held within ${count + 1} images`)
+    return settled
   } finally {
     release(backend, canvas, scene)
   }
@@ -170,9 +190,9 @@ export const ANISOTROPY_CASES: Record<string, G.SurfaceParameters> = {
 }
 
 /** Each case's opaque plane, read. */
-const opaque = (cases: Record<string, G.SurfaceParameters>) =>
+const opaque = (cases: Record<string, G.SurfaceParameters>, options?: PlaneOptions) =>
   runOnDevice<{ readings: Record<string, LobeReading> }>((device, events, result) =>
-    readCases(device, events, result, cases),
+    readCases(device, events, result, cases, options),
   )
 
 /** The anisotropic lobe's cases, and a direction map that turns it a quarter. */
@@ -185,14 +205,18 @@ export const anisotropy = () =>
 /** The clear coat's cases over the opaque matte base. */
 export const clearcoat = () => opaque(CLEARCOAT_CASES)
 
-/** The coat's roughness map, sharp and rough, and its normal map, flat and tilted along x. */
+/** The coat's roughness map, sharp and rough, and its normal map, flat and tilted along x — read
+ *  with the coat keeping a normal of its own (`clearCoatNormal`), the only setting its normal map bends it under. */
 export const coatMaps = () => {
   const coat = { ...MATTE, clearcoat: 1, clearcoatRoughness: 1 }
   const sharp = { ...coat, clearcoatRoughnessMap: texel(0, 20, 0, 255) }
-  return opaque({
-    sharp,
-    rough: { ...coat, clearcoatRoughnessMap: texel(0, 255, 0, 255) },
-    flat: { ...sharp, clearcoatNormalMap: texel(128, 128, 255, 255) },
-    tilted: { ...sharp, clearcoatNormalMap: texel(172, 128, 247, 255) },
-  })
+  return opaque(
+    {
+      sharp,
+      rough: { ...coat, clearcoatRoughnessMap: texel(0, 255, 0, 255) },
+      flat: { ...sharp, clearcoatNormalMap: texel(128, 128, 255, 255) },
+      tilted: { ...sharp, clearcoatNormalMap: texel(172, 128, 247, 255) },
+    },
+    { clearCoatNormal: true },
+  )
 }

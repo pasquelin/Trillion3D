@@ -12,6 +12,7 @@ import type {
   Engine,
   EngineContext,
 } from '../../../packages/sdk-browser/src/session/engine/types.ts'
+import type { SceneEnvironment } from '../../../packages/sdk-core/src/scene/core/environment.ts'
 import { clamp } from '../../../packages/math/src/scalar/reals.ts'
 
 /** Renders a frame in an animation frame of the page (`animationFrame`), as a page draws, and
@@ -33,22 +34,27 @@ export async function image(
  *  temporal accumulation holds its image earlier. */
 const SETTLE_FRAMES = 64
 
-/** Renders until the image is settled: held — a view without temporal accumulation, nothing
- *  changing —, or `SETTLE_FRAMES` drawn, the temporal pass running every frame and never holding
- *  (its jitter moves the image each frame). Returns the image before the last, the settled one, and
- *  the count rendered before it. `onFrame` sees every image, the settled one included. */
+/** Renders until the image is settled: held — nothing changing —, or `limit` drawn (`SETTLE_FRAMES`
+ *  by default), for a view that draws every image and never holds. Returns the image before the
+ *  last, the settled one, the count rendered before it, and whether the engine held it (`held`): a
+ *  proof that compares images to the bit asks for a `limit` past the longest history to forget
+ *  (the screen probes' and the occlusion's take about sixty images after the last change) and
+ *  fails when `held` is false, since an image cut off at the limit depends on when the view's
+ *  last change fell. `onFrame` sees every image, the settled one included. */
 export async function untilHeld(
   backend: Engine,
   camera: Camera,
   onFrame?: (frame: Awaited<ReturnType<typeof image>>) => void,
-): Promise<{ rendered: number[] | undefined; settled: number[]; count: number }> {
+  limit = SETTLE_FRAMES,
+): Promise<{ rendered: number[] | undefined; settled: number[]; count: number; held: boolean }> {
   let rendered: number[] | undefined,
     count = 0
   for (;;) {
     const frame = await image(backend, camera)
     onFrame?.(frame)
-    if (frame.metrics.frameHeld || count === SETTLE_FRAMES - 1)
-      return { rendered, settled: Array.from(frame.pixels), count }
+    const held = !!frame.metrics.frameHeld
+    if (held || count === limit - 1)
+      return { rendered, settled: Array.from(frame.pixels), count, held }
     rendered = Array.from(frame.pixels)
     count++
   }
@@ -110,16 +116,22 @@ export function countsStep(
  * The real engine on `scene` (`engine`) lit by the bench sun alone, prepared, then `images` images
  * drawn from the face-on camera (`image`); `options` complete the host context, its diagnostics go
  * to `events`. `release` gives back the engine, its canvas and the scene, and resolves with the
- * dispose; a preparation that fails releases them before it throws.
+ * dispose; a preparation that fails releases them before it throws. `environment` is the scene's
+ * (an exposure of one to read a pixel at the light it is lit with, not at the image's mean).
  */
 export async function sunlitEngine(
   scene: ScenePreparee,
   device: GPUDevice,
   events: unknown[],
-  { images = 0, ...options }: Partial<EngineContext> & { images?: number } = {},
+  {
+    images = 0,
+    environment,
+    ...options
+  }: Partial<EngineContext> & { images?: number; environment?: SceneEnvironment } = {},
 ) {
   const sceneLights = createSceneLightStore()
   sceneLights.add(SUN)
+  if (environment) sceneLights.setEnvironment(environment)
   const { backend, canvas } = engine(scene, device, (e) => events.push(e), {
     sceneLights,
     ...options,
