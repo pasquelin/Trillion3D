@@ -36,6 +36,7 @@ import {
   sameShape,
   type CacheShape,
 } from './cacheLayout.ts'
+import { clearCacheMaps } from './cacheClear.ts'
 import { createCacheStorage, destroyCacheStorage, type CacheStorage } from './cacheStorage.ts'
 import { wordViews } from '../../../gpu/core/wordViews.ts'
 import { writeChanged } from '../../../gpu/core/writeChanged.ts'
@@ -437,6 +438,10 @@ export function createRadianceCache(
     follow: (now: ScreenProbeSettings, preExposure: number) => follow(state, now, preExposure),
     /** Probes may have been queued for this image: the maps follow `now`, the tile list is emptied, the update is pending. */
     queued: (now: ScreenProbeSettings, queued: Queued) => queue(state, now, queued),
+    /** The final maps and the sky's share set to black in `encoder`, before an update that traces every probe anew (`screenProbeRadianceCacheForceFullUpdate`). */
+    clear(encoder: GPUCommandEncoder) {
+      if (state.storage) clearCacheMaps(device, encoder, state.storage)
+    },
     /** The update of the maps of the probes queued, in `pass`. Returns whether an update was made. */
     encode: (pass: GPUComputePassEncoder) => encode(state, pass),
     /** The update of the image, made now in a pass of its own, where the screen probes made none. */

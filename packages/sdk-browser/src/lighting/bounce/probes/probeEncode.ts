@@ -95,7 +95,11 @@ function queueImage(
   inputs: QueuedInputs,
 ) {
   if (!now.values.screenProbeRadianceCacheUpdate) return
-  if (now.values.screenProbeRadianceCacheForceFullUpdate) parts.pool.discard()
+  if (now.values.screenProbeRadianceCacheForceFullUpdate) {
+    parts.cache.follow(now, inputs.preExposure)
+    parts.cache.clear(encoder)
+    parts.pool.discard()
+  }
   const queue = encodePass(parts, encoder, surface, work, now.cache.temporaryAtlasDownsample)
   parts.cache.queued(now, { args: parts.pool.args, ...inputs, queue })
 }

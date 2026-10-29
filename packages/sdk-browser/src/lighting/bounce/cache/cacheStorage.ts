@@ -28,17 +28,24 @@ function cacheAtlases(device: GPUDevice, shape: CacheShape, slots: number) {
   const size = cacheExtent(resolution, slots)
   const finalSize = cacheExtent(cacheFinalSide(resolution, mipmaps), slots)
   const usage = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
-  const atlas = (label: string, extent: [number, number], format: GPUTextureFormat, mips = 1) =>
+  const atlas = (
+    label: string,
+    extent: [number, number],
+    format: GPUTextureFormat,
+    mips = 1,
+    extra = 0,
+  ) =>
     device.createTexture({
       label: `Trillion3D radiance cache ${label} v1`,
       size: extent,
       format,
       mipLevelCount: mips,
-      usage,
+      usage: usage | extra,
     })
   const raw = atlas('raw', size, F.raw)
-  const final = atlas('final', finalSize, F.final, mipmaps)
-  const sky = atlas('sky', skyVisibility ? finalSize : [1, 1], F.sky)
+  // The final maps and the sky's share are copied to, to be set to black (`clearCacheMaps`).
+  const final = atlas('final', finalSize, F.final, mipmaps, GPUTextureUsage.COPY_DST)
+  const sky = atlas('sky', skyVisibility ? finalSize : [1, 1], F.sky, 1, GPUTextureUsage.COPY_DST)
   const spare = Array.from({ length: CACHE_FIXUP_LEVELS - mipmaps }, () =>
     atlas('spare', [1, 1], F.final),
   )

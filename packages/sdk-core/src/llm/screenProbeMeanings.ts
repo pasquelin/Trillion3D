@@ -57,7 +57,7 @@ const FILTER_MEANINGS = /* @__PURE__ */ (() =>
     screenProbeRadianceCacheUpdate:
       "Whether the world's probes are updated at every image (their marks, the probes given back and the maps traced); false freezes them as they are, for debugging.",
     screenProbeRadianceCacheForceFullUpdate:
-      "Whether every image updates the whole world's probes cache at no budget (every probe given back and traced anew), for debugging.",
+      "Whether every image updates the whole world's probes cache at no budget (every probe given back and traced anew, after the final maps and the sky's share are set to black), for debugging.",
     screenProbeDebugForceTracesMoving:
       'Whether every probe counts as moving (its history gives way and its filter reaches twelve neighbours), for debugging.',
     screenProbeReferenceMode:
