@@ -134,20 +134,33 @@ test('the trace keeps its last ray’s page only for the views; the projection�
 })
 
 test('the request: a view’s mode id with the settings that shape it, none for another mode', () => {
-  const settings = { shadowVisualizeLightName: '', shadowVisualizeCachedPagesOnly: false }
+  const settings = {
+    shadowVisualizeLightName: '',
+    shadowVisualizeCachedPagesOnly: false,
+    shadowVisualizeOverdrawScale: 15,
+  }
   const lights = [{ id: 'sun' }, { id: 'lamp.left' }, { id: 'lamp.right' }]
   assert.deepEqual(vsmVisualizeRequest('virtual-shadow-map-cached-page', settings, lights), {
     mode: 8,
     light: -1,
     cachedOnly: false,
+    overdrawScale: 15,
   })
+  assert.deepEqual(
+    vsmVisualizeRequest(
+      'virtual-shadow-map-overdraw',
+      { ...settings, shadowVisualizeOverdrawScale: 40 },
+      lights,
+    ),
+    { mode: 1024, light: -1, cachedOnly: false, overdrawScale: 40 },
+  )
   assert.deepEqual(
     vsmVisualizeRequest(
       'virtual-shadow-map-ray-count',
       { ...settings, shadowVisualizeLightName: 'lamp.right' },
       lights,
     ),
-    { mode: 16, light: 2, cachedOnly: false },
+    { mode: 16, light: 2, cachedOnly: false, overdrawScale: 15 },
   )
   assert.equal(
     vsmVisualizeRequest('virtual-shadow-map-clipmap-virtual-space', settings, lights),

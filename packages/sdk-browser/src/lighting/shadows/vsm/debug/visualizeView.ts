@@ -3,6 +3,7 @@ import { VIRTUAL_SHADOW_MAP_VIEWS } from '../../../../../../sdk-core/src/runtime
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
 import { retire } from '../../../../gpu/core/frameRetire.ts'
 import { wgslProgram } from '../../../../../../math/src/wgsl/assemble.ts'
+import { colorMapInferno } from '../../../../../../math/src/wgsl/inferno.ts'
 import { debugColor } from '../../../../hair/debugLines.ts'
 import { createTextOverlay, TEXT_LINE } from '../../../../diagnostic/textOverlay.ts'
 import {
@@ -24,13 +25,15 @@ const PASS = 'Trillion3D shadow map view'
 /**
  * The screen pass of the virtual shadow map views: where the layout (`shadowVisualizeLayout`) says, the image in grey with the view over it (the whole image, 0), or the view alone in a
  * thumbnail of a third of the image's width and height at its upper left (1) or over its left half (2). `vizView` holds the display size, the size of the view's target, the layout, the mode id
- * and whether one light is shown; the ray count view is turned to its colour here, from the rays traced over the most (`vsmRayCountColor`).
+ * and whether one light is shown, and the overdraw scale; the ray count view is turned to its colour here, from the rays traced over the most (`vsmRayCountColor`), and the overdraw view from the draws counted a texel
+ * (red), `1 - 2^(-count x scale / 100)` on the inferno map, its alpha a smoothstep of the colour's mean from -0.1 to 0.1 (half where it is black, opaque where it is bright).
  */
-const VIEW_WGSL = `struct VizView{display:vec2u,source:vec2u,layout:u32,mode:u32,one:u32,spare:u32,}
+const VIEW_WGSL = `struct VizView{display:vec2u,source:vec2u,layout:u32,mode:u32,one:u32,scale:f32,}
 @group(0) @binding(0) var<uniform> vizView:VizView;
 @group(0) @binding(1) var sceneCopy:texture_2d<f32>;
 @group(0) @binding(2) var vizColour:texture_2d<f32>;
 const ${modeConstant('virtual-shadow-map-ray-count')}:u32=${VIRTUAL_SHADOW_MAP_VIEWS['virtual-shadow-map-ray-count']}u;
+const ${modeConstant('virtual-shadow-map-overdraw')}:u32=${VIRTUAL_SHADOW_MAP_VIEWS['virtual-shadow-map-overdraw']}u;
 ${SCREEN_PASS_VERTEX}
 @fragment fn fsVsmView(@builtin(position) position:vec4f)->@location(0) vec4f{
  let pixel=vec2u(position.xy);
@@ -43,12 +46,16 @@ ${SCREEN_PASS_VERTEX}
  let texel=min(vec2u((vec2f(pixel)+0.5)/vec2f(region)*vec2f(source)),source-vec2u(1u));
  var colour=textureLoad(vizColour,vec2i(texel),0);
  if(vizView.mode==${modeConstant('virtual-shadow-map-ray-count')}&&colour.a>0.0){colour=vec4f(vsmRayCountColor(colour.xy,vizView.one!=0u),colour.a);}
+ if(vizView.mode==${modeConstant('virtual-shadow-map-overdraw')}){
+  let heat=colorMapInferno(1.0-exp2(-colour.r*clamp(vizView.scale/100.0,0.0,1.0)));
+  colour=vec4f(heat,smoothstep(-0.1,0.1,dot(heat,vec3f(1.0/3.0))));
+ }
  if(vizView.layout>0u){return vec4f(colour.rgb,1.0);}
  let grey=vec3f(dot(scene.rgb,vec3f(0.299,0.587,0.114)));
  return vec4f(mix(grey,colour.rgb,colour.a),scene.a);
 }`
 
-const CODE = wgslProgram(VIEW_WGSL, [VSM_VISUALIZE_RAY_COLOR_WGSL, vsmGrayscale])
+const CODE = wgslProgram(VIEW_WGSL, [VSM_VISUALIZE_RAY_COLOR_WGSL, vsmGrayscale, colorMapInferno])
 
 /** The legend's entries of a view: a label and its colour, for the views that have one. */
 const LEGENDS: Readonly<Record<string, readonly (readonly [string, number])[]>> = {
@@ -149,20 +156,18 @@ export function encodeVsmVisualizeView(
   const vizSize = vsmVisualizeStateOf(vsm.res)!
   const one = request.light >= 0
   const layout = vsmMapSettings(rt).shadows.shadowVisualizeLayout
-  device.queue.writeBuffer(
-    state.params,
+  const words = new Uint32Array([
+    width,
+    height,
+    vizSize.width,
+    vizSize.height,
+    layout,
+    request.mode,
+    one ? 1 : 0,
     0,
-    new Uint32Array([
-      width,
-      height,
-      vizSize.width,
-      vizSize.height,
-      layout,
-      request.mode,
-      one ? 1 : 0,
-      0,
-    ]),
-  )
+  ])
+  new Float32Array(words.buffer)[7] = request.overdrawScale
+  device.queue.writeBuffer(state.params, 0, words)
   encoder.copyTextureToTexture({ texture: gpu.displayTexture }, { texture: state.copy }, [
     width,
     height,

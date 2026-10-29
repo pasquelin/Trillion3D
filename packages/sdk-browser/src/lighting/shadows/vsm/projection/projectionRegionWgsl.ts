@@ -34,9 +34,9 @@ fn vsmLightParticipates(k:u32,info:VsmSurfaceInfo,shiftedPositionIn:vec3f)->bool
 }
 `
 
-/** The region test of the pixels of `input`. */
-export const vsmProjectionRegionWgsl = (input: VsmInputType) =>
-  input === 'strands' ? STRANDS_REGION_WGSL : VSM_PROJECTION_REGION_WGSL
+/** The region test of the pixels of `input`; with `culled` false, the surfaces' too leave out the back-face cull (the overdraw view counts the raster's draws, which the cull does not touch). */
+export const vsmProjectionRegionWgsl = (input: VsmInputType, culled = true) =>
+  input === 'strands' || !culled ? STRANDS_REGION_WGSL : VSM_PROJECTION_REGION_WGSL
 
 /** The subsurface receiver's piece of a trace. */
 export const VSM_PROJECTION_SUBSURFACE_WGSL = /* wgsl */ `/** The share of a light a subsurface receiver (\`info.opacity\`) lets through its shadow: where the

@@ -66,6 +66,7 @@ const SHADOW_MAP_DEFAULTS = {
     shadowVisualizeLayout: 0,
     shadowVisualizeCachedPagesOnly: false,
     shadowVisualizeLightName: '',
+    shadowVisualizeOverdrawScale: 15,
   },
   ...{ shadowCsmScrollingOverlapAreaThrottle: 0.75, shadowMaxCsmScrollingStaticSubjects: 5 },
   ...{ shadowSpotLightReceiverBias: 0.5 },

@@ -249,9 +249,11 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
   shadowMaxSlopeScaleDepthBias:
     'The most the slope of a surface to the light adds to the depth bias of a classic shadow, as a number of times its slope bias (1, the default), for every light. Read only with shadowVirtualEnable off.',
   shadowVisualizeLayout:
-    "Where the virtual shadow map views (the diagnostic modes 'virtual-shadow-map-shadow-factor', '…-clipmap-or-mip', '…-virtual-page', '…-cached-page', '…-ray-count', '…-general-debug', '…-dirty-page', '…-gpu-invalidated-page' and '…-merged-page') are drawn: 0 (the default) over the whole image, 1 in a thumbnail of a third of the image's width and height at its upper left, 2 over the left half of the image, the right half the image in grey.",
+    "Where the virtual shadow map views (the diagnostic modes 'virtual-shadow-map-shadow-factor', '…-clipmap-or-mip', '…-virtual-page', '…-cached-page', '…-ray-count', '…-general-debug', '…-dirty-page', '…-gpu-invalidated-page', '…-merged-page' and '…-overdraw') are drawn: 0 (the default) over the whole image, 1 in a thumbnail of a third of the image's width and height at its upper left, 2 over the left half of the image, the right half the image in grey.",
   shadowVisualizeCachedPagesOnly:
     'Whether the cached-page view shows the pages kept from the last image for every light and hides the others (false, the default: the pages to draw again are shown, the kept ones only for the one light named by shadowVisualizeLightName).',
+  shadowVisualizeOverdrawScale:
+    "How bright the overdraw view ('virtual-shadow-map-overdraw') shows each draw of a texel, as a percentage (15, the default; 0 to 100): a texel drawn n times is coloured by 1 - 2^(-n x scale / 100) on an inferno colour map, so a larger value reaches the bright end with fewer draws.",
   shadowVisualizeLightName:
     'Which light the virtual shadow map views show, by its name: the empty string (the default) all the lights that cast, their colours added; else the light whose name is exactly that, or, failing one, the first whose name contains it, shown alone and with the full colours. A name no light bears shows all the lights.',
   shadowShowStats:

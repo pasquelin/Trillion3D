@@ -109,17 +109,29 @@ const VSM_RENDER_SOFTWARE_MERGED_PROJECTION_SPEC: VsmBindingSpec = {
   resource: 'projectionData',
   binding: 6,
 }
+/** And the overdraw slice, past the bindings of both layouts, where the stage has a buffer for it (`vsmSoftwareOverdraw`). */
+const VSM_RENDER_SOFTWARE_OVERDRAW_SPEC: VsmBindingSpec = {
+  resource: 'overdrawSlice',
+  binding: 7,
+  access: 'atomic',
+}
 /** The stage's VSM resources on a device that does (`native`) or does not bind the projection data, and
  *  that does (`merged`) or does not bind both pool slices. */
-export const vsmSoftwareSpecs = (native: boolean, merged = false): readonly VsmBindingSpec[] =>
-  merged
+export const vsmSoftwareSpecs = (
+  native: boolean,
+  merged = false,
+  overdraw = false,
+): readonly VsmBindingSpec[] => [
+  ...(merged
     ? [
         ...VSM_RENDER_SOFTWARE_MERGED_SPECS,
         ...(native ? [VSM_RENDER_SOFTWARE_MERGED_PROJECTION_SPEC] : []),
       ]
     : native
       ? [...VSM_RENDER_SOFTWARE_SPECS, VSM_RENDER_SOFTWARE_PROJECTION_SPEC]
-      : VSM_RENDER_SOFTWARE_SPECS
+      : VSM_RENDER_SOFTWARE_SPECS),
+  ...(overdraw ? [VSM_RENDER_SOFTWARE_OVERDRAW_SPEC] : []),
+]
 /** The entry points: the dynamic layer's records into slice 0, the static layer's into the static slice
  *  (both layers' by the first where `merged`). */
 export const VSM_RENDER_SOFTWARE_ENTRY = 'vsmRenderSoftware'
@@ -211,15 +223,16 @@ const softwarePixelAndKernels = (
   wpo: WpoSet,
   subgroups: boolean,
   merged: boolean,
+  overdraw: boolean,
 ) => /* wgsl */ `${softwareCutout(masks)}
-${vsmSoftwarePixelText(merged)}
+${vsmSoftwarePixelText(merged, overdraw)}
 ${clusterRasterKernels(subgroups, shadowClusterTarget(wpo.programs.length > 0, merged))}`
 
 /** The software raster of the shadow maps (above), `subgroups` the device's subgroup operations
  *  (the lanes' vote between a triangle's box and its scanlines), `masks` and `wpo` the session's
  *  graphs, as the hardware raster's module holds them (`vsmRasterPipe`), `native` the stage binding the
  *  projection data (`VSM_RENDER_SOFTWARE_PROJECTION_SPEC`; else the views the bin laid are read), `merged`
- *  the stage binding both pool slices and rastering both layers' records in one entry point. */
+ *  the stage binding both pool slices and rastering both layers' records in one entry point, `overdraw` the stage counting the draws of each texel (`vsmSoftwareOverdraw`). */
 export const vsmRenderSoftwareWgsl = (
   layout: VsmLayout,
   masks: MaskSet = NO_MASKS,
@@ -227,10 +240,11 @@ export const vsmRenderSoftwareWgsl = (
   subgroups = false,
   native = false,
   merged = false,
+  overdraw = false,
 ) =>
   wgslProgram(
     /* wgsl */ `
-${softwareDeclarations(native)}${softwarePixelAndKernels(masks, wpo, subgroups, merged)}
+${softwareDeclarations(native)}${softwarePixelAndKernels(masks, wpo, subgroups, merged, overdraw)}
 `,
     [
       VSM_SOFTWARE_WINDOW_FRAME,
@@ -249,7 +263,7 @@ ${softwareDeclarations(native)}${softwarePixelAndKernels(masks, wpo, subgroups, 
       colorSampleWgsl(SHADOW_TILE_POOL_WGSL),
       maskKeepWgsl(maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL), masks),
       maskUvWgsl(VIS_BINDINGS.normals),
-      vsmBindingsWgsl(1, vsmSoftwareSpecs(native, merged), layout),
+      vsmBindingsWgsl(1, vsmSoftwareSpecs(native, merged, overdraw), layout),
       ...(native ? [] : [VSM_PROJECTION_RECORD_WGSL, VSM_RENDER_SOFTWARE_VIEWS_WGSL]),
       FLAT_INDEX_WGSL,
       WORKGROUP_THREADS_WGSL,

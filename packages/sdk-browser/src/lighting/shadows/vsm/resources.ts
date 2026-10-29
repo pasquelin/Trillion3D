@@ -16,7 +16,7 @@
  * reader outside them (`../../direct/shadowWgsl.ts`: translucent surfaces) the first
  * (`VSM_FORWARD_LAYOUT`).
  */
-import { VSM_LOG2_PAGE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
+import { VSM_LOG2_PAGE, VSM_OVERDRAW_SLICE, VSM_PAGE_TEXELS, VSM_POOL_SLICES } from './constants.ts'
 import { VSM_STRUCTS_WGSL } from './pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from './projection/projectionDataWgsl.ts'
 import { VSM_UNIFORMS_WGSL } from './uniforms.ts'
@@ -106,7 +106,7 @@ export interface VsmResources {
   rasterMarks: GPUBuffer
   /** The next-map data, indexed by the previous frame's id. */
   nextMaps: GPUBuffer
-  /** Slice 0 dynamic, 1 static. */
+  /** Slice 0 dynamic, 1 static, and with the overdraw view (`layout.overdraw`) 2 the draws counted a texel. */
   pagePool: GPUBuffer[]
   /** The occlusion culling's pyramid and build buffers, where the layout asks them
    *  (`occlusion/occlusionResources.ts`). */
@@ -275,7 +275,8 @@ export function createVsmResources(device: GPUDevice, options: VsmResourceOption
     tableBuffers,
   )
 
-  const pagePool = Array.from({ length: VSM_POOL_SLICES }, (_, s) =>
+  // The overdraw view's slice, after the two the readers bind (`VSM_OVERDRAW_SLICE`).
+  const pagePool = Array.from({ length: VSM_POOL_SLICES + (layout.overdraw ? 1 : 0) }, (_, s) =>
     buffer(`physicalPool${s}`, poolSliceBytes(layout)),
   )
 
@@ -407,6 +408,7 @@ type VsmBindingResource =
   | 'rasterMarks'
   | 'nextMaps'
   | 'pagePool'
+  | 'overdrawSlice'
   | 'stats'
   | 'feedback'
   | 'perPageIds'
@@ -475,6 +477,7 @@ function varName(spec: VsmBindingSpec) {
   if (spec.name) return spec.name
   if (spec.resource === 'uniforms') return spec.prev ? 'vsmPrev' : 'vsm'
   if (spec.resource === 'pagePool') return 'vsmPool'
+  if (spec.resource === 'overdrawSlice') return 'vsmOverdraw'
   return (spec.prev ? 'vsmPrev' : 'vsm') + cap(spec.resource)
 }
 
@@ -534,6 +537,10 @@ export function vsmBindingsWgsl(
     }
     if (spec.resource === 'pagePool') {
       deps.add(vsmPoolWgsl(group, spec, layout).accessors)
+      continue
+    }
+    if (spec.resource === 'overdrawSlice') {
+      deps.add(vsmOverdrawWgsl(group, spec, layout))
       continue
     }
     const struct = STRUCT_OF[spec.resource]
@@ -660,6 +667,22 @@ function buildPool(
   return { load, accessors: wgslBlock(`${key} accessors`, [load], rest.join('\n')) }
 }
 
+/**
+ * The overdraw slice of the pool (`overdrawSlice`, `VSM_OVERDRAW_SLICE`) in `group`: a word a pool texel, laid as the other slices are. Writable (`atomic`), `vsmOverdrawAdd(t)` counts one more
+ * draw of the texel; read-only, `vsmOverdrawLoad(t)` gives the count.
+ */
+function vsmOverdrawWgsl(group: number, spec: VsmBindingSpec, layout: VsmLayout) {
+  const counting = spec.access === 'atomic'
+  const decl = counting
+    ? `@group(${group}) @binding(${spec.binding}) var<storage,read_write> vsmOverdraw:array<atomic<u32>>;\nfn vsmOverdrawAdd(t:vec2u){atomicAdd(&vsmOverdraw[vsmOverdrawTexelIndex(t)],1u);}`
+    : `@group(${group}) @binding(${spec.binding}) var<storage,read> vsmOverdraw:array<u32>;\nfn vsmOverdrawLoad(t:vec2u)->u32{return vsmOverdraw[vsmOverdrawTexelIndex(t)];}`
+  return wgslBlock(
+    `vsmOverdrawWgsl(${group}, ${spec.binding}, ${counting}, ${layoutKey(layout)})`,
+    [vsmPoolTexelIndexWgsl('vsmOverdrawTexelIndex', `${layout.poolRowShift}u`)],
+    decl,
+  )
+}
+
 /** Number of binding slots a spec consumes. */
 const vsmBindingCount = (spec: VsmBindingSpec) =>
   spec.resource === 'pagePool' ? slicesOf(spec) : 1
@@ -694,6 +717,10 @@ export function vsmBindGroupEntries(
       res.pagePool
         .slice(0, slicesOf(spec))
         .forEach((buffer, k) => out.push({ binding: spec.binding + k, resource: { buffer } }))
+      continue
+    }
+    if (spec.resource === 'overdrawSlice') {
+      out.push({ binding: spec.binding, resource: { buffer: res.pagePool[VSM_OVERDRAW_SLICE]! } })
       continue
     }
     const buffer = FRAME_RESOURCES.has(spec.resource)

@@ -39,7 +39,7 @@ import {
 import { vsmProjectionReserve, type VsmProjectionState } from './projectionStore.ts'
 import {
   VSM_VISUALIZE_PARAM_WORDS,
-  VSM_VISUALIZE_VSM_SPECS,
+  vsmVisualizeSpecs,
   vsmVisualizeLocalsWgsl,
   vsmVisualizePerLightWgsl,
   vsmVisualizeSunsWgsl,
@@ -58,6 +58,8 @@ export interface VsmVisualizeRequest {
   light: number
   /** The kept pages only (`shadowVisualizeCachedPagesOnly`). */
   cachedOnly: boolean
+  /** The overdraw view's scale, in percent (`shadowVisualizeOverdrawScale`). */
+  overdrawScale: number
 }
 
 /** The record, among the frame's `lights`, of the light the name `name` picks: the first whose name is exactly it, else the first whose name contains it; −1 (every light) for the empty name or a name no light bears. */
@@ -70,7 +72,11 @@ export function visualizedLight(lights: readonly { readonly id: string }[], name
 /** The request of the diagnostic `diagnostic` under the shadow settings `settings`, the frame's `lights` named by id; none while another view or none is on. */
 export function vsmVisualizeRequest(
   diagnostic: DiagnosticMode | undefined,
-  settings: { shadowVisualizeLightName: string; shadowVisualizeCachedPagesOnly: boolean },
+  settings: {
+    shadowVisualizeLightName: string
+    shadowVisualizeCachedPagesOnly: boolean
+    shadowVisualizeOverdrawScale: number
+  },
   lights: readonly { readonly id: string }[],
 ): VsmVisualizeRequest | undefined {
   const mode = diagnostic && (VIRTUAL_SHADOW_MAP_VIEWS as Record<string, number>)[diagnostic]
@@ -79,6 +85,7 @@ export function vsmVisualizeRequest(
         mode,
         light: visualizedLight(lights, settings.shadowVisualizeLightName),
         cachedOnly: settings.shadowVisualizeCachedPagesOnly,
+        overdrawScale: settings.shadowVisualizeOverdrawScale,
       }
     : undefined
 }
@@ -144,7 +151,7 @@ function pipelinesFor(device: GPUDevice, layout: VsmLayout, locals: VisualizeLoc
   if (!made) {
     const vsmLayout = device.createBindGroupLayout({
       label: 'vsm.visualize.vsm',
-      entries: vsmBindGroupLayoutEntries(VSM_VISUALIZE_VSM_SPECS, COMPUTE),
+      entries: vsmBindGroupLayoutEntries(vsmVisualizeSpecs(layout), COMPUTE),
     })
     const sunsLayout = device.createBindGroupLayout({
       label: 'vsm.visualize.suns',
@@ -256,15 +263,14 @@ export function encodeVsmVisualize(
   if (projection.visualize) projection.visualize.result = undefined
   if (!chainReady(p.suns, locals === 'grid' ? p.locals : locals && p.perLight)) return
   const state = stateOf(device, projection, width, height)
-  device.queue.writeBuffer(
-    state.params,
-    0,
-    new Uint32Array([request.mode, request.light, request.cachedOnly ? 1 : 0, 0]),
-  )
+  // The words of the views' uniform (`VSM_VISUALIZE_PARAM_WORDS`): the last is the overdraw scale, a float.
+  const words = new Uint32Array([request.mode, request.light, request.cachedOnly ? 1 : 0, 0])
+  new Float32Array(words.buffer)[3] = request.overdrawScale
+  device.queue.writeBuffer(state.params, 0, words)
   const pass = steps.pass(VISUALIZE_STEP)
   pass.setBindGroup(
     0,
-    vsmSpecGroup(device, p.vsmLayout, res, VSM_VISUALIZE_VSM_SPECS, 'vsm.visualize.vsm'),
+    vsmSpecGroup(device, p.vsmLayout, res, vsmVisualizeSpecs(res.layout), 'vsm.visualize.vsm'),
   )
   const shared = {
     view: { buffer: projection.uniform! },

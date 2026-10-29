@@ -147,6 +147,7 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
     integer('shadowVisualizeLayout', 0, [0, 2]),
     flag('shadowVisualizeCachedPagesOnly', false),
     text('shadowVisualizeLightName', ''),
+    number('shadowVisualizeOverdrawScale', 15, [0, 100]),
     flag('shadowCsmCaching', false),
     number('shadowCsmScrollingOverlapAreaThrottle', 0.75, [0, 1]),
     integer('shadowMaxCsmScrollingStaticSubjects', 5, [0, INT32_RANGE[1]]),
@@ -302,6 +303,7 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowVisualizeLayout` | 0 | |
  * | `shadowVisualizeCachedPagesOnly` | false | |
  * | `shadowVisualizeLightName` | `''` | |
+ * | `shadowVisualizeOverdrawScale` | 15 | |
  * | `shadowCsmCaching` | false | |
  * | `shadowCsmScrollingOverlapAreaThrottle` | 0.75 | |
  * | `shadowMaxCsmScrollingStaticSubjects` | 5 | |

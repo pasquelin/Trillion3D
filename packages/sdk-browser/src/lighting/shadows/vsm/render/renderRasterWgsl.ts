@@ -78,6 +78,17 @@ export const VSM_RENDER_RASTER_FRAGMENT_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'pagePool', binding: 2, access: 'atomic' },
   { resource: 'pageTable', binding: 4 },
 ]
+/** The overdraw slice the fragment counts into (6 is the classic atlas' depth bias, in the vertex stage). */
+const VSM_RENDER_RASTER_OVERDRAW_SPEC: VsmBindingSpec = {
+  resource: 'overdrawSlice',
+  binding: 7,
+  access: 'atomic',
+}
+/** The fragment's tables of a pool `layout`: the pool and the page table, and with the overdraw view the slice of counts. */
+export const vsmRenderFragmentSpecs = (layout: VsmLayout): readonly VsmBindingSpec[] =>
+  layout.overdraw
+    ? [...VSM_RENDER_RASTER_FRAGMENT_SPECS, VSM_RENDER_RASTER_OVERDRAW_SPEC]
+    : VSM_RENDER_RASTER_FRAGMENT_SPECS
 export const VSM_RENDER_RASTER_SHARED_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'uniforms', binding: 5 },
 ]
@@ -220,6 +231,19 @@ fn vsmRenderJoin(window:vec3u,texel:vec2u,depth:u32){
 `,
 )
 
+/**
+ * The draw counted at a pool texel (`vsmRenderCount`), by the hardware fragment and the software raster, wherever a covered pixel lands on a page that is one to draw and before any test of
+ * depth or cutout: one more draw of the texel in the overdraw slice (`overdrawSlice`) where the pool has one, nothing where it has not.
+ */
+export const vsmRenderCountWgsl = (layout: VsmLayout) =>
+  wgslBlock(
+    `vsmRenderCountWgsl(${layout.overdraw})`,
+    [],
+    layout.overdraw
+      ? 'fn vsmRenderCount(texel:vec2u){vsmOverdrawAdd(texel);}'
+      : 'fn vsmRenderCount(texel:vec2u){}',
+  )
+
 /** How a vertex stage places a record: the window it hands the fragment, the condition (if any) that drops the record whole, and the position of a clip position on the target. */
 export interface RasterPlace {
   readonly window: string
@@ -281,6 +305,7 @@ const renderRasterFragment = (masks: MaskSet) => /* wgsl */ `
  let gx=dpdx(in.uv);let gy=dpdy(in.uv);
  var texel:vec2u;
  if(!vsmRenderPoolTexel(in.window,in.position.xy,&texel)){discard;}
+ vsmRenderCount(texel);
  let depth=vsmRenderDepth(in.clip.z/in.clip.w);
  // A masked row evaluates its cutout only for a depth that can win.
  if(in.masked!=0u&&!vsmRenderBeats(texel,vsmRenderSlice(in.window),depth)){discard;}
@@ -317,7 +342,8 @@ ${renderRasterVertex(wpo)}${renderRasterFragment(masks)}
       VSM_PROJECTION_DATA_WGSL,
       DRAW_BIAS_CLIP_WGSL,
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
-      vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),
+      vsmRenderCountWgsl(layout),
+      vsmBindingsWgsl(1, vsmRenderFragmentSpecs(layout), layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_SHARED_SPECS, layout),
       PAGE_GEOMETRY_WGSL,
       maskUvWgsl(VIS_BINDINGS.normals),

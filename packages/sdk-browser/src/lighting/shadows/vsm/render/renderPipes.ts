@@ -37,7 +37,7 @@ import {
   vsmRenderCastersDoneWgsl,
 } from './renderCandidatesWgsl.ts'
 import {
-  VSM_RENDER_RASTER_FRAGMENT_SPECS,
+  vsmRenderFragmentSpecs,
   VSM_RENDER_RASTER_SHARED_SPECS,
   VSM_RENDER_RASTER_VERTEX_SPECS,
   VSM_RENDER_TARGET_FORMAT,
@@ -52,6 +52,7 @@ import {
   vsmRenderTierFamily,
   vsmCullMarks,
   vsmSoftwareMerged,
+  vsmSoftwareOverdraw,
   vsmViewsLaid,
 } from './renderParamsWgsl.ts'
 import {
@@ -163,6 +164,8 @@ type VsmRenderKernels = ReturnType<typeof vsmRenderComputePipes>
 /** What a raster pipeline is made for: the raster's text of a layout and, asked the first time a
  *  table holds a voxel row, its voxel rows' text (`renderVoxelWgsl.ts`), on the shadow page group. */
 interface RasterSource {
+  /** The pool's layout: the fragment binds the overdraw slice where it has one. */
+  poolLayout: VsmLayout
   code: string
   voxelCode: () => string
   pageLayout: GPUBindGroupLayout
@@ -195,14 +198,14 @@ export function madeLater(
  *  (`vsmRasterPipe`). */
 function makeRaster(
   device: GPUDevice,
-  { code, voxelCode, pageLayout }: RasterSource,
+  { poolLayout, code, voxelCode, pageLayout }: RasterSource,
 ): VsmRenderContext['raster'] {
   const layout1 = device.createBindGroupLayout({
     label: `${RENDER_LABEL}.raster1`,
     entries: [
       computeBufferEntry(0, 'read-only-storage', GPUShaderStage.VERTEX),
       ...vsmBindGroupLayoutEntries(VSM_RENDER_RASTER_VERTEX_SPECS, GPUShaderStage.VERTEX),
-      ...vsmBindGroupLayoutEntries(VSM_RENDER_RASTER_FRAGMENT_SPECS, GPUShaderStage.FRAGMENT),
+      ...vsmBindGroupLayoutEntries(vsmRenderFragmentSpecs(poolLayout), GPUShaderStage.FRAGMENT),
       ...vsmBindGroupLayoutEntries(
         VSM_RENDER_RASTER_SHARED_SPECS,
         GPUShaderStage.VERTEX | GPUShaderStage.FRAGMENT,
@@ -274,6 +277,7 @@ export const vsmRasterPipe = (
   held: GraphRasters = NO_RASTERS,
 ): VsmRenderContext['raster'] =>
   rasters(device).of({
+    poolLayout: layout,
     code: vsmRenderRasterWgsl(layout, shadowMasks(held), shadowWpo(held)),
     voxelCode: () => vsmRenderVoxelWgsl(layout, voxelWpo(held)),
     pageLayout,
@@ -292,7 +296,8 @@ export function vsmSoftwarePipes(
   held: GraphRasters = NO_RASTERS,
 ) {
   const native = !vsmViewsLaid(device),
-    merged = vsmSoftwareMerged(device)
+    merged = vsmSoftwareMerged(device),
+    overdraw = vsmSoftwareOverdraw(device, layout.overdraw)
   const code = vsmRenderSoftwareWgsl(
     layout,
     shadowMasks(held),
@@ -300,12 +305,13 @@ export function vsmSoftwarePipes(
     hasSubgroups(device),
     native,
     merged,
+    overdraw,
   )
   const groups = [
     shadowPageComputeEntries(device),
     [
       computeBufferEntry(0, 'read-only-storage', COMPUTE),
-      ...vsmBindGroupLayoutEntries(vsmSoftwareSpecs(native, merged), COMPUTE),
+      ...vsmBindGroupLayoutEntries(vsmSoftwareSpecs(native, merged, overdraw), COMPUTE),
       vsmRenderParamsEntry(4),
     ],
   ]

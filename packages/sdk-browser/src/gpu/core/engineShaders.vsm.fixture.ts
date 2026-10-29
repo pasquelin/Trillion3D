@@ -191,6 +191,22 @@ export function vsmVariants() {
   variants.VSM_VISUALIZE_SUNS = vsmVisualizeSunsWgsl(layout)
   variants.VSM_VISUALIZE_LOCALS = vsmVisualizeLocalsWgsl(layout)
   variants.VSM_VISUALIZE_PER_LIGHT = vsmVisualizePerLightWgsl(layout)
+  // The pool that holds the overdraw view's slice: the raster counting into it, and the views reading it.
+  const overdraw = vsmLayout({ ...layoutOptions, overdraw: true })
+  variants.VSM_RENDER_RASTER_OVERDRAW = vsmRenderRasterWgsl(overdraw)
+  variants.VSM_RENDER_VOXEL_OVERDRAW = vsmRenderVoxelWgsl(overdraw)
+  variants.VSM_RENDER_SOFTWARE_OVERDRAW = vsmRenderSoftwareWgsl(
+    overdraw,
+    undefined,
+    undefined,
+    false,
+    false,
+    false,
+    true,
+  )
+  variants.VSM_VISUALIZE_SUNS_OVERDRAW = vsmVisualizeSunsWgsl(overdraw)
+  variants.VSM_VISUALIZE_LOCALS_OVERDRAW = vsmVisualizeLocalsWgsl(overdraw)
+  variants.VSM_VISUALIZE_PER_LIGHT_OVERDRAW = vsmVisualizePerLightWgsl(overdraw)
   variants.VSM_PROJECTION_SUNS_CLASSIC = vsmSunsProjectionWgsl(classic)
   variants.VSM_PROJECTION_LOCALS_CLASSIC = vsmLocalsProjectionWgsl(classic, 'rg32uint')
   // The same, under the shadow the hair strands cast on the surfaces (the `hair` cut).

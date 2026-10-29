@@ -23,6 +23,7 @@ export const VIRTUAL_SHADOW_MAP_VIEWS = {
   'virtual-shadow-map-dirty-page': 128,
   'virtual-shadow-map-gpu-invalidated-page': 256,
   'virtual-shadow-map-merged-page': 512,
+  'virtual-shadow-map-overdraw': 1024,
 } as const
 export type VirtualShadowMapView = keyof typeof VIRTUAL_SHADOW_MAP_VIEWS
 /** Availability describes real pipeline outputs, never synthetic overlays. */
@@ -85,6 +86,7 @@ export type DiagnosticMode =
   | 'virtual-shadow-map-dirty-page'
   | 'virtual-shadow-map-gpu-invalidated-page'
   | 'virtual-shadow-map-merged-page'
+  | 'virtual-shadow-map-overdraw'
   | 'rect-light-atlas'
   | 'surface-cache-direct-stats'
   | 'surface-cache-indirect-stats'
@@ -99,7 +101,6 @@ export type DiagnosticMode =
   | 'reflection-traces'
   | 'radiance-cache-probes'
   | 'scene-visualization'
-  | 'material-properties'
   | HeterogeneousVolumeGridView
 /** Whether a view mode is available here, and why not. */
 export interface DiagnosticCapability {
@@ -165,6 +166,7 @@ export interface DiagnosticCapability {
  *  @property virtual-shadow-map-dirty-page - The page each pixel reads: yellow-red where its static layer was drawn, green where its dynamic layer was.
  *  @property virtual-shadow-map-gpu-invalidated-page - The page each pixel reads: red where its static layer was invalidated by the casters, green where its dynamic layer was.
  *  @property virtual-shadow-map-merged-page - The page each pixel reads: red where the static layer was drawn and merged into the dynamic one, green elsewhere.
+ *  @property virtual-shadow-map-overdraw - How many times the shadow raster drew a texel of the page each pixel reads, from dark to bright.
  *  @property rect-light-atlas - The atlas of the pictures mapped on the rectangle lights, its slots and its figures, over the image.
  *  @property surface-cache-direct-stats - The table of the direct light update of the surface cache over the image: its priority histogram, its budget and the pages and tiles it lights.
  *  @property surface-cache-indirect-stats - The table of the indirect light update of the surface cache over the image.
@@ -178,8 +180,7 @@ export interface DiagnosticCapability {
  *  @property screen-probe-traces - The rays of the screen probe nearest to the cursor, over the image.
  *  @property reflection-traces - The reflection ray of the pixel under the cursor, over the image.
  *  @property radiance-cache-probes - A sphere at every probe of the world's probes, coloured by the light it holds, over the image.
- *  @property scene-visualization - The scene seen from the camera through the surface cache's light, over the image.
- *  @property material-properties - The material of the pixel under the cursor, as a table of text over the image. */
+ *  @property scene-visualization - The scene seen from the camera through the surface cache's light, over the image. */
 export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability>
 /**
  * The view modes a world can show instead of the normal image, each with whether it is available.
@@ -274,6 +275,7 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  * @property virtual-shadow-map-dirty-page - Over the image in grey, the virtual page each pixel reads, red where its static layer was drawn or cleared this image, green where its dynamic layer was; needs shadows and virtual shadow maps.
  * @property virtual-shadow-map-gpu-invalidated-page - Over the image in grey, the virtual page each pixel reads, red where its static layer was invalidated by the casters that moved, green where its dynamic layer was; needs shadows and virtual shadow maps.
  * @property virtual-shadow-map-merged-page - Over the image in grey, the virtual page each pixel reads, red where its static layer was drawn this image and merged into the dynamic one, green elsewhere; needs shadows and virtual shadow maps.
+ * @property virtual-shadow-map-overdraw - Over the image in grey, how many times the shadow raster (the hardware one and the software one) drew the texel each pixel reads this image, in an inferno colour map scaled by `shadowVisualizeOverdrawScale`; needs shadows and virtual shadow maps. Choosing it makes the pool again with one more slice for the counts, so the cached pages are drawn again.
  * @property rect-light-atlas - Over the image, the atlas of the pictures the rectangle lights name, drawn small at the chosen mip level (`rectLightAtlasDebugMipLevel`) with a green border round each slot in use, a red one round the horizon lines of the packing and a yellow one round the free rectangles, and its figures as text (resolution, mip levels, occupancy, pictures, source mip bias, format, the switches); the same as `rectLightAtlasDebug` shows.
  * @property surface-cache-direct-stats - Over the image, the table of the surface cache’s direct light update as `surfaceCacheLightingStats` 1 writes it: the tiles of each of the 16 priority buckets, the bucket the budget ends in and its tiles, the pages and the tiles the image lights; read back from the GPU a few images late.
  * @property surface-cache-indirect-stats - Over the image, the same table for the surface cache’s indirect light update (`surfaceCacheLightingStats` 2).
@@ -287,7 +289,6 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  * @property screen-probe-traces - Over the image, the rays of the screen probe nearest to the cursor (to the middle of the image where none is set) as lines as long as the distance each reached, in the colour of the radiance it brought back, as `screenProbeGatherVisualizeTraces` draws them.
  * @property reflection-traces - Over the image, the reflection ray of the pixel under the cursor (`debugCursorX`, `debugCursorY`; nothing where none is set) as a line as long as the distance it reached, in the radiance it brought back, with a yellow cross at its end and the grid texel, the distance and the radiance as text, as `reflectionVisualizeTraces` draws it.
  * @property radiance-cache-probes - Over the image, a sphere at every probe of the world’s probes, coloured by the irradiance it holds along its surface at an albedo of 0.3 (a probe inside a surface red, one moved off the surfaces tinted green, an adaptive one cyan), or by its radiance where the radiance cache is the indirect light, hidden by the surfaces in front of it, as `radianceCacheVisualize` draws it.
- * @property material-properties - Over the image, a table of the material of the pixel under the cursor (`debugCursorX`, `debugCursorY`; the middle of the image where none is set): the material mode and its closure count, the ambient occlusion and top roughness, then the closure's diffuse and specular colours, roughness, anisotropy, clear coat, cloth and emission, read back from the GPU a few images late.
  * @property scene-visualization - Over the image, the scene traced from the camera through the global distance field and lit by what the surface cache holds at the hit, the sky where the ray leaves the scene; `visualizeSceneTraceRadianceCache` ends the trace at the world’s probes’ coverage and reads their light past it, `visualizeToneMap` picks the colour curve, `visualizeMinTraceDistance` and `visualizeMaxTraceDistance` bound the trace (centimetres).
  */
 export const DIAGNOSTICS: DiagnosticCapabilities = {
@@ -599,6 +600,11 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     reason:
       'The pages whose static layer was merged, over the image in grey; needs shadows and virtual shadow maps',
   },
+  'virtual-shadow-map-overdraw': {
+    available: true,
+    reason:
+      'The times the shadow raster drew each texel, over the image in grey; needs shadows and virtual shadow maps',
+  },
   'rect-light-atlas': {
     available: true,
     reason:
@@ -663,11 +669,6 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     available: true,
     reason:
       'The scene traced from the camera and lit by what the surface cache holds at the hit, over the image; needs the surface cache',
-  },
-  'material-properties': {
-    available: true,
-    reason:
-      'The material of the pixel under the cursor (debugCursorX, debugCursorY), a table of text over the image; needs the lit surfaces',
   },
   'screen-probe-tile-stats': {
     available: true,

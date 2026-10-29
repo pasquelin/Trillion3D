@@ -376,6 +376,13 @@ export const vsmSoftwareMerged = (device: Pick<GPUDevice, 'limits'>) =>
 export const vsmViewsLaid = (device: Pick<GPUDevice, 'limits'>) =>
   device.limits.maxStorageBuffersPerShaderStage < SOFTWARE_STORAGE + 2
 
+/** Whether the software raster counts the draws of each texel (`layout.overdraw`): the stage binds the overdraw slice beside what it binds on the device (the eight, the second pool slice where it
+ *  is merged, the projection data where the views are not laid), so a device that grants a buffer past those. The hardware raster counts on every device. */
+export const vsmSoftwareOverdraw = (device: Pick<GPUDevice, 'limits'>, overdraw: boolean) =>
+  overdraw &&
+  device.limits.maxStorageBuffersPerShaderStage >=
+    SOFTWARE_STORAGE + 1 + (vsmSoftwareMerged(device) ? 1 : 0) + (vsmViewsLaid(device) ? 0 : 1)
+
 /** The storage buffers a stage of the cull binds when it marks the pages it emits drawn: the eight it binds
  *  otherwise, the page table and the raster marks. */
 const CULL_MARKS_STORAGE = 10

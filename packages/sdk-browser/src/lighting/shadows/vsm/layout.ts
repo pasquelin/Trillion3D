@@ -69,6 +69,8 @@ export interface VsmResourceOptions {
   prefilteredDistant?: boolean
   /** The shadows are classic shadow maps (`shadowVirtualEnable` off): the projection passes are those of the classic filter (`../classic/classicTraceWgsl.ts`), not the soft rays'; default false. */
   classic?: boolean
+  /** The overdraw view is on (`virtual-shadow-map-overdraw`): the pool holds a slice past the two for the shadow raster's counts of draws a texel; default false. */
+  overdraw?: boolean
 }
 
 /** Everything derived from the options; also what `writeVsmUniforms` needs. */
@@ -112,6 +114,8 @@ export interface VsmLayout {
   prefilteredDistant: boolean
   /** Whether the projection passes filter classic shadow maps (`classic`). */
   classic: boolean
+  /** Whether the pool holds the overdraw slice (`overdraw`). */
+  overdraw: boolean
   /** The page-table blocks the suns' clipmap maps take at most, the first of the table
    *  (`tableBlocks.ts`): what the prefiltered shadow keeps of the previous frame. */
   sunMapSlots: number
@@ -235,6 +239,7 @@ export function vsmLayout(options: VsmResourceOptions): VsmLayout {
     pyramidSize: vsmPyramidSize(poolTexelsXY),
     prefilteredDistant: options.prefilteredDistant ?? false,
     classic: options.classic ?? false,
+    overdraw: options.overdraw ?? false,
     sunMapSlots: Math.min(maxFull, sunMaps),
   }
 }

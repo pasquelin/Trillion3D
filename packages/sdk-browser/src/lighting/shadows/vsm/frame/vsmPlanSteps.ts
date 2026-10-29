@@ -42,6 +42,7 @@ export function heldVsm(rt: WebgpuPagesRuntime, device: GPUDevice, list: VsmFram
       kept.cacheEnabled !== asked.cacheEnabled ||
       kept.prefilteredDistant !== asked.prefilteredDistant ||
       kept.classic !== asked.classic ||
+      kept.overdraw !== asked.overdraw ||
       !vsmCoverHolds(kept.coverMode, asked.coverMode))
   if (!vsm || moved || poolMoved || (short && !growEngineVsm(device, list, vsm, wanted)))
     vsm = grantEngineVsm(rt, device, list, wanted)

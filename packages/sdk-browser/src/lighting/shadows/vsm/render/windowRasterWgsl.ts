@@ -60,16 +60,16 @@ fn vsmSoftwareSides(page:PageInfo)->PageInfo{var p=page;p.flags&=~${FLAG_BACK}u;
  * `../../../../visibility/raster/clusterWgsl.ts`): on a page of it that is one to draw, kept by the program's
  * `pixelKeeps(t, pixel, c, texel, slice, depth)` (the casters' masked rows are cut here; the patches' are cut at their vertices and keep
  * every pixel), its depth joins the texel of its layer's slice — the bound one, or where `merged` the dynamic or the static one
- * by the record — by `atomicMax` (`vsmRenderJoin`'s rule).
+ * by the record — by `atomicMax` (`vsmRenderJoin`'s rule). With `overdraw` the texel is counted first (`vsmOverdrawAdd`), as the hardware fragment counts it (`vsmRenderCount`): every covered pixel of a page that is one to draw.
  */
-export const vsmSoftwarePixelText = (merged: boolean) => /* wgsl */ `
+export const vsmSoftwarePixelText = (merged: boolean, overdraw = false) => /* wgsl */ `
 fn writePixel(t:Tri,pixel:vec2i,c:vec3f,mode:u32){
  if(pixel.x>t.maxPixel.x||pixel.y>t.maxPixel.y){return;}
  let local=vec2u(pixel)>>vec2u(VSM_LOG2_PAGE);
  let origin=swPool[local.y*SW_SIDE+local.x];
  if(origin==VSM_RENDER_NO_PAGE){return;}
  let texel=vec2u(origin&0xFFFFu,origin>>16u)*VSM_PAGE_TEXELS+(vec2u(pixel)&vec2u(VSM_PAGE_TEXEL_MASK));
- let slice=${merged ? 'select(0u,vsm.staticSlice,vsmRecordStatic(swGroup)!=0u)' : '0u'};
+ ${overdraw ? 'vsmOverdrawAdd(texel);\n ' : ''}let slice=${merged ? 'select(0u,vsm.staticSlice,vsmRecordStatic(swGroup)!=0u)' : '0u'};
  let depth=vsmRenderDepth(t.depth.x+t.depth.y*c.y+t.depth.z*c.z);
  if(!pixelKeeps(t,pixel,c,texel,slice,depth)){return;}
  vsmPoolAtomicMax(texel,slice,depth);

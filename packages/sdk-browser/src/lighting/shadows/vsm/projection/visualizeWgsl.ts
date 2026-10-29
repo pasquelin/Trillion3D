@@ -50,13 +50,19 @@ import {
 } from './projectionWgsl.ts'
 
 /** The tables the views read: the projection's but the counters, with the pool's page records. */
-export const VSM_VISUALIZE_VSM_SPECS: readonly VsmBindingSpec[] = [
+const VSM_VISUALIZE_VSM_SPECS: readonly VsmBindingSpec[] = [
   { resource: 'uniforms', binding: 0 },
   { resource: 'pageTable', binding: 1 },
   { resource: 'projectionData', binding: 2 },
   { resource: 'pagePool', binding: 4 },
   { resource: 'poolPageInfo', binding: 6 },
 ]
+
+/** The tables the views of a pool `layout` read: with the overdraw view the slice of counts takes the place of the page records, which no other view is on to read (the stage holds eight storage buffers). */
+export const vsmVisualizeSpecs = (layout: VsmLayout): readonly VsmBindingSpec[] =>
+  layout.overdraw
+    ? [...VSM_VISUALIZE_VSM_SPECS.slice(0, -1), { resource: 'overdrawSlice', binding: 6 }]
+    : VSM_VISUALIZE_VSM_SPECS
 
 /** The words of the views' uniform (`VSM_PROJECTION_BINDING.visualize`): the mode id (`VIRTUAL_SHADOW_MAP_VIEWS`), the record of the one light shown (−1, every light), whether the cached-page view shows the kept pages only. */
 export const VSM_VISUALIZE_PARAM_WORDS = 4
@@ -187,6 +193,33 @@ fn vsmVisualizeOutput(k:u32,r:VsmTraceResult,accumulator:vec4f,directional:bool)
 `,
 )
 
+/**
+ * The colour a light adds at a pixel in the overdraw view (`vsmVisualizeOutput`, in the place of the views' above in a pool that holds the slice of counts): the count of draws of the pool texel the
+ * light's last ray read, in the red channel, the lights' counts added when every light is shown. The post pass (`../debug/visualizeView.ts`) gives the count its colour.
+ */
+export const VSM_VISUALIZE_OVERDRAW_OUTPUT_WGSL = wgslBlock(
+  'VSM_VISUALIZE_OVERDRAW_OUTPUT_WGSL',
+  [VSM_CONSTANTS_WGSL, VSM_PAGE_ADDRESS_WGSL, VSM_TRACE_RESULT_WGSL, NO_INDEX],
+  `
+struct VsmVizParams{mode:u32,light:i32,cachedOnly:u32,scale:f32,}
+@group(1) @binding(${VSM_PROJECTION_BINDING.visualize}) var<uniform> vsmViz:VsmVizParams;
+fn vsmVisualizeOutput(k:u32,r:VsmTraceResult,accumulator:vec4f,directional:bool)->vec4f{
+ let one=vsmViz.light>=0;
+ if(one&&u32(vsmViz.light)!=k){return accumulator;}
+ if(r.rayCount==0u){return accumulator;}
+ let seen=vsmSeen;
+ let poolPage=seen.poolTexel>>vec2u(VSM_LOG2_PAGE);
+ var count=0u;
+ if(seen.map!=NO_INDEX&&poolPage.x<=vsm.poolRowMask&&vsmPoolIndexOf(poolPage)<vsm.poolPages){count=vsmOverdrawLoad(seen.poolTexel);}
+ return vec4f(f32(count)+select(accumulator.x,0.0,one),0.0,0.0,1.0);
+}
+`,
+)
+
+/** The output function of a pool `layout`'s views: the overdraw view's where it holds the slice of counts, else the others'. */
+const vsmVisualizeOutputOf = (layout: VsmLayout) =>
+  layout.overdraw ? VSM_VISUALIZE_OVERDRAW_OUTPUT_WGSL : VSM_VISUALIZE_OUTPUT_WGSL
+
 /** The colour of a pixel of the ray count view in the post pass: the rays traced over the most (`sums`: x the rays traced, y the most), from green to red, brighter with the number of lights. */
 export const VSM_VISUALIZE_RAY_COLOR_WGSL = wgslBlock(
   'VSM_VISUALIZE_RAY_COLOR_WGSL',
@@ -280,14 +313,14 @@ export function vsmVisualizeSunsWgsl(layout: VsmLayout, subgroups = false) {
       vsmProjectionVoteWgsl(subgroups),
       VSM_PROJECTION_PIXEL_WGSL,
       VSM_PROJECTION_OPAQUE_WGSL,
-      vsmProjectionRegionWgsl('gbuffer'),
+      vsmProjectionRegionWgsl('gbuffer', !layout.overdraw),
       VSM_PROJECTION_SUBSURFACE_WGSL,
       SUNS_ENTRY,
     ].join('\n'),
     [
-      ...projectionCommon(layout, VSM_PROJECTION_PIXEL_OF_WGSL, VSM_VISUALIZE_VSM_SPECS),
-      ...traceDeps(layout, VSM_TRACE_KINDS_SUN, 'gbuffer', true, VSM_VISUALIZE_VSM_SPECS),
-      VSM_VISUALIZE_OUTPUT_WGSL,
+      ...projectionCommon(layout, VSM_PROJECTION_PIXEL_OF_WGSL, vsmVisualizeSpecs(layout)),
+      ...traceDeps(layout, VSM_TRACE_KINDS_SUN, 'gbuffer', true, vsmVisualizeSpecs(layout)),
+      vsmVisualizeOutputOf(layout),
       ...(subgroups ? [SUBGROUP_ALL_WGSL] : []),
     ],
   )
@@ -310,14 +343,14 @@ export function vsmVisualizeLocalsWgsl(layout: VsmLayout, subgroups = false) {
       vsmProjectionVoteWgsl(subgroups),
       VSM_PROJECTION_PIXEL_WGSL,
       VSM_PROJECTION_OPAQUE_WGSL,
-      vsmProjectionRegionWgsl('gbuffer'),
+      vsmProjectionRegionWgsl('gbuffer', !layout.overdraw),
       VSM_PROJECTION_SUBSURFACE_WGSL,
       localsEntry(subgroups),
     ].join('\n'),
     [
-      ...projectionCommon(layout, VSM_PROJECTION_PIXEL_OF_WGSL, VSM_VISUALIZE_VSM_SPECS),
-      ...traceDeps(layout, VSM_TRACE_KINDS_LOCAL, 'gbuffer', true, VSM_VISUALIZE_VSM_SPECS),
-      VSM_VISUALIZE_OUTPUT_WGSL,
+      ...projectionCommon(layout, VSM_PROJECTION_PIXEL_OF_WGSL, vsmVisualizeSpecs(layout)),
+      ...traceDeps(layout, VSM_TRACE_KINDS_LOCAL, 'gbuffer', true, vsmVisualizeSpecs(layout)),
+      vsmVisualizeOutputOf(layout),
       ...(subgroups ? [SUBGROUP_ALL_WGSL] : []),
       VIEW_WGSL,
       DIRECT_LIGHT_WGSL,
@@ -340,14 +373,14 @@ export function vsmVisualizePerLightWgsl(layout: VsmLayout, subgroups = false) {
       vsmProjectionVoteWgsl(subgroups),
       VSM_PROJECTION_PIXEL_WGSL,
       VSM_PROJECTION_OPAQUE_WGSL,
-      vsmProjectionRegionWgsl('gbuffer'),
+      vsmProjectionRegionWgsl('gbuffer', !layout.overdraw),
       VSM_PROJECTION_SUBSURFACE_WGSL,
       allLocalsEntry,
     ].join('\n'),
     [
-      ...projectionCommon(layout, VSM_PROJECTION_PIXEL_OF_WGSL, VSM_VISUALIZE_VSM_SPECS),
-      ...traceDeps(layout, VSM_TRACE_KINDS_LOCAL, 'gbuffer', true, VSM_VISUALIZE_VSM_SPECS),
-      VSM_VISUALIZE_OUTPUT_WGSL,
+      ...projectionCommon(layout, VSM_PROJECTION_PIXEL_OF_WGSL, vsmVisualizeSpecs(layout)),
+      ...traceDeps(layout, VSM_TRACE_KINDS_LOCAL, 'gbuffer', true, vsmVisualizeSpecs(layout)),
+      vsmVisualizeOutputOf(layout),
       ...(subgroups ? [SUBGROUP_ALL_WGSL] : []),
     ],
   )

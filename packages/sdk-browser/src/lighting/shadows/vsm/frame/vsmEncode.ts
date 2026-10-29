@@ -3,7 +3,7 @@ import {
   sampledMarkingSamples,
 } from '../../../manyLightsSampled/frame.ts'
 import { vsmViewToShifted } from '../froxel/froxelView.ts'
-import { VSM_PRESSURE_BIAS_NONE } from '../constants.ts'
+import { VSM_OVERDRAW_SLICE, VSM_PRESSURE_BIAS_NONE } from '../constants.ts'
 import { vsmLightGridFor, vsmProjectionReserve } from '../projection/projectionStore.ts'
 import { LIGHT_SETTINGS } from '../../../../../../sdk-core/src/scene/light/contracts.ts'
 // The frame's shadow-map work on the GPU, from the change boxes to the mask the lighting reads.
@@ -204,6 +204,8 @@ function vsmFrameOf(
   // What the passes of the run read cleared before it: the overflow flags, cleared whatever the counters
   // say (they are read back every frame).
   encoder.clearBuffer(res.stats)
+  // The overdraw view's slice, cleared whole each image: it counts the draws of this image alone.
+  if (res.layout.overdraw) encoder.clearBuffer(res.pagePool[VSM_OVERDRAW_SLICE]!)
   // The compute throttle where the settings ask it: its buffers are cleared, and its kernels run, inside the marking.
   const throttle = plan.throttleReady ? vsmThrottleState(device, res) : undefined
   return {

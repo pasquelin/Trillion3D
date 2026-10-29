@@ -133,6 +133,8 @@ export type VsmAsked = {
   prefilteredDistant: boolean
   /** The shadows are classic shadow maps (`shadowVirtualEnable` off). */
   classic: boolean
+  /** The overdraw view is on: the pool holds its slice of counts (`virtual-shadow-map-overdraw`). */
+  overdraw: boolean
 }
 
 /** What the settings ask of the frame's set (`shadowMaxPhysicalPages`, `shadowOcclusionCulling`,
@@ -151,6 +153,7 @@ export const vsmAsked = (rt: WebgpuPagesRuntime): VsmAsked => ({
   coverMode: vsmCoverModeOfSettings((key) => readShadowSetting(rt, key)),
   prefilteredDistant: readShadowSetting(rt, 'shadowPrefilteredDistant'),
   classic: !readShadowSetting(rt, 'shadowVirtualEnable'),
+  overdraw: rt.run.diagnostic === 'virtual-shadow-map-overdraw',
 })
 
 /** What a set of `layout` holds of it: its pool, and whether it has the pyramid, its second layer,
@@ -163,6 +166,7 @@ export const askedOfLayout = (layout: VsmLayout): VsmAsked => ({
   coverMode: layout.coverMode,
   prefilteredDistant: layout.prefilteredDistant,
   classic: layout.classic,
+  overdraw: layout.overdraw,
 })
 
 /** The set's options for `fullMapCapacity` maps and `sunMaps` clipmap maps (`sunMapsFor`), for what

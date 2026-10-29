@@ -11,7 +11,8 @@ import { vsmBindingsWgsl } from '../resources.ts'
 import {
   VSM_RENDER_JOIN_WGSL,
   VSM_RENDER_OUT_WGSL,
-  VSM_RENDER_RASTER_FRAGMENT_SPECS,
+  vsmRenderCountWgsl,
+  vsmRenderFragmentSpecs,
   VSM_RENDER_RASTER_SHARED_SPECS,
   VSM_RENDER_RASTER_VERTEX_SPECS,
 } from './renderRasterWgsl.ts'
@@ -78,6 +79,7 @@ const voxelFragment = () => /* wgsl */ `
 @fragment fn vsmRenderFs(in:VsmVoxelOut){
  var texel:vec2u;
  if(!vsmRenderPoolTexel(in.window,in.position.xy,&texel)){discard;}
+ vsmRenderCount(texel);
  let hit=voxelPixel(in.start,in.dir,in.cells);
  if(!hit.found){discard;}
  // The bias lowers the depth by its per-distance term over the square of the clip w at the hit (as the casters' vertices are lowered, vsmAtlasBiasedClip).
@@ -113,7 +115,8 @@ ${voxelVertex(wpo)}${voxelFragment()}
       VSM_PROJECTION_DATA_WGSL,
       DRAW_BIAS_WGSL,
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
-      vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),
+      vsmRenderCountWgsl(layout),
+      vsmBindingsWgsl(1, vsmRenderFragmentSpecs(layout), layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_SHARED_SPECS, layout),
       VOXEL_HIT_WGSL,
       ...(wpo.programs.length ? [materialTableWgsl(VIS_BINDINGS.material), wpoGraphWgsl(wpo)] : []),

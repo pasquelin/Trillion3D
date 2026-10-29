@@ -160,7 +160,7 @@ export const occlusionBufferSizes = (layout: VsmLayout) => ({
  */
 export function vsmResourceBytes(layout: VsmLayout) {
   let bytes = vsmTableBytes(layout)
-  bytes += VSM_POOL_SLICES * bufferBytes(poolSliceBytes(layout))
+  bytes += (VSM_POOL_SLICES + (layout.overdraw ? 1 : 0)) * bufferBytes(poolSliceBytes(layout))
   for (const size of Object.values(setBufferSizes(layout))) bytes += bufferBytes(size)
   if (layout.occlusion) {
     bytes += occlusionPyramidBytes(layout)

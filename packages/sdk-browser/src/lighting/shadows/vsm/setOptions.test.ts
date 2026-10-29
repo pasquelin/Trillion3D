@@ -77,6 +77,7 @@ test('the engine’s set options carry the kept pages and the cover into its lay
     coverMode: 'all',
     prefilteredDistant: false,
     classic: false,
+    overdraw: false,
   })
   assert.equal(askedOfLayout(uncached).dynamicHzb, false, 'no second layer without the cache')
   // The second layer asked without the pyramid is no layer: the one rule the held set is weighed by.

@@ -187,6 +187,9 @@ export const VSM_PAGE_LISTS = Object.keys(VSM_PAGE_LIST).length
 /** Pool array slices: 0 dynamic, 1 static (with caching). */
 export const VSM_POOL_SLICES = 2
 
+/** The pool's slice past the two, made only for the overdraw view: the shadow raster's count of draws a texel (`layout.overdraw`). */
+export const VSM_OVERDRAW_SLICE = VSM_POOL_SLICES
+
 /**
  * Declared: the width, in texels, of a row of the physical pool and of the page tables. The tables
  * are storage buffers with no 2D limit, so it only sets the layout: 16384 / 128 = 128 pool pages and

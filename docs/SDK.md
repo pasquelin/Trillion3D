@@ -3491,13 +3491,21 @@ world.shadows = { shadowShowStats: null } // off
 
 The shadow casters view (`virtual-shadow-map-shadow-casters`) paints each pixel in the colour of its placement's class, shaded by the angle of its face to the view, with the boxes of the invalidating placements over it.
 
-`shadowVisualizeLayout` (`0`), `shadowVisualizeCachedPagesOnly` (`false`) and `shadowVisualizeLightName` (`''`) shape the virtual shadow map views above (`virtual-shadow-map-shadow-factor` and the eight others, which draw what the last ray of each pixel read). The layout is `0` over the whole image (in grey), `1` in a thumbnail of a third of the image's width and height at its upper left, `2` over its left half. `shadowVisualizeCachedPagesOnly` makes the cached-page view show the kept pages for every light and hide the others. `shadowVisualizeLightName` is the name of the one light to show, alone and in full colour: the light whose name is exactly that, else the first whose name contains it; the empty string (the default), or a name no light bears, shows every light, a quarter of each colour added. The local lights are shown with the one-pass projection (`shadowOnePassProjection`, on by default) and without it.
+`shadowVisualizeLayout` (`0`), `shadowVisualizeCachedPagesOnly` (`false`), `shadowVisualizeLightName` (`''`) and `shadowVisualizeOverdrawScale` (`15`) shape the virtual shadow map views above (`virtual-shadow-map-shadow-factor` and the nine others, which draw what the last ray of each pixel read). The layout is `0` over the whole image (in grey), `1` in a thumbnail of a third of the image's width and height at its upper left, `2` over its left half. `shadowVisualizeCachedPagesOnly` makes the cached-page view show the kept pages for every light and hide the others. `shadowVisualizeLightName` is the name of the one light to show, alone and in full colour: the light whose name is exactly that, else the first whose name contains it; the empty string (the default), or a name no light bears, shows every light, a quarter of each colour added. The local lights are shown with the one-pass projection (`shadowOnePassProjection`, on by default) and without it.
 
 ```js
 await engine.setDiagnostic('virtual-shadow-map-cached-page')
 world.shadows = { shadowVisualizeLayout: 2 } // the view over the left half of the image
 world.shadows = { shadowVisualizeLightName: 'Lamp', shadowVisualizeCachedPagesOnly: true } // the kept pages of the light named Lamp
 world.shadows = { shadowVisualizeLayout: null, shadowVisualizeLightName: null } // back to the defaults
+```
+
+The overdraw view (`virtual-shadow-map-overdraw`) counts, in a slice of the page pool made for it, how many times the shadow raster drew each texel this image: the hardware raster for the triangles it draws and the software raster for the small ones, a draw counted wherever its pixel lands on a page that is drawn, before any depth test. Each pixel is coloured by the count of the texel it reads, `1 - 2^(-count x scale / 100)` on an inferno colour map, the lights' counts added when every light is shown. `shadowVisualizeOverdrawScale` is that scale as a percentage (`15` by default, from `0` to `100`): a larger value reaches the bright end with fewer draws. The pixels that face away from their light are kept, as the counts concern the raster and not the projection. Choosing the view makes the pool again with the extra slice (and leaving it makes it without), so the cached pages are drawn again once; the software raster counts only on a device that grants eleven storage buffers a shader stage, the hardware raster on every device.
+
+```js
+await engine.setDiagnostic('virtual-shadow-map-overdraw')
+world.shadows = { shadowVisualizeOverdrawScale: 40 } // the bright end after fewer draws
+world.shadows = { shadowVisualizeOverdrawScale: null } // back to 15
 ```
 
 The quality levels (the `shadows` group) write the four that shape the distance and its edge, the shadow
@@ -4466,26 +4474,9 @@ const world = createWorld('viewer', { hairStrands: true, hairVisibilityCoverageM
 | `pathTracingWiperMode` | `false` | path tracer drawn right of the cursor only |
 | `pathTracingDenoiser` | `true` | denoise at the last sample |
 | `pathTracingDenoiserNormalSpace` | `0` | `0` world, `1` camera-space normals for the denoiser |
-| `pathTracingSpatialDenoiser` | `true` | the denoiser's spatial stage (edge-aware, guided by albedo, normals and variance) |
+| `pathTracingSpatialDenoiser` | `true` | the denoiser's spatial stage |
 | `pathTracingTemporalDenoiser` | `false` | the temporal stage, which needs an earlier denoised image |
 | `pathTracingTemporalDenoiserMode` | `1` | `0` and `1` at the last sample, `2` at every image |
-| `pathTracingDenoiserVarianceType` | `1` | prepass variance: `0` per colour channel, `1` luminance, albedo and normal length |
-| `pathTracingDenoiserOutputVarianceTexture` | `false` | always write the variance image |
-| `pathTracingDenoiserRankedLuminanceVariance` | `false` | rank the channels before taking the luminance for the variance |
-| `pathTracingTemporalDenoiserVisualizeMotionVector` | `false` | draw the motion found over the image |
-| `pathTracingTemporalDenoiserSubPixelOffset` | `true` | refine the motion under a pixel |
-| `pathTracingTemporalDenoiserKappa` | `-1` | fall-off of the history weight (`-1` from `DeltaE`) |
-| `pathTracingTemporalDenoiserEta` | `1` | error under which the history keeps its full weight (`-1` one just-noticeable difference) |
-| `pathTracingTemporalDenoiserDeltaE` | `5` | colour difference at which the history weight reaches zero |
-| `pathTracingTemporalDenoiserDeltaEHighFrequency` | `2.1` | per-pixel colour difference from which the history is cut |
-| `pathTracingTemporalDenoiserAlpha` | `1` | weight of the history in the average |
-| `pathTracingTemporalDenoiserSource` | `0` | motion estimated on `0` denoised radiance, `1` normals, `2` albedo, `3` raw radiance, else a fusion of variances |
-| `pathTracingTemporalDenoiserSubPixelOffsetStartMip` | `8` | coarsest pyramid level with a sub-pixel estimate |
-| `pathTracingTemporalDenoiserMotionOperation` | `1` | `1` subtracts the motion of the image against itself |
-| `pathTracingTemporalDenoiserVisualizeWarp` | `0` | `1` the warped history, `2` with the weights |
-| `pathTracingTemporalDenoiserDistanceMetrics` | `2` | `0` luminance, `1` colour distance, `2` CIE 2000 difference |
-| `pathTracingTemporalDenoiserTotalVariation` | `true` | less history where the error varies a lot |
-| `pathTracingTemporalDenoiserPatchCount` | `1` | patches merged in the temporal blend (`1` to `16`) |
 | `pathTracingMISMode` | `2` | `0` material samples alone, `1` light samples alone, `2` both weighed against each other |
 | `pathTracingMISCompensation` | `true` | the sky's importance sampling leaves out what the material's samples find (needs mode `2`) |
 | `pathTracingMaxPathIntensity` | `24` | brightest a path off the camera's ray adds (`1` to `65504`) |
@@ -4501,7 +4492,7 @@ const world = createWorld('viewer', { hairStrands: true, hairVisibilityCoverageM
 | `pathTracingLightGridMaxCount` | `128` | most lights a cell keeps (`1` to `256`) |
 | `pathTracingLightGridAxis` | `-1` | axis the lights are projected along, `-1` the best |
 
-Current limits: a hit's material is read back from the lit image where the surface shows, else from the surface cache's cards; there are no glass, subsurface, cloth or hair lobes, no capsule lights, light profiles, light functions or rectangle light textures; the spatial stage is the engine's own edge-aware filter (the reference's is an external neural plug-in, not shipped); the atmosphere and the clouds are not traced.
+Current limits: a hit's material is read back from the lit image where the surface shows, else from the surface cache's cards; there are no glass, subsurface, cloth or hair lobes, no capsule lights, light profiles, light functions or rectangle light textures; the denoiser settings are accepted but the denoiser is not built yet (the image shown is the raw accumulation); the atmosphere and the clouds are not traced.
 
 ```js
 // A path-traced view of 256 samples, 8 bounces, adaptive sampling on.
@@ -4514,17 +4505,6 @@ const world = createWorld('viewer', {
   // Sample the lights alone (no material samples), the camera seeing every light.
   pathTracingMISMode: 1,
   pathTracingVisibleLights: 1,
-})
-```
-
-```js
-// The temporal denoiser at every image, history cut sooner, the motion drawn.
-const world = createWorld('viewer', {
-  pathTracing: true,
-  pathTracingTemporalDenoiser: true,
-  pathTracingTemporalDenoiserMode: 2,
-  pathTracingTemporalDenoiserDeltaE: 2,
-  pathTracingTemporalDenoiserVisualizeMotionVector: true,
 })
 ```
 
@@ -4795,6 +4775,7 @@ The sampled lighting (`sampledLights`) and the subsurface scattering have views 
 | `virtual-shadow-map-dirty-page` | over the image in grey, the page the pixel reads, red where its static layer was written (drawn or cleared) this image, green where its dynamic layer was; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-dirty-page')`) |
 | `virtual-shadow-map-gpu-invalidated-page` | over the image in grey, the page the pixel reads, red where its static layer was invalidated by the casters that moved, green where its dynamic layer was; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-gpu-invalidated-page')`) |
 | `virtual-shadow-map-merged-page` | over the image in grey, the page the pixel reads, red where its static layer was drawn this image and merged into the dynamic one, green elsewhere; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-merged-page')`) |
+| `virtual-shadow-map-overdraw` | over the image in grey, how many times the shadow raster drew the texel the pixel reads this image, inferno from dark to bright, scaled by `shadowVisualizeOverdrawScale`; needs shadows and virtual shadow maps |
 | `rect-light-atlas` | over the image, the atlas of the rectangle lights' pictures drawn small at the mip level `rectLightAtlasDebugMipLevel`, a green border round each slot in use, red round the packing's horizon lines, yellow round the free rectangles, and the figures as text (the same as `rectLightAtlasDebug`) |
 | `sampled-lights-overview` | the shadow caster views side by side, in tiles with rounded corners, over the image |
 | `sampled-lights-shadow-casters` | the surface under each pixel in grey, with the label `Shadow Casters, Materials:0, FarField:0, HairVoxels:0` (the traces are made through the distance field, which has no scene of its own to colour) |

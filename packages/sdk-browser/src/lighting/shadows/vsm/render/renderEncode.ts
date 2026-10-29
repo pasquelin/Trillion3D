@@ -25,7 +25,7 @@ import { VSM_RENDER_VIEWS_SPECS } from './renderViewsWgsl.ts'
 import { vsmSoftwareSpecs } from './renderSoftwareWgsl.ts'
 import { VSM_RENDER_WORLD_GROUP } from './renderCandidatesWgsl.ts'
 import {
-  VSM_RENDER_RASTER_FRAGMENT_SPECS,
+  vsmRenderFragmentSpecs,
   VSM_RENDER_RASTER_SHARED_SPECS,
   VSM_RENDER_RASTER_VERTEX_SPECS,
 } from './renderRasterWgsl.ts'
@@ -43,6 +43,7 @@ import {
   vsmRenderTiersDrawn,
   vsmCullMarks,
   vsmSoftwareMerged,
+  vsmSoftwareOverdraw,
   vsmViewsLaid,
 } from './renderParamsWgsl.ts'
 import { VSM_RENDER_FIRST_SLOT, VSM_RENDER_PARAMS_BYTES } from './renderParams.ts'
@@ -280,7 +281,11 @@ function softwareGroup(
   params: GPUBufferBinding,
   slice?: number,
 ) {
-  const specs = vsmSoftwareSpecs(!vsmViewsLaid(ctx.device), slice === undefined)
+  const specs = vsmSoftwareSpecs(
+    !vsmViewsLaid(ctx.device),
+    slice === undefined,
+    vsmSoftwareOverdraw(ctx.device, res.layout.overdraw),
+  )
   return ctx.device.createBindGroup({
     layout,
     entries: [
@@ -326,7 +331,7 @@ function poolRasterGroup(ctx: VsmRenderContext, res: VsmResources, bias: GPUBuff
     entries: [
       ...sequentialEntries([{ buffer: ctx.buffers.sorted! }]),
       ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_VERTEX_SPECS),
-      ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_FRAGMENT_SPECS),
+      ...vsmBindGroupEntries(res, vsmRenderFragmentSpecs(res.layout)),
       ...vsmBindGroupEntries(res, VSM_RENDER_RASTER_SHARED_SPECS),
       { binding: ATLAS_RASTER_BINDING, resource: { buffer: bias } },
     ],

@@ -13,6 +13,7 @@ import * as doubleRound from './doubleRound.ts'
 import * as doubleWords from './doubleWords.ts'
 import * as f32 from './f32.ts'
 import * as geometry from './geometry.ts'
+import * as inferno from './inferno.ts'
 import * as integer from './integer.ts'
 import * as inverseTranspose from './inverseTranspose.ts'
 import * as lighting from './lighting.ts'
@@ -41,6 +42,7 @@ const MODULES = {
   doubleWords,
   f32,
   geometry,
+  inferno,
   integer,
   inverseTranspose,
   lighting,
