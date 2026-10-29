@@ -666,6 +666,27 @@ world.shadows = { shadowPrefilteredDistantHistoryBlendFactor: 0.5 } // follow th
 world.shadows = { shadowPrefilteredDistant: null } // back to the default: off
 ```
 
+**The first-person pixels' own shadow.** `shadowFirstPersonSelfShadow` (false) gives the pixels of the first-person objects
+a shadow of their own, traced in the screen (`lighting/shadows/firstPerson/selfShadow.ts`), after the suns' masks are projected.
+Four kernels run over all the suns: the *downsample* keeps, for each pixel of the half-resolution grid, the first-person pixel of
+its four with the closest or the farthest depth (`shadowFirstPersonSelfShadowDownsampleCheckerboardMode`: 0 the closest, 1 the
+farthest, 2 alternately) and its normal; the *trace* marches the depth pyramid from that pixel toward the sun, as far as
+`shadowFirstPersonSelfShadowMaxTraceDistance` metres (1) in at most `shadowFirstPersonSelfShadowMaxHzbTraceIterations` steps (512),
+a hit lying less far behind a tile than `shadowFirstPersonSelfShadowRelativeDepthThickness` (0.2) of its depth, the march giving up
+when `shadowFirstPersonSelfShadowMinimumHzbTraceOccupancy` lanes or fewer of its group still walk (0, never); the *blur* is
+3 x 3, its samples weighed by the likeness of their depth (`shadowFirstPersonSelfShadowBilateralFilterDepthThreshold`, 1), the
+shadow lerped from the pixel's own to the filtered by the mean distance to the hit of its neighbours (contact hardening); the
+*upsample* reads the four grid pixels around each first-person pixel and takes the minimum of the sun's mask and the shadow.
+`shadowFirstPersonSelfShadowRawFullResolution` (false) traces every pixel with no filter. `shadowFirstPersonSelfShadowLightTypes`
+(0 the suns, 1 the local lights, 2 all) names the lights; only the suns are taken into their masks so far. It needs the screen
+reflection's trace layers, and the sun masks are projected again each image while it is on.
+
+```ts
+world.shadows = { shadowFirstPersonSelfShadow: true } // the hands and the weapon shadow one another
+world.shadows = { shadowFirstPersonSelfShadowRawFullResolution: true } // pixel-perfect, the ground truth of the default
+world.shadows = { shadowFirstPersonSelfShadow: null } // back to the default: off
+```
+
 **The counters over frames.** `shadowAccumulateStats` (0, none) collects the page counters of the shadow maps over
 several frames (`statsAccumulate.ts`). While it is not 0, each frame that holds shadow maps copies the stats buffer
 (pages requested, kept static and dynamic, cleared, newly granted, empty, left to the offset's cull, overflow flags) into

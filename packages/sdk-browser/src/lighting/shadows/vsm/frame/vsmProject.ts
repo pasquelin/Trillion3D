@@ -13,6 +13,10 @@ import {
   vsmHairMasks,
 } from '../projection/hairProjectionPass.ts'
 import { PER_LIGHT_MASK_LAYERS } from '../projection/maskFormat.ts'
+import {
+  encodeFirstPersonSelfShadow,
+  firstPersonSelfShadowOn,
+} from '../../firstPerson/selfShadow.ts'
 import { sunCount, VSM_PROJECTION_MAX_PASS_LIGHTS } from '../projection/projectionView.ts'
 import {
   capsuleCastsDirect,
@@ -396,7 +400,10 @@ function encodeVsmProjection(
     grid,
   )
   // A capsule shadow moves with its object, and the strands' with them: the masks they are taken into are projected again, not held.
-  const standing = held && !shadowsUnsettled(lights) && !capsuleCastsDirect(rt) && !hairShadow
+  // The first-person pixels' own shadow follows the first-person objects: the masks are projected again, not held.
+  const selfShadow = suns > 0 && firstPersonSelfShadowOn(rt, vsm.state.maps.shadows)
+  const standing =
+    held && !shadowsUnsettled(lights) && !capsuleCastsDirect(rt) && !hairShadow && !selfShadow
   // The per-light path is held with the projection: its lights are traced again where it is not.
   if (!standing) perLight?.markStale()
   const hair = gpu.hair?.visible?.shadow
@@ -407,6 +414,16 @@ function encodeVsmProjection(
   if (standing) return hairMasks ? 1 : 0
   if (!encodeVirtualShadowProjection(steps, vsm.res, context, source, target)) return 0
   if (suns) encodeCapsuleSunMasks(rt, cam, steps.apart(), context.lights, suns, mask.sunsView)
+  if (selfShadow)
+    encodeFirstPersonSelfShadow(
+      rt,
+      steps.apart(),
+      vsm.state.maps.shadows,
+      context.lights,
+      suns,
+      mask.sunsView,
+      views,
+    )
   vsm.projectionHold.keep()
   return 1
 }

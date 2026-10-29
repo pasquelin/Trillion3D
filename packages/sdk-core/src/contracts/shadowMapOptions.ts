@@ -22,6 +22,15 @@ const CLIPMAP_AND_MARKING_RULES = /* @__PURE__ */ (() =>
     integer('shadowFirstPersonClipmapLastLevel', 18, [0, 30]),
     number('shadowFirstPersonPixelRequestBias', 2, [-16, 16]),
     integer('shadowFirstPersonRequestMinLevelClamp', 8, [0, 30]),
+    flag('shadowFirstPersonSelfShadow', false),
+    integer('shadowFirstPersonSelfShadowLightTypes', 0, [0, 2]),
+    integer('shadowFirstPersonSelfShadowDownsampleCheckerboardMode', 0, [0, 2]),
+    nonNegative('shadowFirstPersonSelfShadowMaxTraceDistance', 1),
+    integer('shadowFirstPersonSelfShadowMaxHzbTraceIterations', 512, [1, 4096]),
+    positive('shadowFirstPersonSelfShadowRelativeDepthThickness', 0.2),
+    count('shadowFirstPersonSelfShadowMinimumHzbTraceOccupancy', 0, 0),
+    positive('shadowFirstPersonSelfShadowBilateralFilterDepthThreshold', 1),
+    flag('shadowFirstPersonSelfShadowRawFullResolution', false),
     integer('shadowClipmapFirstCoarseLevel', 15, [0, 30]),
     integer('shadowClipmapLastCoarseLevel', 18, [0, 30]),
     integer('shadowClipmapMinCameraViewportWidth', 0, [0, 16384]),
@@ -187,6 +196,15 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  * | `shadowFirstPersonClipmapLastLevel` | 18 | |
  * | `shadowFirstPersonPixelRequestBias` | 2 | |
  * | `shadowFirstPersonRequestMinLevelClamp` | 8 | |
+ * | `shadowFirstPersonSelfShadow` | false | |
+ * | `shadowFirstPersonSelfShadowLightTypes` | 0 | |
+ * | `shadowFirstPersonSelfShadowDownsampleCheckerboardMode` | 0 | |
+ * | `shadowFirstPersonSelfShadowMaxTraceDistance` | 1 | |
+ * | `shadowFirstPersonSelfShadowMaxHzbTraceIterations` | 512 | |
+ * | `shadowFirstPersonSelfShadowRelativeDepthThickness` | 0.2 | |
+ * | `shadowFirstPersonSelfShadowMinimumHzbTraceOccupancy` | 0 | |
+ * | `shadowFirstPersonSelfShadowBilateralFilterDepthThreshold` | 1 | |
+ * | `shadowFirstPersonSelfShadowRawFullResolution` | false | |
  * | `shadowMarkCoarsePagesDirectional` | 2 | |
  * | `shadowMarkCoarsePagesLocal` | 1 | 2 2 2 1 |
  * | `shadowCoarsePagePixelThresholdStatic` | 1 | |
@@ -424,6 +442,17 @@ const RAY_AND_RESOLUTION_RULES = /* @__PURE__ */ (() =>
  *
  * `shadowRasterIndirectionMultiplier` is the factor, never read under 1, of the cut's cap of visible clusters
  * (`cutMaxVisibleClusters`) that sizes each of the raster's record lists.
+ *
+ * `shadowFirstPersonSelfShadow` (off by default) gives the pixels of the first-person objects a shadow of their own, traced in
+ * the screen: for each sun (`shadowFirstPersonSelfShadowLightTypes`: 0 the suns, 1 the local lights, 2 all) a ray from each
+ * first-person pixel toward the light marches the depth pyramid as far as `shadowFirstPersonSelfShadowMaxTraceDistance` metres
+ * (at most `shadowFirstPersonSelfShadowMaxHzbTraceIterations` steps, a hit lying less far behind a tile than
+ * `shadowFirstPersonSelfShadowRelativeDepthThickness` of its depth), at half the resolution of the image, then filtered with a
+ * 3 x 3 blur that hardens at the casters (`shadowFirstPersonSelfShadowBilateralFilterDepthThreshold` scales the depth
+ * difference that weighs the samples) and upsampled into the sun's mask by the minimum.
+ * `shadowFirstPersonSelfShadowDownsampleCheckerboardMode` picks the depth the half-resolution pixels keep (0 the closest, 1 the
+ * farthest, 2 alternately); `shadowFirstPersonSelfShadowRawFullResolution` traces every pixel, with no filter. The minimum occupancy
+ * of the march's lanes is `shadowFirstPersonSelfShadowMinimumHzbTraceOccupancy`.
  *
  * `shadowAccumulateStats` (0, none) collects the shadow maps' page counters over frames: above 0 it takes that many
  * frames that hold shadow maps, a negative value goes on until set back to 0; the rows are then reported once as a CSV

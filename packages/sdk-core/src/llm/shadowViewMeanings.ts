@@ -90,6 +90,24 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "Pixels the page marking steps over along the screen's horizontal axis, from 1 to 128 (2, the default): it tests every Nth pixel; higher costs less and may miss a page that few pixels see.",
   shadowPageMarkingPixelStrideY:
     "Pixels the page marking steps over along the screen's vertical axis, from 1 to 128 (2, the default): it tests every Nth pixel; higher costs less and may miss a page that few pixels see.",
+  shadowFirstPersonSelfShadow:
+    "Whether the pixels of the first-person objects take a shadow of their own, traced in the screen (false, the default): from each of those pixels a ray toward the light marches the depth pyramid, at half the resolution of the image, and the result is filtered and put into the light's shadow mask by the minimum. Needs the screen reflections' trace layers. Which lights: shadowFirstPersonSelfShadowLightTypes.",
+  shadowFirstPersonSelfShadowLightTypes:
+    'Which lights give the first-person objects a self shadow (0, the default, the directional lights only; 1 the local lights only; 2 all of them). Read where shadowFirstPersonSelfShadow is on.',
+  shadowFirstPersonSelfShadowDownsampleCheckerboardMode:
+    'The depth the half-resolution pixels of the first-person self shadow keep of their four (0, the default, the closest; 1 the farthest; 2 one then the other in a checkerboard). Read where shadowFirstPersonSelfShadow is on.',
+  shadowFirstPersonSelfShadowMaxTraceDistance:
+    'The longest ray, in metres, of the first-person self shadow (1, the default). Read where shadowFirstPersonSelfShadow is on.',
+  shadowFirstPersonSelfShadowMaxHzbTraceIterations:
+    "The most steps of the depth pyramid's march of the first-person self shadow's ray (512, the default; from 1 to 4096): fewer is faster and may show artifacts. Read where shadowFirstPersonSelfShadow is on.",
+  shadowFirstPersonSelfShadowRelativeDepthThickness:
+    "The share of a tile's depth behind which a hit of the first-person self shadow's ray is ignored (0.2, the default). Read where shadowFirstPersonSelfShadow is on.",
+  shadowFirstPersonSelfShadowMinimumHzbTraceOccupancy:
+    "The number of lanes of a group of threads at or under which the march of the first-person self shadow's rays gives up (0, the default: never); higher is faster and may show artifacts. Read where shadowFirstPersonSelfShadow is on.",
+  shadowFirstPersonSelfShadowBilateralFilterDepthThreshold:
+    'The scale of the depth difference that weighs the samples when the first-person self shadow is filtered and upsampled (1, the default): higher is softer and may leak light or shadow across edges. Read where shadowFirstPersonSelfShadow is on.',
+  shadowFirstPersonSelfShadowRawFullResolution:
+    'Whether the first-person self shadow is traced at the full resolution with no filter (false, the default): pixel-perfect shadows, the ground truth of the half-resolution ones. Read where shadowFirstPersonSelfShadow is on.',
   shadowAccumulateStats:
     "How many frames the shadow maps' counters are collected over (0, the default: none). Above 0, each of the next that many frames that holds shadow maps adds a row of the page counters (pages requested, kept static and dynamic, cleared, newly granted, empty, left to the offset's cull, overflow flags); a negative value goes on until it is set back to 0. When it ends, the rows are read back once and reported as one CSV text, a line a frame under a header of the counters' names, in the engine diagnostic 'shadow-stats'. The count restarts when the value changes.",
   shadowRasterIndirectionMultiplier:
