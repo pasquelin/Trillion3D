@@ -16,7 +16,7 @@
 //! takes the nearest window of its edges at the end.
 //!
 //! Every quantity is in double precision, from the chart's single-precision points.
-use super::mesh::{Chart, NONE};
+use super::mesh::{other_of, Chart, NONE};
 use super::ranked::{Least, Ranked};
 use crate::hlod::flatten::uv::extremes::lesser;
 use plane::angle_between;
@@ -117,12 +117,12 @@ impl Vertex {
 impl Edge {
     /// The end of the edge that is not `v`.
     fn other_end(&self, v: u32) -> u32 {
-        self.verts[0] ^ self.verts[1] ^ v
+        other_of(self.verts, v)
     }
 
     /// The face across the edge from face `f`.
     fn other_face(&self, f: u32) -> u32 {
-        self.faces[0] ^ self.faces[1] ^ f
+        other_of(self.faces, f)
     }
 
     fn is_boundary(&self) -> bool {

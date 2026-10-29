@@ -136,8 +136,8 @@ export type {
   OverlapHit,
   OverlapOptions,
   OverlapResult,
-  OverlapShape,
 } from '../../sdk-browser/src/physics/overlap.ts'
+export type { OverlapShape } from '../../sdk-browser/src/physics/raycast.ts'
 export type { PanZoomCameraControls } from '../../sdk-browser/src/camera/controls/panZoomControls.ts'
 export type { ParticleBlend } from '../../sdk-core/src/fluids/particles.ts'
 export type {

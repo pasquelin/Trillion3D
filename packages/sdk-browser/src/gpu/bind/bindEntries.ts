@@ -77,6 +77,15 @@ export const atlasEntries = (
   bufferEntry(bindings.pages, () => read()?.pages.buffer),
 ]
 
+/** The entries the visibility paths of a slot share, at the bindings the small-triangle raster holds
+ *  alike (`SMALL_BINDINGS`): the surfaces' records, the normal atlas, the graph frame and the noise. */
+const surfaceEntries = (r: VisBindResources | SmallBindResources): GPUBindGroupEntry[] => [
+  resourceEntry(VIS_BINDINGS.material, () => r.material),
+  resourceEntry(VIS_BINDINGS.normals, () => r.normals),
+  bufferEntry(VIS_BINDINGS.frame, () => r.frame),
+  resourceEntry(VIS_BINDINGS.noise, () => r.noise),
+]
+
 /** The unique entry list of `visBindGroupLayout`: every indirect slot's group goes through here, so
  *  a binding added to the layout can no longer be missing from one. */
 export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
@@ -96,10 +105,7 @@ export function visBindEntries(r: VisBindResources): GPUBindGroupEntry[] {
     resourceEntry(b.sampler, () => r.sampler),
     bufferEntry(b.instances, () => r.instances),
     bufferEntry(b.slotOffsets, () => r.slotOffsets),
-    resourceEntry(b.material, () => r.material),
-    resourceEntry(b.normals, () => r.normals),
-    bufferEntry(b.frame, () => r.frame),
-    resourceEntry(b.noise, () => r.noise),
+    ...surfaceEntries(r),
   ]
 }
 
@@ -143,9 +149,6 @@ export function smallBindEntries(r: SmallBindResources): GPUBindGroupEntry[] {
     resourceEntry(b.sampler, () => r.sampler),
     bufferEntry(b.work, () => r.work),
     bufferEntry(b.lists, () => r.lists),
-    resourceEntry(b.material, () => r.material),
-    resourceEntry(b.normals, () => r.normals),
-    bufferEntry(b.frame, () => r.frame),
-    resourceEntry(b.noise, () => r.noise),
+    ...surfaceEntries(r),
   ]
 }

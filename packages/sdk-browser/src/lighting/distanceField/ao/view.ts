@@ -105,11 +105,10 @@ function dfaoViewBytes(shape: DfaoShape) {
 /** Makes the view of `shape` (`DfaoView`). */
 function makeView(device: GPUDevice, shape: DfaoShape, bytes: number): DfaoView {
   const { grid, cones, tiles, sizes } = bufferSizes(shape)
-  const { buffer: bufferOf, texture, dispose } = viewResources(device, LABEL)
+  const { sized: buffer, texture, dispose } = viewResources(device, LABEL, sizes)
   // Read when a view is made: the usage flags are the device's globals, which the modules that import this one may not have.
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const ARGS = STORAGE | GPUBufferUsage.INDIRECT
-  const buffer = (name: keyof typeof sizes, usage: number) => bufferOf(name, sizes[name], usage)
   const sampled = GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING
   return {
     shape,

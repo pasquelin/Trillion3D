@@ -125,23 +125,29 @@ function drawBehindWater(
   height: number,
 ) {
   if (!behind.pipeline.ready) return
-  const bound = behind.group.get(
-    [
-      r.surface,
-      r.depth,
-      r.lights,
-      r.fog,
-      r.fog.cubemap,
-      r.fog.volume,
-      r.fog.tiles,
-      r.lightShaft,
-      r.haze,
-      waterDepth,
-    ],
-    () => [...entries(), { binding: DEFERRED_BINDINGS.waterLinearDepth, resource: waterDepth }],
-  )
+  const bound = behind.group.get(fogDependencies(r, waterDepth), () => [
+    ...entries(),
+    { binding: DEFERRED_BINDINGS.waterLinearDepth, resource: waterDepth },
+  ])
   behind.attachment.view = target
   drawFullscreenTriangle(encoder, behind.descriptor, behind.pipeline.get(), bound, width, height)
+}
+
+/** The resources the fog's group 0 names, and the water's depths when it is the group behind the water. */
+function fogDependencies(r: FogPassResources, waterDepth?: GPUTextureView) {
+  const named: object[] = [
+    r.surface,
+    r.depth,
+    r.lights,
+    r.fog,
+    r.fog.cubemap,
+    r.fog.volume,
+    r.fog.tiles,
+    r.lightShaft,
+    r.haze,
+  ]
+  if (waterDepth) named.push(waterDepth)
+  return named
 }
 
 /** The pass's group 0 over `r`, made again when a resource it names is replaced. */
@@ -151,20 +157,7 @@ function fogGroup(
   view: GPUBuffer,
   r: FogPassResources,
 ) {
-  return group.get(
-    [
-      r.surface,
-      r.depth,
-      r.lights,
-      r.fog,
-      r.fog.cubemap,
-      r.fog.volume,
-      r.fog.tiles,
-      r.lightShaft,
-      r.haze,
-    ],
-    () => fogEntries(bindings, view, r),
-  )
+  return group.get(fogDependencies(r), () => fogEntries(bindings, view, r))
 }
 
 /**

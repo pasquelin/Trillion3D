@@ -29,32 +29,28 @@ impl<'a> Chart<'a> {
         mean: f32,
     ) {
         self.find_neighbour_children(face_charts);
-        for one in 0..self.children.len() as u32 {
-            for i in 0..self.children[one as usize].neighbours.len() {
-                let two = self.children[one as usize].neighbours[i];
-                if one >= two || (levels[one as usize] < 1 && levels[two as usize] < 1) {
-                    continue;
-                }
-                let nodes = self.fuzzy_nodes(one, two, face_charts, fuzzy);
-                if nodes.faces.is_empty() {
-                    continue;
-                }
-                let mut differences = vec![0f32; self.faces.len()];
-                let mut sum = 0.0f32;
-                for &f in &nodes.faces {
-                    let first = self.face_distortion(f, one, distances);
-                    let second = self.face_distortion(f, two, distances);
-                    differences[f as usize] = (first - second).abs();
-                    sum += differences[f as usize];
-                }
-                let mean_difference = 2.0 * sum / nodes.faces.len() as f32;
-                self.cut_nodes((one, two), &nodes, face_charts, fuzzy, |edge, f, across| {
-                    let angle = (1.0 - STRETCH_WEIGHT) / (1.0 + angles[edge.id as usize] / mean);
-                    angle
-                        + (differences[f as usize] + differences[across as usize]) / mean_difference
-                            * STRETCH_WEIGHT
-                });
+        let used =
+            |&(one, two): &(u32, u32)| levels[one as usize] >= 1 || levels[two as usize] >= 1;
+        for border in self.borders().filter(used) {
+            let (one, two) = border;
+            let Some(nodes) = self.border_nodes(border, face_charts, fuzzy) else {
+                continue;
+            };
+            let mut differences = vec![0f32; self.faces.len()];
+            let mut sum = 0.0f32;
+            for &f in &nodes.faces {
+                let first = self.face_distortion(f, one, distances);
+                let second = self.face_distortion(f, two, distances);
+                differences[f as usize] = (first - second).abs();
+                sum += differences[f as usize];
             }
+            let mean_difference = 2.0 * sum / nodes.faces.len() as f32;
+            self.cut_nodes(border, &nodes, face_charts, fuzzy, |edge, f, across| {
+                let angle = (1.0 - STRETCH_WEIGHT) / (1.0 + angles[edge.id as usize] / mean);
+                angle
+                    + (differences[f as usize] + differences[across as usize]) / mean_difference
+                        * STRETCH_WEIGHT
+            });
         }
     }
 

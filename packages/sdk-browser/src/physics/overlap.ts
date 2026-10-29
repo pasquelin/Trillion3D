@@ -15,17 +15,11 @@ import {
   OVERLAP_WORDS,
 } from '../../../sdk-core/src/physics/layout.ts'
 import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
-import { ignoredWord, writeShapeExtents } from './raycast.ts'
+import { ignoredWord, writeShapeExtents, type OverlapShape } from './raycast.ts'
 import type { PhysicsSession } from './session/session.ts'
 
 /** The words of the channel an overlap tests in when it names none: the channel, then the masks of what it blocks and overlaps (`OVERLAP_AT`). */
 const DEFAULT_OVERLAP_CHANNEL = channelWords(resolveCollision(undefined, 'BlockAll'))
-
-/** A shape to test at a place: a sphere, a box or a capsule (upright, turned by `rotation`). */
-export type OverlapShape =
-  | { type: 'sphere'; radius: number }
-  | { type: 'box'; halfExtents: { x: number; y: number; z: number } }
-  | { type: 'capsule'; halfHeight: number; radius: number }
 
 /** What `world.physics.overlap` asks, beyond the shape. */
 export interface OverlapOptions {

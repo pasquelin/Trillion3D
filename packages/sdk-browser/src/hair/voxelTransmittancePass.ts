@@ -5,7 +5,7 @@ import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
 import type { HairNodes } from './compactionPass.ts'
 import type { HairVoxelSettings } from './inputs.ts'
 import { boundGroups } from './ribbonBinds.ts'
-import type { HairVoxelSet } from './voxelPass.ts'
+import { voxelSetResources, type HairVoxelSet } from './voxelPass.ts'
 import { voxelTransmittanceWgsl } from './voxelTransmittanceWgsl.ts'
 
 const kernels = preparedPipelines(
@@ -39,23 +39,19 @@ export interface VoxelTransmittanceTarget {
 export const voxelTransmittanceBinds = () =>
   boundGroups<HairVoxelSet, HairNodes, VoxelTransmittanceTarget>(
     2,
-    (device, pipeline, set, nodes, target) =>
-      device.createBindGroup({
+    (device, pipeline, set, nodes, target) => {
+      const resources = voxelSetResources(set, nodes)
+      resources.push(
+        { buffer: target.mask, offset: target.maskOffset, size: target.maskSize },
+        { buffer: target.viewBuffer },
+        { buffer: target.light },
+        target.noise,
+      )
+      return device.createBindGroup({
         layout: pipeline.getBindGroupLayout(0),
-        entries: sequentialEntries([
-          { buffer: set.paramsBuffer },
-          { buffer: set.nodes },
-          { buffer: set.pageIndex },
-          { buffer: set.voxels },
-          { buffer: nodes.nodeCoord },
-          { buffer: nodes.nodeData },
-          { buffer: nodes.nodeCounter },
-          { buffer: target.mask, offset: target.maskOffset, size: target.maskSize },
-          { buffer: target.viewBuffer },
-          { buffer: target.light },
-          target.noise,
-        ]),
-      }),
+        entries: sequentialEntries(resources),
+      })
+    },
   )
 
 /** A light for the transmittance: where it is (`position` with `directional` false) or the way it shines

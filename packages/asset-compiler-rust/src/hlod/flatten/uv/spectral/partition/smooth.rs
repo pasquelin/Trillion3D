@@ -45,11 +45,7 @@ impl<'a> Chart<'a> {
             if edge.boundary {
                 continue;
             }
-            let across = if edge.faces[0] == face.id {
-                edge.faces[1]
-            } else {
-                edge.faces[0]
-            };
+            let across = edge.other_face(face.id);
             *charted = face_charts[across as usize];
             if *charted != own {
                 others += 1;

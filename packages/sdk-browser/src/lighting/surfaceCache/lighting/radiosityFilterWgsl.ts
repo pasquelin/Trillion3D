@@ -1,6 +1,5 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
-import { ditherLight, packLight, unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import {
   lightAtlasScalar,
@@ -8,14 +7,8 @@ import {
   WORD_LIGHT_FORMAT,
   type LightAtlasFormat,
 } from '../../../gpu/core/lightAtlasFormat.ts'
-import { indirectWordsWgsl } from '../indirectWords.ts'
 import { lightWordsOf } from '../../../gpu/core/lightWords.ts'
-import { lightingCommonWgsl, lightingLayersWgsl, surfaceTexelWgsl } from './commonWgsl.ts'
-import {
-  radiosityCommonWgsl,
-  radiosityProbeVisibilityWgsl,
-  radiosityRayWgsl,
-} from './radiosityCommonWgsl.ts'
+import { radiosityKernelDeclarations, radiosityRayWgsl } from './radiosityCommonWgsl.ts'
 
 /**
  * THE RADIOSITY'S PROBES, filtered and projected: two kernels over the radiosity tiles, which read the rays' radiance
@@ -174,17 +167,6 @@ export const radiosityFilterProgramOf = (light: LightAtlasFormat) => {
   return wgslProgram(
     `${radiosityFilterEntry(light)}
 ${radiosityToShEntry(light)}`,
-    [
-      lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
-      surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
-      radiosityCommonWgsl(),
-      radiosityRayWgsl(B.noise),
-      radiosityProbeVisibilityWgsl(B.hits),
-      filterWgsl(light),
-      packLight,
-      unpackLight,
-      ditherLight,
-      ...(words === 1 ? [] : [indirectWordsWgsl(words)]),
-    ],
+    [...radiosityKernelDeclarations(B, words), radiosityRayWgsl(B.noise), filterWgsl(light)],
   )
 }

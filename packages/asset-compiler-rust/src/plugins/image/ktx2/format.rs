@@ -69,23 +69,18 @@ pub(super) fn layout(format: u32) -> Option<Layout> {
         // ETC2_R8G8B8A8_UNORM_BLOCK, ETC2_R8G8B8A8_SRGB_BLOCK
         151 | 152 => blocks(16, decode_etc2_rgba8),
         // EAC_R11_UNORM_BLOCK
-        153 => blocks(8, eac::r11),
+        153 => blocks(8, |level, width, height, image| {
+            eac::planes(level, width, height, image, eac::R11)
+        }),
         // EAC_R11G11_UNORM_BLOCK
-        155 => blocks(16, eac::rg11),
-        // ASTC_4x4_UNORM_BLOCK, ASTC_4x4_SRGB_BLOCK
-        157 | 158 => blocks(16, astc_4x4),
+        155 => blocks(16, |level, width, height, image| {
+            eac::planes(level, width, height, image, eac::RG11)
+        }),
+        // ASTC_4x4_UNORM_BLOCK, ASTC_4x4_SRGB_BLOCK: the decoder also takes the block geometry, which
+        // the format has not fixed; 4 x 4 is the only declared footprint.
+        157 | 158 => blocks(16, |level, width, height, image| {
+            decode_astc(level, width, height, 4, 4, image)
+        }),
         _ => return None,
     })
-}
-
-/// ASTC is not named by a function of the expected form: its decoder also receives the block
-/// geometry, which the format has not fixed. This short relay fixes it at 4 × 4, the only
-/// declared footprint.
-fn astc_4x4(
-    level: &[u8],
-    width: usize,
-    height: usize,
-    image: &mut [u32],
-) -> Result<(), &'static str> {
-    decode_astc(level, width, height, 4, 4, image)
 }

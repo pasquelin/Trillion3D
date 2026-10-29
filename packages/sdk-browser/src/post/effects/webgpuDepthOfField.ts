@@ -15,6 +15,7 @@ import { createDofPrograms } from './depthOfField/dofPrograms.ts'
 import { createDofOutputs } from './depthOfField/dofTargets.ts'
 import { noLayers } from '../../blend/translucencyLayers.ts'
 import type { WebgpuResolveKind } from './webgpuKinds.ts'
+import { dropHolds, resizeHolds } from './holds.ts'
 
 type Outputs = ReturnType<typeof createDofOutputs>
 type Kit = Parameters<typeof stepsOf>[0]
@@ -26,8 +27,7 @@ type DofState = { passes: number; drew: boolean }
 
 /** Frees every hold and the output images. */
 function releaseDof(device: GPUDevice, held: Held[], outputs: Outputs) {
-  for (const mine of held) dropHeld(device, mine)
-  held.length = 0
+  dropHolds(held, (mine) => dropHeld(device, mine))
   outputs.release()
 }
 
@@ -96,6 +96,8 @@ export async function createWebgpuDepthOfField(
   const outputs = createDofOutputs(device)
   const kit = { device, programs }
   const held: Held[] = []
+  const make = () => newHeld(device)
+  const drop = (mine: Held) => dropHeld(device, mine)
   const state: DofState = { passes: 0, drew: false }
   const release = () => releaseDof(device, held, outputs)
   return {
@@ -107,8 +109,7 @@ export async function createWebgpuDepthOfField(
     },
     resize(_width: number, _height: number, count: number) {
       if (!count) return release()
-      while (held.length < count) held.push(newHeld(device))
-      while (held.length > count) dropHeld(device, held.pop()!)
+      resizeHolds(held, count, make, drop)
     },
     resolve(...args) {
       const [, pass, nth, input, frame, settings] = args

@@ -249,38 +249,39 @@ impl<T: Copy> Tree<T> {
             })
     }
 
+    /// The slots of its lowest tables in the tree's order, to write.
+    fn leaf_slots_mut(&mut self) -> impl Iterator<Item = &mut Slot<Leaf<T>, T>> {
+        (self.root.values_mut())
+            .filter_map(|e| match e {
+                Slot::Child(upper) => Some(upper),
+                Slot::Tile(_) => None,
+            })
+            .flat_map(|upper| upper.slots.iter_mut())
+            .filter_map(|s| match s {
+                Slot::Child(lower) => Some(lower),
+                Slot::Tile(_) => None,
+            })
+            .flat_map(|lower| lower.slots.iter_mut())
+    }
+
     /// Its leaves in the tree's order, to write.
     pub(crate) fn leaves_mut(&mut self) -> Vec<&mut Leaf<T>> {
-        let mut out = Vec::new();
-        for entry in self.root.values_mut() {
-            let Slot::Child(upper) = entry else { continue };
-            for lower in upper.slots.iter_mut() {
-                let Slot::Child(lower) = lower else { continue };
-                for leaf in lower.slots.iter_mut() {
-                    if let Slot::Child(leaf) = leaf {
-                        out.push(&mut **leaf);
-                    }
-                }
-            }
-        }
-        out
+        (self.leaf_slots_mut())
+            .filter_map(|s| match s {
+                Slot::Child(leaf) => Some(&mut **leaf),
+                Slot::Tile(_) => None,
+            })
+            .collect()
     }
 
     /// Its leaves taken out, in the tree's order, each replaced by a background tile.
     pub(crate) fn take_leaves(&mut self) -> Vec<Leaf<T>> {
         let background = self.background;
-        let mut out = Vec::new();
-        for entry in self.root.values_mut() {
-            let Slot::Child(upper) = entry else { continue };
-            for lower in upper.slots.iter_mut() {
-                let Slot::Child(lower) = lower else { continue };
-                for at in lower.slots.iter_mut() {
-                    if let Slot::Child(leaf) = std::mem::replace(at, Slot::Tile(background)) {
-                        out.push(*leaf);
-                    }
-                }
-            }
-        }
-        out
+        (self.leaf_slots_mut())
+            .filter_map(|at| match std::mem::replace(at, Slot::Tile(background)) {
+                Slot::Child(leaf) => Some(*leaf),
+                Slot::Tile(_) => None,
+            })
+            .collect()
     }
 }

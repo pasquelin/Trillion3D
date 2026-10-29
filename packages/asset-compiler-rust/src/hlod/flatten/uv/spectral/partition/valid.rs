@@ -125,11 +125,7 @@ impl<'a> Chart<'a> {
                     if edge.splittable {
                         continue;
                     }
-                    let other = if edge.faces[0] == current {
-                        edge.faces[1]
-                    } else {
-                        edge.faces[0]
-                    };
+                    let other = edge.other_face(current);
                     if other == NONE || reached[other as usize] {
                         continue;
                     }

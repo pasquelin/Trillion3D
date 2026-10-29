@@ -29,17 +29,22 @@ interface CacheBinds {
 
 const view = (texture: GPUTexture) => texture.createView({ dimension: '3d' })
 
+/** The bindings every pass starts with: the clipmap's block and the list of the tiles. */
+const clipTilesEntries = ({ clip, res }: CacheBinds): GPUBindGroupEntry[] => [
+  { binding: 0, resource: clip },
+  { binding: 1, resource: wholeBuffer(res.tiles) },
+]
+
 /** The groups of the allocation and of the composition. */
 function composeGroups(binds: CacheBinds) {
-  const { device, layouts, res, cache, own, below, combined, clip, atlas } = binds
+  const { device, layouts, res, cache, own, below, combined, atlas } = binds
   const { tables } = res
   return {
     allocate: device.createBindGroup({
       label: `Trillion3D global distance field allocation, ${cache}`,
       layout: layouts.allocate,
       entries: [
-        { binding: 0, resource: clip },
-        { binding: 1, resource: wholeBuffer(res.tiles) },
+        ...clipTilesEntries(binds),
         { binding: 2, resource: view(own) },
         { binding: 3, resource: view(combined ?? tables.unusedWrite) },
         { binding: 4, resource: view(below) },
@@ -52,8 +57,7 @@ function composeGroups(binds: CacheBinds) {
       label: `Trillion3D global distance field composition, ${cache}`,
       layout: layouts.compose,
       entries: [
-        { binding: 0, resource: clip },
-        { binding: 1, resource: wholeBuffer(res.tiles) },
+        ...clipTilesEntries(binds),
         { binding: 2, resource: wholeBuffer(res.cull) },
         { binding: 3, resource: atlas },
         { binding: 4, resource: view(combined ?? own) },
@@ -65,14 +69,13 @@ function composeGroups(binds: CacheBinds) {
 
 /** The groups of the coverage and of the object grid. */
 function coverageGroups(binds: CacheBinds) {
-  const { device, layouts, res, cache, own, below, combined, clip, atlas } = binds
+  const { device, layouts, res, cache, own, below, combined, atlas } = binds
   return {
     coverage: device.createBindGroup({
       label: `Trillion3D global distance field coverage, ${cache}`,
       layout: layouts.coverage,
       entries: [
-        { binding: 0, resource: clip },
-        { binding: 1, resource: wholeBuffer(res.tiles) },
+        ...clipTilesEntries(binds),
         { binding: 2, resource: wholeBuffer(res.cull) },
         { binding: 3, resource: atlas },
         { binding: 4, resource: view(below) },
@@ -84,8 +87,7 @@ function coverageGroups(binds: CacheBinds) {
       label: `Trillion3D global distance field object grid, ${cache}`,
       layout: layouts.objectGrid,
       entries: [
-        { binding: 0, resource: clip },
-        { binding: 1, resource: wholeBuffer(res.tiles) },
+        ...clipTilesEntries(binds),
         { binding: 2, resource: wholeBuffer(res.cull) },
         { binding: 3, resource: wholeBuffer(res.objectGrid) },
         { binding: 4, resource: view(own) },

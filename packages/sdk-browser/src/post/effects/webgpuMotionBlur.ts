@@ -30,6 +30,7 @@ import {
 import { createMotionBlurTargets, type MotionBlurTargets } from './motionBlur/motionBlurTargets.ts'
 import type { VariantPrograms } from './motionBlur/motionBlurVariants.ts'
 import type { ResolveFrame, WebgpuResolveKind } from './webgpuKinds.ts'
+import { dropHolds, resizeHolds } from './holds.ts'
 import { noLayers } from '../../blend/translucencyLayers.ts'
 
 /** What one blur of the chain holds: its uniforms, the clock its time scale follows, and the groups
@@ -391,10 +392,11 @@ export async function createWebgpuMotionBlur(
     variantFor: (wanted) => gate.for(wanted),
   }
   const held: Held[] = []
+  const make = () => newHeld(device)
+  const drop = (mine: Held) => dropHeld(device, mine)
   const state: BlurState = { passes: 0, half: undefined }
   const release = () => {
-    held.forEach((mine) => dropHeld(device, mine))
-    held.length = 0
+    dropHolds(held, drop)
     shared.targets.release()
   }
   return {
@@ -415,8 +417,7 @@ export async function createWebgpuMotionBlur(
     },
     resize(_width: number, _height: number, count: number) {
       if (!count) return release()
-      while (held.length < count) held.push(newHeld(device))
-      while (held.length > count) dropHeld(device, held.pop()!)
+      resizeHolds(held, count, make, drop)
     },
     fuse: (...args) => fuseBlur(device, shared, held, ...args),
     resolve: (...args) => resolveBlur(device, shared, held, state, ...args),

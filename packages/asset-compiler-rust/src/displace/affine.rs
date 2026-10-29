@@ -91,6 +91,11 @@ impl Affine {
         let alpha = (image_most - image_least) / (most - least);
         let gamma = 0.5 * (1.0 - alpha) * (image_most + image_least);
         let delta = (1.0 - alpha) * image_most - gamma;
+        self.scaled(alpha, gamma, delta)
+    }
+
+    /// The form mapped by the line `alpha * x + gamma`, its error widened by `delta`.
+    fn scaled(self, alpha: f32, gamma: f32, delta: f32) -> Self {
         Self {
             c: alpha * self.c + gamma,
             k: (alpha * self.k).abs() + delta,
@@ -108,11 +113,7 @@ impl Affine {
         let alpha = -0.5 * image_most * image_most * image_most;
         let gamma = 0.5 * (image_least + image_most - alpha * (least + most));
         let delta = (0.5 * (image_least - image_most - alpha * (least - most))).abs();
-        Self {
-            c: alpha * self.c + gamma,
-            k: (alpha * self.k).abs() + delta,
-            e: self.e.map(|e| alpha * e),
-        }
+        self.scaled(alpha, gamma, delta)
     }
 }
 

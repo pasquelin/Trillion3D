@@ -12,7 +12,7 @@ use super::{
     DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
     SUPERCOMPRESSION_UNSUPPORTED,
 };
-use crate::plugins::image::{word, Transfer, MAX_LEVELS};
+use crate::plugins::image::{check_head, word, Transfer, MAX_LEVELS};
 
 /// End of the fixed header: identifier, fourteen fields and the index of the three sections.
 const HEADER_END: usize = 80;
@@ -61,12 +61,11 @@ fn long(bytes: &[u8], at: usize) -> std::result::Result<usize, &'static str> {
 }
 
 pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> {
-    if bytes.len() < HEADER_END {
-        return Err(HEADER_TRUNCATED);
-    }
-    if !bytes.starts_with(MAGIC) {
-        return Err(HEADER_INVALID);
-    }
+    check_head(
+        bytes,
+        (MAGIC, HEADER_END),
+        (HEADER_TRUNCATED, HEADER_INVALID),
+    )?;
     let format = word(bytes, 12);
     let (width, height, depth) = (word(bytes, 20), word(bytes, 24), word(bytes, 28));
     let (layers, faces, levels) = (word(bytes, 32), word(bytes, 36), word(bytes, 40));

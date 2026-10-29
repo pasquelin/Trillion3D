@@ -98,10 +98,9 @@ function capsuleViewBytes(shape: CapsuleShape) {
 
 function makeView(device: GPUDevice, shape: CapsuleShape, bytes: number): CapsuleView {
   const sizes = bufferSizes(shape)
-  const { buffer: bufferOf, texture, dispose } = viewResources(device, LABEL)
+  const { sized: buffer, texture, dispose } = viewResources(device, LABEL, sizes)
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
   const UNIFORM = GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST
-  const buffer = (name: keyof typeof sizes, usage: number) => bufferOf(name, sizes[name], usage)
   return {
     shape,
     factors: texture(

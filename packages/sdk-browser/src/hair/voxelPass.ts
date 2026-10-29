@@ -10,6 +10,7 @@ import { wordViews } from '../gpu/core/wordViews.ts'
 import { writeChanged } from '../gpu/core/writeChanged.ts'
 import { storageBufferCap } from '../session/memory/pools.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
+import { hairNodeResources, type HairNodes } from './compactionPass.ts'
 import type { HairBoundsGpu } from './boundsPass.ts'
 import type { HairVoxelSettings } from './inputs.ts'
 import { HAIR_AABB_PRECISION_SCALE } from './boundsWgsl.ts'
@@ -173,6 +174,21 @@ interface VoxelExtra {
   readonly groups: Record<string, GPUBindGroup>
   /** The depth the injection's group names. */
   injectDepth?: GPUTextureView
+}
+
+/** The voxels' parameters, nodes, page index and voxels, then the strands' samples, as binding resources appended to `into`. */
+export const voxelSetResources = (
+  set: HairVoxelSet,
+  nodes: HairNodes,
+  into: GPUBindingResource[] = [],
+) => {
+  into.push(
+    { buffer: set.paramsBuffer },
+    { buffer: set.nodes },
+    { buffer: set.pageIndex },
+    { buffer: set.voxels },
+  )
+  return hairNodeResources(nodes, into)
 }
 
 /** The set of a volume. */

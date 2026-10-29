@@ -7,6 +7,12 @@ import { dagWorkLayout } from './floorWgsl.ts'
  *  `DAG_BINDING`, which ends at `edges`, 13), so no two variables of the module share one. */
 export const DAG_ARM_BINDING = { work: 14, args: 15 } as const
 
+/** The arming group's entries: the lists' work and the dispatch arguments. */
+export const dagArmEntries = (work: GPUBuffer, args: GPUBuffer): GPUBindGroupEntry[] => [
+  { binding: DAG_ARM_BINDING.work, resource: { buffer: work } },
+  { binding: DAG_ARM_BINDING.args, resource: { buffer: args } },
+]
+
 /**
  * The cut's indirect dispatch arguments, armed inside its pass. Seven lists have no bound the
  * layout knows — the candidates, the visible clusters, the two post lists (`postPassWgsl.ts`) and

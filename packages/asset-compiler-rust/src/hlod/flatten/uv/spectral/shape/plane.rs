@@ -142,11 +142,7 @@ impl<'a> Chart<'a> {
             }
             for e in face.edges {
                 let edge = &self.edges[e as usize];
-                let next = if edge.faces[0] == face.id {
-                    edge.faces[1]
-                } else {
-                    edge.faces[0]
-                };
+                let next = edge.other_face(face.id);
                 if next != NONE && !added[next as usize] {
                     queue.push_back(next);
                     added[next as usize] = true;

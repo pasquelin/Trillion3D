@@ -15,13 +15,11 @@ import { FRUSTUM_PLANE_VALUES } from './frustum.ts'
  * (`box.test.ts`).
  */
 
-/** The distance of the box corner most forward along the plane `(a, b, c, d)`: negative when that
- *  corner is behind it. */
+/** The distance of the box corner most forward along the plane at `planes[p..p + 3]`: negative when
+ *  that corner is behind it. */
 function leadingDistance(
-  a: number,
-  b: number,
-  c: number,
-  d: number,
+  planes: Float64Array,
+  p: number,
   minX: number,
   minY: number,
   minZ: number,
@@ -29,6 +27,10 @@ function leadingDistance(
   maxY: number,
   maxZ: number,
 ) {
+  const a = planes[p],
+    b = planes[p + 1],
+    c = planes[p + 2]
+  const d = planes[p + 3]
   return a * (a > 0 ? maxX : minX) + b * (b > 0 ? maxY : minY) + c * (c > 0 ? maxZ : minZ) + d
 }
 
@@ -43,11 +45,7 @@ export function frustumExcludesBox(
   maxZ: number,
 ) {
   for (let p = 0; p < FRUSTUM_PLANE_VALUES; p += 4) {
-    const a = planes[p],
-      b = planes[p + 1],
-      c = planes[p + 2],
-      d = planes[p + 3]
-    if (leadingDistance(a, b, c, d, minX, minY, minZ, maxX, maxY, maxZ) < 0) return true
+    if (leadingDistance(planes, p, minX, minY, minZ, maxX, maxY, maxZ) < 0) return true
   }
   return false
 }
@@ -70,12 +68,8 @@ export function frustumClipBox(
 ) {
   let straddles = false
   for (let p = 0; p < FRUSTUM_PLANE_VALUES; p += 4) {
-    const a = planes[p],
-      b = planes[p + 1],
-      c = planes[p + 2],
-      d = planes[p + 3]
-    if (leadingDistance(a, b, c, d, minX, minY, minZ, maxX, maxY, maxZ) < 0) return 0
-    if (!straddles && leadingDistance(a, b, c, d, maxX, maxY, maxZ, minX, minY, minZ) < 0)
+    if (leadingDistance(planes, p, minX, minY, minZ, maxX, maxY, maxZ) < 0) return 0
+    if (!straddles && leadingDistance(planes, p, maxX, maxY, maxZ, minX, minY, minZ) < 0)
       straddles = true
   }
   return straddles ? 1 : 2

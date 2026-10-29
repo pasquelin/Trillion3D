@@ -20,8 +20,9 @@ import type { Object3D } from '../../../sdk-core/src/world/object/object3d.ts'
 import type { PhysicsSession } from './session/session.ts'
 import { NO_INDEX } from '../../../math/src/constants.ts'
 
-/** A shape swept along a ray (`world.raycast(at, { shape })`): what it first touches is the hit. */
-type SweptShape =
+/** A shape to test at a place (`world.physics.overlap`) or to sweep along a ray (`world.raycast(at, { shape })`,
+ *  where what it first touches is the hit): a sphere, a box or a capsule (upright, turned by `rotation`). */
+export type OverlapShape =
   | { type: 'sphere'; radius: number }
   | { type: 'box'; halfExtents: { x: number; y: number; z: number } }
   | { type: 'capsule'; halfHeight: number; radius: number }
@@ -32,7 +33,7 @@ export interface PhysicsRaycastOptions {
   /** Answer from the physics. Implied by `shape`. */
   exact?: true
   /** A shape swept along the ray instead of a ray. */
-  shape?: SweptShape
+  shape?: OverlapShape
   /** How far the ray reaches, world units. @defaultValue the camera's `far` */
   maxDistance?: number
   /** A body the ray or shape passes through: the asker's own, looking round itself. */
@@ -63,7 +64,7 @@ export function ignoredWord(session: Pick<PhysicsSession, 'engineIdOf'>, ignore?
 
 /** Writes into `floats`, from the word `at`, the sizes of `shape`: a sphere's radius, a box's half
  *  extents, a capsule's half height then radius (`CAST_AT.extents`, `OVERLAP_AT.extents`). */
-export function writeShapeExtents(floats: Float32Array, at: number, shape: SweptShape) {
+export function writeShapeExtents(floats: Float32Array, at: number, shape: OverlapShape) {
   if (shape.type === 'sphere') floats[at] = shape.radius
   else if (shape.type === 'box')
     floats.set([shape.halfExtents.x, shape.halfExtents.y, shape.halfExtents.z], at)
@@ -79,7 +80,7 @@ export function writeCast(
   direction: ArrayLike<number>,
   reach: number,
   ignored: number,
-  shape?: SweptShape,
+  shape?: OverlapShape,
 ) {
   const floats = new Float32Array(words.buffer, words.byteOffset, words.length)
   words[CAST_AT.kind] = shape ? CAST[shape.type] : CAST.ray

@@ -11,9 +11,7 @@
 use super::chart::Chart;
 use super::finder::Found;
 use super::scale::scale_charts;
-use crate::hlod::flatten::uv::pack::{
-    best_placement, covering, search_scale, Layout, Raster, Rect, Starts,
-};
+use crate::hlod::flatten::uv::pack::{covering, place_charts, search_scale, Raster, Rect};
 use trillion3d_math::vector::vecn::{add, scale, sub};
 
 /// What every attempt reads: the coordinates and the triangles by chart, the square's side and
@@ -90,21 +88,23 @@ fn pack_charts(
 ) -> Option<f32> {
     scale_charts(charts, uv_scale, attempt.resolution, attempt.total_area);
     let size = attempt.resolution;
-    let mut layout = Layout::new(size);
-    let mut starts = Starts::default();
-    for chart in charts.iter_mut() {
-        let prepare = |orientation: usize, raster: &mut Raster| {
-            orient(chart, orientation);
-            footprint(chart, orientation, attempt, raster)
-        };
-        let placed = best_placement((&layout, &mut *raster), &mut starts, ORIENTATIONS, prepare);
-        let (orientation, rect, chosen) = placed?;
+    let prepare = |chart: &mut Chart, orientation: usize, raster: &mut Raster| {
         orient(chart, orientation);
-        layout.alloc(&rect, &chosen);
+        footprint(chart, orientation, attempt, raster)
+    };
+    let shift = |chart: &mut Chart, rect: &Rect| {
         chart.bias[0] += rect.x as f32;
         chart.bias[1] += rect.y as f32;
-    }
-    Some(layout.used() as f32 / (size * size) as f32)
+    };
+    let used = place_charts(
+        charts,
+        (size, raster),
+        &ORIENTATIONS,
+        prepare,
+        orient,
+        shift,
+    )?;
+    Some(used as f32 / (size * size) as f32)
 }
 
 /// The charts of `found` packed into a square `resolution` texels wide (module doc), as the last

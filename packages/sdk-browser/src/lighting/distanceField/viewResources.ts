@@ -9,20 +9,27 @@ export interface ViewTexture {
 /**
  * The buffers and textures of one view of the distance fields' programs, named `name` after
  * `label`, and kept to be given back together (`dispose`, after the frames in flight): a buffer is
- * never under a vector's, a texture never under a texel.
+ * never under a vector's, a texture never under a texel. `sizes` names the buffers' bytes for `sized`.
  */
-export function viewResources(device: GPUDevice, label: string) {
+export function viewResources<Sizes extends Record<string, number> = Record<string, number>>(
+  device: GPUDevice,
+  label: string,
+  sizes: Sizes = {} as Sizes,
+) {
   const made: { destroy(): void }[] = []
+  const buffer = (name: string, bytes: number, usage: number) => {
+    const gpu = device.createBuffer({
+      label: `${label} ${name}`,
+      size: Math.max(bytes, 16),
+      usage,
+    })
+    made.push(gpu)
+    return gpu
+  }
   return {
-    buffer(name: string, bytes: number, usage: number) {
-      const gpu = device.createBuffer({
-        label: `${label} ${name}`,
-        size: Math.max(bytes, 16),
-        usage,
-      })
-      made.push(gpu)
-      return gpu
-    },
+    buffer,
+    /** The buffer `name` of `sizes`, of its bytes. */
+    sized: (name: keyof Sizes & string, usage: number) => buffer(name, sizes[name], usage),
     texture(
       name: string,
       size: readonly number[],

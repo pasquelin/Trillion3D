@@ -1,5 +1,5 @@
 //! What both packers share, the islands' (`packer.rs`) and the old layout's (`uv/legacy`): the
-//! place a chart takes in the square among the orientations tried (`best_placement`), the search
+//! charts' placement in the square, each among the orientations tried (`place_charts`), the search
 //! for the largest scale at which every chart fits (`search_scale`), the rebalancing of a scaling
 //! (`rebalance`) and the rectangle a chart's box covers (`covering`). Each packer keeps its own
 //! charts, orientations and precision.
@@ -23,7 +23,7 @@ const NO_RECT: Rect = Rect {
 /// Where each raster seen found a place, by its digest (`Footprint::digest`: sixteen bytes a
 /// raster, whatever its size), so a chart laid like one before it starts its search there.
 #[derive(Default)]
-pub(crate) struct Starts(WordMap<u128, (u32, u32)>);
+struct Starts(WordMap<u128, (u32, u32)>);
 
 /// How much of the square's width and height a rectangle puts out of reach: its far corner's
 /// coordinates summed.
@@ -49,7 +49,7 @@ pub(crate) fn covering(extent: [f32; 2], size: u32) -> Rect {
 /// first place it fits, and the orientation that leaves the least of the square out of reach
 /// (`reach`) wins, the first of equals — the search ending at the corner. The orientation, its
 /// rectangle placed and its footprint; none where it fits in none.
-pub(crate) fn best_placement(
+fn best_placement(
     (layout, raster): (&Layout, &mut Raster),
     starts: &mut Starts,
     orientations: impl IntoIterator<Item = usize>,
@@ -91,6 +91,35 @@ pub(crate) fn best_placement(
         }
     }
     best
+}
+
+/// Every chart of `charts`, largest first as given, laid in a new square of `size` texels
+/// (`best_placement` among `orientations`, `prepare` filling the raster with a chart's footprint
+/// in one), then turned to the orientation that won (`orient`) and moved to its place (`shift`
+/// by the rectangle placed): the texels in use when they all fit, none when one fits nowhere.
+pub(crate) fn place_charts<C>(
+    charts: &mut [C],
+    (size, raster): (u32, &mut Raster),
+    orientations: &[usize],
+    mut prepare: impl FnMut(&mut C, usize, &mut Raster) -> Rect,
+    orient: impl Fn(&mut C, usize),
+    shift: impl Fn(&mut C, &Rect),
+) -> Option<u32> {
+    let mut layout = Layout::new(size);
+    let mut starts = Starts::default();
+    for chart in charts.iter_mut() {
+        let placed = best_placement(
+            (&layout, &mut *raster),
+            &mut starts,
+            orientations.iter().copied(),
+            |orientation, raster| prepare(chart, orientation, raster),
+        );
+        let (orientation, rect, chosen) = placed?;
+        orient(chart, orientation);
+        layout.alloc(&rect, &chosen);
+        shift(chart, &rect);
+    }
+    Some(layout.used())
 }
 
 /// The charts of a square `side` texels wide whose areas total `total_area` before scaling, packed

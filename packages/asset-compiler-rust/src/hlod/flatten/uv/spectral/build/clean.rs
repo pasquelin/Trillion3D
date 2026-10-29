@@ -33,11 +33,7 @@ impl FanWalk {
             let edge = &chart.edges[e as usize];
             if edge.verts.contains(&self.center) {
                 self.edge = e;
-                self.face = if edge.faces[0] == self.face {
-                    edge.faces[1]
-                } else {
-                    edge.faces[0]
-                };
+                self.face = edge.other_face(self.face);
                 break;
             }
         }
@@ -122,14 +118,7 @@ impl<'a> Chart<'a> {
         self.verts = (rebuilt.enumerate())
             .map(|(i, old)| {
                 let old = &self.verts[old as usize];
-                Vert {
-                    id: i as u32,
-                    root: old.root,
-                    parent: old.id,
-                    boundary: old.boundary,
-                    importance: old.importance,
-                    ..Vert::default()
-                }
+                Vert::cut_from(i, old)
             })
             .collect();
         true

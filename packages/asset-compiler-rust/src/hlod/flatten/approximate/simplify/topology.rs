@@ -85,6 +85,11 @@ impl Mesh {
         }
     }
 
+    /// The positions of edge `e`'s two vertices.
+    pub(super) fn edge_points(&self, e: u32) -> [V3; 2] {
+        self.edges[e as usize].0.map(|v| self.positions[v as usize])
+    }
+
     pub(super) fn find_edge(&self, a: u32, b: u32) -> Option<u32> {
         (self.vertex_edges[a as usize].iter().copied()).find(|&e| self.other(e, a) == b)
     }

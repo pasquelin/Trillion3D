@@ -132,6 +132,17 @@ export function defineWritable<Name extends string, Value>(
     })
 }
 
+/** Defines each key of `getters` as a read-only property of `proto`, the value its getter gives for
+ *  a light. */
+export function defineReadonly(proto: Light, getters: Record<string, (light: Light) => unknown>) {
+  for (const [name, getter] of Object.entries(getters))
+    Object.defineProperty(proto, name, {
+      get(this: Light) {
+        return getter(this)
+      },
+    })
+}
+
 /** A number or a flag a light setting holds. */
 type Scalar = number | boolean
 

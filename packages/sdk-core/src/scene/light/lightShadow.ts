@@ -7,6 +7,7 @@ import {
 } from '../../contracts/lightShadowOptions.ts'
 import { settingTakes } from '../../contracts/settingRules.ts'
 import type { SceneLight } from './contracts.ts'
+import { resolveInto } from './ruledFields.ts'
 
 /**
  * THE SHADOW FIELDS OF A LIGHT RECORD (`SceneLight.shadowDistance` and the fields beside it, one for
@@ -44,14 +45,7 @@ export function validateLightShadow(light: SceneLight, validated: SceneLight) {
         `${light.id}: ${field}: must be ${settingTakes(LIGHT_SHADOW_RULES[field as keyof LightShadow])}, got null`,
         { field },
       )
-  let resolved: LightShadow
-  try {
-    resolved = resolveLightShadow(given)
-  } catch (error) {
-    throw new EngineError('INVALID_SCENE_LIGHT', `${light.id}: ${(error as Error).message}`, given)
-  }
-  const into = validated as unknown as Record<string, unknown>
-  for (const field of Object.keys(given)) into[field] = resolved[field as keyof LightShadow]
+  resolveInto(light, validated, given, resolveLightShadow)
 }
 
 const held = new WeakMap<SceneLight, LightShadow>()

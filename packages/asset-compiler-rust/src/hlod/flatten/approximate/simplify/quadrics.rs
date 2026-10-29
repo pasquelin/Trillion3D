@@ -51,10 +51,7 @@ impl Simplifier {
     /// other to the optimum, else the best of its end and its midpoint.
     fn optimal_point(&self, e: u32, q: &Quadric) -> V3 {
         let [a, b] = self.mesh.edges[e as usize].0;
-        let (pa, pb) = (
-            self.mesh.positions[a as usize],
-            self.mesh.positions[b as usize],
-        );
+        let [pa, pb] = self.mesh.edge_points(e);
         let mut best = (pa, q.evaluate(pa));
         let mut consider = |p: V3| {
             let err = q.evaluate(p);

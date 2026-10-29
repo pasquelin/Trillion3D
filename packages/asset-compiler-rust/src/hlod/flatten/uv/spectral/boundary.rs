@@ -119,6 +119,25 @@ impl<'a> Chart<'a> {
         }
     }
 
+    /// Every pair of neighbouring children, the lower label first, in label order and each child's
+    /// neighbour order.
+    fn borders(&self) -> impl Iterator<Item = (u32, u32)> + '_ {
+        (self.children.iter().enumerate())
+            .flat_map(|(one, child)| child.neighbours.iter().map(move |&two| (one as u32, two)))
+            .filter(|&(one, two)| one < two)
+    }
+
+    /// The fuzzy faces of the border between children `one` and `two`; none when it has none.
+    fn border_nodes(
+        &self,
+        (one, two): (u32, u32),
+        face_charts: &[u32],
+        fuzzy: &[bool],
+    ) -> Option<Nodes> {
+        let nodes = self.fuzzy_nodes(one, two, face_charts, fuzzy);
+        (!nodes.faces.is_empty()).then_some(nodes)
+    }
+
     /// The fuzzy faces labelled `one` or `two`, numbered in face order.
     fn fuzzy_nodes(&self, one: u32, two: u32, face_charts: &[u32], fuzzy: &[bool]) -> Nodes {
         let mut nodes = Nodes {
@@ -153,11 +172,7 @@ impl<'a> Chart<'a> {
                 if edge.boundary {
                     continue;
                 }
-                let across = if edge.faces[0] == face.id {
-                    edge.faces[1]
-                } else {
-                    edge.faces[0]
-                };
+                let across = edge.other_face(face.id);
                 let node = nodes.of_face[f as usize];
                 if fuzzy[across as usize] && nodes.of_face[across as usize] != NONE {
                     let w = weight(edge, f, across);

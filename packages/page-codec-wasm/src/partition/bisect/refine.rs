@@ -164,11 +164,7 @@ fn balance_cut(
         cut.sides[from as usize] -= graph.weight(v);
         moved[v] = true;
         cut.turn(v);
-        if cut.across[v] == 0 && cut.on_boundary(v) && graph.degree(v) > 0 {
-            cut.leave(v);
-        } else if cut.across[v] > 0 && !cut.on_boundary(v) {
-            cut.enter(v);
-        }
+        cut.settle(graph, v);
         for e in graph.row(v) {
             let k = cut.shift(graph, e, to);
             if boundary_only {
@@ -191,11 +187,7 @@ fn balance_cut(
                 if movable(cut, moved, k) {
                     queue.update(k as u32, cut.gain(k) as f32);
                 }
-                if cut.across[k] == 0 && cut.on_boundary(k) {
-                    cut.leave(k);
-                } else if cut.across[k] > 0 && !cut.on_boundary(k) {
-                    cut.enter(k);
-                }
+                cut.settle(graph, k);
             }
         }
     }

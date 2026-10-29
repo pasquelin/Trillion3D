@@ -10,7 +10,7 @@ import type { ResourceAllocator } from '../gpu/core/resourceAllocator.ts'
 import { uniformStride } from '../session/memory/pools.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
 import type { HairBoundsGpu } from './boundsPass.ts'
-import type { HairNodes } from './compactionPass.ts'
+import { hairNodeResources, type HairNodes } from './compactionPass.ts'
 import {
   deepShadowLayerDepths,
   deepShadowReaches,
@@ -183,6 +183,8 @@ export interface HairDeepShadows {
   readonly set: HairDeepShadowSet
   /** One for each light that drew some, in the order of `frame.lights`. */
   readonly lights: readonly { readonly light: number; readonly offset: number }[]
+  /** The slots of the atlas this image drew. */
+  readonly slotCount: number
 }
 
 const slotWords = new Uint32Array(HAIR_DEEP_SHADOW_LIGHT_WORDS * HAIR_DEEP_SHADOW_MAX_SLOTS)
@@ -481,7 +483,7 @@ export function encodeHairDeepShadows(
   const reported = writeDeepSlots(device, set, frame, slots)
   encodeDeepAllocate(device, encoder, set, pipelines.allocate, frame)
   encodeDeepSlotViews(device, encoder, set, pipelines, frame, slots)
-  return { set, lights: reported }
+  return { set, lights: reported, slotCount: slots.length }
 }
 
 /** What a light's deep shadow transmittance reads and writes, kept by the caller across images. */
@@ -503,18 +505,17 @@ export const deepShadowMaskBinds = () =>
     (device, pipeline, set, nodes, target) =>
       device.createBindGroup({
         layout: pipeline.getBindGroupLayout(0),
-        entries: sequentialEntries([
-          { buffer: nodes.nodeCoord },
-          { buffer: nodes.nodeData },
-          { buffer: nodes.nodeCounter },
-          { buffer: target.mask, offset: target.maskOffset, size: target.maskSize },
-          { buffer: target.viewBuffer },
-          { buffer: set.maskLights, offset: target.offset, size: 48 },
-          { buffer: set.slotMaps, offset: target.offset, size: 64 },
-          { buffer: set.viewInfos },
-          set.frontView,
-          set.layersView,
-        ]),
+        entries: sequentialEntries(
+          hairNodeResources(nodes).concat([
+            { buffer: target.mask, offset: target.maskOffset, size: target.maskSize },
+            { buffer: target.viewBuffer },
+            { buffer: set.maskLights, offset: target.offset, size: 48 },
+            { buffer: set.slotMaps, offset: target.offset, size: 64 },
+            { buffer: set.viewInfos },
+            set.frontView,
+            set.layersView,
+          ]),
+        ),
       }),
   )
 

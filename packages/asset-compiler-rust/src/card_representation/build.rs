@@ -10,6 +10,7 @@ use crate::distance_field::{hemisphere, Scene};
 use crate::plugins::scene::cancel::going;
 use rayon::prelude::*;
 use std::sync::atomic::AtomicBool;
+use trillion3d_math::geometry::aabb::padded_about_centre;
 
 type Vec3 = [f64; 3];
 
@@ -41,12 +42,7 @@ pub(super) struct MeshCards {
 /// The box a volume is fitted over for a mesh of bounds `low, high`: each half-extent grown by a
 /// margin and at least a least half-extent, so that a flat mesh has one.
 fn grown((low, high): (Vec3, Vec3)) -> (Vec3, Vec3) {
-    let centre = [0, 1, 2].map(|k| 0.5 * (low[k] + high[k]));
-    let half = [0, 1, 2].map(|k| (0.5 * (high[k] - low[k]) + BOUNDS_MARGIN).max(LEAST_HALF_EXTENT));
-    (
-        [0, 1, 2].map(|k| centre[k] - half[k]),
-        [0, 1, 2].map(|k| centre[k] + half[k]),
-    )
+    padded_about_centre(low, high, (BOUNDS_MARGIN, LEAST_HALF_EXTENT))
 }
 
 /// The volume over `bounds` and the surfels of its six directions: the first volume is

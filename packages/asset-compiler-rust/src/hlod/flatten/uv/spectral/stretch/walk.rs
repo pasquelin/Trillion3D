@@ -153,8 +153,7 @@ impl<'a> Chart<'a> {
             probe.end = probe.start;
             let uv = self.verts[v as usize].uv;
             if self.area_around(v, uv) > self.area_around(v, probe.end) {
-                probe.end_stretch = self.try_move(v, plan, probe.end, &mut probe.end_faces);
-                self.apply_move(plan, v, probe.end, probe.end_stretch, &probe.end_faces);
+                self.commit_move(plan, v, probe);
                 return true;
             }
             return false;
@@ -167,11 +166,16 @@ impl<'a> Chart<'a> {
             probe.end = probe.start;
         }
         if probe.end_stretch < INFINITE_STRETCH && probe.end_stretch < original_start_stretch {
-            probe.end_stretch = self.try_move(v, plan, probe.end, &mut probe.end_faces);
-            self.apply_move(plan, v, probe.end, probe.end_stretch, &probe.end_faces);
+            self.commit_move(plan, v, probe);
             return true;
         }
         false
+    }
+
+    /// Vertex `v` moved to the probe's end: its stretches measured there, then applied.
+    fn commit_move(&mut self, plan: &mut Plan, v: u32, probe: &mut Probe) {
+        probe.end_stretch = self.try_move(v, plan, probe.end, &mut probe.end_faces);
+        self.apply_move(plan, v, probe.end, probe.end_stretch, &probe.end_faces);
     }
 
     /// Vertex `v` placed at `uv` with stretch `stretch` and its faces' stretches `faces`; its

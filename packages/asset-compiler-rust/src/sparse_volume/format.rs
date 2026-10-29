@@ -246,6 +246,17 @@ impl Header {
         self.size_page_table(origin);
     }
 
+    /// How many mip levels the page table has: down to one page.
+    pub(crate) fn mip_levels(&self) -> u32 {
+        let mut resolution = self.page_table_resolution;
+        let mut levels = 1;
+        while resolution.iter().any(|&side| side > 1) {
+            resolution = map3(resolution, |side| side / 2);
+            levels += 1;
+        }
+        levels
+    }
+
     /// Why this header cannot be a texture, if it cannot.
     pub(crate) fn validate(&self) -> Result<(), String> {
         let res = self.page_table_resolution;
@@ -267,12 +278,5 @@ impl Header {
 
 /// How many mip levels the page table of a volume spanning `min` to `max` has: down to one page.
 pub(crate) fn mip_levels(min: IVec3, max: IVec3) -> u32 {
-    let mut resolution =
-        Header::new(min, max, [PixelFormat::Unknown; 2], [[0.0; 4]; 2]).page_table_resolution;
-    let mut levels = 1;
-    while resolution.iter().any(|&side| side > 1) {
-        resolution = map3(resolution, |side| side / 2);
-        levels += 1;
-    }
-    levels
+    Header::new(min, max, [PixelFormat::Unknown; 2], [[0.0; 4]; 2]).mip_levels()
 }

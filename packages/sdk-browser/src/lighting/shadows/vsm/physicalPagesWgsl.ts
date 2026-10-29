@@ -128,6 +128,12 @@ export const vsmPmKernel = (
   code: vsmPmModule(layout, specs, body, options),
 })
 
+/** The bindings the kernels over the pool's pages start with: the uniforms and the pool's page information. */
+const POOL_HEAD_SPECS: readonly VsmBindingSpec[] = [
+  { resource: 'uniforms', binding: 0 },
+  { resource: 'poolPageInfo', binding: 1, access: 'read_write' },
+]
+
 /** Appends the stats binding at `binding` when enabled. */
 function withStats(
   specs: VsmBindingSpec[],
@@ -157,8 +163,7 @@ ${wgslConsts({
  *  without a previous frame (`vsmPm.hasPrevFrame`) every page is emptied. */
 function carryPages(layout: VsmLayout): VsmPmKernel {
   const specs: VsmBindingSpec[] = [
-    { resource: 'uniforms', binding: 0 },
-    { resource: 'poolPageInfo', binding: 1, access: 'read_write' },
+    ...POOL_HEAD_SPECS,
     { resource: 'nextMaps', binding: 2 },
     { resource: 'pageRequests', binding: 3, prev: true },
     // The previous frame's records: where its tables lay (\`vsmTableLevelOrigin\`).
@@ -371,8 +376,7 @@ fn vsmKeepPages(@builtin(global_invocation_id) index:vec3u){
 function keepPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
   const specs = withStats(
     [
-      { resource: 'uniforms', binding: 0 },
-      { resource: 'poolPageInfo', binding: 1, access: 'read_write' },
+      ...POOL_HEAD_SPECS,
       { resource: 'pageRequests', binding: 2 },
       { resource: 'pageTable', binding: 3, access: 'read_write' },
       { resource: 'pageMarks', binding: 4, access: 'read_write' },
@@ -487,8 +491,7 @@ fn vsmGrantPages(@builtin(global_invocation_id) dispatchThreadId:vec3u,@builtin(
 function grantPages(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
   const specs = withStats(
     [
-      { resource: 'uniforms', binding: 0 },
-      { resource: 'poolPageInfo', binding: 1, access: 'read_write' },
+      ...POOL_HEAD_SPECS,
       { resource: 'freePages', binding: 2, access: 'atomic' },
       { resource: 'pageRequests', binding: 3 },
       { resource: 'pageTable', binding: 4, access: 'read_write' },
@@ -547,8 +550,7 @@ ${VSM_CLEAR_ARGS_EMPTY.map((word, k) => ` atomicStore(&vsmClearArgs[${k}],${word
 function listClears(layout: VsmLayout, o: VsmPmKernelOptions): VsmPmKernel {
   const specs = withStats(
     [
-      { resource: 'uniforms', binding: 0 },
-      { resource: 'poolPageInfo', binding: 1, access: 'read_write' },
+      ...POOL_HEAD_SPECS,
       { resource: 'clearArgs', binding: 2, access: 'atomic' },
       { resource: 'pagesToClear', binding: 3, access: 'read_write' },
     ],

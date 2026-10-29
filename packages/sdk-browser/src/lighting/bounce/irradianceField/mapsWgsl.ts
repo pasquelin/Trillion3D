@@ -6,7 +6,6 @@ import {
   computeBufferEntry,
   computeStorageTextureEntry,
   computeTextureEntry,
-  computeUniformEntry,
 } from '../../../gpu/core/computeBindings.ts'
 import {
   WORD_LIGHT_FORMAT,
@@ -16,7 +15,7 @@ import {
   lightReadDeps,
   type LightAtlasFormat,
 } from '../../../gpu/core/lightAtlasFormat.ts'
-import { atlasEntry } from '../atlas.ts'
+import { cacheKernelEntries } from '../cache/cacheBindings.ts'
 import { CACHE_TILE_SIDE, RADIANCE_CACHE_PARAMS } from '../cache/cacheLayout.ts'
 import { CACHE_WORDS_WGSL } from '../cache/cacheWordsWgsl.ts'
 import { rawWordChannel } from '../cache/cacheRawWgsl.ts'
@@ -61,10 +60,7 @@ export const OCCLUSION_BINDINGS = {
 export const irradianceEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => {
   const B = IRRADIANCE_BINDINGS
   return [
-    computeUniformEntry(B.grid),
-    atlasEntry(B.table),
-    computeBufferEntry(B.queue, 'read-only-storage'),
-    computeUniformEntry(B.params),
+    ...cacheKernelEntries(B),
     computeTextureEntry(B.final, lightAtlasSampleType(light)),
     computeStorageTextureEntry(B.irradiance, irradianceFieldFormat(light)),
   ]
@@ -74,10 +70,7 @@ export const irradianceEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) =
 export const occlusionEntries = () => {
   const B = OCCLUSION_BINDINGS
   return [
-    computeUniformEntry(B.grid),
-    atlasEntry(B.table),
-    computeBufferEntry(B.queue, 'read-only-storage'),
-    computeUniformEntry(B.params),
+    ...cacheKernelEntries(B),
     computeTextureEntry(B.raw, 'uint'),
     computeStorageTextureEntry(B.occlusion, FIELD_OCCLUSION_FORMAT),
     computeBufferEntry(B.valid, 'storage'),

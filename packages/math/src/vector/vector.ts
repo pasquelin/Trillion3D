@@ -279,6 +279,13 @@ export function normalizeVector3(v: NumberSink, at = 0) {
   writeNormalizedVector3(v, at, v[at], v[at + 1], v[at + 2])
 }
 
+/** `(x, y, z)` written to `out[at..at + 2]`. */
+function writeVector3(out: NumberSink, at: number, x: number, y: number, z: number) {
+  out[at] = x
+  out[at + 1] = y
+  out[at + 2] = z
+}
+
 /** `normalizeVector3`'s rule on three numbers, written to `out[at..at + 2]`: read once, written
  *  once, so a caller holding a transformed vector in locals does not read it back. An already unit
  *  vector is written as it is: its length is exactly 1. */
@@ -290,12 +297,7 @@ export function writeNormalizedVector3(
   z: number,
 ) {
   const s = x * x + y * y + z * z
-  if (s === 1) {
-    out[at] = x
-    out[at + 1] = y
-    out[at + 2] = z
-    return
-  }
+  if (s === 1) return writeVector3(out, at, x, y, z)
   let inverse = 1 / (length3OfSquared(s, x, y, z) || 1)
   if (inverse === Infinity) {
     x *= TINY_SCALE
@@ -314,12 +316,7 @@ export function writeNormalizedVector3(
  *  written as it is: its length is exactly 1. */
 export function writeDividedVector3(out: NumberSink, at: number, x: number, y: number, z: number) {
   const s = x * x + y * y + z * z
-  if (s === 1) {
-    out[at] = x
-    out[at + 1] = y
-    out[at + 2] = z
-    return
-  }
+  if (s === 1) return writeVector3(out, at, x, y, z)
   const length = length3OfSquared(s, x, y, z) || 1
   out[at] = x / length
   out[at + 1] = y / length

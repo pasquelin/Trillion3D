@@ -37,6 +37,27 @@ pub(super) fn from_bytes(image: &image::RgbaImage) -> Vec<f32> {
         .collect()
 }
 
+/// Writes the files of a chain's levels above `first_level`, under `key` and `file`: whether they
+/// all were, the levels written (none when a write failed) and the notes the failure makes.
+fn write_chain(
+    o: &Options,
+    (key, kind): (&str, AtlasKind),
+    size: (u32, u32),
+    (file, first_level): (&str, u32),
+    encode: impl Fn(usize, (u32, u32)) -> Result<Vec<u8>>,
+) -> (bool, u32, Vec<&'static str>) {
+    let written = {
+        let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::TextureWrite);
+        write_levels(o, key, kind, size, file, first_level, encode)
+    };
+    let notes = if written.is_err() {
+        vec![LEVEL_WRITE_FAILED]
+    } else {
+        Vec::new()
+    };
+    (written.is_ok(), written.unwrap_or(0), notes)
+}
+
 /// What a floating chain's cook brings to its sidecar entries: the key its files live under, its
 /// atlas, its first carried level and the levels baked, the tail's texels and blocks with the
 /// layouts that name them, and the notes the cook made.
@@ -172,27 +193,17 @@ pub(super) fn cook_exact(
         let (w, h) = preview_level_size(width, height, level as u32);
         encode_texels(&levels[level], w, h, texel_bytes)
     };
-    let written = {
-        let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::TextureWrite);
-        write_levels(
-            o,
-            &key,
-            entry_kind,
-            (width, height),
-            file,
-            first_level,
-            |level, (w, h)| Ok(tile_records(&blocks_of(level), w, h, layout_cell(layout))),
-        )
-    };
-    let mut notes = Vec::new();
-    if written.is_err() {
-        notes.push(LEVEL_WRITE_FAILED);
-    }
-    let baked_levels = written.as_ref().map_or(0, |&count| count);
+    let (written, baked_levels, notes) = write_chain(
+        o,
+        (&key, entry_kind),
+        (width, height),
+        (file, first_level),
+        |level, (w, h)| Ok(tile_records(&blocks_of(level), w, h, layout_cell(layout))),
+    );
     // The exact tail is kept only with the files it sits beside, as every layout's.
     let (layouts, tail) = stored_family(
         layout,
-        written.is_ok().then(|| {
+        written.then(|| {
             (first_level as usize..levels.len())
                 .flat_map(blocks_of)
                 .collect()
@@ -244,28 +255,18 @@ pub(super) fn cook(
             tile_records(&levels[level], w, h, HALF_CELL)
         }
     };
-    let written = {
-        let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::TextureWrite);
-        write_levels(
-            o,
-            &key,
-            AtlasKind::Hdr,
-            (width, height),
-            file,
-            first_level,
-            |level, size| Ok(encode(level, size)),
-        )
-    };
-    let mut notes = Vec::new();
-    if written.is_err() {
-        notes.push(LEVEL_WRITE_FAILED);
-    }
-    let baked_levels = written.as_ref().map_or(0, |&count| count);
+    let (written, baked_levels, notes) = write_chain(
+        o,
+        (&key, AtlasKind::Hdr),
+        (width, height),
+        (file, first_level),
+        |level, size| Ok(encode(level, size)),
+    );
     let pixels = levels[first_level as usize..].concat();
     // The tail's blocks, kept only with the files they sit beside.
     let (layouts, tail) = stored_family(
         Layout::Hdr,
-        (blocks && written.is_ok()).then(|| {
+        (blocks && written).then(|| {
             (first_level as usize..levels.len())
                 .flat_map(|level| {
                     let (w, h) = preview_level_size(width, height, level as u32);

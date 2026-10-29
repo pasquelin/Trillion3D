@@ -347,13 +347,18 @@ ${SAMPLING_PART_3}  var rayType=${RAY_TYPE.default}u;
 ${SAMPLING_PART_1}`
 }
 
-export function samplingWgsl(key: ContractKey, tileClass: TileClass, rect: boolean, front = false) {
+/** The key of a class's lights, none shadowed and no contact shadow, and the cut of the pixel it reads: what the sampling and the shading of the class share. */
+export function sampledClassOf(key: ContractKey, tileClass: TileClass, rect: boolean) {
   const lights: ContractKey = {
     ...keyOfClass(key, tileClass, rect),
     unshadowed: true,
     contactless: true,
   }
-  const cut = litCutOf(tileClass, lights)
+  return { lights, cut: litCutOf(tileClass, lights) }
+}
+
+export function samplingWgsl(key: ContractKey, tileClass: TileClass, rect: boolean, front = false) {
+  const { lights, cut } = sampledClassOf(key, tileClass, rect)
   const statements = litPixelStatements(cut).replace('{discard;}', '{writeEmpty(down);return;}')
   const twoSided = cut.thin ? 'thinSurface()' : 'false'
   const transmits = cut.thin ? `(surfaceFlag&${SUBSURFACE_FLAG}u)!=0u` : 'false'

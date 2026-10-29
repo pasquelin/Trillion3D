@@ -237,14 +237,19 @@ fn geometric(q: &[f64], p: V3) -> f64 {
     dot(p, c_times(&q[C..C + 6], p)) + 2.0 * dot(p, [q[DN], q[DN + 1], q[DN + 2]]) + q[D2]
 }
 
+/// `pᵀg + d` of attribute `i` of `m`: the quadric's gradient row of it at `p`, plus its offset.
+fn gradient_term(q: &[f64], p: V3, m: usize, i: usize) -> f64 {
+    let gi = HEAD + 3 * i;
+    dot(p, [q[gi], q[gi + 1], q[gi + 2]]) + q[HEAD + 3 * m + i]
+}
+
 /// `Q(p, s)` with `s` the weighed `values`; a negative or non-finite result reads 0.
 pub(crate) fn evaluate(q: &[f64], p: V3, values: &[f32], weights: &[f32]) -> f32 {
     let m = weights.len();
     let a = q[AREA];
     let mut total = geometric(q, p);
     for i in 0..m {
-        let gi = HEAD + 3 * i;
-        let pgd = dot(p, [q[gi], q[gi + 1], q[gi + 2]]) + q[HEAD + 3 * m + i];
+        let pgd = gradient_term(q, p, m, i);
         let s = weighed(weights, values, i);
         total += s * (a * s - 2.0 * pgd);
     }
@@ -261,8 +266,7 @@ pub(crate) fn solve_and_evaluate(q: &[f64], p: V3, values: &mut [f32], weights: 
         if weights[i] == 0.0 {
             continue;
         }
-        let gi = HEAD + 3 * i;
-        let pgd = dot(p, [q[gi], q[gi + 1], q[gi + 2]]) + q[HEAD + 3 * m + i];
+        let pgd = gradient_term(q, p, m, i);
         let s = pgd / a;
         values[i] = (s / f64::from(weights[i])) as f32;
         total -= pgd * s;

@@ -3,7 +3,7 @@
 //! displacement was baked into its triangles (`displace`), from the baked mesh, the triangles its
 //! build holds.
 use super::material::Surface;
-use super::mesh::{Corners, Traceable};
+use super::mesh::{Channel, Corners, Traceable};
 use crate::compiler::accessor::create::accessor;
 use crate::compiler::primitive::triangles::{mesh_primitives, read};
 use crate::compiler::validate::required_index;
@@ -126,27 +126,20 @@ fn push_triangles(
     // A colour is three or four wide, as its accessor declares.
     let width = colours.map_or(4, |c| c.len() / (positions.len() / 3).max(1));
     for triangle in indices.as_chunks::<3>().0 {
-        let mut corner = Corners::default();
-        let mut normal = [0.0f32; 9];
-        let mut colour = [1.0f32; 12];
-        for (k, &index) in triangle.iter().enumerate() {
+        for &index in triangle {
             let i = index as usize;
             triangles.extend_from_slice(&positions[i * 3..i * 3 + 3]);
-            for (set, uv) in sets.iter().enumerate() {
-                let read = uv.and_then(|uv| uv.get(i * 2..i * 2 + 2));
-                corner.uv[set][k * 2..k * 2 + 2].copy_from_slice(read.unwrap_or(&[0.0; 2]));
-            }
-            if let Some(n) = normals.and_then(|n| n.get(i * 3..i * 3 + 3)) {
-                normal[k * 3..k * 3 + 3].copy_from_slice(n);
-            }
-            let read = colours.filter(|_| matches!(width, 3 | 4));
-            if let Some(c) = read.and_then(|c| c.get(i * width..i * width + width)) {
-                colour[k * 4..k * 4 + width].copy_from_slice(c);
-            }
         }
-        corner.normals = normals.is_some().then_some(normal);
-        corner.colours = colours.is_some().then_some(colour);
-        corners.push(corner);
+        corners.push(Corners::of_triangle(
+            triangle,
+            (normals.is_some(), colours.is_some()),
+            |channel, i| match channel {
+                Channel::Uv(set) => sets[set].and_then(|uv| uv.get(i * 2..i * 2 + 2)),
+                Channel::Normal => normals.and_then(|n| n.get(i * 3..i * 3 + 3)),
+                Channel::Colour => (colours.filter(|_| matches!(width, 3 | 4)))
+                    .and_then(|c| c.get(i * width..i * width + width)),
+            },
+        ));
         tags.push(material);
     }
 }

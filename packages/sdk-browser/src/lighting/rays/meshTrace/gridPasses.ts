@@ -207,9 +207,8 @@ function sizesOf(key: MeshGridShapeKey) {
 
 function makeView(device: GPUDevice, key: MeshGridShapeKey, bytes: number): MeshGridView {
   const sizes = sizesOf(key)
-  const { buffer: bufferOf, texture, dispose } = viewResources(device, LABEL)
+  const { sized: buffer, texture, dispose } = viewResources(device, LABEL, sizes)
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  const buffer = (name: keyof typeof sizes, usage: number) => bufferOf(name, sizes[name], usage)
   return {
     key,
     params: buffer('params', GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),

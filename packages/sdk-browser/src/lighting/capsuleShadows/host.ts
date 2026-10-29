@@ -317,23 +317,39 @@ export function capsuleLightMask(rt: WebgpuPagesRuntime, cam: EngineCamera) {
     rect: readonly [number, number, number, number],
   ) => {
     if (light.type === 'directional') return
-    const count = shapesWithin(
-      frame,
-      light.position,
-      light.radius + frame.options.capsuleMaxDirectOcclusionDistance,
-    )
-    if (!count) return
     layerTarget.view = layer
-    encodeCapsuleDirectShadows(frame.h.state, frame.device, encoder, {
-      image: frame.image,
-      settings: frame.options,
-      sources: frame.sources,
-      light: localLight(light),
-      data: { shapes: frame.h.shapes, count },
-      output: maskOutput,
-      scissor: [rect[0], rect[1], rect[2] - rect[0], rect[3] - rect[1]],
-    })
+    encodeLocalShadow(frame, encoder, light, maskOutput, [
+      rect[0],
+      rect[1],
+      rect[2] - rect[0],
+      rect[3] - rect[1],
+    ])
   }
+}
+
+/** The direct capsule shadow of a local light over `scissor` of the image, once an object within its reach casts one, into `output`. */
+function encodeLocalShadow(
+  frame: DirectFrame,
+  encoder: GPUCommandEncoder,
+  light: Exclude<VsmProjectionLight, { type: 'directional' }>,
+  output: Parameters<typeof encodeCapsuleDirectShadows>[3]['output'],
+  scissor: readonly [number, number, number, number],
+) {
+  const count = shapesWithin(
+    frame,
+    light.position,
+    light.radius + frame.options.capsuleMaxDirectOcclusionDistance,
+  )
+  if (!count) return
+  encodeCapsuleDirectShadows(frame.h.state, frame.device, encoder, {
+    image: frame.image,
+    settings: frame.options,
+    sources: frame.sources,
+    light: localLight(light),
+    data: { shapes: frame.h.shapes, count },
+    output,
+    scissor,
+  })
 }
 
 /** A local light as the capsule pass reads it: its source radius is the light's own (0 where it has none: a point source takes the pass's default). */
@@ -458,22 +474,8 @@ export function capsuleLocalLayers(
   for (let k = suns; k < layers.each.length; k++) {
     const light = lights[k]
     if (light.type === 'directional') continue
-    const count = shapesWithin(
-      frame,
-      light.position,
-      light.radius + frame.options.capsuleMaxDirectOcclusionDistance,
-    )
-    if (!count) continue
     layerTarget.view = layers.each[k]
-    encodeCapsuleDirectShadows(frame.h.state, frame.device, encoder, {
-      image: frame.image,
-      settings: frame.options,
-      sources: frame.sources,
-      light: localLight(light),
-      data: { shapes: frame.h.shapes, count },
-      output: localOutput,
-      scissor,
-    })
+    encodeLocalShadow(frame, encoder, light, localOutput, scissor)
   }
   return layers.array
 }

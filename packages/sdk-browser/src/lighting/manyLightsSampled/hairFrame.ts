@@ -8,7 +8,7 @@ import { retire } from '../../gpu/core/frameRetire.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../../diagnostic/stage/passLabels.ts'
 import type { HairNodes } from '../../hair/compactionPass.ts'
 import type { HairVoxelSettings } from '../../hair/inputs.ts'
-import type { HairVoxelSet } from '../../hair/voxelPass.ts'
+import { voxelSetResources, type HairVoxelSet } from '../../hair/voxelPass.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { noiseFrame } from '../../frame/render/noiseFrame.ts'
 import { directTiles } from '../../frame/render/encodeLights.ts'
@@ -202,24 +202,14 @@ function maskGroup(
     lights: GPUBuffer
   },
 ) {
-  const { set } = bound.voxels
-  const { nodes } = bound
-  return device.createBindGroup({
-    layout,
-    entries: sequentialEntries([
-      { buffer: set.paramsBuffer },
-      { buffer: set.nodes },
-      { buffer: set.pageIndex },
-      { buffer: set.voxels },
-      { buffer: nodes.nodeCoord },
-      { buffer: nodes.nodeData },
-      { buffer: nodes.nodeCounter },
-      { buffer: bound.draws },
-      { buffer: bound.viewBuffer },
-      { buffer: bound.params },
-      { buffer: bound.lights },
-    ]),
-  })
+  const resources = voxelSetResources(bound.voxels.set, bound.nodes)
+  resources.push(
+    { buffer: bound.draws },
+    { buffer: bound.viewBuffer },
+    { buffer: bound.params },
+    { buffer: bound.lights },
+  )
+  return device.createBindGroup({ layout, entries: sequentialEntries(resources) })
 }
 
 /**

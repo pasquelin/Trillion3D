@@ -3,7 +3,7 @@ import { resolveLightShaftLight } from '../../modules/sky/lightShafts.ts'
 import { Color, type ColorInput } from '../math/color.ts'
 import { Vector3, readVec3, type Vec3Input } from '../math/vector3.ts'
 import type { Light } from './light.ts'
-import { defineWritable, lightStates, scalarGroup } from './lightNumbers.ts'
+import { defineReadonly, defineWritable, lightStates, scalarGroup } from './lightNumbers.ts'
 
 /** What a page may pass to a light about its light shafts (`SceneLight.shaft*`). */
 export interface LightShaftParameters {
@@ -143,14 +143,8 @@ export function fromRecord(record: SceneLight): LightShaftParameters {
  *  the world at once. */
 export function define(proto: Light) {
   defineWritable(proto, SCALARS, (light) => stateOf(light).values)
-  Object.defineProperty(proto, 'shaftOverrideDirection', {
-    get(this: Light) {
-      return stateOf(this).direction
-    },
-  })
-  Object.defineProperty(proto, 'shaftBloomTint', {
-    get(this: Light) {
-      return stateOf(this).tint
-    },
+  defineReadonly(proto, {
+    shaftOverrideDirection: (light) => stateOf(light).direction,
+    shaftBloomTint: (light) => stateOf(light).tint,
   })
 }

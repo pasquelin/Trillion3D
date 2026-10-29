@@ -30,14 +30,23 @@ pub const ORDERS_BY_CYCLE: [[usize; 3]; 6] = [
     [2, 1, 0],
 ];
 
+/// The identity times each matrix of `turns` in turn, by `multiply`.
+#[inline]
+fn compose_by<T: Real>(
+    turns: impl IntoIterator<Item = [T; MATRIX_VALUES]>,
+    multiply: impl Fn(&[T; MATRIX_VALUES], &[T; MATRIX_VALUES]) -> [T; MATRIX_VALUES],
+) -> [T; MATRIX_VALUES] {
+    turns
+        .into_iter()
+        .fold(identity(), |matrix, turn| multiply(&matrix, &turn))
+}
+
 /// The identity times each matrix of `turns` in turn, by `multiply_matrix4`.
 #[inline]
 pub fn compose_turns<T: Real>(
     turns: impl IntoIterator<Item = [T; MATRIX_VALUES]>,
 ) -> [T; MATRIX_VALUES] {
-    turns
-        .into_iter()
-        .fold(identity(), |matrix, turn| multiply_matrix4(&matrix, &turn))
+    compose_by(turns, multiply_matrix4)
 }
 
 /// `compose_turns` by `multiply_matrix4_from_zero`.
@@ -45,9 +54,7 @@ pub fn compose_turns<T: Real>(
 pub fn compose_turns_from_zero<T: Real>(
     turns: impl IntoIterator<Item = [T; MATRIX_VALUES]>,
 ) -> [T; MATRIX_VALUES] {
-    turns.into_iter().fold(identity(), |matrix, turn| {
-        multiply_matrix4_from_zero(&matrix, &turn)
-    })
+    compose_by(turns, multiply_matrix4_from_zero)
 }
 
 /// The rotation of the Euler `order`, `turn(axis)` the matrix of the turn about `axis`: the turns

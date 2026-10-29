@@ -47,6 +47,21 @@ pub(crate) struct Vert {
     pub next: u32,
 }
 
+impl Vert {
+    /// The vertex `old` of the chart this one is cut from, as vertex `id` of the new chart: it
+    /// keeps its place in the root chart and its importance, and its rings are left to rebuild.
+    pub(crate) fn cut_from(id: usize, old: &Vert) -> Self {
+        Self {
+            id: id as u32,
+            root: old.root,
+            parent: old.id,
+            boundary: old.boundary,
+            importance: old.importance,
+            ..Self::default()
+        }
+    }
+}
+
 #[derive(Clone, Copy, Default)]
 pub(crate) struct Face {
     /// Its index in this chart.
@@ -76,6 +91,18 @@ pub(crate) struct Edge {
     /// Whether a cut may run along it: every edge may but a false edge, which only splits a
     /// polygon of the input into triangles.
     pub splittable: bool,
+}
+
+impl Edge {
+    /// The face across the edge from face `f`, one of its two (`NONE` across a boundary).
+    pub(crate) fn other_face(&self, f: u32) -> u32 {
+        other_of(self.faces, f)
+    }
+}
+
+/// The member of the pair that is not `one`, one of the two.
+pub(crate) fn other_of(pair: [u32; 2], one: u32) -> u32 {
+    pair[0] ^ pair[1] ^ one
 }
 
 pub(crate) struct Chart<'a> {

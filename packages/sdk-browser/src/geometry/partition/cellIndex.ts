@@ -138,16 +138,18 @@ const openPage = (s: Index, page: IndexPage, body: PageBody): StreamPage[] => {
   return ids.map((id) => fileOf(s, id))
 }
 
-/** Walks the pages from the root: see `CellIndex.near`. */
-const walkNear = (
-  s: Index,
+/** What `CellIndex.near` takes. */
+type NearArgs = [
   eye: ArrayLike<number>,
   radius: number,
   keep: number,
   held: { has(cell: number): boolean },
   visit: (cell: number, square: ArrayLike<number>, leaf: ArrayLike<number> | null) => void,
   unread: (page: IndexPage, distance: number) => void,
-) => {
+]
+
+/** Walks the pages from the root: see `CellIndex.near`. */
+const walkNear = (s: Index, ...[eye, radius, keep, held, visit, unread]: NearArgs) => {
   const tested = { pages: 0, cells: 0 },
     open = [...s.top]
   for (let page = open.pop(); page; page = open.pop()) {
@@ -206,14 +208,7 @@ export function createCellIndex(slots: readonly TableSlot[], base: string, boxes
      * `keep` whose cells `held` holds none. Distances are 2D (`boxDistance`). Returns the boxes
      * it tested: the pages it met, and the cells of the region pages it walked.
      */
-    near: (
-      eye: ArrayLike<number>,
-      radius: number,
-      keep: number,
-      held: { has(cell: number): boolean },
-      visit: (cell: number, square: ArrayLike<number>, leaf: ArrayLike<number> | null) => void,
-      unread: (page: IndexPage, distance: number) => void,
-    ) => walkNear(s, eye, radius, keep, held, visit, unread),
+    near: (...args: NearArgs) => walkNear(s, ...args),
     /** The files the pages closed since the last call named: the catalogue lets them go. */
     forgotten() {
       const out = s.forgotten

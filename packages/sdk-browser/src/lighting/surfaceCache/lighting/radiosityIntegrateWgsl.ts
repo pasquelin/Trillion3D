@@ -1,11 +1,8 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { rand3dPcg16 } from '../../../../../math/src/wgsl/sampling.ts'
-import { ditherLight, packLight, unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
 import { WORD_LIGHT_FORMAT, type LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
-import { indirectWordsWgsl } from '../indirectWords.ts'
 import { lightWordsOf } from '../../../gpu/core/lightWords.ts'
-import { lightingCommonWgsl, lightingLayersWgsl, surfaceTexelWgsl } from './commonWgsl.ts'
-import { radiosityCommonWgsl, radiosityProbeVisibilityWgsl } from './radiosityCommonWgsl.ts'
+import { radiosityKernelDeclarations } from './radiosityCommonWgsl.ts'
 
 /**
  * THE INDIRECT LIGHT OF THE CARDS' TEXELS: a workgroup a tile of the indirect update's list, a thread a texel, which holds the
@@ -114,16 +111,6 @@ export const radiosityIntegrateProgramOf = (light: LightAtlasFormat) => {
   return wgslProgram(
     `${integrateProbes}
 ${integrateEntry(light)}`,
-    [
-      lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
-      surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
-      radiosityCommonWgsl(),
-      radiosityProbeVisibilityWgsl(B.hits),
-      packLight,
-      unpackLight,
-      ditherLight,
-      rand3dPcg16,
-      ...(words === 1 ? [] : [indirectWordsWgsl(words)]),
-    ],
+    [...radiosityKernelDeclarations(B, words), rand3dPcg16],
   )
 }

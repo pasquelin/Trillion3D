@@ -82,6 +82,14 @@ impl Cut {
         }
         self.place[v] = NOT_ON_BOUNDARY;
     }
+    /// Joins or leaves the boundary as `v`'s weights now say: an isolated vertex stays where it is.
+    pub(super) fn settle(&mut self, graph: &Level, v: usize) {
+        if self.across[v] == 0 && self.on_boundary(v) && graph.degree(v) > 0 {
+            self.leave(v);
+        } else if self.across[v] > 0 && !self.on_boundary(v) {
+            self.enter(v);
+        }
+    }
     pub(super) fn gain(&self, v: usize) -> i64 {
         self.across[v] - self.inside[v]
     }

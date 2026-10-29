@@ -91,6 +91,12 @@ export interface HairNodes {
   readonly argsGroup: ReturnType<typeof argsBinds>
 }
 
+/** The samples' coordinates, data and counter as binding resources, appended to `into`: how a kernel over the stored samples names them. */
+export const hairNodeResources = (nodes: HairNodes, into: GPUBindingResource[] = []) => {
+  into.push({ buffer: nodes.nodeCoord }, { buffer: nodes.nodeData }, { buffer: nodes.nodeCounter })
+  return into
+}
+
 /** The bind group of the dispatch over the stored samples. */
 const argsBinds = () =>
   boundGroups<HairNodes, undefined, undefined>(1, (device, pipeline, nodes) =>

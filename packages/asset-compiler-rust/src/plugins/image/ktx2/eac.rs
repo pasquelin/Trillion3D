@@ -8,8 +8,8 @@
 //! order, reads `from_be_bytes`: the sixteen texels of a block come out shuffled. Both
 //! defects fall with this decoder, which follows the block layout of the format.
 //!
-//! The rest of the driver knows nothing of it: these two functions have the signature
-//! `image::blocks` expects of a block decoder, and sit in the same codec table as the others.
+//! The rest of the driver knows nothing of it: `planes`, its channels fixed, has the signature
+//! `image::blocks` expects of a block decoder and sits in the same codec table as the others.
 
 use crate::plugins::image::blocks::{blocks_of, BLOCK_SIDE};
 use crate::texture::blocks::eac_modifiers::EAC_MODIFIERS;
@@ -30,29 +30,14 @@ const GREEN: usize = 1;
 const SHORT: &str = "eac-level-short";
 
 /// `VK_FORMAT_EAC_R11_UNORM_BLOCK`: a single channel, returned as red.
-pub(super) fn r11(
-    level: &[u8],
-    width: usize,
-    height: usize,
-    image: &mut [u32],
-) -> Result<(), &'static str> {
-    planes(level, width, height, image, &[RED])
-}
-
+pub(super) const R11: &[usize] = &[RED];
 /// `VK_FORMAT_EAC_R11G11_UNORM_BLOCK`: two consecutive channels, red then green.
-pub(super) fn rg11(
-    level: &[u8],
-    width: usize,
-    height: usize,
-    image: &mut [u32],
-) -> Result<(), &'static str> {
-    planes(level, width, height, image, &[RED, GREEN])
-}
+pub(super) const RG11: &[usize] = &[RED, GREEN];
 
 /// The level's blocks, row by row, each expanded into the image. A block overflows the edge
 /// when the width or height is not a multiple of four: texels outside the image are simply
 /// left aside, as the specification requires.
-fn planes(
+pub(super) fn planes(
     level: &[u8],
     width: usize,
     height: usize,

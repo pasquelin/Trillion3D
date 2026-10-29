@@ -91,14 +91,19 @@ mod tests {
         (positions, vec![[0.0, 0.0, 1.0]; 6], uvs)
     }
 
+    /// The corners a soup holds.
+    fn view(soup: &Soup) -> Corners<'_> {
+        Corners {
+            positions: &soup.0,
+            normals: &soup.1,
+            uvs: &soup.2,
+        }
+    }
+
     #[test]
     fn two_triangles_of_one_square_are_one_chart_laid_in_the_unit_square() {
-        let (positions, normals, uvs) = square(0.0);
-        let corners = Corners {
-            positions: &positions,
-            normals: &normals,
-            uvs: &uvs,
-        };
+        let soup = square(0.0);
+        let corners = view(&soup);
         assert_eq!(finder::find(&corners).charts.len(), 1);
         let laid = lay_out(&corners, 256).expect("a layout");
         assert_eq!(laid.len(), 6);
@@ -117,12 +122,8 @@ mod tests {
 
     #[test]
     fn triangles_whose_coordinates_differ_by_a_shift_are_two_charts_each_laid_on_its_own() {
-        let (positions, normals, uvs) = square(5.0);
-        let corners = Corners {
-            positions: &positions,
-            normals: &normals,
-            uvs: &uvs,
-        };
+        let soup = square(5.0);
+        let corners = view(&soup);
         assert_eq!(finder::find(&corners).charts.len(), 2);
         // The corners at one place of two charts land at two places: a corner keeps its own
         // chart's transform, whatever corner of another chart lies at its position.
@@ -133,13 +134,9 @@ mod tests {
 
     #[test]
     fn coordinates_without_area_give_no_layout() {
-        let (positions, normals, _) = square(0.0);
-        let uvs = vec![[0.0, 0.0]; 6];
-        let corners = Corners {
-            positions: &positions,
-            normals: &normals,
-            uvs: &uvs,
-        };
+        let mut soup = square(0.0);
+        soup.2 = vec![[0.0, 0.0]; 6];
+        let corners = view(&soup);
         assert!(lay_out(&corners, 256).is_none());
     }
 
@@ -147,13 +144,9 @@ mod tests {
     fn an_area_that_is_not_a_number_gives_no_layout() {
         // A coordinate past the floats: the charts' lengths overflow, their area is no number,
         // and every chart would "fit" at the origin.
-        let (positions, normals, mut uvs) = square(0.0);
-        uvs[2] = [f32::INFINITY, 1.0];
-        let corners = Corners {
-            positions: &positions,
-            normals: &normals,
-            uvs: &uvs,
-        };
+        let mut soup = square(0.0);
+        soup.2[2] = [f32::INFINITY, 1.0];
+        let corners = view(&soup);
         assert!(lay_out(&corners, 256).is_none());
     }
 
@@ -163,13 +156,11 @@ mod tests {
         // past the single-precision floats. Left to the search, its scale starts at zero, every
         // chart collapses to a point and "fits", and the first set is lost without a number
         // wrong in it.
-        let (positions, normals, mut uvs) = square(0.0);
-        uvs.iter_mut().for_each(|uv| *uv = uv.map(|x| x * 1.0e20));
-        let corners = Corners {
-            positions: &positions,
-            normals: &normals,
-            uvs: &uvs,
-        };
+        let mut soup = square(0.0);
+        soup.2
+            .iter_mut()
+            .for_each(|uv| *uv = uv.map(|x| x * 1.0e20));
+        let corners = view(&soup);
         assert!(lay_out(&corners, 256).is_none());
     }
 }

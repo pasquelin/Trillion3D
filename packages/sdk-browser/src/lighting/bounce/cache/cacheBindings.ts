@@ -31,16 +31,23 @@ export const CACHE_TILES_BINDINGS = {
   tiles: 4,
 } as const
 
+/** The entries the cache's kernels start with: the grid, the cell table, the queue and the cache's parameters, under the kernel's bindings `B`. */
+export const cacheKernelEntries = (B: {
+  readonly grid: number
+  readonly table: number
+  readonly queue: number
+  readonly params: number
+}) => [
+  computeUniformEntry(B.grid),
+  atlasEntry(B.table),
+  computeBufferEntry(B.queue, 'read-only-storage'),
+  computeUniformEntry(B.params),
+]
+
 /** The layout of the tiles' kernel. */
 export const cacheTilesEntries = () => {
   const B = CACHE_TILES_BINDINGS
-  return [
-    computeUniformEntry(B.grid),
-    atlasEntry(B.table),
-    computeBufferEntry(B.queue, 'read-only-storage'),
-    computeUniformEntry(B.params),
-    computeBufferEntry(B.tiles, 'storage'),
-  ]
+  return [...cacheKernelEntries(B), computeBufferEntry(B.tiles, 'storage')]
 }
 
 /** The bindings of the kernel that traces the tiles (`cacheTraceWgsl.ts`): the levels' uniform, the lights, the queue, the cell table,
@@ -128,10 +135,7 @@ export const CACHE_SPLAT_BINDINGS = {
 export const cacheSplatEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) => {
   const B = CACHE_SPLAT_BINDINGS
   return [
-    computeUniformEntry(B.grid),
-    atlasEntry(B.table),
-    computeBufferEntry(B.queue, 'read-only-storage'),
-    computeUniformEntry(B.params),
+    ...cacheKernelEntries(B),
     computeBufferEntry(B.tiles, 'read-only-storage'),
     computeTextureEntry(B.trace, 'uint'),
     computeStorageTextureEntry(B.raw, radianceRawFormat(light)),
@@ -156,10 +160,7 @@ export const cacheFilterEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) 
   const B = CACHE_FILTER_BINDINGS
   const T = radianceCacheTempFormats(light)
   return [
-    computeUniformEntry(B.grid),
-    atlasEntry(B.table),
-    computeBufferEntry(B.queue, 'read-only-storage'),
-    computeUniformEntry(B.params),
+    ...cacheKernelEntries(B),
     computeTextureEntry(B.raw, 'uint'),
     computeStorageTextureEntry(B.filtered, T.filtered),
     computeStorageTextureEntry(B.filteredSky, T.filteredSky),
@@ -189,10 +190,7 @@ export const cacheFixupEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) =
   const B = CACHE_FIXUP_BINDINGS
   const F = radianceCacheFormats(light)
   return [
-    computeUniformEntry(B.grid),
-    atlasEntry(B.table),
-    computeBufferEntry(B.queue, 'read-only-storage'),
-    computeUniformEntry(B.params),
+    ...cacheKernelEntries(B),
     computeTextureEntry(B.raw, 'uint'),
     computeTextureEntry(B.filtered, lightAtlasSampleType(light)),
     computeTextureEntry(B.filteredSky, 'unfilterable-float'),

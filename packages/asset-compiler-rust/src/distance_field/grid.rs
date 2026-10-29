@@ -6,6 +6,7 @@ use super::abi::{
     DISTANCE_FIELD_OBJECT_BORDER, DISTANCE_FIELD_UNIQUE_BRICK,
 };
 use super::DistanceFieldSettings;
+use trillion3d_math::geometry::aabb::padded_about_centre;
 
 type Vec3 = [f64; 3];
 
@@ -36,16 +37,6 @@ fn round(value: f64) -> i64 {
 /// The size of a box, per axis.
 fn size(low: Vec3, high: Vec3) -> Vec3 {
     [0, 1, 2].map(|k| high[k] - low[k])
-}
-
-/// The box `low, high` made at least a unit of half-extent an axis about its centre.
-fn at_least_a_unit(low: Vec3, high: Vec3) -> (Vec3, Vec3) {
-    let centre = [0, 1, 2].map(|k| 0.5 * (low[k] + high[k]));
-    let half = [0, 1, 2].map(|k| (0.5 * (high[k] - low[k])).max(LEAST_HALF_EXTENT));
-    (
-        [0, 1, 2].map(|k| centre[k] - half[k]),
-        [0, 1, 2].map(|k| centre[k] + half[k]),
-    )
 }
 
 /// The most bricks along an axis at mip 0 that the resolution allows — half of it for a scale of at
@@ -121,7 +112,7 @@ impl Grid {
         settings: &DistanceFieldSettings,
         two_sided: bool,
     ) -> Self {
-        let (mut low, mut high) = at_least_a_unit(low, high);
+        let (mut low, mut high) = padded_about_centre(low, high, (0.0, LEAST_HALF_EXTENT));
         if two_sided {
             let bricks = mip0_bricks(size(low, high), settings);
             let voxels = bricks

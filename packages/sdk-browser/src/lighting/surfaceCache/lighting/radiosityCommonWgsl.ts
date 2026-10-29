@@ -6,6 +6,9 @@ import { fastAtan2, sinFromCosUnclamped } from '../../../../../math/src/wgsl/geo
 import { PAGE_SIZE } from '../../../../../sdk-core/src/lighting/surfaceCache/cardResolution.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
 import { TV_SH_WGSL } from '../../translucency/frameWgsl.ts'
+import { ditherLight, packLight, unpackLight } from '../../../gpu/core/smallFloatWgsl.ts'
+import { indirectWordsWgsl } from '../indirectWords.ts'
+import { lightingCommonWgsl, lightingLayersWgsl, surfaceTexelWgsl } from './commonWgsl.ts'
 import { PAGE_LIGHTING } from './layout.ts'
 
 /**
@@ -141,6 +144,22 @@ fn planeWeight(position:vec3f,normal:vec3f,probe:vec3f)->f32{
 /** The radiosity's shared text. */
 export const radiosityCommonWgsl = (): WgslDecl =>
   wgslBlock('RADIOSITY_COMMON_WGSL', [hammersley16, RADIOSITY_WGSL], CONSTANTS)
+
+/** What the radiosity's programs over the cards' texels and probes list first, under the bindings `B` they declare: the lighting's, the layers', the
+ *  radiosity's and the probes' visibility, the light's packing and, where `words` is not 1, the words of the indirect light. */
+export const radiosityKernelDeclarations = (
+  B: { tables: number; context: number; depth: number; normal: number; hits: number },
+  words: 1 | 2 | 3,
+): WgslDecl[] => [
+  lightingCommonWgsl({ tables: B.tables, context: { binding: B.context, access: 'read' } }),
+  surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
+  radiosityCommonWgsl(),
+  radiosityProbeVisibilityWgsl(B.hits),
+  packLight,
+  unpackLight,
+  ditherLight,
+  ...(words === 1 ? [] : [indirectWordsWgsl(words)]),
+]
 
 /** The rays of a probe, for the programs that draw them (`radiosityRay`); `noise` is the binding of the blue noise's mask. */
 export const radiosityRayWgsl = (noise: number): WgslDecl =>

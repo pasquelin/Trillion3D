@@ -172,6 +172,20 @@ function passOf(
   return { device, encoder, view, slot: state.slot, key, image, sources, data, settings }
 }
 
+/** The pass of `job` over a view with room for its data (see `ensureView`); none where the pass cannot be drawn. */
+function viewPass(
+  state: CapsuleState,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  job: Pick<Pass, 'image' | 'sources' | 'data' | 'settings'>,
+  key: CapsuleProgramKey,
+  downsample: number,
+  bent: readonly [number, number] | undefined,
+) {
+  const view = ensureView(state, device, job.image, job.data, downsample, bent)
+  return view && passOf(state, device, encoder, view, key, job)
+}
+
 /** The view for a pass of `data`, with room for it (the room only grows); none, and the state says why, where the pass cannot be drawn. */
 function ensureView(
   state: CapsuleState,
@@ -383,6 +397,24 @@ function writeUpsample(
   return at
 }
 
+/** The bindings the upsample and the composition share: the pass's slot of the parameters, the tiles' counts, the factors, the depth and the flags. */
+function upsampleEntries(
+  view: CapsuleView,
+  at: ReturnType<typeof slotOffsets>,
+  sources: CapsuleSources,
+): GPUBindGroupEntry[] {
+  return [
+    {
+      binding: U.params,
+      resource: windowOf(view.upsampleParams, at.upsampleParams, BLOCK_BYTES.upsampleParams),
+    },
+    { binding: U.tileCounts, resource: wholeBuffer(view.tileCounts) },
+    { binding: U.factors, resource: view.factors.view },
+    ...hizLevelZeroBindEntries(U.depth, sources.depth),
+    { binding: U.flags, resource: sources.flags },
+  ]
+}
+
 /** The composition of a pass into a layer of a sun's mask, over the pixels of the tiles that met a shape. */
 function compose(
   pass: Pass,
@@ -405,15 +437,8 @@ function compose(
     label: `${LABEL} compose`,
     layout: programs.composeLayout,
     entries: [
-      {
-        binding: U.params,
-        resource: windowOf(view.upsampleParams, at.upsampleParams, BLOCK_BYTES.upsampleParams),
-      },
-      { binding: U.tileCounts, resource: wholeBuffer(view.tileCounts) },
-      { binding: U.factors, resource: view.factors.view },
+      ...upsampleEntries(view, at, sources),
       { binding: U.sunMask, resource: output.sunMask },
-      ...hizLevelZeroBindEntries(U.depth, sources.depth),
-      { binding: U.flags, resource: sources.flags },
     ],
   })
   const compute = encoder.beginComputePass(COMPOSE_PASS)
@@ -443,16 +468,7 @@ function upsample(
     device.createBindGroup({
       label: `${LABEL} upsample`,
       layout: programs.upsampleLayout,
-      entries: [
-        {
-          binding: U.params,
-          resource: windowOf(view.upsampleParams, at.upsampleParams, BLOCK_BYTES.upsampleParams),
-        },
-        { binding: U.tileCounts, resource: wholeBuffer(view.tileCounts) },
-        { binding: U.factors, resource: view.factors.view },
-        ...hizLevelZeroBindEntries(U.depth, sources.depth),
-        { binding: U.flags, resource: sources.flags },
-      ],
+      entries: upsampleEntries(view, at, sources),
     }),
   )
   const draw = encoder.beginRenderPass({
@@ -560,9 +576,8 @@ export function encodeCapsuleDirectShadows(
   }
   if (!programsReady(programs, key, output)) return false
   const downsample = capsuleDownsample(settings.capsuleShadowsFullResolution)
-  const view = ensureView(state, device, image, data, downsample, undefined)
-  if (!view) return false
-  const pass = passOf(state, device, encoder, view, key, job)
+  const pass = viewPass(state, device, encoder, job, key, downsample, undefined)
+  if (!pass) return false
   const scissor = job.scissor ?? [0, 0, image.view[0], image.view[1]]
   const grid = capsuleGrid([scissor[2], scissor[3]], downsample, true)
   const program = programs.shadow(key)
@@ -641,9 +656,8 @@ export function encodeCapsuleIndirectShadows(
   )
     return false
   const downsample = capsuleDownsample(settings.capsuleShadowsFullResolution)
-  const view = ensureView(state, device, image, data, downsample, undefined)
-  if (!view) return false
-  const pass = passOf(state, device, encoder, view, key, job)
+  const pass = viewPass(state, device, encoder, job, key, downsample, undefined)
+  if (!pass) return false
   const program = programs.shadow(key)
   const stage = program.stage.get()
   if (!stage) return false
@@ -686,16 +700,16 @@ export function encodeCapsuleSkyShadows(
     (data.derive && !programs.directions(!!sources.lightmap).ask().ready)
   )
     return undefined
-  const view = ensureView(
+  const pass = viewPass(
     state,
     device,
-    image,
-    data,
+    encoder,
+    job,
+    key,
     capsuleDownsample(settings.capsuleShadowsFullResolution),
     size,
   )
-  if (!view?.bent) return undefined
-  const pass = passOf(state, device, encoder, view, key, job)
+  if (!pass?.view.bent) return undefined
   const program = programs.shadow(key)
   const stage = program.stage.get()
   if (!stage) return undefined
@@ -704,5 +718,5 @@ export function encodeCapsuleSkyShadows(
   state.slot++
   if (!traceIndirect(pass, programs, program.layouts, stage, scissor, grid, downsample, receiver))
     return undefined
-  return view.bent.view
+  return pass.view.bent.view
 }

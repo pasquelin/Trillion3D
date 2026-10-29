@@ -50,14 +50,7 @@ import { SPATIAL_ENTRY, spatialWgsl } from './spatialWgsl.ts'
 import { TEMPORAL_ENTRY, temporalWgsl } from './temporalWgsl.ts'
 import { SHADING_ENTRY, shadingWgsl } from './shadingWgsl.ts'
 import { SCREEN_TRACE_ENTRY, screenTraceWgsl } from './screenTraceWgsl.ts'
-import { CLEAR_RESOLVED_ENTRY, clearResolvedWgsl } from './clearResolvedWgsl.ts'
-import {
-  FILTER_HASH_ENTRY,
-  filterHashWgsl,
-  HASH_ENTRY,
-  hashFilterOn,
-  hashWgsl,
-} from './hashWgsl.ts'
+import { HASH_ENTRY, hashWgsl } from './hashWgsl.ts'
 import {
   SAMPLED_GROUP,
   guideAt,
@@ -321,7 +314,6 @@ function makeResources(device: GPUDevice, g: SampledGeometry, lights: number) {
       48,
       GPUBufferUsage.INDIRECT,
     ),
-    hashRaw: storageBuffer(device, 'Trillion3D sampled raw hash', guideWords(g, 0) * 4),
     guides: [
       storageBuffer(device, 'Trillion3D sampled guide 0', guideBytes),
       storageBuffer(device, 'Trillion3D sampled guide 1', guideBytes),
@@ -348,7 +340,6 @@ function makeResources(device: GPUDevice, g: SampledGeometry, lights: number) {
         resources.compactData,
         resources.compactCount,
         resources.compactArgs,
-        resources.hashRaw,
         ...resources.guides,
         ...resources.histories,
         resources.params,
@@ -360,15 +351,32 @@ function makeResources(device: GPUDevice, g: SampledGeometry, lights: number) {
 }
 type Resources = ReturnType<typeof makeResources>
 
+/** The layout entries every kernel over the pixels' layers starts from: the words, the depth, the view and the lights. */
+const geometryLayoutEntries = () => [
+  computeTextureEntry(D.words, 'uint', '2d-array'),
+  computeTextureEntry(D.depth, 'depth', '2d'),
+  computeBufferEntry(D.view, 'uniform'),
+  computeBufferEntry(D.lights, 'read-only-storage'),
+]
+
+/** The layout entries of the colours and the emissive and occlusion layer, then the geometry's. */
+const shadedLayoutEntries = () => [
+  computeTextureEntry(D.colours, 'unfilterable-float', '2d-array'),
+  computeTextureEntry(D.emissiveAo, 'unfilterable-float', '2d'),
+  ...geometryLayoutEntries(),
+]
+
+/** The layout entries of the samples and rays textures the traces read and write in place, then the compacted rays they read. */
+const traceTailLayoutEntries = () => [
+  computeStorageTextureEntry(B.samples, 'r32uint', 'read-write'),
+  computeStorageTextureEntry(B.rays, 'r32uint', 'read-write'),
+  computeBufferEntry(B.compactData, 'read-only-storage'),
+  computeBufferEntry(B.compactCount, 'read-only-storage'),
+]
+
 /** The layouts of the tiles' classification and of the lists it makes. */
 function tileLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGroupLayout) {
-  const pixel = [
-    computeTextureEntry(D.words, 'uint', '2d-array'),
-    computeTextureEntry(D.depth, 'depth', '2d'),
-    computeBufferEntry(D.view, 'uniform'),
-    computeBufferEntry(D.lights, 'read-only-storage'),
-    computeBufferEntry(D.tiles, 'read-only-storage'),
-  ]
+  const pixel = [...geometryLayoutEntries(), computeBufferEntry(D.tiles, 'read-only-storage')]
   return {
     bitmask: layout([...pixel, computeStorageTextureEntry(B.tileBitmask, 'r32uint', 'write-only')]),
     lists: layout([
@@ -384,23 +392,11 @@ function tileLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGrou
     hash: layout([
       computeBufferEntry(B.params, 'uniform'),
       computeTextureEntry(B.samples, 'uint'),
-      computeBufferEntry(B.hashRaw, 'storage'),
-    ]),
-    filterHash: layout([
-      computeBufferEntry(B.params, 'uniform'),
-      computeBufferEntry(B.hashRaw, 'read-only-storage'),
       computeBufferEntry(B.guideCurrent, 'storage'),
     ]),
     compactArgs: layout([
       computeBufferEntry(B.compactCount, 'read-only-storage'),
       computeBufferEntry(B.compactArgs, 'storage'),
-    ]),
-    clearResolved: layout([
-      computeBufferEntry(B.params, 'uniform'),
-      computeBufferEntry(B.tileAllocator, 'read-only-storage'),
-      computeBufferEntry(B.tileData, 'read-only-storage'),
-      computeStorageTextureEntry(B.resolvedDiffuse, 'rgba16float', 'write-only'),
-      computeStorageTextureEntry(B.resolvedSpecular, 'rgba16float', 'write-only'),
     ]),
     clear: layout([
       computeBufferEntry(B.params, 'uniform'),
@@ -419,10 +415,7 @@ function traceLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGro
       computeTextureEntry(D.colours, 'unfilterable-float', '2d-array'),
       computeTextureEntry(D.words, 'uint', '2d-array'),
       computeBufferEntry(B.params, 'uniform'),
-      computeStorageTextureEntry(B.samples, 'r32uint', 'read-write'),
-      computeStorageTextureEntry(B.rays, 'r32uint', 'read-write'),
-      computeBufferEntry(B.compactData, 'read-only-storage'),
-      computeBufferEntry(B.compactCount, 'read-only-storage'),
+      ...traceTailLayoutEntries(),
     ]),
     compact: layout([
       computeBufferEntry(B.params, 'uniform'),
@@ -435,10 +428,7 @@ function traceLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGro
     software: layout([
       computeBufferEntry(D.lights, 'read-only-storage'),
       computeBufferEntry(B.params, 'uniform'),
-      computeStorageTextureEntry(B.samples, 'r32uint', 'read-write'),
-      computeStorageTextureEntry(B.rays, 'r32uint', 'read-write'),
-      computeBufferEntry(B.compactData, 'read-only-storage'),
-      computeBufferEntry(B.compactCount, 'read-only-storage'),
+      ...traceTailLayoutEntries(),
       ...globalReadLayoutEntries(SOFTWARE_FIELD_BINDING),
     ]),
     hairTrace: layout([
@@ -449,10 +439,7 @@ function traceLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGro
       computeBufferEntry(3, 'read-only-storage'),
       computeBufferEntry(B.params, 'uniform'),
       computeBufferEntry(HAIR_SURFACE_TRACE_SETTINGS, 'uniform'),
-      computeStorageTextureEntry(B.samples, 'r32uint', 'read-write'),
-      computeStorageTextureEntry(B.rays, 'r32uint', 'read-write'),
-      computeBufferEntry(B.compactData, 'read-only-storage'),
-      computeBufferEntry(B.compactCount, 'read-only-storage'),
+      ...traceTailLayoutEntries(),
     ]),
     vsm: layout([
       computeTextureEntry(D.colours, 'unfilterable-float', '2d-array'),
@@ -464,10 +451,7 @@ function traceLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindGro
       computeBufferEntry(VSM_TRACE_BINDING.view, 'uniform'),
       computeTextureEntry(VSM_TRACE_BINDING.noise, 'unfilterable-float'),
       computeBufferEntry(B.params, 'uniform'),
-      computeStorageTextureEntry(B.samples, 'r32uint', 'read-write'),
-      computeStorageTextureEntry(B.rays, 'r32uint', 'read-write'),
-      computeBufferEntry(B.compactData, 'read-only-storage'),
-      computeBufferEntry(B.compactCount, 'read-only-storage'),
+      ...traceTailLayoutEntries(),
     ]),
   }
 }
@@ -495,12 +479,7 @@ function denoiseLayouts(layout: (entries: GPUBindGroupLayoutEntry[]) => GPUBindG
       computeTextureEntry(B.vectors, 'uint'),
     ]),
     spatial: layout([
-      computeTextureEntry(D.colours, 'unfilterable-float', '2d-array'),
-      computeTextureEntry(D.emissiveAo, 'unfilterable-float', '2d'),
-      computeTextureEntry(D.words, 'uint', '2d-array'),
-      computeTextureEntry(D.depth, 'depth', '2d'),
-      computeBufferEntry(D.view, 'uniform'),
-      computeBufferEntry(D.lights, 'read-only-storage'),
+      ...shadedLayoutEntries(),
       lightFunctionLayoutEntry(D.lightFunctionAtlas),
       computeBufferEntry(B.params, 'uniform'),
       computeTextureEntry(B.resolvedDiffuse, 'unfilterable-float'),
@@ -533,12 +512,7 @@ function samplingLayout(
   const readOnlyTarget = (entry: GPUBindGroupLayoutEntry) => ({ ...entry, visibility: COMPUTE })
   return device.createBindGroupLayout({
     entries: [
-      computeTextureEntry(D.colours, 'unfilterable-float', '2d-array'),
-      computeTextureEntry(D.emissiveAo, 'unfilterable-float', '2d'),
-      computeTextureEntry(D.words, 'uint', '2d-array'),
-      computeTextureEntry(D.depth, 'depth', '2d'),
-      computeBufferEntry(D.view, 'uniform'),
-      computeBufferEntry(D.lights, 'read-only-storage'),
+      ...shadedLayoutEntries(),
       computeBufferEntry(D.tiles, 'read-only-storage'),
       computeBufferEntry(D.sunRanks, 'read-only-storage'),
       lightFunctionLayoutEntry(D.lightFunctionAtlas),
@@ -637,15 +611,6 @@ function createTileStages(device: GPUDevice, layouts: Layouts, stage: StageMaker
         HASH_ENTRY,
         'Trillion3D sampled hash',
       ),
-      filterHash: stage(
-        layouts.filterHash,
-        device.createShaderModule({
-          label: 'Trillion3D sampled hash filter',
-          code: filterHashWgsl(),
-        }),
-        FILTER_HASH_ENTRY,
-        'Trillion3D sampled hash filter',
-      ),
     },
     compacts: [0, 1, 2].map((slot) => ({
       list: stage(layouts.compact, compactModule, COMPACT_ENTRY, 'Trillion3D sampled compact', {
@@ -659,16 +624,6 @@ function createTileStages(device: GPUDevice, layouts: Layouts, stage: StageMaker
         { SLOT: slot },
       ),
     })),
-    clearResolved: stage(
-      layouts.clearResolved,
-      device.createShaderModule({
-        label: 'Trillion3D sampled clear resolved',
-        code: clearResolvedWgsl(),
-      }),
-      CLEAR_RESOLVED_ENTRY,
-      'Trillion3D sampled clear resolved',
-      { TILE_MODE: SAMPLED_TILE.empty },
-    ),
     clears: stage(
       layouts.clear,
       device.createShaderModule({ label: 'Trillion3D sampled clear', code: clearSamplesWgsl() }),
@@ -828,9 +783,7 @@ function createGroups(device: GPUDevice, layouts: Layouts) {
     argsView: createPassGroup(device, layouts.args),
     argsDown: createPassGroup(device, layouts.args),
     hash: createPassGroup(device, layouts.hash),
-    filterHash: createPassGroup(device, layouts.filterHash),
     clear: createPassGroup(device, layouts.clear),
-    clearResolved: createPassGroup(device, layouts.clearResolved),
     trace: createPassGroup(device, layouts.trace),
     compact: createPassGroup(device, layouts.compact),
     compactArgs: [0, 1, 2].map(() => createPassGroup(device, layouts.compactArgs)),
@@ -966,8 +919,6 @@ interface EncodeContext {
   r: Resources
   current: GPUBuffer
   history: GPUBuffer
-  /** Whether the tiles' hashes are joined with their neighbours' (`hashFilterOn`): the hash pass then writes the raw hash, else the guide itself. */
-  hashFilter: boolean
   colours: GPUTextureView
   words: GPUTextureView
   vectors: GPUTextureView
@@ -1114,17 +1065,37 @@ function encodeTiles(c: EncodeContext) {
   run(fixed.args, argsGroup('argsDown', r.downAllocator, r.downArgs), 1)
   const clearGroup = groups.clear.get(
     [r.params, r.downAllocator, r.downData, r.samplesView, r.raysView],
-    () => [
-      { binding: B.params, resource: { buffer: r.params } },
-      { binding: B.downAllocator, resource: { buffer: r.downAllocator } },
-      { binding: B.downData, resource: { buffer: r.downData } },
-      { binding: B.samples, resource: r.samplesView },
-      { binding: B.rays, resource: r.raysView },
-    ],
+    () => downSampleEntries(r),
   )
   pass.setPipeline(clears.get()!)
   pass.setBindGroup(0, clearGroup)
   pass.dispatchWorkgroupsIndirect(r.downArgs, tileArgsAt(SAMPLED_TILE.empty))
+}
+
+/** The bindings of the uniform and the draw's lists of tiles, then the samples and rays it writes. */
+function downSampleEntries(r: Resources): GPUBindGroupEntry[] {
+  return [
+    { binding: B.params, resource: { buffer: r.params } },
+    { binding: B.downAllocator, resource: { buffer: r.downAllocator } },
+    { binding: B.downData, resource: { buffer: r.downData } },
+    { binding: B.samples, resource: r.samplesView },
+    { binding: B.rays, resource: r.raysView },
+  ]
+}
+
+/** The bindings of the filtered light: what the temporal pass writes and the spatial pass reads. */
+function filteredEntries(views: {
+  diffuse: GPUTextureView
+  specular: GPUTextureView
+  moments: GPUTextureView
+  frames: GPUTextureView
+}): GPUBindGroupEntry[] {
+  return [
+    { binding: B.filteredDiffuse, resource: views.diffuse },
+    { binding: B.filteredSpecular, resource: views.specular },
+    { binding: B.filteredMoments, resource: views.moments },
+    { binding: B.filteredFrames, resource: views.frames },
+  ]
 }
 
 /** The draw of the lights of each tile, by mode. */
@@ -1151,11 +1122,7 @@ function encodeDraws(c: EncodeContext) {
         () => [
           ...pixelEntries(c),
           ...lightGridEntries(c),
-          { binding: B.params, resource: { buffer: r.params } },
-          { binding: B.downAllocator, resource: { buffer: r.downAllocator } },
-          { binding: B.downData, resource: { buffer: r.downData } },
-          { binding: B.samples, resource: r.samplesView },
-          { binding: B.rays, resource: r.raysView },
+          ...downSampleEntries(r),
           { binding: B.guideHistory, resource: { buffer: history } },
           { binding: B.blue, resource: inputs.noise },
           { binding: B.vectors, resource: vectors },
@@ -1290,43 +1257,15 @@ function traceField(c: EncodeContext, t: Compaction, field: GlobalFieldRead) {
 
 /** The hash of what each tile saw, then every pixel of the tiles of each mode lit by the lights its samples drew, resolved for the filters. */
 function encodeShading(c: EncodeContext) {
-  const { pass, run, inputs, g, r, current, family, hashFilter } = c
-  const { fixed, clearResolved } = c.stages
+  const { pass, run, inputs, g, r, current, family } = c
+  const { fixed } = c.stages
   const { groups } = c
-  const hashTarget = hashFilter ? r.hashRaw : current
-  const hashGroup = groups.hash.get([r.params, r.samplesView, hashTarget], () => [
+  const hashGroup = groups.hash.get([r.params, r.samplesView, current], () => [
     { binding: B.params, resource: { buffer: r.params } },
     { binding: B.samples, resource: r.samplesView },
-    { binding: B.hashRaw, resource: { buffer: hashTarget } },
+    { binding: B.guideCurrent, resource: { buffer: current } },
   ])
   run(fixed.hash, hashGroup, g.tiles[0], g.tiles[1])
-  if (hashFilter) {
-    const filterGroup = groups.filterHash.get([r.params, r.hashRaw, current], () => [
-      { binding: B.params, resource: { buffer: r.params } },
-      { binding: B.hashRaw, resource: { buffer: r.hashRaw } },
-      { binding: B.guideCurrent, resource: { buffer: current } },
-    ])
-    run(
-      fixed.filterHash,
-      filterGroup,
-      ceilDiv(g.tiles[0], SAMPLED_GROUP),
-      ceilDiv(g.tiles[1], SAMPLED_GROUP),
-    )
-  }
-  // The empty tiles, which the shading below never visits, are marked invalid so they do not keep the last image's light.
-  const clearResolvedGroup = groups.clearResolved.get(
-    [r.params, r.allocator, r.data, r.resolvedDiffuseView, r.resolvedSpecularView],
-    () => [
-      { binding: B.params, resource: { buffer: r.params } },
-      { binding: B.tileAllocator, resource: { buffer: r.allocator } },
-      { binding: B.tileData, resource: { buffer: r.data } },
-      { binding: B.resolvedDiffuse, resource: r.resolvedDiffuseView },
-      { binding: B.resolvedSpecular, resource: r.resolvedSpecularView },
-    ],
-  )
-  pass.setPipeline(clearResolved.get()!)
-  pass.setBindGroup(0, clearResolvedGroup)
-  pass.dispatchWorkgroupsIndirect(r.args, tileArgsAt(SAMPLED_TILE.empty))
   // Every pixel of the tiles of each mode, lit by the lights its samples drew, resolved for the filters.
   for (const { mode, tileClass } of SAMPLING_MODES) {
     const shadeGroup = family.shadingGroups
@@ -1401,10 +1340,7 @@ function encodeDenoise(c: EncodeContext) {
       { binding: B.historySpecular, resource: read.views.specular },
       { binding: B.historyMoments, resource: read.views.moments },
       { binding: B.historyFrames, resource: read.views.frames },
-      { binding: B.filteredDiffuse, resource: written.views.diffuse },
-      { binding: B.filteredSpecular, resource: written.views.specular },
-      { binding: B.filteredMoments, resource: written.views.moments },
-      { binding: B.filteredFrames, resource: written.views.frames },
+      ...filteredEntries(written.views),
       { binding: B.historySampler, resource: historySampler },
       { binding: B.exposureBefore, resource: { buffer: read.exposure } },
       { binding: B.exposureNow, resource: { buffer: written.exposure } },
@@ -1435,10 +1371,7 @@ function encodeDenoise(c: EncodeContext) {
       { binding: D.lightFunctionAtlas, resource: inputs.lightFunction },
       { binding: B.params, resource: { buffer: r.params } },
       { binding: B.resolvedDiffuse, resource: r.resolvedDiffuseView },
-      { binding: B.filteredDiffuse, resource: written.views.diffuse },
-      { binding: B.filteredSpecular, resource: written.views.specular },
-      { binding: B.filteredMoments, resource: written.views.moments },
-      { binding: B.filteredFrames, resource: written.views.frames },
+      ...filteredEntries(written.views),
       { binding: B.composite, resource: r.compositeView },
       { binding: D.subsurface, resource: inputs.surface.subsurfaceView },
       { binding: D.lobes, resource: inputs.surface.lobesView },
@@ -1636,7 +1569,6 @@ function encodeImage(
     r,
     current,
     history,
-    hashFilter: hashFilterOn(settings),
     colours,
     words,
     vectors,

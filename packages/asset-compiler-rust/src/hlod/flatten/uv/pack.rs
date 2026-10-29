@@ -20,10 +20,9 @@ mod layout;
 mod packer;
 mod raster;
 mod search;
-pub(crate) use layout::Layout;
 use packer::{Chart, Packer};
 pub(crate) use raster::Raster;
-pub(crate) use search::{best_placement, covering, rebalance, search_scale, Starts};
+pub(crate) use search::{covering, place_charts, rebalance, search_scale};
 
 /// A segment of a run: its start and length.
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]

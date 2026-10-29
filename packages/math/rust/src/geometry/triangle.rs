@@ -31,6 +31,16 @@ pub fn facing<T: Real>(corners: [[T; 3]; 3], k: usize, p: [T; 3]) -> T {
     dot(normal(corners), normal(moved))
 }
 
+/// The corner `step` places after `corner` in its triangle, corners numbered three to a triangle.
+#[inline]
+fn corner_step<T>(corner: T, step: u8) -> T
+where
+    T: Copy + From<u8> + Add<Output = T> + Sub<Output = T> + Rem<Output = T>,
+{
+    let three = T::from(3);
+    corner - corner % three + (corner + T::from(step)) % three
+}
+
 /// The corner after `corner` in its triangle, corners numbered three to a triangle, so the edge
 /// from `corner` to it is the corner's own.
 #[inline]
@@ -38,8 +48,7 @@ pub fn next_corner<T>(corner: T) -> T
 where
     T: Copy + From<u8> + Add<Output = T> + Sub<Output = T> + Rem<Output = T>,
 {
-    let three = T::from(3);
-    corner - corner % three + (corner + T::from(1)) % three
+    corner_step(corner, 1)
 }
 
 /// The corner before `corner` in its triangle (`next_corner`).
@@ -48,8 +57,7 @@ pub fn prev_corner<T>(corner: T) -> T
 where
     T: Copy + From<u8> + Add<Output = T> + Sub<Output = T> + Rem<Output = T>,
 {
-    let three = T::from(3);
-    corner - corner % three + (corner + T::from(2)) % three
+    corner_step(corner, 2)
 }
 
 /// The key of the undirected edge `a`–`b`: its lower corner in the high word, its higher in the

@@ -72,28 +72,31 @@ fn last_filled(from: i32, to: i32, filled: impl Fn(i32) -> bool) -> i32 {
     j
 }
 
+/// The empty places before the first and after the last filled one of `from..to`.
+fn gaps((from, to): (i32, i32), filled: impl Fn(i32) -> bool) -> (i32, i32) {
+    let first = first_filled(from, to, &filled) - from - 1;
+    let last = to - last_filled(from, to, &filled) - 1;
+    (first, last)
+}
+
 /// The gaps of column `i` between rows `from` and `to`: from the top and from the bottom.
 pub(super) fn column_gaps(
     grid: &[Vec<u8>],
     i: i32,
-    (from, to): (i32, i32),
+    rows: (i32, i32),
     filled: impl Fn(u8) -> bool,
 ) -> (i32, i32) {
-    let up = first_filled(from, to, |j| filled(cell(grid, j, i))) - from - 1;
-    let down = to - last_filled(from, to, |j| filled(cell(grid, j, i))) - 1;
-    (up, down)
+    gaps(rows, |j| filled(cell(grid, j, i)))
 }
 
 /// The gaps of row `i` between columns `from` and `to`: from the left and from the right.
 pub(super) fn row_gaps(
     grid: &[Vec<u8>],
     i: i32,
-    (from, to): (i32, i32),
+    columns: (i32, i32),
     filled: impl Fn(u8) -> bool,
 ) -> (i32, i32) {
-    let left = first_filled(from, to, |j| filled(cell(grid, i, j))) - from - 1;
-    let right = to - last_filled(from, to, |j| filled(cell(grid, i, j))) - 1;
-    (left, right)
+    gaps(columns, |j| filled(cell(grid, i, j)))
 }
 
 /// Every side's gaps of `grid` over `from_x..to_x` × `from_y..to_y` into `space`; grown texels

@@ -104,6 +104,23 @@ pub fn centre<const N: usize>(low: [f64; N], high: [f64; N]) -> [f64; N] {
     core::array::from_fn(|axis| (low[axis] + high[axis]) * 0.5)
 }
 
+/// The box about the same centre whose half-extent on each axis is the box's grown by `margin`,
+/// and at least `least`: `max(0.5 · (high − low) + margin, least)`. A flat box thus has a depth.
+#[inline]
+pub fn padded_about_centre<const N: usize>(
+    low: [f64; N],
+    high: [f64; N],
+    (margin, least): (f64, f64),
+) -> ([f64; N], [f64; N]) {
+    let middle = centre(low, high);
+    let half: [f64; N] =
+        core::array::from_fn(|axis| (0.5 * (high[axis] - low[axis]) + margin).max(least));
+    (
+        core::array::from_fn(|axis| middle[axis] - half[axis]),
+        core::array::from_fn(|axis| middle[axis] + half[axis]),
+    )
+}
+
 /// Corner `index` of the box: on each axis `a`, the high bound when bit `a` of `index` is set, the
 /// low one otherwise. `0` is the low corner, `2ᴺ − 1` the high one.
 #[inline]

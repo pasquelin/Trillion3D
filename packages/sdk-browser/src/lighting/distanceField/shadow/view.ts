@@ -63,10 +63,9 @@ function dfshViewBytes(shape: DfshShape) {
 /** Makes the view of `shape` (`DfshView`). */
 function makeView(device: GPUDevice, shape: DfshShape, bytes: number): DfshView {
   const sizes = bufferSizes(shape)
-  const { buffer: bufferOf, texture, dispose } = viewResources(device, LABEL)
+  const { sized: buffer, texture, dispose } = viewResources(device, LABEL, sizes)
   // Read when a view is made: the usage flags are the device's globals, which the modules that import this one may not have.
   const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
-  const buffer = (name: keyof typeof sizes, usage: number) => bufferOf(name, sizes[name], usage)
   return {
     shape,
     params: buffer('params', GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),

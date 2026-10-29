@@ -39,10 +39,8 @@ pub(super) fn export(source: &Source, indices: &[u32], charts: &[Chart]) -> crat
                         return Err(failed("a false edge became a cut"));
                     }
                     NONE
-                } else if edge.faces[0] == j as u32 {
-                    chart.faces[edge.faces[1] as usize].root
                 } else {
-                    chart.faces[edge.faces[0] as usize].root
+                    chart.faces[edge.other_face(j as u32) as usize].root
                 };
             }
         }

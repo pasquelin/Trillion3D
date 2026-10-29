@@ -24,6 +24,27 @@ function resolveShared<V extends object>(
   return defaults as V
 }
 
+/** The fields `given` by `light` into `validated`, each as `resolve` takes it (an error of its
+ *  becomes the light's own). */
+export function resolveInto<V extends object>(
+  light: SceneLight,
+  validated: SceneLight,
+  given: Record<string, unknown>,
+  resolve: (given: Record<string, unknown>) => V,
+) {
+  let resolved: V
+  try {
+    resolved = resolve(given)
+  } catch (error) {
+    throw new EngineError('INVALID_SCENE_LIGHT', `${light.id}: ${(error as Error).message}`, given)
+  }
+  const into = validated as unknown as Record<string, unknown>
+  for (const field of Object.keys(given)) {
+    const value = resolved[field as keyof V]
+    into[field] = Array.isArray(value) ? [...value] : value
+  }
+}
+
 /** The group's fields `given` by `light` into `validated`, each as its rule takes it, the directional
  *  ones (`directional`) refused on a light that is not a directional one. */
 function validateGroup<V extends object>(
@@ -43,17 +64,7 @@ function validateGroup<V extends object>(
       )
   }
   if (!Object.keys(given).length) return
-  let resolved: V
-  try {
-    resolved = resolve(given)
-  } catch (error) {
-    throw new EngineError('INVALID_SCENE_LIGHT', `${light.id}: ${(error as Error).message}`, given)
-  }
-  const into = validated as unknown as Record<string, unknown>
-  for (const field of Object.keys(given)) {
-    const value = resolved[field as keyof V]
-    into[field] = Array.isArray(value) ? [...value] : value
-  }
+  resolveInto(light, validated, given, resolve)
 }
 
 /**

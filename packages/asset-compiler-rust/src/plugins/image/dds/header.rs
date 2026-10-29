@@ -9,7 +9,7 @@ use super::codec::{self, Codec};
 use super::{
     CODEC_UNSUPPORTED, DATA_TRUNCATED, HEADER_INVALID, HEADER_TRUNCATED, LAYOUT_UNSUPPORTED, MAGIC,
 };
-use crate::plugins::image::{word, Transfer, MAX_LEVELS};
+use crate::plugins::image::{check_head, word, Transfer, MAX_LEVELS};
 use trillion3d_math::scalar::mip_size;
 
 /// End of `DDS_HEADER`: four magic-number bytes and one hundred and twenty-four of header.
@@ -51,12 +51,11 @@ pub(super) struct Surface {
 }
 
 pub(super) fn parse(bytes: &[u8]) -> std::result::Result<Surface, &'static str> {
-    if bytes.len() < HEADER_END {
-        return Err(HEADER_TRUNCATED);
-    }
-    if !bytes.starts_with(MAGIC) {
-        return Err(HEADER_INVALID);
-    }
+    check_head(
+        bytes,
+        (MAGIC, HEADER_END),
+        (HEADER_TRUNCATED, HEADER_INVALID),
+    )?;
     if word(bytes, 4) != HEADER_SIZE || word(bytes, 76) != PIXEL_FORMAT_SIZE {
         return Err(HEADER_INVALID);
     }

@@ -2,7 +2,7 @@ import type { SceneLight } from '../../scene/light/contracts.ts'
 import { resolveCloudShadowLight } from '../../modules/sky/cloudShadow.ts'
 import { Color, type ColorInput } from '../math/color.ts'
 import type { Light } from './light.ts'
-import { defineWritable, lightStates, scalarGroup } from './lightNumbers.ts'
+import { defineReadonly, defineWritable, lightStates, scalarGroup } from './lightNumbers.ts'
 
 /** What a page may pass to a light about the clouds' shadows (`SceneLight.cloudShadow*`); a
  *  directional light's alone. */
@@ -127,9 +127,5 @@ export function fromRecord(record: SceneLight): LightCloudShadowParameters {
  *  reaches the world at once. */
 export function define(proto: Light) {
   defineWritable(proto, SCALARS, (light) => stateOf(light).values)
-  Object.defineProperty(proto, 'cloudScatteredLuminanceScale', {
-    get(this: Light) {
-      return stateOf(this).scale
-    },
-  })
+  defineReadonly(proto, { cloudScatteredLuminanceScale: (light) => stateOf(light).scale })
 }

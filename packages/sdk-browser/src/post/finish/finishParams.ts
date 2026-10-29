@@ -2,7 +2,7 @@ import type { ExposureValues } from '../../../../sdk-core/src/contracts/exposure
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import type { ViewTile } from '../../camera/engineCamera.ts'
 import { putVec4 } from '../../gpu/core/fieldLayout.ts'
-import { luminanceReading, reachOf } from '../exposure/meterParams.ts'
+import { luminanceReading, reachOf, writeLuminanceReading } from '../exposure/meterParams.ts'
 import { halfOf } from '../filters/levelSizes.ts'
 import { FINISH, GRID_EMPTY, GRID_TILE } from './finishLayout.ts'
 import { writeFilmParams, type FilmInput } from './filmParams.ts'
@@ -73,10 +73,7 @@ export function writeFinishParams(words: Float32Array, input: FinishInput) {
   words[AT.look + 3] = input.glow ? 1 : 0
   if (input.keep) putVec4(words, AT.keep, input.keep[0], input.keep[1], input.keep[2], 1)
   if (input.dirt) putVec4(words, AT.dirt, input.dirt[0], input.dirt[1], input.dirt[2], 1)
-  words.set(reading.weights, AT.weights)
-  words[AT.weights + 3] = reading.lowest
-  words[AT.histogram] = reading.scale
-  words[AT.histogram + 1] = reading.bias
+  writeLuminanceReading(words, AT.weights, AT.histogram, reading)
   words[AT.histogram + 2] = settings.localExposureBlurBlend
   words[AT.histogram + 3] = GRID_EMPTY
   words[AT.base + 1] = settings.localExposureHighlightContrast

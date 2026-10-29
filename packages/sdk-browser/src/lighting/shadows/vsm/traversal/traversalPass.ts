@@ -25,11 +25,11 @@ import { dispatchRows, WORKGROUP_THREADS } from '../../../../gpu/dispatch/grid.t
 import type { CutTables } from '../../../../geometry/dag/cut/cutReaders.ts'
 import { FLAG_TABLE } from '../../../../geometry/dag/cut/cutTables.ts'
 import { copiedWords } from '../../../../geometry/dag/readoutWords.ts'
-import { dagBindEntries } from '../../../../geometry/dag/shader/bindings.ts'
+import { dagBindEntries, dagDescentEntries } from '../../../../geometry/dag/shader/bindings.ts'
 import {
   DAG_ARGS,
   DAG_ARGS_INITIAL,
-  DAG_ARM_BINDING,
+  dagArmEntries,
   dagArmPipe,
 } from '../../../../geometry/dag/shader/armWgsl.ts'
 import { BLOCK_MASK_WORDS, FRAME_COUNTERS } from '../../../../geometry/dag/shader/floorWgsl.ts'
@@ -316,26 +316,15 @@ function cullingGroups(d: VsmDescent, tables: VsmDescentScene['tables']) {
   const culling = device.createBindGroup({
     label: `${LABEL}.culling`,
     layout: pipes.views.groups[0]!,
-    entries: [
-      { binding: 1, resource: tables.nodes },
-      { binding: 2, resource: { buffer: d.uniform } },
-      { binding: 3, resource: d.flags!.view },
-      { binding: 4, resource: { buffer: d.out! } },
-      { binding: 5, resource: { buffer: d.work! } },
-      { binding: 6, resource: tables.worlds },
-      { binding: 7, resource: tables.frames },
-      { binding: 8, resource: tables.cold },
-      { binding: 9, resource: tables.tree },
-      { binding: 10, resource: tables.previous },
-    ],
+    entries: dagDescentEntries(
+      { uniform: d.uniform, flags: d.flags!.view, out: d.out!, work: d.work! },
+      tables,
+    ),
   })
   const arm = device.createBindGroup({
     label: `${LABEL}.arm`,
     layout: pipes.arm.groups[0]!,
-    entries: [
-      { binding: DAG_ARM_BINDING.work, resource: { buffer: d.work! } },
-      { binding: DAG_ARM_BINDING.args, resource: { buffer: d.args } },
-    ],
+    entries: dagArmEntries(d.work!, d.args),
   })
   return { culling, arm }
 }

@@ -1,7 +1,7 @@
 //! Charts, their orientation and the packer.
-use super::layout::Layout;
 use super::raster::Raster;
-use super::search::{best_placement, covering, rebalance, search_scale, Starts};
+use super::search::{covering, place_charts, rebalance, search_scale};
+use super::Rect;
 use crate::hlod::flatten::sort::unstable_sort;
 
 /// An island: its triangles' corners, bounds, area, and the placement the packer gives it.
@@ -113,31 +113,33 @@ impl Packer {
     pub(super) fn pack(&self, charts: &mut [Chart], scale: f64) -> Option<f64> {
         self.scale_charts(charts, scale);
         let size = self.resolution;
-        let mut layout = Layout::new(size);
         let mut raster = Raster::new(size);
-        let mut starts = Starts::default();
-        for chart in charts.iter_mut() {
-            let prepare = |orientation: usize, raster: &mut Raster| {
-                orient(chart, orientation);
-                let extent = turn(
-                    chart.rotation,
-                    [
-                        (chart.max[0] - chart.min[0]) * chart.scale,
-                        (chart.max[1] - chart.min[1]) * chart.scale,
-                    ],
-                );
-                let rect = covering(extent.map(|x| x as f32), size);
-                Self::rasterize(chart, (rect.w, rect.h), raster);
-                rect
-            };
-            let placed = best_placement((&layout, &mut raster), &mut starts, [0, 2, 4, 6], prepare);
-            let (orientation, rect, chosen) = placed?;
+        let prepare = |chart: &mut Chart, orientation: usize, raster: &mut Raster| {
             orient(chart, orientation);
-            layout.alloc(&rect, &chosen);
+            let extent = turn(
+                chart.rotation,
+                [
+                    (chart.max[0] - chart.min[0]) * chart.scale,
+                    (chart.max[1] - chart.min[1]) * chart.scale,
+                ],
+            );
+            let rect = covering(extent.map(|x| x as f32), size);
+            Self::rasterize(chart, (rect.w, rect.h), raster);
+            rect
+        };
+        let shift = |chart: &mut Chart, rect: &Rect| {
             chart.bias[0] += rect.x as f64;
             chart.bias[1] += rect.y as f64;
-        }
-        Some(layout.used() as f64 / (size as f64 * size as f64))
+        };
+        let used = place_charts(
+            charts,
+            (size, &mut raster),
+            &[0, 2, 4, 6],
+            prepare,
+            orient,
+            shift,
+        )?;
+        Some(used as f64 / (size as f64 * size as f64))
     }
 
     /// The charts as last placed at the largest scale that fit (`search_scale`).

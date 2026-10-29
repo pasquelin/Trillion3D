@@ -5,23 +5,12 @@ use crate::sparse_volume::format::*;
 use rayon::prelude::*;
 
 impl TextureData {
-    /// The number of mip levels down to a page table of one page.
-    fn full_mip_count(&self) -> usize {
-        let mut resolution = self.header.page_table_resolution;
-        let mut levels = 1;
-        while resolution.iter().any(|&side| side > 1) {
-            resolution = map3(resolution, |side| side / 2);
-            levels += 1;
-        }
-        levels
-    }
-
     /// Generates the mip levels above the first, the border voxels of each included.
     pub(crate) fn generate_mip_maps(&mut self, addressing: &Addressing) {
         let formats = self.header.formats;
         let sizes = [formats[0].block_bytes(), formats[1].block_bytes()];
         self.mips.truncate(1);
-        for mip in 1..self.full_mip_count() {
+        for mip in 1..self.header.mip_levels() as usize {
             let low = map3(self.header.page_table_min, |x| x >> mip);
             let resolution = shift_right_and_max(self.header.page_table_resolution, mip as u32, 1);
             // The pages that cover a page of the level below.

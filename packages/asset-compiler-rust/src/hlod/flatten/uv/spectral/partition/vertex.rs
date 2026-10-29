@@ -72,11 +72,7 @@ impl<'a> Chart<'a> {
                 if edge.boundary {
                     continue;
                 }
-                let next = if edge.faces[0] == face.id {
-                    edge.faces[1]
-                } else {
-                    edge.faces[0]
-                };
+                let next = edge.other_face(face.id);
                 if let Some(at) = unconnected.iter().position(|&g| g == next) {
                     connected.push(next);
                     unconnected.remove(at);

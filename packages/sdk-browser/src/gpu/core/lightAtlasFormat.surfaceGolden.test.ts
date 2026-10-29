@@ -11,7 +11,8 @@ import { ENGINE_SHADERS } from './engineShaders.fixture.ts'
 import { ensureSurfaceAtlases } from '../../lighting/surfaceCache/atlases.ts'
 import { createCaptureKernels } from '../../lighting/surfaceCache/copy.ts'
 import {
-  directMeshKernel,
+  fieldShadowKernels,
+  fieldShadowMeshKernel,
   fixedKernels,
   shapedKernels,
   stochasticKernels,
@@ -31,6 +32,7 @@ const digest = (value: unknown) =>
 /** Every text of the surface cache and of the passes whose rays read its light at their hits, keyed by name in `ENGINE_SHADERS`, as the passes held it before the setting existed. */
 // The seven REFLECTION_TRACE_* digests are re-pinned: the front layer's traced format went from rg32uint to rgba32uint and the bilateral pass writes the front depth in its third word (`frontLayer.ts`, `bilateralWgsl.ts`, `viewLayout.ts`). Rebuilt on those files as they were at HEAD, the programs give the old digests exactly, so the surface cache's word format left their text as it was.
 // Re-pinned again after other agents changed shared libraries these programs include, none of them in the surface cache: the direct-lights struct and its GGX energy table (frame/backend/state/lightBufferLayout.ts), the shared `sinFromCosUnclamped` helper (lighting/direct/lightDrawWgsl.ts), the virtual-texture `colorFetch` footprint and `entryLevel` (materials/texture/samplingFootprint.ts), the sky cube's face permutation tables (modules/sky/skyLight/cubeWgsl.ts), the depth pyramid's `hizFoldOf`/`hizCellFurthest` and the screen probe's tile word (bounce/screen), plus the front layer's traced format. The cull's group maximum is reduced by `workgroupSumLoop` (the shared de-duplication P1-13, the same computation). The surface cache's own programs are otherwise unchanged.
+// SURFACE_CACHE_RADIOSITY_FILTER_WGSL is re-pinned: the radiosity's filter lists the declarations its kernels share (`radiosityKernelDeclarations`) before its own, so they come in another order; the declarations are the same.
 const WORD_PROGRAMS = {
   REFLECTION_TRACE_SHADER: 'e5c1d66e79e10750',
   REFLECTION_TRACE_STATISTICS_SHADER: '0946288bf6e05806',
@@ -48,15 +50,15 @@ const WORD_PROGRAMS = {
   SURFACE_CACHE_FEEDBACK_COMPACTION_SHADER: 'd7d88317e54f0487',
   SURFACE_CACHE_CONTEXT_WGSL: '91492f7a0e6c80d0',
   SURFACE_CACHE_SPLICE_WGSL: '549656dc6633a005',
-  SURFACE_CACHE_DIRECT_WGSL: '81b1e827e3fa58fd',
-  SURFACE_CACHE_DIRECT_COLOURED_WGSL: '95486a77a4e04646',
+  SURFACE_CACHE_DIRECT_WGSL: '5f1fd988409886c8',
+  SURFACE_CACHE_DIRECT_COLOURED_WGSL: '0ac75b2f1e5b1c91',
   SURFACE_CACHE_LIGHT_FUNCTION_PASS_WGSL: '61911a36673a672e',
   SURFACE_CACHE_LIGHT_FUNCTION_PASS_MAPPED_WGSL: '79e0a605029b4a6e',
-  SURFACE_CACHE_SHADOW_MASK_WGSL: 'a43c02df8ef26abf',
-  SURFACE_CACHE_SHADOW_MASK_COLOURED_WGSL: 'e35ce8962998e81f',
-  SURFACE_CACHE_SHADOW_ARGS_WGSL: '3dbd28f785774d74',
-  SURFACE_CACHE_SHADOW_TRACE_WGSL: 'cf4a4b98b5cdee96',
-  SURFACE_CACHE_SHADOW_TRACE_COLOURED_WGSL: '30c2f93f7810e9cf',
+  SURFACE_CACHE_SHADOW_MASK_WGSL: '1598909ae2527341',
+  SURFACE_CACHE_SHADOW_MASK_COLOURED_WGSL: '39c6e5a053371442',
+  SURFACE_CACHE_SHADOW_ARGS_WGSL: '279753e1247e9d1f',
+  SURFACE_CACHE_SHADOW_TRACE_WGSL: '3636c00993bf071c',
+  SURFACE_CACHE_SHADOW_TRACE_COLOURED_WGSL: '3913198d2a32e6c1',
   SURFACE_CACHE_STOCHASTIC_GENERATE_WGSL: 'be219a0876a613f8',
   SURFACE_CACHE_STOCHASTIC_COMPACT_WGSL: 'a6a88f27b626ec6b',
   SURFACE_CACHE_STOCHASTIC_COMPACT_COLOURED_WGSL: 'bc23086ba160962e',
@@ -66,7 +68,7 @@ const WORD_PROGRAMS = {
   SURFACE_CACHE_RADIOSITY_BUILD_WGSL: 'f2cf9660e5540318',
   SURFACE_CACHE_RADIOSITY_TRACE_WGSL: '818663dec0b14070',
   SURFACE_CACHE_RADIOSITY_TRACED_WGSL: '81e8b7642bf1d99c',
-  SURFACE_CACHE_RADIOSITY_FILTER_WGSL: '93b4cc8346bf0957',
+  SURFACE_CACHE_RADIOSITY_FILTER_WGSL: '4513b03d5573c374',
   SURFACE_CACHE_RADIOSITY_INTEGRATE_WGSL: 'ef86d496cc6635fa',
   SURFACE_CACHE_TILE_DEPTH_RANGE: 'a8f8023b1a8021e8',
   SURFACE_CACHE_CULL: '0a1406a442f4e618',
@@ -116,7 +118,10 @@ const recorded = () => {
   return {
     layoutsFixedGrey: layoutsOf((d) => fixedKernels(d, 'grey', WORD_LIGHT_FORMAT)),
     layoutsFixedColour: layoutsOf((d) => fixedKernels(d, 'colour', WORD_LIGHT_FORMAT)),
-    layoutsDirectMesh: layoutsOf((d) => directMeshKernel(d, 'grey', WORD_LIGHT_FORMAT)),
+    layoutsField: layoutsOf((d) => {
+      fieldShadowKernels(d, 'grey')
+      fieldShadowMeshKernel(d, 'grey')
+    }),
     layoutsShadow: layoutsOf((d) => tracedShadowKernels(d, 'grey')),
     layoutsRadiosityTraced: layoutsOf((d) => tracedRadiosityKernels(d, WORD_LIGHT_FORMAT)),
     layoutsShaped: layoutsOf((d) => {
@@ -142,10 +147,13 @@ test('the word format writes, in the surface cache and the passes that read it, 
   // traced radiance): the surface cache's own programs unchanged. Re-pinned after c9's deduplication sweeps of 29/10: the shared helpers
   // (table words, depth, segment-box span, vignette, held layers) declared once, the same operations; the direct mesh pass's layout lost the
   // view cascade's subsurface colour, which only its transmission read, never on for the cards.
+  // Re-pinned for the shadows through the distance fields (30/10): the direct light reads the masks alone (no light function, cloud, profile or field
+  // binding, no ray of its own), the shadow trace's text is shared with the passes of `fieldShadowWgsl.ts` (the byte answered by `traceAnswer`), and the
+  // direct mesh pass's layout gave way to those passes' (`layoutsField`); the traced shadows' layouts (`layoutsShadow`) are unchanged.
   assert.deepEqual(recorded(), {
-    layoutsFixedGrey: '7cf8802b2ca040bd',
-    layoutsFixedColour: '7cf8802b2ca040bd',
-    layoutsDirectMesh: 'e95c204336065ad3',
+    layoutsFixedGrey: 'e4010dec0611a24a',
+    layoutsFixedColour: 'e4010dec0611a24a',
+    layoutsField: '0f630977f4116389',
     layoutsShadow: '4c025fadbd4ba6df',
     layoutsRadiosityTraced: 'e86279f8aa04f1bd',
     layoutsShaped: 'b6ac6fd920be7f38',

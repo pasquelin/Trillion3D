@@ -133,16 +133,23 @@ export class PatchMesh {
   third(t: number, a: number, b: number) {
     return this.triangle[t].find((v) => v !== a && v !== b)!
   }
-  /** Edge `(a, b)` oriented as triangle `t` winds it, and the vertex opposite it. */
-  orient(a: number, b: number, t: number): [number, number, number] {
+  /** Where in triangle `t` the edge `(a, b)` runs, in either direction: the index of its first
+   *  vertex among the triangle's three; -1 when `t` has no such edge. */
+  private slotOf(t: number, a: number, b: number) {
     const tv = this.triangle[t]
     for (let i = 0; i < 3; i++) {
       const p = tv[i],
         q = tv[(i + 1) % 3]
-      if (p === a && q === b) return [a, b, tv[(i + 2) % 3]]
-      if (p === b && q === a) return [b, a, tv[(i + 2) % 3]]
+      if ((p === a && q === b) || (p === b && q === a)) return i
     }
-    return [a, b, NONE]
+    return -1
+  }
+  /** Edge `(a, b)` oriented as triangle `t` winds it, and the vertex opposite it. */
+  orient(a: number, b: number, t: number): [number, number, number] {
+    const i = this.slotOf(t, a, b)
+    if (i < 0) return [a, b, NONE]
+    const tv = this.triangle[t]
+    return tv[i] === a ? [a, b, tv[(i + 2) % 3]] : [b, a, tv[(i + 2) % 3]]
   }
   /** The vertices opposite edge `e`, in the order of its triangles. */
   opposing(e: number): [number, number] {
@@ -150,13 +157,8 @@ export class PatchMesh {
     return [this.third(t[0], v[0], v[1]), t[1] === NONE ? NONE : this.third(t[1], v[0], v[1])]
   }
   triangleEdgeOf(t: number, a: number, b: number) {
-    const tv = this.triangle[t]
-    for (let i = 0; i < 3; i++) {
-      const p = tv[i],
-        q = tv[(i + 1) % 3]
-      if ((p === a && q === b) || (p === b && q === a)) return this.triangleEdges[t][i]
-    }
-    return NONE
+    const i = this.slotOf(t, a, b)
+    return i < 0 ? NONE : this.triangleEdges[t][i]
   }
 
   /** The mean of the vertices an edge joins `v` to. */

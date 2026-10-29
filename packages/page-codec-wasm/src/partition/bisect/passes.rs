@@ -102,21 +102,12 @@ pub(super) fn passes(
         for &v in swaps[keep..].iter().rev() {
             let v = v as usize;
             let to = cut.turn(v);
-            if cut.across[v] == 0 && cut.on_boundary(v) && graph.degree(v) > 0 {
-                cut.leave(v);
-            } else if cut.across[v] > 0 && !cut.on_boundary(v) {
-                cut.enter(v);
-            }
+            cut.settle(graph, v);
             cut.sides[to as usize] += graph.weight(v);
             cut.sides[1 - to as usize] -= graph.weight(v);
             for e in graph.row(v) {
                 let k = cut.shift(graph, e, to);
-                if cut.on_boundary(k) && cut.across[k] == 0 {
-                    cut.leave(k);
-                }
-                if !cut.on_boundary(k) && cut.across[k] > 0 {
-                    cut.enter(k);
-                }
+                cut.settle(graph, k);
             }
         }
         cut.cut = best_cut;

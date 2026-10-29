@@ -15,13 +15,19 @@ const BC4_BLOCK_BYTES = 8
 /** Bytes of a `gray` or `displacement` block: the sixteen texels of a 4 × 4 square, row by row. */
 const RAW_BLOCK_BYTES = 16
 
+/** The bytes of a level `across` × `down` blocks of 4 × 4 texels: a texel's bytes, a row's, and the
+ *  zeroed level (one byte a texel when `single`, else RGBA8). */
+function levelBuffer(across: number, down: number, single: boolean) {
+  const texel = single ? 1 : 4
+  const pitch = across * 4 * texel
+  return { texel, pitch, out: new Uint8Array(pitch * down * 4) }
+}
+
 /** The texels of `blocks`, a `width` × `height` surface of BC4 blocks: one byte a texel when
  *  `single`, else RGBA8 with the channel in R, 0 in G and B, opaque. Whole blocks wide, rows packed. */
 export function decodeBc4Level(blocks: Uint8Array, width: number, height: number, single = false) {
   const { across, down } = blockGrid(blocks, width, height, BC4_BLOCK_BYTES)
-  const texel = single ? 1 : 4
-  const pitch = across * 4 * texel
-  const out = new Uint8Array(pitch * down * 4)
+  const { texel, pitch, out } = levelBuffer(across, down, single)
   for (let by = 0; by < down; by++)
     for (let bx = 0; bx < across; bx++) {
       const at = by * 4 * pitch + bx * 4 * texel
@@ -42,9 +48,7 @@ export function decodeRawLevel(
   single = false,
 ) {
   const { across, down } = blockGrid(blocks, width, height, RAW_BLOCK_BYTES)
-  const texel = single ? 1 : 4
-  const pitch = across * 4 * texel
-  const out = new Uint8Array(pitch * down * 4)
+  const { texel, pitch, out } = levelBuffer(across, down, single)
   for (let by = 0; by < down; by++)
     for (let bx = 0; bx < across; bx++)
       for (let t = 0; t < 16; t++) {

@@ -2,7 +2,7 @@
 //! in their materials (`traceable`), and what a bake reads of them beside that: how each surface's
 //! samplers wrap its maps and whether it draws both faces (`Sources`).
 use super::Library;
-use crate::trace::surface::mesh::{Corners, SETS};
+use crate::trace::surface::mesh::{Channel, Corners};
 use crate::trace::surface::Traceable;
 use std::collections::{BTreeMap, BTreeSet};
 use trillion3d_page_codec::encode::Attribute;
@@ -39,28 +39,19 @@ pub(crate) fn traceable(pieces: &[Piece], library: &Library) -> Traceable {
         let uvs = [FLAG_UV, FLAG_UV1].map(find);
         let (normals, colours) = (find(FLAG_NORMAL), find(FLAG_COLOR));
         for triangle in piece.indices.as_chunks::<3>().0 {
-            let mut corner = Corners::default();
-            let mut normal = [0.0f32; 9];
-            let mut colour = [1.0f32; 12];
-            for (k, &v) in triangle.iter().enumerate() {
+            for &v in triangle {
                 let v = v as usize;
                 triangles.extend_from_slice(&piece.positions[v * 3..v * 3 + 3]);
-                for (set, uv) in uvs.iter().enumerate().take(SETS) {
-                    if let Some(uv) = uv.and_then(|a| value(a, v)) {
-                        corner.uv[set][k * 2..k * 2 + 2].copy_from_slice(&uv[..2]);
-                    }
-                }
-                if let Some(n) = normals.and_then(|a| value(a, v)) {
-                    normal[k * 3..k * 3 + 3].copy_from_slice(&n[..3]);
-                }
-                if let Some(c) = colours.and_then(|a| value(a, v)) {
-                    let w = c.len().min(4);
-                    colour[k * 4..k * 4 + w].copy_from_slice(&c[..w]);
-                }
             }
-            corner.normals = normals.is_some().then_some(normal);
-            corner.colours = colours.is_some().then_some(colour);
-            corners.push(corner);
+            corners.push(Corners::of_triangle(
+                triangle,
+                (normals.is_some(), colours.is_some()),
+                |channel, v| match channel {
+                    Channel::Uv(set) => uvs[set].and_then(|a| value(a, v)),
+                    Channel::Normal => normals.and_then(|a| value(a, v)),
+                    Channel::Colour => colours.and_then(|a| value(a, v)),
+                },
+            ));
             tags.push(tag);
         }
     }

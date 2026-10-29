@@ -144,6 +144,14 @@ export function gpuAllocator(device: GPUDevice, label: string) {
 /** The allocator that makes nothing and counts what it is asked. */
 export function countingAllocator() {
   let bytes = 0
+  const count = (
+    size: readonly number[],
+    format: GPUTextureFormat,
+    options: TextureOptions,
+    levels?: number,
+  ) => {
+    bytes += textureBytesOf(descriptorOf(size, format, options, levels)) ?? 0
+  }
   return {
     texture(
       _name: string,
@@ -151,11 +159,11 @@ export function countingAllocator() {
       format: GPUTextureFormat,
       options: TextureOptions = {},
     ) {
-      bytes += textureBytesOf(descriptorOf(size, format, options)) ?? 0
+      count(size, format, options)
       return undefined as unknown as GPUTextureView
     },
     mipped(_name: string, size: readonly number[], format: GPUTextureFormat, levels: number) {
-      bytes += textureBytesOf(descriptorOf(size, format, {}, levels)) ?? 0
+      count(size, format, {}, levels)
       const none = undefined as unknown as GPUTextureView
       return { all: none, levels: Array.from({ length: levels }, () => none) }
     },
@@ -165,7 +173,7 @@ export function countingAllocator() {
       format: GPUTextureFormat,
       options: TextureOptions = {},
     ) {
-      bytes += textureBytesOf(descriptorOf(size, format, options)) ?? 0
+      count(size, format, options)
       return undefined as unknown as GPUTexture
     },
     buffer(_name: string, words: number) {

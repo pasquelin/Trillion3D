@@ -148,11 +148,7 @@ impl<'a> Chart<'a> {
                 if edge.boundary {
                     continue;
                 }
-                let next = if edge.faces[0] == f {
-                    edge.faces[1]
-                } else {
-                    edge.faces[0]
-                };
+                let next = edge.other_face(f);
                 if !reached[next as usize] {
                     face_charts[next as usize] = face_charts[f as usize];
                     reached[next as usize] = true;

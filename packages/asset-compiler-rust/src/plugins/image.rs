@@ -65,6 +65,22 @@ pub(super) fn word(bytes: &[u8], at: usize) -> u32 {
         .expect("a header field inside the length that was checked")
 }
 
+/// The head of a block container: `bytes` hold the `header_end` bytes of its header and start with its
+/// `magic`, else the refusal in `refusals` — `(truncated, invalid)` — that names which.
+pub(super) fn check_head(
+    bytes: &[u8],
+    (magic, header_end): (&[u8], usize),
+    (truncated, invalid): (&'static str, &'static str),
+) -> std::result::Result<(), &'static str> {
+    if bytes.len() < header_end {
+        return Err(truncated);
+    }
+    if !bytes.starts_with(magic) {
+        return Err(invalid);
+    }
+    Ok(())
+}
+
 /// Bytes the floating-point mip chain of an image of `pixels` texels holds beyond its decoded
 /// pixels (`texture/hdr.rs`), for the drivers of the wide formats.
 fn wide_chain_bytes(pixels: usize) -> usize {

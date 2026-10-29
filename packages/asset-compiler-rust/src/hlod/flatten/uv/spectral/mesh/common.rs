@@ -127,14 +127,7 @@ impl<'a> Chart<'a> {
             .map(|(i, &old)| {
                 let old = &self.verts[old as usize];
                 map[old.id as usize] = i as u32;
-                Vert {
-                    id: i as u32,
-                    root: old.root,
-                    parent: old.id,
-                    boundary: old.boundary,
-                    importance: old.importance,
-                    ..Vert::default()
-                }
+                Vert::cut_from(i, old)
             })
             .collect();
         child.faces = (faces.iter().enumerate())

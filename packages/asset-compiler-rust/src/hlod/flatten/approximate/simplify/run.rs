@@ -174,11 +174,7 @@ impl Simplifier {
                 if self.mesh.triangle_count <= min_triangles {
                     break;
                 }
-                let [a, b] = self.mesh.edges[e as usize].0;
-                let (pa, pb) = (
-                    self.mesh.positions[a as usize],
-                    self.mesh.positions[b as usize],
-                );
+                let [pa, pb] = self.mesh.edge_points(e);
                 if distance2(pa, pb) > min2 {
                     continue;
                 }

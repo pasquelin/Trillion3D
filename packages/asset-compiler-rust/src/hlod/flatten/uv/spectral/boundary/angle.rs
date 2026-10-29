@@ -20,20 +20,13 @@ impl<'a> Chart<'a> {
     ) {
         for _ in 0..ROUNDS {
             self.find_neighbour_children(face_charts);
-            for one in 0..self.children.len() as u32 {
-                for i in 0..self.children[one as usize].neighbours.len() {
-                    let two = self.children[one as usize].neighbours[i];
-                    if one >= two {
-                        continue;
-                    }
-                    let nodes = self.fuzzy_nodes(one, two, face_charts, fuzzy);
-                    if nodes.faces.is_empty() {
-                        continue;
-                    }
-                    self.cut_nodes((one, two), &nodes, face_charts, fuzzy, |edge, _, _| {
-                        1.0 / (1.0 + angles[edge.id as usize] / mean)
-                    });
-                }
+            for border in self.borders() {
+                let Some(nodes) = self.border_nodes(border, face_charts, fuzzy) else {
+                    continue;
+                };
+                self.cut_nodes(border, &nodes, face_charts, fuzzy, |edge, _, _| {
+                    1.0 / (1.0 + angles[edge.id as usize] / mean)
+                });
             }
         }
     }

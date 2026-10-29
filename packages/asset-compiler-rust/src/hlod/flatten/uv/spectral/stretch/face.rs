@@ -110,38 +110,47 @@ impl<'a> Chart<'a> {
         plane_gradients(area_2d, uv, self.surface_corners(face))
     }
 
-    /// Face `face`'s geometric mean squared stretch under `uv`, and its signed plane area.
-    pub(crate) fn face_l2_stretch(&self, face: usize, uv: [[f32; 2]; 3]) -> (f32, f32) {
+    /// What a stretch of face `face` under `uv` is made of: its plane area, its surface gradients
+    /// and its surface area; or, `Err`, the stretch a degenerate face has (`flat` when the surface
+    /// area is nothing or both areas are next to nothing) with its plane area.
+    fn stretch_terms(
+        &self,
+        face: usize,
+        uv: [[f32; 2]; 3],
+        flat: f32,
+    ) -> Result<(f32, [f32; 3], [f32; 3], f32), (f32, f32)> {
         let area_3d = self.source.areas[self.faces[face].root as usize];
         let area_2d = signed_area_2d(uv[0], uv[1], uv[2]);
         if area_3d == 0.0 {
-            return (0.0, area_2d);
+            return Err((flat, area_2d));
         }
         if area_2d < 0.0 || (area_2d < ZERO2 && area_2d < area_3d / 2.0) {
-            return (INFINITE_STRETCH, area_2d);
+            return Err((INFINITE_STRETCH, area_2d));
         }
         if near_zero2(area_2d) && near_zero2(area_3d) {
-            return (0.0, area_2d);
+            return Err((flat, area_2d));
         }
         let (ss, st) = self.surface_gradients(face, uv, area_2d);
-        ((dot(ss, ss) + dot(st, st)) * area_3d / 2.0, area_2d)
+        Ok((area_2d, ss, st, area_3d))
+    }
+
+    /// Face `face`'s geometric mean squared stretch under `uv`, and its signed plane area.
+    pub(crate) fn face_l2_stretch(&self, face: usize, uv: [[f32; 2]; 3]) -> (f32, f32) {
+        match self.stretch_terms(face, uv, 0.0) {
+            Ok((area_2d, ss, st, area_3d)) => {
+                ((dot(ss, ss) + dot(st, st)) * area_3d / 2.0, area_2d)
+            }
+            Err(degenerate) => degenerate,
+        }
     }
 
     /// Face `face`'s largest stretch under `uv` at the chart scale `scale`, and its signed plane
     /// area.
     pub(crate) fn face_ln_stretch(&self, face: usize, uv: [[f32; 2]; 3], scale: f32) -> (f32, f32) {
-        let area_3d = self.source.areas[self.faces[face].root as usize];
-        let area_2d = signed_area_2d(uv[0], uv[1], uv[2]);
-        if area_3d == 0.0 {
-            return (1.0, area_2d);
-        }
-        if area_2d < 0.0 || (area_2d < ZERO2 && area_2d < area_3d / 2.0) {
-            return (INFINITE_STRETCH, area_2d);
-        }
-        if near_zero2(area_2d) && near_zero2(area_3d) {
-            return (1.0, area_2d);
-        }
-        let (ss, st) = self.surface_gradients(face, uv, area_2d);
+        let (area_2d, ss, st, _) = match self.stretch_terms(face, uv, 1.0) {
+            Ok(terms) => terms,
+            Err(degenerate) => return degenerate,
+        };
         let (a, c, b) = (dot(ss, ss), dot(st, st), dot(ss, st));
         let disc = (a - c) * (a - c) + 4.0 * b * b;
         let mut stretch = scale * root((a + c + root(disc)) / 2.0);

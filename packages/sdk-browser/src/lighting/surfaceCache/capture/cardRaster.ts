@@ -10,11 +10,8 @@ import { noiseViewOn } from '../../../gpu/noise/blueNoiseTextures.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../../gpu/dispatch/grid.ts'
 import { FLAG_TABLE } from '../../../geometry/dag/cut/cutTables.ts'
 import type { CutTables } from '../../../geometry/dag/cut/cutReaders.ts'
-import {
-  DAG_ARGS,
-  DAG_ARGS_INITIAL,
-  DAG_ARM_BINDING,
-} from '../../../geometry/dag/shader/armWgsl.ts'
+import { DAG_ARGS, DAG_ARGS_INITIAL, dagArmEntries } from '../../../geometry/dag/shader/armWgsl.ts'
+import { dagDescentEntries } from '../../../geometry/dag/shader/bindings.ts'
 import { DAG_UNIFORM_BYTES } from '../../../geometry/dag/shader/viewsWgsl.ts'
 import { BLOCK_MASK_WORDS, FRAME_COUNTERS } from '../../../geometry/dag/shader/floorWgsl.ts'
 import { entryWords } from '../../../geometry/dag/shader/descentShape.ts'
@@ -329,16 +326,10 @@ function groupsOf(device: GPUDevice, d: Descent, b: Buffers, s: Session, t: CutT
   next[12] = s.cut.info
   const cut = bound(device, d.groups.cut, pipesOf.prepare.groups[0]!, 13, () => [
     { binding: 0, resource: t.clusters },
-    { binding: 1, resource: t.views.nodes },
-    { binding: 2, resource: { buffer: d.uniform } },
-    { binding: 3, resource: d.flags!.view },
-    { binding: 4, resource: { buffer: d.out! } },
-    { binding: 5, resource: { buffer: d.work! } },
-    { binding: 6, resource: t.views.worlds },
-    { binding: 7, resource: t.views.frames },
-    { binding: 8, resource: t.cold },
-    { binding: 9, resource: t.views.tree },
-    { binding: 10, resource: s.cut.previous },
+    ...dagDescentEntries(
+      { uniform: d.uniform, flags: d.flags!.view, out: d.out!, work: d.work! },
+      { ...t.views, cold: t.cold, previous: s.cut.previous },
+    ),
     { binding: 11, resource: { buffer: b.visible } },
     { binding: 12, resource: { buffer: s.cut.info } },
   ])
@@ -352,10 +343,9 @@ function groupsOf(device: GPUDevice, d: Descent, b: Buffers, s: Session, t: CutT
   next = d.groups.arm.identity.next
   next[0] = d.work!
   next[1] = d.args
-  const arm = bound(device, d.groups.arm, pipesOf.arm.groups[0]!, 2, () => [
-    { binding: DAG_ARM_BINDING.work, resource: { buffer: d.work! } },
-    { binding: DAG_ARM_BINDING.args, resource: { buffer: d.args } },
-  ])
+  const arm = bound(device, d.groups.arm, pipesOf.arm.groups[0]!, 2, () =>
+    dagArmEntries(d.work!, d.args),
+  )
   next = d.groups.rows.identity.next
   next[0] = b.visible
   next[1] = b.pages

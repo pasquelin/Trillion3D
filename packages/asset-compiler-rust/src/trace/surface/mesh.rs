@@ -28,6 +28,52 @@ pub(crate) struct Corners {
     pub colours: Option<[f32; 12]>,
 }
 
+/// What a triangle's corner reads of a vertex.
+#[derive(Clone, Copy)]
+pub(crate) enum Channel {
+    /// The coordinates of one set.
+    Uv(usize),
+    Normal,
+    Colour,
+}
+
+impl Corners {
+    /// The attributes of the triangle over vertices `triangle`, each read through `read` (a
+    /// channel of a vertex, none when the vertex has none); a normal or a colour block exists
+    /// where `declared` says (`normals`, `colours`), a missing normal staying zero and a missing
+    /// colour white. A value narrower than its channel fills its first floats only.
+    pub(crate) fn of_triangle<'s>(
+        triangle: &[u32; 3],
+        declared: (bool, bool),
+        read: impl Fn(Channel, usize) -> Option<&'s [f32]>,
+    ) -> Self {
+        let mut corner = Self::default();
+        let mut normal = [0.0f32; 9];
+        let mut colour = [1.0f32; 12];
+        let put = |block: &mut [f32], k: usize, stride: usize, value: &[f32]| {
+            let used = value.len().min(stride);
+            block[k * stride..k * stride + used].copy_from_slice(&value[..used]);
+        };
+        for (k, &v) in triangle.iter().enumerate() {
+            let v = v as usize;
+            for set in 0..SETS {
+                if let Some(uv) = read(Channel::Uv(set), v) {
+                    put(&mut corner.uv[set], k, 2, uv);
+                }
+            }
+            if let Some(n) = read(Channel::Normal, v) {
+                put(&mut normal, k, 3, n);
+            }
+            if let Some(c) = read(Channel::Colour, v) {
+                put(&mut colour, k, 4, c);
+            }
+        }
+        corner.normals = declared.0.then_some(normal);
+        corner.colours = declared.1.then_some(colour);
+        corner
+    }
+}
+
 pub(crate) struct Traceable {
     pub world: World,
     pub corners: Vec<Corners>,

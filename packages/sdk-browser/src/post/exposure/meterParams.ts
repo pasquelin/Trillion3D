@@ -72,6 +72,20 @@ export function luminanceReading(settings: ExposureValues) {
   return reading
 }
 
+/** `reading` written into `words`: the weights and the lowest luminance at `weightsAt` (the
+ *  weights' three words, then the lowest), the scale and the bias at `histogramAt`. */
+export function writeLuminanceReading(
+  words: Float32Array,
+  weightsAt: number,
+  histogramAt: number,
+  reading: ReturnType<typeof luminanceReading>,
+) {
+  words.set(reading.weights, weightsAt)
+  words[weightsAt + 3] = reading.lowest
+  words[histogramAt] = reading.scale
+  words[histogramAt + 1] = reading.bias
+}
+
 /** What the meter's uniform is written from, for one image: the settings, the `size` of the image
  *  measured in pixels, `seconds` of the world's time since the last update, whether the exposure
  *  `jumps` to what the mean asks — a first update or a view cut —, the `preExposure` the image holds
@@ -110,10 +124,7 @@ export function writeMeterParams(words: Float32Array, ints: Uint32Array, uniform
   ints[AT.size + 1] = size[1]
   ints[AT.size + 2] = halfOf(size[0])
   ints[AT.size + 3] = halfOf(size[1])
-  words.set(reading.weights, AT.weights)
-  words[AT.weights + 3] = reading.lowest
-  words[AT.histogram] = reading.scale
-  words[AT.histogram + 1] = reading.bias
+  writeLuminanceReading(words, AT.weights, AT.histogram, reading)
   words[AT.histogram + 2] = settings.exposureBlackBucketWeight
   words[AT.bounds] = lowest * EXPOSURE_MIDDLE_GREY
   words[AT.bounds + 1] = highest * EXPOSURE_MIDDLE_GREY

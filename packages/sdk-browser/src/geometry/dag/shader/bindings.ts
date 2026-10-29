@@ -68,6 +68,25 @@ export function dagGroupEntries(
   })
 }
 
+/** Group 0 of the selection kernel as the descents of the view and of the cards bind it: the tables, the uniform, the flags, the readout and the work
+ *  (the clusters, the visible lists, the information and the edges are bound by the one that has them). */
+export const dagDescentEntries = (
+  d: { uniform: GPUBuffer; flags: GPUTextureView; out: GPUBuffer; work: GPUBuffer },
+  tables: Record<'nodes' | 'worlds' | 'frames' | 'cold' | 'tree' | 'previous', GPUTextureView>,
+) =>
+  namedEntries(DAG_BINDING, {
+    nodes: tables.nodes,
+    cutView: { buffer: d.uniform },
+    flags: d.flags,
+    out: { buffer: d.out },
+    work: { buffer: d.work },
+    worlds: tables.worlds,
+    frames: tables.frames,
+    cold: tables.cold,
+    tree: tables.tree,
+    previous: tables.previous,
+  })
+
 /** The cut's tables a pass beside it reads where they lie (`../../../lighting/rays/rayQueryWgsl.ts`):
  *  the nodes, the placements' frame words and records, and the placement tree. */
 const READ_TABLES = ['nodes', 'frames', 'worlds', 'tree'] as const
