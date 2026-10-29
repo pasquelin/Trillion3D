@@ -553,6 +553,16 @@ never rejected, and the shadow maps never see the verdict. `hzbOcclusionExpandAm
 `hzbOcclusionExpandNewlyAmount` and `hzbOcclusionExpandNewlyScreenSpace` (`0`) grow, beside them, an object not tested for
 `hzbOcclusionFramesNotTestedToExpand` (`5`) images for the next `hzbOcclusionFramesToExpandNewly` (`2`) images it is tested in.
 
+`occlusionQueries` (off) asks the same of the GPU's own occlusion queries instead, while `hzbOcclusion` is `0`: the world boxes of the
+objects are drawn sixteen to a query against the depth the image drew (depth tested, nothing written), the counts come back a few images
+late, and an object whose group let no sample through is left out of the next images' cut until a later group lets one through. An object
+with no box, or a box that reaches the eye's plane, is never hidden; at most 65536 objects are queried.
+
+```js
+const world = createWorld('viewer', { occlusionQueries: true })
+world.hiz = { occlusionQueries: null } // back to the default, off
+```
+
 ```js
 const world = createWorld('viewer', { hzbOcclusion: 1 })
 world.hiz = { hzbOcclusionExpandScreenSpace: 8, hzbOcclusionNeverTestDistance: 2 } // grown by 8 pixels, none tested within 2 m

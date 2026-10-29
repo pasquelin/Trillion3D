@@ -1,5 +1,9 @@
 import { DEFORMATION_COMPUTE_WGSL } from '../../deformation/computeWgsl.ts'
 import { ANIMATION_BANK_WGSL } from '../../deformation/bankWgsl.ts'
+import {
+  OCCLUSION_BOX_WGSL,
+  OCCLUSION_VERDICT_WGSL,
+} from '../../visibility/hardwareOcclusion/hardwareOcclusionWgsl.ts'
 import { PRESENT_AT_SHADER } from './presentWgsl.ts'
 import { BENCHMARK_WGSL } from '../benchmark/benchmarkWgsl.ts'
 import { transparentOcclusionShader } from './transparentOcclusionWgsl.ts'
@@ -195,6 +199,8 @@ export const ENGINE_SHADERS: Record<string, string> = {
   FIELD_GATHER: fieldGatherProgram(),
   INDIRECT_WORDS: indirectWordsProgram(false),
   INDIRECT_WORDS_BENT: indirectWordsProgram(true),
+  OCCLUSION_BOX_WGSL,
+  OCCLUSION_VERDICT_WGSL,
   ...POST_SHADERS,
   ...BLUR_SHADERS,
   ...FOG_SHADERS,

@@ -1,4 +1,4 @@
-import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
+import { ceilDiv, nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { packDoubles } from '../../../../math/src/float/splitDouble.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { matrixAtRenderOrigin } from '../../../../math/src/projection/renderOrigin.ts'
@@ -20,6 +20,12 @@ import {
 } from '../../gpu/core/transparentOcclusion.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
 import { HZB_CORNERS_ENTRY, HZB_CORNERS_WGSL, HZB_PARAMS_BYTES } from './hzbCornersWgsl.ts'
+import {
+  createHardwareQueries,
+  destroyHardwareQueries,
+  encodeHardwareQueries,
+  type HardwareQueries,
+} from '../hardwareOcclusion/hardwareOcclusion.ts'
 import { hiddenRanks, sameRanks, setHzbOccludedRanks } from './occludedRoots.ts'
 
 const PASS: GPUComputePassDescriptor = { label: HZB_OCCLUSION_PASS }
@@ -50,6 +56,8 @@ interface Held {
   frame: ReturnType<typeof createOcclusionFrame>
   /** The ranks the last verdict hid, the same array until it changes. */
   ranks: readonly number[]
+  /** The roots' hardware occlusion queries, made with the first image that asks for them. */
+  queries: HardwareQueries | undefined
   /** This image copied its verdicts into the ring's buffer: mapped once the image is submitted. */
   encoded: boolean
 }
@@ -89,6 +97,7 @@ function makeHeld(rt: WebgpuPagesRuntime, device: GPUDevice, hiz: GpuHiz, capaci
     ),
     frame: createOcclusionFrame(),
     ranks: [],
+    queries: undefined,
     encoded: false,
   }
   void createTransparentOcclusion(device, capacity, {
@@ -118,6 +127,7 @@ function release(rt: WebgpuPagesRuntime) {
       verdict.destroy()
       history.destroy()
       ring.destroy()
+      if (held.queries) destroyHardwareQueries(held.queries)
     },
   }
   if (device) retire(device, free)
@@ -149,13 +159,22 @@ function writeParams(
   held: Held,
   cam: EngineCamera,
   roots: number,
+  grown: boolean,
 ) {
+  // The growths are the depth pyramid test's settings: the queries draw the boxes as they are.
+  const grow = (
+    field:
+      | 'hzbOcclusionExpandAmount'
+      | 'hzbOcclusionExpandNewlyAmount'
+      | 'hzbOcclusionExpandScreenSpace'
+      | 'hzbOcclusionExpandNewlyScreenSpace',
+  ) => (grown ? readHizSetting(rt, field) : 0)
   const framesNot = readHizSetting(rt, 'hzbOcclusionFramesNotTestedToExpand'),
     framesFor = readHizSetting(rt, 'hzbOcclusionFramesToExpandNewly'),
-    amount = readHizSetting(rt, 'hzbOcclusionExpandAmount'),
-    newly = readHizSetting(rt, 'hzbOcclusionExpandNewlyAmount'),
-    screen = readHizSetting(rt, 'hzbOcclusionExpandScreenSpace'),
-    screenNewly = readHizSetting(rt, 'hzbOcclusionExpandNewlyScreenSpace'),
+    amount = grow('hzbOcclusionExpandAmount'),
+    newly = grow('hzbOcclusionExpandNewlyAmount'),
+    screen = grow('hzbOcclusionExpandScreenSpace'),
+    screenNewly = grow('hzbOcclusionExpandNewlyScreenSpace'),
     never = readHizSetting(rt, 'hzbOcclusionNeverTestDistance')
   // The growth of a root newly tested is on only with an amount, and frames, to grow it by.
   const growsNewly = (newly > 0 || screenNewly > 0) && framesFor > 0 && framesNot > 0
@@ -194,29 +213,27 @@ export function encodeHzbOcclusion(
     !hiz ||
     !roots ||
     !rt.rootWorlds?.boxes ||
-    readHizSetting(rt, 'hzbOcclusion') === 0
+    (readHizSetting(rt, 'hzbOcclusion') === 0 && !readHizSetting(rt, 'occlusionQueries'))
   )
     return release(rt)
+  // The depth pyramid's test stands in for the queries where it is on (the reference's order), and the queries are made once it is off.
+  const pyramid = readHizSetting(rt, 'hzbOcclusion') !== 0
   let held = helds.get(rt)
   if (held && held.capacity < roots) {
     release(rt)
     held = undefined
   }
-  if (!held)
-    helds.set(
-      rt,
-      (held = makeHeld(rt, device, hiz, 2 ** Math.ceil(Math.log2(Math.max(roots, 1024))))),
-    )
+  if (!held) helds.set(rt, (held = makeHeld(rt, device, hiz, nextPow2(Math.max(roots, 1024)))))
   const { occlusion } = held
   const pipeline = cornersKernel(device).get()
   // Without a fresh pyramid the test writes no verdict (it clears them): the last ones stand.
-  if (!occlusion || !pipeline || !rt.run.hizPyramidFresh) return
+  if (!occlusion || !pipeline || (pyramid && !rt.run.hizPyramidFresh)) return
   fillOcclusionFrame(rt, cam, held.frame)
   // The roots are tested by the image's own pyramid, whatever the cut does: no frozen cut's verdicts, the reference's walk.
   held.frame.cull = 'follow'
   held.frame.referenceTest = true
-  writeParams(rt, device, held, cam, roots)
-  occlusion.begin(held.frame)
+  writeParams(rt, device, held, cam, roots, pyramid)
+  if (pyramid) occlusion.begin(held.frame)
   encoder.clearBuffer(occlusion.unculled)
   held.group.identity.entries[0] ??= sequentialEntries([
     liveBuffer(() => held.params),
@@ -232,7 +249,16 @@ export function encodeHzbOcclusion(
   dispatchRows(pass, ceilDiv(roots, WORKGROUP_THREADS))
   pass.end()
   rt.run.gpuComputeDispatches++
-  occlusion.encode(encoder, rt.run.hizPyramidFresh)
+  if (pyramid) occlusion.encode(encoder, rt.run.hizPyramidFresh)
+  else {
+    held.queries ??= createHardwareQueries(device, held.capacity, {
+      params: () => held.params,
+      corners: () => occlusion.corners,
+      unculled: () => occlusion.unculled,
+      verdict: () => held.verdict,
+    })
+    if (!encodeHardwareQueries(rt, device, encoder, held.queries, roots)) return
+  }
   const tag: Tag = { roots, revision: rt.layout.rootIndex.revision }
   const staging = held.ring.take(tag, roots * 4)
   if (!staging) return

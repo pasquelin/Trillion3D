@@ -13,6 +13,7 @@
  *   history   array<u32>     two words a root: the image it was last in view, the images it is still grown for as a newly tested one
  */
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { FLOAT32_MAX } from '../../../../math/src/wgsl/constants.ts'
 import { dAdd, dSub, splitDouble } from '../../../../math/src/wgsl/double.ts'
@@ -26,7 +27,10 @@ export const HZB_CORNERS_ENTRY = 'hzbRootCorners'
 /** Bytes of the uniform: four `vec4`s of words and floats, two of growths, the matrix. */
 export const HZB_PARAMS_BYTES = 6 * 16 + 64
 
-export const HZB_CORNERS_WGSL = wgslProgram(
+/** The uniform's struct, which the hardware queries' passes read the view-projection of (`../hardwareOcclusion/hardwareOcclusionWgsl.ts`). */
+export const HZB_PARAMS_WGSL = wgslBlock(
+  'HZB_PARAMS_WGSL',
+  [],
   `struct HzbParams{
  counts:vec4u,
  eyeXY:vec4u,
@@ -36,8 +40,11 @@ export const HZB_CORNERS_WGSL = wgslProgram(
  screenNewly:vec4f,
  viewProj:mat4x4f,
 }
-@group(0) @binding(0) var<uniform> params:HzbParams;
-@group(0) @binding(1) var<storage,read> rootBoxes:array<vec2u>;
+@group(0) @binding(0) var<uniform> params:HzbParams;`,
+)
+
+export const HZB_CORNERS_WGSL = wgslProgram(
+  `@group(0) @binding(1) var<storage,read> rootBoxes:array<vec2u>;
 @group(0) @binding(2) var<storage,read_write> corners:array<u32>;
 @group(0) @binding(3) var<storage,read_write> unculled:array<atomic<u32>>;
 @group(0) @binding(4) var<storage,read_write> history:array<u32>;
@@ -117,6 +124,7 @@ fn hzbInView(low:vec3f,high:vec3f)->bool{
  }
 }`,
   [
+    HZB_PARAMS_WGSL,
     FLOAT32_MAX,
     dAdd,
     dSub,

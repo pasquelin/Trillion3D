@@ -105,7 +105,7 @@ export type HeldGroup = ReturnType<typeof heldGroup>
 export function composeGroup(
   device: GPUDevice,
   held: HeldGroup,
-  pipeline: GPUComputePipeline,
+  pipeline: GPUComputePipeline | GPURenderPipeline,
   index = 0,
 ) {
   const moved = held.identity.entriesMoved(pipeline)

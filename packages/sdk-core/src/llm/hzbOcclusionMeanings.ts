@@ -1,10 +1,12 @@
 import type { HizField } from '../contracts/hizOptions.ts'
 
 /** The settings of the depth pyramid that govern the roots' test against it. */
-export type HzbOcclusionField = Extract<HizField, `hzbOcclusion${string}`>
+export type HzbOcclusionField = Extract<HizField, `hzbOcclusion${string}` | 'occlusionQueries'>
 
 /** What each of them means (`../contracts/hizOptions.ts`). */
 export const HZB_OCCLUSION_MEANINGS: Readonly<Record<HzbOcclusionField, string>> = {
+  occlusionQueries:
+    "Whether the main view hides the objects the depth it drew already hides, by hardware occlusion queries: off by default. On, the world boxes of the objects are drawn sixteen to a query against the depth the image drew, nothing written, and an object whose group let no sample through is left out of the cut a few images later, until a later group lets a sample through; an object with no box or a box that reaches the eye's plane is never hidden, and the shadow maps never see the verdict. Applies where hzbOcclusion is 0; above 0 the depth pyramid's test takes its place.",
   hzbOcclusion:
     "Whether the main view hides the objects the depth it drew already hides: 0, the default, none; 1, each object's world box is projected and tested against the farthest depth of the pyramid every image, the verdicts come back a few images late, and an object found behind the depth is left out of the next images' cut until a test finds it in front again; 2, the same, forced. The test is conservative: it never hides an object whose box reaches the near plane or lies in front of the depth, though an object that comes into view is drawn a few images late.",
   hzbOcclusionNeverTestDistance:
