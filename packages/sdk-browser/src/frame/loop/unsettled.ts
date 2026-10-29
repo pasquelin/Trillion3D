@@ -91,8 +91,10 @@ function loadMask(rt: WebgpuPagesRuntime) {
   // (`shadowsUnsettled`).
   if (shadowsUnsettled(lights)) mask |= BIT.shadowsPending
   // A caster that moved stays cached as dynamic until enough still frames are drawn (`mobility.settle`): a view held before shows other shadows.
-  // The age advances in the shadows' plan, so it counts only while they run (`shadowsOn`): none, nothing is cached.
-  if (lights.mobility?.settling && shadowsOn(rt)) mask |= BIT.casterSettling
+  // The age advances in the shadows' plan, and turns a caster static only over a previous frame's maps (`acceptsInvalidations`, the
+  // reference's cache data and slots): with none, nothing is cached and nothing waits.
+  if (lights.mobility?.settling && shadowsOn(rt) && lights.vsm?.state.cache.acceptsInvalidations())
+    mask |= BIT.casterSettling
   // Pending cut pages must land before holding; the cut difference keeps this count.
   if (services.cutPending.count) mask |= BIT.cutPending
   // An HLOD switch waiting on its actor's warm-up switches on a later cut: a still view keeps
