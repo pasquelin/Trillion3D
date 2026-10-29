@@ -362,6 +362,8 @@ const FIELD_UPDATE_MEANINGS = /* @__PURE__ */ (() =>
       'Whether a clipmap composited while a mesh had only its coarsest mip is composited again when the streaming is done; true by default.',
     globalDistanceFieldForceRecacheOnStreaming:
       'Whether each such update is always whole; false by default.',
+    globalDistanceFieldDebugShowStats:
+      'Whether the image shows, over its upper right, the pages of the global field: the most the atlas holds, those allocated and free, those of the clipmaps combined, the ones among them with no surface in them and the ones composited this image; false by default.',
     globalDistanceFieldStartDistance:
       "The distance along an occlusion cone from which the global field replaces the meshes' own, in centimetres; 100 by default.",
     globalDistanceFieldMinMeshRadius:

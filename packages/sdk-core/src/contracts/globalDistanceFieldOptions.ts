@@ -49,6 +49,8 @@ import {
  * - `globalDistanceFieldRecacheOnStreaming` (true): whether a clipmap composited while a mesh it
  *   holds had only its coarsest mip is composited again when the streaming is done;
  *   `globalDistanceFieldForceRecacheOnStreaming` (false): whether each such update is always whole;
+ * - `globalDistanceFieldDebugShowStats` (false): whether the image shows, over its upper right, the pages the
+ *   field holds (`r.GlobalDistanceField.Debug.ShowStats`);
  * - `globalDistanceFieldStartDistance` (100): the distance along an occlusion cone from which the
  *   global field replaces the meshes' own (`r.AOGlobalDFStartDistance`);
  * - `globalDistanceFieldMinMeshRadius` (20) and `globalDistanceFieldMinMeshRadiusInVoxels` (0.5):
@@ -118,6 +120,7 @@ export const GLOBAL_DISTANCE_FIELD_RULES = /* @__PURE__ */ (() =>
     integerSetting('globalDistanceFieldAverageCulledObjectsPerCell', 512, [1, 8192]),
     flagSetting('globalDistanceFieldRecacheOnStreaming', true),
     flagSetting('globalDistanceFieldForceRecacheOnStreaming', false),
+    flagSetting('globalDistanceFieldDebugShowStats', false),
     nonNegativeSetting('globalDistanceFieldStartDistance', 100),
     nonNegativeSetting('globalDistanceFieldMinMeshRadius', 20),
     nonNegativeSetting('globalDistanceFieldMinMeshRadiusInVoxels', 0.5),

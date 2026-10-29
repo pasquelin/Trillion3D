@@ -19,6 +19,7 @@ import {
   DEFAULT_OCCLUSION_DISTANCE,
   type DistanceFieldScene,
 } from './scene.ts'
+import { disposePageStats, pageStatsSubmitted } from './debug/pageStats.ts'
 import { createRuntimeFields, type RuntimeFields } from './runtime/runtimeFields.ts'
 import { createVoxelKernel } from './runtime/voxelKernel.ts'
 import { fieldTasks } from '../../geometry/work/host.ts'
@@ -152,10 +153,12 @@ export function encodeDistanceFields(
 /** After the image's encoder was submitted: the readbacks the update started map. */
 export function distanceFieldsSubmitted(rt: Pick<WebgpuPagesRuntime, 'distanceFields'>) {
   rt.distanceFields?.scene.submitted()
+  pageStatsSubmitted(rt)
 }
 
 /** Frees the distance fields of `rt`. */
 export function disposeDistanceFields(rt: Pick<WebgpuPagesRuntime, 'distanceFields'>) {
+  disposePageStats(rt)
   if (rt.distanceFields) releaseSkyOcclusion(rt.distanceFields.occlusion)
   rt.distanceFields?.runtime?.dispose()
   rt.distanceFields?.scene.dispose()

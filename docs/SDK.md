@@ -563,6 +563,15 @@ const world = createWorld('viewer', { occlusionQueries: true })
 world.hiz = { occlusionQueries: null } // back to the default, off
 ```
 
+`downsampledOcclusionQueries` (off) makes those queries test against a smaller copy of the depth: the image's depth is reduced to half its
+size on each side first, each texel keeping the farthest of the four it covers, and the boxes are drawn at that size. An object is then
+hidden only where the whole square of texels hides it: fewer objects are hidden and the queries count fewer samples.
+
+```js
+const world = createWorld('viewer', { occlusionQueries: true, downsampledOcclusionQueries: true })
+world.hiz = { downsampledOcclusionQueries: null } // back to the default, off
+```
+
 ```js
 const world = createWorld('viewer', { hzbOcclusion: 1 })
 world.hiz = { hzbOcclusionExpandScreenSpace: 8, hzbOcclusionNeverTestDistance: 2 } // grown by 8 pixels, none tested within 2 m
@@ -654,6 +663,9 @@ most 6), `globalDistanceFieldViewDistance` (`20000`), `globalDistanceFieldClipma
 `globalDistanceFieldForceUpdateOnce` (`false`), `globalDistanceFieldFastCameraMode` (`false`),
 `globalDistanceFieldCameraVelocityDecay` (`0.7`), `globalDistanceFieldAverageCulledObjectsPerCell` (`512`),
 `globalDistanceFieldRecacheOnStreaming` (`true`), `globalDistanceFieldForceRecacheOnStreaming` (`false`),
+`globalDistanceFieldDebugShowStats` (`false`), which writes over the upper right of the image the pages of the field — the most
+the atlas holds, those allocated and free, the pages of the clipmaps in use (combined), those among them with no surface and
+the pages composited this image (`world.globalDistanceField = { globalDistanceFieldDebugShowStats: true }`, `null` back to off),
 `globalDistanceFieldStartDistance` (`100`), `globalDistanceFieldMinMeshRadius` (`20`),
 `globalDistanceFieldMinMeshRadiusInVoxels` (`0.5`), the ones of the rays the reflections march through the field —
 `globalDistanceFieldTraceResolution` (`252`) and `globalDistanceFieldTraceClipmapExtent` (`2500`), the voxels along a

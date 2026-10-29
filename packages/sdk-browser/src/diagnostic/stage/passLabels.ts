@@ -108,6 +108,7 @@ export const TRANSPARENT_OCCLUSION_PASS = 'Trillion3D transparent occlusion'
 export const HZB_OCCLUSION_PASS = 'Trillion3D hzb occlusion roots'
 /** The root boxes under hardware occlusion queries: the boxes drawn against the depth with a query a group, and the pass that turns the counts into verdicts (`../../visibility/hardwareOcclusion/`). */
 export const HARDWARE_OCCLUSION_BOX_PASS = 'Trillion3D hardware occlusion boxes'
+export const HARDWARE_OCCLUSION_SMALL_DEPTH_PASS = 'Trillion3D hardware occlusion small depth'
 export const HARDWARE_OCCLUSION_VERDICT_PASS = 'Trillion3D hardware occlusion verdicts'
 /** The particle step and draw, as the GPU timings name them (`passesGpu`). */
 export const PARTICLES_PASS = 'Trillion3D particles'
@@ -345,6 +346,7 @@ export const ENGINE_PASSES = [
   definePass({ label: TRANSPARENT_OCCLUSION_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: HZB_OCCLUSION_PASS, stage: 'hiZ', block: 'visibility' }),
   definePass({ label: HARDWARE_OCCLUSION_BOX_PASS, stage: 'hiZ', block: 'visibility' }),
+  definePass({ label: HARDWARE_OCCLUSION_SMALL_DEPTH_PASS, stage: 'hiZ', block: 'visibility' }),
   definePass({ label: HARDWARE_OCCLUSION_VERDICT_PASS, stage: 'hiZ', block: 'visibility' }),
   definePass({ label: BLEND_ORDER_PASS, stage: 'transparents', block: 'other' }),
   definePass({ label: DISPLAY_MASK_PASS, stage: 'transparents', block: 'other' }),

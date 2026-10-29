@@ -11,10 +11,12 @@ const FULLSCREEN_X = 'f32(i32(i&1u)*4-1)'
 const FULLSCREEN_Y = 'f32(i32(i>>1u)*4-1)'
 export const FULLSCREEN_XY = `${FULLSCREEN_X},${FULLSCREEN_Y}`
 /** The full-screen triangle's vertex stage, which every full-screen pass lists. */
+/** The entry point of the full-screen triangle's vertex stage. */
+export const FULLSCREEN_ENTRY = 'fullscreen'
 export const FULLSCREEN_VERTEX = wgslBlock(
   'FULLSCREEN_VERTEX',
   [],
-  `@vertex fn fullscreen(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}`,
+  `@vertex fn ${FULLSCREEN_ENTRY}(@builtin(vertex_index) i:u32)->@builtin(position) vec4f{return vec4f(${FULLSCREEN_XY},0.0,1.0);}`,
 )
 
 /** One full-screen triangle drawn through `descriptor` with `pipeline`, `groups` bound at 0, 1, … (`offsets` the

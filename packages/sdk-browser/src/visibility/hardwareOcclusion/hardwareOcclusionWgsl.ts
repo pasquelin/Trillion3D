@@ -8,10 +8,12 @@
  *   samples   array<vec2u>   the count of every query, a 64-bit word
  *   verdict   array<u32>     a word a root, non-zero where its group let no sample through
  */
+import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { wgslConsts } from '../../../../math/src/wgsl/consts.ts'
 import { CORNER_VALUES } from '../../gpu/core/boxProjectWgsl.ts'
+import { FULLSCREEN_VERTEX } from '../../gpu/shader/fullscreenTriangle.ts'
 import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../../gpu/dispatch/grid.ts'
 import { HZB_PARAMS_WGSL } from '../hzbOcclusion/hzbCornersWgsl.ts'
 
@@ -22,6 +24,16 @@ export const BOX_VERTICES = 36
 /** The most queries a query set holds. */
 export const MAX_QUERIES = 4096
 
+/** The factor the depth the boxes are tested against is smaller than the image's by on each side (`downsampledOcclusionQueries`). */
+export const SMALL_DEPTH_FACTOR = 2
+
+/** The size of the smaller depth for an image of `size`: each side divided by the factor, rounded up. */
+export const smallDepthSize = (size: readonly [number, number]): [number, number] => [
+  ceilDiv(size[0], SMALL_DEPTH_FACTOR),
+  ceilDiv(size[1], SMALL_DEPTH_FACTOR),
+]
+
+export const SMALL_DEPTH_ENTRY = 'smallDepth'
 export const OCCLUSION_BOX_ENTRY = 'occlusionBox'
 export const OCCLUSION_VERDICT_ENTRY = 'occlusionVerdict'
 
@@ -64,4 +76,20 @@ const MAX_QUERIES=${MAX_QUERIES}u;
  verdict[root]=select(0u,1u,hidden);
 }`,
   [CORNERS_WGSL, FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL],
+)
+
+/** The small depth pass: each texel takes the farthest depth of the square of `SMALL_DEPTH_FACTOR` texels a side it covers in the image's depth, read
+ *  at the same four offsets and clamped to the drawn size (`last`, the drawn size less one), so a box is hidden only where the whole square hides it. */
+export const SMALL_DEPTH_WGSL = wgslProgram(
+  `@group(0) @binding(0) var sceneDepth:texture_depth_2d;
+@group(0) @binding(1) var<uniform> last:vec2u;
+const FACTOR=${SMALL_DEPTH_FACTOR}u;
+struct SmallDepth{@builtin(frag_depth) depth:f32,}
+fn depthAt(origin:vec2u,x:u32,y:u32)->f32{return textureLoad(sceneDepth,vec2i(min(origin+vec2u(x,y),last)),0);}
+@fragment fn ${SMALL_DEPTH_ENTRY}(@builtin(position) pos:vec4f)->SmallDepth{
+ let origin=vec2u(pos.xy)*FACTOR;
+ let farthest=min(min(depthAt(origin,0u,0u),depthAt(origin,0u,1u)),min(depthAt(origin,1u,1u),depthAt(origin,1u,0u)));
+ return SmallDepth(farthest);
+}`,
+  [FULLSCREEN_VERTEX],
 )

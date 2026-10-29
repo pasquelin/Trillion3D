@@ -1,8 +1,9 @@
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
-import { DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
+import { DEPTH_CLEAR, DEPTH_COMPARE_OR_EQUAL } from '../../camera/depthConvention.ts'
 import {
   HARDWARE_OCCLUSION_BOX_PASS,
+  HARDWARE_OCCLUSION_SMALL_DEPTH_PASS,
   HARDWARE_OCCLUSION_VERDICT_PASS,
 } from '../../diagnostic/stage/passLabels.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -11,6 +12,7 @@ import { liveBuffer } from '../../gpu/bind/liveEntries.ts'
 import { sequentialEntries } from '../../gpu/core/computeBindings.ts'
 import { autoKernel } from '../../gpu/core/computeStages.ts'
 import { dispatchRows, WORKGROUP_THREADS } from '../../gpu/dispatch/grid.ts'
+import { drawFullscreenTriangle, FULLSCREEN_ENTRY } from '../../gpu/shader/fullscreenTriangle.ts'
 import { preparedPipeline } from '../../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { DEPTH_FORMAT } from '../../scene/targetFormats.ts'
@@ -22,6 +24,9 @@ import {
   OCCLUSION_VERDICT_ENTRY,
   OCCLUSION_VERDICT_WGSL,
   QUERY_BATCH,
+  SMALL_DEPTH_ENTRY,
+  SMALL_DEPTH_WGSL,
+  smallDepthSize,
 } from './hardwareOcclusionWgsl.ts'
 
 /** The boxes' vertex stage on its own layout, prepared off the frame once a device: depth tested against the depth the image drew, nothing written, no face culled. */
@@ -44,6 +49,21 @@ const boxPipeline = oncePerDevice((device: GPUDevice) =>
     },
   }),
 )
+/** The image's depth reduced to its farthest square by square, into the smaller depth the boxes are tested against. */
+const smallDepthPipeline = oncePerDevice((device: GPUDevice) => {
+  const module = device.createShaderModule({
+    label: HARDWARE_OCCLUSION_SMALL_DEPTH_PASS,
+    code: SMALL_DEPTH_WGSL,
+  })
+  return preparedPipeline(device, {
+    label: HARDWARE_OCCLUSION_SMALL_DEPTH_PASS,
+    layout: 'auto',
+    vertex: { module, entryPoint: FULLSCREEN_ENTRY },
+    fragment: { module, entryPoint: SMALL_DEPTH_ENTRY, targets: [] },
+    primitive: { topology: 'triangle-list' },
+    depthStencil: { format: DEPTH_FORMAT, depthWriteEnabled: true, depthCompare: 'always' },
+  })
+})
 const verdictKernel = autoKernel(
   HARDWARE_OCCLUSION_VERDICT_PASS,
   OCCLUSION_VERDICT_WGSL,
@@ -57,6 +77,18 @@ export interface HardwareQueries {
   readonly boxGroup: ReturnType<typeof heldGroup>
   readonly verdictGroup: ReturnType<typeof heldGroup>
   readonly buffers: HardwareBuffers
+  /** The smaller depth the boxes are tested against, made with the first image that asks for it and again when the image's size changes. */
+  small: SmallDepth | undefined
+}
+
+/** The depth reduced `SMALL_DEPTH_FACTOR` times on each side: its texture and view, the drawn size less one the reduction clamps its reads to, and its group. */
+interface SmallDepth {
+  readonly texture: GPUTexture
+  readonly view: GPUTextureView
+  readonly last: GPUBuffer
+  readonly group: GPUBindGroup
+  readonly source: GPUTextureView
+  readonly size: readonly [number, number]
 }
 
 /** The queries for `capacity` roots at most (one query a group of `QUERY_BATCH`, `MAX_QUERIES` the most: roots past them are never queried, so never hidden). */
@@ -76,6 +108,7 @@ export function createHardwareQueries(
     boxGroup: heldGroup(),
     verdictGroup: heldGroup(),
     buffers,
+    small: undefined,
   }
 }
 
@@ -83,6 +116,45 @@ export function createHardwareQueries(
 export function destroyHardwareQueries(queries: HardwareQueries) {
   queries.set.destroy()
   queries.samples.destroy()
+  destroySmallDepth(queries)
+}
+
+function destroySmallDepth(queries: HardwareQueries) {
+  queries.small?.texture.destroy()
+  queries.small?.last.destroy()
+  queries.small = undefined
+}
+
+/** The smaller depth for an image drawn at `size` out of `source`: the one held while both are the same, else made over. */
+function smallDepthFor(
+  device: GPUDevice,
+  queries: HardwareQueries,
+  source: GPUTextureView,
+  size: readonly [number, number],
+  pipeline: GPURenderPipeline,
+) {
+  const { small } = queries
+  if (small?.source === source && small.size[0] === size[0] && small.size[1] === size[1])
+    return small
+  destroySmallDepth(queries)
+  const [width, height] = smallDepthSize(size)
+  const texture = device.createTexture({
+    label: HARDWARE_OCCLUSION_SMALL_DEPTH_PASS,
+    size: { width, height },
+    format: DEPTH_FORMAT,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT,
+  })
+  const last = device.createBuffer({
+    label: 'Trillion3D hardware occlusion small depth clamp',
+    size: 8,
+    usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+  })
+  device.queue.writeBuffer(last, 0, new Uint32Array([size[0] - 1, size[1] - 1]))
+  const group = device.createBindGroup({
+    layout: pipeline.getBindGroupLayout(0),
+    entries: sequentialEntries([source, { buffer: last }]),
+  })
+  return (queries.small = { texture, view: texture.createView(), last, group, source, size })
 }
 
 /** The buffers the passes read and write: the uniform and the corners the roots' pass wrote, the bits of the roots it never rejects and the verdict. */
@@ -104,11 +176,36 @@ export function encodeHardwareQueries(
   encoder: GPUCommandEncoder,
   queries: HardwareQueries,
   roots: number,
+  downsampled: boolean,
 ) {
-  const depth = rt.gpu.depthView
+  const sceneDepth = rt.gpu.depthView
   const box = boxPipeline(device).get(),
-    verdict = verdictKernel(device).get()
-  if (!depth || !box || !verdict) return false
+    verdict = verdictKernel(device).get(),
+    reduce = downsampled ? smallDepthPipeline(device).get() : undefined
+  if (!sceneDepth || !box || !verdict || (downsampled && !reduce)) return false
+  const { targetSize } = rt.gpu
+  // The boxes are tested against the image's depth, or against its reduction (the small depth) at the reduced size.
+  const small = reduce && smallDepthFor(device, queries, sceneDepth, targetSize, reduce)
+  const depth = small?.view ?? sceneDepth
+  const size = small ? smallDepthSize(targetSize) : targetSize
+  if (small)
+    drawFullscreenTriangle(
+      encoder,
+      {
+        label: HARDWARE_OCCLUSION_SMALL_DEPTH_PASS,
+        colorAttachments: [],
+        depthStencilAttachment: {
+          view: small.view,
+          depthLoadOp: 'clear',
+          depthClearValue: DEPTH_CLEAR,
+          depthStoreOp: 'store',
+        },
+      },
+      reduce,
+      small.group,
+      size[0],
+      size[1],
+    )
   const { buffers } = queries
   const groups = Math.min(MAX_QUERIES, ceilDiv(roots, QUERY_BATCH))
   queries.boxGroup.identity.entries[0] ??= sequentialEntries([
@@ -132,7 +229,7 @@ export function encodeHardwareQueries(
   })
   pass.setPipeline(box)
   pass.setBindGroup(0, queries.boxGroup.group!)
-  pass.setViewport(0, 0, rt.gpu.targetSize[0], rt.gpu.targetSize[1], 0, 1)
+  pass.setViewport(0, 0, size[0], size[1], 0, 1)
   for (let group = 0; group < groups; group++) {
     pass.beginOcclusionQuery(group)
     pass.draw(BOX_VERTICES, QUERY_BATCH, 0, group * QUERY_BATCH)

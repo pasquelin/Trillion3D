@@ -66,7 +66,8 @@ const MAX_CULLED_LIGHTS_PER_CELL: readonly [number, number] = [1, 1024]
  *  32 — the factor on the cut's pixel error, so the clusters drawn are that much coarser —;
  *  `hizPrimeFarFieldOnly`, on — whether the primed draw holds the objects that set `farField` alone —; the root boxes' test against the
  *  pyramid (`packages/sdk-browser/src/visibility/hzbOcclusion/`) or, with `occlusionQueries`, off, to hardware occlusion queries
- *  (`packages/sdk-browser/src/visibility/hardwareOcclusion/`): `hzbOcclusion`, 0 — 0 off, 1 on, 2 forced —,
+ *  (`packages/sdk-browser/src/visibility/hardwareOcclusion/`): `downsampledOcclusionQueries`, off — whether those queries test the boxes against the image's depth reduced to its farthest, half the size on each side —,
+ *  `hzbOcclusion`, 0 — 0 off, 1 on, 2 forced —,
  *  `hzbOcclusionNeverTestDistance`, 0 — the metres from the eye within which a root is never tested —,
  *  `hzbOcclusionExpandAmount`, 0 and `hzbOcclusionExpandNewlyAmount`, 0 — the metres a tested box is grown by, every root and a root not tested for a while —,
  *  `hzbOcclusionExpandScreenSpace`, 0 and `hzbOcclusionExpandNewlyScreenSpace`, 0 — the pixels, the same —,
@@ -86,6 +87,7 @@ export const HIZ_RULES = /* @__PURE__ */ (() =>
     number('hizPrimeErrorScale', 32, ANY),
     flag('hizPrimeFarFieldOnly', true),
     flag('occlusionQueries', false),
+    flag('downsampledOcclusionQueries', false),
     integer('hzbOcclusion', 0, HZB_OCCLUSION_MODES),
     nonNegative('hzbOcclusionNeverTestDistance', 0),
     nonNegative('hzbOcclusionExpandAmount', 0),

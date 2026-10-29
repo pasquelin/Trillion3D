@@ -257,7 +257,17 @@ export function encodeHzbOcclusion(
       unculled: () => occlusion.unculled,
       verdict: () => held.verdict,
     })
-    if (!encodeHardwareQueries(rt, device, encoder, held.queries, roots)) return
+    if (
+      !encodeHardwareQueries(
+        rt,
+        device,
+        encoder,
+        held.queries,
+        roots,
+        readHizSetting(rt, 'downsampledOcclusionQueries'),
+      )
+    )
+      return
   }
   const tag: Tag = { roots, revision: rt.layout.rootIndex.revision }
   const staging = held.ring.take(tag, roots * 4)

@@ -1,3 +1,4 @@
+import { encodeGlobalFieldStats } from '../../lighting/distanceField/debug/pageStats.ts'
 import { ComputeRun } from '../../gpu/core/lazyComputePass.ts'
 import { invertMatrix4 } from '../../../../math/src/matrix/matrix4Inverse.ts'
 import { clearValueOf } from '../../../../sdk-core/src/world/math/packedColour.ts'
@@ -314,6 +315,8 @@ function composeImage(
   encodeVsmVisualizeView(rt, device, encoder, cam)
   encodeClipmapStats(rt, device, encoder, cam)
   encodeClusterStats(rt, device, encoder, cam)
+  // The global distance field's page statistics, over the image when asked.
+  encodeGlobalFieldStats(rt, device, encoder, cam)
   // The rectangle lights' atlas, drawn over the image when asked.
   encodeRectLightAtlasDebug(rt, device, encoder, cam)
   // The surface cache's tables and boxes, over the image too.
