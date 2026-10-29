@@ -3,7 +3,11 @@
 // copied into a texture of the pool format — as tiles are — and both read back, every view the
 // engine makes of its working texture checked against WebGPU's view rule (`checkView`).
 import { generateMaterialMips } from '../../../packages/sdk-browser/src/materials/texture/mipBatch.ts'
-import { materialMipTexture } from '../../../packages/sdk-browser/src/materials/texture/mips.ts'
+import {
+  materialMipTexture,
+  prepareHostReductions,
+} from '../../../packages/sdk-browser/src/materials/texture/mips.ts'
+import { poolEncoding } from '../../../packages/sdk-browser/src/materials/texture/blockFormats.ts'
 import { previewLevelSize } from '../../../packages/sdk-core/src/texture/previewLevels.ts'
 import { mipLevelCountFor } from '../../../packages/sdk-browser/src/materials/texture/tiles.ts'
 import { lcgRandom } from '../../../packages/math/src/sequence/random.ts'
@@ -52,6 +56,8 @@ export async function run(cases: ChainCase[]) {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('no WebGPU adapter')
   const { device, errors } = gpu
+  // As the engine does before a texture reduces: the pipelines compiled, none skipped for a first use.
+  await prepareHostReductions(device, poolEncoding(undefined), ['color', 'data'])
   const results: Array<{ engine: Uint8Array[]; reference: Uint8Array[] }> = []
   for (const chain of cases) {
     const { width, height, format } = chain

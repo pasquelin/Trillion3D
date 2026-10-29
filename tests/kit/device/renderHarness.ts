@@ -69,6 +69,8 @@ export interface TestScene {
   texturePoolBytes: number
   position: [number, number, number]
   target: [number, number, number]
+  /** Options added to the scene's own (a fixed exposure, for a proof whose subject is not the meter's adaptation). */
+  options?: Partial<Omit<MeasuredWorldOptions, 'engine'>>
 }
 
 export async function openTestScene(scene: TestScene): Promise<MeasuredWorld> {
@@ -84,6 +86,7 @@ export async function openTestScene(scene: TestScene): Promise<MeasuredWorld> {
     temporalAntialiasing: false,
     geometryPoolBytes: 16 * MIB,
     texturePoolBytes: scene.texturePoolBytes,
+    ...scene.options,
   })
   await world.awaitPages()
   world.setPose({ ...world.homePose(), position: scene.position, target: scene.target })

@@ -5,6 +5,7 @@ import {
   FEEDBACK_EVERY,
 } from '../../../packages/sdk-browser/src/materials/virtual/feedback.ts'
 import { createWebgpuTileReduce } from '../../../packages/sdk-browser/src/materials/virtual/reduce.ts'
+import { pipelinesSettled } from '../../../packages/sdk-browser/src/lighting/deferred/compileLedger.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 
 /** One image's feedback: the requests the target holds (a rank plus one, 0 none), `images` times. */
@@ -27,7 +28,10 @@ export async function run(kase: FeedbackCase) {
   const { device, errors } = gpu
   const { entries, width, height, every, images } = kase
   const feedback = createWebgpuTileFeedback(device, entries)
-  const reduce = createWebgpuTileReduce(device)!
+  const reduce = createWebgpuTileReduce(device)
+  // The frame encodes the reduction only once its pipelines are compiled (`publish.ts`).
+  if (!reduce.ready()) await pipelinesSettled(device)
+  if (!reduce.ready()) throw new Error('the reduction did not compile')
   const target = device.createTexture({
     size: [width, height],
     format: 'r32uint',

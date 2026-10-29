@@ -226,7 +226,7 @@ ${HEAD}`,
   if(rank==${HAIR_NO_LIGHT}u){continue;}
   let seed=rand4dPcg32(vec4i(vec3i(vec2i(pixel),i32(hs.frame)),i32(11u+i)));
   let uv=vec2f(seed.xy)/4294967295.0;
-  let random=vec3f(seed.zw,seed.x)/4294967295.0;
+  let random=vec3f(vec3u(seed.zw,seed.x))/4294967295.0;
   let segment=lightSampleTrace(rank,position+hs.eye.xyz,uv);
   let toLight=segment.xyz;
   let end=position+toLight*min(segment.w,f32(${MAX_DISTANCE}));

@@ -1,7 +1,11 @@
 // Material chains on Dawn reduced together in one batch — level by level across the chains — and
 // each alone, twice (the second reduction on the groups the first made): every level read back.
 import { generateMaterialMips } from '../../../packages/sdk-browser/src/materials/texture/mipBatch.ts'
-import { materialMipTexture } from '../../../packages/sdk-browser/src/materials/texture/mips.ts'
+import {
+  materialMipTexture,
+  prepareHostReductions,
+} from '../../../packages/sdk-browser/src/materials/texture/mips.ts'
+import { poolEncoding } from '../../../packages/sdk-browser/src/materials/texture/blockFormats.ts'
 import { mipLevelCountFor } from '../../../packages/sdk-browser/src/materials/texture/tiles.ts'
 import { openGpuDevice } from '../../kit/device/webgpuDevice.ts'
 import { readLevels } from './pageMipsPage.ts'
@@ -12,6 +16,8 @@ export async function run(cases: ChainCase[]) {
   const gpu = await openGpuDevice()
   if (!gpu) throw new Error('no WebGPU adapter')
   const { device, errors } = gpu
+  // As the engine does before a texture reduces: the pipelines compiled, none skipped for a first use.
+  await prepareHostReductions(device, poolEncoding(undefined), ['color', 'data'])
   const make = (chain: ChainCase) => {
     const { width, height, format } = chain
     const texture = device.createTexture({

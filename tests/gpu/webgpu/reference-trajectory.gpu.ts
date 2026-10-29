@@ -12,6 +12,7 @@ import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { openEngineWorld, proofCanvas } from '../../kit/device/renderHarness.ts'
 import { benchManifest, settle } from '../world/proofWorld.ts'
 import { drawnPixels } from '../../kit/device/sceneImageProof.ts'
+import { FIXED_EXPOSURE } from '../frame/facingWorld.ts'
 import { ceilDiv } from '../../../packages/math/src/scalar/integers.ts'
 
 /** One reading per trajectory point: the first frame of each segment. */
@@ -29,6 +30,8 @@ async function walkTheTrajectory() {
     maxResidentPages: 100000,
     preload: 'visible',
     temporalAntialiasing: true,
+    // An automatic exposure moves toward each pose's light for longer than a pose is given to be held.
+    ...FIXED_EXPOSURE,
     onDiagnostic: (event) => void events.push(event),
   })
   world.setClearColor(0x2a303c)

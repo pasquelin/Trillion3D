@@ -36,7 +36,7 @@ export const BLEND_BIT = 0x80000000
 function seamRead() {
   const level = functionBody(COLOR_SAMPLE_WGSL, 'colorLevel')
   const seam = level.slice(level.indexOf(' let s00='))
-  const fetch = /colorFetch\(s,(.+?),level,finest,nearest\)/g
+  const fetch = /colorFetch\(s,(.+?),level,nearest\)/g
   if (seam.match(fetch)?.length !== 4 || !seam.includes('return bilinear4('))
     throw new Error(`the atlas reads no longer blend a seam from four fetches:\n${level}`)
   return `fn seamRead(t:WrapTaps)->vec4f{\n${seam.replace(fetch, 'textureSampleLevel(maps,engineSampler,$1,0,0.0)')}\n}`

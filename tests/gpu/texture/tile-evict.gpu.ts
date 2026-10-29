@@ -9,6 +9,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { resolve } from 'node:path'
 import { loadPage, runOnDawn } from '../../kit/device/onDawn.ts'
+import { TILE_PROTECTED } from '../../../packages/sdk-browser/src/materials/virtual/evictSortWgsl.ts'
 
 type Page = typeof import('./tileEvictPage.ts')
 
@@ -21,7 +22,8 @@ test('the victims of a full pool are the streamed places no pixel read, the ance
     width: 64,
     height: 16,
     read: 500,
-    frames: 6,
+    // Past the clocks a use protects a place for: the places arrived at the first image are idle by then.
+    frames: TILE_PROTECTED + 2,
   })
   assert.deepEqual(errors, [], `WebGPU errors on ${adapter}`)
   assert.equal(kept.length, 501, 'the 500 tiles read and the ancestor of the child')

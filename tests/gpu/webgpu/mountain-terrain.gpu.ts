@@ -8,6 +8,7 @@ import { MIB } from '../../../packages/math/src/constants.ts'
 import { openTestScene } from '../../kit/device/renderHarness.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
 import { settle } from '../world/proofWorld.ts'
+import { FIXED_EXPOSURE } from '../frame/facingWorld.ts'
 
 /** What the held image shows: pixels off the background, river pixels among them, and how many
  *  colour buckets (4 bits a channel) the visible ones fall in. */
@@ -46,6 +47,8 @@ test(
           texturePoolBytes: 64 * MIB,
           position: [10.5, 8.2, 12.5],
           target: [0, 1.1, 0],
+          // The image is held once the exposure has come to what the lit terrain asks: a fixed one is there from the first image.
+          options: FIXED_EXPOSURE,
         })
         try {
           const metrics = await settle(world)

@@ -90,8 +90,9 @@ export const frontLayerBytes = (width: number, height: number, blends: boolean) 
   texelBytesOf(FRONT_TRACED_FORMAT) +
   PHYSICAL_LOBES_TARGET.bytes(width, height, false)
 
-/** The stamp of the image `frame` (`run.frame`): what tells the front pass of this image. */
-export const frontStamp = (frame: number) => frame >>> 0 || 1
+/** The stamp of the image `frame` (`run.frame`, which starts at 0): what tells the front pass of this image, one past the number so that zero stays the stamp of no image
+ *  and no two images share one (images 0 and 1 would, were zero mapped to one). */
+export const frontStamp = (frame: number) => (frame + 1) >>> 0
 
 /** The textures of a front layer, each held until the view needs it wider, and the views of them a pass and a program
  *  bind: made a texel big, but for the depth and flags of a scene that has blends. */
