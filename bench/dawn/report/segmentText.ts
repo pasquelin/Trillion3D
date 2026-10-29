@@ -12,10 +12,16 @@ export function segmentDetail(segment: Segment) {
   return [
     `### ${segment.name}`,
     '',
+    `TAA textures: ${
+      Object.entries(segment.taaFormats)
+        .map(([label, format]) => `${label.replace('Trillion3D TAA ', '')} ${format}`)
+        .join(' · ') || 'none made'
+    }.`,
+    '',
     `GPU by kind of pass: compute shaders ${ms(segment.computeMs?.median)} ms · drawing ${ms(segment.renderMs?.median)} ms.`,
     '',
     segment.frame
-      ? `Frame over all ${segment.frame.n} timed frames: median ${ms(segment.frame.median)} · p95 ${ms(segment.frame.p95)} · min ${ms(segment.frame.min)} · max ${ms(segment.frame.max)} · middle half ${ms(segment.frame.iqr)} · std ${ms(segment.frame.std)} ms. GPU idle between passes ${ms(segment.idleMs?.median)} ms.`
+      ? `Frame over all ${segment.frame.n} timed frames: mean ${ms(segment.frame.mean)} · median ${ms(segment.frame.median)} · p95 ${ms(segment.frame.p95)} · min ${ms(segment.frame.min)} · max ${ms(segment.frame.max)} · middle half ${ms(segment.frame.iqr)} · std ${ms(segment.frame.std)} ms. GPU idle between passes ${ms(segment.idleMs?.median)} ms.`
       : '',
     '',
     segment.doubts.length
@@ -27,8 +33,10 @@ export function segmentDetail(segment: Segment) {
         'pass (bench timer, every pass)',
         'kind',
         'stage',
+        'work mean ms',
         'work median ms',
         'p95 ms',
+        'max ms',
         'share',
         'wait before ms',
         'span ms',
@@ -41,8 +49,10 @@ export function segmentDetail(segment: Segment) {
           pass.name,
           pass.kind,
           pass.stage,
+          ms(pass.mean, 3),
           ms(pass.median, 3),
           ms(pass.p95, 3),
+          ms(pass.max, 3),
           percent(pass.share),
           ms(pass.waitMs, 3),
           ms(pass.spanMs, 3),

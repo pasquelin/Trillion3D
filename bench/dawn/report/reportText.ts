@@ -50,6 +50,7 @@ export function reportText(report: BenchReport, insights?: Insights) {
     `Profile ${bench.profile}${bench.featuresOff.length ? ` without ${bench.featuresOff.join(', ')}` : ''}: ` +
       `display ${bench.display.width}×${bench.display.height} (density ${bench.display.ratio}), scale ${bench.scale}; ` +
       `${report.plays} plays in fresh processes. GPU taken by other programs, before→after each play: ${busy}.`,
+    `Features: the adapter offers ${bench.features?.adapter.join(', ') || 'none'}; the device was granted ${bench.features?.device.join(', ') || 'none'}.`,
     `Calibration copy ${range(report.calibration)} ms (${ms(report.gbPerSecond?.median, 0)} GB/s); ready after ${range(report.readySeconds)} s.`,
     '',
     ...(insights ? insightsText(insights, report.machine) : []),
@@ -120,7 +121,9 @@ export function reportText(report: BenchReport, insights?: Insights) {
     '## Images',
     '',
     ...report.segments.flatMap((s) =>
-      s.images.filter(Boolean).map((path) => `- ${s.name}: ${path}`),
+      s.shots.length
+        ? s.shots.map((path) => `- ${s.name}: ${path}`)
+        : s.images.filter(Boolean).map((path) => `- ${s.name}: ${path}`),
     ),
     '',
     '## Errors',

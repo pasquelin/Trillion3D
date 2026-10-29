@@ -3,6 +3,7 @@
  * needs beside the engine and nothing drawn. A seeded sequence, so every run builds the same
  * scene, and its settings read at their declared start, the bench never touching a panel.
  */
+export { language, opening, readout, viewModes, words } from './headless.ts'
 export { lcgRandom } from '../../packages/math/src/sequence/random.ts'
 
 /** A setting as a page declares it, its kind read from the value: `[min, max, value]` or
