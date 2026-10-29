@@ -39,6 +39,10 @@ export interface GeometryPageDescriptor {
 }
 /** The catalogue name of the geometry page at `offset` of the container at `file`. */
 export const geometryPageAddress = (file: string, offset: number) => `${file}#${offset}`
+/** The catalogue name of the page at `streamOffset` of the inflated bundle stored at `bundleOffset`
+ *  of `file`: a sum of the two would name another bundle's page. */
+export const packedPageAddress = (file: string, bundleOffset: number, streamOffset: number) =>
+  `${file}#${bundleOffset}+${streamOffset}`
 /** The catalogue name of the streaming bundle at `offset` of the container at `file`: never a
  *  page's, though its first page starts where it does. */
 export const streamBundleAddress = (file: string, offset: number) => `${file}#bundle-${offset}`

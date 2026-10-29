@@ -45,6 +45,9 @@ export interface StreamPage {
   url: string
   /** Its size. */
   bytes: number
+  /** Its size once inflated, for a bundle stored as raw DEFLATE: `bytes` is then what is read and
+   *  proven, and the cache holds `decodedBytes`. Absent, the bytes are held as read. */
+  decodedBytes?: number
   /** Fingerprint of its bytes, which its read checks with its size. */
   sha256: string
   /** A page that is the `bytes` of the file at `file` from `offset`, read by an HTTP Range: the

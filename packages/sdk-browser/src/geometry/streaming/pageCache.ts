@@ -125,10 +125,24 @@ function cacheItems(c: CacheState, totals: CacheTotals, fit: () => void) {
     /** Whether the page held at `url` is another file than the one `announced` names: another
      *  fingerprint or another size, or bytes never verified against one. A name alone is not a
      *  file: another scene, another base or the same folder cooked again may reuse it at the same
-     *  size. The same fingerprint is the same bytes, verified at read, under any base. */
-    foreign({ url, bytes, sha256 }: { url: string; bytes: number; sha256?: string }) {
+     *  size. The same fingerprint is the same bytes, verified at read, under any base. The size is
+     *  the held bytes': a compressed bundle's, once inflated. */
+    foreign({
+      url,
+      bytes,
+      decodedBytes,
+      sha256,
+    }: {
+      url: string
+      bytes: number
+      decodedBytes?: number
+      sha256?: string
+    }) {
       const held = entries.entry(url)?.value
-      return held?.kind === 'page' && (held.sha256 !== sha256 || held.array.byteLength !== bytes)
+      return (
+        held?.kind === 'page' &&
+        (held.sha256 !== sha256 || held.array.byteLength !== (decodedBytes ?? bytes))
+      )
     },
     /** One more holds the entry at `url`, before it lands too. */
     acquire: entries.acquire,

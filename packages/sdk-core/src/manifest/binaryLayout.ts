@@ -58,6 +58,7 @@ const COLUMN_ROWS: Record<ColumnName, RowCount> = {
   texturePreviewEtc2: 'etc2',
   bundleDependencyCount: 'bundles',
   bundleDependency: 'bundleDependencies',
+  bundleDecodedBytes: 'bundles',
 }
 
 /** Whether a row count is a block family's bytes. */

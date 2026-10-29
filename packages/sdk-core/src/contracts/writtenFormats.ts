@@ -86,8 +86,12 @@
  * Version 22 keeps every column; the head's pixel column is empty: the previews' RGBA8 tails are
  * their own file (`preview-pixels-<sha>.bin`, the head's `binary.texturePreviewPixels`), which a
  * session reads only when a lane pins them. The runtime still reads 21, whose column holds them.
+ * Version 23 appends the column `bundleDecodedBytes`, one word a streaming bundle: each bundle is
+ * stored compressed alone by raw DEFLATE when that is smaller, its `bytes`, offset and digest those
+ * of the stored bytes, and this column holds its bytes once inflated, 0 for a bundle stored as it
+ * is. Read as a 22, a compressed bundle's stored bytes would be decoded as its pages.
  */
-export const MANIFEST_BINARY_VERSION = 22
+export const MANIFEST_BINARY_VERSION = 23
 
 /**
  * 'W','G','M','B' read as a little-endian u32.

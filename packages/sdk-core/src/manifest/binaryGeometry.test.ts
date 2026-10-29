@@ -2,9 +2,12 @@ import { BINARY, sha, manifest } from '../../../../tests/fixtures/manifest/manif
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { decodeManifestBinary } from './binaryDecode.ts'
-import { INLINE_PIXELS_VERSION } from './binaryTypes.ts'
+import { READ_MANIFEST_VERSIONS } from './binaryTypes.ts'
 import { encodeManifestBinary } from '../../../../tests/fixtures/manifest/manifestBinaryEncode.ts'
 import type { EngineError } from '../contracts/cache.ts'
+
+/** The oldest manifest binary version read: its previews' pixels inline in the head sidecar. */
+const INLINE_PIXELS_VERSION = READ_MANIFEST_VERSIONS.at(-1)!
 
 function encoded() {
   const { manifest: slim, binary } = encodeManifestBinary(manifest(), BINARY)

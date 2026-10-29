@@ -50,9 +50,12 @@ same bytes.
 
 `manifest-page-<sha256>.bin`: per-cluster numbers as typed-array columns, mapped, not parsed.
 
-- Version: `MANIFEST_BINARY_VERSION` 22 (21 still read), 27 columns in `COLUMN_NAMES` order, with the
+- Version: `MANIFEST_BINARY_VERSION` 23 (22 and 21 still read), 28 columns in `COLUMN_NAMES` order, with the
   `texturePreviewBc7`, `texturePreviewAstc` and `texturePreviewEtc2` block columns
-  (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`). 22 empties the head's pixel column: the
+  (`rust/manifest_binary.rs`, `core/manifest/binaryFormat.ts`). 23 appends the `bundleDecodedBytes`
+  column, a streaming bundle's bytes once inflated when it is stored compressed, 0 otherwise
+  ([Pages](#pages)); read as a 22, a compressed bundle's stored bytes would be decoded as its
+  pages. 22 empties the head's pixel column: the
   previews' RGBA8 tails are their own file ([Textures](#textures)). 20 keeps every column: the pages are
   the `WGP3` format 12, which carries up to eight texture sets ([Pages](#pages)). 19 widens a geometry page's record,
   the `geometryU32` column, from five words to seven — its bytes on disk, vertex count, index count,
@@ -143,7 +146,15 @@ that hold them, once those are installed — the pages whose references are inst
 sizes differ: the page assignment fills a streaming page by the RESIDENT bytes, the bundles lay the
 pages by their bytes on disk, and a page's record names both (`geometry.bytes`,
 `geometry.residentBytes`) and where it lies in the pool's place of its streaming page
-(`geometry.residentOffset`). A page holds at most `MAX_PAGE_TRIANGLES` (128) triangles on
+(`geometry.residentOffset`). A bundle is stored in its container compressed alone by raw DEFLATE
+(RFC 1951, no header, the best level) when that is strictly smaller than its pages end to end, and
+as they are otherwise: its `offset`, `bytes` and `sha256` are those of the stored bytes, its
+`decodedBytes`, named only when it is compressed (the manifest binary's `bundleDecodedBytes` column,
+0 otherwise), the pages' once inflated, and a page's `streamOffset` and `geometry.bytes` count in the
+inflated bundle. The browser reads a bundle by one HTTP Range, checks its digest, then inflates a
+compressed one with `DecompressionStream('deflate-raw')`; the server never compresses a container,
+which a Range reads.
+A page holds at most `MAX_PAGE_TRIANGLES` (128) triangles on
 `MAX_PAGE_VERTICES` (256) vertices laid: a cluster's.
 
 - Versions: `VERSION`, `RESIDENT_VERSION`, `HEADER_WORDS`, `DISK_HEADER_WORDS`, `STRIP_REF_BITS`,

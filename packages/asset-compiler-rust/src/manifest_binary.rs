@@ -58,7 +58,9 @@ const TEXTURE_PREVIEW_PIXELS: usize = 21;
 const TEXTURE_PREVIEW_BLOCKS: [usize; FAMILIES] = [22, 23, 24];
 const BUNDLE_DEPENDENCY_COUNT: usize = 25;
 const BUNDLE_DEPENDENCY: usize = 26;
-const COLUMNS: usize = 27;
+/// The bundle's bytes once inflated, one word a bundle (version 23 on).
+const BUNDLE_DECODED_BYTES: usize = 27;
+const COLUMNS: usize = 28;
 /// Numbers per level entry: texture, image, width, height, kind and provenance
 /// view, then the first carried level, their count, the start and length of its
 /// pixels, the atlas it serves, the count of levels baked as files, and the

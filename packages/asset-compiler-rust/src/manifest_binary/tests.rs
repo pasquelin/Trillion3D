@@ -93,6 +93,7 @@ fn columns_declare_their_own_offsets_and_lengths() {
     assert_eq!(read(PAGE_BOUNDS).1, 2 * 6 * 8);
     assert_eq!(read(GEOMETRY_U32).1, 2 * 7 * 4);
     assert_eq!(read(BUNDLE_SHA).1, 64);
+    assert_eq!(read(BUNDLE_DECODED_BYTES).1, 4);
     assert_eq!(
         read(CULLING_NODES).1,
         trillion3d_page_codec::culling::CULLING_STRIDE * 8

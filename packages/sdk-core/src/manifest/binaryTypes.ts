@@ -4,11 +4,18 @@ import { MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
 
 /** The last manifest binary version holding the texture previews' pixels in the head sidecar; later
  *  versions keep them in their own file (`texturePreviewPixels`), the sidecar's column empty. */
-export const INLINE_PIXELS_VERSION = 21
+const INLINE_PIXELS_VERSION = 21
 
-/** Whether this build reads a manifest binary of `version`: the current one and the inline-pixels one. */
+/** The manifest binary versions this build reads, newest first: every one from the inline-pixels one
+ *  to the current one. */
+export const READ_MANIFEST_VERSIONS: readonly number[] = Array.from(
+  { length: MANIFEST_BINARY_VERSION - INLINE_PIXELS_VERSION + 1 },
+  (_, back) => MANIFEST_BINARY_VERSION - back,
+)
+
+/** Whether this build reads a manifest binary of `version`. */
 export function readsManifestBinaryVersion(version: unknown) {
-  return version === MANIFEST_BINARY_VERSION || version === INLINE_PIXELS_VERSION
+  return READ_MANIFEST_VERSIONS.includes(version as number)
 }
 
 /** Where the binary sits, and the counts its columns are read by. */
@@ -120,7 +127,7 @@ export function assertManifestBinary(binary: unknown): asserts binary is Manifes
   if (!readsManifestBinaryVersion(descriptor.version))
     throw new EngineError(
       'UNSUPPORTED_FORMAT',
-      `Expected manifest binary version ${MANIFEST_BINARY_VERSION} or ${INLINE_PIXELS_VERSION}, received ${String(descriptor.version)}`,
+      `Expected manifest binary version ${READ_MANIFEST_VERSIONS.join(', ')}, received ${String(descriptor.version)}`,
       { version: descriptor.version ?? null, expected: MANIFEST_BINARY_VERSION },
     )
   for (const key of ['url', 'sha256'] as const)

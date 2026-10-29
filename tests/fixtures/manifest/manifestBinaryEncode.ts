@@ -13,13 +13,17 @@ import type {
   SlimPrimitive,
 } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts'
 import { EngineError } from '../../../packages/sdk-core/src/contracts/cache.ts'
-import { INLINE_PIXELS_VERSION } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts'
+import { READ_MANIFEST_VERSIONS } from '../../../packages/sdk-core/src/manifest/binaryTypes.ts'
+
+/** The oldest manifest binary version read: its previews' pixels inline in the head sidecar. */
+const INLINE_PIXELS_VERSION = READ_MANIFEST_VERSIONS.at(-1)!
 
 /** Splits a manifest into its JSON and mapped columns, its bundles lying in `geometryFiles`; the
  *  caller hashes the bytes for `sha256`. With `pixelsUrl` the previews' pixel column lies in its own
  *  file, returned as `pixels` (its `sha256` for the caller to fill), and the sidecar's column is empty.
  *  `version` is the format it writes: by default the current one, or the inline-pixels one for a
- *  sidecar that holds previews' pixels. */
+ *  sidecar that holds previews' pixels; a version before `DECODED_BYTES_VERSION` has no
+ *  `bundleDecodedBytes` column. */
 export function encodeManifestBinary(
   manifest: ClusterManifest,
   {
@@ -38,14 +42,15 @@ export function encodeManifestBinary(
   const pixels = pixelsUrl ? new Uint8Array(pixelBytes) : undefined
   if (pixels) counts.previewBytes = 0
   version ??= counts.previewBytes > 0 ? INLINE_PIXELS_VERSION : written.MANIFEST_BINARY_VERSION
-  const { ranges, bytes } = manifestBinaryRanges(counts)
+  const names = format.COLUMN_NAMES.slice(0, format.columnCountOf(version))
+  const { ranges, bytes } = manifestBinaryRanges(counts, names)
   const buffer = new ArrayBuffer(bytes)
   const headerWords = written.MANIFEST_BINARY_HEADER_WORDS
-  const header = new Uint32Array(buffer, 0, headerWords + format.COLUMN_NAMES.length * 2)
+  const header = new Uint32Array(buffer, 0, headerWords + names.length * 2)
   header[0] = written.MANIFEST_BINARY_MAGIC
   header[1] = version
-  header[2] = format.COLUMN_NAMES.length
-  format.COLUMN_NAMES.forEach((name, index) => {
+  header[2] = names.length
+  names.forEach((name, index) => {
     header[headerWords + index * 2] = ranges[name].offset
     header[headerWords + index * 2 + 1] = ranges[name].length
   })
@@ -67,6 +72,9 @@ export function encodeManifestBinary(
   const structureRoot = view('structureRoot', (b, o, n) => new Int32Array(b, o, n))
   const bundleWords = view('bundleU32', (b, o, n) => new Uint32Array(b, o, n)),
     bundleSha = view('bundleSha', (b, o, n) => new Uint8Array(b, o, n))
+  const bundleDecodedBytes = names.includes('bundleDecodedBytes')
+    ? view('bundleDecodedBytes', (b, o, n) => new Uint32Array(b, o, n))
+    : undefined
   const words32 = (b: ArrayBuffer, o: number, n: number) => new Uint32Array(b, o, n)
   const dependencyCount = view('bundleDependencyCount', words32),
     dependencyList = view('bundleDependency', words32)
@@ -110,6 +118,7 @@ export function encodeManifestBinary(
         throw new EngineError('INVALID_CACHE', 'A bundle lies in no geometry file', { bundle })
       writeSha(bundleSha, bundle, item.sha256)
       bundleWords.set([file, item.range.offset, item.bytes, item.count], bundle * 4)
+      if (bundleDecodedBytes) bundleDecodedBytes[bundle] = item.decodedBytes ?? 0
       dependencyCount[bundle] = item.dependencies.length
       dependencyList.set(item.dependencies, dependency)
       dependency += item.dependencies.length

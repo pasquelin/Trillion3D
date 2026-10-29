@@ -9,7 +9,7 @@ import { decodeManifestBinary } from './binaryDecode.ts'
 import { MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
 import {
   assertManifestBinary,
-  INLINE_PIXELS_VERSION,
+  READ_MANIFEST_VERSIONS,
   type SlimClusterManifest,
 } from './binaryTypes.ts'
 import { ownBuffer } from '../runtime/ownBuffer.ts'
@@ -18,7 +18,7 @@ import { ownBuffer } from '../runtime/ownBuffer.ts'
 const MANIFEST_PAGES: PageKind = {
   prefix: 'manifest-page-',
   version: MANIFEST_BINARY_VERSION,
-  alsoVersion: INLINE_PIXELS_VERSION,
+  alsoVersions: READ_MANIFEST_VERSIONS.filter((version) => version !== MANIFEST_BINARY_VERSION),
   records: 'primitives',
   unsupported: 'UNSUPPORTED_FORMAT',
   invalid: 'INVALID_CACHE',

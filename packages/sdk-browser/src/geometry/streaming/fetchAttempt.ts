@@ -35,8 +35,11 @@ export async function checkedPages(
         ...{ sizeMatches: hashMatches || found !== undefined, hashMatches },
       }),
     )
-    if (!hashMatches)
-      emit?.('page-corruption', 'Corrupt page or unexpected size', () => ({ version: 1, url }))
+    if (!hashMatches) emitCorruption(emit, url)
   })
   return checked
 }
+
+/** Tells `emit` that the page at `url` came corrupt or of another size than it announced. */
+export const emitCorruption = (emit: StreamContext['emit'], url: string) =>
+  emit?.('page-corruption', 'Corrupt page or unexpected size', () => ({ version: 1, url }))

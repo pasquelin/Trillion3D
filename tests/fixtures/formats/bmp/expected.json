@@ -9,7 +9,7 @@
   },
   "case": "A quad whose base colour is true-colour-24-bottom-up.bmp, a 4 × 2 24-bit true-colour BMP stored bottom-up, compiled by the common harness.",
   "formatVersion": 11,
-  "manifestBinaryVersion": 22,
+  "manifestBinaryVersion": 23,
   "previews": [
     {
       "atlas": 0,

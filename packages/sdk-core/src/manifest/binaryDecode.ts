@@ -1,5 +1,9 @@
 import type { ClusterManifest, Page, Primitive } from '../contracts/geometry.ts'
-import { geometryPageAddress, type GeometryPageDescriptor } from '../page/contracts.ts'
+import {
+  geometryPageAddress,
+  packedPageAddress,
+  type GeometryPageDescriptor,
+} from '../page/contracts.ts'
 import { EngineError } from '../contracts/cache.ts'
 import { decodeCulling, decodeStreams, decodeStructure } from './binaryDecodeParts.ts'
 import { decodeTexturePreviews } from './binaryPreview.ts'
@@ -70,9 +74,13 @@ function decodePage(page: number, columns: PageColumns, streams: Streams): Page 
       page,
       stream,
     })
-  const offset = ints[base + format.INT_STREAM_OFFSET]
+  const offset = ints[base + format.INT_STREAM_OFFSET],
+    { file, offset: bundleOffset } = bundle.range!
   const geometry: GeometryPageDescriptor = {
-    url: geometryPageAddress(bundle.range!.file, bundle.range!.offset + offset),
+    url:
+      bundle.decodedBytes === undefined
+        ? geometryPageAddress(file, bundleOffset + offset)
+        : packedPageAddress(file, bundleOffset, offset),
     bundle: { url: bundle.url, offset },
     sha256: bundle.sha256,
     bytes: geometryWords[at + format.GEOMETRY_BYTES],
@@ -101,8 +109,9 @@ function decodePage(page: number, columns: PageColumns, streams: Streams): Page 
 
 /** Turns a binary manifest back into the full manifest a runtime reads. A page is read as its
  *  geometry page, a slice of its streaming bundle — a range of the container `slim.geometryFiles`
- *  names at its rank —: its `url` names where it lies (`geometryPageAddress`), its `bytes` are its
- *  own and its `sha256` the bundle's, which proves it. */
+ *  names at its rank —: its `url` names where it lies (`geometryPageAddress`, or
+ *  `packedPageAddress` in a compressed bundle), its `bytes` are its own and its `sha256` the
+ *  bundle's, which proves it. */
 export function decodeManifestBinary(
   slim: SlimClusterManifest,
   buffer: ArrayBuffer,

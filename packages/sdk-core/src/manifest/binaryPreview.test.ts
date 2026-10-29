@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { preview } from '../../../../tests/fixtures/manifest/manifestBinaryPreview.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
 import { fillTexturePreviewLevels } from './binaryPreview.ts'
-import { assertManifestBinary, INLINE_PIXELS_VERSION } from './binaryTypes.ts'
+import { assertManifestBinary, READ_MANIFEST_VERSIONS } from './binaryTypes.ts'
 import { MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
 import { EngineError } from '../contracts/cache.ts'
 import { previewBlockBytes } from '../texture/previewLevels.ts'
@@ -19,6 +19,9 @@ import {
   previewWord,
   refused,
 } from '../../../../tests/fixtures/manifest/manifestBinaryPreviewSidecar.ts'
+
+/** The oldest manifest binary version read: its previews' pixels inline in the head sidecar. */
+const INLINE_PIXELS_VERSION = READ_MANIFEST_VERSIONS.at(-1)!
 
 // Behaviour 5: a version-4 sidecar round-trips, and its reader rejects a version 3.
 test('a version 3 sidecar (the fixed-length preview entries) is refused, never read as version 4', () => {

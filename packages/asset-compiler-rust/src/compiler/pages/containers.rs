@@ -7,7 +7,9 @@
 //! draws —, then the others precision band by band from the coarsest (`page_band`), within a band
 //! the primitives in manifest order, each primitive's bundles in its own order: what a view needs
 //! first lies at the front, and one object's bundles at one distance lie together. A file closes
-//! past `GEOMETRY_FILE_BYTES`; a bundle is never cut.
+//! past `GEOMETRY_FILE_BYTES`; a bundle is never cut. A bundle lies as its run stores it — raw
+//! DEFLATE when that is smaller (`../primitive/pages.rs`) —: its offset, length and digest are the
+//! stored bytes', and the manifest names its length once inflated (`decodedBytes`).
 //!
 //! Cost: the places are laid first, then the containers are filled, hashed and stored side by side,
 //! each run (`../primitive/pages.rs`) opened once per container and the bundles that follow
@@ -91,12 +93,20 @@ pub(crate) fn write_geometry_files(
             continue;
         };
         let mut reused = 0;
-        let bundles: Vec<Value> = (run.bundles.into_iter().zip(placed))
-            .map(|(bundle, (file, offset))| {
+        debug_assert_eq!(
+            run.bundles.len(),
+            run.decoded_bytes.len(),
+            "a size for each bundle"
+        );
+        let bundles: Vec<Value> = (run.bundles.into_iter().zip(run.decoded_bytes).zip(placed))
+            .map(|((bundle, decoded), (file, offset))| {
                 reused += if found[file] { bundle.count } else { 0 };
                 let mut entry =
                     json!({"file":file,"offset":offset,"bytes":bundle.bytes,"count":bundle.count});
                 entry["sha256"] = Value::String(hex_of(bundle.sha256));
+                if let Some(decoded) = decoded {
+                    entry["decodedBytes"] = json!(decoded);
+                }
                 entry["dependencies"] = Value::from(bundle.dependencies);
                 entry
             })

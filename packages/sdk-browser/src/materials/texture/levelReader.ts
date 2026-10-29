@@ -6,6 +6,7 @@ import type { PageTaskBlocks } from '../../../../sdk-core/src/page/taskContracts
 import { PREVIEW_HALF_FILE } from '../../../../sdk-core/src/texture/previewFormat.ts'
 import type { ClusterManifest } from '../../../../sdk-core/src/contracts/geometry.ts'
 import { ONE_REQUEST } from '../../geometry/cluster/checked.ts'
+import { inflateRaw } from '../../geometry/cluster/inflateRaw.ts'
 import type { PageCache } from '../../geometry/streaming/pageCache.ts'
 import { decodeBlocksOffThread } from '../../geometry/work/host.ts'
 import { cellOf, recordRange, RECORD_END_BYTES, tileRecord } from './tileRecords.ts'
@@ -68,12 +69,6 @@ export const tileLevelBytes = (
   if (!kind) return recordBytes
   const cell = cellOf(format)
   return (recordBytes / cell.bytes) * cell.side ** 2 * TEXEL_BYTES[kind]
-}
-
-/** Raw DEFLATE bytes inflated by the browser's own decompressor: no decoder downloaded. */
-async function inflateRaw(bytes: ArrayBuffer) {
-  const stream = new Response(bytes).body!.pipeThrough(new DecompressionStream('deflate-raw'))
-  return new Uint8Array(await new Response(stream).arrayBuffer())
 }
 
 /** A record's compressed bytes as its tile is read: inflated — and decoded off the main thread

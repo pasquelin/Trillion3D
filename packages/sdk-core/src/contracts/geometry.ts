@@ -94,7 +94,9 @@ export interface StreamBundle {
   /** A range of a geometry container: `bytes` of the file at `file`, from `offset`. */
   range?: { file: string; offset: number }
   /** Fingerprint of its bytes. */ sha256: string
-  /** Its size. */ bytes: number
+  /** Its size as stored: what is read and proven. */ bytes: number
+  /** Its size once inflated, present only when it is stored as raw DEFLATE: its pages are cut
+   *  from that many bytes. */ decodedBytes?: number
   /** Clusters it holds. */ count: number
   /** Every page of the groups holding its groups' outputs, closed up to the pinned root pages and
    *  ascending: it is installed after every one of them. */ dependencies: number[]

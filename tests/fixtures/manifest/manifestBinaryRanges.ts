@@ -14,14 +14,14 @@ function columnBytes(name: format.ColumnName, counts: Counts) {
   )
 }
 
-/** Byte ranges of every column, in the fixed order of this version. */
-export function manifestBinaryRanges(counts: Counts) {
+/** Byte ranges of the columns `names`, in the fixed order of their version. */
+export function manifestBinaryRanges(counts: Counts, names: readonly format.ColumnName[]) {
   const ranges: Record<format.ColumnName, { offset: number; length: number }> = {} as Record<
     format.ColumnName,
     { offset: number; length: number }
   >
-  let offset = alignUp((MANIFEST_BINARY_HEADER_WORDS + format.COLUMN_NAMES.length * 2) * 4, 8)
-  for (const name of format.COLUMN_NAMES) {
+  let offset = alignUp((MANIFEST_BINARY_HEADER_WORDS + names.length * 2) * 4, 8)
+  for (const name of names) {
     const length = columnBytes(name, counts)
     ranges[name] = { offset, length }
     offset = alignUp(offset + length, 8)

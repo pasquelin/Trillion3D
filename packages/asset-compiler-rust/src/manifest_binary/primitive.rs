@@ -154,6 +154,12 @@ pub(super) fn encode_primitive(
             ] {
                 columns[BUNDLE_U32].u32(as_u32(MANIFEST.integer(item.get(key), label)?, label)?);
             }
+            // 0: the bundle is stored as it is.
+            let decoded = match item.get("decodedBytes") {
+                Some(value) => MANIFEST.integer(Some(value), "bundle.decodedBytes")?,
+                None => 0,
+            };
+            columns[BUNDLE_DECODED_BYTES].u32(as_u32(decoded, "bundle.decodedBytes")?);
             let dependencies = MANIFEST.array(
                 item.get("dependencies")
                     .ok_or_else(|| MANIFEST.bad("bundle.dependencies is absent"))?,

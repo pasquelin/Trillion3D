@@ -46,7 +46,7 @@ const GRID_DIGITS = 16 + 16 + 3 * 8,
 const CELL_PAGES: PageKind = {
   prefix: 'scene-page-',
   version: PARTITION_VERSION,
-  alsoVersion: PARTITION_VERSION + 1,
+  alsoVersions: [PARTITION_VERSION + 1],
   records: 'cells',
   unsupported: 'UNSUPPORTED_SCENE_TABLES',
   invalid: 'INVALID_SCENE_TABLES',

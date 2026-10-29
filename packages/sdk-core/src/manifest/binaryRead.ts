@@ -4,45 +4,51 @@ import {
   COLUMN_KIND,
   COLUMN_NAMES,
   COLUMN_STRIDE,
+  columnCountOf,
   type ColumnName,
 } from './binaryFormat.ts'
-import {
-  MANIFEST_BINARY_HEADER_WORDS,
-  MANIFEST_BINARY_MAGIC,
-  MANIFEST_BINARY_VERSION,
-} from '../contracts/writtenFormats.ts'
+import { MANIFEST_BINARY_HEADER_WORDS, MANIFEST_BINARY_MAGIC } from '../contracts/writtenFormats.ts'
 import { columnElements, type Counts } from './binaryLayout.ts'
 import {
   assertManifestBinary,
-  INLINE_PIXELS_VERSION,
+  READ_MANIFEST_VERSIONS,
   readsManifestBinaryVersion,
   type SlimClusterManifest,
 } from './binaryTypes.ts'
 
-/** Checks the header of the binary against this version and returns it. */
+/** Checks the header of the binary against the versions read and returns it with the columns its
+ *  version holds. */
 function readHeader(buffer: ArrayBuffer) {
-  if (buffer.byteLength < (MANIFEST_BINARY_HEADER_WORDS + COLUMN_NAMES.length * 2) * 4)
-    throw new EngineError('INVALID_CACHE', 'Manifest binary is shorter than its header', {
-      bytes: buffer.byteLength,
-    })
-  const header = new Uint32Array(buffer, 0, MANIFEST_BINARY_HEADER_WORDS + COLUMN_NAMES.length * 2)
-  if (header[0] !== MANIFEST_BINARY_MAGIC)
+  const holds = (words: number) => {
+    if (buffer.byteLength < words * 4)
+      throw new EngineError('INVALID_CACHE', 'Manifest binary is shorter than its header', {
+        bytes: buffer.byteLength,
+      })
+  }
+  holds(MANIFEST_BINARY_HEADER_WORDS)
+  const fixed = new Uint32Array(buffer, 0, MANIFEST_BINARY_HEADER_WORDS)
+  if (fixed[0] !== MANIFEST_BINARY_MAGIC)
     throw new EngineError('INVALID_CACHE', 'Manifest binary has no WGMB signature', {
-      magic: header[0],
+      magic: fixed[0],
     })
-  if (!readsManifestBinaryVersion(header[1]))
+  if (!readsManifestBinaryVersion(fixed[1]))
     throw new EngineError(
       'UNSUPPORTED_FORMAT',
-      `Expected manifest binary version ${MANIFEST_BINARY_VERSION} or ${INLINE_PIXELS_VERSION}, received ${header[1]}`,
-      { version: header[1] },
+      `Expected manifest binary version ${READ_MANIFEST_VERSIONS.join(', ')}, received ${fixed[1]}`,
+      { version: fixed[1] },
     )
-  if (header[2] !== COLUMN_NAMES.length)
+  const columns = columnCountOf(fixed[1])
+  holds(MANIFEST_BINARY_HEADER_WORDS + columns * 2)
+  if (fixed[2] !== columns)
     throw new EngineError(
       'UNSUPPORTED_FORMAT',
       'Manifest binary column count differs from this version',
-      { columns: header[2], expected: COLUMN_NAMES.length },
+      { columns: fixed[2], expected: columns },
     )
-  return header
+  return {
+    header: new Uint32Array(buffer, 0, MANIFEST_BINARY_HEADER_WORDS + columns * 2),
+    names: COLUMN_NAMES.slice(0, columns),
+  }
 }
 
 /** The element counts the small JSON declares; the group members are added once their columns are read. */
@@ -157,13 +163,17 @@ function readGroups(column: Column, groupChildCount: Int32Array, groupOutputCoun
   }
 }
 
-function readBundles(column: Column, bundleDependencyCount: Uint32Array) {
+/** The bundle columns; `bundleDecodedBytes` is there from `DECODED_BYTES_VERSION` on. */
+function readBundles(column: Column, bundleDependencyCount: Uint32Array, decoded: boolean) {
   const decoder = new TextDecoder('latin1')
   return {
     bundleWords: column('bundleU32', (b, o, n) => new Uint32Array(b, o, n)),
     bundleShaText: decoder.decode(column('bundleSha', (b, o, n) => new Uint8Array(b, o, n))),
     bundleDependencyCount,
     bundleDependency: column('bundleDependency', (b, o, n) => new Uint32Array(b, o, n)),
+    bundleDecodedBytes: decoded
+      ? column('bundleDecodedBytes', (b, o, n) => new Uint32Array(b, o, n))
+      : undefined,
   }
 }
 
@@ -184,7 +194,7 @@ function readPreviews(column: Column, count: number) {
 
 export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuffer) {
   assertManifestBinary(slim.binary)
-  const header = readHeader(buffer)
+  const { header, names } = readHeader(buffer)
   const counts = declaredCounts(slim)
   const { column, expect } = columnsOf(buffer, header)
   // The flat child and output arrays are as long as the per-group counts say; everything else is
@@ -200,11 +210,11 @@ export function readManifestColumns(slim: SlimClusterManifest, buffer: ArrayBuff
     (b, o, n) => new Uint32Array(b, o, n),
   )
   for (let b = 0; b < counts.bundles; b++) counts.bundleDependencies += bundleDependencyCount[b]
-  for (const name of COLUMN_NAMES) expect(name, columnElements(name, counts))
+  for (const name of names) expect(name, columnElements(name, counts))
   return {
     pages: readPages(column),
     groups: readGroups(column, groupChildCount, groupOutputCount),
-    bundles: readBundles(column, bundleDependencyCount),
+    bundles: readBundles(column, bundleDependencyCount, names.includes('bundleDecodedBytes')),
     previews: readPreviews(column, counts.previews),
     cullingNodes: column('cullingNodes', (b, o, n) => new Float64Array(b, o, n)),
   }

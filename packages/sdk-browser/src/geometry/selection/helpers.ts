@@ -116,7 +116,10 @@ export function streamPlacement(
     const bundle = streams.pages[page.stream]
     if (!bundle) throw new Error(`Page ${page.id} outside streaming bundles`)
     // A page reads its geometry page from the bundle, or its indices where it has none.
-    if (page.streamOffset + (page.geometry?.bytes ?? page.count * 4) > bundle.bytes)
+    if (
+      page.streamOffset + (page.geometry?.bytes ?? page.count * 4) >
+      (bundle.decodedBytes ?? bundle.bytes)
+    )
       throw new Error(`Page ${page.id} exceeds its bundle`)
     return { url: bundle.url, offset: page.streamOffset, pinned: page.stream < streams.pinned }
   })

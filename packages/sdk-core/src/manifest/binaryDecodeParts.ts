@@ -22,9 +22,12 @@ export interface PartCursors {
   dependency: number
 }
 
-/** The bundle columns: four words, a digest and a dependency list per bundle. */
+/** The bundle columns: four words, a digest, a dependency list and, from the version that has it,
+ *  the size once inflated per bundle. */
 export interface BundleColumns {
   bundleWords: Uint32Array
+  /** Absent from a binary that stores every bundle as it is: each is then its stored size. */
+  bundleDecodedBytes?: Uint32Array
   bundleShaText: string
   bundleDependencyCount: Uint32Array
   bundleDependency: Uint32Array
@@ -104,11 +107,20 @@ export function decodeStructure(
   return { version: binary.structure.version, roots, groups }
 }
 
+/** A bundle's size once inflated, named when it is stored compressed: its column's word, 0 for one
+ *  stored as it is. */
+const packed = (inflated: number | undefined) => (inflated ? { decodedBytes: inflated } : {})
+
 /** The streaming bundles of one primitive, each a range of the container `files` names at its
  *  rank, named in the catalogue by where it lies (`streamBundleAddress`). */
 export function decodeStreams(
   binary: SlimPrimitiveBinary,
-  { bundleWords: words, bundleShaText: shaText, ...lists }: BundleColumns,
+  {
+    bundleWords: words,
+    bundleShaText: shaText,
+    bundleDecodedBytes: decoded,
+    ...lists
+  }: BundleColumns,
   files: readonly GeometryFile[],
   cursors: PartCursors,
 ): StreamCatalogue | undefined {
@@ -132,6 +144,7 @@ export function decodeStreams(
       range: { file: file.url, offset },
       sha256: shaText.substring(cursors.bundle * 64, cursors.bundle * 64 + 64),
       bytes: words[at + format.BUNDLE_BYTES],
+      ...packed(decoded?.[cursors.bundle]),
       count: words[at + format.BUNDLE_COUNT],
       dependencies: Array.from(
         lists.bundleDependency.subarray(cursors.dependency, (cursors.dependency += count)),

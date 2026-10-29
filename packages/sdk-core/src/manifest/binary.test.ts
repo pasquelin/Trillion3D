@@ -1,7 +1,7 @@
 import { BINARY, sha, manifest } from '../../../../tests/fixtures/manifest/manifestBinary.ts'
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { assertManifestBinary, INLINE_PIXELS_VERSION } from './binaryTypes.ts'
+import { assertManifestBinary, READ_MANIFEST_VERSIONS } from './binaryTypes.ts'
 import { decodeManifestBinary } from './binaryDecode.ts'
 import { MANIFEST_BINARY_MAGIC, MANIFEST_BINARY_VERSION } from '../contracts/writtenFormats.ts'
 
@@ -9,6 +9,9 @@ import { encodeManifestBinary } from '../../../../tests/fixtures/manifest/manife
 import { assertCacheIdentity, EngineError } from '../contracts/cache.ts'
 import type { ClusterManifest } from '../contracts/geometry.ts'
 import { MAX_DEPTH_LAYER } from '../lod/depthLayer.ts'
+
+/** The oldest manifest binary version read: its previews' pixels inline in the head sidecar. */
+const INLINE_PIXELS_VERSION = READ_MANIFEST_VERSIONS.at(-1)!
 
 /** The bytes a `Uint8Array` view owns, as a plain `ArrayBuffer`: `encodeManifestBinary` always
  *  backs its view with one, but `.buffer` types as the wider `ArrayBufferLike`. */

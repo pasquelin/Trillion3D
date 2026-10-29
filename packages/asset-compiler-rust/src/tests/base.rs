@@ -34,6 +34,18 @@ fn number(value: &Value, key: &str) -> usize {
     value[key].as_u64().expect(key) as usize
 }
 
+/// The bytes of `bundle` once inflated, `stored` being its bytes as the container holds them:
+/// inflated when it names `decodedBytes`, a compressed bundle.
+pub(super) fn decoded_bundle(stored: &[u8], bundle: &Value) -> Vec<u8> {
+    if bundle.get("decodedBytes").is_none() {
+        return stored.to_vec();
+    }
+    let mut bytes = Vec::with_capacity(number(bundle, "decodedBytes"));
+    std::io::Read::read_to_end(&mut flate2::read::DeflateDecoder::new(stored), &mut bytes)
+        .expect("a raw DEFLATE bundle");
+    bytes
+}
+
 /// The geometry pages of one primitive of a compile. A page is read from its container and
 /// expanded to its resident page ONCE, whoever names it: the vertices a page names are found in the
 /// resident pages of the clusters it names them in, each expanded from its own references the same
@@ -46,6 +58,8 @@ pub(super) struct PrimitivePages<'a> {
     places: std::collections::HashMap<(usize, usize), &'a Value>,
     /// The containers read, by digest.
     files: std::collections::HashMap<String, Vec<u8>>,
+    /// The bundles inflated, by container digest and offset.
+    bundles: std::collections::HashMap<(String, usize), Vec<u8>>,
     /// The resident page of each cluster place, once expanded.
     residents: std::collections::HashMap<(usize, usize), Vec<u8>>,
 }
@@ -65,11 +79,13 @@ impl<'a> PrimitivePages<'a> {
             primitive,
             places,
             files: Default::default(),
+            bundles: Default::default(),
             residents: Default::default(),
         }
     }
 
-    /// The bytes of `page`'s geometry page: a slice of its bundle in the container it lies in.
+    /// The bytes of `page`'s geometry page: a slice of its bundle, inflated, in the container it
+    /// lies in.
     pub(super) fn bytes(&mut self, page: &Value) -> Vec<u8> {
         let (cache, result, primitive) = (self.cache, self.result, self.primitive);
         let bundle = &primitive["streams"]["pages"][number(page, "stream")];
@@ -79,8 +95,15 @@ impl<'a> PrimitivePages<'a> {
         let file = self.files.entry(digest.to_string()).or_insert_with(|| {
             fs::read(objects_dir(cache).join(format!("{digest}.bin"))).expect("geometry file")
         });
-        let start = number(bundle, "offset") + number(page, "streamOffset");
-        file[start..start + number(&page["geometry"], "bytes")].to_vec()
+        let offset = number(bundle, "offset");
+        let decoded = self
+            .bundles
+            .entry((digest.to_string(), offset))
+            .or_insert_with(|| {
+                decoded_bundle(&file[offset..offset + number(bundle, "bytes")], bundle)
+            });
+        let start = number(page, "streamOffset");
+        decoded[start..start + number(&page["geometry"], "bytes")].to_vec()
     }
 
     /// `page` decoded whole (`trillion3d_page_codec::decode_with`): the vertices it names found in

@@ -50,8 +50,15 @@ export const COLUMN_NAMES = [
   'texturePreviewEtc2',
   'bundleDependencyCount',
   'bundleDependency',
+  'bundleDecodedBytes',
 ] as const
 export type ColumnName = (typeof COLUMN_NAMES)[number]
+/** The first manifest binary version with the `bundleDecodedBytes` column; older ones hold every
+ *  column before it and store their bundles as they are. */
+const DECODED_BYTES_VERSION = 23
+/** How many columns a binary of `version` holds, its header declaring as many. */
+export const columnCountOf = (version: number) =>
+  version >= DECODED_BYTES_VERSION ? COLUMN_NAMES.length : COLUMN_NAMES.length - 1
 /** How one column of the binary manifest is stored. */
 export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8'
 /**
@@ -83,6 +90,7 @@ export type ColumnKind = 'f64' | 'i32' | 'u32' | 'u8'
  * @property texturePreviewEtc2 - The previews' ETC2 blocks.
  * @property bundleDependencyCount - How many bundles each bundle depends on.
  * @property bundleDependency - The bundles each bundle depends on, closed to the root cover.
+ * @property bundleDecodedBytes - Each bundle's size once inflated; 0 for one stored as it is.
  */
 export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   pageBounds: 'f64',
@@ -112,6 +120,7 @@ export const COLUMN_KIND: Record<ColumnName, ColumnKind> = {
   texturePreviewEtc2: 'u8',
   bundleDependencyCount: 'u32',
   bundleDependency: 'u32',
+  bundleDecodedBytes: 'u32',
 }
 /** Numbers per element. A sha is 64 ASCII hexadecimal characters: one `TextDecoder` for the whole
  *  column, then one `substring` per entry, is far cheaper than re-encoding 32 raw bytes each time. */
@@ -146,6 +155,7 @@ export const COLUMN_STRIDE: Record<ColumnName, number> = {
   texturePreviewEtc2: 1,
   bundleDependencyCount: 1,
   bundleDependency: 1,
+  bundleDecodedBytes: 1,
 }
 export const BYTES_PER_ELEMENT: Record<ColumnKind, number> = { f64: 8, i32: 4, u32: 4, u8: 1 }
 
@@ -169,7 +179,7 @@ export const GEOMETRY_BYTES = 0,
   GEOMETRY_RESIDENT_BYTES = 5,
   GEOMETRY_RESIDENT_OFFSET = 6
 /** `bundleU32` slots: its container's rank in the manifest's `geometryFiles`, its offset there,
- *  its size and its cluster count. */
+ *  its size as stored and its cluster count. */
 export const BUNDLE_FILE = 0,
   BUNDLE_OFFSET = 1,
   BUNDLE_BYTES = 2,

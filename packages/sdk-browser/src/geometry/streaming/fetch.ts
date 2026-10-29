@@ -8,9 +8,12 @@
  * policy (`failures.ts`), at once or after the wait its server asked.
  */
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
+import { EngineError } from '../../../../sdk-core/src/contracts/cache.ts'
 import { checked, ONE_REQUEST } from '../cluster/checked.ts'
+import { corruptObject } from '../cluster/verified.ts'
+import { inflateRaw } from '../cluster/inflateRaw.ts'
 import type { Job, StreamContext, StreamPage } from './types.ts'
-import { checkedPages } from './fetchAttempt.ts'
+import { checkedPages, emitCorruption } from './fetchAttempt.ts'
 
 /** What a transfer brings each of its jobs: its page's bytes, or what its read failed by. */
 export type Landed =
@@ -31,6 +34,23 @@ async function request(
     bytes = last.range!.offset + last.bytes - offset
   const file = new URL(first.range.file, base).href
   return store.readRange(file, offset, bytes, { attempts: ONE_REQUEST, signal })
+}
+
+/** `own`, the proven bytes of `page`: inflated when it is stored as raw DEFLATE, refused when
+ *  they inflate to other than the size announced (the `INVALID_CACHE` of a failed check). */
+async function decoded({ emit }: StreamContext, page: StreamPage, own: Uint8Array) {
+  const { url, decodedBytes } = page
+  if (decodedBytes === undefined) return own
+  const inflated = await inflateRaw(own, decodedBytes).catch(() => undefined)
+  if (inflated?.byteLength === decodedBytes) return inflated
+  emitCorruption(emit, url)
+  if (inflated)
+    throw corruptObject(url, { ...page, bytes: decodedBytes }, inflated.byteLength, undefined)
+  throw new EngineError(
+    'INVALID_CACHE',
+    `Corrupt cache object: its raw DEFLATE does not inflate to the ${decodedBytes} bytes announced`,
+    { url, bytes: own.byteLength, expected: decodedBytes, sha256: page.sha256 },
+  )
 }
 
 /** The reads of `context`'s transfers (`read`), a page's bytes kept in its cache. */
@@ -62,14 +82,25 @@ export function createStreamingFetcher(context: StreamContext) {
     }))
     if (signal.aborted) return jobs.map(() => ({ cause: signal.reason }))
     const landed = await checkedPages(context, pages, buffer)
-    return landed.map((own, at) => {
-      if (!own.bytes) return { cause: own.refused }
-      const page = pages[at]
-      if (page.kept !== false) store.put(page.url, own.bytes, page.sha256)
-      state.bytesRead += own.bytes.byteLength
-      state.loaded++
-      return { bytes: own.bytes }
-    })
+    return Promise.all(
+      landed.map(async (own, at): Promise<Landed> => {
+        if (!own.bytes) return { cause: own.refused }
+        const page = pages[at]
+        let bytes: Uint8Array
+        try {
+          bytes = await decoded(context, page, own.bytes)
+        } catch (cause) {
+          return { cause }
+        }
+        // A read dropped while it inflated keeps nothing.
+        if (signal.aborted) return { cause: signal.reason }
+        // Held under the stored bytes' digest, which names the inflated ones as surely.
+        if (page.kept !== false) store.put(page.url, bytes, page.sha256)
+        state.bytesRead += own.bytes.byteLength
+        state.loaded++
+        return { bytes }
+      }),
+    )
   }
   return { read }
 }

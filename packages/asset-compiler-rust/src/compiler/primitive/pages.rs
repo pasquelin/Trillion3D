@@ -18,11 +18,43 @@ use trillion3d_page_codec::faces::face_crosses;
 pub(crate) struct PageRun {
     pub path: PathBuf,
     pub bundles: Vec<Bundle>,
+    /// Each bundle's bytes once inflated, when the run stores it compressed; `None`, as laid.
+    pub decoded_bytes: Vec<Option<usize>>,
     /// The root pages, first in the run.
     pub pinned: usize,
     /// The most pages a page needs directly, and the longest closed list.
     pub dependency_bound: usize,
     pub max_dependencies: usize,
+}
+
+/// Writes the run of `bundles`, laid in `payload`, to `path`: each bundle raw DEFLATE when that is
+/// strictly smaller, its start, length and digest then the stored bytes'. Returns each compressed
+/// bundle's length once inflated.
+fn write_run(path: &Path, payload: &[u8], bundles: &mut [Bundle]) -> Result<Vec<Option<usize>>> {
+    let packed: Vec<Option<Vec<u8>>> = (bundles.par_iter())
+        .map(|bundle| {
+            let raw = &payload[bundle.start..][..bundle.bytes];
+            Some(crate::texture::deflate_raw([raw])).filter(|packed| packed.len() < raw.len())
+        })
+        .collect();
+    let mut run = std::io::BufWriter::new(fs::File::create(path)?);
+    let mut start = 0;
+    let mut decoded = Vec::with_capacity(bundles.len());
+    for (bundle, packed) in bundles.iter_mut().zip(packed) {
+        let stored = match &packed {
+            Some(packed) => packed.as_slice(),
+            None => &payload[bundle.start..][..bundle.bytes],
+        };
+        std::io::Write::write_all(&mut run, stored)?;
+        decoded.push(packed.as_ref().map(|_| bundle.bytes));
+        if let Some(packed) = &packed {
+            bundle.sha256 = digest_bytes(packed);
+        }
+        (bundle.start, bundle.bytes) = (start, stored.len());
+        start += stored.len();
+    }
+    std::io::Write::flush(&mut run)?;
+    Ok(decoded)
 }
 
 /// A run's scratch file, unique within the process and among the processes sharing the cache.
@@ -139,15 +171,17 @@ pub(crate) fn dag_pages(
         .max()
         .unwrap_or(0);
     let _t = crate::support::perf::Timer::new(crate::support::perf::Phase::PageWrite);
+    let mut bundles = laid.bundles;
     let path = run_path(o);
     fs::create_dir_all(crate::compiler::cache::storage::runs_dir(&o.cache))?;
-    fs::write(&path, &laid.payload)?;
+    let decoded_bytes = write_run(&path, &laid.payload, &mut bundles)?;
     Ok((
         pages,
         planes,
         Some(PageRun {
             path,
-            bundles: laid.bundles,
+            bundles,
+            decoded_bytes,
             pinned: laid.pinned,
             dependency_bound: laid.bound,
             max_dependencies,

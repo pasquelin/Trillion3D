@@ -120,6 +120,18 @@ fn record_spans(texels: u32, side: u32) -> impl Iterator<Item = (usize, usize)> 
     })
 }
 
+/// `parts` end to end as one raw DEFLATE stream (RFC 1951, no header), at the best level: what the
+/// browser's `DecompressionStream('deflate-raw')` inflates.
+pub fn deflate_raw<'a>(parts: impl IntoIterator<Item = &'a [u8]>) -> Vec<u8> {
+    use flate2::{write::DeflateEncoder, Compression};
+    use std::io::Write;
+    let mut deflate = DeflateEncoder::new(Vec::new(), Compression::best());
+    for part in parts {
+        deflate.write_all(part).expect("a vector takes every byte");
+    }
+    deflate.finish().expect("a vector takes every byte")
+}
+
 /// A row-major level of `cell`s (`quality::encode_chain` for blocks, `hdr::chain` for half-floats)
 /// as its file holds it (version 8 on): its tile records,
 /// laid out as the engine reads them (`packages/sdk-browser/src/materials/texture/tileRecords.ts`), each
@@ -128,9 +140,7 @@ fn record_spans(texels: u32, side: u32) -> impl Iterator<Item = (usize, usize)> 
 /// end of its bytes, counted from the end of the head. The head's length follows from the level's
 /// size, so one HTTP Range reads it and one more reads a tile.
 pub fn tile_records(level: &[u8], width: u32, height: u32, cell: Cell) -> Vec<u8> {
-    use flate2::{write::DeflateEncoder, Compression};
     use rayon::prelude::*;
-    use std::io::Write;
     let bytes = cell.bytes;
     let row = width.div_ceil(cell.side) as usize * bytes;
     let spans: Vec<((usize, usize), (usize, usize))> = record_spans(height, cell.side)
@@ -139,12 +149,7 @@ pub fn tile_records(level: &[u8], width: u32, height: u32, cell: Cell) -> Vec<u8
     let records: Vec<Vec<u8>> = spans
         .par_iter()
         .map(|&((y0, y1), (x0, x1))| {
-            let mut deflate = DeflateEncoder::new(Vec::new(), Compression::best());
-            for by in y0..y1 {
-                let line = &level[by * row + x0 * bytes..by * row + x1 * bytes];
-                deflate.write_all(line).expect("a vector takes every byte");
-            }
-            deflate.finish().expect("a vector takes every byte")
+            deflate_raw((y0..y1).map(|by| &level[by * row + x0 * bytes..by * row + x1 * bytes]))
         })
         .collect();
     let mut out =

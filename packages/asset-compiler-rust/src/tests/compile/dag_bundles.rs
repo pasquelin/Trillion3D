@@ -48,6 +48,7 @@ fn compile_lays_every_page_in_a_bundle_of_a_geometry_file_and_names_its_group() 
         members[at(page, "stream")].push(id);
         read.decoded(page);
     }
+    let mut compressed = 0;
     for (index, bundle) in bundles.iter().enumerate() {
         let bytes = &container[at(bundle, "offset")..at(bundle, "offset") + at(bundle, "bytes")];
         assert_eq!(
@@ -56,17 +57,34 @@ fn compile_lays_every_page_in_a_bundle_of_a_geometry_file_and_names_its_group() 
             "bundle {index}"
         );
         assert_eq!(at(bundle, "count"), members[index].len());
+        // A compressed bundle names its inflated size, which is larger; one stored as it is, none.
+        let decoded = decoded_bundle(bytes, bundle);
+        if bundle.get("decodedBytes").is_some() {
+            compressed += 1;
+            assert_eq!(decoded.len(), at(bundle, "decodedBytes"), "bundle {index}");
+            assert!(
+                bytes.len() < decoded.len(),
+                "bundle {index} is stored smaller"
+            );
+        } else {
+            assert_eq!(decoded.as_slice(), bytes, "bundle {index}");
+        }
         let covered: usize = members[index]
             .iter()
             .map(|&id| at(&pages[id]["geometry"], "bytes"))
             .sum();
-        assert_eq!(covered, bytes.len(), "a bundle is exactly its pages");
+        assert_eq!(
+            covered,
+            decoded.len(),
+            "a bundle is exactly its pages once inflated"
+        );
         assert_eq!(
             index < pinned,
             (members[index].iter()).any(|&id| pages[id]["parentError"].is_null()),
             "the pinned bundle is the root page: it alone holds roots"
         );
     }
+    assert!(compressed > 0, "the pages' bundles compress");
     // The structure links every cluster to the group that replaces it and lists the coarse cover.
     let structure = &primitive["structure"];
     assert_eq!(structure["version"], STRUCTURE_VERSION);
