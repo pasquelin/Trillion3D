@@ -5,10 +5,13 @@ import assert from 'node:assert/strict'
 import {
   createVsmSettle,
   landVsmStats,
+  noteVsmFrame,
   noteVsmIdleFrame,
   stampVsmStats,
+  vsmArrived,
   vsmUnsettled,
 } from './vsmSettle.ts'
+import type { VsmFramePlan } from '../../../lighting/shadows/vsm/frameSetup.ts'
 
 /** A settle whose last count read back says pages were drawn, after a cause at frame 3. */
 function drawingSettle() {
@@ -52,4 +55,49 @@ test('without counters a set settles once the idle frames pass the frames a caus
   let frame = 5
   while (vsmUnsettled(settle, false)) noteVsmIdleFrame(settle, ++frame)
   assert.equal(frame, 3 + 4, 'four frames after the cause at 3, not at the first idle frame')
+})
+
+/** A plan of one projection, its light cached or drawn uncached this frame (`uncached`). */
+const planOf = (uncached = false) =>
+  ({ uncachedDrawn: uncached, overflow: false, projectionCount: 1 }) as unknown as VsmFramePlan
+
+test('casters that move invalidate pages every frame: the maps never settle, yet they arrive', () => {
+  const settle = createVsmSettle()
+  const staging = {} as GPUBuffer
+  noteVsmFrame(settle, 1, planOf(true), 0, 0, true)
+  assert.ok(!vsmArrived(settle, true), 'no count read back since the light was drawn uncached')
+  for (let frame = 2; frame <= 6; frame++) {
+    noteVsmFrame(settle, frame, planOf(), 3, 0, true)
+    stampVsmStats(settle, staging, frame)
+    landVsmStats(settle, staging, 4)
+    assert.ok(vsmUnsettled(settle, true), `frame ${frame}: pages drawn after an invalidation`)
+    assert.ok(
+      vsmArrived(settle, true),
+      `frame ${frame}: a count read back after the light was drawn`,
+    )
+  }
+})
+
+test('the maps arrive again after a cause other than an invalidation: the bias moved, a raster skipped', () => {
+  const settle = createVsmSettle()
+  const staging = {} as GPUBuffer
+  noteVsmFrame(settle, 1, planOf(), 0, 0, true)
+  stampVsmStats(settle, staging, 1)
+  landVsmStats(settle, staging, 0)
+  assert.ok(vsmArrived(settle, true))
+  noteVsmFrame(settle, 2, planOf(), 0, 1, true)
+  assert.ok(!vsmArrived(settle, true), 'the resolution bias moved')
+  stampVsmStats(settle, staging, 2)
+  landVsmStats(settle, staging, 5)
+  assert.ok(vsmArrived(settle, true))
+  noteVsmFrame(settle, 3, planOf(), 0, 1, false)
+  assert.ok(!vsmArrived(settle, true), 'the raster was skipped')
+})
+
+test('without counters the maps arrive the frames a cause waits after the last cause other than an invalidation', () => {
+  const settle = createVsmSettle()
+  noteVsmFrame(settle, 1, planOf(true), 0, 0, true)
+  let frame = 1
+  while (!vsmArrived(settle, false)) noteVsmFrame(settle, ++frame, planOf(), 2, 0, true)
+  assert.equal(frame, 1 + 4, 'four frames after the light was drawn uncached, whatever moved since')
 })

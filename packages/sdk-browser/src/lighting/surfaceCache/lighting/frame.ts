@@ -9,6 +9,7 @@ import { radianceCacheTraced } from '../../bounce/cache/cacheFrame.ts'
 import { screenProbesTraced } from '../../bounce/screen/cast.ts'
 import { screenProbeSettingsOf } from '../../bounce/screen/settingsOf.ts'
 import { reflectionsTraced } from '../../reflections/hardware.ts'
+import { hardwareRayTracing, surfaceCacheRaysOf } from '../../rays/hardwareRayTracing.ts'
 import { lightProfileResources } from '../../lightProfile/frame.ts'
 import { lightProfileStandIn } from '../../lightProfile/profileStandIn.ts'
 import { cloudShadowStandIn } from '../../atmosphere/cloudShadowStandIn.ts'
@@ -69,7 +70,7 @@ export function lightSurfaceCache(
     device,
     encoder,
     state.cache,
-    state.settings,
+    surfaceCacheRaysOf(state.settings),
     state.atlases,
     state.tables,
     {
@@ -85,7 +86,9 @@ export function lightSurfaceCache(
       direction: cameraForward<[number, number, number]>([0, 0, 0], frame.cam.world),
       transportEpoch: lights.store.transportEpoch,
       meshReach: reachOf(rt, state) + state.settings.surfaceCacheCardCaptureMargin,
-      probes: radianceCacheTraced(rt) || screenProbesTraced(rt) || reflectionsTraced(rt),
+      probes:
+        hardwareRayTracing() &&
+        (radianceCacheTraced(rt) || screenProbesTraced(rt) || reflectionsTraced(rt)),
       image: {
         noiseFrame: noiseFrame(rt),
         eye: frame.cam.eye,

@@ -1,6 +1,6 @@
 import type { EngineVsm } from '../../../lighting/shadows/vsm/frame/engineVsm.ts'
 import type { VsmRefusal } from '../../../lighting/shadows/vsm/frame/vsmGrant.ts'
-import { vsmUnsettled } from './vsmSettle.ts'
+import { vsmArrived, vsmUnsettled } from './vsmSettle.ts'
 import {
   createSceneLightStore,
   type SceneLightStore,
@@ -112,8 +112,20 @@ export function createWebgpuLightState(store?: SceneLightStore): WebgpuLightStat
  * waits for no map.
  */
 export function shadowsUnsettled(lights: WebgpuLightState) {
-  const { store, vsm } = lights
   // The virtual shadow maps: pages drawn, invalidated or uncached since the last count read back,
   // the budget feedback moving the resolution (`vsmSettle.ts`).
-  return !!vsm && !!store.count && !store.unlit && vsmUnsettled(vsm.settle, vsm.countersOn)
+  const vsm = mapsWaitedFor(lights)
+  return !!vsm && vsmUnsettled(vsm.settle, vsm.countersOn)
 }
+
+/** True once the shadows have arrived (`vsmArrived`): the maps drawn as the image asks them,
+ *  whatever casters that move keep redrawing. A scene without a shadow light, or an unlit view,
+ *  waits for no map. */
+export function shadowsArrived(lights: WebgpuLightState) {
+  const vsm = mapsWaitedFor(lights)
+  return !vsm || vsmArrived(vsm.settle, vsm.countersOn)
+}
+
+/** The virtual shadow maps the image waits for: none in a scene without a shadow light or an unlit view. */
+const mapsWaitedFor = ({ store, vsm }: WebgpuLightState) =>
+  vsm && store.count && !store.unlit ? vsm : undefined

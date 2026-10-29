@@ -10,10 +10,17 @@ import type { VsmFramePlan } from '../../../lighting/shadows/vsm/frameSetup.ts'
  * whose maps start uncached or were invalidated, the global resolution bias moved by the budget
  * feedback, a raster skipped. The maps are settled once a count read back from a frame at or after
  * the last cause says no page was drawn.
+ *
+ * The maps have arrived once a count is read back from a frame at or after the last cause other
+ * than an invalidation (`arrivalFrame`): every light drawn uncached, the resolution bias and the
+ * raster as the image asks them. A caster that moves invalidates its pages on every image it moves
+ * on, so a scene that animates one never settles; it still arrives.
  */
 export interface VsmSettle {
   /** Last frame that could draw pages not yet shown. */
   causeFrame: number
+  /** Last such frame whose cause was not an invalidation (see `vsmArrived`). */
+  arrivalFrame: number
   /** Frame of the latest count read back, and the pages it drew. */
   landedFrame: number
   landedRendered: number
@@ -29,6 +36,7 @@ export interface VsmSettle {
 
 export const createVsmSettle = (): VsmSettle => ({
   causeFrame: 0,
+  arrivalFrame: 0,
   landedFrame: -1,
   landedRendered: 0,
   renderedTotal: 0,
@@ -51,9 +59,10 @@ export function noteVsmFrame(
   rendered: boolean,
 ) {
   settle.frame = frame
-  const cause = invalidations > 0 || !rendered || lodBias !== settle.lodBias || plan.uncachedDrawn
+  const arrival = !rendered || lodBias !== settle.lodBias || plan.uncachedDrawn
   settle.lodBias = lodBias
-  if (cause) settle.causeFrame = frame
+  if (arrival) settle.arrivalFrame = frame
+  if (arrival || invalidations > 0) settle.causeFrame = frame
   if (plan.overflow || plan.projectionCount === 0) noteNoMapFrame(settle, frame)
 }
 
@@ -92,4 +101,11 @@ const BLIND_FRAMES = 4
 export function vsmUnsettled(settle: VsmSettle, countersOn: boolean) {
   if (!countersOn) return settle.frame - settle.causeFrame < BLIND_FRAMES
   return settle.landedFrame < settle.causeFrame || settle.landedRendered > 0
+}
+
+/** True once the maps have arrived (see `VsmSettle`): drawn as the image asks them, whatever
+ *  casters that move still redraw. */
+export function vsmArrived(settle: VsmSettle, countersOn: boolean) {
+  if (!countersOn) return settle.frame - settle.arrivalFrame >= BLIND_FRAMES
+  return settle.landedFrame >= settle.arrivalFrame
 }
