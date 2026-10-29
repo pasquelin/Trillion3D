@@ -8,12 +8,13 @@ export const HAIR_IMAGE_WORDS = 12
  * size of the image in pixels, the first tile of the rectangle the strands cover (the passes over
  * tiles go from it), the room of a list of tiles, the coverage from which a pixel counts as full, the
  * room for compacted samples, whether a pixel's list is sorted by depth, and the layer of the
- * surfaces' colours that holds the emission (0 for none), which the patch of the surfaces empties.
+ * surfaces' colours that holds the emission (0 for none), which the patch of the surfaces empties, and whether the tiles with strands are
+ * widened by a pixel (the hardware raster's samples lie off the pixel centres the transmittance is read at).
  */
 export const HAIR_IMAGE_WGSL = wgslBlock(
   'HAIR_IMAGE_WGSL',
   [],
-  `struct HairImage{size:vec2u,origin:vec2u,capacity:u32,fullCoverage:f32,maxNodes:u32,sortByDepth:u32,emission:u32,pad0:u32,pad1:u32,pad2:u32}
+  `struct HairImage{size:vec2u,origin:vec2u,capacity:u32,fullCoverage:f32,maxNodes:u32,sortByDepth:u32,emission:u32,dilate:u32,pad1:u32,pad2:u32}
 @group(0) @binding(0) var<uniform> image:HairImage;`,
 )
 

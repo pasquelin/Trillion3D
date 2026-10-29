@@ -257,6 +257,7 @@ function acquire(
       blendable: programs.blendable,
       hardware: programs.hardware,
       mapped: programs.mapped,
+      forward: programs.forward,
       needed: Math.min(asked, HAIR_NODE_ROOM_MAX),
     },
     fail,
@@ -311,6 +312,7 @@ function writeImageBlock(gpu: HairViewGpu, record: HairViewRecord) {
   u[6] = needed
   u[7] = inputs.sortByDepth ? 1 : 0
   u[8] = inputs.emissionLayer
+  u[9] = inputs.hardwareRaster && !inputs.forwardRaster ? 1 : 0
   imageBlock.send()
 }
 

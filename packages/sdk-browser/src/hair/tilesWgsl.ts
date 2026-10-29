@@ -77,10 +77,17 @@ fn classify(full:bool,partial:bool,tile:vec2u){
  if(full||partial){emit(${HAIR_TILE_ALL}u,tile);}
  if(full){emit(${HAIR_TILE_FULL}u,tile);}else if(partial){emit(${HAIR_TILE_PARTIAL}u,tile);}
 }
+fn strandAt(pixel:vec2i)->bool{
+ return all(pixel>=vec2i(0))&&all(vec2u(pixel)<image.size)&&textureLoad(transmittance,pixel).r<1.0;
+}
 fn pixelClass(pixel:vec2u)->vec2<bool>{
  if(!all(pixel<image.size)){return vec2<bool>(false,false);}
  let t=textureLoad(transmittance,vec2i(pixel)).r;
- return vec2<bool>(t<=1.0-image.fullCoverage,t<1.0);
+ var partial=t<1.0;
+ if(image.dilate!=0u&&!partial){
+  for(var k=0u;k<9u;k++){partial=partial||strandAt(vec2i(pixel)+vec2i(i32(k%3u)-1,i32(k/3u)-1));}
+ }
+ return vec2<bool>(t<=1.0-image.fullCoverage,partial);
 }`,
 )
 
@@ -88,7 +95,8 @@ fn pixelClass(pixel:vec2u)->vec2<bool>{
  * THE TILES: the rectangle the strands cover cut in tiles of `HAIR_TILE_SIZE` pixels, each put in
  * the lists by the transmittance over its pixels: with any strand (all), and either with a strand
  * over every pixel (full: the transmittance at most what a full coverage leaves) or with some strand
- * over some pixel (partial: the transmittance below 1). A tile with none is in no list; the strands
+ * over some pixel (partial: the transmittance below 1; with `image.dilate`, a strand over a pixel beside one counts, so that a sample
+ * of the hardware raster off the pixel centre, which the transmittance is read at, is never left in an unlisted tile). A tile with none is in no list; the strands
  * lie in the rectangle, so none outside it is classified. The lists are built by the tiles'
  * workgroups, each adding its tile at the end of its lists (the order of a list is the groups').
  *

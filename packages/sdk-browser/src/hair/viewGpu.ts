@@ -121,6 +121,8 @@ interface HairImageBuffersExtra {
   readonly sampleCount: HairSampleCount
   /** Whether the hardware raster draws the samples (no list of large ribbons). */
   readonly hardware: boolean
+  /** Whether the forward raster draws the image: it keeps no sample a pixel, so no band, no window and no list of large ribbons. */
+  readonly forward: boolean
   readonly rows: number
   readonly tiles: HairTiles
   readonly bands: readonly HairBandGpu[]
@@ -394,13 +396,15 @@ interface HairImageDemand {
   readonly hardware: boolean
   /** Whether the coverage of the pixels comes from the count of the strands (`hairVisibilityCoverageMapping`). */
   readonly mapped: boolean
+  /** Whether the forward raster draws the image: only the lists of tiles are needed of the sample buffers. */
+  readonly forward: boolean
   /** The most compacted samples the image may place. */
   readonly needed: number
 }
 
 /** The sample bands, `rows` rows each but the last, and the lists of `tileCapacity` tiles; `readback`
  *  the usage a proof adds. */
-function allocateSamples(
+export function allocateSamples(
   allocator: Parameters<typeof allocateHairTiles>[0],
   width: number,
   height: number,
@@ -409,8 +413,9 @@ function allocateSamples(
   tileCapacity: number,
   readback: GPUBufferUsageFlags,
   hardware: boolean,
+  forward: boolean,
 ) {
-  const count = hairBandCount(height, rows)
+  const count = forward ? 0 : hairBandCount(height, rows)
   return {
     tileBuffers: allocateHairTiles(allocator, tileCapacity, readback),
     samples: Array.from({ length: count }, (_, k) =>
@@ -426,10 +431,14 @@ function allocateSamples(
     ),
     // The ribbons too large for a thread, listed by the compute raster, and the dispatch over them:
     // the hardware raster needs neither.
-    large: hardware ? undefined : allocator.buffer('large ribbons', HAIR_LARGE_WORDS, 'storage'),
-    largeArgs: hardware
-      ? undefined
-      : allocator.buffer('large ribbons arguments', HAIR_LARGE_ARGS_WORDS, 'args'),
+    large:
+      hardware || forward
+        ? undefined
+        : allocator.buffer('large ribbons', HAIR_LARGE_WORDS, 'storage'),
+    largeArgs:
+      hardware || forward
+        ? undefined
+        : allocator.buffer('large ribbons arguments', HAIR_LARGE_ARGS_WORDS, 'args'),
   }
 }
 
@@ -450,6 +459,7 @@ const heldFits = (state: HairViewGpu, demand: HairImageDemand, room: number) => 
     buffers.height >= height &&
     buffers.sampleCount === demand.samples &&
     buffers.hardware === demand.hardware &&
+    buffers.forward === demand.forward &&
     !!nodes &&
     nodes.capacity >= room
   )
@@ -523,6 +533,7 @@ function hairBufferExtras(
     height,
     samples,
     hardware,
+    forward,
     bandRows,
     tileCapacity,
   }: {
@@ -530,6 +541,7 @@ function hairBufferExtras(
     height: number
     samples: HairSampleCount
     hardware: boolean
+    forward: boolean
     bandRows: number
     tileCapacity: number
   },
@@ -546,6 +558,7 @@ function hairBufferExtras(
     height,
     sampleCount: samples,
     hardware,
+    forward,
     rows: bandRows,
     tiles: hairTiles(tileCapacity, made.tileBuffers),
     bands,
@@ -564,7 +577,7 @@ function hairBufferExtras(
 function ensureBuffers(
   state: HairViewGpu,
   device: GPUDevice,
-  { size, samples, hardware }: HairImageDemand,
+  { size, samples, hardware, forward }: HairImageDemand,
   bandRows: number,
 ) {
   const [width, height] = size
@@ -574,14 +587,15 @@ function ensureBuffers(
     state.buffers,
     device,
     {
-      key: [width, height, samples, bandRows, tileCapacity, hardware],
+      key: [width, height, samples, bandRows, tileCapacity, hardware, forward],
       what: 'the samples and the tiles of the hair strands',
       label: SAMPLES_LABEL,
       fits: (held) =>
         held.width >= width &&
         held.height >= height &&
         held.sampleCount === samples &&
-        held.hardware === hardware,
+        held.hardware === hardware &&
+        held.forward === forward,
     },
     (allocator) =>
       allocateSamples(
@@ -593,9 +607,18 @@ function ensureBuffers(
         tileCapacity,
         readback.buffers,
         hardware,
+        forward,
       ),
     (made) =>
-      hairBufferExtras(state, made, { width, height, samples, hardware, bandRows, tileCapacity }),
+      hairBufferExtras(state, made, {
+        width,
+        height,
+        samples,
+        hardware,
+        forward,
+        bandRows,
+        tileCapacity,
+      }),
   )
   state.buffers = buffers.resources
   return buffers
@@ -709,7 +732,7 @@ export function writeHairWindows(
   height: number,
 ) {
   const { bands, windowWords, rows, sampleCount } = buffers
-  buffers.raster.count = hairBandCount(height, rows)
+  buffers.raster.count = buffers.forward ? 0 : hairBandCount(height, rows)
   for (let k = 0; k < buffers.raster.count; k++) {
     writeHairBand(windowWords, HAIR_BAND_WORDS * k, k, rows, width, height, sampleCount)
     writeChanged(
