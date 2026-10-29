@@ -157,6 +157,20 @@ export const SAMPLED_LIGHTS_MEANINGS: Readonly<Record<SampledLightsField, string
     'In the shadow caster quality view, how far in metres the surface the rays hit may lie in front of the drawn one before it is painted mismatching (0.25, the default), relaxed at a grazing angle.',
   sampledLightsVisualizeTileClassification:
     'The tiles of the classification drawn over the image (0, none, the default): 1 the surfaces’ tiles, 2 the downsampled tiles, 3 and 4 the hair strands’, 5 and 6 the nearest translucent layer’s; each tile type has its colour and a count is written.',
+  sampledLightsVisualizeLightComplexity:
+    'The light complexity view of one input (0, none, the default): 1 the surfaces, 2 the hair strands, 3 the nearest translucent layer, 4 the volume, 5 the translucency volume. It lists, for the pixel under the debug cursor, the lights of its cell with their share of the sampling weight, whether they were seen in the image before, their kind and name, draws a line and a symbol to each, and paints a heat map of the cost of sampling each pixel. Only the surfaces (1) and the nearest translucent layer (3) are drawn yet; the others say so. A named diagnostic mode (sampled-lights-complexity-…) wins over this number.',
+  sampledLightsVisualizeLightComplexityMaxLights:
+    'The most lights the light complexity list shows (32, the default); the lights are sorted by weight, the heaviest first.',
+  sampledLightsVisualizeLightComplexityMaxCost:
+    'The cost the light complexity heat map paints red (32, the default), a lower cost going through yellow, green and cyan to blue, a pixel with no cost left grey. 0 draws no heat map.',
+  sampledLightsVisualizeLightComplexityFreeze:
+    'Whether the light complexity view keeps the list and the lines it last drew (false, the default), so that the cursor can leave the pixel and the camera move; the heat map is then not drawn.',
+  sampledLightsVisualizeLightComplexityDump:
+    'Whether the light complexity list is written to the console (false, the default): once each time the option is turned on, with the name, the weight and its share, the visibility, the kind and the place of every light.',
+  sampledLightsVisualizeLightComplexityHeatmap:
+    'Whether the light complexity view paints the heat map of the cost (true, the default), the image in grey times the colour of the cost; false leaves the image as it is.',
+  sampledLightsVisualizeLightComplexityLightColor:
+    'Whether the lines and symbols of the lights in the light complexity view are in the light’s own colour, dimmed when it was not seen (true, the default), or green, dark green when not seen.',
   sampledLightsDebug:
     'Which input the sampled lighting’s debug prints speak of (0, none, the default): 1 the surfaces, 2 the volume, 3 the translucency volume, 4 the hair strands, 5 the nearest translucent layer.',
   sampledLightsDebugTraceStats:

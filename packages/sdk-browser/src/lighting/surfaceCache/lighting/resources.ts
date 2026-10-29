@@ -41,7 +41,13 @@ function allocate(allocator: ResourceAllocator, shape: LightingShape) {
   const usage = GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING
   return {
     params: allocator.buffer('lighting parameters', LIGHTING_PARAMS.words, 'uniform'),
-    context: allocator.buffer('lighting context', sizes.context.words, 'list'),
+    // Copied from, to read the update context's header back for the debug tables (`../sceneDebug/frame.ts`).
+    context: allocator.buffer(
+      'lighting context',
+      sizes.context.words,
+      'list',
+      GPUBufferUsage.COPY_SRC,
+    ),
     /** The dispatches that cut the context's pages into tiles, read by the dispatch that is not bound to the context's writer. */
     pageArgs: allocator.buffer('lighting page args', PAGE_ARGS_WORDS, 'args'),
     /** The light tiles the cull appends, as it picks the lights of each tile. */

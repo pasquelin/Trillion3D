@@ -3,7 +3,10 @@ import assert from 'node:assert/strict'
 import { resolveSettings } from '../../../../../sdk-core/src/contracts/settingRules.ts'
 import { SAMPLED_LIGHTS_RULES } from '../../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
 import {
+  COMPLEXITY,
   VISUALIZE,
+  complexityDrawn,
+  complexityTargetOf,
   isOverview,
   overviewLayout,
   tileRect,
@@ -64,4 +67,36 @@ test('each view but the plain surface carries the words the reference writes', (
   assert.equal(visualizeLabel(VISUALIZE.overview), '')
   for (let view = 2; view <= 16; view++)
     if (!isOverview(view)) assert.notEqual(visualizeLabel(view), '', String(view))
+})
+
+test('the light complexity view is the mode’s input, else the setting’s, none while the lighting is off', () => {
+  const modes = [
+    ['sampled-lights-complexity-opaque', COMPLEXITY.opaque],
+    ['sampled-lights-complexity-hair-strands', COMPLEXITY.hairStrands],
+    ['sampled-lights-complexity-front-layer', COMPLEXITY.frontLayer],
+    ['sampled-lights-complexity-volume', COMPLEXITY.volume],
+    ['sampled-lights-complexity-translucency-volume', COMPLEXITY.translucencyVolume],
+  ] as const
+  for (const [mode, target] of modes) assert.equal(complexityTargetOf(on(), mode), target, mode)
+  assert.equal(complexityTargetOf(on(), 'beauty'), 0)
+  assert.equal(complexityTargetOf(on({ sampledLightsVisualizeLightComplexity: 4 }), 'beauty'), 4)
+  // A mode wins over the setting, as the reference’s visualization mode wins over its variable.
+  assert.equal(
+    complexityTargetOf(on({ sampledLightsVisualizeLightComplexity: 4 }), modes[0][0]),
+    COMPLEXITY.opaque,
+  )
+  assert.equal(
+    complexityTargetOf(
+      resolveSettings(SAMPLED_LIGHTS_RULES, { sampledLightsVisualizeLightComplexity: 1 }),
+      'sampled-lights-complexity-volume',
+    ),
+    0,
+  )
+})
+
+test('the light complexity view draws the surfaces and the nearest translucent layer, the other inputs not yet', () => {
+  assert.deepEqual(
+    [0, 1, 2, 3, 4, 5].map((target) => complexityDrawn(target)),
+    [false, true, false, true, false, false],
+  )
 })

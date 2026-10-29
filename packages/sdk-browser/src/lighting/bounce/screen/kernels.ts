@@ -237,6 +237,7 @@ const castHeadSources = (shape: KernelShape) => {
       raysShader(side, gather, samples, shape.light),
       raysEntries(shape.light),
       'genRays',
+      'scatterLobes',
     ),
   }
 }
@@ -421,7 +422,7 @@ export interface CastKernels {
     | 'adaptiveWrite'
   >
   screenData: Kernel<'screenData'>
-  rays: Kernel<'genRays'>
+  rays: Kernel<'genRays' | 'scatterLobes'>
   traceScreen: Kernel<'traceScreen'>
   traceScene: Kernel<'traceScene' | 'traceFar'>
   composite: Kernel<'composite'>

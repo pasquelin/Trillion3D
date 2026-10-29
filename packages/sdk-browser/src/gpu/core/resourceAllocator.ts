@@ -1,8 +1,9 @@
 import { textureBytesOf } from './textureBytes.ts'
 
 /** What a buffer is for: written by the kernels and the host (`storage`), the uniform, the indirect arguments the kernels
- *  write, a list the kernels fill and dispatches are made over, and the head that empties it. */
-export type BufferKind = 'storage' | 'uniform' | 'args' | 'list' | 'head'
+ *  write (a debug table reads their counts back), a list the kernels fill and dispatches are made over, the head that empties it,
+ *  and the counters the kernels write and a debug table reads back (`counter`). */
+export type BufferKind = 'storage' | 'uniform' | 'args' | 'list' | 'head' | 'counter'
 
 /** What a texture is made as, beside its size and format: its usage (sampled and storage by default) and its dimension (2D). */
 export interface TextureOptions {
@@ -54,7 +55,8 @@ export interface ResourceAllocator {
 const usageOf = (kind: BufferKind) => {
   const { STORAGE, UNIFORM, INDIRECT, COPY_DST, COPY_SRC } = GPUBufferUsage
   if (kind === 'uniform') return UNIFORM | COPY_DST
-  if (kind === 'args') return STORAGE | INDIRECT
+  if (kind === 'args') return STORAGE | INDIRECT | COPY_SRC
+  if (kind === 'counter') return STORAGE | COPY_DST | COPY_SRC
   if (kind === 'list') return STORAGE | INDIRECT | COPY_DST
   if (kind === 'head') return COPY_SRC | COPY_DST
   return STORAGE | COPY_DST

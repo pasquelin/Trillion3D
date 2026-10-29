@@ -9,6 +9,7 @@ import {
   type LightAtlasFormat,
 } from '../../../gpu/core/lightAtlasFormat.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
+import { POOL_SLOT } from '../pool/poolLayout.ts'
 import { QUEUED_PROBE_WGSL } from '../probes/probeQueueWgsl.ts'
 import { CACHE_FILTER_BINDINGS as B } from './cacheBindings.ts'
 import {
@@ -38,7 +39,10 @@ const filterDeclarations = (format: LightAtlasFormat) => {
 @group(0) @binding(${B.raw}) var cacheRaw:texture_2d<u32>;
 @group(0) @binding(${B.filtered}) var filteredOut:texture_storage_2d<${T.filtered},write>;
 @group(0) @binding(${B.filteredSky}) var filteredSkyOut:texture_storage_2d<${T.filteredSky},write>;
+@group(0) @binding(${B.slots}) var<storage,read> poolSlots:array<u32>;
 ${wgslConsts({
+  CACHE_SLOT_WORDS: POOL_SLOT.words,
+  CACHE_SLOT_OFFSET: POOL_SLOT.offset,
   CACHE_TILE_SIDE,
   CACHE_NEIGHBOURS: NEIGHBOURS,
   CACHE_FLAG_SKY: RADIANCE_CACHE_FLAGS.sky,
@@ -57,12 +61,18 @@ const filterNeighbours = (format: LightAtlasFormat) =>
 fn cacheRawAt(base:vec2u,texel:vec2u)->${rawTexelType(format)}{return textureLoad(cacheRaw,vec2i(base+texel),0).${rawChannels(format)};}
 /** The texel of a map of the direction \`d\`. */
 fn cacheTexelOf(d:vec3f,res:u32)->vec2u{return min(vec2u(equalAreaEncode(d)*f32(res)),vec2u(res-1u));}
+/** Where the probe of \`slot\` plus one stands from its cell's place. */
+fn cacheSlotShift(held:u32)->vec3f{
+ if(held==0u){return vec3f(0.0);}
+ let at=(held-1u)*CACHE_SLOT_WORDS+CACHE_SLOT_OFFSET;
+ return bitcast<vec3f>(vec3u(poolSlots[at],poolSlots[at+1u],poolSlots[at+2u]));
+}
 /** The neighbour \`n\` of the probe, if \`level\` holds its cell and a probe holds it in the table, which a probe enters once traced: a cell
  *  given a probe the frame's queue could not hold is none, as its map holds the light the slot's last probe traced at another place. */
 fn cacheNeighbour(n:u32,cell:vec3i,level:u32,spacing:f32){
  let next=cell+cacheAxis(n);
  neighbourSlot[n]=select(0u,cacheSlotOf(level,next),levelHolds(level,next));
- neighbourPosition[n]=probePosition(next,spacing);
+ neighbourPosition[n]=probePosition(next,spacing)+cacheSlotShift(neighbourSlot[n]);
 }
 /** The weight of neighbour \`n\` for the texel \`texel\`: its angle's, zero where its ray met the back of a one-sided surface or a surface
  *  stands between the probes. */

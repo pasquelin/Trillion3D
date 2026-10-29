@@ -4,6 +4,7 @@ import { createList } from '../../../gpu/dispatch/list.ts'
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
 import {
   CACHE_FIXUP_LEVELS,
+  CACHE_PDF_WORDS,
   CACHE_TRACE_ATLAS_TILES,
   RADIANCE_CACHE_PARAMS_BYTES,
   cacheExtent,
@@ -78,31 +79,43 @@ function cacheAtlases(device: GPUDevice, shape: CacheShape, slots: number) {
 
 /** What the radiance cache keeps for maps of the shape `shape` in a pool of `slots` probes: the raw and the final atlases — the final
  *  one with its border and levels of detail, each a view of its own to be written —, the sky's share atlas where the sky is kept apart (a
- *  texel else), the list of the trace tiles and the parameters. */
+ *  texel else), the list of the trace tiles, the sums of the lobes the screen probes want light in (`pdf`, which the screen probes add to
+ *  and the trace tiles follow) and the parameters. */
 export function createCacheStorage(device: GPUDevice, shape: CacheShape, slots: number) {
-  return constructGpuResources(device, () => ({
-    shape,
-    ...cacheAtlases(device, shape, slots),
-    tiles: createList(
-      device,
-      'Trillion3D radiance cache tiles v1',
-      cacheTileCapacity(shape.resolution, slots),
-      2,
-    ),
-    params: device.createBuffer({
-      label: 'Trillion3D radiance cache parameters v1',
-      size: RADIANCE_CACHE_PARAMS_BYTES,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    }),
-  }))
+  return constructGpuResources(device, () => {
+    const atlases = cacheAtlases(device, shape, slots)
+    const pdf = device.createBuffer({
+      label: 'Trillion3D radiance cache lobes v1',
+      size: slots * CACHE_PDF_WORDS * 4,
+      usage: GPUBufferUsage.STORAGE,
+    })
+    return {
+      shape,
+      ...atlases,
+      pdf,
+      read: { ...atlases.read, pdf },
+      views: { ...atlases.views, pdf },
+      tiles: createList(
+        device,
+        'Trillion3D radiance cache tiles v1',
+        cacheTileCapacity(shape.resolution, slots),
+        2,
+      ),
+      params: device.createBuffer({
+        label: 'Trillion3D radiance cache parameters v1',
+        size: RADIANCE_CACHE_PARAMS_BYTES,
+        usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      }),
+    }
+  })
 }
 
 /** The storage of a cache, made. */
 export type CacheStorage = ReturnType<typeof createCacheStorage>
 
 /** Destroys every resource of `storage`. */
-export function destroyCacheStorage({ raw, final, sky, spare, tiles, params }: CacheStorage) {
-  for (const resource of [raw, final, sky, ...spare, tiles, params]) resource.destroy()
+export function destroyCacheStorage({ raw, final, sky, spare, tiles, pdf, params }: CacheStorage) {
+  for (const resource of [raw, final, sky, ...spare, tiles, pdf, params]) resource.destroy()
 }
 
 /** The atlases a frame keeps for the queue's block of probes `temp` (`cacheTempExtent`): the filter's light, and its sky's share where the

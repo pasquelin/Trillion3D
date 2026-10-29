@@ -31,6 +31,7 @@ export interface ScreenProbeInputs {
   cacheFinal: GPUTextureView
   cacheRaw: GPUTextureView
   cacheSky: GPUTextureView
+  cachePdf: GPUBuffer
 }
 
 /** What the groups of one frame are made from: the device, the kernels, the resources and the image's inputs,

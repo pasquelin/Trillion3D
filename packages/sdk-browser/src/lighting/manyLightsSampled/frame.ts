@@ -25,6 +25,7 @@ import { SAMPLED_GROUP } from './layout.ts'
 import type { VsmMarkingFrontSamples, VsmMarkingSamples } from '../shadows/vsm/markingPass.ts'
 import { FRONT_MARK } from './frontLightWgsl.ts'
 import { readsSpatialDebug, visualizeViewOf } from './debug/modes.ts'
+import { complexityRequest } from './debug/complexity/view.ts'
 import { debugPixelsTexture, rememberSampled } from './debug/state.ts'
 
 /** The view's sampled lighting settings, read by the stamped reader into this one object (an image where no setting was written costs a compare). */
@@ -57,10 +58,10 @@ const CUT_FIELDS = [
   ...CUTS.filter((cut) => cut !== 'sampled' && cut !== 'sampledSun' && cut !== 'volumeShadow'),
 ] as const
 
-/** The frame's key, every cut the lit image's resources name, the missing ones taken as the program with every code path. */
+/** The frame's key, every cut the lit image's resources name, the missing ones taken as the program with every code path (a cut the contract leaves out, `captureless`, keeps its code: false). */
 const keyOf = (direct: DirectLightResources): ContractKey => {
   const key: ContractKey = { ...FULL_CONTRACT, sampled: false, sampledSun: false }
-  for (const cut of CUT_FIELDS) key[cut] = direct[cut] ?? key[cut]
+  for (const cut of CUT_FIELDS) key[cut] = direct[cut] ?? key[cut] ?? false
   return key
 }
 
@@ -158,6 +159,8 @@ function sampledInputs(
         !target && readsSpatialDebug(visualizeViewOf(values, rt.run.diagnostic))
           ? debugPixelsTexture(rt, device, width, height)
           : undefined,
+      // The light complexity view replays the weighing of the pixel under the cursor and costs every pixel, while it shows this input.
+      complexity: complexityRequest(rt, device, values, target ? 'front' : 'surface'),
     },
   }
 }

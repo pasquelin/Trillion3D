@@ -38,6 +38,7 @@ import { disposeVolumetricLightmap } from '../../lighting/volumetricLightmap/fra
 import { disposeSkyModule } from '../render/encodeCloudsSky.ts'
 import { releaseUnlitLights } from '../render/captureLights.ts'
 import { disposeSampledDebug } from '../../lighting/manyLightsSampled/debug/frame.ts'
+import { disposeSceneDebug } from '../../lighting/surfaceCache/sceneDebug/frame.ts'
 import { disposeSubsurfaceDebug } from '../../lighting/subsurface/visualize.ts'
 import { disposeHzbOcclusion } from '../../visibility/hzbOcclusion/hzbOcclusion.ts'
 
@@ -219,6 +220,7 @@ function disposeLighting(rt: WebgpuPagesRuntime) {
   disposeImagePasses(gpu)
   disposeSampledDebug(rt)
   disposeSubsurfaceDebug(rt)
+  disposeSceneDebug(rt)
   disposeSkyModule(rt)
   rt.lights.tiles?.dispose()
   releaseEngineVsm(rt.lights)

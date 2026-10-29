@@ -10,7 +10,7 @@ export const DEBUG_CPU_LINES = 16384
 const SPACE = { world: 0, pixel: 1 } as const
 
 /** A colour of linear components in [0, 1] as the bytes r, g, b, a of a word. */
-const debugColor = (r: number, g: number, b: number) =>
+export const debugColor = (r: number, g: number, b: number) =>
   (Math.round(r * 255) | (Math.round(g * 255) << 8) | (Math.round(b * 255) << 16) | (255 << 24)) >>>
   0
 
@@ -27,6 +27,7 @@ export const DEBUG_COLORS = {
   emerald: debugColor(46 / 255, 204 / 255, 113 / 255),
   frustum: debugColor(0.5, 1, 0),
   lightRed: debugColor(0.75, 0.5, 0.5),
+  cyan: debugColor(0, 1, 1),
 } as const
 
 /** The corners of a box as its low and high ends' choices, in the order the edges below name them. */

@@ -127,6 +127,13 @@ const RADIOSITY_MEANINGS = /* @__PURE__ */ (() => ({
   surfaceCacheRadiosityTemporalFixedJitterIndex: `From 0 on, the probes' jitter is this index held, for debugging (${R.surfaceCacheRadiosityTemporalFixedJitterIndex.default} by default: it moves).`,
 }))()
 
+/** What the settings of the surface cache's debug tables and boxes mean. */
+const DEBUG_MEANINGS = /* @__PURE__ */ (() => ({
+  surfaceCacheLightingStats: `Writes over the image the table of one update of the surface cache's lighting, for debugging (${R.surfaceCacheLightingStats.default} by default, none): 1 the direct light's, 2 the indirect's, 3 the direct light's lights and atlas. Tables 1 and 2 hold the tiles of each of the 16 priority buckets, the bucket the update's budget ends in and the tiles of it that fit, then the pages and the tiles the image lights; table 3 holds the lights the update gathers (batched, standalone, rectangles, light functions, IES), the atlas and update sizes, the trace method and count, and the cards and tiles it lights. The figures are read back from the GPU a few images late.`,
+  surfaceCacheSceneStats: `Writes over the image the count of the placements that have cards, of the mesh cards and of the cards in the scene, for debugging (off by default).`,
+  surfaceCacheVisualizePrimitiveGroups: `Draws the box of every placement that has mesh cards, in white, for debugging (off by default).`,
+}))()
+
 /** What each setting of the surface cache means (`../contracts/surfaceCacheOptions.ts`); they apply
  *  where the scene has meshes with cards. The defaults and the ranges are the schema's own. */
 // A spread at the top level is not pure to a bundler: marked so, a bundle that never reads the meanings drops them.
@@ -139,4 +146,5 @@ export const SURFACE_CACHE_MEANINGS: Readonly<Record<SurfaceCacheField, string>>
     ...DIRECT_LIGHT_MEANINGS,
     ...RAY_CULLING_MEANINGS,
     ...RADIOSITY_MEANINGS,
+    ...DEBUG_MEANINGS,
   }))()

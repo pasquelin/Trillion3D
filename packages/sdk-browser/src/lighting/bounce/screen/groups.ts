@@ -70,6 +70,7 @@ function rayGroups(g: GroupParts, kernels: CastKernels) {
           brdf: r.brdf,
           bounceGrid: inputs.bounceGrid,
           lights: inputs.lights,
+          lobes: inputs.cachePdf,
         }),
       }),
       { binding: RAYS_PROBES, resource: inputs.probes },
@@ -132,6 +133,7 @@ const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'field' | 'hit' | 'fog
   cacheFinal: true,
   cacheRaw: true,
   cacheSky: true,
+  cachePdf: true,
 }
 const INPUT_KEYS = Object.keys(INPUT_SLOT) as (keyof typeof INPUT_SLOT)[]
 /** The hit's resources the identity names after the inputs and the field's generation. */

@@ -7,7 +7,7 @@ import type { CacheStorage } from './cacheStorage.ts'
 const ROW_ALIGN = 256
 
 /** The bytes a row of `width` texels of `format` takes in a copy. */
-export const copyRowBytes = (width: number, format: GPUTextureFormat) =>
+const copyRowBytes = (width: number, format: GPUTextureFormat) =>
   ceilDiv(width * texelBytesOf(format), ROW_ALIGN) * ROW_ALIGN
 
 /** A buffer of zeros that holds the widest level of a texture of `format` and `size`, made for the clear and given back with it. */

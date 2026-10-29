@@ -55,8 +55,21 @@ export type DiagnosticMode =
   | 'sampled-lights-overview'
   | 'sampled-lights-shadow-casters'
   | 'sampled-lights-shadow-caster-quality'
+  | 'sampled-lights-complexity-opaque'
+  | 'sampled-lights-complexity-hair-strands'
+  | 'sampled-lights-complexity-front-layer'
+  | 'sampled-lights-complexity-volume'
+  | 'sampled-lights-complexity-translucency-volume'
   | 'subsurface-profiles'
   | 'rect-light-atlas'
+  | 'surface-cache-direct-stats'
+  | 'surface-cache-indirect-stats'
+  | 'surface-cache-direct-lighting-stats'
+  | 'surface-cache-scene-stats'
+  | 'surface-cache-primitive-groups'
+  | 'radiance-cache-stats'
+  | 'screen-probe-gather-debug'
+  | 'screen-probe-tile-stats'
   | HeterogeneousVolumeGridView
 /** Whether a view mode is available here, and why not. */
 export interface DiagnosticCapability {
@@ -105,8 +118,21 @@ export interface DiagnosticCapability {
  *  @property sampled-lights-overview - The shadow casters and their quality of the sampled lighting side by side.
  *  @property sampled-lights-shadow-casters - The surfaces the sampled lighting’s rays meet, one colour each.
  *  @property sampled-lights-shadow-caster-quality - Where the traced surfaces lie off the drawn ones.
+ *  @property sampled-lights-complexity-opaque - The lights of the cell under the cursor on the surfaces, sorted by weight, and a heat map of the cost of sampling.
+ *  @property sampled-lights-complexity-hair-strands - The same for the hair strands.
+ *  @property sampled-lights-complexity-front-layer - The same for the nearest translucent layer.
+ *  @property sampled-lights-complexity-volume - The lights of the fog cell under the cursor, sorted by weight.
+ *  @property sampled-lights-complexity-translucency-volume - The lights of the translucency lighting volume cell under the cursor, sorted by weight.
  *  @property subsurface-profiles - The subsurface profile of each pixel as a coloured, lettered map.
- *  @property rect-light-atlas - The atlas of the pictures mapped on the rectangle lights, its slots and its figures, over the image. */
+ *  @property rect-light-atlas - The atlas of the pictures mapped on the rectangle lights, its slots and its figures, over the image.
+ *  @property surface-cache-direct-stats - The table of the direct light update of the surface cache over the image: its priority histogram, its budget and the pages and tiles it lights.
+ *  @property surface-cache-indirect-stats - The table of the indirect light update of the surface cache over the image.
+ *  @property surface-cache-direct-lighting-stats - The lights the direct light update gathers, the atlas and update sizes, the trace method and count, and the cards and tiles it lights, over the image.
+ *  @property surface-cache-scene-stats - The counts of the placements, mesh cards and cards of the surface cache over the image.
+ *  @property surface-cache-primitive-groups - The box of every placement that has mesh cards, in white.
+ *  @property radiance-cache-stats - The update statistics of the world's probes over the image.
+ *  @property screen-probe-gather-debug - The count of the screen probes, uniform and adaptive, over the image.
+ *  @property screen-probe-tile-stats - The tiles of each mode of the screen probes' integration over the image. */
 export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability>
 /**
  * The view modes a world can show instead of the normal image, each with whether it is available.
@@ -186,8 +212,19 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  * @property sampled-lights-overview - Over the image, the shadow casters and the shadow caster quality views side by side in tiles, as the numbered views 2 and 3 show them; the rest of the image as it is.
  * @property sampled-lights-shadow-casters - The surface the shadow rays of the sampled lighting meet from the eye at each pixel, one colour per object, lit by a fixed light, the sky where nothing is hit.
  * @property sampled-lights-shadow-caster-quality - Where the surface the shadow rays meet lies behind the drawn one by more than `sampledLightsVisualizeShadowCasterMissingDistance` (orange to red, a caster missing) or in front of it by more than `…PoorDistance` (blue, mismatching).
+ * @property sampled-lights-complexity-opaque, sampled-lights-complexity-hair-strands, sampled-lights-complexity-front-layer, sampled-lights-complexity-volume, sampled-lights-complexity-translucency-volume -
+ *   The light complexity view of one input (`sampledLightsVisualizeLightComplexity` 1 to 5): for the pixel under the debug cursor (`sampledLightsDebugCursorX` / `…Y`) or the fog cell on its ray, the lights of its cell with their share of the sampling weight,
+ *   whether they were seen in the image before, their kind and name, each drawn as a line and a symbol from the pixel, the one under the mouse in orange; the first three also paint a heat map of the cost of sampling every pixel (`sampledLightsVisualizeLightComplexityMaxCost`).
  * @property subsurface-profiles - The subsurface profile of each pixel over the middle of the image, one colour and one character per profile (the default skin buff, then red, green, blue, magenta, cyan, yellow; 100 dark green, 255 white), faded where the scattering is narrower than a pixel, with the title and the list of profiles.
  * @property rect-light-atlas - Over the image, the atlas of the pictures the rectangle lights name, drawn small at the chosen mip level (`rectLightAtlasDebugMipLevel`) with a green border round each slot in use, a red one round the horizon lines of the packing and a yellow one round the free rectangles, and its figures as text (resolution, mip levels, occupancy, pictures, source mip bias, format, the switches); the same as `rectLightAtlasDebug` shows.
+ * @property surface-cache-direct-stats - Over the image, the table of the surface cache’s direct light update as `surfaceCacheLightingStats` 1 writes it: the tiles of each of the 16 priority buckets, the bucket the budget ends in and its tiles, the pages and the tiles the image lights; read back from the GPU a few images late.
+ * @property surface-cache-indirect-stats - Over the image, the same table for the surface cache’s indirect light update (`surfaceCacheLightingStats` 2).
+ * @property surface-cache-direct-lighting-stats - Over the image, the table of the surface cache’s direct light update as `surfaceCacheLightingStats` 3 writes it: the views and lights (batched with their type, standalone, whether rectangles, light functions and IES profiles are among them), the atlas and update sizes, the update factor, the trace method and count, and the cards and tiles lit; read back from the GPU a few images late.
+ * @property surface-cache-scene-stats - Over the image, the count of the placements, of the mesh cards and of the cards the surface cache holds (`surfaceCacheSceneStats`).
+ * @property surface-cache-primitive-groups - The box of every placement that has mesh cards, drawn in white in the world (`surfaceCacheVisualizePrimitiveGroups`).
+ * @property radiance-cache-stats - Over the image, the update statistics of the world’s probes as `screenProbeRadianceCacheStats` writes them: the probes the atlas holds out of the most it can, those holding nothing yet, those not traced since the lights changed, those refused for want of a slot, those queued this image and the cells marked.
+ * @property screen-probe-gather-debug - Over the image, the number of screen probes, of the uniform ones and of the adaptive ones, as `screenProbeGatherDebug` writes it.
+ * @property screen-probe-tile-stats - Over the image, the tiles of the screen probes’ integration of each mode (simple, importance sampled, complete) and their total, with the legend, as `screenProbeTileDebugMode` writes it.
  */
 export const DIAGNOSTICS: DiagnosticCapabilities = {
   beauty: { available: true, reason: 'glTF materials' },
@@ -413,6 +450,31 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     reason:
       'Where the surface the rays meet lies behind the drawn one (orange to red, a caster missing) or in front of it (blue, mismatching), by the distances sampledLightsVisualizeShadowCasterMissingDistance and PoorDistance; needs sampledLights',
   },
+  'sampled-lights-complexity-opaque': {
+    available: true,
+    reason:
+      'The lights of the cell under the cursor on the surfaces, sorted by weight with their kind and name and drawn to the pixel, and a heat map of the cost of sampling every pixel; needs sampledLights',
+  },
+  'sampled-lights-complexity-hair-strands': {
+    available: false,
+    reason:
+      'The light complexity of the hair strands is not drawn yet: only the surfaces and the nearest translucent layer are',
+  },
+  'sampled-lights-complexity-front-layer': {
+    available: true,
+    reason:
+      'The lights of the cell under the cursor on the nearest translucent layer, sorted by weight, and a heat map of the cost of sampling; needs sampledLights and sampledLightsFrontLayer',
+  },
+  'sampled-lights-complexity-volume': {
+    available: false,
+    reason:
+      'The light complexity of the fog volume is not drawn yet: only the surfaces and the nearest translucent layer are',
+  },
+  'sampled-lights-complexity-translucency-volume': {
+    available: false,
+    reason:
+      'The light complexity of the translucency lighting volume is not drawn yet: only the surfaces and the nearest translucent layer are',
+  },
   'subsurface-profiles': {
     available: true,
     reason:
@@ -422,5 +484,45 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     available: true,
     reason:
       'The atlas of the rectangle lights’ pictures over the image, with its slots, horizon lines, free rectangles and figures; needs a rectangle that names a sourceTexture',
+  },
+  'surface-cache-direct-stats': {
+    available: true,
+    reason:
+      'The table of the surface cache’s direct light update over the image (histogram of the tiles by priority bucket, budget, pages and tiles lit); needs a scene whose meshes carry cards',
+  },
+  'surface-cache-indirect-stats': {
+    available: true,
+    reason:
+      'The table of the surface cache’s indirect light update over the image; needs a scene whose meshes carry cards',
+  },
+  'surface-cache-direct-lighting-stats': {
+    available: true,
+    reason:
+      'The lights the surface cache’s direct light update gathers, its atlas and update sizes, trace method and count, and the cards and tiles it lights, over the image; needs a scene whose meshes carry cards',
+  },
+  'surface-cache-scene-stats': {
+    available: true,
+    reason:
+      'The counts of the placements, mesh cards and cards of the surface cache over the image; needs a scene whose meshes carry cards',
+  },
+  'surface-cache-primitive-groups': {
+    available: true,
+    reason:
+      'The box of every placement that has mesh cards, in white; needs a scene whose meshes carry cards',
+  },
+  'radiance-cache-stats': {
+    available: true,
+    reason:
+      'The update statistics of the world’s probes over the image (probes in the atlas, unfilled, refreshing, refused, queued, cells marked); needs screen probes with the radiance cache',
+  },
+  'screen-probe-gather-debug': {
+    available: true,
+    reason:
+      'The count of the screen probes, uniform and adaptive, over the image; needs screen probes',
+  },
+  'screen-probe-tile-stats': {
+    available: true,
+    reason:
+      'The tiles of each mode of the screen probes’ integration over the image, with the legend; needs screen probes with the integration’s tile classification',
   },
 }

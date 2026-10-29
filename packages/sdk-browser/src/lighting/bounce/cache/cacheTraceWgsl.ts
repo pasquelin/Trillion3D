@@ -125,6 +125,8 @@ fn ${name}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) groups:ve
  let trace=(res/2u)<<(tile.x>>16u);
  let at=vec2u(tile.y&0xffffu,tile.y>>16u);
  let local=vec2u(lane%CACHE_TILE_SIDE,lane/CACHE_TILE_SIDE);
+ // A thread whose texel lies past the level's rays traces none and writes none.
+ let inside=all(at*CACHE_TILE_SIDE+local<vec2u(trace));
 ${tail}
 }`
 
@@ -162,13 +164,15 @@ const tileSpreadWgsl = (light: LightAtlasFormat) =>
     [cacheRawWord(light), CACHE_WORDS_WGSL],
     `var<workgroup> tileLight:array<vec3f,${CACHE_TILE_SIDE * CACHE_TILE_SIDE}>;
 var<workgroup> tileWord:array<u32,${CACHE_TILE_SIDE * CACHE_TILE_SIDE}>;
-fn spreadTile(base:vec2u,at:vec2u,local:vec2u,trace:u32,lane:u32,seen:vec3f,word:u32){
+fn spreadTile(base:vec2u,at:vec2u,local:vec2u,trace:u32,lane:u32,seen:vec3f,word:u32,inside:bool){
  let res=cache.resolution;
  let texel=at*CACHE_TILE_SIDE+local;
  if(trace<res){
   let factor=res/trace;
   for(var y=0u;y<factor;y++){
-   for(var x=0u;x<factor;x++){textureStore(rawOut,base+texel*factor+vec2u(x,y),cacheRawWord(seen,word));}
+   for(var x=0u;x<factor;x++){
+    if(inside){textureStore(rawOut,base+texel*factor+vec2u(x,y),cacheRawWord(seen,word));}
+   }
   }
   return;
  }
@@ -229,10 +233,13 @@ const traceProgram = (ray: WgslDecl, traced: boolean, light: LightAtlasFormat) =
 ${tileKernel(
   'traceTiles',
   traced
-    ? ` let ray=traceTileRay(queued,trace,at*CACHE_TILE_SIDE+local,rank,local);
- textureStore(traceOut,traceAtlasAt(rank,local),cacheRawWord(ray.seen,ray.word));`
-    : ` let ray=traceTileRay(queued,trace,at*CACHE_TILE_SIDE+local,rank,local);
- spreadTile(cacheTileOf(queued.slot,res),at,local,trace,lane,ray.seen,ray.word);`,
+    ? ` if(inside){
+  let ray=traceTileRay(queued,trace,at*CACHE_TILE_SIDE+local,rank,local);
+  textureStore(traceOut,traceAtlasAt(rank,local),cacheRawWord(ray.seen,ray.word));
+ }`
+    : ` var ray=TileRay(vec3f(0.0),0u);
+ if(inside){ray=traceTileRay(queued,trace,at*CACHE_TILE_SIDE+local,rank,local);}
+ spreadTile(cacheTileOf(queued.slot,res),at,local,trace,lane,ray.seen,ray.word,inside);`,
 )}`,
     [
       ray,
@@ -276,7 +283,7 @@ ${wgslConsts({ CACHE_TILE_SIDE, CACHE_FLAG_TRACED: RADIANCE_CACHE_FLAGS.traced }
 ${tileKernel(
   'spreadTiles',
   ` let taken=textureLoad(traceAtlas,vec2i(traceAtlasAt(rank,local)),0).${rawChannels(light)};
- spreadTile(cacheTileOf(queued.slot,res),at,local,trace,lane,${rawLightOf(light, 'taken')},${rawWordOf(light, 'taken')});`,
+ spreadTile(cacheTileOf(queued.slot,res),at,local,trace,lane,${rawLightOf(light, 'taken')},${rawWordOf(light, 'taken')},inside);`,
 )}`,
     [
       bounceBindingsWgsl(0, S.grid, S.table),

@@ -1,13 +1,15 @@
 import { standInTexture } from '../../../gpu/core/standIns.ts'
 import { VECTOR_FORMAT } from '../../../post/taa/velocityWgsl.ts'
 import type { LightAtlasFormat } from '../../../gpu/core/lightAtlasFormat.ts'
-import { radianceCacheFormats } from '../cache/cacheLayout.ts'
+import { CACHE_PDF_WORDS, radianceCacheFormats } from '../cache/cacheLayout.ts'
 
 /** The stand-ins of the radiance cache's maps (`createStandIns`). */
 export interface NoCache {
   final: GPUTextureView
   raw: GPUTextureView
   sky: GPUTextureView
+  /** The lobes the screen probes add to: a few words nothing reads. */
+  pdf: GPUBuffer
   /** The format the final map is stored in. */
   light: LightAtlasFormat
 }
@@ -39,6 +41,11 @@ export function createStandIns() {
         const texture = (name: string, format: GPUTextureFormat) =>
           standInTexture(device, `Trillion3D empty radiance cache ${name}`, format)
         const formats = radianceCacheFormats(light)
+        const pdf = device.createBuffer({
+          label: 'Trillion3D empty radiance cache lobes',
+          size: CACHE_PDF_WORDS * 4,
+          usage: GPUBufferUsage.STORAGE,
+        })
         const [final, raw, sky] = [
           texture('final', formats.final),
           texture('raw', formats.raw),
@@ -47,11 +54,12 @@ export function createStandIns() {
         cache = {
           device,
           light,
-          made: [final, raw, sky],
+          made: [final, raw, sky, pdf],
           views: {
             final: final.createView(),
             raw: raw.createView(),
             sky: sky.createView(),
+            pdf,
             light,
           },
         }

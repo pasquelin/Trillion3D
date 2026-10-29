@@ -164,6 +164,7 @@ function inputsOf(
   inputs.cacheFinal = cache.final
   inputs.cacheRaw = cache.raw
   inputs.cacheSky = cache.sky
+  inputs.cachePdf = cache.pdf
   return inputs
 }
 

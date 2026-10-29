@@ -18,6 +18,11 @@ import { hairMaskWgsl, hairSampleWgsl } from '../../lighting/manyLightsSampled/h
 import { powerDeltaWgsl } from '../../lighting/manyLightsSampled/powerDeltaWgsl.ts'
 import { spatialWgsl } from '../../lighting/manyLightsSampled/spatialWgsl.ts'
 import { temporalWgsl } from '../../lighting/manyLightsSampled/temporalWgsl.ts'
+import {
+  costWgsl,
+  HEATMAP_WGSL,
+} from '../../lighting/manyLightsSampled/debug/complexity/costWgsl.ts'
+import { replayWgsl } from '../../lighting/manyLightsSampled/debug/complexity/replayWgsl.ts'
 import { shadingWgsl } from '../../lighting/manyLightsSampled/shadingWgsl.ts'
 import { vsmTraceSamplesWgsl } from '../../lighting/manyLightsSampled/vsmTraceWgsl.ts'
 import { screenTraceWgsl } from '../../lighting/manyLightsSampled/screenTraceWgsl.ts'
@@ -42,6 +47,10 @@ export const SAMPLED_LIGHTS_SHADERS: Record<string, string> = {
   SAMPLED_TEMPORAL: temporalWgsl(),
   SAMPLED_SPATIAL: spatialWgsl(),
   SAMPLED_POWER_DELTA: powerDeltaWgsl(),
+  SAMPLED_COMPLEXITY_REPLAY: wgslModule(replayWgsl(FULL_CONTRACT, false, true)),
+  SAMPLED_COMPLEXITY_REPLAY_FRONT: wgslModule(replayWgsl(FULL_CONTRACT, true, false)),
+  SAMPLED_COMPLEXITY_COST: costWgsl(),
+  SAMPLED_COMPLEXITY_HEATMAP: wgslModule(HEATMAP_WGSL),
   SAMPLED_FRONT_LIGHT: frontLightWgsl(),
   SAMPLED_TRANSLUCENCY_INJECT: injectProgram(true),
   SAMPLED_VOLUME_SAMPLE: volumeSampleText({ field: false, pyramid: false }),

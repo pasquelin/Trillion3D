@@ -5,6 +5,7 @@ import assert from 'node:assert/strict'
 import { shaderRun } from '../../materials/texture/shaderRun.fixture.ts'
 import { cacheFilterProgram } from './cache/cacheFilterWgsl.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { POOL_SLOT } from './pool/poolLayout.ts'
 import { ATLAS_CALLS, cellProbes, oneLevel } from './atlas.fixture.ts'
 import { builtins } from '../../materials/texture/shaderRunBuiltins.fixture.ts'
 import { equalAreaDecode } from '../../../../math/src/wgsl/octahedral.ts'
@@ -21,6 +22,9 @@ test('a probe filters with the neighbours its level holds that a probe holds: a 
     [-24, 0, 0],
   ])
   const neighbourSlot = Array<number>(6).fill(9)
+  // Slot 1 (the cell beside the origin) stands an eighth of a metre along x from its cell's place: its offset, the eighth word of a slot.
+  const slotWords = new Uint32Array(64)
+  new Float32Array(slotWords.buffer)[POOL_SLOT.words + POOL_SLOT.offset] = 0.125
   const neighbourPosition = Array.from({ length: 6 }, () => [0, 0, 0])
   const { cacheNeighbour } = shaderRun<{
     cacheNeighbour: (n: number, cell: number[], level: number, spacing: number) => void
@@ -29,12 +33,13 @@ test('a probe filters with the neighbours its level holds that a probe holds: a 
     cellTable: atlas,
     neighbourSlot,
     neighbourPosition,
+    poolSlots: slotWords,
     textureLoad: (_: unknown, at: number[], a: number) => ATLAS_CALLS.textureLoad(atlas, at, a),
   })
   // The axes in turn: -x, +x, -y, +y, -z, +z.
   cacheNeighbour(0, [0, 0, 0], 0, 1)
   assert.equal(neighbourSlot[0], 2, 'the cell beside the origin holds a probe: its slot plus one')
-  assert.deepEqual(neighbourPosition[0], [-1, 0, 0])
+  assert.deepEqual(neighbourPosition[0], [-0.875, 0, 0], 'a probe is where its offset moved it')
   cacheNeighbour(1, [0, 0, 0], 0, 1)
   assert.equal(neighbourSlot[1], 0, 'a cell no probe holds')
   cacheNeighbour(1, [23, 0, 0], 0, 1)
@@ -187,6 +192,7 @@ test('a neighbour allocated but not traced yet, whose map still holds the light 
       cellTable: table,
       neighbourSlot,
       neighbourPosition: Array.from({ length: 6 }, () => [0, 0, 0]),
+      poolSlots: new Uint32Array(64),
       textureLoad: (_: unknown, at: number[], a: number) => ATLAS_CALLS.textureLoad(table, at, a),
     })
     cacheNeighbour(1, [0, 0, 0], 0, 1)

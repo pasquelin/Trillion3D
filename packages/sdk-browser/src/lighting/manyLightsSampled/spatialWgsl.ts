@@ -197,9 +197,9 @@ ${SPATIAL_PART_2}${SPATIAL_PART_3}`
 
 export const spatialWgsl = (debug = false) => {
   const cut = { ...CLASS_CUTS[TILE_CLASS.complex], channels: false }
-  const statements = litPixelStatements(cut).replace(
-    '{discard;}',
-    `{${debug ? DEBUG_EMPTY : ''}textureStore(composite,vec2i(screen),vec4f(0.0));return;}`,
+  const statements = litPixelStatements(
+    cut,
+    `${debug ? DEBUG_EMPTY : ''}textureStore(composite,vec2i(screen),vec4f(0.0));return;`,
   )
   const body = `${SPATIAL_PART_1} let centreDiffuse=textureLoad(filteredDiffuse,vec2i(screen),0);
  let centreSpecular=textureLoad(filteredSpecular,vec2i(screen),0);

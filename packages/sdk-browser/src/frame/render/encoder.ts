@@ -1,5 +1,6 @@
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { sampledDebugSubmitted } from '../../lighting/manyLightsSampled/debug/frame.ts'
+import { sceneDebugSubmitted } from '../../lighting/surfaceCache/sceneDebug/frame.ts'
 import { subsurfaceDebugSubmitted } from '../../lighting/subsurface/frame.ts'
 import { vsmSubmitted } from '../../lighting/shadows/vsm/frame/vsmFrameEnd.ts'
 import { gpuDeviceLedgerOf } from '../../gpu/core/deviceLedger.ts'
@@ -67,6 +68,7 @@ function submittedReadbacks(rt: WebgpuPagesCore, published: boolean) {
   rt.gpu.exposure?.submitted()
   sampledDebugSubmitted(rt)
   subsurfaceDebugSubmitted(rt)
+  sceneDebugSubmitted(rt)
   hzbOcclusionSubmitted(rt)
   vsmSubmitted(rt)
   distanceFieldsSubmitted(rt)

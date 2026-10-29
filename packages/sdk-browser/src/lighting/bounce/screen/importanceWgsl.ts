@@ -1,6 +1,7 @@
 import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
 import { wgslConsts } from '../../../../../math/src/wgsl/consts.ts'
+import { wgslF32 } from '../../../../../math/src/wgsl/number.ts'
 import { luminance } from '../../../../../math/src/wgsl/color.ts'
 import { ndcToPixel } from '../../../../../math/src/wgsl/projection.ts'
 import { SCREEN_PROBE_CONSTANTS } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
@@ -12,6 +13,7 @@ import {
   withLightAtlasEntry,
   type LightAtlasFormat,
 } from '../../../gpu/core/lightAtlasFormat.ts'
+import { CACHE_PDF_UNITS, CACHE_PDF_WORDS } from '../cache/cacheLayout.ts'
 import { atlasEntry } from '../atlas.ts'
 import { bounceBindingsWgsl } from '../gridWgsl.ts'
 import { blueNoiseWgsl } from '../../../gpu/noise/blueNoiseWgsl.ts'
@@ -41,6 +43,7 @@ export const RAYS_BINDINGS = bindingTable({
   cacheRaw: [14, 'uint'],
   cacheSky: [15, 'float'],
   vectors: [17, 'uint'],
+  lobes: [18, 'buffer'],
 })
 /** The atlas of the cascades' probes, which the rays' layout adds (`atlasEntry`). */
 export const RAYS_PROBES = 10
@@ -131,6 +134,10 @@ fn spInfoPdf(info:vec2u)->f32{return bitcast<f32>(info.y);}`,
  * (`importanceLevels` one: the octahedron's texel and the next level down): the three rays the dark directions leave give
  * their share to the direction that wants it. A texel of the ray word names a ray by its octahedron texel and level
  * (`spPackRay`): the texels of the probe's rays, whatever their count, are always the `R × R` the probe owns.
+ *
+ * THE LOBES THE WORLD'S PROBES TRACE BY (`scatterLobes`): a group a probe, a thread of its first axis one of the eight world probes round the probe's
+ * point (the level that covers it, as the cache is read), the threads of the second sharing the ten words: the probe's nine coefficients, and a one
+ * for the weight, added to the world probe's sums (the cache sets them to nothing before, `clearLobes`), from which the cache cuts its trace tiles.
  */
 const RAYS_WGSL = wgslBlock(
   'RAYS_WGSL',
@@ -203,6 +210,28 @@ fn genRays(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_index) l
  spRefine(lane);
  let settled=rays[lane];
  textureStore(rayOut,vec2i(group.xy*SP_TRACE+t),vec4u(spPackRay(spInfoCoord(settled),spInfoLevel(settled)),0u,0u,0u));
+}
+@group(0) @binding(${B.lobes}) var<storage,read_write> lobes:array<atomic<i32>>;
+@compute @workgroup_size(8,8)
+fn scatterLobes(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_id) local:vec3u){
+ let probe=spProbeOrDead(group.xy);
+ if(probe.depth<=0.0){return;}
+ let cover=cacheCoverage(probe.P,0.0);
+ if(!cover.valid){return;}
+ let cell=probeBottomCell(cover.level,probe.P)+vec3i(vec3u(local.x&1u,(local.x>>1u)&1u,(local.x>>2u)&1u));
+ let named=cacheSlotOf(cover.level,cell);
+ if(named==0u){return;}
+ let index=spIndexOf(group.xy);
+ for(var k=local.y;k<${CACHE_PDF_WORDS}u;k+=8u){
+  var coefficient=1.0;
+  var units=1.0;
+  if(k<9u){
+   // A probe on foliage asks for none: the world probes it reads stay at the coarsest trace.
+   coefficient=select(spPdfCoefficient(index,k),0.0,probe.foliage);
+   units=${wgslF32(CACHE_PDF_UNITS)};
+  }
+  atomicAdd(&lobes[(named-1u)*${CACHE_PDF_WORDS}u+k],i32(coefficient*units));
+ }
 }`,
 )
 

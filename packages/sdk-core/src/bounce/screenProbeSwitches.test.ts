@@ -67,7 +67,7 @@ test("the radiance cache: its maps' side and its probes' budget are a level's ro
   const cache = screenProbeSettings().cache
   assert.deepEqual(
     [cache.tiles, cache.filter, cache.filterAngle, cache.mipmaps, cache.skyVisibility],
-    ['full', true, 0.2, 1, false],
+    ['automatic', true, 0.2, 1, false],
   )
   assert.deepEqual([cache.downsampleSq, cache.supersampleSq], [1600, 0])
   assert.equal(

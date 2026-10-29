@@ -30,6 +30,36 @@ const MODE_VIEW: Partial<Record<DiagnosticMode, number>> = {
   'sampled-lights-shadow-caster-quality': VISUALIZE.shadowCasterQuality,
 }
 
+/** The inputs of the light complexity view, as `sampledLightsVisualizeLightComplexity` numbers them. */
+export const COMPLEXITY = {
+  opaque: 1,
+  hairStrands: 2,
+  frontLayer: 3,
+  volume: 4,
+  translucencyVolume: 5,
+} as const
+
+const MODE_COMPLEXITY: Partial<Record<DiagnosticMode, number>> = {
+  'sampled-lights-complexity-opaque': COMPLEXITY.opaque,
+  'sampled-lights-complexity-hair-strands': COMPLEXITY.hairStrands,
+  'sampled-lights-complexity-front-layer': COMPLEXITY.frontLayer,
+  'sampled-lights-complexity-volume': COMPLEXITY.volume,
+  'sampled-lights-complexity-translucency-volume': COMPLEXITY.translucencyVolume,
+}
+
+/** The input the light complexity view shows: the one the diagnostic mode names, else the setting's; 0 for none, and while the lighting is off. */
+export const complexityTargetOf = (
+  settings: Pick<SampledLightsSettings, 'sampledLights' | 'sampledLightsVisualizeLightComplexity'>,
+  mode: DiagnosticMode,
+) =>
+  !settings.sampledLights
+    ? 0
+    : (MODE_COMPLEXITY[mode] ?? settings.sampledLightsVisualizeLightComplexity)
+
+/** Whether the light complexity view draws `target`: the inputs whose weighing it replays, the surfaces and the nearest translucent layer. */
+export const complexityDrawn = (target: number) =>
+  target === COMPLEXITY.opaque || target === COMPLEXITY.frontLayer
+
 /** The numbered view to show: the setting when it names one, else the one the diagnostic mode names; 0 for none. */
 export const visualizeViewOf = (
   settings: Pick<SampledLightsSettings, 'sampledLights' | 'sampledLightsVisualize'>,

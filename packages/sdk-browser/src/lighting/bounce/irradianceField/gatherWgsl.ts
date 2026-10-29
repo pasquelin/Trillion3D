@@ -149,6 +149,11 @@ fn fieldRadiance(slot:u32,direction:vec3f,mip:f32)->vec3f{
 
 /** The weighing of a probe for a pixel and the miss counted where the interpolation found none. */
 const FIELD_PROBE_WGSL = `struct FieldSum{irradiance:vec3f,reflection:vec3f,weight:f32,}
+/** Where the probe of the slot 'held' (plus one) stands from its cell's place: its offset (the move off the surfaces, or an adaptive probe's). */
+fn fieldSlotShift(held:u32)->vec3f{
+ let at=(held-1u)*FIELD_SLOT_WORDS+FIELD_SLOT_OFFSET;
+ return vec3f(bitcast<f32>(poolSlots[at]),bitcast<f32>(poolSlots[at+1u]),bitcast<f32>(poolSlots[at+2u]));
+}
 /** The probe in 'slot' at 'probePosition', weighed for the pixel at 'P' (normal 'N') read from 'S', added in square roots. */
 fn fieldProbe(sum:FieldSum,slot:u32,probePosition:vec3f,P:vec3f,S:vec3f,N:vec3f,reflection:vec3f,mip:f32,trilinear:f32,withReflection:bool,adaptiveUsed:bool)->FieldSum{
  var out=sum;
@@ -237,15 +242,13 @@ fn fieldGather(@builtin(global_invocation_id) id:vec3u){
    if(slot==0u){continue;}
    let weights=max(select(vec3f(1.0)-alpha,alpha,offset>vec3u(0u)),vec3f(0.001));
    let trilinear=weights.x*weights.y*weights.z;
-   sum=fieldProbe(sum,slot,probePosition(cell,spacing),P,S,N,reflection,mip,trilinear,withReflection,false);
+   sum=fieldProbe(sum,slot,probePosition(cell,spacing)+fieldSlotShift(slot),P,S,N,reflection,mip,trilinear,withReflection,false);
    if(adaptive){
     let entry=cellEntry(cover.level,probeWrap(cell));
     for(var rank=0u;rank<FIELD_MAX_ADAPTIVE;rank++){
      let held=adaptiveProbes[entry*FIELD_MAX_ADAPTIVE+rank]>>16u;
      if(held==0u){continue;}
-     let at=(held-1u)*FIELD_SLOT_WORDS+FIELD_SLOT_OFFSET;
-     let shift=vec3f(bitcast<f32>(poolSlots[at]),bitcast<f32>(poolSlots[at+1u]),bitcast<f32>(poolSlots[at+2u]));
-     sum=fieldProbe(sum,held,probePosition(cell,spacing)+shift,P,S,N,reflection,mip,trilinear,withReflection,feedback);
+     sum=fieldProbe(sum,held,probePosition(cell,spacing)+fieldSlotShift(held),P,S,N,reflection,mip,trilinear,withReflection,feedback);
     }
    }
   }

@@ -92,7 +92,7 @@ export const TILES_BINDING_WGSL = wgslBlock(
   [],
   `@group(0) @binding(${DEFERRED_BINDINGS.tiles}) var<storage,read> tileLights:array<u32>;`,
 )
-const SUN_RANKS_BINDING_WGSL = wgslBlock(
+export const SUN_RANKS_BINDING_WGSL = wgslBlock(
   'SAMPLING_SUN_RANKS_BINDING_WGSL',
   [],
   `@group(0) @binding(${DEFERRED_BINDINGS.sunRanks}) var<storage,read> sunRanks:array<u32>;`,
@@ -186,15 +186,17 @@ const OFFER_WGSL = wgslBlock(
     isLightVisible,
     addLightSample,
   ],
-  `/** Offers light 'rank' to the sampler of the pixel: a local light under the least estimate is dropped, the others weighed by the luminance of their
- *  light on the pixel (pre-exposed), a light hidden in the last image cut by the guide. A rectangle light is never dropped by the estimate. */
-fn offerLight(s:ptr<function,LightSampler>,rank:u32,albedo:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,shading:LobeSurface,visibleSet:vec4u,radial:bool){
+  `/** What the sampling weighs a light at on the pixel: the luminance of its light there (pre-exposed) and the weight the draw gives it. */
+struct LightWeigh{luminance:f32,weight:f32}
+/** The weighing of light 'rank' on the pixel: a local light under the least estimate is dropped (weight 0), the others weighed by the luminance of their
+ *  light on the pixel (pre-exposed). A rectangle light is never dropped by the estimate. */
+fn weighLight(rank:u32,albedo:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,shading:LobeSurface,radial:bool)->LightWeigh{
  let light=directLights.items[rank];
  if(radial&&!isRect(light)){
   let toLight=light.positionRange.xyz-P;
   let shares=sharesOf(light);
   let power=dot(light.colorIntensity.rgb,${LUMA})*lightStrength(light)*max(shares.x,shares.y);
-  if(estimateLocalLight(dot(toLight,toLight),power,1.0/max(light.positionRange.w,1e-6),light.shape.y,view.preExposure.x)<params.minEstimate){return;}
+  if(estimateLocalLight(dot(toLight,toLight),power,1.0/max(light.positionRange.w,1e-6),light.shape.y,view.preExposure.x)<params.minEstimate){return LightWeigh(0.0,0.0);}
  }
  var luminance=dot(declaredLight(rank,albedo,metal,rough,N,V,P,1.0,shading),${LUMA})*view.preExposure.x;
  if(thinSurface()){
@@ -205,13 +207,19 @@ fn offerLight(s:ptr<function,LightSampler>,rank:u32,albedo:vec3f,metal:f32,rough
   thinSubsurface=kept;
   luminance=without+select(0.0,params.transmission,transmitsLight(light))*(luminance-without);
  }
- var weight=lightTargetWeight(luminance,params.minWeight);
+ return LightWeigh(luminance,lightTargetWeight(luminance,params.minWeight));
+}
+/** Whether the light was seen from the pixel in the image before, by the guide: its tile's visible set, or a power fallen since so that the light could have been dropped. Always, with no guide. */
+fn lightSeenBefore(rank:u32,luminance:f32,visibleSet:vec4u)->bool{
+ if(params.guide==0u){return true;}
+ return isLightVisible(visibleSet,rank)||luminance*guideRatio(rank)<params.minWeight;
+}
+/** Offers light 'rank' to the sampler of the pixel: the weighing above, a light hidden in the last image cut by the guide. */
+fn offerLight(s:ptr<function,LightSampler>,rank:u32,albedo:vec3f,metal:f32,rough:f32,N:vec3f,V:vec3f,P:vec3f,shading:LobeSurface,visibleSet:vec4u,radial:bool){
+ let weighed=weighLight(rank,albedo,metal,rough,N,V,P,shading,radial);
+ var weight=weighed.weight;
  if(weight<=0.0){return;}
- var visibleBefore=true;
- if(params.guide!=0u){
-  visibleBefore=isLightVisible(visibleSet,rank);
-  if(!visibleBefore){visibleBefore=luminance*guideRatio(rank)<params.minWeight;}
- }
+ let visibleBefore=lightSeenBefore(rank,weighed.luminance,visibleSet);
  if(!visibleBefore){weight*=select(params.hiddenMissWeight,params.hiddenWeight,pixelHistory);}
  addLightSample(s,weight,rank,visibleBefore,radial,params.count1d,params.dirRatio,params.dirMinWeight);
 }`,
@@ -219,7 +227,7 @@ fn offerLight(s:ptr<function,LightSampler>,rank:u32,albedo:vec3f,metal:f32,rough
 
 /** The direction toward a light's centre from `P`: what decides, until the rays are drawn on the light, whether a ray enters a two-sided or
  *  transmitting surface. */
-const TOWARD_WGSL = wgslBlock(
+export const TOWARD_WGSL = wgslBlock(
   'SAMPLING_TOWARD_WGSL',
   [],
   `fn towardLight(light:DirectLight,P:vec3f)->vec3f{
@@ -241,11 +249,12 @@ const SAMPLING_PART_1 = `  textureStore(samples,vec2i(coord),vec4u(packLightSamp
 }`
 
 /** The pieces a sampling program is made of, by what the contract's cut keeps. */
-function samplingParts(
+export function samplingParts(
   key: ContractKey,
   lights: ContractKey,
   cut: ReturnType<typeof litCutOf>,
   textured: boolean,
+  resources: WgslDecl = SAMPLING_RESOURCES_WGSL,
 ) {
   return [
     lightingBase(samplingBindingsOf(textured), lights, {
@@ -260,7 +269,7 @@ function samplingParts(
     TILES_BINDING_WGSL,
     SUN_RANKS_BINDING_WGSL,
     blueNoiseWgsl(0, B.blue),
-    SAMPLING_RESOURCES_WGSL,
+    resources,
     JITTER_WGSL,
     pixelToNdc,
     SURFACE_PAST_WGSL,
@@ -284,7 +293,8 @@ function samplingParts(
   ]
 }
 
-const SAMPLING_PART_2 = ` let cell=cellSlice(pixelCell(pixel.xy,z));
+/** The statements after the pixel's own that find the cell of the light grid, the pixel's place in the image before and the guide's visible set (`visibleSet`), the sampler (`lightDraw`) and, in `pixelHistory`, whether the pixel has a history. */
+export const SAMPLING_PART_2 = ` let cell=cellSlice(pixelCell(pixel.xy,z));
  // The tile of the last image the pixel stands on, moved by a stochastic offset that stands for a bilinear read.
  // Where the surface stood in the image before: the camera's motion, or the vector the velocity stage drew where it moved by itself.
  let size=vec2f(params.historyTiles*${SAMPLED_TILE_SIZE}u);
@@ -330,6 +340,14 @@ const SAMPLING_PART_3 = ` for(var index=0u;index<cell.y;index++){
   var uv=vec2f(0.5);
 `
 
+/** The statements that set the surface the lights are weighed on (`shading`) after the pixel's own, the nearest translucent layer's keeping no diffuse colour where it keeps the specular light alone. */
+export const shadingStatements = (front: boolean) =>
+  ` ${front ? 'var' : 'let'} shading=clothSurface(lobeSurface(albedo,base.a,normal.a,N,V));lobeView(shading);${
+    front
+      ? '\n // The nearest translucent layer that keeps the specular light alone has no diffuse colour to weigh the lights by.\n if(params.spatialU.w!=0u){shading.diffuse=vec3f(0.0);}'
+      : ''
+  }`
+
 /** The sampling's entry: the pixel's lit statements, the lights it draws, and the rays the draws ask (`twoSided` and `transmits` the conditions of the surface's rays). */
 function samplingText(front: boolean, statements: string, twoSided: string, transmits: string) {
   return `
@@ -340,11 +358,7 @@ fn ${SAMPLE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(local_invocation_
  if(any(down>=params.downView)){return;}
  let screen=down*params.factor+downsampleJitter(down);
  let pixel=vec4f(vec2f(screen)+vec2f(0.5),0.0,1.0);${statements}
-${SAMPLING_PART_2} ${front ? 'var' : 'let'} shading=clothSurface(lobeSurface(albedo,base.a,normal.a,N,V));lobeView(shading);${
-    front
-      ? '\n // The nearest translucent layer that keeps the specular light alone has no diffuse colour to weigh the lights by.\n if(params.spatialU.w!=0u){shading.diffuse=vec3f(0.0);}'
-      : ''
-  }
+${SAMPLING_PART_2}${shadingStatements(front)}
 ${SAMPLING_PART_3}  var rayType=${RAY_TYPE.default}u;
   var completed=true;
   if(index!=${NO_LIGHT_INDEX}u){
@@ -386,7 +400,7 @@ export function samplingWgsl(
   textured = true,
 ) {
   const { lights, cut } = sampledClassOf(key, tileClass, rect)
-  const statements = litPixelStatements(cut).replace('{discard;}', '{writeEmpty(down);return;}')
+  const statements = litPixelStatements(cut, 'writeEmpty(down);return;')
   const twoSided = cut.thin ? 'thinSurface()' : 'false'
   const transmits = cut.thin ? `(surfaceFlag&${SUBSURFACE_FLAG}u)!=0u` : 'false'
   return wgslBlock(

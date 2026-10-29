@@ -349,9 +349,21 @@ export const SCENE_RAY_WORDS = 1
 /** The side of the tiles of pixels the integration is classified and dispatched in. */
 export const INTEGRATE_TILE_SIDE = 8
 /** The tiles of a view of the geometry's size whose integration runs at the reduction `downsample`: a list of the integration holds that many for each of its three modes. */
-export const integrateTiles = (g: Pick<ScreenProbeGeometry, 'width' | 'height'>, downsample = 1) =>
-  ceilDiv(ceilDiv(g.width, downsample), INTEGRATE_TILE_SIDE) *
-  ceilDiv(ceilDiv(g.height, downsample), INTEGRATE_TILE_SIDE)
+export const integrateTiles = (
+  g: Pick<ScreenProbeGeometry, 'width' | 'height'>,
+  downsample = 1,
+) => {
+  const [along, across] = integrateTileGrid(g, downsample)
+  return along * across
+}
+/** The tiles along and across a view of the geometry's size whose integration runs at the reduction `downsample`. */
+export const integrateTileGrid = (
+  g: Pick<ScreenProbeGeometry, 'width' | 'height'>,
+  downsample = 1,
+): [number, number] => [
+  ceilDiv(ceilDiv(g.width, downsample), INTEGRATE_TILE_SIDE),
+  ceilDiv(ceilDiv(g.height, downsample), INTEGRATE_TILE_SIDE),
+]
 /** The most workgroups a dispatch holds along an axis on every device (WebGPU's default `maxComputeWorkgroupsPerDimension`): a mode with more tiles is dispatched
  *  in rows of this many. */
 export const INTEGRATE_TILE_ROW = 65535

@@ -9,6 +9,7 @@ import {
   readSurfaceCacheSetting,
   type SurfaceCacheSettings,
 } from '../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
+import type { DiagnosticMode } from '../../../../sdk-core/src/runtime/diagnostics.ts'
 import { resolveSurfaceCacheSettings } from '../../../../sdk-core/src/lighting/surfaceCache/levelSettings.ts'
 import type { SurfaceCacheFrameMetrics } from '../../../../sdk-core/src/contracts/surfaceCacheMetrics.ts'
 import {
@@ -62,6 +63,7 @@ import { atlasCompression } from './compress.ts'
 import { createCaptureKernels, type CaptureKernels, type CaptureSettings } from './copy.ts'
 import { createAtlasViewer, type AtlasViewer } from './debug.ts'
 import { ATLAS_VIEWS } from './debugWgsl.ts'
+import { sceneDebugOf, sceneDebugShown } from './sceneDebug/views.ts'
 import { createSurfaceFeedback, type SurfaceFeedback } from './feedbackBuffer.ts'
 import { disposeSurfaceLighting, type SurfaceLightingState } from './lighting/surfaceLighting.ts'
 import { placementChannelsOf } from '../../geometry/dag/info/placementInfoLayout.ts'
@@ -228,6 +230,10 @@ const NO_WORK = { captured: 0, copied: 0, refreshed: 0, waiting: 0 } as const
 const atlasViewOf = (mode: string): number | undefined =>
   (ATLAS_VIEWS as Record<string, number | undefined>)[mode]
 
+/** Whether a debug view drawn over the image (`sceneDebug/views.ts`) is asked, by its mode or by the settings of the last image: the cache is kept up for it. */
+const sceneDebugAsked = (settings: Parameters<typeof sceneDebugOf>[0], mode: DiagnosticMode) =>
+  sceneDebugShown(sceneDebugOf(settings, mode))
+
 /** Asks for the surface cache for the image to come: a pass that reads it calls it each image, before
  *  the surface cache's own encode. A session with no cards in its cache makes none. */
 export function demandSurfaceCache(rt: WebgpuPagesRuntime) {
@@ -265,7 +271,9 @@ export function surfaceHitReads(
 /** Whether the cache has work left or an atlas view is shown: a frame that is still is not held. The view
  *  follows the cache's own clocks — the age of a page —, which an image advances. */
 export const surfaceCacheBusy = (rt: Pick<WebgpuPagesRuntime, 'surfaceCache' | 'run'>) =>
-  !!rt.surfaceCache?.busy || atlasViewOf(rt.run.diagnostic) !== undefined
+  !!rt.surfaceCache?.busy ||
+  atlasViewOf(rt.run.diagnostic) !== undefined ||
+  (!!rt.surfaceCache && sceneDebugAsked(rt.surfaceCache.settings, rt.run.diagnostic))
 
 /** What keeps the cache busy, term by term (`closeImage`, `updateImage`), for a trace: the capture's programs, the requests the last
  *  image left (mesh cards to add, locked cards to update, high-resolution pages to add), the pages it asked again, and the diagnostic
@@ -535,16 +543,18 @@ export function encodeSurfaceCache(
   cam: EngineCamera,
 ) {
   if (rt.views.active !== rt.views.main) return
-  const shown = atlasViewOf(rt.run.diagnostic) !== undefined
   const state = stateOf(rt, device)
   if (!state) return
+  resolveSurfaceCacheSettings(rt.context, screenProbeSettingsOf(rt).level, state.settings)
+  const shown =
+    atlasViewOf(rt.run.diagnostic) !== undefined ||
+    sceneDebugAsked(state.settings, rt.run.diagnostic)
   if (!state.demanded && !shown) {
     if (state.atlases) release(state)
     return
   }
   state.demanded = false
   state.updated = false
-  resolveSurfaceCacheSettings(rt.context, screenProbeSettingsOf(rt).level, state.settings)
   try {
     updateImage(rt, device, encoder, cam, state)
   } catch (error) {

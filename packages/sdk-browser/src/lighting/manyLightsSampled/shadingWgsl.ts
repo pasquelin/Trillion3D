@@ -253,9 +253,9 @@ export function shadingWgsl(
   textured = true,
 ) {
   const { lights, cut } = sampledClassOf(key, tileClass, rect)
-  const statements = litPixelStatements(cut).replace(
-    '{discard;}',
-    `{textureStore(resolvedDiffuse,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));textureStore(resolvedSpecular,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));return;}`,
+  const statements = litPixelStatements(
+    cut,
+    `textureStore(resolvedDiffuse,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));textureStore(resolvedSpecular,vec2i(screen),vec4f(${RESOLVED_INVALID}.0));return;`,
   )
   return wgslBlock(
     `shadingWgsl(${tileClass}, ${rect}, ${key.lobeless}, ${key.profileless}, ${key.channelless}, ${key.narrow}${textured ? '' : ', plain rectangles'})`,

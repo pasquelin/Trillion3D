@@ -51,7 +51,7 @@ test('the adaptive probes of a cell weigh as its own does and are read when the 
   assert.match(code, /let held=adaptiveProbes\[entry\*FIELD_MAX_ADAPTIVE\+rank\]>>16u;/)
   assert.match(
     code,
-    /sum=fieldProbe\(sum,held,probePosition\(cell,spacing\)\+shift,P,S,N,reflection,mip,trilinear,withReflection,feedback\);/,
+    /sum=fieldProbe\(sum,held,probePosition\(cell,spacing\)\+fieldSlotShift\(held\),P,S,N,reflection,mip,trilinear,withReflection,feedback\);/,
   )
   assert.match(
     code,

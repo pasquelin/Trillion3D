@@ -39,8 +39,7 @@ import { createProfileTable, type ProfileTable } from './table.ts'
 import { ensureSubsurfaceView, subsurfaceViewBytes, type SubsurfaceView } from './view.ts'
 import { SSS_PARAMS } from './layout.ts'
 import { createSubsurfaceDebugPixel } from './debugPixel.ts'
-import { SAMPLED_LIGHTS_RULES } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
-import { readSetting } from '../../../../sdk-core/src/contracts/settingRules.ts'
+import { debugCursor } from '../manyLightsSampled/debug/cursor.ts'
 import { MODEL_SWITCH } from '../../materials/surface/pixelModel.ts'
 import { registeredSubsurfaceProfiles } from './registry.ts'
 
@@ -305,25 +304,10 @@ export function encodeSubsurfaceScattering(
   encodeKernels(encoder, view, groups, pipelines, shape, historyState(state.valid, written), image)
   if (state.settings.debugPixel && !shape.half) {
     // The pixel under the debug cursor (the middle of the image where none is set), read before the recombine rewrites the lit image.
-    const cursor = (
-      field: 'sampledLightsDebugCursorX' | 'sampledLightsDebugCursorY',
-      size: number,
-    ) => {
-      const value = readSetting(SAMPLED_LIGHTS_RULES, rt.context, field)
-      return Math.min(value >= 0 ? value : Math.floor(size / 2), size - 1)
-    }
+    const [x, y] = debugCursor(rt, gpu.targetSize)
     const pixel = (state.pixel ??= createSubsurfaceDebugPixel(device))
-    pixel.encode(
-      encoder,
-      run.frame,
-      shape,
-      groups.common,
-      needed.color,
-      view.textures.pass2,
-      cursor('sampledLightsDebugCursorX', gpu.targetSize[0]),
-      cursor('sampledLightsDebugCursorY', gpu.targetSize[1]),
-    )
-  }
+    pixel.encode(encoder, run.frame, shape, groups.common, needed.color, view.textures.pass2, x, y)
+  } else state.pixel?.forget()
   drawRecombine(encoder, view, groups, pipelines, gpu.hdrView!)
   if (!shape.forceSeparable) {
     state.written = written

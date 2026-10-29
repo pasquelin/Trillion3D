@@ -8,6 +8,7 @@ import { subsurfacePrograms } from './pipelines.ts'
 import { SSS_RECONSTRUCT_WGSL } from './setupWgsl.ts'
 import { sssShapeHeader, subsurfaceShapeKey, type SubsurfaceShape } from './shape.ts'
 import { SUBSURFACE_PASS } from '../../diagnostic/stage/passLabels.ts'
+import { trackPixelReading } from './pixelReading.ts'
 
 /** The floats of the debug buffer: the pixel asked (two, in the image's pixels), then what the kernel found of it (`PIXEL_FIELDS`). */
 const WORDS = 32
@@ -114,18 +115,24 @@ export function createSubsurfaceDebugPixel(device: GPUDevice) {
     usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC,
   })
   const found = new Float32Array(WORDS)
+  const request = new Float32Array(2)
+  const track = trackPixelReading()
   const reader = createGpuPeriodicReadback(
     device,
     { label: `${SUBSURFACE_PASS} debug pixel readback`, bytes: WORDS * 4, eager: true },
-    (mapped) => found.set(new Float32Array(mapped, 0, WORDS)),
+    (mapped) => {
+      found.set(new Float32Array(mapped, 0, WORDS))
+      track.landed(found)
+    },
   )
-  const request = new Float32Array(2)
   return {
     found,
-    /** Whether a reading has come back. */
+    /** Whether a reading of the pixel asked has come back: not one of another pixel, nor one the kernel has not run since. */
     get ready() {
-      return reader.ready
+      return track.fresh
     },
+    /** The kernel does not run just now (the pass is drawn at half resolution): the reading held no longer says what the pixel is. */
+    forget: track.forget,
     /** Encodes the reading of the pixel (`x`, `y`) of the image: `common` the pass's group of the image, `lit` the lit image and `scattered` the scattering's result. */
     encode(
       encoder: GPUCommandEncoder,
@@ -137,6 +144,8 @@ export function createSubsurfaceDebugPixel(device: GPUDevice) {
       x: number,
       y: number,
     ) {
+      // A pixel not the one asked before: what is held is of another, and the next image takes its reading at once. Asked before the kernel is waited for, so that a cursor that moves while it compiles is not read as the old pixel.
+      if (track.ask(x, y)) reader.sampled(Number.NEGATIVE_INFINITY)
       const made = kernels(device)
       const stage = made.stages.of(shape).get()
       if (!stage) return

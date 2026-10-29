@@ -200,9 +200,17 @@ test('the trace through the triangles writes each ray to the trace atlas at its 
   assert.doesNotMatch(CACHE_TRACED_PROGRAM, /spreadTile|rawOut|cacheTileOf\(queued\.slot/)
   assert.match(
     CACHE_TRACE_PROGRAM,
-    /spreadTile\(cacheTileOf\(queued\.slot,res\),at,local,trace,lane,ray\.seen,ray\.word\);/,
+    /spreadTile\(cacheTileOf\(queued\.slot,res\),at,local,trace,lane,ray\.seen,ray\.word,inside\);/,
   )
   assert.doesNotMatch(CACHE_TRACE_PROGRAM, /traceOut|traceAtlasAt/)
+})
+
+test('a thread whose texel lies past the level’s rays traces none and writes none, in the march and in the trace through the triangles', () => {
+  for (const program of [CACHE_TRACE_PROGRAM, CACHE_TRACED_PROGRAM])
+    assert.match(program, /let inside=all\(at\*CACHE_TILE_SIDE\+local<vec2u\(trace\)\);/)
+  assert.match(CACHE_TRACED_PROGRAM, / if\(inside\)\{\n  let ray=traceTileRay\(/)
+  assert.match(CACHE_TRACE_PROGRAM, / if\(inside\)\{ray=traceTileRay\(/)
+  assert.match(CACHE_TRACE_PROGRAM, /if\(inside\)\{textureStore\(rawOut,base\+texel\*factor/)
 })
 
 /** The cache's depth word and the light word, run on the shipped text. */

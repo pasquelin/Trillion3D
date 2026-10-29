@@ -4457,6 +4457,45 @@ const world = createWorld('viewer', {
 const world = createWorld('viewer', { hairStrands: true, hairWriteGBufferData: 3 })
 ```
 
+## Surface cache: debug views
+The surface cache draws its own tables and boxes over the image, as a diagnostic mode or as a setting (`world.surfaceCache`); a mode shows its view whatever the setting says, and keeps the cache up while it is shown. Nothing is drawn, and nothing is copied from the GPU, while none is asked.
+
+| Mode | Setting | Default | What it shows |
+| --- | --- | --- | --- |
+| `surface-cache-direct-stats` | `surfaceCacheLightingStats: 1` | `0` | the table of the direct light update, from a tenth of the image's width and height: the tiles of each of the 16 priority buckets (eight a line), `MaxBucket` and `MaxTilesFromMaxBucket` (the bucket the budget ends in and the tiles of it that fit), then the pages and the tiles the image lights; read back from the GPU a few images late |
+| `surface-cache-indirect-stats` | `surfaceCacheLightingStats: 2` | `0` | the same table for the indirect light (radiosity) update |
+| `surface-cache-direct-lighting-stats` | `surfaceCacheLightingStats: 3` | `0` | the lights the direct update gathers (`#Lights`, `Batched Lights`, `Standalone Lights`, whether rectangles, light functions and IES lights are among them), the atlas (`AtlasResolution`, `UpdateAtlasSize`, `MaxUpdateTiles`, `UpdateFactor`), the trace (`Method`, `RT Traces`: the groups of 64 shadow traces, an overestimate) and the cards and tiles being updated; read back a few images late |
+| `surface-cache-scene-stats` | `surfaceCacheSceneStats` | `false` | `NumPrimitiveGroups`, `NumMeshCards` and `NumCards`: the placements that have cards, their mesh cards and the cards in the scene |
+| `surface-cache-primitive-groups` | `surfaceCacheVisualizePrimitiveGroups` | `false` | the box of every placement that has mesh cards, in white, in the world (the first thirteen hundred: a view's line list holds 16384 segments) |
+
+The screen probes and the world's probes have tables of their own, drawn the same way (the numbers come back from the GPU a few images late, and nothing is copied while none is asked):
+
+| Mode | Setting | Default | What it shows |
+| --- | --- | --- | --- |
+| `radiance-cache-stats` | `screenProbeRadianceCacheStats` | `false` | the update of the world's probes: `MaxProbesInAtlas` and `ProbesInAtlas` (the probes the atlas holds out of the most it can), `Unfilled` (holding nothing yet), `Refreshing` (not traced since the lights last changed), `Refused` (marks refused for want of a probe), `Traced Probes` (queued by the last pass) and `Marked` (cells marked) |
+| `screen-probe-gather-debug` | `screenProbeGatherDebug` | `false` | at four fifths of the image's width: `NumScreenProbes`, `NumUniformScreenProbes` and `NumAdaptiveScreenProbes` |
+| `screen-probe-tile-stats` | `screenProbeTileDebugMode` | `false` | the integration's tiles: the tile grid, then the tiles of the `Simple`, `ImportanceSample` and `All` modes and their total, with the legend in green, orange and cyan (needs `screenProbeIntegrationTileClassification`) |
+
+The scene table also writes `AddOps` and `RemoveOps`: the count of the placements that wanted mesh cards or lost them in the image, then the ids of the first seven.
+
+```js
+// The world's probes update table, and the count of the screen probes.
+const world = createWorld('viewer', {
+  screenProbes: 'high',
+  screenProbeRadianceCacheStats: true,
+  screenProbeGatherDebug: true,
+})
+world.diagnostic.mode = 'screen-probe-tile-stats' // or by mode: the integration's tiles
+```
+
+```js
+// The direct light's update table, and the boxes of the placements that have cards.
+const world = createWorld('viewer', {
+  surfaceCache: { surfaceCacheLightingStats: 1, surfaceCacheVisualizePrimitiveGroups: true },
+})
+world.diagnostic.mode = 'surface-cache-scene-stats' // or by mode: the counts of the scene
+```
+
 ## Sampled lighting: debug views
 The sampled lighting (`sampledLights`) and the subsurface scattering have views that draw over the image, as the other diagnostic views do. They are chosen by `world.diagnostic.mode` or by a setting, and need the effect they show to be on.
 
@@ -4466,6 +4505,9 @@ The sampled lighting (`sampledLights`) and the subsurface scattering have views 
 | `sampled-lights-overview` | the shadow caster views side by side, in tiles with rounded corners, over the image |
 | `sampled-lights-shadow-casters` | the surface under each pixel in grey, with the label `Shadow Casters, Materials:0, FarField:0, HairVoxels:0` (the traces are made through the distance field, which has no scene of its own to colour) |
 | `sampled-lights-shadow-caster-quality` | the same, with the label that names red a missing caster and blue a mismatching one |
+| `sampled-lights-complexity-opaque` | the light complexity of the surfaces: for the pixel under the debug cursor, the lights of its cell of the light grid sorted by the weight the sampling gives them, each as a row of text (its share of the sum, whether it was seen in the image before, its kind and its name) and a line and a symbol from the pixel to it (a sphere for a point light, an arc for a spot, two rectangles for a rectangle light, a line along its direction for a sun; the light under the mouse in orange), and the image in grey times a colour that goes from blue to red with the cost of sampling each pixel |
+| `sampled-lights-complexity-front-layer` | the same for the nearest translucent layer (needs `sampledLightsFrontLayer`) |
+| `sampled-lights-complexity-hair-strands`, `sampled-lights-complexity-volume`, `sampled-lights-complexity-translucency-volume` | the hair strands' and the volumes' light complexity: not drawn yet (the modes are refused, and the setting below writes that the input is not drawn) |
 | `subsurface-profiles` | in the lower right quarter, the whole image's subsurface profile of each pixel: the default skin buff, then red, green, blue, magenta, cyan and yellow, 100 dark green, 255 white, any other mid grey; the profile's number or letter in each cell of eight pixels, all faded where the scattering stays inside a pixel; the title and the list of the profiles are written at the top left |
 
 | Setting | Default | Meaning |
@@ -4474,6 +4516,13 @@ The sampled lighting (`sampledLights`) and the subsurface scattering have views 
 | `sampledLightsVisualizeShadowCasterMissingDistance` | `0.5` | Metres a traced surface may lie behind the drawn one before it is called missing |
 | `sampledLightsVisualizeShadowCasterPoorDistance` | `0.25` | Metres it may lie in front before it is called mismatching |
 | `sampledLightsVisualizeTileClassification` | `0` | The tiles of the classification over the image: 1 the surfaces' tiles, 2 the downsampled tiles (3 to 6 the hair strands' and the nearest layer's, drawn with their own images); each type in its colour with a count table |
+| `sampledLightsVisualizeLightComplexity` | `0` | The input of the light complexity view in place of a mode (a mode wins): 1 the surfaces, 2 the hair strands, 3 the nearest translucent layer, 4 the volume, 5 the translucency volume. Only 1 and 3 are drawn yet |
+| `sampledLightsVisualizeLightComplexityMaxLights` | `32` | The most lights the list shows, the heaviest first |
+| `sampledLightsVisualizeLightComplexityMaxCost` | `32` | The cost the heat map paints red; a lower cost goes through yellow, green and cyan to blue, a pixel with no cost stays grey. 0 paints no heat map |
+| `sampledLightsVisualizeLightComplexityFreeze` | `false` | Keeps the list and the lines of the last pixel read, so that the cursor and the camera can move; the heat map is not painted |
+| `sampledLightsVisualizeLightComplexityDump` | `false` | Writes the list to the console once each time the option is turned on: name, share and weight, visibility, kind and place or direction of every light |
+| `sampledLightsVisualizeLightComplexityHeatmap` | `true` | Paints the heat map; false leaves the image as it is |
+| `sampledLightsVisualizeLightComplexityLightColor` | `true` | The lines and symbols in the light's own colour, dimmed when it was not seen; false: green, dark green when not seen |
 | `sampledLightsDebug` | `0` | The input the debug prints speak of: 1 the surfaces, 2 the volume, 3 the translucency volume, 4 the hair strands, 5 the nearest layer |
 | `sampledLightsDebugTraceStats` | `false` | With `sampledLightsDebug`, the count of rays each trace method got, written at the right of the image |
 | `sampledLightsDebugCursorX`, `sampledLightsDebugCursorY` | `-1` | The pixel the prints inspect; -1 is the middle of the image |
@@ -4492,6 +4541,20 @@ const world = createWorld('viewer', {
   sampledLightsDebugCursorY: 540,
 })
 world.diagnostic.mode = 'subsurface-profiles'
+```
+
+The light complexity view lists the lights of the cell under the debug cursor and paints the cost of sampling every pixel. The list is read back a few frames after the pixel is asked, and the lights are named by their ids.
+
+```js
+// The lights of the pixel at (960, 540), the heaviest eight, and the heat map red from a cost of 16.
+const world = createWorld('viewer', {
+  sampledLights: true,
+  sampledLightsDebugCursorX: 960,
+  sampledLightsDebugCursorY: 540,
+  sampledLightsVisualizeLightComplexityMaxLights: 8,
+  sampledLightsVisualizeLightComplexityMaxCost: 16,
+})
+world.diagnostic.mode = 'sampled-lights-complexity-opaque'
 ```
 
 ## Hair strands: debug views

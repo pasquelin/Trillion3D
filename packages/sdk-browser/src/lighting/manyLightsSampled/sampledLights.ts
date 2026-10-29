@@ -33,6 +33,11 @@ import { reflectionLayout } from '../reflections/reflectionPipelines.ts'
 import { FRONT_TRACED_FORMAT } from '../reflections/frontLayer.ts'
 import { SAMPLED_BINDINGS } from './bindings.ts'
 import {
+  createLightComplexity,
+  type ComplexityImage,
+  type ComplexityRequest,
+} from './debug/complexity/replay.ts'
+import {
   COMPACT_ARGS_ENTRY,
   COMPACT_ENTRY,
   compactArgsAt,
@@ -146,6 +151,8 @@ export interface SampledLightsInputs {
   field?: GlobalFieldRead
   /** The texture the spatial filter writes the debug views' values into (`spatialDebugWgsl.ts`), 2 texels a pixel each way; none, the filter is the plain one. */
   debugPixels?: GPUTextureView
+  /** What the light complexity view asks of this image (`debug/complexity/`): the pixel to replay and where the list and the cost of every pixel go; none, nothing. */
+  complexity?: ComplexityRequest
   /** The ratio of each light's power since the image before, as words (`lightPower.ts`). */
   power: GPUBuffer
   /** The strands' voxels where the view holds hair and `sampledLightsHairVoxelTraces` holds: the surfaces' rays the distance field traces are also marched through them; none, no hair is traced. */
@@ -548,31 +555,54 @@ function makeLayouts(device: GPUDevice) {
   return { ...tileLayouts(layout), ...traceLayouts(layout), ...denoiseLayouts(layout) }
 }
 
-/** The layout of the sampling of a class, under a key: the pixel's layers, the lights, the light grid, the suns' ranks, the draw's lists and
- *  outputs, the guide, the noise, the light functions, the light profiles where the scene has some, and the thin and lobe targets the class reads. */
+/** The layout entries every kernel that weighs the lights of a pixel starts with: the pixel's layers, the lights, the light grid, the suns' ranks, the light functions, the light profiles where
+ *  the scene has some, and the uniform. */
+function weighingLayoutEntries(key: ContractKey): GPUBindGroupLayoutEntry[] {
+  return [
+    ...shadedLayoutEntries(),
+    computeBufferEntry(D.tiles, 'read-only-storage'),
+    computeBufferEntry(D.sunRanks, 'read-only-storage'),
+    lightFunctionLayoutEntry(D.lightFunctionAtlas),
+    ...(key.profileless
+      ? []
+      : lightProfileLayoutEntries({
+          atlas: D.lightProfileAtlas,
+          sampler: D.lightProfileSampler,
+          rectAtlas: D.rectAtlas,
+          rectSampler: D.rectAtlasSampler,
+        })),
+    computeBufferEntry(B.params, 'uniform'),
+  ]
+}
+
+/** The entries the sampling reads of the last image's guide: the guide, the blue noise and the surfaces' vectors. */
+const guideLayoutEntries = (): GPUBindGroupLayoutEntry[] => [
+  computeBufferEntry(B.guideHistory, 'read-only-storage'),
+  computeTextureEntry(B.blue, 'unfilterable-float'),
+  computeTextureEntry(B.vectors, 'uint'),
+]
+
+/** The thin and lobe targets a class reads, as read-only entries. */
+function classTargetLayoutEntries(tileClass: TileClass): GPUBindGroupLayoutEntry[] {
+  const cut = CLASS_CUTS[tileClass]
+  const readOnlyTarget = (entry: GPUBindGroupLayoutEntry) => ({ ...entry, visibility: COMPUTE })
+  return [
+    ...(cut.thin ? [readOnlyTarget(SUBSURFACE_TARGET.layoutEntry())] : []),
+    ...(cut.lobes ? [readOnlyTarget(PHYSICAL_LOBES_TARGET.layoutEntry())] : []),
+  ]
+}
+
+/** The layout of the sampling of a class, under a key: the weighing's entries, the draw's lists and
+ *  outputs and the guide, or the shading's lists, samples and resolve, then the thin and lobe targets the class reads. */
 function samplingLayout(
   device: GPUDevice,
   key: ContractKey,
   tileClass: TileClass,
   shading = false,
 ) {
-  const cut = CLASS_CUTS[tileClass]
-  const readOnlyTarget = (entry: GPUBindGroupLayoutEntry) => ({ ...entry, visibility: COMPUTE })
   return device.createBindGroupLayout({
     entries: [
-      ...shadedLayoutEntries(),
-      computeBufferEntry(D.tiles, 'read-only-storage'),
-      computeBufferEntry(D.sunRanks, 'read-only-storage'),
-      lightFunctionLayoutEntry(D.lightFunctionAtlas),
-      ...(key.profileless
-        ? []
-        : lightProfileLayoutEntries({
-            atlas: D.lightProfileAtlas,
-            sampler: D.lightProfileSampler,
-            rectAtlas: D.rectAtlas,
-            rectSampler: D.rectAtlasSampler,
-          })),
-      computeBufferEntry(B.params, 'uniform'),
+      ...weighingLayoutEntries(key),
       ...(shading
         ? [
             // The view's lists of tiles by mode, the samples as they were left, and what the shading resolves.
@@ -588,12 +618,9 @@ function samplingLayout(
             computeBufferEntry(B.downData, 'read-only-storage'),
             computeStorageTextureEntry(B.samples, 'r32uint', 'write-only'),
             computeStorageTextureEntry(B.rays, 'r32uint', 'write-only'),
-            computeBufferEntry(B.guideHistory, 'read-only-storage'),
-            computeTextureEntry(B.blue, 'unfilterable-float'),
-            computeTextureEntry(B.vectors, 'uint'),
+            ...guideLayoutEntries(),
           ]),
-      ...(cut.thin ? [readOnlyTarget(SUBSURFACE_TARGET.layoutEntry())] : []),
-      ...(cut.lobes ? [readOnlyTarget(PHYSICAL_LOBES_TARGET.layoutEntry())] : []),
+      ...classTargetLayoutEntries(tileClass),
     ],
   })
 }
@@ -971,6 +998,8 @@ interface Kit {
   cache: ReturnType<typeof createSamplingCache>
   /** The spatial filter with the debug output, compiled at the first image a view asks for it. */
   spatialDebug: () => Stage
+  /** The light complexity view's replay and cost, made at the first image that asks. */
+  complexity: () => ReturnType<typeof createLightComplexity>
   state: {
     noVectors?: GPUTextureView
     /** What the samples phase of this image left for its traces phase. */
@@ -1627,6 +1656,51 @@ function imageReady(
   )
 }
 
+/** What the light complexity view reads of the image: the sampling's own weighing layout, the guide, the noise and the vectors, and the pixel's layers and the light grid the cost reads. */
+function complexityImage(c: EncodeContext): ComplexityImage {
+  const { inputs, key, r, history, vectors, words } = c
+  const surface = inputs.surface
+  return {
+    key,
+    front: inputs.input === 'frontTranslucency',
+    textured: inputs.texturedRects,
+    layoutEntries: [
+      ...weighingLayoutEntries(key),
+      ...guideLayoutEntries(),
+      ...classTargetLayoutEntries(TILE_CLASS.complex),
+    ],
+    groupKeys: [
+      ...pixelKeys(c),
+      ...lightGridKeys(c),
+      r.params,
+      history,
+      inputs.noise,
+      vectors,
+      surface.subsurfaceView,
+      surface.lobesView,
+    ],
+    groupEntries: () => [
+      ...pixelEntries(c),
+      ...lightGridEntries(c),
+      { binding: B.params, resource: { buffer: r.params } },
+      { binding: B.guideHistory, resource: { buffer: history } },
+      { binding: B.blue, resource: inputs.noise },
+      { binding: B.vectors, resource: vectors },
+      ...classTargetEntries(c, TILE_CLASS.complex),
+    ],
+    cost: {
+      words,
+      depth: inputs.depth,
+      view: inputs.view,
+      lights: inputs.lights,
+      tiles: inputs.tiles,
+      sunRanks: inputs.sunRanks,
+      params: r.params,
+      size: c.g.view,
+    },
+  }
+}
+
 /**
  * Encodes the first lot of passes of an image (`SampledLightsInputs`) into `encoder`, or nothing while a pipeline compiles.
  * Returns what the next passes read.
@@ -1707,6 +1781,7 @@ function encodeImage(
   if (phase !== 'traces') {
     encodeTiles(c)
     encodeDraws(c)
+    if (inputs.complexity) k.complexity().encode(pass, complexityImage(c), inputs.complexity)
   }
   if (phase !== 'samples') {
     if (tracing) {
@@ -1746,8 +1821,10 @@ export function createSampledLights(
   }
   const frontLight = createFrontLight(device, stage)
   let spatialDebug: Stage | undefined
+  let complexity: ReturnType<typeof createLightComplexity> | undefined
   const kit: Kit = {
     device,
+    complexity: () => (complexity ??= createLightComplexity(device, failed)),
     spatialDebug: () =>
       (spatialDebug ??= askedComputeStage(
         device,
@@ -1774,6 +1851,7 @@ export function createSampledLights(
     ) => encodeImage(kit, encoder, inputs, phase),
     packFrontLight: frontLight.pack,
     dispose() {
+      complexity?.dispose()
       kit.stages.hairTraceSettings.destroy()
       frontLight.group.release()
       releaseKit(kit)

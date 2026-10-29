@@ -79,6 +79,10 @@ import {
  *   `sampledLightsVisualizeShadowCasterMissingDistance` (0.5 m) and `…PoorDistance` (0.25 m) how far a traced surface may lie from the drawn one before the quality view calls it missing or mismatching;
  *   `sampledLightsVisualizeTileClassification` (0, 1 to 6) the tiles of the classification drawn over the image — 1 the surfaces' tiles, 2 the downsampled tiles, 3 and 4 the hair strands', 5 and 6 the nearest
  *   translucent layer's —;
+ *   `sampledLightsVisualizeLightComplexity` (0, 1 to 5: the surfaces, the hair strands, the nearest translucent layer, the volume, the translucency volume) the light complexity view of an input — the cell's lights under the cursor
+ *   with their weights, kinds and visibility, drawn to the pixel, and a heat map of the cost of sampling —, which the diagnostic modes `sampled-lights-complexity-…` also choose (the surfaces and the nearest translucent layer are drawn, the hair strands and the volumes not yet);
+ *   `…MaxLights` (32) the lights the list shows, `…MaxCost` (32) the cost the heat map's red stands for, `…Freeze` (off) keeps the list and the lines of the image it was on, `…Dump` (off) writes the list to the console,
+ *   `…Heatmap` (on) and `…LightColor` (on) the two checkboxes of the view: the heat map, and the lines and symbols of the lights in their colour rather than green;
  *   `sampledLightsDebug` (0, 1 to 5: the surfaces, the volume, the translucency volume, the hair strands, the nearest layer) which input the debug prints speak of, `sampledLightsDebugTraceStats` (off) the
  *   count of rays each trace method got, and `sampledLightsDebugCursorX` / `…Y` (-1, the middle of the image) the pixel the light list and the prints inspect;
  * - `sampledLightsVolume` (on), `sampledLightsVolumeSamplesPerVoxel` (2) and `sampledLightsVolumeMinSampleWeight` (0.1): whether the local lights lit the volumetric fog's
@@ -168,6 +172,13 @@ export const SAMPLED_LIGHTS_RULES = /* @__PURE__ */ (() =>
     nonNegativeSetting('sampledLightsVisualizeShadowCasterMissingDistance', 0.5),
     nonNegativeSetting('sampledLightsVisualizeShadowCasterPoorDistance', 0.25),
     integer('sampledLightsVisualizeTileClassification', 0, [0, 6]),
+    integer('sampledLightsVisualizeLightComplexity', 0, [0, 5]),
+    countSetting('sampledLightsVisualizeLightComplexityMaxLights', 32, 0),
+    nonNegativeSetting('sampledLightsVisualizeLightComplexityMaxCost', 32),
+    flag('sampledLightsVisualizeLightComplexityFreeze', false),
+    flag('sampledLightsVisualizeLightComplexityDump', false),
+    flag('sampledLightsVisualizeLightComplexityHeatmap', true),
+    flag('sampledLightsVisualizeLightComplexityLightColor', true),
     integer('sampledLightsDebug', 0, [0, 5]),
     flag('sampledLightsDebugTraceStats', false),
     integer('sampledLightsDebugCursorX', -1, [-1, 65535]),

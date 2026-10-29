@@ -174,6 +174,7 @@ test('the irradiance field gather is a setting of the reference’s names and de
     markDownsample: 2,
     adaptivePlacement: false,
     feedbackTile: 8,
+    probeOffsetMode: 'gbuffer',
     maxRoughnessToEvaluateRoughSpecular: 0.8,
   })
   assert.equal(

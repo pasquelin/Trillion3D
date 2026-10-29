@@ -68,7 +68,7 @@ interface UpdateGroups {
   readonly fixup: GPUBindGroup
 }
 
-/** The dispatches of the update: the tiles of the probes queued, their trace (and, through the scene's triangles, the spread of the trace
+/** The dispatches of the update: the tiles of the probes queued (cut by the lobes the screen probes want light in, where `lobes`), their trace (and, through the scene's triangles, the spread of the trace
  *  atlas, in `slices` of the list's tiles one after the other where the atlas holds fewer than the list), the filter where the setting asks for it, and the final maps with their border and levels of detail. The probes the image queued
  *  are the GPU's to count: each dispatch over them takes the arguments the pool wrote (`args`, `POOL_ARGS`). */
 function dispatchUpdate(
@@ -80,17 +80,21 @@ function dispatchUpdate(
   trace: TraceDispatch,
   slices: number,
   sorted: boolean,
+  lobes: boolean,
   args: GPUBuffer,
   tiles: GPUBuffer,
+  before: AfterUpdate | undefined,
+  parts: UpdateParts,
 ) {
   const probes = POOL_ARGS.probes * 4
   pass.setBindGroup(0, groups.tiles)
-  pass.setPipeline(kernels.tiles.generateTiles)
+  pass.setPipeline(lobes ? kernels.tiles.generateLobeTiles : kernels.tiles.generateTiles)
   pass.dispatchWorkgroupsIndirect(args, probes)
   if (sorted) {
     pass.setPipeline(kernels.tiles.sortTiles)
     pass.dispatchWorkgroupsIndirect(tiles, 0)
   }
+  before?.(pass, parts)
   for (let slice = 0; slice < slices; slice++) {
     if (slice > 0) {
       pass.setBindGroup(0, groups.tiles)
@@ -141,6 +145,10 @@ interface CacheState extends FrameAtlases {
   refused: CacheShape | undefined
   /** The pass that follows each update, if any. */
   readonly after: AfterUpdate | undefined
+  /** The pass that moves the probes queued before they are traced, if any. */
+  readonly before: AfterUpdate | undefined
+  /** Whether the lobes of the probes queued were set to nothing (`clearLobes`) for the screen probes to add theirs: the update's tiles follow them. */
+  lobes: boolean
   /** An update the budget left no room for the atlases of its frame: the probes it held were counted as traced, so every probe is
    *  traced anew once the atlases are made again. */
   missed: boolean
@@ -215,7 +223,7 @@ function release(state: CacheState) {
   dropTemp(state)
   if (state.storage) giveBack(state.device, state.storage)
   state.storage = state.groups = state.pending = state.unavailable = state.refused = undefined
-  state.missed = false
+  state.missed = state.lobes = false
 }
 
 /** The maps follow `now`, and the pre-exposure their light is kept under: where it changed they are made again, the update queued
@@ -264,9 +272,26 @@ function traceOf(
   }
 }
 
+/** The lobes the screen probes want light in set to nothing for the probes queued, before the screen probes add theirs; whether the update is pending
+ *  and its tiles follow the lobes (`screenProbeRadianceCacheTraceTiles` automatic), that is, whether the screen probes are to add theirs. */
+function clearLobes(state: CacheState, pass: GPUComputePassEncoder) {
+  const { storage, groups, settings, pending } = state
+  const kernels = storage && state.kernels.get(storage.shape.light)
+  state.lobes = false
+  if (!pending || !kernels || !groups || settings?.cache.tiles !== 'automatic') return false
+  pass.setBindGroup(0, groups.tiles)
+  pass.setPipeline(kernels.tiles.clearLobes)
+  pass.dispatchWorkgroupsIndirect(pending.args, POOL_ARGS.probes * 4)
+  state.lobes = true
+  return true
+}
+
 function encode(state: CacheState, pass: GPUComputePassEncoder) {
   const queued = state.pending
   state.pending = undefined
+  // The lobes were cleared for this queue only: an update that does not run leaves none for the next one to follow.
+  const lobes = state.lobes
+  state.lobes = false
   const { storage, groups, settings } = state
   const kernels = storage && state.kernels.get(storage.shape.light)
   if (!queued || !storage || !kernels || !groups || !settings) return false
@@ -279,12 +304,7 @@ function encode(state: CacheState, pass: GPUComputePassEncoder) {
     state.missed = false
     state.remade()
   }
-  const traceTiles = cacheTraceTiles(
-    storage.shape.resolution,
-    queued.queue,
-    settings.cache.tiles,
-    queued.queue.full,
-  )
+  const traceTiles = cacheTraceTiles(storage.shape.resolution, queued.queue)
   const trace = traceOf(state, kernels, storage, queued, settings, traceTiles)
   writeCacheParams(
     settings,
@@ -300,6 +320,7 @@ function encode(state: CacheState, pass: GPUComputePassEncoder) {
     0,
     RADIANCE_CACHE_PARAMS.words,
   )
+  const parts = { wiring: state.wiring, storage, args: queued.args, reads: queued.reads }
   const after = {
     filter: state.filterGroup(kernels, storage, temp, noiseViewOn(state.device)),
     fixup: state.fixupGroup(kernels, storage, temp),
@@ -311,14 +332,15 @@ function encode(state: CacheState, pass: GPUComputePassEncoder) {
     after,
     settings.cache.filter,
     trace,
-    trace.splat
-      ? cacheTraceSlices(storage.shape.resolution, queued.queue, traceTiles, queued.queue.full)
-      : 1,
+    trace.splat ? cacheTraceSlices(storage.shape.resolution, queued.queue, traceTiles) : 1,
     settings.cache.sortTiles,
+    lobes,
     queued.args,
     storage.tiles,
+    state.before,
+    parts,
   )
-  state.after?.(pass, { wiring: state.wiring, storage, args: queued.args, reads: queued.reads })
+  state.after?.(pass, parts)
   return true
 }
 
@@ -361,6 +383,7 @@ function newCacheState(
   wiring: CacheWiring,
   remade: () => void,
   after: AfterUpdate | undefined,
+  before: AfterUpdate | undefined,
 ): CacheState {
   return {
     device,
@@ -369,6 +392,7 @@ function newCacheState(
     wiring,
     remade,
     after,
+    before,
     traceGroup: cacheTraceBinder(device, wiring),
     tracedGroups: cacheTracedBinder(device, wiring),
     splatGroup: cacheSplatBinder(device, wiring),
@@ -387,6 +411,7 @@ function newCacheState(
     unavailable: undefined,
     refused: undefined,
     missed: false,
+    lobes: false,
   }
 }
 
@@ -407,8 +432,10 @@ export function createRadianceCache(
   wiring: CacheWiring,
   remade: () => void,
   after?: AfterUpdate,
+  /** A pass that runs before the probes queued are traced, once their tiles are cut (the irradiance field's move of its probes off the surfaces). */
+  before?: AfterUpdate,
 ) {
-  const state = newCacheState(device, first, wiring, remade, after)
+  const state = newCacheState(device, first, wiring, remade, after, before)
   return {
     /** Why the cache could not be made, when it could not. */
     get reason() {
@@ -442,6 +469,8 @@ export function createRadianceCache(
     clear(encoder: GPUCommandEncoder) {
       if (state.storage) clearCacheMaps(device, encoder, state.storage)
     },
+    /** The lobes the screen probes want light in set to nothing for the probes queued, in `pass`; whether the screen probes are to add theirs (`scatterLobes`) before `encode`. */
+    clearLobes: (pass: GPUComputePassEncoder) => clearLobes(state, pass),
     /** The update of the maps of the probes queued, in `pass`. Returns whether an update was made. */
     encode: (pass: GPUComputePassEncoder) => encode(state, pass),
     /** The update of the image, made now in a pass of its own, where the screen probes made none. */

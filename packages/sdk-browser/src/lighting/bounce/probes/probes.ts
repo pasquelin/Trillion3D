@@ -33,6 +33,8 @@ export interface ProbeOptions {
   surfaceMarks?: boolean
   /** A pass that follows each update of the radiance cache's maps (`AfterUpdate`): the irradiance field's maps. */
   afterUpdate?: AfterUpdate
+  /** A pass that runs before the probes queued are traced (`createRadianceCache`'s `before`): the irradiance field's move of its probes. */
+  beforeUpdate?: AfterUpdate
   /** Whether the cells take adaptive probes where the pixels miss the interpolation (`irradianceFieldAdaptivePlacement`): the irradiance field's cache alone. */
   adaptive?: boolean
 }
@@ -148,9 +150,16 @@ export async function createGpuBounceProbes(
   const cache = createRadianceCache(
     device,
     { light, kernels: rig.cacheKernels },
-    { grid: uniform.buffer, table: rig.view, queue: rig.queue, slots: cascades.probes },
+    {
+      grid: uniform.buffer,
+      table: rig.view,
+      queue: rig.queue,
+      slots: cascades.probes,
+      offsets: rig.pool.adaptive.slots,
+    },
     () => restartCache.remade(),
     options.afterUpdate,
+    options.beforeUpdate,
   )
   const parts: ProbeParts = { cascades, pool: rig.pool, uniform, cache }
   const encoder = createProbeEncoder(parts, lights, settings)

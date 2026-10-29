@@ -31,7 +31,7 @@ export interface ScreenProbeRun {
   sceneReflection: GPUBindGroup
   settings: ScreenProbeSettings
   /** The radiance cache, whose update the probes' importance is added to before: none where the cache is none. */
-  cache?: Pick<RadianceCache, 'encode'>
+  cache?: Pick<RadianceCache, 'encode' | 'clearLobes'>
   /** The scene stage that casts the rays through the scene's triangles, where this image has it (`tracedSceneOf`): none, the rays are marched. */
   traced?: TracedSceneGroups
   /** The meshes' fields stage (`meshStageOf`), where this image traces them for the probes the scene stage marches through the global field: dispatched before it. */
@@ -105,6 +105,9 @@ function placeProbes(pass: GPUComputePassEncoder, run: CastRun) {
  *  is the second half), from what the pixels asked of the probes (`screenData`, in the placement). */
 function chooseRays(pass: GPUComputePassEncoder, run: CastRun) {
   const { groups, kernels, settings, resources } = run
+  // The world probes about to be traced add up the lobes of the screen probes round them, which their trace tiles follow.
+  if (run.cache?.clearLobes(pass))
+    dispatchOver(pass, kernels.rays.pipelines.scatterLobes, groups.rays, resources.args, PROBES_AT)
   if (run.cache?.encode(pass)) pass.setBindGroup(REFLECTION_GROUP, run.reflection)
   if (settings.values.screenProbeImportanceSampling)
     dispatchOver(pass, kernels.rays.pipelines.genRays, groups.rays, resources.args, PROBES_AT)

@@ -27,6 +27,7 @@ import {
   cacheTraceExtent,
   cacheTraceSlices,
   cacheTraceTiles,
+  CACHE_PDF_WORDS,
 } from './cache/cacheLayout.ts'
 import { screenProbeSettings } from '../../../../sdk-core/src/bounce/screenProbeOptions.fixture.ts'
 import { writeCacheParams } from './cache/cacheGroups.ts'
@@ -108,6 +109,7 @@ test('the radiance cache holds the pool’s own number of maps in two atlases an
     8 * area(cacheExtent(resolution, pool)) +
     finalBytes(resolution, mipmaps, sky) +
     listBytes(cacheTileCapacity(resolution, pool), 2) +
+    pool * CACHE_PDF_WORDS * 4 +
     RADIANCE_CACHE_PARAMS_BYTES
   for (const [resolution, mipmaps, sky] of [
     [16, 1, false],
@@ -168,29 +170,20 @@ test('the final atlas holds the pool’s maps with a border of 2^(levels − 1) 
   assert.equal(cacheTileCapacity(16, pool), pool * 16 + 1)
 })
 
-test('the atlases of a frame follow the queue’s block of probes: a square of the map a probe, rows of the queue’s width; the trace atlas holds the tiles of every probe traced at half the side, four times that where the tiles are forced to twice the side', () => {
+test('the atlases of a frame follow the queue’s block of probes: a square of the map a probe, rows of the queue’s width; the trace atlas holds the most tiles the list can hold, every probe cut to the finest level the lobes allow', () => {
   const queue = { row: 64, probes: 64 * 43 }
   assert.deepEqual(cacheTempExtent(16, queue), [64 * 16, 43 * 16])
   assert.deepEqual(cacheTempExtent(16, { row: 128, probes: 100 }), [128 * 16, 16])
-  // A map of sixteen texels is one tile at half its side, of thirty-two four.
-  assert.equal(cacheTraceTiles(16, queue, 'full'), queue.probes)
-  assert.equal(cacheTraceTiles(32, queue, 'full'), queue.probes * 4)
-  assert.equal(
-    cacheTraceTiles(8, queue, 'half'),
-    queue.probes,
-    'a map under sixteen texels is one tile',
-  )
-  assert.equal(cacheTraceTiles(16, queue, 'supersampled'), queue.probes * 4)
-  // A full update holds the tiles of every probe at the whole side, whatever the tiles setting.
-  assert.equal(cacheTraceTiles(16, queue, 'full', true), queue.probes * 4)
-  assert.equal(cacheTraceTiles(16, queue, 'half', true), queue.probes * 4)
+  // A map of sixteen texels is at most sixteen tiles at twice its side (four per side), of thirty-two sixty-four.
+  assert.equal(cacheTraceTiles(16, queue), queue.probes * 16)
+  assert.equal(cacheTraceTiles(32, queue), queue.probes * 64)
   // The trace atlas lays its tiles in rows of 512.
   assert.deepEqual(cacheTraceExtent(512), [4096, 8])
   assert.deepEqual(cacheTraceExtent(513), [4096, 16])
   assert.deepEqual(cacheTraceExtent(1), [4096, 8])
 })
 
-test('a cache holds its atlases, its tile list and its parameters and nothing else: no per-probe record rides beside the maps', () => {
+test('a cache holds its atlases, its tile list, the sums of the lobes the screen probes want light in and its parameters and nothing else: no per-probe record rides beside the maps', () => {
   const pool = BOUNCE_SETTINGS.probePool
   const size = cacheExtent(16, pool)
   const finalSize = cacheExtent(cacheFinalSide(16, 1), pool)
@@ -199,6 +192,7 @@ test('a cache holds its atlases, its tile list and its parameters and nothing el
     textureBytesOf({ size, format: radianceCacheFormats('r32uint').raw })! +
       textureBytesOf({ size: finalSize, format: radianceCacheFormats('r32uint').final })! +
       listBytes(cacheTileCapacity(16, pool), 2) +
+      pool * CACHE_PDF_WORDS * 4 +
       RADIANCE_CACHE_PARAMS_BYTES,
   )
 })
@@ -210,11 +204,7 @@ test('the cache’s parameters carry the levels of detail of the final maps, the
     const image = new ArrayBuffer(RADIANCE_CACHE_PARAMS_BYTES)
     writeCacheParams(settings, [0, 0, 0], image, {
       queue: { row: 64, probes: 64 * 43 },
-      traceTiles: cacheTraceTiles(
-        settings.cache.resolution,
-        { row: 64, probes: 64 * 43 },
-        settings.cache.tiles,
-      ),
+      traceTiles: cacheTraceTiles(settings.cache.resolution, { row: 64, probes: 64 * 43 }),
       traced,
     })
     return new Uint32Array(image)
@@ -224,7 +214,7 @@ test('the cache’s parameters carry the levels of detail of the final maps, the
   assert.equal(words[P.tempRow], 64)
   assert.equal(
     words[P.traceTiles],
-    cacheTraceTiles(settings.cache.resolution, { row: 64, probes: 64 * 43 }, settings.cache.tiles),
+    cacheTraceTiles(settings.cache.resolution, { row: 64, probes: 64 * 43 }),
   )
   const flag = (traced: boolean, bit: number) => (written(traced)[P.flags] & bit) !== 0
   assert.deepEqual(
@@ -233,23 +223,23 @@ test('the cache’s parameters carry the levels of detail of the final maps, the
   )
 })
 
-test('a full update traces the tiles of every probe at the whole side in the trace atlas, and the rest of its tiles (all at twice the side at the most) in further slices', () => {
+test('every update traces the tiles of its list in the trace atlas, the rest in further slices when the atlas cannot hold them all', () => {
   const queue = { row: 128, probes: 128 * 128 }
   for (const resolution of [16, 32]) {
-    const atlas = cacheTraceTiles(resolution, queue, 'full', true)
-    const slices = cacheTraceSlices(resolution, queue, atlas, true)
-    assert.equal(slices, 4, `${resolution} texels`)
-    // The slices hold every tile of the list, the most there is: the tiles at twice the side of every probe.
+    const atlas = cacheTraceTiles(resolution, queue)
+    const slices = cacheTraceSlices(resolution, queue, atlas)
     assert.ok(slices * atlas >= queue.probes * (resolution / 4) ** 2)
   }
-  // An update within its budget is traced whole; a map under sixteen texels is one tile a probe, whatever the level.
-  assert.equal(cacheTraceSlices(16, queue, cacheTraceTiles(16, queue, 'full'), false), 1)
-  assert.equal(cacheTraceSlices(8, queue, cacheTraceTiles(8, queue, 'full', true), true), 1)
+  // An atlas that holds the whole list is traced in one slice.
+  assert.equal(
+    cacheTraceSlices(16, { row: 64, probes: 64 }, cacheTraceTiles(16, { row: 64, probes: 64 })),
+    1,
+  )
   // The atlas is no taller than a texture every device takes (8192 texels, 512 tiles a row of 8).
   const huge = { row: 256, probes: 256 * 256 }
-  const widest = cacheTraceTiles(64, huge, 'full', true)
+  const widest = cacheTraceTiles(64, huge)
   assert.equal(cacheTraceExtent(widest)[1] <= 8192, true)
-  assert.ok(cacheTraceSlices(64, huge, widest, true) * widest >= huge.probes * 256)
+  assert.ok(cacheTraceSlices(64, huge, widest) * widest >= huge.probes * 256)
 })
 
 test('the maps are made where the shape is chosen, and refused with the measurement where their final atlas is wider than the device’s textures', () => {

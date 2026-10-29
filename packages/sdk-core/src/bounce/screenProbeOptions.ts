@@ -47,9 +47,14 @@ import {
  *  reflections and the lighting of the surface cache trace to, clamped to the range the rule allows, whatever the scene's size. */
 export const MAX_TRACE_DISTANCE_METRES = 200
 
-/** The trace tiles of the radiance cache: `half`, `full` or `supersampled` the resolution every probe's map is traced at. `full`, the
- *  default, traces every probe at the whole side, half of it past the downsample distance and twice it within the supersample distance. */
-const RADIANCE_TRACE_TILES = ['half', 'full', 'supersampled'] as const
+/** The trace tiles of the radiance cache: `half`, `full` or `supersampled` the resolution every probe's map is traced at, or `automatic`, the
+ *  default: each tile of a probe's map is traced at the resolution the directions the screen probes want light from ask for (their cosine
+ *  lobes' harmonics, summed into the probe), the whole side where no screen probe has made them. Whichever, a probe is traced at half the
+ *  side past the downsample distance and, within the supersample distance, may be traced at twice it. */
+const RADIANCE_TRACE_TILES = ['automatic', 'half', 'full', 'supersampled'] as const
+
+/** The values of `radianceCacheIrradianceProbeOffsetMode`: the probes stay on their cell's centre, are moved off the surfaces the image shows, or off the surfaces of the global distance field. */
+const PROBE_OFFSET_MODES = ['none', 'gbuffer', 'globalDistanceField'] as const
 
 /** The most the gather's resolution is a multiple of the tracing's (`screenProbeGatherScale`), and the widest the gather is made: the conversion holds the harmonics' basis of the
  *  `gather × gather` texels of a probe in the workgroup's memory (nine floats a texel, with the light and the occlusion), 16 × 16 texels in about 15.4 kilobytes (9216 bytes of basis, 4096 of light, 2048 of occlusion), within the 16
@@ -98,6 +103,8 @@ export interface IrradianceFieldSettings {
   /** Whether probes are placed where an interpolation fails for want of one, and the tile of pixels one of which reports those failures. */
   adaptivePlacement: boolean
   feedbackTile: number
+  /** How the probes standing too near a surface are moved off it before they are traced (`radianceCacheIrradianceProbeOffsetMode`). */
+  probeOffsetMode: (typeof PROBE_OFFSET_MODES)[number]
   /** The roughness past which a pixel's rough specular is its diffuse light. */
   maxRoughnessToEvaluateRoughSpecular: number
 }
@@ -151,6 +158,9 @@ const PLACEMENT_AND_OCCLUSION_RULES = /* @__PURE__ */ (() =>
     flag('screenProbeClearHistoryEveryFrame', false),
     flag('screenProbeReferenceMode', false),
     flag('screenProbeDebugForceTracesMoving', false),
+    flag('screenProbeGatherDebug', false),
+    flag('screenProbeTileDebugMode', false),
+    integer('screenProbeGatherDebugProbePlacement', 0, [0, 3]),
     // These name the level's row by a negative value (`namedOr`): the reference's cvars of the same names, its scalability rows being the levels.
     integer('screenProbeDownsampleFactor', -1, [-1, DOWNSAMPLE_RANGE[1]]),
     integer('screenProbeTracingResolution', -1, [-1, TRACING_RANGE[1]]),
@@ -226,6 +236,7 @@ const TRACE_AND_CACHE_RULES = /* @__PURE__ */ (() =>
     flag('screenProbeRadianceCache', true),
     flag('screenProbeRadianceCacheUpdate', true),
     flag('screenProbeRadianceCacheForceFullUpdate', false),
+    flag('screenProbeRadianceCacheStats', false),
     nonNegative('screenProbeRadianceCacheReprojectionRadiusScale', 1.5),
     count('screenProbeRadianceCacheFramesToKeepProbes', 8, 0),
     integer('screenProbeRadianceCacheTemporaryAtlasDownsampleFactor', 6, [1, 1024]),
@@ -243,7 +254,8 @@ const RADIANCE_CACHE_RULES = /* @__PURE__ */ (() =>
     flag('screenProbeRadianceCacheSpatialFilter', true),
     flag('screenProbeRadianceCacheSortTraceTiles', false),
     positive('screenProbeRadianceCacheFilterHitAngle', 0.2, 'a finite number of radians above 0'),
-    choice('screenProbeRadianceCacheTraceTiles', 'full', RADIANCE_TRACE_TILES),
+    choice('screenProbeRadianceCacheTraceTiles', 'automatic', RADIANCE_TRACE_TILES),
+    nonNegative('screenProbeRadianceCacheSupersampleTileBrdfThreshold', 0.1),
     nonNegative('screenProbeRadianceCacheDownsampleDistance', 40),
     number('screenProbeRadianceCacheSupersampleDistance', -1, ANY_NUMBER),
     integer('screenProbeRadianceCacheMipmaps', 1, [1, 3]),
@@ -292,6 +304,7 @@ const IRRADIANCE_FIELD_RULES = /* @__PURE__ */ (() =>
     integer('irradianceFieldMarkProbesDownsampleFactor', 2, [1, 8]),
     flag('irradianceFieldAdaptivePlacement', false),
     integer('irradianceFieldAdaptivePlacementFeedbackTileSize', 8, [1, 256]),
+    choice('radianceCacheIrradianceProbeOffsetMode', 'gbuffer', PROBE_OFFSET_MODES),
     number('irradianceFieldMaxRoughnessToEvaluateRoughSpecular', 0.8, ANY_NUMBER),
   ] as const)()
 
@@ -409,6 +422,8 @@ interface RadianceCacheSettings {
   translucentMark: TranslucentMarkSettings | undefined
   /** Whether the trace tiles are ordered by the direction they trace before they are traced (`screenProbeRadianceCacheSortTraceTiles`). */
   sortTiles: boolean
+  /** The value of the screen probes' lobes above which a tile of a probe's map is traced at twice the resolution (`screenProbeRadianceCacheSupersampleTileBrdfThreshold`). */
+  tileThreshold: number
   /** Whether a probe's map is averaged with its neighbours', and the angle that weighs them, in radians. */
   filter: boolean
   filterAngle: number
@@ -477,6 +492,7 @@ function resolveRadianceCache(
     interpolateDownsample: values.screenProbeInterpolateDownsampleFactor,
     translucentMark: translucentMarkOf(values),
     sortTiles: values.screenProbeRadianceCacheSortTraceTiles,
+    tileThreshold: values.screenProbeRadianceCacheSupersampleTileBrdfThreshold,
     filter: values.screenProbeRadianceCacheSpatialFilter,
     filterAngle: values.screenProbeRadianceCacheFilterHitAngle,
     downsampleSq: values.screenProbeRadianceCacheDownsampleDistance ** 2,
@@ -585,6 +601,7 @@ function irradianceFieldOf(values: ScreenProbeValues): IrradianceFieldSettings {
     markDownsample: values.irradianceFieldMarkProbesDownsampleFactor,
     adaptivePlacement: values.irradianceFieldAdaptivePlacement,
     feedbackTile: values.irradianceFieldAdaptivePlacementFeedbackTileSize,
+    probeOffsetMode: values.radianceCacheIrradianceProbeOffsetMode,
     maxRoughnessToEvaluateRoughSpecular: values.irradianceFieldMaxRoughnessToEvaluateRoughSpecular,
   }
 }

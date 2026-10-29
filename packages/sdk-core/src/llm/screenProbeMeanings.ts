@@ -58,6 +58,14 @@ const FILTER_MEANINGS = /* @__PURE__ */ (() =>
       "Whether the world's probes are updated at every image (their marks, the probes given back and the maps traced); false freezes them as they are, for debugging.",
     screenProbeRadianceCacheForceFullUpdate:
       "Whether every image updates the whole world's probes cache at no budget (every probe given back and traced anew, after the final maps and the sky's share are set to black), for debugging.",
+    screenProbeGatherDebug:
+      "Writes over the image the number of screen probes, of the uniform ones and of the adaptive ones, for debugging (off by default); read back from the GPU a few images late. The diagnostic mode 'screen-probe-gather-debug' shows it whatever the setting says.",
+    screenProbeTileDebugMode:
+      "Writes over the image the table of the integration's tile classification: the tiles of the simple, importance sampled and complete modes and their total, with the legend of the three, for debugging (off by default); read back from the GPU a few images late. The diagnostic mode 'screen-probe-tile-stats' shows it whatever the setting says.",
+    screenProbeGatherDebugProbePlacement:
+      "Draws over the image where the screen probes stand, for debugging (0 off, the default): 1 a small yellow quad at the pixel of every uniform probe and a magenta one at each adaptive probe's, 2 the adaptive probes' alone, 3 a cross and a line along the normal, ten centimetres long, at the point of every probe (yellow uniform, magenta adaptive). The diagnostic mode 'screen-probe-placement' shows 1 whatever the setting says.",
+    screenProbeRadianceCacheStats:
+      "Writes over the image the update statistics of the world's probes (the probes the atlas holds out of the most it can, those holding nothing yet, those not traced since the lights changed, those refused for want of a slot, those queued this image and the cells marked), for debugging (off by default); read back from the GPU a few images late. The diagnostic mode 'radiance-cache-stats' shows it whatever the setting says.",
     screenProbeDebugForceTracesMoving:
       'Whether every probe counts as moving (its history gives way and its filter reaches twelve neighbours), for debugging.',
     screenProbeReferenceMode:
@@ -123,6 +131,8 @@ const FILTER_MEANINGS_REST = /* @__PURE__ */ (() =>
       'Whether the irradiance field places probes where an interpolation fails for want of an unoccluded one (false by default).',
     irradianceFieldAdaptivePlacementFeedbackTileSize:
       'One pixel in every tile of this many pixels a side reports the interpolation failures of the adaptive placement, 1 to 256 (8 by default).',
+    radianceCacheIrradianceProbeOffsetMode:
+      "How the irradiance field's probes are moved off the surfaces they stand too near before they are traced: gbuffer (the default), toward the ideal place the image's pixels near the probe show (a fifth along their normal, four fifths toward the eye, a quarter of a cell off the surface), averaged, within a quarter of a cell of the cell's centre; globalDistanceField, to the best of 64 places within a quarter of a cell round a probe that stands within a twentieth of a cell of a surface of the global distance field; none, probes stay on their cell's centre. Adaptive probes are moved like the others. With globalDistanceField the place found is added to the probe's offset (the reference stores it alone) and the sum is held within a quarter of a cell of the cell's centre.",
     irradianceFieldMaxRoughnessToEvaluateRoughSpecular:
       'The roughness past which a pixel of the irradiance field takes its diffuse light as its rough specular (0.8 by default).',
     screenProbeClearHistoryEveryFrame:
@@ -269,7 +279,9 @@ const RADIANCE_CACHE_AND_FOLIAGE_MEANINGS = /* @__PURE__ */ (() =>
     screenProbeRadianceCacheFilterHitAngle:
       "Radians: the angle past which a neighbouring world probe's ray, seen from this probe, no longer weighs in the radiance filter; larger filters nearby features and leaks more.",
     screenProbeRadianceCacheTraceTiles:
-      "How densely a world probe's radiance map is traced: full (the default), the whole side for every probe; half, half the side; supersampled, twice the side, averaged down. Whichever it is, a probe past the downsample distance, or one first traced where the budget had no room, is traced at half a side, and one within the supersample distance at twice it.",
+      "How densely a world probe's radiance map is traced: automatic (the default), tile by tile at the resolution the screen probes' pixels ask for in that direction (a tile whose direction their cosine lobes weigh above screenProbeRadianceCacheSupersampleTileBrdfThreshold is traced at twice the resolution, and again at four times within the supersample distance), half the side where no screen probe's pixels reach the probe; full, the whole side for every probe; half, half the side; supersampled, twice the side, averaged down. Whichever it is, a probe past the downsample distance, or one first traced where the budget had no room, is traced at half a side, and one within the supersample distance at twice it.",
+    screenProbeRadianceCacheSupersampleTileBrdfThreshold:
+      "From 0 (the default is 0.1): the value of the screen probes' cosine lobes in a direction (0 to 1) above which a tile of a world probe's radiance map is traced at twice the resolution, so that the directions the pixels read most are the best sampled; read only with screenProbeRadianceCacheTraceTiles automatic.",
     screenProbeRadianceCacheDownsampleDistance:
       'Metres: the probes further than this from the eye are always traced at half a side.',
     screenProbeRadianceCacheSupersampleDistance:

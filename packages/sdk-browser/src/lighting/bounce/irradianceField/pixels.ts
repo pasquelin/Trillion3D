@@ -21,7 +21,8 @@ import {
 import type { FieldMaps } from './maps.ts'
 import { feedbackTileSize, feedbackTileJitter } from './pixelsTile.ts'
 
-const NORMALS_VIEW = viewOf('normalRough')
+/** The surfaces' view of the normals and roughness, which the gather and the move of the probes read. */
+export const NORMALS_VIEW = viewOf('normalRough')
 
 /** The gather's kernel for a device and the format the cache's final maps are stored in: its group 0 and the reflection group, asked off the frame, none until it is compiled. */
 const gatherKernel = oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) => {

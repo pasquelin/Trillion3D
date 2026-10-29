@@ -41,6 +41,8 @@ export interface CacheWiring {
   table: GPUTextureView
   queue: GPUBuffer
   slots: number
+  /** The pool's slots (`POOL_SLOT`), which hold the offsets of the probes from their cells' places. */
+  offsets: GPUBuffer
 }
 
 /** What an image queued for the cache: the arguments of the dispatches over the probes (the pool wrote them), what the trace reads — the
@@ -76,6 +78,7 @@ export function cacheGroupsOf(
         queue: wholeBuffer(wiring.queue),
         params: wholeBuffer(s.params),
         tiles: wholeBuffer(s.tiles),
+        pdf: wholeBuffer(s.pdf),
       }),
     }),
   }
@@ -125,6 +128,7 @@ export function cacheFilterBinder(device: GPUDevice, wiring: CacheWiring) {
       entries: namedEntries(CACHE_FILTER_BINDINGS, {
         ...filterInputs(wiring, s, t),
         noise,
+        slots: wholeBuffer(wiring.offsets),
       }),
     }),
   )
@@ -312,6 +316,7 @@ export function writeCacheParams(
   words[P.level] = RADIANCE_CACHE_TILE_LEVELS[cache.tiles]
   floats[P.downsampleSq] = cache.downsampleSq
   floats[P.supersampleSq] = cache.supersampleSq
+  floats[P.tileThreshold] = cache.tileThreshold
   floats[P.filterAngle] = cache.filterAngle
   putVec4(floats, P.leak, ...cache.skylightLeak, cache.skylightLeakingRoughness)
   floats[P.leakDistance] = cache.skylightLeakingInverseDistance

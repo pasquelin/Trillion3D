@@ -2132,10 +2132,29 @@ whole map's cost, a quarter of it past `screenProbeRadianceCacheDownsampleDistan
 `screenProbeUpdateSpeed` (held between 0.5 and 4) — a count of probes, not a duration: the
 probes of a frame run side by side and the pass lasts about as long as its longest ray, so the time of a
 batch does not follow its size, and a servo on it starved the field (`passMs` in `metrics.bounce`
-publishes the last duration of the pass, and steers nothing). A probe's map is traced in uniform tiles of 8 by 8 rays at the `full` level
-by default (`screenProbeRadianceCacheTraceTiles`: the whole side for every probe, half of it past the downsample distance, twice it within
-the supersample distance), and a new trace replaces the radiance the probe's map held: it is written whole into the raw atlas, then
+publishes the last duration of the pass, and steers nothing). A probe's map is traced in tiles of 8 by 8 rays. By default (`screenProbeRadianceCacheTraceTiles: 'automatic'`)
+the screen probes first add the cosine lobes of their pixels to the world probes round them (`scatterLobes`, eight probes a
+screen probe, the nine harmonics and a weight in integer sums), and each world probe's tiles are cut by them: a tile of the
+first level (half the side) is cut in four where the lobes weigh anything in its direction, and again where they weigh more
+than `screenProbeRadianceCacheSupersampleTileBrdfThreshold` (0.1 by default), as far as the probe's distance allows (one level
+past the downsample distance, two within it, three within the supersample distance). Where no screen probe made the lobes, or with
+`'half'`, `'full'` or `'supersampled'` (one level for every probe), the tiles are uniform. A new trace replaces the radiance the probe's map held: it is written whole into the raw atlas, then
 filtered with the six neighbours' into the final one.
+
+```ts
+const world = createWorld(canvas, {
+  // Trace at twice the resolution the directions the pixels read most (lobes weighing above 0.2 rather than 0.1).
+  screenProbeRadianceCacheSupersampleTileBrdfThreshold: 0.2,
+  // The irradiance field gathers the indirect light; its probes are moved off the surfaces before they are traced.
+  finalGatherMethod: 'irradianceField',
+  radianceCacheIrradianceProbeOffsetMode: 'gbuffer', // 'none', 'gbuffer' (the default) or 'globalDistanceField'
+})
+```
+
+The irradiance field's probes do not all stay on their cell's centre (`radianceCacheIrradianceProbeOffsetMode`). With `'gbuffer'`, before a queued probe is traced one workgroup looks at the pixel it projects to and 63 more within 16 pixels of it
+(`irradianceField/offsets.ts`); each pixel that shows a surface at least as near as the probe votes for the place a fifth of the way along its normal and four fifths toward the eye, three quarters of a quarter of a cell off the surface, if that lies within a quarter of a cell of the
+cell's centre, and the probe stands at the mean of the votes (it keeps its place when none voted). With `'globalDistanceField'`, a probe within a twentieth of a cell of a surface of the global distance field tries 64 places in a quarter of a cell round it and moves to the one farthest from the surfaces. The offset lasts with the probe's slot
+and is read by its trace, by the filter's weights of its neighbours, by the validity test and by the gather. `'none'` keeps every probe on its cell's centre. Adaptive probes are moved like the others. Two deliberate differences from the reference: with `'globalDistanceField'` the place found is added to the offset the probe already had (the reference stores it alone, which moves the probe to a place it did not measure), and that sum is held within a quarter of a cell of the cell's centre, as the votes of `'gbuffer'` are.
 
 A probe's ray that leaves the scene reaches the sky (`lighting/atmosphere/skyReadWgsl.ts`): the share
 of the ray the scene lets through times the radiance of the sky light's cube in its direction, the

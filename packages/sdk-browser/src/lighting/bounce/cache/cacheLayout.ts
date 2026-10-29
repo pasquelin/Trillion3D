@@ -74,13 +74,26 @@ export const RADIANCE_CACHE_FLAGS = {
 
 /** The level every probe's trace tiles are cut at (`level`): the resolution the map is traced at, half of its side, the whole side or
  *  twice it. */
-export const RADIANCE_CACHE_TILE_LEVELS = { half: 0, full: 1, supersampled: 2 } as const
+export const RADIANCE_CACHE_TILE_LEVELS = {
+  automatic: 1,
+  half: 0,
+  full: 1,
+  supersampled: 2,
+} as const
+
+/** Words a probe keeps in the buffer of the lobes the screen probes want light in (`pdf`): the nine harmonics' sums, and the weight they were summed with. */
+export const CACHE_PDF_WORDS = 10
+
+/** The units a harmonic's coefficient is summed in (an integer atomic holds the sums of the screen probes round a world probe): the largest whole count of
+ *  them a signed word holds, over a hundred thousand (the reference sizes it for an unsigned word in a signed buffer, which wraps at half the sums). */
+export const CACHE_PDF_UNITS = 2147483647 / 100000
 
 /**
  * The uniform the cache's kernels read (`cache`): `resolution`, the side of a probe's map; `flags`; `mipmaps`, the levels of detail of the
  * final maps; `tempRow`, the probes along a row of the atlases of the frame; `traceTiles`, the tiles the trace atlas holds; `level`, the level the trace tiles
  * are cut at; `downsampleSq`, the square of the distance from the eye past which a probe is always traced at half the side;
- * `supersampleSq`, the square of the one within which it is traced at twice it; `filterAngle`, the angle the filter weighs by; `eye`,
+ * `supersampleSq`, the square of the one within which it is traced at twice it; `tileThreshold`, the value of the screen probes' lobes above which a tile is traced at the next level
+ * where the tiles follow them; `filterAngle`, the angle the filter weighs by; `eye`,
  * the eye's place; `traced`, what the rays cast through the scene's triangles are made with (`probeRayTracedWgsl.ts`): how far short
  * of the probes' reach they end, in metres, the depth bias the cards are read at their hits with and the distance under which a hit
  * brings no light, in centimetres.
@@ -94,6 +107,7 @@ export const RADIANCE_CACHE_PARAMS = fieldLayout('RadianceCacheParams', [
   ['level', 'u32'],
   ['downsampleSq', 'f32'],
   ['supersampleSq', 'f32'],
+  ['tileThreshold', 'f32'],
   ['filterAngle', 'f32'],
   ['eye', 'vec4f'],
   ['traced', 'vec3f'],
@@ -142,31 +156,16 @@ export const cacheTempExtent = (resolution: number, temp: CacheTemp): [number, n
 /** The most tiles the trace atlas holds: the rows of a texture of the side every device grants at least (8192 texels; `limits.ts` checks the device's own). */
 const MAX_TRACE_ATLAS_TILES = CACHE_TRACE_ATLAS_TILES * (8192 / CACHE_TILE_SIDE)
 
-/** The tiles the trace atlas holds for the queue's block `temp`: the tiles of every probe traced at half the side (a probe is traced at a
- *  quarter of its rays at the least), times the share that the tiles ask beyond it. A map under sixteen texels a side is one tile. A full
- *  update (`full`) has no budget to keep its probes within that share: it holds the tiles of every probe traced at the whole side, no more
- *  than the atlas can, the rest of its tiles being traced in further slices (`cacheTraceSlices`). */
-export const cacheTraceTiles = (
-  resolution: number,
-  temp: CacheTemp,
-  tiles: keyof typeof RADIANCE_CACHE_TILE_LEVELS,
-  full = false,
-) => {
-  const asked =
-    temp.probes *
-    ceilDiv(resolution, 2 * CACHE_TILE_SIDE) ** 2 *
-    (full || tiles === 'supersampled' ? 4 : 1)
-  return full ? Math.min(asked, MAX_TRACE_ATLAS_TILES) : asked
-}
+/** The tiles the trace atlas holds for the queue's block `temp`: the most the list can hold, every probe at twice the side (the lobes cut a
+ *  probe's tiles to three levels past the first, near the eye; the reference sizes its tile buffer by the same worst case), no more than the
+ *  atlas can, the rest of the tiles being traced in further slices (`cacheTraceSlices`). */
+export const cacheTraceTiles = (resolution: number, temp: CacheTemp) =>
+  Math.min(temp.probes * maxTilesPerProbe(resolution), MAX_TRACE_ATLAS_TILES)
 
-/** The slices a full update's tiles are traced in, `traceTiles` of them at a time: the tiles of every probe of the block `temp` at the most (all
- *  at twice the side), over what the atlas holds. One for an update within its budget. */
-export const cacheTraceSlices = (
-  resolution: number,
-  temp: CacheTemp,
-  traceTiles: number,
-  full: boolean,
-) => (full ? Math.max(1, ceilDiv(temp.probes * maxTilesPerProbe(resolution), traceTiles)) : 1)
+/** The slices the tiles are traced in, `traceTiles` of them at a time: the tiles of every probe of the block `temp` at the most (all at twice
+ *  the side), over what the atlas holds. One while the atlas holds them all. */
+export const cacheTraceSlices = (resolution: number, temp: CacheTemp, traceTiles: number) =>
+  Math.max(1, ceilDiv(temp.probes * maxTilesPerProbe(resolution), traceTiles))
 
 /** The extent of the trace atlas for `tiles` tiles. */
 export const cacheTraceExtent = (tiles: number): [number, number] => [
@@ -225,6 +224,7 @@ export function cacheBytes(shape: CacheShape, slots: number) {
     })! +
     (skyVisibility ? textureBytesOf({ size: finalSize, format: formats.sky })! : 0) +
     listBytes(cacheTileCapacity(resolution, slots), 2) +
+    slots * CACHE_PDF_WORDS * 4 +
     RADIANCE_CACHE_PARAMS_BYTES
   )
 }

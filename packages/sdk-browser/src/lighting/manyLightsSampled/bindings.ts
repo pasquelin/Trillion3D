@@ -49,5 +49,10 @@ export const SAMPLED_BINDINGS = {
   composite: 161,
   /** The spatial filter's debug output (`spatialDebugWgsl.ts`), written only while a debug view asks. */
   debugPixels: 163,
+  /** The light complexity view's result (the lights of the cell under the cursor, sorted), their unsorted entries, the request (the pixel asked) and the cost of sampling each pixel. */
+  complexity: 164,
+  complexityEntries: 165,
+  complexityRequest: 166,
+  complexityCost: 167,
   /** The lights' power of the image before (read) and of this one (written), per rank. */
 } as const

@@ -49,7 +49,7 @@ const createSharedKernels = oncePerDevice(async (device: GPUDevice) => {
       CACHE_TILES_PROGRAM,
       'CACHE_TILES',
       cacheTilesEntries(),
-      [['generateTiles'], ['advanceSlice'], ['sortTiles']],
+      [['generateTiles'], ['advanceSlice'], ['sortTiles'], ['clearLobes'], ['generateLobeTiles']],
       true,
     ),
   ])
@@ -61,6 +61,10 @@ const createSharedKernels = oncePerDevice(async (device: GPUDevice) => {
       advanceSlice: tiles.pipelines[1],
       /** The tiles of the list ordered by the direction they trace (`screenProbeRadianceCacheSortTraceTiles`). */
       sortTiles: tiles.pipelines[2],
+      /** The lobes the screen probes want light in set to nothing, before they add theirs. */
+      clearLobes: tiles.pipelines[3],
+      /** The tiles cut by those lobes (`screenProbeRadianceCacheTraceTiles` automatic). */
+      generateLobeTiles: tiles.pipelines[4],
     },
   }
 })

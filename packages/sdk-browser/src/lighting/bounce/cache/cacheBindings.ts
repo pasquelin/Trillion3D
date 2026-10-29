@@ -22,13 +22,14 @@ import {
 import { radianceCacheFormats, radianceRawFormat, radianceCacheTempFormats } from './cacheLayout.ts'
 
 /** The bindings of the kernel that makes the trace tiles of the probes the frame queued (`cacheTilesWgsl.ts`): the levels' uniform,
- *  the cell table, the queue, the cache's parameters and the list of the tiles. */
+ *  the cell table, the queue, the cache's parameters, the list of the tiles and the lobes the screen probes want light in. */
 export const CACHE_TILES_BINDINGS = {
   grid: 0,
   table: 1,
   queue: 2,
   params: 3,
   tiles: 4,
+  pdf: 5,
 } as const
 
 /** The entries the cache's kernels start with: the grid, the cell table, the queue and the cache's parameters, under the kernel's bindings `B`. */
@@ -47,7 +48,11 @@ export const cacheKernelEntries = (B: {
 /** The layout of the tiles' kernel. */
 export const cacheTilesEntries = () => {
   const B = CACHE_TILES_BINDINGS
-  return [...cacheKernelEntries(B), computeBufferEntry(B.tiles, 'storage')]
+  return [
+    ...cacheKernelEntries(B),
+    computeBufferEntry(B.tiles, 'storage'),
+    computeBufferEntry(B.pdf, 'storage'),
+  ]
 }
 
 /** The bindings of the kernel that traces the tiles (`cacheTraceWgsl.ts`): the levels' uniform, the lights, the queue, the cell table,
@@ -153,6 +158,8 @@ export const CACHE_FILTER_BINDINGS = {
   filtered: 5,
   filteredSky: 6,
   noise: 7,
+  /** The pool's slots, which hold the offsets the neighbours stand at. */
+  slots: 8,
 } as const
 
 /** The layout of the filter kernel, its light written in the format `light` stores it in. */
@@ -165,6 +172,7 @@ export const cacheFilterEntries = (light: LightAtlasFormat = WORD_LIGHT_FORMAT) 
     computeStorageTextureEntry(B.filtered, T.filtered),
     computeStorageTextureEntry(B.filteredSky, T.filteredSky),
     computeTextureEntry(B.noise, 'float'),
+    computeBufferEntry(B.slots, 'read-only-storage'),
   ]
 }
 

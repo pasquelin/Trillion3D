@@ -165,7 +165,7 @@ export const LIT_CHANNELS_WGSL = wgslBlock(
 /**
  * The statements of a lit pixel, at the head of a lighting pass's fragment (its `pixel` the
  * builtin position): the pixel's `coord`, `surfaceFlag` and `flag`; a pixel no light reaches — the
- * background, an unlit surface, a surface shown as-is — is discarded (`pixelTileClass`); its
+ * background, an unlit surface, a surface shown as-is — is discarded (`pixelTileClass`), or answered with the statements `miss` where the caller is no fragment; its
  * `base` (the colour and the metalness), `normal` (the normal and the roughness), `emissive` (the
  * emission and the material's occlusion), its depth `z`, point `P`, the direction `V` to the eye
  * and the unit normal `N`; the surface state the light terms read; the thin transmission where the
@@ -175,10 +175,13 @@ export const LIT_CHANNELS_WGSL = wgslBlock(
  * with the data it reads from the thin transmission's target (`setPixelModel`), which also gives the base
  * the pixel is lit with.
  */
-export const litPixelStatements = ({ models, thin, lobes, channels }: LitPixelCut) => `
+export const litPixelStatements = (
+  { models, thin, lobes, channels }: LitPixelCut,
+  miss = 'discard;',
+) => `
  let coord=vec2i(pixel.xy);
  let surfaceFlag=textureLoad(words,coord,${SURFACE_WORDS.flags},0).r;let flag=surfaceFlag&${SURFACE_MODEL_MASK}u;
- if(pixelTileClass(surfaceFlag)==0u){discard;}
+ if(pixelTileClass(surfaceFlag)==0u){${miss}}
  var base=textureLoad(colours,coord,${SURFACE_COLOUR_LAYERS.base},0);
  let normal=textureLoad(colours,coord,${SURFACE_COLOUR_LAYERS.normal},0);
  let emissive=surfaceEmissiveAo(coord,surfaceFlag);

@@ -147,6 +147,14 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
     integer('surfaceCacheRadiosityTemporalFixedJitterIndex', -1, [-1, INT32_RANGE[1]]),
   ] as const))()
 
+/** The surface cache's own debug tables and boxes, over the image. */
+const DEBUG_RULES = /* @__PURE__ */ (() =>
+  rulesOf([
+    integer('surfaceCacheLightingStats', 0, [0, 3]),
+    flag('surfaceCacheSceneStats', false),
+    flag('surfaceCacheVisualizePrimitiveGroups', false),
+  ] as const))()
+
 /**
  * The surface cache: the cards each mesh carries (flat boxes along its faces, built by the compiler),
  * the atlas their captured surface — albedo, normal, emission, depth — is kept in, and the
@@ -295,6 +303,12 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  * `surfaceCacheFeedbackMinPageHits` (16) reports named it in an image, and at most
  * `surfaceCacheFeedbackUniqueElements` (1024) pages are told in an image. The level a ray tells is the one its cone
  * calls for plus `surfaceCacheFeedbackResLevelBias` (-0.5, half a level coarser).
+ *
+ * THE DEBUG TABLES. `surfaceCacheLightingStats` (0) writes over the image the table of one update of the lighting: 1 the
+ * direct light's, 2 the indirect's — the histogram of the tiles by priority bucket, the bucket the budget ends in and its tiles, the
+ * pages and the tiles the image lights —, 3 the lights the direct update gathers (batched and standalone, rect, light functions, IES), the atlas and the update's size, the trace method and count and the cards and tiles it lights, `surfaceCacheSceneStats` (off) the counts of the placements, mesh cards and cards in the scene,
+ * and `surfaceCacheVisualizePrimitiveGroups` (off) the box of every placement that has mesh cards. The diagnostic modes
+ * `surface-cache-direct-stats`, `surface-cache-indirect-stats`, `surface-cache-direct-lighting-stats`, `surface-cache-scene-stats` and `surface-cache-primitive-groups` show the same.
  */
 // A spread at the top level is not pure to a bundler: marked so, a bundle that never reads the table drops it.
 export const SURFACE_CACHE_RULES = /* @__PURE__ */ (() => ({
@@ -305,6 +319,7 @@ export const SURFACE_CACHE_RULES = /* @__PURE__ */ (() => ({
   ...DIRECT_LIGHT_RULES,
   ...RAY_CULLING_RULES,
   ...RADIOSITY_RULES,
+  ...DEBUG_RULES,
 }))()
 
 /** The surface-cache setting `field` of a runtime's context (`contextReader`): its default where the

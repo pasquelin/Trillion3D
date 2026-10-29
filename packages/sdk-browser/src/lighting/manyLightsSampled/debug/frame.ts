@@ -1,6 +1,6 @@
 /**
  * THE SAMPLED LIGHTING'S DEBUG VIEWS over the display image, drawn after the image is composed: the numbered views of the denoiser (`modes.ts`, `visualizeWgsl.ts`) in one screen pass
- * a tile with their label, the tiles of the classification (`tileOverlay.ts`) and the count of rays each trace method got. Text goes through the lines the hair strands' views draw
+ * a tile with their label, the tiles of the classification (`tileOverlay.ts`), the count of rays each trace method got and the light complexity view (`complexity/view.ts`). Text goes through the lines the hair strands' views draw
  * (`../../../hair/debugLines.ts`). Nothing, and every pass given back, while none is asked.
  */
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
@@ -15,7 +15,15 @@ import { createTextOverlay, TEXT_LINE } from '../../../diagnostic/textOverlay.ts
 import { DEBUG_COLORS } from '../../../hair/debugLines.ts'
 import { followSampledLights } from '../frame.ts'
 import { SAMPLED_TILE_MODES } from '../parameters.ts'
-import { overviewLayout, tileRect, visualizeLabel, visualizeViewOf, isOverview } from './modes.ts'
+import {
+  complexityTargetOf,
+  overviewLayout,
+  tileRect,
+  visualizeLabel,
+  visualizeViewOf,
+  isOverview,
+} from './modes.ts'
+import { complexitySubmitted, disposeComplexity, drawComplexity } from './complexity/view.ts'
 import { debugPixelsOf, releaseDebugPixels, sampledOfFrame } from './state.ts'
 import { createTileOverlay, tileClassificationOf, writeTileTable } from './tileOverlay.ts'
 import { VISUALIZE_BLOCK_WORDS, VISUALIZE_ENTRY, VISUALIZE_WGSL } from './visualizeWgsl.ts'
@@ -70,10 +78,14 @@ export function disposeSampledDebug(rt: WebgpuPagesRuntime) {
   state?.reader?.dispose()
   states.delete(rt)
   releaseDebugPixels(rt)
+  disposeComplexity(rt)
 }
 
 /** Requests mapping of the counts, once the frame that copied them is submitted. */
-export const sampledDebugSubmitted = (rt: object) => states.get(rt)?.reader?.submitted()
+export function sampledDebugSubmitted(rt: object) {
+  states.get(rt)?.reader?.submitted()
+  complexitySubmitted(rt)
+}
 
 /** The numbered views, one screen pass a tile, with their labels written at the foot of each. */
 function drawVisualize(
@@ -225,6 +237,7 @@ export function sampledDebugAsked(rt: WebgpuPagesRuntime) {
   return (
     values.sampledLights &&
     (visualizeViewOf(values, rt.run.diagnostic) > 0 ||
+      complexityTargetOf(values, rt.run.diagnostic) > 0 ||
       values.sampledLightsVisualizeTileClassification > 0 ||
       (values.sampledLightsDebug > 0 && values.sampledLightsDebugTraceStats))
   )
@@ -249,5 +262,8 @@ export function encodeSampledDebug(
     drawTiles(rt, device, encoder, state, values.sampledLightsVisualizeTileClassification)
   if (values.sampledLightsDebug > 0 && values.sampledLightsDebugTraceStats)
     writeTraceStats(state, gpu.displaySize)
+  const complexity = complexityTargetOf(values, rt.run.diagnostic)
+  if (complexity > 0) drawComplexity(rt, device, encoder, state.text.lines, cam, values, complexity)
+  else disposeComplexity(rt)
   state.text.encode(encoder, gpu.displayView, gpu.displaySize, cam)
 }

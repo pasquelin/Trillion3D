@@ -20,7 +20,8 @@ import { screenProbeSettingsOf } from '../screen/settingsOf.ts'
 import { encodeFieldOcclusion } from '../screen/frame.ts'
 import { writeIndirectWords } from '../screen/indirectWords.ts'
 import { createFieldMaps, type FieldMaps } from './maps.ts'
-import { createFieldPixels, type FieldPixels } from './pixels.ts'
+import { createProbeOffsets, type ProbeOffsets } from './offsets.ts'
+import { NORMALS_VIEW, createFieldPixels, type FieldPixels } from './pixels.ts'
 import { irradianceFieldCacheSettings, irradianceFieldShape } from './shape.ts'
 
 /** What the irradiance field keeps of its own cache of probes between two images (the second radiance cache, as the translucency volume
@@ -28,6 +29,8 @@ import { irradianceFieldCacheSettings, irradianceFieldShape } from './shape.ts'
 export interface IrradianceFieldHold extends ProbeHold {
   /** The irradiance and occlusion atlases of the probes and the pass that makes them (`createFieldMaps`), made with the probes. */
   maps: FieldMaps | undefined
+  /** The move of the probes off the surfaces before they are traced (`radianceCacheIrradianceProbeOffsetMode`), none where the mode is none. */
+  offsets: ProbeOffsets | undefined
   /** The pixels' gather (`createFieldPixels`), at the size of the image and the reduction it was made for. */
   pixels: FieldPixels | undefined
   pixelsKey: string | undefined
@@ -40,6 +43,7 @@ export interface IrradianceFieldHold extends ProbeHold {
 const newHold = (): IrradianceFieldHold => ({
   probes: undefined,
   maps: undefined,
+  offsets: undefined,
   pixels: undefined,
   pixelsKey: undefined,
   key: undefined,
@@ -70,6 +74,7 @@ const keyOf = (shape: BounceShape, field: IrradianceFieldSettings, light: LightA
     field.irradianceResolution,
     field.occlusionResolution,
     field.adaptivePlacement,
+    field.probeOffsetMode,
     light,
   ].join(':')
 
@@ -99,8 +104,9 @@ function followLeak(rt: WebgpuPagesRuntime, hold: IrradianceFieldHold) {
 function drop(hold: IrradianceFieldHold) {
   hold.probes?.dispose()
   hold.maps?.dispose()
+  hold.offsets?.dispose()
   hold.pixels?.dispose()
-  hold.probes = hold.maps = hold.pixels = hold.pixelsKey = hold.key = undefined
+  hold.probes = hold.maps = hold.offsets = hold.pixels = hold.pixelsKey = hold.key = undefined
 }
 
 /** The cache given back, now. */
@@ -116,6 +122,13 @@ function start(rt: WebgpuPagesRuntime, device: GPUDevice, hold: IrradianceFieldH
     hold.shape!.probePool,
     hold.light!,
   )
+  const mode = hold.settings!.irradianceField.probeOffsetMode
+  const offsets =
+    mode === 'none'
+      ? undefined
+      : createProbeOffsets(device, mode, (error) =>
+          rt.diag.diagnosticFailure('irradiance-field-offsets-unavailable', error),
+        )
   startHeldProbes(
     rt,
     device,
@@ -124,14 +137,16 @@ function start(rt: WebgpuPagesRuntime, device: GPUDevice, hold: IrradianceFieldH
     {
       surfaceMarks: true,
       afterUpdate: maps.after,
+      beforeUpdate: offsets?.before,
       adaptive: hold.settings!.irradianceField.adaptivePlacement,
     },
     'irradiance-field-unavailable',
     (probes) => {
       hold.probes = probes
       hold.maps = maps
+      hold.offsets = offsets
     },
-    () => maps.dispose(),
+    () => (maps.dispose(), offsets?.dispose()),
   )
 }
 
@@ -164,6 +179,7 @@ export function encodeIrradianceField(
   }
   if (!hold.probes) return
   followSurface(hold.surface, frame.surface)
+  if (hold.offsets) hold.offsets.follow(frame.surface, rt.gpu.surfaces?.views()[NORMALS_VIEW])
   encodeHeldProbes(rt, encoder, hold.probes, hold.surface, frame)
 }
 
