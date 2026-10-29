@@ -76,6 +76,7 @@ const SCREEN_MARCH_PIXELS_WGSL = (group: number, binding: number) =>
  }else if(s0>0.0){
   let back=screenBack(s0,thickness,slab);
   if(o.z+d.z*t>=back){return ScreenHit(t,plane,centre,hizFrontOver(vec2i(cell)),k,0.0);}
+  return screenMarchMissed(0u,t);
  }
  return miss;
 }
@@ -99,6 +100,7 @@ export const SCREEN_MARCH_PLANES_WGSL = (group: number, binding: number) =>
     [SCREEN_MARCH_PIXELS_WGSL(group, binding)],
     `const SCREEN_MARCH_NUDGE:f32=${wgslF32(SCREEN_MARCH_NUDGE)};
 fn screenMarchPlanes(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->ScreenHit{
+ var unproven=end;
  let tiny=vec2f(1e-6);
  let ahead=d.xy>=vec2f(0.0);
  let inv=1.0/select(d.xy,select(-tiny,tiny,ahead),abs(d.xy)<tiny);
@@ -121,6 +123,7 @@ fn screenMarchPlanes(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->
   if(level==0){
    let met=screenPlanesPixel(o,d,t,across,cell,thickness,slab,k);
    if(met.t>=0.0){return met;}
+   if(met.above>0.0){unproven=min(unproven,met.above);}
    t=across;
    level=min(1,top);
    continue;
@@ -136,6 +139,7 @@ fn screenMarchPlanes(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->
   let entry=select(t,mix(t,across,(z0-nearest)/(z0-z1)),z0>nearest);
   let z=o.z+d.z*entry;
   if(max(z,z1)<screenBack(hizCellFarthest(vec2i(cell),level),thickness,slab)){
+   unproven=min(unproven,entry);
    t=across;
    level=min(level+1,top);
    continue;
@@ -144,12 +148,13 @@ fn screenMarchPlanes(o:vec3f,d:vec3f,end:f32,thickness:f32,slab:vec4f,cap:u32)->
   if(level<=floorLevel){
    let met=screenPlanesFloor(o,d,t,start,thickness,slab,k);
    if(met.t>=0.0){return met;}
+   unproven=min(unproven,t);
    t=across;
    level=min(level+1,top);
    continue;
   }
   level-=1;
  }
- return screenMarchMissed(steps,min(t,end));
+ return screenMarchMissed(steps,min(min(t,end),unproven));
 }`,
   )

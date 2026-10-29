@@ -209,6 +209,15 @@ test('the reference walk gives a ray up behind a thin surface at the surface, wh
   assert.ok(strict.steps <= strict.cap)
 })
 
+test('the planes march that passes behind a thin surface proves the ray clear only up to it', () => {
+  // The ray runs 0.3 behind a one-pixel pole (x = 50) over a far floor, and meets nothing after it.
+  const march = marcher(W, H, (x) => (x === 50 ? 0.8 : 0.1))
+  const { at, above } = march.hit([20.5, 30.5, 0.5], [100, 0, 0])
+  assert.equal(at, undefined)
+  // Past the pole the scene stage walks the ray: the screen has not proved it clear there.
+  assert.ok(above > 0.29 && above < 0.3055, `${above}`)
+})
+
 test('the reference walk that spends its iterations meets nothing, and says how far it proved the ray clear', () => {
   const march = reference((x) => (x === 100 ? 0.5 : 0.1))
   const { o, d } = falling(20, 120, 30, 100, 0.5, 0.01)
