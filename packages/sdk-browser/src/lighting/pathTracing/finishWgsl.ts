@@ -1,20 +1,38 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
 import { luminance } from '../../../../math/src/wgsl/color.ts'
 import { sceneTraceWgsl } from '../rays/sceneTrace/sceneTraceWgsl.ts'
+import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
+import { PT_AIR_PHASE_WGSL, PT_GROUND_CLASS } from './airWgsl.ts'
+import { PT_CLOUD_PHASE_WGSL } from './cloudPhaseWgsl.ts'
 import { PT_HIT_KIND, PT_HIT_WGSL } from './hitRecordWgsl.ts'
 import { PT_HIT_MATERIAL_VECS, PT_HIT_SURFACE_WGSL } from './hitMaterialWgsl.ts'
 import { PT_LIGHT_GRID_WGSL } from './lightGridWgsl.ts'
 import { PT_LIGHT_MAXIMUM } from './lightRecords.ts'
 import { PT_LIGHTS_WGSL } from './lightsWgsl.ts'
 import { PT_STATE_WGSL } from './pathWgsl.ts'
+import { PT_VOLUME_LIGHTING_WGSL } from './volumeLightingWgsl.ts'
+import { PT_RADIANCE_WGSL } from './radianceWgsl.ts'
 import { PT_NO_CLASS } from './traceBounceWgsl.ts'
-import { PT_ROUND_WGSL, PT_VIEW_WGSL } from './viewWgsl.ts'
+import { PT_ROUND_WGSL, PT_VIEW_FLAGS_WGSL, PT_VIEW_WGSL } from './viewWgsl.ts'
 
 /** The bindings of the scene trace's group in the finish of a bounce, past the trace's four: the hits the trace found and the materials the shade of the hits gave them. */
 export const PT_FINISH_BINDINGS = { hits: 4, materials: 5 } as const
 
 /** The most lights a point picks among, the length of the table of the cumulative importances a thread keeps. */
 const MAX_LIGHTS = PT_LIGHT_MAXIMUM
+
+/** What a shadow ray lets through: the scene, the air, and, where the clouds are traced, the clouds (of the roughness the path had before the bounce, the extinction scaled by the share the octave the event stands for keeps) for a light that casts a shadow from them. */
+const AIR_VISIBLE = `fn ptVisibleRgb(path:ptr<function,PtPath>,origin:vec3f,direction:vec3f,tMax:f32,casts:bool)->vec3f{
+ return ptVisible(origin,direction,tMax,casts)*ptAirVisible(path,origin,direction,tMax,casts);
+}`
+const CLOUD_VISIBLE = `var<private> ptCloudFactor:f32;
+var<private> ptPreviousRoughness:f32;
+fn ptLightCastsCloudShadow(id:u32)->bool{return directLights.lights[id].extra.y>0.0;}
+fn ptVisibleRgb(path:ptr<function,PtPath>,origin:vec3f,direction:vec3f,tMax:f32,casts:bool,cloudCasts:bool)->vec3f{
+ let seen=ptVisible(origin,direction,tMax,casts)*ptAirVisible(path,origin,direction,tMax,casts);
+ if(!casts||!cloudCasts||!any(seen>vec3f(0.0))){return seen;}
+ return seen*ptCloudVisible(path,origin,direction,tMax,ptPreviousRoughness,ptCloudFactor);
+}`
 
 /**
  * THE REST OF A BOUNCE (`ptFinishBounce(path, bounce, index)`), once the trace found what the path's ray meets (`ptHits`) and the shade of the hits gave it its material (`ptMaterials`, `PtHitMaterial`): one
@@ -38,38 +56,42 @@ const MAX_LIGHTS = PT_LIGHT_MAXIMUM
  * 6. The light by the material's sample (mode 0 and 2): every light the new ray meets (`ptTraceLight`, in front of nothing: a light is not geometry) adds its radiance by the new throughput,
  *    weighed in mode 2 against the density sampling that light would have had (the table's share of the light times its density), the shadow tested as above.
  * 7. The first scatter that is not a refraction is kept (a path refracted into a glass counts as the camera's until it scatters off something else); the path goes on if this is not the bounce before the last, or if emissive surfaces light the scene.
+ * Where the lamps light the volume by a point drawn on the ray (`pathTracingVolumeMISMode` 1, `ptVolumeLights`), that light is gathered first, whatever the ray meets, and the event of the air lights by the lights at infinity alone.
+ * Where the clouds are traced (`clouds`), the event of the air can be one of the clouds: its phase is the four lobes of `PT_CLOUD_PHASE_WGSL`, a shadow ray toward a light that casts cloud shadows (or from the medium) also crosses the clouds (`ptCloudVisible`), and the octave of the approximation of
+ * multiple scattering an event stands for lights its point and ends the path.
  */
-export const PT_FINISH_BOUNCE_WGSL = (scene: { group: number; first: number }) =>
+export const PT_FINISH_BOUNCE_WGSL = (scene: { group: number; first: number }, clouds = false) =>
   wgslBlock(
-    `PT_FINISH_BOUNCE_WGSL(${scene.group},${scene.first})`,
+    `PT_FINISH_BOUNCE_WGSL(${scene.group},${scene.first}${clouds ? ',clouds' : ''})`,
     [
       luminance,
       PT_VIEW_WGSL,
       PT_ROUND_WGSL,
+      PT_VIEW_FLAGS_WGSL,
       PT_STATE_WGSL,
+      PT_RADIANCE_WGSL,
       PT_LIGHTS_WGSL,
       PT_LIGHT_GRID_WGSL,
       PT_HIT_WGSL,
       PT_HIT_SURFACE_WGSL,
+      PT_VOLUME_LIGHTING_WGSL(clouds),
+      clouds ? PT_CLOUD_PHASE_WGSL : PT_AIR_PHASE_WGSL,
       sceneTraceWgsl(scene.group, scene.first),
     ],
     `@group(${scene.group}) @binding(${scene.first + PT_FINISH_BINDINGS.hits}) var<storage,read> ptHits:array<vec4u>;
 @group(${scene.group}) @binding(${scene.first + PT_FINISH_BINDINGS.materials}) var<storage,read> ptMaterials:array<vec4u>;
 const PT_LIGHT_TABLE:u32=${MAX_LIGHTS}u;
 var<private> ptPassedThrough:bool;
+// Set by the views of the payload, which take the surface as its material gives it, with no draw for its coverage or its glass.
+var<private> ptShowing:bool;
 fn ptMax3(v:vec3f)->f32{return max(v.x,max(v.y,v.z));}
-fn ptAccumulate(path:ptr<function,PtPath>,rgb:vec3f,camera:bool){
- let r=rgb*ptView.eye.w;
- let most=select(ptView.limits.x,65504.0,camera);
- let adjust=most/max(max(most,r.x),max(r.y,r.z));
- (*path).radiance+=r*adjust;
-}
 fn ptScattered(path:ptr<function,PtPath>)->bool{return (*path).scatter==PT_SCATTER_DIFFUSE||(*path).scatter==PT_SCATTER_SPECULAR;}
 fn ptVisible(origin:vec3f,direction:vec3f,tMax:f32,casts:bool)->f32{
  if(!casts){return 1.0;}
  let hit=stTrace(StRay(origin,direction,0.0,tMax,ST_ANY_HIT|ST_SHADOW|ST_SKIP_TRANSLUCENT));
  return select(1.0,0.0,hit.hit||!stComplete);
 }
+${clouds ? CLOUD_VISIBLE : AIR_VISIBLE}
 fn ptAccumulateAov(path:ptr<function,PtPath>,s:PtSurface){
  let weight=1.0-saturate(((*path).roughness-0.10)/(0.15-0.10));
  if(weight==0.0){return;}
@@ -94,7 +116,7 @@ fn ptSelectLight(r:f32,count:u32,cdf:ptr<function,array<f32,${MAX_LIGHTS}>>)->ve
 }
 fn ptHitSurface(h:PtHit,index:u32,path:ptr<function,PtPath>)->PtSurface{
  var s:PtSurface;
- if(h.classKey==${PT_NO_CLASS}u){
+ if(h.classKey==${PT_NO_CLASS}u||h.classKey==${PT_GROUND_CLASS}u){
   s.position=h.position;
   s.geoNormal=h.geoNormal;
   s.normal=h.normal;
@@ -108,12 +130,17 @@ fn ptHitSurface(h:PtHit,index:u32,path:ptr<function,PtPath>)->PtSurface{
   s.selection=1.0;
   s.ior=1.5;
   s.front=h.front;
+  // The planet's ground under the traced air is a diffuse surface of the air's ground albedo.
+  if(h.classKey==${PT_GROUND_CLASS}u){
+   s.diffuse=ptAtmo.block[${ATMOSPHERE_SLOT.ground}].xyz;
+   s.f0=vec3f(0.0);
+  }
  }else{
   let m=ptUnpackHitMaterial(ptMaterials[index*${PT_HIT_MATERIAL_VECS}u],ptMaterials[index*${PT_HIT_MATERIAL_VECS}u+1u],ptMaterials[index*${PT_HIT_MATERIAL_VECS}u+2u]);
   s=ptSurfaceOfHitMaterial(m,h.position,h.geoNormal,h.normal,h.distance,h.front);
   // A surface whose opacity is under one covers the ray in that proportion of its hits; the ray goes through the rest as it came, untouched, and is traced again from the other side in the next round of the bounce
   // (the last round has every surface cover it).
-  if(s.opacity<1.0){
+  if(s.opacity<1.0&&!ptShowing){
    // The draw is made in every round, so that the dimensions after it stay where they are.
    let covers=ptRand1(&(*path).rand)<s.opacity;
    if(!covers&&ptRound()<ptRounds()){
@@ -121,7 +148,7 @@ fn ptHitSurface(h:PtHit,index:u32,path:ptr<function,PtPath>)->PtSurface{
     return s;
    }
   }
-  if(m.transmission>0.0){
+  if(m.transmission>0.0&&!ptShowing){
    // A glass of walls with no thickness is a pane with no inside: the ray crosses no medium, the law of the medium is the colour of the slab for a unit length.
    let thin=m.thickness<=0.0;
    // A ray that meets the back of a solid glass crossed its medium: the law of the medium (2^(attenuation · distance) a channel) takes its share.
@@ -142,16 +169,20 @@ fn ptLoadHit(index:u32)->PtHit{
 }
 fn ptFinishBounce(path:ptr<function,PtPath>,bounce:u32,index:u32)->bool{
  let maxBounces=ptView.seeds.y;
- let lastBounce=bounce==maxBounces;
- let emissive=ptView.flags.x!=0u;
+ let lastBounce=bounce==maxBounces;${clouds ? '\n ptPreviousRoughness=(*path).roughness;\n ptCloudFactor=1.0;' : ''}
+ let emissive=ptEmissive();
  // The camera's until the path has scattered or refracted: the bounces that only went through coverage are still the first hit's.
  let camera=(*path).scatter==PT_SCATTER_CAMERA;
  let h=ptLoadHit(index);
  if(h.kind==${PT_HIT_KIND.ended}u){(*path).throughput=vec3f(0.0);return false;}
+ // The lamps light the stretch of the volume the walk went through by a point drawn on it, whatever the ray meets (the events the walk kept then light by the lights at infinity alone).
+ if(ptAirOn()&&ptAirVolumeLights()&&!lastBounce){ptVolumeLights(path,h,camera);}
  var s:PtSurface;
  var escaped=false;
+ // A scattering event of the air the trace kept for the bounce (the surface, if any, competes with it for the path).
+ let pending=any((*path).eventThroughput>vec3f(0.0));
  if(h.kind==${PT_HIT_KIND.escaped}u){
-  if(!camera){return false;}
+  if(!camera&&!pending){return false;}
   escaped=true;
   s.hitT=PT_T_MAX;
  }else{
@@ -174,20 +205,48 @@ fn ptFinishBounce(path:ptr<function,PtPath>,bounce:u32,index:u32)->bool{
   (*path).depth=clip.z/clip.w;
  }
  if(escaped){
-  (*path).alpha+=luminance((*path).throughput)*ptView.limits.z;
-  return false;
+  if(camera){(*path).alpha+=luminance((*path).throughput)*ptView.limits.z;}
+  if(!pending){return false;}
+ }else{
+  if(camera){(*path).alpha+=luminance((*path).throughput);}
+  if(emissive){ptAccumulate(path,(*path).throughput*s.emission,camera);}
+  if(lastBounce){return false;}
+  ptAccumulateAov(path,s);
  }
- if(camera){(*path).alpha+=luminance((*path).throughput);}
- if(emissive){ptAccumulate(path,(*path).throughput*s.emission,camera);}
- if(lastBounce){return false;}
- ptAccumulateAov(path,s);
- if(!(ptMax3((*path).throughput*ptMaterialAlbedo(s))>0.0)){return false;}
+ // The air: the surface and the events of the air the trace kept compete for the path in one reservoir; the path goes on from the winner with the throughput that makes the choice fair.
+ var medium=false;
+ var phase:PtAirPhase;
+ if(ptAirOn()){
+  var surfaceWins=false;
+  if(!escaped){
+   let w=ptMax3((*path).throughput*ptMaterialAlbedo(s));
+   surfaceWins=ptRisAccept(path,w);
+   if(surfaceWins){(*path).throughput*=(*path).risSum/w;}
+  }
+  if(!surfaceWins){
+   (*path).throughput=(*path).eventThroughput*(*path).risSum;
+   if(!(ptMax3((*path).throughput)>0.0)){return false;}
+   medium=true;
+   s=PtSurface();
+   s.position=(*path).eventPosition;
+   s.hitT=1.0;
+   s.normal=-(*path).direction;
+   phase=ptAirPhaseAt(s.position${clouds ? ',(*path).octave,(*path).roughness' : ''});${clouds ? '\n   ptCloudFactor=ptCloudFactorOf((*path).octave);' : ''}
+  }
+ }
+ if(!medium&&!(ptMax3((*path).throughput*ptMaterialAlbedo(s))>0.0)){return false;}
  let view=-(*path).direction;
- let bsdf=ptPrepareBsdf(s,view);
+ var bsdf:PtBsdf;
+ if(!medium){bsdf=ptPrepareBsdf(s,view);}
  let r=ptRand4(&(*path).rand);
- let sampled=ptSampleMaterial(s,bsdf,r.xyz);
+ var sampled:PtSample;
+ if(medium){sampled=ptAirSamplePhase(phase,view,r.xyz);}else{sampled=ptSampleMaterial(s,bsdf,r.xyz);}
  let misMode=ptView.seeds.z;
- let cell=ptGridLookup(s.position);
+ var cell=ptGridLookup(s.position);
+ if(medium&&ptAirVolumeLights()){
+  cell.lights=min(cell.lights,ptGridParams.infinite);
+  cell.mis=min(cell.mis,ptGridParams.infinite);
+ }
  let transmissive=s.glass||any(s.transmit>vec3f(0.0));
  let scattered=ptScattered(path);
  var cdf:array<f32,${MAX_LIGHTS}>;
@@ -208,15 +267,18 @@ fn ptFinishBounce(path:ptr<function,PtPath>,bounce:u32,index:u32)->bool{
    ls.radianceOverPdf/=pick;
    ls.pdf*=pick;
    if(ls.pdf>0.0){
+    if(medium){ls.radianceOverPdf*=ptLightScattering(id);}
     if(scattered){ls.radianceOverPdf*=ptLightIndirectScale(id,(*path).roughness);}
     if(any(ls.radianceOverPdf>vec3f(0.0))){
-     let evaluated=ptEvalMaterial(s,bsdf,ls.direction,vec2f(ptLightDiffuseScale(id),ptLightSpecularScale(id)));
+     var evaluated:PtEval;
+     if(medium){evaluated=ptAirEvalPhase(phase,view,ls.direction);}
+     else{evaluated=ptEvalMaterial(s,bsdf,ls.direction,vec2f(ptLightDiffuseScale(id),ptLightSpecularScale(id)));}
      var contribution=(*path).throughput*ls.radianceOverPdf*evaluated.weight*evaluated.pdf;
      if(misMode==2u){contribution*=ptMisPower(ls.pdf,evaluated.pdf);}
      if(any(contribution>vec3f(0.0))){
       // A surface that lets light through is lit from the side the light is on.
       let side=select(1.0,sign(dot(s.geoNormal,ls.direction)),transmissive);
-      contribution*=ptVisible(ptRayBias(s.position,s.hitT,side*s.geoNormal),ls.direction,ls.distance,ptLightCastsShadow(id));
+      contribution*=ptVisibleRgb(path,ptRayBias(s.position,s.hitT,side*s.geoNormal),ls.direction,ls.distance,select(ptLightCastsShadow(id),ptLightCastsVolumeShadow(id),medium)${clouds ? ',ptLightCastsCloudShadow(id)||medium' : ''});
       ptAccumulate(path,contribution,camera);
      }
     }
@@ -252,16 +314,16 @@ fn ptFinishBounce(path:ptr<function,PtPath>,bounce:u32,index:u32)->bool{
    let met=ptTraceLight((*path).origin,(*path).direction,0.0,PT_T_MAX,id);
    if(met.hitT<=0.0){continue;}
    var contribution=(*path).throughput*met.radiance;
-   contribution*=select(ptLightSpecularScale(id),ptLightDiffuseScale(id),sampled.scatter==PT_SCATTER_DIFFUSE);
+   contribution*=select(select(ptLightSpecularScale(id),ptLightDiffuseScale(id),sampled.scatter==PT_SCATTER_DIFFUSE),ptLightScattering(id),medium);
    if(useMis){contribution*=ptMisPower(sampled.pdf,met.pdf*pick);}
    if(scattered){contribution*=ptLightIndirectScale(id,previousRoughness);}
    if(any(contribution>vec3f(0.0))){
-    contribution*=ptVisible((*path).origin,(*path).direction,met.hitT,ptLightCastsShadow(id));
+    contribution*=ptVisibleRgb(path,(*path).origin,(*path).direction,met.hitT,select(ptLightCastsShadow(id),ptLightCastsVolumeShadow(id),medium)${clouds ? ',ptLightCastsCloudShadow(id)||medium' : ''});
     ptAccumulate(path,contribution,camera);
    }
   }
  }
- if((*path).scatter==PT_SCATTER_CAMERA||(*path).scatter==PT_SCATTER_REFRACT){(*path).scatter=sampled.scatter;}
+ ${clouds ? '// An octave of the approximation of multiple scattering lights and goes no further, whatever share of the extinction it keeps (the reference tells it by that share being under one, so with a share of one the octave bounced and counted its light twice).\n if(medium&&(*path).octave>0u){return false;}\n ' : ''}if((*path).scatter==PT_SCATTER_CAMERA||(*path).scatter==PT_SCATTER_REFRACT){(*path).scatter=sampled.scatter;}
  return bounce+1u<maxBounces||emissive;
 }`,
   )

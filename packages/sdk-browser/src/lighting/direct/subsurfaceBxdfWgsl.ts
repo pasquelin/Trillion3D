@@ -1,4 +1,5 @@
 import { wgslBlock } from '../../../../math/src/wgsl/decl.ts'
+import { hsvToRgb } from '../../../../math/src/wgsl/color.ts'
 import { INVERSE_PI } from '../../../../math/src/wgsl/constants.ts'
 import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
 
@@ -19,13 +20,9 @@ import { SHADING_MODEL_STATE_WGSL } from './shadingModelState.ts'
  */
 export const SUBSURFACE_BXDF_WGSL = wgslBlock(
   'SUBSURFACE_BXDF_WGSL',
-  [SHADING_MODEL_STATE_WGSL, INVERSE_PI],
+  [SHADING_MODEL_STATE_WGSL, INVERSE_PI, hsvToRgb],
   `
 const SUBSURFACE_LEAST:f32=0.000000000001;
-fn hueToRgb(h:f32)->vec3f{
- return saturate(vec3f(abs(h*6.0-3.0)-1.0,2.0-abs(h*6.0-2.0),2.0-abs(h*6.0-4.0)));
-}
-fn hsvToRgb(hsv:vec3f)->vec3f{return ((hueToRgb(hsv.x)-1.0)*hsv.y+1.0)*hsv.z;}
 fn rgbToHsv(c:vec3f)->vec3f{
  let p=select(vec4f(c.g,c.b,0.0,-1.0/3.0),vec4f(c.b,c.g,-1.0,2.0/3.0),c.g<c.b);
  let q=select(vec4f(c.r,p.y,p.z,p.x),vec4f(p.x,p.y,p.w,c.r),c.r<p.x);

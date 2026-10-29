@@ -1,6 +1,10 @@
 import { clamp, clampLowWins } from '../../../../math/src/scalar/reals.ts'
 import { ceilDiv, nextPow2 } from '../../../../math/src/scalar/integers.ts'
+import { createCachedGroup } from '../../gpu/bind/cachedGroup.ts'
 import { varianceLevels } from './framePlan.ts'
+import { PT_AIR_BYTES, PT_AIR_DEPTH_FORMAT } from './airMediumWgsl.ts'
+import { airParameterBytes } from './airDepth.ts'
+import { PT_CLOUD_BYTES, PT_CLOUD_MAP_FORMAT } from './cloudMediumWgsl.ts'
 import { PT_LIGHT_TABLE_WORDS } from './lightTable.ts'
 import { PT_GRID_DATA_WIDTH } from './lightGridWgsl.ts'
 import { PT_LIGHT_FLOATS, PT_LIGHT_MAXIMUM } from './lightRecords.ts'
@@ -56,6 +60,14 @@ export function tilesOf(size: readonly [number, number], side: number) {
   return tiles
 }
 
+/** The bytes of the air's optical depth table and of the two images of the clouds' acceleration map, `airSide` and `cloudSide` texels across (0 where the volume is not held); both are four 32-bit floats a texel. */
+export const volumeTablesBytes = (airSide: number, cloudSide: number) =>
+  (airSide * airSide + 2 * cloudSide * cloudSide) * 16
+
+/** The bytes the held air asks of the budget: its optical depth table and the buffer of the parameters of the table's slices (nothing where the air is not held, `airSide` 0). */
+export const airBytesOf = (airSide: number) =>
+  volumeTablesBytes(airSide, 0) + (airSide > 0 ? airParameterBytes(airSide) : 0)
+
 /** The bytes the path tracer asks of the device's budget for a view of `size` traced in tiles of `tile`: the accumulated images (two of each, the variance with its chain), the camera normals,
  *  the paths' states and queue, the dispatch blocks, the lights, the light grid and its lists, and the sky's tables. */
 export function pathTracingBytes(
@@ -67,6 +79,7 @@ export function pathTracingBytes(
   lightCapacity: number,
   gridCapacity: number,
   skySize: number,
+  tables = 0,
 ) {
   const pixels = size[0] * size[1]
   const chain = Array.from(
@@ -89,7 +102,8 @@ export function pathTracingBytes(
       (PT_LIGHT_TABLE_WORDS + lightCapacity * PT_LIGHT_FLOATS) * 4 +
       gridCells * 3 * 4 +
       lists +
-      sky,
+      sky +
+      tables,
   )
 }
 
@@ -119,6 +133,28 @@ export class PathTracingGpu {
   readonly skyPdfView: GPUTextureView
   readonly skyPdf: GPUTexture
   readonly skyBuild: GPUBuffer
+  /** The traced atmosphere's block with its options (`PtAtmo`), and the table of its optical depth (one texel while the air is not held; a view of the payload keeps it whole) with the key it was made for. */
+  readonly atmosphere: GPUBuffer
+  readonly airDepth: GPUTexture
+  readonly airDepthView: GPUTextureView
+  airDepthKey = ''
+  /** The parameters of the table's slices (made with the table, none where the air is not held), the key of the table being made over several images, the next slice to encode, and the key of the atmosphere uniform last written. */
+  readonly airParameters: GPUBuffer | undefined
+  airDepthBuilding = ''
+  airDepthNext = 0
+  airUniformKey = ''
+  /** The group of the table's kernel, made again only where the table or its parameters were. */
+  readonly airDepthGroup = createCachedGroup()
+  /** The clouds' block (`PtCloud`), and the two images of the acceleration map (absent until the clouds are admitted, `admitCloudMap`): the image written by this sample, which the trace reads, and the one the sample before wrote, which the build reads; they swap at each sample. */
+  readonly cloud: GPUBuffer
+  cloudMaps: readonly GPUTexture[] = []
+  cloudMapViews: readonly GPUTextureView[] = []
+  /** The group of the map's kernel, a slot for each parity of the two images that take turns, so that one is made again only when a resource moved. */
+  readonly cloudMapGroup = createCachedGroup(2)
+  cloudWritten: 0 | 1 = 0
+  /** The names of the clouds' bindings for a group's identity, a list for each image of the map (the block, the image, then the material's), kept while the images and the material's entries are (`cloudResources`). */
+  cloudNames: unknown[][] = []
+  cloudNamesOf: readonly GPUBindGroupEntry[] | undefined
   readonly errorLevels: GPUBuffer[]
   readonly display: GPUBuffer
   readonly normalView: GPUBuffer
@@ -136,6 +172,8 @@ export class PathTracingGpu {
   /** The side of the sky's sampling table and its levels (`skyTableSize`). */
   readonly skySize: number
   readonly skyMips: number
+  /** The side the air's table was made at: 0 while the air is not held (the table is then one texel, outside the budget's count). */
+  readonly airSide: number
 
   constructor(
     device: GPUDevice,
@@ -147,6 +185,7 @@ export class PathTracingGpu {
     lightCapacity: number,
     gridCapacity: number,
     skySize: number,
+    airSide: number,
   ) {
     this.device = device
     this.size = size
@@ -157,6 +196,7 @@ export class PathTracingGpu {
     this.lightCapacity = lightCapacity
     this.gridCapacity = gridCapacity
     this.skySize = skySize
+    this.airSide = airSide
     this.skyMips = skyTableMips(skySize)
     const [width, height] = size
     const levels = varianceLevels(size)
@@ -246,6 +286,27 @@ export class PathTracingGpu {
       256 * (this.skyMips + 1),
       GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     )
+    this.atmosphere = buffer(
+      'atmosphere',
+      PT_AIR_BYTES,
+      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+    )
+    // The table and its parameters are made with the rest, so that the budget's admission of the tracer covers them whole.
+    this.airDepth = texture(
+      'air optical depth',
+      PT_AIR_DEPTH_FORMAT,
+      1,
+      Math.max(airSide, 1),
+      Math.max(airSide, 1),
+    )
+    this.airDepthView = this.airDepth.createView()
+    if (airSide > 0)
+      this.airParameters = buffer(
+        'air optical depth parameters',
+        airParameterBytes(airSide),
+        GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
+      )
+    this.cloud = buffer('clouds', PT_CLOUD_BYTES, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST)
     this.errorLevels = Array.from({ length: Math.max(levels - 1, 1) }, (_, level) =>
       buffer(`error level ${level}`, 16, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
     )
@@ -269,6 +330,44 @@ export class PathTracingGpu {
         ]),
       ),
     )
+  }
+
+  /** The images of the clouds' acceleration map made again `side` texels across (the map starts over at the next sample, whose build reads nothing of them). */
+  setCloudMap(side: number) {
+    if (this.cloudMaps[0]?.width === side) return
+    // The new images are made before the old ones go: a refusal of the budget leaves the old ones whole.
+    const maps = [0, 1].map((at) =>
+      this.device.createTexture({
+        label: `Trillion3D path tracer cloud acceleration map ${at}`,
+        size: [side, side],
+        format: PT_CLOUD_MAP_FORMAT,
+        usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.STORAGE_BINDING,
+      }),
+    )
+    this.releaseCloudMap()
+    this.cloudMaps = maps
+    this.made.push(...this.cloudMaps)
+    this.cloudMapViews = this.cloudMaps.map((map) => map.createView())
+    this.cloudNames = this.cloudMapViews.map((view) => [this.cloud, view])
+    this.cloudNamesOf = undefined
+  }
+
+  /** Gives the clouds' two maps back to the budget: they are made again when the clouds are traced next. */
+  releaseCloudMap() {
+    for (const map of this.cloudMaps) {
+      map.destroy()
+      this.made.splice(this.made.indexOf(map), 1)
+    }
+    this.cloudMaps = []
+    this.cloudMapViews = []
+    this.cloudNames = []
+    this.cloudNamesOf = undefined
+    this.cloudWritten = 0
+  }
+
+  /** The bytes the air's table (with its parameters) and the clouds' two maps hold now: the maps are made in place, so this follows the side they were last made at. */
+  volumeBytes() {
+    return airBytesOf(this.airSide) + volumeTablesBytes(0, this.cloudMaps[0]?.width ?? 0)
   }
 
   /** Writes the table of the placements' surfaces, in a buffer of its own where it does not fit the last. */

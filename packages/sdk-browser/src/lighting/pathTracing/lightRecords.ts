@@ -6,6 +6,7 @@ import {
   LIGHT_PAYLOAD_MASK,
   LIGHT_UNDRAWN_SHIFT,
 } from '../../../../sdk-core/src/scene/light/contracts.ts'
+import { ATMOSPHERE_SLOT } from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { LIGHT_FIELD, baseOf } from '../../../../sdk-core/src/scene/light/fields.ts'
 
 /** The kinds of light the path tracer samples, as the shader's `PT_LIGHT_*` name them: the sky and the suns come first, at every point. */
@@ -21,7 +22,8 @@ export const PT_LIGHT_MAXIMUM = 256
  *  the axis the light shines along (a sun's, the direction toward it; a spot's cone; a rectangle's normal), the colour times the strength and the range,
  *  the tangent (a rectangle's height axis) and the radius (a lamp's source, a sun's disk sine), the sizes (a rectangle's width and height, a spot's
  *  outer cosine and the reciprocal of the gap to the inner), the shares of its diffuse and specular light, the exponent of a falloff that is not the
- *  inverse square, whether it casts a shadow, and the factor on its light once the path has scattered (its indirect lighting factor). */
+ *  inverse square, whether it casts a shadow, the factor on its light once the path has scattered (its indirect lighting factor), whether it casts the clouds' shadows, the factor on its light in a volume
+ *  (`fogScattering`) and whether its shadow also shadows a volume (`shadowsFog`). */
 export const PT_LIGHT_AT = {
   position: 0,
   kind: 3,
@@ -39,6 +41,9 @@ export const PT_LIGHT_AT = {
   exponent: 22,
   shadow: 23,
   indirect: 24,
+  cloudShadow: 25,
+  scattering: 26,
+  volumeShadow: 27,
 } as const
 
 /** The lights of an image as the path tracer reads them: their records, how many there are, how many are at infinity (the sky and the suns
@@ -59,6 +64,12 @@ export interface LightTableView {
 
 type Vector = [number, number, number]
 
+/** Which light of the air (0 the sun, 1 the second) the light buffer's slot `slot` is, -1 for none. */
+const airLightOf = (air: Float32Array, slot: number) => {
+  const at = ATMOSPHERE_SLOT.lightSlots * 4
+  return air[at] === slot ? 0 : air[at + 1] === slot ? 1 : -1
+}
+
 const lanes = (p: Float32Array, at: number): Vector => [p[at]!, p[at + 1]!, p[at + 2]!]
 const cross = (a: Vector, b: Vector): Vector => [
   a[1] * b[2] - a[2] * b[1],
@@ -70,7 +81,7 @@ const cross = (a: Vector, b: Vector): Vector => [
  * THE LIGHTS OF AN IMAGE, in the records the path tracer's shader reads (`lightsWgsl.ts`), from the store's table: each light's place taken to the eye
  * `eye` (the scene trace works relative to it), its colour times its strength (a sun's irradiance, a lamp's intensity, a rectangle's radiance), its
  * axis, its range, the size of its source and its cones, its shares; the sky first when `sky` (the sky light's cube is ready), then the suns, then the
- * lamps and rectangles. A light the view leaves out (`LIGHT_UNDRAWN_SHIFT`) is left out. The strength is the one the table holds, without its blend with
+ * lamps and rectangles; `cloudShadows` says which of the air's two lights cast the clouds' shadows (the clouds the paths trace shade a light that does). A light the view leaves out (`LIGHT_UNDRAWN_SHIFT`) is left out. The strength is the one the table holds, without its blend with
  * the exposure's inverse (`SceneLight.inverseExposureBlend`): the path tracer holds the exposure it was started at (`PathTracingView.baseExposure`).
  * The box is that of the spheres of influence (position ± range) of the lamps and rectangles, which the light grid divides.
  */
@@ -78,6 +89,8 @@ export function buildPathTracingLights(
   table: LightTableView,
   eye: readonly [number, number, number],
   sky: boolean,
+  air?: Float32Array,
+  cloudShadows: readonly [boolean, boolean] = [false, false],
 ): PathTracingLights {
   const { packed: p } = table
   const words = new Uint32Array(p.buffer, p.byteOffset, p.length)
@@ -103,6 +116,16 @@ export function buildPathTracingLights(
     const kind = bits % LIGHT_KIND_SPAN
     const strength = p[base + LIGHT_FIELD.intensity]!
     const colour = lanes(p, base + LIGHT_FIELD.color).map((c) => c * strength)
+    // Where the air is traced the sun comes in without the air's transmittance, which the paths apply themselves: its colour times its strength is read from the air's block as it stands outside the air (the buffer's colour is tinted already, and zero at the horizon).
+    if (air) {
+      const light = airLightOf(air, slot)
+      data[at + PT_LIGHT_AT.cloudShadow] = light !== -1 && cloudShadows[light] ? 1 : 0
+      if (light >= 0) {
+        const from =
+          (light === 0 ? ATMOSPHERE_SLOT.sunIlluminance : ATMOSPHERE_SLOT.secondIlluminance) * 4
+        for (let c = 0; c < 3; c++) colour[c] = air[from + c]!
+      }
+    }
     const direction = lanes(p, base + LIGHT_FIELD.direction)
     const place = lanes(p, base + LIGHT_FIELD.position)
     const range = p[base + LIGHT_FIELD.range]!
@@ -112,6 +135,8 @@ export function buildPathTracingLights(
     data[at + PT_LIGHT_AT.specular] = p[base + shares + 1]!
     data[at + PT_LIGHT_AT.shadow] = bits & LIGHT_FLAG.castsShadow ? 1 : 0
     data[at + PT_LIGHT_AT.indirect] = p[base + LIGHT_FIELD.contactGi + 3]!
+    data[at + PT_LIGHT_AT.scattering] = p[base + LIGHT_FIELD.fogScattering]!
+    data[at + PT_LIGHT_AT.volumeShadow] = bits & LIGHT_FLAG.shadowsFog ? 1 : 0
     if (kind === LIGHT_KIND.directional) {
       data[at + PT_LIGHT_AT.kind] = PT_LIGHT.directional
       data.set(

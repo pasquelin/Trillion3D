@@ -1,8 +1,11 @@
 import { wgslProgram } from '../../../../math/src/wgsl/assemble.ts'
+import { PT_AIR_BINDINGS, PT_AIR_STRUCT } from './airMediumWgsl.ts'
+import { ptCloudDeclarations } from './cloudMediumWgsl.ts'
 import { PT_FINISH_BOUNCE_WGSL } from './finishWgsl.ts'
 import { PT_LIGHT_TABLE_STRUCT } from './lightTable.ts'
 import { PT_QUEUE_WGSL } from './queueWgsl.ts'
 import { PT_TRACE_BOUNCE_WGSL } from './traceBounceWgsl.ts'
+import { PT_VISUALIZE_ENTRY, PT_VISUALIZE_WGSL } from './visualizeWgsl.ts'
 
 /** The bindings of the group 0 of the trace and of the finish of a bounce, past the cut's tables (`dagReadLayoutEntries`, at 1, 6, 7 and 9): the parameters, the paths' states and queue; for the finish,
  *  the lights with the energy table before them, the light grid and the sky's tables. */
@@ -40,6 +43,11 @@ const paths = `@group(0) @binding(${B.view}) var<uniform> ptView:PtView;
 
 const variance = `@group(0) @binding(${B.variance}) var ptVariance:texture_2d<f32>;`
 
+/** The traced atmosphere: its block with the options, and the table of its optical depth. */
+const air = `${PT_AIR_STRUCT}
+@group(0) @binding(${PT_AIR_BINDINGS.atmosphere}) var<uniform> ptAtmo:PtAtmo;
+@group(0) @binding(${PT_AIR_BINDINGS.depth}) var ptAirDepth:texture_2d<f32>;`
+
 const lights = `${PT_LIGHT_TABLE_STRUCT}
 @group(0) @binding(${B.lights}) var<storage,read> directLights:PtLightTable;
 @group(0) @binding(${B.gridParams}) var<uniform> ptGridParams:PtGridParams;
@@ -57,6 +65,7 @@ const entries = `fn ptRunCamera(local:vec2u,push:bool){
  var path=ptCreatePath(pixel,select(0u,u32(textureLoad(ptVariance,vec2i(pixel),0).z),ptView.image.w>0u));
  ptTraceBounce(&path,0u,vec2i(pixel),index);
  ptStorePath(index,path);
+ if(ptAirOn()){ptStoreAir(index,path);}
  if(push){ptPush(0u,index);}
 }
 @compute @workgroup_size(8,8,1)
@@ -78,12 +87,14 @@ fn ${PT_TRACE_ENTRIES.inner}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgr
  if(at>=ptRoundCount(bounce)){return;}
  let index=atomicLoad(&ptQueue[ptRoundList(bounce)+at]);
  var path=ptLoadPath(index);
+ if(ptAirOn()){ptLoadAir(index,&path);}
  if(path.dead){
   ptEndHit(index);
   return;
  }
  ptTraceBounce(&path,bounce,vec2i(ptPixelOf(index)),index);
  ptStorePath(index,path);
+ if(ptAirOn()){ptStoreAir(index,path);}
 }
 `
 
@@ -95,23 +106,39 @@ fn ${PT_FINISH_ENTRY}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) n
  if(at>=ptRoundCount(bounce)){return;}
  let index=atomicLoad(&ptQueue[ptRoundList(bounce)+at]);
  var path=ptLoadPath(index);
+ if(ptAirOn()){ptLoadAir(index,&path);}
  let keep=ptFinishBounce(&path,bounce,index);
  path.dead=!keep;
  ptStorePath(index,path);
+ if(ptAirOn()){ptStoreAir(index,path);}
  if(ptPassedThrough){ptPushRetry(index);}
  else if(keep&&bounce<ptView.counts.z){ptPush(bounce+1u,index);}
 }`
 
-/** The trace program: what each path's ray meets, bounce by bounce (`PT_TRACE_BOUNCE_WGSL`). */
-export const ptTraceProgram = () =>
-  wgslProgram(`${paths}\n${variance}\n${queue}\n${entries}`, [
-    PT_QUEUE_WGSL,
-    PT_TRACE_BOUNCE_WGSL(PT_TRACE_SCENE),
-  ])
+/** The view of the payload over the paths of a bounce, run in place of the finish: the paths of the round go on to the next round only where their ray went through a surface that did not cover it. */
+const visualize = `@compute @workgroup_size(64,1,1)
+fn ${PT_VISUALIZE_ENTRY}(@builtin(workgroup_id) wg:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
+ let bounce=ptView.flags.w;
+ let at=ptFlat(wg,n,lane);
+ if(at>=ptRoundCount(bounce)){return;}
+ let index=atomicLoad(&ptQueue[ptRoundList(bounce)+at]);
+ var path=ptLoadPath(index);
+ let again=ptShowHit(&path,bounce,index);
+ path.dead=!again;
+ ptStorePath(index,path);
+ if(again){ptPushRetry(index);}
+}`
 
-/** The finish program: the rest of each bounce over the hit and its material (`PT_FINISH_BOUNCE_WGSL`). */
-export const ptFinishProgram = () =>
-  wgslProgram(`${paths}\n${lights}\n${queue}\n${finish}`, [
-    PT_QUEUE_WGSL,
-    PT_FINISH_BOUNCE_WGSL(PT_TRACE_SCENE),
-  ])
+/** The trace program: what each path's ray meets, bounce by bounce (`PT_TRACE_BOUNCE_WGSL`), with the clouds' bindings and march where they are traced. */
+export const ptTraceProgram = (clouds = false) =>
+  wgslProgram(
+    `${paths}\n${variance}\n${air}\n${clouds ? `${ptCloudDeclarations()}\n` : ''}${queue}\n${entries}`,
+    [PT_QUEUE_WGSL, PT_TRACE_BOUNCE_WGSL(PT_TRACE_SCENE, clouds)],
+  )
+
+/** The finish program: the rest of each bounce over the hit and its material (`PT_FINISH_BOUNCE_WGSL`), with the clouds' bindings where they are traced, and the views of the payload (`PT_VISUALIZE_WGSL`) that take its place. */
+export const ptFinishProgram = (clouds = false) =>
+  wgslProgram(
+    `${paths}\n${lights}\n${air}\n${clouds ? `${ptCloudDeclarations()}\n` : ''}${queue}\n${finish}\n${visualize}`,
+    [PT_QUEUE_WGSL, PT_FINISH_BOUNCE_WGSL(PT_TRACE_SCENE, clouds), PT_VISUALIZE_WGSL],
+  )

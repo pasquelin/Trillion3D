@@ -3,6 +3,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { assertProgramAssembles } from '../../gpu/core/wgslNames.fixture.ts'
 import { PT_ACCUMULATE_ENTRIES, PT_ACCUMULATE_WGSL } from './accumulateProgram.ts'
+import { PT_AIR_DEPTH_ENTRY, PT_AIR_DEPTH_WGSL } from './airDepthWgsl.ts'
 import { PT_ARGS_ENTRY, PT_ARGS_WGSL } from './argsProgram.ts'
 import { PT_GRID_BUILD_WGSL, PT_SKY_BUILD_WGSL } from './buildPrograms.ts'
 import { PT_LIGHT_GRID_ENTRY } from './lightGridWgsl.ts'
@@ -95,4 +96,25 @@ test("a ray that went through a surface is traced again in the same bounce: ever
   }
   assert.match(ptFinishProgram(), /if\(ptPassedThrough\)\{ptPushRetry\(index\);\}/)
   assert.match(PT_ARGS_WGSL, /atomicStore\(&ptQueue\[ptRetryCountAt\(turn\+1u\)\],0u\)/)
+})
+
+test('the traced atmosphere’s optical depth program has its entry and the trace and finish programs bind its block and table', () => {
+  assertProgramAssembles(PT_AIR_DEPTH_WGSL, PT_AIR_DEPTH_ENTRY, 'the air optical depth')
+  for (const text of [ptTraceProgram(), ptFinishProgram()]) {
+    assert.match(text, /var<uniform> ptAtmo:PtAtmo/)
+    assert.match(text, /var ptAirDepth:texture_2d<f32>/)
+    assert.match(text, /fn ptAirTrack\(/)
+  }
+})
+
+test('the finish program holds the view of the payload and the lamps’ light of a volume, and the trace keeps the throughput the walk begins with', () => {
+  const finish = ptFinishProgram()
+  assertProgramAssembles(finish, 'ptVisualize', 'the view of the payload')
+  assert.match(finish, /fn ptShowHit\(/)
+  assert.match(finish, /fn ptVolumeLights\(/)
+  assert.match(finish, /if\(medium&&ptAirVolumeLights\(\)\)\{/)
+  assert.match(
+    ptTraceProgram(),
+    /if\(ptAirVolumeLights\(\)\)\{\(\*path\)\.segment=\(\*path\)\.throughput;\}/,
+  )
 })

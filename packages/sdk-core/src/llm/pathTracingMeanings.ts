@@ -68,6 +68,16 @@ export const PATH_TRACING_MEANINGS: Readonly<Record<PathTracingField, string>> =
     'How many similar patches are merged by a bilateral weight in the temporal blend (1 by default, up to 16).',
   pathTracingTemporalDenoiserMode:
     'When the denoiser runs: 0 or 1 (the default) once, at the last sample, as in offline rendering; 2 at every image, to see it work while the image accumulates. To never denoise, turn pathTracingDenoiser off.',
+  pathTracingVisualize:
+    'Draws a field of what each pixel sees in place of the lit image (default none, the lit image): a normal or the tangent, a colour, the transparency (its colour, or the count of translucent surfaces the ray goes through), the roughness, the anisotropy, the index of refraction, the shading model, the lighting channels, the position, the light grid’s count, axis, list or singular cells, the lights a volume sees, which side of the surface is hit, the fuzz, the subsurface colour, radius, weight or phase, the opacity, or a colour by the triangle, the instance or the cluster; PrimaryRays is the path tracer itself with no air, cloud, denoiser or adaptive sampling. The views see every surface the ray goes through and add their colours in proportion to what they cover; one sample, no denoiser.',
+  pathTracingVisualizeIncludeTranslucent:
+    'Whether the views see the meshes that are translucent whole (true, the default); off, the rays go through them and only the opaque surfaces show.',
+  pathTracingVisualizeSamplesPerPixel:
+    'The samples per pixel the PrimaryRays view gathers (1 by default); the other views take one.',
+  pathTracingVisualizeMaxCount:
+    'The lights the views that turn a count into a colour take as the red end of their blue to red ramp (16 by default); a cell past it is pink.',
+  pathTracingVisualizeAmbientOcclusionMaxDistance:
+    'How far, in metres, the occlusion ray goes that gives the views of the payload a little shading (2 by default, the reference’s 200 centimetres); a negative value shades by the facing ratio instead.',
   pathTracingMISMode:
     'How the lights are integrated at each surface the path meets: 0 by the material’s samples alone, 1 by sampling the lights alone, 2 (the default) by both, each weighed against the other so that neither is counted twice. 0 and 1 are for checking one method against the other.',
   pathTracingMISCompensation:
@@ -98,4 +108,30 @@ export const PATH_TRACING_MEANINGS: Readonly<Record<PathTracingField, string>> =
     'The most lights a cell of that grid keeps, from 1 to 256 (128 by default); the lights of the scene, if fewer, are all it can keep.',
   pathTracingLightGridAxis:
     'The axis the lights are projected along to make the grid: 0, 1 or 2, or -1 (the default) for the best of the three at each cell.',
+  pathTracingEnableReferenceAtmosphere:
+    'Whether the paths trace the atmosphere as a volume that scatters light (1), or leave the air to the sky light (0); -1 (the default) follows the view’s post process setting, which is off where it sets none.',
+  pathTracingAtmosphereOpticalDepthLUTResolution:
+    'The side, in texels, of the table of the air’s optical depth the traced atmosphere reads its transmittance from: 512 by default, held to what the device makes a texture of.',
+  pathTracingAtmosphereOpticalDepthLUTNumSamples:
+    'The samples integrated along the ray of each texel of that table: 16384 by default.',
+  pathTracingEnableAtmosphereGround:
+    'Whether the camera’s rays see the planet’s ground under the traced atmosphere (default off); the paths that scattered in the air always see it, so that it colours the air.',
+  pathTracingUseAnalyticTransmittance:
+    'Whether the transmittance through the traced atmosphere is read from the optical depth table (true, the default); off, it is estimated by stepping through the volume.',
+  pathTracingMaxRaymarchSteps:
+    'The most steps a ray takes through a volume before it stops (768 by default); raise it if the limit is reached, which biases the image.',
+  pathTracingVolumeMISMode:
+    'How the lamps and rectangles light a volume, the traced air and the clouds: 0 by the scattering events the density gives, 1 (the default) by a point drawn on the ray’s stretch of the volume with a density that follows the light’s reach (equi-angular sampling), the events then lighting by the suns and the sky alone.',
+  pathTracingEnableReferenceClouds:
+    'Whether the paths march the cloud layer’s material as a volume (true, the default); it needs the traced atmosphere and a sky with a clouds part; off, the clouds are left to the sky light.',
+  pathTracingCloudAccelerationMapResolution:
+    'The side, in texels, of the map that bounds the clouds’ march: for each column of the layer, its densest cloud and the lowest and highest heights that hold any (512 by default, from 1 to 4096 and no more than the device makes a texture of).',
+  pathTracingCloudAccelerationMapNumSamples:
+    'The samples of the cloud material each image adds to each texel of that map (64 by default, from 1 to 65536); the bounds tighten as the images accumulate.',
+  pathTracingCloudAccelerationMapVisualize:
+    'Draws the acceleration map in place of the clouds (default off), to judge its resolution.',
+  pathTracingCloudMultipleScatterMode:
+    'How the light scattered several times inside a cloud is made: 0 none, the material’s approximation ignored and the roughness cutoff applied; 1 (the default) the material’s approximation, the cutoff applied; 2 by the paths alone, the material’s approximation ignored and the cutoff lifted.',
+  pathTracingCloudRoughnessCutoff:
+    'The roughness of a path beyond which the clouds are not marched, to save time: 0.05 by default, from 0 to 1.',
 }

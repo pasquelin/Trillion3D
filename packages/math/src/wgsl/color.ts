@@ -72,3 +72,17 @@ export const greyMean = wgslFn(
   [],
   'fn greyMean(c:vec3f)->f32{return dot(c,vec3f(1.0/3.0));}',
 )
+
+/** The colour of hue `h` (a turn from 0 to 1) at full saturation and value: the six-sector ramp of the hue wheel. */
+export const hueToRgb = wgslFn(
+  'hueToRgb',
+  [],
+  'fn hueToRgb(h:f32)->vec3f{return saturate(vec3f(abs(h*6.0-3.0)-1.0,2.0-abs(h*6.0-2.0),2.0-abs(h*6.0-4.0)));}',
+)
+
+/** The colour of the hue, saturation and value `hsv`. */
+export const hsvToRgb = wgslFn(
+  'hsvToRgb',
+  [hueToRgb],
+  'fn hsvToRgb(hsv:vec3f)->vec3f{return ((hueToRgb(hsv.x)-1.0)*hsv.y+1.0)*hsv.z;}',
+)

@@ -1,6 +1,10 @@
 // The lights of an image in the records the path tracer reads, made from the light store's table.
 import test from 'node:test'
 import assert from 'node:assert/strict'
+import {
+  ATMOSPHERE_SLOT,
+  ATMOSPHERE_SLOTS,
+} from '../../../../sdk-core/src/scene/core/atmospherePack.ts'
 import { createSceneLightStore } from '../../../../sdk-core/src/scene/light/store.ts'
 import type { SceneLight } from '../../../../sdk-core/src/scene/light/contracts.ts'
 import { brightnessOf } from '../../../../sdk-core/src/scene/light/fields.ts'
@@ -126,4 +130,42 @@ test('a light the view leaves out is left out', () => {
   const built = buildPathTracingLights(store, [0, 0, 0], false)
   assert.equal(built.count, 1)
   assert.equal(built.data[PT_LIGHT_AT.kind], PT_LIGHT.spot)
+})
+
+test('a light of the air that casts the clouds’ shadows says so in its record, and no other does', () => {
+  const store = createSceneLightStore()
+  for (const light of [sun, lamp]) store.add({ ...light })
+  const air = new Float32Array(ATMOSPHERE_SLOTS * 4)
+  air.set([0, -1], ATMOSPHERE_SLOT.lightSlots * 4)
+  const built = buildPathTracingLights(store, [0, 0, 0], false, air, [true, false])
+  assert.equal(built.data[PT_LIGHT_AT.cloudShadow], 1)
+  assert.equal(built.data[PT_LIGHT_FLOATS + PT_LIGHT_AT.cloudShadow], 0)
+  const none = buildPathTracingLights(store, [0, 0, 0], false, air)
+  assert.equal(none.data[PT_LIGHT_AT.cloudShadow], 0)
+})
+
+test('a sun of the traced air comes in with the colour the air’s block holds outside the air, even where its transmittance is nil', () => {
+  const store = createSceneLightStore()
+  store.add({ ...sun })
+  const air = new Float32Array(ATMOSPHERE_SLOTS * 4)
+  air.set([0, -1], ATMOSPHERE_SLOT.lightSlots * 4)
+  air.set([3, 2, 1], ATMOSPHERE_SLOT.sunIlluminance * 4)
+  air.set([0, 0, 0, 0], ATMOSPHERE_SLOT.sunTransmittance * 4)
+  const built = buildPathTracingLights(store, [0, 0, 0], false, air)
+  assert.deepEqual(
+    [0, 1, 2].map((c) => built.data[PT_LIGHT_AT.colour + c]),
+    [3, 2, 1],
+  )
+})
+
+test('a light says how much of it a volume scatters and whether its shadow shadows one: the sun’s does and a lamp’s does not, unless asked', () => {
+  const { built } = made([sun, lamp, { ...spot, fogScattering: 0.5, shadowsFog: true }])
+  assert.deepEqual(
+    [0, 1, 2].map((i) => at(built, i, PT_LIGHT_AT.scattering)),
+    [1, 1, 0.5],
+  )
+  assert.deepEqual(
+    [0, 1, 2].map((i) => at(built, i, PT_LIGHT_AT.volumeShadow)),
+    [1, 0, 1],
+  )
 })

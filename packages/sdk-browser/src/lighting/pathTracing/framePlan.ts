@@ -5,6 +5,46 @@ import { clampLowWins } from '../../../../math/src/scalar/reals.ts'
 /** The path tracer's settings of the view, as resolved. */
 export type PathTracingSettings = SettingValues<typeof PATH_TRACING_RULES>
 
+/** The view that is the path tracer itself, with no air or cloud, no denoiser and no adaptive sampling (`pathTracingVisualize`). */
+const PRIMARY_RAYS_VIEW = 'PrimaryRays'
+
+/** Whether `mode` (`pathTracingVisualize`) is a view of the payload of the first hit, which takes the finish of the bounce's place and traces the camera's bounce alone: any but none and the path tracer's own `PrimaryRays`. */
+export const isPayloadView = (mode: string) => mode !== 'none' && mode !== PRIMARY_RAYS_VIEW
+
+/** The settings a view (`pathTracingVisualize`) is traced with: no adaptive sampling and no denoiser, which would filter the colours; one sample, but for `PrimaryRays`, which takes `pathTracingVisualizeSamplesPerPixel`; the others as they are. */
+export const visualizedSettings = (settings: PathTracingSettings): PathTracingSettings =>
+  settings.pathTracingVisualize === 'none'
+    ? settings
+    : {
+        ...settings,
+        pathTracingSamplesPerPixel:
+          settings.pathTracingVisualize === PRIMARY_RAYS_VIEW
+            ? settings.pathTracingVisualizeSamplesPerPixel
+            : 1,
+        pathTracingAdaptiveSampling: false,
+        pathTracingDenoiser: false,
+      }
+
+/** The settings with the sides of the air's optical depth table and of the clouds' acceleration map held to what the device makes a 2D texture of (`maxTextureDimension2D`); the contract holds the cloud map to the reference's range. The same object where both fit. */
+export const fittedToDevice = (
+  settings: PathTracingSettings,
+  textureSide: number,
+): PathTracingSettings =>
+  settings.pathTracingAtmosphereOpticalDepthLUTResolution <= textureSide &&
+  settings.pathTracingCloudAccelerationMapResolution <= textureSide
+    ? settings
+    : {
+        ...settings,
+        pathTracingAtmosphereOpticalDepthLUTResolution: Math.min(
+          settings.pathTracingAtmosphereOpticalDepthLUTResolution,
+          textureSide,
+        ),
+        pathTracingCloudAccelerationMapResolution: Math.min(
+          settings.pathTracingCloudAccelerationMapResolution,
+          textureSide,
+        ),
+      }
+
 /** What the tracer holds from one image to the next. */
 export interface PathTracingProgress {
   /** The samples gathered so far; 0 at the first image of a view that restarts. */

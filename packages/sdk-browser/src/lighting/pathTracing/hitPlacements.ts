@@ -1,3 +1,4 @@
+import { placementChannelsOf } from '../../geometry/dag/info/placementInfoLayout.ts'
 import { rowFlags } from '../../geometry/rows/surfaceRow.ts'
 import type { GeometryBlock } from '../../geometry/rows/page/pageRowMaterial.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
@@ -29,7 +30,7 @@ const attributed = (colours: boolean): GeometryBlock => ({
  * THE SURFACES THE HITS ARE SHADED WITH: for each root of the cut (`layout.selectionRoots`, a placement's rank), the record its surface has in the material table (`materialWord`), and for a triangle
  * with corner attributes and one without, the row flags and the resolve class key its surface has on such geometry (`rowFlags`: the class of a triangle without attributes reads no texture coordinate, normal or
  * colour). A root that wears no surface has none: its hits are given the tracer's default surface (`PT_NO_CLASS`). A blended surface's graph is shaded by its own program (the one its record holds the
- * values of): its class is the graph's over the features, where the resolve gives it the features' alone since it draws no blended surface.
+ * values of): its class is the graph's over the features, where the resolve gives it the features' alone since it draws no blended surface. The last word of a placement is the mask of the lighting channels of the root's object, which the view of the channels reads (`PT_CAPTURE`).
  */
 export function hitPlacementsOf(rt: WebgpuPagesRuntime): HitPlacements {
   const roots = rt.layout.selectionRoots
@@ -37,10 +38,11 @@ export function hitPlacementsOf(rt: WebgpuPagesRuntime): HitPlacements {
   const classes = new Set<number>()
   let translucent = false
   roots.forEach((root, placement) => {
+    const at = placement * PT_PLACEMENT_WORDS
+    words[at + 5] = placementChannelsOf(rt.vis.rootOffsets.rowOf(placement)?.bits ?? 0)
     const surface = root.worn?.surface
     if (!surface) return
     const seen = rt.vis.materialTable.surface(surface, rt.vis)
-    const at = placement * PT_PLACEMENT_WORDS
     const colours = !!surface.vertexColors
     const withAttributes = rowFlags(seen.row, attributed(colours), rt.vis.textures)
     const without = rowFlags(seen.row, undefined, rt.vis.textures)

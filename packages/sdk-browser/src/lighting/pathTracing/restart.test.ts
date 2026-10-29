@@ -11,6 +11,7 @@ import {
   writeBlock,
   type PathTracingBlockImage,
 } from './blocks.ts'
+import { PT_STATE_BYTES } from './pathWgsl.ts'
 import { advanced, restartReason, restarted, runOf, type PathTracingInputs } from './restart.ts'
 import { PT_PASS_ROUNDS, PT_VIEW, PT_VIEW_STRIDE } from './viewWgsl.ts'
 import { tileSideOf, tilesOf } from './gpuState.ts'
@@ -91,6 +92,7 @@ test('a block holds the image’s numbers at the offsets of the layout, a stride
     approximateCaustics: true,
     backgroundAlpha: 0,
     emissive: true,
+    viewFlags: 0,
     visibleLights: 0,
     adaptive: false,
     lights: 5,
@@ -121,13 +123,33 @@ test('a block holds the image’s numbers at the offsets of the layout, a stride
   assert.ok(PT_VIEW.words * 4 <= PT_VIEW_STRIDE)
 })
 
+test('the traced atmosphere’s settings restart the accumulation', () => {
+  const run = runOf(inputs())
+  assert.equal(restartReason(run, inputs({ pathTracingEnableReferenceAtmosphere: 1 })), 'settings')
+  assert.equal(restartReason(run, inputs({ pathTracingMaxRaymarchSteps: 100 })), 'settings')
+  assert.equal(restartReason(run, inputs({ pathTracingVolumeMISMode: 0 })), 'settings')
+})
+
+test('the traced clouds’ settings restart the accumulation', () => {
+  const run = runOf(inputs())
+  for (const change of [
+    { pathTracingEnableReferenceClouds: false },
+    { pathTracingCloudAccelerationMapResolution: 256 },
+    { pathTracingCloudAccelerationMapNumSamples: 8 },
+    { pathTracingCloudAccelerationMapVisualize: true },
+    { pathTracingCloudMultipleScatterMode: 2 },
+    { pathTracingCloudRoughnessCutoff: 0.5 },
+  ])
+    assert.equal(restartReason(run, inputs(change)), 'settings')
+})
+
 test('the view is cut in tiles that fit one storage binding, and the queue holds a count a bounce, two for the retried paths and four lists', () => {
   assert.deepEqual(tilesOf([100, 50], 64), [
     [0, 0, 64, 50],
     [64, 0, 36, 50],
   ])
   const device = {
-    limits: { maxStorageBufferBindingSize: 96 * 64 * 64, maxBufferSize: 1 << 30 },
+    limits: { maxStorageBufferBindingSize: PT_STATE_BYTES * 64 * 64, maxBufferSize: 1 << 30 },
   } as GPUDevice
   assert.equal(tileSideOf(device, 2048), 64)
   assert.equal(tileSideOf(device, 32), 64)

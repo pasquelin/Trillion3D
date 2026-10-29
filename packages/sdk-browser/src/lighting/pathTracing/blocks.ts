@@ -1,5 +1,5 @@
 import { queueListBase } from './queueWgsl.ts'
-import { PT_VIEW, PT_VIEW_STRIDE } from './viewWgsl.ts'
+import { PT_VIEW, PT_VIEW_FLAG, PT_VIEW_STRIDE } from './viewWgsl.ts'
 
 /** What every block of an image's dispatches shares: the image's matrix and eye, its counts, the settings the kernels read. */
 export interface PathTracingBlockImage {
@@ -21,6 +21,8 @@ export interface PathTracingBlockImage {
   readonly approximateCaustics: boolean
   readonly backgroundAlpha: number
   readonly emissive: boolean
+  /** The bits of the first flags word besides the emissive one (`PT_VIEW_FLAG`, the capture shifted by `PT_CAPTURE_SHIFT`). */
+  readonly viewFlags: number
   readonly visibleLights: number
   readonly adaptive: boolean
   readonly lights: number
@@ -87,7 +89,12 @@ export function writeBlock(
     base + at.limits,
   )
   words.set(
-    [image.emissive ? 1 : 0, image.visibleLights, image.adaptive ? 1 : 0, bounce],
+    [
+      (image.emissive ? PT_VIEW_FLAG.emissive : 0) | image.viewFlags,
+      image.visibleLights,
+      image.adaptive ? 1 : 0,
+      bounce,
+    ],
     base + at.flags,
   )
   words.set(

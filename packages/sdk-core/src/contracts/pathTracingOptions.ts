@@ -1,4 +1,5 @@
 import {
+  choiceSetting as choice,
   contextReader,
   countSetting as count,
   flagSetting as flag,
@@ -9,6 +10,48 @@ import {
   rulesOf,
   type SettingOptions,
 } from './settingRules.ts'
+
+/** The views of the path tracer's payload `pathTracingVisualize` draws in place of the lit image, in the order the shader numbers them (the first, `none`, draws the lit image). */
+export const PATH_TRACING_VISUALIZE_MODES = [
+  'none',
+  'Radiance',
+  'WorldNormal',
+  'WorldSmoothNormal',
+  'WorldGeoNormal',
+  'BaseColor',
+  'DiffuseColor',
+  'SpecularColor',
+  'TransparencyColor',
+  'Metallic',
+  'Specular',
+  'Roughness',
+  'Anisotropy',
+  'IOR',
+  'ShadingModel',
+  'LightingChannelMask',
+  'WorldPosition',
+  'PrimaryRays',
+  'WorldTangent',
+  'LightGridCount',
+  'LightGridAxis',
+  'LightGridListHash',
+  'LightGridSingular',
+  'VolumeLightCount',
+  'HitKind',
+  'TransparencyCount',
+  'SSSColor',
+  'SSSRadius',
+  'SSSWeight',
+  'SSSPhase',
+  'FuzzColor',
+  'FuzzRoughness',
+  'FuzzAmount',
+  'BSDFOpacity',
+  'BackfacingNormal',
+  'TriangleID',
+  'InstanceID',
+  'ClusterID',
+] as const
 
 /**
  * THE VIEW'S SETTINGS OF THE PATH TRACER AND ITS DENOISER: a render mode of its own that traces the scene's
@@ -49,11 +92,30 @@ import {
  * - `pathTracingLightGridResolution` (256), `pathTracingLightGridMaxCount` (128) and `pathTracingLightGridAxis` (-1): the grid that
  *   culls the lights a point need not look at, its side, the most lights a cell keeps, and the axis it is projected along (-1 the best).
  *
+ * The visualization (`pathTracingVisualize`, `none`): one of `PATH_TRACING_VISUALIZE_MODES`, a field of the first hit drawn in place of the lit image, one sample, no denoiser; `pathTracingVisualizeMaxCount` (16) the lights (or the cells' lights) the
+ * views that turn a count into a colour take as the red end of their ramp (a cell past it is pink); `pathTracingVisualizeAmbientOcclusionMaxDistance` (2, metres: the reference's 200 centimetres) how far the occlusion ray of the views that need a little shading goes, a negative value
+ * shading by the facing ratio instead; `pathTracingVisualizeIncludeTranslucent` (on) whether the views see the meshes that are translucent whole (off, the rays go through them and only the opaque surfaces show), and
+ * `pathTracingVisualizeSamplesPerPixel` (1) the samples the `PrimaryRays` view gathers (the other views take one). The views see every layer a ray goes through, the colours of the layers added in proportion to
+ * what they cover, and `PrimaryRays` is the path tracer itself with no air or cloud, no denoiser and no adaptive sampling.
+ *
+ * The traced atmosphere: `pathTracingEnableReferenceAtmosphere` (-1) whether the air is a volume the paths scatter in (1), is left to the sky light (0), or follows the view's post process setting (-1, which is off
+ * where the post process sets none); `pathTracingAtmosphereOpticalDepthLUTResolution` (512) and `pathTracingAtmosphereOpticalDepthLUTNumSamples` (16384) the side of the table of the air's optical depth and the
+ * samples integrated for each of its texels; `pathTracingEnableAtmosphereGround` (off) whether the camera's rays see the planet's ground (the paths that scattered in the air always do);
+ * `pathTracingUseAnalyticTransmittance` (on) whether the transmittance through the air is read from that table (off, it is estimated by null tracking) and `pathTracingMaxRaymarchSteps` (768) the most steps a ray takes in a volume;
+ * `pathTracingVolumeMISMode` (1) how the local lights light a volume (the air and the clouds): 0 by the scattering events the density gives, 1 by a point chosen on the ray's stretch of the volume in proportion to the light's reach (equi-angular sampling), the events then
+ * lighting by the lights at infinity alone.
+ *
+ * The traced clouds (they need the traced air and a sky with a clouds part): `pathTracingEnableReferenceClouds` (on) whether the paths march the cloud layer's material as a volume; `pathTracingCloudAccelerationMapResolution` (512)
+ * and `pathTracingCloudAccelerationMapNumSamples` (64) the side of the map of the densest cloud and the cloud's heights each column of the layer holds, which bounds the march, and the samples of the material each image adds to
+ * each of its texels; `pathTracingCloudAccelerationMapVisualize` (off) draws the map in place of the clouds; `pathTracingCloudMultipleScatterMode` (1) how the light scattered more than once in a cloud is made (0 none: the material's
+ * approximation is ignored and the roughness cutoff applies, 1 the material's approximation, the cutoff applying, 2 by the paths alone, the cutoff lifted); `pathTracingCloudRoughnessCutoff` (0.05) the roughness of the path beyond which
+ * the clouds are not marched.
+ *
  * Each default is the reference's (the cvar, or the post process volume's value where the cvar defers to it).
  *
  * Current limits: a hit's material is read back from the lit image where the surface shows, else from the surface cache's cards (no per-hit
  * material evaluation yet); no glass, subsurface, cloth or hair lobes; no capsule lights, light profiles, light functions or rectangle light textures;
- * the atmosphere and the clouds are not traced.
+ * the clouds are traced only where the device binds the sampled textures their material and map take beside the finish's own.
  *
  * The denoiser: a prepass keeps each pixel's running mean and variance (`pathTracingDenoiserVarianceType` 0 a variance per colour channel, 1 one
  * for the luminance, the albedo and the normals' length; `pathTracingDenoiserRankedLuminanceVariance` ranks the channels first;
@@ -101,6 +163,11 @@ export const PATH_TRACING_RULES = /* @__PURE__ */ (() =>
     integer('pathTracingTemporalDenoiserDistanceMetrics', 2, [0, 2]),
     flag('pathTracingTemporalDenoiserTotalVariation', true),
     integer('pathTracingTemporalDenoiserPatchCount', 1, [1, 16]),
+    choice('pathTracingVisualize', 'none', PATH_TRACING_VISUALIZE_MODES),
+    flag('pathTracingVisualizeIncludeTranslucent', true),
+    count('pathTracingVisualizeSamplesPerPixel', 1, 1),
+    count('pathTracingVisualizeMaxCount', 16, 1),
+    number('pathTracingVisualizeAmbientOcclusionMaxDistance', 2, [-1e6, 1e6]),
     integer('pathTracingMISMode', 2, [0, 2]),
     flag('pathTracingMISCompensation', true),
     number('pathTracingMaxPathIntensity', 24, [1, 65504]),
@@ -115,6 +182,19 @@ export const PATH_TRACING_RULES = /* @__PURE__ */ (() =>
     count('pathTracingLightGridResolution', 256, 1),
     integer('pathTracingLightGridMaxCount', 128, [1, 256]),
     integer('pathTracingLightGridAxis', -1, [-1, 2]),
+    integer('pathTracingEnableReferenceAtmosphere', -1, [-1, 1]),
+    count('pathTracingAtmosphereOpticalDepthLUTResolution', 512, 1),
+    count('pathTracingAtmosphereOpticalDepthLUTNumSamples', 16384, 1),
+    flag('pathTracingEnableAtmosphereGround', false),
+    flag('pathTracingUseAnalyticTransmittance', true),
+    count('pathTracingMaxRaymarchSteps', 768, 1),
+    integer('pathTracingVolumeMISMode', 1, [0, 1]),
+    flag('pathTracingEnableReferenceClouds', true),
+    integer('pathTracingCloudAccelerationMapResolution', 512, [1, 4096]),
+    integer('pathTracingCloudAccelerationMapNumSamples', 64, [1, 65536]),
+    flag('pathTracingCloudAccelerationMapVisualize', false),
+    integer('pathTracingCloudMultipleScatterMode', 1, [0, 2]),
+    number('pathTracingCloudRoughnessCutoff', 0.05, [0, 1]),
   ] as const))()
 
 export type PathTracingField = keyof typeof PATH_TRACING_RULES

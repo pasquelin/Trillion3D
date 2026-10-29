@@ -3,7 +3,7 @@ import { Frame3 } from '../../../../math/src/wgsl/basis.ts'
 import { PT_FUZZ_WGSL } from './fuzzWgsl.ts'
 
 /** The scatter types of a path (`PtSample.scatter`): the camera's ray before it has scattered, then what the first non-refractive bounce was. */
-export const PT_SCATTER = { camera: 0, diffuse: 1, specular: 2, refract: 3 } as const
+export const PT_SCATTER = { camera: 0, diffuse: 1, specular: 2, refract: 3, volume: 4 } as const
 
 /** The scatter types as the shader names them. */
 export const PT_SCATTER_WGSL = wgslBlock(
@@ -12,7 +12,8 @@ export const PT_SCATTER_WGSL = wgslBlock(
   `const PT_SCATTER_CAMERA:u32=${PT_SCATTER.camera}u;
 const PT_SCATTER_DIFFUSE:u32=${PT_SCATTER.diffuse}u;
 const PT_SCATTER_SPECULAR:u32=${PT_SCATTER.specular}u;
-const PT_SCATTER_REFRACT:u32=${PT_SCATTER.refract}u;`,
+const PT_SCATTER_REFRACT:u32=${PT_SCATTER.refract}u;
+const PT_SCATTER_VOLUME:u32=${PT_SCATTER.volume}u;`,
 )
 
 /**

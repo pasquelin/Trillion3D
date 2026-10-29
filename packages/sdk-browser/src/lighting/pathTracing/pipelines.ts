@@ -46,7 +46,14 @@ import {
   ptFinishProgram,
   ptTraceProgram,
 } from './traceProgram.ts'
+import { PT_AIR_BINDINGS, PT_AIR_DEPTH_FORMAT } from './airMediumWgsl.ts'
+import { PT_AIR_DEPTH_BINDINGS, PT_AIR_DEPTH_ENTRY, PT_AIR_DEPTH_WGSL } from './airDepthWgsl.ts'
+import { PT_CLOUD_MAP_BINDINGS, PT_CLOUD_MAP_ENTRY, PT_CLOUD_MAP_WGSL } from './cloudMapWgsl.ts'
+import { PT_CLOUD_BINDINGS, PT_CLOUD_MAP_FORMAT } from './cloudMediumWgsl.ts'
+import { PT_VISUALIZE_ENTRY } from './visualizeWgsl.ts'
+import { isPayloadView } from './framePlan.ts'
 import { PT_VIEW } from './viewWgsl.ts'
+import { cloudMaterialLayoutEntries } from '../../modules/sky/clouds/materialWgsl.ts'
 
 /** The format of the accumulated radiance, and of the albedo and normal beside it: radiance accumulates in floats, so that smooth gradients do not band. */
 export const PT_RADIANCE_FORMAT = 'rgba32float' as const
@@ -74,6 +81,8 @@ export interface PathTracingPipelines {
   readonly traceLayouts: readonly [GPUBindGroupLayout, GPUBindGroupLayout]
   readonly finishLayouts: readonly [GPUBindGroupLayout, GPUBindGroupLayout]
   readonly finish: PreparedPipeline<GPUComputePipeline>
+  /** The view of the payload that takes the finish's place (`pathTracingVisualize`); compiled only when a view is asked for, as is the finish only when none is (`finishStageOf`). */
+  readonly visualize: PreparedPipeline<GPUComputePipeline>
   readonly argsLayouts: readonly [GPUBindGroupLayout, GPUBindGroupLayout]
   readonly args: PreparedPipeline<GPUComputePipeline>
   readonly trace: Stages<keyof typeof PT_TRACE_ENTRIES>
@@ -85,11 +94,15 @@ export interface PathTracingPipelines {
   readonly sky: Stages<'prepare' | 'mip' | 'compensate'>
   readonly errorLayout: GPUBindGroupLayout
   readonly error: PreparedPipeline<GPUComputePipeline>
+  readonly airDepthLayout: GPUBindGroupLayout
+  readonly airDepth: PreparedPipeline<GPUComputePipeline>
+  readonly cloudMapLayout: GPUBindGroupLayout
+  readonly cloudMap: PreparedPipeline<GPUComputePipeline>
   readonly normalLayout: GPUBindGroupLayout
   readonly normal: PreparedPipeline<GPUComputePipeline>
   readonly displayLayout: GPUBindGroupLayout
   readonly display: PreparedPipeline<GPURenderPipeline>
-  /** Every compute pipeline, to be waited for together. */
+  /** Every compute pipeline every image runs, to be waited for together (the table of the air and the map of the clouds are not among them: `volumeStagesOf`). */
   readonly all: readonly PreparedPipeline<unknown>[]
 }
 
@@ -104,16 +117,54 @@ const compute = (
     compute: { module, entryPoint },
   })
 
-/** The trace of the bounces' rays and the finish of each bounce: the layouts of their two groups, the first the paths' and the sky's and lights', the second the scene trace's and the hits'. */
-function traceStages(device: GPUDevice) {
+/** The bindings the clouds add to the first group of the trace and of the finish: the cloud material, the clouds' block and the acceleration map. */
+const cloudLayoutEntries = () => [
+  ...cloudMaterialLayoutEntries(PT_CLOUD_BINDINGS.material),
+  computeUniformEntry(PT_CLOUD_BINDINGS.params),
+  computeTextureEntry(PT_CLOUD_BINDINGS.map, 'unfilterable-float'),
+]
+
+/** The entries the trace and the finish share in their first group: the view, the DAG, the paths' states and queue, the air and, with `clouds`, the clouds. */
+const pathsEntries = (clouds: boolean) => {
   const B = PT_TRACE_BINDINGS
-  const first = PT_TRACE_SCENE.first
-  const paths = [
+  return [
     computeUniformEntry(B.view, { hasDynamicOffset: true, minBindingSize: PT_VIEW.words * 4 }),
     ...dagReadLayoutEntries(),
     computeBufferEntry(B.states, 'storage'),
     computeBufferEntry(B.queue, 'storage'),
+    computeUniformEntry(PT_AIR_BINDINGS.atmosphere),
+    computeTextureEntry(PT_AIR_BINDINGS.depth, 'unfilterable-float'),
+    ...(clouds ? cloudLayoutEntries() : []),
   ]
+}
+
+/** The entries of the finish's two groups (the paths', sky's and lights'; the scene trace's and the hits'), with the clouds where `clouds`: the sampled textures they hold are what `PT_CLOUD_FINISH_TEXTURES` counts. */
+export function finishLayoutEntries(clouds: boolean) {
+  const B = PT_TRACE_BINDINGS
+  const first = PT_TRACE_SCENE.first
+  return [
+    [
+      ...pathsEntries(clouds),
+      computeBufferEntry(B.lights, 'read-only-storage'),
+      computeUniformEntry(B.gridParams),
+      computeTextureEntry(B.grid, 'uint', '2d-array'),
+      computeTextureEntry(B.gridData, 'uint'),
+      computeTextureEntry(B.skyTexture, 'unfilterable-float'),
+      computeTextureEntry(B.skyPdf, 'unfilterable-float'),
+    ],
+    [
+      ...sceneTraceLayoutEntries(first),
+      computeBufferEntry(first + PT_FINISH_BINDINGS.hits, 'read-only-storage'),
+      computeBufferEntry(first + PT_FINISH_BINDINGS.materials, 'read-only-storage'),
+    ],
+  ] as const
+}
+
+/** The trace of the bounces' rays and the finish of each bounce: the layouts of their two groups, the first the paths' and the sky's and lights', the second the scene trace's and the hits'; with `clouds`, the first group also binds the clouds. */
+function traceStages(device: GPUDevice, clouds: boolean) {
+  const B = PT_TRACE_BINDINGS
+  const first = PT_TRACE_SCENE.first
+  const paths = pathsEntries(clouds)
   const trace0 = device.createBindGroupLayout({
     label: 'Trillion3D path tracer trace',
     entries: [...paths, computeTextureEntry(B.variance, 'unfilterable-float')],
@@ -127,33 +178,22 @@ function traceStages(device: GPUDevice) {
       computeBufferEntry(first + PT_TRACE_STAGE_BINDINGS.hits, 'storage'),
     ],
   })
+  const [finish0Entries, finish1Entries] = finishLayoutEntries(clouds)
   const finish0 = device.createBindGroupLayout({
     label: 'Trillion3D path tracer finish',
-    entries: [
-      ...paths,
-      computeBufferEntry(B.lights, 'read-only-storage'),
-      computeUniformEntry(B.gridParams),
-      computeTextureEntry(B.grid, 'uint', '2d-array'),
-      computeTextureEntry(B.gridData, 'uint'),
-      computeTextureEntry(B.skyTexture, 'unfilterable-float'),
-      computeTextureEntry(B.skyPdf, 'unfilterable-float'),
-    ],
+    entries: finish0Entries,
   })
   const finish1 = device.createBindGroupLayout({
     label: 'Trillion3D path tracer finish scene trace',
-    entries: [
-      ...sceneTraceLayoutEntries(first),
-      computeBufferEntry(first + PT_FINISH_BINDINGS.hits, 'read-only-storage'),
-      computeBufferEntry(first + PT_FINISH_BINDINGS.materials, 'read-only-storage'),
-    ],
+    entries: finish1Entries,
   })
   const traceModule = device.createShaderModule({
     label: 'Trillion3D path tracer trace',
-    code: ptTraceProgram(),
+    code: ptTraceProgram(clouds),
   })
   const finishModule = device.createShaderModule({
     label: 'Trillion3D path tracer finish',
-    code: ptFinishProgram(),
+    code: ptFinishProgram(clouds),
   })
   const trace = (entry: string) => compute(device, traceModule, [trace0, trace1], entry)
   return {
@@ -165,6 +205,7 @@ function traceStages(device: GPUDevice) {
       inner: trace(PT_TRACE_ENTRIES.inner),
     },
     finish: compute(device, finishModule, [finish0, finish1], PT_FINISH_ENTRY),
+    visualize: compute(device, finishModule, [finish0, finish1], PT_VISUALIZE_ENTRY),
   }
 }
 
@@ -290,6 +331,41 @@ function errorStage(device: GPUDevice) {
   return { layout, stage: compute(device, module, [layout], PT_ADAPTIVE_ERROR_ENTRY) }
 }
 
+function airDepthStage(device: GPUDevice) {
+  const B = PT_AIR_DEPTH_BINDINGS
+  const layout = device.createBindGroupLayout({
+    label: 'Trillion3D path tracer air optical depth',
+    entries: [
+      computeUniformEntry(B.atmosphere),
+      computeStorageTextureEntry(B.table, PT_AIR_DEPTH_FORMAT),
+      computeUniformEntry(B.params, { hasDynamicOffset: true }),
+    ],
+  })
+  const module = device.createShaderModule({
+    label: 'Trillion3D path tracer air optical depth',
+    code: PT_AIR_DEPTH_WGSL,
+  })
+  return { layout, stage: compute(device, module, [layout], PT_AIR_DEPTH_ENTRY) }
+}
+
+function cloudMapStage(device: GPUDevice) {
+  const B = PT_CLOUD_MAP_BINDINGS
+  const layout = device.createBindGroupLayout({
+    label: 'Trillion3D path tracer cloud acceleration map',
+    entries: [
+      computeUniformEntry(B.params),
+      computeTextureEntry(B.previous, 'unfilterable-float'),
+      computeStorageTextureEntry(B.map, PT_CLOUD_MAP_FORMAT),
+      ...cloudMaterialLayoutEntries(B.material),
+    ],
+  })
+  const module = device.createShaderModule({
+    label: 'Trillion3D path tracer cloud acceleration map',
+    code: PT_CLOUD_MAP_WGSL,
+  })
+  return { layout, stage: compute(device, module, [layout], PT_CLOUD_MAP_ENTRY) }
+}
+
 function normalStage(device: GPUDevice) {
   const layout = device.createBindGroupLayout({
     label: 'Trillion3D path tracer normal space',
@@ -331,20 +407,31 @@ function displayStage(device: GPUDevice) {
   }
 }
 
-/** The path tracer's pipelines on `device`: made once, each prepared off the frame. */
-export const pathTracingPipelinesOf = oncePerDevice((device: GPUDevice): PathTracingPipelines => {
-  const trace = traceStages(device)
-  const args = argsStage(device)
-  const accumulate = accumulateStages(device)
-  const grid = gridStage(device)
-  const sky = skyStages(device)
-  const error = errorStage(device)
-  const normal = normalStage(device)
-  const display = displayStage(device)
+/** The stages that cast no ray, made once for the device whichever trace and finish it is given. */
+const commonStagesOf = oncePerDevice((device: GPUDevice) => ({
+  args: argsStage(device),
+  accumulate: accumulateStages(device),
+  grid: gridStage(device),
+  sky: skyStages(device),
+  error: errorStage(device),
+  airDepth: airDepthStage(device),
+  cloudMap: cloudMapStage(device),
+  normal: normalStage(device),
+  display: displayStage(device),
+}))
+
+/** Every pipeline of the path tracer from the trace and finish stages `trace` (`traceStages`) and the stages that cast no ray. */
+function pipelinesOf(
+  device: GPUDevice,
+  trace: ReturnType<typeof traceStages>,
+): PathTracingPipelines {
+  const { args, accumulate, grid, sky, error, airDepth, cloudMap, normal, display } =
+    commonStagesOf(device)
   return {
     traceLayouts: trace.traceLayouts,
     finishLayouts: trace.finishLayouts,
     finish: trace.finish,
+    visualize: trace.visualize,
     trace: trace.stages,
     argsLayouts: args.layouts,
     args: args.stage,
@@ -356,13 +443,16 @@ export const pathTracingPipelinesOf = oncePerDevice((device: GPUDevice): PathTra
     sky: sky.stages,
     errorLayout: error.layout,
     error: error.stage,
+    airDepthLayout: airDepth.layout,
+    airDepth: airDepth.stage,
+    cloudMapLayout: cloudMap.layout,
+    cloudMap: cloudMap.stage,
     normalLayout: normal.layout,
     normal: normal.stage,
     displayLayout: display.layout,
     display: display.stage,
     all: [
       ...Object.values(trace.stages),
-      trace.finish,
       args.stage,
       ...Object.values(accumulate.stages),
       grid.stage,
@@ -372,4 +462,27 @@ export const pathTracingPipelinesOf = oncePerDevice((device: GPUDevice): PathTra
       display.stage,
     ],
   }
-})
+}
+
+/** The path tracer's pipelines on `device`: made once, each prepared off the frame. */
+export const pathTracingPipelinesOf = oncePerDevice((device: GPUDevice) =>
+  pipelinesOf(device, traceStages(device, false)),
+)
+
+/**
+ * The pipelines of the path tracer where the clouds are traced: the trace and the finish made over the clouds' bindings and code (`traceStages` with `clouds`), the rest those of
+ * `pathTracingPipelinesOf`. Made the first time the clouds are traced on a device; the cloudless trace and finish are not compiled for it.
+ */
+export const pathTracingCloudPipelinesOf = oncePerDevice((device: GPUDevice) =>
+  pipelinesOf(device, traceStages(device, true)),
+)
+
+/** The stage that ends each bounce: the view of the payload where one is asked for (`isPayloadView`), the finish otherwise. The other is never asked, so never compiled. */
+export const finishStageOf = (pipelines: PathTracingPipelines, visualize: string) =>
+  isPayloadView(visualize) ? pipelines.visualize : pipelines.finish
+
+/** The stages of the volumes an image runs: the table of the air's optical depth where the air is traced, the clouds' acceleration map where the clouds are. */
+export const volumeStagesOf = (pipelines: PathTracingPipelines, air: boolean, clouds: boolean) => [
+  ...(air ? [pipelines.airDepth] : []),
+  ...(clouds ? [pipelines.cloudMap] : []),
+]

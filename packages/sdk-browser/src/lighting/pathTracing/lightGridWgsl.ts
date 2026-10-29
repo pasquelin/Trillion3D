@@ -5,11 +5,11 @@ import { PT_LIGHT, PT_LIGHT_MAXIMUM } from './lightRecords.ts'
 export const PT_GRID_DATA_WIDTH = 4096
 
 /** The grid's parameters (`ptGridParams`, a uniform): the box that holds the lamps' spheres of influence (`boundMin`, `boundMax`; none when they are empty), the cells a side, the most lights
- *  a cell keeps, the axis (0 to 2 forces it, 3 or more picks the best cell by cell), the lights at infinity (the sky and the suns, which come first) and all the lights. */
+ *  a cell keeps, the axis (0 to 2 forces it, 3 or more picks the best cell by cell), the lights at infinity (the sky and the suns, which come first) and all the lights, then the view of the payload drawn (`pathTracingVisualize`, written at each image), the count its ramps end at and the length of its occlusion ray. */
 export const PT_GRID_PARAMS_WGSL = wgslBlock(
   'PT_GRID_PARAMS_WGSL',
   [],
-  'struct PtGridParams{boundMin:vec4f,boundMax:vec4f,resolution:u32,maxCount:u32,axis:u32,infinite:u32,count:u32,}',
+  'struct PtGridParams{boundMin:vec4f,boundMax:vec4f,resolution:u32,maxCount:u32,axis:u32,infinite:u32,count:u32,visualize:u32,visualizeMax:u32,visualizeAo:f32,}',
 )
 
 /** The kernel that makes the light grid, 8 by 8 cells a group, a third group for each axis. */

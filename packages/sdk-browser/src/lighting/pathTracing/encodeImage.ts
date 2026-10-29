@@ -9,16 +9,26 @@ import {
   type PathTracingBlocks,
   type PathTracingTile,
 } from './blocks.ts'
-import type { PathTracingFrame, PathTracingSettings } from './framePlan.ts'
+import { isPayloadView, type PathTracingFrame, type PathTracingSettings } from './framePlan.ts'
 import type { PathTracingGpu } from './gpuState.ts'
 import type { PathTracingLights } from './lightRecords.ts'
-import type { PathTracingPipelines } from './pipelines.ts'
+import { encodeCloudMap, type PathTracingClouds } from './cloudFrame.ts'
+import { PT_CAPTURED_VIEW, visualizeWords } from './visualizeWgsl.ts'
+import { finishStageOf, type PathTracingPipelines } from './pipelines.ts'
+import { encodeAir } from './airDepth.ts'
 import { encodeLightGrid, encodeSkyTable } from './tables.ts'
 import type { PathTracingCounters } from './restart.ts'
 import type { PathTracingGroups, createPathTracingGroups } from './encodeGroups.ts'
 import type { hitShadePipelinesOf } from './shadeHitPipelines.ts'
 import { queueListBase } from './queueWgsl.ts'
-import { PT_STEPS, PT_VIEW, PT_VIEW_STRIDE } from './viewWgsl.ts'
+import {
+  PT_CAPTURE,
+  PT_CAPTURE_SHIFT,
+  PT_STEPS,
+  PT_VIEW,
+  PT_VIEW_FLAG,
+  PT_VIEW_STRIDE,
+} from './viewWgsl.ts'
 
 /** Everything an image of the path tracer is encoded from. */
 export interface PathTracingImageContext {
@@ -37,6 +47,10 @@ export interface PathTracingImageContext {
   /** The lights of a restart, none while the run goes on, and how many the run has. */
   readonly lights: PathTracingLights | undefined
   readonly lightCount: number
+  /** The scene's atmosphere block as the light store packs it and its version: what the traced atmosphere reads. */
+  readonly air: { readonly packed: Float32Array; readonly version: number }
+  /** The clouds the paths trace in this image (`tracedCloudsOf`), none where they are not. */
+  readonly clouds: PathTracingClouds | undefined
   /** The sky light's cube, none without a sky light; the table is made again at a restart, or at every image with the caching off. */
   readonly sky: SkyLightReadSet | undefined
   readonly rays: SceneRays
@@ -59,6 +73,18 @@ export interface PathTracingImageContext {
 export const blockOf = (tile: number, depth: number, bounce: number, round = 0) =>
   (tile * (depth + 2) + bounce) * PT_STEPS + round
 
+/** The bits of the first flags word the view asked for sets (`PT_VIEW_FLAG`, `PT_CAPTURE`): the meshes translucent whole left out where the views do not include them, and, for the views whose value only the trace knows, the field it keeps. */
+export function viewFlagsOf(settings: PathTracingSettings) {
+  const mode = settings.pathTracingVisualize
+  if (mode === 'none') return 0
+  const capture = PT_CAPTURED_VIEW[mode as keyof typeof PT_CAPTURED_VIEW] ?? PT_CAPTURE.none
+  return (
+    (settings.pathTracingVisualizeIncludeTranslucent ? 0 : PT_VIEW_FLAG.skipTranslucent) |
+    (mode === 'HitKind' ? PT_VIEW_FLAG.keepBackFaces : 0) |
+    (capture << PT_CAPTURE_SHIFT)
+  )
+}
+
 /** The parameters every block of the image shares (`PathTracingBlockImage`). */
 function blockImage(context: PathTracingImageContext): PathTracingBlockImage {
   const { settings, counters, gpu, size, eye, viewInverse, baseExposure } = context
@@ -79,7 +105,8 @@ function blockImage(context: PathTracingImageContext): PathTracingBlockImage {
     maxPathIntensity: settings.pathTracingMaxPathIntensity,
     approximateCaustics: settings.pathTracingApproximateCaustics,
     backgroundAlpha: settings.pathTracingBackgroundAlpha,
-    emissive: settings.pathTracingEnableEmissive,
+    emissive: settings.pathTracingEnableEmissive || isPayloadView(settings.pathTracingVisualize),
+    viewFlags: viewFlagsOf(settings),
     visibleLights: settings.pathTracingVisibleLights,
     adaptive: context.frame.adaptive,
     lights: context.lightCount,
@@ -169,13 +196,15 @@ function encodeTile(
       pass.setBindGroup(1, groups.shade1, [offset(bounce, round)])
       dispatchPaths(bounce, round)
     }
-    pass.setPipeline(pipelines.finish.get()!)
+    pass.setPipeline(finishStageOf(pipelines, settings.pathTracingVisualize).get()!)
     pass.setBindGroup(0, groups.finish0, [offset(bounce, round)])
     pass.setBindGroup(1, groups.finish1)
     dispatchPaths(bounce, round)
   }
   const adaptive = frame.adaptive && counters.iteration > 0
-  for (let bounce = 0; bounce <= depth; bounce++) {
+  // A view of the payload is the first bounce alone (every other view, and the lit image, takes them all).
+  const last = isPayloadView(settings.pathTracingVisualize) ? 0 : depth
+  for (let bounce = 0; bounce <= last; bounce++) {
     if (bounce === 0 && !adaptive) {
       // The camera's bounce over the tile puts every path in the list the rest of the bounce reads.
       trace('cameraGrid', 0)
@@ -228,6 +257,16 @@ function copyUntraced(context: PathTracingImageContext, read: number, write: num
 export function encodePathTracingImage(context: PathTracingImageContext): 0 | 1 | undefined {
   const { device, encoder, pipelines, gpu, frame, settings, counters, tiles, depth, latest } =
     context
+  // The optical depth table is built over several images; the grid and the tables of a restart do not wait for it, or the later images (which carry no restart) would find them never built.
+  const airReady = encodeAir(
+    device,
+    encoder,
+    pipelines,
+    gpu,
+    settings,
+    context.air.packed,
+    context.air.version,
+  )
   if (context.lights) {
     encodeLightGrid(
       device,
@@ -237,6 +276,16 @@ export function encodePathTracingImage(context: PathTracingImageContext): 0 | 1 
       context.lights,
       Math.min(settings.pathTracingLightGridMaxCount, gpu.gridCapacity),
       settings.pathTracingLightGridAxis,
+    )
+    // The view of the payload, with the count and the length its views take, rides in the grid's parameters (past the box and the counts); the options restart the run, so it is written with them.
+    device.queue.writeBuffer(
+      gpu.gridParams,
+      52,
+      visualizeWords(
+        settings.pathTracingVisualize,
+        settings.pathTracingVisualizeMaxCount,
+        settings.pathTracingVisualizeAmbientOcclusionMaxDistance,
+      ),
     )
   }
   if (context.sky && (context.lights || !settings.pathTracingSkylightCaching))
@@ -248,7 +297,19 @@ export function encodePathTracingImage(context: PathTracingImageContext): 0 | 1 
       context.sky,
       settings.pathTracingMISCompensation && settings.pathTracingMISMode === 2,
     )
-  if (!frame.needsMoreRays) return undefined
+  if (!airReady || !frame.needsMoreRays) return undefined
+  if (context.clouds)
+    encodeCloudMap(
+      device,
+      encoder,
+      pipelines,
+      gpu,
+      context.clouds,
+      settings,
+      context.air.packed,
+      context.eye,
+      counters.iteration,
+    )
   // At a restart nothing is read (the first sample blends with nothing), but the image read must not be the one written: a texture is not sampled and stored to in one dispatch.
   const read = latest ?? 1
   const write: 0 | 1 = latest === undefined ? 0 : latest === 0 ? 1 : 0
@@ -275,6 +336,7 @@ export function encodePathTracingImage(context: PathTracingImageContext): 0 | 1 
     variance: gpu.images[read]!.varianceTop,
     resolve: context.resolve,
     shade: context.shade,
+    clouds: context.clouds,
   })
   const accumulate = accumulateGroup(context, read, write)
   tiles.forEach((_, at) => encodeTile(context, at, groups, accumulate))

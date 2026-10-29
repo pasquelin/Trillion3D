@@ -78,6 +78,8 @@ fn ptLightCastsShadow(id:u32)->bool{return directLights.lights[id].shares.w>0.0;
 fn ptLightDiffuseScale(id:u32)->f32{return directLights.lights[id].shares.x;}
 fn ptLightSpecularScale(id:u32)->f32{return directLights.lights[id].shares.y;}
 fn ptLightIndirectScale(id:u32,pathRoughness:f32)->f32{return mix(1.0,directLights.lights[id].extra.x,saturate(4.0*pathRoughness));}
+fn ptLightScattering(id:u32)->f32{return directLights.lights[id].extra.z;}
+fn ptLightCastsVolumeShadow(id:u32)->bool{return directLights.lights[id].extra.w>0.0;}
 fn ptLightFalloff(light:PtLight,distanceSquared:f32)->f32{
  let range=light.colour.w;
  if(range<=0.0){return 1.0;}

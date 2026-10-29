@@ -19,6 +19,22 @@ test('the path tracer is off, and its other settings hold the reference defaults
   assert.equal(defaults.pathTracingTemporalDenoiserMode, 1)
   assert.equal(defaults.pathTracingFilterWidth, 3)
   assert.equal(defaults.pathTracingIndirectDispatch, false)
+  assert.equal(defaults.pathTracingEnableReferenceAtmosphere, -1)
+  assert.equal(defaults.pathTracingAtmosphereOpticalDepthLUTResolution, 512)
+  assert.equal(defaults.pathTracingAtmosphereOpticalDepthLUTNumSamples, 16384)
+  assert.equal(defaults.pathTracingEnableAtmosphereGround, false)
+  assert.equal(defaults.pathTracingUseAnalyticTransmittance, true)
+  assert.equal(defaults.pathTracingMaxRaymarchSteps, 768)
+  assert.equal(defaults.pathTracingVolumeMISMode, 1)
+  assert.equal(defaults.pathTracingVisualize, 'none')
+  assert.equal(defaults.pathTracingVisualizeMaxCount, 16)
+  assert.equal(defaults.pathTracingVisualizeAmbientOcclusionMaxDistance, 2)
+  assert.equal(defaults.pathTracingEnableReferenceClouds, true)
+  assert.equal(defaults.pathTracingCloudAccelerationMapResolution, 512)
+  assert.equal(defaults.pathTracingCloudAccelerationMapNumSamples, 64)
+  assert.equal(defaults.pathTracingCloudAccelerationMapVisualize, false)
+  assert.equal(defaults.pathTracingCloudMultipleScatterMode, 1)
+  assert.equal(defaults.pathTracingCloudRoughnessCutoff, 0.05)
 })
 
 test('each takes what its rule says, and nothing else', () => {
@@ -30,6 +46,9 @@ test('each takes what its rule says, and nothing else', () => {
   assert.throws(() => resolveSetting(rule('pathTracingAdaptiveSamplingVisualize'), 8), TypeError)
   assert.throws(() => resolveSetting(rule('pathTracingTemporalDenoiserMode'), 3), TypeError)
   assert.throws(() => resolveSetting(rule('pathTracingDenoiserNormalSpace'), 2), TypeError)
+  assert.throws(() => resolveSetting(rule('pathTracingCloudMultipleScatterMode'), 3), TypeError)
+  assert.throws(() => resolveSetting(rule('pathTracingVolumeMISMode'), 2), TypeError)
+  assert.throws(() => resolveSetting(rule('pathTracingVisualize'), 5), TypeError)
 })
 
 test('every setting has its meaning', () => {

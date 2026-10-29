@@ -1,6 +1,8 @@
-// The path tracer's WGSL texts of `ENGINE_SHADERS`: the trace of a bounce's rays, the finish of a bounce, the shade of the hits (of the surfaces that read their maps), the accumulation, the light grid, the sky's table,
+// The path tracer's WGSL texts of `ENGINE_SHADERS`: the trace of a bounce's rays and the finish of a bounce (each also where the clouds are traced), the clouds' acceleration map, the shade of the hits (of the surfaces that read their maps), the accumulation, the light grid, the sky's table,
 // the error chain, the normals in the camera's space, the display and the denoiser's kernels.
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
+import { PT_AIR_DEPTH_WGSL } from '../../lighting/pathTracing/airDepthWgsl.ts'
+import { PT_CLOUD_MAP_WGSL } from '../../lighting/pathTracing/cloudMapWgsl.ts'
 import { PT_ARGS_WGSL } from '../../lighting/pathTracing/argsProgram.ts'
 import { PT_ACCUMULATE_WGSL } from '../../lighting/pathTracing/accumulateProgram.ts'
 import { PT_ADAPTIVE_ERROR_KERNEL_WGSL } from '../../lighting/pathTracing/adaptiveErrorWgsl.ts'
@@ -18,8 +20,12 @@ import { ptFinishProgram, ptTraceProgram } from '../../lighting/pathTracing/trac
 export const PATH_TRACING_SHADERS: Record<string, string> = {
   PT_TRACE: ptTraceProgram(),
   PT_FINISH: ptFinishProgram(),
+  PT_TRACE_CLOUDS: ptTraceProgram(true),
+  PT_FINISH_CLOUDS: ptFinishProgram(true),
+  PT_CLOUD_MAP: PT_CLOUD_MAP_WGSL,
   PT_SHADE_HITS: shadeHitProgram(),
   PT_ARGS: PT_ARGS_WGSL,
+  PT_AIR_DEPTH: PT_AIR_DEPTH_WGSL,
   PT_ACCUMULATE: PT_ACCUMULATE_WGSL,
   PT_GRID_BUILD: PT_GRID_BUILD_WGSL,
   PT_SKY_BUILD: PT_SKY_BUILD_WGSL,
