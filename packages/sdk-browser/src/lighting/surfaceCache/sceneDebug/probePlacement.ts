@@ -64,7 +64,6 @@ const kernel = autoKernel(
 const words = new ArrayBuffer(48)
 const uints = new Uint32Array(words)
 const floats = new Float32Array(words)
-const uniforms = new WeakMap<GPUDevice, GPUBuffer>()
 
 /** Appends the placement of the probes of `view` (`mode` 1 to 3), seen at a display of `size` pixels, from the records of the turn `turn`. */
 export function encodeProbePlacement(
@@ -77,25 +76,15 @@ export function encodeProbePlacement(
   size: readonly [number, number],
   mode: 1 | 2 | 3,
 ) {
-  let uniform = uniforms.get(device)
-  if (!uniform) {
-    uniform = device.createBuffer({
-      label: 'Trillion3D debug probe placement',
-      size: words.byteLength,
-      usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    })
-    uniforms.set(device, uniform)
-  }
   uints.set([geometry.tilesX, geometry.uniform, geometry.maxAdaptive, mode])
   // The probes' pixels are the image's: scaled to the display's, the quad round each.
   const scale = [size[0] / geometry.width, size[1] / geometry.height]
   floats.set([scale[0]!, scale[1]!, QUAD, QUAD, CROSS, NORMAL], 4)
-  device.queue.writeBuffer(uniform, 0, words)
   lines.run(
     encoder,
     kernel(device),
     [
-      { buffer: uniform },
+      { buffer: lines.uniform('placement', words) },
       resources.info[turn],
       resources.normal,
       { buffer: resources.pixels },

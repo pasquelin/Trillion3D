@@ -19,6 +19,16 @@ export type ProbeDebugValues = Pick<
   | 'screenProbeGatherDebug'
   | 'screenProbeTileDebugMode'
   | 'screenProbeGatherDebugProbePlacement'
+  | 'screenProbeGatherVisualizeTraces'
+  | 'screenProbeGatherVisualizeTracesFreeze'
+  | 'visualizeUseShaderPrintForTraces'
+  | 'visualizeToneMap'
+  | 'reflectionVisualizeTraces'
+  | 'radianceCacheVisualize'
+  | 'radianceCacheVisualizeRadiusScale'
+  | 'radianceCacheVisualizeClipmapIndex'
+  | 'debugCursorX'
+  | 'debugCursorY'
 >
 
 /** What the image shows of the probes: the world's probes update statistics, the count of screen probes, the tiles of the integration by mode, where the screen probes stand (0 nowhere, 1 all, 2 the adaptive ones, 3 their points and normals). */
@@ -27,7 +37,23 @@ export interface ProbeDebug {
   gatherCounters: boolean
   tileStats: boolean
   placement: 0 | 1 | 2 | 3
+  /** The rays of the probe nearest to the cursor, whether they stay as they were at the last image that updated them, whether the opaque depth hides them, and whether their colour is the light seen through the composition's table. */
+  traces: boolean
+  tracesFrozen: boolean
+  tracesDepthTested: boolean
+  tracesTonemapped: boolean
+  /** The reflection ray of the pixel under the cursor. */
+  reflectionTraces: boolean
+  /** The spheres at the world's probes: what they show (0 none, 1 the light, 2 the share of rays that left the scene), their size as a multiple of 5% of the cell, and the one level drawn (negative: all). */
+  radianceProbes: 0 | 1 | 2
+  radianceProbeRadius: number
+  radianceProbeLevel: number
+  /** The cursor in the display's pixels, none where a coordinate is negative. */
+  cursor: readonly [number, number]
 }
+
+/** The radius of a probe's sphere over its cell's side, at a scale of one. */
+const RADIANCE_PROBE_RADIUS = 0.05
 
 /** The views to show: each the setting names or the diagnostic mode `mode` names. */
 export const probeDebugOf = (values: ProbeDebugValues, mode: DiagnosticMode): ProbeDebug => ({
@@ -38,11 +64,30 @@ export const probeDebugOf = (values: ProbeDebugValues, mode: DiagnosticMode): Pr
     mode === 'screen-probe-placement'
       ? 1
       : (values.screenProbeGatherDebugProbePlacement as ProbeDebug['placement']),
+  traces: values.screenProbeGatherVisualizeTraces || mode === 'screen-probe-traces',
+  tracesFrozen: values.screenProbeGatherVisualizeTracesFreeze,
+  // The pass of the reference that draws the rays with the triangle pipeline writes the light into the image before its composition, which tone maps it like the surfaces.
+  tracesDepthTested: !values.visualizeUseShaderPrintForTraces,
+  tracesTonemapped: !values.visualizeUseShaderPrintForTraces || values.visualizeToneMap,
+  reflectionTraces: values.reflectionVisualizeTraces || mode === 'reflection-traces',
+  radianceProbes:
+    mode === 'radiance-cache-probes'
+      ? 1
+      : (values.radianceCacheVisualize as ProbeDebug['radianceProbes']),
+  radianceProbeRadius: values.radianceCacheVisualizeRadiusScale * RADIANCE_PROBE_RADIUS,
+  radianceProbeLevel: values.radianceCacheVisualizeClipmapIndex,
+  cursor: [values.debugCursorX, values.debugCursorY],
 })
 
 /** Whether any probe view is shown. */
 export const probeDebugShown = (view: ProbeDebug) =>
-  view.radianceCacheStats || view.gatherCounters || view.tileStats || view.placement > 0
+  view.radianceCacheStats ||
+  view.gatherCounters ||
+  view.tileStats ||
+  view.placement > 0 ||
+  view.traces ||
+  view.reflectionTraces ||
+  view.radianceProbes > 0
 
 /** The words the probes' readback holds: the count of adaptive probes, then the integration's tile buffer from the arguments of each mode to its counts. */
 export const PROBE_COUNTER_WORDS = 1 + INTEGRATE_TILE_COUNTS_AT + INTEGRATE_TILE_MODE_COUNT

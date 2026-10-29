@@ -18,6 +18,10 @@ test("the lines the GPU writes follow the host's, one region for each kind of bo
 test('a line behind the camera is brought to the near plane and a line of no length is not drawn', () => {
   assert.match(DEBUG_LINES_DRAW_WGSL, /if\(ha\.w<=NEAR_W&&hb\.w<=NEAR_W\)\{return out;\}/)
   assert.match(DEBUG_LINES_DRAW_WGSL, /if\(!\(span>0\.0001\)\)\{return out;\}/)
+  assert.match(
+    DEBUG_LINES_DRAW_WGSL,
+    /let kind=select\(select\(\d\.0,\d\.0,out\.color\.a<1\.0\),\d\.0,line\.space>1\.5\);\s*if\(kind!=view\.kind\)\{return out;\}/,
+  )
 })
 
 test('the atlases are drawn in two squares with a yellow border and the layers divided by the scale', () => {

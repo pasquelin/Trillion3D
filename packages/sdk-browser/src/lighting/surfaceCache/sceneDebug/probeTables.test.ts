@@ -16,6 +16,16 @@ const values = (changes: Partial<Parameters<typeof probeDebugOf>[0]> = {}) => ({
   screenProbeGatherDebug: false,
   screenProbeTileDebugMode: false,
   screenProbeGatherDebugProbePlacement: 0 as number,
+  screenProbeGatherVisualizeTraces: false,
+  screenProbeGatherVisualizeTracesFreeze: false,
+  visualizeUseShaderPrintForTraces: true,
+  visualizeToneMap: true,
+  reflectionVisualizeTraces: false,
+  radianceCacheVisualize: 0,
+  radianceCacheVisualizeRadiusScale: 1,
+  radianceCacheVisualizeClipmapIndex: -1,
+  debugCursorX: -1,
+  debugCursorY: -1,
   ...changes,
 })
 
@@ -26,8 +36,25 @@ test('a probe view shows when its setting is on or its mode is chosen, and none 
     gatherCounters: true,
     tileStats: false,
     placement: 0,
+    traces: false,
+    tracesFrozen: false,
+    tracesDepthTested: false,
+    tracesTonemapped: true,
+    reflectionTraces: false,
+    radianceProbes: 0,
+    radianceProbeRadius: 0.05,
+    radianceProbeLevel: -1,
+    cursor: [-1, -1],
   })
   assert.equal(probeDebugOf(values(), 'radiance-cache-stats').radianceCacheStats, true)
+  assert.equal(probeDebugOf(values(), 'screen-probe-traces').traces, true)
+  assert.equal(probeDebugOf(values(), 'reflection-traces').reflectionTraces, true)
+  assert.equal(probeDebugOf(values(), 'radiance-cache-probes').radianceProbes, 1)
+  assert.equal(probeDebugOf(values({ radianceCacheVisualize: 2 }), 'beauty').radianceProbes, 2)
+  assert.equal(
+    probeDebugOf(values({ screenProbeGatherVisualizeTraces: true }), 'beauty').traces,
+    true,
+  )
   assert.equal(probeDebugOf(values(), 'screen-probe-gather-debug').gatherCounters, true)
   assert.equal(probeDebugOf(values(), 'screen-probe-tile-stats').tileStats, true)
   assert.equal(probeDebugOf(values(), 'screen-probe-placement').placement, 1)
@@ -40,6 +67,7 @@ test('a probe view shows when its setting is on or its mode is chosen, and none 
     'screen-probe-gather-debug',
     'screen-probe-tile-stats',
     'screen-probe-placement',
+    'screen-probe-traces',
   ] as const)
     assert.equal(DIAGNOSTICS[mode].available, true)
 })
@@ -89,4 +117,16 @@ test('the tile table writes the tiles of each mode from the counts after the arg
     'All              : 30',
     'Total            : 60',
   ])
+})
+
+test('the traces are drawn against the depth where the shader print path is off, and tone mapped through the table unless the setting says otherwise', () => {
+  const printed = probeDebugOf(values({ visualizeToneMap: false }), 'beauty')
+  assert.equal(printed.tracesDepthTested, false)
+  assert.equal(printed.tracesTonemapped, false)
+  const triangles = probeDebugOf(
+    values({ visualizeUseShaderPrintForTraces: false, visualizeToneMap: false }),
+    'beauty',
+  )
+  assert.equal(triangles.tracesDepthTested, true)
+  assert.equal(triangles.tracesTonemapped, true)
 })

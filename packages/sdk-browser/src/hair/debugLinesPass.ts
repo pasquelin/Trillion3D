@@ -6,6 +6,7 @@ import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
 import { DEBUG_LINE_FLOATS, type DebugLines } from './debugLines.ts'
 import {
   DEBUG_GPU_LINES,
+  DEBUG_LINE_KIND,
   DEBUG_LINES_DRAW_WGSL,
   DEBUG_LINES_GPU_WGSL,
   DEBUG_VIEW_FLOATS,
@@ -30,10 +31,12 @@ export interface DebugGpuBoxes {
   readonly nodes?: { readonly count: number; readonly nodes: GPUBuffer }
 }
 
-/** Lines a kernel appended in a buffer of its own, and the indirect arguments of the draw that counts them (`../lighting/surfaceCache/sceneDebug/gpuLines.ts`). */
+/** Lines a kernel appended in a buffer of its own, and the indirect arguments of the draw that counts them (`../lighting/surfaceCache/sceneDebug/gpuLines.ts`);
+ *  `depth` the opaque depth the lines of the world that are depth tested are drawn against. */
 export interface DebugAppendedLines {
   readonly lines: GPUBuffer
   readonly args: GPUBuffer
+  readonly depth?: GPUTextureView
 }
 
 /** What the lines pass binds for a kind of box: the buffer of its description, at the binding the kernel reads it from. */
@@ -54,6 +57,8 @@ function createLineBuffers(device: GPUDevice) {
   return {
     lines: make('lines', DEBUG_GPU_LINES.end * DEBUG_LINE_FLOATS * 4, GPUBufferUsage.STORAGE),
     view: make('view', DEBUG_VIEW_FLOATS * 4, GPUBufferUsage.UNIFORM),
+    viewTranslucent: make('view translucent', DEBUG_VIEW_FLOATS * 4, GPUBufferUsage.UNIFORM),
+    viewDepthTested: make('view depth tested', DEBUG_VIEW_FLOATS * 4, GPUBufferUsage.UNIFORM),
     counts: BOXES.map(() => make('count', 16, GPUBufferUsage.UNIFORM)),
   }
 }
@@ -98,13 +103,30 @@ function encodeGpuBoxes(
  */
 export function createDebugLinesGpu(device: GPUDevice) {
   const module = device.createShaderModule({ label: LABEL, code: DEBUG_LINES_DRAW_WGSL })
-  const pipeline = preparedPipeline(device, {
-    label: LABEL,
-    layout: 'auto',
-    vertex: { module, entryPoint: 'debugLineVs' },
-    fragment: { module, entryPoint: 'debugLineFs', targets: [{ format: DISPLAY_FORMAT }] },
-    primitive: { topology: 'triangle-list', cullMode: 'none' },
-  }).ask()
+  // One pipeline for the lines over everything, one for those drawn against the opaque depth.
+  const pipelineOf = (fragment: string) =>
+    preparedPipeline(device, {
+      label: `${LABEL} ${fragment}`,
+      layout: 'auto',
+      vertex: { module, entryPoint: 'debugLineVs' },
+      fragment: {
+        module,
+        entryPoint: fragment,
+        // A colour of less than full alpha is laid over the image (the tiles' fill).
+        targets: [
+          {
+            format: DISPLAY_FORMAT,
+            blend: {
+              color: { srcFactor: 'src-alpha', dstFactor: 'one-minus-src-alpha' },
+              alpha: { srcFactor: 'zero', dstFactor: 'one' },
+            },
+          },
+        ],
+      },
+      primitive: { topology: 'triangle-list', cullMode: 'none' },
+    }).ask()
+  const pipeline = pipelineOf('debugLineFs')
+  const depthPipeline = pipelineOf('debugLineDepthFs')
   const buffers = createLineBuffers(device)
   const viewWords = new Float32Array(DEBUG_VIEW_FLOATS)
   return {
@@ -126,6 +148,11 @@ export function createDebugLinesGpu(device: GPUDevice) {
       viewWords.set(viewProjection)
       viewWords.set([size[0], size[1], LINE_WIDTH], 16)
       device.queue.writeBuffer(buffers.view, 0, viewWords)
+      viewWords[19] = DEBUG_LINE_KIND.translucent
+      device.queue.writeBuffer(buffers.viewTranslucent, 0, viewWords)
+      viewWords[19] = DEBUG_LINE_KIND.depthTested
+      device.queue.writeBuffer(buffers.viewDepthTested, 0, viewWords)
+      viewWords[19] = DEBUG_LINE_KIND.opaque
       device.queue.writeBuffer(buffers.lines, 0, drawn.data, 0, drawn.count * DEBUG_LINE_FLOATS)
       encodeGpuBoxes(device, encoder, buffers, boxes)
       const pass = encoder.beginRenderPass({
@@ -143,20 +170,42 @@ export function createDebugLinesGpu(device: GPUDevice) {
       if (drawn.count) pass.draw(6, drawn.count, 0, 0)
       pass.draw(6, DEBUG_GPU_LINES.end - DEBUG_GPU_LINES.frusta, 0, DEBUG_GPU_LINES.frusta)
       if (appended) {
-        pass.setBindGroup(
-          0,
-          device.createBindGroup({
-            layout: draw.getBindGroupLayout(0),
-            entries: sequentialEntries([{ buffer: buffers.view }, { buffer: appended.lines }]),
-          }),
-        )
-        pass.drawIndirect(appended.args, 0)
+        // The opaque lines first, then the translucent ones from the same lines, each in an indirect draw of its own.
+        for (const uniform of [buffers.view, buffers.viewTranslucent]) {
+          pass.setBindGroup(
+            0,
+            device.createBindGroup({
+              layout: draw.getBindGroupLayout(0),
+              entries: sequentialEntries([{ buffer: uniform }, { buffer: appended.lines }]),
+            }),
+          )
+          pass.drawIndirect(appended.args, 0)
+        }
+        // Then those against the depth: the lines the opaque depth hides are dropped by the pixel.
+        const againstDepth = depthPipeline.get()
+        if (againstDepth && appended.depth) {
+          pass.setPipeline(againstDepth)
+          pass.setBindGroup(
+            0,
+            device.createBindGroup({
+              layout: againstDepth.getBindGroupLayout(0),
+              entries: sequentialEntries([
+                { buffer: buffers.viewDepthTested },
+                { buffer: appended.lines },
+                appended.depth,
+              ]),
+            }),
+          )
+          pass.drawIndirect(appended.args, 0)
+        }
       }
       pass.end()
     },
     dispose() {
       buffers.lines.destroy()
       buffers.view.destroy()
+      buffers.viewTranslucent.destroy()
+      buffers.viewDepthTested.destroy()
       for (const count of buffers.counts) count.destroy()
     },
   }

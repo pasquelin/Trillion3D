@@ -1,6 +1,10 @@
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { createDebugLines, type DebugLines } from '../hair/debugLines.ts'
-import { createDebugLinesGpu, type DebugLinesGpu } from '../hair/debugLinesPass.ts'
+import {
+  createDebugLinesGpu,
+  type DebugAppendedLines,
+  type DebugLinesGpu,
+} from '../hair/debugLinesPass.ts'
 
 /** The pixels between two lines of text in a diagnostic view's table. */
 export const TEXT_LINE = 14
@@ -16,15 +20,16 @@ export function createTextOverlay(device: GPUDevice) {
     lines,
     /** Empties the text for an image seen from `cam`. */
     begin: (cam: EngineCamera) => lines.begin(cam.eye),
-    /** Draws what was written over `target` (`size` display pixels). */
+    /** Draws what was written over `target` (`size` display pixels), then the lines a kernel `appended`. */
     encode(
       encoder: GPUCommandEncoder,
       target: GPUTextureView,
       size: readonly [number, number],
       cam: EngineCamera,
+      appended?: DebugAppendedLines,
     ) {
       gpu ??= createDebugLinesGpu(device)
-      gpu.encode(encoder, target, size, cam.viewProjectionRelative, lines, {})
+      gpu.encode(encoder, target, size, cam.viewProjectionRelative, lines, {}, appended)
     },
     dispose() {
       gpu?.dispose()

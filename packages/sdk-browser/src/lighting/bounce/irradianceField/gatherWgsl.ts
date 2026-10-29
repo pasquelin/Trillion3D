@@ -96,10 +96,10 @@ const fieldGatherDeclarations = (light: LightAtlasFormat) => `${wgslConsts({ FIE
 @group(0) @binding(${FIELD_GATHER_BINDINGS.misses}) var<storage,read_write> misses:array<atomic<u32>>;
 @group(0) @binding(${FIELD_GATHER_BINDINGS.slots}) var<storage,read_write> poolSlots:array<u32>;
 const FIELD_MIN_WEIGHT:f32=${MIN_WEIGHT};
-${wgslConsts({ FIELD_SLOT_WORDS: POOL_SLOT.words, FIELD_SLOT_USED: POOL_SLOT.usedAt, FIELD_SLOT_OFFSET: POOL_SLOT.offset, FIELD_MAX_ADAPTIVE: POOL_ADAPTIVE.probes, FIELD_MISS_PRECISION: POOL_ADAPTIVE.precision })}`
+${FIELD_SLOT_CONSTS}`
 
 /** The reads of the probes' maps: the irradiance and the occlusion along a direction, the radiance along a direction at a level of detail. */
-const fieldMapReads = (
+export const fieldMapReads = (
   light: LightAtlasFormat,
 ) => `/** The texel of the atlas of squares 'side' texels a side whose square the slot 'slot' is, at the unit coordinates 'uv' of the map inside its border, read bilinearly. */
 fn fieldMapTexel(slot:u32,uv:vec2f,res:u32,at:u32)->vec2i{
@@ -147,13 +147,24 @@ fn fieldRadiance(slot:u32,direction:vec3f,mip:f32)->vec3f{
  return mix(near,fieldRadianceLevel(slot,uv,res,high,border),fract(mip));
 }`
 
-/** The weighing of a probe for a pixel and the miss counted where the interpolation found none. */
-const FIELD_PROBE_WGSL = `struct FieldSum{irradiance:vec3f,reflection:vec3f,weight:f32,}
-/** Where the probe of the slot 'held' (plus one) stands from its cell's place: its offset (the move off the surfaces, or an adaptive probe's). */
-fn fieldSlotShift(held:u32)->vec3f{
+/** The constants of the pool's slots the field's programs read: the words of a slot, the frame it was last read, its offset, the adaptive probes of a cell and the precision of the misses. */
+export const FIELD_SLOT_CONSTS = wgslConsts({
+  FIELD_SLOT_WORDS: POOL_SLOT.words,
+  FIELD_SLOT_USED: POOL_SLOT.usedAt,
+  FIELD_SLOT_OFFSET: POOL_SLOT.offset,
+  FIELD_MAX_ADAPTIVE: POOL_ADAPTIVE.probes,
+  FIELD_MISS_PRECISION: POOL_ADAPTIVE.precision,
+})
+
+/** Where the probe of the slot 'held' (plus one) stands from its cell's place: its offset (the move off the surfaces, or an adaptive probe's), read from the pool's slots 'poolSlots'. */
+export const FIELD_SLOT_SHIFT_WGSL = `fn fieldSlotShift(held:u32)->vec3f{
  let at=(held-1u)*FIELD_SLOT_WORDS+FIELD_SLOT_OFFSET;
  return vec3f(bitcast<f32>(poolSlots[at]),bitcast<f32>(poolSlots[at+1u]),bitcast<f32>(poolSlots[at+2u]));
-}
+}`
+
+/** The weighing of a probe for a pixel and the miss counted where the interpolation found none. */
+const FIELD_PROBE_WGSL = `struct FieldSum{irradiance:vec3f,reflection:vec3f,weight:f32,}
+${FIELD_SLOT_SHIFT_WGSL}
 /** The probe in 'slot' at 'probePosition', weighed for the pixel at 'P' (normal 'N') read from 'S', added in square roots. */
 fn fieldProbe(sum:FieldSum,slot:u32,probePosition:vec3f,P:vec3f,S:vec3f,N:vec3f,reflection:vec3f,mip:f32,trilinear:f32,withReflection:bool,adaptiveUsed:bool)->FieldSum{
  var out=sum;

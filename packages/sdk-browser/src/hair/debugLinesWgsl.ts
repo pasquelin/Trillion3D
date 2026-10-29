@@ -14,10 +14,15 @@ export const DEBUG_GPU_LINES = {
   nodes: DEBUG_CPU_LINES + (HAIR_DEEP_SHADOW_MAX_SLOTS + MAX_MACRO_GROUPS) * EDGES,
   end: DEBUG_CPU_LINES + (HAIR_DEEP_SHADOW_MAX_SLOTS + 2 * MAX_MACRO_GROUPS) * EDGES,
 } as const
-/** The words of the viewer's uniform: the view-projection, the display's size, the width of a line in pixels. */
+/** The words of the viewer's uniform: the view-projection, the display's size, the width of a line in pixels, which lines the pass draws (`DEBUG_LINE_KIND`). */
 export const DEBUG_VIEW_FLOATS = 20
 
-/** A line: its first end, its colour (the bytes of a word), its second end and its space (0 the world relative to the eye, 1 the display's pixels). A line of the display's pixels may
+/** The space of a line: the world relative to the eye, the display's pixels, or the world with the opaque depth test (the line is drawn only where no surface is nearer the eye). */
+export const DEBUG_LINE_SPACE = { world: 0, pixels: 1, worldDepthTested: 2 } as const
+/** The lines a pass draws, by the view's `kind` word: the opaque ones, the translucent ones (a colour of less than full alpha, which the pass lays over the others), the depth tested ones. */
+export const DEBUG_LINE_KIND = { opaque: 0, translucent: 1, depthTested: 2 } as const
+
+/** A line: its first end, its colour (the bytes of a word), its second end and its space (`DEBUG_LINE_SPACE`). A line of the display's pixels may
  *  carry its own width in the third number of its first end (a quad filled is one line along its middle as wide as the quad); none, zero, takes the view's. */
 export const DEBUG_LINE_STRUCT = 'struct DebugLine{a:vec3f,color:u32,b:vec3f,space:f32}'
 const LINE = DEBUG_LINE_STRUCT
@@ -29,19 +34,25 @@ const LINE = DEBUG_LINE_STRUCT
  */
 export const DEBUG_LINES_DRAW_WGSL = wgslProgram(
   `${LINE}
-struct DebugView{viewProj:mat4x4f,size:vec2f,width:f32,pad:f32}
+struct DebugView{viewProj:mat4x4f,size:vec2f,width:f32,kind:f32}
 @group(0) @binding(0) var<uniform> view:DebugView;
 @group(0) @binding(1) var<storage,read> lines:array<DebugLine>;
-struct Out{@builtin(position) position:vec4f,@location(0) color:vec4f}
+@group(0) @binding(2) var sceneDepth:texture_depth_2d;
+struct Out{@builtin(position) position:vec4f,@location(0) color:vec4f,@location(1) @interpolate(linear) depth:f32}
 const NEAR_W=0.0001;
 @vertex fn debugLineVs(@builtin(vertex_index) vertex:u32,@builtin(instance_index) index:u32)->Out{
  let line=lines[index];
  var out:Out;
  out.position=vec4f(2.0,2.0,2.0,1.0);
  out.color=unpack4x8unorm(line.color);
+ // A pass draws one kind of line (the view's): the translucent after the opaque, so a mark is never tinted by a fill laid over it.
+ let kind=select(select(${DEBUG_LINE_KIND.opaque}.0,${DEBUG_LINE_KIND.translucent}.0,out.color.a<1.0),${DEBUG_LINE_KIND.depthTested}.0,line.space>1.5);
+ if(kind!=view.kind){return out;}
  var pa=line.a.xy;
  var pb=line.b.xy;
- if(line.space<0.5){
+ var za=0.0;
+ var zb=0.0;
+ if(line.space!=${DEBUG_LINE_SPACE.pixels}.0){
   var ha=view.viewProj*vec4f(line.a,1.0);
   var hb=view.viewProj*vec4f(line.b,1.0);
   if(ha.w<=NEAR_W&&hb.w<=NEAR_W){return out;}
@@ -49,6 +60,8 @@ const NEAR_W=0.0001;
   if(hb.w<=NEAR_W){hb=mix(hb,ha,(NEAR_W-hb.w)/(ha.w-hb.w));}
   pa=(ha.xy/ha.w*vec2f(0.5,-0.5)+vec2f(0.5))*view.size;
   pb=(hb.xy/hb.w*vec2f(0.5,-0.5)+vec2f(0.5))*view.size;
+  za=ha.z/ha.w;
+  zb=hb.z/hb.w;
  }
  let d=pb-pa;
  let span=length(d);
@@ -56,12 +69,19 @@ const NEAR_W=0.0001;
  let along=d/span;
  // The quad's corners: the end of the line (0 first, 1 second) and the side (-1 or 1).
  let corner=vec2f(f32(vertex==2u||vertex==3u||vertex==5u),select(-1.0,1.0,vertex==1u||vertex==4u||vertex==5u));
- let width=select(view.width,line.a.z,line.space>0.5&&line.a.z>0.0);
+ let width=select(view.width,line.a.z,line.space==${DEBUG_LINE_SPACE.pixels}.0&&line.a.z>0.0);
  let p=mix(pa,pb,corner.x)+vec2f(-along.y,along.x)*corner.y*0.5*width;
  out.position=vec4f(p/view.size*vec2f(2.0,-2.0)+vec2f(-1.0,1.0),0.0,1.0);
+ out.depth=mix(za,zb,corner.x);
  return out;
 }
-@fragment fn debugLineFs(in:Out)->@location(0) vec4f{return in.color;}`,
+@fragment fn debugLineFs(in:Out)->@location(0) vec4f{return in.color;}
+// The depth tested lines keep a pixel only where no surface of the opaque depth is nearer the eye (the depth runs 1 at the near plane to 0 at infinity).
+@fragment fn debugLineDepthFs(in:Out)->@location(0) vec4f{
+ let at=vec2i(in.position.xy*vec2f(textureDimensions(sceneDepth))/view.size);
+ if(in.depth<textureLoad(sceneDepth,at,0)){discard;}
+ return in.color;
+}`,
   [],
 )
 

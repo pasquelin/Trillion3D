@@ -163,7 +163,7 @@ const SP_SKY_LEAK = wgslBlock(
  * met moves against the probe), the texel of the octahedron a ray is traced through
  * and its level (`spPackRay`; 6, 6 and 4 bits), the size of that level's grid (`spRayMip`).
  */
-const SP_HITS = wgslBlock(
+export const SP_HITS = wgslBlock(
   'SP_HITS',
   [],
   `${wgslConsts({ SP_IMPORTANCE_LEVELS: SCREEN_PROBE_CONSTANTS.importanceLevels })}

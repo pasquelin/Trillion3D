@@ -72,6 +72,10 @@ export type DiagnosticMode =
   | 'radiance-cache-stats'
   | 'screen-probe-gather-debug'
   | 'screen-probe-tile-stats'
+  | 'screen-probe-placement'
+  | 'screen-probe-traces'
+  | 'reflection-traces'
+  | 'radiance-cache-probes'
   | HeterogeneousVolumeGridView
 /** Whether a view mode is available here, and why not. */
 export interface DiagnosticCapability {
@@ -136,7 +140,11 @@ export interface DiagnosticCapability {
  *  @property surface-cache-primitive-groups - The box of every placement that has mesh cards, in white.
  *  @property radiance-cache-stats - The update statistics of the world's probes over the image.
  *  @property screen-probe-gather-debug - The count of the screen probes, uniform and adaptive, over the image.
- *  @property screen-probe-tile-stats - The tiles of each mode of the screen probes' integration over the image. */
+ *  @property screen-probe-tile-stats - The tiles of each mode of the screen probes' integration over the image.
+ *  @property screen-probe-placement - Where the screen probes stand, over the image.
+ *  @property screen-probe-traces - The rays of the screen probe nearest to the cursor, over the image.
+ *  @property reflection-traces - The reflection ray of the pixel under the cursor, over the image.
+ *  @property radiance-cache-probes - A sphere at every probe of the world's probes, coloured by the light it holds, over the image. */
 export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability>
 /**
  * The view modes a world can show instead of the normal image, each with whether it is available.
@@ -231,6 +239,10 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  * @property radiance-cache-stats - Over the image, the update statistics of the world’s probes as `screenProbeRadianceCacheStats` writes them: the probes the atlas holds out of the most it can, those holding nothing yet, those not traced since the lights changed, those refused for want of a slot, those queued this image and the cells marked.
  * @property screen-probe-gather-debug - Over the image, the number of screen probes, of the uniform ones and of the adaptive ones, as `screenProbeGatherDebug` writes it.
  * @property screen-probe-tile-stats - Over the image, the tiles of the screen probes’ integration of each mode (simple, importance sampled, complete) and their total, with the legend, as `screenProbeTileDebugMode` writes it.
+ * @property screen-probe-placement - Over the image, a small quad at the pixel of every screen probe, yellow for the uniform ones and magenta for the adaptive ones, as `screenProbeGatherDebugProbePlacement` 1 draws it.
+ * @property screen-probe-traces - Over the image, the rays of the screen probe nearest to the cursor (to the middle of the image where none is set) as lines as long as the distance each reached, in the colour of the radiance it brought back, as `screenProbeGatherVisualizeTraces` draws them.
+ * @property reflection-traces - Over the image, the reflection ray of the pixel under the cursor (`debugCursorX`, `debugCursorY`; nothing where none is set) as a line as long as the distance it reached, in the radiance it brought back, with a yellow cross at its end and the grid texel, the distance and the radiance as text, as `reflectionVisualizeTraces` draws it.
+ * @property radiance-cache-probes - Over the image, a sphere at every probe of the world’s probes, coloured by the irradiance it holds along its surface at an albedo of 0.3 (a probe inside a surface red, one moved off the surfaces tinted green, an adaptive one cyan), or by its radiance where the radiance cache is the indirect light, hidden by the surfaces in front of it, as `radianceCacheVisualize` draws it.
  */
 export const DIAGNOSTICS: DiagnosticCapabilities = {
   beauty: { available: true, reason: 'glTF materials' },
@@ -535,6 +547,26 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     available: true,
     reason:
       'The count of the screen probes, uniform and adaptive, over the image; needs screen probes',
+  },
+  'screen-probe-placement': {
+    available: true,
+    reason:
+      'Where the screen probes stand, a quad at the pixel of each, over the image; needs screen probes',
+  },
+  'screen-probe-traces': {
+    available: true,
+    reason:
+      'The rays of the screen probe nearest to the cursor, lines coloured by their radiance, over the image; needs screen probes',
+  },
+  'reflection-traces': {
+    available: true,
+    reason:
+      'The reflection ray of the pixel under the cursor (debugCursorX, debugCursorY), a line coloured by its radiance and a cross at its end, with the distance and radiance as text, over the image; needs reflections',
+  },
+  'radiance-cache-probes': {
+    available: true,
+    reason:
+      'A sphere at every probe of the world’s probes, coloured by the light it holds, over the image; needs the world’s probes',
   },
   'screen-probe-tile-stats': {
     available: true,

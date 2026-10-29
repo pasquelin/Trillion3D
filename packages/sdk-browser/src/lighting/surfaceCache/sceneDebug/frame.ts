@@ -9,8 +9,8 @@ import {
   INTEGRATE_TILE_ARGS_WORDS,
   integrateTileGrid,
 } from '../../bounce/screen/screenProbeLayout.ts'
-import { encodeProbePlacement } from './probePlacement.ts'
-import { createGpuLines, type GpuLines } from './gpuLines.ts'
+import { drawProbeLines, type ProbeLineState } from './probeLines.ts'
+import { createRadianceProbes, type RadianceProbes } from './radianceProbes.ts'
 import { directLightCounts, directLightingStatsLines } from './directLightingStats.ts'
 import {
   PROBE_COUNTER_WORDS,
@@ -44,12 +44,12 @@ const COUNTERS_AT = 0.8
 /** The colours of the three modes' names in the legend of the tiles, in the order of `TILE_MODE_NAMES`. */
 const TILE_LEGEND_COLORS = [DEBUG_COLORS.green, DEBUG_COLORS.orange, DEBUG_COLORS.cyan] as const
 
-interface DebugState {
+interface DebugState extends ProbeLineState {
   readonly text: ReturnType<typeof createTextOverlay>
   readonly header: Uint32Array<ArrayBuffer>
   readonly reader: ReturnType<typeof createGpuPeriodicReadback>
-  /** The lines the GPU appends, made at the first image a view that draws them is shown. */
-  gpuLines?: GpuLines
+  /** The spheres at the world's probes, made at the first image the view is shown. */
+  spheres?: RadianceProbes
   /** The screen probes' counters, read back like the header while a probe view asks: made at the first image that does. */
   probes?: {
     readonly words: Uint32Array<ArrayBuffer>
@@ -83,6 +83,9 @@ export function disposeSceneDebug(rt: WebgpuPagesRuntime) {
   state?.reader.dispose()
   state?.probes?.reader.dispose()
   state?.gpuLines?.dispose()
+  state?.traces?.dispose()
+  state?.reflection?.dispose()
+  state?.spheres?.dispose()
   states.delete(rt)
 }
 
@@ -91,6 +94,7 @@ export function sceneDebugSubmitted(rt: object) {
   const state = states.get(rt)
   state?.reader.submitted()
   state?.probes?.reader.submitted()
+  state?.reflection?.submitted()
 }
 
 /** Writes the lines of a table `across` the display (a fraction of its width) from its tenth down, one under the other, starting at line `firstLine`, and returns the line after the last. */
@@ -203,7 +207,7 @@ function drawCacheViews(
   return next
 }
 
-/** Draws the probes' tables: the world's probes update statistics and the integration's tiles from line `next` down, the screen probes' count at the right. */
+/** Draws the probes' tables: the world's probes update statistics and the integration's tiles from line `next` down, the screen probes' count at the right; returns the line after them. */
 function drawProbeViews(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
@@ -225,7 +229,7 @@ function drawProbeViews(
       next,
     )
   const screen = rt.gpu.screenProbes
-  if (!counters?.reader.ready || !screen?.image) return
+  if (!counters?.reader.ready || !screen?.image) return next
   if (view.gatherCounters) {
     const { geometry } = screen.resources
     writeTable(
@@ -253,37 +257,7 @@ function drawProbeViews(
         next = writeTable(state, size, [name], next, TILE_LEGEND_COLORS[mode])
       })
   }
-}
-
-/** Appends the lines the probes' views draw, from the records of the image the probes last cast. Returns the lines drawn, none where the probes cast no image. */
-function appendProbeLines(
-  rt: WebgpuPagesRuntime,
-  device: GPUDevice,
-  encoder: GPUCommandEncoder,
-  state: DebugState,
-  view: ProbeDebug,
-) {
-  const screen = rt.gpu.screenProbes
-  if (!view.placement) {
-    state.gpuLines?.dispose()
-    state.gpuLines = undefined
-    return undefined
-  }
-  if (!screen?.history || !screen.image) return undefined
-  const lines = (state.gpuLines ??= createGpuLines(device))
-  lines.begin(encoder)
-  encodeProbePlacement(
-    device,
-    encoder,
-    lines,
-    screen.resources,
-    screen.image,
-    (1 - screen.turn) as 0 | 1,
-    rt.gpu.displaySize,
-    view.placement,
-  )
-  lines.end(encoder)
-  return lines.appended
+  return next
 }
 
 /** Draws the surface cache's and the probes' debug views over the display image of `rt`. */
@@ -302,7 +276,22 @@ export function encodeSceneDebug(
   const state = stateOf(rt, device)
   state.text.begin(cam)
   const next = cacheShown ? drawCacheViews(rt, encoder, state, cacheView) : 0
-  drawProbeViews(rt, device, encoder, state, probeView, next)
-  const appended = appendProbeLines(rt, device, encoder, state, probeView)
+  const after = drawProbeViews(rt, device, encoder, state, probeView, next)
+  const appended = drawProbeLines(rt, device, encoder, state, probeView)
+  if (state.reflection) writeTable(state, gpu.displaySize, state.reflection.text(), after)
+  if (probeView.radianceProbes) {
+    state.spheres ??= createRadianceProbes(device)
+    state.spheres.encode(
+      rt,
+      encoder,
+      gpu.displayView,
+      gpu.displaySize,
+      cam.viewProjectionRelative,
+      probeView,
+    )
+  } else if (state.spheres) {
+    state.spheres.dispose()
+    state.spheres = undefined
+  }
   state.text.encode(encoder, gpu.displayView, gpu.displaySize, cam, appended)
 }

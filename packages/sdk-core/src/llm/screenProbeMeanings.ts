@@ -64,6 +64,26 @@ const FILTER_MEANINGS = /* @__PURE__ */ (() =>
       "Writes over the image the table of the integration's tile classification: the tiles of the simple, importance sampled and complete modes and their total, with the legend of the three, for debugging (off by default); read back from the GPU a few images late. The diagnostic mode 'screen-probe-tile-stats' shows it whatever the setting says.",
     screenProbeGatherDebugProbePlacement:
       "Draws over the image where the screen probes stand, for debugging (0 off, the default): 1 a small yellow quad at the pixel of every uniform probe and a magenta one at each adaptive probe's, 2 the adaptive probes' alone, 3 a cross and a line along the normal, ten centimetres long, at the point of every probe (yellow uniform, magenta adaptive). The diagnostic mode 'screen-probe-placement' shows 1 whatever the setting says.",
+    screenProbeGatherVisualizeTraces:
+      "Draws over the image the rays of the screen probe nearest to the cursor (to the middle of the image where none is set), for debugging (off by default): a line from the probe along each ray, as long as the distance it reached, in the colour of the radiance it brought back; a ray that hit within a centimetre of its probe is drawn red and five centimetres long. The diagnostic mode 'screen-probe-traces' shows it whatever the setting says.",
+    screenProbeGatherVisualizeTracesFreeze:
+      'Keeps the rays the traces view draws as they were at the image it was last updated at, so the camera can move round them, for debugging (off by default).',
+    visualizeUseShaderPrintForTraces:
+      'Whether the traces views draw their lines over everything (true, the default), or against the depth, a ray behind a surface hidden by it, as the pass of the reference that draws them with the triangle pipeline does.',
+    visualizeToneMap:
+      "Whether the debug views that colour a light (the traces views, drawn over everything) show it through the table the image is composed with, the colour grade and the display curve at the image's exposure (true, the default), or through the display's transfer alone. The traces views drawn against the depth always use the table.",
+    reflectionVisualizeTraces:
+      "Draws over the image the reflection ray of the pixel under the cursor (debugCursorX, debugCursorY; nothing where none is set), for debugging (off by default): a line from the surface along the ray, as long as the distance it reached, in the radiance it brought back as it is, with a yellow cross at its end, and the grid texel, the distance and the radiance written as text, read back from the GPU a few images late. The diagnostic mode 'reflection-traces' shows it whatever the setting says.",
+    radianceCacheVisualize:
+      "Draws over the image a sphere at every probe of the world's probes, for debugging (0 off, the default): 1 each coloured by the light it holds (by the irradiance it holds along the surface of the sphere, at an albedo of 0.3, where the irradiance field is the indirect light: a probe inside a surface red, one moved off the surfaces tinted green, an adaptive one cyan; by its radiance otherwise), 2 by the share of its rays that left the scene. The spheres hide behind the surfaces. The diagnostic mode 'radiance-cache-probes' shows 1 whatever the setting says.",
+    radianceCacheVisualizeRadiusScale:
+      'The size of the spheres radianceCacheVisualize draws, as a multiple of 5% of the cell of the level they belong to (1 by default).',
+    radianceCacheVisualizeClipmapIndex:
+      "The level of the world's probes radianceCacheVisualize draws, the finest 0; -1 (the default) draws them all at once.",
+    debugCursorX:
+      "The column of the display's pixels the debug views read as the cursor, -1 (the default) for none: the views that follow the cursor take the middle of the image for the screen probes' rays and draw nothing for the reflection rays.",
+    debugCursorY:
+      "The row of the display's pixels the debug views read as the cursor, -1 (the default) for none; see debugCursorX.",
     screenProbeRadianceCacheStats:
       "Writes over the image the update statistics of the world's probes (the probes the atlas holds out of the most it can, those holding nothing yet, those not traced since the lights changed, those refused for want of a slot, those queued this image and the cells marked), for debugging (off by default); read back from the GPU a few images late. The diagnostic mode 'radiance-cache-stats' shows it whatever the setting says.",
     screenProbeDebugForceTracesMoving:
