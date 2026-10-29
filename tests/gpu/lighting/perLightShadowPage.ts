@@ -48,6 +48,8 @@ async function image({ castShadow, shadowOnePassProjection, without }: Case) {
     exposureApplyPhysicalCamera: false,
     shadowOnePassProjection,
     shadowRayCountLocal: 1,
+    // Four fresh worlds are read before any holds: their images are compared on one phase of the noise.
+    freezeTemporalSequences: true,
     ...without,
   } as Parameters<typeof createWorld>[1])
   try {

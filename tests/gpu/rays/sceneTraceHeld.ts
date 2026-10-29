@@ -6,6 +6,11 @@ import { bufferHolding } from '../../kit/device/computeReadback.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
 import { settle } from '../world/proofWorld.ts'
 import {
+  unsettledMask,
+  unsettledReasons,
+} from '../../../packages/sdk-browser/src/frame/loop/unsettled.ts'
+import { everyImageTerms } from '../../../packages/sdk-browser/src/frame/loop/everyImage.ts'
+import {
   ensureSceneTrace,
   type SceneTrace,
 } from '../../../packages/sdk-browser/src/lighting/rays/sceneTrace/sceneTraceResources.ts'
@@ -59,7 +64,16 @@ export async function measure<T>(scene: 'plain' | 'hlod', batches: (held: Held) 
   try {
     world.setPose(pose)
     await world.awaitPages()
-    if ((await settle(world, pose)) === null) throw new Error('the view never settled')
+    if ((await settle(world, pose)) === null) {
+      // What keeps it drawing, named: the unsettled terms, the terms drawn every image, and whether the view stands.
+      const rt = runtime()
+      const why = rt && {
+        unsettled: unsettledReasons(unsettledMask(rt, rt.run.frame)),
+        everyImage: everyImageTerms(rt),
+        standing: rt.run.gate.held(),
+      }
+      throw new Error(`the view never settled: ${JSON.stringify(why)}`)
+    }
     const rt = runtime()
     if (!rt) throw new Error('the engine built no runtime')
     // A few images more: the cut's tables are there, and the view is still; the HLOD scene's actors wait on their

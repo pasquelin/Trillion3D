@@ -59,6 +59,10 @@ export interface WorldOptions extends SettingOptions {
    *  page's, as `?profile` in its address turns it on; `world.diagnostic.debug` switches it later.
    *  @defaultValue false */
   debug?: boolean
+  /** A test setting: the noise's image index and the temporal antialiasing's sample no longer
+   *  advance, so every image is drawn on one phase of the sequences and two worlds of one pose
+   *  compare. Everything else keeps running. @defaultValue false */
+  freezeTemporalSequences?: boolean
 }
 
 /**
@@ -77,5 +81,6 @@ export const sessionOptions = (
   pixelRatio: options.pixelRatio,
   signal: options.signal,
   importedLights: false,
+  freezeTemporalSequences: options.freezeTemporalSequences,
   ...held,
 })
