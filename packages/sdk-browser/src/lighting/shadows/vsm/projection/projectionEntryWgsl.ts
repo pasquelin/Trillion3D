@@ -209,6 +209,28 @@ ${hair ? HAIR_SUN_STORE : '  if(pixel.inRect){textureStore(vsmSunMask,pixel.pos,
 `
 }
 
+/** The workgroup words of the local lights' loop bound (`localsBoundText`). */
+export const LOCALS_LIST_DECL = `/** The longest list of the group's pixels, and the bound of the loop that walks them. */
+var<workgroup> vsmListMost:atomic<u32>;
+var<workgroup> vsmListBound:u32;`
+
+/** The local lights' loop bound, from the pixel's list `list`: the lights it traces (`own`, held to the mask's lanes), then the group's longest list (`bound`, uniform). */
+export const localsBoundText = (subgroups: boolean) => ` let own=min(list.y,vsm.onePassMaxLights);
+${
+  subgroups
+    ? ' let longest=subgroupMax(own);\n if(subgroupElect()){atomicMax(&vsmListMost,longest);}'
+    : ' atomicMax(&vsmListMost,own);'
+}
+ workgroupBarrier();
+ if(groupIndex==0u){vsmListBound=atomicLoad(&vsmListMost);}
+ let bound=workgroupUniformLoad(&vsmListBound);`
+
+/** The light of lane `lane` of the pixel's list: its record `k`, and whether the pixel takes part in its trace (`inLight`). */
+export const LOCALS_LANE_LIGHT = `  let listed=lane<own;
+  var k=0u;
+  if(listed){k=shadowSliceRecord(i32(directLights.items[vsmShadowedRank(list,lane)].params.y));}
+  let inLight=listed&&vsmLightParticipates(k,pixel.info,pixel.shifted);`
+
 /** The local lights' kernel: each pixel traces the shadowed lights of its cell of the light grid (the
  *  one the lighting walks, `pixelCell`), in the order of the pruned grid (`lightGridWgsl.ts`) — the
  *  single-page lights last —, up to `vsm.onePassMaxLights` of them, and packs each share, dithered
@@ -229,9 +251,7 @@ export const vsmLocalsEntryWgsl = (
 fn vsmMaskPack(mask:ptr<function,vec4u>,lane:u32,share:f32){
  (*mask)[lane/ONE_PASS_MASK_LANES]|=(u32(round(share*f32(ONE_PASS_MASK_MAX)))&ONE_PASS_MASK_MAX)<<((lane%ONE_PASS_MASK_LANES)*ONE_PASS_MASK_BITS);
 }
-/** The longest list of the group's pixels, and the bound of the loop that walks them. */
-var<workgroup> vsmListMost:atomic<u32>;
-var<workgroup> vsmListBound:u32;
+${LOCALS_LIST_DECL}
 @compute @workgroup_size(${VSM_PROJECTION_GROUP_SIZE * VSM_PROJECTION_GROUP_SIZE})
 fn vsmProjectLocals(@builtin(workgroup_id) groupId:vec3u,${t.groups}@builtin(local_invocation_index) groupIndex:u32){
  vsmLaneInit(groupIndex);
@@ -243,24 +263,13 @@ fn vsmProjectLocals(@builtin(workgroup_id) groupId:vec3u,${t.groups}@builtin(loc
   // A light past the mask is the overflow, recorded and not traced.
   if(list.y>vsm.onePassMaxLights){vsmStatsOr(VSM_OVERFLOW_FLAGS,VSM_OVERFLOW_ONE_PASS_MAX_LIGHTS);}
  }
- let own=min(list.y,vsm.onePassMaxLights);
-${
-  subgroups
-    ? ' let longest=subgroupMax(own);\n if(subgroupElect()){atomicMax(&vsmListMost,longest);}'
-    : ' atomicMax(&vsmListMost,own);'
-}
- workgroupBarrier();
- if(groupIndex==0u){vsmListBound=atomicLoad(&vsmListMost);}
- let bound=workgroupUniformLoad(&vsmListBound);
+${localsBoundText(subgroups)}
  if(bound==0u){
   if(pixel.inRect){textureStore(vsmLocalMask,pixel.pos,mask);}
   return;
  }${t.once}
  for(var lane=0u;lane<bound;lane++){
-  let listed=lane<own;
-  var k=0u;
-  if(listed){k=shadowSliceRecord(i32(directLights.items[vsmShadowedRank(list,lane)].params.y));}
-  let inLight=listed&&vsmLightParticipates(k,pixel.info,pixel.shifted);${t.each}
+${LOCALS_LANE_LIGHT}${t.each}
   let r=vsmSubsurfaceShadow(vsmTraceLight(vsmView.lights[k],pixel,receiver,inLight),pixel.info);
   if(listed){
    var share=select(1.0,vsmFilterShadow(r.shadowFactor,pixel.noise),r.rayCount>0u);${

@@ -19,8 +19,6 @@ import {
 export interface CascadeRecord {
   centre: [number, number, number]
   radius: number
-  /** The clipmap level (the index from the first) the cascade is drawn in. */
-  level: number
   direction: [number, number, number]
   /** The static casters the last scrolled frame had to draw again (`CascadeCacheState.extraStaticSubjects`). */
   extra: number
@@ -28,11 +26,18 @@ export interface CascadeRecord {
   seen: WeakSet<object>
 }
 
-/** A cascade this frame: its sphere in the world and the level it lies in. */
+/** A cascade this frame: its sphere in the world and whether the clipmap level it lies in is not the one of the frame before (`noteCascadeLevel`). */
 export interface CascadeNow {
   readonly centre: readonly [number, number, number]
   readonly radius: number
-  readonly level: number
+  readonly levelChanged: boolean
+}
+
+/** Notes the clipmap level (the index from the first) cascade `index` is drawn in, in `levels` kept from frame to frame; true where it differs from the last one noted (or none was): the pages of a map made from another level are of another place. */
+export function noteCascadeLevel(levels: number[], index: number, level: number) {
+  const changed = levels[index] !== level
+  levels[index] = level
+  return changed
 }
 
 /** The casters the cache is made of. */
@@ -170,7 +175,6 @@ function refreshRecord(
 ) {
   for (let i = 0; i < 3; i++) record.centre[i] = now.centre[i]!
   record.radius = now.radius
-  record.level = now.level
   for (let i = 0; i < 3; i++) record.direction[i] = light.direction[i]!
   record.extra = 0
   record.seen = new WeakSet()
@@ -204,7 +208,7 @@ export function planCascadeCaches(
     const mode: CascadeCacheMode = cascadeCacheMode(
       settings,
       record && {
-        valid: record.level === now.level,
+        valid: !now.levelChanged,
         sameProjection:
           sameValues(record.direction, light.direction) && record.radius === now.radius,
         sameCentre: sameValues(record.centre, now.centre),
@@ -218,7 +222,6 @@ export function planCascadeCaches(
       const fresh = (records[k] ??= {
         centre: [0, 0, 0],
         radius: 0,
-        level: now.level,
         direction: [0, 0, 0],
         extra: 0,
         seen: new WeakSet(),

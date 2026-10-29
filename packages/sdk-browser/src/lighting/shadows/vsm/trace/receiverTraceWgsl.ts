@@ -50,7 +50,7 @@ fn vsmNormalOffset(fromEye:vec3f)->f32{
  *  pixels a group, a translucent surface's fragment alone. */
 export const vsmReceiverTraceWgsl = (host: VsmTraceHost) =>
   wgslBlock(
-    `vsmReceiverTraceWgsl(${host.hiz.join(', ')}, ${host.lone}, ${!!host.subgroups}, ${host.kinds}${host.input === 'strands' ? ', strands' : ''}${host.rays === undefined ? '' : `, ${host.rays} rays`}${host.classic ? ', classic' : ''})`,
+    `vsmReceiverTraceWgsl(${host.hiz.join(', ')}, ${host.lone}, ${!!host.subgroups}, ${host.kinds}${host.input === 'strands' ? ', strands' : ''}${host.rays === undefined ? '' : `, ${host.rays} rays`}${host.classic ? ', classic' : ''}${host.visualize ? ', visualize' : ''})`,
     [
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,

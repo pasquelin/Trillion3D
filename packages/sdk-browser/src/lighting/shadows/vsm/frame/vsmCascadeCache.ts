@@ -8,6 +8,7 @@ import { cascadeCount, cascadeSphereOf } from '../../classic/cascadeSplits.ts'
 import { viewCascadesOf } from '../../classic/classicView.ts'
 import { sunLevelIndex } from '../../classic/denseLevels.ts'
 import {
+  noteCascadeLevel,
   planCascadeCaches,
   type CascadeNow,
   type CascadeRecord,
@@ -24,7 +25,7 @@ import { sunCascadesOf } from './vsmDense.ts'
 
 /** The cascade records of each sun's cache entry. */
 const held = new WeakMap<VsmLightCache, CascadeRecord[]>()
-/** The clipmap level each cascade's map was last made from, by sun entry: a map made from another level holds pages of another place, none carried. */
+/** The clipmap level each cascade's map was last made from, by sun entry (`noteCascadeLevel`). */
 const levelsHeld = new WeakMap<VsmLightCache, number[]>()
 /** The cascades of the sun being planned: objects kept from frame to frame and written in place, the first of them current. */
 type CascadeSlot = { -readonly [K in keyof CascadeNow]: CascadeNow[K] } & {
@@ -96,16 +97,18 @@ export function applyCascades(
     for (let k = 0; k < n; k++) {
       const sphere = cascadeSphereOf(sun, view, k, tanX, tanY)
       const along = sphere.depth * VSM_UNIT_PER_CM
-      const now = (nowPool[k] ??= { centre: [0, 0, 0], radius: 0, level: 0 })
+      const now = (nowPool[k] ??= { centre: [0, 0, 0], radius: 0, levelChanged: false })
       now.centre[0] = cam.eye[0]! + forward[0] * along
       now.centre[1] = cam.eye[1]! + forward[1] * along
       now.centre[2] = cam.eye[2]! + forward[2] * along
       now.radius = sphere.radius * VSM_UNIT_PER_CM
-      now.level = sunLevelIndex(sphere.radius, cascadeResolution, clipmap.firstLevel, first)
-      const map = vsmClipmapCascadeMap(clipmap, now.level, first + k, wpoInvalidates)
-      if (levels[k] !== now.level) map.dropPages()
-      levels[k] = now.level
+      const level = sunLevelIndex(sphere.radius, cascadeResolution, clipmap.firstLevel, first)
+      now.levelChanged = noteCascadeLevel(levels, k, level)
+      const map = vsmClipmapCascadeMap(clipmap, level, first + k, wpoInvalidates)
+      if (now.levelChanged) map.dropPages()
     }
+    // A slot past the cascades planned holds no level: it is noted anew when a cascade takes it again.
+    levels.length = n
     if (!shadows.shadowCsmCaching) continue
     let records = held.get(lane.entry)
     if (!records) held.set(lane.entry, (records = []))

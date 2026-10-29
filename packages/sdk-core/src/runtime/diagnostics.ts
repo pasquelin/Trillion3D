@@ -12,6 +12,19 @@ export const HETEROGENEOUS_VOLUME_GRID_VIEWS = {
   'heterogeneous-volumes-tracking-majorant-dda': 9,
 } as const
 export type HeterogeneousVolumeGridView = keyof typeof HETEROGENEOUS_VOLUME_GRID_VIEWS
+/** The virtual shadow map views drawn from the last ray of each pixel, each by the mode id (a bit) the projection writes it with. */
+export const VIRTUAL_SHADOW_MAP_VIEWS = {
+  'virtual-shadow-map-shadow-factor': 1,
+  'virtual-shadow-map-clipmap-or-mip': 2,
+  'virtual-shadow-map-virtual-page': 4,
+  'virtual-shadow-map-cached-page': 8,
+  'virtual-shadow-map-ray-count': 16,
+  'virtual-shadow-map-general-debug': 64,
+  'virtual-shadow-map-dirty-page': 128,
+  'virtual-shadow-map-gpu-invalidated-page': 256,
+  'virtual-shadow-map-merged-page': 512,
+} as const
+export type VirtualShadowMapView = keyof typeof VIRTUAL_SHADOW_MAP_VIEWS
 /** Availability describes real pipeline outputs, never synthetic overlays. */
 export type DiagnosticMode =
   | 'beauty'
@@ -63,6 +76,15 @@ export type DiagnosticMode =
   | 'subsurface-profiles'
   | 'virtual-shadow-map-shadow-casters'
   | 'virtual-shadow-map-clipmap-virtual-space'
+  | 'virtual-shadow-map-shadow-factor'
+  | 'virtual-shadow-map-clipmap-or-mip'
+  | 'virtual-shadow-map-virtual-page'
+  | 'virtual-shadow-map-cached-page'
+  | 'virtual-shadow-map-ray-count'
+  | 'virtual-shadow-map-general-debug'
+  | 'virtual-shadow-map-dirty-page'
+  | 'virtual-shadow-map-gpu-invalidated-page'
+  | 'virtual-shadow-map-merged-page'
   | 'rect-light-atlas'
   | 'surface-cache-direct-stats'
   | 'surface-cache-indirect-stats'
@@ -132,6 +154,15 @@ export interface DiagnosticCapability {
  *  @property subsurface-profiles - The subsurface profile of each pixel as a coloured, lettered map.
  *  @property virtual-shadow-map-shadow-casters - The box of every placement whose casters invalidate the shadow pages, in the colour of its class, with the legend.
  *  @property virtual-shadow-map-clipmap-virtual-space - The first sun's shadow clipmap in the virtual space of its levels, over the image in grey.
+ *  @property virtual-shadow-map-shadow-factor - The share of light that reaches the surface, from blue-black in shadow to yellow lit, the lights added.
+ *  @property virtual-shadow-map-clipmap-or-mip - The clipmap level (a sun) or mip level (a local light) the last ray of each pixel read, one colour a level.
+ *  @property virtual-shadow-map-virtual-page - The virtual page each pixel reads, one colour a page, mixed with the level and the share of light.
+ *  @property virtual-shadow-map-cached-page - Whether the page each pixel reads is kept from the last image (green) or drawn again (red both layers, blue the dynamic one, yellow-green a page kept by force).
+ *  @property virtual-shadow-map-ray-count - The rays the lights traced for each pixel against the most they trace, from green to red.
+ *  @property virtual-shadow-map-general-debug - The distance to the occluder each pixel meets, in grey.
+ *  @property virtual-shadow-map-dirty-page - The page each pixel reads: yellow-red where its static layer was drawn, green where its dynamic layer was.
+ *  @property virtual-shadow-map-gpu-invalidated-page - The page each pixel reads: red where its static layer was invalidated by the casters, green where its dynamic layer was.
+ *  @property virtual-shadow-map-merged-page - The page each pixel reads: red where the static layer was drawn and merged into the dynamic one, green elsewhere.
  *  @property rect-light-atlas - The atlas of the pictures mapped on the rectangle lights, its slots and its figures, over the image.
  *  @property surface-cache-direct-stats - The table of the direct light update of the surface cache over the image: its priority histogram, its budget and the pages and tiles it lights.
  *  @property surface-cache-indirect-stats - The table of the indirect light update of the surface cache over the image.
@@ -230,6 +261,15 @@ export type DiagnosticCapabilities = Record<DiagnosticMode, DiagnosticCapability
  * @property subsurface-profiles - The subsurface profile of each pixel over the middle of the image, one colour and one character per profile (the default skin buff, then red, green, blue, magenta, cyan, yellow; 100 dark green, 255 white), faded where the scattering is narrower than a pixel, with the title and the list of profiles.
  * @property virtual-shadow-map-shadow-casters - Over the image, the edges of the box of every placement the shadows keep as invalidating or that may (green static and still, red static and deforming, cyan dynamic and still, purple dynamic and moving or deforming, blue dynamic whose offset may invalidate, grey casting none), whatever lies before them, with the legend of the classes at the lower left.
  * @property virtual-shadow-map-clipmap-virtual-space - Over the image in grey, a square that shows the pages the first sun's clipmap has mapped, level by level from the finest to the coarsest, each in the colour of its address and level, zoomed so that the finest level's pages fill it; needs shadows.
+ * @property virtual-shadow-map-shadow-factor - Over the image in grey, the share of each light that reaches the surface: yellow lit, dark blue in shadow, the lights added (or the one light shadowVisualizeLight names, alone); needs shadows and virtual shadow maps.
+ * @property virtual-shadow-map-clipmap-or-mip - Over the image in grey, one colour a level: the clipmap level a sun reads at each pixel or the mip level a local light reads, mixed with the share of light; needs shadows and virtual shadow maps.
+ * @property virtual-shadow-map-virtual-page - Over the image in grey, the virtual page each pixel reads in the colour of its address mixed with the colour of its level and the share of light; needs shadows and virtual shadow maps.
+ * @property virtual-shadow-map-cached-page - Over the image in grey, the state of the page each pixel reads: green kept from the last image (with shadowVisualizeLight or shadowVisualizeCachedPagesOnly), red both layers drawn again, blue the dynamic layer alone, yellow-green kept by force; needs shadows and virtual shadow maps.
+ * @property virtual-shadow-map-ray-count - Over the image in grey, the rays traced at each pixel against the most the lights trace, from green (few) to red (all); needs shadows and virtual shadow maps.
+ * @property virtual-shadow-map-general-debug - Over the image in grey, the mean distance from each pixel to what shadows it, in metres over 2000 as a grey; needs shadows and virtual shadow maps.
+ * @property virtual-shadow-map-dirty-page - Over the image in grey, the virtual page each pixel reads, red where its static layer was drawn or cleared this image, green where its dynamic layer was; needs shadows and virtual shadow maps.
+ * @property virtual-shadow-map-gpu-invalidated-page - Over the image in grey, the virtual page each pixel reads, red where its static layer was invalidated by the casters that moved, green where its dynamic layer was; needs shadows and virtual shadow maps.
+ * @property virtual-shadow-map-merged-page - Over the image in grey, the virtual page each pixel reads, red where its static layer was drawn this image and merged into the dynamic one, green elsewhere; needs shadows and virtual shadow maps.
  * @property rect-light-atlas - Over the image, the atlas of the pictures the rectangle lights name, drawn small at the chosen mip level (`rectLightAtlasDebugMipLevel`) with a green border round each slot in use, a red one round the horizon lines of the packing and a yellow one round the free rectangles, and its figures as text (resolution, mip levels, occupancy, pictures, source mip bias, format, the switches); the same as `rectLightAtlasDebug` shows.
  * @property surface-cache-direct-stats - Over the image, the table of the surface cache’s direct light update as `surfaceCacheLightingStats` 1 writes it: the tiles of each of the 16 priority buckets, the bucket the budget ends in and its tiles, the pages and the tiles the image lights; read back from the GPU a few images late.
  * @property surface-cache-indirect-stats - Over the image, the same table for the surface cache’s indirect light update (`surfaceCacheLightingStats` 2).
@@ -507,6 +547,51 @@ export const DIAGNOSTICS: DiagnosticCapabilities = {
     available: true,
     reason:
       "The first sun's shadow clipmap in the virtual space of its levels, over the image in grey; needs shadows and virtual shadow maps",
+  },
+  'virtual-shadow-map-shadow-factor': {
+    available: true,
+    reason:
+      'The share of light that reaches the surface, yellow lit and dark blue in shadow, over the image in grey; needs shadows and virtual shadow maps',
+  },
+  'virtual-shadow-map-clipmap-or-mip': {
+    available: true,
+    reason:
+      'The clipmap or mip level each pixel reads, one colour a level, over the image in grey; needs shadows and virtual shadow maps',
+  },
+  'virtual-shadow-map-virtual-page': {
+    available: true,
+    reason:
+      'The virtual page each pixel reads, one colour a page, over the image in grey; needs shadows and virtual shadow maps',
+  },
+  'virtual-shadow-map-cached-page': {
+    available: true,
+    reason:
+      'The cached or invalidated state of the page each pixel reads, over the image in grey, with the legend; needs shadows and virtual shadow maps',
+  },
+  'virtual-shadow-map-ray-count': {
+    available: true,
+    reason:
+      'The rays traced at each pixel against the most, from green to red, over the image; needs shadows and virtual shadow maps',
+  },
+  'virtual-shadow-map-general-debug': {
+    available: true,
+    reason:
+      'The distance to the occluder of each pixel as a grey, over the image; needs shadows and virtual shadow maps',
+  },
+  'virtual-shadow-map-dirty-page': {
+    available: true,
+    reason:
+      'The pages drawn this image, over the image in grey; needs shadows and virtual shadow maps',
+  },
+  'virtual-shadow-map-gpu-invalidated-page': {
+    available: true,
+    reason:
+      'The pages the casters invalidated, over the image in grey; needs shadows and virtual shadow maps',
+  },
+  'virtual-shadow-map-merged-page': {
+    available: true,
+    reason:
+      'The pages whose static layer was merged, over the image in grey; needs shadows and virtual shadow maps',
   },
   'rect-light-atlas': {
     available: true,

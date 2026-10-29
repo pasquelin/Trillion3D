@@ -38,6 +38,7 @@ import { vsmProjectionReserve, type VsmProjectionState } from './projectionStore
 import type { HeldGroup } from '../../../../gpu/bind/bindIdentity.ts'
 import { writeVsmProjectionView } from './projectionViewWrite.ts'
 import { PER_LIGHT_RECORD_BINDING_BYTES } from './perLightRecord.ts'
+import type { VsmVisualizeRequest } from './visualizePass.ts'
 
 /** The camera the pixels are reconstructed with. */
 interface VsmProjectionCamera {
@@ -79,6 +80,8 @@ export interface VsmProjectionFrame {
   }
   /** The lights the passes project, the suns first (≤ `VSM_PROJECTION_MAX_PASS_LIGHTS`). */
   lights: readonly VsmProjectionLight[]
+  /** The virtual shadow map view the diagnostic mode asks for (`visualizePass.ts`); absent, none: the frame draws no view. */
+  visualize?: VsmVisualizeRequest
 }
 
 /** The opaque surfaces a pass projects: their depth (depth32float, reverse-Z), normals

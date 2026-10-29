@@ -4,8 +4,6 @@ import {
   DEFAULT_CASCADE_CACHE,
   cascadeCacheMode,
   overlapAreaRatio,
-  scrollCopyRects,
-  scrollDepthTransform,
   scrollOverlap,
   type CascadeBounds,
   type CascadeCacheState,
@@ -69,31 +67,4 @@ test('the border grows both squares, the shared part keeps its ratios', () => {
   const o = scrollOverlap(at(0), at(100), 1.5)
   assert.ok(Math.abs(o.onCached[2] - 2 / 3) < 1e-12)
   assert.ok(Math.abs(o.onCurrent[0] - 1 / 3) < 1e-12)
-})
-
-test('the depth copy is the identity for a map that did not move nor change range', () => {
-  const range = { minZ: -50, maxZ: 50, invMaxSubjectDepth: 0.01 }
-  const t = scrollDepthTransform(range, range, 0, 0)
-  assert.equal(t.y, 1)
-  assert.ok(Math.abs(t.x) < 1e-12)
-})
-
-test('the depth copy follows the range: a doubled range halves the depths, a slide along the axis offsets them', () => {
-  const cached = { minZ: 0, maxZ: 100, invMaxSubjectDepth: 0.01 }
-  const wider = scrollDepthTransform(
-    cached,
-    { minZ: 0, maxZ: 200, invMaxSubjectDepth: 0.005 },
-    0,
-    0,
-  )
-  assert.equal(wider.y, 0.5)
-  const slid = scrollDepthTransform(cached, cached, 10, 0)
-  assert.equal(slid.y, 1)
-  assert.ok(Math.abs(slid.x - 0.001) < 1e-12)
-})
-
-test('the copy rectangles are the overlap in pixels, rounded as the draw rounds them', () => {
-  const { source, output } = scrollCopyRects(scrollOverlap(at(0), at(100)), 1024)
-  assert.deepEqual(source, { x: 0, y: 0, width: 512, height: 1024 })
-  assert.deepEqual(output, { x: 512, y: 0, width: 512, height: 1024 })
 })

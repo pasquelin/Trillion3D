@@ -142,6 +142,10 @@ export const VSM_PROJECTION_BINDING = {
   /** The suns', local lights' and per-light passes, where the strands cast their shadow on the surfaces by their own deep shadows or voxels (the `hair` cut): a layer a light of the frame,
    *  the share of the light the strands let through at each pixel (`hair/surfaceShadowPass.ts`), read where the pass writes a light's share. */
   hairShadow: 20,
+  /** The passes of the virtual shadow map views alone (`visualizeWgsl.ts`): their uniform (the view, the light, the kept pages), the suns' colour the local lights' pass adds to, and the colour written. */
+  visualize: 21,
+  visualizeIn: 22,
+  visualizeOut: 23,
 } as const
 
 /** The declaration of the strands' shadow layers, which a pass of the `hair` cut reads. */
@@ -187,18 +191,26 @@ const WATER_BINDINGS_WGSL = /* wgsl */ `
 /** The local lights' pass of the input `strands` reads the cells of the shadowed lights' grid alone, the
  *  view grid's head with them (`lightGridWgsl.ts`): with the tables of group 0, the lights and the tiles'
  *  list, it holds the eight storage buffers a stage is given at least. */
-const STRANDS_TILE_SLICE_WGSL = tileSliceWgsl('vsmLightGrid')
+export const STRANDS_TILE_SLICE_WGSL = tileSliceWgsl('vsmLightGrid')
 
 /** What the traces of a pass of `kinds` over the pixels of `input` take; the pass's halves vote
- *  (`vsmProjectionVoteWgsl`), no lane alone. */
-export const traceDeps = (layout: VsmLayout, kinds: number, input: VsmInputType = 'gbuffer') => [
+ *  (`vsmProjectionVoteWgsl`), no lane alone. A pass of the views of the virtual shadow maps (`visualize`,
+ *  `visualizeWgsl.ts`) keeps the page its last ray read and binds the tables `specs` name. */
+export const traceDeps = (
+  layout: VsmLayout,
+  kinds: number,
+  input: VsmInputType = 'gbuffer',
+  visualize = false,
+  specs: readonly VsmBindingSpec[] = VSM_PROJECTION_VSM_SPECS,
+) => [
   vsmTraceLightWgsl(kinds),
   blueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
   VSM_TRACE_COMMON_WGSL,
   localLightReaches,
   // The traces sample this pass's pool and take the blue noise's pair.
   vsmReceiverTraceWgsl({
-    pool: vsmPoolLoadOf(0, VSM_PROJECTION_VSM_SPECS, layout),
+    visualize,
+    pool: vsmPoolLoadOf(0, specs, layout),
     noise: blueNoiseWgsl(1, VSM_PROJECTION_BINDING.blueNoise),
     hiz: [1, VSM_PROJECTION_BINDING.hizDepth],
     lone: false,
@@ -226,11 +238,12 @@ const BINDINGS_OF_INPUT = {
 export const projectionCommon = (
   layout: VsmLayout,
   pixelOf: WgslDecl = VSM_PROJECTION_PIXEL_OF_WGSL,
+  specs: readonly VsmBindingSpec[] = VSM_PROJECTION_VSM_SPECS,
 ) => [
   VSM_CONSTANTS_WGSL,
   pixelOf,
   VSM_PROJECTION_DATA_WGSL,
-  vsmBindingsWgsl(0, VSM_PROJECTION_VSM_SPECS, layout),
+  vsmBindingsWgsl(0, specs, layout),
   vsmSubsurfaceModel,
   vsmTransmitsShadow,
   LOBE_AXIS_WGSL,

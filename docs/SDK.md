@@ -3433,6 +3433,24 @@ world.shadows = { shadowCachedCastFromMovable: false } // movable casters leave 
 world.shadows = { shadowWholeSceneCacheMb: 300 } // a larger atlas: more room for the lights' tiles
 ```
 
+### Clipmap statistics
+
+`shadowShowClipmapStats` (`-1`, off) writes over the image, in the upper left, the statistics of the sun shadow clipmap of that index (`0` the first): for each level the rect of pages its map has allocated (the lowest and highest page of each axis), then, where the rect is not empty, its width, its height and its area in pages, and last the total area of the levels. The rects are copied from the page management's table and read a few images late, so the figures follow the view with a short delay.
+
+```js
+world.shadows = { shadowShowClipmapStats: 0 } // the first sun's clipmap: allocated page rects and total area
+world.shadows = { shadowShowClipmapStats: -1 } // off
+```
+
+`shadowVisualizeLayout` (`0`), `shadowVisualizeCachedPagesOnly` (`false`) and `shadowVisualizeLight` (`-1`) shape the virtual shadow map views above (`virtual-shadow-map-shadow-factor` and the eight others, which draw what the last ray of each pixel read). The layout is `0` over the whole image (in grey), `1` in a thumbnail of a third of the image's width and height at its upper left, `2` over its left half. `shadowVisualizeCachedPagesOnly` makes the cached-page view show the kept pages for every light and hide the others. `shadowVisualizeLight` is the rank of the one light to show, in the frame's order of shadowed lights (the suns first), alone and in full colour; `-1` shows every light, a quarter of each colour added. The views need the one-pass projection of the local lights (`shadowOnePassProjection`, on by default) to show them.
+
+```js
+await engine.setDiagnostic('virtual-shadow-map-cached-page')
+world.shadows = { shadowVisualizeLayout: 2 } // the view over the left half of the image
+world.shadows = { shadowVisualizeLight: 0, shadowVisualizeCachedPagesOnly: true } // the first light's kept pages
+world.shadows = { shadowVisualizeLayout: null, shadowVisualizeLight: null } // back to the defaults
+```
+
 The quality levels (the `shadows` group) write the four that shape the distance and its edge, the shadow
 maps' rows and the shadow quality, as the rules' own rows (`SHADOW_PRESET_LEVELS`,
 `packages/sdk-core/src/contracts/shadowOptions.ts`):
@@ -4652,6 +4670,15 @@ The sampled lighting (`sampledLights`) and the subsurface scattering have views 
 | --- | --- |
 | `virtual-shadow-map-shadow-casters` | over the image, the edges of the box of every placement the shadows keep as invalidating or that may, in the colour of its class (red a static one that deforms, purple a dynamic one that moves or deforms, blue a dynamic one whose offset may invalidate), with the legend of the classes at the lower left; the green, cyan and grey classes draw no box |
 | `virtual-shadow-map-clipmap-virtual-space` | over the image in grey, a square that shows the pages the first sun's shadow clipmap has mapped, level by level from the finest to the coarsest, each in the colour of its address and level, zoomed so that the finest level's pages fill it; needs shadows (`await engine.setDiagnostic('virtual-shadow-map-clipmap-virtual-space')`) |
+| `virtual-shadow-map-shadow-factor` | over the image in grey, the share of each light that reaches the surface: yellow lit, dark blue in shadow, the lights added (the one light `shadowVisualizeLight` names, alone); the legend at the lower left; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-shadow-factor')`) |
+| `virtual-shadow-map-clipmap-or-mip` | over the image in grey, one colour a level: the clipmap level a sun reads at the pixel, or the mip level a local light reads, mixed with the share of light; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-clipmap-or-mip')`) |
+| `virtual-shadow-map-virtual-page` | over the image in grey, the virtual page the last ray of the pixel read, in the colour of its address mixed with the colour of its level and the share of light; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-virtual-page')`) |
+| `virtual-shadow-map-cached-page` | over the image in grey, the state of the page the pixel reads: green kept from the last image (shown for one light, or for all with `shadowVisualizeCachedPagesOnly`), red both layers drawn again, blue the dynamic layer alone, yellow-green kept by force; with the legend; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-cached-page')`) |
+| `virtual-shadow-map-ray-count` | over the image, the rays traced at the pixel against the most the lights trace, from green to red; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-ray-count')`) |
+| `virtual-shadow-map-general-debug` | over the image, the mean distance from the pixel to what shadows it as a grey (2000 centimetres to white); needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-general-debug')`) |
+| `virtual-shadow-map-dirty-page` | over the image in grey, the page the pixel reads, red where its static layer was written (drawn or cleared) this image, green where its dynamic layer was; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-dirty-page')`) |
+| `virtual-shadow-map-gpu-invalidated-page` | over the image in grey, the page the pixel reads, red where its static layer was invalidated by the casters that moved, green where its dynamic layer was; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-gpu-invalidated-page')`) |
+| `virtual-shadow-map-merged-page` | over the image in grey, the page the pixel reads, red where its static layer was drawn this image and merged into the dynamic one, green elsewhere; needs shadows and virtual shadow maps (`await engine.setDiagnostic('virtual-shadow-map-merged-page')`) |
 | `rect-light-atlas` | over the image, the atlas of the rectangle lights' pictures drawn small at the mip level `rectLightAtlasDebugMipLevel`, a green border round each slot in use, red round the packing's horizon lines, yellow round the free rectangles, and the figures as text (the same as `rectLightAtlasDebug`) |
 | `sampled-lights-overview` | the shadow caster views side by side, in tiles with rounded corners, over the image |
 | `sampled-lights-shadow-casters` | the surface under each pixel in grey, with the label `Shadow Casters, Materials:0, FarField:0, HairVoxels:0` (the traces are made through the distance field, which has no scene of its own to colour) |

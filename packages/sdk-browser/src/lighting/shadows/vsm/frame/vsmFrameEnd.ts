@@ -1,5 +1,6 @@
 // The shadow maps' frame end: what this frame hands the next, and the counters read back late.
 import type { WebgpuPagesRuntime } from '../../../../frame/backend/runtime.ts'
+import { clipmapStatsSubmitted } from '../debug/clipmapStats.ts'
 import { VSM_COUNTERS } from '../constants.ts'
 import { finishVirtualShadowFrame } from '../frameSetup.ts'
 import { keepFilterableHistory, keepVsmFrame } from '../pageManagementEncode.ts'
@@ -66,6 +67,7 @@ export function vsmSubmitted(rt: { lights: { vsm?: EngineVsm } }) {
   if (!vsm) return
   vsm.feedback.afterSubmit()
   vsm.statsReadback.submitted()
+  clipmapStatsSubmitted(rt)
   vsm.accumulate.afterSubmit()
   vsmDescentRequestsSubmitted(vsm.res)
 }

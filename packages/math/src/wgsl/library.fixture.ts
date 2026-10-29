@@ -23,6 +23,7 @@ import * as quaternion from './quaternion.ts'
 import * as reals from './reals.ts'
 import * as sampling from './sampling.ts'
 import * as sphericalRect from './sphericalRect.ts'
+import * as turbo from './turbo.ts'
 
 /** The library's declaration files, by name: a file left out of this list would escape the tests
  *  that sweep the engine's shaders, so one is refused below. */
@@ -50,6 +51,7 @@ const MODULES = {
   reals,
   sampling,
   sphericalRect,
+  turbo,
 }
 /** The files that declare nothing: the declaration type, the assembler, its comment reader, the
  *  number writer, the constants writer. */

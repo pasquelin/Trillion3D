@@ -11,6 +11,7 @@ import {
 import { VSM_CONSTANTS_WGSL } from '../constants.ts'
 import type { VsmLayout } from '../layout.ts'
 import { VSM_PAGE_LOOKUP_WGSL } from '../pageTableWgsl.ts'
+import { vsmGrayscale, vsmIntToColor } from './pageColorWgsl.ts'
 import {
   vsmBindGroupEntries,
   vsmBindGroupLayoutEntries,
@@ -40,16 +41,6 @@ const SPECS: readonly VsmBindingSpec[] = [
 const CLIPMAP_WGSL = `struct ClipmapView{first:u32,levels:u32,border:u32,side:u32,}
 @group(1) @binding(0) var<uniform> clipmapView:ClipmapView;
 @group(1) @binding(1) var sceneCopy:texture_2d<f32>;
-/** A colour from an integer: the finishing mix of a 32-bit word, three bytes of it. */
-fn clipmapHash(index:u32)->vec3f{
- var h=index;
- h^=h>>16u;
- h*=0x85ebca6bu;
- h^=h>>13u;
- h*=0xc2b2ae35u;
- h^=h>>16u;
- return vec3f(f32(h&255u),f32((h>>8u)&255u),f32((h>>16u)&255u))*(1.0/255.0);
-}
 /** The place of the clipmap's origin in the map of level map 'id', in pages. */
 fn clipmapOriginPages(id:u32)->vec2f{
  let record=vsmProjectionData[id];
@@ -84,7 +75,7 @@ fn clipmapColor(pixelUv:vec2f)->vec3f{
   if(any(page<vec2i(0))||any(page>=vec2i(i32(VSM_LEVEL0_PAGES)))){continue;}
   let entry=vsmTableEntryAtOffset(vsmTableEntryOf(vsmHandleFromId(id),0u,vec2u(page)));
   if(entry.thisLevelMapped){
-   color=mix(clipmapHash(u32(page.x)+(u32(page.y)<<10u)),clipmapHash(u32(vsmProjectionData[id].mapLevel)),0.75);
+   color=mix(vsmIntToColor(u32(page.x)+(u32(page.y)<<10u)),vsmIntToColor(u32(vsmProjectionData[id].mapLevel)),0.75);
   }
  }
  return color;
@@ -92,7 +83,7 @@ fn clipmapColor(pixelUv:vec2f)->vec3f{
 ${SCREEN_PASS_VERTEX}
 @fragment fn fsClipmapDesaturate(@builtin(position) position:vec4f)->@location(0) vec4f{
  let scene=textureLoad(sceneCopy,vec2i(position.xy),0);
- return vec4f(vec3f(dot(scene.rgb,vec3f(0.299,0.587,0.114))),scene.a);
+ return vec4f(vec3f(vsmGrayscale(scene.rgb)),scene.a);
 }
 @fragment fn fsClipmapVirtualSpace(@builtin(position) position:vec4f)->@location(0) vec4f{
  let pixel=vec2u(position.xy);
@@ -106,6 +97,8 @@ export const clipmapVirtualSpaceWgsl = (layout: VsmLayout) =>
   wgslProgram(CLIPMAP_WGSL, [
     VSM_CONSTANTS_WGSL,
     VSM_PAGE_LOOKUP_WGSL,
+    vsmIntToColor,
+    vsmGrayscale,
     vsmBindingsWgsl(0, SPECS, layout),
   ])
 

@@ -42,12 +42,12 @@ export interface ViewCascadeSettings {
 
 /** The distance the cascades reach: the sun's, scaled by the view's (0 to 2); 0 where the view allows no cascade. */
 export const cascadeDistance = (sun: SunCascadeSettings, view: ViewCascadeSettings) =>
-  view.maxCascades <= 0 ? 0 : sun.distance * clamp(view.distanceScale, 0, 2)
+  !(view.maxCascades > 0) ? 0 : sun.distance * clamp(view.distanceScale, 0, 2)
 
 /** How many cascades the sun is drawn in: its own count held to the view's, none where the distance is 0. */
 export const cascadeCount = (sun: SunCascadeSettings, view: ViewCascadeSettings) =>
   cascadeDistance(sun, view) > 0
-    ? clamp(Math.trunc(sun.cascades), 0, Math.trunc(view.maxCascades))
+    ? clamp(Math.trunc(sun.cascades) || 0, 0, Math.trunc(view.maxCascades))
     : 0
 
 /** Where split `index` lies: 0 is the view's near plane, `count` the end of the last cascade. */

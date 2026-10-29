@@ -60,3 +60,9 @@ test('a cascade grows by its fade into the next; the last fades in place', () =>
   // No transition: the fade has no length.
   assert.equal(cascadeRange(DEFAULT_SUN_CASCADES, { ...VIEW, transitionScale: 0 }, 1).fadeLength, 0)
 })
+
+test('a negative or NaN cascade limit, or a NaN cascade count, gives no cascade', () => {
+  for (const maxCascades of [-3, NaN])
+    assert.equal(cascadeCount(DEFAULT_SUN_CASCADES, { ...VIEW, maxCascades }), 0)
+  assert.equal(cascadeCount({ ...DEFAULT_SUN_CASCADES, cascades: NaN }, VIEW), 0)
+})

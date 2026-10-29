@@ -55,6 +55,7 @@ import {
   vsmViewsLaid,
   type CompiledTiers,
 } from '../render/renderParamsWgsl.ts'
+import { voxelsPresent } from '../../../../visibility/passes/slotWalk.ts'
 import { chainReady, type PreparedPipeline } from '../../../deferred/fullscreen.ts'
 import { marksWater, viewMarkingOf } from './vsmFrontLayer.ts'
 import { vsmProjectionPipeline } from '../projection/projectionPipelines.ts'
@@ -381,12 +382,6 @@ interface CompiledFor {
 }
 const compiledFor = new WeakMap<VsmLayout, CompiledFor>()
 
-/** Whether the session holds voxel bricks. */
-function holdsVoxels(rt: WebgpuPagesRuntime) {
-  for (const block of rt.vis.geometryBlocks.values()) if (block.voxel) return true
-  return false
-}
-
 /** The families of the raster the frame draws, every pipeline of its passes over `layout` compiled
  *  (the two-sided tiers' always, the voxel tiers' where the session holds voxel bricks), or none
  *  while one compiles, the missing ones asked at once (`chainReady`): the marking, the page
@@ -401,7 +396,7 @@ function framePipelinesCompiled(
   const pageLayout = rt.lights.pageLayout
   if (!pageLayout) return undefined
   const now: CompiledFor = {
-    tiers: { twoSided: rt.vis.materialTable.twoSided, voxels: holdsVoxels(rt) },
+    tiers: { twoSided: rt.vis.materialTable.twoSided, voxels: voxelsPresent(rt) },
     rasters: rt.vis.rasters,
     translucent: tracesTranslucent(rt),
     froxels: viewMarkingOf(rt) === 'froxels',

@@ -6,8 +6,8 @@ const identity = [1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]
 const light = { direction: [0, 0, -1] as [number, number, number], rotation: identity }
 const settings = { enabled: true, overlapAreaThrottle: 0.75, maxExtraStaticSubjects: 5 }
 const none: CascadeRoots = { count: 0, objectAt: () => ({}), staticBox: () => undefined }
-const at = (x: number, level = 0) => [
-  { centre: [x, 0, 0] as [number, number, number], radius: 10, level },
+const at = (x: number, levelChanged = false) => [
+  { centre: [x, 0, 0] as [number, number, number], radius: 10, levelChanged },
 ]
 
 test('the first frame draws the cache, a still one keeps it, a small slide scrolls it, a large one draws it again', () => {
@@ -25,7 +25,7 @@ test('a turned light or a changed level draws the cascade’s cache again, the c
   planCascadeCaches(settings, records, at(0), light, none)
   const turned = { ...light, direction: [0, 1, 0] as [number, number, number] }
   assert.deepEqual([...planCascadeCaches(settings, records, at(0), turned, none)], [0])
-  assert.deepEqual([...planCascadeCaches(settings, records, at(0, 1), turned, none)], [0])
+  assert.deepEqual([...planCascadeCaches(settings, records, at(0, true), turned, none)], [0])
 })
 
 test('too many static casters drawn again in the strips draw the cache again the next frame', () => {

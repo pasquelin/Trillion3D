@@ -8,6 +8,7 @@ import { VSM_PROJECTION_VIEW_BYTES } from './projectionView.ts'
 import { vsmFrameSetHeld, type VsmPerFrameSet, type VsmResources } from '../resources.ts'
 import type { ViewWords } from './projectionViewWrite.ts'
 import type { PerLightLights } from './perLightPass.ts'
+import type { VsmVisualizeRequest } from './visualizePass.ts'
 import { sizedBuffer } from '../../../../gpu/core/sizedBuffer.ts'
 import { uniformBuffer } from '../../../../gpu/core/uniformBlock.ts'
 
@@ -33,8 +34,21 @@ export interface VsmProjectionState {
   lightGrid?: GPUBuffer
   /** What the per-light path holds (`perLightPass.ts`), made at the first frame that takes it. */
   perLight?: VsmPerLightState
+  /** What the virtual shadow map views hold (`visualizePass.ts`), made at the first frame a view is on. */
+  visualize?: VsmVisualizeState
   /** What the single-layer water's sun projection holds (`waterSunProjection.ts`), made at the first frame that takes it. */
   water?: VsmWaterProjectionState
+}
+
+/** What a set's virtual shadow map views hold: the colour targets (the suns' sum, then the lights'), the words of the view, and the targets' size. */
+export interface VsmVisualizeState {
+  suns?: GPUTexture
+  locals?: GPUTexture
+  params: GPUBuffer
+  width: number
+  height: number
+  /** The target the screen pass draws this frame with the request it was made for; none while no view ran. */
+  result?: { view: GPUTextureView; request: VsmVisualizeRequest }
 }
 
 /** The single-layer water's sun projection's mask, a layer a sun of the frame at the target's size, and its pass group. */
@@ -117,6 +131,9 @@ export function releaseVsmProjection(res: VsmResources) {
   releasePerLight(state.perLight)
   state.water?.mask?.destroy()
   state.water = undefined
+  state.visualize?.suns?.destroy()
+  state.visualize?.locals?.destroy()
+  state.visualize?.params.destroy()
 }
 
 /** The water's sun projection state of `state`, made at its first ask. */

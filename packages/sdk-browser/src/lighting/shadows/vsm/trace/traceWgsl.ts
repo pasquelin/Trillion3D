@@ -97,6 +97,8 @@ export interface VsmTraceHost {
   input?: VsmInputType
   /** The shadows are classic shadow maps: the trace is the classic filter's (`classicTraceWgsl.ts`). */
   classic?: boolean
+  /** The trace keeps the page its last ray read last (`vsmSeen`, `traceRayWgsl.ts`), for the views of the virtual shadow maps; left out, the text is the one without. */
+  visualize?: boolean
 }
 
 /** The screen segment of a receiver's rays, where it casts one: a thin-subsurface receiver does not. */
@@ -263,9 +265,10 @@ export const vsmTraceWgsl = ({
   input = 'gbuffer',
   rays,
   classic = false,
+  visualize = false,
 }: VsmTraceHost) =>
   wgslBlock(
-    `vsmTraceWgsl(${hiz.join(', ')}, ${lone}, ${subgroups}, ${kinds}${input === 'strands' ? ', strands' : ''}${rays === undefined ? '' : `, ${rays} rays`}${classic ? ', classic' : ''})`,
+    `vsmTraceWgsl(${hiz.join(', ')}, ${lone}, ${subgroups}, ${kinds}${input === 'strands' ? ', strands' : ''}${rays === undefined ? '' : `, ${rays} rays`}${classic ? ', classic' : ''}${visualize ? ', visualize' : ''})`,
     [
       VSM_CONSTANTS_WGSL,
       Frame3,
@@ -282,7 +285,7 @@ export const vsmTraceWgsl = ({
       vsmScreenSegmentWgsl(hiz),
       vsmLocalMipAt,
       vsmTraceMapWgsl(pool),
-      vsmTraceRayWgsl(pool),
+      vsmTraceRayWgsl(pool, visualize),
       vsmRayNoiseWgsl(noise),
       ...(lone && subgroups ? [SUBGROUP_ALL_WGSL] : []),
       ...(classic ? [classicTraceWgsl(pool)] : []),

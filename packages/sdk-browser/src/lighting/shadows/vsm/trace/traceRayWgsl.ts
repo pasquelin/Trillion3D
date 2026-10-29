@@ -99,7 +99,12 @@ fn vsmSunTapBias(m:VsmLightMap,uvDepthSlope:vec2f)->f32{
  return vsmCentreLift(t.mapTexelXY,t.mapTexelPos,vsmTexelsAtLevel(0u),uvDepthSlope,vsmSunBiasCap(m));
 }`
 
-const rayBeginText = /* wgsl */ `
+/** The page the last sample of the last ray read (the views of the virtual shadow maps, `visualize`): its map, mip, virtual texel and pool texel, the map NO_INDEX before a valid sample. */
+const RAY_SEEN_DECL = /* wgsl */ `
+struct VsmSeen{map:u32,mip:u32,virtualTexel:vec2u,poolTexel:vec2u,}
+var<private> vsmSeen:VsmSeen;`
+
+const rayBeginText = (visualize: boolean) => /* wgsl */ `
 /** The largest plane bias of a local ray (\`vsmLocalPlaneBias\`) on a receiver of texel \`texel\` (a
  *  world width) at a squared distance \`distSq\` from the light: \`tracePlaneBiasCap\` of its texels,
  *  in the depth they span there. */
@@ -128,7 +133,7 @@ fn vsmRayBegin(light:VsmProjectionLight,m:VsmLightMap,start:vec3f,end:vec3f,bias
  r.mip=m.mip;
  r.far=m.handle;
  r.near=m.handle;
- r.pages.map=NO_INDEX;
+ r.pages.map=NO_INDEX;${visualize ? '\n vsmSeen.map=NO_INDEX;' : ''}
  if(!m.clipmap&&light.kind!=LIGHT_KIND_SPOT){
   let base=vsmHandleFromId(u32(light.mapId));
   r.far=vsmHandleOffset(base,i32(vsmCubeFace(end)));
@@ -142,7 +147,7 @@ fn vsmRayBegin(light:VsmProjectionLight,m:VsmLightMap,start:vec3f,end:vec3f,bias
  return r;
 }`
 
-const rayTexelText = /* wgsl */ `
+const rayTexelText = (visualize: boolean) => /* wgsl */ `
 /** The texel a sample at \`uv\` of the ray's map \`h\` reads (\`VsmClipmapTexel\`, a local map's with
  *  its depth taken as it is). The page table is read where the sample's page is not the last one
  *  the ray read (\`vsmPageKept\`). */
@@ -153,10 +158,22 @@ fn vsmRayTexel(ray:ptr<function,VsmRay>,h:VsmHandle,uv:vec2f)->VsmClipmapTexel{
  let mip=(*ray).mip;
  let key=vsmPageKey(clipmap,mip,uv);
  if(!vsmPageKept((*ray).pages,h,key)){(*ray).pages=vsmPageRead(h,clipmap,mip,key);}
- if(clipmap){
-  return vsmClipmapTexel(h,(*ray).pages.page,uv);
+ if(clipmap){${
+   visualize
+     ? `
+  let t=vsmClipmapTexel(h,(*ray).pages.page,uv);
+  if(t.valid){vsmSeen=VsmSeen(t.levelHandle.id,u32(vsmProjectionData[t.levelHandle.id].mapLevel),t.mapTexelXY,t.poolTexel);}
+  return t;`
+     : `
+  return vsmClipmapTexel(h,(*ray).pages.page,uv);`
  }
- let page=vsmLocalPageFrom((*ray).pages.page.entry,uv,mip);
+ }
+ let page=vsmLocalPageFrom((*ray).pages.page.entry,uv,mip);${
+   visualize
+     ? `
+ if(page.valid){vsmSeen=VsmSeen(h.id,mip,page.mapTexelXY,page.poolTexel);}`
+     : ''
+ }
  r.valid=page.valid;
  r.poolTexel=page.poolTexel;
  r.depthLevelInverse=1.0;
@@ -259,10 +276,10 @@ fn vsmRayOccluderDistance(ray:ptr<function,VsmRay>,hitDepth:f32,receiverDistance
  return vsmLocalOccluderDistance(m,hitDepth,line.uvz.z,receiverDistance);
 }`
 
-/** The ray and its march, sampling the pages of `pool`. */
-export const vsmTraceRayWgsl = (pool: WgslDecl) =>
+/** The ray and its march, sampling the pages of `pool`. With `visualize`, the page of the last valid sample of the last ray is kept (`vsmSeen`) for the views of the virtual shadow maps. */
+export const vsmTraceRayWgsl = (pool: WgslDecl, visualize = false) =>
   wgslBlock(
-    'vsmTraceRayWgsl',
+    visualize ? 'vsmTraceRayWgsl(visualize)' : 'vsmTraceRayWgsl',
     [
       VSM_TRACE_COMMON_WGSL,
       vsmTraceMapWgsl(pool),
@@ -277,6 +294,6 @@ export const vsmTraceRayWgsl = (pool: WgslDecl) =>
       VSM_ORTHO_OCCLUDER_WGSL,
     ],
     `
-${rayLineAndBiasText}${rayBeginText}${rayTexelText}${rayMarchText}${rayOccluderText}
+${visualize ? RAY_SEEN_DECL : ''}${rayLineAndBiasText}${rayBeginText(visualize)}${rayTexelText(visualize)}${rayMarchText}${rayOccluderText}
 `,
   )

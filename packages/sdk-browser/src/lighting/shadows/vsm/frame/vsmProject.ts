@@ -14,6 +14,7 @@ import {
   vsmHairMasks,
 } from '../projection/hairProjectionPass.ts'
 import { PER_LIGHT_MASK_LAYERS } from '../projection/maskFormat.ts'
+import { encodeVsmVisualize, vsmVisualizeRequest } from '../projection/visualizePass.ts'
 import { encodeFirstPersonSelfShadow } from '../../firstPerson/selfShadow.ts'
 import {
   afterBoth,
@@ -252,6 +253,7 @@ function projectionContext(
   context.classic = shadows.shadowVirtualEnable
     ? undefined
     : classicOf(rt, cam, plan, shadows, device.limits.maxTextureDimension2D)
+  context.visualize = vsmVisualizeRequest(rt.run.diagnostic, shadows)
   writeVsmProjectionFrame(vsm.res, context)
   scratch.projecting = true
   return context
@@ -453,7 +455,8 @@ function encodeVsmProjection(
     !capsuleCastsDirect(rt) &&
     !hairShadow &&
     !selfShadow.suns &&
-    !selfShadow.locals
+    !selfShadow.locals &&
+    !context.visualize
   // The per-light path is held with the projection: its lights are traced again where it is not.
   if (!standing) perLight?.markStale()
   const hair = gpu.hair?.visible?.shadow
@@ -473,6 +476,9 @@ function encodeVsmProjection(
   const hairMasks = encodeVsmHairProjection(steps, vsm.res, context, source, target, hair)
   if (standing) return hairMasks ? 1 : 0
   if (!encodeVirtualShadowProjection(steps, vsm.res, context, source, target)) return 0
+  // The virtual shadow map view the diagnostic mode asks for, drawn from the lights just projected.
+  if (context.visualize)
+    encodeVsmVisualize(steps, vsm.res, context, source, target, context.visualize)
   if (suns) encodeCapsuleSunMasks(rt, cam, steps.apart(), context.lights, suns, mask.sunsView)
   if (selfShadow.suns)
     encodeFirstPersonSelfShadow(

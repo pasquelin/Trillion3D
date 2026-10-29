@@ -248,6 +248,14 @@ export const SHADOW_VIEW_MEANINGS: Readonly<Record<ShadowViewField, string>> = {
     "The slope-scaled depth bias of a spot light's classic shadow (3, the default). Read only with shadowVirtualEnable off.",
   shadowMaxSlopeScaleDepthBias:
     'The most the slope of a surface to the light adds to the depth bias of a classic shadow, as a number of times its slope bias (1, the default), for every light. Read only with shadowVirtualEnable off.',
+  shadowVisualizeLayout:
+    "Where the virtual shadow map views (the diagnostic modes 'virtual-shadow-map-shadow-factor', '…-clipmap-or-mip', '…-virtual-page', '…-cached-page', '…-ray-count', '…-general-debug', '…-dirty-page', '…-gpu-invalidated-page' and '…-merged-page') are drawn: 0 (the default) over the whole image, 1 in a thumbnail of a third of the image's width and height at its upper left, 2 over the left half of the image, the right half the image in grey.",
+  shadowVisualizeCachedPagesOnly:
+    'Whether the cached-page view shows the pages kept from the last image for every light and hides the others (false, the default: the pages to draw again are shown, the kept ones only for the one light chosen by shadowVisualizeLight).',
+  shadowVisualizeLight:
+    "Which light the virtual shadow map views show: -1 (the default) all the lights that cast, their colours added; 0 and above the light of that rank in the frame's order of shadowed lights (the suns first), shown alone and with the full colours.",
+  shadowShowClipmapStats:
+    "The index (0 for the first, -1 the default: off) of the sun's shadow clipmap whose statistics are written over the image: for each level the rect of pages it has allocated, its width, height and area, and the total area. Read only with shadowVirtualEnable on; the figures arrive a few images late.",
   shadowCsmCaching:
     "Whether a sun's classic cascades keep their depths from one image to the next, so that a cascade that slides with the view reuses the pages it still covers (false, the default: every cascade is drawn whole each image). Read only with shadowVirtualEnable off.",
   shadowCsmScrollingOverlapAreaThrottle:

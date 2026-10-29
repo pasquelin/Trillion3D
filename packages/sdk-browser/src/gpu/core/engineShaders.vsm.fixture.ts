@@ -1,3 +1,10 @@
+import { vsmAtlasCopyInWgsl } from '../../lighting/shadows/classic/atlas/atlasCopyWgsl.ts'
+import { vsmAtlasRasterWgsl } from '../../lighting/shadows/classic/atlas/atlasRasterWgsl.ts'
+import { clipmapVirtualSpaceWgsl } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
+import {
+  vsmVisualizeLocalsWgsl,
+  vsmVisualizeSunsWgsl,
+} from '../../lighting/shadows/vsm/projection/visualizeWgsl.ts'
 import { maskGraphSets } from './engineShaders.mask.fixture.ts'
 import {
   CAST_ARGS_WGSL,
@@ -177,6 +184,11 @@ export function vsmVariants() {
   variants.VSM_PROJECTION_SUNS_PREFILTERED = vsmSunsProjectionWgsl(prefiltered)
   // The classic shadows (`shadowVirtualEnable` off): the projections that filter the dense maps in place of the soft rays.
   const classic = vsmLayout({ ...layoutOptions, classic: true })
+  variants.VSM_ATLAS_RASTER = vsmAtlasRasterWgsl(classic)
+  variants.VSM_ATLAS_COPY_IN = vsmAtlasCopyInWgsl(classic)
+  variants.VSM_CLIPMAP_VIRTUAL_SPACE = clipmapVirtualSpaceWgsl(layout)
+  variants.VSM_VISUALIZE_SUNS = vsmVisualizeSunsWgsl(layout)
+  variants.VSM_VISUALIZE_LOCALS = vsmVisualizeLocalsWgsl(layout)
   variants.VSM_PROJECTION_SUNS_CLASSIC = vsmSunsProjectionWgsl(classic)
   variants.VSM_PROJECTION_LOCALS_CLASSIC = vsmLocalsProjectionWgsl(classic, 'rg32uint')
   // The same, under the shadow the hair strands cast on the surfaces (the `hair` cut).

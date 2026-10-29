@@ -42,7 +42,9 @@ import { encodeHairDebug } from '../../hair/debugView.ts'
 import { encodeSubsurfaceDebug } from '../../lighting/subsurface/visualize.ts'
 import { encodeRectLightAtlasDebug } from '../../lighting/rectLightAtlas/debug.ts'
 import { encodeShadowCasterBounds } from '../../lighting/shadows/vsm/debug/casterBounds.ts'
+import { encodeClipmapStats } from '../../lighting/shadows/vsm/debug/clipmapStats.ts'
 import { encodeClipmapVirtualSpace } from '../../lighting/shadows/vsm/debug/clipmapVirtual.ts'
+import { encodeVsmVisualizeView } from '../../lighting/shadows/vsm/debug/visualizeView.ts'
 import { encodeSceneDebug } from '../../lighting/surfaceCache/sceneDebug/frame.ts'
 import { encodeSampledDebug } from '../../lighting/manyLightsSampled/debug/frame.ts'
 import { beginDisplayFilter, endDisplayFilter } from './encodeDisplayFilter.ts'
@@ -308,6 +310,8 @@ function composeImage(
   // The virtual shadow maps' shadow caster boxes, over the image when asked.
   encodeShadowCasterBounds(rt, device, encoder, cam)
   encodeClipmapVirtualSpace(rt, device, encoder)
+  encodeVsmVisualizeView(rt, device, encoder, cam)
+  encodeClipmapStats(rt, device, encoder, cam)
   // The rectangle lights' atlas, drawn over the image when asked.
   encodeRectLightAtlasDebug(rt, device, encoder, cam)
   // The surface cache's tables and boxes, over the image too.

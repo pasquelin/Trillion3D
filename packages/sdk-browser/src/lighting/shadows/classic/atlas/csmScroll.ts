@@ -1,8 +1,7 @@
 /**
  * THE SCROLL OF A CLASSIC CASCADE'S CACHED MAP (`shadowVirtualEnable` off): when a sun's cascade slides with the view, the part of its cached static depth that the new
  * map still covers is copied over displaced instead of drawn again. This file holds the arithmetic of that choice and of the copy: the cache mode of a cascade (drawn whole, copied
- * as it is, scrolled, or drawn again to refresh the cache), the rectangles the overlap takes in the two maps, the depth the copy takes to the new map's range and the pixel
- * rectangles of the copy. Lengths are in the units of the light's space, any one unit; depths are device depths of the map (reversed).
+ * as it is, scrolled, or drawn again to refresh the cache) and the rectangles the overlap takes in the two maps. Lengths are in the units of the light's space, any one unit; depths are device depths of the map (reversed).
  */
 
 /** What a cascade's map draws this frame. */
@@ -144,58 +143,4 @@ export function scrollOverlap(
     ]
   }
   return { onCached: rect(before), onCurrent: rect(now), zOffset: dz }
-}
-
-/** The depth range of a map: where its subject starts and ends along the light's axis and the inverse of the depth it spans. */
-export interface SubjectRange {
-  readonly minZ: number
-  readonly maxZ: number
-  readonly invMaxSubjectDepth: number
-}
-
-/**
- * The scale and offset the copy gives each cached depth, `depth * y + x`: the cached depth taken to the current map's range, the map having moved `zOffset` along the axis. A cleared
- * texel (depth 1) stays so. `depthBias` is the constant bias the map's depths carry.
- */
-export function scrollDepthTransform(
-  cached: SubjectRange,
-  current: SubjectRange,
-  zOffset: number,
-  depthBias: number,
-) {
-  const cachedSpan = cached.maxZ - cached.minZ
-  const currentSpan = current.maxZ - current.minZ
-  const c1 = 1 + depthBias
-  return {
-    x:
-      (current.invMaxSubjectDepth * (cached.maxZ + zOffset - current.maxZ) - c1 * cachedSpan) /
-        currentSpan +
-      c1,
-    y: cachedSpan / currentSpan,
-  }
-}
-
-/** A pixel rectangle: its corner and its size. */
-export interface PixelRect {
-  readonly x: number
-  readonly y: number
-  readonly width: number
-  readonly height: number
-}
-
-/** What the scroll's draw reads and writes, in pixels of maps `size` texels a side with their border: the source rectangle on the cached map and the output rectangle on the current one. */
-export function scrollCopyRects(overlapUv: ScrollOverlap, size: number) {
-  const px = (u: number) => Math.trunc(u * size + 0.5)
-  const [cu0, cv0, cu1, cv1] = overlapUv.onCached
-  const [nu0, nv0, nu1, nv1] = overlapUv.onCurrent
-  const source: PixelRect = {
-    x: px(cu0),
-    y: px(cv0),
-    width: Math.trunc((cu1 - cu0) * size + 0.5),
-    height: Math.trunc((cv1 - cv0) * size + 0.5),
-  }
-  const x0 = px(nu0)
-  const y0 = px(nv0)
-  const output: PixelRect = { x: x0, y: y0, width: px(nu1) - x0, height: px(nv1) - y0 }
-  return { source, output }
 }
