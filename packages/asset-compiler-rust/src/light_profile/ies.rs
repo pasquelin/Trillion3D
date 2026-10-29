@@ -75,7 +75,12 @@ impl<'a> Text<'a> {
 /// The longest prefix of `token` that is a decimal number: a sign, digits with an optional point,
 /// an exponent when digits follow it. A token with none is 0.
 fn number_prefix(token: &[u8]) -> &[u8] {
-    let digits = |from: usize| token[from..].iter().take_while(|b| b.is_ascii_digit()).count();
+    let digits = |from: usize| {
+        token[from..]
+            .iter()
+            .take_while(|b| b.is_ascii_digit())
+            .count()
+    };
     let mut end = usize::from(matches!(token.first(), Some(b'+' | b'-')));
     let whole = digits(end);
     end += whole;
@@ -171,7 +176,11 @@ pub(super) fn parse(file: &[u8]) -> Result<Photometry, &'static str> {
         return Err("the angle grid is empty or larger than the file");
     }
     let v_angles = ascending(&mut text, vertical, "the vertical angles are not ascending")?;
-    let h_angles = ascending(&mut text, horizontal, "the horizontal angles are not ascending")?;
+    let h_angles = ascending(
+        &mut text,
+        horizontal,
+        "the horizontal angles are not ascending",
+    )?;
     let candela: Vec<f32> = (0..vertical * horizontal)
         .map(|_| text.float() * candela_multiplier)
         .collect();
@@ -184,7 +193,9 @@ pub(super) fn parse(file: &[u8]) -> Result<Photometry, &'static str> {
             return Err("there is text after the candela values");
         }
     }
-    let max_candela = candela.iter().fold(0.0f32, |most, &c| if most >= c { most } else { c });
+    let max_candela = candela
+        .iter()
+        .fold(0.0f32, |most, &c| if most >= c { most } else { c });
     Ok(Photometry {
         v_angles,
         h_angles,

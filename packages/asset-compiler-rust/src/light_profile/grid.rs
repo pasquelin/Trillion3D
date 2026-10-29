@@ -54,13 +54,7 @@ impl Photometry {
     fn bilinear(&self, h: f32, v: f32) -> f32 {
         let (hi, vi) = (h as i32, v as i32);
         let (share_h, share_v) = (h - hi as f32, v - vi as f32);
-        let along_v = |hi| {
-            lerp(
-                self.point(hi, vi),
-                self.point(hi, vi + 1),
-                share_v,
-            )
-        };
+        let along_v = |hi| lerp(self.point(hi, vi), self.point(hi, vi + 1), share_v);
         lerp(along_v(hi), along_v(hi + 1), share_h)
     }
 
@@ -93,10 +87,7 @@ impl Photometry {
         } else if first > 0.0 && h < first {
             h = last - first - h;
         }
-        self.bilinear(
-            position(h, &self.h_angles),
-            position(v, &self.v_angles),
-        )
+        self.bilinear(position(h, &self.h_angles), position(v, &self.v_angles))
     }
 
     /// The profile's texture: `SIDE` × `SIDE` half-floats, row after row, the candela over the
