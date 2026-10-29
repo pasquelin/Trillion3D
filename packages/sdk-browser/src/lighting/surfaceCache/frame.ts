@@ -5,7 +5,10 @@ import {
   type GlobalDistanceFieldSettings,
 } from '../../../../sdk-core/src/contracts/globalDistanceFieldOptions.ts'
 import { resolveSettingsInto } from '../../../../sdk-core/src/contracts/settingRules.ts'
-import type { SurfaceCacheSettings } from '../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
+import {
+  readSurfaceCacheSetting,
+  type SurfaceCacheSettings,
+} from '../../../../sdk-core/src/contracts/surfaceCacheOptions.ts'
 import { resolveSurfaceCacheSettings } from '../../../../sdk-core/src/lighting/surfaceCache/levelSettings.ts'
 import type { SurfaceCacheFrameMetrics } from '../../../../sdk-core/src/contracts/surfaceCacheMetrics.ts'
 import {
@@ -44,6 +47,7 @@ import { LazyComputePass } from '../../gpu/core/lazyComputePass.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { cachedLightingPreExposureOf } from '../../post/exposure/frame.ts'
 import { createNoFieldRead } from '../distanceField/view.ts'
+import { rayTracingOf } from '../rays/sceneTrace/runtimeRays.ts'
 import { screenProbeSettingsOf } from '../bounce/screen/settingsOf.ts'
 import { createHitCards } from '../reflections/hitCards.ts'
 import { ensureSurfaceAtlases, type SurfaceAtlases } from './atlases.ts'
@@ -61,7 +65,12 @@ import { ATLAS_VIEWS } from './debugWgsl.ts'
 import { createSurfaceFeedback, type SurfaceFeedback } from './feedbackBuffer.ts'
 import { disposeSurfaceLighting, type SurfaceLightingState } from './lighting/surfaceLighting.ts'
 import { placementChannelsOf } from '../../geometry/dag/info/placementInfoLayout.ts'
-import { cacheRootsOf, createCardPlacements, type CardPlacements } from './placements.ts'
+import {
+  cacheRootsOf,
+  createCardPlacements,
+  type CardPlacements,
+  type CardRoot,
+} from './placements.ts'
 import type { SurfaceHitReads } from './hitWgsl.ts'
 import { createSurfaceTables, type SurfaceTables } from './tables.ts'
 
@@ -143,6 +152,8 @@ const NO_OFFSET: readonly [number, number, number] = [0, 0, 0]
 const origins: [number, number, number][] = [origin]
 const streamingOrigins: [number, number, number][] = []
 const streamingSlots: [number, number, number][] = []
+/** The camera of the streaming view whose eye the image kept, if any: the second view the lighting's priority is measured from. */
+let keptView: EngineCamera | undefined
 const cardViews: CardView[] = []
 const drawnPages: CapturePage[] = []
 /** The page-table indices an image confirms, reused. */
@@ -182,11 +193,27 @@ function createState(rt: WebgpuPagesRuntime, device: GPUDevice): SurfaceCacheFra
   }
 }
 
+/** What each list of roots held, as it was last read: its length and whether a run-time primitive was among them. */
+const runtimeRootsHeld = new WeakMap<object, { length: number; any: boolean }>()
+
+/** Whether the cut holds a primitive a world cut at run time, whose cards the cache makes from its box (`runtimeMeshCards`). */
+function holdsRuntimeCards(rt: WebgpuPagesRuntime) {
+  if (!readSurfaceCacheSetting(rt, 'runtimeMeshCards')) return false
+  const roots = cacheRootsOf(rt) as readonly CardRoot[]
+  let held = runtimeRootsHeld.get(roots)
+  if (!held || held.length !== roots.length) {
+    held = { length: roots.length, any: roots.some((root) => root.runtime && root.localBox) }
+    runtimeRootsHeld.set(roots, held)
+  }
+  return held.any
+}
+
 /** The state of `rt`, made at the first image that asks for the cache, none for a session whose cache
- *  carries no cards. */
+ *  carries no cards: no compiled mesh's and no run-time primitive's. */
 function stateOf(rt: WebgpuPagesRuntime, device: GPUDevice) {
-  if (!rt.context.meshCards?.length) return undefined
-  return (rt.surfaceCache ??= createState(rt, device))
+  if (rt.surfaceCache) return rt.surfaceCache
+  if (!rt.context.meshCards?.length && !holdsRuntimeCards(rt)) return undefined
+  return (rt.surfaceCache = createState(rt, device))
 }
 
 /** The state of `rt` as it stands, or made where the device is: what a call that is not the cache's own
@@ -286,7 +313,7 @@ export const fieldSettingsOf = (rt: WebgpuPagesRuntime, state: SurfaceCacheFrame
  *  field's half side, or its view distance where it makes none; where the scene has acceleration structures and the rays through them
  *  are culled (`rayTracingCulling` over 0), the culling radius (`rayTracingCullingRadius`) in its place. */
 export function reachOf(rt: WebgpuPagesRuntime, state: SurfaceCacheFrameState) {
-  if (rt.context.rayTracing && state.settings.rayTracingCulling > 0)
+  if (rayTracingOf(rt) && state.settings.rayTracingCulling > 0)
     return state.settings.rayTracingCullingRadius
   const settings = fieldSettingsOf(rt, state)
   const clipmaps = numClipmaps(settings)
@@ -562,8 +589,15 @@ function eyesOf(rt: WebgpuPagesRuntime, cam: EngineCamera, state: SurfaceCacheFr
     streamingOrigins,
     settings.surfaceCacheViewOriginDistanceThreshold,
   )
+  keptView = rt.views.persistent.find(
+    (view, at) => view.drawnBeside !== undefined && origins.includes(streamingSlots[at]!),
+  )?.cam
   return origins
 }
+
+/** The streaming view the last image kept the cards for, none when it kept only the main view's eye: what the lighting
+ *  measures its pages' priority from beside the main view (`LightingImage.other`). */
+export const keptStreamingView = () => keptView
 
 /** What the debugging settings ask of this image: the cache reset (a setting turned on, or an image that is a multiple of the period) and the forced eviction of the optional pages, each once as it is turned on. */
 function debugRequests(rt: WebgpuPagesRuntime, state: SurfaceCacheFrameState) {
@@ -594,8 +628,12 @@ function updateImage(
   const atlases = state.atlases!
   const { cache } = state
   // The roots the distance fields' scene placed, the HLOD cells' stand-ins among them: one list for both.
-  state.placements.sync(cache, cacheRootsOf(rt), 0, (rank) =>
-    placementChannelsOf(rt.vis.rootOffsets.rowOf(rank)?.bits ?? 0),
+  state.placements.sync(
+    cache,
+    cacheRootsOf(rt),
+    0,
+    (rank) => placementChannelsOf(rt.vis.rootOffsets.rowOf(rank)?.bits ?? 0),
+    state.settings.runtimeMeshCards,
   )
   const eyes = eyesOf(rt, cam, state)
   // The clocks wait for the capture's shading and kernels to compile: the cache's evolution counts the images it could

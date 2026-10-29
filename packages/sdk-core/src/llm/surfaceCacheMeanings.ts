@@ -15,6 +15,7 @@ const ATLAS_MEANINGS = /* @__PURE__ */ (() => ({
   surfaceCacheCardFixedDebugResolution: `From 1 on, every card is given this many texels along its longer side, before the greatest resolution holds it, whatever its size and its distance, for debugging (${R.surfaceCacheCardFixedDebugResolution.default} by default: the resolution follows the distance).`,
   surfaceCacheMeshCardsMinSize: `Centimetres: the area a mesh's largest face must exceed to get cards is this squared, a fifth of that for an emissive mesh (${R.surfaceCacheMeshCardsMinSize.default} by default); a card whose face is under it is left out too.`,
   surfaceCacheMeshCardsCullFaces: `Whether a card whose face is under that area is left out of its mesh (on by default); off, a mesh keeps all its cards, 32 at most.`,
+  runtimeMeshCards: `Whether a mesh a world cut at run time, which no compiler gave cards, gets six axis-aligned cards from its bounds, each a little deeper than the bounds and its hits accepted though they match the surface badly (${R.runtimeMeshCards.default} by default); off, such a mesh is seen by the screen alone in the rays that leave it.`,
 }))()
 
 /** What the settings of how the cards' surface is captured into the atlas, kept and given up mean. */

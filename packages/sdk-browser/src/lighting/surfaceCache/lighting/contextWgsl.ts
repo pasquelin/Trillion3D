@@ -26,6 +26,10 @@ import {
  *   one plus its distance from the eye over the first clipmap's half side, doubled within the prioritised distance of
  *   the frustum's planes, or four where the rays read the page at its finest level within the last two images (the
  *   feedback, `FLAG_FEEDBACK`), whatever the rest gave —, a page never lit having waited 2048 images;
+ *   the distance is the nearest of the cache's views' — the main one and, where the cache keeps cards for one, a streaming view's, two at most
+ *   as the reference's (`LUMEN_MAX_VIEWS`) — and a page is near the frustum of either (`pageView`). A page whose radiosity history was lost is put in the bucket of
+ *   a page never lit in the histogram as well as in the listing: the reference's histogram (`LumenSceneLighting.usf:190-205`) reads the last update as stored
+ *   while its listing (:326-329) forgets it first, so that the budget it selects is not the pages' it lists, bug of the reference corrected;
  * - `contextSelect` takes the bucket whose tiles bring the sum to the update's budget, and the tiles of it that fit;
  * - `contextCut`, one workgroup, finds the cut among the pages of the bucket the budget ends in: those pages are taken in the order of their index, as many as the
  *   tiles left allow (the reference gives them out in the order the threads arrive in, which no two runs share: bug of the reference corrected, its lighting
@@ -106,16 +110,10 @@ fn contextClear(@builtin(local_invocation_index) lane:u32){
 fn pageMapped(page:u32)->bool{return scPageW(page,0u)!=0xffffffffu;}
 fn pageTilesOf(page:u32)->u32{let s=pageSize(page);return (s.x*s.y)/(LG_TILE*LG_TILE);}
 struct PageView{distance:f32,near:bool}
-/** The distance of the eye from the box of the page's part of its card and whether that box is within the prioritised
- *  distance of every plane of the frustum. */
-fn pageView(page:u32)->PageView{
- let card=scCard(scPageW(page,0u));
- let uv0=vec2f(scPageF(page,4u),scPageF(page,5u));
- let uv1=vec2f(scPageF(page,6u),scPageF(page,7u));
- let e=card.extent;
- let centre=vec3f(e.x*(uv0.x+uv1.x-1.0),e.y*(1.0-uv0.y-uv1.y),0.0);
- let reach=vec3f(e.x*(uv1.x-uv0.x),e.y*(uv1.y-uv0.y),e.z);
- let toEye=lp.camera.xyz-card.origin;
+/** The distance of the eye \`eye\` from the box of the page's part of its card (its \`centre\` and \`reach\` in the card's space) and whether that
+ *  box is within the prioritised distance of every plane of the frustum \`planes\` of that view. */
+fn viewOfPage(card:ScCard,centre:vec3f,reach:vec3f,eye:vec3f,planes:array<vec4f,5>)->PageView{
+ let toEye=eye-card.origin;
  let eyeLocal=vec3f(dot(toEye,card.axisX),dot(toEye,card.axisY),dot(toEye,card.axisZ));
  var view:PageView;
  view.distance=length(max(abs(eyeLocal-centre)-reach,vec3f(0.0)));
@@ -125,10 +123,27 @@ fn pageView(page:u32)->PageView{
   let spread=abs(card.axisX)*reach.x+abs(card.axisY)*reach.y+abs(card.axisZ)*reach.z;
   var within=true;
   for(var k=0u;k<5u;k++){
-   let plane=lp.frustum[k];
+   let plane=planes[k];
    within=within&&dot(plane.xyz,fromEye)+plane.w<=dot(spread,abs(plane.xyz))+lp.frustumDistance;
   }
   view.near=within;
+ }
+ return view;
+}
+/** The page's view of the cache's eyes: the nearest eye's distance, and whether the box is near the frustum of either view (the reference's
+ *  views, two at most: the nearest to any of them, near any of their frustums). */
+fn pageView(page:u32)->PageView{
+ let card=scCard(scPageW(page,0u));
+ let uv0=vec2f(scPageF(page,4u),scPageF(page,5u));
+ let uv1=vec2f(scPageF(page,6u),scPageF(page,7u));
+ let e=card.extent;
+ let centre=vec3f(e.x*(uv0.x+uv1.x-1.0),e.y*(1.0-uv0.y-uv1.y),0.0);
+ let reach=vec3f(e.x*(uv1.x-uv0.x),e.y*(uv1.y-uv0.y),e.z);
+ var view=viewOfPage(card,centre,reach,lp.camera.xyz,lp.frustum);
+ if(lp.otherEye.w>0.5){
+  let other=viewOfPage(card,centre,reach,lp.otherEye.xyz,lp.otherFrustum);
+  view.distance=min(view.distance,other.distance);
+  view.near=view.near||other.near;
  }
  return view;
 }

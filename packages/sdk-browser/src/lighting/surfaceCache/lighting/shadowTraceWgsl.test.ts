@@ -86,10 +86,11 @@ test('over coloured masks the trace settles a texel as over grey ones: the rayâ€
   assert.match(SHADOW_TRACE_COLOURED_WGSL, /atomicXor\(&masks\[/)
   assert.match(
     SHADOW_TRACE_COLOURED_WGSL,
-    /setMaskByte\(lightTile,coord,byte,select\(byte,0u,blocked\)\|SHADOW_COMPLETE\);/,
+    /return select\(byte,0u,shadowRayBlocked\(texel,rank\)\);/,
   )
   assert.match(
     SHADOW_TRACE_COLOURED_WGSL,
-    /let shadowed=blocked\|\|\(byte&SHADOW_FACTOR_MAX\)==0u;/,
+    /setMaskByte\(lightTile,coord,byte,answered\|SHADOW_COMPLETE\);/,
   )
+  assert.match(SHADOW_TRACE_COLOURED_WGSL, /let shadowed=\(answered&SHADOW_FACTOR_MAX\)==0u;/)
 })

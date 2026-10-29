@@ -1,5 +1,6 @@
 import { DEFAULT_LIGHTING_CHANNELS_MASK } from '../../../../sdk-core/src/contracts/lightingChannelsAbi.ts'
 import type { MeshCards } from '../../../../sdk-core/src/lighting/meshCardsFile.ts'
+import { meshCardsFromBounds } from '../../../../sdk-core/src/lighting/surfaceCache/boundsCards.ts'
 import {
   invalidatePlacement,
   removePlacement,
@@ -37,6 +38,9 @@ export const cacheRootsOf = (rt: Pick<WebgpuPagesRuntime, 'distanceFields' | 'la
 /** What the placements read of a root beyond what the distance fields' tracker does: the surface
  *  it wears, which says how it is captured. */
 export interface CardRoot extends TrackedRoot {
+  /** Whether its primitive was cut at run time (`ClusterRoot.runtime`): it has no compiled cards, and its box, `localBox`, makes them. */
+  readonly runtime?: boolean
+  readonly localBox?: Float64Array
   readonly worn?: {
     readonly surface: {
       readonly version: number
@@ -78,6 +82,11 @@ interface PlacementState {
   shares: Map<string, number>
   surfaces: WeakMap<object, number>
   surfaceCount: number
+  /** The cards made from the box of each run-time primitive, by that box (shared by all its placements), and whether the setting
+   *  `runtimeMeshCards` asks for them as the roots were last read. */
+  fromBounds: WeakMap<Float64Array, MeshCards>
+  runtimeCount: number
+  runtimeCards: boolean
   nextId: number
 }
 
@@ -89,13 +98,24 @@ function surfaceId(state: PlacementState, surface: object) {
   return state.surfaceCount++
 }
 
-/** The cards a root places: its mesh's, or its cell's. */
+/** The cards a root places: those made from the box of a run-time primitive where the setting asks, else its mesh's, or its cell's. */
 function cardsOf(state: PlacementState, root: CardRoot) {
+  if (root.runtime) return state.runtimeCards ? boundsCardsOf(state, root) : undefined
   return root.field
     ? state.byCell.get(root.field.mesh)
     : root.mesh === undefined
       ? undefined
       : state.byMesh.get(root.mesh)
+}
+
+/** The cards of a run-time primitive, made once from its box: its own number, below zero where no compiled mesh's is. */
+function boundsCardsOf(state: PlacementState, root: CardRoot) {
+  const box = root.localBox
+  if (!box) return undefined
+  let cards = state.fromBounds.get(box)
+  if (!cards)
+    state.fromBounds.set(box, (cards = meshCardsFromBounds(-1 - state.runtimeCount++, box)))
+  return cards
 }
 
 /** The number the placements of one mesh wearing one surface share: theirs may copy one another. */
@@ -224,6 +244,9 @@ function emptyPlacementState(cards: readonly MeshCards[]): PlacementState {
     shares: new Map<string, number>(),
     surfaces: new WeakMap<object, number>(),
     surfaceCount: 0,
+    fromBounds: new WeakMap(),
+    runtimeCount: 0,
+    runtimeCards: false,
     nextId: 0,
   }
 }
@@ -258,15 +281,22 @@ export function createCardPlacements(cards: readonly MeshCards[]) {
      * Brings the cache's placements level with `roots` — the cut's, the HLOD cells' stand-ins joined to
      * them while the cut draws the cells' actors (`MeshFieldScene.roots`) —; `epoch` changes when the
      * scene changed shape; `channelsOfRank` gives the mask of the lighting channels of the object of the cut's root of a
-     * rank (`rankOf`).
+     * rank (`rankOf`); `runtimeCards` says whether the run-time primitives get cards made from their boxes (`runtimeMeshCards`).
      */
     sync(
       cache: SurfaceCache,
       roots: readonly TrackedRoot[],
       epoch: number,
       channelsOfRank: (rank: number) => number,
+      runtimeCards: boolean,
     ) {
-      if (roots !== lastRoots || roots.length !== lastCount || epoch !== lastEpoch) {
+      if (
+        roots !== lastRoots ||
+        roots.length !== lastCount ||
+        epoch !== lastEpoch ||
+        runtimeCards !== state.runtimeCards
+      ) {
+        state.runtimeCards = runtimeCards
         lastRoots = roots
         lastCount = roots.length
         lastEpoch = epoch

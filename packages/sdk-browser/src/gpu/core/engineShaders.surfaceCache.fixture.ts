@@ -39,6 +39,12 @@ import {
 } from '../../lighting/surfaceCache/lighting/lightTilesWgsl.ts'
 import { TILE_DEPTH_RANGE_WGSL } from '../../lighting/surfaceCache/lighting/tileDepthRangeWgsl.ts'
 import { directProgramOf } from '../../lighting/surfaceCache/lighting/directWgsl.ts'
+import {
+  FIELD_SHADOW_COLOURED_WGSL,
+  FIELD_SHADOW_MESH_COLOURED_WGSL,
+  FIELD_SHADOW_MESH_WGSL,
+  FIELD_SHADOW_WGSL,
+} from '../../lighting/surfaceCache/lighting/fieldShadowWgsl.ts'
 import { lightFunctionPassWgsl } from '../../lighting/surfaceCache/lighting/lightFunctionPassWgsl.ts'
 import { RADIOSITY_BUILD_WGSL } from '../../lighting/surfaceCache/lighting/radiosityBuildWgsl.ts'
 import { radiosityFilterProgramOf } from '../../lighting/surfaceCache/lighting/radiosityFilterWgsl.ts'
@@ -106,6 +112,10 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   SURFACE_CACHE_SHADOW_ARGS_WGSL: SHADOW_ARGS_WGSL,
   SURFACE_CACHE_SHADOW_TRACE_WGSL: SHADOW_TRACE_WGSL,
   SURFACE_CACHE_SHADOW_TRACE_COLOURED_WGSL: SHADOW_TRACE_COLOURED_WGSL,
+  SURFACE_CACHE_FIELD_SHADOW_WGSL: FIELD_SHADOW_WGSL,
+  SURFACE_CACHE_FIELD_SHADOW_COLOURED_WGSL: FIELD_SHADOW_COLOURED_WGSL,
+  SURFACE_CACHE_FIELD_SHADOW_MESH_WGSL: FIELD_SHADOW_MESH_WGSL,
+  SURFACE_CACHE_FIELD_SHADOW_MESH_COLOURED_WGSL: FIELD_SHADOW_MESH_COLOURED_WGSL,
   SURFACE_CACHE_STOCHASTIC_GENERATE_WGSL: STOCHASTIC_GENERATE_WGSL,
   SURFACE_CACHE_STOCHASTIC_COMPACT_WGSL: stochasticCompactProgramOf('grey'),
   SURFACE_CACHE_STOCHASTIC_COMPACT_COLOURED_WGSL: stochasticCompactProgramOf('colour'),

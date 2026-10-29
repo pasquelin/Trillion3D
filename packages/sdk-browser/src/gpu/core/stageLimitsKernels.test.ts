@@ -40,8 +40,8 @@ import {
   RESOLVE_WGSL,
 } from '../../lighting/surfaceCache/copyWgsl.ts'
 import {
-  directMeshKernel,
-  meshSunKernel,
+  fieldShadowKernels,
+  fieldShadowMeshKernel,
   fixedKernels,
   shapedKernels,
   tracedRadiosityKernels,
@@ -163,15 +163,13 @@ test("the surface cache's capture kernels and atlas view fit WebGPU's default li
 })
 
 test("the suns' shadow through the meshes' fields fits the storage buffers a device that grants ten has", () => {
-  // The pass that traces the suns binds the lists and the fields (seven) beside its three; the direct light, its eight and the visibility.
-  // A device that grants less lights the suns through the global field (`MESH_SUN_STORAGE_BUFFERS`).
+  // The pass that traces the suns binds the lists (one buffer) and the fields (four) beside its five (the tables, the light tiles' counters, the light tiles, the masks and the lights).
+  // A device that grants less shadows the suns through the global field (`MESH_SUN_STORAGE_BUFFERS`).
   const granted = { maxStorageBuffersPerShaderStage: MESH_SUN_STORAGE_BUFFERS }
   const { device, pipelineLayouts: layouts } = fakeDevice({ limits: granted })
-  for (const light of ['r32uint', 'rgba16float'] as const) {
-    directMeshKernel(device, 'grey', light)
-    directMeshKernel(device, 'colour', light)
-  }
-  meshSunKernel(device)
+  fieldShadowMeshKernel(device, 'grey')
+  fieldShadowMeshKernel(device, 'colour')
+  fieldShadowKernels(device, 'grey')
   assert.ok(layouts.length > 0)
   for (const layout of layouts)
     assert.ok((storageBufferCount(layout) ?? 0) <= MESH_SUN_STORAGE_BUFFERS)

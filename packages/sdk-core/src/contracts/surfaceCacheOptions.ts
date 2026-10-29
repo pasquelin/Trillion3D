@@ -28,6 +28,7 @@ const ATLAS_RULES = /* @__PURE__ */ (() =>
     number('surfaceCacheCardFixedDebugResolution', -1, ANY),
     nonNegative('surfaceCacheMeshCardsMinSize', 10),
     flag('surfaceCacheMeshCardsCullFaces', true),
+    flag('runtimeMeshCards', true),
   ] as const))()
 
 /** How the cards' surface is captured into the atlas, kept and given up. */
@@ -180,7 +181,9 @@ const RADIOSITY_RULES = /* @__PURE__ */ (() =>
  *
  * THE CARDS. A mesh gets cards when its largest face, scaled by its placement, exceeds
  * `surfaceCacheMeshCardsMinSize` (10) squared, a fifth of that for an emissive mesh; of its cards, one
- * whose area is under that is left out (`surfaceCacheMeshCardsCullFaces`, on). Cards of placements
+ * whose area is under that is left out (`surfaceCacheMeshCardsCullFaces`, on). A mesh a world cut at run time has no compiled
+ * cards: its six axis-aligned cards are made from its bounds, hits on them accepted though they match the surface badly
+ * (`runtimeMeshCards`, on), and its distance field is none. Cards of placements
  * of one mesh, with the same materials, facing the same way and of the same proportions, copy
  * the capture of one another (`surfaceCacheAllowCardSharing`, on), and a card that lowers its
  * resolution takes it from its own finer one (`surfaceCacheAllowCardDownsampleFromSelf`, on).

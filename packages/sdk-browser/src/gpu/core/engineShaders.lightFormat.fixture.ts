@@ -20,11 +20,7 @@ import {
 import { traceTracedShader } from '../../lighting/bounce/screen/traceTracedWgsl.ts'
 import { reflectionTraceShader } from '../../lighting/reflections/trace/trace.ts'
 import { combineWgsl } from '../../lighting/surfaceCache/lighting/combineWgsl.ts'
-import {
-  directMeshProgramOf,
-  meshSunPrepassProgram,
-  directProgramOf,
-} from '../../lighting/surfaceCache/lighting/directWgsl.ts'
+import { directProgramOf } from '../../lighting/surfaceCache/lighting/directWgsl.ts'
 import { radiosityFilterProgramOf } from '../../lighting/surfaceCache/lighting/radiosityFilterWgsl.ts'
 import { radiosityIntegrateProgramOf } from '../../lighting/surfaceCache/lighting/radiosityIntegrateWgsl.ts'
 import {
@@ -70,8 +66,6 @@ export const LIGHT_FORMAT_SHADERS: Record<string, string> = Object.fromEntries(
     ],
     [`SURFACE_CACHE_LIGHTS_${format}`, lightsProgramOf(format)],
     [`SURFACE_CACHE_DIRECT_${format}`, directProgramOf('grey', format)],
-    [`SURFACE_CACHE_DIRECT_MESH_COLOURED_${format}`, directMeshProgramOf('colour', format)],
-    ['SURFACE_CACHE_DIRECT_MESH_SUNS', meshSunPrepassProgram()],
     [`SURFACE_CACHE_STOCHASTIC_SHADE_${format}`, stochasticShadeProgramOf('grey', format)],
     [`SURFACE_CACHE_STOCHASTIC_TEMPORAL_${format}`, stochasticTemporalProgramOf(format)],
     [`SURFACE_CACHE_COMBINE_${format}`, combineWgsl(false, format)],

@@ -18,7 +18,8 @@ import { fieldLayout, vec4Array } from '../../../gpu/core/fieldLayout.ts'
  *  - `range` the factor on a two-sided mesh's bias (its third word) and the mesh bias of the rays (its fourth),
  *    `expand` the world radius each mesh's box is grown by where it is listed (one tile's half diagonal) and the
  *    shadow-space length of the widest cone radius;
- *  - `lists` the first entry of the sun's lists in the store (its first word); `tiles` the tile grid's side, the
+ *  - `lists` the first entry of the sun's lists in the store (its first word) and, for the cards' pass that reads the lists from one buffer
+ *    (`../../surfaceCache/lighting/meshShadow.ts`), where the arrays of the start offsets, of the counts and of the entries begin in it (its other three words); `tiles` the tile grid's side, the
  *    entries its lists hold, the meshes of the scene and the entries each tile has a place for when the lists are
  *    not compacted; `counts` the planes, the vertex count of the cube a mesh is drawn as, the first tile of the sun
  *    in the store, the flags (`DFSH_FLAG`).

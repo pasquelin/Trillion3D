@@ -17,6 +17,7 @@ import {
   SPLICE_WGSL,
 } from './contextWgsl.ts'
 import { LIGHTING_FLAG } from './layout.ts'
+import { near } from './params.fixture.ts'
 
 test('the program assembles and binds the rays’ feedback read-only, where the kernel lays it', () => {
   for (const entry of CONTEXT_ENTRIES) assertProgramAssembles(CONTEXT_WGSL, entry)
@@ -103,4 +104,38 @@ test('the speed is the distance’s and the frustum’s where the feedback is of
   lp.flags = LIGHTING_FLAG.feedback
   // A page past the part the buffer holds was never read at its finest level.
   assert.equal(speed(100, false, 1000, 8), 0.5)
+})
+
+test("a page's view is the nearest eye's distance and near either frustum", () => {
+  // A card facing +z at the origin, a page of the whole card; two eyes, the first far and in front, the second near and behind.
+  const card = {
+    origin: [0, 0, 0],
+    axisX: [1, 0, 0],
+    axisY: [0, 1, 0],
+    axisZ: [0, 0, 1],
+  }
+  const lp = { flags: LIGHTING_FLAG.prioritizeFrustum as number, frustumDistance: 0 }
+  const { viewOfPage } = shaderRun<{
+    viewOfPage: (
+      card: unknown,
+      centre: number[],
+      reach: number[],
+      eye: number[],
+      planes: number[][],
+    ) => { distance: number; near: boolean }
+  }>(CONTEXT_WGSL, ['viewOfPage'], { ...wgslConstants(CONTEXT_WGSL), lp })
+  const box = [
+    [0, 0, 0],
+    [10, 10, 1],
+  ] as const
+  // Every plane's outward normal, 1 cm from the eye away from the box: the box is inside all of them, so near.
+  const inside = Array.from({ length: 5 }, () => [0, 0, 1, -1000])
+  const outsideOne = [[0, 0, 1, 1000], ...inside.slice(1)]
+  const far = viewOfPage(card, box[0].slice(), box[1].slice(), [0, 0, 500], inside)
+  assert.equal(far.near, true)
+  near(far.distance, 499)
+  assert.equal(
+    viewOfPage(card, box[0].slice(), box[1].slice(), [0, 0, 500], outsideOne).near,
+    false,
+  )
 })

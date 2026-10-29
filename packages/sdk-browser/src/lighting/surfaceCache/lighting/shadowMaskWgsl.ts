@@ -317,8 +317,8 @@ fn shadowMaskTiles(first:u32,end:u32,group:vec3u,n:vec3u,at:vec3u,lane:u32){
   downsample=1u;
   write=picked;
  }
- // The stochastic light traces the samples it picks (\`stochasticCompact\`), not the texels the masks leave unsettled.
- if(write&&!lgFlag(FLAG_STOCHASTIC)){
+ // The stochastic light traces the samples it picks (\`stochasticCompact\`), not the texels the masks leave unsettled; the distance fields' pass walks the light tiles and lists none.
+ if(write&&!lgFlag(FLAG_STOCHASTIC)&&!lgFlag(FLAG_FIELD_SHADOWS)){
   let slot=atomicAdd(&traceCount,1u);
   sharedTraces[slot]=packShadowTrace(lightTile,at.xy,downsample);
  }
@@ -361,6 +361,16 @@ export const SHADOW_MASK_TYPE_SLOTS = {
   shadowMaskRect: 2,
 } as const
 
+/** What every program over the light tiles' masks in `format` begins with: the lighting's common block, the tiles' counters, the surface texel, the mask and the direct light. */
+export const shadowMaskCommonWgsl = (format: AtlasFormat) => [
+  lightingCommonWgsl({ tables: B.tables }),
+  lightTileCountsWgsl(B.counts, 'read'),
+  surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
+  shadowMaskBlockOf(format),
+  CM_PER_M_WGSL,
+  DIRECT_LIGHT_WGSL,
+]
+
 /** The mask's program in `format`. */
 const shadowMaskProgram = (format: AtlasFormat) =>
   wgslProgram(
@@ -369,12 +379,7 @@ ${maskAttenuation(format)}
 ${maskTiles}
 ${maskEntries()}`,
     [
-      lightingCommonWgsl({ tables: B.tables }),
-      lightTileCountsWgsl(B.counts, 'read'),
-      surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),
-      shadowMaskBlockOf(format),
-      CM_PER_M_WGSL,
-      DIRECT_LIGHT_WGSL,
+      ...shadowMaskCommonWgsl(format),
       lightStrengthWgsl(VIEW_EXPOSURE),
       LIGHT_CENTRE_FACING_WGSL,
       hasLightFunctionWgsl,

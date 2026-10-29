@@ -34,20 +34,17 @@ import {
   LIGHT_TILE_COUNTS_ENTRIES,
   LIGHT_TILE_COUNTS_WGSL,
 } from './lightTilesWgsl.ts'
+import { DIRECT_BINDINGS, DIRECT_ENTRY, directProgramOf } from './directWgsl.ts'
 import {
-  DIRECT_BINDINGS,
-  DIRECT_CLOUD_SHADOW,
-  DIRECT_ENTRIES,
-  DIRECT_LIGHT_PROFILE,
-  MESH_PREPASS_ENTRY,
-  MESH_PREPASS_OUT,
-  directMeshProgramOf,
-  directProgramOf,
-  meshSunPrepassProgram,
-} from './directWgsl.ts'
+  FIELD_SHADOW_ENTRIES,
+  FIELD_SHADOW_FIRST,
+  FIELD_SHADOW_MESH_ENTRY,
+  fieldShadowMeshProgramOf,
+  fieldShadowProgramOf,
+} from './fieldShadowWgsl.ts'
 import type { AtlasFormat } from '../../lightFunction/renderWgsl.ts'
 import { lightProfileLayoutEntries } from '../../lightProfile/profileBindings.ts'
-import { meshShadowLayoutEntries, meshSunReadLayoutEntries } from './meshShadowWgsl.ts'
+import { meshShadowLayoutEntries } from './meshShadowWgsl.ts'
 import {
   STOCHASTIC_COMPACT_BINDINGS,
   STOCHASTIC_COMPACT_ENTRY,
@@ -342,18 +339,13 @@ const directKernelOf = {
   ),
 }
 
-function directKernel(
-  device: GPUDevice,
-  format: AtlasFormat,
-  light: LightAtlasFormat,
-  mesh = false,
-) {
+function directKernel(device: GPUDevice, format: AtlasFormat, light: LightAtlasFormat) {
   const D = DIRECT_BINDINGS
   return createKernel(
     device,
-    mesh ? 'direct light with the meshes fields' : 'direct light',
-    mesh ? directMeshProgramOf(format, light) : directProgramOf(format, light),
-    DIRECT_ENTRIES,
+    'direct light',
+    directProgramOf(format, light),
+    [DIRECT_ENTRY],
     [
       computeBufferEntry(D.tables, ro),
       computeBufferEntry(D.context, ro),
@@ -361,47 +353,12 @@ function directKernel(
       computeBufferEntry(D.cardTileLights, ro),
       writes(D.out, light),
       computeBufferEntry(D.lights, ro),
-      lightFunctionLayoutEntry(D.lightFunction),
-      ...cloudShadowLayoutEntries(DIRECT_CLOUD_SHADOW, COMPUTE),
-      ...globalReadLayoutEntries(D.field),
       computeBufferEntry(D.masks, ro),
       computeBufferEntry(D.factors, 'storage'),
       computeBufferEntry(D.cardTileOffsets, ro),
-      ...lightProfileLayoutEntries(DIRECT_LIGHT_PROFILE, COMPUTE),
     ],
-    mesh ? { layouts: [meshSunReadLayoutEntries()] } : undefined,
   )
 }
-
-/** The direct light's program with the suns' shadow through the meshes' fields, in `format`: made on the first image that has the fields to read, once for the device
- *  and the format of the light, and waited for (an image without it lights through the global field). */
-const directMeshKernelOf = {
-  grey: oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) =>
-    directKernel(device, 'grey', light, true),
-  ),
-  colour: oncePerDeviceKey((device: GPUDevice, light: LightAtlasFormat) =>
-    directKernel(device, 'colour', light, true),
-  ),
-}
-/** The pass that traces the suns through the meshes' fields for the direct light's texels, before the direct light that reads what it stores. It binds the lists and the fields (seven storage buffers), so the direct light binds none. */
-export const meshSunKernel = oncePerDevice((device: GPUDevice) =>
-  createKernel(
-    device,
-    'direct light mesh suns',
-    meshSunPrepassProgram(),
-    [MESH_PREPASS_ENTRY],
-    [
-      computeBufferEntry(DIRECT_BINDINGS.tables, ro),
-      computeBufferEntry(DIRECT_BINDINGS.context, ro),
-      ...depthAndNormal(DIRECT_BINDINGS.depth, DIRECT_BINDINGS.normal),
-      computeBufferEntry(MESH_PREPASS_OUT, 'storage'),
-    ],
-    { layouts: [meshShadowLayoutEntries()] },
-  ),
-)
-
-export const directMeshKernel = (device: GPUDevice, format: AtlasFormat, light: LightAtlasFormat) =>
-  directMeshKernelOf[format](device, light)
 
 /** The programs of an image whose light functions' atlas has the format `format` and whose light is stored in `light`: those that do not depend on the shape
  *  (`staticKernels`) and the direct light's, which reads the masks in that format. */
@@ -432,10 +389,15 @@ const TRACE_PROGRAMS = {
   colour: SHADOW_TRACE_COLOURED_WGSL,
 } as const satisfies Record<AtlasFormat, string>
 
-function shadowKernels(device: GPUDevice, format: AtlasFormat) {
+/** The masks' program over masks in `format`, and the arguments of the traces' dispatch it lists: what every shadow pass starts with, made once for the device and the format. */
+const maskKernelsOf = {
+  grey: oncePerDevice((device: GPUDevice) => makeMaskKernels(device, 'grey')),
+  colour: oncePerDevice((device: GPUDevice) => makeMaskKernels(device, 'colour')),
+}
+const maskKernels = (device: GPUDevice, format: AtlasFormat) => maskKernelsOf[format](device)
+
+function makeMaskKernels(device: GPUDevice, format: AtlasFormat) {
   const M = SHADOW_MASK_BINDINGS
-  const T = SHADOW_TRACE_BINDINGS
-  const trace = TRACE_PROGRAMS[format]
   return {
     shadowMask: createKernel(
       device,
@@ -443,12 +405,7 @@ function shadowKernels(device: GPUDevice, format: AtlasFormat) {
       shadowMaskProgramOf(format),
       SHADOW_MASK_ENTRIES,
       [
-        computeBufferEntry(M.tables, ro),
-        computeBufferEntry(M.counts, ro),
-        ...depthAndNormal(M.depth, M.normal),
-        computeBufferEntry(M.lightTiles, ro),
-        computeBufferEntry(M.masks, 'storage'),
-        computeBufferEntry(M.lights, ro),
+        ...fieldTileEntries(),
         lightFunctionLayoutEntry(M.lightFunction),
         ...cloudShadowLayoutEntries(SHADOW_MASK_CLOUD_SHADOW, COMPUTE),
         computeBufferEntry(M.factors, ro),
@@ -457,20 +414,31 @@ function shadowKernels(device: GPUDevice, format: AtlasFormat) {
       ],
     ),
     shadowArgs: shadowArgsKernel(device),
+  }
+}
+
+/** The bindings of a pass that answers the listed traces over the masks: the tables, the traces, the depth and normal layers, the masks, the lights and the light tiles. */
+function traceAnswerEntries() {
+  const T = SHADOW_TRACE_BINDINGS
+  return [
+    computeBufferEntry(T.tables, ro),
+    computeBufferEntry(T.traces, ro),
+    ...depthAndNormal(T.depth, T.normal),
+    computeBufferEntry(T.masks, 'storage'),
+    computeBufferEntry(T.lights, ro),
+    computeBufferEntry(T.lightTiles, ro),
+  ]
+}
+
+function shadowKernels(device: GPUDevice, format: AtlasFormat) {
+  return {
+    ...maskKernels(device, format),
     shadowTrace: createKernel(
       device,
       'shadow trace',
-      trace,
+      TRACE_PROGRAMS[format],
       [SHADOW_TRACE_ENTRY],
-      [
-        computeBufferEntry(T.tables, ro),
-        computeBufferEntry(T.traces, ro),
-        ...depthAndNormal(T.depth, T.normal),
-        computeBufferEntry(T.masks, 'storage'),
-        computeBufferEntry(T.lights, ro),
-        computeBufferEntry(T.lightTiles, ro),
-        ...dagReadLayoutEntries(),
-      ],
+      [...traceAnswerEntries(), ...dagReadLayoutEntries()],
       { layouts: [sceneTraceLayoutEntries(SHADOW_TRACE_SCENE.first)] },
     ),
   }
@@ -488,6 +456,64 @@ const tracedShadowKernelsOf = {
  */
 export const tracedShadowKernels = (device: GPUDevice, format: AtlasFormat) =>
   tracedShadowKernelsOf[format](device)
+
+/** The bindings of a pass over the light tiles that settles their masks: the tables, the light tiles' counters, the depth and normal layers, the light tiles, the masks and the lights. */
+function fieldTileEntries() {
+  const M = SHADOW_MASK_BINDINGS
+  return [
+    computeBufferEntry(M.tables, ro),
+    computeBufferEntry(M.counts, ro),
+    ...depthAndNormal(M.depth, M.normal),
+    computeBufferEntry(M.lightTiles, ro),
+    computeBufferEntry(M.masks, 'storage'),
+    computeBufferEntry(M.lights, ro),
+  ]
+}
+
+function fieldKernels(device: GPUDevice, format: AtlasFormat) {
+  return {
+    shadowMask: maskKernels(device, format).shadowMask,
+    fieldShadow: createKernel(
+      device,
+      'shadow through the global field',
+      fieldShadowProgramOf(format),
+      FIELD_SHADOW_ENTRIES,
+      [...fieldTileEntries(), ...globalReadLayoutEntries(FIELD_SHADOW_FIRST)],
+    ),
+  }
+}
+
+const fieldShadowKernelsOf = {
+  grey: oncePerDevice((device: GPUDevice) => fieldKernels(device, 'grey')),
+  colour: oncePerDevice((device: GPUDevice) => fieldKernels(device, 'colour')),
+}
+
+/**
+ * The shadow passes of an image whose shadows are not traced through the scene's triangles, made once for the device and the format of
+ * the masks: the masks and the pass that settles them through the global distance field, over the same light tiles.
+ */
+export const fieldShadowKernels = (device: GPUDevice, format: AtlasFormat) =>
+  fieldShadowKernelsOf[format](device)
+
+const fieldShadowMeshKernelOf = {
+  grey: oncePerDevice((device: GPUDevice) => fieldMeshKernel(device, 'grey')),
+  colour: oncePerDevice((device: GPUDevice) => fieldMeshKernel(device, 'colour')),
+}
+
+function fieldMeshKernel(device: GPUDevice, format: AtlasFormat) {
+  return createKernel(
+    device,
+    'shadow through the suns meshes',
+    fieldShadowMeshProgramOf(format),
+    [FIELD_SHADOW_MESH_ENTRY],
+    fieldTileEntries(),
+    { layouts: [meshShadowLayoutEntries()] },
+  )
+}
+
+/** The pass that settles the masks of the suns whose meshes' fields are listed, through those, made on the first image that has the lists, once for the device and the format of the masks, and waited for (an image without it shadows the suns through the global field). */
+export const fieldShadowMeshKernel = (device: GPUDevice, format: AtlasFormat) =>
+  fieldShadowMeshKernelOf[format](device)
 
 /** The radiosity's program that casts its rays through the scene's triangles, made once for the device and the format of the light when a scene has
  *  acceleration structures and its radiosity is traced, laid out as the traced shadows' trace is. */

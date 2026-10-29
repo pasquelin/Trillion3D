@@ -172,8 +172,7 @@ export const SHADOW_FACTOR_TILE_WORDS = 8
  * out) is marked in the word that names it in its tile's list, the top bit, over the rank in its low `TILE_LIGHT_RANK_BITS`.
  * The function of such a light is evaluated at each texel of the tiles that keep it, before the masks, into the scratch: a half
  * float a texel, two to a word, `STANDALONE_SCRATCH_WORDS` words a light tile, after the masks of the light tiles in the same
- * buffer (`standaloneScratchAt` words in) or, where the shadows are not traced and there are no masks, alone in a buffer of
- * their own (`standaloneScratchWords`).
+ * buffer (`standaloneScratchAt` words in).
  */
 export const TILE_LIGHT_RANK_BITS = 14
 export const TILE_LIGHT_STANDALONE = 2 ** 31
@@ -181,10 +180,10 @@ export const STANDALONE_SCRATCH_WORDS = SHADOW_TEXELS / 2
 /** The word of a buffer of masks, in `format`, for `lightTiles` light tiles, where the scratch of the light functions begins. */
 export const standaloneScratchAt = (lightTiles: number, format: AtlasFormat) =>
   lightTiles * shadowMaskOf(format).tileWords
-/** The words of a buffer that holds the scratch of `lightTiles` light tiles alone. */
+/** The words of the scratch of `lightTiles` light tiles. */
 export const standaloneScratchWords = (lightTiles: number) => lightTiles * STANDALONE_SCRATCH_WORDS
 
-/** The words of each buffer the traced shadows keep for `lightTiles` light tiles (a tile of the direct list's, a
+/** The words of each buffer the shadows keep for `lightTiles` light tiles (a tile of the direct list's, a
  *  light of its), their masks in `format`: what they are made at and what the device must hold. The masks are
  *  `shadowMaskOf(format).tileWords` a light tile, the scratch of the light functions after them where an image
  *  has any (`scratch`); the traces are one word for each texel of each, at least `SHADOW_TRACE.least`, after the
@@ -217,6 +216,7 @@ export const LIGHTING_FLAG = {
   stochastic: 16384,
   stochasticTemporal: 32768,
   stochasticHistory: 65536,
+  fieldShadows: 131072,
 } as const
 
 /** How a radiosity ray through the scene's triangles avoids the geometry it starts on, the setting

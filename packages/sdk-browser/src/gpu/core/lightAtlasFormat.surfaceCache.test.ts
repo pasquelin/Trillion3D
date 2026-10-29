@@ -30,7 +30,8 @@ import {
   surfaceHitBindingsFrom,
 } from '../../lighting/surfaceCache/hitWgsl.ts'
 import {
-  directMeshKernel,
+  fieldShadowKernels,
+  fieldShadowMeshKernel,
   fixedKernels,
   shapedKernels,
   stochasticKernels,
@@ -243,11 +244,12 @@ test('the programs and layouts of the surface cache follow the format: the sampl
   const device = f.device as unknown as GPUDevice
   for (const light of ALL_FORMATS) {
     fixedKernels(device, 'grey', light)
-    directMeshKernel(device, 'colour', light)
     stochasticKernels(device, 'grey', light)
     tracedRadiosityKernels(device, light)
     shapedKernels(device, 8, true, light)
     createCaptureKernels(device, false, light)
   }
   tracedShadowKernels(device, 'grey')
+  fieldShadowKernels(device, 'grey')
+  fieldShadowMeshKernel(device, 'colour')
 })

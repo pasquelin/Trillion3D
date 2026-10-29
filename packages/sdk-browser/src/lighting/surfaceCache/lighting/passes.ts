@@ -15,17 +15,11 @@ import {
   SPLICE_CONTEXT_BINDING,
 } from './contextWgsl.ts'
 import { CULL_BINDINGS, CULL_ENTRY } from './cullWgsl.ts'
-import {
-  DIRECT_BINDINGS,
-  DIRECT_CLOUD_SHADOW,
-  DIRECT_LIGHT_PROFILE,
-  DIRECT_ENTRIES,
-  DIRECT_ENTRY,
-  DIRECT_TRACED_ENTRY,
-  MESH_PREPASS_ENTRY,
-  MESH_PREPASS_OUT,
-} from './directWgsl.ts'
+import { DIRECT_BINDINGS, DIRECT_ENTRY } from './directWgsl.ts'
+import { FIELD_SHADOW_FIRST, FIELD_SHADOW_MESH_ENTRY } from './fieldShadowWgsl.ts'
 import type {
+  fieldShadowKernels,
+  fieldShadowMeshKernel,
   fixedKernels,
   ShapedKernels,
   tracedRadiosityKernels,
@@ -120,6 +114,18 @@ export interface TracedShadows extends TracedScene<ReturnType<typeof tracedShado
   readonly buffers: TracedShadowBuffers
 }
 
+/** What the direct light's shadows are traced with in an image whose scene is not traced through its triangles: the masks' programs and the pass through the
+ *  global distance field, the buffers of the masks and traces, and, where the meshes' fields are listed for the suns, the pass through those and their lists. */
+export interface FieldShadows {
+  readonly kernels: ReturnType<typeof fieldShadowKernels>
+  /** The masks, and the buffer the masks' program lists no trace in (a stand-in: the distance fields' pass walks the light tiles). */
+  readonly buffers: { readonly masks: GPUBuffer; readonly traces: GPUBuffer }
+  readonly mesh?: {
+    readonly lists: MeshShadow
+    readonly kernel: ReturnType<typeof fieldShadowMeshKernel>
+  }
+}
+
 /** Everything the passes of one image read. */
 export interface Encoding {
   readonly pass: GPUComputePassEncoder
@@ -142,8 +148,10 @@ export interface Encoding {
   readonly filtered: boolean
   /** Whether the lights of a tile are culled to its depth range (`surfaceCacheDirectLightingCullToTileDepthRange`). */
   readonly cullToTileDepthRange: boolean
-  /** The traced shadows of the direct light; none, the direct light's shadow is one ray through the global distance field. */
+  /** The traced shadows of the direct light, their rays cast through the scene's triangles. */
   readonly traced?: TracedShadows
+  /** The shadows of the direct light traced through the distance fields; none where `traced` is. */
+  readonly field?: FieldShadows
   /** The stochastic direct light (`stochasticWgsl.ts`), where it is asked for and the shadows are traced: its programs, its memory and the half of its history this image reads. */
   readonly stochastic?: {
     readonly kernels: ReturnType<typeof stochasticKernels>
@@ -152,21 +160,14 @@ export interface Encoding {
     /** Whether the light is blended over the images (`surfaceCacheDirectLightingStochasticTemporal`). */
     readonly temporal: boolean
   }
-  /** The meshes' fields listed for the suns (`meshShadow.ts`) and the direct light's program that reads them; none, the suns' shadow is one ray through the global field too. */
-  readonly meshShadow?: {
-    readonly lists: MeshShadow
-    readonly kernel: Kernel<(typeof DIRECT_ENTRIES)[number]>
-    /** The pass that traces the suns through the lists and the fields before the direct light, which reads what it stores. */
-    readonly prepass: Kernel<typeof MESH_PREPASS_ENTRY>
-  }
   /** The scene the radiosity's rays are cast through; none, they are marched through the global distance field. */
   readonly scene?: TracedScene
   /** The light functions the atlas holds no slot of: their dispatches and the bits the cull marks their lights by. */
   readonly standalone: StandalonePrepared
-  /** Where the scratch of those light functions is kept where the shadows are not traced (it follows the masks where they are);
-   *  none where no light function is evaluated apart. */
-  readonly scratch?: GPUBuffer
 }
+
+/** The buffers of the masks and traces of the image's shadows, whatever they are traced through. */
+const shadowBuffers = (e: Encoding) => (e.traced ?? e.field)?.buffers
 
 const buffer = (binding: number, resource: GPUBuffer) => ({
   binding,
@@ -210,9 +211,11 @@ function fromLightTiles(
   group: GPUBindGroup,
   entry: number,
   offsets?: readonly number[],
+  later: readonly GPUBindGroup[] = [],
 ) {
   e.pass.setPipeline(pipeline)
   e.pass.setBindGroup(0, group, offsets)
+  later.forEach((bound, at) => e.pass.setBindGroup(at + 1, bound))
   e.pass.dispatchWorkgroupsIndirect(e.lightSlots.args, entry * LIGHT_TILE_ARGS_WORDS * 4)
 }
 
@@ -232,7 +235,7 @@ function sceneGroup(
 /** The tiles of the updates this image lights, chosen. */
 export function contextPasses(e: Encoding) {
   const { params, context, pageArgs, standIn, feedbackStandIn } = e.resources
-  const shadowTraces = e.traced?.buffers.traces ?? standIn
+  const shadowTraces = shadowBuffers(e)?.traces ?? standIn
   const feedback = e.inputs.feedback ?? feedbackStandIn
   const kernel = e.fixed.context
   const group = kernel.group([params, e.tables, context, shadowTraces, feedback, pageArgs], () => [
@@ -267,9 +270,8 @@ export function contextPasses(e: Encoding) {
   single(e, kernel.pipeline('contextArgs'), group)
 }
 
-/** The masks' buffer: the traced shadows' where they are traced, else the scratch of the light functions apart from the atlas alone,
- *  else the stand-in. The scratch is in it at the word the parameters name (`scratchAt`). */
-const masksOf = (e: Encoding) => e.traced?.buffers.masks ?? e.scratch ?? e.resources.standIn
+/** The masks' buffer, the stand-in where the image's shadows have none. The scratch of the light functions apart from the atlas is in it at the word the parameters name (`scratchAt`). */
+const masksOf = (e: Encoding) => shadowBuffers(e)?.masks ?? e.resources.standIn
 
 /** The light functions the atlas holds no slot of, evaluated at the texels of the light tiles of their lights, into the scratch. */
 function lightFunctionPasses(e: Encoding) {
@@ -313,9 +315,35 @@ function lightFunctionPasses(e: Encoding) {
   }
 }
 
+/** The dispatches over the light tiles that make the masks and, in the same order and by the same arguments, settle them through the distance fields: the lights together, then each batchable type. */
+const MASK_DISPATCHES = [
+  { mask: 'shadowMaskLights', field: 'fieldShadowLights', args: LIGHT_TILE_ARGS.lights },
+  {
+    mask: 'shadowMaskPoint',
+    field: 'fieldShadowPoint',
+    args: LIGHT_TILE_ARGS.slots + SHADOW_MASK_TYPE_SLOTS.shadowMaskPoint,
+  },
+  {
+    mask: 'shadowMaskSpot',
+    field: 'fieldShadowSpot',
+    args: LIGHT_TILE_ARGS.slots + SHADOW_MASK_TYPE_SLOTS.shadowMaskSpot,
+  },
+  {
+    mask: 'shadowMaskRect',
+    field: 'fieldShadowRect',
+    args: LIGHT_TILE_ARGS.slots + SHADOW_MASK_TYPE_SLOTS.shadowMaskRect,
+  },
+] as const
+
+/** What the masks and the traces' arguments are made with, whatever the traces are answered through: the programs of the masks and of the arguments, and the buffers. */
+interface ShadowSet {
+  readonly kernels: Pick<ReturnType<typeof tracedShadowKernels>, 'shadowMask'>
+  readonly buffers: { readonly masks: GPUBuffer; readonly traces: GPUBuffer }
+}
+
 /** The shadow masks of the light tiles, which list the traces they need: those of the slots of the lights together, then of the point lights', the spots'
  *  and the rectangles' slots, each by the arguments of its own. */
-function shadowMaskPass(e: Encoding, { kernels, buffers }: TracedShadows) {
+function shadowMaskPass(e: Encoding, { kernels, buffers }: ShadowSet) {
   const { params, compactedLightTiles } = e.resources
   const { counts } = e.lightSlots
   const { physical, factors } = e.atlases
@@ -358,15 +386,8 @@ function shadowMaskPass(e: Encoding, { kernels, buffers }: TracedShadows) {
       ...lightProfileBindEntries(SHADOW_MASK_LIGHT_PROFILE, lightProfile),
     ],
   )
-  const slots = LIGHT_TILE_ARGS.slots
-  const masked = [
-    ['shadowMaskLights', LIGHT_TILE_ARGS.lights],
-    ['shadowMaskPoint', slots + SHADOW_MASK_TYPE_SLOTS.shadowMaskPoint],
-    ['shadowMaskSpot', slots + SHADOW_MASK_TYPE_SLOTS.shadowMaskSpot],
-    ['shadowMaskRect', slots + SHADOW_MASK_TYPE_SLOTS.shadowMaskRect],
-  ] as const
-  for (const [entry, args] of masked)
-    fromLightTiles(e, kernels.shadowMask.pipeline(entry), masking, args)
+  for (const { mask, args } of MASK_DISPATCHES)
+    fromLightTiles(e, kernels.shadowMask.pipeline(mask), masking, args)
 }
 
 /** The arguments of the traces the masks listed. */
@@ -382,39 +403,33 @@ function shadowArgsPass(e: Encoding, { kernels, buffers }: TracedShadows) {
   single(e, kernels.shadowArgs.pipeline(SHADOW_ARGS_ENTRY), args)
 }
 
-/** The traces the masks listed, cast through the scene and the cut's tables. */
-function shadowTracePass(e: Encoding, { kernels, buffers, sceneTrace, views }: TracedShadows) {
+/** The resources a pass that answers the listed traces binds in its first group, and their entries (`SHADOW_TRACE_BINDINGS`). */
+function traceAnswerBindings(e: Encoding, { masks, traces }: TracedShadowBuffers) {
   const { params, compactedLightTiles } = e.resources
-  const { physical } = e.atlases
-  const { masks: shadowMasks, traces: shadowTraces } = buffers
+  const { depth, normal } = e.atlases.physical
   const { lights } = e.inputs
   const T = SHADOW_TRACE_BINDINGS
-  const tracing = kernels.shadowTrace.group(
-    [
-      params,
-      e.tables,
-      shadowTraces,
-      physical.depth,
-      physical.normal,
-      shadowMasks,
-      lights,
-      compactedLightTiles,
-      views.nodes,
-      views.frames,
-      views.worlds,
-      views.tree,
-    ],
-    () => [
+  return {
+    identity: [params, e.tables, traces, depth, normal, masks, lights, compactedLightTiles],
+    entries: () => [
       buffer(0, params),
       buffer(T.tables, e.tables),
-      buffer(T.traces, shadowTraces),
-      view(T.depth, physical.depth),
-      view(T.normal, physical.normal),
-      buffer(T.masks, shadowMasks),
+      buffer(T.traces, traces),
+      view(T.depth, depth),
+      view(T.normal, normal),
+      buffer(T.masks, masks),
       buffer(T.lights, lights),
       buffer(T.lightTiles, compactedLightTiles),
-      ...dagReadGroupEntries(views),
     ],
+  }
+}
+
+/** The traces the masks listed, cast through the scene and the cut's tables. */
+function shadowTracePass(e: Encoding, { kernels, buffers, sceneTrace, views }: TracedShadows) {
+  const bound = traceAnswerBindings(e, buffers)
+  const tracing = kernels.shadowTrace.group(
+    [...bound.identity, views.nodes, views.frames, views.worlds, views.tree],
+    () => [...bound.entries(), ...dagReadGroupEntries(views)],
   )
   const scene = sceneGroup(kernels.shadowTrace, sceneTrace, SHADOW_TRACE_SCENE)
   fromContext(
@@ -424,6 +439,51 @@ function shadowTracePass(e: Encoding, { kernels, buffers, sceneTrace, views }: T
     CONTEXT_ARGS.shadowTraces,
     [scene],
   )
+}
+
+/** The masks of the light tiles settled through the distance fields, over the same light tiles and dispatch arguments as the masks: first the suns' whose meshes' fields are listed, through those meshes, then the rest through the global field. */
+function fieldShadowPasses(e: Encoding, { kernels, buffers, mesh }: FieldShadows) {
+  const { params, compactedLightTiles } = e.resources
+  const { counts } = e.lightSlots
+  const { depth, normal } = e.atlases.physical
+  const { lights, field } = e.inputs
+  const M = SHADOW_MASK_BINDINGS
+  const tiles = [
+    params,
+    e.tables,
+    counts,
+    depth,
+    normal,
+    compactedLightTiles,
+    buffers.masks,
+    lights,
+  ]
+  const entries = () => [
+    buffer(0, params),
+    buffer(M.tables, e.tables),
+    buffer(M.counts, counts),
+    view(M.depth, depth),
+    view(M.normal, normal),
+    buffer(M.lightTiles, compactedLightTiles),
+    buffer(M.masks, buffers.masks),
+    buffer(M.lights, lights),
+  ]
+  if (mesh) {
+    fromLightTiles(
+      e,
+      mesh.kernel.pipeline(FIELD_SHADOW_MESH_ENTRY),
+      mesh.kernel.group(tiles, entries),
+      LIGHT_TILE_ARGS.lights,
+      undefined,
+      [mesh.kernel.group(mesh.lists.identity, mesh.lists.entries, MESH_SHADOW_GROUP)],
+    )
+  }
+  const marching = kernels.fieldShadow.group([...tiles, field.readGeneration], () => [
+    ...entries(),
+    ...field.readEntries(FIELD_SHADOW_FIRST),
+  ])
+  for (const { field: entry, args } of MASK_DISPATCHES)
+    fromLightTiles(e, kernels.fieldShadow.pipeline(entry), marching, args)
 }
 
 /** The lights each texel picks (`stochasticGenerate`). */
@@ -588,7 +648,7 @@ function stochasticShadingPasses(
 ) {
   const { params, context, cardTileLights, cardTileOffsets } = e.resources
   const { physical } = e.atlases
-  const { samples, resolved, history } = buffers
+  const { samples, resolved } = buffers
   const { masks } = traced.buffers
   const S = STOCHASTIC_SHADE_BINDINGS
   const shading = kernels.shade.group(
@@ -624,9 +684,14 @@ function stochasticShadingPasses(
 }
 
 /** The passes between the lights of the tiles and their light: the shadow masks, the traces' arguments
- *  and the traces. */
-function shadowPasses(e: Encoding, traced: TracedShadows) {
-  shadowMaskPass(e, traced)
+ *  and the traces, answered through the scene's triangles or through the distance fields. */
+export function shadowPasses(e: Encoding) {
+  const { traced, field } = e
+  const shadows = traced ?? field
+  if (!shadows) return
+  shadowMaskPass(e, shadows)
+  if (field) return fieldShadowPasses(e, field)
+  if (!traced) return
   // The stochastic light lists the traces of the lights it picked (the masks list none), before the arguments count them.
   if (e.stochastic) stochasticSamplePasses(e, e.stochastic, traced)
   shadowArgsPass(e, traced)
@@ -742,16 +807,13 @@ function lightTilePasses(e: Encoding) {
   single(e, tallies.pipeline('lightTilesClearCompacted'), tallying)
   lightTileCompactPass(e)
 }
-/** The direct light of the texels, by the program over the global field, the meshes' fields for the suns, or the traced masks (`DIRECT_ENTRY`, `DIRECT_TRACED_ENTRY`). */
+/** The direct light of the texels, from the lights' irradiance and the shadow masks (`DIRECT_ENTRY`). */
 function directShadePass(e: Encoding) {
   const { params, context, cardTileLights, cardTileOffsets } = e.resources
   const shadowMasks = masksOf(e)
   const { physical, factors } = e.atlases
-  const common = [buffer(0, params), buffer(1, e.tables), buffer(2, context)]
   const D = DIRECT_BINDINGS
-  const { cloudShadow, field } = e.inputs
-  // The program that reads the meshes' fields for the sun, where they are listed and the shadows are not traced; else the program over the global field.
-  const kernel = e.meshShadow && !e.traced ? e.meshShadow.kernel : e.fixed.direct
+  const kernel = e.fixed.direct
   const direct = kernel.group(
     [
       params,
@@ -762,65 +824,25 @@ function directShadePass(e: Encoding) {
       cardTileLights,
       physical.direct,
       e.inputs.lights,
-      e.inputs.lightFunction,
-      cloudShadow.block,
-      cloudShadow.maps[0],
-      cloudShadow.maps[1],
-      cloudShadow.sampler,
-      field.readGeneration,
       shadowMasks,
       factors,
       cardTileOffsets,
-      e.inputs.lightProfile.view,
-      e.inputs.lightProfile.sampler,
     ],
     () => [
-      ...common,
+      buffer(0, params),
+      buffer(1, e.tables),
+      buffer(2, context),
       view(D.depth, physical.depth),
       view(D.normal, physical.normal),
       buffer(D.cardTileLights, cardTileLights),
       view(D.out, physical.direct),
       buffer(D.lights, e.inputs.lights),
-      view(D.lightFunction, e.inputs.lightFunction),
-      ...cloudShadowBindEntries(DIRECT_CLOUD_SHADOW, cloudShadow),
-      ...field.readEntries(D.field),
       buffer(D.masks, shadowMasks),
       buffer(D.factors, factors),
       buffer(D.cardTileOffsets, cardTileOffsets),
-      ...lightProfileBindEntries(DIRECT_LIGHT_PROFILE, e.inputs.lightProfile),
     ],
   )
-  const entry = e.traced ? DIRECT_TRACED_ENTRY : DIRECT_ENTRY
-  const lists = e.meshShadow && !e.traced ? e.meshShadow.lists : undefined
-  if (e.meshShadow && lists) meshSunPass(e, e.meshShadow.prepass, lists)
-  fromContext(
-    e,
-    kernel.pipeline(entry),
-    direct,
-    CONTEXT_ARGS.directTiles,
-    lists && [kernel.group(lists.read.identity, lists.read.entries, MESH_SHADOW_GROUP)],
-  )
-}
-
-/** The suns traced through the meshes' fields for the texels of the direct list (`MESH_PREPASS_ENTRY`), their visibility stored for the direct light to read. */
-function meshSunPass(e: Encoding, kernel: Kernel<typeof MESH_PREPASS_ENTRY>, lists: MeshShadow) {
-  const { params, context } = e.resources
-  const { physical } = e.atlases
-  const D = DIRECT_BINDINGS
-  const group = kernel.group(
-    [params, e.tables, context, physical.depth, physical.normal, lists.visibility],
-    () => [
-      buffer(0, params),
-      buffer(D.tables, e.tables),
-      buffer(D.context, context),
-      view(D.depth, physical.depth),
-      view(D.normal, physical.normal),
-      buffer(MESH_PREPASS_OUT, lists.visibility),
-    ],
-  )
-  fromContext(e, kernel.pipeline(MESH_PREPASS_ENTRY), group, CONTEXT_ARGS.directTiles, [
-    kernel.group(lists.identity, lists.entries, MESH_SHADOW_GROUP),
-  ])
+  fromContext(e, kernel.pipeline(DIRECT_ENTRY), direct, CONTEXT_ARGS.directTiles)
 }
 
 /** The depth range of each tile of the direct list, the lights of each tile, their light on its texels, and the final light of the tiles. */
@@ -828,7 +850,7 @@ export function directPasses(e: Encoding) {
   if (e.cullToTileDepthRange) tileDepthRangePass(e)
   lightTilePasses(e)
   lightFunctionPasses(e)
-  if (e.traced) shadowPasses(e, e.traced)
+  shadowPasses(e)
   if (e.traced && e.stochastic) {
     stochasticShadingPasses(e, e.stochastic, e.traced)
     combine(e, 'combineDirect', CONTEXT_ARGS.directTiles)

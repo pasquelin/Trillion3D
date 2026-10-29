@@ -67,12 +67,14 @@ fn ${SHADOW_ARGS_ENTRY}(){
   ],
 )
 
-const traceDeclarations = `@group(0) @binding(${B.traces}) var<storage,read> traces:array<u32>;
+/** The bindings a trace over the masks reads in group 0: the traces it answers, the masks it settles, the lights and the light tiles. */
+const shadowTraceDeclarations = `@group(0) @binding(${B.traces}) var<storage,read> traces:array<u32>;
 @group(0) @binding(${B.masks}) var<storage,read_write> masks:array<atomic<u32>>;
 @group(0) @binding(${B.lights}) var<storage,read> directLights:DirectLights;
 @group(0) @binding(${B.lightTiles}) var<storage,read> lightTiles:array<u32>;`
 
-const traceMasks = `/** The byte of the texel \`coord\` in the mask of light tile \`lightTile\`. */
+/** The byte of the texel `coord` of a light tile's mask and its replacement, shared by every program that traces the listed texels. */
+export const shadowTraceMasks = `/** The byte of the texel \`coord\` in the mask of light tile \`lightTile\`. */
 fn maskByteAt(lightTile:u32,coord:vec2u)->u32{
  let bit=shadowBit(coord);
  return shadowByteIn(atomicLoad(&masks[lightTile*SHADOW_MASK_TILE_WORDS+bit/32u]),bit);
@@ -83,8 +85,9 @@ fn setMaskByte(lightTile:u32,coord:vec2u,was:u32,byte:u32){
  let bit=shadowBit(coord);
  let changed=was^byte;
  if(changed!=0u){atomicXor(&masks[lightTile*SHADOW_MASK_TILE_WORDS+bit/32u],changed<<(bit%32u));}
-}
-/** Whether the ray from the texel to light \`rank\` is blocked: it hits, or its walk did not end. */
+}`
+
+const sceneRay = `/** Whether the ray from the texel to light \`rank\` is blocked: it hits, or its walk did not end. */
 fn shadowRayBlocked(texel:SurfaceTexel,rank:u32)->bool{
  let light=directLights.items[rank];
  var toward=-light.directionCone.xyz;
@@ -102,11 +105,18 @@ fn shadowRayBlocked(texel:SurfaceTexel,rank:u32)->bool{
  if(!lgFlag(FLAG_FORCE_TWO_SIDED)){flags|=ST_CULL_FRONT;}
  let hit=stTrace(StRay(origin,toward,0.0,span/CM_PER_M,flags));
  return hit.hit||!stComplete;
-}`
+}
+/** The byte of a trace answered: kept as it is where the ray is free (its factor through a float and back may move by one step), else zero. */
+fn traceAnswer(texel:SurfaceTexel,rank:u32,byte:u32)->u32{return select(byte,0u,shadowRayBlocked(texel,rank));}`
 
-const traceEntry = () =>
+/**
+ * The entry of a program that answers the listed traces, a thread each: it reads the trace's light tile, page, light and the texel's byte,
+ * asks `traceAnswer(texel, rank, byte)` for the byte once the ray is answered — for a texel the masks left unsettled; a settled one keeps its byte —,
+ * settles it, and, at a downsample, gives the quad's other three texels the same shadow (they stay as they are where the picked texel is lit).
+ */
+const shadowTraceEntry = (entry: string) =>
   `@compute @workgroup_size(${WORKGROUP_THREADS})
-fn ${SHADOW_TRACE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
+fn ${entry}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgroups) n:vec3u,@builtin(local_invocation_index) lane:u32){
  let i=flatGroup(group,n)*${WORKGROUP_THREADS}u+lane;
  if(i>=traces[0]){return;}
  let word=traces[1u+i];
@@ -115,14 +125,13 @@ fn ${SHADOW_TRACE_ENTRY}(@builtin(workgroup_id) group:vec3u,@builtin(num_workgro
  let rank=tileLightRank(lightTiles[lightTile*LIGHT_TILE_WORDS+1u]);
  let coord=shadowTraceCoord(word);
  let byte=maskByteAt(lightTile,coord);
- var blocked=false;
+ var answered=byte;
  if((byte&SHADOW_COMPLETE)==0u){
-  blocked=shadowRayBlocked(surfaceTexel(tilePage(pageTile),tileCoordOf(pageTile)*LG_TILE+coord),rank);
+  answered=traceAnswer(surfaceTexel(tilePage(pageTile),tileCoordOf(pageTile)*LG_TILE+coord),rank,byte);
  }
- // The byte is kept as it is where the ray is free: its factor through a float and back may move by one step.
- setMaskByte(lightTile,coord,byte,select(byte,0u,blocked)|SHADOW_COMPLETE);
+ setMaskByte(lightTile,coord,byte,answered|SHADOW_COMPLETE);
  if(shadowTraceDownsample(word)>0u){
-  let shadowed=blocked||(byte&SHADOW_FACTOR_MAX)==0u;
+  let shadowed=(answered&SHADOW_FACTOR_MAX)==0u;
   let base=coord&vec2u(SHADOW_QUAD_MASK);
   for(var q=0u;q<4u;q++){
    let other=base+vec2u(q%2u,q/2u);
@@ -137,9 +146,10 @@ export const SHADOW_TRACE_ENTRY = 'shadowTrace'
 
 const shadowTraceProgram = (format: AtlasFormat) =>
   wgslProgram(
-    `${traceDeclarations}
-${traceMasks}
-${traceEntry()}`,
+    `${shadowTraceDeclarations}
+${shadowTraceMasks}
+${sceneRay}
+${shadowTraceEntry(SHADOW_TRACE_ENTRY)}`,
     [
       lightingCommonWgsl({ tables: B.tables }),
       surfaceTexelWgsl(lightingLayersWgsl(B.depth, B.normal)),

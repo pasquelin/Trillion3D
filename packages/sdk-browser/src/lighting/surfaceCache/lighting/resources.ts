@@ -8,7 +8,6 @@ import {
   lightTileArgsWords,
   lightTileCountsWords,
   PAGE_ARGS_WORDS,
-  standaloneScratchWords,
   tracedShadowWords,
 } from './layout.ts'
 import { type LightingShape, shapeKey, sizesOf } from './params.ts'
@@ -31,8 +30,7 @@ import { STOCHASTIC_FRAMES_FORMAT, STOCHASTIC_RESOLVED_FORMAT } from './stochast
  * traces they list. They are made when the shadows are traced, keyed by the
  * light tiles, the format of the masks and whether the light functions the atlas holds no slot of have their scratch after the
  * masks (`tracedShadowWords`), and given back when they are not traced: turning the traced path on or off remakes
- * none of the lighting's memory, and the radiosity keeps its history. Where the shadows are not traced and such light functions
- * are, the scratch is a set of its own (`ensureStandaloneScratch`).
+ * none of the lighting's memory, and the radiosity keeps its history.
  */
 
 /** The lighting's resources of one shape. */
@@ -153,34 +151,40 @@ export function ensureTracedShadows(
   )
 }
 
-/** The scratch of the light functions alone, for `lightTiles` light tiles, asked of `allocator`: what the direct light reads in the
- *  masks' place where its shadows are not traced. */
-const allocateScratch = (allocator: ResourceAllocator, lightTiles: number) => ({
-  scratch: allocator.buffer(
-    'light function scratch',
-    standaloneScratchWords(lightTiles),
+/** The masks of the shadows traced through the distance fields for `lightTiles` light tiles, in `format`, with room for the scratch of the light functions where `scratch`, asked of `allocator`: no trace is listed, so no list of them is made. */
+const allocateFieldMasks = (
+  allocator: ResourceAllocator,
+  lightTiles: number,
+  format: AtlasFormat,
+  scratch: boolean,
+) => ({
+  masks: allocator.buffer(
+    'shadow masks',
+    tracedShadowWords(lightTiles, format, scratch).masks,
     'storage',
   ),
 })
 
-/** The scratch of the light functions alone. */
-export type StandaloneScratch = ReturnType<typeof allocateScratch> & HeldSet
+/** The masks of the shadows traced through the distance fields. */
+export type FieldShadowMasks = ReturnType<typeof allocateFieldMasks> & HeldSet
 
-/** The scratch of `lightTiles` light tiles for an image whose shadows are not traced: `held` where it is for that many, else made. */
-export function ensureStandaloneScratch(
-  held: StandaloneScratch | undefined,
+/** The masks of `lightTiles` light tiles in `format`, with the scratch where `scratch`: `held` where they are for that, else made, `held` given back. */
+export function ensureFieldShadowMasks(
+  held: FieldShadowMasks | undefined,
   device: GPUDevice,
   lightTiles: number,
+  format: AtlasFormat,
+  scratch: boolean,
 ) {
   return ensureSet(
     held,
     device,
     {
-      key: [lightTiles],
-      what: 'the scratch of the light functions',
-      label: `${SURFACE_CACHE_ATLAS_LABEL} light function scratch`,
+      key: [lightTiles, format, scratch],
+      what: 'the shadow masks',
+      label: `${SURFACE_CACHE_ATLAS_LABEL} shadow masks`,
     },
-    (allocator) => allocateScratch(allocator, lightTiles),
+    (allocator) => allocateFieldMasks(allocator, lightTiles, format, scratch),
   )
 }
 

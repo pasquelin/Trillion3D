@@ -2,9 +2,15 @@
 
 import test from 'node:test'
 import assert from 'node:assert/strict'
-import { standaloneScratchAt, standaloneScratchWords, tracedShadowWords } from './layout.ts'
-import { shapeKey, shapeOf, tracedRaysFit } from './params.ts'
-import { lightingSettings as settings } from './params.fixture.ts'
+import {
+  LIGHTING_FLAG,
+  LIGHTING_PARAMS,
+  standaloneScratchAt,
+  standaloneScratchWords,
+  tracedShadowWords,
+} from './layout.ts'
+import { shapeKey, shapeOf, tracedRaysFit, writeLightingParams } from './params.ts'
+import { lightingImage, lightingSettings as settings } from './params.fixture.ts'
 import { WORD_LIGHT_FORMAT } from '../../../gpu/core/lightAtlasFormat.ts'
 
 test('the traced rays fit only where every buffer — the shadows’ masks and traces, the scene trace’s nodes, triangles and table — fits a binding and a buffer of the device', () => {
@@ -107,4 +113,19 @@ test('the coloured atlas doubles the masks, two bytes a texel, and the scratch o
     tracedRaysFit({ ...limits, maxBufferSize: 4 * 6000 }, 100, sceneSmall, 'colour', true),
     false,
   )
+})
+
+test('the adaptive tracing, which lets a trace answer a quad of texels, is the scene’s triangles’: the shadows traced through the distance fields never have it', () => {
+  const flagOf = (fieldShadows: boolean) => {
+    const words = new Uint32Array(LIGHTING_PARAMS.words)
+    writeLightingParams(
+      words,
+      shapeOf(settings, 1024, false, WORD_LIGHT_FORMAT),
+      { ...settings, surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing: true },
+      lightingImage({ fieldShadows }),
+    )
+    return words[LIGHTING_PARAMS.at.flags] & LIGHTING_FLAG.adaptiveShadowTracing
+  }
+  assert.notEqual(flagOf(false), 0)
+  assert.equal(flagOf(true), 0)
 })

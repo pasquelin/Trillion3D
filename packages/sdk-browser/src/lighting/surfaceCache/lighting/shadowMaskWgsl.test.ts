@@ -48,15 +48,8 @@ test('a texel that does not face the centre of a light that needs a mask is sett
     )
     assert.match(mask, /if\(!needsShadowMask\(rank,light,standalone\)\)\{return true;\}/)
   }
-  const direct = DIRECT_WGSL
-  const cache = direct.slice(direct.indexOf('fn cacheLight('))
-  const facing = cache.indexOf(
-    'if(!facesLightCentre(rank,light,position/CM_PER_M,normal,standalone))',
-  )
-  assert.ok(
-    facing > 0 && facing < cache.indexOf('castsShadow(light)'),
-    'before a ray is cast or the light kept',
-  )
+  // The direct light has no gate of its own: a texel that does not face the light has a mask of no light.
+  assert.doesNotMatch(DIRECT_WGSL, /facesLightCentre/)
   const mask = SHADOW_MASK_PROGRAM_WGSL
   assert.match(
     mask,
@@ -112,7 +105,7 @@ test('the direct light reads a texel’s factor as the format keeps it and multi
     assert.match(mask, /ray\.factor\*=lightFunctionShade\(lightFunctionOf\(light,P\)\);/)
 })
 
-test('a light is multiplied by its profile once: by the mask on the traced path, by the light term on the cache’s own ray', () => {
+test('a light is multiplied by its profile once, by the mask: the direct light takes the term with no profile', () => {
   for (const mask of [SHADOW_MASK_PROGRAM_WGSL, SHADOW_MASK_COLOURED_PROGRAM_WGSL]) {
     const attenuation = mask.slice(mask.indexOf('fn lightAttenuation('))
     const clouds = attenuation.indexOf('ray.factor*=cloudShadowOnSurface(rank,P);')
@@ -127,18 +120,13 @@ test('a light is multiplied by its profile once: by the mask on the traced path,
       /if\(!ray\.complete\)\{\s*ray\.factor\*=lightProfileOf\(light,P\);\s*ray\.complete=!isVisibleToLight\(ray\.factor\);/,
     )
   }
-  // The traced entry takes the term with no profile, the mask's factor holding it; the light's own ray takes the term with it, and the
-  // share a standalone light's function leaves in the scratch (`lightFunctionPassWgsl.ts`) holds none.
-  const traced = DIRECT_WGSL.slice(DIRECT_WGSL.indexOf('fn directShadeTraced'))
-  assert.match(traced, /declaredBareIrradiance\(rank,/)
-  assert.doesNotMatch(traced, /lightProfileOf|declaredIrradiance\(/)
+  // The direct entry takes the term with no profile, the mask's factor holding it, and the share a standalone light's function leaves in the scratch
+  // (`lightFunctionPassWgsl.ts`) holds none.
+  const entry = DIRECT_WGSL.slice(DIRECT_WGSL.indexOf('fn directShade('))
+  assert.match(entry, /declaredBareIrradiance\(rank,/)
+  assert.doesNotMatch(entry, /lightProfileOf|declaredIrradiance\(/)
   const bare = DIRECT_WGSL.slice(DIRECT_WGSL.indexOf('fn declaredBareIrradiance('))
   assert.doesNotMatch(bare.slice(0, bare.indexOf('\n}')), /lightProfileOf/)
-  const own = DIRECT_WGSL.slice(DIRECT_WGSL.indexOf('fn declaredIrradiance('))
-  assert.match(
-    own.slice(0, own.indexOf('\n}')),
-    /\*lightFunctionOf\(light,P\)\*lightProfileOf\(light,P\)/,
-  )
   assert.doesNotMatch(
     lightFunctionPassWgsl({ mapped: false }),
     /lightProfileOf/,

@@ -189,6 +189,9 @@ export interface LightingImage {
   /** The eye, in metres, and the view's world-to-clip matrix. */
   readonly eye: ArrayLike<number>
   readonly viewProjection: ArrayLike<number>
+  /** The second view the cache keeps cards for, if any (`LUMEN_MAX_VIEWS` of the reference is two): its eye, in metres, and
+   *  its world-to-clip matrix. The pages' priority is the nearer of the two views' and prioritises a page near either's frustum. */
+  readonly other?: { readonly eye: ArrayLike<number>; readonly viewProjection: ArrayLike<number> }
   /** The number the light is kept multiplied by, and the view's pre-exposure. */
   readonly preExposure: number
   readonly viewPreExposure: number
@@ -204,8 +207,10 @@ export interface LightingImage {
   /** Whether the image's radiosity rays go through the scene's triangles, which write the distances the probes' occlusion reads. */
   readonly tracedRadiosity: boolean
   /** The word of the buffer the passes read the masks from where the scratch of the light functions begins (`standaloneScratchAt`):
-   *  after the masks where the shadows are traced, 0 where the buffer holds the scratch alone. */
+   *  after the masks. */
   readonly scratchAt: number
+  /** Whether the image's shadows are traced through the distance fields: the masks list no trace, and none answers a quad of four texels, the adaptive tracing being the scene's triangles'. */
+  readonly fieldShadows?: boolean
   /** The exposure of the view the lights are strengthened under (`lightStrength`): the last image's, as the CPU knows it. */
   readonly exposure: number
   /** Whether the image lights its texels from the lights it picks for each (`surfaceCacheDirectLightingStochastic`, with its shadows traced), and whether
@@ -265,9 +270,11 @@ function directFlagsOf(settings: SurfaceCacheSettings, image: LightingImage) {
       ? LIGHTING_FLAG.prioritizeFrustum
       : 0) |
     (updateFrameFrozen(settings) ? LIGHTING_FLAG.freezeUpdateFrame : 0) |
-    (settings.surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing
+    (settings.surfaceCacheDirectLightingHardwareRayTracingAdaptiveShadowTracing &&
+    !image.fieldShadows
       ? LIGHTING_FLAG.adaptiveShadowTracing
       : 0) |
+    (image.fieldShadows ? LIGHTING_FLAG.fieldShadows : 0) |
     (settings.surfaceCacheDirectLightingHardwareRayTracingForceTwoSided
       ? LIGHTING_FLAG.forceTwoSided
       : 0) |
@@ -421,4 +428,8 @@ export function writeLightingParams(
     floats[at.eye + k] = image.eye[k]
   }
   frustumPlanes(image.viewProjection, image.eye, floats, at.frustum)
+  if (!image.other) return
+  for (let k = 0; k < 3; k++) floats[at.otherEye + k] = image.other.eye[k] * CM
+  floats[at.otherEye + 3] = 1
+  frustumPlanes(image.other.viewProjection, image.other.eye, floats, at.otherFrustum)
 }

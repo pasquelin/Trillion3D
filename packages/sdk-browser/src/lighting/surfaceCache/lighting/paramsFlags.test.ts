@@ -179,3 +179,29 @@ test('a frozen cache lights no tile and holds the update frame, its lists keepin
     lit.shape.directTiles,
   )
 })
+
+test('a second view the cache keeps cards for is written beside the main one: its eye in centimetres, flagged, and its own frustum', () => {
+  const shape = shapeOf(settings, 1024, false, WORD_LIGHT_FORMAT)
+  const write = (image: Parameters<typeof lightingImage>[0]) => {
+    const words = new Uint32Array(LIGHTING_PARAMS.words)
+    writeLightingParams(words, shape, settings, atOrigin(image))
+    return new Float32Array(words.buffer)
+  }
+  const none = write({})
+  assert.equal(none[LIGHTING_PARAMS.at.otherEye + 3], 0, 'no second view: none flagged')
+  const eye = [30, -4, 12.5]
+  const floats = write({ other: { eye, viewProjection: viewProjection(eye) } })
+  assert.deepEqual(
+    [...floats.subarray(LIGHTING_PARAMS.at.otherEye, LIGHTING_PARAMS.at.otherEye + 4)],
+    [3000, -400, 1250, 1],
+  )
+  const planes = floats.subarray(
+    LIGHTING_PARAMS.at.otherFrustum,
+    LIGHTING_PARAMS.at.otherFrustum + 20,
+  )
+  assert.deepEqual(
+    [...planes],
+    [...planesOf(eye)],
+    "the frustum is the second view's own, from its own eye",
+  )
+})

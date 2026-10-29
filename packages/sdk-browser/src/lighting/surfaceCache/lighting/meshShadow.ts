@@ -4,8 +4,6 @@ import type { SurfaceCacheSettings } from '../../../../../sdk-core/src/contracts
 import { CENTIMETRES_PER_METRE as CM } from '../../../../../sdk-core/src/page/format.ts'
 import type { WebgpuPagesRuntime } from '../../../frame/backend/runtime.ts'
 import { vsmMapSettings } from '../../shadows/vsm/frame/vsmFarShadow.ts'
-import { SHADOW_TEXELS } from './layout.ts'
-import { MESH_SUN_VISIBILITY_BINDING } from './meshShadowWgsl.ts'
 import { ledgerAdmitted, type HeldAllocation } from '../../../gpu/core/deviceLedger.ts'
 import { objectCapacity } from '../../rays/meshTrace/gridPasses.ts'
 import { boxBounds } from '../../distanceField/shadow/bounds.ts'
@@ -34,41 +32,40 @@ import { viewResources } from '../../distanceField/viewResources.ts'
 import type { MeshFieldScene } from '../../distanceField/meshFieldScene.ts'
 
 /**
- * THE MESHES' FIELDS THE SUNS' SHADOW ON THE CARDS IS TRACED THROUGH (`meshSunVisibility`, `meshShadowWgsl.ts`), listed before the lighting.
+ * THE MESHES' FIELDS THE SUNS' SHADOW ON THE CARDS IS TRACED THROUGH (`fieldShadowMesh`, `fieldShadowWgsl.ts`), listed before the lighting.
  * For each sun with shadows (the first `DFSH_MAX_LIGHTS`, one pass of lists a directional light as the reference makes), the meshes that
  * cast one are culled to the volume the cards are kept in — a cube round the eye, as far as the cards reach — and the sun, and listed by tile
  * of the volume's shadow space across it (`encodeShadowTiles`, over a shadow space of the volume's bounds), the settings of its tiles
  * the view's (`dfshSettingsOf`), every mesh listed, the ones made of clusters too: the sun's shadow maps draw the clusters at any distance
  * but do not reach the cards, so this is the only distance-field shadow of a sun. The passes make one sun's lists after the other in the
  * view's buffers, each copied after its pass to
- * the place of its sun in the buffers the direct light reads (`ListStore`). Every other light is traced through the global field. None
+ * the place of its sun in the buffers the shadow pass reads (`ListStore`). Every other light is traced through the global field. None
  * where the option is off, the scene has no mesh with a field, no sun casts a shadow, the programs are not compiled or the memory is
  * refused (`state.dfsh.why`): the image is then lit through the global field.
  */
 
-/** What the direct light's program reads of the lists, in its bind group `MESH_SHADOW_GROUP`: the resources it names (to know a moved one)
+/** What the shadow pass through the suns' meshes reads of the lists, in its bind group `MESH_SHADOW_GROUP`: the resources it names (to know a moved one)
  *  and the entries of the group. */
 export interface MeshShadow {
-  /** The group of the pass that traces the suns through the lists and the meshes' fields (`meshSunKernel`). */
+  /** The group of the pass that traces the suns through the lists and the meshes' fields (`fieldShadowMeshKernel`). */
   readonly identity: readonly unknown[]
   entries(): GPUBindGroupEntry[]
-  /** The buffer that pass writes the visibility of each texel to each sun in, which the direct light reads. */
-  readonly visibility: GPUBuffer
-  /** The group of the direct light's program: the suns' uniform blocks and that visibility. */
-  readonly read: { readonly identity: readonly unknown[]; entries(): GPUBindGroupEntry[] }
 }
 
-/** The buffers the direct light reads: a uniform block a sun, and the suns' tile lists one after the other (`tiles` entries of the offsets and counts, `entries` of the lists, a sun). */
+/** Where the three arrays of the suns' lists begin in the one buffer that holds them, in words: the tiles' start offsets, their counts, then the entries (`tiles` words of each of the first two and `entries` of the third, a sun). */
+const listRegions = (tiles: number, entries: number) => ({
+  offsets: 0,
+  counts: tiles * DFSH_MAX_LIGHTS,
+  data: 2 * tiles * DFSH_MAX_LIGHTS,
+  words: (2 * tiles + entries) * DFSH_MAX_LIGHTS,
+})
+
+/** The buffers the shadow pass reads: a uniform block a sun, and the suns' tile lists one after the other in one buffer (`listRegions`), which keeps the pass within the storage buffers a stage is granted. */
 interface ListStore extends HeldAllocation {
   readonly params: GPUBuffer
-  readonly tileOffsets: GPUBuffer
-  readonly tileCounts: GPUBuffer
-  readonly tileData: GPUBuffer
-  /** The visibility of every texel of the direct list's tiles to each sun, a word each. */
-  readonly visibility: GPUBuffer
+  readonly lists: GPUBuffer
   readonly tiles: number
   readonly entries: number
-  readonly directTiles: number
 }
 
 /** What the host holds of the suns' lists between images. */
@@ -127,30 +124,30 @@ function dfshSettingsOf(rt: WebgpuPagesRuntime, limit: number, into: DfshSetting
 
 const floats = new Float32Array((DFSH_MAX_LIGHTS * DFSH_PARAMS_STRIDE) / 4)
 const words = new Uint32Array(floats.buffer)
-/** The suns' blocks, side by side, as the direct light reads them. */
+/** The suns' blocks, side by side, as the shadow pass reads them. */
 const blocks = new Float32Array((DFSH_MAX_LIGHTS * DFSH_PARAMS_BYTES) / 4)
 const blockWords = new Uint32Array(blocks.buffer)
 /** The store of `tiles` × `tiles` tiles and `entries` list entries a sun, the `held` one if it is that, else made (the old one given back), or none where the budget refuses it. */
 function ensureStore(
   state: MeshShadowState,
   device: GPUDevice,
-  shape: { tiles: number; entries: number; directTiles: number },
+  shape: { tiles: number; entries: number },
 ) {
   const held = state.store
-  if (
-    held &&
-    held.tiles === shape.tiles * shape.tiles &&
-    held.entries === shape.entries &&
-    held.directTiles === shape.directTiles
-  )
+  if (held && held.tiles === shape.tiles * shape.tiles && held.entries === shape.entries)
     return held
   const tiles = shape.tiles * shape.tiles
   const sizes = {
     params: DFSH_PARAMS_BYTES * DFSH_MAX_LIGHTS,
-    tileOffsets: tiles * DFSH_MAX_LIGHTS * 4,
-    tileCounts: tiles * DFSH_MAX_LIGHTS * 4,
-    tileData: shape.entries * DFSH_MAX_LIGHTS * 4,
-    visibility: shape.directTiles * SHADOW_TEXELS * DFSH_MAX_LIGHTS * 4,
+    lists: listRegions(tiles, shape.entries).words * 4,
+  }
+  // The lists are one binding: where it passes what the device grants a buffer, the suns are lit through the global field.
+  const { maxStorageBufferBindingSize, maxBufferSize } = device.limits
+  if (sizes.lists > Math.min(maxStorageBufferBindingSize, maxBufferSize)) {
+    held?.dispose()
+    state.store = undefined
+    state.dfsh.why = 'the suns’ meshes lists pass the largest buffer binding of the device'
+    return undefined
   }
   const { value, why } = ledgerAdmitted(device, {
     held,
@@ -161,13 +158,9 @@ function ensureStore(
       const STORAGE = GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST
       return {
         params: buffer('params', sizes.params, GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST),
-        tileOffsets: buffer('tileOffsets', sizes.tileOffsets, STORAGE),
-        tileCounts: buffer('tileCounts', sizes.tileCounts, STORAGE),
-        tileData: buffer('tileData', sizes.tileData, STORAGE),
-        visibility: buffer('visibility', sizes.visibility, GPUBufferUsage.STORAGE),
+        lists: buffer('lists', sizes.lists, STORAGE),
         tiles,
         entries: shape.entries,
-        directTiles: shape.directTiles,
         bytes: Object.values(sizes).reduce((sum, bytes) => sum + bytes, 0),
         dispose,
       }
@@ -203,9 +196,14 @@ function writeSunBlocks(
     floats[base + at.range + 3] = options.surfaceCacheDirectLightingMeshSdfShadowRayBias
     const own = (sun * DFSH_PARAMS_BYTES) / 4
     blocks.set(floats.subarray(base, base + DFSH_PARAMS_BYTES / 4), own)
-    // Where the sun's lists lie in the store (the lists' passes read neither word): its first tile in `counts.z`, its first entry in `lists.x`.
+    // Where the sun's lists lie in the store (the lists' passes read none of these words): its first tile in `counts.z`, its first entry in `lists.x`, and
+    // where the arrays begin in the buffer: the offsets in `lists.y`, the counts in `lists.z`, the entries in `lists.w`.
+    const regions = listRegions(tilesPerSun, entries)
     blockWords[own + at.counts + 2] = sun * tilesPerSun
     blockWords[own + at.lists] = sun * entries
+    blockWords[own + at.lists + 1] = regions.offsets
+    blockWords[own + at.lists + 2] = regions.counts
+    blockWords[own + at.lists + 3] = regions.data
   })
 }
 
@@ -229,49 +227,34 @@ function encodeSunLists(
       objects: objects.count,
       settings,
     })
-    const copy = (from: GPUBuffer, to: GPUBuffer, stride: number, count: number) =>
-      encoder.copyBufferToBuffer(from, 0, to, sun * stride * 4, count * 4)
-    copy(view.tileOffsets, store.tileOffsets, tilesPerSun, side * side)
-    copy(view.tileCounts, store.tileCounts, tilesPerSun, side * side)
-    copy(view.tileData, store.tileData, entries, settings.perTile * side * side)
+    const regions = listRegions(tilesPerSun, entries)
+    const copy = (from: GPUBuffer, region: number, stride: number, count: number) =>
+      encoder.copyBufferToBuffer(from, 0, store.lists, (region + sun * stride) * 4, count * 4)
+    copy(view.tileOffsets, regions.offsets, tilesPerSun, side * side)
+    copy(view.tileCounts, regions.counts, tilesPerSun, side * side)
+    copy(view.tileData, regions.data, entries, settings.perTile * side * side)
   })
 }
 
-/** The group the direct light reads the suns' lists through: the store's buffers and the objects'. */
+/** The group the shadow pass reads the suns' lists through: the store's buffers and the objects'. */
 function meshShadowGroup(store: SunStore, objects: MeshFieldScene): MeshShadow {
   const named = (resources: Partial<Record<keyof typeof B, GPUBindingResource>>) =>
     namedEntries(B, resources)
   return {
-    identity: [
-      store.params,
-      store.tileOffsets,
-      store.tileCounts,
-      store.tileData,
-      objects.generation,
-    ],
+    identity: [store.params, store.lists, objects.generation],
     entries: () => [
       ...named({
         params: wholeBuffer(store.params),
-        tileOffsets: wholeBuffer(store.tileOffsets),
-        tileCounts: wholeBuffer(store.tileCounts),
-        tileData: wholeBuffer(store.tileData),
+        tileOffsets: wholeBuffer(store.lists),
       }),
       ...objects.bindEntries(B.objects),
     ],
-    visibility: store.visibility,
-    read: {
-      identity: [store.params, store.visibility],
-      entries: () => [
-        { binding: B.params, resource: wholeBuffer(store.params) },
-        { binding: MESH_SUN_VISIBILITY_BINDING, resource: wholeBuffer(store.visibility) },
-      ],
-    },
   }
 }
 
 /**
  * Lists the meshes of `rt`'s scene for the suns on `encoder`, before the lighting's pass, for the cards' volume `reach` centimetres round
- * the eye `eye` (metres): the lists and the suns' uniform, as a group for the direct light, or none (and why in `state.dfsh`).
+ * the eye `eye` (metres): the lists and the suns' uniform, as a group for the shadow pass, or none (and why in `state.dfsh`).
  */
 export function encodeMeshShadow(
   state: MeshShadowState,
@@ -279,7 +262,7 @@ export function encodeMeshShadow(
   device: GPUDevice,
   encoder: GPUCommandEncoder,
   options: Pick<SurfaceCacheSettings, 'surfaceCacheDirectLightingMeshSdfShadowRayBias'>,
-  volume: { eye: ArrayLike<number>; reach: number; directTiles: number },
+  volume: { eye: ArrayLike<number>; reach: number },
 ): MeshShadow | undefined {
   const objects: MeshFieldScene | undefined = rt.distanceFields?.scene?.meshes
   const suns = sunDirections(rt)
@@ -301,11 +284,7 @@ export function encodeMeshShadow(
   const view = made.view
   if (!view) return undefined
   const entries = Math.max(...sides.map((side) => settings.perTile * side * side))
-  const store = ensureStore(state, device, {
-    tiles: view.shape.tiles,
-    entries,
-    directTiles: volume.directTiles,
-  })
+  const store = ensureStore(state, device, { tiles: view.shape.tiles, entries })
   if (!store) return undefined
   const tilesPerSun = view.shape.tiles * view.shape.tiles
   writeSunBlocks(suns, bounds, volume.eye, objects.count, options, entries, tilesPerSun)
