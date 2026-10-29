@@ -21,10 +21,15 @@ export const RAY_TRACING_FILE = 'rayTracing.bin'
 /** The first four bytes of `rayTracing.bin`: `T3RT` read as a little-endian `u32`. */
 export const RAY_TRACING_MAGIC = 0x54523354
 /** Format of `rayTracing.bin` and of the manifest's `rayTracing` section
- *  (`asset-compiler-rust/src/ray_tracing/encode.rs` lays it out). */
-export const RAY_TRACING_VERSION = 3
-/** The bytes of the file's head: the magic, the version, the record count, the node count and the
- *  triangle count (five `u32`), then three zero words. */
+ *  (`asset-compiler-rust/src/ray_tracing/encode.rs` lays it out): the triangles name their corners
+ *  in a table of the file's vertices (`RAY_TRACING_INDEXED_TRIANGLE_BYTES`). */
+export const RAY_TRACING_VERSION = 4
+/** The format before, which the engine still reads: each triangle holds its corners
+ *  (`RAY_TRACING_TRIANGLE_BYTES`), and the file has no vertices. */
+export const RAY_TRACING_FLAT_VERSION = 3
+/** The bytes of the file's head: the magic, the version, the record count, the node count, the
+ *  triangle count and the vertex count (six `u32`; a zero word in the flat format), then two zero
+ *  words. */
 export const RAY_TRACING_HEAD_BYTES = 32
 /** The bytes of a primitive's record: its compiled mesh and its number in the mesh (the two
  *  numbers a cluster root names its primitive by, `ClusterRoot.mesh` and `ClusterRoot.primitive`;
@@ -45,13 +50,23 @@ export const RAY_TRACING_RECORD_BYTES = 64
  *  are consecutive from its first, in slot order: the child in slot `s` is the node of rank
  *  `childBase` plus the number of internal children in the slots before `s`. */
 export const RAY_TRACING_NODE_BYTES = 80
-/** The bytes of a triangle: its three corners in metres (nine `f32`), the rank of its cluster in
+/** The bytes of a triangle as the GPU reads it, and as the flat format holds it: its three corners
+ *  in metres (nine `f32`), the rank of its cluster in
  *  the primitive's DAG and its own rank in the cluster (two `u32`) and its tag, a zero word. An entry
  *  of the world's directory (`RAY_TRACING_FLAG_WORLD`) takes the place of a triangle: the low and the
  *  high corner of an actor's box and the low corner again, the actor's rank among the actors' records
  *  (`cluster`, the records just before the directory's, in order), zero, and the actor's HLOD cell
  *  (the tag). */
 export const RAY_TRACING_TRIANGLE_BYTES = 48
+/** The bytes of a vertex of the file: a corner, three `f32` in metres, the bits of a triangle's own.
+ *  The file holds each corner once, in the order the triangles first name them. */
+export const RAY_TRACING_VERTEX_BYTES = 12
+/** The bytes of a triangle as the file holds it: its three corners among the file's vertices
+ *  (three `u32`: zero for a corner first named, the next vertex; else how far back it lies from
+ *  the next, the next vertex's rank less its own), then the triangle's last three words
+ *  (`RAY_TRACING_TRIANGLE_AT`). The reader lays it out as the GPU reads it
+ *  (`RAY_TRACING_TRIANGLE_BYTES`), the same bytes. */
+export const RAY_TRACING_INDEXED_TRIANGLE_BYTES = 24
 /** The words of a triangle after its nine corner floats, by name (`RAY_TRACING_TRIANGLE_BYTES`). */
 export const RAY_TRACING_TRIANGLE_AT = { cluster: 9, triangle: 10, tag: 11 } as const
 /** The children of a node: the slots of its metas and its masks, in no order the walk reads — it

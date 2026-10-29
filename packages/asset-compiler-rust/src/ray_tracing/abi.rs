@@ -2,14 +2,16 @@
 //!   packages/sdk-core/src/contracts/rayTracingAbi.ts
 //! Edit the source, then run `pnpm run generate:shared-rules`.
 
-/// The file, the magic, the version, the records, the node's width, a leaf's meta byte, the flags, the stack and the least exponent of `rayTracing.bin`.
+/// The file, the magic, the version, the records, the vertices and indexed triangles, the node's width, a leaf's meta byte, the flags, the stack and the least exponent of `rayTracing.bin`.
 pub const RAY_TRACING_FILE: &str = "rayTracing.bin";
 pub const RAY_TRACING_MAGIC: u32 = 1414673236;
-pub const RAY_TRACING_VERSION: u32 = 3;
+pub const RAY_TRACING_VERSION: u32 = 4;
 pub const RAY_TRACING_HEAD_BYTES: usize = 32;
 pub const RAY_TRACING_RECORD_BYTES: usize = 64;
 pub const RAY_TRACING_NODE_BYTES: usize = 80;
 pub const RAY_TRACING_TRIANGLE_BYTES: usize = 48;
+pub const RAY_TRACING_VERTEX_BYTES: usize = 12;
+pub const RAY_TRACING_INDEXED_TRIANGLE_BYTES: usize = 24;
 pub const RAY_TRACING_WIDTH: usize = 8;
 pub const RAY_TRACING_LEAF_TRIANGLES: usize = 3;
 pub const RAY_TRACING_LEAF_COUNT_SHIFT: u32 = 5;

@@ -18,14 +18,15 @@ use crate::{Options, Result};
 use rayon::prelude::*;
 use serde_json::{json, Value};
 use trillion3d_math::geometry::aabb::aabb_of_f32;
-use trillion3d_math::scalar::median_in_place;
 use trillion3d_page_codec::culling::CullingNode;
 use trillion3d_page_codec::encode::vertices::first_use;
 
 /// Most triangles one tile holds: the grain the worker streams by (its bytes stay near 100 kB).
 pub(crate) const TILE_TRIANGLES: usize = 4096;
 
-/// The object's collision tolerance, in object units: the median error of its level 1.
+/// The object's collision tolerance, in object units: the median error of its level 1, the upper
+/// one of an even count (rank `len / 2` in `total_cmp` order): of the two, the coarser, whose cut
+/// is the lighter collider the measure still holds it to.
 pub(crate) fn tolerance(dag: &[DagCluster]) -> f64 {
     let mut errors: Vec<f64> = dag
         .iter()
@@ -35,7 +36,8 @@ pub(crate) fn tolerance(dag: &[DagCluster]) -> f64 {
     if errors.is_empty() {
         return 0.0;
     }
-    median_in_place(&mut errors)
+    let upper = errors.len() / 2;
+    *errors.select_nth_unstable_by(upper, f64::total_cmp).1
 }
 
 /// The ranks a leaf owns, none for a node with children or without clusters.

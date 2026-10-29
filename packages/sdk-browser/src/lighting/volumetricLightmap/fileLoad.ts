@@ -20,15 +20,15 @@ import { readBase, readSidecar, verifiedPart } from '../../geometry/cluster/side
  *  `UNSUPPORTED_FORMAT`, one that names no file `INVALID_CACHE`. A file of the first version has all
  *  its bricks in its layers; one of the second names the bytes always read (`baseBytes`,
  *  `baseSha256`) and keeps the finest bricks apart, by cell. */
-const assertLightmapSection = (section: unknown) => {
-  const first =
-    (section as { version?: unknown } | null | undefined)?.version ===
-    VOLUMETRIC_LIGHTMAP_FIRST_VERSION
-  const read = first ? VOLUMETRIC_LIGHTMAP_FIRST_VERSION : VOLUMETRIC_LIGHTMAP_VERSION
-  return assertSidecarSection(section, read, 'volumetric lightmap', false) as
+const assertLightmapSection = (section: unknown) =>
+  assertSidecarSection(
+    section,
+    [VOLUMETRIC_LIGHTMAP_FIRST_VERSION, VOLUMETRIC_LIGHTMAP_VERSION],
+    'volumetric lightmap',
+    false,
+  ) as
     | (ReturnType<typeof assertSidecarSection> & { baseBytes?: number; baseSha256?: string })
     | undefined
-}
 
 /** A lightmap read and the reader of its cells (none where all its bricks are in its layers). */
 export interface ReadLightmap {

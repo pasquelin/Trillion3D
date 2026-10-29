@@ -1035,8 +1035,9 @@ The trees a ray tracer walks: one for each compiled primitive that has a triangl
 world with HLOD actors, one for each actor and the directory of them
 (`rust/ray_tracing/encode.rs`, read by `sdk-core/src/lighting/rayTracingFile.ts`; the cut is in
 [COMPILER.md](COMPILER.md#ray-tracing)). Words are little-endian; lengths are metres, in the primitive's object
-space, or, for the world's records, in the world's space. The head, 32 bytes: the magic `T3RT`, the version (3),
-the number of records, the number of nodes, the number of triangles (`u32` each) and three zero words. Then a
+space, or, for the world's records, in the world's space. The head, 32 bytes: the magic `T3RT`, the version (4),
+the number of records, the number of nodes, the number of triangles, the number of vertices (`u32` each) and two
+zero words. Then a
 record of 64 bytes, one for each primitive in the order of the manifest's primitives, then the actors' records,
 then the directory's. A record holds, in this order:
 
@@ -1051,8 +1052,8 @@ then the directory's. A record holds, in this order:
 | 14    | the HLOD cell whose switch shows the actor, in an actor's record; zero in every other                                                                                            |
 | 15    | zero                                                                                                                                                                             |
 
-The records are followed by the nodes of every record, 80 bytes each, one record after the other, then by their
-triangles, 48 bytes each. A record's nodes are consecutive, its root the first, and the links of a node count from
+The records are followed by the nodes of every record, 80 bytes each, one record after the other, then by the
+vertices, 12 bytes each, then by their triangles, 24 bytes each. A record's nodes are consecutive, its root the first, and the links of a node count from
 its record's first node and first triangle.
 
 A node has up to eight children, in eight slots. The slots are in the order the compiler opened the children
@@ -1075,8 +1076,13 @@ of the node's internal children. No tree needs a walk to keep more than `RAY_TRA
 (a walk keeps, at a node, every internal child it meets but the nearest): the compiler splits a tree whose cheapest
 cuts need more in halves, and stops with `RAY_TRACING_TREE_TOO_DEEP` if even those need more.
 
-A triangle, 48 bytes, holds its three corners (nine `f32`), the rank of its cluster among the DAG clusters, its
-own rank in the cluster and its tag (`u32` each). The tag is zero but in the directory.
+A vertex is a corner (three `f32`), each corner of the file once, in the order the triangles first name them. A
+triangle, 24 bytes, holds its three corners among the vertices — zero for a corner first named, which is the next
+vertex; else how far back it lies from the next, the next vertex's rank less its own —, the rank of its cluster
+among the DAG clusters, its own rank in the cluster and its tag (`u32` each). The tag is zero but in the directory. The reader
+lays each triangle out as the GPU reads it, 48 bytes (`RAY_TRACING_TRIANGLE_BYTES`): its three corners' floats,
+then its last three words; it refuses a triangle naming a vertex the file lacks. Version 3, which the reader still
+reads, has no vertices (the vertex count is zero) and holds the triangles so laid out.
 
 The record's third word holds flags:
 
@@ -1110,12 +1116,13 @@ by (zero for an actor with none, which a hit names `NO_INDEX`, as a miss does).
 The manifest's `rayTracing` section names the file and its size:
 
 ```json
-{ "rayTracing": { "version": 3, "file": "rayTracing.bin", "bytes": 2672 } }
+{ "rayTracing": { "version": 4, "file": "rayTracing.bin", "bytes": 2672 } }
 ```
 
 A scene none of whose primitives nor actors has a triangle in its cut writes neither the file nor the section.
-Constants: `RAY_TRACING_VERSION`, `RAY_TRACING_MAGIC`, `RAY_TRACING_HEAD_BYTES`, `RAY_TRACING_RECORD_BYTES`,
-`RAY_TRACING_NODE_BYTES`, `RAY_TRACING_TRIANGLE_BYTES`, `RAY_TRACING_WIDTH`, `RAY_TRACING_LEAF_TRIANGLES`,
+Constants: `RAY_TRACING_VERSION`, `RAY_TRACING_FLAT_VERSION`, `RAY_TRACING_MAGIC`, `RAY_TRACING_HEAD_BYTES`,
+`RAY_TRACING_RECORD_BYTES`, `RAY_TRACING_NODE_BYTES`, `RAY_TRACING_VERTEX_BYTES`,
+`RAY_TRACING_INDEXED_TRIANGLE_BYTES`, `RAY_TRACING_TRIANGLE_BYTES`, `RAY_TRACING_WIDTH`, `RAY_TRACING_LEAF_TRIANGLES`,
 `RAY_TRACING_LEAF_COUNT_SHIFT`, `RAY_TRACING_LEAF_OFFSET_MASK`, `RAY_TRACING_FLAG_*`, `RAY_TRACING_NO_PRIMITIVE`,
 `RAY_TRACING_STACK`, `RAY_TRACING_MIN_EXPONENT` (`packages/sdk-core/src/contracts/rayTracingAbi.ts`).
 

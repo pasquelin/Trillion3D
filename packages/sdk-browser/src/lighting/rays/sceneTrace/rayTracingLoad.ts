@@ -10,7 +10,7 @@ import { readSidecar } from '../../../geometry/cluster/sidecarFile.ts'
 /**
  * THE ACCELERATION STRUCTURES OF A CACHE (`rayTracing.bin`, the manifest's `rayTracing` section):
  * the primitives' and the world's HLOD actors', the file read once beside the manifest
- * (`readSidecar`), and parsed (`parseRayTracing`). A cache whose primitives and actors built none
+ * (`readSidecar`), and parsed (`parseRayTracing`), of the version its section names. A cache whose primitives and actors built none
  * has neither the section nor the file, and none is read.
  */
 export async function readRayTracing(
@@ -27,5 +27,5 @@ export async function readRayTracing(
     signal,
     meter,
   )
-  return file && parseRayTracing(new Uint8Array(file.bytes))
+  return file && parseRayTracing(new Uint8Array(file.bytes), file.section.version)
 }

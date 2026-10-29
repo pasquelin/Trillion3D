@@ -12,7 +12,9 @@ import {
   RAY_TRACING_FLAG_ACTOR,
   RAY_TRACING_FLAG_TWO_SIDED,
   RAY_TRACING_FLAG_WORLD,
+  RAY_TRACING_FLAT_VERSION,
   RAY_TRACING_HEAD_BYTES,
+  RAY_TRACING_INDEXED_TRIANGLE_BYTES,
   RAY_TRACING_MAGIC,
   RAY_TRACING_NODE_BYTES,
   RAY_TRACING_NO_PRIMITIVE,
@@ -21,6 +23,7 @@ import {
   RAY_TRACING_TRIANGLE_AT,
   RAY_TRACING_TRIANGLE_BYTES,
   RAY_TRACING_VERSION,
+  RAY_TRACING_VERTEX_BYTES,
 } from '../contracts/rayTracingAbi.ts'
 
 /**
@@ -30,7 +33,9 @@ import {
  * world's space (`RAY_TRACING_FLAG_ACTOR`; it names no primitive but the HLOD cell that shows it),
  * then the directory of the actors (`RAY_TRACING_FLAG_WORLD`), a structure over their boxes whose
  * entries stand where triangles do. The file is its head, its records, then all the
- * nodes, then all the triangles; the reader
+ * nodes, then the vertices, each corner once, then all the triangles, each naming its corners
+ * among the vertices by how far back they lie from the next (`cornered`; the flat format, `RAY_TRACING_FLAT_VERSION`, has no vertices: its
+ * triangles hold their corners); the reader
  * keeps them as the words the GPU reads (`sceneTrace/`, `../../../sdk-browser/src/lighting/rays/`):
  *
  * - a record (`RAY_TRACING_RECORD_WORDS` words) names its primitive (its compiled mesh and its
@@ -52,6 +57,10 @@ import {
 export const RAY_TRACING_RECORD_WORDS = RAY_TRACING_RECORD_BYTES / 4
 const RAY_TRACING_NODE_WORDS = RAY_TRACING_NODE_BYTES / 4
 const RAY_TRACING_TRIANGLE_WORDS = RAY_TRACING_TRIANGLE_BYTES / 4
+const RAY_TRACING_VERTEX_WORDS = RAY_TRACING_VERTEX_BYTES / 4
+const RAY_TRACING_INDEXED_TRIANGLE_WORDS = RAY_TRACING_INDEXED_TRIANGLE_BYTES / 4
+/** The formats this engine reads: the flat one, then the one with vertices. */
+const RAY_TRACING_VERSIONS = [RAY_TRACING_FLAT_VERSION, RAY_TRACING_VERSION] as const
 
 /** The ray tracing file, as the words the GPU reads. */
 export interface RayTracing {
@@ -89,7 +98,7 @@ const KNOWN_FLAGS =
  * throws `UNSUPPORTED_FORMAT`, one that names no file `INVALID_CACHE`.
  */
 export const assertRayTracingSection = (section: unknown) =>
-  assertSidecarSection(section, RAY_TRACING_VERSION, 'ray tracing')
+  assertSidecarSection(section, RAY_TRACING_VERSIONS, 'ray tracing')
 
 /** Whether the six floats from word `at` of `words` are finite and a box: low corner under high. */
 function finiteBox(words: Float32Array, at: number) {
@@ -185,34 +194,86 @@ function checkDirectory(records: Uint32Array, triangles: Uint32Array, world: num
   return cells
 }
 
+/** The `count` triangles `words` hold, laid out as the GPU reads them: each its three corners'
+ *  words, then its last three words. A corner is written zero when it is the next of `vertices`,
+ *  else as how far back it lies from the next. A corner before the first vertex, past the last,
+ *  or vertices no triangle names throw `INVALID_CACHE`. */
+function cornered(words: Uint32Array, vertices: Uint32Array, count: number) {
+  const triangles = new Uint32Array(count * RAY_TRACING_TRIANGLE_WORDS)
+  const held = vertices.length / RAY_TRACING_VERTEX_WORDS
+  let next = 0
+  for (let t = 0; t < count; t++) {
+    const from = t * RAY_TRACING_INDEXED_TRIANGLE_WORDS
+    let to = t * RAY_TRACING_TRIANGLE_WORDS
+    for (let c = 0; c < 3; c++, to += RAY_TRACING_VERTEX_WORDS) {
+      const back = words[from + c]
+      if (back > next) refuse(`triangle ${t} names a vertex ${back} before the next, ${next}`)
+      const v = back === 0 ? next++ : next - back
+      if (v >= held) refuse(`triangle ${t} names the vertex ${v} of ${held}`)
+      const at = v * RAY_TRACING_VERTEX_WORDS
+      triangles[to] = vertices[at]
+      triangles[to + 1] = vertices[at + 1]
+      triangles[to + 2] = vertices[at + 2]
+    }
+    // Past its corners, the triangle's last three words (`RAY_TRACING_TRIANGLE_AT.cluster` on).
+    triangles[to] = words[from + 3]
+    triangles[to + 1] = words[from + 4]
+    triangles[to + 2] = words[from + 5]
+  }
+  if (next !== held) refuse(`${held - next} vertices that no triangle names`)
+  return triangles
+}
+
+/** The `count` triangles of the file `bytes` after its nodes, which end at byte `nodesEnd`, as the
+ *  GPU reads them: held so in the flat format (`vertexCount` undefined), else laid out from the
+ *  `vertexCount` vertices that come first (`cornered`). The file must end with them. */
+function trianglesOf(
+  bytes: Uint8Array,
+  nodesEnd: number,
+  count: number,
+  vertexCount: number | undefined,
+) {
+  const trianglesAt = nodesEnd + (vertexCount ?? 0) * RAY_TRACING_VERTEX_BYTES
+  const each =
+    vertexCount === undefined ? RAY_TRACING_TRIANGLE_BYTES : RAY_TRACING_INDEXED_TRIANGLE_BYTES
+  if (trianglesAt + count * each !== bytes.byteLength)
+    refuse('not its head, its records, its nodes, its vertices and its triangles')
+  const words = wordsOf(bytes, trianglesAt, (count * each) / 4)
+  if (vertexCount === undefined) return words
+  return cornered(words, wordsOf(bytes, nodesEnd, vertexCount * RAY_TRACING_VERTEX_WORDS), count)
+}
+
 /**
  * Reads the file `bytes` hold, or throws `INVALID_CACHE`; a file of another version throws
- * `UNSUPPORTED_FORMAT`. The file must be its head, its records, its nodes and its triangles, no
- * more: each record's nodes and triangles follow the previous record's. A record has the flags of
+ * `UNSUPPORTED_FORMAT`. The file must be its head, its records, its nodes, its vertices (none in
+ * the flat format) and its triangles, no more, of the version `announced` names when it names one
+ * (the manifest's section's); every vertex must be named by a triangle and every corner a triangle
+ * names must be one of them. Each record's nodes and triangles follow the previous record's. A record has the flags of
  * its kind: the world's directory the world's alone, and a zero cell word but an actor's. A record
  * is flagged translucent whole (`RAY_TRACING_FLAG_ALL_TRANSLUCENT`) when it is translucent and
  * every primitive of its mesh is (an actor being a mesh of one material). Each entry
  * of the world's directory must name an actor's record among those just before it, and that actor's
  * HLOD cell.
  */
-export function parseRayTracing(bytes: Uint8Array): RayTracing {
-  checkSidecarHead(bytes, {
+export function parseRayTracing(bytes: Uint8Array, announced?: number): RayTracing {
+  const version = checkSidecarHead(bytes, {
     magic: RAY_TRACING_MAGIC,
-    version: RAY_TRACING_VERSION,
+    version: RAY_TRACING_VERSIONS,
     headBytes: RAY_TRACING_HEAD_BYTES,
     what: 'ray tracing',
   })
+  if (announced !== undefined && version !== announced)
+    refuse(`a file of version ${version}, its manifest's section of ${announced}`)
   const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength)
   const recordCount = view.getUint32(8, true)
   const nodeCount = view.getUint32(12, true)
   const triangleCount = view.getUint32(16, true)
+  const vertexCount = version === RAY_TRACING_FLAT_VERSION ? undefined : view.getUint32(20, true)
   const nodesAt = RAY_TRACING_HEAD_BYTES + recordCount * RAY_TRACING_RECORD_BYTES
-  const trianglesAt = nodesAt + nodeCount * RAY_TRACING_NODE_BYTES
-  if (trianglesAt + triangleCount * RAY_TRACING_TRIANGLE_BYTES !== bytes.byteLength)
-    refuse('not its head, its records, its nodes and its triangles')
+  const nodesEnd = nodesAt + nodeCount * RAY_TRACING_NODE_BYTES
+  const triangles = trianglesOf(bytes, nodesEnd, triangleCount, vertexCount)
   const records = wordsOf(bytes, RAY_TRACING_HEAD_BYTES, recordCount * RAY_TRACING_RECORD_WORDS)
   const nodes = wordsOf(bytes, nodesAt, nodeCount * RAY_TRACING_NODE_WORDS)
-  const triangles = wordsOf(bytes, trianglesAt, triangleCount * RAY_TRACING_TRIANGLE_WORDS)
   const floats = new Float32Array(records.buffer, records.byteOffset, records.length)
   const A = RAY_TRACING_RECORD_AT
   const byPrimitive = new Map<number, Map<number, number>>()

@@ -1,5 +1,20 @@
 import { EngineError } from './cache.ts'
 
+/** The versions of a sidecar format this engine reads: one, or the first and the last. */
+type SidecarVersions = number | readonly [number, number]
+
+/** Throws `UNSUPPORTED_FORMAT` unless `found` is one of `versions`, a whole number from the first to
+ *  the last; `what` names the file's content. */
+function checkVersion(found: unknown, versions: SidecarVersions, what: string) {
+  const [first, last] = typeof versions === 'number' ? [versions, versions] : versions
+  if (!Number.isInteger(found) || (found as number) < first || (found as number) > last)
+    throw new EngineError(
+      'UNSUPPORTED_FORMAT',
+      `${what}: version ${String(found)}, this engine reads ${first === last ? first : `${first} to ${last}`}`,
+      {},
+    )
+}
+
 /** The manifest's section of a sidecar file (`meshCards.bin`, `distanceFields.bin`, ...), as far as a load needs it:
  *  the format's version, the file and, for a file whose section is sized, its size. */
 export interface SidecarSection {
@@ -10,13 +25,13 @@ export interface SidecarSection {
 
 /**
  * The manifest's section of a sidecar file, or undefined when the cache has none (a scene that builds
- * none writes neither the section nor the file); a section of another `version` throws
- * `UNSUPPORTED_FORMAT`, one that names no file — or, `sized`, no size — `INVALID_CACHE`. `what` names the
- * file's content in the messages.
+ * none writes neither the section nor the file); a section of another `version` — one, or the
+ * first and the last this engine reads — throws `UNSUPPORTED_FORMAT`, one that names no file — or,
+ * `sized`, no size — `INVALID_CACHE`. `what` names the file's content in the messages.
  */
 export function assertSidecarSection(
   section: unknown,
-  version: number,
+  version: SidecarVersions,
   what: string,
   sized = true,
 ): SidecarSection | undefined {
@@ -24,12 +39,7 @@ export function assertSidecarSection(
   if (typeof section !== 'object' || Array.isArray(section))
     throw new EngineError('INVALID_CACHE', `${what}: the section is not an object`, {})
   const named = section as Partial<SidecarSection>
-  if (named.version !== version)
-    throw new EngineError(
-      'UNSUPPORTED_FORMAT',
-      `${what}: version ${String(named.version)}, this engine reads ${version}`,
-      {},
-    )
+  checkVersion(named.version, version, what)
   if (typeof named.file !== 'string' || !named.file || (sized && typeof named.bytes !== 'number'))
     throw new EngineError(
       'INVALID_CACHE',
@@ -54,8 +64,8 @@ export const sidecarRefusal =
 export interface SidecarHead {
   /** The word at byte 0. */
   readonly magic: number
-  /** The format's version at byte 4: one, or the first and the last this engine reads. */
-  readonly version: number | readonly [number, number]
+  /** The format's version at byte 4. */
+  readonly version: SidecarVersions
   /** The size of the head, in bytes. */
   readonly headBytes: number
   /** The file's content in the messages, as `assertSidecarSection` names it. */
@@ -75,13 +85,6 @@ export function checkSidecarHead(bytes: Uint8Array, head: SidecarHead): number {
   if (words.getUint32(0, true) !== magic)
     throw new EngineError('INVALID_CACHE', `${what}: not a ${what} file`, {})
   const version = words.getUint32(4, true)
-  const [first, last] =
-    typeof head.version === 'number' ? [head.version, head.version] : head.version
-  if (version < first || version > last)
-    throw new EngineError(
-      'UNSUPPORTED_FORMAT',
-      `${what}: version ${version}, this engine reads ${first === last ? first : `${first} to ${last}`}`,
-      {},
-    )
+  checkVersion(version, head.version, what)
   return version
 }
