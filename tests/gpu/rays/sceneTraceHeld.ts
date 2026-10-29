@@ -5,11 +5,7 @@ import assert from 'node:assert/strict'
 import { bufferHolding } from '../../kit/device/computeReadback.ts'
 import { animationFrame } from '../../kit/device/frame.ts'
 import { settle } from '../world/proofWorld.ts'
-import {
-  unsettledMask,
-  unsettledReasons,
-} from '../../../packages/sdk-browser/src/frame/loop/unsettled.ts'
-import { everyImageTerms } from '../../../packages/sdk-browser/src/frame/loop/everyImage.ts'
+import { whyNotHeld } from '../../kit/device/pagesRuntime.ts'
 import {
   ensureSceneTrace,
   type SceneTrace,
@@ -65,14 +61,7 @@ export async function measure<T>(scene: 'plain' | 'hlod', batches: (held: Held) 
     world.setPose(pose)
     await world.awaitPages()
     if ((await settle(world, pose)) === null) {
-      // What keeps it drawing, named: the unsettled terms, the terms drawn every image, and whether the view stands.
-      const rt = runtime()
-      const why = rt && {
-        unsettled: unsettledReasons(unsettledMask(rt, rt.run.frame)),
-        everyImage: everyImageTerms(rt),
-        standing: rt.run.gate.held(),
-      }
-      throw new Error(`the view never settled: ${JSON.stringify(why)}`)
+      throw new Error(`the view never settled: ${JSON.stringify(whyNotHeld(runtime()))}`)
     }
     const rt = runtime()
     if (!rt) throw new Error('the engine built no runtime')

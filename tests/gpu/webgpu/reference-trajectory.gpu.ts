@@ -9,7 +9,8 @@ import { DEFAULT_SCENE } from '../../../bench/runner/assets/scene.ts'
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import { MEASURE_HEIGHT, MEASURE_WIDTH } from './measureResolution.ts'
 import { runOnDawn } from '../../kit/device/onDawn.ts'
-import { openEngineWorld, proofCanvas } from '../../kit/device/renderHarness.ts'
+import { measurementSdk, proofCanvas } from '../../kit/device/renderHarness.ts'
+import { runtimeKeepingEngine, whyNotHeld } from '../../kit/device/pagesRuntime.ts'
 import { benchManifest, settle } from '../world/proofWorld.ts'
 import { drawnPixels } from '../../kit/device/sceneImageProof.ts'
 import { FIXED_EXPOSURE } from '../frame/facingWorld.ts'
@@ -20,7 +21,9 @@ const POINTS = ceilDiv(PATH_POSES, FRAMES_PER_SEGMENT)
 
 async function walkTheTrajectory() {
   const events: EngineDiagnostic[] = []
-  const world = await openEngineWorld(proofCanvas('trajectory'), {
+  const { openMeasuredWorld } = await measurementSdk()
+  const { factory, runtime } = runtimeKeepingEngine()
+  const world = await openMeasuredWorld(proofCanvas('trajectory'), {
     manifestUrl: benchManifest(DEFAULT_SCENE),
     scope: 'full',
     width: MEASURE_WIDTH,
@@ -33,6 +36,7 @@ async function walkTheTrajectory() {
     // An automatic exposure moves toward each pose's light for longer than a pose is given to be held.
     ...FIXED_EXPOSURE,
     onDiagnostic: (event) => void events.push(event),
+    engine: factory,
   })
   world.setClearColor(0x2a303c)
   try {
@@ -47,6 +51,8 @@ async function walkTheTrajectory() {
         point,
         held: held !== null,
         drawn: drawnPixels(pixels) / (pixels.length / 4),
+        // What kept a point that never held drawing, named.
+        ...(held === null && { why: whyNotHeld(runtime()) }),
       })
     }
     return { readings, events }

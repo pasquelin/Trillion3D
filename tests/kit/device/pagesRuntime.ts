@@ -9,6 +9,11 @@ import {
   type WebgpuPagesRuntime,
 } from '../../../packages/sdk-browser/src/frame/backend/runtime.ts'
 import { webgpuPagesEngine } from '../../../packages/sdk-browser/src/frame/backend/pages.ts'
+import {
+  unsettledMask,
+  unsettledReasons,
+} from '../../../packages/sdk-browser/src/frame/loop/unsettled.ts'
+import { everyImageTerms } from '../../../packages/sdk-browser/src/frame/loop/everyImage.ts'
 
 /** The page raster as an engine factory, and the runtime of the engine it built last. */
 export function runtimeKeepingEngine() {
@@ -16,4 +21,26 @@ export function runtimeKeepingEngine() {
   const factory: EngineFactory = (context) =>
     webgpuPagesEngine(context, (kept = createWebgpuPagesRuntime(context)))
   return { factory, runtime: () => kept }
+}
+
+/** What keeps a view of `rt` drawing, named: the unsettled terms, the terms drawn every image,
+ *  whether the view stands, and where its temporal pass stands against its history (`taaConverged`)
+ *  — for a proof whose view never held. */
+export function whyNotHeld(rt: WebgpuPagesRuntime | undefined) {
+  if (!rt) return undefined
+  const taa = rt.gpu.temporal?.frame
+  return {
+    unsettled: unsettledReasons(unsettledMask(rt, rt.run.frame)),
+    everyImage: everyImageTerms(rt),
+    standing: rt.run.gate.held(),
+    taa: taa && {
+      accumulated: taa.accumulated,
+      phases: taa.phases,
+      sample: taa.sample,
+      hasHistory: taa.hasHistory,
+      historyScale: taa.historyScale,
+      render: rt.gpu.targetSize[0],
+      display: rt.gpu.displaySize[0],
+    },
+  }
 }

@@ -8,7 +8,7 @@
 import type { EngineDiagnostic } from '../../../packages/sdk-browser/src/diagnostic/types.ts'
 import type { Engine } from '../../../packages/sdk-browser/src/session/engine/types.ts'
 import { cameraFace } from '../../kit/device/sharedSceneProof.ts'
-import { untilHeld } from '../../kit/device/sceneImageProof.ts'
+import { HELD_WITHIN, untilHeld } from '../../kit/device/sceneImageProof.ts'
 import { occluderEngine, onOccluderScene, slabPixels } from './occluderScene.ts'
 import { compareImages } from '../../../packages/sdk-core/src/runtime/compareImages.ts'
 
@@ -22,17 +22,16 @@ const options = { temporalAntialiasing: true }
 async function heldPose(backend: Engine, camera: Camera) {
   let occluded = 0,
     postHidden = 0
-  const {
-    rendered,
-    settled: held,
-    count,
-  } = await untilHeld(backend, camera, ({ metrics }) => {
-    occluded = Math.max(occluded, metrics.occluded ?? 0)
-    postHidden = Math.max(postHidden, metrics.postHidden ?? 0)
-  })
-  const pixels = held ?? rendered
-  if (!pixels) throw new Error('no image was rendered')
-  return { pixels, images: held ? count + 1 : null, occluded, postHidden }
+  const { settled, held, count } = await untilHeld(
+    backend,
+    camera,
+    ({ metrics }) => {
+      occluded = Math.max(occluded, metrics.occluded ?? 0)
+      postHidden = Math.max(postHidden, metrics.postHidden ?? 0)
+    },
+    HELD_WITHIN,
+  )
+  return { pixels: settled, images: held ? count + 1 : null, occluded, postHidden }
 }
 
 /** The same pose on an engine that has never seen another: the witness of the held image. */

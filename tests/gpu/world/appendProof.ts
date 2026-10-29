@@ -6,8 +6,8 @@ import { createWorld } from '../../../packages/sdk-browser/src/session/world/wor
 import { lastFrameOf, sessionOf } from '../../../packages/sdk-browser/src/session/world/session.ts'
 import { object } from '../../../packages/sdk-core/src/world/object/index.ts'
 import { light } from '../../../packages/sdk-core/src/world/light/light.ts'
-import { animationFrame } from '../../kit/device/frame.ts'
 import { gaps } from '../../kit/device/patternImage.ts'
+import { settleBy } from './proofWorld.ts'
 
 export type World = ReturnType<typeof createWorld>
 
@@ -26,22 +26,26 @@ export function row(
   }
 }
 
-/** The image `world` holds, as the digest of its pixels. */
+/** The image `world` holds, as the digest of its pixels: an image cut off before the engine held it
+ *  depends on when the view's last change fell, so a world that never holds fails. */
 export async function frame(world: World) {
   await world.awaitPages()
   world.camera.position.set(0, 6, 9)
   world.camera.lookAt(0, 0, 0)
   world.camera.updateMatrixWorld(true)
-  for (let i = 0; i < 160; i++) {
-    await animationFrame()
+  const held = await settleBy(sessionOf(world).gpuDevice, () => {
     world.render()
-    if (lastFrameOf(world)?.frameHeld) break
-  }
+    return lastFrameOf(world)
+  })
+  if (!held) throw new Error('the world was never held')
   const pixels = await sessionOf(world).capture()
   return createHash('sha256').update(pixels).digest('hex')
 }
 
-/** A world on the proofs' canvas and lights. */
+/** A world on the proofs' canvas and lights, at an exposure of one: the subject is the session a
+ *  source joins, not the meter — an automatic exposure settles within 1/256 of a stop of the image's
+ *  mean, so two worlds that reach the same mean from two sides keep exposures a hair apart and every
+ *  pixel one or two steps apart. */
 export function open() {
   const canvas = document.createElement('canvas')
   canvas.style.cssText = 'width:320px;height:240px;display:block'
@@ -52,6 +56,7 @@ export function open() {
     temporalAntialiasing: false,
     renderScale: 1,
   })
+  world.exposure = 1
   world.scene.add(
     light.ambient({ intensity: 0.6 }),
     light.directional({ intensity: 2, position: [4, 9, 6] }),
