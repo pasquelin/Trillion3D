@@ -6,6 +6,7 @@ import {
   HAIR_DEPTH_OVERRIDE_WGSL,
   HAIR_GBUFFER_WRITE,
   hairGbufferOverrideWgsl,
+  hairGbufferWriteMode,
 } from './gbufferOverrideWgsl.ts'
 
 test('the placeholder writes the tangent (0, 0, 1) as the normal with no roughness, and no colour', () => {
@@ -32,4 +33,11 @@ test('every way marks the pixel as one of the hair shading model that reads the 
 
 test('the depth of the nearest strand is written wherever a strand is drawn', () => {
   assert.match(HAIR_DEPTH_OVERRIDE_WGSL, /if\(!\(depth>0\.0\)\)\{discard;\}\n return depth;/)
+})
+
+test('the setting picks what is written, a view of the surfaces upgrading it, and the placeholder and the normal are written as the setting says', () => {
+  const { none, placeholder, normal, full } = HAIR_GBUFFER_WRITE
+  const modes = (diagnostic: string) => [0, 1, 2, 3].map((s) => hairGbufferWriteMode(s, diagnostic))
+  assert.deepEqual(modes('beauty'), [none, placeholder, normal, full])
+  assert.deepEqual(modes('materials'), [full, normal, normal, full])
 })

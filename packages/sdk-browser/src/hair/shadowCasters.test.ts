@@ -4,6 +4,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { boxSphereOf } from './boxSphere.ts'
 import {
+  createHairShadowPlan,
   hairReachedByLight,
   hairShadowPlan,
   type HairShadowInputs,
@@ -17,7 +18,8 @@ const VIEW = Float64Array.from([
 /** A groom one metre tall, five metres over the view. */
 const GROOM = boxSphereOf([-0.5, 5, -0.5, 0.5, 6, 0.5])
 
-const lit = (shadow: HairShadowInputs) => hairReachedByLight(GROOM, hairShadowPlan(shadow, VIEW))
+const lit = (shadow: HairShadowInputs) =>
+  hairReachedByLight(GROOM, hairShadowPlan(createHairShadowPlan(), shadow, VIEW))
 
 const sunAlong = (direction: [number, number, number]): HairShadowLight => ({
   kind: 'directional',
@@ -57,6 +59,7 @@ test('a point light reaches a groom its range holds, a spot light one its cone h
 
 test('the plan of an image serves every groom of it: two lights, one plan', () => {
   const plan = hairShadowPlan(
+    createHairShadowPlan(),
     {
       lights: [sunAlong([0, -1, 0]), { kind: 'point', position: [30, 0, 0], range: 1 }],
       distance: 20,

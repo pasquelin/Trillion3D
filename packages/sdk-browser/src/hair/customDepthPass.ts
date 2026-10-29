@@ -3,7 +3,7 @@ import { preparedPipeline } from '../lighting/deferred/fullscreen.ts'
 import { oncePerDevice } from '../gpu/core/oncePerDevice.ts'
 import { retire } from '../gpu/core/frameRetire.ts'
 import { sequentialEntries } from '../gpu/core/computeBindings.ts'
-import { uniformBlock } from '../gpu/core/uniformBlock.ts'
+import { uniformBlock, type UniformBlock } from '../gpu/core/uniformBlock.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
 import type { HairNodes } from './compactionPass.ts'
 import { HAIR_CUSTOM_DEPTH_WGSL } from './customDepthWgsl.ts'
@@ -41,7 +41,8 @@ interface HairCustomDepthTargets {
  * wants to know where those strands are reads `view`; it is made again where the image's size moves and goes with the view.
  */
 export function createHairCustomDepth(device: GPUDevice, image: GPUBuffer) {
-  const rule = uniformBlock(device, `${LABEL} rule`, 16)
+  // Made by the first image, and again by the first after a `dispose`.
+  let rule: UniformBlock | undefined
   let texture: GPUTexture | undefined
   let view: GPUTextureView | undefined
   const drop = () => {
@@ -59,7 +60,7 @@ export function createHairCustomDepth(device: GPUDevice, image: GPUBuffer) {
           targets.nodeIndexView,
           { buffer: nodes.nodeData },
           targets.coverageView,
-          { buffer: rule.buffer },
+          { buffer: rule!.buffer },
         ]),
       }),
   )
@@ -72,7 +73,8 @@ export function createHairCustomDepth(device: GPUDevice, image: GPUBuffer) {
     release: drop,
     dispose() {
       drop()
-      rule.buffer.destroy()
+      rule?.buffer.destroy()
+      rule = undefined
     },
     /**
      * Draws the tiles with strands of an image of `size` into the custom depth, made at that size: the strands whose
@@ -99,6 +101,7 @@ export function createHairCustomDepth(device: GPUDevice, image: GPUBuffer) {
         view = texture.createView()
       }
       const draw = pipeline(device).get()
+      rule ??= uniformBlock(device, `${LABEL} rule`, 16)
       rule.words.f[0] = coverageThreshold
       rule.send()
       const pass = encoder.beginRenderPass({

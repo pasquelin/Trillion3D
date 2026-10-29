@@ -19,32 +19,40 @@ export interface HairCullEntry {
 /**
  * THE TRACE OF THE SUN'S TEST OF THE GROOMS OUT OF VIEW (`hairCastShadowWhenOutOfViewDebug`): while `on`, the test
  * (`hairReachedByLight`) asks every sun, not only until one reaches the groom, and keeps what it found in `entries`
- * (`count` of them, refilled in place by each image).
+ * (`count` of them, refilled in place by each image). A view holds its own.
  */
-export const hairCullTrace = { on: false, count: 0, entries: [] as HairCullEntry[] }
+export interface HairCullTrace {
+  on: boolean
+  count: number
+  readonly entries: HairCullEntry[]
+}
+
+/** An empty trace, unarmed. */
+export const createHairCullTrace = (): HairCullTrace => ({ on: false, count: 0, entries: [] })
 
 /** Arms the trace for an image (`on`) and empties it. */
-export function armHairCullTrace(on: boolean) {
-  hairCullTrace.on = on
-  hairCullTrace.count = 0
+export function armHairCullTrace(trace: HairCullTrace, on: boolean) {
+  trace.on = on
+  trace.count = 0
 }
 
 /** Keeps what the test of the sun `light` found for a groom: its frame `axes`, its box in the frame (`inLight`) and in the world (`inWorld`), and whether it reached the frustum. */
 export function recordHairCull(
+  trace: HairCullTrace,
   light: number,
   axes: ArrayLike<number>,
   inLight: ArrayLike<number>,
   inWorld: ArrayLike<number>,
   reached: boolean,
 ) {
-  const entry = (hairCullTrace.entries[hairCullTrace.count] ??= {
+  const entry = (trace.entries[trace.count] ??= {
     light: 0,
     axes: new Float64Array(9),
     inLight: new Float64Array(6),
     inWorld: new Float64Array(6),
     reached: false,
   })
-  hairCullTrace.count++
+  trace.count++
   entry.light = light
   for (let k = 0; k < 9; k++) entry.axes[k] = axes[k]!
   for (let k = 0; k < 6; k++) {
@@ -59,8 +67,12 @@ export function recordHairCull(
  * green where it reaches the frustum and yellow where it does not, and in the world in red. `viewProjection` is the camera's clip from
  * the world. Nothing while no groom was tested.
  */
-export function drawHairCull(lines: DebugLines, viewProjection: ArrayLike<number>) {
-  const { count, entries } = hairCullTrace
+export function drawHairCull(
+  lines: DebugLines,
+  trace: HairCullTrace,
+  viewProjection: ArrayLike<number>,
+) {
+  const { count, entries } = trace
   if (!count) return
   lines.frustum(viewProjection, FRUSTUM_NEAR, FRUSTUM_FAR, DEBUG_COLORS.blue)
   const drawn = new Set<number>()

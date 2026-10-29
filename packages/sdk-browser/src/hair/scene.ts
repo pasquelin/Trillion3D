@@ -17,7 +17,7 @@ import { groomBounds } from './groomBounds.ts'
 import { createHairGroup, type HairGroupGpu } from './groupResources.ts'
 import type { HairFrameInputs } from './inputs.ts'
 import { createMacroGroups, type MacroGroup, type MacroMember } from './macroGroups.ts'
-import { hairReachedByLight, hairShadowPlan } from './shadowCasters.ts'
+import { hairReachedByLight, hairShadowPlan, type HairShadowPlan } from './shadowCasters.ts'
 import { encodeHairTangents } from './tangentPass.ts'
 import { HAIR_STRANDS_PASS_PREFIX } from '../diagnostic/stage/passLabels.ts'
 
@@ -112,6 +112,8 @@ export function pixelSizeAtDepth1(
 export interface HairViewLists {
   readonly visible: HairInstance[]
   readonly shadowOnly: HairInstance[]
+  /** The lights' plan of the image, with the trace of its test (`hairShadowPlan`). */
+  readonly plan: HairShadowPlan
 }
 
 /**
@@ -128,10 +130,10 @@ export function planHairView(
   inputs: HairFrameInputs,
 ): MacroGroup<HairInstance>[] {
   const { camera, size, shadow } = inputs
-  const { visible, shadowOnly } = lists
+  const { visible, shadowOnly, plan } = lists
   visible.length = shadowOnly.length = 0
   const bounds = update.bounds.f
-  const reach = shadow && hairShadowPlan(shadow, camera.planes)
+  const reach = shadow && hairShadowPlan(plan, shadow, camera.planes)
   for (const instance of instances) {
     const { box } = instance.bounds
     if (!frustumExcludesBox(camera.planes, box[0]!, box[1]!, box[2]!, box[3]!, box[4]!, box[5]!))

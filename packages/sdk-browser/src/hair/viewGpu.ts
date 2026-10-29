@@ -31,10 +31,10 @@ import { rasterBinds, type HairBandBuffers, type HairRasterFrame } from './raste
 import type { HairBinned } from './binnedRasterPass.ts'
 import type { ForwardResources } from './forward/forwardPass.ts'
 import { HAIR_LARGE_ARGS_WORDS, HAIR_LARGE_WORDS } from './rasterWgsl.ts'
-import { bufferEntries } from '../gpu/core/computeBindings.ts'
-import { boundGroups, type DrawnInstance } from './ribbonBinds.ts'
+import { instanceGroups, type DrawnInstance } from './ribbonBinds.ts'
 import { HAIR_INSTANCE_WORDS, HAIR_VIEW_WORDS } from './ribbonWgsl.ts'
 import type { HairInstance, HairScene, HairViewLists } from './scene.ts'
+import { createHairShadowPlan } from './shadowCasters.ts'
 import type { HairEnvironment } from './environment.ts'
 import type { HairSkyAo } from './skyAoPass.ts'
 import type { HairSurfaceShadow } from './surfaceShadowPass.ts'
@@ -302,7 +302,7 @@ export function createHairViewGpu(
   const state: HairViewGpu = {
     scene,
     bounds,
-    lists: { visible: [], shadowOnly: [] },
+    lists: { visible: [], shadowOnly: [], plan: createHairShadowPlan() },
     inputs,
     viewBlock,
     imageBlock,
@@ -350,21 +350,11 @@ export function instanceGpu(
       HAIR_INSTANCE_WORDS * 4,
     )
     const { group } = instance
-    // Seventeen pipelines take turns with an instance's resources: the transmittance, the raster's two phases
-    // each with its lists' passes, its large ribbons and its tiles, the material, the voxel raster, the deep shadow's two passes and the forward raster's cull.
-    const groups = boundGroups<GPUBuffer, GPUBuffer, GPUBuffer>(
-      17,
-      (made, pipeline, points, tangents, uniform) =>
-        made.createBindGroup({
-          layout: pipeline.getBindGroupLayout(0),
-          entries: bufferEntries([points, tangents, uniform]),
-        }),
-    )
     held = {
       block,
       drawn: {
         pointCount: group.pointCount,
-        group: (pipeline) => groups(device, pipeline, group.points, group.tangents, block.buffer),
+        group: instanceGroups(device, group.points, group.tangents, block.buffer),
       },
     }
     state.instances.set(instance, held)

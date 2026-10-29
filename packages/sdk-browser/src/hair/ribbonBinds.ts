@@ -1,4 +1,5 @@
 import { createWebgpuBindIdentity } from '../gpu/bind/bindIdentity.ts'
+import { bufferEntries } from '../gpu/core/computeBindings.ts'
 
 /** What a pass reads of an instance drawn in an image. */
 export interface DrawnInstance {
@@ -6,6 +7,31 @@ export interface DrawnInstance {
   readonly pointCount: number
   /** The bind group 0 of `pipeline`: the group's points and tangents and the instance's block. */
   group(pipeline: GPUComputePipeline | GPURenderPipeline): GPUBindGroup
+}
+
+/**
+ * The bind groups 0 of an instance, one for each pipeline that draws it: a group's points and tangents and the instance's block are for good,
+ * so a pipeline's group is made at its first draw and kept as long as the pipeline is (the count of pipelines that take turns is the passes'
+ * own, not held here).
+ */
+export function instanceGroups(
+  device: GPUDevice,
+  points: GPUBuffer,
+  tangents: GPUBuffer,
+  uniform: GPUBuffer,
+): DrawnInstance['group'] {
+  const groups = new WeakMap<object, GPUBindGroup>()
+  return (pipeline) => {
+    let held = groups.get(pipeline)
+    if (!held) {
+      held = device.createBindGroup({
+        layout: pipeline.getBindGroupLayout(0),
+        entries: bufferEntries([points, tangents, uniform]),
+      })
+      groups.set(pipeline, held)
+    }
+    return held
+  }
 }
 
 /**

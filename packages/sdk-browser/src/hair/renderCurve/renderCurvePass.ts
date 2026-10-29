@@ -33,6 +33,7 @@ import {
   writeRenderCurveInstances,
   type RenderCurveSceneGpu,
 } from './renderCurveScene.ts'
+import { RENDER_CURVE_OUTPUT_FORMAT, RENDER_CURVE_RASTER_WGSL } from './rasterWgsl.ts'
 import {
   RENDER_CURVE_SCENE_TILE_DEPTH_WGSL,
   RENDER_CURVE_TILE_DEPTH_FORMAT,
@@ -49,6 +50,7 @@ const kernels = {
   indirectArgs: kernel('indirect args', RENDER_CURVE_INDIRECT_ARGS_WGSL, 'indirectArgs'),
   binning: kernel('binning', RENDER_CURVE_BINNING_WGSL, 'binning'),
   compaction: kernel('compaction', RENDER_CURVE_COMPACTION_WGSL, 'compaction'),
+  raster: kernel('raster', RENDER_CURVE_RASTER_WGSL, 'rasterize'),
 }
 
 /** The pipelines of every stage on `device`, none while one compiles. */
@@ -61,6 +63,7 @@ function pipelines(device: GPUDevice) {
     indirectArgs: kernels.indirectArgs(device).get(),
     binning: kernels.binning(device).get(),
     compaction: kernels.compaction(device).get(),
+    raster: kernels.raster(device).get(),
   }
   return Object.values(made).every(Boolean)
     ? (made as Record<keyof typeof made, GPUComputePipeline>)
@@ -74,6 +77,18 @@ const renderCurveTileDepthTexture = (device: GPUDevice, common: RenderCurveCommo
     size: { width: common.binTileRes[0], height: common.binTileRes[1] },
     format: RENDER_CURVE_TILE_DEPTH_FORMAT,
     usage: GPUTextureUsage.STORAGE_BINDING | GPUTextureUsage.TEXTURE_BINDING,
+  })
+
+/** The image the raster draws (`RENDER_CURVE_OUTPUT_FORMAT`), the size of the image, cleared before it is drawn. */
+const renderCurveOutputTexture = (device: GPUDevice, common: RenderCurveCommon) =>
+  device.createTexture({
+    label: `${PREFIX}output`,
+    size: { width: common.resolution[0], height: common.resolution[1] },
+    format: RENDER_CURVE_OUTPUT_FORMAT,
+    usage:
+      GPUTextureUsage.STORAGE_BINDING |
+      GPUTextureUsage.TEXTURE_BINDING |
+      GPUTextureUsage.RENDER_ATTACHMENT,
   })
 
 /** What an image of the curve raster reads: the scene (its strands cut into clusters), and the view. */
@@ -93,12 +108,18 @@ export function createRenderCurve(device: GPUDevice) {
   let buffers: (RenderCurveBuffers & { key: string }) | undefined
   let texture: GPUTexture | undefined
   let tileDepthView: GPUTextureView | undefined
+  let outputTexture: GPUTexture | undefined
+  let outputView: GPUTextureView | undefined
   let levelBlocks: GPUBuffer[] = []
+  // Whether the image drawn last is in the output.
+  let drawn = false
   const releaseSize = () => {
     buffers?.destroy()
     buffers = undefined
     if (texture) retire(device, texture)
-    texture = tileDepthView = undefined
+    if (outputTexture) retire(device, outputTexture)
+    texture = tileDepthView = outputTexture = outputView = undefined
+    drawn = false
     for (const block of levelBlocks) retire(device, block)
     levelBlocks = []
   }
@@ -108,15 +129,21 @@ export function createRenderCurve(device: GPUDevice) {
     scene = undefined
   }
   return {
+    /** The image the raster drew, none where it drew nothing this image. */
+    get output() {
+      return drawn ? outputView : undefined
+    },
     release,
     dispose() {
       release()
       params?.buffer.destroy()
+      params = undefined
     },
     /**
      * Runs the curve raster's stages over the scene's depth `sceneDepth` of an image of `common`'s size, in one compute pass: the furthest
      * depth pyramid and the depth per tile, the cull of the instances then of their clusters, the count of the visible clusters, the
-     * binning of their segments into tiles and the compaction of each tile's segments into z bins. Nothing while a stage compiles.
+     * binning of their segments into tiles, the compaction of each tile's segments into z bins and the raster of the z bins into the output
+     * (cleared first). Nothing while a stage compiles.
      */
     encode(
       encoder: GPUCommandEncoder,
@@ -124,6 +151,7 @@ export function createRenderCurve(device: GPUDevice) {
       sceneDepth: GPUTextureView,
       source: RenderCurveSource,
     ) {
+      drawn = false
       const { instances } = source.scene
       const tiles = common.binTileRes
       if (
@@ -146,6 +174,8 @@ export function createRenderCurve(device: GPUDevice) {
         buffers = { ...createRenderCurveBuffers(device, common, instances.length, maxVisible), key }
         texture = renderCurveTileDepthTexture(device, common)
         tileDepthView = texture.createView()
+        outputTexture = renderCurveOutputTexture(device, common)
+        outputView = outputTexture.createView()
         levelBlocks = Array.from(
           { length: renderCurveHzbLevels(...common.resolution) },
           (_, level) => {
@@ -169,6 +199,12 @@ export function createRenderCurve(device: GPUDevice) {
       params.send()
       writeRenderCurveInstances(device, scene, instances, source.eye)
       for (const buffer of buffers.cleared) encoder.clearBuffer(buffer)
+      encoder
+        .beginRenderPass({
+          label: `${PREFIX}clear output`,
+          colorAttachments: [{ view: outputView!, loadOp: 'clear', storeOp: 'store' }],
+        })
+        .end()
       const pass = encoder.beginComputePass({ label: `${PREFIX}pipeline` })
       const bound = (pipeline: GPUComputePipeline, resources: readonly GPUBindingResource[]) => {
         pass.setPipeline(pipeline)
@@ -239,7 +275,18 @@ export function createRenderCurve(device: GPUDevice) {
         tileDepthView!,
       ])
       pass.dispatchWorkgroups(tiles[0], tiles[1])
+      bound(made.raster, [
+        shared,
+        bufferOf(counters),
+        bufferOf(held.zBinData),
+        bufferOf(held.zBinSegments),
+        bufferOf(held.rasterWork),
+        sceneDepth,
+        outputView!,
+      ])
+      pass.dispatchWorkgroups(common.numRasterizers)
       pass.end()
+      drawn = true
     },
   }
 }

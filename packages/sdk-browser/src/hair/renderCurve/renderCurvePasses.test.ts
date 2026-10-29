@@ -11,6 +11,7 @@ import { RENDER_CURVE_COMPACTION_WGSL } from './compactionWgsl.ts'
 import { RENDER_CURVE_CLUSTER_CULL_WGSL, RENDER_CURVE_INSTANCE_CULL_WGSL } from './cullWgsl.ts'
 import { RENDER_CURVE_HZB_WGSL, renderCurveHzbWords } from './hzbWgsl.ts'
 import { RENDER_CURVE_INDIRECT_ARGS_WGSL } from './indirectArgsWgsl.ts'
+import { RENDER_CURVE_COMPOSE_WGSL, RENDER_CURVE_RASTER_WGSL } from './rasterWgsl.ts'
 import { RENDER_CURVE_PARAMS_BYTES } from './paramsWgsl.ts'
 import { renderCurveCommon, renderCurveClusterStride } from './renderCurveMath.ts'
 import { writeRenderCurveParams } from './renderCurveParams.ts'
@@ -76,6 +77,8 @@ test('the blocks and passes name nothing they do not declare', () => {
     RENDER_CURVE_INDIRECT_ARGS_WGSL,
     RENDER_CURVE_BINNING_WGSL,
     RENDER_CURVE_COMPACTION_WGSL,
+    RENDER_CURVE_RASTER_WGSL,
+    RENDER_CURVE_COMPOSE_WGSL,
   ])
     assert.deepEqual(unresolvedNames(code), [])
 })
@@ -115,4 +118,40 @@ test('the shared block holds the depth line of a perspective projection and the 
   assert.deepEqual([...words.u.subarray(16, 20)], [1920, 1080, 60, 34])
   assert.equal(words.u[33], 11)
   assert.equal(renderCurveHzbWords(4, 4), 4 + 1)
+})
+
+test('the raster draws the z bins nearest first, a segment covering what the nearer ones left, and writes only the pixels a segment reached', () => {
+  const code = RENDER_CURVE_RASTER_WGSL
+  assert.match(code, /@workgroup_size\(256\)/)
+  // The pixel takes the coverage of a segment from the transmittance before it (the reference's own took the one after).
+  assert.match(
+    code,
+    /colour\+=transmittance\*0\.2\*segColour\[[^\]]+\]\.xyz;\n\s*transmittance\*=0\.8;/,
+  )
+  // A segment's colour is its three channels, and the scene's nearest depth has a slot for each of the 16 raster tiles.
+  assert.match(code, /segColour:array<vec4f,128>/)
+  assert.match(code, /sceneNearest:array<atomic<u32>,16>/)
+  assert.match(code, /atomicStore\(&sceneNearest\[t\],0u\)/)
+  // The pixels untouched are left as the clear made them, not painted black.
+  assert.match(code, /if\(inside&&transmittance<1\.0\)\{textureStore\(colourOut/)
+  // The raster stops once every pixel of the group is covered to 1 - minCoverage.
+  assert.match(code, /transmittance>=curve\.minCoverage/)
+  assert.match(code, /workgroupUniformLoad\(&aliveCount\)==0u/)
+})
+
+test('the shared block holds the coverage under which the raster stops', () => {
+  const words = wordViews(new ArrayBuffer(RENDER_CURVE_PARAMS_BYTES))
+  const common = renderCurveCommon(64, 64, 32, 256, 0.05, 1 << 30)
+  writeRenderCurveParams(
+    words,
+    common,
+    {
+      viewProjection: new Float32Array(16),
+      projection: new Float32Array(16),
+      perspective: false,
+      eye: [0, 0, 0],
+    },
+    { instanceCount: 1, clusterCount: 1, strideWords: 10, maxVisible: 1 },
+  )
+  assert.equal(words.f[34], Math.fround(0.05))
 })

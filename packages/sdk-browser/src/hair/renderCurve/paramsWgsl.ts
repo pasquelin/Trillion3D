@@ -8,7 +8,7 @@ import {
 /** The bytes of the block the curve raster's passes share (`RenderCurveParams`). */
 export const RENDER_CURVE_PARAMS_BYTES = 144
 
-/** The words of the counters buffer the passes share: the nearest and furthest depth of the visible clusters (as float bits), the number of visible clusters, the binners' queue, and the allocations of the tile data, the z bins, their segments and the raster work. */
+/** The words of the counters buffer the passes share: the nearest and furthest depth of the visible clusters (as float bits), the number of visible clusters, the binners' queue, and the allocations of the tile data, the z bins, their segments and the raster work, and the raster's queue of that work. */
 export const RENDER_CURVE_COUNTER = {
   minZ: 0,
   maxZ: 1,
@@ -19,6 +19,7 @@ export const RENDER_CURVE_COUNTER = {
   zBins: 6,
   zBinSegments: 7,
   rasterWork: 8,
+  rasterQueue: 9,
 } as const
 export const RENDER_CURVE_COUNTER_WORDS = 16
 
@@ -44,7 +45,7 @@ export const RENDER_CURVE_PARAMS_WGSL = wgslStruct(
  maxRasterWorkCount:u32,
  maxZBinSegmentDataCount:u32,
  hzbLevels:u32,
- padA:u32,
+ minCoverage:f32,
  padB:u32,
 }`,
 )
@@ -141,6 +142,23 @@ fn packSegment(tile:vec2u,range:DepthRange,p0:vec3f,p1:vec3f,color:vec3f)->vec4u
  let z0=(p0.z-range.minZ)*range.invRange;
  let z1=(p1.z-range.minZ)*range.invRange;
  return vec4u(packR7(n0.x)|(packR7(n0.y)<<7u)|(packR18(z0)<<14u),packR7(n1.x)|(packR7(n1.y)<<7u)|(packR18(z1)<<14u),packColor(color),0u);
+}
+struct CurveSegment{p0:vec3f,p1:vec3f,color:vec3f}
+fn unpackR7(v:u32)->f32{return f32(v&0x7Fu)/127.0;}
+fn unpackR18(v:u32)->f32{return f32(v&0x3FFFFu)/262143.0;}
+fn unpackColor(v:u32)->vec3f{
+ return vec3f(
+  unpack2x16float((v&0x3FF00000u)>>15u).x,
+  unpack2x16float((v&0x000FFC00u)>>5u).x,
+  unpack2x16float((v&0x000003FFu)<<5u).x);
+}
+fn unpackSegment(tile:vec2u,range:DepthRange,s:vec4u)->CurveSegment{
+ let base=vec2f(tile*${RENDER_CURVE_BIN_TILE_SIZE}u);
+ var out:CurveSegment;
+ out.p0=vec3f(unpackR7(s.x)*${RENDER_CURVE_BIN_TILE_SIZE}.0+base.x,unpackR7(s.x>>7u)*${RENDER_CURVE_BIN_TILE_SIZE}.0+base.y,unpackR18(s.x>>14u)*range.range+range.minZ);
+ out.p1=vec3f(unpackR7(s.y)*${RENDER_CURVE_BIN_TILE_SIZE}.0+base.x,unpackR7(s.y>>7u)*${RENDER_CURVE_BIN_TILE_SIZE}.0+base.y,unpackR18(s.y>>14u)*range.range+range.minZ);
+ out.color=unpackColor(s.z);
+ return out;
 }
 fn unpackSegmentZ(range:DepthRange,s:vec4u)->vec2f{
  return vec2f(f32((s.x>>14u)&0x3FFFFu),f32((s.y>>14u)&0x3FFFFu))/262143.0*range.range+range.minZ;

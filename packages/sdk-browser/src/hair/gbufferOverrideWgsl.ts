@@ -25,6 +25,23 @@ import {
 /** How much of the strands `hairWriteGBufferData` writes into the surfaces: nothing, a placeholder, the normal and the roughness, the whole surface. */
 export const HAIR_GBUFFER_WRITE = { none: 0, placeholder: 1, normal: 2, full: 3 } as const
 
+/** The diagnostic views that show the surfaces' buffers: the strands write real data into the surfaces there, not a placeholder. */
+const SURFACE_BUFFER_VIEWS: ReadonlySet<string> = new Set(['materials'])
+
+/**
+ * What is written into the surfaces for the setting `hairWriteGBufferData` (`setting`, 0 to 3) in an image of the diagnostic view `diagnostic`, which is, or is not,
+ * one of the views that show the surfaces' buffers: the placeholder (the setting 1, outside those views), the normal and the roughness (the setting 2, and the setting 1
+ * inside those views, which show the real data), or the whole surface (the setting 3, and inside those views a setting 0). The reference's own selection
+ * writes nothing for the settings 1 outside those views and 2, which its documentation says write; this one writes what the documentation says.
+ */
+export function hairGbufferWriteMode(setting: number, diagnostic: string) {
+  const visualizeBuffer = SURFACE_BUFFER_VIEWS.has(diagnostic)
+  const partial = setting === 2 || (visualizeBuffer && setting === 1)
+  if (partial) return HAIR_GBUFFER_WRITE.normal
+  if (setting === 1) return HAIR_GBUFFER_WRITE.placeholder
+  return visualizeBuffer || setting === 3 ? HAIR_GBUFFER_WRITE.full : HAIR_GBUFFER_WRITE.none
+}
+
 /** The surface flags of a pixel of strands: a pixel that reads the light, of the hair shading model (which has no specular lobe, so no reflection is traced for it). */
 const HAIR_PIXEL_FLAGS =
   MODEL_FLAG.physical | ((PIXEL_MODEL.hair & PIXEL_MODEL_MASK) << PIXEL_MODEL_SHIFT)

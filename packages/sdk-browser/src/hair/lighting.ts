@@ -45,7 +45,9 @@ import type { HairFrameInputs } from './inputs.ts'
 import type { HairViewGpu } from './viewGpu.ts'
 import { HAIR_COMPOSE_IMAGE_WORDS } from './compositionWgsl.ts'
 import { encodeHairForwardColor } from './forward/forwardVisibility.ts'
+import { encodeRenderCurveCompose } from './renderCurve/composePass.ts'
 import { encodeHairGbufferOverride } from './gbufferOverridePass.ts'
+import { hairGbufferWriteMode } from './gbufferOverrideWgsl.ts'
 import {
   encodeHairComposition,
   hairComposeBinds,
@@ -530,6 +532,9 @@ export function encodeHairLighting(
   encoder: GPUCommandEncoder,
   cam: EngineCamera,
 ) {
+  // The curve raster's image goes on the lit surfaces whatever the strands do.
+  const curves = rt.gpu.hair?.renderCurve.output
+  if (curves && rt.gpu.hdrView) encodeRenderCurveCompose(device, encoder, curves, rt.gpu.hdrView)
   const ready = hairLightingReady(rt, device)
   if (!ready) return
   const { view, program, light, sky, nodes, sampled, scene, environment, lut } = ready
@@ -653,7 +658,7 @@ export function composeHairStrands(
     device,
     encoder,
     view,
-    readHairStrandsSetting(rt, 'hairWriteGBufferData'),
+    hairGbufferWriteMode(readHairStrandsSetting(rt, 'hairWriteGBufferData'), rt.run.diagnostic),
     gpu.depthView,
   )
 }

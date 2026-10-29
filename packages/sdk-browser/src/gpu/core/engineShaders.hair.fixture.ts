@@ -18,6 +18,19 @@ import { FORWARD_CULL_WGSL } from '../../hair/forward/forwardCullWgsl.ts'
 import { FORWARD_GATHER_WGSL } from '../../hair/forward/forwardGatherWgsl.ts'
 import { forwardRasterWgsl } from '../../hair/forward/forwardRasterWgsl.ts'
 import { binnedWgsl } from '../../hair/binnedWgsl.ts'
+import { RENDER_CURVE_BINNING_WGSL } from '../../hair/renderCurve/binningWgsl.ts'
+import { RENDER_CURVE_COMPACTION_WGSL } from '../../hair/renderCurve/compactionWgsl.ts'
+import {
+  RENDER_CURVE_CLUSTER_CULL_WGSL,
+  RENDER_CURVE_INSTANCE_CULL_WGSL,
+} from '../../hair/renderCurve/cullWgsl.ts'
+import { RENDER_CURVE_HZB_WGSL } from '../../hair/renderCurve/hzbWgsl.ts'
+import { RENDER_CURVE_INDIRECT_ARGS_WGSL } from '../../hair/renderCurve/indirectArgsWgsl.ts'
+import {
+  RENDER_CURVE_COMPOSE_WGSL,
+  RENDER_CURVE_RASTER_WGSL,
+} from '../../hair/renderCurve/rasterWgsl.ts'
+import { RENDER_CURVE_SCENE_TILE_DEPTH_WGSL } from '../../hair/renderCurve/sceneTileDepthWgsl.ts'
 import { HAIR_CUSTOM_DEPTH_WGSL } from '../../hair/customDepthWgsl.ts'
 import { DEBUG_LINES_DRAW_WGSL, DEBUG_LINES_GPU_WGSL } from '../../hair/debugLinesWgsl.ts'
 import { DEBUG_ATLAS_WGSL, debugVoxelWgsl } from '../../hair/debugPanelsWgsl.ts'
@@ -135,6 +148,15 @@ export const HAIR_SHADERS: Record<string, string> = {
   HAIR_FORWARD_DEPTH_RASTER: forwardRasterWgsl(false),
   HAIR_FORWARD_COLOR_RASTER: forwardRasterWgsl(true),
   HAIR_FORWARD_CLEAR: FORWARD_CLEAR_WGSL,
+  RENDER_CURVE_HZB: RENDER_CURVE_HZB_WGSL,
+  RENDER_CURVE_SCENE_TILE_DEPTH: RENDER_CURVE_SCENE_TILE_DEPTH_WGSL,
+  RENDER_CURVE_INSTANCE_CULL: RENDER_CURVE_INSTANCE_CULL_WGSL,
+  RENDER_CURVE_CLUSTER_CULL: RENDER_CURVE_CLUSTER_CULL_WGSL,
+  RENDER_CURVE_INDIRECT_ARGS: RENDER_CURVE_INDIRECT_ARGS_WGSL,
+  RENDER_CURVE_BINNING: RENDER_CURVE_BINNING_WGSL,
+  RENDER_CURVE_COMPACTION: RENDER_CURVE_COMPACTION_WGSL,
+  RENDER_CURVE_RASTER: RENDER_CURVE_RASTER_WGSL,
+  RENDER_CURVE_COMPOSE: RENDER_CURVE_COMPOSE_WGSL,
   HAIR_MSAA: MSAA_WGSL,
   HAIR_MSAA_FILL: MSAA_FILL_WGSL,
   HAIR_CUSTOM_DEPTH: HAIR_CUSTOM_DEPTH_WGSL,

@@ -246,7 +246,7 @@ export function encodeHairDebug(
   }
   frame.lines.begin(cam.eye)
   if (readHairStrandsSetting(rt, 'hairCastShadowWhenOutOfViewDebug'))
-    drawHairCull(frame.lines, cam.viewProjection)
+    drawHairCull(frame.lines, view.lists.plan.trace, cam.viewProjection)
   if (mode) {
     frame.lines.text(
       `Hair Debug mode - ${VIEWS[mode]}`,

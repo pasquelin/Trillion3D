@@ -47,4 +47,5 @@ export function writeRenderCurveParams(
   u[31] = common.maxRasterWorkCount
   u[32] = common.maxZBinSegmentDataCount
   u[33] = renderCurveHzbLevels(common.resolution[0], common.resolution[1])
+  f[34] = common.minCoverageThreshold
 }

@@ -7,6 +7,7 @@ import { boxSphereOf } from './boxSphere.ts'
 import { HAIR_BOUNDS_FLOATS, HAIR_ENTRY_WORDS, HAIR_MIN_VOXEL_SIZE } from './boundsPass.ts'
 import type { HairBoundsUpdate } from './boundsPass.ts'
 import type { HairFrameInputs } from './inputs.ts'
+import { createHairShadowPlan } from './shadowCasters.ts'
 import { planHairView, type HairInstance, type HairViewLists } from './scene.ts'
 import type { HairShadowInputs } from './shadowCasters.ts'
 
@@ -41,7 +42,7 @@ function updateOf(count: number) {
   } as unknown as HairBoundsUpdate
 }
 
-const lists = (): HairViewLists => ({ visible: [], shadowOnly: [] })
+const lists = (): HairViewLists => ({ visible: [], shadowOnly: [], plan: createHairShadowPlan() })
 
 const PERSPECTIVE = Float64Array.from([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, -1, 0, 0, 0, 0])
 /** A view from (10, 0, 0) of an image of 64 by 64; `planes`, `projection` and `shadow` as given. */

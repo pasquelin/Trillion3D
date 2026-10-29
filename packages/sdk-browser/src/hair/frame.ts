@@ -303,6 +303,9 @@ function voxelSettings(rt: WebgpuPagesRuntime): HairVoxelSettings {
 
 const projection = new Float64Array(16)
 
+/** The curve raster's settings, refilled in place by each image that runs it. */
+const renderCurve = { binners: 0, rasterizers: 0, minCoverage: 0 }
+
 /** Refills `inputs` with what the frame holds for the image of `cam`: the one place the passes'
  *  inputs are read from the runtime. */
 function fillInputs(rt: WebgpuPagesRuntime, cam: EngineCamera, inputs: HairFrameInputsWritable) {
@@ -353,14 +356,15 @@ function fillInputs(rt: WebgpuPagesRuntime, cam: EngineCamera, inputs: HairFrame
     rt,
     'hairVisibilityComputeRasterNumRasterizersNaive',
   )
-  inputs.renderCurve =
-    readHairStrandsSetting(rt, 'renderCurve') && readHairStrandsSetting(rt, 'renderCurveSwRaster')
-      ? {
-          binners: readHairStrandsSetting(rt, 'renderCurveRasterNumBinners'),
-          rasterizers: readHairStrandsSetting(rt, 'renderCurveRasterNumRasterizers'),
-          minCoverage: readHairStrandsSetting(rt, 'renderCurveRasterMinCoverage'),
-        }
-      : undefined
+  if (
+    readHairStrandsSetting(rt, 'renderCurve') &&
+    readHairStrandsSetting(rt, 'renderCurveSwRaster')
+  ) {
+    renderCurve.binners = readHairStrandsSetting(rt, 'renderCurveRasterNumBinners')
+    renderCurve.rasterizers = readHairStrandsSetting(rt, 'renderCurveRasterNumRasterizers')
+    renderCurve.minCoverage = readHairStrandsSetting(rt, 'renderCurveRasterMinCoverage')
+    inputs.renderCurve = renderCurve
+  } else inputs.renderCurve = undefined
   inputs.customDepthCoverage = readHairStrandsSetting(rt, 'hairRenderCustomDepth')
     ? readHairStrandsSetting(rt, 'hairCustomDepthCoverageThreshold')
     : undefined
@@ -408,7 +412,10 @@ export function encodeHairStrands(
   fillInputs(rt, cam, view.inputs)
   ensureHairLut(device, encoder, view)
   const { instances } = state.scene
-  armHairCullTrace(readHairStrandsSetting(rt, 'hairCastShadowWhenOutOfViewDebug'))
+  armHairCullTrace(
+    view.lists.plan.trace,
+    readHairStrandsSetting(rt, 'hairCastShadowWhenOutOfViewDebug'),
+  )
   const macroGroups = planHairView(instances, view.bounds.update, view.lists, view.inputs)
   encodeHairScene(device, encoder, state.scene, view.bounds)
   const visible = encodeHairVisibility(device, encoder, view, macroGroups, (error) =>

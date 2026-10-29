@@ -5,7 +5,7 @@ import { dotVector3, length3 } from '../../../math/src/vector/vector.ts'
 import { frameAround } from '../../../math/src/vector/frame.ts'
 import type { SceneLight } from '../../../sdk-core/src/scene/light/contracts.ts'
 import type { BoxSphere } from './boxSphere.ts'
-import { hairCullTrace, recordHairCull } from './debugCull.ts'
+import { createHairCullTrace, recordHairCull, type HairCullTrace } from './debugCull.ts'
 
 /** What the out-of-view test reads of a light that casts. */
 export type HairShadowLight = Pick<
@@ -33,7 +33,7 @@ export interface HairShadowInputs {
 }
 
 /** What a light brings to every groom of an image. */
-interface LightPlan {
+export interface LightPlan {
   light: HairShadowLight
   /** A sun's frame, its three axes one after the other (the direction, then two across it), and the
    *  camera's frustum planes in it. */
@@ -46,20 +46,34 @@ interface LightPlan {
   cos: number
 }
 
-/** The plan of an image: its lights' (`lights[0..count)`), refilled in place by each. */
-interface HairShadowPlan {
+/** The plan of an image: its lights' (`lights[0..count)`), refilled in place by each. A view holds its own, with the scratch of its tests and
+ *  the trace of the sun's. */
+export interface HairShadowPlan {
   readonly lights: LightPlan[]
   count: number
   distance: number
+  /** The sun's frame holds the groom's box between these two corners. */
+  readonly corners: Float64Array
+  readonly rows: Float64Array
+  readonly trace: HairCullTrace
 }
-const plan: HairShadowPlan = { lights: [], count: 0, distance: 0 }
-/** The sun's frame holds the groom's box between these two corners. */
-const corners = new Float64Array(6)
-const rows = new Float64Array(6)
 
-/** The plan of the image of the camera whose frustum planes are `planes`, for the lights of `shadow`.
- *  The record is refilled by each call and valid until the next. */
-export function hairShadowPlan(shadow: HairShadowInputs, planes: Float64Array): HairShadowPlan {
+/** An empty plan for a view. */
+export const createHairShadowPlan = (): HairShadowPlan => ({
+  lights: [],
+  count: 0,
+  distance: 0,
+  corners: new Float64Array(6),
+  rows: new Float64Array(6),
+  trace: createHairCullTrace(),
+})
+
+/** Fills `plan` for the image of the camera whose frustum planes are `planes`, for the lights of `shadow`. */
+export function hairShadowPlan(
+  plan: HairShadowPlan,
+  shadow: HairShadowInputs,
+  planes: Float64Array,
+): HairShadowPlan {
   const { lights } = shadow
   plan.count = lights.length
   plan.distance = shadow.distance
@@ -76,7 +90,7 @@ export function hairShadowPlan(shadow: HairShadowInputs, planes: Float64Array): 
     held.light = light
     held.unit = 0
     const { direction } = light
-    if (light.kind === 'directional' && direction) sunFrame(held, direction, planes)
+    if (light.kind === 'directional' && direction) sunFrame(plan.rows, held, direction, planes)
     else if (light.kind === 'spot' && direction && light.outerConeAngle) {
       held.unit = length3(direction[0], direction[1], direction[2])
       held.sin = Math.sin(light.outerConeAngle)
@@ -88,7 +102,12 @@ export function hairShadowPlan(shadow: HairShadowInputs, planes: Float64Array): 
 
 /** Writes into `held` the sun's frame for the propagation direction `direction` — the first axis along
  *  it, the others across it — and the camera's frustum planes `planes` in it. */
-function sunFrame(held: LightPlan, direction: readonly number[], planes: Float64Array) {
+function sunFrame(
+  rows: Float64Array,
+  held: LightPlan,
+  direction: readonly number[],
+  planes: Float64Array,
+) {
   const { axes, planes: inFrame } = held
   const length = length3(direction[0]!, direction[1]!, direction[2]!)
   const x = direction[0]! / length,
@@ -124,7 +143,7 @@ function localReaches(held: LightPlan, bounds: BoxSphere) {
 
 /** Whether a sun of the plan `held` reaches `bounds`: its box in the sun's frame, extended by
  *  `distance` along the sun's direction, meets the camera's frustum in that frame. */
-function sunReaches(held: LightPlan, bounds: BoxSphere, distance: number) {
+function sunReaches(held: LightPlan, bounds: BoxSphere, distance: number, corners: Float64Array) {
   const { axes } = held
   const { box } = bounds
   for (let axis = 0; axis < 3; axis++) {
@@ -155,18 +174,18 @@ function sunReaches(held: LightPlan, bounds: BoxSphere, distance: number) {
 /** Whether a light of the image's plan `reach` (`hairShadowPlan`) reaches the groom of `bounds` that the
  *  camera's frustum does not hold. */
 export function hairReachedByLight(bounds: BoxSphere, reach: HairShadowPlan) {
-  const { lights, count, distance } = reach
-  // The debug trace asks every sun and keeps what each found (`hairCullTrace`).
-  const tracing = hairCullTrace.on
+  const { lights, count, distance, corners, trace } = reach
+  // The debug trace asks every sun and keeps what each found (`HairCullTrace`).
+  const tracing = trace.on
   let any = false
   for (let k = 0; k < count; k++) {
     const held = lights[k]!
     const sun = held.light.kind === 'directional' && !!held.light.direction
     const reached =
       held.light.kind === 'directional'
-        ? sun && sunReaches(held, bounds, distance)
+        ? sun && sunReaches(held, bounds, distance, corners)
         : localReaches(held, bounds)
-    if (tracing && sun) recordHairCull(k, held.axes, corners, bounds.box, reached)
+    if (tracing && sun) recordHairCull(trace, k, held.axes, corners, bounds.box, reached)
     if (reached) {
       if (!tracing) return true
       any = true
