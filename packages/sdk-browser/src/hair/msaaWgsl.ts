@@ -1,3 +1,4 @@
+import { ceilDiv } from '../../../math/src/scalar/integers.ts'
 import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { FLAT_INDEX_WGSL } from '../gpu/dispatch/grid.ts'
 import { visWorkDeclaration, visWriteWgsl } from '../visibility/raster/pixelWgsl.ts'
@@ -25,7 +26,7 @@ export const HAIR_MSAA_VIS_FORMAT: GPUTextureFormat = 'rgba16uint'
 export const HAIR_MSAA_SHIFT = [-1 / 16, 1 / 16] as const
 
 /** The passes of the hardware raster a count of samples takes: one of four samples each. */
-export const hairMsaaPasses = (samples: HairSampleCount) => Math.ceil(samples / HAIR_MSAA_SAMPLES)
+export const hairMsaaPasses = (samples: HairSampleCount) => ceilDiv(samples, HAIR_MSAA_SAMPLES)
 
 /**
  * THE VISIBILITY OF THE STRANDS BY THE HARDWARE RASTER, the reference's default mode: every segment

@@ -1,3 +1,4 @@
+import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { ceilDiv } from '../../../../math/src/scalar/integers.ts'
 import { HAIR_RASTER_BOUNDS, type HairRasterSettings } from '../rasterModes.ts'
 
@@ -67,8 +68,7 @@ export interface ForwardLayout {
 /** The settings the layout is made of (`hairVisibilityComputeRaster*`, the compute raster's own). */
 export type ForwardSettings = Pick<HairRasterSettings, 'numBinners' | 'numRasterizers' | 'maxTiles'>
 
-const clampInt = (value: number, low: number, high: number) =>
-  Math.min(Math.max(Math.floor(value), low), high)
+const clampInt = (value: number, low: number, high: number) => clamp(Math.floor(value), low, high)
 
 /** The words of the binners' grid for `tiles` tiles of 32 pixels and `numBinners` binners. */
 const forwardGridWords = (tiles: number, numBinners: number) =>

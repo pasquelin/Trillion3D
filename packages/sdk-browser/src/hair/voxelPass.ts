@@ -226,7 +226,7 @@ function pageEntries(
     const { box } = bounds
     let pages = 1
     for (let axis = 0; axis < 3; axis++)
-      pages *= Math.ceil(((box[3 + axis]! - box[axis]!) * scale) / pageWorld)
+      pages *= ceilDiv((box[3 + axis]! - box[axis]!) * scale, pageWorld)
     entries += pages
   }
   return entries
@@ -401,7 +401,7 @@ function allocateOnCpu(device: GPUDevice, set: HairVoxelSet, frame: HairVoxelFra
       const centre = (box[axis]! + box[3 + axis]!) * 0.5
       lo[axis] = (box[axis]! - centre) * scale + centre - eye[axis]!
       hi[axis] = (box[3 + axis]! - centre) * scale + centre - eye[axis]!
-      pages[axis] = Math.ceil((hi[axis]! - lo[axis]!) / pageWorld)
+      pages[axis] = ceilDiv(hi[axis]! - lo[axis]!, pageWorld)
     }
     const count = pages[0] * pages[1] * pages[2]
     fits &&= offset + count <= room

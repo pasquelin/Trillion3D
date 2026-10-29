@@ -1,4 +1,5 @@
-import { clamp } from '../../../math/src/scalar/reals.ts'
+import { nextPow2 } from '../../../math/src/scalar/integers.ts'
+import { clamp, clampLowWins } from '../../../math/src/scalar/reals.ts'
 import { HAIR_MIN_VOXEL_SIZE } from './boundsPass.ts'
 import { MAX_MACRO_GROUPS } from './macroGroups.ts'
 
@@ -40,7 +41,7 @@ export const roundVoxelSize = (size: number) =>
  *  reference accepts 2 and 4 too, but its levels' pass (`hairVoxelMip`) counts the levels down by three and
  *  never ends on a page of fewer than 8 voxels: a page that small is held to 8 here. */
 export const voxelPageResolution = (requested: number) =>
-  2 ** Math.ceil(Math.log2(clamp(Math.round(requested), 8, 256)))
+  nextPow2(clamp(Math.round(requested), 8, 256))
 
 /** The levels of a page: its own and each half the size down to one voxel. */
 export const voxelPageLevels = (pageResolution: number) => Math.log2(pageResolution) + 1
@@ -66,5 +67,5 @@ export function voxelPageStride(pageResolution: number) {
 export function voxelPageCount(perDim: number, pageResolution: number, limit: number) {
   const wanted = Math.max(1, Math.round(perDim)) ** 3
   const fit = Math.floor(limit / (voxelPageStride(pageResolution) * 4))
-  return Math.max(1, Math.min(wanted, fit))
+  return clampLowWins(wanted, 1, fit)
 }

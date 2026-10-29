@@ -1,5 +1,7 @@
 import { readHairStrandsSetting } from '../../../sdk-core/src/contracts/hairStrandsOptions.ts'
 import { readShadowSetting } from '../../../sdk-core/src/contracts/shadowOptions.ts'
+import { DEG2RAD } from '../../../math/src/constants.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import { multiplyMatrix4 } from '../../../math/src/matrix/matrix4.ts'
 import type { EngineCamera } from '../camera/engineCamera.ts'
 import { cameraForward } from '../camera/forward.ts'
@@ -150,7 +152,7 @@ function deepShadowInputs(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   deepSettings.resolution = readHairStrandsSetting(rt, 'hairDeepShadowResolution')
   deepSettings.minResolution = readHairStrandsSetting(rt, 'hairDeepShadowMinResolution')
   deepSettings.maxHalfFov =
-    (readHairStrandsSetting(rt, 'hairDeepShadowMaxFrustumAngle') * Math.PI) / 360
+    readHairStrandsSetting(rt, 'hairDeepShadowMaxFrustumAngle') * DEG2RAD * 0.5
   deepSettings.aabbScale = readHairStrandsSetting(rt, 'hairDeepShadowAabbScale')
   const shadowScale = readHairStrandsSetting(rt, 'hairShadowRasterizationScale')
   deepSettings.rasterizationScale =
@@ -254,9 +256,10 @@ const voxelDensityScale = (rt: WebgpuPagesRuntime, key: HairSettingKey) => {
 /** A stepping scale of the volume: the setting `key`, or the global one (`hairVoxelSteppingScale`) where it is negative, held to 1..10. */
 const voxelSteppingScale = (rt: WebgpuPagesRuntime, key: HairSettingKey) => {
   const own = readHairStrandsSetting(rt, key) as number
-  return Math.min(
+  return clamp(
+    own >= 0 ? own : (readHairStrandsSetting(rt, 'hairVoxelSteppingScale') as number),
+    1,
     10,
-    Math.max(1, own >= 0 ? own : (readHairStrandsSetting(rt, 'hairVoxelSteppingScale') as number)),
   )
 }
 

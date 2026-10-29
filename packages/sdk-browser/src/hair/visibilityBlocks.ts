@@ -1,10 +1,5 @@
-import {
-  HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT,
-  HAIR_STRANDS_FLAG_SCATTER,
-  HAIR_STRANDS_FLAG_SCATTER_SET,
-  HAIR_STRANDS_FLAG_STABLE,
-  HAIR_STRANDS_FLAG_STABLE_SET,
-} from '../../../sdk-core/src/contracts/hairStrandsAbi.ts'
+import { HAIR_STRANDS_FLAG_EXTRA_ENDING_POINT } from '../../../sdk-core/src/contracts/hairStrandsAbi.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import type { wordViews } from '../gpu/core/wordViews.ts'
 import { HAIR_DEFAULT_MATERIAL, HAIR_FLAG } from './materialMath.ts'
 import type { HairInstance } from './scene.ts'
@@ -75,7 +70,7 @@ export function writeHairInstanceBlock(
     const x = m[axis * 4]!,
       y = m[axis * 4 + 1]!,
       z = m[axis * 4 + 2]!
-    const length = Math.hypot(x, y, z) || 1
+    const length = length3(x, y, z) || 1
     f[16 + axis * 4] = x / length
     f[17 + axis * 4] = y / length
     f[18 + axis * 4] = z / length

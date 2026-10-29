@@ -1,5 +1,6 @@
 import { boxGrow, boxTransform, boxUnionBox } from '../../../math/src/geometry/box.ts'
 import { sphereFromBounds } from '../../../math/src/geometry/sphere.ts'
+import { clamp } from '../../../math/src/scalar/reals.ts'
 import { length3 } from '../../../math/src/vector/vector.ts'
 
 /**
@@ -56,7 +57,7 @@ export function unionInto(out: BoxSphere, a: BoxSphere, b: BoxSphere) {
   sphereFromBounds(sphere, 0, box[0]!, box[1]!, box[2]!, box[3]!, box[4]!, box[5]!)
   const reachOf = (x: number, y: number, z: number, radius: number) =>
     length3(x - sphere[0]!, y - sphere[1]!, z - sphere[2]!) + radius
-  sphere[3] = Math.min(sphere[3]!, Math.max(reachOf(ax, ay, az, ar), reachOf(bx, by, bz, br)))
+  sphere[3] = clamp(reachOf(bx, by, bz, br), reachOf(ax, ay, az, ar), sphere[3]!)
 }
 
 /** The box that holds the image of `box` by the column-major matrix `m` (an affine one). */

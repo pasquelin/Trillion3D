@@ -102,7 +102,7 @@ function voxelInfo(rt: WebgpuPagesRuntime, view: HairViewGpu, lines: DebugLines)
   if (!set || !settings) return
   const side = settings.pageCountPerDim
   let y = flagRow(lines, LEFT, 100, 'Alloc. Feedback', settings.adaptive)
-  y = rows(
+  rows(
     lines,
     LEFT,
     y,

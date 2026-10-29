@@ -1,4 +1,5 @@
 import { clamp } from '../../../math/src/scalar/reals.ts'
+import { length3 } from '../../../math/src/vector/vector.ts'
 import {
   DEFAULT_LIGHTING_CHANNELS,
   lightingChannelMask,
@@ -116,7 +117,7 @@ export function deepShadowIndexOf(
 export function deepShadowReaches(light: HairDeepShadowLight, bounds: BoxSphere) {
   if (light.directional || !(light.range > 0)) return true
   const { sphere } = bounds
-  const distance = Math.hypot(
+  const distance = length3(
     sphere[0]! - light.vector[0],
     sphere[1]! - light.vector[1],
     sphere[2]! - light.vector[2],

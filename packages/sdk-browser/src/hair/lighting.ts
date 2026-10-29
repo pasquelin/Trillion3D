@@ -537,7 +537,7 @@ export function encodeHairLighting(
   if (curves && rt.gpu.hdrView) encodeRenderCurveCompose(device, encoder, curves, rt.gpu.hdrView)
   const ready = hairLightingReady(rt, device)
   if (!ready) return
-  const { view, program, light, sky, nodes, sampled, scene, environment, lut } = ready
+  const { view, program, sky, nodes, sampled } = ready
   const skyGroup = program.hairSkyGroup()
   const { inputs } = view
 
@@ -545,7 +545,6 @@ export function encodeHairLighting(
   const traced = tracedLights(rt, cam, view.deepShadows, voxelized, sampled)
   const sizes = lightingSizesOf(rt, device, nodes, traced.length)
   if (!sizes) return
-  const { stride, side } = sizes
   const set = ensureHairLightingSet(rt, device, view, sizes)
   if (!set) return
 

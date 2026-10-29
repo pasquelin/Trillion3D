@@ -12,7 +12,7 @@ test('a directional light is framed by an orthographic view of the box radius, a
     DEEP_SHADOW_ALLOCATE_WGSL,
     /min\(params\.maxHalfFov,atan\(radius\/distanceToCentre\)\)/,
   )
-  assert.match(DEEP_SHADOW_ALLOCATE_WGSL, /result\.zScale=-zScale;\n  result\.zOffset=1\.0;/)
+  assert.match(DEEP_SHADOW_ALLOCATE_WGSL, /result\.zScale=-zScale;\n {2}result\.zOffset=1\.0;/)
   assert.match(DEEP_SHADOW_ALLOCATE_WGSL, /result\.zScale=-minZ\/\(maxZ-minZ\)/)
 })
 
