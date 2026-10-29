@@ -13,7 +13,8 @@ import { ENGINES, equipSide } from './sideOptions.ts'
 import { temporalAntialiasingLevel } from '../../../packages/sdk-core/src/contracts/materialOptions.ts'
 
 /**
- * What the harness server serves, and nothing else: browser dependencies, benchmark assets,
+ * What the harness server serves, and nothing else: the bench's page modules and the test kit they
+ * import, benchmark assets,
  * dist of each side and its cache if it has one. `resources` is the folder referenced by relative path
  * (`assets/textures/...`) in a compiled cache glTF; without it, textures in a compiled cache yield 404.
  */
@@ -21,6 +22,8 @@ export function resolveMounts(root: string, sides: SideBase[], resources: string
   return [
     // Modules imported by the page via URL: `series/cutPage.ts`.
     { prefix: '/runner/', dir: join(root, 'bench/runner') },
+    // The test kit those modules import (`tests/kit/device/frame.ts`), at the path they name it by.
+    { prefix: '/tests/kit/', dir: join(root, 'tests/kit') },
     { prefix: '/benchmark-assets/', dir: ASSETS },
     ...(resources ? [{ prefix: '/assets/', dir: resources }] : []),
     ...sides.map((side) => ({ prefix: `/sdk/${side.name}/`, dir: side.dist })),

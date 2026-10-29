@@ -19,6 +19,11 @@ test('counts encoded texture and other transfer while cache hits contribute no b
     failedRequests: 0,
     unfinishedRequests: 0,
     unmeasuredRedirects: 0,
+    cacheFiles: {
+      '/cache/textures/v6/a/linear-1.bc7': 145,
+      '/cache/native/full/manifest.json': 75,
+      '/cache/textures/v6/a/linear-2.bc7': 0,
+    },
   })
 })
 
@@ -38,6 +43,7 @@ test('redirect bytes retain their source and missing transfer makes the reading 
     failedRequests: 1,
     unfinishedRequests: 1,
     unmeasuredRedirects: 1,
+    cacheFiles: { '/cache/textures/redirect': 25, '/cache/textures/final': 100 },
   })
 })
 

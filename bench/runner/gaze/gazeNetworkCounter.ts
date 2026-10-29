@@ -1,6 +1,13 @@
-/** CDP network events for one camera session. Redirects retain their request id. */
+/** A request on its way: whether it reads a texture, whether the browser answered it from its
+ *  cache, and the path of the side's cache file it reads, if it reads one (`/cache/<side>/…`). */
+type Pending = { texture: boolean; cached: boolean; cacheFile?: string }
+
+/** CDP network events for one camera session. Redirects retain their request id. Each file of a
+ *  side's cache is also counted on its own, by its path, so a reading says what of the cache a
+ *  view reads. */
 export function gazeNetworkCounter() {
-  const pending = new Map<string, { texture: boolean; cached: boolean }>()
+  const pending = new Map<string, Pending>()
+  const cacheFiles: Record<string, number> = {}
   let textureBytes = 0
   let otherBytes = 0
   let textureRequests = 0
@@ -8,10 +15,12 @@ export function gazeNetworkCounter() {
   let unmeasuredRedirects = 0
   let lastActivity = Date.now()
 
-  const account = (request: { texture: boolean; cached: boolean }, encodedBytes: number) => {
+  const account = (request: Pending, encodedBytes: number) => {
     const bytes = request.cached ? 0 : encodedBytes
     if (request.texture) textureBytes += bytes
     else otherBytes += bytes
+    if (request.cacheFile)
+      cacheFiles[request.cacheFile] = (cacheFiles[request.cacheFile] ?? 0) + bytes
   }
 
   return {
@@ -22,7 +31,9 @@ export function gazeNetworkCounter() {
         if (redirectBytes === undefined) unmeasuredRedirects++
         else account(previous, redirectBytes)
       }
-      pending.set(id, { texture: new URL(url).pathname.includes('/textures/'), cached: false })
+      const path = new URL(url).pathname
+      const cacheFile = path.startsWith('/cache/') ? path : undefined
+      pending.set(id, { texture: path.includes('/textures/'), cached: false, cacheFile })
     },
     cache(id: string) {
       const request = pending.get(id)
@@ -55,6 +66,7 @@ export function gazeNetworkCounter() {
         failedRequests,
         unfinishedRequests: pending.size,
         unmeasuredRedirects,
+        cacheFiles: { ...cacheFiles },
       }
     },
   }
