@@ -38,7 +38,7 @@ import {
 } from '../../vsm/render/renderRasterWgsl.ts'
 import { vsmBindingsWgsl } from '../../vsm/resources.ts'
 import type { VsmLayout } from '../../vsm/layout.ts'
-import { DRAW_BIAS_WGSL } from './atlasTileWgsl.ts'
+import { DRAW_BIAS_CLIP_WGSL } from './atlasTileWgsl.ts'
 
 /** The target's format: 32-bit depth, the greater the nearer the light, cleared to zero as the pool's words are. */
 export const ATLAS_DEPTH_FORMAT: GPUTextureFormat = 'depth32float'
@@ -58,7 +58,7 @@ const ATLAS_PLACING_WGSL = wgslBlock(
     VSM_RENDER_RECORD_WGSL,
     PAGE_INFO_WGSL,
     VSM_PROJECTION_RECORD_WGSL,
-    DRAW_BIAS_WGSL,
+    DRAW_BIAS_CLIP_WGSL,
   ],
   `fn vsmAtlasWindowOf(r:vec4u)->vec3u{
  return vec3u(vsmRecordMap(r),vsmRecordStatic(r)|(vsmRecordMip(r)<<1u),0u);

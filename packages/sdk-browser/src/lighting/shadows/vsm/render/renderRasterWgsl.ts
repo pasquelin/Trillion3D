@@ -54,7 +54,7 @@ import {
   SHADOW_TILE_POOL_WGSL,
   materialDeclarations,
 } from '../../../../materials/virtual/wgsl.ts'
-import { DRAW_BIAS_WGSL } from '../../classic/atlas/atlasTileWgsl.ts'
+import { DRAW_BIAS_CLIP_WGSL } from '../../classic/atlas/atlasTileWgsl.ts'
 import { VSM_CONSTANTS_WGSL, VSM_PAGE_TEXELS } from '../constants.ts'
 import { VSM_PAGE_ADDRESS_WGSL } from '../pageTableWgsl.ts'
 import { VSM_PROJECTION_DATA_WGSL } from '../projection/projectionDataWgsl.ts'
@@ -228,7 +228,7 @@ export interface RasterPlace {
   readonly clip: string
   readonly surface: string
 }
-/** The pool's: the record's window of pages, none dropped, the depth bias of its map (`DRAW_BIAS_WGSL`; none in a frame of virtual shadow maps, whose atlas binding holds zeros). */
+/** The pool's: the record's window of pages, none dropped, the depth bias of its map (`DRAW_BIAS_CLIP_WGSL`; none in a frame of virtual shadow maps, whose atlas binding holds zeros). */
 export const POOL_PLACE: RasterPlace = {
   window: 'vsmRenderWindowOf(record)',
   position: 'vsmRenderRasterPosition(clip,record)',
@@ -315,7 +315,7 @@ ${renderRasterVertex(wpo)}${renderRasterFragment(masks)}
       maskKeepWgsl(maskAlphaWgsl(true, SHADOW_TILE_POOL_WGSL), masks),
       VSM_CONSTANTS_WGSL,
       VSM_PROJECTION_DATA_WGSL,
-      DRAW_BIAS_WGSL,
+      DRAW_BIAS_CLIP_WGSL,
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_VERTEX_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_FRAGMENT_SPECS, layout),
       vsmBindingsWgsl(1, VSM_RENDER_RASTER_SHARED_SPECS, layout),

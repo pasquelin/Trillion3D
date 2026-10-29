@@ -69,8 +69,8 @@ fn vsmDrawDepthPerDistance(m:mat4x4f)->f32{return abs(m[2][2]*m[3][3]-m[3][2]*m[
 )
 
 /**
- * The draw bias of a map's casters (the buffer of `atlasTileWgsl(1, ATLAS_RASTER_BINDING)` declared by the program): the lift of `DRAW_LIFT_WGSL` at each vertex, from the map's
- * words in the atlas buffer and the vertex's normal.
+ * The draw bias of a map's casters (the buffer of `atlasTileWgsl(1, ATLAS_RASTER_BINDING)` declared by the program): the map's words in
+ * the atlas buffer, the lift of `DRAW_LIFT_WGSL` and the world normal it is taken against — what a box face (the voxel raster) needs.
  */
 export const DRAW_BIAS_WGSL = wgslBlock(
   'VSM_DRAW_BIAS_WGSL',
@@ -79,17 +79,23 @@ export const DRAW_BIAS_WGSL = wgslBlock(
     DRAW_LIFT_WGSL,
     VSM_CONSTANTS_WGSL,
     VSM_RENDER_RECORD_WGSL,
-    PAGE_INFO_WGSL,
-    PAGE_NORMAL_WGSL,
-    VSM_PROJECTION_RECORD_WGSL,
   ],
   `/** The world normal of a surface whose local normal is 'local', taken by the cofactor of the columns 'c0', 'c1', 'c2' of the placement's matrix. */
 fn vsmDrawNormal(c0:vec3f,c1:vec3f,c2:vec3f,local:vec3f)->vec3f{
  return normalize(cross(c1,c2)*local.x+cross(c2,c0)*local.y+cross(c0,c1)*local.z);
 }
 /** Whether the map of a record is drawn with a depth bias. */
-fn vsmAtlasBiased(r:vec4u)->bool{return vsmDrawBiasOf(vsmRecordMap(r)).x>0.0;}
-/** The map clip position with the depth bias of the vertex taken off: the lift of the vertex's normal (page 'page', vertex 'vertex') against the light's axis, brought to depth at the vertex. */
+fn vsmAtlasBiased(r:vec4u)->bool{return vsmDrawBiasOf(vsmRecordMap(r)).x>0.0;}`,
+)
+
+/**
+ * The draw bias at a caster's vertex (`DRAW_BIAS_WGSL`), its normal read from its page: the triangle rasters', which bind the page's
+ * normals; the voxel raster, which binds none, takes `DRAW_BIAS_WGSL` alone.
+ */
+export const DRAW_BIAS_CLIP_WGSL = wgslBlock(
+  'VSM_DRAW_BIAS_CLIP_WGSL',
+  [DRAW_BIAS_WGSL, PAGE_INFO_WGSL, PAGE_NORMAL_WGSL, VSM_PROJECTION_RECORD_WGSL],
+  `/** The map clip position with the depth bias of the vertex taken off: the lift of the vertex's normal (page 'page', vertex 'vertex') against the light's axis, brought to depth at the vertex. */
 fn vsmAtlasBiasedClip(clip:vec4f,r:vec4u,raw:VsmProjectionRecord,page:PageInfo,h:ClusterHeader,vertex:u32)->vec4f{
  let bias=vsmDrawBiasOf(vsmRecordMap(r));
  if(bias.x<=0.0){return clip;}
