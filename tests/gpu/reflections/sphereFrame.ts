@@ -1,9 +1,8 @@
 // A still frame of mirror spheres standing on a dark floor under an open sky (`rig.ts`), computed
 // analytically: each pixel's eye ray meets a sphere, the floor or the sky; a sphere is a polished
-// metal that reflects, the floor a dark diffuse one, the sky is drawn bright but no sky light shines
-// (no resident proxy: what the screen cannot answer is black, as a ray that leaves the scene
-// reflects it). `exactReflection`
-// is the mirror ray of a sphere pixel followed exactly, the reference the engine's image is read
+// metal that reflects, the floor a dark diffuse one, the sky is drawn bright but no sky light shines.
+// The scene beyond the screen is the floor's face alone: a ray that meets nothing there reflects black.
+// `exactReflection` is the mirror ray of a sphere pixel followed exactly, the reference the engine's image is read
 // against.
 import { camera } from '../../../packages/sdk-browser/src/lighting/reflections/boxes.fixture.ts'
 import { DEG2RAD } from '../../../packages/math/src/constants.ts'
@@ -12,6 +11,8 @@ import { subtract, type Vec3 } from '../../../packages/math/src/vector/vectorTup
 import { reflect } from '../../../packages/math/src/vector/vectorTuple.fixture.ts'
 import { raySphere } from './rayShapes.ts'
 import { paintPixel, rigFrameOf } from './rigFrame.ts'
+import { boxTriangles } from './boxProxy.ts'
+import type { RigFace } from './rigRuntime.ts'
 
 export const SPHERES = {
   width: 960,
@@ -60,6 +61,17 @@ function castSpheres(o: Vec3, d: Vec3, from = 0) {
   return { t, index }
 }
 
+/** The floor as the scene's face (`rigRuntime.ts`): a closed slab of `FLOOR_HALF` metres about the origin, as deep, its top the floor's plane,
+ *  giving the floor's radiance. Closed, its field is signed, linear across the plane: a march that steps over the plane reads a negative distance. */
+const FLOOR_HALF = 50
+const floorFace = (): RigFace => ({
+  triangles: boxTriangles({
+    low: [-FLOOR_HALF, -FLOOR_HALF, -FLOOR_HALF],
+    high: [FLOOR_HALF, 0, FLOOR_HALF],
+  }),
+  radiance: [SPHERES.floor, SPHERES.floor, SPHERES.floor],
+})
+
 /** The frame, the view that sees it and what each pixel shows (a sphere, -2 the floor, -1 the sky). */
 export function sphereFrame() {
   const { width, height, eye, target, fov } = SPHERES
@@ -67,6 +79,8 @@ export function sphereFrame() {
   const shown = new Int32Array(width * height).fill(-1)
   const frame = rigFrameOf([width, height], view.m, eye)
   frame.background = 0xffffff
+  // The scene beyond the screen: the floor alone, lit as the screen shows it. No sky light shines: a ray that meets nothing is black.
+  frame.proxy = { faces: [floorFace()] }
   for (let y = 0; y < height; y++)
     for (let x = 0; x < width; x++) {
       const p = y * width + x

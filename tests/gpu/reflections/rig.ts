@@ -5,6 +5,7 @@
 // trace, then the lit image kept (`holdLitImage`), adopted as the next image's (`adoptLitImage`). Consecutive
 // still images, whose reflection targets are read back to the bit.
 import { rigField } from './rigField.ts'
+import { rigCache } from './rigCache.ts'
 import { clearValueOf } from '../../../packages/sdk-core/src/world/math/packedColour.ts'
 import {
   createScreenReflection,
@@ -124,12 +125,20 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
   }
   // No fog and no bounce probes: the engine's stand-ins, as an image without them binds them.
   const standIns = createDeferredPlaceholders(device)
-  // No surface cache: the stand-ins the scene stage's hits read, whose tables hold no placement, as an image whose cache is not
-  // made binds them.
-  const cards = createHitCards(device)
-  const hit = cards.resources({} as WebgpuPagesRuntime, WORD_LIGHT_FORMAT)
   // The field the scene stage marches the faces' rays through, of the same faces; none without them.
   const marched = rigField(device, standIns, frame.proxy?.faces)
+  // The surface cache the hits of those rays read (`rigCache.ts`): a card set for each face, lit by the face's radiance; the stand-ins, whose
+  // tables hold no placement, as an image whose cache is not made binds them, where the frame has no face.
+  const cards = createHitCards(device)
+  let cache: ReturnType<typeof rigCache> | undefined
+  try {
+    cache = marched.clipmap && rigCache(device, frame.proxy!.faces, marched.clipmap, cards)
+  } catch (error) {
+    marched.dispose()
+    cards.dispose()
+    throw error
+  }
+  const hit = cache?.hit ?? cards.resources({} as WebgpuPagesRuntime, WORD_LIGHT_FORMAT)
   const inputs = {
     hit,
     field: marched.field,
@@ -207,6 +216,7 @@ export async function openRig(device: GPUDevice, frame: RigFrame, planes = true)
       marched.dispose()
       standIns.dispose()
       cards.dispose()
+      cache?.dispose()
       hiz.dispose()
       lightView.dispose()
       // The HDR target of the next turn: the rig's own, or the one the lit image gave back.

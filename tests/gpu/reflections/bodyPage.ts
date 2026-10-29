@@ -1,11 +1,13 @@
 // A thick toothed body between the eye and a mirror wall (`boxFrame.ts`, `rig.ts`): the wall's
-// mirror rays come toward the eye and pass through the body, behind the front the screen sees. A
+// mirror rays come toward the eye and pass through the body, behind the front the screen sees; the screen
+// march gives them up, and the scene's faces (`boxProxy.ts`) answer them. A
 // wall pixel whose exact ray meets the body, away from the body's silhouette, must show the body's
 // colour — the reflection of a body is continuous, never the shards of its edges the ray happens to
 // meet inside a thin slab.
 import { runOnDevice } from '../../kit/device/deviceProof.ts'
 import type { Block } from './boxFrame.ts'
 import { exactRays, hitOnScreen, hueOf, interior, renderBlocks } from './rayAudit.ts'
+import { blockFaces } from './boxProxy.ts'
 import type { Vec3 } from '../../../packages/math/src/vector/vectorTuple.ts'
 
 const WIDTH = 320,
@@ -40,7 +42,17 @@ type BodyReading = {
 
 export function run() {
   return runOnDevice<BodyReading>(async (device, _events, result) => {
-    const { view, shown, rgb } = await renderBlocks(device, BLOCKS, EYE, TARGET, WIDTH, HEIGHT)
+    // The screen cannot answer a ray that starts behind the body's front, which it may not take. The scene
+    // answers it: the body's faces alone, so that the field's voxels resolve its teeth.
+    const { view, shown, rgb } = await renderBlocks(
+      device,
+      BLOCKS,
+      EYE,
+      TARGET,
+      WIDTH,
+      HEIGHT,
+      blockFaces(BODY),
+    )
     const { exact, origins, mirrors, boxes } = exactRays(
       view,
       BLOCKS,

@@ -12,6 +12,7 @@ import {
 import { boxFrame, type Block } from './boxFrame.ts'
 import { settledImage } from './rigImage.ts'
 import { pointOnScreen, rgbAt } from './rigFrame.ts'
+import type { RigFace } from './rigRuntime.ts'
 
 /** The share of `color` a pixel's colour `v` holds: 1 for the same hue, 0 under a faint pixel. */
 export function hueOf(v: number[], color: Vec3) {
@@ -82,7 +83,7 @@ export function interior(exact: Int32Array, width: number, height: number, p: nu
 
 /** The blocks seen from `eye` toward `target` at `width × height`, two still images through the
  *  engine's kernels on `device`: the view, the pixels' blocks and a reader of a pixel's reflected
- *  colour. */
+ *  colour. `faces`, when given, are the scene's faces beyond the screen (`frame.proxy`). */
 export async function renderBlocks(
   device: GPUDevice,
   blocks: Block[],
@@ -90,8 +91,10 @@ export async function renderBlocks(
   target: Vec3,
   width: number,
   height: number,
+  faces?: RigFace[],
 ) {
   const { frame, view, shown } = boxFrame(blocks, eye, target, width, height)
+  if (faces) frame.proxy = { faces }
   const words = await settledImage(device, frame)
   const rgb = (p: number) => rgbAt(words, p)
   return { frame, view, shown, rgb }
