@@ -30,6 +30,12 @@ export interface DebugGpuBoxes {
   readonly nodes?: { readonly count: number; readonly nodes: GPUBuffer }
 }
 
+/** Lines a kernel appended in a buffer of its own, and the indirect arguments of the draw that counts them (`../lighting/surfaceCache/sceneDebug/gpuLines.ts`). */
+export interface DebugAppendedLines {
+  readonly lines: GPUBuffer
+  readonly args: GPUBuffer
+}
+
 /** What the lines pass binds for a kind of box: the buffer of its description, at the binding the kernel reads it from. */
 const BOXES = [
   ['frusta', 2, (box: { viewInfos: GPUBuffer }) => box.viewInfos],
@@ -104,7 +110,7 @@ export function createDebugLinesGpu(device: GPUDevice) {
   return {
     /**
      * Draws over `target` (`size` display pixels) the lines of `drawn` and the boxes of `boxes`, seen through `viewProjection`
-     * (clip from the world relative to the eye).
+     * (clip from the world relative to the eye), then the lines a kernel `appended`, as many as its arguments count.
      */
     encode(
       encoder: GPUCommandEncoder,
@@ -113,6 +119,7 @@ export function createDebugLinesGpu(device: GPUDevice) {
       viewProjection: ArrayLike<number>,
       drawn: DebugLines,
       boxes: DebugGpuBoxes,
+      appended?: DebugAppendedLines,
     ) {
       const draw = pipeline.get()
       if (!draw) return
@@ -135,6 +142,16 @@ export function createDebugLinesGpu(device: GPUDevice) {
       )
       if (drawn.count) pass.draw(6, drawn.count, 0, 0)
       pass.draw(6, DEBUG_GPU_LINES.end - DEBUG_GPU_LINES.frusta, 0, DEBUG_GPU_LINES.frusta)
+      if (appended) {
+        pass.setBindGroup(
+          0,
+          device.createBindGroup({
+            layout: draw.getBindGroupLayout(0),
+            entries: sequentialEntries([{ buffer: buffers.view }, { buffer: appended.lines }]),
+          }),
+        )
+        pass.drawIndirect(appended.args, 0)
+      }
       pass.end()
     },
     dispose() {

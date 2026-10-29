@@ -17,8 +17,10 @@ export const DEBUG_GPU_LINES = {
 /** The words of the viewer's uniform: the view-projection, the display's size, the width of a line in pixels. */
 export const DEBUG_VIEW_FLOATS = 20
 
-/** A line: its first end, its colour (the bytes of a word), its second end and its space (0 the world relative to the eye, 1 the display's pixels). */
-const LINE = 'struct DebugLine{a:vec3f,color:u32,b:vec3f,space:f32}'
+/** A line: its first end, its colour (the bytes of a word), its second end and its space (0 the world relative to the eye, 1 the display's pixels). A line of the display's pixels may
+ *  carry its own width in the third number of its first end (a quad filled is one line along its middle as wide as the quad); none, zero, takes the view's. */
+export const DEBUG_LINE_STRUCT = 'struct DebugLine{a:vec3f,color:u32,b:vec3f,space:f32}'
+const LINE = DEBUG_LINE_STRUCT
 
 /**
  * THE LINES DRAWN OVER THE IMAGE: every line of the buffer is a quad of the width in pixels the view says, between its ends
@@ -54,7 +56,8 @@ const NEAR_W=0.0001;
  let along=d/span;
  // The quad's corners: the end of the line (0 first, 1 second) and the side (-1 or 1).
  let corner=vec2f(f32(vertex==2u||vertex==3u||vertex==5u),select(-1.0,1.0,vertex==1u||vertex==4u||vertex==5u));
- let p=mix(pa,pb,corner.x)+vec2f(-along.y,along.x)*corner.y*0.5*view.width;
+ let width=select(view.width,line.a.z,line.space>0.5&&line.a.z>0.0);
+ let p=mix(pa,pb,corner.x)+vec2f(-along.y,along.x)*corner.y*0.5*width;
  out.position=vec4f(p/view.size*vec2f(2.0,-2.0)+vec2f(-1.0,1.0),0.0,1.0);
  return out;
 }
