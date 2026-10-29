@@ -2,6 +2,7 @@ import { DEG2RAD } from '../../../../../math/src/constants.ts'
 import { clamp } from '../../../../../math/src/scalar/reals.ts'
 import { SCREEN_PROBE_CONSTANTS as C } from '../../../../../sdk-core/src/bounce/screenProbeLevels.ts'
 import type { ScreenProbeSettings } from '../../../../../sdk-core/src/bounce/screenProbeOptions.ts'
+import { packDoubles } from '../../../../../math/src/float/splitDouble.ts'
 import { putVec4 } from '../../../gpu/core/fieldLayout.ts'
 import { wordViews } from '../../../gpu/core/wordViews.ts'
 import { writeChanged } from '../../../gpu/core/writeChanged.ts'
@@ -196,7 +197,7 @@ function putGi(staged: Float32Array, geometry: ScreenProbeGeometry, settings: Sc
  * fallback's, in the exponent, the foliage's with the foliage numbers), the probability under which a ray is not drawn and the intensity a ray is held to; the
  * filter's numbers, the jitter of the probes a pixel reads and the furthest a ray looks; the occlusion's search; the scene
  * trace's and the history's numbers, the radiance cache's, the motion's numbers; the disocclusion's and the screen trace's thicknesses and the roughnesses of the rough specular and the foliage's occlusion strength; the last
- * view-projection's inverse; the rays cast through the scene's triangles' numbers. The words that differ from those it sent go up (`writeChanged`); nothing is allocated by a call.
+ * view-projection's inverse and the eye's doubles; the rays cast through the scene's triangles' numbers. The words that differ from those it sent go up (`writeChanged`); nothing is allocated by a call.
  */
 export function createScreenProbeParams(device: GPUDevice, buffer: GPUBuffer) {
   const { f: staged, u: words } = wordViews(new ArrayBuffer(P.words * 4))
@@ -211,6 +212,7 @@ export function createScreenProbeParams(device: GPUDevice, buffer: GPUBuffer) {
     putTraced(staged, settings, image)
     putGi(staged, geometry, settings)
     staged.set(image.previousInverse, P.at.previous)
+    packDoubles(words, P.at.eyeXY, image.eye)
     writeChanged(device, buffer, words, 0, P.words)
   }
 }

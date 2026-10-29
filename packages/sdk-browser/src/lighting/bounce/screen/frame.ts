@@ -168,6 +168,9 @@ function inputsOf(
   inputs.cacheRaw = cache.raw
   inputs.cacheSky = cache.sky
   inputs.cachePdf = cache.pdf
+  const selection = rt.run.gpuSelection
+  inputs.worlds = selection?.worlds ?? store.noPoses(device)
+  inputs.previous = selection?.previous ?? store.noPoses(device)
   return inputs
 }
 
@@ -294,6 +297,7 @@ function writeImageParameters(
     skylightLeak: lobes.skylightLeakColor,
     roughSpecularFoliage: lobes.maxRoughnessEvaluateFoliage,
     posesMoving: !!rt.run.gpuSelection?.posesMoving,
+    eye: rt.run.gate.cam.eye,
     exactLight: settings.cache.light !== 'r11g11b10',
     rays,
   })

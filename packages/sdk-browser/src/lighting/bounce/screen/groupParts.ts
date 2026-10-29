@@ -32,6 +32,9 @@ export interface ScreenProbeInputs {
   cacheRaw: GPUTextureView
   cacheSky: GPUTextureView
   cachePdf: GPUBuffer
+  /** The poses of the cut's placements and those the last drawn frame drew (`GpuSelection.worlds`, `previous`), which the scene stage tells the speed of a hit by (`stHitVelocity`): the stand-in of none where the image holds no cut. */
+  worlds: GPUTextureView
+  previous: GPUTextureView
 }
 
 /** What the groups of one frame are made from: the device, the kernels, the resources and the image's inputs,

@@ -133,6 +133,8 @@ export interface ScreenProbeStore {
   noVectors(device: GPUDevice): GPUTextureView
   /** What the kernels bind for the radiance cache where there is none: texels of zero. */
   noCache(device: GPUDevice, light: LightAtlasFormat): NoCache
+  /** What the kernels bind for the poses of the cut where the image holds none: a texel of zero. */
+  noPoses(device: GPUDevice): GPUTextureView
   dispose(): void
 }
 
@@ -284,6 +286,7 @@ export function createScreenProbeStore(): ScreenProbeStore {
     fieldOcclusion: undefined,
     noVectors: stands.vectors,
     noCache: stands.cache,
+    noPoses: stands.poses,
     dispose() {
       store.fieldOcclusion?.dispose()
       store.fieldOcclusion = undefined

@@ -137,6 +137,8 @@ const INPUT_SLOT: Record<Exclude<keyof ScreenProbeInputs, 'field' | 'hit' | 'fog
   cacheRaw: true,
   cacheSky: true,
   cachePdf: true,
+  worlds: true,
+  previous: true,
 }
 const INPUT_KEYS = Object.keys(INPUT_SLOT) as (keyof typeof INPUT_SLOT)[]
 /** The hit's resources the identity names after the inputs and the field's generation. */

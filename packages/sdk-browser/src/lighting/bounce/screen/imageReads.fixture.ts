@@ -14,5 +14,6 @@ export const IMAGE_READS = {
   skylightLeak: [0, 0, 0] as const,
   roughSpecularFoliage: 0.8,
   posesMoving: false,
+  eye: [0, 0, 0],
   exactLight: false,
 }

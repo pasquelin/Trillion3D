@@ -189,9 +189,9 @@ export function surfaceHitWgsl(b: SurfaceHitBindings, light: LightAtlasFormat) {
       globalDistanceFieldTraceWgsl(b.group, b.field),
       globalObjectGridReadWgsl(b.group, b.field, b.grid),
     ],
-    `struct ScHitSurface{radiance:vec3f,face:vec3f,valid:bool,}
-/** The surface the march \`hit\` of the ray from the world point \`origin\` along \`dir\` met: its light, its face, and whether the cache gave
- *  any. \`spread\` is the tangent of the angle of the ray's cone, \`hiRes\` whether the finest pages are read, \`coord\` the pixel the
+    `struct ScHitSurface{radiance:vec3f,face:vec3f,valid:bool,instance:u32,}
+/** The surface the march \`hit\` of the ray from the world point \`origin\` along \`dir\` met: its light, its face, whether the cache gave
+ *  any, and the object of the grid whose cards gave the most weight to it (all ones where none gave any), which is the rank of the cut's placement a hit of the scene's triangles names (\`StHit.object\`): the placement that carries the hit's speed. \`spread\` is the tangent of the angle of the ray's cone, \`hiRes\` whether the finest pages are read, \`coord\` the pixel the
  *  feedback is written for. */
 fn scGlobalHit(origin:vec3f,dir:vec3f,hit:GdfTraceResult,spread:f32,fade:bool,startedInside:f32,hiRes:bool,coord:vec2u)->ScHitSurface{
  let world=origin+dir*hit.hitTime;
@@ -200,19 +200,23 @@ fn scGlobalHit(origin:vec3f,dir:vec3f,hit:GdfTraceResult,spread:f32,fade:bool,st
  let voxel=gdfView.centerExtent[hit.clipmap].w*gdfView.texel;
  var factor=select(1.0,smoothstep(1.5*voxel,2.0*voxel,hit.hitTime),fade);
  if(hit.hitTime<=startedInside){factor=0.0;}
- if(!(factor>0.0)){return ScHitSurface(vec3f(0.0),face,false);}
+ if(!(factor>0.0)){return ScHitSurface(vec3f(0.0),face,false,0xffffffffu);}
  let cell=gdfObjectGridCellOf(translated+face*voxel,hit.clipmap);
  // The march's hit sits \`expand\` past the surface: the cards are read half of it nearer.
  let cardAt=world+dir*0.5*hit.expand;
  var taken=scAccumulator();
+ var instance=0xffffffffu;
+ var best=0.0;
  for(var k=0u;k<${GRID_CELL_SIZE}u;k++){
   if(!gdfGridValid(cell[k])){break;}
-  let cards=scPlacementMeshCards(scHitPlacement(gdfGridInstance(cell[k])));
-  scSampleMeshCards(cards,cardAt,face,spread*hit.hitTime,${CARD_RANGE_IN_VOXELS}.0*voxel,hiRes,&taken);
+  let own=gdfGridInstance(cell[k]);
+  let before=taken.weightSum;
+  scSampleMeshCards(scPlacementMeshCards(scHitPlacement(own)),cardAt,face,spread*hit.hitTime,${CARD_RANGE_IN_VOXELS}.0*voxel,hiRes,&taken);
+  if(taken.weightSum-before>best){best=taken.weightSum-before;instance=own;}
   if(taken.weightSum>=0.9){break;}
  }
  let light=scEvaluate(taken,coord);
- return ScHitSurface(factor*light.radiance,face,light.valid);
+ return ScHitSurface(factor*light.radiance,face,light.valid,instance);
 }`,
   )
 }

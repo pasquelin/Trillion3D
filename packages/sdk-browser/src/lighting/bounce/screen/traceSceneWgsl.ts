@@ -25,6 +25,7 @@ import { rayFogLayoutEntries, type RayFogBindings } from '../../reflections/rayF
 import { rayFogWgsl } from './rayFogWgsl.ts'
 import { SCREEN_PROBE_FORMATS as F, bindingTable } from './screenProbeLayout.ts'
 import { spRays } from './traceWgsl.ts'
+import { poseTableEntry, sceneHitVelocityAt } from '../../rays/sceneTrace/sceneHitVelocityWgsl.ts'
 
 /** The scene stage's bindings: the probes' records and pixels, the ray words, the radiance and ends written (the ends read and
  *  written in place), the cascades' uniform, the lights (the sky they hold), the list of the rays the screen left, the engine's blue
@@ -45,6 +46,8 @@ export const TRACE_SCENE_BINDINGS = bindingTable({
   cacheRaw: [19, 'uint'],
   cacheSky: [20, 'float'],
 })
+/** Where the stage reads the poses a hit's placement is carried by (`stHitVelocity`): the cut's worlds and the poses the last drawn frame drew, in group 0 after the fog's reads. */
+export const TRACE_SCENE_POSES = { worlds: 40, previous: 41 } as const
 /** The atlas of the cascades' probes, which the radiance cache's lookup reads the probes' table in. */
 export const TRACE_SCENE_PROBES = 9
 /** Where the stage reads what its hits find: the global field its rays are marched through, its object grid and the surface cache
@@ -58,6 +61,8 @@ export const traceSceneEntries = (fog: boolean, light: LightAtlasFormat = WORD_L
   atlasEntry(TRACE_SCENE_PROBES),
   ...surfaceHitLayoutEntries(TRACE_SCENE_HIT, light),
   ...rayFogLayoutEntries(TRACE_SCENE_FOG, fog),
+  poseTableEntry(TRACE_SCENE_POSES.worlds),
+  poseTableEntry(TRACE_SCENE_POSES.previous),
 ]
 
 const C = TRACE_SCENE_BINDINGS.at
@@ -126,7 +131,7 @@ export const spListedRays = (
  * light read where it meets a surface: the march is the field's (`gdfTrace`: its step the distance read, its surface expanded by the
  * ray's time, and, where `dithered`, a ray stopped on a sample no mesh covers by noise, drawn at the ray's texel `coord` and the image's turn). The
  * light of a hit is the surface cache's final lighting (`scGlobalHit`, `../../surfaceCache/hitWgsl.ts`), the footprint of the ray's
- * cone at the hit — the cone the equal-area octahedron gives a texel of `side` texels a side (`scConeTangent`) — its radius. Lengths are metres for the
+ * cone at the hit — the cone the equal-area octahedron gives a texel of `side` texels a side (`scConeTangent`) — its radius. A hit also names its point (metres) and the object of the grid whose cards lit it (`instance`, all ones for none), which the scene stage tells the speed of (`spMarchMoving`). Lengths are metres for the
  * probes, centimetres for the field and the cache. `spMarch` is a probe's ray: it leaves a point the bias (`sp.scene.x`) off the probe's
  * surface along its normal (turned toward the ray on a probe with backface diffuse light) and again along itself, `begin` and `reach` are measured from there, and it is dithered.
  */
@@ -134,16 +139,19 @@ export const spMarchWgsl = (light: LightAtlasFormat) =>
   wgslBlock(
     `SP_MARCH(${light})`,
     [surfaceHitWgsl(TRACE_SCENE_HIT, light), BOUNCE_CM_WGSL],
-    `struct SpMarch{lighting:vec3f,hit:bool,distance:f32,}
+    `struct SpMarch{lighting:vec3f,hit:bool,distance:f32,point:vec3f,instance:u32,}
 fn spMarchRay(start:vec3f,d:vec3f,begin:f32,reach:f32,side:f32,dithered:bool,coord:vec2u)->SpMarch{
- var out=SpMarch(vec3f(0.0),false,0.0);
+ var out=SpMarch(vec3f(0.0),false,0.0,start,0xffffffffu);
  if(begin>=reach||gdfView.clipmaps==0u){return out;}
  let origin=start*f32(BOUNCE_CM);
  let marched=gdfTraceRay(origin,d,begin*f32(BOUNCE_CM),reach*f32(BOUNCE_CM),1.0,true,dithered,coord,f32(sp.size.w%8u));
  if(marched.hitTime<0.0){return out;}
  out.hit=true;
  out.distance=marched.hitTime/f32(BOUNCE_CM);
- out.lighting=scGlobalHit(origin,d,marched,scConeTangent(side),true,-1.0,false,vec2u(0u)).radiance;
+ let surface=scGlobalHit(origin,d,marched,scConeTangent(side),true,-1.0,false,vec2u(0u));
+ out.lighting=surface.radiance;
+ out.point=start+d*out.distance;
+ out.instance=surface.instance;
  return out;
 }
 fn spMarch(probe:SpProbe,d:vec3f,begin:f32,reach:f32,coord:vec2u,side:f32)->SpMarch{
@@ -153,6 +161,9 @@ fn spMarch(probe:SpProbe,d:vec3f,begin:f32,reach:f32,coord:vec2u,side:f32)->SpMa
 }`,
   )
 
+/** The speed of what a hit of the march met (`stHitVelocity`) over the poses the stage binds (`TRACE_SCENE_POSES`). */
+const SCENE_POSES = sceneHitVelocityAt(TRACE_SCENE_POSES.worlds, TRACE_SCENE_POSES.previous)
+
 /**
  * THE SCENE STAGE'S ANSWER TO A PROBE'S RAY the screen did not answer: the march through the global distance field from where the screen
  * lost the ray (two biases back; the screen's end, `missed`) to the reach of the probe's cell (`spLocalReach`: as far as the
@@ -160,13 +171,15 @@ fn spMarch(probe:SpProbe,d:vec3f,begin:f32,reach:f32,coord:vec2u,side:f32)->SpMa
  * the sky light that leaks onto it weighed at the distance of the hit from where the march began —, then, for a ray the march left (the cache's eight probes gathered for it alone, none for a ray that hit), the light the radiance cache holds along it and its distance as the
  * end (`spFarOf`: the environment's light and the furthest a ray looks where the cache covers none; a ray the cache's probes met no surface along keeps the furthest a ray looks too). The sky light that leaks onto what the ray found joins its light (`spSkyLeak`,
  * at the ray's end), and, where `fog`, the height fog (`spRayFogged`, `rayFogWgsl.ts`) is laid over the whole from the probe's own point over the end the ray reached — the
- * distance of the hit of a march, the cache's distance or the furthest a ray looks for a ray that hit nothing —, the light written once (`spRayLit`). A hit of the field's march is never moving (the field holds no velocity) and keeps in the ray's word, as its end, the reach it
+ * distance of the hit of a march, the cache's distance or the furthest a ray looks for a ray that hit nothing —, the light written once (`spRayLit`). A hit of the field's march moves as a hit of the scene's triangles does (`spMarchMoving`): the field holds no velocity, so the hit takes the speed of the placement whose cards lit it, and keeps in the ray's word, as its end, the reach it
  * was marched to, not the distance it hit at: a grazing hit's distance is noise the filters cannot remove.
  */
 const sceneRay = (fog: boolean, light: LightAtlasFormat) =>
   wgslBlock(
     `SP_SCENE_RAY(${fog},${light})`,
-    fog ? [spMarchWgsl(light), rayFogWgsl(TRACE_SCENE_FOG)] : [spMarchWgsl(light)],
+    fog
+      ? [spMarchWgsl(light), SCENE_POSES, rayFogWgsl(TRACE_SCENE_FOG)]
+      : [spMarchWgsl(light), SCENE_POSES],
     `struct SpScene{radiance:vec3f,word:u32,}
 /** What the radiance cache answers along \`d\` from the probe: its eight probes gathered for the ray alone, then what lies past the near scene. */
 fn spFarRay(probe:SpProbe,d:vec3f,side:f32)->SpFar{
@@ -178,9 +191,16 @@ fn spRayLit(radiance:vec3f,probe:SpProbe,d:vec3f,end:f32,hit:bool)->vec3f{
  let light=radiance+spSkyLeak(d,end);
 ${fog ? ' return spRayFogged(light,probe.P,d,end,hit);' : ' return light;'}
 }
+/** Whether the hit of the field's march moves: the object whose cards lit it is a placement the poses moved (\`SP_FLAG_POSES_MOVING\`; none, or a still image, never moves), and the speed of the probe's surface and the speed that placement went at since the last
+ *  drawn frame (\`stHitVelocity\`, the hit's point from the eye) differ as a hit of the scene's triangles tells (\`spHitMoving\`). */
+fn spMarchMoving(probe:SpProbe,march:SpMarch)->bool{
+ if(!march.hit||march.instance==0xffffffffu||!spFlag(SP_FLAG_POSES_MOVING)){return false;}
+ let speed=length(stHitVelocity(march.instance,march.point-view.display.yzw,sp.eyeXY,sp.eyeZ));
+ return spHitMoving(probe,speed);
+}
 fn spSceneRay(probe:SpProbe,d:vec3f,missed:f32,coord:vec2u,side:f32)->SpScene{
  let reach=spLocalReach(probe.P);
- var march=SpMarch(vec3f(0.0),false,0.0);
+ var march=SpMarch(vec3f(0.0),false,0.0,vec3f(0.0),0xffffffffu);
  if(spFlag(SP_FLAG_SCENE_TRACES)){march=spMarch(probe,d,max(sp.motion.w,missed-2.0*sp.scene.x),reach,coord,side);}
  var radiance=march.lighting;
  var end=march.distance;
@@ -191,7 +211,7 @@ fn spSceneRay(probe:SpProbe,d:vec3f,missed:f32,coord:vec2u,side:f32)->SpScene{
   end=far.distance;
   stored=far.stored;
  }
- return SpScene(spRayLit(radiance,probe,d,end,march.hit),spHitWord(stored,false));
+ return SpScene(spRayLit(radiance,probe,d,end,march.hit),spHitWord(stored,spMarchMoving(probe,march)));
 }`,
   )
 

@@ -27,7 +27,8 @@ const fogScope = ({ lightW, seen }: Fog) => ({
 /**
  * `spSceneRay` of a probe moving at `speed` whose ray the screen left at `missed` metres, the probe's reach 20 m, where the march
  * `hits` (its light `[1, 2, 3]`) or leaves the ray, the radiance cache giving the light `[4, 5, 6]` at 12 metres (its `stored` end the ray's word keeps), with the scene
- * traces `on` or not, the height fog laid over its light where `fog` says.
+ * traces `on` or not, the height fog laid over its light where `fog` says. A `pose` says a pose moved since the last drawn frame (`SP_FLAG_POSES_MOVING`) and that the object `instance` that lit the hit went `speed` metres
+ * (what `stHitVelocity` answers, asked with the hit's point from the eye, recorded in `asked`); none, the hit names no object and no pose moved.
  */
 function sceneRay(
   hits: boolean,
@@ -37,7 +38,9 @@ function sceneRay(
   leak = 0,
   stored = 12,
   fog?: Fog,
+  pose?: { instance: number; speed: number },
 ) {
+  const asked: unknown[][] = []
   const marches: March[] = []
   const far: Vec3[] = []
   const { spSceneRay } = shaderRun<{
@@ -49,13 +52,27 @@ function sceneRay(
       side: number,
     ) => { radiance: Vec3; word: number[] }
   }>(traceSceneShader(8, [4, 4], !!fog), ['spSceneRay'], {
-    sp: { motion: [0.005, 0, 0, 0.0001], scene: [0.05, 0.01] },
+    sp: {
+      motion: [0.005, 0, 0, 0.0001],
+      scene: [0.05, 0.01],
+      eyeXY: [1, 2, 3, 4],
+      eyeZ: [5, 6, 0, 0],
+    },
+    view: { display: [0, 1, 2, 3] },
     SP_FLAG_SCENE_TRACES: 1,
-    spFlag: (bit: number) => bit === 1 && on,
+    SP_FLAG_POSES_MOVING: 2,
+    spFlag: (bit: number) => (bit === 1 && on) || (bit === 2 && !!pose),
+    stHitVelocity: (...args: unknown[]) => (asked.push(args), [pose!.speed, 0, 0]),
     spLocalReach: () => 20,
     spMarch: (_: object, __: Vec3, begin: number, reach: number, coord: number[], side: number) => {
       marches.push({ begin, reach, coord, side })
-      return { lighting: hits ? [1, 2, 3] : [0, 0, 0], hit: hits, distance: hits ? 7 : 0 }
+      return {
+        lighting: hits ? [1, 2, 3] : [0, 0, 0],
+        hit: hits,
+        distance: hits ? 7 : 0,
+        point: [8, 1, 1],
+        instance: hits && pose ? pose.instance : 0xffffffff,
+      }
     },
     spFarOf: (point: Vec3) => (far.push(point), { radiance: [4, 5, 6], distance: 12, stored }),
     spHitWord: (distance: number, moving: boolean) => [distance, moving],
@@ -65,7 +82,7 @@ function sceneRay(
   })
   const probe = { P: [1, 1, 1], depth: 10, N: [0, 1, 0], speed }
   const ray = spSceneRay(probe, [1, 0, 0], missed, [3, 4], 8)
-  return { ray, marches, far }
+  return { ray, marches, far, asked }
 }
 
 test('a ray the march hits answers the light of its hit and the reach it was marched to as its end, and reads the radiance cache for none of it', () => {
@@ -116,9 +133,14 @@ test('the march runs from two biases back of where the screen left the ray, no n
   )
 })
 
-test('a ray the field hits is never moving, whatever the probe’s speed (the field holds no velocity), nor one the cache answers; with the scene traces off nothing is marched and the cache answers the whole ray', () => {
+test('a ray the field hits that names no placement, or where no pose moved, is not moving, whatever the probe’s speed, nor one the cache answers; with the scene traces off nothing is marched and the cache answers the whole ray', () => {
   assert.deepEqual(sceneRay(true, 0.5, true, 1).ray.word, [20, false], 'a probe moving fast')
   assert.deepEqual(sceneRay(true, 0.5, true, 0.01).ray.word, [20, false], 'a probe moving slowly')
+  assert.deepEqual(
+    sceneRay(true, 0.5, true, 1, 0, 12, undefined, { instance: 0xffffffff, speed: 9 }).ray.word,
+    [20, false],
+    'no object lit the hit',
+  )
   assert.deepEqual(
     sceneRay(false, 0.5, true, 1).ray.word,
     [12, false],
@@ -215,5 +237,22 @@ test('where the scene has no fog the light is left as it was; where the option i
     traceSceneEntries(true).length,
     traceSceneEntries(false).length + 2,
     'the fog’s two reads are bound only where it is on',
+  )
+})
+
+test('a ray the field hits takes the speed of the placement that lit it: moving when the probe’s speed and the placement’s differ by more than the share of the probe’s depth, asked at the hit’s point from the eye', () => {
+  const still = sceneRay(true, 0.5, true, 0, 0, 12, undefined, { instance: 3, speed: 0 })
+  assert.deepEqual(still.ray.word, [20, false], 'a placement that did not move, on a still probe')
+  assert.deepEqual(JSON.parse(JSON.stringify(still.asked)), [
+    [3, [7, -1, -2], [1, 2, 3, 4], [5, 6, 0, 0]],
+  ])
+  const moved = sceneRay(true, 0.5, true, 0, 0, 12, undefined, { instance: 3, speed: 0.2 })
+  assert.deepEqual(moved.ray.word, [20, true], '0.2 m over a depth of 10 m is past 0.005')
+  const alike = sceneRay(true, 0.5, true, 0.2, 0, 12, undefined, { instance: 3, speed: 0.2 })
+  assert.deepEqual(alike.ray.word, [20, false], 'a probe on the placement goes as it goes')
+  assert.deepEqual(
+    sceneRay(false, 0.5, true, 0, 0, 12, undefined, { instance: 3, speed: 0.2 }).ray.word,
+    [12, false],
+    'the cache’s answer is not marked',
   )
 })

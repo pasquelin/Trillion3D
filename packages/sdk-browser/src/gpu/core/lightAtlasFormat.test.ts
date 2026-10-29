@@ -131,22 +131,23 @@ test('the word format writes the text the passes held before the setting existed
   // And after the fourth sweep: the screen edge's vignette, the held layers' read and the sky's irradiance guard from their one owner.
   // Re-pinned, with splat and traced, for the range test of the cache trace: a thread whose texel lies past the level's rays traces none and writes none.
   // Re-pinned after the morning's sweeps of 29/10, which changed these programs' shared text; and for the screen probes' rays, whose noise is drawn at their probe's tile (`spRayNoiseTexel`) and whose hits tell motion by one test (`spHitMoving`).
+  // Re-pinned for the eye's words the screen probes' parameters hold and the two pose tables the scene stage binds: a hit of the field's march takes the speed of the placement that lit it (`spMarchMoving`).
   assert.deepEqual(got, {
     fixup: '9bfe3a2ea6d87e7f',
     filter: '7750a8b19dac1573',
-    trace: '9fef5831b368de3c',
+    trace: 'a521be1163dacc40',
     splat: 'eb33fad2048864a8',
     traced: '42878e4d0c3362d7',
     irradiance: '6910ef3e1b772e26',
     occlusion: '2d5a1e78d06440ec',
-    gather: '1be6487b7c9b29d2',
-    rays: '25a6c53934d6b973',
-    scene: '422d4ad97d5d4a5f',
-    sceneFog: '4c52d38489909c48',
-    mesh: '57ff885cc2c6b996',
-    stage: 'ca91f61a34a14ab9',
-    gi: '0fba2a553120f1f3',
-    entries: '943dbb03c60c510b',
+    gather: 'e6a2f2547b5b77de',
+    rays: 'a9e9d8034a8949c1',
+    scene: 'fc7d7e94b7343e17',
+    sceneFog: '6fd0f31657322e06',
+    mesh: '243a9726b3dab774',
+    stage: 'c430211b501cfedb',
+    gi: 'beb3b9084551952f',
+    entries: '7398b779b1621dda',
     formats: '1f3697191cf3afc0',
   })
 })

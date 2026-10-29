@@ -19,6 +19,7 @@ import {
   TRACE_SCENE_BINDINGS,
   TRACE_SCENE_FOG,
   TRACE_SCENE_HIT,
+  TRACE_SCENE_POSES,
   TRACE_SCENE_PROBES,
 } from './traceSceneWgsl.ts'
 import {
@@ -125,6 +126,8 @@ export function traceGroups(g: GroupParts, kernels: CastKernels) {
       { binding: TRACE_SCENE_PROBES, resource: inputs.probes },
       ...surfaceHitEntries(TRACE_SCENE_HIT, inputs.field, inputs.hit),
       ...rayFogBindEntries(TRACE_SCENE_FOG, features.heightFog, inputs.fog),
+      { binding: TRACE_SCENE_POSES.worlds, resource: inputs.worlds },
+      { binding: TRACE_SCENE_POSES.previous, resource: inputs.previous },
     ]),
   }
 }

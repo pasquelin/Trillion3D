@@ -15,10 +15,11 @@ export interface NoCache {
 }
 
 /** What the screen probes' kernels bind where what they read does not exist: the surfaces' vectors of an image that drew none — a texel
- *  of zero — and the radiance cache where there is none — texels of zero. Made for the
+ *  of zero —, the poses of an image with no cut (a texel of zero: no placement moves) and the radiance cache where there is none — texels of zero. Made for the
  *  device when first asked, given back by `dispose`. */
 export function createStandIns() {
   let vectors: { device: GPUDevice; texture: GPUTexture; view: GPUTextureView } | undefined
+  let poses: { device: GPUDevice; texture: GPUTexture; view: GPUTextureView } | undefined
   let cache:
     | { device: GPUDevice; light: LightAtlasFormat; made: { destroy(): void }[]; views: NoCache }
     | undefined
@@ -34,6 +35,14 @@ export function createStandIns() {
         vectors = { device, texture, view: texture.createView() }
       }
       return vectors.view
+    },
+    poses(device: GPUDevice) {
+      if (!poses || poses.device !== device) {
+        poses?.texture.destroy()
+        const texture = standInTexture(device, 'Trillion3D empty poses', 'rgba32uint')
+        poses = { device, texture, view: texture.createView({ dimension: '2d-array' }) }
+      }
+      return poses.view
     },
     cache(device: GPUDevice, light: LightAtlasFormat) {
       if (!cache || cache.device !== device || cache.light !== light) {
@@ -69,6 +78,8 @@ export function createStandIns() {
     dispose() {
       vectors?.texture.destroy()
       vectors = undefined
+      poses?.texture.destroy()
+      poses = undefined
       releaseCache()
     },
   }

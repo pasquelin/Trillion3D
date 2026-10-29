@@ -37,6 +37,8 @@ export interface ScreenProbeImage {
   roughSpecularFoliage: number
   /** A placement's pose moved since the poses the last drawn frame drew were kept (`GpuSelection.posesMoving`): the placement a ray's hit met has a speed to measure; else it has none. */
   posesMoving: boolean
+  /** The eye the poses of a hit's placement are taken at, three doubles (`stHitVelocity`): the camera's. */
+  eye: ArrayLike<number>
   /** The light is kept unrounded to the 11-11-10 floats' precision (`lightingDataFormat` is not `r11g11b10`): the filtered radiance keeps what the half floats of its texture hold. */
   exactLight: boolean
   /** The rays the screen left are cast through the scene's triangles this image (`TracedSceneGroups`), the scene trace the lighting made for it

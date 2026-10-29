@@ -34,9 +34,10 @@ const digest = (value: unknown) =>
 // Re-pinned again after other agents changed shared libraries these programs include, none of them in the surface cache: the direct-lights struct and its GGX energy table (frame/backend/state/lightBufferLayout.ts), the shared `sinFromCosUnclamped` helper (lighting/direct/lightDrawWgsl.ts), the virtual-texture `colorFetch` footprint and `entryLevel` (materials/texture/samplingFootprint.ts), the sky cube's face permutation tables (modules/sky/skyLight/cubeWgsl.ts), the depth pyramid's `hizFoldOf`/`hizCellFurthest` and the screen probe's tile word (bounce/screen), plus the front layer's traced format. The cull's group maximum is reduced by `workgroupSumLoop` (the shared de-duplication P1-13, the same computation). The surface cache's own programs are otherwise unchanged.
 // SURFACE_CACHE_RADIOSITY_FILTER_WGSL is re-pinned: the radiosity's filter lists the declarations its kernels share (`radiosityKernelDeclarations`) before its own, so they come in another order; the declarations are the same.
 // Re-pinned 29/10 for the traces the morning's sweeps changed: their shared text, not the surface cache's word format.
+// Re-pinned 29/10 for the march's hit, which names the object of the grid whose cards lit it (`ScHitSurface.instance`): every trace that reads a hit of the field.
 const WORD_PROGRAMS = {
-  REFLECTION_TRACE_SHADER: 'e374be2e6995bb54',
-  REFLECTION_TRACE_STATISTICS_SHADER: '252795435577262a',
+  REFLECTION_TRACE_SHADER: '2bbcf771bc2461aa',
+  REFLECTION_TRACE_STATISTICS_SHADER: 'db30d75c9261ef3a',
   SURFACE_CACHE_RESOLVE_WGSL: '3d49d6105d5fd6bf',
   SURFACE_CACHE_RESAMPLE_WGSL: '718df4696635dbd6',
   SURFACE_CACHE_RESAMPLE_COMPRESSED_WGSL: '07e6174f45994148',
@@ -65,8 +66,8 @@ const WORD_PROGRAMS = {
   SURFACE_CACHE_STOCHASTIC_SHADE_COLOURED_WGSL: 'd9ab808588189017',
   SURFACE_CACHE_STOCHASTIC_TEMPORAL_WGSL: 'a56b3f99563278ab',
   SURFACE_CACHE_RADIOSITY_BUILD_WGSL: '3cd762d737dc1f1d',
-  SURFACE_CACHE_RADIOSITY_TRACE_WGSL: '61e001408bec42cc',
-  SURFACE_CACHE_RADIOSITY_TRACED_WGSL: 'd4282290b0d8e8a0',
+  SURFACE_CACHE_RADIOSITY_TRACE_WGSL: 'b563a38e3752abdd',
+  SURFACE_CACHE_RADIOSITY_TRACED_WGSL: '5fc8f2a16dd0312f',
   SURFACE_CACHE_RADIOSITY_FILTER_WGSL: '3ea2afcd4daba370',
   SURFACE_CACHE_RADIOSITY_INTEGRATE_WGSL: 'c8b9737509d51495',
   SURFACE_CACHE_TILE_DEPTH_RANGE: '4c5ec16d5eb973a9',
@@ -75,15 +76,15 @@ const WORD_PROGRAMS = {
   SURFACE_CACHE_LIGHT_TILE_COMPACT: '3f284a690974065a',
   SURFACE_CACHE_COMBINE: 'ea6e1e372eb3d0e2',
   SURFACE_CACHE_COMBINE_COMPRESSED: 'a201efe327f6d6c7',
-  TRANSLUCENCY_GI_TRACE: '0fba2a553120f1f3',
-  TRANSLUCENCY_GI_TRACE_PACKED: '84bc7c74e7e1d068',
-  REFLECTION_TRACE_HARDWARE_SHADER: 'e720cc6d1a1730d1',
-  REFLECTION_TRACE_NATIVE_SHADER: '00948315fc1cf220',
-  REFLECTION_TRACE_NATIVE_STATISTICS_SHADER: '06623e8e42fa9dd0',
-  REFLECTION_TRACE_POLYFILL_SHADER: 'cbcaa8355b2d6713',
-  REFLECTION_TRACE_POLYFILL_STATISTICS_SHADER: '76ead8e967211ca3',
+  TRANSLUCENCY_GI_TRACE: 'beb3b9084551952f',
+  TRANSLUCENCY_GI_TRACE_PACKED: '40b503d865ad009b',
+  REFLECTION_TRACE_HARDWARE_SHADER: '1f6c5ca39c975961',
+  REFLECTION_TRACE_NATIVE_SHADER: 'dd6c5732766f3746',
+  REFLECTION_TRACE_NATIVE_STATISTICS_SHADER: 'e52b0b31aef78e12',
+  REFLECTION_TRACE_POLYFILL_SHADER: 'a6ba8e4215050a20',
+  REFLECTION_TRACE_POLYFILL_STATISTICS_SHADER: '331ea260db96ccbd',
   CACHE_TRACED_PROGRAM: '42878e4d0c3362d7',
-  CACHE_TRACE_PROGRAM: '9fef5831b368de3c',
+  CACHE_TRACE_PROGRAM: 'a521be1163dacc40',
 }
 
 /** The layouts the surface cache's kernels are made with, and the textures of its atlases, recorded on a device that grants every limit. */

@@ -73,7 +73,7 @@ function hitSurface({
       startedInside: number,
       hiRes: boolean,
       coord: number[],
-    ) => { radiance: Vec3; face: Vec3; valid: boolean }
+    ) => { radiance: Vec3; face: Vec3; valid: boolean; instance: number }
   }>(text, ['scGlobalHit'], {
     hitInstances: instances,
     gdfView: {
@@ -257,4 +257,22 @@ test('the placement of a hit and the cone of a ray are read without the global f
   // The march’s read is the cards’ and the field’s.
   const whole = wgslModule(surfaceHitWgsl(b, WORD_LIGHT_FORMAT))
   assert.ok(whole.includes('fn scGlobalHit(') && whole.includes('fn scHitPlacement('))
+})
+
+test('a hit names the object of its grid cell whose cards gave the most weight, the first of equal ones, and none (all ones) where no card gave any or no light is read', () => {
+  const instances = [4, 7, 8, 9, 10]
+  const heavy = hitSurface({ cell: [0, 1, 2, NONE], instances, weights: { 107: 0.3, 108: 0.6 } })
+  assert.equal(
+    heavy.surface.instance,
+    1,
+    'the second object gave 0.6 against 0.3: the weight each adds, not the sum so far',
+  )
+  const equal = hitSurface({ cell: [0, 1, NONE, NONE], instances, weights: { 107: 0.4, 108: 0.4 } })
+  assert.equal(equal.surface.instance, 0)
+  assert.equal(hitSurface({ weights: {} }).surface.instance, 0xffffffff, 'no card gave any weight')
+  assert.equal(
+    hitSurface({ hitTime: 14, fade: true }).surface.instance,
+    0xffffffff,
+    'a hit that brings no light',
+  )
 })

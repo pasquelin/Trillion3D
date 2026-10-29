@@ -332,6 +332,8 @@ export const SCREEN_PROBE_PARAMS = fieldLayout('ScreenProbeParams', [
   ['tracedHit', 'vec4f'],
   ['gi', 'vec4f'],
   ['projection', 'vec4f'],
+  ['eyeXY', 'vec4u'],
+  ['eyeZ', 'vec4u'],
   ['previous', 'mat4x4f'],
 ] as const)
 /** Bytes of the parameters. */
