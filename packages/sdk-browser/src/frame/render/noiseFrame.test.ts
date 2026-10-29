@@ -11,6 +11,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 const world = (frame: number, lighting?: { begunAt?: number } | null, lit = true) =>
   ({
     run: { frame },
+    context: {},
     surfaceCache: lighting === null ? undefined : { lighting },
     lights: { buffer: lit ? {} : undefined, store: { unlit: false } },
   }) as unknown as WebgpuPagesRuntime
@@ -39,6 +40,17 @@ test('a light that can never begin leaves the noise on the image number, not fro
   assert.equal(noiseFrame(world(41, {})), 0, 'a light that will begin: zero meanwhile')
 })
 
+test('a session that freezes its temporal sequences reads the noise at zero whatever the image', () => {
+  const frozen = (frame: number, lighting?: { begunAt?: number } | null) => {
+    const rt = world(frame, lighting)
+    rt.context.freezeTemporalSequences = true
+    return rt
+  }
+  assert.equal(noiseFrame(frozen(278, { begunAt: 11 })), 0)
+  assert.equal(noiseFrame(frozen(41, null)), 0, 'a session with no surface cache')
+  assert.equal(noiseFrame(world(278, { begunAt: 11 })), 267, 'unfrozen: unchanged')
+})
+
 /**
  * A runtime on a real held-frame witness. `image` plays one image as the frame entry does: a revision moves between images when `moves` says so, the hold's decision asks the clock
  * (`quiet`), the frame is drawn (a revision moves while it is when `during` says so) and kept; an image that is held is not kept.
@@ -56,6 +68,7 @@ const session = (
   const rt = {
     run,
     gpu,
+    context: {},
     surfaceCache: undefined,
     lights: undefined,
   } as unknown as WebgpuPagesRuntime

@@ -132,6 +132,7 @@ function optionContext(session: ExplorerSession) {
     particles: options.particles,
     // Bounced light stays off unless asked: its step holds 1.1 to 1.3 ms on Emerald, above 1 ms.
     bounce: options.bounce,
+    freezeTemporalSequences: options.freezeTemporalSequences === true,
   }
 }
 

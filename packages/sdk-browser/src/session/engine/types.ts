@@ -327,6 +327,8 @@ export interface EngineContext extends SettingOptions {
   importedLightIds?: string[] // imported light ids in cache order, set by `importedLights()`
   /** Bounced light, on by default (`false` turns it off). */
   bounce?: boolean
+  /** The noise's image index and the temporal antialiasing's sample held where they are (`noiseFrame`, `beginTaaFrame`); off by default, set by tests. */
+  freezeTemporalSequences?: boolean
   stageProfile?: boolean // Off by default; the bench and harness time the frame steps.
   feedbackTargetAB?: boolean
   /** A still view's temporal pass drawn every frame once its history is whole, never held on the

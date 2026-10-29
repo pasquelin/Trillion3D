@@ -29,6 +29,8 @@ async function stopOnTheStreet() {
   const world = await openBenchWorld('facade-7', [WIDTH, HEIGHT], {
     pixelError: PIXEL_ERROR,
     ...SHADOW_PAGES_LIGHT,
+    // The first still image and the settled one are read on the same phase of the noise, as the reference's tests freeze its sequences.
+    freezeTemporalSequences: true,
   })
   world.setClearColor(0x2a303c)
   try {

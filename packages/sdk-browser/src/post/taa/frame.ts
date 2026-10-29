@@ -121,7 +121,9 @@ export function beginTaaFrame(rt: WebgpuPagesRuntime, cam: EngineCamera) {
   followVelocity(rt, active)
   // The lighting's noise turns on every image drawn, with the pass or without it; a capture drawn aside, with no pass of its
   // own, is not the view's, and leaves its sequence as it was.
-  if (temporal && (active || !rt.capture.capturing)) temporal.frame.stochasticSample++
+  // A session that freezes its temporal sequences leaves the sample where it is.
+  if (temporal && (active || !rt.capture.capturing) && rt.context.freezeTemporalSequences !== true)
+    temporal.frame.stochasticSample++
   if (!temporal || !active) {
     // No temporal upscaler: the dynamic scale still steers a beauty image, which the composition
     // upscales spatially; a capture or a diagnostic view is drawn at the bounds' maximum.

@@ -8,7 +8,11 @@ import { isFinalImage } from './finalImage.ts'
  * image they hold. The anchor is the later of the light's start and the view's last change once the accumulation has been through a cycle of the noise since (until then the index never
  * breaks), and the final image of the establishment is drawn at zero. `beginNoiseImage` advances it once an image; `noiseFrame` only reads.
  */
-export function noiseFrame(rt: Pick<WebgpuPagesRuntime, 'run' | 'surfaceCache' | 'lights'>) {
+export function noiseFrame(
+  rt: Pick<WebgpuPagesRuntime, 'run' | 'surfaceCache' | 'lights' | 'context'>,
+) {
+  // A session that freezes its temporal sequences draws every image on the final image's phase.
+  if (rt.context.freezeTemporalSequences === true) return 0
   const start = lightStart(rt)
   // The light has not begun: zero while it will (the view is not held meanwhile).
   if (start === undefined) return 0

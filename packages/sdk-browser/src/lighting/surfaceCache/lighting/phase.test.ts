@@ -11,6 +11,7 @@ const world = (frame: number, sample: number, begunAt?: number) =>
   ({
     run: { frame },
     lights: { buffer: {}, store: { unlit: false } },
+    context: {},
     gpu: { temporal: { frame: { stochasticSample: sample } } },
     surfaceCache: { lighting: begunAt === undefined ? {} : { begunAt } },
   }) as unknown as WebgpuPagesRuntime
@@ -21,7 +22,7 @@ test('the phase is the noise’s clock: zero before the light begins, the images
   assert.equal(lightingPhase(world(12, 500, 10)), 2, 'the view’s rank is its own')
   assert.equal(lightingPhase(world(9, 9, 10)), 0, 'never below zero')
   assert.equal(
-    lightingPhase({ gpu: {}, run: { frame: 0 } } as unknown as WebgpuPagesRuntime),
+    lightingPhase({ gpu: {}, context: {}, run: { frame: 0 } } as unknown as WebgpuPagesRuntime),
     0,
     'no temporal state, no cache: the image number',
   )
@@ -43,6 +44,7 @@ test('a view with no temporal state takes the noise’s clock: its phase moves w
     ({
       run: { frame },
       lights: { buffer: {}, store: { unlit: false } },
+      context: {},
       gpu: {},
       surfaceCache: { lighting: { begunAt: 10 } },
     }) as unknown as WebgpuPagesRuntime

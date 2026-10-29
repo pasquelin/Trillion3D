@@ -133,6 +133,9 @@ export interface MeasuredWorldOptions extends SettingOptions {
   particles?: readonly import('../../../sdk-core/src/fluids/particles.ts').ParticlePool[]
   /** Bounced light. On by default; `false` turns it off for the whole session. */
   bounce?: boolean
+  /** Test setting: the noise's image index and the temporal antialiasing's sample no longer advance, so every image is drawn on the same phase of the sequences and two views of one pose
+   *  compare. Everything else keeps running. Off by default. */
+  freezeTemporalSequences?: boolean
   /** Time every step of the frame and publish `explorer.stageProfile()`. Off by default. */
   stageProfile?: boolean
   /** Opt-in same-session GPU feedback-target A/B diagnostic; never enabled by production. */
