@@ -1,3 +1,4 @@
+import { layerBody, layerEntry } from './sceneEntry.ts'
 import { wgslStruct } from '../../../math/src/wgsl/decl.ts'
 import { FLAG_DIAGNOSTIC_VIEW } from '../visibility/types.ts'
 import type { CloudVertexText } from './cloudVertexText.ts'
@@ -39,7 +40,8 @@ export const coverageStageText = (kind: string, prologue: string, shade: CloudVe
   `// The layer's request, for the modulation pass of the dual blend (\`drawModulation\`), where the colour pass
 // holds one target alone: the colour pass's request, no light read; a diagnostic view keeps its
 // colour's discards.
-@fragment fn fs${kind}Coverage(in:VSOut,@builtin(front_facing) front:bool)->Covered{${shade.entry}
+${layerEntry(`fs${kind}Coverage`, 'Covered', shade.entry)}
+${layerBody(`fs${kind}Coverage`, 'Covered')}{
 ${layerHead(prologue, 'Covered(vec4f(0.0),0u)')}
  if((in.ids.y&${FLAG_DIAGNOSTIC_VIEW}u)!=0u){_=blendDiagnosticOut(in,layer.s,deltas);}
  return Covered(vec4f(0.0),layer.s.request);
@@ -62,7 +64,8 @@ export const responsiveStageText = (
   return `// The responsiveness the layer leaves in the temporal pass (\`blendResponsive\`), in the pass of its own
 // (\`drawResponsive\`) which tests the depth${depth ? ' the pixel depth offset moves the pixel to' : ''} against the opaque scene's; a diagnostic view leaves
 // ${coverage ? "the mark of its colour's coverage" : 'none'}.
-@fragment fn fs${kind}Responsive(in:VSOut,@builtin(front_facing) front:bool)->${out}{${shade.entry}
+${layerEntry(`fs${kind}Responsive`, out, shade.entry)}
+${layerBody(`fs${kind}Responsive`, out)}{
 ${layerHead(prologue, `${out}(0.0${depth ? ',0.0' : ''})`)}
  var opacity=${opacity};
  if((in.ids.y&${FLAG_DIAGNOSTIC_VIEW}u)!=0u){opacity=${coverage ? 'blendDiagnosticOut(in,layer.s,deltas).color.a' : '0.0'};${coverage ? '' : '_=blendDiagnosticOut(in,layer.s,deltas);'}}

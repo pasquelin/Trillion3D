@@ -9,8 +9,22 @@ import {
 } from '../../scene/targetFormats.ts'
 import { createSurfaceBuffer } from '../../materials/surface/surfaceAllocation.ts'
 import { createBackdrop, holdsRefraction } from '../../blend/transparent/transmission.ts'
-import { createTranslucency } from '../../blend/translucency.ts'
-import { askComposePipelines, askLatePipeline } from '../../blend/translucencyCompose.ts'
+import {
+  createTranslucency,
+  disposeTranslucency,
+  translucencyBytes,
+} from '../../blend/translucency.ts'
+import {
+  askComposePipelines,
+  askLatePipeline,
+  upsamplePipelinesOf,
+} from '../../blend/translucencyCompose.ts'
+import { chainCompiled } from '../../lighting/deferred/fullscreen.ts'
+import { readSeparateTranslucencySetting } from '../../../../sdk-core/src/contracts/separateTranslucencyOptions.ts'
+import { readFilmSetting } from '../../../../sdk-core/src/contracts/filmOptions.ts'
+import { translucencyDepthPipelines } from '../../blend/translucencyDepth.ts'
+import { upsampleResponsivePipelines } from '../../blend/translucencyResponsive.ts'
+import { translucencyFits } from '../../blend/translucencyScale.ts'
 import { createScreenReflection } from '../../lighting/reflections/gpu.ts'
 import { dropAside, releaseSet } from './targetsSet.ts'
 import { ensureTaaTargets } from '../../post/taa/prepare.ts'
@@ -23,6 +37,7 @@ import {
   lateImageSize,
   makesDisplayColor,
   sceneBlends,
+  translucencyExtentOf,
 } from './targetAllocation.ts'
 import { BUDGET_EXCEEDED, GpuBudgetExceeded } from '../../gpu/core/ledgerBooks.ts'
 
@@ -196,16 +211,7 @@ function makeBlendTargets(rt: WebgpuPagesRuntime, device: GPUDevice, size: Frame
   const { gpu } = rt,
     { renderWidth: width, renderHeight: height } = size
   gpu.backdrop = createBackdrop(device, width, height, holdsRefraction(rt))
-  const late = drawsLateTranslucency(rt)
-  gpu.translucency = createTranslucency(
-    device,
-    width,
-    height,
-    drawsTranslucency(rt),
-    late ? lateImageSize(size) : undefined,
-  )
-  if (gpu.translucency.active) askComposePipelines(device)
-  if (late) askLatePipeline(device)
+  makeTranslucencyTargets(rt, device, size)
   gpu.reflection = createScreenReflection(
     device,
     width,
@@ -213,6 +219,100 @@ function makeBlendTargets(rt: WebgpuPagesRuntime, device: GPUDevice, size: Frame
     sceneBlends(rt),
     rt.setup.reflectionStatistics,
   )
+}
+
+/** What the translucency targets take of the budget for `size` (`translucencyBytes`). */
+function translucencyBudget(rt: WebgpuPagesRuntime, size: FrameSize) {
+  const extent = translucencyExtentOf(rt, size)
+  return translucencyBytes(
+    drawsTranslucency(rt),
+    drawsLateTranslucency(rt),
+    extent.width,
+    extent.height,
+    lateImageSize(size),
+    extent.scaled,
+  )
+}
+
+/** What decided the size of the translucency targets the last time they were looked at (`followTranslucency`): the share, the basis, the
+ *  alpha and display-layer switches and the allocated and display sizes; `scratch` is this image's, filled in place. */
+const followed = new WeakMap<object, number[]>()
+const scratch = [0, 0, 0, 0, 0, 0, 0, 0]
+
+/**
+ * At every image's start: the translucency targets are remade alone when the settings that name their size (the share, the basis) no
+ * longer fit them (`translucencyFits`) — the frame's other targets stay (the translucency targets alone are given
+ * back). Nothing is allocated where the numbers that decide the size are those it was last looked at with. Where the new targets are the
+ * smaller kind, the swap waits for the programs they run to compile (`reducedCompiled`), the old targets drawing in the meantime: the layers
+ * do not vanish. The bytes they take are followed in `gpu.targetBytes`.
+ */
+export function followTranslucency(rt: WebgpuPagesRuntime) {
+  const { gpu } = rt,
+    device = gpu.device,
+    old = gpu.translucency
+  if (!device || !old) return
+  scratch[0] = readSeparateTranslucencySetting(rt, 'translucencyScreenPercentage')
+  scratch[1] = readSeparateTranslucencySetting(rt, 'translucencyScreenPercentageBasis')
+  scratch[2] = Number(!!readFilmSetting(rt, 'propagateAlpha'))
+  scratch[3] = Number(!!rt.blendState.filtersDisplay)
+  scratch[4] = gpu.allocatedSize[0]
+  scratch[5] = gpu.allocatedSize[1]
+  scratch[6] = gpu.displaySize[0]
+  scratch[7] = gpu.displaySize[1]
+  const last = followed.get(old)
+  if (last && last.every((value, at) => value === scratch[at])) return
+  const size = {
+    renderWidth: gpu.allocatedSize[0],
+    renderHeight: gpu.allocatedSize[1],
+    width: gpu.displaySize[0],
+    height: gpu.displaySize[1],
+    apart: displayApart(gpu),
+  } satisfies FrameSize
+  const extent = translucencyExtentOf(rt, size)
+  if (translucencyFits(old, extent)) return void followed.set(old, [...scratch])
+  if (extent.scaled && !reducedCompiled(device, !!old.late)) return
+  const before = translucencyBytes(
+    old.active,
+    !!old.late,
+    old.extent[0],
+    old.extent[1],
+    lateImageSize(size),
+    !!old.reduced,
+  )
+  disposeTranslucency(gpu)
+  makeTranslucencyTargets(rt, device, size)
+  followed.set(gpu.translucency!, [...scratch])
+  gpu.targetBytes += translucencyBudget(rt, size) - before
+}
+
+/** Whether the programs the smaller layers run are compiled (started now where they were not): no frame waits for them. */
+const reducedCompiled = (device: GPUDevice, late: boolean) =>
+  chainCompiled(
+    ...translucencyDepthPipelines(device),
+    ...upsampleResponsivePipelines(device),
+    ...upsamplePipelinesOf(device, late),
+  )
+
+/** The translucency targets of `size`, and their programs asked. */
+function makeTranslucencyTargets(rt: WebgpuPagesRuntime, device: GPUDevice, size: FrameSize) {
+  const { gpu } = rt,
+    { renderWidth: width, renderHeight: height } = size
+  const late = drawsLateTranslucency(rt)
+  gpu.translucency = createTranslucency(
+    device,
+    width,
+    height,
+    drawsTranslucency(rt),
+    late ? lateImageSize(size) : undefined,
+    translucencyExtentOf(rt, size),
+  )
+  const scaled = !!gpu.translucency.reduced
+  if (gpu.translucency.active) askComposePipelines(device, scaled)
+  if (scaled) {
+    translucencyDepthPipelines(device).forEach((pipeline) => pipeline.ask())
+    upsampleResponsivePipelines(device).forEach((pipeline) => pipeline.ask())
+  }
+  if (late) askLatePipeline(device, scaled)
 }
 
 /**

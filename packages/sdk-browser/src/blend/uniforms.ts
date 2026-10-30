@@ -119,6 +119,8 @@ function writeViewFrame(rt: WebgpuPagesRuntime, tiles: ReturnType<typeof directT
   // measures a triangle's area against the rasteriser's snapping there (`facing.ts`).
   packed[VIEW.viewport] = rt.gpu.targetSize[0]
   packed[VIEW.viewport + 1] = rt.gpu.targetSize[1]
+  // The passes of the layers drawn smaller than the image set the ratio themselves (`selectReduced`).
+  packed[VIEW.reduced] = packed[VIEW.reduced + 1] = 1
   // The eye the fog is measured from, the opaque resolve's (`encodeLights.ts`), written by value:
   // no `subarray` view allocated per frame.
   packed[VIEW.eye] = tiles[5]

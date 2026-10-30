@@ -13,6 +13,7 @@ import type { TemporalOptions } from '../../../sdk-core/src/contracts/temporalOp
 import type { HizOptions } from '../../../sdk-core/src/contracts/hizOptions.ts'
 import type { LightFunctionOptions } from '../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import type { LightProfileOptions } from '../../../sdk-core/src/contracts/lightProfileOptions.ts'
+import type { SeparateTranslucencyOptions } from '../../../sdk-core/src/contracts/separateTranslucencyOptions.ts'
 import type { RectLightAtlasOptions } from '../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import type { SimpleLightOptions } from '../../../sdk-core/src/contracts/simpleLightOptions.ts'
 import type { VolumetricLightmapOptions } from '../../../sdk-core/src/contracts/volumetricLightmapOptions.ts'
@@ -71,6 +72,7 @@ export interface SettingOptions
     HizOptions,
     LightFunctionOptions,
     LightProfileOptions,
+    SeparateTranslucencyOptions,
     RectLightAtlasOptions,
     SimpleLightOptions,
     VolumetricLightmapOptions,

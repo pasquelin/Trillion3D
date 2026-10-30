@@ -6,16 +6,18 @@ import {
   MODULATION_CLEAR,
   MODULATION_KEEPS_ALPHA,
   TRANSLUCENCY_CLEAR,
+  layersApart,
   markDrawn,
 } from './translucency.ts'
 import { TRANSPARENTS_PASS } from '../diagnostic/stage/passLabels.ts'
+import { layFeedback } from './translucencyResponsive.ts'
 import { holdoutPassOn } from '../frame/prepare/alphaHoldout.ts'
 
 // THE BLEND PASS'S ATTACHMENTS (`drawBlendPass`), module-level objects refilled each
 // image, so that no image allocates one.
 
 /** A colour attachment the blend pass clears to `clear` and stores, its view set each image. */
-const cleared = (clear: GPUColor): GPURenderPassColorAttachment => ({
+export const cleared = (clear: GPUColor): GPURenderPassColorAttachment => ({
   view: undefined as unknown as GPUTextureView,
   loadOp: 'clear',
   clearValue: clear,
@@ -43,6 +45,36 @@ const loaded = (): GPURenderPassColorAttachment => ({
 export const holdoutColour = loaded()
 /** The responsiveness the responsiveness pass lays its marks in (`drawResponsive`), loaded. */
 export const responsiveColour = loaded()
+/** The texture feedback of the smaller layers: a target of their size, cleared by the first pass of the layers that writes it and loaded by
+ *  the others; the requests are laid over the image's feedback target once the layers are drawn (`layFeedback`). */
+const reducedFeedback = cleared([0, 0, 0, 0])
+
+/** The feedback attachment of a pass of the layers: the image's, or the smaller layers' own. */
+export function layersFeedback(rt: WebgpuPagesRuntime) {
+  const set = rt.gpu.translucency!
+  if (!layersApart(set)) return feedbackAttachment(rt)
+  const { reduced } = set
+  const attachment = clearedOrLoaded(
+    reducedFeedback,
+    reduced!.feedbackView,
+    reduced!.feedbackPosted,
+  )
+  reduced!.feedbackPosted = true
+  return attachment
+}
+
+/** Lays the requests the smaller layers posted this image over the image's feedback target, once their passes are drawn. Returns the draws. */
+export function layReducedFeedback(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+) {
+  const set = rt.gpu.translucency!
+  if (!layersApart(set) || !set.reduced!.feedbackPosted) return 0
+  set.reduced!.feedbackPosted = false
+  return layFeedback(device, encoder, set, feedbackAttachment(rt), rt.gpu.targetSize)
+}
+
 /** The colour attachments of the blend pass on every target (`drawBlendPass`): the translucency
  *  target — the modulation target for the pass of the modes that multiply the scene —, the
  *  virtual-texture feedback and the two display layers, each slot empty while unused. One array,
@@ -65,7 +97,7 @@ export function fillAllColour(
 ) {
   allColour[0] = first
   // Virtual-texture feedback, opened by the first pass that writes it, while the pipelines do.
-  allColour[1] = rt.vis.writesFeedback ? feedbackAttachment(rt) : null
+  allColour[1] = rt.vis.writesFeedback ? layersFeedback(rt) : null
   // The display layers (`display/displayFilter.ts`): the tint and the added value.
   const layers = filter?.attachments()
   allColour[2] = layers?.[0] ?? null
@@ -98,7 +130,7 @@ export function dualAttachments(rt: WebgpuPagesRuntime) {
 export function modulationAttachments(rt: WebgpuPagesRuntime, feedback: boolean) {
   modulationAttachment(rt)
   if (!feedback) return modulationOnly
-  modulationMarked[1] = feedbackAttachment(rt)
+  modulationMarked[1] = layersFeedback(rt)
   return modulationMarked
 }
 
@@ -127,6 +159,17 @@ export function openTranslucency(rt: WebgpuPagesRuntime, encoder: GPUCommandEnco
     }
   }
   return targets.colorView
+}
+
+/** `colour` on `view`, cleared by the first pass that opens it and loaded by the others (`loaded`). */
+function clearedOrLoaded(
+  colour: GPURenderPassColorAttachment,
+  view: GPUTextureView,
+  loaded: boolean,
+) {
+  colour.view = view
+  colour.loadOp = loaded ? 'load' : 'clear'
+  return colour
 }
 
 /** `colour` on `view`, or an empty slot without one. */

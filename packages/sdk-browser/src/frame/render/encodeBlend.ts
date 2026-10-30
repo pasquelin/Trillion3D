@@ -1,3 +1,4 @@
+import { beginTranslucencyScale } from '../../blend/reducedView.ts'
 import { drawsFrontBeforeSampledMarking } from '../../lighting/manyLightsSampled/frame.ts'
 import { cpuNow, msSince } from '../../diagnostic/stopwatch.ts'
 import { countBlendDraws, drawBlendPass, encodeHoldout } from '../../blend/draw.ts'
@@ -277,6 +278,8 @@ export function encodeBlend(
   // The single-layer water, over the scene without it, before the layers that refract or blend it.
   const waterDrawn = contract ? encodeWater(rt, device, encoder, contract) : 0
   if (contract) countBlendDraws(rt, waterDrawn)
+  // The layers drawn smaller than the image: their size, once the water has written its depth: the scene's depth at it is taken at the first pass that draws (`layersReady`).
+  beginTranslucencyScale(rt, device)
   // The sky, the fog, the haze and the clouds the image held back, over the water now shaded, before any layer is drawn over them.
   encodeAfterWater(rt, waterDrawn ? waterTargetsOf(rt, device).views.specular : undefined)
   // The strands, over the sky and the fog laid, before any layer is drawn when the setting puts them there.

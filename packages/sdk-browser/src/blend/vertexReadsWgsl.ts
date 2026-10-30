@@ -1,3 +1,4 @@
+import { SCENE_VS_OUT_WGSL } from './sceneEntry.ts'
 import { BLEND_BINDINGS } from '../gpu/bind/bindLayout.ts'
 import { BLEND_ITEM_WGSL } from './items.ts'
 import { BLEND_VIEW_WGSL } from './viewLayout.ts'
@@ -137,7 +138,7 @@ export const vsOutWgsl = (
 ) =>
   wgslBlock(
     `vsOutWgsl(${uv}, ${ids}${clipping === 'distance' ? ', distance' : ''}${extras.length ? `, ${extras.join('+')}` : ''})`,
-    [],
+    [SCENE_VS_OUT_WGSL],
     `// What the vertex stage reads on the item's surface's record and the fragment stage re-reads
 // as-is: the six maps, their factors and the flags, constant over the call, therefore FLAT.
 // \`words\` holds three of them (\`WORDS\`): the triangle's rank, the diagnostic word and the rank of

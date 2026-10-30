@@ -157,3 +157,24 @@ test("the velocity stage writes each texel's own vector alone; the analysis dila
   )
   assert.match(surface, /@binding\(10\) var vectorOut:texture_storage_2d<rg32uint,write>/)
 })
+
+test('the bilinear read of smaller translucency is compiled only by the reduced programs', async () => {
+  const { rejectShadingShader } = await import('./rejectionWgsl.ts')
+  const { thinRelaxationShader } = await import('./thinGeometryWgsl.ts')
+  const plain = [
+    rejectShadingShader('rgba8unorm', 'rgba16float'),
+    thinRelaxationShader('rgba8unorm'),
+  ]
+  const reduced = [
+    rejectShadingShader('rgba8unorm', 'rgba16float', false, 'buffer', 'buffer', undefined, true),
+    thinRelaxationShader('rgba8unorm', true),
+  ]
+  for (const text of plain) {
+    assert.doesNotMatch(text, /reducedLayersAt/)
+    assert.match(text, /loadHeld\(translucency,/)
+  }
+  for (const text of reduced) {
+    assert.match(text, /reducedLayersAt\(translucency,\w,view\.render\.xy,view\.resurrection\.zw\)/)
+    assert.doesNotMatch(text, /loadHeld\(translucency,/)
+  }
+})

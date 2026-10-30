@@ -1,3 +1,4 @@
+import { layerBody, layerEntry } from '../sceneEntry.ts'
 import { FLAG_DIAGNOSTIC_VIEW } from '../../visibility/types.ts'
 import { declaredLightingSplitWgsl } from '../../lighting/direct/declaredLightingWgsl.ts'
 import type { ContractKey } from '../../lighting/deferred/contractCuts.ts'
@@ -31,14 +32,16 @@ const transmitDualWgsl = (o: StageOptions) =>
     [transmitStagesWgsl(o)],
     `struct TransmitDual{@location(0) @blend_src(0) add:vec4f,@location(0) @blend_src(1) mul:vec4f,}
 // The two sources of \`add\` and \`mul\`: the light laid with the layer's grey coverage, the multiply.
-@fragment fn fsTransmitDual(in:VSOut,@builtin(front_facing) front:bool)->TransmitDual{${o.shade.entry}
+${layerEntry('fsTransmitDual', 'TransmitDual', o.shade.entry)}
+${layerBody('fsTransmitDual', 'TransmitDual')}{
  let t=transmitFragment(in,front);
  return TransmitDual(vec4f(t.add,greyCoverage(t.mul)),vec4f(t.mul,1.0));
 }
 // The modulation pass's draw of the same layers: the multiply, which its blend takes the destination by
 // (\`src\`: no second source), adding nothing, and the request.
 struct Modulated{@location(0) mul:vec4f,@location(1) request:u32,}
-@fragment fn fsTransmitModulate(in:VSOut,@builtin(front_facing) front:bool)->Modulated{${o.shade.entry}
+${layerEntry('fsTransmitModulate', 'Modulated', o.shade.entry)}
+${layerBody('fsTransmitModulate', 'Modulated')}{
  let deltas=fwidth(in.bary);
  let t=transmitSurface(in,front,blendGrads(in));
  if(!t.kept){discard;return Modulated(vec4f(1.0),0u);}

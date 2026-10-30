@@ -155,7 +155,8 @@ export const TAA_VIEW_BYTES = TAA_VIEW.words * 4
  *   reprojects by the field (`w`, 1 or 0).
  * - `resurrection`: whether this image may resurrect a pixel from another frame (`x`, 1 or 0),
  *   the ratio of this image's pre-exposure to that frame's, which its colour is multiplied by (`y`);
- *   `zw` unused.
+ *   `zw`: the size in texels the translucency the image was composed with was drawn at, where it is smaller than the image
+ *   (`shownTranslucencyDrawn`, read by the programs that compile the reduced read, `translucencyWgsl.ts`); 0 elsewhere.
  *   `resurrectGrid`: the grid of that frame, as `render` is of this one; `toResurrection`: this
  *   frame's clip space, at the eye of this one, to that frame's.
  * - `thin`: the thin geometry detection's thresholds (`temporalThinGeometryErrorMultiplier` and its

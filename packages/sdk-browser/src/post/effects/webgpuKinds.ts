@@ -9,6 +9,9 @@ import { createWebgpuDepthOfField } from './webgpuDepthOfField.ts'
 import { createWebgpuMotionBlur } from './webgpuMotionBlur.ts'
 import { createWebgpuOutline } from './webgpuOutline.ts'
 import type { FusedFlatten } from './motionBlur/motionBlurLayout.ts'
+import type { UpsampleHost } from '../../blend/translucencyCompose.ts'
+import type { TranslucencyTargets } from '../../blend/translucency.ts'
+import type { EngineCamera } from '../../camera/engineCamera.ts'
 
 /** What a pass left to the composition: the glow it drew, which the composition adds to the image
  *  it reads where it applies the exposure — the glow times `1 + mask × factor` where a dirt mask
@@ -118,12 +121,16 @@ export type ResolveFrame = {
    *  where layers are drawn for it: the last depth of field composes it in its recombine
    *  (`layersComposed`). None on the resolved image, and where the image has none. */
   layers?: GPUBindGroup
+  /** Where `layers` lie when they were drawn smaller than the image (`blend/translucencyScale.ts`): `set` is those targets, none where they are the
+   *  image's size; the recombine scales them up by the nearest depth neighbour with the group it makes of them (`upsampleGroup`). */
+  layersReduced?: { host: UpsampleHost; set: TranslucencyTargets | undefined; cam: EngineCamera }
   /** Set by the pass that composed `layers`. */
   layersComposed?: boolean
   /** On the resolved image, the translucency drawn after the motion blur, where there is some: its
-   *  group (`blend/translucencyLayers.ts`) and the size of its textures. The last motion blur lays
-   *  it over its image (`lateComposed`). */
-  lateLayers?: { group: GPUBindGroup; extent: readonly number[] }
+   *  group (`blend/translucencyLayers.ts`) and the size of its textures, and — when they were drawn smaller than the render
+   *  grid (`translucencyScale.ts`) — the size drawn, which the blur reads bilinear. The last motion blur lays it over its image
+   *  (`lateComposed`). */
+  lateLayers?: { group: GPUBindGroup; extent: readonly number[]; drawn?: readonly number[] }
   /** Set by the pass that laid `lateLayers`. */
   lateComposed?: boolean
 }

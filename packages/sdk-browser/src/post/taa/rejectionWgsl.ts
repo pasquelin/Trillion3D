@@ -1,5 +1,4 @@
 import { MEASURE_BYTE_WGSL } from './flickerLumaWgsl.ts'
-import { loadHeld } from '../../../../math/src/wgsl/sampling.ts'
 import {
   LANE_ROWS,
   networkOf,
@@ -53,7 +52,7 @@ import {
   SPATIAL_ANTI_ALIASER_MIN_LUMINANCE,
 } from './spatialAntiAliasingWgsl.ts'
 import { THIN_COVERAGE_BITS, THIN_MASK_BITS, THIN_RUNS } from './thinGeometryWgsl.ts'
-import { TRANSLUCENCY_WGSL } from './translucencyWgsl.ts'
+import { TRANSLUCENCY_WGSL, layersRead } from './translucencyWgsl.ts'
 import type { Wave } from './waveOps.ts'
 
 /** The shading rejection's bindings. */
@@ -289,7 +288,7 @@ const lumaStoreText = (form: StorageForm) =>
     atomicOr(&lumaOut[at>>2u],(pack4x8unorm(vec4f(luma/(0.5+luma),0.0,0.0,0.0))&0xffu)<<shift);`
 
 /** Each texel of the tile loaded once, and the scene colour and LDR luma it writes. */
-const loadText = (colorFormat: GPUTextureFormat, lumaForm: StorageForm) => {
+const loadText = (colorFormat: GPUTextureFormat, lumaForm: StorageForm, reduced: boolean) => {
   const tile = REJECT_SHADING_TILE
   const overscan = REJECT_SHADING_OVERSCAN
   return ` for(var r=0;r<${LANE_ROWS};r++){
@@ -300,7 +299,7 @@ const loadText = (colorFormat: GPUTextureFormat, lumaForm: StorageForm) => {
   let c=pixel[r];
   word[r]=textureLoad(reprojected,c,0).r;
   let image=textureLoad(current,c,0);let raw=image.rgb;
-  let lay=loadHeld(translucency,c);
+  let lay=${layersRead(reduced, 'c').text};
   layers[r]=lay;opaque[r]=beforeLayers(raw,lay);composed[r]=min(raw,vec3f(most));
   // The scene colour the history update reads, held below the largest scene colour and the largest
   // small float, rounded stochastically to the history's colour format; and, where the level runs the
@@ -480,10 +479,11 @@ const entryText = (
   colorFormat: GPUTextureFormat,
   lumaForm: StorageForm,
   wave: Wave | undefined,
+  reduced: boolean,
 ) =>
   [
     entryHeadText(t, wave),
-    loadText(colorFormat, lumaForm),
+    loadText(colorFormat, lumaForm, reduced),
     relaxationText(t),
     flickerReadText(),
     historiesText(t),
@@ -540,6 +540,9 @@ const entryText = (
  * Run as a subgroup of the tile's width (`runAs`, `rejectionWaveOf`; else the plain program), the
  * network's horizontal exchange is a shuffle and its workgroup memory only the subgroups' first and
  * last rows (`rejectionNetworkWgsl.ts`): the same values.
+ *
+ * `reduced`: the translucency was drawn smaller than the image, read bilinear through the size it was drawn at
+ * (`layersRead`); else the program is the same text it is without that read.
  */
 export const rejectShadingShader = (
   guideFormat: GPUTextureFormat,
@@ -548,6 +551,7 @@ export const rejectShadingShader = (
   maskForm: StorageForm = 'buffer',
   lumaForm: StorageForm = 'buffer',
   runAs?: Wave,
+  reduced = false,
 ) => {
   const p = half ? HALF_PRECISION : FULL_PRECISION
   const wave = rejectionWaveOf(runAs)
@@ -555,7 +559,7 @@ export const rejectShadingShader = (
     [
       rejectionBindingsText(guideFormat, maskForm, lumaForm),
       rejectionHelpersText(),
-      entryText(rejectionTypes(p), guideFormat, colorFormat, lumaForm, wave),
+      entryText(rejectionTypes(p), guideFormat, colorFormat, lumaForm, wave, reduced),
     ].join('\n'),
     [
       ...p.enable,
@@ -575,7 +579,7 @@ export const rejectShadingShader = (
       REPROJECTED_WORD_WGSL,
       RESURRECTION_WGSL,
       TRANSLUCENCY_WGSL,
-      loadHeld,
+      layersRead(reduced, '').uses,
       measureWgsl(p, wave),
       flickerMeasureWgsl(rejectionTypes(p), wave),
       safeRcp,

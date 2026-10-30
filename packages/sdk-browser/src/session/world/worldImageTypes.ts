@@ -13,6 +13,7 @@ import type { SurfaceCacheOptions } from '../../../../sdk-core/src/contracts/sur
 import type { HizOptions } from '../../../../sdk-core/src/contracts/hizOptions.ts'
 import type { LightFunctionOptions } from '../../../../sdk-core/src/contracts/lightFunctionOptions.ts'
 import type { LightProfileOptions } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
+import type { SeparateTranslucencyOptions } from '../../../../sdk-core/src/contracts/separateTranslucencyOptions.ts'
 import type { RectLightAtlasOptions } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import type { SimpleLightOptions } from '../../../../sdk-core/src/contracts/simpleLightOptions.ts'
 import type { MotionBlurSettings } from '../../../../sdk-core/src/contracts/motionBlurOptions.ts'
@@ -102,6 +103,13 @@ export interface WorldImageSettings {
    *  back to it, one left out stays —; one a setting does not take is refused. */
   get lightProfile(): FamilyValues<'lightProfile'>
   set lightProfile(options: LightProfileOptions)
+  /** The resolution of the translucent layers, each setting by its field (`WorldOptions`), resolved over the page and the quality preset:
+   *  `translucencyScreenPercentage` (100, from 0 to 100: the share of the resolution they are drawn at), `translucencyScreenPercentageBasis`
+   *  (0 the render size, 1 the display size) and `translucencyUpsampleMode` (1 the nearest depth neighbour with a share of 50, 0 bilinear).
+   *  Written, the settings named apply from the next frame over the preset — one `null` gives it back to it, one left out stays —;
+   *  one a setting does not take is refused. */
+  get separateTranslucency(): FamilyValues<'separateTranslucency'>
+  set separateTranslucency(options: SeparateTranslucencyOptions)
   /** The rectangle lights' source-texture atlas settings, each by its field (`WorldOptions`), resolved over the page and the quality
    *  preset: `rectLightAtlasMaxResolution` (4096) — the largest side of the atlas —, `rectLightAtlasFilterQuality` (0, a box; 1, a Gaussian),
    *  `rectLightAtlasMaxTextureRatio` (2), `rectLightAtlasFormat` (0, 11/11/10 bits; 1, 16-bit floats), `sampledLightsTexturedRectLights` (true), and the debug and repack switches (`rectLightAtlasDebug`, `rectLightAtlasDebugMipLevel`,

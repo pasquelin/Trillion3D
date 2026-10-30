@@ -13,10 +13,10 @@ test('the view table yields the shipped struct and its WGSL offsets', () => {
   // structure it names.
   assert.ok(
     wgslSource(BLEND_VIEW_WGSL).endsWith(
-      'struct BlendView{viewProj:mat4x4f,camPos:vec4f,viewRight:vec4f,viewUp:vec4f,clipW:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,roughDiffuse:u32,shadingAccurate:u32,viewport:vec2f,eye:vec3f,pixelRatio:f32,mipBias:f32,exposure:f32,preExposure:f32,toneCurve:u32,pixelError:f32,time:f32,realTime:f32,clearCoatNormal:u32,clipPlane:vec4f,bake:Bake,volumeCorner:array<vec4f,2>,volumeScale:array<vec4f,2>,volumeRead:vec4f,giGrid:vec4f,giZ:vec4f,holdout:u32,volumeCamera:u32,volumeCameraFactor:f32,normalCurvature:vec3f,}',
+      'struct BlendView{viewProj:mat4x4f,camPos:vec4f,viewRight:vec4f,viewUp:vec4f,clipW:vec4f,lightTiles:vec2f,viewFlags:u32,vertexShift:u32,feedback:u32,roughDiffuse:u32,shadingAccurate:u32,viewport:vec2f,eye:vec3f,pixelRatio:f32,mipBias:f32,exposure:f32,preExposure:f32,toneCurve:u32,pixelError:f32,time:f32,realTime:f32,clearCoatNormal:u32,clipPlane:vec4f,bake:Bake,volumeCorner:array<vec4f,2>,volumeScale:array<vec4f,2>,volumeRead:vec4f,giGrid:vec4f,giZ:vec4f,holdout:u32,volumeCamera:u32,volumeCameraFactor:f32,normalCurvature:vec3f,reduced:vec2f,}',
     ),
   )
-  assert.equal(BLEND_VIEW_SIZE, 240 + BAKE_BYTES + 9 * 16)
+  assert.equal(BLEND_VIEW_SIZE, 240 + BAKE_BYTES + 10 * 16)
   assert.equal(VIEW.bake, 60, 'after the clip plane, on a vec4 boundary')
   // The volume's two cascades' corners, their scales and the read words follow the baking words, each a vec4 on its own boundary.
   assert.deepEqual(
@@ -34,6 +34,8 @@ test('the view table yields the shipped struct and its WGSL offsets', () => {
   )
   // The normal curvature's curve follows, a vec3f on its own 16-byte boundary.
   assert.equal(VIEW.normalCurvature, VIEW.holdout + 4)
+  // The ratio of the size a pass draws at over the image's, a vec2f on an even word past the curve, the struct rounded to four words.
+  assert.equal(VIEW.reduced, VIEW.normalCurvature + 4)
   assert.deepEqual(
     [VIEW.viewProj, VIEW.camPos, VIEW.viewRight, VIEW.viewUp, VIEW.clipW],
     [0, 16, 20, 24, 28],

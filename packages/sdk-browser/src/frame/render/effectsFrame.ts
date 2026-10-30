@@ -5,6 +5,7 @@ import type { ResolveFrame, ResolveTemporal } from '../../post/effects/webgpuKin
 import type { Velocity } from '../../post/taa/velocity.ts'
 import { preExposureOf } from '../../post/exposure/pre.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
+import { layersApart } from '../../blend/translucency.ts'
 import { cpuNow } from '../../diagnostic/stopwatch.ts'
 import { readTemporalSetting } from '../../../../sdk-core/src/contracts/temporalOptions.ts'
 
@@ -80,21 +81,26 @@ export function readResolveFrame(
   frame.temporal = resolveTemporal
   frame.flatten = rt.gpu.temporal?.inputs.flatten
   frame.halfBeside = readTemporalSetting(rt, 'temporalDownsampleQuality') === 'low'
-  // The translucency the lit image waits for is the depth of field's to compose (`ResolveFrame.layers`).
+  // The translucency the lit image waits for is the depth of field's to compose (`ResolveFrame.layers`): the smaller layers
+  // (`translucencyScale.ts`) are scaled up in its recombine, from where they lie (`ResolveFrame.layersReduced`).
   const translucency = gpu.translucency
-  frame.layers =
-    stage === 'before-resolve' && translucency?.phase === 'drawn'
-      ? translucency.modulated
-        ? translucency.group
-        : translucency.groupBare
-      : undefined
+  const drawn =
+    stage === 'before-resolve' && translucency?.phase === 'drawn' ? translucency : undefined
+  frame.layers = drawn ? (drawn.modulated ? drawn.group : drawn.groupBare) : undefined
+  const reduced = (frame.layersReduced ??= { host: rt, set: undefined, cam })
+  reduced.host = rt
+  reduced.set = layersApart(drawn) ? drawn : undefined
+  reduced.cam = cam
   frame.layersComposed = false
   const late = translucency?.late
+  // The motion blur lays the late layers whatever their size, as the reference's does (MotionBlurApply.usf:743-803,
+  // PostProcessMotionBlur.cpp:1035-1051): the smaller ones bilinear, held to the texels drawn.
   frame.lateLayers =
     stage === 'after-resolve' && late?.phase === 'drawn'
       ? {
           group: late.modulated ? late.group : late.groupBare,
           extent: [late.color.width, late.color.height],
+          drawn: layersApart(late) ? late.drawn : undefined,
         }
       : undefined
   frame.lateComposed = false

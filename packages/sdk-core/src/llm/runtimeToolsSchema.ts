@@ -19,6 +19,7 @@ import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
+import { SEPARATE_TRANSLUCENCY_RULES } from '../contracts/separateTranslucencyOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../contracts/rectLightAtlasOptions.ts'
 import { SIMPLE_LIGHT_RULES } from '../contracts/simpleLightOptions.ts'
 import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOptions.ts'
@@ -459,6 +460,11 @@ const SHADING_SETTING_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_light_profile',
     'Changes from the next frame the atlas of the light profiles (the photometric shapes the lights name): the texels a side of a slice, and the most profiles the atlas holds. The atlas is made with the profiles the lights ask, up to that number, and made again when more are asked.',
     LIGHT_PROFILE_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_separate_translucency',
+    "Changes from the next frame the resolution the translucent layers are drawn at: the share of the resolution (100 by default, the image's size; lower draws them into smaller targets over the scene depth taken at their size), the resolution that share is of (0 the render size, 1 the display size) and how the smaller targets are scaled up (0 bilinear, 1 the nearest depth neighbour, with a share of 50 only).",
+    SEPARATE_TRANSLUCENCY_RULES,
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_rect_light_atlas',

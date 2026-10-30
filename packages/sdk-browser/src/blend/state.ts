@@ -186,6 +186,8 @@ function recordState(view: Float32Array<ArrayBuffer>) {
      *  back (`RowCell.proxy`) —: its items' records follow at the next image (`ITEM_HLOD`). */
     proxiesMoved: false,
     viewBuffer: undefined as GPUBuffer | undefined,
+    /** The view's `reduced` words as the image's passes set them: (1, 1), then this image's ratio (`selectReduced`). */
+    reducedBuffer: undefined as GPUBuffer | undefined,
     viewPacked: view,
     viewInts: new Uint32Array(view.buffer),
   }

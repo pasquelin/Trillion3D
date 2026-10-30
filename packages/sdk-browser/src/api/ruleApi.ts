@@ -95,6 +95,9 @@ export interface ExplorerRuleApi {
   /** Writes the light profiles' atlas setting `field` (`lightProfileOptions.ts`): the texels a side of a
    *  slice and the most profiles it holds; read by the next image. */
   setLightProfile: FamilyWriter<'lightProfile'>
+  /** Writes the setting `field` of the resolution of the translucent layers (`separateTranslucencyOptions.ts`): the share of the resolution they are drawn at,
+   *  the resolution it is of and how the smaller targets are scaled up; read by the next image. */
+  setSeparateTranslucency: FamilyWriter<'separateTranslucency'>
   /** Writes the rectangle lights' source-texture atlas setting `field` (`rectLightAtlasOptions.ts`): the atlas's largest side, its filter,
    *  its format, the pictures' proportions, which passes read the pictures, and the debug switches; read by the next image. */
   setRectLightAtlas: FamilyWriter<'rectLightAtlas'>

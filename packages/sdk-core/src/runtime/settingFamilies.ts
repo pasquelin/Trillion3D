@@ -30,6 +30,7 @@ import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.t
 import { SHADING_RULES } from '../contracts/shadingOptions.ts'
 import { SAMPLED_LIGHTS_RULES } from '../contracts/sampledLightsOptions.ts'
 import { PATH_TRACING_RULES } from '../contracts/pathTracingOptions.ts'
+import { SEPARATE_TRANSLUCENCY_RULES } from '../contracts/separateTranslucencyOptions.ts'
 import { SHADOW_RULES } from '../contracts/shadowOptions.ts'
 import type { SettingRule, SettingValues } from '../contracts/settingRules.ts'
 import { SUBSURFACE_SCATTERING_RULES } from '../contracts/subsurfaceScatteringOptions.ts'
@@ -134,6 +135,7 @@ export const SETTING_FAMILIES = {
   volumetricFog: { rules: VOLUMETRIC_FOG_RULES, group: 'shadows', world: 'image' },
   subsurfaceScattering: { rules: SUBSURFACE_SCATTERING_RULES, group: 'effects', world: 'image' },
   translucencyVolume: { rules: TRANSLUCENCY_VOLUME_RULES, group: 'effects', world: 'image' },
+  separateTranslucency: { rules: SEPARATE_TRANSLUCENCY_RULES, group: 'effects', world: 'image' },
   translucencyGi: { rules: TRANSLUCENCY_GI_RULES, group: 'indirectLight', world: 'image' },
   singleLayerWater: { rules: SINGLE_LAYER_WATER_RULES, group: 'effects', world: 'image' },
   hairStrands: { rules: HAIR_STRANDS_RULES, group: 'effects', world: 'image' },

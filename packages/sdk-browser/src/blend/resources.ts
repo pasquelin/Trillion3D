@@ -1,4 +1,5 @@
 import { BLEND_VIEW_SIZE } from './viewLayout.ts'
+import { REDUCED_WORDS_BYTES } from './reducedView.ts'
 import { BLEND_ITEM_WORDS } from './items.ts'
 import { refreshBlendScene } from './sceneRefresh.ts'
 import { buildBlendStatics, needsMoreBlocks, needsMoreSides } from './statics.ts'
@@ -135,6 +136,13 @@ function allocateBlendRecords(blendState: WebgpuPagesRuntime['blendState'], devi
     GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
     'Trillion3D blend view uniform',
   )
+  blendState.reducedBuffer = sizedBuffer(
+    device,
+    blendState.reducedBuffer,
+    REDUCED_WORDS_BYTES,
+    GPUBufferUsage.COPY_SRC | GPUBufferUsage.COPY_DST,
+    'Trillion3D blend view reduced words',
+  )
 }
 
 /** Releases the transparent pass's scene buffers, at the session's end or a refused mount; the
@@ -142,7 +150,13 @@ function allocateBlendRecords(blendState: WebgpuPagesRuntime['blendState'], devi
 export function disposeBlendResources(blendState: WebgpuPagesRuntime['blendState']) {
   blendState.expand?.dispose()
   blendState.expand = undefined
-  for (const buffer of ['expandedBuffer', 'argsBuffer', 'itemBuffer', 'viewBuffer'] as const) {
+  for (const buffer of [
+    'expandedBuffer',
+    'argsBuffer',
+    'itemBuffer',
+    'viewBuffer',
+    'reducedBuffer',
+  ] as const) {
     blendState[buffer]?.destroy()
     blendState[buffer] = undefined
   }

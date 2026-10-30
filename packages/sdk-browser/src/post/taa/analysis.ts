@@ -34,19 +34,26 @@ type FusedDispatch = { pipeline: GPUComputePipeline; group: GPUBindGroup }
  *  group's among the groups of an image (`createAnalysisGroups`) — and its program: the one of
  *  `stages` for a history that `resurrects` where it does, as `run` executes it (`variantOf`): the 16-bit ones of
  *  the shading rejection and the anti-aliaser where it asks them and the device has them, the
- *  rejection's wave ones where the wave is the tile's width. */
+ *  rejection's wave ones where the wave is the tile's width; the translucency's steps are those of `reduced` where the layers were
+ *  drawn smaller than the image. */
 function* stagesOf(
-  { stages }: Pipelines,
+  { stages, reduced: reducedStage }: Pipelines,
   work: AnalysisWork,
   resurrects: boolean,
   run: TaaExecution,
+  reduced: boolean,
 ) {
   const variant = variantOf(run)
   for (const [at, dispatch] of DISPATCHES.entries()) {
     const { name } = dispatch
     if ((name === 'thin' || name === 'relaxation') && !work.thin) continue
     if (name === 'antiAlias' && !work.antiAlias) continue
-    yield { at, dispatch, stage: stages[at][Number(resurrects)][variant] }
+    // The steps that read the translucency read the smaller layers through their own programs (`reducedStagesOf`).
+    const stage =
+      reduced && (name === 'reject' || name === 'relaxation')
+        ? reducedStage(name, resurrects, variant)
+        : stages[at][Number(resurrects)][variant]
+    yield { at, dispatch, stage }
   }
 }
 
@@ -61,9 +68,10 @@ function dispatchAnalysis(
   work: AnalysisWork,
   resurrects: boolean,
   run: TaaExecution,
+  reduced: boolean,
   fused?: FusedDispatch,
 ) {
-  for (const { at, dispatch, stage } of stagesOf(programs, work, resurrects, run)) {
+  for (const { at, dispatch, stage } of stagesOf(programs, work, resurrects, run, reduced)) {
     const { name, pass: descriptor, tile } = dispatch
     const pipeline = fused && name === 'nearest' ? fused.pipeline : stage.get()
     if (!pipeline) continue
@@ -282,7 +290,17 @@ function createAnalysisEncoding(
     const set = groups.of(inputs, t, slices)
     const fused = fusedDispatch(device, programs, groups, inputs, t)
     const { resurrects } = slices
-    dispatchAnalysis(steps, programs, set, render, work, resurrects, run, fused)
+    dispatchAnalysis(
+      steps,
+      programs,
+      set,
+      render,
+      work,
+      resurrects,
+      run,
+      !!inputs.reducedTranslucency,
+      fused,
+    )
   }
 }
 
@@ -371,8 +389,8 @@ export async function createTaaAnalysis(
     },
     /** The programs the analysis of `work` runs for an image (`stagesOf`): the chain's, each step
      *  reading what the one before wrote. */
-    stages: (work: AnalysisWork, resurrects: boolean, run: TaaExecution) =>
-      Array.from(stagesOf(programs, work, resurrects, run), ({ stage }) => stage),
+    stages: (work: AnalysisWork, resurrects: boolean, run: TaaExecution, reduced: boolean) =>
+      Array.from(stagesOf(programs, work, resurrects, run, reduced), ({ stage }) => stage),
     /** Encodes the measures taken before the translucency is composed onto `image` (`measures`). */
     measure: createMeasureEncoding(targets, measures),
     encode: createAnalysisEncoding(device, programs, groups, targets),

@@ -256,7 +256,8 @@ function writeQuality(knobs: TaaLevelKnobs, work: AnalysisWork, settings: Tempor
  * the level's `knobs`, the finest level's by default, and the `work` the image runs, the level's
  * by default (`AnalysisWork`); the history's size and laws and what of the frame a pixel may be
  * resurrected from the uniform holds (`history`, `TaaHistoryTerms`: the display's size and no
- * resurrection by default), `pre` this image's pre-exposure.
+ * resurrection by default), `pre` this image's pre-exposure, `translucencyDrawn` the size the translucency the image was composed
+ * with was drawn at where it is smaller than the image (`shownTranslucencyDrawn`; none by default).
  */
 export function writeTaaView(
   device: GPUDevice,
@@ -276,6 +277,7 @@ export function writeTaaView(
   preExposureRatio = 1,
   history?: TaaHistoryTerms,
   pre = 1,
+  translucencyDrawn?: ArrayLike<number>,
 ) {
   // Inverse of the view-projection WITHOUT jitter: the reprojected pixel is its unshifted centre,
   // with the depth read at the shifted sample. At a fixed camera, history is thus re-read exactly
@@ -310,5 +312,7 @@ export function writeTaaView(
   writeGrid(packed, T.prevRender, state.previousRender[0] > 0 ? state.previousRender : render)
   writeGrid(packed, T.analysisGrid, analysisGrid)
   writeQuality(knobs, work, settings)
+  packed[T.resurrection + 2] = translucencyDrawn?.[0] ?? 0
+  packed[T.resurrection + 3] = translucencyDrawn?.[1] ?? 0
   device.queue.writeBuffer(uniform, 0, packed)
 }

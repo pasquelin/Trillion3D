@@ -44,6 +44,8 @@ interface Made {
   steps?: DofSteps
   /** Whether the bokeh tables were to be built when the steps were made. */
   stale: boolean
+  /** Whether the steps' recombine reads layers drawn smaller than the image. */
+  reduced?: boolean
 }
 
 /** What one depth of field of the chain holds: its uniforms, the plan it last drew and what that plan
@@ -186,6 +188,7 @@ export function stepsOf(
   frame: ResolveFrame,
   input: GPUTextureView,
   output: GPUTextureView,
+  reduced: boolean,
 ) {
   const { device, programs } = kit
   const { targets } = mine
@@ -221,9 +224,10 @@ export function stepsOf(
     })
     made.steps = undefined
   }
-  if (!made.steps || made.stale !== stale) {
-    made.steps = dofSteps(plan, made.groups, targets.images, programs, stale)
+  if (!made.steps || made.stale !== stale || !!made.reduced !== reduced) {
+    made.steps = dofSteps(plan, made.groups, targets.images, programs, stale, reduced)
     made.stale = stale
+    made.reduced = reduced
   }
   return made as Made & { steps: DofSteps }
 }

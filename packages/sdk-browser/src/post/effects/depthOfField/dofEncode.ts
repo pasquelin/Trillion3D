@@ -171,17 +171,19 @@ function convolutionSteps(
   return { before: [...gathers, ...filters], sprites }
 }
 
-/** The steps of one image's plan: `lutsStale` says the bokeh tables are to be built too. */
+/** The steps of one image's plan: `lutsStale` says the bokeh tables are to be built too, `reduced` that the recombine reads layers drawn
+ *  smaller than the image. */
 export function dofSteps(
   plan: DofPlan,
   groups: DofGroups,
   images: DofImages,
   programs: DofPrograms,
   lutsStale: boolean,
+  reduced: boolean,
 ): DofSteps {
   const convolutions = convolutionSteps(plan, groups, images, programs)
   const before = [...prepareSteps(plan, groups, programs, lutsStale), ...convolutions.before]
-  const pipeline = programs.compute('recombine', {
+  const pipeline = programs.compute(reduced ? 'recombineReduced' : 'recombine', {
     QUALITY: plan.recombine,
     HAS_FG: gathersLayer(plan, 'foreground') ? 1 : 0,
     HAS_BG: gathersLayer(plan, 'background') ? 1 : 0,
@@ -217,7 +219,7 @@ const SPRITE_PASS: GPURenderPassDescriptor = {
  * tiles, the reduction, the tables and every layer's gather and post-filter; one render pass a layer
  * that scatters, its sprites drawn additively over the layer's colour by the arguments the reduction
  * counted; the recombine's compute pass, composing the translucency `layers` the image is
- * composed with (`translucencyLayers.ts`). Returns the passes encoded.
+ * composed with (`translucencyLayers.ts`), scaled up from where they lie (`upsample`, the recombine of the smaller layers) when drawn smaller. Returns the passes encoded.
  */
 export function encodeDof(
   encoder: GPUCommandEncoder,
@@ -225,6 +227,7 @@ export function encodeDof(
   drawArguments: GPUBuffer,
   viewport: readonly [number, number],
   layers: GPUBindGroup,
+  upsample?: GPUBindGroup,
 ) {
   let passes = 1
   if (steps.sprites.length) encoder.clearBuffer(drawArguments)
@@ -245,6 +248,7 @@ export function encodeDof(
   }
   const last = encoder.beginComputePass(PASS)
   last.setBindGroup(1, layers)
+  if (upsample) last.setBindGroup(2, upsample)
   run(last, steps.recombine)
   last.end()
   return passes + 1

@@ -1,6 +1,8 @@
-import { HDR_FORMAT } from '../scene/targetFormats.ts'
+import { DEPTH_FORMAT, FEEDBACK_FORMAT, HDR_FORMAT } from '../scene/targetFormats.ts'
 import { texelBytesOf } from '../gpu/core/textureBytes.ts'
 import { layersGroup, noModulationView } from './translucencyLayers.ts'
+import { RESPONSIVE_FORMAT } from './responsive.ts'
+import type { TranslucencyExtent } from './translucencyScale.ts'
 
 /**
  * THE SEPARATE TRANSLUCENCY, the target of everything see-through — the blends and the particles.
@@ -39,6 +41,14 @@ export interface TranslucencyTargets {
   modulated: boolean
   /** True when the textures are at the target size: the scene has translucent layers. */
   active: boolean
+  /** The size of the textures. */
+  extent: readonly [number, number]
+  /** The size the layers are drawn at this image, within `extent` (`fitLayers`); the textures' own where they are not smaller than the
+   *  image's. */
+  drawn: [number, number]
+  /** What the textures smaller than the image (`translucencyScale.ts`) add: the layers drawn into them are tested against a depth taken at
+   *  their size and composed scaled up. None where the textures are the image's size; made and given back whole. */
+  reduced?: ReducedLayers
   /** Where this image stands with them: `idle`, they hold nothing of it; `drawn`, it drew into them,
    *  which its composition waits for; `fused`, the depth of field composed them into its own output
    *  (`markFused`), the lit image waiting for them still; `shown`, it composed them, so they hold
@@ -54,6 +64,50 @@ export interface TranslucencyTargets {
   /** The image the late layers are composed into, at the display's size or the render's, the
    *  larger: the late set's. */
   lateImage?: { texture: GPUTexture; view: GPUTextureView }
+}
+
+/** What a set of textures smaller than the image holds beside them (`TranslucencyTargets.reduced`). */
+export interface ReducedLayers {
+  /** True when this image's layers are drawn at a size other than the image's (`fitLayers`): only then do the passes of the smaller layers
+   *  run (their depth, feedback, marks and the scaled-up composition). False where the share and the basis leave the layers the image's
+   *  size. */
+  apart: boolean
+  /** The scene's depth at the textures' size, the layers' depth test (`translucencyDepth.ts`); the late set holds the first set's. */
+  depthView: GPUTextureView
+  /** The texture behind `depthView`, owned by the first set. */
+  depthTexture?: GPUTexture
+  /** Whether the depth is made this image (`layersReady`): the layers are not drawn before. Read on the first set's (`depthOwner`). */
+  depthReady: boolean
+  /** The late set's link to the first set's, which owns the depth and its state. */
+  main?: ReducedLayers
+  /** The texture feedback the layers write, at the textures' size and read by nothing: the layers write the request of the image's
+   *  pixels, which the smaller target cannot hold. */
+  feedbackTexture: GPUTexture
+  feedbackView: GPUTextureView
+  /** Whether a pass of this image's layers posted requests in `feedbackView`, which is then cleared no more (`layersFeedback`) and laid
+   *  over the image's feedback target after the passes (`layReducedFeedback`). */
+  feedbackPosted: boolean
+  /** The marks of the responsiveness pass (`translucencyResponsive.ts`), made when it first draws. */
+  responsive?: { texture: GPUTexture; view: GPUTextureView }
+  /** What this set's composition at scale reads its place from (`translucencyCompose.ts`), made at the first composition. */
+  upsample?: UpsampleState
+}
+
+/** The set that owns the depth of `reduced`: the first, which the late set links to. */
+export const depthOwner = (reduced: ReducedLayers) => reduced.main ?? reduced
+
+/** Whether the layers of `set` are drawn at a size other than the image's this image. */
+export const layersApart = (set: Pick<TranslucencyTargets, 'reduced'> | undefined) =>
+  !!set?.reduced?.apart
+
+/** The words of the place the smaller layers `set` are composed from, their buffer, and the group that binds them with the depths of the
+ *  layers and of the scene, made again when either depth changes. */
+export interface UpsampleState {
+  uniform: GPUBuffer
+  floats: Float32Array<ArrayBuffer>
+  group?: GPUBindGroup
+  low?: GPUTextureView
+  full?: GPUTextureView
 }
 
 /** The image drew into the targets. */
@@ -80,22 +134,31 @@ export const TRANSLUCENCY_CLEAR: GPUColor = [0, 0, 0, 1]
 export const MODULATION_CLEAR: GPUColor = [1, 1, 1, 0]
 export const MODULATION_KEEPS_ALPHA: GPUColor = [1, 1, 1, 1]
 
-const HDR_TEXEL = texelBytesOf(HDR_FORMAT)
+const HDR_TEXEL = texelBytesOf(HDR_FORMAT),
+  DEPTH_TEXEL = texelBytesOf(DEPTH_FORMAT),
+  FEEDBACK_TEXEL = texelBytesOf(FEEDBACK_FORMAT),
+  MARKS_TEXEL = texelBytesOf(RESPONSIVE_FORMAT)
 
 /** Bytes of the targets of a frame at `width × height`, none beyond a texel each where the scene
  *  has no translucent layer (`active`, `sceneBlends`): the two of the layers, and where some are
  *  drawn after the motion blur (`late`) two more and the image they are composed into, at
- *  `image` (the larger of the display's size and the render's). */
+ *  `image` (the larger of the display's size and the render's; unused without `late`).
+ *  Smaller (`scaled`), the first set adds its depth (the late set shares it), and each set its texture feedback and its responsiveness
+ *  marks: exactly what `createTranslucency` and the first pass that marks make. */
 export const translucencyBytes = (
   active: boolean,
   late: boolean,
   width: number,
   height: number,
   image: readonly [number, number],
+  scaled = false,
 ) =>
   active
     ? 2 * width * height * HDR_TEXEL +
-      (late ? (2 * width * height + image[0] * image[1]) * HDR_TEXEL : 0)
+      (late ? (2 * width * height + image[0] * image[1]) * HDR_TEXEL : 0) +
+      (scaled
+        ? width * height * (DEPTH_TEXEL + (FEEDBACK_TEXEL + MARKS_TEXEL) * (late ? 2 : 1))
+        : 0)
     : 0
 
 /** The two targets, a texel each unless `active`, and the groups the composition reads them by. */
@@ -104,7 +167,9 @@ function createTargets(
   width: number,
   height: number,
   active: boolean,
+  extent?: TranslucencyExtent,
 ): TranslucencyTargets {
+  if (active && extent?.scaled) [width, height] = [extent.width, extent.height]
   const size = { width: active ? width : 1, height: active ? height : 1 }
   const made = (label: string) =>
     device.createTexture({
@@ -131,6 +196,8 @@ function createTargets(
     ),
     modulated: false,
     active,
+    extent: [size.width, size.height],
+    drawn: [size.width, size.height],
     phase: 'idle',
   }
 }
@@ -146,10 +213,14 @@ export function createTranslucency(
   height: number,
   active: boolean,
   lateImage?: readonly [number, number],
+  extent?: TranslucencyExtent,
 ): TranslucencyTargets {
-  const targets = createTargets(device, width, height, active)
+  const targets = createTargets(device, width, height, active, extent)
+  const smaller = active && !!extent?.scaled
+  if (smaller) targets.reduced = createReduced(device, targets)
   if (active && lateImage) {
-    targets.late = createTargets(device, width, height, true)
+    targets.late = createTargets(device, width, height, true, extent)
+    if (smaller) targets.late.reduced = createReduced(device, targets.late, targets.reduced)
     const texture = device.createTexture({
       label: 'Trillion3D translucency late image',
       size: lateImage,
@@ -161,10 +232,67 @@ export function createTranslucency(
   return targets
 }
 
-/** The translucency this image was composed with, `undefined` where it composed none: what the
- *  temporal pass reads of it. */
+/** What the smaller textures `set` add: the texture feedback it writes and the depth — made by the first set, linked from the late one
+ *  (`main`). */
+function createReduced(
+  device: GPUDevice,
+  set: TranslucencyTargets,
+  main?: ReducedLayers,
+): ReducedLayers {
+  const size = [set.extent[0], set.extent[1]]
+  const feedbackTexture = device.createTexture({
+    label: 'Trillion3D translucency feedback',
+    size,
+    format: FEEDBACK_FORMAT,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+  })
+  const own = {
+    apart: false,
+    depthReady: false,
+    feedbackTexture,
+    feedbackView: feedbackTexture.createView(),
+    feedbackPosted: false,
+  }
+  if (main) return { ...own, depthView: main.depthView, main }
+  const depthTexture = device.createTexture({
+    label: 'Trillion3D translucency depth',
+    size,
+    format: DEPTH_FORMAT,
+    usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+  })
+  return { ...own, depthTexture, depthView: depthTexture.createView() }
+}
+
+/** Gives back what `createReduced` made and the marks and the place's uniform made later. */
+function disposeReduced(reduced: ReducedLayers | undefined) {
+  if (!reduced) return
+  reduced.depthTexture?.destroy()
+  reduced.feedbackTexture.destroy()
+  reduced.responsive?.texture.destroy()
+  reduced.upsample?.uniform.destroy()
+}
+
+/** The translucency this image was composed with, `undefined` where it composed none: what the temporal pass reads of it — at the image's
+ *  size, or smaller (`translucencyScale.ts`), read through `shownTranslucencyDrawn`. */
 export const shownTranslucency = (gpu: { translucency?: TranslucencyTargets }) =>
   gpu.translucency?.phase === 'shown' ? gpu.translucency.colorView : undefined
+
+/** Whether the translucency `shownTranslucency` returns was drawn at a size other than the image's (`TranslucencyTargets.reduced`). */
+export const shownTranslucencyScaled = (gpu: { translucency?: TranslucencyTargets }) =>
+  gpu.translucency?.phase === 'shown' && layersApart(gpu.translucency)
+
+/** The size in texels the translucency `shownTranslucency` returns was drawn at, written into `into` for the temporal pass's uniform;
+ *  zero where it is the image's size, or none was shown. */
+export function shownTranslucencyDrawn(
+  gpu: { translucency?: TranslucencyTargets },
+  into: Float32Array,
+) {
+  const set = gpu.translucency
+  const scaled = shownTranslucencyScaled(gpu)
+  into[0] = scaled ? set!.drawn[0] : 0
+  into[1] = scaled ? set!.drawn[1] : 0
+  return into
+}
 
 /** Gives the targets back: the textures, the late set's and image. */
 export function disposeTranslucency(gpu: { translucency?: TranslucencyTargets }) {
@@ -173,6 +301,7 @@ export function disposeTranslucency(gpu: { translucency?: TranslucencyTargets })
   for (const set of [targets, targets.late]) {
     set?.color.destroy()
     set?.modulation.destroy()
+    disposeReduced(set?.reduced)
   }
   targets.lateImage?.texture.destroy()
   targets.holdout?.texture.destroy()

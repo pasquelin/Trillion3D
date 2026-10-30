@@ -34,6 +34,9 @@ export interface TaaInputs {
    *  layers add and the transmittance, which the thin geometry and the flicker measure read
    *  (`translucencyWgsl.ts`); absent, a 1×1 of no light and 1 is bound. */
   translucency?: GPUTextureView
+  /** Whether those layers were drawn smaller than the image (`shownTranslucencyScaled`): the programs that read them compile the
+   *  bilinear read through the size they were drawn at (`translucencyWgsl.ts`); else the texel itself. */
+  reducedTranslucency?: boolean
   /** The responsiveness the blends and transmissive layers over each pixel carry, in red
    *  (`RESPONSIVE_TARGET`, `../../blend/responsive.ts`): the nearest velocity reads it as
    *  the flags of the pixel; absent, none (the same 1×1 zero is bound). */

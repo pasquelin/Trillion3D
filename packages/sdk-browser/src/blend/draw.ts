@@ -18,6 +18,8 @@ import { activeResponsive } from '../frame/prepare/responsiveTarget.ts'
 import { holdoutPassOn } from '../frame/prepare/alphaHoldout.ts'
 import { track } from '../lighting/deferred/compileLedger.ts'
 import { holdoutTargetOf } from './holdout.ts'
+import { layersReady, layersTarget, selectReduced, type LayersTarget } from './reducedView.ts'
+import { reducedResponsiveOf, upsampleResponsive } from './translucencyResponsive.ts'
 import { slotMayDraw, viewArgsWord, type DrawViews } from './expand/expansionViews.ts'
 import { readFilmSetting } from '../../../sdk-core/src/contracts/filmOptions.ts'
 import { effectsShown } from '../post/effects/stagePlan.ts'
@@ -26,10 +28,12 @@ import { directLightResources } from '../frame/prepare/contractLight.ts'
 import {
   allRuns,
   attached,
+  cleared,
   blendDepth,
   dualAttachments,
   fillAllColour,
   holdoutColour,
+  layReducedFeedback,
   responsiveColour,
   modulationAttachment,
   modulationAttachments,
@@ -206,11 +210,16 @@ export function drawBlendPass(
     filter = gpu.displayFilter?.active ? gpu.displayFilter : undefined
   // Nothing to encode without runs, or without the arguments the GPU wrote for them.
   if (!blendState.runCount || !blendState.argsBuffer || !gpu.translucency?.active) return false
+  // The smaller layers wait for their depth, made here (`layersReady`).
+  if (!layersReady(gpu, device, encoder)) return false
   // Lit with the code the frame's lights need, on the opaque resolve's key (`pipelines.ts`), and
   // with lobe code while an item's surface carries a lobe (`physicalWgsl.ts`).
   const pipelines = litBlendPipelines(rt, device, key)
   if (!pipelines) return false
   if (filter) drawDisplayMask(rt, device, encoder, filter, pipelines.mask)
+  // The passes that follow draw at the layers' size, the smaller one where the targets are (`selectReduced`).
+  const target = layersTarget(gpu)
+  if (target.apart) selectReduced(encoder, rt, true)
   // The dual blend's passes only while a chromatic transmissive item may be in view
   // (`noTransmissiveInView`), its colour pass and its modulation pass; a transmissive layer that
   // transmits all channels alike is one blend over, in the one pass on every target, and with no
@@ -226,13 +235,13 @@ export function drawBlendPass(
   const overdraw = countsBlendOverdraw(rt.context?.diagnosticGpuVariant)
     ? (blendState.overdraw ??= createBlendOverdraw(device))
     : undefined
-  blendDepth.view = gpu.depthView!
+  blendDepth.view = target.depth
   TRANSPARENTS.occlusionQuerySet = overdraw?.set
   TRANSPARENTS.colorAttachments = dual
     ? dualAttachments(rt)
     : fillAllColour(rt, filter, translucencyAttachment(rt))
   const pass = encoder.beginRenderPass(TRANSPARENTS)
-  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
+  pass.setViewport(0, 0, target.size[0], target.size[1], 0, 1)
   overdraw?.begin(pass)
   allRuns.filter = filter
   allRuns.view = views.colour
@@ -246,8 +255,12 @@ export function drawBlendPass(
   overdraw?.end(pass)
   pass.end()
   overdraw?.after(encoder)
-  encoded += drawModulation(rt, device, encoder, dual, drawn, allRuns, holdout)
-  encoded += drawResponsive(rt, device, encoder, pipelines, views.responsive)
+  encoded += drawModulation(rt, device, encoder, dual, drawn, allRuns, holdout, target)
+  encoded += drawResponsive(rt, device, encoder, pipelines, views.responsive, target)
+  if (target.apart) {
+    encoded += layReducedFeedback(rt, device, encoder)
+    selectReduced(encoder, rt, false)
+  }
   markDrawn(gpu.translucency)
   countBlendDraws(rt, encoded)
   return true
@@ -270,6 +283,8 @@ const RESPONSIVE: GPURenderPassDescriptor = {
   colorAttachments: responsiveTargets,
   depthStencilAttachment: blendDepth,
 }
+/** The marks of the smaller layers' responsiveness, cleared by the pass that draws them. */
+const marksCleared = cleared([0, 0, 0, 0])
 const HOLDOUT: GPURenderPassDescriptor = {
   label: BLEND_HOLDOUT_PASS,
   colorAttachments: [holdoutColour],
@@ -304,6 +319,7 @@ function drawModulation(
   drawn: RankedPipelines,
   runs: BlendRuns,
   keepsAlpha: boolean,
+  target: LayersTarget,
 ) {
   const { gpu, blendState } = rt
   const modulates = !!dual || keepsAlpha || blendState.planModes.some(modulatesScene)
@@ -313,7 +329,7 @@ function drawModulation(
     ? modulationAttachments(rt, rt.vis.writesFeedback)
     : fillAllColour(rt, runs.filter, modulationAttachment(rt))
   const pass = encoder.beginRenderPass(MODULATION)
-  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
+  pass.setViewport(0, 0, target.size[0], target.size[1], 0, 1)
   const encoded = drawBlendRuns(
     rt,
     device,
@@ -340,16 +356,23 @@ function drawResponsive(
   encoder: GPUCommandEncoder,
   pipelines: BlendModePipelines,
   view: number,
+  target: LayersTarget,
 ) {
   const { gpu } = rt,
     responsive = activeResponsive(rt)
   if (!responsive) return 0
-  blendDepth.view = gpu.depthView!
-  responsiveTargets[0] = attached(responsiveColour, responsive.view)
+  const set = gpu.translucency!,
+    [width, height] = target.size
+  blendDepth.view = target.depth
+  // The smaller layers mark a target of their size, laid over the image's afterwards (`upsampleResponsive`).
+  responsiveTargets[0] = target.apart
+    ? attached(marksCleared, reducedResponsiveOf(device, set.reduced!, set.extent))
+    : attached(responsiveColour, responsive.view)
   const pass = encoder.beginRenderPass(RESPONSIVE)
-  pass.setViewport(0, 0, gpu.targetSize[0], gpu.targetSize[1], 0, 1)
+  pass.setViewport(0, 0, width, height, 0, 1)
   const encoded = drawBlendRuns(rt, device, pass, pipelines.responsive, { reflected: false, view })
   pass.end()
+  if (target.apart) upsampleResponsive(device, encoder, set, responsive.view, gpu.targetSize)
   return encoded
 }
 

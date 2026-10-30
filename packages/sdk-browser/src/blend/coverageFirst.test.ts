@@ -30,19 +30,19 @@ test('the blend and transmissive stages take every derivative before their cover
   assert.deepEqual(taking, [
     'blendGrads',
     'blendFragment',
-    'fsBlendCoverage',
-    'fsBlendResponsive',
+    'fsBlendCoverageBody',
+    'fsBlendResponsiveBody',
     'transmitFragment',
-    'fsTransmitCoverage',
-    'fsTransmitResponsive',
+    'fsTransmitCoverageBody',
+    'fsTransmitResponsiveBody',
   ])
   for (const [stage, text] of [
     ['blendFragment', STAGES],
-    ['fsBlendCoverage', STAGES],
-    ['fsBlendResponsive', STAGES],
+    ['fsBlendCoverageBody', STAGES],
+    ['fsBlendResponsiveBody', STAGES],
     ['transmitFragment', STAGES],
-    ['fsTransmitResponsive', STAGES],
-    ['fsTransmitCoverage', STAGES],
+    ['fsTransmitResponsiveBody', STAGES],
+    ['fsTransmitCoverageBody', STAGES],
     ['fsDistortion', STAGES],
     ...FRONTS.map((front) => ['fsFront', front]),
   ]) {

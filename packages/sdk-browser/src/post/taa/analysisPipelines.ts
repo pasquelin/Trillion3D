@@ -293,25 +293,65 @@ async function twinStages(device: GPUDevice, layouts: AnalysisLayouts, modules: 
   return { resurrected }
 }
 
-/** The nearest velocity that also flattens the motion of a blur of a variant: its own module, made
- *  at the first ask, off the frame. */
-function fusedStagesOf(device: GPUDevice, layouts: AnalysisLayouts) {
-  const fused = new Map<string, PreparedStage>()
-  return (variant: BlurVariant) => {
-    const key = `${variant.directions} ${variant.flat}`
-    let held = fused.get(key)
-    if (!held) {
-      const module = device.createShaderModule({
-        label: `TAA_VELOCITY ${key}`,
-        code: velocityShader(variant),
-      })
-      const layout = layouts.fusedVelocity(variant)
-      fused.set(
-        key,
-        (held = preparedOn(device, layout, module, 'nearestVelocity', undefined, 'TAA_VELOCITY')),
-      )
+/**
+ * The programs made at the first ask, off the frame, each held under its key in one map: the nearest velocity that also flattens the
+ * motion of a blur of a variant (`fused`, its own module), and the two steps that read the translucency the image was composed with, for
+ * layers drawn smaller than the image (`reduced`, `TaaInputs.reducedTranslucency`): their own text, which reads the layers bilinear
+ * (`layersRead`) — a share of 100 never builds them, and keeps the programs it had. The shading rejection's is by its variant and whether
+ * the history resurrects, the relaxation's alone.
+ */
+function lazyStagesOf(
+  device: GPUDevice,
+  layouts: AnalysisLayouts,
+  { guide, color, mask, luma, measure }: AnalysisFormats,
+  half: boolean,
+  wave: Wave | undefined,
+) {
+  const held = new Map<string, PreparedStage>()
+  const lazily = (
+    key: string,
+    layout: GPUBindGroupLayout,
+    label: string,
+    code: () => string,
+    entry: string,
+    constants?: Record<string, number>,
+  ) => {
+    let stage = held.get(key)
+    if (!stage) {
+      const module = device.createShaderModule({ label, code: code() })
+      held.set(key, (stage = preparedOn(device, layout, module, entry, constants, label)))
     }
-    return held
+    return stage
+  }
+  return {
+    fused: (variant: BlurVariant) =>
+      lazily(
+        `fused ${variant.directions} ${variant.flat}`,
+        layouts.fusedVelocity(variant),
+        'TAA_VELOCITY',
+        () => velocityShader(variant),
+        'nearestVelocity',
+      ),
+    reduced: (name: 'reject' | 'relaxation', resurrects: boolean, variant: number) => {
+      if (name === 'relaxation')
+        return lazily(
+          'reduced relaxation',
+          layouts.relaxation,
+          'TAA_THIN_RELAXATION reduced',
+          () => thinRelaxationShader(measure, true),
+          'relaxThinGeometryWeight',
+        )
+      const precise = half && (variant & 1) !== 0,
+        runAs = (variant & 2) !== 0 ? wave : undefined
+      return lazily(
+        `reduced reject ${variant} ${resurrects}`,
+        layouts.rejectShading,
+        'TAA_REJECT_SHADING reduced',
+        () => rejectShadingShader(guide, color, precise, mask, luma, runAs, true),
+        'rejectShading',
+        resurrects ? { RESURRECTION: 1 } : undefined,
+      )
+    },
   }
 }
 
@@ -357,9 +397,9 @@ async function computePipelines(
     measures: { luma: built(measureLuma), coverage: built(measureCoverage) },
     resurrected,
     antiAliasHalf: antiAliasHalf && built(antiAliasHalf),
-    /** The nearest velocity's stages that also flatten the motion of a blur of `variant`, made at
-     *  the first ask. */
-    fused: fusedStagesOf(device, layouts),
+    /** The programs made at the first ask: the nearest velocity's that also flatten the motion of a blur of a variant (`fused`) and
+     *  those of the steps that read translucency drawn smaller than the image (`reduced`). */
+    ...lazyStagesOf(device, layouts, formats, half, wave),
     /** Asks the programs of a history that resurrects, compiled off the thread. */
     askResurrection: () => {
       resurrected.reproject.ask()
@@ -428,12 +468,14 @@ export async function createAnalysisPipelines(
   formats: AnalysisFormats,
 ) {
   const compiled = await computePipelines(device, layouts, formats)
-  const { measures, fused, askResurrection } = compiled
+  const { measures, fused, reduced, askResurrection } = compiled
   return {
     stages: dispatchStages(compiled),
     /** The measures taken before the translucency, encoded apart (`TaaAnalysis.measure`). */
     measures,
     fused,
+    /** The programs of the steps that read translucency drawn smaller than the image (`reducedStagesOf`). */
+    reduced,
     askResurrection,
   }
 }

@@ -7,7 +7,7 @@ import { bindSkySurfaces, prepareBlend } from './encodeBlend.ts'
 import { submitColorCopy, withRenderEncoder } from './encoder.ts'
 import { fillDirectParams } from './encodeLights.ts'
 import { directLightResources } from '../prepare/contractLight.ts'
-import { followLobes } from '../prepare/lobesTarget.ts'
+import { followTargets } from '../prepare/followTargets.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 
@@ -50,7 +50,7 @@ export function encodeSkyMeshFace(rt: WebgpuPagesRuntime, device: GPUDevice, cam
   const { gpu, lights } = rt,
     capture = rt.views.active.overrides.skyMeshCapture
   const [width, height] = gpu.targetSize
-  followLobes(rt)
+  followTargets(rt)
   withRenderEncoder(rt, device, (encoder) => {
     // The pre-exposure of one the cube layer is kept at (`SkyMeshes.drawFace` multiplies it by the capture's), the tiles none.
     fillDirectParams(rt, cam, lights.store.environment)

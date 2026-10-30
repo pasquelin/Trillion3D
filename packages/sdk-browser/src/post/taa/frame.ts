@@ -7,7 +7,11 @@ import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import type { AccumulatedImage } from '../../lighting/deferred/program.ts'
 import type { Responsive } from '../../blend/responsive.ts'
 import { writtenFilter } from '../../blend/display/displayFilter.ts'
-import { shownTranslucency } from '../../blend/translucency.ts'
+import {
+  shownTranslucency,
+  shownTranslucencyDrawn,
+  shownTranslucencyScaled,
+} from '../../blend/translucency.ts'
 import { drawFrameAt, scalesTargets, taaRuns } from '../../frame/backend/state/renderScale.ts'
 import { dropTaaHistory } from './landing.ts'
 import { noiseFrame } from '../../frame/render/noiseFrame.ts'
@@ -32,6 +36,8 @@ import { executionOf } from './waveOps.ts'
 import { remakeTemporalFormats } from './prepare.ts'
 import { fuseMotionBlur, motionBlurPlanned } from '../../frame/render/effectsFrame.ts'
 
+/** The size the translucency the image was composed with was drawn at (`shownTranslucencyDrawn`), rewritten by each image. */
+const translucencyDrawn = new Float32Array(2)
 /** What the pass's uniform says of its history this image (`writeTaaView`), rewritten by each. */
 const historyTerms = {} as { -readonly [K in keyof TaaHistoryTerms]: TaaHistoryTerms[K] }
 /** The pass's settings this image, resolved in place: the one reading of them every image makes. */
@@ -189,6 +195,7 @@ function readSharedInputs(
 ) {
   inputs.current = current
   inputs.translucency = shownTranslucency(rt.gpu)
+  inputs.reducedTranslucency = shownTranslucencyScaled(rt.gpu)
   // Bound where the blends wrote it; else the 1×1 zero: none (`writesResponsive`).
   inputs.responsive = writesResponsive(rt) ? responsive?.view : undefined
 }
@@ -266,6 +273,7 @@ function writeImageUniform(
     pre.now / pre.previous,
     historyTerms,
     pre.now,
+    shownTranslucencyDrawn(gpu, translucencyDrawn),
   )
 }
 

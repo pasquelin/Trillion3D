@@ -226,7 +226,7 @@ function passMembers(
       run: TaaExecution = execution,
     ) =>
       chainReady(
-        ...analysis.stages(work, slices.resurrects, run),
+        ...analysis.stages(work, slices.resurrects, run, !!inputs.reducedTranslucency),
         ...update.stages(inputs, half, run),
       ),
     encode: createTaaEncoding({ analysis, update, history }, execution, standIns),

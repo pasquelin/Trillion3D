@@ -56,6 +56,7 @@ import { LIGHT_FUNCTION_RULES } from '../../../../sdk-core/src/contracts/lightFu
 import { SAMPLED_LIGHTS_RULES } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
 import { PATH_TRACING_RULES } from '../../../../sdk-core/src/contracts/pathTracingOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../../../../sdk-core/src/contracts/lightProfileOptions.ts'
+import { SEPARATE_TRANSLUCENCY_RULES } from '../../../../sdk-core/src/contracts/separateTranslucencyOptions.ts'
 import { RECT_LIGHT_ATLAS_RULES } from '../../../../sdk-core/src/contracts/rectLightAtlasOptions.ts'
 import { SIMPLE_LIGHT_RULES } from '../../../../sdk-core/src/contracts/simpleLightOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../../../../sdk-core/src/contracts/distanceFieldOcclusionOptions.ts'
@@ -157,6 +158,7 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(LIGHT_FUNCTION_RULES, {}),
   // The light profiles' atlas: the reference's 256 texels a slice and 32 profiles.
   ...resolveSettings(LIGHT_PROFILE_RULES, {}),
+  ...resolveSettings(SEPARATE_TRANSLUCENCY_RULES, {}),
   ...resolveSettings(RECT_LIGHT_ATLAS_RULES, {}),
   ...resolveSettings(SIMPLE_LIGHT_RULES, {}),
   // The sampled lights: each its contract's default.

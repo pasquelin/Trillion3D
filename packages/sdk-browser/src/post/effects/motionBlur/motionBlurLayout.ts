@@ -115,8 +115,8 @@ export const MOTION_BLUR_PARAMS = fieldLayout('MotionBlurParams', [
   // scene's chain reads, and whether the pass lays the layers drawn after the motion blur over the
   // image it writes (y, 0 or 1).
   ['outputs', 'vec2f'],
-  // Where those layers lie: the inverse of the size of their textures (x, y) and, in their
-  // coordinates, the last texel centre drawn (z, w).
+  // Where those layers lie: the texels of their textures a texel of the render grid spans over the size of the textures
+  // (x, y; the inverse of that size where they are drawn at the grid's) and, in their coordinates, the last texel centre drawn (z, w).
   ['layers', 'vec4f'],
 ] as const)
 /** Bytes of the uniform. */

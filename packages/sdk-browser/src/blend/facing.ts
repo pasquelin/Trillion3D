@@ -56,7 +56,7 @@ fn vertexFacing(cull:u32,world:mat4x4f,page:PageInfo,h:ClusterHeader,corners:vec
  for(var k=0u;k<3u;k++){
   let q=uni.viewProj*(world*vec4f(pagePosition(page,h,corners[k]),1.0));
   c[k]=q.xyw;
-  p[k]=perspectiveDivide(q).xy*uni.viewport*0.5;
+  p[k]=perspectiveDivide(q).xy*uni.viewport*uni.reduced*0.5;
   inside=inside&&q.w>0.0&&all(abs(q.xy)<=vec2f(q.w))&&q.z>=0.0&&q.z<=q.w;
  }
  let t0=c[0].x*c[1].y*c[2].z;let t1=-c[0].x*c[2].y*c[1].z;let t2=-c[1].x*c[0].y*c[2].z;

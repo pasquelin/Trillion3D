@@ -16,6 +16,7 @@ import { dofPostfilterShader } from './dofPostfilterWgsl.ts'
 import { packShader, spriteShader } from './dofScatterWgsl.ts'
 import { dofRecombineShader } from './dofRecombineMainWgsl.ts'
 import { layersLayout } from '../../../blend/translucencyLayers.ts'
+import { upsampleLayout } from '../../../blend/translucencyCompose.ts'
 
 /** What decides a pipeline of each pass: its pipeline constants, which name the layer, the rings,
  *  the quality, the bokeh, the tiles' dilation, the reduction's outputs. */
@@ -71,14 +72,27 @@ const ENTRIES = {
   gather: ['gather', 'gatherLayer'],
   postfilter: ['postfilter', 'postfilterLayer'],
   recombine: ['recombine', 'recombine'],
+  recombineReduced: ['recombine', 'recombine'],
 } as const
 type Pass = keyof typeof ENTRIES
 
 type Layouts = ReturnType<typeof dofLayouts>
 type Modules = Awaited<ReturnType<typeof dofModules>>
 
+/** The recombine for layers drawn smaller than the image (`dofRecombineShader(true)`): made at the first ask, off the frame — an image
+ *  with the layers at its size never builds it. */
+const reducedModule = (device: GPUDevice) => {
+  let module: GPUShaderModule | undefined
+  return () =>
+    (module ??= device.createShaderModule({
+      label: `${DEPTH_OF_FIELD_PASS} recombine, smaller layers`,
+      code: dofRecombineShader(true),
+    }))
+}
+
 /** The compute pipelines, each made once for its pass and constants. */
 function computePipelines(device: GPUDevice, layouts: Layouts, modules: Modules) {
+  const reduced = reducedModule(device)
   const pipelines = preparedPipelines<
     { pass: Pass; constants: Constants },
     ReturnType<typeof preparedComputeStage>
@@ -87,12 +101,16 @@ function computePipelines(device: GPUDevice, layouts: Layouts, modules: Modules)
       const [layout, entry] = ENTRIES[pass]
       return preparedComputeStage(
         device,
-        // The recombine composes the translucency of the image, the second group.
+        // The recombine composes the translucency of the image, the second group, and where it lies when smaller, the third.
         device.createPipelineLayout({
           bindGroupLayouts:
-            pass === 'recombine' ? [layouts[layout], layersLayout(device)] : [layouts[layout]],
+            pass === 'recombine'
+              ? [layouts[layout], layersLayout(device)]
+              : pass === 'recombineReduced'
+                ? [layouts[layout], layersLayout(device), upsampleLayout(device)]
+                : [layouts[layout]],
         }),
-        modules[pass],
+        pass === 'recombineReduced' ? reduced() : modules[pass],
         entry,
         constants,
         `${DEPTH_OF_FIELD_PASS} ${pass}`,

@@ -36,6 +36,9 @@ export interface MotionBlurInput {
   /** The size of the textures of the layers drawn after the motion blur, which the filter lays over
    *  the image it writes: the last pass of the last blur of the chain, where there are some. */
   layers?: readonly number[]
+  /** The size those layers were drawn at, within their textures, where it is not the render grid's (drawn smaller,
+   *  `translucencyScale.ts`): the filter reads them bilinear at the pixel's place in it. */
+  drawn?: readonly number[]
 }
 
 /**
@@ -76,6 +79,7 @@ export function writeMotionBlurParams(
     halfInput = settings.motionBlurHalfResInput,
     half = false,
     layers,
+    drawn = grid,
   }: MotionBlurInput,
 ) {
   const [width, height] = image
@@ -102,8 +106,9 @@ export function writeMotionBlurParams(
   into[AT.grid + 1] = grid[1]
   into[AT.outputs] = half ? 1 : 0
   into[AT.outputs + 1] = layers ? 1 : 0
-  into[AT.layers] = layers ? 1 / layers[0] : 0
-  into[AT.layers + 1] = layers ? 1 / layers[1] : 0
-  into[AT.layers + 2] = layers ? (grid[0] - 0.5) / layers[0] : 0
-  into[AT.layers + 3] = layers ? (grid[1] - 0.5) / layers[1] : 0
+  // The layers' texels a texel of the render grid spans over their textures' size (x, y), and the last texel centre drawn (z, w).
+  into[AT.layers] = layers ? drawn[0] / grid[0] / layers[0] : 0
+  into[AT.layers + 1] = layers ? drawn[1] / grid[1] / layers[1] : 0
+  into[AT.layers + 2] = layers ? (drawn[0] - 0.5) / layers[0] : 0
+  into[AT.layers + 3] = layers ? (drawn[1] - 0.5) / layers[1] : 0
 }

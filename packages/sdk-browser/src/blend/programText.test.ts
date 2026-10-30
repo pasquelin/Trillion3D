@@ -44,7 +44,10 @@ import { shaderRun } from '../materials/texture/shaderRun.fixture.ts'
 // The vertex stage no longer leaves an item of another pass out (`otherPass`, the view's `translucencyPass` and the item's are gone): each draw expands its own items alone (`expand/expansionViews.ts`).
 // Retaken for the vertex stage's triangle word: the item's lighting channels and the material's facts it carries for the fragment (`TRI_LIGHTING_CHANNELS_SHIFT`, `TRI_MATERIAL_SHIFT`).
 // Retaken for the sky material's flag in the triangle word (`MATERIAL_FLAG.sky`): the opaque layer a sky surface writes (`blendSurface`).
-const VERTEX = '205ac91f569c264ca5c4f879d3c6fb63c5fae0b4c892d52825eea6a06e99df73'
+// Retaken for the translucent layers drawn smaller than the image (`translucencyScale.ts`): the view's `reduced` ratio, which the vertex stage's pixel
+// measure (the facing test) multiplies by (the line's width counts image pixels, whatever the size drawn at), and the function the fragment entries scale their pixel back by (`sceneVsOut`): both (declared once, with the interpolants' structure) leave
+// the text's results as they were at the ratio 1 every other pass holds.
+const VERTEX = '9bc6f3a6dc146defb56487ed3f863113a22de3b2c8ec9056205f76da68b5b3ef'
 // Retaken when the blend module took that vertex, the per-material responsiveness it writes for
 // the temporal pass where its material asks one, and the stored tangents' frame in a
 // module of its own (`tangentFrameWgsl.ts`) for the normal map and the lobes both, and then the
@@ -150,7 +153,9 @@ const VERTEX = '205ac91f569c264ca5c4f879d3c6fb63c5fae0b4c892d52825eea6a06e99df73
 // Retaken for the simple lights' word (30/10): the lights' tile slice declares the simple light word, `sampledTakes` reads it, and its text holds no backtick.
 // Retaken for the sky meshes capture (29/10): a sky surface writes an opaque layer (`blendSurface`: its cutout alone reads the base alpha),
 // and the fog beyond a ray is worked out over any reach (`fogBeyondAlong`, `fogBeyondWith` its endless one).
-const BLEND = '53daaeb25396232fbebed4eb8831c9ea6d37ec5899e0d355e5f0b5ee224997bc'
+// Retaken for the translucent layers drawn smaller than the image (`translucencyScale.ts`): the layers' fragment entries hand their body the interpolants
+// at the image's pixel (`layerEntry`), the view's `reduced` ratio being 1 outside the passes of the smaller layers.
+const BLEND = '4e31cdf16187195b7a0ac09868cfb91fe9f48a3779c6392a0d10689d499a77c3'
 
 const CUTS = ['narrow', 'unshadowed', 'rectless', 'sunless', 'localless', 'lobeless'] as const
 /** Every contract key: bit `k` of the rank sets `CUTS[k]`. */

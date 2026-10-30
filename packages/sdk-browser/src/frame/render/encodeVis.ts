@@ -6,7 +6,7 @@ import { skyLightSubmitted } from './encodeSkyLight.ts'
 import { submitColorCopy, withRenderEncoder } from './encoder.ts'
 import { encodeSurfaceLighting } from './surfaceLighting.ts'
 import { encodeSkyMeshFace } from './encodeSkyMeshFace.ts'
-import { followLobes } from '../prepare/lobesTarget.ts'
+import { followTargets } from '../prepare/followTargets.ts'
 import {
   encodeEmptySurfaces,
   ensureGpuRaster,
@@ -36,7 +36,7 @@ export function encodeVis(rt: WebgpuPagesRuntime, device: GPUDevice, cam: Engine
   const [width, height] = gpu.targetSize
   // A face of the sky meshes' capture draws its sky surfaces alone, by the blend pass (`ViewOverrides.skyMeshCapture`).
   if (rt.views.active.overrides.skyMeshCapture) return encodeSkyMeshFace(rt, device, cam)
-  followLobes(rt) // Every image's, one of transmissive lobed surfaces alone too.
+  followTargets(rt) // The lobes and the translucency targets follow what they name.
   // A scene with no opaque page draws the surfaces' clear alone.
   if (!run.gpuSelection || layout.packedPages.length === layout.blendedPageCount)
     return encodeEmptySurfaces(rt, device, cam, depthTarget)

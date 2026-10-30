@@ -14,6 +14,7 @@ import { fitHistory, markDrawn } from './depthOfField/dofHistory.ts'
 import { createDofPrograms } from './depthOfField/dofPrograms.ts'
 import { createDofOutputs } from './depthOfField/dofTargets.ts'
 import { noLayers } from '../../blend/translucencyLayers.ts'
+import { upsampleGroup } from '../../blend/translucencyCompose.ts'
 import type { WebgpuResolveKind } from './webgpuKinds.ts'
 import { dropHolds, resizeHolds } from './holds.ts'
 
@@ -55,18 +56,20 @@ function drawDof(
   const cut = frame.temporal.cut || !fitHistory(device, mine, plan)
   writeUniforms(device, mine, frame, pass, settings, cut)
   const output = outputs.view(nth % 2, frame.extent)
-  const made = stepsOf(kit, mine, frame, input, output)
+  // The last depth of field of the chain composes the layers drawn after it, where there are some, scaled up where they were drawn smaller.
+  const layers = last ? frame.layers : undefined
+  const reduced = layers && frame.layersReduced?.set ? frame.layersReduced : undefined
+  const made = stepsOf(kit, mine, frame, input, output, !!reduced)
   let ready = true
   for (const pipeline of made.steps.pipelines) ready = pipeline.ask().ready && ready
   if (!ready) return input
-  // The last depth of field of the chain composes the layers drawn after it, where there are some.
-  const layers = last ? frame.layers : undefined
   state.passes = encodeDof(
     encoder,
     made.steps,
     targets.buffers.drawArguments,
     plan.gather,
     layers ?? noLayers(device),
+    reduced && upsampleGroup(device, reduced.host, reduced.set!, reduced.cam),
   )
   frame.layersComposed ||= !!layers
   if (made.stale) targets.tablesBuilt(plan.bokeh)

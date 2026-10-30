@@ -106,8 +106,8 @@ export const filterInputs = once((flat) =>
 @group(1) @binding(${LAYERS_BINDINGS.modulation}) var lateModulation:texture_2d<f32>;
 @group(1) @binding(${LAYERS_BINDINGS.sampler}) var lateSampler:sampler;
 // The layers drawn after the motion blur over a blurred pixel, in the pass that writes the image
-// the rest of the chain reads (\`mb.outputs.y\`): they were drawn at the render size, and are read
-// through the bilinear sampler at the pixel's place.
+// the rest of the chain reads (\`mb.outputs.y\`): they were drawn at the render size or smaller, and are read
+// through the bilinear sampler at the pixel's place, held to the texels drawn.
 fn lateOver(pixel:vec4f,p:vec2i)->vec4f{
  if(mb.outputs.y==0.0){return pixel;}
  let uv=min((vec2f(p)+0.5)*mb.color.zw*mb.grid*mb.layers.xy,mb.layers.zw);

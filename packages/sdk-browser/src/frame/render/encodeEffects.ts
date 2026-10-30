@@ -122,7 +122,7 @@ export function encodeResolvedEffects(
   const scene = resolved?.color ?? lit
   if (!scene || !effectsShown(rt)) return resolved
   const size = accumulated ? rt.gpu.displaySize : rt.gpu.targetSize
-  const color = composeLateImage(rt, device, encoder, scene, size)
+  const color = composeLateImage(rt, device, encoder, scene, size, cam)
   if (!color) return resolved
   const { late } = rt.gpu.images
   late.color = color

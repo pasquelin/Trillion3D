@@ -203,6 +203,7 @@ function setUp(
   input.halfInput = settings.motionBlurHalfResInput && frame.resolved
   input.half = half && !separable
   input.layers = separable ? undefined : extent
+  input.drawn = layers?.drawn
   writeUniform(device, mine, 0, input)
   if (separable) {
     input.halfInput = false

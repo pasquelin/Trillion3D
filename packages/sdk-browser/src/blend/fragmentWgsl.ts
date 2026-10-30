@@ -1,3 +1,4 @@
+import { layerBody, layerEntry } from './sceneEntry.ts'
 import { FRONT_MARK } from '../lighting/manyLightsSampled/frontLightWgsl.ts'
 import { translucentMarksFrom } from '../lighting/direct/shadowWgsl.ts'
 import { MODEL_FLAG, fogFreeFlag, modelFlag } from '../materials/surface/surfaceModelWord.ts'
@@ -213,8 +214,10 @@ fn blendFragment(in:VSOut,front:bool,masked:f32)->BlendOut{
 const blendEntriesText = (shade: CloudVertexText) => `${holdoutStageText(shade)}
 // The reflection's resources are group 1 (\`REFLECTION_GROUP\`); a filtered image's pipelines read
 // the display mask (group 2), every other one reads none.
-@fragment fn fs(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{${shade.entry}return blendFragment(in,front,0.0);}
-@fragment fn fsFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{${shade.entry}return blendFragment(in,front,maskAt(in.position));}
+${layerEntry('fs', 'BlendOut', shade.entry)}
+${layerBody('fs', 'BlendOut')}{return blendFragment(in,front,0.0);}
+${layerEntry('fsFiltered', 'BlendOut', shade.entry)}
+${layerBody('fsFiltered', 'BlendOut')}{return blendFragment(in,front,maskAt(in.position));}
 `
 
 /** The fragment stage of the runs, its surface, lobes, channel test and contact shadows those of its options

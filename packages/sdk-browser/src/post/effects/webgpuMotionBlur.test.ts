@@ -213,6 +213,14 @@ test('the last blur of a chain lays the layers drawn after it over its image, as
   alone.after.resolve(alone.encoder, alone.chain, input, alone.frame)
   assert.deepEqual(lateOf(alone.gpu), [[1, 1 / 64]], 'the layers lie in textures of 64 × 32')
   assert.equal(alone.frame.lateComposed, true)
+  // Layers drawn smaller than the render grid are read bilinear at the pixel's place in the texels drawn.
+  const smaller = await blurring({}, {})
+  Object.assign(smaller.frame, {
+    lateLayers: { ...layers, drawn: [smaller.frame.render[0] / 2, smaller.frame.render[1] / 2] },
+  })
+  smaller.after.resolve(smaller.encoder, smaller.chain, input, smaller.frame)
+  assert.deepEqual(lateOf(smaller.gpu), [[1, 0.5 / 64]], 'half the grid over the textures')
+  assert.equal(smaller.frame.lateComposed, true)
   const two = await blurring({}, {}, { amount: 0.2 })
   Object.assign(two.frame, { lateLayers: layers })
   two.after.resolve(two.encoder, two.chain, input, two.frame)

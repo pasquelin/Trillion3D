@@ -29,6 +29,10 @@ import { HIZ_RULES, type HizField } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES, type LightFunctionField } from '../contracts/lightFunctionOptions.ts'
 import { LIGHT_PROFILE_RULES, type LightProfileField } from '../contracts/lightProfileOptions.ts'
 import {
+  SEPARATE_TRANSLUCENCY_RULES,
+  type SeparateTranslucencyField,
+} from '../contracts/separateTranslucencyOptions.ts'
+import {
   GLOBAL_DISTANCE_FIELD_RULES,
   type GlobalDistanceFieldField,
 } from '../contracts/globalDistanceFieldOptions.ts'
@@ -448,6 +452,16 @@ const LIGHT_FUNCTION_MEANINGS: Readonly<Record<LightFunctionField, string>> = {
   lightFunctionTranslucent: 'Whether the translucent layers read the atlas; false by default.',
 }
 
+/** What each setting of the resolution of the translucent layers means (`../contracts/separateTranslucencyOptions.ts`). */
+const SEPARATE_TRANSLUCENCY_MEANINGS: Readonly<Record<SeparateTranslucencyField, string>> = {
+  translucencyScreenPercentage:
+    'The share, from 0 to 100, of the resolution the translucent layers are drawn at, apart from the lit image; 100 by default draws them at the size of the image over the scene depth, a lower share draws them into smaller targets over the scene depth taken at their size and composes them scaled up.',
+  translucencyScreenPercentageBasis:
+    'The resolution the share is of: 0, the default, the render size, which follows the render scale; 1 the display size, the share divided by the render scale so the layers keep the display resolution while the render scale drops.',
+  translucencyUpsampleMode:
+    'How the smaller translucency targets are scaled up when composed: 0 bilinear; 1, the default, the nearest depth neighbour of the four texels around a pixel, used with a share of 50 only (any other share composes bilinear), except in the depth of field recombine, which always uses it for smaller layers.',
+}
+
 /** What each setting of the atlas of the light profiles means (`../contracts/lightProfileOptions.ts`). */
 const LIGHT_PROFILE_MEANINGS: Readonly<Record<LightProfileField, string>> = {
   lightProfileAtlasResolution:
@@ -704,6 +718,7 @@ export const settingRuleProperties = () => ({
   }),
   ...ruleProperties(LIGHT_FUNCTION_RULES, LIGHT_FUNCTION_MEANINGS),
   ...ruleProperties(LIGHT_PROFILE_RULES, LIGHT_PROFILE_MEANINGS),
+  ...ruleProperties(SEPARATE_TRANSLUCENCY_RULES, SEPARATE_TRANSLUCENCY_MEANINGS),
   ...ruleProperties(RECT_LIGHT_ATLAS_RULES, RECT_LIGHT_ATLAS_MEANINGS),
   ...ruleProperties(SIMPLE_LIGHT_RULES, SIMPLE_LIGHT_MEANINGS),
   ...ruleProperties(VOLUMETRIC_LIGHTMAP_RULES, VOLUMETRIC_LIGHTMAP_MEANINGS),

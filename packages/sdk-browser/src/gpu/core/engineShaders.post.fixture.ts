@@ -38,6 +38,7 @@ export const POST_SHADERS: Record<string, string> = {
   DOF_POSTFILTER: dofPostfilterShader(),
   DOF_SPRITES: spriteShader(),
   DOF_RECOMBINE: dofRecombineShader(),
+  DOF_RECOMBINE_REDUCED: dofRecombineShader(true),
   BLOOM_SETUP_WGSL,
   BLOOM_COMPOSITE_WGSL,
   // The convolution bloom's transform (a line of the device's workgroup memory: 2048 or 4096 values),

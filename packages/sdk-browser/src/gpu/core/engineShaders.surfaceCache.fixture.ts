@@ -17,7 +17,16 @@ import { MARK_GI_PROGRAM } from '../../lighting/translucencyGi/markWgsl.ts'
 import { traceGiProgram } from '../../lighting/translucencyGi/traceWgsl.ts'
 import { filterGiProgram } from '../../lighting/translucencyGi/filterWgsl.ts'
 import { integrateGiProgram } from '../../lighting/translucencyGi/integrateWgsl.ts'
-import { COMPOSE_DUAL_WGSL, COMPOSE_WGSL, LATE_WGSL } from '../../blend/translucencyComposeWgsl.ts'
+import {
+  COMPOSE_DUAL_WGSL,
+  COMPOSE_WGSL,
+  LATE_UPSAMPLE_WGSL,
+  LATE_WGSL,
+  UPSAMPLE_DUAL_WGSL,
+  UPSAMPLE_WGSL,
+} from '../../blend/translucencyComposeWgsl.ts'
+import { DOWNSAMPLE_DEPTH_WGSL } from '../../blend/translucencyDepth.ts'
+import { LAY_FEEDBACK_WGSL, UPSAMPLE_RESPONSIVE_WGSL } from '../../blend/translucencyResponsive.ts'
 import { HOLDOUT_APPLY_WGSL, HOLDOUT_START_WGSL } from '../../blend/holdoutWgsl.ts'
 import { CLEAR_BLOCKS_WGSL, ENCODE_WGSL } from '../../lighting/surfaceCache/compressWgsl.ts'
 import {
@@ -88,6 +97,12 @@ export const SURFACE_CACHE_SHADERS: Record<string, string> = {
   TRANSLUCENCY_COMPOSE_WGSL: COMPOSE_WGSL,
   TRANSLUCENCY_COMPOSE_DUAL_WGSL: COMPOSE_DUAL_WGSL,
   TRANSLUCENCY_LATE_WGSL: LATE_WGSL,
+  TRANSLUCENCY_LATE_UPSAMPLE_WGSL: LATE_UPSAMPLE_WGSL,
+  TRANSLUCENCY_UPSAMPLE_WGSL: UPSAMPLE_WGSL,
+  TRANSLUCENCY_UPSAMPLE_DUAL_WGSL: UPSAMPLE_DUAL_WGSL,
+  TRANSLUCENCY_DEPTH_WGSL: DOWNSAMPLE_DEPTH_WGSL,
+  TRANSLUCENCY_RESPONSIVE_WGSL: UPSAMPLE_RESPONSIVE_WGSL,
+  TRANSLUCENCY_FEEDBACK_WGSL: LAY_FEEDBACK_WGSL,
   HOLDOUT_START_WGSL,
   HOLDOUT_APPLY_WGSL,
   SURFACE_CACHE_RESOLVE_WGSL: RESOLVE_WGSL,

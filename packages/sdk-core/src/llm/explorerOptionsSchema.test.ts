@@ -23,6 +23,7 @@ import { TEMPORAL_RULES } from '../contracts/temporalOptions.ts'
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
 import { LIGHT_PROFILE_RULES } from '../contracts/lightProfileOptions.ts'
+import { SEPARATE_TRANSLUCENCY_RULES } from '../contracts/separateTranslucencyOptions.ts'
 import { DISTANCE_FIELD_OCCLUSION_RULES } from '../contracts/distanceFieldOcclusionOptions.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
 import { VOLUMETRIC_LIGHTMAP_RULES } from '../contracts/volumetricLightmapOptions.ts'
@@ -142,6 +143,7 @@ test('a switch the host leaves out is set in the engine as the schema advertises
     ...HIZ_RULES,
     ...LIGHT_FUNCTION_RULES,
     ...LIGHT_PROFILE_RULES,
+    ...SEPARATE_TRANSLUCENCY_RULES,
     ...RECT_LIGHT_ATLAS_RULES,
     ...SIMPLE_LIGHT_RULES,
     ...GLOBAL_DISTANCE_FIELD_RULES,

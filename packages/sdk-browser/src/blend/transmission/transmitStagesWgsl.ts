@@ -1,3 +1,4 @@
+import { layerBody, layerEntry } from '../sceneEntry.ts'
 import { FLAG_DIAGNOSTIC_VIEW, FLAG_UNLIT_VIEW } from '../../visibility/types.ts'
 import { translucentMarksFrom } from '../../lighting/direct/shadowWgsl.ts'
 import { modelFlag } from '../../materials/surface/surfaceModelWord.ts'
@@ -77,14 +78,16 @@ const colourStagesText = (shade: CloudVertexText) => `
 }
 // The fallback without dual-source blending, the colour premultiplied, blended over by its grey
 // coverage, with the request, and the display layers left as they are.
-@fragment fn fsTransmit(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{${shade.entry}
+${layerEntry('fsTransmit', 'BlendOut', shade.entry)}
+${layerBody('fsTransmit', 'BlendOut')}{
  let t=transmitFragment(in,front);
  let a=greyCoverage(t.mul);
  return BlendOut(vec4f(t.add,a),t.request,vec4f(1.0),vec4f(0.0));
 }
 // With display layers (\`../displayFilter.ts\`): masked, tint and added value as a normal
 // layer's, of the fallback's premultiplied colour.
-@fragment fn fsTransmitFiltered(in:VSOut,@builtin(front_facing) front:bool)->BlendOut{${shade.entry}
+${layerEntry('fsTransmitFiltered', 'BlendOut', shade.entry)}
+${layerBody('fsTransmitFiltered', 'BlendOut')}{
  let t=transmitFragment(in,front);
  let a=greyCoverage(t.mul);
  let unlit=(in.ids.y&${FLAG_UNLIT_VIEW}u)!=0u;

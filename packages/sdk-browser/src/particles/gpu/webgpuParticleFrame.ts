@@ -1,3 +1,4 @@
+import { layersDepth, layersReady, layersSize } from '../../blend/reducedView.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { anyMoving } from './poolStates.ts'
 import { viewProj } from '../../frame/backend/helpers.ts'
@@ -74,15 +75,17 @@ export function drawParticles(
   if (!drawsParticles(rt)) return
   const eye = run.gate.cam.eye
   if (!anyDrawn(pools, passes)) return
+  // The smaller layers wait for their depth, made here (`layersReady`).
+  if (!holdout && !layersReady(rt.gpu, rt.gpu.device!, encoder)) return
   // Into the alpha holdout's target the pools draw into no translucency target of their own.
   const target = holdout ?? openTranslucency(rt, encoder)
   if (!target) return
   run.gpuDrawCalls += particles.draw(pools, {
     encoder,
     target,
-    depth: depthView,
+    depth: holdout ? depthView : layersDepth(rt.gpu),
     passes,
-    size: rt.gpu.targetSize,
+    size: holdout ? rt.gpu.targetSize : layersSize(rt.gpu),
     viewProj,
     world: run.gate.cam.world,
     eye,

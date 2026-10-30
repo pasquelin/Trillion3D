@@ -27,7 +27,10 @@ import { lightStrengthWgsl } from '../lighting/direct/lightStrengthWgsl.ts'
  * its depth (`z`), `w` 1 where a volume is made this image, else 0, and `giZ` its slices' law (the logarithm's scale, offset and the slices a
  * doubling: `../lighting/translucencyGi/readWgsl.ts`); `holdout` 1 where the alpha
  * holdout is in effect, which the layers of a held-out primitive read (`holdoutStageText`); `normalCurvature` the scale, bias and
- * exponent of the roughness a material takes from its vertex normal's change (`../materials/surface/pixelModel.ts`).
+ * exponent of the roughness a material takes from its vertex normal's change (`../materials/surface/pixelModel.ts`); `reduced` the
+ * size the pass draws at over the image's, a side each: (1, 1) in every pass but those of the layers drawn into targets smaller than the
+ * image (`translucencyScale.ts`), which set it between passes (`selectReduced`), the vertex stage measuring the pixels of the smaller target
+ * and the fragment stage scaling its pixel back to the image's (`scenePosition`).
  */
 const BLEND_VIEW_FIELDS = [
   ['viewProj', 'mat4x4f'],
@@ -63,6 +66,7 @@ const BLEND_VIEW_FIELDS = [
   ['volumeCamera', 'u32'],
   ['volumeCameraFactor', 'f32'],
   ['normalCurvature', 'vec3f'],
+  ['reduced', 'vec2f'],
 ] as const
 const LAYOUT = fieldLayout('BlendView', BLEND_VIEW_FIELDS)
 

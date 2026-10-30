@@ -12,6 +12,11 @@ import { wantsResponsive } from './responsiveTarget.ts'
 import { waterBytes } from '../../blend/water/waterBytes.ts'
 import { backdropBytes } from '../../blend/transparent/transmission.ts'
 import { translucencyBytes } from '../../blend/translucency.ts'
+import {
+  runtimeTranslucencyExtent,
+  type TranslucencyExtent,
+} from '../../blend/translucencyScale.ts'
+import { readFilmSetting } from '../../../../sdk-core/src/contracts/filmOptions.ts'
 import { imagePasses } from '../../blend/translucencyPhase.ts'
 import { translucencyPassBit } from '../../blend/translucencyPasses.ts'
 import { reflectionBytes } from '../../lighting/reflections/gpu.ts'
@@ -46,6 +51,22 @@ export const drawsTranslucency = (rt: Pick<WebgpuPagesRuntime, 'blendState' | 'c
  */
 export const drawsLateTranslucency = (rt: Pick<WebgpuPagesRuntime, 'blendState' | 'context'>) =>
   drawsTranslucency(rt) && (imagePasses(rt) & translucencyPassBit('afterMotionBlur')) !== 0
+
+/**
+ * The extent the translucency targets are made at for a frame of `size` (`translucencyScale.ts`): smaller than the render size where the
+ * settings say, the render size itself where the share is 100 — or where the image holds display layers or carries an alpha channel, whose
+ * passes (the display layers' tint and added value, the holdout) are drawn at the render size.
+ */
+export function translucencyExtentOf(rt: WebgpuPagesRuntime, size: FrameSize): TranslucencyExtent {
+  const full = { scaled: false, width: size.renderWidth, height: size.renderHeight }
+  if (rt.blendState.filtersDisplay || readFilmSetting(rt, 'propagateAlpha')) return full
+  return runtimeTranslucencyExtent(
+    rt,
+    [size.renderWidth, size.renderHeight],
+    [size.width, size.height],
+    size.apart,
+  )
+}
 
 /** The size of the image the late layers are composed into: the larger of the display's size and the
  *  render's, a side each. */
@@ -99,14 +120,19 @@ export function frameTargetAllocation(rt: WebgpuPagesRuntime, size: FrameSize, a
 /** What a frame of `size` asks of the budget beside its targets (`frameTargetAllocation`'s
  *  `additional`, `requestFrameTargets`): the capture's reserve while one is under way, the
  *  distortion's targets, the single-layer water's and the translucency's at the render size. */
-export const frameExtraBytes = (rt: WebgpuPagesRuntime, size: FrameSize) =>
-  (rt.capture.surfaceCapture ? 0 : rt.capture.captureAllocationBytes) +
-  backdropBytes(rt, size.renderWidth, size.renderHeight) +
-  waterBytes(rt, size.renderWidth, size.renderHeight) +
-  translucencyBytes(
-    drawsTranslucency(rt),
-    drawsLateTranslucency(rt),
-    size.renderWidth,
-    size.renderHeight,
-    lateImageSize(size),
+export function frameExtraBytes(rt: WebgpuPagesRuntime, size: FrameSize) {
+  const extent = translucencyExtentOf(rt, size)
+  return (
+    (rt.capture.surfaceCapture ? 0 : rt.capture.captureAllocationBytes) +
+    backdropBytes(rt, size.renderWidth, size.renderHeight) +
+    waterBytes(rt, size.renderWidth, size.renderHeight) +
+    translucencyBytes(
+      drawsTranslucency(rt),
+      drawsLateTranslucency(rt),
+      extent.width,
+      extent.height,
+      lateImageSize(size),
+      extent.scaled,
+    )
   )
+}

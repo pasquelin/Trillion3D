@@ -88,6 +88,9 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
       [
         'fs',
         'fsFiltered',
+        'sceneVsOut',
+        'fsBody',
+        'fsFilteredBody',
         'blendFragment',
         'blendLit',
         'preExposed',
@@ -115,6 +118,7 @@ test('a blended surface routes through its pipeline, and the unfiltered one neve
             preExposure: 1,
             toneCurve: FILMIC,
             bake: toneOf(),
+            reduced: [1, 1],
           },
           clipPlane: [0, 0, 0, 0],
         },
