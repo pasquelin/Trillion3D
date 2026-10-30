@@ -1,122 +1,88 @@
 # Tests and Performance Benchmarks
 
-How to run the tests, the GPU proofs on Dawn, the Chrome proofs and the performance benchmarks.
-
 ## 1. Where Tests Live
 
-**A unit test (`*.test.ts`) sits next to the file it tests; every other kind lives under `tests/`**,
-one folder per nature:
+**A unit test (`*.test.ts`) sits next to the file it tests; every other kind lives under `tests/`**:
 
 - `tests/integration/`: architecture, package boundaries, public contracts;
-- `tests/gpu/`: the GPU proofs, one folder per engine area, `kit/` shared;
-- `tests/fixtures/`: test data builders; `formats/` holds the compiler's golden fixtures
-  ([README](../tests/fixtures/formats/README.md)), whose local corpus of source formats stays off
-  git;
-- `tests/kit/`: one fake GPU device family in `gpu/`, one static server and the fixture route in
-  `server/`, one bit-exact comparison and one hostile-value list in `assert/`.
+- `tests/gpu/`: GPU proofs per engine area, `kit/` shared;
+- `tests/fixtures/`: data builders; `formats/` holds the compiler's golden fixtures
+  ([README](../tests/fixtures/formats/README.md)); its local corpus stays off git;
+- `tests/kit/`: fake GPU device `gpu/`, static server `server/`, comparisons `assert/`.
 
-A test-only module is named `*.fixture.ts` and stays out of the build. The tracked git hooks
-(`.githooks/`, one-line shims onto `scripts/git/hooks/*.ts`) are proved in a throwaway repository by
-`tests/integration/workflow-gates.test.ts`. The compiler's own tests stay in its crate
-(`packages/asset-compiler-rust/src/tests/` by topic, `tests/` for the CLI).
+A test-only module is named `*.fixture.ts`. Git hooks (`.githooks/`, shims onto
+`scripts/git/hooks/*.ts`): proved by `tests/integration/workflow-gates.test.ts`. Compiler tests: `packages/asset-compiler-rust/src/tests/`.
 
-Benchmarks measure speed, never correctness, under `bench/`, outside every published package:
-`bench/core/` (measure, report, diff, baseline), `bench/perf/<package>/` (`*.perf.ts`),
-`bench/oracles/` (reference implementations), `bench/runner/` (the measurement harness,
-[README](../bench/runner/README.md)), `bench/witnesses/` (the measurement entry the harness pages
-import, never published).
+Benchmarks live under `bench/`: `bench/core/` (measure, report, diff, baseline),
+`bench/perf/<package>/` (`*.perf.ts`), `bench/oracles/`, `bench/runner/` (harness,
+[README](../bench/runner/README.md)), `bench/witnesses/` (entry the harness pages import).
 
 ## 2. The Commands
 
 | Command | What it runs |
-| --- | --- |
-| `pnpm test` | every `*.test.ts` under `packages/`, `tests/`, `bench/` and `scripts/` |
-| `pnpm run check:changed` | the local gate: the gates of `validate` and the unit tests the changed files reach |
-| `pnpm run validate` | every gate, as the CI runs it |
+| - | - |
+| `pnpm test` | every `*.test.ts` under `packages/`, `tests/`, `bench/`, `scripts/` |
+| `pnpm run check:changed` | `validate`'s gates and the unit tests the changed files reach |
+| `pnpm run validate` | every gate, as CI runs it |
 | `pnpm run test:gpu` | the GPU proofs on Dawn |
 | `pnpm run test:chrome` | the Chrome proofs |
-| `pnpm run test:mutation` | the mutation measurement of `packages/sdk-core/src` |
+| `pnpm run test:mutation` | mutation measurement of `packages/sdk-core/src` |
 | `pnpm run perf:all` | every benchmark of `bench/perf/`, then the aggregated report |
 
 `check:changed` (`scripts/check/check-changed.ts`) compares with `develop` (`TRILLION3D_BASE_REF`
-overriding) and runs the unit tests a change can affect (`scripts/check/affected-tests.ts`); a
-change of documentation alone (Markdown, images outside the code trees) runs the gates only. It
-type-checks (`tsc --noEmit`) every tracked `tsconfig*.json` project owning a changed TypeScript
-file, by listing it or by import (`scripts/check/ts-projects.ts`); a changed file no project reaches
-fails, unless a type-check-only (`noEmit`) project's `include` covers it and its `exclude` takes it
-back. A project reading `trillion3d` from `dist/` (the tools) is checked after `pnpm run build`.
+overrides) and runs the affected unit tests (`scripts/check/affected-tests.ts`); a documentation-only
+change runs the gates only. It type-checks (`tsc --noEmit`) every `tsconfig*.json` project owning a
+changed TypeScript file (`scripts/check/ts-projects.ts`); a changed file no project reaches fails,
+unless a `noEmit` project's `include` covers it and its `exclude` takes it back. A project reading
+`trillion3d` from `dist/` needs `pnpm run build` first.
 
-CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as parallel jobs, one per
-group of `scripts/check/validate-steps.ts`, the `unit` group split into shards of one file list
-(`TRILLION3D_TEST_SHARD=i/n`, passed to `node --test --test-shard`). No test is skipped by path. The
-single required check, `validate`, needs every job; it runs on every pull request, on `develop` and
-on every push of a branch named `<issue>-<name>`. Push and pull request runs never share a
-concurrency group, so a push never cancels the run proving the merge with `develop`.
+CI ([`quality.yml`](../.github/workflows/quality.yml)) runs `validate` as one parallel job per group
+of `scripts/check/validate-steps.ts`; the `unit` group is sharded (`TRILLION3D_TEST_SHARD=i/n`, passed to `node --test --test-shard`). Required check
+`validate` runs on every pull request, on `develop` and on pushes of `<issue>-<name>` branches.
 
 ### Unit and Integration Tests
 
-Algorithms, package boundaries and public contracts; no graphics device, run anywhere. A test checks
-a result — a value, a buffer, an image, an output read cell by cell — never the literal text of a
-generated shader or report: such a test breaks on a rewrite that keeps the same image and proves
-nothing about the image. What a shader computes is proved on a device (`tests/gpu/`).
+No graphics device. A test checks a result, never the literal text of a generated shader or report.
 
 ### Mutation Measurement
 
 `pnpm run test:mutation [--out <dir>] [--mutate <glob>…]` (`scripts/check/mutation.ts`) runs Stryker
 on `packages/sdk-core/src`: each mutant (a `<` turned into `<=`, a branch emptied) runs against the
-package's unit test files that reach it, and the report credits each test file with the mutants it
-kills. It is a measurement, never a gate, and the CI does not run it: an hour or more at the lowest
-priority on a quarter of the cores (`TRILLION3D_MUTATION_CONCURRENCY` overriding). `--out` (default
-`.mesure/out/mutation/`) receives `summary.md`, `kills.tsv`, `survivors.md` and Stryker's
-`mutation.html` and `mutation.json`.
-
-A test file that kills no mutant catches no bug of the package's sources: it is strengthened until
-it kills one, or deleted. A surviving mutant is a change no test notices: a test is added that fails
-on it, or the mutant is equivalent (the change keeps every result) and the reason is written beside
-the code.
+unit tests reaching it. Not a gate, not in CI: an hour or more on a quarter of the cores
+(`TRILLION3D_MUTATION_CONCURRENCY`). `--out` (default `.mesure/out/mutation/`) receives
+`summary.md`, `kills.tsv`, `survivors.md`, `mutation.html`, `mutation.json`. A test file killing no
+mutant: strengthen or delete it. A survivor: add a test failing on it, or note why it is equivalent.
 
 ### GPU Proofs on Dawn
 
-`tests/gpu/` checks what the device computes and draws: WGSL precision, error floors, projection
-matrices, texel coordinates, readbacks and whole frames of the engine. Every proof is a
-`tests/gpu/<area>/<name>.gpu.ts`, the area named after the engine folder it tests; the other files
-of an area are the modules its proofs load. They run on Dawn in Node — the WebGPU implementation
-Chrome runs, on the machine's GPU, no browser (`tests/kit/device/onDawn.ts`).
+`tests/gpu/<area>/<name>.gpu.ts` (area = engine folder) checks what the device computes and draws,
+on Dawn in Node (machine's GPU, no browser; `tests/kit/device/onDawn.ts`).
 
-`pnpm run test:gpu` (`bench/dawn/proofs.ts`) takes the machine's bench lock, compiles the test
-scenes (`TEST_SCENES`, `scripts/native/scene-caches.ts`) under it, then runs every `*.gpu.ts` in one
-sequential `node --test`. The proofs are found by rule, never by a hand-curated list:
-`bench/dawn/proofs.test.ts` keeps launched ∪ excluded == disk, and no exclusion outlives the proof
-it names. A proof never opens the GPU from an import: only an explicit run does
-(`assertProofEntryPoint`).
+`pnpm run test:gpu` (`bench/dawn/proofs.ts`) takes the bench lock, compiles the test scenes
+(`TEST_SCENES`, `scripts/native/scene-caches.ts`), then runs every `*.gpu.ts` in one sequential
+`node --test`. `bench/dawn/proofs.test.ts` keeps launched ∪ excluded == disk; no exclusion outlives
+its proof. A proof opens the GPU only on an explicit run (`assertProofEntryPoint`).
 
 ```bash
 pnpm run test:gpu                                             # run all
 node bench/dawn/proofs.ts tests/gpu/dag/cut-rule.gpu.ts       # run one, excluded or not
 ```
 
-What cannot run is declared in `EXCLUDED` (`bench/dawn/proofs.ts`) with a category and a reason,
-printed before the run:
+`EXCLUDED` (`bench/dawn/proofs.ts`) declares what cannot run, with a category and reason:
 
-- **setup** — the proof is valid but the machine is not ready;
-- **regression** — the proof fails on an engine defect, fixed in the engine;
-- **stale duplicate** — the proof keeps a copy of a contract that drifted in the source: it is
-  repaired by reading the contract instead.
+- **setup**: the machine is not ready;
+- **regression**: the proof fails on an engine defect;
+- **stale duplicate**: the proof copies a contract that drifted; repair it.
 
-Some proofs read compiled public scenes under `.mesure/assets/`, off git:
-`node bench/runner/assets/assets.ts` fetches and compiles them
-([Assets](../bench/runner/README.md#assets)), the default scene being `DEFAULT_SCENE` (`'sponza'`,
-`bench/runner/assets/scene.ts`). A sibling worktree has none: point `TRILLION3D_ASSETS` at the
-shared folder, else such a proof stops by name on the missing cache. What a proof needs beyond that
-is in its file's header.
+Some proofs read compiled scenes under `.mesure/assets/` (off git): `node bench/runner/assets/assets.ts`
+builds them ([Assets](../bench/runner/README.md#assets)); default `DEFAULT_SCENE` = `'sponza'`
+(`bench/runner/assets/scene.ts`). A sibling worktree has none: set `TRILLION3D_ASSETS`.
 
 ### Chrome Proofs
 
-What Dawn does not have is proved in the system Chrome: the absence of WebGPU (`world/no-webgpu`)
-and the per-material fixtures on screen (`webgpu/material-pixels`). Each is a
-`tests/gpu/<area>/<name>.chrome.ts`, found by the same rule and declared in the same `EXCLUDED`; its
-page module is served from the sources and called in a fresh headless Chrome
-(`tests/kit/device/onChrome.ts`), under the bench lock. Their scenes are built by the proofs.
+System Chrome proves absence of WebGPU (`world/no-webgpu`) and per-material fixtures on screen
+(`webgpu/material-pixels`). Each is `tests/gpu/<area>/<name>.chrome.ts`, found and excluded by the
+same rule; run in a fresh headless Chrome (`tests/kit/device/onChrome.ts`) under the bench lock.
 
 ```bash
 pnpm run test:chrome                                                       # run all
@@ -125,42 +91,29 @@ node bench/dawn/proofs.ts --chrome tests/gpu/webgpu/material-pixels.chrome.ts  #
 
 ### Performance Benchmarks
 
-A benchmark measures a package computation on named cases and compares it to an oracle: the
-pre-optimisation implementation, kept unchanged under `bench/oracles/`. Each line gives median, p95,
-nanoseconds per element, operations per second, baseline difference, witness difference and the
-oracle verdict. `mesure()` refuses to run if the file a benchmark reports as measured does not
-exist.
+A benchmark measures a package computation on named cases against an oracle (pre-optimisation
+implementation, unchanged under `bench/oracles/`). Each line: median, p95, ns per element, ops/s,
+baseline and witness differences, oracle verdict. `mesure()` refuses to run if the
+file reported as measured does not exist. A witness (`temoin`) is a second calculation. Verdicts:
 
-A witness (`temoin` in `mesure()`) is a second calculation of the same thing — a rejected candidate
-— timed on the same input and settings; "vs witness" reads the median relative to it as "vs
-baseline" does to the baseline. A witness is a comparison, never a regression gate.
-
-Two verdict types, never silence:
-
-- **✓ / ✗** — bitwise equality (`diff.ts`: `-0`, `NaN`, typed arrays, `Map`, `Set`);
-- **reason** — no oracle exists; the line says why and where correctness is held. A stale oracle is
-  declared, never silently removed.
+- **✓ / ✗**: bitwise equality (`diff.ts`: `-0`, `NaN`, typed arrays, `Map`, `Set`);
+- **reason**: no oracle; says why and where correctness is held.
 
 ## 3. Baselines and Report
 
 `pnpm run perf:all` writes one fragment per domain into `.mesure/perf/`; `bench/perf/aggregate.ts`
 joins them into `.mesure/out/perf/perf-<date>.md` and `.json`. `pnpm run perf:baseline` turns
-fragments into baselines under `.mesure/baselines/`, one per domain, keyed by measurement and case —
-off git and machine-specific. Without one, "vs baseline" shows `—` and the report says no baseline
-exists on this machine. Fragments and baselines carry `version: 3`; an older file is ignored and
-`pnpm run perf:baseline` records it again. The report flags machine load above 4: timings are then
-inconclusive.
+fragments into baselines under `.mesure/baselines/` (per domain, off git). Without
+one, "vs baseline" shows `—`. Files carry `version: 3`; an older file is ignored. The report flags
+load above 4.
 
-These timers run in the process that just ran the oracle: enough to track regressions on one
-machine, not a campaign, which uses the [harness](../bench/runner/README.md) under the rules of
+Campaigns: [harness](../bench/runner/README.md),
 [Measure before optimising](../CONTRIBUTING.md#measure-before-optimising).
 
 ## 4. Quality Gates
 
-The gates and their order are `VALIDATE_GROUPS` in `scripts/check/validate-steps.ts`; each gate's
-rule is in its script's header, and `pnpm run check:changed` runs them on what a branch changed. Two
-rules that shape every file: a maintained JS, TS or Rust file holds at most 300 lines
-(`check:lines`), except the runtime modules of `sdk-core`, `sdk-browser`, and `sdk-node`, which
-answer to `check:cohesion` instead (functions of at most 60 lines and a complexity of at most 20, on
-the modules a branch touches). The engine is WebGPU only: `check:webgpu-only` fails on any trace of
-the GL family of APIs in a tracked file or file name, with no allowlist.
+Gates: `VALIDATE_GROUPS` in `scripts/check/validate-steps.ts`; rules in each script's header. A JS,
+TS or Rust file holds at most 300 lines (`check:lines`), except `sdk-core`, `sdk-browser`,
+`sdk-node` runtime modules, which answer to `check:cohesion` (functions at most 60 lines, complexity
+at most 20, on touched modules). `check:webgpu-only` fails on any trace of the GL family of APIs in
+a tracked file or file name, no allowlist.

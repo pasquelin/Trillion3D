@@ -1,58 +1,45 @@
 # Material pass shading settings
 
-`world.shading` holds the material pass's settings, each also a `createWorld` option:
+`world.shading`: material pass settings, each also a `createWorld` option:
 
-- `gpuTimingDetail` (`false`, the default: the material pass is one timed pass). `true`: a frame
-  sampled for the GPU timing times its shading bins and each material class's shading as passes of
-  their own, `Trillion3D material bins` and `Trillion3D material shading <class key>` in
-  `gpuPassMs.passes`; the image is the same.
-- `gpuShadeStage` (`0`, the default: the whole shading kernel). `1` to `5`: a diagnostic that stops
-  each class's shading after its binned pixel, its triangle's header and indices, its vertex fetch
-  and transform, its interpolation and derivatives, its material and surface, writing no surface (the
-  image is not the scene's), each class compiled again. With `gpuTimingDetail`, the difference of two
-  stages' `Trillion3D material shading <class key>` times is the stage's cost.
-- `shadeBinningMode` (`'auto'`: each material's pixels binned as its shading asks, one by one for
-  every material of the engine; `'pixel'` one by one; `'quad'` by 2 × 2 quad). The image is the same
-  in each mode.
-- `toonReflectionQuantization` (`false`, the default: the reflections of a toon surface are smooth).
-  `true`: where the toon profile's `specularIndirectRampRepetition` is above 0, the logarithm of the
-  reflections has its value repeated that many times and the fraction of it read in the profile's
-  `specularIndirectRamp`; the profile's `specularIndirectScale` applies either way.
-- `toonUnifiedDiffuse` (`false`, the default: each light applies the diffuse ramp of a toon surface
-  to its own diffuse light). `true`: each light's draw, with its own shadows, adds its diffuse light
-  unramped, with its weight and the cosine it lit at, to two more targets of the lit image's pass
-  (they exist only while the setting is on and a material is toon), and a step after the lights
-  applies the ramp once, at the weighted mean cosine, to the sum.
-- `toonProfileResolution` (`64`, the default and the least; up to `512`, rounded up to a multiple of
-  8): the texels the ramps and the pattern images of the toon profiles are baked at.
-- `shadingRoughDiffuse` (`true`, the default): a lit surface's diffuse light is the
-  energy-preserving rough diffuse of a new project, brighter against the light and darker at grazing
-  views as the roughness grows, a rectangle light's and the indirect light's staying Lambert's;
-  `false`: Lambert's diffuse whatever the roughness.
-- `shadingAccurate` (`true`, the default): the visibility of the lit surfaces' specular lobes is the
-  exact joint Smith term of the GGX lobe; `false`: its approximation.
-- `irisNormal` (`false`, the default): an eye's iris is lit by the direction its `tangent` output
-  gives; `true`: by an iris normal of its own, `clearCoatBottomNormal`.
-- `clearCoatNormal` (`false`, the default): a clear coat and its base share one normal; `true`: the
-  base keeps the normal of a graph's `clearCoatBottomNormal` output or of a material's normal map, and
-  the coat the `normal` output's or its own normal map's, their difference kept as the reference
-  keeps it, in 8 bits, and the coat's highlight found without the Newton step.
+- `gpuTimingDetail` (`false`). `true`: a frame sampled for GPU timing times shading bins and each
+  class's shading apart, `Trillion3D material bins` and `Trillion3D material shading <class key>`
+  in `gpuPassMs.passes`; same image.
+- `gpuShadeStage` (`0`: whole kernel). `1` to `5`: diagnostic stopping each class's shading after
+  its binned pixel, triangle header and indices, vertex fetch and transform, interpolation and
+  derivatives, material and surface; writes no surface; classes recompiled. With `gpuTimingDetail`,
+  the difference of two stages' `Trillion3D material shading <class key>` times is the stage's cost.
+- `shadeBinningMode` (`'auto'`: as each material's shading asks, per pixel for every engine
+  material; `'pixel'`; `'quad'` per 2 × 2 quad). Same image in each.
+- `toonReflectionQuantization` (`false`: smooth). `true`: where the toon profile's
+  `specularIndirectRampRepetition` is above 0, reflections' logarithm repeats that many times and
+  the fraction is read in `specularIndirectRamp`; `specularIndirectScale` applies either way.
+- `toonUnifiedDiffuse` (`false`: each light ramps its own diffuse). `true`: lights add unramped
+  diffuse (weight, lit cosine) to two extra lit-image targets (only while on and a material is
+  toon); a step after the lights ramps the sum once at the weighted mean cosine.
+- `toonProfileResolution` (`64`, default and least; up to `512`, rounded up to a multiple of 8):
+  texels toon ramps and pattern images bake at.
+- `shadingRoughDiffuse` (`true`): energy-preserving rough diffuse; rectangle-light and indirect
+  diffuse stay Lambert; `false`: Lambert.
+- `shadingAccurate` (`true`): exact joint Smith visibility of the GGX lobe; `false`: approximation.
+- `irisNormal` (`false`): iris lit by the direction its `tangent` output gives; `true`: by
+  `clearCoatBottomNormal`.
+- `clearCoatNormal` (`false`): coat and base share one normal; `true`: base keeps a graph's
+  `clearCoatBottomNormal` output or a material's normal map, coat the `normal` output's or its own
+  normal map's; difference kept as reference, 8 bits, coat highlight without the Newton step.
 
-A write names the settings it changes, `null` one's default; a value of another kind is refused by
+A write names changed settings, `null` restores a default; a value of another kind is refused by
 name ([ENGINE.md](../../engine/material-surfaces.md#material-surfaces)). Changing `irisNormal`,
-`clearCoatNormal`, `shadingRoughDiffuse` or `shadingAccurate` redraws a still view from the next
-frame.
+`clearCoatNormal`, `shadingRoughDiffuse` or `shadingAccurate` redraws a still view from next frame.
 
 ## Furnace test
 
-`shadingFurnaceTest` (`false`, the default) replaces the lit image, after every light, by the furnace
-test of the shading, run only where `shadingFurnaceTestEnableForProject` (`false`, the default) is
-true. At each pixel it shows the light its surface returns toward the eye in a uniform environment of
-radiance 0.5 (a directional light of 0.5 from every direction sampled), summed over
-`shadingFurnaceTestSampleCount` samples (`64`, from `16` to `2048`) of each of three distributions
-(the specular lobe, the cosine hemisphere, the clear coat's lobe) weighed by their power heuristic;
-an unlit pixel and the background show 0.5. A surface that conserves energy shows 0.5 or less; one
-that shows more creates light.
+`shadingFurnaceTest` (`false`) replaces the lit image, after every light, with the furnace test,
+run only where `shadingFurnaceTestEnableForProject` (`false`) is true. Each pixel shows the light
+its surface returns in a uniform environment of radiance 0.5, summed over
+`shadingFurnaceTestSampleCount` samples (`64`, `16` to `2048`) of each of three distributions
+(specular lobe, cosine hemisphere, clear coat lobe) by power heuristic; unlit pixels and background
+show 0.5. An energy-conserving surface shows 0.5 or less.
 
 ```js
 const world = createWorld('viewer', { shadeBinningMode: 'pixel' })

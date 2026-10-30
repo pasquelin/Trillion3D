@@ -1,22 +1,17 @@
 # A see-through surface reads the sun's shadow, with one sample
 
-A blended or transmissive surface is lit light by light in its own fragment: no mask holds it, so it
-reads each light's shadow map itself. Three project switches say how. They are shadow settings
-(`createWorld` options, `world.shadows`, `trillion3d_set_shadows`), read once when the session opens
-(changing them later changes nothing, as for `cloudShadowOnTranslucent`); no quality level writes them:
+A blended or transmissive surface reads each light's shadow map in its own fragment. Three shadow
+settings (`createWorld` options, `world.shadows`, `trillion3d_set_shadows`) are read once at session
+open (later changes do nothing); no quality level writes them:
 
-- `shadowTranslucentQuality` (`0`, or `1`): at `0`, one sample of the light's map at the surface's
-  point, no ray: the cheap read every blend layer can pay. At `1`, the full trace the opaque surfaces
-  get (rays across the light, a screen ray for contact, a dither on the share in a penumbra), at a
-  high cost for every translucent pixel; the sun's pages the trace reads are also marked for the
-  nearest translucent surface the previous image drew in front of each pixel.
-- `shadowTranslucentLocalLights` (`false`): whether a point, spot or rectangle light's shadow reaches
-  the surface. Off, a shadowed local light lights it unshadowed and the translucent programs hold no
-  local-light shadow code; the sun's shadow always reaches it. On, local lights are read as
-  `shadowTranslucentQuality` says.
+- `shadowTranslucentQuality` (`0`, or `1`): `0` is one sample of the light's map at the surface's
+  point, no ray. `1` is the opaque surfaces' full trace (rays across the light, screen contact ray,
+  penumbra dither), costly per translucent pixel; the sun's pages it reads are also marked for the
+  nearest translucent surface of the previous image.
+- `shadowTranslucentLocalLights` (`false`): whether a point, spot or rectangle light's shadow
+  reaches the surface. Off, a local light lights it unshadowed; the sun's shadow always reaches it.
 - `translucentRectLights` (`false`): whether a rectangle light lights the surface as a rectangle.
-  Off, it lights it as a point light at its centre and the translucent programs hold no rectangle
-  shading; opaque surfaces always take the rectangle.
+  Off, as a point light at its centre; opaque surfaces always take the rectangle.
 
 ```js
 // Glass under a lamp is shadowed by what stands between them: one sample of each light's map.
@@ -31,10 +26,9 @@ const panels = createWorld('viewer', { translucentRectLights: true })
 ```
 
 A material can ask for more, whatever the switches say (defaults `false` and `0`):
-`translucentDirectionalLightShadowQuality` above 0 takes the full trace for the sun's shadow on its
-surfaces, `translucentLocalLightShadow` shadows the local lights on them, and
-`translucentLocalLightShadowQuality` above 0 takes the full trace for those lights. A scene whose
-surfaces ask nothing pays nothing: the translucent programs hold none of that code.
+`translucentDirectionalLightShadowQuality` above 0 takes the full trace for the sun's shadow,
+`translucentLocalLightShadow` shadows the local lights, `translucentLocalLightShadowQuality` above 0
+takes the full trace for those lights. A scene asking nothing compiles no such code.
 
 ```js
 // One pane of glass reads the sun's shadow with the full trace, the rest of the scene with one sample.
@@ -53,6 +47,6 @@ material.meshStandard({
 })
 ```
 
-A light shadows a translucent surface only while it casts (`castsShadow`) and the shadows are on
-(`shadowQuality` past 0). The shadows of the fog and of the air are their own reads: these switches do
-not touch them. How the read is made: [SHADOWS.md](../../shadows/reading-the-shadow.md#reading-the-shadow).
+A light shadows a translucent surface only while it casts (`castsShadow`) and `shadowQuality` is
+past 0. Fog and air shadows are separate reads, untouched by these switches. The read:
+[SHADOWS.md](../../shadows/reading-the-shadow.md#reading-the-shadow).

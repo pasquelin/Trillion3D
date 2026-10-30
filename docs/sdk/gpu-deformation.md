@@ -38,8 +38,9 @@ radians, `frequency` in Hz). `mesh.waves` shares the physics' waves with a water
 ([PHYSICS.md](../PHYSICS.md)).
 
 An instanced skinned object a compile named (`objectSettings.skinnedInstance`,
-[COMPILER.md](../compiler/the-partitions-grids.md#object-settings)) plays its baked clip on the GPU by itself, from the
-scene's load: no mixer moves it ([ENGINE.md](../engine/animation-banks.md#animation-banks)).
+[COMPILER.md](../compiler/the-partitions-grids.md#object-settings)) plays its baked clip on the GPU
+by itself, from the scene's load: no mixer moves it
+([ENGINE.md](../engine/animation-banks.md#animation-banks)).
 
 The GPU deforms vertices before culling and drawing
 ([ENGINE.md](../engine/gpu-deformation.md#gpu-deformation)). `metrics.gpuDeformationMs` is the

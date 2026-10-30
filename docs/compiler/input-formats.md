@@ -8,7 +8,7 @@ repository, its dependencies' licenses kept, no editor code or SDK reused, no pr
 An unknown or ambiguous source is refused with the list of accepted formats.
 
 | Format | Driver | Reader and condition | Dropped, counted by code |
-| --- | --- | --- | --- |
+| - | - | - | - |
 | glTF / GLB | `gltf` | Khronos standard; Draco and meshopt decoded | Nodes outside the rendered scene; quantized positions refused |
 | FBX | `fbx` | MIT ufbx, pinned, never the Autodesk SDK | Cameras, area lights, procedural textures, UV transforms |
 | OBJ / MTL | `obj` | Published specification, through ufbx ([fixture](../../tests/fixtures/formats/README.md#obj)) | MTL `Tr`, `illum`, `-o`, `-s`, `-bm` |
@@ -31,14 +31,12 @@ Not read: `.uasset` / `.umap`, `.max`, `.mb`, native SpeedTree, Substance `.sbsa
 ## glTF buffers, primitive modes and required extensions
 
 A `.gltf` buffer is a `data:application/octet-stream;base64,…` (or `application/gltf-buffer`) URI of
-exactly its `byteLength`, or a relative path, `%XX`-escaped, in the file's folder or below it
-(`buffers/scene.bin`); a path that climbs out of the folder is refused. A triangle strip or fan
-primitive is read as the list of triangles it draws; a points or lines primitive draws no surface
-and is left out, the rest of the file imported, counted under `primitive-mode-not-imported` in the
-import report. A file whose `extensionsRequired` names an extension no reader implements is refused
-(`UNSUPPORTED_EXTENSION`, naming them); one that only lists such an extension in `extensionsUsed` is
-read and counts them under `extension-not-implemented`. A file whose `asset` names a version below
-2.0, or a `minVersion` above 2.0, is refused (`UNSUPPORTED_VERSION`).
+exactly its `byteLength`, or a relative `%XX`-escaped path in the file's folder or below
+(`buffers/scene.bin`); a path climbing out is refused. Strip and fan primitives become triangle
+lists; points and lines are left out (`primitive-mode-not-imported`). `extensionsRequired` naming an
+unimplemented extension: refused (`UNSUPPORTED_EXTENSION`); only in `extensionsUsed`: read, counted
+under `extension-not-implemented`. `asset` version below 2.0 or `minVersion` above 2.0: refused
+(`UNSUPPORTED_VERSION`).
 
 ```json
 { "asset": { "version": "2.0" },
@@ -49,19 +47,17 @@ read and counts them under `extension-not-implemented`. A file whose `asset` nam
 
 ## Polygon faces
 
-The USD, Blender, Alembic and Maya readers share one cut for faces of more than three corners: a
-strictly convex ring becomes a fan, any other is ear-clipped in its own plane so a concave face
-keeps its outline, and a ring the ears cannot finish falls back on the fan, counted under
-`ngon-untriangulable` (`plugins/scene/ngon.rs`).
+USD, Blender, Alembic and Maya faces above three corners: strictly convex ring becomes a fan, any
+other is ear-clipped in its plane; an unfinishable ring falls back on the fan
+(`ngon-untriangulable`, `plugins/scene/ngon.rs`).
 
 ## Content Licenses — Independent of Format
 
 Audit a local asset and license manifest offline with `pnpm audit:assets <manifest.json>`
 (`scripts/release/asset-license-manifest.ts` holds its shape).
 
-- FAB Standard License: other tools and engines permitted, standalone asset redistribution
-  prohibited; keep the purchase EULA.
+- FAB Standard License: other engines permitted, standalone asset redistribution prohibited.
 - Quixel Megascans under a single-engine plan: unusable in Trillion3D.
-- Unity Asset Store: other engines permitted, not a product whose purpose is raw asset distribution.
+- Unity Asset Store: other engines permitted, not raw asset distribution.
 - Sketchfab: per-download license (CC-BY requires attribution and a change notice).
-- Demos and public repository tests: assets owned outright or under a redistributable license.
+- Demos and public repository tests: assets owned outright or redistributable.

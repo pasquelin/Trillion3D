@@ -1,19 +1,11 @@
 # Engine internals
 
-A map of how a world draws: the engine, the frame's stages in order, what each subsystem owns and
-where its code lives, and the rules that hold across files. The code is the contract: each
-module's head comment states its rule and its reasons; this page names the module once. Paths are
-under `packages/sdk-browser/src/`; `sdk-core/` stands for `packages/sdk-core/src/`, and a path that
-starts with `packages/` or `tests/` is from the repository root.
-
-The page's API is [SDK.md](SDK.md); what stays in memory, [RESIDENCY.md](RESIDENCY.md); shadows,
-[SHADOWS.md](SHADOWS.md); the cache files, [FORMAT.md](FORMAT.md); the body API,
-[PHYSICS.md](PHYSICS.md); the maths, [MATHS.md](MATHS.md). Two internals are public, for a host
-that drives pages or diagnostics itself: `createGpuPageCache` (`pages/pool/pages.ts`) and
-`createDiagnosticChannel` (`diagnostic/channel.ts`). Every other internal name is reached through
-the measurement entry point, `measurement/measurement.ts` ([SDK.md](sdk/entry-points.md#entry-points)).
-
-Each section lives in its own file under [`engine/`](engine); read only the one you need.
+Paths are under `packages/sdk-browser/src/`; `sdk-core/` is `packages/sdk-core/src/`; `packages/`
+and `tests/` start at the repo root. See [SDK.md](SDK.md), [RESIDENCY.md](RESIDENCY.md),
+[SHADOWS.md](SHADOWS.md), [FORMAT.md](FORMAT.md), [PHYSICS.md](PHYSICS.md), [MATHS.md](MATHS.md).
+Public: `createGpuPageCache` (`pages/pool/pages.ts`), `createDiagnosticChannel`
+(`diagnostic/channel.ts`); others via `measurement/measurement.ts`
+([SDK.md](sdk/entry-points.md#entry-points)). Files: [`engine/`](engine).
 
 ## The internal session
 [engine/the-internal-session.md](engine/the-internal-session.md)
@@ -34,7 +26,7 @@ Each section lives in its own file under [`engine/`](engine); read only the one 
 [engine/a-partitioned-scene.md](engine/a-partitioned-scene.md)
 
 ## WebGPU page raster
-[engine/webgpu-page-raster.md](engine/webgpu-page-raster.md): [The cut](engine/webgpu-page-raster/the-cut.md) · [Cut settings and draw distances](engine/webgpu-page-raster/cut-settings-and-draw-distances.md) · [Depth pyramid and light grid](engine/webgpu-page-raster/depth-pyramid-and-light-grid.md) · [Rasterizers and voxels](engine/webgpu-page-raster/rasterizers-and-voxels.md)
+[engine/webgpu-page-raster.md](engine/webgpu-page-raster.md): [cut](engine/webgpu-page-raster/the-cut.md) · [settings](engine/webgpu-page-raster/cut-settings-and-draw-distances.md) · [pyramid](engine/webgpu-page-raster/depth-pyramid-and-light-grid.md) · [voxels](engine/webgpu-page-raster/rasterizers-and-voxels.md)
 
 ## Tessellation of displaced rows
 [engine/tessellation-of-displaced-rows.md](engine/tessellation-of-displaced-rows.md): Motion of a displaced pixel · The clip switch · Masked casters in the shadow maps
@@ -43,7 +35,7 @@ Each section lives in its own file under [`engine/`](engine); read only the one 
 [engine/material-surfaces.md](engine/material-surfaces.md)
 
 ## Material graph
-[engine/material-graph.md](engine/material-graph.md) — parts: [outputs and compile](engine/material-graph/outputs-and-compile.md), [surface and rasters](engine/material-graph/surface-and-rasters.md), [transparent pass, volume, mask](engine/material-graph/transparent-volume-and-mask.md), [shading models](engine/material-graph/shading-models.md), [toon](engine/material-graph/toon-shading.md), [water](engine/material-graph/single-layer-water.md), [world position offset](engine/material-graph/world-position-offset.md)
+[engine/material-graph.md](engine/material-graph.md): [outputs](engine/material-graph/outputs-and-compile.md) [surface](engine/material-graph/surface-and-rasters.md) [transparent](engine/material-graph/transparent-volume-and-mask.md) [models](engine/material-graph/shading-models.md) [toon](engine/material-graph/toon-shading.md) [water](engine/material-graph/single-layer-water.md) [WPO](engine/material-graph/world-position-offset.md)
 
 ## Temporal antialiasing
 [engine/temporal-antialiasing.md](engine/temporal-antialiasing.md): Dynamic resolution
@@ -88,7 +80,7 @@ Each section lives in its own file under [`engine/`](engine); read only the one 
 [engine/volumetric-lightmap.md](engine/volumetric-lightmap.md)
 
 ## Atmosphere and sky light
-[engine/atmosphere-and-sky-light.md](engine/atmosphere-and-sky-light.md) — parts: [air, lights and tables](engine/atmosphere-and-sky-light/air-lights-and-tables.md), [clouds and the air](engine/atmosphere-and-sky-light/clouds-and-the-air.md), [cloud drawing and orthographic](engine/atmosphere-and-sky-light/clouds-drawing-and-orthographic.md), [sky light](engine/atmosphere-and-sky-light/sky-light.md), [captured-scene sky light](engine/atmosphere-and-sky-light/sky-light-captured-scene.md)
+[engine/atmosphere-and-sky-light.md](engine/atmosphere-and-sky-light.md): [air](engine/atmosphere-and-sky-light/air-lights-and-tables.md), [clouds](engine/atmosphere-and-sky-light/clouds-and-the-air.md), [drawing](engine/atmosphere-and-sky-light/clouds-drawing-and-orthographic.md), [sky light](engine/atmosphere-and-sky-light/sky-light.md), [captured](engine/atmosphere-and-sky-light/sky-light-captured-scene.md)
 
 ## The custom depth and stencil
 [engine/the-custom-depth-and-stencil.md](engine/the-custom-depth-and-stencil.md)

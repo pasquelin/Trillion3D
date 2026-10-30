@@ -1,30 +1,28 @@
 # `distanceFields.bin`
 
-The signed distance fields of the meshes that built one, and of the HLOD cells whose layer allowed one
-(`rust/distance_field/encode.rs`, read by `sdk-core/src/lighting/distanceFieldFile.ts`; the settings are
-in [COMPILER.md](../compiler/distance-fields.md#distance-fields)). Words are little-endian.
+Signed distance fields of meshes that built one and HLOD cells whose layer allowed one
+(`rust/distance_field/encode.rs`, read by `sdk-core/src/lighting/distanceFieldFile.ts`; settings in
+[COMPILER.md](../compiler/distance-fields.md#distance-fields)). Little-endian.
 
-- The head, 16 bytes: the magic `T3DF`, the version (3), the number of fields and a reserved word.
-- Then a record of 200 bytes for each field: two words, the owner and the flags, the box's low and high
-  corners in metres (six `f32`), then three mip records of 56 bytes, finest first: the bricks along each
-  axis (three `u32`), the distance scale and bias, the volume-to-virtual-coordinate scale and add (three
-  `f32` each), the bricks stored, and where the mip's data starts in its object (its first byte, zero)
-  and how long it is (`u32` each).
-- The file ends with the records: each mip's data is an object of the cache of its own
-  (`objects/<sha256>.bin`, like a geometry container), which the section names: the indirection table (a
-  `u32` for each cell of bricks, `0xffffffff` where none is stored) and the bricks stored, 512 bytes each
-  (8 × 8 × 8 voxels, a byte the distance to the surface over the band).
+- Head, 16 bytes: magic `T3DF`, version (3), field count, a reserved word.
+- 200-byte record per field: owner, flags, box low and high corners in metres (six `f32`), three
+  56-byte mip records, finest first: bricks per axis (three `u32`), distance scale and bias,
+  volume-to-virtual-coordinate scale and add (three `f32` each), bricks stored, data start in its
+  object (first byte, zero) and length (`u32` each).
+- Each mip's data is a cache object (`objects/<sha256>.bin`): indirection table (a `u32` per brick
+  cell, `0xffffffff` where none stored), then stored bricks of 512 bytes (8 × 8 × 8 voxels, a byte the
+  distance over the band).
 
-The record's third word holds flags:
+Flags (third word of the record):
 
 | Bit | Name | Meaning |
-| --- | --- | --- |
-| 0 (`1`) | `DISTANCE_FIELD_FLAG_TWO_SIDED` | a quarter of the triangles or more are two-sided (or the build asked for all): the field's hits are less accurate |
-| 1 (`2`) | `DISTANCE_FIELD_FLAG_HLOD_CELL` | the field is an HLOD cell's: the first word names a cell of the world's chain of HLOD cells ([World HLOD](prepared-scene-tables.md#world-hlod)), not a compiled mesh, and the box is in the world's space, not the mesh's object space |
+| - | - | - |
+| 0 (`1`) | `DISTANCE_FIELD_FLAG_TWO_SIDED` | a quarter of triangles or more two-sided (or build asked for all): hits less accurate |
+| 1 (`2`) | `DISTANCE_FIELD_FLAG_HLOD_CELL` | first word names a cell of the world's HLOD chain ([World HLOD](prepared-scene-tables.md#world-hlod)); box in world space |
 
-Version 2 added the flags (a file of version 1 is refused: `UNSUPPORTED_FORMAT`). The manifest's
-`distanceFields` section names the file and lists, for each field, `{ "mesh": <mesh or cell>, "twoSided":
-<bool>, "mips": [...] }`, with `"hlodCell": true` on an HLOD cell's:
+Version 1 is refused (`UNSUPPORTED_FORMAT`). The manifest's `distanceFields` section names the file and
+lists per field `{ "mesh": <mesh or cell>, "twoSided": <bool>, "mips": [...] }`, `"hlodCell": true` on
+an HLOD cell's:
 
 ```json
 {
@@ -45,19 +43,16 @@ Version 2 added the flags (a file of version 1 is refused: `UNSUPPORTED_FORMAT`)
 }
 ```
 
-(The section also carries `bytes`, `headBytes`, `meshBytes`, `mipBytes` and the `bricks` total.)
+Also `bytes`, `headBytes`, `meshBytes`, `mipBytes`, `bricks`. `mips` lists data objects
+`{ "url", "sha256", "bytes" }` in record order.
+The file is read once beside the manifest; a mip's object whole when the atlas takes it in, checked
+against size and digest.
 
-Its `mips` lists the objects holding the mips' data, `{ "url", "sha256", "bytes" }` each, in the
-records' order, a field's mips finest first. The bricks are megabytes the view mostly never asks for, so
-the file is read once beside the manifest and each mip's object whole when the atlas takes the mip in,
-checked against its size and digest, sent compressed like every object.
+Version 2 is still read: mips' data follow the records (coarsest first per field), read by parts: head
+and records (`baseBytes`) checked against `baseSha256`, each mip by Range checked against `mipSha256`;
+without them the file is read whole.
 
-The reader still reads version 2, whose mips' data follow the records in the file (each field's coarsest
-first), read by parts: the head and the records, `baseBytes` long, once, checked against `baseSha256`,
-then each mip's data at the offset and length its record gives by a Range, checked against its entry of
-`mipSha256`; a section of version 2 without them has its file read whole.
-
-A scene whose meshes build none writes neither the file nor the section. Constants:
-`DISTANCE_FIELD_VERSION`, `DISTANCE_FIELD_PARTS_VERSION`, `DISTANCE_FIELD_MAGIC`,
-`DISTANCE_FIELD_HEAD_BYTES`, `DISTANCE_FIELD_MESH_BYTES`, `DISTANCE_FIELD_MIP_BYTES`,
-`DISTANCE_FIELD_FLAG_*` (`packages/sdk-core/src/contracts/distanceFieldAbi.ts`).
+No fields: neither file nor section. Constants: `DISTANCE_FIELD_VERSION`,
+`DISTANCE_FIELD_PARTS_VERSION`, `DISTANCE_FIELD_MAGIC`, `DISTANCE_FIELD_HEAD_BYTES`,
+`DISTANCE_FIELD_MESH_BYTES`, `DISTANCE_FIELD_MIP_BYTES`, `DISTANCE_FIELD_FLAG_*`
+(`packages/sdk-core/src/contracts/distanceFieldAbi.ts`).

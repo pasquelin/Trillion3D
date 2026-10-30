@@ -5,22 +5,22 @@
 also a `createWorld` option:
 
 - `volumetricLightmap` (`true`): the lightmap is read by the fog's static term and by the lighting
-  of movable objects; `false`: every read of it answers black, as in a scene without one. It does
-  nothing where the scene has no lightmap.
-- `volumetricLightmapLoadingRange` (64): the metres around the view within which the cells of the
-  finest bricks are loaded.
-- `volumetricLightmapBrickMemory` (30): the megabytes of finest bricks that stay resident, the cells
+  of movable objects; `false`: every read answers black, as in a scene without one. Nothing happens
+  where the scene has no lightmap.
+- `volumetricLightmapLoadingRange` (64): metres around the view within which the finest bricks'
+  cells are loaded.
+- `volumetricLightmapBrickMemory` (30): megabytes of finest bricks that stay resident, the cells
   nearest the view winning them.
 
-Then the view of the samples:
+The view of the samples:
 
-- `volumetricLightmapVisualize` (`false`): a sphere is drawn at every sample of the lightmap as an
-  unlit surface right after the opaque resolve, so the lighting, the velocity and the fog treat it
-  as such. It is lit by the harmonics stored there on a grey of 0.18 (the brightness of the lighting
-  view in the `lighting` diagnostic), tested against the scene depth.
-- `volumetricLightmapVisualizeRadiusScale` (`0.01`): the sphere's radius as a fraction of the world
-  size of its brick.
-- `volumetricLightmapVisualizeMinScreenFraction` (`0.001`): the least share of the screen a sphere
+- `volumetricLightmapVisualize` (`false`): a sphere is drawn at every lightmap sample as an unlit
+  surface right after the opaque resolve, so the lighting, velocity and fog treat it as such. It is
+  lit by the harmonics stored there on a grey of 0.18 (the brightness of the lighting view in the
+  `lighting` diagnostic), tested against the scene depth.
+- `volumetricLightmapVisualizeRadiusScale` (`0.01`): sphere radius as a fraction of its brick's
+  world size.
+- `volumetricLightmapVisualizeMinScreenFraction` (`0.001`): least share of the screen a sphere
   takes, measured with the projection's horizontal scale, i.e. the width, so a far one does not
   alias.
 

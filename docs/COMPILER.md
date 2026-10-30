@@ -1,12 +1,12 @@
 # The native compiler — `trillion3d-compiler`
 
-One executable prepares a model for the engine. It reads a source through one driver per format —
-glTF/GLB, FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII, Unity scenes and packages, ZIP and a
-dozen image formats ([Input formats](compiler/input-formats.md#input-formats)) — builds the cluster hierarchy, cooks the
-textures, colliders and lights, and writes the cache [FORMAT.md](FORMAT.md) describes. A host only
-launches it, passes paths and options and listens; no external application is needed.
+One executable prepares a model for the engine. One driver per format reads the source: glTF/GLB,
+FBX, OBJ, USD/USDZ, Alembic, `.blend`, Maya ASCII, Unity scenes and packages, ZIP and a dozen image
+formats ([Input formats](compiler/input-formats.md#input-formats)). It builds the cluster
+hierarchy, cooks textures, colliders and lights, and writes the cache [FORMAT.md](FORMAT.md)
+describes. A host launches it, passes paths and options and listens; no external application.
 
-This page is the user guide. For the internals it is a map: the code is the contract
+User guide; for internals this is a map, the code is the contract
 ([Internals](compiler/internals.md#internals)).
 
 Each section lives in its own file under [`compiler/`](compiler); read only the one you need.

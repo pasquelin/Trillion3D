@@ -2,31 +2,22 @@
 
 ## Ambient cubemap
 
-`ambientCubemap` is a light from a cube of the page's, off until the world is given one: a world
-option, `{ size, texels }`, the side of a face in texels (a power of two from 16 to 1024) and the six
-faces' linear colours (`6 · size² · 3` numbers, none negative; a cube of another form is refused by
-name at the opening).
+`ambientCubemap`: off until the world is given a cube `{ size, texels }`: face side in texels (power
+of two, 16 to 1024) and six faces' linear colours (`6 · size² · 3` numbers, none negative; another form
+is refused by name at opening).
 
-It is a second source of the indirect light, beside the environment's and the sky light's:
+An indirect light beside the environment's and the sky light's: diffuse reads the cube along the
+normal at the hemisphere-convolved mip; specular along the reflection at the mip its roughness picks,
+with the same energy terms as the other sources (coat, cloth fuzz, thin back included).
 
-- a surface's diffuse colour is lit by the cube read along its normal at the mip where the cube is
-  convolved by the whole hemisphere;
-- its specular reflectance is lit by the cube read along its reflection at the mip its roughness
-  picks, weighed by the same energy terms as the other sources, so the coat, the cloth's fuzz and a
-  thin surface's back take it as they take the others'.
+Settings: `ambientCubemapTintRed`, `ambientCubemapTintGreen`, `ambientCubemapTintBlue` (`1` each, from
+0), `ambientCubemapIntensity` (`1`, from 0). No cube, or a black one, compiles no code and binds no
+texture.
 
-Its settings are `ambientCubemapTintRed`, `ambientCubemapTintGreen` and `ambientCubemapTintBlue`
-(`1` each, from 0), the tint, and `ambientCubemapIntensity` (`1`, from 0), the scale that multiplies
-it. A colour that is black draws nothing, and an image that sets no cube, or a black one, compiles no
-code for it and binds no texture.
-
-The cube's mip chain is filtered by angle on the GPU, once for a cube, over the images a budget of
-texels an image allows (a cube of 16 texels a face in one image, a cube of 1024 in some tens); the
-images drawn meanwhile are drawn again and light nothing from the cube. The cube can be changed or
-taken away while the world runs: `explorer.setAmbientCubemapCube(cube)` replaces it (its chain is
-filtered again, the old one freed), `explorer.setAmbientCubemapCube(null)` takes the light away, and a
-cube of another form is refused by name. The translucent surfaces take no light from it. An agent sets
-the settings through `trillion3d_set_ambient_cubemap`.
+The mip chain is filtered on the GPU once per cube, over the images a texel budget allows; images
+drawn meanwhile light nothing from the cube. `explorer.setAmbientCubemapCube(cube)` replaces it at run
+time, `explorer.setAmbientCubemapCube(null)` removes the light. Translucent surfaces take no light
+from it. Agent tool: `trillion3d_set_ambient_cubemap`.
 
 ```js
 const world = createWorld({
@@ -42,46 +33,41 @@ explorer.setAmbientCubemapCube(null) // no cube: the light goes, the texture is 
 
 ## Reflection captures
 
-`reflectionCapture` holds the settings of the scene's reflection captures. A capture is an object of
-the scene (`explorer.addReflectionCapture`): a place the scene is drawn from through the six faces of
-a cube, which the surfaces around it read as the light that comes from far away.
+`reflectionCapture` holds the capture settings. A capture is a scene object
+(`explorer.addReflectionCapture`): a place the scene is drawn from through six cube faces, read by
+surrounding surfaces as far light.
 
-Its fields:
+Fields:
 
 - `id` (unique);
-- `shape` (`'sphere'`, the default, or `'box'`);
-- `matrix` (sixteen numbers, column-major, metres: the translation is the centre, and for a box the
-  lengths of the columns are its half extents and their directions its axes);
-- `influenceRadius` (a sphere's radius, `30` m by default, at least `0.08`);
-- `boxTransitionDistance` (`1` m by default: how far inside its faces a box's cube fades out);
-- `brightness` (`1`, from 0: the factor its light is multiplied by);
+- `shape` (`'sphere'` default, or `'box'`);
+- `matrix` (sixteen numbers, column-major, metres: translation is the centre; a box's column lengths
+  are its half extents, their directions its axes);
+- `influenceRadius` (sphere radius, `30` m default, at least `0.08`);
+- `boxTransitionDistance` (`1` m: how far inside its faces a box's cube fades out);
+- `brightness` (`1`, from 0);
 - `captureOffset` (`[0, 0, 0]`: where the scene is drawn from, relative to the centre).
 
-Inside its shape the cube is read as if the scene it holds were the shape itself (the reflection ray
-is intersected with the sphere or the box, so a reflection moves with the viewer), faded toward the
-shape's edge; where captures overlap the smallest is read first and lets through what it does not
-cover, the sky light taking the rest. They light the rough reflection of the opaque surfaces (the
-share of a lobe that neither the screen nor the scene's rays answer), composited over the sky
-light's. Where the reflection ray of the scene is answered, the capture adds nothing. A capture is
-drawn between two images, one at a time, and again when its place moves or one of the face settings
-changes; `explorer.recaptureReflectionCaptures()` asks them all again.
+Inside its shape the cube is read by intersecting the reflection ray with the sphere or box, faded
+toward the edge; where captures overlap the smallest is read first, the sky light takes the rest. They
+light the rough reflection of opaque surfaces (the lobe share neither the screen nor the scene's rays
+answer), over the sky light's; where the scene's reflection ray is answered, the capture adds nothing.
+A capture is drawn between two images, one at a time, and again when its place moves or a face
+setting changes; `explorer.recaptureReflectionCaptures()` redraws all.
 
-The settings, all run-time:
+Settings, all run-time:
 
 - `reflectionCaptures` (`true`; off, none is made or read);
-- `reflectionCaptureResolution` (`128`, from 16 to 1024, the power of two at or below it);
-- `reflectionCaptureSupersample` (`1`, from 1 to 8);
+- `reflectionCaptureResolution` (`128`, 16 to 1024, the power of two at or below);
+- `reflectionCaptureSupersample` (`1`, 1 to 8);
 - `reflectionCaptureNearPlane` (`0.05` m);
 - `reflectionCaptureLightFunctions` (`false`);
-- `reflectionCaptureDiffuse` (`false`): the cube's four smallest mips (1, 2, 4 and 8 texels) hold the
-  capture's diffuse light and the opaque surfaces take their diffuse light from the captures where
-  they reach, in place of the sky light's;
-- `reflectionCaptureDiffuseReference` (`true`): that diffuse light is the exhaustive convolution of
-  the cube; `false`, it is evaluated from nine harmonics summed from the cube.
+- `reflectionCaptureDiffuse` (`false`): the cube's four smallest mips (1, 2, 4, 8 texels) hold diffuse
+  light, which opaque surfaces take from the captures where they reach, in place of the sky light's;
+- `reflectionCaptureDiffuseReference` (`true`): exhaustive cube convolution; `false`: nine harmonics.
 
-The diffuse light is the mean radiance weighted by the cosine in both ways. The captures hold the sky
-past the sky light's distance threshold, where a sky light that is not static shines. The translucent
-surfaces and the strands take no light from the captures. An agent sets the settings through
+Captures hold the sky past the sky light's distance threshold, where a non-static sky light shines.
+Translucent surfaces and strands take no light from captures. Agent tool:
 `trillion3d_set_reflection_capture`.
 
 ```js
@@ -95,42 +81,34 @@ explorer.removeReflectionCapture('hall')
 
 ## Planar reflections
 
-A planar reflection is an object of the scene too (`explorer.addPlanarReflection`): a mirror the scene
-is drawn in again. The scene is drawn from the main camera reflected across the plane, in a view of
-its own beside the main one, at a percentage of the main view's size and without temporal jitter,
-clipped to the viewer's side of the plane. The opaque surfaces that stand near the plane and face it
-read that image as their reflection, sharp and exact for a flat floor, water or window, in place of
-the screen's and the environment's. The image is blurred along its vertical by a gaussian that grows
-with the distance of the reflected surface behind the plane (`prefilterRoughness`), and fades out with
-the surface's distance to the plane, its distance to the box's edges, the angle of its normal to the
-plane's and its roughness (rougher than 0.2 reads none, fully rough than 0.3).
+A scene object (`explorer.addPlanarReflection`): the scene drawn again from the main camera reflected
+across the plane, in a view of its own at a percentage of the main size, no temporal jitter, clipped
+to the viewer's side. Opaque surfaces near the plane and facing it read it as reflection instead of
+the screen's and environment's. The image is blurred vertically by a gaussian growing with the
+reflected surface's distance behind the plane (`prefilterRoughness`), and fades with distance to the
+plane, distance to the box's edges, angle of the normal to the plane's, and roughness (rougher than
+0.2 reads none, fully rough at 0.3).
 
-Its fields:
+Fields:
 
 - `id` (unique);
-- `matrix` (sixteen numbers, column-major, metres: the translation is a point of the plane, the
-  second column its normal, the lengths of the first and third columns the factors of the 20 metres
-  the box reaches along them);
+- `matrix` (sixteen numbers, column-major, metres: translation is a point of the plane, second column
+  its normal, first and third column lengths the factors of the 20 m the box reaches along them);
 - `normalDistortionStrength` (`5` m): how far along the mirrored reflection direction the image is
-  read, so the larger it is the more the surface's normal distorts the image;
-- `prefilterRoughness` (`0.01`, from 0 to 0.04), `prefilterRoughnessDistance` (`100` m);
-- `screenPercentage` (`50`, from 25 to 100);
-- `extraFov` (`0` degrees, from 0): the image is drawn with a wider field so the distortion does not
-  read outside it;
+  read; larger distorts more;
+- `prefilterRoughness` (`0.01`, 0 to 0.04), `prefilterRoughnessDistance` (`100` m);
+- `screenPercentage` (`50`, 25 to 100);
+- `extraFov` (`0` degrees, from 0): wider field for the image;
 - `distanceFromPlaneFadeoutStart` and `distanceFromPlaneFadeoutEnd` (`0.6` and `1` m);
 - `angleFromPlaneFadeStart` and `angleFromPlaneFadeEnd` (`20` and `30` degrees);
-- `hidden`: the objects the mirrored view does not draw, each with everything under it (the water
-  plane itself, usually).
+- `hidden`: objects the mirrored view does not draw, each with everything under it.
 
-The mirrored view is drawn only while the viewer stands on the side the normal points to and the box
-meets the view's frustum, and only for a perspective camera. The cut is clipped to the plane only
-where the world was made with the project switch `cutClipPlane` on
-(`createWorld({ cutClipPlane: true })`); without it the image shows what lies under the plane too.
-The reflections are read by the opaque surfaces of the main view alone (not by the translucent
-surfaces, the strands, the water's own reflection or the views `world.addView` draws), and they win
-over the screen's, the scene's and the environment's reflection where their fade is whole. The
-mirrored view is lit by the lights and the sky light, with no traced reflection, light shaft or effect
-of its own. The image is drawn before the main view, from the same camera.
+Drawn only while the viewer is on the side the normal points to, the box meets the frustum, and the
+camera is perspective. Clipped to the plane only when the world has `cutClipPlane` on
+(`createWorld({ cutClipPlane: true })`); otherwise the image shows what lies under the plane too. Read
+by the main view's opaque surfaces alone (not translucent surfaces, strands, water's own reflection or
+`world.addView` views); wins over screen, scene and environment reflection where its fade is whole.
+Lit by lights and sky light, no traced reflection, light shaft or effect. Drawn before the main view.
 
 ```js
 // the world is made with createWorld({ cutClipPlane: true }), so the image is clipped to the plane

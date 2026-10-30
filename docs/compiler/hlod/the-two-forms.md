@@ -1,19 +1,13 @@
 # The two forms
 
-From Node, `prepare(..., { hlod })` takes either form; one function, `resolveHlod`
-(`packages/sdk-core/src/contracts/hlodOptions.ts`), turns it into the expert form the compiler reads
-(`--hlod=`, `jobs[].hlod`): a string is an exact name, a regular expression is written
-`{ "regex": source, "flags": "i" }` — the form the Node command line's `--hlod=` takes in either
-form's JSON, for instance `trillion3d-compile '--hlod={"levels":3}' …`. It refuses, in the words
-written, a field either form does not hold, `levels` that is not a whole number from 1 to 256, and
-the simple form's fields beside `layers`.
+`prepare(..., { hlod })` takes either form; `resolveHlod`
+(`packages/sdk-core/src/contracts/hlodOptions.ts`) yields the expert form (`--hlod=`, `jobs[].hlod`). String = exact name; regex = `{ "regex": source, "flags": "i" }`.
+CLI: `trillion3d-compile '--hlod={"levels":3}' …`. Refused: unknown fields, `levels` not a whole
+number 1..256, simple fields with `layers`.
 
-The simple form, for most uses, `{ levels }` alone — four levels when it names none: HLOD 0 is the
-objects themselves (`instanced`), every coarser level a `merge` layer with the settings of the
-reference's default merged layer, the last streamed on its grid like the others (the expert form's
-`spatiallyLoaded: false` keeps it always loaded). An object no mark names enters `hlod0`; a mark
-(`"extras": { "hlod": "hlod1" }`) names another layer, the expert form's rules assign objects by
-name:
+Simple form `{ levels }`: HLOD 0 is `instanced`, coarser levels `merge` layers with the reference's
+default settings; the last is streamed (`spatiallyLoaded: false` keeps it loaded). Unmarked objects
+go to `hlod0`; a mark (`"extras": { "hlod": "hlod1" }`) names another layer:
 
 ```ts
 await prepare(source, cache, 'slice', 150000, {
@@ -23,14 +17,11 @@ await prepare(source, cache, 'slice', 150000, {
 ```
 
 | Field | Meaning | Default |
-| --- | --- | --- |
-| `levels` | The chain's levels, HLOD 0 included, 1 to 256: the first `instanced`, every other `merge`; one level is the objects themselves, instanced, on the first grid | `4` |
-| `default` | `none`: an object no mark names has no HLOD, drawn in its cell alone; left out, it enters `hlod0` | left out |
+| - | - | - |
+| `levels` | Levels incl. HLOD 0, 1 to 256: first `instanced`, others `merge` | `4` |
+| `default` | `none`: unmarked objects have no HLOD | `hlod0` |
 
-The chain of `{ levels: 3 }` stands for these expert layers; each merged level takes the settings of
-the reference's default merged layer — the LOD of each source its lowest, the materials in one atlas
-sized by the distance its actor is first drawn, no double-sided material, the normal, roughness,
-metallic, specular and emissive images baked — and every other setting its default:
+`{ levels: 3 }` stands for:
 
 ```ts
 const merged = {
@@ -48,8 +39,6 @@ hlod: {
   default: 'hlod0',
 }
 ```
-
-One level is the objects themselves, instanced, streamed on the first grid: no merged layer.
 
 ```ts
 // One level.

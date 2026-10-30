@@ -1,92 +1,69 @@
 # How a mesh coarsens
 
-Every primitive's coarser levels are built by one cluster DAG (`asset-compiler-rust/src/dag`).
-It carries every attribute the pages carry — the normal, the stored tangent, every texture set the
-primitive has, read by its material or not, the colour — and the bones of a skinned primitive.
-The source is first read as a mesh build reads it (`dag/input.rs`):
+Every primitive's coarser levels are built by one cluster DAG (`asset-compiler-rust/src/dag`),
+carrying every page attribute (normal, stored tangent, texture sets, colour) and a skinned
+primitive's bones. The source is read as a mesh build reads it (`dag/input.rs`):
 
-1. every vertex is built (`dag/input/built.rs`): a colour's red, green and blue are brought from
-   sRGB to linear; a position that is not finite is the origin, a normal or a stored tangent that
-   is not finite is nothing, a texture coordinate pair (0, 0) and a colour white; a triangle two
-   of whose corners are one vertex is dropped;
-2. the frames are rebuilt as the mesh's settings name it (`dag/input/frames.rs`, below): by
-   default every normal is rebuilt, and every stored tangent by MikkTSpace (`dag/input/mikk.rs`);
-   with `recomputeNormals` and `recomputeTangents` off, only a normal that is nothing and the
-   stored tangents of a vertex whose frame is not whole are. Each triangle's normal, and its
-   tangent and binormal along its first texture set, are read over its corners in centimetres; the
-   triangles around a vertex fall in groups joined by the edges they share from it — every edge is
-   soft —, each group summing its triangles' — each weighed by its area times its angle at the
-   vertex with `computeWeightedNormals` —; a MikkTSpace tangent is the angle-weighted mean of the
-   texture derivatives of the triangles around its vertex that share its normal, texture
-   coordinates and mapping orientation, its sign −1 where that mapping keeps its orientation. A
-   vertex whose corners take different frames is cut in one vertex per frame. A skinned mesh keeps
-   its source's frames, rebuilding only those that are not whole, its tangents rebuilt for its weld
-   alone when its pages store none; a mesh without normals gets the rebuilt ones when
-   `recomputeNormals` is on, and stays without when it is off;
-3. the normal, the tangent's direction and the bitangent (the tangent across the normal, times the
-   sign) are made unit, the sign 1 unless the unit frame turns the other way — a tangent along its
-   normal signs 1 —; each colour channel becomes the byte of its sRGB encoding, its alpha the byte
-   of its linear value;
-4. without bones, a triangle two of whose corners are one point is dropped, and so is one two of
-   whose corners lie within 200 nanometres of each other on every axis when `dropNearCollapsed` is
-   on (below; off by default), and every corner, in triangle order, points at the first vertex
-   laid before it at its very position whose normal, tangent and bitangent lie within 2·10⁻⁵ on
-   every axis, whose texture coordinates lie within 1/1024, and whose colour bytes and bones are
-   equal; one none matches lays its own vertex, so an unindexed mesh clusters as the indexed one it
-   draws the same as;
-5. with bones, every corner meets the corners whose position lies within `skinnedWeldPosition`
-   (200 nanometres) of its own on every axis, and points at the first vertex one of them laid
-   before it that lies as near and matches it as above, within `skinnedWeldNormal` and
-   `skinnedWeldTexture` (`dag/input/skinned.rs`); a corner none matches lays its own vertex, a copy
-   when an earlier corner already laid it, the two kept apart; a triangle two of whose corners then
-   point at one vertex is dropped;
-6. a colour white at every vertex is dropped; once level 0 is cut, every value is held within its
-   range — a position coordinate within ±10¹⁰ metres, a texture coordinate within ±10¹² (a page then holds one at ±2.1·10⁹ at most, its greatest code), a colour
-   within [0, 1] — and every normal made unit, every stored tangent made unit across it with its
-   sign `±1` and every colour clamped, as every simplification corrects the vertices it places.
+1. Vertices are built (`dag/input/built.rs`): colour RGB sRGB to linear; non-finite position is the
+   origin, non-finite normal or stored tangent is nothing, texture coordinates (0, 0), colour
+   white; a triangle with two corners at one vertex is dropped.
+2. Frames are rebuilt per the mesh's settings (`dag/input/frames.rs`): by default every normal, and
+   every stored tangent by MikkTSpace (`dag/input/mikk.rs`); with `recomputeNormals` and
+   `recomputeTangents` off, only a normal that is nothing and stored tangents of a vertex whose
+   frame is not whole.
+   - Triangles around a vertex form groups joined by shared edges (every edge soft); each group
+     sums its triangles' normals, weighed by area times vertex angle with `computeWeightedNormals`.
+   - A MikkTSpace tangent is the angle-weighted mean of the first texture set's derivatives of the
+     triangles sharing the vertex's normal, texture coordinates and mapping orientation.
+   - A vertex whose corners take different frames is cut in one vertex per frame.
+   - A skinned mesh keeps its source's frames, rebuilding only those not whole.
+3. Normal, tangent direction and bitangent are made unit; sign 1 unless the unit frame turns the
+   other way. Colour channels become the byte of their sRGB encoding, alpha of its linear value.
+4. Without bones, a triangle with two corners at one point is dropped, also one with two corners
+   within 200 nanometres per axis when `dropNearCollapsed` is on. Each corner points at the first
+   earlier vertex at its position whose normal, tangent and bitangent lie within 2·10⁻⁵ per axis,
+   texture coordinates within 1/1024, and colour bytes and bones equal; else it lays a vertex.
+5. With bones, a corner points at the first earlier vertex within `skinnedWeldPosition` per axis
+   matching within `skinnedWeldNormal` and `skinnedWeldTexture` (`dag/input/skinned.rs`); else it
+   lays a vertex; a triangle with two corners then at one vertex is dropped.
+6. A colour white at every vertex is dropped. Once level 0 is cut, values are held in range:
+   position within ±10¹⁰ metres, texture coordinate within ±10¹² (a page holds ±2.1·10⁹ at most),
+   colour within [0, 1]; normals and stored tangents made unit, tangent sign `±1`.
 
-The DAG and the pages read each colour channel as its byte's share of 255, the linear value read
-quantized; the arrays the DAG hands the pages are held within range again, the vertices its
-simplifications placed with them. Level 0 is a partition of its triangles into clusters of 124 to 128
-triangles — a mesh of at most 128 is one cluster, its triangles in the Morton order of their
-centres —; every level after groups 8 to 32 neighbouring clusters, simplifies the group with the
-edges it shares with other groups locked, and re-splits it into clusters (multilevel recursive
-bisection, the partitioner of `page-codec-wasm/src/partition`). Vertices equal in every float the
-build carries are one vertex to a group. The bones weigh nothing in the error: a vertex a
-simplification places takes those of the vertex nearest its position, and deforms as it.
+Level 0 partitions its triangles into clusters of 124 to 128 triangles (at most 128: one
+cluster, Morton order); each later level groups 8 to 32 neighbouring clusters,
+simplifies the group with edges shared with other groups locked, and re-splits it (multilevel
+recursive bisection, `page-codec-wasm/src/partition`). Vertices equal in every float are one vertex
+to a group. Bones weigh nothing in the error; a placed vertex takes the nearest vertex's.
 
-Which edges a group locks is carried from level to level (`dag/clusters.rs`, `dag/border.rs`):
-every edge of a level-0 cluster counts its links to the triangles of other clusters; each level of
-more than 32 clusters keeps, of each counted edge, the counted edges of other clusters running it
-back, an edge that meets none counting no more, and joins its clusters by them into groups (a level
-of 32 clusters or fewer is one group: its clusters keep the counts their own groups left them); a
-group takes away the edges its own other children run, locks the ends of what is left, and every
-edge its simplification leaves end to end as it was takes its count back, each re-split cluster
-adding its links to the group's other new clusters. An edge a simplification lays along a
-neighbour's without having been counted stays free. Every level's new clusters follow the order of
-their identities, so the build is the same however its groups are scheduled; a level of one group
-lays them in the order its reduction made them. Once every level is built, each cluster's triangles are laid in strips, and a cluster whose strips lay more than 256 vertices
-is halved, both halves drawing in the whole cluster's box.
+Locked edges carry from level to level (`dag/clusters.rs`, `dag/border.rs`):
 
-A group that no target size re-splits — practically never, the simplifier removes triangles when
-its collapses run out — keeps its children and its error and makes no coarser cluster: past that
-error, its surface is no longer drawn, and the `stall` event names it: its `rootTriangles` are the
-level-0 triangles no coarser level replaces, a root's or a stalled group's child's.
+- Every edge of a level-0 cluster counts its links to triangles of other clusters.
+- A level of more than 32 clusters joins clusters into groups by counted edges that other clusters'
+  counted edges run back; 32 or fewer is one group.
+- A group drops the edges its other children run and locks the ends of what is left; each edge its
+  simplification leaves end to end as it was takes its count back, each re-split cluster adding its
+  links to the group's other new clusters. An uncounted edge laid along a neighbour's stays free.
+- A cluster whose strips lay more than 256 vertices is halved (both halves use the whole box).
+
+A group no target size re-splits (practically never) keeps its children and error and makes no
+coarser cluster: past that error its surface is not drawn, and the `stall` event names it; its
+`rootTriangles` are the level-0 triangles no coarser level replaces.
 
 A mesh's glTF `extras` set how it keeps its shape as it coarsens:
 
 | Key | Values | Default |
-| --- | --- | --- |
-| `shapePreservation` | `none`; `area`, each simplification pushes the open border of the material that lost the most area outwards by what it lost, so thin pieces (leaves, blades, cards) keep their coverage with distance; `voxelize`, voxels far away ([Voxels far away](voxels-far-away.md#voxels-far-away)) | `none` |
-| `edgeLengthBound` | A number of at least 0: a collapse costs at least the square of each edge it makes over this bound, in units where the mean triangle of the group is a quarter to a half of a unit across, so no long sliver appears; 0 bounds nothing | `0` |
-| `holdTextureCoordinates` | `true`: texture coordinates are taken from the vertices a collapse keeps instead of solved, and count nothing in the error — for texture sets holding values that do not blend, as indices | `false` |
+| - | - | - |
+| `shapePreservation` | `none`; `area`: each simplification pushes the open border of the material that lost the most area outwards by what it lost; `voxelize`: ([Voxels far away](voxels-far-away.md#voxels-far-away)) | `none` |
+| `edgeLengthBound` | Number >= 0: a collapse costs at least the square of each edge it makes over this bound (unit: group's mean triangle is 1/4 to 1/2 across); 0 bounds nothing | `0` |
+| `holdTextureCoordinates` | `true`: a collapse keeps its vertices' texture coordinates instead of solving them; they count nothing in the error | `false` |
 
 ```json
 { "meshes": [{ "name": "fern", "extras": { "shapePreservation": "area", "edgeLengthBound": 4 } }] }
 ```
 
-A shape preservation that is not `none`, `area` or `voxelize`, a bound that is not a number of at
-least 0, or a hold that is not `true` or `false`, refuses the job (`INVALID_OPTIONS`). The extras are part of the source, so changing one changes the cache key.
+An unknown shape preservation, a bound that is not a number >= 0, or a hold that is not boolean
+refuses the job (`INVALID_OPTIONS`). Extras change the cache key.
 
 ## Mesh build settings
 
@@ -94,45 +71,45 @@ least 0, or a hold that is not `true` or `false`, refuses the job (`INVALID_OPTI
 built (`compiler/args/mesh_build.rs`):
 
 | Setting | Values | Default |
-| --- | --- | --- |
-| `storedTangents` | `true`: the pages store the build's tangents — the source's glTF `TANGENT` unless the build rebuilds them (`recomputeNormals`, `recomputeTangents`), rebuilt where the source has none, or +X with sign 1 for a primitive without them in a mesh another primitive of which has some —, carried through every simplification at a sixteenth of a normal's weight and their sign at a half, which the shading then takes in place of the frame it rebuilds from the triangle ([FORMAT.md](../format/pages.md#pages)); a primitive without normals, its build keeping them, stores none | `false` |
-| `recomputeNormals` | `true`: every normal is rebuilt from the triangles, two triangles sharing an edge smoothed together, and every stored tangent with them; a primitive without `NORMAL` gets them. `false`: the source's are kept, only a normal that is nothing rebuilt. A skinned mesh keeps its source's frames either way | `true` |
-| `recomputeTangents` | `true`: every stored tangent is rebuilt. `false`: the source's are kept while the normals are, only a tangent whose frame is not whole rebuilt. Read only with `storedTangents` | `true` |
-| `useMikkTSpace` | `true`: the rebuilt tangents are MikkTSpace's. `false`: each is the sum of its vertex's triangles' tangents in its group, made orthonormal around the normal | `true` |
-| `computeWeightedNormals` | `true`: the rebuilt normals weigh each triangle by its area times its angle at the vertex. `false`: alike | `false` |
-| `skinnedWeldPosition` | A number of at least 0, metres: how far on every axis two corners of a skinned mesh may lie apart and be welded into one vertex | `2e-7` |
-| `skinnedWeldNormal` | A number of at least 0: how far on every axis two unit normals, tangents or bitangents of a skinned mesh may differ and their corners be welded | `2e-5` |
-| `skinnedWeldTexture` | A number of at least 0: how far two texture coordinates of a skinned mesh may differ and their corners be welded | `1/1024` |
-| `voxelRays` | A whole number of at least 0: how many rays are cast across each voxel of a voxelized mesh to sample its surface. At most 1024 are cast and a count past 1 is rounded up to a multiple of 16, so 17 casts 32; 0 or 1 casts one ray, the voxel then covered whole or not at all and no coverage handed over to its neighbours. Read only for a voxelized mesh | `64` |
-| `voxelLevel` | A whole number: the level of the mesh's DAG from which every group is voxels, whatever its triangles' error. 0 leaves a group voxels only where they are finer than its triangles; 1 is the first level, so from 1 every group is voxels, and a level below 0 acts as 1. Read only for a voxelized mesh | `0` |
-| `voxelBackUp` | A number, in voxel sides: how far back each ray of a voxel starts before it. A ray whose nearest hit lies in that stretch counts neither as a hit nor as a miss; the rays are traced against every triangle of the mesh within their reach, not only those overlapping the voxel. Not read with `voxelSeparable`, nor by a voxel that casts one ray | `0` |
-| `voxelSeparable` | `true`: the rays of a voxel run along its three axes alone, each through one face of it and a point of that face, one side before the face and three long; only a hit within the voxel's depth counts and a ray that hits outside it is left out of the count. A voxel whose rays along one axis all hit is covered whole when a ray through its centre along an axis hits too; a voxel that casts one ray is covered when the first of those three rays hits. `false`: rays in every direction | `false` |
-| `voxelNdf` | `true`: a voxel keeps the distribution of the normals its rays hit, fitted to a lobe about an axis — its normal is that axis and its record carries the ratio of the lobe's two widths, from which each pixel's shading normal is drawn anew every image. `false`: the record carries the direction of the normals' mean alone | `true` |
-| `voxelOpacity` | `true`: no coverage is handed over to the neighbours of a voxel dropped — every voxel a ray hit is kept, so a thin surface's partial coverage keeps its voxel and a sparse crown stays as dense as its leaves. `false`: the coverage is handed over until no more voxels are left than it sums to | `false` |
-| `allowAssemblies` | `true`: the assembly the mesh's glTF `extras.assembly` names is built — each node of the assembly is a node of the scene that draws its part, and the levels of detail above the nodes are built over them with the mesh's own triangles (see [Assemblies](assemblies.md#assemblies)). `false`: the mesh is its own triangles alone and its `extras.assembly` is left unread, as the reference draws a mesh whose assembly it does not build while its project switch for assemblies is off | `false` |
-| `distanceField` | `true`: the mesh's signed distance field is built, for the distance-field occlusion of the sky light and the software ray tracing ([Distance fields](distance-fields.md#distance-fields)). `false`: none | `true` |
-| `distanceFieldScale` | A number of at least 0: the mesh's resolution scale — the voxels a unit of its size holds are `distanceFieldDensity` times it. 0 builds no field for the mesh | `1` |
-| `distanceFieldTwoSided` | `true`: the field is built as if every triangle were two-sided, so that no back face makes a voxel inside the mesh. A double-sided material is two-sided either way | `false` |
-| `distanceFieldDensity` | A finite number: the voxels a centimetre of a mesh of scale 1 holds. The field's bricks along an axis are rounded and held between 1 and what `distanceFieldMaxResolution` allows, so any value builds; a larger one only reaches the resolution cap sooner. Changing it rebuilds every field | `0.2` |
-| `distanceFieldMaxResolution` | A whole number of at least 1: the most voxels along one axis a field holds; a mesh of scale 1 or less holds half of it | `256` |
-| `maxMeshCards` | A whole number from 0 to 32: the most cards the compiler keeps for the mesh. A card is a box looking at the mesh along one of the six axis directions; the cards of a mesh cover its surface, and more of them cover it better and cost more to capture and to light ([Mesh cards](mesh-cards.md#mesh-cards)). 0 builds none for the mesh | `12` |
-| `meshCardMinDensity` | A number from 0 to 1: how much of its box's face the surfaces a card covers must fill for the card to be kept ([Mesh cards](mesh-cards.md#mesh-cards)). Changing it rebuilds every mesh's cards | `0.2` |
-| `meshCardNormalThreshold` | A number from 0 to 1: how squarely a surface must face a card's direction to be covered by it, the cosine of the angle between them ([Mesh cards](mesh-cards.md#mesh-cards)). Changing it rebuilds every mesh's cards | `0.25` |
-| `keptTriangles` | A number from 0 to 1: under 1, once the DAG is built its finest detail is cut away — the cut is grown from the roots, the cluster of largest error replaced by the clusters its group was made of, until the cut holds more than this share of the source's triangles and the next replacement would lower its error further; every cluster under the cut is dropped, and the cut's clusters become leaves, drawn wherever their parent is too coarse | `1` |
-| `trimmedError` | A number of at least 0, percent of the mesh's size — the square root of the smaller of twice its area and a quarter of its box's surface —: above 0, the same cut, grown until its error falls under this share | `0` |
-| `displacementMaps` | A list of height maps `{ "texture": { "index": n }, "magnitude", "center" }`: with a `trimmedError` above 0, the mesh's triangles are tessellated where the maps bend them and moved along their normals ([Baked displacement](displacement.md#baked-displacement)); the map of rank `n` displaces the mesh's primitive `n`. `texture` takes an `index` alone — the set of coordinates is `displacementUvChannel`'s — of an image whose first channel holds the height: 8 or 16 bits a channel, or floats, at most 8192 texels a side, wrapped or clamped by its sampler. `magnitude` is how far height 1 lies from height `center` along the normal, in the scene's units; `center` is the height that stays on the surface; both are finite 32-bit floats (0 when left out) | `[]` (nothing baked) |
-| `displacementUvChannel` | A whole number from 0 to 7: the set of texture coordinates the maps are read at | `0` |
-| `displacementEdgeSplit` | How a vertex the tessellation adds on an edge is shared: `seams`, one vertex for the triangles on both sides unless a material or a texture coordinate differs across the edge; `always-duplicate`, one a side | `seams` |
-| `dropNearCollapsed` | `true`: a triangle two of whose corners lie within 200 nanometres of each other on every axis is dropped before the build. `false`: only one two of whose corners are one point | `false` |
-| `alwaysResidentKib` | A whole number of KiB from 0 to 4294967295: how much of the mesh stays resident whatever the view. Its first streaming pages are its root pages, 32 KiB and 64 clusters each, as many as that size fills, rounded up, one at least ([FORMAT.md](../format/clustersjson.md#cluster-dag)); the session pins them while the mesh is in the scene. 0 keeps one root page, the least; a size past the mesh keeps it all | `0` |
-| `positionPrecision` | A whole number from −20 to 43: the cells of the pages' positions are `2^-n` centimetre, so each page rounds a position to the cell at `n` bits of a centimetre. Left out, the precision follows the mesh's density: 7 less the mean, over the finest clusters, of the base-2 logarithm of the half-diagonal of their box in centimetres, rounded, at least 4 — a denser mesh gets finer cells. The clusters are those the build made, the finest detail `keptTriangles` or `trimmedError` cuts away included. A named precision, like the automatic one, is lowered until every cluster's box spans at most 21 bits an axis, and refuses the compile (`PAGE_ATTRIBUTE_RANGE`) for a cluster too wide for −20 ([FORMAT.md](../format/pages.md#pages)) | the mesh's density |
-| `normalPrecision` | A whole number from 1 to 15: the bits an axis of each stored normal, on the octahedron (the pages' normals are two cells of that many bits) | `8` |
-| `tangentPrecision` | A whole number from 0 to 12: the bits of each stored tangent's angle around its normal, a turn in 2^n steps. Read only with `storedTangents` | `7` |
+| - | - | - |
+| `storedTangents` | `true`: pages store tangents (source `TANGENT` unless rebuilt; rebuilt where absent; +X sign 1 for a primitive without them in a mesh where another has some), weighted 1/16 of a normal in simplification, sign 1/2 ([FORMAT.md](../format/pages.md#pages)). A primitive without normals stores none | `false` |
+| `recomputeNormals` | `true`: every normal and stored tangent is rebuilt; a primitive without `NORMAL` gets them. `false`: source's kept, only a nothing-normal rebuilt. A skinned mesh keeps its source's frames either way | `true` |
+| `recomputeTangents` | `true`: every stored tangent is rebuilt. `false`: the source's kept while the normals are, only a tangent whose frame is not whole rebuilt. Only with `storedTangents` | `true` |
+| `useMikkTSpace` | `true`: rebuilt tangents are MikkTSpace's. `false`: sum of the group's triangle tangents, orthonormalised around the normal | `true` |
+| `computeWeightedNormals` | `true`: rebuilt normals weigh each triangle by area times its angle at the vertex | `false` |
+| `skinnedWeldPosition` | Number >= 0, metres: per-axis distance within which skinned corners weld | `2e-7` |
+| `skinnedWeldNormal` | Number >= 0: per-axis normal/tangent/bitangent difference within which skinned corners weld | `2e-5` |
+| `skinnedWeldTexture` | Number >= 0: texture coordinate difference within which skinned corners weld | `1/1024` |
+| `voxelRays` | Whole number >= 0: rays per voxel; at most 1024; past 1 rounded up to a multiple of 16 (17 casts 32); 0 or 1 casts one ray (voxel covered whole or not at all) | `64` |
+| `voxelLevel` | Whole number: DAG level from which every group is voxels, whatever its triangles' error. 0: only where voxels are finer than the triangles; below 0 acts as 1 | `0` |
+| `voxelBackUp` | Number, voxel sides: how far back each ray starts; a hit in that stretch counts as neither hit nor miss. Not read with `voxelSeparable` or by a one-ray voxel | `0` |
+| `voxelSeparable` | `true`: rays run along the voxel's three axes only, each through one face, one side before it and three long; only a hit within the voxel's depth counts; a voxel whose rays along one axis all hit is covered whole if a ray through its centre along an axis hits; a one-ray voxel is covered if the first of the three hits. `false`: rays in every direction | `false` |
+| `voxelNdf` | `true`: a voxel keeps its hit normals' distribution fitted to a lobe about an axis (the record carries the ratio of the lobe's two widths). `false`: the mean normal's direction | `true` |
+| `voxelOpacity` | `true`: a dropped voxel hands no coverage to its neighbours. `false`: it hands it over until no more voxels remain than it sums to | `false` |
+| `allowAssemblies` | `true`: glTF `extras.assembly` is built ([Assemblies](assemblies.md#assemblies)) | `false` |
+| `distanceField` | `true`: the signed distance field is built ([Distance fields](distance-fields.md#distance-fields)) | `true` |
+| `distanceFieldScale` | Number >= 0: voxels per unit of size = `distanceFieldDensity` x it. 0 builds no field | `1` |
+| `distanceFieldTwoSided` | `true`: every triangle counts as two-sided (double-sided materials always do) | `false` |
+| `distanceFieldDensity` | Finite number: voxels per centimetre of a scale-1 mesh; bricks per axis rounded, held within 1 and the max resolution. Changing it rebuilds every field | `0.2` |
+| `distanceFieldMaxResolution` | Whole number >= 1: most voxels along one axis; a mesh of scale 1 or less holds half | `256` |
+| `maxMeshCards` | Whole number 0 to 32: most cards kept ([Mesh cards](mesh-cards.md#mesh-cards)). 0 builds none | `12` |
+| `meshCardMinDensity` | Number 0 to 1: share of its box's face the covered surfaces must fill to keep the card. Changing it rebuilds every mesh's cards | `0.2` |
+| `meshCardNormalThreshold` | Number 0 to 1: cosine between a surface's facing and a card's direction needed to be covered. Changing it rebuilds every mesh's cards | `0.25` |
+| `keptTriangles` | Number 0 to 1: under 1, the DAG's finest detail is cut away; the cut grows from the roots, replacing the cluster of largest error by its group's clusters, until it holds more than this share of the source's triangles and the next replacement would lower its error further; clusters under the cut are dropped | `1` |
+| `trimmedError` | Number >= 0, percent of the mesh's size (sqrt of min(2 x area, box surface / 4)): above 0, the same cut, grown until its error is under this share | `0` |
+| `displacementMaps` | List `{ "texture": { "index": n }, "magnitude", "center" }`: with `trimmedError` above 0, triangles are tessellated where the maps bend them and moved along their normals ([Baked displacement](displacement.md#baked-displacement)); map `n` displaces primitive `n`. `texture`: an `index` alone (set `displacementUvChannel`) of an image whose first channel is the height (8/16 bits or float, at most 8192 texels a side). `magnitude`: scene units from height `center` to height 1 along the normal; `center`: height on the surface; finite 32-bit floats (default 0) | `[]` |
+| `displacementUvChannel` | Whole number 0 to 7: coordinate set the maps read | `0` |
+| `displacementEdgeSplit` | Vertex added on an edge: `seams`, shared unless a material or texture coordinate differs across it; `always-duplicate`, one a side | `seams` |
+| `dropNearCollapsed` | `true`: a triangle with two corners within 200 nanometres per axis is dropped before the build. `false`: only two corners at one point | `false` |
+| `alwaysResidentKib` | Whole number 0 to 4294967295 KiB: pinned resident root pages (32 KiB, 64 clusters each), as many as that size fills rounded up, one at least ([FORMAT.md](../format/clustersjson.md#cluster-dag)). 0 keeps one; past the mesh keeps all | `0` |
+| `positionPrecision` | Whole number −20 to 43: page position cells are `2^-n` centimetre. Left out: 7 less the finest clusters' mean log2 of box half-diagonal in centimetres, rounded, at least 4. Lowered until every cluster's box spans at most 21 bits an axis; a cluster too wide for −20 refuses the compile (`PAGE_ATTRIBUTE_RANGE`) ([FORMAT.md](../format/pages.md#pages)) | mesh density |
+| `normalPrecision` | Whole number 1 to 15: bits an axis of each stored normal, on the octahedron | `8` |
+| `tangentPrecision` | Whole number 0 to 12: bits of each stored tangent's angle around its normal. Only with `storedTangents` | `7` |
 
-Its `objects` are rules `{ match, …settings }`, `match` naming objects as `voxelize` does (a node's
-name, `{ regex, flags }` on it, or a match object). For each setting of a mesh, the first that
-names it wins: the first rule matching one of the mesh's objects, `meshBuild`'s own setting, the
-mesh's own glTF `extras` under the setting's name, the default:
+`objects` are rules `{ match, …settings }`, `match` naming objects as `voxelize` does (node name,
+`{ regex, flags }` on it, or a match object). Per setting, first hit wins: the first rule matching
+one of the mesh's objects, `meshBuild`'s own setting, the mesh's glTF `extras` of that name, the
+default:
 
 ```json
 {
@@ -143,9 +120,8 @@ mesh's own glTF `extras` under the setting's name, the default:
 }
 ```
 
-The precisions follow the same rules: normals of 10 bits an axis for every mesh, and positions on
-cells of 2⁻⁹ centimetre (about 20 µm) for the objects named `Cable…`, the others on the grid their
-density sets:
+Precisions follow the same rules (normals 10 bits an axis for every mesh, positions on 2⁻⁹ cm
+cells for objects named `Cable…`):
 
 ```json
 {
@@ -156,15 +132,13 @@ density sets:
 }
 ```
 
-From Node, `prepare(source, cache, 'slice', budget, { resourceBaseUrl, meshBuild: { trimmedError:
+Node: `prepare(source, cache, 'slice', budget, { resourceBaseUrl, meshBuild: { trimmedError:
 0.5, objects: [{ match: /^Rock/, storedTangents: true }] } })`; on the command line,
 `trillion3d-compile '--mesh-build={"storedTangents":true}' …`; on a mesh, `"extras": {
 "storedTangents": true, "keptTriangles": 0.25 }`.
 
-The world's HLOD merges each object's level 0 as built, before its detail is cut away, and without
-its stored tangents: a merged HLOD actor rebuilds its frame, an approximated one stores the
-tangents of its own shell. An HLOD actor's mesh, and an object standing as itself, keeps the
-normals and tangents it is made with, whatever `meshBuild` names: its build rebuilds only a frame
-that is not whole. A job naming no `meshBuild` keeps its cache
-key; a setting out of its range refuses the job (`INVALID_OPTIONS`), a mesh's `extras` one too. A
-primitive every triangle of which is dropped is refused (`INVALID_TRIANGLES`).
+The world's HLOD merges each object's level 0 as built (before detail is cut away) without stored
+tangents; an HLOD actor's mesh, and an object standing as itself, keeps its normals and tangents
+whatever `meshBuild` names. A job naming no `meshBuild` keeps its cache
+key; a setting out of range refuses the job (`INVALID_OPTIONS`), a mesh's `extras` one too. A
+primitive with every triangle dropped is refused (`INVALID_TRIANGLES`).

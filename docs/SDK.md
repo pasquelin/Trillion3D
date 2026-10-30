@@ -1,14 +1,14 @@
 # Trillion3D SDK
 
-The public guide: what a page and a Node host write against. How the engine draws underneath is
-[ENGINE.md](ENGINE.md), what stays in memory [RESIDENCY.md](RESIDENCY.md), the compiler
-[COMPILER.md](COMPILER.md), the cache [FORMAT.md](FORMAT.md), the physics engine in a worker
-(every body an ordinary mesh with `physics` set) [PHYSICS.md](PHYSICS.md), the batch and unit
-maths for hosts [MATHS.md](MATHS.md). Installation, the licence and the current limits are in the
-[README](../README.md#current-limits).
+The public guide: what a page and a Node host write against. Drawing: [ENGINE.md](ENGINE.md);
+memory: [RESIDENCY.md](RESIDENCY.md); compiler: [COMPILER.md](COMPILER.md); cache:
+[FORMAT.md](FORMAT.md); physics in a worker, every body an ordinary mesh with `physics` set:
+[PHYSICS.md](PHYSICS.md); batch and unit maths for hosts: [MATHS.md](MATHS.md). Installation,
+licence and limits: [README](../README.md#current-limits).
 
-Every public import uses `trillion3d`; conditional exports select the common, browser or Node
-API ([Entry points](sdk/entry-points.md#entry-points)). `SDK_VERSION` and `FORMAT_VERSION` are independent.
+Every public import uses `trillion3d`; conditional exports select the common, browser or Node API
+([Entry points](sdk/entry-points.md#entry-points)). `SDK_VERSION` and `FORMAT_VERSION` are
+independent.
 
 Each section lives in its own file under [`sdk/`](sdk); read only the one you need.
 

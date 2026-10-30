@@ -16,10 +16,9 @@ where it hits. Its hit is kept in a reservoir, then:
    `reservoirGatherTemporalMaxFramesAccumulated`);
 5. blurred where it is still noisy (`reservoirGatherBilateralFilter`).
 
-- It needs the scene traces (`screenProbeSceneTraces` with `screenProbeHardwareRayTracing`, both on by
-  default); without them the screen probes gather, as they do when the level casts no probes. The rays
-  walk the scene's triangles in a compute stage whatever the device's hardware, so the choice costs
-  what that walk costs.
+- Needs the scene traces (`screenProbeSceneTraces` with `screenProbeHardwareRayTracing`, both on by
+  default); without them the screen probes gather, as they do when the level casts no probes. Rays walk
+  the scene's triangles in a compute stage whatever the device's hardware.
 - A short-range, full-resolution occlusion (the contact shadows the spatial filtering lacks) is added to
   the gathered light (`reservoirGatherShortRangeAO`, on by default; its reach is
   `reservoirGatherShortRangeAOMaxScreenTraceFraction` of the screen width, 0.02 by default). It is the

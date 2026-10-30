@@ -1,11 +1,10 @@
 # Global distance field settings
 
-`world.globalDistanceField` holds the settings of the global distance field, also a `createWorld`
-option: the clipmaps composited from the meshes' distance fields around the camera (a mesh has one
-where its build sets `distanceField`, [COMPILER.md](../../compiler/distance-fields.md#distance-fields))
-and the brick atlas those fields are streamed into
-([ENGINE.md](../../engine/distance-fields.md#distance-fields)). Lengths are in centimetres. Each setting
-is the reference's console variable of that name with its default.
+`world.globalDistanceField`: global distance field settings, also a `createWorld` option: clipmaps
+composited from meshes' distance fields around the camera (a mesh has one where its build sets
+`distanceField`, [COMPILER.md](../../compiler/distance-fields.md#distance-fields)) and the brick
+atlas they stream into ([ENGINE.md](../../engine/distance-fields.md#distance-fields)). Lengths in
+centimetres. Each setting is the reference console variable of that name, with its default.
 
 ## Clipmaps and updates
 
@@ -21,60 +20,53 @@ is the reference's console variable of that name with its default.
   `globalDistanceFieldAverageCulledObjectsPerCell` (`512`).
 - `globalDistanceFieldRecacheOnStreaming` (`true`), `globalDistanceFieldForceRecacheOnStreaming`
   (`false`).
-- `globalDistanceFieldDebugShowStats` (`false`) writes over the upper right of the image the pages of
-  the field: the most the atlas holds, those allocated and free, the pages of the clipmaps in use
-  (combined), those among them with no surface and the pages composited this image
-  (`world.globalDistanceField = { globalDistanceFieldDebugShowStats: true }`, `null` back to off).
+- `globalDistanceFieldDebugShowStats` (`false`): writes page stats over the image's upper right:
+  atlas maximum, allocated, free; clipmap pages in use, those without surface, pages composited
+  this image (`world.globalDistanceField = { globalDistanceFieldDebugShowStats: true }`, `null` back
+  to off).
 - `globalDistanceFieldStartDistance` (`100`), `globalDistanceFieldMinMeshRadius` (`20`),
   `globalDistanceFieldMinMeshRadiusInVoxels` (`0.5`).
 
 ## Rays the reflections march through the field
 
-- `globalDistanceFieldTraceResolution` (`252`) and `globalDistanceFieldTraceClipmapExtent` (`2500`):
-  the voxels along a clipmap and the first clipmap's half-extent while rays are marched, each next
-  clipmap twice the one before.
-- `globalDistanceFieldTraceViewDistance` (`20000`): the distance the scene is kept to then. The field
-  makes one clipmap more than `globalDistanceFieldClipmaps` where the extent of the next reaches it,
-  two more where the one after does (the default four clipmaps of 2500 become five at `40000` and
-  six at `80000`).
-- While rays are marched, which the reflections do by default, `globalDistanceFieldViewDistance`,
-  `globalDistanceFieldClipmapExponent` and `globalDistanceFieldResolution` have no effect: the three
-  above size the clipmaps in their place.
-- `globalDistanceFieldCoveredExpandSurfaceScale` (`1`) and
-  `globalDistanceFieldNotCoveredExpandSurfaceScale` (`0.6`): the scale of the half voxel by which a
-  ray expands the surface it meets in the pages the meshes cover and in those only two-sided meshes
-  (foliage) reach.
-- `globalDistanceFieldSimpleCoverageBasedExpand` (`false`) reads the coverage atlas, the coverage of
-  each voxel of such a page; `true` counts the whole page as not covered and leaves the atlas unread.
-- `globalDistanceFieldNotCoveredMinStepScale` (`4`): the scale of its least step there.
-- `globalDistanceFieldDitheredTransparencyStepThreshold` (`0.5`) and
-  `globalDistanceFieldDitheredTransparencyTraceThreshold` (`0.9`): the noise under which a dithered
-  ray is stopped there.
+- `globalDistanceFieldTraceResolution` (`252`), `globalDistanceFieldTraceClipmapExtent` (`2500`):
+  voxels along a clipmap and first clipmap's half-extent while rays are marched; each next clipmap
+  twice the previous.
+- `globalDistanceFieldTraceViewDistance` (`20000`): scene distance then. The field makes one clipmap
+  beyond `globalDistanceFieldClipmaps` where the next's extent reaches it, two where the one after
+  does (default four clipmaps of 2500 become five at `40000`, six at `80000`).
+- While rays are marched (reflection default), `globalDistanceFieldViewDistance`,
+  `globalDistanceFieldClipmapExponent` and `globalDistanceFieldResolution` do nothing.
+- `globalDistanceFieldCoveredExpandSurfaceScale` (`1`),
+  `globalDistanceFieldNotCoveredExpandSurfaceScale` (`0.6`): scale of the half voxel a ray expands
+  the met surface by, in pages meshes cover and in those only two-sided meshes (foliage) reach.
+- `globalDistanceFieldSimpleCoverageBasedExpand` (`false`): `true` counts the whole page not
+  covered, coverage atlas unread.
+- `globalDistanceFieldNotCoveredMinStepScale` (`4`): scale of its least step there.
+- `globalDistanceFieldDitheredTransparencyStepThreshold` (`0.5`),
+  `globalDistanceFieldDitheredTransparencyTraceThreshold` (`0.9`): noise under which a dithered ray
+  stops there.
 
 ## The atlas and run-time fields
 
 - `meshDistanceFieldMaxObjectRadius` (`100000`), `meshDistanceFieldSurfaceBiasExpand` (`0.25`),
-  `meshDistanceFieldBrickAtlasSize` (`128`, a power of two, read when the atlas is made),
+  `meshDistanceFieldBrickAtlasSize` (`128`, power of two, read at atlas creation),
   `meshDistanceFieldBrickAtlasDepth` (`32`), `meshDistanceFieldUploadKiB` (`8192`),
-  `meshDistanceFieldBlockBricks` (`16`, read when the atlas is made), `meshDistanceFieldForceMips`
-  (`0`: follow the view; 1 to 3 loads that many mips of every mesh) and
-  `meshDistanceFieldReverseAllocation` (`false`).
-- `runtimeMeshDistanceFields` (`false`): a mesh made at run time, which no compiler gave a field,
-  gets one built when it appears, on the page's GPU, by the compiler's own program (the same text,
-  the same steps: the nearest triangle within the band, the 98 rays across the sphere for the sign;
-  the voxels the device is in doubt of are measured again on the CPU, so the field is the
-  compiler's).
-  - It is read when the scene's page records are made (a mesh cut at run time is flagged as having a
-    field then) and each image after; set it with the world's other options before the scene opens.
-  - It costs the build once for each distinct mesh, in chunks short enough for the page's frames to
-    go on, and the rays marched through the field meet the mesh a few frames after it appears.
-  - A mesh that deforms, one with no ray-tracing tree and one too deep for the program to walk get
-    none.
-  - The reference builds fields at import only, so the setting is off until a scene asks for it.
+  `meshDistanceFieldBlockBricks` (`16`, read at atlas creation), `meshDistanceFieldForceMips` (`0`:
+  follow the view; 1 to 3 loads that many mips of every mesh), `meshDistanceFieldReverseAllocation`
+  (`false`).
+- `runtimeMeshDistanceFields` (`false`): a run-time mesh without compiler field gets one built on
+  appearing, on the GPU, by the compiler's program (nearest triangle within the band, 98 rays for
+  sign; doubtful voxels remeasured on the CPU).
+  - Read when the scene's page records are made and each image after; set with the other options
+    before the scene opens.
+  - One build per distinct mesh, in short chunks; marched rays meet the mesh a few frames after it
+    appears.
+  - Deforming meshes, meshes without ray-tracing tree, and meshes too deep for the program get none.
+  - Reference builds fields at import only.
 
-A write names the settings it changes, `null` one's default; a value of another kind is refused by
-name. A scene whose meshes built no distance field, and none asked for them at run time, is not
-touched.
+A write names changed settings, `null` restores a default; a value of another kind is refused by
+name.
 
 ```js
 const world = createWorld('viewer', { globalDistanceFieldClipmaps: 5 }) // one more clipmap

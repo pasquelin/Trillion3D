@@ -1,15 +1,13 @@
 # Canvas, camera and teardown
 
-The drawing buffer follows the canvas's CSS box, and `pixelRatio` the browser's, unless set;
+The drawing buffer follows the canvas's CSS box, `pixelRatio` the browser's, unless set;
 `world.resize(width, height)` sets a size, omitted arguments reading the CSS box. A canvas hidden or
-zero-size at creation needs an explicit `resize()` or showing first; one hidden later keeps its last
-size.
+zero-size at creation needs an explicit `resize()` or showing first; one hidden later keeps its size.
 
-`world.pixelError` is the DAG cut's screen error in pixels (`1` by default: a coarser level strays at
-most one pixel from the finer one; `0` keeps the exact leaves, a larger value selects coarser pages
-when the cache has them). `pose.fromBounds(box)` frames a box, `pose.pointOfInterest(name, pose)` names
-one, `pose.runPath(world, poses, { images })` replays a path, one display frame per pose, and answers
-the frames drawn, their CPU time summarized and the display cadence.
+`world.pixelError`: DAG cut's screen error in pixels (`1` default; `0` keeps the exact leaves; larger
+selects coarser pages when cached). `pose.fromBounds(box)` frames a box, `pose.pointOfInterest(name,
+pose)` names one, `pose.runPath(world, poses, { images })` replays a path, one display frame per pose,
+and answers the frames drawn, their CPU time summarized and the display cadence.
 
 Render settings and effects:
 

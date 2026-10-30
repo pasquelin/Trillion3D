@@ -1,24 +1,26 @@
 # Heterogeneous volumes: voxel grids and the volumetric shadow map
 
-`world.heterogeneousVolumeRendering` holds the settings of the heterogeneous volumes. Besides the live shading, the volumes can be
-shadowed through voxel grids: a grid cut in the view's frustum and an axis-aligned one over the volumes' bounds, each a top level of
-cells holding bottom-level voxels (`heterogeneousVolumesBottomLevelGridResolution`, 1 to 4, 4 by default; an indirection grid of
-`heterogeneousVolumesIndirectionGridResolution`, 4, while `heterogeneousVolumesIndirectionGrid` is on). A grid of the greatest extinction
-of each top-level cell (`heterogeneousVolumesMajorantGrid`, on; `heterogeneousVolumesMajorantGridMax`, off, adds the chain down to one
-cell) and a bitmask of the occupied cells (`heterogeneousVolumesTopLevelBitmask`, off) speed up the tracking. The shadow of a light or of
-the camera is then a list of samples a texel (`heterogeneousVolumesShadowsMaxSampleCount`, 8, kept within
-`heterogeneousVolumesShadowsRelativeErrorThreshold` 0.05 and `...AbsoluteErrorThreshold` 0, compressed while
-`heterogeneousVolumesShadowsUseAvsmCompression` is on). `heterogeneousVolumesShadowsPipeline` picks the way: 0, the default, shades the
-volumes live; 1 builds the grids. Sparse voxels (`heterogeneousVolumesSparseVoxel`, off, with `...GenerationMipBias`, `...PerTileCulling`
-and `...Refinement`) are the cells of a coarse level where a volume has density.
+`world.heterogeneousVolumeRendering` holds the settings. Volumes can be shadowed through voxel grids:
+a frustum grid and an axis-aligned one over the volumes' bounds, each a top level of cells holding
+bottom-level voxels (`heterogeneousVolumesBottomLevelGridResolution`, 1 to 4, 4; indirection grid
+`heterogeneousVolumesIndirectionGridResolution` 4, while `heterogeneousVolumesIndirectionGrid` is on).
+`heterogeneousVolumesMajorantGrid` (on) holds each top cell's greatest extinction;
+`heterogeneousVolumesMajorantGridMax` (off) adds the chain down to one cell;
+`heterogeneousVolumesTopLevelBitmask` (off) marks occupied cells. Shadow = list of samples a texel
+(`heterogeneousVolumesShadowsMaxSampleCount` 8, within `heterogeneousVolumesShadowsRelativeErrorThreshold`
+0.05 and `...AbsoluteErrorThreshold` 0, compressed while `heterogeneousVolumesShadowsUseAvsmCompression`
+is on). `heterogeneousVolumesShadowsPipeline`: 0 (default) shades live; 1 builds the grids. Sparse
+voxels (`heterogeneousVolumesSparseVoxel`, off, with `...GenerationMipBias`, `...PerTileCulling`,
+`...Refinement`) are coarse-level cells where a volume has density.
 
-`heterogeneousVolumesShadowsType` picks the map the volumes' cast shadows are kept in: 1, the default, the beer map (the first and last
-place with extinction of each texel and the transmittance at both); 0 the adaptive volumetric shadow map, a list of up to
-`heterogeneousVolumesShadowsMaxSampleCount` samples a texel (each volume's list combined with the volumes' before it, then compressed in
-two levels), read by the lit passes in place of the beer map. A resolution that would not fit the device's storage buffer is halved.
-`heterogeneousVolumesHardwareRayTracing` (off), with `heterogeneousVolumesPreshading` on, makes the march visit only the spans of the
-sparse voxels a ray meets: the voxels (`...SparseVoxelGenerationMipBias`, `...SparseVoxelRefinement`) are cut out of the baked extinction,
-a hierarchy of boxes is built over them and each pixel's ray walks it, front to back, by a compute pass.
+`heterogeneousVolumesShadowsType`: 1 (default) beer map (first and last place with extinction per
+texel and transmittance at both); 0 adaptive volumetric shadow map (up to
+`heterogeneousVolumesShadowsMaxSampleCount` samples a texel, each volume's list combined with those
+before it, compressed in two levels), read by the lit passes instead. A resolution too big for the
+device's storage buffer is halved. `heterogeneousVolumesHardwareRayTracing` (off), with
+`heterogeneousVolumesPreshading` on, makes the march visit only the sparse voxels' spans a ray meets
+(`...SparseVoxelGenerationMipBias`, `...SparseVoxelRefinement`; box hierarchy walked front to back by
+a compute pass).
 
 ```js
 world.heterogeneousVolumeRendering = {
@@ -40,23 +42,32 @@ world.heterogeneousVolumeRendering = {
 }
 ```
 
-With `heterogeneousVolumesShadowsPipeline` at 1 the grids are built in the shadows phase of every image, whether or not the volumes cast shadows. The volumes are
-rasterized into them: each top-level cell a volume's box meets gets the voxel its distance and `heterogeneousVolumesShadowsShadingRate` (1 pixel in the view,
-`...ShadowsOutOfFrustumShadingRate` 2 out of it) ask, its bottom level and indirection cells are taken from pools sized by
-`heterogeneousVolumesOrthoGridMaxBottomLevelMemoryInMegabytes` (128, `...FrustumGridMaxBottomLevelMemoryInMegabytes` 128 for the frustum grid, which the shadows
-do not build), and the volume's material is evaluated at the voxels. A region of a bottom level whose extinction hardly varies (a relative error under
-`heterogeneousVolumesBottomLevelGridHomogeneousAggregationThreshold`, 0.001, and under four empty voxels) is stored as one voxel while
-`heterogeneousVolumesBottomLevelGridHomogeneousAggregation` is on, the default. A pool that is full leaves the cells that would not fit empty; a bottom level
-of three voxels a side takes two, which the Morton order the cells are found by needs. `heterogeneousVolumesShadowsLightDirectional`, `...Point`, `...Spot`
-and `...Rect`, all on, say which kinds of light cast a volumetric shadow. The map of each light is rendered through the grids, a list of samples a
-texel along the rays of the light's beer map, and kept as that map, or as the adaptive one with `heterogeneousVolumesShadowsType` 0.
+Pipeline 1 builds the grids in every image's shadows phase. Volumes are rasterized: each top cell a
+volume's box meets gets the voxel its distance and `heterogeneousVolumesShadowsShadingRate` (1 pixel
+in view, `...ShadowsOutOfFrustumShadingRate` 2 out of it) ask. Bottom-level and indirection cells come
+from pools: `heterogeneousVolumesOrthoGridMaxBottomLevelMemoryInMegabytes` (128),
+`...FrustumGridMaxBottomLevelMemoryInMegabytes` (128; shadows do not build the frustum grid). A bottom
+region of near-constant extinction (relative error under
+`heterogeneousVolumesBottomLevelGridHomogeneousAggregationThreshold` 0.001 and under four empty
+voxels) is one voxel while `heterogeneousVolumesBottomLevelGridHomogeneousAggregation` is on
+(default). A full pool leaves cells empty; a three-voxel bottom level takes two (Morton order).
+`heterogeneousVolumesShadowsLightDirectional`, `...Point`, `...Spot`, `...Rect` (all on) select which
+light kinds cast a volumetric shadow; each light's map is the beer map, or the adaptive one with
+`heterogeneousVolumesShadowsType` 0.
 
-`heterogeneousVolumesDebug` (0, off) replaces the image of the volumes by the transmittance through the grids, the opacity left in the alpha and, in the
-colour, what the way of finding it gathers: 1 walks the ortho grid and the frustum grid cell by cell; 2 to 5 follow the ray by samples (steps of a voxel, the majorant of the
-cell under each step, the greatest majorant of the grid, the cells of the majorant grid in turn); 6 to 9 track it with random walks (spectral weighted delta, ratio, spectral ratio,
-the cells of the majorant grid in turn, each by delta tracking), one walk a pixel, so the image is noisy and the temporal pass accumulates it. The views `world.diagnostic.mode`
-takes, `'heterogeneous-volumes-dda-marching'`, `'...-sample-marching'`, `'...-sample-majorant'`, `'...-sample-max-majorant'`, `'...-sample-majorant-dda'`,
-`'...-delta-tracking'`, `'...-ratio-tracking'`, `'...-spectral-ratio-tracking'` and `'...-tracking-majorant-dda'`, are the modes 1 to 9.
+`heterogeneousVolumesDebug` (0, off) shows the transmittance through the grids (opacity in alpha, the
+way's gathered data in colour):
+
+- 1 walks the ortho and frustum grids cell by cell;
+- 2 to 5 follow the ray by samples (voxel steps, cell majorant per step, greatest grid majorant,
+  majorant-grid cells in turn);
+- 6 to 9 random-walk tracking (spectral weighted delta, ratio, spectral ratio, majorant-grid cells in
+  turn by delta tracking), one walk a pixel; noisy, accumulated by the temporal pass.
+
+`world.diagnostic.mode` values `'heterogeneous-volumes-dda-marching'`, `'...-sample-marching'`,
+`'...-sample-majorant'`, `'...-sample-max-majorant'`, `'...-sample-majorant-dda'`,
+`'...-delta-tracking'`, `'...-ratio-tracking'`, `'...-spectral-ratio-tracking'`,
+`'...-tracking-majorant-dda'` are modes 1 to 9.
 
 ```js
 // The shadows traced through the grids, and the grids seen by the walk of a ray through the majorant grid, cell by cell.

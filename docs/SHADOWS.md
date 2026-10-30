@@ -1,12 +1,12 @@
 # Shadows
 
-How the WebGPU engine draws cast shadows: virtual shadow maps, whose pages exist in memory only
-where the image reads them. A map: each mechanism's rule is stated where it lives, and this page
-names the file and the rules that span files. Paths are under `packages/sdk-browser/src/`: `vsm/`
-holds the passes and their shaders, `lighting/shadows/vsm/frame/` the frame's plan, grant and
-encoding. Lights, tiles and the lit image's passes are [ENGINE.md](engine/direct-lighting.md#direct-lighting); the
-options a page sets (`castShadow`, a primitive's `castsShadowMaps`, and a material's `translucentLocalLightShadow`,
-`translucentLocalLightShadowQuality` and `translucentDirectionalLightShadowQuality`) are
+Cast shadows of the WebGPU engine: virtual shadow maps, whose pages exist in memory only where the
+image reads them. A map: each rule is stated where it lives; this page names the files and the
+rules spanning files. Paths are under `packages/sdk-browser/src/`: `vsm/` holds the passes and
+shaders, `lighting/shadows/vsm/frame/` the frame's plan, grant and encoding. Lights, tiles and the
+lit image's passes: [ENGINE.md](engine/direct-lighting.md#direct-lighting). Page options
+(`castShadow`, a primitive's `castsShadowMaps`, a material's `translucentLocalLightShadow`,
+`translucentLocalLightShadowQuality`, `translucentDirectionalLightShadowQuality`):
 [SDK.md](sdk/lights.md#lights).
 
 Each section lives in its own file under [`shadows/`](shadows); read only the one you need.

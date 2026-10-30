@@ -1,64 +1,52 @@
 # Exposure settings
 
-`world.exposureSettings` holds the automatic exposure's settings, each also a `createWorld` option:
+`world.exposureSettings`: automatic exposure settings, each also a `createWorld` option:
 
-- `exposureBias` (`1`): stops added to the target; the mean lands at 0.18 · 2^bias before the curve.
-- `exposureMinBrightness` (`-10`) and `exposureMaxBrightness` (`20`): the range of the mean in EV100
-  (the same value for both fixes the exposure).
-- `exposureHistogramLogMin` (`-10`) and `exposureHistogramLogMax` (`20`): the stops of luminance the
-  histogram spans.
-- `exposureLowPercent` (`10`) and `exposureHighPercent` (`90`), from 1 to 99: the shares of the
-  pixels, darkest first, left out of the mean.
-- `exposureSpeedUp` (`3`) and `exposureSpeedDown` (`1`), in stops a second (0 holds).
-- `exposureTransitionDistance` (`1.5` stops, past which the exposure moves linearly).
-- `exposureBlackBucketWeight` (`0`, from 0 to 1): how much the pixels of no light count.
-- `exposureLuminanceMethod` (`'uniform'`, the mean of the channels; `'ntsc'`; `'workingSpace'`).
-- `exposureMethod` (`'histogram'`, the default; `'basic'`, the weighted mean of the log luminance of
-  the image's cells, a cheaper measure; `'manual'`, no measure: the camera's exposure).
-- `exposureApplyPhysicalCamera` (`true`): where the method is manual, the aperture (the depth of
-  field's, f/4 by default), `exposureCameraShutterSpeed` (`60`, in 1/s, from 0.01 to 8000) and
-  `exposureCameraIso` (`100`, from 1) set the exposure, EV100 =
-  `log2(aperture² · shutter speed · 100 / ISO)`; `false` reads the camera as EV100 0 and the bias
-  alone sets it.
-- `exposureLensAttenuation` (`0.78`, from 0.01): 0.78 makes lighting unitless, a luminance of 1
-  being EV100 0; a lower one raises the luminance every EV100 is read from.
+- `exposureBias` (`1`): stops added to the target; mean lands at 0.18 · 2^bias.
+- `exposureMinBrightness` (`-10`), `exposureMaxBrightness` (`20`): mean's EV100 range (equal values
+  fix the exposure).
+- `exposureHistogramLogMin` (`-10`), `exposureHistogramLogMax` (`20`): stops the histogram spans.
+- `exposureLowPercent` (`10`), `exposureHighPercent` (`90`), 1 to 99: pixel shares, darkest first,
+  excluded from the mean.
+- `exposureSpeedUp` (`3`), `exposureSpeedDown` (`1`): stops a second (0 holds).
+- `exposureTransitionDistance` (`1.5` stops; past it the exposure moves linearly).
+- `exposureBlackBucketWeight` (`0`, 0 to 1): weight of no-light pixels.
+- `exposureLuminanceMethod` (`'uniform'`: channel mean; `'ntsc'`; `'workingSpace'`).
+- `exposureMethod` (`'histogram'`; `'basic'`: weighted mean of cells' log luminance, cheaper;
+  `'manual'`: no measure, camera exposure).
+- `exposureApplyPhysicalCamera` (`true`): with manual method, aperture (depth of field's, f/4
+  default), `exposureCameraShutterSpeed` (`60`, 1/s, 0.01 to 8000) and `exposureCameraIso` (`100`,
+  from 1) set EV100 = `log2(aperture² · shutter speed · 100 / ISO)`; `false`: camera reads as
+  EV100 0, bias alone sets it.
+- `exposureLensAttenuation` (`0.78`, from 0.01): 0.78 makes lighting unitless (luminance 1 = EV100
+  0).
 
-They apply where `world.exposure` is `'auto'`, from the next frame; the exposure adapts on the
-world's time, so a world that holds still does not move it. The metering mask, `exposureMeterMask`
-(an `ImageBitmap`, read at the opening; `explorer.setExposureMeterMask(image)` changes it, `null`
-gives it back), weighs where the image is measured by its red channel. A manual exposure that does
-not change costs the GPU nothing.
+Apply where `world.exposure` is `'auto'`, from next frame; exposure adapts on world time.
+`exposureMeterMask` (`ImageBitmap`, read at opening; `explorer.setExposureMeterMask(image)` changes
+it, `null` restores) weighs measurement location by its red channel.
 
-The same object holds the pre-exposure's three settings, which apply to a lit view whatever its
-exposure:
+Three pre-exposure settings apply to a lit view whatever its exposure:
 
-- `preExposure` (`true`): every light is written to the image already multiplied by the exposure of
-  the image before, and the composition multiplies the image by the exposure over that number, so the
-  picture is the same and the half floats keep their range at any exposure; `false` writes every
-  light as it is.
-- `preExposureOverride` (`0`): above 0, the number every light is multiplied by, in place of the
-  exposure of the image before.
-- `cachedLightingPreExposure` (`4`, from −16 to 16): the stops the sky light's real-time capture is
-  pre-exposed by, whatever the exposure. It is written multiplied by 2 to the minus that number and
-  read back multiplied by its inverse, so its half floats keep their range from about −8 to +12 stops
-  of exposure at 4, −4 to +16 at 8; read with `preExposure` on or off.
+- `preExposure` (`true`): lights written multiplied by the previous image's exposure; `false`
+  writes them as is.
+- `preExposureOverride` (`0`): above 0, the multiplier instead of the previous exposure.
+- `cachedLightingPreExposure` (`4`, −16 to 16): stops the sky light's real-time capture is
+  pre-exposed by; written times 2 to the minus that number, read back times its inverse: half-float
+  range about −8 to +12 stops at 4, −4 to +16 at 8.
 
-It also holds the local exposure's settings, `localExposure…`, which apply to a lit view whatever its
-exposure (the effect chain, below). A write names the settings it changes, `null` one's default; a
-value a setting does not take is refused by name.
+`localExposure…` settings also apply whatever the exposure. A write names changed settings, `null`
+restores a default; a value a setting rejects is refused by name.
 
 ## Compensation curve
 
-The exposure's compensation curve, `exposureCurve` (an option of `createWorld` and of the explorer,
-read at the opening; `explorer.setExposureCurve(curve)` changes it, `null` or `false` gives it back),
-adds stops to the target by how bright the scene is: a list of keys `[ev, compensation]`, an EV100
-(the mean luminance over middle grey, one stop a doubling) and the stops added there (0 none, -1 twice
-as dark, 1 twice as bright), linear between keys. Or `{ keys, before, after }` for the extrapolations
-(`'constant'` by default; `'cycle'`, `'cycleWithOffset'`, `'oscillate'`, `'linear'`, `'none'`), a key
-an object `{ ev, compensation, interpolation, tangentMode, arriveTangent,
-leaveTangent, … }` for a `'constant'` or `'cubic'` run. It is baked into 64 samples over EV100 -10 to +20. None by default: the
-image is the same. A curve is replaced, not edited in place, and one that is not a curve is refused by
-name.
+`exposureCurve` (option of `createWorld` and explorer, read at opening;
+`explorer.setExposureCurve(curve)` changes it, `null` or `false` restores) adds stops by scene
+brightness: keys `[ev, compensation]`, EV100 and stops added (0 none, -1 twice as dark, 1 twice as
+bright), linear between keys. Or `{ keys, before, after }` for extrapolations (`'constant'`
+default; `'cycle'`, `'cycleWithOffset'`, `'oscillate'`, `'linear'`, `'none'`), a key an object
+`{ ev, compensation, interpolation, tangentMode, arriveTangent, leaveTangent, … }` for a
+`'constant'` or `'cubic'` run. Baked into 64 samples over EV100 -10 to +20. None by default. A
+curve is replaced, not edited; a non-curve is refused by name.
 
 ```js
 const world = createWorld('viewer', {
@@ -78,15 +66,13 @@ explorer.setExposureCurve({
 explorer.setExposureCurve(null) // no compensation
 ```
 
-The local exposure's contrast curves, `localExposureHighlightContrastCurve` and
-`localExposureShadowContrastCurve` (options of `createWorld` and of the explorer;
+Local exposure contrast curves `localExposureHighlightContrastCurve` and
+`localExposureShadowContrastCurve` (options of `createWorld` and explorer;
 `explorer.setLocalExposureHighlightContrastCurve(curve)` and
-`explorer.setLocalExposureShadowContrastCurve(curve)` change them, `null` or `false` gives them back),
-take the same keys `[ev, scale]` as the compensation curve, but the value of a key is a scale the
-highlights' or the shadows' contrast (`localExposureHighlightContrast`,
-`localExposureShadowContrast`) is multiplied by, read at the EV100 of the frame's mean luminance as the
-compensation curve is. A curve set makes the local exposure run whatever the contrasts. None by
-default: the contrasts are used as they are.
+`explorer.setLocalExposureShadowContrastCurve(curve)` change them, `null` or `false` restores) take
+`[ev, scale]` keys; the value scales `localExposureHighlightContrast` or
+`localExposureShadowContrast` at the frame's mean EV100. A set curve makes local exposure run
+whatever the contrasts. None by default.
 
 ```js
 const world = createWorld('viewer', {

@@ -3,7 +3,7 @@
 One WebGPU image is one command buffer, encoded in this order:
 
 | Stage | Code |
-| --- | --- |
+| - | - |
 | Frame gate: camera copy, held-frame test, pipelines asked | `gate/gateCore.ts`, `frame/loop/hold.ts`, `src/frame/render/render.ts` |
 | World poses uploaded | `src/frame/render/worldUpload.ts` |
 | GPU deformation | `deformation/compute.ts` |

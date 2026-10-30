@@ -1,11 +1,9 @@
 # Sky module
 
-The sky is one module: the air, sun, sky light, height fog and clouds of a new world's level, each a part.
-It is off by default and then costs nothing: no part resolved, no light held, nothing allocated, no pass
-drawn. One word switches it on, `scene.sky` for a scene (saved with it) or `world.modules` for a page. Both
-take `true` (every part at its default), `false`, or an object naming parts, each `true`, `false` or its
-settings. A part the object does not name stays on at its default (`mergeModuleParts`): an object switches off
-only the parts it sets to `false`:
+The sky is one module: air, sun, sky light, height fog and clouds of a new world's level, each a
+part. Off by default, then free. `scene.sky` (saved with the scene) or `world.modules` (page)
+switches it on; both take `true` (every part default), `false`, or an object naming parts, each
+`true`, `false` or its settings. Unnamed parts stay on at default (`mergeModuleParts`):
 
 ```js
 world.scene.sky = true // the whole level: air, sun, sky light, height fog, clouds
@@ -20,63 +18,59 @@ world.modules.clear('sky') // the scene's word is back
 world.modules.state('sky') // { enabled, by: 'scene', parts: { sun: { … }, clouds: false, … } }
 ```
 
-Per field the strongest word wins: the editor's, the page's, a quality preset's (none switches the sky on), the
-scene's, then the default; a part a stronger word switched off stays off. A part or field the module lacks, or a
-value out of range, is refused (`INVALID_MODULE_OPTION`, `INVALID_SCENE_ENVIRONMENT`) and nothing changes. The
-stats overlay is the second module (`world.modules.set('stats', true)`, its panel in the canvas's parent; its
-tabs and panel are its parts).
+Per field the strongest word wins: editor, page, quality preset (none switches the sky on), scene,
+default; a part a stronger word switched off stays off. A part or field the module lacks, or an
+out-of-range value, is refused (`INVALID_MODULE_OPTION`, `INVALID_SCENE_ENVIRONMENT`), nothing
+changes. The stats overlay is the second module (`world.modules.set('stats', true)`; tabs and panel
+are its parts).
 
 | Part | What it is | Defaults, the level's |
-| --- | --- | --- |
-| `atmosphere` | The planet's air: sky, haze, the sun's light tinted by it ([Atmosphere part](atmosphere-part.md#atmosphere-part)). | The component's: Earth-like. |
-| `sun` | One directional light, the air's first light, with its shadows, light shafts and cloud shadow map. | `intensity` 6 lux, `useTemperature` on at `temperatureKelvin` 6500, `angle` 0.7357° (the disk's diameter), `rotation` `[-16.2856, 43.7319, 112.3607]` (pitch, yaw, roll in degrees; yaw turns about +y, a negative pitch shines down), `shadowDistance` 200 m, `castShadow`, `shadowsAir`, `shadowsClouds` and `shaftOcclusion` on. These are the values of the sun the level's template places, not a directional light's own defaults (10 lux, a disk of 0.5357°, shadows to 400 m, no temperature, no shadow on air or clouds); a field the template leaves alone has the light's default. A directional light you add yourself (`light.directional(...)`) has the light's defaults, so its disk is 0.5357° wide, the sun part's 0.7357°. |
-| `skyLight` | The sky's light on the scene, captured from the air and the clouds. | `realTimeCapture` on, `mobility: 'movable'`, `lowerHemisphereIsSolidColor` off; other fields the component's. |
-| `heightFog` | Fog thinning out with height ([Height fog part](height-fog-part.md#height-fog-part)); its volume is its `volumetric` setting. | `baseDensity` 0.00436 per metre (0.0436 in the reference's centimetre numbers) at `baseHeight` −68.5 m; other fields as below. |
-| `clouds` | One layer of clouds, ray marched from the eye ([Clouds part](clouds-part.md#clouds-part)). | The layer's and material's defaults. The four sample scales are 1 (`viewSamplesScale`, `reflectionSamplesScale`, `shadowSamplesScale`, `reflectionShadowSamplesScale`): at 1 a view ray takes 96 samples and a shadow ray 10, held to the sky quality's most (`cloudViewSamplesMax` 768, `cloudReflectionSamplesMax` 80, `cloudShadowSamplesMax` 80, `cloudReflectionShadowSamplesMax` 24). |
+| - | - | - |
+| `atmosphere` | Planet's air ([Atmosphere part](atmosphere-part.md#atmosphere-part)). | Component's: Earth-like. |
+| `sun` | Directional light, the air's first, with shadows, light shafts, cloud shadow map. | `intensity` 6 lux, `useTemperature` on at `temperatureKelvin` 6500, `angle` 0.7357°, `rotation` `[-16.2856, 43.7319, 112.3607]` (pitch, yaw, roll degrees; negative pitch shines down), `shadowDistance` 200 m, `castShadow`, `shadowsAir`, `shadowsClouds`, `shaftOcclusion` on. A `light.directional(...)` you add has the light's defaults (10 lux, disk 0.5357°, shadows to 400 m, no temperature, no shadow on air or clouds). |
+| `skyLight` | Sky light captured from air and clouds. | `realTimeCapture` on, `mobility: 'movable'`, `lowerHemisphereIsSolidColor` off. |
+| `heightFog` | Fog thinning with height ([Height fog part](height-fog-part.md#height-fog-part)); volume = `volumetric`. | `baseDensity` 0.00436 per metre at `baseHeight` −68.5 m. |
+| `clouds` | One cloud layer ([Clouds part](clouds-part.md#clouds-part)). | Layer and material defaults. Four sample scales 1 (`viewSamplesScale`, `reflectionSamplesScale`, `shadowSamplesScale`, `reflectionShadowSamplesScale`): a view ray takes 96 samples, a shadow ray 10, capped by sky quality (`cloudViewSamplesMax` 768, `cloudReflectionSamplesMax` 80, `cloudShadowSamplesMax` 80, `cloudReflectionShadowSamplesMax` 24). |
 
-The sun's fields are:
+The sun's fields:
 
-- a light's: `intensity`, `color`, `useTemperature`, `temperatureKelvin`, `angle`, `rotation`, `shadowDistance`,
-  `castShadow`, `distanceFieldShadows` (off for the level's sun, on for the light's own) at
-  `distanceFieldShadowDistance` 300 m (the light's own is 512), `shadowsAir`, `shadowsFog`, `fogScattering`,
-  `atmosphereSunIndex`, `forwardShadingPriority`, `transmittancePerPixel`, `sunDiskTint`;
-- its light shafts': `shaftOcclusion`, `shaftOcclusionDarkness`, `shaftOcclusionDepthRange`,
-  `shaftOverrideDirection`, `shaftBloom`, `shaftBloomScale`, `shaftBloomThreshold`, `shaftBloomMaxBrightness`,
-  `shaftBloomTint`;
-- its cloud shadow map's: `shadowsClouds` (the cloud march reads the sun's opaque shadow map, only for the air's
-  first light), `castCloudShadows`, `cloudShadowStrength`, `cloudShadowOnAtmosphereStrength`,
-  `cloudShadowOnSurfaceStrength`, `cloudShadowDepthBiasKm`, `cloudShadowExtentKm`, `cloudShadowResolutionScale`,
+- light's: `intensity`, `color`, `useTemperature`, `temperatureKelvin`, `angle`, `rotation`,
+  `shadowDistance`, `castShadow`, `distanceFieldShadows` (off for the level's sun, on for a
+  light's own) at `distanceFieldShadowDistance` 300 m (light's own 512), `shadowsAir`,
+  `shadowsFog`, `fogScattering`, `atmosphereSunIndex`, `forwardShadingPriority`,
+  `transmittancePerPixel`, `sunDiskTint`;
+- light shafts': `shaftOcclusion`, `shaftOcclusionDarkness`, `shaftOcclusionDepthRange`,
+  `shaftOverrideDirection`, `shaftBloom`, `shaftBloomScale`, `shaftBloomThreshold`,
+  `shaftBloomMaxBrightness`, `shaftBloomTint`;
+- cloud shadow map's: `shadowsClouds` (the cloud march reads the sun's opaque shadow map; air's
+  first light only; on for the level's sun), `castCloudShadows`,
+  `cloudShadowStrength`, `cloudShadowOnAtmosphereStrength`, `cloudShadowOnSurfaceStrength`,
+  `cloudShadowDepthBiasKm`, `cloudShadowExtentKm`, `cloudShadowResolutionScale`,
   `cloudShadowRaySamplesScale`, `cloudScatteredLuminanceScale`.
 
-The module's lights hang from no scene and are never saved: a directional light of the scene competes with the
-sun by the air's rule (the brightest of each index is held). There is one sky light, the part's: where a scene
-holds more, the last shown lights it, the others give nothing.
+Module lights hang from no scene and are never saved: a scene's directional light competes with the
+sun by the air's rule (brightest of each index held). One sky light, the part's: where a scene
+holds more, the last shown lights it, others give nothing.
 
-**Cloud ambient occlusion.** Under thick clouds the sky's multiple scattering (light the air scatters more than
-once, lighting the sky and haze from every side) fades out. The sky light part asks for it with five fields:
+**Cloud ambient occlusion.** Under thick clouds the sky's multiple scattering fades out. The sky
+light part asks for it with five fields:
 
-- `cloudAmbientOcclusion` (default `false`: nothing is built);
-- `cloudAmbientOcclusionStrength` (default 1, at least 0): how much light the clouds block;
-- `cloudAmbientOcclusionExtentKm` (default 150, at least 1): radius round the camera the map covers;
-- `cloudAmbientOcclusionMapResolutionScale` (default 1, at least 0.25): factor on a map of 512 texels a side;
-- `cloudAmbientOcclusionApertureScale` (default 0.05, 0 to 1): the cone round the vertical over which the
-  occlusion is integrated; 0 one direction and a sharp occlusion, 1 the whole hemisphere and a blurry one.
+- `cloudAmbientOcclusion` (default `false`: nothing built);
+- `cloudAmbientOcclusionStrength` (1, at least 0): how much light clouds block;
+- `cloudAmbientOcclusionExtentKm` (150, at least 1): map radius round the camera;
+- `cloudAmbientOcclusionMapResolutionScale` (1, at least 0.25): factor on a 512-texel-a-side map;
+- `cloudAmbientOcclusionApertureScale` (0.05, 0 to 1): cone round the vertical; 0 sharp, 1 whole
+  hemisphere, blurry.
 
-A map is built from above along the planet's vertical, round the point under the camera. The air reads it
-wherever it marches the sky (the sky, the haze over distance, the haze marched on opaque surfaces and on the
-clouds, the sky light's own capture) and it dims the multiple scattering of the air's first light there (the
-second light's is not dimmed). It does not dim the sky light's own diffuse and specular light on surfaces: the
-capture is of the sky as the air makes it, the occlusion is in the air.
+The map is built from above along the planet's vertical; it dims the first light's multiple
+scattering wherever the air marches the sky (not the second light's, not surface sky light).
 
-The sky quality settings that shape the map: `cloudSkyAO` (default on: the pass's switch),
-`cloudSkyAOResolutionMax` (2048: largest side), `cloudSkyAOTraceSamples` (10: samples a map ray takes through the
-layer), `cloudSkyAOFiltering` (on: the map is dilated and smoothed, integrated over the hemisphere above each
-texel) and `cloudSkyAOSnapKm` (20: kilometres its position is snapped to, against flicker; 0 or less reads as
-0.1 m, the map then following every camera step). No quality level writes any of them. The map is made only while
-a clouds part is followed and the sky light asks; a scene with no clouds, or whose sky light leaves the flag off,
-pays nothing. `cloudSkyAODebug` (off) draws the map over the image: its frustum in blue and a quad for each texel
-holding cloud; `cloudShadowMapDebug` (off) does the same for the first light's cloud shadow map, its frustum in
-orange, with the map's sample count written over the image.
+Sky quality settings (no level writes them): `cloudSkyAO` (on: pass switch),
+`cloudSkyAOResolutionMax` (2048: largest side), `cloudSkyAOTraceSamples` (10: samples per map ray),
+`cloudSkyAOFiltering` (on), `cloudSkyAOSnapKm` (20: km its position snaps to; 0 or less reads as
+0.1 m). Made only while a clouds part is followed and the sky light asks. `cloudSkyAODebug` (off)
+draws the map over the image (frustum blue, a quad per cloud-holding texel); `cloudShadowMapDebug`
+(off) the first light's cloud shadow map (frustum orange, sample count).
 
 ```js
 world.scene.sky = {
@@ -91,8 +85,7 @@ world.skyQuality = { cloudSkyAOSnapKm: 5 } // the map's place snapped to 5 km
 world.skyQuality = { cloudSkyAODebug: true } // the sky occlusion map drawn over the image
 ```
 
-The sun's light shafts are the light's own: `shaftOcclusion` is on for the sun and off for any other light, and
-the same nine fields are a light's below. For the sun they are written the same way:
+`shaftOcclusion` is on for the sun, off for other lights; the same nine fields are a light's.
 
 ```js
 world.modules.set('sky', {
@@ -105,34 +98,27 @@ world.modules.set('sky', {
 })
 ```
 
-**The presets.** `world.quality.preset` is one of `smooth`, `balanced`, `fine`, `max`, `cinematic` or `auto`, and
-a group is set to a level of the same names (`world.quality.set(group, level)`). `auto` is the default: the
-hardware benchmark picks each group's level for the machine, and a preset or group the page names wins. `max`, the
-top level, writes nothing: the settings' defaults are the reference's fourth level. `cinematic` is the fifth,
-above it: each group writes the reference's fifth-row values for the settings the engine has. A value the page
-sets holds over any preset.
+**The presets.** `world.quality.preset`: `smooth`, `balanced`, `fine`, `max`, `cinematic` or `auto`;
+a group takes a level of the same names (`world.quality.set(group, level)`). `auto` (default): the
+hardware benchmark picks each group's level; a page-named preset or group wins. `max` writes
+nothing (setting defaults are reference's fourth level); `cinematic` writes reference fifth-row
+values. Page-set values hold over any preset.
 
-**The hardware benchmark.** `world.quality.benchmark(options)` runs the benchmark, keeps its result in the
-origin's local storage (in the page's memory where it grants none) for this GPU adapter, and draws it: the preset
-becomes `auto`. A world under `auto` (the default, `quality: { preset: 'auto' }`, or set later) draws the result
-kept for its adapter; where none is kept it runs the benchmark once when the world opens, before its first image
-(never inside a frame), keeps the result and draws every image at it. A page that names a preset runs nothing. A
-result kept for another adapter, or by an older engine, is not read.
+**The hardware benchmark.** `world.quality.benchmark(options)` runs it, keeps the result in the
+origin's local storage (page memory where none) for this GPU adapter, and draws it: preset becomes
+`auto`. A world under `auto` draws the result kept for its adapter; with none, it runs the
+benchmark once at world open, before the first image, keeps it and draws at it. A page naming a
+preset runs nothing. A result kept for another adapter or older engine is not read.
 
-The run first waits for the world's device to finish its work. The processor tests run in a worker (where the page
-refuses it they are left out and `cpuIndex` is `null`, which no level reads), the graphics tests on a WebGPU
-device of their own; a frame the world draws meanwhile shares the GPU with them, so a page asks it while the view
-is still. Disposing the world stops a run. It measures two processor tests (segments against a triangle, a
-fractal) and seven graphics tests (arithmetic, texture reads, dependent reads, fill, bandwidth, two vertex tests)
-timed by GPU timestamps, each against the time of the machine whose index is 100, into a processor index and a
-graphics index. A browser that rounds its timestamps (to 100 µs without a developer switch) is found by the step
-of its stamps, and the graphics work is multiplied by that step in microseconds (at most 1000), so a step weighs
-on each pass as the reference's microsecond does. A group reads the graphics index against three thresholds; the
-groups marked `min` read the lower of the processor and graphics indices (a run with no processor index reads the
-graphics one):
+Processor tests run in a worker (page refuses it: `cpuIndex` `null`, which no level reads);
+graphics tests on a device of their own. Disposing the world stops a run. Two processor and seven
+graphics tests (GPU timestamps), each against the machine whose index is 100, give a processor and
+a graphics index. Rounded browser timestamps (100 µs) are detected by their step; graphics work is
+multiplied by that step in microseconds (at most 1000). A group reads the graphics index against
+three thresholds; `min` groups read the lower of the two (no processor index: graphics):
 
 | Group | Index | Thresholds of levels 1, 2 and 3 |
-| --- | --- | --- |
+| - | - | - |
 | `viewDistance` | min | 18, 42, 105 |
 | `shadows` | min | 18, 42, 105 |
 | `effects` | min | 18, 42, 105 |
@@ -141,16 +127,14 @@ graphics one):
 | `imageEffects` | graphics | 18, 42, 115 |
 | `textures` | graphics | 18, 42, 115 |
 
-Levels 0 to 3 are `smooth` to `max`: the benchmark never chooses `cinematic`. It gives levels only: the
-resolution stays the page's `renderScale` or `quality.resolution`, else the display-based default. A device
-without GPU timestamps, or a test left unmeasured, gives no graphics index: every group stays at `max`. A preset
-or group the page names after wins over the benchmark's levels.
+Levels 0 to 3 are `smooth` to `max`: the benchmark never chooses `cinematic`. Resolution stays the
+page's `renderScale` or `quality.resolution`, else the display-based default. No GPU timestamps, or
+a test left unmeasured: no graphics index, every group stays `max`.
 
-`world.quality.hardware` reads the result (`null` before one): `cpuIndex`, `gpuIndex`, each test's own index
-(`cpuSteps`, `gpuSteps`), `workScale`, `gpuWorkScale` (the work the graphics tests ran at), `gpuMultiplier`, and
-what they give, `groups`. The `options` of `benchmark` are `workScale`, a whole number from 1 to 1000 (10: ten
-runs of each processor test, the graphics passes at ten times their base work, a few seconds of the device's
-work), `cpuMultiplier` and `gpuMultiplier` (1: factors of the two indices).
+`world.quality.hardware` reads the result (`null` before one): `cpuIndex`, `gpuIndex`, `cpuSteps`,
+`gpuSteps`, `workScale`, `gpuWorkScale`, `gpuMultiplier`, `groups`. `benchmark` `options`:
+`workScale`, whole number 1 to 1000 (10: ten runs per processor test, graphics at ten times base
+work, a few seconds), `cpuMultiplier` and `gpuMultiplier` (1: factors of the two indices).
 
 ```js
 const world = createWorld('viewer') // auto: the result kept, else one run before the first image
@@ -159,25 +143,24 @@ console.log(found.groups) // { viewDistance: 'fine', edgeSmoothing: 'max', … }
 world.quality.preset = 'max' // the page's preset wins
 ```
 
+Group settings at `max`:
+
 - `viewDistance`: `cutViewDistanceScale` 10.
 - `edgeSmoothing`: `antialiasing: 'max'`.
-- `shadows`: `shadowDistanceScale` 1, `shadowNearLevels` 10, `shadowOverlapScale` 1, `shadowFarField` on,
-  `shadowMaxResolution` 4096, `shadowResolutionLodBiasLocalMoving` 0,
-  `shadowRayCountDirectional` and `shadowRayCountLocal` 16 (the most a lane holds),
-  `shadowSamplesPerRayDirectional` and `shadowSamplesPerRayLocal` 8, `shadowMaxPhysicalPages` 8192 (a pool
-  of 8192 pages needs a device whose binding holds 512 MiB; a device that holds less draws the largest pool that fits), `volumetricFogQuality` `'ultra'`.
-- `imageEffects`: `motionBlurQuality` `'veryHigh'` with the full-size gather, `bloomQuality` `'highest'` and
-  `bloomScreenPercentage` 100, `gaussianFastBlurThreshold` 100, the depth of field's gather at the full size
-  with 5 rings and the diaphragm's shape, `depthOfFieldScatterMaxRatio` 0.25, `depthOfFieldRecombine`
-  `'high'` with `depthOfFieldRecombineBokeh`, `ambientOcclusionHorizonAngles` 4, `lutSize` 64, `lutShaper`
-  `'pq'`, `lightShafts` on.
-- `indirectLight`: `screenProbes` `'cinematic'`, `reflectionQuality` `'cinematic'`, `skyLightIntensityScale` 1.
-- `effects`: the atmosphere's eleven settings, the sky and the haze on the surfaces marched (the table of
-  the air's settings below).
-- `textures`: nothing, as at every level: the group has no wired setting.
-
-The quality presets and the sky's quality settings reach the module through the effects and shadows groups, as
-they reach the rest of the image:
+- `shadows`: `shadowDistanceScale` 1, `shadowNearLevels` 10, `shadowOverlapScale` 1,
+  `shadowFarField` on, `shadowMaxResolution` 4096, `shadowResolutionLodBiasLocalMoving` 0,
+  `shadowRayCountDirectional` and `shadowRayCountLocal` 16, `shadowSamplesPerRayDirectional` and
+  `shadowSamplesPerRayLocal` 8, `shadowMaxPhysicalPages` 8192 (needs a 512 MiB binding; a device
+  holding less draws the largest pool that fits), `volumetricFogQuality` `'ultra'`.
+- `imageEffects`: `motionBlurQuality` `'veryHigh'`, `bloomQuality` `'highest'`,
+  `bloomScreenPercentage` 100, `gaussianFastBlurThreshold` 100, depth of field's gather at full
+  size with 5 rings and the diaphragm's shape, `depthOfFieldScatterMaxRatio` 0.25,
+  `depthOfFieldRecombine` `'high'` with `depthOfFieldRecombineBokeh`,
+  `ambientOcclusionHorizonAngles` 4, `lutSize` 64, `lutShaper` `'pq'`, `lightShafts` on.
+- `indirectLight`: `screenProbes` `'cinematic'`, `reflectionQuality` `'cinematic'`,
+  `skyLightIntensityScale` 1.
+- `effects`: the atmosphere's eleven settings, the sky and the haze on the surfaces marched.
+- `textures`: nothing; no wired setting.
 
 ```js
 world.quality.preset = 'fine' // the effects' and shadows' level 2: fewer samples, smaller tables
@@ -185,14 +168,13 @@ world.skyQuality = { cloudShadowMap: false, lightShafts: false } // switch two p
 world.skyQuality = { cloudShadowMap: null } // given back to the preset
 ```
 
-The settings are read again at each image: a change reaches the sky light's capture, the clouds and their shadow
-maps in the next image and rebuilds only what it needs (a program, a target's size). `cloudsOn: false` takes the
-clouds out of the view, the sky light's capture and their shadow maps; `cloudShadowMap: false` stops the shadow
-map passes; a preset writes the settings its level names and leaves the others as the page wrote them. The sky
-settings the levels write, besides the atmosphere's eleven (`SKY_PRESET_LEVELS.effects`):
+Settings are re-read each image; a change rebuilds only what it needs (a program, a target size).
+`cloudsOn: false` removes clouds from the view, sky light capture and shadow maps;
+`cloudShadowMap: false` stops the shadow map passes; a preset writes only the settings its level
+names. Sky settings the levels write, besides the atmosphere's eleven (`SKY_PRESET_LEVELS.effects`):
 
 | Preset | `lightShafts` | `skyLightIntensityScale` |
-| --- | --- | --- |
+| - | - | - |
 | `smooth` | off | 0.8 |
 | `balanced` | off | 1 |
 | `fine` | on | 1 |
@@ -207,7 +189,6 @@ world.skyQuality = { cloudsOn: null } // given back to the preset
 world.skyQuality = { skyLightIntensityScale: 0.5 } // a dimmer sky light, at once
 ```
 
-A scene saved before the module (`formatVersion` 2) moves its `atmosphere`, `fog` and sky light node into the
-module's parts once, when read; each part keeps the fields it had, the fog the numbers it had by default and not
-the level's, and the sun and clouds, which that scene never had, are off. A scene is saved with its `sky` word
-(`formatVersion` 3 and after).
+A scene saved before the module (`formatVersion` 2) moves its `atmosphere`, `fog` and sky light
+node into the module's parts once, when read; fog keeps its own default numbers; sun and clouds are
+off. A scene is saved with its `sky` word (`formatVersion` 3 and after).

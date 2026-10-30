@@ -10,6 +10,5 @@ schemas, Blender from `Lamp` blocks; OBJ declares none. Positions and directions
 the number to the picture. FBX's `Intensity`, a percentage, converts at **1000 lm / 4π ≈ 79.6 cd** for a point or
 spot and **10 000 lux** for a directional. A `point` or `spot` without `range` gets an unbounded one (1e20 m, as glTF defines it: the light reaches every cell of the light grid); a declared `range` is kept as written, no ceiling. A spot keeps the `innerConeAngle` and `outerConeAngle` the file writes (glTF's defaults, 0 and π/4, where it names none); a point or spot names its unit, `candelas`. A light breaking the contract is counted in `rejected` and left out.
 
-A light casts when the file says so (glTF says nothing, so imported glTF lights cast). Every light
-is read as `(await scene.load(url)).lights` in cache order (`imported-lights` counts them), each a
+A light casts when the file says so (glTF says nothing: imported glTF lights cast). Lights are read as `(await scene.load(url)).lights` in cache order (`imported-lights` counts them), each a
 child of the model, changed like any light. A cache without `lights.json` has none.

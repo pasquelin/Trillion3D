@@ -1,11 +1,10 @@
 # Particles: emitters spawning with the world's frames
 
-`world.particles.add(spec)` makes an emitter over a fixed pool of particles, stepped on the GPU
-and drawn with the translucent layers. Like an effect's emitter, it spawns `rate` particles a
-second and any `burst` the page asks, each born with a lifetime, a speed and a direction drawn from
-the ranges given, the direction inside a cone; the pool (`capacity`, `origin`, `blend`, `color`,
-`size`, `fade`, `softness`, `acceleration`, `translucencyPass`) is fixed for its life, the spawn can
-change at any time.
+`world.particles.add(spec)` makes an emitter over a fixed particle pool, GPU-stepped and drawn with
+the translucent layers. Like an effect's emitter: spawns `rate` particles a second plus any `burst`
+the page asks, each born with lifetime, speed and direction drawn from the given ranges, direction
+inside a cone; the pool (`capacity`, `origin`, `blend`, `color`, `size`, `fade`, `softness`,
+`acceleration`, `translucencyPass`) is fixed for its life, spawn changes any time.
 
 ```js
 const fire = world.particles.add({
@@ -28,6 +27,6 @@ fire.update({ active: false }) // stops the rate; a burst still spawns
 fire.dispose() // its particles go with it
 ```
 
-A `capacity` below `rate * lifetime` makes the pool overwrite its oldest particles. A rate or a
-spawn the contract refuses throws `PARTICLE_RATE`, `PARTICLE_SPAWN`, `PARTICLE_DIRECTION` or
+`capacity` below `rate * lifetime` makes the pool overwrite its oldest particles. A rate or spawn
+the contract refuses throws `PARTICLE_RATE`, `PARTICLE_SPAWN`, `PARTICLE_DIRECTION` or
 `PARTICLE_SPREAD`; a pool the device cannot hold throws `PARTICLE_CAPACITY`.

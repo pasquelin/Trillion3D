@@ -1,3 +1,17 @@
 # The custom depth and stencil
 
-While an object asks for it (`Object3D.renderCustomDepth`, `customDepth` not 0), `renderCustomDepth` (`frame/render/encodeCustomDepth.ts`) draws the main view's image again before the main view, in a persistent view of its own (`ViewOverrides.customDepthCapture`, a view with no lighting, shadow, fog, sky nor effect). It is the main view's camera, size and lists; the roots of the objects that do not ask are left out of its cut (`writeCutViewSet`, the roots the view does not draw), so what stands in front of an object that asks never hides it. The object's request, stencil value and write mask are one word (`customDepthWord`, `contracts/customDepthAbi.ts`) held by its root (`RootOffsetRow.customDepth`) and written to its placement's record (`PlacementInfo.customDepth`, in the record's padding), and the roots that ask are listed by `createRootOffsets` (`askingCustomDepth`). The view's image is the rastered visibility; in the place of the surfaces' shading `encodeCustomDepthView` runs the emission (`visibility/customDepth/customDepthEmit.ts`), one full-screen pass that writes, for each pixel that shows a cluster, the depth the view drew into the custom depth target (`depth32float`, cleared to the far) and, in the mode that writes the stencil, the value of the cluster's object (its value under its mask, the whole value for the default mask) into the second channel of the stencil target (`rg16uint`). The targets are made when an object first asks (`customDepth` 1 gives them back, with the view, when none does; 2 and 3 keep them) and are retired, never destroyed.
+While an object asks (`Object3D.renderCustomDepth`, `customDepth` not 0), `renderCustomDepth`
+(`frame/render/encodeCustomDepth.ts`) draws the main view's image again before the main view, in a
+persistent view of its own (`ViewOverrides.customDepthCapture`: no lighting, shadow, fog, sky or
+effect). It has the main view's camera, size and lists; roots of objects that do not ask are left out
+of its cut (`writeCutViewSet`, the roots the view does not draw), so nothing in front of an asking
+object hides it. The request, stencil value and write mask are one word (`customDepthWord`,
+`contracts/customDepthAbi.ts`) held by the object's root (`RootOffsetRow.customDepth`) and written to
+its placement's record (`PlacementInfo.customDepth`, in the record's padding); `createRootOffsets` lists
+the asking roots (`askingCustomDepth`). The view's image is the rastered visibility; in place of
+shading, `encodeCustomDepthView` runs the emission (`visibility/customDepth/customDepthEmit.ts`), one
+full-screen pass writing, for each pixel showing a cluster, the view's depth into the custom depth
+target (`depth32float`, cleared to the far) and, in the stencil-writing mode, the cluster's object value
+(its value under its mask, the whole value for the default mask) into the second channel of the stencil
+target (`rg16uint`). The targets are made when an object first asks (`customDepth` 1 gives them back,
+with the view, when none does; 2 and 3 keep them) and are retired, never destroyed.

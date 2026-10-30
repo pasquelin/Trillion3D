@@ -2,7 +2,7 @@
 
 A compilation writes a cache folder; the SDK reads it. The code is the contract: each section names
 a file, its version constants, the Rust that writes it and the TypeScript that reads it. A reader
-refuses an unknown version before reading a field, never half-reads.
+refuses an unknown version before reading any field.
 
 Paths: `rust/` is `packages/asset-compiler-rust/src/`, `codec/` `packages/page-codec-wasm/src/`,
 `core/` `packages/sdk-core/src/`, `browser/` `packages/sdk-browser/src/`.
