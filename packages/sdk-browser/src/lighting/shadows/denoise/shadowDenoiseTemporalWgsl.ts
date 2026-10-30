@@ -1,10 +1,11 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
+import { wgslBlock, wgslVariants } from '../../../../../math/src/wgsl/decl.ts'
 import { VECTOR_CODEC_WGSL } from '../../../post/taa/velocityWgsl.ts'
 import { DENOISE_BINDINGS as D } from '../../screenSpaceTracing/denoise/denoiseView.ts'
 import { SCREEN_SPACE_BINDINGS as B } from '../../screenSpaceTracing/rayCastWgsl.ts'
 import { SCREEN_SPACE_GROUP_SIDE } from '../../screenSpaceTracing/screenSpaceQuality.ts'
 import { SCREEN_SPACE_GROUP } from '../../screenSpaceTracing/screenSpaceView.ts'
-import { SHADOW_DENOISE_COMMON_WGSL } from './shadowDenoiseCommonWgsl.ts'
+import { denoiseCommonOf } from './shadowDenoiseCommonWgsl.ts'
 
 const G = SCREEN_SPACE_GROUP
 const SIDE = SCREEN_SPACE_GROUP_SIDE
@@ -13,19 +14,12 @@ const SIDE = SCREEN_SPACE_GROUP_SIDE
 const DEVIATIONS = 1.25
 const LEAST_HISTORY = 0.1
 
-/**
- * THE ACCUMULATION IN TIME (`shadowTemporal`, a thread a pixel): the pre-convolved sample of this image (the source, taken as one sample) blended with the history, the last image's result.
- *  - where the pixel stood: its point projected into the last image (read over the extent it was drawn at, the parameters' previous, which a size change moves) by the camera's motion, or by the surface's own vector where it moves by itself; none off the view or after a cut (the
- *    parameters' grid w);
- *  - the history is the four texels around that place, each weighed by its bilinear share and by its bilateral weight (`sdBilateral`) against the surface the last image kept there, within three times
- *    the greater of the two pixels' reach, as the sum of their samples;
- *  - its rejection: the pixel's share and its eight neighbours' (each weighed by the sample's radius) give a mean and a deviation of the share that arrived; the history's share is brought into the
- *    mean plus or minus 1.25 deviations, the history keeps the weight it had less what the bringing moved the share by, and a tenth of a sample at least where the neighbourhood holds one;
- *  - the blend: the history is kept up to the weight the pixel's reach asks for (the penumbra's radius over the pixel's, squared, times the tolerated noise, from 1 to 1024) less the sample's, the sum is the result,
- *    written with the least radius of the pixel and its neighbours.
- */
-export const shadowTemporalWgsl = () =>
-  wgslProgram(
+/** The history's part of the accumulation, for either signal (the common parts of the signal it is made for): the bindings of the history, of the surface the last image kept and of the result; the surface the
+ *  last image kept at a texel, the place the pixel stood in it, and the history gathered there, each tap weighed by the signal's `sdHistoryWeight`. */
+export const historyWgsl = wgslVariants((occlusion: boolean) =>
+  wgslBlock(
+    `SD_HISTORY_WGSL(${occlusion ? 'occlusion' : 'shadow'})`,
+    [denoiseCommonOf(occlusion ? 'occlusion' : 'shadow'), VECTOR_CODEC_WGSL],
     `@group(${G}) @binding(${D.historyA}) var historyA:texture_2d<f32>;
 @group(${G}) @binding(${D.prevDepth}) var prevDepth:texture_2d<f32>;
 @group(${G}) @binding(${D.prevNormals}) var prevNormals:texture_2d<f32>;
@@ -58,12 +52,44 @@ fn sdHistory(light:SdLight,base:SdSurface,uv:vec2f)->vec2f{
   if(near.flags==SD_SURFACE_LOST){continue;}
   let reach=sdAmend(min(ssPixelRadius(near.depth),ssPixelRadius(base.depth)))*3.0;
   let bilinear=select(1.0-f.x,f.x,offset.x==1)*select(1.0-f.y,f.y,offset.y==1);
-  let w=bilinear*sdBilateral(light,reach,base,near);
+  let w=bilinear*sdHistoryWeight(light,reach,base,near);
   sum+=vec2f(h.g*w,h.r*h.g*w);
  }
  return sum;
 }
-@compute @workgroup_size(${SIDE},${SIDE})
+/** Where the pixel stood in the last image: its texture coordinate (xy), the depth it had there (z) and whether that place holds a history (w, 1): the point lies in front of the last image's eye and inside its
+ *  view, the image has a history (the parameters' grid w) and the pixel's motion is the camera's, or the surface's own vector where it moves by itself. */
+fn sdPlace(at:vec2i)->vec4f{
+ let screen=ssScreenOfPixel(vec2f(at)+vec2f(0.5));
+ let z=hizOpaqueDepth(at);
+ let prevClip=ssView.clipToPrevClip*vec4f(screen,z,1.0);
+ // A point behind the last image's eye has no place in it: none of its history is read.
+ var placed=prevClip.w>1e-8;
+ var back=select(vec2f(0.0),screen-prevClip.xy/prevClip.w,placed);
+ let words=textureLoad(colorVectors,clampToExtent(at,vec2i(textureDimensions(colorVectors))),0);
+ if(hasOwnMotion(words.r)){back=decodeVector(words.r);placed=true;}
+ let uv=(screen-back)*vec2f(0.5,-0.5)+vec2f(0.5);
+ let edge=vec2f(0.5)/dnParams.previous.xy;
+ let inside=placed&&dnParams.grid.w==0.0&&all(uv>=edge)&&all(uv<=vec2f(1.0)-edge);
+ return vec4f(uv,select(z,prevClip.z/prevClip.w,prevClip.w>1e-8),select(0.0,1.0,inside));
+}`,
+  ),
+)
+
+/**
+ * THE ACCUMULATION IN TIME (`shadowTemporal`, a thread a pixel): the pre-convolved sample of this image (the source, taken as one sample) blended with the history, the last image's result.
+ *  - where the pixel stood: its point projected into the last image (read over the extent it was drawn at, the parameters' previous, which a size change moves) by the camera's motion, or by the surface's own vector where it moves by itself; none off the view or after a cut (the
+ *    parameters' grid w);
+ *  - the history is the four texels around that place, each weighed by its bilinear share and by its bilateral weight (`sdBilateral`) against the surface the last image kept there, within three times
+ *    the greater of the two pixels' reach, as the sum of their samples;
+ *  - its rejection: the pixel's share and its eight neighbours' (each weighed by the sample's radius) give a mean and a deviation of the share that arrived; the history's share is brought into the
+ *    mean plus or minus 1.25 deviations, the history keeps the weight it had less what the bringing moved the share by, and a tenth of a sample at least where the neighbourhood holds one;
+ *  - the blend: the history is kept up to the weight the pixel's reach asks for (the penumbra's radius over the pixel's, squared, times the tolerated noise, from 1 to 1024) less the sample's, the sum is the result,
+ *    written with the least radius of the pixel and its neighbours.
+ */
+export const shadowTemporalWgsl = () =>
+  wgslProgram(
+    `@compute @workgroup_size(${SIDE},${SIDE})
 fn shadowTemporal(@builtin(global_invocation_id) gid:vec3u){
  let id=vec3u(sdPixelOf(gid.xy),0u);
  if(any(id.xy>=vec2u(dnParams.rect.zw))){return;}
@@ -74,17 +100,9 @@ fn shadowTemporal(@builtin(global_invocation_id) gid:vec3u){
  let currentN=select(0.0,1.0,current.n>0.0);
  let currentShare=select(0.0,current.m/current.n,current.n>0.0);
  // Where the pixel stood in the last image.
- let screen=ssScreenOfPixel(vec2f(id.xy)+vec2f(0.5));
- let prevClip=ssView.clipToPrevClip*vec4f(screen,hizOpaqueDepth(at),1.0);
- // A point behind the last image's eye has no place in it: none of its history is read.
- var placed=prevClip.w>1e-8;
- var back=select(vec2f(0.0),screen-prevClip.xy/prevClip.w,placed);
- let words=textureLoad(colorVectors,clampToExtent(at,vec2i(textureDimensions(colorVectors))),0);
- if(hasOwnMotion(words.r)){back=decodeVector(words.r);placed=true;}
- let uv=(screen-back)*vec2f(0.5,-0.5)+vec2f(0.5);
- let edge=vec2f(0.5)/dnParams.previous.xy;
+ let place=sdPlace(at);
  var history=vec2f(0.0);
- if(placed&&dnParams.grid.w==0.0&&all(uv>=edge)&&all(uv<=vec2f(1.0)-edge)){history=sdHistory(light,base,uv);}
+ if(place.w>0.0){history=sdHistory(light,base,place.xy);}
  // The neighbourhood of the pixel in this image: the mean and the deviation of the share that arrived.
  var m1=vec2f(0.0);
  var m2=vec2f(0.0);
@@ -124,5 +142,5 @@ fn shadowTemporal(@builtin(global_invocation_id) gid:vec3u){
  let scale=select(0.0,kept/weight,weight>0.0);
  textureStore(outA,at,sdEncode(weight*scale+currentN,brought*weight*scale+currentN*currentShare,radius));
 }`,
-    [SHADOW_DENOISE_COMMON_WGSL, VECTOR_CODEC_WGSL],
+    [denoiseCommonOf('shadow'), historyWgsl(false)],
   )

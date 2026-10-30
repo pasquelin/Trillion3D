@@ -878,6 +878,32 @@ blend of 0.1: `ceil(ln 0.1 / ln(1 − blend))`), whatever the temporal anti-alia
 With the spatial filter off, the last pass of the method applies the power and the intensity itself, so that the setting
 changes the softness and nothing else.
 
+**The ray-traced occlusion** (`rayTracedAmbientOcclusion`). A third way to find the occlusion, off by default (the reference's post-process switch
+is off): each pixel casts rays over the hemisphere of its surface's geometric normal through the scene's triangles (the scene trace the lighting makes
+for the image, `rayTracingFile`), as far as `rayTracedAmbientOcclusionRadius`, and keeps the share that arrive, every ray weighted by the cosine its
+shading normal gives it over the cosine of the geometric one. The geometric normal is found from the depth round the pixel (a thin two-sided sheet and
+a silhouette keep the shading normal), and the overlap of the two normals' lobes is a factor of the result. It replaces the screen-space search wherever it
+is on and the scene has triangles — whatever `ambientOcclusion` says — and, like it, is drawn only where no global illumination is on; the lighting
+applies the texture as it applies the search's (`ambientOcclusionStaticFraction`). Where the scene has no triangles, or while its program compiles,
+the image keeps the search. It is wanted where `rayTracedAmbientOcclusionAllowed` holds (it reads off while the project's `rayTracing` switch is off),
+`rayTracedAmbientOcclusion` says `'on'` — or `'auto'` and `rayTracedAmbientOcclusionEnabled` is on — and `rayTracedAmbientOcclusionIntensity` is above 0.
+The ray's start leaves the surface by the larger of a ten-thousandth of the distance to the eye and the ray-traced shadows' normal bias
+(`rayTracedShadowsNormalBias`, the reference's one `r.RayTracing.NormalBias`), the start the ray-traced shadows' rays have. Beside the occlusion the kernel
+writes the distance of the nearest primitive any of the pixel's rays hit (100 m where none did, below zero where it cast none), and
+`rayTracedAmbientOcclusionDenoiser` (on, the reference's `r.AmbientOcclusion.Denoiser`, whose values 1 and 2 are one denoiser here) runs the screen-space
+denoiser on the two: the injestion of the pair into samples whose radius is that distance, the reconstruction (the quad's stochastic sets, in descending
+rings, `rayTracedAmbientOcclusionDenoiserReconstructionSamples` of them at most), the pre-convolutions (`…PreConvolution` webs, the first
+`…KernelSpreadFactor` pixels wide, doubling with each), a rejection pre-convolution (the share's first two moments over the pixel and its four neighbours),
+the accumulation in time (the history held to 256 samples; bounded to 6 deviations of the neighbourhood's moments; none for an unlit pixel) and, when
+`…HistoryConvolutionSamples` is above 1, a convolution of the history `…HistoryConvolutionKernelSpreadFactor` pixels wide. These are the shadow denoiser's
+kernels run on this signal. A quiet view is drawn again until the history has settled (231 images), then holds. Two faults of the reference's denoiser are fixed:
+its sample set for the temporal rejection is meant to be the rotated three by three, but a mistyped test of the shader selects a seven by seven box (forty-nine
+taps), here the rotated three by three; and its occlusion samples carry the hit distance in a field the kernels do not read (they read another, left invalid), so that every sample's radius
+is invalid and the descending rings never tell a near blocker from a far one; here the radius of a sample is its hit distance, which the rings use as they do for the shadows. One fault of the reference is fixed: its geometric normal reads a neighbour's
+depth at the pixel clamped to the view but places it at the unclamped pixel, so that a pixel on the view's edge finds a normal from points that are not
+neighbours; here both are read at the clamped pixel. Another, in its orthographic projection: the pixel's radius is not divided by the width, so that
+the silhouette test is five half-widths of the view; here it is.
+
 Every setting has the reference's default. Lengths are in metres (the reference's centimetres over a hundred):
 
 | Setting                                                                                | Default              | Meaning                                                                                                                                                                                                |
@@ -909,6 +935,22 @@ Every setting has the reference's default. Lengths are in metres (the reference'
 | `ambientOcclusionHorizonDownsample`                                                    | `false`              | The horizon search runs at half the image's size and is upsampled at the end (the spatial filter then reads the depth at the right place; see below).                                                  |
 | `ambientOcclusionHorizonTemporal`, `ambientOcclusionHorizonSpatial`                    | `true`, `true`       | The temporal filter and the spatial filter (a compute pass). With the spatial filter off the power and the intensity apply in the method's last pass.                                                  |
 | `ambientOcclusionHorizonBlend`                                                         | `0.1`                | The share of this image the temporal filter takes, from 0; the rest is the history's.                                                                                                                  |
+| `rayTracedAmbientOcclusion`                                                            | `'auto'`             | `'off'`, `'on'`, or `'auto'`, which follows `rayTracedAmbientOcclusionEnabled` (the reference's -1 / 0 / 1).                                                                                           |
+| `rayTracedAmbientOcclusionAllowed`                                                     | `true`               | The scalability switch that lets it be on; it reads off while the project's `rayTracing` switch is off.                                                                                                |
+| `rayTracedAmbientOcclusionEnabled`                                                     | `false`              | The post-process volume's switch, read where `rayTracedAmbientOcclusion` is `'auto'`.                                                                                                                  |
+| `rayTracedAmbientOcclusionSamplesPerPixel`                                             | `-1`                 | The rays a pixel casts, from 0 (none: the pixel is unoccluded); -1 leaves it to `rayTracedAmbientOcclusionPostProcessSamplesPerPixel`.                                                                 |
+| `rayTracedAmbientOcclusionPostProcessSamplesPerPixel`                                  | `1`                  | The post-process volume's rays a pixel casts, from 1.                                                                                                                                                  |
+| `rayTracedAmbientOcclusionRadius`                                                      | `2`                  | The farthest a ray goes, in metres, 0 to 100.                                                                                                                                                          |
+| `rayTracedAmbientOcclusionIntensity`                                                   | `1`                  | How much a blocked ray darkens, 0 to 1; 0 draws none.                                                                                                                                                  |
+| `rayTracedAmbientOcclusionTwoSidedGeometry`                                            | `false`              | The geometry occludes from both faces; off, back faces are passed.                                                                                                                                     |
+| `rayTracedAmbientOcclusionMaterials`                                                   | `false`              | The rays cut the masked surfaces by their mask; off, every triangle is opaque to them.                                                                                                                 |
+| `rayTracedAmbientOcclusionDenoiser`                                                    | `true`               | The result is denoised from the occlusion and the distance of the nearest blocker (reconstruction, pre-convolutions, rejection pre-convolution, accumulation in time); off keeps the raw rays.      |
+| `rayTracedAmbientOcclusionDenoiserReconstructionSamples`                               | `16`                 | The most samples of the denoiser's reconstruction, 1 to 56.                                                                                                                                            |
+| `rayTracedAmbientOcclusionDenoiserPreConvolution`                                      | `2`                  | The pre-convolution passes after it, 0 to 4.                                                                                                                                                           |
+| `rayTracedAmbientOcclusionDenoiserKernelSpreadFactor`                                  | `4`                  | The spread of the first pre-convolution, in pixels, doubling with each pass; 0 to 64.                                                                                                                  |
+| `rayTracedAmbientOcclusionDenoiserTemporalAccumulation`                                | `true`               | The denoised occlusion is accumulated over the images.                                                                                                                                                 |
+| `rayTracedAmbientOcclusionDenoiserHistoryConvolutionSamples`                           | `1`                  | The samples of the convolution of the accumulated history, 1 to 56; 1 runs none.                                                                                                                       |
+| `rayTracedAmbientOcclusionDenoiserHistoryConvolutionKernelSpreadFactor`                | `7`                  | The spread of that convolution, in pixels; 0 to 64.                                                                                                                                                    |
 
 The quality levels (`world.quality`, group `imageEffects`) write the reference's five post-process levels of the
 resolutions, the ceiling, the climb and the radius scale: `smooth` — `ambientOcclusionLevels` 0 (none: no occlusion is
@@ -944,6 +986,11 @@ world.ambientOcclusion = { ambientOcclusionMethod: 'disc', ambientOcclusionCompu
 world.ambientOcclusion = { ambientOcclusionRadius: null } // null gives a setting back to the preset
 world.quality.preset = 'balanced' // writes the resolutions' ceiling, the climb and the radius scale
 world.ambientOcclusion = { ambientOcclusion: false } // off: no pass, no texture, no byte
+world.ambientOcclusion = { rayTracedAmbientOcclusion: 'on' } // rays through the scene's triangles in place of the search
+world.ambientOcclusion = { rayTracedAmbientOcclusionSamplesPerPixel: 4, rayTracedAmbientOcclusionRadius: 5 } // four rays a pixel, up to 5 m
+world.ambientOcclusion = { rayTracedAmbientOcclusion: 'auto', rayTracedAmbientOcclusionEnabled: true } // the post-process volume's way
+world.ambientOcclusion = { rayTracedAmbientOcclusion: 'on', rayTracedAmbientOcclusionDenoiser: false } // the raw rays, no denoiser
+world.ambientOcclusion = { rayTracedAmbientOcclusion: 'on', rayTracedAmbientOcclusionSamplesPerPixel: 2, rayTracedAmbientOcclusionDenoiserPreConvolution: 3 } // two rays a pixel, three pre-convolutions
 ```
 
 The explorer takes the same by field (`explorer.setAmbientOcclusion('ambientOcclusionPower', 3)`).

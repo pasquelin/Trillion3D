@@ -45,7 +45,13 @@ export type SettingRange = readonly [number, number]
  *  its default, and `false`, none (0: `distanceSetting`), and `takes` says in words what it takes
  *  where the range does not. */
 export type SettingRule =
-  | { readonly kind: 'flag'; readonly field: string; readonly default: boolean }
+  | {
+      readonly kind: 'flag'
+      readonly field: string
+      readonly default: boolean
+      /** The field of a switch (default on) that, written off, reads this one off whatever it is itself (`gatedFlagSetting`). */
+      readonly gatedBy?: string
+    }
   | {
       readonly kind: 'int' | 'float'
       readonly field: string
@@ -107,6 +113,13 @@ export const atLeast = (low: number): SettingRange => [low, ANY_NUMBER[1]]
 /** A switch of field `field` and default `value`. */
 export const flagSetting = <F extends string>(field: F, value: boolean) =>
   ({ kind: 'flag', field, default: value }) as const
+/** A switch of field `field` and default `value` that reads off while the switch of field `gate` (default on) is off: the way a project-wide
+ *  switch (`rayTracingEnable`) turns off every feature that hangs on it, whatever its own value. */
+export const gatedFlagSetting = <F extends string, G extends string>(
+  field: F,
+  value: boolean,
+  gate: G,
+) => ({ kind: 'flag', field, default: value, gatedBy: gate }) as const
 /** A number of field `field`, default `value`, within `range`. */
 export const numberSetting = <F extends string>(field: F, value: number, range: SettingRange) =>
   ({ kind: 'float', field, default: value, range }) as const
@@ -278,13 +291,22 @@ export function namedSetting(
   return value
 }
 
+/** The setting `rule` names in `held`, resolved (`resolveSetting`) and, a switch gated by another (`gatedFlagSetting`), off while `held`
+ *  has that one off: the one reading of a setting out of the options that hold it. */
+function resolveHeld(rule: SettingRule, held: Readonly<Record<string, unknown>>) {
+  const value = resolveSetting(rule, held[rule.field] as never)
+  return rule.kind === 'flag' && rule.gatedBy !== undefined && held[rule.gatedBy] === false
+    ? false
+    : value
+}
+
 /** The setting of field `field` of the rules by field `rules` that `options` hold, resolved
- *  (`resolveSetting`): its default when they hold none. */
+ *  (`resolveSetting`, a gated switch as `resolveHeld` reads it): its default when they hold none. */
 export const readSetting = <R extends SettingRules, F extends keyof R>(
   rules: R,
   options: SettingOptions<R>,
   field: F,
-): R[F]['default'] => resolveSetting(rules[field], options[field])
+): R[F]['default'] => resolveHeld(rules[field], options) as R[F]['default']
 
 /** The reader of the settings of the rules by field `rules` a runtime's context holds: `read(rt,
  *  field)` is `readSetting` of `rt.context`, each frame's one reading of a setting a session
@@ -367,7 +389,7 @@ export function resolveSettingsInto<T extends SettingRules>(
 ) {
   const held = options as Readonly<Record<string, SettingValue | null | undefined>>
   const out = into as Record<string, SettingValue>
-  for (const [name, rule] of namedRules(rules)) out[name] = resolveSetting(rule, held[rule.field])
+  for (const [name, rule] of namedRules(rules)) out[name] = resolveHeld(rule, held) as SettingValue
   return into
 }
 

@@ -262,6 +262,9 @@ fn stSkipsTranslucent(flags:u32)->bool{
  return ((flags&ST_ALL_TRANSLUCENT)!=0u&&(stRay.flags&ST_MEET_TRANSLUCENT)==0u)||((stRay.flags&ST_SKIP_TRANSLUCENT)!=0u&&stParams.skipsTranslucentSections!=0u&&(flags&ST_TRANSLUCENT)!=0u)||((flags&ST_SKY)!=0u&&(stParams.excludesSky!=0u||(stRay.flags&ST_PATH_RAY)!=0u)&&(stRay.flags&ST_MEET_SKY)==0u);
 }`
 
+/** With the `reach` variant (`sceneTraceWgsl`), where a trace stopped by its step bound had got to: the distance of the triangle that found the bound spent (the ray's tMax where none did, or the trace was whole), read once `stTrace` has returned and `stComplete` is false. */
+const ST_REACHED = 'var<private> stReached:f32;'
+
 /** The reads of a node of the file, of a child's box and of the table's floats, and the step a triangle met costs. */
 const ST_NODE_READS = `/** A triangle met, a step of the trace: false, the trace done and incomplete, once the bound is spent. */
 fn stStep()->bool{
@@ -344,7 +347,9 @@ export const ST_ACCUMULATES_DEFAULT = wgslFn(
 )
 
 /** One triangle of the file against the ray, in the instance's space. */
-const ST_TRIANGLE = `/** The nearer of best and the triangle ti of the file against the ray in the instance's space: kept when nearer
+const stTriangleWgsl = (
+  reach: boolean,
+) => `/** The nearer of best and the triangle ti of the file against the ray in the instance's space: kept when nearer
  *  than the best hit, past the ray's tMin and not a front face the ray culls; its normal is the winding's, in the
  *  placement's space. */
 fn stTriangle(inst:StInstance,origin:vec3f,direction:vec3f,ti:u32,best:StHit)->StHit{
@@ -357,7 +362,7 @@ fn stTriangle(inst:StInstance,origin:vec3f,direction:vec3f,ti:u32,best:StHit)->S
  let b=bitcast<vec3f>(vec3u(v0.w,v1.x,v1.y));
  let c=bitcast<vec3f>(vec3u(v1.z,v1.w,v2.x));
  let t=rayTriangleDistance(origin,direction,a,b,c,best.distance);
- if(t>=best.distance||!stStep()){return best;}
+ ${reach ? 'if(t>=best.distance){return best;}\n if(!stStep()){stReached=max(t,stRay.tMin);return best;}' : 'if(t>=best.distance||!stStep()){return best;}'}
  let normal=faceNormal(a,b,c);
  // Counter-clockwise from the ray's origin: the winding against the ray, turned over by a mirroring world.
  let front=(dot(normal,direction)<0.0)!=inst.mirrored;
@@ -483,13 +488,13 @@ fn stEnter(w:u32,best:StHit,inverse:vec3f)->StHit{
 }`
 
 /** The trace itself: the placement tree's walk, then the normal of the nearest hit turned into the world. */
-const ST_TRACE = `/** The trace of ray: see the library's comment. */
+const stTraceWgsl = (reach: boolean) => `/** The trace of ray: see the library's comment. */
 fn stTrace(ray:StRay)->StHit{
  stRay=ray;
  stDone=false;
  stComplete=true;
  stSteps=0u;
- var best=StHit(ray.tMax,NO_INDEX,NO_INDEX,NO_INDEX,NO_INDEX,vec3f(0.0),vec2f(0.0),false,false,false);
+${reach ? ' stReached=ray.tMax;\n' : ''} var best=StHit(ray.tMax,NO_INDEX,NO_INDEX,NO_INDEX,NO_INDEX,vec3f(0.0),vec2f(0.0),false,false,false);
 ${placementTreeCast({
   eyeXY: 'stParams.eyeXY',
   eyeZ: 'stParams.eyeZ',
@@ -564,10 +569,12 @@ ${placementTreeCast({
  * children but the nearest, so the need is the sum along a path of the internal children less one, and no tree is
  * written whose need is more): a full stack is a file of another compiler, and leaves the child out and marks the trace
  * incomplete, never silently.
+ *
+ * `reach` adds `stReached`, read by a program that wants the distance a bound-stopped trace had got to (`ST_REACHED`); the text of the programs that do not ask is unchanged.
  */
-export const sceneTraceWgsl = (group: number, first: number) =>
+export const sceneTraceWgsl = (group: number, first: number, reach = false) =>
   wgslBlock(
-    `SCENE_TRACE_WGSL(${group},${first})`,
+    `SCENE_TRACE_WGSL(${group},${first}${reach ? ',reach' : ''})`,
     [
       sceneTraceBindings(group, first),
       DAG_READ_TABLES_WGSL,
@@ -593,12 +600,13 @@ export const sceneTraceWgsl = (group: number, first: number) =>
     [
       ST_TYPES,
       ST_NODE_READS,
-      ST_TRIANGLE,
+      ...(reach ? [ST_REACHED] : []),
+      stTriangleWgsl(reach),
       ST_BLAS,
       ST_ACTOR,
       ST_DIRECTORY,
       ST_ENTER,
-      ST_TRACE,
+      stTraceWgsl(reach),
     ].join('\n'),
   )
 

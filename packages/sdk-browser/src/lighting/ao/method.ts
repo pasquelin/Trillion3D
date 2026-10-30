@@ -1,9 +1,11 @@
+import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
 import { AMBIENT_OCCLUSION_PASS } from '../../diagnostic/stage/passLabels.ts'
 import { fullscreenDraw } from '../../post/filters/fullscreenDraw.ts'
 import { hizDepthBindEntries } from '../../visibility/hiz/gpu/pyramidTexture.ts'
 import type { HizDepth } from '../../visibility/hiz/gpu/types.ts'
 import { AO_BINDINGS } from './layout.ts'
 import { aoExtentOf } from './plan.ts'
+import type { RayTracedAoStage } from './rayTraced/rayTracedAoMethod.ts'
 import { createDepthTerms, type AoImage } from './params.ts'
 import type { AoView, AoViewSpec } from './view.ts'
 
@@ -16,6 +18,9 @@ export interface AoNeeded {
   depth: HizDepth
   empty: GPUTextureView
   vectors: GPUTextureView | undefined
+  /** The runtime, and the stage the image casts the ray-traced occlusion's rays through where it draws that method (`rayTracedAoStage`). */
+  rt: WebgpuPagesRuntime
+  traced: RayTracedAoStage | undefined
 }
 
 /**

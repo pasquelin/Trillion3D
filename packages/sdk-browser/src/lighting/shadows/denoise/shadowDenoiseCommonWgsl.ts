@@ -15,27 +15,25 @@ export const SHADOW_HIT_MISS = -1
 /** The farthest radius a sample blurs by when its rays all arrived, in metres (a hundred thousand centimetres). */
 const SHADOW_RADIUS_MISS = 1000
 
+/** The signal a denoiser run filters: a light's ray-traced shadow, or the ray-traced ambient occlusion. */
+export type DenoiseSignalKind = 'shadow' | 'occlusion'
+
 /**
- * THE SHADOW DENOISER'S SHARED PARTS: the sample a texel holds, the light of the run and what it blurs by, the surface of a pixel of this image or of the one before, the bilateral
- * weight between two surfaces, and the accumulator of a kernel in descending ring order.
+ * THE PARTS EVERY SIGNAL SHARES: the sample a texel holds, the surface of a pixel of this image or of the one before, and the accumulator of a kernel in descending ring order.
  *
  * - A texel of the signal is four floats: the share of the rays that arrived, the number of samples, the radius the sample blurs by (in metres: `-1` for none, `SHADOW_RADIUS_MISS`
  *   where every ray arrived) and a fourth that stays zero. A texel the trace cast no ray for has no sample.
- * - The radius a hit gives a sample: the light's size seen from the pixel at the distance of the nearest blocker (a sun's disk times the distance, a lamp's radius (a tube's, with its half length across the view), a rectangle's
- *   smaller side, each over the distance from the blocker to the light); the penumbra there.
- * - The bilateral weight keeps what is near the pixel in the plane of the light's tangent, within the sample's radius, and near its plane, and agrees with its normal.
  * - The accumulator takes the samples ring by ring from the outside in; a ring whose samples blur by less than the next ring's (a blocker nearer the pixel) covers it by its opacity.
  *   Its output is the sum it ended with, the least radius met.
+ *
+ * What differs by signal is declared beside it (`SHADOW_SIGNAL_WGSL`, `OCCLUSION_SIGNAL_WGSL`), under the same names: `SdLight` and `sdLight()` (what the run knows beyond the pixels), `sdSpatialWeight`
+ * (the weight of a tap of the spatial passes) and `sdHistoryWeight` (the weight of a tap of the last image's history, and of the temporal passes' neighbourhood).
  */
-export const SHADOW_DENOISE_COMMON_WGSL = wgslBlock(
-  'SHADOW_DENOISE_COMMON_WGSL',
-  [DENOISE_COMMON_WGSL, DIRECT_LIGHT_WGSL, lightTraits, pixelModelOf],
-  `@group(${SCREEN_SPACE_GROUP}) @binding(${SHADOW_DENOISE_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
-const SD_HIT_INVALID:f32=${SHADOW_HIT_INVALID}.0;
-const SD_HIT_MISS:f32=${SHADOW_HIT_MISS}.0;
-const SD_RADIUS_INVALID:f32=-1.0;
+const SHARED_WGSL = wgslBlock(
+  'SD_SHARED_WGSL',
+  [DENOISE_COMMON_WGSL],
+  `const SD_RADIUS_INVALID:f32=-1.0;
 const SD_RADIUS_MISS:f32=${SHADOW_RADIUS_MISS}.0;
-const SD_PROFILE:u32=${PIXEL_MODEL.profile}u;
 /** The flags of a surface that has no place in the world (the last image's point behind its eye). */
 const SD_SURFACE_LOST:u32=0xffffffffu;
 /** A sample: its count and the count of its rays that arrived. */
@@ -59,49 +57,8 @@ fn sdSurfaceAt(p:vec2i)->SdSurface{
  let normal=textureLoad(surfaceNormals,pixel,0);
  return SdSurface(ssWorldAt(ssScreenOfPixel(vec2f(pixel)+vec2f(0.5)),z),ssSceneDepth(z),normalize(normal.xyz),textureLoad(surfaceFlags,pixel,0).r);
 }
-/** The light of the run (its rank is the parameters' time z), what of it the denoiser reads. */
-struct SdLight{sun:bool,position:vec3f,axis:vec3f,radius:f32,tangent:f32,tubeHalf:f32,}
-fn sdLight()->SdLight{
- let light=directLights.items[u32(dnParams.time.z)];
- if(isSun(light)){
-  let s=sourceTermOf(light);
-  return SdLight(true,vec3f(0.0),-light.directionCone.xyz,s,s*inverseSqrt(max(1.0-s*s,1e-12)),0.0);
- }
- if(isRect(light)){
-  return SdLight(false,light.positionRange.xyz,light.directionCone.xyz,2.0*min(length(light.shape.xyz),light.shape.w),0.0,0.0);
- }
- return SdLight(false,light.positionRange.xyz,emitterAxisOf(light),light.shape.x,0.0,tubeHalfLengthOf(light));
-}
-/** The unit direction from a point to the light. */
-fn sdToward(light:SdLight,P:vec3f)->vec3f{return select(normalize(light.position-P),light.axis,light.sun);}
-/** The radius a sample at P blurs by, from the distance of the nearest blocker hit: none for a texel with no ray, the greatest where all arrived. */
-fn sdBlurRadius(light:SdLight,P:vec3f,hit:f32)->f32{
- if(hit==SD_HIT_INVALID){return SD_RADIUS_INVALID;}
- if(hit==SD_HIT_MISS){return SD_RADIUS_MISS;}
- if(light.sun){return min(light.tangent*hit,SD_RADIUS_MISS);}
- // A tube is seen as wide as its radius and the part of its half length across the view from the pixel.
- let size=light.radius+light.tubeHalf*length(cross(light.axis,normalize(light.position-P)));
- // A blocker nearly at the light would blur without bound (past what the history's half floats hold): it blurs no wider than a ray that arrived.
- return min(size*hit/max(distance(light.position,P)-hit,0.001),SD_RADIUS_MISS);
-}
 /** The distance the world blurs by at a pixel of the view depth depth, twice its radius times the root of two (the furthest pixel of a three by three). */
 fn sdAmend(radius:f32)->f32{return radius*2.8284271;}
-/** The weight of a neighbour nb of the surface base within dist (the sample's radius): the light-tangent distance, the plane distance and the normals' agreement. A negative
- *  distance (a reference with no sample) stands for the reach of the reference pixel itself, so that the plane and the depth still reject across edges. */
-fn sdBilateral(light:SdLight,dist:f32,base:SdSurface,nb:SdSurface)->f32{
- let reach=select(dist,sdAmend(ssPixelRadius(base.depth)),dist<0.0);
- let reciprocal=1.0/select(reach,1e-6,reach==0.0);
- let toRef=base.P-nb.P;
- let toLight=sdToward(light,nb.P);
- let across=toRef-toLight*dot(toLight,toRef);
- let tangential=saturate(1.0-dot(across,across)*reciprocal*reciprocal);
- let penalised=(pixelModelOf(base.flags)==SD_PROFILE)&&light.radius>0.0;
- let error=select(-0.25,light.radius,penalised);
- let height=dot(base.N,-toRef);
- let planar=length(-toRef-height*base.N)*error;
- let plane=saturate(1.0-6.0*(abs(height)+planar)*reciprocal);
- return tangential*plane*pow(max(dot(base.N,nb.N),0.0),4.0);
-}
 /** A kernel's accumulator in descending ring order: the ring being taken (n, m, the radius sum, the translucency sum), what the rings after hold (previous), the width of a ring and the
  *  least radius met. */
 struct SdRings{cn:f32,cm:f32,cr:f32,ct:f32,pn:f32,pm:f32,pr:f32,border:f32,highest:f32,least:f32,}
@@ -136,3 +93,104 @@ fn sdRingEnd(a:ptr<function,SdRings>,count:u32){
  (*a).pr=(*a).pr*keep+(*a).cr;
 }`,
 )
+
+/**
+ * THE SHADOW SIGNAL: the light of the run and what it blurs by, and the bilateral weight between two surfaces.
+ *
+ * - The radius a hit gives a sample: the light's size seen from the pixel at the distance of the nearest blocker (a sun's disk times the distance, a lamp's radius (a tube's, with its half length across the view), a rectangle's
+ *   smaller side, each over the distance from the blocker to the light); the penumbra there.
+ * - The bilateral weight keeps what is near the pixel in the plane of the light's tangent, within the sample's radius, and near its plane, and agrees with its normal.
+ */
+const SHADOW_SIGNAL_WGSL = wgslBlock(
+  'SD_SHADOW_SIGNAL_WGSL',
+  [SHARED_WGSL, DIRECT_LIGHT_WGSL, lightTraits, pixelModelOf],
+  `@group(${SCREEN_SPACE_GROUP}) @binding(${SHADOW_DENOISE_BINDINGS.lights}) var<storage,read> directLights:DirectLights;
+const SD_HIT_INVALID:f32=${SHADOW_HIT_INVALID}.0;
+const SD_HIT_MISS:f32=${SHADOW_HIT_MISS}.0;
+const SD_PROFILE:u32=${PIXEL_MODEL.profile}u;
+/** The light of the run (its rank is the parameters' time z), what of it the denoiser reads. */
+struct SdLight{sun:bool,position:vec3f,axis:vec3f,radius:f32,tangent:f32,tubeHalf:f32,}
+fn sdLight()->SdLight{
+ let light=directLights.items[u32(dnParams.time.z)];
+ if(isSun(light)){
+  let s=sourceTermOf(light);
+  return SdLight(true,vec3f(0.0),-light.directionCone.xyz,s,s*inverseSqrt(max(1.0-s*s,1e-12)),0.0);
+ }
+ if(isRect(light)){
+  return SdLight(false,light.positionRange.xyz,light.directionCone.xyz,2.0*min(length(light.shape.xyz),light.shape.w),0.0,0.0);
+ }
+ return SdLight(false,light.positionRange.xyz,emitterAxisOf(light),light.shape.x,0.0,tubeHalfLengthOf(light));
+}
+/** The unit direction from a point to the light. */
+fn sdToward(light:SdLight,P:vec3f)->vec3f{return select(normalize(light.position-P),light.axis,light.sun);}
+/** The radius a sample at P blurs by, from the distance of the nearest blocker hit: none for a texel with no ray, the greatest where all arrived. */
+fn sdBlurRadius(light:SdLight,P:vec3f,hit:f32)->f32{
+ if(hit==SD_HIT_INVALID){return SD_RADIUS_INVALID;}
+ if(hit==SD_HIT_MISS){return SD_RADIUS_MISS;}
+ if(light.sun){return min(light.tangent*hit,SD_RADIUS_MISS);}
+ // A tube is seen as wide as its radius and the part of its half length across the view from the pixel.
+ let size=light.radius+light.tubeHalf*length(cross(light.axis,normalize(light.position-P)));
+ // A blocker nearly at the light would blur without bound (past what the history's half floats hold): it blurs no wider than a ray that arrived.
+ return min(size*hit/max(distance(light.position,P)-hit,0.001),SD_RADIUS_MISS);
+}
+/** The weight of a neighbour nb of the surface base within dist (the sample's radius): the light-tangent distance, the plane distance and the normals' agreement. A negative
+ *  distance (a reference with no sample) stands for the reach of the reference pixel itself, so that the plane and the depth still reject across edges. */
+fn sdBilateral(light:SdLight,dist:f32,base:SdSurface,nb:SdSurface)->f32{
+ let reach=select(dist,sdAmend(ssPixelRadius(base.depth)),dist<0.0);
+ let reciprocal=1.0/select(reach,1e-6,reach==0.0);
+ let toRef=base.P-nb.P;
+ let toLight=sdToward(light,nb.P);
+ let across=toRef-toLight*dot(toLight,toRef);
+ let tangential=saturate(1.0-dot(across,across)*reciprocal*reciprocal);
+ let penalised=(pixelModelOf(base.flags)==SD_PROFILE)&&light.radius>0.0;
+ let error=select(-0.25,light.radius,penalised);
+ let height=dot(base.N,-toRef);
+ let planar=length(-toRef-height*base.N)*error;
+ let plane=saturate(1.0-6.0*(abs(height)+planar)*reciprocal);
+ return tangential*plane*pow(max(dot(base.N,nb.N),0.0),4.0);
+}
+/** The weight of a tap of the spatial passes, the bilateral weight within the least of the sample's radius and the pixel's own. */
+fn sdSpatialWeight(light:SdLight,s:SdSample,least:f32,base:SdSurface,nb:SdSurface)->f32{return sdBilateral(light,min(s.r,least),base,nb);}
+/** The weight of a tap of the history, within dist. */
+fn sdHistoryWeight(light:SdLight,dist:f32,base:SdSurface,nb:SdSurface)->f32{return sdBilateral(light,dist,base,nb);}`,
+)
+
+/**
+ * THE OCCLUSION SIGNAL: the run knows nothing beyond the pixels, a sample's radius is the distance of the nearest blocker its rays found, and the bilateral weights are a position term
+ * and the normals' agreement:
+ * - the spatial passes: the squared distance between the two points over the square of the reach, 1 minus it, the reach being the pixel reach of the least of the two pixels' radii;
+ * - the history and the neighbourhood of the temporal passes: the distance of the neighbour to the plane of the pixel over the reach, 1 minus it.
+ */
+const OCCLUSION_SIGNAL_WGSL = wgslBlock(
+  'SD_OCCLUSION_SIGNAL_WGSL',
+  [SHARED_WGSL],
+  `struct SdLight{none:f32,}
+fn sdLight()->SdLight{return SdLight(0.0);}
+fn sdNormalsAgree(base:SdSurface,nb:SdSurface)->f32{return pow(max(dot(base.N,nb.N),0.0),4.0);}
+fn sdSpatialWeight(light:SdLight,s:SdSample,least:f32,base:SdSurface,nb:SdSurface)->f32{
+ let reach=sdAmend(min(ssPixelRadius(nb.depth),ssPixelRadius(base.depth)));
+ let toRef=base.P-nb.P;
+ return saturate(1.0-dot(toRef,toRef)/(reach*reach))*sdNormalsAgree(base,nb);
+}
+fn sdHistoryWeight(light:SdLight,dist:f32,base:SdSurface,nb:SdSurface)->f32{
+ return saturate(1.0-abs(dot(base.N,base.P-nb.P))/dist)*sdNormalsAgree(base,nb);
+}`,
+)
+
+/** The shared parts of a signal's denoiser passes: what every signal shares and the signal's own. */
+export const SHADOW_DENOISE_COMMON_WGSL = wgslBlock(
+  'SHADOW_DENOISE_COMMON_WGSL',
+  [SHARED_WGSL, SHADOW_SIGNAL_WGSL],
+  '',
+)
+export const OCCLUSION_DENOISE_COMMON_WGSL = wgslBlock(
+  'OCCLUSION_DENOISE_COMMON_WGSL',
+  [SHARED_WGSL, OCCLUSION_SIGNAL_WGSL],
+  '',
+)
+const COMMONS = {
+  shadow: SHADOW_DENOISE_COMMON_WGSL,
+  occlusion: OCCLUSION_DENOISE_COMMON_WGSL,
+} as const
+/** The shared parts of the passes of `signal`. */
+export const denoiseCommonOf = (signal: DenoiseSignalKind) => COMMONS[signal]

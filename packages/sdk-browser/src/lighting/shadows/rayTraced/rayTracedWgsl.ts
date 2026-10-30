@@ -18,6 +18,7 @@ import { lightChannelsOf, lightTraits } from '../../direct/lightReachWgsl.ts'
 import { LIGHT_CAPSULE_WGSL } from '../../manyLightsSampled/lightTraceWgsl.ts'
 import { WORLD_AT_WGSL } from '../../deferred/worldAtWgsl.ts'
 import { PT_RANDOM_WGSL } from '../../pathTracing/randomWgsl.ts'
+import { RAY_ORIGIN_WGSL } from '../../rays/rayOriginWgsl.ts'
 import { NO_SCENE_MASKS, type SceneMaskPrograms } from '../../rays/sceneTrace/sceneMaskPrograms.ts'
 import { sceneMaskWgsl } from '../../rays/sceneTrace/sceneMaskWgsl.ts'
 import { sceneTraceWgsl } from '../../rays/sceneTrace/sceneTraceWgsl.ts'
@@ -157,11 +158,7 @@ const RT_INVALID:f32=${SHADOW_HIT_INVALID}.0;
 const RT_MISS:f32=${SHADOW_HIT_MISS}.0;
 struct RtOcclusion{visibility:f32,closest:f32,}
 /** The start of a ray from the surface point P of normal N along D, in metres: toward the eye, then off the surface. */
-fn rtOrigin(P:vec3f,N:vec3f,D:vec3f)->vec3f{
- let bias=max(viewEyeDistance(P)*1.0e-4,params.bias.x);
- let toEye=P+viewToEye(P)*bias;
- return toEye+N*mix(max(params.bias.z,bias),params.bias.z,saturate(dot(N,D)));
-}
+fn rtOrigin(P:vec3f,N:vec3f,D:vec3f)->vec3f{return rayOrigin(P,N,D,params.bias.x,params.bias.z);}
 /** Whether the ray is stopped before it has gone reach: by a hit, or by a trace that did not finish; the distance it was stopped at and where the second part of it began. */
 struct RtBlock{blocked:bool,distance:f32,restart:f32,}
 fn rtBlocked(origin:vec3f,D:vec3f,reach:f32,rayFlags:u32)->RtBlock{
@@ -285,6 +282,7 @@ export const rayTracedProgram = (programs: SceneMaskPrograms = NO_SCENE_MASKS) =
     PARAMS_WGSL,
     DIRECT_LIGHT_WGSL,
     WORLD_AT_WGSL,
+    RAY_ORIGIN_WGSL,
     isFirstPerson,
     pixelModelOf,
     lightChannelsOf,

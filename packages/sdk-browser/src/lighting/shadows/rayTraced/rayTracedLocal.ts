@@ -4,7 +4,7 @@ import type { SceneRays } from '../../surfaceCache/lighting/surfaceLighting.ts'
 import type { EngineCamera } from '../../../camera/engineCamera.ts'
 import {
   encodeShadowDenoise,
-  releaseShadowDenoise,
+  releaseShadowSignal,
   trimShadowDenoise,
   type ShadowDenoiseJob,
 } from '../denoise/shadowDenoiseFrame.ts'
@@ -45,11 +45,11 @@ export function releaseRayTracedLocal(gpu: { viewKey?: object }) {
 /** What a view lets go of while it traces nothing, on the one stamp of its last traced image: the denoiser's idle histories and, once it has traced nothing for `IDLE_KEEP_IMAGES` images, the lights' textures and the denoiser's state. A one-image gap lets go of nothing. */
 export function trimRayTraced(gpu: { viewKey?: object }, frame: number) {
   const last = lastTracedAt(gpu)
-  // A view that never traced (or lost its stamp with its rays) has no use for a denoiser state.
-  if (last === undefined) releaseShadowDenoise(gpu)
+  // A view that never traced (or lost its stamp with its rays) has no use for the shadows' denoiser state (the occlusion's stands with its own owner).
+  if (last === undefined) releaseShadowSignal(gpu)
   else if (idleTooLong(frame, last)) {
     releaseRayTracedLocal(gpu)
-    releaseShadowDenoise(gpu)
+    releaseShadowSignal(gpu)
   } else {
     trimShadowDenoise(gpu, frame)
     merger.keep(gpu, frame)

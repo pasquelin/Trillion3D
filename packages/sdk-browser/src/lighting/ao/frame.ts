@@ -9,6 +9,7 @@ import {
 import { settingsWatch } from '../../../../sdk-core/src/contracts/settingRules.ts'
 import type { EngineCamera } from '../../camera/engineCamera.ts'
 import type { WebgpuPagesRuntime } from '../../frame/backend/runtime.ts'
+import { imagesSinceChange } from '../../frame/render/noiseFrame.ts'
 import {
   cameraSeen,
   NEVER_SEEN,
@@ -27,12 +28,25 @@ import { discMethod } from './discFrame.ts'
 import {
   createHorizonHistory,
   horizonMethod,
+  forgettingImages,
   settlingImages,
   type HorizonHistory,
 } from './horizon/frame.ts'
 import type { AoMethod, AoNeeded } from './method.ts'
 import type { AoImage } from './params.ts'
+import {
+  denoiseRayTracedAo,
+  RAY_TRACED_AO_SETTLING_IMAGES,
+} from './rayTraced/rayTracedAoDenoise.ts'
+import {
+  releaseRayTracedAo,
+  rayTracedAoStage,
+  rayTracedMethod,
+} from './rayTraced/rayTracedAoMethod.ts'
 import { aoViewBytes, ensureAoView, type AoView, type AoViewSpec } from './view.ts'
+
+/** What the mode of an image is decided from (`ambientOcclusionMode`), refilled each image: the ray-traced method counts only where its scene trace is there. */
+const modeInput = { enabled: false, withScreenProbes: false, rayTraced: { wanted: false } }
 
 /** The method the settings ask for, made for them (the horizon method over the history the state keeps). */
 const methodOf = (settings: AmbientOcclusionSettings, history: HorizonHistory): AoMethod =>
@@ -52,6 +66,10 @@ export interface AmbientOcclusion {
   readonly watch: ReturnType<typeof settingsWatch<typeof AMBIENT_OCCLUSION_RULES>>
   settings: AmbientOcclusionSettings
   method: AoMethod
+  /** The ray-traced method, made for the settings (`settings.rayTraced`): the image draws it in the place of `method` where the scene trace is there for it (`rayTracedAoStage`). */
+  rayTraced: AoMethod
+  /** Whether the last image's occlusion was the ray-traced one, denoised with a history over the images. */
+  denoised: boolean
   readonly history: HorizonHistory
   /** What the image's indirect light is, read each image (`indirectLight`) into this one object: none is made a frame. */
   readonly indirect: IndirectLightState
@@ -83,6 +101,8 @@ function createAmbientOcclusion(): AmbientOcclusion {
     watch,
     settings,
     method: methodOf(settings, history),
+    rayTraced: rayTracedMethod(settings.rayTraced),
+    denoised: false,
     history,
     indirect: { bounce: false, shortRange: true },
     needed: undefined,
@@ -122,14 +142,20 @@ function createAmbientOcclusion(): AmbientOcclusion {
 }
 
 /** Whether the view's occlusion still builds its temporal history: the last image drew the horizon method with its temporal filter,
- *  and fewer images than it takes to bring the history within a tenth of its limit (`settlingImages`) were drawn on it — a quiet
- *  view is drawn again till then, not held on an occlusion of one image, two directions a pixel and a phase of the turn. */
+ *  and fewer images than it takes to bring the history within a tenth of its limit (`settlingImages`) were drawn on it, or fewer than it takes
+ *  the history to forget a change since the view last changed (`forgettingImages`, `imagesSinceChange`) — a quiet view is drawn again till then,
+ *  not held on an occlusion of one image, two directions a pixel and a phase of the turn, nor on the residue of the light before a caster stopped. */
 export function ambientOcclusionSettling(rt: WebgpuPagesRuntime) {
   const state = rt.gpu.ambientOcclusion
   if (!state?.output) return false
+  // The ray-traced occlusion's denoiser accumulates one sample an image up to its limit.
+  if (state.denoised) return imagesSinceChange(rt.run) < RAY_TRACED_AO_SETTLING_IMAGES
   const { method, horizon } = state.settings
   return (
-    method === 'horizon' && horizon.temporal && state.history.images < settlingImages(horizon.blend)
+    method === 'horizon' &&
+    horizon.temporal &&
+    (state.history.images < settlingImages(horizon.blend) ||
+      imagesSinceChange(rt.run) < forgettingImages(horizon.blend))
   )
 }
 
@@ -160,12 +186,16 @@ function neededOf(rt: WebgpuPagesRuntime, state: AmbientOcclusion) {
     depth,
     empty: gpu.deferred.placeholders.ambientOcclusion,
     vectors: undefined,
+    rt,
+    traced: undefined,
   })
   needed.device = gpu.device
   needed.normals = gpu.surfaces.views()[1]
   needed.depth = depth
   needed.empty = gpu.deferred.placeholders.ambientOcclusion
   needed.vectors = velocity?.active && velocity.measured ? velocity.vectors : undefined
+  needed.rt = rt
+  needed.traced = undefined
   return needed
 }
 
@@ -190,6 +220,7 @@ function drawNone(
   deferred: NonNullable<WebgpuPagesRuntime['gpu']['deferred']>,
 ) {
   state.output = undefined
+  state.denoised = false
   state.code = state.amount = 0
   deferred.setAmbientOcclusion(0, 0)
 }
@@ -217,16 +248,28 @@ export function encodeAmbientOcclusion(
   if (state.watch.moved) {
     state.settings = resolveAmbientOcclusion(values)
     state.method = methodOf(state.settings, state.history)
+    state.rayTraced = rayTracedMethod(state.settings.rayTraced)
   }
-  const mode = ambientOcclusionMode(state.settings, indirectLight(rt, state.indirect))
+  // The ray-traced method takes the image where it is wanted and the lighting made the scene trace for it; else the search is drawn, as its own switch says.
+  const traced = state.settings.rayTraced.wanted ? rayTracedAoStage(rt) : undefined
+  const { settings } = state
+  modeInput.enabled = settings.enabled
+  modeInput.withScreenProbes = settings.withScreenProbes
+  modeInput.rayTraced.wanted = !!traced
+  const mode = ambientOcclusionMode(modeInput, indirectLight(rt, state.indirect))
+  if (!traced) {
+    releaseRayTracedAo(gpu)
+    state.denoised = false
+  }
   if (mode === 'none') {
     state.dispose()
     state.why = state.refusal = undefined
     return drawNone(state, deferred)
   }
-  const { method } = state
+  const method = traced ? state.rayTraced : state.method
   const inputs = neededOf(rt, state)
   if (!inputs || !method.ready(inputs.device)) return drawNone(state, deferred)
+  inputs.traced = traced
   const spec = method.spec(gpu.allocatedSize, !!gpu.temporal?.frame.active)
   const { refusal } = state
   if (refusal?.spec === spec && ledgerRoom(inputs.device) < refusal.bytes)
@@ -237,6 +280,8 @@ export function encodeAmbientOcclusion(
   state.refusal = view ? undefined : { spec, bytes: aoViewBytes(spec) }
   if (!view) return drawNone(state, deferred)
   state.output = method.draw(encoder, view, inputs, imageOf(rt, cam, method.extent, state))
+  state.denoised =
+    !!traced && denoiseRayTracedAo(rt, encoder, cam, settings.rayTraced, state.output)
   // The strands darken the surfaces about them (`hairSkyAO`): the occlusion the lighting reads is the least of the two.
   const drawn = view.spec.textures.find(({ name }) => name === 'ao')
   if (drawn && state.output)

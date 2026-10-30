@@ -1,5 +1,5 @@
 // The capsule shadows' WGSL texts of `ENGINE_SHADERS`: the shadow pass of each mode (the indirect one also over the meshes' distance-field
-// casters), the upsample draw with and without the second, ambient occlusion target, the pass that derives the light directions and the merge of the first-person self shadow into the masks, the ray traced shadow's kernel and its merge, and the shadow denoiser's passes.
+// casters), the upsample draw with and without the second, ambient occlusion target, the pass that derives the light directions and the merge of the first-person self shadow into the masks, the ray traced shadow's kernel and its merge, the ray traced occlusion's kernel and its denoiser's passes, and the shadow denoiser's passes.
 import {
   capsuleShadowShader,
   type CapsuleMode,
@@ -7,12 +7,19 @@ import {
 import { capsuleHooks } from '../../lighting/capsuleShadows/hooks.ts'
 import { lightDirectionShader } from '../../lighting/capsuleShadows/lightDirectionWgsl.ts'
 import {
+  occlusionFinalWgsl,
+  occlusionInjestWgsl,
+  occlusionRejectionWgsl,
+  occlusionTemporalWgsl,
+} from '../../lighting/shadows/denoise/occlusionDenoiseWgsl.ts'
+import {
   shadowFinalWgsl,
   shadowInjestWgsl,
   shadowSpatialWgsl,
 } from '../../lighting/shadows/denoise/shadowDenoiseSpatialWgsl.ts'
 import { shadowTemporalWgsl } from '../../lighting/shadows/denoise/shadowDenoiseTemporalWgsl.ts'
 import { selfShadowMergeProgram } from '../../lighting/shadows/firstPerson/selfShadowWgsl.ts'
+import { rayTracedAoProgram } from '../../lighting/ao/rayTraced/rayTracedAoWgsl.ts'
 import {
   rayTracedMergeProgram,
   rayTracedProgram,
@@ -42,6 +49,7 @@ export const CAPSULE_SHADOW_SHADERS: Record<string, string> = {
   SELF_SHADOW_MERGE: selfShadowMergeProgram(),
   RAY_TRACED_SHADOW: rayTracedProgram(),
   RAY_TRACED_MERGE: rayTracedMergeProgram(),
+  RAY_TRACED_AMBIENT_OCCLUSION: rayTracedAoProgram(),
   SHADOW_DENOISE_INJEST: shadowInjestWgsl(),
   SHADOW_DENOISE_RECONSTRUCT: shadowSpatialWgsl('reconstruct'),
   SHADOW_DENOISE_WEB: shadowSpatialWgsl('web'),
@@ -49,4 +57,11 @@ export const CAPSULE_SHADOW_SHADERS: Record<string, string> = {
   SHADOW_DENOISE_TEMPORAL: shadowTemporalWgsl(),
   SHADOW_DENOISE_OUTPUT: shadowFinalWgsl(false),
   SHADOW_DENOISE_SUN_OUTPUT: shadowFinalWgsl(true),
+  OCCLUSION_DENOISE_INJEST: occlusionInjestWgsl(),
+  OCCLUSION_DENOISE_RECONSTRUCT: shadowSpatialWgsl('reconstruct', 'occlusion'),
+  OCCLUSION_DENOISE_WEB: shadowSpatialWgsl('web', 'occlusion'),
+  OCCLUSION_DENOISE_POST_FILTER: shadowSpatialWgsl('postFilter', 'occlusion'),
+  OCCLUSION_DENOISE_REJECTION: occlusionRejectionWgsl(),
+  OCCLUSION_DENOISE_TEMPORAL: occlusionTemporalWgsl(),
+  OCCLUSION_DENOISE_OUTPUT: occlusionFinalWgsl(),
 }

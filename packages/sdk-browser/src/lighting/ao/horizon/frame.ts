@@ -56,11 +56,18 @@ export const createHorizonHistory = (): HorizonHistory => ({
 /** The share of the limit the history reaches before a view may rest: nine tenths. */
 const SETTLED_SHARE = 0.9
 
-/** The images the temporal filter needs to bring its history within a tenth of what it converges to, at the share `blend` of each
- *  image it takes: the history keeps `1 − blend` of itself, so after `n` images the first image weighs `(1 − blend)ⁿ`; one image
- *  where nothing is kept (a blend of 1 or more) or the history never moves (a blend of 0 or less): nothing to wait for. */
-export const settlingImages = (blend: number) =>
-  blend > 0 && blend < 1 ? ceilDiv(Math.log(1 - SETTLED_SHARE), Math.log(1 - blend)) : 1
+/** The images the history takes to keep only the share `left` of its first image at the share `blend` of each image it takes: it keeps `1 − blend` of itself, so
+ *  after `n` images the first image weighs `(1 − blend)ⁿ`; one image where nothing is kept (a blend of 1 or more) or the history never moves (a blend of 0 or less):
+ *  nothing to wait for. */
+const imagesToKeep = (left: number, blend: number) =>
+  blend > 0 && blend < 1 ? ceilDiv(Math.log(left), Math.log(1 - blend)) : 1
+
+/** The images the temporal filter needs to bring its history within a tenth of what it converges to. */
+export const settlingImages = (blend: number) => imagesToKeep(1 - SETTLED_SHARE, blend)
+
+/** The images the temporal filter needs to forget a change to what a display tells apart (one step of 256): a view held sooner shows the residue of the light it had before,
+ *  which two worlds that reached the same view by other histories do not share (the screen probes' rule, `imagesToForget`). */
+export const forgettingImages = (blend: number) => imagesToKeep(1 / 256, blend)
 
 /** What the passes are told of the history (`HorizonFrame`), refilled for each image: the rectangle it holds, whether the
  *  vectors of motion are bound, and where this image's clip positions fell in the last image's. */

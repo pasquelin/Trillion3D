@@ -47,6 +47,25 @@ test('the ambient occlusion settings read by their rules with the reference’s 
     ambientOcclusionHorizonTemporal: true,
     ambientOcclusionHorizonSpatial: true,
     ambientOcclusionHorizonBlend: 0.1,
+    // The ray-traced occlusion: the reference's console variable at -1 (the post-process volume decides, off), the volume's one sample, 200 centimetres and full intensity,
+    // one-sided geometry and no mask test.
+    rayTracedAmbientOcclusion: 'auto',
+    rayTracedAmbientOcclusionAllowed: true,
+    rayTracedAmbientOcclusionEnabled: false,
+    rayTracedAmbientOcclusionSamplesPerPixel: -1,
+    rayTracedAmbientOcclusionPostProcessSamplesPerPixel: 1,
+    rayTracedAmbientOcclusionRadius: 2,
+    rayTracedAmbientOcclusionIntensity: 1,
+    rayTracedAmbientOcclusionTwoSidedGeometry: false,
+    rayTracedAmbientOcclusionMaterials: false,
+    // Its denoiser: the reference's defaults (the screen-space denoiser's occlusion variables).
+    rayTracedAmbientOcclusionDenoiser: true,
+    rayTracedAmbientOcclusionDenoiserReconstructionSamples: 16,
+    rayTracedAmbientOcclusionDenoiserPreConvolution: 2,
+    rayTracedAmbientOcclusionDenoiserKernelSpreadFactor: 4,
+    rayTracedAmbientOcclusionDenoiserTemporalAccumulation: true,
+    rayTracedAmbientOcclusionDenoiserHistoryConvolutionSamples: 1,
+    rayTracedAmbientOcclusionDenoiserHistoryConvolutionKernelSpreadFactor: 7,
   })
   for (const [field, value] of [
     ['ambientOcclusionIntensity', 1.5],
@@ -58,6 +77,13 @@ test('the ambient occlusion settings read by their rules with the reference’s 
     ['ambientOcclusionMethod', 'unknown'],
     ['ambientOcclusionHorizonAngles', 17],
     ['ambientOcclusionHorizonBlend', -0.1],
+    ['rayTracedAmbientOcclusion', 'maybe'],
+    ['rayTracedAmbientOcclusionSamplesPerPixel', -2],
+    ['rayTracedAmbientOcclusionPostProcessSamplesPerPixel', 0],
+    ['rayTracedAmbientOcclusionIntensity', 1.5],
+    ['rayTracedAmbientOcclusionDenoiserReconstructionSamples', 57],
+    ['rayTracedAmbientOcclusionDenoiserPreConvolution', 5],
+    ['rayTracedAmbientOcclusionDenoiserKernelSpreadFactor', -1],
   ] as const)
     assert.throws(
       () => resolveSetting<SettingRule>(AMBIENT_OCCLUSION_RULES[field], value),
@@ -245,4 +271,45 @@ test('the fade is resolved once for both methods: its distance, and the multipli
   assert.deepEqual(fade({}), [8000, 1 / 5000, -0.6])
   // The fade radius is held to a centimetre.
   assert.deepEqual(fade({ ambientOcclusionFadeRadius: 0 }), [8000, 1, -7999])
+})
+
+test('the ray-traced occlusion is wanted where allowed, on and of an intensity, and replaces the search whatever its switch', () => {
+  const settings = (
+    options: Parameters<typeof resolveSettings<typeof AMBIENT_OCCLUSION_RULES>>[1],
+  ) => resolveAmbientOcclusion(resolveSettings(AMBIENT_OCCLUSION_RULES, options))
+  assert.equal(settings({}).rayTraced.wanted, false)
+  // 'auto' follows the post-process switch, 'on' and 'off' decide, the intensity 0 and the scalability switch cancel it.
+  assert.equal(settings({ rayTracedAmbientOcclusionEnabled: true }).rayTraced.wanted, true)
+  assert.equal(settings({ rayTracedAmbientOcclusion: 'on' }).rayTraced.wanted, true)
+  assert.equal(
+    settings({ rayTracedAmbientOcclusion: 'off', rayTracedAmbientOcclusionEnabled: true }).rayTraced
+      .wanted,
+    false,
+  )
+  assert.equal(
+    settings({ rayTracedAmbientOcclusion: 'on', rayTracedAmbientOcclusionIntensity: 0 }).rayTraced
+      .wanted,
+    false,
+  )
+  assert.equal(
+    settings({ rayTracedAmbientOcclusion: 'on', rayTracedAmbientOcclusionAllowed: false }).rayTraced
+      .wanted,
+    false,
+  )
+  // The console variable's rays win over the volume's where it is not -1, even at 0.
+  assert.equal(
+    settings({ rayTracedAmbientOcclusionPostProcessSamplesPerPixel: 4 }).rayTraced.samples,
+    4,
+  )
+  assert.equal(
+    settings({
+      rayTracedAmbientOcclusionPostProcessSamplesPerPixel: 4,
+      rayTracedAmbientOcclusionSamplesPerPixel: 0,
+    }).rayTraced.samples,
+    0,
+  )
+  // It is drawn for the scene with the search switched off, and with the bounce on it is not drawn.
+  const rayTraced = settings({ rayTracedAmbientOcclusion: 'on', ambientOcclusion: false })
+  assert.equal(ambientOcclusionMode(rayTraced, { bounce: false, shortRange: true }), 'scene')
+  assert.equal(ambientOcclusionMode(rayTraced, { bounce: true, shortRange: false }), 'none')
 })

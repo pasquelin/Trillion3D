@@ -13,6 +13,7 @@ import { tracedTranslucencyTraced } from '../../reflections/translucency/stage.t
 import { reflectionsTraced } from '../../reflections/hardware.ts'
 import { hardwareRayTracing, surfaceCacheRaysOf } from '../../rays/hardwareRayTracing.ts'
 import { pathTracingOn } from '../../pathTracing/enabled.ts'
+import { rayTracedAoTraced } from '../../ao/rayTraced/rayTracedAoGate.ts'
 import { rayTracedShadowsTraced } from '../../shadows/rayTraced/rayTracedLights.ts'
 import { lightProfileResources } from '../../lightProfile/frame.ts'
 import { lightProfileStandIn } from '../../lightProfile/profileStandIn.ts'
@@ -85,12 +86,13 @@ export function lightSurfaceCache(
       direction: cameraForward<[number, number, number]>([0, 0, 0], frame.cam.world),
       transportEpoch: lights.store.transportEpoch,
       meshReach: reachOf(rt, state) + state.settings.surfaceCacheCardCaptureMargin,
-      // The path tracer casts every ray of its view through the scene's triangles, whatever the device's hardware; so do the reservoirs, once the setting chose them over the probes, the ray traced shadows of the lights that ask for them, and the traced translucency (its own setting is the whole gate).
+      // The path tracer casts every ray of its view through the scene's triangles, whatever the device's hardware; so do the reservoirs, once the setting chose them over the probes, the ray traced shadows of the lights that ask for them, the ray traced ambient occlusion, and the traced translucency (its own setting is the whole gate).
       probes:
         pathTracingOn(rt) ||
         reservoirsTraced(rt) ||
         tracedTranslucencyTraced(rt) ||
         rayTracedShadowsTraced(rt) ||
+        rayTracedAoTraced(rt) ||
         (hardwareRayTracing() &&
           (radianceCacheTraced(rt) ||
             screenProbesTraced(rt) ||

@@ -69,4 +69,36 @@ export const AMBIENT_OCCLUSION_MEANINGS: Readonly<Record<AmbientOcclusionField, 
       "Whether the horizon method's result is blurred in space, each neighbour weighed by how near it lies to the pixel's plane: true by default. The power and the intensity apply either way: in the filter, or, with it off, in the last pass of the method.",
     ambientOcclusionHorizonBlend:
       "The share of this image the horizon method's temporal filter takes, from 0 (the history alone); the rest is the history's.",
+    rayTracedAmbientOcclusion:
+      "The ray-traced occlusion's switch (the reference's -1 / 0 / 1): 'off' never, 'on' always, 'auto' (the default) where rayTracedAmbientOcclusionEnabled is on. Where it is on it replaces the screen-space search: each pixel casts rays over the hemisphere of its surface's geometric normal through the scene's triangles and keeps the cosine-weighted share that arrive; a scene without triangles keeps the search.",
+    rayTracedAmbientOcclusionAllowed:
+      "The scalability switch that lets the ray-traced occlusion be on at all; true by default, and off whatever it is while the project's rayTracing switch is off.",
+    rayTracedAmbientOcclusionEnabled:
+      "The post-process volume's switch of the ray-traced occlusion, read where rayTracedAmbientOcclusion is 'auto'; false by default.",
+    rayTracedAmbientOcclusionSamplesPerPixel:
+      'The rays a pixel casts for the ray-traced occlusion, from 0 (none: the pixel is unoccluded); -1 (the default) leaves it to rayTracedAmbientOcclusionPostProcessSamplesPerPixel.',
+    rayTracedAmbientOcclusionPostProcessSamplesPerPixel:
+      "The post-process volume's rays a pixel casts for the ray-traced occlusion, from 1; 1 by default.",
+    rayTracedAmbientOcclusionRadius:
+      'The farthest, in metres, a ray of the ray-traced occlusion goes, from 0 to 100; 2 by default.',
+    rayTracedAmbientOcclusionIntensity:
+      'How much a blocked ray darkens, from 0 (the ray-traced occlusion is not drawn) to 1 (it blocks all); 1 by default.',
+    rayTracedAmbientOcclusionTwoSidedGeometry:
+      'Whether the geometry occludes the ray-traced occlusion from both of its faces; false by default, back faces are passed.',
+    rayTracedAmbientOcclusionMaterials:
+      "Whether the ray-traced occlusion's rays cut the masked surfaces by their mask; false by default, every triangle is opaque to them.",
+    rayTracedAmbientOcclusionDenoiser:
+      "Whether the ray-traced occlusion's result is denoised, from the occlusion and the distance of the nearest blocker its rays found: reconstruction, pre-convolutions, a rejection pre-convolution, accumulation over the images and an optional convolution of the history; true by default. False keeps the raw rays.",
+    rayTracedAmbientOcclusionDenoiserReconstructionSamples:
+      "The most samples of the ray-traced occlusion denoiser's reconstruction, from 1 to 56; 16 by default.",
+    rayTracedAmbientOcclusionDenoiserPreConvolution:
+      'The pre-convolution passes of the ray-traced occlusion denoiser after its reconstruction, from 0 to 4; 2 by default.',
+    rayTracedAmbientOcclusionDenoiserKernelSpreadFactor:
+      'The spread, in pixels, of the first pre-convolution of the ray-traced occlusion denoiser, doubling with each pass, from 0 to 64; 4 by default.',
+    rayTracedAmbientOcclusionDenoiserTemporalAccumulation:
+      'Whether the denoised ray-traced occlusion is accumulated over the images; true by default.',
+    rayTracedAmbientOcclusionDenoiserHistoryConvolutionSamples:
+      "The samples of the convolution of the ray-traced occlusion's accumulated history, from 1 to 56; 1 (the default) runs none.",
+    rayTracedAmbientOcclusionDenoiserHistoryConvolutionKernelSpreadFactor:
+      "The spread, in pixels, of the convolution of the ray-traced occlusion's accumulated history, from 0 to 64; 7 by default.",
   }))()

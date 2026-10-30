@@ -6,6 +6,11 @@ import {
   type HorizonSettings,
 } from './ambientOcclusionHorizon.ts'
 import {
+  RAY_TRACED_AMBIENT_OCCLUSION_RULES,
+  resolveRayTracedAmbientOcclusion,
+  type RayTracedAmbientOcclusionSettings,
+} from './rayTracedAmbientOcclusionOptions.ts'
+import {
   atLeast,
   flagSetting as flag,
   integerSetting as integer,
@@ -78,7 +83,9 @@ const CM = CENTIMETRES_PER_METRE
  * - `ambientOcclusionComputeSmooth` (on): where the compute pass is made and the image does not accumulate in time, a
  *   smoothing pass over its result (a box of four taps two texels apart), the noise's grid otherwise showing;
  * - the method (`ambientOcclusionMethod`, `'disc'`) and the settings of the second, `'horizon'` (`ambientOcclusionHorizon…`):
- *   `./ambientOcclusionHorizon.ts`.
+ *   `./ambientOcclusionHorizon.ts`;
+ * - the ray-traced occlusion (`rayTracedAmbientOcclusion…`), which takes the place of the method where it is on:
+ *   `./rayTracedAmbientOcclusionOptions.ts`.
  */
 export const AMBIENT_OCCLUSION_RULES = /* @__PURE__ */ (() =>
   rulesOf([
@@ -103,6 +110,7 @@ export const AMBIENT_OCCLUSION_RULES = /* @__PURE__ */ (() =>
     integer('ambientOcclusionCompute', 0, [0, 3]),
     flag('ambientOcclusionComputeSmooth', true),
     ...AMBIENT_OCCLUSION_HORIZON_RULES,
+    ...RAY_TRACED_AMBIENT_OCCLUSION_RULES,
   ] as const))()
 /** The field of one setting of the ambient occlusion. */
 export type AmbientOcclusionField = keyof typeof AMBIENT_OCCLUSION_RULES
@@ -180,6 +188,8 @@ export interface AmbientOcclusionSettings {
   /** The method that finds the occlusion, and the horizon search's own numbers (`./ambientOcclusionHorizon.ts`). */
   method: AmbientOcclusionMethod
   horizon: HorizonSettings
+  /** The ray-traced occlusion, which replaces the method where `rayTraced.wanted`. */
+  rayTraced: RayTracedAmbientOcclusionSettings
   /** Whether the pass is the compute pass (one resolution at most, the depth's normals), and whether it is smoothed in an
    *  image that does not accumulate in time. */
   compute: boolean
@@ -246,6 +256,7 @@ export function resolveAmbientOcclusion(values: AmbientOcclusionValues): Ambient
     withScreenProbes: values.ambientOcclusionWithScreenProbes,
     method: values.ambientOcclusionMethod,
     horizon: resolveHorizon(values),
+    rayTraced: resolveRayTracedAmbientOcclusion(values),
     compute,
     computeSmooth: values.ambientOcclusionComputeSmooth,
   }
@@ -268,12 +279,16 @@ export interface IndirectLightState {
  * quality level has it) it is drawn for the scene. With it on, at whatever level of the screen probes — the ones that read
  * the world's probes under their short-range occlusion, and a level of none, included — the probes' own occlusion is the one
  * there, and this is drawn only when the host asks for it (`withScreenProbes`) and that one is off, and then it occludes
- * their light alone. Nothing is drawn when the settings draw nothing (`AmbientOcclusionSettings.enabled`).
+ * their light alone. Nothing is drawn when the settings draw nothing (`AmbientOcclusionSettings.enabled`). The ray-traced occlusion
+ * (`rayTraced.wanted`) is drawn whatever `enabled` says, for the scene, and only where no diffuse global illumination is on.
  */
 export function ambientOcclusionMode(
-  settings: Pick<AmbientOcclusionSettings, 'enabled' | 'withScreenProbes'>,
+  settings: Pick<AmbientOcclusionSettings, 'enabled' | 'withScreenProbes'> & {
+    rayTraced?: Pick<RayTracedAmbientOcclusionSettings, 'wanted'>
+  },
   { bounce, shortRange }: IndirectLightState,
 ): AmbientOcclusionMode {
+  if (settings.rayTraced?.wanted) return bounce ? 'none' : 'scene'
   if (!settings.enabled) return 'none'
   if (!bounce) return 'scene'
   return settings.withScreenProbes && !shortRange ? 'probes' : 'none'

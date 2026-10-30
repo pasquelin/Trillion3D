@@ -1,11 +1,15 @@
 import { wgslProgram } from '../../../../../math/src/wgsl/assemble.ts'
-import { wgslBlock } from '../../../../../math/src/wgsl/decl.ts'
+import { wgslBlock, wgslVariants } from '../../../../../math/src/wgsl/decl.ts'
 import { interleavedGradientNoise } from '../../../../../math/src/wgsl/sampling.ts'
 import { SCREEN_SPACE_BINDINGS as B } from '../../screenSpaceTracing/rayCastWgsl.ts'
 import { STACKOWIAK_WGSL } from '../../screenSpaceTracing/denoise/stackowiakSet.ts'
 import { SCREEN_SPACE_GROUP_SIDE } from '../../screenSpaceTracing/screenSpaceQuality.ts'
 import { SCREEN_SPACE_GROUP } from '../../screenSpaceTracing/screenSpaceView.ts'
-import { SHADOW_DENOISE_COMMON_WGSL } from './shadowDenoiseCommonWgsl.ts'
+import {
+  denoiseCommonOf,
+  SHADOW_DENOISE_COMMON_WGSL,
+  type DenoiseSignalKind,
+} from './shadowDenoiseCommonWgsl.ts'
 
 const G = SCREEN_SPACE_GROUP
 const SIDE = SCREEN_SPACE_GROUP_SIDE
@@ -13,19 +17,24 @@ const SIDE = SCREEN_SPACE_GROUP_SIDE
 /** The rings of the pre-convolution's hexagonal web (a ring r is r times the spread from the centre, 3r pairs of samples). */
 const WEB_RINGS = 1
 
-const OUT_HISTORY = `@group(${G}) @binding(${B.out}) var outA:texture_storage_2d<rgba16float,write>;`
+/** The count a sample is held to after the history convolution: a shadow's (a gray value in half floats keeps ten bits), and the occlusion's. */
+const SHADOW_TARGETED_SAMPLES = 1024
+export const OCCLUSION_TARGETED_SAMPLES = 256
 
-/** A sample taken for the pixel being denoised: the tap at the texel `pos` falls in (pixel units, the pixel's centre at +0.5), weighed by its bilateral weight (or whole where `force`). */
-const TAKE_WGSL = wgslBlock(
-  'SHADOW_DENOISE_TAKE_WGSL',
-  [SHADOW_DENOISE_COMMON_WGSL],
-  `fn sdTake(rings:ptr<function,SdRings>,light:SdLight,base:SdSurface,least:f32,pos:vec2f,force:bool){
+export const OUT_HISTORY = `@group(${G}) @binding(${B.out}) var outA:texture_storage_2d<rgba16float,write>;`
+
+/** A sample taken for the pixel being denoised: the tap at the texel `pos` falls in (pixel units, the pixel's centre at +0.5), weighed by the signal's spatial weight (or whole where `force`). */
+const takeWgsl = wgslVariants((occlusion: boolean) =>
+  wgslBlock(
+    `SHADOW_DENOISE_TAKE_WGSL(${occlusion ? 'occlusion' : 'shadow'})`,
+    [denoiseCommonOf(occlusion ? 'occlusion' : 'shadow')],
+    `fn sdTake(rings:ptr<function,SdRings>,light:SdLight,base:SdSurface,least:f32,pos:vec2f,force:bool){
  if(sdOutside(pos)){return;}
  let texel=vec2i(floor(pos));
  let s=sdTap(texel);
  if(s.n==0.0){return;}
  var w=1.0;
- if(!force){w=sdBilateral(light,min(s.r,least),base,sdSurfaceAt(texel));}
+ if(!force){w=sdSpatialWeight(light,s,least,base,sdSurfaceAt(texel));}
  sdRingAdd(rings,s,w);
 }
 fn sdCenter(rings:ptr<function,SdRings>,light:SdLight,base:SdSurface,least:f32,id:vec2u,spread:f32){
@@ -33,6 +42,7 @@ fn sdCenter(rings:ptr<function,SdRings>,light:SdLight,base:SdSurface,least:f32,i
  sdTake(rings,light,base,least,vec2f(id)+vec2f(0.5),true);
  sdRingEnd(rings,1u);
 }`,
+  ),
 )
 
 /**
@@ -112,30 +122,40 @@ fn sdWeb(id:vec2u,spread:f32)->SdRings{
 }`
 
 /**
- * THE SPATIAL PASSES (`shadowReconstruct`, `shadowPreConvolve`, `shadowPostFilter`; a thread a pixel): the sample of the pixel from the samples around it, weighed by the bilateral weight (`sdBilateral`)
- * within the least of the sample's radius and the pixel's own, taken ring by ring from the outside in (`SdRings`), and written as a sample whose radius is the least met.
+ * THE SPATIAL PASSES (`shadowReconstruct`, `shadowPreConvolve`, `shadowPostFilter`; a thread a pixel): the sample of the pixel from the samples around it, weighed by the signal's spatial weight
+ * (`sdSpatialWeight`) within the least of the sample's radius and the pixel's own, taken ring by ring from the outside in (`SdRings`), and written as a sample whose radius is the least met.
  *  - the reconstruction (the parameters' spread x the most samples, 1 pixel): the pixel's quad takes its track of the stochastic sets of offsets, `most` samples in descending rings, the quad's
  *    centre at the corner the four pixels share;
- *  - the pre-convolution (spread z, the spread of the pass: 8 pixels times two to its rank): a hexagonal web of one ring, the centre moved by noise;
- *  - the post filter (the history convolution): the reconstruction's kernel over the accumulated history, bounded by no radius of the pixel's own, the count of the sample capped at 1024.
+ *  - the pre-convolution (spread z, the spread of the pass: 8 pixels times two to its rank for a shadow): a hexagonal web of one ring, the centre moved by noise;
+ *  - the post filter (the history convolution): for a shadow the reconstruction's kernel over the accumulated history, bounded by no radius of the pixel's own; for the occlusion the web, at the
+ *    history convolution's spread; the count of the sample capped at 1024 (a shadow) or `OCCLUSION_TARGETED_SAMPLES`.
  */
-export const shadowSpatialWgsl = (kernel: 'reconstruct' | 'web' | 'postFilter') =>
-  wgslProgram(
+export const shadowSpatialWgsl = (
+  kernel: 'reconstruct' | 'web' | 'postFilter',
+  signal: DenoiseSignalKind = 'shadow',
+) => {
+  const occlusion = signal === 'occlusion'
+  const prefix = occlusion ? 'occlusion' : 'shadow'
+  const web = kernel === 'web' || (occlusion && kernel === 'postFilter')
+  const entry = `${prefix}${kernel === 'web' ? 'PreConvolve' : kernel === 'reconstruct' ? 'Reconstruct' : 'PostFilter'}`
+  const cap = occlusion ? OCCLUSION_TARGETED_SAMPLES : SHADOW_TARGETED_SAMPLES
+  return wgslProgram(
     `${OUT_HISTORY}
-${kernel === 'web' ? WEB_WGSL : RECONSTRUCT_WGSL}
+${web ? WEB_WGSL : RECONSTRUCT_WGSL}
 @compute @workgroup_size(${SIDE},${SIDE})
-fn ${kernel === 'web' ? 'shadowPreConvolve' : kernel === 'reconstruct' ? 'shadowReconstruct' : 'shadowPostFilter'}(@builtin(global_invocation_id) gid:vec3u){
+fn ${entry}(@builtin(global_invocation_id) gid:vec3u){
  let id=vec3u(sdPixelOf(gid.xy),0u);
  if(any(id.xy>=vec2u(dnParams.rect.zw))){return;}
- let rings=${kernel === 'web' ? 'sdWeb(id.xy,dnParams.spread.z)' : `sdReconstruct(id.xy,dnParams.spread.z,u32(dnParams.spread.x),${kernel === 'reconstruct'})`};
- ${kernel === 'postFilter' ? 'let held=sdTap(vec2i(id.xy)).n;\n let scale=select(0.0,min(held,1024.0)/held,held>0.0);\n textureStore(outA,vec2i(id.xy),sdEncode(rings.pn*scale,rings.pm*scale,rings.least));' : 'textureStore(outA,vec2i(id.xy),sdEncode(rings.pn,rings.pm,rings.least));'}
+ let rings=${web ? 'sdWeb(id.xy,dnParams.spread.z)' : `sdReconstruct(id.xy,dnParams.spread.z,u32(dnParams.spread.x),${kernel === 'reconstruct'})`};
+ ${kernel === 'postFilter' ? `let held=sdTap(vec2i(id.xy)).n;\n let scale=select(0.0,min(held,${cap}.0)/held,held>0.0);\n textureStore(outA,vec2i(id.xy),sdEncode(rings.pn*scale,rings.pm*scale,rings.least));` : 'textureStore(outA,vec2i(id.xy),sdEncode(rings.pn,rings.pm,rings.least));'}
 }`,
     [
-      SHADOW_DENOISE_COMMON_WGSL,
-      TAKE_WGSL,
-      ...(kernel === 'web' ? [interleavedGradientNoise] : [STACKOWIAK_WGSL]),
+      denoiseCommonOf(signal),
+      takeWgsl(occlusion),
+      ...(web ? [interleavedGradientNoise] : [STACKOWIAK_WGSL]),
     ],
   )
+}
 
 /**
  * THE OUTPUT (`shadowFinal`, a thread a pixel): the share of the rays that arrived of the accumulated sample, 1 where it has none, into the layer of the light's visibility; a sun's, taken into its
