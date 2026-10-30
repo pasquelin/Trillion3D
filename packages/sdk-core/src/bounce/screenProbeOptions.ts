@@ -319,7 +319,7 @@ const IRRADIANCE_FIELD_RULES = /* @__PURE__ */ (() =>
     integer('irradianceFieldOcclusionProbeResolution', 16, [1, 64]),
     integer('irradianceFieldNumMipmaps', 3, [1, 3]),
     integer('irradianceFieldProbeAtlasResolutionInProbes', 128, [1, 255]),
-    number('irradianceFieldProbeOcclusionBias', 0.008, [0, 100]),
+    number('irradianceFieldProbeOcclusionBias', 0.8, [0, 100]),
     number('irradianceFieldShortRangeAORadius', 32, [0, 4096]),
     integer('irradianceFieldInterpolateDownsampleFactor', 2, [1, 2]),
     integer('irradianceFieldMarkProbesDownsampleFactor', 2, [1, 8]),

@@ -168,7 +168,7 @@ test('the irradiance field gather is a setting of the reference’s names and de
     occlusionResolution: 16,
     mipmaps: 3,
     atlasProbes: 128,
-    occlusionBias: 0.008,
+    occlusionBias: 0.8,
     shortRangeRadius: 32,
     interpolateDownsample: 2,
     markDownsample: 2,

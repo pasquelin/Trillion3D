@@ -6,6 +6,24 @@
  * frame by frame, for the page's replay paths.
  */
 
+import { saturate } from '../../packages/math/src/scalar/reals.ts'
+
+/** The curves a page's move eases on, as the site's kit: `t` from 0 to 1 (clamped) gives how far along it is. */
+export const ease = {
+  /** Slow at both ends, the smoothstep. */
+  smooth: (t: number) => {
+    const x = saturate(t)
+    return x * x * (3 - 2 * x)
+  },
+  /** Slow at both ends, more sharply: a cubic in, then out. */
+  inOut: (t: number) => {
+    const x = saturate(t)
+    return x < 0.5 ? 4 * x * x * x : 1 - (-2 * x + 2) ** 3 / 2
+  },
+  /** Fast at first, landing softly: a cubic out. */
+  out: (t: number) => 1 - (1 - saturate(t)) ** 3,
+}
+
 /** The world as far as the opening goes: its loop and its camera controls. */
 export interface OpeningWorld {
   onFrame(hook: (frame: { delta: number }) => void): () => void

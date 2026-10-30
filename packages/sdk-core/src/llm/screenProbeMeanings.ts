@@ -152,7 +152,7 @@ const FILTER_MEANINGS_REST = /* @__PURE__ */ (() =>
     irradianceFieldProbeAtlasResolutionInProbes:
       "The probes along a side of the irradiance field's atlas, 1 to 255 (128 by default): the memory the field holds; past it the cells go unanswered.",
     irradianceFieldProbeOcclusionBias:
-      'The bias off the surface, along its normal and toward the viewer, the occlusion of a probe is read at to avoid self-occlusion, in metres (0.008 by default).',
+      'The bias off the surface, along its normal and toward the viewer, the occlusion of a probe is read at to avoid self-occlusion, as a share of three quarters of a cell (0.8 by default).',
     irradianceFieldShortRangeAORadius:
       'The radius of the short-range occlusion the irradiance field gathers with, in pixels (32 by default).',
     irradianceFieldInterpolateDownsampleFactor:

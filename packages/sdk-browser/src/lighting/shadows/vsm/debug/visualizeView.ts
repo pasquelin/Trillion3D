@@ -24,11 +24,11 @@ const PASS = 'Trillion3D shadow map view'
 
 /**
  * The screen pass of the virtual shadow map views: where the layout (`shadowVisualizeLayout`) says, the image in grey with the view over it (the whole image, 0), or the view alone in a
- * thumbnail of a third of the image's width and height at its upper left (1) or over its left half (2). `vizView` holds the display size, the size of the view's target, the layout, the mode id
+ * thumbnail of a third of the image's width and height at its upper left (1) or over its left half (2). `vizView` holds the display size, the size of the view's target, the layout (`placement`, `layout` being a word WGSL keeps), the mode id
  * and whether one light is shown, and the overdraw scale; the ray count view is turned to its colour here, from the rays traced over the most (`vsmRayCountColor`), and the overdraw view from the draws counted a texel
  * (red), `1 - 2^(-count x scale / 100)` on the inferno map, its alpha a smoothstep of the colour's mean from -0.1 to 0.1 (half where it is black, opaque where it is bright).
  */
-const VIEW_WGSL = `struct VizView{display:vec2u,source:vec2u,layout:u32,mode:u32,one:u32,scale:f32,}
+const VIEW_WGSL = `struct VizView{display:vec2u,source:vec2u,placement:u32,mode:u32,one:u32,scale:f32,}
 @group(0) @binding(0) var<uniform> vizView:VizView;
 @group(0) @binding(1) var sceneCopy:texture_2d<f32>;
 @group(0) @binding(2) var vizColour:texture_2d<f32>;
@@ -40,9 +40,9 @@ ${SCREEN_PASS_VERTEX}
  let scene=textureLoad(sceneCopy,vec2i(pixel),0);
  var region=vizView.display;
  var source=vizView.source;
- if(vizView.layout==1u){region=vizView.display/3u;}
- if(vizView.layout==2u){region.x=vizView.display.x/2u;source.x=source.x/2u;}
- if(vizView.layout>0u&&any(pixel>=region)){discard;}
+ if(vizView.placement==1u){region=vizView.display/3u;}
+ if(vizView.placement==2u){region.x=vizView.display.x/2u;source.x=source.x/2u;}
+ if(vizView.placement>0u&&any(pixel>=region)){discard;}
  let texel=min(vec2u((vec2f(pixel)+0.5)/vec2f(region)*vec2f(source)),source-vec2u(1u));
  var colour=textureLoad(vizColour,vec2i(texel),0);
  if(vizView.mode==${modeConstant('virtual-shadow-map-ray-count')}&&colour.a>0.0){colour=vec4f(vsmRayCountColor(colour.xy,vizView.one!=0u),colour.a);}
@@ -50,7 +50,7 @@ ${SCREEN_PASS_VERTEX}
   let heat=colorMapInferno(1.0-exp2(-colour.r*clamp(vizView.scale/100.0,0.0,1.0)));
   colour=vec4f(heat,smoothstep(-0.1,0.1,dot(heat,vec3f(1.0/3.0))));
  }
- if(vizView.layout>0u){return vec4f(colour.rgb,1.0);}
+ if(vizView.placement>0u){return vec4f(colour.rgb,1.0);}
  let grey=vec3f(dot(scene.rgb,vec3f(0.299,0.587,0.114)));
  return vec4f(mix(grey,colour.rgb,colour.a),scene.a);
 }`
