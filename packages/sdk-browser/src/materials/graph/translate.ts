@@ -3,6 +3,7 @@ import { graphError } from '../../../../sdk-core/src/world/material/graph/valueT
 import { INPUT_HANDLERS } from './nodesInput.ts'
 import { MATH_HANDLERS } from './nodesMath.ts'
 import { NOISE_HANDLERS } from './nodesNoise.ts'
+import { SCENE_HANDLERS } from './nodesScene.ts'
 import { SPARSE_VOLUME_HANDLERS } from './nodesSparseVolume.ts'
 import { TEXTURE_HANDLERS } from './nodesTexture.ts'
 import type { State } from './state.ts'
@@ -12,6 +13,7 @@ const HANDLERS = {
   ...MATH_HANDLERS,
   ...INPUT_HANDLERS,
   ...NOISE_HANDLERS,
+  ...SCENE_HANDLERS,
   ...TEXTURE_HANDLERS,
   ...SPARSE_VOLUME_HANDLERS,
 }

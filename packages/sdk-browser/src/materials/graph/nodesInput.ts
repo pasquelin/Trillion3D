@@ -81,11 +81,12 @@ function parameter(s: State, n: GraphNode): Value {
   return scalar ? { type: 'flex', code: `g.v[${at}].x` } : { type: 'f4', code: `g.v[${at}]` }
 }
 
-/** What a domain has at its points: a light function's atlas slot is drawn once for every light and
+/** What a domain has at its points: a post-process material's pixel has the colour 1 of a vertex and no position in the world; a light function's atlas slot is drawn once for every light and
  *  view, so it has no world position, camera or normal, and its light's position reads as zero. */
 const WORLD_DOMAINS: Record<MaterialDomain, readonly NodeKind[]> = {
   lightFunction: ['objectPosition'],
   volume: ['worldPosition', 'cameraPosition', 'objectPosition', 'cameraVector'],
+  postProcess: ['vertexColor'],
   surface: [
     'worldPosition',
     'cameraPosition',

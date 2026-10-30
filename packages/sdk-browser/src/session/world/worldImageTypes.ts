@@ -32,6 +32,7 @@ import type { ScreenSpaceTracingOptions } from '../../../../sdk-core/src/contrac
 import type { SingleLayerWaterOptions } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import type { HairStrandsOptions } from '../../../../sdk-core/src/contracts/hairStrandsOptions.ts'
 import type { CustomDepthOptions } from '../../../../sdk-core/src/contracts/customDepthOptions.ts'
+import type { PostProcessMaterialOptions } from '../../../../sdk-core/src/contracts/postProcessMaterialOptions.ts'
 import type { HeterogeneousVolumeOptions } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import type { SampledLightsOptions } from '../../../../sdk-core/src/contracts/sampledLightsOptions.ts'
 import type { SubsurfaceScatteringOptions } from '../../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
@@ -356,6 +357,11 @@ export interface WorldImageSettings {
    *  Written, the settings named apply from the next frame — one `null` gives it back its default, one left out stays —; one a setting does not take is refused. */
   get customDepth(): FamilyValues<'customDepth'>
   set customDepth(options: CustomDepthOptions)
+  /** The post-process materials' settings, each by its field (`WorldOptions`), resolved over the page: `postProcessMaterials` (true), `postProcessDisableMaterials` (false),
+   *  `postProcessAllowStencilTest` (true) and `postProcessAllowBlendModes` (true). Written, the settings named apply from the next frame — one `null` gives it back its
+   *  default, one left out stays —; one a setting does not take is refused. */
+  get postProcessMaterial(): FamilyValues<'postProcessMaterial'>
+  set postProcessMaterial(options: PostProcessMaterialOptions)
   /** The heterogeneous volumes' settings, each by its field (`WorldOptions`), resolved over the page: `heterogeneousVolumes` (true) — whether
    *  the volumes of a sparse texture a scene declares are drawn —, `heterogeneousVolumesAllowed` (true) — whether the device profile allows them —,
    *  `heterogeneousVolumesShadows` (false) and `heterogeneousVolumesTranslucency` (false). Written, the settings named apply from the next

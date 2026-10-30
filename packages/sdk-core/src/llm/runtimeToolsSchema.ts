@@ -39,6 +39,7 @@ import { SUBSURFACE_SCATTERING_RULES } from '../contracts/subsurfaceScatteringOp
 import { VOLUMETRIC_FOG_RULES } from '../contracts/volumetricFogOptions.ts'
 import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
 import { CUSTOM_DEPTH_RULES } from '../contracts/customDepthOptions.ts'
+import { POST_PROCESS_MATERIAL_RULES } from '../contracts/postProcessMaterialOptions.ts'
 import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOptions.ts'
 import { SINGLE_LAYER_WATER_RULES } from '../contracts/singleLayerWaterOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../contracts/translucencyVolumeOptions.ts'
@@ -579,6 +580,11 @@ const MEDIUM_SETTING_TOOLS: Trillion3dTool[] = [
     'trillion3d_set_custom_depth',
     'Changes from the next frame the custom depth: a second depth of the view, and a stencil, that holds only the objects which set renderCustomDepth, whatever stands in front of them, for an outline or a post-process material to read. Whether it is drawn and keeps its targets or writes the stencil (customDepth), when in the frame it is drawn (customDepthOrder), whether it keeps the temporal jitter and whether its target is cleared by the fast path.',
     CUSTOM_DEPTH_RULES,
+  ),
+  /* @__PURE__ */ settingTool(
+    'trillion3d_set_post_process_material',
+    'Changes from the next frame whether the post-process materials the image holds (world.effects.blendables) are drawn (postProcessMaterials, on by default), whether they are all turned off (postProcessDisableMaterials), whether a material with a stencil test draws only the pixels it passes (postProcessAllowStencilTest) and whether one that outputs alpha blends by it (postProcessAllowBlendModes).',
+    POST_PROCESS_MATERIAL_RULES,
   ),
   /* @__PURE__ */ settingTool(
     'trillion3d_set_heterogeneous_volume_rendering',

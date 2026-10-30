@@ -83,6 +83,7 @@ test('a reserved word is found as a local, a parameter or a member, never in a c
  *  generator's text is on the list for one layout, and every generator they import must be. */
 const HANDED_IN = new Set([
   'gpu/core/shaderModule.ts',
+  'post/materials/postMaterials.ts',
   'diagnostic/screenPass.ts',
   'lighting/bounce/reservoirGather/kernels.ts',
   'gpu/sort/sortKit.ts',
@@ -141,6 +142,7 @@ test('the list holds the text of every call that compiles a module', () => {
     'engineShaders.manyLights.fixture.ts',
     'engineShaders.screenSpaceTracing.fixture.ts',
     'engineShaders.customDepth.fixture.ts',
+    'engineShaders.postMaterial.fixture.ts',
     'engineShaders.skyLightTraced.fixture.ts',
     'shaderTexts.fixture.ts',
   ]

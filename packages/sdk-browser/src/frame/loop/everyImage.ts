@@ -1,5 +1,6 @@
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { effectsMoved } from '../render/encodeEffects.ts'
+import { blendablesAnimated } from '../render/encodeBlendables.ts'
 import { guidesMoved } from '../render/encodeGuides.ts'
 import { particlesMoved } from '../../particles/gpu/webgpuParticleFrame.ts'
 import { lightFunctionsWaiting } from '../../lighting/lightFunction/frame.ts'
@@ -23,7 +24,7 @@ import { readTemporalSetting } from '../../../../sdk-core/src/contracts/temporal
  * or a denoiser to run (`pathTracingAccumulating`); a hair debug view (`hairDebugShown`); a surface — opaque or
  * translucent — or a fog object whose graph reads the time; a sky light whose cubemap is still being written (`skyCubemapsPending`);
  * an ambient cubemap whose mips are (`ambientCubemapPending`); clouds that drift or have not settled (`cloudsMoved`); and a view
- * whose film grain is drawn: its pattern follows the image's number (`finishAnimated`). The temporal pass running
+ * whose film grain is drawn: its pattern follows the image's number (`finishAnimated`); a post-process material whose graph reads the time. The temporal pass running
  * (`taaConverging`) and the frame-difference view are terms of the list too: `drawsEveryImage` and a trace name the same ones.
  */
 const TERMS: readonly (readonly [string, (rt: WebgpuPagesRuntime) => boolean | undefined])[] = [
@@ -34,6 +35,7 @@ const TERMS: readonly (readonly [string, (rt: WebgpuPagesRuntime) => boolean | u
   ['guides', guidesMoved],
   ['hairDebug', hairDebugShown],
   ['effects', effectsMoved],
+  ['postProcessMaterialsAnimated', blendablesAnimated],
   ['particles', particlesMoved],
   ['lightFunctions', lightFunctionsWaiting],
   ['lightProfiles', lightProfilesWaiting],

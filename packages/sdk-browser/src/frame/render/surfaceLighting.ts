@@ -20,6 +20,7 @@ import {
   encodeOverlayEffects,
   encodeResolvedEffects,
 } from './encodeEffects.ts'
+import { displayBlendablesDrawn } from './encodeBlendables.ts'
 import { clearResponsive } from '../prepare/responsiveTarget.ts'
 import { bounceViewOf, directLightResources, readsAsIs } from '../prepare/contractLight.ts'
 import { wantsContractLighting } from '../prepare/lit.ts'
@@ -296,7 +297,10 @@ function composeImage(
   // below) for the held frames. A reader of the display colour composes it again from what is kept
   // (`freshDisplay`).
   const writesDisplay =
-    !shown || !!filter || !!rt.context.effects?.stage('after-tone-mapping').length
+    !shown ||
+    !!filter ||
+    !!rt.context.effects?.stage('after-tone-mapping').length ||
+    displayBlendablesDrawn(rt)
   gpu.canvasOnly = writesDisplay ? undefined : { clear, composed, asIs, source }
   gpu.deferred!.compose(
     encoder,

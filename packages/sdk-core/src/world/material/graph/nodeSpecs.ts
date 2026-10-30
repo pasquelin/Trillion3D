@@ -92,6 +92,8 @@ export const NODE_SPECS = {
   pixelNormal: spec([], []),
   vertexColor: spec([], [], {}, ['rgb', 'r', 'g', 'b', 'a']),
   cameraVector: spec([], []),
+  sceneTexture: spec(['uv'], [], { id: 'postProcessInput0', filtered: false }, COLOUR),
+  sceneTextureSize: spec([], [], { id: 'postProcessInput0', inverse: false }),
   noise: spec(['position', 'filterWidth'], [], {
     constFilterWidth: 0,
     relativeToCamera: false,

@@ -72,14 +72,16 @@ export type GraphBlend = AlphaMode
 
 /** The outputs each domain reads: a surface all of them; a light function its emission alone; a
  *  volume its albedo (`baseColor`), its extinction (`subsurfaceColor`) and its
- *  emission. A wire to any other output is refused. */
+ *  emission; a post-process material the colour of its pixel (`emissive`) and, where it outputs alpha,
+ *  its `opacity`. A wire to any other output is refused. */
 export const DOMAIN_OUTPUTS: Record<MaterialDomain, readonly GraphOutput[]> = {
   surface: Object.keys(GRAPH_OUTPUTS) as GraphOutput[],
   lightFunction: ['emissive'],
   volume: ['baseColor', 'subsurfaceColor', 'emissive'],
+  postProcess: ['emissive', 'opacity'],
 }
 
-/** Whether `domain` accepts a graph (`'surface'`, `'lightFunction'` or `'volume'`). */
+/** Whether `domain` accepts a graph (`'surface'`, `'lightFunction'`, `'volume'` or `'postProcess'`). */
 export const isGraphDomain = (value: unknown): value is MaterialDomain =>
   (MATERIAL_DOMAINS as readonly unknown[]).includes(value)
 

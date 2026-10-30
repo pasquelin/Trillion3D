@@ -7,6 +7,7 @@ import type {
   SPARSE_MIP_MODES,
 } from './nodeSpecs.ts'
 import { MathGraph } from './math.ts'
+import type { SceneTextureId } from '../postProcessMaterial.ts'
 import { given, type Wire } from './wired.ts'
 
 /** How a sample picks its level: the computed one, an absolute one, or the computed plus a bias. */
@@ -152,6 +153,16 @@ export class InputGraph extends MathGraph {
   /** The unit vector from the point shaded to the camera, in the world. */
   cameraVector() {
     return this.addNode('cameraVector')
+  }
+  /** The scene texture `id` — `sceneColor`, `sceneDepth`, `customDepth`, `customStencil` or `postProcessInput0` (the image so far) — read at `uv`
+   *  (the pixel's place in the image, 0 to 1, where not wired), `filtered` with bilinear weights; its outputs are rgba, r, g, b and a. The depths
+   *  are in metres along the view axis, the stencil the value written by the object. Only a post-process material has scene textures. */
+  sceneTexture(id: SceneTextureId = 'postProcessInput0', uv?: Pin, filtered = false) {
+    return this.wire('sceneTexture', { uv }, { id, filtered })
+  }
+  /** The size in pixels of the scene texture `id` (`inverse`: one over it). */
+  sceneTextureSize(id: SceneTextureId = 'postProcessInput0', inverse = false) {
+    return this.addNode('sceneTextureSize', { id, inverse })
   }
   /** A noise of `position` (the world position where not wired), the sum of `levels` noises each
    *  `levelScale` times finer and weaker than the one before, mapped from 0 to 1 to `outputMin` to

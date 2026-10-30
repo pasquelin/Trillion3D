@@ -1,6 +1,7 @@
 import { NODE_SPECS, NOISE_FUNCTIONS, SPARSE_ADDRESS_MODES, SPARSE_MIP_MODES } from './nodeSpecs.ts'
 import type { GraphNode, GraphStore } from './graph.ts'
 import { graphError } from './valueType.ts'
+import { isSceneTextureId } from '../postProcessMaterial.ts'
 
 /** The words of a required input left unwired. */
 export const missingInput = (kind: string, name: string) =>
@@ -73,6 +74,8 @@ function validateProps(node: GraphNode) {
   const { kind, id, props } = node
   if (kind === 'noise' && !(NOISE_FUNCTIONS as readonly unknown[]).includes(props.noiseFunction))
     throw graphError(`noise has no function '${String(props.noiseFunction)}'`, { node: id })
+  if ((kind === 'sceneTexture' || kind === 'sceneTextureSize') && !isSceneTextureId(props.id))
+    throw graphError(`${kind} has no scene texture '${String(props.id)}'`, { node: id })
   if (kind === 'desaturation' && (props.luminance as readonly number[]).length !== 3)
     throw graphError('desaturation weighs three channels', { node: id })
   if (/Parameter$/.test(kind) && typeof props.name === 'string' && !props.name)

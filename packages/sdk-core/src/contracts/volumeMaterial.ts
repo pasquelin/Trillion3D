@@ -11,8 +11,9 @@ import { clamp } from '../../../math/src/scalar/reals.ts'
  */
 
 /** The domains a material may be authored in: the light function domain is `material.lightFunction`
- *  (`../world/material/lightFunctionMaterial.ts`). */
-export const MATERIAL_DOMAINS = ['surface', 'volume', 'lightFunction'] as const
+ *  (`../world/material/lightFunctionMaterial.ts`), the post-process domain `material.postProcess`
+ *  (`../world/material/postProcessMaterial.ts`). */
+export const MATERIAL_DOMAINS = ['surface', 'volume', 'lightFunction', 'postProcess'] as const
 /** A material's domain. */
 export type MaterialDomain = (typeof MATERIAL_DOMAINS)[number]
 /** The kind name of a material of the volume domain (`Material.kind`). */

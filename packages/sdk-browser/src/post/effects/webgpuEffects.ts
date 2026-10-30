@@ -2,6 +2,7 @@ import { createKinds } from './effectKinds.ts'
 import { createKindSettings, type KindSettings } from './kindSettings.ts'
 import { createHdrStage, createOverlayStage, createResolveStage } from './effectStages.ts'
 import type { PlanStage } from './stagePlan.ts'
+import { createPostMaterials } from '../materials/postMaterials.ts'
 
 /**
  * The WebGPU side of `world.effects`: the passes that run on the resolved image (the motion blur),
@@ -29,7 +30,7 @@ import type { PlanStage } from './stagePlan.ts'
  * handed the passes that draw (`KindSettings.drawn`), an idle pass or one the view's settings turn off
  * excluded. `overlay` draws those after tone mapping over `frame`'s display image and returns the render
  * passes encoded, none while a kind they need compiles; with no pass to draw, what the overlays hold is
- * freed.
+ * freed. `materials` draws the post-process materials of the chain's blendables around them (`../materials/postMaterials.ts`).
  */
 export function createWebgpuEffects(
   device: GPUDevice,
@@ -43,6 +44,7 @@ export function createWebgpuEffects(
   }
   const hdr = createHdrStage(device, kinds, settings)
   const overlays = createOverlayStage(kinds)
+  const materials = createPostMaterials(device)
   return {
     /** True while programs compile: the image drawn meanwhile lacks the chain. */
     get loading() {
@@ -53,8 +55,10 @@ export function createWebgpuEffects(
     settled: kinds.settled,
     /** Bytes of every target the chain holds: the pass targets and each kind's own. */
     get bytes() {
-      return hdr.targets.bytes + kinds.bytes
+      return hdr.targets.bytes + kinds.bytes + materials.bytes
     },
+    /** The post-process materials of the chain's blendables (`world.effects.blendables`), drawn at the places the image offers them. */
+    materials,
     /** Render passes the last `encode` drew: zero when it drew none. */
     get draws() {
       return hdr.drawn.draws
@@ -72,6 +76,7 @@ export function createWebgpuEffects(
     dispose() {
       hdr.targets.release()
       overlays.release()
+      materials.dispose()
       kinds.dispose()
     },
   }

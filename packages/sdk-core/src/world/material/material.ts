@@ -21,6 +21,7 @@ import {
   forgetLightFunctionMaterial,
   LIGHT_FUNCTION_MATERIAL_KIND,
 } from './lightFunctionMaterial.ts'
+import { POST_PROCESS_MATERIAL_KIND } from './postProcessMaterial.ts'
 import { MaterialGraph } from './graph/api.ts'
 import type { GraphData } from './graph/graph.ts'
 import { graphError } from './graph/valueType.ts'
@@ -207,6 +208,7 @@ export class Material {
    *  into the fog's volume where its mesh stands and draws no surface. */
   get domain(): MaterialDomain {
     if (this.kind === LIGHT_FUNCTION_MATERIAL_KIND) return 'lightFunction'
+    if (this.kind === POST_PROCESS_MATERIAL_KIND) return 'postProcess'
     return this.kind === VOLUME_MATERIAL_KIND ? 'volume' : 'surface'
   }
   /** The emissive colour times its intensity, as three numbers. */

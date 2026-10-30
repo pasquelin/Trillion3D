@@ -13,6 +13,7 @@ import { readResolveFrame, resolveFrame, webgpuEffects } from './effectsFrame.ts
 import { markFused, settle } from '../../blend/translucency.ts'
 import { composeLateImage } from '../../blend/translucencyCompose.ts'
 import { applyPendingHoldout } from '../../blend/draw.ts'
+import { COMPILING, encodeBlendablesOver, encodeDisplayBlendables } from './encodeBlendables.ts'
 
 /** The passes of a stage that draw, rewritten by each image: an image allocates none. */
 const drawing: EffectPass[] = []
@@ -30,9 +31,6 @@ export function composedImage(
   composed.finish = finish
   return composed
 }
-
-/** The revision an image drawn while the chain compiles keeps: no chain's, which count from 0. */
-const COMPILING = -1
 
 /** The passes of a stage the chain holds none of. */
 const NO_PASSES: readonly EffectPass[] = []
@@ -88,10 +86,31 @@ export function encodeLitEffects(
   const { gpu } = rt
   if (!gpu.hdrView || !gpu.depthView || !effectsShown(rt)) return undefined
   resolveFrame.layersComposed = false
-  const color = drawStage(rt, device, encoder, cam, 'before-resolve', gpu.hdrView, false)
+  const { hdrView, targetSize, allocatedSize } = gpu
+  // The post-process materials of the chain around the depth of field: ahead of it, then after it.
+  const before = encodeBlendablesOver(
+    rt,
+    device,
+    encoder,
+    'sceneColorBeforeDof',
+    hdrView,
+    targetSize,
+    allocatedSize,
+  )
+  const blurred = drawStage(rt, device, encoder, cam, 'before-resolve', before, false)
   if (resolveFrame.layersComposed && gpu.translucency) markFused(gpu.translucency)
+  const after = encodeBlendablesOver(
+    rt,
+    device,
+    encoder,
+    'sceneColorAfterDof',
+    blurred ?? before,
+    targetSize,
+    allocatedSize,
+  )
+  const color = after === hdrView ? undefined : after
   // The alpha holdout the setting lays after the depth of field.
-  applyPendingHoldout(rt, device, encoder, color ?? gpu.hdrView)
+  applyPendingHoldout(rt, device, encoder, color ?? hdrView)
   return color
 }
 
@@ -123,11 +142,44 @@ export function encodeResolvedEffects(
   if (!scene || !effectsShown(rt)) return resolved
   const size = accumulated ? rt.gpu.displaySize : rt.gpu.targetSize
   const color = composeLateImage(rt, device, encoder, scene, size, cam)
-  if (!color) return resolved
-  const { late } = rt.gpu.images
-  late.color = color
-  late.half = undefined
-  return late
+  let image = resolved
+  if (color) {
+    const { late } = rt.gpu.images
+    late.color = color
+    late.half = undefined
+    image = late
+  }
+  return encodeBeforeBloom(rt, device, encoder, image, scene, !!accumulated)
+}
+
+/** The post-process materials ahead of the bloom, over the image the passes on the resolved image left (`image`, else `scene`): the image
+ *  they leave, its half-size image gone as they changed it; `image` itself when none draws. */
+function encodeBeforeBloom(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  image: ResolvedImage | undefined,
+  scene: GPUTextureView,
+  atDisplay: boolean,
+) {
+  const { gpu } = rt
+  const input = image?.color ?? scene
+  const size = atDisplay ? gpu.displaySize : gpu.targetSize
+  const extent = atDisplay ? gpu.displaySize : gpu.allocatedSize
+  const color = encodeBlendablesOver(
+    rt,
+    device,
+    encoder,
+    'sceneColorBeforeBloom',
+    input,
+    size,
+    extent,
+  )
+  if (color === input) return image
+  const { resolved } = gpu.images
+  resolved.color = color
+  resolved.half = undefined
+  return resolved
 }
 
 /** The passes on the resolved image: `accumulated` itself where none draws. */
@@ -210,6 +262,22 @@ export function encodeEffects(
  * loop draws it again once they arrive.
  */
 export function encodeOverlayEffects(
+  rt: WebgpuPagesRuntime,
+  device: GPUDevice,
+  encoder: GPUCommandEncoder,
+  presentation: GPUTextureView | undefined,
+) {
+  // The post-process materials after the tone mapping come first: the overlays are drawn over what they leave.
+  const display = rt.gpu.displayView
+  const materials =
+    display && beautyImage(rt)
+      ? encodeDisplayBlendables(rt, device, encoder, display, presentation)
+      : 0
+  return materials + drawOverlays(rt, device, encoder, presentation)
+}
+
+/** The passes of the chain after tone mapping, over the display image. */
+function drawOverlays(
   rt: WebgpuPagesRuntime,
   device: GPUDevice,
   encoder: GPUCommandEncoder,

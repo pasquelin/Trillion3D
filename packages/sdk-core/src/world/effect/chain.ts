@@ -1,3 +1,5 @@
+import { Blendables } from './blendables.ts'
+
 /**
  * Where a pass sits relative to the temporal pass and the display curve: on the lit image, before
  * the temporal pass resolves it (`before-resolve`); on the image the temporal pass resolved, before
@@ -50,6 +52,8 @@ export class EffectChain {
   private readonly byStage = new Map<EffectStage, EffectPass[]>()
   private count = 0
   private readonly notify: () => void
+  /** The post-process materials the image joins, each at its `blendableLocation` (`Blendables`). A change redraws the image. */
+  readonly blendables = new Blendables(() => this._touch())
   /**
    * @param changed - Runs after every change of the chain or of one of its passes.
    * @param passes - The passes the chain starts with, in order: none of them is a change.

@@ -7,6 +7,7 @@ import type { GraphData } from './graph/graph.ts'
 import type { PhysicsMaterialPreset } from '../../physics/options.ts'
 import type { ColorInput } from '../math/color.ts'
 import type { Blending, Side, TranslucencyLighting, TranslucencyPass } from '../constants/index.ts'
+import type { BlendableLocation, StencilCompare } from './postProcessMaterial.ts'
 
 /** What a page may pass to a material member; every field is optional. */
 export interface MaterialParameters {
@@ -25,6 +26,25 @@ export interface MaterialParameters {
   extinction?: number
   /** A volume material that gives only its emissive light, no scattering. */
   emissiveOnly?: boolean
+  /** A post-process material's place in the image (`material.postProcess`): ahead of or after the depth of field, on the translucency
+   *  after it, on the reflections' input, before the bloom, in the place of the tone mapper, or after it. @defaultValue 'sceneColorAfterTonemapping' */
+  blendableLocation?: BlendableLocation
+  /** The order of the post-process materials that share a location: the lower runs first, equal ones in the order they were added. @defaultValue 0 */
+  blendablePriority?: number
+  /** Whether a post-process material writes its `opacity` output as the pixel's alpha (and blends by it), the pixel's alpha kept otherwise. @defaultValue false */
+  blendableOutputAlpha?: boolean
+  /** Whether the parameters of a post-process material are blended by the weights when it is added twice; off, each add is a node of its own, drawn as it is. @defaultValue true */
+  isBlendable?: boolean
+  /** Whether a post-process material reads its image inputs and writes its colour as they are, without the exposure the image is held at.
+   *  @defaultValue false */
+  disablePreExposureScale?: boolean
+  /** Whether a post-process material draws only the pixels whose custom stencil passes `stencilCompare` against `stencilRefValue` (it needs
+   *  `customDepth` 3). @defaultValue false */
+  enableStencilTest?: boolean
+  /** The comparison of the stencil test: the pixel stays where `stencilRefValue` compared so to its custom stencil holds. @defaultValue 'less' */
+  stencilCompare?: StencilCompare
+  /** The value the custom stencil is compared to, 0 to 255. @defaultValue 0 */
+  stencilRefValue?: number
   /** How much the surface is metal: 0 is not at all, 1 is fully. */
   metalness?: number
   /** How rough the surface is: 0 is a mirror, 1 is fully matte. */

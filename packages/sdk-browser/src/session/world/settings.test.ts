@@ -40,6 +40,7 @@ import { VOLUMETRIC_FOG_RULES } from '../../../../sdk-core/src/contracts/volumet
 import { SINGLE_LAYER_WATER_RULES } from '../../../../sdk-core/src/contracts/singleLayerWaterOptions.ts'
 import { HAIR_STRANDS_RULES } from '../../../../sdk-core/src/contracts/hairStrandsOptions.ts'
 import { CUSTOM_DEPTH_RULES } from '../../../../sdk-core/src/contracts/customDepthOptions.ts'
+import { POST_PROCESS_MATERIAL_RULES } from '../../../../sdk-core/src/contracts/postProcessMaterialOptions.ts'
 import { HETEROGENEOUS_VOLUME_RULES } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import { SUBSURFACE_SCATTERING_RULES } from '../../../../sdk-core/src/contracts/subsurfaceScatteringOptions.ts'
 import { TRANSLUCENCY_VOLUME_RULES } from '../../../../sdk-core/src/contracts/translucencyVolumeOptions.ts'
@@ -138,6 +139,7 @@ const TODAY: Record<keyof typeof WORLD_SETTINGS, boolean | number | string> = {
   ...resolveSettings(HAIR_STRANDS_RULES, {}),
   // The custom depth: the reference's defaults.
   ...resolveSettings(CUSTOM_DEPTH_RULES, {}),
+  ...resolveSettings(POST_PROCESS_MATERIAL_RULES, {}),
   // The heterogeneous volumes: the reference's defaults.
   ...resolveSettings(HETEROGENEOUS_VOLUME_RULES, {}),
   // The screen probes: the level `ultra`, its other settings the contract's defaults.

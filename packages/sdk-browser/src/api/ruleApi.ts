@@ -210,6 +210,8 @@ export interface ExplorerRuleApi {
   setHairStrands: FamilyWriter<'hairStrands'>
   /** Writes the custom depth's setting `field` (`customDepthOptions.ts`): whether it is drawn, keeps its targets and writes the stencil, when in the frame it is drawn, its jitter and its fast clear; read by the next frame. */
   setCustomDepth: FamilyWriter<'customDepth'>
+  /** Writes the post-process materials' setting `field` (`postProcessMaterialOptions.ts`): whether the materials of the chain's blendables are drawn, all turned off, their stencil test allowed and their blend modes allowed; read by the next frame. */
+  setPostProcessMaterial: FamilyWriter<'postProcessMaterial'>
   /** Writes the heterogeneous volumes' setting `field` (`heterogeneousVolumeOptions.ts`): whether the volumes are drawn, allowed by the device profile, cast shadows and are composited with the translucency; read by the next frame. */
   setHeterogeneousVolumeRendering: FamilyWriter<'heterogeneousVolumeRendering'>
   /** Writes the sampled lighting's setting `field` (`sampledLightsOptions.ts`): whether the view is lit by it, its draw, rays and filters; read by the next image. */

@@ -27,6 +27,7 @@ export {
 } from './depthOfField.ts'
 export { MotionBlur, type MotionBlurOptions, type ResolvedMotionBlur } from './motionBlur.ts'
 export { Outline, type OutlineOptions } from './outline.ts'
+export { Blendables, type ChainedBlendable, type WeightedBlendable } from './blendables.ts'
 export { EffectChain, EffectPass, type EffectKind, type EffectStage } from './chain.ts'
 
 /** The `effect` family: the passes `world.effects` draws over the image. */

@@ -14,6 +14,7 @@ import { GAUSSIAN_BLUR_RULES } from '../contracts/gaussianBlurRules.ts'
 import { GLOBAL_DISTANCE_FIELD_RULES } from '../contracts/globalDistanceFieldOptions.ts'
 import { HAIR_STRANDS_RULES } from '../contracts/hairStrandsOptions.ts'
 import { CUSTOM_DEPTH_RULES } from '../contracts/customDepthOptions.ts'
+import { POST_PROCESS_MATERIAL_RULES } from '../contracts/postProcessMaterialOptions.ts'
 import { HETEROGENEOUS_VOLUME_RULES } from '../contracts/heterogeneousVolumeOptions.ts'
 import { HIZ_RULES } from '../contracts/hizOptions.ts'
 import { LIGHT_FUNCTION_RULES } from '../contracts/lightFunctionOptions.ts'
@@ -141,6 +142,7 @@ export const SETTING_FAMILIES = {
   singleLayerWater: { rules: SINGLE_LAYER_WATER_RULES, group: 'effects', world: 'image' },
   hairStrands: { rules: HAIR_STRANDS_RULES, group: 'effects', world: 'image' },
   customDepth: { rules: CUSTOM_DEPTH_RULES, group: 'effects', world: 'image' },
+  postProcessMaterial: { rules: POST_PROCESS_MATERIAL_RULES, group: 'effects', world: 'image' },
   heterogeneousVolumeRendering: {
     rules: HETEROGENEOUS_VOLUME_RULES,
     group: 'effects',

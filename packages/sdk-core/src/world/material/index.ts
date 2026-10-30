@@ -3,6 +3,7 @@ import type { MaterialParameters } from './materialParameters.ts'
 import { DEFAULT_IOR, DEFAULT_SHININESS } from './defaults.ts'
 import { MaterialGraph } from './graph/api.ts'
 import type { MaterialDomain } from '../../contracts/volumeMaterial.ts'
+import { POST_PROCESS_DEFAULTS, POST_PROCESS_MATERIAL_KIND } from './postProcessMaterial.ts'
 
 /** A member building one kind, with the values that kind starts from. */
 const kind =
@@ -64,7 +65,17 @@ export const material = {
    */
   lightFunction: kind('lightFunction', { emissive: 0xffffff }),
   /**
-   * A new, empty material graph for `domain` — `'surface'`, `'lightFunction'` or `'volume'` —: nodes
+   * A material of the post-process domain: a graph evaluated at every pixel of the image by a full-screen pass, its
+   * `emissive` output the colour the pixel takes (its `opacity` output the alpha, where `blendableOutputAlpha` is on).
+   * Its texture coordinates are the pixel's place in the image and its `sceneTexture` nodes read the image so far, the
+   * depth, the custom depth and the custom stencil. It joins the image through `world.effects.blendables`, at its
+   * `blendableLocation` (after the tone mapping by default), after the materials of a lower `blendablePriority`; with
+   * `enableStencilTest` it draws only the pixels whose custom stencil passes `stencilCompare` against `stencilRefValue`.
+   * A mesh that wears it is drawn with the default material.
+   */
+  postProcess: kind(POST_PROCESS_MATERIAL_KIND, { ...POST_PROCESS_DEFAULTS }),
+  /**
+   * A new, empty material graph for `domain` — `'surface'`, `'lightFunction'`, `'volume'` or `'postProcess'` —: nodes
    * wired into the outputs the domain reads, compiled to the shader that computes them. A material
    * of that domain wears it with `{ graph }` (`material.lightFunction({ graph })`); its outputs then
    * replace the parameters they stand for. See `MaterialGraph`.
