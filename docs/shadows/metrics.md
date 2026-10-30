@@ -5,7 +5,9 @@ The `shadow*` fields are documented on the contract
 `lighting/shadows/vsm/frame/vsmStats.ts`. Page counters need the page-counter readback on
 (`countersOn`).
 
-**Small objects stay out of the coarse pages, judged whole.** An object covering fewer pixels of the
+## Small objects stay out of the coarse pages, judged whole
+
+An object covering fewer pixels of the
 map's finest level than a threshold is drawn into the fine pages alone:
 `shadowCoarsePagePixelThresholdStatic` (1) for the static layer,
 `shadowCoarsePagePixelThresholdDynamicClusters` (4, UE value) for the dynamic layer. The test is the
@@ -13,19 +15,25 @@ object's (`vsm/render/renderCullWgsl.ts`): its ball (`inst` of the candidate) mu
 the right kind, then each cluster takes every page its rect overlaps. Invalidation of a moved
 object reads the same rule.
 
-**The footprint rule is a switch.** `shadowCoarsePagesIncludeNonClusterCasters` (true, UE default)
+## The footprint rule is a switch
+
+`shadowCoarsePagesIncludeNonClusterCasters` (true, UE default)
 leaves the rule to the two thresholds; every caster is cluster geometry, so `false` puts every
-caster in the coarse pages and no threshold is read (invalidation and raster cull alike).
+caster in the coarse pages and no threshold is read.
 
 ```js
 world.shadows = { shadowCoarsePagesIncludeNonClusterCasters: false } // every caster in the coarse pages, small ones too
 world.shadows = { shadowCoarsePagesIncludeNonClusterCasters: null } // back to the default
 ```
 
-**Moving objects.** The box diff (`lighting/shadows/casters/castDiff.ts`) stales the pages of a
+## Moving objects
+
+The box diff (`lighting/shadows/casters/castDiff.ts`) stales the pages of a
 placement's old and new box (`UpdatedTransform`; `rt.rootBoxes.written`).
 
-**UE settings now options.** UE defaults; meanings in `sdk-core/src/llm/shadowViewMeanings.ts`, rows
+## UE settings now options
+
+UE defaults; meanings in `sdk-core/src/llm/shadowViewMeanings.ts`, rows
 in `sdk-core/src/contracts/shadowMapOptions.ts`:
 
 - page marking: `shadowPageDilationBorderSizeDirectional` and `shadowPageDilationBorderSizeLocal`
@@ -37,7 +45,9 @@ in `sdk-core/src/contracts/shadowMapOptions.ts`:
 - dynamic resolution: `shadowDynamicResolutionMaxResolutionLodBias` (2),
   `shadowDynamicResolutionMaxPagePoolLoadFactor` (0.85).
 
-**The compute throttle (off by default).** Dynamic resolution lowers the maps' resolution when the
+## The compute throttle
+
+Dynamic resolution lowers the maps' resolution when the
 shadow raster costs too much, all on the GPU: next frame's marking kernels add each map's share of
 the clusters it drew to its bias. Off while `shadowDynamicResolutionTimeBudgetMs` and
 `shadowDynamicResolutionLoadBudget` are both 0 (default).
@@ -57,7 +67,7 @@ world.shadows = { shadowDynamicResolutionPerVsmBiasHistoryWeight: 0.5 } // ease 
 world.shadows = { shadowDynamicResolutionLoadBudget: null } // back to the default: off
 ```
 
-Trace options, UE defaults: `shadowSmrtAdaptiveRayCount` (1; 0 turns the vote off),
+Trace options: `shadowSmrtAdaptiveRayCount` (1; 0 turns the vote off),
 `shadowSmrtMaxRayAngleFromLight` (0.03), `shadowSmrtExtrapolateMaxSlopeLocal` (0.05) and
 `...Directional` (5), `shadowSmrtTexelDitherScaleLocal` (2) and `...Directional` (2),
 `shadowSmrtMaxSlopeBiasLocal` (50), `shadowSmrtRayLengthScaleDirectional` (1.5),
@@ -66,7 +76,9 @@ Trace options, UE defaults: `shadowSmrtAdaptiveRayCount` (1; 0 turns the vote of
 plane bias `2 * max(0, dot(slope, step))` (slope held to 0.05) less the offset's gain
 (`vsmSunDitherUv`, `vsmSunDitherBias`, `vsmRayLine`, `vsm/trace/traceRayWgsl.ts`).
 
-**The prefiltered distant shadow (off by default).** With `shadowPrefilteredDistant` (false) each
+## The prefiltered distant shadow
+
+With `shadowPrefilteredDistant` (false) each
 sun's regular clipmap (not the first-person one) keeps a soft filtered shadow of its far levels,
 read by the projection instead of a trace. Toggling makes the shadow set again (`heldVsm`,
 `VsmAsked.prefilteredDistant`, `VsmLayout.prefilteredDistant`). A frame:
@@ -100,7 +112,9 @@ world.shadows = { shadowPrefilteredDistantHistoryBlendFactor: 0.5 } // follow th
 world.shadows = { shadowPrefilteredDistant: null } // back to the default: off
 ```
 
-**The first-person pixels' own shadow.** `shadowFirstPersonSelfShadow` (false) gives first-person
+## The first-person pixels' own shadow
+
+`shadowFirstPersonSelfShadow` (false) gives first-person
 pixels a screen-traced shadow (`lighting/shadows/firstPerson/selfShadow.ts`) after the suns' masks
 are projected. Four kernels:
 
@@ -127,7 +141,9 @@ world.shadows = { shadowFirstPersonSelfShadowRawFullResolution: true } // pixel-
 world.shadows = { shadowFirstPersonSelfShadow: null } // back to the default: off
 ```
 
-**The counters over frames.** `shadowAccumulateStats` (0, none) collects the page counters over
+## The counters over frames
+
+`shadowAccumulateStats` (0, none) collects the page counters over
 frames (`statsAccumulate.ts`). While not 0, each frame with shadow maps appends one row (pages
 requested, kept static and dynamic, cleared, newly granted, empty, left to the offset's cull,
 overflow flags; `vsmAccumulateStats`). Above 0 it stops after that many frames; negative goes on
@@ -140,7 +156,9 @@ world.shadows = { shadowAccumulateStats: -1 } // until set back to 0
 world.shadows = { shadowAccumulateStats: null } // back to the default: none
 ```
 
-**The instance's cache state, per view.** A placement has one word in the placements' buffer
+## The instance's cache state, per view
+
+A placement has one word in the placements' buffer
 (`rootWords`, second section; bits 0-15 views it is cached as dynamic in, bits 16-31 views it turned
 in this frame), a view's slot from `VsmCacheManager.viewSlotOf` (16 slots, record field `viewSlot`).
 `castInstanceState` (`casters/castDiffWgsl.ts`): a placement that began to deform
@@ -149,7 +167,9 @@ in this frame), a view's slot from `VsmCacheManager.viewSlotOf` (16 slots, recor
 `vsmRenderCullView` draws a dynamic-cached caster as moving, and one that turned this frame into
 every page it overlaps (UE: `GetCacheTransitioned`).
 
-**Oriented bounds, and the pyramid.** An instance is invalidated by its oriented local bounds: the
+## Oriented bounds, and the pyramid
+
+An instance is invalidated by its oriented local bounds: the
 roots pass writes the box's three half axes (`ROOT_BOX_DOUBLES`, doubles 11-15 of a root's record,
 `placement/compose/gpuComposeDerivedWgsl.ts`); the diff remembers them (`CAST_STATE_WORDS`); a
 change record is a centre, a sign, three half axes and the views it stales (`CAST_RECORD_WORDS`,
@@ -158,7 +178,9 @@ box lies behind in the previous frame's depth pyramid is not staled (`shadowCach
 true; rect nudged `1e-8` nearer); a one-page map has its static layer staled only. `castBoxes.ts`
 writes the CPU's boxes in the same format.
 
-**Six marks a physical page.** The raster marks a drawn page in six slices: dynamic drawn, static
+## Six marks a physical page
+
+The raster marks a drawn page in six slices: dynamic drawn, static
 drawn, dynamic invalidated, static invalidated, an offset allowed, a level of detail behind
 (`VSM_DIRTY_SLICES`, `vsmRasterMarkBits` in `render/renderBinWgsl.ts`). The cull decides the last
 four:
@@ -183,16 +205,22 @@ four:
   no box is declared for a cluster entering or leaving residency or a colour tile arriving. Off
   (default): a cached page keeps its old data (maybe darker patches along page edges) until redrawn.
 
-**Depth of field lowers the maps' resolution.** Under depth of field, marking and the sun's level add `shadowMaxDofResolutionBias` (1) levels in proportion to the circle of confusion's
+## Depth of field lowers the maps' resolution
+
+Under depth of field, marking and the sun's level add `shadowMaxDofResolutionBias` (1) levels in proportion to the circle of confusion's
 radius over eight pixels (`vsmDofResolutionBias`, `vsm/uniforms.ts`, `vsm/frame/vsmDof.ts`).
 `shadowDynamicHzb` (false; needs occlusion and the cache) adds a depth-pyramid layer for dynamic
 casters (static and dynamic merged).
 
-**Marking off.** With `shadowMarkPixelPages` (true) off, the view marks nothing past the coarse
+## Marking off
+
+With `shadowMarkPixelPages` (true) off, the view marks nothing past the coarse
 pages: no pixel or froxel marking (`encodeMarking`, `viewMarking`), no water depth or transparents'
 front pass ahead of it (`vsmFrontLayer.ts`). A profiling and debugging switch.
 
-**Marking from froxels.** With `shadowMarkPagesUseFroxels` (false) pages are marked from the depth's
+## Marking from froxels
+
+With `shadowMarkPagesUseFroxels` (false) pages are marked from the depth's
 froxels, not pixel by pixel (`vsm/froxel/`): 8-pixel screen tiles, depth slices as deep as wide
 (perspective: constant factor; orthographic: constant step, `froxelGrid.ts`).
 
@@ -210,7 +238,9 @@ water's depth, own grid and list) marks the suns' pages alone: the water takes n
 shadow. A list takes at most a froxel per view pixel, held to the device's binding. Difference from
 UE: list froxel order.
 
-**The projection is two passes.** The suns' pass traces every sun (`vsmProjectSuns`, adaptive ray
+## The projection is two passes
+
+The suns' pass traces every sun (`vsmProjectSuns`, adaptive ray
 count voted by the group, first-person clipmap and subsurface transmission merged in) into a layer
 of the suns' mask a sun (`r32float`). The local lights' pass (`vsmProjectLocals`): each pixel traces
 the shadowed lights of its light-grid cell, up to `shadowOnePassProjectionMaxLightsPerPixel` (16; 8,
@@ -224,12 +254,16 @@ lit pass binds the shadow data for it (`DEFERRED_BINDINGS.vsmUniforms` to `vsmVi
 light's slice carries its record's rank in the projection's view (up to 1024 lights) and two flags,
 sun and single page (`shadowSliceOf`, `direct/shadowSlice.ts`).
 
-**The clustered deferred shading (`clusteredDeferredShading`, false by default).** Shadowed local
+## The clustered deferred shading (`clusteredDeferredShading`, false by default)
+
+Shadowed local
 lights are lit alone, one draw each over their range's pixels, after the batched lights and the
 suns, reading their lane of the packed mask. `true` lights them in the one pass over the light grid
 (UE clustered pass). Unshadowed lights stay in the one pass either way.
 
-**The per-light path (`shadowOnePassProjection: false`).** The one-pass projection is the default.
+## The per-light path (`shadowOnePassProjection: false`)
+
+The one-pass projection is the default.
 With the option false, shadowed local lights leave the batched loop and each is lit alone, in
 projection-record order, after the batched lights and the suns: its shadow is projected over its
 range's pixels (`vsmProjectLight`, `perLightProjectionWgsl.ts`) into its layer of the screen mask
@@ -249,7 +283,9 @@ world.shadows = { shadowOnePassProjection: false, shadowForcePerLightMaskClear: 
 world.shadows = { shadowOnePassProjection: null } // back to the one pass
 ```
 
-**Subsurface surfaces let light through their shadow.** The trace returns the mean distance its
+## Subsurface surfaces let light through their shadow
+
+The trace returns the mean distance its
 hitting rays were stopped at (`occluderDistance`, `vsmMarch`, `vsmRayOccluderDistance`). For a
 thin-sheet receiver (flag `SUBSURFACE_FLAG`, opacity = alpha of the thin transmission target,
 `subsurfaceOpacityAt`, held to 0.99), where the trace was shadowed, the light left is
@@ -260,7 +296,9 @@ foliage (`vsmTransmitsShadow`); preintegrated skin keeps its shadow whole. Every
 (`vsmSubsurfaceModel`: thin sheet, foliage, profile, hair, eye) is not back-face culled. A
 subsurface profile lets no light through the shadow maps (`docs/ENGINE.md`, the subsurface profile).
 
-**The first-person clipmap.** With `shadowFirstPersonClipmap` (true) each sun gets a second
+## The first-person clipmap
+
+With `shadowFirstPersonClipmap` (true) each sun gets a second
 clipmap, levels `shadowFirstPersonClipmapFirstLevel` (8) to `shadowFirstPersonClipmapLastLevel`
 (18), no coarse level, redrawn every frame (`createVsmClipmap` with `firstPerson`; maps carry
 `VSM_MAP_FIRST_PERSON`) while the scene holds an object standing for a first-person one
@@ -275,11 +313,15 @@ body (`hiddenFromViews`, `geometry/selection/viewFilter.ts`); shadow maps do. An
 while hidden (`castHiddenShadow`) is likewise taken from every view's cut; cuts with no view filter
 (reflections', indirect light) know neither.
 
-**Volumetric translucent shadows** (`bCastVolumetricTranslucentShadow`) exist in UE only for lights
+## Volumetric translucent shadows
+
+`bCastVolumetricTranslucentShadow` exists in UE only for lights
 without virtual shadow maps (`SetupInteractionShadows`, `ShadowSetup.cpp:3346`,
 `ShadowSetup.cpp:6504`; `LightSceneProxy.cpp:110`): no option here.
 
-**The static layer is merged after the raster.** A static caster writes the static slice alone
+## The static layer is merged after the raster
+
+A static caster writes the static slice alone
 (hardware `vsmRenderJoin`, software `vsmRenderSoftwareStatic`, or, on a device with nine storage
 buffers a stage, `vsmRenderSoftware` for both layers). Pages whose static layer was drawn or
 cleared this frame, in a seen map of a cached view, are listed (`vsmSelectMerges`) and the deeper

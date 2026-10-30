@@ -6,7 +6,9 @@ transmissive surface is sorted and lit among them, composed as a thin translucen
 (`blend/transmission/transmitWgsl.ts`), and refracts the opaque scene through one distortion pass
 before every translucent layer (`src/blend/distortion.ts`).
 
-**The separate translucency** (`blend/translucency.ts`, `blend/draw.ts`). Layers are drawn over the
+## The separate translucency
+
+Code `blend/translucency.ts`, `blend/draw.ts`. Layers are drawn over the
 opaque depth into two targets of the lit image's size and format (`sceneBlends`; a texel each without),
 counted by the budget (`translucencyBytes`).
 
@@ -28,12 +30,16 @@ are layers of the same targets (`drawParticles`, `particleTargets`), smoke alpha
 additive (`BLENDS`); a pool: full-size targets (`drawsTranslucency`). Views' see-through edges
 (`encodeXray`) draw into the lit image.
 
-**Double-sided blends** (`blend/plan/plan.ts`, `sidesOf`). A see-through `side: 'double'` surface is one
+## Double-sided blends
+
+Code `blend/plan/plan.ts`, `sidesOf`. A see-through `side: 'double'` surface is one
 plan entry on the non-culling pipeline; `twoSidedPasses` (`false` by default,
 `PageSurface.twoSidedPasses`) plans two entries, back then front faces, culled in the vertex stage
 (`planVertexCull`).
 
-**The three passes** (`blend/translucencyPasses.ts`, `translucencyPhase.ts`). `Material.translucencyPass`
+## The three passes
+
+Code `blend/translucencyPasses.ts`, `translucencyPhase.ts`. `Material.translucencyPass`
 (`ParticlePoolSpec.translucencyPass` for a pool):
 
 - `'afterDepthOfField'` (default): composed over the image after the depth of field;
@@ -45,12 +51,14 @@ plan entry on the non-culling pipeline; `twoSidedPasses` (`false` by default,
   (`composeLateOnto`).
 
 With the depth of field drawn on the image (`splitsTranslucency`), the pass-before layers are drawn
-first and composed at once, the others after it; a pass with no layer is not drawn. The plan is drawn
+first and composed at once, the others after it. The plan is drawn
 once per set (`encodeBlend`, `layerDraws`): an item of another pass expands no instance
 (`expand/expansionViews.ts`, pass bit in `draws[item].w`); an empty slot is not encoded
 (`slotMayDraw`); particle pools are split by pass; `composeLayers` (`encodeBlend.ts`) composes.
 
-**What the temporal pass reads of the translucency.** Colour before the layers is
+## What the temporal pass reads of the translucency
+
+Colour before the layers is
 `(composed − light) / transmittance`; the lumas ratio `light / (light + before · transmittance + 0.0005)`
 in perceptual space (`post/taa/translucencyWgsl.ts`) trims the thin geometry's relaxation weight, from
 0.05 to 0.6, and, past `temporalThinGeometryRejectTranslucency`, keeps the translucency bit alone in the
@@ -89,15 +97,11 @@ directional light and writes its rank plus one into the light buffer header's se
 `SceneLightStore.forwardDirectionalSlot` is its rank. The analytic fog's lobe uses the air's first
 light (`fogSun.ts`).
 
-```js
-const world = createWorld('viewer', { cloudShadowOnTranslucent: true }) // the project switch, at the session's opening
-// The sun has a cloud shadow map (`castCloudShadows`, off by default; the sky quality's
-// `cloudShadowMap` is on) and lets it shade the surfaces (`cloudShadowOnSurfaceStrength`, above 0; 1
-// by default): the translucent surfaces then follow the forward directional light, the sun here.
-world.scene.sky = { clouds: true, sun: { castCloudShadows: true, cloudShadowOnSurfaceStrength: 1 } }
-```
+The options, their defaults and examples: [Clouds part](../sdk/lights/clouds-part.md#clouds-part), "On the translucent surfaces".
 
-**The fog of a blended surface.** Per vertex by default (`blend/cloudVertexText.ts`), laid far to near:
+## The fog of a blended surface
+
+Per vertex by default (`blend/cloudVertexText.ts`), laid far to near:
 height or distance fog and haze (`fogLaidFar`, `lighting/fogCompose.ts`), local fog volumes of the
 vertex's tile (`fogLocalVertex`, `fogTiles`), the clouds where `cloudFog`, into the extra `fogLayer`;
 the fragment lays the fog's volume over it (`fogVolumeOver`) in `blendFog`. The record's `fogPerPixel`
@@ -105,7 +109,9 @@ flag (`MATERIAL_FLAG`; `computeFogPerPixel`, always for single-layer water) sele
 (`materialFlagOf`). `fogVertexOf` (`blend/pipelines.ts`): without a per-vertex fog surface, programs
 compile with `fogVertexed` false and no fog lane. `clusterIdentity`: cluster identity words, one buffer.
 
-**The translucency lighting volume.** A blended surface whose material says `translucencyLighting`
+## The translucency lighting volume
+
+A blended surface whose material says `translucencyLighting`
 other than `'forward'` (default of a material made in code `'volumetricNonDirectional'`; a blended
 scene-file material is imported as `'volume'`, a transmissive one as `'forward'`,
 `scene/host/prepared/materials.ts`) (`'volume'`, `'volumetric'`, `'volumetricNonDirectional'`,
@@ -158,7 +164,9 @@ pre-exposure. It replaces the declared lights' sum; bounce, environment and emis
 forward surface; `volumetric` and `volumetricNonDirectional` drop the reflection term (`blendMedium`,
 `blend/shader.ts`).
 
-**How the volume fits the fragment stage's limits.** One 3D texture of `rgba32uint`, both cascades
+## How the volume fits the fragment stage's limits
+
+One 3D texture of `rgba32uint`, both cascades
 stacked along the depth, four words a cell (ambient four channels, directional three, half floats),
 read by `textureLoad` as a read-only storage texture (`BLEND_BINDINGS.translucencyVolume`): none of the
 sixteen sampled textures or eight storage buffers, the fourth of four storage textures
@@ -181,7 +189,9 @@ const glass = material.meshStandard({
 })
 ```
 
-**The translucency global illumination volume.** Every see-through surface's indirect light is one
+## The translucency global illumination volume
+
+Every see-through surface's indirect light is one
 filtered fetch of a grid fitted to the view (`lighting/translucencyGi/`). A cell is `translucencyGiGridPixelSize` pixels (32) across the image,
 slices on the logarithm of the distance, `log2(depth · translucencyGiGridDistributionLogZScale +
 translucencyGiGridDistributionLogZOffset) · translucencyGiGridDistributionZScale`, out to

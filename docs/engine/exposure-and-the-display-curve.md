@@ -43,10 +43,8 @@ lit view `scene.background` is exposed like any pixel
 world (bench, test) own image clock (`WebgpuRun.graphClocks`). Physics `timeScale` and animation
 banks' scales never reach it.
 
-**Manual exposure** (`exposureMethod: 'manual'`). Camera EV100 = `log2(aperture² · shutter speed ·
-100 / ISO)` where `exposureApplyPhysicalCamera` is `true` (default), with `exposureCameraShutterSpeed`
-(60, 1/s, 0.01 to 8000), `exposureCameraIso` (100, from 1); aperture is depth of field's
-(`effect.depthOfField`, f/4 where chain has none). `false`: EV100 0. White point = saturation
+**Manual exposure** (`exposureMethod: 'manual'`). Camera EV100 comes from the physical camera settings
+([Exposure settings](../sdk/canvas-camera-and-teardown/exposure-settings.md#exposure-settings)). White point = saturation
 luminance × `2^EV100`; exposure = `2^exposureBias` × compensation-curve factor ÷ white point (curve
 read at EV100 of white point ÷ middle grey ÷ saturation luminance).
 
@@ -60,7 +58,7 @@ meter exposure buffer only when changed (`ExposureMeter.hold`, `writeHeld`,
 - **Number** (`world.exposure = 0.5`): radiance × it; bias, curve, camera ignored. Multiplier `n` =
   manual with camera off and bias `log2(n)`, or fixed EV100 `−log2(n · saturation luminance)`.
 
-**Lens attenuation** (`exposureLensAttenuation`, 0.78, from 0.01). Luminance saturating sensor at
+**Lens attenuation** (`exposureLensAttenuation`). Luminance saturating sensor at
 EV100 0 = `0.78 / lens attenuation` (`exposureSaturationLuminance`, 1 at default).
 
 **Metering mask** (`exposureMeterMask`, `explorer.setExposureMeterMask(image)`, none default). Red
@@ -72,32 +70,10 @@ frame mean) × 2^`localExposureMiddleGreyBias`, in exposure buffer `exposure[1].
 it for held (fixed: no bias, no curve; manual: cancels bias, keeps curve factor); finishing copies
 it (`ExposureMeter.copyGrey`).
 
-```js
-const world = createWorld('viewer', {
-  exposureMeterMask: await loader.imageBitmap('centre-weighted.png'),
-})
-world.exposureSettings = { exposureMethod: 'basic' } // the cheaper measure, weighed by the mask
-explorer.setExposureMeterMask(null) // every pixel counts the same again
-// The camera's exposure: no measure — f/2.8, 1/125 s, ISO 400, no bias.
-world.effects.add(effect.depthOfField({ aperture: 2.8 }))
-world.exposureSettings = {
-  exposureMethod: 'manual',
-  exposureCameraShutterSpeed: 125,
-  exposureCameraIso: 400,
-  exposureBias: 0,
-}
-// The old multiplier 0.25, as a manual bias with the camera off.
-world.exposureSettings = {
-  exposureMethod: 'manual',
-  exposureApplyPhysicalCamera: false,
-  exposureBias: Math.log2(0.25),
-}
-world.exposure = 0.25 // the same, as a fixed exposure
-```
+Options and examples: [Exposure settings](../sdk/canvas-camera-and-teardown/exposure-settings.md#exposure-settings).
 
-**Pre-exposure** (`post/exposure/pre.ts`, `preExposureOf`). `world.exposureSettings` options:
-`preExposure` (on); `preExposureOverride` (0; names the number instead);
-`cachedLightingPreExposure` (4 stops, below). Every light is written pre-multiplied by one
+**Pre-exposure** (`post/exposure/pre.ts`, `preExposureOf`; options `preExposure`,
+`preExposureOverride`, `cachedLightingPreExposure`). Every light is written pre-multiplied by one
 number, image pre-exposure = CPU-known exposure (`PreExposure.exposure`) × scene colour tint
 luminance × local exposure mean gain (`averageLocalExposureOf`: mean over histogram buckets of log
 local exposure gain; read back with exposure, `meterWgsl.ts`; 1 where local exposure does not run
@@ -118,17 +94,10 @@ over it (`view.preExposure.y`, `meterWgsl.ts`).
   exposure over it.
 
 Sky light's real-time capture has own pre-exposure, one number whatever `preExposure`:
-2^−`cachedLightingPreExposure` (4 stops, 1/16; −16 to 16; `cachedPreExposure`,
+2^−`cachedLightingPreExposure` (`cachedPreExposure`,
 `packages/sdk-core/src/contracts/exposureOptions.ts`). Faces written × it (sky held to 32256 per
-channel); light colour (`skyLightColor`) × its inverse. Range about −8 to +12 stops. Captured
-scene and specified cubemap: written and read at 1.
-
-```js
-const world = createWorld('viewer')
-world.exposureSettings = { preExposure: false } // every light written as it is; the same picture
-world.exposureSettings = { preExposureOverride: 0.25 } // lights written multiplied by 0.25
-world.exposureSettings = { cachedLightingPreExposure: 8 } // the sky light's capture kept for −4 to +16 stops
-```
+channel); light colour (`skyLightColor`) × its inverse. Captured scene and specified cubemap:
+written and read at 1.
 
 **Exposure compensation curve** (`packages/sdk-core/src/contracts/exposureCurve.ts`, option
 `exposureCurve` of session and `createWorld`, `explorer.setExposureCurve`; none = factor 1).
@@ -137,18 +106,6 @@ between, extrapolated each side; baked into 64 half-float samples of `2^compensa
 -10 to +20 (`exposureCurveTable`, `meter.ts`). Update reads it at frame mean luminance, before range
 holds it: `ev = log2(mean / 0.18)`, table place `(ev + 10) · 63 / 30` clamped, two neighbours mixed
 (`post/exposure/curveWgsl.ts`), multiplies exposure bias by factor (`meterWgsl.ts`, `adapt`).
-
-```js
-const world = createWorld('viewer', {
-  exposureCurve: [
-    [-4, 1],
-    [0, 0],
-    [8, -1],
-  ], // [EV100, stops]: dark scenes brighter, bright ones darker
-})
-explorer.setExposureCurve([{ ev: 0, compensation: 0.5, interpolation: 'cubic' }, [10, -0.5]])
-explorer.setExposureCurve(null) // no curve
-```
 
 **Film curve** (`lighting/filmCurveWgsl.ts`, constants `filmCurveConstants.ts`): baked
 into the tone table for `'filmic'`. Order: sRGB radiance → film wide gamut, saturated colour widening, blue correction,

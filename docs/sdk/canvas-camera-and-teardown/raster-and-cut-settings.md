@@ -25,33 +25,8 @@ world.depthBucketsMaxZ = 500 // the buckets end at 500 m
 
 ## The cut
 
-`world.cut`: cut settings, each also a `createWorld` option:
-
-- `cutTwoPassOcclusion` (`true`): main view tests against the previous image's depth, then what that
-  hid against the depth just drawn.
-- `cutOcclusionCulling`, `cutFrustumCulling`, `cutMinLodCulling` (`true`): each test on.
-- `cutDrawDistanceCulling` (`true`): an object naming a draw distance (`drawDistance`,
-  [COMPILER.md](../../compiler/the-partitions-grids.md#object-settings)) is culled outside it, in
-  the cut, sun shadows and the rays' scene. `false`: every instance of an instanced mesh draws at
-  every distance; an object of its own is still culled.
-- `cutDistanceCullToSphereEdge` (`true`): draw distance measured to the bounds sphere's edge;
-  `false`, its centre.
-- `cutViewDistanceScale` (`1`, finite, at least 0): multiplier on every draw distance; quality
-  levels write it: 0.4 `smooth`, 0.6 `balanced`, 0.8 `fine`, 1 `max`, 10 `cinematic`.
-- `cutViewDistanceApplySecondaryScale` (`false`), `cutViewDistanceSecondaryScale` (`1`): second
-  scale, applied beside the first once on.
-- `cutViewDistanceFovMinAngle` (`45`), `cutViewDistanceFovMaxAngle` (`90`): horizontal fields of
-  view in degrees, 0 to 360, with `cutViewDistanceFovMinAngleScale` and
-  `cutViewDistanceFovMaxAngleScale` (`1` both, 0 or more): scale an object of its own's draw
-  distances take at the first angle and under, at the second and over, linear between. Orthographic
-  view counts as 0 degrees.
-- `cutEdgeScaleBudgetMs` (`0`, none), `cutEdgeScaleMinPercent` (`30`): GPU time budget for the main
-  view's cut and raster, coarsening its threshold no further than that share of its scale, while
-  render scale is `'auto'`.
-- `cutLodBiasFollowsUpscale` (`true`): screen error follows display over render width.
-  `cutLodBiasOffset` (`0`), `cutLodBiasMin` (`-2`): that bias's offset and floor in powers of two.
-- List caps: `cutMaxNodes` (`2097152`), `cutMaxCandidateClusters` (`16777216`),
-  `cutMaxVisibleClusters` (`4194304`). Past one, the cut draws what fits and warns.
+`world.cut`: cut settings, each also a `createWorld` option. Every field, range, default and
+behaviour: [Cut settings and draw distances](../../engine/webgpu-page-raster/cut-settings-and-draw-distances.md#cut-settings-and-draw-distances).
 
 Only `cutViewDistanceScale` is written by a quality level. A write names changed settings, `null`
 restores a default; a value of another kind is refused by name

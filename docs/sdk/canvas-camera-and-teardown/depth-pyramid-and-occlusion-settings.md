@@ -20,7 +20,7 @@ settings, `null` restores a default; a value of another kind is refused by name.
   console warning.
 
 ```js
-const world = createWorld('viewer', { hizTrace: 'planes' })
+const world = createWorld('viewer', { hizTrace: 'planes', hizTransparentTest: 'reference' })
 world.hiz = { hizTrace: null, hizFoldTransparents: true } // the default trace, glass in the pyramid
 world.hiz = { hizFullResDepth: false, lightGridHizCull: false } // half-resolution probe walk, no cull
 world.hiz = { lightGridLinkedLists: false, lightGridMaxCulledLightsPerCell: 64 } // 64 words of its own a cell
@@ -49,7 +49,7 @@ with `farField` (`object.farField = true`, default `false`; saved scenes keep `t
 
 - `'whenMissing'`: when the view has no previous pyramid (first, resize, camera cut); `'always'`:
   every image.
-- Draw size = image size shifted right by `1 + hizPrimeSizeBias` (`2`); depth pushed from the eye
+- Draw size = image size shifted right by `1 + hizPrimeSizeBias` (`2`, integer 0 to 30); depth pushed from the eye
   by `hizPrimeDepthBias` metres (`1.5`); clusters cut at `hizPrimeErrorScale` (`32`) times pixel
   error.
 - `hizPrimeFarFieldOnly` (`true`): flagged objects only; `false`: the whole cut.
@@ -60,6 +60,8 @@ No flagged object: nothing drawn. The image is unchanged.
 const world = createWorld('viewer', { hizPrime: 'whenMissing' })
 mountains.farField = true // this object is drawn into the primed pyramid
 world.hiz = { hizPrime: 'always', hizPrimeDepthBias: 3 } // every image, pushed away by 3 metres
+world.hiz = { hizPrime: 'always', hizPrimeSizeBias: 3, hizPrimeErrorScale: 16 } // a smaller draw, finer error
+world.hiz = { hizPrimeFarFieldOnly: false } // the whole cut is primed, not the flagged objects
 world.hiz = { hizPrime: null } // back to the default, 'off'
 ```
 

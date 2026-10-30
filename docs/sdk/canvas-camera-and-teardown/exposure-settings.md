@@ -31,7 +31,7 @@ Three pre-exposure settings apply to a lit view whatever its exposure:
   writes them as is.
 - `preExposureOverride` (`0`): above 0, the multiplier instead of the previous exposure.
 - `cachedLightingPreExposure` (`4`, −16 to 16): stops the sky light's real-time capture is
-  pre-exposed by; written times 2 to the minus that number, read back times its inverse: half-float
+  pre-exposed by (1/16 at 4); written times 2 to the minus that number, read back times its inverse: half-float
   range about −8 to +12 stops at 4, −4 to +16 at 8.
 
 `localExposure…` settings also apply whatever the exposure. A write names changed settings, `null`
@@ -63,6 +63,7 @@ explorer.setExposureCurve({
   ],
   after: 'linear',
 })
+explorer.setExposureCurve([{ ev: 0, compensation: 0.5, interpolation: 'cubic' }, [10, -0.5]])
 explorer.setExposureCurve(null) // no compensation
 ```
 
@@ -95,6 +96,8 @@ const world = createWorld('viewer', { exposureBias: 0.5 })
 world.exposure = 'auto' // the default: measured each frame
 world.exposureSettings = { exposureSpeedUp: 8, exposureSpeedDown: 4 } // adapts faster, next frame
 world.exposureSettings = { preExposure: false } // every light written as it is, the same picture
+world.exposureSettings = { preExposureOverride: 0.25 } // lights written multiplied by 0.25
+world.exposureSettings = { cachedLightingPreExposure: 8 } // the sky light's capture kept for -4 to +16 stops
 world.exposure = 1.5 // a fixed exposure, whatever the image holds
 ```
 
@@ -113,4 +116,10 @@ world.exposureSettings = {
   exposureBias: 0,
 }
 world.exposure = 0.25 // a fixed exposure: the radiance multiplied by it, the bias and the camera ignored
+// The same multiplier 0.25, as a manual bias with the camera off.
+world.exposureSettings = {
+  exposureMethod: 'manual',
+  exposureApplyPhysicalCamera: false,
+  exposureBias: Math.log2(0.25),
+}
 ```

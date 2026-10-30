@@ -12,7 +12,6 @@ Contract:
 - Outputs go through an `out` argument or a flat array, never a fresh object per call.
 - One function per formula: a second copy elsewhere is a defect.
 - It imports nothing outside itself; `pnpm run check:cycles` fails otherwise.
-- The WGSL twins live in `wgsl/` (below).
 - `packages/sdk-core/src/world/math` holds the public value classes (`Vector3`, `Box3`…), which call
   the package; per-component arithmetic (`multiply`, `min`, `addScalar`) stays there.
 
@@ -30,8 +29,6 @@ Layout, under `packages/math/src/`:
   `sweep.fixture.ts` (Halton sweep and edge values for rewrite proofs).
 - `batch/` and `wgsl/` (below). `index.ts` is the barrel `packages/sdk-core` re-exports, minus
   `wgsl/`.
-
-The transform tree and shader programs live in `sdk-core` and `sdk-browser`.
 
 ### Lengths
 

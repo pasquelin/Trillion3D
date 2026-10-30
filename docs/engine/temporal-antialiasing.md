@@ -219,15 +219,10 @@ lowers the upper bound.
 | `dynamicResolutionMaxOverBudgetFrames` | Frames in a row over budget past which older ones do not count; whole, at least 0, read no lower than 2 | `2` |
 | `dynamicResolutionUseCpuTimeLogic` | A frame whose CPU time passes the budget (or budget less headroom) is not over budget by GPU time | `false` |
 
-```ts
-const world = createWorld(canvas, { renderScale: 'auto', maxFrameRate: 60 })
-world.dynamicResolution = {
-  dynamicResolutionFrameTimeBudgetMs: 12,
-  dynamicResolutionHeadroomPercent: 20,
-}
-world.dynamicResolution = { dynamicResolutionThrottlingMaxPercent: 70 } // a page that idles draws at most 70 %
-explorer.setDynamicResolution('dynamicResolutionUseCpuTimeLogic', true) // from the next GPU time
-```
+The eleven settings are each also a `createWorld` option, set by `world.dynamicResolution`,
+`explorer.setDynamicResolution(field, value)` and tool `trillion3d_set_dynamic_resolution`, applied
+from the next GPU time; `null` restores a default. Examples:
+[Render scale](../sdk/canvas-camera-and-teardown/render-scale-and-frame-rate.md#render-scale-dynamic-resolution-and-frame-rate).
 
 A number out of range, or not a number, is refused with the field named; no quality level writes
 them. With a numeric render scale none does anything. Differences from the reference: no shadow

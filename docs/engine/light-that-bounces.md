@@ -8,13 +8,17 @@ probes read it for rays the screen and near scene did not answer, and light pixe
 light = cache's final lighting: declared lights' direct light, shadows traced through the field,
 sky, cache's own radiosity.
 
-**Where probes are.** Four levels, each a 48-cell-per-side cube centred on the eye, snapped to its
+## Where probes are
+
+Four levels, each a 48-cell-per-side cube centred on the eye, snapped to its
 cells: first reaches 25 m, cell 1.04 m; each next level twice as far, cell twice as wide: 2.08,
 4.17, 8.33 m (`cascadeLevels`, `cascadeSize`, `cascadeHalfExtentMetres`, `cascadeBase`,
 `sdk-core/src/bounce/cascades.ts`). A level slides by whole cells with the eye. Beyond the last
 level: sky light answers (below).
 
-**Probes only where image reads.** A level holds 110 592 cells, four 442 368; a probe is made only
+## Probes only where image reads
+
+A level holds 110 592 cells, four 442 368; a probe is made only
 for a cell the image reads, from a 16 384 pool (`probePool`), all GPU (`bounce/pool/`).
 
 - Image casting screen probes marks from their points once placed (uniform ones, one per tile, and
@@ -45,13 +49,15 @@ light) or sky light colour changes by more than 4× between images (`frame/prepa
 setting `surfaceCachePropagateGlobalLightingChange`, on by default, turns the last off). Any other
 light or placement change only reopens the series: probes traced anew at budget.
 
-**What lit passes read.** A one-layer table (`bounce/atlas.ts`) names the pool slot holding each
+## What lit passes read
+
+A one-layer table (`bounce/atlas.ts`) names the pool slot holding each
 cell of each level (`publishTable` of `bounce/pool/poolWgsl.ts`). Table names a probe once its first
 trace is queued, forgets it when given back; radiance cache tags say which cell and level a map was
 made for, mismatch = none. Screen probes find eight probes round a point in it, read their maps
 (`bounce/screen/cacheReadWgsl.ts`).
 
-**What is traced, in what order.**
+## What is traced, in what order
 
 - Probe holding nothing yet precedes every refresh: finest level first, cells nearest the eye first,
   up to frame's queue, not budget. Queue = greater of 1/6 pool and 4× budget, in rows of a power of
@@ -129,8 +135,10 @@ pages arrive marks new surfaces' cells again (`lighting/bounce/pool/pool.ts`,
 (`BounceFrameMetrics`): probes exist, alive, still unfilled, cells marked and refused, probes
 queued, placements holding a box (`geometry/dag/placement/placementBoxes.ts`).
 
-**What pixels read of screen probes** (`bounce/screen/`, settings `screenProbe…` in
-`bounce/screenProbeOptions.ts`). A screen probe ray the screen did not answer is answered by one
+## What pixels read of screen probes
+
+Code `bounce/screen/`, settings `screenProbe…` in
+`bounce/screenProbeOptions.ts`. A screen probe ray the screen did not answer is answered by one
 scene stage (`traceSceneWgsl.ts`, one pass), in order:
 
 - Ray marched through global distance field from where screen lost it (two biases back) to range
@@ -166,8 +174,10 @@ sheet; open-sky direction short-range occlusion found, beside its amount.
   (level row default, 0.7; `balanced` preset writes 1) before blending with history.
 - Pixel probes did not read: zero alpha, lighting reads world probes.
 
-**Reflection rays** (`lighting/reflections/`, settings `contracts/reflectionOptions.ts`, levels
-`contracts/reflectionLevels.ts`). Level (`reflectionQuality`) sets the pixel-block side one grid
+## Reflection rays
+
+Code `lighting/reflections/`, settings `contracts/reflectionOptions.ts`, levels
+`contracts/reflectionLevels.ts`. Level (`reflectionQuality`) sets the pixel-block side one grid
 texel traces one ray for: one pixel at default and cinematic, 2 × 2 at `high`.
 
 - Classification pass lists each image: 8 × 8-texel tracing tiles where a pixel lobe is under the

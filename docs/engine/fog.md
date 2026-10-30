@@ -41,8 +41,8 @@ is reference's:
   - No atmosphere: fog pass fogs pixels no surface drew (`fogsBackground`; `heightFogMain` in
     `lighting/fog/fogPassWgsl.ts`) with same law: fog inscattering + background radiance
     ([The background](the-display-finishing.md#the-display-finishing)) through `T`.
-- **Old fields.** `{ color, density, heightFalloff?, baseHeight? }` (`T = exp(−density · d)`) maps
-  exactly (density divided by e every `1 / heightFalloff` metres up):
+- **Old fields.** `{ color, density, heightFalloff?, baseHeight? }` (`T = exp(−density · d)`) map
+  to the new ones (density divided by e every `1 / heightFalloff` metres up):
   `baseDensity = density / (ln 2)²`, `falloff = heightFalloff / ln 2`, other fields default
   (`heightFogOf`).
 - **Where drawn.** Three height-fog switches, on default (`ResolvedHeightFog`,
@@ -51,7 +51,7 @@ is reference's:
   view shows fog in lane `x` of view-block height-fog slot (`FOG_VIEW_SLOT.heightFog`, `fogHiddenIn`,
   `frame/render/fogView.ts`). If not: no volume (`volumeMedium`), `heightFogAlong` answers
   `(0, 0, 0, 1)`: surfaces, translucent layers, sky pixels, clouds, reflection rays unfogged;
-  haze, local fog volumes, linear fog keep own. Capture's pass (`fogBeyond`) reads no lane.
+  haze, local fog volumes, linear fog keep own.
 - **Sky light on fog.** `skyLightScattering { strength, roughness }` (0, 0.15 default) with project
   switch `fogReadsSkyLight` (off default). In a view with sky lighting and ready cube
   (`skyLightFogOf`, `frame/render/skyLightFog.ts`), fog-laying programs read sky light's filtered cube

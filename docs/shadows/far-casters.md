@@ -2,19 +2,23 @@
 
 The reference's far-shadow test (`TestPrimitiveFarCascadeConditions`) drops far non-cluster
 subjects. Every engine caster is clusters (`lighting/shadows/casters/casterFeed.ts`), so the maps take
-each at any distance; the candidate kernel (`vsmRenderCandidates`,
-`vsm/render/renderCandidatesWgsl.ts`) and the cull (`vsmRenderCull`) read no far-shadow distance.
+each at any distance (the candidate kernel `vsmRenderCandidates`,
+`vsm/render/renderCandidatesWgsl.ts`, and the cull `vsmRenderCull` read no far-shadow distance).
 `farShadowCulling` decides whether a sun has a near edge and the distance-field cascade after it;
 the reference's test has no switch.
 
-**The edge.** `sunCascades` (`packages/sdk-core/src/contracts/sunCascades.ts`) lays the sun's levels:
+## The edge
+
+`sunCascades` (`packages/sdk-core/src/contracts/sunCascades.ts`) lays the sun's levels:
 near levels (light's `shadowCascades`, 4 by default, at most the view's `shadowNearLevels`), each
 `shadowCascadeExponent` (3) times the previous span, overlap `shadowCascadeTransition` (a tenth) of
 the last span times the view's `shadowOverlapScale`; the edge is the last near level's far end plus
 that overlap (427 m at defaults, the distance itself from 512 m on), carried by each map's projection
 record (`farShadowEdge`, 0 for none; a local light's is 0).
 
-**The cache.** A sun's eight `LIGHT_SHADOW_FIELDS` (distance, cascades, distance-field cascade's) are
+## The cache
+
+A sun's eight `LIGHT_SHADOW_FIELDS` (distance, cascades, distance-field cascade's) are
 in its clipmap's cache key (`lighting/shadows/vsm/lightCache.ts`): changing one redraws the sun. The
 edge is not in it; cached pages are kept when the view's `shadowDistanceScale` etc. change it.
 
@@ -24,7 +28,9 @@ as long as the sun. A placement parked or taken away goes back to static in the 
 (`park`, called by `flipWorld`): not moving, never moved, pose kept; a placement that takes its row
 later starts as new.
 
-**A level's depth range and its moving casters.** A level that keeps pages redraws its dynamic layer
+## A level's depth range and its moving casters
+
+A level that keeps pages redraws its dynamic layer
 each frame. With `shadowClipmapCullDynamicTightly` (true) its projection record carries
 `dynamicDepthCullRange`: near limit the clip depth of the point `cullingEnd` along the light
 (level radius less the clipmap's resolution bias), far limit the largest float; `vsmRenderCullView`
@@ -32,7 +38,9 @@ reads both for casters not in the static layer; a non-clipmap map keeps `0` and 
 clipmap that keeps no page (`shadowForceInvalidateDirectional`, false; the first-person clipmap
 always) is drawn uncached, its depth range cut from `depthRadius` (near) to `cullingEnd` (far).
 
-**The width a sun's clipmap is sized for.** `shadowClipmapMinCameraViewportWidth` (0, 0 to 16384
+## The width a sun's clipmap is sized for
+
+`shadowClipmapMinCameraViewportWidth` (0, 0 to 16384
 pixels) floors the drawn width the clipmap sizes texels for (`VsmViewport.minScreenWidth`,
 `planMaps`); 0 floors nothing. Local lights read the drawn size alone.
 
@@ -40,7 +48,9 @@ pixels) floors the drawn width the clipmap sizes texels for (`VsmViewport.minScr
 world.shadows = { shadowClipmapMinCameraViewportWidth: 1920 } // a lowered render resolution keeps 1920-pixel sun shadows
 ```
 
-**The lights a perspective view draws.** A point, spot or rectangle light too small on screen or past
+## The lights a perspective view draws
+
+A point, spot or rectangle light too small on screen or past
 its distance is left out (shadow maps and lighting). The rule (`lightDrawn`,
 `lighting/lightDrawRange.ts`, `SceneLightStore.draw`) is decided per light and view on the CPU in one
 bit of the light's record; `vsmLightSeen` asks the rule itself. Bounding sphere (`coneSphereAlong`, `coneSphereRadius` for a spot): range ball at the position for a
@@ -60,7 +70,9 @@ by size.
 world.shadows = { lightMinScreenRadius: 0.06 } // small lights are left out twice as near
 ```
 
-**An orthographic view's clipmaps.** A perspective view centres a sun's clipmap on its eye; four
+## An orthographic view's clipmaps
+
+A perspective view centres a sun's clipmap on its eye; four
 settings centre and size it on what an orthographic camera frames.
 `shadowOrthoEstimateClipmapLevels` (true) starts the first level at half the view box's width (never
 under `shadowClipmapFirstLevel`); `shadowOrthoClipmapLodBias` (0, -30 to 30) adds that many whole
@@ -87,7 +99,9 @@ world.shadows = {
 }
 ```
 
-**An orthographic view's origin and range.** Before any pass reads the view, its near and far planes
+## An orthographic view's origin and range
+
+Before any pass reads the view, its near and far planes
 are worked out, then its origin moved onto the near plane. `cutViewOrthoAutoPlanes` (true) works the
 planes out from the box's width, the view's angle to the ground, the distance to the framed point and
 the picture's size in pixels; false keeps the camera's near and far and the clipmaps do not read
@@ -124,7 +138,10 @@ world.cut = {
 }
 ```
 
-**The cache's and the receiver masks' switches.** View settings at the reference default.
+## The cache's and the receiver masks' switches
+
+View settings at the reference default.
+
 - `shadowCache` (true): off, every light is drawn uncached each frame, distant lights never kept, the
   pool has no static layer (`VsmLayout.cacheEnabled`); a change makes the set again (`heldVsm`).
 - `shadowForceInvalidateLocal` (0): local lights uncached each frame; 1 those not distant, 2 all
@@ -152,7 +169,9 @@ world.cut = {
   (reference too: `VirtualShadowMapPhysicalPageManagement.usf` 443, 328;
   `bDynamicPageInvalidation`, `VirtualShadowMapArray.cpp` 3294).
 
-**The distance-field cascade.** The same levels shape the cascade after them, from the near levels'
+## The distance-field cascade
+
+The same levels shape the cascade after them, from the near levels'
 end to `distanceFieldShadowDistance` (`sunCascades`). With virtual shadow maps it only moves the
 far-shadow test's edge; nothing is traced on the view (no such pass, mask or setting:
 `vsmFarShadow.ts`; reference `DistanceFieldShadowing.cpp` 654-655 leaves Nanite out). With classic
@@ -180,7 +199,9 @@ per tile, offsets summed, drawn again to write the lists; count and offsets only
 compacted (`distanceFieldShadowCompactTiles`, on; off, each tile has its own place and a tile past it
 loses meshes).
 
-**The shadow space.** The cards' cube is held in a sphere: light's right and up over the radius
+## The shadow space
+
+The cards' cube is held in a sphere: light's right and up over the radius
 rounded up to a centimetre, depth over twice the greater of that radius and 5000 cm. The tile grid (a
 radius over the tile's size and one, at most 256 tiles across, a multiple of 64) and the boxes'
 growth read the sphere's own radius. The origin snaps across the light to a world-fixed grid, 4

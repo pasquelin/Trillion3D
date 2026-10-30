@@ -7,8 +7,9 @@ engine. The engine is the product; a scene only shows it, and a scene
 working is never the goal (CONTRIBUTING.md "The mission").
 
 [CONTRIBUTING.md](CONTRIBUTING.md) wins over this file; read only the sections your change touches.
-Docs: `docs/<DOC>.md` is an index, one file per section under `docs/<doc>/`; open only the
-section you need, and in a long one `grep -n '^#'` first, then read just the part you need.
+Docs start at `docs/README.md`. SDK, ENGINE, SHADOWS, FORMAT and COMPILER are indexes of one file
+per section under `docs/<doc>/`: open only the section you need. In any long file (MATHS, PHYSICS,
+RESIDENCY, TESTS), `grep -n '^#'` first, then read just that part.
 One session carries one issue alone (CONTRIBUTING.md "Contribution workflow"); a session started
 with a skill follows it. Speak to the boss in short, simple French; the repository is English.
 Sub-agents run in the foreground, one task each, and launch none. Never the Fable model.

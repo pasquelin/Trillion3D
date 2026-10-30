@@ -21,5 +21,8 @@ scene, the camera, the renderer and the loop.
 | [Measurement harness](../bench/runner/README.md) | The bench, its options, the witnesses, the reports |
 | [Contributing](../CONTRIBUTING.md) | Engineering rules, measurement rules, the contribution workflow |
 
+SDK, Engine internals, Shadows, Native compiler and Cache format are indexes: one file per section
+under `docs/<doc>/`; open the one section you need.
+
 Anything not described here is not part of the release. Open tasks are the
 [GitHub issues](https://github.com/pasquelin/Trillion3D/issues).

@@ -25,6 +25,7 @@ object of its own is judged on its farthest distance alone, an instance on both 
 while `cutDrawDistanceCulling` is off. No fade over a travel distance; the reference's fifth field of
 view setting (HLOD draw distances) has no counterpart.
 
+Examples: [Raster and cut settings](../../sdk/canvas-camera-and-teardown/raster-and-cut-settings.md#raster-and-cut-settings).
 Settings default to reference's, are world options by field, held over the quality preset (a level
 writes only `cutViewDistanceScale`), changed by `world.cut` from the next frame
 (`packages/sdk-core/src/contracts/cutOptions.ts`); a value a setting does not take is refused.
@@ -43,7 +44,6 @@ const world = createWorld(canvas, { quality: { preset: 'balanced' } })
 // cutViewDistanceScale is 0.6: every draw distance is 60 % of what the scene names
 world.cut = { cutViewDistanceScale: 1 } // the page's value holds over the preset
 world.cut = { cutDrawDistanceCulling: false } // every instance drawn at every distance
-world.cut = { cutViewDistanceFovMaxAngleScale: 0.5 } // an object of its own: halved at 90 degrees and over
 ```
 
 **The draw distances' second scale.** The product of `cutViewDistanceScale` and, when
@@ -68,13 +68,13 @@ world.cut = { cutEdgeScaleBudgetMs: null } // no budget again: the threshold is 
 
 | Field | Meaning | Default |
 | - | - | - |
-| `cutTwoPassOcclusion` | Two passes per view; `false`, one that occludes nothing | `true` |
+| `cutTwoPassOcclusion` | Two passes per view: the main view tests against the previous image's depth, then what that hid against the depth just drawn; `false`, one that occludes nothing | `true` |
 | `cutOcclusionCulling` | Boxes tested against depth pyramids | `true` |
 | `cutFrustumCulling` | Boxes outside the frustum rejected | `true` |
 | `cutMinLodCulling` | Prunes a leaf whose least error still shows at its nearest | `true` |
-| `cutDrawDistanceCulling` | Culls instances outside their draw distances; objects of their own always culled | `true` |
+| `cutDrawDistanceCulling` | An object naming a `drawDistance` is culled outside it, in the cut, sun shadows and the rays' scene; `false`: every instance of an instanced mesh draws at every distance, an object of its own is still culled | `true` |
 | `cutDistanceCullToSphereEdge` | Distance to the bounds sphere's edge; `false`, to its centre | `true` |
-| `cutViewDistanceScale` | Scale of every draw distance, finite, at least 0 | `1` |
+| `cutViewDistanceScale` | Scale of every draw distance, finite, at least 0; quality levels write it (0.4 `smooth`, 0.6 `balanced`, 0.8 `fine`, 1 `max`, 10 `cinematic`) | `1` |
 | `cutViewDistanceApplySecondaryScale` | Secondary scale multiplies the distances | `false` |
 | `cutViewDistanceSecondaryScale` | Second scale, 0 or more | `1` |
 | `cutViewDistanceFovMinAngle` | Horizontal field of view, degrees 0 to 360, at and under which the min scale applies | `45` |
@@ -86,6 +86,6 @@ world.cut = { cutEdgeScaleBudgetMs: null } // no budget again: the threshold is 
 | `cutLodBiasMin` | Bias floor, powers of two | `-2` |
 | `cutEdgeScaleBudgetMs` | GPU ms for the main view's cut and raster; over it the screen error is coarsened; 0 or less, none | `0` |
 | `cutEdgeScaleMinPercent` | Lowest screen error scale the budget takes, percent, 1 to 100 | `30` |
-| `cutMaxNodes` | Most nodes one pass opens, whole 1 to 2³¹ − 1 | `2097152` |
+| `cutMaxNodes` | Most nodes one pass opens, whole 1 to 2³¹ − 1; past a cap the cut draws what fits and warns | `2097152` |
 | `cutMaxCandidateClusters` | Most candidate clusters one cut lists, whole 1 to 2³¹ − 1 | `16777216` |
 | `cutMaxVisibleClusters` | Most clusters one cut draws, whole 1 to 2³¹ − 1 | `4194304` |

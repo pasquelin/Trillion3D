@@ -61,9 +61,9 @@ A translucent surface reads each light's shadow in its own fragment
   only; a shadowed local light lights it whole (`shadowTranslucentLocalLights` off).
 - Quality 1: opaque projection's trace, dithered in a penumbra.
 - Both are project switches read at session open (`frame/prepare/setup.ts`), compiled into the
-  translucent programs (`blend/pipelines.ts`). Pages read: opaque
-  pixels' marked ones and, at quality 1, the sun's pages of the previous image's nearest translucent
-  surface (`lighting/shadows/vsm/frame/vsmFrontLayer.ts`); missing: coarser level.
+  translucent programs (`blend/pipelines.ts`).
+- Pages read: opaque pixels' marked ones and, at quality 1, the sun's pages of the previous image's
+  nearest translucent surface (`lighting/shadows/vsm/frame/vsmFrontLayer.ts`); missing: coarser level.
 - A material can ask more (`translucentDirectionalLightShadowQuality`, `translucentLocalLightShadow`,
   `translucentLocalLightShadowQuality`); its marks ride the item's flags
   (`TRANSLUCENT_SHADOW_MARK`, `translucentMarksFrom`).

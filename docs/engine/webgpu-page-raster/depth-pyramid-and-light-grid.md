@@ -37,38 +37,8 @@ With `lightGridLinkedLists` on (default) a cell's list is a chain of links from 
 pool holds `lightGridMaxCulledLightsPerCell` links per cell of the grid; when links run short, the
 lights asked last are dropped, one console warning. Off, each cell has its own
 `lightGridMaxCulledLightsPerCell` words. Settings are world options, changed by `world.hiz` from the
-next frame (`packages/sdk-core/src/contracts/hizOptions.ts`):
-
-```ts
-const world = createWorld(canvas, { hizTransparentTest: 'reference' })
-world.hiz = { hizTrace: 'planes', hizFoldTransparents: true }
-world.hiz = { hizTrace: null } // back to the default, the reference's walk
-world.hiz = { hizFullResDepth: false } // the probes' walk stops at the half-resolution level
-world.hiz = { lightGridHizCull: false } // every cell the lights reach is listed
-world.hiz = { lightGridLinkedLists: false } // each cell keeps its own first lights, no shared links
-world.hiz = { lightGridMaxCulledLightsPerCell: 64 } // 64 light entries a cell instead of 32
-```
-
-| Field | Meaning | Default |
-| - | - | - |
-| `hizTrace` | `'reference'` or `'planes'` | `'reference'` |
-| `hizFoldTransparents` | Trace layers hold nearest transparent | `false` |
-| `hizTransparentTest` | `'finer'` (16 texels) or `'reference'` | `'finer'` |
-| `hizFullResDepth` | Probes' walk to full resolution | `true` |
-| `lightGridHizCull` | Empty cells behind column's farthest depth | `true` |
-| `lightGridLinkedLists` | Shared link pool; `false`: words per cell | `true` |
-| `lightGridMaxCulledLightsPerCell` | Light entries per cell | `32` |
-| `hizPrime` | `'off'`, `'whenMissing'`, `'always'` | `'off'` |
-| `hizPrimeSizeBias` | Primed draw shifted right by `1 + this`, integer 0 to 30 | `2` |
-| `hizPrimeDepthBias` | Metres primed depth is pushed from the eye | `1.5` |
-| `hizPrimeErrorScale` | Factor on pixel error for the primed draw | `32` |
-| `hizPrimeFarFieldOnly` | Primed draw holds only `farField` objects | `true` |
-| `hzbOcclusion` | Drop objects the depth hides: `0` none, `1` roots' boxes, `2` forced | `0` |
-| `hzbOcclusionNeverTestDistance` | Metres from the eye with no test | `0` |
-| `hzbOcclusionExpandAmount` | Metres a box grows; `...ExpandNewlyAmount` if newly tested | `0` |
-| `hzbOcclusionExpandScreenSpace` | Pixels a box grows; `...ExpandNewlyScreenSpace` if newly tested | `0` |
-| `hzbOcclusionFramesNotTestedToExpand` | Images untested before "newly tested" | `5` |
-| `hzbOcclusionFramesToExpandNewly` | Images a newly tested object grows | `2` |
+next frame (`packages/sdk-core/src/contracts/hizOptions.ts`). Every field, range, default and
+example: [Depth pyramid and occlusion settings](../../sdk/canvas-camera-and-teardown/depth-pyramid-and-occlusion-settings.md#depth-pyramid-and-occlusion-settings).
 
 **The primed pyramid** (`frame/render/primeHiz.ts`). `hizPrime` `'whenMissing'` builds a pyramid from
 a small draw for an image with no previous one (first, resize, camera cut); `'always'` for every image.
@@ -84,11 +54,3 @@ passes against it; not kept. No `farField` object: nothing allocated. Tessellati
 same pyramid; only a view running the cut's occlusion primes. A compiled node carries `farField` (job
 `objectSettings.farField`). Limits: the reference's sixth setting (early depth pass of non-cluster
 geometry) has no counterpart; deformation is the previous image's; a tessellated cluster is left out.
-
-```ts
-const world = createWorld(canvas, { hizPrime: 'whenMissing' })
-mountains.farField = true // drawn into the primed pyramid
-world.hiz = { hizPrime: 'always', hizPrimeSizeBias: 3, hizPrimeErrorScale: 16 }
-world.hiz = { hizPrimeFarFieldOnly: false } // the whole cut is primed, not the flagged objects
-world.hiz = { hizPrime: null } // back to 'off'
-```

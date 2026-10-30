@@ -32,3 +32,8 @@ denoising its settings leave on (`ReflectionSettings.frontBlock`, `frontReconstr
 through the pipeline's `REFLECTION_LAYER`). Water code and the four `BlendGraph` outputs
 exist only in a scene holding water (`BlendProgramSetup.water`). Coefficients are per centimetre:
 depths are metres in the world, centimetres in the law (`WATER_CM`).
+
+Exclusion volumes cut the surface: in a world holding one, the water programs are a variant whose
+`fsWater` and `fsWaterDepth` discard a fragment inside a volume that excludes its body (the item's
+rank, handed by the vertex stage in a lane of its own; the volumes' table is the water group's
+binding 10). No volume: the texts and layouts are the default's.
