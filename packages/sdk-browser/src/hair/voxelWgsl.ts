@@ -13,15 +13,52 @@ import {
 const SIZE_STEPS = 2047
 
 /**
+ * THE NAMES A PROGRAM GIVES THE VOLUME'S FOUR RESOURCES: the parameters (`params`), the macro groups' nodes (`nodes`), the page index (`pageIndex`) and the voxels (`voxels`). The passes of the hair
+ * use these; a program that has bindings of those names of its own (the traced sky light, whose cut tables are `nodes`) reads the volume under `voxelNamesOf(prefix)`, each name led by the prefix.
+ * The voxel blocks are written for a set of names, the default set's text being the one the hair's own passes compile.
+ */
+export interface VoxelNames {
+  readonly params: string
+  readonly nodes: string
+  readonly pageIndex: string
+  readonly voxels: string
+}
+export const VOXEL_NAMES: VoxelNames = {
+  params: 'params',
+  nodes: 'nodes',
+  pageIndex: 'pageIndex',
+  voxels: 'voxels',
+}
+const led = (prefix: string, name: string) => `${prefix}${name[0]!.toUpperCase()}${name.slice(1)}`
+export const voxelNamesOf = (prefix: string): VoxelNames =>
+  prefix
+    ? {
+        params: led(prefix, 'params'),
+        nodes: led(prefix, 'nodes'),
+        pageIndex: led(prefix, 'pageIndex'),
+        voxels: led(prefix, 'voxels'),
+      }
+    : VOXEL_NAMES
+/** The key a block written for `names` is declared under: the plain name for the default set (all four names), so that the hair's passes keep their text. */
+export const voxelBlockKey = (key: string, names: VoxelNames) =>
+  names.params === VOXEL_NAMES.params &&
+  names.nodes === VOXEL_NAMES.nodes &&
+  names.pageIndex === VOXEL_NAMES.pageIndex &&
+  names.voxels === VOXEL_NAMES.voxels
+    ? key
+    : `${key}(${names.params},${names.nodes},${names.pageIndex},${names.voxels})`
+
+/**
  * WHAT THE PASSES OVER THE VOXELS SHARE: the parameters of the volume (`VoxelParams`, which each program
  * binds as `params`: `VOXEL_PARAMS_WGSL` at binding 0 of group 0), a voxel width stored on eleven bits, and the coordinates of a page in the page index of a
  * macro group, the index of a page in the order of its coordinates (x first) from the group's offset in
  * the index.
  */
-export const VOXEL_COMMON_WGSL = wgslBlock(
-  'HAIR_VOXEL_COMMON_WGSL',
-  [],
-  `const INVALID_PAGE=0xFFFFFFFFu;
+export const voxelCommonWgsl = (names: VoxelNames = VOXEL_NAMES) =>
+  wgslBlock(
+    voxelBlockKey('HAIR_VOXEL_COMMON_WGSL', names),
+    [],
+    `const INVALID_PAGE=0xFFFFFFFFu;
 const INVALID_MACRO=0xFFu;
 const PRECISION=${HAIR_AABB_PRECISION_SCALE}.0;
 struct VoxelParams{
@@ -29,8 +66,8 @@ struct VoxelParams{
  pageResolution:u32,macroGroupCount:u32,supportMask:u32,pageCount:u32,
  pageStride:u32,correctionThreshold:f32,correctionSpeed:f32,cpuAllocatedPages:u32,
  minVoxelSize:f32,maxVoxelSize:f32,entryCount:u32,registeredCount:u32}
-fn packVoxelSize(size:f32)->u32{return u32(saturate(size/params.maxVoxelSize)*${SIZE_STEPS}.0);}
-fn unpackVoxelSize(packed:u32)->f32{return f32(packed&0x7ffu)*(params.maxVoxelSize/${SIZE_STEPS}.0);}
+fn packVoxelSize(size:f32)->u32{return u32(saturate(size/${names.params}.maxVoxelSize)*${SIZE_STEPS}.0);}
+fn unpackVoxelSize(packed:u32)->f32{return f32(packed&0x7ffu)*(${names.params}.maxVoxelSize/${SIZE_STEPS}.0);}
 fn quantizeVoxelSize(size:f32)->f32{return unpackVoxelSize(packVoxelSize(size));}
 fn coordToIndex(coord:vec3u,resolution:vec3u,offset:u32)->u32{return coord.x+coord.y*resolution.x+coord.z*resolution.x*resolution.y+offset;}
 fn indexToCoord(index:u32,resolution:vec3u)->vec3u{
@@ -41,15 +78,19 @@ fn indexToCoord(index:u32,resolution:vec3u)->vec3u{
 fn positionToCoord(p:vec3f,lo:vec3f,hi:vec3f,resolution:vec3u)->vec3u{
  return clamp(vec3u(saturate((p-lo)/(hi-lo))*vec3f(resolution)),vec3u(0u),resolution-vec3u(1u));
 }`,
-)
+  )
+export const VOXEL_COMMON_WGSL = voxelCommonWgsl()
 
-/** The volume's parameters at binding 0 of group 0: the programs that bind them first list it (the raster,
+/** The volume's parameters at binding `binding` of group `group` (0 and 0 for the hair's passes): the programs that bind them first list it (the raster,
  *  whose group 0 is the instance's, declares its own). */
-export const VOXEL_PARAMS_WGSL = wgslBlock(
-  'HAIR_VOXEL_PARAMS_WGSL',
-  [VOXEL_COMMON_WGSL],
-  '@group(0) @binding(0) var<uniform> params:VoxelParams;',
-)
+export const voxelParamsWgsl = (names: VoxelNames = VOXEL_NAMES, group = 0, binding = 0) =>
+  wgslBlock(
+    voxelBlockKey('HAIR_VOXEL_PARAMS_WGSL', names) +
+      (group || binding ? `@${group}:${binding}` : ''),
+    [voxelCommonWgsl(names)],
+    `@group(${group}) @binding(${binding}) var<uniform> ${names.params}:VoxelParams;`,
+  )
+export const VOXEL_PARAMS_WGSL = voxelParamsWgsl()
 
 /** A box of six whole numbers (`HAIR_AABB_PRECISION_SCALE` to the metre) of `buffer`, the `index`-th, as
  *  floats: the low corner then the high one. */

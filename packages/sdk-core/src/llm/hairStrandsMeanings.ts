@@ -33,8 +33,8 @@ const visibilityMeanings = () => ({
     'Whether the share of a pixel the strands cover comes from their count and their mean width, mapped through a table of the coverage of that many strands of that width placed at random, instead of the product of what each strand lets through; false by default. The tiles with strands, their coverage and the view transmittance follow it.',
   hairVelocityType:
     "How a pixel of strands takes its velocity from the velocity of its samples (closest, average or max): the nearest sample's, the mean of the samples', or the largest of them; closest by default. The temporal pass and the motion blur read it.",
-  hairVelocityThreshold: `Velocity, from 0 to 512, in the reference\'s pixel unit (a quarter pixel at 1: the unit is one half over the smaller side of the image in the screen\'s -1 to 1 span), above which a sample of strands marks its pixel to be resolved at once by the temporal pass, which keeps no history of it, sharper but noisier (${R.hairVelocityThreshold.default} by default).`,
-  hairVisibilityWriteVelocityCoverageThreshold: `Share of a pixel, from 0 to 1, the strands must cover for the pixel to write the strands\' velocity over the surface\'s; ${R.hairVisibilityWriteVelocityCoverageThreshold.default} by default, every pixel with strands.`,
+  hairVelocityThreshold: `Velocity, from 0 to 512, in the reference's pixel unit (a quarter pixel at 1: the unit is one half over the smaller side of the image in the screen's -1 to 1 span), above which a sample of strands marks its pixel to be resolved at once by the temporal pass, which keeps no history of it, sharper but noisier (${R.hairVelocityThreshold.default} by default).`,
+  hairVisibilityWriteVelocityCoverageThreshold: `Share of a pixel, from 0 to 1, the strands must cover for the pixel to write the strands' velocity over the surface's; ${R.hairVisibilityWriteVelocityCoverageThreshold.default} by default, every pixel with strands.`,
   renderCurve:
     "Whether the curve raster pipeline runs: the strands' curves are cut into segments, binned into tiles of 32 pixels by the depth of the scene in each tile, and compacted into depth slices for a software raster; false by default, experimental. Today the pipeline culls the strands' instances and clusters against the view and the scene's depth, bins their segments into the tiles and compacts each tile's segments into depth slices; the raster that draws them is not there yet.",
   renderCurveSwRaster: `Whether the curve raster runs its software path, which bins and compacts the segments (${R.renderCurveSwRaster.default} by default); the device has no mesh shader, so there is no hardware path, and with this off the pipeline does nothing. Needs renderCurve.`,
@@ -56,7 +56,7 @@ const visibilityMeanings = () => ({
     'Whether the surfaces the strands cover cast contact shadows; true by default.',
   hairCastShadowWhenOutOfView:
     "Whether a groom outside the camera's frustum still takes part in the macro groups, so that its shadow stays on what the camera sees, when a light that casts reaches it; true by default.",
-  hairOutOfViewShadowDistance: `Metres, from 0: how far along a sun\'s direction the bounds of a groom outside the view are extended before they are tested against the view, to find the grooms whose shadow falls into it (${R.hairOutOfViewShadowDistance.default} by default).`,
+  hairOutOfViewShadowDistance: `Metres, from 0: how far along a sun's direction the bounds of a groom outside the view are extended before they are tested against the view, to find the grooms whose shadow falls into it (${R.hairOutOfViewShadowDistance.default} by default).`,
   hairVoxelization:
     'Whether the strands are voxelized into the volume a light ray crosses to count the strands in its way; true by default. Off, the strands shade the surfaces they stand over only through the shadow maps.',
   hairVoxelizationAabbScale: `Scale from 0.01 to 10 on the box of a group of strands the voxels are allocated in (${R.hairVoxelizationAabbScale.default} by default).`,
@@ -122,6 +122,8 @@ const lightMeanings = () => ({
   hairVoxelInjectOpaqueBiasCount: `Voxels, a whole number from 0, under the opaque surface at which its depth is written (${R.hairVoxelInjectOpaqueBiasCount.default} by default).`,
   hairVoxelInjectOpaqueMarkCount: `Voxels, a whole number from 0, marked opaque along the view under the opaque surface (${R.hairVoxelInjectOpaqueMarkCount.default} by default).`,
   hairVoxelDensityScaleAO: `Scale of the density the strands give a voxel when the occlusion of the surfaces about them is traced; below 0 (${R.hairVoxelDensityScaleAO.default} by default) the voxel density scale (hairVoxelDensityScale) is used.`,
+  hairVoxelDensityScaleRaytracing: `Scale of the density the strands give a voxel when the rays traced through the scene's triangles (the ray-traced sky light) march it; below 0 (${R.hairVoxelDensityScaleRaytracing.default} by default) the voxel density scale (hairVoxelDensityScale) is used.`,
+  hairVoxelSteppingScaleRaytracing: `Scale of the march's step for the rays traced through the scene's triangles, held to 1 to 10; below 0 (${R.hairVoxelSteppingScaleRaytracing.default} by default) the voxel stepping scale (hairVoxelSteppingScale) is used.`,
   hairVoxelDepthBiasScaleEnvironment: `Voxels, from 0, by which the start of the rays that trace the strands' occlusion is moved along them (${R.hairVoxelDepthBiasScaleEnvironment.default} by default).`,
   hairVoxelSteppingScaleEnvironment: `Scale of the march's step for the rays that trace the strands' occlusion, held to 1 to 10; below 0 (${R.hairVoxelSteppingScaleEnvironment.default} by default) the voxel stepping scale (hairVoxelSteppingScale) is used.`,
   hairEnvironmentIntegration:

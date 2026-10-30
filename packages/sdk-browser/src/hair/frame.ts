@@ -230,6 +230,8 @@ const voxel: { -readonly [K in keyof HairVoxelSettings]: HairVoxelSettings[K] } 
   steppingScaleEnvironment: 1,
   depthBiasScaleEnvironment: 0,
   densityScaleEnvironment: 0,
+  densityScaleRaytracing: 0,
+  steppingScaleRaytracing: 1,
   densityScaleShadow: 0,
   depthBiasScaleShadow: 0,
   steppingScaleShadow: 1,
@@ -282,6 +284,8 @@ function voxelSettings(rt: WebgpuPagesRuntime): HairVoxelSettings {
   voxel.steppingScaleShadow = voxelSteppingScale(rt, 'hairVoxelSteppingScaleShadow')
   voxel.densityScaleEnvironment = voxelDensityScale(rt, 'hairVoxelDensityScaleEnvironment')
   voxel.steppingScaleEnvironment = voxelSteppingScale(rt, 'hairVoxelSteppingScaleEnvironment')
+  voxel.densityScaleRaytracing = voxelDensityScale(rt, 'hairVoxelDensityScaleRaytracing')
+  voxel.steppingScaleRaytracing = voxelSteppingScale(rt, 'hairVoxelSteppingScaleRaytracing')
   voxel.depthBiasScaleEnvironment = readHairStrandsSetting(rt, 'hairVoxelDepthBiasScaleEnvironment')
   voxel.jitterMode = JITTER_MODES[readHairStrandsSetting(rt, 'hairVoxelJitter')]
   voxel.superSampling = readHairStrandsSetting(rt, 'hairTransmittanceSuperSampling')

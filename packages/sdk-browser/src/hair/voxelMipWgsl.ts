@@ -2,7 +2,13 @@ import { wgslProgram } from '../../../math/src/wgsl/assemble.ts'
 import { wgslBlock } from '../../../math/src/wgsl/decl.ts'
 import { HAIR_VOXEL_BITS } from './voxelRasterWgsl.ts'
 import { HAIR_VOXEL_PAGE_GROUP } from './voxelMath.ts'
-import { VOXEL_COMMON_WGSL, VOXEL_PARAMS_WGSL } from './voxelWgsl.ts'
+import {
+  VOXEL_NAMES,
+  VOXEL_PARAMS_WGSL,
+  voxelBlockKey,
+  voxelCommonWgsl,
+  type VoxelNames,
+} from './voxelWgsl.ts'
 
 const [GX, GZ] = HAIR_VOXEL_PAGE_GROUP
 
@@ -11,23 +17,25 @@ const [GX, GZ] = HAIR_VOXEL_PAGE_GROUP
  * page's levels one after the other (each `n = pageResolution >> level` voxels a side, the coordinates x
  * first), `levelOffset` the words before a level. Reads `params` (the page resolution and stride).
  */
-export const VOXEL_LEVELS_WGSL = wgslBlock(
-  'HAIR_VOXEL_LEVELS_WGSL',
-  [VOXEL_COMMON_WGSL],
-  `fn levelOffset(level:u32)->u32{
+export const voxelLevelsWgsl = (names: VoxelNames = VOXEL_NAMES) =>
+  wgslBlock(
+    voxelBlockKey('HAIR_VOXEL_LEVELS_WGSL', names),
+    [voxelCommonWgsl(names)],
+    `fn levelOffset(level:u32)->u32{
  var words=0u;
  for(var l=0u;l<level;l++){
-  let n=params.pageResolution>>l;
+  let n=${names.params}.pageResolution>>l;
   words+=n*n*n;
  }
  return words;
 }
 // The word of the voxel \`at\` (within its page, at the level's own resolution) of \`level\` of page \`page\`.
 fn levelVoxelAt(page:u32,level:u32,at:vec3u)->u32{
- let n=params.pageResolution>>level;
- return page*params.pageStride+levelOffset(level)+at.x+at.y*n+at.z*n*n;
+ let n=${names.params}.pageResolution>>level;
+ return page*${names.params}.pageStride+levelOffset(level)+at.x+at.y*n+at.z*n*n;
 }`,
-)
+  )
+export const VOXEL_LEVELS_WGSL = voxelLevelsWgsl()
 
 export const MORTON = wgslBlock(
   'HAIR_VOXEL_MORTON_WGSL',

@@ -8,7 +8,7 @@ import { SCREEN_SPACE_GROUP } from '../../screenSpaceTracing/screenSpaceView.ts'
 import {
   denoiseCommonOf,
   SHADOW_DENOISE_COMMON_WGSL,
-  type DenoiseSignalKind,
+  type ScalarSignalKind,
 } from './shadowDenoiseCommonWgsl.ts'
 
 const G = SCREEN_SPACE_GROUP
@@ -132,7 +132,7 @@ fn sdWeb(id:vec2u,spread:f32)->SdRings{
  */
 export const shadowSpatialWgsl = (
   kernel: 'reconstruct' | 'web' | 'postFilter',
-  signal: DenoiseSignalKind = 'shadow',
+  signal: ScalarSignalKind = 'shadow',
 ) => {
   const occlusion = signal === 'occlusion'
   const prefix = occlusion ? 'occlusion' : 'shadow'

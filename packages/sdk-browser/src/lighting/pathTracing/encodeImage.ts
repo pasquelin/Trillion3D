@@ -16,7 +16,8 @@ import { encodeCloudMap, type PathTracingClouds } from './cloudFrame.ts'
 import { PT_CAPTURED_VIEW, visualizeWords } from './visualizeWgsl.ts'
 import { finishStageOf, type PathTracingPipelines } from './pipelines.ts'
 import { encodeAir } from './airDepth.ts'
-import { encodeLightGrid, encodeSkyTable } from './tables.ts'
+import { encodeSkyTable } from '../skyTable/skyTableEncode.ts'
+import { encodeLightGrid } from './tables.ts'
 import type { PathTracingCounters } from './restart.ts'
 import type { PathTracingGroups, createPathTracingGroups } from './encodeGroups.ts'
 import type { hitShadePipelinesOf } from './shadeHitPipelines.ts'
@@ -292,10 +293,10 @@ export function encodePathTracingImage(context: PathTracingImageContext): 0 | 1 
     encodeSkyTable(
       device,
       encoder,
-      pipelines,
-      gpu,
+      gpu.sky,
       context.sky,
       settings.pathTracingMISCompensation && settings.pathTracingMISMode === 2,
+      'Trillion3D path tracer sky table',
     )
   if (!airReady || !frame.needsMoreRays) return undefined
   if (context.clouds)

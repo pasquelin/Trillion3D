@@ -243,7 +243,11 @@ export const hairSkyPassWgsl = (cubed: boolean) => {
  if(hairParams.environment==1u){return textureLoad(hairEnv,vec2i(at),0);}
  // The strands' response to the environment is the fibre's own, with the dual scattering of a mask that holds no hair.
  modelEnvironment=evaluateEnvHair(colour,roughness,specular,scatter,V,N,hairParams.components);
- let emitted=lightOut(environmentLighting(base.rgb,base.a,N,1.0));
+ // The sky light's diffuse light under no occlusion, read here and not through 'environmentLighting': the traced sky light's composite lights the surfaces' pixels alone, so the cut
+ // it makes of the occluded diffuse ('skyLight.replaced.x') does not reach the strands, which keep their sky light whatever the sky light's way.
+ let skyVis=skyLightVisibility(N,1.0,N);
+ let skyDiffuse=select(vec3f(0.0),PI*(skyVis.scale*skyLightDiffuse(skyVis.normal)+skyVis.add),skyLightApplied());
+ let emitted=lightOut(environmentLightingWith(base.rgb,base.a,N,1.0,skyDiffuse));
  // With the volumetric lightmap's static light (\`hairStaticLightWgsl\`), added to the sky light's.
  let stored=select(vec4f(0.0),textureLoad(hairEnv,vec2i(at),0),hairParams.environment==2u);
  return vec4f(emitted.rgb*coverage+stored.rgb,coverage);

@@ -74,12 +74,12 @@ export interface SkyLightReadSet {
 
 /** The words of the uniform: the colour (rgb) and the share of the light the volumetric fog
  *  scatters; whether a cube is there, the last mip, the layer of the cube read and the blend's
- *  fraction; the occlusion's tint and least occlusion, its contrast curve and exponent, and how it
- *  is applied (`writeSkyLightRead`). */
-export const SKY_LIGHT_READ_WORDS = 20
+ *  fraction; the occlusion's tint and least occlusion, its contrast curve and exponent, how it
+ *  is applied, and whether the ray-traced sky light replaces the diffuse light (`writeSkyLightRead`). */
+export const SKY_LIGHT_READ_WORDS = 24
 
 const STRUCT =
-  'struct SkyLightRead{colour:vec4f,levels:vec4f,tint:vec4f,contrast:vec4f,mode:vec4f,}'
+  'struct SkyLightRead{colour:vec4f,levels:vec4f,tint:vec4f,contrast:vec4f,mode:vec4f,replaced:vec4f,}'
 
 /** The diffuse read over the bindings `b`. */
 export const skyLightDiffuseWgsl = (b: SkyLightDiffuseBindings): WgslDecl =>
@@ -207,7 +207,9 @@ const FIRST_SKY_LIGHT_CUBE: SkyLightCubeUse = { layer: 0, blend: 0 }
  *  and `mode`: the combine mode (0 the least of the occlusions, 1 their product), whether a bent normal is applied,
  *  the reciprocal of the specular strength, the specular mode. `cubemapScale` is
  *  the rescale of a 32-bit float cubemap (`SkyLightCubeRead.colorScale`); `capturePreExposure` the
- *  number a real-time capture is written multiplied by (`SkyLightInputs.preExposure`). */
+ *  number a real-time capture is written multiplied by (`SkyLightInputs.preExposure`); `diffuseTraced`
+ *  says the ray-traced sky light supplies the diffuse light of the surfaces (`replaced.x`), which the
+ *  occluded diffuse reads (`skyLightDiffuseOccluded`, `skyLightBackOccluded`) then give as none. */
 export function writeSkyLightRead(
   out: Float32Array,
   part: SkyLightPart,
@@ -217,6 +219,7 @@ export function writeSkyLightRead(
   occlusion: SkyLightOcclusionUse = NO_SKY_LIGHT_OCCLUSION,
   cube: SkyLightCubeUse = FIRST_SKY_LIGHT_CUBE,
   capturePreExposure = 1,
+  diffuseTraced = false,
 ) {
   const o = skyLightOcclusion(part)
   const curve = skyLightContrastCurve(o.contrast)
@@ -239,5 +242,6 @@ export function writeSkyLightRead(
     ],
     16,
   )
+  out.set([diffuseTraced ? 1 : 0, 0, 0, 0], 20)
   return out
 }

@@ -45,6 +45,7 @@ import { SHADOW_SUN_MEANINGS } from './shadowSunMeanings.ts'
 import { CONTACT_SHADOW_MEANINGS } from './contactShadowMeanings.ts'
 import { CAPSULE_SHADOW_MEANINGS } from './capsuleShadowMeanings.ts'
 import { RAY_TRACED_SHADOW_MEANINGS } from './rayTracedShadowMeanings.ts'
+import { RAY_TRACED_SKY_LIGHT_MEANINGS } from './rayTracedSkyLightMeanings.ts'
 import { SHADOW_VIEW_MEANINGS } from './shadowViewMeanings.ts'
 import { MOTION_BLUR_RULES } from '../contracts/motionBlurOptions.ts'
 import { MOTION_BLUR_MEANINGS } from './motionBlurMeanings.ts'
@@ -714,6 +715,7 @@ export const settingRuleProperties = () => ({
     ...CONTACT_SHADOW_MEANINGS,
     ...CAPSULE_SHADOW_MEANINGS,
     ...RAY_TRACED_SHADOW_MEANINGS,
+    ...RAY_TRACED_SKY_LIGHT_MEANINGS,
   }),
   ...ruleProperties(MOTION_BLUR_RULES, MOTION_BLUR_MEANINGS),
   ...ruleProperties(DEPTH_OF_FIELD_RULES, DEPTH_OF_FIELD_MEANINGS),

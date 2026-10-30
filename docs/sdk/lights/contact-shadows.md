@@ -106,70 +106,7 @@ const world = await createWorld({ rayTracedShadows: true, rayTracedShadowsDenois
 world.shadows = { rayTracedShadowsDenoiser: false }
 ```
 
-**Ray-traced sky light** (off by default). The sky light's diffuse light can be found by rays cast from
-each pixel through the scene's triangles toward the sky, drawn by the sky's importance table, instead of
-the capture's harmonics. The sky light asks with its fields `castRayTracedShadow` (`'useProjectSetting'`,
-`'enabled'`, `'disabled'`), `samplesPerPixel` (4; never fewer than 2 rays are cast) and `transmission`
-(`false`). The view's settings, all with the reference's default:
-
-| Setting | Default | Meaning |
-| --- | --- | --- |
-| `rayTracedSkyLight` | `false` | the sky lights that follow the view are lit by rays |
-| `rayTracedSkyLightAllowed` | `true` | the project's switch; reads off while `rayTracingEnable` is off |
-| `rayTracedSkyLightSamplesPerPixel` | `-1` | rays a pixel; `-1` leaves it to the sky light |
-| `rayTracedSkyLightMaxRayDistance` | `10000000` | centimetres, the longest a ray goes |
-| `rayTracedSkyLightMaxShadowThickness` | `1000` | centimetres, the start of the ray that measures a hair pixel's thickness |
-| `rayTracedSkyLightDenoiser` | `true` | the rays' light is denoised and accumulated over the images |
-| `rayTracedSkyLightDenoiserReconstructionSamples` / `PreConvolution` / `TemporalAccumulation` | `16` / `1` / `true` | the denoiser's passes |
-| `rayTracedSkyLightDenoiserHistoryConvolutionSamples` / `HistoryConvolutionKernelSpreadFactor` | `1` / `3` | samples (1 to 56; 1 runs none) and spread, in pixels, of the convolution of the accumulated history |
-| `rayTracedSkyLightTwoSidedGeometry` | `true` | geometry occludes from both faces |
-| `rayTracedSkyLightMaterials` | `true` | masked surfaces are cut by their mask |
-| `rayTracedSkyLightDecoupleSampleGeneration` | `true` | the directions are drawn once in a 256 by 256 table by a pass of their own |
-| `rayTracedSkyLightHairVoxel` | `true` | the hair voxels take part in the occlusion |
-| `rayTracedSkyLightScreenPercentage` | `100` | share of the resolution the rays are cast at (25 to 100, whole division) |
-
-```js
-// Every sky light that follows the view is lit by rays, four a pixel, at half resolution; then one sky light alone, whatever the view says.
-const world = await createWorld({ rayTracedSkyLight: true, rayTracedSkyLightSamplesPerPixel: 4, rayTracedSkyLightScreenPercentage: 50 })
-sky.skyLight = { castRayTracedShadow: 'enabled', samplesPerPixel: 8 }
-```
-
-The denoiser is the diffuse signal of the shadows' denoiser (`lighting/shadows/denoise`), the one frame
-that filters the rays' shadows and occlusion. The trace gives it the light with the share of rays that
-hit, the hits' distance and the rays a pixel. Its reconstruction fills the full-resolution image from
-the rays' grid (a ray cast from a different pixel of each cell every image, whatever the division); the
-pre-convolutions and the accumulation in time keep the history inside the neighbourhood's colours; the
-optional convolution of the history cleans it further. The sample is two textures: the mean colour (half
-floats) and the sample's weight in a whole float (the reference holds it in half floats; a weight past
-ten bits of mantissa loses nothing here).
-
-The ray-traced sky light follows the reference in every step and fixes what the reference gets wrong;
-each fix is declared here:
-
-- the cell's pixel the rays are cast from each image is the frame modulo the number of the cell's pixels
-  (the reference masks the frame with the square of the division less one, which never visits some
-  pixels of a cell for a division of 3); the denoiser finds the ray nearest a pixel from that same
-  pixel, by a signed division (the reference divides an unsigned value and, for the first pixels of an
-  edge, reads the grid's far edge);
-- the sky light's harmonics are cut from the pixels only where the rays light them this image (the
-  reference cuts them wherever a ray-traced sky light is on, so the sky vanishes where its composite
-  does not run);
-- the sky light's read block holds one field more, `replaced`, which the harmonics' diffuse reads to give
-  nothing while the rays supply it: every program that reads the sky light changes its text, and the
-  image of a scene lit by the harmonics does not change.
-
-The light is the pixel's shading model's, as the reference's per-ray evaluation gives it: the Lambert
-diffuse times the cosine for the plain models (a toon pixel's scaled by its profile), a hair's own
-fibre scattering with no cosine (and, once the rays are done, its multiple scattering: the sky's
-harmonics along the mean direction of the rays that escaped, weighed by the fibre's Kajiya-Kay
-attenuation, by the thickness of the shadow measured by one more ray of `rayTracedSkyLightMaxShadowThickness`
-and by the share of the rays that did not hit), an eye's term in place of its diffuse. With the sky
-light's `transmission` field on, the model's transmission toward each ray (the thin subsurface's, the
-skin's, the eye's, the hair's) is added, unshadowed; a subsurface profile's transmission is the
-lights', and the sky has none. The trace divides the light by the pixel's diffuse colour and the
-composite multiplies it back after the denoiser, so the denoiser filters a colour-free signal.
-Not yet done: the strands' voxels do not take part in the occlusion (`rayTracedSkyLightHairVoxel` is
-read nowhere), the Burley diffuse of a subsurface profile and the energy preservation of the diffuse.
+**Ray-traced sky light** (off by default): [its own page](../ray-traced-sky-light.md).
 
 The rays honour a light's lighting channels and a tube's capsule (not its centre), and let the back faces
 of surfaces that light goes through (an eye, a thin two-sided sheet, a subsurface-model pixel) be lit;

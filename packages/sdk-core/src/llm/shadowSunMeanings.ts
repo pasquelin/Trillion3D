@@ -1,6 +1,7 @@
 import type { CapsuleShadowField } from '../contracts/capsuleShadowOptions.ts'
 import type { ContactShadowField } from '../contracts/contactShadowOptions.ts'
 import type { RayTracedShadowField } from '../contracts/rayTracedShadowOptions.ts'
+import type { RayTracedSkyLightField } from '../contracts/rayTracedSkyLightOptions.ts'
 import type { ShadowField } from '../contracts/shadowOptions.ts'
 import type { ShadowViewField } from './shadowViewMeanings.ts'
 
@@ -9,7 +10,11 @@ import type { ShadowViewField } from './shadowViewMeanings.ts'
  *  contact shadows' (`contactShadowMeanings.ts`) the capsule shadows' (`capsuleShadowMeanings.ts`) and the ray-traced shadows' (`rayTracedShadowMeanings.ts`). */
 type ShadowSunField = Exclude<
   ShadowField,
-  ShadowViewField | ContactShadowField | CapsuleShadowField | RayTracedShadowField
+  | ShadowViewField
+  | ContactShadowField
+  | CapsuleShadowField
+  | RayTracedShadowField
+  | RayTracedSkyLightField
 >
 
 /** What each of them means. */

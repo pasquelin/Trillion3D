@@ -60,6 +60,9 @@ Each section lives in its own file under [`sdk/`](sdk); read only the one you ne
 ## Lights
 [sdk/lights.md](sdk/lights.md): Sky module · Height fog part · Atmosphere part · Clouds part · Declared lights · Simple lights · Rectangle lights' pictures · Light functions · …
 
+## Ray-traced sky light
+[sdk/ray-traced-sky-light.md](sdk/ray-traced-sky-light.md): the sky light's diffuse found by rays, its settings, its denoiser, its shading models and the strands' voxels
+
 ## Memory budgets
 [sdk/memory-budgets.md](sdk/memory-budgets.md): Out of memory is absorbed
 

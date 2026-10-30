@@ -8,6 +8,7 @@ import { airShapeKey } from '../../lighting/atmosphere/shape.ts'
 import type { FogRead } from '../../lighting/fog/read.ts'
 import { createSkyLightCapture, type SkyLightInputs } from '../../modules/sky/skyLight/capture.ts'
 import { SKY_LIGHT_READ_WORDS, writeSkyLightRead } from '../../modules/sky/skyLight/read.ts'
+import { skyLightDiffuseTraced } from '../../lighting/skyLightTraced/skyLightTracedFrame.ts'
 import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { skyOcclusionUse } from '../../lighting/distanceField/ao/state.ts'
 import { airRequests, airShapeOfRuntime, atmosphereDeclared } from './airState.ts'
@@ -203,6 +204,7 @@ export function writeSkyLightParams(rt: WebgpuPagesRuntime, device: GPUDevice) {
     skyOcclusionUse(rt),
     { layer: ready.layer, blend: ready.blend },
     capturePreExposure(rt),
+    skyLightDiffuseTraced(rt),
   )
   device.queue.writeBuffer(state.params, 0, words.buffer, words.byteOffset, words.byteLength)
 }

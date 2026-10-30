@@ -4,8 +4,13 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import { shaderRun } from '../../../materials/texture/shaderRun.fixture.ts'
-import { skyLightContrastCurve } from '../../../../../sdk-core/src/modules/sky/skyLight.ts'
+import {
+  resolveSkyLight,
+  skyLightContrastCurve,
+  type SkyLightPart,
+} from '../../../../../sdk-core/src/modules/sky/skyLight.ts'
 import { skyLightOcclusionWgsl } from './occlusionWgsl.ts'
+import { NO_SKY_LIGHT_OCCLUSION, SKY_LIGHT_READ_WORDS, writeSkyLightRead } from './read.ts'
 
 const BINDINGS = { group: 0, cube: 1, sampler: 2, harmonics: 3, params: 4 }
 type Vec3 = [number, number, number]
@@ -21,7 +26,13 @@ const smoothstep = (x: number) => x * x * (3 - 2 * x)
 /** The uniform as `writeSkyLightRead` lays the occlusion's words: tint and least occlusion, the contrast curve and the
  *  exponent, and the mode (combine, bent normal applied, reciprocal strength, specular mode). */
 function light(
-  over: { combine?: number; applied?: number; mode?: number; strength?: number } = {},
+  over: {
+    combine?: number
+    applied?: number
+    mode?: number
+    strength?: number
+    replaced?: number
+  } = {},
 ) {
   const contrast = 0.6
   const curve = skyLightContrastCurve(contrast)
@@ -29,6 +40,7 @@ function light(
     tint: [0.1, 0.2, 0.3, 0.25],
     contrast: [contrast, curve.mul, curve.add, 2],
     mode: [over.combine ?? 1, over.applied ?? 1, 1 / (over.strength ?? 1), over.mode ?? 1],
+    replaced: [over.replaced ?? 0, 0, 0, 0],
   }
 }
 
@@ -37,10 +49,16 @@ function occlusion(skyLight: ReturnType<typeof light>, applied = true) {
   return shaderRun<{
     skyLightVisibility: (n: Vec3, others: number, bent: Vec3) => Visibility
     skyLightDiffuseOccluded: (v: Visibility) => Vec3
+    skyLightBackOccluded: (v: Visibility, n: Vec3) => Vec3
     skyLightSpecularOcclusion: (b: Vec3, r: Vec3, rough: number, two: boolean) => Specular
   }>(
     skyLightOcclusionWgsl(BINDINGS),
-    ['skyLightVisibility', 'skyLightDiffuseOccluded', 'skyLightSpecularOcclusion'],
+    [
+      'skyLightVisibility',
+      'skyLightDiffuseOccluded',
+      'skyLightBackOccluded',
+      'skyLightSpecularOcclusion',
+    ],
     {
       skyLight,
       skyLightApplied: () => applied,
@@ -106,6 +124,40 @@ test('the diffuse light is read along the visibility’s normal, scaled and lift
   assert.deepEqual(occlusion(light(), false).skyLightDiffuseOccluded(v), [0, 0, 0])
 })
 
+test('the back is read along -normal under the front’s scale and adds no tint; none without a sky light', () => {
+  const v: Visibility = { scale: 0.5, add: [0.1, 0.2, 0.3], normal: [1, 0, 0] }
+  const back = occlusion(light()).skyLightBackOccluded(v, N)
+  back.forEach((c, i) => near(c, 0.5 * (-N[i] + 2), `${i}`))
+  assert.deepEqual(occlusion(light(), false).skyLightBackOccluded(v, N), [0, 0, 0])
+})
+
+test('the diffuse light, front and back, is none where the ray-traced sky light supplies it, and the specular occlusion stands', () => {
+  const v: Visibility = { scale: 0.5, add: [0.1, 0.2, 0.3], normal: [0, 0, 1] }
+  const replaced = occlusion(light({ replaced: 1 }))
+  assert.deepEqual(replaced.skyLightDiffuseOccluded(v), [0, 0, 0])
+  assert.deepEqual(replaced.skyLightBackOccluded(v, N), [0, 0, 0])
+  const bent: Vec3 = [0.3, 0, 0.5]
+  assert.deepEqual(
+    replaced.skyLightSpecularOcclusion(bent, N, 0.5, false),
+    occlusion(light()).skyLightSpecularOcclusion(bent, N, 0.5, false),
+  )
+  const part = resolveSkyLight({}, {} as SkyLightPart['quality'])
+  const words = (traced?: boolean) =>
+    writeSkyLightRead(
+      new Float32Array(SKY_LIGHT_READ_WORDS),
+      part,
+      1,
+      true,
+      1,
+      NO_SKY_LIGHT_OCCLUSION,
+      undefined,
+      1,
+      traced,
+    )
+  assert.equal(words(true)[20], 1)
+  assert.equal(words()[20], 0)
+})
+
 test('the specular occlusion is the bent normal’s length in the first mode and the cones’ intersection in the second', () => {
   const bent: Vec3 = [0.3, 0, 0.5]
   const len = length(bent)
@@ -158,4 +210,37 @@ test('a bent normal and a reflection a rounding apart do not make the angle unde
   const bent: Vec3 = [0, 0, 0.5]
   const cone = occlusion(light()).skyLightSpecularOcclusion(bent, [0, 0, 1.0000001], 0.3, false)
   assert.ok(Number.isFinite(cone.specular))
+})
+
+test('the tint is the light’s own whether the occlusion is drawn or not, and the plain program lights the sky with the same function', () => {
+  const part: SkyLightPart = resolveSkyLight(
+    { occlusionTint: [0.1, 0.2, 0.3], minOcclusion: 0.25 },
+    {} as SkyLightPart['quality'],
+  )
+  const words = (use: typeof NO_SKY_LIGHT_OCCLUSION) =>
+    writeSkyLightRead(new Float32Array(SKY_LIGHT_READ_WORDS), part, 1, true, 1, use)
+  const drawn = words({ ...NO_SKY_LIGHT_OCCLUSION, applied: true })
+  const none = words(NO_SKY_LIGHT_OCCLUSION)
+  for (const w of [drawn, none]) {
+    assert.deepEqual(
+      [...w.slice(8, 11)].map((c) => Math.round(c * 10)),
+      [1, 2, 3],
+    )
+  }
+  const u = {
+    tint: [...none.slice(8, 12)],
+    contrast: [...none.slice(12, 16)],
+    mode: [...none.slice(16, 20)],
+    replaced: [...none.slice(20, 24)],
+  } as ReturnType<typeof light>
+  const run = occlusion(u)
+  // No sky shadowing, material and screen occlusion `others` alone: the diffuse light under it, the tint added for what it lost.
+  for (const others of [1, 0.6, 0.1]) {
+    const v = run.skyLightVisibility(N, others, N)
+    run
+      .skyLightDiffuseOccluded(v)
+      .forEach((c, i) =>
+        near(c, others * (N[i] + 2) + (1 - others) * u.tint[i], `others ${others} channel ${i}`),
+      )
+  }
 })

@@ -6,7 +6,6 @@ import {
 } from '../rays/sceneTrace/sceneMaskPrograms.ts'
 import { wgslModule } from '../../../../math/src/wgsl/assemble.ts'
 import {
-  COMPUTE,
   computeBufferEntry,
   computeStorageTextureEntry,
   computeTextureEntry,
@@ -14,7 +13,6 @@ import {
 } from '../../gpu/core/computeBindings.ts'
 import { oncePerDevice } from '../../gpu/core/oncePerDevice.ts'
 import { dagReadLayoutEntries } from '../../geometry/dag/shader/bindings.ts'
-import { skyLightReadLayoutEntries } from '../../modules/sky/skyLight/read.ts'
 import { DEPTH_FORMAT, HDR_FORMAT } from '../../scene/targetFormats.ts'
 import {
   fullscreenDescriptor,
@@ -31,16 +29,11 @@ import {
 } from './accumulateProgram.ts'
 import { PT_ARGS_BINDINGS, PT_ARGS_ENTRY, PT_ARGS_WGSL } from './argsProgram.ts'
 import { PT_ADAPTIVE_ERROR_ENTRY, PT_ADAPTIVE_ERROR_KERNEL_WGSL } from './adaptiveErrorWgsl.ts'
-import {
-  PT_GRID_BUILD_BINDINGS,
-  PT_GRID_BUILD_WGSL,
-  PT_SKY_BINDINGS,
-  PT_SKY_BUILD_WGSL,
-} from './buildPrograms.ts'
+import { PT_GRID_BUILD_BINDINGS, PT_GRID_BUILD_WGSL } from './buildPrograms.ts'
 import { PT_DISPLAY_WGSL } from './displayWgsl.ts'
 import { PT_LIGHT_GRID_ENTRY } from './lightGridWgsl.ts'
 import { PT_NORMAL_SPACE_ENTRY, PT_NORMAL_SPACE_WGSL } from './normalSpaceWgsl.ts'
-import { PT_SKY_COMPENSATE_ENTRY, PT_SKY_MIP_ENTRY, PT_SKY_PREPARE_ENTRY } from './skyWgsl.ts'
+import { skyTableStagesOf } from '../skyTable/skyTableStages.ts'
 import { PT_FINISH_BINDINGS } from './finishWgsl.ts'
 import { PT_TRACE_STAGE_BINDINGS } from './traceBounceWgsl.ts'
 import {
@@ -67,9 +60,6 @@ export const PT_AOV_FORMAT = 'rgba16float' as const
 export const PT_DEPTH_FORMAT = 'r32float' as const
 /** The error chain's format (the sum of a pixel's luminance and of its square, and its count): floats. */
 export const PT_VARIANCE_FORMAT = 'rgba32float' as const
-/** The sky's table: the radiance in floats, the density a float. */
-export const PT_SKY_TEXTURE_FORMAT = 'rgba32float' as const
-export const PT_SKY_PDF_FORMAT = 'r32float' as const
 /** The light grid's counts and lists. */
 export const PT_GRID_FORMAT = 'r32uint' as const
 
@@ -95,8 +85,6 @@ export interface PathTracingPipelines {
   readonly accumulate: Stages<keyof typeof PT_ACCUMULATE_ENTRIES>
   readonly gridLayout: GPUBindGroupLayout
   readonly grid: PreparedPipeline<GPUComputePipeline>
-  readonly skyLayouts: readonly [GPUBindGroupLayout, GPUBindGroupLayout]
-  readonly sky: Stages<'prepare' | 'mip' | 'compensate'>
   readonly errorLayout: GPUBindGroupLayout
   readonly error: PreparedPipeline<GPUComputePipeline>
   readonly airDepthLayout: GPUBindGroupLayout
@@ -291,34 +279,6 @@ function gridStage(device: GPUDevice) {
   return { layout, stage: compute(device, module, [layout], PT_LIGHT_GRID_ENTRY) }
 }
 
-function skyStages(device: GPUDevice) {
-  const sky = device.createBindGroupLayout({
-    label: 'Trillion3D path tracer sky light',
-    entries: skyLightReadLayoutEntries(PT_SKY_BINDINGS, COMPUTE),
-  })
-  const build = device.createBindGroupLayout({
-    label: 'Trillion3D path tracer sky table',
-    entries: [
-      computeUniformEntry(0),
-      computeStorageTextureEntry(1, PT_SKY_TEXTURE_FORMAT),
-      computeStorageTextureEntry(2, PT_SKY_PDF_FORMAT, 'read-write'),
-      computeTextureEntry(3, 'unfilterable-float'),
-    ],
-  })
-  const module = device.createShaderModule({
-    label: 'Trillion3D path tracer sky table',
-    code: PT_SKY_BUILD_WGSL,
-  })
-  return {
-    layouts: [sky, build] as const,
-    stages: {
-      prepare: compute(device, module, [sky, build], PT_SKY_PREPARE_ENTRY),
-      mip: compute(device, module, [sky, build], PT_SKY_MIP_ENTRY),
-      compensate: compute(device, module, [sky, build], PT_SKY_COMPENSATE_ENTRY),
-    },
-  }
-}
-
 function errorStage(device: GPUDevice) {
   const layout = device.createBindGroupLayout({
     label: 'Trillion3D path tracer error chain',
@@ -416,7 +376,6 @@ const commonStagesOf = oncePerDevice((device: GPUDevice) => ({
   args: argsStage(device),
   accumulate: accumulateStages(device),
   grid: gridStage(device),
-  sky: skyStages(device),
   error: errorStage(device),
   airDepth: airDepthStage(device),
   cloudMap: cloudMapStage(device),
@@ -429,8 +388,9 @@ function pipelinesOf(
   device: GPUDevice,
   trace: ReturnType<typeof traceStages>,
 ): PathTracingPipelines {
-  const { args, accumulate, grid, sky, error, airDepth, cloudMap, normal, display } =
+  const { args, accumulate, grid, error, airDepth, cloudMap, normal, display } =
     commonStagesOf(device)
+  const sky = skyTableStagesOf(device)
   return {
     traceLayouts: trace.traceLayouts,
     finishLayouts: trace.finishLayouts,
@@ -443,8 +403,6 @@ function pipelinesOf(
     accumulate: accumulate.stages,
     gridLayout: grid.layout,
     grid: grid.stage,
-    skyLayouts: sky.layouts,
-    sky: sky.stages,
     errorLayout: error.layout,
     error: error.stage,
     airDepthLayout: airDepth.layout,

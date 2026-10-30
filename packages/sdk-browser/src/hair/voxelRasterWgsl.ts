@@ -4,7 +4,14 @@ import { FLAT_INDEX_WGSL, WORKGROUP_THREADS_WGSL } from '../gpu/dispatch/grid.ts
 import { HAIR_FLAG } from './materialMath.ts'
 import { HAIR_RIBBON_WGSL, HAIR_VIEW_WGSL } from './ribbonWgsl.ts'
 import { HAIR_VOXEL_MAX_RASTER_COUNT, HAIR_VOXEL_PAGE_GROUP } from './voxelMath.ts'
-import { VOXEL_COMMON_WGSL, VOXEL_PARAMS_WGSL } from './voxelWgsl.ts'
+import {
+  VOXEL_COMMON_WGSL,
+  VOXEL_NAMES,
+  VOXEL_PARAMS_WGSL,
+  voxelBlockKey,
+  voxelCommonWgsl,
+  type VoxelNames,
+} from './voxelWgsl.ts'
 
 /** The coverage a voxel adds is a whole number: a strand's share of the voxel times this, so that the
  *  voxels are summed by an atomic add (the voxel's low 24 bits hold the sum, `VOXEL_HAIR_MASK`). */
@@ -27,26 +34,28 @@ const HAIR_COVERAGE_SCALE = 1
  * resolution in pages and offset in the page index, its voxel's width and the volume's resolution in
  * voxels. Reads `nodes` (its host declares it), `params`.
  */
-export const VOXEL_NODE_WGSL = wgslBlock(
-  'HAIR_VOXEL_NODE_WGSL',
-  [VOXEL_COMMON_WGSL],
-  `struct VoxelNode{lo:vec3f,hi:vec3f,pages:vec3u,voxels:vec3u,offset:u32,size:f32}
+export const voxelNodeWgsl = (names: VoxelNames = VOXEL_NAMES) =>
+  wgslBlock(
+    voxelBlockKey('HAIR_VOXEL_NODE_WGSL', names),
+    [voxelCommonWgsl(names)],
+    `struct VoxelNode{lo:vec3f,hi:vec3f,pages:vec3u,voxels:vec3u,offset:u32,size:f32}
 fn nodeOf(owner:u32)->VoxelNode{
  let at=owner*8u;
- let packed=nodes[at+3u];
+ let packed=${names.nodes}[at+3u];
  let pages=vec3u(packed&0xFFu,(packed>>8u)&0xFFu,(packed>>16u)&0xFFu);
  return VoxelNode(
-  vec3f(bitcast<f32>(nodes[at]),bitcast<f32>(nodes[at+1u]),bitcast<f32>(nodes[at+2u])),
-  vec3f(bitcast<f32>(nodes[at+4u]),bitcast<f32>(nodes[at+5u]),bitcast<f32>(nodes[at+6u])),
-  pages,pages*params.pageResolution,nodes[at+7u]&0x1FFFFFu,unpackVoxelSize(nodes[at+7u]>>21u));
+  vec3f(bitcast<f32>(${names.nodes}[at]),bitcast<f32>(${names.nodes}[at+1u]),bitcast<f32>(${names.nodes}[at+2u])),
+  vec3f(bitcast<f32>(${names.nodes}[at+4u]),bitcast<f32>(${names.nodes}[at+5u]),bitcast<f32>(${names.nodes}[at+6u])),
+  pages,pages*${names.params}.pageResolution,${names.nodes}[at+7u]&0x1FFFFFu,unpackVoxelSize(${names.nodes}[at+7u]>>21u));
 }
 // The word of a voxel of a page's first level: the pages follow each other, a page's voxels in the order of
 // their coordinates (x first).
 fn voxelAt(page:u32,offset:vec3u)->u32{
- let n=params.pageResolution;
- return page*params.pageStride+offset.x+offset.y*n+offset.z*n*n;
+ let n=${names.params}.pageResolution;
+ return page*${names.params}.pageStride+offset.x+offset.y*n+offset.z*n*n;
 }`,
-)
+  )
+export const VOXEL_NODE_WGSL = voxelNodeWgsl()
 
 /**
  * THE VOXELIZATION OF THE STRANDS: a thread a segment of the instance bound in group 0 (the macro group

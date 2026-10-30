@@ -34,6 +34,7 @@ import { encodeSkyPass } from './encodeSkyPass.ts'
 import { encodeLightShaftBloom } from '../../modules/sky/lightShafts/frame.ts'
 import { encodePreLight } from './preLight.ts'
 import { preparePathTracing } from '../../lighting/pathTracing/frame.ts'
+import { encodeSkyLightTraced } from '../../lighting/skyLightTraced/skyLightTracedFrame.ts'
 import { encodeTranslucencyVolume } from '../../lighting/translucency/frame.ts'
 import { readHeterogeneousVolumeSetting } from '../../../../sdk-core/src/contracts/heterogeneousVolumeOptions.ts'
 import { encodeHeterogeneousVolumes } from '../../lighting/heterogeneousVolumes/liveShadingFrame.ts'
@@ -423,6 +424,8 @@ export function encodeSurfaceLighting(
   const traced = preparePathTracing(rt, device, encoder, cam)
   lightSurfaces(rt, encoder, clear, raw, direct, !traced || traced.wiper)
   if (traced && gpu.depthView) traced.draw(gpu.hdrView, gpu.depthView)
+  // The sky lit by rays, added to the lit image once the lights are on it (the reference composites it after the subsurface pass); the indirect pass cut the sky's diffuse for it.
+  encodeSkyLightTraced(rt, device, encoder, cam)
   // The hair strands are lit with the lights; they are laid on the image where `hairStrandsComposition` says (`encodeBlend`).
   encodeHairLighting(rt, device, encoder, cam)
   encodeVolumeAndScattering(rt, device, encoder, cam)

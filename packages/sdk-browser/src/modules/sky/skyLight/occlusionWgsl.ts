@@ -18,7 +18,7 @@ import { skyLightReadWgsl, type SkyLightBindings } from './read.ts'
  *   by the least of the two or their product. The result keeps the scale to the light read, the occlusion's tint times
  *   what the visibility lost (`(1 - visibility) · tint`) to add, and the normal to read it along;
  * - `skyLightDiffuseOccluded(visibility)`: `scale · diffuse light(normal) + add`, what the surface's diffuse colour
- *   multiplies;
+ *   multiplies; this one and the back's give none while the ray-traced sky light supplies the diffuse light (`replaced.x`, `writeSkyLightRead`);
  * - `skyLightBackOccluded(visibility, normal)`: a two-sided surface's back, `scale · diffuse light(-normal)` with the SAME scale as the
  *   front's (the distance-field occlusion included) and no `add`: the tint belongs to the front's diffuse colour alone;
  * - `skyLightSpecularOcclusion(bent, reflection, roughness, twoSided)`: the specular occlusion, with a bent normal
@@ -50,11 +50,11 @@ fn skyLightVisibility(normal:vec3f,others:f32,bent:vec3f)->SkyVisibility{
  return SkyVisibility(visibility*factor,(1.0-visibility)*skyLight.tint.xyz,along);
 }
 fn skyLightDiffuseOccluded(v:SkyVisibility)->vec3f{
- if(!skyLightApplied()){return vec3f(0.0);}
+ if(!skyLightApplied()||skyLight.replaced.x>0.0){return vec3f(0.0);}
  return v.scale*skyLightDiffuse(v.normal)+v.add;
 }
 fn skyLightBackOccluded(v:SkyVisibility,normal:vec3f)->vec3f{
- if(!skyLightApplied()){return vec3f(0.0);}
+ if(!skyLightApplied()||skyLight.replaced.x>0.0){return vec3f(0.0);}
  return v.scale*skyLightDiffuse(-normal);
 }`,
 )

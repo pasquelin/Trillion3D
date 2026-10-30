@@ -1,5 +1,5 @@
 // The capsule shadows' WGSL texts of `ENGINE_SHADERS`: the shadow pass of each mode (the indirect one also over the meshes' distance-field
-// casters), the upsample draw with and without the second, ambient occlusion target, the pass that derives the light directions and the merge of the first-person self shadow into the masks, the ray traced shadow's kernel and its merge, the ray traced occlusion's kernel and its denoiser's passes, and the shadow denoiser's passes.
+// casters), the upsample draw with and without the second, ambient occlusion target, the pass that derives the light directions and the merge of the first-person self shadow into the masks, the ray traced shadow's kernel and its merge, the ray traced occlusion's kernel and its denoiser's passes, the shadow denoiser's passes and the diffuse denoiser's (the ray-traced sky light's).
 import {
   capsuleShadowShader,
   type CapsuleMode,
@@ -18,6 +18,13 @@ import {
   shadowSpatialWgsl,
 } from '../../lighting/shadows/denoise/shadowDenoiseSpatialWgsl.ts'
 import { shadowTemporalWgsl } from '../../lighting/shadows/denoise/shadowDenoiseTemporalWgsl.ts'
+import {
+  diffuseFinalWgsl,
+  diffusePostFilterWgsl,
+  diffusePreConvolveWgsl,
+  diffuseReconstructWgsl,
+  diffuseTemporalWgsl,
+} from '../../lighting/shadows/denoise/diffuseDenoiseWgsl.ts'
 import { selfShadowMergeProgram } from '../../lighting/shadows/firstPerson/selfShadowWgsl.ts'
 import { rayTracedAoProgram } from '../../lighting/ao/rayTraced/rayTracedAoWgsl.ts'
 import {
@@ -64,4 +71,9 @@ export const CAPSULE_SHADOW_SHADERS: Record<string, string> = {
   OCCLUSION_DENOISE_REJECTION: occlusionRejectionWgsl(),
   OCCLUSION_DENOISE_TEMPORAL: occlusionTemporalWgsl(),
   OCCLUSION_DENOISE_OUTPUT: occlusionFinalWgsl(),
+  DIFFUSE_DENOISE_RECONSTRUCT: diffuseReconstructWgsl(),
+  DIFFUSE_DENOISE_WEB: diffusePreConvolveWgsl(),
+  DIFFUSE_DENOISE_TEMPORAL: diffuseTemporalWgsl(),
+  DIFFUSE_DENOISE_POST_FILTER: diffusePostFilterWgsl(),
+  DIFFUSE_DENOISE_OUTPUT: diffuseFinalWgsl(),
 }

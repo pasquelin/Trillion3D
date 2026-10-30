@@ -50,6 +50,7 @@ import { PATH_TRACING_SHADERS } from './engineShaders.pathTracing.fixture.ts'
 import { RECT_LIGHT_ATLAS_SHADERS } from './engineShaders.rectLightAtlas.fixture.ts'
 import { TOON_SHADERS } from './engineShaders.toon.fixture.ts'
 import { HIT_LIGHTING_SHADERS } from './engineShaders.hitLighting.fixture.ts'
+import { SKY_LIGHT_TRACED_SHADERS } from './engineShaders.skyLightTraced.fixture.ts'
 import { SAMPLED_LIGHTS_SHADERS } from './engineShaders.manyLights.fixture.ts'
 import { SCREEN_SPACE_TRACING_SHADERS } from './engineShaders.screenSpaceTracing.fixture.ts'
 import { BLEND_SHADER } from './shaderTexts.fixture.ts'
@@ -255,6 +256,7 @@ export const ENGINE_SHADERS: Record<string, string> = {
   ...RECT_LIGHT_ATLAS_SHADERS,
   ...TOON_SHADERS,
   ...HIT_LIGHTING_SHADERS,
+  ...SKY_LIGHT_TRACED_SHADERS,
   ...SAMPLED_LIGHTS_SHADERS,
   ...SCREEN_SPACE_TRACING_SHADERS,
   BLEND_EXPAND_SHADER,

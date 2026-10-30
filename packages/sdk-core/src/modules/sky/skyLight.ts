@@ -2,6 +2,7 @@ import { DEG2RAD, HALF_MAX } from '../../../../math/src/constants.ts'
 import { nextPow2 } from '../../../../math/src/scalar/integers.ts'
 import { clamp } from '../../../../math/src/scalar/reals.ts'
 import { fieldsOf, refusal } from '../../contracts/nameMatch.ts'
+import { CAST_RAY_TRACED_SHADOW_CHOICES } from '../../contracts/rayTracedShadowOptions.ts'
 import { LIGHT_MOBILITY } from '../../scene/light/contracts.ts'
 import {
   ANY_NUMBER as ANY,
@@ -75,11 +76,13 @@ const OCCLUSION_COMBINES = ['minimum', 'multiply'] as const
  *   the factor on its 512 texels a side, `strength` how much light it blocks, `apertureScale` the
  *   cone, from the vertical, its hemisphere filter takes in (0 one direction, sharp, 1 the whole
  *   hemisphere, blurry) (`./cloudSkyOcclusion.ts` reads them);
- * - `affectsWorld`, `castShadows`, `castVolumetricShadow` (all true): the light's switches.
+ * - `affectsWorld`, `castShadows`, `castVolumetricShadow` (all true): the light's switches;
+ * - `castRayTracedShadow` (`'useProjectSetting'`), `samplesPerPixel` (4) and `transmission` (false): what the ray-traced sky light reads
+ *   (`../../contracts/rayTracedSkyLightOptions.ts`): whether the light is lit by rays, the rays a pixel casts (never fewer than 2) and whether its
+ *   diffuse light goes through surfaces that let it (movable and casting shadows).
  *
  * Three of the component's settings are not here because nothing of this engine reads them: the
- * indirect lighting intensity and the samples per pixel are read by ray-traced and path-traced
- * lighting alone, the switches of whether the light affects the reflections and the global
+ * indirect lighting intensity is read by ray-traced and path-traced lighting alone, the switches of whether the light affects the reflections and the global
  * illumination by the ray-traced reflections alone (and the second by nothing at all).
  */
 export const SKY_LIGHT_RULES = /* @__PURE__ */ (() =>
@@ -111,6 +114,9 @@ export const SKY_LIGHT_RULES = /* @__PURE__ */ (() =>
     flag('affectsWorld', true),
     flag('castShadows', true),
     flag('castVolumetricShadow', true),
+    choice('castRayTracedShadow', 'useProjectSetting', CAST_RAY_TRACED_SHADOW_CHOICES),
+    integer('samplesPerPixel', 4, atLeast(1)),
+    flag('transmission', false),
   ] as const))()
 
 /** The light's settings as resolved. */

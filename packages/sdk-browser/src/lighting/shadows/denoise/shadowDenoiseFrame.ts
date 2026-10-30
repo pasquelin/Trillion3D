@@ -51,6 +51,7 @@ import { SHADOW_DENOISE_BINDINGS as SD, type DenoiseSignalKind } from './shadowD
 import { occlusionStagesOf } from './occlusionDenoiseStages.ts'
 import { shadowFinalWgsl, shadowInjestWgsl, shadowSpatialWgsl } from './shadowDenoiseSpatialWgsl.ts'
 import { shadowTemporalWgsl } from './shadowDenoiseTemporalWgsl.ts'
+import { DIFFUSE_WEIGHT_FORMAT, diffuseStagesOf } from './diffuseDenoiseStages.ts'
 import {
   beginCamera,
   cameraSeen,
@@ -67,6 +68,8 @@ export interface ShadowDenoiseJob {
   rect?: SelfShadowRect
   visibility: GPUTextureView
   hits: GPUTextureView
+  /** Where the denoised signal goes where it is not back into `visibility`: the diffuse signal's mean colour (its inputs, the rays' light and distances, are `visibility` and `hits`, one texel for several pixels). */
+  result?: GPUTextureView
   sun?: { mask: GPUTextureView; slot: number }
 }
 
@@ -79,6 +82,9 @@ export interface DenoiseSettings {
   temporalAccumulation: boolean
   historyConvolutionSamples: number
   historyConvolutionSpread: number
+  /** The diffuse signal's: the whole division of the image its rays were cast at (the texels of its inputs are that many pixels a side), and the image's turn in a cell (which of its pixels the rays were cast from). */
+  upscale?: number
+  turn?: number
 }
 
 const HISTORY_FORMAT = 'rgba16float'
@@ -86,8 +92,14 @@ const SIDE = SCREEN_SPACE_GROUP_SIDE
 /** The spread of the first pre-convolution of the shadows, in pixels (the reference's default), and of their convolution of the history. */
 const SHADOW_KERNEL_SPREAD = 8
 const SHADOW_HISTORY_SPREAD = 1
-/** The key of the occlusion's history among the lights'. */
+/** The key of the occlusion's history among the lights', and of the diffuse signal's. */
 const OCCLUSION_KEY = 'ambientOcclusion'
+const DIFFUSE_KEY = 'skyLightDiffuse'
+/** The key of the history each signal other than the lights' shadow keeps. */
+const SIGNAL_KEYS = { occlusion: OCCLUSION_KEY, diffuse: DIFFUSE_KEY } as const
+/** Whether the history or bind groups under `key` belong to `signal`: the shadows' are every light's, the others' each one key. */
+const ownedBy = (signal: DenoiseSignalKind, key: string | number) =>
+  signal === 'shadow' ? key !== OCCLUSION_KEY && key !== DIFFUSE_KEY : key === SIGNAL_KEYS[signal]
 
 /** The passes' stages and layouts, once a device. */
 const stagesOf = oncePerDevice((device: GPUDevice) => {
@@ -170,6 +182,8 @@ type LightCache = Runs & { used: number }
 interface Texel {
   texture: GPUTexture
   view: GPUTextureView
+  /** The diffuse signal's second texture, the weight of its sample, made where that signal runs. */
+  weight?: { texture: GPUTexture; view: GPUTextureView }
 }
 export type History = {
   pair: [Texel, Texel]
@@ -221,15 +235,46 @@ const states = new WeakMap<object, State>()
 /** The words a parameter buffer is written from (copied by the queue at the write). */
 const paramWords = new Float32Array(DENOISE_PARAMS_WORDS)
 
-const texel = (device: GPUDevice, label: string, size: readonly [number, number]): Texel => {
+const storageTexture = (
+  device: GPUDevice,
+  label: string,
+  size: readonly [number, number],
+  format: GPUTextureFormat,
+) => {
   const texture = device.createTexture({
     label,
     size: [size[0], size[1]],
-    format: HISTORY_FORMAT,
+    format,
     usage: loadOnlyUsage() | GPUTextureUsage.STORAGE_BINDING,
   })
   return { texture, view: texture.createView() }
 }
+
+/** A texel of the signal's work or history, with the weight texture the diffuse signal adds to it where `weighed`. */
+const texel = (
+  device: GPUDevice,
+  label: string,
+  size: readonly [number, number],
+  weighed = false,
+): Texel => ({
+  ...storageTexture(device, label, size, HISTORY_FORMAT),
+  ...(weighed && {
+    weight: storageTexture(device, `${label} weight`, size, DIFFUSE_WEIGHT_FORMAT),
+  }),
+})
+
+/** The textures a texel holds. */
+const texturesOf = (held: Texel) =>
+  held.weight ? [held.texture, held.weight.texture] : [held.texture]
+
+/** The weight texture of a work texel for the diffuse signal, made where it has none. */
+const weightOf = (device: GPUDevice, held: Texel, size: readonly [number, number]) =>
+  (held.weight ??= storageTexture(
+    device,
+    'Trillion3D shadow denoise work weight',
+    size,
+    DIFFUSE_WEIGHT_FORMAT,
+  ))
 
 /** The state of a view at the size its targets are allocated at, made again where that changed (the old one retired). */
 function stateFor(gpu: WebgpuPagesRuntime['gpu'], device: GPUDevice): State {
@@ -322,10 +367,10 @@ function releaseDenoiseState(gpu: { viewKey?: object }, replaced = false) {
   if (!old) return
   states.delete(viewKey(gpu))
   const textures = [
-    ...old.work.map((w) => w.texture),
+    ...old.work.flatMap(texturesOf),
     ...(old.rejection ? [old.rejection.texture] : []),
     old.blank.texture,
-    ...[...old.histories.values()].flatMap((h) => h.pair.map((p) => p.texture)),
+    ...[...old.histories.values()].flatMap((h) => h.pair.flatMap(texturesOf)),
   ]
   retire(
     old.device,
@@ -352,13 +397,15 @@ export function trimShadowDenoise(gpu: { viewKey?: object }, frame: number) {
   const state = states.get(viewKey(gpu))
   if (!state) return
   for (const [key, held] of state.histories)
-    if (key !== OCCLUSION_KEY && idleTooLong(frame, held.used)) {
+    if (ownedBy('shadow', key) && idleTooLong(frame, held.used)) {
       state.histories.delete(key)
-      retire(state.device, { destroy: () => held.pair.forEach((p) => p.texture.destroy()) })
+      retire(state.device, {
+        destroy: () => held.pair.flatMap(texturesOf).forEach((t) => t.destroy()),
+      })
     }
   // The bind groups of a light unseen as long go with it (they are made again where a pass needs them).
   for (const [key, light] of state.lights)
-    if (key !== OCCLUSION_KEY && idleTooLong(frame, light.used)) {
+    if (ownedBy('shadow', key) && idleTooLong(frame, light.used)) {
       light.uniforms.release(state.device)
       state.lights.delete(key)
     }
@@ -413,14 +460,15 @@ function historyFor(
   key: string | number,
   size: readonly [number, number],
   rect: SelfShadowRect,
+  weighed: boolean,
 ) {
   let held = state.histories.get(key)
   if (!held) {
     held = {
       rect,
       pair: [
-        texel(device, 'Trillion3D shadow denoise history 0', size),
-        texel(device, 'Trillion3D shadow denoise history 1', size),
+        texel(device, 'Trillion3D shadow denoise history 0', size, weighed),
+        texel(device, 'Trillion3D shadow denoise history 1', size, weighed),
       ],
       turn: 0,
       last: -2,
@@ -441,12 +489,17 @@ const occlusionPipelinesOf = oncePerDevice((device: GPUDevice) => [
   ...Object.values(occlusionStagesOf(device)).map((stage) => stage.pipeline),
   denoiseKeepPipeline(device),
 ])
+/** The same for the diffuse signal's. */
+const diffusePipelinesOf = oncePerDevice((device: GPUDevice) => [
+  ...Object.values(diffuseStagesOf(device)).map((stage) => stage.pipeline),
+  denoiseKeepPipeline(device),
+])
 
 /** What the denoiser needs of the view this image, nothing made: the device, the light buffer (the shadows only), and the frame's inputs held (`screenSpaceFrameReady`). The one place the readiness is decided. */
 function held(rt: WebgpuPagesRuntime, signal: DenoiseSignalKind) {
   const { device } = rt.gpu
   if (!device || !screenSpaceFrameReady(rt)) return undefined
-  if (signal === 'occlusion') return { device, lights: undefined }
+  if (signal !== 'shadow') return { device, lights: undefined }
   const lights = rt.lights.buffer
   return lights ? { device, lights } : undefined
 }
@@ -472,6 +525,12 @@ export const shadowDenoiseReady = (rt: WebgpuPagesRuntime) => {
 export const occlusionDenoiseReady = (rt: WebgpuPagesRuntime) => {
   const ready = held(rt, 'occlusion')
   return !!ready && chainReady(...occlusionPipelinesOf(ready.device))
+}
+
+/** The same for the diffuse signal's denoiser (`encodeDiffuseDenoise`). */
+export const diffuseDenoiseReady = (rt: WebgpuPagesRuntime) => {
+  const ready = held(rt, 'diffuse')
+  return !!ready && chainReady(...diffusePipelinesOf(ready.device))
 }
 
 /**
@@ -521,6 +580,35 @@ export function encodeOcclusionDenoise(
   ])
 }
 
+/**
+ * THE DIFFUSE DENOISER of the ray-traced sky light (`light`, the texture the trace wrote: the diffuse light with the share of the rays that hit; `hits`, the distance of the hits with the rays a pixel;
+ * both one texel for `settings.upscale` pixels a side), into `result` (the mean colour at the full resolution): the shadow denoiser's frame run on the diffuse signal (`diffuseDenoiseWgsl.ts`), whose
+ * sample is a colour with a weight in two textures, the reconstruction reading the rays' grid, a rank of pre-convolutions, the accumulation in time bounded by the neighbourhood's colours, the optional
+ * convolution of the history. The caller has asked `diffuseDenoiseReady` for the image.
+ */
+export function encodeDiffuseDenoise(
+  rt: WebgpuPagesRuntime,
+  encoder: GPUCommandEncoder,
+  cam: EngineCamera,
+  settings: DenoiseSettings,
+  inputs: { light: GPUTextureView; hits: GPUTextureView; result: GPUTextureView },
+) {
+  encodeDenoise(rt, encoder, cam, 'diffuse', settings, [
+    {
+      key: DIFFUSE_KEY,
+      rank: 0,
+      visibility: inputs.light,
+      hits: inputs.hits,
+      result: inputs.result,
+    },
+  ])
+}
+
+/** The diffuse signal's history, weight textures and bind groups let go (the image lights the sky another way, or draws the rays' light raw); the others stand. */
+export function releaseDiffuseDenoise(gpu: { viewKey?: object }) {
+  releaseSignal(gpu, 'diffuse')
+}
+
 /** The occlusion's history and bind groups let go (the image draws the occlusion another way, or none); the shadows' stand. */
 export function releaseOcclusionDenoise(gpu: { viewKey?: object }) {
   releaseSignal(gpu, 'occlusion')
@@ -531,29 +619,50 @@ export function releaseShadowSignal(gpu: { viewKey?: object }) {
   releaseSignal(gpu, 'shadow')
 }
 
-/** One owner a signal: it lets go of its own histories and bind groups (the occlusion's key, or every other) and, for the occlusion, its rejection texture; the textures the signals share go with the last active of them, never with one while another still runs. */
+/** One owner a signal: it lets go of its own histories and bind groups (the occlusion's key, the diffuse signal's, or every other) and, for the occlusion, its rejection texture, for the diffuse signal, the weight textures of the work; the textures the signals share go with the last active of them, never with one while another still runs. */
 function releaseSignal(gpu: { viewKey?: object }, signal: DenoiseSignalKind) {
   const state = states.get(viewKey(gpu))
   if (!state) return
-  const owns = (key: string | number) => (key === OCCLUSION_KEY) === (signal === 'occlusion')
   state.active.delete(signal)
   if (signal === 'occlusion' && state.rejection) {
     const { texture } = state.rejection
     state.rejection = undefined
     retire(state.device, { destroy: () => texture.destroy() })
   }
+  if (signal === 'diffuse') {
+    for (const work of state.work) {
+      const weight = work.weight
+      work.weight = undefined
+      if (weight) retire(state.device, { destroy: () => weight.texture.destroy() })
+    }
+  }
   for (const [key, held] of state.histories)
-    if (owns(key)) {
+    if (ownedBy(signal, key)) {
       state.histories.delete(key)
-      retire(state.device, { destroy: () => held.pair.forEach((p) => p.texture.destroy()) })
+      retire(state.device, {
+        destroy: () => held.pair.flatMap(texturesOf).forEach((t) => t.destroy()),
+      })
     }
   for (const [key, light] of state.lights)
-    if (owns(key)) {
+    if (ownedBy(signal, key)) {
       light.uniforms.release(state.device)
       state.lights.delete(key)
     }
   if (!state.active.size) releaseShadowDenoise(gpu)
 }
+
+/** The passes of a signal, the ones every signal has and the injestion that only the lights' and the occlusion's have. */
+interface DenoiseStages {
+  injest?: ReturnType<typeof stagesOf>['injest']
+  reconstruct: ReturnType<typeof stagesOf>['reconstruct']
+  web: ReturnType<typeof stagesOf>['web']
+  temporal: ReturnType<typeof stagesOf>['temporal']
+  postFilter: ReturnType<typeof stagesOf>['postFilter']
+  final: ReturnType<typeof stagesOf>['final']
+}
+
+/** How much brighter this image's pre-exposure is than the image before's (1 where either is nothing): the factor the history's colour is brought to this image's exposure by. */
+const exposureChange = (now: number, before: number) => (now > 0 && before > 0 ? now / before : 1)
 
 /** The passes of `signal` over `jobs`, one after the other. */
 function encodeDenoise(
@@ -569,10 +678,12 @@ function encodeDenoise(
   if (!prepared) return
   const { device, state, image, inputs, lights } = prepared
   state.active.add(signal)
-  const occlusion = signal === 'occlusion'
+  const diffuse = signal === 'diffuse'
   const target = rt.gpu.targetSize
-  const shadowStages = occlusion ? undefined : stagesOf(device)
-  const occlusionStages = occlusion ? occlusionStagesOf(device) : undefined
+  const shadowStages = signal === 'shadow' ? stagesOf(device) : undefined
+  const occlusionStages = signal === 'occlusion' ? occlusionStagesOf(device) : undefined
+  const diffuseStages = diffuse ? diffuseStagesOf(device) : undefined
+  if (diffuse) for (const work of state.work) weightOf(device, work, rt.gpu.allocatedSize)
   const whole = [0, 0, target[0], target[1]] as const
   // The history reprojects with the camera of the image the denoiser itself last ran in: none, or one that is not the image before or whose view was cut since, leaves nothing to reproject from.
   // The same for every call of the image (the sun passes and each local light run one after the other), but for a cut of the temporal histories between two of them.
@@ -592,12 +703,14 @@ function encodeDenoise(
     height: target[1],
     previousWidth: image.previous.size[0],
     previousHeight: image.previous.size[1],
-    ratio: 1,
+    ratio: settings.upscale ?? 1,
+    turn: settings.turn ?? 0,
     maxSamples: settings.reconstructionSamples,
     previousCumulative: 1,
     spread: 1,
     frame: noiseFrame(rt) % 8,
-    exposure: 1,
+    // The diffuse signal's history is in the exposure of the image before: it is brought to this image's.
+    exposure: diffuse ? exposureChange(preExposureOf(rt).now, image.previous.preExposure) : 1,
   }
   // The light being denoised and which of its two histories it reads this image: its bind groups are kept per pass and side.
   let cache!: LightCache
@@ -650,6 +763,16 @@ function encodeDenoise(
     pass.end()
   }
   const read = (binding: number, view: GPUTextureView) => ({ binding, resource: view })
+  // The entries that bind a texel of the work or the history: its colour texture and, for the diffuse signal, its weight texture beside it.
+  const reads = (first: number, second: number, held: Texel) => [
+    read(first, held.view),
+    ...(diffuse ? [read(second, held.weight!.view)] : []),
+  ]
+  const writes = (held: Texel) => [
+    { binding: B.out, resource: held.view },
+    ...(diffuse ? [{ binding: B.outSecond, resource: held.weight!.view }] : []),
+  ]
+  const stages: DenoiseStages = (shadowStages ?? occlusionStages ?? diffuseStages)!
   for (const job of jobs) {
     const accumulate = settings.temporalAccumulation
     rect = clampRect(job.rect ?? whole, target)
@@ -660,7 +783,7 @@ function encodeDenoise(
     cache.used = frame
     state.lights.set(job.key, cache)
     const history = accumulate
-      ? historyFor(device, state, job.key, rt.gpu.allocatedSize, rect)
+      ? historyFor(device, state, job.key, rt.gpu.allocatedSize, rect, diffuse)
       : undefined
     const pinned = history && readOf(history, frame)
     lastRect = pinned?.rect ?? rect
@@ -672,24 +795,30 @@ function encodeDenoise(
     let at = 0
     const other = () => 1 - at
     const light = { light: job.rank }
-    const stages = (shadowStages ?? occlusionStages)!
-    run(
-      stages.injest,
-      'injest',
-      light,
-      [
-        read(D.sourceA, job.visibility),
-        read(D.sourceB, job.hits),
-        { binding: B.out, resource: state.work[0].view },
-      ],
-      true,
-      color,
-    )
+    // The shadow's and the occlusion's signal first become samples (injestion); the diffuse signal's reconstruction reads the trace's own textures.
+    if (stages.injest)
+      run(
+        stages.injest,
+        'injest',
+        light,
+        [
+          read(D.sourceA, job.visibility),
+          read(D.sourceB, job.hits),
+          { binding: B.out, resource: state.work[0].view },
+        ],
+        true,
+        color,
+      )
     run(
       stages.reconstruct,
       'reconstruction',
       { ...light, spread: 1 },
-      [read(D.sourceA, state.work[0].view), { binding: B.out, resource: state.work[1].view }],
+      [
+        ...(diffuse
+          ? [read(D.sourceA, job.visibility), read(D.sourceB, job.hits)]
+          : reads(D.sourceA, D.sourceB, state.work[0])),
+        ...writes(state.work[1]),
+      ],
       true,
       color,
     )
@@ -699,19 +828,16 @@ function encodeDenoise(
         stages.web,
         `pre-convolution ${p}`,
         { ...light, spread: settings.kernelSpread * (1 << p) },
-        [
-          read(D.sourceA, state.work[at].view),
-          { binding: B.out, resource: state.work[other()].view },
-        ],
+        [...reads(D.sourceA, D.sourceB, state.work[at]!), ...writes(state.work[other()]!)],
         true,
         color,
       )
       at = other()
     }
-    let result = state.work[at].view
+    let result = state.work[at]!
     // The temporal pass bounds the history with the moments of the neighbourhood the occlusion's rejection pre-convolution made of the pre-convolved samples.
     let rejection: GPUTextureView | undefined
-    if (occlusion && history) {
+    if (signal === 'occlusion' && history) {
       const kept = (state.rejection ??= texel(
         device,
         'Trillion3D occlusion denoise rejection',
@@ -721,7 +847,7 @@ function encodeDenoise(
         occlusionStages!.rejection,
         'rejection pre-convolution',
         light,
-        [read(D.sourceA, result), { binding: B.out, resource: kept.view }],
+        [read(D.sourceA, result.view), { binding: B.out, resource: kept.view }],
         true,
         color,
       )
@@ -730,27 +856,27 @@ function encodeDenoise(
     const convolve = settings.historyConvolutionSamples > 1
     if (history) {
       const read0 = history.pair[turn % 2]!
-      const write = convolve ? state.work[other()] : history.pair[(turn + 1) % 2]!
+      const write = convolve ? state.work[other()]! : history.pair[(turn + 1) % 2]!
       const slot = previousSlot(state.meta, frame)
       run(
         stages.temporal,
         'temporal',
         { ...light, cut: fresh },
         [
-          read(D.sourceA, result),
+          ...reads(D.sourceA, D.sourceB, result),
           ...(rejection ? [read(D.sourceB, rejection)] : []),
-          read(D.historyA, read0.view),
+          ...reads(D.historyA, D.historyB, read0),
           read(D.prevDepth, state.meta.depthViews[slot]!),
           read(D.prevNormals, state.meta.normalViews[slot]!),
-          { binding: B.out, resource: write.view },
+          ...writes(write),
         ],
         true,
         color,
       )
-      result = write.view
+      result = write
     }
     if (convolve) {
-      const write = history ? history.pair[(turn + 1) % 2]! : state.work[other()]
+      const write = history ? history.pair[(turn + 1) % 2]! : state.work[other()]!
       run(
         stages.postFilter,
         'history convolution',
@@ -759,11 +885,11 @@ function encodeDenoise(
           maxSamples: settings.historyConvolutionSamples,
           spread: settings.historyConvolutionSpread,
         },
-        [read(D.sourceA, result), { binding: B.out, resource: write.view }],
+        [...reads(D.sourceA, D.sourceB, result), ...writes(write)],
         true,
         color,
       )
-      result = write.view
+      result = write
     }
     if (history) stage(state, encoder, history, frame, rect)
     if (job.sun)
@@ -771,7 +897,7 @@ function encodeDenoise(
         shadowStages!.finalSun,
         'sun output',
         { slot: job.sun.slot },
-        [read(D.sourceA, result), { binding: B.out, resource: job.sun.mask }],
+        [read(D.sourceA, result.view), { binding: B.out, resource: job.sun.mask }],
         false,
         color,
       )
@@ -780,7 +906,10 @@ function encodeDenoise(
         stages.final,
         'output',
         {},
-        [read(D.sourceA, result), { binding: B.out, resource: job.visibility }],
+        [
+          ...reads(D.sourceA, D.sourceB, result),
+          { binding: B.out, resource: job.result ?? job.visibility },
+        ],
         false,
         color,
       )

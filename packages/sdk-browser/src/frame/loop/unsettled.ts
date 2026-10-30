@@ -2,6 +2,7 @@ import type { WebgpuPagesRuntime } from '../backend/runtime.ts'
 import { shadowsUnsettled } from '../backend/state/lights.ts'
 import { shadowsOn } from '../../lighting/shadows/vsm/frame/vsmGates.ts'
 import { ambientOcclusionSettling } from '../../lighting/ao/frame.ts'
+import { skyLightTracedSettling } from '../../lighting/skyLightTraced/skyLightTracedFrame.ts'
 import { screenProbesSettling } from '../../lighting/bounce/screen/frame.ts'
 import { reflectionsPending } from '../../lighting/reflections/gpu.ts'
 import { translucencyVolumeSettling } from '../../lighting/translucency/frame.ts'
@@ -126,6 +127,8 @@ function historyMask(rt: WebgpuPagesRuntime, frame: number | undefined) {
   if (screenProbesSettling(rt)) mask |= BIT.screenProbes
   // The horizon occlusion's history converges over the images it is drawn on (`ambientOcclusionSettling`).
   if (ambientOcclusionSettling(rt)) mask |= BIT.occlusion
+  // The traced sky light's denoised history converges over the images it is traced on (`skyLightTracedSettling`).
+  if (skyLightTracedSettling(rt)) mask |= BIT.occlusion
   return mask
 }
 /**

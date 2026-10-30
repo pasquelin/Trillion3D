@@ -8,6 +8,8 @@ import {
   ALLOCATE_PAGES_WGSL,
   FEEDBACK_WGSL,
   MARK_VALID_WGSL,
+  VOXEL_NAMES,
+  voxelBlockKey,
 } from './voxelWgsl.ts'
 
 test('the page index of the groups follows their order, and a group the index has no room for gets none', () => {
@@ -49,4 +51,21 @@ test('a segment steps by a voxel over one and a half, and its end that ends a st
 test('the opaque surface marks the voxels behind it by no more than the mark count', () => {
   assert.match(VOXEL_INJECT_WGSL, /abs\(closest-voxelDepth\)<f32\(inject\.y\)\*node\.size/)
   assert.match(VOXEL_INJECT_WGSL, /atomicOr\(&voxels\[voxelAt\(page,offset\)\]/)
+})
+
+test('a block is keyed by all four names it declares, the plain key for the default set', () => {
+  assert.equal(voxelBlockKey('BLOCK', VOXEL_NAMES), 'BLOCK')
+  const own = { ...VOXEL_NAMES, params: 'skyParams' }
+  assert.notEqual(
+    voxelBlockKey('BLOCK', own),
+    voxelBlockKey('BLOCK', { ...own, nodes: 'skyNodes' }),
+  )
+  assert.notEqual(
+    voxelBlockKey('BLOCK', own),
+    voxelBlockKey('BLOCK', { ...own, pageIndex: 'skyPageIndex' }),
+  )
+  assert.notEqual(
+    voxelBlockKey('BLOCK', own),
+    voxelBlockKey('BLOCK', { ...own, voxels: 'skyVoxels' }),
+  )
 })

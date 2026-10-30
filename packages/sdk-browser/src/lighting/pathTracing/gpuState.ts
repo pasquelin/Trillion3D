@@ -16,11 +16,9 @@ import {
   PT_DEPTH_FORMAT,
   PT_GRID_FORMAT,
   PT_RADIANCE_FORMAT,
-  PT_SKY_PDF_FORMAT,
-  PT_SKY_TEXTURE_FORMAT,
   PT_VARIANCE_FORMAT,
 } from './pipelines.ts'
-import { skyTableMips } from './skyWgsl.ts'
+import { createSkyTable, skyTableBytes, type SkyTable } from '../skyTable/skyTable.ts'
 import { queueWords } from './queueWgsl.ts'
 import { PT_STEPS, PT_VIEW_STRIDE } from './viewWgsl.ts'
 
@@ -92,7 +90,7 @@ export function pathTracingBytes(
   const gridCells = gridResolution * gridResolution
   const lists =
     Math.max(1, ceilDiv(gridCapacity * 3 * gridCells, PT_GRID_DATA_WIDTH)) * PT_GRID_DATA_WIDTH * 4
-  const sky = skySize * skySize * (16 + 4) + (skySize * skySize * 4) / 3
+  const sky = skyTableBytes(skySize)
   return Math.ceil(
     images +
       paths * (PT_STATE_BYTES + PT_HIT_BYTES + PT_HIT_MATERIAL_BYTES) +
@@ -125,14 +123,11 @@ export class PathTracingGpu {
   readonly gridParams: GPUBuffer
   readonly grid: GPUTexture
   readonly gridData: GPUTexture
-  readonly skyTexture: GPUTexture
   /** The views the finish of a bounce binds, made once so that its groups are. */
   readonly gridView: GPUTextureView
   readonly gridDataView: GPUTextureView
-  readonly skyView: GPUTextureView
-  readonly skyPdfView: GPUTextureView
-  readonly skyPdf: GPUTexture
-  readonly skyBuild: GPUBuffer
+  /** The sky's sampling table, shared with the other passes that draw directions from the sky (`../skyTable/`), and its views the finish of a bounce binds. */
+  readonly sky: SkyTable
   /** The traced atmosphere's block with its options (`PtAtmo`), and the table of its optical depth (one texel while the air is not held; a view of the payload keeps it whole) with the key it was made for. */
   readonly atmosphere: GPUBuffer
   readonly airDepth: GPUTexture
@@ -169,9 +164,6 @@ export class PathTracingGpu {
   readonly gridResolution: number
   readonly lightCapacity: number
   readonly gridCapacity: number
-  /** The side of the sky's sampling table and its levels (`skyTableSize`). */
-  readonly skySize: number
-  readonly skyMips: number
   /** The side the air's table was made at: 0 while the air is not held (the table is then one texel, outside the budget's count). */
   readonly airSide: number
 
@@ -195,9 +187,7 @@ export class PathTracingGpu {
     this.gridResolution = gridResolution
     this.lightCapacity = lightCapacity
     this.gridCapacity = gridCapacity
-    this.skySize = skySize
     this.airSide = airSide
-    this.skyMips = skyTableMips(skySize)
     const [width, height] = size
     const levels = varianceLevels(size)
     const texture = (label: string, format: GPUTextureFormat, mips = 1, w = width, h = height) => {
@@ -275,17 +265,10 @@ export class PathTracingGpu {
       ceilDiv(gridCapacity * 3 * gridResolution * gridResolution, PT_GRID_DATA_WIDTH),
     )
     this.gridData = texture('light grid lists', PT_GRID_FORMAT, 1, PT_GRID_DATA_WIDTH, rows)
-    this.skyTexture = texture('sky', PT_SKY_TEXTURE_FORMAT, 1, skySize, skySize)
-    this.skyPdf = texture('sky density', PT_SKY_PDF_FORMAT, this.skyMips, skySize, skySize)
+    this.sky = createSkyTable(device, skySize, 'Trillion3D path tracer')
+    this.made.push(this.sky)
     this.gridView = this.grid.createView({ dimension: '2d-array' })
     this.gridDataView = this.gridData.createView()
-    this.skyView = this.skyTexture.createView()
-    this.skyPdfView = this.skyPdf.createView()
-    this.skyBuild = buffer(
-      'sky table parameters',
-      256 * (this.skyMips + 1),
-      GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST,
-    )
     this.atmosphere = buffer(
       'atmosphere',
       PT_AIR_BYTES,

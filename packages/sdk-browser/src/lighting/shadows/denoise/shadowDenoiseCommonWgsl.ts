@@ -15,8 +15,10 @@ export const SHADOW_HIT_MISS = -1
 /** The farthest radius a sample blurs by when its rays all arrived, in metres (a hundred thousand centimetres). */
 const SHADOW_RADIUS_MISS = 1000
 
-/** The signal a denoiser run filters: a light's ray-traced shadow, or the ray-traced ambient occlusion. */
-export type DenoiseSignalKind = 'shadow' | 'occlusion'
+/** The signals whose sample is a share of rays that arrived (a light's ray-traced shadow, the ray-traced ambient occlusion): they share the passes of `shadowSpatialWgsl`. */
+export type ScalarSignalKind = 'shadow' | 'occlusion'
+/** The signal a denoiser run filters: one of those, or the diffuse light of the ray-traced sky (`diffuseDenoiseWgsl.ts`, whose passes are its own over the occlusion's surface parts). */
+export type DenoiseSignalKind = ScalarSignalKind | 'diffuse'
 
 /**
  * THE PARTS EVERY SIGNAL SHARES: the sample a texel holds, the surface of a pixel of this image or of the one before, and the accumulator of a kernel in descending ring order.
@@ -193,4 +195,4 @@ const COMMONS = {
   occlusion: OCCLUSION_DENOISE_COMMON_WGSL,
 } as const
 /** The shared parts of the passes of `signal`. */
-export const denoiseCommonOf = (signal: DenoiseSignalKind) => COMMONS[signal]
+export const denoiseCommonOf = (signal: ScalarSignalKind) => COMMONS[signal]

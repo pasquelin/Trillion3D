@@ -113,8 +113,8 @@ export function createPathTracingGroups() {
         gpu.gridParams,
         gpu.gridView,
         gpu.gridDataView,
-        gpu.skyView,
-        gpu.skyPdfView,
+        gpu.sky.radianceView,
+        gpu.sky.pdfView,
         gpu.atmosphere,
         gpu.airDepthView,
         ...dag,
@@ -126,8 +126,8 @@ export function createPathTracingGroups() {
         { binding: B.gridParams, resource: { buffer: gpu.gridParams } },
         { binding: B.grid, resource: gpu.gridView },
         { binding: B.gridData, resource: gpu.gridDataView },
-        { binding: B.skyTexture, resource: gpu.skyView },
-        { binding: B.skyPdf, resource: gpu.skyPdfView },
+        { binding: B.skyTexture, resource: gpu.sky.radianceView },
+        { binding: B.skyPdf, resource: gpu.sky.pdfView },
       ],
     )
     const finish1 = caches.finish1(

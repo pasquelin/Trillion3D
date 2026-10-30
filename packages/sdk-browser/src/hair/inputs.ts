@@ -50,6 +50,9 @@ export interface HairVoxelSettings {
   readonly steppingScaleEnvironment: number
   readonly depthBiasScaleEnvironment: number
   readonly densityScaleEnvironment: number
+  /** What the rays traced through the scene's triangles read (`hairVoxelDensityScaleRaytracing`, `hairVoxelSteppingScaleRaytracing`). */
+  readonly densityScaleRaytracing: number
+  readonly steppingScaleRaytracing: number
   /** What the shadow the strands cast on the surfaces reads of the volume (`hairVoxelDensityScaleShadow`, `hairVoxelDepthBiasScaleShadow`, `hairVoxelSteppingScaleShadow`). */
   readonly densityScaleShadow: number
   readonly depthBiasScaleShadow: number

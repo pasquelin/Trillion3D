@@ -182,6 +182,28 @@ const RAY_TRACED_SHADOW_DEFAULTS = {
   rayTracedShadowsDenoiserHistoryConvolutionSamples: 1,
 }
 
+/** The view's ray-traced sky light settings at their defaults. */
+const RAY_TRACED_SKY_LIGHT_DEFAULTS = {
+  ...{ rayTracedSkyLight: false, rayTracedSkyLightAllowed: true },
+  ...{ rayTracedSkyLightSamplesPerPixel: -1, rayTracedSkyLightMaxRayDistance: 1.0e7 },
+  ...{ rayTracedSkyLightMaxShadowThickness: 1.0e3, rayTracedSkyLightDenoiser: true },
+  ...{
+    rayTracedSkyLightDenoiserReconstructionSamples: 16,
+    rayTracedSkyLightDenoiserPreConvolution: 1,
+  },
+  ...{
+    rayTracedSkyLightDenoiserHistoryConvolutionSamples: 1,
+    rayTracedSkyLightDenoiserHistoryConvolutionKernelSpreadFactor: 3,
+  },
+  ...{
+    rayTracedSkyLightDenoiserTemporalAccumulation: true,
+    rayTracedSkyLightTwoSidedGeometry: true,
+  },
+  ...{ rayTracedSkyLightMaterials: true, rayTracedSkyLightDecoupleSampleGeneration: true },
+  ...{ rayTracedSkyLightHairVoxel: true, rayTracedSkyLightHairOcclusionThreshold: 1 },
+  ...{ rayTracedSkyLightScreenPercentage: 100 },
+}
+
 test('the shadow settings read by their rules, a light’s own beside them', () => {
   assert.deepEqual(resolveSettings(SHADOW_RULES, {}), {
     ...{ shadowDistanceScale: 1, farShadowCulling: true },
@@ -190,6 +212,7 @@ test('the shadow settings read by their rules, a light’s own beside them', () 
     ...CONTACT_SHADOW_DEFAULTS,
     ...CAPSULE_SHADOW_DEFAULTS,
     ...RAY_TRACED_SHADOW_DEFAULTS,
+    ...RAY_TRACED_SKY_LIGHT_DEFAULTS,
     ...{
       shadowGeometryLodBias: 1,
       shadowOcclusionCulling: true,

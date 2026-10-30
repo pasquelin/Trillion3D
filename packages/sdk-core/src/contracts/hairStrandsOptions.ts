@@ -92,6 +92,8 @@ import {
  * The transmittance toward a light reads its own: `hairVoxelDensityScaleTransmittance` and
  * `hairVoxelSteppingScaleTransmittance` replace the density and the stepping where they are 0 or more,
  * `hairVoxelDepthBiasScaleTransmittance` moves the start of the ray toward the light, in voxels;
+ * the rays traced through the scene's triangles (the ray-traced sky light) read `hairVoxelDensityScaleRaytracing` and `hairVoxelSteppingScaleRaytracing`, which replace the density and
+ * the stepping where they are 0 or more (below 0, the default -1, the global scales stand; the stepping held to 1 to 10);
  * `hairTransmittanceSuperSampling` takes eight rays a sample, `hairTransmittanceMipTraversal` marches
  * through the levels of the pages. A light that casts hair deep shadows (`castHairDeepShadow`, off) is
  * drawn into an atlas of `hairDeepShadowResolution` texels a side (tiles of `hairDeepShadowMinResolution`
@@ -220,6 +222,8 @@ const volumeRules = () =>
     nonNegative('hairVoxelDepthBiasScaleTransmittance', 3),
     number('hairVoxelSteppingScaleTransmittance', -1, ANY_NUMBER),
     number('hairVoxelDensityScaleAO', -1, ANY_NUMBER),
+    number('hairVoxelDensityScaleRaytracing', -1, ANY_NUMBER),
+    number('hairVoxelSteppingScaleRaytracing', -1, ANY_NUMBER),
     nonNegative('hairVoxelDepthBiasScaleEnvironment', 1.8),
     number('hairVoxelSteppingScaleEnvironment', -1, ANY_NUMBER),
     choice('hairEnvironmentIntegration', 'sh', ENVIRONMENT_INTEGRATIONS),
